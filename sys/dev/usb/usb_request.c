@@ -26,9 +26,29 @@
  * SUCH DAMAGE.
  */ 
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbhid.h>
 
@@ -68,7 +88,7 @@ SYSCTL_INT(_hw_usb, OID_AUTO, ss_delay, CTLFLAG_RW,
  * transfers.
  *------------------------------------------------------------------------*/
 void
-usbd_do_request_callback(struct usb_xfer *xfer)
+usbd_do_request_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	;				/* workaround for a bug in "indent" */
 
@@ -90,7 +110,7 @@ usbd_do_request_callback(struct usb_xfer *xfer)
  * This function is the USB callback for generic clear stall requests.
  *------------------------------------------------------------------------*/
 void
-usb_do_clear_stall_callback(struct usb_xfer *xfer)
+usb_do_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct usb_device_request req;
 	struct usb_device *udev;
@@ -147,7 +167,7 @@ tr_setup:
 			usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
 
 			/* set length */
-			xfer->frlengths[0] = sizeof(req);
+			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
 			xfer->nframes = 1;
 			USB_BUS_UNLOCK(udev->bus);
 
@@ -382,15 +402,15 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 
 	usbd_copy_in(xfer->frbuffers, 0, req, sizeof(*req));
 
-	xfer->frlengths[0] = sizeof(*req);
+	usbd_xfer_set_frame_len(xfer, 0, sizeof(*req));
 	xfer->nframes = 2;
 
 	while (1) {
 		temp = length;
 		if (temp > xfer->max_data_length) {
-			temp = xfer->max_data_length;
+			temp = usbd_xfer_max_len(xfer);
 		}
-		xfer->frlengths[1] = temp;
+		usbd_xfer_set_frame_len(xfer, 1, temp);
 
 		if (temp > 0) {
 			if (!(req->bmRequestType & UT_READ)) {
@@ -482,7 +502,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 		 * Clear "frlengths[0]" so that we don't send the setup
 		 * packet again:
 		 */
-		xfer->frlengths[0] = 0;
+		usbd_xfer_set_frame_len(xfer, 0, 0);
 
 		/* update length and data pointer */
 		length -= temp;

@@ -48,22 +48,33 @@ __FBSDID("$FreeBSD$");
 #include "opt_kbd.h"
 #include "opt_ukbd.h"
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbhid.h>
 
 #define	USB_DEBUG_VAR ukbd_debug
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_util.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_transfer.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_dynamic.h>
-#include <dev/usb/usb_hid.h>
 
 #include <dev/usb/quirk/usb_quirk.h>
 
@@ -304,7 +315,7 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 
 		while (sc->sc_inputs == 0) {
 
-			usbd_do_poll(sc->sc_xfer, UKBD_N_TRANSFER);
+			usbd_transfer_poll(sc->sc_xfer, UKBD_N_TRANSFER);
 
 			DELAY(1000);	/* delay 1 ms */
 
@@ -480,15 +491,19 @@ ukbd_apple_swap(uint8_t keycode) {
 }
 
 static void
-ukbd_intr_callback(struct usb_xfer *xfer)
+ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ukbd_softc *sc = xfer->priv_sc;
-	uint16_t len = xfer->actlen;
+	struct ukbd_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint8_t i;
 	uint8_t offset;
 	uint8_t id;
 	uint8_t apple_fn;
 	uint8_t apple_eject;
+	int len;
+
+	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
+	pc = usbd_xfer_get_frame(xfer, 0);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -501,7 +516,7 @@ ukbd_intr_callback(struct usb_xfer *xfer)
 
 		if (sc->sc_kbd_id != 0) {
 			/* check and remove HID ID byte */
-			usbd_copy_out(xfer->frbuffers, 0, &id, 1);
+			usbd_copy_out(pc, 0, &id, 1);
 			if (id != sc->sc_kbd_id) {
 				DPRINTF("wrong HID ID\n");
 				goto tr_setup;
@@ -518,8 +533,7 @@ ukbd_intr_callback(struct usb_xfer *xfer)
 
 		if (len) {
 			memset(&sc->sc_ndata, 0, sizeof(sc->sc_ndata));
-			usbd_copy_out(xfer->frbuffers, offset, 
-			    &sc->sc_ndata, len);
+			usbd_copy_out(pc, offset, &sc->sc_ndata, len);
 
 			if ((sc->sc_flags & UKBD_FLAG_APPLE_EJECT) &&
 			    hid_get_data((uint8_t *)&sc->sc_ndata,
@@ -567,7 +581,7 @@ ukbd_intr_callback(struct usb_xfer *xfer)
 	case USB_ST_SETUP:
 tr_setup:
 		if (sc->sc_inputs < UKBD_IN_BUF_FULL) {
-			xfer->frlengths[0] = xfer->max_data_length;
+			usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 			usbd_transfer_submit(xfer);
 		} else {
 			DPRINTF("input queue is full!\n");
@@ -575,11 +589,11 @@ tr_setup:
 		break;
 
 	default:			/* Error */
-		DPRINTF("error=%s\n", usbd_errstr(xfer->error));
+		DPRINTF("error=%s\n", usbd_errstr(error));
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		break;
@@ -587,11 +601,12 @@ tr_setup:
 }
 
 static void
-ukbd_set_leds_callback(struct usb_xfer *xfer)
+ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct usb_device_request req;
+	struct usb_page_cache *pc;
 	uint8_t buf[2];
-	struct ukbd_softc *sc = xfer->priv_sc;
+	struct ukbd_softc *sc = usbd_xfer_softc(xfer);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -617,18 +632,20 @@ ukbd_set_leds_callback(struct usb_xfer *xfer)
 				buf[1] = 0;
 			}
 
-			usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-			usbd_copy_in(xfer->frbuffers + 1, 0, buf, sizeof(buf));
+			pc = usbd_xfer_get_frame(xfer, 0);
+			usbd_copy_in(pc, 0, &req, sizeof(req));
+			pc = usbd_xfer_get_frame(xfer, 1);
+			usbd_copy_in(pc, 0, buf, sizeof(buf));
 
-			xfer->frlengths[0] = sizeof(req);
-			xfer->frlengths[1] = req.wLength[0];
-			xfer->nframes = 2;
+			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
+			usbd_xfer_set_frame_len(xfer, 1, req.wLength[0]);
+			usbd_xfer_set_frames(xfer, 2);
 			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
-		DPRINTFN(0, "error=%s\n", usbd_errstr(xfer->error));
+		DPRINTFN(0, "error=%s\n", usbd_errstr(error));
 		return;
 	}
 }

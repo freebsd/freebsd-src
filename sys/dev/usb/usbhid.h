@@ -173,4 +173,67 @@ struct usb_hid_descriptor {
 #define	HIO_VOLATILE	0x080
 #define	HIO_BUFBYTES	0x100
 
+#ifdef _KERNEL
+struct usb_config_descriptor;
+
+enum hid_kind {
+	hid_input, hid_output, hid_feature, hid_collection, hid_endcollection
+};
+
+struct hid_location {
+	uint32_t size;
+	uint32_t count;
+	uint32_t pos;
+};
+
+struct hid_item {
+	/* Global */
+	int32_t	_usage_page;
+	int32_t	logical_minimum;
+	int32_t	logical_maximum;
+	int32_t	physical_minimum;
+	int32_t	physical_maximum;
+	int32_t	unit_exponent;
+	int32_t	unit;
+	int32_t	report_ID;
+	/* Local */
+	int32_t	usage;
+	int32_t	usage_minimum;
+	int32_t	usage_maximum;
+	int32_t	designator_index;
+	int32_t	designator_minimum;
+	int32_t	designator_maximum;
+	int32_t	string_index;
+	int32_t	string_minimum;
+	int32_t	string_maximum;
+	int32_t	set_delimiter;
+	/* Misc */
+	int32_t	collection;
+	int	collevel;
+	enum hid_kind kind;
+	uint32_t flags;
+	/* Location */
+	struct hid_location loc;
+};
+
+/* prototypes from "usb_hid.c" */
+
+struct hid_data *hid_start_parse(const void *d, usb_size_t len, int kindset);
+void	hid_end_parse(struct hid_data *s);
+int	hid_get_item(struct hid_data *s, struct hid_item *h);
+int	hid_report_size(const void *buf, usb_size_t len, enum hid_kind k,
+	    uint8_t *id);
+int	hid_locate(const void *desc, usb_size_t size, uint32_t usage,
+	    enum hid_kind kind, uint8_t index, struct hid_location *loc,
+	    uint32_t *flags, uint8_t *id);
+uint32_t hid_get_data(const uint8_t *buf, usb_size_t len,
+	    struct hid_location *loc);
+int	hid_is_collection(const void *desc, usb_size_t size, uint32_t usage);
+struct usb_hid_descriptor *hid_get_descriptor_from_usb(
+	    struct usb_config_descriptor *cd,
+	    struct usb_interface_descriptor *id);
+usb_error_t usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
+	    void **descp, uint16_t *sizep, struct malloc_type *mem,
+	    uint8_t iface_index);
+#endif					/* _KERNEL */
 #endif					/* _USB_HID_H_ */

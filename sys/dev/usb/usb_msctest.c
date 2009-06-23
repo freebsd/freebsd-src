@@ -32,13 +32,32 @@
  * mass storage quirks for not supported SCSI commands!
  */
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #define	USB_DEBUG_VAR usb_debug
 
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_transfer.h>
@@ -48,10 +67,7 @@
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_util.h>
-#include <dev/usb/usb_lookup.h>
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>
 
 enum {
@@ -228,7 +244,7 @@ static void
 bbb_data_clear_stall_callback(struct usb_xfer *xfer,
     uint8_t next_xfer, uint8_t stall_xfer)
 {
-	struct bbb_transfer *sc = xfer->priv_sc;
+	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
 
 	if (usbd_clear_stall_callback(xfer, sc->xfer[stall_xfer])) {
 		switch (USB_GET_STATE(xfer)) {
@@ -244,9 +260,9 @@ bbb_data_clear_stall_callback(struct usb_xfer *xfer,
 }
 
 static void
-bbb_command_callback(struct usb_xfer *xfer)
+bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct bbb_transfer *sc = xfer->priv_sc;
+	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
 	uint32_t tag;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -270,9 +286,7 @@ bbb_command_callback(struct usb_xfer *xfer)
 			sc->cbw.bCDBLength = sizeof(sc->cbw.CBWCDB);
 			DPRINTFN(0, "Truncating long command!\n");
 		}
-		xfer->frlengths[0] = sizeof(sc->cbw);
-
-		usbd_set_frame_data(xfer, &sc->cbw, 0);
+		usbd_xfer_set_frame_data(xfer, 0, &sc->cbw, sizeof(sc->cbw));
 		usbd_transfer_submit(xfer);
 		break;
 
@@ -283,18 +297,21 @@ bbb_command_callback(struct usb_xfer *xfer)
 }
 
 static void
-bbb_data_read_callback(struct usb_xfer *xfer)
+bbb_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct bbb_transfer *sc = xfer->priv_sc;
-	usb_frlength_t max_bulk = xfer->max_data_length;
+	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
+	usb_frlength_t max_bulk = usbd_xfer_max_len(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		sc->data_rem -= xfer->actlen;
-		sc->data_ptr += xfer->actlen;
-		sc->actlen += xfer->actlen;
+		sc->data_rem -= actlen;
+		sc->data_ptr += actlen;
+		sc->actlen += actlen;
 
-		if (xfer->actlen < xfer->sumlen) {
+		if (actlen < sumlen) {
 			/* short transfer */
 			sc->data_rem = 0;
 		}
@@ -309,15 +326,13 @@ bbb_data_read_callback(struct usb_xfer *xfer)
 		if (max_bulk > sc->data_rem) {
 			max_bulk = sc->data_rem;
 		}
-		xfer->timeout = sc->data_timeout;
-		xfer->frlengths[0] = max_bulk;
-
-		usbd_set_frame_data(xfer, sc->data_ptr, 0);
+		usbd_xfer_set_timeout(xfer, sc->data_timeout);
+		usbd_xfer_set_frame_data(xfer, 0, sc->data_ptr, max_bulk);
 		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			bbb_done(sc, 1);
 		} else {
 			bbb_transfer_start(sc, ST_DATA_RD_CS);
@@ -327,25 +342,28 @@ bbb_data_read_callback(struct usb_xfer *xfer)
 }
 
 static void
-bbb_data_rd_cs_callback(struct usb_xfer *xfer)
+bbb_data_rd_cs_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	bbb_data_clear_stall_callback(xfer, ST_STATUS,
 	    ST_DATA_RD);
 }
 
 static void
-bbb_data_write_callback(struct usb_xfer *xfer)
+bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct bbb_transfer *sc = xfer->priv_sc;
-	usb_frlength_t max_bulk = xfer->max_data_length;
+	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
+	usb_frlength_t max_bulk = usbd_xfer_max_len(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		sc->data_rem -= xfer->actlen;
-		sc->data_ptr += xfer->actlen;
-		sc->actlen += xfer->actlen;
+		sc->data_rem -= actlen;
+		sc->data_ptr += actlen;
+		sc->actlen += actlen;
 
-		if (xfer->actlen < xfer->sumlen) {
+		if (actlen < sumlen) {
 			/* short transfer */
 			sc->data_rem = 0;
 		}
@@ -360,15 +378,13 @@ bbb_data_write_callback(struct usb_xfer *xfer)
 		if (max_bulk > sc->data_rem) {
 			max_bulk = sc->data_rem;
 		}
-		xfer->timeout = sc->data_timeout;
-		xfer->frlengths[0] = max_bulk;
-
-		usbd_set_frame_data(xfer, sc->data_ptr, 0);
+		usbd_xfer_set_timeout(xfer, sc->data_timeout);
+		usbd_xfer_set_frame_data(xfer, 0, sc->data_ptr, max_bulk);
 		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			bbb_done(sc, 1);
 		} else {
 			bbb_transfer_start(sc, ST_DATA_WR_CS);
@@ -379,23 +395,26 @@ bbb_data_write_callback(struct usb_xfer *xfer)
 }
 
 static void
-bbb_data_wr_cs_callback(struct usb_xfer *xfer)
+bbb_data_wr_cs_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	bbb_data_clear_stall_callback(xfer, ST_STATUS,
 	    ST_DATA_WR);
 }
 
 static void
-bbb_status_callback(struct usb_xfer *xfer)
+bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct bbb_transfer *sc = xfer->priv_sc;
+	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
 		/* very simple status check */
 
-		if (xfer->actlen < sizeof(sc->csw)) {
+		if (actlen < sizeof(sc->csw)) {
 			bbb_done(sc, 1);/* error */
 		} else if (sc->csw.bCSWStatus == CSWSTATUS_GOOD) {
 			bbb_done(sc, 0);/* success */
@@ -405,18 +424,15 @@ bbb_status_callback(struct usb_xfer *xfer)
 		break;
 
 	case USB_ST_SETUP:
-		xfer->frlengths[0] = sizeof(sc->csw);
-
-		usbd_set_frame_data(xfer, &sc->csw, 0);
+		usbd_xfer_set_frame_data(xfer, 0, &sc->csw, sizeof(sc->csw));
 		usbd_transfer_submit(xfer);
 		break;
 
 	default:
 		DPRINTFN(0, "Failed to read CSW: %s, try %d\n",
-		    usbd_errstr(xfer->error), sc->status_try);
+		    usbd_errstr(error), sc->status_try);
 
-		if ((xfer->error == USB_ERR_CANCELLED) ||
-		    (sc->status_try)) {
+		if (error == USB_ERR_CANCELLED || sc->status_try) {
 			bbb_done(sc, 1);
 		} else {
 			sc->status_try = 1;

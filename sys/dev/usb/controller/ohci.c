@@ -35,9 +35,28 @@ __FBSDID("$FreeBSD$");
  * USB spec:  http://www.usb.org/developers/docs/usbspec.zip
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
 
 #define	USB_DEBUG_VAR ohcidebug
 
@@ -58,7 +77,7 @@ __FBSDID("$FreeBSD$");
    ((ohci_softc_t *)(((uint8_t *)(bus)) - \
     ((uint8_t *)&(((ohci_softc_t *)0)->sc_bus))))
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ohcidebug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
@@ -205,7 +224,7 @@ reset:
 		device_printf(sc->sc_bus.bdev, "reset timeout\n");
 		return (USB_ERR_IOERROR);
 	}
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 15) {
 		ohci_dumpregs(sc);
 	}
@@ -264,7 +283,7 @@ reset:
 		sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
 	}
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 5) {
 		ohci_dumpregs(sc);
 	}
@@ -380,7 +399,7 @@ ohci_init(ohci_softc_t *sc)
 
 	usb_callout_init_mtx(&sc->sc_tmo_rhsc, &sc->sc_bus.bus_mtx, 0);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 15) {
 		for (i = 0; i != OHCI_NO_EDS; i++) {
 			printf("ed#%d ", i);
@@ -433,7 +452,7 @@ ohci_suspend(ohci_softc_t *sc)
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	DPRINTF("\n");
 	if (ohcidebug > 2) {
 		ohci_dumpregs(sc);
@@ -463,7 +482,7 @@ ohci_resume(ohci_softc_t *sc)
 {
 	uint32_t ctl;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	DPRINTF("\n");
 	if (ohcidebug > 2) {
 		ohci_dumpregs(sc);
@@ -497,7 +516,7 @@ ohci_resume(ohci_softc_t *sc)
 	ohci_do_poll(&sc->sc_bus);
 }
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static void
 ohci_dumpregs(ohci_softc_t *sc)
 {
@@ -744,7 +763,7 @@ ohci_isoc_done(struct usb_xfer *xfer)
 			panic("%s:%d: out of TD's\n",
 			    __FUNCTION__, __LINE__);
 		}
-#if USB_DEBUG
+#ifdef USB_DEBUG
 		if (ohcidebug > 5) {
 			DPRINTF("isoc TD\n");
 			ohci_dump_itd(td);
@@ -785,7 +804,7 @@ ohci_isoc_done(struct usb_xfer *xfer)
 	ohci_device_done(xfer, USB_ERR_NORMAL_COMPLETION);
 }
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static const char *const
 	ohci_cc_strs[] =
 {
@@ -828,7 +847,7 @@ ohci_non_isoc_done_sub(struct usb_xfer *xfer)
 	td_flags = 0;
 
 	if (xfer->aframes != xfer->nframes) {
-		xfer->frlengths[xfer->aframes] = 0;
+		usbd_xfer_set_frame_len(xfer, xfer->aframes, 0);
 	}
 	while (1) {
 
@@ -913,7 +932,7 @@ ohci_non_isoc_done(struct usb_xfer *xfer)
 	DPRINTFN(13, "xfer=%p endpoint=%p transfer done\n",
 	    xfer, xfer->endpoint);
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 10) {
 		ohci_dump_tds(xfer->td_transfer_first);
 	}
@@ -1138,7 +1157,7 @@ ohci_interrupt(ohci_softc_t *sc)
 
 	DPRINTFN(16, "real interrupt\n");
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 15) {
 		ohci_dumpregs(sc);
 	}
@@ -1564,7 +1583,7 @@ ohci_setup_standard_chain(struct usb_xfer *xfer, ohci_ed_t **ed_last)
 
 	xfer->td_transfer_last = td;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 8) {
 		DPRINTF("nexttog=%d; data before transfer:\n",
 		    xfer->endpoint->toggle_next);
@@ -1995,7 +2014,7 @@ ohci_device_isoc_enter(struct usb_xfer *xfer)
 
 	xfer->td_transfer_last = td_last;
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (ohcidebug > 8) {
 		DPRINTF("data before transfer:\n");
 		ohci_dump_itds(xfer->td_transfer_first);

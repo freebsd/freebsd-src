@@ -149,24 +149,10 @@ void	usb_bdma_done_event(struct usb_dma_parent_tag *udpt);
 void	usb_bdma_post_sync(struct usb_xfer *xfer);
 void	usb_bdma_pre_sync(struct usb_xfer *xfer);
 void	usb_bdma_work_loop(struct usb_xfer_queue *pq);
-void	usbd_frame_zero(struct usb_page_cache *cache, usb_frlength_t offset,
-	    usb_frlength_t len);
-void	usbd_copy_in(struct usb_page_cache *cache, usb_frlength_t offset,
-	    const void *ptr, usb_frlength_t len);
-int	usbd_copy_in_user(struct usb_page_cache *cache, usb_frlength_t offset,
-	    const void *ptr, usb_frlength_t len);
-void	usbd_copy_out(struct usb_page_cache *cache, usb_frlength_t offset,
-	    void *ptr, usb_frlength_t len);
-int	usbd_copy_out_user(struct usb_page_cache *cache, usb_frlength_t offset,
-	    void *ptr, usb_frlength_t len);
 void	usb_dma_tag_setup(struct usb_dma_parent_tag *udpt,
 	    struct usb_dma_tag *udt, bus_dma_tag_t dmat, struct mtx *mtx,
 	    usb_dma_callback_t *func, uint8_t ndmabits, uint8_t nudt);
 void	usb_dma_tag_unsetup(struct usb_dma_parent_tag *udpt);
-void	usbd_get_page(struct usb_page_cache *pc, usb_frlength_t offset,
-	    struct usb_page_search *res);
-void	usbd_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
-	    struct mbuf *m, usb_size_t src_offset, usb_frlength_t src_len);
 void	usb_pc_cpu_flush(struct usb_page_cache *pc);
 void	usb_pc_cpu_invalidate(struct usb_page_cache *pc);
 void	usb_pc_dmamap_destroy(struct usb_page_cache *pc);

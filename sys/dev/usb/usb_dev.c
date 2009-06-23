@@ -27,16 +27,39 @@
  * usb_dev.c - An abstraction layer for creating devices under /dev/...
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+#include <sys/vnode.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_ioctl.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #define	USB_DEBUG_VAR usb_fifo_debug
 
 #include <dev/usb/usb_core.h>
-#include <dev/usb/usb_mbuf.h>
 #include <dev/usb/usb_dev.h>
+#include <dev/usb/usb_mbuf.h>
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_debug.h>
@@ -56,7 +79,7 @@
 
 #if USB_HAVE_UGEN
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int usb_fifo_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
@@ -2195,5 +2218,11 @@ usb_fifo_set_close_zlp(struct usb_fifo *f, uint8_t onoff)
 
 	/* send a Zero Length Packet, ZLP, before close */
 	f->flag_short = onoff;
+}
+
+void *
+usb_fifo_softc(struct usb_fifo *f)
+{
+	return (f->priv_sc0);
 }
 #endif	/* USB_HAVE_UGEN */

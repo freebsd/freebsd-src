@@ -40,10 +40,8 @@
 #include "libusb20_int.h"
 
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
 #include <dev/usb/usb_ioctl.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_revision.h>
 
 static libusb20_init_backend_t ugen20_init_backend;
 static libusb20_open_device_t ugen20_open_device;

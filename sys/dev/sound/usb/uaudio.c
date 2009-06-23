@@ -45,23 +45,33 @@
  *  $NetBSD: uaudio.c,v 1.97 2005/02/24 08:19:38 martin Exp $
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include "usbdevs.h"
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #define	USB_DEBUG_VAR uaudio_debug
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_lookup.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_parse.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_mbuf.h>
-#include <dev/usb/usb_dev.h>
-#include <dev/usb/usb_dynamic.h>
 
 #include <dev/usb/quirk/usb_quirk.h>
 
@@ -946,8 +956,6 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			bChannels = UAUDIO_MAX_CHAN(asf1d->bNrChannels);
 			bBitResolution = asf1d->bBitResolution;
 
-			DPRINTFN(9, "bChannels=%u\n", bChannels);
-
 			if (asf1d->bSamFreqType == 0) {
 				DPRINTFN(16, "Sample rate: %d-%dHz\n",
 				    UA_SAMP_LO(asf1d), UA_SAMP_HI(asf1d));
@@ -1106,14 +1114,17 @@ done:
 }
 
 static void
-uaudio_chan_play_callback(struct usb_xfer *xfer)
+uaudio_chan_play_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uaudio_chan *ch = xfer->priv_sc;
-	uint32_t *p_len = xfer->frlengths;
+	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint32_t total;
 	uint32_t blockcount;
 	uint32_t n;
 	uint32_t offset;
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	/* allow dynamic sizing of play buffer */
 	total = ch->intr_size;
@@ -1129,8 +1140,8 @@ uaudio_chan_play_callback(struct usb_xfer *xfer)
 		blockcount = UAUDIO_MINFRAMES;
 	}
 	/* range check - max */
-	if (blockcount > xfer->max_frame_count) {
-		blockcount = xfer->max_frame_count;
+	if (blockcount > usbd_xfer_max_frames(xfer)) {
+		blockcount = usbd_xfer_max_frames(xfer);
 	}
 	/* compute the total length */
 	total = blockcount * ch->bytes_per_frame;
@@ -1138,25 +1149,24 @@ uaudio_chan_play_callback(struct usb_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 tr_transferred:
-		if (xfer->actlen < xfer->sumlen) {
+		if (actlen < sumlen) {
 			DPRINTF("short transfer, "
-			    "%d of %d bytes\n", xfer->actlen, total);
+			    "%d of %d bytes\n", actlen, total);
 		}
 		chn_intr(ch->pcm_ch);
 
 	case USB_ST_SETUP:
-		if (ch->bytes_per_frame > xfer->max_frame_size) {
+		if (ch->bytes_per_frame > usbd_xfer_max_framelen(xfer)) {
 			DPRINTF("bytes per transfer, %d, "
 			    "exceeds maximum, %d!\n",
 			    ch->bytes_per_frame,
-			    xfer->max_frame_size);
+			    usbd_xfer_max_framelen(xfer));
 			break;
 		}
 		/* setup frame length */
-		xfer->nframes = blockcount;
-		for (n = 0; n != blockcount; n++) {
-			p_len[n] = ch->bytes_per_frame;
-		}
+		usbd_xfer_set_frames(xfer, blockcount);
+		for (n = 0; n != blockcount; n++)
+			usbd_xfer_set_frame_len(xfer, n, ch->bytes_per_frame);
 
 		if (ch->end == ch->start) {
 			DPRINTF("no buffer!\n");
@@ -1166,13 +1176,14 @@ tr_transferred:
 
 		offset = 0;
 
+		pc = usbd_xfer_get_frame(xfer, 0);
 		while (total > 0) {
 
 			n = (ch->end - ch->cur);
 			if (n > total) {
 				n = total;
 			}
-			usbd_copy_in(xfer->frbuffers, offset, ch->cur, n);
+			usbd_copy_in(pc, offset, ch->cur, n);
 
 			total -= n;
 			ch->cur += n;
@@ -1187,7 +1198,7 @@ tr_transferred:
 		break;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		goto tr_transferred;
@@ -1195,16 +1206,20 @@ tr_transferred:
 }
 
 static void
-uaudio_chan_record_callback(struct usb_xfer *xfer)
+uaudio_chan_record_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uaudio_chan *ch = xfer->priv_sc;
-	uint32_t *p_len = xfer->frlengths;
+	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint32_t n;
 	uint32_t m;
 	uint32_t total;
 	uint32_t blockcount;
 	uint32_t offset0;
 	uint32_t offset1;
+	int len;
+	int actlen, nframes;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, &nframes);
 
 	/* allow dynamic sizing of play buffer */
 	total = ch->intr_size;
@@ -1220,8 +1235,8 @@ uaudio_chan_record_callback(struct usb_xfer *xfer)
 		blockcount = UAUDIO_MINFRAMES;
 	}
 	/* range check - max */
-	if (blockcount > xfer->max_frame_count) {
-		blockcount = xfer->max_frame_count;
+	if (blockcount > usbd_xfer_max_frames(xfer)) {
+		blockcount = usbd_xfer_max_frames(xfer);
 	}
 	/* compute the total length */
 	total = blockcount * ch->bytes_per_frame;
@@ -1229,29 +1244,31 @@ uaudio_chan_record_callback(struct usb_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 tr_transferred:
-		if (xfer->actlen < total) {
+		if (actlen < total) {
 			DPRINTF("short transfer, "
-			    "%d of %d bytes\n", xfer->actlen, total);
+			    "%d of %d bytes\n", actlen, total);
 		} else {
-			DPRINTFN(6, "transferred %d bytes\n", xfer->actlen);
+			DPRINTFN(6, "transferred %d bytes\n", actlen);
 		}
 
 		offset0 = 0;
 
-		for (n = 0; n != xfer->nframes; n++) {
+		for (n = 0; n != nframes; n++) {
 
 			offset1 = offset0;
+			pc = usbd_xfer_get_frame(xfer, n);
+			len = usbd_xfer_get_framelen(xfer, n);
 
-			while (p_len[n] > 0) {
+			while (len > 0) {
 
 				m = (ch->end - ch->cur);
 
-				if (m > p_len[n]) {
-					m = p_len[n];
+				if (m > len) {
+					m = len;
 				}
-				usbd_copy_out(xfer->frbuffers, offset1, ch->cur, m);
+				usbd_copy_out(pc, offset1, ch->cur, m);
 
-				p_len[n] -= m;
+				len -= m;
 				offset1 += m;
 				ch->cur += m;
 
@@ -1266,16 +1283,16 @@ tr_transferred:
 		chn_intr(ch->pcm_ch);
 
 	case USB_ST_SETUP:
-		if (ch->bytes_per_frame > xfer->max_frame_size) {
+		if (ch->bytes_per_frame > usbd_xfer_max_framelen(xfer)) {
 			DPRINTF("bytes per transfer, %d, "
 			    "exceeds maximum, %d!\n",
 			    ch->bytes_per_frame,
-			    xfer->max_frame_size);
+			    usbd_xfer_max_framelen(xfer));
 			return;
 		}
-		xfer->nframes = blockcount;
-		for (n = 0; n != xfer->nframes; n++) {
-			p_len[n] = ch->bytes_per_frame;
+		usbd_xfer_set_frames(xfer, blockcount);
+		for (n = 0; n < blockcount; n++) {
+			usbd_xfer_set_frame_len(xfer, n, ch->bytes_per_frame);
 		}
 
 		if (ch->end == ch->start) {
@@ -1286,7 +1303,7 @@ tr_transferred:
 		return;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			return;
 		}
 		goto tr_transferred;
@@ -2958,11 +2975,12 @@ uaudio_mixer_get(struct usb_device *udev, uint8_t what,
 }
 
 static void
-uaudio_mixer_write_cfg_callback(struct usb_xfer *xfer)
+uaudio_mixer_write_cfg_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct usb_device_request req;
-	struct uaudio_softc *sc = xfer->priv_sc;
+	struct uaudio_softc *sc = usbd_xfer_softc(xfer);
 	struct uaudio_mixer_node *mc = sc->sc_mixer_curr;
+	struct usb_page_cache *pc;
 	uint16_t len;
 	uint8_t repeat = 1;
 	uint8_t update;
@@ -3011,12 +3029,14 @@ tr_setup:
 					if (len > 1) {
 						buf[1] = (mc->wData[chan] >> 8) & 0xFF;
 					}
-					usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-					usbd_copy_in(xfer->frbuffers + 1, 0, buf, len);
+					pc = usbd_xfer_get_frame(xfer, 0);
+					usbd_copy_in(pc, 0, &req, sizeof(req));
+					pc = usbd_xfer_get_frame(xfer, 1);
+					usbd_copy_in(pc, 0, buf, len);
 
-					xfer->frlengths[0] = sizeof(req);
-					xfer->frlengths[1] = len;
-					xfer->nframes = xfer->frlengths[1] ? 2 : 1;
+					usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
+					usbd_xfer_set_frame_len(xfer, 1, len);
+					usbd_xfer_set_frames(xfer, len ? 2 : 1);
 					usbd_transfer_submit(xfer);
 					return;
 				}
@@ -3033,8 +3053,8 @@ tr_setup:
 		break;
 
 	default:			/* Error */
-		DPRINTF("error=%s\n", usbd_errstr(xfer->error));
-		if (xfer->error == USB_ERR_CANCELLED) {
+		DPRINTF("error=%s\n", usbd_errstr(error));
+		if (error == USB_ERR_CANCELLED) {
 			/* do nothing - we are detaching */
 			break;
 		}
@@ -3237,9 +3257,9 @@ uaudio_mixer_setrecsrc(struct uaudio_softc *sc, uint32_t src)
  *========================================================================*/
 
 static void
-umidi_read_clear_stall_callback(struct usb_xfer *xfer)
+umidi_read_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umidi_chan *chan = xfer->priv_sc;
+	struct umidi_chan *chan = usbd_xfer_softc(xfer);
 	struct usb_xfer *xfer_other = chan->xfer[1];
 
 	if (usbd_clear_stall_callback(xfer, xfer_other)) {
@@ -3250,42 +3270,47 @@ umidi_read_clear_stall_callback(struct usb_xfer *xfer)
 }
 
 static void
-umidi_bulk_read_callback(struct usb_xfer *xfer)
+umidi_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umidi_chan *chan = xfer->priv_sc;
+	struct umidi_chan *chan = usbd_xfer_softc(xfer);
 	struct umidi_sub_chan *sub;
+	struct usb_page_cache *pc;
 	uint8_t buf[1];
 	uint8_t cmd_len;
 	uint8_t cn;
 	uint16_t pos;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		DPRINTF("actlen=%d bytes\n", xfer->actlen);
+		DPRINTF("actlen=%d bytes\n", actlen);
 
-		if (xfer->actlen == 0) {
+		if (actlen == 0) {
 			/* should not happen */
 			goto tr_error;
 		}
 		pos = 0;
+		pc = usbd_xfer_get_frame(xfer, 0);
 
-		while (xfer->actlen >= 4) {
+		while (actlen >= 4) {
 
-			usbd_copy_out(xfer->frbuffers, pos, buf, 1);
+			usbd_copy_out(pc, pos, buf, 1);
 
 			cmd_len = umidi_cmd_to_len[buf[0] & 0xF];	/* command length */
 			cn = buf[0] >> 4;	/* cable number */
 			sub = &chan->sub[cn];
 
 			if (cmd_len && (cn < chan->max_cable) && sub->read_open) {
-				usb_fifo_put_data(sub->fifo.fp[USB_FIFO_RX], xfer->frbuffers,
+				usb_fifo_put_data(sub->fifo.fp[USB_FIFO_RX], pc,
 				    pos + 1, cmd_len, 1);
 			} else {
 				/* ignore the command */
 			}
 
-			xfer->actlen -= 4;
+			actlen -= 4;
 			pos += 4;
 		}
 
@@ -3296,16 +3321,16 @@ umidi_bulk_read_callback(struct usb_xfer *xfer)
 			usbd_transfer_start(chan->xfer[3]);
 			return;
 		}
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		return;
 
 	default:
 tr_error:
 
-		DPRINTF("error=%s\n", usbd_errstr(xfer->error));
+		DPRINTF("error=%s\n", usbd_errstr(error));
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			chan->flags |= UMIDI_FLAG_READ_STALL;
 			usbd_transfer_start(chan->xfer[3]);
@@ -3316,9 +3341,9 @@ tr_error:
 }
 
 static void
-umidi_write_clear_stall_callback(struct usb_xfer *xfer)
+umidi_write_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umidi_chan *chan = xfer->priv_sc;
+	struct umidi_chan *chan = usbd_xfer_softc(xfer);
 	struct usb_xfer *xfer_other = chan->xfer[0];
 
 	if (usbd_clear_stall_callback(xfer, xfer_other)) {
@@ -3462,19 +3487,23 @@ umidi_convert_to_usb(struct umidi_sub_chan *sub, uint8_t cn, uint8_t b)
 }
 
 static void
-umidi_bulk_write_callback(struct usb_xfer *xfer)
+umidi_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umidi_chan *chan = xfer->priv_sc;
+	struct umidi_chan *chan = usbd_xfer_softc(xfer);
 	struct umidi_sub_chan *sub;
+	struct usb_page_cache *pc;
 	uint32_t actlen;
 	uint16_t total_length;
 	uint8_t buf;
 	uint8_t start_cable;
 	uint8_t tr_any;
+	int len;
+
+	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		DPRINTF("actlen=%d bytes\n", xfer->actlen);
+		DPRINTF("actlen=%d bytes\n", len);
 
 	case USB_ST_SETUP:
 
@@ -3485,10 +3514,9 @@ umidi_bulk_write_callback(struct usb_xfer *xfer)
 			return;
 		}
 		total_length = 0;	/* reset */
-
 		start_cable = chan->curr_cable;
-
 		tr_any = 0;
+		pc = usbd_xfer_get_frame(xfer, 0);
 
 		while (1) {
 
@@ -3498,14 +3526,13 @@ umidi_bulk_write_callback(struct usb_xfer *xfer)
 
 			if (sub->write_open) {
 				usb_fifo_get_data(sub->fifo.fp[USB_FIFO_TX],
-				    xfer->frbuffers, total_length,
-				    1, &actlen, 0);
+				    pc, total_length, 1, &actlen, 0);
 			} else {
 				actlen = 0;
 			}
 
 			if (actlen) {
-				usbd_copy_out(xfer->frbuffers, total_length, &buf, 1);
+				usbd_copy_out(pc, total_length, &buf, 1);
 
 				tr_any = 1;
 
@@ -3517,7 +3544,7 @@ umidi_bulk_write_callback(struct usb_xfer *xfer)
 					    sub->temp_cmd[0], sub->temp_cmd[1],
 					    sub->temp_cmd[2], sub->temp_cmd[3]);
 
-					usbd_copy_in(xfer->frbuffers, total_length,
+					usbd_copy_in(pc, total_length,
 					    sub->temp_cmd, 4);
 
 					total_length += 4;
@@ -3542,16 +3569,16 @@ umidi_bulk_write_callback(struct usb_xfer *xfer)
 		}
 
 		if (total_length) {
-			xfer->frlengths[0] = total_length;
+			usbd_xfer_set_frame_len(xfer, 0, total_length);
 			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
 
-		DPRINTF("error=%s\n", usbd_errstr(xfer->error));
+		DPRINTF("error=%s\n", usbd_errstr(error));
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			chan->flags |= UMIDI_FLAG_WRITE_STALL;
 			usbd_transfer_start(chan->xfer[2]);
@@ -3564,7 +3591,7 @@ umidi_bulk_write_callback(struct usb_xfer *xfer)
 static struct umidi_sub_chan *
 umidi_sub_by_fifo(struct usb_fifo *fifo)
 {
-	struct umidi_chan *chan = fifo->priv_sc0;
+	struct umidi_chan *chan = usb_fifo_softc(fifo);
 	struct umidi_sub_chan *sub;
 	uint32_t n;
 
@@ -3585,7 +3612,7 @@ umidi_sub_by_fifo(struct usb_fifo *fifo)
 static void
 umidi_start_read(struct usb_fifo *fifo)
 {
-	struct umidi_chan *chan = fifo->priv_sc0;
+	struct umidi_chan *chan = usb_fifo_softc(fifo);
 
 	usbd_transfer_start(chan->xfer[1]);
 }
@@ -3593,7 +3620,7 @@ umidi_start_read(struct usb_fifo *fifo)
 static void
 umidi_stop_read(struct usb_fifo *fifo)
 {
-	struct umidi_chan *chan = fifo->priv_sc0;
+	struct umidi_chan *chan = usb_fifo_softc(fifo);
 	struct umidi_sub_chan *sub = umidi_sub_by_fifo(fifo);
 
 	DPRINTF("\n");
@@ -3612,7 +3639,7 @@ umidi_stop_read(struct usb_fifo *fifo)
 static void
 umidi_start_write(struct usb_fifo *fifo)
 {
-	struct umidi_chan *chan = fifo->priv_sc0;
+	struct umidi_chan *chan = usb_fifo_softc(fifo);
 
 	usbd_transfer_start(chan->xfer[0]);
 }
@@ -3620,7 +3647,7 @@ umidi_start_write(struct usb_fifo *fifo)
 static void
 umidi_stop_write(struct usb_fifo *fifo)
 {
-	struct umidi_chan *chan = fifo->priv_sc0;
+	struct umidi_chan *chan = usb_fifo_softc(fifo);
 	struct umidi_sub_chan *sub = umidi_sub_by_fifo(fifo);
 
 	DPRINTF("\n");
@@ -3637,31 +3664,31 @@ umidi_stop_write(struct usb_fifo *fifo)
 static int
 umidi_open(struct usb_fifo *fifo, int fflags)
 {
-	struct umidi_chan *chan = fifo->priv_sc0;
+	struct umidi_chan *chan = usb_fifo_softc(fifo);
 	struct umidi_sub_chan *sub = umidi_sub_by_fifo(fifo);
 
 	if (fflags & FREAD) {
 		if (usb_fifo_alloc_buffer(fifo, 4, (1024 / 4))) {
 			return (ENOMEM);
 		}
-		mtx_lock(fifo->priv_mtx);
+		mtx_lock(&Giant);
 		chan->read_open_refcount++;
 		sub->read_open = 1;
-		mtx_unlock(fifo->priv_mtx);
+		mtx_unlock(&Giant);
 	}
 	if (fflags & FWRITE) {
 		if (usb_fifo_alloc_buffer(fifo, 32, (1024 / 32))) {
 			return (ENOMEM);
 		}
 		/* clear stall first */
-		mtx_lock(fifo->priv_mtx);
+		mtx_lock(&Giant);
 		chan->flags |= UMIDI_FLAG_WRITE_STALL;
 		chan->write_open_refcount++;
 		sub->write_open = 1;
 
 		/* reset */
 		sub->state = UMIDI_ST_UNKNOWN;
-		mtx_unlock(fifo->priv_mtx);
+		mtx_unlock(&Giant);
 	}
 	return (0);			/* success */
 }
