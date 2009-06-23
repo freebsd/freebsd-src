@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_fdpass.c,v 1.17 2008/03/24 16:11:07 deraadt Exp $ */
+/* $OpenBSD: monitor_fdpass.c,v 1.18 2008/11/30 11:59:26 dtucker Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -45,17 +45,16 @@ mm_send_fd(int sock, int fd)
 {
 #if defined(HAVE_SENDMSG) && (defined(HAVE_ACCRIGHTS_IN_MSGHDR) || defined(HAVE_CONTROL_IN_MSGHDR))
 	struct msghdr msg;
-	struct iovec vec;
-	char ch = '\0';
-	ssize_t n;
 #ifndef HAVE_ACCRIGHTS_IN_MSGHDR
 	union {
 		struct cmsghdr hdr;
-		char tmp[CMSG_SPACE(sizeof(int))];
 		char buf[CMSG_SPACE(sizeof(int))];
 	} cmsgbuf;
 	struct cmsghdr *cmsg;
 #endif
+	struct iovec vec;
+	char ch = '\0';
+	ssize_t n;
 
 	memset(&msg, 0, sizeof(msg));
 #ifdef HAVE_ACCRIGHTS_IN_MSGHDR
@@ -76,7 +75,10 @@ mm_send_fd(int sock, int fd)
 	msg.msg_iov = &vec;
 	msg.msg_iovlen = 1;
 
-	if ((n = sendmsg(sock, &msg, 0)) == -1) {
+	while ((n = sendmsg(sock, &msg, 0)) == -1 && (errno == EAGAIN ||
+	    errno == EINTR))
+		debug3("%s: sendmsg(%d): %s", __func__, fd, strerror(errno));
+	if (n == -1) {
 		error("%s: sendmsg(%d): %s", __func__, fd,
 		    strerror(errno));
 		return -1;
@@ -99,10 +101,6 @@ mm_receive_fd(int sock)
 {
 #if defined(HAVE_RECVMSG) && (defined(HAVE_ACCRIGHTS_IN_MSGHDR) || defined(HAVE_CONTROL_IN_MSGHDR))
 	struct msghdr msg;
-	struct iovec vec;
-	ssize_t n;
-	char ch;
-	int fd;
 #ifndef HAVE_ACCRIGHTS_IN_MSGHDR
 	union {
 		struct cmsghdr hdr;
@@ -110,6 +108,10 @@ mm_receive_fd(int sock)
 	} cmsgbuf;
 	struct cmsghdr *cmsg;
 #endif
+	struct iovec vec;
+	ssize_t n;
+	char ch;
+	int fd;
 
 	memset(&msg, 0, sizeof(msg));
 	vec.iov_base = &ch;
@@ -124,10 +126,14 @@ mm_receive_fd(int sock)
 	msg.msg_controllen = sizeof(cmsgbuf.buf);
 #endif
 
-	if ((n = recvmsg(sock, &msg, 0)) == -1) {
+	while ((n = recvmsg(sock, &msg, 0)) == -1 && (errno == EAGAIN ||
+	    errno == EINTR))
+		debug3("%s: recvmsg: %s", __func__, strerror(errno));
+	if (n == -1) {
 		error("%s: recvmsg: %s", __func__, strerror(errno));
 		return -1;
 	}
+
 	if (n != 1) {
 		error("%s: recvmsg: expected received 1 got %ld",
 		    __func__, (long)n);
@@ -145,6 +151,7 @@ mm_receive_fd(int sock)
 		error("%s: no message header", __func__);
 		return -1;
 	}
+
 #ifndef BROKEN_CMSG_TYPE
 	if (cmsg->cmsg_type != SCM_RIGHTS) {
 		error("%s: expected type %d got %d", __func__,

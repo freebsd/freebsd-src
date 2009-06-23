@@ -132,12 +132,16 @@ The slave pseudo-terminal device could not be accessed.
 .Xr tty 4
 .Sh STANDARDS
 The
-.Fn grantpt ,
 .Fn ptsname
+function conforms to
+.St -p1003.1-2001 .
+.Pp
+This implementation of
+.Fn grantpt
 and
 .Fn unlockpt
-functions conform to
-.St -p1003.1-2001 .
+does not comply with any standard, because these functions assume the
+pseudo-terminal has the correct attributes upon creation.
 .Sh HISTORY
 The
 .Fn grantpt ,

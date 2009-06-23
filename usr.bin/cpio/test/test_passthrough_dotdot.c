@@ -71,7 +71,7 @@ DEFINE_TEST(test_passthrough_dotdot)
 	assertEqualInt(0, chdir(".."));
 
 	/* Verify stderr and stdout. */
-	assertFileContents("../.\n../file\n1 block\n", 21, "stderr");
+	assertTextFileContents("../.\n../file\n1 block\n", "stderr");
 	assertEmptyFile("stdout");
 
 	/* Regular file. */
@@ -80,7 +80,11 @@ DEFINE_TEST(test_passthrough_dotdot)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		assertEqualInt(0600, st.st_mode & 0700);
+#else
 		assertEqualInt(0642, st.st_mode & 0777);
+#endif
 		assertEqualInt(10, st.st_size);
 		assertEqualInt(1, st.st_nlink);
 	}

@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -128,14 +127,25 @@ extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
 
 /*
- * Hooks for multicast forwarding.
+ * Hooks for multicast routing. They all default to NULL, so leave them not
+ * initialized and rely on BSS being set to 0.
  */
-struct socket *ip6_mrouter = NULL;
+
+/*
+ * The socket used to communicate with the multicast routing daemon.
+ */
+#ifdef VIMAGE_GLOBALS
+struct socket *ip6_mrouter;
+#endif
+
+/*
+ * The various mrouter functions.
+ */
 int (*ip6_mrouter_set)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_get)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_done)(void);
 int (*ip6_mforward)(struct ip6_hdr *, struct ifnet *, struct mbuf *);
-int (*mrt6_ioctl)(int, caddr_t);
+int (*mrt6_ioctl)(u_long, caddr_t);
 
 /*
  * Setup generic address and protocol structures for raw_input routine, then
@@ -149,6 +159,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 #ifdef IPSEC
 	INIT_VNET_IPSEC(curvnet);
 #endif
+	struct ifnet *ifp;
 	struct mbuf *m = *mp;
 	register struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	register struct inpcb *in6p;
@@ -166,6 +177,8 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	init_sin6(&fromsa, m); /* general init */
 
+	ifp = m->m_pkthdr.rcvif;
+
 	INP_INFO_RLOCK(&V_ripcbinfo);
 	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		/* XXX inp locking */
@@ -180,15 +193,48 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
 		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
 			continue;
-		if (prison_check_ip6(in6p->inp_cred, &ip6->ip6_dst) != 0)
-			continue;
-		INP_RLOCK(in6p);
+		if (jailed(in6p->inp_cred)) {
+			/*
+			 * Allow raw socket in jail to receive multicast;
+			 * assume process had PRIV_NETINET_RAW at attach,
+			 * and fall through into normal filter path if so.
+			 */
+			if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
+			    prison_check_ip6(in6p->inp_cred,
+			    &ip6->ip6_dst) != 0)
+				continue;
+		}
 		if (in6p->in6p_cksum != -1) {
 			V_rip6stat.rip6s_isum++;
 			if (in6_cksum(m, proto, *offp,
 			    m->m_pkthdr.len - *offp)) {
 				INP_RUNLOCK(in6p);
 				V_rip6stat.rip6s_badsum++;
+				continue;
+			}
+		}
+		INP_RLOCK(in6p);
+		/*
+		 * If this raw socket has multicast state, and we
+		 * have received a multicast, check if this socket
+		 * should receive it, as multicast filtering is now
+		 * the responsibility of the transport layer.
+		 */
+		if (in6p->in6p_moptions &&
+		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+			struct sockaddr_in6 mcaddr;
+			int blocked;
+
+			bzero(&mcaddr, sizeof(struct sockaddr_in6));
+			mcaddr.sin6_len = sizeof(struct sockaddr_in6);
+			mcaddr.sin6_family = AF_INET6;
+			mcaddr.sin6_addr = ip6->ip6_dst;
+
+			blocked = im6o_mc_filter(in6p->in6p_moptions, ifp,
+			    (struct sockaddr *)&mcaddr,
+			    (struct sockaddr *)&fromsa);
+			if (blocked != MCAST_PASS) {
+				IP6STAT_INC(ip6s_notmember);
 				continue;
 			}
 		}
@@ -477,7 +523,7 @@ rip6_output(m, va_alist)
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);
-		V_icmp6stat.icp6s_outhist[type]++;
+		ICMP6STAT_INC(icp6s_outhist[type]);
 	} else
 		V_rip6stat.rip6s_opackets++;
 
@@ -605,12 +651,13 @@ static void
 rip6_detach(struct socket *so)
 {
 	INIT_VNET_INET(so->so_vnet);
+	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_detach: inp == NULL"));
 
-	if (so == ip6_mrouter && ip6_mrouter_done)
+	if (so == V_ip6_mrouter && ip6_mrouter_done)
 		ip6_mrouter_done();
 	/* xxx: RSVP */
 	INP_INFO_WLOCK(&V_ripcbinfo);
@@ -667,7 +714,7 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
-	struct ifaddr *ia = NULL;
+	struct ifaddr *ifa = NULL;
 	int error = 0;
 
 	inp = sotoinpcb(so);
@@ -683,14 +730,17 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr) &&
-	    (ia = ifa_ifwithaddr((struct sockaddr *)addr)) == 0)
+	    (ifa = ifa_ifwithaddr((struct sockaddr *)addr)) == NULL)
 		return (EADDRNOTAVAIL);
-	if (ia &&
-	    ((struct in6_ifaddr *)ia)->ia6_flags &
+	if (ifa != NULL &&
+	    ((struct in6_ifaddr *)ifa)->ia6_flags &
 	    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|
 	     IN6_IFF_DETACHED|IN6_IFF_DEPRECATED)) {
+		ifa_free(ifa);
 		return (EADDRNOTAVAIL);
 	}
+	if (ifa != NULL)
+		ifa_free(ifa);
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	inp->in6p_laddr = addr->sin6_addr;

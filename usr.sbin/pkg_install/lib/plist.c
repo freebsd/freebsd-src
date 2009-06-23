@@ -285,6 +285,10 @@ read_plist(Package *pkg, FILE *fp)
 	}
 	if (*cp == '\0') {
 	    cp = NULL;
+	    if (cmd == PLIST_PKGDEP) {
+		warnx("corrupted record (pkgdep line without argument), ignoring");
+		cmd = FAIL;
+	    }
 	    goto bottom;
 	}
 	if (cmd == PLIST_COMMENT && sscanf(cp, "PKG_FORMAT_REVISION:%d.%d\n",

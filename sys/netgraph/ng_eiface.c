@@ -113,8 +113,21 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
+static vnet_attach_fn ng_eiface_iattach;
+static vnet_detach_fn ng_eiface_idetach;
+
 #ifdef VIMAGE_GLOBALS
 static struct unrhdr	*ng_eiface_unit;
+#endif
+
+#ifndef VIMAGE_GLOBALS
+static vnet_modinfo_t vnet_ng_eiface_modinfo = {
+	.vmi_id		= VNET_MOD_NG_EIFACE,
+	.vmi_name	= "ng_eiface",
+	.vmi_dependson	= VNET_MOD_NETGRAPH,
+	.vmi_iattach	= ng_eiface_iattach,
+	.vmi_idetach	= ng_eiface_idetach
+};
 #endif
 
 /************************************************************************
@@ -248,7 +261,9 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		 * Send packet; if hook is not connected, mbuf will get
 		 * freed.
 		 */
+		NG_OUTBOUND_THREAD_REF();
 		NG_SEND_DATA_ONLY(error, priv->ether, m);
+		NG_OUTBOUND_THREAD_UNREF();
 
 		/* Update stats */
 		if (error == 0)
@@ -372,12 +387,10 @@ ng_eiface_constructor(node_p node)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_flags = (IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 
-#if 0
-	/* Give this node name */
-	bzero(ifname, sizeof(ifname));
-	sprintf(ifname, "if%s", ifp->if_xname);
-	(void)ng_name_node(node, ifname);
-#endif
+	/* Give this node the same name as the interface (if possible) */
+	if (ng_name_node(node, ifp->if_xname) != 0)
+		log(LOG_WARNING, "%s: can't acquire netgraph name\n",
+		    ifp->if_xname);
 
 	/* Attach the interface */
 	ether_ifattach(ifp, eaddr);
@@ -401,6 +414,7 @@ ng_eiface_newhook(node_p node, hook_p hook, const char *name)
 		return (EISCONN);
 	priv->ether = hook;
 	NG_HOOK_SET_PRIVATE(hook, &priv->ether);
+	NG_HOOK_SET_TO_INBOUND(hook);
 
 	if_link_state_change(ifp, LINK_STATE_UP);
 
@@ -452,10 +466,12 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			/* Determine size of response and allocate it */
 			buflen = 0;
+			IF_ADDR_LOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 				buflen += SA_SIZE(ifa->ifa_addr);
 			NG_MKRESPONSE(resp, msg, buflen, M_NOWAIT);
 			if (resp == NULL) {
+				IF_ADDR_UNLOCK(ifp);
 				error = ENOMEM;
 				break;
 			}
@@ -474,6 +490,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ptr += len;
 				buflen -= len;
 			}
+			IF_ADDR_UNLOCK(ifp);
 			break;
 		    }
 
@@ -587,14 +604,40 @@ ng_eiface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		V_ng_eiface_unit = new_unrhdr(0, 0xffff, NULL);
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_register(&vnet_ng_eiface_modinfo);
+#else
+		ng_eiface_iattach(NULL);
+#endif
 		break;
 	case MOD_UNLOAD:
-		delete_unrhdr(V_ng_eiface_unit);
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_deregister(&vnet_ng_eiface_modinfo);
+#else
+		ng_eiface_idetach(NULL);
+#endif
 		break;
 	default:
 		error = EOPNOTSUPP;
 		break;
 	}
 	return (error);
+}
+
+static int ng_eiface_iattach(const void *unused)
+{
+	INIT_VNET_NETGRAPH(curvnet);
+
+	V_ng_eiface_unit = new_unrhdr(0, 0xffff, NULL);
+
+	return (0);
+}
+
+static int ng_eiface_idetach(const void *unused)
+{
+	INIT_VNET_NETGRAPH(curvnet);
+
+	delete_unrhdr(V_ng_eiface_unit);
+
+	return (0);
 }

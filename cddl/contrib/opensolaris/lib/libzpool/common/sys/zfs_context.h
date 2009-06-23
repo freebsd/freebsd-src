@@ -418,6 +418,7 @@ typedef struct vsecattr {
 #define	VOP_FSYNC(vp, f, cr, ct)	fsync((vp)->v_fd)
 
 #define	VN_RELE(vp)	vn_close(vp, 0, NULL, NULL)
+#define	VN_RELE_ASYNC(vp, taskq)	vn_close(vp, 0, NULL, NULL)
 
 #define	vn_lock(vp, type)
 #define	VOP_UNLOCK(vp, type)

@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -120,7 +119,13 @@ __FBSDID("$FreeBSD$");
 extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];
-static struct ifqueue ip6intrq;
+
+static struct netisr_handler ip6_nh = {
+	.nh_name = "ip6",
+	.nh_handler = ip6_input,
+	.nh_proto = NETISR_IPV6,
+	.nh_policy = NETISR_POLICY_FLOW,
+};
 
 #ifndef VIMAGE
 #ifndef VIMAGE_GLOBALS
@@ -129,7 +134,6 @@ struct vnet_inet6 vnet_inet6_0;
 #endif
 
 #ifdef VIMAGE_GLOBALS
-static int ip6qmaxlen;
 struct in6_ifaddr *in6_ifaddr;
 struct ip6stat ip6stat;
 
@@ -161,6 +165,7 @@ static void vnet_inet6_register(void);
 static const vnet_modinfo_t vnet_inet6_modinfo = {
 	.vmi_id		= VNET_MOD_INET6,
 	.vmi_name	= "inet6",
+	.vmi_size	= sizeof(struct vnet_inet6),
 	.vmi_dependson	= VNET_MOD_INET	/* XXX revisit - TCP/UDP needs this? */
 };
  
@@ -185,7 +190,6 @@ ip6_init(void)
 	struct ip6protosw *pr;
 	int i;
 
-	V_ip6qmaxlen = IFQ_MAXLEN;
 	V_in6_maxmtu = 0;
 #ifdef IP6_AUTO_LINKLOCAL
 	V_ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
@@ -269,7 +273,7 @@ ip6_init(void)
 		panic("sizeof(protosw) != sizeof(ip6protosw)");
 #endif
 	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
-	if (pr == 0)
+	if (pr == NULL)
 		panic("ip6_init");
 
 	/* Initialize the entire ip6_protox[] array to IPPROTO_RAW. */
@@ -295,10 +299,19 @@ ip6_init(void)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
 
-	ip6intrq.ifq_maxlen = V_ip6qmaxlen; /* XXX */
-	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq, 0);
+	netisr_register(&ip6_nh);
 }
+
+#ifdef VIMAGE
+void
+ip6_destroy()
+{
+	INIT_VNET_INET6(curvnet);
+
+	nd6_destroy();
+	callout_drain(&V_in6_tmpaddrtimer_ch);
+}
+#endif
 
 static int
 ip6_init2_vnet(const void *unused __unused)
@@ -307,14 +320,14 @@ ip6_init2_vnet(const void *unused __unused)
 
 	/* nd6_timer_init */
 	callout_init(&V_nd6_timer_ch, 0);
-	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, NULL);
+	callout_reset(&V_nd6_timer_ch, hz, nd6_timer, curvnet);
 
 	/* timer for regeneranation of temporary addresses randomize ID */
 	callout_init(&V_in6_tmpaddrtimer_ch, 0);
 	callout_reset(&V_in6_tmpaddrtimer_ch,
 		      (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
 		       V_ip6_temp_regen_advance) * hz,
-		      in6_tmpaddrtimer, NULL);
+		      in6_tmpaddrtimer, curvnet);
 
 	return (0);
 }
@@ -377,7 +390,7 @@ ip6_input(struct mbuf *m)
 #define M2MMAX	(sizeof(V_ip6stat.ip6s_m2m)/sizeof(V_ip6stat.ip6s_m2m[0]))
 		if (m->m_next) {
 			if (m->m_flags & M_LOOP) {
-				V_ip6stat.ip6s_m2m[V_loif[0].if_index]++; /* XXX */
+				V_ip6stat.ip6s_m2m[V_loif->if_index]++;
 			} else if (m->m_pkthdr.rcvif->if_index < M2MMAX)
 				V_ip6stat.ip6s_m2m[m->m_pkthdr.rcvif->if_index]++;
 			else
@@ -555,25 +568,12 @@ passin:
 	}
 
 	/*
-	 * Multicast check
+	 * Multicast check. Assume packet is for us to avoid
+	 * prematurely taking locks.
 	 */
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		struct in6_multi *in6m = 0;
-
+		ours = 1;
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_mcast);
-		/*
-		 * See if we belong to the destination multicast group on the
-		 * arrival interface.
-		 */
-		IN6_LOOKUP_MULTI(ip6->ip6_dst, m->m_pkthdr.rcvif, in6m);
-		if (in6m)
-			ours = 1;
-		else if (!ip6_mrouter) {
-			V_ip6stat.ip6s_notmember++;
-			V_ip6stat.ip6s_cantforward++;
-			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
-			goto bad;
-		}
 		deliverifp = m->m_pkthdr.rcvif;
 		goto hbhcheck;
 	}
@@ -724,6 +724,7 @@ passin:
 				 * to the upper layers.
 				 */
 			}
+			ifa_free(&ia6->ia_ifa);
 		}
 	}
 
@@ -785,10 +786,11 @@ passin:
 		 * case we should pass the packet to the multicast routing
 		 * daemon.
 		 */
-		if (rtalert != ~0 && V_ip6_forwarding) {
+		if (rtalert != ~0) {
 			switch (rtalert) {
 			case IP6OPT_RTALERT_MLD:
-				ours = 1;
+				if (V_ip6_forwarding)
+					ours = 1;
 				break;
 			default:
 				/*
@@ -823,7 +825,8 @@ passin:
 	/*
 	 * Forward if desirable.
 	 */
-	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+	if (V_ip6_mrouter &&
+	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		/*
 		 * If we are acting as a multicast router, all
 		 * incoming multicast packets are passed to the
@@ -831,14 +834,16 @@ passin:
 		 * The packet is returned (relatively) intact; if
 		 * ip6_mforward() returns a non-zero value, the packet
 		 * must be discarded, else it may be accepted below.
+		 *
+		 * XXX TODO: Check hlim and multicast scope here to avoid
+		 * unnecessarily calling into ip6_mforward().
 		 */
-		if (ip6_mrouter && ip6_mforward &&
+		if (ip6_mforward &&
 		    ip6_mforward(ip6, m->m_pkthdr.rcvif, m)) {
-			V_ip6stat.ip6s_cantforward++;
+			IP6STAT_INC(ip6s_cantforward);
+			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
 			goto bad;
 		}
-		if (!ours)
-			goto bad;
 	} else if (!ours) {
 		ip6_forward(m, srcrt);
 		goto out;
@@ -894,6 +899,14 @@ passin:
 		if (ip6_ipsec_input(m, nxt))
 			goto bad;
 #endif /* IPSEC */
+
+		/*
+		 * Use mbuf flags to propagate Router Alert option to
+		 * ICMPv6 layer, as hop-by-hop options have been stripped.
+		 */
+		if (nxt == IPPROTO_ICMPV6 && rtalert != ~0)
+			m->m_flags |= M_RTALERT_MLD;
+
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &off, nxt);
 	}
 	goto out;
@@ -907,6 +920,11 @@ out:
 /*
  * set/grab in6_ifaddr correspond to IPv6 destination address.
  * XXX backward compatibility wrapper
+ *
+ * XXXRW: We should bump the refcount on ia6 before sticking it in the m_tag,
+ * and then bump it when the tag is copied, and release it when the tag is
+ * freed.  Unfortunately, m_tags don't support deep copies (yet), so instead
+ * we just bump the ia refcount when we receive it.  This should be fixed.
  */
 static struct ip6aux *
 ip6_setdstifaddr(struct mbuf *m, struct in6_ifaddr *ia6)
@@ -923,11 +941,14 @@ struct in6_ifaddr *
 ip6_getdstifaddr(struct mbuf *m)
 {
 	struct ip6aux *ip6a;
+	struct in6_ifaddr *ia;
 
 	ip6a = ip6_findaux(m);
-	if (ip6a)
-		return ip6a->ip6a_dstia6;
-	else
+	if (ip6a) {
+		ia = ip6a->ip6a_dstia6;
+		ifa_ref(&ia->ia_ifa);
+		return ia;
+	} else
 		return NULL;
 }
 

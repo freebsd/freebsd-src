@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2000 Poul Henning Kamp and Dag-Erling Coïdan Smørgrav
+.\" Copyright (c) 2000 Poul-Henning Kamp and Dag-Erling Coïdan Smørgrav
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,12 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2004
+.Dd May 17, 2009
 .Dt SBUF 9
 .Os
 .Sh NAME
 .Nm sbuf ,
 .Nm sbuf_new ,
+.Nm sbuf_new_auto ,
 .Nm sbuf_clear ,
 .Nm sbuf_setpos ,
 .Nm sbuf_bcat ,
@@ -55,6 +56,8 @@
 .In sys/sbuf.h
 .Ft struct sbuf *
 .Fn sbuf_new "struct sbuf *s" "char *buf" "int length" "int flags"
+.Ft struct sbuf *
+.Fn sbuf_new_auto
 .Ft void
 .Fn sbuf_clear "struct sbuf *s"
 .Ft int
@@ -146,6 +149,19 @@ it must point to an array of at least
 characters.
 The result of accessing that array directly while it is in use by the
 sbuf is undefined.
+.Pp
+The
+.Fn sbuf_new_auto
+function is a shortcut for creating a completely dynamic
+.Nm .
+It is the equivalent of calling
+.Fn sbuf_new
+with values
+.Dv NULL ,
+.Dv NULL ,
+.Dv 0 ,
+and
+.Dv SBUF_AUTOEXTEND .
 .Pp
 The
 .Fn sbuf_delete

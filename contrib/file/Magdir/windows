@@ -113,3 +113,9 @@
 0	string		REGEDIT4\r\n\r\n	Windows Registry text (Win95 or above)
 0	string		Windows\ Registry\ Editor\ 
 >&0	string		Version\ 5.00\r\n\r\n	Windows Registry text (Win2K or above)
+
+
+# From: Pal Tamas <folti@balabit.hu>
+# Autorun File
+0       string/c          [autorun]\r\n   Microsoft Windows Autorun file.
+!:mime	application/x-setupscript. 

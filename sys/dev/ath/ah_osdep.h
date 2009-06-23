@@ -58,20 +58,15 @@ typedef bus_space_handle_t HAL_BUS_HANDLE;
 /*
  * Delay n microseconds.
  */
-extern	void ath_hal_delay(int);
-#define	OS_DELAY(_n)	ath_hal_delay(_n)
+#define	OS_DELAY(_n)	DELAY(_n)
 
 #define	OS_INLINE	__inline
-#define	OS_MEMZERO(_a, _n)	ath_hal_memzero((_a), (_n))
-extern void ath_hal_memzero(void *, size_t);
-#define	OS_MEMCPY(_d, _s, _n)	ath_hal_memcpy(_d,_s,_n)
-extern void *ath_hal_memcpy(void *, const void *, size_t);
+#define	OS_MEMZERO(_a, _n)	bzero((_a), (_n))
+#define	OS_MEMCPY(_d, _s, _n)	memcpy(_d,_s,_n)
 
 #define	abs(_a)		__builtin_abs(_a)
 
 struct ath_hal;
-extern	u_int32_t ath_hal_getuptime(struct ath_hal *);
-#define	OS_GETUPTIME(_ah)	ath_hal_getuptime(_ah)
 
 /*
  * Register read/write operations are either handled through

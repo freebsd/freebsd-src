@@ -14,8 +14,86 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090605: removal of clists
+OLD_FILES+=usr/include/sys/clist.h
+# 20090602: removal of window(1)
+OLD_FILES+=usr/bin/window
+OLD_FILES+=usr/share/man/man1/window.1.gz
+# 20090530: removal of early.sh
+OLD_FILES+=etc/rc.d/early.sh
+# 20090527: renaming of S{LIST,TAILQ}_REMOVE_NEXT() to _REMOVE_AFTER()
+OLD_FILES+=usr/share/man/man3/SLIST_REMOVE_NEXT.3.gz
+OLD_FILES+=usr/share/man/man3/STAILQ_REMOVE_NEXT.3.gz
+# 20090527: removal of legacy USB stack
+OLD_FILES+=usr/include/legacy/dev/usb/dsbr100io.h
+OLD_FILES+=usr/include/legacy/dev/usb/ehcireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/ehcivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/hid.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_urtwreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_urtwvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/ohcireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/ohcivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/rio500_usb.h
+OLD_FILES+=usr/include/legacy/dev/usb/rt2573_ucode.h
+OLD_FILES+=usr/include/legacy/dev/usb/sl811hsreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/sl811hsvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/ubser.h
+OLD_FILES+=usr/include/legacy/dev/usb/ucomvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/udbp.h
+OLD_FILES+=usr/include/legacy/dev/usb/uftdireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/ugraphire_rdesc.h
+OLD_FILES+=usr/include/legacy/dev/usb/uhcireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/uhcivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_mem.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_port.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_quirks.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbcdc.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbdi.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbdi_util.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbdivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbhid.h
+OLD_FILES+=usr/include/legacy/dev/usb/uxb360gp_rdesc.h
+OLD_DIRS+=usr/include/legacy/dev/usb
+OLD_DIRS+=usr/include/legacy/dev
+OLD_DIRS+=usr/include/legacy
+# 20090526: removal of makekey(8)
+OLD_FILES+=libexec/makekey
+OLD_FILES+=usr/share/man/man8/makekey.8.gz
+# 20090522: removal of University of Michigan NFSv4 client
+OLD_FILES+=etc/rc.d/idmapd
+OLD_FILES+=sbin/idmapd
+OLD_FILES+=sbin/mount_nfs4
+OLD_FILES+=usr/share/man/man8/idmapd.8.gz
+OLD_FILES+=usr/share/man/man8/mount_nfs4.8.gz
+# 20090513: removal of legacy versions of USB network interface drivers
+OLD_FILES+=usr/include/legacy/dev/usb/if_upgtvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_ethersubr.h
+# 20090417: removal of legacy versions of USB network interface drivers
+OLD_FILES+=usr/include/legacy/dev/usb/if_auereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_axereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_cdcereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_cuereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_kuereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_ruereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_rumreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_rumvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_udavreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_uralreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_uralvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_zydfw.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_zydreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/kue_fw.h
+# 20090416: removal of ar(4), ray(4), sr(4), raycontrol(8)
+OLD_FILES+=usr/sbin/raycontrol
+OLD_FILES+=usr/share/man/man4/i386/ar.4.gz
+OLD_FILES+=usr/share/man/man4/i386/ray.4.gz
+OLD_FILES+=usr/share/man/man4/i386/sr.4.gz
+OLD_FILES+=usr/share/man/man8/raycontrol.8.gz
 # 20090410: VOP_LEASE.9 removed
 OLD_FILES+=usr/share/man/man9/VOP_LEASE.9.gz
+# 20090406: usb_sw_transfer.h removed
+OLD_FILES+=usr/include/dev/usb/usb_sw_transfer.h
 # 20090405: removal of if_ppp(4) and if_sl(4)
 OLD_FILES+=sbin/slattach rescue/slattach
 OLD_FILES+=sbin/startslip rescue/startslip
@@ -54,6 +132,7 @@ OLD_FILES+=usr/lib/libusb20.a
 OLD_FILES+=usr/lib/libusb20.so
 OLD_FILES+=usr/lib/libusb20_p.a
 OLD_FILES+=usr/include/libusb20_compat01.h
+OLD_FILES+=usr/include/libusb20_compat10.h
 .if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libusb20.so.1
 OLD_FILES+=usr/lib32/libusb20.a
@@ -97,6 +176,8 @@ OLD_FILES+=usr/include/dev/usb/if_udavreg.h
 OLD_FILES+=usr/include/dev/usb/if_upgtvar.h
 OLD_FILES+=usr/include/dev/usb/if_uralreg.h
 OLD_FILES+=usr/include/dev/usb/if_uralvar.h
+OLD_FILES+=usr/include/dev/usb/if_urtwreg.h
+OLD_FILES+=usr/include/dev/usb/if_urtwvar.h
 OLD_FILES+=usr/include/dev/usb/if_zydfw.h
 OLD_FILES+=usr/include/dev/usb/if_zydreg.h
 OLD_FILES+=usr/include/dev/usb/kue_fw.h

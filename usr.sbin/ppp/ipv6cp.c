@@ -245,7 +245,7 @@ ipcp_SetIPv6address(struct ipv6cp *ipv6cp, u_char *myifid, u_char *hisifid)
       ncpaddr_getsa(&ipv6cp->hisaddr, &ssdst);
     else
       sadst = NULL;
-    rt_Update(bundle, sadst, sagw, samask);
+    rt_Update(bundle, sadst, sagw, samask, NULL, NULL);
   }
 
   if (Enabled(bundle, OPT_SROUTES))

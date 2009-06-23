@@ -20,12 +20,12 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/socket.h>
@@ -129,7 +129,7 @@ static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static int	tuninit(struct ifnet *);
 static int	tunmodevent(module_t, int, void *);
 static int	tunoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct rtentry *rt);
+		    struct route *ro);
 static void	tunstart(struct ifnet *);
 
 static int	tun_clone_create(struct if_clone *, int, caddr_t);
@@ -227,7 +227,7 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 	else
 		append_unit = 0;
 
-	CURVNET_SET(TD_TO_VNET(curthread));
+	CURVNET_SET(CRED_TO_VNET(cred));
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&tunclones, &tun_cdevsw, &u, dev, 0);
 	if (i) {
@@ -392,7 +392,7 @@ tuncreate(const char *name, struct cdev *dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	ifp->if_snd.ifq_drv_maxlen = 0;
 	IFQ_SET_READY(&ifp->if_snd);
-	knlist_init(&sc->tun_rsel.si_note, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&sc->tun_rsel.si_note, NULL);
 
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
@@ -520,6 +520,7 @@ tuninit(struct ifnet *ifp)
 	getmicrotime(&ifp->if_lastchange);
 
 #ifdef INET
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			struct sockaddr_in *si;
@@ -535,6 +536,7 @@ tuninit(struct ifnet *ifp)
 			mtx_unlock(&tp->tun_mtx);
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 #endif
 	return (error);
 }
@@ -591,7 +593,7 @@ tunoutput(
 	struct ifnet *ifp,
 	struct mbuf *m0,
 	struct sockaddr *dst,
-	struct rtentry *rt)
+	struct route *ro)
 {
 	struct tun_softc *tp = ifp->if_softc;
 	u_short cached_tun_flags;

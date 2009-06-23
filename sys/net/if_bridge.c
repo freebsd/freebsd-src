@@ -122,8 +122,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/vinet6.h>
 #endif
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
+#endif
 #endif
 #include <machine/in_cksum.h>
 #include <netinet/if_ether.h> /* for struct arpcom */
@@ -893,29 +895,6 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 
 	BRIDGE_LOCK_ASSERT(sc);
 
-	if (!gone) {
-		switch (ifs->if_type) {
-		case IFT_ETHER:
-		case IFT_L2VLAN:
-			/*
-			 * Take the interface out of promiscuous mode.
-			 */
-			(void) ifpromisc(ifs, 0);
-			break;
-
-		case IFT_GIF:
-			break;
-
-		default:
-#ifdef DIAGNOSTIC
-			panic("bridge_delete_member: impossible");
-#endif
-			break;
-		}
-		/* reneable any interface capabilities */
-		bridge_set_ifcap(sc, bif, bif->bif_savedcaps);
-	}
-
 	if (bif->bif_flags & IFBIF_STP)
 		bstp_disable(&bif->bif_stp);
 
@@ -948,6 +927,28 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	    ("%s: %d bridge routes referenced", __func__, bif->bif_addrcnt));
 
 	BRIDGE_UNLOCK(sc);
+	if (!gone) {
+		switch (ifs->if_type) {
+		case IFT_ETHER:
+		case IFT_L2VLAN:
+			/*
+			 * Take the interface out of promiscuous mode.
+			 */
+			(void) ifpromisc(ifs, 0);
+			break;
+
+		case IFT_GIF:
+			break;
+
+		default:
+#ifdef DIAGNOSTIC
+			panic("bridge_delete_member: impossible");
+#endif
+			break;
+		}
+		/* reneable any interface capabilities */
+		bridge_set_ifcap(sc, bif, bif->bif_savedcaps);
+	}
 	bstp_destroy(&bif->bif_stp);	/* prepare to free */
 	BRIDGE_LOCK(sc);
 	free(bif, M_DEVBUF);
@@ -1017,17 +1018,9 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	switch (ifs->if_type) {
 	case IFT_ETHER:
 	case IFT_L2VLAN:
-		/*
-		 * Place the interface into promiscuous mode.
-		 */
-		error = ifpromisc(ifs, 1);
-		if (error)
-			goto out;
-		break;
-
 	case IFT_GIF:
+		/* permitted interface types */
 		break;
-
 	default:
 		error = EINVAL;
 		goto out;
@@ -1055,6 +1048,20 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 
 	/* Set interface capabilities to the intersection set of all members */
 	bridge_mutecaps(sc);
+
+	switch (ifs->if_type) {
+	case IFT_ETHER:
+	case IFT_L2VLAN:
+		/*
+		 * Place the interface into promiscuous mode.
+		 */
+		BRIDGE_UNLOCK(sc);
+		error = ifpromisc(ifs, 1);
+		BRIDGE_LOCK(sc);
+		break;
+	}
+	if (error)
+		bridge_delete_member(sc, bif, 0);
 out:
 	if (error) {
 		if (bif != NULL)
@@ -1761,24 +1768,15 @@ bridge_enqueue(struct bridge_softc *sc, struct ifnet *dst_ifp, struct mbuf *m)
 		}
 
 		if (err == 0)
-			IFQ_ENQUEUE(&dst_ifp->if_snd, m, err);
+			dst_ifp->if_transmit(dst_ifp, m);
 	}
 
 	if (err == 0) {
-
 		sc->sc_ifp->if_opackets++;
 		sc->sc_ifp->if_obytes += len;
-
-		dst_ifp->if_obytes += len;
-
-		if (mflags & M_MCAST) {
+		if (mflags & M_MCAST)
 			sc->sc_ifp->if_omcasts++;
-			dst_ifp->if_omcasts++;
-		}
 	}
-
-	if ((dst_ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
-		(*dst_ifp->if_start)(dst_ifp);
 }
 
 /*
@@ -2235,7 +2233,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		return (m);
 	}
 
-#ifdef DEV_CARP
+#if (defined(INET) || defined(INET6)) && defined(DEV_CARP)
 #   define OR_CARP_CHECK_WE_ARE_DST(iface) \
 	|| ((iface)->if_carp \
 	    && carp_forus((iface)->if_carp, eh->ether_dhost))
@@ -3043,13 +3041,21 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 			goto bad;
 	}
 
-	if (IPFW_LOADED && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
+	if (ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
 		INIT_VNET_INET(curvnet);
+		struct dn_pkt_tag *dn_tag;
 
 		error = -1;
-		args.rule = ip_dn_claim_rule(*mp);
-		if (args.rule != NULL && V_fw_one_pass)
-			goto ipfwpass; /* packet already partially processed */
+		dn_tag = ip_dn_claim_tag(*mp);
+		if (dn_tag != NULL) {
+			if (dn_tag->rule != NULL && V_fw_one_pass)
+				/* packet already partially processed */
+				goto ipfwpass;
+			args.rule = dn_tag->rule; /* matching rule to restart */
+			args.rule_id = dn_tag->rule_id;
+			args.chain_id = dn_tag->chain_id;
+		} else
+			args.rule = NULL;
 
 		args.m = *mp;
 		args.oif = ifp;
@@ -3062,7 +3068,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		if (*mp == NULL)
 			return (error);
 
-		if (DUMMYNET_LOADED && (i == IP_FW_DUMMYNET)) {
+		if (ip_dn_io_ptr && (i == IP_FW_DUMMYNET)) {
 
 			/* put the Ethernet header back on */
 			M_PREPEND(*mp, ETHER_HDR_LEN, M_DONTWAIT);

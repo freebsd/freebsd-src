@@ -59,12 +59,9 @@
 struct wi_vap {
 	struct ieee80211vap	wv_vap;
 	struct ieee80211_beacon_offsets	wv_bo;
-	struct task		wv_connected_task;
-	struct task		wv_disconnected_task;
-	struct task		wv_assoc_failed_task;
 
-	void		(*wv_recv_mgmt)(struct ieee80211_node *,
-			    struct mbuf *, int, int, int, u_int32_t);
+	void		(*wv_recv_mgmt)(struct ieee80211_node *, struct mbuf *,
+			    int, int, int);
 	int		(*wv_newstate)(struct ieee80211vap *,
 			    enum ieee80211_state, int);
 };
@@ -75,7 +72,6 @@ struct wi_softc	{
 	device_t		sc_dev;
 	struct mtx		sc_mtx;
 	struct callout		sc_watchdog;
-	struct task		sc_oor_task;
 	int			sc_unit;
 	int			wi_gone;
 	int			sc_enabled;
@@ -145,9 +141,7 @@ struct wi_softc	{
 	u_int16_t		sc_txbuf[IEEE80211_MAX_LEN/2];
 
 	struct wi_tx_radiotap_header sc_tx_th;
-	int			sc_tx_th_len;
 	struct wi_rx_radiotap_header sc_rx_th;
-	int			sc_rx_th_len;
 };
 
 /* maximum consecutive false change-of-BSSID indications */
@@ -182,7 +176,7 @@ struct wi_card_ident {
 
 int	wi_attach(device_t);
 int	wi_detach(device_t);
-void	wi_shutdown(device_t);
+int	wi_shutdown(device_t);
 int	wi_alloc(device_t, int);
 void	wi_free(device_t);
 extern devclass_t wi_devclass;

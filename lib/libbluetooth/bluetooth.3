@@ -25,7 +25,7 @@
 .\" $Id: bluetooth.3,v 1.5 2003/05/20 23:04:30 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2009
+.Dd April 9, 2009
 .Dt BLUETOOTH 3
 .Os
 .Sh NAME
@@ -41,6 +41,23 @@
 .Nm bt_endprotoent ,
 .Nm bt_aton ,
 .Nm bt_ntoa ,
+.Nm bt_devaddr ,
+.Nm bt_devname ,
+.Nm bt_devinfo ,
+.Nm bt_devenum ,
+.Nm bt_devopen ,
+.Nm bt_devclose ,
+.Nm bt_devsend ,
+.Nm bt_devrecv ,
+.Nm bt_devreq ,
+.Nm bt_devfilter ,
+.Nm bt_devfilter_pkt_set ,
+.Nm bt_devfilter_pkt_clr ,
+.Nm bt_devfilter_pkt_tst ,
+.Nm bt_devfilter_evt_set ,
+.Nm bt_devfilter_evt_clr ,
+.Nm bt_devfilter_evt_tst ,
+.Nm bt_devinquiry ,
 .Nm bdaddr_same ,
 .Nm bdaddr_any ,
 .Nm bdaddr_copy
@@ -83,6 +100,32 @@
 .Fn bt_devinfo "struct bt_devinfo *di"
 .Ft int
 .Fn bt_devenum "bt_devenum_cb_t *cb" "void *arg"
+.Ft int
+.Fn bt_devopen "char const *devname"
+.Ft int
+.Fn bt_devclose "int s"
+.Ft int
+.Fn bt_devsend "int s" "uint16_t opcode" "void *param" "size_t plen"
+.Ft ssize_t
+.Fn bt_devrecv "int s" "void *buf" "size_t size" "time_t to"
+.Ft int
+.Fn bt_devreq "int s" "struct bt_devreq *r" "time_t to"
+.Ft int
+.Fn bt_devfilter "int s" "struct bt_devfilter const *new" "struct bt_devfilter *old"
+.Ft void
+.Fn bt_devfilter_pkt_set "struct bt_devfilter *filter" "uint8_t type"
+.Ft void
+.Fn bt_devfilter_pkt_clt "struct bt_devfilter *filter" "uint8_t type"
+.Ft int
+.Fn bt_devfilter_pkt_tst "struct bt_devfilter const *filter" "uint8_t type"
+.Ft void
+.Fn bt_devfilter_evt_set "struct bt_devfilter *filter" "uint8_t event"
+.Ft void
+.Fn bt_devfilter_evt_clt "struct bt_devfilter *filter" "uint8_t event"
+.Ft int
+.Fn bt_devfilter_evt_tst "struct bt_devfilter const *filter" "uint8_t event"
+.Ft int
+.Fn bt_devinquiry "char const *devname" "time_t length" "int num_rsp" "struct bt_devinquiry **ii"
 .Ft int
 .Fn bdaddr_same "const bdaddr_t *a" "const bdaddr_t *b"
 .Ft int
@@ -311,6 +354,240 @@ The function returns number of successfully enumerated devices,
 or -1 if an error occurred.
 .Pp
 The
+.Fn bt_devopen
+function opens a Bluetooth device with the given
+.Fa devname
+and returns a connected and bound
+.Dv HCI
+socket handle.
+The function returns -1 if an error has occurred.
+.Pp
+The
+.Fn bt_devclose
+closes the passed
+.Dv HCI
+socket handle
+.Fa s ,
+previously obtained with
+.Xr bt_devopen 3 .
+.Pp
+The
+.Fn bt_devsend
+function sends a Bluetooth
+.Dv HCI
+command with the given
+.Fa opcode
+to the provided socket
+.Fa s ,
+previously obtained with
+.Xr bt_devopen 3 .
+The
+.Fa opcode
+parameter is exppected to be in the host byte order.
+The
+.Fa param
+and
+.Fa plen
+parameters specify command parameters.
+The
+.Fn bt_devsend
+function does not modify the
+.Dv HCI
+filter on the provided socket
+.Fa s .
+The function returns 0 on success,
+or -1 if an error occurred.
+.Pp
+The
+.Fn bt_devrecv
+function receives one Bluetooth
+.Dv HCI
+packet from the socket
+.Fa s ,
+previously obtained with
+.Xr bt_devopen 3 .
+The packet is placed into the provided buffer
+.Fa buf
+of size
+.Fa size .
+The
+.Fa to
+parameter specifies receive timeout in seconds.
+Infinite timeout can be specified by passing negative value in the
+.Fa to
+parameter.
+The
+.Fn bt_devrecv
+function does not modify the
+.Dv HCI
+filter on the provided socket
+.Fa s .
+The function returns total number of bytes recevied,
+or -1 if an error occurred.
+.Pp
+The
+.Fn bt_devreq
+function makes a Bluetooth
+.Dv HCI
+request to the socket
+.Fa s ,
+previously obtained with
+.Xr bt_devopen 3 .
+The function will send the specified command and will wait for the specified
+event,
+or timeout
+.Fa to
+seconds to occur.
+The
+.Vt bt_devreq
+structure is defined as follows
+.Bd -literal -offset indent
+struct bt_devreq
+{
+        uint16_t        opcode;
+        uint8_t         event;
+        void            *cparam;
+        size_t          clen;
+        void            *rparam;
+        size_t          rlen;
+};
+.Ed
+.Pp
+The
+.Fa opcode
+field specifies the command and is expected to be in the host byte order.
+The
+.Fa cparam
+and
+.Fa clen
+fields specify command parameters data and command parameters data size
+respectively.
+The
+.Fa event
+field specifies which Bluetooth
+.Dv HCI
+event ID the function should wait for, otherwise it should be set to zero.
+The
+.Dv HCI
+Command Complete and Command Status events are enabled by default.
+The
+.Fa rparam
+and
+.Fa rlen
+parameters specify buffer and buffer size respectively where return
+parameters should be placed.
+The
+.Fn bt_devreq
+function temporarily modifies filter on the provided
+.Dv HCI
+socket
+.Fa s .
+The function returns 0 on success, or -1 if an error occurred.
+.Pp
+The
+.Fn bt_devfilter
+controls the local
+.Dv HCI
+filter associated with the socket
+.Fa s ,
+previously obtained with
+.Xr bt_devopen 3 .
+Filtering can be done on packet types, i.e.
+.Dv ACL ,
+.Dv SCO or
+.Dv HCI ,
+command and event packets, and, in addition, on
+.Dv HCI
+event IDs.
+Before applying the
+.Fa new
+filter (if provided) the function will try to obtain the current filter
+from the socket
+.Fa s
+and place it into the
+.Fa old
+parameter (if provided).
+The function returns 0 on success, or -1 if an error occurred.
+.Pp
+The
+.Fn bt_devfilter_pkt_set ,
+.Fn bt_devfilter_pkt_clr 
+and
+.Fn bt_devfilter_pkt_tst
+functions can be used to modify and test the
+.Dv HCI
+filter
+.Fa filter .
+The
+.Fa type
+parameter specifies
+.Dv HCI
+packet type.
+.Pp
+The
+.Fn bt_devfilter_evt_set ,
+.Fn bt_devfilter_evt_clr 
+and
+.Fn bt_devfilter_evt_tst
+functions can be used to modify and test the
+.Dv HCI
+event filter
+.Fa filter .
+The
+.Fa event
+parameter specifies
+.Dv HCI
+event ID.
+.Pp
+The
+.Fn bt_devinquiry
+function performs Bluetooth inquiry.
+The
+.Fa devname
+parameter specifies which local Bluetooth device should perform an inquiry.
+If not secified, i.e.
+.Dv NULL ,
+then first available device will be used.
+The
+.Fa length
+parameters specifies the total length of an inquiry in seconds.
+If not specified, i.e. 0, default value will be used.
+The
+.Fa num_rsp
+parameter specifies the number of responses that can be received before
+the inquiry is halted.
+If not specified, i.e. 0, default value will be used.
+The
+.Fa ii
+parameter specifies where to place inquiry results.
+On success, the function will return total number of inquiry results,
+will allocate,
+using
+.Xr calloc 3 ,
+buffer to store all the inquiry results and
+will return pointer to the allocated buffer in the
+.Fa ii
+parameter.
+It is up to the caller of the function to dispose of the buffer using
+.Xr free 3
+call.
+The function returns -1 if an error has occurred.
+The
+.Vt bt_devinquiry
+structure is defined as follows
+.Bd -literal -offset indent
+struct bt_devinquiry {
+        bdaddr_t        bdaddr;
+        uint8_t         pscan_rep_mode;
+        uint8_t         pscan_period_mode;
+        uint8_t         dev_class[3];
+        uint16_t        clock_offset;
+        int8_t          rssi;
+        uint8_t         data[240];
+};
+.Ed
+.Pp
+The
 .Fn bdaddr_same ,
 .Fn bdaddr_any
 and
@@ -444,6 +721,6 @@ will be bound and connected to the Bluetooth device being enumerated.
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
 .Sh BUGS
-These functions use static data storage;
+Some of those functions use static data storage;
 if the data is needed for future use, it should be
 copied before any subsequent calls overwrite it.

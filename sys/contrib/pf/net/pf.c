@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef __FreeBSD__
-#include "opt_mac.h"
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
@@ -6245,7 +6244,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			}
 		}
 		PF_UNLOCK();
-		error = (*ifp->if_output)(ifp, m0, sintosa(dst), ro->ro_rt);
+		error = (*ifp->if_output)(ifp, m0, sintosa(dst), ro);
 		PF_LOCK();
 		goto done;
 	}
@@ -6293,7 +6292,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		if (m0->m_pkthdr.csum_flags & M_TCPV4_CSUM_OUT)
 			TCPSTAT_INC(tcpstat.tcps_outhwcsum);
 		else if (m0->m_pkthdr.csum_flags & M_UDPV4_CSUM_OUT)
-			V_udpstat.udps_outhwcsum++;
+			UDPSTAT_INC(udps_outhwcsum);
 		error = (*ifp->if_output)(ifp, m0, sintosa(dst), NULL);
 		goto done;
 	}
@@ -6641,20 +6640,20 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 		case IPPROTO_UDP:
 		    {
 			INIT_VNET_INET(curvnet);
-			V_udpstat.udps_badsum++;
+			UDPSTAT_INC(udps_badsum);
 			break;
 		    }
 		case IPPROTO_ICMP:
 		    {
 			INIT_VNET_INET(curvnet);
-			V_icmpstat.icps_checksum++;
+			ICMPSTAT_INC(icps_checksum);
 			break;
 		    }
 #ifdef INET6
 		case IPPROTO_ICMPV6:
 		    {
 			INIT_VNET_INET6(curvnet);
-			V_icmp6stat.icp6s_checksum++;
+			ICMP6STAT_INC(icp6s_checksum);
 			break;
 		    }
 #endif /* INET6 */
@@ -6744,14 +6743,14 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p,
 			TCPSTAT_INC(tcps_rcvbadsum);
 			break;
 		case IPPROTO_UDP:
-			V_udpstat.udps_badsum++;
+			UDPSTAT_INC(udps_badsum);
 			break;
 		case IPPROTO_ICMP:
-			V_icmpstat.icps_checksum++;
+			ICMPSTAT_INC(icps_checksum);
 			break;
 #ifdef INET6
 		case IPPROTO_ICMPV6:
-			V_icmp6stat.icp6s_checksum++;
+			ICMP6STAT_INC(icp6s_checksum);
 			break;
 #endif /* INET6 */
 		}

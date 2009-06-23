@@ -57,13 +57,15 @@ struct ipw_rx_radiotap_header {
 	uint8_t		wr_flags;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
-	uint8_t		wr_antsignal;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
 };
 
 #define IPW_RX_RADIOTAP_PRESENT						\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
-	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL))
+	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL) |			\
+	 (1 << IEEE80211_RADIOTAP_DB_ANTNOISE))
 
 struct ipw_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
@@ -78,11 +80,6 @@ struct ipw_tx_radiotap_header {
 
 struct ipw_vap {
 	struct ieee80211vap	vap;
-	struct task		assoc_task;
-	struct task		disassoc_task;
-	struct task		assoc_success_task;
-	struct task		assoc_failed_task;
-	struct task		scandone_task;
 
 	int			(*newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
@@ -95,9 +92,6 @@ struct ipw_softc {
 
 	struct mtx			sc_mtx;
 	struct task			sc_init_task;
-	struct task			sc_scan_task;
-	struct task			sc_chan_task;
-	struct task			sc_bmiss_task;
 	struct callout			sc_wdtimer;	/* watchdog timer */
 
 	uint32_t			flags;
@@ -163,10 +157,7 @@ struct ipw_softc {
 	int				txfree;
 
 	struct ipw_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
-
 	struct ipw_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
 };
 
 /*

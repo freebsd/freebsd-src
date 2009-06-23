@@ -213,6 +213,19 @@ s/\$//g
 		print
 		exit 1
 	}
+	# Returns true if the type "name" is the first flag in the type field
+	function type(name, flags, n) {
+		n = split($3, flags, /\|/)
+		return (n > 0 && flags[1] == name)
+	}
+	# Returns true if the flag "name" is set in the type field
+	function flag(name, flags, i, n) {
+		n = split($3, flags, /\|/)
+		for (i = 1; i <= n; i++)
+			if (flags[i] == name)
+				return 1
+		return 0
+	}
 	function align_sysent_comment(column) {
 		printf("\t") > sysent
 		column = column + 8 - column % 8
@@ -241,7 +254,7 @@ s/\$//g
 			rettype="int"
 			end=NF
 		}
-		if ($3 == "NODEF") {
+		if (flag("NODEF")) {
 			auditev="AUE_NULL"
 			funcname=$4
 			argssize = "AS(" $6 ")"
@@ -267,11 +280,11 @@ s/\$//g
 			funcalias = funcname
 		if (argalias == "") {
 			argalias = funcname "_args"
-			if ($3 == "COMPAT")
+			if (flag("COMPAT"))
 				argalias = "o" argalias
-			if ($3 == "COMPAT4")
+			if (flag("COMPAT4"))
 				argalias = "freebsd4_" argalias
-			if ($3 == "COMPAT6")
+			if (flag("COMPAT6"))
 				argalias = "freebsd6_" argalias
 		}
 		f++
@@ -318,8 +331,15 @@ s/\$//g
 		auditev = $2;
 	}
 
-	$3 == "STD" || $3 == "NODEF" || $3 == "NOARGS"  || $3 == "NOPROTO" \
-	    || $3 == "NOIMPL" || $3 == "NOSTD" {
+	#
+	# The currently-empty flags field.
+	#
+	{
+		flags = "0";
+	}
+
+	type("STD") || type("NODEF") || type("NOARGS") || type("NOPROTO") \
+	    || type("NOSTD") {
 		parseline()
 		printf("\t/* %s */\n\tcase %d: {\n", funcname, syscall) > systrace
 		printf("\t/* %s */\n\tcase %d:\n", funcname, syscall) > systracetmp
@@ -345,8 +365,8 @@ s/\$//g
 		}
 		printf("\t\t*n_args = %d;\n\t\tbreak;\n\t}\n", argc) > systrace
 		printf("\t\tbreak;\n") > systracetmp
-		if (argc != 0 && $3 != "NOARGS" && $3 != "NOPROTO" && \
-		    $3 != "NODEF") {
+		if (argc != 0 && !flag("NOARGS") && !flag("NOPROTO") && \
+		    !flag("NODEF")) {
 			printf("struct %s {\n", argalias) > sysarg
 			for (i = 1; i <= argc; i++)
 				printf("\tchar %s_l_[PADL_(%s)]; " \
@@ -356,10 +376,10 @@ s/\$//g
 				    argname[i], argtype[i]) > sysarg
 			printf("};\n") > sysarg
 		}
-		else if ($3 != "NOARGS" && $3 != "NOPROTO" && $3 != "NODEF")
+		else if (!flag("NOARGS") && !flag("NOPROTO") && !flag("NODEF"))
 			printf("struct %s {\n\tregister_t dummy;\n};\n",
 			    argalias) > sysarg
-		if ($3 != "NOPROTO" && $3 != "NODEF") {
+		if (!flag("NOPROTO") && !flag("NODEF")) {
 			printf("%s\t%s(struct thread *, struct %s *)",
 			    rettype, funcname, argalias) > sysdcl
 			printf(";\n") > sysdcl
@@ -368,21 +388,18 @@ s/\$//g
 		}
 		printf("\t{ %s, (sy_call_t *)", argssize) > sysent
 		column = 8 + 2 + length(argssize) + 15
-		if ($3 == "NOIMPL") {
-			printf("%s },", "nosys, AUE_NULL, NULL, 0, 0") > sysent
-			column = column + length("nosys") + 3
-		} else if ($3 == "NOSTD") {
-			printf("%s },", "lkmressys, AUE_NULL, NULL, 0, 0") > sysent
-			column = column + length("lkmressys") + 3
+		if (flag("NOSTD")) {
+			printf("%s },", "lkmressys, AUE_NULL, NULL, 0, 0, 0") > sysent
+			column = column + length("lkmressys") + length("AUE_NULL") + 3
 		} else {
-			printf("%s, %s, NULL, 0, 0 },", funcname, auditev) > sysent
-			column = column + length(funcname) + length(auditev) + 3
+			printf("%s, %s, NULL, 0, 0, %s },", funcname, auditev, flags) > sysent
+			column = column + length(funcname) + length(auditev) + length(flags) + 3
 		} 
 		align_sysent_comment(column)
 		printf("/* %d = %s */\n", syscall, funcalias) > sysent
 		printf("\t\"%s\",\t\t\t/* %d = %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
-		if ($3 != "NODEF") {
+		if (!flag("NODEF")) {
 			printf("#define\t%s%s\t%d\n", syscallprefix,
 		    	    funcalias, syscall) > syshdr
 			printf(" \\\n\t%s.o", funcalias) > sysmk
@@ -390,28 +407,32 @@ s/\$//g
 		syscall++
 		next
 	}
-	$3 == "COMPAT" || $3 == "COMPAT4" || $3 == "COMPAT6" || $3 == "CPT_NOA" {
-		if ($3 == "COMPAT" || $3 == "CPT_NOA") {
+	type("COMPAT") || type("COMPAT4") || type("COMPAT6") {
+		if (flag("COMPAT")) {
 			ncompat++
 			out = syscompat
 			outdcl = syscompatdcl
 			wrap = "compat"
 			prefix = "o"
-		} else if ($3 == "COMPAT4") {
+			descr = "old"
+		} else if (flag("COMPAT4")) {
 			ncompat4++
 			out = syscompat4
 			outdcl = syscompat4dcl
 			wrap = "compat4"
 			prefix = "freebsd4_"
-		} else if ($3 == "COMPAT6") {
+			descr = "freebsd4"
+		} else if (flag("COMPAT6")) {
 			ncompat6++
 			out = syscompat6
 			outdcl = syscompat6dcl
 			wrap = "compat6"
 			prefix = "freebsd6_"
+			descr = "freebsd6"
 		}
 		parseline()
-		if (argc != 0 && $3 != "CPT_NOA") {
+		if (argc != 0 && !flag("NOARGS") && !flag("NOPROTO") && \
+		    !flag("NODEF")) {
 			printf("struct %s {\n", argalias) > out
 			for (i = 1; i <= argc; i++)
 				printf("\tchar %s_l_[PADL_(%s)]; %s %s; " \
@@ -421,22 +442,34 @@ s/\$//g
 				    argname[i], argtype[i]) > out
 			printf("};\n") > out
 		}
-		else if($3 != "CPT_NOA")
+		else if (!flag("NOARGS") && !flag("NOPROTO") && !flag("NODEF"))
 			printf("struct %s {\n\tregister_t dummy;\n};\n",
 			    argalias) > sysarg
-		printf("%s\t%s%s(struct thread *, struct %s *);\n",
-		    rettype, prefix, funcname, argalias) > outdcl
-		printf("\t{ %s(%s,%s), %s, NULL, 0, 0 },",
-		    wrap, argssize, funcname, auditev) > sysent
-		align_sysent_comment(8 + 9 + \
-		    length(argssize) + 1 + length(funcname) + length(auditev) + 4)
-		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
-		printf("\t\"%s.%s\",\t\t/* %d = old %s */\n",
-		    wrap, funcalias, syscall, funcalias) > sysnames
-		if ($3 == "COMPAT" || $3 == "CPT_NOA") {
+		if (!flag("NOPROTO") && !flag("NODEF")) {
+			printf("%s\t%s%s(struct thread *, struct %s *);\n",
+			    rettype, prefix, funcname, argalias) > outdcl
+			printf("#define\t%sAUE_%s%s\t%s\n", syscallprefix,
+			    prefix, funcname, auditev) > sysaue
+		}
+		if (flag("NOSTD")) {
+			printf("\t{ %s, (sy_call_t *)%s, %s, NULL, 0, 0, 0 },",
+			    "0", "lkmressys", "AUE_NULL") > sysent
+			align_sysent_comment(8 + 2 + length("0") + 15 + \
+			    length("lkmressys") + length("AUE_NULL") + 3)
+		} else {
+			printf("\t{ %s(%s,%s), %s, NULL, 0, 0, %s },",
+			    wrap, argssize, funcname, auditev, flags) > sysent
+			align_sysent_comment(8 + 9 + length(argssize) + 1 + \
+			    length(funcname) + length(auditev) + \
+			    length(flags) + 4)
+		}
+		printf("/* %d = %s %s */\n", syscall, descr, funcalias) > sysent
+		printf("\t\"%s.%s\",\t\t/* %d = %s %s */\n",
+		    wrap, funcalias, syscall, descr, funcalias) > sysnames
+		if (flag("COMPAT")) {
 			printf("\t\t\t\t/* %d is old %s */\n",
 			    syscall, funcalias) > syshdr
-		} else {
+		} else if (!flag("NODEF")) {
 			printf("#define\t%s%s%s\t%d\n", syscallprefix,
 			    prefix, funcalias, syscall) > syshdr
 			printf(" \\\n\t%s%s.o", prefix, funcalias) > sysmk
@@ -444,14 +477,14 @@ s/\$//g
 		syscall++
 		next
 	}
-	$3 == "LIBCOMPAT" {
+	type("LIBCOMPAT") {
 		ncompat++
 		parseline()
 		printf("%s\to%s();\n", rettype, funcname) > syscompatdcl
-		printf("\t{ compat(%s,%s), %s, NULL, 0, 0 },",
-		    argssize, funcname, auditev) > sysent
+		printf("\t{ compat(%s,%s), %s, NULL, 0, 0, %s },",
+		    argssize, funcname, auditev, flags) > sysent
 		align_sysent_comment(8 + 9 + \
-		    length(argssize) + 1 + length(funcname) + length(auditev) + 4)
+		    length(argssize) + 1 + length(funcname) + length(auditev) + length(flags) + 4)
 		printf("/* %d = old %s */\n", syscall, funcalias) > sysent
 		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
@@ -461,8 +494,8 @@ s/\$//g
 		syscall++
 		next
 	}
-	$3 == "OBSOL" {
-		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },") > sysent
+	type("OBSOL") {
+		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0 },") > sysent
 		align_sysent_comment(34)
 		printf("/* %d = obsolete %s */\n", syscall, comment) > sysent
 		printf("\t\"obs_%s\",\t\t\t/* %d = obsolete %s */\n",
@@ -472,8 +505,8 @@ s/\$//g
 		syscall++
 		next
 	}
-	$3 == "UNIMPL" {
-		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },\t\t\t/* %d = %s */\n",
+	type("UNIMPL") {
+		printf("\t{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0 },\t\t\t/* %d = %s */\n",
 		    syscall, comment) > sysent
 		printf("\t\"#%d\",\t\t\t/* %d = %s */\n",
 		    syscall, syscall, comment) > sysnames

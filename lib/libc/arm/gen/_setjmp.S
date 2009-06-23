@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 ENTRY(_setjmp)
 	ldr	r1, .L_setjmp_magic
 	str	r1, [r0], #4
-#ifdef SOFTFLOAT
+#ifdef __SOFTFP__
 	add	r0, r0, #52
 #else
 	/* Store fp registers */
@@ -59,7 +59,7 @@ ENTRY(_setjmp)
 	/* Store fpsr */
 	rfs	r1
 	str	r1, [r0], #0x0004
-#endif	/* SOFTFLOAT */
+#endif	/* __SOFTFP__ */
 	/* Store integer registers */
         stmia	r0, {r4-r14}
 
@@ -76,7 +76,7 @@ ENTRY(_longjmp)
 	teq	r2, r3
 	bne	botch
 
-#ifdef SOFTFLOAT
+#ifdef __SOFTFP__
 	add	r0, r0, #52
 #else
 	/* Restore fp registers */
@@ -84,7 +84,7 @@ ENTRY(_longjmp)
 	/* Restore fpsr */
 	ldr	r4, [r0], #0x0004
 	wfs	r4
-#endif	/* SOFTFLOAT */
+#endif	/* __SOFTFP__ */
        	/* Restore integer registers */
         ldmia	r0, {r4-r14}
 

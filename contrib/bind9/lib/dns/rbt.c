@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.c,v 1.128.18.10 2008/03/31 13:32:59 fdupont Exp $ */
+/* $Id: rbt.c,v 1.142.50.2 2009/01/18 23:47:40 tbox Exp $ */
 
 /*! \file */
 
@@ -37,36 +37,37 @@
 #define DNS_NAME_USEINLINE 1
 
 #include <dns/fixedname.h>
+#include <dns/log.h>
 #include <dns/rbt.h>
 #include <dns/result.h>
 
-#define RBT_MAGIC		ISC_MAGIC('R', 'B', 'T', '+')
-#define VALID_RBT(rbt)		ISC_MAGIC_VALID(rbt, RBT_MAGIC)
+#define RBT_MAGIC               ISC_MAGIC('R', 'B', 'T', '+')
+#define VALID_RBT(rbt)          ISC_MAGIC_VALID(rbt, RBT_MAGIC)
 
 /*
  * XXXDCL Since parent pointers were added in again, I could remove all of the
  * chain junk, and replace with dns_rbt_firstnode, _previousnode, _nextnode,
  * _lastnode.  This would involve pretty major change to the API.
  */
-#define CHAIN_MAGIC		ISC_MAGIC('0', '-', '0', '-')
-#define VALID_CHAIN(chain)	ISC_MAGIC_VALID(chain, CHAIN_MAGIC)
+#define CHAIN_MAGIC             ISC_MAGIC('0', '-', '0', '-')
+#define VALID_CHAIN(chain)      ISC_MAGIC_VALID(chain, CHAIN_MAGIC)
 
-#define RBT_HASH_SIZE		64
+#define RBT_HASH_SIZE           64
 
 #ifdef RBT_MEM_TEST
 #undef RBT_HASH_SIZE
-#define RBT_HASH_SIZE 2	/*%< To give the reallocation code a workout. */
+#define RBT_HASH_SIZE 2 /*%< To give the reallocation code a workout. */
 #endif
 
 struct dns_rbt {
-	unsigned int		magic;
-	isc_mem_t *		mctx;
-	dns_rbtnode_t *		root;
-	void			(*data_deleter)(void *, void *);
-	void *			deleter_arg;
-	unsigned int		nodecount;
-	unsigned int		hashsize;
-	dns_rbtnode_t **	hashtable;
+	unsigned int            magic;
+	isc_mem_t *             mctx;
+	dns_rbtnode_t *         root;
+	void                    (*data_deleter)(void *, void *);
+	void *                  deleter_arg;
+	unsigned int            nodecount;
+	unsigned int            hashsize;
+	dns_rbtnode_t **        hashtable;
 };
 
 #define RED 0
@@ -75,51 +76,51 @@ struct dns_rbt {
 /*%
  * Elements of the rbtnode structure.
  */
-#define PARENT(node)		((node)->parent)
-#define LEFT(node)	 	((node)->left)
-#define RIGHT(node)		((node)->right)
-#define DOWN(node)		((node)->down)
-#define DATA(node)		((node)->data)
-#define HASHNEXT(node)		((node)->hashnext)
-#define HASHVAL(node)		((node)->hashval)
-#define COLOR(node) 		((node)->color)
-#define NAMELEN(node)		((node)->namelen)
-#define OFFSETLEN(node)		((node)->offsetlen)
-#define ATTRS(node)		((node)->attributes)
-#define PADBYTES(node)		((node)->padbytes)
-#define IS_ROOT(node)		ISC_TF((node)->is_root == 1)
-#define FINDCALLBACK(node)	ISC_TF((node)->find_callback == 1)
+#define PARENT(node)            ((node)->parent)
+#define LEFT(node)              ((node)->left)
+#define RIGHT(node)             ((node)->right)
+#define DOWN(node)              ((node)->down)
+#define DATA(node)              ((node)->data)
+#define HASHNEXT(node)          ((node)->hashnext)
+#define HASHVAL(node)           ((node)->hashval)
+#define COLOR(node)             ((node)->color)
+#define NAMELEN(node)           ((node)->namelen)
+#define OFFSETLEN(node)         ((node)->offsetlen)
+#define ATTRS(node)             ((node)->attributes)
+#define PADBYTES(node)          ((node)->padbytes)
+#define IS_ROOT(node)           ISC_TF((node)->is_root == 1)
+#define FINDCALLBACK(node)      ISC_TF((node)->find_callback == 1)
 
 /*%
  * Structure elements from the rbtdb.c, not
  * used as part of the rbt.c algorithms.
  */
-#define DIRTY(node)	((node)->dirty)
-#define WILD(node)	((node)->wild)
-#define LOCKNUM(node)	((node)->locknum)
+#define DIRTY(node)     ((node)->dirty)
+#define WILD(node)      ((node)->wild)
+#define LOCKNUM(node)   ((node)->locknum)
 
 /*%
  * The variable length stuff stored after the node.
  */
-#define NAME(node)	((unsigned char *)((node) + 1))
-#define OFFSETS(node)	(NAME(node) + NAMELEN(node))
+#define NAME(node)      ((unsigned char *)((node) + 1))
+#define OFFSETS(node)   (NAME(node) + NAMELEN(node))
 
-#define NODE_SIZE(node)	(sizeof(*node) + \
+#define NODE_SIZE(node) (sizeof(*node) + \
 			 NAMELEN(node) + OFFSETLEN(node) + PADBYTES(node))
 
 /*%
  * Color management.
  */
-#define IS_RED(node)		((node) != NULL && (node)->color == RED)
-#define IS_BLACK(node)		((node) == NULL || (node)->color == BLACK)
-#define MAKE_RED(node)		((node)->color = RED)
-#define MAKE_BLACK(node)	((node)->color = BLACK)
+#define IS_RED(node)            ((node) != NULL && (node)->color == RED)
+#define IS_BLACK(node)          ((node) == NULL || (node)->color == BLACK)
+#define MAKE_RED(node)          ((node)->color = RED)
+#define MAKE_BLACK(node)        ((node)->color = BLACK)
 
 /*%
  * Chain management.
  *
  * The "ancestors" member of chains were removed, with their job now
- * being wholy handled by parent pointers (which didn't exist, because
+ * being wholly handled by parent pointers (which didn't exist, because
  * of memory concerns, when chains were first implemented).
  */
 #define ADD_LEVEL(chain, node) \
@@ -244,6 +245,7 @@ dns_rbt_create(isc_mem_t *mctx, void (*deleter)(void *, void *),
 	rbt->nodecount = 0;
 	rbt->hashtable = NULL;
 	rbt->hashsize = 0;
+
 #ifdef DNS_RBT_USEHASH
 	result = inithash(rbt);
 	if (result != ISC_R_SUCCESS) {
@@ -251,6 +253,7 @@ dns_rbt_create(isc_mem_t *mctx, void (*deleter)(void *, void *),
 		return (result);
 	}
 #endif
+
 	rbt->magic = RBT_MAGIC;
 
 	*rbtp = rbt;
@@ -524,6 +527,7 @@ dns_rbt_addnode(dns_rbt_t *rbt, dns_name_t *name, dns_rbtnode_t **nodep) {
 				 * current node.
 				 */
 				new_current->is_root = current->is_root;
+				new_current->nsec3 = current->nsec3;
 				PARENT(new_current)  = PARENT(current);
 				LEFT(new_current)    = LEFT(current);
 				RIGHT(new_current)   = RIGHT(current);
@@ -1142,7 +1146,7 @@ dns_rbt_findnode(dns_rbt_t *rbt, dns_name_t *name, dns_name_t *foundname,
 									NULL);
 					if (result2 == ISC_R_SUCCESS ||
 					    result2 == DNS_R_NEWORIGIN)
-						; 	/* Nothing. */
+						;       /* Nothing. */
 					else if (result2 == ISC_R_NOMORE)
 						/*
 						 * There is no predecessor.
@@ -1274,8 +1278,7 @@ dns_rbt_deletenode(dns_rbt_t *rbt, dns_rbtnode_t *node, isc_boolean_t recurse)
 				      == ISC_R_SUCCESS);
 		else {
 			if (DATA(node) != NULL && rbt->data_deleter != NULL)
-				rbt->data_deleter(DATA(node),
-						  rbt->deleter_arg);
+				rbt->data_deleter(DATA(node), rbt->deleter_arg);
 			DATA(node) = NULL;
 
 			/*
@@ -1436,11 +1439,14 @@ create_node(isc_mem_t *mctx, dns_name_t *name, dns_rbtnode_t **nodep) {
 	HASHVAL(node) = 0;
 #endif
 
+	ISC_LINK_INIT(node, deadlink);
+
 	LOCKNUM(node) = 0;
 	WILD(node) = 0;
 	DIRTY(node) = 0;
 	dns_rbtnode_refinit(node, 0);
 	node->find_callback = 0;
+	node->nsec3 = 0;
 
 	MAKE_BLACK(node);
 
@@ -1451,9 +1457,9 @@ create_node(isc_mem_t *mctx, dns_name_t *name, dns_rbtnode_t **nodep) {
 	 * and the name's offsets table.
 	 *
 	 * XXX RTH
-	 *	The offsets table could be made smaller by eliminating the
-	 *	first offset, which is always 0.  This requires changes to
-	 * 	lib/dns/name.c.
+	 *      The offsets table could be made smaller by eliminating the
+	 *      first offset, which is always 0.  This requires changes to
+	 *      lib/dns/name.c.
 	 */
 	NAMELEN(node) = region.length;
 	PADBYTES(node) = 0;
@@ -1934,7 +1940,7 @@ dns_rbt_deletefromlevel(dns_rbtnode_t *delete, dns_rbtnode_t **rootp) {
 			} else {
 				/*
 				 * Child is parent's right child.
-				 * Everything is doen the same as above,
+				 * Everything is done the same as above,
 				 * except mirrored.
 				 */
 				sibling = LEFT(parent);
@@ -2027,6 +2033,7 @@ dns_rbt_deletetree(dns_rbt_t *rbt, dns_rbtnode_t *node) {
 #if DNS_RBT_USEMAGIC
 	node->magic = 0;
 #endif
+
 	isc_mem_put(rbt->mctx, node, NODE_SIZE(node));
 	rbt->nodecount--;
 	return (result);
@@ -2076,6 +2083,7 @@ dns_rbt_deletetreeflat(dns_rbt_t *rbt, unsigned int quantum,
 			DOWN(parent) = RIGHT(node);
 	} else
 		parent = RIGHT(node);
+
 	isc_mem_put(rbt->mctx, node, NODE_SIZE(node));
 	rbt->nodecount--;
 	node = parent;
@@ -2354,6 +2362,113 @@ dns_rbtnodechain_prev(dns_rbtnodechain_t *chain, dns_name_t *name,
 }
 
 isc_result_t
+dns_rbtnodechain_down(dns_rbtnodechain_t *chain, dns_name_t *name,
+		      dns_name_t *origin)
+{
+	dns_rbtnode_t *current, *successor;
+	isc_result_t result = ISC_R_SUCCESS;
+	isc_boolean_t new_origin = ISC_FALSE;
+
+	REQUIRE(VALID_CHAIN(chain) && chain->end != NULL);
+
+	successor = NULL;
+
+	current = chain->end;
+
+	if (DOWN(current) != NULL) {
+		/*
+		 * Don't declare an origin change when the new origin is "."
+		 * at the second level tree, because "." is already declared
+		 * as the origin for the top level tree.
+		 */
+		if (chain->level_count > 0 ||
+		    OFFSETLEN(current) > 1)
+			new_origin = ISC_TRUE;
+
+		ADD_LEVEL(chain, current);
+		current = DOWN(current);
+
+		while (LEFT(current) != NULL)
+			current = LEFT(current);
+
+		successor = current;
+	}
+
+	if (successor != NULL) {
+		chain->end = successor;
+
+		/*
+		 * It is not necessary to use dns_rbtnodechain_current like
+		 * the other functions because this function will never
+		 * find a node in the topmost level.  This is because the
+		 * root level will never be more than one name, and everything
+		 * in the megatree is a successor to that node, down at
+		 * the second level or below.
+		 */
+
+		if (name != NULL)
+			NODENAME(chain->end, name);
+
+		if (new_origin) {
+			if (origin != NULL)
+				result = chain_name(chain, origin, ISC_FALSE);
+
+			if (result == ISC_R_SUCCESS)
+				result = DNS_R_NEWORIGIN;
+
+		} else
+			result = ISC_R_SUCCESS;
+
+	} else
+		result = ISC_R_NOMORE;
+
+	return (result);
+}
+
+isc_result_t
+dns_rbtnodechain_nextflat(dns_rbtnodechain_t *chain, dns_name_t *name) {
+	dns_rbtnode_t *current, *previous, *successor;
+	isc_result_t result = ISC_R_SUCCESS;
+
+	REQUIRE(VALID_CHAIN(chain) && chain->end != NULL);
+
+	successor = NULL;
+
+	current = chain->end;
+
+	if (RIGHT(current) == NULL) {
+		while (! IS_ROOT(current)) {
+			previous = current;
+			current = PARENT(current);
+
+			if (LEFT(current) == previous) {
+				successor = current;
+				break;
+			}
+		}
+	} else {
+		current = RIGHT(current);
+
+		while (LEFT(current) != NULL)
+			current = LEFT(current);
+
+		successor = current;
+	}
+
+	if (successor != NULL) {
+		chain->end = successor;
+
+		if (name != NULL)
+			NODENAME(chain->end, name);
+
+		result = ISC_R_SUCCESS;
+	} else
+		result = ISC_R_NOMORE;
+
+	return (result);
+}
+
+isc_result_t
 dns_rbtnodechain_next(dns_rbtnodechain_t *chain, dns_name_t *name,
 		      dns_name_t *origin)
 {
@@ -2398,7 +2513,7 @@ dns_rbtnodechain_next(dns_rbtnodechain_t *chain, dns_name_t *name,
 		 * reached without having traversed any left links, ascend one
 		 * level and look for either a right link off the point of
 		 * ascent, or search for a left link upward again, repeating
-		 * ascents until either case is true.
+		 * ascends until either case is true.
 		 */
 		do {
 			while (! IS_ROOT(current)) {

@@ -377,6 +377,10 @@ typedef struct caller_context {
 void		xva_init(xvattr_t *);
 xoptattr_t	*xva_getxoptattr(xvattr_t *);	/* Get ptr to xoptattr_t */
 
+struct taskq;
+void	vn_rele_async(struct vnode *vp, struct taskq *taskq);
+void	vn_rele_async_fini(void);
+	
 /*
  * Flags to VOP_SETATTR/VOP_GETATTR.
  */

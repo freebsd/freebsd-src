@@ -28,7 +28,7 @@
 
 #ifndef NULL
 
-#if defined(_KERNEL) || !defined(__cplusplus)
+#if !defined(__cplusplus)
 #define	NULL	((void *)0)
 #else
 #if defined(__GNUG__) && defined(__GNUC__) && __GNUC__ >= 4
@@ -40,6 +40,6 @@
 #define	NULL	0
 #endif	/* __LP64__ */
 #endif	/* __GNUG__ */
-#endif	/* _KERNEL || !__cplusplus */
+#endif	/* !__cplusplus */
 
 #endif

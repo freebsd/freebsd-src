@@ -39,7 +39,6 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  */
 
-#include "opt_route.h"
 #include "opt_compat.h"
 
 #include <sys/cdefs.h>
@@ -78,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <net/if.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <vm/vm.h>
@@ -1080,7 +1078,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 static int
 linprocfs_donetdev(PFS_FILL_ARGS)
 {
-	INIT_VNET_NET(TD_TO_VNET(curthread));
+	INIT_VNET_NET(TD_TO_VNET(td));
 	char ifname[16]; /* XXX LINUX_IFNAMSIZ */
 	struct ifnet *ifp;
 

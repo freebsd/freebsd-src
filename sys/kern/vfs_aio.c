@@ -1313,12 +1313,12 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 	struct aiocblist *cb, *cbn;
 	int opcode;
 
+	SOCKBUF_LOCK_ASSERT(sb);
 	if (sb == &so->so_snd)
 		opcode = LIO_WRITE;
 	else
 		opcode = LIO_READ;
 
-	SOCKBUF_LOCK(sb);
 	sb->sb_flags &= ~SB_AIO;
 	mtx_lock(&aio_job_mtx);
 	TAILQ_FOREACH_SAFE(cb, &so->so_aiojobq, list, cbn) {
@@ -1336,7 +1336,6 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 		}
 	}
 	mtx_unlock(&aio_job_mtx);
-	SOCKBUF_UNLOCK(sb);
 }
 
 static int
@@ -1486,7 +1485,7 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	aiocbe = uma_zalloc(aiocb_zone, M_WAITOK | M_ZERO);
 	aiocbe->inputcharge = 0;
 	aiocbe->outputcharge = 0;
-	knlist_init(&aiocbe->klist, AIO_MTX(ki), NULL, NULL, NULL);
+	knlist_init_mtx(&aiocbe->klist, AIO_MTX(ki));
 
 	error = ops->copyin(job, &aiocbe->uaiocb);
 	if (error) {
@@ -2108,7 +2107,7 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 	lj->lioj_flags = 0;
 	lj->lioj_count = 0;
 	lj->lioj_finished_count = 0;
-	knlist_init(&lj->klist, AIO_MTX(ki), NULL, NULL, NULL);
+	knlist_init_mtx(&lj->klist, AIO_MTX(ki));
 	ksiginfo_init(&lj->lioj_ksi);
 
 	/*

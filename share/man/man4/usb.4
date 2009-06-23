@@ -25,9 +25,32 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd May 20, 2009
 .Dt USB 4
 .Os
 .Sh NAME
@@ -47,22 +70,29 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 usb_load="YES"
 .Ed
-.Pp
-.In dev/usb/usb.h
-.In dev/usb/usbhid.h
+.Sh USERLAND PROGRAMMING
+USB functions can be accessed from userland through the libusb library.
+See
+.Xr libusb 3
+for more information.
 .Sh DESCRIPTION
 .Fx
 provides machine-independent bus support and drivers for
 .Tn USB
-devices.
+devices in host and device side mode.
 .Pp
 The
 .Nm
-driver has three layers: the controller, the bus, and the
-device layer.
+driver has three layers:
+.Bl -tag
+.It USB Controller (Bus)
+.It USB Device
+.It USB Driver
+.El
+.Pp
 The controller attaches to a physical bus
-(like
-.Xr pci 4 ) .
+like
+.Xr pci 4 .
 The
 .Tn USB
 bus attaches to the controller, and the root hub attaches
@@ -79,14 +109,20 @@ root hub.
 .Sh INTRODUCTION TO USB
 The
 .Tn USB
-is a 12 Mb/s serial bus (1.5 Mb/s for low speed devices).
+is a system where external devices can be connected to a PC.
+The most common USB speeds are:
+.Bl -tag
+.It Low Speed (1.5MBit/sec)
+.It Full Speed (12MBit/sec)
+.It High Speed (480MBit/sec)
+.El
+.Pp
 Each
 .Tn USB
-has a host controller that is the master of the bus;
-all other devices on the bus only speak when spoken to.
+has a USB controller that is the master of the bus.
+The physical communication is simplex which means the host controller only communicates with one USB device at a time.
 .Pp
-There can be up to 127 devices (apart from the host controller)
-on a bus, each with its own address.
+There can be up to 127 devices connected to an USB HUB tree.
 The addresses are assigned
 dynamically by the host when each device is attached to the bus.
 .Pp
@@ -116,286 +152,558 @@ A device may operate in different configurations.
 Depending on the
 configuration, the device may present different sets of endpoints
 and interfaces.
-.\" .Pp
-.\" Each device located on a hub has several
-.\" .Xr config 8
-.\" locators:
-.\" .Bl -tag -compact -width xxxxxx
-.\" .It Cd port
-.\" this is the number of the port on the closest upstream hub.
-.\" .It Cd configuration
-.\" this is the configuration the device must be in for this driver to attach.
-.\" This locator does not set the configuration; it is iterated by the bus
-.\" enumeration.
-.\" .It Cd interface
-.\" this is the interface number within a device that an interface driver
-.\" attaches to.
-.\" .It Cd vendor
-.\" this is the 16 bit vendor id of the device.
-.\" .It Cd product
-.\" this is the 16 bit product id of the device.
-.\" .It Cd release
-.\" this is the 16 bit release (revision) number of the device.
-.\" .El
-.\" The first locator can be used to pin down a particular device
-.\" according to its physical position in the device tree.
-.\" The last three locators can be used to pin down a particular
-.\" device according to what device it actually is.
 .Pp
 The bus enumeration of the
 .Tn USB
 bus proceeds in several steps:
 .Bl -enum
 .It
-Any device specific driver can attach to the device.
+Any interface specific driver can attach to the device.
 .It
-If none is found, any device class specific driver can attach.
-.It
-If none is found, all configurations are iterated over.
-For each configuration, all the interfaces are iterated over, and interface
-drivers can attach.
-If any interface driver attached in a certain
-configuration, the iteration over configurations is stopped.
-.It
-If still no drivers have been found, the generic
-.Tn USB
-driver can attach.
+If none is found, generic interface class drivers can attach.
 .El
-.Sh USB CONTROLLER INTERFACE
-Use the following to get access to the
-.Tn USB
-specific structures and defines.
+.Sh USB KERNEL PROGRAMMING
+Here is a list of commonly used functions:
 .Pp
-The
-.Pa /dev/usb Ns Ar N
-can be opened and a few operations can be performed on it.
-The
-.Xr poll 2
-system call will say that I/O is possible on the controller device when a
-.Tn USB
-device has been connected or disconnected to the bus.
+.
+.Ft "usb2_error_t"
+.Fo "usb2_transfer_setup"
+.Fa "udev"
+.Fa "ifaces"
+.Fa "pxfer"
+.Fa "setup_start"
+.Fa "n_setup"
+.Fa "priv_sc"
+.Fa "priv_mtx"
+.Fc
+.
 .Pp
-The following
-.Xr ioctl 2
-commands are supported on the controller device:
-.Bl -tag -width xxxxxx
-.It Dv USB_DISCOVER
-This command will cause a complete bus discovery to be initiated.
-If any devices attached or detached from the bus they will be
-processed during this command.
-This is the only way that new devices are found on the bus.
-.It Dv USB_DEVICEINFO Vt "struct usb_device_info"
-This command can be used to retrieve some information about a device
-on the bus.
+.
+.Ft "void"
+.Fo "usb2_transfer_unsetup"
+.Fa "pxfer"
+.Fa "n_setup"
+.Fc
+.
+.Pp
+.
+.Ft "void"
+.Fo "usb2_transfer_start"
+.Fa "xfer"
+.Fc
+.
+.Pp
+.
+.Ft "void"
+.Fo "usb2_transfer_stop"
+.Fa "xfer"
+.Fc
+.
+.Pp
+.
+.Ft "void"
+.Fo "usb2_transfer_drain"
+.Fa "xfer"
+.Fc
+.
+.
+.Sh DESCRIPTION
 The
-.Va udi_addr
-field should be filled before the call and the other fields will
-be filled by information about the device on that address.
-Should no such device exist, an error is reported.
-.Bd -literal
-#define USB_MAX_DEVNAMES 4
-#define USB_MAX_DEVNAMELEN 16
-struct usb_device_info {
-	u_int8_t	udi_bus;
-	u_int8_t	udi_addr;	/* device address */
-	usb_event_cookie_t udi_cookie;
-	char		udi_product[USB_MAX_STRING_LEN];
-	char		udi_vendor[USB_MAX_STRING_LEN];
-	char		udi_release[8];
-	u_int16_t	udi_productNo;
-	u_int16_t	udi_vendorNo;
-	u_int16_t	udi_releaseNo;
-	u_int8_t	udi_class;
-	u_int8_t	udi_subclass;
-	u_int8_t	udi_protocol;
-	u_int8_t	udi_config;
-	u_int8_t	udi_speed;
-#define USB_SPEED_LOW  1
-#define USB_SPEED_FULL 2
-#define USB_SPEED_HIGH 3
-	int		udi_power;/* power consumption in mA, 0 if selfpowered */
-	int		udi_nports;
-	char		udi_devnames[USB_MAX_DEVNAMES][USB_MAX_DEVNAMELEN];
-	u_int8_t	udi_ports[16];/* hub only: addresses of devices on ports */
-#define USB_PORT_ENABLED 0xff
-#define USB_PORT_SUSPENDED 0xfe
-#define USB_PORT_POWERED 0xfd
-#define USB_PORT_DISABLED 0xfc
-};
+.Nm
+module implements the core functionality of the USB standard and many
+helper functions to make USB device driver programming easier and more
+safe.
+.
+The
+.Nm
+module supports both USB Host and USB Device side mode!
+.
+.Sh USB TRANSFER MANAGEMENT FUNCTIONS
+The USB standard defines four types of USB transfers.
+.
+Control transfers, Bulk transfers, Interrupt transfers and Isochronous
+transfers.
+.
+All the transfer types are managed using the following five functions:
+.
+.Pp
+.
+.Fn usb2_transfer_setup
+This function will allocate memory for and initialise an array of USB
+transfers and all required DMA memory.
+.
+This function can sleep or block waiting for resources to become
+available.
+.Fa udev
+is a pointer to "struct usb2_device".
+.Fa ifaces
+is an array of interface index numbers to use. See "if_index".
+.Fa pxfer
+is a pointer to an array of USB transfer pointers that are initialized
+to NULL, and then pointed to allocated USB transfers.
+.Fa setup_start
+is a pointer to an array of USB config structures.
+.Fa n_setup
+is a number telling the USB system how many USB transfers should be
+setup.
+.Fa priv_sc
+is the private softc pointer, which will be used to initialize
+"xfer->priv_sc".
+.Fa priv_mtx
+is the private mutex protecting the transfer structure and the
+softc. This pointer is used to initialize "xfer->priv_mtx".
+This function returns
+zero upon success. A non-zero return value indicates failure.
+.
+.Pp
+.
+.Fn usb2_transfer_unsetup
+This function will release the given USB transfers and all allocated
+resources associated with these USB transfers. 
+.Fa pxfer
+is a pointer to an array of USB transfer pointers, that may be NULL,
+that should be freed by the USB system.
+.Fa n_setup
+is a number telling the USB system how many USB transfers should be
+unsetup.
+.
+This function can sleep waiting for USB transfers to complete.
+.
+This function is NULL safe with regard to the USB transfer structure
+pointer.
+.
+It is not allowed to call this function from the USB transfer
+callback.
+.
+.Pp
+.
+.Fn usb2_transfer_start
+This function will start the USB transfer pointed to by
+.Fa xfer,
+if not already started.
+.
+This function is always non-blocking and must be called with the
+so-called private USB mutex locked.
+.
+This function is NULL safe with regard to the USB transfer structure
+pointer.
+.
+.Pp
+.
+.Fn usb2_transfer_stop
+This function will stop the USB transfer pointed to by
+.Fa xfer,
+if not already stopped.
+.
+This function is always non-blocking and must be called with the
+so-called private USB mutex locked.
+.
+This function can return before the USB callback has been called.
+.
+This function is NULL safe with regard to the USB transfer structure
+pointer.
+.
+If the transfer was in progress, the callback will called with
+"USB_ST_ERROR" and "xfer->error = USB_ERR_CANCELLED".
+.
+.Pp
+.
+.Fn usb2_transfer_drain
+This function will stop an USB transfer, if not already stopped and
+wait for any additional USB hardware operations to complete.
+.
+Buffers that are loaded into DMA using "usb2_set_frame_data()" can
+safely be freed after that this function has returned.
+.
+This function can block the caller and will not return before the USB
+callback has been called.
+.
+This function is NULL safe with regard to the USB transfer structure
+pointer.
+.
+.Sh USB TRANSFER CALLBACK
+.
+The USB callback has three states.
+.
+USB_ST_SETUP, USB_ST_TRANSFERRED and USB_ST_ERROR. USB_ST_SETUP is the
+initial state.
+.
+After the callback has been called with this state it will always be
+called back at a later stage in one of the other two states.
+.
+In the USB_ST_ERROR state the "error" field of the USB transfer
+structure is set to the error cause.
+.
+The USB callback should not restart the USB transfer in case the error
+cause is USB_ERR_CANCELLED.
+.
+The USB callback is protected from recursion.
+.
+That means one can start and stop whatever transfer from the callback
+of another transfer one desires.
+.
+Also the transfer that is currently called back.
+.
+Recursion is handled like this that when the callback that wants to
+recurse returns it is called one more time.
+.
+.
+.Pp
+.
+.Fn usb2_start_hardware
+This function should only be called from within the USB callback and
+is used to start the USB hardware.
+.
+Typical parameters that should be set in the USB transfer structure
+before this function is called are "frlengths[]", "nframes" and
+"frbuffers[]".
+.
+An USB transfer can have multiple frames consisting of one or more USB
+packets making up an I/O vector for all USB transfer types.
+.
+After the USB transfer is complete "frlengths[]" is updated to the
+actual USB transfer length for the given frame.
+.Bd -literal -offset indent
+void
+usb2_default_callback(struct usb2_xfer *xfer)
+{
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_SETUP: 
+		/*
+		 * Setup xfer->frlengths[], xfer->nframes
+		 * and write data to xfer->frbuffers[], if any
+		 */
+		usb2_start_hardware(xfer);
+		break;
+
+	case USB_ST_TRANSFERRED: 
+		/* 
+		 * Read	data from xfer->frbuffers[], if any.
+		 * "xfer->frlengths[]" should now have been
+		 * updated to the actual length.
+		 */
+		break;
+
+	default: /* Error */
+		/*
+		 * Print error message and clear stall 
+		 * for example.
+		 */
+		break;
+	}
+	/* 
+	 * Here it is safe to do something without the private 
+	 * USB mutex locked.
+	 */
+	return;
+}
 .Ed
-.Pp
-.Va udi_bus
-and
-.Va udi_addr
-contain the topological information for the device.
-.Va udi_devnames
-contains the device names of the connected drivers.
-For example, the
-third
-.Tn USB
-Zip drive connected will be
-.Li umass2 .
-The
-.Va udi_product , udi_vendor
-and
-.Va udi_release
-fields contain self-explanatory descriptions of the device.
-.Va udi_productNo , udi_vendorNo , udi_releaseNo , udi_class , udi_subclass
-and
-.Va udi_protocol
-contain the corresponding values from the device descriptors.
-The
-.Va udi_config
-field shows the current configuration of the device.
-.Pp
-.Va udi_speed
-indicates whether the device is at low speed
-.Pq Dv USB_SPEED_LOW ,
-full speed
-.Pq Dv USB_SPEED_FULL
-or high speed
-.Pq Dv USB_SPEED_HIGH .
-The
-.Va udi_power
-field shows the power consumption in milli-amps drawn at 5 volts,
-or zero if the device is self powered.
-.Pp
-If the device is a hub, the
-.Va udi_nports
-field is non-zero, and the
-.Va udi_ports
-field contains the addresses of the connected devices.
-If no device is connected to a port, one of the
-.Dv USB_PORT_*
-values indicates its status.
-.It Dv USB_DEVICESTATS Vt "struct usb_device_stats"
-This command retrieves statistics about the controller.
-.Bd -literal
-struct usb_device_stats {
-        u_long  uds_requests[4];
-};
+.
+.Sh USB CONTROL TRANSFERS
+An USB control transfer has three parts.
+.
+First the SETUP packet, then DATA packet(s) and then a STATUS
+packet.
+.
+The SETUP packet is always pointed to by "xfer->frbuffers[0]" and the
+length is stored in "xfer->frlengths[0]" also if there should not be
+sent any SETUP packet! If an USB control transfer has no DATA stage,
+then "xfer->nframes" should be set to 1.
+.
+Else the default value is "xfer->nframes" equal to 2.
+.
+.Bd -literal -offset indent
+
+Example1: SETUP + STATUS
+ xfer->nframes = 1;
+ xfer->frlenghts[0] = 8;
+ usb2_start_hardware(xfer);
+
+Example2: SETUP + DATA + STATUS
+ xfer->nframes = 2;
+ xfer->frlenghts[0] = 8;
+ xfer->frlenghts[1] = 1;
+ usb2_start_hardware(xfer);
+
+Example3: SETUP + DATA + STATUS - split
+1st callback:
+ xfer->nframes = 1;
+ xfer->frlenghts[0] = 8;
+ usb2_start_hardware(xfer);
+
+2nd callback:
+ /* IMPORTANT: frbuffers[0] must still point at the setup packet! */
+ xfer->nframes = 2;
+ xfer->frlenghts[0] = 0;
+ xfer->frlenghts[1] = 1;
+ usb2_start_hardware(xfer);
+
+Example4: SETUP + STATUS - split
+1st callback:
+ xfer->nframes = 1;
+ xfer->frlenghts[0] = 8;
+ xfer->flags.manual_status = 1;
+ usb2_start_hardware(xfer);
+
+2nd callback:
+ xfer->nframes = 1;
+ xfer->frlenghts[0] = 0;
+ xfer->flags.manual_status = 0;
+ usb2_start_hardware(xfer);
+
 .Ed
+.Sh USB TRANSFER CONFIG
+To simply the search for endpoints the
+.Nm
+module defines a USB config structure where it is possible to specify
+the characteristics of the wanted endpoint.
+.Bd -literal -offset indent
+
+struct usb2_config { 
+	bufsize,
+	callback
+	direction,
+	endpoint,
+	frames,
+	index flags,
+	interval,
+	timeout,
+	type,
+};
+
+.Ed
+.
 .Pp
-The
-.Va udi_requests
-field is indexed by the transfer kind, i.e.\&
-.Dv UE_* ,
-and indicates how many transfers of each kind that has been completed
-by the controller.
-.It Dv USB_REQUEST Vt "struct usb_ctl_request"
-This command can be used to execute arbitrary requests on the control pipe.
-This is
-.Em DANGEROUS
-and should be used with great care since it
-can destroy the bus integrity.
+.Fa type
+field selects the USB pipe type.
+.
+Valid values are: UE_INTERRUPT, UE_CONTROL, UE_BULK,
+UE_ISOCHRONOUS.
+.
+The special value UE_BULK_INTR will select BULK and INTERRUPT pipes.
+.
+This field is mandatory.
+.
+.Pp
+.Fa endpoint
+field selects the USB endpoint number.
+.
+A value of 0xFF, "-1" or "UE_ADDR_ANY" will select the first matching
+endpoint.
+.
+This field is mandatory.
+.
+.Pp
+.Fa direction
+field selects the USB endpoint direction.
+.
+A value of "UE_DIR_ANY" will select the first matching endpoint.
+.
+Else valid values are: "UE_DIR_IN" and "UE_DIR_OUT".
+.
+"UE_DIR_IN" and "UE_DIR_OUT" can be binary OR'ed by "UE_DIR_SID" which
+means that the direction will be swapped in case of
+USB_MODE_DEVICE.
+.
+Note that "UE_DIR_IN" refers to the data transfer direction of the
+"IN" tokens and "UE_DIR_OUT" refers to the data transfer direction of
+the "OUT" tokens.
+.
+This field is mandatory.
+.
+.Pp
+.Fa interval
+field selects the interrupt interval.
+.
+The value of this field is given in milliseconds and is independent of
+device speed.
+.
+Depending on the endpoint type, this field has different meaning:
+.Bl -tag
+.It UE_INTERRUPT
+"0" use the default interrupt interval based on endpoint descriptor.
+"Else" use the given value for polling rate.
+.It UE_ISOCHRONOUS
+"0" use default. "Else" the value is ignored.
+.It UE_BULK
+.It UE_CONTROL
+"0" no transfer pre-delay. "Else" a delay as given by this field in
+milliseconds is inserted before the hardware is started when
+"usb2_start_hardware()" is called.
+.Pp
+NOTE: The transfer timeout, if any, is started after that the
+pre-delay has elapsed!
+.El
+.
+.Pp
+.Fa timeout
+field, if non-zero, will set the transfer timeout in milliseconds. If
+the "timeout" field is zero and the transfer type is ISOCHRONOUS a
+timeout of 250ms will be used.
+.
+.Pp
+.Fa frames
+field sets the maximum number of frames. If zero is specified it will
+yield the following results:
+.Bl -tag
+.It UE_BULK
+xfer->nframes = 1;
+.It UE_INTERRUPT
+xfer->nframes = 1;
+.It UE_CONTROL
+xfer->nframes = 2;
+.It UE_ISOCHRONOUS
+Not allowed. Will cause an error.
+.El
+.
+.Pp
+.Fa ep_index
+field allows you to give a number, in case more endpoints match the
+description, that selects which matching "ep_index" should be used.
+.
+.Pp
+.Fa if_index
+field allows you to select which of the interface numbers in the
+"ifaces" array parameter passed to "usb2_transfer_setup" that should
+be used when setting up the given USB transfer.
+.
+.Pp
+.Fa flags
+field has type "struct usb2_xfer_flags" and allows one to set initial
+flags an USB transfer. Valid flags are:
+.Bl -tag
+.It force_short_xfer
+This flag forces the last transmitted USB packet to be short.  A short
+packet has a length of less than "xfer->max_packet_size", which
+derives from "wMaxPacketSize". This flag can be changed during
+operation.
+.It short_xfer_ok
+This flag allows the received transfer length, "xfer->actlen" to be
+less than "xfer->sumlen" upon completion of a transfer.  This flag can
+be changed during operation.
+.It short_frames_ok
+This flag allows the reception of multiple short USB frames. This flag
+only has effect for BULK and INTERRUPT endpoints and if the number of
+frames received is greater than 1. This flag can be changed during
+operation.
+.It pipe_bof
+This flag causes a failing USB transfer to remain first in the PIPE
+queue except in the case of "xfer->error" equal to
+"USB_ERR_CANCELLED". No other USB transfers in the affected PIPE queue
+will be started until either:
+.Bl -tag
+.It 1
+The failing USB transfer is stopped using "usb2_transfer_stop()".
+.It 2
+The failing USB transfer performs a successful transfer.
+.El
+The purpose of this flag is to avoid races when multiple transfers are
+queued for execution on an USB endpoint, and the first executing
+transfer fails leading to the need for clearing of stall for
+example.
+.
+In this case this flag is used to prevent the following USB transfers
+from being executed at the same time the clear-stall command is
+executed on the USB control endpoint.
+.
+This flag can be changed during operation.
+.Pp
+"BOF" is short for "Block On Failure"
+.Pp
+NOTE: This flag should be set on all BULK and INTERRUPT USB transfers
+which use an endpoint that can be shared between userland and kernel.
+.
+.
+.It proxy_buffer
+Setting this flag will cause that the total buffer size will be
+rounded up to the nearest atomic hardware transfer size.
+.
+The maximum data length of any USB transfer is always stored in the
+"xfer->max_data_length".
+.
+For control transfers the USB kernel will allocate additional space
+for the 8-bytes of SETUP header.
+.
+These 8-bytes are not counted by the "xfer->max_data_length"
+variable.
+.
+This flag can not be changed during operation.
+.
+.
+.It ext_buffer
+Setting this flag will cause that no data buffer will be
+allocated.
+.
+Instead the USB client must supply a data buffer.
+.
+This flag can not be changed during operation.
+.
+.
+.It manual_status
+Setting this flag prevents an USB STATUS stage to be appended to the
+end of the USB control transfer.
+.
+If no control data is transferred this flag must be cleared.
+.
+Else an error will be returned to the USB callback.
+.
+This flag is mostly useful for the USB device side.
+.
+This flag can be changed during operation.
+.
+.
+.It no_pipe_ok
+Setting this flag causes the USB_ERR_NO_PIPE error to be ignored. This
+flag can not be changed during operation.
+.
+.
+.It stall_pipe
+.Bl -tag
+.It Device Side Mode
+Setting this flag will cause STALL pids to be sent to the endpoint
+belonging to this transfer before the transfer is started.
+.
+The transfer is started at the moment the host issues a clear-stall
+command on the STALL'ed endpoint.
+.
+This flag can be changed during operation.
+.It Host Side Mode
+Setting this flag will cause a clear-stall control request to be
+executed on the endpoint before the USB transfer is started.
 .El
 .Pp
-The include file
-.In dev/usb/usb.h
-contains definitions for the types used by the various
-.Xr ioctl 2
-calls.
-The naming convention of the fields for the various
-.Tn USB
-descriptors exactly follows the naming in the
-.Tn USB
-specification.
-Byte sized fields can be accessed directly, but word (16 bit)
-sized fields must be access by the
-.Fn UGETW field
-and
-.Fn USETW field value
-macros to handle byte order and alignment properly.
+If this flag is changed outside the USB callback function you have to
+use the "usb2_transfer_set_stall()" and "usb2_transfer_clear_stall()"
+functions! This flag is automatically cleared after that the stall or
+clear stall has been executed.
+.
+.El
 .Pp
-The include file
-.In dev/usb/usbhid.h
-similarly contains the definitions for
-Human Interface Devices
-.Pq Tn HID .
-.Sh USB EVENT INTERFACE
-All
-.Tn USB
-events are reported via the
-.Pa /dev/usb
-device.
-This device can be opened for reading and each
-.Xr read 2
-will yield an event record (if something has happened).
+.Fa bufsize
+field sets the total buffer size in bytes.
+.
+If this field is zero, "wMaxPacketSize" will be used, multiplied by
+the "frames" field if the transfer type is ISOCHRONOUS.
+.
+This is useful for setting up interrupt pipes.
+.
+This field is mandatory.
+.Pp
+NOTE: For control transfers "bufsize" includes the length of the
+request structure.
+.
+.Pp
+.Fa callback
+pointer sets the USB callback. This field is mandatory.
+.
+.
+.Sh USB LINUX COMPAT LAYER
 The
-.Xr poll 2
-system call can be used to determine if an event record is available
-for reading.
-.Pp
-The event record has the following definition:
-.Bd -literal
-struct usb_event {
-        int                                 ue_type;
-#define USB_EVENT_CTRLR_ATTACH 1
-#define USB_EVENT_CTRLR_DETACH 2
-#define USB_EVENT_DEVICE_ATTACH 3
-#define USB_EVENT_DEVICE_DETACH 4
-#define USB_EVENT_DRIVER_ATTACH 5
-#define USB_EVENT_DRIVER_DETACH 6
-        struct timespec                     ue_time;
-        union {
-                struct {
-                        int                 ue_bus;
-                } ue_ctrlr;
-                struct usb_device_info      ue_device;
-                struct {
-                        usb_event_cookie_t  ue_cookie;
-                        char                ue_devname[16];
-                } ue_driver;
-        } u;
-};
-.Ed
-The
-.Va ue_type
-field identifies the type of event that is described.
-The possible events are attach/detach of a host controller,
-a device, or a device driver.
-The union contains information
-pertinent to the different types of events.
-Macros,
-.Fn USB_EVENT_IS_ATTACH "ue_type"
-and
-.Fn USB_EVENT_IS_DETACH "ue_type"
-can be used to determine if an event was an
-.Dq attach
-or a
-.Dq detach
-request.
-.Pp
-The
-.Va ue_bus
-contains the number of the
-.Tn USB
-bus for host controller events.
-.Pp
-The
-.Va ue_device
-record contains information about the device in a device event event.
-.Pp
-The
-.Va ue_cookie
-is an opaque value that uniquely determines which
-device a device driver has been attached to (i.e., it equals
-the cookie value in the device that the driver attached to).
-.Pp
-The
-.Va ue_devname
-contains the name of the device (driver) as seen in, e.g.,
-kernel messages.
-.Pp
-Note that there is a separation between device and device
-driver events.
-A device event is generated when a physical
-.Tn USB
-device is attached or detached.
-A single
-.Tn USB
-device may
-have zero, one, or many device drivers associated with it.
+.Nm
+module supports the Linux USB API.
+.
+.
+.
 .Sh SEE ALSO
 The
 .Tn USB
@@ -403,6 +711,7 @@ specifications can be found at:
 .Pp
 .D1 Pa http://www.usb.org/developers/docs/
 .Pp
+.Xr libusb 3 ,
 .Xr aue 4 ,
 .Xr axe 4 ,
 .Xr cue 4 ,
@@ -413,7 +722,6 @@ specifications can be found at:
 .Xr rue 4 ,
 .Xr ucom 4 ,
 .Xr udav 4 ,
-.Xr ugen 4 ,
 .Xr uhci 4 ,
 .Xr uhid 4 ,
 .Xr ukbd 4 ,
@@ -423,17 +731,16 @@ specifications can be found at:
 .Xr uplcom 4 ,
 .Xr urio 4 ,
 .Xr uvscom 4 ,
-.Xr usbdevs 8
+.Xr usbconfig 8
+.Sh STANDARDS
+The
+.Nm
+module complies with the USB 2.0 standard.
 .Sh HISTORY
 The
 .Nm
-driver first appeared in
-.Fx 3.0 .
-.Sh AUTHORS
-The
+module has been inspired by the NetBSD USB stack initially written by
+Lennart Augustsson. The
 .Nm
-driver was written by
-.An Lennart Augustsson Aq augustss@carlstedt.se
-for the
-.Nx
-project.
+module was written by
+.An Hans Petter Selasky Aq hselasky@freebsd.org .

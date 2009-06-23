@@ -39,13 +39,13 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/eventhandler.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/sysctl.h>
@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/jail.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
@@ -68,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/signalvar.h>
+#include <sys/vimage.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -214,6 +214,7 @@ fork1(td, flags, pages, procp)
 	struct thread *td2;
 	struct sigacts *newsigacts;
 	struct vmspace *vm2;
+	vm_ooffset_t mem_charged;
 	int error;
 
 	/* Can't copy and clear. */
@@ -274,6 +275,7 @@ norfproc_fail:
 	 * however it proved un-needed and caused problems
 	 */
 
+	mem_charged = 0;
 	vm2 = NULL;
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
@@ -295,16 +297,28 @@ norfproc_fail:
 		}
 	}
 	if ((flags & RFMEM) == 0) {
-		vm2 = vmspace_fork(p1->p_vmspace);
+		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
 		if (vm2 == NULL) {
 			error = ENOMEM;
 			goto fail1;
 		}
-	}
+		if (!swap_reserve(mem_charged)) {
+			/*
+			 * The swap reservation failed. The accounting
+			 * from the entries of the copied vm2 will be
+			 * substracted in vmspace_free(), so force the
+			 * reservation there.
+			 */
+			swap_reserve_force(mem_charged);
+			error = ENOMEM;
+			goto fail1;
+		}
+	} else
+		vm2 = NULL;
 #ifdef MAC
 	mac_proc_init(newproc);
 #endif
-	knlist_init(&newproc->p_klist, &newproc->p_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
 	STAILQ_INIT(&newproc->p_ktr);
 
 	/* We have to lock the process tree while we look for a pid. */
@@ -349,6 +363,9 @@ norfproc_fail:
 	 * are hard-limits as to the number of processes that can run.
 	 */
 	nprocs++;
+#ifdef VIMAGE
+	P_TO_VPROCG(p1)->nprocs++;
+#endif
 
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs
@@ -454,9 +471,8 @@ again:
 
 	p2->p_ucred = crhold(td->td_ucred);
 
-	/* In case we are jailed tell the prison that we exist. */
-	if (jailed(p2->p_ucred))
-		prison_proc_hold(p2->p_ucred->cr_prison);
+	/* Tell the prison that we exist. */
+	prison_proc_hold(p2->p_ucred->cr_prison);
 
 	PROC_UNLOCK(p2);
 
@@ -522,6 +538,11 @@ again:
 	td2->td_sigstk = td->td_sigstk;
 	td2->td_sigmask = td->td_sigmask;
 	td2->td_flags = TDF_INMEM;
+
+#ifdef VIMAGE
+	td2->td_vnet = NULL;
+	td2->td_vnet_lpush = NULL;
+#endif
 
 	/*
 	 * Duplicate sub-structures as needed.

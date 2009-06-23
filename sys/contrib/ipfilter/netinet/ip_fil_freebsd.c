@@ -213,6 +213,7 @@ char *s;
 
 int ipfattach()
 {
+	INIT_VNET_INET(curvnet);
 #ifdef USE_SPL
 	int s;
 #endif
@@ -264,6 +265,7 @@ int ipfattach()
  */
 int ipfdetach()
 {
+	INIT_VNET_INET(curvnet);
 #ifdef USE_SPL
 	int s;
 #endif
@@ -316,8 +318,10 @@ int iplioctl(dev, cmd, data, mode
 #  if (__FreeBSD_version >= 500024)
 struct thread *p;
 #   if (__FreeBSD_version >= 500043)
+#    define	p_cred	td_ucred
 #    define	p_uid	td_ucred->cr_ruid
 #   else
+#    define	p_cred	t_proc->p_cred
 #    define	p_uid	t_proc->p_cred->p_ruid
 #   endif
 #  else
@@ -340,7 +344,11 @@ int mode;
 	SPL_INT(s);
 
 #if (BSD >= 199306) && defined(_KERNEL)
+# if (__FreeBSD_version >= 500034)
+	if (securelevel_ge(p->p_cred, 3) && (mode & FWRITE))
+# else
 	if ((securelevel >= 3) && (mode & FWRITE))
+# endif
 		return EPERM;
 #endif
 
@@ -646,6 +654,7 @@ static int fr_send_ip(fin, m, mpp)
 fr_info_t *fin;
 mb_t *m, **mpp;
 {
+	INIT_VNET_INET(curvnet);
 	fr_info_t fnew;
 	ip_t *ip, *oip;
 	int hlen;
@@ -1046,7 +1055,7 @@ frdest_t *fdp;
 		if (!ip->ip_sum)
 			ip->ip_sum = in_cksum(m, hlen);
 		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst,
-					  ro->ro_rt);
+					  ro);
 		goto done;
 	}
 	/*
@@ -1127,7 +1136,7 @@ sendorfree:
 		m->m_act = 0;
 		if (error == 0)
 			error = (*ifp->if_output)(ifp, m,
-			    (struct sockaddr *)dst, ro->ro_rt);
+			    (struct sockaddr *)dst, ro);
 		else
 			FREE_MB_T(m);
 	}

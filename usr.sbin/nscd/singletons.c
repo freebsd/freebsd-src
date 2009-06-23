@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/time.h>
+
 #include "singletons.h"
 
 struct configuration *s_configuration = NULL;

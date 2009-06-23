@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Apple Inc.
+ * Copyright (c) 2005-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,11 +26,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_kevents.h#5 $
+ * $P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_kevents.h#6 $
  */
 
 #ifndef _BSM_AUDIT_KEVENTS_H_
 #define	_BSM_AUDIT_KEVENTS_H_
+
+/*
+ * The reserved event numbers for kernel events are 1...2047 and 43001..44900.
+ */
+#define	AUE_IS_A_KEVENT(e)	(((e) > 0 && (e) < 2048) || 	\
+    				 ((e) > 43000 && (e) < 45000))
 
 /*
  * Values marked as AUE_NULL are not required to be audited as per CAPP.
@@ -588,6 +594,8 @@
 #define	AUE_FSGETPATH		43191	/* Darwin. */
 #define	AUE_PREAD		43192	/* Darwin/FreeBSD. */
 #define	AUE_PWRITE		43193	/* Darwin/FreeBSD. */
+#define	AUE_FSCTL		43194	/* Darwin. */
+#define	AUE_FFSCTL		43195	/* Darwin. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
@@ -673,12 +681,10 @@
 #define	AUE_CSOPS		AUE_NULL
 #define	AUE_DUP			AUE_NULL
 #define	AUE_FDATASYNC		AUE_NULL
-#define	AUE_FFSCTL		AUE_NULL
 #define	AUE_FGETATTRLIST	AUE_NULL
 #define	AUE_FGETXATTR		AUE_NULL
 #define	AUE_FLISTXATTR		AUE_NULL
 #define	AUE_FREMOVEXATTR	AUE_NULL
-#define	AUE_FSCTL		AUE_NULL
 #define	AUE_FSETATTRLIST	AUE_NULL
 #define	AUE_FSETXATTR		AUE_NULL
 #define	AUE_FSTATFS64		AUE_NULL

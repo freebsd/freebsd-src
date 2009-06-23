@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2007  Mark Nudelman
+ * Copyright (C) 1984-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -393,8 +393,10 @@ init_charset()
  */
 	public int
 binary_char(c)
-	unsigned char c;
+	LWCHAR c;
 {
+    if (utf_mode)
+		return (is_ubin_char(c));
 	c &= 0377;
 	return (chardef[c] & IS_BINARY_CHAR);
 }
@@ -404,7 +406,7 @@ binary_char(c)
  */
 	public int
 control_char(c)
-	int c;
+	LWCHAR c;
 {
 	c &= 0377;
 	return (chardef[c] & IS_CONTROL_CHAR);
@@ -416,7 +418,7 @@ control_char(c)
  */
 	public char *
 prchar(c)
-	int c;
+	LWCHAR c;
 {
 	/* {{ This buffer can be overrun if LESSBINFMT is a long string. }} */
 	static char buf[32];
@@ -811,7 +813,11 @@ static struct wchar_range comb_table[] = {
  *	dated 2005-11-30T00:58:48Z
  */
 static struct wchar_range ubin_table[] = {
-	{  0x0000,  0x001F} /* Cc */, {  0x007F,  0x009F} /* Cc */,
+	{  0x0000,  0x0007} /* Cc */, 
+	{  0x000B,  0x000C} /* Cc */, 
+	{  0x000E,  0x001A} /* Cc */, 
+	{  0x001C,  0x001F} /* Cc */, 
+    {  0x007F,  0x009F} /* Cc */,
 #if 0
 	{  0x00AD,  0x00AD} /* Cf */,
 #endif

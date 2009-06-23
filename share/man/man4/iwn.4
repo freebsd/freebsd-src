@@ -49,13 +49,6 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 if_iwn_load="YES"
 .Ed
-.Pp
-In both cases, place the following line in
-.Xr loader.conf 5
-to acknowledge the firmware license (see below):
-.Bd -literal -offset indent
-legal.intel_iwn.license_ack=1
-.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -76,18 +69,6 @@ For more information on configuring this device, see
 This driver requires the firmware built with the
 .Nm iwnfw
 module to work.
-For the loaded firmware to be enabled for use the license at
-.Pa /usr/share/doc/legal/intel_iwn/LICENSE
-must be agreed by adding the following line to
-.Xr loader.conf 5 :
-.Pp
-.Dl "legal.intel_iwn.license_ack=1"
-.Sh FILES
-.Bl -tag -width ".Pa /usr/share/doc/legal/intel_iwn/LICENSE" -compact
-.It Pa /usr/share/doc/legal/intel_iwn/LICENSE
-.Nm
-firmware license
-.El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
@@ -130,9 +111,7 @@ The driver failed to load the firmware image using the
 subsystem.
 Verify the 
 .Xr iwnfw 4
-firmware module is installed and the license agreement
-.Xr loader 8
-tunable has been set.
+firmware module is present.
 .It "iwn%d: could not load boot firmware"
 An attempt to upload the boot firmware image to the onboard microcontroller
 failed.

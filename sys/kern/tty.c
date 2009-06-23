@@ -206,6 +206,7 @@ ttydev_leave(struct tty *tp)
 		ttydevsw_close(tp);
 
 	tp->t_flags &= ~TF_OPENCLOSE;
+	cv_broadcast(&tp->t_dcdwait);
 	tty_rel_free(tp);
 }
 
@@ -218,26 +219,23 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	struct tty *tp = dev->si_drv1;
 	int error = 0;
 
-	/* Disallow access when the TTY belongs to a different prison. */
-	if (dev->si_cred != NULL &&
-	    dev->si_cred->cr_prison != td->td_ucred->cr_prison &&
-	    priv_check(td, PRIV_TTY_PRISON)) {
-		return (EPERM);
-	}
-
 	tty_lock(tp);
 	if (tty_gone(tp)) {
 		/* Device is already gone. */
 		tty_unlock(tp);
 		return (ENXIO);
 	}
+
 	/*
-	 * Prevent the TTY from being opened when being torn down or
-	 * built up by unrelated processes.
+	 * Block when other processes are currently opening or closing
+	 * the TTY.
 	 */
-	if (tp->t_flags & TF_OPENCLOSE) {
-		tty_unlock(tp);
-		return (EBUSY);
+	while (tp->t_flags & TF_OPENCLOSE) {
+		error = tty_wait(tp, &tp->t_dcdwait);
+		if (error != 0) {
+			tty_unlock(tp);
+			return (error);
+		}
 	}
 	tp->t_flags |= TF_OPENCLOSE;
 
@@ -299,6 +297,7 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 		tp->t_flags |= TF_OPENED_IN;
 
 done:	tp->t_flags &= ~TF_OPENCLOSE;
+	cv_broadcast(&tp->t_dcdwait);
 	ttydev_leave(tp);
 
 	return (error);
@@ -336,6 +335,7 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	tp->t_revokecnt++;
 	tty_wakeup(tp, FREAD|FWRITE);
 	cv_broadcast(&tp->t_bgwait);
+	cv_broadcast(&tp->t_dcdwait);
 
 	ttydev_leave(tp);
 
@@ -456,7 +456,7 @@ ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	} else {
 		/* Serialize write() calls. */
 		while (tp->t_flags & TF_BUSY_OUT) {
-			error = tty_wait(tp, &tp->t_bgwait);
+			error = tty_wait(tp, &tp->t_dcdwait);
 			if (error)
 				goto done;
 		}
@@ -464,7 +464,7 @@ ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
  		tp->t_flags |= TF_BUSY_OUT;
 		error = ttydisc_write(tp, uio, ioflag);
  		tp->t_flags &= ~TF_BUSY_OUT;
-		cv_broadcast(&tp->t_bgwait);
+		cv_broadcast(&tp->t_dcdwait);
 	}
 
 done:	tty_unlock(tp);
@@ -879,7 +879,14 @@ ttydevsw_deffree(void *softc)
  */
 
 struct tty *
-tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
+tty_alloc(struct ttydevsw *tsw, void *sc)
+{
+
+	return (tty_alloc_mutex(tsw, sc, NULL));
+}
+
+struct tty *
+tty_alloc_mutex(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 {
 	struct tty *tp;
 
@@ -920,8 +927,8 @@ tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 		mtx_init(&tp->t_mtxobj, "ttymtx", NULL, MTX_DEF);
 	}
 
-	knlist_init(&tp->t_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
-	knlist_init(&tp->t_outpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&tp->t_inpoll.si_note, tp->t_mtx);
+	knlist_init_mtx(&tp->t_outpoll.si_note, tp->t_mtx);
 
 	sx_xlock(&tty_list_sx);
 	TAILQ_INSERT_TAIL(&tty_list, tp, t_list);
@@ -1063,7 +1070,7 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 		return (0);
 	}
 
-	xtlist = xt = malloc(lsize, M_TEMP, M_WAITOK);
+	xtlist = xt = malloc(lsize, M_TTY, M_WAITOK);
 
 	TAILQ_FOREACH(tp, &tty_list, t_list) {
 		tty_lock(tp);
@@ -1074,7 +1081,7 @@ sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 	sx_sunlock(&tty_list_sx);
 
 	error = SYSCTL_OUT(req, xtlist, lsize);
-	free(xtlist, M_TEMP);
+	free(xtlist, M_TTY);
 	return (error);
 }
 
@@ -1473,16 +1480,19 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 			return (0);
 		}
 
-		if (!SESS_LEADER(p) || p->p_session->s_ttyvp != NULL ||
-		    (tp->t_session != NULL && tp->t_session->s_ttyvp != NULL)) {
+		if (p->p_session->s_ttyp != NULL ||
+		    (tp->t_session != NULL && tp->t_session->s_ttyvp != NULL &&
+		    tp->t_session->s_ttyvp->v_type != VBAD)) {
 			/*
 			 * There is already a relation between a TTY and
 			 * a session, or the caller is not the session
 			 * leader.
 			 *
 			 * Allow the TTY to be stolen when the vnode is
-			 * NULL, but the reference to the TTY is still
-			 * active.
+			 * invalid, but the reference to the TTY is
+			 * still active.  This allows immediate reuse of
+			 * TTYs of which the session leader has been
+			 * killed or the TTY revoked.
 			 */
 			sx_xunlock(&proctree_lock);
 			return (EPERM);
@@ -1720,25 +1730,40 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	/* Validate the file descriptor. */
 	if ((fdp = p->p_fd) == NULL)
 		return (EBADF);
-	FILEDESC_SLOCK(fdp);
-	if ((fp = fget_locked(fdp, fd)) == NULL || fp->f_ops == &badfileops) {
-		FILEDESC_SUNLOCK(fdp);
+
+	fp = fget_unlocked(fdp, fd);
+	if (fp == NULL)
 		return (EBADF);
+	if (fp->f_ops == &badfileops) {
+		error = EBADF;
+		goto done1;
 	}
 	
-	/* Make sure the vnode is bound to a character device. */
-	error = EINVAL;
-	if (fp->f_type != DTYPE_VNODE || fp->f_vnode->v_type != VCHR ||
-	    fp->f_vnode->v_rdev == NULL)
+	/*
+	 * Make sure the vnode is bound to a character device.
+	 * Unlocked check for the vnode type is ok there, because we
+	 * only shall prevent calling devvn_refthread on the file that
+	 * never has been opened over a character device.
+	 */
+	if (fp->f_type != DTYPE_VNODE || fp->f_vnode->v_type != VCHR) {
+		error = EINVAL;
 		goto done1;
-	dev = fp->f_vnode->v_rdev;
+	}
 
 	/* Make sure it is a TTY. */
-	cdp = dev_refthread(dev);
-	if (cdp == NULL)
+	cdp = devvn_refthread(fp->f_vnode, &dev);
+	if (cdp == NULL) {
+		error = ENXIO;
 		goto done1;
-	if (cdp != &ttydev_cdevsw)
+	}
+	if (dev != fp->f_data) {
+		error = ENXIO;
 		goto done2;
+	}
+	if (cdp != &ttydev_cdevsw) {
+		error = ENOTTY;
+		goto done2;
+	}
 	tp = dev->si_drv1;
 
 	/* Try to attach the hook to the TTY. */
@@ -1763,7 +1788,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 
 done3:	tty_unlock(tp);
 done2:	dev_relthread(dev);
-done1:	FILEDESC_SUNLOCK(fdp);
+done1:	fdrop(fp, curthread);
 	return (error);
 }
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
+ * Copyright (C) 2007-2009 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
  * All rights reserved.
  *
@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/smp.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
@@ -79,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
-#include <machine/powerpc.h>
+#include <machine/platform.h>
 
 #include <machine/tlb.h>
 #include <machine/spr.h>
@@ -122,8 +123,11 @@ vm_size_t kernsize;
 static vm_offset_t data_start;
 static vm_size_t data_end;
 
-struct mem_region availmem_regions[MEM_REGIONS];
-int availmem_regions_sz;
+/* Phys/avail memory regions. */
+static struct mem_region *availmem_regions;
+static int availmem_regions_sz;
+static struct mem_region *physmem_regions;
+static int physmem_regions_sz;
 
 /* Reserved KVA space and mutex for mmu_booke_zero_page. */
 static vm_offset_t zero_page_va;
@@ -151,8 +155,6 @@ static void mmu_booke_enter_locked(mmu_t, pmap_t, vm_offset_t, vm_page_t,
 
 unsigned int kptbl_min;		/* Index of the first kernel ptbl. */
 unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
-
-static int pagedaemon_waken;
 
 /*
  * If user pmap is processed with mmu_booke_remove and the resident count
@@ -263,14 +265,16 @@ static vm_offset_t ptbl_buf_pool_vabase;
 /* Pointer to ptbl_buf structures. */
 static struct ptbl_buf *ptbl_bufs;
 
+void pmap_bootstrap_ap(volatile uint32_t *);
+
 /*
  * Kernel MMU interface
  */
 static void		mmu_booke_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 static void		mmu_booke_clear_modify(mmu_t, vm_page_t);
 static void		mmu_booke_clear_reference(mmu_t, vm_page_t);
-static void		mmu_booke_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t,
-    vm_offset_t);
+static void		mmu_booke_copy(mmu_t, pmap_t, pmap_t, vm_offset_t,
+    vm_size_t, vm_offset_t);
 static void		mmu_booke_copy_page(mmu_t, vm_page_t, vm_page_t);
 static void		mmu_booke_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t,
     vm_prot_t, boolean_t);
@@ -383,6 +387,54 @@ static mmu_def_t booke_mmu = {
 	0
 };
 MMU_DEF(booke_mmu);
+
+static inline void
+tlb_miss_lock(void)
+{
+#ifdef SMP
+	struct pcpu *pc;
+
+	if (!smp_started)
+		return;
+
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		if (pc != pcpup) {
+
+			CTR3(KTR_PMAP, "%s: tlb miss LOCK of CPU=%d, "
+			    "tlb_lock=%p", __func__, pc->pc_cpuid, pc->pc_booke_tlb_lock);
+
+			KASSERT((pc->pc_cpuid != PCPU_GET(cpuid)),
+			    ("tlb_miss_lock: tried to lock self"));
+
+			tlb_lock(pc->pc_booke_tlb_lock);
+
+			CTR1(KTR_PMAP, "%s: locked", __func__);
+		}
+	}
+#endif
+}
+
+static inline void
+tlb_miss_unlock(void)
+{
+#ifdef SMP
+	struct pcpu *pc;
+
+	if (!smp_started)
+		return;
+
+	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+		if (pc != pcpup) {
+			CTR2(KTR_PMAP, "%s: tlb miss UNLOCK of CPU=%d",
+			    __func__, pc->pc_cpuid);
+
+			tlb_unlock(pc->pc_booke_tlb_lock);
+
+			CTR1(KTR_PMAP, "%s: unlocked", __func__);
+		}
+	}
+#endif
+}
 
 /* Return number of entries in TLB0. */
 static __inline void
@@ -549,9 +601,11 @@ ptbl_free(mmu_t mmu, pmap_t pmap, unsigned int pdir_idx)
 	 * don't attempt to look up the page tables we are releasing.
 	 */
 	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
 	
 	pmap->pm_pdir[pdir_idx] = NULL;
 
+	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 
 	for (i = 0; i < PTBL_PAGES; i++) {
@@ -656,11 +710,8 @@ pv_alloc(void)
 	pv_entry_t pv;
 
 	pv_entry_count++;
-	if ((pv_entry_count > pv_entry_high_water) &&
-	    (pagedaemon_waken == 0)) {
-		pagedaemon_waken = 1;
-		wakeup(&vm_pages_needed);
-	}
+	if (pv_entry_count > pv_entry_high_water)
+		pagedaemon_wakeup();
 	pv = uma_zalloc(pvzone, M_NOWAIT);
 
 	return (pv);
@@ -757,35 +808,31 @@ pte_remove(mmu_t mmu, pmap_t pmap, vm_offset_t va, uint8_t flags)
 	if (pte == NULL || !PTE_ISVALID(pte))
 		return (0);
 
-	/* Get vm_page_t for mapped pte. */
-	m = PHYS_TO_VM_PAGE(PTE_PA(pte));
-
 	if (PTE_ISWIRED(pte))
 		pmap->pm_stats.wired_count--;
 
-	if (!PTE_ISFAKE(pte)) {
-		/* Handle managed entry. */
-		if (PTE_ISMANAGED(pte)) {
+	/* Handle managed entry. */
+	if (PTE_ISMANAGED(pte)) {
+		/* Get vm_page_t for mapped pte. */
+		m = PHYS_TO_VM_PAGE(PTE_PA(pte));
 
-			/* Handle modified pages. */
-			if (PTE_ISMODIFIED(pte))
-				vm_page_dirty(m);
+		if (PTE_ISMODIFIED(pte))
+			vm_page_dirty(m);
 
-			/* Referenced pages. */
-			if (PTE_ISREFERENCED(pte))
-				vm_page_flag_set(m, PG_REFERENCED);
+		if (PTE_ISREFERENCED(pte))
+			vm_page_flag_set(m, PG_REFERENCED);
 
-			/* Remove pv_entry from pv_list. */
-			pv_remove(pmap, va, m);
-		}
+		pv_remove(pmap, va, m);
 	}
 
 	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
 
 	tlb0_flush_entry(va);
 	pte->flags = 0;
 	pte->rpn = 0;
 
+	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 
 	pmap->pm_stats.resident_count--;
@@ -847,13 +894,12 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags)
 			/* Create and insert pv entry. */
 			pv_insert(pmap, va, m);
 		}
-        } else {
-		flags |= PTE_FAKE;
 	}
 
 	pmap->pm_stats.resident_count++;
 	
 	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
 
 	tlb0_flush_entry(va);
 	if (pmap->pm_pdir[pdir_idx] == NULL) {
@@ -867,6 +913,7 @@ pte_enter(mmu_t mmu, pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags)
 	pte->rpn = VM_PAGE_TO_PHYS(m) & ~PTE_PA_MASK;
 	pte->flags |= (PTE_VALID | flags);
 
+	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 }
 
@@ -914,8 +961,9 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	u_int s, e, sz;
 	u_int phys_avail_count;
 	vm_size_t physsz, hwphyssz, kstack0_sz;
-	vm_offset_t kernel_pdir, kstack0;
+	vm_offset_t kernel_pdir, kstack0, va;
 	vm_paddr_t kstack0_phys;
+	pte_t *pte;
 
 	debugf("mmu_booke_bootstrap: entered\n");
 
@@ -1021,6 +1069,10 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	 * align all regions.  Non-page aligned memory isn't very interesting
 	 * to us.  Also, sort the entries for ascending addresses.
 	 */
+
+	/* Retrieve phys/avail mem regions */
+	mem_regions(&physmem_regions, &physmem_regions_sz,
+	    &availmem_regions, &availmem_regions_sz);
 	sz = 0;
 	cnt = availmem_regions_sz;
 	debugf("processing avail regions:\n");
@@ -1160,6 +1212,19 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 		/* Initialize each CPU's tidbusy entry 0 with kernel_pmap */
 		tidbusy[i][0] = kernel_pmap;
 	}
+
+	/*
+	 * Fill in PTEs covering kernel code and data. They are not required
+	 * for address translation, as this area is covered by static TLB1
+	 * entries, but for pte_vatopa() to work correctly with kernel area
+	 * addresses.
+	 */
+	for (va = KERNBASE; va < data_end; va += PAGE_SIZE) {
+		pte = &(kernel_pmap->pm_pdir[PDIR_IDX(va)][PTBL_IDX(va)]);
+		pte->rpn = kernload + (va - KERNBASE);
+		pte->flags = PTE_M | PTE_SR | PTE_SW | PTE_SX | PTE_WIRED |
+		    PTE_VALID;
+	}
 	/* Mark kernel_pmap active on all CPUs */
 	kernel_pmap->pm_active = ~0;
 
@@ -1188,6 +1253,27 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	debugf("virtual_end   = %08x\n", virtual_end);
 
 	debugf("mmu_booke_bootstrap: exit\n");
+}
+
+void
+pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
+{
+	int i;
+
+	/*
+	 * Finish TLB1 configuration: the BSP already set up its TLB1 and we
+	 * have the snapshot of its contents in the s/w tlb1[] table, so use
+	 * these values directly to (re)program AP's TLB1 hardware.
+	 */
+	for (i = 0; i < tlb1_idx; i ++) {
+		/* Skip invalid entries */
+		if (!(tlb1[i].mas1 & MAS1_VALID))
+			continue;
+
+		tlb1_write_entry(i);
+	}
+
+	set_mas4_defaults();
 }
 
 /*
@@ -1297,29 +1383,14 @@ mmu_booke_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 	KASSERT(((va >= VM_MIN_KERNEL_ADDRESS) &&
 	    (va <= VM_MAX_KERNEL_ADDRESS)), ("mmu_booke_kenter: invalid va"));
 
-#if 0
-	/* assume IO mapping, set I, G bits */
-	flags = (PTE_G | PTE_I | PTE_FAKE);
-
-	/* if mapping is within system memory, do not set I, G bits */
-	for (i = 0; i < totalmem_regions_sz; i++) {
-		if ((pa >= totalmem_regions[i].mr_start) &&
-				(pa < (totalmem_regions[i].mr_start +
-				       totalmem_regions[i].mr_size))) {
-			flags &= ~(PTE_I | PTE_G | PTE_FAKE);
-			break;
-		}
-	}
-#else
 	flags = 0;
-#endif
-
 	flags |= (PTE_SR | PTE_SW | PTE_SX | PTE_WIRED | PTE_VALID);
 	flags |= PTE_M;
 
 	pte = &(kernel_pmap->pm_pdir[pdir_idx][ptbl_idx]);
 
 	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
 	
 	if (PTE_ISVALID(pte)) {
 	
@@ -1341,6 +1412,7 @@ mmu_booke_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 		__syncicache((void *)va, PAGE_SIZE);
 	}
 
+	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 }
 
@@ -1370,12 +1442,14 @@ mmu_booke_kremove(mmu_t mmu, vm_offset_t va)
 	}
 
 	mtx_lock_spin(&tlbivax_mutex);
+	tlb_miss_lock();
 
 	/* Invalidate entry in TLB0, update PTE. */
 	tlb0_flush_entry(va);
 	pte->flags = 0;
 	pte->rpn = 0;
 
+	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
 }
 
@@ -1430,14 +1504,6 @@ mmu_booke_release(mmu_t mmu, pmap_t pmap)
 
 	PMAP_LOCK_DESTROY(pmap);
 }
-
-#if 0
-/* Not needed, kernel page tables are statically allocated. */
-void
-mmu_booke_growkernel(vm_offset_t maxkvaddr)
-{
-}
-#endif
 
 /*
  * Insert the given physical page at the specified virtual address in the
@@ -1517,6 +1583,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			flags |= PTE_SW;
 			if (!su)
 				flags |= PTE_UW;
+
+			vm_page_flag_set(m, PG_WRITEABLE);
 		} else {
 			/* Handle modified pages, sense modify status. */
 
@@ -1552,10 +1620,12 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 		 * update the PTE.
 		 */
 		mtx_lock_spin(&tlbivax_mutex);
+		tlb_miss_lock();
 
 		tlb0_flush_entry(va);
 		pte->flags = flags;
 
+		tlb_miss_unlock();
 		mtx_unlock_spin(&tlbivax_mutex);
 
 	} else {
@@ -1579,6 +1649,8 @@ mmu_booke_enter_locked(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_page_t m,
 			flags |= PTE_SW;
 			if (!su)
 				flags |= PTE_UW;
+
+			vm_page_flag_set(m, PG_WRITEABLE);
 		}
 
 		if (prot & VM_PROT_EXECUTE) {
@@ -1813,8 +1885,8 @@ mmu_booke_deactivate(mmu_t mmu, struct thread *td)
  * This routine is only advisory and need not do anything.
  */
 static void
-mmu_booke_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
-    vm_size_t len, vm_offset_t src_addr)
+mmu_booke_copy(mmu_t mmu, pmap_t dst_pmap, pmap_t src_pmap,
+    vm_offset_t dst_addr, vm_size_t len, vm_offset_t src_addr)
 {
 
 }
@@ -1846,6 +1918,7 @@ mmu_booke_protect(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 				m = PHYS_TO_VM_PAGE(PTE_PA(pte));
 
 				mtx_lock_spin(&tlbivax_mutex);
+				tlb_miss_lock();
 
 				/* Handle modified pages. */
 				if (PTE_ISMODIFIED(pte))
@@ -1859,6 +1932,7 @@ mmu_booke_protect(mmu_t mmu, pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED |
 				    PTE_REFERENCED);
 
+				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
 			}
 		}
@@ -1888,6 +1962,7 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 				m = PHYS_TO_VM_PAGE(PTE_PA(pte));
 
 				mtx_lock_spin(&tlbivax_mutex);
+				tlb_miss_lock();
 
 				/* Handle modified pages. */
 				if (PTE_ISMODIFIED(pte))
@@ -1901,6 +1976,7 @@ mmu_booke_remove_write(mmu_t mmu, vm_page_t m)
 				pte->flags &= ~(PTE_UW | PTE_SW | PTE_MODIFIED |
 				    PTE_REFERENCED);
 
+				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
 			}
 		}
@@ -2031,18 +2107,6 @@ mmu_booke_copy_page(mmu_t mmu, vm_page_t sm, vm_page_t dm)
 	mtx_unlock(&copy_page_mutex);
 }
 
-#if 0
-/*
- * Remove all pages from specified address space, this aids process exit
- * speeds. This is much faster than mmu_booke_remove in the case of running
- * down an entire address space. Only works for the current pmap.
- */
-void
-mmu_booke_remove_pages(pmap_t pmap)
-{
-}
-#endif
-
 /*
  * mmu_booke_zero_page_idle zeros the specified hardware page by mapping it
  * into virtual memory and using bzero to clear its contents. This is intended
@@ -2122,6 +2186,7 @@ mmu_booke_clear_modify(mmu_t mmu, vm_page_t m)
 				goto make_sure_to_unlock;
 
 			mtx_lock_spin(&tlbivax_mutex);
+			tlb_miss_lock();
 			
 			if (pte->flags & (PTE_SW | PTE_UW | PTE_MODIFIED)) {
 				tlb0_flush_entry(pv->pv_va);
@@ -2129,6 +2194,7 @@ mmu_booke_clear_modify(mmu_t mmu, vm_page_t m)
 				    PTE_REFERENCED);
 			}
 
+			tlb_miss_unlock();
 			mtx_unlock_spin(&tlbivax_mutex);
 		}
 make_sure_to_unlock:
@@ -2166,10 +2232,12 @@ mmu_booke_ts_referenced(mmu_t mmu, vm_page_t m)
 
 			if (PTE_ISREFERENCED(pte)) {
 				mtx_lock_spin(&tlbivax_mutex);
+				tlb_miss_lock();
 
 				tlb0_flush_entry(pv->pv_va);
 				pte->flags &= ~PTE_REFERENCED;
 
+				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
 
 				if (++count > 4) {
@@ -2205,10 +2273,12 @@ mmu_booke_clear_reference(mmu_t mmu, vm_page_t m)
 
 			if (PTE_ISREFERENCED(pte)) {
 				mtx_lock_spin(&tlbivax_mutex);
+				tlb_miss_lock();
 				
 				tlb0_flush_entry(pv->pv_va);
 				pte->flags &= ~PTE_REFERENCED;
 
+				tlb_miss_unlock();
 				mtx_unlock_spin(&tlbivax_mutex);
 			}
 		}
@@ -2921,7 +2991,9 @@ set_mas4_defaults(void)
 	/* Defaults: TLB0, PID0, TSIZED=4K */
 	mas4 = MAS4_TLBSELD0;
 	mas4 |= (TLB_SIZE_4K << MAS4_TSIZED_SHIFT) & MAS4_TSIZED_MASK;
-
+#ifdef SMP
+	mas4 |= MAS4_MD;
+#endif
 	mtspr(SPR_MAS4, mas4);
 	__asm __volatile("isync");
 }

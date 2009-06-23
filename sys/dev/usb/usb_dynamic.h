@@ -24,47 +24,42 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_DYNAMIC_H_
-#define	_USB2_DYNAMIC_H_
+#ifndef _USB_DYNAMIC_H_
+#define	_USB_DYNAMIC_H_
 
 /* prototypes */
 
-struct usb2_device;
-struct usb2_lookup_info;
-struct usb2_device_request;
+struct usb_device;
+struct usbd_lookup_info;
+struct usb_device_request;
 
 /* typedefs */
 
-typedef usb2_error_t	(usb2_temp_setup_by_index_t)(struct usb2_device *udev,
+typedef usb_error_t	(usb_temp_setup_by_index_t)(struct usb_device *udev,
 			    uint16_t index);
-typedef usb2_error_t	(usb2_test_huawei_autoinst_t)(struct usb2_device *udev, 
-			    struct usb2_attach_arg *uaa);
-typedef uint8_t		(usb2_test_quirk_t)(const struct usb2_lookup_info *info,
+typedef usb_error_t	(usb_test_huawei_autoinst_t)(struct usb_device *udev, 
+			    struct usb_attach_arg *uaa);
+typedef uint8_t		(usb_test_quirk_t)(const struct usbd_lookup_info *info,
 			    uint16_t quirk);
-typedef int		(usb2_quirk_ioctl_t)(unsigned long cmd, caddr_t data,
+typedef int		(usb_quirk_ioctl_t)(unsigned long cmd, caddr_t data,
 			    int fflag, struct thread *td);
-typedef void		(usb2_temp_get_desc_t)(struct usb2_device *udev,
-			    struct usb2_device_request *req, const void **pPtr,
-			    uint16_t *pLength);
-typedef void		(usb2_temp_unsetup_t)(struct usb2_device *udev);
+typedef void		(usb_temp_unsetup_t)(struct usb_device *udev);
 
 /* global function pointers */
 
-extern usb2_temp_get_desc_t *usb2_temp_get_desc_p;
-extern usb2_temp_setup_by_index_t *usb2_temp_setup_by_index_p;
-extern usb2_temp_unsetup_t *usb2_temp_unsetup_p;
-extern usb2_test_quirk_t *usb2_test_quirk_p;
-extern usb2_test_huawei_autoinst_t *usb2_test_huawei_autoinst_p;
-extern usb2_quirk_ioctl_t *usb2_quirk_ioctl_p;
-extern devclass_t usb2_devclass_ptr;
+extern usb_handle_req_t *usb_temp_get_desc_p;
+extern usb_temp_setup_by_index_t *usb_temp_setup_by_index_p;
+extern usb_temp_unsetup_t *usb_temp_unsetup_p;
+extern usb_test_quirk_t *usb_test_quirk_p;
+extern usb_test_huawei_autoinst_t *usb_test_huawei_autoinst_p;
+extern usb_quirk_ioctl_t *usb_quirk_ioctl_p;
+extern devclass_t usb_devclass_ptr;
 
 /* function prototypes */
 
-void	usb2_test_huawei_unload(void *);
-void	usb2_temp_unload(void *);
-void	usb2_quirk_unload(void *);
-void	usb2_bus_unload(void *);
+void	usb_test_huawei_unload(void *);
+void	usb_temp_unload(void *);
+void	usb_quirk_unload(void *);
+void	usb_bus_unload(void *);
 
-uint8_t	usb2_test_quirk(const struct usb2_attach_arg *uaa, uint16_t quirk);
-
-#endif					/* _USB2_DYNAMIC_H_ */
+#endif					/* _USB_DYNAMIC_H_ */

@@ -46,8 +46,6 @@
  * ng_ether(4) netgraph node type
  */
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -65,7 +63,6 @@
 #include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_bridgevar.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netgraph/ng_message.h>
@@ -74,6 +71,17 @@
 #include <netgraph/ng_ether.h>
 
 #define IFP2NG(ifp)  (IFP2AC((ifp))->ac_netgraph)
+
+static vnet_attach_fn ng_ether_iattach;
+
+#ifndef VIMAGE_GLOBALS
+static vnet_modinfo_t vnet_ng_ether_modinfo = {
+	.vmi_id		= VNET_MOD_NG_ETHER,
+	.vmi_name	= "ng_ether",
+	.vmi_dependson	= VNET_MOD_NETGRAPH,
+	.vmi_iattach	= ng_ether_iattach,
+};
+#endif
 
 /* Per-node private data */
 struct private {
@@ -273,7 +281,9 @@ ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
 		return (0);
 
 	/* Send it out "upper" hook */
+	NG_OUTBOUND_THREAD_REF();
 	NG_SEND_DATA_ONLY(error, priv->upper, *mp);
+	NG_OUTBOUND_THREAD_UNREF();
 	return (error);
 }
 
@@ -286,6 +296,18 @@ ng_ether_attach(struct ifnet *ifp)
 {
 	priv_p priv;
 	node_p node;
+
+	/*
+	 * Do not create / attach an ether node to this ifnet if
+	 * a netgraph node with the same name already exists.
+	 * This should prevent ether nodes to become attached to
+	 * eiface nodes, which may be problematic due to naming
+	 * clashes.
+	 */
+	if ((node = ng_name2noderef(NULL, ifp->if_xname)) != NULL) {
+		NG_NODE_UNREF(node);
+		return;
+	}
 
 	/* Create node */
 	KASSERT(!IFP2NG(ifp), ("%s: node already exists?", __func__));
@@ -395,6 +417,7 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 	if (strcmp(name, NG_ETHER_HOOK_UPPER) == 0) {
 		hookptr = &priv->upper;
 		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_upper);
+		NG_HOOK_SET_TO_INBOUND(hook);
 	} else if (strcmp(name, NG_ETHER_HOOK_LOWER) == 0) {
 		hookptr = &priv->lower;
 		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_lower);
@@ -411,7 +434,7 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 	/* Disable hardware checksums while 'upper' hook is connected */
 	if (hookptr == &priv->upper)
 		priv->ifp->if_hwassist = 0;
-
+	NG_HOOK_HI_STACK(hook);
 	/* OK */
 	*hookptr = hook;
 	return (0);
@@ -741,7 +764,6 @@ ng_ether_disconnect(hook_p hook)
 static int
 ng_ether_mod_event(module_t mod, int event, void *data)
 {
-	struct ifnet *ifp;
 	int error = 0;
 	int s;
 
@@ -761,14 +783,11 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		ng_ether_input_orphan_p = ng_ether_input_orphan;
 		ng_ether_link_state_p = ng_ether_link_state;
 
-		/* Create nodes for any already-existing Ethernet interfaces */
-		IFNET_RLOCK();
-		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-			if (ifp->if_type == IFT_ETHER
-			    || ifp->if_type == IFT_L2VLAN)
-				ng_ether_attach(ifp);
-		}
-		IFNET_RUNLOCK();
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_register(&vnet_ng_ether_modinfo);
+#else
+		error = ng_ether_iattach(NULL);
+#endif
 		break;
 
 	case MOD_UNLOAD:
@@ -780,6 +799,10 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		 * case, we know there are no nodes left if the action
 		 * is MOD_UNLOAD, so there's no need to detach any nodes.
 		 */
+
+#ifndef VIMAGE_GLOBALS
+		vnet_mod_deregister(&vnet_ng_ether_modinfo);
+#endif
 
 		/* Unregister function hooks */
 		ng_ether_attach_p = NULL;
@@ -798,3 +821,19 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
+static int ng_ether_iattach(const void *unused)
+{
+	INIT_VNET_NET(curvnet);
+	struct ifnet *ifp;
+
+	/* Create nodes for any already-existing Ethernet interfaces. */
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if (ifp->if_type == IFT_ETHER
+		    || ifp->if_type == IFT_L2VLAN)
+			ng_ether_attach(ifp);
+	}
+	IFNET_RUNLOCK();
+
+	return (0);
+}

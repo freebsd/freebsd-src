@@ -10,6 +10,7 @@
 #
 0	beshort		0xffd8		JPEG image data
 !:mime	image/jpeg
+!:apple	8BIMJPEG
 !:strength +1
 >6	string		JFIF		\b, JFIF standard
 # The following added by Erik Rossen <rossen@freesurf.ch> 1999-09-06

@@ -43,6 +43,8 @@ SUBDIR=	${_ac} \
 	devinfo \
 	digictl \
 	diskinfo \
+	${_dnssec-dsfromkey} \
+	${_dnssec-keyfromlabel} \
 	${_dnssec-keygen} \
 	${_dnssec-signzone} \
 	dumpcis \
@@ -110,7 +112,11 @@ SUBDIR=	${_ac} \
 	${_ndiscvt} \
 	${_ndp} \
 	newsyslog \
+	nfscbd \
 	nfsd \
+	nfsdumpstate \
+	nfsrevoke \
+	nfsuserd \
 	${_ngctl} \
 	${_nghook} \
 	nologin \
@@ -138,7 +144,6 @@ SUBDIR=	${_ac} \
 	quot \
 	${_quotaon} \
 	rarpd \
-	${_raycontrol} \
 	${_repquota} \
 	${_rip6query} \
 	rmt \
@@ -223,6 +228,8 @@ _authpf=	authpf
 .endif
 
 .if ${MK_BIND_DNSSEC} != "no" && ${MK_OPENSSL} != "no"
+_dnssec-dsfromkey=	dnssec-dsfromkey
+_dnssec-keyfromlabel=	dnssec-keyfromlabel
 _dnssec-keygen=		dnssec-keygen
 _dnssec-signzone=	dnssec-signzone
 .endif
@@ -405,7 +412,6 @@ _usbconfig=	usbconfig
 
 .if ${MK_WIRELESS} != "no"
 _ancontrol=	ancontrol
-_raycontrol=	raycontrol
 _wlandebug=	wlandebug
 _wpa=		wpa
 .endif

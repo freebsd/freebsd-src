@@ -86,7 +86,7 @@ struct dadq;
 static struct dadq *nd6_dad_find(struct ifaddr *);
 static void nd6_dad_starttimer(struct dadq *, int);
 static void nd6_dad_stoptimer(struct dadq *);
-static void nd6_dad_timer(struct ifaddr *);
+static void nd6_dad_timer(struct dadq *);
 static void nd6_dad_ns_output(struct dadq *, struct ifaddr *);
 static void nd6_dad_ns_input(struct ifaddr *);
 static void nd6_dad_na_input(struct ifaddr *);
@@ -128,7 +128,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 #else
 	IP6_EXTHDR_GET(nd_ns, struct nd_neighbor_solicit *, m, off, icmp6len);
 	if (nd_ns == NULL) {
-		V_icmp6stat.icp6s_tooshort++;
+		ICMP6STAT_INC(icp6s_tooshort);
 		return;
 	}
 #endif
@@ -355,6 +355,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0) | ND_NA_FLAG_SOLICITED,
 	    tlladdr, (struct sockaddr *)proxydl);
  freeit:
+	if (ifa != NULL)
+		ifa_free(ifa);
 	m_freem(m);
 	return;
 
@@ -365,7 +367,9 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		ip6_sprintf(ip6bufs, &daddr6)));
 	nd6log((LOG_ERR, "nd6_ns_input: tgt=%s\n",
 		ip6_sprintf(ip6bufs, &taddr6)));
-	V_icmp6stat.icp6s_badns++;
+	ICMP6STAT_INC(icp6s_badns);
+	if (ifa != NULL)
+		ifa_free(ifa);
 	m_freem(m);
 }
 
@@ -456,6 +460,8 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			goto bad;
 	}
 	if (!dad) {
+		struct ifaddr *ifa;
+
 		/*
 		 * RFC2461 7.2.2:
 		 * "If the source address of the packet prompting the
@@ -486,9 +492,11 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			else
 				hsrc = NULL;
 		}
-		if (hsrc && in6ifa_ifpwithaddr(ifp, hsrc))
+		if (hsrc && (ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
+		    hsrc)) != NULL) {
 			src = hsrc;
-		else {
+			ifa_free(ifa);
+		} else {
 			int error;
 			struct sockaddr_in6 dst_sa;
 
@@ -563,7 +571,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	ip6_output(m, NULL, &ro, dad ? IPV6_UNSPECSRC : 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighborsolicit);
-	V_icmp6stat.icp6s_outhist[ND_NEIGHBOR_SOLICIT]++;
+	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_SOLICIT]);
 
 	if (ro.ro_rt) {		/* we don't cache this route. */
 		RTFREE(ro.ro_rt);
@@ -625,7 +633,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 #else
 	IP6_EXTHDR_GET(nd_na, struct nd_neighbor_advert *, m, off, icmp6len);
 	if (nd_na == NULL) {
-		V_icmp6stat.icp6s_tooshort++;
+		ICMP6STAT_INC(icp6s_tooshort);
 		return;
 	}
 #endif
@@ -679,12 +687,14 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 */
 	if (ifa
 	 && (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_TENTATIVE)) {
+		ifa_free(ifa);
 		nd6_dad_na_input(ifa);
 		goto freeit;
 	}
 
 	/* Just for safety, maybe unnecessary. */
 	if (ifa) {
+		ifa_free(ifa);
 		log(LOG_ERR,
 		    "nd6_na_input: duplicate IP6 address %s\n",
 		    ip6_sprintf(ip6bufs, &taddr6));
@@ -897,7 +907,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	if (ln != NULL)
 		LLE_WUNLOCK(ln);
 
-	V_icmp6stat.icp6s_badna++;
+	ICMP6STAT_INC(icp6s_badna);
 	m_freem(m);
 }
 
@@ -1065,7 +1075,7 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	ip6_output(m, NULL, &ro, 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighboradvert);
-	V_icmp6stat.icp6s_outhist[ND_NEIGHBOR_ADVERT]++;
+	ICMP6STAT_INC(icp6s_outhist[ND_NEIGHBOR_ADVERT]);
 
 	if (ro.ro_rt) {		/* we don't cache this route. */
 		RTFREE(ro.ro_rt);
@@ -1105,7 +1115,6 @@ nd6_ifptomac(struct ifnet *ifp)
 	}
 }
 
-TAILQ_HEAD(dadq_head, dadq);
 struct dadq {
 	TAILQ_ENTRY(dadq) dad_list;
 	struct ifaddr *dad_ifa;
@@ -1115,10 +1124,11 @@ struct dadq {
 	int dad_ns_icount;
 	int dad_na_icount;
 	struct callout dad_timer_ch;
+	struct vnet *dad_vnet;
 };
 
 #ifdef VIMAGE_GLOBALS
-static struct dadq_head dadq;
+static TAILQ_HEAD(, dadq) dadq;
 int dad_init;
 #endif
 
@@ -1140,7 +1150,7 @@ nd6_dad_starttimer(struct dadq *dp, int ticks)
 {
 
 	callout_reset(&dp->dad_timer_ch, ticks,
-	    (void (*)(void *))nd6_dad_timer, (void *)dp->dad_ifa);
+	    (void (*)(void *))nd6_dad_timer, (void *)dp);
 }
 
 static void
@@ -1208,6 +1218,9 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	}
 	bzero(dp, sizeof(*dp));
 	callout_init(&dp->dad_timer_ch, 0);
+#ifdef VIMAGE
+	dp->dad_vnet = curvnet;
+#endif
 	TAILQ_INSERT_TAIL(&V_dadq, (struct dadq *)dp, dad_list);
 
 	nd6log((LOG_DEBUG, "%s: starting DAD for %s\n", if_name(ifa->ifa_ifp),
@@ -1220,7 +1233,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	 * (re)initialization.
 	 */
 	dp->dad_ifa = ifa;
-	IFAREF(ifa);	/* just for safety */
+	ifa_ref(ifa);	/* just for safety */
 	dp->dad_count = V_ip6_dad_count;
 	dp->dad_ns_icount = dp->dad_na_icount = 0;
 	dp->dad_ns_ocount = dp->dad_ns_tcount = 0;
@@ -1255,17 +1268,17 @@ nd6_dad_stop(struct ifaddr *ifa)
 	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 	free(dp, M_IP6NDP);
 	dp = NULL;
-	IFAFREE(ifa);
+	ifa_free(ifa);
 }
 
 static void
-nd6_dad_timer(struct ifaddr *ifa)
+nd6_dad_timer(struct dadq *dp)
 {
 	CURVNET_SET(dp->dad_vnet);
 	INIT_VNET_INET6(curvnet);
 	int s;
+	struct ifaddr *ifa = dp->dad_ifa;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
-	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	s = splnet();		/* XXX */
@@ -1273,11 +1286,6 @@ nd6_dad_timer(struct ifaddr *ifa)
 	/* Sanity check */
 	if (ia == NULL) {
 		log(LOG_ERR, "nd6_dad_timer: called with null parameter\n");
-		goto done;
-	}
-	dp = nd6_dad_find(ifa);
-	if (dp == NULL) {
-		log(LOG_ERR, "nd6_dad_timer: DAD structure not found\n");
 		goto done;
 	}
 	if (ia->ia6_flags & IN6_IFF_DUPLICATED) {
@@ -1303,7 +1311,7 @@ nd6_dad_timer(struct ifaddr *ifa)
 		TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 		free(dp, M_IP6NDP);
 		dp = NULL;
-		IFAFREE(ifa);
+		ifa_free(ifa);
 		goto done;
 	}
 
@@ -1356,7 +1364,7 @@ nd6_dad_timer(struct ifaddr *ifa)
 			TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 			free(dp, M_IP6NDP);
 			dp = NULL;
-			IFAFREE(ifa);
+			ifa_free(ifa);
 		}
 	}
 
@@ -1434,7 +1442,7 @@ nd6_dad_duplicated(struct ifaddr *ifa)
 	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 	free(dp, M_IP6NDP);
 	dp = NULL;
-	IFAFREE(ifa);
+	ifa_free(ifa);
 }
 
 static void

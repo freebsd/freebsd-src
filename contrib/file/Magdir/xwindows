@@ -23,3 +23,12 @@
 >24	long	x				%ldx
 >28	long	1008				YUV422]
 >28	long	1000				RGB24]
+
+# Xcursor data
+# X11 mouse cursor format defined in libXcursor, see
+# http://www.x.org/archive/X11R6.8.1/doc/Xcursor.3.html
+# http://cgit.freedesktop.org/xorg/lib/libXcursor/tree/include/X11/Xcursor/Xcursor.h
+0	string		Xcur		Xcursor data
+!:mime	image/x-xcursor
+>10	leshort		x		version %hd
+>>8	leshort		x		\b.%hd

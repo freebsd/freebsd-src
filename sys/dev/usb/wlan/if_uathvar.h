@@ -44,22 +44,31 @@ enum {
 
 struct uath_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
-	uint8_t				wr_flags;
-	uint16_t			wr_chan_freq;
-	uint16_t			wr_chan_flags;
-	int8_t				wr_dbm_antsignal;
+	u_int64_t	wr_tsf;
+	u_int8_t	wr_flags;
+	u_int8_t	wr_rate;
+	uint16_t	wr_chan_freq;
+	uint16_t	wr_chan_flags;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
+	u_int8_t	wr_antenna;
 } __packed;
 
-#define	UATH_RX_RADIOTAP_PRESENT					\
-	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
-	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
-	 (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL))
+#define UATH_RX_RADIOTAP_PRESENT (		\
+	(1 << IEEE80211_RADIOTAP_TSFT)		| \
+	(1 << IEEE80211_RADIOTAP_FLAGS)		| \
+	(1 << IEEE80211_RADIOTAP_RATE)		| \
+	(1 << IEEE80211_RADIOTAP_ANTENNA)	| \
+	(1 << IEEE80211_RADIOTAP_CHANNEL)	| \
+	(1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL)	| \
+	(1 << IEEE80211_RADIOTAP_DBM_ANTNOISE)	| \
+	0)
 
 struct uath_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
-	uint8_t				wt_flags;
-	uint16_t			wt_chan_freq;
-	uint16_t			wt_chan_flags;
+	uint8_t		wt_flags;
+	uint16_t	wt_chan_freq;
+	uint16_t	wt_chan_flags;
 } __packed;
 
 #define	UATH_TX_RADIOTAP_PRESENT					\
@@ -176,16 +185,15 @@ struct uath_vap {
 struct uath_softc {
 	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
-	struct usb2_device		*sc_udev;
+	struct usb_device		*sc_udev;
 	struct mtx			sc_mtx;
 	uint32_t			sc_debug;
 
 	struct uath_stat		sc_stat;
 	int				(*sc_newstate)(struct ieee80211com *,
 					    enum ieee80211_state, int);
-	enum ieee80211_state		sc_state;
 
-	struct usb2_xfer		*sc_xfer[UATH_N_XFERS];
+	struct usb_xfer		*sc_xfer[UATH_N_XFERS];
 	struct uath_cmd			sc_cmd[UATH_CMD_LIST_COUNT];
 	uath_cmdhead			sc_cmd_active;
 	uath_cmdhead			sc_cmd_inactive;

@@ -168,7 +168,7 @@ aic_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_SET_TRAN_SETTINGS:
 	{
-		struct ccb_trans_settings *cts = cts = &ccb->cts;
+		struct ccb_trans_settings *cts = &ccb->cts;
 		struct aic_tinfo *ti = &aic->tinfo[ccb->ccb_h.target_id];
 		struct ccb_trans_settings_scsi *scsi =
 		    &cts->proto_specific.scsi;

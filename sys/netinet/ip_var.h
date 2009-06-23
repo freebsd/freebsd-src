@@ -34,9 +34,6 @@
 #define	_NETINET_IP_VAR_H_
 
 #include <sys/queue.h>
-#ifdef _KERNEL
-#include <sys/vimage.h>
-#endif
 
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
@@ -173,7 +170,8 @@ extern int	ipstealth;		/* stealth forwarding */
 extern int rsvp_on;
 extern struct socket *ip_rsvpd;		/* reservation protocol daemon */
 extern struct socket *ip_mrouter;	/* multicast routing daemon */
-#endif
+#endif /* VIMAGE_GLOBALS */
+
 extern u_char	ip_protox[];
 extern int	(*legal_vif_num)(int);
 extern u_long	(*ip_mcast_src)(int);
@@ -209,6 +207,9 @@ u_int16_t	ip_randomid(void);
 int	rip_ctloutput(struct socket *, struct sockopt *);
 void	rip_ctlinput(int, struct sockaddr *, void *);
 void	rip_init(void);
+#ifdef VIMAGE
+void	rip_destroy(void);
+#endif
 void	rip_input(struct mbuf *, int);
 int	rip_output(struct mbuf *, struct socket *, u_long);
 void	ipip_input(struct mbuf *, int);
@@ -223,6 +224,13 @@ extern	struct pfil_head inet_pfil_hook;	/* packet filter hooks */
 
 void	in_delayed_cksum(struct mbuf *m);
 
+/* ipfw and dummynet hooks. Most are declared in raw_ip.c */
+struct ip_fw_args;
+extern int	(*ip_fw_chk_ptr)(struct ip_fw_args *args);
+extern int	(*ip_fw_ctl_ptr)(struct sockopt *);
+extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
+extern int	(*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa);
+extern void	(*ip_dn_ruledel_ptr)(void *);		/* in ip_fw2.c */
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IP_VAR_H_ */

@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.151 2008/07/04 13:10:49 djm Exp $ */
+/* $Id: defines.h,v 1.153 2009/02/01 11:19:54 dtucker Exp $ */
 
 
 /* Constants */
@@ -698,7 +698,7 @@ struct winsize {
 # define CUSTOM_SYS_AUTH_PASSWD 1
 #endif
 
-#if defined(HAVE_LIBIAF) && defined(HAVE_SET_ID)
+#if defined(HAVE_LIBIAF) && defined(HAVE_SET_ID) && !defined(HAVE_SECUREWARE)
 # define CUSTOM_SYS_AUTH_PASSWD 1
 #endif
 #if defined(HAVE_LIBIAF) && defined(HAVE_SET_ID) && !defined(BROKEN_LIBIAF)
@@ -736,6 +736,10 @@ struct winsize {
 
 #ifndef EWOULDBLOCK
 # define EWOULDBLOCK EAGAIN
+#endif
+
+#ifndef INET6_ADDRSTRLEN	/* for non IPv6 machines */
+#define INET6_ADDRSTRLEN 46
 #endif
 
 #endif /* _DEFINES_H */

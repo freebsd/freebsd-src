@@ -62,8 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-#include <rpc/rpcclnt.h>
-
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
@@ -71,8 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
-
-#include <nfs4client/nfs4.h>
 
 #ifdef NFS_LEGACYRPC
 
@@ -126,8 +122,8 @@ static int	nfs_realign(struct mbuf **pm, int hsiz);
 static int	nfs_reply(struct nfsreq *);
 static void	nfs_softterm(struct nfsreq *rep);
 static int	nfs_reconnect(struct nfsreq *rep);
-static void nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag);
-static void nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag);
+static int	nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag);
+static int	nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag);
 
 extern struct mtx nfs_reqq_mtx;
 
@@ -461,12 +457,10 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		goto bad;
 	SOCKBUF_LOCK(&so->so_rcv);
 	so->so_rcv.sb_flags |= SB_NOINTR;
- 	so->so_upcallarg = (caddr_t)nmp;
  	if (so->so_type == SOCK_STREAM)
- 		so->so_upcall = nfs_clnt_tcp_soupcall;
- 	else	
- 		so->so_upcall = nfs_clnt_udp_soupcall;
- 	so->so_rcv.sb_flags |= SB_UPCALL;
+		soupcall_set(so, SO_RCV, nfs_clnt_tcp_soupcall, nmp);
+ 	else
+		soupcall_set(so, SO_RCV, nfs_clnt_udp_soupcall, nmp);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_flags |= SB_NOINTR;
@@ -604,9 +598,7 @@ nfs_disconnect(struct nfsmount *nmp)
 		nmp->nm_so = NULL;
 		mtx_unlock(&nmp->nm_mtx);
 		SOCKBUF_LOCK(&so->so_rcv);
- 		so->so_upcallarg = NULL;
- 		so->so_upcall = NULL;
- 		so->so_rcv.sb_flags &= ~SB_UPCALL;
+		soupcall_clear(so, SO_RCV);
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		soshutdown(so, SHUT_WR);
 		soclose(so);
@@ -815,7 +807,7 @@ tryagain:
  * XXX TO DO
  * Make nfs_realign() non-blocking. Also make nfsm_dissect() nonblocking.
  */
-static void
+static int
 nfs_clnt_match_xid(struct socket *so, 
 		   struct nfsmount *nmp, 
 		   struct mbuf *mrep)
@@ -932,11 +924,10 @@ nfstcp_readable(struct socket *so, int bytes)
 {
 	int retval;
 	
-	SOCKBUF_LOCK(&so->so_rcv);
+	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	retval = (so->so_rcv.sb_cc >= (bytes) ||
 		  (so->so_rcv.sb_state & SBS_CANTRCVMORE) ||
 		  so->so_error);
-	SOCKBUF_UNLOCK(&so->so_rcv);
 	return (retval);
 }
 
@@ -973,7 +964,7 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 	mtx_lock(&nmp->nm_mtx);
 	if (nmp->nm_nfstcpstate.flags & NFS_TCP_FORCE_RECONNECT) {
 		mtx_unlock(&nmp->nm_mtx);		
-		return;
+		return (SU_OK);
 	} else			
 		mtx_unlock(&nmp->nm_mtx);
 	auio.uio_td = curthread;
@@ -987,8 +978,9 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			mtx_unlock(&nmp->nm_mtx);
 			if (!nfstcp_marker_readable(so)) {
 				/* Marker is not readable */
-				return;
+				return (SU_OK);
 			}
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			auio.uio_resid = sizeof(u_int32_t);
 			auio.uio_iov = NULL;
 			auio.uio_iovcnt = 0;
@@ -996,6 +988,7 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			rcvflg = (MSG_DONTWAIT | MSG_SOCALLBCK);
 			error =  soreceive(so, (struct sockaddr **)0, &auio,
 			    &mp, (struct mbuf **)0, &rcvflg);
+			SOCKBUF_LOCK(&so->so_rcv);
 			/*
 			 * We've already tested that the socket is readable. 2 cases 
 			 * here, we either read 0 bytes (client closed connection), 
@@ -1056,8 +1049,9 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			mtx_unlock(&nmp->nm_mtx);
 			if (!nfstcp_readable(so, nmp->nm_nfstcpstate.rpcresid)) {
 				/* All data not readable */
-				return;
+				return (SU_OK);
 			}
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			auio.uio_resid = nmp->nm_nfstcpstate.rpcresid;
 			auio.uio_iov = NULL;
 			auio.uio_iovcnt = 0;
@@ -1065,6 +1059,7 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 			rcvflg = (MSG_DONTWAIT | MSG_SOCALLBCK);
 			error =  soreceive(so, (struct sockaddr **)0, &auio,
 			    &mp, (struct mbuf **)0, &rcvflg);
+			SOCKBUF_LOCK(&so->so_rcv);
 			if (error || auio.uio_resid > 0) {
 				if (error && error != ECONNRESET) {
 					log(LOG_ERR, 
@@ -1087,6 +1082,7 @@ nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 
 mark_reconnect:
 	nfs_mark_for_reconnect(nmp);
+	return (SU_OK);
 }
 
 static void
@@ -1098,6 +1094,7 @@ nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag)
 	struct mbuf *control = NULL;
 	int error, rcvflag;
 
+	SOCKBUF_UNLOCK(&so->so_rcv);
 	auio.uio_resid = 1000000;
 	auio.uio_td = curthread;
 	rcvflag = MSG_DONTWAIT;
@@ -1110,6 +1107,8 @@ nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag)
 		if (mp)
 			nfs_clnt_match_xid(so, nmp, mp);
 	} while (mp && !error);
+	SOCKBUF_LOCK(&so->so_rcv);
+	return (SU_OK);
 }
 
 /*
@@ -1145,8 +1144,6 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 		return (ESTALE);
 	}
 	nmp = VFSTONFS(vp->v_mount);
-	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-		return nfs4_request(vp, mrest, procnum, td, cred, mrp, mdp, dposp);
 	rep = malloc(sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
 	bzero(rep, sizeof(struct nfsreq));
 	rep->r_nmp = nmp;
@@ -1442,8 +1439,8 @@ nfs_timer(void *arg)
 				nfs_softterm(rep);
 				mtx_unlock(&rep->r_mtx);
 				continue;
-			}				
-			mtx_unlock(&rep->r_mtx);			
+			}
+			mtx_unlock(&rep->r_mtx);
 		}
 		if (nfs_sigintr(nmp, rep, rep->r_td))
 			continue;
@@ -1747,8 +1744,6 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 	struct proc *p;
 	sigset_t tmpset;
 	
-	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-		return nfs4_sigintr(nmp, rep, td);
 	if (rep) {
 		mtx_lock(&rep->r_mtx);
 		if (rep->r_flags & R_SOFTTERM) {

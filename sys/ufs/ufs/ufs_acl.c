@@ -141,24 +141,68 @@ ufs_sync_inode_from_acl(struct acl *acl, struct inode *ip)
 }
 
 /*
+ * Read POSIX.1e ACL from an EA.  Return error if its not found
+ * or if any other error has occured.
+ */
+static int
+ufs_get_oldacl(acl_type_t type, struct oldacl *old, struct vnode *vp,
+    struct thread *td)
+{
+	int error, len;
+	struct inode *ip = VTOI(vp);
+
+	len = sizeof(*old);
+
+	switch (type) {
+	case ACL_TYPE_ACCESS:
+		error = vn_extattr_get(vp, IO_NODELOCKED,
+		    POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE,
+		    POSIX1E_ACL_ACCESS_EXTATTR_NAME, &len, (char *) old,
+		    td);
+		break;
+	case ACL_TYPE_DEFAULT:
+		if (vp->v_type != VDIR)
+			return (EINVAL);
+		error = vn_extattr_get(vp, IO_NODELOCKED,
+		    POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE,
+		    POSIX1E_ACL_DEFAULT_EXTATTR_NAME, &len, (char *) old,
+		    td);
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	if (error != 0)
+		return (error);
+
+	if (len != sizeof(*old)) {
+		/*
+		 * A short (or long) read, meaning that for some reason
+		 * the ACL is corrupted.  Return EPERM since the object
+		 * DAC protections are unsafe.
+		 */
+		printf("ufs_get_oldacl(): Loaded invalid ACL "
+		    "(len = %d), inumber %d on %s\n", len,
+		    ip->i_number, ip->i_fs->fs_fsmnt);
+		return (EPERM);
+	}
+
+	return (0);
+}
+
+/*
  * Retrieve the ACL on a file.
  *
  * As part of the ACL is stored in the inode, and the rest in an EA,
  * assemble both into a final ACL product.  Right now this is not done
  * very efficiently.
  */
-int
-ufs_getacl(ap)
-	struct vop_getacl_args /* {
-		struct vnode *vp;
-		struct acl_type_t type;
-		struct acl *aclp;
-		struct ucred *cred;
-		struct thread *td;
-	} */ *ap;
+static int
+ufs_getacl_posix1e(struct vop_getacl_args *ap)
 {
 	struct inode *ip = VTOI(ap->a_vp);
-	int error, len;
+	int error;
+	struct oldacl *old;
 
 	/*
 	 * XXX: If ufs_getacl() should work on file systems not supporting
@@ -167,119 +211,81 @@ ufs_getacl(ap)
 	if ((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0)
 		return (EOPNOTSUPP);
 
+	old = malloc(sizeof(*old), M_ACL, M_WAITOK | M_ZERO);
+
 	/*
-	 * Attempt to retrieve the ACL based on the ACL type.
+	 * Attempt to retrieve the ACL from the extended attributes.
 	 */
-	bzero(ap->a_aclp, sizeof(*ap->a_aclp));
-	len = sizeof(*ap->a_aclp);
-	switch(ap->a_type) {
-	case ACL_TYPE_ACCESS:
-		/*
-		 * ACL_TYPE_ACCESS ACLs may or may not be stored in the
-		 * EA, as they are in fact a combination of the inode
-		 * ownership/permissions and the EA contents.  If the
-		 * EA is present, merge the two in a temporary ACL
-		 * storage, otherwise just return the inode contents.
-		 */
-		error = vn_extattr_get(ap->a_vp, IO_NODELOCKED,
-		    POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE,
-		    POSIX1E_ACL_ACCESS_EXTATTR_NAME, &len, (char *) ap->a_aclp,
-		    ap->a_td);
-		switch (error) {
-		/* XXX: If ufs_getacl() should work on filesystems without
-		 * the EA configured, add case EOPNOTSUPP here. */
-		case ENOATTR:
+	error = ufs_get_oldacl(ap->a_type, old, ap->a_vp, ap->a_td);
+	switch (error) {
+	/*
+	 * XXX: If ufs_getacl() should work on filesystems
+	 * without the EA configured, add case EOPNOTSUPP here.
+	 */
+	case ENOATTR:
+		switch (ap->a_type) {
+		case ACL_TYPE_ACCESS:
 			/*
 			 * Legitimately no ACL set on object, purely
 			 * emulate it through the inode.  These fields will
 			 * be updated when the ACL is synchronized with
 			 * the inode later.
 			 */
-			ap->a_aclp->acl_cnt = 3;
-			ap->a_aclp->acl_entry[0].ae_tag = ACL_USER_OBJ;
-			ap->a_aclp->acl_entry[0].ae_id = ACL_UNDEFINED_ID;
-			ap->a_aclp->acl_entry[0].ae_perm = ACL_PERM_NONE;
-			ap->a_aclp->acl_entry[1].ae_tag = ACL_GROUP_OBJ;
-			ap->a_aclp->acl_entry[1].ae_id = ACL_UNDEFINED_ID;
-			ap->a_aclp->acl_entry[1].ae_perm = ACL_PERM_NONE;
-			ap->a_aclp->acl_entry[2].ae_tag = ACL_OTHER;
-			ap->a_aclp->acl_entry[2].ae_id = ACL_UNDEFINED_ID;
-			ap->a_aclp->acl_entry[2].ae_perm = ACL_PERM_NONE;
+			old->acl_cnt = 3;
+			old->acl_entry[0].ae_tag = ACL_USER_OBJ;
+			old->acl_entry[0].ae_id = ACL_UNDEFINED_ID;
+			old->acl_entry[0].ae_perm = ACL_PERM_NONE;
+			old->acl_entry[1].ae_tag = ACL_GROUP_OBJ;
+			old->acl_entry[1].ae_id = ACL_UNDEFINED_ID;
+			old->acl_entry[1].ae_perm = ACL_PERM_NONE;
+			old->acl_entry[2].ae_tag = ACL_OTHER;
+			old->acl_entry[2].ae_id = ACL_UNDEFINED_ID;
+			old->acl_entry[2].ae_perm = ACL_PERM_NONE;
+			break;
+
+		case ACL_TYPE_DEFAULT:
+			/*
+			 * Unlike ACL_TYPE_ACCESS, there is no relationship
+			 * between the inode contents and the ACL, and it is
+			 * therefore possible for the request for the ACL
+			 * to fail since the ACL is undefined.  In this
+			 * situation, return success and an empty ACL,
+			 * as required by POSIX.1e.
+			 */
+			old->acl_cnt = 0;
+			break;
+		}
+
+		error = 0;
+
+		/* FALLTHROUGH */
+	case 0:
+		error = acl_copy_oldacl_into_acl(old, ap->a_aclp);
+		if (error != 0)
+			break;
+
+		if (ap->a_type == ACL_TYPE_ACCESS)
 			ufs_sync_acl_from_inode(ip, ap->a_aclp);
-			error = 0;
-			break;
-
-		case 0:
-			if (len != sizeof(*ap->a_aclp)) {
-				/*
-				 * A short (or long) read, meaning that for
-				 * some reason the ACL is corrupted.  Return
-				 * EPERM since the object DAC protections
-				 * are unsafe.
-				 */
-				printf("ufs_getacl(): Loaded invalid ACL ("
-				    "%d bytes), inumber %d on %s\n", len,
-				    ip->i_number, ip->i_fs->fs_fsmnt);
-				return (EPERM);
-			}
-			ufs_sync_acl_from_inode(ip, ap->a_aclp);
-			break;
-
-		default:
-			break;
-		}
-		break;
-
-	case ACL_TYPE_DEFAULT:
-		if (ap->a_vp->v_type != VDIR) {
-			error = EINVAL;
-			break;
-		}
-		error = vn_extattr_get(ap->a_vp, IO_NODELOCKED,
-		    POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE,
-		    POSIX1E_ACL_DEFAULT_EXTATTR_NAME, &len,
-		    (char *) ap->a_aclp, ap->a_td);
-		/*
-		 * Unlike ACL_TYPE_ACCESS, there is no relationship between
-		 * the inode contents and the ACL, and it is therefore
-		 * possible for the request for the ACL to fail since the
-		 * ACL is undefined.  In this situation, return success
-		 * and an empty ACL, as required by POSIX.1e.
-		 */
-		switch (error) {
-		/* XXX: If ufs_getacl() should work on filesystems without
-		 * the EA configured, add case EOPNOTSUPP here. */
-		case ENOATTR:
-			bzero(ap->a_aclp, sizeof(*ap->a_aclp));
-			ap->a_aclp->acl_cnt = 0;
-			error = 0;
-			break;
-
-		case 0:
-			if (len != sizeof(*ap->a_aclp)) {
-				/*
-				 * A short (or long) read, meaning that for
-				 * some reason the ACL is corrupted.  Return
-				 * EPERM since the object default DAC
-				 * protections are unsafe.
-				 */
-				printf("ufs_getacl(): Loaded invalid ACL ("
-				    "%d bytes), inumber %d on %s\n", len,
-				    ip->i_number, ip->i_fs->fs_fsmnt);
-				return (EPERM);
-			}
-			break;
-
-		default:
-			break;
-		}
-		break;
-
 	default:
-		error = EINVAL;
+		break;
 	}
 
+	free(old, M_ACL);
 	return (error);
+}
+
+int
+ufs_getacl(ap)
+	struct vop_getacl_args /* {
+		struct vnode *vp;
+		acl_type_t type;
+		struct acl *aclp;
+		struct ucred *cred;
+		struct thread *td;
+	} */ *ap;
+{
+
+	return (ufs_getacl_posix1e(ap));
 }
 
 /*
@@ -291,18 +297,12 @@ ufs_getacl(ap)
  * a fair number of different access checks may be required to go ahead
  * with the operation at all.
  */
-int
-ufs_setacl(ap)
-	struct vop_setacl_args /* {
-		struct vnode *vp;
-		acl_type_t type;
-		struct acl *aclp;
-		struct ucred *cred;
-		struct proc *p;
-	} */ *ap;
+static int
+ufs_setacl_posix1e(struct vop_setacl_args *ap)
 {
 	struct inode *ip = VTOI(ap->a_vp);
 	int error;
+	struct oldacl *old;
 
 	if ((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0)
 		return (EOPNOTSUPP);
@@ -349,10 +349,15 @@ ufs_setacl(ap)
 
 	switch(ap->a_type) {
 	case ACL_TYPE_ACCESS:
-		error = vn_extattr_set(ap->a_vp, IO_NODELOCKED,
-		    POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE,
-		    POSIX1E_ACL_ACCESS_EXTATTR_NAME, sizeof(*ap->a_aclp),
-		    (char *) ap->a_aclp, ap->a_td);
+		old = malloc(sizeof(*old), M_ACL, M_WAITOK | M_ZERO);
+		error = acl_copy_acl_into_oldacl(ap->a_aclp, old);
+		if (error == 0) {
+			error = vn_extattr_set(ap->a_vp, IO_NODELOCKED,
+			    POSIX1E_ACL_ACCESS_EXTATTR_NAMESPACE,
+			    POSIX1E_ACL_ACCESS_EXTATTR_NAME, sizeof(*old),
+			    (char *) old, ap->a_td);
+		}
+		free(old, M_ACL);
 		break;
 
 	case ACL_TYPE_DEFAULT:
@@ -372,11 +377,17 @@ ufs_setacl(ap)
 		 	 */
 			if (error == ENOATTR)
 				error = 0;
-		} else
-			error = vn_extattr_set(ap->a_vp, IO_NODELOCKED,
-			    POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE,
-			    POSIX1E_ACL_DEFAULT_EXTATTR_NAME,
-			    sizeof(*ap->a_aclp), (char *) ap->a_aclp, ap->a_td);
+		} else {
+			old = malloc(sizeof(*old), M_ACL, M_WAITOK | M_ZERO);
+			error = acl_copy_acl_into_oldacl(ap->a_aclp, old);
+			if (error == 0) {
+				error = vn_extattr_set(ap->a_vp, IO_NODELOCKED,
+				    POSIX1E_ACL_DEFAULT_EXTATTR_NAMESPACE,
+				    POSIX1E_ACL_DEFAULT_EXTATTR_NAME,
+				    sizeof(*old), (char *) old, ap->a_td);
+			}
+			free(old, M_ACL);
+		}
 		break;
 
 	default:
@@ -404,18 +415,22 @@ ufs_setacl(ap)
 	return (0);
 }
 
-/*
- * Check the validity of an ACL for a file.
- */
 int
-ufs_aclcheck(ap)
-	struct vop_aclcheck_args /* {
+ufs_setacl(ap)
+	struct vop_setacl_args /* {
 		struct vnode *vp;
 		acl_type_t type;
 		struct acl *aclp;
 		struct ucred *cred;
 		struct thread *td;
 	} */ *ap;
+{
+
+	return (ufs_setacl_posix1e(ap));
+}
+
+static int
+ufs_aclcheck_posix1e(struct vop_aclcheck_args *ap)
 {
 
 	if ((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0)
@@ -438,7 +453,28 @@ ufs_aclcheck(ap)
 	default:
 		return (EINVAL);
 	}
+
+	if (ap->a_aclp->acl_cnt > OLDACL_MAX_ENTRIES)
+		return (EINVAL);
+
 	return (acl_posix1e_check(ap->a_aclp));
+}
+
+/*
+ * Check the validity of an ACL for a file.
+ */
+int
+ufs_aclcheck(ap)
+	struct vop_aclcheck_args /* {
+		struct vnode *vp;
+		acl_type_t type;
+		struct acl *aclp;
+		struct ucred *cred;
+		struct thread *td;
+	} */ *ap;
+{
+
+	return (ufs_aclcheck_posix1e(ap));
 }
 
 #endif /* !UFS_ACL */

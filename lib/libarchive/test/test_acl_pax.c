@@ -151,10 +151,10 @@ static unsigned char reference[] = {
 0,0,0,0,0,0,0,0,0,0,'1','1','3',' ','S','C','H','I','L','Y','.','a','c','l',
 '.','a','c','c','e','s','s','=','u','s','e','r',':',':','r','-','x',',','g',
 'r','o','u','p',':',':','r','-','-',',','o','t','h','e','r',':',':','-','w',
-'x',',','g','r','o','u','p',':','g','r','o','u','p','7','8',':','r','w','x',
-':','7','8',',','u','s','e','r',':','u','s','e','r','7','8',':','-','-','-',
-':','7','8',',','u','s','e','r',':','u','s','e','r','7','7',':','r','-','-',
-':','7','7',10,'1','6',' ','S','C','H','I','L','Y','.','d','e','v','=','0',
+'x',',','u','s','e','r',':','u','s','e','r','7','7',':','r','-','-',':','7',
+'7',',','u','s','e','r',':','u','s','e','r','7','8',':','-','-','-',':','7',
+'8',',','g','r','o','u','p',':','g','r','o','u','p','7','8',':','r','w','x',
+':','7','8',10,'1','6',' ','S','C','H','I','L','Y','.','d','e','v','=','0',
 10,'1','6',' ','S','C','H','I','L','Y','.','i','n','o','=','0',10,'1','8',
 ' ','S','C','H','I','L','Y','.','n','l','i','n','k','=','0',10,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -464,7 +464,7 @@ DEFINE_TEST(test_acl_pax)
 
 	/* Assert that the generated data matches the built-in reference data.*/
 	failure("Generated pax archive does not match reference; check 'testout' and 'reference' files.");
-	assert(0 == memcmp(buff, reference, sizeof(reference)));
+	assertEqualMem(buff, reference, sizeof(reference));
 	failure("Generated pax archive does not match reference; check 'testout' and 'reference' files.");
 	assertEqualInt((int)used, sizeof(reference));
 

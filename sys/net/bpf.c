@@ -38,7 +38,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bpf.h"
-#include "opt_mac.h"
 #include "opt_netgraph.h"
 
 #include <sys/types.h>
@@ -46,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/time.h>
@@ -534,6 +534,8 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 
 	bpf_bpfd_cnt++;
 	BPFIF_UNLOCK(bp);
+
+	EVENTHANDLER_INVOKE(bpf_track, bp->bif_ifp, bp->bif_dlt, 1);
 }
 
 /*
@@ -560,6 +562,8 @@ bpf_detachd(struct bpf_d *d)
 	d->bd_bif = NULL;
 	BPFD_UNLOCK(d);
 	BPFIF_UNLOCK(bp);
+
+	EVENTHANDLER_INVOKE(bpf_track, ifp, bp->bif_dlt, 0);
 
 	/*
 	 * Check if this descriptor had requested promiscuous mode.
@@ -645,7 +649,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init(&d->bd_callout, CALLOUT_MPSAFE);
-	knlist_init(&d->bd_sel.si_note, &d->bd_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_mtx);
 
 	return (0);
 }
@@ -873,11 +877,10 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	m->m_len -= hlen;
 	m->m_data += hlen;	/* XXX */
 
+	CURVNET_SET(ifp->if_vnet);
 #ifdef MAC
 	BPFD_LOCK(d);
-	CURVNET_SET(ifp->if_vnet);
 	mac_bpfdesc_create_mbuf(d, m);
-	CURVNET_RESTORE();
 	if (mc != NULL)
 		mac_bpfdesc_create_mbuf(d, mc);
 	BPFD_UNLOCK(d);
@@ -893,6 +896,7 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		else
 			m_freem(mc);
 	}
+	CURVNET_RESTORE();
 
 	return (error);
 }
@@ -2028,6 +2032,35 @@ bpf_drvinit(void *unused)
 
 }
 
+/*
+ * Zero out the various packet counters associated with all of the bpf
+ * descriptors.  At some point, we will probably want to get a bit more
+ * granular and allow the user to specify descriptors to be zeroed.
+ */
+static void
+bpf_zero_counters(void)
+{
+	struct bpf_if *bp;
+	struct bpf_d *bd;
+
+	mtx_lock(&bpf_mtx);
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		BPFIF_LOCK(bp);
+		LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
+			BPFD_LOCK(bd);
+			bd->bd_rcount = 0;
+			bd->bd_dcount = 0;
+			bd->bd_fcount = 0;
+			bd->bd_wcount = 0;
+			bd->bd_wfcount = 0;
+			bd->bd_zcopy = 0;
+			BPFD_UNLOCK(bd);
+		}
+		BPFIF_UNLOCK(bp);
+	}
+	mtx_unlock(&bpf_mtx);
+}
+
 static void
 bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 {
@@ -2062,7 +2095,7 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 static int
 bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct xbpf_d *xbdbuf, *xbd;
+	struct xbpf_d *xbdbuf, *xbd, zerostats;
 	int index, error;
 	struct bpf_if *bp;
 	struct bpf_d *bd;
@@ -2076,6 +2109,21 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	error = priv_check(req->td, PRIV_NET_BPF);
 	if (error)
 		return (error);
+	/*
+	 * Check to see if the user is requesting that the counters be
+	 * zeroed out.  Explicitly check that the supplied data is zeroed,
+	 * as we aren't allowing the user to set the counters currently.
+	 */
+	if (req->newptr != NULL) {
+		if (req->newlen != sizeof(zerostats))
+			return (EINVAL);
+		bzero(&zerostats, sizeof(zerostats));
+		xbd = req->newptr;
+		if (bcmp(xbd, &zerostats, sizeof(*xbd)) != 0)
+			return (EINVAL);
+		bpf_zero_counters();
+		return (0);
+	}
 	if (req->oldptr == NULL)
 		return (SYSCTL_OUT(req, 0, bpf_bpfd_cnt * sizeof(*xbd)));
 	if (bpf_bpfd_cnt == 0)

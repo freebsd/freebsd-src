@@ -409,7 +409,7 @@ struct cpu_devs at91rm9200_devs[] =
 		AT91RM92_IRQ_SSC2
 	},
 	{
-		"at91_spi", 0,
+		"spi", 0,
 		AT91RM92_BASE + AT91RM92_SPI_BASE, AT91RM92_SPI_SIZE,
 		AT91RM92_IRQ_SPI
 	},
@@ -417,6 +417,11 @@ struct cpu_devs at91rm9200_devs[] =
 		"ohci", 0,
 		AT91RM92_OHCI_BASE, AT91RM92_OHCI_SIZE,
 		AT91RM92_IRQ_UHP
+	},
+	{
+		"at91_cfata", 0,
+		AT91RM92_CF_BASE, AT91RM92_CF_SIZE,
+		-1
 	},
 	{	0, 0, 0, 0, 0 }
 };
@@ -507,6 +512,9 @@ at91_attach(device_t dev)
 	if (rman_manage_region(&sc->sc_mem_rman, AT91RM92_OHCI_BASE,
 	    AT91RM92_OHCI_BASE + AT91RM92_OHCI_SIZE - 1) != 0)
 		panic("at91_attach: failed to set up ohci memory");
+	if (rman_manage_region(&sc->sc_mem_rman, AT91RM92_CF_BASE,
+	    AT91RM92_CF_BASE + AT91RM92_CF_SIZE - 1) != 0)
+		panic("at91_attach: failed to set up CompactFlash ATA memory");
 
 	for (i = 0; i < 32; i++) {
 		bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_SVR + 
@@ -694,9 +702,8 @@ arm_mask_irq(uintptr_t nb)
 }
 
 int
-arm_get_next_irq()
+arm_get_next_irq(int last __unused)
 {
-
 	int status;
 	int irq;
 	

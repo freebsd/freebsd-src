@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
-#include "opt_mac.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -580,6 +579,7 @@ interpret:
 	 * reset.
 	 */
 	PROC_LOCK(p);
+	oldcred = crcopysafe(p, newcred);
 	if (sigacts_shared(p->p_sigacts)) {
 		oldsigacts = p->p_sigacts;
 		PROC_UNLOCK(p);
@@ -630,7 +630,6 @@ interpret:
 	 * XXXMAC: For the time being, use NOSUID to also prohibit
 	 * transitions on the file system.
 	 */
-	oldcred = p->p_ucred;
 	credential_changing = 0;
 	credential_changing |= (attr.va_mode & S_ISUID) && oldcred->cr_uid !=
 	    attr.va_uid;
@@ -684,7 +683,6 @@ interpret:
 		/*
 		 * Set the new credentials.
 		 */
-		crcopy(newcred, oldcred);
 		if (attr.va_mode & S_ISUID)
 			change_euid(newcred, euip);
 		if (attr.va_mode & S_ISGID)
@@ -724,7 +722,6 @@ interpret:
 		 */
 		if (oldcred->cr_svuid != oldcred->cr_uid ||
 		    oldcred->cr_svgid != oldcred->cr_gid) {
-			crcopy(newcred, oldcred);
 			change_svuid(newcred, newcred->cr_uid);
 			change_svgid(newcred, newcred->cr_gid);
 			p->p_ucred = newcred;
@@ -928,7 +925,7 @@ exec_map_first_page(imgp)
 	}
 #endif
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-	if ((ma[0]->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
+	if (ma[0]->valid != VM_PAGE_BITS_ALL) {
 		initial_pagein = VM_INITIAL_PAGEIN;
 		if (initial_pagein > object->size)
 			initial_pagein = object->size;
@@ -949,8 +946,7 @@ exec_map_first_page(imgp)
 		initial_pagein = i;
 		rv = vm_pager_get_pages(object, ma, initial_pagein, 0);
 		ma[0] = vm_page_lookup(object, 0);
-		if ((rv != VM_PAGER_OK) || (ma[0] == NULL) ||
-		    (ma[0]->valid == 0)) {
+		if ((rv != VM_PAGER_OK) || (ma[0] == NULL)) {
 			if (ma[0]) {
 				vm_page_lock_queues();
 				vm_page_free(ma[0]);

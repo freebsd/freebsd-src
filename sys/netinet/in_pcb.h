@@ -39,8 +39,6 @@
 #include <sys/_mutex.h>
 #include <sys/_rwlock.h>
 
-#include <net/route.h>
-
 #ifdef _KERNEL
 #include <sys/rwlock.h>
 #endif
@@ -163,6 +161,7 @@ struct inpcb {
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
 	u_int32_t inp_flow;		/* (i) IPv6 flow information */
 	int	inp_flags;		/* (i) generic IP/datagram flags */
+	int	inp_flags2;		/* (i) generic IP/datagram flags #2*/
 	u_char	inp_vflag;		/* (i) IP version flag (v4/v6) */
 	u_char	inp_ip_ttl;		/* (i) time to live proto */
 	u_char	inp_ip_p;		/* (c) protocol proto */
@@ -201,6 +200,8 @@ struct inpcb {
 	struct	inpcbport *inp_phd;	/* (i/p) head of this list */
 #define inp_zero_size offsetof(struct inpcb, inp_gencnt)
 	inp_gen_t	inp_gencnt;	/* (c) generation count */
+	struct llentry	*inp_lle;	/* cached L2 information */
+	struct rtentry	*inp_rt;	/* cached L3 information */
 	struct rwlock	inp_lock;
 };
 #define	inp_fport	inp_inc.inc_fport
@@ -220,6 +221,8 @@ struct inpcb {
 #define	in6p_moptions	inp_depend6.inp6_moptions
 #define	in6p_icmp6filt	inp_depend6.inp6_icmp6filt
 #define	in6p_cksum	inp_depend6.inp6_cksum
+
+#define	inp_vnet	inp_pcbinfo->ipi_vnet
 
 /*
  * The range of the generation count, as used in this implementation, is 9e19.
@@ -298,8 +301,12 @@ struct inpcbinfo {
 	struct rwlock		 ipi_lock;
 
 	/*
-	 * vimage 1
-	 * general use 1
+	 * Pointer to network stack instance
+	 */
+	struct vnet		*ipi_vnet;
+
+	/*
+	 * general use 2
 	 */
 	void 			*ipi_pspare[2];
 };
@@ -313,7 +320,10 @@ struct inpcbinfo {
 #define INP_TRY_WLOCK(inp)	rw_try_wlock(&(inp)->inp_lock)
 #define INP_RUNLOCK(inp)	rw_runlock(&(inp)->inp_lock)
 #define INP_WUNLOCK(inp)	rw_wunlock(&(inp)->inp_lock)
-#define INP_LOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_LOCKED)
+#define	INP_TRY_UPGRADE(inp)	rw_try_upgrade(&(inp)->inp_lock)
+#define	INP_DOWNGRADE(inp)	rw_downgrade(&(inp)->inp_lock)
+#define	INP_WLOCKED(inp)	rw_wowned(&(inp)->inp_lock)
+#define	INP_LOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_LOCKED)
 #define	INP_RLOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_RLOCKED)
 #define	INP_WLOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_WLOCKED)
 #define	INP_UNLOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_UNLOCKED)
@@ -377,16 +387,14 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 	(ntohs((lport)) & (mask))
 
 /*
- * Flags for inp_vflags -- historically version flags only, but now quite a
- * bit more due to an overflow of inp_flag, leading to some locking ambiguity
- * as some bits are stable from initial allocation, and others may change.
+ * Flags for inp_vflags -- historically version flags only
  */
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2
 #define	INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
 
 /*
- * Flags for inp_flag.
+ * Flags for inp_flags.
  */
 #define	INP_RECVOPTS		0x00000001 /* receive incoming IP options */
 #define	INP_RECVRETOPTS		0x00000002 /* receive IP options for reply */
@@ -400,8 +408,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_FAITH		0x00000200 /* accept FAITH'ed connections */
 #define	INP_RECVTTL		0x00000400 /* receive incoming IP TTL */
 #define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
-#define	INP_NONLOCALOK		0x00001000 /* Allow bind to spoof any address */
-					/* - requires options IP_NONLOCALBIND */
+#define	INP_BINDANY		0x00001000 /* allow bind to any address */
 #define	INP_INHASHLIST		0x00002000 /* in_pcbinshash() has been called */
 #define	IN6P_IPV6_V6ONLY	0x00008000 /* restrict AF_INET6 socket for v6 */
 #define	IN6P_PKTINFO		0x00010000 /* receive IP6 dst and I/F */
@@ -427,6 +434,12 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 				 IN6P_DSTOPTS|IN6P_RTHDR|IN6P_RTHDRDSTOPTS|\
 				 IN6P_TCLASS|IN6P_AUTOFLOWLABEL|IN6P_RFC2292|\
 				 IN6P_MTU)
+
+/*
+ * Flags for inp_flags2.
+ */
+#define	INP_LLE_VALID		0x00000001 /* cached lle is valid */	
+#define	INP_RT_VALID		0x00000002 /* cached rtentry is valid */
 
 #define	INPLOOKUP_WILDCARD	1
 #define	sotoinpcb(so)	((struct inpcb *)(so)->so_pcb)
@@ -485,14 +498,7 @@ int	in_getsockaddr(struct socket *so, struct sockaddr **nam);
 struct sockaddr *
 	in_sockaddr(in_port_t port, struct in_addr *addr);
 void	in_pcbsosetlabel(struct socket *so);
-void	in_pcbremlists(struct inpcb *inp);
 void	ipport_tick(void *xtp);
-
-/*
- * Debugging routines compiled in when DDB is present.
- */
-void	db_print_inpcb(struct inpcb *inp, const char *name, int indent);
-
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IN_PCB_H_ */

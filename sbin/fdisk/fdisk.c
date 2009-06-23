@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 int iotest;
 
+#define NOSECTORS ((u_int32_t)-1)
 #define LBUF 100
 static char lbuf[LBUF];
 
@@ -106,6 +107,7 @@ typedef struct cmd {
     struct arg {
 	char	argtype;
 	int	arg_val;
+	char	*arg_str;
     }			args[MAX_ARGS];
 } CMD;
 
@@ -970,16 +972,23 @@ parse_config_line(char *line, CMD *command)
 	 */
 	    while (1) {
 	    while (isspace(*cp)) ++cp;
+	    if (*cp == '\0')
+		break;		/* eol */
 	    if (*cp == '#')
 		break;		/* found comment */
 	    if (isalpha(*cp))
 		command->args[command->n_args].argtype = *cp++;
-	    if (!isdigit(*cp))
-		break;		/* assume end of line */
 	    end = NULL;
 	    command->args[command->n_args].arg_val = strtol(cp, &end, 0);
-	    if (cp == end)
-		break;		/* couldn't parse number */
+ 	    if (cp == end || (!isspace(*end) && *end != '\0')) {
+ 		char ch;
+ 		end = cp;
+ 		while (!isspace(*end) && *end != '\0') ++end;
+ 		ch = *end; *end = '\0';
+ 		command->args[command->n_args].arg_str = strdup(cp);
+ 		*end = ch;
+ 	    } else
+ 		command->args[command->n_args].arg_str = NULL;
 	    cp = end;
 	    command->n_args++;
 	}
@@ -1078,6 +1087,33 @@ process_geometry(CMD *command)
     return (status);
 }
 
+static u_int32_t
+str2sectors(const char *str)
+{
+	char *end;
+	unsigned long val;
+
+	val = strtoul(str, &end, 0);
+	if (str == end || *end == '\0') {
+		warnx("ERROR line %d: unexpected size: \'%s\'",
+		    current_line_number, str);
+		return NOSECTORS;
+	}
+
+	if (*end == 'K') 
+		val *= 1024UL / secsize;
+	else if (*end == 'M')
+		val *= 1024UL * 1024UL / secsize;
+	else if (*end == 'G')
+		val *= 1024UL * 1024UL * 1024UL / secsize;
+	else {
+		warnx("ERROR line %d: unexpected modifier: %c "
+		    "(not K/M/G)", current_line_number, *end);
+		return NOSECTORS;
+	}
+
+	return val;
+}
 
 static int
 process_partition(CMD *command)
@@ -1103,8 +1139,48 @@ process_partition(CMD *command)
 	partp = &mboot.parts[partition - 1];
 	bzero(partp, sizeof (*partp));
 	partp->dp_typ = command->args[1].arg_val;
-	partp->dp_start = command->args[2].arg_val;
-	partp->dp_size = command->args[3].arg_val;
+	if (command->args[2].arg_str != NULL) {
+		if (strcmp(command->args[2].arg_str, "*") == 0) {
+			int i;
+			partp->dp_start = dos_sectors;
+			for (i = 1; i < partition; i++) {
+    				struct dos_partition *prev_partp;
+				prev_partp = ((struct dos_partition *)
+				    &mboot.parts) + i - 1;
+				if (prev_partp->dp_typ != 0)
+					partp->dp_start = prev_partp->dp_start +
+					    prev_partp->dp_size;
+			}
+			if (partp->dp_start % dos_sectors != 0) {
+		    		prev_head_boundary = partp->dp_start /
+				    dos_sectors * dos_sectors;
+		    		partp->dp_start = prev_head_boundary +
+				    dos_sectors;
+			}
+		} else {
+			partp->dp_start = str2sectors(command->args[2].arg_str);
+			if (partp->dp_start == NOSECTORS)
+				break;
+		}
+	} else
+		partp->dp_start = command->args[2].arg_val;
+
+	if (command->args[3].arg_str != NULL) {
+		if (strcmp(command->args[3].arg_str, "*") == 0)
+			partp->dp_size = ((disksecs / dos_cylsecs) *
+			    dos_cylsecs) - partp->dp_start;
+		else {
+			partp->dp_size = str2sectors(command->args[3].arg_str);
+			if (partp->dp_size == NOSECTORS)
+				break;
+		}
+		prev_cyl_boundary = ((partp->dp_start + partp->dp_size) /
+		    dos_cylsecs) * dos_cylsecs;
+		if (prev_cyl_boundary > partp->dp_start)
+			partp->dp_size = prev_cyl_boundary - partp->dp_start;
+	} else
+		partp->dp_size = command->args[3].arg_val;
+
 	max_end = partp->dp_start + partp->dp_size;
 
 	if (partp->dp_typ == 0) {

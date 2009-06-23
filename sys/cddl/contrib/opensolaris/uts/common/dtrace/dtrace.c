@@ -122,6 +122,7 @@
 #include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/dtrace_bsd.h>
 #include <netinet/in.h>
@@ -3168,14 +3169,11 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 		uintptr_t rw;
 	} r;
 #else
+	struct thread *lowner;
 	union {
-		struct mtx *mi;
-		uintptr_t mx;
-	} m;
-	union {
-		struct sx *si;
-		uintptr_t sx;
-	} s;
+		struct lock_object *li;
+		uintptr_t lx;
+	} l;
 #endif
 
 	switch (subr) {
@@ -3272,75 +3270,83 @@ dtrace_dif_subr(uint_t subr, uint_t rd, uint64_t *regs,
 		break;
 
 #else
-	/* 
-         * XXX - The following code works because mutex, rwlocks, & sxlocks
-         *       all have similar data structures in FreeBSD.  This may not be
-         *	 good if someone changes one of the lock data structures.
-	 * 	 Ideally, it would be nice if all these shared a common lock 
-	 * 	 object.
-         */
 	case DIF_SUBR_MUTEX_OWNED:
-		/* XXX - need to use dtrace_canload() and dtrace_loadptr() */ 
-		m.mx = tupregs[0].dttk_value;
-
-#ifdef DOODAD
-		if (LO_CLASSINDEX(&(m.mi->lock_object)) < 2) { 
-			regs[rd] = !(m.mi->mtx_lock & MTX_UNOWNED);
-		} else {	
-			regs[rd] = !(m.mi->mtx_lock & SX_UNLOCKED);
+		if (!dtrace_canload(tupregs[0].dttk_value,
+			sizeof (struct lock_object), mstate, vstate)) {
+			regs[rd] = 0;
+			break;
 		}
-#endif
+		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		regs[rd] = LOCK_CLASS(l.li)->lc_owner(l.li, &lowner);
 		break;
 
 	case DIF_SUBR_MUTEX_OWNER:
-		/* XXX - need to use dtrace_canload() and dtrace_loadptr() */ 
-		m.mx = tupregs[0].dttk_value;
-
-		if (LO_CLASSINDEX(&(m.mi->lock_object)) < 2) { 
-			regs[rd] = m.mi->mtx_lock & ~MTX_FLAGMASK;
-		} else {
-			if (!(m.mi->mtx_lock & SX_LOCK_SHARED)) 
-				regs[rd] = SX_OWNER(m.mi->mtx_lock);
-			else
-				regs[rd] = 0;
+		if (!dtrace_canload(tupregs[0].dttk_value,
+			sizeof (struct lock_object), mstate, vstate)) {
+			regs[rd] = 0;
+			break;
 		}
+		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		LOCK_CLASS(l.li)->lc_owner(l.li, &lowner);
+		regs[rd] = (uintptr_t)lowner;
 		break;
 
 	case DIF_SUBR_MUTEX_TYPE_ADAPTIVE:
-		/* XXX - need to use dtrace_canload() and dtrace_loadptr() */ 
-		m.mx = tupregs[0].dttk_value;
-
-		regs[rd] = (LO_CLASSINDEX(&(m.mi->lock_object)) != 0);
+		if (!dtrace_canload(tupregs[0].dttk_value, sizeof (struct mtx),
+		    mstate, vstate)) {
+			regs[rd] = 0;
+			break;
+		}
+		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		/* XXX - should be only LC_SLEEPABLE? */
+		regs[rd] = (LOCK_CLASS(l.li)->lc_flags &
+		    (LC_SLEEPLOCK | LC_SLEEPABLE)) != 0;
 		break;
 
 	case DIF_SUBR_MUTEX_TYPE_SPIN:
-		/* XXX - need to use dtrace_canload() and dtrace_loadptr() */ 
-		m.mx = tupregs[0].dttk_value;
-
-		regs[rd] = (LO_CLASSINDEX(&(m.mi->lock_object)) == 0);
+		if (!dtrace_canload(tupregs[0].dttk_value, sizeof (struct mtx),
+		    mstate, vstate)) {
+			regs[rd] = 0;
+			break;
+		}
+		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		regs[rd] = (LOCK_CLASS(l.li)->lc_flags & LC_SPINLOCK) != 0;
 		break;
 
 	case DIF_SUBR_RW_READ_HELD: 
 	case DIF_SUBR_SX_SHARED_HELD: 
-		/* XXX - need to use dtrace_canload() and dtrace_loadptr() */ 
-		s.sx = tupregs[0].dttk_value;
-		regs[rd] = ((s.si->sx_lock & SX_LOCK_SHARED)  && 
-			    (SX_OWNER(s.si->sx_lock) >> SX_SHARERS_SHIFT) != 0);
+		if (!dtrace_canload(tupregs[0].dttk_value, sizeof (uintptr_t),
+		    mstate, vstate)) {
+			regs[rd] = 0;
+			break;
+		}
+		l.lx = dtrace_loadptr((uintptr_t)&tupregs[0].dttk_value);
+		regs[rd] = LOCK_CLASS(l.li)->lc_owner(l.li, &lowner) &&
+		    lowner == NULL;
 		break;
 
 	case DIF_SUBR_RW_WRITE_HELD:
 	case DIF_SUBR_SX_EXCLUSIVE_HELD:
-		/* XXX - need to use dtrace_canload() and dtrace_loadptr() */ 
-		s.sx = tupregs[0].dttk_value;
-		regs[rd] = (SX_OWNER(s.si->sx_lock) == (uintptr_t) curthread); 
+		if (!dtrace_canload(tupregs[0].dttk_value, sizeof (uintptr_t),
+		    mstate, vstate)) {
+			regs[rd] = 0;
+			break;
+		}
+		l.lx = dtrace_loadptr(tupregs[0].dttk_value);
+		LOCK_CLASS(l.li)->lc_owner(l.li, &lowner);
+		regs[rd] = (lowner == curthread);
 		break;
 
 	case DIF_SUBR_RW_ISWRITER:
 	case DIF_SUBR_SX_ISEXCLUSIVE:
-		/* XXX - need to use dtrace_canload() and dtrace_loadptr() */ 
-		s.sx = tupregs[0].dttk_value;
-		regs[rd] = ((s.si->sx_lock & SX_LOCK_EXCLUSIVE_WAITERS) ||
-		            !(s.si->sx_lock & SX_LOCK_SHARED));
+		if (!dtrace_canload(tupregs[0].dttk_value, sizeof (uintptr_t),
+		    mstate, vstate)) {
+			regs[rd] = 0;
+			break;
+		}
+		l.lx = dtrace_loadptr(tupregs[0].dttk_value);
+		regs[rd] = LOCK_CLASS(l.li)->lc_owner(l.li, &lowner) &&
+		    lowner != NULL;
 		break;
 #endif /* ! defined(sun) */
 

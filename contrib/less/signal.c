@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2007  Mark Nudelman
+ * Copyright (C) 1984-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -46,6 +46,7 @@ extern long jump_sline_fraction;
 u_interrupt(type)
 	int type;
 {
+	bell();
 #if OS2
 	LSIGNAL(SIGINT, SIG_ACK);
 #endif
@@ -63,7 +64,7 @@ u_interrupt(type)
 	if (less_is_more)
 		quit(0);
 	if (reading)
-		intread();
+		intread(); /* May longjmp */
 }
 
 #ifdef SIGTSTP
@@ -255,24 +256,5 @@ psignals()
 	{
 		if (quit_on_intr)
 			quit(QUIT_OK);
-		bell();
-		/*
-		 * {{ You may wish to replace the bell() with 
-		 *    error("Interrupt", NULL_PARG); }}
-		 */
-
-		/*
-		 * If we were interrupted while in the "calculating 
-		 * line numbers" loop, turn off line numbers.
-		 */
-		if (lnloop)
-		{
-			lnloop = 0;
-			if (linenums == 2)
-				screen_trashed = 1;
-			linenums = 0;
-			error("Line numbers turned off", NULL_PARG);
-		}
-
 	}
 }

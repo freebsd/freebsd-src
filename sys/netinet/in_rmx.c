@@ -43,8 +43,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -57,7 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
-#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -65,6 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/vinet.h>
 
 extern int	in_inithead(void **head, int off);
+#ifdef VIMAGE
+extern int	in_detachhead(void **head, int off);
+#endif
 
 #define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
@@ -250,19 +250,21 @@ static void in_rtqtimo_one(void *rock);
 static void
 in_rtqtimo(void *rock)
 {
+	CURVNET_SET((struct vnet *) rock);
+	INIT_VNET_INET(curvnet);
 	int fibnum;
 	void *newrock;
 	struct timeval atv;
 
-	KASSERT((rock == (void *)V_rt_tables[0][AF_INET]),
-			("in_rtqtimo: unexpected arg"));
 	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		if ((newrock = V_rt_tables[fibnum][AF_INET]) != NULL)
+		newrock = rt_tables_get_rnh(fibnum, AF_INET);
+		if (newrock != NULL)
 			in_rtqtimo_one(newrock);
 	}
 	atv.tv_usec = 0;
 	atv.tv_sec = V_rtq_timeout;
 	callout_reset(&V_rtq_timer, tvtohz(&atv), in_rtqtimo, rock);
+	CURVNET_RESTORE();
 }
 
 static void
@@ -322,10 +324,9 @@ in_rtqdrain(void)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_NET(vnet_iter);
 
 		for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-			rnh = V_rt_tables[fibnum][AF_INET];
+			rnh = rt_tables_get_rnh(fibnum, AF_INET);
 			arg.found = arg.killed = 0;
 			arg.rnh = rnh;
 			arg.nextstop = 0;
@@ -375,11 +376,22 @@ in_inithead(void **head, int off)
 	rnh->rnh_close = in_clsroute;
 	if (_in_rt_was_here == 0 ) {
 		callout_init(&V_rtq_timer, CALLOUT_MPSAFE);
-		in_rtqtimo(rnh);	/* kick off timeout first time */
+		callout_reset(&V_rtq_timer, 1, in_rtqtimo, curvnet);
 		_in_rt_was_here = 1;
 	}
 	return 1;
 }
+
+#ifdef VIMAGE
+int
+in_detachhead(void **head, int off)
+{
+	INIT_VNET_INET(curvnet);
+
+	callout_drain(&V_rtq_timer);
+	return (1);
+}
+#endif
 
 /*
  * This zaps old routes when the interface goes down or interface
@@ -421,7 +433,6 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 int
 in_ifadown(struct ifaddr *ifa, int delete)
 {
-	INIT_VNET_NET(curvnet);
 	struct in_ifadown_arg arg;
 	struct radix_node_head *rnh;
 	int	fibnum;
@@ -430,7 +441,7 @@ in_ifadown(struct ifaddr *ifa, int delete)
 		return 1;
 
 	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		rnh = V_rt_tables[fibnum][AF_INET];
+		rnh = rt_tables_get_rnh(fibnum, AF_INET);
 		arg.ifa = ifa;
 		arg.del = delete;
 		RADIX_NODE_HEAD_LOCK(rnh);

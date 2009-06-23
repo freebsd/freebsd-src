@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 /* local prototypes */
-static int ata_ahci_ctlr_reset(device_t dev);
 static int ata_ahci_suspend(device_t dev);
 static int ata_ahci_status(device_t dev);
 static int ata_ahci_begin_transaction(struct ata_request *request);
@@ -85,8 +84,8 @@ ata_ahci_probe(device_t dev)
 	    return (ENXIO);
 
     /* is this PCI device flagged as an AHCI compliant chip ? */
-    if (pci_read_config(dev, PCIR_PROGIF, 1) != PCIP_STORAGE_SATA_AHCI_1_0)
-	return ENXIO;
+    if (pci_get_progif(dev) != PCIP_STORAGE_SATA_AHCI_1_0)
+	return (ENXIO);
 
     if (bootverbose)
 	sprintf(buffer, "%s (ID=%08x) AHCI controller", 
@@ -95,15 +94,15 @@ ata_ahci_probe(device_t dev)
 	sprintf(buffer, "%s AHCI controller", ata_pcivendor2str(dev));
     device_set_desc_copy(dev, buffer);
     ctlr->chipinit = ata_ahci_chipinit;
-    return 0;
+    return (BUS_PROBE_GENERIC);
 }
 
 int
 ata_ahci_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    int	error;
-    u_int32_t version;
+    int error, speed;
+    u_int32_t caps, version;
 
     /* if we have a memory BAR(5) we are likely on an AHCI part */
     ctlr->r_type2 = SYS_RES_MEMORY;
@@ -132,7 +131,7 @@ ata_ahci_chipinit(device_t dev)
     ctlr->ichannels = ATA_INL(ctlr->r_res2, ATA_AHCI_PI);
     ctlr->channels =
 	MAX(flsl(ctlr->ichannels),
-	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1);
+	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_NPMASK) + 1);
 
     ctlr->reset = ata_ahci_reset;
     ctlr->ch_attach = ata_ahci_ch_attach;
@@ -143,19 +142,48 @@ ata_ahci_chipinit(device_t dev)
     ctlr->suspend = ata_ahci_suspend;
     ctlr->resume = ata_ahci_ctlr_reset;
 
-    /* announce we support the HW */
-    version = ATA_INL(ctlr->r_res2, ATA_AHCI_VS);
-    device_printf(dev,
-		  "AHCI Version %x%x.%x%x controller with %d ports PM %s\n",
-		  (version >> 24) & 0xff, (version >> 16) & 0xff,
-		  (version >> 8) & 0xff, version & 0xff,
-		  (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1,
-		  (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) ?
-		  "supported" : "not supported");
-    return 0;
+	/* announce we support the HW */
+	version = ATA_INL(ctlr->r_res2, ATA_AHCI_VS);
+	caps = ATA_INL(ctlr->r_res2, ATA_AHCI_CAP);
+	speed = (caps & ATA_AHCI_CAP_ISS) >> ATA_AHCI_CAP_ISS_SHIFT;
+	device_printf(dev,
+		    "AHCI v%x.%02x controller with %d %sGbps ports, PM %s\n",
+		    ((version >> 20) & 0xf0) + ((version >> 16) & 0x0f),
+		    ((version >> 4) & 0xf0) + (version & 0x0f),
+		    (caps & ATA_AHCI_CAP_NPMASK) + 1,
+		    ((speed == 1) ? "1.5":((speed == 2) ? "3":
+		    ((speed == 3) ? "6":"?"))),
+		    (caps & ATA_AHCI_CAP_SPM) ?
+		    "supported" : "not supported");
+	if (bootverbose) {
+		device_printf(dev, "Caps:%s%s%s%s%s%s%s%s %sGbps",
+		    (caps & ATA_AHCI_CAP_64BIT) ? " 64bit":"",
+		    (caps & ATA_AHCI_CAP_SNCQ) ? " NCQ":"",
+		    (caps & ATA_AHCI_CAP_SSNTF) ? " SNTF":"",
+		    (caps & ATA_AHCI_CAP_SMPS) ? " MPS":"",
+		    (caps & ATA_AHCI_CAP_SSS) ? " SS":"",
+		    (caps & ATA_AHCI_CAP_SALP) ? " ALP":"",
+		    (caps & ATA_AHCI_CAP_SAL) ? " AL":"",
+		    (caps & ATA_AHCI_CAP_SCLO) ? " CLO":"",
+		    ((speed == 1) ? "1.5":((speed == 2) ? "3":
+		    ((speed == 3) ? "6":"?"))));
+		printf("%s%s%s%s%s%s %dcmd%s%s%s %dports\n",
+		    (caps & ATA_AHCI_CAP_SAM) ? " AM":"",
+		    (caps & ATA_AHCI_CAP_SPM) ? " PM":"",
+		    (caps & ATA_AHCI_CAP_FBSS) ? " FBS":"",
+		    (caps & ATA_AHCI_CAP_PMD) ? " PMD":"",
+		    (caps & ATA_AHCI_CAP_SSC) ? " SSC":"",
+		    (caps & ATA_AHCI_CAP_PSC) ? " PSC":"",
+		    ((caps & ATA_AHCI_CAP_NCS) >> ATA_AHCI_CAP_NCS_SHIFT) + 1,
+		    (caps & ATA_AHCI_CAP_CCCS) ? " CCC":"",
+		    (caps & ATA_AHCI_CAP_EMS) ? " EM":"",
+		    (caps & ATA_AHCI_CAP_SXS) ? " eSATA":"",
+		    (caps & ATA_AHCI_CAP_NPMASK) + 1);
+	}
+	return 0;
 }
 
-static int
+int
 ata_ahci_ctlr_reset(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
@@ -287,7 +315,9 @@ ata_ahci_ch_resume(device_t dev)
 
     /* activate the channel and power/spin up device */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
-	     (ATA_AHCI_P_CMD_ACTIVE | ATA_AHCI_P_CMD_POD | ATA_AHCI_P_CMD_SUD));
+	     (ATA_AHCI_P_CMD_ACTIVE | ATA_AHCI_P_CMD_POD | ATA_AHCI_P_CMD_SUD |
+	     ((ch->pm_level > 1) ? ATA_AHCI_P_CMD_ALPE : 0) |
+	     ((ch->pm_level > 2) ? ATA_AHCI_P_CMD_ASP : 0 )));
     ata_ahci_start_fr(dev);
     ata_ahci_start(dev);
 
@@ -624,7 +654,7 @@ ata_ahci_clo(device_t dev)
     int timeout;
 
     /* issue Command List Override if supported */ 
-    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_CLO) {
+    if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SCLO) {
 	cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
 	cmd |= ATA_AHCI_P_CMD_CLO;
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, cmd);
@@ -819,9 +849,9 @@ ata_ahci_reset(device_t dev)
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IE + offset,
 	     (ATA_AHCI_P_IX_CPD | ATA_AHCI_P_IX_TFE | ATA_AHCI_P_IX_HBF |
 	      ATA_AHCI_P_IX_HBD | ATA_AHCI_P_IX_IF | ATA_AHCI_P_IX_OF |
-	      ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC | ATA_AHCI_P_IX_DP |
-	      ATA_AHCI_P_IX_UF | ATA_AHCI_P_IX_SDB | ATA_AHCI_P_IX_DS |
-	      ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
+	      ((ch->pm_level == 0) ? ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC : 0) |
+	      ATA_AHCI_P_IX_DP | ATA_AHCI_P_IX_UF | ATA_AHCI_P_IX_SDB |
+	      ATA_AHCI_P_IX_DS | ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
 
     /* only probe for PortMultiplier if HW has support */
     if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_SPM) {

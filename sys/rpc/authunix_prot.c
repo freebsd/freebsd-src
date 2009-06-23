@@ -44,12 +44,10 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/ucred.h>
-#include <sys/vimage.h>
 
 #include <rpc/types.h>
 #include <rpc/xdr.h>
@@ -69,14 +67,14 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	uint32_t namelen;
 	uint32_t ngroups, i;
 	uint32_t junk;
-	INIT_VPROCG(TD_TO_VPROCG(&thread0)); /* XXX revisit - fixme! */
+	char hostbuf[MAXHOSTNAMELEN];
 
-	mtx_lock(&hostname_mtx);
 	if (xdrs->x_op == XDR_ENCODE) {
 		/*
 		 * Restrict name length to 255 according to RFC 1057.
 		 */
-		namelen = strlen(V_hostname);
+		getcredhostname(NULL, hostbuf, sizeof(hostbuf));
+		namelen = strlen(hostbuf);
 		if (namelen > 255)
 			namelen = 255;
 	} else {
@@ -92,12 +90,11 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	 * Ignore the hostname on decode.
 	 */
 	if (xdrs->x_op == XDR_ENCODE) {
-		if (!xdr_opaque(xdrs, V_hostname, namelen))
+		if (!xdr_opaque(xdrs, hostbuf, namelen))
 			return (FALSE);
 	} else {
 		xdr_setpos(xdrs, xdr_getpos(xdrs) + RNDUP(namelen));
 	}
-	mtx_unlock(&hostname_mtx);
 
 	if (!xdr_uint32_t(xdrs, &cred->cr_uid))
 		return (FALSE);

@@ -60,7 +60,7 @@ static vfs_statfs_t	devfs_statfs;
  * Mount the filesystem
  */
 static int
-devfs_mount(struct mount *mp, struct thread *td)
+devfs_mount(struct mount *mp)
 {
 	int error;
 	struct devfs_mount *fmp;
@@ -92,7 +92,7 @@ devfs_mount(struct mount *mp, struct thread *td)
 
 	fmp->dm_rootdir = devfs_vmkdir(fmp, NULL, 0, NULL, DEVFS_ROOTINO);
 
-	error = devfs_root(mp, LK_EXCLUSIVE, &rvp, td);
+	error = devfs_root(mp, LK_EXCLUSIVE, &rvp);
 	if (error) {
 		sx_destroy(&fmp->dm_lock);
 		free_unr(devfs_unr, fmp->dm_idx);
@@ -115,7 +115,7 @@ devfs_unmount_final(struct devfs_mount *fmp)
 }
 
 static int
-devfs_unmount(struct mount *mp, int mntflags, struct thread *td)
+devfs_unmount(struct mount *mp, int mntflags)
 {
 	int error;
 	int flags = 0;
@@ -127,7 +127,7 @@ devfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	KASSERT(fmp->dm_mount != NULL,
 		("devfs_unmount unmounted devfs_mount"));
 	/* There is 1 extra root vnode reference from devfs_mount(). */
-	error = vflush(mp, 1, flags, td);
+	error = vflush(mp, 1, flags, curthread);
 	if (error)
 		return (error);
 	sx_xlock(&fmp->dm_lock);
@@ -147,7 +147,7 @@ devfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 /* Return locked reference to root.  */
 
 static int
-devfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+devfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	int error;
 	struct vnode *vp;
@@ -155,7 +155,7 @@ devfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 
 	dmp = VFSTODEVFS(mp);
 	sx_xlock(&dmp->dm_lock);
-	error = devfs_allocv(dmp->dm_rootdir, mp, &vp, td);
+	error = devfs_allocv(dmp->dm_rootdir, mp, &vp);
 	if (error)
 		return (error);
 	vp->v_vflag |= VV_ROOT;
@@ -164,7 +164,7 @@ devfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 }
 
 static int
-devfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+devfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 
 	sbp->f_flags = 0;

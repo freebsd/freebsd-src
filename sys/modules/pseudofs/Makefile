@@ -3,8 +3,7 @@
 .PATH: ${.CURDIR}/../../fs/pseudofs
 
 KMOD=	pseudofs
-SRCS=	opt_mac.h \
-	opt_pseudofs.h \
+SRCS=	opt_pseudofs.h \
 	vnode_if.h \
 	pseudofs.c \
 	pseudofs_fileno.c \

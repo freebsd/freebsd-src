@@ -151,7 +151,9 @@ cap_pcix(int fd, struct pci_conf *p, uint8_t ptr)
 		printf("64-bit ");
 	if ((p->pc_hdr & PCIM_HDRTYPE) == 1)
 		printf("bridge ");
-	printf("supports");
+	if ((p->pc_hdr & PCIM_HDRTYPE) != 1 || (status & (PCIXM_STATUS_133CAP |
+	    PCIXM_STATUS_266CAP | PCIXM_STATUS_533CAP)) != 0)
+		printf("supports");
 	comma = 0;
 	if (status & PCIXM_STATUS_133CAP) {
 		printf("%s 133MHz", comma ? "," : "");
@@ -357,9 +359,12 @@ cap_subvendor(int fd, struct pci_conf *p, uint8_t ptr)
 	printf("PCI Bridge card=0x%08x", id);
 }
 
+#define	MAX_PAYLOAD(field)		(128 << (field))
+
 static void
 cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 {
+	uint32_t val;
 	uint16_t flags;
 
 	flags = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_FLAGS, 2);
@@ -383,12 +388,30 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 	case PCIM_EXP_TYPE_PCI_BRIDGE:
 		printf("PCI bridge");
 		break;
+	case PCIM_EXP_TYPE_PCIE_BRIDGE:
+		printf("PCI to PCIe bridge");
+		break;
+	case PCIM_EXP_TYPE_ROOT_INT_EP:
+		printf("root endpoint");
+		break;
+	case PCIM_EXP_TYPE_ROOT_EC:
+		printf("event collector");
+		break;
 	default:
-		printf("type %d", (flags & PCIM_EXP_FLAGS_TYPE) >> 8);
+		printf("type %d", (flags & PCIM_EXP_FLAGS_TYPE) >> 4);
 		break;
 	}
 	if (flags & PCIM_EXP_FLAGS_IRQ)
-		printf(" IRQ %d", (flags & PCIM_EXP_FLAGS_IRQ) >> 17);
+		printf(" IRQ %d", (flags & PCIM_EXP_FLAGS_IRQ) >> 8);
+	val = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_DEVICE_CAP, 4);
+	flags = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_DEVICE_CTL, 2);
+	printf(" max data %d(%d)",
+	    MAX_PAYLOAD((flags & PCIM_EXP_CTL_MAX_PAYLOAD) >> 5),
+	    MAX_PAYLOAD(val & PCIM_EXP_CAP_MAX_PAYLOAD));
+	val = read_config(fd, &p->pc_sel, ptr + PCIR_EXPRESS_LINK_CAP, 4);
+	flags = read_config(fd, &p->pc_sel, ptr+ PCIR_EXPRESS_LINK_STA, 2);
+	printf(" link x%d(x%d)", (flags & PCIM_LINK_STA_WIDTH) >> 4,
+	    (val & PCIM_LINK_CAP_MAX_WIDTH) >> 4);
 }
 
 static void

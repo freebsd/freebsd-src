@@ -2,8 +2,11 @@
 
 .PATH: ${.CURDIR}/posix1e
 
+CFLAGS+=-D_ACL_PRIVATE
+
 SRCS+=	acl_calc_mask.c			\
 	acl_copy.c			\
+	acl_compat.c			\
 	acl_delete.c			\
 	acl_delete_entry.c		\
 	acl_entry.c			\

@@ -14,8 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -124,7 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/spr.h>
-#include <machine/powerpc.h>
+#include <machine/platform.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -180,7 +178,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	p1 = td1->td_proc;
 
 	pcb = (struct pcb *)((td2->td_kstack +
-	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x2fU);
+	    td2->td_kstack_pages * PAGE_SIZE - sizeof(struct pcb)) & ~0x3fU);
 	td2->td_pcb = pcb;
 
 	/* Copy the pcb */
@@ -226,10 +224,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
  * This is needed to make kernel threads stay in kernel mode.
  */
 void
-cpu_set_fork_handler(td, func, arg)
-	struct thread *td;
-	void (*func)(void *);
-	void *arg;
+cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 {
 	struct callframe *cf;
 
@@ -246,15 +241,6 @@ void
 cpu_exit(struct thread *td)
 {
 
-}
-
-/* Temporary helper */
-void
-cpu_throw(struct thread *old, struct thread *new)
-{
-
-	cpu_switch(old, new, NULL);
-	panic("cpu_throw() didn't");
 }
 
 /*
@@ -340,7 +326,7 @@ done:
 }
 
 /*
- * Detatch mapped page and release resources back to the system.
+ * Detach mapped page and release resources back to the system.
  *
  * Remove a reference from the given sf_buf, adding it to the free
  * list when its reference count reaches zero. A freed sf_buf still,
@@ -350,6 +336,7 @@ done:
 void
 sf_buf_free(struct sf_buf *sf)
 {
+
 	mtx_lock(&sf_buf_lock);
 	sf->ref_count--;
 	if (sf->ref_count == 0) {
@@ -412,7 +399,7 @@ cpu_thread_alloc(struct thread *td)
 	struct pcb *pcb;
 
 	pcb = (struct pcb *)((td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
-	    sizeof(struct pcb)) & ~0x2fU);
+	    sizeof(struct pcb)) & ~0x3fU);
 	td->td_pcb = pcb;
 	td->td_frame = (struct trapframe *)pcb - 1;
 }
@@ -478,7 +465,8 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 
 	tf = td->td_frame;
 	/* align stack and alloc space for frame ptr and saved LR */
-	sp = ((uint32_t)stack->ss_sp + stack->ss_size - 2 * sizeof(u_int32_t)) & ~0x1f;
+	sp = ((uint32_t)stack->ss_sp + stack->ss_size -
+	    2 * sizeof(u_int32_t)) & ~0x3f;
 	bzero(tf, sizeof(struct trapframe));
 
 	tf->fixreg[1] = (register_t)sp;

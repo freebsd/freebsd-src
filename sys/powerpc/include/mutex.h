@@ -32,6 +32,7 @@
 #ifndef _MACHINE_MUTEX_H_
 #define _MACHINE_MUTEX_H_
 
+#if 0
 #ifdef LOCORE
 
 /*
@@ -62,4 +63,5 @@
 
 #endif	/* !LOCORE */
 
+#endif
 #endif	/* __MACHINE_MUTEX_H */

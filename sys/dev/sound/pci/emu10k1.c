@@ -26,6 +26,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include "emu10k1-alsa%diked.h"
@@ -168,18 +172,18 @@ static void emu_wr(struct sc_info *, int, u_int32_t, int);
 /* -------------------------------------------------------------------- */
 
 static u_int32_t emu_rfmt_ac97[] = {
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 
 static u_int32_t emu_rfmt_mic[] = {
-	AFMT_U8,
+	SND_FORMAT(AFMT_U8, 1, 0),
 	0
 };
 
 static u_int32_t emu_rfmt_efx[] = {
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 
@@ -190,10 +194,10 @@ static struct pcmchan_caps emu_reccaps[3] = {
 };
 
 static u_int32_t emu_pfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 
@@ -307,7 +311,7 @@ emu_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 static kobj_method_t emu_ac97_methods[] = {
 	KOBJMETHOD(ac97_read,		emu_rdcd),
 	KOBJMETHOD(ac97_write,		emu_wrcd),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(emu_ac97);
 
@@ -324,7 +328,7 @@ emu_settimer(struct sc_info *sc)
 	for (i = 0; i < sc->nchans; i++) {
 		pch = &sc->pch[i];
 		if (pch->buffer) {
-			tmp = (pch->spd * sndbuf_getbps(pch->buffer))
+			tmp = (pch->spd * sndbuf_getalign(pch->buffer))
 			    / pch->blksz;
 			if (tmp > rate)
 				rate = tmp;
@@ -334,7 +338,7 @@ emu_settimer(struct sc_info *sc)
 	for (i = 0; i < 3; i++) {
 		rch = &sc->rch[i];
 		if (rch->buffer) {
-			tmp = (rch->spd * sndbuf_getbps(rch->buffer))
+			tmp = (rch->spd * sndbuf_getalign(rch->buffer))
 			    / rch->blksz;
 			if (tmp > rate)
 				rate = tmp;
@@ -533,7 +537,7 @@ emu_vsetup(struct sc_pchinfo *ch)
 
 	if (ch->fmt) {
 		v->b16 = (ch->fmt & AFMT_16BIT) ? 1 : 0;
-		v->stereo = (ch->fmt & AFMT_STEREO) ? 1 : 0;
+		v->stereo = (AFMT_CHANNEL(ch->fmt) > 1) ? 1 : 0;
 		if (v->slave != NULL) {
 			v->slave->b16 = v->b16;
 			v->slave->stereo = v->stereo;
@@ -729,7 +733,7 @@ emupchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->parent = sc;
 	ch->channel = c;
 	ch->blksz = sc->bufsz / 2;
-	ch->fmt = AFMT_U8;
+	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->spd = 8000;
 	snd_mtxlock(sc->lock);
 	ch->master = emu_valloc(sc);
@@ -764,7 +768,7 @@ emupchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 emupchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_pchinfo *ch = data;
@@ -773,7 +777,7 @@ emupchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return ch->spd;
 }
 
-static int
+static u_int32_t
 emupchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_pchinfo *ch = data;
@@ -785,7 +789,7 @@ emupchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	emu_settimer(sc);
 	irqrate = 48000 / sc->timerinterval;
 	snd_mtxunlock(sc->lock);
-	blksz = (ch->spd * sndbuf_getbps(ch->buffer)) / irqrate;
+	blksz = (ch->spd * sndbuf_getalign(ch->buffer)) / irqrate;
 	return blocksize;
 }
 
@@ -819,7 +823,7 @@ emupchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 emupchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_pchinfo *ch = data;
@@ -848,7 +852,7 @@ static kobj_method_t emupchan_methods[] = {
 	KOBJMETHOD(channel_trigger,		emupchan_trigger),
 	KOBJMETHOD(channel_getptr,		emupchan_getptr),
 	KOBJMETHOD(channel_getcaps,		emupchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(emupchan);
 
@@ -866,7 +870,7 @@ emurchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->parent = sc;
 	ch->channel = c;
 	ch->blksz = sc->bufsz / 2;
-	ch->fmt = AFMT_U8;
+	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->spd = 8000;
 	ch->num = sc->rnum;
 	switch(sc->rnum) {
@@ -915,7 +919,7 @@ emurchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 emurchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_rchinfo *ch = data;
@@ -934,7 +938,7 @@ emurchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return ch->spd;
 }
 
-static int
+static u_int32_t
 emurchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_rchinfo *ch = data;
@@ -946,7 +950,7 @@ emurchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	emu_settimer(sc);
 	irqrate = 48000 / sc->timerinterval;
 	snd_mtxunlock(sc->lock);
-	blksz = (ch->spd * sndbuf_getbps(ch->buffer)) / irqrate;
+	blksz = (ch->spd * sndbuf_getalign(ch->buffer)) / irqrate;
 	return blocksize;
 }
 
@@ -994,12 +998,12 @@ emurchan_trigger(kobj_t obj, void *data, int go)
 		if (ch->num == 0) {
 			if (sc->audigy) {
 				val = A_ADCCR_LCHANENABLE;
-				if (ch->fmt & AFMT_STEREO)
+				if (AFMT_CHANNEL(ch->fmt) > 1)
 					val |= A_ADCCR_RCHANENABLE;
 				val |= audigy_recval(ch->spd);
 			} else {
 				val = ADCCR_LCHANENABLE;
-				if (ch->fmt & AFMT_STEREO)
+				if (AFMT_CHANNEL(ch->fmt) > 1)
 					val |= ADCCR_RCHANENABLE;
 				val |= emu_recval(ch->spd);
 			}
@@ -1033,7 +1037,7 @@ emurchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 emurchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_rchinfo *ch = data;
@@ -1063,29 +1067,30 @@ static kobj_method_t emurchan_methods[] = {
 	KOBJMETHOD(channel_trigger,		emurchan_trigger),
 	KOBJMETHOD(channel_getptr,		emurchan_getptr),
 	KOBJMETHOD(channel_getcaps,		emurchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(emurchan);
 
 static unsigned char
-emu_mread(void *arg, struct sc_info *sc, int reg)
+emu_mread(struct mpu401 *arg, void *sc, int reg)
 {	
 	unsigned int d;
 
-	d = emu_rd(sc, 0x18 + reg, 1); 
+	d = emu_rd((struct sc_info *)sc, 0x18 + reg, 1); 
 	return d;
 }
 
 static void
-emu_mwrite(void *arg, struct sc_info *sc, int reg, unsigned char b)
+emu_mwrite(struct mpu401 *arg, void *sc, int reg, unsigned char b)
 {
 
-	emu_wr(sc, 0x18 + reg, b, 1);
+	emu_wr((struct sc_info *)sc, 0x18 + reg, b, 1);
 }
 
 static int
-emu_muninit(void *arg, struct sc_info *sc)
+emu_muninit(struct mpu401 *arg, void *cookie)
 {
+	struct sc_info *sc = cookie;
 
 	snd_mtxlock(sc->lock);
 	sc->mpu_intr = 0;
@@ -1098,7 +1103,7 @@ static kobj_method_t emu_mpu_methods[] = {
     	KOBJMETHOD(mpufoi_read,		emu_mread),
     	KOBJMETHOD(mpufoi_write,	emu_mwrite),
     	KOBJMETHOD(mpufoi_uninit,	emu_muninit),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static DEFINE_CLASS(emu_mpu, emu_mpu_methods, 0);

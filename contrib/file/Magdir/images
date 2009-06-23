@@ -110,6 +110,7 @@
 # GIF
 0	string		GIF8		GIF image data
 !:mime	image/gif
+!:apple	8BIMGIFf
 >4	string		7a		\b, version 8%s,
 >4	string		9a		\b, version 8%s,
 >6	leshort		>0		%hd x
@@ -600,3 +601,7 @@
 # Wavelet Scalar Quantization format used in gray-scale fingerprint images
 # From Tano M Fotang <mfotang@quanteq.com>
 0	string	\xff\xa0\xff\xa8\x00	Wavelet Scalar Quantization image data
+
+# JPEG 2000 Code Stream Bitmap
+# From Petr Splichal <psplicha@redhat.com>
+0	string	\xFF\x4F\xFF\x51\x00	JPEG-2000 Code Stream Bitmap data

@@ -68,7 +68,7 @@ mac_sysv_shm_label_alloc(void)
 	struct label *label;
 
 	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(sysvshm_init_label, label);
+	MAC_POLICY_PERFORM(sysvshm_init_label, label);
 	return (label);
 }
 
@@ -86,7 +86,7 @@ static void
 mac_sysv_shm_label_free(struct label *label)
 {
 
-	MAC_PERFORM_NOSLEEP(sysvshm_destroy_label, label);
+	MAC_POLICY_PERFORM_NOSLEEP(sysvshm_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -104,7 +104,7 @@ void
 mac_sysvshm_create(struct ucred *cred, struct shmid_kernel *shmsegptr)
 {
 
-	MAC_PERFORM_NOSLEEP(sysvshm_create, cred, shmsegptr,
+	MAC_POLICY_PERFORM_NOSLEEP(sysvshm_create, cred, shmsegptr,
 	    shmsegptr->label);
 }
 
@@ -112,7 +112,7 @@ void
 mac_sysvshm_cleanup(struct shmid_kernel *shmsegptr)
 {
 
-	MAC_PERFORM_NOSLEEP(sysvshm_cleanup, shmsegptr->label);
+	MAC_POLICY_PERFORM_NOSLEEP(sysvshm_cleanup, shmsegptr->label);
 }
 
 MAC_CHECK_PROBE_DEFINE3(sysvshm_check_shmat, "struct ucred *",
@@ -124,7 +124,7 @@ mac_sysvshm_check_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
 {
 	int error;
 
-	MAC_CHECK_NOSLEEP(sysvshm_check_shmat, cred, shmsegptr,
+	MAC_POLICY_CHECK_NOSLEEP(sysvshm_check_shmat, cred, shmsegptr,
 	    shmsegptr->label, shmflg);
 	MAC_CHECK_PROBE3(sysvshm_check_shmat, error, cred, shmsegptr,
 	    shmflg);
@@ -141,7 +141,7 @@ mac_sysvshm_check_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
 {
 	int error;
 
-	MAC_CHECK_NOSLEEP(sysvshm_check_shmctl, cred, shmsegptr,
+	MAC_POLICY_CHECK_NOSLEEP(sysvshm_check_shmctl, cred, shmsegptr,
 	    shmsegptr->label, cmd);
 	MAC_CHECK_PROBE3(sysvshm_check_shmctl, error, cred, shmsegptr, cmd);
 
@@ -156,7 +156,7 @@ mac_sysvshm_check_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr)
 {
 	int error;
 
-	MAC_CHECK_NOSLEEP(sysvshm_check_shmdt, cred, shmsegptr,
+	MAC_POLICY_CHECK_NOSLEEP(sysvshm_check_shmdt, cred, shmsegptr,
 	    shmsegptr->label);
 	MAC_CHECK_PROBE2(sysvshm_check_shmdt, error, cred, shmsegptr);
 
@@ -172,7 +172,7 @@ mac_sysvshm_check_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
 {
 	int error;
 
-	MAC_CHECK_NOSLEEP(sysvshm_check_shmget, cred, shmsegptr,
+	MAC_POLICY_CHECK_NOSLEEP(sysvshm_check_shmget, cred, shmsegptr,
 	    shmsegptr->label, shmflg);
 	MAC_CHECK_PROBE3(sysvshm_check_shmget, error, cred, shmsegptr,
 	    shmflg);

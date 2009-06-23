@@ -164,7 +164,9 @@
 #define	__LA_DEAD
 #endif
 
-#ifdef _WIN32
+#if defined(__CYGWIN__)
+#include "bsdtar_cygwin.h"
+#elif defined(_WIN32) /* && !__CYGWIN__ */
 #include "bsdtar_windows.h"
 #else
 #define bsdtar_is_privileged(bsdtar)	(bsdtar->user_uid == 0)

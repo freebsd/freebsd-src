@@ -96,8 +96,8 @@
  * _INSERT_AFTER		+	+	+	+
  * _INSERT_TAIL			-	-	+	+
  * _CONCAT			-	-	+	+
+ * _REMOVE_AFTER		+	-	+	-
  * _REMOVE_HEAD			+	-	+	-
- * _REMOVE_NEXT			+	-	+	-
  * _REMOVE			+	+	+	+
  *
  */
@@ -196,12 +196,12 @@ struct {								\
 		struct type *curelm = SLIST_FIRST((head));		\
 		while (SLIST_NEXT(curelm, field) != (elm))		\
 			curelm = SLIST_NEXT(curelm, field);		\
-		SLIST_REMOVE_NEXT(head, curelm, field);			\
+		SLIST_REMOVE_AFTER(curelm, field);			\
 	}								\
 	TRASHIT((elm)->field.sle_next);					\
 } while (0)
 
-#define SLIST_REMOVE_NEXT(head, elm, field) do {				\
+#define SLIST_REMOVE_AFTER(elm, field) do {				\
 	SLIST_NEXT(elm, field) =					\
 	    SLIST_NEXT(SLIST_NEXT(elm, field), field);			\
 } while (0)
@@ -292,7 +292,7 @@ struct {								\
 		struct type *curelm = STAILQ_FIRST((head));		\
 		while (STAILQ_NEXT(curelm, field) != (elm))		\
 			curelm = STAILQ_NEXT(curelm, field);		\
-		STAILQ_REMOVE_NEXT(head, curelm, field);		\
+		STAILQ_REMOVE_AFTER(head, curelm, field);		\
 	}								\
 	TRASHIT((elm)->field.stqe_next);				\
 } while (0)
@@ -303,11 +303,25 @@ struct {								\
 		(head)->stqh_last = &STAILQ_FIRST((head));		\
 } while (0)
 
-#define STAILQ_REMOVE_NEXT(head, elm, field) do {			\
+#define STAILQ_REMOVE_AFTER(head, elm, field) do {			\
 	if ((STAILQ_NEXT(elm, field) =					\
 	     STAILQ_NEXT(STAILQ_NEXT(elm, field), field)) == NULL)	\
 		(head)->stqh_last = &STAILQ_NEXT((elm), field);		\
 } while (0)
+
+#define STAILQ_SWAP(head1, head2, type) do {				\
+	struct type *swap_first = STAILQ_FIRST(head1);			\
+	struct type **swap_last = (head1)->stqh_last;			\
+	STAILQ_FIRST(head1) = STAILQ_FIRST(head2);			\
+	(head1)->stqh_last = (head2)->stqh_last;			\
+	STAILQ_FIRST(head2) = swap_first;				\
+	(head2)->stqh_last = swap_last;					\
+	if (STAILQ_EMPTY(head1))					\
+		(head1)->stqh_last = &STAILQ_FIRST(head1);		\
+	if (STAILQ_EMPTY(head2))					\
+		(head2)->stqh_last = &STAILQ_FIRST(head2);		\
+} while (0)
+
 
 /*
  * List declarations.
@@ -409,6 +423,16 @@ struct {								\
 	*(elm)->field.le_prev = LIST_NEXT((elm), field);		\
 	TRASHIT((elm)->field.le_next);					\
 	TRASHIT((elm)->field.le_prev);					\
+} while (0)
+
+#define LIST_SWAP(head1, head2, type, field) do {			\
+	struct type *swap_tmp = LIST_FIRST((head1));			\
+	LIST_FIRST((head1)) = LIST_FIRST((head2));			\
+	LIST_FIRST((head2)) = swap_tmp;					\
+	if ((swap_tmp = LIST_FIRST((head1))) != NULL)			\
+		swap_tmp->field.le_prev = &LIST_FIRST((head1));		\
+	if ((swap_tmp = LIST_FIRST((head2))) != NULL)			\
+		swap_tmp->field.le_prev = &LIST_FIRST((head2));		\
 } while (0)
 
 /*
@@ -578,50 +602,21 @@ struct {								\
 	QMD_TRACE_ELEM(&(elm)->field);					\
 } while (0)
 
-
-#ifdef _KERNEL
-
-/*
- * XXX insque() and remque() are an old way of handling certain queues.
- * They bogusly assumes that all queue heads look alike.
- */
-
-struct quehead {
-	struct quehead *qh_link;
-	struct quehead *qh_rlink;
-};
-
-#ifdef __CC_SUPPORTS___INLINE
-
-static __inline void
-insque(void *a, void *b)
-{
-	struct quehead *element = (struct quehead *)a,
-		 *head = (struct quehead *)b;
-
-	element->qh_link = head->qh_link;
-	element->qh_rlink = head;
-	head->qh_link = element;
-	element->qh_link->qh_rlink = element;
-}
-
-static __inline void
-remque(void *a)
-{
-	struct quehead *element = (struct quehead *)a;
-
-	element->qh_link->qh_rlink = element->qh_rlink;
-	element->qh_rlink->qh_link = element->qh_link;
-	element->qh_rlink = 0;
-}
-
-#else /* !__CC_SUPPORTS___INLINE */
-
-void	insque(void *a, void *b);
-void	remque(void *a);
-
-#endif /* __CC_SUPPORTS___INLINE */
-
-#endif /* _KERNEL */
+#define TAILQ_SWAP(head1, head2, type, field) do {			\
+	struct type *swap_first = (head1)->tqh_first;			\
+	struct type **swap_last = (head1)->tqh_last;			\
+	(head1)->tqh_first = (head2)->tqh_first;			\
+	(head1)->tqh_last = (head2)->tqh_last;				\
+	(head2)->tqh_first = swap_first;				\
+	(head2)->tqh_last = swap_last;					\
+	if ((swap_first = (head1)->tqh_first) != NULL)			\
+		swap_first->field.tqe_prev = &(head1)->tqh_first;	\
+	else								\
+		(head1)->tqh_last = &(head1)->tqh_first;		\
+	if ((swap_first = (head2)->tqh_first) != NULL)			\
+		swap_first->field.tqe_prev = &(head2)->tqh_first;	\
+	else								\
+		(head2)->tqh_last = &(head2)->tqh_first;		\
+} while (0)
 
 #endif /* !_SYS_QUEUE_H_ */

@@ -48,22 +48,33 @@ __FBSDID("$FreeBSD$");
 #include "opt_kbd.h"
 #include "opt_ukbd.h"
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbhid.h>
 
 #define	USB_DEBUG_VAR ukbd_debug
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_util.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_transfer.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_dynamic.h>
-#include <dev/usb/usb_hid.h>
 
 #include <dev/usb/quirk/usb_quirk.h>
 
@@ -86,8 +97,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int ukbd_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB ukbd");
-SYSCTL_INT(_hw_usb2_ukbd, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB ukbd");
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RW,
     &ukbd_debug, 0, "Debug level");
 #endif
 
@@ -113,13 +124,13 @@ struct ukbd_data {
 #define	MOD_WIN_R	0x80
 	uint8_t	reserved;
 	uint8_t	keycode[UKBD_NKEYCODE];
-} __packed;
+	uint8_t exten[8];
+};
 
 enum {
 	UKBD_INTR_DT,
-	UKBD_INTR_CS,
 	UKBD_CTRL_LED,
-	UKBD_N_TRANSFER = 3,
+	UKBD_N_TRANSFER,
 };
 
 struct ukbd_softc {
@@ -127,13 +138,15 @@ struct ukbd_softc {
 	keymap_t sc_keymap;
 	accentmap_t sc_accmap;
 	fkeytab_t sc_fkeymap[UKBD_NFKEY];
-	struct usb2_callout sc_callout;
+	struct hid_location sc_loc_apple_eject;
+	struct hid_location sc_loc_apple_fn;
+	struct usb_callout sc_callout;
 	struct ukbd_data sc_ndata;
 	struct ukbd_data sc_odata;
 
-	struct usb2_device *sc_udev;
-	struct usb2_interface *sc_iface;
-	struct usb2_xfer *sc_xfer[UKBD_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct usb_interface *sc_iface;
+	struct usb_xfer *sc_xfer[UKBD_N_TRANSFER];
 
 	uint32_t sc_ntime[UKBD_NKEYCODE];
 	uint32_t sc_otime[UKBD_NKEYCODE];
@@ -144,12 +157,14 @@ struct ukbd_softc {
 	uint32_t sc_buffered_char[2];
 #endif
 	uint32_t sc_flags;		/* flags */
-#define	UKBD_FLAG_COMPOSE    0x0001
-#define	UKBD_FLAG_POLLING    0x0002
-#define	UKBD_FLAG_SET_LEDS   0x0004
-#define	UKBD_FLAG_INTR_STALL 0x0008
-#define	UKBD_FLAG_ATTACHED   0x0010
-#define	UKBD_FLAG_GONE       0x0020
+#define	UKBD_FLAG_COMPOSE	0x0001
+#define	UKBD_FLAG_POLLING	0x0002
+#define	UKBD_FLAG_SET_LEDS	0x0004
+#define	UKBD_FLAG_ATTACHED	0x0010
+#define	UKBD_FLAG_GONE		0x0020
+#define	UKBD_FLAG_APPLE_EJECT	0x0040
+#define	UKBD_FLAG_APPLE_FN	0x0080
+#define	UKBD_FLAG_APPLE_SWAP	0x0100
 
 	int32_t	sc_mode;		/* input mode (K_XLATE,K_RAW,K_CODE) */
 	int32_t	sc_state;		/* shift/lock key state */
@@ -162,6 +177,8 @@ struct ukbd_softc {
 	uint8_t	sc_leds;		/* store for async led requests */
 	uint8_t	sc_iface_index;
 	uint8_t	sc_iface_no;
+	uint8_t sc_kbd_id;
+	uint8_t sc_led_id;
 };
 
 #define	KEY_ERROR	  0x01
@@ -291,14 +308,14 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 
 	if (sc->sc_inputs == 0) {
 		/* start transfer, if not already started */
-		usb2_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
+		usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 	}
 	if (sc->sc_flags & UKBD_FLAG_POLLING) {
 		DPRINTFN(2, "polling\n");
 
 		while (sc->sc_inputs == 0) {
 
-			usb2_do_poll(sc->sc_xfer, UKBD_N_TRANSFER);
+			usbd_transfer_poll(sc->sc_xfer, UKBD_N_TRANSFER);
 
 			DELAY(1000);	/* delay 1 ms */
 
@@ -448,40 +465,93 @@ ukbd_timeout(void *arg)
 	}
 	ukbd_interrupt(sc);
 
-	usb2_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
+	usb_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
 }
 
-static void
-ukbd_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct ukbd_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UKBD_INTR_DT];
+static uint8_t
+ukbd_apple_fn(uint8_t keycode) {
+	switch (keycode) {
+	case 0x28: return 0x49; /* RETURN -> INSERT */
+	case 0x2a: return 0x4c; /* BACKSPACE -> DEL */
+	case 0x50: return 0x4a; /* LEFT ARROW -> HOME */
+	case 0x4f: return 0x4d; /* RIGHT ARROW -> END */
+	case 0x52: return 0x4b; /* UP ARROW -> PGUP */
+	case 0x51: return 0x4e; /* DOWN ARROW -> PGDN */
+	default: return keycode;
+	}
+}
 
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UKBD_FLAG_INTR_STALL;
-		usb2_transfer_start(xfer_other);
+static uint8_t
+ukbd_apple_swap(uint8_t keycode) {
+	switch (keycode) {
+	case 0x35: return 0x64;
+	case 0x64: return 0x35;
+	default: return keycode;
 	}
 }
 
 static void
-ukbd_intr_callback(struct usb2_xfer *xfer)
+ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ukbd_softc *sc = xfer->priv_sc;
-	uint16_t len = xfer->actlen;
+	struct ukbd_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint8_t i;
+	uint8_t offset;
+	uint8_t id;
+	uint8_t apple_fn;
+	uint8_t apple_eject;
+	int len;
+
+	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
+	pc = usbd_xfer_get_frame(xfer, 0);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTF("actlen=%d bytes\n", len);
 
+		if (len == 0) {
+			DPRINTF("zero length data\n");
+			goto tr_setup;
+		}
+
+		if (sc->sc_kbd_id != 0) {
+			/* check and remove HID ID byte */
+			usbd_copy_out(pc, 0, &id, 1);
+			if (id != sc->sc_kbd_id) {
+				DPRINTF("wrong HID ID\n");
+				goto tr_setup;
+			}
+			offset = 1;
+			len--;
+		} else {
+			offset = 0;
+		}
+
 		if (len > sizeof(sc->sc_ndata)) {
 			len = sizeof(sc->sc_ndata);
 		}
+
 		if (len) {
-			bzero(&sc->sc_ndata, sizeof(sc->sc_ndata));
-			usb2_copy_out(xfer->frbuffers, 0, &sc->sc_ndata, len);
+			memset(&sc->sc_ndata, 0, sizeof(sc->sc_ndata));
+			usbd_copy_out(pc, offset, &sc->sc_ndata, len);
+
+			if ((sc->sc_flags & UKBD_FLAG_APPLE_EJECT) &&
+			    hid_get_data((uint8_t *)&sc->sc_ndata,
+				len, &sc->sc_loc_apple_eject))
+				apple_eject = 1;
+			else
+				apple_eject = 0;
+
+			if ((sc->sc_flags & UKBD_FLAG_APPLE_FN) &&
+			    hid_get_data((uint8_t *)&sc->sc_ndata,
+				len, &sc->sc_loc_apple_fn))
+				apple_fn = 1;
+			else
+				apple_fn = 0;
 #if USB_DEBUG
+			DPRINTF("apple_eject=%u apple_fn=%u\n",
+			    apple_eject, apple_fn);
+
 			if (sc->sc_ndata.modifiers) {
 				DPRINTF("mod: 0x%04x\n", sc->sc_ndata.modifiers);
 			}
@@ -491,39 +561,52 @@ ukbd_intr_callback(struct usb2_xfer *xfer)
 				}
 			}
 #endif					/* USB_DEBUG */
+
+			if (apple_fn) {
+				for (i = 0; i < UKBD_NKEYCODE; i++) {
+					sc->sc_ndata.keycode[i] = 
+					    ukbd_apple_fn(sc->sc_ndata.keycode[i]);
+				}
+			}
+
+			if (sc->sc_flags & UKBD_FLAG_APPLE_SWAP) {
+				for (i = 0; i < UKBD_NKEYCODE; i++) {
+					sc->sc_ndata.keycode[i] = 
+					    ukbd_apple_swap(sc->sc_ndata.keycode[i]);
+				}
+			}
+
 			ukbd_interrupt(sc);
 		}
 	case USB_ST_SETUP:
-		if (sc->sc_flags & UKBD_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UKBD_INTR_CS]);
-			return;
-		}
+tr_setup:
 		if (sc->sc_inputs < UKBD_IN_BUF_FULL) {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
+			usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+			usbd_transfer_submit(xfer);
 		} else {
 			DPRINTF("input queue is full!\n");
 		}
-		return;
+		break;
 
 	default:			/* Error */
-		DPRINTF("error=%s\n", usb2_errstr(xfer->error));
+		DPRINTF("error=%s\n", usbd_errstr(error));
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			sc->sc_flags |= UKBD_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[UKBD_INTR_CS]);
+			usbd_xfer_set_stall(xfer);
+			goto tr_setup;
 		}
-		return;
+		break;
 	}
 }
 
 static void
-ukbd_set_leds_callback(struct usb2_xfer *xfer)
+ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb2_device_request req;
-	uint8_t buf[1];
-	struct ukbd_softc *sc = xfer->priv_sc;
+	struct usb_device_request req;
+	struct usb_page_cache *pc;
+	uint8_t buf[2];
+	struct ukbd_softc *sc = usbd_xfer_softc(xfer);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -536,27 +619,38 @@ ukbd_set_leds_callback(struct usb2_xfer *xfer)
 			USETW2(req.wValue, UHID_OUTPUT_REPORT, 0);
 			req.wIndex[0] = sc->sc_iface_no;
 			req.wIndex[1] = 0;
-			USETW(req.wLength, 1);
+			req.wLength[1] = 0;
 
-			buf[0] = sc->sc_leds;
+			/* check if we need to prefix an ID byte */
+			if (sc->sc_led_id != 0) {
+				req.wLength[0] = 2;
+				buf[0] = sc->sc_led_id;
+				buf[1] = sc->sc_leds;
+			} else {
+				req.wLength[0] = 1;
+				buf[0] = sc->sc_leds;
+				buf[1] = 0;
+			}
 
-			usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-			usb2_copy_in(xfer->frbuffers + 1, 0, buf, sizeof(buf));
+			pc = usbd_xfer_get_frame(xfer, 0);
+			usbd_copy_in(pc, 0, &req, sizeof(req));
+			pc = usbd_xfer_get_frame(xfer, 1);
+			usbd_copy_in(pc, 0, buf, sizeof(buf));
 
-			xfer->frlengths[0] = sizeof(req);
-			xfer->frlengths[1] = sizeof(buf);
-			xfer->nframes = 2;
-			usb2_start_hardware(xfer);
+			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
+			usbd_xfer_set_frame_len(xfer, 1, req.wLength[0]);
+			usbd_xfer_set_frames(xfer, 2);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
-		DPRINTFN(0, "error=%s\n", usb2_errstr(xfer->error));
+		DPRINTFN(0, "error=%s\n", usbd_errstr(error));
 		return;
 	}
 }
 
-static const struct usb2_config ukbd_config[UKBD_N_TRANSFER] = {
+static const struct usb_config ukbd_config[UKBD_N_TRANSFER] = {
 
 	[UKBD_INTR_DT] = {
 		.type = UE_INTERRUPT,
@@ -567,21 +661,11 @@ static const struct usb2_config ukbd_config[UKBD_N_TRANSFER] = {
 		.callback = &ukbd_intr_callback,
 	},
 
-	[UKBD_INTR_CS] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request),
-		.callback = &ukbd_clear_stall_callback,
-		.timeout = 1000,	/* 1 second */
-		.interval = 50,	/* 50ms */
-	},
-
 	[UKBD_CTRL_LED] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb2_device_request) + 1,
+		.bufsize = sizeof(struct usb_device_request) + 8,
 		.callback = &ukbd_set_leds_callback,
 		.timeout = 1000,	/* 1 second */
 	},
@@ -591,37 +675,62 @@ static int
 ukbd_probe(device_t dev)
 {
 	keyboard_switch_t *sw = kbd_get_switch(UKBD_DRIVER_NAME);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	void *d_ptr;
+	int error;
+	uint16_t d_len;
 
 	DPRINTFN(11, "\n");
 
 	if (sw == NULL) {
 		return (ENXIO);
 	}
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
-	/* check that the keyboard speaks the boot protocol: */
-	if ((uaa->info.bInterfaceClass == UICLASS_HID)
-	    && (uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT)
-	    && (uaa->info.bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)) {
-		if (usb2_test_quirk(uaa, UQ_KBD_IGNORE))
+
+	if (uaa->info.bInterfaceClass != UICLASS_HID)
+		return (ENXIO);
+
+	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
+	    (uaa->info.bInterfaceProtocol == UPROTO_BOOT_KEYBOARD)) {
+		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
 			return (ENXIO);
 		else
 			return (0);
 	}
-	return (ENXIO);
+
+	error = usbd_req_get_hid_desc(uaa->device, NULL,
+	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
+
+	if (error)
+		return (ENXIO);
+
+	if (hid_is_collection(d_ptr, d_len,
+	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_KEYBOARD))) {
+		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
+			error = ENXIO;
+		else
+			error = 0;
+	} else
+		error = ENXIO;
+
+	free(d_ptr, M_TEMP);
+	return (error);
 }
 
 static int
 ukbd_attach(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	int32_t unit = device_get_unit(dev);
 	keyboard_t *kbd = &sc->sc_kbd;
-	usb2_error_t err;
+	void *hid_ptr = NULL;
+	usb_error_t err;
+	uint32_t flags;
 	uint16_t n;
+	uint16_t hid_len;
 
 	mtx_assert(&Giant, MA_OWNED);
 
@@ -629,23 +738,22 @@ ukbd_attach(device_t dev)
 
 	kbd->kb_data = (void *)sc;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	sc->sc_udev = uaa->device;
 	sc->sc_iface = uaa->iface;
 	sc->sc_iface_index = uaa->info.bIfaceIndex;
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 	sc->sc_mode = K_XLATE;
-	sc->sc_iface = uaa->iface;
 
-	usb2_callout_init_mtx(&sc->sc_callout, &Giant, 0);
+	usb_callout_init_mtx(&sc->sc_callout, &Giant, 0);
 
-	err = usb2_transfer_setup(uaa->device,
+	err = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, ukbd_config,
 	    UKBD_N_TRANSFER, sc, &Giant);
 
 	if (err) {
-		DPRINTF("error=%s\n", usb2_errstr(err));
+		DPRINTF("error=%s\n", usbd_errstr(err));
 		goto detach;
 	}
 	/* setup default keyboard maps */
@@ -669,8 +777,48 @@ ukbd_attach(device_t dev)
 	 */
 	KBD_PROBE_DONE(kbd);
 
+	/* figure out if there is an ID byte in the data */
+	err = usbd_req_get_hid_desc(uaa->device, NULL, &hid_ptr,
+	    &hid_len, M_TEMP, uaa->info.bIfaceIndex);
+	if (err == 0) {
+		uint8_t temp_id;
+
+		/* investigate if this is an Apple Keyboard */
+		if (hid_locate(hid_ptr, hid_len,
+		    HID_USAGE2(HUP_CONSUMER, HUG_APPLE_EJECT),
+		    hid_input, 0, &sc->sc_loc_apple_eject, &flags,
+		    &sc->sc_kbd_id)) {
+			if (flags & HIO_VARIABLE)
+				sc->sc_flags |= UKBD_FLAG_APPLE_EJECT | 
+				    UKBD_FLAG_APPLE_SWAP;
+			if (hid_locate(hid_ptr, hid_len,
+			    HID_USAGE2(0xFFFF, 0x0003),
+			    hid_input, 0, &sc->sc_loc_apple_fn, &flags,
+			    &temp_id)) {
+				if (flags & HIO_VARIABLE)
+					sc->sc_flags |= UKBD_FLAG_APPLE_FN |
+					    UKBD_FLAG_APPLE_SWAP;
+				if (temp_id != sc->sc_kbd_id) {
+					DPRINTF("HID IDs mismatch\n");
+				}
+			}
+		} else {
+			/* 
+			 * Assume the first HID ID contains the
+			 * keyboard data
+			 */
+			hid_report_size(hid_ptr, hid_len,
+			    hid_input, &sc->sc_kbd_id);
+		}
+
+		/* investigate if we need an ID-byte for the leds */
+		hid_report_size(hid_ptr, hid_len, hid_output, &sc->sc_led_id);
+
+		free(hid_ptr, M_TEMP);
+	}
+
 	/* ignore if SETIDLE fails, hence it is not crucial */
-	err = usb2_req_set_idle(sc->sc_udev, &Giant, sc->sc_iface_index, 0, 0);
+	err = usbd_req_set_idle(sc->sc_udev, &Giant, sc->sc_iface_index, 0, 0);
 
 	ukbd_ioctl(kbd, KDSETLED, (caddr_t)&sc->sc_state);
 
@@ -699,7 +847,7 @@ ukbd_attach(device_t dev)
 
 	/* start the keyboard */
 
-	usb2_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
+	usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 
 	/* start the timer */
 
@@ -712,7 +860,7 @@ detach:
 	return (ENXIO);			/* error */
 }
 
-int
+static int
 ukbd_detach(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
@@ -727,7 +875,7 @@ ukbd_detach(device_t dev)
 	}
 	sc->sc_flags |= UKBD_FLAG_GONE;
 
-	usb2_callout_stop(&sc->sc_callout);
+	usb_callout_stop(&sc->sc_callout);
 
 	ukbd_disable(&sc->sc_kbd);
 
@@ -751,9 +899,9 @@ ukbd_detach(device_t dev)
 	}
 	sc->sc_kbd.kb_flags = 0;
 
-	usb2_transfer_unsetup(sc->sc_xfer, UKBD_N_TRANSFER);
+	usbd_transfer_unsetup(sc->sc_xfer, UKBD_N_TRANSFER);
 
-	usb2_callout_drain(&sc->sc_callout);
+	usb_callout_drain(&sc->sc_callout);
 
 	DPRINTF("%s: disconnected\n",
 	    device_get_nameunit(dev));
@@ -1361,7 +1509,7 @@ ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds)
 
 	/* start transfer, if not already started */
 
-	usb2_transfer_start(sc->sc_xfer[UKBD_CTRL_LED]);
+	usbd_transfer_start(sc->sc_xfer[UKBD_CTRL_LED]);
 }
 
 static int
@@ -1431,7 +1579,7 @@ ukbd_key2scan(struct ukbd_softc *sc, int code, int shift, int up)
 
 #endif					/* UKBD_EMULATE_ATSCANCODE */
 
-keyboard_switch_t ukbdsw = {
+static keyboard_switch_t ukbdsw = {
 	.probe = &ukbd__probe,
 	.init = &ukbd_init,
 	.term = &ukbd_term,
@@ -1459,7 +1607,7 @@ static int
 ukbd_driver_load(module_t mod, int what, void *arg)
 {
 	switch (what) {
-		case MOD_LOAD:
+	case MOD_LOAD:
 		kbd_add_driver(&ukbd_kbd_driver);
 		break;
 	case MOD_UNLOAD:

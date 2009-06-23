@@ -89,6 +89,12 @@
 #define	ALIGN(p)		_ALIGN(p)
 #define	ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
 
+/*
+ * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
+ * architecture.  It should be used with appropriate caution.
+ */
+#define	CACHE_LINE_SHIFT	7
+#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
 /* Size of the level 1 page table units */
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
@@ -128,15 +134,6 @@
  */
 #ifndef VM_SWZONE_SIZE_MAX
 #define	VM_SWZONE_SIZE_MAX	(32 * 1024 * 1024)
-#endif
-
-/*
- * Ceiling on size of buffer cache (really only effects write queueing,
- * the VM page cache is not effected), can be changed via
- * the kern.maxbcache /boot/loader.conf variable.
- */
-#ifndef VM_BCACHE_SIZE_MAX
-#define	VM_BCACHE_SIZE_MAX	(1024 * 1024 * 1024)
 #endif
 
 /*

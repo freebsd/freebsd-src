@@ -104,7 +104,7 @@ static int	mfi_mapcmd(struct mfi_softc *, struct mfi_command *);
 static int	mfi_send_frame(struct mfi_softc *, struct mfi_command *);
 static void	mfi_complete(struct mfi_softc *, struct mfi_command *);
 static int	mfi_abort(struct mfi_softc *, struct mfi_command *);
-static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, d_thread_t *);
+static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, struct thread *);
 static void	mfi_timeout(void *);
 static int	mfi_user_command(struct mfi_softc *,
 		    struct mfi_ioc_passthru *);
@@ -1686,7 +1686,7 @@ mfi_dump_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt, int len)
 }
 
 static int
-mfi_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+mfi_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct mfi_softc *sc;
 	int error;
@@ -1706,7 +1706,7 @@ mfi_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 }
 
 static int
-mfi_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+mfi_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct mfi_softc *sc;
 	struct mfi_aen *mfi_aen_entry, *tmp;
@@ -1910,7 +1910,7 @@ out:
 #endif
 
 static int
-mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
+mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	struct mfi_softc *sc;
 	union mfi_statrequest *ms;
@@ -2234,7 +2234,7 @@ out:
 }
 
 static int
-mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
+mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	struct mfi_softc *sc;
 	struct mfi_linux_ioc_packet l_ioc;

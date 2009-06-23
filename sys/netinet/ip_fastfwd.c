@@ -183,7 +183,7 @@ ip_fastforward(struct mbuf *m)
 	M_ASSERTVALID(m);
 	M_ASSERTPKTHDR(m);
 
-	ro.ro_rt = NULL;
+	bzero(&ro, sizeof(ro));
 
 	/*
 	 * Step 1: check for packet drop conditions (and sanity checks)
@@ -552,7 +552,7 @@ passout:
 		 * Send off the packet via outgoing interface
 		 */
 		error = (*ifp->if_output)(ifp, m,
-				(struct sockaddr *)dst, ro.ro_rt);
+				(struct sockaddr *)dst, &ro);
 	} else {
 		/*
 		 * Handle EMSGSIZE with icmp reply needfrag for TCP MTU discovery
@@ -585,7 +585,7 @@ passout:
 				m->m_nextpkt = NULL;
 
 				error = (*ifp->if_output)(ifp, m,
-					(struct sockaddr *)dst, ro.ro_rt);
+					(struct sockaddr *)dst, &ro);
 				if (error)
 					break;
 			} while ((m = m0) != NULL);

@@ -4,7 +4,7 @@
 # Java ByteCode, so they are both handled in the file "cafebabe".
 # The "feedface" ones are handled herein.
 #------------------------------------------------------------
-0	lelong&0xfeffffff	0xfeedface	Mach-O
+0	lelong&0xfffffffe	0xfeedface	Mach-O
 >0	byte		0xcf		64-bit
 >12	lelong		1		object
 >12	lelong		2		executable

@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -227,8 +228,20 @@ tcp_hc_init(void)
 	 */
 	callout_init(&V_tcp_hc_callout, CALLOUT_MPSAFE);
 	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
-	    tcp_hc_purge, 0);
+	    tcp_hc_purge, curvnet);
 }
+
+#ifdef VIMAGE
+void
+tcp_hc_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	/* XXX TODO walk the hashtable and free all entries  */
+
+	callout_drain(&V_tcp_hc_callout);
+}
+#endif
 
 /*
  * Internal function: look up an entry in the hostcache or return NULL.
@@ -634,9 +647,10 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 static void
 tcp_hc_purge(void *arg)
 {
+	CURVNET_SET((struct vnet *) arg);
 	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry, *hc_next;
-	int all = (intptr_t)arg;
+	int all = 0;
 	int i;
 
 	if (V_tcp_hostcache.purgeall) {
@@ -662,4 +676,5 @@ tcp_hc_purge(void *arg)
 
 	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
 	    tcp_hc_purge, arg);
+	CURVNET_RESTORE();
 }

@@ -103,6 +103,7 @@ struct thread;
 struct uio;
 struct knote;
 struct clonedevs;
+struct vm_object;
 struct vnode;
 
 /*
@@ -136,6 +137,8 @@ typedef int d_poll_t(struct cdev *dev, int events, struct thread *td);
 typedef int d_kqfilter_t(struct cdev *dev, struct knote *kn);
 typedef int d_mmap_t(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
    		     int nprot);
+typedef int d_mmap_single_t(struct cdev *cdev, vm_ooffset_t *offset,
+    vm_size_t size, struct vm_object **object, int nprot);
 typedef void d_purge_t(struct cdev *dev);
 
 typedef int d_spare2_t(struct cdev *dev);
@@ -175,7 +178,8 @@ typedef int dumper_t(
  */
 #define D_VERSION_00	0x20011966
 #define D_VERSION_01	0x17032005	/* Add d_uid,gid,mode & kind */
-#define D_VERSION	D_VERSION_01
+#define D_VERSION_02	0x28042009	/* Add d_mmap_single */
+#define D_VERSION	D_VERSION_02
 
 /*
  * Flags used for internal housekeeping
@@ -201,7 +205,7 @@ struct cdevsw {
 	dumper_t		*d_dump;
 	d_kqfilter_t		*d_kqfilter;
 	d_purge_t		*d_purge;
-	d_spare2_t		*d_spare2;
+	d_mmap_single_t		*d_mmap_single;
 	uid_t			d_uid;
 	gid_t			d_gid;
 	mode_t			d_mode;

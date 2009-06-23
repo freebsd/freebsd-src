@@ -47,20 +47,17 @@ struct ed_softc {
 	u_char  xmit_busy;	/* transmitter is busy */
 	u_char  enaddr[6];
 
-	int	port_rid;	/* resource id for port range */
 	int	port_used;	/* nonzero if ports used */
 	struct resource* port_res; /* resource for port range */
+	struct resource* port_res2; /* resource for port range */
 	bus_space_tag_t port_bst;
 	bus_space_handle_t port_bsh;
-	int	mem_rid;	/* resource id for memory range */
 	int	mem_used;	/* nonzero if memory used */
 	struct resource* mem_res; /* resource for memory range */
 	bus_space_tag_t mem_bst;
 	bus_space_handle_t mem_bsh;
-	int	irq_rid;	/* resource id for irq */
 	struct resource* irq_res; /* resource for irq */
 	void*	irq_handle;	/* handle for irq handler */
-	int	modem_rid;	/* resource ID for modem part of device */
 	int	(*sc_media_ioctl)(struct ed_softc *sc, struct ifreq *ifr,
 	    u_long command);
 	void	(*sc_mediachg)(struct ed_softc *);

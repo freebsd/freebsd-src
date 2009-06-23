@@ -32,8 +32,6 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 
-#define	CACHE_LINE_SIZE		32
-
 struct Struct_Obj_Entry;
 
 /* Return the address of the .dynamic section in the dynamic linker. */

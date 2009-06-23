@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -44,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #ifdef INET6
@@ -134,7 +134,7 @@ static int	tcp_inflight_stab;
 static int
 sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
+	INIT_VNET_INET(TD_TO_VNET(req->td));
 	int error, new;
 
 	new = V_tcp_mssdflt;
@@ -157,7 +157,7 @@ SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
 static int
 sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
+	INIT_VNET_INET(TD_TO_VNET(req->td));
 	int error, new;
 
 	new = V_tcp_v6mssdflt;
@@ -290,6 +290,7 @@ static struct mtx isn_mtx;
 static void
 tcp_zone_change(void *tag)
 {
+	INIT_VNET_INET(curvnet);
 
 	uma_zone_set_max(V_tcbinfo.ipi_zone, maxsockets);
 	uma_zone_set_max(V_tcpcb_zone, maxsockets);
@@ -362,6 +363,9 @@ tcp_init(void)
 
 	INP_INFO_LOCK_INIT(&V_tcbinfo, "tcp");
 	LIST_INIT(&V_tcb);
+#ifdef VIMAGE
+	V_tcbinfo.ipi_vnet = curvnet;
+#endif
 	V_tcbinfo.ipi_listhead = &V_tcb;
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
@@ -373,7 +377,7 @@ tcp_init(void)
 	    &V_tcbinfo.ipi_hashmask);
 	V_tcbinfo.ipi_porthashbase = hashinit(hashsize, M_PCB,
 	    &V_tcbinfo.ipi_porthashmask);
-	V_tcbinfo.ipi_zone = uma_zcreate("inpcb", sizeof(struct inpcb),
+	V_tcbinfo.ipi_zone = uma_zcreate("tcp_inpcb", sizeof(struct inpcb),
 	    NULL, NULL, tcp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_tcbinfo.ipi_zone, maxsockets);
 	/*
@@ -426,6 +430,25 @@ tcp_init(void)
 	EVENTHANDLER_REGISTER(maxsockets_change, tcp_zone_change, NULL,
 		EVENTHANDLER_PRI_ANY);
 }
+
+#ifdef VIMAGE
+void
+tcp_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	tcp_tw_destroy();
+	tcp_hc_destroy();
+	syncache_destroy();
+
+	/* XXX check that hashes are empty! */
+	hashdestroy(V_tcbinfo.ipi_hashbase, M_PCB,
+	    V_tcbinfo.ipi_hashmask);
+	hashdestroy(V_tcbinfo.ipi_porthashbase, M_PCB,
+	    V_tcbinfo.ipi_porthashmask);
+	INP_INFO_LOCK_DESTROY(&V_tcbinfo);
+}
+#endif
 
 void
 tcp_fini(void *xtp)
@@ -721,6 +744,9 @@ tcp_newtcpcb(struct inpcb *inp)
 		return NULL;
 	}
 
+#ifdef VIMAGE
+	tp->t_vnet = inp->inp_vnet;
+#endif
 	tp->t_timers = &tm->tt;
 	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
 	tp->t_maxseg = tp->t_maxopd =

@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/errno.h>
+#include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -72,7 +73,9 @@ static LIST_HEAD(, osd)	osd_list[OSD_LAST + 1];		/* (m) */
 static osd_method_t *osd_methods[OSD_LAST + 1];		/* (m) */
 static u_int osd_nslots[OSD_LAST + 1];			/* (m) */
 static osd_destructor_t *osd_destructors[OSD_LAST + 1];	/* (o) */
-static const u_int osd_nmethods[OSD_LAST + 1];
+static const u_int osd_nmethods[OSD_LAST + 1] = {
+	[OSD_JAIL] = PR_MAXMETHOD,
+};
 
 static struct sx osd_module_lock[OSD_LAST + 1];
 static struct rmlock osd_object_lock[OSD_LAST + 1];
@@ -295,8 +298,10 @@ do_osd_del(u_int type, struct osd *osd, u_int slot, int list_locked)
 		OSD_DEBUG("Slot doesn't exist (type=%u, slot=%u).", type, slot);
 		return;
 	}
-	osd_destructors[type][slot - 1](osd->osd_slots[slot - 1]);
-	osd->osd_slots[slot - 1] = NULL;
+	if (osd->osd_slots[slot - 1] != NULL) {
+		osd_destructors[type][slot - 1](osd->osd_slots[slot - 1]);
+		osd->osd_slots[slot - 1] = NULL;
+	}
 	for (i = osd->osd_nslots - 1; i >= 0; i--) {
 		if (osd->osd_slots[i] != NULL) {
 			OSD_DEBUG("Slot still has a value (type=%u, slot=%u).",
@@ -345,9 +350,9 @@ osd_call(u_int type, u_int method, void *obj, void *data)
 	 */
 	error = 0;
 	sx_slock(&osd_module_lock[type]);
-	for (i = 1; i <= osd_nslots[type]; i++) {
+	for (i = 0; i < osd_nslots[type]; i++) {
 		methodfun =
-		    osd_methods[type][(i - 1) * osd_nmethods[type] + method];
+		    osd_methods[type][i * osd_nmethods[type] + method];
 		if (methodfun != NULL && (error = methodfun(obj, data)) != 0)
 			break;
 	}
@@ -389,7 +394,7 @@ osd_init(void *arg __unused)
 		osd_nslots[i] = 0;
 		LIST_INIT(&osd_list[i]);
 		sx_init(&osd_module_lock[i], "osd_module");
-		rm_init(&osd_object_lock[i], "osd_object", 0);
+		rm_init(&osd_object_lock[i], "osd_object");
 		mtx_init(&osd_list_lock[i], "osd_list", NULL, MTX_DEF);
 		osd_destructors[i] = NULL;
 		osd_methods[i] = NULL;

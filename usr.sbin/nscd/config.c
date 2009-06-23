@@ -28,11 +28,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/stat.h>
+#include <sys/time.h>
+
 #include <assert.h>
 #include <math.h>
+#include <nsswitch.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "config.h"
 #include "debug.h"
 #include "log.h"
@@ -119,8 +125,8 @@ create_configuration_entry(const char *name,
 	assert(negative_params != NULL);
 	assert(mp_params != NULL);
 
-	retval = (struct configuration_entry *)calloc(1,
-		sizeof(struct configuration_entry));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	res = pthread_mutex_init(&retval->positive_cache_lock, NULL);
@@ -161,7 +167,7 @@ create_configuration_entry(const char *name,
 		sizeof(struct mp_cache_entry_params));
 
 	size = strlen(name);
-	retval->name = (char *)calloc(1, size + 1);
+	retval->name = calloc(1, size + 1);
 	assert(retval->name != NULL);
 	memcpy(retval->name, name, size);
 
@@ -170,14 +176,14 @@ create_configuration_entry(const char *name,
 	memcpy(&retval->mp_query_timeout, mp_timeout,
 		sizeof(struct timeval));
 
-	asprintf(&retval->positive_cache_params.entry_name, "%s+", name);
-	assert(retval->positive_cache_params.entry_name != NULL);
+	asprintf(&retval->positive_cache_params.cep.entry_name, "%s+", name);
+	assert(retval->positive_cache_params.cep.entry_name != NULL);
 
-	asprintf(&retval->negative_cache_params.entry_name, "%s-", name);
-	assert(retval->negative_cache_params.entry_name != NULL);
+	asprintf(&retval->negative_cache_params.cep.entry_name, "%s-", name);
+	assert(retval->negative_cache_params.cep.entry_name != NULL);
 
-	asprintf(&retval->mp_cache_params.entry_name, "%s*", name);
-	assert(retval->mp_cache_params.entry_name != NULL);
+	asprintf(&retval->mp_cache_params.cep.entry_name, "%s*", name);
+	assert(retval->mp_cache_params.cep.entry_name != NULL);
 
 	TRACE_OUT(create_configuration_entry);
 	return (retval);
@@ -198,7 +204,7 @@ create_def_configuration_entry(const char *name)
 	TRACE_IN(create_def_configuration_entry);
 	memset(&positive_params, 0,
 		sizeof(struct common_cache_entry_params));
-	positive_params.entry_type = CET_COMMON;
+	positive_params.cep.entry_type = CET_COMMON;
 	positive_params.cache_entries_size = DEFAULT_CACHE_HT_SIZE;
 	positive_params.max_elemsize = DEFAULT_POSITIVE_ELEMENTS_SIZE;
 	positive_params.satisf_elemsize = DEFAULT_POSITIVE_ELEMENTS_SIZE / 2;
@@ -220,7 +226,7 @@ create_def_configuration_entry(const char *name)
 
 	memset(&mp_params, 0,
 		sizeof(struct mp_cache_entry_params));
-	mp_params.entry_type = CET_MULTIPART;
+	mp_params.cep.entry_type = CET_MULTIPART;
 	mp_params.max_elemsize = DEFAULT_MULTIPART_ELEMENTS_SIZE;
 	mp_params.max_sessions = DEFAULT_MULITPART_SESSIONS_SIZE;
 	mp_params.max_lifetime.tv_sec = DEFAULT_MULITPART_LIFETIME;
@@ -242,9 +248,9 @@ destroy_configuration_entry(struct configuration_entry *entry)
 	pthread_mutex_destroy(&entry->negative_cache_lock);
 	pthread_mutex_destroy(&entry->mp_cache_lock);
 	free(entry->name);
-	free(entry->positive_cache_params.entry_name);
-	free(entry->negative_cache_params.entry_name);
-	free(entry->mp_cache_params.entry_name);
+	free(entry->positive_cache_params.cep.entry_name);
+	free(entry->negative_cache_params.cep.entry_name);
+	free(entry->mp_cache_params.cep.entry_name);
 	free(entry->mp_cache_entries);
 	free(entry);
 	TRACE_OUT(destroy_configuration_entry);
@@ -266,8 +272,8 @@ add_configuration_entry(struct configuration *config,
 		struct configuration_entry **new_entries;
 
 		config->entries_capacity *= 2;
-		new_entries = (struct configuration_entry **)calloc(1,
-			sizeof(struct configuration_entry *) *
+		new_entries = calloc(1,
+			sizeof(*new_entries) *
 			config->entries_capacity);
 		assert(new_entries != NULL);
 		memcpy(new_entries, config->entries,
@@ -334,7 +340,7 @@ configuration_entry_add_mp_cache_entry(struct configuration_entry *config_entry,
 
 	TRACE_IN(configuration_entry_add_mp_cache_entry);
 	++config_entry->mp_cache_entries_size;
-	new_mp_entries = (cache_entry *)malloc(sizeof(cache_entry) *
+	new_mp_entries = malloc(sizeof(*new_mp_entries) *
 		config_entry->mp_cache_entries_size);
 	assert(new_mp_entries != NULL);
 	new_mp_entries[0] = c_entry;
@@ -510,12 +516,12 @@ init_configuration(void)
 	struct configuration	*retval;
 
 	TRACE_IN(init_configuration);
-	retval = (struct configuration *)calloc(1, sizeof(struct configuration));
+	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->entries_capacity = INITIAL_ENTRIES_CAPACITY;
-	retval->entries = (struct configuration_entry **)calloc(1,
-		sizeof(struct configuration_entry *) *
+	retval->entries = calloc(1,
+		sizeof(*retval->entries) *
 		retval->entries_capacity);
 	assert(retval->entries != NULL);
 
@@ -537,12 +543,12 @@ fill_configuration_defaults(struct configuration *config)
 		free(config->socket_path);
 
 	len = strlen(DEFAULT_SOCKET_PATH);
-	config->socket_path = (char *)calloc(1, len + 1);
+	config->socket_path = calloc(1, len + 1);
 	assert(config->socket_path != NULL);
 	memcpy(config->socket_path, DEFAULT_SOCKET_PATH, len);
 
 	len = strlen(DEFAULT_PIDFILE_PATH);
-	config->pidfile_path = (char *)calloc(1, len + 1);
+	config->pidfile_path = calloc(1, len + 1);
 	assert(config->pidfile_path != NULL);
 	memcpy(config->pidfile_path, DEFAULT_PIDFILE_PATH, len);
 
@@ -563,7 +569,8 @@ fill_configuration_defaults(struct configuration *config)
 void
 destroy_configuration(struct configuration *config)
 {
-	int	i;
+	unsigned int i;
+
 	TRACE_IN(destroy_configuration);
 	assert(config != NULL);
 	free(config->pidfile_path);

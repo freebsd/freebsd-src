@@ -39,6 +39,7 @@
 #include <sys/kernel.h>
 #include <sys/protosw.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -82,6 +83,7 @@
 static int
 tcpsignature_init(struct secasvar *sav, struct xformsw *xsp)
 {
+	INIT_VNET_IPSEC(curvnet);
 	int keylen;
 
 	if (sav->spi != htonl(TCP_SIG_SPI)) {

@@ -988,7 +988,6 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 	fdp = td->td_proc->p_fd;
 	stp = td->td_sel;
 	n = 0;
-	FILEDESC_SLOCK(fdp);
 	STAILQ_FOREACH_SAFE(sfp, &stp->st_selq, sf_link, sfn) {
 		fd = (int)(uintptr_t)sfp->sf_cookie;
 		si = sfp->sf_si;
@@ -996,17 +995,15 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 		/* If the selinfo wasn't cleared the event didn't fire. */
 		if (si != NULL)
 			continue;
-		if ((fp = fget_locked(fdp, fd)) == NULL) {
-			FILEDESC_SUNLOCK(fdp);
+		if ((fp = fget_unlocked(fdp, fd)) == NULL)
 			return (EBADF);
-		}
 		idx = fd / NFDBITS;
 		bit = (fd_mask)1 << (fd % NFDBITS);
 		ev = fo_poll(fp, selflags(ibits, idx, bit), td->td_ucred, td);
+		fdrop(fp, td);
 		if (ev != 0)
 			n += selsetbits(ibits, obits, idx, bit, ev);
 	}
-	FILEDESC_SUNLOCK(fdp);
 	stp->st_flags = 0;
 	td->td_retval[0] = n;
 	return (0);
@@ -1030,7 +1027,6 @@ selscan(td, ibits, obits, nfd)
 
 	fdp = td->td_proc->p_fd;
 	n = 0;
-	FILEDESC_SLOCK(fdp);
 	for (idx = 0, fd = 0; fd < nfd; idx++) {
 		end = imin(fd + NFDBITS, nfd);
 		for (bit = 1; fd < end; bit <<= 1, fd++) {
@@ -1038,18 +1034,16 @@ selscan(td, ibits, obits, nfd)
 			flags = selflags(ibits, idx, bit);
 			if (flags == 0)
 				continue;
-			if ((fp = fget_locked(fdp, fd)) == NULL) {
-				FILEDESC_SUNLOCK(fdp);
+			if ((fp = fget_unlocked(fdp, fd)) == NULL)
 				return (EBADF);
-			}
 			selfdalloc(td, (void *)(uintptr_t)fd);
 			ev = fo_poll(fp, flags, td->td_ucred, td);
+			fdrop(fp, td);
 			if (ev != 0)
 				n += selsetbits(ibits, obits, idx, bit, ev);
 		}
 	}
 
-	FILEDESC_SUNLOCK(fdp);
 	td->td_retval[0] = n;
 	return (0);
 }

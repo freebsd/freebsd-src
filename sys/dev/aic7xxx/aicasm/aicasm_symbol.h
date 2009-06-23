@@ -190,7 +190,7 @@ void	symtable_open(void);
 void	symtable_close(void);
 
 symbol_t *
-	symtable_get(char *name);
+	symtable_get(const char *name);
 
 symbol_node_t *
 	symlist_search(symlist_t *symlist, char *symname);

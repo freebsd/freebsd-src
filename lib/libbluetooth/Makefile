@@ -33,6 +33,19 @@ MLINKS+=	bluetooth.3 bt_devname.3
 MLINKS+=	bluetooth.3 bt_devinfo.3
 MLINKS+=	bluetooth.3 bt_devenum.3
 
+MLINKS+=	bluetooth.3 bt_devopen.3
+MLINKS+=	bluetooth.3 bt_devclose.3
+MLINKS+=	bluetooth.3 bt_devsend.3
+MLINKS+=	bluetooth.3 bt_devreq.3
+MLINKS+=	bluetooth.3 bt_devfilter.3
+MLINKS+=	bluetooth.3 bt_devfilter_pkt_set.3
+MLINKS+=	bluetooth.3 bt_devfilter_pkt_clr.3
+MLINKS+=	bluetooth.3 bt_devfilter_pkt_tst.3
+MLINKS+=	bluetooth.3 bt_devfilter_evt_set.3
+MLINKS+=	bluetooth.3 bt_devfilter_evt_clr.3
+MLINKS+=	bluetooth.3 bt_devfilter_evt_tst.3
+MLINKS+=	bluetooth.3 bt_devinquiry.3
+
 MLINKS+=	bluetooth.3 bdaddr_same.3
 MLINKS+=	bluetooth.3 bdaddr_any.3
 MLINKS+=	bluetooth.3 bdaddr_copy.3

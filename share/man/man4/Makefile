@@ -7,12 +7,14 @@ MAN=	aac.4 \
 	${_acpi_asus.4} \
 	${_acpi_dock.4} \
 	${_acpi_fujitsu.4} \
+	${_acpi_hp.4} \
 	${_acpi_ibm.4} \
 	${_acpi_panasonic.4} \
 	${_acpi_sony.4} \
 	acpi_thermal.4 \
 	${_acpi_toshiba.4} \
 	acpi_video.4 \
+	${_acpi_wmi.4} \
 	adv.4 \
 	adw.4 \
 	ae.4 \
@@ -23,6 +25,7 @@ MAN=	aac.4 \
 	ahc.4 \
 	ahd.4 \
 	aio.4 \
+	alc.4 \
 	ale.4 \
 	altq.4 \
 	amd.4 \
@@ -51,8 +54,10 @@ MAN=	aac.4 \
 	blackhole.4 \
 	bpf.4 \
 	bt.4 \
+	bwi.4 \
 	cardbus.4 \
 	carp.4 \
+	cas.4 \
 	ccd.4 \
 	cd.4 \
 	cdce.4 \
@@ -151,6 +156,7 @@ MAN=	aac.4 \
 	ispfw.4 \
 	iwi.4 \
 	iwn.4 \
+	iwnfw.4 \
 	ixgb.4 \
 	ixgbe.4 \
 	jme.4 \
@@ -158,6 +164,7 @@ MAN=	aac.4 \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
+	ksyms.4 \
 	ktr.4 \
 	kue.4 \
 	lagg.4 \
@@ -188,6 +195,7 @@ MAN=	aac.4 \
 	meteor.4 \
 	mfi.4 \
 	miibus.4 \
+	mld.4 \
 	mlx.4 \
 	mly.4 \
 	mmc.4 \
@@ -198,6 +206,8 @@ MAN=	aac.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
+	mwl.4 \
+	mwlfw.4 \
 	mxge.4 \
 	my.4 \
 	natm.4 \
@@ -464,6 +474,8 @@ MLINKS+=bce.4 if_bce.4
 MLINKS+=bfe.4 if_bfe.4
 MLINKS+=bge.4 if_bge.4
 MLINKS+=bktr.4 brooktree.4
+MLINKS+=bwi.4 if_bwi.4
+MLINKS+=cas.4 if_cas.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=dc.4 if_dc.4
@@ -584,10 +596,12 @@ _acpi_aiboost.4=acpi_aiboost.4
 _acpi_asus.4=	acpi_asus.4
 _acpi_dock.4=	acpi_dock.4
 _acpi_fujitsu.4=acpi_fujitsu.4
+_acpi_hp.4=	acpi_hp.4
 _acpi_ibm.4=	acpi_ibm.4
 _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
+_acpi_wmi.4=	acpi_wmi.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4

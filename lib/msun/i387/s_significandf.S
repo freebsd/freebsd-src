@@ -13,3 +13,4 @@ ENTRY(significandf)
 	fxtract
 	fstp	%st(1)
 	ret
+END(significandf)

@@ -31,7 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * MacPPC bus dma support routines
+ * Bus dma support routines
  */
 
 #include <sys/param.h>
@@ -124,11 +124,10 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
  */
 int
 bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
-		   bus_size_t boundary, bus_addr_t lowaddr,
-		   bus_addr_t highaddr, bus_dma_filter_t *filter,
-		   void *filterarg, bus_size_t maxsize, int nsegments,
-		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
-		   void *lockfuncarg, bus_dma_tag_t *dmat)
+    bus_size_t boundary, bus_addr_t lowaddr, bus_addr_t highaddr,
+    bus_dma_filter_t *filter, void *filterarg, bus_size_t maxsize,
+    int nsegments, bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+    void *lockfuncarg, bus_dma_tag_t *dmat)
 {
 	bus_dma_tag_t newtag;
 	int error = 0;
@@ -251,7 +250,7 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
  */
 int
 bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
-                 bus_dmamap_t *mapp)
+    bus_dmamap_t *mapp)
 {
 	int mflags;
 
@@ -319,9 +318,8 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
  */
 static int
 bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
-    void *buf, bus_size_t buflen, struct thread *td,
-    int flags, vm_offset_t *lastaddrp, int *segp,
-    int first)
+    void *buf, bus_size_t buflen, struct thread *td, int flags,
+    vm_offset_t *lastaddrp, int *segp, int first)
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr, lastaddr, baddr, bmask;
@@ -405,8 +403,8 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t segs[],
  */
 int
 bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-		bus_size_t buflen, bus_dmamap_callback_t *callback,
-		void *callback_arg, int flags)
+    bus_size_t buflen, bus_dmamap_callback_t *callback,
+    void *callback_arg, int flags)
 {
 #ifdef __CC_SUPPORTS_DYNAMIC_ARRAY_INIT
 	bus_dma_segment_t	dm_segments[dmat->nsegments];
@@ -437,8 +435,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
  */
 int
 bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
-		     bus_dmamap_callback2_t *callback, void *callback_arg,
-		     int flags)
+    bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
 {
 #ifdef __CC_SUPPORTS_DYNAMIC_ARRAY_INIT
 	bus_dma_segment_t dm_segments[dmat->nsegments];
@@ -480,7 +477,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 
 int
 bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
-			bus_dma_segment_t *segs, int *nsegs, int flags)
+    bus_dma_segment_t *segs, int *nsegs, int flags)
 {
 	int error = 0;
 
@@ -514,8 +511,7 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
  */
 int
 bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
-    bus_dmamap_callback2_t *callback, void *callback_arg,
-    int flags)
+    bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
 {
 	vm_offset_t lastaddr;
 #ifdef __CC_SUPPORTS_DYNAMIC_ARRAY_INIT

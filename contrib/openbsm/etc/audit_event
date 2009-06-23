@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#36 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#39 $
 # $FreeBSD$
 #
 # The mapping between event identifiers and values is also hard-coded in
@@ -320,8 +320,8 @@
 321:AUE_DARWIN_NFSSVC:nfssvc(2):ad
 322:AUE_DARWIN_GETFH:getfh(2):fa
 323:AUE_DARWIN_QUOTACTL:quotactl(2):ad
-324:AUE_DARWIN_ADDPROFILE:system call:pc
-325:AUE_DARWIN_KDEBUGTRACE:system call:pc
+324:AUE_DARWIN_ADDPROFILE:add_profil():pc
+325:AUE_DARWIN_KDEBUGTRACE:kdebug_trace():pc
 326:AUE_DARWIN_FSTAT:fstat(2):fa
 327:AUE_DARWIN_FPATHCONF:fpathconf(2):fa
 328:AUE_DARWIN_GETDIRENTRIES:getdirentries(2):no
@@ -376,8 +376,8 @@
 43013:AUE_FUTIMES:futimes(2):fm
 43014:AUE_SETSID:setsid(2):pc
 43015:AUE_SETPRIVEXEC:setprivexec(2):pc
-43016:AUE_ADDPROFILE:system call:pc
-43017:AUE_KDEBUGTRACE:system call:pc
+43016:AUE_ADDPROFILE:add_profil():pc
+43017:AUE_KDEBUGTRACE:kdebug_trace():pc
 43018:AUE_OPENBSM_FSTAT:fstat(2):fa
 43019:AUE_FPATHCONF:fpathconf(2):fa
 43020:AUE_GETDIRENTRIES:getdirentries(2):no
@@ -554,6 +554,8 @@
 43191:AUE_FSGETPATH:fsgetpath(2):ot
 43192:AUE_PREAD:pread(2):no
 43193:AUE_PWRITE:pwrite(2):no
+43194:AUE_FSCTL:fsctl():fm
+43195:AUE_FFSCTL:ffsctl():fm
 #
 # Solaris userspace events.
 #
@@ -627,10 +629,10 @@
 6521:AUE_DARWIN_revoke_obj:revoke object priv:fm
 6600:AUE_DARWIN_lw_login:loginwindow login:lo
 6601:AUE_DARWIN_lw_logout:loginwindow logout:lo
-7000:AUE_DARWIN_auth_user:user authentication:ad
-7001:AUE_DARWIN_ssconn:SecSrvr connection setup:ad
-7002:AUE_DARWIN_ssauthorize:SecSrvr AuthEngine:ad
-7003:AUE_DARWIN_ssauthint:SecSrvr authinternal mech:ad
+7000:AUE_DARWIN_auth_user:user authentication:aa
+7001:AUE_DARWIN_ssconn:SecSrvr connection setup:aa
+7002:AUE_DARWIN_ssauthorize:SecSrvr AuthEngine:aa
+7003:AUE_DARWIN_ssauthint:SecSrvr authinternal mech:aa
 #
 # Historic/third-party application allocations of event identifiers.
 #
@@ -649,10 +651,11 @@
 45020:AUE_revoke_obj:revoke object priv:fm
 45021:AUE_lw_login:loginwindow login:lo
 45022:AUE_lw_logout:loginwindow logout:lo
-45023:AUE_auth_user:user authentication:ad
-45024:AUE_ssconn:SecSrvr connection setup:ad
-45025:AUE_ssauthorize:SecSrvr AuthEngine:ad
-45026:AUE_ssauthint:SecSrvr authinternal mech:ad
+45023:AUE_auth_user:user authentication:aa
+45024:AUE_ssconn:SecSrvr connection setup:aa
+45025:AUE_ssauthorize:SecSrvr AuthEngine:aa
+45026:AUE_ssauthint:SecSrvr authinternal mech:aa
 45027:AUE_calife:Calife:ad
-45028:AUE_sudo:sudo(1):ad
+45028:AUE_sudo:sudo(1):aa
 45029:AUE_audit_recovery:audit crash recovery:ad
+45030:AUE_ssauthmech:SecSrvr AuthMechanism:aa

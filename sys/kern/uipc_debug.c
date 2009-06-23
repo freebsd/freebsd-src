@@ -136,6 +136,14 @@ db_print_sooptions(short so_options)
 		db_printf("%sSO_BINTIME", comma ? ", " : "");
 		comma = 1;
 	}
+	if (so_options & SO_NO_OFFLOAD) {
+		db_printf("%sSO_NO_OFFLOAD", comma ? ", " : "");
+		comma = 1;
+	}
+	if (so_options & SO_NO_DDP) {
+		db_printf("%sSO_NO_DDP", comma ? ", " : "");
+		comma = 1;
+	}
 }
 
 static void

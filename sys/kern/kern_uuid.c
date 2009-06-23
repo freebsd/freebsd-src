@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -44,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 /*
@@ -101,16 +98,19 @@ uuid_node(uint16_t *node)
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		/* Walk the address list */
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			sdl = (struct sockaddr_dl*)ifa->ifa_addr;
 			if (sdl != NULL && sdl->sdl_family == AF_LINK &&
 			    sdl->sdl_type == IFT_ETHER) {
 				/* Got a MAC address. */
 				bcopy(LLADDR(sdl), node, UUID_NODE_LEN);
+				IF_ADDR_UNLOCK(ifp);
 				IFNET_RUNLOCK();
 				return;
 			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 	}
 	IFNET_RUNLOCK();
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.241 2008/06/16 13:22:53 dtucker Exp $ */
+/* $OpenBSD: session.c,v 1.245 2009/01/22 09:46:01 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -95,6 +95,12 @@ __RCSID("$FreeBSD$");
 #if defined(KRB5) && defined(USE_AFS)
 #include <kafs.h>
 #endif
+
+#define IS_INTERNAL_SFTP(c) \
+	(!strncmp(c, INTERNAL_SFTP_NAME, sizeof(INTERNAL_SFTP_NAME) - 1) && \
+	 (c[sizeof(INTERNAL_SFTP_NAME) - 1] == '\0' || \
+	  c[sizeof(INTERNAL_SFTP_NAME) - 1] == ' ' || \
+	  c[sizeof(INTERNAL_SFTP_NAME) - 1] == '\t'))
 
 /* func */
 
@@ -229,7 +235,7 @@ auth_input_request_forwarding(struct passwd * pw)
 	    SSH_CHANNEL_AUTH_SOCKET, sock, sock, -1,
 	    CHAN_X11_WINDOW_DEFAULT, CHAN_X11_PACKET_DEFAULT,
 	    0, "auth socket", 1);
-	strlcpy(nc->path, auth_sock_name, sizeof(nc->path));
+	nc->path = xstrdup(auth_sock_name);
 	return 1;
 
  authsock_err:
@@ -782,7 +788,7 @@ do_exec(Session *s, const char *command)
 	if (options.adm_forced_command) {
 		original_command = command;
 		command = options.adm_forced_command;
-		if (strcmp(INTERNAL_SFTP_NAME, command) == 0)
+		if (IS_INTERNAL_SFTP(command))
 			s->is_subsystem = SUBSYSTEM_INT_SFTP;
 		else if (s->is_subsystem)
 			s->is_subsystem = SUBSYSTEM_EXT;
@@ -790,7 +796,7 @@ do_exec(Session *s, const char *command)
 	} else if (forced_command) {
 		original_command = command;
 		command = forced_command;
-		if (strcmp(INTERNAL_SFTP_NAME, command) == 0)
+		if (IS_INTERNAL_SFTP(command))
 			s->is_subsystem = SUBSYSTEM_INT_SFTP;
 		else if (s->is_subsystem)
 			s->is_subsystem = SUBSYSTEM_EXT;
@@ -945,7 +951,7 @@ check_quietlogin(Session *s, const char *command)
 
 /*
  * Sets the value of the given variable in the environment.  If the variable
- * already exists, its value is overriden.
+ * already exists, its value is overridden.
  */
 void
 child_set_env(char ***envp, u_int *envsizep, const char *name,
@@ -1819,7 +1825,7 @@ do_child(Session *s, const char *command)
 		char *p, *args;
 
 		setproctitle("%s@internal-sftp-server", s->pw->pw_name);
-		args = strdup(command ? command : "sftp-server");
+		args = xstrdup(command ? command : "sftp-server");
 		for (i = 0, (p = strtok(args, " ")); p; (p = strtok(NULL, " ")))
 			if (i < ARGV_MAX - 1)
 				argv[i++] = p;

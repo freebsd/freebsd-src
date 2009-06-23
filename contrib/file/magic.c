@@ -26,15 +26,16 @@
  */
 
 #include "file.h"
+
+#ifndef	lint
+FILE_RCSID("@(#)$File: magic.c,v 1.62 2009/03/20 21:25:41 christos Exp $")
+#endif	/* lint */
+
 #include "magic.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/param.h>	/* for MAXPATHLEN */
-#include <sys/stat.h>
 #ifdef QUICK
 #include <sys/mman.h>
 #endif
@@ -56,17 +57,9 @@
 #include <unistd.h>	/* for read() */
 #endif
 
-#ifdef HAVE_LOCALE_H
-#include <locale.h>
-#endif
-
 #include <netinet/in.h>		/* for byte swapping */
 
 #include "patchlevel.h"
-
-#ifndef	lint
-FILE_RCSID("@(#)$File: magic.c,v 1.54 2008/07/25 23:30:32 rrt Exp $")
-#endif	/* lint */
 
 #ifndef PIPE_BUF
 /* Get the PIPE_BUF from pathconf */
@@ -76,12 +69,6 @@ FILE_RCSID("@(#)$File: magic.c,v 1.54 2008/07/25 23:30:32 rrt Exp $")
 #define PIPE_BUF 512
 #endif
 #endif
-
-#ifdef __EMX__
-private char *apptypeName = NULL;
-protected int file_os2_apptype(struct magic_set *ms, const char *fn,
-    const void *buf, size_t nb);
-#endif /* __EMX__ */
 
 private void free_mlist(struct mlist *);
 private void close_and_restore(const struct magic_set *, const char *, int,
@@ -116,7 +103,7 @@ magic_open(int flags)
 	if ((ms->c.li = CAST(struct level_info *, malloc(len))) == NULL)
 		goto free;
 
-	ms->haderr = 0;
+	ms->event_flags = 0;
 	ms->error = -1;
 	ms->mlist = NULL;
 	ms->file = "unknown";
@@ -229,7 +216,7 @@ close_and_restore(const struct magic_set *ms, const char *name, int fd,
 #elif defined(HAVE_UTIME_H) || defined(HAVE_SYS_UTIME_H)
 		struct utimbuf  utbuf;
 
-		(void)memset(utbuf, 0, sizeof(utbuf));
+		(void)memset(&utbuf, 0, sizeof(utbuf));
 		utbuf.actime = sb->st_atime;
 		utbuf.modtime = sb->st_mtime;
 		(void) utime(name, &utbuf); /* don't care if loses */
@@ -300,25 +287,10 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 
 		errno = 0;
 		if ((fd = open(inname, flags)) < 0) {
-#ifdef __CYGWIN__
-			/* FIXME: Do this with EXEEXT from autotools */
-			char *tmp = alloca(strlen(inname) + 5);
-			(void)strcat(strcpy(tmp, inname), ".exe");
-			if ((fd = open(tmp, flags)) < 0) {
-#endif
-				if (unreadable_info(ms, sb.st_mode,
-#ifdef __CYGWIN
-						    tmp
-#else
-						    inname
-#endif
-						    ) == -1)
-					goto done;
-				rv = 0;
+			if (unreadable_info(ms, sb.st_mode, inname) == -1)
 				goto done;
-#ifdef __CYGWIN__
-			}
-#endif
+			rv = 0;
+			goto done;
 		}
 #ifdef O_NONBLOCK
 		if ((flags = fcntl(fd, F_GETFL)) != -1) {
@@ -385,13 +357,13 @@ magic_buffer(struct magic_set *ms, const void *buf, size_t nb)
 public const char *
 magic_error(struct magic_set *ms)
 {
-	return ms->haderr ? ms->o.buf : NULL;
+	return (ms->event_flags & EVENT_HAD_ERR) ? ms->o.buf : NULL;
 }
 
 public int
 magic_errno(struct magic_set *ms)
 {
-	return ms->haderr ? ms->error : 0;
+	return (ms->event_flags & EVENT_HAD_ERR) ? ms->error : 0;
 }
 
 public int

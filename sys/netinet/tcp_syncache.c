@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -259,6 +258,9 @@ syncache_init(void)
 
 	/* Initialize the hash buckets. */
 	for (i = 0; i < V_tcp_syncache.hashsize; i++) {
+#ifdef VIMAGE
+		V_tcp_syncache.hashbase[i].sch_vnet = curvnet;
+#endif
 		TAILQ_INIT(&V_tcp_syncache.hashbase[i].sch_bucket);
 		mtx_init(&V_tcp_syncache.hashbase[i].sch_mtx, "tcp_sc_head",
 			 NULL, MTX_DEF);
@@ -272,6 +274,19 @@ syncache_init(void)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(V_tcp_syncache.zone, V_tcp_syncache.cache_limit);
 }
+
+#ifdef VIMAGE
+void
+syncache_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	/* XXX walk the cache, free remaining objects, stop timers */
+
+	uma_zdestroy(V_tcp_syncache.zone);
+	FREE(V_tcp_syncache.hashbase, M_SYNCACHE);
+}
+#endif
 
 /*
  * Inserts a syncache entry into the specified bucket row.
@@ -632,9 +647,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		goto abort2;
 	}
 #ifdef MAC
-	SOCK_LOCK(so);
 	mac_socketpeer_set_from_mbuf(m, so);
-	SOCK_UNLOCK(so);
 #endif
 
 	inp = sotoinpcb(so);

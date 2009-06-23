@@ -37,8 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -93,7 +91,7 @@ vn_open(ndp, flagp, cmode, fp)
 {
 	struct thread *td = ndp->ni_cnd.cn_thread;
 
-	return (vn_open_cred(ndp, flagp, cmode, td->td_ucred, fp));
+	return (vn_open_cred(ndp, flagp, cmode, 0, td->td_ucred, fp));
 }
 
 /*
@@ -104,11 +102,8 @@ vn_open(ndp, flagp, cmode, fp)
  * due to the NDINIT being done elsewhere.
  */
 int
-vn_open_cred(ndp, flagp, cmode, cred, fp)
-	struct nameidata *ndp;
-	int *flagp, cmode;
-	struct ucred *cred;
-	struct file *fp;
+vn_open_cred(struct nameidata *ndp, int *flagp, int cmode, u_int vn_open_flags,
+    struct ucred *cred, struct file *fp)
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -126,9 +121,11 @@ restart:
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
 		ndp->ni_cnd.cn_flags = ISOPEN | LOCKPARENT | LOCKLEAF |
-		    MPSAFE | AUDITVNODE1;
+		    MPSAFE;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
+		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
+			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
 		bwillwrite();
 		if ((error = namei(ndp)) != 0)
 			return (error);
@@ -183,9 +180,11 @@ restart:
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
 		ndp->ni_cnd.cn_flags = ISOPEN |
 		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) |
-		    LOCKLEAF | MPSAFE | AUDITVNODE1;
+		    LOCKLEAF | MPSAFE;
 		if (!(fmode & FWRITE))
 			ndp->ni_cnd.cn_flags |= LOCKSHARED;
+		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
+			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		if (!mpsafe)
@@ -367,7 +366,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 	struct iovec aiov;
 	struct mount *mp;
 	struct ucred *cred;
-	int error;
+	int error, lock_flags;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 
@@ -378,15 +377,15 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
 			    != 0)
 				return (error);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		} else {
-			/*
-			 * XXX This should be LK_SHARED but I don't trust VFS
-			 * enough to leave it like that until it has been
-			 * reviewed further.
-			 */
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		}
+			if (MNT_SHARED_WRITES(mp) ||
+			    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) {
+				lock_flags = LK_SHARED;
+			} else {
+				lock_flags = LK_EXCLUSIVE;
+			}
+			vn_lock(vp, lock_flags | LK_RETRY);
+		} else
+			vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	}
 	ASSERT_VOP_LOCKED(vp, "IO_NODELOCKED with no vp lock held");
@@ -570,7 +569,7 @@ vn_write(fp, uio, active_cred, flags, td)
 {
 	struct vnode *vp;
 	struct mount *mp;
-	int error, ioflag;
+	int error, ioflag, lock_flags;
 	int vfslocked;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
@@ -593,7 +592,16 @@ vn_write(fp, uio, active_cred, flags, td)
 	if (vp->v_type != VCHR &&
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto unlock;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+ 
+	if ((MNT_SHARED_WRITES(mp) ||
+	    ((mp == NULL) && MNT_SHARED_WRITES(vp->v_mount))) &&
+	    (flags & FOF_OFFSET) != 0) {
+		lock_flags = LK_SHARED;
+	} else {
+		lock_flags = LK_EXCLUSIVE;
+	}
+
+	vn_lock(vp, lock_flags | LK_RETRY);
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 	ioflag |= sequential_heuristic(uio, fp);
@@ -1113,7 +1121,6 @@ int
 vfs_write_suspend(mp)
 	struct mount *mp;
 {
-	struct thread *td = curthread;
 	int error;
 
 	MNT_ILOCK(mp);
@@ -1130,7 +1137,7 @@ vfs_write_suspend(mp)
 		    MNT_MTX(mp), (PUSER - 1)|PDROP, "suspwt", 0);
 	else
 		MNT_IUNLOCK(mp);
-	if ((error = VFS_SYNC(mp, MNT_SUSPEND, td)) != 0)
+	if ((error = VFS_SYNC(mp, MNT_SUSPEND)) != 0)
 		vfs_write_resume(mp);
 	return (error);
 }
@@ -1298,15 +1305,17 @@ vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
 	ltype = VOP_ISLOCKED(vp);
 	KASSERT(ltype == LK_EXCLUSIVE || ltype == LK_SHARED,
 	    ("vn_vget_ino: vp not locked"));
-	for (;;) {
-		error = vfs_busy(mp, MBF_NOWAIT);
-		if (error == 0)
-			break;
+	error = vfs_busy(mp, MBF_NOWAIT);
+	if (error != 0) {
 		VOP_UNLOCK(vp, 0);
-		pause("vn_vget", 1);
+		error = vfs_busy(mp, 0);
 		vn_lock(vp, ltype | LK_RETRY);
-		if (vp->v_iflag & VI_DOOMED)
+		if (error != 0)
 			return (ENOENT);
+		if (vp->v_iflag & VI_DOOMED) {
+			vfs_unbusy(mp);
+			return (ENOENT);
+		}
 	}
 	VOP_UNLOCK(vp, 0);
 	error = VFS_VGET(mp, ino, lkflags, rvp);

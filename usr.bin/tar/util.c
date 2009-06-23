@@ -178,7 +178,7 @@ bsdtar_expand_char(char *buff, size_t offset, char c)
 {
 	size_t i = offset;
 
-	if (isprint(c) && c != '\\')
+	if (isprint((unsigned char)c) && c != '\\')
 		buff[i++] = c;
 	else {
 		buff[i++] = '\\';
@@ -254,7 +254,7 @@ yes(const char *fmt, ...)
 	buff[l] = 0;
 
 	for (p = buff; *p != '\0'; p++) {
-		if (isspace(0xff & (int)*p))
+		if (isspace((unsigned char)*p))
 			continue;
 		switch(*p) {
 		case 'y': case 'Y':

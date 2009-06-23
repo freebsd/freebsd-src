@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_core.h>
+#include <dev/usb/usbdi.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -2390,11 +2390,9 @@ NdisMDeregisterInterrupt(intr)
 	ndis_miniport_interrupt	*intr;
 {
 	ndis_miniport_block	*block;
-	struct ndis_softc	*sc;
 	uint8_t			irql;
 
 	block = intr->ni_block;
-	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 
 	/* Should really be KeSynchronizeExecution() */
 

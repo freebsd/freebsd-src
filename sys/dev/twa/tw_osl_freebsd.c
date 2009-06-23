@@ -86,10 +86,9 @@ static devclass_t	twa_devclass;
  *			non-zero-- failure
  */
 static TW_INT32
-twa_open(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
+twa_open(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, struct thread *proc)
 {
-	TW_INT32		unit = dev2unit(dev);
-	struct twa_softc	*sc = devclass_get_softc(twa_devclass, unit);
+	struct twa_softc	*sc = (struct twa_softc *)(dev->si_drv1);
 
 	tw_osli_dbg_dprintf(5, sc, "entered");
 	sc->state |= TW_OSLI_CTLR_STATE_OPEN;
@@ -112,10 +111,9 @@ twa_open(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
  *			non-zero-- failure
  */
 static TW_INT32
-twa_close(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
+twa_close(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, struct thread *proc)
 {
-	TW_INT32		unit = dev2unit(dev);
-	struct twa_softc	*sc = devclass_get_softc(twa_devclass, unit);
+	struct twa_softc	*sc = (struct twa_softc *)(dev->si_drv1);
 
 	tw_osli_dbg_dprintf(5, sc, "entered");
 	sc->state &= ~TW_OSLI_CTLR_STATE_OPEN;
@@ -142,7 +140,7 @@ twa_close(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
  *			non-zero-- failure
  */
 static TW_INT32
-twa_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, TW_INT32 flags, d_thread_t *proc)
+twa_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, TW_INT32 flags, struct thread *proc)
 {
 	struct twa_softc	*sc = (struct twa_softc *)(dev->si_drv1);
 	TW_INT32		error;

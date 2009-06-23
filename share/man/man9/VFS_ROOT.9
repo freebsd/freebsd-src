@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 26, 2006
+.Dd May 23, 2009
 .Os
 .Dt VFS_ROOT 9
 .Sh NAME
@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_ROOT "struct mount *mp" "int flags" "struct vnode **vpp" "struct thread *td"
+.Fn VFS_ROOT "struct mount *mp" "int flags" "struct vnode **vpp"
 .Sh DESCRIPTION
 Return a locked vnode for the root directory of the file system.
 .Pp
@@ -58,8 +58,6 @@ File system is free to ignore the
 argument and instead acquire an exclusive lock.
 .It Fa vpp
 Return parameter for the root vnode.
-.It Fa td
-The calling thread.
 .El
 .Sh SEE ALSO
 .Xr VFS 9 ,

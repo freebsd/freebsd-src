@@ -63,6 +63,10 @@ BIN1+=	${.CURDIR}/../usr.bin/mail/misc/mail.rc
 BIN1+=	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config
 .endif
 
+.if ${MK_NTP} != "no"
+BIN1+=	ntp.conf
+.endif
+
 .if ${MK_OPENSSH} != "no"
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config \

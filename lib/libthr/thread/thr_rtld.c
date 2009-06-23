@@ -39,8 +39,6 @@
 #undef errno
 extern int errno;
 
-#define CACHE_LINE_SIZE		64
-
 static int	_thr_rtld_clr_flag(int);
 static void	*_thr_rtld_lock_create(void);
 static void	_thr_rtld_lock_destroy(void *);

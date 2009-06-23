@@ -32,7 +32,6 @@
 #include "opt_inet.h"
 #ifdef __FreeBSD__
 #include "opt_inet6.h"
-#include "opt_route.h"
 #endif
 #endif /* __FreeBSD__ || __NetBSD__ */
 
@@ -56,7 +55,6 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #ifdef __FreeBSD__
-#include <net/route.h>
 #include <net/vnet.h>
 #endif
 
@@ -454,6 +452,9 @@ static void
 tbr_timeout(arg)
 	void *arg;
 {
+#if defined(__FreeBSD__)
+	VNET_ITERATOR_DECL(vnet_iter);
+#endif
 	struct ifnet *ifp;
 	int active, s;
 
@@ -465,16 +466,25 @@ tbr_timeout(arg)
 #endif
 #if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
 	IFNET_RLOCK();
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_NET(vnet_iter);
 #endif
-	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
-		/* read from if_snd unlocked */
-		if (!TBR_IS_ENABLED(&ifp->if_snd))
-			continue;
-		active++;
-		if (!IFQ_IS_EMPTY(&ifp->if_snd) && ifp->if_start != NULL)
-			(*ifp->if_start)(ifp);
-	}
+		for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
+		    ifp = TAILQ_NEXT(ifp, if_list)) {
+			/* read from if_snd unlocked */
+			if (!TBR_IS_ENABLED(&ifp->if_snd))
+				continue;
+			active++;
+			if (!IFQ_IS_EMPTY(&ifp->if_snd) &&
+			    ifp->if_start != NULL)
+				(*ifp->if_start)(ifp);
+		}
 #if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
 	IFNET_RUNLOCK();
 #endif
 	splx(s);

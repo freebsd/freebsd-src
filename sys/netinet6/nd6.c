@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -135,13 +133,7 @@ void
 nd6_init(void)
 {
 	INIT_VNET_INET6(curvnet);
-	static int nd6_init_done = 0;
 	int i;
-
-	if (nd6_init_done) {
-		log(LOG_NOTICE, "nd6_init called more than once(ignored)\n");
-		return;
-	}
 
 	V_nd6_prune	= 1;	/* walk list every 1 seconds */
 	V_nd6_delay	= 5;	/* delay first probe time 5 second */
@@ -181,6 +173,8 @@ nd6_init(void)
 	V_ip6_temp_valid_lifetime = DEF_TEMP_VALID_LIFETIME;
 	V_ip6_temp_regen_advance = TEMPADDR_REGEN_ADVANCE;
 
+	V_ip6_desync_factor = 0;
+
 	all1_sa.sin6_family = AF_INET6;
 	all1_sa.sin6_len = sizeof(struct sockaddr_in6);
 	for (i = 0; i < sizeof(all1_sa.sin6_addr); i++)
@@ -191,11 +185,20 @@ nd6_init(void)
 	/* start timer */
 	callout_init(&V_nd6_slowtimo_ch, 0);
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
-	    nd6_slowtimo, NULL);
-
-	nd6_init_done = 1;
-
+	    nd6_slowtimo, curvnet);
 }
+
+
+#ifdef VIMAGE
+void
+nd6_destroy()
+{
+	INIT_VNET_INET6(curvnet);
+
+	callout_drain(&V_nd6_slowtimo_ch);
+	callout_drain(&V_nd6_timer_ch);
+}
+#endif
 
 struct nd_ifinfo *
 nd6_ifattach(struct ifnet *ifp)
@@ -281,7 +284,6 @@ nd6_setmtu0(struct ifnet *ifp, struct nd_ifinfo *ndi)
 	if (ndi->maxmtu > V_in6_maxmtu)
 		in6_setmaxmtu(); /* check all interfaces just in case */
 
-#undef MIN
 }
 
 void
@@ -374,7 +376,7 @@ nd6_options(union nd_opts *ndopts)
 			 * Message validation requires that all included
 			 * options have a length that is greater than zero.
 			 */
-			V_icmp6stat.icp6s_nd_badopt++;
+			ICMP6STAT_INC(icp6s_nd_badopt);
 			bzero(ndopts, sizeof(*ndopts));
 			return -1;
 		}
@@ -418,7 +420,7 @@ nd6_options(union nd_opts *ndopts)
 skip1:
 		i++;
 		if (i > V_nd6_maxndopt) {
-			V_icmp6stat.icp6s_nd_toomanyopt++;
+			ICMP6STAT_INC(icp6s_nd_toomanyopt);
 			nd6log((LOG_INFO, "too many loop in nd opt\n"));
 			break;
 		}
@@ -592,8 +594,8 @@ done:
 void
 nd6_timer(void *arg)
 {
-	CURVNET_SET_QUIET((struct vnet *) arg);
-	INIT_VNET_INET6((struct vnet *) arg);
+	CURVNET_SET((struct vnet *) arg);
+	INIT_VNET_INET6(curvnet);
 	int s;
 	struct nd_defrouter *dr;
 	struct nd_prefix *pr;
@@ -601,7 +603,7 @@ nd6_timer(void *arg)
 	struct in6_addrlifetime *lt6;
 
 	callout_reset(&V_nd6_timer_ch, V_nd6_prune * hz,
-	    nd6_timer, NULL);
+	    nd6_timer, curvnet);
 
 	/* expire default router list */
 	s = splnet();
@@ -727,8 +729,8 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 	struct in6_ifaddr *public_ifa6 = NULL;
 
 	ifp = ia6->ia_ifa.ifa_ifp;
-	for (ifa = ifp->if_addrlist.tqh_first; ifa;
-	     ifa = ifa->ifa_list.tqe_next) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *it6;
 
 		if (ifa->ifa_addr->sa_family != AF_INET6)
@@ -771,13 +773,16 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 		int e;
 
 		if ((e = in6_tmpifadd(public_ifa6, 0, 0)) != 0) {
+			IF_ADDR_UNLOCK(ifp);
 			log(LOG_NOTICE, "regen_tmpaddr: failed to create a new"
 			    " tmp addr,errno=%d\n", e);
 			return (-1);
 		}
+		IF_ADDR_UNLOCK(ifp);
 		return (0);
 	}
 
+	IF_ADDR_UNLOCK(ifp);
 	return (-1);
 }
 
@@ -869,7 +874,6 @@ nd6_purge(struct ifnet *ifp)
 struct llentry *
 nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct sockaddr_in6 sin6;
 	struct llentry *ln;
 	int llflags = 0;
@@ -953,8 +957,13 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * a p2p interface, the address should be a neighbor.
 	 */
 	dstaddr = ifa_ifwithdstaddr((struct sockaddr *)addr);
-	if ((dstaddr != NULL) && (dstaddr->ifa_ifp == ifp))
-		return (1);
+	if (dstaddr != NULL) {
+		if (dstaddr->ifa_ifp == ifp) {
+			ifa_free(dstaddr);
+			return (1);
+		}
+		ifa_free(dstaddr);
+	}
 
 	/*
 	 * If the default router list is empty, all addresses are regarded
@@ -1666,7 +1675,7 @@ nd6_slowtimo(void *arg)
 	struct ifnet *ifp;
 
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
-	    nd6_slowtimo, NULL);
+	    nd6_slowtimo, curvnet);
 	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
 	    ifp = TAILQ_NEXT(ifp, if_list)) {
@@ -1939,7 +1948,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 
 int
 nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
-    struct sockaddr_in6 *dst, struct rtentry *rt)
+    struct sockaddr_in6 *dst, struct route *ro)
 {
 	struct mbuf *m, *m_head;
 	struct ifnet *outifp;
@@ -1954,7 +1963,7 @@ nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
 	while (m_head) {
 		m = m_head;
 		m_head = m_head->m_nextpkt;
-		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, rt);			       
+		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, ro);			       
 	}
 
 	/*

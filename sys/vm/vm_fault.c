@@ -394,7 +394,7 @@ RetryFault:;
 			 * found the page ).
 			 */
 			vm_page_busy(fs.m);
-			if (((fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
+			if (fs.m->valid != VM_PAGE_BITS_ALL &&
 				fs.m->object != kernel_object && fs.m->object != kmem_object) {
 				goto readrest;
 			}
@@ -433,7 +433,7 @@ RetryFault:;
 				unlock_and_deallocate(&fs);
 				VM_WAITPFAULT;
 				goto RetryFault;
-			} else if ((fs.m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
+			} else if (fs.m->valid == VM_PAGE_BITS_ALL)
 				break;
 		}
 
@@ -916,13 +916,11 @@ vnode_locked:
 	KASSERT(fs.m->oflags & VPO_BUSY,
 		("vm_fault: page %p not busy!", fs.m));
 	/*
-	 * Sanity check: page must be completely valid or it is not fit to
+	 * Page must be completely valid or it is not fit to
 	 * map into user space.  vm_pager_get_pages() ensures this.
 	 */
-	if (fs.m->valid != VM_PAGE_BITS_ALL) {
-		vm_page_zero_invalid(fs.m, TRUE);
-		printf("Warning: page %p partially invalid on fault\n", fs.m);
-	}
+	KASSERT(fs.m->valid == VM_PAGE_BITS_ALL,
+	    ("vm_fault: page %p partially invalid", fs.m));
 	VM_OBJECT_UNLOCK(fs.object);
 
 	/*
@@ -1026,10 +1024,8 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			VM_OBJECT_UNLOCK(lobject);
 			break;
 		}
-		if (((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
-			(m->busy == 0) &&
+		if (m->valid == VM_PAGE_BITS_ALL &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
-
 			vm_page_lock_queues();
 			pmap_enter_quick(pmap, addr, m, entry->protection);
 			vm_page_unlock_queues();
@@ -1167,7 +1163,11 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 	VM_OBJECT_LOCK(dst_object);
 	dst_entry->object.vm_object = dst_object;
 	dst_entry->offset = 0;
-
+	if (dst_entry->uip != NULL) {
+		dst_object->uip = dst_entry->uip;
+		dst_object->charge = dst_entry->end - dst_entry->start;
+		dst_entry->uip = NULL;
+	}
 	prot = dst_entry->max_protection;
 
 	/*
@@ -1251,8 +1251,6 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
  *
  * Return value:
  *  number of pages in marray
- *
- * This routine can't block.
  */
 static int
 vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)

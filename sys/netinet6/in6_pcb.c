@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -163,11 +162,14 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			if (so->so_options & SO_REUSEADDR)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
 		} else if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-			struct ifaddr *ia = NULL;
+			struct ifaddr *ifa;
 
 			sin6->sin6_port = 0;		/* yech... */
-			if ((ia = ifa_ifwithaddr((struct sockaddr *)sin6)) == 0)
+			if ((ifa = ifa_ifwithaddr((struct sockaddr *)sin6)) ==
+			    NULL &&
+			    (inp->inp_flags & INP_BINDANY) == 0) {
 				return (EADDRNOTAVAIL);
+			}
 
 			/*
 			 * XXX: bind to an anycast address might accidentally
@@ -175,11 +177,14 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			 * We should allow to bind to a deprecated address, since
 			 * the application dares to use it.
 			 */
-			if (ia &&
-			    ((struct in6_ifaddr *)ia)->ia6_flags &
+			if (ifa != NULL &&
+			    ((struct in6_ifaddr *)ifa)->ia6_flags &
 			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|IN6_IFF_DETACHED)) {
+				ifa_free(ifa);
 				return (EADDRNOTAVAIL);
 			}
+			if (ifa != NULL)
+				ifa_free(ifa);
 		}
 		if (lport) {
 			struct inpcb *t;
@@ -666,7 +671,8 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 			    inp->inp_lport == lport) {
 				/* Found. */
 				if (cred == NULL ||
-				    inp->inp_cred->cr_prison == cred->cr_prison)
+				    prison_equal_ip6(cred->cr_prison,
+					inp->inp_cred->cr_prison))
 					return (inp);
 			}
 		}
@@ -698,7 +704,8 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 			LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
 				wildcard = 0;
 				if (cred != NULL &&
-				    inp->inp_cred->cr_prison != cred->cr_prison)
+				    !prison_equal_ip6(cred->cr_prison,
+					inp->inp_cred->cr_prison))
 					continue;
 				/* XXX inp locking */
 				if ((inp->inp_vflag & INP_IPV6) == 0)
@@ -733,36 +740,36 @@ in6_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 {
 	struct inpcb *in6p;
 	struct ip6_moptions *im6o;
-	struct in6_multi_mship *imm, *nimm;
+	int i, gap;
 
 	INP_INFO_RLOCK(pcbinfo);
 	LIST_FOREACH(in6p, pcbinfo->ipi_listhead, inp_list) {
 		INP_WLOCK(in6p);
 		im6o = in6p->in6p_moptions;
-		if ((in6p->inp_vflag & INP_IPV6) &&
-		    im6o) {
+		if ((in6p->inp_vflag & INP_IPV6) && im6o != NULL) {
 			/*
-			 * Unselect the outgoing interface if it is being
-			 * detached.
+			 * Unselect the outgoing ifp for multicast if it
+			 * is being detached.
 			 */
 			if (im6o->im6o_multicast_ifp == ifp)
 				im6o->im6o_multicast_ifp = NULL;
-
 			/*
 			 * Drop multicast group membership if we joined
 			 * through the interface being detached.
-			 * XXX controversial - is it really legal for kernel
-			 * to force this?
 			 */
-			for (imm = im6o->im6o_memberships.lh_first;
-			     imm != NULL; imm = nimm) {
-				nimm = imm->i6mm_chain.le_next;
-				if (imm->i6mm_maddr->in6m_ifp == ifp) {
-					LIST_REMOVE(imm, i6mm_chain);
-					in6_delmulti(imm->i6mm_maddr);
-					free(imm, M_IP6MADDR);
+			gap = 0;
+			for (i = 0; i < im6o->im6o_num_memberships; i++) {
+				if (im6o->im6o_membership[i]->in6m_ifp ==
+				    ifp) {
+					in6_mc_leave(im6o->im6o_membership[i],
+					    NULL);
+					gap++;
+				} else if (gap != 0) {
+					im6o->im6o_membership[i - gap] =
+					    im6o->im6o_membership[i];
 				}
 			}
+			im6o->im6o_num_memberships -= gap;
 		}
 		INP_WUNLOCK(in6p);
 	}
@@ -838,7 +845,7 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 			 * the inp here, without any checks.
 			 * Well unless both bound with SO_REUSEPORT?
 			 */
-			if (jailed(inp->inp_cred))
+			if (prison_flag(inp->inp_cred, PR_IP6))
 				return (inp);
 			if (tmpinp == NULL)
 				tmpinp = inp;
@@ -878,7 +885,7 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 			if (faith && (inp->inp_flags & INP_FAITH) == 0)
 				continue;
 
-			injail = jailed(inp->inp_cred);
+			injail = prison_flag(inp->inp_cred, PR_IP6);
 			if (injail) {
 				if (prison_check_ip6(inp->inp_cred,
 				    laddr) != 0)

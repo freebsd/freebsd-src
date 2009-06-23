@@ -796,14 +796,10 @@ static void
 atapi_async(void *callback_arg, u_int32_t code,
 	     struct cam_path* path, void *arg)
 {
-    struct atapi_xpt_softc *softc;
-    struct cam_sim *sim;
     int targ;
 
     GIANT_REQUIRED;
 
-    sim = (struct cam_sim *) callback_arg;
-    softc = (struct atapi_xpt_softc *) cam_sim_softc(sim);
     switch (code) {
     case AC_LOST_DEVICE:
 	targ = xpt_path_target_id(path);

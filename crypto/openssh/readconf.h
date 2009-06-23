@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.74 2008/06/26 11:46:31 grunk Exp $ */
+/* $OpenBSD: readconf.h,v 1.78 2009/02/12 03:00:56 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -20,9 +20,9 @@
 
 typedef struct {
 	char	 *listen_host;		/* Host (address) to listen on. */
-	u_short	  listen_port;		/* Port to forward. */
+	int	  listen_port;		/* Port to forward. */
 	char	 *connect_host;		/* Host to connect. */
-	u_short	  connect_port;		/* Port to connect on connect_host. */
+	int	  connect_port;		/* Port to connect on connect_host. */
 }       Forward;
 /* Data structure for representing option data. */
 
@@ -49,6 +49,7 @@ typedef struct {
 						 * authentication. */
 	int     kbd_interactive_authentication; /* Try keyboard-interactive auth. */
 	char	*kbd_interactive_devices; /* Keyboard-interactive auth devices. */
+	int     zero_knowledge_password_authentication;	/* Try jpake */
 	int     batch_mode;	/* Batch mode: do not ask for passwords. */
 	int     check_host_ip;	/* Also keep track of keys for IP address */
 	int     strict_host_key_checking;	/* Strict host key checking. */
@@ -133,7 +134,7 @@ typedef struct {
 void     initialize_options(Options *);
 void     fill_default_options(Options *);
 int	 read_config_file(const char *, const char *, Options *, int);
-int	 parse_forward(Forward *, const char *);
+int	 parse_forward(Forward *, const char *, int, int);
 
 int
 process_config_line(Options *, const char *, char *, const char *, int, int *);

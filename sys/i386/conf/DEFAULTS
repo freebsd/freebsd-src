@@ -7,7 +7,7 @@ machine		i386
 
 # Bus support.
 device		isa
-options		ISAPNP
+options 	ISAPNP
 
 # Floating point support.
 device		npx
@@ -22,6 +22,7 @@ device		uart_ns8250
 # Default partitioning schemes
 options 	GEOM_PART_BSD
 options 	GEOM_PART_EBR
+options 	GEOM_PART_EBR_COMPAT
 options 	GEOM_PART_MBR
 
 # enable support for native hardware

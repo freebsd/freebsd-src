@@ -29,8 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -133,7 +131,7 @@ extattrctl(td, uap)
 	}
 
 	error = VFS_EXTATTRCTL(mp, uap->cmd, filename_vp, uap->attrnamespace,
-	    uap->attrname != NULL ? attrname : NULL, td);
+	    uap->attrname != NULL ? attrname : NULL);
 
 	vn_finished_write(mp_writable);
 out:

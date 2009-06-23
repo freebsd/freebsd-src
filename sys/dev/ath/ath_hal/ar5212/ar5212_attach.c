@@ -840,6 +840,15 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	    AH_PRIVATE(ah)->ah_macVersion > AR_SREV_VERSION_VENICE;
 
 	pCap->halTstampPrecision = 15;
+	pCap->halIntrMask = HAL_INT_COMMON
+			| HAL_INT_RX
+			| HAL_INT_TX
+			| HAL_INT_FATAL
+			| HAL_INT_BNR
+			| HAL_INT_BMISC
+			;
+	if (AH_PRIVATE(ah)->ah_macVersion < AR_SREV_VERSION_GRIFFIN)
+		pCap->halIntrMask &= ~HAL_INT_TBTT;
 
 	return AH_TRUE;
 #undef IS_COBRA

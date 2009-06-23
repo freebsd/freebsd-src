@@ -99,26 +99,6 @@ struct usb_parse_state {
 	uint8_t	preparse;
 };
 
-static uint8_t
-usb_get_first_claimed_interface(usb_dev_handle * dev)
-{
-	struct libusb20_device *pdev = (void *)dev;
-	uint32_t x;
-	uint8_t y;
-
-	x = pdev->claimed_interfaces;
-
-	for (y = 0; y != 32; y++) {
-		if (x & (1 << y))
-			break;
-	}
-
-	if (y == 32)
-		y = 0xFF;		/* dummy */
-
-	return (y);
-}
-
 static struct libusb20_transfer *
 usb_get_transfer_by_ep_no(usb_dev_handle * dev, uint8_t ep_no)
 {
@@ -746,12 +726,9 @@ usb_set_configuration(usb_dev_handle * udev, int bConfigurationValue)
 int
 usb_claim_interface(usb_dev_handle * dev, int interface)
 {
-	int err;
+	struct libusb20_device *pdev = (void *)dev;
 
-	err = libusb20_dev_claim_interface((void *)dev, interface);
-
-	if (err)
-		return (-1);
+	pdev->claimed_interface = interface;
 
 	return (0);
 }
@@ -759,23 +736,18 @@ usb_claim_interface(usb_dev_handle * dev, int interface)
 int
 usb_release_interface(usb_dev_handle * dev, int interface)
 {
-	int err;
-
-	err = libusb20_dev_release_interface((void *)dev, interface);
-
-	if (err)
-		return (-1);
-
+	/* do nothing */
 	return (0);
 }
 
 int
 usb_set_altinterface(usb_dev_handle * dev, int alternate)
 {
+	struct libusb20_device *pdev = (void *)dev;
 	int err;
 	uint8_t iface;
 
-	iface = usb_get_first_claimed_interface(dev);
+	iface = pdev->claimed_interface;
 
 	err = libusb20_dev_set_alt_index((void *)dev, iface, alternate);
 

@@ -286,43 +286,14 @@
 # SGI SoundTrack <mpruett@sgi.com>
 0	string		_SGI_SoundTrack		SGI SoundTrack project file
 # ID3 version 2 tags <waschk@informatik.uni-rostock.de>
-0	string		ID3	Audio file with ID3 version 2.
-# ??? Normally such a file is an MP3 file, but this will give false positives
-!:mime	audio/mpeg
->3	ubyte	<0xff	\b%d
-#>4	ubyte	<0xff	\b%d tag
->2584	string	fLaC		\b, FLAC encoding
->>2588	byte&0x7f		>0		\b, unknown version
->>2588	byte&0x7f		0		\b
-# some common bits/sample values
->>>2600	beshort&0x1f0		0x030		\b, 4 bit
->>>2600	beshort&0x1f0		0x050		\b, 6 bit
->>>2600	beshort&0x1f0		0x070		\b, 8 bit
->>>2600	beshort&0x1f0		0x0b0		\b, 12 bit
->>>2600	beshort&0x1f0		0x0f0		\b, 16 bit
->>>2600	beshort&0x1f0		0x170		\b, 24 bit
->>>2600	byte&0xe		0x0		\b, mono
->>>2600	byte&0xe		0x2		\b, stereo
->>>2600	byte&0xe		0x4		\b, 3 channels
->>>2600	byte&0xe		0x6		\b, 4 channels
->>>2600	byte&0xe		0x8		\b, 5 channels
->>>2600	byte&0xe		0xa		\b, 6 channels
->>>2600	byte&0xe		0xc		\b, 7 channels
->>>2600	byte&0xe		0xe		\b, 8 channels
-# some common sample rates
->>>2597	belong&0xfffff0		0x0ac440	\b, 44.1 kHz
->>>2597	belong&0xfffff0		0x0bb800	\b, 48 kHz
->>>2597	belong&0xfffff0		0x07d000	\b, 32 kHz
->>>2597	belong&0xfffff0		0x056220	\b, 22.05 kHz
->>>2597	belong&0xfffff0		0x05dc00	\b, 24 kHz
->>>2597	belong&0xfffff0		0x03e800	\b, 16 kHz
->>>2597	belong&0xfffff0		0x02b110	\b, 11.025 kHz
->>>2597	belong&0xfffff0		0x02ee00	\b, 12 kHz
->>>2597	belong&0xfffff0		0x01f400	\b, 8 kHz
->>>2597	belong&0xfffff0		0x177000	\b, 96 kHz
->>>2597	belong&0xfffff0		0x0fa000	\b, 64 kHz
->>>2601	byte&0xf		>0		\b, >4G samples
->2584	string	!fLaC		\b, MP3 encoding
+0	string		ID3	Audio file with ID3 version 2
+>3	byte		x	\b.%d
+>4	byte		x	\b.%d
+>>5	byte		&0x80	\b, unsynchronized frames
+>>5	byte		&0x40	\b, extended header
+>>5	byte		&0x20	\b, experimental
+>>5	byte		&0x10	\b, footer present
+>(6.I)	indirect	x	\b, contains: 
 
 # NSF (NES sound file) magic
 0	string		NESM\x1a	NES Sound File

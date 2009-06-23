@@ -37,8 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -58,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_llc.h>
 #include <net/if_media.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -70,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #ifdef	BRIDGESTP_DEBUG
 #define	DPRINTF(fmt, arg...)	printf("bstp: " fmt, ##arg)
 #else
-#define	DPRINTF(fmt, arg...)
+#define	DPRINTF(fmt, arg...)	(void)0
 #endif
 
 #define	PV2ADDR(pv, eaddr)	do {		\
@@ -98,7 +95,6 @@ static void	bstp_decode_bpdu(struct bstp_port *, struct bstp_cbpdu *,
 		    struct bstp_config_unit *);
 static void	bstp_send_bpdu(struct bstp_state *, struct bstp_port *,
 		    struct bstp_cbpdu *);
-static void	bstp_enqueue(struct ifnet *, struct mbuf *);
 static int	bstp_pdu_flags(struct bstp_port *);
 static void	bstp_received_stp(struct bstp_state *, struct bstp_port *,
 		    struct mbuf **, struct bstp_tbpdu *);
@@ -262,7 +258,7 @@ bstp_transmit_tcn(struct bstp_state *bs, struct bstp_port *bp)
 	memcpy(mtod(m, caddr_t) + sizeof(*eh), &bpdu, sizeof(bpdu));
 
 	bp->bp_txcount++;
-	bstp_enqueue(ifp, m);
+	ifp->if_transmit(ifp, m);
 }
 
 static void
@@ -391,18 +387,7 @@ bstp_send_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 	m->m_len = m->m_pkthdr.len;
 
 	bp->bp_txcount++;
-	bstp_enqueue(ifp, m);
-}
-
-static void
-bstp_enqueue(struct ifnet *dst_ifp, struct mbuf *m)
-{
-	int err = 0;
-
-	IFQ_ENQUEUE(&dst_ifp->if_snd, m, err);
-
-	if ((dst_ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0)
-		(*dst_ifp->if_start)(dst_ifp);
+	ifp->if_transmit(ifp, m);
 }
 
 static int

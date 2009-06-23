@@ -169,6 +169,7 @@ static int		rt2661_radar_stop(struct rt2661_softc *);
 static int		rt2661_prepare_beacon(struct rt2661_softc *,
 			    struct ieee80211vap *);
 static void		rt2661_enable_tsf_sync(struct rt2661_softc *);
+static void		rt2661_enable_tsf(struct rt2661_softc *);
 static int		rt2661_get_rssi(struct rt2661_softc *, uint8_t);
 
 static const struct {
@@ -319,16 +320,11 @@ rt2661_attach(device_t dev, int id)
 	ic->ic_vap_create = rt2661_vap_create;
 	ic->ic_vap_delete = rt2661_vap_delete;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof (sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(RT2661_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(RT2661_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		RT2661_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		RT2661_RX_RADIOTAP_PRESENT);
 
 #ifdef RAL_DEBUG
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
@@ -359,7 +355,6 @@ rt2661_detach(void *xsc)
 	rt2661_stop_locked(sc);
 	RAL_UNLOCK(sc);
 
-	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
 
 	rt2661_free_tx_ring(sc, &sc->txq[0]);
@@ -830,6 +825,8 @@ rt2661_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 		if (vap->iv_opmode != IEEE80211_M_MONITOR)
 			rt2661_enable_tsf_sync(sc);
+		else
+			rt2661_enable_tsf(sc);
 	}
 	return error;
 }
@@ -1025,7 +1022,7 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 	    BUS_DMASYNC_POSTREAD);
 
 	for (;;) {
-		int rssi;
+		int8_t rssi, nf;
 
 		desc = &sc->rxq.desc[sc->rxq.cur];
 		data = &sc->rxq.data[sc->rxq.cur];
@@ -1100,8 +1097,12 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 		    (le32toh(desc->flags) >> 16) & 0xfff;
 
 		rssi = rt2661_get_rssi(sc, desc->rssi);
+		/* Error happened during RSSI conversion. */
+		if (rssi < 0)
+			rssi = -30;	/* XXX ignored by net80211 */
+		nf = RT2661_NOISE_FLOOR;
 
-		if (bpf_peers_present(ifp->if_bpf)) {
+		if (ieee80211_radiotap_active(ic)) {
 			struct rt2661_rx_radiotap_header *tap = &sc->sc_rxtap;
 			uint32_t tsf_lo, tsf_hi;
 
@@ -1115,9 +1116,8 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 			tap->wr_rate = ieee80211_plcp2rate(desc->rate,
 			    (desc->flags & htole32(RT2661_RX_OFDM)) ?
 				IEEE80211_T_OFDM : IEEE80211_T_CCK);
-			tap->wr_antsignal = rssi < 0 ? 0 : rssi;
-
-			bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
+			tap->wr_antsignal = nf + rssi;
+			tap->wr_antnoise = nf;
 		}
 		sc->sc_flags |= RAL_INPUT_RUNNING;
 		RAL_UNLOCK(sc);
@@ -1127,16 +1127,10 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 		ni = ieee80211_find_rxnode(ic,
 		    (struct ieee80211_frame_min *)wh);
 		if (ni != NULL) {
-			/* Error happened during RSSI conversion. */
-			if (rssi < 0)
-				rssi = -30;	/* XXX ignored by net80211 */
-
-			(void) ieee80211_input(ni, m, rssi,
-			    RT2661_NOISE_FLOOR, 0);
+			(void) ieee80211_input(ni, m, rssi, nf);
 			ieee80211_free_node(ni);
 		} else
-			(void) ieee80211_input_all(ic, m, rssi,
-			    RT2661_NOISE_FLOOR, 0);
+			(void) ieee80211_input_all(ic, m, rssi, nf);
 
 		RAL_LOCK(sc);
 		sc->sc_flags &= ~RAL_INPUT_RUNNING;
@@ -1332,7 +1326,6 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct rt2661_tx_desc *desc;
 	struct rt2661_tx_data *data;
 	struct ieee80211_frame *wh;
@@ -1366,13 +1359,13 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rt2661_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	data->m = m0;
@@ -1587,15 +1580,13 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rt2661_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	data->m = m0;
@@ -2789,6 +2780,14 @@ rt2661_enable_tsf_sync(struct rt2661_softc *sc)
 	RAL_WRITE(sc, RT2661_TXRX_CSR9, tmp);
 }
 
+static void
+rt2661_enable_tsf(struct rt2661_softc *sc)
+{
+	RAL_WRITE(sc, RT2661_TXRX_CSR9, 
+	      (RAL_READ(sc, RT2661_TXRX_CSR9) & 0xff000000)
+	    | RT2661_TSF_TICKING | RT2661_TSF_MODE(2));
+}
+
 /*
  * Retrieve the "Received Signal Strength Indicator" from the raw values
  * contained in Rx descriptors.  The computation depends on which band the
@@ -2869,11 +2868,6 @@ rt2661_set_channel(struct ieee80211com *ic)
 
 	RAL_LOCK(sc);
 	rt2661_set_chan(sc, ic->ic_curchan);
-
-	sc->sc_txtap.wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-	sc->sc_txtap.wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
-	sc->sc_rxtap.wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-	sc->sc_rxtap.wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 	RAL_UNLOCK(sc);
 
 }

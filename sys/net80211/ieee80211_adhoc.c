@@ -68,12 +68,12 @@ __FBSDID("$FreeBSD$");
 
 static	void adhoc_vattach(struct ieee80211vap *);
 static	int adhoc_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-static int adhoc_input(struct ieee80211_node *, struct mbuf *,
-	int rssi, int noise, uint32_t rstamp);
+static int adhoc_input(struct ieee80211_node *, struct mbuf *, int, int);
 static void adhoc_recv_mgmt(struct ieee80211_node *, struct mbuf *,
-	int subtype, int rssi, int noise, uint32_t rstamp);
+	int subtype, int, int);
 static void ahdemo_recv_mgmt(struct ieee80211_node *, struct mbuf *,
-	int subtype, int rssi, int noise, uint32_t rstamp);
+	int subtype, int, int);
+static void adhoc_recv_ctl(struct ieee80211_node *, struct mbuf *, int subtype);
 
 void
 ieee80211_adhoc_attach(struct ieee80211com *ic)
@@ -101,6 +101,7 @@ adhoc_vattach(struct ieee80211vap *vap)
 		vap->iv_recv_mgmt = adhoc_recv_mgmt;
 	else
 		vap->iv_recv_mgmt = ahdemo_recv_mgmt;
+	vap->iv_recv_ctl = adhoc_recv_ctl;
 	vap->iv_opdetach = adhoc_vdetach;
 #ifdef IEEE80211_SUPPORT_TDMA
 	/*
@@ -282,8 +283,7 @@ doprint(struct ieee80211vap *vap, int subtype)
  * by the 802.11 layer.
  */
 static int
-adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
-	int rssi, int noise, uint32_t rstamp)
+adhoc_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 {
 #define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
@@ -339,7 +339,8 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
 	    IEEE80211_FC0_VERSION_0) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, NULL, "wrong version %x", wh->i_fc[0]);
+		    ni->ni_macaddr, NULL, "wrong version, fc %02x:%02x",
+		    wh->i_fc[0], wh->i_fc[1]);
 		vap->iv_stats.is_rx_badversion++;
 		goto err;
 	}
@@ -405,8 +406,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 			}
 		}
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
-		ni->ni_noise = noise;
-		ni->ni_rstamp = rstamp;
+		ni->ni_noise = nf;
 		if (HAS_SEQ(type)) {
 			uint8_t tid = ieee80211_gettid(wh);
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
@@ -533,8 +533,8 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		}
 
 		/* copy to listener after decrypt */
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
+		if (ieee80211_radiotap_active_vap(vap))
+			ieee80211_radiotap_rx(vap, m);
 		need_tap = 0;
 
 		/*
@@ -637,16 +637,15 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 			vap->iv_stats.is_rx_mgtdiscard++; /* XXX */
 			goto out;
 		}
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
-		vap->iv_recv_mgmt(ni, m, subtype, rssi, noise, rstamp);
-		m_freem(m);
-		return IEEE80211_FC0_TYPE_MGT;
+		vap->iv_recv_mgmt(ni, m, subtype, rssi, nf);
+		goto out;
 
 	case IEEE80211_FC0_TYPE_CTL:
 		vap->iv_stats.is_rx_ctl++;
 		IEEE80211_NODE_STAT(ni, rx_ctrl);
+		vap->iv_recv_ctl(ni, m, subtype);
 		goto out;
+
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 		    wh, "bad", "frame type 0x%x", type);
@@ -657,8 +656,8 @@ err:
 	ifp->if_ierrors++;
 out:
 	if (m != NULL) {
-		if (bpf_peers_present(vap->iv_rawbpf) && need_tap)
-			bpf_mtap(vap->iv_rawbpf, m);
+		if (need_tap && ieee80211_radiotap_active_vap(vap))
+			ieee80211_radiotap_rx(vap, m);
 		m_freem(m);
 	}
 	return type;
@@ -684,7 +683,7 @@ is11bclient(const uint8_t *rates, const uint8_t *xrates)
 
 static void
 adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
-	int subtype, int rssi, int noise, uint32_t rstamp)
+	int subtype, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -729,8 +728,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				ieee80211_probe_curchan(vap, 1);
 				ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 			}
-			ieee80211_add_scan(vap, &scan, wh,
-				subtype, rssi, noise, rstamp);
+			ieee80211_add_scan(vap, &scan, wh, subtype, rssi, nf);
 			return;
 		}
 		if (scan.capinfo & IEEE80211_CAPINFO_IBSS) {
@@ -754,8 +752,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			}
 			if (ni != NULL) {
 				IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
-				ni->ni_noise = noise;
-				ni->ni_rstamp = rstamp;
+				ni->ni_noise = nf;
 			}
 		}
 		break;
@@ -910,7 +907,7 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 
 static void
 ahdemo_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
-	int subtype, int rssi, int noise, uint32_t rstamp)
+	int subtype, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -920,7 +917,12 @@ ahdemo_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	 * a site-survey.
 	 */
 	if (ic->ic_flags & IEEE80211_F_SCAN)
-		adhoc_recv_mgmt(ni, m0, subtype, rssi, noise, rstamp);
+		adhoc_recv_mgmt(ni, m0, subtype, rssi, nf);
 	else
 		vap->iv_stats.is_rx_mgtdiscard++;
+}
+
+static void
+adhoc_recv_ctl(struct ieee80211_node *ni, struct mbuf *m0, int subtype)
+{
 }

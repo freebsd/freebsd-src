@@ -539,7 +539,6 @@ nve_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = nve_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = nve_ifstart;
 	ifp->if_watchdog = nve_watchdog;
 	ifp->if_timer = 0;
@@ -585,11 +584,11 @@ nve_detach(device_t dev)
 	ifp = sc->ifp;
 
 	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
 		NVE_LOCK(sc);
 		nve_stop(sc);
 		NVE_UNLOCK(sc);
 		callout_drain(&sc->stat_callout);
-		ether_ifdetach(ifp);
 	}
 
 	if (sc->miibus)

@@ -68,15 +68,15 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #include "opt_rootdevname.h"
-#include "opt_mac.h"
 
 #define	ROOTNAME		"root_device"
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
+static void	set_rootvnode(void);
 static int	vfs_domount(struct thread *td, const char *fstype,
 		    char *fspath, int fsflags, void *fsdata);
 static int	vfs_mountroot_ask(void);
-static int	vfs_mountroot_try(const char *mountfrom);
+static int	vfs_mountroot_try(const char *mountfrom, const char *options);
 static void	free_mntarg(struct mntarg *ma);
 
 static int	usermount = 0;
@@ -109,6 +109,10 @@ struct vnode	*rootvnode;
  *              of being mounted as root
  * path      := disk device name or other data used by the filesystem
  *              to locate its physical store
+ *
+ * The environment variable vfs.root.mountfrom options is a comma delimited
+ * set of string mount options.  These mount options must be parseable
+ * by nmount() in the kernel.
  */
 
 /*
@@ -782,7 +786,7 @@ mount(td, uap)
 	ma = mount_argb(ma, !(uap->flags & MNT_NOSUID), "nosuid");
 	ma = mount_argb(ma, !(uap->flags & MNT_NOEXEC), "noexec");
 
-	error = vfsp->vfc_vfsops->vfs_cmount(ma, uap->data, uap->flags, td);
+	error = vfsp->vfc_vfsops->vfs_cmount(ma, uap->data, uap->flags);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -977,7 +981,7 @@ vfs_domount(
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
 	 * get.  No freeing of cn_pnbuf.
 	 */
-        error = VFS_MOUNT(mp, td);
+        error = VFS_MOUNT(mp);
 
 	/*
 	 * Process the export option only if we are
@@ -1006,7 +1010,7 @@ vfs_domount(
 		if (mp->mnt_opt != NULL)
 			vfs_freeopts(mp->mnt_opt);
 		mp->mnt_opt = mp->mnt_optnew;
-		(void)VFS_STATFS(mp, &mp->mnt_stat, td);
+		(void)VFS_STATFS(mp, &mp->mnt_stat);
 	}
 	/*
 	 * Prevent external consumers of mount options from reading
@@ -1063,7 +1067,7 @@ vfs_domount(
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
 		vfs_event_signal(NULL, VQ_MOUNT, 0);
-		if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp, td))
+		if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp))
 			panic("mount: lost mount");
 		mountcheckdirs(vp, newdp);
 		vput(newdp);
@@ -1269,7 +1273,7 @@ dounmount(mp, flags, td)
 	 * such references to cause an EBUSY error.
 	 */
 	if ((flags & MNT_FORCE) &&
-	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp, td) == 0) {
+	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
 		if (mp->mnt_vnodecovered != NULL)
 			mountcheckdirs(fsrootvp, mp->mnt_vnodecovered);
 		if (fsrootvp == rootvnode) {
@@ -1279,10 +1283,8 @@ dounmount(mp, flags, td)
 		vput(fsrootvp);
 	}
 	if (((mp->mnt_flag & MNT_RDONLY) ||
-	     (error = VFS_SYNC(mp, MNT_WAIT, td)) == 0) ||
-	    (flags & MNT_FORCE)) {
-		error = VFS_UNMOUNT(mp, flags, td);
-	}
+	     (error = VFS_SYNC(mp, MNT_WAIT)) == 0) || (flags & MNT_FORCE) != 0)
+		error = VFS_UNMOUNT(mp, flags);
 	vn_finished_write(mp);
 	/*
 	 * If we failed to flush the dirty blocks for this mount point,
@@ -1292,7 +1294,7 @@ dounmount(mp, flags, td)
 	 */
 	if (error && error != ENXIO) {
 		if ((flags & MNT_FORCE) &&
-		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp, td) == 0) {
+		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
 			if (mp->mnt_vnodecovered != NULL)
 				mountcheckdirs(mp->mnt_vnodecovered, fsrootvp);
 			if (rootvnode == NULL) {
@@ -1421,6 +1423,11 @@ static void
 root_mount_done(void)
 {
 
+	/* Keep prison0's root in sync with the global rootvnode. */
+	mtx_lock(&prison0.pr_mtx);
+	prison0.pr_root = rootvnode;
+	vref(prison0.pr_root);
+	mtx_unlock(&prison0.pr_mtx);
 	/*
 	 * Use a mutex to prevent the wakeup being missed and waiting for
 	 * an extra 1 second sleep.
@@ -1464,14 +1471,14 @@ root_mount_wait(void)
 }
 
 static void
-set_rootvnode(struct thread *td)
+set_rootvnode()
 {
 	struct proc *p;
 
-	if (VFS_ROOT(TAILQ_FIRST(&mountlist), LK_EXCLUSIVE, &rootvnode, td))
+	if (VFS_ROOT(TAILQ_FIRST(&mountlist), LK_EXCLUSIVE, &rootvnode))
 		panic("Cannot find root vnode");
 
-	p = td->td_proc;
+	p = curthread->td_proc;
 	FILEDESC_XLOCK(p->p_fd);
 
 	if (p->p_fd->fd_cdir != NULL)
@@ -1512,7 +1519,7 @@ devfs_first(void)
 
 	mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td->td_ucred);
 
-	error = VFS_MOUNT(mp, td);
+	error = VFS_MOUNT(mp);
 	KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
 	if (error)
 		return;
@@ -1525,7 +1532,7 @@ devfs_first(void)
 	TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 
-	set_rootvnode(td);
+	set_rootvnode();
 
 	error = kern_symlink(td, "/", "dev", UIO_SYSSPACE);
 	if (error)
@@ -1551,7 +1558,7 @@ devfs_fixup(struct thread *td)
 	mtx_unlock(&mountlist_mtx);
 	cache_purgevfs(mp);
 
-	VFS_ROOT(mp, LK_EXCLUSIVE, &dvp, td);
+	VFS_ROOT(mp, LK_EXCLUSIVE, &dvp);
 	VI_LOCK(dvp);
 	dvp->v_iflag &= ~VI_MOUNT;
 	VI_UNLOCK(dvp);
@@ -1559,7 +1566,7 @@ devfs_fixup(struct thread *td)
 
 	/* Set up the real rootvnode, and purge the cache */
 	TAILQ_FIRST(&mountlist)->mnt_vnodecovered = NULL;
-	set_rootvnode(td);
+	set_rootvnode();
 	cache_purgevfs(rootvnode->v_mount);
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, "/dev", td);
@@ -1633,8 +1640,10 @@ vfs_opterror(struct vfsoptlist *opts, const char *fmt, ...)
 void
 vfs_mountroot(void)
 {
-	char *cp;
+	char *cp, *options;
 	int error, i, asked = 0;
+
+	options = NULL;
 
 	root_mount_prepare();
 
@@ -1652,12 +1661,14 @@ vfs_mountroot(void)
 		asked = 1;
 	}
 
+	options = getenv("vfs.root.mountfrom.options");
+
 	/*
 	 * The root filesystem information is compiled in, and we are
 	 * booted with instructions to use it.
 	 */
 	if (ctrootdevname != NULL && (boothowto & RB_DFLTROOT)) {
-		if (!vfs_mountroot_try(ctrootdevname))
+		if (!vfs_mountroot_try(ctrootdevname, options))
 			goto mounted;
 		ctrootdevname = NULL;
 	}
@@ -1669,7 +1680,7 @@ vfs_mountroot(void)
 	 */
 	if (boothowto & RB_CDROM) {
 		for (i = 0; cdrom_rootdevnames[i] != NULL; i++) {
-			if (!vfs_mountroot_try(cdrom_rootdevnames[i]))
+			if (!vfs_mountroot_try(cdrom_rootdevnames[i], options))
 				goto mounted;
 		}
 	}
@@ -1681,7 +1692,7 @@ vfs_mountroot(void)
 	 */
 	cp = getenv("vfs.root.mountfrom");
 	if (cp != NULL) {
-		error = vfs_mountroot_try(cp);
+		error = vfs_mountroot_try(cp, options);
 		freeenv(cp);
 		if (!error)
 			goto mounted;
@@ -1690,16 +1701,16 @@ vfs_mountroot(void)
 	/*
 	 * Try values that may have been computed by code during boot
 	 */
-	if (!vfs_mountroot_try(rootdevnames[0]))
+	if (!vfs_mountroot_try(rootdevnames[0], options))
 		goto mounted;
-	if (!vfs_mountroot_try(rootdevnames[1]))
+	if (!vfs_mountroot_try(rootdevnames[1], options))
 		goto mounted;
 
 	/*
 	 * If we (still) have a compiled-in default, try it.
 	 */
 	if (ctrootdevname != NULL)
-		if (!vfs_mountroot_try(ctrootdevname))
+		if (!vfs_mountroot_try(ctrootdevname, options))
 			goto mounted;
 	/*
 	 * Everything so far has failed, prompt on the console if we haven't
@@ -1713,24 +1724,75 @@ vfs_mountroot(void)
 
 mounted:
 	root_mount_done();
+	freeenv(options);
+}
+
+static struct mntarg *
+parse_mountroot_options(struct mntarg *ma, const char *options)
+{
+	char *p;
+	char *name, *name_arg;
+	char *val, *val_arg;
+	char *opts;
+
+	if (options == NULL || options[0] == '\0')
+		return (ma);
+
+	p = opts = strdup(options, M_MOUNT);
+	if (opts == NULL) {
+		return (ma);
+	} 
+
+	while((name = strsep(&p, ",")) != NULL) {
+		if (name[0] == '\0')
+			break;
+
+		val = strchr(name, '=');
+		if (val != NULL) {
+			*val = '\0';
+			++val;
+		}
+		if( strcmp(name, "rw") == 0 ||
+		    strcmp(name, "noro") == 0) {
+			/*
+			 * The first time we mount the root file system,
+			 * we need to mount 'ro', so We need to ignore
+			 * 'rw' and 'noro' mount options.
+			 */
+			continue;
+		}
+		name_arg = strdup(name, M_MOUNT);
+		val_arg = NULL;
+		if (val != NULL) 
+			val_arg = strdup(val, M_MOUNT);
+
+		ma = mount_arg(ma, name_arg, val_arg,
+		    (val_arg != NULL ? -1 : 0));
+	}
+	free(opts, M_MOUNT);
+	return (ma);
 }
 
 /*
  * Mount (mountfrom) as the root filesystem.
  */
 static int
-vfs_mountroot_try(const char *mountfrom)
+vfs_mountroot_try(const char *mountfrom, const char *options)
 {
 	struct mount	*mp;
+	struct mntarg	*ma;
 	char		*vfsname, *path;
 	time_t		timebase;
 	int		error;
 	char		patt[32];
+	char		errmsg[255];
 
 	vfsname = NULL;
 	path    = NULL;
 	mp      = NULL;
+	ma	= NULL;
 	error   = EINVAL;
+	bzero(errmsg, sizeof(errmsg));
 
 	if (mountfrom == NULL)
 		return (error);		/* don't complain */
@@ -1747,12 +1809,14 @@ vfs_mountroot_try(const char *mountfrom)
 	if (path[0] == '\0')
 		strcpy(path, ROOTNAME);
 
-	error = kernel_vmount(
-	    MNT_RDONLY | MNT_ROOTFS,
-	    "fstype", vfsname,
-	    "fspath", "/",
-	    "from", path,
-	    NULL);
+	ma = mount_arg(ma, "fstype", vfsname, -1);
+	ma = mount_arg(ma, "fspath", "/", -1);
+	ma = mount_arg(ma, "from", path, -1);
+	ma = mount_arg(ma, "errmsg", errmsg, sizeof(errmsg));
+	ma = mount_arg(ma, "ro", NULL, 0);
+	ma = parse_mountroot_options(ma, options);
+	error = kernel_mount(ma, MNT_ROOTFS);
+
 	if (error == 0) {
 		/*
 		 * We mount devfs prior to mounting the / FS, so the first
@@ -1779,6 +1843,16 @@ vfs_mountroot_try(const char *mountfrom)
 
 		devfs_fixup(curthread);
 	}
+
+	if (error != 0 ) {
+		printf("ROOT MOUNT ERROR: %s\n", errmsg);
+		printf("If you have invalid mount options, reboot, and ");
+		printf("first try the following from\n");
+		printf("the loader prompt:\n\n");
+		printf("     set vfs.root.mountfrom.options=rw\n\n");
+		printf("and then remove invalid mount options from ");
+		printf("/etc/fstab.\n\n");
+	}
 out:
 	free(path, M_MOUNT);
 	free(vfsname, M_MOUNT);
@@ -1794,15 +1868,32 @@ static int
 vfs_mountroot_ask(void)
 {
 	char name[128];
+	char *mountfrom;
+	char *options;
 
 	for(;;) {
+		printf("Loader variables:\n");
+		printf("vfs.root.mountfrom=");
+		mountfrom = getenv("vfs.root.mountfrom");
+		if (mountfrom != NULL) {
+			printf("%s", mountfrom);
+		}
+		printf("\n");
+		printf("vfs.root.mountfrom.options=");
+		options = getenv("vfs.root.mountfrom.options");
+		if (options != NULL) {
+			printf("%s", options);
+		}
+		printf("\n");
+		freeenv(mountfrom);
+		freeenv(options);
 		printf("\nManual root filesystem specification:\n");
 		printf("  <fstype>:<device>  Mount <device> using filesystem <fstype>\n");
-#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
-		printf("                       eg. ufs:da0s1a\n");
-#else
-		printf("                       eg. ufs:/dev/da0a\n");
-#endif
+		printf("                       eg. ufs:/dev/da0s1a\n");
+		printf("                       eg. cd9660:/dev/acd0\n");
+		printf("                       This is equivalent to: ");
+		printf("mount -t cd9660 /dev/acd0 /\n"); 
+		printf("\n");
 		printf("  ?                  List valid disk boot devices\n");
 		printf("  <empty line>       Abort manual input\n");
 		printf("\nmountroot> ");
@@ -1814,7 +1905,7 @@ vfs_mountroot_ask(void)
 			g_dev_print();
 			continue;
 		}
-		if (!vfs_mountroot_try(name))
+		if (!vfs_mountroot_try(name, NULL))
 			return (0);
 	}
 }
@@ -2176,11 +2267,11 @@ __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp)
 
 
 int
-__vfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+__vfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	int error;
 
-	error = mp->mnt_op->vfs_statfs(mp, &mp->mnt_stat, td);
+	error = mp->mnt_op->vfs_statfs(mp, &mp->mnt_stat);
 	if (sbp != &mp->mnt_stat)
 		*sbp = mp->mnt_stat;
 	return (error);

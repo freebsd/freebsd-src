@@ -60,6 +60,12 @@ typedef	struct _cpuset {
 		(p)->__bits[__i] = 0;			\
 } while (0)
 
+#define	CPU_FILL(p) do {				\
+	__size_t __i;					\
+	for (__i = 0; __i < _NCPUWORDS; __i++)		\
+		(p)->__bits[__i] = -1;			\
+} while (0)
+
 /* Is p empty. */
 #define	CPU_EMPTY(p) __extension__ ({			\
 	__size_t __i;					\
@@ -169,14 +175,14 @@ struct cpuset {
 #define CPU_SET_RDONLY  0x0002  /* No modification allowed. */
 
 extern cpuset_t *cpuset_root;
+struct prison;
 struct proc;
-struct thread;
 
 struct cpuset *cpuset_thread0(void);
 struct cpuset *cpuset_ref(struct cpuset *);
 void	cpuset_rel(struct cpuset *);
 int	cpuset_setthread(lwpid_t id, cpuset_t *);
-int	cpuset_create_root(struct thread *, struct cpuset **);
+int	cpuset_create_root(struct prison *, struct cpuset **);
 int	cpuset_setproc_update_set(struct proc *, struct cpuset *);
 
 #else

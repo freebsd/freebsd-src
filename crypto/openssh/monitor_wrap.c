@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.63 2008/07/10 18:08:11 markus Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.64 2008/11/04 08:22:13 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -40,6 +40,7 @@
 
 #include <openssl/bn.h>
 #include <openssl/dh.h>
+#include <openssl/evp.h>
 
 #include "openbsd-compat/sys-queue.h"
 #include "xmalloc.h"
@@ -70,7 +71,7 @@
 #include "atomicio.h"
 #include "monitor_fdpass.h"
 #include "misc.h"
-#include "servconf.h"
+#include "jpake.h"
 
 #include "channels.h"
 #include "session.h"
@@ -1256,3 +1257,165 @@ mm_ssh_gssapi_userok(char *user)
 	return (authenticated);
 }
 #endif /* GSSAPI */
+
+#ifdef JPAKE
+void
+mm_auth2_jpake_get_pwdata(Authctxt *authctxt, BIGNUM **s,
+    char **hash_scheme, char **salt)
+{
+	Buffer m;
+
+	debug3("%s entering", __func__);
+
+	buffer_init(&m);
+	mm_request_send(pmonitor->m_recvfd,
+	    MONITOR_REQ_JPAKE_GET_PWDATA, &m);
+
+	debug3("%s: waiting for MONITOR_ANS_JPAKE_GET_PWDATA", __func__);
+	mm_request_receive_expect(pmonitor->m_recvfd,
+	    MONITOR_ANS_JPAKE_GET_PWDATA, &m);
+
+	*hash_scheme = buffer_get_string(&m, NULL);
+	*salt = buffer_get_string(&m, NULL);
+
+	buffer_free(&m);
+}
+
+void
+mm_jpake_step1(struct jpake_group *grp,
+    u_char **id, u_int *id_len,
+    BIGNUM **priv1, BIGNUM **priv2, BIGNUM **g_priv1, BIGNUM **g_priv2,
+    u_char **priv1_proof, u_int *priv1_proof_len,
+    u_char **priv2_proof, u_int *priv2_proof_len)
+{
+	Buffer m;
+
+	debug3("%s entering", __func__);
+
+	buffer_init(&m);
+	mm_request_send(pmonitor->m_recvfd,
+	    MONITOR_REQ_JPAKE_STEP1, &m);
+
+	debug3("%s: waiting for MONITOR_ANS_JPAKE_STEP1", __func__);
+	mm_request_receive_expect(pmonitor->m_recvfd,
+	    MONITOR_ANS_JPAKE_STEP1, &m);
+
+	if ((*priv1 = BN_new()) == NULL ||
+	    (*priv2 = BN_new()) == NULL ||
+	    (*g_priv1 = BN_new()) == NULL ||
+	    (*g_priv2 = BN_new()) == NULL)
+		fatal("%s: BN_new", __func__);
+
+	*id = buffer_get_string(&m, id_len);
+	/* priv1 and priv2 are, well, private */
+	buffer_get_bignum2(&m, *g_priv1);
+	buffer_get_bignum2(&m, *g_priv2);
+	*priv1_proof = buffer_get_string(&m, priv1_proof_len);
+	*priv2_proof = buffer_get_string(&m, priv2_proof_len);
+
+	buffer_free(&m);
+}
+
+void
+mm_jpake_step2(struct jpake_group *grp, BIGNUM *s,
+    BIGNUM *mypub1, BIGNUM *theirpub1, BIGNUM *theirpub2, BIGNUM *mypriv2,
+    const u_char *theirid, u_int theirid_len,
+    const u_char *myid, u_int myid_len,
+    const u_char *theirpub1_proof, u_int theirpub1_proof_len,
+    const u_char *theirpub2_proof, u_int theirpub2_proof_len,
+    BIGNUM **newpub,
+    u_char **newpub_exponent_proof, u_int *newpub_exponent_proof_len)
+{
+	Buffer m;
+
+	debug3("%s entering", __func__);
+
+	buffer_init(&m);
+	/* monitor already has all bignums except theirpub1, theirpub2 */
+	buffer_put_bignum2(&m, theirpub1);
+	buffer_put_bignum2(&m, theirpub2);
+	/* monitor already knows our id */
+	buffer_put_string(&m, theirid, theirid_len);
+	buffer_put_string(&m, theirpub1_proof, theirpub1_proof_len);
+	buffer_put_string(&m, theirpub2_proof, theirpub2_proof_len);
+
+	mm_request_send(pmonitor->m_recvfd,
+	    MONITOR_REQ_JPAKE_STEP2, &m);
+
+	debug3("%s: waiting for MONITOR_ANS_JPAKE_STEP2", __func__);
+	mm_request_receive_expect(pmonitor->m_recvfd,
+	    MONITOR_ANS_JPAKE_STEP2, &m);
+
+	if ((*newpub = BN_new()) == NULL)
+		fatal("%s: BN_new", __func__);
+
+	buffer_get_bignum2(&m, *newpub);
+	*newpub_exponent_proof = buffer_get_string(&m,
+	    newpub_exponent_proof_len);
+
+	buffer_free(&m);
+}
+
+void
+mm_jpake_key_confirm(struct jpake_group *grp, BIGNUM *s, BIGNUM *step2_val,
+    BIGNUM *mypriv2, BIGNUM *mypub1, BIGNUM *mypub2,
+    BIGNUM *theirpub1, BIGNUM *theirpub2,
+    const u_char *my_id, u_int my_id_len,
+    const u_char *their_id, u_int their_id_len,
+    const u_char *sess_id, u_int sess_id_len,
+    const u_char *theirpriv2_s_proof, u_int theirpriv2_s_proof_len,
+    BIGNUM **k,
+    u_char **confirm_hash, u_int *confirm_hash_len)
+{
+	Buffer m;
+
+	debug3("%s entering", __func__);
+
+	buffer_init(&m);
+	/* monitor already has all bignums except step2_val */
+	buffer_put_bignum2(&m, step2_val);
+	/* monitor already knows all the ids */
+	buffer_put_string(&m, theirpriv2_s_proof, theirpriv2_s_proof_len);
+
+	mm_request_send(pmonitor->m_recvfd,
+	    MONITOR_REQ_JPAKE_KEY_CONFIRM, &m);
+
+	debug3("%s: waiting for MONITOR_ANS_JPAKE_KEY_CONFIRM", __func__);
+	mm_request_receive_expect(pmonitor->m_recvfd,
+	    MONITOR_ANS_JPAKE_KEY_CONFIRM, &m);
+
+	/* 'k' is sensitive and stays in the monitor */
+	*confirm_hash = buffer_get_string(&m, confirm_hash_len);
+
+	buffer_free(&m);
+}
+
+int
+mm_jpake_check_confirm(const BIGNUM *k,
+    const u_char *peer_id, u_int peer_id_len,
+    const u_char *sess_id, u_int sess_id_len,
+    const u_char *peer_confirm_hash, u_int peer_confirm_hash_len)
+{
+	Buffer m;
+	int success = 0;
+
+	debug3("%s entering", __func__);
+
+	buffer_init(&m);
+	/* k is dummy in slave, ignored */
+	/* monitor knows all the ids */
+	buffer_put_string(&m, peer_confirm_hash, peer_confirm_hash_len);
+	mm_request_send(pmonitor->m_recvfd,
+	    MONITOR_REQ_JPAKE_CHECK_CONFIRM, &m);
+
+	debug3("%s: waiting for MONITOR_ANS_JPAKE_CHECK_CONFIRM", __func__);
+	mm_request_receive_expect(pmonitor->m_recvfd,
+	    MONITOR_ANS_JPAKE_CHECK_CONFIRM, &m);
+
+	success = buffer_get_int(&m);
+	buffer_free(&m);
+
+	debug3("%s: success = %d", __func__, success);
+	return success;
+}
+#endif /* JPAKE */

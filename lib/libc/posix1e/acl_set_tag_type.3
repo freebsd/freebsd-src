@@ -46,6 +46,18 @@ is a POSIX.1e call that sets the ACL tag type of ACL entry
 .Fa entry_d
 to the value of
 .Fa tag_type .
+.Pp
+Valid values are:
+.Pp
+.Bl -column -offset 3n "ACL_EVERYONE"
+.It ACL_USER_OBJ	Permissions apply to file owner
+.It ACL_USER		Permissions apply to additional user specified by qualifier
+.It ACL_GROUP_OBJ	Permissions apply to file group
+.It ACL_GROUP		Permissions apply to additional group specified by qualifier
+.It ACL_MASK		Permissions specify mask
+.It ACL_OTHER		Permissions apply to "other"
+.It ACL_OTHER_OBJ	Same as ACL_OTHER
+.El
 .Sh RETURN VALUES
 .Rv -std acl_set_tag_type
 .Sh ERRORS

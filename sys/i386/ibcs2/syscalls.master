@@ -79,10 +79,8 @@
 29	AUE_NULL	STD	{ int ibcs2_pause(void); }
 30	AUE_NULL	STD	{ int ibcs2_utime(char *path, \
 				    struct ibcs2_utimbuf *buf); }
-31	AUE_NULL	STD	{ int ibcs2_stty(int fd, \
-				    struct sgttyb *buf); }
-32	AUE_NULL	STD	{ int ibcs2_gtty(int fd, \
-				    struct sgttyb *buf); }
+31	AUE_NULL	UNIMPL	ibcs2_stty
+32	AUE_NULL	UNIMPL	ibcs2_gtty
 33	AUE_ACCESS	STD	{ int ibcs2_access(char *path, int flags); }
 34	AUE_NICE	STD	{ int ibcs2_nice(int incr); }
 35	AUE_STATFS	STD	{ int ibcs2_statfs(char *path, \

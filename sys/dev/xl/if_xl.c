@@ -228,7 +228,7 @@ static int xl_newbuf(struct xl_softc *, struct xl_chain_onefrag *);
 static void xl_stats_update(void *);
 static void xl_stats_update_locked(struct xl_softc *);
 static int xl_encap(struct xl_softc *, struct xl_chain *, struct mbuf **);
-static void xl_rxeof(struct xl_softc *);
+static int xl_rxeof(struct xl_softc *);
 static void xl_rxeof_task(void *, int);
 static int xl_rx_resync(struct xl_softc *);
 static void xl_txeof(struct xl_softc *);
@@ -248,8 +248,8 @@ static int xl_suspend(device_t);
 static int xl_resume(device_t);
 
 #ifdef DEVICE_POLLING
-static void xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
-static void xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static int xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static int xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
 
 static int xl_ifmedia_upd(struct ifnet *);
@@ -797,32 +797,6 @@ xl_setmulti_hash(struct xl_softc *sc)
 
 	CSR_WRITE_2(sc, XL_COMMAND, rxfilt | XL_CMD_RX_SET_FILT);
 }
-
-#ifdef notdef
-static void
-xl_testpacket(struct xl_softc *sc)
-{
-	struct mbuf		*m;
-	struct ifnet		*ifp = sc->xl_ifp;
-
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-
-	if (m == NULL)
-		return;
-
-	bcopy(IF_LLADDR(sc->xl_ifp),
-		mtod(m, struct ether_header *)->ether_dhost, ETHER_ADDR_LEN);
-	bcopy(IF_LLADDR(sc->xl_ifp),
-		mtod(m, struct ether_header *)->ether_shost, ETHER_ADDR_LEN);
-	mtod(m, struct ether_header *)->ether_type = htons(3);
-	mtod(m, unsigned char *)[14] = 0;
-	mtod(m, unsigned char *)[15] = 0;
-	mtod(m, unsigned char *)[16] = 0xE3;
-	m->m_len = m->m_pkthdr.len = sizeof(struct ether_header) + 3;
-	IFQ_ENQUEUE(&ifp->if_snd, m);
-	xl_start(ifp);
-}
-#endif
 
 static void
 xl_setcfg(struct xl_softc *sc)
@@ -1908,13 +1882,14 @@ xl_rx_resync(struct xl_softc *sc)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void
+static int
 xl_rxeof(struct xl_softc *sc)
 {
 	struct mbuf		*m;
 	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_chain_onefrag	*cur_rx;
 	int			total_len = 0;
+	int			rx_npkts = 0;
 	u_int32_t		rxstat;
 
 	XL_LOCK_ASSERT(sc);
@@ -2016,6 +1991,7 @@ again:
 		XL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		XL_LOCK(sc);
+		rx_npkts++;
 
 		/*
 		 * If we are running from the taskqueue, the interface
@@ -2023,7 +1999,7 @@ again:
 		 * packet up the network stack.
 		 */
 		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-			return;
+			return (rx_npkts);
 	}
 
 	/*
@@ -2047,6 +2023,7 @@ again:
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_UP_UNSTALL);
 		goto again;
 	}
+	return (rx_npkts);
 }
 
 /*
@@ -2097,13 +2074,13 @@ xl_txeof(struct xl_softc *sc)
 		m_freem(cur_tx->xl_mbuf);
 		cur_tx->xl_mbuf = NULL;
 		ifp->if_opackets++;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		cur_tx->xl_next = sc->xl_cdata.xl_tx_free;
 		sc->xl_cdata.xl_tx_free = cur_tx;
 	}
 
 	if (sc->xl_cdata.xl_tx_head == NULL) {
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->xl_wdog_timer = 0;
 		sc->xl_cdata.xl_tx_tail = NULL;
 	} else {
@@ -2291,26 +2268,29 @@ xl_intr(void *arg)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct xl_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	XL_LOCK(sc);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		xl_poll_locked(ifp, cmd, count);
+		rx_npkts = xl_poll_locked(ifp, cmd, count);
 	XL_UNLOCK(sc);
+	return (rx_npkts);
 }
 
-static void
+static int
 xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct xl_softc *sc = ifp->if_softc;
+	int rx_npkts;
 
 	XL_LOCK_ASSERT(sc);
 
 	sc->rxcycles = count;
-	xl_rxeof(sc);
+	rx_npkts = xl_rxeof(sc);
 	if (sc->xl_type == XL_TYPE_905B)
 		xl_txeof_90xB(sc);
 	else
@@ -2348,6 +2328,7 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			}
 		}
 	}
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -2540,6 +2521,9 @@ xl_start_locked(struct ifnet *ifp)
 
 	XL_LOCK_ASSERT(sc);
 
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
+		return;
 	/*
 	 * Check for an available queue slot. If there are none,
 	 * punt.
@@ -2668,7 +2652,8 @@ xl_start_90xB_locked(struct ifnet *ifp)
 
 	XL_LOCK_ASSERT(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
 	idx = sc->xl_cdata.xl_tx_prod;
@@ -3207,11 +3192,30 @@ xl_watchdog(struct xl_softc *sc)
 {
 	struct ifnet		*ifp = sc->xl_ifp;
 	u_int16_t		status = 0;
+	int			misintr;
 
 	XL_LOCK_ASSERT(sc);
 
 	if (sc->xl_wdog_timer == 0 || --sc->xl_wdog_timer != 0)
 		return (0);
+
+	xl_rxeof(sc);
+	xl_txeoc(sc);
+	misintr = 0;
+	if (sc->xl_type == XL_TYPE_905B) {
+		xl_txeof_90xB(sc);
+		if (sc->xl_cdata.xl_tx_cnt == 0)
+			misintr++;
+	} else {
+		xl_txeof(sc);
+		if (sc->xl_cdata.xl_tx_head == NULL)
+			misintr++;
+	}
+	if (misintr != 0) {
+		device_printf(sc->xl_dev,
+		    "watchdog timeout (missed Tx interrupts) -- recovering\n");
+		return (0);
+	}
 
 	ifp->if_oerrors++;
 	XL_SEL_WIN(4);
@@ -3222,9 +3226,6 @@ xl_watchdog(struct xl_softc *sc)
 		device_printf(sc->xl_dev,
 		    "no carrier - transceiver cable problem?\n");
 
-	xl_txeoc(sc);
-	xl_txeof(sc);
-	xl_rxeof(sc);
 	xl_reset(sc);
 	xl_init_locked(sc);
 

@@ -1571,7 +1571,7 @@ static void core_interrupt(void *, int);
 static void user_interrupt(softc_t *, int);
 #if BSD
 # if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
-static void fbsd_poll(struct ifnet *, enum poll_cmd, int);
+static int fbsd_poll(struct ifnet *, enum poll_cmd, int);
 # endif
 static intr_return_t bsd_interrupt(void *);
 #endif /* BSD */
@@ -1595,7 +1595,7 @@ static int lmc_raw_ioctl(struct ifnet *, u_long, caddr_t);
 static int lmc_ifnet_ioctl(struct ifnet *, u_long, caddr_t);
 static void lmc_ifnet_start(struct ifnet *);
 static int lmc_raw_output(struct ifnet *, struct mbuf *,
- struct sockaddr *, struct rtentry *);
+ struct sockaddr *, struct route *);
 static void lmc_ifnet_watchdog(struct ifnet *);
 # ifdef __OpenBSD__
 static int ifmedia_change(struct ifnet *);

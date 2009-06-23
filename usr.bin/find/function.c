@@ -427,10 +427,12 @@ f_delete(PLAN *plan __unused, FTSENT *entry)
 
 	/* sanity check */
 	if (isdepth == 0 ||			/* depth off */
-	    (ftsoptions & FTS_NOSTAT) ||	/* not stat()ing */
-	    !(ftsoptions & FTS_PHYSICAL) ||	/* physical off */
-	    (ftsoptions & FTS_LOGICAL))		/* or finally, logical on */
+	    (ftsoptions & FTS_NOSTAT))		/* not stat()ing */
 		errx(1, "-delete: insecure options got turned on");
+
+	if (!(ftsoptions & FTS_PHYSICAL) ||	/* physical off */
+	    (ftsoptions & FTS_LOGICAL))		/* or finally, logical on */
+		errx(1, "-delete: forbidden when symlinks are followed");
 
 	/* Potentially unsafe - do not accept relative paths whatsoever */
 	if (strchr(entry->fts_accpath, '/') != NULL)
@@ -441,7 +443,7 @@ f_delete(PLAN *plan __unused, FTSENT *entry)
 	if ((entry->fts_statp->st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 	    !(entry->fts_statp->st_flags & (SF_APPEND|SF_IMMUTABLE)) &&
 	    geteuid() == 0)
-		chflags(entry->fts_accpath,
+		lchflags(entry->fts_accpath,
 		       entry->fts_statp->st_flags &= ~(UF_APPEND|UF_IMMUTABLE));
 
 	/* rmdir directories, unlink everything else */
@@ -462,8 +464,6 @@ c_delete(OPTION *option, char ***argvp __unused)
 {
 
 	ftsoptions &= ~FTS_NOSTAT;	/* no optimise */
-	ftsoptions |= FTS_PHYSICAL;	/* disable -follow */
-	ftsoptions &= ~FTS_LOGICAL;	/* disable -follow */
 	isoutput = 1;			/* possible output */
 	isdepth = 1;			/* -depth implied */
 

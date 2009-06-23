@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2004-2006 Robert N. M. Watson
+ * Copyright (c) 2004-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -89,26 +89,21 @@ __FBSDID("$FreeBSD$");
 #include <netipx/spx_timer.h>
 #include <netipx/spx_var.h>
 
+#include <security/mac/mac_framework.h>
+
 /*
  * SPX protocol implementation.
  */
 static struct	mtx spx_mtx;			/* Protects only spx_iss. */
 static u_short 	spx_iss;
-static u_short	spx_newchecks[50];
+u_short		spx_newchecks[50];
 static int	spx_hardnosed;
-static int	spx_use_delack = 0;
 static int	traceallspxs = 0;
-static struct	spx_istat spx_istat;
-static int	spxrexmtthresh = 3;
+struct	spx_istat spx_istat;
 
 #define	SPX_LOCK_INIT()	mtx_init(&spx_mtx, "spx_mtx", NULL, MTX_DEF)
 #define	SPX_LOCK()	mtx_lock(&spx_mtx)
 #define	SPX_UNLOCK()	mtx_unlock(&spx_mtx)
-
-/* Following was struct spxstat spxstat; */
-#ifndef spxstat
-#define spxstat spx_istat.newstats
-#endif
 
 static const int spx_backoff[SPX_MAXRXTSHIFT+1] =
     { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
@@ -116,8 +111,6 @@ static const int spx_backoff[SPX_MAXRXTSHIFT+1] =
 static	void spx_close(struct spxpcb *cb);
 static	void spx_disconnect(struct spxpcb *cb);
 static	void spx_drop(struct spxpcb *cb, int errno);
-static	int spx_output(struct spxpcb *cb, struct mbuf *m0);
-static	int spx_reass(struct spxpcb *cb, struct spx *si);
 static	void spx_setpersist(struct spxpcb *cb);
 static	void spx_template(struct spxpcb *cb);
 static	void spx_timers(struct spxpcb *cb, int timer);
@@ -231,6 +224,11 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 
 	so = ipxp->ipxp_socket;
 	KASSERT(so != NULL, ("spx_input: so == NULL"));
+
+#ifdef MAC
+	if (mac_socket_check_deliver(so, m) != 0)
+		goto drop;
+#endif
 
 	if (so->so_options & SO_DEBUG || traceallspxs) {
 		ostate = cb->s_state;
@@ -385,7 +383,7 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 	m->m_pkthdr.len -= sizeof(struct ipx);
 	m->m_data += sizeof(struct ipx);
 
-	if (spx_reass(cb, si))
+	if (spx_reass(cb, m, si))
 		m_freem(m);
 	if (cb->s_force || (cb->s_flags & (SF_ACKNOW|SF_WIN|SF_RXT)))
 		spx_output(cb, NULL);
@@ -426,320 +424,6 @@ drop:
 	m_freem(m);
 }
 
-/*
- * This is structurally similar to the tcp reassembly routine but its
- * function is somewhat different: it merely queues packets up, and
- * suppresses duplicates.
- */
-static int
-spx_reass(struct spxpcb *cb, struct spx *si)
-{
-	struct spx_q *q;
-	struct mbuf *m;
-	struct socket *so = cb->s_ipxpcb->ipxp_socket;
-	char packetp = cb->s_flags & SF_HI;
-	int incr;
-	char wakeup = 0;
-
-	IPX_LOCK_ASSERT(cb->s_ipxpcb);
-
-	if (si == SI(0))
-		goto present;
-
-	/*
-	 * Update our news from them.
-	 */
-	if (si->si_cc & SPX_SA)
-		cb->s_flags |= (spx_use_delack ? SF_DELACK : SF_ACKNOW);
-	if (SSEQ_GT(si->si_alo, cb->s_ralo))
-		cb->s_flags |= SF_WIN;
-	if (SSEQ_LEQ(si->si_ack, cb->s_rack)) {
-		if ((si->si_cc & SPX_SP) && cb->s_rack != (cb->s_smax + 1)) {
-			spxstat.spxs_rcvdupack++;
-
-			/*
-			 * If this is a completely duplicate ack and other
-			 * conditions hold, we assume a packet has been
-			 * dropped and retransmit it exactly as in
-			 * tcp_input().
-			 */
-			if (si->si_ack != cb->s_rack ||
-			    si->si_alo != cb->s_ralo)
-				cb->s_dupacks = 0;
-			else if (++cb->s_dupacks == spxrexmtthresh) {
-				u_short onxt = cb->s_snxt;
-				int cwnd = cb->s_cwnd;
-
-				cb->s_snxt = si->si_ack;
-				cb->s_cwnd = CUNIT;
-				cb->s_force = 1 + SPXT_REXMT;
-				spx_output(cb, NULL);
-				cb->s_timer[SPXT_REXMT] = cb->s_rxtcur;
-				cb->s_rtt = 0;
-				if (cwnd >= 4 * CUNIT)
-					cb->s_cwnd = cwnd / 2;
-				if (SSEQ_GT(onxt, cb->s_snxt))
-					cb->s_snxt = onxt;
-				return (1);
-			}
-		} else
-			cb->s_dupacks = 0;
-		goto update_window;
-	}
-	cb->s_dupacks = 0;
-
-	/*
-	 * If our correspondent acknowledges data we haven't sent TCP would
-	 * drop the packet after acking.  We'll be a little more permissive.
-	 */
-	if (SSEQ_GT(si->si_ack, (cb->s_smax + 1))) {
-		spxstat.spxs_rcvacktoomuch++;
-		si->si_ack = cb->s_smax + 1;
-	}
-	spxstat.spxs_rcvackpack++;
-
-	/*
-	 * If transmit timer is running and timed sequence number was acked,
-	 * update smoothed round trip time.  See discussion of algorithm in
-	 * tcp_input.c
-	 */
-	if (cb->s_rtt && SSEQ_GT(si->si_ack, cb->s_rtseq)) {
-		spxstat.spxs_rttupdated++;
-		if (cb->s_srtt != 0) {
-			short delta;
-			delta = cb->s_rtt - (cb->s_srtt >> 3);
-			if ((cb->s_srtt += delta) <= 0)
-				cb->s_srtt = 1;
-			if (delta < 0)
-				delta = -delta;
-			delta -= (cb->s_rttvar >> 2);
-			if ((cb->s_rttvar += delta) <= 0)
-				cb->s_rttvar = 1;
-		} else {
-			/*
-			 * No rtt measurement yet.
-			 */
-			cb->s_srtt = cb->s_rtt << 3;
-			cb->s_rttvar = cb->s_rtt << 1;
-		}
-		cb->s_rtt = 0;
-		cb->s_rxtshift = 0;
-		SPXT_RANGESET(cb->s_rxtcur,
-			((cb->s_srtt >> 2) + cb->s_rttvar) >> 1,
-			SPXTV_MIN, SPXTV_REXMTMAX);
-	}
-
-	/*
-	 * If all outstanding data is acked, stop retransmit timer and
-	 * remember to restart (more output or persist).  If there is more
-	 * data to be acked, restart retransmit timer, using current
-	 * (possibly backed-off) value;
-	 */
-	if (si->si_ack == cb->s_smax + 1) {
-		cb->s_timer[SPXT_REXMT] = 0;
-		cb->s_flags |= SF_RXT;
-	} else if (cb->s_timer[SPXT_PERSIST] == 0)
-		cb->s_timer[SPXT_REXMT] = cb->s_rxtcur;
-
-	/*
-	 * When new data is acked, open the congestion window.  If the window
-	 * gives us less than ssthresh packets in flight, open exponentially
-	 * (maxseg at a time).  Otherwise open linearly (maxseg^2 / cwnd at a
-	 * time).
-	 */
-	incr = CUNIT;
-	if (cb->s_cwnd > cb->s_ssthresh)
-		incr = max(incr * incr / cb->s_cwnd, 1);
-	cb->s_cwnd = min(cb->s_cwnd + incr, cb->s_cwmx);
-
-	/*
-	 * Trim Acked data from output queue.
-	 */
-	SOCKBUF_LOCK(&so->so_snd);
-	while ((m = so->so_snd.sb_mb) != NULL) {
-		if (SSEQ_LT((mtod(m, struct spx *))->si_seq, si->si_ack))
-			sbdroprecord_locked(&so->so_snd);
-		else
-			break;
-	}
-	sowwakeup_locked(so);
-	cb->s_rack = si->si_ack;
-update_window:
-	if (SSEQ_LT(cb->s_snxt, cb->s_rack))
-		cb->s_snxt = cb->s_rack;
-	if (SSEQ_LT(cb->s_swl1, si->si_seq) || ((cb->s_swl1 == si->si_seq &&
-	    (SSEQ_LT(cb->s_swl2, si->si_ack))) ||
-	     (cb->s_swl2 == si->si_ack && SSEQ_LT(cb->s_ralo, si->si_alo)))) {
-		/* keep track of pure window updates */
-		if ((si->si_cc & SPX_SP) && cb->s_swl2 == si->si_ack
-		    && SSEQ_LT(cb->s_ralo, si->si_alo)) {
-			spxstat.spxs_rcvwinupd++;
-			spxstat.spxs_rcvdupack--;
-		}
-		cb->s_ralo = si->si_alo;
-		cb->s_swl1 = si->si_seq;
-		cb->s_swl2 = si->si_ack;
-		cb->s_swnd = (1 + si->si_alo - si->si_ack);
-		if (cb->s_swnd > cb->s_smxw)
-			cb->s_smxw = cb->s_swnd;
-		cb->s_flags |= SF_WIN;
-	}
-
-	/*
-	 * If this packet number is higher than that which we have allocated
-	 * refuse it, unless urgent.
-	 */
-	if (SSEQ_GT(si->si_seq, cb->s_alo)) {
-		if (si->si_cc & SPX_SP) {
-			spxstat.spxs_rcvwinprobe++;
-			return (1);
-		} else
-			spxstat.spxs_rcvpackafterwin++;
-		if (si->si_cc & SPX_OB) {
-			if (SSEQ_GT(si->si_seq, cb->s_alo + 60))
-				return (1); /* else queue this packet; */
-		} else {
-#ifdef BROKEN
-			/*
-			 * XXXRW: This is broken on at least one count:
-			 * spx_close() will free the ipxp and related parts,
-			 * which are then touched by spx_input() after the
-			 * return from spx_reass().
-			 */
-			/*struct socket *so = cb->s_ipxpcb->ipxp_socket;
-			if (so->so_state && SS_NOFDREF) {
-				spx_close(cb);
-			} else
-				       would crash system*/
-#endif
-			spx_istat.notyet++;
-			return (1);
-		}
-	}
-
-	/*
-	 * If this is a system packet, we don't need to queue it up, and
-	 * won't update acknowledge #.
-	 */
-	if (si->si_cc & SPX_SP)
-		return (1);
-
-	/*
-	 * We have already seen this packet, so drop.
-	 */
-	if (SSEQ_LT(si->si_seq, cb->s_ack)) {
-		spx_istat.bdreas++;
-		spxstat.spxs_rcvduppack++;
-		if (si->si_seq == cb->s_ack - 1)
-			spx_istat.lstdup++;
-		return (1);
-	}
-
-	/*
-	 * Loop through all packets queued up to insert in appropriate
-	 * sequence.
-	 */
-	for (q = cb->s_q.si_next; q != &cb->s_q; q = q->si_next) {
-		if (si->si_seq == SI(q)->si_seq) {
-			spxstat.spxs_rcvduppack++;
-			return (1);
-		}
-		if (SSEQ_LT(si->si_seq, SI(q)->si_seq)) {
-			spxstat.spxs_rcvoopack++;
-			break;
-		}
-	}
-	insque(si, q->si_prev);
-
-	/*
-	 * If this packet is urgent, inform process
-	 */
-	if (si->si_cc & SPX_OB) {
-		cb->s_iobc = ((char *)si)[1 + sizeof(*si)];
-		sohasoutofband(so);
-		cb->s_oobflags |= SF_IOOB;
-	}
-present:
-#define SPINC sizeof(struct spxhdr)
-	SOCKBUF_LOCK(&so->so_rcv);
-
-	/*
-	 * Loop through all packets queued up to update acknowledge number,
-	 * and present all acknowledged data to user; if in packet interface
-	 * mode, show packet headers.
-	 */
-	for (q = cb->s_q.si_next; q != &cb->s_q; q = q->si_next) {
-		  if (SI(q)->si_seq == cb->s_ack) {
-			cb->s_ack++;
-			m = dtom(q);
-			if (SI(q)->si_cc & SPX_OB) {
-				cb->s_oobflags &= ~SF_IOOB;
-				if (so->so_rcv.sb_cc)
-					so->so_oobmark = so->so_rcv.sb_cc;
-				else
-					so->so_rcv.sb_state |= SBS_RCVATMARK;
-			}
-			q = q->si_prev;
-			remque(q->si_next);
-			wakeup = 1;
-			spxstat.spxs_rcvpack++;
-#ifdef SF_NEWCALL
-			if (cb->s_flags2 & SF_NEWCALL) {
-				struct spxhdr *sp = mtod(m, struct spxhdr *);
-				u_char dt = sp->spx_dt;
-				spx_newchecks[4]++;
-				if (dt != cb->s_rhdr.spx_dt) {
-					struct mbuf *mm =
-					   m_getclr(M_DONTWAIT, MT_CONTROL);
-					spx_newchecks[0]++;
-					if (mm != NULL) {
-						u_short *s =
-							mtod(mm, u_short *);
-						cb->s_rhdr.spx_dt = dt;
-						mm->m_len = 5; /*XXX*/
-						s[0] = 5;
-						s[1] = 1;
-						*(u_char *)(&s[2]) = dt;
-						sbappend_locked(&so->so_rcv, mm);
-					}
-				}
-				if (sp->spx_cc & SPX_OB) {
-					MCHTYPE(m, MT_OOBDATA);
-					spx_newchecks[1]++;
-					so->so_oobmark = 0;
-					so->so_rcv.sb_state &= ~SBS_RCVATMARK;
-				}
-				if (packetp == 0) {
-					m->m_data += SPINC;
-					m->m_len -= SPINC;
-					m->m_pkthdr.len -= SPINC;
-				}
-				if ((sp->spx_cc & SPX_EM) || packetp) {
-					sbappendrecord_locked(&so->so_rcv, m);
-					spx_newchecks[9]++;
-				} else
-					sbappend_locked(&so->so_rcv, m);
-			} else
-#endif
-			if (packetp)
-				sbappendrecord_locked(&so->so_rcv, m);
-			else {
-				cb->s_rhdr = *mtod(m, struct spxhdr *);
-				m->m_data += SPINC;
-				m->m_len -= SPINC;
-				m->m_pkthdr.len -= SPINC;
-				sbappend_locked(&so->so_rcv, m);
-			}
-		  } else
-			break;
-	}
-	if (wakeup)
-		sorwakeup_locked(so);
-	else
-		SOCKBUF_UNLOCK(&so->so_rcv);
-	return (0);
-}
-
 void
 spx_ctlinput(int cmd, struct sockaddr *arg_as_sa, void *dummy)
 {
@@ -747,11 +431,11 @@ spx_ctlinput(int cmd, struct sockaddr *arg_as_sa, void *dummy)
 	/* Currently, nothing. */
 }
 
-static int
+int
 spx_output(struct spxpcb *cb, struct mbuf *m0)
 {
 	struct socket *so = cb->s_ipxpcb->ipxp_socket;
-	struct mbuf *m;
+	struct mbuf *m = NULL;
 	struct spx *si = NULL;
 	struct sockbuf *sb = &so->so_snd;
 	int len = 0, win, rcv_win;
@@ -850,7 +534,7 @@ spx_output(struct spxpcb *cb, struct mbuf *m0)
 		m->m_len = sizeof(struct spx);
 		m->m_next = m0;
 		si = mtod(m, struct spx *);
-		si->si_i = *cb->s_ipx;
+		si->si_i = cb->s_ipx;
 		si->si_s = cb->s_shdr;
 		if ((cb->s_flags & SF_PI) && (cb->s_flags & SF_HO)) {
 			struct spxhdr *sh;
@@ -1000,20 +684,23 @@ send:
 	/*
 	 * Find requested packet.
 	 */
-	si = 0;
+	si = NULL;
+	m = NULL;
 	if (len > 0) {
 		cb->s_want = cb->s_snxt;
-		for (m = sb->sb_mb; m != NULL; m = m->m_act) {
+		for (m = sb->sb_mb; m != NULL; m = m->m_nextpkt) {
 			si = mtod(m, struct spx *);
 			if (SSEQ_LEQ(cb->s_snxt, si->si_seq))
 				break;
 		}
 	found:
 		if (si != NULL) {
-			if (si->si_seq == cb->s_snxt)
-					cb->s_snxt++;
-				else
-					spxstat.spxs_sndvoid++, si = 0;
+			if (si->si_seq != cb->s_snxt) {
+				spxstat.spxs_sndvoid++;
+				si = NULL;
+				m = NULL;
+			} else
+				cb->s_snxt++;
 		}
 	}
 
@@ -1026,12 +713,12 @@ send:
 	if (SSEQ_LT(alo, cb->s_alo))
 		alo = cb->s_alo;
 
-	if (si != NULL) {
+	if (m != NULL) {
 		/*
 		 * Must make a copy of this packet for ipx_output to monkey
 		 * with.
 		 */
-		m = m_copy(dtom(si), 0, (int)M_COPYALL);
+		m = m_copy(m, 0, M_COPYALL);
 		if (m == NULL)
 			return (ENOBUFS);
 		si = mtod(m, struct spx *);
@@ -1059,7 +746,7 @@ send:
 		m->m_len = sizeof(*si);
 		m->m_pkthdr.len = sizeof(*si);
 		si = mtod(m, struct spx *);
-		si->si_i = *cb->s_ipx;
+		si->si_i = cb->s_ipx;
 		si->si_s = cb->s_shdr;
 		si->si_seq = cb->s_smax + 1;
 		si->si_len = htons(sizeof(*si));
@@ -1132,6 +819,10 @@ send:
 	cb->s_outx = 4;
 	if (so->so_options & SO_DEBUG || traceallspxs)
 		spx_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
+
+#ifdef MAC
+	mac_socket_create_mbuf(so, m);
+#endif
 
 	if (so->so_options & SO_DONTROUTE)
 		error = ipx_outputfl(m, NULL, IPX_ROUTETOIF);
@@ -1417,11 +1108,10 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	ipxp = sotoipxpcb(so);
 	ipxp->ipxp_flags |= IPXP_SPX;
 
-	cb->s_ipx = mtod(mm, struct ipx *);
 	cb->s_state = TCPS_LISTEN;
 	cb->s_smax = -1;
 	cb->s_swl1 = -1;
-	cb->s_q.si_next = cb->s_q.si_prev = &cb->s_q;
+	spx_reass_init(cb);
 	cb->s_ipxpcb = ipxp;
 	cb->s_mtu = 576 - sizeof(struct spx);
 	sb = &so->so_snd;
@@ -1447,22 +1137,13 @@ static void
 spx_pcbdetach(struct ipxpcb *ipxp)
 {
 	struct spxpcb *cb;
-	struct spx_q *s;
-	struct mbuf *m;
 
 	IPX_LOCK_ASSERT(ipxp);
 
 	cb = ipxtospxpcb(ipxp);
 	KASSERT(cb != NULL, ("spx_pcbdetach: cb == NULL"));
 
-	s = cb->s_q.si_next;
-	while (s != &(cb->s_q)) {
-		s = s->si_next;
-		remque(s);
-		m = dtom(s);
-		m_freem(m);
-	}
-	m_free(dtom(cb->s_ipx));
+	spx_reass_flush(cb);
 	free(cb, M_PCB);
 	ipxp->ipxp_pcb = NULL;
 }
@@ -1583,6 +1264,7 @@ spx_detach(struct socket *so)
 	IPX_LIST_LOCK();
 	IPX_LOCK(ipxp);
 	spx_pcbdetach(ipxp);
+	ipx_pcbdetach(ipxp);
 	ipx_pcbfree(ipxp);
 	IPX_LIST_UNLOCK();
 }
@@ -1828,14 +1510,13 @@ static void
 spx_template(struct spxpcb *cb)
 {
 	struct ipxpcb *ipxp = cb->s_ipxpcb;
-	struct ipx *ipx = cb->s_ipx;
 	struct sockbuf *sb = &(ipxp->ipxp_socket->so_snd);
 
 	IPX_LOCK_ASSERT(ipxp);
 
-	ipx->ipx_pt = IPXPROTO_SPX;
-	ipx->ipx_sna = ipxp->ipxp_laddr;
-	ipx->ipx_dna = ipxp->ipxp_faddr;
+	cb->s_ipx.ipx_pt = IPXPROTO_SPX;
+	cb->s_ipx.ipx_sna = ipxp->ipxp_laddr;
+	cb->s_ipx.ipx_dna = ipxp->ipxp_faddr;
 	SPX_LOCK();
 	cb->s_sid = htons(spx_iss);
 	spx_iss += SPX_ISSINCR/2;
@@ -1857,8 +1538,7 @@ spx_template(struct spxpcb *cb)
 
 /*
  * Close a SPIP control block.  Wake up any sleepers.  We used to free any
- * queued packets and cb->s_ipx here, but now we defer that until the pcb is
- * discarded.
+ * queued packets, but now we defer that until the pcb is discarded.
  */
 void
 spx_close(struct spxpcb *cb)

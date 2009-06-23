@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_ioctl.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_core.h>
+#include <dev/usb/usbdi.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -543,7 +543,7 @@ ndis_free_bufs(b0)
 
 	return;
 }
-int in_reset = 0;
+
 void
 ndis_free_packet(p)
 	ndis_packet		*p;

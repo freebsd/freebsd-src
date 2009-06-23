@@ -179,7 +179,6 @@ passasync(void *callback_arg, u_int32_t code,
 	  struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
-	struct cam_sim *sim;
 
 	periph = (struct cam_periph *)callback_arg;
 
@@ -198,7 +197,6 @@ passasync(void *callback_arg, u_int32_t code,
 		 * this device and start the probe
 		 * process.
 		 */
-		sim = xpt_path_sim(cgd->ccb_h.path);
 		status = cam_periph_alloc(passregister, passoninvalidate,
 					  passcleanup, passstart, "pass",
 					  CAM_PERIPH_BIO, cgd->ccb_h.path,

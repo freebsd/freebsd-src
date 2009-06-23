@@ -29,8 +29,8 @@ makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=strongarm
-options		DDB
-options		KDB
+options 	DDB
+options 	KDB
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
@@ -40,7 +40,7 @@ options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 options 	MD_ROOT			#MD is a potential root device
-options		ROOTDEVNAME=\"ufs:md0\"
+options 	ROOTDEVNAME=\"ufs:md0\"
 options 	NFSCLIENT		#Network Filesystem Client
 options 	NFSSERVER		#Network Filesystem Server
 options 	NFSLOCKD		#Network Lock Manager
@@ -68,4 +68,4 @@ device		uart
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
-device md
+device		md

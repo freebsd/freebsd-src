@@ -136,6 +136,8 @@
         ..
         msdosfs
         ..
+        nfs
+        ..
         ntfs
         ..
         nullfs
@@ -194,12 +196,6 @@
         ..
     ..
     kadm5
-    ..
-    legacy
-        dev
-            usb
-            ..
-        ..
     ..
     libmilter
     ..

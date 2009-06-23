@@ -31,7 +31,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/blist.h>
@@ -64,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #include <sys/cpuset.h>
-#include <sys/vimage.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -91,6 +89,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_sysproto.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
+
+int stclohz;				/* Statistics clock frequency */
 
 #define BSD_TO_LINUX_SIGNAL(sig)	\
 	(((sig) <= LINUX_SIGTBLSZ) ? bsd_to_linux_signal[_SIG_IDX(sig)] : sig)
@@ -653,15 +653,25 @@ linux_time(struct thread *td, struct linux_time_args *args)
 }
 
 struct l_times_argv {
-	l_long	tms_utime;
-	l_long	tms_stime;
-	l_long	tms_cutime;
-	l_long	tms_cstime;
+	l_clock_t	tms_utime;
+	l_clock_t	tms_stime;
+	l_clock_t	tms_cutime;
+	l_clock_t	tms_cstime;
 };
 
-#define CLK_TCK 100			/* Linux uses 100 */
 
-#define CONVTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
+/*
+ * Glibc versions prior to 2.2.1 always use hard-coded CLK_TCK value.
+ * Since 2.2.1 Glibc uses value exported from kernel via AT_CLKTCK
+ * auxiliary vector entry.
+ */
+#define	CLK_TCK		100
+
+#define	CONVOTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
+#define	CONVNTCK(r)	(r.tv_sec * stclohz + r.tv_usec / (1000000 / stclohz))
+
+#define	CONVTCK(r)	(linux_kernver(td) >= LINUX_KERNVER_2004000 ?		\
+			    CONVNTCK(r) : CONVOTCK(r))
 
 int
 linux_times(struct thread *td, struct linux_times_args *args)
@@ -703,7 +713,6 @@ linux_times(struct thread *td, struct linux_times_args *args)
 int
 linux_newuname(struct thread *td, struct linux_newuname_args *args)
 {
-	INIT_VPROCG(TD_TO_VPROCG(td));
 	struct l_new_utsname utsname;
 	char osname[LINUX_MAX_UTSNAME];
 	char osrelease[LINUX_MAX_UTSNAME];
@@ -720,6 +729,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	bzero(&utsname, sizeof(utsname));
 	strlcpy(utsname.sysname, osname, LINUX_MAX_UTSNAME);
 	getcredhostname(td->td_ucred, utsname.nodename, LINUX_MAX_UTSNAME);
+	getcreddomainname(td->td_ucred, utsname.domainname, LINUX_MAX_UTSNAME);
 	strlcpy(utsname.release, osrelease, LINUX_MAX_UTSNAME);
 	strlcpy(utsname.version, version, LINUX_MAX_UTSNAME);
 	for (p = utsname.version; *p != '\0'; ++p)
@@ -728,10 +738,6 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 			break;
 		}
 	strlcpy(utsname.machine, linux_platform, LINUX_MAX_UTSNAME);
-
-	mtx_lock(&hostname_mtx);
-	strlcpy(utsname.domainname, V_domainname, LINUX_MAX_UTSNAME);
-	mtx_unlock(&hostname_mtx);
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
 }
@@ -1126,7 +1132,7 @@ int
 linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 {
 	struct ucred *newcred, *oldcred;
-	l_gid_t linux_gidset[NGROUPS];
+	l_gid_t *linux_gidset;
 	gid_t *bsd_gidset;
 	int ngrp, error;
 	struct proc *p;
@@ -1134,13 +1140,14 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	ngrp = args->gidsetsize;
 	if (ngrp < 0 || ngrp >= NGROUPS)
 		return (EINVAL);
+	linux_gidset = malloc(ngrp * sizeof(*linux_gidset), M_TEMP, M_WAITOK);
 	error = copyin(args->grouplist, linux_gidset, ngrp * sizeof(l_gid_t));
 	if (error)
-		return (error);
+		goto out;
 	newcred = crget();
 	p = td->td_proc;
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	oldcred = crcopysafe(p, newcred);
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from
@@ -1151,10 +1158,9 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	if ((error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS, 0)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
-		return (error);
+		goto out;
 	}
 
-	crcopy(newcred, oldcred);
 	if (ngrp > 0) {
 		newcred->cr_ngroups = ngrp + 1;
 
@@ -1171,14 +1177,17 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
 	crfree(oldcred);
-	return (0);
+	error = 0;
+out:
+	free(linux_gidset, M_TEMP);
+	return (error);
 }
 
 int
 linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 {
 	struct ucred *cred;
-	l_gid_t linux_gidset[NGROUPS];
+	l_gid_t *linux_gidset;
 	gid_t *bsd_gidset;
 	int bsd_gidsetsz, ngrp, error;
 
@@ -1201,13 +1210,16 @@ linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 		return (EINVAL);
 
 	ngrp = 0;
+	linux_gidset = malloc(bsd_gidsetsz * sizeof(*linux_gidset),
+	    M_TEMP, M_WAITOK);
 	while (ngrp < bsd_gidsetsz) {
 		linux_gidset[ngrp] = bsd_gidset[ngrp + 1];
 		ngrp++;
 	}
 
-	if ((error = copyout(linux_gidset, args->grouplist,
-	    ngrp * sizeof(l_gid_t))))
+	error = copyout(linux_gidset, args->grouplist, ngrp * sizeof(l_gid_t));
+	free(linux_gidset, M_TEMP);
+	if (error)
 		return (error);
 
 	td->td_retval[0] = ngrp;

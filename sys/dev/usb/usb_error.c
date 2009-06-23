@@ -24,10 +24,28 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
 
-#include <dev/usb/usb_core.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
 
 static const char* usb_errstr_table[USB_ERR_MAX] = {
 	[USB_ERR_NORMAL_COMPLETION]	= "USB_ERR_NORMAL_COMPLETION",
@@ -62,12 +80,12 @@ static const char* usb_errstr_table[USB_ERR_MAX] = {
 };
 
 /*------------------------------------------------------------------------*
- *	usb2_errstr
+ *	usbd_errstr
  *
  * This function converts an USB error code into a string.
  *------------------------------------------------------------------------*/
 const char *
-usb2_errstr(usb2_error_t err)
+usbd_errstr(usb_error_t err)
 {
 	return (err < USB_ERR_MAX ? usb_errstr_table[err] : "USB_ERR_UNKNOWN");
 }

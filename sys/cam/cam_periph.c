@@ -173,6 +173,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	xpt_unlock_buses();
 	if (*p_drv == NULL) {
 		printf("cam_periph_alloc: invalid periph name '%s'\n", name);
+		free(periph, M_CAMPERIPH);
 		return (CAM_REQ_INVALID);
 	}
 
@@ -796,7 +797,7 @@ cam_periph_ccbwait(union ccb *ccb)
 }
 
 int
-cam_periph_ioctl(struct cam_periph *periph, int cmd, caddr_t addr,
+cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 		 int (*error_routine)(union ccb *ccb, 
 				      cam_flags camflags,
 				      u_int32_t sense_flags))

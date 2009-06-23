@@ -135,7 +135,7 @@ extern	void	firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src);
 extern	void	firewire_ifattach(struct ifnet *, struct fw_hwaddr *);
 extern	void	firewire_ifdetach(struct ifnet *);
 extern	void	firewire_busreset(struct ifnet *);
-extern	int	firewire_ioctl(struct ifnet *, int, caddr_t);
+extern	int	firewire_ioctl(struct ifnet *, u_long, caddr_t);
 
 #endif /* !_KERNEL */
 

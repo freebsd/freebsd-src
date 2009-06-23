@@ -162,7 +162,8 @@ Hardcode provider names in metadata.
 Specifies size of the journal if only one provider is used for both data and
 journal.
 The default is one gigabyte.
-Size should be chosen based on provider's load, and not on its size.
+Size should be chosen based on provider's load, and not on its size;
+recommended minimum is twice the size of the physical memory installed.
 It is not recommended to use
 .Nm
 for small file systems (e.g.: only few gigabytes big).
@@ -219,7 +220,7 @@ allows this (i.e., if the last sector is not already used by the file system):
 .Bd -literal -offset indent
 umount /dev/da0s1d
 gjournal label da0s1d da0s1e && \e
-    tunefs -J enable -n disable da01sd.journal && \e
+    tunefs -J enable -n disable da0s1d.journal && \e
     mount -o async /dev/da0s1d.journal /mnt || \e
     mount /dev/da0s1d /mnt
 .Ed

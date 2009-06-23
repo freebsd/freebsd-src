@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -170,7 +169,7 @@ tcp_output(struct tcpcb *tp)
 	 * to send, then transmit; otherwise, investigate further.
 	 */
 	idle = (tp->t_flags & TF_LASTIDLE) || (tp->snd_max == tp->snd_una);
-	if (idle && (ticks - tp->t_rcvtime) >= tp->t_rxtcur) {
+	if (idle && ticks - tp->t_rcvtime >= tp->t_rxtcur) {
 		/* reset cwnd after a period of idleness */
 		if (CC_ALGO(tp)->after_idle != NULL)
 			CC_ALGO(tp)->after_idle(tp);

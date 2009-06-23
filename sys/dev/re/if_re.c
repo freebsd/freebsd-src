@@ -237,11 +237,11 @@ static int re_tx_list_init	(struct rl_softc *);
 static __inline void re_fixup_rx
 				(struct mbuf *);
 #endif
-static int re_rxeof		(struct rl_softc *);
+static int re_rxeof		(struct rl_softc *, int *);
 static void re_txeof		(struct rl_softc *);
 #ifdef DEVICE_POLLING
-static void re_poll		(struct ifnet *, enum poll_cmd, int);
-static void re_poll_locked	(struct ifnet *, enum poll_cmd, int);
+static int re_poll		(struct ifnet *, enum poll_cmd, int);
+static int re_poll_locked	(struct ifnet *, enum poll_cmd, int);
 #endif
 static int re_intr		(void *);
 static void re_tick		(void *);
@@ -1250,7 +1250,8 @@ re_attach(device_t dev)
 
 	switch (hw_rev->rl_rev) {
 	case RL_HWREV_8139CPLUS:
-		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_FASTETHER;
+		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_FASTETHER |
+		    RL_FLAG_AUTOPAD;
 		break;
 	case RL_HWREV_8100E:
 	case RL_HWREV_8101E:
@@ -1261,7 +1262,7 @@ re_attach(device_t dev)
 	case RL_HWREV_8102EL:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_PHYWAKE |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
-		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP;
+		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD;
 		break;
 	case RL_HWREV_8168_SPIN1:
 	case RL_HWREV_8168_SPIN2:
@@ -1280,7 +1281,8 @@ re_attach(device_t dev)
 	case RL_HWREV_8168CP:
 	case RL_HWREV_8168D:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
-		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP;
+		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
+		    RL_FLAG_AUTOPAD;
 		/*
 		 * These controllers support jumbo frame but it seems
 		 * that enabling it requires touching additional magic
@@ -1790,14 +1792,14 @@ re_rx_list_init(struct rl_softc *sc)
  * across multiple 2K mbuf cluster buffers.
  */
 static int
-re_rxeof(struct rl_softc *sc)
+re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 {
 	struct mbuf		*m;
 	struct ifnet		*ifp;
 	int			i, total_len;
 	struct rl_desc		*cur_rx;
 	u_int32_t		rxstat, rxvlan;
-	int			maxpkt = 16;
+	int			maxpkt = 16, rx_npkts = 0;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -1980,6 +1982,7 @@ re_rxeof(struct rl_softc *sc)
 		RL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		RL_LOCK(sc);
+		rx_npkts++;
 	}
 
 	/* Flush the RX DMA ring */
@@ -1990,6 +1993,8 @@ re_rxeof(struct rl_softc *sc)
 
 	sc->rl_ldata.rl_rx_prodidx = i;
 
+	if (rx_npktsp != NULL)
+		*rx_npktsp = rx_npkts;
 	if (maxpkt)
 		return(EAGAIN);
 
@@ -2090,26 +2095,29 @@ re_tick(void *xsc)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 re_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct rl_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	RL_LOCK(sc);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		re_poll_locked(ifp, cmd, count);
+		rx_npkts = re_poll_locked(ifp, cmd, count);
 	RL_UNLOCK(sc);
+	return (rx_npkts);
 }
 
-static void
+static int
 re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct rl_softc *sc = ifp->if_softc;
+	int rx_npkts;
 
 	RL_LOCK_ASSERT(sc);
 
 	sc->rxcycles = count;
-	re_rxeof(sc);
+	re_rxeof(sc, &rx_npkts);
 	re_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -2120,7 +2128,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		status = CSR_READ_2(sc, RL_ISR);
 		if (status == 0xffff)
-			return;
+			return (rx_npkts);
 		if (status)
 			CSR_WRITE_2(sc, RL_ISR, status);
 		if ((status & (RL_ISR_TX_OK | RL_ISR_TX_DESC_UNAVAIL)) &&
@@ -2134,6 +2142,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		if (status & RL_ISR_SYSTEM_ERR)
 			re_init_locked(sc);
 	}
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -2185,7 +2194,7 @@ re_int_task(void *arg, int npending)
 #endif
 
 	if (status & (RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_FIFO_OFLOW))
-		rval = re_rxeof(sc);
+		rval = re_rxeof(sc, NULL);
 
 	/*
 	 * Some chips will ignore a second TX request issued
@@ -2250,7 +2259,7 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 	 * offload is enabled, we always manually pad short frames out
 	 * to the minimum ethernet frame size.
 	 */
-	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0 &&
+	if ((sc->rl_flags & RL_FLAG_AUTOPAD) == 0 &&
 	    (*m_head)->m_pkthdr.len < RL_IP4CSUMTX_PADLEN &&
 	    ((*m_head)->m_pkthdr.csum_flags & CSUM_IP) != 0) {
 		padlen = RL_MIN_FRAMELEN - (*m_head)->m_pkthdr.len;
@@ -2883,7 +2892,7 @@ re_watchdog(struct rl_softc *sc)
 	if_printf(ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
 
-	re_rxeof(sc);
+	re_rxeof(sc, NULL);
 	re_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);

@@ -68,8 +68,8 @@ struct sctp_event_subscribe {
  * ancillary data structures
  */
 struct sctp_initmsg {
-	uint32_t sinit_num_ostreams;
-	uint32_t sinit_max_instreams;
+	uint16_t sinit_num_ostreams;
+	uint16_t sinit_max_instreams;
 	uint16_t sinit_max_attempts;
 	uint16_t sinit_max_init_timeo;
 };
@@ -764,6 +764,8 @@ struct sctp_timeval {
 };
 
 struct sctpstat {
+	struct sctp_timeval sctps_discontinuitytime;	/* sctpStats 18
+							 * (TimeStamp) */
 	/* MIB according to RFC 3873 */
 	uint32_t sctps_currestab;	/* sctpStats  1   (Gauge32) */
 	uint32_t sctps_activeestab;	/* sctpStats  2 (Counter32) */
@@ -948,8 +950,8 @@ struct sctpstat {
 	uint32_t sctps_fwdtsn_map_over;	/* number of map array over-runs via
 					 * fwd-tsn's */
 
-	struct sctp_timeval sctps_discontinuitytime;	/* sctpStats 18
-							 * (TimeStamp) */
+	uint32_t sctps_reserved[32];	/* Future ABI compat - remove int's
+					 * from here when adding new */
 };
 
 #define SCTP_STAT_INCR(_x) SCTP_STAT_INCR_BY(_x,1)

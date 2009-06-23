@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004,2009 Apple Inc.
+ * Copyright (c) 2004, 2009 Apple Inc.
  * Copyright (c) 2006 Robert N. M. Watson
  * All rights reserved.
  *
@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#28 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#33 $
  */
 
 #include <config/config.h>
@@ -49,6 +49,8 @@
 #ifndef HAVE_STRLCPY
 #include <compat/strlcpy.h>
 #endif
+
+#include <sys/stat.h>
 
 /*
  * Parse the contents of the audit_control file to return the audit control
@@ -220,7 +222,7 @@ au_spacetobytes(size_t *bytes, u_long value, char mult)
  * nul).
  */
 ssize_t
-au_poltostr(long policy, size_t maxsize, char *buf)
+au_poltostr(int policy, size_t maxsize, char *buf)
 {
 	int first = 1;
 	int i = 0;
@@ -248,7 +250,7 @@ au_poltostr(long policy, size_t maxsize, char *buf)
  * ENOMEM) or 0 on success.
  */
 int
-au_strtopol(const char *polstr, long *policy)
+au_strtopol(const char *polstr, int *policy)
 {
 	char *bufp, *string;
 	char *buffer;
@@ -287,10 +289,27 @@ au_strtopol(const char *polstr, long *policy)
 static void
 setac_locked(void)
 {
+	static time_t lastctime = 0;
+	struct stat sbuf;
 
 	ptrmoved = 1;
-	if (fp != NULL)
+	if (fp != NULL) {
+		/*
+		 * Check to see if the file on disk has changed.  If so,
+		 * force a re-read of the file by closing it.
+		 */
+		if (fstat(fileno(fp), &sbuf) < 0)
+			goto closefp;
+		if (lastctime != sbuf.st_ctime) {
+			lastctime = sbuf.st_ctime;
+closefp:
+			fclose(fp);
+			fp = NULL;
+			return;
+		}
+
 		fseek(fp, 0, SEEK_SET);
+	}
 }
 
 void

@@ -532,7 +532,8 @@ route_UpdateMTU(struct bundle *bundle)
                    " mtu %lu\n", rtm->rtm_index, Index2Nam(rtm->rtm_index),
                    ncprange_ntoa(&dst), bundle->iface->mtu);
       }
-      rt_Update(bundle, sa[RTAX_DST], sa[RTAX_GATEWAY], sa[RTAX_NETMASK]);
+      rt_Update(bundle, sa[RTAX_DST], sa[RTAX_GATEWAY], sa[RTAX_NETMASK],
+                sa[RTAX_IFP], sa[RTAX_IFA]);
     }
   }
 
@@ -870,7 +871,8 @@ failed:
 
 void
 rt_Update(struct bundle *bundle, const struct sockaddr *dst,
-          const struct sockaddr *gw, const struct sockaddr *mask)
+          const struct sockaddr *gw, const struct sockaddr *mask,
+          const struct sockaddr *ifp, const struct sockaddr *ifa)
 {
   struct ncprange ncpdst;
   struct rtmsg rtmes;
@@ -910,13 +912,21 @@ rt_Update(struct bundle *bundle, const struct sockaddr *dst,
     p += memcpy_roundup(p, dst, dst->sa_len);
   }
 
-  if (gw != NULL && (gw->sa_family != AF_LINK))
+  if (gw) {
     rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
-  p += memcpy_roundup(p, gw, gw->sa_len);
+    p += memcpy_roundup(p, gw, gw->sa_len);
+  }
 
   if (mask) {
     rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
     p += memcpy_roundup(p, mask, mask->sa_len);
+  }
+
+  if (ifa && ifp && ifp->sa_family == AF_LINK) {
+    rtmes.m_rtm.rtm_addrs |= RTA_IFP;
+    p += memcpy_roundup(p, ifp, ifp->sa_len);
+    rtmes.m_rtm.rtm_addrs |= RTA_IFA;
+    p += memcpy_roundup(p, ifa, ifa->sa_len);
   }
 
   rtmes.m_rtm.rtm_msglen = p - (char *)&rtmes;

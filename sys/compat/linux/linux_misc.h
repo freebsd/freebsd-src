@@ -65,4 +65,6 @@ extern const char *linux_platform;
 #define	__LINUX_NPXCW__		0x37f
 #endif
 
+extern int stclohz;
+
 #endif	/* _LINUX_MISC_H_ */

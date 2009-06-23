@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #ifdef __linux
 #define	_PATH_DEFTAPE "/dev/st0"
 #endif
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #define	_PATH_DEFTAPE "\\\\.\\tape0"
 #endif
 
@@ -113,8 +113,10 @@ main(int argc, char **argv)
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
 	option_o = 0;
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Make sure open() function will be used with a binary mode. */
+	/* on cygwin, we need something similar, but instead link against */
+	/* a special startup object, binmode.o */
 	_set_fmode(_O_BINARY);
 #endif
 
@@ -122,7 +124,7 @@ main(int argc, char **argv)
 	if (*argv == NULL)
 		bsdtar->progname = "bsdtar";
 	else {
-#if _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 		bsdtar->progname = strrchr(*argv, '\\');
 #else
 		bsdtar->progname = strrchr(*argv, '/');
@@ -166,10 +168,6 @@ main(int argc, char **argv)
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_XATTR;
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	}
-#ifdef _WIN32
-	/* Windows cannot set UNIX like uid/gid. */
-	bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
-#endif
 
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
@@ -212,8 +210,8 @@ main(int argc, char **argv)
 		case OPTION_FORMAT: /* GNU tar, others */
 			bsdtar->create_format = bsdtar->optarg;
 			break;
-		case OPTION_FORMAT_OPTIONS:
-			bsdtar->option_format_options = bsdtar->optarg;
+		case OPTION_OPTIONS:
+			bsdtar->option_options = bsdtar->optarg;
 			break;
 		case 'f': /* SUSv2 */
 			bsdtar->filename = bsdtar->optarg;
@@ -269,6 +267,19 @@ main(int argc, char **argv)
 			usage(bsdtar);
 #endif
 			break;
+		case 'J': /* GNU tar 1.21 and later */
+#if HAVE_LIBLZMA
+			if (bsdtar->create_compression != '\0')
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Can't specify both -%c and -%c", opt,
+				    bsdtar->create_compression);
+			bsdtar->create_compression = opt;
+#else
+			bsdtar_warnc(bsdtar, 0,
+			    "xz compression not supported by this version of bsdtar");
+			usage(bsdtar);
+#endif
+			break;
 		case 'k': /* GNU tar */
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE;
 			break;
@@ -281,6 +292,19 @@ main(int argc, char **argv)
 	        case 'l': /* SUSv2 and GNU tar beginning with 1.16 */
 			/* GNU tar 1.13  used -l for --one-file-system */
 			bsdtar->option_warn_links = 1;
+			break;
+		case OPTION_LZMA:
+#if HAVE_LIBLZMA
+			if (bsdtar->create_compression != '\0')
+				bsdtar_errc(bsdtar, 1, 0,
+				    "Can't specify both -%c and -%c", opt,
+				    bsdtar->create_compression);
+			bsdtar->create_compression = opt;
+#else
+			bsdtar_warnc(bsdtar, 0,
+			    "lzma compression not supported by this version of bsdtar");
+			usage(bsdtar);
+#endif
 			break;
 		case 'm': /* SUSv2 */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_TIME;
@@ -391,6 +415,9 @@ main(int argc, char **argv)
 			    "-s is not supported by this version of bsdtar");
 			usage(bsdtar);
 #endif
+			break;
+		case OPTION_SAME_OWNER: /* GNU tar */
+			bsdtar->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 			break;
 		case OPTION_STRIP_COMPONENTS: /* GNU tar 1.15 */
 			bsdtar->strip_components = atoi(bsdtar->optarg);
@@ -632,7 +659,7 @@ static const char *long_help_msg =
 	"  -w    Interactive\n"
 	"Create: %p -c [options] [<file> | <dir> | @<archive> | -C <dir> ]\n"
 	"  <file>, <dir>  add these items to archive\n"
-	"  -z, -j  Compress archive with gzip/bzip2\n"
+	"  -z, -j, -J, --lzma  Compress archive with gzip/bzip2/xz/lzma\n"
 	"  --format {ustar|pax|cpio|shar}  Select archive format\n"
 	"  --exclude <pattern>  Skip files that match pattern\n"
 	"  -C <dir>  Change to <dir> before processing remaining files\n"

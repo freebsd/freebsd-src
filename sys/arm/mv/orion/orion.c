@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
+#include <arm/mv/mvwin.h>
 
 extern const struct obio_pci_irq_map pci_irq_map[];
 

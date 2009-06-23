@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <fs/devfs/devfs_int.h>
+#include <vm/vm.h>
 
 static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 
@@ -275,6 +276,7 @@ dead_strategy(struct bio *bp)
 
 #define dead_dump	(dumper_t *)enxio
 #define dead_kqfilter	(d_kqfilter_t *)enxio
+#define dead_mmap_single (d_mmap_single_t *)enodev
 
 static struct cdevsw dead_cdevsw = {
 	.d_version =	D_VERSION,
@@ -289,7 +291,8 @@ static struct cdevsw dead_cdevsw = {
 	.d_strategy =	dead_strategy,
 	.d_name =	"dead",
 	.d_dump =	dead_dump,
-	.d_kqfilter =	dead_kqfilter
+	.d_kqfilter =	dead_kqfilter,
+	.d_mmap_single = dead_mmap_single
 };
 
 /* Default methods if driver does not specify method */
@@ -301,6 +304,7 @@ static struct cdevsw dead_cdevsw = {
 #define no_ioctl	(d_ioctl_t *)enodev
 #define no_mmap		(d_mmap_t *)enodev
 #define no_kqfilter	(d_kqfilter_t *)enodev
+#define no_mmap_single	(d_mmap_single_t *)enodev
 
 static void
 no_strategy(struct bio *bp)
@@ -480,6 +484,23 @@ giant_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 	return (retval);
 }
 
+static int
+giant_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
+    vm_object_t *object, int nprot)
+{
+	struct cdevsw *dsw;
+	int retval;
+
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
+	mtx_lock(&Giant);
+	retval = dsw->d_gianttrick->d_mmap_single(dev, offset, size, object,
+	    nprot);
+	mtx_unlock(&Giant);
+	dev_relthread(dev);
+	return (retval);
+}
 
 static void
 notify(struct cdev *dev, const char *ev)
@@ -491,7 +512,9 @@ notify(struct cdev *dev, const char *ev)
 	if (cold)
 		return;
 	namelen = strlen(dev->si_name);
-	data = malloc(namelen + sizeof(prefix), M_TEMP, M_WAITOK);
+	data = malloc(namelen + sizeof(prefix), M_TEMP, M_NOWAIT);
+	if (data == NULL)
+		return;
 	memcpy(data, prefix, sizeof(prefix) - 1);
 	memcpy(data + sizeof(prefix) - 1, dev->si_name, namelen + 1);
 	devctl_notify("DEVFS", "CDEV", ev, data);
@@ -513,23 +536,21 @@ notify_destroy(struct cdev *dev)
 }
 
 static struct cdev *
-newdev(struct cdevsw *csw, int y, struct cdev *si)
+newdev(struct cdevsw *csw, int unit, struct cdev *si)
 {
 	struct cdev *si2;
-	dev_t	udev;
 
 	mtx_assert(&devmtx, MA_OWNED);
-	udev = y;
 	if (csw->d_flags & D_NEEDMINOR) {
 		/* We may want to return an existing device */
 		LIST_FOREACH(si2, &csw->d_devs, si_list) {
-			if (si2->si_drv0 == udev) {
+			if (dev2unit(si2) == unit) {
 				dev_free_devlocked(si);
 				return (si2);
 			}
 		}
 	}
-	si->si_drv0 = udev;
+	si->si_drv0 = unit;
 	si->si_devsw = csw;
 	LIST_INSERT_HEAD(&csw->d_devs, si, si_list);
 	return (si);
@@ -569,7 +590,8 @@ prep_cdevsw(struct cdevsw *devsw)
 		return;
 	}
 
-	if (devsw->d_version != D_VERSION_01) {
+	if (devsw->d_version != D_VERSION_01 &&
+	    devsw->d_version != D_VERSION_02) {
 		printf(
 		    "WARNING: Device driver \"%s\" has wrong version %s\n",
 		    devsw->d_name == NULL ? "???" : devsw->d_name,
@@ -585,6 +607,8 @@ prep_cdevsw(struct cdevsw *devsw)
 		devsw->d_dump = dead_dump;
 		devsw->d_kqfilter = dead_kqfilter;
 	}
+	if (devsw->d_version == D_VERSION_01)
+		devsw->d_mmap_single = NULL;
 	
 	if (devsw->d_flags & D_NEEDGIANT) {
 		if (devsw->d_gianttrick == NULL) {
@@ -613,6 +637,7 @@ prep_cdevsw(struct cdevsw *devsw)
 	FIXUP(d_mmap,		no_mmap,	giant_mmap);
 	FIXUP(d_strategy,	no_strategy,	giant_strategy);
 	FIXUP(d_kqfilter,	no_kqfilter,	giant_kqfilter);
+	FIXUP(d_mmap_single,	no_mmap_single,	giant_mmap_single);
 
 	if (devsw->d_dump == NULL)	devsw->d_dump = no_dump;
 
@@ -861,24 +886,7 @@ destroy_dev(struct cdev *dev)
 const char *
 devtoname(struct cdev *dev)
 {
-	char *p;
-	struct cdevsw *csw;
-	int mynor;
 
-	if (dev->si_name[0] == '#' || dev->si_name[0] == '\0') {
-		p = dev->si_name;
-		csw = dev_refthread(dev);
-		if (csw != NULL) {
-			sprintf(p, "(%s)", csw->d_name);
-			dev_relthread(dev);
-		}
-		p += strlen(p);
-		mynor = dev2unit(dev);
-		if (mynor < 0 || mynor > 255)
-			sprintf(p, "/%#x", (u_int)mynor);
-		else
-			sprintf(p, "/%d", mynor);
-	}
 	return (dev->si_name);
 }
 
@@ -1042,7 +1050,7 @@ clone_cleanup(struct clonedevs **cdp)
 		if (!(cp->cdp_flags & CDP_SCHED_DTR)) {
 			cp->cdp_flags |= CDP_SCHED_DTR;
 			KASSERT(dev->si_flags & SI_NAMED,
-				("Driver has goofed in cloning underways udev %x", dev->si_drv0));
+				("Driver has goofed in cloning underways udev %x unit %x", dev2udev(dev), dev2unit(dev)));
 			destroy_devl(dev);
 		}
 	}

@@ -1,5 +1,5 @@
 #
-# $File: Makefile.am,v 1.43 2008/08/08 08:24:06 christos Exp $
+# $File: Makefile.am,v 1.45 2009/03/05 22:40:59 christos Exp $
 #
 MAGIC_FRAGMENT_BASE = Magdir
 MAGIC_FRAGMENT_DIR = $(top_srcdir)/magic/$(MAGIC_FRAGMENT_BASE)
@@ -97,6 +97,7 @@ $(MAGIC_FRAGMENT_DIR)/java \
 $(MAGIC_FRAGMENT_DIR)/jpeg \
 $(MAGIC_FRAGMENT_DIR)/karma \
 $(MAGIC_FRAGMENT_DIR)/kde \
+$(MAGIC_FRAGMENT_DIR)/kml \
 $(MAGIC_FRAGMENT_DIR)/lecter \
 $(MAGIC_FRAGMENT_DIR)/lex \
 $(MAGIC_FRAGMENT_DIR)/lif \
@@ -209,6 +210,7 @@ $(MAGIC_FRAGMENT_DIR)/vxl \
 $(MAGIC_FRAGMENT_DIR)/warc \
 $(MAGIC_FRAGMENT_DIR)/weak \
 $(MAGIC_FRAGMENT_DIR)/windows \
+$(MAGIC_FRAGMENT_DIR)/wireless \
 $(MAGIC_FRAGMENT_DIR)/wordprocessors \
 $(MAGIC_FRAGMENT_DIR)/xdelta \
 $(MAGIC_FRAGMENT_DIR)/xenix \

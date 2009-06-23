@@ -143,7 +143,6 @@ struct md_page {
 	TAILQ_HEAD(, pv_entry) pv_list;
 };
 
-#define MEM_REGIONS	8
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 
 #endif /* AIM */

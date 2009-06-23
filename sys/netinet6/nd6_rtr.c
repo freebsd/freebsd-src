@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -155,7 +154,7 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 #else
 	IP6_EXTHDR_GET(nd_rs, struct nd_router_solicit *, m, off, icmp6len);
 	if (nd_rs == NULL) {
-		V_icmp6stat.icp6s_tooshort++;
+		ICMP6STAT_INC(icp6s_tooshort);
 		return;
 	}
 #endif
@@ -190,7 +189,7 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 	return;
 
  bad:
-	V_icmp6stat.icp6s_badrs++;
+	ICMP6STAT_INC(icp6s_badrs);
 	m_freem(m);
 }
 
@@ -246,7 +245,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 #else
 	IP6_EXTHDR_GET(nd_ra, struct nd_router_advert *, m, off, icmp6len);
 	if (nd_ra == NULL) {
-		V_icmp6stat.icp6s_tooshort++;
+		ICMP6STAT_INC(icp6s_tooshort);
 		return;
 	}
 #endif
@@ -422,7 +421,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 	return;
 
  bad:
-	V_icmp6stat.icp6s_badra++;
+	ICMP6STAT_INC(icp6s_badra);
 	m_freem(m);
 }
 
@@ -435,18 +434,27 @@ static void
 nd6_rtmsg(int cmd, struct rtentry *rt)
 {
 	struct rt_addrinfo info;
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
 
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
 	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 	info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-	if (rt->rt_ifp) {
-		info.rti_info[RTAX_IFP] =
-		    TAILQ_FIRST(&rt->rt_ifp->if_addrlist)->ifa_addr;
+	ifp = rt->rt_ifp;
+	if (ifp != NULL) {
+		IF_ADDR_LOCK(ifp);
+		ifa = TAILQ_FIRST(&ifp->if_addrhead);
+		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
+		ifa_ref(ifa);
+		IF_ADDR_UNLOCK(ifp);
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
-	}
+	} else
+		ifa = NULL;
 
 	rt_missmsg(cmd, &info, rt->rt_flags, 0);
+	if (ifa != NULL)
+		ifa_free(ifa);
 }
 
 void
@@ -1120,7 +1128,8 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	 * consider autoconfigured addresses while RFC2462 simply said
 	 * "address".
 	 */
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *ifa6;
 		u_int32_t remaininglifetime;
 
@@ -1242,6 +1251,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		ifa6->ia6_lifetime = lt6_tmp;
 		ifa6->ia6_updatetime = time_second;
 	}
+	IF_ADDR_UNLOCK(ifp);
 	if (ia6_match == NULL && new->ndpr_vltime) {
 		int ifidlen;
 
@@ -1302,6 +1312,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 					    e));
 				}
 			}
+			ifa_free(&ia6->ia_ifa);
 
 			/*
 			 * A newly added address might affect the status
@@ -1592,10 +1603,14 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	    IN6_IFF_NOTREADY | IN6_IFF_ANYCAST);
 	if (ifa == NULL) {
 		/* XXX: freebsd does not have ifa_ifwithaf */
-		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family == AF_INET6)
 				break;
 		}
+		if (ifa != NULL)
+			ifa_ref(ifa);
+		IF_ADDR_UNLOCK(ifp);
 		/* should we care about ia6_flags? */
 	}
 	if (ifa == NULL) {
@@ -1625,7 +1640,8 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	    ifa->ifa_addr, (struct sockaddr *)&mask6, rtflags, &rt);
 	if (error == 0) {
 		if (rt != NULL) /* this should be non NULL, though */ {
-			rnh = V_rt_tables[rt->rt_fibnum][AF_INET6];
+			rnh = rt_tables_get_rnh(rt->rt_fibnum, AF_INET6);
+			/* XXX what if rhn == NULL? */
 			RADIX_NODE_HEAD_LOCK(rnh);
 			RT_LOCK(rt);
 			if (!rt_setgate(rt, rt_key(rt), (struct sockaddr *)&null_sdl)) {
@@ -1655,6 +1671,8 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 		RT_REMREF(rt);
 		RT_UNLOCK(rt);
 	}
+	if (ifa != NULL)
+		ifa_free(ifa);
 
 	return (error);
 }
@@ -1796,6 +1814,7 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	/* prefixlen + ifidlen must be equal to 128 */
 	plen0 = in6_mask2len(&ib->ia_prefixmask.sin6_addr, NULL);
 	if (prefixlen != plen0) {
+		ifa_free(ifa);
 		nd6log((LOG_INFO, "in6_ifadd: wrong prefixlen for %s "
 		    "(prefix=%d ifid=%d)\n",
 		    if_name(ifp), prefixlen, 128 - plen0));
@@ -1828,6 +1847,7 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	    (ib->ia_addr.sin6_addr.s6_addr32[2] & ~mask.s6_addr32[2]);
 	ifra.ifra_addr.sin6_addr.s6_addr32[3] |=
 	    (ib->ia_addr.sin6_addr.s6_addr32[3] & ~mask.s6_addr32[3]);
+	ifa_free(ifa);
 
 	/* new prefix mask. */
 	ifra.ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
@@ -1848,7 +1868,10 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	 * usually not happen, but we can still see this case, e.g., if we
 	 * have manually configured the exact address to be configured.
 	 */
-	if (in6ifa_ifpwithaddr(ifp, &ifra.ifra_addr.sin6_addr) != NULL) {
+	ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
+	    &ifra.ifra_addr.sin6_addr);
+	if (ifa != NULL) {
+		ifa_free(ifa);
 		/* this should be rare enough to make an explicit log */
 		log(LOG_INFO, "in6_ifadd: %s is already configured\n",
 		    ip6_sprintf(ip6buf, &ifra.ifra_addr.sin6_addr));
@@ -1873,8 +1896,12 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	}
 
 	ia = in6ifa_ifpwithaddr(ifp, &ifra.ifra_addr.sin6_addr);
-
-	return (ia);		/* this is always non-NULL */
+	/*
+	 * XXXRW: Assumption of non-NULLness here might not be true with
+	 * fine-grained locking -- should we validate it?  Or just return
+	 * earlier ifa rather than looking it up again?
+	 */
+	return (ia);		/* this is always non-NULL  and referenced. */
 }
 
 /*
@@ -1994,6 +2021,7 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	}
 	newia->ia6_ndpr = ia0->ia6_ndpr;
 	newia->ia6_ndpr->ndpr_refcnt++;
+	ifa_free(&newia->ia_ifa);
 
 	/*
 	 * A newly added address might affect the status of other addresses.
@@ -2051,8 +2079,7 @@ in6_init_address_ltimes(struct nd_prefix *new, struct in6_addrlifetime *lt6)
 void
 rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 {
-	INIT_VNET_NET(curvnet);
-	struct radix_node_head *rnh = V_rt_tables[0][AF_INET6];
+	struct radix_node_head *rnh;
 	int s = splnet();
 
 	/* We'll care only link-local addresses */
@@ -2060,6 +2087,10 @@ rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 		splx(s);
 		return;
 	}
+
+	rnh = rt_tables_get_rnh(0, AF_INET6);
+	if (rnh == NULL)
+		return;
 
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, rt6_deleteroute, (void *)gateway);

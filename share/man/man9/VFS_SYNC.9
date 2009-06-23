@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2005
+.Dd May 23, 2009
 .Os
 .Dt VFS_SYNC 9
 .Sh NAME
@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_SYNC "struct mount *mp" "int waitfor" "struct thread *td"
+.Fn VFS_SYNC "struct mount *mp" "int waitfor"
 .Sh DESCRIPTION
 The
 .Fn VFS_SYNC
@@ -61,8 +61,6 @@ start all I/O, but do not wait for it
 .It Dv MNT_LAZY
 push data not written by file system syncer
 .El
-.It Fa td
-The calling thread.
 .El
 .Pp
 The

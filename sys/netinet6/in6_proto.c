@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 #include "opt_ipstealth.h"
-#include "opt_route.h"
 #include "opt_carp.h"
 #include "opt_sctp.h"
 #include "opt_mpath.h"
@@ -77,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/domain.h>
 #include <sys/mbuf.h>
@@ -148,6 +148,9 @@ struct ip6protosw inet6sw[] = {
 	.pr_domain =		&inet6domain,
 	.pr_protocol =		IPPROTO_IPV6,
 	.pr_init =		ip6_init,
+#ifdef VIMAGE
+	.pr_destroy =		ip6_destroy,
+#endif
 	.pr_slowtimo =		frag6_slowtimo,
 	.pr_drain =		frag6_drain,
 	.pr_usrreqs =		&nousrreqs,
@@ -236,6 +239,7 @@ struct ip6protosw inet6sw[] = {
 	.pr_ctloutput =		rip6_ctloutput,
 	.pr_init =		icmp6_init,
 	.pr_fasttimo =		icmp6_fasttimo,
+	.pr_slowtimo =		icmp6_slowtimo,
 	.pr_usrreqs =		&rip6_usrreqs
 },
 {
@@ -348,6 +352,9 @@ struct ip6protosw inet6sw[] = {
 };
 
 extern int in6_inithead(void **, int);
+#ifdef VIMAGE
+extern int in6_detachhead(void **, int);
+#endif
 
 struct domain inet6domain = {
 	.dom_family =		AF_INET6,
@@ -359,6 +366,9 @@ struct domain inet6domain = {
 	.dom_rtattach =		rn6_mpath_inithead,
 #else
 	.dom_rtattach =		in6_inithead,
+#endif
+#ifdef VIMAGE
+	.dom_rtdetach =		in6_detachhead,
 #endif
 	.dom_rtoffset =		offsetof(struct sockaddr_in6, sin6_addr) << 3,
 	.dom_maxrtkey =		sizeof(struct sockaddr_in6),
@@ -446,6 +456,8 @@ sysctl_ip6_temppltime(SYSCTL_HANDLER_ARGS)
 	int error = 0;
 	int old;
 
+	SYSCTL_RESOLVE_V_ARG1();
+
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)
 		return (error);
@@ -465,6 +477,8 @@ sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	int old;
+
+	SYSCTL_RESOLVE_V_ARG1();
 
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)

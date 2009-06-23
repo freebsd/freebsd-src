@@ -39,8 +39,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_route.h"
-#include "opt_mac.h"
 #include "opt_carp.h"
 
 #include <sys/param.h>
@@ -58,11 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/route.h>
 #include <net/netisr.h>
 #include <net/if_llc.h>
 #include <net/ethernet.h>
-#include <net/vnet.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -81,8 +78,6 @@ __FBSDID("$FreeBSD$");
 
 #define SIN(s) ((struct sockaddr_in *)s)
 #define SDL(s) ((struct sockaddr_dl *)s)
-#define LLTABLE(ifp)	\
-	((struct in_ifinfo *)(ifp)->if_afdata[AF_INET])->ii_llt
 
 SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
@@ -97,8 +92,6 @@ static int	arp_proxyall;
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, max_age,
     CTLFLAG_RW, arpt_keep, 0, "ARP entry lifetime in seconds");
-
-static struct	ifqueue arpintrq;
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, maxtries,
 	CTLFLAG_RW, arp_maxtries, 0,
@@ -119,6 +112,13 @@ static void	arptimer(void *);
 #ifdef INET
 static void	in_arpinput(struct mbuf *);
 #endif
+
+static const struct netisr_handler arp_nh = {
+	.nh_name = "arp",
+	.nh_handler = arpintr,
+	.nh_proto = NETISR_ARP,
+	.nh_policy = NETISR_POLICY_SOURCE,
+};
 
 #ifndef VIMAGE_GLOBALS
 static const vnet_modinfo_t vnet_arp_modinfo = {
@@ -145,10 +145,12 @@ arp_ifscrub(struct ifnet *ifp, uint32_t addr)
 	addr4.sin_len    = sizeof(addr4);
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = addr;
+	CURVNET_SET(ifp->if_vnet);
 	IF_AFDATA_LOCK(ifp);
 	lla_lookup(LLTABLE(ifp), (LLE_DELETE | LLE_IFADDR),
 	    (struct sockaddr *)&addr4);
 	IF_AFDATA_UNLOCK(ifp);
+	CURVNET_RESTORE();
 }
 #endif
 
@@ -240,7 +242,7 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
 	m->m_flags |= M_BCAST;
-	(*ifp->if_output)(ifp, m, &sa, (struct rtentry *)0);
+	(*ifp->if_output)(ifp, m, &sa, NULL);
 }
 
 /*
@@ -755,7 +757,7 @@ reply:
 	m->m_pkthdr.len = m->m_len;   
 	sa.sa_family = AF_ARP;
 	sa.sa_len = 2;
-	(*ifp->if_output)(ifp, m, &sa, (struct rtentry *)0);
+	(*ifp->if_output)(ifp, m, &sa, NULL);
 	return;
 
 drop:
@@ -823,8 +825,6 @@ arp_init(void)
 	arp_iattach(NULL);
 #endif
 
-	arpintrq.ifq_maxlen = 50;
-	mtx_init(&arpintrq.ifq_mtx, "arp_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_ARP, arpintr, &arpintrq, 0);
+	netisr_register(&arp_nh);
 }
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);

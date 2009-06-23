@@ -835,6 +835,7 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	int			rman_idx, res_idx;
 	struct rman		*rm;
 	struct resource_i	*res;
+	struct resource_i	*sres;
 	struct u_rman		urm;
 	struct u_resource	ures;
 	int			error;
@@ -881,35 +882,44 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	 */
 	mtx_lock(rm->rm_mtx);
 	TAILQ_FOREACH(res, &rm->rm_list, r_link) {
-		if (res_idx-- == 0) {
-			bzero(&ures, sizeof(ures));
-			ures.r_handle = (uintptr_t)res;
-			ures.r_parent = (uintptr_t)res->r_rm;
-			ures.r_device = (uintptr_t)res->r_dev;
-			if (res->r_dev != NULL) {
-				if (device_get_name(res->r_dev) != NULL) {
-					snprintf(ures.r_devname, RM_TEXTLEN,
-					    "%s%d",
-					    device_get_name(res->r_dev),
-					    device_get_unit(res->r_dev));
-				} else {
-					strlcpy(ures.r_devname, "nomatch",
-					    RM_TEXTLEN);
+		if (res->r_sharehead != NULL) {
+			LIST_FOREACH(sres, res->r_sharehead, r_sharelink)
+				if (res_idx-- == 0) {
+					res = sres;
+					goto found;
 				}
-			} else {
-				ures.r_devname[0] = '\0';
-			}
-			ures.r_start = res->r_start;
-			ures.r_size = res->r_end - res->r_start + 1;
-			ures.r_flags = res->r_flags;
-
-			mtx_unlock(rm->rm_mtx);
-			error = SYSCTL_OUT(req, &ures, sizeof(ures));
-			return (error);
 		}
+		else if (res_idx-- == 0)
+				goto found;
 	}
 	mtx_unlock(rm->rm_mtx);
 	return (ENOENT);
+
+found:
+	bzero(&ures, sizeof(ures));
+	ures.r_handle = (uintptr_t)res;
+	ures.r_parent = (uintptr_t)res->r_rm;
+	ures.r_device = (uintptr_t)res->r_dev;
+	if (res->r_dev != NULL) {
+		if (device_get_name(res->r_dev) != NULL) {
+			snprintf(ures.r_devname, RM_TEXTLEN,
+			    "%s%d",
+			    device_get_name(res->r_dev),
+			    device_get_unit(res->r_dev));
+		} else {
+			strlcpy(ures.r_devname, "nomatch",
+			    RM_TEXTLEN);
+		}
+	} else {
+		ures.r_devname[0] = '\0';
+	}
+	ures.r_start = res->r_start;
+	ures.r_size = res->r_end - res->r_start + 1;
+	ures.r_flags = res->r_flags;
+
+	mtx_unlock(rm->rm_mtx);
+	error = SYSCTL_OUT(req, &ures, sizeof(ures));
+	return (error);
 }
 
 SYSCTL_NODE(_hw_bus, OID_AUTO, rman, CTLFLAG_RD, sysctl_rman,

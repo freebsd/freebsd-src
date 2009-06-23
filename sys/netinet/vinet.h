@@ -51,166 +51,186 @@
 #include <netinet/udp_var.h>
 
 struct vnet_inet {
-	struct	in_ifaddrhashhead *_in_ifaddrhashtbl;
-	struct	in_ifaddrhead _in_ifaddrhead;
-	u_long	_in_ifaddrhmask;
-	struct	in_multihead _in_multihead;	/* XXX unused */
+	struct in_ifaddrhashhead *_in_ifaddrhashtbl;
+	struct in_ifaddrhead	_in_ifaddrhead;
+	u_long			_in_ifaddrhmask;
 
-	int	_arpt_keep;
-	int	_arp_maxtries;
-	int	_useloopback;
-	int	_arp_proxyall;
-	int	_subnetsarelocal;
-	int	_sameprefixcarponly;
+	int			_arpt_keep;
+	int			_arp_maxtries;
+	int			_useloopback;
+	int			_arp_proxyall;
+	int			_subnetsarelocal;
+	int			_sameprefixcarponly;
 
-	int	_ipforwarding;
-	int	_ipstealth;
-	int	_ipfastforward_active;
-	int	_ipsendredirects;
-	int	_ip_defttl;
-	int	_ip_keepfaith;
-	int	_ip_sendsourcequench;
-	int	_ip_do_randomid;
-	int	_ip_checkinterface;
-	u_short	_ip_id;
+	int			_ipforwarding;
+	int			_ipstealth;
+	int			_ipfastforward_active;
+	int			_ipsendredirects;
+	int			_ip_defttl;
+	int			_ip_keepfaith;
+	int			_ip_sendsourcequench;
+	int			_ip_do_randomid;
+	int			_ip_checkinterface;
+	int			_ip_output_flowtable_size;
+	u_short			_ip_id;
 
-	uma_zone_t _ipq_zone;
-	int	_nipq;			/* Total # of reass queues */
-	int	_maxnipq;		/* Admin. limit on # reass queues. */
-	int	_maxfragsperpacket;
+	uma_zone_t 		_ipq_zone;
+	int			_nipq;	  /* Total # of reass queues */
+	int			_maxnipq; /* Admin. limit on # reass queues. */
+	int			_maxfragsperpacket;
 	TAILQ_HEAD(ipqhead, ipq) _ipq[IPREASS_NHASH];
 
-	struct	inpcbhead _tcb;		/* head of queue of active tcpcb's */
-	struct	inpcbinfo _tcbinfo;
-	struct	tcpstat _tcpstat;	/* tcp statistics */
-	struct	tcp_hostcache _tcp_hostcache;
-	struct  callout _tcp_hc_callout;
+	struct inpcbhead	_tcb;	/* head of queue of active tcpcb's */
+	struct inpcbinfo	_tcbinfo;
+	struct tcpstat		_tcpstat; /* tcp statistics */
+	struct tcp_hostcache	_tcp_hostcache;
+	struct callout		_tcp_hc_callout;
 
-	uma_zone_t _tcp_reass_zone;
-	uma_zone_t _tcpcb_zone;
-	uma_zone_t _tcptw_zone;
-	uma_zone_t _sack_hole_zone;
+	uma_zone_t		_tcp_reass_zone;
+	uma_zone_t		_tcpcb_zone;
+	uma_zone_t		_tcptw_zone;
+	uma_zone_t		_sack_hole_zone;
 
-	struct	tcp_syncache _tcp_syncache;
-	int	_tcp_syncookies;
-	int	_tcp_syncookiesonly;
-	int	_tcp_sc_rst_sock_fail;
+	struct tcp_syncache	_tcp_syncache;
+	int			_tcp_syncookies;
+	int			_tcp_syncookiesonly;
+	int			_tcp_sc_rst_sock_fail;
 
-	struct	inpcbhead _divcb;
-	struct	inpcbinfo _divcbinfo;
-	TAILQ_HEAD(, tcptw) _twq_2msl;
+	struct inpcbhead	_divcb;
+	struct inpcbinfo	_divcbinfo;
+	TAILQ_HEAD(, tcptw)	_twq_2msl;
 
-	int	_tcp_mssdflt;
-	int	_tcp_v6mssdflt;
-	int	_tcp_minmss;
-	int	_tcp_do_rfc1323;
-	int	_icmp_may_rst;
-	int	_tcp_isn_reseed_interval;
-	int	_tcp_inflight_enable;
-	int	_tcp_inflight_rttthresh;
-	int	_tcp_inflight_min;
-	int	_tcp_inflight_max;
-	int	_tcp_inflight_stab;
-	int	_nolocaltimewait;
-	int	_path_mtu_discovery;
-	int	_ss_fltsz;
-	int	_ss_fltsz_local;
-	int	_tcp_do_newreno;
-	int	_tcp_do_tso;
-	int	_tcp_do_autosndbuf;
-	int	_tcp_autosndbuf_inc;
-	int	_tcp_autosndbuf_max;
-	int	_tcp_do_sack;
-	int	_tcp_sack_maxholes;
-	int	_tcp_sack_globalmaxholes;
-	int	_tcp_sack_globalholes;
-	int	_blackhole;
-	int	_tcp_delack_enabled;
-	int	_drop_synfin;
-	int	_tcp_do_rfc3042;
-	int	_tcp_do_rfc3390;
-	int	_tcp_do_rfc3465;
-	int	_tcp_abc_l_var;
-	int	_tcp_do_ecn;
-	int	_tcp_ecn_maxretries;
-	int	_tcp_insecure_rst;
-	int	_tcp_do_autorcvbuf;
-	int	_tcp_autorcvbuf_inc;
-	int	_tcp_autorcvbuf_max;
-	int	_tcp_reass_maxseg;
-	int	_tcp_reass_qsize;
-	int	_tcp_reass_maxqlen;
-	int	_tcp_reass_overflows;
+	int			_tcp_mssdflt;
+	int			_tcp_v6mssdflt;
+	int			_tcp_minmss;
+	int			_tcp_do_rfc1323;
+	int			_icmp_may_rst;
+	int			_tcp_isn_reseed_interval;
+	int			_tcp_inflight_enable;
+	int			_tcp_inflight_rttthresh;
+	int			_tcp_inflight_min;
+	int			_tcp_inflight_max;
+	int			_tcp_inflight_stab;
+	int			_nolocaltimewait;
+	int			_path_mtu_discovery;
+	int			_ss_fltsz;
+	int			_ss_fltsz_local;
+	int			_tcp_do_newreno;
+	int			_tcp_do_tso;
+	int			_tcp_do_autosndbuf;
+	int			_tcp_autosndbuf_inc;
+	int			_tcp_autosndbuf_max;
+	int			_tcp_do_sack;
+	int			_tcp_sack_maxholes;
+	int			_tcp_sack_globalmaxholes;
+	int			_tcp_sack_globalholes;
+	int			_blackhole;
+	int			_tcp_delack_enabled;
+	int			_drop_synfin;
+	int			_tcp_do_rfc3042;
+	int			_tcp_do_rfc3390;
+	int			_tcp_do_rfc3465;
+	int			_tcp_abc_l_var;
+	int			_tcp_do_ecn;
+	int			_tcp_ecn_maxretries;
+	int			_tcp_insecure_rst;
+	int			_tcp_do_autorcvbuf;
+	int			_tcp_autorcvbuf_inc;
+	int			_tcp_autorcvbuf_max;
+	int			_tcp_reass_maxseg;
+	int			_tcp_reass_qsize;
+	int			_tcp_reass_maxqlen;
+	int			_tcp_reass_overflows;
 
-	u_char	_isn_secret[32];
-	int	_isn_last_reseed;
-	u_int32_t _isn_offset;
-	u_int32_t _isn_offset_old;
+	u_char			_isn_secret[32];
+	int			_isn_last_reseed;
+	u_int32_t		_isn_offset;
+	u_int32_t		_isn_offset_old;
 
-	struct	inpcbhead _udb;
-	struct	inpcbinfo _udbinfo;
-	struct	udpstat	_udpstat;
-	int	_udp_blackhole;
+	struct inpcbhead	_udb;
+	struct inpcbinfo	_udbinfo;
+	uma_zone_t		_udpcb_zone;
+	struct udpstat		_udpstat;
+	int			_udp_blackhole;
 
-	struct	inpcbhead _ripcb;
-	struct	inpcbinfo _ripcbinfo;
-	struct	socket *_ip_mrouter;
+	struct inpcbhead	_ripcb;
+	struct inpcbinfo	_ripcbinfo;
+	struct socket *		_ip_mrouter;
 
-	struct	socket *_ip_rsvpd;
-	int	_ip_rsvp_on;
-	int	_rsvp_on;
+	struct socket *		_ip_rsvpd;
+	int			_ip_rsvp_on;
+	int			_rsvp_on;
 
-	struct	icmpstat _icmpstat;
-	struct	ipstat _ipstat;
+	struct icmpstat		_icmpstat;
+	struct ipstat		_ipstat;
 
-	LIST_HEAD(, igmp_ifinfo)	 _igi_head;
-	struct igmpstat	 _igmpstat;
-	int		 _interface_timers_running;
-	int		 _state_change_timers_running;
-	int		 _current_state_timers_running;
-	int		 _igmp_recvifkludge;
-	int		 _igmp_sendra;
-	int		 _igmp_sendlocal;
-	int		 _igmp_v1enable;
-	int		 _igmp_v2enable;
-	int		 _igmp_legacysupp;
-	int		 _igmp_sgalloc;
-	int		 _igmp_default_version;
-	struct timeval	 _igmp_gsrdelay;
+	LIST_HEAD(, igmp_ifinfo) _igi_head;
+	struct igmpstat		_igmpstat;
+	int			_interface_timers_running;
+	int			_state_change_timers_running;
+	int			_current_state_timers_running;
+	int			_igmp_recvifkludge;
+	int			_igmp_sendra;
+	int			_igmp_sendlocal;
+	int			_igmp_v1enable;
+	int			_igmp_v2enable;
+	int			_igmp_legacysupp;
+	int			_igmp_sgalloc;
+	int			_igmp_default_version;
+	struct timeval		_igmp_gsrdelay;
 
-	int	_rtq_timeout;
-	int	_rtq_reallyold;
-	int	_rtq_minreallyold;
-	int	_rtq_toomany;
-	struct	callout _rtq_timer;
+	int			_rtq_timeout;
+	int			_rtq_reallyold;
+	int			_rtq_minreallyold;
+	int			_rtq_toomany;
+	struct callout		_rtq_timer;
 
-	int	_ipport_lowfirstauto;
-	int	_ipport_lowlastauto;
-	int	_ipport_firstauto;
-	int	_ipport_lastauto;
-	int	_ipport_hifirstauto;
-	int	_ipport_hilastauto;
-	int	_ipport_reservedhigh;
-	int	_ipport_reservedlow;
-	int	_ipport_randomized;
-	int	_ipport_randomcps;
-	int	_ipport_randomtime;
-	int	_ipport_stoprandom;
-	int	_ipport_tcpallocs;
-	int	_ipport_tcplastcount;
+	int			_ipport_lowfirstauto;
+	int			_ipport_lowlastauto;
+	int			_ipport_firstauto;
+	int			_ipport_lastauto;
+	int			_ipport_hifirstauto;
+	int			_ipport_hilastauto;
+	int			_ipport_reservedhigh;
+	int			_ipport_reservedlow;
+	int			_ipport_randomized;
+	int			_ipport_randomcps;
+	int			_ipport_randomtime;
+	int			_ipport_stoprandom;
+	int			_ipport_tcpallocs;
+	int			_ipport_tcplastcount;
 
-	int	_icmpmaskrepl;
-	u_int	_icmpmaskfake;
-	int	_drop_redirect;
-	int	_log_redirect;
-	int	_icmplim;
-	int	_icmplim_output;
-	char	_reply_src[IFNAMSIZ];
-	int	_icmp_rfi;
-	int	_icmp_quotelen;
-	int	_icmpbmcastecho;
+	int			_icmpmaskrepl;
+	u_int			_icmpmaskfake;
+	int			_drop_redirect;
+	int			_log_redirect;
+	int			_icmplim;
+	int			_icmplim_output;
+	char			_reply_src[IFNAMSIZ];
+	int			_icmp_rfi;
+	int			_icmp_quotelen;
+	int			_icmpbmcastecho;
 
-	int	_fw_one_pass;
+	int			_fw_one_pass;
+
+	struct flowtable *	_ip_ft;
+	struct flowtable *	_flow_list_head;
+	uint32_t		_flow_hashjitter;
+	uma_zone_t		_flow_ipv4_zone;
+	uma_zone_t		_flow_ipv6_zone;
+	int			_flowtable_enable;
+	int			_flowtable_hits;
+	int			_flowtable_lookups;
+	int			_flowtable_misses;
+	int			_flowtable_frees;
+	int			_flowtable_free_checks;
+	int			_flowtable_max_depth;
+	int			_flowtable_collisions;
+	int			_flowtable_syn_expire;
+	int			_flowtable_udp_expire;
+	int			_flowtable_fin_wait_expire;
+	int			_flowtable_tcp_expire;
+	int			_flowtable_nmbflows;
 };
 
 /* Size guard. See sys/vimage.h. */
@@ -239,6 +259,23 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_drop_redirect		VNET_INET(drop_redirect)
 #define	V_drop_synfin		VNET_INET(drop_synfin)
 #define	V_fw_one_pass		VNET_INET(fw_one_pass)
+#define	V_flow_hashjitter	VNET_INET(flow_hashjitter)
+#define	V_flow_ipv4_zone	VNET_INET(flow_ipv4_zone)
+#define	V_flow_ipv6_zone	VNET_INET(flow_ipv6_zone)
+#define	V_flow_list_head	VNET_INET(flow_list_head)
+#define	V_flowtable_collisions	VNET_INET(flowtable_collisions)
+#define	V_flowtable_enable	VNET_INET(flowtable_enable)
+#define	V_flowtable_fin_wait_expire VNET_INET(flowtable_fin_wait_expire)
+#define	V_flowtable_free_checks	VNET_INET(flowtable_free_checks)
+#define	V_flowtable_frees	VNET_INET(flowtable_frees)
+#define	V_flowtable_hits	VNET_INET(flowtable_hits)
+#define	V_flowtable_lookups	VNET_INET(flowtable_lookups)
+#define	V_flowtable_max_depth	VNET_INET(flowtable_max_depth)
+#define	V_flowtable_misses	VNET_INET(flowtable_misses)
+#define	V_flowtable_nmbflows	VNET_INET(flowtable_nmbflows)
+#define	V_flowtable_syn_expire	VNET_INET(flowtable_syn_expire)
+#define	V_flowtable_tcp_expire	VNET_INET(flowtable_tcp_expire)
+#define	V_flowtable_udp_expire	VNET_INET(flowtable_udp_expire)
 #define	V_icmp_may_rst		VNET_INET(icmp_may_rst)
 #define	V_icmp_quotelen		VNET_INET(icmp_quotelen)
 #define	V_icmp_rfi		VNET_INET(icmp_rfi)
@@ -268,13 +305,14 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_in_ifaddrhashtbl	VNET_INET(in_ifaddrhashtbl)
 #define	V_in_ifaddrhead		VNET_INET(in_ifaddrhead)
 #define	V_in_ifaddrhmask	VNET_INET(in_ifaddrhmask)
-#define	V_in_multihead		VNET_INET(in_multihead)
 #define	V_ip_checkinterface	VNET_INET(ip_checkinterface)
 #define	V_ip_defttl		VNET_INET(ip_defttl)
 #define	V_ip_do_randomid	VNET_INET(ip_do_randomid)
+#define	V_ip_ft			VNET_INET(ip_ft)
 #define	V_ip_id			VNET_INET(ip_id)
 #define	V_ip_keepfaith		VNET_INET(ip_keepfaith)
 #define	V_ip_mrouter		VNET_INET(ip_mrouter)
+#define	V_ip_output_flowtable_size VNET_INET(ip_output_flowtable_size)
 #define	V_ip_rsvp_on		VNET_INET(ip_rsvp_on)
 #define	V_ip_rsvpd		VNET_INET(ip_rsvpd)
 #define	V_ip_sendsourcequench	VNET_INET(ip_sendsourcequench)
@@ -374,6 +412,7 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_twq_2msl		VNET_INET(twq_2msl)
 #define	V_udb			VNET_INET(udb)
 #define	V_udbinfo		VNET_INET(udbinfo)
+#define	V_udpcb_zone		VNET_INET(udpcb_zone)
 #define	V_udp_blackhole		VNET_INET(udp_blackhole)
 #define	V_udpstat		VNET_INET(udpstat)
 #define	V_useloopback		VNET_INET(useloopback)

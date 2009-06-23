@@ -52,8 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/jail.h>
 #include <sys/smp.h>
+#include <sys/sx.h>
 #include <sys/unistd.h>
-#include <sys/vimage.h>
 
 SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
@@ -208,68 +208,69 @@ static char	machine_arch[] = MACHINE_ARCH;
 SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
     machine_arch, 0, "System architecture");
 
-#ifndef VIMAGE
-char hostname[MAXHOSTNAMELEN];
-#endif
-
-/*
- * This mutex is used to protect the hostname and domainname variables, and
- * perhaps in the future should also protect hostid, hostuid, and others.
- */
-struct mtx hostname_mtx;
-MTX_SYSINIT(hostname_mtx, &hostname_mtx, "hostname", MTX_DEF);
-
 static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VPROCG(TD_TO_VPROCG(req->td));
-	struct prison *pr;
-	char tmphostname[MAXHOSTNAMELEN];
-	int error;
+	struct prison *pr, *cpr;
+	size_t pr_offset;
+	char tmpname[MAXHOSTNAMELEN];
+	int descend, error, len;
+
+	/*
+	 * This function can set: hostname domainname hostuuid.
+	 * Keep that in mind when comments say "hostname".
+	 */
+	pr_offset = (size_t)arg1;
+	len = arg2;
+	KASSERT(len <= sizeof(tmpname),
+	    ("length %d too long for %s", len, __func__));
 
 	pr = req->td->td_ucred->cr_prison;
-	if (pr != NULL) {
-		if (!jail_set_hostname_allowed && req->newptr)
-			return (EPERM);
+	if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME) && req->newptr)
+		return (EPERM);
+	/*
+	 * Make a local copy of hostname to get/set so we don't have to hold
+	 * the jail mutex during the sysctl copyin/copyout activities.
+	 */
+	mtx_lock(&pr->pr_mtx);
+	bcopy((char *)pr + pr_offset, tmpname, len);
+	mtx_unlock(&pr->pr_mtx);
+
+	error = sysctl_handle_string(oidp, tmpname, len, req);
+
+	if (req->newptr != NULL && error == 0) {
 		/*
-		 * Process is in jail, so make a local copy of jail
-		 * hostname to get/set so we don't have to hold the jail
-		 * mutex during the sysctl copyin/copyout activities.
+		 * Copy the locally set hostname to all jails that share
+		 * this host info.
 		 */
+		sx_slock(&allprison_lock);
+		while (!(pr->pr_flags & PR_HOST))
+			pr = pr->pr_parent;
 		mtx_lock(&pr->pr_mtx);
-		bcopy(pr->pr_host, tmphostname, MAXHOSTNAMELEN);
+		bcopy(tmpname, (char *)pr + pr_offset, len);
+		FOREACH_PRISON_DESCENDANT_LOCKED(pr, cpr, descend)
+			if (cpr->pr_flags & PR_HOST)
+				descend = 0;
+			else
+				bcopy(tmpname, (char *)cpr + pr_offset, len);
 		mtx_unlock(&pr->pr_mtx);
-
-		error = sysctl_handle_string(oidp, tmphostname,
-		    sizeof pr->pr_host, req);
-
-		if (req->newptr != NULL && error == 0) {
-			/*
-			 * Copy the locally set hostname to the jail, if
-			 * appropriate.
-			 */
-			mtx_lock(&pr->pr_mtx);
-			bcopy(tmphostname, pr->pr_host, MAXHOSTNAMELEN);
-			mtx_unlock(&pr->pr_mtx);
-		}
-	} else {
-		mtx_lock(&hostname_mtx);
-		bcopy(V_hostname, tmphostname, MAXHOSTNAMELEN);
-		mtx_unlock(&hostname_mtx);
-		error = sysctl_handle_string(oidp, tmphostname,
-		    sizeof tmphostname, req);
-		if (req->newptr != NULL && error == 0) {
-			mtx_lock(&hostname_mtx);
-			bcopy(tmphostname, V_hostname, MAXHOSTNAMELEN);
-			mtx_unlock(&hostname_mtx);
-		}
+		sx_sunlock(&allprison_lock);
 	}
 	return (error);
 }
 
 SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname,
-       CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_PRISON|CTLFLAG_MPSAFE,
-       0, 0, sysctl_hostname, "A", "Hostname");
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    (void *)(offsetof(struct prison, pr_hostname)), MAXHOSTNAMELEN,
+    sysctl_hostname, "A", "Hostname");
+SYSCTL_PROC(_kern, KERN_NISDOMAINNAME, domainname,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    (void *)(offsetof(struct prison, pr_domainname)), MAXHOSTNAMELEN,
+    sysctl_hostname, "A", "Name of the current YP/NIS domain");
+SYSCTL_PROC(_kern, KERN_HOSTUUID, hostuuid,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    (void *)(offsetof(struct prison, pr_hostuuid)), HOSTUUIDLEN,
+    sysctl_hostname, "A", "Host UUID");
 
 static int	regression_securelevel_nonmonotonic = 0;
 
@@ -278,55 +279,43 @@ SYSCTL_INT(_regression, OID_AUTO, securelevel_nonmonotonic, CTLFLAG_RW,
     &regression_securelevel_nonmonotonic, 0, "securelevel may be lowered");
 #endif
 
-int securelevel = -1;
-static struct mtx securelevel_mtx;
-
-MTX_SYSINIT(securelevel_lock, &securelevel_mtx, "securelevel mutex lock",
-    MTX_DEF);
-
 static int
 sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 {
-	struct prison *pr;
-	int error, level;
+	struct prison *pr, *cpr;
+	int descend, error, level;
 
 	pr = req->td->td_ucred->cr_prison;
 
 	/*
-	 * If the process is in jail, return the maximum of the global and
-	 * local levels; otherwise, return the global level.  Perform a
-	 * lockless read since the securelevel is an integer.
+	 * Reading the securelevel is easy, since the current jail's level
+	 * is known to be at least as secure as any higher levels.  Perform
+	 * a lockless read since the securelevel is an integer.
 	 */
-	if (pr != NULL)
-		level = imax(securelevel, pr->pr_securelevel);
-	else
-		level = securelevel;
+	level = pr->pr_securelevel;
 	error = sysctl_handle_int(oidp, &level, 0, req);
 	if (error || !req->newptr)
 		return (error);
-	/*
-	 * Permit update only if the new securelevel exceeds the
-	 * global level, and local level if any.
-	 */
-	if (pr != NULL) {
-		mtx_lock(&pr->pr_mtx);
-		if (!regression_securelevel_nonmonotonic &&
-		    (level < imax(securelevel, pr->pr_securelevel))) {
-			mtx_unlock(&pr->pr_mtx);
-			return (EPERM);
-		}
-		pr->pr_securelevel = level;
+	/* Permit update only if the new securelevel exceeds the old. */
+	sx_slock(&allprison_lock);
+	mtx_lock(&pr->pr_mtx);
+	if (!regression_securelevel_nonmonotonic &&
+	    level < pr->pr_securelevel) {
 		mtx_unlock(&pr->pr_mtx);
-	} else {
-		mtx_lock(&securelevel_mtx);
-		if (!regression_securelevel_nonmonotonic &&
-		    (level < securelevel)) {
-			mtx_unlock(&securelevel_mtx);
-			return (EPERM);
-		}
-		securelevel = level;
-		mtx_unlock(&securelevel_mtx);
+		sx_sunlock(&allprison_lock);
+		return (EPERM);
 	}
+	pr->pr_securelevel = level;
+	/*
+	 * Set all child jails to be at least this level, but do not lower
+	 * them (even if regression_securelevel_nonmonotonic).
+	 */
+	FOREACH_PRISON_DESCENDANT_LOCKED(pr, cpr, descend) {
+		if (cpr->pr_securelevel < level)
+			cpr->pr_securelevel = level;
+	}
+	mtx_unlock(&pr->pr_mtx);
+	sx_sunlock(&allprison_lock);
 	return (error);
 }
 
@@ -349,37 +338,43 @@ SYSCTL_PROC(_kern, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RW,
     0, 0, sysctl_kern_config, "", "Kernel configuration file");
 #endif
 
-#ifndef VIMAGE
-char domainname[MAXHOSTNAMELEN];	/* Protected by hostname_mtx. */
-#endif
-
 static int
-sysctl_domainname(SYSCTL_HANDLER_ARGS)
+sysctl_hostid(SYSCTL_HANDLER_ARGS)
 {
-	char tmpdomainname[MAXHOSTNAMELEN];
-	int error;
+	struct prison *pr, *cpr;
+	u_long tmpid;
+	int descend, error;
 
-	mtx_lock(&hostname_mtx);
-	bcopy(V_domainname, tmpdomainname, MAXHOSTNAMELEN);
-	mtx_unlock(&hostname_mtx);
-	error = sysctl_handle_string(oidp, tmpdomainname,
-	    sizeof tmpdomainname, req);
+	/*
+	 * Like sysctl_hostname, except it operates on a u_long
+	 * instead of a string, and is used only for hostid.
+	 */
+	pr = req->td->td_ucred->cr_prison;
+	if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME) && req->newptr)
+		return (EPERM);
+	tmpid = pr->pr_hostid;
+	error = sysctl_handle_long(oidp, &tmpid, 0, req);
+
 	if (req->newptr != NULL && error == 0) {
-		mtx_lock(&hostname_mtx);
-		bcopy(tmpdomainname, V_domainname, MAXHOSTNAMELEN);
-		mtx_unlock(&hostname_mtx);
+		sx_slock(&allprison_lock);
+		while (!(pr->pr_flags & PR_HOST))
+			pr = pr->pr_parent;
+		mtx_lock(&pr->pr_mtx);
+		pr->pr_hostid = tmpid;
+		FOREACH_PRISON_DESCENDANT_LOCKED(pr, cpr, descend)
+			if (cpr->pr_flags & PR_HOST)
+				descend = 0;
+			else
+				cpr->pr_hostid = tmpid;
+		mtx_unlock(&pr->pr_mtx);
+		sx_sunlock(&allprison_lock);
 	}
 	return (error);
 }
 
-SYSCTL_PROC(_kern, KERN_NISDOMAINNAME, domainname, CTLTYPE_STRING|CTLFLAG_RW,
-       0, 0, sysctl_domainname, "A", "Name of the current YP/NIS domain");
-
-u_long hostid;
-SYSCTL_ULONG(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "Host ID");
-char hostuuid[64] = "00000000-0000-0000-0000-000000000000";
-SYSCTL_STRING(_kern, KERN_HOSTUUID, hostuuid, CTLFLAG_RW, hostuuid,
-    sizeof(hostuuid), "Host UUID");
+SYSCTL_PROC(_kern, KERN_HOSTID, hostid,
+    CTLTYPE_ULONG | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_hostid, "LU", "Host ID");
 
 SYSCTL_NODE(_kern, OID_AUTO, features, CTLFLAG_RD, 0, "Kernel Features");
 

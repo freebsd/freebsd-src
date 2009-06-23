@@ -95,7 +95,7 @@ static int iso_mountfs(struct vnode *devvp, struct mount *mp);
  */
 
 static int
-cd9660_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+cd9660_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct iso_args args;
 	int error;
@@ -123,14 +123,17 @@ cd9660_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
 }
 
 static int
-cd9660_mount(struct mount *mp, struct thread *td)
+cd9660_mount(struct mount *mp)
 {
 	struct vnode *devvp;
+	struct thread *td;
 	char *fspec;
 	int error;
 	accmode_t accmode;
 	struct nameidata ndp;
 	struct iso_mnt *imp = 0;
+
+	td = curthread;
 
 	/*
 	 * Unconditionally mount as read-only.
@@ -490,17 +493,16 @@ out:
  * unmount system call
  */
 static int
-cd9660_unmount(mp, mntflags, td)
+cd9660_unmount(mp, mntflags)
 	struct mount *mp;
 	int mntflags;
-	struct thread *td;
 {
 	struct iso_mnt *isomp;
 	int error, flags = 0;
 
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	if ((error = vflush(mp, 0, flags, td)))
+	if ((error = vflush(mp, 0, flags, curthread)))
 		return (error);
 
 	isomp = VFSTOISOFS(mp);
@@ -530,11 +532,10 @@ cd9660_unmount(mp, mntflags, td)
  * Return root of a filesystem
  */
 static int
-cd9660_root(mp, flags, vpp, td)
+cd9660_root(mp, flags, vpp)
 	struct mount *mp;
 	int flags;
 	struct vnode **vpp;
-	struct thread *td;
 {
 	struct iso_mnt *imp = VFSTOISOFS(mp);
 	struct iso_directory_record *dp =
@@ -553,10 +554,9 @@ cd9660_root(mp, flags, vpp, td)
  * Get filesystem statistics.
  */
 static int
-cd9660_statfs(mp, sbp, td)
+cd9660_statfs(mp, sbp)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct thread *td;
 {
 	struct iso_mnt *isomp;
 

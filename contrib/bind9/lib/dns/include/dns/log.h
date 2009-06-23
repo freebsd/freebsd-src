@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,9 +15,9 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: log.h,v 1.33.18.4 2005/09/05 00:18:27 marka Exp $ */
+/* $Id: log.h,v 1.42.332.2 2009/01/18 23:47:41 tbox Exp $ */
 
-/*! \file
+/*! \file dns/log.h
  * \author  Principal Authors: DCL */
 
 #ifndef DNS_LOG_H
@@ -41,6 +41,7 @@ LIBDNS_EXTERNAL_DATA extern isc_logmodule_t dns_modules[];
 #define DNS_LOGCATEGORY_DISPATCH	(&dns_categories[8])
 #define DNS_LOGCATEGORY_LAME_SERVERS	(&dns_categories[9])
 #define DNS_LOGCATEGORY_DELEGATION_ONLY	(&dns_categories[10])
+#define DNS_LOGCATEGORY_EDNS_DISABLED	(&dns_categories[11])
 
 /* Backwards compatibility. */
 #define DNS_LOGCATEGORY_GENERAL		ISC_LOGCATEGORY_GENERAL
@@ -87,7 +88,7 @@ dns_log_init(isc_log_t *lctx);
  *\li	dns_log_init() is called only once.
  *
  * Ensures:
- * \li	The catgories and modules defined above are available for
+ * \li	The categories and modules defined above are available for
  * 	use by isc_log_usechannnel() and isc_log_write().
  */
 

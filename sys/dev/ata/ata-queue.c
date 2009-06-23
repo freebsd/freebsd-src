@@ -218,20 +218,17 @@ ata_start(device_t dev)
 		    ata_finish(request);
 		    return;
 		}
-		if (dumping) {
-		    mtx_unlock(&ch->state_mtx);
-		    mtx_unlock(&ch->queue_mtx);
-		    while (ch->running) {
-			ata_interrupt(ch);
-			DELAY(10);
-		    }
-		    return;
-		}       
 	    }
 	    mtx_unlock(&ch->state_mtx);
 	}
     }
     mtx_unlock(&ch->queue_mtx);
+    if (dumping) {
+	while (ch->running) {
+	    ata_interrupt(ch);
+	    DELAY(10);
+	}
+    }
 }
 
 void
@@ -558,6 +555,24 @@ ata_fail_requests(device_t dev)
         TAILQ_REMOVE(&fail_requests, request, chain);
         ata_finish(request);
     }
+}
+
+/*
+ * Rudely drop all requests queued to the channel of specified device.
+ * XXX: The requests are leaked, use only in fatal case.
+ */
+void
+ata_drop_requests(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_request *request, *tmp;
+
+    mtx_lock(&ch->queue_mtx);
+    TAILQ_FOREACH_SAFE(request, &ch->ata_queue, chain, tmp) {
+	TAILQ_REMOVE(&ch->ata_queue, request, chain);
+	request->result = ENXIO;
+    }
+    mtx_unlock(&ch->queue_mtx);
 }
 
 static u_int64_t

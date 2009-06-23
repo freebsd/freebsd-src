@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #include <windows.h>
 #include <winbase.h>
 #endif
@@ -56,7 +56,7 @@ errmsg(const char *m)
 static void
 diediedie(void)
 {
-#if defined(_WIN32) && defined(_DEBUG)
+#if defined(_WIN32) && !defined(__CYGWIN__) && defined(_DEBUG)
 	/* Cause a breakpoint exception  */
 	DebugBreak();
 #endif

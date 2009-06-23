@@ -236,7 +236,7 @@ ieee80211_crypto_resetkey(struct ieee80211vap *vap,
  */
 void	ieee80211_notify_replay_failure(struct ieee80211vap *,
 		const struct ieee80211_frame *, const struct ieee80211_key *,
-		uint64_t rsc);
+		uint64_t rsc, int tid);
 void	ieee80211_notify_michael_failure(struct ieee80211vap *,
 		const struct ieee80211_frame *, u_int keyix);
 #endif /* defined(__KERNEL__) || defined(_KERNEL) */

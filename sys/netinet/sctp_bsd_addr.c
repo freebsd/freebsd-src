@@ -189,11 +189,11 @@ sctp_is_desired_interface_type(struct ifaddr *ifa)
 }
 
 
+
+
 static void
 sctp_init_ifns_for_vrf(int vrfid)
 {
-
-
 	/*
 	 * Here we must apply ANY locks needed by the IFN we access and also
 	 * make sure we lock any IFA that exists as we float through the
@@ -206,8 +206,8 @@ sctp_init_ifns_for_vrf(int vrfid)
 	uint32_t ifa_flags;
 
 	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(MOD_NET, ifnet), if_list) {
+		IF_ADDR_LOCK(ifn);
 		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
-
 			if (ifa->ifa_addr == NULL) {
 				continue;
 			}
@@ -248,9 +248,9 @@ sctp_init_ifns_for_vrf(int vrfid)
 				sctp_ifa->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
 			}
 		}
+		IF_ADDR_UNLOCK(ifn);
 	}
 }
-
 
 void
 sctp_init_vrf_list(int vrfid)

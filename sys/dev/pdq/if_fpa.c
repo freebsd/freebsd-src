@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 static int	pdq_pci_probe		(device_t);
 static int	pdq_pci_attach		(device_t);
 static int	pdq_pci_detach		(device_t);
-static void	pdq_pci_shutdown	(device_t);
+static int	pdq_pci_shutdown	(device_t);
 static void	pdq_pci_ifintr		(void *);
 
 static void
@@ -185,7 +185,7 @@ pdq_pci_detach (dev)
     return (0);
 }
 
-static void
+static int
 pdq_pci_shutdown(device_t dev)
 {
     pdq_softc_t *sc;
@@ -193,7 +193,7 @@ pdq_pci_shutdown(device_t dev)
     sc = device_get_softc(dev);
     pdq_hwreset(sc->sc_pdq);
 
-    return;
+    return (0);
 }
 
 static device_method_t pdq_pci_methods[] = {

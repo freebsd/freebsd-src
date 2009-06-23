@@ -169,5 +169,6 @@ DEFINE_TEST(test_extattr_freebsd)
 	assertEqualMem(xval, "12345", xsize);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	archive_entry_free(ae);
 #endif
 }

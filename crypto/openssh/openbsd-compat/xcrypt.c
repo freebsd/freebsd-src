@@ -28,7 +28,7 @@
 #include <unistd.h>
 #include <pwd.h>
 
-# ifdef HAVE_CRYPT_H
+# if defined(HAVE_CRYPT_H) && !defined(HAVE_SECUREWARE)
 #  include <crypt.h>
 # endif
 

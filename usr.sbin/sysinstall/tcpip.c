@@ -642,11 +642,26 @@ tcpDeviceSelect(void)
 {
     DMenu *menu;
     Device **devs, *rval;
+    char *dev, *network_dev;
     int cnt;
+
+    rval = NULL;
+
+    if (variable_get(VAR_NONINTERACTIVE) && variable_get(VAR_NETWORK_DEVICE)) {
+	network_dev = variable_get(VAR_NETWORK_DEVICE);
+
+	while ((dev = strsep(&network_dev, ",")) != NULL) {
+	    devs = deviceFind(dev, DEVICE_TYPE_NETWORK);
+	    cnt = deviceCount(devs);
+	    if (cnt) {
+		if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_SUCCESS))
+		    return(devs[0]);
+	    }
+	}
+    }
 
     devs = deviceFind(variable_get(VAR_NETWORK_DEVICE), DEVICE_TYPE_NETWORK);
     cnt = deviceCount(devs);
-    rval = NULL;
 
     if (!cnt) {
 	msgConfirm("No network devices available!");
@@ -659,14 +674,6 @@ tcpDeviceSelect(void)
     if (cnt == 1) {
 	if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_SUCCESS))
 	    rval = devs[0];
-    }
-    else if (variable_get(VAR_NONINTERACTIVE) && variable_get(VAR_NETWORK_DEVICE)) {
-	devs = deviceFind(variable_get(VAR_NETWORK_DEVICE), DEVICE_TYPE_NETWORK);
-	cnt = deviceCount(devs);
-	if (cnt) {
-	    if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_SUCCESS))
-		rval = devs[0];
-	}
     }
     else {
 	int status;

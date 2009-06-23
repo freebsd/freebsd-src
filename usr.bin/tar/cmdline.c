@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
  * Short options for tar.  Please keep this sorted.
  */
 static const char *short_options
-	= "Bb:C:cf:HhI:jkLlmnOoPpqrSs:T:tUuvW:wX:xyZz";
+	= "Bb:C:cf:HhI:JjkLlmnOoPpqrSs:T:tUuvW:wX:xyZz";
 
 /*
  * Long options for tar.  Please keep this list sorted.
@@ -83,7 +83,7 @@ static struct option {
 	{ "file",                 1, 'f' },
 	{ "files-from",           1, 'T' },
 	{ "format",               1, OPTION_FORMAT },
-	{ "format-options",       1, OPTION_FORMAT_OPTIONS },
+	{ "options",              1, OPTION_OPTIONS },
 	{ "gunzip",               0, 'z' },
 	{ "gzip",                 0, 'z' },
 	{ "help",                 0, OPTION_HELP },
@@ -93,6 +93,7 @@ static struct option {
 	{ "keep-newer-files",     0, OPTION_KEEP_NEWER_FILES },
 	{ "keep-old-files",       0, 'k' },
 	{ "list",                 0, 't' },
+	{ "lzma",                 0, OPTION_LZMA },
 	{ "modification-time",    0, 'm' },
 	{ "newer",		  1, OPTION_NEWER_CTIME },
 	{ "newer-ctime",	  1, OPTION_NEWER_CTIME },
@@ -111,6 +112,7 @@ static struct option {
 	{ "posix",		  0, OPTION_POSIX },
 	{ "preserve-permissions", 0, 'p' },
 	{ "read-full-blocks",	  0, 'B' },
+	{ "same-owner",	          0, OPTION_SAME_OWNER },
 	{ "same-permissions",     0, 'p' },
 	{ "strip-components",	  1, OPTION_STRIP_COMPONENTS },
 	{ "to-stdout",            0, 'O' },
@@ -122,6 +124,7 @@ static struct option {
 	{ "use-compress-program", 1, OPTION_USE_COMPRESS_PROGRAM },
 	{ "verbose",              0, 'v' },
 	{ "version",              0, OPTION_VERSION },
+	{ "xz",                   0, 'J' },
 	{ NULL, 0, 0 }
 };
 

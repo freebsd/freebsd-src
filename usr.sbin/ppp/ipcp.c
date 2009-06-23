@@ -692,7 +692,7 @@ ipcp_SetIPaddress(struct ipcp *ipcp, struct in_addr myaddr,
   if (bundle->ncp.cfg.sendpipe > 0 || bundle->ncp.cfg.recvpipe > 0) {
     ncprange_getsa(&myrange, &ssgw, &ssmask);
     ncpaddr_getsa(&hisncpaddr, &ssdst);
-    rt_Update(bundle, sadst, sagw, samask);
+    rt_Update(bundle, sadst, sagw, samask, NULL, NULL);
   }
 
   if (Enabled(bundle, OPT_SROUTES))

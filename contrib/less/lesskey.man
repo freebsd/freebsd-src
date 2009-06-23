@@ -183,6 +183,7 @@ LESSKEY(1)                                                          LESSKEY(1)
             \en       repeat-search-all
             N         reverse-search
             \eN       reverse-search-all
+            &         filter
             m         set-mark
             '         goto-mark
             ^X^X      goto-mark
@@ -332,7 +333,7 @@ LESSKEY(1)                                                          LESSKEY(1)
 
 
 [1mCOPYRIGHT[0m
-       Copyright (C) 2000-2007  Mark Nudelman
+       Copyright (C) 2000-2008  Mark Nudelman
 
        lesskey is part of the GNU project and is free software; you can redis-
        tribute  it  and/or modify it under the terms of the GNU General Public
@@ -357,4 +358,4 @@ LESSKEY(1)                                                          LESSKEY(1)
 
 
 
-                           Version 416: 22 Nov 2007                 LESSKEY(1)
+                           Version 429: 11 Apr 2009                 LESSKEY(1)

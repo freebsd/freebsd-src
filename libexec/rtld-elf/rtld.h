@@ -218,9 +218,11 @@ typedef struct Struct_Obj_Entry {
     bool phdr_alloc : 1;	/* Phdr is allocated and needs to be freed. */
     bool z_origin : 1;		/* Process rpath and soname tokens */
     bool z_nodelete : 1;	/* Do not unload the object and dependencies */
-    bool ref_nodel : 1;		/* refcount increased to prevent dlclose */
+    bool ref_nodel : 1;		/* Refcount increased to prevent dlclose */
+    bool init_scanned: 1;	/* Object is already on init list. */
+    bool on_fini_list: 1;	/* Object is already on fini list. */
 
-    struct link_map linkmap;	/* for GDB and dlinfo() */
+    struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
     Objlist dagmembers;		/* DAG has these members (%) */
     dev_t dev;			/* Object's filesystem's device */
@@ -231,7 +233,7 @@ typedef struct Struct_Obj_Entry {
 #define RTLD_MAGIC	0xd550b87a
 #define RTLD_VERSION	1
 
-#define RTLD_STATIC_TLS_EXTRA	64
+#define RTLD_STATIC_TLS_EXTRA	128
 
 /* Flags to be passed into symlook_ family of functions. */
 #define SYMLOOK_IN_PLT	0x01	/* Lookup for PLT symbol */

@@ -206,7 +206,8 @@ SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD | CTLFLAG_MPSAFE,
 
 
 static void cache_zap(struct namecache *ncp);
-static int vn_vptocnp(struct vnode **vp, char **bp, char *buf, u_int *buflen);
+static int vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
+    u_int *buflen);
 static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, u_int buflen);
 
@@ -421,6 +422,11 @@ retry_wlocked:
 				*vpp = dvp->v_cache_dd->nc_vp;
 			else
 				*vpp = dvp->v_cache_dd->nc_dvp;
+			/* Return failure if negative entry was found. */
+			if (*vpp == NULL) {
+				ncp = dvp->v_cache_dd;
+				goto negative_success;
+			}
 			CTR3(KTR_VFS, "cache_lookup(%p, %s) found %p via ..",
 			    dvp, cnp->cn_nameptr, *vpp);
 			SDT_PROBE(vfs, namecache, lookup, hit, dvp, "..",
@@ -474,6 +480,7 @@ retry_wlocked:
 		goto success;
 	}
 
+negative_success:
 	/* We found a negative match, and want to create it, so purge */
 	if (cnp->cn_nameiop == CREATE) {
 		numnegzaps++;
@@ -624,18 +631,23 @@ cache_enter(dvp, vp, cnp)
 			 * to new parent vnode, otherwise continue with new
 			 * namecache entry allocation.
 			 */
-			if ((ncp = dvp->v_cache_dd) != NULL) {
-				if (ncp->nc_flag & NCF_ISDOTDOT) {
-					KASSERT(ncp->nc_dvp == dvp,
-					    ("wrong isdotdot parent"));
+			if ((ncp = dvp->v_cache_dd) != NULL &&
+			    ncp->nc_flag & NCF_ISDOTDOT) {
+				KASSERT(ncp->nc_dvp == dvp,
+				    ("wrong isdotdot parent"));
+				if (ncp->nc_vp != NULL)
 					TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst,
 					    ncp, nc_dst);
+				else
+					TAILQ_REMOVE(&ncneg, ncp, nc_dst);
+				if (vp != NULL)
 					TAILQ_INSERT_HEAD(&vp->v_cache_dst,
 					    ncp, nc_dst);
-					ncp->nc_vp = vp;
-					CACHE_WUNLOCK();
-					return;
-				}
+				else
+					TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
+				ncp->nc_vp = vp;
+				CACHE_WUNLOCK();
+				return;
 			}
 			dvp->v_cache_dd = NULL;
 			SDT_PROBE(vfs, namecache, enter, done, dvp, "..", vp,
@@ -1025,32 +1037,81 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 	return (error);
 }
 
+int
+vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, u_int *buflen)
+{
+	int error;
+
+	CACHE_RLOCK();
+	error = vn_vptocnp_locked(vp, cred, buf, buflen);
+	if (error == 0) {
+		/*
+		 * vn_vptocnp_locked() dropped hold acquired by
+		 * VOP_VPTOCNP immediately after locking the
+		 * cache. Since we are going to drop the cache rlock,
+		 * re-hold the result.
+		 */
+		vhold(*vp);
+		CACHE_RUNLOCK();
+	}
+	return (error);
+}
+
 static int
-vn_vptocnp(struct vnode **vp, char **bp, char *buf, u_int *buflen)
+vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
+    u_int *buflen)
 {
 	struct vnode *dvp;
+	struct namecache *ncp;
 	int error, vfslocked;
+
+	TAILQ_FOREACH(ncp, &((*vp)->v_cache_dst), nc_dst) {
+		if ((ncp->nc_flag & NCF_ISDOTDOT) == 0)
+			break;
+	}
+	if (ncp != NULL) {
+		if (*buflen < ncp->nc_nlen) {
+			CACHE_RUNLOCK();
+			numfullpathfail4++;
+			error = ENOMEM;
+			SDT_PROBE(vfs, namecache, fullpath, return, error,
+			    vp, NULL, 0, 0);
+			return (error);
+		}
+		*buflen -= ncp->nc_nlen;
+		memcpy(buf + *buflen, ncp->nc_name, ncp->nc_nlen);
+		SDT_PROBE(vfs, namecache, fullpath, hit, ncp->nc_dvp,
+		    ncp->nc_name, vp, 0, 0);
+		*vp = ncp->nc_dvp;
+		return (0);
+	}
+	SDT_PROBE(vfs, namecache, fullpath, miss, vp, 0, 0, 0, 0);
 
 	vhold(*vp);
 	CACHE_RUNLOCK();
 	vfslocked = VFS_LOCK_GIANT((*vp)->v_mount);
 	vn_lock(*vp, LK_SHARED | LK_RETRY);
-	error = VOP_VPTOCNP(*vp, &dvp, buf, buflen);
+	error = VOP_VPTOCNP(*vp, &dvp, cred, buf, buflen);
 	VOP_UNLOCK(*vp, 0);
 	vdrop(*vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error) {
 		numfullpathfail2++;
+		SDT_PROBE(vfs, namecache, fullpath, return,  error, vp,
+		    NULL, 0, 0);
 		return (error);
 	}
-	*bp = buf + *buflen;
+
 	*vp = dvp;
 	CACHE_RLOCK();
 	if ((*vp)->v_iflag & VI_DOOMED) {
 		/* forced unmount */
 		CACHE_RUNLOCK();
 		vdrop(*vp);
-		return (ENOENT);
+		error = ENOENT;
+		SDT_PROBE(vfs, namecache, fullpath, return, error, vp,
+		    NULL, 0, 0);
+		return (error);
 	}
 	vdrop(*vp);
 
@@ -1064,59 +1125,28 @@ static int
 vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, u_int buflen)
 {
-	char *bp;
-	int error, i, slash_prefixed;
-	struct namecache *ncp;
+	int error, slash_prefixed;
 #ifdef KDTRACE_HOOKS
 	struct vnode *startvp = vp;
 #endif
 
 	buflen--;
-	bp = buf + buflen;
-	*bp = '\0';
+	buf[buflen] = '\0';
 	error = 0;
 	slash_prefixed = 0;
 
 	SDT_PROBE(vfs, namecache, fullpath, entry, vp, 0, 0, 0, 0);
-	CACHE_RLOCK();
 	numfullpathcalls++;
+	CACHE_RLOCK();
 	if (vp->v_type != VDIR) {
-		ncp = TAILQ_FIRST(&vp->v_cache_dst);
-		if (ncp != NULL) {
-			buflen -= ncp->nc_nlen;
-			for (i = ncp->nc_nlen - 1; i >= 0 && bp != buf; i--)
-				*--bp = ncp->nc_name[i];
-			if (bp == buf) {
-				numfullpathfail4++;
-				CACHE_RUNLOCK();
-				error = ENOMEM;
-				SDT_PROBE(vfs, namecache, fullpath, return,
-				    error, startvp, NULL, 0, 0);
-				return (error);
-			}
-			SDT_PROBE(vfs, namecache, fullpath, hit, ncp->nc_dvp,
-			    ncp->nc_name, vp, 0, 0);
-			vp = ncp->nc_dvp;
-		} else {
-			SDT_PROBE(vfs, namecache, fullpath, miss, vp, 0, 0,
-			    0, 0);
-			error = vn_vptocnp(&vp, &bp, buf, &buflen);
-			if (error) {
-				SDT_PROBE(vfs, namecache, fullpath, return,
-				    error, startvp, NULL, 0, 0);
-				return (error);
-			}
-		}
-		if (buflen <= 0) {
-			numfullpathfail4++;
-			CACHE_RUNLOCK();
-			error = ENOMEM;
-			SDT_PROBE(vfs, namecache, fullpath, return, error,
-			    startvp, NULL, 0, 0);
+		error = vn_vptocnp_locked(&vp, td->td_ucred, buf, &buflen);
+		if (error)
 			return (error);
+		if (buflen == 0) {
+			CACHE_RUNLOCK();
+			return (ENOMEM);
 		}
-		*--bp = '/';
-		buflen--;
+		buf[--buflen] = '/';
 		slash_prefixed = 1;
 	}
 	while (vp != rdir && vp != rootvnode) {
@@ -1124,70 +1154,52 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			if (vp->v_iflag & VI_DOOMED) {	/* forced unmount */
 				CACHE_RUNLOCK();
 				error = ENOENT;
+				SDT_PROBE(vfs, namecache, fullpath, return,
+				    error, vp, NULL, 0, 0);
 				break;
 			}
 			vp = vp->v_mount->mnt_vnodecovered;
 			continue;
 		}
 		if (vp->v_type != VDIR) {
-			numfullpathfail1++;
 			CACHE_RUNLOCK();
+			numfullpathfail1++;
 			error = ENOTDIR;
+			SDT_PROBE(vfs, namecache, fullpath, return,
+			    error, vp, NULL, 0, 0);
 			break;
 		}
- 		TAILQ_FOREACH(ncp, &vp->v_cache_dst, nc_dst)
- 			if ((ncp->nc_flag & NCF_ISDOTDOT) == 0)
- 				break;
-		if (ncp != NULL) {
-			buflen -= ncp->nc_nlen;
-			for (i = ncp->nc_nlen - 1; i >= 0 && bp != buf; i--)
-				*--bp = ncp->nc_name[i];
-			if (bp == buf) {
-				numfullpathfail4++;
-				CACHE_RUNLOCK();
-				error = ENOMEM;
-				break;
-			}
-			SDT_PROBE(vfs, namecache, fullpath, hit, ncp->nc_dvp,
-			    ncp->nc_name, vp, 0, 0);
-			vp = ncp->nc_dvp;
-		} else {
-			SDT_PROBE(vfs, namecache, fullpath, miss, vp, 0, 0,
-			    0, 0);
-			error = vn_vptocnp(&vp, &bp, buf, &buflen);
-			if (error)
-				break;
-		}
-		if (buflen <= 0) {
-			numfullpathfail4++;
+		error = vn_vptocnp_locked(&vp, td->td_ucred, buf, &buflen);
+		if (error)
+			break;
+		if (buflen == 0) {
 			CACHE_RUNLOCK();
 			error = ENOMEM;
+			SDT_PROBE(vfs, namecache, fullpath, return, error,
+			    startvp, NULL, 0, 0);
 			break;
 		}
-		*--bp = '/';
-		buflen--;
+		buf[--buflen] = '/';
 		slash_prefixed = 1;
 	}
-	if (error) {
-		SDT_PROBE(vfs, namecache, fullpath, return, error, startvp,
-		    NULL, 0, 0);
+	if (error)
 		return (error);
-	}
 	if (!slash_prefixed) {
-		if (bp == buf) {
-			numfullpathfail4++;
+		if (buflen == 0) {
 			CACHE_RUNLOCK();
-			SDT_PROBE(vfs, namecache, fullpath, return, 0,
-			    startvp, bp, 0, 0);
+			numfullpathfail4++;
+			SDT_PROBE(vfs, namecache, fullpath, return, ENOMEM,
+			    startvp, NULL, 0, 0);
 			return (ENOMEM);
-		} else
-			*--bp = '/';
+		}
+		buf[--buflen] = '/';
 	}
 	numfullpathfound++;
 	CACHE_RUNLOCK();
 
-	SDT_PROBE(vfs, namecache, fullpath, return, 0, startvp, bp, 0, 0);
-	*retbuf = bp;
+	SDT_PROBE(vfs, namecache, fullpath, return, 0, startvp, buf + buflen,
+	    0, 0);
+	*retbuf = buf + buflen;
 	return (0);
 }
 

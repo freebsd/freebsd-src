@@ -81,7 +81,6 @@ static struct cdevsw agp_cdevsw = {
 };
 
 static devclass_t agp_devclass;
-#define KDEV2DEV(kdev)	devclass_get_device(agp_devclass, dev2unit(kdev))
 
 /* Helper functions for implementing chipset mini drivers. */
 
@@ -254,11 +253,8 @@ agp_generic_attach(device_t dev)
 	sc->as_nextid = 1;
 
 	sc->as_devnode = make_dev(&agp_cdevsw,
-				  device_get_unit(dev),
-				  UID_ROOT,
-				  GID_WHEEL,
-				  0600,
-				  "agpgart");
+	    0, UID_ROOT, GID_WHEEL, 0600, "agpgart");
+	sc->as_devnode->si_drv1 = dev;
 
 	return 0;
 }
@@ -802,7 +798,7 @@ agp_unbind_user(device_t dev, agp_unbind *unbind)
 static int
 agp_open(struct cdev *kdev, int oflags, int devtype, struct thread *td)
 {
-	device_t dev = KDEV2DEV(kdev);
+	device_t dev = kdev->si_drv1;
 	struct agp_softc *sc = device_get_softc(dev);
 
 	if (!sc->as_isopen) {
@@ -816,7 +812,7 @@ agp_open(struct cdev *kdev, int oflags, int devtype, struct thread *td)
 static int
 agp_close(struct cdev *kdev, int fflag, int devtype, struct thread *td)
 {
-	device_t dev = KDEV2DEV(kdev);
+	device_t dev = kdev->si_drv1;
 	struct agp_softc *sc = device_get_softc(dev);
 	struct agp_memory *mem;
 
@@ -839,7 +835,7 @@ agp_close(struct cdev *kdev, int fflag, int devtype, struct thread *td)
 static int
 agp_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
-	device_t dev = KDEV2DEV(kdev);
+	device_t dev = kdev->si_drv1;
 
 	switch (cmd) {
 	case AGPIOC_INFO:
@@ -874,7 +870,7 @@ agp_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int fflag, struct thread 
 static int
 agp_mmap(struct cdev *kdev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 {
-	device_t dev = KDEV2DEV(kdev);
+	device_t dev = kdev->si_drv1;
 	struct agp_softc *sc = device_get_softc(dev);
 
 	if (offset > AGP_GET_APERTURE(dev))

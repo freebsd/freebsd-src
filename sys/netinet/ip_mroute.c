@@ -70,7 +70,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_mac.h"
 #include "opt_mrouting.h"
 
 #define _PIM_VT 1
@@ -119,7 +118,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #ifndef KTR_IPMF
-#define KTR_IPMF KTR_SUBSYS
+#define KTR_IPMF KTR_INET
 #endif
 
 #define		VIFI_INVALID	((vifi_t) -1)
@@ -293,7 +292,7 @@ static int	X_ip_mrouter_done(void);
 static int	X_ip_mrouter_get(struct socket *, struct sockopt *);
 static int	X_ip_mrouter_set(struct socket *, struct sockopt *);
 static int	X_legal_vif_num(int);
-static int	X_mrt_ioctl(int, caddr_t, int);
+static int	X_mrt_ioctl(u_long, caddr_t, int);
 
 static int	add_bw_upcall(struct bw_upcall *);
 static int	add_mfc(struct mfcctl2 *);
@@ -512,7 +511,7 @@ X_ip_mrouter_get(struct socket *so, struct sockopt *sopt)
  * Handle ioctl commands to obtain information from the cache
  */
 static int
-X_mrt_ioctl(int cmd, caddr_t data, int fibnum __unused)
+X_mrt_ioctl(u_long cmd, caddr_t data, int fibnum __unused)
 {
     int error = 0;
 
@@ -884,6 +883,7 @@ add_vif(struct vifctl *vifcp)
 	    return EADDRNOTAVAIL;
 	}
 	ifp = ifa->ifa_ifp;
+	ifa_free(ifa);
     }
 
     if ((vifcp->vifc_flags & VIFF_TUNNEL) != 0) {
@@ -1266,7 +1266,7 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
     /*
      * Determine forwarding vifs from the forwarding cache table
      */
-    ++mrtstat.mrts_mfc_lookups;
+    MRTSTAT_INC(mrts_mfc_lookups);
     rt = mfc_find(&ip->ip_src, &ip->ip_dst);
 
     /* Entry exists, so forward if necessary */
@@ -1286,9 +1286,8 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	u_long hash;
 	int hlen = ip->ip_hl << 2;
 
-	++mrtstat.mrts_mfc_misses;
-
-	mrtstat.mrts_no_route++;
+	MRTSTAT_INC(mrts_mfc_misses);
+	MRTSTAT_INC(mrts_no_route);
 	CTR2(KTR_IPMF, "ip_mforward: no mfc for (%s,%lx)",
 	    inet_ntoa(ip->ip_src), (u_long)ntohl(ip->ip_dst.s_addr));
 
@@ -1360,12 +1359,12 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	    im->im_mbz = 0;
 	    im->im_vif = vifi;
 
-	    mrtstat.mrts_upcalls++;
+	    MRTSTAT_INC(mrts_upcalls);
 
 	    k_igmpsrc.sin_addr = ip->ip_src;
 	    if (socket_send(V_ip_mrouter, mm, &k_igmpsrc) < 0) {
 		CTR0(KTR_IPMF, "ip_mforward: socket queue full");
-		++mrtstat.mrts_upq_sockfull;
+		MRTSTAT_INC(mrts_upq_sockfull);
 fail1:
 		free(rt, M_MRTABLE);
 fail:
@@ -1399,7 +1398,7 @@ fail:
 	} else {
 	    /* determine if queue has overflowed */
 	    if (rt->mfc_nstall > MAX_UPQ) {
-		mrtstat.mrts_upq_ovflw++;
+		MRTSTAT_INC(mrts_upq_ovflw);
 non_fatal:
 		free(rte, M_MRTABLE);
 		m_freem(mb0);
@@ -1456,7 +1455,7 @@ expire_upcalls(void *unused)
 		    free(x, M_BWMETER);
 		}
 
-		++mrtstat.mrts_cache_cleanups;
+		MRTSTAT_INC(mrts_cache_cleanups);
 		CTR3(KTR_IPMF, "%s: expire (%lx, %lx)", __func__,
 		    (u_long)ntohl(rt->mfc_origin.s_addr),
 		    (u_long)ntohl(rt->mfc_mcastgrp.s_addr));
@@ -1503,7 +1502,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
     if ((vifi >= numvifs) || (viftable[vifi].v_ifp != ifp)) {
 	CTR4(KTR_IPMF, "%s: rx on wrong ifp %p (vifi %d, v_ifp %p)",
 	    __func__, ifp, (int)vifi, viftable[vifi].v_ifp);
-	++mrtstat.mrts_wrong_if;
+	MRTSTAT_INC(mrts_wrong_if);
 	++rt->mfc_wrong_if;
 	/*
 	 * If we are doing PIM assert processing, send a message
@@ -1516,7 +1515,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	if (pim_assert_enabled && (vifi < numvifs) && viftable[vifi].v_ifp) {
 
 	    if (ifp == &multicast_register_if)
-		pimstat.pims_rcv_registers_wrongiif++;
+		PIMSTAT_INC(pims_rcv_registers_wrongiif);
 
 	    /* Get vifi for the incoming packet */
 	    for (vifi=0; vifi < numvifs && viftable[vifi].v_ifp != ifp; vifi++)
@@ -1543,12 +1542,12 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 		im->im_mbz		= 0;
 		im->im_vif		= vifi;
 
-		mrtstat.mrts_upcalls++;
+		MRTSTAT_INC(mrts_upcalls);
 
 		k_igmpsrc.sin_addr = im->im_src;
 		if (socket_send(V_ip_mrouter, mm, &k_igmpsrc) < 0) {
 		    CTR1(KTR_IPMF, "%s: socket queue full", __func__);
-		    ++mrtstat.mrts_upq_sockfull;
+		    MRTSTAT_INC(mrts_upq_sockfull);
 		    return ENOBUFS;
 		}
 	    }
@@ -1710,6 +1709,7 @@ X_ip_rsvp_force_done(struct socket *so __unused)
 static void
 X_rsvp_input(struct mbuf *m, int off __unused)
 {
+	INIT_VNET_INET(curvnet);
 
 	if (!V_rsvp_on)
 		m_freem(m);
@@ -2082,10 +2082,10 @@ bw_upcalls_send(void)
      * Send the upcalls
      * XXX do we need to set the address in k_igmpsrc ?
      */
-    mrtstat.mrts_upcalls++;
+    MRTSTAT_INC(mrts_upcalls);
     if (socket_send(V_ip_mrouter, m, &k_igmpsrc) < 0) {
 	log(LOG_WARNING, "bw_upcalls_send: ip_mrouter socket queue full\n");
-	++mrtstat.mrts_upq_sockfull;
+	MRTSTAT_INC(mrts_upq_sockfull);
     }
 }
 
@@ -2432,17 +2432,17 @@ pim_register_send_upcall(struct ip *ip, struct vif *vifp,
 
     k_igmpsrc.sin_addr	= ip->ip_src;
 
-    mrtstat.mrts_upcalls++;
+    MRTSTAT_INC(mrts_upcalls);
 
     if (socket_send(V_ip_mrouter, mb_first, &k_igmpsrc) < 0) {
 	CTR1(KTR_IPMF, "%s: socket queue full", __func__);
-	++mrtstat.mrts_upq_sockfull;
+	MRTSTAT_INC(mrts_upq_sockfull);
 	return ENOBUFS;
     }
 
     /* Keep statistics */
-    pimstat.pims_snd_registers_msgs++;
-    pimstat.pims_snd_registers_bytes += len;
+    PIMSTAT_INC(pims_snd_registers_msgs);
+    PIMSTAT_ADD(pims_snd_registers_bytes, len);
 
     return 0;
 }
@@ -2512,8 +2512,8 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
     send_packet(vifp, mb_first);
 
     /* Keep statistics */
-    pimstat.pims_snd_registers_msgs++;
-    pimstat.pims_snd_registers_bytes += len;
+    PIMSTAT_INC(pims_snd_registers_msgs);
+    PIMSTAT_ADD(pims_snd_registers_bytes, len);
 
     return 0;
 }
@@ -2555,14 +2555,14 @@ pim_input(struct mbuf *m, int off)
     int iphlen = off;
 
     /* Keep statistics */
-    pimstat.pims_rcv_total_msgs++;
-    pimstat.pims_rcv_total_bytes += datalen;
+    PIMSTAT_INC(pims_rcv_total_msgs);
+    PIMSTAT_ADD(pims_rcv_total_bytes, datalen);
 
     /*
      * Validate lengths
      */
     if (datalen < PIM_MINLEN) {
-	pimstat.pims_rcv_tooshort++;
+	PIMSTAT_INC(pims_rcv_tooshort);
 	CTR3(KTR_IPMF, "%s: short packet (%d) from %s",
 	    __func__, datalen, inet_ntoa(ip->ip_src));
 	m_freem(m);
@@ -2607,7 +2607,7 @@ pim_input(struct mbuf *m, int off)
     if (PIM_VT_T(pim->pim_vt) == PIM_REGISTER && in_cksum(m, PIM_MINLEN) == 0) {
 	/* do nothing, checksum okay */
     } else if (in_cksum(m, datalen)) {
-	pimstat.pims_rcv_badsum++;
+	PIMSTAT_INC(pims_rcv_badsum);
 	CTR1(KTR_IPMF, "%s: invalid checksum", __func__);
 	m_freem(m);
 	return;
@@ -2615,7 +2615,7 @@ pim_input(struct mbuf *m, int off)
 
     /* PIM version check */
     if (PIM_VT_V(pim->pim_vt) < PIM_VERSION) {
-	pimstat.pims_rcv_badversion++;
+	PIMSTAT_INC(pims_rcv_badversion);
 	CTR3(KTR_IPMF, "%s: bad version %d expect %d", __func__,
 	    (int)PIM_VT_V(pim->pim_vt), PIM_VERSION);
 	m_freem(m);
@@ -2654,8 +2654,8 @@ pim_input(struct mbuf *m, int off)
 	 * Validate length
 	 */
 	if (datalen < PIM_REG_MINLEN) {
-	    pimstat.pims_rcv_tooshort++;
-	    pimstat.pims_rcv_badregisters++;
+	    PIMSTAT_INC(pims_rcv_tooshort);
+	    PIMSTAT_INC(pims_rcv_badregisters);
 	    CTR1(KTR_IPMF, "%s: register packet size too small", __func__);
 	    m_freem(m);
 	    return;
@@ -2669,7 +2669,7 @@ pim_input(struct mbuf *m, int off)
 
 	/* verify the version number of the inner packet */
 	if (encap_ip->ip_v != IPVERSION) {
-	    pimstat.pims_rcv_badregisters++;
+	    PIMSTAT_INC(pims_rcv_badregisters);
 	    CTR1(KTR_IPMF, "%s: bad encap ip version", __func__);
 	    m_freem(m);
 	    return;
@@ -2677,7 +2677,7 @@ pim_input(struct mbuf *m, int off)
 
 	/* verify the inner packet is destined to a mcast group */
 	if (!IN_MULTICAST(ntohl(encap_ip->ip_dst.s_addr))) {
-	    pimstat.pims_rcv_badregisters++;
+	    PIMSTAT_INC(pims_rcv_badregisters);
 	    CTR2(KTR_IPMF, "%s: bad encap ip dest %s", __func__,
 		inet_ntoa(encap_ip->ip_dst));
 	    m_freem(m);
@@ -2725,8 +2725,8 @@ pim_input(struct mbuf *m, int off)
 
 	/* Keep statistics */
 	/* XXX: registers_bytes include only the encap. mcast pkt */
-	pimstat.pims_rcv_registers_msgs++;
-	pimstat.pims_rcv_registers_bytes += ntohs(encap_ip->ip_len);
+	PIMSTAT_INC(pims_rcv_registers_msgs);
+	PIMSTAT_ADD(pims_rcv_registers_bytes, ntohs(encap_ip->ip_len));
 
 	/*
 	 * forward the inner ip packet; point m_data at the inner ip.

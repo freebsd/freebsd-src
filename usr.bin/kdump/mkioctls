@@ -18,31 +18,30 @@ fi
 
 LC_ALL=C; export LC_ALL
 
-# include subdirs to exclude from the search
-exclude="^legacy/.*"
-
 # Build a list of headers that have ioctls in them.
 # XXX should we use an ANSI cpp?
 ioctl_includes=`
 	cd $1
-	find -H -s * -name '*.h' \! -regex $exclude |
+	find -H -s * -name '*.h' |
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
 		awk '{printf("#include <%s>\\\\n", $1)}'
 `
 
 awk -v x="$ioctl_includes" 'BEGIN {print x}' |
-	gcc -E -I$1 -dM - |
+	gcc -E -I$1 -dM -DCOMPAT_43TTY - |
 	awk -v ioctl_includes="$ioctl_includes" -v use_switch="$use_switch" '
 BEGIN {
 	print "/* XXX obnoxious prerequisites. */"
 	print "#define COMPAT_43"
+	print "#define COMPAT_43TTY"
 	print "#include <sys/param.h>"
 	print "#include <sys/devicestat.h>"
 	print "#include <sys/disklabel.h>"
 	print "#include <sys/socket.h>"
 	print "#include <sys/time.h>"
 	print "#include <sys/tty.h>"
+	print "#include <sys/vimage.h>"
 	print "#include <bsm/audit.h>"
 	print "#include <net/ethernet.h>"
 	print "#include <net/if.h>"

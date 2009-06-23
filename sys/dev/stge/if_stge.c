@@ -160,7 +160,7 @@ static void	stge_link_task(void *, int);
 static void	stge_intr(void *);
 static __inline int stge_tx_error(struct stge_softc *);
 static void	stge_txeof(struct stge_softc *);
-static void	stge_rxeof(struct stge_softc *);
+static int	stge_rxeof(struct stge_softc *);
 static __inline void stge_discard_rxbuf(struct stge_softc *, int);
 static int	stge_newbuf(struct stge_softc *, int);
 #ifndef __NO_STRICT_ALIGNMENT
@@ -184,7 +184,7 @@ static void	stge_dma_wait(struct stge_softc *);
 static void	stge_init_tx_ring(struct stge_softc *);
 static int	stge_init_rx_ring(struct stge_softc *);
 #ifdef DEVICE_POLLING
-static void	stge_poll(struct ifnet *, enum poll_cmd, int);
+static int	stge_poll(struct ifnet *, enum poll_cmd, int);
 #endif
 
 static void	stge_setwol(struct stge_softc *);
@@ -1772,7 +1772,7 @@ stge_fixup_rx(struct stge_softc *sc, struct mbuf *m)
  *
  *	Helper; handle receive interrupts.
  */
-static void
+static int
 stge_rxeof(struct stge_softc *sc)
 {
 	struct ifnet *ifp;
@@ -1780,10 +1780,11 @@ stge_rxeof(struct stge_softc *sc)
 	struct mbuf *mp, *m;
 	uint64_t status64;
 	uint32_t status;
-	int cons, prog;
+	int cons, prog, rx_npkts;
 
 	STGE_LOCK_ASSERT(sc);
 
+	rx_npkts = 0;
 	ifp = sc->sc_ifp;
 
 	bus_dmamap_sync(sc->sc_cdata.stge_rx_ring_tag,
@@ -1901,6 +1902,7 @@ stge_rxeof(struct stge_softc *sc)
 			/* Pass it on. */
 			(*ifp->if_input)(ifp, m);
 			STGE_LOCK(sc);
+			rx_npkts++;
 
 			STGE_RXCHAIN_RESET(sc);
 		}
@@ -1913,24 +1915,27 @@ stge_rxeof(struct stge_softc *sc)
 		    sc->sc_cdata.stge_rx_ring_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	}
+	return (rx_npkts);
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 stge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct stge_softc *sc;
 	uint16_t status;
+	int rx_npkts;
 
+	rx_npkts = 0;
 	sc = ifp->if_softc;
 	STGE_LOCK(sc);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		STGE_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	sc->sc_cdata.stge_rxcycles = count;
-	stge_rxeof(sc);
+	rx_npkts = stge_rxeof(sc);
 	stge_txeof(sc);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -1954,6 +1959,7 @@ stge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		stge_start_locked(ifp);
 
 	STGE_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif	/* DEVICE_POLLING */
 

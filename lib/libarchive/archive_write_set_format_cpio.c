@@ -125,8 +125,9 @@ archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 	 * re-using the ones off the disk.  That way, the 18-bit c_ino
 	 * field only limits the number of files in the archive.
 	 */
-	if (archive_entry_ino(entry) > 0777777) {
-		archive_set_error(&a->archive, ERANGE, "large inode number truncated");
+	if ((int)archive_entry_ino(entry) > 0777777) {
+		archive_set_error(&a->archive, ERANGE,
+		    "large inode number truncated");
 		ret = ARCHIVE_WARN;
 	}
 

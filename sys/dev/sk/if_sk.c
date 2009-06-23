@@ -255,10 +255,10 @@ static int sk_marv_miibus_writereg(struct sk_if_softc *, int, int,
 static void sk_marv_miibus_statchg(struct sk_if_softc *);
 
 static uint32_t sk_xmchash(const uint8_t *);
-static uint32_t sk_gmchash(const uint8_t *);
 static void sk_setfilt(struct sk_if_softc *, u_int16_t *, int);
-static void sk_setmulti(struct sk_if_softc *);
-static void sk_setpromisc(struct sk_if_softc *);
+static void sk_rxfilter(struct sk_if_softc *);
+static void sk_rxfilter_genesis(struct sk_if_softc *);
+static void sk_rxfilter_yukon(struct sk_if_softc *);
 
 static int sysctl_int_range(SYSCTL_HANDLER_ARGS, int low, int high);
 static int sysctl_hw_sk_int_mod(SYSCTL_HANDLER_ARGS);
@@ -697,19 +697,6 @@ sk_xmchash(addr)
 	return (~crc & ((1 << HASH_BITS) - 1));
 }
 
-/* gmchash is just a big endian crc */
-static u_int32_t
-sk_gmchash(addr)
-	const uint8_t *addr;
-{
-	uint32_t crc;
-
-	/* Compute CRC for the address value. */
-	crc = ether_crc32_be(addr, ETHER_ADDR_LEN);
-
-	return (crc & ((1 << HASH_BITS) - 1));
-}
-
 static void
 sk_setfilt(sc_if, addr, slot)
 	struct sk_if_softc	*sc_if;
@@ -728,12 +715,26 @@ sk_setfilt(sc_if, addr, slot)
 }
 
 static void
-sk_setmulti(sc_if)
+sk_rxfilter(sc_if)
 	struct sk_if_softc	*sc_if;
 {
-	struct sk_softc		*sc = sc_if->sk_softc;
+	struct sk_softc		*sc;
+
+	SK_IF_LOCK_ASSERT(sc_if);
+
+	sc = sc_if->sk_softc;
+	if (sc->sk_type == SK_GENESIS)
+		sk_rxfilter_genesis(sc_if);
+	else
+		sk_rxfilter_yukon(sc_if);
+}
+
+static void
+sk_rxfilter_genesis(sc_if)
+	struct sk_if_softc	*sc_if;
+{
 	struct ifnet		*ifp = sc_if->sk_ifp;
-	u_int32_t		hashes[2] = { 0, 0 };
+	u_int32_t		hashes[2] = { 0, 0 }, mode;
 	int			h = 0, i;
 	struct ifmultiaddr	*ifma;
 	u_int16_t		dummy[] = { 0, 0, 0 };
@@ -741,124 +742,96 @@ sk_setmulti(sc_if)
 
 	SK_IF_LOCK_ASSERT(sc_if);
 
-	/* First, zot all the existing filters. */
-	switch(sc->sk_type) {
-	case SK_GENESIS:
-		for (i = 1; i < XM_RXFILT_MAX; i++)
-			sk_setfilt(sc_if, dummy, i);
-
-		SK_XM_WRITE_4(sc_if, XM_MAR0, 0);
-		SK_XM_WRITE_4(sc_if, XM_MAR2, 0);
-		break;
-	case SK_YUKON:
-	case SK_YUKON_LITE:
-	case SK_YUKON_LP:
-		SK_YU_WRITE_2(sc_if, YUKON_MCAH1, 0);
-		SK_YU_WRITE_2(sc_if, YUKON_MCAH2, 0);
-		SK_YU_WRITE_2(sc_if, YUKON_MCAH3, 0);
-		SK_YU_WRITE_2(sc_if, YUKON_MCAH4, 0);
-		break;
-	}
+	mode = SK_XM_READ_4(sc_if, XM_MODE);
+	mode &= ~(XM_MODE_RX_PROMISC | XM_MODE_RX_USE_HASH |
+	    XM_MODE_RX_USE_PERFECT);
+	/* First, zot all the existing perfect filters. */
+	for (i = 1; i < XM_RXFILT_MAX; i++)
+		sk_setfilt(sc_if, dummy, i);
 
 	/* Now program new ones. */
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
+		if (ifp->if_flags & IFF_ALLMULTI)
+			mode |= XM_MODE_RX_USE_HASH;
+		if (ifp->if_flags & IFF_PROMISC)
+			mode |= XM_MODE_RX_PROMISC;
 		hashes[0] = 0xFFFFFFFF;
 		hashes[1] = 0xFFFFFFFF;
 	} else {
 		i = 1;
 		IF_ADDR_LOCK(ifp);
-		TAILQ_FOREACH_REVERSE(ifma, &ifp->if_multiaddrs, ifmultihead, ifma_link) {
+		TAILQ_FOREACH_REVERSE(ifma, &ifp->if_multiaddrs, ifmultihead,
+		    ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			/*
 			 * Program the first XM_RXFILT_MAX multicast groups
-			 * into the perfect filter. For all others,
-			 * use the hash table.
+			 * into the perfect filter.
 			 */
-			if (sc->sk_type == SK_GENESIS && i < XM_RXFILT_MAX) {
-				bcopy(LLADDR(
-				    (struct sockaddr_dl *)ifma->ifma_addr),
-				    maddr, ETHER_ADDR_LEN);
+			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+			    maddr, ETHER_ADDR_LEN);
+			if (i < XM_RXFILT_MAX) {
 				sk_setfilt(sc_if, maddr, i);
+				mode |= XM_MODE_RX_USE_PERFECT;
 				i++;
 				continue;
 			}
-
-			switch(sc->sk_type) {
-			case SK_GENESIS:
-				bcopy(LLADDR(
-				    (struct sockaddr_dl *)ifma->ifma_addr),
-				    maddr, ETHER_ADDR_LEN);
-				h = sk_xmchash((const uint8_t *)maddr);
-				break;
-			case SK_YUKON:
-			case SK_YUKON_LITE:
-			case SK_YUKON_LP:
-				bcopy(LLADDR(
-				    (struct sockaddr_dl *)ifma->ifma_addr),
-				    maddr, ETHER_ADDR_LEN);
-				h = sk_gmchash((const uint8_t *)maddr);
-				break;
-			}
+			h = sk_xmchash((const uint8_t *)maddr);
 			if (h < 32)
 				hashes[0] |= (1 << h);
 			else
 				hashes[1] |= (1 << (h - 32));
+			mode |= XM_MODE_RX_USE_HASH;
 		}
 		IF_ADDR_UNLOCK(ifp);
 	}
 
-	switch(sc->sk_type) {
-	case SK_GENESIS:
-		SK_XM_SETBIT_4(sc_if, XM_MODE, XM_MODE_RX_USE_HASH|
-			       XM_MODE_RX_USE_PERFECT);
-		SK_XM_WRITE_4(sc_if, XM_MAR0, hashes[0]);
-		SK_XM_WRITE_4(sc_if, XM_MAR2, hashes[1]);
-		break;
-	case SK_YUKON:
-	case SK_YUKON_LITE:
-	case SK_YUKON_LP:
-		SK_YU_WRITE_2(sc_if, YUKON_MCAH1, hashes[0] & 0xffff);
-		SK_YU_WRITE_2(sc_if, YUKON_MCAH2, (hashes[0] >> 16) & 0xffff);
-		SK_YU_WRITE_2(sc_if, YUKON_MCAH3, hashes[1] & 0xffff);
-		SK_YU_WRITE_2(sc_if, YUKON_MCAH4, (hashes[1] >> 16) & 0xffff);
-		break;
-	}
-
-	return;
+	SK_XM_WRITE_4(sc_if, XM_MODE, mode);
+	SK_XM_WRITE_4(sc_if, XM_MAR0, hashes[0]);
+	SK_XM_WRITE_4(sc_if, XM_MAR2, hashes[1]);
 }
 
 static void
-sk_setpromisc(sc_if)
+sk_rxfilter_yukon(sc_if)
 	struct sk_if_softc	*sc_if;
 {
-	struct sk_softc		*sc = sc_if->sk_softc;
-	struct ifnet		*ifp = sc_if->sk_ifp;
+	struct ifnet		*ifp;
+	u_int32_t		crc, hashes[2] = { 0, 0 }, mode;
+	struct ifmultiaddr	*ifma;
 
 	SK_IF_LOCK_ASSERT(sc_if);
 
-	switch(sc->sk_type) {
-	case SK_GENESIS:
-		if (ifp->if_flags & IFF_PROMISC) {
-			SK_XM_SETBIT_4(sc_if, XM_MODE, XM_MODE_RX_PROMISC);
-		} else {
-			SK_XM_CLRBIT_4(sc_if, XM_MODE, XM_MODE_RX_PROMISC);
+	ifp = sc_if->sk_ifp;
+	mode = SK_YU_READ_2(sc_if, YUKON_RCR);
+	if (ifp->if_flags & IFF_PROMISC)
+		mode &= ~(YU_RCR_UFLEN | YU_RCR_MUFLEN); 
+	else if (ifp->if_flags & IFF_ALLMULTI) {
+		mode |= YU_RCR_UFLEN | YU_RCR_MUFLEN; 
+		hashes[0] = 0xFFFFFFFF;
+		hashes[1] = 0xFFFFFFFF;
+	} else {
+		mode |= YU_RCR_UFLEN;
+		IF_ADDR_LOCK(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+			    ifma->ifma_addr), ETHER_ADDR_LEN);
+			/* Just want the 6 least significant bits. */
+			crc &= 0x3f;
+			/* Set the corresponding bit in the hash table. */
+			hashes[crc >> 5] |= 1 << (crc & 0x1f);
 		}
-		break;
-	case SK_YUKON:
-	case SK_YUKON_LITE:
-	case SK_YUKON_LP:
-		if (ifp->if_flags & IFF_PROMISC) {
-			SK_YU_CLRBIT_2(sc_if, YUKON_RCR,
-			    YU_RCR_UFLEN | YU_RCR_MUFLEN);
-		} else {
-			SK_YU_SETBIT_2(sc_if, YUKON_RCR,
-			    YU_RCR_UFLEN | YU_RCR_MUFLEN);
-		}
-		break;
+		IF_ADDR_UNLOCK(ifp);
+		if (hashes[0] != 0 || hashes[1] != 0)
+			mode |= YU_RCR_MUFLEN;
 	}
 
-	return;
+	SK_YU_WRITE_2(sc_if, YUKON_MCAH1, hashes[0] & 0xffff);
+	SK_YU_WRITE_2(sc_if, YUKON_MCAH2, (hashes[0] >> 16) & 0xffff);
+	SK_YU_WRITE_2(sc_if, YUKON_MCAH3, hashes[1] & 0xffff);
+	SK_YU_WRITE_2(sc_if, YUKON_MCAH4, (hashes[1] >> 16) & 0xffff);
+	SK_YU_WRITE_2(sc_if, YUKON_RCR, mode);
 }
 
 static int
@@ -1166,10 +1139,8 @@ sk_ioctl(ifp, command, data)
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if ((ifp->if_flags ^ sc_if->sk_if_flags)
-				    & IFF_PROMISC) {
-					sk_setpromisc(sc_if);
-					sk_setmulti(sc_if);
-				}
+				    & (IFF_PROMISC | IFF_ALLMULTI))
+					sk_rxfilter(sc_if);
 			} else
 				sk_init_locked(sc_if);
 		} else {
@@ -1183,7 +1154,7 @@ sk_ioctl(ifp, command, data)
 	case SIOCDELMULTI:
 		SK_IF_LOCK(sc_if);
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			sk_setmulti(sc_if);
+			sk_rxfilter(sc_if);
 		SK_IF_UNLOCK(sc_if);
 		break;
 	case SIOCGIFMEDIA:
@@ -3302,11 +3273,8 @@ sk_init_xmac(sc_if)
 	 */
 	SK_XM_WRITE_2(sc_if, XM_TX_REQTHRESH, SK_XM_TX_FIFOTHRESH);
 
-	/* Set promiscuous mode */
-	sk_setpromisc(sc_if);
-
-	/* Set multicast filter */
-	sk_setmulti(sc_if);
+	/* Set Rx filter */
+	sk_rxfilter_genesis(sc_if);
 
 	/* Clear and enable interrupts */
 	SK_XM_READ_2(sc_if, XM_ISR);
@@ -3447,11 +3415,8 @@ sk_init_yukon(sc_if)
 		SK_YU_WRITE_2(sc_if, YUKON_SAL2 + i * 4, reg);
 	}
 
-	/* Set promiscuous mode */
-	sk_setpromisc(sc_if);
-
-	/* Set multicast filter */
-	sk_setmulti(sc_if);
+	/* Set Rx filter */
+	sk_rxfilter_yukon(sc_if);
 
 	/* enable interrupt mask for counter overflows */
 	SK_YU_WRITE_2(sc_if, YUKON_TIMR, 0);

@@ -4204,8 +4204,7 @@ bce_init_ctx(struct bce_softc *sc)
 
 	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
 		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
-		/* DRC: Replace this constant value with a #define. */
-		int i, retry_cnt = 10;
+		int i, retry_cnt = CTX_INIT_RETRY_COUNT;
 		u32 val;
 
 		DBPRINT(sc, BCE_INFO_CTX, "Initializing 5709 context.\n");
@@ -4885,7 +4884,7 @@ bce_get_rx_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 	KASSERT(nsegs == 1, ("%s(): Too many segments returned (%d)!",
 		 __FUNCTION__, nsegs));
 
-	/* ToDo: Do we need bus_dmamap_sync(,,BUS_DMASYNC_PREWRITE) here? */
+	/* ToDo: Do we need bus_dmamap_sync(,,BUS_DMASYNC_PREREAD) here? */
 
 	/* Setup the rx_bd for the segment. */
 	rxbd = &sc->rx_bd_chain[RX_PAGE(*chain_prod)][RX_IDX(*chain_prod)];
@@ -4994,7 +4993,7 @@ bce_get_pg_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod,
 		goto bce_get_pg_buf_exit;
 	}
 
-	/* ToDo: Do we need bus_dmamap_sync(,,BUS_DMASYNC_PREWRITE) here? */
+	/* ToDo: Do we need bus_dmamap_sync(,,BUS_DMASYNC_PREREAD) here? */
 
 	/*
 	 * The page chain uses the same rx_bd data structure
@@ -5271,13 +5270,11 @@ bce_init_rx_chain(struct bce_softc *sc)
 		rxbd->rx_bd_haddr_lo = htole32(BCE_ADDR_LO(sc->rx_bd_chain_paddr[j]));
 	}
 
-/* Fill up the RX chain. */
+	/* Fill up the RX chain. */
 	bce_fill_rx_chain(sc);
 
 	for (i = 0; i < RX_PAGES; i++) {
-		bus_dmamap_sync(
-			sc->rx_bd_chain_tag,
-	    	sc->rx_bd_chain_map[i],
+		bus_dmamap_sync(sc->rx_bd_chain_tag, sc->rx_bd_chain_map[i],
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	}
 
@@ -5448,9 +5445,7 @@ bce_init_pg_chain(struct bce_softc *sc)
 	bce_fill_pg_chain(sc);
 
 	for (i = 0; i < PG_PAGES; i++) {
-		bus_dmamap_sync(
-			sc->pg_bd_chain_tag,
-	    	sc->pg_bd_chain_map[i],
+		bus_dmamap_sync(sc->pg_bd_chain_tag, sc->pg_bd_chain_map[i],
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	}
 
@@ -5733,13 +5728,13 @@ bce_rx_intr(struct bce_softc *sc)
 	/* Prepare the RX chain pages to be accessed by the host CPU. */
 	for (int i = 0; i < RX_PAGES; i++)
 		bus_dmamap_sync(sc->rx_bd_chain_tag,
-		    sc->rx_bd_chain_map[i], BUS_DMASYNC_POSTWRITE);
+		    sc->rx_bd_chain_map[i], BUS_DMASYNC_POSTREAD);
 
 #ifdef ZERO_COPY_SOCKETS
 	/* Prepare the page chain pages to be accessed by the host CPU. */
 	for (int i = 0; i < PG_PAGES; i++)
 		bus_dmamap_sync(sc->pg_bd_chain_tag,
-		    sc->pg_bd_chain_map[i], BUS_DMASYNC_POSTWRITE);
+		    sc->pg_bd_chain_map[i], BUS_DMASYNC_POSTREAD);
 #endif
 
 	/* Get the hardware's view of the RX consumer index. */
@@ -5766,9 +5761,8 @@ bce_rx_intr(struct bce_softc *sc)
 		sw_rx_cons_idx = RX_CHAIN_IDX(sw_rx_cons);
 
 		/* Unmap the mbuf from DMA space. */
-		bus_dmamap_sync(sc->rx_mbuf_tag,
-		    sc->rx_mbuf_map[sw_rx_cons_idx],
-	    	BUS_DMASYNC_POSTREAD);
+		bus_dmamap_sync(sc->rx_mbuf_tag, sc->rx_mbuf_map[sw_rx_cons_idx],
+		    BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->rx_mbuf_tag,
 		    sc->rx_mbuf_map[sw_rx_cons_idx]);
 
@@ -5895,6 +5889,9 @@ bce_rx_intr(struct bce_softc *sc)
 			/* Set the total packet length. */
 			m0->m_pkthdr.len = m0->m_len = pkt_len;
 		}
+#else
+        /* Set the total packet length. */
+		m0->m_pkthdr.len = m0->m_len = pkt_len;
 #endif
 
 		/* Remove the trailing Ethernet FCS. */
@@ -6009,6 +6006,7 @@ bce_rx_int_next_rx:
 	sc->rx_cons = sw_rx_cons;
 	bce_fill_rx_chain(sc);
 
+	/* Prepare the page chain pages to be accessed by the NIC. */
 	for (int i = 0; i < RX_PAGES; i++)
 		bus_dmamap_sync(sc->rx_bd_chain_tag,
 		    sc->rx_bd_chain_map[i], BUS_DMASYNC_PREWRITE);
@@ -7021,8 +7019,9 @@ bce_intr(void *xsc)
 
 	DBRUN(sc->interrupts_generated++);
 
+	/* Synchnorize before we read from interface's status block */
 	bus_dmamap_sync(sc->status_tag, sc->status_map,
-	    BUS_DMASYNC_POSTWRITE);
+	    BUS_DMASYNC_POSTREAD);
 
 	/*
 	 * If the hardware status block index
@@ -7110,7 +7109,7 @@ bce_intr(void *xsc)
 	}
 
 	bus_dmamap_sync(sc->status_tag,	sc->status_map,
-	    BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREREAD);
 
 	/* Re-enable interrupts. */
 	bce_enable_intr(sc, 0);

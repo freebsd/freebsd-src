@@ -6,6 +6,7 @@
 # PostScript, updated by Daniel Quinlan (quinlan@yggdrasil.com)
 0	string		%!		PostScript document text
 !:mime	application/postscript
+!:apple	ASPSTEXT
 >2	string		PS-Adobe-	conforming
 >>11	string		>\0		DSC level %.3s
 >>>15	string		EPS		\b, type %s
@@ -16,6 +17,7 @@
 # Some PCs have the annoying habit of adding a ^D as a document separator
 0	string		\004%!		PostScript document text
 !:mime	application/postscript
+!:apple	ASPSTEXT
 >3	string		PS-Adobe-	conforming
 >>12	string		>\0		DSC level %.3s
 >>>16	string		EPS		\b, type %s

@@ -78,7 +78,7 @@
 #define	PRIV_NTP_ADJTIME	16	/* Set NTP time adjustment. */
 #define	PRIV_CLOCK_SETTIME	17	/* Can call clock_settime. */
 #define	PRIV_SETTIMEOFDAY	18	/* Can call settimeofday. */
-#define	PRIV_SETHOSTID		19	/* Can call sethostid. */
+#define	_PRIV_SETHOSTID		19	/* Removed. */
 #define	_PRIV_SETDOMAINNAME	20	/* Removed. */
 
 /*
@@ -128,6 +128,8 @@
  * Jail privileges.
  */
 #define	PRIV_JAIL_ATTACH	110	/* Attach to a jail. */
+#define	PRIV_JAIL_SET		111	/* Set jail parameters. */
+#define	PRIV_JAIL_REMOVE	112	/* Remove a jail. */
 
 /*
  * Kernel environment priveleges.
@@ -209,7 +211,7 @@
 #define	PRIV_TTY_DRAINWAIT	251	/* Set tty drain wait time. */
 #define	PRIV_TTY_DTRWAIT	252	/* Set DTR wait on tty. */
 #define	PRIV_TTY_EXCLUSIVE	253	/* Override tty exclusive flag. */
-#define	PRIV_TTY_PRISON		254	/* Can open pts across jails. */
+#define	_PRIV_TTY_PRISON	254	/* Removed. */
 #define	PRIV_TTY_STI		255	/* Simulate input on another tty. */
 #define	PRIV_TTY_SETA		256	/* Set tty termios structure. */
 
@@ -281,6 +283,14 @@
 #define	PRIV_VM_MADV_PROTECT	360	/* Can set MADV_PROTECT. */
 #define	PRIV_VM_MLOCK		361	/* Can mlock(), mlockall(). */
 #define	PRIV_VM_MUNLOCK		362	/* Can munlock(), munlockall(). */
+#define	PRIV_VM_SWAP_NOQUOTA	363	/*
+					 * Can override the global
+					 * swap reservation limits.
+					 */
+#define	PRIV_VM_SWAP_NORLIMIT	364	/*
+					 * Can override the per-uid
+					 * swap reservation limits.
+					 */
 
 /*
  * Device file system privileges.
@@ -322,6 +332,8 @@
 #define	PRIV_NET_ADDIFADDR	413	/* Add protocol addr to interface. */
 #define	PRIV_NET_DELIFADDR	414	/* Delete protocol addr on interface. */
 #define	PRIV_NET_LAGG		415	/* Administer lagg interface. */
+#define	PRIV_NET_GIF		416	/* Administer gif interface. */
+#define	PRIV_NET_SETIFVNET	417	/* Move interface to vnet. */
 
 /*
  * 802.11-related privileges.
@@ -372,6 +384,7 @@
 #define	PRIV_NETINET_IPSEC	503	/* Administer IPSEC. */
 #define	PRIV_NETINET_REUSEPORT	504	/* Allow [rapid] port/address reuse. */
 #define	PRIV_NETINET_SETHDROPTS	505	/* Set certain IPv4/6 header options. */
+#define	PRIV_NETINET_BINDANY	506	/* Allow bind to any address. */
 
 /*
  * IPX/SPX privileges.
@@ -456,9 +469,15 @@
 #define PRIV_CPUCTL_UPDATE	641	/* Update cpu microcode. */
 
 /*
+ * Capi4BSD privileges.
+ */
+#define	PRIV_C4B_RESET_CTLR	650	/* Load firmware, reset controller. */
+#define	PRIV_C4B_TRACE		651	/* Unrestricted CAPI message tracing. */
+
+/*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		642
+#define	_PRIV_HIGHEST		652
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid

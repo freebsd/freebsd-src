@@ -201,6 +201,9 @@ extern const struct in6_addr in6mask128;
 #define IN6ADDR_LINKLOCAL_ALLROUTERS_INIT \
 	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }}}
+#define IN6ADDR_LINKLOCAL_ALLV2ROUTERS_INIT \
+	{{{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
+	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x16 }}}
 #endif
 
 extern const struct in6_addr in6addr_any;
@@ -209,6 +212,7 @@ extern const struct in6_addr in6addr_loopback;
 extern const struct in6_addr in6addr_nodelocal_allnodes;
 extern const struct in6_addr in6addr_linklocal_allnodes;
 extern const struct in6_addr in6addr_linklocal_allrouters;
+extern const struct in6_addr in6addr_linklocal_allv2routers;
 #endif
 
 /*
@@ -371,6 +375,7 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 #if __BSD_VISIBLE
 struct route_in6 {
 	struct	rtentry *ro_rt;
+	struct	llentry *ro_lle;
 	struct	sockaddr_in6 ro_dst;
 };
 #endif
@@ -472,6 +477,8 @@ struct route_in6 {
 				    * the source address.
 				    */
 
+#define	IPV6_BINDANY		64 /* bool: allow bind to any address */
+
 /*
  * The following option is private; do not use it from user applications.
  * It is deliberately defined to the same value as IP_MSFILTER.
@@ -493,24 +500,27 @@ struct route_in6 {
 #define IPV6_DEFAULT_MULTICAST_LOOP 1	/* normally hear sends if a member */
 
 /*
+ * The im6o_membership vector for each socket is now dynamically allocated at
+ * run-time, bounded by USHRT_MAX, and is reallocated when needed, sized
+ * according to a power-of-two increment.
+ */
+#define	IPV6_MIN_MEMBERSHIPS	31
+#define	IPV6_MAX_MEMBERSHIPS	4095
+
+/*
+ * Default resource limits for IPv6 multicast source filtering.
+ * These may be modified by sysctl.
+ */
+#define	IPV6_MAX_GROUP_SRC_FILTER	512	/* sources per group */
+#define	IPV6_MAX_SOCK_SRC_FILTER	128	/* sources per socket/group */
+
+/*
  * Argument structure for IPV6_JOIN_GROUP and IPV6_LEAVE_GROUP.
  */
 struct ipv6_mreq {
 	struct in6_addr	ipv6mr_multiaddr;
 	unsigned int	ipv6mr_interface;
 };
-
-#ifdef notyet
-/*
- * Argument structure for IPV6_ADD_SOURCE_MEMBERSHIP,
- * IPV6_DROP_SOURCE_MEMBERSHIP, IPV6_BLOCK_SOURCE, and IPV6_UNBLOCK_SOURCE.
- */
-struct ipv6_mreq_source {
-	struct in6_addr	ipv6mr_multiaddr;
-	struct in6_addr	ipv6mr_sourceaddr;
-	uint32_t	ipv6mr_interface;
-};
-#endif
 
 /*
  * IPV6_PKTINFO: Packet information(RFC2292 sec 5)
@@ -611,6 +621,7 @@ struct ip6_mtuinfo {
 #define	M_DECRYPTED	M_PROTO3
 #define	M_LOOP		M_PROTO4
 #define	M_AUTHIPDGM	M_PROTO5
+#define	M_RTALERT_MLD	M_PROTO6
 
 #ifdef _KERNEL
 struct cmsghdr;

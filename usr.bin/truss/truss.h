@@ -33,6 +33,7 @@
 #define NOSIGS             0x00000008
 #define EXECVEARGS         0x00000010
 #define EXECVEENVS         0x00000020
+#define COUNTONLY          0x00000040
 
 struct threadinfo
 {
@@ -67,6 +68,16 @@ struct trussinfo
 		if ((vvp)->tv_nsec < 0) {				\
 			(vvp)->tv_sec--;				\
 			(vvp)->tv_nsec += 1000000000;			\
+		}							\
+	} while (0)
+
+#define timespecadd(tvp, uvp, vvp)					\
+	do {								\
+		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
+		(vvp)->tv_nsec = (tvp)->tv_nsec + (uvp)->tv_nsec;	\
+		if ((vvp)->tv_nsec > 1000000000) {				\
+			(vvp)->tv_sec++;				\
+			(vvp)->tv_nsec -= 1000000000;			\
 		}							\
 	} while (0)
 

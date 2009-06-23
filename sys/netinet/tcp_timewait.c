@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -132,6 +131,7 @@ tcptw_auto_size(void)
 static int
 sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	int error, new;
 
 	if (maxtcptw == 0)
@@ -158,6 +158,7 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, nolocaltimewait,
 void
 tcp_tw_zone_change(void)
 {
+	INIT_VNET_INET(curvnet);
 
 	if (maxtcptw == 0)
 		uma_zone_set_max(V_tcptw_zone, tcptw_auto_size());
@@ -178,6 +179,20 @@ tcp_tw_init(void)
 	TAILQ_INIT(&V_twq_2msl);
 }
 
+#ifdef VIMAGE
+void
+tcp_tw_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+	struct tcptw *tw;
+
+	INP_INFO_WLOCK(&V_tcbinfo);
+	while((tw = TAILQ_FIRST(&V_twq_2msl)) != NULL)
+		tcp_twclose(tw, 0);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
+}
+#endif
+
 /*
  * Move a TCP connection into TIME_WAIT state.
  *    tcbinfo is locked.
@@ -186,9 +201,7 @@ tcp_tw_init(void)
 void
 tcp_twstart(struct tcpcb *tp)
 {
-#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 	INIT_VNET_INET(tp->t_vnet);
-#endif
 	struct tcptw *tw;
 	struct inpcb *inp = tp->t_inpcb;
 	int acknow;

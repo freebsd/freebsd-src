@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>		/* for curproc, pageproc */
 #include <sys/socket.h>
+#include <sys/resourcevar.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/sx.h>
@@ -222,6 +223,8 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->generation = 1;
 	object->ref_count = 1;
 	object->flags = 0;
+	object->uip = NULL;
+	object->charge = 0;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
 		object->flags = OBJ_ONEMAPPING;
 	object->pg_color = 0;
@@ -607,6 +610,20 @@ vm_object_destroy(vm_object_t object)
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_REMOVE(&vm_object_list, object, object_list);
 	mtx_unlock(&vm_object_list_mtx);
+
+	/*
+	 * Release the allocation charge.
+	 */
+	if (object->uip != NULL) {
+		KASSERT(object->type == OBJT_DEFAULT ||
+		    object->type == OBJT_SWAP,
+		    ("vm_object_terminate: non-swap obj %p has uip",
+		     object));
+		swap_release_by_uid(object->charge, object->uip);
+		object->charge = 0;
+		uifree(object->uip);
+		object->uip = NULL;
+	}
 
 	/*
 	 * Free the space for the object.
@@ -1347,6 +1364,14 @@ vm_object_split(vm_map_entry_t entry)
 			orig_object->backing_object_offset + entry->offset;
 		new_object->backing_object = source;
 	}
+	if (orig_object->uip != NULL) {
+		new_object->uip = orig_object->uip;
+		uihold(orig_object->uip);
+		new_object->charge = ptoa(size);
+		KASSERT(orig_object->charge >= ptoa(size),
+		    ("orig_object->charge < 0"));
+		orig_object->charge -= ptoa(size);
+	}
 retry:
 	if ((m = TAILQ_FIRST(&orig_object->memq)) != NULL) {
 		if (m->pindex < offidxstart) {
@@ -1757,6 +1782,13 @@ vm_object_collapse(vm_object_t object)
 			 * and no object references within it, all that is
 			 * necessary is to dispose of it.
 			 */
+			if (backing_object->uip != NULL) {
+				swap_release_by_uid(backing_object->charge,
+				    backing_object->uip);
+				backing_object->charge = 0;
+				uifree(backing_object->uip);
+				backing_object->uip = NULL;
+			}
 			KASSERT(backing_object->ref_count == 1, ("backing_object %p was somehow re-referenced during collapse!", backing_object));
 			VM_OBJECT_UNLOCK(backing_object);
 
@@ -1902,8 +1934,10 @@ again:
 				pmap_remove_all(p);
 			/* Account for removal of managed, wired mappings. */
 			p->wire_count -= wirings;
-			if (!clean_only)
+			if (!clean_only) {
 				p->valid = 0;
+				vm_page_undirty(p);
+			}
 			continue;
 		}
 		if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
@@ -1929,6 +1963,55 @@ skipmemq:
 }
 
 /*
+ *	Populate the specified range of the object with valid pages.  Returns
+ *	TRUE if the range is successfully populated and FALSE otherwise.
+ *
+ *	Note: This function should be optimized to pass a larger array of
+ *	pages to vm_pager_get_pages() before it is applied to a non-
+ *	OBJT_DEVICE object.
+ *
+ *	The object must be locked.
+ */
+boolean_t
+vm_object_populate(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
+{
+	vm_page_t m, ma[1];
+	vm_pindex_t pindex;
+	int rv;
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	for (pindex = start; pindex < end; pindex++) {
+		m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL |
+		    VM_ALLOC_RETRY);
+		if (m->valid != VM_PAGE_BITS_ALL) {
+			ma[0] = m;
+			rv = vm_pager_get_pages(object, ma, 1, 0);
+			m = vm_page_lookup(object, pindex);
+			if (m == NULL)
+				break;
+			if (rv != VM_PAGER_OK) {
+				vm_page_lock_queues();
+				vm_page_free(m);
+				vm_page_unlock_queues();
+				break;
+			}
+		}
+		/*
+		 * Keep "m" busy because a subsequent iteration may unlock
+		 * the object.
+		 */
+	}
+	if (pindex > start) {
+		m = vm_page_lookup(object, start);
+		while (m != NULL && m->pindex < pindex) {
+			vm_page_wakeup(m);
+			m = TAILQ_NEXT(m, listq);
+		}
+	}
+	return (pindex == end);
+}
+
+/*
  *	Routine:	vm_object_coalesce
  *	Function:	Coalesces two objects backing up adjoining
  *			regions of memory into a single object.
@@ -1943,13 +2026,15 @@ skipmemq:
  *		prev_offset	Offset into prev_object
  *		prev_size	Size of reference to prev_object
  *		next_size	Size of reference to the second object
+ *		reserved	Indicator that extension region has
+ *				swap accounted for
  *
  *	Conditions:
  *	The object must *not* be locked.
  */
 boolean_t
 vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
-	vm_size_t prev_size, vm_size_t next_size)
+    vm_size_t prev_size, vm_size_t next_size, boolean_t reserved)
 {
 	vm_pindex_t next_pindex;
 
@@ -1988,6 +2073,28 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	}
 
 	/*
+	 * Account for the charge.
+	 */
+	if (prev_object->uip != NULL) {
+
+		/*
+		 * If prev_object was charged, then this mapping,
+		 * althought not charged now, may become writable
+		 * later. Non-NULL uip in the object would prevent
+		 * swap reservation during enabling of the write
+		 * access, so reserve swap now. Failed reservation
+		 * cause allocation of the separate object for the map
+		 * entry, and swap reservation for this entry is
+		 * managed in appropriate time.
+		 */
+		if (!reserved && !swap_reserve_by_uid(ptoa(next_size),
+		    prev_object->uip)) {
+			return (FALSE);
+		}
+		prev_object->charge += ptoa(next_size);
+	}
+
+	/*
 	 * Remove any pages that may still be in the object from a previous
 	 * deallocation.
 	 */
@@ -1998,6 +2105,16 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 		if (prev_object->type == OBJT_SWAP)
 			swap_pager_freespace(prev_object,
 					     next_pindex, next_size);
+#if 0
+		if (prev_object->uip != NULL) {
+			KASSERT(prev_object->charge >=
+			    ptoa(prev_object->size - next_pindex),
+			    ("object %p overcharged 1 %jx %jx", prev_object,
+				(uintmax_t)next_pindex, (uintmax_t)next_size));
+			prev_object->charge -= ptoa(prev_object->size -
+			    next_pindex);
+		}
+#endif
 	}
 
 	/*
@@ -2147,9 +2264,10 @@ DB_SHOW_COMMAND(object, vm_object_print_static)
 		return;
 
 	db_iprintf(
-	    "Object %p: type=%d, size=0x%jx, res=%d, ref=%d, flags=0x%x\n",
+	    "Object %p: type=%d, size=0x%jx, res=%d, ref=%d, flags=0x%x uip %d charge %jx\n",
 	    object, (int)object->type, (uintmax_t)object->size,
-	    object->resident_page_count, object->ref_count, object->flags);
+	    object->resident_page_count, object->ref_count, object->flags,
+	    object->uip ? object->uip->ui_uid : -1, (uintmax_t)object->charge);
 	db_iprintf(" sref=%d, backing_object(%d)=(%p)+0x%jx\n",
 	    object->shadow_count, 
 	    object->backing_object ? object->backing_object->ref_count : 0,
@@ -2196,16 +2314,13 @@ vm_object_print(
 DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 {
 	vm_object_t object;
-	int nl = 0;
-	int c;
+	vm_pindex_t fidx;
+	vm_paddr_t pa;
+	vm_page_t m, prev_m;
+	int rcount, nl, c;
 
+	nl = 0;
 	TAILQ_FOREACH(object, &vm_object_list, object_list) {
-		vm_pindex_t idx, fidx;
-		vm_pindex_t osize;
-		vm_paddr_t pa = -1;
-		int rcount;
-		vm_page_t m;
-
 		db_printf("new object: %p\n", (void *)object);
 		if (nl > 18) {
 			c = cngetc();
@@ -2216,12 +2331,12 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 		nl++;
 		rcount = 0;
 		fidx = 0;
-		osize = object->size;
-		if (osize > 128)
-			osize = 128;
-		for (idx = 0; idx < osize; idx++) {
-			m = vm_page_lookup(object, idx);
-			if (m == NULL) {
+		pa = -1;
+		TAILQ_FOREACH(m, &object->memq, listq) {
+			if (m->pindex > 128)
+				break;
+			if ((prev_m = TAILQ_PREV(m, pglist, listq)) != NULL &&
+			    prev_m->pindex + 1 != m->pindex) {
 				if (rcount) {
 					db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
 						(long)fidx, rcount, (long)pa);
@@ -2234,10 +2349,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 					nl++;
 					rcount = 0;
 				}
-				continue;
-			}
-
-				
+			}				
 			if (rcount &&
 				(VM_PAGE_TO_PHYS(m) == pa + rcount * PAGE_SIZE)) {
 				++rcount;
@@ -2254,7 +2366,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 				}
 				nl++;
 			}
-			fidx = idx;
+			fidx = m->pindex;
 			pa = VM_PAGE_TO_PHYS(m);
 			rcount = 1;
 		}

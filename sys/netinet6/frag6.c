@@ -32,8 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -187,8 +185,10 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	dstifp = NULL;
 #ifdef IN6_IFSTAT_STRICT
 	/* find the destination interface of the packet. */
-	if ((ia = ip6_getdstifaddr(m)) != NULL)
+	if ((ia = ip6_getdstifaddr(m)) != NULL) {
 		dstifp = ia->ia_ifp;
+		ifa_free(&ia->ia_ifa);
+	}
 #else
 	/* we are violating the spec, this is not the destination interface */
 	if ((m->m_flags & M_PKTHDR) != 0)

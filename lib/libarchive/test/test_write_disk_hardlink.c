@@ -25,7 +25,14 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+/* Execution bits, Group members bits and others bits do not work. */
+#define UMASK 0177
+#define E_MASK (~0177)
+#else
 #define UMASK 022
+#define E_MASK (~0)
+#endif
 
 /*
  * Exercise hardlink recreation.
@@ -36,7 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 DEFINE_TEST(test_write_disk_hardlink)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000 || defined(_WIN32)
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("archive_write_disk_hardlink tests");
 #else
 	static const char data[]="abcdefghijklmnopqrstuvwxyz";
@@ -175,7 +182,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	 * doesn't carry data for it, we consider it to be
 	 * non-authoritive for meta data as well.  This is consistent
 	 * with GNU tar and BSD pax.  */
-	assertEqualInt(st.st_mode, (S_IFREG | 0755) & ~UMASK);
+	assertEqualInt(st.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
 	assertEqualInt(st.st_size, sizeof(data));
 	assertEqualInt(st.st_nlink, 2);
 
@@ -194,7 +201,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	 * common file formats that store a size of zero for
 	 * hardlinks. */
 	assert(0 == stat("link2a", &st));
-	assertEqualInt(st.st_mode, (S_IFREG | 0755) & ~UMASK);
+	assertEqualInt(st.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
 	assertEqualInt(st.st_size, sizeof(data));
 	assertEqualInt(st.st_nlink, 2);
 
@@ -207,12 +214,12 @@ DEFINE_TEST(test_write_disk_hardlink)
 
 	/* Test #3 */
 	assert(0 == stat("link3a", &st));
-	assertEqualInt(st.st_mode, (S_IFREG | 0755) & ~UMASK);
+	assertEqualInt(st.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
 	assertEqualInt(st.st_size, sizeof(data));
 	assertEqualInt(st.st_nlink, 2);
 
 	assert(0 == stat("link3b", &st2));
-	assertEqualInt(st2.st_mode, (S_IFREG | 0755) & ~UMASK);
+	assertEqualInt(st2.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
 	assertEqualInt(st2.st_size, sizeof(data));
 	assertEqualInt(st2.st_nlink, 2);
 	assertEqualInt(st.st_ino, st2.st_ino);
@@ -220,12 +227,12 @@ DEFINE_TEST(test_write_disk_hardlink)
 
 	/* Test #4 */
 	assert(0 == stat("link4a", &st));
-	assertEqualInt(st.st_mode, (S_IFREG | 0755) & ~UMASK);
+	assertEqualInt(st.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
 	assertEqualInt(st.st_size, sizeof(data));
 	assertEqualInt(st.st_nlink, 2);
 
 	assert(0 == stat("link4b", &st2));
-	assertEqualInt(st2.st_mode, (S_IFREG | 0755) & ~UMASK);
+	assertEqualInt(st2.st_mode & E_MASK, (S_IFREG | 0755) & ~UMASK);
 	assertEqualInt(st2.st_size, sizeof(data));
 	assertEqualInt(st2.st_nlink, 2);
 	assertEqualInt(st.st_ino, st2.st_ino);

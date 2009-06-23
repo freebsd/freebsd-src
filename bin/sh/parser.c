@@ -250,6 +250,7 @@ pipeline(void)
 	int negate;
 
 	negate = 0;
+	checkkwd = 2;
 	TRACE(("pipeline: entered\n"));
 	while (readtoken() == TNOT)
 		negate = !negate;
@@ -897,19 +898,6 @@ readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 	int oldstyle;
 	char const *prevsyntax;	/* syntax before arithmetic */
 	int synentry;
-#if __GNUC__
-	/* Avoid longjmp clobbering */
-	(void) &out;
-	(void) &quotef;
-	(void) &dblquote;
-	(void) &varnest;
-	(void) &arinest;
-	(void) &parenlevel;
-	(void) &oldstyle;
-	(void) &prevsyntax;
-	(void) &syntax;
-	(void) &synentry;
-#endif
 
 	startlinno = plinno;
 	dblquote = 0;
@@ -1319,13 +1307,9 @@ parsebackq: {
 	union node *n;
 	char *volatile str;
 	struct jmploc jmploc;
-	struct jmploc *volatile savehandler;
+	struct jmploc *const savehandler = handler;
 	int savelen;
 	int saveprompt;
-#if __GNUC__
-	/* Avoid longjmp clobbering */
-	(void) &saveprompt;
-#endif
 
 	savepbq = parsebackquote;
 	if (setjmp(jmploc.loc)) {
@@ -1342,7 +1326,6 @@ parsebackq: {
 		str = ckmalloc(savelen);
 		memcpy(str, stackblock(), savelen);
 	}
-	savehandler = handler;
 	handler = &jmploc;
 	INTON;
         if (oldstyle) {

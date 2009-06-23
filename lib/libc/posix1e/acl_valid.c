@@ -81,6 +81,7 @@ acl_valid_file_np(const char *pathp, acl_type_t type, acl_t acl)
 		errno = EINVAL;
 		return (-1);
 	}
+	type = _acl_type_unold(type);
 	if (_posix1e_acl(acl, type)) {
 		error = _posix1e_acl_sort(acl);
 		if (error) {
@@ -101,6 +102,7 @@ acl_valid_link_np(const char *pathp, acl_type_t type, acl_t acl)
 		errno = EINVAL;
 		return (-1);
 	}
+	type = _acl_type_unold(type);
 	if (_posix1e_acl(acl, type)) {
 		error = _posix1e_acl_sort(acl);
 		if (error) {
@@ -121,6 +123,7 @@ acl_valid_fd_np(int fd, acl_type_t type, acl_t acl)
 		errno = EINVAL;
 		return (-1);
 	}
+	type = _acl_type_unold(type);
 	if (_posix1e_acl(acl, type)) {
 		error = _posix1e_acl_sort(acl);
 		if (error) {
@@ -130,7 +133,6 @@ acl_valid_fd_np(int fd, acl_type_t type, acl_t acl)
 	}
 
 	acl->ats_cur_entry = 0;
-
 
 	return (___acl_aclcheck_fd(fd, type, &acl->ats_acl));
 }

@@ -105,7 +105,7 @@
  * Version of the package tools - increase only when some
  * functionality used by bsd.port.mk is changed, added or removed
  */
-#define PKG_INSTALL_VERSION	20090106
+#define PKG_INSTALL_VERSION	20090519
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
 #define main(argc, argv)	real_main(argc, argv)
@@ -159,9 +159,9 @@ STAILQ_HEAD(reqr_by_head, reqr_by_entry);
 int		vsystem(const char *, ...);
 char		*vpipe(const char *, ...);
 void		cleanup(int);
-char		*make_playpen(char *, off_t);
+const char	*make_playpen(char *, off_t);
 char		*where_playpen(void);
-void		leave_playpen(void);
+int		leave_playpen(void);
 off_t		min_free(const char *);
 
 /* String */
@@ -183,7 +183,7 @@ Boolean		isfile(const char *);
 Boolean		isempty(const char *);
 Boolean		issymlink(const char *);
 Boolean		isURL(const char *);
-char		*fileGetURL(const char *, const char *, int);
+const char	*fileGetURL(const char *, const char *, int);
 char		*fileFindByPath(const char *, const char *);
 char		*fileGetContents(const char *);
 void		write_file(const char *, const char *);

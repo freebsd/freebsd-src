@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#90 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#91 $
  */
 
 #include <sys/types.h>
@@ -1503,7 +1503,7 @@ au_to_header32_ex(int rec_size, au_event_t e_type, au_emod_t e_mod)
 
 	if (gettimeofday(&tm, NULL) == -1)
 		return (NULL);
-	if (auditon(A_GETKAUDIT, &aia, sizeof(aia)) < 0) {
+	if (audit_get_kaudit(&aia, sizeof(aia)) != 0) {
 		if (errno != ENOSYS)
 			return (NULL);
 		return (au_to_header32_tm(rec_size, e_type, e_mod, tm));

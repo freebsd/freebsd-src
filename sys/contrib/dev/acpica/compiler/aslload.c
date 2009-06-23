@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 1.77 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -117,9 +116,9 @@
 #define __ASLLOAD_C__
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acdispat.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acdispat.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #include "aslcompiler.y.h"
 
@@ -145,7 +144,13 @@ LdNamespace1Begin (
     void                    *Context);
 
 static ACPI_STATUS
-LdNamespace1End (
+LdNamespace2Begin (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context);
+
+static ACPI_STATUS
+LdCommonNamespaceEnd (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,
     void                    *Context);
@@ -160,7 +165,7 @@ LdNamespace1End (
  * RETURN:      Status
  *
  * DESCRIPTION: Perform a walk of the parse tree that in turn loads all of the
- *              named ASL/AML objects into the namespace.  The namespace is
+ *              named ASL/AML objects into the namespace. The namespace is
  *              constructed in order to resolve named references and references
  *              to named fields within resource templates/descriptors.
  *
@@ -183,10 +188,15 @@ LdLoadNamespace (
         return AE_NO_MEMORY;
     }
 
-    /* Perform the walk of the parse tree */
+    /* Walk the entire parse tree, first pass */
 
     TrWalkParseTree (RootOp, ASL_WALK_VISIT_TWICE, LdNamespace1Begin,
-        LdNamespace1End, WalkState);
+        LdCommonNamespaceEnd, WalkState);
+
+    /* Second pass to handle forward references */
+
+    TrWalkParseTree (RootOp, ASL_WALK_VISIT_TWICE, LdNamespace2Begin,
+        LdCommonNamespaceEnd, WalkState);
 
     /* Dump the namespace if debug is enabled */
 
@@ -304,7 +314,7 @@ LdLoadFieldElements (
  * DESCRIPTION: Enter the named elements of the resource descriptor (children
  *              of the parent) into the namespace.
  *
- * NOTE: In the real AML namespace, these named elements never exist.  But
+ * NOTE: In the real AML namespace, these named elements never exist. But
  *       we simply use the namespace here as a symbol table so we can look
  *       them up as they are referenced.
  *
@@ -395,7 +405,7 @@ LdLoadResourceElements (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Descending callback used during the parse tree walk.  If this
+ * DESCRIPTION: Descending callback used during the parse tree walk. If this
  *              is a named AML opcode, enter into the namespace
  *
  ******************************************************************************/
@@ -536,7 +546,7 @@ LdNamespace1Begin (
          * The name referenced by Scope(Name) must already exist at this point.
          * In other words, forward references for Scope() are not supported.
          * The only real reason for this is that the MS interpreter cannot
-         * handle this case.  Perhaps someday this case can go away.
+         * handle this case. Perhaps someday this case can go away.
          */
         Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ACPI_TYPE_ANY,
                     ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
@@ -621,7 +631,7 @@ LdNamespace1Begin (
             /*
              * However, switch the type to be an actual scope so
              * that compilation can continue without generating a whole
-             * cascade of additional errors.  Open the new scope.
+             * cascade of additional errors. Open the new scope.
              */
             Node->Type = ACPI_TYPE_LOCAL_SCOPE;
             Status = AcpiDsScopeStackPush (Node, ACPI_TYPE_LOCAL_SCOPE,
@@ -652,8 +662,8 @@ LdNamespace1Begin (
     Flags |= ACPI_NS_ERROR_IF_FOUND;
 
     /*
-     * Enter the named type into the internal namespace.  We enter the name
-     * as we go downward in the parse tree.  Any necessary subobjects that
+     * Enter the named type into the internal namespace. We enter the name
+     * as we go downward in the parse tree. Any necessary subobjects that
      * involve arguments to the opcode must be created as we go back up the
      * parse tree later.
      */
@@ -672,7 +682,8 @@ LdNamespace1Begin (
                 Node->Type = (UINT8) ObjectType;
                 Status = AE_OK;
             }
-            else if (Node->Flags & ANOBJ_IS_EXTERNAL)
+            else if ((Node->Flags & ANOBJ_IS_EXTERNAL) &&
+                     (Op->Asl.ParseOpcode != PARSEOP_EXTERNAL))
             {
                 /*
                  * Allow one create on an object or segment that was
@@ -752,7 +763,143 @@ Exit:
 
 /*******************************************************************************
  *
- * FUNCTION:    LdNamespace1End
+ * FUNCTION:    LdNamespace2Begin
+ *
+ * PARAMETERS:  ASL_WALK_CALLBACK
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Descending callback used during the pass 2 parse tree walk.
+ *              Second pass resolves some forward references.
+ *
+ * Notes:
+ * Currently only needs to handle the Alias operator.
+ * Could be used to allow forward references from the Scope() operator, but
+ * the MS interpreter does not allow this, so this compiler does not either.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+LdNamespace2Begin (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context)
+{
+    ACPI_WALK_STATE         *WalkState = (ACPI_WALK_STATE *) Context;
+    ACPI_STATUS             Status;
+    ACPI_NAMESPACE_NODE     *Node;
+    ACPI_OBJECT_TYPE        ObjectType;
+    BOOLEAN                 ForceNewScope = FALSE;
+    ACPI_PARSE_OBJECT       *Arg;
+    char                    *Path;
+    ACPI_NAMESPACE_NODE     *TargetNode;
+
+
+    ACPI_FUNCTION_NAME (LdNamespace2Begin);
+    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op %p [%s]\n",
+        Op, Op->Asl.ParseOpName));
+
+
+    /* Ignore Ops with no namespace node */
+
+    Node = Op->Asl.Node;
+    if (!Node)
+    {
+        return (AE_OK);
+    }
+
+    /* Get the type to determine if we should push the scope */
+
+    if ((Op->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG) &&
+        (Op->Asl.CompileFlags == NODE_IS_RESOURCE_DESC))
+    {
+        ObjectType = ACPI_TYPE_LOCAL_RESOURCE;
+    }
+    else
+    {
+        ObjectType = AslMapNamedOpcodeToDataType (Op->Asl.AmlOpcode);
+    }
+
+    /* Push scope for Resource Templates */
+
+    if (Op->Asl.ParseOpcode == PARSEOP_NAME)
+    {
+        if (Op->Asl.CompileFlags & NODE_IS_RESOURCE_DESC)
+        {
+            ForceNewScope = TRUE;
+        }
+    }
+
+    /* Push the scope stack */
+
+    if (ForceNewScope || AcpiNsOpensScope (ObjectType))
+    {
+        Status = AcpiDsScopeStackPush (Node, ObjectType, WalkState);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+    }
+
+    if (Op->Asl.ParseOpcode == PARSEOP_ALIAS)
+    {
+        /* Complete the alias node by getting and saving the target node */
+
+        /* First child is the alias target */
+
+        Arg = Op->Asl.Child;
+
+        /* Get the target pathname */
+
+        Path = Arg->Asl.Namepath;
+        if (!Path)
+        {
+            Status = UtInternalizeName (Arg->Asl.ExternalName, &Path);
+            if (ACPI_FAILURE (Status))
+            {
+                return (Status);
+            }
+        }
+
+        /* Get the NS node associated with the target. It must exist. */
+
+        Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ACPI_TYPE_ANY,
+                    ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
+                    WalkState, &TargetNode);
+        if (ACPI_FAILURE (Status))
+        {
+            if (Status == AE_NOT_FOUND)
+            {
+                AslError (ASL_ERROR, ASL_MSG_NOT_FOUND, Op,
+                    Op->Asl.ExternalName);
+
+                /*
+                 * The name was not found, go ahead and create it.
+                 * This prevents more errors later.
+                 */
+                Status = AcpiNsLookup (WalkState->ScopeInfo, Path,
+                            ACPI_TYPE_ANY,
+                            ACPI_IMODE_LOAD_PASS1, ACPI_NS_NO_UPSEARCH,
+                            WalkState, &(Node));
+                return (AE_OK);
+            }
+
+            AslCoreSubsystemError (Op, Status, "Failure from lookup\n", FALSE);
+            return (AE_OK);
+        }
+
+        /* Save the target node within the alias node */
+
+        Node->Object = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, TargetNode);
+    }
+
+    return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    LdCommonNamespaceEnd
  *
  * PARAMETERS:  ASL_WALK_CALLBACK
  *
@@ -764,7 +911,7 @@ Exit:
  ******************************************************************************/
 
 static ACPI_STATUS
-LdNamespace1End (
+LdCommonNamespaceEnd (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  Level,
     void                    *Context)
@@ -774,7 +921,7 @@ LdNamespace1End (
     BOOLEAN                 ForceNewScope = FALSE;
 
 
-    ACPI_FUNCTION_NAME (LdNamespace1End);
+    ACPI_FUNCTION_NAME (LdCommonNamespaceEnd);
 
 
     /* We are only interested in opcodes that have an associated name */
@@ -812,7 +959,6 @@ LdNamespace1End (
 
     if (ForceNewScope || AcpiNsOpensScope (ObjectType))
     {
-
         ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
             "(%s): Popping scope for Op [%s] %p\n",
             AcpiUtGetTypeName (ObjectType), Op->Asl.ParseOpName, Op));

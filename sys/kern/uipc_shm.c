@@ -55,8 +55,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -112,7 +110,7 @@ static struct shmfd *shm_hold(struct shmfd *shmfd);
 static void	shm_insert(char *path, Fnv32_t fnv, struct shmfd *shmfd);
 static struct shmfd *shm_lookup(char *path, Fnv32_t fnv);
 static int	shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred);
-static void	shm_dotruncate(struct shmfd *shmfd, off_t length);
+static int	shm_dotruncate(struct shmfd *shmfd, off_t length);
 
 static fo_rdwr_t	shm_read;
 static fo_rdwr_t	shm_write;
@@ -169,8 +167,7 @@ shm_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
-	shm_dotruncate(shmfd, length);
-	return (0);
+	return (shm_dotruncate(shmfd, length));
 }
 
 static int
@@ -244,23 +241,26 @@ shm_close(struct file *fp, struct thread *td)
 	return (0);
 }
 
-static void
+static int
 shm_dotruncate(struct shmfd *shmfd, off_t length)
 {
 	vm_object_t object;
 	vm_page_t m;
 	vm_pindex_t nobjsize;
+	vm_ooffset_t delta;
 
 	object = shmfd->shm_object;
 	VM_OBJECT_LOCK(object);
 	if (length == shmfd->shm_size) {
 		VM_OBJECT_UNLOCK(object);
-		return;
+		return (0);
 	}
 	nobjsize = OFF_TO_IDX(length + PAGE_MASK);
 
 	/* Are we shrinking?  If so, trim the end. */
 	if (length < shmfd->shm_size) {
+		delta = ptoa(object->size - nobjsize);
+
 		/* Toss in memory pages. */
 		if (nobjsize < object->size)
 			vm_object_page_remove(object, nobjsize, object->size,
@@ -268,13 +268,16 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 
 		/* Toss pages from swap. */
 		if (object->type == OBJT_SWAP)
-			swap_pager_freespace(object, nobjsize,
-			    object->size - nobjsize);
+			swap_pager_freespace(object, nobjsize, delta);
+
+		/* Free the swap accounted for shm */
+		swap_release_by_uid(delta, object->uip);
+		object->charge -= delta;
 
 		/*
 		 * If the last page is partially mapped, then zero out
 		 * the garbage at the end of the page.  See comments
-		 * in vnode_page_setsize() for more details.
+		 * in vnode_pager_setsize() for more details.
 		 *
 		 * XXXJHB: This handles in memory pages, but what about
 		 * a page swapped out to disk?
@@ -286,16 +289,38 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			int size = PAGE_SIZE - base;
 
 			pmap_zero_page_area(m, base, size);
+
+			/*
+			 * Update the valid bits to reflect the blocks that
+			 * have been zeroed.  Some of these valid bits may
+			 * have already been set.
+			 */
+			vm_page_set_valid(m, base, size);
+
+			/*
+			 * Round "base" to the next block boundary so that the
+			 * dirty bit for a partially zeroed block is not
+			 * cleared.
+			 */
+			base = roundup2(base, DEV_BSIZE);
+
 			vm_page_lock_queues();
-			vm_page_set_validclean(m, base, size);
-			if (m->dirty != 0)
-				m->dirty = VM_PAGE_BITS_ALL;
+			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
 			vm_page_unlock_queues();
 		} else if ((length & PAGE_MASK) &&
 		    __predict_false(object->cache != NULL)) {
 			vm_page_cache_free(object, OFF_TO_IDX(length),
 			    nobjsize);
 		}
+	} else {
+
+		/* Attempt to reserve the swap */
+		delta = ptoa(nobjsize - object->size);
+		if (!swap_reserve_by_uid(delta, object->uip)) {
+			VM_OBJECT_UNLOCK(object);
+			return (ENOMEM);
+		}
+		object->charge += delta;
 	}
 	shmfd->shm_size = length;
 	mtx_lock(&shm_timestamp_lock);
@@ -304,6 +329,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 	mtx_unlock(&shm_timestamp_lock);
 	object->size = nobjsize;
 	VM_OBJECT_UNLOCK(object);
+	return (0);
 }
 
 /*
@@ -321,7 +347,7 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	shmfd->shm_gid = ucred->cr_gid;
 	shmfd->shm_mode = mode;
 	shmfd->shm_object = vm_pager_allocate(OBJT_DEFAULT, NULL,
-	    shmfd->shm_size, VM_PROT_DEFAULT, 0);
+	    shmfd->shm_size, VM_PROT_DEFAULT, 0, ucred);
 	KASSERT(shmfd->shm_object != NULL, ("shm_create: vm_pager_allocate"));
 	VM_OBJECT_LOCK(shmfd->shm_object);
 	vm_object_clear_flag(shmfd->shm_object, OBJ_ONEMAPPING);

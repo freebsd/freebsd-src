@@ -474,8 +474,9 @@ mlx_attach(struct mlx_softc *sc)
     /*
      * Create the control device.
      */
-    sc->mlx_dev_t = make_dev(&mlx_cdevsw, device_get_unit(sc->mlx_dev), UID_ROOT, GID_OPERATOR, 
+    sc->mlx_dev_t = make_dev(&mlx_cdevsw, 0, UID_ROOT, GID_OPERATOR, 
 			     S_IRUSR | S_IWUSR, "mlx%d", device_get_unit(sc->mlx_dev));
+    sc->mlx_dev_t->si_drv1 = sc;
 
     /*
      * Start the timeout routine.
@@ -711,8 +712,7 @@ mlx_submit_buf(struct mlx_softc *sc, mlx_bio *bp)
 int
 mlx_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-    int			unit = dev2unit(dev);
-    struct mlx_softc	*sc = devclass_get_softc(mlx_devclass, unit);
+    struct mlx_softc	*sc = dev->si_drv1;
 
     sc->mlx_state |= MLX_STATE_OPEN;
     return(0);
@@ -724,8 +724,7 @@ mlx_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 int
 mlx_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-    int			unit = dev2unit(dev);
-    struct mlx_softc	*sc = devclass_get_softc(mlx_devclass, unit);
+    struct mlx_softc	*sc = dev->si_drv1;
 
     sc->mlx_state &= ~MLX_STATE_OPEN;
     return (0);
@@ -737,8 +736,7 @@ mlx_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 int
 mlx_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 {
-    int				unit = dev2unit(dev);
-    struct mlx_softc		*sc = devclass_get_softc(mlx_devclass, unit);
+    struct mlx_softc		*sc = dev->si_drv1;
     struct mlx_rebuild_request	*rb = (struct mlx_rebuild_request *)addr;
     struct mlx_rebuild_status	*rs = (struct mlx_rebuild_status *)addr;
     int				*arg = (int *)addr;

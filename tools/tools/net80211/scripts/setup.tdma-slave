@@ -10,7 +10,7 @@ PATH=.:$PATH
 SSID='freebsd+tdma'
 
 WLAN=`ifconfig wlan create wlanmode tdma wlandev $WIRELESS`
-ifconfig $WLAN ssid "$SSID" 0
+ifconfig $WLAN ssid "$SSID"
 wlandebug -i $WLAN state+scan+tdma
 
 BRIDGE=`ifconfig bridge create`

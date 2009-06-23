@@ -25,3 +25,4 @@ ENTRY(floorl)
 
 	leave
 	ret
+END(floorl)

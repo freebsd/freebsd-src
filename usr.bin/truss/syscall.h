@@ -57,10 +57,14 @@ struct syscall {
 	int nargs;	/* actual number of meaningful arguments */
 			/* Hopefully, no syscalls with > 10 args */
 	struct syscall_args args[10];
+	struct timespec time; /* Time spent for this call */
+	int ncalls;	/* Number of calls */
+	int nerror;	/* Number of calls that returned with error */
 };
 
 struct syscall *get_syscall(const char*);
 char *print_arg(struct syscall_args *, unsigned long*, long, struct trussinfo *);
 void print_syscall(struct trussinfo *, const char *, int, char **);
 void print_syscall_ret(struct trussinfo *, const char *, int, char **, int,
-    long);
+    long, struct syscall *);
+void print_summary(struct trussinfo *trussinfo);

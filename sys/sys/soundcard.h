@@ -171,12 +171,6 @@ struct snd_size {
 #define AFMT_MPEG	0x00000200	/* MPEG MP2/MP3 audio */
 #define AFMT_AC3	0x00000400	/* Dolby Digital AC3 */
 
-#if _BYTE_ORDER == _LITTLE_ENDIAN
-#define AFMT_S16_NE	AFMT_S16_LE	/* native endian signed 16 */
-#else
-#define AFMT_S16_NE	AFMT_S16_BE
-#endif
-
 /*
  * 32-bit formats below used for 24-bit audio data where the data is stored
  * in the 24 most significant bits and the least significant bits are not used
@@ -190,6 +184,35 @@ struct snd_size {
 #define AFMT_S24_BE	0x00020000	/* Big endian signed 24-bit */
 #define AFMT_U24_LE	0x00040000	/* Little endian unsigned 24-bit */
 #define AFMT_U24_BE	0x00080000	/* Big endian unsigned 24-bit */
+
+/* Machine dependant AFMT_* definitions. */
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define AFMT_S16_NE	AFMT_S16_LE
+#define AFMT_S24_NE	AFMT_S24_LE
+#define AFMT_S32_NE	AFMT_S32_LE
+#define AFMT_U16_NE	AFMT_U16_LE
+#define AFMT_U24_NE	AFMT_U24_LE
+#define AFMT_U32_NE	AFMT_U32_LE
+#define AFMT_S16_OE	AFMT_S16_BE
+#define AFMT_S24_OE	AFMT_S24_BE
+#define AFMT_S32_OE	AFMT_S32_BE
+#define AFMT_U16_OE	AFMT_U16_BE
+#define AFMT_U24_OE	AFMT_U24_BE
+#define AFMT_U32_OE	AFMT_U32_BE
+#else
+#define AFMT_S16_OE	AFMT_S16_LE
+#define AFMT_S24_OE	AFMT_S24_LE
+#define AFMT_S32_OE	AFMT_S32_LE
+#define AFMT_U16_OE	AFMT_U16_LE
+#define AFMT_U24_OE	AFMT_U24_LE
+#define AFMT_U32_OE	AFMT_U32_LE
+#define AFMT_S16_NE	AFMT_S16_BE
+#define AFMT_S24_NE	AFMT_S24_BE
+#define AFMT_S32_NE	AFMT_S32_BE
+#define AFMT_U16_NE	AFMT_U16_BE
+#define AFMT_U24_NE	AFMT_U24_BE
+#define AFMT_U32_NE	AFMT_U32_BE
+#endif
 
 #define AFMT_STEREO	0x10000000	/* can do/want stereo	*/
 
@@ -1665,7 +1688,8 @@ typedef struct
 #define SNDCTL_DSP_GET_CHNORDER         _IOR ('P', 42, unsigned long long)
 #define SNDCTL_DSP_SET_CHNORDER         _IOWR('P', 42, unsigned long long)
 #       define CHID_UNDEF       0
-#       define CHID_L           1                                               #       define CHID_R           2
+#       define CHID_L           1
+#       define CHID_R           2
 #       define CHID_C           3
 #       define CHID_LFE         4
 #       define CHID_LS          5
@@ -1680,6 +1704,25 @@ typedef unsigned short oss_peaks_t[MAX_PEAK_CHANNELS];
 #define SNDCTL_DSP_GETIPEAKS		_IOR('P', 43, oss_peaks_t)
 #define SNDCTL_DSP_GETOPEAKS		_IOR('P', 44, oss_peaks_t)
 #define SNDCTL_DSP_POLICY               _IOW('P', 45, int)    /* See the manual */
+
+/*
+ ****************************************************************************
+ * Few ioctl calls that are not official parts of OSS. They have been used
+ * by few freeware implementations of OSS.
+ */
+#define SNDCTL_DSP_GETCHANNELMASK	_IOWR('P', 64, int)
+#define SNDCTL_DSP_BIND_CHANNEL		_IOWR('P', 65, int)
+#define DSP_BIND_QUERY			0x00000000
+#define DSP_BIND_FRONT			0x00000001
+#define DSP_BIND_SURR			0x00000002
+#define DSP_BIND_CENTER_LFE		0x00000004
+#define DSP_BIND_HANDSET		0x00000008
+#define DSP_BIND_MIC			0x00000010
+#define DSP_BIND_MODEM1			0x00000020
+#define DSP_BIND_MODEM2			0x00000040
+#define DSP_BIND_I2S			0x00000080
+#define DSP_BIND_SPDIF			0x00000100
+#define DSP_BIND_REAR			0x00000200
 
 /*
  * OSS_SYSIFO is obsolete. Use SNDCTL_SYSINFO insteads.

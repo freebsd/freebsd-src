@@ -32,33 +32,46 @@
 __FBSDID("$FreeBSD$");
 
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/ufm_ioctl.h>
+#include <dev/usb/usbdi.h>
+#include "usbdevs.h"
 
-#define	USB_DEBUG_VAR usb2_debug
-
-#include <dev/usb/usb_core.h>
+#define	USB_DEBUG_VAR usb_debug
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_mbuf.h>
-#include <dev/usb/usb_dev.h>
+
+#include <dev/usb/ufm_ioctl.h>
 
 #define	UFM_CMD0		0x00
 #define	UFM_CMD_SET_FREQ	0x01
 #define	UFM_CMD2		0x02
 
 struct ufm_softc {
-	struct usb2_fifo_sc sc_fifo;
+	struct usb_fifo_sc sc_fifo;
 	struct mtx sc_mtx;
 
-	struct usb2_device *sc_udev;
+	struct usb_device *sc_udev;
 
 	uint32_t sc_unit;
 	uint32_t sc_freq;
@@ -72,10 +85,10 @@ static device_probe_t ufm_probe;
 static device_attach_t ufm_attach;
 static device_detach_t ufm_detach;
 
-static usb2_fifo_ioctl_t ufm_ioctl;
-static usb2_fifo_open_t ufm_open;
+static usb_fifo_ioctl_t ufm_ioctl;
+static usb_fifo_open_t ufm_open;
 
-static struct usb2_fifo_methods ufm_fifo_methods = {
+static struct usb_fifo_methods ufm_fifo_methods = {
 	.f_ioctl = &ufm_ioctl,
 	.f_open = &ufm_open,
 	.basename[0] = "ufm",
@@ -110,9 +123,9 @@ MODULE_DEPEND(ufm, usb, 1, 1, 1);
 static int
 ufm_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if ((uaa->info.idVendor == USB_VENDOR_CYPRESS) &&
@@ -125,7 +138,7 @@ ufm_probe(device_t dev)
 static int
 ufm_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ufm_softc *sc = device_get_softc(dev);
 	int error;
 
@@ -137,9 +150,9 @@ ufm_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "ufm lock", NULL, MTX_DEF | MTX_RECURSE);
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
-	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
+	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 	    &ufm_fifo_methods, &sc->sc_fifo,
 	    device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
 	    UID_ROOT, GID_OPERATOR, 0644);
@@ -158,7 +171,7 @@ ufm_detach(device_t dev)
 {
 	struct ufm_softc *sc = device_get_softc(dev);
 
-	usb2_fifo_detach(&sc->sc_fifo);
+	usb_fifo_detach(&sc->sc_fifo);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -166,7 +179,7 @@ ufm_detach(device_t dev)
 }
 
 static int
-ufm_open(struct usb2_fifo *dev, int fflags)
+ufm_open(struct usb_fifo *dev, int fflags)
 {
 	if ((fflags & (FWRITE | FREAD)) != (FWRITE | FREAD)) {
 		return (EACCES);
@@ -180,7 +193,7 @@ ufm_do_req(struct ufm_softc *sc, uint8_t request,
 {
 	int error;
 
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint8_t buf[1];
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -189,7 +202,7 @@ ufm_do_req(struct ufm_softc *sc, uint8_t request,
 	USETW(req.wIndex, index);
 	USETW(req.wLength, 1);
 
-	error = usb2_do_request(sc->sc_udev, NULL, &req, buf);
+	error = usbd_do_request(sc->sc_udev, NULL, &req, buf);
 
 	if (retbuf) {
 		*retbuf = buf[0];
@@ -284,7 +297,7 @@ ufm_get_stat(struct ufm_softc *sc, void *addr)
 	 * Note, there's a 240ms settle time before the status
 	 * will be valid, so sleep that amount.
 	 */
-	usb2_pause_mtx(NULL, hz / 4);
+	usb_pause_mtx(NULL, hz / 4);
 
 	if (ufm_do_req(sc, UFM_CMD0,
 	    0x00, 0x24, &ret)) {
@@ -296,10 +309,10 @@ ufm_get_stat(struct ufm_softc *sc, void *addr)
 }
 
 static int
-ufm_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr,
+ufm_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
     int fflags)
 {
-	struct ufm_softc *sc = fifo->priv_sc0;
+	struct ufm_softc *sc = usb_fifo_softc(fifo);
 	int error = 0;
 
 	switch (cmd) {

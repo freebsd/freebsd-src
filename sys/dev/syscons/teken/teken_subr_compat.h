@@ -66,6 +66,15 @@ teken_subr_cons25_switch_virtual_terminal(teken_t *t, unsigned int vt)
 	teken_funcs_param(t, TP_SWITCHVT, vt);
 }
 
+static void
+teken_subr_cons25_set_bell_pitch_duration(teken_t *t, unsigned int pitch,
+    unsigned int duration)
+{
+
+	teken_funcs_param(t, TP_SETBELLPD, (pitch << 16) |
+	    (duration & 0xffff));
+}
+
 #if 0
 static void
 teken_subr_vt52_decid(teken_t *t)

@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2009
+.Dd June 1, 2009
 .Dt IP 4
 .Os
 .Sh NAME
@@ -241,6 +241,23 @@ The application must have sufficient credentials to set the
 .Dv SO_BROADCAST
 socket level option, otherwise the
 .Dv IP_ONESBCAST option has no effect.
+.Pp
+If the
+.Dv IP_BINDANY
+option is enabled on a
+.Dv SOCK_STREAM ,
+.Dv SOCK_DGRAM
+or a
+.Dv SOCK_RAW
+socket, one can
+.Xr bind 2
+to any address, even one not bound to any available network interface in the
+system.
+This functionality (in conjunction with special firewall rules) can be used for
+implementing a transparent proxy.
+The
+.Dv PRIV_NETINET_BINDANY
+privilege is needed to set this option.
 .Pp
 If the
 .Dv IP_RECVTTL

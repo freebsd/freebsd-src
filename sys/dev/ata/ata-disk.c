@@ -346,15 +346,23 @@ ad_dump(void *arg, void *virtual, vm_offset_t physical,
 	off_t offset, size_t length)
 {
     struct disk *dp = arg;
+    device_t dev = dp->d_drv1;
     struct bio bp;
+
+    /* XXX: Drop pre-dump request queue. Long request queue processing
+     * causes stack overflow in ATA working in dumping (interruptless) mode.
+     * Conter-XXX: To make dump coherent we should avoid doing anything
+     * else while dumping.
+     */
+    ata_drop_requests(dev);
 
     /* length zero is special and really means flush buffers to media */
     if (!length) {
-        struct ata_device *atadev = device_get_softc(dp->d_drv1);
+        struct ata_device *atadev = device_get_softc(dev);
 	int error = 0;
 
 	if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
-	    error = ata_controlcmd(dp->d_drv1, ATA_FLUSHCACHE, 0, 0, 0);
+	    error = ata_controlcmd(dev, ATA_FLUSHCACHE, 0, 0, 0);
 	return error;
     }
 

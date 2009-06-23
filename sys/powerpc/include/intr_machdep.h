@@ -31,12 +31,14 @@
 #define	INTR_VECTORS	256
 
 extern device_t pic;
+extern device_t pic8259;
 
 struct trapframe;
 
 driver_filter_t powerpc_ipi_handler;
 
 void	powerpc_register_pic(device_t, u_int);
+void	powerpc_register_8259(device_t);
 
 void	powerpc_dispatch_intr(u_int, struct trapframe *);
 int	powerpc_enable_intr(void);

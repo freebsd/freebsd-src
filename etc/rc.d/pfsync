@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: pfsync
-# REQUIRE: FILESYSTEMS netif
+# REQUIRE: FILESYSTEMS
 # KEYWORD: nojail
 
 . /etc/rc.subr

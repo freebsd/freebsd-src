@@ -39,7 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/rman.h>
  
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+
 #include <dev/acpica/acpivar.h>
 
 #define _COMPONENT	ACPI_OS_SERVICES

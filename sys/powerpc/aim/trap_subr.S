@@ -460,7 +460,7 @@ disitrap:
 	stw	%r30,(PC_DBSAVE  +CPUSAVE_R30)(%r1) /* save r30 */
 	lwz	%r31,(PC_DISISAVE+CPUSAVE_R31)(%r1) /* get  r31 */
 	stw	%r31,(PC_DBSAVE  +CPUSAVE_R31)(%r1) /* save r31 */
-	bla	dbtrap
+	b	dbtrap
 #endif
 
 	/* XXX need stack probe here */

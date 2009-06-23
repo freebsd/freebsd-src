@@ -98,13 +98,16 @@ typedef void tf_putchar_t(void *, const teken_pos_t *, teken_char_t,
 typedef void tf_fill_t(void *, const teken_rect_t *, teken_char_t,
     const teken_attr_t *);
 typedef void tf_copy_t(void *, const teken_rect_t *, const teken_pos_t *);
-typedef void tf_param_t(void *, int, int);
+typedef void tf_param_t(void *, int, unsigned int);
 #define	TP_SHOWCURSOR	0
 #define	TP_CURSORKEYS	1
 #define	TP_KEYPADAPP	2
 #define	TP_AUTOREPEAT	3
 #define	TP_SWITCHVT	4
 #define	TP_132COLS	5
+#define	TP_SETBELLPD	6
+#define	TP_SETBELLPD_PITCH(pd)		((pd) >> 16)
+#define	TP_SETBELLPD_DURATION(pd)	((pd) & 0xffff)
 typedef void tf_respond_t(void *, const void *, size_t);
 
 typedef struct {

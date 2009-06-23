@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -286,6 +285,7 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 	if (ia6 && (ia6->ia6_flags & IN6_IFF_ANYCAST)) {
 		struct ip6_hdr *ip6;
 
+		ifa_free(&ia6->ia_ifa);
 		ip6 = mtod(m, struct ip6_hdr *);
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_ADDR,
 			    (caddr_t)&ip6->ip6_dst - (caddr_t)ip6);
@@ -940,8 +940,10 @@ findpcb:
 		if (isipv6 && !V_ip6_use_deprecated) {
 			struct in6_ifaddr *ia6;
 
-			if ((ia6 = ip6_getdstifaddr(m)) &&
+			ia6 = ip6_getdstifaddr(m);
+			if (ia6 != NULL &&
 			    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
+				ifa_free(&ia6->ia_ifa);
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
 					"Connection attempt to deprecated "
@@ -950,6 +952,7 @@ findpcb:
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 			}
+			ifa_free(&ia6->ia_ifa);
 		}
 #endif
 		/*
@@ -1292,7 +1295,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * "bad retransmit" recovery.
 				 */
 				if (tp->t_rxtshift == 1 &&
-				    ticks < tp->t_badrxtwin) {
+				    (int)(ticks - tp->t_badrxtwin) < 0) {
 					TCPSTAT_INC(tcps_sndrexmitbad);
 					tp->snd_cwnd = tp->snd_cwnd_prev;
 					tp->snd_ssthresh =
@@ -1557,9 +1560,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			TCPSTAT_INC(tcps_connects);
 			soisconnected(so);
 #ifdef MAC
-			SOCK_LOCK(so);
 			mac_socketpeer_set_from_mbuf(m, so);
-			SOCK_UNLOCK(so);
 #endif
 			/* Do window scaling on this connection? */
 			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
@@ -1776,7 +1777,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    TSTMP_LT(to.to_tsval, tp->ts_recent)) {
 
 		/* Check to see if ts_recent is over 24 days old.  */
-		if ((int)(ticks - tp->ts_recent_age) > TCP_PAWS_IDLE) {
+		if (ticks - tp->ts_recent_age > TCP_PAWS_IDLE) {
 			/*
 			 * Invalidate ts_recent.  If this segment updates
 			 * ts_recent, the age will be reset later and ts_recent
@@ -1813,7 +1814,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 	todrop = tp->rcv_nxt - th->th_seq;
 	if (todrop > 0) {
-		if (thflags & TH_SYN) {
+		/*
+		 * If this is a duplicate SYN for our current connection,
+		 * advance over it and pretend and it's not a SYN.
+		 */
+		if (thflags & TH_SYN && th->th_seq == tp->irs) {
 			thflags &= ~TH_SYN;
 			th->th_seq++;
 			if (th->th_urp > 1)
@@ -2234,7 +2239,7 @@ process_ACK:
 		 * original cwnd and ssthresh, and proceed to transmit where
 		 * we left off.
 		 */
-		if (tp->t_rxtshift == 1 && ticks < tp->t_badrxtwin) {
+		if (tp->t_rxtshift == 1 && (int)(ticks - tp->t_badrxtwin) < 0) {
 			TCPSTAT_INC(tcps_sndrexmitbad);
 			tp->snd_cwnd = tp->snd_cwnd_prev;
 			tp->snd_ssthresh = tp->snd_ssthresh_prev;

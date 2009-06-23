@@ -98,7 +98,7 @@ int
 linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 {
 	struct ucred *newcred, *oldcred;
-	l_gid16_t linux_gidset[NGROUPS];
+	l_gid16_t *linux_gidset;
 	gid_t *bsd_gidset;
 	int ngrp, error;
 	struct proc *p;
@@ -111,13 +111,14 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 	ngrp = args->gidsetsize;
 	if (ngrp < 0 || ngrp >= NGROUPS)
 		return (EINVAL);
+	linux_gidset = malloc(ngrp * sizeof(*linux_gidset), M_TEMP, M_WAITOK);
 	error = copyin(args->gidset, linux_gidset, ngrp * sizeof(l_gid16_t));
 	if (error)
 		return (error);
 	newcred = crget();
 	p = td->td_proc;
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	oldcred = crcopysafe(p, newcred);
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from
@@ -128,10 +129,9 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 	if ((error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS, 0)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
-		return (error);
+		goto out;
 	}
 
-	crcopy(newcred, oldcred);
 	if (ngrp > 0) {
 		newcred->cr_ngroups = ngrp + 1;
 
@@ -149,14 +149,17 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
 	crfree(oldcred);
-	return (0);
+	error = 0;
+out:
+	free(linux_gidset, M_TEMP);
+	return (error);
 }
 
 int
 linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
 {
 	struct ucred *cred;
-	l_gid16_t linux_gidset[NGROUPS];
+	l_gid16_t *linux_gidset;
 	gid_t *bsd_gidset;
 	int bsd_gidsetsz, ngrp, error;
 
@@ -184,12 +187,15 @@ linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
 		return (EINVAL);
 
 	ngrp = 0;
+	linux_gidset = malloc(bsd_gidsetsz * sizeof(*linux_gidset),
+	    M_TEMP, M_WAITOK);
 	while (ngrp < bsd_gidsetsz) {
 		linux_gidset[ngrp] = bsd_gidset[ngrp + 1];
 		ngrp++;
 	}
 
 	error = copyout(linux_gidset, args->gidset, ngrp * sizeof(l_gid16_t));
+	free(linux_gidset, M_TEMP);
 	if (error)
 		return (error);
 

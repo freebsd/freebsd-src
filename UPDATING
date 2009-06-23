@@ -22,6 +22,250 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090622:
+	Layout of struct vnet has changed as routing related variables
+	were moved to their own Vimage module. Modules need to be
+	recompiled.  Bump __FreeBSD_version to 800099.
+
+20090619:
+	NGROUPS_MAX and NGROUPS have been increased from 16 to 1023
+	and 1024 respectively.  As long as no more than 16 groups per
+	process are used, no changes should be visible.  When more
+	than 16 groups are used, old binaries may fail if they call
+	getgroups() or getgrouplist() with statically sized storage.
+	Recompiling will work around this, but applications should be
+	modified to use dynamically allocated storage for group arrays
+	as POSIX.1-2008 does not cap an implementation's number of
+	supported groups at NGROUPS_MAX+1 as previous versions did.
+
+	NFS and portalfs mounts may also be affected as the list of
+	groups is truncated to 16.  Users of NFS who use more than 16
+	groups, should take care that negative group permissions are not
+	used on the exported file systems as they will not be reliable
+	unless a GSSAPI based authentication method is used.
+
+20090616:
+	The compiling option ADAPTIVE_LOCKMGRS has been introduced.
+	This option compiles in the support for adaptive spinning for lockmgrs
+	which want to enable it.  The lockinit() function now accepts the
+	flag LK_ADAPTIVE in order to make the lock object subject to
+	adaptive spinning when both held in write and read mode.
+
+20090613:
+	The layout of the structure returned by IEEE80211_IOC_STA_INFO
+	has changed.  User applications that use this ioctl need to be
+	rebuilt.
+
+20090611:
+	The layout of struct thread has changed.  Kernel and modules
+	need to be rebuilt.
+
+20090608:
+	The layout of structs ifnet, domain, protosw and vnet_net has
+	changed.  Kernel modules need to be rebuilt.
+	Bump __FreeBSD_version to 800097.
+
+20090602:
+	window(1) has been removed from the base system. It can now be
+	installed from ports. The port is called misc/window.
+
+20090601:
+	The way we are storing and accessing `routing table' entries
+	has changed. Programs reading the FIB, like netstat, need to
+	be re-compiled.
+
+20090601:
+	A new netisr implementation has been added for FreeBSD 8.  Network
+	file system modules, such as igmp, ipdivert, and others, should be
+	rebuilt.
+	Bump __FreeBSD_version to 800096.
+
+20090531:
+	For those who use ipfw and especially pf, those two firewalls
+	are now started BEFORE the network is initialized (i.e., before
+	rc.d/netif). Please review your rules to make sure that your
+	interfaces will be properly described.
+
+20090530:
+	Remove the tunable/sysctl debug.mpsafevfs as its initial purpose
+	is no more valid.
+
+20090530:
+	Add VOP_ACCESSX(9).  File system modules need to be rebuilt.
+	Bump __FreeBSD_version to 800094.
+
+20090529:
+	Add mnt_xflag field to 'struct mount'.  File system modules
+	need to be rebuilt.
+	Bump __FreeBSD_version to 800093.
+
+20090528:
+	The compiling option ADAPTIVE_SX has been retired while it has been
+	introduced the option NO_ADAPTIVE_SX which handles the reversed logic.
+	The KPI for sx_init_flags() changes as accepting flags:
+	SX_ADAPTIVESPIN flag has been retired while the SX_NOADAPTIVE flag
+	has been introduced in order to handle the reversed logic.
+	Bump __FreeBSD_version to 800092.
+
+20090527:
+	Add support for hierarchical jails.  Remove global securelevel.
+	Bump __FreeBSD_version to 800091.
+
+20090523:
+	The layout of struct vnet_net has changed, therefore modules
+	need to be rebuilt.
+	Bump __FreeBSD_version to 800090.
+
+20090523:
+	The newly imported zic(8) produces a new format in the
+	output. Please run tzsetup(8) to install the newly created
+	data to /etc/localtime.
+
+20090520:
+	The sysctl tree for the usb stack has renamed from hw.usb2.* to
+	hw.usb.* and is now consistent again with previous releases.
+
+20090520:
+	802.11 monitor mode support was revised and driver api's
+	were changed.  Drivers dependent on net80211 now support
+	DLT_IEEE802_11_RADIO instead of DLT_IEEE802_11.  No
+	user-visible data structures were changed but applications
+	that use DLT_IEEE802_11 may require changes.
+	Bump __FreeBSD_version to 800088.
+
+20090430:
+	The layout of the following structs has changed: sysctl_oid,
+	socket, ifnet, inpcbinfo, tcpcb, syncache_head, vnet_inet,
+	vnet_inet6 and vnet_ipfw.  Most modules need to be rebuild or
+	panics may be experienced.  World rebuild is required for
+	correctly checking networking state from userland.
+	Bump __FreeBSD_version to 800085.
+
+20090429:
+	MLDv2 and Source-Specific Multicast (SSM) have been merged
+	to the IPv6 stack. VIMAGE hooks are in but not yet used.
+	The implementation of SSM within FreeBSD's IPv6 stack closely
+	follows the IPv4 implementation.
+
+	For kernel developers:
+
+	* The most important changes are that the ip6_output() and
+	  ip6_input() paths no longer take the IN6_MULTI_LOCK,
+	  and this lock has been downgraded to a non-recursive mutex.
+
+	* As with the changes to the IPv4 stack to support SSM, filtering
+	  of inbound multicast traffic must now be performed by transport
+	  protocols within the IPv6 stack. This does not apply to TCP and
+	  SCTP, however, it does apply to UDP in IPv6 and raw IPv6.
+
+	* The KPIs used by IPv6 multicast are similar to those used by
+	  the IPv4 stack, with the following differences:
+	   * im6o_mc_filter() is analogous to imo_multicast_filter().
+	   * The legacy KAME entry points in6_joingroup and in6_leavegroup()
+	     are shimmed to in6_mc_join() and in6_mc_leave() respectively.
+	   * IN6_LOOKUP_MULTI() has been deprecated and removed.
+	   * IPv6 relies on MLD for the DAD mechanism. KAME's internal KPIs
+	     for MLDv1 have an additional 'timer' argument which is used to
+	     jitter the initial membership report for the solicited-node
+	     multicast membership on-link.
+	   * This is not strictly needed for MLDv2, which already jitters
+	     its report transmissions.  However, the 'timer' argument is
+	     preserved in case MLDv1 is active on the interface.
+
+	* The KAME linked-list based IPv6 membership implementation has
+	  been refactored to use a vector similar to that used by the IPv4
+	  stack.
+	  Code which maintains a list of its own multicast memberships
+	  internally, e.g. carp, has been updated to reflect the new
+	  semantics.
+
+	* There is a known Lock Order Reversal (LOR) due to in6_setscope()
+	  acquiring the IF_AFDATA_LOCK and being called within ip6_output().
+	  Whilst MLDv2 tries to avoid this otherwise benign LOR, it is an
+	  implementation constraint which needs to be addressed in HEAD.
+
+	For application developers:
+
+	* The changes are broadly similar to those made for the IPv4
+	  stack.
+
+	* The use of IPv4 and IPv6 multicast socket options on the same
+	  socket, using mapped addresses, HAS NOT been tested or supported.
+
+	* There are a number of issues with the implementation of various
+	  IPv6 multicast APIs which need to be resolved in the API surface
+	  before the implementation is fully compatible with KAME userland
+	  use, and these are mostly to do with interface index treatment.
+
+	* The literature available discusses the use of either the delta / ASM
+	  API with setsockopt(2)/getsockopt(2), or the full-state / ASM API
+	  using setsourcefilter(3)/getsourcefilter(3). For more information
+	  please refer to RFC 3768, 'Socket Interface Extensions for
+	  Multicast Source Filters'.
+
+	* Applications which use the published RFC 3678 APIs should be fine.
+
+	For systems administrators:
+
+	* The mtest(8) utility has been refactored to support IPv6, in
+	  addition to IPv4. Interface addresses are no longer accepted
+	  as arguments, their names must be used instead. The utility
+	  will map the interface name to its first IPv4 address as
+	  returned by getifaddrs(3).
+
+	* The ifmcstat(8) utility has also been updated to print the MLDv2
+	  endpoint state and source filter lists via sysctl(3).
+
+	* The net.inet6.ip6.mcast.loop sysctl may be tuned to 0 to disable
+	  loopback of IPv6 multicast datagrams by default; it defaults to 1
+	  to preserve the existing behaviour. Disabling multicast loopback is
+	  recommended for optimal system performance.
+
+	* The IPv6 MROUTING code has been changed to examine this sysctl
+	  instead of attempting to perform a group lookup before looping
+	  back forwarded datagrams.
+
+	Bump __FreeBSD_version to 800084.
+
+20090422:
+	Implement low-level Bluetooth HCI API.
+	Bump __FreeBSD_version to 800083.
+
+20090419:
+	The layout of struct malloc_type, used by modules to register new
+	memory allocation types, has changed.  Most modules will need to
+	be rebuilt or panics may be experienced.
+	Bump __FreeBSD_version to 800081.
+
+20090415:
+	Anticipate overflowing inp_flags - add inp_flags2.
+	This changes most offsets in inpcb, so checking v4 connection
+	state will require a world rebuild.
+	Bump __FreeBSD_version to 800080.
+
+20090415:
+	Add an llentry to struct route and struct route_in6. Modules
+	embedding a struct route will need to be recompiled.
+	Bump __FreeBSD_version to 800079.
+
+20090414:
+	The size of rt_metrics_lite and by extension rtentry has changed.
+	Networking administration apps will need to be recompiled.
+	The route command now supports show as an alias for get, weighting
+	of routes, sticky and nostick flags to alter the behavior of stateful
+	load balancing.
+	Bump __FreeBSD_version to 800078.
+
+20090408:
+	Do not use Giant for kbdmux(4) locking. This is wrong and
+	apparently causing more problems than it solves. This will
+	re-open the issue where interrupt handlers may race with
+	kbdmux(4) in polling mode. Typical symptoms include (but
+	not limited to) duplicated and/or missing characters when
+	low level console functions (such as gets) are used while
+	interrupts are enabled (for example geli password prompt,
+	mountroot prompt etc.). Disabling kbdmux(4) may help.
+
 20090407:
 	The size of structs vnet_net, vnet_inet and vnet_ipfw has changed;
 	kernel modules referencing any of the above need to be recompiled.
@@ -31,7 +275,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	GEOM_PART has become the default partition slicer for storage devices,
 	replacing GEOM_MBR, GEOM_BSD, GEOM_PC98 and GEOM_GPT slicers. It
 	introduces some changes:
-	
+
 	MSDOS/EBR: the devices created from MSDOS extended partition entries
 	(EBR) can be named differently than with GEOM_MBR and are now symlinks
 	to devices with offset-based names. fstabs may need to be modified.
@@ -40,7 +284,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	cases but it points to problems in file system misalignment with
 	disk geometry. The "c" partition is now implicit, covers the whole
 	top-level drive and cannot be (mis)used by users.
-	
+
 	General: Kernel dumps are now not allowed to be written to devices
 	whose partition types indicate they are meant to be used for file
 	systems (or, in case of MSDOS partitions, as something else than
@@ -129,7 +373,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	memory segment of size > 2 GB on the 64-bit architectures.
 	Due to a limitation of the existing ABI, the shm_segsz member
 	of the struct shmid_ds, returned by shmctl(IPC_STAT) call is
-	wrong for large segments. Note that limits must be explicitely
+	wrong for large segments. Note that limits must be explicitly
 	raised to allow such segments to be created.
 
 20090301:

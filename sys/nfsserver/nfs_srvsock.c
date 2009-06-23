@@ -39,10 +39,9 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by nfs
  */
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -371,11 +370,11 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		}
 		tl = nfsm_dissect_nonblock(u_int32_t *, (len + 2) * NFSX_UNSIGNED);
 		for (i = 1; i <= len; i++)
-		    if (i < NGROUPS)
+		    if (i < XU_NGROUPS)
 			nd->nd_cr->cr_groups[i] = fxdr_unsigned(gid_t, *tl++);
 		    else
 			tl++;
-		nd->nd_cr->cr_ngroups = (len >= NGROUPS) ? NGROUPS : (len + 1);
+		nd->nd_cr->cr_ngroups = MIN(XU_NGROUPS, len + 1);
 		if (nd->nd_cr->cr_ngroups > 1)
 		    nfsrvw_sort(nd->nd_cr->cr_groups, nd->nd_cr->cr_ngroups);
 		len = fxdr_unsigned(int, *++tl);
@@ -405,7 +404,7 @@ nfsmout:
  * Essentially do as much as possible non-blocking, else punt and it will
  * be called with M_WAIT from an nfsd.
  */
-void
+int
 nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 {
 	struct nfssvc_sock *slp = (struct nfssvc_sock *)arg;
@@ -419,7 +418,7 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 
 	/* XXXRW: Unlocked read. */
 	if ((slp->ns_flag & SLP_VALID) == 0)
-		return;
+		return (SU_OK);
 
 	/*
 	 * We can't do this in the context of a socket callback
@@ -699,6 +698,8 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 	nd = malloc(sizeof (struct nfsrv_descript),
 		M_NFSRVDESC, M_WAITOK);
 	nd->nd_cr = crget();
+	prison_hold(&prison0);
+	nd->nd_cr->cr_prison = &prison0;
 	NFSD_LOCK();
 	nd->nd_md = nd->nd_mrep = m;
 	nd->nd_nam2 = nam;

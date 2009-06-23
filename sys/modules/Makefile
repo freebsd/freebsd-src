@@ -19,6 +19,7 @@ SUBDIR=	${_3dfx} \
 	aio \
 	${_amd} \
 	${_amdtemp} \
+	alc \
 	ale \
 	amr \
 	${_an} \
@@ -42,6 +43,7 @@ SUBDIR=	${_3dfx} \
 	${_canbepm} \
 	${_canbus} \
 	${_cardbus} \
+	cas \
 	${_cbb} \
 	cc_cubic \
 	cc_htcp \
@@ -141,6 +143,7 @@ SUBDIR=	${_3dfx} \
 	joy \
 	kbdmux \
 	krpc \
+	ksyms \
 	le \
 	lge \
 	libalias \
@@ -179,6 +182,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	mwl \
 	mxge \
 	my \
 	${_ncp} \
@@ -186,9 +190,13 @@ SUBDIR=	${_3dfx} \
 	${_ndis} \
 	netgraph \
 	${_nfe} \
+	nfscl \
 	nfsclient \
+	nfscommon \
+	nfsd \
 	nfslockd \
 	nfsserver \
+	nfssvc \
 	nge \
 	nmdm \
 	${_nsp} \
@@ -219,6 +227,7 @@ SUBDIR=	${_3dfx} \
 	${_pst} \
 	puc \
 	ral \
+	ralfw \
 	${_random} \
 	rc4 \
 	${_rdma} \
@@ -540,7 +549,6 @@ _zfs=		zfs
 #	nsp s3 sbni stg vesa
 # acpi is not enabled because it is broken as a module on ia64
 _aic=		aic
-#_ar=		ar	not 64-bit clean
 _an=		an
 _arcnet=	arcnet
 _asr=		asr
@@ -565,7 +573,6 @@ _smbfs=		smbfs
 _sound=		sound
 _splash=	splash
 _sppp=		sppp
-#_sr=		sr		not 64bit clean
 _streams=	streams
 _wi=		wi
 _xe=		xe
@@ -574,8 +581,10 @@ _xe=		xe
 .if ${MACHINE_ARCH} == "powerpc"
 _an=		an
 _bm=		bm
+_cpufreq=	cpufreq
 _nvram=		powermac_nvram
 _smbfs=		smbfs
+_sound=		sound
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"

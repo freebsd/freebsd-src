@@ -999,7 +999,7 @@ smc_miibus_readreg(device_t dev, int phy, int reg)
 	return (val);
 }
 
-void
+int
 smc_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct smc_softc	*sc;
@@ -1029,6 +1029,7 @@ smc_miibus_writereg(device_t dev, int phy, int reg, int data)
 	    smc_read_2(sc, MGMT) & ~(MGMT_MCLK | MGMT_MDOE | MGMT_MDO));
 
 	SMC_UNLOCK(sc);
+	return (0);
 }
 
 void
@@ -1224,6 +1225,7 @@ smc_stop(struct smc_softc *sc)
 #ifdef DEVICE_POLLING
 	ether_poll_deregister(sc->smc_ifp);
 	sc->smc_ifp->if_capenable &= ~IFCAP_POLLING;
+	sc->smc_ifp->if_capenable &= ~IFCAP_POLLING_NOCOUNT;
 #endif
 
 	/*
@@ -1282,6 +1284,7 @@ smc_init_locked(struct smc_softc *sc)
 	ether_poll_register(smc_poll, ifp);
 	SMC_LOCK(sc);
 	ifp->if_capenable |= IFCAP_POLLING;
+	ifp->if_capenable |= IFCAP_POLLING_NOCOUNT;
 #endif
 }
 

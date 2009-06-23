@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_ENDIAN_H_
-#define	_USB2_ENDIAN_H_
+#ifndef _USB_ENDIAN_H_
+#define	_USB_ENDIAN_H_
 
 #include <sys/stdint.h>
 #include <sys/endian.h>
@@ -116,4 +116,4 @@ typedef uint8_t uQWord[8];
   (w)[7] = (uint8_t)(b7);		\
 } while (0)
 
-#endif					/* _USB2_ENDIAN_H_ */
+#endif					/* _USB_ENDIAN_H_ */

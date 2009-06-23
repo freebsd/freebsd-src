@@ -110,6 +110,18 @@ tcgetsid(int fd)
 	return ((pid_t)s);
 }
 
+int
+tcsetsid(int fd, pid_t pid)
+{
+
+	if (pid != getsid(0)) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	return (_ioctl(fd, TIOCSCTTY, NULL));
+}
+
 speed_t
 cfgetospeed(t)
 	const struct termios *t;

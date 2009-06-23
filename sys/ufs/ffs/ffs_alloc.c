@@ -326,10 +326,9 @@ retry:
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
-		if ((bp->b_flags & (B_MALLOC | B_VMIO)) != B_VMIO)
-			bzero((char *)bp->b_data + osize, nsize - osize);
-		else
-			vfs_bio_clrbuf(bp);
+		bzero(bp->b_data + osize, nsize - osize);
+		if ((bp->b_flags & (B_MALLOC | B_VMIO)) == B_VMIO)
+			vfs_bio_set_valid(bp, osize, nsize - osize);
 		*bpp = bp;
 		return (0);
 	}
@@ -404,10 +403,9 @@ retry:
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
-		if ((bp->b_flags & (B_MALLOC | B_VMIO)) != B_VMIO)
-			bzero((char *)bp->b_data + osize, nsize - osize);
-		else
-			vfs_bio_clrbuf(bp);
+		bzero(bp->b_data + osize, nsize - osize);
+		if ((bp->b_flags & (B_MALLOC | B_VMIO)) == B_VMIO)
+			vfs_bio_set_valid(bp, osize, nsize - osize);
 		*bpp = bp;
 		return (0);
 	}

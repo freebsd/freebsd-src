@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -46,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/linker.h>
 #include <sys/fcntl.h>
+#include <sys/jail.h>
 #include <sys/libkern.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
@@ -375,7 +375,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 	int foundfile, error;
 
 	/* Refuse to load modules if securelevel raised */
-	if (securelevel > 0)
+	if (prison0.pr_securelevel > 0)
 		return (EPERM);
 
 	KLD_LOCK_ASSERT();
@@ -580,7 +580,7 @@ linker_file_unload(linker_file_t file, int flags)
 	int error, i;
 
 	/* Refuse to unload modules if securelevel raised. */
-	if (securelevel > 0)
+	if (prison0.pr_securelevel > 0)
 		return (EPERM);
 
 	KLD_LOCK_ASSERT();
@@ -992,6 +992,18 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	if ((error = priv_check(td, PRIV_KLD_LOAD)) != 0)
 		return (error);
 
+#ifdef VIMAGE
+	/* Only the default vimage is permitted to kldload modules. */
+	if (!IS_DEFAULT_VIMAGE(TD_TO_VIMAGE(td)))
+		return (EPERM);
+#endif
+
+	/*
+	 * It is possible that kldloaded module will attach a new ifnet,
+	 * so vnet context must be set when this ocurs.
+	 */
+	CURVNET_SET(TD_TO_VNET(td));
+
 	/*
 	 * If file does not contain a qualified name or any dot in it
 	 * (kldname.ko, or kldname.ver.ko) treat it as an interface
@@ -1019,6 +1031,7 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 		*fileid = lf->id;
 unlock:
 	KLD_UNLOCK();
+	CURVNET_RESTORE();
 	return (error);
 }
 
@@ -1056,6 +1069,13 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if ((error = priv_check(td, PRIV_KLD_UNLOAD)) != 0)
 		return (error);
 
+#ifdef VIMAGE
+	/* Only the default vimage is permitted to kldunload modules. */
+	if (!IS_DEFAULT_VIMAGE(TD_TO_VIMAGE(td)))
+		return (EPERM);
+#endif
+
+	CURVNET_SET(TD_TO_VNET(td));
 	KLD_LOCK();
 	lf = linker_find_file_by_id(fileid);
 	if (lf) {
@@ -1092,6 +1112,7 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 		PMC_CALL_HOOK(td, PMC_FN_KLD_UNLOAD, (void *) &pkm);
 #endif
 	KLD_UNLOCK();
+	CURVNET_RESTORE();
 	return (error);
 }
 

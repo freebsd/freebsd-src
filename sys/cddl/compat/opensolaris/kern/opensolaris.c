@@ -31,7 +31,9 @@
 #include <sys/conf.h>
 #include <sys/cpuvar.h>
 #include <sys/errno.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/misc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 
@@ -81,6 +83,7 @@ opensolaris_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
+		utsname.nodename = prison0.pr_hostname;
 		break;
 
 	case MOD_UNLOAD:

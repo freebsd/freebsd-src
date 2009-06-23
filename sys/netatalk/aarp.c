@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2005 Robert N. M. Watson
+ * Copyright (c) 2004-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,6 @@
  */
 
 #include "opt_atalk.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -150,6 +149,8 @@ at_ifawithnet(struct sockaddr_at  *sat)
 	struct at_ifaddr *aa;
 	struct sockaddr_at *sat2;
 
+	AT_IFADDR_LOCK_ASSERT();
+
 	for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
 		sat2 = &(aa->aa_addr);
 		if (sat2->sat_addr.s_net == sat->sat_addr.s_net)
@@ -200,7 +201,9 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 	 * same address as we're looking for.  If the net is phase 2,
 	 * generate an 802.2 and SNAP header.
 	 */
+	AT_IFADDR_RLOCK();
 	if ((aa = at_ifawithnet(sat)) == NULL) {
+		AT_IFADDR_RUNLOCK();
 		m_freem(m);
 		return;
 	}
@@ -213,8 +216,10 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 		eh->ether_type = htons(sizeof(struct llc) +
 		    sizeof(struct ether_aarp));
 		M_PREPEND(m, sizeof(struct llc), M_DONTWAIT);
-		if (m == NULL)
+		if (m == NULL) {
+			AT_IFADDR_RUNLOCK();
 			return;
+		}
 		llc = mtod(m, struct llc *);
 		llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 		llc->llc_control = LLC_UI;
@@ -239,6 +244,7 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 	printf("aarp: sending request for %u.%u\n",
 	    ntohs(AA_SAT(aa)->sat_addr.s_net), AA_SAT(aa)->sat_addr.s_node);
 #endif /* NETATALKDEBUG */
+	AT_IFADDR_RUNLOCK();
 
 	sa.sa_len = sizeof(struct sockaddr);
 	sa.sa_family = AF_UNSPEC;
@@ -252,9 +258,11 @@ aarpresolve(struct ifnet *ifp, struct mbuf *m, struct sockaddr_at *destsat,
 	struct at_ifaddr *aa;
 	struct aarptab *aat;
 
+	AT_IFADDR_RLOCK();
 	if (at_broadcast(destsat)) {
 		m->m_flags |= M_BCAST;
 		if ((aa = at_ifawithnet(destsat)) == NULL)  {
+			AT_IFADDR_RUNLOCK();
 			m_freem(m);
 			return (0);
 		}
@@ -264,8 +272,10 @@ aarpresolve(struct ifnet *ifp, struct mbuf *m, struct sockaddr_at *destsat,
 		else
 			bcopy(ifp->if_broadcastaddr, (caddr_t)desten,
 			    sizeof(ifp->if_addrlen));
+		AT_IFADDR_RUNLOCK();
 		return (1);
 	}
+	AT_IFADDR_RUNLOCK();
 
 	AARPTAB_LOCK();
 	AARPTAB_LOOK(aat, destsat->sat_addr);
@@ -369,10 +379,14 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 		sat.sat_len = sizeof(struct sockaddr_at);
 		sat.sat_family = AF_APPLETALK;
 		sat.sat_addr.s_net = net;
+		AT_IFADDR_RLOCK();
 		if ((aa = at_ifawithnet(&sat)) == NULL) {
+			AT_IFADDR_RUNLOCK();
 			m_freem(m);
 			return;
 		}
+		ifa_ref(&aa->aa_ifa);
+		AT_IFADDR_RUNLOCK();
 		bcopy(ea->aarp_spnet, &spa.s_net, sizeof(spa.s_net));
 		bcopy(ea->aarp_tpnet, &tpa.s_net, sizeof(tpa.s_net));
 	} else {
@@ -380,6 +394,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 		 * Since we don't know the net, we just look for the first
 		 * phase 1 address on the interface.
 		 */
+		IF_ADDR_LOCK(ifp);
 		for (aa = (struct at_ifaddr *)TAILQ_FIRST(&ifp->if_addrhead);
 		    aa;
 		    aa = (struct at_ifaddr *)aa->aa_ifa.ifa_link.tqe_next) {
@@ -389,9 +404,12 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 			}
 		}
 		if (aa == NULL) {
+			IF_ADDR_UNLOCK(ifp);
 			m_freem(m);
 			return;
 		}
+		ifa_ref(&aa->aa_ifa);
+		IF_ADDR_UNLOCK(ifp);
 		tpa.s_net = spa.s_net = AA_SAT(aa)->sat_addr.s_net;
 	}
 
@@ -412,6 +430,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 	    		 */
 			callout_stop(&aa->aa_callout);
 			wakeup(aa);
+			ifa_free(&aa->aa_ifa);
 			m_freem(m);
 			return;
 		} else if (op != AARPOP_PROBE) {
@@ -420,6 +439,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 			 * means that someone's saying they have the same
 			 * source address as the one we're using.  Get upset.
 			 */
+			ifa_free(&aa->aa_ifa);
 			log(LOG_ERR,
 			    "aarp: duplicate AT address!! %x:%x:%x:%x:%x:%x\n",
 			    ea->aarp_sha[0], ea->aarp_sha[1],
@@ -441,6 +461,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 			 */
 			aarptfree(aat);
 			AARPTAB_UNLOCK();
+			ifa_free(&aa->aa_ifa);
 			m_freem(m);
 			return;
 		}
@@ -474,6 +495,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 	 */
 	if (tpa.s_net != ma.s_net || tpa.s_node != ma.s_node ||
 	    op == AARPOP_RESPONSE || (aa->aa_flags & AFA_PROBING)) {
+		ifa_free(&aa->aa_ifa);
 		m_freem(m);
 		return;
 	}
@@ -491,8 +513,10 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 		eh->ether_type = htons(sizeof(struct llc) +
 		    sizeof(struct ether_aarp));
 		M_PREPEND(m, sizeof(struct llc), M_DONTWAIT);
-		if (m == NULL)
+		if (m == NULL) {
+			ifa_free(&aa->aa_ifa);
 			return;
+		}
 		llc = mtod(m, struct llc *);
 		llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 		llc->llc_control = LLC_UI;
@@ -505,6 +529,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 		bcopy(&ma.s_net, ea->aarp_spnet, sizeof(ea->aarp_spnet));
 	} else
 		eh->ether_type = htons(ETHERTYPE_AARP);
+	ifa_free(&aa->aa_ifa);
 
 	ea->aarp_tpnode = ea->aarp_spnode;
 	ea->aarp_spnode = ma.s_node;
@@ -603,11 +628,14 @@ aarpprobe(void *arg)
 		return;
 	} else
 		callout_reset(&aa->aa_callout, hz / 5, aarpprobe, ifp);
+	ifa_ref(&aa->aa_ifa);
 	AARPTAB_UNLOCK();
 
 	m = m_gethdr(M_DONTWAIT, MT_DATA);
-	if (m == NULL)
+	if (m == NULL) {
+		ifa_free(&aa->aa_ifa);
 		return;
+	}
 #ifdef MAC
 	mac_netatalk_aarp_send(ifp, m);
 #endif
@@ -658,6 +686,7 @@ aarpprobe(void *arg)
 	printf("aarp: sending probe for %u.%u\n",
 	    ntohs(AA_SAT(aa)->sat_addr.s_net), AA_SAT(aa)->sat_addr.s_node);
 #endif /* NETATALKDEBUG */
+	ifa_free(&aa->aa_ifa);
 
 	sa.sa_len = sizeof(struct sockaddr);
 	sa.sa_family = AF_UNSPEC;

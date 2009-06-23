@@ -51,7 +51,12 @@ acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 
 	acl_int = &(*acl_p)->ats_acl;
 
-	if ((acl_int->acl_cnt >= ACL_MAX_ENTRIES) || (acl_int->acl_cnt < 0)) {
+	/*
+	 * +1, because we are checking if there is space left for one more
+	 * entry.
+	 */
+	if ((acl_int->acl_cnt + 1 >= ACL_MAX_ENTRIES) ||
+	    (acl_int->acl_cnt < 0)) {
 		errno = EINVAL;
 		return (-1);
 	}
@@ -61,6 +66,8 @@ acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 	(**entry_p).ae_tag  = ACL_UNDEFINED_TAG;
 	(**entry_p).ae_id   = ACL_UNDEFINED_ID;
 	(**entry_p).ae_perm = ACL_PERM_NONE;
+	(**entry_p).ae_entry_type = 0;
+	(**entry_p).ae_flags = 0;
 
 	(*acl_p)->ats_cur_entry = 0;
 

@@ -2,8 +2,8 @@
 
 PROG=	ncal
 
-DPADD=	${LIBCALENDAR}
-LDADD=	-lcalendar
+DPADD=	${LIBCALENDAR} ${LIBTERMCAP}
+LDADD=	-lcalendar -ltermcap
 WARNS?=	1
 
 LINKS=	${BINDIR}/ncal ${BINDIR}/cal

@@ -84,6 +84,10 @@
 
 #include <machine/in_cksum.h>
 
+#ifdef IPSEC_NAT_T
+#include <netinet/udp.h>
+#endif
+
 #ifdef DEV_ENC
 #include <net/if_enc.h>
 #endif
@@ -179,6 +183,57 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 		ip = mtod(m, struct ip *);
 		ip->ip_len = ntohs(ip->ip_len);
 		ip->ip_off = ntohs(ip->ip_off);
+
+#ifdef IPSEC_NAT_T
+		/*
+		 * If NAT-T is enabled, now that all IPsec processing is done
+		 * insert UDP encapsulation header after IP header.
+		 */
+		if (sav->natt_type) {
+#ifdef _IP_VHL
+			const int hlen = IP_VHL_HL(ip->ip_vhl);
+#else
+			const int hlen = (ip->ip_hl << 2);
+#endif
+			int size, off;
+			struct mbuf *mi;
+			struct udphdr *udp;
+
+			size = sizeof(struct udphdr);
+			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE) {
+				/*
+				 * draft-ietf-ipsec-nat-t-ike-0[01].txt and
+				 * draft-ietf-ipsec-udp-encaps-(00/)01.txt,
+				 * ignoring possible AH mode
+				 * non-IKE marker + non-ESP marker
+				 * from draft-ietf-ipsec-udp-encaps-00.txt.
+				 */
+				size += sizeof(u_int64_t);
+			}
+			mi = m_makespace(m, hlen, size, &off);
+			if (mi == NULL) {
+				DPRINTF(("%s: m_makespace for udphdr failed\n",
+				    __func__));
+				error = ENOBUFS;
+				goto bad;
+			}
+
+			udp = (struct udphdr *)(mtod(mi, caddr_t) + off);
+			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE)
+				udp->uh_sport = htons(UDP_ENCAP_ESPINUDP_PORT);
+			else
+				udp->uh_sport =
+					KEY_PORTFROMSADDR(&sav->sah->saidx.src);
+			udp->uh_dport = KEY_PORTFROMSADDR(&sav->sah->saidx.dst);
+			udp->uh_sum = 0;
+			udp->uh_ulen = htons(m->m_pkthdr.len - hlen);
+			ip->ip_len = m->m_pkthdr.len;
+			ip->ip_p = IPPROTO_UDP;
+
+			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE)
+				*(u_int64_t *)(udp + 1) = 0;
+		}
+#endif /* IPSEC_NAT_T */
 
 		return ip_output(m, NULL, NULL, IP_RAWOUTPUT, NULL, NULL);
 #endif /* INET */
