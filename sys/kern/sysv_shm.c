@@ -770,13 +770,10 @@ shmget_allocate_segment(td, uap, mode)
 	 * We make sure that we have allocated a pager before we need
 	 * to.
 	 */
-	if (shm_use_phys) {
-		shm_object =
-		    vm_pager_allocate(OBJT_PHYS, 0, size, VM_PROT_DEFAULT, 0);
-	} else {
-		shm_object =
-		    vm_pager_allocate(OBJT_SWAP, 0, size, VM_PROT_DEFAULT, 0);
-	}
+	shm_object = vm_pager_allocate(shm_use_phys ? OBJT_PHYS : OBJT_SWAP,
+	    0, size, VM_PROT_DEFAULT, 0, cred);
+	if (shm_object == NULL)
+		return (ENOMEM);
 	VM_OBJECT_LOCK(shm_object);
 	vm_object_clear_flag(shm_object, OBJ_ONEMAPPING);
 	vm_object_set_flag(shm_object, OBJ_NOSPLIT);

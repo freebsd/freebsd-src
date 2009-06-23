@@ -83,7 +83,8 @@ static void vnode_pager_dealloc(vm_object_t);
 static int vnode_pager_getpages(vm_object_t, vm_page_t *, int, int);
 static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 static boolean_t vnode_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
-static vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t);
+static vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
+    vm_ooffset_t, struct ucred *cred);
 
 struct pagerops vnodepagerops = {
 	.pgo_alloc =	vnode_pager_alloc,
@@ -128,7 +129,7 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 		}
 	}
 
-	object = vnode_pager_alloc(vp, size, 0, 0);
+	object = vnode_pager_alloc(vp, size, 0, 0, td->td_ucred);
 	/*
 	 * Dereference the reference we just created.  This assumes
 	 * that the object is associated with the vp.
@@ -185,7 +186,7 @@ vnode_destroy_vobject(struct vnode *vp)
  */
 vm_object_t
 vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
-		  vm_ooffset_t offset)
+    vm_ooffset_t offset, struct ucred *cred)
 {
 	vm_object_t object;
 	struct vnode *vp;

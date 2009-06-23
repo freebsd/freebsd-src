@@ -114,6 +114,7 @@ struct vm_map_entry {
 	vm_inherit_t inheritance;	/* inheritance */
 	int wired_count;		/* can be paged if = 0 */
 	vm_pindex_t lastr;		/* last read */
+	struct uidinfo *uip;		/* tmp storage for creator ref */
 };
 
 #define MAP_ENTRY_NOSYNC		0x0001
@@ -310,6 +311,8 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #define MAP_PREFAULT_MADVISE	0x0200	/* from (user) madvise request */
 #define	MAP_STACK_GROWS_DOWN	0x1000
 #define	MAP_STACK_GROWS_UP	0x2000
+#define	MAP_ACC_CHARGED		0x4000
+#define	MAP_ACC_NO_CHARGE	0x8000
 
 /*
  * vm_fault option flags
