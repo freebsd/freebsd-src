@@ -265,7 +265,7 @@ static void
 usage(progname)
 	char			*progname;
 {
-	fprintf(stderr, "Usage: ndis_events [-a] [-d] [-v]\n", progname);
+	fprintf(stderr, "Usage: ndis_events [-a] [-d] [-v]\n");
 	exit(1);
 }
 
