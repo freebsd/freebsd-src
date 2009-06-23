@@ -41,6 +41,19 @@ sub_FlashDevice () {
 	a1=`echo $1 | tr '[:upper:]' '[:lower:]'`
 	a2=`echo $2 | tr '[:upper:]' '[:lower:]'`
 	case $a1 in
+	hitachi)
+		case $a2 in
+		256|256mb)
+			NANO_MEDIASIZE=`expr 256204800 / 512`
+			NANO_HEADS=15
+			NANO_SECTS=48
+			;;
+		*)
+			echo "Unknown Hitachi Flash capacity"
+			exit 2
+			;;
+		esac
+		;;
 	integral)
 		# Source: mich@FreeBSD.org
 		case $a2 in
@@ -129,6 +142,11 @@ sub_FlashDevice () {
 		;;
 	siliconsystems)
 		case $a2 in
+ 		256|256mb)
+ 			NANO_MEDIASIZE=`expr 260571136 / 512`
+ 			NANO_HEADS=16
+ 			NANO_SECTS=32
+ 			;;
 		4096|4g)
 			NANO_MEDIASIZE=`expr -e 4224761856 / 512`
 			NANO_HEADS=16
