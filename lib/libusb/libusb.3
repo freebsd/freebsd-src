@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2008 Hans Petter Selasky
+.\" Copyright (c) 2009 Sylvestre Gallon
 .\"
 .\" All rights reserved.
 .\"
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2009
+.Dd June 22, 2009
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -41,882 +41,424 @@
 USB access library (libusb -lusb)
 .
 .
-.
 .Sh SYNOPSIS
-.In libusb20.h
-.Ft int
-.Fn libusb20_tr_close "struct libusb20_transfer *xfer"
-.Ft int
-.Fn libusb20_tr_open "struct libusb20_transfer *xfer" "uint32_t max_buf_size" "uint32_t max_frame_count" "uint8_t ep_no"
-.Ft struct libusb20_transfer*
-.Fn libusb20_tr_get_pointer "struct libusb20_device *pdev"  "uint16_t tr_index"
-.Ft uint16_t
-.Fn libusb20_tr_get_time_complete "struct libusb20_transfer *xfer"
-.Ft uint32_t
-.Fn libusb20_tr_get_actual_frames "struct libusb20_transfer *xfer"
-.Ft uint32_t
-.Fn libusb20_tr_get_actual_length "struct libusb20_transfer *xfer"
-.Ft uint32_t
-.Fn libusb20_tr_get_max_frames "struct libusb20_transfer *xfer"
-.Ft uint32_t
-.Fn libusb20_tr_get_max_packet_length "struct libusb20_transfer *xfer"
-.Ft uint32_t
-.Fn libusb20_tr_get_max_total_length "struct libusb20_transfer *xfer"
-.Ft uint8_t
-.Fn libusb20_tr_get_status "struct libusb20_transfer *xfer"
-.Ft uint8_t
-.Fn libusb20_tr_pending "struct libusb20_transfer *xfer"
-.Ft void
-.Fn libusb20_tr_callback_wrapper "struct libusb20_transfer *xfer"
-.Ft void
-.Fn libusb20_tr_clear_stall_sync "struct libusb20_transfer *xfer"
-.Ft void
-.Fn libusb20_tr_drain "struct libusb20_transfer *xfer"
-.Ft void
-.Fn libusb20_tr_set_buffer "struct libusb20_transfer *xfer" "void *buffer" "uint16_t fr_index"
-.Ft void
-.Fn libusb20_tr_set_callback "struct libusb20_transfer *xfer" "libusb20_tr_callback_t *cb"
-.Ft void
-.Fn libusb20_tr_set_flags "struct libusb20_transfer *xfer" "uint8_t flags"
-.Ft uint32_t
-.Fn libusb20_tr_get_length "struct libusb20_transfer *xfer" "uint16_t fr_index"
-.Ft void
-.Fn libusb20_tr_set_length "struct libusb20_transfer *xfer" "uint32_t length" "uint16_t fr_index"
-.Ft void
-.Fn libusb20_tr_set_priv_sc0 "struct libusb20_transfer *xfer" "void *sc0"
-.Ft void
-.Fn libusb20_tr_set_priv_sc1 "struct libusb20_transfer *xfer" "void *sc1"
-.Ft void
-.Fn libusb20_tr_set_timeout "struct libusb20_transfer *xfer" "uint32_t timeout"
-.Ft void
-.Fn libusb20_tr_set_total_frames "struct libusb20_transfer *xfer" "uint32_t nframes"
-.Ft void
-.Fn libusb20_tr_setup_bulk "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint32_t timeout"
-.Ft void
-.Fn libusb20_tr_setup_control "struct libusb20_transfer *xfer" "void *psetup" "void *pbuf" "uint32_t timeout"
-.Ft void
-.Fn libusb20_tr_setup_intr "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint32_t timeout"
-.Ft void
-.Fn libusb20_tr_setup_isoc "struct libusb20_transfer *xfer" "void *pbuf" "uint32_t length" "uint61_t fr_index"
-.Ft void
-.Fn libusb20_tr_start "struct libusb20_transfer *xfer"
-.Ft void
-.Fn libusb20_tr_stop "struct libusb20_transfer *xfer"
-.Ft void
-.Fn libusb20_tr_submit "struct libusb20_transfer *xfer"
-.Ft void *
-.Fn libusb20_tr_get_priv_sc0 "struct libusb20_transfer *xfer"
-.Ft void *
-.Fn libusb20_tr_get_priv_sc1 "struct libusb20_transfer *xfer"
-.Ft const char *
-.Fn libusb20_dev_get_backend_name "struct libusb20_device *"
-.Ft int
-.Fn libusb20_dev_get_info "struct libusb20_device *pdev" "struct usb_device_info *pinfo"
-.Ft int
-.Fn libusb20_dev_get_iface_desc "struct libusb20_device *pdev" "uint8_t iface_index" "char *buf" "uint8_t len"
-.Ft const char *
-.Fn libusb20_dev_get_desc "struct libusb20_device *pdev"
-.Ft int
-.Fn libusb20_dev_close "struct libusb20_device *pdev"
-.Ft int
-.Fn libusb20_dev_detach_kernel_driver "struct libusb20_device *pdev" "uint8_t iface_index"
-.Ft int
-.Fn libusb20_dev_set_config_index "struct libusb20_device *pdev" "uint8_t configIndex"
-.Ft int
-.Fn libusb20_dev_get_debug "struct libusb20_device *pdev"
-.Ft int
-.Fn libusb20_dev_get_fd "struct libusb20_device *pdev"
-.Ft int
-.Fn libusb20_dev_kernel_driver_active "struct libusb20_device *pdev" "uint8_t iface_index"
-.Ft int
-.Fn libusb20_dev_open "struct libusb20_device *pdev" "uint16_t transfer_max"
-.Ft int
-.Fn libusb20_dev_process "struct libusb20_device *pdev"
-.Ft int
-.Fn libusb20_dev_request_sync "struct libusb20_device *pdev" "struct LIBUSB20_CONTROL_SETUP_DECODED *setup" "void *data" "uint16_t *pactlen" "uint32_t timeout" "uint8_t flags"
-.Ft int
-.Fn libusb20_dev_req_string_sync "struct libusb20_device *pdev" "uint8_t index" "uint16_t langid" "void *ptr" "uint16_t len"
-.Ft int
-.Fn libusb20_dev_req_string_simple_sync "struct libusb20_device *pdev" "uint8_t index" "void *ptr" "uint16_t len"
-.Ft int
-.Fn libusb20_dev_reset "struct libusb20_device *pdev"
-.Ft int
-.Fn libusb20_dev_set_power_mode "struct libusb20_device *pdev" "uint8_t power_mode"
-.Ft uint8_t
-.Fn libusb20_dev_get_power_mode "struct libusb20_device *pdev"
-.Ft int
-.Fn libusb20_dev_set_alt_index "struct libusb20_device *pdev" "uint8_t iface_index" "uint8_t alt_index"
-.Ft struct LIBUSB20_DEVICE_DESC_DECODED *
-.Fn libusb20_dev_get_device_desc "struct libusb20_device *pdev"
-.Ft struct libusb20_config *
-.Fn libusb20_dev_alloc_config "struct libusb20_device *pdev" "uint8_t config_index"
-.Ft struct libusb20_device *
-.Fn libusb20_dev_alloc "void"
-.Ft uint8_t
-.Fn libusb20_dev_get_address "struct libusb20_device *pdev"
-.Ft uint8_t
-.Fn libusb20_dev_get_bus_number "struct libusb20_device *pdev"
-.Ft uint8_t
-.Fn libusb20_dev_get_mode "struct libusb20_device *pdev"
-.Ft uint8_t
-.Fn libusb20_dev_get_speed "struct libusb20_device *pdev"
-.Ft uint8_t
-.Fn libusb20_dev_get_config_index "struct libusb20_device *pdev"
-.Ft void
-.Fn libusb20_dev_free "struct libusb20_device *pdev"
-.Ft void
-.Fn libusb20_dev_set_debug "struct libusb20_device *pdev" "int debug"
-.Ft void
-.Fn libusb20_dev_wait_process "struct libusb20_device *pdev" "int timeout"
-.Ft int
-.Fn libusb20_be_get_template "struct libusb20_backend *pbe" "int *ptemp"
-.Ft int
-.Fn libusb20_be_set_template "struct libusb20_backend *pbe" "int temp"
-.Ft int
-.Fn libusb20_be_get_dev_quirk "struct libusb20_backend *pber", "uint16_t index" "struct libusb20_quirk *pq"
-.Ft int
-.Fn libusb20_be_get_quirk_name "struct libusb20_backend *pbe" "uint16_t index" "struct libusb20_quirk *pq"
-.Ft int
-.Fn libusb20_be_add_dev_quirk "struct libusb20_backend *pbe" "struct libusb20_quirk *pq"
-.Ft int
-.Fn libusb20_be_remove_dev_quirk "struct libusb20_backend *pbe" "struct libusb20_quirk *pq"
-.Ft struct libusb20_backend *
-.Fn libusb20_be_alloc_default "void"
-.Ft struct libusb20_backend *
-.Fn libusb20_be_alloc_freebsd "void"
-.Ft struct libusb20_backend *
-.Fn libusb20_be_alloc_linux "void"
-.Ft struct libusb20_device *
-.Fn libusb20_be_device_foreach  "struct libusb20_backend *pbe" "struct libusb20_device *pdev"
-.Ft void
-.Fn libusb20_be_dequeue_device "struct libusb20_backend *pbe" "struct libusb20_device *pdev"
-.Ft void
-.Fn libusb20_be_enqueue_device "struct libusb20_backend *pbe" "struct libusb20_device *pdev"
-.Ft void
-.Fn libusb20_be_free "struct libusb20_backend *pbe"
-.Ft uint8_t
-.Fn libusb20_me_get_1 "const struct libusb20_me_struct *me" "uint16_t off"
-.Ft uint16_t
-.Fn libusb20_me_get_2 "const struct libusb20_me_struct *me" "uint16_t off"
-.Ft uint16_t
-.Fn libusb20_me_encode "void *pdata" "uint16_t len" "const void *pdecoded"
-.Ft uint16_t
-.Fn libusb20_me_decode "const void *pdata" "uint16_t len" "void *pdecoded"
-.Ft "const uint8_t *"
-.Fn libusb20_desc_foreach "const struct libusb20_me_struct *me" "const uint8_t *pdesc"
+.
+.
+.In libusb.h
 .
 .
 .Sh DESCRIPTION
-.
 The
 .Nm
-library implements functions to be able to easily access and control
-USB through the USB file system interface.
+library contains interfaces for directly managing a usb device.
+The current implementation supports v1.0 of the libusb API.
 .
 .
-.Sh USB TRANSFER OPERATIONS
+.Sh LIBRARY INITIALISATION / DEINITIALISATION
 .
 .Pp
 .
-.Fn libusb20_tr_close
-will release all kernel resources associated with an USB
-.Fa xfer .
-.
-This function returns zero upon success.
-.
-Non-zero return values indicate a LIBUSB20_ERROR value.
-.
-.Pp
-.
-.Fn libusb20_tr_open
-will allocate kernel buffer resources according to
-.Fa max_buf_size
-and
-.Fa max_frame_count
-associated with an USB
-.Fa pxfer
-and bind the transfer to the specified
-.Fa ep_no .
-.Fa max_buf_size
-is the minimum buffer size which the data transport layer has to support.
-If
-.Fa max_buf_size
-is zero, the
-.Nm
-library will use wMaxPacketSize to compute the buffer size.
-This can be useful for isochronous transfers.
-The actual buffer size can be greater than
-.Fa max_buf_size
-and is returned by
-.Fn libusb20_tr_get_max_total_length .
-.
-This function returns zero upon success.
-.
-Non-zero return values indicate a LIBUSB20_ERROR value.
-.
-.Pp
-.
-.Fn libusb20_tr_get_pointer
-will return a pointer to the allocated USB transfer according to the
-.Fa pdev
-and
-.Fa tr_index
-arguments.
-.
-This function returns NULL in case of failure.
-.
-.Pp
-.
-.Fn libusb20_tr_get_time_complete
-will return the completion time of an USB transfer in
-millisecond units. This function is most useful for isochronous USB
-transfers when doing echo cancelling.
-.
-.Pp
-.
-.Fn libusb20_tr_get_actual_frames
-will return the actual number of USB frames after an USB
-transfer completed. A value of zero means that no data was transferred.
-.
-.Pp
-.
-.Fn libusb20_tr_get_actual_length
-will return the sum of the actual length for all
-transferred USB frames for the given USB transfer.
-.
-.Pp
-.
-.Fn libusb20_tr_get_max_frames
-will return the maximum number of USB frames that were
-allocated when an USB transfer was setup for the given USB transfer.
-.
-.Pp
-.
-.Fn libusb20_tr_get_max_packet_length
-will return the maximum packet length in bytes
-associated with the given USB transfer.
-.
-The packet length can be used round up buffer sizes so that short USB
-packets are avoided for proxy buffers.
-.
-.
-.Pp
-.
-.Fn libusb20_tr_get_max_total_length
-function will return the maximum value for the length sum of all
-USB frames associated with an USB transfer.
-.
-.Pp
-.
-.Fn libusb20_tr_get_status
-will return the status of an USB transfer.
-.
-Status values are defined by a set of LIBUSB20_TRANSFER_XXX enums.
-.
-.Pp
-.
-.Fn libusb20_tr_pending
-will return non-zero if the given USB transfer is
-pending for completion.
-.
-Else this function returns zero.
-.
+.Ft int
+.Fn libusb_init libusb_context **ctx
+This function initialises libusb. Must be called at the beginning
+of the program. This function returns 0 on success or LIBUSB_ERROR on 
+failure.
+. 
 .Pp
 .
-.Fn libusb20_tr_callback_wrapper
-This is an internal function used to wrap asynchronous USB callbacks.
+.Ft void
+.Fn libusb_exit "libusb_context *ctx"
+Deinitialise libusb. Must be called at the end of the application.
 .
 .Pp
 .
-.Fn libusb20_tr_clear_stall_sync
-This is an internal function used to synchronously clear the stall on
-the given USB transfer.
+.Ft void
+.Fn libusb_set_debug "libusb_context *ctx" "int level"
+Set debug to the
+.Fa level
+level.
 .
-Please see the USB specification for more information on stall
-clearing.
-.
-If the given USB transfer is pending when this function is called, the
-USB transfer will complete with an error after that this function has
-been called.
-.
-.Pp
-.
-.Fn libusb20_tr_drain
-will stop the given USB transfer and will not return
-until the USB transfer has been stopped in hardware.
-.
-.Pp
-.
-.Fn libusb20_tr_set_buffer
-is used to set the
-.Fa buffer
-pointer for the given USB transfer and
-.Fa fr_index .
-.
-Typically the frame index is zero.
-.
-.
-.Pp
-.
-.Fn libusb20_tr_set_callback
-is used to set the USB callback for asynchronous USB
-transfers.
-.
-The callback type is defined by libusb20_tr_callback_t.
-.
-.Pp
-.
-.Fn libusb20_tr_set_flags
-is used to set various USB flags for the given USB transfer.
-.Bl -tag
-.It LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK
-Report a short frame as error.
-.It LIBUSB20_TRANSFER_MULTI_SHORT_NOT_OK
-Multiple short frames are not allowed.
-.It LIBUSB20_TRANSFER_FORCE_SHORT
-All transmitted frames are short terminated.
-.It LIBUSB20_TRANSFER_DO_CLEAR_STALL
-Will do a clear-stall before starting the transfer.
-.El
-.
-.Pp
-.
-.Fn libusb20_tr_get_length
-returns the length of the given USB frame by index.
-After an USB transfer is complete the USB frame length will get updated to the actual transferred length.
-.
 .Pp
 .
-.Fn libusb20_tr_set_length
-sets the length of the given USB frame by index.
+.Ft ssize_t
+.Fn libusb_get_device_list "libusb_context *ctx" "libusb_device ***list"
+Fill into
+.Fa list 
+the list of usb device available. All the device created by this
+function must be unref and free when you are done with them. This
+function returns the number of devices in list or a LIBUSB_ERROR code.
 .
 .Pp
 .
-.Fn libusb20_tr_set_priv_sc0
-sets private driver pointer number zero.
+.Ft void
+.Fn libusb_free_device_list "libusb_device **list" "int unref_devices"
+Free the list of devices discovered by libusb_get_device_list. If 
+.Fa unref_device
+is set to 1 all devices are unref one time.
 .
 .Pp
 .
-.Fn libusb20_tr_set_priv_sc1
-sets private driver pointer number one.
+.Ft uint8_t
+.Fn libusb_get_bus_number "libusb_device *dev"
+Returns the number of the bus contained by the device
+.Fa dev.
 .
 .Pp
 .
-.Fn libusb20_tr_set_timeout
-sets the timeout for the given USB transfer.
+.Ft uint8_t
+.Fn libusb_get_device_address "libusb_device *dev"
+Return the device_address contained by the device
+.Fa dev.
 .
-A timeout value of zero means no timeout.
-.
-The timeout is given in milliseconds.
-.
-.Pp
-.
-.Fn libusb20_tr_set_total_frames
-sets the total number of frames that should be executed when the USB transfer is submitted.
-.
-The total number of USB frames must be less than the maximum number of USB frames associated with the given USB transfer.
-.
-.Pp
-.
-.Fn libusb20_tr_setup_bulk
-is a helper function for setting up a single frame USB BULK transfer.
-.
-.Pp
-.
-.Fn libusb20_tr_setup_control
-is a helper function for setting up a single or dual
-frame USB CONTROL transfer depending on the control transfer length.
-.
-.Pp
-.
-.Fn libusb20_tr_setup_intr
-is a helper function for setting up a single frame USB INTERRUPT transfer.
-.
 .Pp
 .
-.Fn libusb20_tr_setup_isoc
-is a helper function for setting up a multi frame USB ISOCHRONOUS transfer.
+.Ft int
+.Fn libusb_get_max_packet_size "libusb_device *dev" "unsigned char endpoint"
+Return the wMaxPacketSize value on success, LIBUSB_ERROR_NOT_FOUND if the 
+endpoint does not exist and LIBUSB_ERROR_OTHERS on other failure.
 .
 .Pp
-.
-.Fn libusb20_tr_start
-will get the USB transfer started, if not already
-started.
-.
-This function will not get the transfer queued in hardware.
-.
-This function is non-blocking.
-.
-.Pp
-.
-.Fn libusb20_tr_stop
-will get the USB transfer stopped, if not already stopped.
 .
-This function is non-blocking, which means that the actual stop can
-happen after the return of this function.
+.Ft libusb_device *
+.Fn libusb_ref_device "libusb_device *dev"
+Increment the reference counter of the device
+.Fa dev.
 .
 .Pp
 .
-.Fn libusb20_tr_submit
-will get the USB transfer queued in hardware.
+.Ft void
+.Fn libusb_unref_device "libusb_device *dev"
+Decrement the reference counter of the device
+.Fa dev.
 .
-.
 .Pp
-.
-.Fn libusb20_tr_get_priv_sc0
-returns private driver pointer number zero associated
-with an USB transfer.
 .
+.Ft int
+.Fn libusb_open "libusb_device *dev" "libusb_device_handle **devh"
+Open a device and obtain a device_handle. Return 0 on success, 
+LIBUSB_ERROR_NO_MEM on memory allocation problem, LIBUSB_ERROR_ACCESS 
+on permission problem, LIBUSB_ERROR_NO_DEVICE if the device has been 
+disconnected and a LIBUSB_ERROR code on error.
 .
 .Pp
 .
-.Fn libusb20_tr_get_priv_sc1
-returns private driver pointer number one associated
-with an USB transfer.
+.Ft libusb_device_handle *
+.Fn libusb_open_device_with_vid_pid "libusb_context *ctx" "uint16_t vid" "uint16_t pid"
+Conveniance function to open a device with is 
+.Fa vid 
+and 
+.Fa pid.
+Return NULL on error.
 .
-.
-.Sh USB DEVICE OPERATIONS
-.
 .Pp
 .
-.Fn libusb20_dev_get_backend_name
-returns a zero terminated string describing the backend used.
+.Ft void
+.Fn libusb_close "libusb_device_handle *devh"
+Close a device handle.
 .
 .Pp
 .
-.Fn libusb20_dev_get_info
-retrives the BSD specific usb_device_info structure into the memory location given by 
-.Fa pinfo .
-The USB device given by
-.Fa pdev
-must be opened before this function will succeed.
-This function returns zero on success else a LIBUSB20_ERROR value is returned.
+.Ft libusb_device *
+.Fn libusb_get_device(libusb_device_handle *devh)
+Get the device contained by devh. Return NULL on error.
 .
 .Pp
 .
-.Fn libusb20_dev_get_iface_desc
-retrieves the kernel interface description for the given USB
-.Fa iface_index .
-The format of the USB interface description is: "drivername<unit>: <description>"
-The description string is always zero terminated.
-A zero length string is written in case no driver is attached to the given interface.
-The USB device given by
-.Fa pdev
-must be opened before this function will succeed.
-This function returns zero on success else a LIBUSB20_ERROR value is returned.
+.Ft int
+.Fn libusb_get_configuration "libusb_device_handle *devh" "int *config"
+Return the bConfiguration value of the current configuration. return 0
+on success, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected 
+and a LIBUSB_ERROR code on error.
 .
 .Pp
 .
-.Fn libusb20_dev_get_desc
-returns a zero terminated string describing the given USB device.
-The format of the string is: "drivername<unit>: <description>"
+.Ft int
+.Fn libusb_set_configuration "libusb_device_handle *devh" "int config"
+Set the active configuration
+.Fa config
+for the device contained by
+.Fa devh.
+This function return 0 on success, LIBUSB_ERROR_NOT_FOUND if the requested
+configuration does not exist, LIBUSB_ERROR_BUSY if the interfaces are currently 
+claimed, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and a 
+LIBUSB_ERROR code on failure.
 .
 .Pp
-.
-.Fn libusb20_dev_close
-will close the given USB device.
 .
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
+.Ft int
+.Fn libusb_claim_interface "libusb_device_handle *devh" "int interface_number"
+Claim an interface in a given libusb_handle
+.Fa devh.
+This is a non-blocking function. It return 0 success, LIBUSB_ERROR_NOT_FOUND 
+if the requested interface does not exist, LIBUSB_ERROR_BUSY if a program or 
+driver has claimed the interface, LIBUSB_ERROR_NO_DEVICE if the device has 
+been disconnected and a LIBUSB_ERROR code on failure.
 .
 .Pp
 .
-.Fn libusb20_dev_detach_kernel_driver
-will try to detach the kernel driver for the USB interface given by
-.Fa iface_index .
+.Ft int
+.Fn libusb_release_interface "libusb_device_handle *devh" "int interface_number"
+This function release an interface. All the claimed interface must be released
+before closing a device. Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if the 
+interafce was not claimed, LIBUSB_ERROR_NO_DEVICE if the device has been 
+disconnected and LIBUSB_ERROR on failure.
 .
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
 .Pp
-.
-.Fn libusb20_dev_set_config_index
-will try to set the configuration index on an USB
-device.
 .
-The first configuration index is zero.
+.Ft int
+.Fn libusb_set_interface_alt_setting "libusb_device_handle *dev" "int interface_number" "int alternate_setting"
+Activate an alternate setting for an interface. Returns 0 on success, 
+LIBUSB_ERROR_NOT_FOUND if the interface was not claimed or the requested 
+setting does not exist, LIBUSB_ERROR_NO_DEVICE if the device has been 
+disconnected and LIBUSB_ERROR code on failure.
 .
-The un-configure index is 255.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is returned.
-.
 .Pp
 .
-.Fn libusb20_dev_get_debug
-returns the debug level of an USB device.
+.Ft int
+.Fn libusb_clear_halt "libusb_device_handle *devh" "unsigned char endpoint"
+Clear an halt/stall for a endpoint. Returns 0 on success, LIBUSB_ERROR_NOT_FOUND
+if the endpoint does not exist, LIBUSB_ERROR_NO_DEVICE if the device has been 
+disconnected and a LIBUSB_ERROR code on failure.
 .
 .Pp
-.
-.Fn libusb20_dev_get_fd
-returns the file descriptor of the given USB device.
 .
-A negative value is returned when no file descriptor is present.
+.Ft int
+.Fn libusb_reset_device "libusb_device_handle *devh"
+Perform an USB port reset for an usb device. Returns 0 on success,
+LIBUSB_ERROR_NOT_FOUND if re-enumeration is required or if the device has
+been disconnected and a LIBUSB_ERROR code on failure.
 .
-The file descriptor can be used for polling purposes.
-.
 .Pp
-.
-.Fn libusb20_dev_kernel_driver_active
-returns a non-zero value if a kernel driver is active on
-the given USB interface.
 .
-Else zero is returned.
+.Ft int
+.Fn libusb_kernel_driver_active "libusb_device_handle *devh" "int interface"
+Determine if a driver is active on a interface. Returns 0 if no kernel driver
+is active, returns 1 if a kernel driver is active, returns LIBUSB_ERROR_NO_DEVICE
+if the device has been disconnected and return a LIBUSB_ERROR code on failure.
 .
 .Pp
-.
-.Fn libusb20_dev_open
-opens an USB device so that setting up USB transfers
-becomes possible.
-.
-The number of USB transfers can be zero which means only control
-transfers are allowed.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
 .
-A return value of LIBUSB20_ERROR_BUSY means that the device is already
-opened.
+.Ft int
+.Fn libusb_detach_kernel_driver "libusb_device_handle *devh" "int interface"
+Detach a kernel driver from an interface. This is needed to claim an interface
+required by a kernel driver. Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if
+no kernel driver was active, LIBUSB_ERROR_INVALID_PARAM if the interface does not
+exist, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and a 
+LIBUSB_ERROR code on failure. 
 .
 .Pp
 .
-.Fn libusb20_dev_process
-is called to sync kernel USB transfers with userland USB
-transfers.
+.Ft int
+.Fn libusb_attach_kernel_driver "libusb_device_handle *devh" "int interface"
+Re-attach an interface kernel driver previously detached. Returns 0 on success, 
+LIBUSB_ERROR_INVALID_PARAM if the interface does not exist, LIBUSB_ERROR_NO_DEVICE
+if the device has been disconnect, LIBUSB_ERROR_BUSY if the driver cannot be 
+attached because the interface is claimed by a program or driver and a 
+LIBUSB_ERROR code on failure.
 .
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned typically indicating that the given USB device has been
-detached.
-.
 .Pp
-.
-.Fn libusb20_dev_request_sync
-will perform a synchronous control request on the given
-USB device.
 .
-Before this call will succeed the USB device must be opened.
+.Sh USB DESCRIPTORS
 .
-.Fa setup
-is a pointer to a decoded and host endian SETUP packet.
-.Fa data
-is a pointer to a data transfer buffer associated with the control transaction. This argument can be NULL.
-.Fa pactlen
-is a pointer to a variable that will hold the actual transfer length after the control transaction is complete.
-.Fa timeout
-is the transaction timeout given in milliseconds.
-A timeout of zero means no timeout.
-.Fa flags
-is used to specify transaction flags, for example LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
 .Pp
-.
-.Fn libusb20_dev_req_string_sync
-will synchronously request an USB string by language ID
-and string index into the given buffer limited by a maximum length.
 .
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
+.Ft int
+.Fn libusb_get_device_descriptor "libusb_device *dev" "libusb_device_descriptor *desc"
+Get the USB device descriptor for the device
+.Fa dev.
+This is a non-blocking function. Returns 0 on success and a LIBUSB_ERROR code on 
+failure.
 .
 .Pp
+.Ft int 
+.Fn libsub_get_active_config_descriptor "libusb_device *dev" "libusb_device_descriptor **config"
+Get the USB configuration descriptor for the active configuration. Returns 0 on 
+success, returns LIBUSB_ERROR_NOT_FOUND if the device is in unconfigured state 
+and return another LIBUSB_ERROR code on error.
 .
-.Fn libusb20_dev_req_string_simple_sync
-will synchronously request an USB string using the
-default language ID and convert the string into ASCII before storing
-the string into the given buffer limited by a maximum length which
-includes the terminating zero.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-.
 .Pp
-.
-.Fn libusb20_dev_reset
-will try to BUS reset the given USB device and restore
-the last set USB configuration.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
+.Ft int 
+.Fn libusb_get_config_descriptor "libusb_device *dev" "uint8_t config_index" "libusb_config_descriptor **config"
+Get USB configuration descriptor based on its index 
+.Fa idx.
+Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if the configuration does not exist 
+and returns another LIBUSB_ERROR code on error.
 .
 .Pp
+.Ft int
+.Fn libusb_get_config_descriptor_by_value "libusb_device *dev" "uint8 bConfigurationValue" "libusb_config_descriptor **config"
+Get a USB configuration descriptor with a specific bConfigurationValue. This is 
+a non-blocking function which does not send request through the device. Returns 0 
+on success, LIBUSB_ERROR_NOT_FOUND if the configuration does not exist and another 
+LIBUSB_ERROR code on failure.
 .
-.Fn libusb20_dev_set_power_mode
-sets the power mode of the USB device.
-.
-Valid power modes:
-.Bl -tag
-.It LIBUSB20_POWER_OFF
-.It LIBUSB20_POWER_ON
-.It LIBUSB20_POWER_SAVE
-.It LIBUSB20_POWER_SUSPEND
-.It LIBUSB20_POWER_RESUME
-.El
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
 .Pp
+.Ft void
+.Fn libusb_free_config_descriptor "libusb_config_descriptor *config`"
+Free a configuration descriptor.
 .
-.Fn libusb20_dev_get_power_mode
-returns the currently selected power mode for the given
-USB device.
-.
 .Pp
-.
-.Fn libusb20_dev_set_alt_index
-will try to set the given alternate index for the given
-USB interface index.
+.Ft int
+.Fn libusb_get_string_descriptor_ascii "libusb_device_handle *devh" "uint8_t desc_idx" "unsigned char *data" "int length"
+Retrieve a string descriptor in C style ascii. Returns a number of byte on success 
+and a LIBUSB_ERROR code on failure.
 .
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
 .Pp
-.
-.Fn libusb20_dev_get_device_desc
-returns a pointer to the decoded and host endian version
-of the device descriptor.
 .
-The USB device need not be opened when calling this function.
+.Sh USB ASYNCHRONOUS I/O
 .
 .Pp
+.Ft struct libusb_transfer *
+.Fn libusb_alloc_transfer "int iso_packets"
+Allocate a transfer with
+.Fa iso_packets
+numbers of isochronous packet descriptors. Returns NULL on error.
 .
-.Fn libusb20_dev_alloc_config
-will read out and decode the USB config descriptor for
-the given USB device and config index. This function returns a pointer
-to the decoded configuration which must eventually be passed to
-free(). NULL is returned in case of failure.
-.
 .Pp
+.Ft void
+.Fn libusb_free_transfer "struct libusb_transfer *tr"
+Free a transfer.
 .
-.Fn libusb20_dev_alloc
-is an internal function to allocate a new USB device.
-.
 .Pp
-.
-.Fn libusb20_dev_get_address
-returns the internal and not necessarily the real
-hardware address of the given USB device.
+.Ft int
+.Fn libusb_submit_transfer "struct libusb_transfer *tr"
+This function will submit a transfer and returns immediately. Returns 0 on 
+success, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and 
+LIBUSB_ERROR code on other failure.
 .
 .Pp
+.Ft int
+.Fn libusb_cancel_transfer "struct libusb_transfer *tr"
+This function asynchronously cancel a transfer. Returns 0 on success and 
+LIBUSB_ERROR code on failure.
 .
-.Fn libusb20_dev_get_bus_number
-returns the internal bus number which the given USB
-device belongs to.
-.
 .Pp
-.
-.Fn libusb20_dev_get_mode
-returns the current operation mode of the USB entity.
+.Sh USB SYNCHRONOUS I/O
 .
-Valid return values are:
-.Bl -tag
-.It LIBUSB20_MODE_HOST
-.It LIBUSB20_MODE_DEVICE
-.El
-.
 .Pp
-.
-.Fn libusb20_dev_get_speed
-returns the current speed of the given USB device.
-.
-.Bl -tag
-.It LIBUSB20_SPEED_UNKNOWN
-.It LIBUSB20_SPEED_LOW
-.It LIBUSB20_SPEED_FULL
-.It LIBUSB20_SPEED_HIGH
-.It LIBUSB20_SPEED_VARIABLE
-.It LIBUSB20_SPEED_SUPER
-.El
+.Ft int
+.Fn libusb_control_transfer "libusb_device_handle *devh" "uint8_t bmRequestType" "uint16_t wIndex" "unsigned char *data" "uint16_t wLength" "unsigned int timeout"
+Perform a USB control transfer. Returns 0 on success, LIBUSB_ERROR_TIMEOUT 
+if the transfer timeout, LIBUSB_ERROR_PIPE if the control request was not 
+supported, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and 
+LIBUSB_ERROR code on other failure.
 .
 .Pp
+.Ft int
+.Fn libusb_bulk_transfer "struct libusb_device_handle *devh" "unsigned char endpoint" "unsigned char *data" "int length" "int *transferred" "unsigned int timeout"
+Perform an USB bulk transfer. Returns 0 on success, LIBUSB_ERROR_TIMEOUT 
+if the transfer timeout, LIBUSB_ERROR_PIPE if the control request was not 
+supported, LIBUSB_ERROR_OVERFLOW if the device offered more data, 
+LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and 
+LIBUSB_ERROR code on other failure.
 .
-.Fn libusb20_dev_get_config_index
-This function returns the currently select config index for the given
-USB device.
-.
 .Pp
-.
-.Fn libusb20_dev_free
-will free the given USB device and all associated USB
-transfers.
+.Ft int
+.Fn libusb_interrupt_transfer "struct libusb_device_handle *devh" "unsigned char endpoint" "unsigned char *data" "int length" "int *transferred" "unsigned int timeout"
+Perform an USB Interrupt transfer. Returns 0 on success, LIBUSB_ERROR_TIMEOUT 
+if the transfer timeout, LIBUSB_ERROR_PIPE if the control request was not 
+supported, LIBUSB_ERROR_OVERFLOW if the device offered more data, 
+LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and 
+LIBUSB_ERROR code on other failure.
 .
 .Pp
+.Sh USB EVENTS
 .
-.Fn libusb20_dev_set_debug
-will set the debug level for the given USB device.
-.
 .Pp
-.
-.Fn libusb20_dev_wait_process
-function will wait until a pending USB transfer has completed on
-the given USB device.
-.
-A timeout value can be specified which is passed on to the
-.Xr poll 2
-function.
+.Ft int
+.Fn libusb_try_lock_events "libusb_context *ctx"
+Try to acquire the event handling lock. Returns 0 if the lock was obtained and 1
+if not.
 .
-.Sh USB BACKEND OPERATIONS
-.
-.Fn libusb20_be_get_template
-will return the currently selected global USB device
-side mode template into the integer pointer
-.Fa ptemp .
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
 .Pp
+.Ft void
+.Fn libusb_lock_events "libusb_context *ctx"
+Acquire the event handling lock. This function is blocking.
 .
-.Fn libusb20_be_set_template
-will set the global USB device side mode template to
-.Fa temp .
-The new template is not activated until after the next USB
-enumeration.
-The template number decides how the USB device will present itself to
-the USB Host, like Mass Storage Device, USB Ethernet Device. Also see
-the
-.Xr usb2_template 4
-module.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
 .Pp
-.
-.Fn libusb20_be_get_dev_quirk
-This function will return the device quirk according to
-.Fa index
-into the libusb20_quirk structure pointed to by
-.Fa pq .
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-If the given quirk does not exist LIBUSB20_ERROR_NOT_FOUND is
-returned.
+.Ft void
+.Fn libusb_unlock_events "libusb_context *ctx"
+Release the event handling lock. This will wake up any thread blocked
+on libusb_wait_for_event().
 .
 .Pp
+.Ft int
+.Fn libusb_event_handling_ok "libusb_context *ctx"
+Determine if it still OK for this thread to be doing event handling. Returns 1
+if event handling can start or continue. Returns 0 if this thread must give up
+the events lock.
 .
-.Fn libusb20_be_get_quirk_name
-will return the quirk name according to
-.Fa index
-into the libusb20_quirk structure pointed to by
-.Fa pq .
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-If the given quirk does not exist LIBUSB20_ERROR_NOT_FOUND is
-returned.
-.
 .Pp
-.
-.Fn libusb20_be_add_dev_quirk
-will add the libusb20_quirk structure pointed to by the
-.Fa pq
-argument into the device quirk list.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-If the given quirk cannot be added LIBUSB20_ERROR_NO_MEM is
-returned.
+.Ft int
+.Fn libusb_event_handler_active "libusb_context *ctx"
+Determine if an active thread is handling events. Returns 1 if yes and 0 if there
+are no threads currently handling events.
 .
 .Pp
+.Ft void
+.Fn libusb_lock_event_waiters "libusb_context *ctx"
+Acquire the event_waiters lock. This lock is designed to be obtained under the
+situation where you want to be aware when events are completed, but some other
+thread is event handling so calling libusb_handle_events() is not allowed.
 .
-.Fn libusb20_be_remove_dev_quirk
-will remove the quirk matching the libusb20_quirk structure pointed to by the
-.Fa pq
-argument from the device quirk list.
-.
-This function returns zero on success else a LIBUSB20_ERROR value is
-returned.
-.
-If the given quirk does not exist LIBUSB20_ERROR_NOT_FOUND is
-returned.
-.
 .Pp
+.Ft void
+.Fn libusb_unlock_event_waiters "libusb_context *ctx"
+Release the event_waiters lock.
 .
-.Fn libusb20_be_alloc_default
-.Fn libusb20_be_alloc_freebsd
-.Fn libusb20_be_alloc_linux
-These functions are used to allocate a specific USB backend or the
-operating system default USB backend. Allocating a backend is a way to
-scan for currently present USB devices.
-.
 .Pp
-.
-.Fn libusb20_be_device_foreach
-is used to iterate USB devices present in a USB backend.
+.Ft int 
+.Fn libusb_wait_for_event "libusb_context *ctx" "struct timeval *tv"
+Wait for another thread to signal completion of an event. Must be called
+with the event waiters lock held, see libusb_lock_event_waiters(). This will
+block until the timeout expires or a transfer completes or a thread releases
+the event handling lock through libusb_unlock_events(). Returns 0 after a 
+transfer completes or another thread stops event handling, returns 1 if the
+timeout expired.
 .
-The starting value of
-.Fa pdev
-is NULL.
-.
-This function returns the next USB device in the list.
-.
-If NULL is returned the end of the USB device list has been reached.
-.
 .Pp
-.
-.Fn libusb20_be_dequeue_device
-will dequeue the given USB device pointer from the
-backend USB device list.
-.
-Dequeued USB devices will not be freed when the backend is freed.
+.Ft int
+.Fn libusb_handle_events_timeout "libusb_context *ctx" "struct timeval *tv"
+Handle any pending events by checking if timeouts have expired and by 
+checking the set of file descriptors for activity. Returns 0 on success, or a
+LIBUSB_ERROR code on failure.
 .
 .Pp
+.Ft int
+.Fn libusb_handle_events "libusb_context *ctx"
+Handle any pending events in blocking mode with a sensible timeout. Returns 0
+on success, returns a LIBUSB_ERROR code on failure.
 .
-.Fn libusb20_be_enqueue_device
-This function will enqueue the given USB device pointer in the backend USB device list.
-.
-Enqueued USB devices will get freed when the backend is freed.
-.
 .Pp
-.
-.Fn libusb20_be_free
-will free the given backend and all USB devices in its device list.
-.
-.
-.Sh USB DESCRIPTOR PARSING
+.Ft int
+.Fn libusb_handle_events_locked "libusb_context *ctx" "struct timeval *tv"
+Handle any pending events by polling file desciptors, without checking if
+another threads are already doing so. Must be called with the event lock held.
 .
-.Fn libusb20_me_get_1 pie offset
-This function will return a byte at the given byte offset of a message
-entity.
-.
-This function is safe against invalid offsets.
-.
 .Pp
+.Ft int
+.Fn libusb_get_next_timeout "libusb_context *ctx" "struct timeval *tv"
+Determine the next internal timeout that libusb needs to handle. Returns 0
+if there are no pending timeouts, 1 if a timeout was returned, or LIBUSB_ERROR
+code on failure.
 .
-.Fn libusb20_me_get_2 pie offset
-This function will return a little endian 16-bit value at the given byte offset of a message
-entity.
-.
-This function is safe against invalid offsets.
-.
 .Pp
-.
-.Fn libusb20_me_encode pbuf len pdecoded
-This function will encode a so-called *DECODED structure into binary
-format.
+.Ft void
+.Fn libusb_set_pollfd_notifiers "libusb_context *ctx" "libusb_pollfd_added_cb added_cb" "libusb_pollfd_removed_cb remove_cb" "void *user_data"
+Register notification functions for file descriptor additions/removals.
+These functions will be invoked for every new or removed file descriptor
+that libusb uses as an event source.
 .
-The total encoded length that will fit in the given buffer is
-returned.
-.
-If the buffer pointer is NULL no data will be written to the buffer
-location.
-.
 .Pp
-.
-.Fn libusb20_me_decode pbuf len pdecoded
-This function will decode a binary structure into a so-called *DECODED
-structure.
-.
-The total decoded length is returned.
-.
-The buffer pointer cannot be NULL.
-.
+.Ft const struct libusb_pollfd **
+.Fn libusb_get_pollfds "libusb_context *ctx"
+Retrive a list of file descriptors that should be polled by your main loop as 
+libusb event sources. Returns a NULL-terminated list on success or NULL on failure.
 .
 .Sh LIBUSB VERSION 0.1 COMPATIBILITY
-.
+.Pp
+The library is also compliant with LibUSB version 0.1.12.
+.Pp
 .Fn usb_open
 .Fn usb_close
 .Fn usb_get_string
@@ -946,20 +488,16 @@ The buffer pointer cannot be NULL.
 .Fn usb_find_devices
 .Fn usb_device
 .Fn usb_get_busses
-These functions are compliant with LibUSB version 0.1.12.
 .
-.Sh FILES
-.
-.
-/dev/usb
 .Sh SEE ALSO
+.Xr libusb20 3 ,
 .Xr usb 4 ,
 .Xr usbconfig 8
-.
+.Pp
+.Pa http://libusb.sourceforge.net/
 .
 .Sh HISTORY
 .
-.
-Some parts of the
 .Nm
-API derives from the libusb project at sourceforge.
+support first appeared in
+.Fx 8.0 .
