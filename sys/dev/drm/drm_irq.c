@@ -210,10 +210,12 @@ int drm_irq_uninstall(struct drm_device *dev)
 	*/
 	DRM_SPINLOCK(&dev->vbl_lock);
 	for (crtc = 0; crtc < dev->num_crtcs; crtc++) {
-		DRM_WAKEUP(&dev->vblank[crtc].queue);
-		dev->vblank[crtc].enabled = 0;
-		dev->vblank[crtc].last =
-		    dev->driver->get_vblank_counter(dev, crtc);
+		if (dev->vblank[crtc].enabled) {
+			DRM_WAKEUP(&dev->vblank[crtc].queue);
+			dev->vblank[crtc].enabled = 0;
+			dev->vblank[crtc].last =
+		    	    dev->driver->get_vblank_counter(dev, crtc);
+		}
 	}
 	DRM_SPINUNLOCK(&dev->vbl_lock);
 
