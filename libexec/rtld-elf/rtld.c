@@ -1308,7 +1308,7 @@ init_rtld(caddr_t mapbase)
     /*
      * Conjure up an Obj_Entry structure for the dynamic linker.
      *
-     * The "path" member can't be initialized yet because string constatns
+     * The "path" member can't be initialized yet because string constants
      * cannot yet be acessed. Below we will set it correctly.
      */
     memset(&objtmp, 0, sizeof(objtmp));
