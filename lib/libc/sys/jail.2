@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2009
+.Dd June 23, 2009
 .Dt JAIL 2
 .Os
 .Sh NAME
@@ -293,9 +293,9 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 This process is not allowed to create a jail, either because it is not
-the super-user, or because it is in a jail where the
-.Va allow.jails
-parameter is not set.
+the super-user, or because it would exceed the jail's
+.Va children.max
+limit.
 .It Bq Er EFAULT
 .Fa jail
 points to an address outside the allocated address space of the process.
@@ -312,9 +312,9 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 This process is not allowed to create a jail, either because it is not
-the super-user, or because it is in a jail where the
-.Va allow.jails
-parameter is not set.
+the super-user, or because it would exceed the jail's
+.Va children.max
+limit.
 .It Bq Er EPERM
 A jail parameter was set to a less restrictive value then the current
 environment.
