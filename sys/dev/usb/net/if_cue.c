@@ -51,20 +51,34 @@ __FBSDID("$FreeBSD$");
  * transaction, which helps performance a great deal.
  */
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR cue_debug
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_process.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_util.h>
+#include <dev/usb/usb_process.h>
 
 #include <dev/usb/net/usb_ethernet.h>
 #include <dev/usb/net/if_cuereg.h>
@@ -426,42 +440,47 @@ cue_detach(device_t dev)
 }
 
 static void
-cue_bulk_read_callback(struct usb_xfer *xfer)
+cue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct cue_softc *sc = xfer->priv_sc;
+	struct cue_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_ether *ue = &sc->sc_ue;
 	struct ifnet *ifp = uether_getifp(ue);
+	struct usb_page_cache *pc;
 	uint8_t buf[2];
 	int len;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (xfer->actlen <= (2 + sizeof(struct ether_header))) {
+		if (actlen <= (2 + sizeof(struct ether_header))) {
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
-		usbd_copy_out(xfer->frbuffers, 0, buf, 2);
-		xfer->actlen -= 2;
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, buf, 2);
+		actlen -= 2;
 		len = buf[0] | (buf[1] << 8);
-		len = min(xfer->actlen, len);
+		len = min(actlen, len);
 
-		uether_rxbuf(ue, xfer->frbuffers, 2, len);
+		uether_rxbuf(ue, pc, 2, len);
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		uether_rxflush(ue);
 		return;
 
 	default:			/* Error */
 		DPRINTF("bulk read error, %s\n",
-		    usbd_errstr(xfer->error));
+		    usbd_errstr(error));
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -470,10 +489,11 @@ tr_setup:
 }
 
 static void
-cue_bulk_write_callback(struct usb_xfer *xfer)
+cue_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct cue_softc *sc = xfer->priv_sc;
+	struct cue_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	struct usb_page_cache *pc;
 	struct mbuf *m;
 	uint8_t buf[2];
 
@@ -491,17 +511,16 @@ tr_setup:
 			return;
 		if (m->m_pkthdr.len > MCLBYTES)
 			m->m_pkthdr.len = MCLBYTES;
-		xfer->frlengths[0] = (m->m_pkthdr.len + 2);
+		usbd_xfer_set_frame_len(xfer, 0, (m->m_pkthdr.len + 2));
 
 		/* the first two bytes are the frame length */
 
 		buf[0] = (uint8_t)(m->m_pkthdr.len);
 		buf[1] = (uint8_t)(m->m_pkthdr.len >> 8);
 
-		usbd_copy_in(xfer->frbuffers, 0, buf, 2);
-
-		usbd_m_copy_in(xfer->frbuffers, 2,
-		    m, 0, m->m_pkthdr.len);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_in(pc, 0, buf, 2);
+		usbd_m_copy_in(pc, 2, m, 0, m->m_pkthdr.len);
 
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
@@ -517,13 +536,13 @@ tr_setup:
 
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
-		    usbd_errstr(xfer->error));
+		    usbd_errstr(error));
 
 		ifp->if_oerrors++;
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -598,7 +617,7 @@ cue_init(struct usb_ether *ue)
 	/* Program the LED operation. */
 	cue_csr_write_1(sc, CUE_LEDCTL, CUE_LEDCTL_FOLLOW_LINK);
 
-	usbd_transfer_set_stall(sc->sc_xfer[CUE_BULK_DT_WR]);
+	usbd_xfer_set_stall(sc->sc_xfer[CUE_BULK_DT_WR]);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	cue_start(ue);

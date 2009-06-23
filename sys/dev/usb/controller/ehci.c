@@ -46,9 +46,28 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
 
 #define	USB_DEBUG_VAR ehcidebug
 
@@ -1133,7 +1152,7 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 	td_alt_next = td->alt_next;
 
 	if (xfer->aframes != xfer->nframes) {
-		xfer->frlengths[xfer->aframes] = 0;
+		usbd_xfer_set_frame_len(xfer, xfer->aframes, 0);
 	}
 	while (1) {
 

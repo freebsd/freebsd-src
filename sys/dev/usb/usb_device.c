@@ -24,9 +24,31 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usb_ioctl.h>
 #include "usbdevs.h"
 
@@ -38,12 +60,10 @@
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_transfer.h>
-#include <dev/usb/usb_parse.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_dynamic.h>
 #include <dev/usb/usb_hub.h>
 #include <dev/usb/usb_util.h>
-#include <dev/usb/usb_mbuf.h>
 #include <dev/usb/usb_msctest.h>
 #if USB_HAVE_UGEN
 #include <dev/usb/usb_dev.h>
@@ -277,7 +297,7 @@ found:
 }
 
 /*------------------------------------------------------------------------*
- *	usb_interface_count
+ *	usbd_interface_count
  *
  * This function stores the number of USB interfaces excluding
  * alternate settings, which the USB config descriptor reports into
@@ -288,7 +308,7 @@ found:
  * Else: Failure
  *------------------------------------------------------------------------*/
 usb_error_t
-usb_interface_count(struct usb_device *udev, uint8_t *count)
+usbd_interface_count(struct usb_device *udev, uint8_t *count)
 {
 	if (udev->cdesc == NULL) {
 		*count = 0;
@@ -2105,7 +2125,7 @@ usb_devinfo(struct usb_device *udev, char *dst_ptr, uint16_t dst_len)
 	}
 }
 
-#if USB_VERBOSE
+#ifdef USB_VERBOSE
 /*
  * Descriptions of of known vendors and devices ("products").
  */
@@ -2127,7 +2147,7 @@ static void
 usbd_set_device_strings(struct usb_device *udev)
 {
 	struct usb_device_descriptor *udd = &udev->ddesc;
-#if USB_VERBOSE
+#ifdef USB_VERBOSE
 	const struct usb_knowndev *kdp;
 #endif
 	char temp[64];
@@ -2159,7 +2179,7 @@ usbd_set_device_strings(struct usb_device *udev)
 	if (temp[0] != '\0')
 		udev->product = strdup(temp, M_USB);
 
-#if USB_VERBOSE
+#ifdef USB_VERBOSE
 	if (udev->manufacturer == NULL || udev->product == NULL) {
 		for (kdp = usb_knowndevs; kdp->vendorname != NULL; kdp++) {
 			if (kdp->vendor == vendor_id &&

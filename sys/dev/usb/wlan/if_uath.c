@@ -105,12 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_radiotap.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 #include "usbdevs.h"
 
 #include <dev/usb/wlan/if_uathreg.h>
@@ -2401,10 +2396,14 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 }
 
 static void
-uath_intr_rx_callback(struct usb_xfer *xfer)
+uath_intr_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct uath_cmd *cmd;
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	UATH_ASSERT_LOCKED(sc);
 
@@ -2418,18 +2417,19 @@ uath_intr_rx_callback(struct usb_xfer *xfer)
 		STAILQ_INSERT_TAIL(&sc->sc_cmd_inactive, cmd, next);
 		UATH_STAT_INC(sc, st_cmd_inactive);
 
-		KASSERT(xfer->actlen >= sizeof(struct uath_cmd_hdr),
+		KASSERT(actlen >= sizeof(struct uath_cmd_hdr),
 		    ("short xfer error"));
-		usbd_copy_out(xfer->frbuffers, 0, cmd->buf, xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, cmd->buf, actlen);
 		uath_cmdeof(sc, cmd);
 	case USB_ST_SETUP:
 setup:
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		break;
 	default:
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			goto setup;
 		}
 		break;
@@ -2437,9 +2437,9 @@ setup:
 }
 
 static void
-uath_intr_tx_callback(struct usb_xfer *xfer)
+uath_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct uath_cmd *cmd;
 
 	UATH_ASSERT_LOCKED(sc);
@@ -2475,13 +2475,12 @@ setup:
 		else
 			UATH_STAT_INC(sc, st_cmd_active);
 
-		usbd_set_frame_data(xfer, cmd->buf, 0);
-		xfer->frlengths[0] = cmd->buflen;
+		usbd_xfer_set_frame_data(xfer, 0, cmd->buf, cmd->buflen);
 		usbd_transfer_submit(xfer);
 		break;
 	default:
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			goto setup;
 		}
 		break;
@@ -2526,17 +2525,20 @@ static struct mbuf *
 uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
     struct uath_rx_desc **pdesc)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct uath_chunk *chunk;
 	struct uath_rx_desc *desc;
 	struct mbuf *m = data->m, *mnew, *mp;
 	uint16_t chunklen;
+	int actlen;
 
-	if (xfer->actlen < UATH_MIN_RXBUFSZ) {
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	if (actlen < UATH_MIN_RXBUFSZ) {
 		DPRINTF(sc, UATH_DEBUG_RECV | UATH_DEBUG_RECV_ALL,
-		    "%s: wrong xfer size (len=%d)\n", __func__, xfer->actlen);
+		    "%s: wrong xfer size (len=%d)\n", __func__, actlen);
 		ifp->if_ierrors++;
 		return (NULL);
 	}
@@ -2694,9 +2696,9 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 }
 
 static void
-uath_bulk_rx_callback(struct usb_xfer *xfer)
+uath_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_frame *wh;
@@ -2728,8 +2730,8 @@ setup:
 		UATH_STAT_DEC(sc, st_rx_inactive);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_active, data, next);
 		UATH_STAT_INC(sc, st_rx_active);
-		usbd_set_frame_data(xfer, data->buf, 0);
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_data(xfer, 0, data->buf,
+		    usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 
 		/*
@@ -2770,8 +2772,8 @@ setup:
 			STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);
 			UATH_STAT_INC(sc, st_rx_inactive);
 		}
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			ifp->if_ierrors++;
 			goto setup;
 		}
@@ -2782,7 +2784,7 @@ setup:
 static void
 uath_data_txeof(struct usb_xfer *xfer, struct uath_data *data)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct mbuf *m;
 
@@ -2813,9 +2815,9 @@ uath_data_txeof(struct usb_xfer *xfer, struct uath_data *data)
 }
 
 static void
-uath_bulk_tx_callback(struct usb_xfer *xfer)
+uath_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct uath_data *data;
 
@@ -2845,8 +2847,7 @@ setup:
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
 		UATH_STAT_INC(sc, st_tx_active);
 
-		usbd_set_frame_data(xfer, data->buf, 0);
-		xfer->frlengths[0] = data->buflen;
+		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
 		usbd_transfer_submit(xfer);
 
 		UATH_UNLOCK(sc);
@@ -2863,8 +2864,8 @@ setup:
 			data->ni = NULL;
 			ifp->if_oerrors++;
 		}
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			goto setup;
 		}
 		break;
