@@ -108,9 +108,6 @@ static	int	i8254_ticked;
 static	int	using_atrtc_timer;
 static	int	using_lapic_timer;
 
-static	u_int	stat_ticks = 0;
-static	u_int	prof_ticks = 0;
-
 /* Values for timerX_state: */
 #define	RELEASED	0
 #define	RELEASE_PENDING	1
@@ -147,6 +144,7 @@ int
 statclockintr(struct trapframe *frame)
 {
 
+	profclockintr(frame);
 	statclock(TRAPF_USERMODE(frame));
 	return (FILTER_HANDLED);
 }
@@ -155,7 +153,10 @@ int
 profclockintr(struct trapframe *frame)
 {
 
-	profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	if (!using_atrtc_timer)
+		hardclockintr(frame);
+	if (profprocs != 0)
+		profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	return (FILTER_HANDLED);
 }
 
@@ -187,32 +188,26 @@ clkintr(struct trapframe *frame)
 		(*lapic_cyclic_clock_func[cpu])(frame);
 #endif
 
+	if (using_atrtc_timer) {
 #ifdef SMP
-	if (smp_started)
-		ipi_all_but_self(IPI_HARDCLOCK);
-#endif 
-	hardclockintr(frame);
-
-	if (!using_atrtc_timer) {
-		prof_ticks += profhz;
-		if (prof_ticks >= hz) {
-			prof_ticks -= hz;
-			if (profprocs != 0) {
-#ifdef SMP
-				if (smp_started)
-					ipi_all_but_self(IPI_PROFCLOCK);
+		if (smp_started)
+			ipi_all_but_self(IPI_HARDCLOCK);
 #endif
-				profclockintr(frame);
-			}
-		}
-		stat_ticks += stathz;
-		if (stat_ticks >= hz) {
-			stat_ticks -= hz;
+		hardclockintr(frame);
+	} else {
+		if (--pscnt == 0) {
+			pscnt = psratio;
 #ifdef SMP
 			if (smp_started)
 				ipi_all_but_self(IPI_STATCLOCK);
 #endif
 			statclockintr(frame);
+		} else {
+#ifdef SMP
+			if (smp_started)
+				ipi_all_but_self(IPI_PROFCLOCK);
+#endif
+			profclockintr(frame);
 		}
 	}
 
@@ -298,21 +293,19 @@ rtcintr(struct trapframe *frame)
 
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
 		flag = 1;
-		if (profprocs != 0) {
-			if (--pscnt == 0)
-				pscnt = psdiv;
+		if (--pscnt == 0) {
+			pscnt = psdiv;
 #ifdef SMP
-			if (pscnt != psdiv && smp_started)
+			if (smp_started)
+				ipi_all_but_self(IPI_STATCLOCK);
+#endif
+			statclockintr(frame);
+		} else {
+#ifdef SMP
+			if (smp_started)
 				ipi_all_but_self(IPI_PROFCLOCK);
 #endif
-			profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-		}
-		if (pscnt == psdiv) {
-#ifdef SMP
-			if (smp_started) 
-				ipi_all_but_self(IPI_STATCLOCK); 
-#endif
-			statclock(TRAPF_USERMODE(frame));
+			profclockintr(frame);
 		}
 	}
 	return(flag ? FILTER_HANDLED : FILTER_STRAY);
@@ -572,8 +565,11 @@ cpu_initclocks()
 			    INTR_TYPE_CLK, NULL);
 			atrtc_enable_intr();
 		} else {
-			profhz = min(RTC_PROFRATE, hz);
-			stathz = min(RTC_NOPROFRATE, hz);
+			profhz = hz;
+			if (hz < 128)
+				stathz = hz;
+			else
+				stathz = hz / (hz / 128);
 		}
 	}
 
