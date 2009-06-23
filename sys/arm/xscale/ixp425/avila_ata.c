@@ -119,7 +119,7 @@ ata_getconfig(struct ixp425_softc *sa)
 
 	/* XXX honor hint? (but then no multi-board support) */
 	/* XXX total hack */
-	if ((cpu_id() & CPU_ID_CPU_MASK) == CPU_ID_IXP435)
+	if (cpu_is_ixp43x())
 		return &configs[1];		/* Cambria */
 	if (EXP_BUS_READ_4(sa, EXP_TIMING_CS2_OFFSET) != 0)
 		return &configs[0];		/* Avila */
@@ -191,31 +191,41 @@ ata_avila_attach(device_t dev)
 		    __func__, config->basealt, config->sizealt);
 	sc->sc_16bit_off = config->off16;
 
-	/*
-	 * Craft special resource for ATA bus space ops
-	 * that go through the expansion bus and require
-	 * special hackery to ena/dis 16-bit operations.
-	 *
-	 * XXX probably should just make this generic for
-	 * accessing the expansion bus.
-	 */
-	sc->sc_expbus_tag.bs_cookie = sc;	/* NB: backpointer */
-	/* read single */
-	sc->sc_expbus_tag.bs_r_1	= ata_bs_r_1,
-	sc->sc_expbus_tag.bs_r_2	= ata_bs_r_2,
-	/* read multiple */
-	sc->sc_expbus_tag.bs_rm_2	= ata_bs_rm_2,
-	sc->sc_expbus_tag.bs_rm_2_s	= ata_bs_rm_2_s,
-	/* write (single) */
-	sc->sc_expbus_tag.bs_w_1	= ata_bs_w_1,
-	sc->sc_expbus_tag.bs_w_2	= ata_bs_w_2,
-	/* write multiple */
-	sc->sc_expbus_tag.bs_wm_2	= ata_bs_wm_2,
-	sc->sc_expbus_tag.bs_wm_2_s	= ata_bs_wm_2_s,
+	if (config->base16 != CAMBRIA_CFSEL0_HWBASE) {
+		/*
+		 * Craft special resource for ATA bus space ops
+		 * that go through the expansion bus and require
+		 * special hackery to ena/dis 16-bit operations.
+		 *
+		 * XXX probably should just make this generic for
+		 * accessing the expansion bus.
+		 */
+		sc->sc_expbus_tag.bs_cookie = sc;	/* NB: backpointer */
+		/* read single */
+		sc->sc_expbus_tag.bs_r_1	= ata_bs_r_1,
+		sc->sc_expbus_tag.bs_r_2	= ata_bs_r_2,
+		/* read multiple */
+		sc->sc_expbus_tag.bs_rm_2	= ata_bs_rm_2,
+		sc->sc_expbus_tag.bs_rm_2_s	= ata_bs_rm_2_s,
+		/* write (single) */
+		sc->sc_expbus_tag.bs_w_1	= ata_bs_w_1,
+		sc->sc_expbus_tag.bs_w_2	= ata_bs_w_2,
+		/* write multiple */
+		sc->sc_expbus_tag.bs_wm_2	= ata_bs_wm_2,
+		sc->sc_expbus_tag.bs_wm_2_s	= ata_bs_wm_2_s,
 
-	rman_set_bustag(&sc->sc_ata, &sc->sc_expbus_tag);
+		rman_set_bustag(&sc->sc_ata, &sc->sc_expbus_tag);
+		rman_set_bustag(&sc->sc_alt_ata, &sc->sc_expbus_tag);
+	} else {
+		/*
+		 * On Cambria use the shared CS3 expansion bus tag
+		 * that handles interlock for sharing access with the
+		 * optional UART's.
+		 */
+		rman_set_bustag(&sc->sc_ata, &cambria_exp_bs_tag);
+		rman_set_bustag(&sc->sc_alt_ata, &cambria_exp_bs_tag);
+	}
 	rman_set_bushandle(&sc->sc_ata, sc->sc_ioh);
-	rman_set_bustag(&sc->sc_alt_ata, &sc->sc_expbus_tag);
 	rman_set_bushandle(&sc->sc_alt_ata, sc->sc_alt_ioh);
 
 	ixp425_set_gpio(sa, config->gpin, GPIO_TYPE_EDG_RISING);
