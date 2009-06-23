@@ -1472,18 +1472,16 @@ struct tm * const	tmp;
 {
 	register struct tm *	result;
 
+	_MUTEX_LOCK(&gmt_mutex);
 	if (!gmt_is_set) {
-		_MUTEX_LOCK(&gmt_mutex);
-		if (!gmt_is_set) {
 #ifdef ALL_STATE
-			gmtptr = (struct state *) malloc(sizeof *gmtptr);
-			if (gmtptr != NULL)
+		gmtptr = (struct state *) malloc(sizeof *gmtptr);
+		if (gmtptr != NULL)
 #endif /* defined ALL_STATE */
-				gmtload(gmtptr);
-			gmt_is_set = TRUE;
-		}
-		_MUTEX_UNLOCK(&gmt_mutex);
+			gmtload(gmtptr);
+		gmt_is_set = TRUE;
 	}
+	_MUTEX_UNLOCK(&gmt_mutex);
 	result = timesub(timep, offset, gmtptr, tmp);
 #ifdef TM_ZONE
 	/*
