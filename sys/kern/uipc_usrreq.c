@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
