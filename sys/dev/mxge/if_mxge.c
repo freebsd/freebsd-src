@@ -1310,7 +1310,7 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 	}
 	sc->rdma_tags_available = 15;
 	status = mxge_update_mac_address(sc);
-	mxge_change_promisc(sc, 0);
+	mxge_change_promisc(sc, sc->ifp->if_flags & IFF_PROMISC);
 	mxge_change_pause(sc, sc->pause);
 	mxge_set_multicast_list(sc);
 	return status;
@@ -4020,7 +4020,7 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 		mxge_ticks = hz / 2;
 	sc->pause = mxge_flow_control;
 	if (mxge_rss_hash_type < MXGEFW_RSS_HASH_TYPE_IPV4 
-	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_SRC_PORT) {
+	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_MAX) {
 		mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
 	}
 }
