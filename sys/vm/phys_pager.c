@@ -60,7 +60,7 @@ phys_pager_init(void)
  */
 static vm_object_t
 phys_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
-		 vm_ooffset_t foff)
+    vm_ooffset_t foff, struct ucred *cred)
 {
 	vm_object_t object, object1;
 	vm_pindex_t pindex;
