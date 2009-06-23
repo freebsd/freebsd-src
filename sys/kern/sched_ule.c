@@ -540,7 +540,7 @@ tdq_setlowpri(struct tdq *tdq, struct thread *ctd)
 
 #ifdef SMP
 struct cpu_search {
-	cpumask_t cs_mask;	/* Mask of valid cpus. */
+	cpuset_t cs_mask;
 	u_int	cs_load;
 	u_int	cs_cpu;
 	int	cs_limit;	/* Min priority for low min load for high. */
@@ -550,8 +550,8 @@ struct cpu_search {
 #define	CPU_SEARCH_HIGHEST	0x2
 #define	CPU_SEARCH_BOTH		(CPU_SEARCH_LOWEST|CPU_SEARCH_HIGHEST)
 
-#define	CPUMASK_FOREACH(cpu, mask)				\
-	for ((cpu) = 0; (cpu) < sizeof((mask)) * 8; (cpu)++)	\
+#define	CPUSET_FOREACH(cpu, mask)				\
+	for ((cpu) = 0; (cpu) <= mp_maxid; (cpu)++)		\
 		if ((mask) & 1 << (cpu))
 
 static __inline int cpu_search(struct cpu_group *cg, struct cpu_search *low,
@@ -574,14 +574,14 @@ cpu_compare(int cpu, struct cpu_search *low, struct cpu_search *high,
 
 	tdq = TDQ_CPU(cpu);
 	if (match & CPU_SEARCH_LOWEST)
-		if (low->cs_mask & (1 << cpu) &&
+		if (CPU_ISSET(cpu, &low->cs_mask) &&
 		    tdq->tdq_load < low->cs_load &&
 		    tdq->tdq_lowpri > low->cs_limit) {
 			low->cs_cpu = cpu;
 			low->cs_load = tdq->tdq_load;
 		}
 	if (match & CPU_SEARCH_HIGHEST)
-		if (high->cs_mask & (1 << cpu) &&
+		if (CPU_ISSET(cpu, &high->cs_mask) &&
 		    tdq->tdq_load >= high->cs_limit && 
 		    tdq->tdq_load > high->cs_load &&
 		    tdq->tdq_transferable) {
@@ -656,7 +656,7 @@ cpu_search(struct cpu_group *cg, struct cpu_search *low,
 	} else {
 		int cpu;
 
-		CPUMASK_FOREACH(cpu, cg->cg_mask)
+		CPUSET_FOREACH(cpu, cg->cg_mask)
 			total += cpu_compare(cpu, low, high, match);
 	}
 	return (total);
@@ -691,7 +691,7 @@ cpu_search_both(struct cpu_group *cg, struct cpu_search *low,
  * acceptable.
  */
 static inline int
-sched_lowest(struct cpu_group *cg, cpumask_t mask, int pri)
+sched_lowest(struct cpu_group *cg, cpuset_t mask, int pri)
 {
 	struct cpu_search low;
 
@@ -707,7 +707,7 @@ sched_lowest(struct cpu_group *cg, cpumask_t mask, int pri)
  * Find the cpu with the highest load via the highest loaded path.
  */
 static inline int
-sched_highest(struct cpu_group *cg, cpumask_t mask, int minload)
+sched_highest(struct cpu_group *cg, cpuset_t mask, int minload)
 {
 	struct cpu_search high;
 
@@ -724,7 +724,7 @@ sched_highest(struct cpu_group *cg, cpumask_t mask, int minload)
  * cg.
  */
 static inline void 
-sched_both(struct cpu_group *cg, cpumask_t mask, int *lowcpu, int *highcpu)
+sched_both(struct cpu_group *cg, cpuset_t mask, int *lowcpu, int *highcpu)
 {
 	struct cpu_search high;
 	struct cpu_search low;
@@ -746,12 +746,12 @@ sched_both(struct cpu_group *cg, cpumask_t mask, int *lowcpu, int *highcpu)
 static void
 sched_balance_group(struct cpu_group *cg)
 {
-	cpumask_t mask;
+	cpuset_t mask;
 	int high;
 	int low;
 	int i;
 
-	mask = -1;
+	CPU_FILL(&mask);
 	for (;;) {
 		sched_both(cg, mask, &low, &high);
 		if (low == high || low == -1 || high == -1)
@@ -763,9 +763,9 @@ sched_balance_group(struct cpu_group *cg)
 		 * to kick out of the set and try again.
 	 	 */
 		if (TDQ_CPU(high)->tdq_transferable == 0)
-			mask &= ~(1 << high);
+			CPU_CLR(high, &mask);
 		else
-			mask &= ~(1 << low);
+			CPU_CLR(low, &mask);
 	}
 
 	for (i = 0; i < cg->cg_children; i++)
@@ -900,14 +900,14 @@ tdq_idled(struct tdq *tdq)
 {
 	struct cpu_group *cg;
 	struct tdq *steal;
-	cpumask_t mask;
+	cpuset_t mask;
 	int thresh;
 	int cpu;
 
 	if (smp_started == 0 || steal_idle == 0)
 		return (1);
-	mask = -1;
-	mask &= ~PCPU_GET(cpumask);
+	CPU_FILL(&mask);
+	CPU_CLR(PCPU_GET(cpuid), &mask);
 	/* We don't want to be preempted while we're iterating. */
 	spinlock_enter();
 	for (cg = tdq->tdq_cg; cg != NULL; ) {
@@ -921,7 +921,7 @@ tdq_idled(struct tdq *tdq)
 			continue;
 		}
 		steal = TDQ_CPU(cpu);
-		mask &= ~(1 << cpu);
+		CPU_CLR(cpu, &mask);
 		tdq_lock_pair(tdq, steal);
 		if (steal->tdq_load < thresh || steal->tdq_transferable == 0) {
 			tdq_unlock_pair(tdq, steal);
@@ -1124,7 +1124,7 @@ sched_pickcpu(struct thread *td, int flags)
 	struct cpu_group *cg;
 	struct td_sched *ts;
 	struct tdq *tdq;
-	cpumask_t mask;
+	cpuset_t mask;
 	int self;
 	int pri;
 	int cpu;
@@ -1171,7 +1171,7 @@ sched_pickcpu(struct thread *td, int flags)
 		if (SCHED_AFFINITY(ts, cg->cg_level))
 			break;
 	cpu = -1;
-	mask = td->td_cpuset->cs_mask.__bits[0];
+	mask = td->td_cpuset->cs_mask;
 	if (cg)
 		cpu = sched_lowest(cg, mask, pri);
 	if (cpu == -1)
