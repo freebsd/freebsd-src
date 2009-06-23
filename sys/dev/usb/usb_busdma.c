@@ -24,9 +24,29 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #define	USB_DEBUG_VAR usb_debug
 
@@ -419,7 +439,7 @@ usb_pc_common_mem_cb(void *arg, bus_dma_segment_t *segs,
 	pc->page_offset_buf = rem;
 	pc->page_offset_end += rem;
 	nseg--;
-#if (USB_DEBUG != 0)
+#ifdef USB_DEBUG
 	if (rem != (USB_P2U(pc->buffer) & (USB_PAGE_SIZE - 1))) {
 		/*
 		 * This check verifies that the physical address is correct:

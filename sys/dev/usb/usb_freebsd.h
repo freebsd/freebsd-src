@@ -24,7 +24,48 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB_HANDLE_REQUEST_H_
-#define	_USB_HANDLE_REQUEST_H_
+/*
+ * Including this file is mandatory for all USB related c-files in the kernel.
+ */
 
-#endif					/* _USB_HANDLE_REQUEST_H_ */
+#ifndef _USB_FREEBSD_H_
+#define	_USB_FREEBSD_H_
+
+/* Default USB configuration */
+#define	USB_HAVE_UGEN 1
+#define	USB_HAVE_BUSDMA 1
+#define	USB_HAVE_COMPAT_LINUX 1
+#define	USB_HAVE_USER_IO 1
+#define	USB_HAVE_MBUF 1
+#define	USB_HAVE_TT_SUPPORT 1
+#define	USB_HAVE_POWERD 1
+#define	USB_HAVE_MSCTEST 1
+
+#define	USB_TD_GET_PROC(td) (td)->td_proc
+#define	USB_PROC_GET_GID(td) (td)->p_pgid
+
+#define	USB_HOST_ALIGN    8		/* bytes, must be power of two */
+#define	USB_FS_ISOC_UFRAME_MAX 4	/* exclusive unit */
+#define	USB_BUS_MAX 256			/* units */
+#define	USB_MAX_DEVICES 128		/* units */
+#define	USB_IFACE_MAX 32		/* units */
+#define	USB_FIFO_MAX 128		/* units */
+
+#define	USB_MAX_FS_ISOC_FRAMES_PER_XFER (120)	/* units */
+#define	USB_MAX_HS_ISOC_FRAMES_PER_XFER (8*120)	/* units */
+
+#define	USB_HUB_MAX_DEPTH	5
+#define	USB_EP0_BUFSIZE		1024	/* bytes */
+
+#ifndef USB_DEBUG
+#define USB_DEBUG 1
+#endif
+
+typedef uint32_t usb_timeout_t;		/* milliseconds */
+typedef uint32_t usb_frlength_t;	/* bytes */
+typedef uint32_t usb_frcount_t;		/* units */
+typedef uint32_t usb_size_t;		/* bytes */
+typedef uint32_t usb_ticks_t;		/* system defined */
+typedef uint16_t usb_power_mask_t;	/* see "USB_HW_POWER_XXX" */
+
+#endif	/* _USB_FREEBSD_H_ */

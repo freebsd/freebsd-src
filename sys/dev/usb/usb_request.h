@@ -29,12 +29,6 @@
 
 struct usb_process;
 
-usb_error_t usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
-		    struct usb_device_request *req, void *data, uint16_t flags,
-		    uint16_t *actlen, usb_timeout_t timeout);
-usb_error_t usbd_do_request_proc(struct usb_device *udev, struct usb_process *pproc,
-		    struct usb_device_request *req, void *data, uint16_t flags,
-		    uint16_t *actlen, usb_timeout_t timeout);
 usb_error_t usbd_req_clear_hub_feature(struct usb_device *udev,
 		    struct mtx *mtx, uint16_t sel);
 usb_error_t usbd_req_clear_port_feature(struct usb_device *udev,
@@ -66,41 +60,16 @@ usb_error_t usbd_req_get_hub_status(struct usb_device *udev, struct mtx *mtx,
 		    struct usb_hub_status *st);
 usb_error_t usbd_req_get_port_status(struct usb_device *udev, struct mtx *mtx,
 		    struct usb_port_status *ps, uint8_t port);
-usb_error_t usbd_req_get_report(struct usb_device *udev, struct mtx *mtx,
-		    void *data, uint16_t len, uint8_t iface_index, uint8_t type,
-		    uint8_t id);
-usb_error_t usbd_req_get_report_descriptor(struct usb_device *udev,
-		    struct mtx *mtx, void *d, uint16_t size,
-		    uint8_t iface_index);
-usb_error_t usbd_req_get_string_any(struct usb_device *udev, struct mtx *mtx,
-		    char *buf, uint16_t len, uint8_t string_index);
-usb_error_t usbd_req_get_string_desc(struct usb_device *udev, struct mtx *mtx,
-		    void *sdesc, uint16_t max_len, uint16_t lang_id,
-		    uint8_t string_index);
 usb_error_t usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx,
 		    uint8_t port);
 usb_error_t usbd_req_set_address(struct usb_device *udev, struct mtx *mtx,
 		    uint16_t addr);
-usb_error_t usbd_req_set_alt_interface_no(struct usb_device *udev,
-		    struct mtx *mtx, uint8_t iface_index, uint8_t alt_no);
-usb_error_t usbd_req_set_config(struct usb_device *udev, struct mtx *mtx,
-		    uint8_t conf);
 usb_error_t usbd_req_set_hub_feature(struct usb_device *udev, struct mtx *mtx,
 		    uint16_t sel);
-usb_error_t usbd_req_set_idle(struct usb_device *udev, struct mtx *mtx,
-		    uint8_t iface_index, uint8_t duration, uint8_t id);
 usb_error_t usbd_req_set_port_feature(struct usb_device *udev,
 		    struct mtx *mtx, uint8_t port, uint16_t sel);
-usb_error_t usbd_req_set_protocol(struct usb_device *udev, struct mtx *mtx,
-		    uint8_t iface_index, uint16_t report);
-usb_error_t usbd_req_set_report(struct usb_device *udev, struct mtx *mtx,
-		    void *data, uint16_t len, uint8_t iface_index,
-		    uint8_t type, uint8_t id);
 usb_error_t usbd_req_re_enumerate(struct usb_device *udev, struct mtx *mtx);
 usb_error_t usbd_req_clear_device_feature(struct usb_device *udev, struct mtx *mtx, uint16_t sel);
 usb_error_t usbd_req_set_device_feature(struct usb_device *udev, struct mtx *mtx, uint16_t sel);
-
-#define	usbd_do_request(u,m,r,d) \
-  usbd_do_request_flags(u,m,r,d,0,NULL,USB_DEFAULT_TIMEOUT)
 
 #endif					/* _USB_REQUEST_H_ */

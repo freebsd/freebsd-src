@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
+#include <sys/condvar.h>
 #include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/mbuf.h>
@@ -57,13 +59,10 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_ioctl.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_core.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_defs.h>
-#include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_parse.h>
 #include <dev/usb/usb_request.h>
 
 #include <compat/ndis/pe_var.h>
@@ -616,7 +615,7 @@ usbd_setup_endpoint_one(ip, ifidx, ne, epconf)
 		return (status);
 	}
 	xfer = ne->ne_xfer[0];
-	xfer->priv_fifo = ne;
+	usbd_xfer_set_priv(xfer, ne);
 
 	return (status);
 }
@@ -688,14 +687,14 @@ usbd_setup_endpoint(ip, ifidx, ep)
 		return (status);
 	}
 	xfer = ne->ne_xfer[0];
-	xfer->priv_fifo = ne;
+	usbd_xfer_set_priv(xfer, ne);
 	if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_IN)
-		xfer->timeout = NDISUSB_NO_TIMEOUT;
+		usbd_xfer_set_timeout(xfer, NDISUSB_NO_TIMEOUT);
 	else {
 		if (UE_GET_XFERTYPE(ep->bmAttributes) == UE_BULK)
-			xfer->timeout = NDISUSB_TX_TIMEOUT;
+			usbd_xfer_set_timeout(xfer, NDISUSB_TX_TIMEOUT);
 		else
-			xfer->timeout = NDISUSB_INTR_TIMEOUT;
+			usbd_xfer_set_timeout(xfer, NDISUSB_INTR_TIMEOUT);
 	}
 
 	return (status);
@@ -853,34 +852,38 @@ usbd_aq_getfirst(struct ndis_softc *sc, struct ndisusb_ep *ne)
 }
 
 static void
-usbd_non_isoc_callback(struct usb_xfer *xfer)
+usbd_non_isoc_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	irp *ip;
-	struct ndis_softc *sc = xfer->priv_sc;
-	struct ndisusb_ep *ne = xfer->priv_fifo;
+	struct ndis_softc *sc = usbd_xfer_softc(xfer);
+	struct ndisusb_ep *ne = usbd_xfer_get_priv(xfer);
 	struct ndisusb_xfer *nx;
 	struct usbd_urb_bulk_or_intr_transfer *ubi;
+	struct usb_page_cache *pc;
 	uint8_t irql;
 	uint32_t len;
 	union usbd_urb *urb;
 	usb_endpoint_descriptor_t *ep;
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		nx = usbd_aq_getfirst(sc, ne);
+		pc = usbd_xfer_get_frame(xfer, 0);
 		if (nx == NULL)
 			return;
 
 		/* copy in data with regard to the URB */
 		if (ne->ne_dirin != 0)
-			usbd_copy_out(xfer->frbuffers, 0, nx->nx_urbbuf,
-			    xfer->frlengths[0]);
-		nx->nx_urbbuf += xfer->frlengths[0];
-		nx->nx_urbactlen += xfer->frlengths[0];
-		nx->nx_urblen -= xfer->frlengths[0];
+			usbd_copy_out(pc, 0, nx->nx_urbbuf, actlen);
+		nx->nx_urbbuf += actlen;
+		nx->nx_urbactlen += actlen;
+		nx->nx_urblen -= actlen;
 
 		/* check for short transfer */
-		if (xfer->actlen < xfer->sumlen)
+		if (actlen < sumlen)
 			nx->nx_urblen = 0;
 		else {
 			/* check remainder */
@@ -897,7 +900,7 @@ usbd_non_isoc_callback(struct usb_xfer *xfer)
 			}
 		}
 		usbd_xfer_complete(sc, ne, nx,
-		    ((xfer->actlen < xfer->sumlen) && (nx->nx_shortxfer == 0)) ?
+		    ((actlen < sumlen) && (nx->nx_shortxfer == 0)) ?
 		    USB_ERR_SHORT_XFER : USB_ERR_NORMAL_COMPLETION);
 
 		/* fall through */
@@ -927,41 +930,44 @@ next:
 		nx->nx_shortxfer	= (ubi->ubi_trans_flags &
 		    USBD_SHORT_TRANSFER_OK) ? 1 : 0;
 extra:
-		len = MIN(xfer->max_data_length, nx->nx_urblen);
+		len = MIN(usbd_xfer_max_len(xfer), nx->nx_urblen);
+		pc = usbd_xfer_get_frame(xfer, 0);
 		if (UE_GET_DIR(ep->bEndpointAddress) == UE_DIR_OUT)
-			usbd_copy_in(xfer->frbuffers, 0, nx->nx_urbbuf, len);
-		xfer->frlengths[0] = len;
-		xfer->nframes = 1;
+			usbd_copy_in(pc, 0, nx->nx_urbbuf, len);
+		usbd_xfer_set_frame_len(xfer, 0, len);
+		usbd_xfer_set_frames(xfer, 1);
 		usbd_transfer_submit(xfer);
 		break;
 	default:
 		nx = usbd_aq_getfirst(sc, ne);
 		if (nx == NULL)
 			return;
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			device_printf(sc->ndis_dev, "usb xfer warning (%s)\n",
-			    usbd_errstr(xfer->error));
+			    usbd_errstr(error));
 		}
-		usbd_xfer_complete(sc, ne, nx, xfer->error);
-		if (xfer->error != USB_ERR_CANCELLED)
+		usbd_xfer_complete(sc, ne, nx, error);
+		if (error != USB_ERR_CANCELLED)
 			goto next;
 		break;
 	}
 }
 
 static void
-usbd_ctrl_callback(struct usb_xfer *xfer)
+usbd_ctrl_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	irp *ip;
-	struct ndis_softc *sc = xfer->priv_sc;
-	struct ndisusb_ep *ne = xfer->priv_fifo;
+	struct ndis_softc *sc = usbd_xfer_softc(xfer);
+	struct ndisusb_ep *ne = usbd_xfer_get_priv(xfer);
 	struct ndisusb_xfer *nx;
 	uint8_t irql;
 	union usbd_urb *urb;
 	struct usbd_urb_vendor_or_class_request *vcreq;
+	struct usb_page_cache *pc;
 	uint8_t type = 0;
 	struct usb_device_request req;
+	int len;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -974,9 +980,10 @@ usbd_ctrl_callback(struct usb_xfer *xfer)
 		vcreq = &urb->uu_vcreq;
 
 		if (vcreq->uvc_trans_flags & USBD_TRANSFER_DIRECTION_IN) {
-			usbd_copy_out(xfer->frbuffers + 1, 0,
-			    vcreq->uvc_trans_buf, xfer->frlengths[1]);
-			nx->nx_urbactlen += xfer->frlengths[1];
+			pc = usbd_xfer_get_frame(xfer, 1);
+			len = usbd_xfer_get_framelen(xfer, 1);
+			usbd_copy_out(pc, 0, vcreq->uvc_trans_buf, len);
+			nx->nx_urbactlen += len;
 		}
 
 		usbd_xfer_complete(sc, ne, nx, USB_ERR_NORMAL_COMPLETION);
@@ -1044,17 +1051,19 @@ next:
 		nx->nx_urblen		= vcreq->uvc_trans_buflen;
 		nx->nx_urbactlen	= 0;
 
-		usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-		xfer->frlengths[0] = sizeof(req);
-		xfer->nframes = 1;
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_in(pc, 0, &req, sizeof(req));
+		usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
+		usbd_xfer_set_frames(xfer, 1);
 		if (vcreq->uvc_trans_flags & USBD_TRANSFER_DIRECTION_IN) {
 			if (vcreq->uvc_trans_buflen >= USBD_CTRL_READ_BUFFER_SP)
 				device_printf(sc->ndis_dev,
 				    "warning: not enough buffer space (%d).\n",
 				    vcreq->uvc_trans_buflen);
-			xfer->frlengths[1] = MIN(xfer->max_data_length,
-			    vcreq->uvc_trans_buflen);
-			xfer->nframes = 2;
+			usbd_xfer_set_frame_len(xfer, 1,
+			    MIN(usbd_xfer_max_len(xfer),
+				    vcreq->uvc_trans_buflen));
+			usbd_xfer_set_frames(xfer, 2);
 		} else {
 			if (nx->nx_urblen > 0)
 				device_printf(sc->ndis_dev,
@@ -1066,10 +1075,11 @@ next:
 			 * the future if it needs to be.
 			 */
 			if (nx->nx_urblen > 0) {
-				usbd_copy_in(xfer->frbuffers + 1 , 0,
-				    nx->nx_urbbuf, nx->nx_urblen);
-				xfer->frlengths[1] = nx->nx_urblen;
-				xfer->nframes = 2;
+				pc = usbd_xfer_get_frame(xfer, 1);
+				usbd_copy_in(pc, 0, nx->nx_urbbuf,
+				    nx->nx_urblen);
+				usbd_xfer_set_frame_len(xfer, 1, nx->nx_urblen);
+				usbd_xfer_set_frames(xfer, 2);
 			}
 		}
 		usbd_transfer_submit(xfer);
@@ -1078,13 +1088,13 @@ next:
 		nx = usbd_aq_getfirst(sc, ne);
 		if (nx == NULL)
 			return;
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			device_printf(sc->ndis_dev, "usb xfer warning (%s)\n",
-			    usbd_errstr(xfer->error));
+			    usbd_errstr(error));
 		}
-		usbd_xfer_complete(sc, ne, nx, xfer->error);
-		if (xfer->error != USB_ERR_CANCELLED)
+		usbd_xfer_complete(sc, ne, nx, error);
+		if (error != USB_ERR_CANCELLED)
 			goto next;
 		break;
 	}

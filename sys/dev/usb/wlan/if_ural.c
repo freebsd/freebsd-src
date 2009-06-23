@@ -68,18 +68,12 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_amrr.h>
 
-#define	USB_DEBUG_VAR ural_debug
-
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 #include "usbdevs.h"
 
+#define	USB_DEBUG_VAR ural_debug
+#include <dev/usb/usb_debug.h>
 
 #include <dev/usb/wlan/if_uralreg.h>
 #include <dev/usb/wlan/if_uralvar.h>
@@ -777,23 +771,26 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 
 static void
-ural_bulk_write_callback(struct usb_xfer *xfer)
+ural_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ural_softc *sc = xfer->priv_sc;
+	struct ural_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211vap *vap;
 	struct ural_tx_data *data;
 	struct mbuf *m;
-	unsigned int len;
+	struct usb_page_cache *pc;
+	int len;
+
+	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		DPRINTFN(11, "transfer complete, %d bytes\n", xfer->actlen);
+		DPRINTFN(11, "transfer complete, %d bytes\n", len);
 
 		/* free resources */
-		data = xfer->priv_fifo;
+		data = usbd_xfer_get_priv(xfer);
 		ural_tx_free(data, 0);
-		xfer->priv_fifo = NULL;
+		usbd_xfer_set_priv(xfer, NULL);
 
 		ifp->if_opackets++;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -811,9 +808,9 @@ tr_setup:
 				    m->m_pkthdr.len);
 				m->m_pkthdr.len = (RAL_FRAME_SIZE + RAL_TX_DESC_SIZE);
 			}
-			usbd_copy_in(xfer->frbuffers, 0, &data->desc,
-			    RAL_TX_DESC_SIZE);
-			usbd_m_copy_in(xfer->frbuffers, RAL_TX_DESC_SIZE, m, 0,
+			pc = usbd_xfer_get_frame(xfer, 0);
+			usbd_copy_in(pc, 0, &data->desc, RAL_TX_DESC_SIZE);
+			usbd_m_copy_in(pc, RAL_TX_DESC_SIZE, m, 0,
 			    m->m_pkthdr.len);
 
 			vap = data->ni->ni_vap;
@@ -835,8 +832,8 @@ tr_setup:
 			DPRINTFN(11, "sending frame len=%u xferlen=%u\n",
 			    m->m_pkthdr.len, len);
 
-			xfer->frlengths[0] = len;
-			xfer->priv_fifo = data;
+			usbd_xfer_set_frame_len(xfer, 0, len);
+			usbd_xfer_set_priv(xfer, data);
 
 			usbd_transfer_submit(xfer);
 		}
@@ -844,44 +841,46 @@ tr_setup:
 
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
-		    usbd_errstr(xfer->error));
+		    usbd_errstr(error));
 
 		ifp->if_oerrors++;
-		data = xfer->priv_fifo;
+		data = usbd_xfer_get_priv(xfer);
 		if (data != NULL) {
-			ural_tx_free(data, xfer->error);
-			xfer->priv_fifo = NULL;
+			ural_tx_free(data, error);
+			usbd_xfer_set_priv(xfer, NULL);
 		}
 
-		if (xfer->error == USB_ERR_STALLED) {
+		if (error == USB_ERR_STALLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		if (xfer->error == USB_ERR_TIMEOUT)
+		if (error == USB_ERR_TIMEOUT)
 			device_printf(sc->sc_dev, "device timeout\n");
 		break;
 	}
 }
 
 static void
-ural_bulk_read_callback(struct usb_xfer *xfer)
+ural_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ural_softc *sc = xfer->priv_sc;
+	struct ural_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL;
+	struct usb_page_cache *pc;
 	uint32_t flags;
 	int8_t rssi = 0, nf = 0;
-	unsigned int len;
+	int len;
+
+	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		DPRINTFN(15, "rx done, actlen=%d\n", xfer->actlen);
+		DPRINTFN(15, "rx done, actlen=%d\n", len);
 
-		len = xfer->actlen;
 		if (len < RAL_RX_DESC_SIZE + IEEE80211_MIN_LEN) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
@@ -891,8 +890,8 @@ ural_bulk_read_callback(struct usb_xfer *xfer)
 
 		len -= RAL_RX_DESC_SIZE;
 		/* rx descriptor is located at the end */
-		usbd_copy_out(xfer->frbuffers, len, &sc->sc_rx_desc,
-		    RAL_RX_DESC_SIZE);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, len, &sc->sc_rx_desc, RAL_RX_DESC_SIZE);
 
 		rssi = URAL_RSSI(sc->sc_rx_desc.rssi);
 		nf = RAL_NOISE_FLOOR;
@@ -914,7 +913,7 @@ ural_bulk_read_callback(struct usb_xfer *xfer)
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
-		usbd_copy_out(xfer->frbuffers, 0, mtod(m, uint8_t *), len);
+		usbd_copy_out(pc, 0, mtod(m, uint8_t *), len);
 
 		/* finalize mbuf */
 		m->m_pkthdr.rcvif = ifp;
@@ -938,7 +937,7 @@ ural_bulk_read_callback(struct usb_xfer *xfer)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 
 		/*
@@ -960,9 +959,9 @@ tr_setup:
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -2120,7 +2119,7 @@ ural_init_locked(struct ural_softc *sc)
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	usbd_transfer_set_stall(sc->sc_xfer[URAL_BULK_WR]);
+	usbd_xfer_set_stall(sc->sc_xfer[URAL_BULK_WR]);
 	usbd_transfer_start(sc->sc_xfer[URAL_BULK_RD]);
 	return;
 

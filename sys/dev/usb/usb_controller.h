@@ -109,11 +109,11 @@ struct usb_pipe_methods {
 
 	/* Mandatory USB Device and Host mode callbacks: */
 
-	usb_callback_t *open;
-	usb_callback_t *close;
+	void	(*open)(struct usb_xfer *);
+	void	(*close)(struct usb_xfer *);
 
-	usb_callback_t *enter;
-	usb_callback_t *start;
+	void	(*enter)(struct usb_xfer *);
+	void	(*start)(struct usb_xfer *);
 
 	/* Optional */
 

@@ -55,13 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_radiotap.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 #include "usbdevs.h"
 
 #include <dev/usb/wlan/if_urtwreg.h>
@@ -3944,7 +3938,8 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint8_t *desc, quality = 0, rate;
 
-	actlen = xfer->actlen;
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
 	if (actlen < URTW_MIN_RXBUFSZ) {
 		ifp->if_ierrors++;
 		return (NULL);
@@ -4023,9 +4018,9 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 }
 
 static void
-urtw_bulk_rx_callback(struct usb_xfer *xfer)
+urtw_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct urtw_softc *sc = xfer->priv_sc;
+	struct urtw_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_frame *wh;
@@ -4055,8 +4050,8 @@ setup:
 		}
 		STAILQ_REMOVE_HEAD(&sc->sc_rx_inactive, next);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_active, data, next);
-		usbd_set_frame_data(xfer, data->buf, 0);
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_data(xfer, 0, data->buf,
+		    usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 
 		/*
@@ -4086,8 +4081,8 @@ setup:
 			STAILQ_REMOVE_HEAD(&sc->sc_rx_active, next);
 			STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);
 		}
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			ifp->if_ierrors++;
 			goto setup;
 		}
@@ -4098,7 +4093,7 @@ setup:
 static void
 urtw_txeof(struct usb_xfer *xfer, struct urtw_data *data)
 {
-	struct urtw_softc *sc = xfer->priv_sc;
+	struct urtw_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct mbuf *m;
 
@@ -4127,9 +4122,9 @@ urtw_txeof(struct usb_xfer *xfer, struct urtw_data *data)
 }
 
 static void
-urtw_bulk_tx_callback(struct usb_xfer *xfer)
+urtw_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct urtw_softc *sc = xfer->priv_sc;
+	struct urtw_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct urtw_data *data;
 
@@ -4155,8 +4150,7 @@ setup:
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_pending, next);
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
 
-		usbd_set_frame_data(xfer, data->buf, 0);
-		xfer->frlengths[0] = data->buflen;
+		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
 		usbd_transfer_submit(xfer);
 
 		URTW_UNLOCK(sc);
@@ -4172,8 +4166,8 @@ setup:
 			data->ni = NULL;
 			ifp->if_oerrors++;
 		}
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			goto setup;
 		}
 		break;

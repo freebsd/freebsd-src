@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/condvar.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -67,13 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_amrr.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include "usbdevs.h"
 
 #include <dev/usb/wlan/if_zydreg.h>
@@ -632,19 +628,24 @@ fail:
  * Callback handler for interrupt transfer
  */
 static void
-zyd_intr_read_callback(struct usb_xfer *xfer)
+zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct zyd_softc *sc = xfer->priv_sc;
+	struct zyd_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	struct ieee80211_node *ni;
 	struct zyd_cmd *cmd = &sc->sc_ibuf;
+	struct usb_page_cache *pc;
 	int datalen;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usbd_copy_out(xfer->frbuffers, 0, cmd, sizeof(*cmd));
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, cmd, sizeof(*cmd));
 
 		switch (le16toh(cmd->code)) {
 		case ZYD_NOTIF_RETRYSTATUS:
@@ -680,7 +681,7 @@ zyd_intr_read_callback(struct usb_xfer *xfer)
 			if (le16toh(*(uint16_t *)cmd->data) == ZYD_CR_INTERRUPT)
 				break;	/* HMAC interrupt */
 
-			datalen = xfer->actlen - sizeof(cmd->code);
+			datalen = actlen - sizeof(cmd->code);
 			datalen -= 2;	/* XXX: padding? */
 
 			STAILQ_FOREACH(rqp, &sc->sc_rqh, rq) {
@@ -719,17 +720,17 @@ zyd_intr_read_callback(struct usb_xfer *xfer)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
 		DPRINTF(sc, ZYD_DEBUG_CMD, "error = %s\n",
-		    usbd_errstr(xfer->error));
+		    usbd_errstr(error));
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		break;
@@ -737,18 +738,19 @@ tr_setup:
 }
 
 static void
-zyd_intr_write_callback(struct usb_xfer *xfer)
+zyd_intr_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct zyd_softc *sc = xfer->priv_sc;
-	struct zyd_rq *rqp;
+	struct zyd_softc *sc = usbd_xfer_softc(xfer);
+	struct zyd_rq *rqp, *cmd;
+	struct usb_page_cache *pc;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		DPRINTF(sc, ZYD_DEBUG_CMD, "command %p transferred\n",
-		    xfer->priv_fifo);
+		cmd = usbd_xfer_get_priv(xfer);
+		DPRINTF(sc, ZYD_DEBUG_CMD, "command %p transferred\n", cmd);
 		STAILQ_FOREACH(rqp, &sc->sc_rqh, rq) {
 			/* Ensure the cached rq pointer is still valid */
-			if (rqp == xfer->priv_fifo &&
+			if (rqp == cmd &&
 			    (rqp->flags & ZYD_CMD_FLAG_READ) == 0)
 				wakeup(rqp);	/* wakeup caller */
 		}
@@ -760,10 +762,11 @@ tr_setup:
 			if (rqp->flags & ZYD_CMD_FLAG_SENT)
 				continue;
 
-			usbd_copy_in(xfer->frbuffers, 0, rqp->cmd, rqp->ilen);
+			pc = usbd_xfer_get_frame(xfer, 0);
+			usbd_copy_in(pc, 0, rqp->cmd, rqp->ilen);
 
-			xfer->frlengths[0] = rqp->ilen;
-			xfer->priv_fifo = rqp;
+			usbd_xfer_set_frame_len(xfer, 0, rqp->ilen);
+			usbd_xfer_set_priv(xfer, rqp);
 			rqp->flags |= ZYD_CMD_FLAG_SENT;
 			usbd_transfer_submit(xfer);
 			break;
@@ -772,11 +775,11 @@ tr_setup:
 
 	default:			/* Error */
 		DPRINTF(sc, ZYD_DEBUG_ANY, "error = %s\n",
-		    usbd_errstr(xfer->error));
+		    usbd_errstr(error));
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		break;
@@ -2165,11 +2168,12 @@ fail:
 static void
 zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 {
-	struct zyd_softc *sc = xfer->priv_sc;
+	struct zyd_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct zyd_plcphdr plcp;
 	struct zyd_rx_stat stat;
+	struct usb_page_cache *pc;
 	struct mbuf *m;
 	int rlen, rssi;
 
@@ -2179,9 +2183,9 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 		ifp->if_ierrors++;
 		return;
 	}
-	usbd_copy_out(xfer->frbuffers, offset, &plcp, sizeof(plcp));
-	usbd_copy_out(xfer->frbuffers, offset + len - sizeof(stat),
-	    &stat, sizeof(stat));
+	pc = usbd_xfer_get_frame(xfer, 0);
+	usbd_copy_out(pc, offset, &plcp, sizeof(plcp));
+	usbd_copy_out(pc, offset + len - sizeof(stat), &stat, sizeof(stat));
 
 	if (stat.flags & ZYD_RX_ERROR) {
 		DPRINTF(sc, ZYD_DEBUG_RECV,
@@ -2213,8 +2217,7 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 	}
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = rlen;
-	usbd_copy_out(xfer->frbuffers, offset + sizeof(plcp),
-	    mtod(m, uint8_t *), rlen);
+	usbd_copy_out(pc, offset + sizeof(plcp), mtod(m, uint8_t *), rlen);
 
 	if (ieee80211_radiotap_active(ic)) {
 		struct zyd_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -2239,24 +2242,28 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 }
 
 static void
-zyd_bulk_read_callback(struct usb_xfer *xfer)
+zyd_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct zyd_softc *sc = xfer->priv_sc;
+	struct zyd_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni;
 	struct zyd_rx_desc desc;
 	struct mbuf *m;
+	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint8_t rssi;
 	int8_t nf;
 	int i;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	sc->sc_rx_count = 0;
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usbd_copy_out(xfer->frbuffers, xfer->actlen - sizeof(desc),
-		    &desc, sizeof(desc));
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, actlen - sizeof(desc), &desc, sizeof(desc));
 
 		offset = 0;
 		if (UGETW(desc.tag) == ZYD_TAG_MULTIFRAME) {
@@ -2266,7 +2273,7 @@ zyd_bulk_read_callback(struct usb_xfer *xfer)
 			for (i = 0; i < ZYD_MAX_RXFRAMECNT; i++) {
 				uint16_t len16 = UGETW(desc.len[i]);
 
-				if (len16 == 0 || len16 > xfer->actlen)
+				if (len16 == 0 || len16 > actlen)
 					break;
 
 				zyd_rx_data(xfer, offset, len16);
@@ -2274,20 +2281,20 @@ zyd_bulk_read_callback(struct usb_xfer *xfer)
 				/* next frame is aligned on a 32-bit boundary */
 				len16 = (len16 + 3) & ~3;
 				offset += len16;
-				if (len16 > xfer->actlen)
+				if (len16 > actlen)
 					break;
-				xfer->actlen -= len16;
+				actlen -= len16;
 			}
 		} else {
 			DPRINTF(sc, ZYD_DEBUG_RECV,
 			    "%s: received single-frame transfer\n", __func__);
 
-			zyd_rx_data(xfer, 0, xfer->actlen);
+			zyd_rx_data(xfer, 0, actlen);
 		}
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 
 		/*
@@ -2315,11 +2322,11 @@ tr_setup:
 		break;
 
 	default:			/* Error */
-		DPRINTF(sc, ZYD_DEBUG_ANY, "frame error: %s\n", usbd_errstr(xfer->error));
+		DPRINTF(sc, ZYD_DEBUG_ANY, "frame error: %s\n", usbd_errstr(error));
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		break;
@@ -2363,23 +2370,27 @@ zyd_plcp_signal(struct zyd_softc *sc, int rate)
 }
 
 static void
-zyd_bulk_write_callback(struct usb_xfer *xfer)
+zyd_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct zyd_softc *sc = xfer->priv_sc;
+	struct zyd_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211vap *vap;
 	struct zyd_tx_data *data;
 	struct mbuf *m;
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTF(sc, ZYD_DEBUG_ANY, "transfer complete, %u bytes\n",
-		    xfer->actlen);
+		    actlen);
 
 		/* free resources */
-		data = xfer->priv_fifo;
+		data = usbd_xfer_get_priv(xfer);
 		zyd_tx_free(data, 0);
-		xfer->priv_fifo = NULL;
+		usbd_xfer_set_priv(xfer, NULL);
 
 		ifp->if_opackets++;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -2397,9 +2408,9 @@ tr_setup:
 				    m->m_pkthdr.len);
 				m->m_pkthdr.len = ZYD_MAX_TXBUFSZ;
 			}
-			usbd_copy_in(xfer->frbuffers, 0, &data->desc,
-			    ZYD_TX_DESC_SIZE);
-			usbd_m_copy_in(xfer->frbuffers, ZYD_TX_DESC_SIZE, m, 0,
+			pc = usbd_xfer_get_frame(xfer, 0);
+			usbd_copy_in(pc, 0, &data->desc, ZYD_TX_DESC_SIZE);
+			usbd_m_copy_in(pc, ZYD_TX_DESC_SIZE, m, 0,
 			    m->m_pkthdr.len);
 
 			vap = data->ni->ni_vap;
@@ -2412,28 +2423,28 @@ tr_setup:
 				ieee80211_radiotap_tx(vap, m);
 			}
 
-			xfer->frlengths[0] = ZYD_TX_DESC_SIZE + m->m_pkthdr.len;
-			xfer->priv_fifo = data;
+			usbd_xfer_set_frame_len(xfer, 0, ZYD_TX_DESC_SIZE + m->m_pkthdr.len);
+			usbd_xfer_set_priv(xfer, data);
 			usbd_transfer_submit(xfer);
 		}
 		break;
 
 	default:			/* Error */
 		DPRINTF(sc, ZYD_DEBUG_ANY, "transfer error, %s\n",
-		    usbd_errstr(xfer->error));
+		    usbd_errstr(error));
 
 		ifp->if_oerrors++;
-		data = xfer->priv_fifo;
-		xfer->priv_fifo = NULL;
+		data = usbd_xfer_get_priv(xfer);
+		usbd_xfer_set_priv(xfer, NULL);
 		if (data != NULL)
-			zyd_tx_free(data, xfer->error);
+			zyd_tx_free(data, error);
 
-		if (xfer->error == USB_ERR_STALLED) {
+		if (error == USB_ERR_STALLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		if (xfer->error == USB_ERR_TIMEOUT)
+		if (error == USB_ERR_TIMEOUT)
 			device_printf(sc->sc_dev, "device timeout\n");
 		break;
 	}
@@ -2761,7 +2772,7 @@ zyd_init_locked(struct zyd_softc *sc)
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	usbd_transfer_set_stall(sc->sc_xfer[ZYD_BULK_WR]);
+	usbd_xfer_set_stall(sc->sc_xfer[ZYD_BULK_WR]);
 	usbd_transfer_start(sc->sc_xfer[ZYD_BULK_RD]);
 	usbd_transfer_start(sc->sc_xfer[ZYD_INTR_RD]);
 
