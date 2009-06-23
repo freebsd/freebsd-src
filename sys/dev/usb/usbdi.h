@@ -469,14 +469,14 @@ void	usbd_xfer_set_interval(struct usb_xfer *xfer, int);
 uint8_t	usbd_xfer_state(struct usb_xfer *xfer);
 void	usbd_xfer_set_frame_data(struct usb_xfer *xfer, usb_frcount_t frindex,
 	    void *ptr, usb_frlength_t len);
-void	usbd_xfer_get_frame_data(struct usb_xfer *xfer, usb_frcount_t frindex,
+void	usbd_xfer_frame_data(struct usb_xfer *xfer, usb_frcount_t frindex,
 	    void **ptr, int *len);
 void	usbd_xfer_set_frame_offset(struct usb_xfer *xfer, usb_frlength_t offset,
 	    usb_frcount_t frindex);
 usb_frlength_t usbd_xfer_max_len(struct usb_xfer *xfer);
 usb_frlength_t usbd_xfer_max_framelen(struct usb_xfer *xfer);
 usb_frcount_t usbd_xfer_max_frames(struct usb_xfer *xfer);
-usb_frlength_t usbd_xfer_get_frame_len(struct usb_xfer *xfer,
+usb_frlength_t usbd_xfer_frame_len(struct usb_xfer *xfer,
 	    usb_frcount_t frindex);
 void	usbd_xfer_set_frame_len(struct usb_xfer *xfer, usb_frcount_t frindex,
 	    usb_frlength_t len);

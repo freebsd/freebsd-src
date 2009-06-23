@@ -981,7 +981,7 @@ usbd_ctrl_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		if (vcreq->uvc_trans_flags & USBD_TRANSFER_DIRECTION_IN) {
 			pc = usbd_xfer_get_frame(xfer, 1);
-			len = usbd_xfer_get_framelen(xfer, 1);
+			len = usbd_xfer_frame_len(xfer, 1);
 			usbd_copy_out(pc, 0, vcreq->uvc_trans_buf, len);
 			nx->nx_urbactlen += len;
 		}
