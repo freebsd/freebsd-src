@@ -30,10 +30,29 @@
  * USB spec: http://www.usb.org/developers/docs/usbspec.zip 
  */
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usbdi.h>
 
 #define	USB_DEBUG_VAR uhub_debug
 
@@ -54,7 +73,7 @@
 #define	UHUB_INTR_INTERVAL 250		/* ms */
 #define	UHUB_N_TRANSFER 1
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int uhub_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
@@ -149,9 +168,9 @@ DRIVER_MODULE(uhub, usbus, uhub_driver, uhub_devclass, 0, 0);
 DRIVER_MODULE(uhub, uhub, uhub_driver, uhub_devclass, NULL, 0);
 
 static void
-uhub_intr_callback(struct usb_xfer *xfer)
+uhub_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uhub_softc *sc = xfer->priv_sc;
+	struct uhub_softc *sc = usbd_xfer_softc(xfer);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -165,7 +184,7 @@ uhub_intr_callback(struct usb_xfer *xfer)
 		usb_needs_explore(sc->sc_udev->bus, 0);
 
 	case USB_ST_SETUP:
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		break;
 
@@ -176,8 +195,8 @@ uhub_intr_callback(struct usb_xfer *xfer)
 			 * will get cleared before next callback by
 			 * the USB stack.
 			 */
-			xfer->flags.stall_pipe = 1;
-			xfer->frlengths[0] = xfer->max_data_length;
+			usbd_xfer_set_stall(xfer);
+			usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 			usbd_transfer_submit(xfer);
 		}
 		break;

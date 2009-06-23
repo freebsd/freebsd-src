@@ -82,26 +82,38 @@ __FBSDID("$FreeBSD$");
  * be called from within the config thread function !
  */
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+#include <sys/sbuf.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usb_cdc.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR usb_debug
-
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_parse.h>
-#include <dev/usb/usb_busdma.h>
 
 #include <dev/usb/serial/usb_serial.h>
-#include <sys/sysctl.h>
-#include <sys/sbuf.h>
 
 typedef struct ufoma_mobile_acm_descriptor {
 	uint8_t	bFunctionLength;
@@ -426,8 +438,8 @@ ufoma_attach(device_t dev)
 
 	/* clear stall at first run, if any */
 	mtx_lock(&sc->sc_mtx);
-	usbd_transfer_set_stall(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE]);
-	usbd_transfer_set_stall(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ]);
+	usbd_xfer_set_stall(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_WRITE]);
+	usbd_xfer_set_stall(sc->sc_bulk_xfer[UFOMA_BULK_ENDPT_READ]);
 	mtx_unlock(&sc->sc_mtx);
 
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
@@ -544,21 +556,25 @@ ufoma_cfg_activate_state(struct ufoma_softc *sc, uint16_t state)
 }
 
 static void
-ufoma_ctrl_read_callback(struct usb_xfer *xfer)
+ufoma_ctrl_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ufoma_softc *sc = xfer->priv_sc;
+	struct ufoma_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_device_request req;
+	struct usb_page_cache *pc0, *pc1;
+	int len, aframes, nframes;
+
+	usbd_xfer_status(xfer, NULL, NULL, &aframes, &nframes);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 tr_transferred:
-		if (xfer->aframes != xfer->nframes) {
+		if (aframes != nframes)
 			goto tr_setup;
-		}
-		if (xfer->frlengths[1] > 0) {
-			ucom_put_data(&sc->sc_ucom, xfer->frbuffers + 1,
-			    0, xfer->frlengths[1]);
-		}
+		pc1 = usbd_xfer_get_frame(xfer, 1);
+		len = usbd_xfer_get_frame_len(xfer, 1);
+		if (len > 0)
+			ucom_put_data(&sc->sc_ucom, pc1, 0, len);
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
 		if (sc->sc_num_msg) {
@@ -570,20 +586,21 @@ tr_setup:
 			USETW(req.wValue, 0);
 			USETW(req.wLength, UFOMA_CMD_BUF_SIZE);
 
-			usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+			pc0 = usbd_xfer_get_frame(xfer, 0);
+			usbd_copy_in(pc0, 0, &req, sizeof(req));
 
-			xfer->frlengths[0] = sizeof(req);
-			xfer->frlengths[1] = UFOMA_CMD_BUF_SIZE;
-			xfer->nframes = 2;
+			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
+			usbd_xfer_set_frame_len(xfer, 1, UFOMA_CMD_BUF_SIZE);
+			usbd_xfer_set_frames(xfer, 2);
 			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
 		DPRINTF("error = %s\n",
-		    usbd_errstr(xfer->error));
+		    usbd_errstr(error));
 
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			return;
 		} else {
 			goto tr_setup;
@@ -594,10 +611,11 @@ tr_setup:
 }
 
 static void
-ufoma_ctrl_write_callback(struct usb_xfer *xfer)
+ufoma_ctrl_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ufoma_softc *sc = xfer->priv_sc;
+	struct ufoma_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_device_request req;
+	struct usb_page_cache *pc;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -605,8 +623,8 @@ ufoma_ctrl_write_callback(struct usb_xfer *xfer)
 tr_transferred:
 	case USB_ST_SETUP:
 tr_setup:
-		if (ucom_get_data(&sc->sc_ucom, xfer->frbuffers + 1,
-		    0, 1, &actlen)) {
+		pc = usbd_xfer_get_frame(xfer, 1);
+		if (ucom_get_data(&sc->sc_ucom, pc, 0, 1, &actlen)) {
 
 			req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 			req.bRequest = UCDC_SEND_ENCAPSULATED_COMMAND;
@@ -614,21 +632,21 @@ tr_setup:
 			USETW(req.wValue, 0);
 			USETW(req.wLength, 1);
 
-			usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
+			pc = usbd_xfer_get_frame(xfer, 0);
+			usbd_copy_in(pc, 0, &req, sizeof(req));
 
-			xfer->frlengths[0] = sizeof(req);
-			xfer->frlengths[1] = 1;
-			xfer->nframes = 2;
+			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
+			usbd_xfer_set_frame_len(xfer, 1, 1);
+			usbd_xfer_set_frames(xfer, 2);
 
 			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
-		DPRINTF("error = %s\n",
-		    usbd_errstr(xfer->error));
+		DPRINTF("error = %s\n", usbd_errstr(error));
 
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			return;
 		} else {
 			goto tr_setup;
@@ -639,31 +657,36 @@ tr_setup:
 }
 
 static void
-ufoma_intr_callback(struct usb_xfer *xfer)
+ufoma_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ufoma_softc *sc = xfer->priv_sc;
+	struct ufoma_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_cdc_notification pkt;
+	struct usb_page_cache *pc;
 	uint16_t wLen;
 	uint16_t temp;
 	uint8_t mstatus;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		if (xfer->actlen < 8) {
+		if (actlen < 8) {
 			DPRINTF("too short message\n");
 			goto tr_setup;
 		}
-		if (xfer->actlen > sizeof(pkt)) {
+		if (actlen > sizeof(pkt)) {
 			DPRINTF("truncating message\n");
-			xfer->actlen = sizeof(pkt);
+			actlen = sizeof(pkt);
 		}
-		usbd_copy_out(xfer->frbuffers, 0, &pkt, xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, &pkt, actlen);
 
-		xfer->actlen -= 8;
+		actlen -= 8;
 
 		wLen = UGETW(pkt.wLength);
-		if (xfer->actlen > wLen) {
-			xfer->actlen = wLen;
+		if (actlen > wLen) {
+			actlen = wLen;
 		}
 		if ((pkt.bmRequestType == UT_READ_VENDOR_INTERFACE) &&
 		    (pkt.bNotification == UMCPC_REQUEST_ACKNOWLEDGE)) {
@@ -698,9 +721,9 @@ ufoma_intr_callback(struct usb_xfer *xfer)
 		         * Set the serial state in ucom driver based on
 		         * the bits from the notify message
 		         */
-			if (xfer->actlen < 2) {
+			if (actlen < 2) {
 				DPRINTF("invalid notification "
-				    "length, %d bytes!\n", xfer->actlen);
+				    "length, %d bytes!\n", actlen);
 				break;
 			}
 			DPRINTF("notify bytes = 0x%02x, 0x%02x\n",
@@ -730,14 +753,14 @@ ufoma_intr_callback(struct usb_xfer *xfer)
 
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -745,26 +768,28 @@ tr_setup:
 }
 
 static void
-ufoma_bulk_write_callback(struct usb_xfer *xfer)
+ufoma_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ufoma_softc *sc = xfer->priv_sc;
+	struct ufoma_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		if (ucom_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (ucom_get_data(&sc->sc_ucom, pc, 0,
 		    UFOMA_BULK_BUF_SIZE, &actlen)) {
-			xfer->frlengths[0] = actlen;
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
 			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -772,25 +797,29 @@ tr_setup:
 }
 
 static void
-ufoma_bulk_read_callback(struct usb_xfer *xfer)
+ufoma_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ufoma_softc *sc = xfer->priv_sc;
+	struct ufoma_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		ucom_put_data(&sc->sc_ucom, xfer->frbuffers, 0,
-		    xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		ucom_put_data(&sc->sc_ucom, pc, 0, actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;

@@ -35,19 +35,34 @@
  * NOTE: Much of the SCSI statemachine handling code derives from the
  * Linux USB gadget stack.
  */
-#include "usbdevs.h"
+
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include "usbdevs.h"
+#include "usb_if.h"
 
 #define	USB_DEBUG_VAR ustorage_fs_debug
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_device.h>
 
 #if USB_DEBUG
 static int ustorage_fs_debug = 0;
@@ -491,11 +506,11 @@ ustorage_fs_handle_request(device_t dev,
 }
 
 static void
-ustorage_fs_t_bbb_command_callback(struct usb_xfer *xfer)
+ustorage_fs_t_bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ustorage_fs_softc *sc = xfer->priv_sc;
+	struct ustorage_fs_softc *sc = usbd_xfer_softc(xfer);
 	uint32_t tag;
-	uint8_t error = 0;
+	uint8_t err = 0;
 
 	DPRINTF("\n");
 
@@ -547,8 +562,8 @@ ustorage_fs_t_bbb_command_callback(struct usb_xfer *xfer)
 			break;
 		}
 
-		error = ustorage_fs_do_cmd(sc);
-		if (error) {
+		err = ustorage_fs_do_cmd(sc);
+		if (err) {
 			/* got an error */
 			DPRINTF("command failed\n");
 			break;
@@ -556,7 +571,7 @@ ustorage_fs_t_bbb_command_callback(struct usb_xfer *xfer)
 		if ((sc->sc_transfer.data_rem > 0) &&
 		    (sc->sc_transfer.cbw_dir != sc->sc_transfer.cmd_dir)) {
 			/* contradicting data transfer direction */
-			error = 1;
+			err = 1;
 			DPRINTF("data direction mismatch\n");
 			break;
 		}
@@ -578,30 +593,28 @@ ustorage_fs_t_bbb_command_callback(struct usb_xfer *xfer)
 tr_setup:
 		if (sc->sc_transfer.data_error) {
 			sc->sc_transfer.data_error = 0;
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			DPRINTF("stall pipe\n");
-		} else {
-			xfer->flags.stall_pipe = 0;
 		}
 
-		xfer->frlengths[0] = sizeof(sc->sc_cbw);
-		usbd_set_frame_data(xfer, &sc->sc_cbw, 0);
+		usbd_xfer_set_frame_data(xfer, 0, &sc->sc_cbw,
+		    sizeof(sc->sc_cbw));
 		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
 		DPRINTF("error\n");
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->endpoint->is_stalled) {
+		if (!usbd_xfer_is_stalled(xfer))
 			sc->sc_transfer.data_error = 1;
-		}
+
 		/* try again */
 		goto tr_setup;
 	}
-	if (error) {
+	if (err) {
 		if (sc->sc_csw.bCSWStatus == 0) {
 			/* set some default error code */
 			sc->sc_csw.bCSWStatus = CSWSTATUS_FAILED;
@@ -621,20 +634,22 @@ tr_setup:
 }
 
 static void
-ustorage_fs_t_bbb_data_dump_callback(struct usb_xfer *xfer)
+ustorage_fs_t_bbb_data_dump_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ustorage_fs_softc *sc = xfer->priv_sc;
-	uint32_t max_bulk = xfer->max_data_length;
+	struct ustorage_fs_softc *sc = usbd_xfer_softc(xfer);
+	uint32_t max_bulk = usbd_xfer_max_len(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	DPRINTF("\n");
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		sc->sc_transfer.data_rem -= xfer->actlen;
-		sc->sc_transfer.offset += xfer->actlen;
+		sc->sc_transfer.data_rem -= actlen;
+		sc->sc_transfer.offset += actlen;
 
-		if ((xfer->actlen != xfer->sumlen) ||
-		    (sc->sc_transfer.data_rem == 0)) {
+		if (actlen != sumlen || sc->sc_transfer.data_rem == 0) {
 			/* short transfer or end of data */
 			ustorage_fs_transfer_start(sc,
 			    USTORAGE_FS_T_BBB_STATUS);
@@ -649,45 +664,45 @@ tr_setup:
 		}
 		if (sc->sc_transfer.data_error) {
 			sc->sc_transfer.data_error = 0;
-			xfer->flags.stall_pipe = 1;
-		} else {
-			xfer->flags.stall_pipe = 0;
+			usbd_xfer_set_stall(xfer);
 		}
-		xfer->frlengths[0] = max_bulk;
+		usbd_xfer_set_frame_len(xfer, 0, max_bulk);
 		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		/*
 		 * If the pipe is already stalled, don't do another stall:
 		 */
-		if (!xfer->endpoint->is_stalled) {
+		if (!usbd_xfer_is_stalled(xfer))
 			sc->sc_transfer.data_error = 1;
-		}
+
 		/* try again */
 		goto tr_setup;
 	}
 }
 
 static void
-ustorage_fs_t_bbb_data_read_callback(struct usb_xfer *xfer)
+ustorage_fs_t_bbb_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ustorage_fs_softc *sc = xfer->priv_sc;
-	uint32_t max_bulk = xfer->max_data_length;
+	struct ustorage_fs_softc *sc = usbd_xfer_softc(xfer);
+	uint32_t max_bulk = usbd_xfer_max_len(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	DPRINTF("\n");
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		sc->sc_transfer.data_rem -= xfer->actlen;
-		sc->sc_transfer.data_ptr += xfer->actlen;
-		sc->sc_transfer.offset += xfer->actlen;
+		sc->sc_transfer.data_rem -= actlen;
+		sc->sc_transfer.data_ptr += actlen;
+		sc->sc_transfer.offset += actlen;
 
-		if ((xfer->actlen != xfer->sumlen) ||
-		    (sc->sc_transfer.data_rem == 0)) {
+		if (actlen != sumlen || sc->sc_transfer.data_rem == 0) {
 			/* short transfer or end of data */
 			ustorage_fs_transfer_start(sc,
 			    USTORAGE_FS_T_BBB_STATUS);
@@ -702,45 +717,45 @@ tr_setup:
 		}
 		if (sc->sc_transfer.data_error) {
 			sc->sc_transfer.data_error = 0;
-			xfer->flags.stall_pipe = 1;
-		} else {
-			xfer->flags.stall_pipe = 0;
+			usbd_xfer_set_stall(xfer);
 		}
 
-		xfer->frlengths[0] = max_bulk;
-		usbd_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
+		usbd_xfer_set_frame_data(xfer, 0, sc->sc_transfer.data_ptr,
+		    max_bulk);
 		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->endpoint->is_stalled) {
+		if (!usbd_xfer_is_stalled(xfer))
 			sc->sc_transfer.data_error = 1;
-		}
+
 		/* try again */
 		goto tr_setup;
 	}
 }
 
 static void
-ustorage_fs_t_bbb_data_write_callback(struct usb_xfer *xfer)
+ustorage_fs_t_bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ustorage_fs_softc *sc = xfer->priv_sc;
-	uint32_t max_bulk = xfer->max_data_length;
+	struct ustorage_fs_softc *sc = usbd_xfer_softc(xfer);
+	uint32_t max_bulk = usbd_xfer_max_len(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	DPRINTF("\n");
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		sc->sc_transfer.data_rem -= xfer->actlen;
-		sc->sc_transfer.data_ptr += xfer->actlen;
-		sc->sc_transfer.offset += xfer->actlen;
+		sc->sc_transfer.data_rem -= actlen;
+		sc->sc_transfer.data_ptr += actlen;
+		sc->sc_transfer.offset += actlen;
 
-		if ((xfer->actlen != xfer->sumlen) ||
-		    (sc->sc_transfer.data_rem == 0)) {
+		if (actlen != sumlen || sc->sc_transfer.data_rem == 0) {
 			/* short transfer or end of data */
 			ustorage_fs_transfer_start(sc,
 			    USTORAGE_FS_T_BBB_STATUS);
@@ -750,47 +765,43 @@ ustorage_fs_t_bbb_data_write_callback(struct usb_xfer *xfer)
 tr_setup:
 		if (max_bulk >= sc->sc_transfer.data_rem) {
 			max_bulk = sc->sc_transfer.data_rem;
-			if (sc->sc_transfer.data_short) {
-				xfer->flags.force_short_xfer = 1;
-			} else {
-				xfer->flags.force_short_xfer = 0;
-			}
-		} else {
-			xfer->flags.force_short_xfer = 0;
-		}
+			if (sc->sc_transfer.data_short)
+				usbd_xfer_set_flag(xfer, USB_FORCE_SHORT_XFER);
+			else
+				usbd_xfer_clr_flag(xfer, USB_FORCE_SHORT_XFER);
+		} else
+			usbd_xfer_clr_flag(xfer, USB_FORCE_SHORT_XFER);
 
 		if (sc->sc_transfer.data_error) {
 			sc->sc_transfer.data_error = 0;
-			xfer->flags.stall_pipe = 1;
-		} else {
-			xfer->flags.stall_pipe = 0;
+			usbd_xfer_set_stall(xfer);
 		}
 
-		xfer->frlengths[0] = max_bulk;
-		usbd_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
+		usbd_xfer_set_frame_data(xfer, 0, sc->sc_transfer.data_ptr,
+		    max_bulk);
 		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		/*
 		 * If the pipe is already stalled, don't do another
 		 * stall
 		 */
-		if (!xfer->endpoint->is_stalled) {
+		if (!usbd_xfer_is_stalled(xfer))
 			sc->sc_transfer.data_error = 1;
-		}
+
 		/* try again */
 		goto tr_setup;
 	}
 }
 
 static void
-ustorage_fs_t_bbb_status_callback(struct usb_xfer *xfer)
+ustorage_fs_t_bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ustorage_fs_softc *sc = xfer->priv_sc;
+	struct ustorage_fs_softc *sc = usbd_xfer_softc(xfer);
 
 	DPRINTF("\n");
 
@@ -806,24 +817,22 @@ tr_setup:
 
 		if (sc->sc_transfer.data_error) {
 			sc->sc_transfer.data_error = 0;
-			xfer->flags.stall_pipe = 1;
-		} else {
-			xfer->flags.stall_pipe = 0;
+			usbd_xfer_set_stall(xfer);
 		}
 
-		xfer->frlengths[0] = sizeof(sc->sc_csw);
-		usbd_set_frame_data(xfer, &sc->sc_csw, 0);
+		usbd_xfer_set_frame_data(xfer, 0, &sc->sc_csw,
+		    sizeof(sc->sc_csw));
 		usbd_transfer_submit(xfer);
 		break;
 
 	default:
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->endpoint->is_stalled) {
+		if (!usbd_xfer_is_stalled(xfer))
 			sc->sc_transfer.data_error = 1;
-		}
+
 		/* try again */
 		goto tr_setup;
 	}

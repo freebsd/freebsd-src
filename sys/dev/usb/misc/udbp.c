@@ -57,19 +57,33 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR udbp_debug
-
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_parse.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
 
 #include <sys/mbuf.h>
 
@@ -395,10 +409,14 @@ udbp_detach(device_t dev)
 }
 
 static void
-udbp_bulk_read_callback(struct usb_xfer *xfer)
+udbp_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct udbp_softc *sc = xfer->priv_sc;
+	struct udbp_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	struct mbuf *m;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -416,14 +434,14 @@ udbp_bulk_read_callback(struct usb_xfer *xfer)
 			m_freem(m);
 			goto tr_setup;
 		}
-		m->m_pkthdr.len = m->m_len = xfer->actlen;
+		m->m_pkthdr.len = m->m_len = actlen;
 
-		usbd_copy_out(xfer->frbuffers, 0, m->m_data, xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, m->m_data, actlen);
 
 		sc->sc_bulk_in_buffer = m;
 
-		DPRINTF("received package %d "
-		    "bytes\n", xfer->actlen);
+		DPRINTF("received package %d bytes\n", actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
@@ -435,12 +453,12 @@ tr_setup:
 			usbd_transfer_start(sc->sc_xfer[UDBP_T_RD_CS]);
 			return;
 		}
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= UDBP_FLAG_READ_STALL;
 			usbd_transfer_start(sc->sc_xfer[UDBP_T_RD_CS]);
@@ -451,9 +469,9 @@ tr_setup:
 }
 
 static void
-udbp_bulk_read_clear_stall_callback(struct usb_xfer *xfer)
+udbp_bulk_read_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct udbp_softc *sc = xfer->priv_sc;
+	struct udbp_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_xfer *xfer_other = sc->sc_xfer[UDBP_T_RD];
 
 	if (usbd_clear_stall_callback(xfer, xfer_other)) {
@@ -504,9 +522,10 @@ done:
 }
 
 static void
-udbp_bulk_write_callback(struct usb_xfer *xfer)
+udbp_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct udbp_softc *sc = xfer->priv_sc;
+	struct udbp_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	struct mbuf *m;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -535,20 +554,20 @@ udbp_bulk_write_callback(struct usb_xfer *xfer)
 			    MCLBYTES);
 			m->m_pkthdr.len = MCLBYTES;
 		}
-		usbd_m_copy_in(xfer->frbuffers, 0, m, 0, m->m_pkthdr.len);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_m_copy_in(pc, 0, m, 0, m->m_pkthdr.len);
 
-		xfer->frlengths[0] = m->m_pkthdr.len;
+		usbd_xfer_set_frame_len(xfer, 0, m->m_pkthdr.len);
+
+		DPRINTF("packet out: %d bytes\n", m->m_pkthdr.len);
 
 		m_freem(m);
-
-		DPRINTF("packet out: %d bytes\n",
-		    xfer->frlengths[0]);
 
 		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= UDBP_FLAG_WRITE_STALL;
 			usbd_transfer_start(sc->sc_xfer[UDBP_T_WR_CS]);
@@ -559,9 +578,9 @@ udbp_bulk_write_callback(struct usb_xfer *xfer)
 }
 
 static void
-udbp_bulk_write_clear_stall_callback(struct usb_xfer *xfer)
+udbp_bulk_write_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct udbp_softc *sc = xfer->priv_sc;
+	struct udbp_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_xfer *xfer_other = sc->sc_xfer[UDBP_T_WR];
 
 	if (usbd_clear_stall_callback(xfer, xfer_other)) {

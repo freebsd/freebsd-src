@@ -42,25 +42,36 @@ __FBSDID("$FreeBSD$");
  * HID spec: http://www.usb.org/developers/devclass_docs/HID1_11.pdf
  */
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbhid.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR ums_debug
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_util.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_transfer.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_dynamic.h>
-#include <dev/usb/usb_mbuf.h>
-#include <dev/usb/usb_dev.h>
-#include <dev/usb/usb_hid.h>
 
 #include <dev/usb/quirk/usb_quirk.h>
 
@@ -170,12 +181,12 @@ ums_put_queue_timeout(void *__sc)
 }
 
 static void
-ums_intr_callback(struct usb_xfer *xfer)
+ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ums_softc *sc = xfer->priv_sc;
+	struct ums_softc *sc = usbd_xfer_softc(xfer);
 	struct ums_info *info = &sc->sc_info[0];
+	struct usb_page_cache *pc;
 	uint8_t *buf = sc->sc_temp;
-	uint16_t len = xfer->actlen;
 	int32_t buttons = 0;
 	int32_t dw = 0;
 	int32_t dx = 0;
@@ -184,6 +195,9 @@ ums_intr_callback(struct usb_xfer *xfer)
 	int32_t dt = 0;
 	uint8_t i;
 	uint8_t id;
+	int len;
+
+	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -197,7 +211,8 @@ ums_intr_callback(struct usb_xfer *xfer)
 		if (len == 0)
 			goto tr_setup;
 
-		usbd_copy_out(xfer->frbuffers, 0, buf, len);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, buf, len);
 
 		DPRINTFN(6, "data = %02x %02x %02x %02x "
 		    "%02x %02x %02x %02x\n",
@@ -301,15 +316,15 @@ tr_setup:
 		/* check if we can put more data into the FIFO */
 		if (usb_fifo_put_bytes_max(
 		    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
-			xfer->frlengths[0] = xfer->max_data_length;
+			usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 			usbd_transfer_submit(xfer);
 		}
 		break;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		break;
@@ -547,10 +562,10 @@ ums_attach(device_t dev)
 		/* Some wheels need the Z axis reversed. */
 		info->sc_flags |= UMS_FLAG_REVZ;
 	}
-	if (isize > sc->sc_xfer[UMS_INTR_DT]->max_frame_size) {
+	if (isize > usbd_xfer_max_framelen(sc->sc_xfer[UMS_INTR_DT])) {
 		DPRINTF("WARNING: report size, %d bytes, is larger "
-		    "than interrupt size, %d bytes!\n",
-		    isize, sc->sc_xfer[UMS_INTR_DT]->max_frame_size);
+		    "than interrupt size, %d bytes!\n", isize,
+		    usbd_xfer_max_framelen(sc->sc_xfer[UMS_INTR_DT]));
 	}
 	free(d_ptr, M_TEMP);
 	d_ptr = NULL;
@@ -637,7 +652,7 @@ ums_detach(device_t self)
 static void
 ums_start_read(struct usb_fifo *fifo)
 {
-	struct ums_softc *sc = fifo->priv_sc0;
+	struct ums_softc *sc = usb_fifo_softc(fifo);
 
 	usbd_transfer_start(sc->sc_xfer[UMS_INTR_DT]);
 }
@@ -645,7 +660,7 @@ ums_start_read(struct usb_fifo *fifo)
 static void
 ums_stop_read(struct usb_fifo *fifo)
 {
-	struct ums_softc *sc = fifo->priv_sc0;
+	struct ums_softc *sc = usb_fifo_softc(fifo);
 
 	usbd_transfer_stop(sc->sc_xfer[UMS_INTR_DT]);
 	usb_callout_stop(&sc->sc_callout);
@@ -712,7 +727,7 @@ ums_reset_buf(struct ums_softc *sc)
 static int
 ums_open(struct usb_fifo *fifo, int fflags)
 {
-	struct ums_softc *sc = fifo->priv_sc0;
+	struct ums_softc *sc = usb_fifo_softc(fifo);
 
 	DPRINTFN(2, "\n");
 
@@ -747,7 +762,7 @@ ums_close(struct usb_fifo *fifo, int fflags)
 static int
 ums_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
 {
-	struct ums_softc *sc = fifo->priv_sc0;
+	struct ums_softc *sc = usb_fifo_softc(fifo);
 	mousemode_t mode;
 	int error = 0;
 

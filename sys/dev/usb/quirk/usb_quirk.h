@@ -56,4 +56,6 @@ enum {	/* keep in sync with usb_quirk_str table */
 	USB_QUIRK_MAX
 };
 
+uint8_t	usb_test_quirk(const struct usb_attach_arg *uaa, uint16_t quirk);
+
 #endif					/* _USB_QUIRK_H_ */

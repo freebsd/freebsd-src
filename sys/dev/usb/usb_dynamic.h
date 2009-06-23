@@ -62,6 +62,4 @@ void	usb_temp_unload(void *);
 void	usb_quirk_unload(void *);
 void	usb_bus_unload(void *);
 
-uint8_t	usb_test_quirk(const struct usb_attach_arg *uaa, uint16_t quirk);
-
 #endif					/* _USB_DYNAMIC_H_ */

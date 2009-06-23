@@ -28,24 +28,13 @@
 #define	_USB_DEV_H_
 
 #include <sys/file.h>
-#include <sys/vnode.h>
+#include <sys/selinfo.h>
 #include <sys/poll.h>
 #include <sys/signalvar.h>
-#include <sys/conf.h>
-#include <sys/fcntl.h>
 #include <sys/proc.h>
-
-#define	USB_FIFO_TX 0
-#define	USB_FIFO_RX 1
 
 struct usb_fifo;
 struct usb_mbuf;
-
-typedef int (usb_fifo_open_t)(struct usb_fifo *fifo, int fflags);
-typedef void (usb_fifo_close_t)(struct usb_fifo *fifo, int fflags);
-typedef int (usb_fifo_ioctl_t)(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags);
-typedef void (usb_fifo_cmd_t)(struct usb_fifo *fifo);
-typedef void (usb_fifo_filter_t)(struct usb_fifo *fifo, struct usb_mbuf *m);
 
 struct usb_symlink {
 	TAILQ_ENTRY(usb_symlink) sym_entry;
@@ -55,30 +44,6 @@ struct usb_symlink {
 					 * terminating zero */
 	uint8_t	src_len;		/* String length */
 	uint8_t	dst_len;		/* String length */
-};
-
-/*
- * Locking note for the following functions.  All the
- * "usb_fifo_cmd_t" and "usb_fifo_filter_t" functions are called
- * locked. The others are called unlocked.
- */
-struct usb_fifo_methods {
-	usb_fifo_open_t *f_open;
-	usb_fifo_close_t *f_close;
-	usb_fifo_ioctl_t *f_ioctl;
-	/*
-	 * NOTE: The post-ioctl callback is called after the USB reference
-	 * gets locked in the IOCTL handler:
-	 */
-	usb_fifo_ioctl_t *f_ioctl_post;
-	usb_fifo_cmd_t *f_start_read;
-	usb_fifo_cmd_t *f_stop_read;
-	usb_fifo_cmd_t *f_start_write;
-	usb_fifo_cmd_t *f_stop_write;
-	usb_fifo_filter_t *f_filter_read;
-	usb_fifo_filter_t *f_filter_write;
-	const char *basename[4];
-	const char *postfix[4];
 };
 
 /*
@@ -93,6 +58,18 @@ struct usb_cdev_privdata {
 	int			ep_addr;	/* endpoint address */
 	int			fflags;
 	uint8_t			fifo_index;	/* FIFO index */
+};
+
+/*
+ * The following structure defines a minimum re-implementation of the
+ * ifqueue structure in the kernel.
+ */
+struct usb_ifqueue {
+	struct usb_mbuf *ifq_head;
+	struct usb_mbuf *ifq_tail;
+
+	usb_size_t ifq_len;
+	usb_size_t ifq_maxlen;
 };
 
 /*
@@ -162,42 +139,12 @@ struct usb_fifo {
 #define	USB_FIFO_REF_MAX 0xFF
 };
 
-struct usb_fifo_sc {
-	struct usb_fifo *fp[2];
-	struct cdev* dev;
-};
-
 extern struct cdevsw usb_devsw;
 
 int	usb_fifo_wait(struct usb_fifo *fifo);
 void	usb_fifo_signal(struct usb_fifo *fifo);
-int	usb_fifo_alloc_buffer(struct usb_fifo *f, uint32_t bufsize,
-	    uint16_t nbuf);
-void	usb_fifo_free_buffer(struct usb_fifo *f);
-int	usb_fifo_attach(struct usb_device *udev, void *priv_sc,
-	    struct mtx *priv_mtx, struct usb_fifo_methods *pm,
-	    struct usb_fifo_sc *f_sc, uint16_t unit, uint16_t subunit,
-	    uint8_t iface_index, uid_t uid, gid_t gid, int mode);
-void	usb_fifo_detach(struct usb_fifo_sc *f_sc);
-uint32_t usb_fifo_put_bytes_max(struct usb_fifo *fifo);
-void	usb_fifo_put_data(struct usb_fifo *fifo, struct usb_page_cache *pc,
-	    usb_frlength_t offset, usb_frlength_t len, uint8_t what);
-void	usb_fifo_put_data_linear(struct usb_fifo *fifo, void *ptr,
-	    usb_size_t len, uint8_t what);
-uint8_t	usb_fifo_put_data_buffer(struct usb_fifo *f, void *ptr, usb_size_t len);
-void	usb_fifo_put_data_error(struct usb_fifo *fifo);
-uint8_t	usb_fifo_get_data(struct usb_fifo *fifo, struct usb_page_cache *pc,
-	    usb_frlength_t offset, usb_frlength_t len, usb_frlength_t *actlen,
-	    uint8_t what);
-uint8_t	usb_fifo_get_data_linear(struct usb_fifo *fifo, void *ptr,
-	    usb_size_t len, usb_size_t *actlen, uint8_t what);
-uint8_t	usb_fifo_get_data_buffer(struct usb_fifo *f, void **pptr,
-	    usb_size_t *plen);
-void	usb_fifo_get_data_error(struct usb_fifo *fifo);
 uint8_t	usb_fifo_opened(struct usb_fifo *fifo);
 void	usb_fifo_free(struct usb_fifo *f);
-void	usb_fifo_reset(struct usb_fifo *f);
-void	usb_fifo_wakeup(struct usb_fifo *f);
 struct usb_symlink *usb_alloc_symlink(const char *target);
 void	usb_free_symlink(struct usb_symlink *ps);
 int	usb_read_symlink(uint8_t *user_ptr, uint32_t startentry,

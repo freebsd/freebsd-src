@@ -48,12 +48,7 @@
 #include <net/bpf.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 #include "usbdevs.h"
 
 #include <dev/usb/wlan/if_upgtvar.h>
@@ -393,7 +388,7 @@ fail1:	mtx_destroy(&sc->sc_mtx);
 static void
 upgt_txeof(struct usb_xfer *xfer, struct upgt_data *data)
 {
-	struct upgt_softc *sc = xfer->priv_sc;
+	struct upgt_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct mbuf *m;
 
@@ -1386,15 +1381,18 @@ static struct mbuf *
 upgt_rxeof(struct usb_xfer *xfer, struct upgt_data *data, int *rssi)
 {
 	struct mbuf *m = NULL;
-	struct upgt_softc *sc = xfer->priv_sc;
+	struct upgt_softc *sc = usbd_xfer_softc(xfer);
 	struct upgt_lmac_header *header;
 	struct upgt_lmac_eeprom *eeprom;
 	uint8_t h1_type;
 	uint16_t h2_type;
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	UPGT_ASSERT_LOCKED(sc);
 
-	if (xfer->actlen < 1)
+	if (actlen < 1)
 		return (NULL);
 
 	/* Check only at the very beginning.  */
@@ -1405,7 +1403,7 @@ upgt_rxeof(struct usb_xfer *xfer, struct upgt_data *data, int *rssi)
 		return (NULL);
 	}
 
-	if (xfer->actlen < UPGT_RX_MINSZ)
+	if (actlen < UPGT_RX_MINSZ)
 		return (NULL);
 
 	/*
@@ -2244,9 +2242,9 @@ done:
 }
 
 static void
-upgt_bulk_rx_callback(struct usb_xfer *xfer)
+upgt_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct upgt_softc *sc = xfer->priv_sc;
+	struct upgt_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_frame *wh;
@@ -2274,8 +2272,8 @@ setup:
 			return;
 		STAILQ_REMOVE_HEAD(&sc->sc_rx_inactive, next);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_active, data, next);
-		usbd_set_frame_data(xfer, data->buf, 0);
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_data(xfer, 0, data->buf,
+		    usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 
 		/*
@@ -2306,8 +2304,8 @@ setup:
 			STAILQ_REMOVE_HEAD(&sc->sc_rx_active, next);
 			STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);
 		}
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			ifp->if_ierrors++;
 			goto setup;
 		}
@@ -2316,9 +2314,9 @@ setup:
 }
 
 static void
-upgt_bulk_tx_callback(struct usb_xfer *xfer)
+upgt_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct upgt_softc *sc = xfer->priv_sc;
+	struct upgt_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct upgt_data *data;
 
@@ -2347,8 +2345,7 @@ setup:
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
 		UPGT_STAT_INC(sc, st_tx_active);
 
-		usbd_set_frame_data(xfer, data->buf, 0);
-		xfer->frlengths[0] = data->buflen;
+		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
 		usbd_transfer_submit(xfer);
 		UPGT_UNLOCK(sc);
 		upgt_start(ifp);
@@ -2363,8 +2360,8 @@ setup:
 			data->ni = NULL;
 			ifp->if_oerrors++;
 		}
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			goto setup;
 		}
 		break;

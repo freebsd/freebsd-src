@@ -68,20 +68,34 @@ __FBSDID("$FreeBSD$");
  * transfers are done using usbd_transfer() and friends.
  */
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR aue_debug
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_process.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_util.h>
+#include <dev/usb/usb_process.h>
 
 #include <dev/usb/net/usb_ethernet.h>
 #include <dev/usb/net/if_auereg.h>
@@ -711,19 +725,24 @@ aue_detach(device_t dev)
 }
 
 static void
-aue_intr_callback(struct usb_xfer *xfer)
+aue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct aue_softc *sc = xfer->priv_sc;
+	struct aue_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
 	struct aue_intrpkt pkt;
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
-		    xfer->actlen >= sizeof(pkt)) {
+		    actlen >= sizeof(pkt)) {
 
-			usbd_copy_out(xfer->frbuffers, 0, &pkt, sizeof(pkt));
+			pc = usbd_xfer_get_frame(xfer, 0);
+			usbd_copy_out(pc, 0, &pkt, sizeof(pkt));
 
 			if (pkt.aue_txstat0)
 				ifp->if_oerrors++;
@@ -734,14 +753,14 @@ aue_intr_callback(struct usb_xfer *xfer)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -749,31 +768,36 @@ tr_setup:
 }
 
 static void
-aue_bulk_read_callback(struct usb_xfer *xfer)
+aue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct aue_softc *sc = xfer->priv_sc;
+	struct aue_softc *sc = usbd_xfer_softc(xfer);
 	struct usb_ether *ue = &sc->sc_ue;
 	struct ifnet *ifp = uether_getifp(ue);
 	struct aue_rxpkt stat;
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+	pc = usbd_xfer_get_frame(xfer, 0);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		DPRINTFN(11, "received %d bytes\n", xfer->actlen);
+		DPRINTFN(11, "received %d bytes\n", actlen);
 
 		if (sc->sc_flags & AUE_FLAG_VER_2) {
 
-			if (xfer->actlen == 0) {
+			if (actlen == 0) {
 				ifp->if_ierrors++;
 				goto tr_setup;
 			}
 		} else {
 
-			if (xfer->actlen <= (sizeof(stat) + ETHER_CRC_LEN)) {
+			if (actlen <= sizeof(stat) + ETHER_CRC_LEN) {
 				ifp->if_ierrors++;
 				goto tr_setup;
 			}
-			usbd_copy_out(xfer->frbuffers,
-			    xfer->actlen - sizeof(stat), &stat, sizeof(stat));
+			usbd_copy_out(pc, actlen - sizeof(stat), &stat,
+			    sizeof(stat));
 
 			/*
 			 * turn off all the non-error bits in the rx status
@@ -785,25 +809,25 @@ aue_bulk_read_callback(struct usb_xfer *xfer)
 				goto tr_setup;
 			}
 			/* No errors; receive the packet. */
-			xfer->actlen -= (sizeof(stat) + ETHER_CRC_LEN);
+			actlen -= (sizeof(stat) + ETHER_CRC_LEN);
 		}
-		uether_rxbuf(ue, xfer->frbuffers, 0, xfer->actlen);
+		uether_rxbuf(ue, pc, 0, actlen);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		uether_rxflush(ue);
 		return;
 
 	default:			/* Error */
 		DPRINTF("bulk read error, %s\n",
-		    usbd_errstr(xfer->error));
+		    usbd_errstr(error));
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -811,16 +835,21 @@ tr_setup:
 }
 
 static void
-aue_bulk_write_callback(struct usb_xfer *xfer)
+aue_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct aue_softc *sc = xfer->priv_sc;
+	struct aue_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
+	struct usb_page_cache *pc;
 	struct mbuf *m;
 	uint8_t buf[2];
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+	pc = usbd_xfer_get_frame(xfer, 0);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		DPRINTFN(11, "transfer of %d bytes complete\n", xfer->actlen);
+		DPRINTFN(11, "transfer of %d bytes complete\n", actlen);
 		ifp->if_opackets++;
 
 		/* FALLTHROUGH */
@@ -840,14 +869,13 @@ tr_setup:
 			m->m_pkthdr.len = MCLBYTES;
 		if (sc->sc_flags & AUE_FLAG_VER_2) {
 
-			xfer->frlengths[0] = m->m_pkthdr.len;
+			usbd_xfer_set_frame_len(xfer, 0, m->m_pkthdr.len);
 
-			usbd_m_copy_in(xfer->frbuffers, 0,
-			    m, 0, m->m_pkthdr.len);
+			usbd_m_copy_in(pc, 0, m, 0, m->m_pkthdr.len);
 
 		} else {
 
-			xfer->frlengths[0] = (m->m_pkthdr.len + 2);
+			usbd_xfer_set_frame_len(xfer, 0, (m->m_pkthdr.len + 2));
 
 			/*
 		         * The ADMtek documentation says that the
@@ -860,10 +888,8 @@ tr_setup:
 			buf[0] = (uint8_t)(m->m_pkthdr.len);
 			buf[1] = (uint8_t)(m->m_pkthdr.len >> 8);
 
-			usbd_copy_in(xfer->frbuffers, 0, buf, 2);
-
-			usbd_m_copy_in(xfer->frbuffers, 2,
-			    m, 0, m->m_pkthdr.len);
+			usbd_copy_in(pc, 0, buf, 2);
+			usbd_m_copy_in(pc, 2, m, 0, m->m_pkthdr.len);
 		}
 
 		/*
@@ -879,13 +905,13 @@ tr_setup:
 
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
-		    usbd_errstr(xfer->error));
+		    usbd_errstr(error));
 
 		ifp->if_oerrors++;
 
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -951,7 +977,7 @@ aue_init(struct usb_ether *ue)
 	AUE_SETBIT(sc, AUE_CTL0, AUE_CTL0_TX_ENB);
 	AUE_SETBIT(sc, AUE_CTL2, AUE_CTL2_EP3_CLR);
 
-	usbd_transfer_set_stall(sc->sc_xfer[AUE_BULK_DT_WR]);
+	usbd_xfer_set_stall(sc->sc_xfer[AUE_BULK_DT_WR]);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	aue_start(ue);

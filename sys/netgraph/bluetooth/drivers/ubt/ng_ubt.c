@@ -92,21 +92,34 @@
  * that this pointer is valid.
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include "usbdevs.h"
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #define	USB_DEBUG_VAR usb_debug
-
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_parse.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
 #include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_transfer.h>
 
 #include <sys/mbuf.h>
 #include <sys/taskqueue.h>
@@ -597,16 +610,20 @@ ubt_detach(device_t dev)
  */
 
 static void
-ubt_ctrl_write_callback(struct usb_xfer *xfer)
+ubt_ctrl_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ubt_softc		*sc = xfer->priv_sc;
+	struct ubt_softc		*sc = usbd_xfer_softc(xfer);
 	struct usb_device_request	req;
 	struct mbuf			*m;
+	struct usb_page_cache		*pc;
+	int				actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		UBT_INFO(sc, "sent %d bytes to control pipe\n", xfer->actlen);
-		UBT_STAT_BYTES_SENT(sc, xfer->actlen);
+		UBT_INFO(sc, "sent %d bytes to control pipe\n", actlen);
+		UBT_STAT_BYTES_SENT(sc, actlen);
 		UBT_STAT_PCKTS_SENT(sc);
 		/* FALLTHROUGH */
 
@@ -631,12 +648,14 @@ send_next:
 			"bmRequestType=0x%02x, wLength=%d\n",
 			req.bmRequestType, UGETW(req.wLength));
 
-		usbd_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-		usbd_m_copy_in(xfer->frbuffers + 1, 0, m, 0, m->m_pkthdr.len);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_in(pc, 0, &req, sizeof(req));
+		pc = usbd_xfer_get_frame(xfer, 1);
+		usbd_m_copy_in(pc, 0, m, 0, m->m_pkthdr.len);
 
-		xfer->frlengths[0] = sizeof(req);
-		xfer->frlengths[1] = m->m_pkthdr.len;
-		xfer->nframes = 2;
+		usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
+		usbd_xfer_set_frame_len(xfer, 1, m->m_pkthdr.len);
+		usbd_xfer_set_frames(xfer, 2);
 
 		NG_FREE_M(m);
 
@@ -644,9 +663,9 @@ send_next:
 		break;
 
 	default: /* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			UBT_WARN(sc, "control transfer failed: %s\n",
-				usbd_errstr(xfer->error));
+				usbd_errstr(error));
 
 			UBT_STAT_OERROR(sc);
 			goto send_next;
@@ -664,11 +683,15 @@ send_next:
  */
 
 static void
-ubt_intr_read_callback(struct usb_xfer *xfer)
+ubt_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ubt_softc	*sc = xfer->priv_sc;
+	struct ubt_softc	*sc = usbd_xfer_softc(xfer);
 	struct mbuf		*m;
 	ng_hci_event_pkt_t	*hdr;
+	struct usb_page_cache	*pc;
+	int			actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	m = NULL;
 
@@ -691,16 +714,16 @@ ubt_intr_read_callback(struct usb_xfer *xfer)
 		*mtod(m, uint8_t *)= NG_HCI_EVENT_PKT;
 		m->m_pkthdr.len = m->m_len = 1;
 
-		if (xfer->actlen > MCLBYTES - 1)
-			xfer->actlen = MCLBYTES - 1;
+		if (actlen > MCLBYTES - 1)
+			actlen = MCLBYTES - 1;
 
-		usbd_copy_out(xfer->frbuffers, 0, mtod(m, uint8_t *) + 1,
-			xfer->actlen);
-		m->m_pkthdr.len += xfer->actlen;
-		m->m_len += xfer->actlen;
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, mtod(m, uint8_t *) + 1, actlen);
+		m->m_pkthdr.len += actlen;
+		m->m_len += actlen;
 
 		UBT_INFO(sc, "got %d bytes from interrupt pipe\n",
-			xfer->actlen);
+			actlen);
 
 		/* Validate packet and send it up the stack */
 		if (m->m_pkthdr.len < sizeof(*hdr)) {
@@ -734,17 +757,17 @@ ubt_intr_read_callback(struct usb_xfer *xfer)
 submit_next:
 		NG_FREE_M(m); /* checks for m != NULL */
 
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		break;
 
 	default: /* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			UBT_WARN(sc, "interrupt transfer failed: %s\n",
-				usbd_errstr(xfer->error));
+				usbd_errstr(error));
 
 			/* Try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto submit_next;
 		}
 			/* transfer cancelled */
@@ -759,12 +782,16 @@ submit_next:
  */
 
 static void
-ubt_bulk_read_callback(struct usb_xfer *xfer)
+ubt_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ubt_softc	*sc = xfer->priv_sc;
+	struct ubt_softc	*sc = usbd_xfer_softc(xfer);
 	struct mbuf		*m;
 	ng_hci_acldata_pkt_t	*hdr;
+	struct usb_page_cache	*pc;
 	uint16_t		len;
+	int			actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	m = NULL;
 
@@ -787,16 +814,16 @@ ubt_bulk_read_callback(struct usb_xfer *xfer)
 		*mtod(m, uint8_t *)= NG_HCI_ACL_DATA_PKT;
 		m->m_pkthdr.len = m->m_len = 1;
 
-		if (xfer->actlen > MCLBYTES - 1)
-			xfer->actlen = MCLBYTES - 1;
+		if (actlen > MCLBYTES - 1)
+			actlen = MCLBYTES - 1;
 
-		usbd_copy_out(xfer->frbuffers, 0, mtod(m, uint8_t *) + 1,
-			xfer->actlen);
-		m->m_pkthdr.len += xfer->actlen;
-		m->m_len += xfer->actlen;
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, mtod(m, uint8_t *) + 1, actlen);
+		m->m_pkthdr.len += actlen;
+		m->m_len += actlen;
 
 		UBT_INFO(sc, "got %d bytes from bulk-in pipe\n",
-			xfer->actlen);
+			actlen);
 
 		/* Validate packet and send it up the stack */
 		if (m->m_pkthdr.len < sizeof(*hdr)) {
@@ -830,17 +857,17 @@ ubt_bulk_read_callback(struct usb_xfer *xfer)
 submit_next:
 		NG_FREE_M(m); /* checks for m != NULL */
 
-		xfer->frlengths[0] = xfer->max_data_length;
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 		usbd_transfer_submit(xfer);
 		break;
 
 	default: /* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			UBT_WARN(sc, "bulk-in transfer failed: %s\n",
-				usbd_errstr(xfer->error));
+				usbd_errstr(error));
 
 			/* Try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto submit_next;
 		}
 			/* transfer cancelled */
@@ -855,15 +882,19 @@ submit_next:
  */
 
 static void
-ubt_bulk_write_callback(struct usb_xfer *xfer)
+ubt_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ubt_softc	*sc = xfer->priv_sc;
+	struct ubt_softc	*sc = usbd_xfer_softc(xfer);
 	struct mbuf		*m;
+	struct usb_page_cache	*pc;
+	int			actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		UBT_INFO(sc, "sent %d bytes to bulk-out pipe\n", xfer->actlen);
-		UBT_STAT_BYTES_SENT(sc, xfer->actlen);
+		UBT_INFO(sc, "sent %d bytes to bulk-out pipe\n", actlen);
+		UBT_STAT_BYTES_SENT(sc, actlen);
 		UBT_STAT_PCKTS_SENT(sc);
 		/* FALLTHROUGH */
 
@@ -884,8 +915,9 @@ send_next:
 		 * and schedule transfer
 		 */
 
-		usbd_m_copy_in(xfer->frbuffers, 0, m, 0, m->m_pkthdr.len);
-		xfer->frlengths[0] = m->m_pkthdr.len;
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_m_copy_in(pc, 0, m, 0, m->m_pkthdr.len);
+		usbd_xfer_set_frame_len(xfer, 0, m->m_pkthdr.len);
 
 		UBT_INFO(sc, "bulk-out transfer has been started, len=%d\n",
 			m->m_pkthdr.len);
@@ -896,14 +928,14 @@ send_next:
 		break;
 
 	default: /* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			UBT_WARN(sc, "bulk-out transfer failed: %s\n",
-				usbd_errstr(xfer->error));
+				usbd_errstr(error));
 
 			UBT_STAT_OERROR(sc);
 
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto send_next;
 		}
 			/* transfer cancelled */
@@ -918,28 +950,32 @@ send_next:
  */
 
 static void
-ubt_isoc_read_callback(struct usb_xfer *xfer)
+ubt_isoc_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ubt_softc	*sc = xfer->priv_sc;
+	struct ubt_softc	*sc = usbd_xfer_softc(xfer);
 	int			n;
+	int actlen, nframes;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, &nframes);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		for (n = 0; n < xfer->nframes; n ++)
+		for (n = 0; n < nframes; n ++)
 			if (ubt_isoc_read_one_frame(xfer, n) < 0)
 				break;
 		/* FALLTHROUGH */
 
 	case USB_ST_SETUP:
 read_next:
-		for (n = 0; n < xfer->nframes; n ++)
-			xfer->frlengths[n] = xfer->max_frame_size;
+		for (n = 0; n < nframes; n ++)
+			usbd_xfer_set_frame_len(xfer, n,
+			    usbd_xfer_max_framelen(xfer));
 
 		usbd_transfer_submit(xfer);
 		break;
 
 	default: /* Error */
-                if (xfer->error != USB_ERR_CANCELLED) {
+                if (error != USB_ERR_CANCELLED) {
                         UBT_STAT_IERROR(sc);
                         goto read_next;
                 }
@@ -958,16 +994,18 @@ read_next:
 static int
 ubt_isoc_read_one_frame(struct usb_xfer *xfer, int frame_no)
 {
-	struct ubt_softc	*sc = xfer->priv_sc;
+	struct ubt_softc	*sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache	*pc;
 	struct mbuf		*m;
-	int			len, want, got;
+	int			len, want, got, total;
 
 	/* Get existing SCO reassembly buffer */
+	pc = usbd_xfer_get_frame(xfer, 0);
 	m = sc->sc_isoc_in_buffer;
-	sc->sc_isoc_in_buffer = NULL;
+	total = usbd_xfer_get_framelen(xfer, frame_no);
 
 	/* While we have data in the frame */
-	while ((len = xfer->frlengths[frame_no]) > 0) {
+	while (total > 0) {
 		if (m == NULL) {
 			/* Start new reassembly buffer */
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
@@ -1000,15 +1038,16 @@ ubt_isoc_read_one_frame(struct usb_xfer *xfer, int frame_no)
 		}
 
 		/* Append frame data to the SCO reassembly buffer */
+		len = total;
 		if (got + len > want)
 			len = want - got;
 
-		usbd_copy_out(xfer->frbuffers, frame_no * xfer->max_frame_size,
+		usbd_copy_out(pc, frame_no * usbd_xfer_max_framelen(xfer),
 			mtod(m, uint8_t *) + m->m_pkthdr.len, len);
 
 		m->m_pkthdr.len += len;
 		m->m_len += len;
-		xfer->frlengths[frame_no] -= len;
+		total -= len;
 
 		/* Check if we got everything we wanted, if not - continue */
 		if (got != want)
@@ -1039,23 +1078,28 @@ ubt_isoc_read_one_frame(struct usb_xfer *xfer, int frame_no)
  */
 
 static void
-ubt_isoc_write_callback(struct usb_xfer *xfer)
+ubt_isoc_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ubt_softc	*sc = xfer->priv_sc;
+	struct ubt_softc	*sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache	*pc;
 	struct mbuf		*m;
 	int			n, space, offset;
+	int			actlen, nframes;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, &nframes);
+	pc = usbd_xfer_get_frame(xfer, 0);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		UBT_INFO(sc, "sent %d bytes to isoc-out pipe\n", xfer->actlen);
-		UBT_STAT_BYTES_SENT(sc, xfer->actlen);
+		UBT_INFO(sc, "sent %d bytes to isoc-out pipe\n", actlen);
+		UBT_STAT_BYTES_SENT(sc, actlen);
 		UBT_STAT_PCKTS_SENT(sc);
 		/* FALLTHROUGH */
 
 	case USB_ST_SETUP:
 send_next:
 		offset = 0;
-		space = xfer->max_frame_size * xfer->nframes;
+		space = usbd_xfer_max_framelen(xfer) * nframes;
 		m = NULL;
 
 		while (space > 0) {
@@ -1070,7 +1114,7 @@ send_next:
 
 			n = min(space, m->m_pkthdr.len);
 			if (n > 0) {
-				usbd_m_copy_in(xfer->frbuffers, offset, m,0, n);
+				usbd_m_copy_in(pc, offset, m,0, n);
 				m_adj(m, n);
 
 				offset += n;
@@ -1096,16 +1140,17 @@ send_next:
 		 * would be just empty isoc. transfer.
 		 */
 
-		for (n = 0; n < xfer->nframes; n ++) {
-			xfer->frlengths[n] = min(offset, xfer->max_frame_size);
-			offset -= xfer->frlengths[n];
+		for (n = 0; n < nframes; n ++) {
+			usbd_xfer_set_frame_len(xfer, n,
+			    min(offset, usbd_xfer_max_framelen(xfer)));
+			offset -= usbd_xfer_get_framelen(xfer, n);
 		}
 
 		usbd_transfer_submit(xfer);
 		break;
 
 	default: /* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			UBT_STAT_OERROR(sc);
 			goto send_next;
 		}

@@ -24,16 +24,38 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_mfunc.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_ioctl.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #define	USB_DEBUG_VAR ugen_debug
 
 #include <dev/usb/usb_core.h>
-#include <dev/usb/usb_mbuf.h>
 #include <dev/usb/usb_dev.h>
+#include <dev/usb/usb_mbuf.h>
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_debug.h>
@@ -102,7 +124,7 @@ struct usb_fifo_methods usb_ugen_methods = {
 	.f_stop_write = &ugen_stop_io,
 };
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int ugen_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
@@ -117,7 +139,7 @@ static int
 ugen_transfer_setup(struct usb_fifo *f,
     const struct usb_config *setup, uint8_t n_setup)
 {
-	struct usb_endpoint *ep = f->priv_sc0;
+	struct usb_endpoint *ep = usb_fifo_softc(f);
 	struct usb_device *udev = f->udev;
 	uint8_t iface_index = ep->iface_index;
 	int error;
@@ -152,7 +174,7 @@ ugen_transfer_setup(struct usb_fifo *f,
 static int
 ugen_open(struct usb_fifo *f, int fflags)
 {
-	struct usb_endpoint *ep = f->priv_sc0;
+	struct usb_endpoint *ep = usb_fifo_softc(f);
 	struct usb_endpoint_descriptor *ed = ep->edesc;
 	uint8_t type;
 
@@ -208,7 +230,7 @@ static int
 ugen_open_pipe_write(struct usb_fifo *f)
 {
 	struct usb_config usb_config[2];
-	struct usb_endpoint *ep = f->priv_sc0;
+	struct usb_endpoint *ep = usb_fifo_softc(f);
 	struct usb_endpoint_descriptor *ed = ep->edesc;
 
 	mtx_assert(f->priv_mtx, MA_OWNED);
@@ -276,7 +298,7 @@ static int
 ugen_open_pipe_read(struct usb_fifo *f)
 {
 	struct usb_config usb_config[2];
-	struct usb_endpoint *ep = f->priv_sc0;
+	struct usb_endpoint *ep = usb_fifo_softc(f);
 	struct usb_endpoint_descriptor *ed = ep->edesc;
 
 	mtx_assert(f->priv_mtx, MA_OWNED);
@@ -377,9 +399,9 @@ ugen_stop_io(struct usb_fifo *f)
 }
 
 static void
-ugen_default_read_callback(struct usb_xfer *xfer)
+ugen_default_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_fifo *f = xfer->priv_sc;
+	struct usb_fifo *f = usbd_xfer_softc(xfer);
 	struct usb_mbuf *m;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
@@ -411,7 +433,7 @@ ugen_default_read_callback(struct usb_xfer *xfer)
 		}
 		USB_IF_POLL(&f->free_q, m);
 		if (m) {
-			xfer->frlengths[0] = xfer->max_data_length;
+			usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
 			usbd_transfer_submit(xfer);
 		}
 		break;
@@ -429,9 +451,9 @@ ugen_default_read_callback(struct usb_xfer *xfer)
 }
 
 static void
-ugen_default_write_callback(struct usb_xfer *xfer)
+ugen_default_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_fifo *f = xfer->priv_sc;
+	struct usb_fifo *f = usbd_xfer_softc(xfer);
 	usb_frlength_t actlen;
 
 	DPRINTFN(4, "actlen=%u, aframes=%u\n", xfer->actlen, xfer->aframes);
@@ -452,7 +474,7 @@ ugen_default_write_callback(struct usb_xfer *xfer)
 		 */
 		if (usb_fifo_get_data(f, xfer->frbuffers, 0,
 		    xfer->max_data_length, &actlen, 0)) {
-			xfer->frlengths[0] = actlen;
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
 			usbd_transfer_submit(xfer);
 		}
 		break;
@@ -467,9 +489,9 @@ ugen_default_write_callback(struct usb_xfer *xfer)
 }
 
 static void
-ugen_read_clear_stall_callback(struct usb_xfer *xfer)
+ugen_read_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_fifo *f = xfer->priv_sc;
+	struct usb_fifo *f = usbd_xfer_softc(xfer);
 	struct usb_xfer *xfer_other = f->xfer[0];
 
 	if (f->flag_stall == 0) {
@@ -484,9 +506,9 @@ ugen_read_clear_stall_callback(struct usb_xfer *xfer)
 }
 
 static void
-ugen_write_clear_stall_callback(struct usb_xfer *xfer)
+ugen_write_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_fifo *f = xfer->priv_sc;
+	struct usb_fifo *f = usbd_xfer_softc(xfer);
 	struct usb_xfer *xfer_other = f->xfer[0];
 
 	if (f->flag_stall == 0) {
@@ -501,9 +523,9 @@ ugen_write_clear_stall_callback(struct usb_xfer *xfer)
 }
 
 static void
-ugen_isoc_read_callback(struct usb_xfer *xfer)
+ugen_isoc_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_fifo *f = xfer->priv_sc;
+	struct usb_fifo *f = usbd_xfer_softc(xfer);
 	usb_frlength_t offset;
 	usb_frcount_t n;
 
@@ -526,7 +548,7 @@ ugen_isoc_read_callback(struct usb_xfer *xfer)
 tr_setup:
 		for (n = 0; n != xfer->nframes; n++) {
 			/* setup size for next transfer */
-			xfer->frlengths[n] = xfer->max_frame_size;
+			usbd_xfer_set_frame_len(xfer, n, xfer->max_frame_size);
 		}
 		usbd_transfer_submit(xfer);
 		break;
@@ -540,9 +562,9 @@ tr_setup:
 }
 
 static void
-ugen_isoc_write_callback(struct usb_xfer *xfer)
+ugen_isoc_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_fifo *f = xfer->priv_sc;
+	struct usb_fifo *f = usbd_xfer_softc(xfer);
 	usb_frlength_t actlen;
 	usb_frlength_t offset;
 	usb_frcount_t n;
@@ -557,7 +579,7 @@ tr_setup:
 		for (n = 0; n != xfer->nframes; n++) {
 			if (usb_fifo_get_data(f, xfer->frbuffers, offset,
 			    xfer->max_frame_size, &actlen, 1)) {
-				xfer->frlengths[n] = actlen;
+				usbd_xfer_set_frame_len(xfer, n, actlen);
 				offset += actlen;
 			} else {
 				break;
@@ -566,7 +588,7 @@ tr_setup:
 
 		for (; n != xfer->nframes; n++) {
 			/* fill in zero frames */
-			xfer->frlengths[n] = 0;
+			usbd_xfer_set_frame_len(xfer, n, 0);
 		}
 		usbd_transfer_submit(xfer);
 		break;
@@ -1059,7 +1081,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 		return (error);
 	}
 	/* reset first frame */
-	usbd_set_frame_offset(xfer, 0, 0);
+	usbd_xfer_set_frame_offset(xfer, 0, 0);
 
 	if (xfer->flags_int.control_xfr) {
 
@@ -1084,7 +1106,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 			xfer->error = USB_ERR_INVAL;
 			goto complete;
 		}
-		xfer->frlengths[0] = length;
+		usbd_xfer_set_frame_len(xfer, 0, length);
 
 		/* Host mode only ! */
 		if ((req->bmRequestType &
@@ -1107,7 +1129,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 		offset = 0;
 	}
 
-	rem = xfer->max_data_length;
+	rem = usbd_xfer_max_len(xfer);
 	xfer->nframes = fs_ep.nFrames;
 	xfer->timeout = fs_ep.timeout;
 	if (xfer->timeout > 65535) {
@@ -1129,7 +1151,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 		xfer->flags.force_short_xfer = 0;
 
 	if (fs_ep.flags & USB_FS_FLAG_CLEAR_STALL)
-		xfer->flags.stall_pipe = 1;
+		usbd_xfer_set_stall(xfer);
 	else
 		xfer->flags.stall_pipe = 0;
 
@@ -1140,7 +1162,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 		if (error) {
 			break;
 		}
-		xfer->frlengths[n] = length;
+		usbd_xfer_set_frame_len(xfer, n, length);
 
 		if (length > rem) {
 			xfer->error = USB_ERR_INVAL;
@@ -1162,7 +1184,7 @@ ugen_fs_copy_in(struct usb_fifo *f, uint8_t ep_index)
 				kaddr = USB_ADD_BYTES(kaddr, offset);
 			} else {
 				/* set current frame offset */
-				usbd_set_frame_offset(xfer, offset, n);
+				usbd_xfer_set_frame_offset(xfer, offset, n);
 
 				/* get kernel buffer address */
 				kaddr = xfer->frbuffers[n].buffer;
@@ -1252,7 +1274,7 @@ ugen_fs_copy_out(struct usb_fifo *f, uint8_t ep_index)
 
 	/* Update lengths and copy out data */
 
-	rem = xfer->max_data_length;
+	rem = usbd_xfer_max_len(xfer);
 	offset = 0;
 
 	for (; n != xfer->nframes; n++) {
@@ -1660,7 +1682,7 @@ ugen_get_endpoint_desc(struct usb_fifo *f,
 {
 	struct usb_endpoint *ep;
 
-	ep = f->priv_sc0;
+	ep = usb_fifo_softc(f);
 
 	if (ep && ep->edesc) {
 		*ed = *ep->edesc;
@@ -2162,7 +2184,7 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 }
 
 static void
-ugen_default_fs_callback(struct usb_xfer *xfer)
+ugen_default_fs_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	;				/* workaround for a bug in "indent" */
 

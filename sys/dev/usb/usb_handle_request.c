@@ -24,9 +24,29 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include "usb_if.h"
 
 #define	USB_DEBUG_VAR usb_debug
 
@@ -61,7 +81,7 @@ static usb_error_t	 usb_handle_iface_request(struct usb_xfer *, void **,
  * transfers.
  *------------------------------------------------------------------------*/
 void
-usb_handle_request_callback(struct usb_xfer *xfer)
+usb_handle_request_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	usb_error_t err;
 
@@ -105,11 +125,11 @@ tr_restart:
 	 * If a control transfer is active, stall it, and wait for the
 	 * next control transfer.
 	 */
-	xfer->frlengths[0] = sizeof(struct usb_device_request);
+	usbd_xfer_set_frame_len(xfer, 0, sizeof(struct usb_device_request));
 	xfer->nframes = 1;
 	xfer->flags.manual_status = 1;
 	xfer->flags.force_short_xfer = 0;
-	xfer->flags.stall_pipe = 1;	/* cancel previous transfer, if any */
+	usbd_xfer_set_stall(xfer);	/* cancel previous transfer, if any */
 	usbd_transfer_submit(xfer);
 }
 
@@ -458,10 +478,10 @@ usb_handle_request(struct usb_xfer *xfer)
 
 	/* reset frame stuff */
 
-	xfer->frlengths[0] = 0;
+	usbd_xfer_set_frame_len(xfer, 0, 0);
 
-	usbd_set_frame_offset(xfer, 0, 0);
-	usbd_set_frame_offset(xfer, sizeof(req), 1);
+	usbd_xfer_set_frame_offset(xfer, 0, 0);
+	usbd_xfer_set_frame_offset(xfer, sizeof(req), 1);
 
 	/* get the current request, if any */
 
@@ -702,7 +722,7 @@ tr_valid:
 	/* Compute the real maximum data length */
 
 	if (max_len > xfer->max_data_length) {
-		max_len = xfer->max_data_length;
+		max_len = usbd_xfer_max_len(xfer);
 	}
 	if (max_len > rem) {
 		max_len = rem;
@@ -713,7 +733,7 @@ tr_valid:
 	 * comparison below:
 	 */
 	if (rem > xfer->max_data_length) {
-		rem = xfer->max_data_length;
+		rem = usbd_xfer_max_len(xfer);
 	}
 	if (rem != max_len) {
 		/*
@@ -734,15 +754,15 @@ tr_valid:
 			src_mcopy = USB_ADD_BYTES(src_mcopy, off);
 			usbd_copy_in(xfer->frbuffers + 1, 0,
 			    src_mcopy, max_len);
+			usbd_xfer_set_frame_len(xfer, 1, max_len);
 		} else {
-			usbd_set_frame_data(xfer,
-			    USB_ADD_BYTES(src_zcopy, off), 1);
+			usbd_xfer_set_frame_data(xfer, 1,
+			    USB_ADD_BYTES(src_zcopy, off), max_len);
 		}
-		xfer->frlengths[1] = max_len;
 	} else {
 		/* the end is reached, send status */
 		xfer->flags.manual_status = 0;
-		xfer->frlengths[1] = 0;
+		usbd_xfer_set_frame_len(xfer, 1, 0);
 	}
 	DPRINTF("success\n");
 	return (0);			/* success */
