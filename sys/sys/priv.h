@@ -283,6 +283,14 @@
 #define	PRIV_VM_MADV_PROTECT	360	/* Can set MADV_PROTECT. */
 #define	PRIV_VM_MLOCK		361	/* Can mlock(), mlockall(). */
 #define	PRIV_VM_MUNLOCK		362	/* Can munlock(), munlockall(). */
+#define	PRIV_VM_SWAP_NOQUOTA	363	/*
+					 * Can override the global
+					 * swap reservation limits.
+					 */
+#define	PRIV_VM_SWAP_NORLIMIT	364	/*
+					 * Can override the per-uid
+					 * swap reservation limits.
+					 */
 
 /*
  * Device file system privileges.

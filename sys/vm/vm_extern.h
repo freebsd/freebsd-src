@@ -63,7 +63,7 @@ void vm_waitproc(struct proc *);
 int vm_mmap(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, objtype_t, void *, vm_ooffset_t);
 void vm_set_page_size(void);
 struct vmspace *vmspace_alloc(vm_offset_t, vm_offset_t);
-struct vmspace *vmspace_fork(struct vmspace *);
+struct vmspace *vmspace_fork(struct vmspace *, vm_ooffset_t *);
 int vmspace_exec(struct proc *, vm_offset_t, vm_offset_t);
 int vmspace_unshare(struct proc *);
 void vmspace_exit(struct thread *);

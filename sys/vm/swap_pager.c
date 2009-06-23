@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/blist.h>
@@ -152,6 +154,127 @@ static int nswapdev;		/* Number of swap devices */
 int swap_pager_avail;
 static int swdev_syscall_active = 0; /* serialize swap(on|off) */
 
+static vm_ooffset_t swap_total;
+SYSCTL_QUAD(_vm, OID_AUTO, swap_total, CTLFLAG_RD, &swap_total, 0, "");
+static vm_ooffset_t swap_reserved;
+SYSCTL_QUAD(_vm, OID_AUTO, swap_reserved, CTLFLAG_RD, &swap_reserved, 0, "");
+static int overcommit = 0;
+SYSCTL_INT(_vm, OID_AUTO, overcommit, CTLFLAG_RW, &overcommit, 0, "");
+
+/* bits from overcommit */
+#define	SWAP_RESERVE_FORCE_ON		(1 << 0)
+#define	SWAP_RESERVE_RLIMIT_ON		(1 << 1)
+#define	SWAP_RESERVE_ALLOW_NONWIRED	(1 << 2)
+
+int
+swap_reserve(vm_ooffset_t incr)
+{
+
+	return (swap_reserve_by_uid(incr, curthread->td_ucred->cr_ruidinfo));
+}
+
+int
+swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip)
+{
+	vm_ooffset_t r, s, max;
+	int res, error;
+	static int curfail;
+	static struct timeval lastfail;
+
+	if (incr & PAGE_MASK)
+		panic("swap_reserve: & PAGE_MASK");
+
+	res = 0;
+	error = priv_check(curthread, PRIV_VM_SWAP_NOQUOTA);
+	mtx_lock(&sw_dev_mtx);
+	r = swap_reserved + incr;
+	if (overcommit & SWAP_RESERVE_ALLOW_NONWIRED) {
+		s = cnt.v_page_count - cnt.v_free_reserved - cnt.v_wire_count;
+		s *= PAGE_SIZE;
+	} else
+		s = 0;
+	s += swap_total;
+	if ((overcommit & SWAP_RESERVE_FORCE_ON) == 0 || r <= s ||
+	    (error = priv_check(curthread, PRIV_VM_SWAP_NOQUOTA)) == 0) {
+		res = 1;
+		swap_reserved = r;
+	}
+	mtx_unlock(&sw_dev_mtx);
+
+	if (res) {
+		PROC_LOCK(curproc);
+		UIDINFO_VMSIZE_LOCK(uip);
+		error = priv_check(curthread, PRIV_VM_SWAP_NORLIMIT);
+		max = (error != 0) ? lim_cur(curproc, RLIMIT_SWAP) : 0;
+		if (max != 0 && uip->ui_vmsize + incr > max &&
+		    (overcommit & SWAP_RESERVE_RLIMIT_ON) != 0)
+			res = 0;
+		else
+			uip->ui_vmsize += incr;
+		UIDINFO_VMSIZE_UNLOCK(uip);
+		PROC_UNLOCK(curproc);
+		if (!res) {
+			mtx_lock(&sw_dev_mtx);
+			swap_reserved -= incr;
+			mtx_unlock(&sw_dev_mtx);
+		}
+	}
+	if (!res && ppsratecheck(&lastfail, &curfail, 1)) {
+		printf("uid %d, pid %d: swap reservation for %jd bytes failed\n",
+		    curproc->p_pid, uip->ui_uid, incr);
+	}
+
+	return (res);
+}
+
+void
+swap_reserve_force(vm_ooffset_t incr)
+{
+	struct uidinfo *uip;
+
+	mtx_lock(&sw_dev_mtx);
+	swap_reserved += incr;
+	mtx_unlock(&sw_dev_mtx);
+
+	uip = curthread->td_ucred->cr_ruidinfo;
+	PROC_LOCK(curproc);
+	UIDINFO_VMSIZE_LOCK(uip);
+	uip->ui_vmsize += incr;
+	UIDINFO_VMSIZE_UNLOCK(uip);
+	PROC_UNLOCK(curproc);
+}
+
+void
+swap_release(vm_ooffset_t decr)
+{
+	struct uidinfo *uip;
+
+	PROC_LOCK(curproc);
+	uip = curthread->td_ucred->cr_ruidinfo;
+	swap_release_by_uid(decr, uip);
+	PROC_UNLOCK(curproc);
+}
+
+void
+swap_release_by_uid(vm_ooffset_t decr, struct uidinfo *uip)
+{
+
+	if (decr & PAGE_MASK)
+		panic("swap_release: & PAGE_MASK");
+
+	mtx_lock(&sw_dev_mtx);
+	if (swap_reserved < decr)
+		panic("swap_reserved < decr");
+	swap_reserved -= decr;
+	mtx_unlock(&sw_dev_mtx);
+
+	UIDINFO_VMSIZE_LOCK(uip);
+	if (uip->ui_vmsize < decr)
+		printf("negative vmsize for uid = %d\n", uip->ui_uid);
+	uip->ui_vmsize -= decr;
+	UIDINFO_VMSIZE_UNLOCK(uip);
+}
+
 static void swapdev_strategy(struct buf *, struct swdevt *sw);
 
 #define SWM_FREE	0x02	/* free, period			*/
@@ -198,7 +321,7 @@ static struct vm_object	swap_zone_obj;
  */
 static vm_object_t
 		swap_pager_alloc(void *handle, vm_ooffset_t size,
-				      vm_prot_t prot, vm_ooffset_t offset);
+		    vm_prot_t prot, vm_ooffset_t offset, struct ucred *);
 static void	swap_pager_dealloc(vm_object_t object);
 static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int);
 static void	swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
@@ -440,13 +563,13 @@ swap_pager_swap_init(void)
  */
 static vm_object_t
 swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
-		 vm_ooffset_t offset)
+    vm_ooffset_t offset, struct ucred *cred)
 {
 	vm_object_t object;
 	vm_pindex_t pindex;
+	struct uidinfo *uip;
 
 	pindex = OFF_TO_IDX(offset + PAGE_MASK + size);
-
 	if (handle) {
 		mtx_lock(&Giant);
 		/*
@@ -457,21 +580,41 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 */
 		sx_xlock(&sw_alloc_sx);
 		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
-
 		if (object == NULL) {
+			if (cred != NULL) {
+				uip = cred->cr_ruidinfo;
+				if (!swap_reserve_by_uid(size, uip)) {
+					sx_xunlock(&sw_alloc_sx);
+					mtx_unlock(&Giant);
+					return (NULL);
+				}
+				uihold(uip);
+			}
 			object = vm_object_allocate(OBJT_DEFAULT, pindex);
-			object->handle = handle;
-
 			VM_OBJECT_LOCK(object);
+			object->handle = handle;
+			if (cred != NULL) {
+				object->uip = uip;
+				object->charge = size;
+			}
 			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
 			VM_OBJECT_UNLOCK(object);
 		}
 		sx_xunlock(&sw_alloc_sx);
 		mtx_unlock(&Giant);
 	} else {
+		if (cred != NULL) {
+			uip = cred->cr_ruidinfo;
+			if (!swap_reserve_by_uid(size, uip))
+				return (NULL);
+			uihold(uip);
+		}
 		object = vm_object_allocate(OBJT_DEFAULT, pindex);
-
 		VM_OBJECT_LOCK(object);
+		if (cred != NULL) {
+			object->uip = uip;
+			object->charge = size;
+		}
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
 		VM_OBJECT_UNLOCK(object);
 	}
@@ -2039,6 +2182,7 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	TAILQ_INSERT_TAIL(&swtailq, sp, sw_list);
 	nswapdev++;
 	swap_pager_avail += nblks;
+	swap_total += (vm_ooffset_t)nblks * PAGE_SIZE;
 	swp_sizecheck();
 	mtx_unlock(&sw_dev_mtx);
 }
@@ -2143,6 +2287,7 @@ swapoff_one(struct swdevt *sp, struct ucred *cred)
 		swap_pager_avail -= blist_fill(sp->sw_blist,
 		     dvbase, dmmax);
 	}
+	swap_total -= (vm_ooffset_t)nblks * PAGE_SIZE;
 	mtx_unlock(&sw_dev_mtx);
 
 	/*
