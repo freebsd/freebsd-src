@@ -253,6 +253,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	return -1;
 
 found:
+	IF_ADDR_LOCK_ASSERT(ifp);
 	addr = LLADDR(sdl);
 	addrlen = sdl->sdl_alen;
 
@@ -513,6 +514,7 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 		/* NOTREACHED */
 	}
 #endif
+	ifa_free(&ia->ia_ifa);
 
 	/*
 	 * Make the link-local prefix (fe80::%link/64) as on-link.
@@ -737,11 +739,15 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	 * XXX multiple loopback interface case.
 	 */
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
+		struct ifaddr *ifa;
+
 		in6 = in6addr_loopback;
-		if (in6ifa_ifpwithaddr(ifp, &in6) == NULL) {
+		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &in6);
+		if (ifa == NULL) {
 			if (in6_ifattach_loopback(ifp) != 0)
 				return;
-		}
+		} else
+			ifa_free(ifa);
 	}
 
 	/*
@@ -755,7 +761,8 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 			} else {
 				/* failed to assign linklocal address. bark? */
 			}
-		}
+		} else
+			ifa_free(&ia->ia_ifa);
 	}
 
 #ifdef IFT_STF			/* XXX */

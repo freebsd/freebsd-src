@@ -146,14 +146,16 @@ do { \
  * Macro for finding the internet address structure (in_ifaddr) corresponding
  * to a given interface (ifnet structure).
  */
-#define IFP_TO_IA(ifp, ia) \
-	/* struct ifnet *ifp; */ \
-	/* struct in_ifaddr *ia; */ \
-{ \
-	for ((ia) = TAILQ_FIRST(&V_in_ifaddrhead); \
-	    (ia) != NULL && (ia)->ia_ifp != (ifp); \
-	    (ia) = TAILQ_NEXT((ia), ia_link)) \
-		continue; \
+#define IFP_TO_IA(ifp, ia)						\
+	/* struct ifnet *ifp; */					\
+	/* struct in_ifaddr *ia; */					\
+{									\
+	for ((ia) = TAILQ_FIRST(&V_in_ifaddrhead);			\
+	    (ia) != NULL && (ia)->ia_ifp != (ifp);			\
+	    (ia) = TAILQ_NEXT((ia), ia_link))				\
+		continue;						\
+	if ((ia) != NULL)						\
+		ifa_ref(&(ia)->ia_ifa);					\
 }
 #endif
 

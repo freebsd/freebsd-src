@@ -904,6 +904,7 @@ passout:
 			/* Record statistics for this interface address. */
 			ia6->ia_ifa.if_opackets++;
 			ia6->ia_ifa.if_obytes += m->m_pkthdr.len;
+			ifa_free(&ia6->ia_ifa);
 		}
 		error = nd6_output(ifp, origifp, m, dst, ro->ro_rt);
 		goto done;
