@@ -64,6 +64,7 @@ static struct login_res {
     { "sbsize",          login_getcapsize, RLIMIT_SBSIZE  },
     { "vmemoryuse",      login_getcapsize, RLIMIT_VMEM    },
     { "pseudoterminals", login_getcapnum,  RLIMIT_NPTS    },
+    { "swapuse",         login_getcapsize, RLIMIT_SWAP    },
     { NULL,              0,                0              }
 };
 
