@@ -472,7 +472,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *file_pr
 			    !dev->irq_enabled))
 				ret = mtx_sleep(&dev->vblank[crtc].queue,
 				    &dev->irq_lock, PCATCH, "vblwtq",
-				    3 * DRM_HZ);
+				    DRM_HZ);
 			mtx_unlock(&dev->irq_lock);
 		}
 
