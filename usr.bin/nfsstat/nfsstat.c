@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -77,10 +77,10 @@ static const char rcsid[] =
 
 struct nlist nl[] = {
 #define	N_NFSSTAT	0
-	{ "nfsstats" },
+	{ .n_name = "nfsstats" },
 #define	N_NFSRVSTAT	1
-	{ "nfsrvstats" },
-	"",
+	{ .n_name = "nfsrvstats" },
+	{ .n_name = NULL },
 };
 kvm_t *kd;
 
@@ -198,7 +198,7 @@ main(int argc, char **argv)
  * Read the nfs stats using sysctl(3) for live kernels, or kvm_read
  * for dead ones.
  */
-void
+static void
 readstats(struct nfsstats **stp, struct nfsrvstats **srvstp, int zero)
 {
 	union {
