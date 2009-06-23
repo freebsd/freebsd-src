@@ -89,6 +89,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf_ring.h>
 #endif
 
+#include "opt_inet.h"
+
 /* tunable params */
 static int mxge_nvidia_ecrc_enable = 1;
 static int mxge_force_firmware = 0;
@@ -2408,10 +2410,13 @@ mxge_rx_csum(struct mbuf *m, int csum)
 	if (__predict_false(ip->ip_p != IPPROTO_TCP &&
 			    ip->ip_p != IPPROTO_UDP))
 		return 1;
-
+#ifdef INET
 	c = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		      htonl(ntohs(csum) + ntohs(ip->ip_len) +
 			    - (ip->ip_hl << 2) + ip->ip_p));
+#else
+	c = 1;
+#endif
 	c ^= 0xffff;
 	return (c);
 }
@@ -2607,7 +2612,6 @@ static inline void
 mxge_clean_rx_done(struct mxge_slice_state *ss)
 {
 	mxge_rx_done_t *rx_done = &ss->rx_done;
-	struct lro_entry *lro;
 	int limit = 0;
 	uint16_t length;
 	uint16_t checksum;
@@ -2628,11 +2632,13 @@ mxge_clean_rx_done(struct mxge_slice_state *ss)
 		if (__predict_false(++limit > rx_done->mask / 2))
 			break;
 	}
+#ifdef INET
 	while (!SLIST_EMPTY(&ss->lro_active)) {
-		lro = SLIST_FIRST(&ss->lro_active);
+		struct lro_entry *lro = SLIST_FIRST(&ss->lro_active);
 		SLIST_REMOVE_HEAD(&ss->lro_active, next);
 		mxge_lro_flush(ss, lro);
 	}
+#endif
 }
 
 
@@ -4529,7 +4535,10 @@ mxge_attach(device_t dev)
 
 	ifp->if_baudrate = IF_Gbps(10UL);
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
-		IFCAP_VLAN_MTU | IFCAP_LRO;
+		IFCAP_VLAN_MTU;
+#ifdef INET
+	ifp->if_capabilities |= IFCAP_LRO;
+#endif
 
 #ifdef MXGE_NEW_VLAN_API
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
