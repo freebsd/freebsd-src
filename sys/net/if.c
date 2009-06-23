@@ -1727,7 +1727,6 @@ done:
 	return (ifa);
 }
 
-#include <net/route.h>
 #include <net/if_llatbl.h>
 
 /*
