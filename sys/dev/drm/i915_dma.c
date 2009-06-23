@@ -439,8 +439,7 @@ static void i915_emit_breadcrumb(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
 
-	dev_priv->counter++;
-	if (dev_priv->counter > 0x7FFFFFFFUL)
+	if (++dev_priv->counter > 0x7FFFFFFFUL)
 		dev_priv->counter = 0;
 	if (dev_priv->sarea_priv)
 		dev_priv->sarea_priv->last_enqueue = dev_priv->counter;
@@ -574,7 +573,10 @@ static int i915_dispatch_flip(struct drm_device * dev)
 	OUT_RING(0);
 	ADVANCE_LP_RING();
 
-	dev_priv->sarea_priv->last_enqueue = dev_priv->counter++;
+	if (++dev_priv->counter > 0x7FFFFFFFUL)
+		dev_priv->counter = 0;
+	if (dev_priv->sarea_priv)
+		dev_priv->sarea_priv->last_enqueue = dev_priv->counter;
 
 	BEGIN_LP_RING(4);
 	OUT_RING(MI_STORE_DWORD_INDEX);
