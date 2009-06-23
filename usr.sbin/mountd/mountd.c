@@ -1414,8 +1414,20 @@ get_exportlist_one()
 		/*
 		 * For V4: don't enter in mount lists.
 		 */
-		if (v4root_phase > 0 && v4root_phase <= 2)
+		if (v4root_phase > 0 && v4root_phase <= 2) {
+			/*
+			 * Since these structures aren't used by mountd,
+			 * free them up now.
+			 */
+			if (ep != NULL)
+				free_exp(ep);
+			while (tgrp != NULL) {
+				grp = tgrp;
+				tgrp = tgrp->gr_next;
+				free_grp(grp);
+			}
 			goto nextline;
+		}
 
 		/*
 		 * Success. Update the data structures.
