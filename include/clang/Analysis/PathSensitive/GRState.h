@@ -530,21 +530,6 @@ public:
   
 private:
 
-  // Methods that query & manipulate the Environment.  
-  SVal GetSVal(const GRState* St, const Stmt* Ex) {
-    return St->getEnvironment().GetSVal(Ex, ValueMgr);
-  }
-  
-  SVal GetSValAsScalarOrLoc(const GRState* state, const Stmt *S) {
-    if (const Expr *Ex = dyn_cast<Expr>(S)) {
-      QualType T = Ex->getType();
-      if (Loc::IsLocType(T) || T->isIntegerType())
-        return GetSVal(state, S);
-    }
-    
-    return UnknownVal();
-  }
-
   SVal GetBlkExprSVal(const GRState* St, const Stmt* Ex) {
     return St->getEnvironment().GetBlkExprSVal(Ex, ValueMgr);
   }
@@ -589,20 +574,10 @@ public:
   // Methods that manipulate the GDM.
   const GRState* addGDM(const GRState* St, void* Key, void* Data);
   
-  // Methods that query or create regions.
-  bool hasStackStorage(const MemRegion* R) {
-    return getRegionManager().hasStackStorage(R);
-  }
-  
   // Methods that query & manipulate the Store.
 
   void iterBindings(const GRState* state, StoreManager::BindingsHandler& F) {
     StoreMgr->iterBindings(state->getStore(), F);
-  }
-    
-  
-  SVal GetSVal(const GRState* state, Loc LV, QualType T = QualType()) {
-    return StoreMgr->Retrieve(state, LV, T);
   }
   
   SVal GetSVal(const GRState* state, const MemRegion* R) {
@@ -781,19 +756,25 @@ inline const llvm::APSInt *GRState::getSymVal(SymbolRef sym) const {
 }
   
 inline SVal GRState::getSVal(const Stmt* Ex) const {
-  return Mgr->GetSVal(this, Ex);
+  return getEnvironment().GetSVal(Ex, Mgr->ValueMgr);
 }
 
 inline SVal GRState::getBlkExprSVal(const Stmt* Ex) const {  
   return Mgr->GetBlkExprSVal(this, Ex);
 }
 
-inline SVal GRState::getSValAsScalarOrLoc(const Stmt *Ex) const {
-  return Mgr->GetSValAsScalarOrLoc(this, Ex);
+inline SVal GRState::getSValAsScalarOrLoc(const Stmt *S) const {
+  if (const Expr *Ex = dyn_cast<Expr>(S)) {
+    QualType T = Ex->getType();
+    if (Loc::IsLocType(T) || T->isIntegerType())
+      return getSVal(S);
+  }
+    
+  return UnknownVal();
 }
 
 inline SVal GRState::getSVal(Loc LV, QualType T) const {
-  return Mgr->GetSVal(this, LV, T);
+  return Mgr->StoreMgr->Retrieve(this, LV, T);
 }
 
 inline SVal GRState::getSVal(const MemRegion* R) const {

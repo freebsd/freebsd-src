@@ -33,7 +33,7 @@ namespace llvm { class raw_ostream; }
 namespace clang {
  
 class MemRegionManager;
-  
+class MemSpaceRegion;  
       
 /// MemRegion - The root abstract class for all memory regions.
 class MemRegion : public llvm::FoldingSetNode {
@@ -68,6 +68,14 @@ public:
   virtual MemRegionManager* getMemRegionManager() const = 0;
 
   std::string getString() const;
+  
+  const MemSpaceRegion *getMemorySpace() const;
+    
+  bool hasStackStorage() const;
+  
+  bool hasHeapStorage() const;
+  
+  bool hasHeapOrStackStorage() const;
 
   virtual void print(llvm::raw_ostream& os) const;  
   
@@ -668,10 +676,6 @@ public:
     assert(R);
     return R == globals; 
   }
-
-  bool hasStackStorage(const MemRegion* R);
-
-  bool hasHeapStorage(const MemRegion* R);
   
 private:
   MemSpaceRegion* LazyAllocate(MemSpaceRegion*& region);
