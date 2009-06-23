@@ -1337,6 +1337,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	}
 	dev = ifa->ifa_ifp;
 	ret = rdma_copy_addr(&conn_id->id.route.addr.dev_addr, dev, NULL);
+	ifa_free(ifa);
 	if (ret) {
 		cma_enable_remove(conn_id);
 		rdma_destroy_id(new_cm_id);

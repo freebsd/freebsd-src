@@ -1239,6 +1239,7 @@ carp_iamatch6(void *v, struct in6_addr *taddr)
  			    (SC2IFP(vh)->if_flags & IFF_UP) &&
 			    (SC2IFP(vh)->if_drv_flags & IFF_DRV_RUNNING) &&
 			    vh->sc_state == MASTER) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(SC2IFP(vh));
 			    	CARP_UNLOCK(cif);
 				return (ifa);

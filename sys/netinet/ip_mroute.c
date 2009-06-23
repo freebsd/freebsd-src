@@ -883,6 +883,7 @@ add_vif(struct vifctl *vifcp)
 	    return EADDRNOTAVAIL;
 	}
 	ifp = ifa->ifa_ifp;
+	ifa_free(ifa);
     }
 
     if ((vifcp->vifc_flags & VIFF_TUNNEL) != 0) {

@@ -714,7 +714,7 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
-	struct ifaddr *ia = NULL;
+	struct ifaddr *ifa = NULL;
 	int error = 0;
 
 	inp = sotoinpcb(so);
@@ -730,14 +730,17 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr) &&
-	    (ia = ifa_ifwithaddr((struct sockaddr *)addr)) == 0)
+	    (ifa = ifa_ifwithaddr((struct sockaddr *)addr)) == NULL)
 		return (EADDRNOTAVAIL);
-	if (ia &&
-	    ((struct in6_ifaddr *)ia)->ia6_flags &
+	if (ifa != NULL &&
+	    ((struct in6_ifaddr *)ifa)->ia6_flags &
 	    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|
 	     IN6_IFF_DETACHED|IN6_IFF_DEPRECATED)) {
+		ifa_free(ifa);
 		return (EADDRNOTAVAIL);
 	}
+	if (ifa != NULL)
+		ifa_free(ifa);
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	inp->in6p_laddr = addr->sin6_addr;

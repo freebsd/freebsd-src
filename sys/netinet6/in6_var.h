@@ -498,25 +498,6 @@ do {								\
 
 extern struct in6_addr zeroin6_addr;
 extern u_char inet6ctlerrmap[];
-
-/*
- * Macro for finding the internet address structure (in6_ifaddr) corresponding
- * to a given interface (ifnet structure).
- */
-
-#define IFP_TO_IA6(ifp, ia)				\
-/* struct ifnet *ifp; */				\
-/* struct in6_ifaddr *ia; */				\
-do {									\
-	struct ifaddr *ifa;						\
-	IF_ADDR_LOCK_ASSERT(ifp);					\
-	TAILQ_FOREACH(ifa, &(ifp)->if_addrhead, ifa_link) {		\
-		if (ifa->ifa_addr->sa_family == AF_INET6)		\
-			break;						\
-	}								\
-	(ia) = (struct in6_ifaddr *)ifa;				\
-} while (/*CONSTCOND*/ 0)
-
 #endif /* _KERNEL */
 
 /*
