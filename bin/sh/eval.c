@@ -589,22 +589,14 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	struct cmdentry cmdentry;
 	struct job *jp;
 	struct jmploc jmploc;
-	struct jmploc *volatile savehandler;
-	char *volatile savecmdname;
-	volatile struct shparam saveparam;
-	struct localvar *volatile savelocalvars;
+	struct jmploc *savehandler;
+	char *savecmdname;
+	struct shparam saveparam;
+	struct localvar *savelocalvars;
 	volatile int e;
 	char *lastarg;
 	int realstatus;
 	int do_clearcmdentry;
-#ifdef __GNUC__
-	/* Avoid longjmp clobbering */
-	(void) &argv;
-	(void) &argc;
-	(void) &lastarg;
-	(void) &flags;
-	(void) &do_clearcmdentry;
-#endif
 
 	/* First expand the arguments. */
 	TRACE(("evalcommand(%p, %d) called\n", (void *)cmd, flags));
@@ -779,9 +771,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		savelocalvars = localvars;
 		localvars = NULL;
 		INTON;
+		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			if (exception == EXSHELLPROC)
-				freeparam((struct shparam *)&saveparam);
+				freeparam(&saveparam);
 			else {
 				freeparam(&shellparam);
 				shellparam = saveparam;
@@ -791,7 +784,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			handler = savehandler;
 			longjmp(handler->loc, 1);
 		}
-		savehandler = handler;
 		handler = &jmploc;
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
@@ -830,12 +822,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		savecmdname = commandname;
 		cmdenviron = varlist.list;
 		e = -1;
+		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			e = exception;
 			exitstatus = (e == EXINT)? SIGINT+128 : 2;
 			goto cmddone;
 		}
-		savehandler = handler;
 		handler = &jmploc;
 		redirect(cmd->ncmd.redirect, mode);
 		if (cmdentry.special)
