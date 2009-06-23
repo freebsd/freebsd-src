@@ -2448,7 +2448,7 @@ init386(first)
 	int first;
 {
 	unsigned long gdtmachpfn;
-	int error, gsel_tss, metadata_missing, x;
+	int error, gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
 	struct callback_register event = {
 		.type = CALLBACKTYPE_event,
@@ -2532,6 +2532,11 @@ init386(first)
 		    GSEL(GCODE_SEL, SEL_KPL), (unsigned long)failsafe_callback);
 #endif
 	pcpu_init(pc, 0, sizeof(struct pcpu));
+	for (pa = first; pa < first + DPCPU_SIZE; pa += PAGE_SIZE)
+		pmap_kenter(pa + KERNBASE, pa);
+	dpcpu_init((void *)(first + KERNBASE), 0);
+	first += DPCPU_SIZE;
+
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);
@@ -2665,7 +2670,7 @@ init386(first)
 	int first;
 {
 	struct gate_descriptor *gdp;
-	int gsel_tss, metadata_missing, x;
+	int gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
 
 	thread0.td_kstack = proc0kstack;
@@ -2718,6 +2723,10 @@ init386(first)
 	lgdt(&r_gdt);
 
 	pcpu_init(pc, 0, sizeof(struct pcpu));
+	for (pa = first; pa < first + DPCPU_SIZE; pa += PAGE_SIZE)
+		pmap_kenter(pa + KERNBASE, pa);
+	dpcpu_init((void *)(first + KERNBASE), 0);
+	first += DPCPU_SIZE;
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);

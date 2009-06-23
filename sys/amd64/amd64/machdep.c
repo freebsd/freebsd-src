@@ -1501,6 +1501,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	wrmsr(MSR_KGSBASE, 0);		/* User value while in the kernel */
 
 	pcpu_init(pc, 0, sizeof(struct pcpu));
+	dpcpu_init((void *)(physfree + KERNBASE), 0);
+	physfree += DPCPU_SIZE;
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);
