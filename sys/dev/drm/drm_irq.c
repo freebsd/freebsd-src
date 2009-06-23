@@ -121,7 +121,6 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	int i, ret = ENOMEM;
 
 	callout_init_mtx(&dev->vblank_disable_timer, &dev->vbl_lock, 0);
-	atomic_set(&dev->vbl_signal_pending, 0);
 	dev->num_crtcs = num_crtcs;
 
 	dev->vblank = malloc(sizeof(struct drm_vblank_info) * num_crtcs,
@@ -134,7 +133,6 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	/* Zero per-crtc vblank stuff */
 	for (i = 0; i < num_crtcs; i++) {
 		DRM_INIT_WAITQUEUE(&dev->vblank[i].queue);
-		TAILQ_INIT(&dev->vblank[i].sigs);
 		atomic_set(&dev->vblank[i].count, 0);
 		atomic_set(&dev->vblank[i].refcount, 0);
 	}
@@ -442,23 +440,7 @@ int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *file_pr
 	}
 
 	if (flags & _DRM_VBLANK_SIGNAL) {
-#if 0 /* disabled */
-		drm_vbl_sig_t *vbl_sig = malloc(sizeof(drm_vbl_sig_t),
-		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
-		if (vbl_sig == NULL)
-			return ENOMEM;
-
-		vbl_sig->sequence = vblwait->request.sequence;
-		vbl_sig->signo = vblwait->request.signal;
-		vbl_sig->pid = DRM_CURRENTPID;
-
-		vblwait->reply.sequence = atomic_read(&dev->vbl_received);
-		
-		DRM_SPINLOCK(&dev->vbl_lock);
-		TAILQ_INSERT_HEAD(&dev->vbl_sig_list, vbl_sig, link);
-		DRM_SPINUNLOCK(&dev->vbl_lock);
-		ret = 0;
-#endif
+		/* There have never been any consumers */
 		ret = EINVAL;
 	} else {
 		DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
@@ -495,38 +477,9 @@ done:
 	return ret;
 }
 
-void drm_vbl_send_signals(struct drm_device *dev, int crtc)
-{
-}
-
-#if 0 /* disabled */
-void drm_vbl_send_signals(struct drm_device *dev, int crtc )
-{
-	drm_vbl_sig_t *vbl_sig;
-	unsigned int vbl_seq = atomic_read( &dev->vbl_received );
-	struct proc *p;
-
-	vbl_sig = TAILQ_FIRST(&dev->vbl_sig_list);
-	while (vbl_sig != NULL) {
-		drm_vbl_sig_t *next = TAILQ_NEXT(vbl_sig, link);
-
-		if ((vbl_seq - vbl_sig->sequence) <= (1 << 23)) {
-			p = pfind(vbl_sig->pid);
-			if (p != NULL)
-				psignal(p, vbl_sig->signo);
-
-			TAILQ_REMOVE(&dev->vbl_sig_list, vbl_sig, link);
-			DRM_FREE(vbl_sig,sizeof(*vbl_sig));
-		}
-		vbl_sig = next;
-	}
-}
-#endif
-
 void drm_handle_vblank(struct drm_device *dev, int crtc)
 {
 	atomic_inc(&dev->vblank[crtc].count);
 	DRM_WAKEUP(&dev->vblank[crtc].queue);
-	drm_vbl_send_signals(dev, crtc);
 }
 
