@@ -99,6 +99,7 @@ powerpc/booke/swtch.S		optional	e500
 powerpc/booke/trap.c		optional	e500
 powerpc/booke/vm_machdep.c	optional	e500
 powerpc/cpufreq/dfs.c		optional	cpufreq
+powerpc/cpufreq/pcr.c		optional	cpufreq aim
 powerpc/fpu/fpu_add.c		optional	fpu_emu
 powerpc/fpu/fpu_compare.c	optional	fpu_emu
 powerpc/fpu/fpu_div.c		optional	fpu_emu
@@ -127,18 +128,19 @@ powerpc/ofw/ofw_syscons.c	optional	sc aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_macio.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_dbdma.c	optional	powermac ata | powermac atamacio
+powerpc/powermac/cuda.c		optional	powermac cuda
+powerpc/powermac/cpcht.c	optional	powermac pci
 powerpc/powermac/dbdma.c	optional	powermac pci
 powerpc/powermac/grackle.c	optional	powermac pci
 powerpc/powermac/hrowpic.c	optional	powermac pci
 powerpc/powermac/kiic.c		optional	powermac kiic
+powerpc/powermac/macgpio.c	optional	powermac pci 
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/pswitch.c	optional	powermac pswitch
-powerpc/powermac/uninorth.c	optional	powermac pci
-powerpc/powermac/cuda.c		optional	powermac cuda
 powerpc/powermac/pmu.c		optional	powermac pmu 
-powerpc/powermac/macgpio.c	optional	powermac pci 
-powerpc/powermac/cpcht.c	optional	powermac pci
+powerpc/powermac/smu.c		optional	powermac smu 
+powerpc/powermac/uninorth.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 
 powerpc/powerpc/altivec.c	optional	aim
 powerpc/powerpc/atomic.S	standard
