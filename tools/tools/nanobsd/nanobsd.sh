@@ -474,7 +474,7 @@ create_i386_diskimage ( ) (
 	# XXX: fill from where ?
 
 	# Create Data slice, if any.
-	if [ $NANO_DATASIZE -gt 0 ] ; then
+	if [ $NANO_DATASIZE -ne 0 ] ; then
 		newfs ${NANO_NEWFS} /dev/${MD}s4
 		# XXX: fill from where ?
 	fi
