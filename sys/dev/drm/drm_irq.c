@@ -463,7 +463,6 @@ int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *file_pr
 	} else {
 		DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
 		    vblwait->request.sequence, crtc);
-		dev->vblank[crtc].last = vblwait->request.sequence;
 		for ( ret = 0 ; !ret && !(((drm_vblank_count(dev, crtc) -
 		    vblwait->request.sequence) <= (1 << 23)) ||
 		    !dev->irq_enabled) ; ) {
