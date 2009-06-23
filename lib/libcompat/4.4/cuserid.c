@@ -39,8 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 char *
-cuserid(s)
-	char *s;
+cuserid(char *s)
 {
 	struct passwd *pwd;
 
