@@ -379,7 +379,7 @@ Stmt *FunctionDecl::getBodyIfAvailable() const {
 
 void FunctionDecl::setBody(Stmt *B) {
   Body = B;
-  if (B && EndRangeLoc < B->getLocEnd())
+  if (B)
     EndRangeLoc = B->getLocEnd();
 }
 
@@ -494,8 +494,9 @@ void FunctionDecl::setParams(ASTContext& C, ParmVarDecl **NewParamInfo,
     ParamInfo = new (Mem) ParmVarDecl*[NumParams];
     memcpy(ParamInfo, NewParamInfo, sizeof(ParmVarDecl*)*NumParams);
 
-    // Update source range.
-    if (EndRangeLoc < NewParamInfo[NumParams-1]->getLocEnd())
+    // Update source range. The check below allows us to set EndRangeLoc before
+    // setting the parameters.
+    if (EndRangeLoc.isInvalid() || EndRangeLoc == getLocation())
       EndRangeLoc = NewParamInfo[NumParams-1]->getLocEnd();
   }
 }

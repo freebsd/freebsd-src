@@ -580,8 +580,8 @@ def err_param_default_argument_nonfunc : Error<
   "default arguments can only be specified for parameters in a function "
   "declaration">;
 def err_defining_default_ctor : Error<
-  "cannot define the default constructor for %0, because %select{base class|member}1 "
-  "%2 does not have any implicit default constructor">;
+  "cannot define the implicit default constructor for %0, because %select{base class|member}1 "
+  "%2 does not have any default constructor">;
 def note_previous_class_decl : Note<
   "%0 declared here">;
 def err_unintialized_member : Error<
@@ -870,7 +870,8 @@ def err_undeclared_var_use : Error<"use of undeclared identifier %0">;
 def err_undeclared_use : Error<"use of undeclared '%0'">;
 def warn_deprecated : Warning<"%0 is deprecated">,
     InGroup<DiagGroup<"deprecated-declarations">>;
-def warn_unavailable : Warning<"%0 is unavailable">;
+def warn_unavailable : Warning<"%0 is unavailable">,
+    InGroup<DiagGroup<"unavailable-declarations">>;
 def note_unavailable_here : Note<
   "function has been explicitly marked %select{unavailable|deleted}0 here">;
 def warn_not_enough_argument : Warning<
