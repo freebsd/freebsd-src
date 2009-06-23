@@ -32,7 +32,7 @@
 #ifndef	_IF_GEMREG_H
 #define	_IF_GEMREG_H
 
-/* Register definitions for Sun GEM gigabit ethernet */
+/* register definitions for Apple GMAC, Sun ERI and Sun GEM */
 
 /*
  * First bank: this registers live at the start of the PCI
@@ -47,6 +47,51 @@
 #define	GEM_INTACK		0x0014	/* Interrupt acknowledge, W/O */
 #define	GEM_STATUS_ALIAS	0x001c
 
+/* Bits in GEM_SEB register */
+#define	GEM_SEB_ARB		0x00000002	/* Arbitration status */
+#define	GEM_SEB_RXWON		0x00000004
+
+/* Bits in GEM_CONFIG register */
+#define	GEM_CONFIG_BURST_64	0x00000000	/* maximum burst size 64KB */
+#define	GEM_CONFIG_BURST_INF	0x00000001	/* infinite for entire packet */
+#define	GEM_CONFIG_TXDMA_LIMIT	0x0000003e
+#define	GEM_CONFIG_RXDMA_LIMIT	0x000007c0
+/* GEM_CONFIG_RONPAULBIT and GEM_CONFIG_BUG2FIX are Apple only. */
+#define	GEM_CONFIG_RONPAULBIT	0x00000800	/* after infinite burst use */
+						/* memory read multiple for */
+						/* PCI commands */
+#define	GEM_CONFIG_BUG2FIX	0x00001000	/* fix RX hang after overflow */
+
+#define	GEM_CONFIG_TXDMA_LIMIT_SHIFT	1
+#define	GEM_CONFIG_RXDMA_LIMIT_SHIFT	6
+
+/* Top part of GEM_STATUS has TX completion information */
+#define	GEM_STATUS_TX_COMPLETION_MASK	0xfff80000	/* TX completion reg. */
+#define	GEM_STATUS_TX_COMPLETION_SHFT	19
+
+/*
+ * Interrupt bits, for both the GEM_STATUS and GEM_INTMASK regs
+ * Bits 0-6 auto-clear when read.
+ */
+#define	GEM_INTR_TX_INTME	0x00000001	/* Frame w/INTME bit set sent */
+#define	GEM_INTR_TX_EMPTY	0x00000002	/* TX ring empty */
+#define	GEM_INTR_TX_DONE	0x00000004	/* TX complete */
+#define	GEM_INTR_RX_DONE	0x00000010	/* Got a packet */
+#define	GEM_INTR_RX_NOBUF	0x00000020
+#define	GEM_INTR_RX_TAG_ERR	0x00000040
+#define	GEM_INTR_PERR		0x00000080	/* Parity error */
+#define	GEM_INTR_PCS		0x00002000	/* Physical Code Sub-layer */
+#define	GEM_INTR_TX_MAC		0x00004000
+#define	GEM_INTR_RX_MAC		0x00008000
+#define	GEM_INTR_MAC_CONTROL	0x00010000	/* MAC control interrupt */
+#define	GEM_INTR_MIF		0x00020000
+#define	GEM_INTR_BERR		0x00040000	/* Bus error interrupt */
+#define	GEM_INTR_BITS	"\177\020"					\
+			"b\0INTME\0b\1TXEMPTY\0b\2TXDONE\0"		\
+			"b\4RXDONE\0b\5RXNOBUF\0b\6RX_TAG_ERR\0"	\
+			"b\xdPCS\0b\xeTXMAC\0b\xfRXMAC\0"		\
+			"b\x10MAC_CONTROL\0b\x11MIF\0b\x12IBERR\0\0"
+
 /*
  * Second bank: this registers live at offset 0x1000 of the PCI
  * mapping, and at the start of the first bank of the SBus
@@ -55,89 +100,57 @@
 #define	GEM_PCI_BANK2_OFFSET	0x1000
 #define	GEM_PCI_BANK2_SIZE	0x14
 /* This is the same as the GEM_STATUS reg but reading it does not clear bits. */
-#define	GEM_ERROR_STATUS	0x0000	/* PCI error status R/C */
-#define	GEM_ERROR_MASK		0x0004
-#define	GEM_SBUS_CONFIG		0x0004
-#define	GEM_BIF_CONFIG		0x0008	/* BIF config reg */
-#define	GEM_BIF_DIAG		0x000c
-#define	GEM_RESET		0x0010	/* Software reset register */
+#define	GEM_PCI_ERROR_STATUS	0x0000	/* PCI error status */
+#define	GEM_PCI_ERROR_MASK	0x0004	/* PCI error mask */
+#define	GEM_PCI_BIF_CONFIG	0x0008	/* PCI BIF configuration */
+#define	GEM_PCI_BIF_DIAG	0x000c	/* PCI BIF diagnostic */
 
+#define	GEM_SBUS_BIF_RESET	0x0000	/* SBus BIF only software reset */
+#define	GEM_SBUS_CONFIG		0x0004	/* SBus IO configuration */
+#define	GEM_SBUS_STATUS		0x0008	/* SBus IO status */
+#define	GEM_SBUS_REVISION	0x000c	/* SBus revision ID */
 
-/* Bits in GEM_SEB register */
-#define	GEM_SEB_ARB		0x000000002	/* Arbitration status */
-#define	GEM_SEB_RXWON		0x000000004
+#define	GEM_RESET		0x0010	/* software reset */
 
-/* Bits in GEM_SBUS_CONFIG register */
-#define	GEM_SBUS_CFG_BMODE64	0x00000008
-#define	GEM_SBUS_CFG_PARITY	0x00000200
+/* GEM_PCI_ERROR_STATUS and GEM_PCI_ERROR_MASK error bits */
+#define	GEM_PCI_ERR_STAT_BADACK	0x00000001	/* No ACK64# */
+#define	GEM_PCI_ERR_STAT_DTRTO	0x00000002	/* Delayed xaction timeout */
+#define	GEM_PCI_ERR_STAT_OTHERS	0x00000004
+#define	GEM_PCI_ERR_BITS	"\177\020b\0ACKBAD\0b\1DTRTO\0b\2OTHER\0\0"
 
-/* Bits in GEM_CONFIG register */
-#define	GEM_CONFIG_BURST_64	0x000000000	/* maximum burst size 64KB */
-#define	GEM_CONFIG_BURST_INF	0x000000001	/* infinite for entire packet */
-#define	GEM_CONFIG_TXDMA_LIMIT	0x00000003e
-#define	GEM_CONFIG_RXDMA_LIMIT	0x0000007c0
-/* GEM_CONFIG_RONPAULBIT and GEM_CONFIG_BUG2FIX are Apple only. */
-#define	GEM_CONFIG_RONPAULBIT	0x000000800	/* after infinite burst use */
-						/* memory read multiple for */
-						/* PCI commands */
-#define	GEM_CONFIG_BUG2FIX	0x000001000	/* fix RX hang after overflow */
-
-#define	GEM_CONFIG_TXDMA_LIMIT_SHIFT	1
-#define	GEM_CONFIG_RXDMA_LIMIT_SHIFT	6
-
-
-/* Top part of GEM_STATUS has TX completion information */
-#define	GEM_STATUS_TX_COMPL	0xfff800000	/* TX completion reg. */
-
-
-/*
- * Interrupt bits, for both the GEM_STATUS and GEM_INTMASK regs
- * Bits 0-6 auto-clear when read.
- */
-#define	GEM_INTR_TX_INTME	0x000000001	/* Frame w/INTME bit set sent */
-#define	GEM_INTR_TX_EMPTY	0x000000002	/* TX ring empty */
-#define	GEM_INTR_TX_DONE	0x000000004	/* TX complete */
-#define	GEM_INTR_RX_DONE	0x000000010	/* Got a packet */
-#define	GEM_INTR_RX_NOBUF	0x000000020
-#define	GEM_INTR_RX_TAG_ERR	0x000000040
-#define	GEM_INTR_PERR		0x000000080	/* Parity error */
-#define	GEM_INTR_PCS		0x000002000	/* Physical Code Sub-layer */
-#define	GEM_INTR_TX_MAC		0x000004000
-#define	GEM_INTR_RX_MAC		0x000008000
-#define	GEM_INTR_MAC_CONTROL	0x000010000	/* MAC control interrupt */
-#define	GEM_INTR_MIF		0x000020000
-#define	GEM_INTR_BERR		0x000040000	/* Bus error interrupt */
-#define	GEM_INTR_BITS	"\177\020"					\
-			"b\0INTME\0b\1TXEMPTY\0b\2TXDONE\0"		\
-			"b\4RXDONE\0b\5RXNOBUF\0b\6RX_TAG_ERR\0"	\
-			"b\xdPCS\0b\xeTXMAC\0b\xfRXMAC\0"		\
-			"b\x10MAC_CONTROL\0b\x11MIF\0b\x12IBERR\0\0"
-
-
-/* GEM_ERROR_STATUS and GEM_ERROR_MASK PCI error bits */
-#define	GEM_ERROR_STAT_BADACK	0x000000001	/* No ACK64# */
-#define	GEM_ERROR_STAT_DTRTO	0x000000002	/* Delayed xaction timeout */
-#define	GEM_ERROR_STAT_OTHERS	0x000000004
-#define	GEM_ERROR_BITS		"\177\020b\0ACKBAD\0b\1DTRTO\0b\2OTHER\0\0"
-
-
-/* GEM_BIF_CONFIG register bits */
-#define	GEM_BIF_CONFIG_SLOWCLK	0x000000001	/* Parity error timing */
-#define	GEM_BIF_CONFIG_HOST_64	0x000000002	/* 64-bit host */
-#define	GEM_BIF_CONFIG_B64D_DIS	0x000000004	/* no 64-bit data cycle */
-#define	GEM_BIF_CONFIG_M66EN	0x000000008
-#define	GEM_BIF_CONFIG_BITS	"\177\020b\0SLOWCLK\0b\1HOST64\0"	\
+/* GEM_PCI_BIF_CONFIG register bits */
+#define	GEM_PCI_BIF_CNF_SLOWCLK	0x00000001	/* Parity error timing */
+#define	GEM_PCI_BIF_CNF_HOST_64	0x00000002	/* 64-bit host */
+#define	GEM_PCI_BIF_CNF_B64D_DS	0x00000004	/* no 64-bit data cycle */
+#define	GEM_PCI_BIF_CNF_M66EN	0x00000008
+#define	GEM_PCI_BIF_CNF_BITS	"\177\020b\0SLOWCLK\0b\1HOST64\0"	\
 				"b\2B64DIS\0b\3M66EN\0\0"
 
+/* GEM_PCI_BIF_DIAG register bits */
+#define	GEN_PCI_BIF_DIAG_BC_SM	0x007f0000	/* burst ctrl. state machine */
+#define GEN_PCI_BIF_DIAG_SM	0xff000000	/* BIF state machine */
+
+/* Bits in GEM_SBUS_CONFIG register */
+#define	GEM_SBUS_CFG_BURST_32	0x00000001	/* 32 byte bursts */
+#define	GEM_SBUS_CFG_BURST_64	0x00000002	/* 64 byte bursts */
+#define	GEM_SBUS_CFG_BURST_128	0x00000004	/* 128 byte bursts */
+#define	GEM_SBUS_CFG_64BIT	0x00000008	/* extended transfer mode */
+#define	GEM_SBUS_CFG_PARITY	0x00000200	/* enable parity checking */
+
+/* GEM_SBUS_STATUS register bits */
+#define	GEM_SBUS_STATUS_LERR	0x00000001	/* LERR from SBus slave */
+#define	GEM_SBUS_STATUS_SACK	0x00000002	/* size ack. error */
+#define	GEM_SBUS_STATUS_EACK	0x00000004	/* SBus ctrl. or slave error */
+#define	GEM_SBUS_STATUS_MPARITY	0x00000008	/* SBus master parity error */
 
 /* GEM_RESET register bits -- TX and RX self clear when complete. */
-#define	GEM_RESET_TX		0x000000001	/* Reset TX half */
-#define	GEM_RESET_RX		0x000000002	/* Reset RX half */
-#define	GEM_RESET_RSTOUT	0x000000004	/* Force PCI RSTOUT# */
-
+#define	GEM_RESET_TX		0x00000001	/* Reset TX half. */
+#define	GEM_RESET_RX		0x00000002	/* Reset RX half. */
+#define	GEM_RESET_PCI_RSTOUT	0x00000004	/* Force PCI RSTOUT#. */
 
 /* The rest of the registers live in the first bank again. */
-/* GEM TX DMA registers */
+
+/* TX DMA registers */
 #define	GEM_TX_KICK		0x2000		/* Write last valid desc + 1 */
 #define	GEM_TX_CONFIG		0x2004
 #define	GEM_TX_RING_PTR_LO	0x2008
@@ -162,7 +175,6 @@
 #define	GEM_TX_FIFO_SIZE	0x2118
 #define	GEM_TX_DEBUG		0x3028
 
-
 /* GEM_TX_CONFIG register bits */
 #define	GEM_TX_CONFIG_TXDMA_EN	0x00000001	/* TX DMA enable */
 #define	GEM_TX_CONFIG_TXRING_SZ	0x0000001e	/* TX ring size */
@@ -179,12 +191,10 @@
 #define	GEM_RING_SZ_4096	(7<<1)
 #define	GEM_RING_SZ_8192	(8<<1)
 
-
 /* GEM_TX_COMPLETION register bits */
 #define	GEM_TX_COMPLETION_MASK	0x00001fff	/* # of last descriptor */
 
-
-/* GEM RX DMA registers */
+/* RX DMA registers */
 #define	GEM_RX_CONFIG		0x4000
 #define	GEM_RX_RING_PTR_LO	0x4004		/* 64-bits unaligned GAK! */
 #define	GEM_RX_RING_PTR_HI	0x4008		/* 64-bits unaligned GAK! */
@@ -211,7 +221,6 @@
 #define	GEM_RX_FIFO_DATA_HI_T0	0x411c
 #define	GEM_RX_FIFO_SIZE	0x4120
 
-
 /* GEM_RX_CONFIG register bits */
 #define	GEM_RX_CONFIG_RXDMA_EN	0x00000001	/* RX DMA enable */
 #define	GEM_RX_CONFIG_RXRING_SZ	0x0000001e	/* RX ring size */
@@ -231,18 +240,15 @@
 #define	GEM_RX_CONFIG_FBOFF_SHFT	10
 #define	GEM_RX_CONFIG_CXM_START_SHFT	13
 
-
 /* GEM_RX_PAUSE_THRESH register bits -- sizes in multiples of 64 bytes */
 #define	GEM_RX_PTH_XOFF_THRESH	0x000001ff
 #define	GEM_RX_PTH_XON_THRESH	0x001ff000
-
 
 /* GEM_RX_BLANKING register bits */
 #define	GEM_RX_BLANKING_PACKETS	0x000001ff	/* Delay intr for x packets */
 #define	GEM_RX_BLANKING_TIME	0x000ff000	/* Delay intr for x ticks */
 #define	GEM_RX_BLANKING_TIME_SHIFT 12
 /* One tick is 2048 PCI clocks, or 16us at 66MHz */
-
 
 /* GEM_MAC registers */
 #define	GEM_MAC_TXRESET		0x6000		/* Store 1, cleared when done */
@@ -316,11 +322,9 @@
 #define	GEM_MAC_RANDOM_SEED	0x6130
 #define	GEM_MAC_MAC_STATE	0x6134		/* MAC state machine reg */
 
-
 /* GEM_MAC_SEND_PAUSE_CMD register bits */
 #define	GEM_MAC_PAUSE_CMD_TIME	0x0000ffff
 #define	GEM_MAC_PAUSE_CMD_SEND	0x00010000
-
 
 /* GEM_MAC_TX_STATUS and _MASK register bits */
 #define	GEM_MAC_TX_XMIT_DONE	0x00000001
@@ -333,7 +337,6 @@
 #define	GEM_MAC_TX_DEFER_EXP	0x00000080
 #define	GEM_MAC_TX_PEAK_EXP	0x00000100
 
-
 /* GEM_MAC_RX_STATUS and _MASK register bits */
 #define	GEM_MAC_RX_DONE		0x00000001
 #define	GEM_MAC_RX_OVERFLOW	0x00000002
@@ -342,7 +345,6 @@
 #define	GEM_MAC_RX_CRC_EXP	0x00000010
 #define	GEM_MAC_RX_LEN_EXP	0x00000020
 #define	GEM_MAC_RX_CVI_EXP	0x00000040	/* Code violation */
-
 
 /* GEM_MAC_CONTROL_STATUS and GEM_MAC_CONTROL_MASK register bits */
 #define	GEM_MAC_PAUSED		0x00000001	/* Pause received */
@@ -386,13 +388,12 @@
 #define	GEM_MAC_TX_SLOWDOWN	0x00000080
 #define	GEM_MAC_TX_NO_FCS	0x00000100	/* no FCS will be generated */
 #define	GEM_MAC_TX_CARR_EXTEND	0x00000200	/* Ena TX Carrier Extension */
-/* Carrier Extension is required for half duplex Gbps operation */
+/* Carrier Extension is required for half duplex Gbps operation. */
 #define	GEM_MAC_TX_CONFIG_BITS	"\177\020" \
 				"b\0TXENA\0b\1IGNCAR\0b\2IGNCOLLIS\0" \
 				"b\3IPG0ENA\0b\4TXNGU\0b\5TXNGULIM\0" \
 				"b\6NOBKOFF\0b\7SLOWDN\0b\x8NOFCS\0" \
 				"b\x9TXCARREXT\0\0"
-
 
 /* GEM_MAC_RX_CONFIG register bits */
 #define	GEM_MAC_RX_ENABLE	0x00000001	/* RX enable */
@@ -413,32 +414,31 @@
 				"b\3PROMIS\0b\4PROMISCGRP\0b\5HASHFLTR\0" \
 				"b\6ADDRFLTR\0b\7ERRCHKDIS\0b\x9TXCARREXT\0\0"
 
-
 /* GEM_MAC_CONTROL_CONFIG bits */
 #define	GEM_MAC_CC_TX_PAUSE	0x00000001	/* send pause enabled */
 #define	GEM_MAC_CC_RX_PAUSE	0x00000002	/* receive pause enabled */
 #define	GEM_MAC_CC_PASS_PAUSE	0x00000004	/* pass pause up */
 #define	GEM_MAC_CC_BITS		"\177\020b\0TXPAUSE\0b\1RXPAUSE\0b\2NOPAUSE\0\0"
 
-
-/* GEM MIF registers */
-/* Bit bang registers use low bit only. */
+/*
+ * MIF registers
+ * Bit bang registers use low bit only.
+ */
 #define	GEM_MIF_BB_CLOCK	0x6200		/* bit bang clock */
 #define	GEM_MIF_BB_DATA		0x6204		/* bit bang data */
 #define	GEM_MIF_BB_OUTPUT_ENAB	0x6208
 #define	GEM_MIF_FRAME		0x620c		/* MIF frame - ctl and data */
 #define	GEM_MIF_CONFIG		0x6210
-#define	GEM_MIF_INTERRUPT_MASK	0x6214
-#define	GEM_MIF_BASIC_STATUS	0x6218
+#define	GEM_MIF_MASK		0x6214
+#define	GEM_MIF_STATUS		0x6218
 #define	GEM_MIF_STATE_MACHINE	0x621c
-
 
 /* GEM_MIF_FRAME bits */
 #define	GEM_MIF_FRAME_DATA	0x0000ffff
-#define	GEM_MIF_FRAME_TA0	0x00010000	/* TA bit, 1 for completion */
-#define	GEM_MIF_FRAME_TA1	0x00020000	/* TA bits */
+#define	GEM_MIF_FRAME_TA0	0x00010000	/* TA LSB, 1 for completion */
+#define	GEM_MIF_FRAME_TA1	0x00020000	/* TA MSB, 1 for instruction */
 #define	GEM_MIF_FRAME_REG_ADDR	0x007c0000
-#define	GEM_MIF_FRAME_PHY_ADDR	0x0f800000	/* phy address, should be 0 */
+#define	GEM_MIF_FRAME_PHY_ADDR	0x0f800000	/* PHY address */
 #define	GEM_MIF_FRAME_OP	0x30000000	/* operation - write/read */
 #define	GEM_MIF_FRAME_START	0xc0000000	/* START bits */
 
@@ -448,30 +448,28 @@
 #define	GEM_MIF_REG_SHIFT	18
 #define	GEM_MIF_PHY_SHIFT	23
 
-
 /* GEM_MIF_CONFIG register bits */
-#define	GEM_MIF_CONFIG_PHY_SEL	0x00000001	/* PHY select, 0=MDIO0 */
+#define	GEM_MIF_CONFIG_PHY_SEL	0x00000001	/* PHY select, 0: MDIO_0 */
 #define	GEM_MIF_CONFIG_POLL_ENA	0x00000002	/* poll enable */
 #define	GEM_MIF_CONFIG_BB_ENA	0x00000004	/* bit bang enable */
 #define	GEM_MIF_CONFIG_REG_ADR	0x000000f8	/* poll register address */
-#define	GEM_MIF_CONFIG_MDI0	0x00000100	/* MDIO_0 Data/MDIO_0 atached */
-#define	GEM_MIF_CONFIG_MDI1	0x00000200	/* MDIO_1 Data/MDIO_1 atached */
+#define	GEM_MIF_CONFIG_MDI0	0x00000100	/* MDIO_0 attached/data */
+#define	GEM_MIF_CONFIG_MDI1	0x00000200	/* MDIO_1 attached/data */
 #define	GEM_MIF_CONFIG_PHY_ADR	0x00007c00	/* poll PHY address */
 /* MDI0 is the onboard transceiver, MDI1 is external, PHYAD for both is 0. */
 #define	GEM_MIF_CONFIG_BITS	"\177\020b\0PHYSEL\0b\1POLL\0b\2BBENA\0" \
 				"b\x8MDIO0\0b\x9MDIO1\0\0"
 
-
-/* GEM_MIF_BASIC_STATUS and GEM_MIF_INTERRUPT_MASK bits */
-#define	GEM_MIF_STATUS		0x0000ffff
-#define	GEM_MIF_BASIC		0xffff0000
+/* GEM_MIF_STATUS and GEM_MIF_MASK bits */
+#define	GEM_MIF_POLL_STATUS_MASK	0x0000ffff	/* polling status */
+#define	GEM_MIF_POLL_STATUS_SHFT	0
+#define	GEM_MIF_POLL_DATA_MASK		0xffff0000	/* polling data */
+#define	GEM_MIF_POLL_DATA_SHFT		8
 /*
  * The Basic part is the last value read in the POLL field of the config
  * register.
- *
  * The status part indicates the bits that have changed.
  */
-
 
 /* GEM PCS/Serial link registers */
 /* DO NOT TOUCH THESE REGISTERS ON ERI -- IT HARD HANGS. */
@@ -485,73 +483,60 @@
 #define	GEM_MII_DATAPATH_MODE	0x9050
 #define	GEM_MII_SLINK_CONTROL	0x9054		/* Serial link control */
 #define	GEM_MII_OUTPUT_SELECT	0x9058
-#define	GEM_MII_SLINK_STATUS	0x905c		/* serial link status */
-
+#define	GEM_MII_SLINK_STATUS	0x905c		/* Serialink status */
 
 /* GEM_MII_CONTROL bits - PCS "BMCR" (Basic Mode Control Reg) */
-#define	GEM_MII_CONTROL_RESET	0x00008000
-#define	GEM_MII_CONTROL_LOOPBK	0x00004000	/* 10-bit i/f loopback */
-#define	GEM_MII_CONTROL_1000M	0x00002000	/* speed select, always 0 */
-#define	GEM_MII_CONTROL_AUTONEG	0x00001000	/* auto negotiation enabled */
-#define	GEM_MII_CONTROL_POWERDN	0x00000800
-#define	GEM_MII_CONTROL_ISOLATE	0x00000400	/* isolate phy from mii */
-#define	GEM_MII_CONTROL_RAN	0x00000200	/* restart auto negotiation */
-#define	GEM_MII_CONTROL_FDUPLEX	0x00000100	/* full duplex, always 0 */
+#define	GEM_MII_CONTROL_1000M	0x00000040	/* 1000Mbps speed select */
 #define	GEM_MII_CONTROL_COL_TST	0x00000080	/* collision test */
+#define	GEM_MII_CONTROL_FDUPLEX	0x00000100	/* full-duplex, always 0 */
+#define	GEM_MII_CONTROL_RAN	0x00000200	/* restart auto-negotiation */
+#define	GEM_MII_CONTROL_ISOLATE	0x00000400	/* isolate PHY from MII */
+#define	GEM_MII_CONTROL_POWERDN	0x00000800	/* power down */
+#define	GEM_MII_CONTROL_AUTONEG	0x00001000	/* auto-negotiation enable */
+#define	GEM_MII_CONTROL_10_100M	0x00002000	/* 10/100Mbps speed select */
+#define	GEM_MII_CONTROL_LOOPBK	0x00004000	/* 10-bit i/f loopback */
+#define	GEM_MII_CONTROL_RESET	0x00008000	/* Reset PCS. */
 #define	GEM_MII_CONTROL_BITS	"\177\020b\7COLTST\0b\x8_FD\0b\x9RAN\0" \
 				"b\xaISOLATE\0b\xbPWRDWN\0b\xc_ANEG\0" \
 				"b\xdGIGE\0b\xeLOOP\0b\xfRESET\0\0"
 
-
 /* GEM_MII_STATUS reg - PCS "BMSR" (Basic Mode Status Reg) */
-#define	GEM_MII_STATUS_GB_FDX	0x00000400	/* can perform GBit FDX */
-#define	GEM_MII_STATUS_GB_HDX	0x00000200	/* can perform GBit HDX */
-#define	GEM_MII_STATUS_UNK	0x00000100
-#define	GEM_MII_STATUS_ANEG_CPT	0x00000020	/* auto negotiate compete */
-#define	GEM_MII_STATUS_REM_FLT	0x00000010	/* remote fault detected */
-#define	GEM_MII_STATUS_ACFG	0x00000008	/* can auto negotiate */
-#define	GEM_MII_STATUS_LINK_STS	0x00000004	/* link status */
+#define	GEM_MII_STATUS_EXTCAP	0x00000001	/* extended capability */
 #define	GEM_MII_STATUS_JABBER	0x00000002	/* jabber condition detected */
-#define	GEM_MII_STATUS_EXTCAP	0x00000001	/* extended register capability */
+#define	GEM_MII_STATUS_LINK_STS	0x00000004	/* link status */
+#define	GEM_MII_STATUS_ACFG	0x00000008	/* can auto-negotiate */
+#define	GEM_MII_STATUS_REM_FLT	0x00000010	/* remote fault detected */
+#define	GEM_MII_STATUS_ANEG_CPT	0x00000020	/* auto-negotiate complete */
+#define	GEM_MII_STATUS_EXTENDED	0x00000100	/* extended status */
 #define	GEM_MII_STATUS_BITS	"\177\020b\0EXTCAP\0b\1JABBER\0b\2LINKSTS\0" \
-				"b\3ACFG\0b\4REMFLT\0b\5ANEGCPT\0b\x9GBHDX\0" \
-				"b\xaGBFDX\0\0"
-
+				"b\3ACFG\0b\4REMFLT\0b\5ANEGCPT\0\0"
 
 /* GEM_MII_ANAR and GEM_MII_ANLPAR reg bits */
-#define	GEM_MII_ANEG_NP		0x00008000	/* next page bit */
-#define	GEM_MII_ANEG_ACK	0x00004000	/* ack reception of */
-						/* Link Partner Capability */
-#define	GEM_MII_ANEG_RF		0x00003000	/* advertise remote fault cap */
-#define	GEM_MII_ANEG_ASYM_PAUSE	0x00000100	/* asymmetric pause */
-#define	GEM_MII_ANEG_SYM_PAUSE	0x00000080	/* symmetric pause */
-#define	GEM_MII_ANEG_HLF_DUPLX	0x00000040
-#define	GEM_MII_ANEG_FUL_DUPLX	0x00000020
+#define	GEM_MII_ANEG_FDUPLX	0x00000020	/* full-duplex */
+#define	GEM_MII_ANEG_HDUPLX	0x00000040	/* half-duplex */
+#define	GEM_MII_ANEG_PAUSE	0x00000080	/* symmetric PAUSE */
+#define	GEM_MII_ANEG_ASM_DIR	0x00000100	/* asymmetric PAUSE */
+#define	GEM_MII_ANEG_RFLT_FAIL	0x00001000	/* remote fault - fail */
+#define	GEM_MII_ANEG_RFLT_OFF	0x00002000	/* remote fault - off-line */
+#define	GEM_MII_ANEG_RFLT_MASK						\
+(CAS_PCS_ANEG_RFLT_FAIL | CAS_PCS_ANEG_RFLT_OFF)
+#define	GEM_MII_ANEG_ACK	0x00004000	/* acknowledge */
+#define	GEM_MII_ANEG_NP		0x00008000	/* next page */
 #define	GEM_MII_ANEG_BITS	"\177\020b\5FDX\0b\6HDX\0b\7SYMPAUSE\0" \
 				"\b\x8_ASYMPAUSE\0\b\xdREMFLT\0\b\xeLPACK\0" \
 				"\b\xfNPBIT\0\0"
 
-
 /* GEM_MII_CONFIG reg */
-#define	GEM_MII_CONFIG_TIMER	0x0000000e	/* link monitor timer values */
-#define	GEM_MII_CONFIG_ANTO	0x00000020	/* 10ms ANEG timer override */
-#define	GEM_MII_CONFIG_JS	0x00000018	/* Jitter Study, 0 normal
-						 * 1 high freq, 2 low freq */
-#define	GEM_MII_CONFIG_SDL	0x00000004	/* Signal Detect active low */
-#define	GEM_MII_CONFIG_SDO	0x00000002	/* Signal Detect Override */
-#define	GEM_MII_CONFIG_ENABLE	0x00000001	/* Enable PCS */
+#define	GEM_MII_CONFIG_ENABLE	0x00000001	/* Enable PCS. */
+#define	GEM_MII_CONFIG_SDO	0x00000002	/* signal detect override */
+#define	GEM_MII_CONFIG_SDL	0x00000004	/* signal detect active-low */
+#define	GEM_MII_CONFIG_JS_NORM	0x00000000	/* jitter study - normal op. */
+#define	GEM_MII_CONFIG_JS_HF	0x00000008	/* jitter study - HF test */
+#define	GEM_MII_CONFIG_JS_LF	0x00000010	/* jitter study - LF test */
+#define	GEM_MII_CONFIG_JS_MASK						\
+	(GEM_MII_CONFIG_JS_HF | GEM_MII_CONFIG_JS_LF)
+#define	GEM_MII_CONFIG_ANTO	0x00000020	/* auto-neg. timer override */
 #define	GEM_MII_CONFIG_BITS	"\177\020b\0PCSENA\0\0"
-
-
-/*
- * GEM_MII_STATE_MACHINE
- * XXX These are best guesses from observed behavior.
- */
-#define	GEM_MII_FSM_STOP	0x00000000	/* stopped */
-#define	GEM_MII_FSM_RUN		0x00000001	/* running */
-#define	GEM_MII_FSM_UNKWN	0x00000100	/* unknown */
-#define	GEM_MII_FSM_DONE	0x00000101	/* complete */
-
 
 /*
  * GEM_MII_INTERRUP_STATUS reg
@@ -559,32 +544,33 @@
  */
 #define	GEM_MII_INTERRUP_LINK	0x00000004	/* PCS link status change */
 
-
 /* GEM_MII_DATAPATH_MODE reg */
-#define	GEM_MII_DATAPATH_SERIAL	0x00000001	/* Serial link */
-#define	GEM_MII_DATAPATH_SERDES	0x00000002	/* Use PCS via 10bit interfac */
-#define	GEM_MII_DATAPATH_MII	0x00000004	/* Use {G}MII, not PCS */
-#define	GEM_MII_DATAPATH_MIIOUT	0x00000008	/* enable serial output on GMII */
+#define	GEM_MII_DATAPATH_SERIAL	0x00000001	/* Serialink */
+#define	GEM_MII_DATAPATH_SERDES	0x00000002	/* SERDES via 10-bit */
+#define	GEM_MII_DATAPATH_MII	0x00000004	/* GMII/MII */
+#define	GEM_MII_DATAPATH_GMIIOE	0x00000008	/* serial output on GMII en. */
 #define	GEM_MII_DATAPATH_BITS	"\177\020"	\
-				"b\0SERIAL\0b\1SERDES\0b\2MII\0b\3MIIOUT\0\0"
-
+				"b\0SERIAL\0b\1SERDES\0b\2MII\0b\3GMIIOE\0\0"
 
 /* GEM_MII_SLINK_CONTROL reg */
-#define	GEM_MII_SLINK_LOOPBACK	0x00000001	/* enable loopback at sl, logic
+#define	GEM_MII_SLINK_LOOPBACK	0x00000001	/* enable loopback at SL, logic
 						 * reversed for SERDES */
 #define	GEM_MII_SLINK_EN_SYNC_D	0x00000002	/* enable sync detection */
-#define	GEM_MII_SLINK_LOCK_REF	0x00000004	/* lock reference clock */
-#define	GEM_MII_SLINK_EMPHASIS	0x00000008	/* enable emphasis */
-#define	GEM_MII_SLINK_SELFTEST	0x000001c0
-#define	GEM_MII_SLINK_POWER_OFF	0x00000200	/* Power down serial link */
+#define	GEM_MII_SLINK_LOCK_REF	0x00000004	/* lock to reference clock */
+#define	GEM_MII_SLINK_EMPHASIS	0x00000018	/* enable emphasis */
+#define	GEM_MII_SLINK_SELFTEST	0x000001c0	/* self-test */
+#define	GEM_MII_SLINK_POWER_OFF	0x00000200	/* Power down Serialink. */
+#define	GEM_MII_SLINK_RX_ZERO	0x00000c00	/* PLL input to Serialink. */
+#define	GEM_MII_SLINK_RX_POLE	0x00003000	/* PLL input to Serialink. */
+#define	GEM_MII_SLINK_TX_ZERO	0x0000c000	/* PLL input to Serialink. */
+#define	GEM_MII_SLINK_TX_POLE	0x00030000	/* PLL input to Serialink. */
 #define	GEM_MII_SLINK_CONTROL_BITS		\
 				"\177\020b\0LOOP\0b\1ENASYNC\0b\2LOCKREF" \
 				"\0b\3EMPHASIS\0b\x9PWRDWN\0\0"
 
-
 /* GEM_MII_SLINK_STATUS reg */
 #define	GEM_MII_SLINK_TEST	0x00000000	/* undergoing test */
-#define	GEM_MII_SLINK_LOCKED	0x00000001	/* waiting 500us lockrefn */
+#define	GEM_MII_SLINK_LOCKED	0x00000001	/* waiting 500us w/ lockrefn */
 #define	GEM_MII_SLINK_COMMA	0x00000002	/* waiting for comma detect */
 #define	GEM_MII_SLINK_SYNC	0x00000003	/* recv data synchronized */
 
@@ -596,12 +582,12 @@
 #define	GEM_PCI_ROM_OFFSET	0x100000
 #define	GEM_PCI_ROM_SIZE	0x10000
 
-/* Wired GEM PHY addresses */
+/* Wired PHY addresses */
 #define	GEM_PHYAD_INTERNAL	1
 #define	GEM_PHYAD_EXTERNAL	0
 
 /*
- * GEM descriptor table structures
+ * descriptor table structures
  */
 struct gem_desc {
 	uint64_t	gd_flags;
@@ -609,29 +595,29 @@ struct gem_desc {
 };
 
 /* Transmit flags */
-#define	GEM_TD_BUFSIZE		0x0000000000007fffLL
-#define	GEM_TD_CXSUM_START	0x00000000001f8000LL	/* Cxsum start offset */
+#define	GEM_TD_BUFSIZE		0x0000000000007fffULL
+#define	GEM_TD_CXSUM_START	0x00000000001f8000ULL	/* Cxsum start offset */
 #define	GEM_TD_CXSUM_STARTSHFT	15
-#define	GEM_TD_CXSUM_STUFF	0x000000001fe00000LL	/* Cxsum stuff offset */
+#define	GEM_TD_CXSUM_STUFF	0x000000001fe00000ULL	/* Cxsum stuff offset */
 #define	GEM_TD_CXSUM_STUFFSHFT	21
-#define	GEM_TD_CXSUM_ENABLE	0x0000000020000000LL	/* Cxsum generation enable */
-#define	GEM_TD_END_OF_PACKET	0x0000000040000000LL
-#define	GEM_TD_START_OF_PACKET	0x0000000080000000LL
-#define	GEM_TD_INTERRUPT_ME	0x0000000100000000LL	/* Interrupt me now */
-#define	GEM_TD_NO_CRC		0x0000000200000000LL	/* do not insert crc */
+#define	GEM_TD_CXSUM_ENABLE	0x0000000020000000ULL	/* Cxsum generation enable */
+#define	GEM_TD_END_OF_PACKET	0x0000000040000000ULL
+#define	GEM_TD_START_OF_PACKET	0x0000000080000000ULL
+#define	GEM_TD_INTERRUPT_ME	0x0000000100000000ULL	/* Interrupt me now */
+#define	GEM_TD_NO_CRC		0x0000000200000000ULL	/* do not insert crc */
 /*
  * Only need to set GEM_TD_CXSUM_ENABLE, GEM_TD_CXSUM_STUFF,
  * GEM_TD_CXSUM_START, and GEM_TD_INTERRUPT_ME in 1st descriptor of a group.
  */
 
 /* Receive flags */
-#define	GEM_RD_CHECKSUM		0x000000000000ffffLL	/* is the complement */
-#define	GEM_RD_BUFSIZE		0x000000007fff0000LL
-#define	GEM_RD_OWN		0x0000000080000000LL	/* 1 - owned by h/w */
-#define	GEM_RD_HASHVAL		0x0ffff00000000000LL
-#define	GEM_RD_HASH_PASS	0x1000000000000000LL	/* passed hash filter */
-#define	GEM_RD_ALTERNATE_MAC	0x2000000000000000LL	/* Alternate MAC adrs */
-#define	GEM_RD_BAD_CRC		0x4000000000000000LL
+#define	GEM_RD_CHECKSUM		0x000000000000ffffULL	/* is the complement */
+#define	GEM_RD_BUFSIZE		0x000000007fff0000ULL
+#define	GEM_RD_OWN		0x0000000080000000ULL	/* 1 - owned by h/w */
+#define	GEM_RD_HASHVAL		0x0ffff00000000000ULL
+#define	GEM_RD_HASH_PASS	0x1000000000000000ULL	/* passed hash filter */
+#define	GEM_RD_ALTERNATE_MAC	0x2000000000000000ULL	/* Alternate MAC adrs */
+#define	GEM_RD_BAD_CRC		0x4000000000000000ULL
 
 #define	GEM_RD_BUFSHIFT		16
 #define	GEM_RD_BUFLEN(x)	(((x) & GEM_RD_BUFSIZE) >> GEM_RD_BUFSHIFT)
