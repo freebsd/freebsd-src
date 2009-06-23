@@ -80,6 +80,7 @@ struct lockf_entry {
 	LIST_ENTRY(lockf_entry) lf_link;  /* (s) Linkage for lock lists */
 	struct lockf_edge_list lf_outedges; /* (s) list of out-edges */
 	struct lockf_edge_list lf_inedges; /* (s) list of out-edges */
+	int	lf_refs;	    /* (s) ref count */
 };
 LIST_HEAD(lockf_entry_list, lockf_entry);
 
