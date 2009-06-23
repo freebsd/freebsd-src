@@ -653,7 +653,7 @@ acpi_wmi_ec_handler(UINT32 function, ACPI_PHYSICAL_ADDRESS address,
 	UINT8 ec_addr;
 	ACPI_STATUS status;
 
-	ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)Address);
+	ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)address);
 
 	sc = (struct acpi_wmi_softc *)context;
 	if (width % 8 != 0 || value == NULL || context == NULL)
