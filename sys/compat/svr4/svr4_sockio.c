@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vimage.h>
 
 #include <net/if.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <compat/svr4/svr4.h>
