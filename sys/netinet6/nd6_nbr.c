@@ -355,6 +355,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0) | ND_NA_FLAG_SOLICITED,
 	    tlladdr, (struct sockaddr *)proxydl);
  freeit:
+	if (ifa != NULL)
+		ifa_free(ifa);
 	m_freem(m);
 	return;
 
@@ -366,6 +368,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	nd6log((LOG_ERR, "nd6_ns_input: tgt=%s\n",
 		ip6_sprintf(ip6bufs, &taddr6)));
 	ICMP6STAT_INC(icp6s_badns);
+	if (ifa != NULL)
+		ifa_free(ifa);
 	m_freem(m);
 }
 
@@ -456,6 +460,8 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			goto bad;
 	}
 	if (!dad) {
+		struct ifaddr *ifa;
+
 		/*
 		 * RFC2461 7.2.2:
 		 * "If the source address of the packet prompting the
@@ -486,9 +492,11 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			else
 				hsrc = NULL;
 		}
-		if (hsrc && in6ifa_ifpwithaddr(ifp, hsrc))
+		if (hsrc && (ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
+		    hsrc)) != NULL) {
 			src = hsrc;
-		else {
+			ifa_free(ifa);
+		} else {
 			int error;
 			struct sockaddr_in6 dst_sa;
 
@@ -679,12 +687,14 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 */
 	if (ifa
 	 && (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_TENTATIVE)) {
+		ifa_free(ifa);
 		nd6_dad_na_input(ifa);
 		goto freeit;
 	}
 
 	/* Just for safety, maybe unnecessary. */
 	if (ifa) {
+		ifa_free(ifa);
 		log(LOG_ERR,
 		    "nd6_na_input: duplicate IP6 address %s\n",
 		    ip6_sprintf(ip6bufs, &taddr6));

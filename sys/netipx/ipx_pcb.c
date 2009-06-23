@@ -158,7 +158,6 @@ noname:
 int
 ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 {
-	struct ipx_ifaddr *ia;
 	struct sockaddr_ipx *sipx = (struct sockaddr_ipx *)nam;
 	struct ipx_addr *dst;
 	struct route *ro;
@@ -166,8 +165,6 @@ ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 
 	IPX_LIST_LOCK_ASSERT();
 	IPX_LOCK_ASSERT(ipxp);
-
-	ia = NULL;
 
 	if (sipx->sipx_family != AF_IPX)
 		return (EAFNOSUPPORT);
@@ -213,6 +210,8 @@ ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 		    rtalloc_ign(ro, 0);
 	}
 	if (ipx_neteqnn(ipxp->ipxp_laddr.x_net, ipx_zeronet)) {
+		struct ipx_ifaddr *ia = NULL;
+
 		/*
 		 * If route is known or can be allocated now,
 		 * our src addr is taken from the i/f, else punt.
@@ -225,40 +224,10 @@ ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 		if (ro->ro_rt != NULL && (ifp = ro->ro_rt->rt_ifp) != NULL) {
 			IPX_IFADDR_RLOCK();
 			for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
-				if (ia->ia_ifp == ifp)
+				if (ia->ia_ifp == ifp) {
+					ifa_ref(&ia->ia_ifa);
 					break;
-			IPX_IFADDR_RUNLOCK();
-		}
-		if (ia == NULL) {
-			u_short fport = sipx->sipx_addr.x_port;
-			sipx->sipx_addr.x_port = 0;
-			ia = (struct ipx_ifaddr *)
-				ifa_ifwithdstaddr((struct sockaddr *)sipx);
-			sipx->sipx_addr.x_port = fport;
-			if (ia == NULL)
-				ia = ipx_iaonnetof(&sipx->sipx_addr);
-			if (ia == NULL)
-				ia = ipx_ifaddr;
-			if (ia == NULL)
-				return (EADDRNOTAVAIL);
-		}
-		ipxp->ipxp_laddr.x_net = satoipx_addr(ia->ia_addr).x_net;
-	}
-	if (ipx_nullhost(ipxp->ipxp_laddr)) {
-		/*
-		 * If route is known or can be allocated now,
-		 * our src addr is taken from the i/f, else punt.
-		 */
-
-		/*
-		 * If we found a route, use the address
-		 * corresponding to the outgoing interface
-		 */
-		if (ro->ro_rt != NULL && (ifp = ro->ro_rt->rt_ifp) != NULL) {
-			IPX_IFADDR_RLOCK();
-			for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
-				if (ia->ia_ifp == ifp)
-					break;
+				}
 			IPX_IFADDR_RUNLOCK();
 		}
 		if (ia == NULL) {
@@ -270,17 +239,68 @@ ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 			if (ia == NULL) {
 				IPX_IFADDR_RLOCK();
 				ia = ipx_iaonnetof(&sipx->sipx_addr);
+				if (ia != NULL)
+					ifa_ref(&ia->ia_ifa);
 				IPX_IFADDR_RUNLOCK();
 			}
 			if (ia == NULL) {
 				IPX_IFADDR_RLOCK();
 				ia = ipx_ifaddr;
+				if (ia != NULL)
+					ifa_ref(&ia->ia_ifa);
+				IPX_IFADDR_RUNLOCK();
+			}
+			if (ia == NULL)
+				return (EADDRNOTAVAIL);
+		}
+		ipxp->ipxp_laddr.x_net = satoipx_addr(ia->ia_addr).x_net;
+		ifa_free(&ia->ia_ifa);
+	}
+	if (ipx_nullhost(ipxp->ipxp_laddr)) {
+		struct ipx_ifaddr *ia = NULL;
+		/*
+		 * If route is known or can be allocated now,
+		 * our src addr is taken from the i/f, else punt.
+		 */
+
+		/*
+		 * If we found a route, use the address
+		 * corresponding to the outgoing interface
+		 */
+		if (ro->ro_rt != NULL && (ifp = ro->ro_rt->rt_ifp) != NULL) {
+			IPX_IFADDR_RLOCK();
+			for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
+				if (ia->ia_ifp == ifp) {
+					ifa_ref(&ia->ia_ifa);
+					break;
+				}
+			IPX_IFADDR_RUNLOCK();
+		}
+		if (ia == NULL) {
+			u_short fport = sipx->sipx_addr.x_port;
+			sipx->sipx_addr.x_port = 0;
+			ia = (struct ipx_ifaddr *)
+				ifa_ifwithdstaddr((struct sockaddr *)sipx);
+			sipx->sipx_addr.x_port = fport;
+			if (ia == NULL) {
+				IPX_IFADDR_RLOCK();
+				ia = ipx_iaonnetof(&sipx->sipx_addr);
+				if (ia != NULL)
+					ifa_ref(&ia->ia_ifa);
+				IPX_IFADDR_RUNLOCK();
+			}
+			if (ia == NULL) {
+				IPX_IFADDR_RLOCK();
+				ia = ipx_ifaddr;
+				if (ia != NULL)
+					ifa_ref(&ia->ia_ifa);
 				IPX_IFADDR_RUNLOCK();
 			}
 			if (ia == NULL)
 				return (EADDRNOTAVAIL);
 		}
 		ipxp->ipxp_laddr.x_host = satoipx_addr(ia->ia_addr).x_host;
+		ifa_free(&ia->ia_ifa);
 	}
 	if (ipx_pcblookup(&sipx->sipx_addr, ipxp->ipxp_lport, 0))
 		return (EADDRINUSE);

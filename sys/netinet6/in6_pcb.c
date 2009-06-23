@@ -162,10 +162,11 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			if (so->so_options & SO_REUSEADDR)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
 		} else if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-			struct ifaddr *ia;
+			struct ifaddr *ifa;
 
 			sin6->sin6_port = 0;		/* yech... */
-			if ((ia = ifa_ifwithaddr((struct sockaddr *)sin6)) == NULL &&
+			if ((ifa = ifa_ifwithaddr((struct sockaddr *)sin6)) ==
+			    NULL &&
 			    (inp->inp_flags & INP_BINDANY) == 0) {
 				return (EADDRNOTAVAIL);
 			}
@@ -176,11 +177,14 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			 * We should allow to bind to a deprecated address, since
 			 * the application dares to use it.
 			 */
-			if (ia &&
-			    ((struct in6_ifaddr *)ia)->ia6_flags &
+			if (ifa != NULL &&
+			    ((struct in6_ifaddr *)ifa)->ia6_flags &
 			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|IN6_IFF_DETACHED)) {
+				ifa_free(ifa);
 				return (EADDRNOTAVAIL);
 			}
+			if (ifa != NULL)
+				ifa_free(ifa);
 		}
 		if (lport) {
 			struct inpcb *t;

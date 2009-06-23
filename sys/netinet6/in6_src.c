@@ -245,15 +245,26 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		    (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0))) != 0)
 			return (NULL);
 
-		ia6 = (struct in6_ifaddr *)ifa_ifwithaddr((struct sockaddr *)(&srcsock));
+		ia6 = (struct in6_ifaddr *)ifa_ifwithaddr(
+		    (struct sockaddr *)&srcsock);
 		if (ia6 == NULL ||
 		    (ia6->ia6_flags & (IN6_IFF_ANYCAST | IN6_IFF_NOTREADY))) {
+			if (ia6 != NULL)
+				ifa_free(&ia6->ia_ifa);
 			*errorp = EADDRNOTAVAIL;
 			return (NULL);
 		}
 		pi->ipi6_addr = srcsock.sin6_addr; /* XXX: this overrides pi */
 		if (ifpp)
 			*ifpp = ifp;
+
+		/*
+		 * XXXRW: This returns a pointer into a structure with no
+		 * refcount.  in6_selectsrc() should return it to caller-
+		 * provided memory using call-by-reference rather than
+		 * returning pointers into other memory.
+		 */
+		ifa_free(&ia6->ia_ifa);
 		return (&ia6->ia_addr.sin6_addr);
 	}
 

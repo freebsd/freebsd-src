@@ -622,8 +622,10 @@ passin:
 		 * enabled.
 		 */
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr && 
-		    (!checkif || ia->ia_ifp == ifp))
+		    (!checkif || ia->ia_ifp == ifp)) {
+			ifa_ref(&ia->ia_ifa);
 			goto ours;
+		}
 	}
 	/*
 	 * Check for broadcast addresses.
@@ -641,15 +643,18 @@ passin:
 			ia = ifatoia(ifa);
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    ip->ip_dst.s_addr) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto ours;
 			}
 			if (ia->ia_netbroadcast.s_addr == ip->ip_dst.s_addr) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto ours;
 			}
 #ifdef BOOTP_COMPAT
 			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto ours;
 			}
@@ -742,6 +747,7 @@ ours:
 	if (ia != NULL) {
 		ia->ia_ifa.if_ipackets++;
 		ia->ia_ifa.if_ibytes += m->m_pkthdr.len;
+		ifa_free(&ia->ia_ifa);
 	}
 
 	/*
@@ -1335,8 +1341,8 @@ ipproto_unregister(u_char ipproto)
 }
 
 /*
- * Given address of next destination (final or next hop),
- * return internet address info of interface to be used to get there.
+ * Given address of next destination (final or next hop), return (referenced)
+ * internet address info of interface to be used to get there.
  */
 struct in_ifaddr *
 ip_rtaddr(struct in_addr dst, u_int fibnum)
@@ -1356,6 +1362,7 @@ ip_rtaddr(struct in_addr dst, u_int fibnum)
 		return (NULL);
 
 	ifa = ifatoia(sro.ro_rt->rt_ifa);
+	ifa_ref(&ifa->ia_ifa);
 	RTFREE(sro.ro_rt);
 	return (ifa);
 }
@@ -1530,11 +1537,16 @@ ip_forward(struct mbuf *m, int srcrt)
 		else {
 			if (mcopy)
 				m_freem(mcopy);
+			if (ia != NULL)
+				ifa_free(&ia->ia_ifa);
 			return;
 		}
 	}
-	if (mcopy == NULL)
+	if (mcopy == NULL) {
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		return;
+	}
 
 	switch (error) {
 
@@ -1592,6 +1604,8 @@ ip_forward(struct mbuf *m, int srcrt)
 		 */
 		if (V_ip_sendsourcequench == 0) {
 			m_freem(mcopy);
+			if (ia != NULL)
+				ifa_free(&ia->ia_ifa);
 			return;
 		} else {
 			type = ICMP_SOURCEQUENCH;
@@ -1601,8 +1615,12 @@ ip_forward(struct mbuf *m, int srcrt)
 
 	case EACCES:			/* ipfw denied packet */
 		m_freem(mcopy);
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		return;
 	}
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	icmp_error(mcopy, type, code, dest.s_addr, mtu);
 }
 
