@@ -2921,6 +2921,9 @@ the maximum number of simultaneous processes for this user id
 .TP
 \fIsbsize\fR
 the maximum size of socket buffer usage for this user
+.TP
+\fIswaplimit\fR
+the maximum amount of swap space reserved or used for this user
 .PP
 \fImaximum-use\fR may be given as a (floating point or
 integer) number followed by a scale factor.  For all limits
