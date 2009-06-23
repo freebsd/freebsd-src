@@ -583,8 +583,7 @@ ArchArchiveNext(struct arfile *ar)
 	 * looks like a member - get name by stripping trailing spaces
 	 * and NUL terminating.
 	 */
-	strncpy(ar->sname, ar->hdr.ar_name, AR_NAMSIZ);
-	ar->sname[AR_NAMSIZ] = '\0';
+	strlcpy(ar->sname, ar->hdr.ar_name, AR_NAMSIZ + 1);
 	for (ptr = ar->sname + AR_NAMSIZ; ptr > ar->sname; ptr--)
 		if (ptr[-1] != ' ')
 			break;
@@ -595,8 +594,7 @@ ArchArchiveNext(struct arfile *ar)
 	 * Parse the size. All entries need to have a size. Be careful
 	 * to not allow buffer overruns.
 	 */
-	strncpy(buf, ar->hdr.ar_size, sizeof(ar->hdr.ar_size));
-	buf[sizeof(ar->hdr.ar_size)] = '\0';
+	strlcpy(buf, ar->hdr.ar_size, sizeof(ar->hdr.ar_size) + 1);
 
 	errno = 0;
 	ar->size = strtoumax(buf, &end, 10);
@@ -650,8 +648,7 @@ ArchArchiveNext(struct arfile *ar)
 	 * Now parse the modification date. Be careful to not overrun
 	 * buffers.
 	 */
-	strncpy(buf, ar->hdr.ar_date, sizeof(ar->hdr.ar_date));
-	buf[sizeof(ar->hdr.ar_date)] = '\0';
+	strlcpy(buf, ar->hdr.ar_date, sizeof(ar->hdr.ar_date) + 1);
 
 	errno = 0;
 	ar->time = (int64_t)strtoll(buf, &end, 10);
@@ -965,8 +962,7 @@ ArchStatMember(const char *archive, const char *member, Boolean hash)
 
 	if (member != NULL && strlen(member) > AR_NAMSIZ) {
 		/* Try truncated name */
-		strncpy(copy, member, AR_NAMSIZ);
-		copy[AR_NAMSIZ] = '\0';
+		strlcpy(copy, member, AR_NAMSIZ + 1);
 
 		if ((he = Hash_FindEntry(&ar->members, copy)) != NULL)
 			return (*(int64_t *)Hash_GetValue(he));
