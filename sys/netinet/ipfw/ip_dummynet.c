@@ -661,7 +661,7 @@ ready_event(struct dn_flow_queue *q, struct mbuf **head, struct mbuf **tail)
 		 * queue on error hoping next time we are luckier.
 		 */
 	} else		/* RED needs to know when the queue becomes empty. */
-		q->q_time = curr_time;
+		q->idle_time = curr_time;
 
 	/*
 	 * If the delay line was empty call transmit_event() now.
@@ -761,23 +761,26 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 			break;
 		}
 	}
-	if (sch->elements == 0 && neh->elements == 0 && p->numbytes >= 0 &&
-	    p->idle_heap.elements > 0) {
+	if (sch->elements == 0 && neh->elements == 0 && p->numbytes >= 0) {
+		p->idle_time = curr_time;
 		/*
 		 * No traffic and no events scheduled.
 		 * We can get rid of idle-heap.
 		 */
-		int i;
+		if (p->idle_heap.elements > 0) {
+			int i;
 
-		for (i = 0; i < p->idle_heap.elements; i++) {
-			struct dn_flow_queue *q = p->idle_heap.p[i].object;
-
-			q->F = 0;
-			q->S = q->F + 1;
+			for (i = 0; i < p->idle_heap.elements; i++) {
+				struct dn_flow_queue *q;
+				
+				q = p->idle_heap.p[i].object;
+				q->F = 0;
+				q->S = q->F + 1;
+			}
+			p->sum = 0;
+			p->V = 0;
+			p->idle_heap.elements = 0;
 		}
-		p->sum = 0;
-		p->V = 0;
-		p->idle_heap.elements = 0;
 	}
 	/*
 	 * If we are getting clocks from dummynet (not a real interface) and
@@ -1042,7 +1045,7 @@ create_queue(struct dn_flow_set *fs, int i)
 	q->hash_slot = i;
 	q->next = fs->rq[i];
 	q->S = q->F + 1;	/* hack - mark timestamp as invalid. */
-	q->numbytes = io_fast ? fs->pipe->bandwidth : 0;
+	q->numbytes = fs->pipe->burst + (io_fast ? fs->pipe->bandwidth : 0);
 	fs->rq[i] = q;
 	fs->rq_elements++;
 	return (q);
@@ -1204,7 +1207,7 @@ red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
 		 * XXX check wraps...
 		 */
 		if (q->avg) {
-			u_int t = (curr_time - q->q_time) / fs->lookup_step;
+			u_int t = (curr_time - q->idle_time) / fs->lookup_step;
 
 			q->avg = (t < fs->lookup_depth) ?
 			    SCALE_MUL(q->avg, fs->w_q_lookup[t]) : 0;
@@ -1401,9 +1404,30 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	if (q->head != m)		/* Flow was not idle, we are done. */
 		goto done;
 
-	if (q->q_time < curr_time)
-		q->numbytes = io_fast ? fs->pipe->bandwidth : 0;
-	q->q_time = curr_time;
+	if (is_pipe) {			/* Fixed rate queues. */
+		if (q->idle_time < curr_time) {
+			/* Calculate available burst size. */
+			q->numbytes +=
+			    (curr_time - q->idle_time) * pipe->bandwidth;
+			if (q->numbytes > pipe->burst)
+				q->numbytes = pipe->burst;
+			if (io_fast)
+				q->numbytes += pipe->bandwidth;
+		}
+	} else {			/* WF2Q. */
+		if (pipe->idle_time < curr_time) {
+			/* Calculate available burst size. */
+			pipe->numbytes +=
+			    (curr_time - pipe->idle_time) * pipe->bandwidth;
+			if (pipe->numbytes > pipe->burst)
+				pipe->numbytes = pipe->burst;
+			if (io_fast)
+				pipe->numbytes += pipe->bandwidth;
+		}
+		pipe->idle_time = curr_time;
+	}
+	/* Necessary for both: fixed rate & WF2Q queues. */
+	q->idle_time = curr_time;
 
 	/*
 	 * If we reach this point the flow was previously idle, so we need
@@ -1731,6 +1755,8 @@ config_pipe(struct dn_pipe *p)
 	 * qsize = slots/bytes
 	 */
 	p->delay = (p->delay * hz) / 1000;
+	/* Scale burst size: bytes -> bits * hz */
+	p->burst *= 8 * hz;
 	/* We need either a pipe number or a flow_set number. */
 	if (p->pipe_nr == 0 && pfs->fs_nr == 0)
 		return (EINVAL);
@@ -1762,11 +1788,14 @@ config_pipe(struct dn_pipe *p)
 		} else
 			/* Flush accumulated credit for all queues. */
 			for (i = 0; i <= pipe->fs.rq_size; i++)
-				for (q = pipe->fs.rq[i]; q; q = q->next)
-					q->numbytes = io_fast ? p->bandwidth : 0;
+				for (q = pipe->fs.rq[i]; q; q = q->next) {
+					q->numbytes = p->burst +
+					    (io_fast ? p->bandwidth : 0);
+				}
 
 		pipe->bandwidth = p->bandwidth;
-		pipe->numbytes = 0;		/* just in case... */
+		pipe->burst = p->burst;
+		pipe->numbytes = pipe->burst + (io_fast ? pipe->bandwidth : 0);
 		bcopy(p->if_name, pipe->if_name, sizeof(p->if_name));
 		pipe->ifp = NULL;		/* reset interface ptr */
 		pipe->delay = p->delay;
@@ -2107,6 +2136,7 @@ dummynet_get(struct sockopt *sopt)
 		 */
 		bcopy(pipe, bp, sizeof(*pipe));
 		pipe_bp->delay = (pipe_bp->delay * 1000) / hz;
+		pipe_bp->burst /= 8 * hz;
 		/*
 		 * XXX the following is a hack based on ->next being the
 		 * first field in dn_pipe and dn_flow_set. The correct
