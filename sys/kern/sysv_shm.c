@@ -96,24 +96,10 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
-#if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
-struct oshmctl_args;
-static int oshmctl(struct thread *td, struct oshmctl_args *uap);
-#endif
-
 static int shmget_allocate_segment(struct thread *td,
     struct shmget_args *uap, int mode);
 static int shmget_existing(struct thread *td, struct shmget_args *uap,
     int mode, int segnum);
-
-#if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
-/* XXX casting to (sy_call_t *) is bogus, as usual. */
-static sy_call_t *shmcalls[] = {
-	(sy_call_t *)shmat, (sy_call_t *)oshmctl,
-	(sy_call_t *)shmdt, (sy_call_t *)shmget,
-	(sy_call_t *)shmctl
-};
-#endif
 
 #define	SHMSEG_FREE     	0x0200
 #define	SHMSEG_REMOVED  	0x0400
@@ -447,78 +433,6 @@ shmat(td, uap)
 	return kern_shmat(td, uap->shmid, uap->shmaddr, uap->shmflg);
 }
 
-#if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
-struct oshmid_ds {
-	struct	ipc_perm shm_perm;	/* operation perms */
-	int	shm_segsz;		/* size of segment (bytes) */
-	u_short	shm_cpid;		/* pid, creator */
-	u_short	shm_lpid;		/* pid, last operation */
-	short	shm_nattch;		/* no. of current attaches */
-	time_t	shm_atime;		/* last attach time */
-	time_t	shm_dtime;		/* last detach time */
-	time_t	shm_ctime;		/* last change time */
-	void	*shm_handle;		/* internal handle for shm segment */
-};
-
-struct oshmctl_args {
-	int shmid;
-	int cmd;
-	struct oshmid_ds *ubuf;
-};
-static int
-oshmctl(td, uap)
-	struct thread *td;
-	struct oshmctl_args *uap;
-{
-#ifdef COMPAT_43
-	int error = 0;
-	struct shmid_kernel *shmseg;
-	struct oshmid_ds outbuf;
-
-	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
-		return (ENOSYS);
-	mtx_lock(&Giant);
-	shmseg = shm_find_segment_by_shmid(uap->shmid);
-	if (shmseg == NULL) {
-		error = EINVAL;
-		goto done2;
-	}
-	switch (uap->cmd) {
-	case IPC_STAT:
-		error = ipcperm(td, &shmseg->u.shm_perm, IPC_R);
-		if (error)
-			goto done2;
-#ifdef MAC
-		error = mac_sysvshm_check_shmctl(td->td_ucred, shmseg, uap->cmd);
-		if (error != 0)
-			goto done2;
-#endif
-		outbuf.shm_perm = shmseg->u.shm_perm;
-		outbuf.shm_segsz = shmseg->u.shm_segsz;
-		outbuf.shm_cpid = shmseg->u.shm_cpid;
-		outbuf.shm_lpid = shmseg->u.shm_lpid;
-		outbuf.shm_nattch = shmseg->u.shm_nattch;
-		outbuf.shm_atime = shmseg->u.shm_atime;
-		outbuf.shm_dtime = shmseg->u.shm_dtime;
-		outbuf.shm_ctime = shmseg->u.shm_ctime;
-		outbuf.shm_handle = shmseg->u.shm_internal;
-		error = copyout(&outbuf, uap->ubuf, sizeof(outbuf));
-		if (error)
-			goto done2;
-		break;
-	default:
-		error = shmctl(td, (struct shmctl_args *)uap);
-		break;
-	}
-done2:
-	mtx_unlock(&Giant);
-	return (error);
-#else
-	return (EINVAL);
-#endif
-}
-#endif
-
 int
 kern_shmctl(td, shmid, cmd, buf, bufsz)
 	struct thread *td;
@@ -839,34 +753,6 @@ done2:
 	return (error);
 }
 
-int
-shmsys(td, uap)
-	struct thread *td;
-	/* XXX actually varargs. */
-	struct shmsys_args /* {
-		int	which;
-		int	a2;
-		int	a3;
-		int	a4;
-	} */ *uap;
-{
-#if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
-	int error;
-
-	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
-		return (ENOSYS);
-	if (uap->which < 0 ||
-	    uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))
-		return (EINVAL);
-	mtx_lock(&Giant);
-	error = (*shmcalls[uap->which])(td, &uap->a2);
-	mtx_unlock(&Giant);
-	return (error);
-#else
-	return (nosys(td, NULL));
-#endif
-}
-
 static void
 shmfork_myhook(p1, p2)
 	struct proc *p1, *p2;
@@ -991,6 +877,112 @@ sysctl_shmsegs(SYSCTL_HANDLER_ARGS)
 	return (SYSCTL_OUT(req, shmsegs, shmalloced * sizeof(shmsegs[0])));
 }
 
+#if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
+struct oshmid_ds {
+	struct	ipc_perm_old shm_perm;	/* operation perms */
+	int	shm_segsz;		/* size of segment (bytes) */
+	u_short	shm_cpid;		/* pid, creator */
+	u_short	shm_lpid;		/* pid, last operation */
+	short	shm_nattch;		/* no. of current attaches */
+	time_t	shm_atime;		/* last attach time */
+	time_t	shm_dtime;		/* last detach time */
+	time_t	shm_ctime;		/* last change time */
+	void	*shm_handle;		/* internal handle for shm segment */
+};
+
+struct oshmctl_args {
+	int shmid;
+	int cmd;
+	struct oshmid_ds *ubuf;
+};
+
+static int
+oshmctl(td, uap)
+	struct thread *td;
+	struct oshmctl_args *uap;
+{
+#ifdef COMPAT_43
+	int error = 0;
+	struct shmid_kernel *shmseg;
+	struct oshmid_ds outbuf;
+
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
+		return (ENOSYS);
+	mtx_lock(&Giant);
+	shmseg = shm_find_segment_by_shmid(uap->shmid);
+	if (shmseg == NULL) {
+		error = EINVAL;
+		goto done2;
+	}
+	switch (uap->cmd) {
+	case IPC_STAT:
+		error = ipcperm(td, &shmseg->u.shm_perm, IPC_R);
+		if (error)
+			goto done2;
+#ifdef MAC
+		error = mac_sysvshm_check_shmctl(td->td_ucred, shmseg, uap->cmd);
+		if (error != 0)
+			goto done2;
+#endif
+		ipcperm_new2old(&shmseg->u.shm_perm, &outbuf.shm_perm);
+		outbuf.shm_segsz = shmseg->u.shm_segsz;
+		outbuf.shm_cpid = shmseg->u.shm_cpid;
+		outbuf.shm_lpid = shmseg->u.shm_lpid;
+		outbuf.shm_nattch = shmseg->u.shm_nattch;
+		outbuf.shm_atime = shmseg->u.shm_atime;
+		outbuf.shm_dtime = shmseg->u.shm_dtime;
+		outbuf.shm_ctime = shmseg->u.shm_ctime;
+		outbuf.shm_handle = shmseg->object;
+		error = copyout(&outbuf, uap->ubuf, sizeof(outbuf));
+		if (error)
+			goto done2;
+		break;
+	default:
+		error = freebsd7_shmctl(td, (struct shmctl_args *)uap);
+		break;
+	}
+done2:
+	mtx_unlock(&Giant);
+	return (error);
+#else
+	return (EINVAL);
+#endif
+}
+
+/* XXX casting to (sy_call_t *) is bogus, as usual. */
+static sy_call_t *shmcalls[] = {
+	(sy_call_t *)shmat, (sy_call_t *)oshmctl,
+	(sy_call_t *)shmdt, (sy_call_t *)shmget,
+	(sy_call_t *)shmctl
+};
+
+int
+shmsys(td, uap)
+	struct thread *td;
+	/* XXX actually varargs. */
+	struct shmsys_args /* {
+		int	which;
+		int	a2;
+		int	a3;
+		int	a4;
+	} */ *uap;
+{
+	int error;
+
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
+		return (ENOSYS);
+	if (uap->which < 0 ||
+	    uap->which >= sizeof(shmcalls)/sizeof(shmcalls[0]))
+		return (EINVAL);
+	mtx_lock(&Giant);
+	error = (*shmcalls[uap->which])(td, &uap->a2);
+	mtx_unlock(&Giant);
+	return (error);
+}
+
+SYSCALL_MODULE_HELPER(shmsys);
+#endif	/* i386 && (COMPAT_FREEBSD4 || COMPAT_43) */
+
 static int
 sysvshm_modload(struct module *module, int cmd, void *arg)
 {
@@ -1018,7 +1010,6 @@ static moduledata_t sysvshm_mod = {
 	NULL
 };
 
-SYSCALL_MODULE_HELPER(shmsys);
 SYSCALL_MODULE_HELPER(shmat);
 SYSCALL_MODULE_HELPER(shmctl);
 SYSCALL_MODULE_HELPER(shmdt);
