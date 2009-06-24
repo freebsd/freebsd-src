@@ -726,6 +726,7 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 	vm_size_t	size, physsz, hwphyssz;
 	vm_offset_t	pa, va, off;
 	uint32_t	msr;
+	void		*dpcpu;
 
 	/* We don't have a direct map since there is no BAT */
 	hw_direct_map = 0;
@@ -1027,6 +1028,20 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
 	}
+
+	/*
+	 * Allocate virtual address space for the dynamic percpu area.
+	 */
+	pa = moea64_bootstrap_alloc(DPCPU_SIZE, PAGE_SIZE);
+	dpcpu = (void *)virtual_avail;
+	va = virtual_avail;
+	virtual_avail += DPCPU_SIZE;
+	while (va < virtual_avail) {
+		moea64_kenter(mmup, va, pa);;
+		pa += PAGE_SIZE;
+		va += PAGE_SIZE;
+	}
+	dpcpu_init(dpcpu, 0);
 }
 
 /*

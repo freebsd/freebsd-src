@@ -421,7 +421,7 @@ skipif:
 	}
     }
 
-    /* Finally, go get the disks and look for DOS partitions to register */
+    /* Finally, go get the disks and look for partitions to register */
     if ((names = Disk_Names()) != NULL) {
 	int i;
 
@@ -458,7 +458,11 @@ skipif:
 	    if (isDebug())
 		msgDebug("Found a disk device named %s\n", names[i]);
 
-	    /* Look for existing DOS partitions to register as "DOS media devices" */
+	    /* Look for existing DOS partitions to register as "DOS media devices"
+	     * XXX: libdisks handling of extended partitions is too
+	     * simplistic - it does not handle them containing (for
+	     * example) UFS partitions
+	     */
 	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == fat || c1->type == efi || c1->type == extended) {
 		    Device *dev;
@@ -470,8 +474,25 @@ skipif:
 					 mediaInitDOS, mediaGetDOS, mediaShutdownDOS, NULL);
 		    dev->private = c1;
 		    if (isDebug())
-			msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
+			msgDebug("Found a DOS partition %s\n", c1->name);
+		} else if (c1->type == freebsd) {
+		    Device *dev;
+		    char devname[80];
+		    Chunk *c2;
+			
+		    for (c2 = c1->part; c2; c2 = c2->next) {
+			if (c2->type != part || c2->subtype != 7)
+			    continue;
+			/* Got one! */
+			snprintf(devname, sizeof devname, "/dev/%s", c1->name);
+			dev = deviceRegister(c2->name, c2->name, strdup(devname), DEVICE_TYPE_UFS, TRUE,
+					     mediaInitUFS, mediaGetUFS, mediaShutdownUFS, NULL);
+			dev->private = c2;
+			if (isDebug())
+			    msgDebug("Found a UFS sub-partition %s\n", c2->name);
+		    }
 		}
+		
 	    }
 	}
 	free(names);

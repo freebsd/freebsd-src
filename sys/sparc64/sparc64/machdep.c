@@ -124,6 +124,7 @@ int cold = 1;
 long Maxmem;
 long realmem;
 
+void *dpcpu0;
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
 struct trapframe frame0;
 
@@ -480,8 +481,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	delay_func = delay_tick;
 
 	/*
-	 * Initialize the message buffer (after setting trap table).
+	 * Initialize the dynamic per-CPU area for the BSP and the message
+	 * buffer (after setting the trap table).
 	 */
+	dpcpu_init(dpcpu0, 0);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 	mutex_init();

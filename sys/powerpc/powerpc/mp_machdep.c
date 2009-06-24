@@ -146,8 +146,12 @@ cpu_mp_start(void)
 			goto next;
 		}
 		if (cpu.cr_cpuid != bsp.cr_cpuid) {
+			void *dpcpu;
+
 			pc = &__pcpu[cpu.cr_cpuid];
+			dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
 			pcpu_init(pc, cpu.cr_cpuid, sizeof(*pc));
+			dpcpu_init(dpcpu, cpu.cr_cpuid);
 		} else {
 			pc = pcpup;
 			pc->pc_cpuid = bsp.cr_cpuid;

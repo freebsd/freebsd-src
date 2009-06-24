@@ -179,13 +179,13 @@ clone_Copt_cb(const char *optarg __unused)
 	list_cloners();
 	exit(0);
 }
-static struct option clone_Copt = { "C", "[-C]", clone_Copt_cb };
+static struct option clone_Copt = { .opt = "C", .opt_usage = "[-C]", .cb = clone_Copt_cb };
 
 static __constructor void
 clone_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(clone_cmds);  i++)
 		cmd_register(&clone_cmds[i]);

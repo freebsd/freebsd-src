@@ -767,6 +767,11 @@ skipshuffle:
 	mmu_fault_status_area = pmap_bootstrap_alloc(MMFSA_SIZE*MAXCPU);
 
 	/*
+	 * Allocate and map the dynamic per-CPU area for the BSP.
+	 */
+	dpcpu0 = (void *)TLB_PHYS_TO_DIRECT(pmap_bootstrap_alloc(DPCPU_SIZE));
+
+	/*
 	 * Allocate and map the message buffer.
 	 */
 	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE);

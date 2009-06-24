@@ -211,7 +211,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 	if (local) {
 		if (rtype == R_IA_64_REL64LSB)
-			*where = relocbase + addend;
+			*where = elf_relocaddr(lf, relocbase + addend);
 		return (0);
 	}
 

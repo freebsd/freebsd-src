@@ -4905,6 +4905,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
 	si = 0;
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			si = (struct sockaddr_in *)ifa->ifa_addr;
@@ -4923,6 +4924,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 		if (si && si->sin_addr.s_addr)
 			ddst = si->sin_addr.s_addr;
 	}
+	IF_ADDR_UNLOCK(ifp);
 
 	if (dst) *dst = ntohl(ddst);
 	if (src) *src = ntohl(ssrc);
@@ -4946,23 +4948,24 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
 	si = 0;
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-	{
-		if (ifa->ifa_addr->sa_family == AF_INET)
-		{
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == AF_INET) {
 			si = (struct sockaddr_in *)ifa->ifa_addr;
-			if (si)
+			if (si != NULL) {
+				ifa_ref(ifa);
 				break;
+			}
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 
-	if (ifa && si)
-	{
+	if (ifa != NULL) {
 		int error;
+
 		/* delete old route */
 		error = rtinit(ifa, (int)RTM_DELETE, RTF_HOST);
-		if(debug && error)
-		{
+		if (debug && error) {
 			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: rtinit DEL failed, error=%d\n",
 		    		SPP_ARGS(ifp), error);
 		}
@@ -4975,11 +4978,11 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 
 		/* add new route */
 		error = rtinit(ifa, (int)RTM_ADD, RTF_HOST);
-		if (debug && error)
-		{
+		if (debug && error) {
 			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: rtinit ADD failed, error=%d",
 		    		SPP_ARGS(ifp), error);
 		}
+		ifa_free(ifa);
 	}
 }
 #endif
@@ -5004,7 +5007,8 @@ sppp_get_ip6_addrs(struct sppp *sp, struct in6_addr *src, struct in6_addr *dst,
 	 * Pick the first link-local AF_INET6 address from the list,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
-	si = 0;
+	si = NULL;
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET6) {
 			si = (struct sockaddr_in6 *)ifa->ifa_addr;
@@ -5030,6 +5034,7 @@ sppp_get_ip6_addrs(struct sppp *sp, struct in6_addr *src, struct in6_addr *dst,
 		bcopy(&ddst, dst, sizeof(*dst));
 	if (src)
 		bcopy(&ssrc, src, sizeof(*src));
+	IF_ADDR_UNLOCK(ifp);
 }
 
 #ifdef IPV6CP_MYIFID_DYN
@@ -5058,28 +5063,29 @@ sppp_set_ip6_addr(struct sppp *sp, const struct in6_addr *src)
 	 */
 
 	sin6 = NULL;
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-	{
-		if (ifa->ifa_addr->sa_family == AF_INET6)
-		{
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == AF_INET6) {
 			sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-			if (sin6 && IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
+			if (sin6 && IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
+				ifa_ref(ifa);
 				break;
+			}
 		}
 	}
+	IF_ADDR_UNLOCK(ifp);
 
-	if (ifa && sin6)
-	{
+	if (ifa != NULL) {
 		int error;
 		struct sockaddr_in6 new_sin6 = *sin6;
 
 		bcopy(src, &new_sin6.sin6_addr, sizeof(new_sin6.sin6_addr));
 		error = in6_ifinit(ifp, ifatoia6(ifa), &new_sin6, 1);
-		if (debug && error)
-		{
+		if (debug && error) {
 			log(LOG_DEBUG, SPP_FMT "sppp_set_ip6_addr: in6_ifinit "
 			    " failed, error=%d\n", SPP_ARGS(ifp), error);
 		}
+		ifa_free(ifa);
 	}
 }
 #endif

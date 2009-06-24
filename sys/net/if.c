@@ -3145,14 +3145,23 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	struct ifaddr *ifa;
 	struct ifreq ifr;
 
+	IF_ADDR_LOCK(ifp);
 	ifa = ifp->if_addr;
-	if (ifa == NULL)
+	if (ifa == NULL) {
+		IF_ADDR_UNLOCK(ifp);
 		return (EINVAL);
+	}
+	ifa_ref(ifa);
+	IF_ADDR_UNLOCK(ifp);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	if (sdl == NULL)
+	if (sdl == NULL) {
+		ifa_free(ifa);
 		return (EINVAL);
-	if (len != sdl->sdl_alen)	/* don't allow length to change */
+	}
+	if (len != sdl->sdl_alen) {	/* don't allow length to change */
+		ifa_free(ifa);
 		return (EINVAL);
+	}
 	switch (ifp->if_type) {
 	case IFT_ETHER:
 	case IFT_FDDI:
@@ -3164,10 +3173,13 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_IEEE8023ADLAG:
 	case IFT_IEEE80211:
 		bcopy(lladdr, LLADDR(sdl), len);
+		ifa_free(ifa);
 		break;
 	default:
+		ifa_free(ifa);
 		return (ENODEV);
 	}
+
 	/*
 	 * If the interface is already up, we need
 	 * to re-init it in order to reprogram its
