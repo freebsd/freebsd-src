@@ -1023,6 +1023,7 @@ OLD_FILES+=usr/lib/libhdb_p.a
 OLD_FILES+=usr/lib/libhistory_p.a
 OLD_FILES+=usr/lib/libipsec_p.a
 OLD_FILES+=usr/lib/libipx_p.a
+OLD_FILES+=usr/lib/libjail_p.a
 OLD_FILES+=usr/lib/libkadm5clnt_p.a
 OLD_FILES+=usr/lib/libkadm5srv_p.a
 OLD_FILES+=usr/lib/libkafs5_p.a
