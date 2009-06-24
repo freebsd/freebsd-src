@@ -308,8 +308,8 @@
  */
 #define	PRIV_NET_BRIDGE		390	/* Administer bridge. */
 #define	PRIV_NET_GRE		391	/* Administer GRE. */
-#define	PRIV_NET_PPP		392	/* Administer PPP. */
-#define	PRIV_NET_SLIP		393	/* Administer SLIP. */
+#define	_PRIV_NET_PPP		392	/* Removed. */
+#define	_PRIV_NET_SLIP		393	/* Removed. */
 #define	PRIV_NET_BPF		394	/* Monitor BPF. */
 #define	PRIV_NET_RAW		395	/* Open raw socket. */
 #define	PRIV_NET_ROUTE		396	/* Administer routing. */
