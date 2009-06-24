@@ -40,10 +40,12 @@ struct at_ifaddr {
 	u_short			 aa_lastnet;
 	int			 aa_probcnt;
 	struct callout		 aa_callout;
-	struct at_ifaddr	*aa_next;
+	TAILQ_ENTRY(at_ifaddr)	 aa_link;
 };
 #define	aa_ifp		aa_ifa.ifa_ifp
 #define	aa_dstaddr	aa_broadaddr;
+
+TAILQ_HEAD(at_ifaddrhead, at_ifaddr);
 
 struct at_aliasreq {
 	char			ifra_name[IFNAMSIZ];
@@ -61,8 +63,8 @@ struct at_aliasreq {
 #define	AFA_PHASE2	0x0004
 
 #ifdef _KERNEL
-extern struct rwlock	 at_ifaddr_rw;
-extern struct at_ifaddr	*at_ifaddr_list;
+extern struct rwlock		at_ifaddr_rw;
+extern struct at_ifaddrhead	at_ifaddrhead;
 
 #define	AT_IFADDR_LOCK_INIT()	rw_init(&at_ifaddr_rw, "at_ifaddr_rw")
 #define	AT_IFADDR_LOCK_ASSERT()	rw_assert(&at_ifaddr_rw, RA_LOCKED)

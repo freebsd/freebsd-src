@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <netatalk/at_extern.h>
 
 struct rwlock		 at_ifaddr_rw;
-struct at_ifaddr	*at_ifaddr_list;
+struct at_ifaddrhead	 at_ifaddrhead;
 
 RW_SYSINIT(at_ifaddr_rw, &at_ifaddr_rw, "at_ifaddr_rw");
 
@@ -79,9 +79,8 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	struct sockaddr_at *sat;
 	struct netrange	*nr;
 	struct at_aliasreq *ifra = (struct at_aliasreq *)data;
-	struct at_ifaddr *aa_temp;
 	struct at_ifaddr *aa;
-	struct ifaddr *ifa, *ifa0;
+	struct ifaddr *ifa;
 	int error;
 
 	/*
@@ -90,7 +89,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	aa = NULL;
 	AT_IFADDR_RLOCK();
 	if (ifp != NULL) {
-		for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
+		TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 			if (aa->aa_ifp == ifp)
 				break;
 		}
@@ -118,7 +117,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			struct at_ifaddr *oaa;
 
 			AT_IFADDR_RLOCK();
-			for (oaa = aa; aa; aa = aa->aa_next) {
+			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp &&
 				    sateqaddr(&aa->aa_addr, &ifra->ifra_addr))
 					break;
@@ -161,7 +160,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 * the NEXT interface!
 			 */
 			AT_IFADDR_RLOCK();
-			for (oaa = aa; aa; aa = aa->aa_next) {
+			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp &&
 				    (aa->aa_flags & AFA_PHASE2) == 0)
 					break;
@@ -180,7 +179,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 * the NEXT interface!
 			 */
 			AT_IFADDR_RLOCK();
-			for (oaa = aa; aa; aa = aa->aa_next) {
+			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp && (aa->aa_flags &
 				    AFA_PHASE2))
 					break;
@@ -228,9 +227,9 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			else
 				aa->aa_flags |= AFA_PHASE2;
 
-			ifa_ref(&aa->aa_ifa);		/* at_ifaddr_list */
+			ifa_ref(&aa->aa_ifa);		/* at_ifaddrhead */
 			AT_IFADDR_WLOCK();
-			if ((aa_temp = at_ifaddr_list) != NULL) {
+			if (!TAILQ_EMPTY(&at_ifaddrhead)) {
 				/*
 				 * Don't let the loopback be first, since the
 				 * first address is the machine's default
@@ -238,18 +237,16 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				 * ourself in front, otherwise go to the back
 				 * of the list.
 				 */
-				if (at_ifaddr_list->aa_ifp->if_flags &
-				    IFF_LOOPBACK) {
-					aa->aa_next = at_ifaddr_list;
-					at_ifaddr_list = aa;
-				} else {
-					for (; aa_temp->aa_next; aa_temp =
-					    aa_temp->aa_next)
-						;
-					aa_temp->aa_next = aa;
-				}
+				if (TAILQ_FIRST(&at_ifaddrhead)->aa_ifp->
+				    if_flags & IFF_LOOPBACK)
+					TAILQ_INSERT_HEAD(&at_ifaddrhead, aa,
+					    aa_link);
+				else
+					TAILQ_INSERT_TAIL(&at_ifaddrhead, aa,
+					    aa_link);
 			} else
-				at_ifaddr_list = aa;
+				TAILQ_INSERT_HEAD(&at_ifaddrhead, aa,
+				    aa_link);
 			AT_IFADDR_WUNLOCK();
 
 			/*
@@ -280,7 +277,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 * only look at a phase one address
 			 */
 			AT_IFADDR_RUNLOCK();
-			for (oaa = aa; aa; aa = aa->aa_next) {
+			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp &&
 				    (aa->aa_flags & AFA_PHASE2) == 0)
 					break;
@@ -297,7 +294,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 * default to phase 2
 			 */
 			AT_IFADDR_RLOCK();
-			for (oaa = aa; aa; aa = aa->aa_next) {
+			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp && (aa->aa_flags &
 				    AFA_PHASE2))
 					break;
@@ -359,11 +356,11 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		/*
 		 * remove the ifaddr from the interface
 		 */
-		ifa0 = (struct ifaddr *)aa;
+		ifa = (struct ifaddr *)aa;
 		IF_ADDR_LOCK(ifp);
-		TAILQ_REMOVE(&ifp->if_addrhead, ifa0, ifa_link);
+		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
-		ifa_free(ifa0);			/* if_addrhead */
+		ifa_free(ifa);				/* if_addrhead */
 
 		/*
 		 * Now remove the at_ifaddr from the parallel structure
@@ -371,24 +368,9 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		 */
 
 		AT_IFADDR_WLOCK();
-		if (aa == (aa_temp = at_ifaddr_list)) {
-			at_ifaddr_list = aa->aa_next;
-		} else {
-			while (aa_temp->aa_next && (aa_temp->aa_next != aa))
-				aa_temp = aa_temp->aa_next;
-
-			/*
-			 * if we found it, remove it, otherwise we
-			 * screwed up.
-			 */
-			if (aa_temp->aa_next)
-				aa_temp->aa_next = aa->aa_next;
-			else
-				panic("at_control");
-		}
+		TAILQ_REMOVE(&at_ifaddrhead, aa, aa_link);
 		AT_IFADDR_WUNLOCK();
-		ifa_free(ifa0);				/* at_ifaddr_list */
-		aa = aa_temp;
+		ifa_free(ifa);				/* at_ifaddrhead */
 		break;
 
 	default:
@@ -760,7 +742,7 @@ at_broadcast(struct sockaddr_at *sat)
 	/*
 	 * failing that, if the net is one we have, it's a broadcast as well.
 	 */
-	for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
+	TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 		if ((aa->aa_ifp->if_flags & IFF_BROADCAST)
 		    && (ntohs(sat->sat_addr.s_net) >= ntohs(aa->aa_firstnet)
 		    && ntohs(sat->sat_addr.s_net) <= ntohs(aa->aa_lastnet)))
