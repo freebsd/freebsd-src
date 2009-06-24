@@ -2189,7 +2189,7 @@ igb_allocate_msix(struct adapter *adapter)
 			txr->eims = E1000_EICR_TX_QUEUE0 << i;
 		else
 			txr->eims = 1 << vector;
-#if __FreeBSD_version >= 800000
+#if defined(__i386__) || defined(__amd64__)
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
@@ -2226,7 +2226,7 @@ igb_allocate_msix(struct adapter *adapter)
 			rxr->eims = 1 << vector;
 		/* Get a mask for local timer */
 		adapter->rx_mask |= rxr->eims;
-#if __FreeBSD_version >= 800000
+#if defined(__i386__) || defined(__amd64__)
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
