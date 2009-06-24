@@ -2914,12 +2914,14 @@ export_vnode_for_sysctl(struct vnode *vp, int type,
 	freepath = NULL;
 	fullpath = "-";
 	FILEDESC_SUNLOCK(fdp);
-	VOP_GETATTR(vp, &va, NULL);
-	kif->kf_fsid = va.va_fsid;
-	kif->kf_fileid = va.va_fileid;
-	kif->kf_mode = MAKEIMODE(va.va_type, va.va_mode);
-	kif->kf_size = va.va_size;
-	kif->kf_rdev = va.va_rdev;
+	error = VOP_GETATTR(vp, &va, NULL);
+	if (error == 0) {
+		kif->kf_fsid = va.va_fsid;
+		kif->kf_fileid = va.va_fileid;
+		kif->kf_mode = MAKEIMODE(va.va_type, va.va_mode);
+		kif->kf_size = va.va_size;
+		kif->kf_rdev = va.va_rdev;
+	}
 	vn_fullpath(curthread, vp, &fullpath, &freepath);
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
@@ -3096,12 +3098,15 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			freepath = NULL;
 			fullpath = "-";
 			FILEDESC_SUNLOCK(fdp);
-			VOP_GETATTR(vp, &va, NULL);
-			kif->kf_fsid = va.va_fsid;
-			kif->kf_fileid = va.va_fileid;
-			kif->kf_mode = MAKEIMODE(va.va_type, va.va_mode);
-			kif->kf_size = va.va_size;
-			kif->kf_rdev = va.va_rdev;
+			error = VOP_GETATTR(vp, &va, NULL);
+			if (error == 0) {
+				kif->kf_fsid = va.va_fsid;
+				kif->kf_fileid = va.va_fileid;
+				kif->kf_mode = MAKEIMODE(va.va_type,
+				    va.va_mode);
+				kif->kf_size = va.va_size;
+				kif->kf_rdev = va.va_rdev;
+			}
 			vn_fullpath(curthread, vp, &fullpath, &freepath);
 			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			vrele(vp);
