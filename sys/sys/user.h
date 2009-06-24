@@ -312,7 +312,6 @@ struct kinfo_ofile {
 
 struct kinfo_file {
 	int		kf_structsize;		/* Variable size of record. */
-	uint16_t	kf_status;		/* Status flags. */
 	int		kf_type;		/* Descriptor type. */
 	int		kf_fd;			/* Array index. */
 	int		kf_ref_count;		/* Reference count. */
@@ -328,6 +327,7 @@ struct kinfo_file {
 	dev_t		kf_file_fsid;		/* Vnode filesystem id. */
 	uint64_t 	kf_file_fileid;		/* Global file id. */
 	mode_t		kf_file_mode;		/* File mode. */
+	uint16_t	kf_status;		/* Status flags. */
 	off_t		kf_file_size;		/* File size. */
 	dev_t		kf_file_rdev;		/* File device. */
 	int		_kf_ispare[9];		/* Space for more stuff. */
