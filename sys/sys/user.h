@@ -241,6 +241,8 @@ struct user {
  * The KERN_PROC_FILE sysctl allows a process to dump the file descriptor
  * array of another process.
  */
+#define	KF_GETATTR_FAIL	0x0001
+
 #define	KF_TYPE_NONE	0
 #define	KF_TYPE_VNODE	1
 #define	KF_TYPE_SOCKET	2

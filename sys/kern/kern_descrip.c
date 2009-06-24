@@ -2883,14 +2883,75 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc, CTLFLAG_RD,
 CTASSERT(sizeof(struct kinfo_file) == KINFO_FILE_SIZE);
 #endif
 
+static void
+prepare_kinfo_file(struct vnode *vp, struct kinfo_file *kif)
+{
+	struct vattr va;
+	char *fullpath, *freepath;
+	int error, vfslocked;
+
+	vref(vp);
+	switch (vp->v_type) {
+	case VNON:
+		kif->kf_vnode_type = KF_VTYPE_VNON;
+		break;
+	case VREG:
+		kif->kf_vnode_type = KF_VTYPE_VREG;
+		break;
+	case VDIR:
+		kif->kf_vnode_type = KF_VTYPE_VDIR;
+		break;
+	case VBLK:
+		kif->kf_vnode_type = KF_VTYPE_VBLK;
+		break;
+	case VCHR:
+		kif->kf_vnode_type = KF_VTYPE_VCHR;
+		break;
+	case VLNK:
+		kif->kf_vnode_type = KF_VTYPE_VLNK;
+		break;
+	case VSOCK:
+		kif->kf_vnode_type = KF_VTYPE_VSOCK;
+		break;
+	case VFIFO:
+		kif->kf_vnode_type = KF_VTYPE_VFIFO;
+		break;
+	case VBAD:
+		kif->kf_vnode_type = KF_VTYPE_VBAD;
+		break;
+	default:
+		kif->kf_vnode_type = KF_VTYPE_UNKNOWN;
+		break;
+	}
+
+	freepath = NULL;
+	fullpath = "-";
+	do {
+		error = VOP_GETATTR(vp, &va, NULL);
+		if (error) {
+			kif->kf_status |= KF_GETATTR_FAIL;
+			break;
+		}
+		kif->kf_file_fsid = va.va_fsid;
+		kif->kf_file_fileid = va.va_fileid;
+		kif->kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
+		kif->kf_file_size = va.va_size;
+		kif->kf_file_rdev = va.va_rdev;
+	} while (0);
+	vn_fullpath(curthread, vp, &fullpath, &freepath);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	vrele(vp);
+	VFS_UNLOCK_GIANT(vfslocked);
+	strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+}
+
 static int
 export_vnode_for_sysctl(struct vnode *vp, int type,
     struct kinfo_file *kif, struct filedesc *fdp, struct sysctl_req *req)
 {
-	struct vattr va;
 	int error;
-	char *fullpath, *freepath;
-	int vfslocked;
 
 	bzero(kif, sizeof(*kif));
 
@@ -2902,7 +2963,10 @@ export_vnode_for_sysctl(struct vnode *vp, int type,
 		vrele(vp);
 		return (ENOTDIR);
 	}
+	FILEDESC_SUNLOCK(fdp);
 	kif->kf_vnode_type = KF_VTYPE_VDIR;
+	prepare_kinfo_file(vp, kif);
+	vrele(vp);
 
 	/*
 	 * This is not a true file descriptor, so we set a bogus refcount
@@ -2911,25 +2975,6 @@ export_vnode_for_sysctl(struct vnode *vp, int type,
 	kif->kf_ref_count = -1;
 	kif->kf_offset = -1;
 
-	freepath = NULL;
-	fullpath = "-";
-	FILEDESC_SUNLOCK(fdp);
-	error = VOP_GETATTR(vp, &va, NULL);
-	if (error == 0) {
-		kif->kf_fsid = va.va_fsid;
-		kif->kf_fileid = va.va_fileid;
-		kif->kf_mode = MAKEIMODE(va.va_type, va.va_mode);
-		kif->kf_size = va.va_size;
-		kif->kf_rdev = va.va_rdev;
-	}
-	vn_fullpath(curthread, vp, &fullpath, &freepath);
-
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
-	strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
-	if (freepath != NULL)
-		free(freepath, M_TEMP);
 	/* Pack record size down */
 	kif->kf_structsize = offsetof(struct kinfo_file, kf_path) +
 	    strlen(kif->kf_path) + 1;
@@ -2945,17 +2990,14 @@ export_vnode_for_sysctl(struct vnode *vp, int type,
 static int
 sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 {
-	char *fullpath, *freepath;
 	struct kinfo_file *kif;
 	struct filedesc *fdp;
 	int error, i, *name;
 	struct socket *so;
-	struct vattr va;
 	struct vnode *vp;
 	struct file *fp;
 	struct proc *p;
 	struct tty *tp;
-	int vfslocked;
 	size_t oldidx;
 
 	name = (int *)arg1;
@@ -3057,64 +3099,13 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			kif->kf_flags |= KF_FLAG_HASLOCK;
 		kif->kf_offset = fp->f_offset;
 		if (vp != NULL) {
-			vref(vp);
-			switch (vp->v_type) {
-			case VNON:
-				kif->kf_vnode_type = KF_VTYPE_VNON;
-				break;
-			case VREG:
-				kif->kf_vnode_type = KF_VTYPE_VREG;
-				break;
-			case VDIR:
-				kif->kf_vnode_type = KF_VTYPE_VDIR;
-				break;
-			case VBLK:
-				kif->kf_vnode_type = KF_VTYPE_VBLK;
-				break;
-			case VCHR:
-				kif->kf_vnode_type = KF_VTYPE_VCHR;
-				break;
-			case VLNK:
-				kif->kf_vnode_type = KF_VTYPE_VLNK;
-				break;
-			case VSOCK:
-				kif->kf_vnode_type = KF_VTYPE_VSOCK;
-				break;
-			case VFIFO:
-				kif->kf_vnode_type = KF_VTYPE_VFIFO;
-				break;
-			case VBAD:
-				kif->kf_vnode_type = KF_VTYPE_VBAD;
-				break;
-			default:
-				kif->kf_vnode_type = KF_VTYPE_UNKNOWN;
-				break;
-			}
 			/*
 			 * It is OK to drop the filedesc lock here as we will
 			 * re-validate and re-evaluate its properties when
 			 * the loop continues.
 			 */
-			freepath = NULL;
-			fullpath = "-";
 			FILEDESC_SUNLOCK(fdp);
-			error = VOP_GETATTR(vp, &va, NULL);
-			if (error == 0) {
-				kif->kf_fsid = va.va_fsid;
-				kif->kf_fileid = va.va_fileid;
-				kif->kf_mode = MAKEIMODE(va.va_type,
-				    va.va_mode);
-				kif->kf_size = va.va_size;
-				kif->kf_rdev = va.va_rdev;
-			}
-			vn_fullpath(curthread, vp, &fullpath, &freepath);
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-			vrele(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
-			strlcpy(kif->kf_path, fullpath,
-			    sizeof(kif->kf_path));
-			if (freepath != NULL)
-				free(freepath, M_TEMP);
+			prepare_kinfo_file(vp, kif);
 			FILEDESC_SLOCK(fdp);
 		}
 		if (so != NULL) {
