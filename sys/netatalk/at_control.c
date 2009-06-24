@@ -830,7 +830,6 @@ static int
 aa_addsingleroute(struct ifaddr *ifa, struct at_addr *addr,
     struct at_addr *mask)
 {
-	int error;
 
 #if 0
 	printf("aa_addsingleroute: %x.%x mask %x.%x ...\n",
@@ -838,22 +837,15 @@ aa_addsingleroute(struct ifaddr *ifa, struct at_addr *addr,
 	    mask->s_node);
 #endif
 
-	error = aa_dosingleroute(ifa, addr, mask, RTM_ADD, RTF_UP);
-	if (error)
-		printf("aa_addsingleroute: error %d\n", error);
-	return (error);
+	return (aa_dosingleroute(ifa, addr, mask, RTM_ADD, RTF_UP));
 }
 
 static int
 aa_delsingleroute(struct ifaddr *ifa, struct at_addr *addr,
     struct at_addr *mask)
 {
-	int error;
 
-	error = aa_dosingleroute(ifa, addr, mask, RTM_DELETE, 0);
-	if (error)
-		printf("aa_delsingleroute: error %d\n", error);
-	return (error);
+	return (aa_dosingleroute(ifa, addr, mask, RTM_DELETE, 0));
 }
 
 static int
