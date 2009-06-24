@@ -312,6 +312,7 @@ struct kinfo_ofile {
 
 struct kinfo_file {
 	int	kf_structsize;			/* Variable size of record. */
+	uint16_t	kf_status;		/* Status flags. */
 	int	kf_type;			/* Descriptor type. */
 	int	kf_fd;				/* Array index. */
 	int	kf_ref_count;			/* Reference count. */
@@ -324,11 +325,11 @@ struct kinfo_file {
 	int	kf_sock_protocol;		/* Socket protocol. */
 	struct sockaddr_storage kf_sa_local;	/* Socket address. */
 	struct sockaddr_storage	kf_sa_peer;	/* Peer address. */
-	uint32_t	kf_fsid;		/* Vnode filesystem id. */
-	uint64_t	kf_fileid;		/* Global file id. */
-	uint32_t	kf_mode;		/* File mode. */
-	int64_t		kf_size;		/* File size. */
-	uint32_t	kf_rdev;		/* File device. */
+	dev_t		kf_file_fsid;		/* Vnode filesystem id. */
+	uint64_t 	kf_file_fileid;		/* Global file id. */
+	mode_t		kf_file_mode;		/* File mode. */
+	off_t		kf_file_size;		/* File size. */
+	dev_t		kf_file_rdev;		/* File device. */
 	int	_kf_ispare[9];			/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char	kf_path[PATH_MAX];		/* Path to file, if any. */
