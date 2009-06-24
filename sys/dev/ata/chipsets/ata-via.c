@@ -120,7 +120,7 @@ ata_via_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_via_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
