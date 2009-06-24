@@ -32,6 +32,8 @@
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,6 +72,7 @@ static struct _s_x dummynet_params[] = {
 	{ "src-ipv6",		TOK_SRCIP6},
 	{ "src-ip6",		TOK_SRCIP6},
 	{ "profile",		TOK_PIPE_PROFILE},
+	{ "burst",		TOK_BURST},
 	{ "dummynet-params",	TOK_NULL },
 	{ NULL, 0 }	/* terminator */
 };
@@ -236,7 +239,7 @@ print_flowset_parms(struct dn_flow_set *fs, char *prefix)
 		plr[0] = '\0';
 	if (fs->flags_fs & DN_IS_RED)	/* RED parameters */
 		sprintf(red,
-		    "\n\t  %cRED w_q %f min_th %d max_th %d max_p %f",
+		    "\n\t %cRED w_q %f min_th %d max_th %d max_p %f",
 		    (fs->flags_fs & DN_IS_GENTLE_RED) ? 'G' : ' ',
 		    1.0 * fs->w_q / (double)(1 << SCALE_RED),
 		    SCALE_VAL(fs->min_th),
@@ -250,7 +253,7 @@ print_flowset_parms(struct dn_flow_set *fs, char *prefix)
 }
 
 static void
-print_extra_delay_parms(struct dn_pipe *p, char *prefix)
+print_extra_delay_parms(struct dn_pipe *p)
 {
 	double loss;
 	if (p->samples_no <= 0)
@@ -258,8 +261,8 @@ print_extra_delay_parms(struct dn_pipe *p, char *prefix)
 
 	loss = p->loss_level;
 	loss /= p->samples_no;
-	printf("%s profile: name \"%s\" loss %f samples %d\n",
-		prefix, p->name, loss, p->samples_no);
+	printf("\t profile: name \"%s\" loss %f samples %d\n",
+		p->name, loss, p->samples_no);
 }
 
 void
@@ -280,6 +283,7 @@ ipfw_list_pipes(void *data, uint nbytes, int ac, char *av[])
 		double b = p->bandwidth;
 		char buf[30];
 		char prefix[80];
+		char burst[5 + 7];
 
 		if (SLIST_NEXT(p, next) != (struct dn_pipe *)DN_IS_PIPE)
 			break;	/* done with pipes, now queues */
@@ -311,9 +315,15 @@ ipfw_list_pipes(void *data, uint nbytes, int ac, char *av[])
 		sprintf(prefix, "%05d: %s %4d ms ",
 		    p->pipe_nr, buf, p->delay);
 
-		print_extra_delay_parms(p, prefix);
-
 		print_flowset_parms(&(p->fs), prefix);
+
+		if (humanize_number(burst, sizeof(burst), p->burst,
+		    "Byte", HN_AUTOSCALE, 0) < 0 || co.verbose)
+			printf("\t burst: %ju Byte\n", p->burst);
+		else
+			printf("\t burst: %s\n", burst);
+
+		print_extra_delay_parms(p);
 
 		q = (struct dn_flow_queue *)(p+1);
 		list_queues(&(p->fs), q);
@@ -931,6 +941,21 @@ end_mask:
 			p.samples = &samples[0];
 			load_extra_delays(av[0], &p);
 			--ac; ++av;
+			break;
+
+		case TOK_BURST:
+			if (co.do_pipe != 1)
+				errx(EX_DATAERR, "burst only valid for pipes");
+			NEED1("burst needs argument\n");
+			errno = 0;
+			if (expand_number(av[0], &p.burst) < 0)
+				if (errno != ERANGE)
+					errx(EX_DATAERR,
+					    "burst: invalid argument");
+			if (errno || p.burst > (1ULL << 48) - 1)
+				errx(EX_DATAERR,
+				    "burst: out of range (0..2^48-1)");
+			ac--; av++;
 			break;
 
 		default:
