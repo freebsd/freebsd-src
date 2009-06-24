@@ -512,13 +512,16 @@ in_arpinput(struct mbuf *m)
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
 		if (((bridged && ia->ia_ifp->if_bridge != NULL) ||
 		    ia->ia_ifp == ifp) &&
-		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
+		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
+			ifa_ref(&ia->ia_ifa);
 			goto match;
+		}
 #ifdef DEV_CARP
 		if (ifp->if_carp != NULL &&
 		    carp_iamatch(ifp->if_carp, ia, &isaddr, &enaddr) &&
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			carp_match = 1;
+			ifa_ref(&ia->ia_ifa);
 			goto match;
 		}
 #endif
@@ -526,8 +529,10 @@ in_arpinput(struct mbuf *m)
 	LIST_FOREACH(ia, INADDR_HASH(isaddr.s_addr), ia_hash)
 		if (((bridged && ia->ia_ifp->if_bridge != NULL) ||
 		    ia->ia_ifp == ifp) &&
-		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
+		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
+			ifa_ref(&ia->ia_ifa);
 			goto match;
+		}
 
 #define BDG_MEMBER_MATCHES_ARP(addr, ifp, ia)				\
   (ia->ia_ifp->if_bridge == ifp->if_softc &&				\
@@ -542,6 +547,7 @@ in_arpinput(struct mbuf *m)
 	if (is_bridge) {
 		LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
 			if (BDG_MEMBER_MATCHES_ARP(itaddr.s_addr, ifp, ia)) {
+				ifa_ref(&ia->ia_ifa);
 				ifp = ia->ia_ifp;
 				goto match;
 			}
@@ -553,20 +559,26 @@ in_arpinput(struct mbuf *m)
 	 * No match, use the first inet address on the receive interface
 	 * as a dummy address for the rest of the function.
 	 */
+	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ia = ifatoia(ifa);
+			ifa_ref(ifa);
 			goto match;
 		}
+	IF_ADDR_UNLOCK(ifp);
+
 	/*
 	 * If bridging, fall back to using any inet address.
 	 */
 	if (!bridged || (ia = TAILQ_FIRST(&V_in_ifaddrhead)) == NULL)
 		goto drop;
+	ifa_ref(&ia->ia_ifa);
 match:
 	if (!enaddr)
 		enaddr = (u_int8_t *)IF_LLADDR(ifp);
 	myaddr = ia->ia_addr.sin_addr;
+	ifa_free(&ia->ia_ifa);
 	if (!bcmp(ar_sha(ah), enaddr, ifp->if_addrlen))
 		goto drop;	/* it's from me, ignore it. */
 	if (!bcmp(ar_sha(ah), ifp->if_broadcastaddr, ifp->if_addrlen)) {
