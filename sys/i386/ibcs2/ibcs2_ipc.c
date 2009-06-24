@@ -415,7 +415,10 @@ struct ibcs2_shmid_ds *ibp;
 	ibp->shm_segsz = bp->shm_segsz;
 	ibp->shm_lpid = bp->shm_lpid;
 	ibp->shm_cpid = bp->shm_cpid;
-	ibp->shm_nattch = bp->shm_nattch;
+	if (bp->shm_nattch > SHRT_MAX)
+		ibp->shm_nattch = SHRT_MAX;
+	else
+		ibp->shm_nattch = bp->shm_nattch;
 	ibp->shm_cnattch = 0;			/* ignored anyway */
 	ibp->shm_atime = bp->shm_atime;
 	ibp->shm_dtime = bp->shm_dtime;
@@ -436,7 +439,6 @@ struct shmid_ds *bp;
 	bp->shm_atime = ibp->shm_atime;
 	bp->shm_dtime = ibp->shm_dtime;
 	bp->shm_ctime = ibp->shm_ctime;
-	bp->shm_internal = (void *)0;		/* ignored anyway */
 	return;
 }
 

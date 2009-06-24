@@ -453,7 +453,7 @@ print_kshmptr(int i, int option, struct shmid_kernel *kshmptr)
 
 	if (option & BIGGEST)
 		printf(" %12zu",
-		    kshmptr->shm_bsegsz);
+		    kshmptr->u.shm_segsz);
 
 	if (option & PID)
 		printf(" %12d %12d",
