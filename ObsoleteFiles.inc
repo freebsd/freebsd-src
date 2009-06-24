@@ -14,6 +14,53 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090624: update usbdi(9)
+OLD_FILES+=usr/share/man/man9/usbd_abort_default_pipe.9
+OLD_FILES+=usr/share/man/man9/usbd_abort_pipe.9
+OLD_FILES+=usr/share/man/man9/usbd_alloc_buffer.9
+OLD_FILES+=usr/share/man/man9/usbd_alloc_xfer.9
+OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_stall.9
+OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_stall_async.9
+OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_toggle.9
+OLD_FILES+=usr/share/man/man9/usbd_close_pipe.9
+OLD_FILES+=usr/share/man/man9/usbd_device2interface_handle.9
+OLD_FILES+=usr/share/man/man9/usbd_do_request_async.9
+OLD_FILES+=usr/share/man/man9/usbd_do_request_flags_pipe.9
+OLD_FILES+=usr/share/man/man9/usbd_endpoint_count.9
+OLD_FILES+=usr/share/man/man9/usbd_find_edesc.9
+OLD_FILES+=usr/share/man/man9/usbd_find_idesc.9
+OLD_FILES+=usr/share/man/man9/usbd_free_buffer.9
+OLD_FILES+=usr/share/man/man9/usbd_free_xfer.9
+OLD_FILES+=usr/share/man/man9/usbd_get_buffer.9
+OLD_FILES+=usr/share/man/man9/usbd_get_config.9
+OLD_FILES+=usr/share/man/man9/usbd_get_config_desc.9
+OLD_FILES+=usr/share/man/man9/usbd_get_config_desc_full.9
+OLD_FILES+=usr/share/man/man9/usbd_get_config_descriptor.9
+OLD_FILES+=usr/share/man/man9/usbd_get_device_descriptor.9
+OLD_FILES+=usr/share/man/man9/usbd_get_endpoint_descriptor.9
+OLD_FILES+=usr/share/man/man9/usbd_get_interface_altindex.9
+OLD_FILES+=usr/share/man/man9/usbd_get_interface_descriptor.9
+OLD_FILES+=usr/share/man/man9/usbd_get_no_alts.9
+OLD_FILES+=usr/share/man/man9/usbd_get_quirks.9
+OLD_FILES+=usr/share/man/man9/usbd_get_speed.9
+OLD_FILES+=usr/share/man/man9/usbd_get_string.9
+OLD_FILES+=usr/share/man/man9/usbd_get_string_desc.9
+OLD_FILES+=usr/share/man/man9/usbd_get_xfer_status.9
+OLD_FILES+=usr/share/man/man9/usbd_interface2device_handle.9
+OLD_FILES+=usr/share/man/man9/usbd_interface2endpoint_descriptor.9
+OLD_FILES+=usr/share/man/man9/usbd_interface_count.9
+OLD_FILES+=usr/share/man/man9/usbd_open_pipe.9
+OLD_FILES+=usr/share/man/man9/usbd_open_pipe_intr.9
+OLD_FILES+=usr/share/man/man9/usbd_pipe2device_handle.9
+OLD_FILES+=usr/share/man/man9/usbd_set_config_index.9
+OLD_FILES+=usr/share/man/man9/usbd_set_config_no.9
+OLD_FILES+=usr/share/man/man9/usbd_set_interface.9
+OLD_FILES+=usr/share/man/man9/usbd_setup_default_xfer.9
+OLD_FILES+=usr/share/man/man9/usbd_setup_isoc_xfer.9
+OLD_FILES+=usr/share/man/man9/usbd_setup_xfer.9
+OLD_FILES+=usr/share/man/man9/usbd_sync_transfer.9
+OLD_FILES+=usr/share/man/man9/usbd_transfer.9
+OLD_FILES+=usr/share/man/man9/usb_find_desc.9
 # 20090605: removal of clists
 OLD_FILES+=usr/include/sys/clist.h
 # 20090602: removal of window(1)
