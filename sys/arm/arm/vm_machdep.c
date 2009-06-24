@@ -483,7 +483,7 @@ arm_ptovirt(vm_paddr_t pa)
 	int i;
 	vm_offset_t addr = alloc_firstaddr;
 
-	KASSERT(alloc_firstaddr != 0, ("arm_ptovirt called to early ?"));
+	KASSERT(alloc_firstaddr != 0, ("arm_ptovirt called too early ?"));
 	for (i = 0; dump_avail[i + 1]; i += 2) {
 		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
 			break;
