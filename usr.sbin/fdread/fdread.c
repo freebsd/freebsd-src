@@ -166,9 +166,6 @@ doread(int fd, FILE *of, const char *_devname)
 
 	if (ioctl(fd, FD_GTYPE, &fdt) == -1)
 		err(EX_OSERR, "ioctl(FD_GTYPE) failed -- not a floppy?");
-	fdopts = FDOPT_NOERRLOG;
-	if (ioctl(fd, FD_SOPTS, &fdopts) == -1)
-		err(EX_OSERR, "ioctl(FD_SOPTS, FDOPT_NOERRLOG)");
 
 	secsize = 128 << fdt.secsize;
 	tracksize = fdt.sectrac * secsize;
@@ -300,7 +297,7 @@ doread(int fd, FILE *of, const char *_devname)
 int
 doreadid(int fd, unsigned int numids, unsigned int trackno)
 {
-	int rv = 0, fdopts;
+	int rv = 0;
 	unsigned int i;
 	struct fdc_readid info;
 	struct fdc_status fdcs;
@@ -308,10 +305,6 @@ doreadid(int fd, unsigned int numids, unsigned int trackno)
 
 	if (ioctl(fd, FD_GTYPE, &fdt) == -1)
 		err(EX_OSERR, "ioctl(FD_GTYPE) failed -- not a floppy?");
-
-	fdopts = FDOPT_NOERRLOG;
-	if (ioctl(fd, FD_SOPTS, &fdopts) == -1)
-		err(EX_OSERR, "ioctl(FD_SOPTS, FDOPT_NOERRLOG)");
 
 	for (i = 0; i < numids; i++) {
 		info.cyl = trackno / fdt.heads;
