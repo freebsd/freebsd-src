@@ -377,6 +377,7 @@ static s32 e1000_reset_hw_82541(struct e1000_hw *hw)
 static s32 e1000_init_hw_82541(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
+	struct e1000_dev_spec_82541 *dev_spec = &hw->dev_spec._82541;
 	u32 i, txdctl;
 	s32 ret_val;
 
@@ -388,6 +389,13 @@ static s32 e1000_init_hw_82541(struct e1000_hw *hw)
 		DEBUGOUT("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
 	}
+        
+	/* Storing the Speed Power Down  value for later use */
+	ret_val = hw->phy.ops.read_reg(hw,
+	                               IGP01E1000_GMII_FIFO,
+	                               &dev_spec->spd_default);
+	if (ret_val)
+		goto out;
 
 	/* Disabling VLAN filtering */
 	DEBUGOUT("Initializing the IEEE VLAN\n");
@@ -425,6 +433,7 @@ static s32 e1000_init_hw_82541(struct e1000_hw *hw)
 	 */
 	e1000_clear_hw_cntrs_82541(hw);
 
+out:
 	return ret_val;
 }
 

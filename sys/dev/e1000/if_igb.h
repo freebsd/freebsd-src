@@ -184,18 +184,6 @@
 #define IGB_FC_PAUSE_TIME		0x0680
 #define IGB_EEPROM_APME			0x400;
 
-/* Code compatilbility between 6 and 7 */
-#ifndef ETHER_BPF_MTAP
-#define ETHER_BPF_MTAP			BPF_MTAP
-#endif
-
-#if __FreeBSD_version < 700000
-#define CSUM_TSO                0
-#define IFCAP_TSO4              0
-#define FILTER_STRAY
-#define FILTER_HANDLED
-#endif
-
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
  * multiple of 128 bytes. So we align TDBA/RDBA on 128 byte boundary. This will
@@ -232,6 +220,8 @@
 #define HW_DEBUGOUT2(S, A, B)       if (DEBUG_HW) printf(S "\n", A, B)
 
 #define IGB_MAX_SCATTER		64
+#define IGB_VFTA_SIZE		128
+#define IGB_BR_SIZE		4096	/* ring buf size */
 #define IGB_TSO_SIZE		(65535 + sizeof(struct ether_vlan_header))
 #define IGB_TSO_SEG_SIZE	4096	/* Max dma segment size */
 #define IGB_HDR_BUF		128
@@ -258,38 +248,10 @@
 #define IGB_BULK_LATENCY        1200
 #define IGB_LINK_ITR            2000
 
-#ifdef IGB_TIMESYNC
 /* Precision Time Sync (IEEE 1588) defines */
 #define ETHERTYPE_IEEE1588	0x88F7
 #define PICOSECS_PER_TICK	20833
 #define TSYNC_PORT		319 /* UDP port for the protocol */
-
-/* TIMESYNC IOCTL defines */
-#define IGB_TIMESYNC_READTS	_IOWR('i', 127, struct igb_tsync_read)
-#define IGB_TIMESTAMP		5	/* A unique return value */
-
-/* Used in the READTS IOCTL */
-struct igb_tsync_read {
-	int read_current_time;
-	struct timespec system_time;
-	u64 network_time;
-	u64 rx_stamp;
-	u64 tx_stamp;
-	u16 seqid;
-	unsigned char srcid[6];
-	int rx_valid;
-	int tx_valid;
-};
-
-#endif /* IGB_TIMESYNC */
-
-struct adapter; /* forward reference */
-
-struct igb_int_delay_info {
-	struct adapter *adapter;	/* Back-pointer to the adapter struct */
-	int offset;			/* Register offset to read/write */
-	int value;			/* Current value in usecs */
-};
 
 /*
  * Bus dma allocation structure used by
@@ -322,7 +284,13 @@ struct tx_ring {
 	u32			next_to_clean;
 	volatile u16		tx_avail;
 	struct igb_tx_buffer	*tx_buffers;
+#if __FreeBSD_version >= 800000
+	struct buf_ring		*br;
+#endif
 	bus_dma_tag_t		txtag;		/* dma tag for tx */
+	struct resource		*res;
+	void			*tag;
+
 	u32			watchdog_timer;
 	u64			no_desc_avail;
 	u64			tx_irq;
@@ -340,6 +308,8 @@ struct rx_ring {
 	struct igb_dma_alloc	rxdma;		/* bus_dma glue for tx desc */
 	union e1000_adv_rx_desc	*rx_base;
 	struct lro_ctrl		lro;
+	bool			lro_enabled;
+	bool			hdr_split;
 	struct task		rx_task;	/* cleanup tasklet */
 	struct mtx		rx_mtx;
 	char			mtx_name[16];
@@ -358,6 +328,9 @@ struct rx_ring {
 	u32			bytes;
 	u32			eitr_setting;
 
+	struct resource		*res;
+	void			*tag;
+
 	/* Soft stats */
 	u64			rx_irq;
 	u64			rx_split_packets;
@@ -375,9 +348,8 @@ struct adapter {
 
 	struct resource *pci_mem;
 	struct resource *msix_mem;
-	struct resource	*res[IGB_MSIX_VEC];
-	void		*tag[IGB_MSIX_VEC];
-	int		rid[IGB_MSIX_VEC];
+	struct resource	*res;
+	void		*tag;
 	u32		eims_mask;
 
 	int		linkvec;
@@ -395,8 +367,11 @@ struct adapter {
 	struct task     link_task;
 	struct task     rxtx_task;
 	struct taskqueue *tq;           /* private task queue */
+        u16		num_queues;
+
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
+	u32		num_vlans;
 
 	/* Management and WOL features */
 	int		wol;
@@ -413,7 +388,6 @@ struct adapter {
 	 */
 	struct tx_ring		*tx_rings;
         u16			num_tx_desc;
-        u16			num_tx_queues;
         u32			txd_cmd;
 
 	/* 
@@ -422,7 +396,6 @@ struct adapter {
 	struct rx_ring		*rx_rings;
 	bool			rx_hdr_split;
         u16			num_rx_desc;
-        u16			num_rx_queues;
 	int			rx_process_limit;
 	u32			rx_mbuf_sz;
 	u32			rx_mask;
@@ -439,10 +412,12 @@ struct adapter {
 
 	boolean_t       in_detach;
 
-#ifdef IGB_TIMESYNC
-	u64		last_stamp;
-	u64		last_sec;
-	u32		last_ns;
+#ifdef IGB_IEEE1588
+	/* IEEE 1588 precision time support */
+	struct cyclecounter     cycles;
+	struct nettimer         clock;
+	struct nettime_compare  compare;
+	struct hwtstamp_ctrl    hwtstamp;
 #endif
 
 	struct e1000_hw_stats stats;
@@ -483,6 +458,7 @@ struct igb_rx_buffer {
 #define	IGB_RX_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->rx_mtx)
 #define	IGB_CORE_LOCK(_sc)		mtx_lock(&(_sc)->core_mtx)
 #define	IGB_TX_LOCK(_sc)			mtx_lock(&(_sc)->tx_mtx)
+#define	IGB_TX_TRYLOCK(_sc)			mtx_trylock(&(_sc)->tx_mtx)
 #define	IGB_RX_LOCK(_sc)			mtx_lock(&(_sc)->rx_mtx)
 #define	IGB_CORE_UNLOCK(_sc)		mtx_unlock(&(_sc)->core_mtx)
 #define	IGB_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->tx_mtx)
