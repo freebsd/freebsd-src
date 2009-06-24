@@ -77,3 +77,7 @@ device		da
 device		iic
 device		iicbus
 device		ds133x
+
+# SATA
+device		ata
+device		atadisk
