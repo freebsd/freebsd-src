@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2004-2006 Robert N. M. Watson
+ * Copyright (c) 2004-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -223,11 +223,12 @@ ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 		 */
 		if (ro->ro_rt != NULL && (ifp = ro->ro_rt->rt_ifp) != NULL) {
 			IPX_IFADDR_RLOCK();
-			for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
+			TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
 				if (ia->ia_ifp == ifp) {
 					ifa_ref(&ia->ia_ifa);
 					break;
 				}
+			}
 			IPX_IFADDR_RUNLOCK();
 		}
 		if (ia == NULL) {
@@ -245,7 +246,7 @@ ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 			}
 			if (ia == NULL) {
 				IPX_IFADDR_RLOCK();
-				ia = ipx_ifaddr;
+				ia = TAILQ_FIRST(&ipx_ifaddrhead);
 				if (ia != NULL)
 					ifa_ref(&ia->ia_ifa);
 				IPX_IFADDR_RUNLOCK();
@@ -269,11 +270,12 @@ ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 		 */
 		if (ro->ro_rt != NULL && (ifp = ro->ro_rt->rt_ifp) != NULL) {
 			IPX_IFADDR_RLOCK();
-			for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
+			TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
 				if (ia->ia_ifp == ifp) {
 					ifa_ref(&ia->ia_ifa);
 					break;
 				}
+			}
 			IPX_IFADDR_RUNLOCK();
 		}
 		if (ia == NULL) {
@@ -291,7 +293,7 @@ ipx_pcbconnect(struct ipxpcb *ipxp, struct sockaddr *nam, struct thread *td)
 			}
 			if (ia == NULL) {
 				IPX_IFADDR_RLOCK();
-				ia = ipx_ifaddr;
+				ia = TAILQ_FIRST(&ipx_ifaddrhead);
 				if (ia != NULL)
 					ifa_ref(&ia->ia_ifa);
 				IPX_IFADDR_RUNLOCK();
