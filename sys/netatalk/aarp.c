@@ -142,9 +142,12 @@ aarptimer(void *ignored)
 /* 
  * Search through the network addresses to find one that includes the given
  * network.  Remember to take netranges into consideration.
+ *
+ * The _locked variant relies on the caller holding the at_ifaddr lock; the
+ * unlocked variant returns a reference that the caller must dispose of.
  */
 struct at_ifaddr *
-at_ifawithnet(struct sockaddr_at  *sat)
+at_ifawithnet_locked(struct sockaddr_at  *sat)
 {
 	struct at_ifaddr *aa;
 	struct sockaddr_at *sat2;
@@ -160,6 +163,19 @@ at_ifawithnet(struct sockaddr_at  *sat)
 		    (ntohs(aa->aa_lastnet) >= ntohs(sat->sat_addr.s_net)))
 			break;
 	}
+	return (aa);
+}
+
+struct at_ifaddr *
+at_ifawithnet(struct sockaddr_at *sat)
+{
+	struct at_ifaddr *aa;
+
+	AT_IFADDR_RLOCK();
+	aa = at_ifawithnet_locked(sat);
+	if (aa != NULL)
+		ifa_ref(&aa->aa_ifa);
+	AT_IFADDR_RUNLOCK();
 	return (aa);
 }
 
@@ -201,9 +217,8 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 	 * same address as we're looking for.  If the net is phase 2,
 	 * generate an 802.2 and SNAP header.
 	 */
-	AT_IFADDR_RLOCK();
-	if ((aa = at_ifawithnet(sat)) == NULL) {
-		AT_IFADDR_RUNLOCK();
+	aa = at_ifawithnet(sat);
+	if (aa == NULL) {
 		m_freem(m);
 		return;
 	}
@@ -217,7 +232,7 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 		    sizeof(struct ether_aarp));
 		M_PREPEND(m, sizeof(struct llc), M_DONTWAIT);
 		if (m == NULL) {
-			AT_IFADDR_RUNLOCK();
+			ifa_free(&aa->aa_ifa);
 			return;
 		}
 		llc = mtod(m, struct llc *);
@@ -244,7 +259,7 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 	printf("aarp: sending request for %u.%u\n",
 	    ntohs(AA_SAT(aa)->sat_addr.s_net), AA_SAT(aa)->sat_addr.s_node);
 #endif /* NETATALKDEBUG */
-	AT_IFADDR_RUNLOCK();
+	ifa_free(&aa->aa_ifa);
 
 	sa.sa_len = sizeof(struct sockaddr);
 	sa.sa_family = AF_UNSPEC;
@@ -261,7 +276,7 @@ aarpresolve(struct ifnet *ifp, struct mbuf *m, struct sockaddr_at *destsat,
 	AT_IFADDR_RLOCK();
 	if (at_broadcast(destsat)) {
 		m->m_flags |= M_BCAST;
-		if ((aa = at_ifawithnet(destsat)) == NULL)  {
+		if ((aa = at_ifawithnet_locked(destsat)) == NULL)  {
 			AT_IFADDR_RUNLOCK();
 			m_freem(m);
 			return (0);
@@ -379,14 +394,11 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 		sat.sat_len = sizeof(struct sockaddr_at);
 		sat.sat_family = AF_APPLETALK;
 		sat.sat_addr.s_net = net;
-		AT_IFADDR_RLOCK();
-		if ((aa = at_ifawithnet(&sat)) == NULL) {
-			AT_IFADDR_RUNLOCK();
+		aa = at_ifawithnet(&sat);
+		if (aa == NULL) {
 			m_freem(m);
 			return;
 		}
-		ifa_ref(&aa->aa_ifa);
-		AT_IFADDR_RUNLOCK();
 		bcopy(ea->aarp_spnet, &spa.s_net, sizeof(spa.s_net));
 		bcopy(ea->aarp_tpnet, &tpa.s_net, sizeof(tpa.s_net));
 	} else {
