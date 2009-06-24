@@ -56,9 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>
+#include <rpcsvc/nfs_prot.h>
+#include <rpcsvc/mount.h>
 
-#include <nfs/rpcv2.h>
-#include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 
 #include <arpa/inet.h>
@@ -96,7 +96,7 @@ struct nfhret {
 	long		vers;
 	long		auth;
 	long		fhsize;
-	u_char		nfh[NFSX_V3FHMAX];
+	u_char		nfh[NFS3_FHSIZE];
 };
 #define	BGRND	1
 #define	ISBGRND	2
@@ -914,7 +914,7 @@ tryagain:
 		nfs_nb.buf = &nfs_ss;
 		nfs_nb.len = nfs_nb.maxlen = sizeof nfs_ss;
 
-		if (!rpcb_getaddr(RPCPROG_NFS, nfsvers, nconf, &nfs_nb,
+		if (!rpcb_getaddr(NFS_PROGRAM, nfsvers, nconf, &nfs_nb,
 		    hostp)) {
 			if (rpc_createerr.cf_stat == RPC_PROGVERSMISMATCH &&
 			    trymntmode == ANY) {
@@ -930,7 +930,7 @@ tryagain:
 	}
 
 	/* Check that the server (nfsd) responds on the port we have chosen. */
-	clp = clnt_tli_create(RPC_ANYFD, nconf, &nfs_nb, RPCPROG_NFS, nfsvers,
+	clp = clnt_tli_create(RPC_ANYFD, nconf, &nfs_nb, NFS_PROGRAM, nfsvers,
 	    0, 0);
 	if (clp == NULL) {
 		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid,
@@ -996,10 +996,10 @@ tryagain:
 		return (TRYRET_SUCCESS);
 	}
 
-	/* Send the RPCMNT_MOUNT RPC to get the root filehandle. */
+	/* Send the MOUNTPROC_MNT RPC to get the root filehandle. */
 	try.tv_sec = 10;
 	try.tv_usec = 0;
-	clp = clnt_tp_create(hostp, RPCPROG_MNT, mntvers, nconf_mnt);
+	clp = clnt_tp_create(hostp, MOUNTPROG, mntvers, nconf_mnt);
 	if (clp == NULL) {
 		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid_mnt,
 		    hostp, spec, clnt_spcreateerror("RPCMNT: clnt_create"));
@@ -1009,7 +1009,7 @@ tryagain:
 	clp->cl_auth = authsys_create_default();
 	nfhret.auth = secflavor;
 	nfhret.vers = mntvers;
-	stat = clnt_call(clp, RPCMNT_MOUNT, (xdrproc_t)xdr_dir, spec, 
+	stat = clnt_call(clp, MOUNTPROC_MNT, (xdrproc_t)xdr_dir, spec, 
 			 (xdrproc_t)xdr_fh, &nfhret,
 	    try);
 	auth_destroy(clp->cl_auth);
@@ -1147,7 +1147,7 @@ getnetconf_cached(const char *netid)
 int
 xdr_dir(XDR *xdrsp, char *dirp)
 {
-	return (xdr_string(xdrsp, &dirp, RPCMNT_PATHLEN));
+	return (xdr_string(xdrsp, &dirp, MNTPATHLEN));
 }
 
 int
@@ -1162,12 +1162,12 @@ xdr_fh(XDR *xdrsp, struct nfhret *np)
 		return (1);
 	switch (np->vers) {
 	case 1:
-		np->fhsize = NFSX_V2FH;
-		return (xdr_opaque(xdrsp, (caddr_t)np->nfh, NFSX_V2FH));
+		np->fhsize = NFS_FHSIZE;
+		return (xdr_opaque(xdrsp, (caddr_t)np->nfh, NFS_FHSIZE));
 	case 3:
 		if (!xdr_long(xdrsp, &np->fhsize))
 			return (0);
-		if (np->fhsize <= 0 || np->fhsize > NFSX_V3FHMAX)
+		if (np->fhsize <= 0 || np->fhsize > NFS3_FHSIZE)
 			return (0);
 		if (!xdr_opaque(xdrsp, (caddr_t)np->nfh, np->fhsize))
 			return (0);

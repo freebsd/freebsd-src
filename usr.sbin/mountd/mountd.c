@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <rpc/pmap_clnt.h>
 #include <rpc/pmap_prot.h>
 #include <rpcsvc/mount.h>
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfs/nfssvc.h>
 #include <nfsserver/nfs.h>
@@ -93,8 +92,8 @@ __FBSDID("$FreeBSD$");
  */
 struct mountlist {
 	struct mountlist *ml_next;
-	char	ml_host[RPCMNT_NAMELEN+1];
-	char	ml_dirp[RPCMNT_PATHLEN+1];
+	char	ml_host[MNTNAMLEN+1];
+	char	ml_dirp[MNTPATHLEN+1];
 };
 
 struct dirlist {
@@ -398,8 +397,8 @@ main(argc, argv)
 
 	pidfile_write(pfh);
 
-	rpcb_unset(RPCPROG_MNT, RPCMNT_VER1, NULL);
-	rpcb_unset(RPCPROG_MNT, RPCMNT_VER3, NULL);
+	rpcb_unset(MOUNTPROG, MOUNTVERS, NULL);
+	rpcb_unset(MOUNTPROG, MOUNTVERS3, NULL);
 	rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
 
 	if (!resvport_only) {
@@ -673,16 +672,16 @@ create_service(struct netconfig *nconf)
 			    RPC_MAXDATASIZE);
 
 		if (transp != (SVCXPRT *) NULL) {
-			if (!svc_reg(transp, RPCPROG_MNT, RPCMNT_VER1, mntsrv,
+			if (!svc_reg(transp, MOUNTPROG, MOUNTVERS, mntsrv,
 			    NULL)) 
 				syslog(LOG_ERR,
-				    "can't register %s RPCMNT_VER1 service",
+				    "can't register %s MOUNTVERS service",
 				    nconf->nc_netid);
 			if (!force_v2) {
-				if (!svc_reg(transp, RPCPROG_MNT, RPCMNT_VER3,
+				if (!svc_reg(transp, MOUNTPROG, MOUNTVERS3,
 				    mntsrv, NULL)) 
 					syslog(LOG_ERR,
-					    "can't register %s RPCMNT_VER3 service",
+					    "can't register %s MOUNTVERS3 service",
 					    nconf->nc_netid);
 			}
 		} else 
@@ -720,8 +719,8 @@ create_service(struct netconfig *nconf)
 			memcpy(servaddr.buf, res->ai_addr, res->ai_addrlen);
 			servaddr.len = res->ai_addrlen;
 
-			rpcb_set(RPCPROG_MNT, RPCMNT_VER1, nconf, &servaddr);
-			rpcb_set(RPCPROG_MNT, RPCMNT_VER3, nconf, &servaddr);
+			rpcb_set(MOUNTPROG, MOUNTVERS, nconf, &servaddr);
+			rpcb_set(MOUNTPROG, MOUNTVERS3, nconf, &servaddr);
 
 			xcreated++;
 			freeaddrinfo(res);
@@ -755,7 +754,7 @@ mntsrv(rqstp, transp)
 	int lookup_failed = 1;
 	struct sockaddr *saddr;
 	u_short sport;
-	char rpcpath[RPCMNT_PATHLEN + 1], dirpath[MAXPATHLEN];
+	char rpcpath[MNTPATHLEN + 1], dirpath[MAXPATHLEN];
 	int bad = 0, defset, hostset;
 	sigset_t sighup_mask;
 
@@ -782,7 +781,7 @@ mntsrv(rqstp, transp)
 		if (!svc_sendreply(transp, (xdrproc_t)xdr_void, NULL))
 			syslog(LOG_ERR, "can't send reply");
 		return;
-	case RPCMNT_MOUNT:
+	case MOUNTPROC_MNT:
 		if (sport >= IPPORT_RESERVED && resvport_only) {
 			syslog(LOG_NOTICE,
 			    "mount request from %s from unprivileged port",
@@ -875,7 +874,7 @@ mntsrv(rqstp, transp)
 			syslog(LOG_ERR, "can't send reply");
 		sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
 		return;
-	case RPCMNT_DUMP:
+	case MOUNTPROC_DUMP:
 		if (!svc_sendreply(transp, (xdrproc_t)xdr_mlist, (caddr_t)NULL))
 			syslog(LOG_ERR, "can't send reply");
 		else if (dolog)
@@ -883,7 +882,7 @@ mntsrv(rqstp, transp)
 			    "dump request succeeded from %s",
 			    numerichost);
 		return;
-	case RPCMNT_UMOUNT:
+	case MOUNTPROC_UMNT:
 		if (sport >= IPPORT_RESERVED && resvport_only) {
 			syslog(LOG_NOTICE,
 			    "umount request from %s from unprivileged port",
@@ -912,7 +911,7 @@ mntsrv(rqstp, transp)
 			    "umount request succeeded from %s for %s",
 			    numerichost, dirpath);
 		return;
-	case RPCMNT_UMNTALL:
+	case MOUNTPROC_UMNTALL:
 		if (sport >= IPPORT_RESERVED && resvport_only) {
 			syslog(LOG_NOTICE,
 			    "umountall request from %s from unprivileged port",
@@ -930,7 +929,7 @@ mntsrv(rqstp, transp)
 			    "umountall request succeeded from %s",
 			    numerichost);
 		return;
-	case RPCMNT_EXPORT:
+	case MOUNTPROC_EXPORT:
 		if (!svc_sendreply(transp, (xdrproc_t)xdr_explist, (caddr_t)NULL))
 			if (!svc_sendreply(transp, (xdrproc_t)xdr_explist_brief,
 			    (caddr_t)NULL))
@@ -954,7 +953,7 @@ xdr_dir(xdrsp, dirp)
 	XDR *xdrsp;
 	char *dirp;
 {
-	return (xdr_string(xdrsp, &dirp, RPCMNT_PATHLEN));
+	return (xdr_string(xdrsp, &dirp, MNTPATHLEN));
 }
 
 /*
@@ -1013,10 +1012,10 @@ xdr_mlist(xdrsp, cp)
 		if (!xdr_bool(xdrsp, &true))
 			return (0);
 		strp = &mlp->ml_host[0];
-		if (!xdr_string(xdrsp, &strp, RPCMNT_NAMELEN))
+		if (!xdr_string(xdrsp, &strp, MNTNAMLEN))
 			return (0);
 		strp = &mlp->ml_dirp[0];
-		if (!xdr_string(xdrsp, &strp, RPCMNT_PATHLEN))
+		if (!xdr_string(xdrsp, &strp, MNTPATHLEN))
 			return (0);
 		mlp = mlp->ml_next;
 	}
@@ -1088,7 +1087,7 @@ put_exlist(dp, xdrsp, adp, putdefp, brief)
 		if (!xdr_bool(xdrsp, &true))
 			return (1);
 		strp = dp->dp_dirp;
-		if (!xdr_string(xdrsp, &strp, RPCMNT_PATHLEN))
+		if (!xdr_string(xdrsp, &strp, MNTPATHLEN))
 			return (1);
 		if (adp && !strcmp(dp->dp_dirp, adp->dp_dirp)) {
 			gotalldir = 1;
@@ -1098,7 +1097,7 @@ put_exlist(dp, xdrsp, adp, putdefp, brief)
 			if (!xdr_bool(xdrsp, &true))
 				return (1);
 			strp = "(...)";
-			if (!xdr_string(xdrsp, &strp, RPCMNT_PATHLEN))
+			if (!xdr_string(xdrsp, &strp, MNTPATHLEN))
 				return (1);
 		} else if ((dp->dp_flag & DP_DEFSET) == 0 &&
 		    (gotalldir == 0 || (adp->dp_flag & DP_DEFSET) == 0)) {
@@ -1110,14 +1109,14 @@ put_exlist(dp, xdrsp, adp, putdefp, brief)
 						return (1);
 					strp = grp->gr_ptr.gt_addrinfo->ai_canonname;
 					if (!xdr_string(xdrsp, &strp,
-					    RPCMNT_NAMELEN))
+					    MNTNAMLEN))
 						return (1);
 				} else if (grp->gr_type == GT_NET) {
 					if (!xdr_bool(xdrsp, &true))
 						return (1);
 					strp = grp->gr_ptr.gt_net.nt_name;
 					if (!xdr_string(xdrsp, &strp,
-					    RPCMNT_NAMELEN))
+					    MNTNAMLEN))
 						return (1);
 				}
 				hp = hp->ht_next;
@@ -1216,7 +1215,7 @@ get_exportlist_one()
 		len = endcp-cp;
 		tgrp = grp = get_grp();
 		while (len > 0) {
-			if (len > RPCMNT_NAMELEN) {
+			if (len > MNTNAMLEN) {
 			    getexp_err(ep, tgrp);
 			    goto nextline;
 			}
@@ -2718,7 +2717,7 @@ parsecred(namelist, cr)
 		syslog(LOG_ERR, "too many groups");
 }
 
-#define	STRSIZ	(RPCMNT_NAMELEN+RPCMNT_PATHLEN+50)
+#define	STRSIZ	(MNTNAMLEN+MNTPATHLEN+50)
 /*
  * Routines that maintain the remote mounttab
  */
@@ -2748,10 +2747,10 @@ get_mountlist()
 		mlp = (struct mountlist *)malloc(sizeof (*mlp));
 		if (mlp == (struct mountlist *)NULL)
 			out_of_mem();
-		strncpy(mlp->ml_host, host, RPCMNT_NAMELEN);
-		mlp->ml_host[RPCMNT_NAMELEN] = '\0';
-		strncpy(mlp->ml_dirp, dirp, RPCMNT_PATHLEN);
-		mlp->ml_dirp[RPCMNT_PATHLEN] = '\0';
+		strncpy(mlp->ml_host, host, MNTNAMLEN);
+		mlp->ml_host[MNTNAMLEN] = '\0';
+		strncpy(mlp->ml_dirp, dirp, MNTPATHLEN);
+		mlp->ml_dirp[MNTPATHLEN] = '\0';
 		mlp->ml_next = (struct mountlist *)NULL;
 		*mlpp = mlp;
 		mlpp = &mlp->ml_next;
@@ -2813,10 +2812,10 @@ add_mlist(hostp, dirp)
 	mlp = (struct mountlist *)malloc(sizeof (*mlp));
 	if (mlp == (struct mountlist *)NULL)
 		out_of_mem();
-	strncpy(mlp->ml_host, hostp, RPCMNT_NAMELEN);
-	mlp->ml_host[RPCMNT_NAMELEN] = '\0';
-	strncpy(mlp->ml_dirp, dirp, RPCMNT_PATHLEN);
-	mlp->ml_dirp[RPCMNT_PATHLEN] = '\0';
+	strncpy(mlp->ml_host, hostp, MNTNAMLEN);
+	mlp->ml_host[MNTNAMLEN] = '\0';
+	strncpy(mlp->ml_dirp, dirp, MNTPATHLEN);
+	mlp->ml_dirp[MNTPATHLEN] = '\0';
 	mlp->ml_next = (struct mountlist *)NULL;
 	*mlpp = mlp;
 	if ((mlfile = fopen(_PATH_RMOUNTLIST, "a")) == NULL) {
@@ -3049,8 +3048,8 @@ void terminate(sig)
 int sig;
 {
 	pidfile_remove(pfh);
-	rpcb_unset(RPCPROG_MNT, RPCMNT_VER1, NULL);
-	rpcb_unset(RPCPROG_MNT, RPCMNT_VER3, NULL);
+	rpcb_unset(MOUNTPROG, MOUNTVERS, NULL);
+	rpcb_unset(MOUNTPROG, MOUNTVERS3, NULL);
 	exit (0);
 }
 

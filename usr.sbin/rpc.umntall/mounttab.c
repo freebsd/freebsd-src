@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 
 #include <rpc/rpc.h>
-#include <nfs/rpcv2.h>
+#include <rpcsvc/mount.h>
 
 #include <err.h>
 #include <errno.h>
@@ -120,10 +120,10 @@ read_mtab() {
 			return (0);
 		}
 		mtabp->mtab_time = time;
-		memmove(mtabp->mtab_host, hostp, RPCMNT_NAMELEN);
-		mtabp->mtab_host[RPCMNT_NAMELEN - 1] = '\0';
-		memmove(mtabp->mtab_dirp, dirp, RPCMNT_PATHLEN);
-		mtabp->mtab_dirp[RPCMNT_PATHLEN - 1] = '\0';
+		memmove(mtabp->mtab_host, hostp, MNTNAMLEN);
+		mtabp->mtab_host[MNTNAMLEN - 1] = '\0';
+		memmove(mtabp->mtab_dirp, dirp, MNTPATHLEN);
+		mtabp->mtab_dirp[MNTPATHLEN - 1] = '\0';
 		mtabp->mtab_next = (struct mtablist *)NULL;
 		*mtabpp = mtabp;
 		mtabpp = &mtabp->mtab_next;
@@ -196,7 +196,7 @@ clean_mtab(char *hostp, char *dirp, int verbose) {
 			warnx("delete mounttab entry%s %s:%s",
 			    (dirp == NULL) ? " by host" : "",
 			    mtabp->mtab_host, mtabp->mtab_dirp);
-		bzero(mtabp->mtab_host, RPCMNT_NAMELEN);
+		bzero(mtabp->mtab_host, MNTNAMLEN);
 	}
 	free(host);
 }
