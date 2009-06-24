@@ -79,3 +79,7 @@ device		umass
 device		scbus
 device		pass
 device		da
+
+# SATA
+device		ata
+device		atadisk
