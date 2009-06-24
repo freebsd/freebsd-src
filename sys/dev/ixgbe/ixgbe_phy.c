@@ -444,7 +444,7 @@ s32 ixgbe_write_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
  **/
 s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
 {
-	s32 status = IXGBE_NOT_IMPLEMENTED;
+	s32 status = IXGBE_SUCCESS;
 	u32 time_out;
 	u32 max_time_out = 10;
 	u16 autoneg_reg = IXGBE_MII_AUTONEG_REG;
@@ -485,7 +485,6 @@ s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
 
 		autoneg_reg &= IXGBE_MII_AUTONEG_COMPLETE;
 		if (autoneg_reg == IXGBE_MII_AUTONEG_COMPLETE) {
-			status = IXGBE_SUCCESS;
 			break;
 		}
 	}
@@ -760,8 +759,14 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 	u8 comp_codes_1g = 0;
 	u8 comp_codes_10g = 0;
 	u8 oui_bytes[3] = {0, 0, 0};
-	u8 transmission_media = 0;
+	u8 cable_tech = 0;
 	u16 enforce_sfp = 0;
+
+	if (hw->mac.ops.get_media_type(hw) != ixgbe_media_type_fiber) {
+		hw->phy.sfp_type = ixgbe_sfp_type_not_present;
+		status = IXGBE_ERR_SFP_NOT_PRESENT;
+		goto out;
+    }
 
 	status = hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_IDENTIFIER,
 	                                     &identifier);
@@ -779,13 +784,16 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 	/* LAN ID is needed for sfp_type determination */
 	hw->mac.ops.set_lan_id(hw);
 
-	if (identifier == IXGBE_SFF_IDENTIFIER_SFP) {
+	if (identifier != IXGBE_SFF_IDENTIFIER_SFP) {
+		hw->phy.type = ixgbe_phy_sfp_unsupported;
+		status = IXGBE_ERR_SFP_NOT_SUPPORTED;
+	} else {
 		hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_1GBE_COMP_CODES,
 		                           &comp_codes_1g);
 		hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_10GBE_COMP_CODES,
 		                           &comp_codes_10g);
-		hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_TRANSMISSION_MEDIA,
-		                           &transmission_media);
+		hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_CABLE_TECHNOLOGY,
+		                            &cable_tech);
 
 		 /* ID Module
 		  * =========
@@ -798,7 +806,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		  * 6   SFP_SR/LR_CORE1 - 82599-specific
 		  */
 		if (hw->mac.type == ixgbe_mac_82598EB) {
-			if (transmission_media & IXGBE_SFF_TWIN_AX_CAPABLE)
+			if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
 				hw->phy.sfp_type = ixgbe_sfp_type_da_cu;
 			else if (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)
 				hw->phy.sfp_type = ixgbe_sfp_type_sr;
@@ -807,7 +815,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			else
 				hw->phy.sfp_type = ixgbe_sfp_type_unknown;
 		} else if (hw->mac.type == ixgbe_mac_82599EB) {
-			if (transmission_media & IXGBE_SFF_TWIN_AX_CAPABLE)
+			if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
 				if (hw->bus.lan_id == 0)
 					hw->phy.sfp_type =
 					             ixgbe_sfp_type_da_cu_core0;
@@ -836,6 +844,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			hw->phy.sfp_setup_needed = TRUE;
 
 		/* Determine if the SFP+ PHY is dual speed or not. */
+		hw->phy.multispeed_fiber = FALSE;
 		if (((comp_codes_1g & IXGBE_SFF_1GBASESX_CAPABLE) &&
 		   (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)) ||
 		   ((comp_codes_1g & IXGBE_SFF_1GBASELX_CAPABLE) &&
@@ -861,8 +870,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 
 			switch (vendor_oui) {
 			case IXGBE_SFF_VENDOR_OUI_TYCO:
-				if (transmission_media &
-				    IXGBE_SFF_TWIN_AX_CAPABLE)
+				if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
 					hw->phy.type = ixgbe_phy_tw_tyco;
 				break;
 			case IXGBE_SFF_VENDOR_OUI_FTL:
@@ -875,8 +883,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				hw->phy.type = ixgbe_phy_sfp_intel;
 				break;
 			default:
-				if (transmission_media &
-				    IXGBE_SFF_TWIN_AX_CAPABLE)
+				if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
 					hw->phy.type = ixgbe_phy_tw_unknown;
 				else
 					hw->phy.type = ixgbe_phy_sfp_unknown;
@@ -884,16 +891,21 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			}
 		}
 
+		/* All passive DA cables are supported */
+		if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE) {
+			status = IXGBE_SUCCESS;
+			goto out;
+		}
+
+		/* 1G SFP modules are not supported */
 		if (comp_codes_10g == 0) {
 			hw->phy.type = ixgbe_phy_sfp_unsupported;
 			status = IXGBE_ERR_SFP_NOT_SUPPORTED;
 			goto out;
 		}
-		if (hw->mac.type == ixgbe_mac_82598EB ||
-		    (hw->phy.sfp_type != ixgbe_sfp_type_sr &&
-		     hw->phy.sfp_type != ixgbe_sfp_type_lr &&
-		     hw->phy.sfp_type != ixgbe_sfp_type_srlr_core0 &&
-		     hw->phy.sfp_type != ixgbe_sfp_type_srlr_core1)) {
+
+		/* Anything else 82598-based is supported */
+		if (hw->mac.type == ixgbe_mac_82598EB) {
 			status = IXGBE_SUCCESS;
 			goto out;
 		}
@@ -1031,7 +1043,7 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
                                 u8 dev_addr, u8 *data)
 {
 	s32 status = IXGBE_SUCCESS;
-	u32 max_retry = 1;
+	u32 max_retry = 10;
 	u32 retry = 0;
 	u16 swfw_mask = 0;
 	bool nack = 1;
@@ -1043,12 +1055,13 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 	else
 		swfw_mask = IXGBE_GSSR_PHY0_SM;
 
-	if (ixgbe_acquire_swfw_sync(hw, swfw_mask) != IXGBE_SUCCESS) {
-		status = IXGBE_ERR_SWFW_SYNC;
-		goto read_byte_out;
-	}
 
 	do {
+		if (ixgbe_acquire_swfw_sync(hw, swfw_mask) != IXGBE_SUCCESS) {
+			status = IXGBE_ERR_SWFW_SYNC;
+			goto read_byte_out;
+		}
+
 		ixgbe_i2c_start(hw);
 
 		/* Device Address and write indication */
@@ -1091,6 +1104,8 @@ s32 ixgbe_read_i2c_byte_generic(struct ixgbe_hw *hw, u8 byte_offset,
 		break;
 
 fail:
+		ixgbe_release_swfw_sync(hw, swfw_mask);
+		msec_delay(100);
 		ixgbe_i2c_bus_clear(hw);
 		retry++;
 		if (retry < max_retry)
