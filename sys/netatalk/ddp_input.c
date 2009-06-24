@@ -162,7 +162,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 		 * it's valid for this packet.
 		 */
 		AT_IFADDR_RLOCK();
-		for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
+		TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 			if ((aa->aa_ifp == ifp)
 			    && ((aa->aa_flags & AFA_PHASE2) == 0)
 			    && ((to.sat_addr.s_node ==
@@ -224,8 +224,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 			 * what we want, but it's probably safe in 99.999% of
 			 * cases.
 			 */
-			for (aa = at_ifaddr_list; aa != NULL;
-			    aa = aa->aa_next) {
+			TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 				if (phase == 1 && (aa->aa_flags &
 				    AFA_PHASE2))
 					continue;
@@ -244,8 +243,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 			 * A destination network was given.  We just try to
 			 * find which ifaddr info matches it.
 	    		 */
-			for (aa = at_ifaddr_list; aa != NULL;
-			    aa = aa->aa_next) {
+			TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 				/*
 				 * This is a kludge. Accept packets that are
 				 * for any router on a local netrange.

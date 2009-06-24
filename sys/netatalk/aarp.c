@@ -154,7 +154,7 @@ at_ifawithnet_locked(struct sockaddr_at  *sat)
 
 	AT_IFADDR_LOCK_ASSERT();
 
-	for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
+	TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 		sat2 = &(aa->aa_addr);
 		if (sat2->sat_addr.s_net == sat->sat_addr.s_net)
 			break;
