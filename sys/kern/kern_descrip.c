@@ -2994,7 +2994,6 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		case DTYPE_FIFO:
 			kif->kf_type = KF_TYPE_FIFO;
 			vp = fp->f_vnode;
-			vref(vp);
 			break;
 
 		case DTYPE_KQUEUE:
