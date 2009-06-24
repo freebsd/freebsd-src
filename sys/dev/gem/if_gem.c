@@ -403,15 +403,14 @@ gem_detach(struct gem_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
+	ether_ifdetach(ifp);
 	GEM_LOCK(sc);
-	sc->sc_flags |= GEM_DYING;
 	gem_stop(ifp, 1);
 	GEM_UNLOCK(sc);
 	callout_drain(&sc->sc_tick_ch);
 #ifdef GEM_RINT_TIMEOUT
 	callout_drain(&sc->sc_rx_ch);
 #endif
-	ether_ifdetach(ifp);
 	if_free(ifp);
 	device_delete_child(sc->sc_dev, sc->sc_miibus);
 
@@ -2107,11 +2106,6 @@ gem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		GEM_LOCK(sc);
-		if ((sc->sc_flags & GEM_DYING) != 0) {
-			error = EINVAL;
-			GEM_UNLOCK(sc);
-			break;
-		}
 		if ((ifp->if_flags & IFF_UP) != 0) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
 			    ((ifp->if_flags ^ sc->sc_ifflags) &
