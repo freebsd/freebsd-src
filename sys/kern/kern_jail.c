@@ -3151,9 +3151,11 @@ prison_check_af(struct ucred *cred, int af)
 	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
 
 	pr = cred->cr_prison;
+#ifdef VIMAGE
 	/* Prisons with their own network stack are not limited. */
 	if (pr->pr_flags & PR_VNET)
 		return (0);
+#endif
 
 	error = 0;
 	switch (af)
