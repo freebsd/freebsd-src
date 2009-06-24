@@ -41,6 +41,8 @@ void		 stack_copy(struct stack *, struct stack *);
 void		 stack_zero(struct stack *);
 void		 stack_print(struct stack *);
 void		 stack_print_ddb(struct stack *);
+void		 stack_print_short(struct stack *);
+void		 stack_print_short_ddb(struct stack *);
 void		 stack_sbuf_print(struct sbuf *, struct stack *);
 void		 stack_sbuf_print_ddb(struct sbuf *, struct stack *);
 #ifdef KTR
