@@ -44,10 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pcireg.h>
 #include <dev/ata/ata-all.h>
-#include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
 void
