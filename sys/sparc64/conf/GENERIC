@@ -1,8 +1,8 @@
 #
 # GENERIC -- Generic kernel configuration file for FreeBSD/sparc64
 #
-# For more information on this file, please read the handbook section on
-# Kernel Configuration Files:
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
 #
 #    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
@@ -16,8 +16,6 @@
 # If you are in doubt as to the purpose or necessity of a line, check first
 # in NOTES.
 #
-# For hardware specific information check HARDWARE.TXT
-#
 # $FreeBSD$
 
 cpu		SUN4U
@@ -25,6 +23,12 @@ ident		GENERIC
 
 # To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		# Default places to look for devices.
+
+# Use the following to compile in values accessible to the kernel
+# through getenv() (or kenv(1) in userland). The format of the file
+# is 'variable=value', see kenv(1)
+#
+# env		"GENERIC.env"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
@@ -76,7 +80,7 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
-# To make an SMP kernel, the next line is needed
+# Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Standard busses
@@ -137,8 +141,6 @@ device		creator		# Creator, Creator3D and Elite3D framebuffers
 device		machfb		# ATI Mach64 framebuffers
 device		splash		# Splash screen and screen saver support
 options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
-
-#device		ofw_console	# Open Firmware console device
 
 # Builtin hardware
 device		auxio		# auxiliary I/O device
@@ -201,6 +203,7 @@ options 	IEEE80211_AMPDU_AGE	# age frames in AMPDU reorder q's
 device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
+device		wlan_amrr	# AMRR transmit rate control algorithm
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# Atheros HAL (Hardware Access Layer)
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
@@ -223,23 +226,38 @@ device		firmware	# firmware assist module
 device		bpf		# Berkeley packet filter
 
 # USB support
-#device		uhci		# UHCI PCI->USB interface
+device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
+device		ehci		# EHCI PCI->USB interface (USB 2.0)
 device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
-#device		uhid		# "Human Interface Devices"
+device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
-#device		ulpt		# Printer
-#device		umass		# Disks/Mass storage - Requires scbus and da
+device		ulpt		# Printer
+device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
-#device		urio		# Diamond Rio 500 MP3 player
-# USB Ethernet, requires mii
-#device		aue		# ADMtek USB Ethernet
-#device		axe		# ASIX Electronics USB Ethernet
-#device		cdce		# Generic USB over Ethernet
-#device		cue		# CATC USB Ethernet
-#device		kue		# Kawasaki LSI USB Ethernet
-#device		rue		# RealTek RTL8150 USB Ethernet
+device		rum		# Ralink Technology RT2501USB wireless NICs
+device		uath		# Atheros AR5523 wireless NICs
+device		ural		# Ralink Technology RT2500USB wireless NICs
+device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
+device		urio		# Diamond Rio 500 MP3 player
+# USB Serial devices
+device		uark		# Technologies ARK3116 based serial adapters
+device		ubsa		# Belkin F5U103 and compatible serial adapters
+device		uftdi		# For FTDI usb serial adapters
+device		uipaq		# Some WinCE based devices
+device		uplcom		# Prolific PL-2303 serial adapters
+device		uslcom		# SI Labs CP2101/CP2102 serial adapters
+device		uvisor		# Visor and Palm devices
+device		uvscom		# USB serial support for DDI pocket's PHS
+# USB Ethernet, requires miibus
+device		aue		# ADMtek USB Ethernet
+device		axe		# ASIX Electronics USB Ethernet
+device		cdce		# Generic USB over Ethernet
+device		cue		# CATC USB Ethernet
+device		kue		# Kawasaki LSI USB Ethernet
+device		rue		# RealTek RTL8150 USB Ethernet
+device		udav		# Davicom DM9601E USB
 
 # FireWire support
 device		firewire	# FireWire bus code
