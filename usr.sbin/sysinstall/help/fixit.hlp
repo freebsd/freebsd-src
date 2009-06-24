@@ -1,3 +1,0 @@
-A special shell will be launched by this option with a fixit floppy
-or a FreeBSD CD-ROM (or DVD-ROM) mounted as /mnt2.  This provides
-access to extra commands under /mnt2.

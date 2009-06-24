@@ -1,7 +1,0 @@
-
-@c
-@c Variables depending on installation
-@c
-
-@set dbdir /var/heimdal
-@set PACKAGE_VERSION 1.1

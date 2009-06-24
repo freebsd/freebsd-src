@@ -1,7 +1,0 @@
-#
-# Mach magic number info
-#
-0	long		0xefbe	OSF/Rose object
-# I386 magic number info
-#
-0	short		0565	i386 COFF object

@@ -1,3 +1,0 @@
-# $FreeBSD$
-.tbxi   -     'chrp'  'tbxi'  "bootstrap"
-*       -     'fbsd'  'TEXT'  "FreeBSD file"
