@@ -72,7 +72,7 @@ main(int argc, char **argv)
 	enum fd_drivetype type;
 	struct fd_type ft, newft, *fdtp;
 	const char *name, *descr;
-	int fd, i, mode, autofmt;
+	int fd, i, autofmt;
 
 	autofmt = 0;
 	while((i = getopt(argc, argv, "aFf:s:v")) != -1)
@@ -116,12 +116,7 @@ main(int argc, char **argv)
 	if(argc != 1)
 		usage();
 
-	if (show || showfmt)
-		mode = O_RDONLY | O_NONBLOCK;
-	else
-		mode = O_RDWR;
-
-	if((fd = open(argv[0], mode)) < 0)
+	if((fd = open(argv[0], O_RDONLY | O_NONBLOCK)) < 0)
 		err(EX_UNAVAILABLE, "open(%s)", argv[0]);
 
 	if (ioctl(fd, FD_GDTYPE, &type) == -1)
