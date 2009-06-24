@@ -37,6 +37,10 @@
 static u32 e1000_get_phy_addr_for_bm_page(u32 page, u32 reg);
 static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
                                           u16 *data, bool read);
+static u32 e1000_get_phy_addr_for_hv_page(u32 page);
+static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
+                                          u16 *data, bool read);
+
 /* Cable length tables */
 static const u16 e1000_m88_cable_length_table[] =
 	{ 0, 50, 80, 110, 140, 140, E1000_CABLE_LENGTH_UNDEFINED };
@@ -161,26 +165,46 @@ s32 e1000_get_phy_id(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val = E1000_SUCCESS;
 	u16 phy_id;
+	u16 retry_count = 0;
 
 	DEBUGFUNC("e1000_get_phy_id");
 
 	if (!(phy->ops.read_reg))
 		goto out;
 
-	ret_val = phy->ops.read_reg(hw, PHY_ID1, &phy_id);
-	if (ret_val)
-		goto out;
+	while (retry_count < 2) {
+		ret_val = phy->ops.read_reg(hw, PHY_ID1, &phy_id);
+		if (ret_val)
+			goto out;
 
-	phy->id = (u32)(phy_id << 16);
-	usec_delay(20);
-	ret_val = phy->ops.read_reg(hw, PHY_ID2, &phy_id);
-	if (ret_val)
-		goto out;
+		phy->id = (u32)(phy_id << 16);
+		usec_delay(20);
+		ret_val = phy->ops.read_reg(hw, PHY_ID2, &phy_id);
+		if (ret_val)
+			goto out;
 
-	phy->id |= (u32)(phy_id & PHY_REVISION_MASK);
-	phy->revision = (u32)(phy_id & ~PHY_REVISION_MASK);
+		phy->id |= (u32)(phy_id & PHY_REVISION_MASK);
+		phy->revision = (u32)(phy_id & ~PHY_REVISION_MASK);
 
+		if (phy->id != 0 && phy->id != PHY_REVISION_MASK)
+			goto out;
+
+		/*
+		 * If the PHY ID is still unknown, we may have an 82577 without link.
+		 * We will try again after setting Slow MDIC mode. No harm in trying
+		 * again in this case since the PHY ID is unknown at this point anyway
+		 */
+		ret_val = e1000_set_mdio_slow_mode_hv(hw, TRUE);
+		if (ret_val)
+			goto out;
+
+		retry_count++;
+	}
 out:
+	/* Revert to MDIO fast mode, if applicable */
+	if (retry_count)
+		ret_val = e1000_set_mdio_slow_mode_hv(hw, FALSE);
+
 	return ret_val;
 }
 
@@ -237,12 +261,10 @@ s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 
 	E1000_WRITE_REG(hw, E1000_MDIC, mdic);
 
-#if defined(HANKSVILLE_HW) && !defined(NO_PCH_A_SUPPORT)
 	/* Workaround for Si errata */
-	if ((hw->phy.type == e1000_phy_lsi) && (hw->revision_id <= 2 ))
+	if ((hw->phy.type == e1000_phy_82577) && (hw->revision_id <= 2))
 		msec_delay(10);
 
-#endif /* HANKSVILLE_HW && !NO_PCH_A_SUPPORT */
 	/*
 	 * Poll the ready bit to see if the MDI read completed
 	 * Increasing the time out as testing showed failures with
@@ -298,12 +320,10 @@ s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 
 	E1000_WRITE_REG(hw, E1000_MDIC, mdic);
 
-#if defined(HANKSVILLE_HW) && !defined(NO_PCH_A_SUPPORT)
 	/* Workaround for Si errata */
-	if ((hw->phy.type == e1000_phy_lsi) && (hw->revision_id <= 2))
+	if ((hw->phy.type == e1000_phy_82577) && (hw->revision_id <= 2))
 		msec_delay(10);
 
-#endif /* HANKSVILLE_HW && !NO_PCH_A_SUPPORT */
 	/*
 	 * Poll the ready bit to see if the MDI read completed
 	 * Increasing the time out as testing showed failures with
@@ -551,6 +571,50 @@ out:
 }
 
 /**
+ *  e1000_copper_link_setup_82577 - Setup 82577 PHY for copper link
+ *  @hw: pointer to the HW structure
+ *
+ *  Sets up Carrier-sense on Transmit and downshift values.
+ **/
+s32 e1000_copper_link_setup_82577(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_data;
+
+	DEBUGFUNC("e1000_copper_link_setup_82577");
+
+	if (phy->reset_disable) {
+		ret_val = E1000_SUCCESS;
+		goto out;
+	}
+
+	/* Enable CRS on TX. This must be set for half-duplex operation. */
+	ret_val = phy->ops.read_reg(hw, I82577_CFG_REG, &phy_data);
+	if (ret_val)
+		goto out;
+
+	phy_data |= I82577_CFG_ASSERT_CRS_ON_TX;
+
+	/* Enable downshift */
+	phy_data |= I82577_CFG_ENABLE_DOWNSHIFT;
+
+	ret_val = phy->ops.write_reg(hw, I82577_CFG_REG, phy_data);
+	if (ret_val)
+		goto out;
+
+	/* Set number of link attempts before downshift */
+	ret_val = phy->ops.read_reg(hw, I82577_CTRL_REG, &phy_data);
+	if (ret_val)
+		goto out;
+	phy_data &= ~I82577_CTRL_DOWNSHIFT_MASK;
+	ret_val = phy->ops.write_reg(hw, I82577_CTRL_REG, phy_data);
+
+out:
+	return ret_val;
+}
+
+/**
  *  e1000_copper_link_setup_m88 - Setup m88 PHY's for copper link
  *  @hw: pointer to the HW structure
  *
@@ -673,6 +737,21 @@ s32 e1000_copper_link_setup_m88(struct e1000_hw *hw)
 	if (ret_val) {
 		DEBUGOUT("Error committing the PHY changes\n");
 		goto out;
+	}
+
+	if (phy->type == e1000_phy_82578) {
+		ret_val = phy->ops.read_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL,
+		                            &phy_data);
+		if (ret_val)
+			goto out;
+
+		/* 82578 PHY - set the downshift count to 1x. */
+		phy_data |= I82578_EPSCR_DOWNSHIFT_ENABLE;
+		phy_data &= ~I82578_EPSCR_DOWNSHIFT_COUNTER_MASK;
+		ret_val = phy->ops.write_reg(hw, M88E1000_EXT_PHY_SPEC_CTRL,
+		                             phy_data);
+		if (ret_val)
+			goto out;
 	}
 
 out:
@@ -1298,6 +1377,80 @@ out:
 }
 
 /**
+ *  e1000_phy_force_speed_duplex_ife - Force PHY speed & duplex
+ *  @hw: pointer to the HW structure
+ *
+ *  Forces the speed and duplex settings of the PHY.
+ *  This is a function pointer entry point only called by
+ *  PHY setup routines.
+ **/
+s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 data;
+	bool link;
+
+	DEBUGFUNC("e1000_phy_force_speed_duplex_ife");
+
+	if (phy->type != e1000_phy_ife) {
+		ret_val = e1000_phy_force_speed_duplex_igp(hw);
+		goto out;
+	}
+
+	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &data);
+	if (ret_val)
+		goto out;
+
+	e1000_phy_force_speed_duplex_setup(hw, &data);
+
+	ret_val = phy->ops.write_reg(hw, PHY_CONTROL, data);
+	if (ret_val)
+		goto out;
+
+	/* Disable MDI-X support for 10/100 */
+	ret_val = phy->ops.read_reg(hw, IFE_PHY_MDIX_CONTROL, &data);
+	if (ret_val)
+		goto out;
+
+	data &= ~IFE_PMC_AUTO_MDIX;
+	data &= ~IFE_PMC_FORCE_MDIX;
+
+	ret_val = phy->ops.write_reg(hw, IFE_PHY_MDIX_CONTROL, data);
+	if (ret_val)
+		goto out;
+
+	DEBUGOUT1("IFE PMC: %X\n", data);
+
+	usec_delay(1);
+
+	if (phy->autoneg_wait_to_complete) {
+		DEBUGOUT("Waiting for forced speed/duplex link on IFE phy.\n");
+
+		ret_val = e1000_phy_has_link_generic(hw,
+		                                     PHY_FORCE_LIMIT,
+		                                     100000,
+		                                     &link);
+		if (ret_val)
+			goto out;
+
+		if (!link)
+			DEBUGOUT("Link taking longer than expected.\n");
+
+		/* Try once more */
+		ret_val = e1000_phy_has_link_generic(hw,
+		                                     PHY_FORCE_LIMIT,
+		                                     100000,
+		                                     &link);
+		if (ret_val)
+			goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
  *  e1000_phy_force_speed_duplex_setup - Configure forced PHY speed/duplex
  *  @hw: pointer to the HW structure
  *  @phy_ctrl: pointer to current value of PHY_CONTROL
@@ -1471,6 +1624,8 @@ s32 e1000_check_downshift_generic(struct e1000_hw *hw)
 	case e1000_phy_m88:
 	case e1000_phy_gg82563:
 	case e1000_phy_bm:
+	case e1000_phy_82578:
+	case e1000_phy_82577:
 		offset	= M88E1000_PHY_SPEC_STATUS;
 		mask	= M88E1000_PSSR_DOWNSHIFT;
 		break;
@@ -1572,6 +1727,41 @@ out:
 }
 
 /**
+ *  e1000_check_polarity_ife - Check cable polarity for IFE PHY
+ *  @hw: pointer to the HW structure
+ *
+ *  Polarity is determined on the polarity reversal feature being enabled.
+ **/
+s32 e1000_check_polarity_ife(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_data, offset, mask;
+
+	DEBUGFUNC("e1000_check_polarity_ife");
+
+	/*
+	 * Polarity is determined based on the reversal feature being enabled.
+	 */
+	if (phy->polarity_correction) {
+		offset = IFE_PHY_EXTENDED_STATUS_CONTROL;
+		mask = IFE_PESC_POLARITY_REVERSED;
+	} else {
+		offset = IFE_PHY_SPECIAL_CONTROL;
+		mask = IFE_PSC_FORCE_POLARITY;
+	}
+
+	ret_val = phy->ops.read_reg(hw, offset, &phy_data);
+
+	if (!ret_val)
+		phy->cable_polarity = (phy_data & mask)
+		                       ? e1000_rev_polarity_reversed
+		                       : e1000_rev_polarity_normal;
+
+	return ret_val;
+}
+
+/**
  *  e1000_wait_autoneg_generic - Wait for auto-neg completion
  *  @hw: pointer to the HW structure
  *
@@ -1635,9 +1825,16 @@ s32 e1000_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
 		 * it across the board.
 		 */
 		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
-		if (ret_val)
-			break;
-		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS, &phy_status);
+		if (ret_val) {
+			/*
+			 * If the first read fails, another entity may have
+			 * ownership of the resources, wait and try again to
+			 * see if they have relinquished the resources yet.
+			 */
+			usec_delay(usec_interval);
+			ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS,
+			                               &phy_status);
+		}
 		if (ret_val)
 			break;
 		if (phy_status & MII_SR_LINK_STATUS)
@@ -2130,6 +2327,12 @@ enum e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id)
 	case BME1000_E_PHY_ID_R2:
 		phy_type = e1000_phy_bm;
 		break;
+	case I82578_E_PHY_ID:
+		phy_type = e1000_phy_82578;
+		break;
+	case I82577_E_PHY_ID:
+		phy_type = e1000_phy_82577;
+		break;
 	default:
 		phy_type = e1000_phy_unknown;
 		break;
@@ -2447,6 +2650,11 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
 
 	DEBUGFUNC("e1000_access_phy_wakeup_reg_bm");
 
+	/* Gig must be disabled for MDIO accesses to page 800 */
+	if ((hw->mac.type == e1000_pchlan) &&
+	   (!(E1000_READ_REG(hw, E1000_PHY_CTRL) & E1000_PHY_CTRL_GBE_DISABLE)))
+		DEBUGOUT("Attempting to access page 800 while gig enabled.\n");
+
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val) {
 		DEBUGOUT("Could not acquire PHY\n");
@@ -2565,4 +2773,546 @@ void e1000_power_down_phy_copper(struct e1000_hw *hw)
 	mii_reg |= MII_CR_POWER_DOWN;
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
 	msec_delay(1);
+}
+
+s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw, bool slow)
+{
+	s32 ret_val = E1000_SUCCESS;
+	u16 data = 0;
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		return ret_val;
+
+	/* Set MDIO mode - page 769, register 16: 0x2580==slow, 0x2180==fast */
+	hw->phy.addr = 1;
+	ret_val = e1000_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
+				         (BM_PORT_CTRL_PAGE << IGP_PAGE_SHIFT));
+	if (ret_val) {
+		hw->phy.ops.release(hw);
+		return ret_val;
+	}
+	ret_val = e1000_write_phy_reg_mdic(hw, BM_CS_CTRL1,
+	                                   (0x2180 | (slow << 10)));
+
+	/* dummy read when reverting to fast mode - throw away result */
+	if (!slow)
+		e1000_read_phy_reg_mdic(hw, BM_CS_CTRL1, &data);
+
+	hw->phy.ops.release(hw);
+
+	return ret_val;
+}
+
+/**
+ *  e1000_read_phy_reg_hv -  Read HV PHY register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
+ *
+ *  Acquires semaphore, if necessary, then reads the PHY register at offset
+ *  and storing the retrieved information in data.  Release any acquired
+ *  semaphore before exiting.
+ **/
+s32 e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data)
+{
+	s32 ret_val;
+	u16 page = BM_PHY_REG_PAGE(offset);
+	u16 reg = BM_PHY_REG_NUM(offset);
+	bool in_slow_mode = FALSE;
+
+	DEBUGFUNC("e1000_read_phy_reg_hv");
+
+	/* Workaround failure in MDIO access while cable is disconnected */
+	if ((hw->phy.type == e1000_phy_82577) &&
+	    !(E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU)) {
+		ret_val = e1000_set_mdio_slow_mode_hv(hw, TRUE);
+		if (ret_val)
+			goto out;
+
+		in_slow_mode = TRUE;
+	}
+
+	/* Page 800 works differently than the rest so it has its own func */
+	if (page == BM_WUC_PAGE) {
+		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset,
+		                                         data, TRUE);
+		goto out;
+	}
+
+	if (page > 0 && page < HV_INTC_FC_PAGE_START) {
+		ret_val = e1000_access_phy_debug_regs_hv(hw, offset,
+		                                         data, TRUE);
+		goto out;
+	}
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
+
+	hw->phy.addr = e1000_get_phy_addr_for_hv_page(page);
+
+	if (page == HV_INTC_FC_PAGE_START)
+		page = 0;
+
+	if (reg > MAX_PHY_MULTI_PAGE_REG) {
+		if ((hw->phy.type != e1000_phy_82578) ||
+		    ((reg != I82578_ADDR_REG) &&
+		     (reg != I82578_ADDR_REG + 1))) {
+			u32 phy_addr = hw->phy.addr;
+
+			hw->phy.addr = 1;
+
+			/* Page is shifted left, PHY expects (page x 32) */
+			ret_val = e1000_write_phy_reg_mdic(hw,
+			                             IGP01E1000_PHY_PAGE_SELECT,
+			                             (page << IGP_PAGE_SHIFT));
+			if (ret_val) {
+				hw->phy.ops.release(hw);
+				goto out;
+			}
+			hw->phy.addr = phy_addr;
+		}
+	}
+
+	ret_val = e1000_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & reg,
+	                                  data);
+	hw->phy.ops.release(hw);
+
+out:
+	/* Revert to MDIO fast mode, if applicable */
+	if ((hw->phy.type == e1000_phy_82577) && in_slow_mode)
+		ret_val = e1000_set_mdio_slow_mode_hv(hw, FALSE);
+
+	return ret_val;
+}
+
+/**
+ *  e1000_write_phy_reg_hv - Write HV PHY register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write at register offset
+ *
+ *  Acquires semaphore, if necessary, then writes the data to PHY register
+ *  at the offset.  Release any acquired semaphores before exiting.
+ **/
+s32 e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data)
+{
+	s32 ret_val;
+	u16 page = BM_PHY_REG_PAGE(offset);
+	u16 reg = BM_PHY_REG_NUM(offset);
+	bool in_slow_mode = FALSE;
+
+	DEBUGFUNC("e1000_write_phy_reg_hv");
+
+	/* Workaround failure in MDIO access while cable is disconnected */
+	if ((hw->phy.type == e1000_phy_82577) &&
+	    !(E1000_READ_REG(hw, E1000_STATUS) & E1000_STATUS_LU)) {
+		ret_val = e1000_set_mdio_slow_mode_hv(hw, TRUE);
+		if (ret_val)
+			goto out;
+
+		in_slow_mode = TRUE;
+	}
+
+	/* Page 800 works differently than the rest so it has its own func */
+	if (page == BM_WUC_PAGE) {
+		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset,
+		                                         &data, FALSE);
+		goto out;
+	}
+
+	if (page > 0 && page < HV_INTC_FC_PAGE_START) {
+		ret_val = e1000_access_phy_debug_regs_hv(hw, offset,
+		                                         &data, FALSE);
+		goto out;
+	}
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
+
+	hw->phy.addr = e1000_get_phy_addr_for_hv_page(page);
+
+	if (page == HV_INTC_FC_PAGE_START)
+		page = 0;
+
+	/*
+	 * Workaround MDIO accesses being disabled after entering IEEE Power
+	 * Down (whenever bit 11 of the PHY Control register is set)
+	 */
+	if ((hw->phy.type == e1000_phy_82578) &&
+	    (hw->phy.revision >= 1) &&
+	    (hw->phy.addr == 2) &&
+	    ((MAX_PHY_REG_ADDRESS & reg) == 0) &&
+	    (data & (1 << 11))) {
+		u16 data2 = 0x7EFF;
+		hw->phy.ops.release(hw);
+		ret_val = e1000_access_phy_debug_regs_hv(hw, (1 << 6) | 0x3,
+		                                         &data2, FALSE);
+		if (ret_val)
+			goto out;
+
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val)
+			goto out;
+	}
+
+	if (reg > MAX_PHY_MULTI_PAGE_REG) {
+		if ((hw->phy.type != e1000_phy_82578) ||
+		    ((reg != I82578_ADDR_REG) &&
+		     (reg != I82578_ADDR_REG + 1))) {
+			u32 phy_addr = hw->phy.addr;
+
+			hw->phy.addr = 1;
+
+			/* Page is shifted left, PHY expects (page x 32) */
+			ret_val = e1000_write_phy_reg_mdic(hw,
+			                             IGP01E1000_PHY_PAGE_SELECT,
+			                             (page << IGP_PAGE_SHIFT));
+			if (ret_val) {
+				hw->phy.ops.release(hw);
+				goto out;
+			}
+			hw->phy.addr = phy_addr;
+		}
+	}
+
+	ret_val = e1000_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & reg,
+	                                  data);
+	hw->phy.ops.release(hw);
+
+out:
+	/* Revert to MDIO fast mode, if applicable */
+	if ((hw->phy.type == e1000_phy_82577) && in_slow_mode)
+		ret_val = e1000_set_mdio_slow_mode_hv(hw, FALSE);
+
+	return ret_val;
+}
+
+/**
+ *  e1000_get_phy_addr_for_hv_page - Get PHY adrress based on page
+ *  @page: page to be accessed
+ **/
+static u32 e1000_get_phy_addr_for_hv_page(u32 page)
+{
+	u32 phy_addr = 2;
+
+	if (page >= HV_INTC_FC_PAGE_START)
+		phy_addr = 1;
+
+	return phy_addr;
+}
+
+/**
+ *  e1000_access_phy_debug_regs_hv - Read HV PHY vendor specific high registers
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read or written
+ *  @data: pointer to the data to be read or written
+ *  @read: determines if operation is read or written
+ *
+ *  Acquires semaphore, if necessary, then reads the PHY register at offset
+ *  and storing the retreived information in data.  Release any acquired
+ *  semaphores before exiting.  Note that the procedure to read these regs
+ *  uses the address port and data port to read/write.
+ **/
+static s32 e1000_access_phy_debug_regs_hv(struct e1000_hw *hw, u32 offset,
+                                          u16 *data, bool read)
+{
+	s32 ret_val;
+	u32 addr_reg = 0;
+	u32 data_reg = 0;
+	u8  phy_acquired = 1;
+
+	DEBUGFUNC("e1000_access_phy_debug_regs_hv");
+
+	/* This takes care of the difference with desktop vs mobile phy */
+	addr_reg = (hw->phy.type == e1000_phy_82578) ?
+	           I82578_ADDR_REG : I82577_ADDR_REG;
+	data_reg = addr_reg + 1;
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val) {
+		DEBUGOUT("Could not acquire PHY\n");
+		phy_acquired = 0;
+		goto out;
+	}
+
+	/* All operations in this function are phy address 2 */
+	hw->phy.addr = 2;
+
+	/* masking with 0x3F to remove the page from offset */
+	ret_val = e1000_write_phy_reg_mdic(hw, addr_reg, (u16)offset & 0x3F);
+	if (ret_val) {
+		DEBUGOUT("Could not write PHY the HV address register\n");
+		goto out;
+	}
+
+	/* Read or write the data value next */
+	if (read)
+		ret_val = e1000_read_phy_reg_mdic(hw, data_reg, data);
+	else
+		ret_val = e1000_write_phy_reg_mdic(hw, data_reg, *data);
+
+	if (ret_val) {
+		DEBUGOUT("Could not read data value from HV data register\n");
+		goto out;
+	}
+
+out:
+	if (phy_acquired == 1)
+		hw->phy.ops.release(hw);
+	return ret_val;
+}
+
+/**
+ *  e1000_link_stall_workaround_hv - Si workaround
+ *  @hw: pointer to the HW structure
+ *
+ *  This function works around a Si bug where the link partner can get
+ *  a link up indication before the PHY does.  If small packets are sent
+ *  by the link partner they can be placed in the packet buffer without
+ *  being properly accounted for by the PHY and will stall preventing
+ *  further packets from being received.  The workaround is to clear the
+ *  packet buffer after the PHY detects link up.
+ **/
+s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
+{
+	s32 ret_val = E1000_SUCCESS;
+	u16 data;
+
+	DEBUGFUNC("e1000_link_stall_workaround_hv");
+
+	if (hw->phy.type != e1000_phy_82578)
+		goto out;
+
+	/* Do not apply workaround if in PHY loopback bit 14 set */
+	hw->phy.ops.read_reg(hw, PHY_CONTROL, &data);
+	if (data & PHY_CONTROL_LB)
+		goto out;
+		
+	/* check if link is up and at 1Gbps */
+	ret_val = hw->phy.ops.read_reg(hw, BM_CS_STATUS, &data);
+	if (ret_val)
+		goto out;
+
+	data &= BM_CS_STATUS_LINK_UP |
+	        BM_CS_STATUS_RESOLVED |
+	        BM_CS_STATUS_SPEED_MASK;
+
+	if (data != (BM_CS_STATUS_LINK_UP |
+	             BM_CS_STATUS_RESOLVED |
+	             BM_CS_STATUS_SPEED_1000))
+		goto out;
+
+	msec_delay(200);
+
+	/* flush the packets in the fifo buffer */
+	ret_val = hw->phy.ops.write_reg(hw, HV_MUX_DATA_CTRL,
+	                                HV_MUX_DATA_CTRL_GEN_TO_MAC |
+	                                HV_MUX_DATA_CTRL_FORCE_SPEED);
+	if (ret_val)
+		goto out;
+
+	ret_val = hw->phy.ops.write_reg(hw, HV_MUX_DATA_CTRL,
+	                                HV_MUX_DATA_CTRL_GEN_TO_MAC);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_check_polarity_82577 - Checks the polarity.
+ *  @hw: pointer to the HW structure
+ *
+ *  Success returns 0, Failure returns -E1000_ERR_PHY (-2)
+ *
+ *  Polarity is determined based on the PHY specific status register.
+ **/
+s32 e1000_check_polarity_82577(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 data;
+
+	DEBUGFUNC("e1000_check_polarity_82577");
+
+	ret_val = phy->ops.read_reg(hw, I82577_PHY_STATUS_2, &data);
+
+	if (!ret_val)
+		phy->cable_polarity = (data & I82577_PHY_STATUS2_REV_POLARITY)
+		                      ? e1000_rev_polarity_reversed
+		                      : e1000_rev_polarity_normal;
+
+	return ret_val;
+}
+
+/**
+ *  e1000_phy_force_speed_duplex_82577 - Force speed/duplex for I82577 PHY
+ *  @hw: pointer to the HW structure
+ *
+ *  Calls the PHY setup function to force speed and duplex.  Clears the
+ *  auto-crossover to force MDI manually.  Waits for link and returns
+ *  successful if link up is successful, else -E1000_ERR_PHY (-2).
+ **/
+s32 e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_data;
+	bool link;
+
+	DEBUGFUNC("e1000_phy_force_speed_duplex_82577");
+
+	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_data);
+	if (ret_val)
+		goto out;
+
+	e1000_phy_force_speed_duplex_setup(hw, &phy_data);
+
+	ret_val = phy->ops.write_reg(hw, PHY_CONTROL, phy_data);
+	if (ret_val)
+		goto out;
+
+	/*
+	 * Clear Auto-Crossover to force MDI manually.  82577 requires MDI
+	 * forced whenever speed and duplex are forced.
+	 */
+	ret_val = phy->ops.read_reg(hw, I82577_PHY_CTRL_2, &phy_data);
+	if (ret_val)
+		goto out;
+
+	phy_data &= ~I82577_PHY_CTRL2_AUTO_MDIX;
+	phy_data &= ~I82577_PHY_CTRL2_FORCE_MDI_MDIX;
+
+	ret_val = phy->ops.write_reg(hw, I82577_PHY_CTRL_2, phy_data);
+	if (ret_val)
+		goto out;
+
+	DEBUGOUT1("I82577_PHY_CTRL_2: %X\n", phy_data);
+
+	usec_delay(1);
+
+	if (phy->autoneg_wait_to_complete) {
+		DEBUGOUT("Waiting for forced speed/duplex link on 82577 phy\n");
+
+		ret_val = e1000_phy_has_link_generic(hw,
+		                                     PHY_FORCE_LIMIT,
+		                                     100000,
+		                                     &link);
+		if (ret_val)
+			goto out;
+
+		if (!link)
+			DEBUGOUT("Link taking longer than expected.\n");
+
+		/* Try once more */
+		ret_val = e1000_phy_has_link_generic(hw,
+		                                     PHY_FORCE_LIMIT,
+		                                     100000,
+		                                     &link);
+		if (ret_val)
+			goto out;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_get_phy_info_82577 - Retrieve I82577 PHY information
+ *  @hw: pointer to the HW structure
+ *
+ *  Read PHY status to determine if link is up.  If link is up, then
+ *  set/determine 10base-T extended distance and polarity correction.  Read
+ *  PHY port status to determine MDI/MDIx and speed.  Based on the speed,
+ *  determine on the cable length, local and remote receiver.
+ **/
+s32 e1000_get_phy_info_82577(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 data;
+	bool link;
+
+	DEBUGFUNC("e1000_get_phy_info_82577");
+
+	ret_val = e1000_phy_has_link_generic(hw, 1, 0, &link);
+	if (ret_val)
+		goto out;
+
+	if (!link) {
+		DEBUGOUT("Phy info is only valid if link is up\n");
+		ret_val = -E1000_ERR_CONFIG;
+		goto out;
+	}
+
+	phy->polarity_correction = TRUE;
+
+	ret_val = e1000_check_polarity_82577(hw);
+	if (ret_val)
+		goto out;
+
+	ret_val = phy->ops.read_reg(hw, I82577_PHY_STATUS_2, &data);
+	if (ret_val)
+		goto out;
+
+	phy->is_mdix = (data & I82577_PHY_STATUS2_MDIX) ? TRUE : FALSE;
+
+	if ((data & I82577_PHY_STATUS2_SPEED_MASK) ==
+	    I82577_PHY_STATUS2_SPEED_1000MBPS) {
+		ret_val = hw->phy.ops.get_cable_length(hw);
+		if (ret_val)
+			goto out;
+
+		ret_val = phy->ops.read_reg(hw, PHY_1000T_STATUS, &data);
+		if (ret_val)
+			goto out;
+
+		phy->local_rx = (data & SR_1000T_LOCAL_RX_STATUS)
+		                ? e1000_1000t_rx_status_ok
+		                : e1000_1000t_rx_status_not_ok;
+
+		phy->remote_rx = (data & SR_1000T_REMOTE_RX_STATUS)
+		                 ? e1000_1000t_rx_status_ok
+		                 : e1000_1000t_rx_status_not_ok;
+	} else {
+		phy->cable_length = E1000_CABLE_LENGTH_UNDEFINED;
+		phy->local_rx = e1000_1000t_rx_status_undefined;
+		phy->remote_rx = e1000_1000t_rx_status_undefined;
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_get_cable_length_82577 - Determine cable length for 82577 PHY
+ *  @hw: pointer to the HW structure
+ *
+ * Reads the diagnostic status register and verifies result is valid before
+ * placing it in the phy_cable_length field.
+ **/
+s32 e1000_get_cable_length_82577(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val;
+	u16 phy_data, length;
+
+	DEBUGFUNC("e1000_get_cable_length_82577");
+
+	ret_val = phy->ops.read_reg(hw, I82577_PHY_DIAG_STATUS, &phy_data);
+	if (ret_val)
+		goto out;
+
+	length = (phy_data & I82577_DSTATUS_CABLE_LENGTH) >>
+	         I82577_DSTATUS_CABLE_LENGTH_SHIFT;
+
+	if (length == E1000_CABLE_LENGTH_UNDEFINED)
+		ret_val = E1000_ERR_PHY;
+
+	phy->cable_length = length;
+
+out:
+	return ret_val;
 }
