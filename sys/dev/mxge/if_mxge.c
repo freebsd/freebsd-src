@@ -3906,6 +3906,10 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCSIFFLAGS:
 		mtx_lock(&sc->driver_mtx);
+		if (sc->dying) {
+			mtx_unlock(&sc->driver_mtx);
+			return EINVAL;
+		}
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				err = mxge_open(sc);
@@ -4590,6 +4594,7 @@ mxge_attach(device_t dev)
 		     mxge_media_status);
 	mxge_set_media(sc, IFM_ETHER | IFM_AUTO);
 	mxge_media_probe(sc);
+	sc->dying = 0;
 	ether_ifattach(ifp, sc->mac_addr);
 	/* ether_ifattach sets mtu to ETHERMTU */
 	if (mxge_initial_mtu != ETHERMTU)
@@ -4637,6 +4642,7 @@ mxge_detach(device_t dev)
 		return EBUSY;
 	}
 	mtx_lock(&sc->driver_mtx);
+	sc->dying = 1;
 	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
 		mxge_close(sc);
 	mtx_unlock(&sc->driver_mtx);
