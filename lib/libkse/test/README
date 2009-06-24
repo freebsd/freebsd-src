@@ -1,0 +1,28 @@
+$FreeBSD$
+
+This test suite is meant to test general functionality of pthreads, as well as
+provide a simple framework for regression tests.  In general, this test suite
+can be used with any pthreads library, but in reality there are a number of
+libpthread-specific aspects to this test suite which would require some
+effort to get around if testing another pthreads library.
+
+This test suite assumes that libpthread is installed.
+
+There are two forms of test that the 'verify' script understands.  The simpler
+form is the diff format, where the output of the test program is diff'ed with
+the correspondingly named .exp file.  If there is diff output, the test fails.
+The sequence test format is somewhat more complex, and is documented in the
+command line usage output for verify.  The advantage of this format is that it
+allows multiple tests to pass/fail within one program.
+
+There is no driving need for test naming consistency, but the existing tests
+generally follow these conventions:
+
+<name>_d.c <name>_d.exp     : Diff mode C test and expected output file.
+<name>_s.c                  : Sequence mode C test.
+<name>_b*.c                 : Back end C program used by perl tests.
+<name>_d.pl <name>_d.pl.exp : Diff mode perl test and expected output file.
+<name>_s.pl                 : Sequence mode perl test.
+
+<name> is something descriptive, such as "pr14685" in the case of a PR-related
+regression test, or "mutex" in the case of a test of mutexes.
