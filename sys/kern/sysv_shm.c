@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/sysctl.h>
 #include <sys/shm.h>
@@ -234,9 +235,9 @@ shm_deallocate_segment(shmseg)
 
 	GIANT_REQUIRED;
 
-	vm_object_deallocate(shmseg->u.shm_internal);
-	shmseg->u.shm_internal = NULL;
-	size = round_page(shmseg->shm_bsegsz);
+	vm_object_deallocate(shmseg->object);
+	shmseg->object = NULL;
+	size = round_page(shmseg->u.shm_segsz);
 	shm_committed -= btoc(size);
 	shm_nused--;
 	shmseg->u.shm_perm.mode = SHMSEG_FREE;
@@ -256,7 +257,7 @@ shm_delete_mapping(struct vmspace *vm, struct shmmap_state *shmmap_s)
 
 	segnum = IPCID_TO_IX(shmmap_s->shmid);
 	shmseg = &shmsegs[segnum];
-	size = round_page(shmseg->shm_bsegsz);
+	size = round_page(shmseg->u.shm_segsz);
 	result = vm_map_remove(&vm->vm_map, shmmap_s->va, shmmap_s->va + size);
 	if (result != KERN_SUCCESS)
 		return (EINVAL);
@@ -376,7 +377,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 		error = EMFILE;
 		goto done2;
 	}
-	size = round_page(shmseg->shm_bsegsz);
+	size = round_page(shmseg->u.shm_segsz);
 	prot = VM_PROT_READ;
 	if ((shmflg & SHM_RDONLY) == 0)
 		prot |= VM_PROT_WRITE;
@@ -402,12 +403,12 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 		PROC_UNLOCK(p);
 	}
 
-	vm_object_reference(shmseg->u.shm_internal);
-	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->u.shm_internal,
+	vm_object_reference(shmseg->object);
+	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->object,
 	    0, &attach_va, size, (flags & MAP_FIXED) ? VMFS_NO_SPACE :
 	    VMFS_ANY_SPACE, prot, prot, 0);
 	if (rv != KERN_SUCCESS) {
-		vm_object_deallocate(shmseg->u.shm_internal);
+		vm_object_deallocate(shmseg->object);
 		error = ENOMEM;
 		goto done2;
 	}
@@ -624,7 +625,7 @@ shmget_existing(td, uap, mode, segnum)
 	if (error != 0)
 		return (error);
 #endif
-	if (uap->size != 0 && uap->size > shmseg->shm_bsegsz)
+	if (uap->size != 0 && uap->size > shmseg->u.shm_segsz)
 		return (EINVAL);
 	td->td_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->u.shm_perm);
 	return (0);
@@ -686,13 +687,12 @@ shmget_allocate_segment(td, uap, mode)
 	vm_object_set_flag(shm_object, OBJ_NOSPLIT);
 	VM_OBJECT_UNLOCK(shm_object);
 
-	shmseg->u.shm_internal = shm_object;
+	shmseg->object = shm_object;
 	shmseg->u.shm_perm.cuid = shmseg->u.shm_perm.uid = cred->cr_uid;
 	shmseg->u.shm_perm.cgid = shmseg->u.shm_perm.gid = cred->cr_gid;
 	shmseg->u.shm_perm.mode = (shmseg->u.shm_perm.mode & SHMSEG_WANTED) |
 	    (mode & ACCESSPERMS) | SHMSEG_ALLOCATED;
 	shmseg->u.shm_segsz = uap->size;
-	shmseg->shm_bsegsz = uap->size;
 	shmseg->u.shm_cpid = td->td_proc->p_pid;
 	shmseg->u.shm_lpid = shmseg->u.shm_nattch = 0;
 	shmseg->u.shm_atime = shmseg->u.shm_dtime = 0;
@@ -953,7 +953,7 @@ done2:
 static sy_call_t *shmcalls[] = {
 	(sy_call_t *)shmat, (sy_call_t *)oshmctl,
 	(sy_call_t *)shmdt, (sy_call_t *)shmget,
-	(sy_call_t *)shmctl
+	(sy_call_t *)freebsd7_shmctl
 };
 
 int
@@ -982,6 +982,93 @@ shmsys(td, uap)
 
 SYSCALL_MODULE_HELPER(shmsys);
 #endif	/* i386 && (COMPAT_FREEBSD4 || COMPAT_43) */
+
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+
+#define CP(src, dst, fld)	do { (dst).fld = (src).fld; } while (0)
+
+
+#ifndef _SYS_SYSPROTO_H_
+struct freebsd7_shmctl_args {
+	int shmid;
+	int cmd;
+	struct shmid_ds_old *buf;
+};
+#endif
+int
+freebsd7_shmctl(td, uap)
+	struct thread *td;
+	struct freebsd7_shmctl_args *uap;
+{
+	int error = 0;
+	struct shmid_ds_old old;
+	struct shmid_ds buf;
+	size_t bufsz;
+	
+	/*
+	 * The only reason IPC_INFO, SHM_INFO, SHM_STAT exists is to support
+	 * Linux binaries.  If we see the call come through the FreeBSD ABI,
+	 * return an error back to the user since we do not to support this.
+	 */
+	if (uap->cmd == IPC_INFO || uap->cmd == SHM_INFO ||
+	    uap->cmd == SHM_STAT)
+		return (EINVAL);
+
+	/* IPC_SET needs to copyin the buffer before calling kern_shmctl */
+	if (uap->cmd == IPC_SET) {
+		if ((error = copyin(uap->buf, &old, sizeof(old))))
+			goto done;
+		ipcperm_old2new(&old.shm_perm, &buf.shm_perm);
+		CP(old, buf, shm_segsz);
+		CP(old, buf, shm_lpid);
+		CP(old, buf, shm_cpid);
+		CP(old, buf, shm_nattch);
+		CP(old, buf, shm_atime);
+		CP(old, buf, shm_dtime);
+		CP(old, buf, shm_ctime);
+	}
+	
+	error = kern_shmctl(td, uap->shmid, uap->cmd, (void *)&buf, &bufsz);
+	if (error)
+		goto done;
+
+	/* Cases in which we need to copyout */
+	switch (uap->cmd) {
+	case IPC_STAT:
+		ipcperm_new2old(&buf.shm_perm, &old.shm_perm);
+		if (buf.shm_segsz > INT_MAX)
+			old.shm_segsz = INT_MAX;
+		else
+			CP(buf, old, shm_segsz);
+		CP(buf, old, shm_lpid);
+		CP(buf, old, shm_cpid);
+		if (buf.shm_nattch > SHRT_MAX)
+			old.shm_nattch = SHRT_MAX;
+		else
+			CP(buf, old, shm_nattch);
+		CP(buf, old, shm_atime);
+		CP(buf, old, shm_dtime);
+		CP(buf, old, shm_ctime);
+		old.shm_internal = NULL;
+		error = copyout(&old, uap->buf, sizeof(old));
+		break;
+	}
+
+done:
+	if (error) {
+		/* Invalidate the return value */
+		td->td_retval[0] = -1;
+	}
+	return (error);
+}
+
+SYSCALL_MODULE_HELPER(freebsd7_shmctl);
+
+#undef CP
+
+#endif	/* COMPAT_FREEBSD4 || COMPAT_FREEBSD5 || COMPAT_FREEBSD6 ||
+	   COMPAT_FREEBSD7 */
 
 static int
 sysvshm_modload(struct module *module, int cmd, void *arg)

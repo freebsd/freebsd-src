@@ -30,11 +30,11 @@
 #define _COMPAT_FREEBSD32_FREEBSD32_IPC_H_
 
 struct ipc_perm32 {
-	uint16_t	cuid;
-	uint16_t	cgid;
-	uint16_t	uid;
-	uint16_t	gid;
-	uint16_t	mode;
+	uid_t		cuid;
+	gid_t		cgid;
+	uid_t		uid;
+	gid_t		gid;
+	mode_t		mode;
 	uint16_t	seq;
 	uint32_t	key;
 };
@@ -44,10 +44,7 @@ struct semid_ds32 {
 	uint32_t	sem_base;
 	unsigned short	sem_nsems;
 	int32_t		sem_otime;
-	int32_t		sem_pad1;
 	int32_t		sem_ctime;
-	int32_t		sem_pad2;
-	int32_t		sem_pad3[4];
 };
 
 union semun32 {
@@ -66,24 +63,19 @@ struct msqid_ds32 {
 	pid_t		msg_lspid;
 	pid_t		msg_lrpid;
 	int32_t		msg_stime;
-	int32_t		msg_pad1;
 	int32_t		msg_rtime;
-	int32_t		msg_pad2;
 	int32_t		msg_ctime;
-	int32_t		msg_pad3;
-	int32_t		msg_pad4[4];
 };
 
 struct shmid_ds32 {
 	struct ipc_perm32 shm_perm;
 	int32_t		shm_segsz;
-	int32_t		shm_lpid;
-	int32_t		shm_cpid;
-	int16_t		shm_nattch;
+	pid_t		shm_lpid;
+	pid_t		shm_cpid;
+	int		shm_nattch;
 	int32_t		shm_atime;
 	int32_t		shm_dtime;
 	int32_t		shm_ctime;
-	uint32_t	shm_internal;
 };
 
 struct shm_info32 {
@@ -102,5 +94,59 @@ struct shminfo32 {
 	uint32_t	shmseg;
 	uint32_t	shmall;
 };
+
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+struct ipc_perm32_old {
+	uint16_t	cuid;
+	uint16_t	cgid;
+	uint16_t	uid;
+	uint16_t	gid;
+	uint16_t	mode;
+	uint16_t	seq;
+	uint32_t	key;
+};
+
+struct semid_ds32_old {
+	struct ipc_perm32_old sem_perm;
+	uint32_t	sem_base;
+	unsigned short	sem_nsems;
+	int32_t		sem_otime;
+	int32_t		sem_pad1;
+	int32_t		sem_ctime;
+	int32_t		sem_pad2;
+	int32_t		sem_pad3[4];
+};
+
+struct msqid_ds32_old {
+	struct ipc_perm32_old msg_perm;
+	uint32_t	msg_first;
+	uint32_t	msg_last;
+	uint32_t	msg_cbytes;
+	uint32_t	msg_qnum;
+	uint32_t	msg_qbytes;
+	pid_t		msg_lspid;
+	pid_t		msg_lrpid;
+	int32_t		msg_stime;
+	int32_t		msg_pad1;
+	int32_t		msg_rtime;
+	int32_t		msg_pad2;
+	int32_t		msg_ctime;
+	int32_t		msg_pad3;
+	int32_t		msg_pad4[4];
+};
+
+struct shmid_ds32_old {
+	struct ipc_perm32_old shm_perm;
+	int32_t		shm_segsz;
+	pid_t		shm_lpid;
+	pid_t		shm_cpid;
+	int16_t		shm_nattch;
+	int32_t		shm_atime;
+	int32_t		shm_dtime;
+	int32_t		shm_ctime;
+	uint32_t	shm_internal;
+};
+#endif
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_IPC_H_ */

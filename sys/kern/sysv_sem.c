@@ -1317,10 +1317,11 @@ sysctl_sema(SYSCTL_HANDLER_ARGS)
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 SYSCALL_MODULE_HELPER(semsys);
+SYSCALL_MODULE_HELPER(freebsd7___semctl);
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *semcalls[] = {
-	(sy_call_t *)__semctl, (sy_call_t *)semget,
+	(sy_call_t *)freebsd7___semctl, (sy_call_t *)semget,
 	(sy_call_t *)semop
 };
 
@@ -1349,5 +1350,89 @@ semsys(td, uap)
 	error = (*semcalls[uap->which])(td, &uap->a2);
 	return (error);
 }
+
+#define CP(src, dst, fld)	do { (dst).fld = (src).fld; } while (0)
+
+#ifndef _SYS_SYSPROTO_H_
+struct freebsd7___semctl_args {
+	int	semid;
+	int	semnum;
+	int	cmd;
+	union	semun_old *arg;
+};
+#endif
+int
+freebsd7___semctl(struct thread *td, struct freebsd7___semctl_args *uap)
+{
+	struct semid_ds_old dsold;
+	struct semid_ds dsbuf;
+	union semun_old arg;
+	union semun semun;
+	register_t rval;
+	int error;
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_SET:
+	case IPC_STAT:
+	case GETALL:
+	case SETVAL:
+	case SETALL:
+		error = copyin(uap->arg, &arg, sizeof(arg));
+		if (error)
+			return (error);
+		break;
+	}
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		semun.buf = &dsbuf;
+		break;
+	case IPC_SET:
+		error = copyin(arg.buf, &dsold, sizeof(dsold));
+		if (error)
+			return (error);
+		ipcperm_old2new(&dsold.sem_perm, &dsbuf.sem_perm);
+		CP(dsold, dsbuf, sem_base);
+		CP(dsold, dsbuf, sem_nsems);
+		CP(dsold, dsbuf, sem_otime);
+		CP(dsold, dsbuf, sem_ctime);
+		semun.buf = &dsbuf;
+		break;
+	case GETALL:
+	case SETALL:
+		semun.array = arg.array;
+		break;
+	case SETVAL:
+		semun.val = arg.val;
+		break;		
+	}
+
+	error = kern_semctl(td, uap->semid, uap->semnum, uap->cmd, &semun,
+	    &rval);
+	if (error)
+		return (error);
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		bzero(&dsold, sizeof(dsold));
+		ipcperm_new2old(&dsbuf.sem_perm, &dsold.sem_perm);
+		CP(dsbuf, dsold, sem_base);
+		CP(dsbuf, dsold, sem_nsems);
+		CP(dsbuf, dsold, sem_otime);
+		CP(dsbuf, dsold, sem_ctime);
+		error = copyout(&dsold, arg.buf, sizeof(dsold));
+		break;
+	}
+
+	if (error == 0)
+		td->td_retval[0] = rval;
+	return (error);
+}
+
+#undef CP
+
 #endif	/* COMPAT_FREEBSD4 || COMPAT_FREEBSD5 || COMPAT_FREEBSD6 ||
 	   COMPAT_FREEBSD7 */
