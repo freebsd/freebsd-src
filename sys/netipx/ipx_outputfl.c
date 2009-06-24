@@ -179,7 +179,7 @@ ipx_output_type20(struct mbuf *m)
 {
 	struct ipx *ipx;
 	union ipx_net *nbnet;
-	struct ipx_ifaddr *ia, *tia = NULL;
+	struct ipx_ifaddr *ia, *tia;
 	int error = 0;
 	struct mbuf *m1;
 	int i;
@@ -204,19 +204,21 @@ ipx_output_type20(struct mbuf *m)
 	/*
 	 * Now see if we have already seen this.
 	 */
+	tia = NULL;
 	IPX_IFADDR_RLOCK();
-	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
-		if(ia->ia_ifa.ifa_ifp == m->m_pkthdr.rcvif) {
-			if(tia == NULL)
+	TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
+		if (ia->ia_ifa.ifa_ifp == m->m_pkthdr.rcvif) {
+			if (tia == NULL)
 				tia = ia;
-
-			for (i=0;i<ipx->ipx_tc;i++,nbnet++)
-				if(ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
-							*nbnet)) {
+			for (i=0; i < ipx->ipx_tc; i++, nbnet++) {
+				if (ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
+				    *nbnet)) {
 					IPX_IFADDR_RUNLOCK();
 					goto bad;
 				}
+			}
 		}
+	}
 
 	/*
 	 * Don't route the packet if the interface where it come from
@@ -250,12 +252,12 @@ ipx_output_type20(struct mbuf *m)
 	dst.sipx_len = 12;
 	dst.sipx_addr.x_host = ipx_broadhost;
 
-	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
-		if(ia->ia_ifa.ifa_ifp != m->m_pkthdr.rcvif) {
+	TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
+		if (ia->ia_ifa.ifa_ifp != m->m_pkthdr.rcvif) {
         		nbnet = (union ipx_net *)(ipx + 1);
-			for (i=0;i<ipx->ipx_tc;i++,nbnet++)
-				if(ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
-							*nbnet))
+			for (i=0; i < ipx->ipx_tc; i++, nbnet++)
+				if (ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
+				    *nbnet))
 					goto skip_this;
 
 			/*
@@ -276,6 +278,7 @@ ipx_output_type20(struct mbuf *m)
 			}
 skip_this: ;
 		}
+	}
 	IPX_IFADDR_RUNLOCK();
 
 bad:
