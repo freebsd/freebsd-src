@@ -3151,6 +3151,10 @@ prison_check_af(struct ucred *cred, int af)
 	KASSERT(cred != NULL, ("%s: cred is NULL", __func__));
 
 	pr = cred->cr_prison;
+	/* Prisons with their own network stack are not limited. */
+	if (pr->pr_flags & PR_VNET)
+		return (0);
+
 	error = 0;
 	switch (af)
 	{
@@ -3411,6 +3415,130 @@ prison_priv_check(struct ucred *cred, int priv)
 
 	if (!jailed(cred))
 		return (0);
+
+#ifdef VIMAGE
+	/*
+	 * Privileges specific to prisons with a virtual network stack.
+	 * There might be a duplicate entry here in case the privilege
+	 * is only granted conditionally in the legacy jail case.
+	 */
+	switch (priv) {
+#ifdef notyet
+		/*
+		 * NFS-specific privileges.
+		 */
+	case PRIV_NFS_DAEMON:
+	case PRIV_NFS_LOCKD:
+#endif
+		/*
+		 * Network stack privileges.
+		 */
+	case PRIV_NET_BRIDGE:
+	case PRIV_NET_GRE:
+	case PRIV_NET_BPF:
+	case PRIV_NET_RAW:		/* Dup, cond. in legacy jail case. */
+	case PRIV_NET_ROUTE:
+	case PRIV_NET_TAP:
+	case PRIV_NET_SETIFMTU:
+	case PRIV_NET_SETIFFLAGS:
+	case PRIV_NET_SETIFCAP:
+	case PRIV_NET_SETIFNAME	:
+	case PRIV_NET_SETIFMETRIC:
+	case PRIV_NET_SETIFPHYS:
+	case PRIV_NET_SETIFMAC:
+	case PRIV_NET_ADDMULTI:
+	case PRIV_NET_DELMULTI:
+	case PRIV_NET_HWIOCTL:
+	case PRIV_NET_SETLLADDR:
+	case PRIV_NET_ADDIFGROUP:
+	case PRIV_NET_DELIFGROUP:
+	case PRIV_NET_IFCREATE:
+	case PRIV_NET_IFDESTROY:
+	case PRIV_NET_ADDIFADDR:
+	case PRIV_NET_DELIFADDR:
+	case PRIV_NET_LAGG:
+	case PRIV_NET_GIF:
+	case PRIV_NET_SETIFVNET:
+
+		/*
+		 * 802.11-related privileges.
+		 */
+	case PRIV_NET80211_GETKEY:
+#ifdef notyet
+	case PRIV_NET80211_MANAGE:		/* XXX-BZ discuss with sam@ */
+#endif
+
+#ifdef notyet
+		/*
+		 * AppleTalk privileges.
+		 */
+	case PRIV_NETATALK_RESERVEDPORT:
+
+		/*
+		 * ATM privileges.
+		 */
+	case PRIV_NETATM_CFG:
+	case PRIV_NETATM_ADD:
+	case PRIV_NETATM_DEL:
+	case PRIV_NETATM_SET:
+
+		/*
+		 * Bluetooth privileges.
+		 */
+	case PRIV_NETBLUETOOTH_RAW:
+#endif
+
+		/*
+		 * Netgraph and netgraph module privileges.
+		 */
+	case PRIV_NETGRAPH_CONTROL:
+#ifdef notyet
+	case PRIV_NETGRAPH_TTY:
+#endif
+
+		/*
+		 * IPv4 and IPv6 privileges.
+		 */
+	case PRIV_NETINET_IPFW:
+	case PRIV_NETINET_DIVERT:
+	case PRIV_NETINET_PF:
+	case PRIV_NETINET_DUMMYNET:
+	case PRIV_NETINET_CARP:
+	case PRIV_NETINET_MROUTE:
+	case PRIV_NETINET_RAW:
+	case PRIV_NETINET_ADDRCTRL6:
+	case PRIV_NETINET_ND6:
+	case PRIV_NETINET_SCOPE6:
+	case PRIV_NETINET_ALIFETIME6:
+	case PRIV_NETINET_IPSEC:
+	case PRIV_NETINET_BINDANY:
+
+#ifdef notyet
+		/*
+		 * IPX/SPX privileges.
+		 */
+	case PRIV_NETIPX_RESERVEDPORT:
+	case PRIV_NETIPX_RAW:
+
+		/*
+		 * NCP privileges.
+		 */
+	case PRIV_NETNCP:
+
+		/*
+		 * SMB privileges.
+		 */
+	case PRIV_NETSMB:
+#endif
+
+	/*
+	 * No default: or deny here.
+	 * In case of no permit fall through to next switch().
+	 */
+		if (cred->cr_prison->pr_flags & PR_VNET)
+			return (0);
+	}
+#endif /* VIMAGE */
 
 	switch (priv) {
 
