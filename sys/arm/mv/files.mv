@@ -24,6 +24,7 @@ arm/mv/gpio.c			standard
 arm/mv/ic.c			standard
 arm/mv/mv_machdep.c		standard
 arm/mv/mv_pci.c			optional	pci
+arm/mv/mv_sata.c		optional	ata | atamvsata
 arm/mv/obio.c			standard
 arm/mv/timer.c			standard
 arm/mv/twsi.c			optional	iicbus
