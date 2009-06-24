@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/rman.h>
+#include <sys/taskqueue.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -135,7 +135,8 @@ static void	cas_free(void *arg1, void* arg2);
 static void	cas_init(void *xsc);
 static void	cas_init_locked(struct cas_softc *sc);
 static void	cas_init_regs(struct cas_softc *sc);
-static void	cas_intr(void *v);
+static int	cas_intr(void *v);
+static void	cas_intr_task(void *arg, int pending __unused);
 static int	cas_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int	cas_load_txmbuf(struct cas_softc *sc, struct mbuf **m_head);
 static int	cas_mediachange(struct ifnet *ifp);
@@ -159,13 +160,13 @@ static void	cas_rxdma_callback(void *xsc, bus_dma_segment_t *segs,
 		    int nsegs, int error);
 static void	cas_setladrf(struct cas_softc *sc);
 static void	cas_start(struct ifnet *ifp);
-static void	cas_start_locked(struct ifnet *ifp);
 static void	cas_stop(struct ifnet *ifp);
 static void	cas_suspend(struct cas_softc *sc);
 static void	cas_tick(void *arg);
 static void	cas_tint(struct cas_softc *sc);
+static void	cas_tx_task(void *arg, int pending __unused);
 static inline void cas_txkick(struct cas_softc *sc);
-static int	cas_watchdog(struct cas_softc *sc);
+static void	cas_watchdog(struct cas_softc *sc);
 
 static devclass_t cas_devclass;
 
@@ -201,7 +202,19 @@ cas_attach(struct cas_softc *sc)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	callout_init_mtx(&sc->sc_tick_ch, &sc->sc_mtx, 0);
-	callout_init_mtx(&sc->sc_rx_ch, &sc->sc_mtx, 0);
+	callout_init(&sc->sc_rx_ch, 1);
+	/* Create local taskq. */
+	TASK_INIT(&sc->sc_intr_task, 0, cas_intr_task, sc);
+	TASK_INIT(&sc->sc_tx_task, 1, cas_tx_task, ifp);
+	sc->sc_tq = taskqueue_create_fast("cas_taskq", M_WAITOK,
+	    taskqueue_thread_enqueue, &sc->sc_tq);
+	if (sc->sc_tq == NULL) {
+		device_printf(sc->sc_dev, "could not create taskqueue\n");
+		error = ENXIO;
+		goto fail_ifnet;
+	}
+	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
+	    device_get_nameunit(sc->sc_dev));
 
 	/* Make sure the chip is stopped. */
 	cas_reset(sc);
@@ -211,7 +224,7 @@ cas_attach(struct cas_softc *sc)
 	    BUS_SPACE_MAXSIZE, 0, BUS_SPACE_MAXSIZE, 0, NULL, NULL,
 	    &sc->sc_pdmatag);
 	if (error != 0)
-		goto fail_ifnet;
+		goto fail_taskq;
 
 	error = bus_dma_tag_create(sc->sc_pdmatag, 1, 0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
@@ -422,6 +435,8 @@ cas_attach(struct cas_softc *sc)
 	bus_dma_tag_destroy(sc->sc_rdmatag);
  fail_ptag:
 	bus_dma_tag_destroy(sc->sc_pdmatag);
+ fail_taskq:
+	taskqueue_free(sc->sc_tq);
  fail_ifnet:
 	if_free(ifp);
 	return (error);
@@ -433,13 +448,16 @@ cas_detach(struct cas_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
+	ether_ifdetach(ifp);
 	CAS_LOCK(sc);
 	cas_stop(ifp);
 	CAS_UNLOCK(sc);
 	callout_drain(&sc->sc_tick_ch);
 	callout_drain(&sc->sc_rx_ch);
-	ether_ifdetach(ifp);
+	taskqueue_drain(sc->sc_tq, &sc->sc_intr_task);
+	taskqueue_drain(sc->sc_tq, &sc->sc_tx_task);
 	if_free(ifp);
+	taskqueue_free(sc->sc_tq);
 	device_delete_child(sc->sc_dev, sc->sc_miibus);
 
 	for (i = 0; i < CAS_NRXDESC; i++)
@@ -586,12 +604,11 @@ static void
 cas_tick(void *arg)
 {
 	struct cas_softc *sc = arg;
-	struct ifnet *ifp;
+	struct ifnet *ifp = sc->sc_ifp;
 	uint32_t v;
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp = sc->sc_ifp;
 	/*
 	 * Unload collision and error counters.
 	 */
@@ -622,8 +639,10 @@ cas_tick(void *arg)
 
 	mii_tick(sc->sc_mii);
 
-	if (cas_watchdog(sc) == EJUSTRETURN)
-		return;
+	if (sc->sc_txfree != CAS_MAXTXFREE)
+		cas_tint(sc);
+
+	cas_watchdog(sc);
 
 	callout_reset(&sc->sc_tick_ch, hz, cas_tick, sc);
 }
@@ -915,6 +934,9 @@ cas_init_locked(struct cas_softc *sc)
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 #ifdef CAS_DEBUG
 	CTR2(KTR_CAS, "%s: %s: calling stop", device_get_name(sc->sc_dev),
 	    __func__);
@@ -994,7 +1016,7 @@ cas_init_locked(struct cas_softc *sc)
 
 	/* Set up interrupts. */
 	CAS_WRITE_4(sc, CAS_INTMASK,
-	    ~(CAS_INTR_TX_INT_ME | CAS_INTR_TX_ALL | CAS_INTR_TX_TAG_ERR |
+	    ~(CAS_INTR_TX_INT_ME | CAS_INTR_TX_TAG_ERR |
 	    CAS_INTR_RX_DONE | CAS_INTR_RX_BUF_NA | CAS_INTR_RX_TAG_ERR |
 	    CAS_INTR_RX_COMP_FULL | CAS_INTR_RX_BUF_AEMPTY |
 	    CAS_INTR_RX_COMP_AFULL | CAS_INTR_RX_LEN_MMATCH |
@@ -1003,6 +1025,8 @@ cas_init_locked(struct cas_softc *sc)
 	    | CAS_INTR_PCS_INT | CAS_INTR_MIF
 #endif
 	    ));
+	/* Don't clear top level interrupts when CAS_STATUS_ALIAS is read. */
+	CAS_WRITE_4(sc, CAS_CLEAR_ALIAS, 0);
 	CAS_WRITE_4(sc, CAS_MAC_RX_MASK, ~CAS_MAC_RX_OVERFLOW);
 	CAS_WRITE_4(sc, CAS_MAC_TX_MASK,
 	    ~(CAS_MAC_TX_UNDERRUN | CAS_MAC_TX_MAX_PKT_ERR));
@@ -1240,7 +1264,7 @@ cas_load_txmbuf(struct cas_softc *sc, struct mbuf **m_head)
 	CTR3(KTR_CAS, "%s: start of frame at segment %d, TX %d",
 	    __func__, seg, nexttx);
 #endif
-	if (sc->sc_txwin += nsegs > CAS_NTXSEGS * 2 / 3) {
+	if (sc->sc_txwin += nsegs > CAS_MAXTXFREE * 2 / 3) {
 		sc->sc_txwin = 0;
 		sc->sc_txdescs[txs->txs_firstdesc].cd_flags |=
 		    htole64(cflags | CAS_TD_START_OF_FRAME | CAS_TD_INT_ME);
@@ -1351,13 +1375,12 @@ cas_init_regs(struct cas_softc *sc)
 }
 
 static void
-cas_start(struct ifnet *ifp)
+cas_tx_task(void *arg, int pending __unused)
 {
-	struct cas_softc *sc = ifp->if_softc;
+	struct ifnet *ifp;
 
-	CAS_LOCK(sc);
-	cas_start_locked(ifp);
-	CAS_UNLOCK(sc);
+	ifp = (struct ifnet *)arg;
+	cas_start(ifp);
 }
 
 static inline void
@@ -1379,17 +1402,22 @@ cas_txkick(struct cas_softc *sc)
 }
 
 static void
-cas_start_locked(struct ifnet *ifp)
+cas_start(struct ifnet *ifp)
 {
 	struct cas_softc *sc = ifp->if_softc;
 	struct mbuf *m;
 	int kicked, ntx;
 
-	CAS_LOCK_ASSERT(sc, MA_OWNED);
+	CAS_LOCK(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->sc_flags & CAS_LINK) == 0)
+	    IFF_DRV_RUNNING || (sc->sc_flags & CAS_LINK) == 0) {
+		CAS_UNLOCK(sc);
 		return;
+	}
+
+	if (sc->sc_txfree < CAS_MAXTXFREE / 4)
+		cas_tint(sc);
 
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS, "%s: %s: txfree %d, txnext %d",
@@ -1434,6 +1462,8 @@ cas_start_locked(struct ifnet *ifp)
 		    sc->sc_wdog_timer);
 #endif
 	}
+
+	CAS_UNLOCK(sc);
 }
 
 static void
@@ -1530,17 +1560,10 @@ cas_tint(struct cas_softc *sc)
 #endif
 
 	if (progress) {
-		if (sc->sc_txfree == CAS_NTXDESC - 1)
-			sc->sc_txwin = 0;
-
-		/*
-		 * We freed some descriptors, so reset IFF_DRV_OACTIVE
-		 * and restart.
-		 */
+		/* We freed some descriptors, so reset IFF_DRV_OACTIVE. */
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		if (STAILQ_EMPTY(&sc->sc_txdirtyq))
 			sc->sc_wdog_timer = 0;
-		cas_start_locked(ifp);
 	}
 
 #ifdef CAS_DEBUG
@@ -1554,7 +1577,7 @@ cas_rint_timeout(void *arg)
 {
 	struct cas_softc *sc = arg;
 
-	CAS_LOCK_ASSERT(sc, MA_OWNED);
+	CAS_LOCK_ASSERT(sc, MA_NOTOWNED);
 
 	cas_rint(sc);
 }
@@ -1569,7 +1592,7 @@ cas_rint(struct cas_softc *sc)
 	uint32_t rxhead;
 	u_int idx, idx2, len, off, skip;
 
-	CAS_LOCK_ASSERT(sc, MA_OWNED);
+	CAS_LOCK_ASSERT(sc, MA_NOTOWNED);
 
 	callout_stop(&sc->sc_rx_ch);
 
@@ -1695,9 +1718,7 @@ cas_rint(struct cas_softc *sc)
 					cas_rxcksum(m, CAS_GET(word4,
 					    CAS_RC4_TCP_CSUM));
 				/* Pass it on. */
-				CAS_UNLOCK(sc);
 				(*ifp->if_input)(ifp, m);
-				CAS_LOCK(sc);
 			} else
 				ifp->if_ierrors++;
 
@@ -1781,9 +1802,7 @@ cas_rint(struct cas_softc *sc)
 					cas_rxcksum(m, CAS_GET(word4,
 					    CAS_RC4_TCP_CSUM));
 				/* Pass it on. */
-				CAS_UNLOCK(sc);
 				(*ifp->if_input)(ifp, m);
-				CAS_LOCK(sc);
 			} else
 				ifp->if_ierrors++;
 
@@ -1799,6 +1818,8 @@ cas_rint(struct cas_softc *sc)
 
  skip:
 		cas_rxcompinit(&sc->sc_rxcomps[sc->sc_rxcptr]);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 	}
 	CAS_CDSYNC(sc, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	CAS_WRITE_4(sc, CAS_RX_COMP_TAIL, sc->sc_rxcptr);
@@ -1819,7 +1840,7 @@ cas_free(void *arg1, void *arg2)
 {
 	struct cas_rxdsoft *rxds;
 	struct cas_softc *sc;
-	u_int idx, locked;
+	u_int idx;
 
 #if __FreeBSD_version < 800016
 	rxds = arg2;
@@ -1837,18 +1858,17 @@ cas_free(void *arg1, void *arg2)
 	 * NB: this function can be called via m_freem(9) within
 	 * this driver!
 	 */
-	if ((locked = CAS_LOCK_OWNED(sc)) == 0)
-		CAS_LOCK(sc);
+
 	cas_add_rxdesc(sc, idx);
-	if (locked == 0)
-		CAS_UNLOCK(sc);
 }
 
 static inline void
 cas_add_rxdesc(struct cas_softc *sc, u_int idx)
 {
+	u_int locked;
 
-	CAS_LOCK_ASSERT(sc, MA_OWNED);
+	if ((locked = CAS_LOCK_OWNED(sc)) == 0)
+		CAS_LOCK(sc);
 
 	bus_dmamap_sync(sc->sc_rdmatag, sc->sc_rxdsoft[idx].rxds_dmamap,
 	    BUS_DMASYNC_PREREAD);
@@ -1866,13 +1886,19 @@ cas_add_rxdesc(struct cas_softc *sc, u_int idx)
 		CAS_WRITE_4(sc, CAS_RX_KICK,
 		    (sc->sc_rxdptr + CAS_NRXDESC - 4) & CAS_NRXDESC_MASK);
 	}
+
+	if (locked == 0)
+		CAS_UNLOCK(sc);
 }
 
 static void
 cas_eint(struct cas_softc *sc, u_int status)
 {
+	struct ifnet *ifp = sc->sc_ifp;
 
-	sc->sc_ifp->if_ierrors++;
+	CAS_LOCK_ASSERT(sc, MA_NOTOWNED);
+
+	ifp->if_ierrors++;
 
 	device_printf(sc->sc_dev, "%s: status 0x%x", __func__, status);
 	if ((status & CAS_INTR_PCI_ERROR_INT) != 0) {
@@ -1886,21 +1912,43 @@ cas_eint(struct cas_softc *sc, u_int status)
 	}
 	printf("\n");
 
-	cas_init_locked(sc);
-	cas_start_locked(sc->sc_ifp);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	cas_init(sc);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
 }
 
-static void
+static int
 cas_intr(void *v)
 {
 	struct cas_softc *sc = v;
+
+	if (__predict_false((CAS_READ_4(sc, CAS_STATUS_ALIAS) &
+	    CAS_INTR_SUMMARY) == 0))
+		return (FILTER_STRAY);
+
+	/* Disable interrupts. */
+	CAS_WRITE_4(sc, CAS_INTMASK, 0xffffffff);
+	taskqueue_enqueue(sc->sc_tq, &sc->sc_intr_task);
+
+	return (FILTER_HANDLED);
+}
+
+static void
+cas_intr_task(void *arg, int pending __unused)
+{
+	struct cas_softc *sc = arg;
+	struct ifnet *ifp = sc->sc_ifp;
 	uint32_t status, status2;
+
+	CAS_LOCK_ASSERT(sc, MA_NOTOWNED);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
 
 	status = CAS_READ_4(sc, CAS_STATUS);
 	if (__predict_false((status & CAS_INTR_SUMMARY) == 0))
-		return;
-
-	CAS_LOCK(sc);
+		goto done;
 
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS, "%s: %s: cplt %x, status %x",
@@ -1941,7 +1989,6 @@ cas_intr(void *v)
 	    (CAS_INTR_TX_TAG_ERR | CAS_INTR_RX_TAG_ERR |
 	    CAS_INTR_RX_LEN_MMATCH | CAS_INTR_PCI_ERROR_INT)) != 0)) {
 		cas_eint(sc, status);
-		CAS_UNLOCK(sc);
 		return;
 	}
 
@@ -1968,21 +2015,48 @@ cas_intr(void *v)
 	    (CAS_INTR_RX_DONE | CAS_INTR_RX_BUF_NA | CAS_INTR_RX_COMP_FULL |
 	    CAS_INTR_RX_BUF_AEMPTY | CAS_INTR_RX_COMP_AFULL)) != 0) {
 		cas_rint(sc);
+#ifdef CAS_DEBUG
 		if (__predict_false((status &
 		    (CAS_INTR_RX_BUF_NA | CAS_INTR_RX_COMP_FULL |
 		    CAS_INTR_RX_BUF_AEMPTY | CAS_INTR_RX_COMP_AFULL)) != 0))
 			device_printf(sc->sc_dev,
 			    "RX fault, status %x\n", status);
+#endif
 	}
 
 	if ((status &
-	    (CAS_INTR_TX_INT_ME | CAS_INTR_TX_ALL | CAS_INTR_TX_DONE)) != 0)
+	    (CAS_INTR_TX_INT_ME | CAS_INTR_TX_ALL | CAS_INTR_TX_DONE)) != 0) {
+		CAS_LOCK(sc);
 		cas_tint(sc);
+		CAS_UNLOCK(sc);
+	}
 
-	CAS_UNLOCK(sc);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+	else if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
+
+	status = CAS_READ_4(sc, CAS_STATUS_ALIAS);
+	if (__predict_false((status & CAS_INTR_SUMMARY) != 0)) {
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_intr_task);
+		return;
+	}
+
+ done:
+	/* Re-enable interrupts. */
+	CAS_WRITE_4(sc, CAS_INTMASK,
+	    ~(CAS_INTR_TX_INT_ME | CAS_INTR_TX_TAG_ERR |
+	    CAS_INTR_RX_DONE | CAS_INTR_RX_BUF_NA | CAS_INTR_RX_TAG_ERR |
+	    CAS_INTR_RX_COMP_FULL | CAS_INTR_RX_BUF_AEMPTY |
+	    CAS_INTR_RX_COMP_AFULL | CAS_INTR_RX_LEN_MMATCH |
+	    CAS_INTR_PCI_ERROR_INT
+#ifdef CAS_DEBUG
+	    | CAS_INTR_PCS_INT | CAS_INTR_MIF
+#endif
+	));
 }
 
-static int
+static void
 cas_watchdog(struct cas_softc *sc)
 {
 	struct ifnet *ifp = sc->sc_ifp;
@@ -2003,7 +2077,7 @@ cas_watchdog(struct cas_softc *sc)
 #endif
 
 	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0)
-		return (0);
+		return;
 
 	if ((sc->sc_flags & CAS_LINK) != 0)
 		device_printf(sc->sc_dev, "device timeout\n");
@@ -2012,9 +2086,10 @@ cas_watchdog(struct cas_softc *sc)
 	++ifp->if_oerrors;
 
 	/* Try to get more packets going. */
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	cas_init_locked(sc);
-	cas_start_locked(ifp);
-	return (EJUSTRETURN);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
 }
 
 static void
@@ -2378,7 +2453,8 @@ cas_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		CAS_LOCK(sc);
-		cas_setladrf(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			cas_setladrf(sc);
 		CAS_UNLOCK(sc);
 		break;
 	case SIOCSIFMTU:
@@ -2729,7 +2805,7 @@ cas_pci_attach(device_t dev)
 	}
 
 	if (bus_setup_intr(dev, sc->sc_res[CAS_RES_INTR], INTR_TYPE_NET |
-	    INTR_MPSAFE, NULL, cas_intr, sc, &sc->sc_ih) != 0) {
+	    INTR_MPSAFE, cas_intr, NULL, sc, &sc->sc_ih) != 0) {
 		device_printf(dev, "failed to set up interrupt\n");
 		cas_detach(sc);
 		goto fail;
