@@ -69,7 +69,7 @@ ata_micron_probe(device_t dev)
 	device_set_desc(dev,
 	    "RZ 100? ATA controller !WARNING! data loss/corruption risk");
 	ctlr->chipinit = ata_micron_chipinit;
-	return 0;
+	return (BUS_PROBE_DEFAULT);
     }
     else
 	return ENXIO;
