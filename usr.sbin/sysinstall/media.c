@@ -221,6 +221,52 @@ mediaSetFloppy(dialogMenuItem *self)
 }
 
 static int
+USBHook(dialogMenuItem *self)
+{
+	return genericHook(self, DEVICE_TYPE_USB);
+}
+
+
+/*
+ * Attempt to use USB as the installation media type.
+ */
+int
+mediaSetUSB(dialogMenuItem *self)
+{
+	Device **devs;
+	int cnt;
+
+	mediaClose();
+	devs = deviceFind(NULL, DEVICE_TYPE_USB);
+	cnt = deviceCount(devs);
+
+	if (!cnt) {
+		msgConfirm("No USB devices found!");
+		return DITEM_FAILURE | DITEM_CONTINUE;
+	}
+	else if (cnt > 1) {
+		DMenu *menu;
+		int status;
+
+		menu = deviceCreateMenu(&MenuMediaUSB, DEVICE_TYPE_USB, USBHook,
+		    NULL);
+		if (!menu)
+			msgFatal("Unable to create USB menu! Something is " \
+			    "seriously wrong.");
+		status = dmenuOpenSimple(menu, FALSE);
+		free(menu);
+		if (!status)
+			return DITEM_FAILURE;
+	}
+	else
+		mediaDevice = devs[0];
+	if (mediaDevice)
+		mediaDevice->private = NULL;
+	msgConfirm("Using USB device: %s", mediaDevice->name);
+	return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE);
+}
+
+static int
 DOSHook(dialogMenuItem *self)
 {
     return genericHook(self, DEVICE_TYPE_DOS);
