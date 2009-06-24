@@ -117,7 +117,7 @@ struct	in6_ifaddr {
 	struct	sockaddr_in6 ia_dstaddr; /* space for destination addr */
 	struct	sockaddr_in6 ia_prefixmask; /* prefix mask */
 	u_int32_t ia_plen;		/* prefix length */
-	struct	in6_ifaddr *ia_next;	/* next in6 list of IP6 addresses */
+	TAILQ_ENTRY(in6_ifaddr)	ia_link;	/* list of IPv6 addresses */
 	int	ia6_flags;
 
 	struct in6_addrlifetime ia6_lifetime;
@@ -132,6 +132,9 @@ struct	in6_ifaddr {
 	/* multicast addresses joined from the kernel */
 	LIST_HEAD(, in6_multi_mship) ia6_memberships;
 };
+
+/* List of in6_ifaddr's. */
+TAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
 
 /* control structure to manage address selection policy */
 struct in6_addrpolicy {

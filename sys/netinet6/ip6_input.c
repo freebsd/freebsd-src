@@ -134,7 +134,7 @@ struct vnet_inet6 vnet_inet6_0;
 #endif
 
 #ifdef VIMAGE_GLOBALS
-struct in6_ifaddr *in6_ifaddr;
+struct in6_ifaddrhead in6_ifaddrhead;
 struct ip6stat ip6stat;
 
 extern struct callout in6_tmpaddrtimer_ch;
@@ -256,6 +256,8 @@ ip6_init(void)
 	V_udp6_recvspace = 40 * (1024 + sizeof(struct sockaddr_in6));
 					/* 40 1K datagrams */
 	V_dad_init = 0;
+
+	TAILQ_INIT(&V_in6_ifaddrhead);
 
 	scope6_init();
 	addrsel_policy_init();

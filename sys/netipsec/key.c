@@ -3979,7 +3979,7 @@ key_ismyaddr6(sin6)
 	struct in6_multi *in6m;
 #endif
 
-	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (key_sockaddrcmp((struct sockaddr *)&sin6,
 		    (struct sockaddr *)&ia->ia_addr, 0) == 0)
 			return 1;
