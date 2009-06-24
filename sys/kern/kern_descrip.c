@@ -2964,8 +2964,8 @@ export_vnode_for_sysctl(struct vnode *vp, int type,
 		return (ENOTDIR);
 	}
 	FILEDESC_SUNLOCK(fdp);
-	kif->kf_vnode_type = KF_VTYPE_VDIR;
 	prepare_kinfo_file(vp, kif);
+	kif->kf_vnode_type = KF_VTYPE_VDIR;
 	vrele(vp);
 
 	/*
