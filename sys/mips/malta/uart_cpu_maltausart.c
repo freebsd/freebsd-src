@@ -71,7 +71,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->bas.bsh = MIPS_PHYS_TO_KSEG1(MALTA_UART0ADR);
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
-	di->baudrate = 115200;
+	di->baudrate = 0;	/* retain the baudrate configured by YAMON */
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
