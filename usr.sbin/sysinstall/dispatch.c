@@ -96,6 +96,7 @@ static struct _word {
     { "mediaClose",		dispatch_mediaClose	},
     { "mediaSetCDROM",		mediaSetCDROM		},
     { "mediaSetFloppy",		mediaSetFloppy		},
+    { "mediaSetUSB",		mediaSetUSB		},
     { "mediaSetDOS",		mediaSetDOS		},
     { "mediaSetFTP",		mediaSetFTP		},
     { "mediaSetFTPActive",	mediaSetFTPActive	},
@@ -511,7 +512,8 @@ dispatch_load_menu(dialogMenuItem *self)
     Device	**devlist;
     char	*err;
     int		what, i, j, msize, count;
-    DeviceType	dtypes[] = {DEVICE_TYPE_FLOPPY, DEVICE_TYPE_CDROM, DEVICE_TYPE_DOS, DEVICE_TYPE_UFS};
+    DeviceType	dtypes[] = {DEVICE_TYPE_FLOPPY, DEVICE_TYPE_CDROM,
+	DEVICE_TYPE_DOS, DEVICE_TYPE_UFS, DEVICE_TYPE_USB};
 
     fprintf(stderr, "dispatch_load_menu called\n");
 

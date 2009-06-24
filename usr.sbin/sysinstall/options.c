@@ -78,6 +78,9 @@ mediaCheck(Option *opt)
 	case DEVICE_TYPE_CDROM:
 	    return "CDROM";
 
+	case DEVICE_TYPE_USB:
+	    return "USB";
+
 	case DEVICE_TYPE_DOS:
 	    return "DOS";
 
