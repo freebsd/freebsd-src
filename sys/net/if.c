@@ -48,6 +48,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/refcount.h>
@@ -182,9 +183,6 @@ static struct filterops netdev_filtops =
 #ifndef VIMAGE_GLOBALS
 static struct vnet_symmap vnet_net_symmap[] = {
 	VNET_SYMMAP(net, ifnet),
-	VNET_SYMMAP(net, rt_tables),
-	VNET_SYMMAP(net, rtstat),
-	VNET_SYMMAP(net, rttrash),
 	VNET_SYMMAP_END
 };
 
@@ -264,6 +262,8 @@ ifaddr_byindex(u_short idx)
 
 	IFNET_RLOCK();
 	ifa = ifnet_byindex_locked(idx)->if_addr;
+	if (ifa != NULL)
+		ifa_ref(ifa);
 	IFNET_RUNLOCK();
 	return (ifa);
 }
@@ -758,7 +758,7 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		socksize = roundup2(socksize, sizeof(long));
 		ifasize = sizeof(*ifa) + 2 * socksize;
 		ifa = malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
-		IFA_LOCK_INIT(ifa);
+		ifa_init(ifa);
 		sdl = (struct sockaddr_dl *)(ifa + 1);
 		sdl->sdl_len = socksize;
 		sdl->sdl_family = AF_LINK;
@@ -775,7 +775,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		sdl->sdl_len = masklen;
 		while (namelen != 0)
 			sdl->sdl_data[--namelen] = 0xff;
-		ifa->ifa_refcnt = 1;
 		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 		/* Reliably crash if used uninitialized. */
 		ifp->if_broadcastaddr = NULL;
@@ -896,7 +895,7 @@ if_purgeaddrs(struct ifnet *ifp)
 		}
 #endif /* INET6 */
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		IFAFREE(ifa);
+		ifa_free(ifa);
 	}
 }
 
@@ -1013,7 +1012,7 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		if (!TAILQ_EMPTY(&ifp->if_addrhead)) {
 			ifa = TAILQ_FIRST(&ifp->if_addrhead);
 			TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-			IFAFREE(ifa);
+			ifa_free(ifa);
 		}
 	}
 
@@ -1420,6 +1419,34 @@ if_rtdel(struct radix_node *rn, void *arg)
 }
 
 /*
+ * Reference count functions for ifaddrs.
+ */
+void
+ifa_init(struct ifaddr *ifa)
+{
+
+	mtx_init(&ifa->ifa_mtx, "ifaddr", NULL, MTX_DEF);
+	refcount_init(&ifa->ifa_refcnt, 1);
+}
+
+void
+ifa_ref(struct ifaddr *ifa)
+{
+
+	refcount_acquire(&ifa->ifa_refcnt);
+}
+
+void
+ifa_free(struct ifaddr *ifa)
+{
+
+	if (refcount_release(&ifa->ifa_refcnt)) {
+		mtx_destroy(&ifa->ifa_mtx);
+		free(ifa, M_IFADDR);
+	}
+}
+
+/*
  * XXX: Because sockaddr_dl has deeper structure than the sockaddr
  * structs used to represent other address families, it is necessary
  * to perform a different comparison.
@@ -1439,8 +1466,8 @@ if_rtdel(struct radix_node *rn, void *arg)
  * Locate an interface based on a complete address.
  */
 /*ARGSUSED*/
-struct ifaddr *
-ifa_ifwithaddr(struct sockaddr *addr)
+static struct ifaddr *
+ifa_ifwithaddr_internal(struct sockaddr *addr, int getref)
 {
 	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
@@ -1453,6 +1480,8 @@ ifa_ifwithaddr(struct sockaddr *addr)
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
 			if (sa_equal(addr, ifa->ifa_addr)) {
+				if (getref)
+					ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto done;
 			}
@@ -1461,6 +1490,8 @@ ifa_ifwithaddr(struct sockaddr *addr)
 			    ifa->ifa_broadaddr &&
 			    ifa->ifa_broadaddr->sa_len != 0 &&
 			    sa_equal(ifa->ifa_broadaddr, addr)) {
+				if (getref)
+					ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto done;
 			}
@@ -1471,6 +1502,20 @@ ifa_ifwithaddr(struct sockaddr *addr)
 done:
 	IFNET_RUNLOCK();
 	return (ifa);
+}
+
+struct ifaddr *
+ifa_ifwithaddr(struct sockaddr *addr)
+{
+
+	return (ifa_ifwithaddr_internal(addr, 1));
+}
+
+int
+ifa_ifwithaddr_check(struct sockaddr *addr)
+{
+
+	return (ifa_ifwithaddr_internal(addr, 0) != NULL);
 }
 
 /*
@@ -1494,6 +1539,7 @@ ifa_ifwithbroadaddr(struct sockaddr *addr)
 			    ifa->ifa_broadaddr &&
 			    ifa->ifa_broadaddr->sa_len != 0 &&
 			    sa_equal(ifa->ifa_broadaddr, addr)) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto done;
 			}
@@ -1527,6 +1573,7 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 				continue;
 			if (ifa->ifa_dstaddr != NULL &&
 			    sa_equal(addr, ifa->ifa_dstaddr)) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto done;
 			}
@@ -1549,7 +1596,7 @@ ifa_ifwithnet(struct sockaddr *addr)
 	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
-	struct ifaddr *ifa_maybe = (struct ifaddr *) 0;
+	struct ifaddr *ifa_maybe = NULL;
 	u_int af = addr->sa_family;
 	char *addr_data = addr->sa_data, *cplim;
 
@@ -1564,8 +1611,10 @@ ifa_ifwithnet(struct sockaddr *addr)
 	}
 
 	/*
-	 * Scan though each interface, looking for ones that have
-	 * addresses in this address family.
+	 * Scan though each interface, looking for ones that have addresses
+	 * in this address family.  Maintain a reference on ifa_maybe once
+	 * we find one, as we release the IF_ADDR_LOCK() that kept it stable
+	 * when we move onto the next interface.
 	 */
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
@@ -1586,6 +1635,7 @@ next:				continue;
 				 */
 				if (ifa->ifa_dstaddr != NULL &&
 				    sa_equal(addr, ifa->ifa_dstaddr)) {
+					ifa_ref(ifa);
 					IF_ADDR_UNLOCK(ifp);
 					goto done;
 				}
@@ -1596,6 +1646,7 @@ next:				continue;
 				 */
 				if (ifa->ifa_claim_addr) {
 					if ((*ifa->ifa_claim_addr)(ifa, addr)) {
+						ifa_ref(ifa);
 						IF_ADDR_UNLOCK(ifp);
 						goto done;
 					}
@@ -1626,17 +1677,24 @@ next:				continue;
 				 * before continuing to search
 				 * for an even better one.
 				 */
-				if (ifa_maybe == 0 ||
+				if (ifa_maybe == NULL ||
 				    rn_refines((caddr_t)ifa->ifa_netmask,
-				    (caddr_t)ifa_maybe->ifa_netmask))
+				    (caddr_t)ifa_maybe->ifa_netmask)) {
+					if (ifa_maybe != NULL)
+						ifa_free(ifa_maybe);
 					ifa_maybe = ifa;
+					ifa_ref(ifa_maybe);
+				}
 			}
 		}
 		IF_ADDR_UNLOCK(ifp);
 	}
 	ifa = ifa_maybe;
+	ifa_maybe = NULL;
 done:
 	IFNET_RUNLOCK();
+	if (ifa_maybe != NULL)
+		ifa_free(ifa_maybe);
 	return (ifa);
 }
 
@@ -1650,7 +1708,7 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 	struct ifaddr *ifa;
 	char *cp, *cp2, *cp3;
 	char *cplim;
-	struct ifaddr *ifa_maybe = 0;
+	struct ifaddr *ifa_maybe = NULL;
 	u_int af = addr->sa_family;
 
 	if (af >= AF_MAX)
@@ -1659,7 +1717,7 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != af)
 			continue;
-		if (ifa_maybe == 0)
+		if (ifa_maybe == NULL)
 			ifa_maybe = ifa;
 		if (ifa->ifa_netmask == 0) {
 			if (sa_equal(addr, ifa->ifa_addr) ||
@@ -1685,11 +1743,12 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 	}
 	ifa = ifa_maybe;
 done:
+	if (ifa != NULL)
+		ifa_ref(ifa);
 	IF_ADDR_UNLOCK(ifp);
 	return (ifa);
 }
 
-#include <net/route.h>
 #include <net/if_llatbl.h>
 
 /*
@@ -1711,10 +1770,9 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 		return;
 	ifa = ifaof_ifpforaddr(dst, ifp);
 	if (ifa) {
-		IFAREF(ifa);		/* XXX */
 		oifa = rt->rt_ifa;
 		rt->rt_ifa = ifa;
-		IFAFREE(oifa);
+		ifa_free(oifa);
 		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
 			ifa->ifa_rtrequest(cmd, rt, info);
 	}
@@ -2382,7 +2440,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 #else
 	{
-		int ocmd = cmd;
+		u_long ocmd = cmd;
 
 		switch (cmd) {
 
@@ -2438,7 +2496,6 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 
 	if ((oif_flags ^ ifp->if_flags) & IFF_UP) {
 #ifdef INET6
-		DELAY(100);/* XXX: temporary workaround for fxp issue*/
 		if (ifp->if_flags & IFF_UP) {
 			int s = splimp();
 			in6_if_up(ifp);
@@ -3088,14 +3145,23 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	struct ifaddr *ifa;
 	struct ifreq ifr;
 
+	IF_ADDR_LOCK(ifp);
 	ifa = ifp->if_addr;
-	if (ifa == NULL)
+	if (ifa == NULL) {
+		IF_ADDR_UNLOCK(ifp);
 		return (EINVAL);
+	}
+	ifa_ref(ifa);
+	IF_ADDR_UNLOCK(ifp);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	if (sdl == NULL)
+	if (sdl == NULL) {
+		ifa_free(ifa);
 		return (EINVAL);
-	if (len != sdl->sdl_alen)	/* don't allow length to change */
+	}
+	if (len != sdl->sdl_alen) {	/* don't allow length to change */
+		ifa_free(ifa);
 		return (EINVAL);
+	}
 	switch (ifp->if_type) {
 	case IFT_ETHER:
 	case IFT_FDDI:
@@ -3107,10 +3173,13 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_IEEE8023ADLAG:
 	case IFT_IEEE80211:
 		bcopy(lladdr, LLADDR(sdl), len);
+		ifa_free(ifa);
 		break;
 	default:
+		ifa_free(ifa);
 		return (ENODEV);
 	}
+
 	/*
 	 * If the interface is already up, we need
 	 * to re-init it in order to reprogram its

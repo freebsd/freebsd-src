@@ -35,9 +35,6 @@
 
 #include <sys/proc.h>
 #include <sys/queue.h>
-#ifdef VIMAGE
-#include <sys/jail.h>
-#endif
 
 /* Interim userspace API. */
 struct vi_req {
@@ -125,6 +122,7 @@ struct vnet_modlink {
 #define	VNET_MOD_ACCF_HTTP	11
 #define	VNET_MOD_IGMP		12
 #define	VNET_MOD_MLD		13
+#define	VNET_MOD_RTABLE		14
 
 /* Stateless modules. */
 #define	VNET_MOD_IF_CLONE	19
@@ -137,7 +135,7 @@ struct vnet_modlink {
 #define	VNET_MOD_IPCOMP	 	26	
 #define	VNET_MOD_GIF		27
 #define	VNET_MOD_ARP		28
-#define	VNET_MOD_RTABLE		29
+#define	VNET_MOD_FLOWTABLE	29
 #define	VNET_MOD_LOIF		30
 #define	VNET_MOD_DOMAIN		31
 #define	VNET_MOD_DYNAMIC_START	32
@@ -157,6 +155,7 @@ struct vnet_modlink {
 #define	V_MOD_vnet_pf		VNET_MOD_PF
 #define	V_MOD_vnet_gif		VNET_MOD_GIF
 #define	V_MOD_vnet_ipsec	VNET_MOD_IPSEC
+#define	V_MOD_vnet_rtable	VNET_MOD_RTABLE
  
 #define	V_MOD_vprocg		0	/* no minor module ids like in vnet */
 
@@ -370,43 +369,43 @@ extern struct vprocg_list_head vprocg_head;
  * See description further down to see how to get the new values.
  */
 #ifdef __amd64__
-#define	SIZEOF_vnet_net		192
+#define	SIZEOF_vnet_net		156
 #define	SIZEOF_vnet_inet	4424
 #define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __arm__
-#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_net		72
 #define	SIZEOF_vnet_inet	2616
 #define	SIZEOF_vnet_inet6	8524
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __i386__ /* incl. pc98 */
-#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_net		72
 #define	SIZEOF_vnet_inet	2612
 #define	SIZEOF_vnet_inet6	8512
 #define	SIZEOF_vnet_ipsec	31024
 #endif
 #ifdef __ia64__
-#define	SIZEOF_vnet_net		192
+#define	SIZEOF_vnet_net		156
 #define	SIZEOF_vnet_inet	4424
 #define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __mips__
-#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_net		72
 #define	SIZEOF_vnet_inet	2648
 #define	SIZEOF_vnet_inet6	8544
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __powerpc__
-#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_net		72
 #define	SIZEOF_vnet_inet	2640
 #define	SIZEOF_vnet_inet6	8520
 #define	SIZEOF_vnet_ipsec	31048
 #endif
 #ifdef __sparc64__ /* incl. sun4v */
-#define	SIZEOF_vnet_net		192
+#define	SIZEOF_vnet_net		156
 #define	SIZEOF_vnet_inet	4424
 #define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160

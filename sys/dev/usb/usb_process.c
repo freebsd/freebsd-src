@@ -26,7 +26,29 @@
 
 #define	USB_DEBUG_VAR usb_proc_debug
 
-#include <dev/usb/usb_core.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_util.h>
@@ -52,7 +74,7 @@
 #define	USB_THREAD_EXIT(err)	kthread_exit(err)
 #endif
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int usb_proc_debug;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, proc, CTLFLAG_RW, 0, "USB process");

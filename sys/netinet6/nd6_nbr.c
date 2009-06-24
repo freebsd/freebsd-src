@@ -355,6 +355,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0) | ND_NA_FLAG_SOLICITED,
 	    tlladdr, (struct sockaddr *)proxydl);
  freeit:
+	if (ifa != NULL)
+		ifa_free(ifa);
 	m_freem(m);
 	return;
 
@@ -366,6 +368,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	nd6log((LOG_ERR, "nd6_ns_input: tgt=%s\n",
 		ip6_sprintf(ip6bufs, &taddr6)));
 	ICMP6STAT_INC(icp6s_badns);
+	if (ifa != NULL)
+		ifa_free(ifa);
 	m_freem(m);
 }
 
@@ -456,6 +460,8 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			goto bad;
 	}
 	if (!dad) {
+		struct ifaddr *ifa;
+
 		/*
 		 * RFC2461 7.2.2:
 		 * "If the source address of the packet prompting the
@@ -486,9 +492,11 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			else
 				hsrc = NULL;
 		}
-		if (hsrc && in6ifa_ifpwithaddr(ifp, hsrc))
+		if (hsrc && (ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
+		    hsrc)) != NULL) {
 			src = hsrc;
-		else {
+			ifa_free(ifa);
+		} else {
 			int error;
 			struct sockaddr_in6 dst_sa;
 
@@ -497,9 +505,9 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 			dst_sa.sin6_len = sizeof(dst_sa);
 			dst_sa.sin6_addr = ip6->ip6_dst;
 
-			src = in6_selectsrc(&dst_sa, NULL,
-			    NULL, &ro, NULL, NULL, &error);
-			if (src == NULL) {
+			error = in6_selectsrc(&dst_sa, NULL,
+			    NULL, &ro, NULL, NULL, &src_in);
+			if (error) {
 				char ip6buf[INET6_ADDRSTRLEN];
 				nd6log((LOG_DEBUG,
 				    "nd6_ns_output: source can't be "
@@ -508,6 +516,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 				    error));
 				goto bad;
 			}
+			src = &src_in;
 		}
 	} else {
 		/*
@@ -679,12 +688,14 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 */
 	if (ifa
 	 && (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_TENTATIVE)) {
+		ifa_free(ifa);
 		nd6_dad_na_input(ifa);
 		goto freeit;
 	}
 
 	/* Just for safety, maybe unnecessary. */
 	if (ifa) {
+		ifa_free(ifa);
 		log(LOG_ERR,
 		    "nd6_na_input: duplicate IP6 address %s\n",
 		    ip6_sprintf(ip6bufs, &taddr6));
@@ -923,7 +934,7 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
 	struct ip6_moptions im6o;
-	struct in6_addr *src, daddr6;
+	struct in6_addr src, daddr6;
 	struct sockaddr_in6 dst_sa;
 	int icmp6len, maxlen, error;
 	caddr_t mac = NULL;
@@ -996,15 +1007,15 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	 * Select a source whose scope is the same as that of the dest.
 	 */
 	bcopy(&dst_sa, &ro.ro_dst, sizeof(dst_sa));
-	src = in6_selectsrc(&dst_sa, NULL, NULL, &ro, NULL, NULL, &error);
-	if (src == NULL) {
+	error = in6_selectsrc(&dst_sa, NULL, NULL, &ro, NULL, NULL, &src);
+	if (error) {
 		char ip6buf[INET6_ADDRSTRLEN];
 		nd6log((LOG_DEBUG, "nd6_na_output: source can't be "
 		    "determined: dst=%s, error=%d\n",
 		    ip6_sprintf(ip6buf, &dst_sa.sin6_addr), error));
 		goto bad;
 	}
-	ip6->ip6_src = *src;
+	ip6->ip6_src = src;
 	nd_na = (struct nd_neighbor_advert *)(ip6 + 1);
 	nd_na->nd_na_type = ND_NEIGHBOR_ADVERT;
 	nd_na->nd_na_code = 0;
@@ -1223,7 +1234,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	 * (re)initialization.
 	 */
 	dp->dad_ifa = ifa;
-	IFAREF(ifa);	/* just for safety */
+	ifa_ref(ifa);	/* just for safety */
 	dp->dad_count = V_ip6_dad_count;
 	dp->dad_ns_icount = dp->dad_na_icount = 0;
 	dp->dad_ns_ocount = dp->dad_ns_tcount = 0;
@@ -1258,7 +1269,7 @@ nd6_dad_stop(struct ifaddr *ifa)
 	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 	free(dp, M_IP6NDP);
 	dp = NULL;
-	IFAFREE(ifa);
+	ifa_free(ifa);
 }
 
 static void
@@ -1301,7 +1312,7 @@ nd6_dad_timer(struct dadq *dp)
 		TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 		free(dp, M_IP6NDP);
 		dp = NULL;
-		IFAFREE(ifa);
+		ifa_free(ifa);
 		goto done;
 	}
 
@@ -1354,7 +1365,7 @@ nd6_dad_timer(struct dadq *dp)
 			TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 			free(dp, M_IP6NDP);
 			dp = NULL;
-			IFAFREE(ifa);
+			ifa_free(ifa);
 		}
 	}
 
@@ -1432,7 +1443,7 @@ nd6_dad_duplicated(struct ifaddr *ifa)
 	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 	free(dp, M_IP6NDP);
 	dp = NULL;
-	IFAFREE(ifa);
+	ifa_free(ifa);
 }
 
 static void

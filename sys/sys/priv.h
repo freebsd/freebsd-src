@@ -211,7 +211,7 @@
 #define	PRIV_TTY_DRAINWAIT	251	/* Set tty drain wait time. */
 #define	PRIV_TTY_DTRWAIT	252	/* Set DTR wait on tty. */
 #define	PRIV_TTY_EXCLUSIVE	253	/* Override tty exclusive flag. */
-#define	PRIV_TTY_PRISON		254	/* Can open pts across jails. */
+#define	_PRIV_TTY_PRISON	254	/* Removed. */
 #define	PRIV_TTY_STI		255	/* Simulate input on another tty. */
 #define	PRIV_TTY_SETA		256	/* Set tty termios structure. */
 
@@ -283,6 +283,14 @@
 #define	PRIV_VM_MADV_PROTECT	360	/* Can set MADV_PROTECT. */
 #define	PRIV_VM_MLOCK		361	/* Can mlock(), mlockall(). */
 #define	PRIV_VM_MUNLOCK		362	/* Can munlock(), munlockall(). */
+#define	PRIV_VM_SWAP_NOQUOTA	363	/*
+					 * Can override the global
+					 * swap reservation limits.
+					 */
+#define	PRIV_VM_SWAP_NORLIMIT	364	/*
+					 * Can override the per-uid
+					 * swap reservation limits.
+					 */
 
 /*
  * Device file system privileges.

@@ -212,6 +212,25 @@ struct vnet_inet {
 	int			_icmpbmcastecho;
 
 	int			_fw_one_pass;
+
+	struct flowtable *	_ip_ft;
+	struct flowtable *	_flow_list_head;
+	uint32_t		_flow_hashjitter;
+	uma_zone_t		_flow_ipv4_zone;
+	uma_zone_t		_flow_ipv6_zone;
+	int			_flowtable_enable;
+	int			_flowtable_hits;
+	int			_flowtable_lookups;
+	int			_flowtable_misses;
+	int			_flowtable_frees;
+	int			_flowtable_free_checks;
+	int			_flowtable_max_depth;
+	int			_flowtable_collisions;
+	int			_flowtable_syn_expire;
+	int			_flowtable_udp_expire;
+	int			_flowtable_fin_wait_expire;
+	int			_flowtable_tcp_expire;
+	int			_flowtable_nmbflows;
 };
 
 /* Size guard. See sys/vimage.h. */
@@ -240,6 +259,23 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_drop_redirect		VNET_INET(drop_redirect)
 #define	V_drop_synfin		VNET_INET(drop_synfin)
 #define	V_fw_one_pass		VNET_INET(fw_one_pass)
+#define	V_flow_hashjitter	VNET_INET(flow_hashjitter)
+#define	V_flow_ipv4_zone	VNET_INET(flow_ipv4_zone)
+#define	V_flow_ipv6_zone	VNET_INET(flow_ipv6_zone)
+#define	V_flow_list_head	VNET_INET(flow_list_head)
+#define	V_flowtable_collisions	VNET_INET(flowtable_collisions)
+#define	V_flowtable_enable	VNET_INET(flowtable_enable)
+#define	V_flowtable_fin_wait_expire VNET_INET(flowtable_fin_wait_expire)
+#define	V_flowtable_free_checks	VNET_INET(flowtable_free_checks)
+#define	V_flowtable_frees	VNET_INET(flowtable_frees)
+#define	V_flowtable_hits	VNET_INET(flowtable_hits)
+#define	V_flowtable_lookups	VNET_INET(flowtable_lookups)
+#define	V_flowtable_max_depth	VNET_INET(flowtable_max_depth)
+#define	V_flowtable_misses	VNET_INET(flowtable_misses)
+#define	V_flowtable_nmbflows	VNET_INET(flowtable_nmbflows)
+#define	V_flowtable_syn_expire	VNET_INET(flowtable_syn_expire)
+#define	V_flowtable_tcp_expire	VNET_INET(flowtable_tcp_expire)
+#define	V_flowtable_udp_expire	VNET_INET(flowtable_udp_expire)
 #define	V_icmp_may_rst		VNET_INET(icmp_may_rst)
 #define	V_icmp_quotelen		VNET_INET(icmp_quotelen)
 #define	V_icmp_rfi		VNET_INET(icmp_rfi)
@@ -272,9 +308,11 @@ extern struct vnet_inet vnet_inet_0;
 #define	V_ip_checkinterface	VNET_INET(ip_checkinterface)
 #define	V_ip_defttl		VNET_INET(ip_defttl)
 #define	V_ip_do_randomid	VNET_INET(ip_do_randomid)
+#define	V_ip_ft			VNET_INET(ip_ft)
 #define	V_ip_id			VNET_INET(ip_id)
 #define	V_ip_keepfaith		VNET_INET(ip_keepfaith)
 #define	V_ip_mrouter		VNET_INET(ip_mrouter)
+#define	V_ip_output_flowtable_size VNET_INET(ip_output_flowtable_size)
 #define	V_ip_rsvp_on		VNET_INET(ip_rsvp_on)
 #define	V_ip_rsvpd		VNET_INET(ip_rsvpd)
 #define	V_ip_sendsourcequench	VNET_INET(ip_sendsourcequench)

@@ -117,9 +117,11 @@ vi_if_move(struct thread *td, struct ifnet *ifp, char *ifname, int jid,
 	struct prison *pr;
 	struct vimage *new_vip, *my_vip;
 	struct vnet *new_vnet;
+	int error;
 
 	if (vi_req != NULL) {
 		/* SIOCSIFVIMAGE */
+		pr = NULL;
 		/* Check for API / ABI version mismatch. */
 		if (vi_req->vi_api_cookie != VI_API_COOKIE)
 			return (EDOOFUS);
@@ -148,6 +150,7 @@ vi_if_move(struct thread *td, struct ifnet *ifp, char *ifname, int jid,
 		sx_sunlock(&allprison_lock);
 		if (pr == NULL)
 			return (ENXIO);
+		prison_hold_locked(pr);
 		mtx_unlock(&pr->pr_mtx);
 		if (ifp != NULL) {
 			/* SIOCSIFVNET */
@@ -158,31 +161,35 @@ vi_if_move(struct thread *td, struct ifnet *ifp, char *ifname, int jid,
 			CURVNET_SET(pr->pr_vnet);
 			ifp = ifunit(ifname);
 			CURVNET_RESTORE();
-			if (ifp == NULL)
+			if (ifp == NULL) {
+				prison_free(pr);
 				return (ENXIO);
+			}
 		}
-
-		/* No-op if the target jail has the same vnet. */
-		if (new_vnet == ifp->if_vnet)
-			return (0);
 	}
 
-	/*
-	 * Check for naming clashes in target vnet.  Not locked so races
-	 * are possible.
-	 */
-	CURVNET_SET_QUIET(new_vnet);
-	t_ifp = ifunit(ifname);
-	CURVNET_RESTORE();
-	if (t_ifp != NULL)
-		return (EEXIST);
+	error = 0;
+	if (new_vnet != ifp->if_vnet) {
+		/*
+		 * Check for naming clashes in target vnet.  Not locked so races
+		 * are possible.
+		 */
+		CURVNET_SET_QUIET(new_vnet);
+		t_ifp = ifunit(ifname);
+		CURVNET_RESTORE();
+		if (t_ifp != NULL)
+			error = EEXIST;
+		else {
+			/* Detach from curvnet and attach to new_vnet. */
+			if_vmove(ifp, new_vnet);
 
-	/* Detach from curvnet and attach to new_vnet. */
-	if_vmove(ifp, new_vnet);
-
-	/* Report the new if_xname back to the userland */
-	sprintf(ifname, "%s", ifp->if_xname);
-	return (0);
+			/* Report the new if_xname back to the userland */
+			sprintf(ifname, "%s", ifp->if_xname);
+		}
+	}
+	if (pr != NULL)
+		prison_free(pr);
+	return (error);
 }
 
 /*

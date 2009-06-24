@@ -301,6 +301,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	sdl->sdl_type = IFT_ETHER;		/* XXX IFT_IEEE80211? */
 	sdl->sdl_alen = IEEE80211_ADDR_LEN;
 	IEEE80211_ADDR_COPY(LLADDR(sdl), macaddr);
+	ifa_free(ifa);
 }
 
 /*

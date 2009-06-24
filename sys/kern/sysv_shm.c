@@ -519,13 +519,6 @@ done2:
 }
 #endif
 
-#ifndef _SYS_SYSPROTO_H_
-struct shmctl_args {
-	int shmid;
-	int cmd;
-	struct shmid_ds *buf;
-};
-#endif
 int
 kern_shmctl(td, shmid, cmd, buf, bufsz)
 	struct thread *td;
@@ -636,6 +629,13 @@ done2:
 	return (error);
 }
 
+#ifndef _SYS_SYSPROTO_H_
+struct shmctl_args {
+	int shmid;
+	int cmd;
+	struct shmid_ds *buf;
+};
+#endif
 int
 shmctl(td, uap)
 	struct thread *td;
@@ -680,13 +680,6 @@ done:
 }
 
 
-#ifndef _SYS_SYSPROTO_H_
-struct shmget_args {
-	key_t key;
-	size_t size;
-	int shmflg;
-};
-#endif
 static int
 shmget_existing(td, uap, mode, segnum)
 	struct thread *td;
@@ -770,13 +763,10 @@ shmget_allocate_segment(td, uap, mode)
 	 * We make sure that we have allocated a pager before we need
 	 * to.
 	 */
-	if (shm_use_phys) {
-		shm_object =
-		    vm_pager_allocate(OBJT_PHYS, 0, size, VM_PROT_DEFAULT, 0);
-	} else {
-		shm_object =
-		    vm_pager_allocate(OBJT_SWAP, 0, size, VM_PROT_DEFAULT, 0);
-	}
+	shm_object = vm_pager_allocate(shm_use_phys ? OBJT_PHYS : OBJT_SWAP,
+	    0, size, VM_PROT_DEFAULT, 0, cred);
+	if (shm_object == NULL)
+		return (ENOMEM);
 	VM_OBJECT_LOCK(shm_object);
 	vm_object_clear_flag(shm_object, OBJ_ONEMAPPING);
 	vm_object_set_flag(shm_object, OBJ_NOSPLIT);
@@ -810,6 +800,13 @@ shmget_allocate_segment(td, uap, mode)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
+struct shmget_args {
+	key_t key;
+	size_t size;
+	int shmflg;
+};
+#endif
 int
 shmget(td, uap)
 	struct thread *td;
@@ -1027,6 +1024,5 @@ SYSCALL_MODULE_HELPER(shmctl);
 SYSCALL_MODULE_HELPER(shmdt);
 SYSCALL_MODULE_HELPER(shmget);
 
-DECLARE_MODULE(sysvshm, sysvshm_mod,
-	SI_SUB_SYSV_SHM, SI_ORDER_FIRST);
+DECLARE_MODULE(sysvshm, sysvshm_mod, SI_SUB_SYSV_SHM, SI_ORDER_FIRST);
 MODULE_VERSION(sysvshm, 1);

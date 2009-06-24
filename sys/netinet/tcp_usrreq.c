@@ -1032,6 +1032,9 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in_getsockaddr,
+#if 0
+	.pru_soreceive =	soreceive_stream,
+#endif
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };
@@ -1053,6 +1056,9 @@ struct pr_usrreqs tcp6_usrreqs = {
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
+#if 0
+	.pru_soreceive =	soreceive_stream,
+#endif
  	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };
@@ -1131,7 +1137,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	struct socket *so = inp->inp_socket;
 	INIT_VNET_INET(so->so_vnet);
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
-	struct in6_addr *addr6;
+	struct in6_addr addr6;
 	int error;
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
@@ -1155,13 +1161,13 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	oinp = in6_pcblookup_hash(inp->inp_pcbinfo,
 				  &sin6->sin6_addr, sin6->sin6_port,
 				  IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)
-				  ? addr6
+				  ? &addr6
 				  : &inp->in6p_laddr,
 				  inp->inp_lport,  0, NULL);
 	if (oinp)
 		return EADDRINUSE;
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
-		inp->in6p_laddr = *addr6;
+		inp->in6p_laddr = addr6;
 	inp->in6p_faddr = sin6->sin6_addr;
 	inp->inp_fport = sin6->sin6_port;
 	/* update flowinfo - draft-itojun-ipv6-flowlabel-api-00 */

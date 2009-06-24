@@ -61,10 +61,20 @@ STATICMETHOD int init {
 	struct iconv_converter_class *dcp;
 } DEFAULT iconv_converter_initstub;
 
-STATICMETHOD void done {
+STATICMETHOD int done {
 	struct iconv_converter_class *dcp;
 } DEFAULT iconv_converter_donestub;
 
 STATICMETHOD const char * name {
 	struct iconv_converter_class *dcp;
 };
+
+METHOD int tolower {
+	void *handle;
+	int c;
+} DEFAULT iconv_converter_tolowerstub;
+
+METHOD int toupper {
+	void *handle;
+	int c;
+} DEFAULT iconv_converter_tolowerstub;

@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <net80211/ieee80211_var.h>

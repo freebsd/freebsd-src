@@ -92,6 +92,10 @@ struct obio_device obio_devices[] = {
 		{ -1 }, { -1 },
 		CPU_PM_CTRL_NONE
 	},
+	{ "sata", MV_SATAHC_BASE, MV_SATAHC_SIZE,
+	        { MV_INT_SATA, -1 }, { -1 },
+	        CPU_PM_CTRL_NONE
+ 	},
 	{ NULL, 0, 0, { 0 } }
 };
 

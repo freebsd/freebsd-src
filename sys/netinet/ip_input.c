@@ -207,13 +207,13 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
     ipstealth, 0, "IP stealth mode, no TTL decrementation on forwarding");
 #endif
 #ifdef FLOWTABLE
-static int ip_output_flowtable_size = 2048;
-TUNABLE_INT("net.inet.ip.output_flowtable_size", &ip_output_flowtable_size);
+#ifdef VIMAGE_GLOBALS
+static int ip_output_flowtable_size;
+struct flowtable *ip_ft;
+#endif
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, output_flowtable_size,
     CTLFLAG_RDTUN, ip_output_flowtable_size, 2048,
     "number of entries in the per-cpu output flow caches");
-
-struct flowtable *ip_ft;
 #endif
 
 #ifdef VIMAGE_GLOBALS
@@ -335,6 +335,13 @@ ip_init(void)
 	    NULL, UMA_ALIGN_PTR, 0);
 	maxnipq_update();
 
+#ifdef FLOWTABLE
+	V_ip_output_flowtable_size = 2048;
+	TUNABLE_INT_FETCH("net.inet.ip.output_flowtable_size",
+	    &V_ip_output_flowtable_size);
+	V_ip_ft = flowtable_alloc(V_ip_output_flowtable_size, FL_PCPU);
+#endif
+
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
@@ -377,9 +384,6 @@ ip_init(void)
 	/* Initialize various other remaining things. */
 	IPQ_LOCK_INIT();
 	netisr_register(&ip_nh);
-#ifdef FLOWTABLE
-	ip_ft = flowtable_alloc(ip_output_flowtable_size, FL_PCPU);
-#endif
 }
 
 void
@@ -618,8 +622,10 @@ passin:
 		 * enabled.
 		 */
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr && 
-		    (!checkif || ia->ia_ifp == ifp))
+		    (!checkif || ia->ia_ifp == ifp)) {
+			ifa_ref(&ia->ia_ifa);
 			goto ours;
+		}
 	}
 	/*
 	 * Check for broadcast addresses.
@@ -637,21 +643,25 @@ passin:
 			ia = ifatoia(ifa);
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    ip->ip_dst.s_addr) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto ours;
 			}
 			if (ia->ia_netbroadcast.s_addr == ip->ip_dst.s_addr) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto ours;
 			}
 #ifdef BOOTP_COMPAT
 			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto ours;
 			}
 #endif
 		}
 		IF_ADDR_UNLOCK(ifp);
+		ia = NULL;
 	}
 	/* RFC 3927 2.7: Do not forward datagrams for 169.254.0.0/16. */
 	if (IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr))) {
@@ -729,15 +739,18 @@ ours:
 	 * IPSTEALTH: Process non-routing options only
 	 * if the packet is destined for us.
 	 */
-	if (V_ipstealth && hlen > sizeof (struct ip) &&
-	    ip_dooptions(m, 1))
+	if (V_ipstealth && hlen > sizeof (struct ip) && ip_dooptions(m, 1)) {
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		return;
+	}
 #endif /* IPSTEALTH */
 
 	/* Count the packet in the ip address stats */
 	if (ia != NULL) {
 		ia->ia_ifa.if_ipackets++;
 		ia->ia_ifa.if_ibytes += m->m_pkthdr.len;
+		ifa_free(&ia->ia_ifa);
 	}
 
 	/*
@@ -1331,15 +1344,15 @@ ipproto_unregister(u_char ipproto)
 }
 
 /*
- * Given address of next destination (final or next hop),
- * return internet address info of interface to be used to get there.
+ * Given address of next destination (final or next hop), return (referenced)
+ * internet address info of interface to be used to get there.
  */
 struct in_ifaddr *
 ip_rtaddr(struct in_addr dst, u_int fibnum)
 {
 	struct route sro;
 	struct sockaddr_in *sin;
-	struct in_ifaddr *ifa;
+	struct in_ifaddr *ia;
 
 	bzero(&sro, sizeof(sro));
 	sin = (struct sockaddr_in *)&sro.ro_dst;
@@ -1351,9 +1364,10 @@ ip_rtaddr(struct in_addr dst, u_int fibnum)
 	if (sro.ro_rt == NULL)
 		return (NULL);
 
-	ifa = ifatoia(sro.ro_rt->rt_ifa);
+	ia = ifatoia(sro.ro_rt->rt_ifa);
+	ifa_ref(&ia->ia_ifa);
 	RTFREE(sro.ro_rt);
-	return (ifa);
+	return (ia);
 }
 
 u_char inetctlerrmap[PRC_NCMDS] = {
@@ -1526,11 +1540,16 @@ ip_forward(struct mbuf *m, int srcrt)
 		else {
 			if (mcopy)
 				m_freem(mcopy);
+			if (ia != NULL)
+				ifa_free(&ia->ia_ifa);
 			return;
 		}
 	}
-	if (mcopy == NULL)
+	if (mcopy == NULL) {
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		return;
+	}
 
 	switch (error) {
 
@@ -1588,6 +1607,8 @@ ip_forward(struct mbuf *m, int srcrt)
 		 */
 		if (V_ip_sendsourcequench == 0) {
 			m_freem(mcopy);
+			if (ia != NULL)
+				ifa_free(&ia->ia_ifa);
 			return;
 		} else {
 			type = ICMP_SOURCEQUENCH;
@@ -1597,8 +1618,12 @@ ip_forward(struct mbuf *m, int srcrt)
 
 	case EACCES:			/* ipfw denied packet */
 		m_freem(mcopy);
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		return;
 	}
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	icmp_error(mcopy, type, code, dest.s_addr, mtu);
 }
 

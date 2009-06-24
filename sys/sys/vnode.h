@@ -562,6 +562,9 @@ vn_canvmio(struct vnode *vp)
  */
 #include "vnode_if.h"
 
+/* vn_open_flags */
+#define	VN_OPEN_NOAUDIT		0x00000001
+
 /*
  * Public vnode manipulation functions.
  */
@@ -598,7 +601,8 @@ int	insmntque1(struct vnode *vp, struct mount *mp,
 int	insmntque(struct vnode *vp, struct mount *mp);
 u_quad_t init_va_filerev(void);
 int	speedup_syncer(void);
-int	vn_vptocnp(struct vnode **vp, char *buf, u_int *buflen);
+int	vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf,
+	    u_int *buflen);
 #define textvp_fullpath(p, rb, rfb) \
 	vn_fullpath(FIRST_THREAD_IN_PROC(p), (p)->p_textvp, rb, rfb)
 int	vn_fullpath(struct thread *td, struct vnode *vn,
@@ -637,7 +641,7 @@ int	_vn_lock(struct vnode *vp, int flags, char *file, int line);
 #define vn_lock(vp, flags) _vn_lock(vp, flags, __FILE__, __LINE__)
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
-	    struct ucred *cred, struct file *fp);
+	    u_int vn_open_flags, struct ucred *cred, struct file *fp);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);
 int	vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,

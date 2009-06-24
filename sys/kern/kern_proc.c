@@ -730,10 +730,8 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_uid = cred->cr_uid;
 		kp->ki_ruid = cred->cr_ruid;
 		kp->ki_svuid = cred->cr_svuid;
-		/* XXX bde doesn't like KI_NGROUPS */
-		kp->ki_ngroups = min(cred->cr_ngroups, KI_NGROUPS);
-		bcopy(cred->cr_groups, kp->ki_groups,
-		    kp->ki_ngroups * sizeof(gid_t));
+		kp->ki_ngroups = cred->cr_ngroups;
+		kp->ki_groups = cred->cr_groups;
 		kp->ki_rgid = cred->cr_rgid;
 		kp->ki_svgid = cred->cr_svgid;
 		kp->ki_cr_flags = cred->cr_flags;

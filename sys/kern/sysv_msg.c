@@ -80,7 +80,7 @@ static int sysvmsg_modload(struct module *, int, void *);
 #ifdef MSG_DEBUG
 #define DPRINTF(a)	printf a
 #else
-#define DPRINTF(a)
+#define DPRINTF(a)	(void)0
 #endif
 
 static void msg_freehdr(struct msg *msghdr);
@@ -314,8 +314,7 @@ SYSCALL_MODULE_HELPER(msgget);
 SYSCALL_MODULE_HELPER(msgsnd);
 SYSCALL_MODULE_HELPER(msgrcv);
 
-DECLARE_MODULE(sysvmsg, sysvmsg_mod,
-	SI_SUB_SYSV_MSG, SI_ORDER_FIRST);
+DECLARE_MODULE(sysvmsg, sysvmsg_mod, SI_SUB_SYSV_MSG, SI_ORDER_FIRST);
 MODULE_VERSION(sysvmsg, 1);
 
 /*

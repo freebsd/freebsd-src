@@ -58,12 +58,8 @@ static const char rcsid[] =
 
 static	struct in6_ifreq in6_ridreq;
 static	struct in6_aliasreq in6_addreq = 
-  { { 0 }, 
-    { 0 }, 
-    { 0 }, 
-    { 0 }, 
-    0, 
-    { 0, 0, ND6_INFINITE_LIFETIME, ND6_INFINITE_LIFETIME } };
+  { .ifra_flags = 0, 
+    .ifra_lifetime = { 0, 0, ND6_INFINITE_LIFETIME, ND6_INFINITE_LIFETIME } };
 static	int ip6lifetime;
 
 static	void in6_fillscopeid(struct sockaddr_in6 *sin6);
@@ -522,13 +518,13 @@ in6_Lopt_cb(const char *optarg __unused)
 {
 	ip6lifetime++;	/* print IPv6 address lifetime */
 }
-static struct option in6_Lopt = { "L", "[-L]", in6_Lopt_cb };
+static struct option in6_Lopt = { .opt = "L", .opt_usage = "[-L]", .cb = in6_Lopt_cb };
 
 static __constructor void
 inet6_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(inet6_cmds);  i++)
 		cmd_register(&inet6_cmds[i]);

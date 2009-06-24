@@ -43,18 +43,6 @@ struct usb_mbuf {
 	uint8_t unused:7;
 };
 
-/*
- * The following structure defines a minimum re-implementation of the
- * ifqueue structure in the kernel.
- */
-struct usb_ifqueue {
-	struct usb_mbuf *ifq_head;
-	struct usb_mbuf *ifq_tail;
-
-	usb_size_t ifq_len;
-	usb_size_t ifq_maxlen;
-};
-
 #define	USB_IF_ENQUEUE(ifq, m) do {		\
     (m)->usb_nextpkt = NULL;			\
     if ((ifq)->ifq_tail == NULL)		\

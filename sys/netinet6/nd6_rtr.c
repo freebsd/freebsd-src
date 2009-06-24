@@ -435,6 +435,7 @@ nd6_rtmsg(int cmd, struct rtentry *rt)
 {
 	struct rt_addrinfo info;
 	struct ifnet *ifp;
+	struct ifaddr *ifa;
 
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
@@ -443,13 +444,17 @@ nd6_rtmsg(int cmd, struct rtentry *rt)
 	ifp = rt->rt_ifp;
 	if (ifp != NULL) {
 		IF_ADDR_LOCK(ifp);
-		info.rti_info[RTAX_IFP] =
-		    TAILQ_FIRST(&ifp->if_addrhead)->ifa_addr;
+		ifa = TAILQ_FIRST(&ifp->if_addrhead);
+		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
+		ifa_ref(ifa);
 		IF_ADDR_UNLOCK(ifp);
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
-	}
+	} else
+		ifa = NULL;
 
 	rt_missmsg(cmd, &info, rt->rt_flags, 0);
+	if (ifa != NULL)
+		ifa_free(ifa);
 }
 
 void
@@ -1307,6 +1312,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 					    e));
 				}
 			}
+			ifa_free(&ia6->ia_ifa);
 
 			/*
 			 * A newly added address might affect the status
@@ -1597,10 +1603,14 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	    IN6_IFF_NOTREADY | IN6_IFF_ANYCAST);
 	if (ifa == NULL) {
 		/* XXX: freebsd does not have ifa_ifwithaf */
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family == AF_INET6)
 				break;
 		}
+		if (ifa != NULL)
+			ifa_ref(ifa);
+		IF_ADDR_UNLOCK(ifp);
 		/* should we care about ia6_flags? */
 	}
 	if (ifa == NULL) {
@@ -1661,6 +1671,8 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 		RT_REMREF(rt);
 		RT_UNLOCK(rt);
 	}
+	if (ifa != NULL)
+		ifa_free(ifa);
 
 	return (error);
 }
@@ -1802,6 +1814,7 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	/* prefixlen + ifidlen must be equal to 128 */
 	plen0 = in6_mask2len(&ib->ia_prefixmask.sin6_addr, NULL);
 	if (prefixlen != plen0) {
+		ifa_free(ifa);
 		nd6log((LOG_INFO, "in6_ifadd: wrong prefixlen for %s "
 		    "(prefix=%d ifid=%d)\n",
 		    if_name(ifp), prefixlen, 128 - plen0));
@@ -1834,6 +1847,7 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	    (ib->ia_addr.sin6_addr.s6_addr32[2] & ~mask.s6_addr32[2]);
 	ifra.ifra_addr.sin6_addr.s6_addr32[3] |=
 	    (ib->ia_addr.sin6_addr.s6_addr32[3] & ~mask.s6_addr32[3]);
+	ifa_free(ifa);
 
 	/* new prefix mask. */
 	ifra.ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
@@ -1854,7 +1868,10 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	 * usually not happen, but we can still see this case, e.g., if we
 	 * have manually configured the exact address to be configured.
 	 */
-	if (in6ifa_ifpwithaddr(ifp, &ifra.ifra_addr.sin6_addr) != NULL) {
+	ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
+	    &ifra.ifra_addr.sin6_addr);
+	if (ifa != NULL) {
+		ifa_free(ifa);
 		/* this should be rare enough to make an explicit log */
 		log(LOG_INFO, "in6_ifadd: %s is already configured\n",
 		    ip6_sprintf(ip6buf, &ifra.ifra_addr.sin6_addr));
@@ -1879,8 +1896,12 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	}
 
 	ia = in6ifa_ifpwithaddr(ifp, &ifra.ifra_addr.sin6_addr);
-
-	return (ia);		/* this is always non-NULL */
+	/*
+	 * XXXRW: Assumption of non-NULLness here might not be true with
+	 * fine-grained locking -- should we validate it?  Or just return
+	 * earlier ifa rather than looking it up again?
+	 */
+	return (ia);		/* this is always non-NULL  and referenced. */
 }
 
 /*
@@ -2000,6 +2021,7 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	}
 	newia->ia6_ndpr = ia0->ia6_ndpr;
 	newia->ia6_ndpr->ndpr_refcnt++;
+	ifa_free(&newia->ia_ifa);
 
 	/*
 	 * A newly added address might affect the status of other addresses.

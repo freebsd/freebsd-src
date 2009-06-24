@@ -1191,16 +1191,14 @@ ufsdirhash_destroy(struct dirhash *dh)
 	mem = dh->dh_memreq;
 	dh->dh_memreq = 0;
 
-	/* Unlock everything, free the detached memory. */
+	/* Unlock dirhash and free the detached memory. */
 	ufsdirhash_release(dh);
-	DIRHASHLIST_UNLOCK();
 	for (i = 0; i < narrays; i++)
 		DIRHASH_BLKFREE(hash[i]);
 	free(hash, M_DIRHASH);
 	free(blkfree, M_DIRHASH);
 
 	/* Account for the returned memory. */
-	DIRHASHLIST_LOCK();
 	ufs_dirhashmem -= mem;
 
 	return (mem);
@@ -1247,7 +1245,7 @@ ufsdirhash_recycle(int wanted)
 static void
 ufsdirhash_lowmem()
 {
-	struct dirhash *dh;
+	struct dirhash *dh, *dh_temp;
 	int memfreed = 0;
 	/* XXX: this 10% may need to be adjusted */
 	int memwanted = ufs_dirhashmem / 10;
@@ -1259,8 +1257,7 @@ ufsdirhash_lowmem()
 	 * Delete dirhashes not used for more than ufs_dirhashreclaimage 
 	 * seconds. If we can't get a lock on the dirhash, it will be skipped.
 	 */
-	for (dh = TAILQ_FIRST(&ufsdirhash_list); dh != NULL; dh = 
-	    TAILQ_NEXT(dh, dh_list)) {
+	TAILQ_FOREACH_SAFE(dh, &ufsdirhash_list, dh_list, dh_temp) {
 		if (!sx_try_xlock(&dh->dh_lock))
 			continue;
 		if (time_second - dh->dh_lastused > ufs_dirhashreclaimage)
@@ -1275,11 +1272,14 @@ ufsdirhash_lowmem()
 	 * of the dirhash list. The ones closest to the head should be the 
 	 * oldest. 
 	 */
-	for (dh = TAILQ_FIRST(&ufsdirhash_list); memfreed < memwanted &&
-	    dh !=NULL; dh = TAILQ_NEXT(dh, dh_list)) {
-		if (!sx_try_xlock(&dh->dh_lock))
-			continue;
-		memfreed += ufsdirhash_destroy(dh);
+	if (memfreed < memwanted) {
+		TAILQ_FOREACH_SAFE(dh, &ufsdirhash_list, dh_list, dh_temp) {
+			if (!sx_try_xlock(&dh->dh_lock))
+				continue;
+			memfreed += ufsdirhash_destroy(dh);
+			if (memfreed >= memwanted)
+				break;
+		}
 	}
 	DIRHASHLIST_UNLOCK();
 }

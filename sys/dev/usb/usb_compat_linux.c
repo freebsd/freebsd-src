@@ -25,10 +25,30 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_mfunc.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_error.h>
 #include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #define	USB_DEBUG_VAR usb_debug
 
@@ -39,7 +59,6 @@
 #include <dev/usb/usb_util.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_transfer.h>
-#include <dev/usb/usb_parse.h>
 #include <dev/usb/usb_hub.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_debug.h>
@@ -1265,8 +1284,8 @@ usb_linux_complete(struct usb_xfer *xfer)
 {
 	struct urb *urb;
 
-	urb = xfer->priv_fifo;
-	xfer->priv_fifo = NULL;
+	urb = usbd_xfer_get_priv(xfer);
+	usbd_xfer_set_priv(xfer, NULL);
 	if (urb->complete) {
 		(urb->complete) (urb);
 	}
@@ -1281,13 +1300,13 @@ usb_linux_complete(struct usb_xfer *xfer)
  * used.
  *------------------------------------------------------------------------*/
 static void
-usb_linux_isoc_callback(struct usb_xfer *xfer)
+usb_linux_isoc_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	usb_frlength_t max_frame = xfer->max_frame_size;
 	usb_frlength_t offset;
 	usb_frcount_t x;
-	struct urb *urb = xfer->priv_fifo;
-	struct usb_host_endpoint *uhe = xfer->priv_sc;
+	struct urb *urb = usbd_xfer_get_priv(xfer);
+	struct usb_host_endpoint *uhe = usbd_xfer_softc(xfer);
 	struct usb_iso_packet_descriptor *uipd;
 
 	DPRINTF("\n");
@@ -1362,11 +1381,15 @@ tr_setup:
 			DPRINTF("Already got a transfer\n");
 
 			/* already got a transfer (should not happen) */
-			urb = xfer->priv_fifo;
+			urb = usbd_xfer_get_priv(xfer);
 		}
 
 		urb->bsd_isread = (uhe->desc.bEndpointAddress & UE_DIR_IN) ? 1 : 0;
 
+		if (xfer->flags.ext_buffer) {
+			/* set virtual address to load */
+			usbd_xfer_set_frame_data(xfer, 0, urb->transfer_buffer, 0);
+		}
 		if (!(urb->bsd_isread)) {
 
 			/* copy out data with regard to the URB */
@@ -1375,7 +1398,7 @@ tr_setup:
 
 			for (x = 0; x < urb->number_of_packets; x++) {
 				uipd = urb->iso_frame_desc + x;
-				xfer->frlengths[x] = uipd->length;
+				usbd_xfer_set_frame_len(xfer, x, uipd->length);
 				if (!xfer->flags.ext_buffer) {
 					usbd_copy_in(xfer->frbuffers, offset,
 					    USB_ADD_BYTES(urb->transfer_buffer,
@@ -1396,16 +1419,10 @@ tr_setup:
 
 			for (x = 0; x < urb->number_of_packets; x++) {
 				uipd = urb->iso_frame_desc + x;
-				xfer->frlengths[x] = max_frame;
+				usbd_xfer_set_frame_len(xfer, x, max_frame);
 			}
 		}
-
-		if (xfer->flags.ext_buffer) {
-			/* set virtual address to load */
-			usbd_set_frame_data(xfer,
-			    urb->transfer_buffer, 0);
-		}
-		xfer->priv_fifo = urb;
+		usbd_xfer_set_priv(xfer, urb);
 		xfer->flags.force_short_xfer = 0;
 		xfer->timeout = urb->timeout;
 		xfer->nframes = urb->number_of_packets;
@@ -1449,15 +1466,15 @@ tr_setup:
  * callback is called.
  *------------------------------------------------------------------------*/
 static void
-usb_linux_non_isoc_callback(struct usb_xfer *xfer)
+usb_linux_non_isoc_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	enum {
 		REQ_SIZE = sizeof(struct usb_device_request)
 	};
-	struct urb *urb = xfer->priv_fifo;
-	struct usb_host_endpoint *uhe = xfer->priv_sc;
+	struct urb *urb = usbd_xfer_get_priv(xfer);
+	struct usb_host_endpoint *uhe = usbd_xfer_softc(xfer);
 	uint8_t *ptr;
-	usb_frlength_t max_bulk = xfer->max_data_length;
+	usb_frlength_t max_bulk = usbd_xfer_max_len(xfer);
 	uint8_t data_frame = xfer->flags_int.control_xfr ? 1 : 0;
 
 	DPRINTF("\n");
@@ -1469,7 +1486,7 @@ usb_linux_non_isoc_callback(struct usb_xfer *xfer)
 
 			/* don't transfer the setup packet again: */
 
-			xfer->frlengths[0] = 0;
+			usbd_xfer_set_frame_len(xfer, 0, 0);
 		}
 		if (urb->bsd_isread && (!xfer->flags.ext_buffer)) {
 			/* copy in data with regard to the URB */
@@ -1513,7 +1530,7 @@ tr_setup:
 		TAILQ_REMOVE(&uhe->bsd_urb_list, urb, bsd_urb_list);
 		urb->bsd_urb_list.tqe_prev = NULL;
 
-		xfer->priv_fifo = urb;
+		usbd_xfer_set_priv(xfer, urb);
 		xfer->flags.force_short_xfer = 0;
 		xfer->timeout = urb->timeout;
 
@@ -1526,13 +1543,12 @@ tr_setup:
 			if (!xfer->flags.ext_buffer) {
 				usbd_copy_in(xfer->frbuffers, 0,
 				    urb->setup_packet, REQ_SIZE);
+				usbd_xfer_set_frame_len(xfer, 0, REQ_SIZE);
 			} else {
 				/* set virtual address to load */
-				usbd_set_frame_data(xfer,
-				    urb->setup_packet, 0);
+				usbd_xfer_set_frame_data(xfer, 0,
+				    urb->setup_packet, REQ_SIZE);
 			}
-
-			xfer->frlengths[0] = REQ_SIZE;
 
 			ptr = urb->setup_packet;
 
@@ -1567,14 +1583,14 @@ setup_bulk:
 
 		if (xfer->flags.ext_buffer) {
 			/* set virtual address to load */
-			usbd_set_frame_data(xfer, urb->bsd_data_ptr,
-			    data_frame);
+			usbd_xfer_set_frame_data(xfer, data_frame,
+			    urb->bsd_data_ptr, max_bulk);
 		} else if (!urb->bsd_isread) {
 			/* copy out data with regard to the URB */
 			usbd_copy_in(xfer->frbuffers + data_frame, 0,
 			    urb->bsd_data_ptr, max_bulk);
+			usbd_xfer_set_frame_len(xfer, data_frame, max_bulk);
 		}
-		xfer->frlengths[data_frame] = max_bulk;
 		if (xfer->flags_int.control_xfr) {
 			if (max_bulk > 0) {
 				xfer->nframes = 2;

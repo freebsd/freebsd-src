@@ -39,46 +39,6 @@ typedef void (usb_complete_t)(struct urb *);
 #define	USB_MAX_FULL_SPEED_ISOC_FRAMES (60 * 1)
 #define	USB_MAX_HIGH_SPEED_ISOC_FRAMES (60 * 8)
 
-/*
- * Linux compatible USB device drivers put their device information
- * into the "usb_device_id" structure using the "USB_DEVICE()" macro.
- * The "MODULE_DEVICE_TABLE()" macro can be used to export this
- * information to userland.
- */
-struct usb_device_id {
-	/* which fields to match against */
-	uint16_t match_flags;
-#define	USB_DEVICE_ID_MATCH_VENDOR		0x0001
-#define	USB_DEVICE_ID_MATCH_PRODUCT		0x0002
-#define	USB_DEVICE_ID_MATCH_DEV_LO		0x0004
-#define	USB_DEVICE_ID_MATCH_DEV_HI		0x0008
-#define	USB_DEVICE_ID_MATCH_DEV_CLASS		0x0010
-#define	USB_DEVICE_ID_MATCH_DEV_SUBCLASS	0x0020
-#define	USB_DEVICE_ID_MATCH_DEV_PROTOCOL	0x0040
-#define	USB_DEVICE_ID_MATCH_INT_CLASS		0x0080
-#define	USB_DEVICE_ID_MATCH_INT_SUBCLASS	0x0100
-#define	USB_DEVICE_ID_MATCH_INT_PROTOCOL	0x0200
-
-	/* Used for product specific matches; the BCD range is inclusive */
-	uint16_t idVendor;
-	uint16_t idProduct;
-	uint16_t bcdDevice_lo;
-	uint16_t bcdDevice_hi;
-
-	/* Used for device class matches */
-	uint8_t	bDeviceClass;
-	uint8_t	bDeviceSubClass;
-	uint8_t	bDeviceProtocol;
-
-	/* Used for interface class matches */
-	uint8_t	bInterfaceClass;
-	uint8_t	bInterfaceSubClass;
-	uint8_t	bInterfaceProtocol;
-
-	/* Hook for driver specific information */
-	unsigned long driver_info;
-};
-
 #define	USB_DEVICE_ID_MATCH_DEVICE \
 	(USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_PRODUCT)
 

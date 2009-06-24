@@ -219,13 +219,6 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	struct tty *tp = dev->si_drv1;
 	int error = 0;
 
-	/* Disallow access when the TTY belongs to a different prison. */
-	if (dev->si_cred != NULL &&
-	    dev->si_cred->cr_prison != td->td_ucred->cr_prison &&
-	    priv_check(td, PRIV_TTY_PRISON)) {
-		return (EPERM);
-	}
-
 	tty_lock(tp);
 	if (tty_gone(tp)) {
 		/* Device is already gone. */
@@ -342,6 +335,7 @@ ttydev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	tp->t_revokecnt++;
 	tty_wakeup(tp, FREAD|FWRITE);
 	cv_broadcast(&tp->t_bgwait);
+	cv_broadcast(&tp->t_dcdwait);
 
 	ttydev_leave(tp);
 
@@ -462,7 +456,7 @@ ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	} else {
 		/* Serialize write() calls. */
 		while (tp->t_flags & TF_BUSY_OUT) {
-			error = tty_wait(tp, &tp->t_bgwait);
+			error = tty_wait(tp, &tp->t_outserwait);
 			if (error)
 				goto done;
 		}
@@ -470,7 +464,7 @@ ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
  		tp->t_flags |= TF_BUSY_OUT;
 		error = ttydisc_write(tp, uio, ioflag);
  		tp->t_flags &= ~TF_BUSY_OUT;
-		cv_broadcast(&tp->t_bgwait);
+		cv_signal(&tp->t_outserwait);
 	}
 
 done:	tty_unlock(tp);
@@ -922,6 +916,7 @@ tty_alloc_mutex(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 
 	cv_init(&tp->t_inwait, "ttyin");
 	cv_init(&tp->t_outwait, "ttyout");
+	cv_init(&tp->t_outserwait, "ttyosr");
 	cv_init(&tp->t_bgwait, "ttybg");
 	cv_init(&tp->t_dcdwait, "ttydcd");
 
@@ -965,6 +960,7 @@ tty_dealloc(void *arg)
 	cv_destroy(&tp->t_outwait);
 	cv_destroy(&tp->t_bgwait);
 	cv_destroy(&tp->t_dcdwait);
+	cv_destroy(&tp->t_outserwait);
 
 	if (tp->t_mtx == &tp->t_mtxobj)
 		mtx_destroy(&tp->t_mtxobj);

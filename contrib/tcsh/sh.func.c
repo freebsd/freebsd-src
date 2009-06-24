@@ -1796,6 +1796,10 @@ struct limits limits[] =
     { RLIMIT_SBSIZE,	"sbsize",	1,	""		},
 # endif /* RLIMIT_SBSIZE */
 
+# ifdef RLIMIT_SWAP
+    { RLIMIT_SWAP,	"swaplimit",	1024,	"kbytes"	},
+# endif /* RLIMIT_SWAP */
+
     { -1, 		NULL, 		0, 	NULL		}
 };
 

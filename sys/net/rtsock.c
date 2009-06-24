@@ -683,6 +683,13 @@ route_output(struct mbuf *m, struct socket *so)
 				RT_UNLOCK(rt);
 				RADIX_NODE_HEAD_LOCK(rnh);
 				error = rt_getifa_fib(&info, rt->rt_fibnum);
+				/*
+				 * XXXRW: Really we should release this
+				 * reference later, but this maintains
+				 * historical behavior.
+				 */
+				if (info.rti_ifa != NULL)
+					ifa_free(info.rti_ifa);
 				RADIX_NODE_HEAD_UNLOCK(rnh);
 				if (error != 0)
 					senderr(error);
@@ -694,7 +701,7 @@ route_output(struct mbuf *m, struct socket *so)
 			    rt->rt_ifa->ifa_rtrequest != NULL) {
 				rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt,
 				    &info);
-				IFAFREE(rt->rt_ifa);
+				ifa_free(rt->rt_ifa);
 			}
 			if (info.rti_info[RTAX_GATEWAY] != NULL) {
 				RT_UNLOCK(rt);
@@ -712,7 +719,7 @@ route_output(struct mbuf *m, struct socket *so)
 			}
 			if (info.rti_ifa != NULL &&
 			    info.rti_ifa != rt->rt_ifa) {
-				IFAREF(info.rti_ifa);
+				ifa_ref(info.rti_ifa);
 				rt->rt_ifa = info.rti_ifa;
 				rt->rt_ifp = info.rti_ifp;
 			}

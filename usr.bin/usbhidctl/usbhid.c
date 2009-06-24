@@ -91,16 +91,15 @@ prbits(int bits, char **strs, int n)
 void
 usage(void)
 {
-	extern char *__progname;
 
 	fprintf(stderr,
                 "usage: %s -f device "
                 "[-l] [-n] [-r] [-t tablefile] [-v] [-x] name ...\n",
-                __progname);
+                getprogname());
 	fprintf(stderr,
                 "       %s -f device "
                 "[-l] [-n] [-r] [-t tablefile] [-v] [-x] -a\n",
-                __progname);
+                getprogname());
 	exit(1);
 }
 

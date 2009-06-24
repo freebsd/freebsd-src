@@ -32,23 +32,36 @@
 __FBSDID("$FreeBSD$");
 
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/ufm_ioctl.h>
+#include <dev/usb/usbdi.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR usb_debug
-
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_mbuf.h>
-#include <dev/usb/usb_dev.h>
+
+#include <dev/usb/ufm_ioctl.h>
 
 #define	UFM_CMD0		0x00
 #define	UFM_CMD_SET_FREQ	0x01
@@ -299,7 +312,7 @@ static int
 ufm_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
     int fflags)
 {
-	struct ufm_softc *sc = fifo->priv_sc0;
+	struct ufm_softc *sc = usb_fifo_softc(fifo);
 	int error = 0;
 
 	switch (cmd) {

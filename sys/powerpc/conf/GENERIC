@@ -158,6 +158,7 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 
 # Misc
 device		powermac_nvram	# Open Firmware configuration NVRAM
+device		smu		# Apple System Management Unit
 
 # ADB support
 device		adb

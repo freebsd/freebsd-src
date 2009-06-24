@@ -126,7 +126,6 @@ void	usbd_transfer_setup_sub(struct usb_setup_params *parm);
 void	usbd_default_transfer_setup(struct usb_device *udev);
 void	usbd_clear_data_toggle(struct usb_device *udev,
 	    struct usb_endpoint *ep);
-void	usbd_do_poll(struct usb_xfer **ppxfer, uint16_t max);
 usb_callback_t usbd_do_request_callback;
 usb_callback_t usb_handle_request_callback;
 usb_callback_t usb_do_clear_stall_callback;
