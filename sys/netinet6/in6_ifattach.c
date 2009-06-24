@@ -784,7 +784,7 @@ in6_ifdetach(struct ifnet *ifp)
 {
 	INIT_VNET_INET(ifp->if_vnet);
 	INIT_VNET_INET6(ifp->if_vnet);
-	struct in6_ifaddr *ia, *oia;
+	struct in6_ifaddr *ia;
 	struct ifaddr *ifa, *next;
 	struct radix_node_head *rnh;
 	struct rtentry *rt;
@@ -832,27 +832,12 @@ in6_ifdetach(struct ifnet *ifp)
 
 		/* remove from the linked list */
 		IF_ADDR_LOCK(ifp);
-		TAILQ_REMOVE(&ifp->if_addrhead, (struct ifaddr *)ia, ifa_link);
+		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
-		ifa_free(&ia->ia_ifa);
+		ifa_free(ifa);				/* if_addrhead */
 
-		/* also remove from the IPv6 address chain(itojun&jinmei) */
-		oia = ia;
-		if (oia == (ia = V_in6_ifaddr))
-			V_in6_ifaddr = ia->ia_next;
-		else {
-			while (ia->ia_next && (ia->ia_next != oia))
-				ia = ia->ia_next;
-			if (ia->ia_next)
-				ia->ia_next = oia->ia_next;
-			else {
-				nd6log((LOG_ERR,
-				    "%s: didn't unlink in6ifaddr from list\n",
-				    if_name(ifp)));
-			}
-		}
-
-		ifa_free(&oia->ia_ifa);
+		TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
+		ifa_free(ifa);
 	}
 
 	in6_pcbpurgeif0(&V_udbinfo, ifp);

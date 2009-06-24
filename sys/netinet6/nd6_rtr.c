@@ -1501,7 +1501,7 @@ pfxlist_onlink_check()
 	 * always be attached.
 	 * The precise detection logic is same as the one for prefixes.
 	 */
-	for (ifa = V_in6_ifaddr; ifa; ifa = ifa->ia_next) {
+	TAILQ_FOREACH(ifa, &V_in6_ifaddrhead, ia_link) {
 		if (!(ifa->ia6_flags & IN6_IFF_AUTOCONF))
 			continue;
 
@@ -1518,7 +1518,7 @@ pfxlist_onlink_check()
 			break;
 	}
 	if (ifa) {
-		for (ifa = V_in6_ifaddr; ifa; ifa = ifa->ia_next) {
+		TAILQ_FOREACH(ifa, &V_in6_ifaddrhead, ia_link) {
 			if ((ifa->ia6_flags & IN6_IFF_AUTOCONF) == 0)
 				continue;
 
@@ -1537,7 +1537,7 @@ pfxlist_onlink_check()
 		}
 	}
 	else {
-		for (ifa = V_in6_ifaddr; ifa; ifa = ifa->ia_next) {
+		TAILQ_FOREACH(ifa, &V_in6_ifaddrhead, ia_link) {
 			if ((ifa->ia6_flags & IN6_IFF_AUTOCONF) == 0)
 				continue;
 
@@ -1949,7 +1949,7 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	 * there may be a time lag between generation of the ID and generation
 	 * of the address.  So, we'll do one more sanity check.
 	 */
-	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
 		    &ifra.ifra_addr.sin6_addr)) {
 			if (trylimit-- == 0) {
