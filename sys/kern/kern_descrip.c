@@ -2927,10 +2927,9 @@ prepare_kinfo_file(struct vnode *vp, struct kinfo_file *kif)
 	fullpath = "-";
 	do {
 		error = VOP_GETATTR(vp, &va, NULL);
-		if (error) {
-			kif->kf_status |= KF_GETATTR_FAIL;
+		if (error)
 			break;
-		}
+		kif->kf_status |= KF_ATTR_VALID;
 		kif->kf_file_fsid = va.va_fsid;
 		kif->kf_file_fileid = va.va_fileid;
 		kif->kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
