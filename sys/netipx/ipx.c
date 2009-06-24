@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
  * The IPX-layer address list is protected by ipx_ifaddr_rw.
  */
 struct rwlock		 ipx_ifaddr_rw;
-struct ipx_ifaddr	*ipx_ifaddr;
+struct ipx_ifaddrhead	 ipx_ifaddrhead;
 
 static void	ipx_ifscrub(struct ifnet *ifp, struct ipx_ifaddr *ia);
 static int	ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
@@ -100,7 +100,7 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 {
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct ipx_aliasreq *ifra = (struct ipx_aliasreq *)data;
-	struct ipx_ifaddr *ia, *ia_temp, *oia;
+	struct ipx_ifaddr *ia;
 	struct ifaddr *ifa;
 	int dstIsNew, hostIsNew;
 	int error, priv;
@@ -112,9 +112,10 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		return (EADDRNOTAVAIL);
 
 	IPX_IFADDR_RLOCK();
-	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
+	TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
 		if (ia->ia_ifp == ifp)
 			break;
+	}
 	if (ia != NULL)
 		ifa_ref(&ia->ia_ifa);
 	IPX_IFADDR_RUNLOCK();
@@ -164,7 +165,9 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 
 		IPX_IFADDR_RLOCK();
 		if (ifra->ifra_addr.sipx_family == AF_IPX) {
-			for (oia = ia; ia != NULL; ia = ia->ia_next) {
+			struct ipx_ifaddr *oia;
+
+			for (oia = ia; ia; ia = TAILQ_NEXT(ia, ia_link)) {
 				if (ia->ia_ifp == ifp  &&
 				    ipx_neteq(ia->ia_addr.sipx_addr,
 				    ifra->ifra_addr.sipx_addr))
@@ -205,15 +208,9 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				ia->ia_broadaddr.sipx_addr.x_host =
 				    ipx_broadhost;
 			}
-			ifa_ref(&ia->ia_ifa);		/* ipx_ifaddr */
+			ifa_ref(&ia->ia_ifa);		/* ipx_ifaddrhead */
 			IPX_IFADDR_WLOCK();
-			if ((ia_temp = ipx_ifaddr) != NULL) {
-				for (; ia_temp->ia_next != NULL;
-				    ia_temp = ia_temp->ia_next)
-					;
-				ia_temp->ia_next = ia;
-			} else
-				ipx_ifaddr = ia;
+			TAILQ_INSERT_TAIL(&ipx_ifaddrhead, ia, ia_link);
 			IPX_IFADDR_WUNLOCK();
 
 			ifa_ref(&ia->ia_ifa);		/* if_addrhead */
@@ -262,18 +259,9 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		ifa_free(ifa);				/* if_addrhead */
 
 		IPX_IFADDR_WLOCK();
-		if (ia == (ia_temp = ipx_ifaddr)) {
-			ipx_ifaddr = ia->ia_next;
-		} else {
-			while (ia_temp->ia_next && (ia_temp->ia_next != ia))
-				ia_temp = ia_temp->ia_next;
-			if (ia_temp->ia_next)
-			    ia_temp->ia_next = ia->ia_next;
-			else
-				panic("Didn't unlink ipxifadr from list\n");
-		}
+		TAILQ_REMOVE(&ipx_ifaddrhead, ia, ia_link);
 		IPX_IFADDR_WUNLOCK();
-		ifa_free(&ia->ia_ifa);			/* ipx_ifaddr */
+		ifa_free(&ia->ia_ifa);			/* ipx_ifaddrhead */
 		goto out;
 
 	case SIOCAIFADDR:
@@ -395,7 +383,7 @@ ipx_iaonnetof(struct ipx_addr *dst)
 
 	IPX_IFADDR_LOCK_ASSERT();
 
-	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next) {
+	TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
 		if ((ifp = ia->ia_ifp) != NULL) {
 			if (ifp->if_flags & IFF_POINTOPOINT) {
 				compare = &satoipx_addr(ia->ia_dstaddr);
