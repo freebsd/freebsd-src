@@ -274,6 +274,75 @@
 #define CPU_TIMER0		0x14
 
 /*
+ * SATA
+ */
+#define SATA_CHAN_NUM			2
+
+#define EDMA_REGISTERS_OFFSET		0x2000
+#define EDMA_REGISTERS_SIZE		0x2000
+#define SATA_EDMA_BASE(ch)		(EDMA_REGISTERS_OFFSET + \
+    ((ch) * EDMA_REGISTERS_SIZE))
+
+/* SATAHC registers */
+#define SATA_CR				0x000 /* Configuration Reg. */
+#define SATA_CR_NODMABS			(1 << 8)
+#define SATA_CR_NOEDMABS		(1 << 9)
+#define SATA_CR_NOPRDPBS		(1 << 10)
+#define SATA_CR_COALDIS(ch)		(1 << (24 + ch))
+
+#define	SATA_ICR			0x014 /* Interrupt Cause Reg. */
+#define SATA_ICR_DMADONE(ch)		(1 << (ch))
+#define SATA_ICR_COAL			(1 << 4)
+#define SATA_ICR_DEV(ch)		(1 << (8 + ch))
+
+#define SATA_MICR			0x020 /* Main Interrupt Cause Reg. */
+#define SATA_MICR_ERR(ch)		(1 << (2 * ch))
+#define SATA_MICR_DONE(ch)		(1 << ((2 * ch) + 1))
+#define SATA_MICR_DMADONE(ch)		(1 << (4 + ch))
+#define SATA_MICR_COAL			(1 << 8)
+
+#define SATA_MIMR			0x024 /*  Main Interrupt Mask Reg. */
+
+/* Shadow registers */
+#define SATA_SHADOWR_BASE(ch)		(SATA_EDMA_BASE(ch) + 0x100)
+#define SATA_SHADOWR_CONTROL(ch)	(SATA_EDMA_BASE(ch) + 0x120)
+
+/* SATA registers */
+#define SATA_SATA_SSTATUS(ch)		(SATA_EDMA_BASE(ch) + 0x300)
+#define SATA_SATA_SERROR(ch)		(SATA_EDMA_BASE(ch) + 0x304)
+#define SATA_SATA_SCONTROL(ch)		(SATA_EDMA_BASE(ch) + 0x308)
+#define SATA_SATA_FISICR(ch)		(SATA_EDMA_BASE(ch) + 0x364)
+
+/* EDMA registers */
+#define SATA_EDMA_CFG(ch)		(SATA_EDMA_BASE(ch) + 0x000)
+#define SATA_EDMA_CFG_QL128		(1 << 19)
+#define SATA_EDMA_CFG_HQCACHE		(1 << 22)
+
+#define SATA_EDMA_IECR(ch)		(SATA_EDMA_BASE(ch) + 0x008)
+
+#define SATA_EDMA_IEMR(ch)		(SATA_EDMA_BASE(ch) + 0x00C)
+#define SATA_EDMA_REQBAHR(ch)		(SATA_EDMA_BASE(ch) + 0x010)
+#define SATA_EDMA_REQIPR(ch)		(SATA_EDMA_BASE(ch) + 0x014)
+#define SATA_EDMA_REQOPR(ch)		(SATA_EDMA_BASE(ch) + 0x018)
+#define SATA_EDMA_RESBAHR(ch)		(SATA_EDMA_BASE(ch) + 0x01C)
+#define SATA_EDMA_RESIPR(ch)		(SATA_EDMA_BASE(ch) + 0x020)
+#define SATA_EDMA_RESOPR(ch)		(SATA_EDMA_BASE(ch) + 0x024)
+
+#define SATA_EDMA_CMD(ch)		(SATA_EDMA_BASE(ch) + 0x028)
+#define SATA_EDMA_CMD_ENABLE		(1 << 0)
+#define SATA_EDMA_CMD_DISABLE		(1 << 1)
+#define SATA_EDMA_CMD_RESET		(1 << 2)
+
+#define SATA_EDMA_STATUS(ch)		(SATA_EDMA_BASE(ch) + 0x030)
+#define SATA_EDMA_STATUS_IDLE		(1 << 7)
+
+/* Offset to extract input slot from REQIPR register */
+#define SATA_EDMA_REQIS_OFS		5
+
+/* Offset to extract input slot from RESOPR register */
+#define SATA_EDMA_RESOS_OFS		3
+
+/*
  * GPIO
  */
 #define GPIO_DATA_OUT		0x00
