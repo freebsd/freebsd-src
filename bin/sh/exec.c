@@ -756,6 +756,7 @@ typecmd_impl(int argc, char **argv, int cmd)
 		if ((cmdp = cmdlookup(argv[i], 0)) != NULL) {
 			entry.cmdtype = cmdp->cmdtype;
 			entry.u = cmdp->param;
+			entry.special = cmdp->special;
 		}
 		else {
 			/* Finally use brute force */
@@ -804,6 +805,9 @@ typecmd_impl(int argc, char **argv, int cmd)
 		case CMDBUILTIN:
 			if (cmd == TYPECMD_SMALLV)
 				out1fmt("%s\n", argv[i]);
+			else if (entry.special)
+				out1fmt("%s is a special shell builtin\n",
+				    argv[i]);
 			else
 				out1fmt("%s is a shell builtin\n", argv[i]);
 			break;
