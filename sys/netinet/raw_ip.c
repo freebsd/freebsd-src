@@ -111,7 +111,7 @@ int (*ip_mrouter_get)(struct socket *, struct sockopt *);
 int (*ip_mrouter_done)(void);
 int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 		   struct ip_moptions *);
-int (*mrt_ioctl)(int, caddr_t, int);
+int (*mrt_ioctl)(u_long, caddr_t, int);
 int (*legal_vif_num)(int);
 u_long (*ip_mcast_src)(int);
 
@@ -875,7 +875,7 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
 	    (addr->sin_addr.s_addr &&
 	     (inp->inp_flags & INP_BINDANY) == 0 &&
-	     ifa_ifwithaddr((struct sockaddr *)addr) == NULL))
+	     ifa_ifwithaddr_check((struct sockaddr *)addr) == 0))
 		return (EADDRNOTAVAIL);
 
 	INP_INFO_WLOCK(&V_ripcbinfo);

@@ -171,6 +171,8 @@ static void InitLibcallNames(const char **Names) {
   Names[RTLIB::FPROUND_PPCF128_F32] = "__trunctfsf2";
   Names[RTLIB::FPROUND_F80_F64] = "__truncxfdf2";
   Names[RTLIB::FPROUND_PPCF128_F64] = "__trunctfdf2";
+  Names[RTLIB::FPTOSINT_F32_I8] = "__fixsfi8";
+  Names[RTLIB::FPTOSINT_F32_I16] = "__fixsfi16";
   Names[RTLIB::FPTOSINT_F32_I32] = "__fixsfsi";
   Names[RTLIB::FPTOSINT_F32_I64] = "__fixsfdi";
   Names[RTLIB::FPTOSINT_F32_I128] = "__fixsfti";
@@ -183,6 +185,8 @@ static void InitLibcallNames(const char **Names) {
   Names[RTLIB::FPTOSINT_PPCF128_I32] = "__fixtfsi";
   Names[RTLIB::FPTOSINT_PPCF128_I64] = "__fixtfdi";
   Names[RTLIB::FPTOSINT_PPCF128_I128] = "__fixtfti";
+  Names[RTLIB::FPTOUINT_F32_I8] = "__fixunssfi8";
+  Names[RTLIB::FPTOUINT_F32_I16] = "__fixunssfi16";
   Names[RTLIB::FPTOUINT_F32_I32] = "__fixunssfsi";
   Names[RTLIB::FPTOUINT_F32_I64] = "__fixunssfdi";
   Names[RTLIB::FPTOUINT_F32_I128] = "__fixunssfti";
@@ -271,6 +275,10 @@ RTLIB::Libcall RTLIB::getFPROUND(MVT OpVT, MVT RetVT) {
 /// UNKNOWN_LIBCALL if there is none.
 RTLIB::Libcall RTLIB::getFPTOSINT(MVT OpVT, MVT RetVT) {
   if (OpVT == MVT::f32) {
+    if (RetVT == MVT::i8)
+      return FPTOSINT_F32_I8;
+    if (RetVT == MVT::i16)
+      return FPTOSINT_F32_I16;
     if (RetVT == MVT::i32)
       return FPTOSINT_F32_I32;
     if (RetVT == MVT::i64)
@@ -306,6 +314,10 @@ RTLIB::Libcall RTLIB::getFPTOSINT(MVT OpVT, MVT RetVT) {
 /// UNKNOWN_LIBCALL if there is none.
 RTLIB::Libcall RTLIB::getFPTOUINT(MVT OpVT, MVT RetVT) {
   if (OpVT == MVT::f32) {
+    if (RetVT == MVT::i8)
+      return FPTOUINT_F32_I8;
+    if (RetVT == MVT::i16)
+      return FPTOUINT_F32_I16;
     if (RetVT == MVT::i32)
       return FPTOUINT_F32_I32;
     if (RetVT == MVT::i64)
@@ -2584,8 +2596,12 @@ bool TargetLowering::CheckTailCallReturnConstraints(CallSDNode *TheCall,
   // Check that operand of the RET node sources from the CALL node. The RET node
   // has at least two operands. Operand 0 holds the chain. Operand 1 holds the
   // value.
+  // Also we need to check that there is no code in between the call and the
+  // return. Hence we also check that the incomming chain to the return sources
+  // from the outgoing chain of the call.
   if (NumOps > 1 &&
-      IgnoreHarmlessInstructions(Ret.getOperand(1)) == SDValue(TheCall,0))
+      IgnoreHarmlessInstructions(Ret.getOperand(1)) == SDValue(TheCall,0) &&
+      Ret.getOperand(0) == SDValue(TheCall, TheCall->getNumValues()-1))
     return true;
   // void return: The RET node  has the chain result value of the CALL node as
   // input.

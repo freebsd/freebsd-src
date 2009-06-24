@@ -113,16 +113,17 @@ options		AH_SUPPORT_AR5416
 #device		cryptodev
 #device		hifn		# NB: Soekris minipci card known to work
 
-# NB: must use old usb stack; new one does not work
-makeoptions	WITH_LEGACY	# NB: required to get includes
-device		ousb
-#options		USB_DEBUG
-device		oohci
-device		oehci
-device		ougen
-
-device		oaxe
-
+# NB: 2 USB 2.0 ports standard
+device		usb
+options 	USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
+#options 	USB_DEBUG
+device		ehci
 device		umass
-device		scbus           # SCSI bus (required for SCSI)
-device		da              # Direct Access (disks)
+device		scbus		# SCSI bus (required for SCSI)
+device		da		# Direct Access (disks)
+
+#device		ural
+#device		zyd
+#device		wlan_amrr
+
+device		axe

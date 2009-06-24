@@ -34,10 +34,10 @@ class IVUsersOfOneStride;
 class IVStrideUse : public CallbackVH, public ilist_node<IVStrideUse> {
 public:
   IVStrideUse(IVUsersOfOneStride *parent,
-              const SCEVHandle &offset,
-              Instruction* U, Value *O, bool issigned)
+              const SCEV* offset,
+              Instruction* U, Value *O)
     : CallbackVH(U), Parent(parent), Offset(offset),
-      OperandValToReplace(O), IsSigned(issigned),
+      OperandValToReplace(O),
       IsUseOfPostIncrementedValue(false) {
   }
 
@@ -57,12 +57,11 @@ public:
 
   /// getOffset - Return the offset to add to a theoeretical induction
   /// variable that starts at zero and counts up by the stride to compute
-  /// the value for the use. This always has the same type as the stride,
-  /// which may need to be casted to match the type of the use.
-  SCEVHandle getOffset() const { return Offset; }
+  /// the value for the use. This always has the same type as the stride.
+  const SCEV* getOffset() const { return Offset; }
 
   /// setOffset - Assign a new offset to this use.
-  void setOffset(SCEVHandle Val) {
+  void setOffset(const SCEV* Val) {
     Offset = Val;
   }
 
@@ -77,13 +76,6 @@ public:
   void setOperandValToReplace(Value *Op) {
     OperandValToReplace = Op;
   }
-
-  /// isSigned - The stride (and thus also the Offset) of this use may be in
-  /// a narrower type than the use itself (OperandValToReplace->getType()).
-  /// When this is the case, isSigned() indicates whether the IV expression
-  /// should be signed-extended instead of zero-extended to fit the type of
-  /// the use.
-  bool isSigned() const { return IsSigned; }
 
   /// isUseOfPostIncrementedValue - True if this should use the
   /// post-incremented version of this IV, not the preincremented version.
@@ -104,15 +96,11 @@ private:
   IVUsersOfOneStride *Parent;
 
   /// Offset - The offset to add to the base induction expression.
-  SCEVHandle Offset;
+  const SCEV* Offset;
 
   /// OperandValToReplace - The Value of the operand in the user instruction
   /// that this IVStrideUse is representing.
   WeakVH OperandValToReplace;
-
-  /// IsSigned - Determines whether the replacement value is sign or
-  /// zero extended to the type of the use.
-  bool IsSigned;
 
   /// IsUseOfPostIncrementedValue - True if this should use the
   /// post-incremented version of this IV, not the preincremented version.
@@ -170,9 +158,8 @@ public:
   /// initial value and the operand that uses the IV.
   ilist<IVStrideUse> Users;
 
-  void addUser(const SCEVHandle &Offset,Instruction *User, Value *Operand,
-               bool isSigned) {
-    Users.push_back(new IVStrideUse(this, Offset, User, Operand, isSigned));
+  void addUser(const SCEV* Offset, Instruction *User, Value *Operand) {
+    Users.push_back(new IVStrideUse(this, Offset, User, Operand));
   }
 };
 
@@ -191,12 +178,12 @@ public:
 
   /// IVUsesByStride - A mapping from the strides in StrideOrder to the
   /// uses in IVUses.
-  std::map<SCEVHandle, IVUsersOfOneStride*> IVUsesByStride;
+  std::map<const SCEV*, IVUsersOfOneStride*> IVUsesByStride;
 
   /// StrideOrder - An ordering of the keys in IVUsesByStride that is stable:
   /// We use this to iterate over the IVUsesByStride collection without being
   /// dependent on random ordering of pointers in the process.
-  SmallVector<SCEVHandle, 16> StrideOrder;
+  SmallVector<const SCEV*, 16> StrideOrder;
 
 private:
   virtual void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -216,7 +203,7 @@ public:
 
   /// getReplacementExpr - Return a SCEV expression which computes the
   /// value of the OperandValToReplace of the given IVStrideUse.
-  SCEVHandle getReplacementExpr(const IVStrideUse &U) const;
+  const SCEV* getReplacementExpr(const IVStrideUse &U) const;
 
   void print(raw_ostream &OS, const Module* = 0) const;
   virtual void print(std::ostream &OS, const Module* = 0) const;

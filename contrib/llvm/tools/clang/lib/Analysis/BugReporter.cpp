@@ -336,7 +336,7 @@ GetMostRecentVarDeclBinding(const ExplodedNode<GRState>* N,
     if (!DR)
       continue;
     
-    SVal Y = VMgr.GetSVal(N->getState(), DR);
+    SVal Y = N->getState()->getSVal(DR);
     
     if (X != Y)
       continue;
@@ -380,7 +380,7 @@ public:
       return true;
     
     // Check if the previous state has this binding.    
-    SVal X = VMgr.GetSVal(PrevSt, loc::MemRegionVal(R));
+    SVal X = PrevSt->getSVal(loc::MemRegionVal(R));
     
     if (X == V) // Same binding?
       return true;

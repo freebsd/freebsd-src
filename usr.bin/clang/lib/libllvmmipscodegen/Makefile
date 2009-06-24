@@ -11,6 +11,4 @@ TGHDRS=	Intrinsics MipsGenAsmWriter MipsGenCallingConv MipsGenDAGISel \
 	MipsGenInstrInfo MipsGenInstrNames MipsGenRegisterInfo.h \
 	MipsGenRegisterInfo MipsGenRegisterNames MipsGenSubtarget
 
-MAKEOBJ=
-
 .include "../../clang.lib.mk"

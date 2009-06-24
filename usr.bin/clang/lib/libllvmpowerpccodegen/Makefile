@@ -13,6 +13,4 @@ TGHDRS=	Intrinsics PPCGenCallingConv PPCGenCodeEmitter PPCGenDAGISel \
 	PPCGenInstrInfo PPCGenInstrNames PPCGenRegisterInfo.h \
 	PPCGenRegisterInfo PPCGenRegisterNames PPCGenSubtarget
 
-MAKEOBJ=
-
 .include "../../clang.lib.mk"

@@ -248,6 +248,19 @@ public:
   virtual void ActOnCXXExitDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
   }
 
+  /// ActOnCXXEnterDeclInitializer - Invoked when we are about to parse an
+  /// initializer for the declaration 'Dcl'.
+  /// After this method is called, according to [C++ 3.4.1p13], if 'Dcl' is a
+  /// static data member of class X, names should be looked up in the scope of
+  /// class X.
+  virtual void ActOnCXXEnterDeclInitializer(Scope *S, DeclPtrTy Dcl) {
+  }
+
+  /// ActOnCXXExitDeclInitializer - Invoked after we are finished parsing an
+  /// initializer for the declaration 'Dcl'.
+  virtual void ActOnCXXExitDeclInitializer(Scope *S, DeclPtrTy Dcl) {
+  }
+
   /// ActOnDeclarator - This callback is invoked when a declarator is parsed and
   /// 'Init' specifies the initializer if any.  This is for things like:
   /// "int X = 4" or "typedef int foo".
@@ -624,6 +637,50 @@ public:
   // Expression Parsing Callbacks.
   //===--------------------------------------------------------------------===//
 
+  /// \brief Describes how the expressions currently being parsed are
+  /// evaluated at run-time, if at all.
+  enum ExpressionEvaluationContext {
+    /// \brief The current expression and its subexpressions occur within an
+    /// unevaluated operand (C++0x [expr]p8), such as a constant expression
+    /// or the subexpression of \c sizeof, where the type or the value of the
+    /// expression may be significant but no code will be generated to evaluate 
+    /// the value of the expression at run time.
+    Unevaluated,
+    
+    /// \brief The current expression is potentially evaluated at run time, 
+    /// which means that code may be generated to evaluate the value of the 
+    /// expression at run time.
+    PotentiallyEvaluated,
+    
+    /// \brief The current expression may be potentially evaluated or it may
+    /// be unevaluated, but it is impossible to tell from the lexical context.
+    /// This evaluation context is used primary for the operand of the C++
+    /// \c typeid expression, whose argument is potentially evaluated only when
+    /// it is an lvalue of polymorphic class type (C++ [basic.def.odr]p2).
+    PotentiallyPotentiallyEvaluated
+  };
+  
+  /// \brief The parser is entering a new expression evaluation context.
+  ///
+  /// \param NewContext is the new expression evaluation context.
+  ///
+  /// \returns the previous expression evaluation context.
+  virtual ExpressionEvaluationContext 
+  PushExpressionEvaluationContext(ExpressionEvaluationContext NewContext) {
+    return PotentiallyEvaluated;
+  }
+  
+  /// \brief The parser is existing an expression evaluation context.
+  ///
+  /// \param OldContext the expression evaluation context that the parser is
+  /// leaving.
+  ///
+  /// \param NewContext the expression evaluation context that the parser is
+  /// returning to.
+  virtual void 
+  PopExpressionEvaluationContext(ExpressionEvaluationContext OldContext,
+                                 ExpressionEvaluationContext NewContext) { }
+  
   // Primary Expressions.
 
   /// \brief Retrieve the source range that corresponds to the given
@@ -907,6 +964,15 @@ public:
                                            IdentifierInfo *Ident) {
     return DeclPtrTy();
   }
+
+  /// ActOnUsingDirective - This is called when using-directive is parsed.
+  virtual DeclPtrTy ActOnUsingDeclaration(Scope *CurScope,
+                                        SourceLocation UsingLoc,
+                                        const CXXScopeSpec &SS,
+                                        SourceLocation IdentLoc,
+                                        IdentifierInfo *TargetName,
+                                        AttributeList *AttrList,
+                                        bool IsTypeName);
                                          
   /// ActOnParamDefaultArgument - Parse default argument for function parameter
   virtual void ActOnParamDefaultArgument(DeclPtrTy param,
@@ -1856,6 +1922,29 @@ public:
   
   virtual void print(llvm::raw_ostream &OS) const;
 };  
+  
+/// \brief RAII object that enters a new expression evaluation context.
+class EnterExpressionEvaluationContext {    
+  /// \brief The action object.
+  Action &Actions;
+  
+  /// \brief The previous expression evaluation context.
+  Action::ExpressionEvaluationContext PrevContext;
+
+  /// \brief The current expression evaluation context.
+  Action::ExpressionEvaluationContext CurContext;
+
+public:
+  EnterExpressionEvaluationContext(Action &Actions,
+                              Action::ExpressionEvaluationContext NewContext) 
+    : Actions(Actions), CurContext(NewContext) { 
+      PrevContext = Actions.PushExpressionEvaluationContext(NewContext);
+  }
+    
+  ~EnterExpressionEvaluationContext() {
+    Actions.PopExpressionEvaluationContext(CurContext, PrevContext);
+  }
+};
   
 }  // end namespace clang
 

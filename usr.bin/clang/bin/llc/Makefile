@@ -8,8 +8,8 @@ MAN=
 
 LIBDEPS=llvmselectiondag llvmasmprinter llvmcodegen llvmscalaropts \
 	llvmipa llvmtransformutils llvmanalysis llvmbitreader \
-	llvmtarget llvmcore llvmsupport llvmsystem
+	llvmtarget llvmcore llvmsupport llvmsystem \
+	llvmcbackend
 TGHDRS=	Intrinsics
-OBJDEPS=llvmcbackend
 
 .include "../../clang.prog.mk"

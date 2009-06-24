@@ -32,6 +32,9 @@
 #include "llvm/Support/Debug.h"
 using namespace llvm;
 
+static const unsigned arm_dsubreg_0 = 5;
+static const unsigned arm_dsubreg_1 = 6;
+
 //===--------------------------------------------------------------------===//
 /// ARMDAGToDAGISel - ARM specific code to select ARM machine
 /// instructions for SelectionDAG operations.
@@ -52,8 +55,13 @@ public:
 
   virtual const char *getPassName() const {
     return "ARM Instruction Selection";
-  } 
-  
+  }
+
+ /// getI32Imm - Return a target constant with the specified value, of type i32.
+  inline SDValue getI32Imm(unsigned Imm) {
+    return CurDAG->getTargetConstant(Imm, MVT::i32);
+  }
+
   SDNode *Select(SDValue Op);
   virtual void InstructionSelect();
   bool SelectAddrMode2(SDValue Op, SDValue N, SDValue &Base,
@@ -83,6 +91,9 @@ public:
                              SDValue &OffImm, SDValue &Offset);
   bool SelectThumbAddrModeSP(SDValue Op, SDValue N, SDValue &Base,
                              SDValue &OffImm);
+
+  bool SelectThumb2ShifterOperandReg(SDValue Op, SDValue N,
+                                     SDValue &BaseReg, SDValue &Opc);
 
   bool SelectShifterOperandReg(SDValue Op, SDValue N, SDValue &A,
                                SDValue &B, SDValue &C);
@@ -509,8 +520,30 @@ bool ARMDAGToDAGISel::SelectThumbAddrModeSP(SDValue Op, SDValue N,
   return false;
 }
 
+bool ARMDAGToDAGISel::SelectThumb2ShifterOperandReg(SDValue Op,
+                                                    SDValue N,
+                                                    SDValue &BaseReg,
+                                                    SDValue &Opc) {
+  ARM_AM::ShiftOpc ShOpcVal = ARM_AM::getShiftOpcForNode(N);
+
+  // Don't match base register only case. That is matched to a separate
+  // lower complexity pattern with explicit register operand.
+  if (ShOpcVal == ARM_AM::no_shift) return false;
+
+  BaseReg = N.getOperand(0);
+  unsigned ShImmVal = 0;
+  if (ConstantSDNode *RHS = dyn_cast<ConstantSDNode>(N.getOperand(1)))
+    ShImmVal = RHS->getZExtValue() & 31;
+  else
+    return false;
+
+  Opc = getI32Imm(ARM_AM::getSORegOpc(ShOpcVal, ShImmVal));
+
+  return true;
+}
+
 bool ARMDAGToDAGISel::SelectShifterOperandReg(SDValue Op,
-                                              SDValue N, 
+                                              SDValue N,
                                               SDValue &BaseReg,
                                               SDValue &ShReg,
                                               SDValue &Opc) {
@@ -551,11 +584,16 @@ SDNode *ARMDAGToDAGISel::Select(SDValue Op) {
   case ISD::Constant: {
     unsigned Val = cast<ConstantSDNode>(N)->getZExtValue();
     bool UseCP = true;
-    if (Subtarget->isThumb())
-      UseCP = (Val > 255 &&                          // MOV
-               ~Val > 255 &&                         // MOV + MVN
-               !ARM_AM::isThumbImmShiftedVal(Val));  // MOV + LSL
-    else
+    if (Subtarget->isThumb()) {
+      if (Subtarget->hasThumb2())
+        // Thumb2 has the MOVT instruction, so all immediates can
+        // be done with MOV + MOVT, at worst.
+        UseCP = 0;
+      else
+        UseCP = (Val > 255 &&                          // MOV
+                 ~Val > 255 &&                         // MOV + MVN
+                 !ARM_AM::isThumbImmShiftedVal(Val));  // MOV + LSL
+    } else
       UseCP = (ARM_AM::getSOImmVal(Val) == -1 &&     // MOV
                ARM_AM::getSOImmVal(~Val) == -1 &&    // MVN
                !ARM_AM::isSOImmTwoPartVal(Val));     // two instrs.
@@ -882,6 +920,65 @@ SDNode *ARMDAGToDAGISel::Select(SDValue Op) {
     SDValue Ops[] = { Tmp1, Tmp2, Chain };
     return CurDAG->getTargetNode(TargetInstrInfo::DECLARE, dl,
                                  MVT::Other, Ops, 3);
+  }
+
+  case ISD::CONCAT_VECTORS: {
+    MVT VT = Op.getValueType();
+    assert(VT.is128BitVector() && Op.getNumOperands() == 2 &&
+           "unexpected CONCAT_VECTORS");
+    SDValue N0 = Op.getOperand(0);
+    SDValue N1 = Op.getOperand(1);
+    SDNode *Result =
+      CurDAG->getTargetNode(TargetInstrInfo::IMPLICIT_DEF, dl, VT);
+    if (N0.getOpcode() != ISD::UNDEF)
+      Result = CurDAG->getTargetNode(TargetInstrInfo::INSERT_SUBREG, dl, VT,
+                                     SDValue(Result, 0), N0,
+                                     CurDAG->getTargetConstant(arm_dsubreg_0,
+                                                               MVT::i32));
+    if (N1.getOpcode() != ISD::UNDEF)
+      Result = CurDAG->getTargetNode(TargetInstrInfo::INSERT_SUBREG, dl, VT,
+                                     SDValue(Result, 0), N1,
+                                     CurDAG->getTargetConstant(arm_dsubreg_1,
+                                                               MVT::i32));
+    return Result;
+  }
+
+  case ISD::VECTOR_SHUFFLE: {
+    MVT VT = Op.getValueType();
+
+    // Match 128-bit splat to VDUPLANEQ.  (This could be done with a Pat in
+    // ARMInstrNEON.td but it is awkward because the shuffle mask needs to be
+    // transformed first into a lane number and then to both a subregister
+    // index and an adjusted lane number.)  If the source operand is a
+    // SCALAR_TO_VECTOR, leave it so it will be matched later as a VDUP.
+    ShuffleVectorSDNode *SVOp = cast<ShuffleVectorSDNode>(N);
+    if (VT.is128BitVector() && SVOp->isSplat() &&
+        Op.getOperand(0).getOpcode() != ISD::SCALAR_TO_VECTOR &&
+        Op.getOperand(1).getOpcode() == ISD::UNDEF) {
+      unsigned LaneVal = SVOp->getSplatIndex();
+
+      MVT HalfVT;
+      unsigned Opc = 0;
+      switch (VT.getVectorElementType().getSimpleVT()) {
+      default: assert(false && "unhandled VDUP splat type");
+      case MVT::i8:  Opc = ARM::VDUPLN8q;  HalfVT = MVT::v8i8; break;
+      case MVT::i16: Opc = ARM::VDUPLN16q; HalfVT = MVT::v4i16; break;
+      case MVT::i32: Opc = ARM::VDUPLN32q; HalfVT = MVT::v2i32; break;
+      case MVT::f32: Opc = ARM::VDUPLNfq;  HalfVT = MVT::v2f32; break;
+      }
+
+      // The source operand needs to be changed to a subreg of the original
+      // 128-bit operand, and the lane number needs to be adjusted accordingly.
+      unsigned NumElts = VT.getVectorNumElements() / 2;
+      unsigned SRVal = (LaneVal < NumElts ? arm_dsubreg_0 : arm_dsubreg_1);
+      SDValue SR = CurDAG->getTargetConstant(SRVal, MVT::i32);
+      SDValue NewLane = CurDAG->getTargetConstant(LaneVal % NumElts, MVT::i32);
+      SDNode *SubReg = CurDAG->getTargetNode(TargetInstrInfo::EXTRACT_SUBREG,
+                                             dl, HalfVT, N->getOperand(0), SR);
+      return CurDAG->SelectNodeTo(N, Opc, VT, SDValue(SubReg, 0), NewLane);
+    }
+
+    break;
   }
   }
 

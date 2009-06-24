@@ -39,7 +39,7 @@ Pass *llvm::createIVUsersPass() {
 /// containsAddRecFromDifferentLoop - Determine whether expression S involves a
 /// subexpression that is an AddRec from a loop other than L.  An outer loop
 /// of L is OK, but not an inner loop nor a disjoint loop.
-static bool containsAddRecFromDifferentLoop(SCEVHandle S, Loop *L) {
+static bool containsAddRecFromDifferentLoop(const SCEV* S, Loop *L) {
   // This is very common, put it first.
   if (isa<SCEVConstant>(S))
     return false;
@@ -80,13 +80,10 @@ static bool containsAddRecFromDifferentLoop(SCEVHandle S, Loop *L) {
 /// a mix of loop invariant and loop variant expressions.  The start cannot,
 /// however, contain an AddRec from a different loop, unless that loop is an
 /// outer loop of the current loop.
-static bool getSCEVStartAndStride(const SCEVHandle &SH, Loop *L, Loop *UseLoop,
-                                  SCEVHandle &Start, SCEVHandle &Stride,
-                                  bool &isSigned,
+static bool getSCEVStartAndStride(const SCEV* &SH, Loop *L, Loop *UseLoop,
+                                  const SCEV* &Start, const SCEV* &Stride,
                                   ScalarEvolution *SE, DominatorTree *DT) {
-  SCEVHandle TheAddRec = Start;   // Initialize to zero.
-  bool isSExt = false;
-  bool isZExt = false;
+  const SCEV* TheAddRec = Start;   // Initialize to zero.
 
   // If the outer level is an AddExpr, the operands are all start values except
   // for a nested AddRecExpr.
@@ -101,13 +98,6 @@ static bool getSCEVStartAndStride(const SCEVHandle &SH, Loop *L, Loop *UseLoop,
       } else {
         Start = SE->getAddExpr(Start, AE->getOperand(i));
       }
-
-  } else if (const SCEVZeroExtendExpr *Z = dyn_cast<SCEVZeroExtendExpr>(SH)) {
-    TheAddRec = Z->getOperand();
-    isZExt = true;
-  } else if (const SCEVSignExtendExpr *S = dyn_cast<SCEVSignExtendExpr>(SH)) {
-    TheAddRec = S->getOperand();
-    isSExt = true;
   } else if (isa<SCEVAddRecExpr>(SH)) {
     TheAddRec = SH;
   } else {
@@ -119,10 +109,9 @@ static bool getSCEVStartAndStride(const SCEVHandle &SH, Loop *L, Loop *UseLoop,
 
   // Use getSCEVAtScope to attempt to simplify other loops out of
   // the picture.
-  SCEVHandle AddRecStart = AddRec->getStart();
-  SCEVHandle BetterAddRecStart = SE->getSCEVAtScope(AddRecStart, UseLoop);
-  if (!isa<SCEVCouldNotCompute>(BetterAddRecStart))
-    AddRecStart = BetterAddRecStart;
+  const SCEV* AddRecStart = AddRec->getStart();
+  AddRecStart = SE->getSCEVAtScope(AddRecStart, UseLoop);
+  const SCEV* AddRecStride = AddRec->getStepRecurrence(*SE);
 
   // FIXME: If Start contains an SCEVAddRecExpr from a different loop, other
   // than an outer loop of the current loop, reject it.  LSR has no concept of
@@ -131,24 +120,20 @@ static bool getSCEVStartAndStride(const SCEVHandle &SH, Loop *L, Loop *UseLoop,
   if (containsAddRecFromDifferentLoop(AddRecStart, L))
     return false;
 
-  if (isSExt || isZExt)
-    Start = SE->getTruncateExpr(Start, AddRec->getType());
-
   Start = SE->getAddExpr(Start, AddRecStart);
 
-  if (!isa<SCEVConstant>(AddRec->getStepRecurrence(*SE))) {
-    // If stride is an instruction, make sure it dominates the loop preheader.
-    // Otherwise we could end up with a use before def situation.
+  // If stride is an instruction, make sure it dominates the loop preheader.
+  // Otherwise we could end up with a use before def situation.
+  if (!isa<SCEVConstant>(AddRecStride)) {
     BasicBlock *Preheader = L->getLoopPreheader();
-    if (!AddRec->getStepRecurrence(*SE)->dominates(Preheader, DT))
+    if (!AddRecStride->dominates(Preheader, DT))
       return false;
 
     DOUT << "[" << L->getHeader()->getName()
          << "] Variable stride: " << *AddRec << "\n";
   }
 
-  Stride = AddRec->getStepRecurrence(*SE);
-  isSigned = isSExt;
+  Stride = AddRecStride;
   return true;
 }
 
@@ -211,16 +196,15 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
     return true;    // Instruction already handled.
 
   // Get the symbolic expression for this instruction.
-  SCEVHandle ISE = SE->getSCEV(I);
+  const SCEV* ISE = SE->getSCEV(I);
   if (isa<SCEVCouldNotCompute>(ISE)) return false;
 
   // Get the start and stride for this expression.
   Loop *UseLoop = LI->getLoopFor(I->getParent());
-  SCEVHandle Start = SE->getIntegerSCEV(0, ISE->getType());
-  SCEVHandle Stride = Start;
-  bool isSigned = false; // Arbitrary initial value - pacifies compiler.
+  const SCEV* Start = SE->getIntegerSCEV(0, ISE->getType());
+  const SCEV* Stride = Start;
 
-  if (!getSCEVStartAndStride(ISE, L, UseLoop, Start, Stride, isSigned, SE, DT))
+  if (!getSCEVStartAndStride(ISE, L, UseLoop, Start, Stride, SE, DT))
     return false;  // Non-reducible symbolic expression, bail out.
 
   SmallPtrSet<Instruction *, 4> UniqueUsers;
@@ -270,12 +254,12 @@ bool IVUsers::AddUsersIfInteresting(Instruction *I) {
       if (IVUseShouldUsePostIncValue(User, I, L, LI, DT, this)) {
         // The value used will be incremented by the stride more than we are
         // expecting, so subtract this off.
-        SCEVHandle NewStart = SE->getMinusSCEV(Start, Stride);
-        StrideUses->addUser(NewStart, User, I, isSigned);
+        const SCEV* NewStart = SE->getMinusSCEV(Start, Stride);
+        StrideUses->addUser(NewStart, User, I);
         StrideUses->Users.back().setIsUseOfPostIncrementedValue(true);
         DOUT << "   USING POSTINC SCEV, START=" << *NewStart<< "\n";
       } else {
-        StrideUses->addUser(Start, User, I, isSigned);
+        StrideUses->addUser(Start, User, I);
       }
     }
   }
@@ -311,10 +295,9 @@ bool IVUsers::runOnLoop(Loop *l, LPPassManager &LPM) {
 
 /// getReplacementExpr - Return a SCEV expression which computes the
 /// value of the OperandValToReplace of the given IVStrideUse.
-SCEVHandle IVUsers::getReplacementExpr(const IVStrideUse &U) const {
-  const Type *UseTy = U.getOperandValToReplace()->getType();
+const SCEV* IVUsers::getReplacementExpr(const IVStrideUse &U) const {
   // Start with zero.
-  SCEVHandle RetVal = SE->getIntegerSCEV(0, U.getParent()->Stride->getType());
+  const SCEV* RetVal = SE->getIntegerSCEV(0, U.getParent()->Stride->getType());
   // Create the basic add recurrence.
   RetVal = SE->getAddRecExpr(RetVal, U.getParent()->Stride, L);
   // Add the offset in a separate step, because it may be loop-variant.
@@ -325,17 +308,9 @@ SCEVHandle IVUsers::getReplacementExpr(const IVStrideUse &U) const {
     RetVal = SE->getAddExpr(RetVal, U.getParent()->Stride);
   // Evaluate the expression out of the loop, if possible.
   if (!L->contains(U.getUser()->getParent())) {
-    SCEVHandle ExitVal = SE->getSCEVAtScope(RetVal, L->getParentLoop());
-    if (!isa<SCEVCouldNotCompute>(ExitVal) && ExitVal->isLoopInvariant(L))
+    const SCEV* ExitVal = SE->getSCEVAtScope(RetVal, L->getParentLoop());
+    if (ExitVal->isLoopInvariant(L))
       RetVal = ExitVal;
-  }
-  // Promote the result to the type of the use.
-  if (SE->getTypeSizeInBits(RetVal->getType()) !=
-      SE->getTypeSizeInBits(UseTy)) {
-    if (U.isSigned())
-      RetVal = SE->getSignExtendExpr(RetVal, UseTy);
-    else
-      RetVal = SE->getZeroExtendExpr(RetVal, UseTy);
   }
   return RetVal;
 }
@@ -350,7 +325,7 @@ void IVUsers::print(raw_ostream &OS, const Module *M) const {
   OS << ":\n";
 
   for (unsigned Stride = 0, e = StrideOrder.size(); Stride != e; ++Stride) {
-    std::map<SCEVHandle, IVUsersOfOneStride*>::const_iterator SI =
+    std::map<const SCEV*, IVUsersOfOneStride*>::const_iterator SI =
       IVUsesByStride.find(StrideOrder[Stride]);
     assert(SI != IVUsesByStride.end() && "Stride doesn't exist!");
     OS << "  Stride " << *SI->first->getType() << " " << *SI->first << ":\n";

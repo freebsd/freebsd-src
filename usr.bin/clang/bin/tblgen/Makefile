@@ -10,8 +10,7 @@ SRCS=	AsmWriterEmitter.cpp CallingConvEmitter.cpp \
 	InstrEnumEmitter.cpp InstrInfoEmitter.cpp IntrinsicEmitter.cpp \
 	LLVMCConfigurationEmitter.cpp Record.cpp \
 	RegisterInfoEmitter.cpp SubtargetEmitter.cpp TGLexer.cpp \
-	TGParser.cpp TGSourceMgr.cpp TGValueTypes.cpp TableGen.cpp \
-	TableGenBackend.cpp
+	TGParser.cpp TGValueTypes.cpp TableGen.cpp TableGenBackend.cpp
 
 NO_MAN=
 LIBDEPS=llvmsupport llvmsystem

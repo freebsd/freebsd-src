@@ -71,6 +71,31 @@ Sema::ActOnCXXTypeid(SourceLocation OpLoc, SourceLocation LParenLoc,
 
   QualType TypeInfoType = Context.getTypeDeclType(TypeInfoRecordDecl);
 
+  if (!isType) {
+    // C++0x [expr.typeid]p3:
+    //   When typeid is applied to an expression other than an lvalue of a 
+    //   polymorphic class type [...] [the] expression is an unevaluated 
+    //   operand.
+    
+    // FIXME: if the type of the expression is a class type, the class
+    // shall be completely defined.
+    bool isUnevaluatedOperand = true;
+    Expr *E = static_cast<Expr *>(TyOrExpr);
+    if (E && !E->isTypeDependent() && E->isLvalue(Context) == Expr::LV_Valid) {
+      QualType T = E->getType();
+      if (const RecordType *RecordT = T->getAsRecordType()) {
+        CXXRecordDecl *RecordD = cast<CXXRecordDecl>(RecordT->getDecl());
+        if (RecordD->isPolymorphic())
+          isUnevaluatedOperand = false;
+      }
+    }
+    
+    // If this is an unevaluated operand, clear out the set of declaration
+    // references we have been computing.
+    if (isUnevaluatedOperand)
+      PotentiallyReferencedDeclStack.back().clear();
+  }
+  
   return Owned(new (Context) CXXTypeidExpr(isType, TyOrExpr,
                                            TypeInfoType.withConst(),
                                            SourceRange(OpLoc, RParenLoc)));
@@ -546,7 +571,7 @@ bool Sema::FindAllocationOverload(SourceLocation StartLoc, SourceRange Range,
 
   // Do the resolution.
   OverloadCandidateSet::iterator Best;
-  switch(BestViableFunction(Candidates, Best)) {
+  switch(BestViableFunction(Candidates, StartLoc, Best)) {
   case OR_Success: {
     // Got one!
     FunctionDecl *FnDecl = Best->Function;
@@ -1175,7 +1200,7 @@ static bool FindConditionalOverload(Sema &Self, Expr *&LHS, Expr *&RHS,
   Self.AddBuiltinOperatorCandidates(OO_Conditional, Args, 2, CandidateSet);
 
   OverloadCandidateSet::iterator Best;
-  switch (Self.BestViableFunction(CandidateSet, Best)) {
+  switch (Self.BestViableFunction(CandidateSet, Loc, Best)) {
     case Sema::OR_Success:
       // We found a match. Perform the conversions on the arguments and move on.
       if (Self.PerformImplicitConversion(LHS, Best->BuiltinTypes.ParamTypes[0],
@@ -1589,7 +1614,7 @@ Expr *Sema::RemoveOutermostTemporaryBinding(Expr *E) {
 }
 
 Expr *Sema::MaybeCreateCXXExprWithTemporaries(Expr *SubExpr, 
-                                              bool DestroyTemps) {
+                                              bool ShouldDestroyTemps) {
   assert(SubExpr && "sub expression can't be null!");
   
   if (ExprTemporaries.empty())
@@ -1598,7 +1623,7 @@ Expr *Sema::MaybeCreateCXXExprWithTemporaries(Expr *SubExpr,
   Expr *E = CXXExprWithTemporaries::Create(Context, SubExpr,
                                            &ExprTemporaries[0], 
                                            ExprTemporaries.size(),
-                                           DestroyTemps);
+                                           ShouldDestroyTemps);
   ExprTemporaries.clear();
   
   return E;
@@ -1607,7 +1632,8 @@ Expr *Sema::MaybeCreateCXXExprWithTemporaries(Expr *SubExpr,
 Sema::OwningExprResult Sema::ActOnFinishFullExpr(ExprArg Arg) {
   Expr *FullExpr = Arg.takeAs<Expr>();
   if (FullExpr)
-    FullExpr = MaybeCreateCXXExprWithTemporaries(FullExpr);
+    FullExpr = MaybeCreateCXXExprWithTemporaries(FullExpr, 
+                                                 /*ShouldDestroyTemps=*/true);
 
   return Owned(FullExpr);
 }

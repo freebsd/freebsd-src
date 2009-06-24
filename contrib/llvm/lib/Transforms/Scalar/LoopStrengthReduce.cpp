@@ -64,11 +64,11 @@ namespace {
   /// StrengthReduceStridedIVUsers. It contains the stride, the common base, as
   /// well as the PHI node and increment value created for rewrite.
   struct VISIBILITY_HIDDEN IVExpr {
-    SCEVHandle  Stride;
-    SCEVHandle  Base;
+    const SCEV*  Stride;
+    const SCEV*  Base;
     PHINode    *PHI;
 
-    IVExpr(const SCEVHandle &stride, const SCEVHandle &base, PHINode *phi)
+    IVExpr(const SCEV* const stride, const SCEV* const base, PHINode *phi)
       : Stride(stride), Base(base), PHI(phi) {}
   };
 
@@ -77,7 +77,7 @@ namespace {
   struct VISIBILITY_HIDDEN IVsOfOneStride {
     std::vector<IVExpr> IVs;
 
-    void addIV(const SCEVHandle &Stride, const SCEVHandle &Base, PHINode *PHI) {
+    void addIV(const SCEV* const Stride, const SCEV* const Base, PHINode *PHI) {
       IVs.push_back(IVExpr(Stride, Base, PHI));
     }
   };
@@ -91,11 +91,11 @@ namespace {
 
     /// IVsByStride - Keep track of all IVs that have been inserted for a
     /// particular stride.
-    std::map<SCEVHandle, IVsOfOneStride> IVsByStride;
+    std::map<const SCEV*, IVsOfOneStride> IVsByStride;
 
     /// StrideNoReuse - Keep track of all the strides whose ivs cannot be
     /// reused (nor should they be rewritten to reuse other strides).
-    SmallSet<SCEVHandle, 4> StrideNoReuse;
+    SmallSet<const SCEV*, 4> StrideNoReuse;
 
     /// DeadInsts - Keep track of instructions we may have made dead, so that
     /// we can remove them after we are done working.
@@ -133,7 +133,7 @@ namespace {
   private:
     ICmpInst *ChangeCompareStride(Loop *L, ICmpInst *Cond,
                                   IVStrideUse* &CondUse,
-                                  const SCEVHandle* &CondStride);
+                                  const SCEV* const *  &CondStride);
 
     void OptimizeIndvars(Loop *L);
     void OptimizeLoopCountIV(Loop *L);
@@ -143,22 +143,22 @@ namespace {
     /// inside the loop then try to eliminate the cast opeation.
     void OptimizeShadowIV(Loop *L);
 
-    /// OptimizeSMax - Rewrite the loop's terminating condition
-    /// if it uses an smax computation.
-    ICmpInst *OptimizeSMax(Loop *L, ICmpInst *Cond,
-                           IVStrideUse* &CondUse);
+    /// OptimizeMax - Rewrite the loop's terminating condition
+    /// if it uses a max computation.
+    ICmpInst *OptimizeMax(Loop *L, ICmpInst *Cond,
+                          IVStrideUse* &CondUse);
 
     bool FindIVUserForCond(ICmpInst *Cond, IVStrideUse *&CondUse,
-                           const SCEVHandle *&CondStride);
+                           const SCEV* const * &CondStride);
     bool RequiresTypeConversion(const Type *Ty, const Type *NewTy);
-    SCEVHandle CheckForIVReuse(bool, bool, bool, const SCEVHandle&,
+    const SCEV* CheckForIVReuse(bool, bool, bool, const SCEV* const&,
                              IVExpr&, const Type*,
                              const std::vector<BasedUser>& UsersToProcess);
     bool ValidScale(bool, int64_t,
                     const std::vector<BasedUser>& UsersToProcess);
     bool ValidOffset(bool, int64_t, int64_t,
                      const std::vector<BasedUser>& UsersToProcess);
-    SCEVHandle CollectIVUsers(const SCEVHandle &Stride,
+    const SCEV* CollectIVUsers(const SCEV* const &Stride,
                               IVUsersOfOneStride &Uses,
                               Loop *L,
                               bool &AllUsesAreAddresses,
@@ -168,11 +168,11 @@ namespace {
                                 const std::vector<BasedUser> &UsersToProcess,
                                 const Loop *L,
                                 bool AllUsesAreAddresses,
-                                SCEVHandle Stride);
+                                const SCEV* Stride);
     void PrepareToStrengthReduceFully(
                              std::vector<BasedUser> &UsersToProcess,
-                             SCEVHandle Stride,
-                             SCEVHandle CommonExprs,
+                             const SCEV* Stride,
+                             const SCEV* CommonExprs,
                              const Loop *L,
                              SCEVExpander &PreheaderRewriter);
     void PrepareToStrengthReduceFromSmallerStride(
@@ -182,13 +182,13 @@ namespace {
                                          Instruction *PreInsertPt);
     void PrepareToStrengthReduceWithNewPhi(
                                   std::vector<BasedUser> &UsersToProcess,
-                                  SCEVHandle Stride,
-                                  SCEVHandle CommonExprs,
+                                  const SCEV* Stride,
+                                  const SCEV* CommonExprs,
                                   Value *CommonBaseV,
                                   Instruction *IVIncInsertPt,
                                   const Loop *L,
                                   SCEVExpander &PreheaderRewriter);
-    void StrengthReduceStridedIVUsers(const SCEVHandle &Stride,
+    void StrengthReduceStridedIVUsers(const SCEV* const &Stride,
                                       IVUsersOfOneStride &Uses,
                                       Loop *L);
     void DeleteTriviallyDeadInstructions();
@@ -232,7 +232,7 @@ void LoopStrengthReduce::DeleteTriviallyDeadInstructions() {
 /// containsAddRecFromDifferentLoop - Determine whether expression S involves a 
 /// subexpression that is an AddRec from a loop other than L.  An outer loop 
 /// of L is OK, but not an inner loop nor a disjoint loop.
-static bool containsAddRecFromDifferentLoop(SCEVHandle S, Loop *L) {
+static bool containsAddRecFromDifferentLoop(const SCEV* S, Loop *L) {
   // This is very common, put it first.
   if (isa<SCEVConstant>(S))
     return false;
@@ -327,7 +327,7 @@ namespace {
     /// this use.  As the use is processed, information gets moved from this
     /// field to the Imm field (below).  BasedUser values are sorted by this
     /// field.
-    SCEVHandle Base;
+    const SCEV* Base;
     
     /// Inst - The instruction using the induction variable.
     Instruction *Inst;
@@ -336,18 +336,11 @@ namespace {
     /// EmittedBase.
     Value *OperandValToReplace;
 
-    /// isSigned - The stride (and thus also the Base) of this use may be in
-    /// a narrower type than the use itself (OperandValToReplace->getType()).
-    /// When this is the case, the isSigned field indicates whether the
-    /// IV expression should be signed-extended instead of zero-extended to
-    /// fit the type of the use.
-    bool isSigned;
-
     /// Imm - The immediate value that should be added to the base immediately
     /// before Inst, because it will be folded into the imm field of the
     /// instruction.  This is also sometimes used for loop-variant values that
     /// must be added inside the loop.
-    SCEVHandle Imm;
+    const SCEV* Imm;
 
     /// Phi - The induction variable that performs the striding that
     /// should be used for this user.
@@ -363,20 +356,19 @@ namespace {
     BasedUser(IVStrideUse &IVSU, ScalarEvolution *se)
       : SE(se), Base(IVSU.getOffset()), Inst(IVSU.getUser()),
         OperandValToReplace(IVSU.getOperandValToReplace()),
-        isSigned(IVSU.isSigned()),
         Imm(SE->getIntegerSCEV(0, Base->getType())), 
         isUseOfPostIncrementedValue(IVSU.isUseOfPostIncrementedValue()) {}
 
     // Once we rewrite the code to insert the new IVs we want, update the
     // operands of Inst to use the new expression 'NewBase', with 'Imm' added
     // to it.
-    void RewriteInstructionToUseNewBase(const SCEVHandle &NewBase,
+    void RewriteInstructionToUseNewBase(const SCEV* const &NewBase,
                                         Instruction *InsertPt,
                                        SCEVExpander &Rewriter, Loop *L, Pass *P,
                                         LoopInfo &LI,
                                         SmallVectorImpl<WeakVH> &DeadInsts);
     
-    Value *InsertCodeForBaseAtPosition(const SCEVHandle &NewBase, 
+    Value *InsertCodeForBaseAtPosition(const SCEV* const &NewBase, 
                                        const Type *Ty,
                                        SCEVExpander &Rewriter,
                                        Instruction *IP, Loop *L,
@@ -391,7 +383,7 @@ void BasedUser::dump() const {
   cerr << "   Inst: " << *Inst;
 }
 
-Value *BasedUser::InsertCodeForBaseAtPosition(const SCEVHandle &NewBase, 
+Value *BasedUser::InsertCodeForBaseAtPosition(const SCEV* const &NewBase, 
                                               const Type *Ty,
                                               SCEVExpander &Rewriter,
                                               Instruction *IP, Loop *L,
@@ -415,7 +407,7 @@ Value *BasedUser::InsertCodeForBaseAtPosition(const SCEVHandle &NewBase,
   
   Value *Base = Rewriter.expandCodeFor(NewBase, 0, BaseInsertPt);
 
-  SCEVHandle NewValSCEV = SE->getUnknown(Base);
+  const SCEV* NewValSCEV = SE->getUnknown(Base);
 
   // If there is no immediate value, skip the next part.
   if (!Imm->isZero()) {
@@ -428,11 +420,6 @@ Value *BasedUser::InsertCodeForBaseAtPosition(const SCEVHandle &NewBase,
     NewValSCEV = SE->getAddExpr(NewValSCEV, Imm);
   }
 
-  if (isSigned)
-    NewValSCEV = SE->getTruncateOrSignExtend(NewValSCEV, Ty);
-  else
-    NewValSCEV = SE->getTruncateOrZeroExtend(NewValSCEV, Ty);
-
   return Rewriter.expandCodeFor(NewValSCEV, Ty, IP);
 }
 
@@ -443,7 +430,7 @@ Value *BasedUser::InsertCodeForBaseAtPosition(const SCEVHandle &NewBase,
 // value of NewBase in the case that it's a diffferent instruction from
 // the PHI that NewBase is computed from, or null otherwise.
 //
-void BasedUser::RewriteInstructionToUseNewBase(const SCEVHandle &NewBase,
+void BasedUser::RewriteInstructionToUseNewBase(const SCEV* const &NewBase,
                                                Instruction *NewBasePt,
                                       SCEVExpander &Rewriter, Loop *L, Pass *P,
                                       LoopInfo &LI,
@@ -555,7 +542,7 @@ void BasedUser::RewriteInstructionToUseNewBase(const SCEVHandle &NewBase,
 
 /// fitsInAddressMode - Return true if V can be subsumed within an addressing
 /// mode, and does not need to be put in a register first.
-static bool fitsInAddressMode(const SCEVHandle &V, const Type *AccessTy,
+static bool fitsInAddressMode(const SCEV* const &V, const Type *AccessTy,
                              const TargetLowering *TLI, bool HasBaseReg) {
   if (const SCEVConstant *SC = dyn_cast<SCEVConstant>(V)) {
     int64_t VC = SC->getValue()->getSExtValue();
@@ -587,12 +574,12 @@ static bool fitsInAddressMode(const SCEVHandle &V, const Type *AccessTy,
 
 /// MoveLoopVariantsToImmediateField - Move any subexpressions from Val that are
 /// loop varying to the Imm operand.
-static void MoveLoopVariantsToImmediateField(SCEVHandle &Val, SCEVHandle &Imm,
+static void MoveLoopVariantsToImmediateField(const SCEV* &Val, const SCEV* &Imm,
                                              Loop *L, ScalarEvolution *SE) {
   if (Val->isLoopInvariant(L)) return;  // Nothing to do.
   
   if (const SCEVAddExpr *SAE = dyn_cast<SCEVAddExpr>(Val)) {
-    std::vector<SCEVHandle> NewOps;
+    SmallVector<const SCEV*, 4> NewOps;
     NewOps.reserve(SAE->getNumOperands());
     
     for (unsigned i = 0; i != SAE->getNumOperands(); ++i)
@@ -610,10 +597,10 @@ static void MoveLoopVariantsToImmediateField(SCEVHandle &Val, SCEVHandle &Imm,
       Val = SE->getAddExpr(NewOps);
   } else if (const SCEVAddRecExpr *SARE = dyn_cast<SCEVAddRecExpr>(Val)) {
     // Try to pull immediates out of the start value of nested addrec's.
-    SCEVHandle Start = SARE->getStart();
+    const SCEV* Start = SARE->getStart();
     MoveLoopVariantsToImmediateField(Start, Imm, L, SE);
     
-    std::vector<SCEVHandle> Ops(SARE->op_begin(), SARE->op_end());
+    SmallVector<const SCEV*, 4> Ops(SARE->op_begin(), SARE->op_end());
     Ops[0] = Start;
     Val = SE->getAddRecExpr(Ops, SARE->getLoop());
   } else {
@@ -629,15 +616,15 @@ static void MoveLoopVariantsToImmediateField(SCEVHandle &Val, SCEVHandle &Imm,
 /// Accumulate these immediate values into the Imm value.
 static void MoveImmediateValues(const TargetLowering *TLI,
                                 const Type *AccessTy,
-                                SCEVHandle &Val, SCEVHandle &Imm,
+                                const SCEV* &Val, const SCEV* &Imm,
                                 bool isAddress, Loop *L,
                                 ScalarEvolution *SE) {
   if (const SCEVAddExpr *SAE = dyn_cast<SCEVAddExpr>(Val)) {
-    std::vector<SCEVHandle> NewOps;
+    SmallVector<const SCEV*, 4> NewOps;
     NewOps.reserve(SAE->getNumOperands());
     
     for (unsigned i = 0; i != SAE->getNumOperands(); ++i) {
-      SCEVHandle NewOp = SAE->getOperand(i);
+      const SCEV* NewOp = SAE->getOperand(i);
       MoveImmediateValues(TLI, AccessTy, NewOp, Imm, isAddress, L, SE);
       
       if (!NewOp->isLoopInvariant(L)) {
@@ -656,11 +643,11 @@ static void MoveImmediateValues(const TargetLowering *TLI,
     return;
   } else if (const SCEVAddRecExpr *SARE = dyn_cast<SCEVAddRecExpr>(Val)) {
     // Try to pull immediates out of the start value of nested addrec's.
-    SCEVHandle Start = SARE->getStart();
+    const SCEV* Start = SARE->getStart();
     MoveImmediateValues(TLI, AccessTy, Start, Imm, isAddress, L, SE);
     
     if (Start != SARE->getStart()) {
-      std::vector<SCEVHandle> Ops(SARE->op_begin(), SARE->op_end());
+      SmallVector<const SCEV*, 4> Ops(SARE->op_begin(), SARE->op_end());
       Ops[0] = Start;
       Val = SE->getAddRecExpr(Ops, SARE->getLoop());
     }
@@ -671,8 +658,8 @@ static void MoveImmediateValues(const TargetLowering *TLI,
         fitsInAddressMode(SME->getOperand(0), AccessTy, TLI, false) &&
         SME->getNumOperands() == 2 && SME->isLoopInvariant(L)) {
 
-      SCEVHandle SubImm = SE->getIntegerSCEV(0, Val->getType());
-      SCEVHandle NewOp = SME->getOperand(1);
+      const SCEV* SubImm = SE->getIntegerSCEV(0, Val->getType());
+      const SCEV* NewOp = SME->getOperand(1);
       MoveImmediateValues(TLI, AccessTy, NewOp, SubImm, isAddress, L, SE);
       
       // If we extracted something out of the subexpressions, see if we can 
@@ -707,7 +694,7 @@ static void MoveImmediateValues(const TargetLowering *TLI,
 
 static void MoveImmediateValues(const TargetLowering *TLI,
                                 Instruction *User,
-                                SCEVHandle &Val, SCEVHandle &Imm,
+                                const SCEV* &Val, const SCEV* &Imm,
                                 bool isAddress, Loop *L,
                                 ScalarEvolution *SE) {
   const Type *AccessTy = getAccessType(User);
@@ -717,19 +704,19 @@ static void MoveImmediateValues(const TargetLowering *TLI,
 /// SeparateSubExprs - Decompose Expr into all of the subexpressions that are
 /// added together.  This is used to reassociate common addition subexprs
 /// together for maximal sharing when rewriting bases.
-static void SeparateSubExprs(std::vector<SCEVHandle> &SubExprs,
-                             SCEVHandle Expr,
+static void SeparateSubExprs(SmallVector<const SCEV*, 16> &SubExprs,
+                             const SCEV* Expr,
                              ScalarEvolution *SE) {
   if (const SCEVAddExpr *AE = dyn_cast<SCEVAddExpr>(Expr)) {
     for (unsigned j = 0, e = AE->getNumOperands(); j != e; ++j)
       SeparateSubExprs(SubExprs, AE->getOperand(j), SE);
   } else if (const SCEVAddRecExpr *SARE = dyn_cast<SCEVAddRecExpr>(Expr)) {
-    SCEVHandle Zero = SE->getIntegerSCEV(0, Expr->getType());
+    const SCEV* Zero = SE->getIntegerSCEV(0, Expr->getType());
     if (SARE->getOperand(0) == Zero) {
       SubExprs.push_back(Expr);
     } else {
       // Compute the addrec with zero as its base.
-      std::vector<SCEVHandle> Ops(SARE->op_begin(), SARE->op_end());
+      SmallVector<const SCEV*, 4> Ops(SARE->op_begin(), SARE->op_end());
       Ops[0] = Zero;   // Start with zero base.
       SubExprs.push_back(SE->getAddRecExpr(Ops, SARE->getLoop()));
       
@@ -753,7 +740,7 @@ struct SubExprUseData { unsigned Count; bool notAllUsesAreFree; };
 /// not remove anything.  This looks for things like (a+b+c) and
 /// (a+c+d) and computes the common (a+c) subexpression.  The common expression
 /// is *removed* from the Bases and returned.
-static SCEVHandle 
+static const SCEV* 
 RemoveCommonExpressionsFromUseBases(std::vector<BasedUser> &Uses,
                                     ScalarEvolution *SE, Loop *L,
                                     const TargetLowering *TLI) {
@@ -761,9 +748,9 @@ RemoveCommonExpressionsFromUseBases(std::vector<BasedUser> &Uses,
 
   // Only one use?  This is a very common case, so we handle it specially and
   // cheaply.
-  SCEVHandle Zero = SE->getIntegerSCEV(0, Uses[0].Base->getType());
-  SCEVHandle Result = Zero;
-  SCEVHandle FreeResult = Zero;
+  const SCEV* Zero = SE->getIntegerSCEV(0, Uses[0].Base->getType());
+  const SCEV* Result = Zero;
+  const SCEV* FreeResult = Zero;
   if (NumUses == 1) {
     // If the use is inside the loop, use its base, regardless of what it is:
     // it is clearly shared across all the IV's.  If the use is outside the loop
@@ -779,13 +766,13 @@ RemoveCommonExpressionsFromUseBases(std::vector<BasedUser> &Uses,
   // Also track whether all uses of each expression can be moved into an
   // an addressing mode "for free"; such expressions are left within the loop.
   // struct SubExprUseData { unsigned Count; bool notAllUsesAreFree; };
-  std::map<SCEVHandle, SubExprUseData> SubExpressionUseData;
+  std::map<const SCEV*, SubExprUseData> SubExpressionUseData;
   
   // UniqueSubExprs - Keep track of all of the subexpressions we see in the
   // order we see them.
-  std::vector<SCEVHandle> UniqueSubExprs;
+  SmallVector<const SCEV*, 16> UniqueSubExprs;
 
-  std::vector<SCEVHandle> SubExprs;
+  SmallVector<const SCEV*, 16> SubExprs;
   unsigned NumUsesInsideLoop = 0;
   for (unsigned i = 0; i != NumUses; ++i) {
     // If the user is outside the loop, just ignore it for base computation.
@@ -829,7 +816,7 @@ RemoveCommonExpressionsFromUseBases(std::vector<BasedUser> &Uses,
   // Now that we know how many times each is used, build Result.  Iterate over
   // UniqueSubexprs so that we have a stable ordering.
   for (unsigned i = 0, e = UniqueSubExprs.size(); i != e; ++i) {
-    std::map<SCEVHandle, SubExprUseData>::iterator I = 
+    std::map<const SCEV*, SubExprUseData>::iterator I = 
        SubExpressionUseData.find(UniqueSubExprs[i]);
     assert(I != SubExpressionUseData.end() && "Entry not found?");
     if (I->second.Count == NumUsesInsideLoop) { // Found CSE! 
@@ -873,7 +860,7 @@ RemoveCommonExpressionsFromUseBases(std::vector<BasedUser> &Uses,
   if (FreeResult != Zero) {
     SeparateSubExprs(SubExprs, FreeResult, SE);
     for (unsigned j = 0, e = SubExprs.size(); j != e; ++j) {
-      std::map<SCEVHandle, SubExprUseData>::iterator I = 
+      std::map<const SCEV*, SubExprUseData>::iterator I = 
          SubExpressionUseData.find(SubExprs[j]);
       SubExpressionUseData.erase(I);
     }
@@ -1002,10 +989,10 @@ bool LoopStrengthReduce::RequiresTypeConversion(const Type *Ty1,
 /// be folded into the addressing mode, nor even that the factor be constant; 
 /// a multiply (executed once) outside the loop is better than another IV 
 /// within.  Well, usually.
-SCEVHandle LoopStrengthReduce::CheckForIVReuse(bool HasBaseReg,
+const SCEV* LoopStrengthReduce::CheckForIVReuse(bool HasBaseReg,
                                 bool AllUsesAreAddresses,
                                 bool AllUsesAreOutsideLoop,
-                                const SCEVHandle &Stride, 
+                                const SCEV* const &Stride, 
                                 IVExpr &IV, const Type *Ty,
                                 const std::vector<BasedUser>& UsersToProcess) {
   if (StrideNoReuse.count(Stride))
@@ -1015,7 +1002,7 @@ SCEVHandle LoopStrengthReduce::CheckForIVReuse(bool HasBaseReg,
     int64_t SInt = SC->getValue()->getSExtValue();
     for (unsigned NewStride = 0, e = IU->StrideOrder.size();
          NewStride != e; ++NewStride) {
-      std::map<SCEVHandle, IVsOfOneStride>::iterator SI = 
+      std::map<const SCEV*, IVsOfOneStride>::iterator SI = 
                 IVsByStride.find(IU->StrideOrder[NewStride]);
       if (SI == IVsByStride.end() || !isa<SCEVConstant>(SI->first) ||
           StrideNoReuse.count(SI->first))
@@ -1068,7 +1055,7 @@ SCEVHandle LoopStrengthReduce::CheckForIVReuse(bool HasBaseReg,
     // an existing IV if we can.
     for (unsigned NewStride = 0, e = IU->StrideOrder.size();
          NewStride != e; ++NewStride) {
-      std::map<SCEVHandle, IVsOfOneStride>::iterator SI = 
+      std::map<const SCEV*, IVsOfOneStride>::iterator SI = 
                 IVsByStride.find(IU->StrideOrder[NewStride]);
       if (SI == IVsByStride.end() || !isa<SCEVConstant>(SI->first))
         continue;
@@ -1088,7 +1075,7 @@ SCEVHandle LoopStrengthReduce::CheckForIVReuse(bool HasBaseReg,
     // -1*old.
     for (unsigned NewStride = 0, e = IU->StrideOrder.size();
          NewStride != e; ++NewStride) {
-      std::map<SCEVHandle, IVsOfOneStride>::iterator SI = 
+      std::map<const SCEV*, IVsOfOneStride>::iterator SI = 
                 IVsByStride.find(IU->StrideOrder[NewStride]);
       if (SI == IVsByStride.end()) 
         continue;
@@ -1117,7 +1104,7 @@ static bool PartitionByIsUseOfPostIncrementedValue(const BasedUser &Val) {
 
 /// isNonConstantNegative - Return true if the specified scev is negated, but
 /// not a constant.
-static bool isNonConstantNegative(const SCEVHandle &Expr) {
+static bool isNonConstantNegative(const SCEV* const &Expr) {
   const SCEVMulExpr *Mul = dyn_cast<SCEVMulExpr>(Expr);
   if (!Mul) return false;
   
@@ -1129,12 +1116,12 @@ static bool isNonConstantNegative(const SCEVHandle &Expr) {
   return SC->getValue()->getValue().isNegative();
 }
 
-// CollectIVUsers - Transform our list of users and offsets to a bit more
-// complex table. In this new vector, each 'BasedUser' contains 'Base', the base
-// of the strided accesses, as well as the old information from Uses. We
-// progressively move information from the Base field to the Imm field, until
-// we eventually have the full access expression to rewrite the use.
-SCEVHandle LoopStrengthReduce::CollectIVUsers(const SCEVHandle &Stride,
+/// CollectIVUsers - Transform our list of users and offsets to a bit more
+/// complex table. In this new vector, each 'BasedUser' contains 'Base', the base
+/// of the strided accesses, as well as the old information from Uses. We
+/// progressively move information from the Base field to the Imm field, until
+/// we eventually have the full access expression to rewrite the use.
+const SCEV* LoopStrengthReduce::CollectIVUsers(const SCEV* const &Stride,
                                               IVUsersOfOneStride &Uses,
                                               Loop *L,
                                               bool &AllUsesAreAddresses,
@@ -1165,7 +1152,7 @@ SCEVHandle LoopStrengthReduce::CollectIVUsers(const SCEVHandle &Stride,
   // for the strides (e.g. if we have "A+C+B" and "A+B+D" as our bases, find
   // "A+B"), emit it to the preheader, then remove the expression from the
   // UsersToProcess base values.
-  SCEVHandle CommonExprs =
+  const SCEV* CommonExprs =
     RemoveCommonExpressionsFromUseBases(UsersToProcess, SE, L, TLI);
 
   // Next, figure out what we can represent in the immediate fields of
@@ -1231,7 +1218,7 @@ bool LoopStrengthReduce::ShouldUseFullStrengthReductionMode(
                                    const std::vector<BasedUser> &UsersToProcess,
                                    const Loop *L,
                                    bool AllUsesAreAddresses,
-                                   SCEVHandle Stride) {
+                                   const SCEV* Stride) {
   if (!EnableFullLSRMode)
     return false;
 
@@ -1268,7 +1255,7 @@ bool LoopStrengthReduce::ShouldUseFullStrengthReductionMode(
         if (!Imm)       Imm = SE->getIntegerSCEV(0, Stride->getType());
         const Instruction *Inst = UsersToProcess[i].Inst;
         const Type *AccessTy = getAccessType(Inst);
-        SCEVHandle Diff = SE->getMinusSCEV(UsersToProcess[i].Imm, Imm);
+        const SCEV* Diff = SE->getMinusSCEV(UsersToProcess[i].Imm, Imm);
         if (!Diff->isZero() &&
             (!AllUsesAreAddresses ||
              !fitsInAddressMode(Diff, AccessTy, TLI, /*HasBaseReg=*/true)))
@@ -1302,7 +1289,7 @@ bool LoopStrengthReduce::ShouldUseFullStrengthReductionMode(
 ///
 /// Return the created phi node.
 ///
-static PHINode *InsertAffinePhi(SCEVHandle Start, SCEVHandle Step,
+static PHINode *InsertAffinePhi(const SCEV* Start, const SCEV* Step,
                                 Instruction *IVIncInsertPt,
                                 const Loop *L,
                                 SCEVExpander &Rewriter) {
@@ -1322,7 +1309,7 @@ static PHINode *InsertAffinePhi(SCEVHandle Start, SCEVHandle Step,
   // If the stride is negative, insert a sub instead of an add for the
   // increment.
   bool isNegative = isNonConstantNegative(Step);
-  SCEVHandle IncAmount = Step;
+  const SCEV* IncAmount = Step;
   if (isNegative)
     IncAmount = Rewriter.SE.getNegativeSCEV(Step);
 
@@ -1361,13 +1348,13 @@ static void SortUsersToProcess(std::vector<BasedUser> &UsersToProcess) {
   // loop before users outside of the loop with a particular base.
   //
   // We would like to use stable_sort here, but we can't.  The problem is that
-  // SCEVHandle's don't have a deterministic ordering w.r.t to each other, so
+  // const SCEV*'s don't have a deterministic ordering w.r.t to each other, so
   // we don't have anything to do a '<' comparison on.  Because we think the
   // number of uses is small, do a horrible bubble sort which just relies on
   // ==.
   for (unsigned i = 0, e = UsersToProcess.size(); i != e; ++i) {
     // Get a base value.
-    SCEVHandle Base = UsersToProcess[i].Base;
+    const SCEV* Base = UsersToProcess[i].Base;
 
     // Compact everything with this base to be consecutive with this one.
     for (unsigned j = i+1; j != e; ++j) {
@@ -1386,8 +1373,8 @@ static void SortUsersToProcess(std::vector<BasedUser> &UsersToProcess) {
 void
 LoopStrengthReduce::PrepareToStrengthReduceFully(
                                         std::vector<BasedUser> &UsersToProcess,
-                                        SCEVHandle Stride,
-                                        SCEVHandle CommonExprs,
+                                        const SCEV* Stride,
+                                        const SCEV* CommonExprs,
                                         const Loop *L,
                                         SCEVExpander &PreheaderRewriter) {
   DOUT << "  Fully reducing all users\n";
@@ -1399,9 +1386,9 @@ LoopStrengthReduce::PrepareToStrengthReduceFully(
     // TODO: The uses are grouped by base, but not sorted. We arbitrarily
     // pick the first Imm value here to start with, and adjust it for the
     // other uses.
-    SCEVHandle Imm = UsersToProcess[i].Imm;
-    SCEVHandle Base = UsersToProcess[i].Base;
-    SCEVHandle Start = SE->getAddExpr(CommonExprs, Base, Imm);
+    const SCEV* Imm = UsersToProcess[i].Imm;
+    const SCEV* Base = UsersToProcess[i].Base;
+    const SCEV* Start = SE->getAddExpr(CommonExprs, Base, Imm);
     PHINode *Phi = InsertAffinePhi(Start, Stride, IVIncInsertPt, L,
                                    PreheaderRewriter);
     // Loop over all the users with the same base.
@@ -1433,8 +1420,8 @@ static Instruction *FindIVIncInsertPt(std::vector<BasedUser> &UsersToProcess,
 void
 LoopStrengthReduce::PrepareToStrengthReduceWithNewPhi(
                                          std::vector<BasedUser> &UsersToProcess,
-                                         SCEVHandle Stride,
-                                         SCEVHandle CommonExprs,
+                                         const SCEV* Stride,
+                                         const SCEV* CommonExprs,
                                          Value *CommonBaseV,
                                          Instruction *IVIncInsertPt,
                                          const Loop *L,
@@ -1510,7 +1497,7 @@ static bool IsImmFoldedIntoAddrMode(GlobalValue *GV, int64_t Offset,
 /// StrengthReduceStridedIVUsers - Strength reduce all of the users of a single
 /// stride of IV.  All of the users may have different starting values, and this
 /// may not be the only stride.
-void LoopStrengthReduce::StrengthReduceStridedIVUsers(const SCEVHandle &Stride,
+void LoopStrengthReduce::StrengthReduceStridedIVUsers(const SCEV* const &Stride,
                                                       IVUsersOfOneStride &Uses,
                                                       Loop *L) {
   // If all the users are moved to another stride, then there is nothing to do.
@@ -1533,7 +1520,7 @@ void LoopStrengthReduce::StrengthReduceStridedIVUsers(const SCEVHandle &Stride,
   // move information from the Base field to the Imm field, until we eventually
   // have the full access expression to rewrite the use.
   std::vector<BasedUser> UsersToProcess;
-  SCEVHandle CommonExprs = CollectIVUsers(Stride, Uses, L, AllUsesAreAddresses,
+  const SCEV* CommonExprs = CollectIVUsers(Stride, Uses, L, AllUsesAreAddresses,
                                           AllUsesAreOutsideLoop,
                                           UsersToProcess);
 
@@ -1551,8 +1538,8 @@ void LoopStrengthReduce::StrengthReduceStridedIVUsers(const SCEVHandle &Stride,
   // If all uses are addresses, consider sinking the immediate part of the
   // common expression back into uses if they can fit in the immediate fields.
   if (TLI && HaveCommonExprs && AllUsesAreAddresses) {
-    SCEVHandle NewCommon = CommonExprs;
-    SCEVHandle Imm = SE->getIntegerSCEV(0, ReplacedTy);
+    const SCEV* NewCommon = CommonExprs;
+    const SCEV* Imm = SE->getIntegerSCEV(0, ReplacedTy);
     MoveImmediateValues(TLI, Type::VoidTy, NewCommon, Imm, true, L, SE);
     if (!Imm->isZero()) {
       bool DoSink = true;
@@ -1598,7 +1585,7 @@ void LoopStrengthReduce::StrengthReduceStridedIVUsers(const SCEVHandle &Stride,
 
   Value *CommonBaseV = Constant::getNullValue(ReplacedTy);
 
-  SCEVHandle RewriteFactor = SE->getIntegerSCEV(0, ReplacedTy);
+  const SCEV* RewriteFactor = SE->getIntegerSCEV(0, ReplacedTy);
   IVExpr   ReuseIV(SE->getIntegerSCEV(0, Type::Int32Ty),
                    SE->getIntegerSCEV(0, Type::Int32Ty),
                    0);
@@ -1638,7 +1625,7 @@ void LoopStrengthReduce::StrengthReduceStridedIVUsers(const SCEVHandle &Stride,
   // strength-reduced forms.  This outer loop handles all bases, the inner
   // loop handles all users of a particular base.
   while (!UsersToProcess.empty()) {
-    SCEVHandle Base = UsersToProcess.back().Base;
+    const SCEV* Base = UsersToProcess.back().Base;
     Instruction *Inst = UsersToProcess.back().Inst;
 
     // Emit the code for Base into the preheader.
@@ -1692,7 +1679,7 @@ void LoopStrengthReduce::StrengthReduceStridedIVUsers(const SCEVHandle &Stride,
           User.Inst->moveBefore(IVIncInsertPt);
       }
 
-      SCEVHandle RewriteExpr = SE->getUnknown(RewriteOp);
+      const SCEV* RewriteExpr = SE->getUnknown(RewriteOp);
 
       if (SE->getEffectiveSCEVType(RewriteOp->getType()) !=
           SE->getEffectiveSCEVType(ReplacedTy)) {
@@ -1724,7 +1711,7 @@ void LoopStrengthReduce::StrengthReduceStridedIVUsers(const SCEVHandle &Stride,
         // The base has been used to initialize the PHI node but we don't want
         // it here.
         if (!ReuseIV.Base->isZero()) {
-          SCEVHandle typedBase = ReuseIV.Base;
+          const SCEV* typedBase = ReuseIV.Base;
           if (SE->getEffectiveSCEVType(RewriteExpr->getType()) !=
               SE->getEffectiveSCEVType(ReuseIV.Base->getType())) {
             // It's possible the original IV is a larger type than the new IV,
@@ -1789,10 +1776,10 @@ void LoopStrengthReduce::StrengthReduceStridedIVUsers(const SCEVHandle &Stride,
 /// set the IV user and stride information and return true, otherwise return
 /// false.
 bool LoopStrengthReduce::FindIVUserForCond(ICmpInst *Cond, IVStrideUse *&CondUse,
-                                       const SCEVHandle *&CondStride) {
+                                       const SCEV* const * &CondStride) {
   for (unsigned Stride = 0, e = IU->StrideOrder.size();
        Stride != e && !CondUse; ++Stride) {
-    std::map<SCEVHandle, IVUsersOfOneStride *>::iterator SI =
+    std::map<const SCEV*, IVUsersOfOneStride *>::iterator SI =
       IU->IVUsesByStride.find(IU->StrideOrder[Stride]);
     assert(SI != IU->IVUsesByStride.end() && "Stride doesn't exist!");
 
@@ -1819,7 +1806,7 @@ namespace {
     const ScalarEvolution *SE;
     explicit StrideCompare(const ScalarEvolution *se) : SE(se) {}
 
-    bool operator()(const SCEVHandle &LHS, const SCEVHandle &RHS) {
+    bool operator()(const SCEV* const &LHS, const SCEV* const &RHS) {
       const SCEVConstant *LHSC = dyn_cast<SCEVConstant>(LHS);
       const SCEVConstant *RHSC = dyn_cast<SCEVConstant>(RHS);
       if (LHSC && RHSC) {
@@ -1862,14 +1849,14 @@ namespace {
 /// if (v1 < 30) goto loop
 ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
                                                 IVStrideUse* &CondUse,
-                                                const SCEVHandle* &CondStride) {
+                                              const SCEV* const* &CondStride) {
   // If there's only one stride in the loop, there's nothing to do here.
   if (IU->StrideOrder.size() < 2)
     return Cond;
   // If there are other users of the condition's stride, don't bother
   // trying to change the condition because the stride will still
   // remain.
-  std::map<SCEVHandle, IVUsersOfOneStride *>::iterator I =
+  std::map<const SCEV*, IVUsersOfOneStride *>::iterator I =
     IU->IVUsesByStride.find(*CondStride);
   if (I == IU->IVUsesByStride.end() ||
       I->second->Users.size() != 1)
@@ -1886,11 +1873,11 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
   const Type *NewCmpTy = NULL;
   unsigned TyBits = SE->getTypeSizeInBits(CmpTy);
   unsigned NewTyBits = 0;
-  SCEVHandle *NewStride = NULL;
+  const SCEV* *NewStride = NULL;
   Value *NewCmpLHS = NULL;
   Value *NewCmpRHS = NULL;
   int64_t Scale = 1;
-  SCEVHandle NewOffset = SE->getIntegerSCEV(0, CmpTy);
+  const SCEV* NewOffset = SE->getIntegerSCEV(0, CmpTy);
 
   if (ConstantInt *C = dyn_cast<ConstantInt>(Cond->getOperand(1))) {
     int64_t CmpVal = C->getValue().getSExtValue();
@@ -1902,7 +1889,7 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
 
     // Look for a suitable stride / iv as replacement.
     for (unsigned i = 0, e = IU->StrideOrder.size(); i != e; ++i) {
-      std::map<SCEVHandle, IVUsersOfOneStride *>::iterator SI =
+      std::map<const SCEV*, IVUsersOfOneStride *>::iterator SI =
         IU->IVUsesByStride.find(IU->StrideOrder[i]);
       if (!isa<SCEVConstant>(SI->first))
         continue;
@@ -1982,7 +1969,7 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
       bool AllUsesAreAddresses = true;
       bool AllUsesAreOutsideLoop = true;
       std::vector<BasedUser> UsersToProcess;
-      SCEVHandle CommonExprs = CollectIVUsers(SI->first, *SI->second, L,
+      const SCEV* CommonExprs = CollectIVUsers(SI->first, *SI->second, L,
                                               AllUsesAreAddresses,
                                               AllUsesAreOutsideLoop,
                                               UsersToProcess);
@@ -2008,15 +1995,15 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
       if (!isa<PointerType>(NewCmpTy))
         NewCmpRHS = ConstantInt::get(NewCmpTy, NewCmpVal);
       else {
-        ConstantInt *CI = ConstantInt::get(NewCmpIntTy, NewCmpVal);
+        Constant *CI = ConstantInt::get(NewCmpIntTy, NewCmpVal);
         NewCmpRHS = ConstantExpr::getIntToPtr(CI, NewCmpTy);
       }
       NewOffset = TyBits == NewTyBits
         ? SE->getMulExpr(CondUse->getOffset(),
-                         SE->getConstant(ConstantInt::get(CmpTy, Scale)))
-        : SE->getConstant(ConstantInt::get(NewCmpIntTy,
+                         SE->getConstant(CmpTy, Scale))
+        : SE->getConstant(NewCmpIntTy,
           cast<SCEVConstant>(CondUse->getOffset())->getValue()
-            ->getSExtValue()*Scale));
+            ->getSExtValue()*Scale);
       break;
     }
   }
@@ -2047,7 +2034,7 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
     OldCond->replaceAllUsesWith(Cond);
     OldCond->eraseFromParent();
 
-    IU->IVUsesByStride[*NewStride]->addUser(NewOffset, Cond, NewCmpLHS, false);
+    IU->IVUsesByStride[*NewStride]->addUser(NewOffset, Cond, NewCmpLHS);
     CondUse = &IU->IVUsesByStride[*NewStride]->Users.back();
     CondStride = NewStride;
     ++NumEliminated;
@@ -2057,8 +2044,8 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
   return Cond;
 }
 
-/// OptimizeSMax - Rewrite the loop's terminating condition if it uses
-/// an smax computation.
+/// OptimizeMax - Rewrite the loop's terminating condition if it uses
+/// a max computation.
 ///
 /// This is a narrow solution to a specific, but acute, problem. For loops
 /// like this:
@@ -2068,10 +2055,10 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
 ///     p[i] = 0.0;
 ///   } while (++i < n);
 ///
-/// where the comparison is signed, the trip count isn't just 'n', because
-/// 'n' could be negative. And unfortunately this can come up even for loops
-/// where the user didn't use a C do-while loop. For example, seemingly
-/// well-behaved top-test loops will commonly be lowered like this:
+/// the trip count isn't just 'n', because 'n' might not be positive. And
+/// unfortunately this can come up even for loops where the user didn't use
+/// a C do-while loop. For example, seemingly well-behaved top-test loops
+/// will commonly be lowered like this:
 //
 ///   if (n > 0) {
 ///     i = 0;
@@ -2084,14 +2071,14 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
 /// test in such a way that indvars can't find it.
 ///
 /// When indvars can't find the if test in loops like this, it creates a
-/// signed-max expression, which allows it to give the loop a canonical
+/// max expression, which allows it to give the loop a canonical
 /// induction variable:
 ///
 ///   i = 0;
-///   smax = n < 1 ? 1 : n;
+///   max = n < 1 ? 1 : n;
 ///   do {
 ///     p[i] = 0.0;
-///   } while (++i != smax);
+///   } while (++i != max);
 ///
 /// Canonical induction variables are necessary because the loop passes
 /// are designed around them. The most obvious example of this is the
@@ -2107,8 +2094,8 @@ ICmpInst *LoopStrengthReduce::ChangeCompareStride(Loop *L, ICmpInst *Cond,
 /// rewriting their conditions from ICMP_NE back to ICMP_SLT, and deleting
 /// the instructions for the maximum computation.
 ///
-ICmpInst *LoopStrengthReduce::OptimizeSMax(Loop *L, ICmpInst *Cond,
-                                           IVStrideUse* &CondUse) {
+ICmpInst *LoopStrengthReduce::OptimizeMax(Loop *L, ICmpInst *Cond,
+                                          IVStrideUse* &CondUse) {
   // Check that the loop matches the pattern we're looking for.
   if (Cond->getPredicate() != CmpInst::ICMP_EQ &&
       Cond->getPredicate() != CmpInst::ICMP_NE)
@@ -2117,25 +2104,32 @@ ICmpInst *LoopStrengthReduce::OptimizeSMax(Loop *L, ICmpInst *Cond,
   SelectInst *Sel = dyn_cast<SelectInst>(Cond->getOperand(1));
   if (!Sel || !Sel->hasOneUse()) return Cond;
 
-  SCEVHandle BackedgeTakenCount = SE->getBackedgeTakenCount(L);
+  const SCEV* BackedgeTakenCount = SE->getBackedgeTakenCount(L);
   if (isa<SCEVCouldNotCompute>(BackedgeTakenCount))
     return Cond;
-  SCEVHandle One = SE->getIntegerSCEV(1, BackedgeTakenCount->getType());
+  const SCEV* One = SE->getIntegerSCEV(1, BackedgeTakenCount->getType());
 
   // Add one to the backedge-taken count to get the trip count.
-  SCEVHandle IterationCount = SE->getAddExpr(BackedgeTakenCount, One);
+  const SCEV* IterationCount = SE->getAddExpr(BackedgeTakenCount, One);
 
   // Check for a max calculation that matches the pattern.
-  const SCEVSMaxExpr *SMax = dyn_cast<SCEVSMaxExpr>(IterationCount);
-  if (!SMax || SMax != SE->getSCEV(Sel)) return Cond;
+  if (!isa<SCEVSMaxExpr>(IterationCount) && !isa<SCEVUMaxExpr>(IterationCount))
+    return Cond;
+  const SCEVNAryExpr *Max = cast<SCEVNAryExpr>(IterationCount);
+  if (Max != SE->getSCEV(Sel)) return Cond;
 
-  SCEVHandle SMaxLHS = SMax->getOperand(0);
-  SCEVHandle SMaxRHS = SMax->getOperand(1);
-  if (!SMaxLHS || SMaxLHS != One) return Cond;
+  // To handle a max with more than two operands, this optimization would
+  // require additional checking and setup.
+  if (Max->getNumOperands() != 2)
+    return Cond;
+
+  const SCEV* MaxLHS = Max->getOperand(0);
+  const SCEV* MaxRHS = Max->getOperand(1);
+  if (!MaxLHS || MaxLHS != One) return Cond;
 
   // Check the relevant induction variable for conformance to
   // the pattern.
-  SCEVHandle IV = SE->getSCEV(Cond->getOperand(0));
+  const SCEV* IV = SE->getSCEV(Cond->getOperand(0));
   const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(IV);
   if (!AR || !AR->isAffine() ||
       AR->getStart() != One ||
@@ -2148,19 +2142,23 @@ ICmpInst *LoopStrengthReduce::OptimizeSMax(Loop *L, ICmpInst *Cond,
   // Check the right operand of the select, and remember it, as it will
   // be used in the new comparison instruction.
   Value *NewRHS = 0;
-  if (SE->getSCEV(Sel->getOperand(1)) == SMaxRHS)
+  if (SE->getSCEV(Sel->getOperand(1)) == MaxRHS)
     NewRHS = Sel->getOperand(1);
-  else if (SE->getSCEV(Sel->getOperand(2)) == SMaxRHS)
+  else if (SE->getSCEV(Sel->getOperand(2)) == MaxRHS)
     NewRHS = Sel->getOperand(2);
   if (!NewRHS) return Cond;
+
+  // Determine the new comparison opcode. It may be signed or unsigned,
+  // and the original comparison may be either equality or inequality.
+  CmpInst::Predicate Pred =
+    isa<SCEVSMaxExpr>(Max) ? CmpInst::ICMP_SLT : CmpInst::ICMP_ULT;
+  if (Cond->getPredicate() == CmpInst::ICMP_EQ)
+    Pred = CmpInst::getInversePredicate(Pred);
 
   // Ok, everything looks ok to change the condition into an SLT or SGE and
   // delete the max calculation.
   ICmpInst *NewCond =
-    new ICmpInst(Cond->getPredicate() == CmpInst::ICMP_NE ?
-                   CmpInst::ICMP_SLT :
-                   CmpInst::ICMP_SGE,
-                 Cond->getOperand(0), NewRHS, "scmp", Cond);
+    new ICmpInst(Pred, Cond->getOperand(0), NewRHS, "scmp", Cond);
 
   // Delete the max calculation instructions.
   Cond->replaceAllUsesWith(NewCond);
@@ -2177,13 +2175,13 @@ ICmpInst *LoopStrengthReduce::OptimizeSMax(Loop *L, ICmpInst *Cond,
 /// inside the loop then try to eliminate the cast opeation.
 void LoopStrengthReduce::OptimizeShadowIV(Loop *L) {
 
-  SCEVHandle BackedgeTakenCount = SE->getBackedgeTakenCount(L);
+  const SCEV* BackedgeTakenCount = SE->getBackedgeTakenCount(L);
   if (isa<SCEVCouldNotCompute>(BackedgeTakenCount))
     return;
 
   for (unsigned Stride = 0, e = IU->StrideOrder.size(); Stride != e;
        ++Stride) {
-    std::map<SCEVHandle, IVUsersOfOneStride *>::iterator SI =
+    std::map<const SCEV*, IVUsersOfOneStride *>::iterator SI =
       IU->IVUsesByStride.find(IU->StrideOrder[Stride]);
     assert(SI != IU->IVUsesByStride.end() && "Stride doesn't exist!");
     if (!isa<SCEVConstant>(SI->first))
@@ -2242,7 +2240,7 @@ void LoopStrengthReduce::OptimizeShadowIV(Loop *L) {
         
       ConstantInt *Init = dyn_cast<ConstantInt>(PH->getIncomingValue(Entry));
       if (!Init) continue;
-      ConstantFP *NewInit = ConstantFP::get(DestTy, Init->getZExtValue());
+      Constant *NewInit = ConstantFP::get(DestTy, Init->getZExtValue());
 
       BinaryOperator *Incr = 
         dyn_cast<BinaryOperator>(PH->getIncomingValue(Latch));
@@ -2266,7 +2264,7 @@ void LoopStrengthReduce::OptimizeShadowIV(Loop *L) {
       PHINode *NewPH = PHINode::Create(DestTy, "IV.S.", PH);
 
       /* create new increment. '++d' in above example. */
-      ConstantFP *CFP = ConstantFP::get(DestTy, C->getZExtValue());
+      Constant *CFP = ConstantFP::get(DestTy, C->getZExtValue());
       BinaryOperator *NewIncr = 
         BinaryOperator::Create(Incr->getOpcode() == Instruction::Add ?
                                  Instruction::FAdd : Instruction::FSub,
@@ -2284,9 +2282,9 @@ void LoopStrengthReduce::OptimizeShadowIV(Loop *L) {
   }
 }
 
-// OptimizeIndvars - Now that IVUsesByStride is set up with all of the indvar
-// uses in the loop, look to see if we can eliminate some, in favor of using
-// common indvars for the different uses.
+/// OptimizeIndvars - Now that IVUsesByStride is set up with all of the indvar
+/// uses in the loop, look to see if we can eliminate some, in favor of using
+/// common indvars for the different uses.
 void LoopStrengthReduce::OptimizeIndvars(Loop *L) {
   // TODO: implement optzns here.
 
@@ -2301,11 +2299,11 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
   // induction variable, to allow coalescing the live ranges for the IV into
   // one register value.
   BasicBlock *LatchBlock = L->getLoopLatch();
-  BasicBlock *ExitBlock = L->getExitingBlock();
-  if (!ExitBlock)
+  BasicBlock *ExitingBlock = L->getExitingBlock();
+  if (!ExitingBlock)
     // Multiple exits, just look at the exit in the latch block if there is one.
-    ExitBlock = LatchBlock;
-  BranchInst *TermBr = dyn_cast<BranchInst>(ExitBlock->getTerminator());
+    ExitingBlock = LatchBlock;
+  BranchInst *TermBr = dyn_cast<BranchInst>(ExitingBlock->getTerminator());
   if (!TermBr)
     return;
   if (TermBr->isUnconditional() || !isa<ICmpInst>(TermBr->getCondition()))
@@ -2313,12 +2311,12 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
 
   // Search IVUsesByStride to find Cond's IVUse if there is one.
   IVStrideUse *CondUse = 0;
-  const SCEVHandle *CondStride = 0;
+  const SCEV* const *CondStride = 0;
   ICmpInst *Cond = cast<ICmpInst>(TermBr->getCondition());
   if (!FindIVUserForCond(Cond, CondUse, CondStride))
     return; // setcc doesn't use the IV.
 
-  if (ExitBlock != LatchBlock) {
+  if (ExitingBlock != LatchBlock) {
     if (!Cond->hasOneUse())
       // See below, we don't want the condition to be cloned.
       return;
@@ -2343,7 +2341,7 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
       int64_t SInt = SC->getValue()->getSExtValue();
       for (unsigned NewStride = 0, ee = IU->StrideOrder.size(); NewStride != ee;
            ++NewStride) {
-        std::map<SCEVHandle, IVUsersOfOneStride *>::iterator SI =
+        std::map<const SCEV*, IVUsersOfOneStride *>::iterator SI =
           IU->IVUsesByStride.find(IU->StrideOrder[NewStride]);
         if (!isa<SCEVConstant>(SI->first) || SI->first == *CondStride)
           continue;
@@ -2357,7 +2355,7 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
         bool AllUsesAreAddresses = true;
         bool AllUsesAreOutsideLoop = true;
         std::vector<BasedUser> UsersToProcess;
-        SCEVHandle CommonExprs = CollectIVUsers(SI->first, *SI->second, L,
+        const SCEV* CommonExprs = CollectIVUsers(SI->first, *SI->second, L,
                                                 AllUsesAreAddresses,
                                                 AllUsesAreOutsideLoop,
                                                 UsersToProcess);
@@ -2373,14 +2371,14 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
     StrideNoReuse.insert(*CondStride);
   }
 
-  // If the trip count is computed in terms of an smax (due to ScalarEvolution
+  // If the trip count is computed in terms of a max (due to ScalarEvolution
   // being unable to find a sufficient guard, for example), change the loop
-  // comparison to use SLT instead of NE.
-  Cond = OptimizeSMax(L, Cond, CondUse);
+  // comparison to use SLT or ULT instead of NE.
+  Cond = OptimizeMax(L, Cond, CondUse);
 
   // If possible, change stride and operands of the compare instruction to
   // eliminate one stride.
-  if (ExitBlock == LatchBlock)
+  if (ExitingBlock == LatchBlock)
     Cond = ChangeCompareStride(L, Cond, CondUse, CondStride);
 
   // It's possible for the setcc instruction to be anywhere in the loop, and
@@ -2397,8 +2395,7 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
       
       // Clone the IVUse, as the old use still exists!
       IU->IVUsesByStride[*CondStride]->addUser(CondUse->getOffset(), Cond,
-                                              CondUse->getOperandValToReplace(),
-                                               false);
+                                             CondUse->getOperandValToReplace());
       CondUse = &IU->IVUsesByStride[*CondStride]->Users.back();
     }
   }
@@ -2413,13 +2410,13 @@ void LoopStrengthReduce::OptimizeLoopTermCond(Loop *L) {
   ++NumLoopCond;
 }
 
-// OptimizeLoopCountIV - If, after all sharing of IVs, the IV used for deciding
-// when to exit the loop is used only for that purpose, try to rearrange things
-// so it counts down to a test against zero.
+/// OptimizeLoopCountIV - If, after all sharing of IVs, the IV used for deciding
+/// when to exit the loop is used only for that purpose, try to rearrange things
+/// so it counts down to a test against zero.
 void LoopStrengthReduce::OptimizeLoopCountIV(Loop *L) {
 
   // If the number of times the loop is executed isn't computable, give up.
-  SCEVHandle BackedgeTakenCount = SE->getBackedgeTakenCount(L);
+  const SCEV* BackedgeTakenCount = SE->getBackedgeTakenCount(L);
   if (isa<SCEVCouldNotCompute>(BackedgeTakenCount))
     return;
 
@@ -2448,9 +2445,9 @@ void LoopStrengthReduce::OptimizeLoopCountIV(Loop *L) {
   // Handle only tests for equality for the moment, and only stride 1.
   if (Cond->getPredicate() != CmpInst::ICMP_EQ)
     return;
-  SCEVHandle IV = SE->getSCEV(Cond->getOperand(0));
+  const SCEV* IV = SE->getSCEV(Cond->getOperand(0));
   const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(IV);
-  SCEVHandle One = SE->getIntegerSCEV(1, BackedgeTakenCount->getType());
+  const SCEV* One = SE->getIntegerSCEV(1, BackedgeTakenCount->getType());
   if (!AR || !AR->isAffine() || AR->getStepRecurrence(*SE) != One)
     return;
   // If the RHS of the comparison is defined inside the loop, the rewrite
@@ -2506,7 +2503,7 @@ void LoopStrengthReduce::OptimizeLoopCountIV(Loop *L) {
   Value *startVal = phi->getIncomingValue(inBlock);
   Value *endVal = Cond->getOperand(1);
   // FIXME check for case where both are constant
-  ConstantInt* Zero = ConstantInt::get(Cond->getOperand(1)->getType(), 0);
+  Constant* Zero = ConstantInt::get(Cond->getOperand(1)->getType(), 0);
   BinaryOperator *NewStartVal = 
     BinaryOperator::Create(Instruction::Sub, endVal, startVal,
                            "tmp", PreInsertPt);
@@ -2566,7 +2563,7 @@ bool LoopStrengthReduce::runOnLoop(Loop *L, LPPassManager &LPM) {
     // strides deterministic - not dependent on map order.
     for (unsigned Stride = 0, e = IU->StrideOrder.size();
          Stride != e; ++Stride) {
-      std::map<SCEVHandle, IVUsersOfOneStride *>::iterator SI =
+      std::map<const SCEV*, IVUsersOfOneStride *>::iterator SI =
         IU->IVUsesByStride.find(IU->StrideOrder[Stride]);
       assert(SI != IU->IVUsesByStride.end() && "Stride doesn't exist!");
       // FIXME: Generalize to non-affine IV's.

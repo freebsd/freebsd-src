@@ -80,7 +80,7 @@ static int sysvmsg_modload(struct module *, int, void *);
 #ifdef MSG_DEBUG
 #define DPRINTF(a)	printf a
 #else
-#define DPRINTF(a)
+#define DPRINTF(a)	(void)0
 #endif
 
 static void msg_freehdr(struct msg *msghdr);

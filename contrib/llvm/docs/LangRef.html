@@ -1106,8 +1106,9 @@ an <tt>ssp</tt> attribute, then the resulting function will have
 an <tt>sspreq</tt> attribute.</dd>
 
 <dt><tt>noredzone</tt></dt>
-<dd>This attribute indicates that the code generator should not enforce red zone
-mandated by target specific ABI.</dd>
+<dd>This attribute indicates that the code generator should not use a
+red zone, even if the target-specific ABI normally permits it.
+</dd>
 
 <dt><tt>noimplicitfloat</tt></dt>
 <dd>This attributes disables implicit floating point instructions.</dd>
@@ -3531,9 +3532,10 @@ address space (address space zero).</p>
 bytes of memory from the operating system and returns a pointer of the
 appropriate type to the program.  If "NumElements" is specified, it is the
 number of elements allocated, otherwise "NumElements" is defaulted to be one.
-If a constant alignment is specified, the value result of the allocation is guaranteed to
-be aligned to at least that boundary.  If not specified, or if zero, the target can
-choose to align the allocation on any convenient boundary.</p>
+If a constant alignment is specified, the value result of the allocation is
+guaranteed to be aligned to at least that boundary.  If not specified, or if
+zero, the target can choose to align the allocation on any convenient boundary
+compatible with the type.</p>
 
 <p>'<tt>type</tt>' must be a sized type.</p>
 
@@ -3624,9 +3626,10 @@ space (address space zero).</p>
 bytes of memory on the runtime stack, returning a pointer of the
 appropriate type to the program.  If "NumElements" is specified, it is the
 number of elements allocated, otherwise "NumElements" is defaulted to be one.
-If a constant alignment is specified, the value result of the allocation is guaranteed
-to be aligned to at least that boundary.  If not specified, or if zero, the target
-can choose to align the allocation on any convenient boundary.</p>
+If a constant alignment is specified, the value result of the allocation is
+guaranteed to be aligned to at least that boundary.  If not specified, or if
+zero, the target can choose to align the allocation on any convenient boundary
+compatible with the type.</p>
 
 <p>'<tt>type</tt>' may be any sized type.</p>
 
@@ -6428,9 +6431,6 @@ on any integer bit width.</p>
 
 <h5>Overview:</h5>
 
-<p><i><b>Warning:</b> '<tt>llvm.umul.with.overflow</tt>' is badly broken. It is
-actively being fixed, but it should not currently be used!</i></p>
-
 <p>The '<tt>llvm.umul.with.overflow</tt>' family of intrinsic functions perform
 a unsigned multiplication of the two arguments, and indicate whether an overflow
 occurred during the unsigned multiplication.</p>
@@ -7221,7 +7221,7 @@ declare void @llvm.stackprotector( i8* &lt;guard&gt;, i8** &lt;slot&gt; )
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-06-12 21:45:19 +0200 (Fri, 12 Jun 2009) $
+  Last modified: $Date: 2009-06-20 13:26:06 +0000 (Sat, 20 Jun 2009) $
 </address>
 
 </body>

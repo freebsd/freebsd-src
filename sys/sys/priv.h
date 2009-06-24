@@ -211,7 +211,7 @@
 #define	PRIV_TTY_DRAINWAIT	251	/* Set tty drain wait time. */
 #define	PRIV_TTY_DTRWAIT	252	/* Set DTR wait on tty. */
 #define	PRIV_TTY_EXCLUSIVE	253	/* Override tty exclusive flag. */
-#define	PRIV_TTY_PRISON		254	/* Can open pts across jails. */
+#define	_PRIV_TTY_PRISON	254	/* Removed. */
 #define	PRIV_TTY_STI		255	/* Simulate input on another tty. */
 #define	PRIV_TTY_SETA		256	/* Set tty termios structure. */
 
@@ -325,6 +325,7 @@
 #define	PRIV_NET_DELIFADDR	414	/* Delete protocol addr on interface. */
 #define	PRIV_NET_LAGG		415	/* Administer lagg interface. */
 #define	PRIV_NET_GIF		416	/* Administer gif interface. */
+#define	PRIV_NET_SETIFVNET	417	/* Move interface to vnet. */
 
 /*
  * 802.11-related privileges.

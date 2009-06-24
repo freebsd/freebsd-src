@@ -80,23 +80,38 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+#include <dev/usb/usbhid.h>
 #include <dev/usb/usb_cdc.h>
+#include "usbdevs.h"
+
 #include <dev/usb/usb_ioctl.h>
 
 #define	USB_DEBUG_VAR umodem_debug
-
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_device.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
@@ -216,17 +231,17 @@ static const struct usb_config umodem_config[UMODEM_N_TRANSFER] = {
 };
 
 static const struct ucom_callback umodem_callback = {
-	.usb2_com_cfg_get_status = &umodem_cfg_get_status,
-	.usb2_com_cfg_set_dtr = &umodem_cfg_set_dtr,
-	.usb2_com_cfg_set_rts = &umodem_cfg_set_rts,
-	.usb2_com_cfg_set_break = &umodem_cfg_set_break,
-	.usb2_com_cfg_param = &umodem_cfg_param,
-	.usb2_com_pre_param = &umodem_pre_param,
-	.usb2_com_ioctl = &umodem_ioctl,
-	.usb2_com_start_read = &umodem_start_read,
-	.usb2_com_stop_read = &umodem_stop_read,
-	.usb2_com_start_write = &umodem_start_write,
-	.usb2_com_stop_write = &umodem_stop_write,
+	.ucom_cfg_get_status = &umodem_cfg_get_status,
+	.ucom_cfg_set_dtr = &umodem_cfg_set_dtr,
+	.ucom_cfg_set_rts = &umodem_cfg_set_rts,
+	.ucom_cfg_set_break = &umodem_cfg_set_break,
+	.ucom_cfg_param = &umodem_cfg_param,
+	.ucom_pre_param = &umodem_pre_param,
+	.ucom_ioctl = &umodem_ioctl,
+	.ucom_start_read = &umodem_start_read,
+	.ucom_stop_read = &umodem_stop_read,
+	.ucom_start_write = &umodem_start_write,
+	.ucom_stop_write = &umodem_stop_write,
 };
 
 static device_method_t umodem_methods[] = {
@@ -260,7 +275,7 @@ umodem_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
-	error = usb2_lookup_id_by_uaa(umodem_devs, sizeof(umodem_devs), uaa);
+	error = usbd_lookup_id_by_uaa(umodem_devs, sizeof(umodem_devs), uaa);
 	return (error);
 }
 
@@ -274,7 +289,7 @@ umodem_attach(device_t dev)
 	uint8_t i;
 	int error;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "umodem", NULL, MTX_DEF);
 
 	sc->sc_ctrl_iface_no = uaa->info.bIfaceNum;
@@ -289,7 +304,7 @@ umodem_attach(device_t dev)
 
 	if ((cmd == NULL) || (cmd->bLength < sizeof(*cmd))) {
 
-		cud = usb2_find_descriptor(uaa->device, NULL,
+		cud = usbd_find_descriptor(uaa->device, NULL,
 		    uaa->info.bIfaceIndex, UDESC_CS_INTERFACE,
 		    0 - 1, UDESCSUB_CDC_UNION, 0 - 1);
 
@@ -315,15 +330,15 @@ umodem_attach(device_t dev)
 		struct usb_interface *iface;
 		struct usb_interface_descriptor *id;
 
-		iface = usb2_get_iface(uaa->device, i);
+		iface = usbd_get_iface(uaa->device, i);
 
 		if (iface) {
 
-			id = usb2_get_interface_descriptor(iface);
+			id = usbd_get_interface_descriptor(iface);
 
 			if (id && (id->bInterfaceNumber == sc->sc_data_iface_no)) {
 				sc->sc_iface_index[0] = i;
-				usb2_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
+				usbd_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
 				break;
 			}
 		} else {
@@ -343,7 +358,7 @@ umodem_attach(device_t dev)
 		}
 		sc->sc_cm_over_data = 1;
 	}
-	error = usb2_transfer_setup(uaa->device,
+	error = usbd_transfer_setup(uaa->device,
 	    sc->sc_iface_index, sc->sc_xfer,
 	    umodem_config, UMODEM_N_TRANSFER,
 	    sc, &sc->sc_mtx);
@@ -353,11 +368,11 @@ umodem_attach(device_t dev)
 
 	/* clear stall at first run */
 	mtx_lock(&sc->sc_mtx);
-	usb2_transfer_set_stall(sc->sc_xfer[UMODEM_BULK_WR]);
-	usb2_transfer_set_stall(sc->sc_xfer[UMODEM_BULK_RD]);
+	usbd_xfer_set_stall(sc->sc_xfer[UMODEM_BULK_WR]);
+	usbd_xfer_set_stall(sc->sc_xfer[UMODEM_BULK_RD]);
 	mtx_unlock(&sc->sc_mtx);
 
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &umodem_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
@@ -375,10 +390,10 @@ umodem_start_read(struct ucom_softc *ucom)
 	struct umodem_softc *sc = ucom->sc_parent;
 
 	/* start interrupt endpoint, if any */
-	usb2_transfer_start(sc->sc_xfer[UMODEM_INTR_RD]);
+	usbd_transfer_start(sc->sc_xfer[UMODEM_INTR_RD]);
 
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[UMODEM_BULK_RD]);
+	usbd_transfer_start(sc->sc_xfer[UMODEM_BULK_RD]);
 }
 
 static void
@@ -387,10 +402,10 @@ umodem_stop_read(struct ucom_softc *ucom)
 	struct umodem_softc *sc = ucom->sc_parent;
 
 	/* stop interrupt endpoint, if any */
-	usb2_transfer_stop(sc->sc_xfer[UMODEM_INTR_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UMODEM_INTR_RD]);
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UMODEM_BULK_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UMODEM_BULK_RD]);
 }
 
 static void
@@ -398,7 +413,7 @@ umodem_start_write(struct ucom_softc *ucom)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UMODEM_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[UMODEM_BULK_WR]);
 }
 
 static void
@@ -406,7 +421,7 @@ umodem_stop_write(struct ucom_softc *ucom)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UMODEM_BULK_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UMODEM_BULK_WR]);
 }
 
 static void
@@ -493,7 +508,7 @@ umodem_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, sizeof(ls));
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, &ls, 0, 1000);
 }
 
@@ -546,7 +561,7 @@ umodem_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
@@ -570,7 +585,7 @@ umodem_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
@@ -594,37 +609,42 @@ umodem_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 		req.wIndex[1] = 0;
 		USETW(req.wLength, 0);
 
-		usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+		ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 		    &req, NULL, 0, 1000);
 	}
 }
 
 static void
-umodem_intr_callback(struct usb_xfer *xfer)
+umodem_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct usb_cdc_notification pkt;
-	struct umodem_softc *sc = xfer->priv_sc;
+	struct umodem_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint16_t wLen;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		if (xfer->actlen < 8) {
+		if (actlen < 8) {
 			DPRINTF("received short packet, "
-			    "%d bytes\n", xfer->actlen);
+			    "%d bytes\n", actlen);
 			goto tr_setup;
 		}
-		if (xfer->actlen > sizeof(pkt)) {
+		if (actlen > sizeof(pkt)) {
 			DPRINTF("truncating message\n");
-			xfer->actlen = sizeof(pkt);
+			actlen = sizeof(pkt);
 		}
-		usb2_copy_out(xfer->frbuffers, 0, &pkt, xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, &pkt, actlen);
 
-		xfer->actlen -= 8;
+		actlen -= 8;
 
 		wLen = UGETW(pkt.wLength);
-		if (xfer->actlen > wLen) {
-			xfer->actlen = wLen;
+		if (actlen > wLen) {
+			actlen = wLen;
 		}
 		if (pkt.bmRequestType != UCDC_NOTIFICATION) {
 			DPRINTF("unknown message type, "
@@ -638,9 +658,9 @@ umodem_intr_callback(struct usb_xfer *xfer)
 			 * Set the serial state in ucom driver based on
 			 * the bits from the notify message
 			 */
-			if (xfer->actlen < 2) {
+			if (actlen < 2) {
 				DPRINTF("invalid notification "
-				    "length, %d bytes!\n", xfer->actlen);
+				    "length, %d bytes!\n", actlen);
 				break;
 			}
 			DPRINTF("notify bytes = %02x%02x\n",
@@ -660,7 +680,7 @@ umodem_intr_callback(struct usb_xfer *xfer)
 			if (pkt.data[0] & UCDC_N_SERIAL_DCD) {
 				sc->sc_msr |= SER_DCD;
 			}
-			usb2_com_status_change(&sc->sc_ucom);
+			ucom_status_change(&sc->sc_ucom);
 			break;
 
 		default:
@@ -671,14 +691,14 @@ umodem_intr_callback(struct usb_xfer *xfer)
 
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -687,27 +707,29 @@ tr_setup:
 }
 
 static void
-umodem_write_callback(struct usb_xfer *xfer)
+umodem_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umodem_softc *sc = xfer->priv_sc;
+	struct umodem_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (ucom_get_data(&sc->sc_ucom, pc, 0,
 		    UMODEM_BUF_SIZE, &actlen)) {
 
-			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -715,28 +737,32 @@ tr_setup:
 }
 
 static void
-umodem_read_callback(struct usb_xfer *xfer)
+umodem_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umodem_softc *sc = xfer->priv_sc;
+	struct umodem_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		DPRINTF("actlen=%d\n", xfer->actlen);
+		DPRINTF("actlen=%d\n", actlen);
 
-		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 0,
-		    xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		ucom_put_data(&sc->sc_ucom, pc, 0, actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -746,7 +772,7 @@ tr_setup:
 static void *
 umodem_get_desc(struct usb_attach_arg *uaa, uint8_t type, uint8_t subtype)
 {
-	return (usb2_find_descriptor(uaa->device, NULL, uaa->info.bIfaceIndex,
+	return (usbd_find_descriptor(uaa->device, NULL, uaa->info.bIfaceIndex,
 	    type, 0 - 1, subtype, 0 - 1));
 }
 
@@ -768,7 +794,7 @@ umodem_set_comm_feature(struct usb_device *udev, uint8_t iface_no,
 	USETW(req.wLength, UCDC_ABSTRACT_STATE_LENGTH);
 	USETW(ast.wState, state);
 
-	return (usb2_do_request(udev, NULL, &req, &ast));
+	return (usbd_do_request(udev, NULL, &req, &ast));
 }
 
 static int
@@ -778,8 +804,8 @@ umodem_detach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-	usb2_transfer_unsetup(sc->sc_xfer, UMODEM_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UMODEM_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);

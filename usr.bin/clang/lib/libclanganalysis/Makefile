@@ -13,7 +13,7 @@ SRCS=	BasicConstraintManager.cpp BasicObjCFoundationChecks.cpp \
 	GRTransferFuncs.cpp LiveVariables.cpp MemRegion.cpp \
 	PathDiagnostic.cpp RangeConstraintManager.cpp RegionStore.cpp \
 	SVals.cpp SimpleConstraintManager.cpp Store.cpp \
-	SymbolManager.cpp UninitializedValues.cpp
+	SymbolManager.cpp UninitializedValues.cpp ValueManager.cpp
 
 TGHDRS=	DiagnosticAnalysisKinds DiagnosticCommonKinds
 

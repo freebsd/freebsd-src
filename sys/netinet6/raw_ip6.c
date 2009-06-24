@@ -145,7 +145,7 @@ int (*ip6_mrouter_set)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_get)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_done)(void);
 int (*ip6_mforward)(struct ip6_hdr *, struct ifnet *, struct mbuf *);
-int (*mrt6_ioctl)(int, caddr_t);
+int (*mrt6_ioctl)(u_long, caddr_t);
 
 /*
  * Setup generic address and protocol structures for raw_input routine, then

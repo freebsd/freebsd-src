@@ -2,13 +2,16 @@
 # large and three small executables. This is done to minimize memory load
 # in parallel builds.  Please retain this ordering.
 
-if (NOT USE_EXPLICIT_DEPENDENCIES)
+# FIXME: We don't yet have the ability to build llvm-config with CMake
+# based on explicit dependencies.
+if (FALSE)
  add_subdirectory(llvm-config)
 endif()
 
 add_subdirectory(opt)
 add_subdirectory(llvm-as)
 add_subdirectory(llvm-dis)
+add_subdirectory(llvm-mc)
 
 add_subdirectory(llc)
 add_subdirectory(llvm-ranlib)

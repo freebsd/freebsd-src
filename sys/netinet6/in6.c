@@ -784,9 +784,9 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		if (ia == NULL)
 			return (ENOBUFS);
 		bzero((caddr_t)ia, sizeof(*ia));
+		ifa_init(&ia->ia_ifa);
 		LIST_INIT(&ia->ia6_memberships);
 		/* Initialize the address and masks, and put time stamp */
-		IFA_LOCK_INIT(&ia->ia_ifa);
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
 		ia->ia_addr.sin6_family = AF_INET6;
 		ia->ia_addr.sin6_len = sizeof(ia->ia_addr);
@@ -811,7 +811,6 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		} else
 			V_in6_ifaddr = ia;
 
-		ia->ia_ifa.ifa_refcnt = 1;
 		IF_ADDR_LOCK(ifp);
 		TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
@@ -1387,7 +1386,7 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	 * release another refcnt for the link from in6_ifaddr.
 	 * Note that we should decrement the refcnt at least once for all *BSD.
 	 */
-	IFAFREE(&oia->ia_ifa);
+	ifa_free(&oia->ia_ifa);
 
 	splx(s);
 }

@@ -379,8 +379,15 @@ function filter_parse(s, a, i, attn, alen)
 	split(s, a, ":");
 	alen = length(a);
 
+	if (alen > 0 && a[1] == "OVERSAMPLING_FACTOR") {
+		if (alen != 2)
+			return (-1);
+		init_drift(floor(a[2]));
+		return (-1);
+	}
+
 	if (alen == 1 || alen == 2) {
-		if (a[1] == "nyquist_hover") {
+		if (a[1] == "NYQUIST_HOVER") {
 			i = 1.0 * a[2];
 			Z_NYQUIST_HOVER = (i > 0.0 && i < 1.0) ? i : 0.0;
 			return (-1);
@@ -493,6 +500,33 @@ function genlerp(bit, use64, lerp)
 	    bit, (bit < 10) ? "\t" : "", lerp);
 }
 
+function init_drift(drift, xdrift)
+{
+	xdrift = floor(drift);
+
+	if (Z_DRIFT_SHIFT != -1) {
+		if (xdrift != Z_DRIFT_SHIFT)
+			printf("#error Z_DRIFT_SHIFT reinitialize!\n");
+		return;
+	}
+
+	#
+	# Initialize filter oversampling factor, or in other word
+	# Z_DRIFT_SHIFT.
+	#
+	if (xdrift < 0)
+		xdrift = 1;
+	else if (xdrift > 31)
+		xdrift = 31;
+
+	Z_DRIFT_SHIFT  = xdrift;
+	Z_DRIFT_ONE    = shl(1, Z_DRIFT_SHIFT);
+
+	Z_SHIFT        = Z_FULL_SHIFT - Z_DRIFT_SHIFT;
+	Z_ONE          = shl(1, Z_SHIFT);
+	Z_MASK         = Z_ONE - 1;
+}
+
 BEGIN {
 	I0_EPSILON = 1e-21;
 	M_PI = atan2(0.0, -1.0);
@@ -511,25 +545,14 @@ BEGIN {
 	Z_INTERP_COEFF_SHIFT = 24;
 	Z_INTERP_COEFF_ONE   = shl(1, Z_INTERP_COEFF_SHIFT);
 
-	#
-	# Filter oversampling factor.
-	#
-	# 6, 7, or 8 depending on how much you can trade off between memory
-	# consumption (due to large tables) and precision / quality.
-	#
-	Z_DRIFT_SHIFT   = 7;
-	Z_DRIFT_ONE     = shl(1, Z_DRIFT_SHIFT);
-
-	Z_SHIFT         = Z_FULL_SHIFT - Z_DRIFT_SHIFT;
-	Z_ONE           = shl(1, Z_SHIFT);
-	Z_MASK          = Z_ONE - 1;
-
 	Z_LINEAR_FULL_SHIFT = Z_FULL_SHIFT;
 	Z_LINEAR_FULL_ONE   = shl(1, Z_LINEAR_FULL_SHIFT);
 	Z_LINEAR_SHIFT      = 8;
 	Z_LINEAR_UNSHIFT    = Z_LINEAR_FULL_SHIFT - Z_LINEAR_SHIFT;
 	Z_LINEAR_ONE        = shl(1, Z_LINEAR_SHIFT)
 
+	Z_DRIFT_SHIFT_DEFAULT = 5;
+	Z_DRIFT_SHIFT         = -1;
 	# meehhhh... let it overflow...
 	#Z_SCALE_SHIFT   = 31;
 	#Z_SCALE_ONE     = shl(1, Z_SCALE_SHIFT);
@@ -595,6 +618,8 @@ BEGIN {
 			beta = Popts["beta"];
 			nmult = Popts["nmult"];
 			rolloff = Popts["rolloff"];
+			if (Z_DRIFT_SHIFT == -1)
+				init_drift(Z_DRIFT_SHIFT_DEFAULT);
 			ztab[imp["quality"] - 2] =				\
 			    mkfilter(imp, nmult, rolloff, beta, Z_DRIFT_ONE);
 			imp["quality"]++;

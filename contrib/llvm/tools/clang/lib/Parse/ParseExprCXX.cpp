@@ -377,6 +377,16 @@ Parser::OwningExprResult Parser::ParseCXXTypeid() {
     Result = Actions.ActOnCXXTypeid(OpLoc, LParenLoc, /*isType=*/true,
                                     Ty.get(), RParenLoc);
   } else {
+    // C++0x [expr.typeid]p3:
+    //   When typeid is applied to an expression other than an lvalue of a 
+    //   polymorphic class type [...] The expression is an unevaluated 
+    //   operand (Clause 5).
+    //
+    // Note that we can't tell whether the expression is an lvalue of a 
+    // polymorphic class type until after we've parsed the expression, so
+    // we the expression is potentially potentially evaluated.
+    EnterExpressionEvaluationContext Unevaluated(Actions,
+                                       Action::PotentiallyPotentiallyEvaluated);
     Result = ParseExpression();
 
     // Match the ')'.

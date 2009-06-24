@@ -30,6 +30,7 @@ def : DiagGroup<"conversion">;
 def : DiagGroup<"declaration-after-statement">;
 def : DiagGroup<"disabled-optimization">;
 def : DiagGroup<"discard-qual">;
+def : DiagGroup<"div-by-zero">;
 def EmptyBody : DiagGroup<"empty-body">;
 def ExtraTokens : DiagGroup<"extra-tokens">;
 
@@ -40,6 +41,7 @@ def FourByteMultiChar : DiagGroup<"four-char-constants">;
 def : DiagGroup<"init-self">;
 def : DiagGroup<"inline">;
 def : DiagGroup<"int-to-pointer-cast">;
+def : DiagGroup<"invalid-pch">;
 def : DiagGroup<"missing-braces">;
 def : DiagGroup<"missing-declarations">;
 def : DiagGroup<"missing-format-attribute">;
@@ -91,6 +93,8 @@ def UnusedLabel : DiagGroup<"unused-label">;
 def UnusedParameter : DiagGroup<"unused-parameter">;
 def UnusedValue    : DiagGroup<"unused-value">;
 def UnusedVariable : DiagGroup<"unused-variable">;
+def ReadOnlySetterAttrs : DiagGroup<"readonly-setter-attrs">;
+def UndeclaredSelector : DiagGroup<"undeclared-selector">;
 def : DiagGroup<"variadic-macros">;
 def VectorConversions : DiagGroup<"vector-conversions">;      // clang specific
 def VolatileRegisterVar : DiagGroup<"volatile-register-var">;
@@ -112,7 +116,9 @@ def Format2 : DiagGroup<"format=2",
                         [FormatNonLiteral, FormatSecurity, FormatY2K]>;
 
 
-def Extra : DiagGroup<"extra">;
+def Extra : DiagGroup<"extra", [
+    UnusedParameter
+  ]>;
 
 def Most : DiagGroup<"most", [
     Comment,
@@ -127,7 +133,9 @@ def Most : DiagGroup<"most", [
     UnusedValue,
     UnusedVariable,
     VectorConversions,
-    VolatileRegisterVar
+    VolatileRegisterVar,
+    ReadOnlySetterAttrs,
+    UndeclaredSelector
  ]>;
 
 // -Wall is -Wmost -Wparentheses

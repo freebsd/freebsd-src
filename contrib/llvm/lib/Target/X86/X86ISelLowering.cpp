@@ -788,8 +788,6 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   setOperationAction(ISD::USUBO, MVT::i64, Custom);
   setOperationAction(ISD::SMULO, MVT::i32, Custom);
   setOperationAction(ISD::SMULO, MVT::i64, Custom);
-  setOperationAction(ISD::UMULO, MVT::i32, Custom);
-  setOperationAction(ISD::UMULO, MVT::i64, Custom);
 
   if (!Subtarget->is64Bit()) {
     // These libcalls are not available in 32-bit.
@@ -4439,9 +4437,8 @@ static SDValue LowerToTLSExecModel(GlobalAddressSDNode *GA, SelectionDAG &DAG,
 
   // emit "addl x@ntpoff,%eax" (local exec) or "addl x@indntpoff,%eax" (initial
   // exec)
-  SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(),
-                                             GA->getValueType(0),
-                                             GA->getOffset());
+  SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(), GA->getValueType(0),
+                                           GA->getOffset());
   SDValue Offset = DAG.getNode(X86ISD::Wrapper, dl, PtrVT, TGA);
 
   if (model == TLSModel::InitialExec)
@@ -8469,6 +8466,14 @@ void X86TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
   case 'J':
     if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op)) {
       if (C->getZExtValue() <= 63) {
+        Result = DAG.getTargetConstant(C->getZExtValue(), Op.getValueType());
+        break;
+      }
+    }
+    return;
+  case 'K':
+    if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(Op)) {
+      if ((int8_t)C->getSExtValue() == C->getSExtValue()) {
         Result = DAG.getTargetConstant(C->getZExtValue(), Op.getValueType());
         break;
       }

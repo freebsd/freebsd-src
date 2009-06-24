@@ -13,6 +13,4 @@ TGHDRS=	Intrinsics X86GenCallingConv X86GenDAGISel X86GenFastISel \
 	X86GenInstrInfo X86GenInstrNames X86GenRegisterInfo.h \
 	X86GenRegisterInfo X86GenRegisterNames X86GenSubtarget
 
-MAKEOBJ=
-
 .include "../../clang.lib.mk"

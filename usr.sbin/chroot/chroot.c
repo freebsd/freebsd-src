@@ -69,9 +69,10 @@ main(argc, argv)
 	struct passwd	*pw;
 	char		*endp, *p;
 	const char	*shell;
-	gid_t		gid, gidlist[NGROUPS_MAX];
+	gid_t		gid, *gidlist;
 	uid_t		uid;
 	int		ch, gids;
+	long		ngroups_max;
 
 	gid = 0;
 	uid = 0;
@@ -117,8 +118,11 @@ main(argc, argv)
 		}
 	}
 
+	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
+	if ((gidlist = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
+		err(1, "malloc");
 	for (gids = 0;
-	    (p = strsep(&grouplist, ",")) != NULL && gids < NGROUPS_MAX; ) {
+	    (p = strsep(&grouplist, ",")) != NULL && gids < ngroups_max; ) {
 		if (*p == '\0')
 			continue;
 
@@ -135,7 +139,7 @@ main(argc, argv)
 		}
 		gids++;
 	}
-	if (p != NULL && gids == NGROUPS_MAX)
+	if (p != NULL && gids == ngroups_max)
 		errx(1, "too many supplementary groups provided");
 
 	if (user != NULL) {

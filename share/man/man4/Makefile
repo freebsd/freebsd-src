@@ -7,12 +7,14 @@ MAN=	aac.4 \
 	${_acpi_asus.4} \
 	${_acpi_dock.4} \
 	${_acpi_fujitsu.4} \
+	${_acpi_hp.4} \
 	${_acpi_ibm.4} \
 	${_acpi_panasonic.4} \
 	${_acpi_sony.4} \
 	acpi_thermal.4 \
 	${_acpi_toshiba.4} \
 	acpi_video.4 \
+	${_acpi_wmi.4} \
 	adv.4 \
 	adw.4 \
 	ae.4 \
@@ -55,6 +57,7 @@ MAN=	aac.4 \
 	bwi.4 \
 	cardbus.4 \
 	carp.4 \
+	cas.4 \
 	ccd.4 \
 	cd.4 \
 	cdce.4 \
@@ -472,6 +475,7 @@ MLINKS+=bfe.4 if_bfe.4
 MLINKS+=bge.4 if_bge.4
 MLINKS+=bktr.4 brooktree.4
 MLINKS+=bwi.4 if_bwi.4
+MLINKS+=cas.4 if_cas.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=dc.4 if_dc.4
@@ -592,10 +596,12 @@ _acpi_aiboost.4=acpi_aiboost.4
 _acpi_asus.4=	acpi_asus.4
 _acpi_dock.4=	acpi_dock.4
 _acpi_fujitsu.4=acpi_fujitsu.4
+_acpi_hp.4=	acpi_hp.4
 _acpi_ibm.4=	acpi_ibm.4
 _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
+_acpi_wmi.4=	acpi_wmi.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4

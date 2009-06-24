@@ -82,6 +82,7 @@ void PCHDeclWriter::VisitDecl(Decl *D) {
   Record.push_back(D->isInvalidDecl());
   Record.push_back(D->hasAttrs());
   Record.push_back(D->isImplicit());
+  Record.push_back(D->isUsed());
   Record.push_back(D->getAccess());
 }
 
@@ -156,6 +157,7 @@ void PCHDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
   Record.push_back(D->hasWrittenPrototype());
   Record.push_back(D->isDeleted());
   Writer.AddSourceLocation(D->getTypeSpecStartLoc(), Record);
+  Writer.AddSourceLocation(D->getLocEnd(), Record);
   // FIXME: C++ TemplateOrInstantiation
   Record.push_back(D->param_size());
   for (FunctionDecl::param_iterator P = D->param_begin(), PEnd = D->param_end();
@@ -360,6 +362,7 @@ void PCHDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   // know are true of all PARM_VAR_DECLs.
   if (!D->hasAttrs() &&
       !D->isImplicit() &&
+      !D->isUsed() &&
       D->getAccess() == AS_none &&
       D->getStorageClass() == 0 &&
       !D->hasCXXDirectInitializer() && // Can params have this ever?
@@ -434,6 +437,7 @@ void PCHWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                       // isInvalidDecl (!?)
   Abv->Add(BitCodeAbbrevOp(0));                       // HasAttrs
   Abv->Add(BitCodeAbbrevOp(0));                       // isImplicit
+  Abv->Add(BitCodeAbbrevOp(0));                       // isUsed
   Abv->Add(BitCodeAbbrevOp(AS_none));                 // C++ AccessSpecifier
   
   // NamedDecl
@@ -516,7 +520,7 @@ void PCHWriter::WriteDeclsBlock(ASTContext &Context) {
     
     // If the declaration had any attributes, write them now.
     if (D->hasAttrs())
-      WriteAttributeRecord(D->getAttrs());
+      WriteAttributeRecord(D->getAttrs(Context));
 
     // Flush any expressions that were written as part of this declaration.
     FlushStmts();

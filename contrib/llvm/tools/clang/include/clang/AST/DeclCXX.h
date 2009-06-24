@@ -283,6 +283,10 @@ public:
   /// copy constructor that accepts a const-qualified argument.
   bool hasConstCopyConstructor(ASTContext &Context) const;
 
+  /// getCopyConstructor - Returns the copy constructor for this class
+  CXXConstructorDecl *getCopyConstructor(ASTContext &Context, 
+                                         unsigned TypeQuals) const;
+
   /// hasConstCopyAssignment - Determines whether this class has a
   /// copy assignment operator that accepts a const-qualified argument.
   bool hasConstCopyAssignment(ASTContext &Context) const;
@@ -439,6 +443,9 @@ public:
     TemplateOrInstantiation = Template;
   }
 
+  /// getDefaultConstructor - Returns the default constructor for this class
+  CXXConstructorDecl *getDefaultConstructor(ASTContext &Context);
+  
   /// getDestructor - Returns the destructor decl for this class.
   const CXXDestructorDecl *getDestructor(ASTContext &Context);
   
@@ -476,10 +483,6 @@ public:
   
   bool isStatic() const { return getStorageClass() == Static; }
   bool isInstance() const { return !isStatic(); }
-
-  bool isOutOfLineDefinition() const {
-    return getLexicalDeclContext() != getDeclContext();
-  }
 
   bool isVirtual() const { 
     return isVirtualAsWritten() ||
@@ -535,6 +538,7 @@ public:
 /// public:
 ///   B(A& a) : A(a), f(3.14159) { }
 /// };
+/// @endcode
 class CXXBaseOrMemberInitializer {
   /// BaseOrMember - This points to the entity being initialized,
   /// which is either a base class (a Type) or a non-static data
@@ -641,7 +645,7 @@ class CXXConstructorDecl : public CXXMethodDecl {
   /// explicitly defaulted (i.e., defined with " = default") will have
   /// @c !Implicit && ImplicitlyDefined.
   bool ImplicitlyDefined : 1;
-
+  
   /// FIXME: Add support for base and member initializers.
 
   CXXConstructorDecl(CXXRecordDecl *RD, SourceLocation L,
@@ -678,7 +682,7 @@ public:
            "Can only set the implicit-definition flag once the constructor has been defined");
     ImplicitlyDefined = ID; 
   }
-
+  
   /// isDefaultConstructor - Whether this constructor is a default
   /// constructor (C++ [class.ctor]p5), which can be used to
   /// default-initialize a class of this type.
@@ -1032,6 +1036,61 @@ public:
     return D->getKind() == Decl::NamespaceAlias;
   }
   static bool classof(const NamespaceAliasDecl *D) { return true; }
+};
+
+/// UsingDecl - Represents a C++ using-declaration. For example:
+///    using someNameSpace::someIdentifier;
+class UsingDecl : public NamedDecl {
+
+  /// \brief The source range that covers the nested-name-specifier
+  /// preceding the declaration name.
+  SourceRange NestedNameRange;
+  /// \brief The source location of the target declaration name.
+  SourceLocation TargetNameLocation;
+  /// \brief The source location of the "using" location itself.
+  SourceLocation UsingLocation;
+  /// \brief Target declaration.
+  NamedDecl* TargetDecl;
+  /// \brief Target declaration.
+  NestedNameSpecifier* TargetNestedNameDecl;
+
+  // Had 'typename' keyword.
+  bool IsTypeName;
+
+  UsingDecl(DeclContext *DC, SourceLocation L, SourceRange NNR,
+            SourceLocation TargetNL, SourceLocation UL, NamedDecl* Target,
+            NestedNameSpecifier* TargetNNS, bool IsTypeNameArg)
+    : NamedDecl(Decl::Using, DC, L, Target->getDeclName()),
+      NestedNameRange(NNR), TargetNameLocation(TargetNL),
+      UsingLocation(UL), TargetDecl(Target),
+      TargetNestedNameDecl(TargetNNS), IsTypeName(IsTypeNameArg) { 
+    this->IdentifierNamespace = TargetDecl->getIdentifierNamespace();
+  }
+
+public:
+  /// \brief Returns the source range that covers the nested-name-specifier
+  /// preceding the namespace name.
+  SourceRange getNestedNameRange() { return(NestedNameRange); }
+  /// \brief Returns the source location of the target declaration name.
+  SourceLocation getTargetNameLocation() { return(TargetNameLocation); }
+  /// \brief Returns the source location of the "using" location itself.
+  SourceLocation getUsingLocation() { return(UsingLocation); }
+  /// \brief getTargetDecl - Returns target specified by using-decl.
+  NamedDecl *getTargetDecl() { return(TargetDecl); }
+  /// \brief Get target nested name declaration.
+  NestedNameSpecifier* getTargetNestedNameDecl() { return(TargetNestedNameDecl); }
+  /// isTypeName - Return true if using decl had 'typename'.
+  bool isTypeName() const { return(IsTypeName); }
+
+  static UsingDecl *Create(ASTContext &C, DeclContext *DC,
+      SourceLocation L, SourceRange NNR, SourceLocation TargetNL,
+      SourceLocation UL, NamedDecl* Target,
+      NestedNameSpecifier* TargetNNS, bool IsTypeNameArg);
+
+  static bool classof(const Decl *D) {
+    return D->getKind() == Decl::Using;
+  }
+  static bool classof(const UsingDecl *D) { return true; }
 };
   
 /// StaticAssertDecl - Represents a C++0x static_assert declaration.

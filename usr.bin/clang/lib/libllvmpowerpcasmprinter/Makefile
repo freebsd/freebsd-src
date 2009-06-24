@@ -9,6 +9,4 @@ SRCS=	PPCAsmPrinter.cpp
 TGHDRS=	PPCGenAsmWriter PPCGenInstrNames PPCGenRegisterInfo.h \
 	PPCGenRegisterNames
 
-MAKEOBJ=
-
 .include "../../clang.lib.mk"

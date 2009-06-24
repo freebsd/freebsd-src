@@ -232,7 +232,6 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   DefineBuiltinMacro(Buf, "__clang__=1");  // Clang Frontend
   
   // Currently claim to be compatible with GCC 4.2.1-5621.
-  DefineBuiltinMacro(Buf, "__APPLE_CC__=5621");
   DefineBuiltinMacro(Buf, "__GNUC_MINOR__=2");
   DefineBuiltinMacro(Buf, "__GNUC_PATCHLEVEL__=1");
   DefineBuiltinMacro(Buf, "__GNUC__=4");
@@ -472,11 +471,7 @@ bool InitializePreprocessor(Preprocessor &PP,
       AddImplicitIncludePTH(PredefineBuffer, PP, I->first);
     else
       AddImplicitInclude(PredefineBuffer, I->first);
- }
-
-  LineDirective = "# 2 \"<built-in>\" 2 3\n";
-  PredefineBuffer.insert(PredefineBuffer.end(),
-                         LineDirective, LineDirective+strlen(LineDirective));
+  }
 
   // Null terminate PredefinedBuffer and add it.
   PredefineBuffer.push_back(0);

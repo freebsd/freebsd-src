@@ -9,6 +9,4 @@ SRCS=	MipsAsmPrinter.cpp
 TGHDRS=	MipsGenAsmWriter MipsGenInstrNames MipsGenRegisterInfo.h \
 	MipsGenRegisterNames
 
-MAKEOBJ=
-
 .include "../../clang.lib.mk"

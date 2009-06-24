@@ -18,14 +18,14 @@
 
 using namespace clang;
 
-SVal Environment::GetSVal(Stmt* E, BasicValueFactory& BasicVals) const {
+SVal Environment::GetSVal(const Stmt *E, ValueManager& ValMgr) const {
   
   for (;;) {
     
     switch (E->getStmtClass()) {
         
       case Stmt::AddrLabelExprClass:        
-        return Loc::MakeVal(cast<AddrLabelExpr>(E));
+        return ValMgr.makeLoc(cast<AddrLabelExpr>(E));
         
         // ParenExprs are no-ops.
         
@@ -34,12 +34,12 @@ SVal Environment::GetSVal(Stmt* E, BasicValueFactory& BasicVals) const {
         continue;
         
       case Stmt::CharacterLiteralClass: {
-        CharacterLiteral* C = cast<CharacterLiteral>(E);
-        return NonLoc::MakeVal(BasicVals, C->getValue(), C->getType());
+        const CharacterLiteral* C = cast<CharacterLiteral>(E);
+        return ValMgr.makeIntVal(C->getValue(), C->getType());
       }
         
       case Stmt::IntegerLiteralClass: {
-        return NonLoc::MakeVal(BasicVals, cast<IntegerLiteral>(E));
+        return ValMgr.makeIntVal(cast<IntegerLiteral>(E));
       }
         
       // Casts where the source and target type are the same
@@ -48,7 +48,7 @@ SVal Environment::GetSVal(Stmt* E, BasicValueFactory& BasicVals) const {
        
       case Stmt::ImplicitCastExprClass:
       case Stmt::CStyleCastExprClass: {
-        CastExpr* C = cast<CastExpr>(E);
+        const CastExpr* C = cast<CastExpr>(E);
         QualType CT = C->getType();
         
         if (CT->isVoidType())
@@ -69,7 +69,7 @@ SVal Environment::GetSVal(Stmt* E, BasicValueFactory& BasicVals) const {
   return LookupExpr(E);
 }
 
-SVal Environment::GetBlkExprSVal(Stmt* E, BasicValueFactory& BasicVals) const {
+SVal Environment::GetBlkExprSVal(const Stmt *E, ValueManager& ValMgr) const {
   
   while (1) {
     switch (E->getStmtClass()) {
@@ -78,12 +78,12 @@ SVal Environment::GetBlkExprSVal(Stmt* E, BasicValueFactory& BasicVals) const {
         continue;
         
       case Stmt::CharacterLiteralClass: {
-        CharacterLiteral* C = cast<CharacterLiteral>(E);
-        return NonLoc::MakeVal(BasicVals, C->getValue(), C->getType());
+        const CharacterLiteral* C = cast<CharacterLiteral>(E);
+        return ValMgr.makeIntVal(C->getValue(), C->getType());
       }
         
       case Stmt::IntegerLiteralClass: {
-        return NonLoc::MakeVal(BasicVals, cast<IntegerLiteral>(E));
+        return ValMgr.makeIntVal(cast<IntegerLiteral>(E));
       }
         
       default:
@@ -92,8 +92,9 @@ SVal Environment::GetBlkExprSVal(Stmt* E, BasicValueFactory& BasicVals) const {
   }
 }
 
-Environment EnvironmentManager::BindExpr(const Environment& Env, Stmt* E,SVal V,
-                                         bool isBlkExpr, bool Invalidate) {  
+Environment EnvironmentManager::BindExpr(const Environment& Env, const Stmt* E,
+                                         SVal V, bool isBlkExpr,
+                                         bool Invalidate) {  
   assert (E);
   
   if (V.isUnknown()) {    
@@ -136,7 +137,7 @@ EnvironmentManager::RemoveDeadBindings(Environment Env, Stmt* Loc,
   // Iterate over the block-expr bindings.
   for (Environment::beb_iterator I = Env.beb_begin(), E = Env.beb_end(); 
        I != E; ++I) {
-    Stmt* BlkExpr = I.getKey();
+    const Stmt *BlkExpr = I.getKey();
 
     if (SymReaper.isLive(Loc, BlkExpr)) {
       SVal X = I.getData();
@@ -147,7 +148,7 @@ EnvironmentManager::RemoveDeadBindings(Environment Env, Stmt* Loc,
 
       // Mark all symbols in the block expr's value live.
       MarkLiveCallback cb(SymReaper);
-      StateMgr.scanReachableSymbols(X, state, cb);
+      state->scanReachableSymbols(X, cb);
     } else {
       // The block expr is dead.
       SVal X = I.getData();

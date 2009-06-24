@@ -37,6 +37,7 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <cstdio>
 using namespace llvm;
 
@@ -48,7 +49,7 @@ STATISTIC(NumPRELoad,   "Number of loads PRE'd");
 
 static cl::opt<bool> EnablePRE("enable-pre",
                                cl::init(true), cl::Hidden);
-cl::opt<bool> EnableLoadPRE("enable-load-pre", cl::init(true));
+static cl::opt<bool> EnableLoadPRE("enable-load-pre", cl::init(true));
 
 //===----------------------------------------------------------------------===//
 //                         ValueTable Class
@@ -952,8 +953,14 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
 
   // If we had a phi translation failure, we'll have a single entry which is a
   // clobber in the current block.  Reject this early.
-  if (Deps.size() == 1 && Deps[0].second.isClobber())
+  if (Deps.size() == 1 && Deps[0].second.isClobber()) {
+    DEBUG(
+      DOUT << "GVN: non-local load ";
+      WriteAsOperand(*DOUT.stream(), LI);
+      DOUT << " is clobbered by " << *Deps[0].second.getInst();
+    );
     return false;
+  }
   
   // Filter out useless results (non-locals, etc).  Keep track of the blocks
   // where we have a value available in repl, also keep track of whether we see
@@ -1069,6 +1076,7 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
   BasicBlock *TmpBB = LoadBB;
 
   bool isSinglePred = false;
+  bool allSingleSucc = true;
   while (TmpBB->getSinglePredecessor()) {
     isSinglePred = true;
     TmpBB = TmpBB->getSinglePredecessor();
@@ -1078,6 +1086,8 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
       return false;
     if (Blockers.count(TmpBB))
       return false;
+    if (TmpBB->getTerminator()->getNumSuccessors() != 1)
+      allSingleSucc = false;
   }
   
   assert(TmpBB);
@@ -1154,7 +1164,20 @@ bool GVN::processNonLocalLoad(LoadInst *LI,
                 << UnavailablePred->getName() << "': " << *LI);
     return false;
   }
-  
+
+  // Make sure it is valid to move this load here.  We have to watch out for:
+  //  @1 = getelementptr (i8* p, ...
+  //  test p and branch if == 0
+  //  load @1
+  // It is valid to have the getelementptr before the test, even if p can be 0,
+  // as getelementptr only does address arithmetic.
+  // If we are not pushing the value through any multiple-successor blocks
+  // we do not have this case.  Otherwise, check that the load is safe to
+  // put anywhere; this can be improved, but should be conservatively safe.
+  if (!allSingleSucc &&
+      !isSafeToLoadUnconditionally(LoadPtr, UnavailablePred->getTerminator()))
+    return false;
+
   // Okay, we can eliminate this load by inserting a reload in the predecessor
   // and using PHI construction to get the value in the other predecessors, do
   // it.

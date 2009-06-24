@@ -210,6 +210,8 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	old_id = msi->msi_cpu;
 	if (old_vector && old_id == apic_id)
 		return;
+	if (old_vector && !msi->msi_msix && msi->msi_first->msi_count > 1)
+		return;
 	/* Allocate IDT vector on this cpu. */
 	vector = apic_alloc_vector(apic_id, msi->msi_irq);
 	if (vector == 0)

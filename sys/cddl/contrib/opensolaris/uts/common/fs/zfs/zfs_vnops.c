@@ -4519,7 +4519,7 @@ vop_getextattr {
 	flags = FREAD;
 	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, attrname,
 	    xvp, td);
-	error = vn_open_cred(&nd, &flags, 0, ap->a_cred, NULL);
+	error = vn_open_cred(&nd, &flags, 0, 0, ap->a_cred, NULL);
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0) {
@@ -4640,7 +4640,7 @@ vop_setextattr {
 	flags = FFLAGS(O_WRONLY | O_CREAT);
 	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, attrname,
 	    xvp, td);
-	error = vn_open_cred(&nd, &flags, 0600, ap->a_cred, NULL);
+	error = vn_open_cred(&nd, &flags, 0600, 0, ap->a_cred, NULL);
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0) {

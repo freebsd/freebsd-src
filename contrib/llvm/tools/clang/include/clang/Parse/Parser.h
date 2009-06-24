@@ -104,7 +104,7 @@ class Parser {
       GreaterThanIsOperator = OldGreaterThanIsOperator;
     }
   };
-
+  
 public:
   Parser(Preprocessor &PP, Action &Actions);
   ~Parser();

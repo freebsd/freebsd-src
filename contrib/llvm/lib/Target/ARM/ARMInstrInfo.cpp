@@ -59,6 +59,8 @@ bool ARMInstrInfo::isMoveInstr(const MachineInstr &MI,
     return false;
   case ARM::FCPYS:
   case ARM::FCPYD:
+  case ARM::VMOVD:
+  case ARM::VMOVQ:
     SrcReg = MI.getOperand(1).getReg();
     DstReg = MI.getOperand(0).getReg();
     return true;
@@ -528,6 +530,8 @@ bool ARMInstrInfo::copyRegToReg(MachineBasicBlock &MBB,
   else if (DestRC == ARM::DPRRegisterClass)
     AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::FCPYD), DestReg)
                    .addReg(SrcReg));
+  else if (DestRC == ARM::QPRRegisterClass)
+    BuildMI(MBB, I, DL, get(ARM::VMOVQ), DestReg).addReg(SrcReg);
   else
     return false;
   
@@ -697,7 +701,6 @@ restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
 
   bool isVarArg = AFI->getVarArgsRegSaveSize() > 0;
   MachineInstr *PopMI = MF.CreateMachineInstr(get(ARM::tPOP),MI->getDebugLoc());
-  MBB.insert(MI, PopMI);
   for (unsigned i = CSI.size(); i != 0; --i) {
     unsigned Reg = CSI[i-1].getReg();
     if (Reg == ARM::LR) {
@@ -706,10 +709,15 @@ restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
         continue;
       Reg = ARM::PC;
       PopMI->setDesc(get(ARM::tPOP_RET));
-      MBB.erase(MI);
+      MI = MBB.erase(MI);
     }
     PopMI->addOperand(MachineOperand::CreateReg(Reg, true));
   }
+
+  // It's illegal to emit pop instruction without operands.
+  if (PopMI->getNumOperands() > 0)
+    MBB.insert(MI, PopMI);
+
   return true;
 }
 
@@ -840,6 +848,10 @@ canFoldMemoryOperand(const MachineInstr *MI,
   case ARM::FCPYS:
   case ARM::FCPYD:
     return true;
+
+  case ARM::VMOVD:
+  case ARM::VMOVQ:
+    return false; // FIXME
   }
 
   return false;

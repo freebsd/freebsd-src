@@ -7,6 +7,4 @@ SRCS=	CBackend.cpp
 
 TGHDRS=	Intrinsics
 
-MAKEOBJ=
-
 .include "../../clang.lib.mk"

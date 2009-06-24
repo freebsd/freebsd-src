@@ -707,8 +707,10 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 		/* XXX: ptrace? */
 		if (priv_check(td, PRIV_CRED_SETUID) || 
 		    priv_check(td, PRIV_CRED_SETEUID) ||
-		    p_candebug(td, p))
+		    p_candebug(td, p)) {
+			PROC_UNLOCK(p);
 			return (EPERM);
+		}
 		head = em->robust_futexes;
 		
 		PROC_UNLOCK(p);

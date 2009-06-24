@@ -14,6 +14,4 @@ TGHDRS=	ARMGenCallingConv ARMGenCodeEmitter ARMGenDAGISel \
 	ARMGenRegisterInfo ARMGenRegisterNames ARMGenSubtarget \
 	Intrinsics
 
-MAKEOBJ=
-
 .include "../../clang.lib.mk"

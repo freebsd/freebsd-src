@@ -78,11 +78,13 @@ namespace CodeGenOpt {
   };
 }
 
+
+// Possible float ABI settings. Used with FloatABIType in TargetOptions.h.
 namespace FloatABI {
   enum ABIType {
-    Default,
-    Soft,
-    Hard
+    Default, // Target-specific (either soft of hard depending on triple, etc).
+    Soft, // Soft float.
+    Hard  // Hard float.
   };
 }
 

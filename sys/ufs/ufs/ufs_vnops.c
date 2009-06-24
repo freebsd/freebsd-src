@@ -1849,7 +1849,7 @@ ufs_symlink(ap)
 	} else
 		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
 		    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
-		    ap->a_cnp->cn_cred, NOCRED, (int *)0, (struct thread *)0);
+		    ap->a_cnp->cn_cred, NOCRED, NULL, NULL);
 	if (error)
 		vput(vp);
 	return (error);
@@ -2266,6 +2266,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	{
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
+		gid_t ucred_group;
 		ucp = cnp->cn_cred;
 #endif
 		/*
@@ -2292,6 +2293,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			refcount_init(&ucred.cr_ref, 1);
 			ucred.cr_uid = ip->i_uid;
 			ucred.cr_ngroups = 1;
+			ucred.cr_groups = &ucred_group;
 			ucred.cr_groups[0] = pdir->i_gid;
 			ucp = &ucred;
 #endif

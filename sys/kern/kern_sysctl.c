@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
@@ -1599,7 +1600,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		sx_xlock(&sysctlmemlock);
 	} else
 		memlocked = 0;
-	CURVNET_SET(TD_TO_VNET(curthread));
+	CURVNET_SET(TD_TO_VNET(td));
 
 	for (;;) {
 		req.oldidx = 0;

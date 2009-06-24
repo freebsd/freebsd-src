@@ -456,7 +456,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		break;							\
 	case V_NET:							\
 		cp = (char *)						\
-		    TD_TO_VNET(curthread)->mod_data[oidp->oid_v_mod];	\
+		    TD_TO_VNET(req->td)->mod_data[oidp->oid_v_mod];	\
 		arg1 = cp + (size_t) arg1;				\
 		break;							\
 	case V_PROCG:							\

@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>			/* for IFF_* flags		*/
 #include <net/netisr.h>			/* for NETISR_POLL		*/
-#include <net/route.h>
 #include <net/vnet.h>
 
 static int poll_switch(SYSCTL_HANDLER_ARGS);

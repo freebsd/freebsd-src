@@ -211,7 +211,7 @@
 #define HAVE_CLOCK_T 1
 
 /* Define to 1 if you have the `closefrom' function. */
-/* #undef HAVE_CLOSEFROM */
+#define HAVE_CLOSEFROM 1
 
 /* Define if gai_strerror() returns const char * */
 #define HAVE_CONST_GAI_STRERROR_PROTO 1

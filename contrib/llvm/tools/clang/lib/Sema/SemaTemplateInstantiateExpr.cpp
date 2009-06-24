@@ -714,9 +714,17 @@ TemplateExprInstantiator::VisitSizeOfAlignOfExpr(SizeOfAlignOfExpr *E) {
                                            E->getSourceRange());
   } 
 
-  Sema::OwningExprResult Arg = Visit(E->getArgumentExpr());
-  if (Arg.isInvalid())
-    return SemaRef.ExprError();
+  Sema::OwningExprResult Arg(SemaRef);
+  {   
+    // C++0x [expr.sizeof]p1:
+    //   The operand is either an expression, which is an unevaluated operand
+    //   [...]
+    EnterExpressionEvaluationContext Unevaluated(SemaRef, Action::Unevaluated);
+    
+    Arg = Visit(E->getArgumentExpr());
+    if (Arg.isInvalid())
+      return SemaRef.ExprError();
+  }
 
   Sema::OwningExprResult Result
     = SemaRef.CreateSizeOfAlignOfExpr((Expr *)Arg.get(), E->getOperatorLoc(),
@@ -949,6 +957,12 @@ TemplateExprInstantiator::VisitCXXTypeidExpr(CXXTypeidExpr *E) {
                                   E->getSourceRange().getEnd());
   }
 
+  // We don't know whether the expression is potentially evaluated until
+  // after we perform semantic analysis, so the expression is potentially
+  // potentially evaluated.
+  EnterExpressionEvaluationContext Unevaluated(SemaRef, 
+                                     Action::PotentiallyPotentiallyEvaluated);
+
   OwningExprResult Operand = Visit(E->getExprOperand());
   if (Operand.isInvalid())
     return SemaRef.ExprError();
@@ -1165,7 +1179,10 @@ TemplateExprInstantiator::VisitCXXExprWithTemporaries(
   if (SubExpr.isInvalid())
     return SemaRef.ExprError();
 
-  return SemaRef.ActOnFinishFullExpr(move(SubExpr));
+  Expr *Temp = 
+    SemaRef.MaybeCreateCXXExprWithTemporaries(SubExpr.takeAs<Expr>(),
+                                              E->shouldDestroyTemporaries());
+  return SemaRef.Owned(Temp);
 }
 
 Sema::OwningExprResult 

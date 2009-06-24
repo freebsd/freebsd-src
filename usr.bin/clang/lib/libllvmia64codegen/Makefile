@@ -11,6 +11,4 @@ TGHDRS=	IA64GenDAGISel IA64GenInstrInfo IA64GenInstrNames \
 	IA64GenRegisterInfo.h IA64GenRegisterInfo IA64GenRegisterNames \
 	Intrinsics
 
-MAKEOBJ=
-
 .include "../../clang.lib.mk"

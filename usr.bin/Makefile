@@ -158,6 +158,7 @@ SUBDIR=	alias \
 	${_quota} \
 	renice \
 	rev \
+	revoke \
 	${_rlogin} \
 	${_rpcgen} \
 	rpcinfo \

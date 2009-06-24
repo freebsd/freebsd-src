@@ -357,7 +357,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			 * to any endpoint address, local or not.
 			 */
 			if ((inp->inp_flags & INP_BINDANY) == 0 &&
-			    ifa_ifwithaddr((struct sockaddr *)sin) == NULL)
+			    ifa_ifwithaddr_check((struct sockaddr *)sin) == 0) 
 				return (EADDRNOTAVAIL);
 		}
 		laddr = sin->sin_addr;
@@ -705,10 +705,6 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
 
 		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
-#if __FreeBSD_version < 800000
-			if (ia == NULL)
-				ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
-#endif
 			if (ia == NULL) {
 				error = ENETUNREACH;
 				goto done;

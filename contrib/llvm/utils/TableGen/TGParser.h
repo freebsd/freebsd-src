@@ -15,7 +15,7 @@
 #define TGPARSER_H
 
 #include "TGLexer.h"
-#include "TGSourceMgr.h"
+#include "llvm/Support/SourceMgr.h"
 #include <map>
 
 namespace llvm {
@@ -31,9 +31,9 @@ namespace llvm {
     std::string Name;
     std::vector<unsigned> Bits;
     Init *Value;
-    TGLoc Loc;
+    SMLoc Loc;
     LetRecord(const std::string &N, const std::vector<unsigned> &B, Init *V,
-              TGLoc L)
+              SMLoc L)
       : Name(N), Bits(B), Value(V), Loc(L) {
     }
   };
@@ -47,15 +47,13 @@ class TGParser {
   /// current value.
   MultiClass *CurMultiClass;
 public:
-  TGParser(TGSourceMgr &SrcMgr) : Lex(SrcMgr), CurMultiClass(0) {}
+  TGParser(SourceMgr &SrcMgr) : Lex(SrcMgr), CurMultiClass(0) {}
   
-  void setIncludeDirs(const std::vector<std::string> &D){Lex.setIncludeDirs(D);}
-
   /// ParseFile - Main entrypoint for parsing a tblgen file.  These parser
   /// routines return true on error, or false on success.
   bool ParseFile();
   
-  bool Error(TGLoc L, const std::string &Msg) const {
+  bool Error(SMLoc L, const std::string &Msg) const {
     Lex.PrintError(L, Msg);
     return true;
   }
@@ -63,8 +61,8 @@ public:
     return Error(Lex.getLoc(), Msg);
   }
 private:  // Semantic analysis methods.
-  bool AddValue(Record *TheRec, TGLoc Loc, const RecordVal &RV);
-  bool SetValue(Record *TheRec, TGLoc Loc, const std::string &ValName, 
+  bool AddValue(Record *TheRec, SMLoc Loc, const RecordVal &RV);
+  bool SetValue(Record *TheRec, SMLoc Loc, const std::string &ValName, 
                 const std::vector<unsigned> &BitList, Init *V);
   bool AddSubClass(Record *Rec, SubClassReference &SubClass);
   bool AddSubMultiClass(MultiClass *CurMC,
@@ -92,7 +90,7 @@ private:  // Parser methods.
   SubMultiClassReference ParseSubMultiClassReference(MultiClass *CurMC);
 
   Init *ParseIDValue(Record *CurRec);
-  Init *ParseIDValue(Record *CurRec, const std::string &Name, TGLoc NameLoc);
+  Init *ParseIDValue(Record *CurRec, const std::string &Name, SMLoc NameLoc);
   Init *ParseSimpleValue(Record *CurRec, RecTy *ItemType = 0);
   Init *ParseValue(Record *CurRec, RecTy *ItemType = 0);
   std::vector<Init*> ParseValueList(Record *CurRec, Record *ArgsRec = 0, RecTy *EltTy = 0);

@@ -124,10 +124,10 @@ namespace {
 // FIXME: Eliminate globals from tblgen.
 RecordKeeper llvm::Records;
 
-static TGSourceMgr SrcMgr;
+static SourceMgr SrcMgr;
 
-void llvm::PrintError(TGLoc ErrorLoc, const std::string &Msg) {
-  SrcMgr.PrintError(ErrorLoc, Msg);
+void llvm::PrintError(SMLoc ErrorLoc, const std::string &Msg) {
+  SrcMgr.PrintMessage(ErrorLoc, Msg);
 }
 
 
@@ -136,7 +136,7 @@ void llvm::PrintError(TGLoc ErrorLoc, const std::string &Msg) {
 /// file.
 static bool ParseFile(const std::string &Filename,
                       const std::vector<std::string> &IncludeDirs,
-                      TGSourceMgr &SrcMgr) {
+                      SourceMgr &SrcMgr) {
   std::string ErrorStr;
   MemoryBuffer *F = MemoryBuffer::getFileOrSTDIN(Filename.c_str(), &ErrorStr);
   if (F == 0) {
@@ -145,13 +145,13 @@ static bool ParseFile(const std::string &Filename,
   }
   
   // Tell SrcMgr about this buffer, which is what TGParser will pick up.
-  SrcMgr.AddNewSourceBuffer(F, TGLoc());
-  
-  TGParser Parser(SrcMgr);
+  SrcMgr.AddNewSourceBuffer(F, SMLoc());
 
   // Record the location of the include directory so that the lexer can find
   // it later.
-  Parser.setIncludeDirs(IncludeDirs);
+  SrcMgr.setIncludeDirs(IncludeDirs);
+  
+  TGParser Parser(SrcMgr);
 
   return Parser.ParseFile();
 }

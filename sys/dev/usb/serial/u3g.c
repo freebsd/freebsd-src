@@ -30,22 +30,37 @@
  *
  */
 
-#include "usbdevs.h"
+
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR u3g_debug
-
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_msctest.h>
 #include <dev/usb/usb_dynamic.h>
+#include <dev/usb/usb_msctest.h>
 #include <dev/usb/usb_device.h>
 
 #include <dev/usb/serial/usb_serial.h>
@@ -131,10 +146,10 @@ static const struct usb_config u3g_config[U3G_N_TRANSFER] = {
 };
 
 static const struct ucom_callback u3g_callback = {
-	.usb2_com_start_read = &u3g_start_read,
-	.usb2_com_stop_read = &u3g_stop_read,
-	.usb2_com_start_write = &u3g_start_write,
-	.usb2_com_stop_write = &u3g_stop_write,
+	.ucom_start_read = &u3g_start_read,
+	.ucom_stop_read = &u3g_stop_read,
+	.ucom_start_write = &u3g_start_write,
+	.ucom_stop_write = &u3g_stop_write,
 };
 
 static device_method_t u3g_methods[] = {
@@ -238,7 +253,7 @@ u3g_sierra_init(struct usb_device *udev)
 	USETW(req.wIndex, UHF_PORT_CONNECTION);
 	USETW(req.wLength, 0);
 
-	if (usb2_do_request_flags(udev, NULL, &req,
+	if (usbd_do_request_flags(udev, NULL, &req,
 	    NULL, 0, NULL, USB_MS_HZ)) {
 		/* ignore any errors */
 	}
@@ -258,7 +273,7 @@ u3g_huawei_init(struct usb_device *udev)
 	USETW(req.wIndex, UHF_PORT_SUSPEND);
 	USETW(req.wLength, 0);
 
-	if (usb2_do_request_flags(udev, NULL, &req,
+	if (usbd_do_request_flags(udev, NULL, &req,
 	    NULL, 0, NULL, USB_MS_HZ)) {
 		/* ignore any errors */
 	}
@@ -306,7 +321,7 @@ u3g_sael_m460_init(struct usb_device *udev)
 
 	DPRINTFN(1, "\n");
 
-	if (usb2_req_set_alt_interface_no(udev, NULL, 0, 0)) {
+	if (usbd_req_set_alt_interface_no(udev, NULL, 0, 0)) {
 		DPRINTFN(0, "Alt setting 0 failed\n");
 		return;
 	}
@@ -321,13 +336,13 @@ u3g_sael_m460_init(struct usb_device *udev)
 				DPRINTFN(0, "too small buffer\n");
 				continue;
 			}
-			err = usb2_do_request(udev, NULL, &req, buf);
+			err = usbd_do_request(udev, NULL, &req, buf);
 		} else {
 			if (len > (sizeof(setup[0]) - 8)) {
 				DPRINTFN(0, "too small buffer\n");
 				continue;
 			}
-			err = usb2_do_request(udev, NULL, &req, 
+			err = usbd_do_request(udev, NULL, &req, 
 			    __DECONST(uint8_t *, &setup[n][8]));
 		}
 		if (err) {
@@ -349,7 +364,7 @@ static int
 u3g_lookup_huawei(struct usb_attach_arg *uaa)
 {
 	/* Calling the lookup function will also set the driver info! */
-	return (usb2_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
+	return (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
 }
 
 /*
@@ -369,7 +384,7 @@ u3g_test_huawei_autoinst(struct usb_device *udev,
 	if (udev == NULL) {
 		return (USB_ERR_INVAL);
 	}
-	iface = usb2_get_iface(udev, 0);
+	iface = usbd_get_iface(udev, 0);
 	if (iface == NULL) {
 		return (USB_ERR_INVAL);
 	}
@@ -389,7 +404,7 @@ u3g_test_huawei_autoinst(struct usb_device *udev,
 	if (flags & U3GFL_HUAWEI_INIT) {
 		u3g_huawei_init(udev);
 	} else if (flags & U3GFL_SCSI_EJECT) {
-		return (usb2_test_autoinstall(udev, 0, 1));
+		return (usb_test_autoinstall(udev, 0, 1));
 	} else if (flags & U3GFL_SIERRA_INIT) {
 		u3g_sierra_init(udev);
 	} else {
@@ -405,10 +420,10 @@ u3g_driver_loaded(struct module *mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		/* register our autoinstall handler */
-		usb2_test_huawei_autoinst_p = &u3g_test_huawei_autoinst;
+		usb_test_huawei_autoinst_p = &u3g_test_huawei_autoinst;
 		break;
 	case MOD_UNLOAD:
-		usb2_test_huawei_unload(NULL);
+		usb_test_huawei_unload(NULL);
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -457,7 +472,7 @@ u3g_attach(device_t dev)
 	for (n = 0; n != U3G_N_TRANSFER; n++) 
 		u3g_config_tmp[n] = u3g_config[n];
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "u3g", NULL, MTX_DEF);
 
 	sc->sc_udev = uaa->device;
@@ -465,13 +480,13 @@ u3g_attach(device_t dev)
 	/* Claim all interfaces on the device */
 	iface_valid = 0;
 	for (i = uaa->info.bIfaceIndex; i < USB_IFACE_MAX; i++) {
-		iface = usb2_get_iface(uaa->device, i);
+		iface = usbd_get_iface(uaa->device, i);
 		if (iface == NULL)
 			break;
-		id = usb2_get_interface_descriptor(iface);
+		id = usbd_get_interface_descriptor(iface);
 		if (id == NULL || id->bInterfaceClass != UICLASS_VENDOR)
 			continue;
-		usb2_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
+		usbd_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
 		iface_valid |= (1<<i);
 	}
 
@@ -489,7 +504,7 @@ u3g_attach(device_t dev)
 			u3g_config_tmp[n].ep_index = ep;
 
 		/* try to allocate a set of BULK endpoints */
-		error = usb2_transfer_setup(uaa->device, &i,
+		error = usbd_transfer_setup(uaa->device, &i,
 		    sc->sc_xfer[nports], u3g_config_tmp, U3G_N_TRANSFER,
 		    &sc->sc_ucom[nports], &sc->sc_mtx);
 		if (error) {
@@ -501,8 +516,8 @@ u3g_attach(device_t dev)
 
 		/* set stall by default */
 		mtx_lock(&sc->sc_mtx);
-		usb2_transfer_set_stall(sc->sc_xfer[nports][U3G_BULK_WR]);
-		usb2_transfer_set_stall(sc->sc_xfer[nports][U3G_BULK_RD]);
+		usbd_xfer_set_stall(sc->sc_xfer[nports][U3G_BULK_WR]);
+		usbd_xfer_set_stall(sc->sc_xfer[nports][U3G_BULK_RD]);
 		mtx_unlock(&sc->sc_mtx);
 
 		nports++;	/* found one port */
@@ -516,10 +531,10 @@ u3g_attach(device_t dev)
 	}
 	sc->sc_numports = nports;
 
-	error = usb2_com_attach(&sc->sc_super_ucom, sc->sc_ucom,
+	error = ucom_attach(&sc->sc_super_ucom, sc->sc_ucom,
 	    sc->sc_numports, sc, &u3g_callback, &sc->sc_mtx);
 	if (error) {
-		DPRINTF("usb2_com_attach failed\n");
+		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
 	if (sc->sc_numports > 1)
@@ -540,10 +555,10 @@ u3g_detach(device_t dev)
 	DPRINTF("sc=%p\n", sc);
 
 	/* NOTE: It is not dangerous to detach more ports than attached! */
-	usb2_com_detach(&sc->sc_super_ucom, sc->sc_ucom, U3G_MAXPORTS);
+	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom, U3G_MAXPORTS);
 
 	for (m = 0; m != U3G_MAXPORTS; m++)
-		usb2_transfer_unsetup(sc->sc_xfer[m], U3G_N_TRANSFER);
+		usbd_transfer_unsetup(sc->sc_xfer[m], U3G_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -555,7 +570,7 @@ u3g_start_read(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
+	usbd_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
 	return;
 }
 
@@ -565,7 +580,7 @@ u3g_stop_read(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
+	usbd_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
 	return;
 }
 
@@ -574,7 +589,7 @@ u3g_start_write(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
 	return;
 }
 
@@ -583,31 +598,32 @@ u3g_stop_write(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
+	usbd_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
 	return;
 }
 
 static void
-u3g_write_callback(struct usb_xfer *xfer)
+u3g_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ucom_softc *ucom = xfer->priv_sc;
+	struct ucom_softc *ucom = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 tr_setup:
-		if (usb2_com_get_data(ucom, xfer->frbuffers, 0,
-		    U3G_BSIZE, &actlen)) {
-			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (ucom_get_data(ucom, pc, 0, U3G_BSIZE, &actlen)) {
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_transfer_submit(xfer);
 		}
 		break;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* do a builtin clear-stall */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		break;
@@ -616,24 +632,29 @@ tr_setup:
 }
 
 static void
-u3g_read_callback(struct usb_xfer *xfer)
+u3g_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ucom_softc *ucom = xfer->priv_sc;
+	struct ucom_softc *ucom = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_com_put_data(ucom, xfer->frbuffers, 0, xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		ucom_put_data(ucom, pc, 0, actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* do a builtin clear-stall */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		break;

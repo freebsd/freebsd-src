@@ -120,9 +120,8 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		np->netc_exflags = argp->ex_flags;
 		np->netc_anon = crget();
 		np->netc_anon->cr_uid = argp->ex_anon.cr_uid;
-		np->netc_anon->cr_ngroups = argp->ex_anon.cr_ngroups;
-		bcopy(argp->ex_anon.cr_groups, np->netc_anon->cr_groups,
-		    sizeof(np->netc_anon->cr_groups));
+		crsetgroups(np->netc_anon, argp->ex_anon.cr_ngroups,
+		    argp->ex_anon.cr_groups);
 		np->netc_numsecflavors = argp->ex_numsecflavors;
 		bcopy(argp->ex_secflavors, np->netc_secflavors,
 		    sizeof(np->netc_secflavors));
@@ -205,9 +204,8 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	np->netc_exflags = argp->ex_flags;
 	np->netc_anon = crget();
 	np->netc_anon->cr_uid = argp->ex_anon.cr_uid;
-	np->netc_anon->cr_ngroups = argp->ex_anon.cr_ngroups;
-	bcopy(argp->ex_anon.cr_groups, np->netc_anon->cr_groups,
-	    sizeof(np->netc_anon->cr_groups));
+	crsetgroups(np->netc_anon, argp->ex_anon.cr_ngroups,
+	    np->netc_anon->cr_groups);
 	np->netc_numsecflavors = argp->ex_numsecflavors;
 	bcopy(argp->ex_secflavors, np->netc_secflavors,
 	    sizeof(np->netc_secflavors));

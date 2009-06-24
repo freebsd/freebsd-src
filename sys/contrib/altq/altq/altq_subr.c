@@ -55,7 +55,6 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #ifdef __FreeBSD__
-#include <net/route.h>
 #include <net/vnet.h>
 #endif
 

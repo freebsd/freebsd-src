@@ -156,9 +156,15 @@ private:
   /// the implementation rather than explicitly written by the user.
   bool Implicit : 1;
 
+  /// \brief Whether this declaration was "used", meaning that a definition is
+  /// required.
+  bool Used : 1;
+
+protected:
   /// IdentifierNamespace - This specifies what IDNS_* namespace this lives in.
   unsigned IdentifierNamespace : 8;
   
+private:
 #ifndef NDEBUG
   void CheckAccessDeclContext() const;
 #else
@@ -174,7 +180,7 @@ protected:
   Decl(Kind DK, DeclContext *DC, SourceLocation L) 
     : NextDeclInContext(0), DeclCtx(DC), 
       Loc(L), DeclKind(DK), InvalidDecl(0),
-      HasAttrs(false), Implicit(false), 
+      HasAttrs(false), Implicit(false), Used(false),
       IdentifierNamespace(getIdentifierNamespaceForKind(DK)), Access(AS_none) {
     if (Decl::CollectingStats()) addDeclKind(DK);
   }
@@ -182,6 +188,14 @@ protected:
   virtual ~Decl();
 
 public:
+
+  /// \brief Source range that this declaration covers.
+  virtual SourceRange getSourceRange() const {
+    return SourceRange(getLocation(), getLocation());
+  }
+  SourceLocation getLocStart() const { return getSourceRange().getBegin(); }
+  SourceLocation getLocEnd() const { return getSourceRange().getEnd(); }
+
   SourceLocation getLocation() const { return Loc; }
   void setLocation(SourceLocation L) { Loc = L; }
 
@@ -211,23 +225,23 @@ public:
   }
 
   bool hasAttrs() const { return HasAttrs; }
-  void addAttr(Attr *attr);
-  const Attr *getAttrs() const {
+  void addAttr(ASTContext &Context, Attr *attr);
+  const Attr *getAttrs(ASTContext &Context) const {
     if (!HasAttrs) return 0;  // common case, no attributes.
-    return getAttrsImpl();    // Uncommon case, out of line hash lookup.
+    return getAttrsImpl(Context);    // Uncommon case, out of line hash lookup.
   }
-  void swapAttrs(Decl *D);
-  void invalidateAttrs();
+  void swapAttrs(ASTContext &Context, Decl *D);
+  void invalidateAttrs(ASTContext &Context);
 
-  template<typename T> const T *getAttr() const {
-    for (const Attr *attr = getAttrs(); attr; attr = attr->getNext())
+  template<typename T> const T *getAttr(ASTContext &Context) const {
+    for (const Attr *attr = getAttrs(Context); attr; attr = attr->getNext())
       if (const T *V = dyn_cast<T>(attr))
         return V;
     return 0;
   }
     
-  template<typename T> bool hasAttr() const {
-    return getAttr<T>() != 0;
+  template<typename T> bool hasAttr(ASTContext &Context) const {
+    return getAttr<T>(Context) != 0;
   }
   
   /// setInvalidDecl - Indicates the Decl had a semantic error. This
@@ -240,6 +254,11 @@ public:
   /// was written explicitly in the source code.
   bool isImplicit() const { return Implicit; }
   void setImplicit(bool I = true) { Implicit = I; }
+  
+  /// \brief Whether this declaration was used, meaning that a definition
+  /// is required.
+  bool isUsed() const { return Used; }
+  void setUsed(bool U = true) { Used = U; }
   
   unsigned getIdentifierNamespace() const {
     return IdentifierNamespace;
@@ -267,6 +286,10 @@ public:
   }
   const DeclContext *getLexicalDeclContext() const {
     return const_cast<Decl*>(this)->getLexicalDeclContext();
+  }
+
+  bool isOutOfLine() const {
+    return getLexicalDeclContext() != getDeclContext();
   }
   
   /// setDeclContext - Set both the semantic and lexical DeclContext
@@ -325,7 +348,7 @@ public:
   void dump(ASTContext &Context);
 
 private:
-  const Attr *getAttrsImpl() const;
+  const Attr *getAttrsImpl(ASTContext &Context) const;
 
 };
 

@@ -84,7 +84,7 @@ Sema::ActOnCompoundStmt(SourceLocation L, SourceLocation R,
     
     SourceLocation Loc;
     SourceRange R1, R2;
-    if (!E->isUnusedResultAWarning(Loc, R1, R2))
+    if (!E->isUnusedResultAWarning(Loc, R1, R2, Context))
       continue;
 
     Diag(Loc, diag::warn_unused_expr) << R1 << R2;
@@ -748,18 +748,25 @@ Action::OwningStmtResult
 Sema::ActOnBlockReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
   // If this is the first return we've seen in the block, infer the type of
   // the block from it.
-  if (CurBlock->ReturnType == 0) {
+  if (CurBlock->ReturnType.isNull()) {
     if (RetValExp) {
       // Don't call UsualUnaryConversions(), since we don't want to do
       // integer promotions here.
       DefaultFunctionArrayConversion(RetValExp);
-      CurBlock->ReturnType = RetValExp->getType().getTypePtr();
+      CurBlock->ReturnType = RetValExp->getType();
+      if (BlockDeclRefExpr *CDRE = dyn_cast<BlockDeclRefExpr>(RetValExp)) {
+        // We have to remove a 'const' added to copied-in variable which was
+        // part of the implementation spec. and not the actual qualifier for
+        // the variable.
+        if (CDRE->isConstQualAdded())
+           CurBlock->ReturnType.removeConst();
+      }
     } else
-      CurBlock->ReturnType = Context.VoidTy.getTypePtr();
+      CurBlock->ReturnType = Context.VoidTy;
   }
-  QualType FnRetType = QualType(CurBlock->ReturnType, 0);
+  QualType FnRetType = CurBlock->ReturnType;
 
-  if (CurBlock->TheDecl->hasAttr<NoReturnAttr>()) {
+  if (CurBlock->TheDecl->hasAttr<NoReturnAttr>(Context)) {
     Diag(ReturnLoc, diag::err_noreturn_block_has_return_expr)
       << getCurFunctionOrMethodDecl()->getDeclName();
     return StmtError();
@@ -835,7 +842,7 @@ Sema::ActOnReturnStmt(SourceLocation ReturnLoc, FullExprArg rex) {
   QualType FnRetType;
   if (const FunctionDecl *FD = getCurFunctionDecl()) {
     FnRetType = FD->getResultType();
-    if (FD->hasAttr<NoReturnAttr>())
+    if (FD->hasAttr<NoReturnAttr>(Context))
       Diag(ReturnLoc, diag::warn_noreturn_function_has_return_expr)
         << getCurFunctionOrMethodDecl()->getDeclName();
   } else if (ObjCMethodDecl *MD = getCurMethodDecl())

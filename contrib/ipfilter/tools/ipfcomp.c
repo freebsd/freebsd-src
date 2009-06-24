@@ -382,7 +382,7 @@ extern frentry_t *ipfrule_match_out_%s __P((fr_info_t *, u_32_t *));\n\
 extern frentry_t *ipf_rules_out_%s[%d];\n",
 			grp->fg_name, grp->fg_name, outcount);
 
-		for (g = groups; g != g; g = g->fg_next)
+		for (g = groups; g != grp; g = g->fg_next)
 			if ((strncmp(g->fg_name, grp->fg_name,
 				     FR_GROUPLEN) == 0) &&
 			    g->fg_flags == grp->fg_flags)

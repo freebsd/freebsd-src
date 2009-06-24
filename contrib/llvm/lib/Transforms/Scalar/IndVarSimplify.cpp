@@ -17,7 +17,10 @@
 //      which starts at zero and steps by one.
 //   2. The canonical induction variable is guaranteed to be the first PHI node
 //      in the loop header block.
-//   3. Any pointer arithmetic recurrences are raised to use array subscripts.
+//   3. The canonical induction variable is guaranteed to be in a wide enough
+//      type so that IV expressions need not be (directly) zero-extended or
+//      sign-extended.
+//   4. Any pointer arithmetic recurrences are raised to use array subscripts.
 //
 // If the trip count of a loop is computable, this pass also makes the following
 // changes:
@@ -93,7 +96,7 @@ namespace {
 
     void RewriteNonIntegerIVs(Loop *L);
 
-    ICmpInst *LinearFunctionTestReplace(Loop *L, SCEVHandle BackedgeTakenCount,
+    ICmpInst *LinearFunctionTestReplace(Loop *L, const SCEV* BackedgeTakenCount,
                                    Value *IndVar,
                                    BasicBlock *ExitingBlock,
                                    BranchInst *BI,
@@ -125,7 +128,7 @@ Pass *llvm::createIndVarSimplifyPass() {
 /// SCEV analysis can determine a loop-invariant trip count of the loop, which
 /// is actually a much broader range than just linear tests.
 ICmpInst *IndVarSimplify::LinearFunctionTestReplace(Loop *L,
-                                   SCEVHandle BackedgeTakenCount,
+                                   const SCEV* BackedgeTakenCount,
                                    Value *IndVar,
                                    BasicBlock *ExitingBlock,
                                    BranchInst *BI,
@@ -134,13 +137,13 @@ ICmpInst *IndVarSimplify::LinearFunctionTestReplace(Loop *L,
   // against the preincremented value, otherwise we prefer to compare against
   // the post-incremented value.
   Value *CmpIndVar;
-  SCEVHandle RHS = BackedgeTakenCount;
+  const SCEV* RHS = BackedgeTakenCount;
   if (ExitingBlock == L->getLoopLatch()) {
     // Add one to the "backedge-taken" count to get the trip count.
     // If this addition may overflow, we have to be more pessimistic and
     // cast the induction variable before doing the add.
-    SCEVHandle Zero = SE->getIntegerSCEV(0, BackedgeTakenCount->getType());
-    SCEVHandle N =
+    const SCEV* Zero = SE->getIntegerSCEV(0, BackedgeTakenCount->getType());
+    const SCEV* N =
       SE->getAddExpr(BackedgeTakenCount,
                      SE->getIntegerSCEV(1, BackedgeTakenCount->getType()));
     if ((isa<SCEVConstant>(N) && !N->isZero()) ||
@@ -275,7 +278,7 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L,
         // Okay, this instruction has a user outside of the current loop
         // and varies predictably *inside* the loop.  Evaluate the value it
         // contains when the loop exits, if possible.
-        SCEVHandle ExitValue = SE->getSCEVAtScope(Inst, L->getParentLoop());
+        const SCEV* ExitValue = SE->getSCEVAtScope(Inst, L->getParentLoop());
         if (!ExitValue->isLoopInvariant(L))
           continue;
 
@@ -296,11 +299,11 @@ void IndVarSimplify::RewriteLoopExitValues(Loop *L,
         // If this instruction is dead now, delete it.
         RecursivelyDeleteTriviallyDeadInstructions(Inst);
 
-        // See if this is a single-entry LCSSA PHI node.  If so, we can (and
-        // have to) remove
-        // the PHI entirely.  This is safe, because the NewVal won't be variant
+        // If we're inserting code into the exit block rather than the
+        // preheader, we can (and have to) remove the PHI entirely.
+        // This is safe, because the NewVal won't be variant
         // in the loop, so we don't need an LCSSA phi node anymore.
-        if (NumPreds == 1) {
+        if (ExitBlocks.size() == 1) {
           PN->replaceAllUsesWith(ExitVal);
           RecursivelyDeleteTriviallyDeadInstructions(PN);
           break;
@@ -345,7 +348,7 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   BasicBlock *Header       = L->getHeader();
   BasicBlock *ExitingBlock = L->getExitingBlock(); // may be null
-  SCEVHandle BackedgeTakenCount = SE->getBackedgeTakenCount(L);
+  const SCEV* BackedgeTakenCount = SE->getBackedgeTakenCount(L);
 
   // Check to see if this loop has a computable loop-invariant execution count.
   // If so, this means that we can compute the final value of any expressions
@@ -370,14 +373,14 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
       NeedCannIV = true;
   }
   for (unsigned i = 0, e = IU->StrideOrder.size(); i != e; ++i) {
-    SCEVHandle Stride = IU->StrideOrder[i];
+    const SCEV* Stride = IU->StrideOrder[i];
     const Type *Ty = SE->getEffectiveSCEVType(Stride->getType());
     if (!LargestType ||
         SE->getTypeSizeInBits(Ty) >
           SE->getTypeSizeInBits(LargestType))
       LargestType = Ty;
 
-    std::map<SCEVHandle, IVUsersOfOneStride *>::iterator SI =
+    std::map<const SCEV*, IVUsersOfOneStride *>::iterator SI =
       IU->IVUsesByStride.find(IU->StrideOrder[i]);
     assert(SI != IU->IVUsesByStride.end() && "Stride doesn't exist!");
 
@@ -470,21 +473,20 @@ void IndVarSimplify::RewriteIVExpressions(Loop *L, const Type *LargestType,
   // the need for the code evaluation methods to insert induction variables
   // of different sizes.
   for (unsigned i = 0, e = IU->StrideOrder.size(); i != e; ++i) {
-    SCEVHandle Stride = IU->StrideOrder[i];
+    const SCEV* Stride = IU->StrideOrder[i];
 
-    std::map<SCEVHandle, IVUsersOfOneStride *>::iterator SI =
+    std::map<const SCEV*, IVUsersOfOneStride *>::iterator SI =
       IU->IVUsesByStride.find(IU->StrideOrder[i]);
     assert(SI != IU->IVUsesByStride.end() && "Stride doesn't exist!");
     ilist<IVStrideUse> &List = SI->second->Users;
     for (ilist<IVStrideUse>::iterator UI = List.begin(),
          E = List.end(); UI != E; ++UI) {
-      SCEVHandle Offset = UI->getOffset();
       Value *Op = UI->getOperandValToReplace();
       const Type *UseTy = Op->getType();
       Instruction *User = UI->getUser();
 
       // Compute the final addrec to expand into code.
-      SCEVHandle AR = IU->getReplacementExpr(*UI);
+      const SCEV* AR = IU->getReplacementExpr(*UI);
 
       Value *NewVal = 0;
       if (AR->isLoopInvariant(L)) {

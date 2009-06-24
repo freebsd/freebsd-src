@@ -52,8 +52,20 @@ namespace {
 
 static TimerGroup *DefaultTimerGroup = 0;
 static TimerGroup *getDefaultTimerGroup() {
-  if (DefaultTimerGroup) return DefaultTimerGroup;
-  return DefaultTimerGroup = new TimerGroup("Miscellaneous Ungrouped Timers");
+  TimerGroup* tmp = DefaultTimerGroup;
+  sys::MemoryFence();
+  if (!tmp) {
+    llvm_acquire_global_lock();
+    tmp = DefaultTimerGroup;
+    if (!tmp) {
+      tmp = new TimerGroup("Miscellaneous Ungrouped Timers");
+      sys::MemoryFence();
+      DefaultTimerGroup = tmp;
+    }
+    llvm_release_global_lock();
+  }
+  
+  return tmp;
 }
 
 Timer::Timer(const std::string &N)
@@ -100,8 +112,7 @@ static inline size_t getMemUsage() {
 }
 
 struct TimeRecord {
-  double Elapsed, UserTime, SystemTime;
-  ssize_t MemUsed;
+  int64_t Elapsed, UserTime, SystemTime, MemUsed;
 };
 
 static TimeRecord getTimeRecord(bool Start) {
@@ -111,7 +122,7 @@ static TimeRecord getTimeRecord(bool Start) {
   sys::TimeValue user(0,0);
   sys::TimeValue sys(0,0);
 
-  ssize_t MemUsed = 0;
+  int64_t MemUsed = 0;
   if (Start) {
     MemUsed = getMemUsage();
     sys::Process::GetTimeUsage(now,user,sys);
@@ -120,9 +131,9 @@ static TimeRecord getTimeRecord(bool Start) {
     MemUsed = getMemUsage();
   }
 
-  Result.Elapsed  = now.seconds()  + now.microseconds()  / 1000000.0;
-  Result.UserTime = user.seconds() + user.microseconds() / 1000000.0;
-  Result.SystemTime  = sys.seconds()  + sys.microseconds()  / 1000000.0;
+  Result.Elapsed  = now.seconds() * 1000000 + now.microseconds();
+  Result.UserTime = user.seconds() * 1000000 + user.microseconds();
+  Result.SystemTime  = sys.seconds() * 1000000 + sys.microseconds();
   Result.MemUsed  = MemUsed;
 
   return Result;
@@ -171,11 +182,11 @@ void Timer::sum(const Timer &T) {
 /// currently active timers, which will be printed when the timer group prints
 ///
 void Timer::addPeakMemoryMeasurement() {
-  size_t MemUsed = getMemUsage();
+  int64_t MemUsed = getMemUsage();
 
   for (std::vector<Timer*>::iterator I = ActiveTimers->begin(),
          E = ActiveTimers->end(); I != E; ++I)
-    (*I)->PeakMem = std::max((*I)->PeakMem, MemUsed-(*I)->PeakMemBase);
+    (*I)->PeakMem = std::max((*I)->PeakMem, (int64_t)MemUsed-(*I)->PeakMemBase);
 }
 
 //===----------------------------------------------------------------------===//
@@ -265,12 +276,13 @@ static void printVal(double Val, double Total, std::ostream &OS) {
 
 void Timer::print(const Timer &Total, std::ostream &OS) {
   if (Total.UserTime)
-    printVal(UserTime, Total.UserTime, OS);
+    printVal(UserTime / 1000000.0, Total.UserTime / 1000000.0, OS);
   if (Total.SystemTime)
-    printVal(SystemTime, Total.SystemTime, OS);
+    printVal(SystemTime / 1000000.0, Total.SystemTime / 1000000.0, OS);
   if (Total.getProcessTime())
-    printVal(getProcessTime(), Total.getProcessTime(), OS);
-  printVal(Elapsed, Total.Elapsed, OS);
+    printVal(getProcessTime() / 1000000.0,
+             Total.getProcessTime() / 1000000.0, OS);
+  printVal(Elapsed / 1000000.0, Total.Elapsed / 1000000.0, OS);
 
   OS << "  ";
 
@@ -343,23 +355,23 @@ void TimerGroup::removeTimer() {
       if (this != DefaultTimerGroup) {
         *OutStream << "  Total Execution Time: ";
 
-        printAlignedFP(Total.getProcessTime(), 4, 5, *OutStream);
+        printAlignedFP(Total.getProcessTime() / 1000000.0, 4, 5, *OutStream);
         *OutStream << " seconds (";
-        printAlignedFP(Total.getWallTime(), 4, 5, *OutStream);
+        printAlignedFP(Total.getWallTime() / 1000000.0, 4, 5, *OutStream);
         *OutStream << " wall clock)\n";
       }
       *OutStream << "\n";
 
-      if (Total.UserTime)
+      if (Total.UserTime / 1000000.0)
         *OutStream << "   ---User Time---";
-      if (Total.SystemTime)
+      if (Total.SystemTime / 1000000.0)
         *OutStream << "   --System Time--";
-      if (Total.getProcessTime())
+      if (Total.getProcessTime() / 1000000.0)
         *OutStream << "   --User+System--";
       *OutStream << "   ---Wall Time---";
-      if (Total.getMemUsed())
+      if (Total.getMemUsed() / 1000000.0)
         *OutStream << "  ---Mem---";
-      if (Total.getPeakMem())
+      if (Total.getPeakMem() / 1000000.0)
         *OutStream << "  -PeakMem-";
       *OutStream << "  --- Name ---\n";
 
@@ -376,12 +388,6 @@ void TimerGroup::removeTimer() {
 
     if (OutStream != cerr.stream() && OutStream != cout.stream())
       delete OutStream;   // Close the file...
-  }
-
-  // Delete default timer group!
-  if (NumTimers == 0 && this == DefaultTimerGroup) {
-    delete DefaultTimerGroup;
-    DefaultTimerGroup = 0;
   }
 }
 

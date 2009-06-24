@@ -173,7 +173,7 @@ extern long sched_switch_stats[SWT_COUNT];
 #else
 #define	SCHED_STAT_DEFINE_VAR(name, descr, ptr)
 #define	SCHED_STAT_DEFINE(name, descr)
-#define SCHED_STAT_INC(var)
+#define SCHED_STAT_INC(var)			(void)0
 #endif
 
 /*

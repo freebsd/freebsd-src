@@ -144,7 +144,7 @@
 #define	RUE_RXSTAT_PMATCH	(0x04 << 12)
 #define	RUE_RXSTAT_MCAST	(0x08 << 12)
 
-#define	GET_MII(sc)		usb2_ether_getmii(&(sc)->sc_ue)
+#define	GET_MII(sc)		uether_getmii(&(sc)->sc_ue)
 
 struct rue_intrpkt {
 	uint8_t	rue_tsr;

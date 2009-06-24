@@ -32,13 +32,32 @@
  * mass storage quirks for not supported SCSI commands!
  */
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#define	USB_DEBUG_VAR usb_debug
 
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_transfer.h>
@@ -48,10 +67,7 @@
 #include <dev/usb/usb_device.h>
 #include <dev/usb/usb_request.h>
 #include <dev/usb/usb_util.h>
-#include <dev/usb/usb_lookup.h>
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
 #include <dev/usb/usb.h>
 
 enum {
@@ -214,23 +230,23 @@ bbb_done(struct bbb_transfer *sc, uint8_t error)
 	sc->error = error;
 	sc->state = ST_COMMAND;
 	sc->status_try = 1;
-	usb2_cv_signal(&sc->cv);
+	cv_signal(&sc->cv);
 }
 
 static void
 bbb_transfer_start(struct bbb_transfer *sc, uint8_t xfer_index)
 {
 	sc->state = xfer_index;
-	usb2_transfer_start(sc->xfer[xfer_index]);
+	usbd_transfer_start(sc->xfer[xfer_index]);
 }
 
 static void
 bbb_data_clear_stall_callback(struct usb_xfer *xfer,
     uint8_t next_xfer, uint8_t stall_xfer)
 {
-	struct bbb_transfer *sc = xfer->priv_sc;
+	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
 
-	if (usb2_clear_stall_callback(xfer, sc->xfer[stall_xfer])) {
+	if (usbd_clear_stall_callback(xfer, sc->xfer[stall_xfer])) {
 		switch (USB_GET_STATE(xfer)) {
 		case USB_ST_SETUP:
 		case USB_ST_TRANSFERRED:
@@ -244,9 +260,9 @@ bbb_data_clear_stall_callback(struct usb_xfer *xfer,
 }
 
 static void
-bbb_command_callback(struct usb_xfer *xfer)
+bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct bbb_transfer *sc = xfer->priv_sc;
+	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
 	uint32_t tag;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -270,10 +286,8 @@ bbb_command_callback(struct usb_xfer *xfer)
 			sc->cbw.bCDBLength = sizeof(sc->cbw.CBWCDB);
 			DPRINTFN(0, "Truncating long command!\n");
 		}
-		xfer->frlengths[0] = sizeof(sc->cbw);
-
-		usb2_set_frame_data(xfer, &sc->cbw, 0);
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_data(xfer, 0, &sc->cbw, sizeof(sc->cbw));
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
@@ -283,18 +297,21 @@ bbb_command_callback(struct usb_xfer *xfer)
 }
 
 static void
-bbb_data_read_callback(struct usb_xfer *xfer)
+bbb_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct bbb_transfer *sc = xfer->priv_sc;
-	usb_frlength_t max_bulk = xfer->max_data_length;
+	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
+	usb_frlength_t max_bulk = usbd_xfer_max_len(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		sc->data_rem -= xfer->actlen;
-		sc->data_ptr += xfer->actlen;
-		sc->actlen += xfer->actlen;
+		sc->data_rem -= actlen;
+		sc->data_ptr += actlen;
+		sc->actlen += actlen;
 
-		if (xfer->actlen < xfer->sumlen) {
+		if (actlen < sumlen) {
 			/* short transfer */
 			sc->data_rem = 0;
 		}
@@ -309,15 +326,13 @@ bbb_data_read_callback(struct usb_xfer *xfer)
 		if (max_bulk > sc->data_rem) {
 			max_bulk = sc->data_rem;
 		}
-		xfer->timeout = sc->data_timeout;
-		xfer->frlengths[0] = max_bulk;
-
-		usb2_set_frame_data(xfer, sc->data_ptr, 0);
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_timeout(xfer, sc->data_timeout);
+		usbd_xfer_set_frame_data(xfer, 0, sc->data_ptr, max_bulk);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			bbb_done(sc, 1);
 		} else {
 			bbb_transfer_start(sc, ST_DATA_RD_CS);
@@ -327,25 +342,28 @@ bbb_data_read_callback(struct usb_xfer *xfer)
 }
 
 static void
-bbb_data_rd_cs_callback(struct usb_xfer *xfer)
+bbb_data_rd_cs_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	bbb_data_clear_stall_callback(xfer, ST_STATUS,
 	    ST_DATA_RD);
 }
 
 static void
-bbb_data_write_callback(struct usb_xfer *xfer)
+bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct bbb_transfer *sc = xfer->priv_sc;
-	usb_frlength_t max_bulk = xfer->max_data_length;
+	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
+	usb_frlength_t max_bulk = usbd_xfer_max_len(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		sc->data_rem -= xfer->actlen;
-		sc->data_ptr += xfer->actlen;
-		sc->actlen += xfer->actlen;
+		sc->data_rem -= actlen;
+		sc->data_ptr += actlen;
+		sc->actlen += actlen;
 
-		if (xfer->actlen < xfer->sumlen) {
+		if (actlen < sumlen) {
 			/* short transfer */
 			sc->data_rem = 0;
 		}
@@ -360,15 +378,13 @@ bbb_data_write_callback(struct usb_xfer *xfer)
 		if (max_bulk > sc->data_rem) {
 			max_bulk = sc->data_rem;
 		}
-		xfer->timeout = sc->data_timeout;
-		xfer->frlengths[0] = max_bulk;
-
-		usb2_set_frame_data(xfer, sc->data_ptr, 0);
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_timeout(xfer, sc->data_timeout);
+		usbd_xfer_set_frame_data(xfer, 0, sc->data_ptr, max_bulk);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			bbb_done(sc, 1);
 		} else {
 			bbb_transfer_start(sc, ST_DATA_WR_CS);
@@ -379,23 +395,26 @@ bbb_data_write_callback(struct usb_xfer *xfer)
 }
 
 static void
-bbb_data_wr_cs_callback(struct usb_xfer *xfer)
+bbb_data_wr_cs_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	bbb_data_clear_stall_callback(xfer, ST_STATUS,
 	    ST_DATA_WR);
 }
 
 static void
-bbb_status_callback(struct usb_xfer *xfer)
+bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct bbb_transfer *sc = xfer->priv_sc;
+	struct bbb_transfer *sc = usbd_xfer_softc(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
 		/* very simple status check */
 
-		if (xfer->actlen < sizeof(sc->csw)) {
+		if (actlen < sizeof(sc->csw)) {
 			bbb_done(sc, 1);/* error */
 		} else if (sc->csw.bCSWStatus == CSWSTATUS_GOOD) {
 			bbb_done(sc, 0);/* success */
@@ -405,18 +424,15 @@ bbb_status_callback(struct usb_xfer *xfer)
 		break;
 
 	case USB_ST_SETUP:
-		xfer->frlengths[0] = sizeof(sc->csw);
-
-		usb2_set_frame_data(xfer, &sc->csw, 0);
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_data(xfer, 0, &sc->csw, sizeof(sc->csw));
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:
 		DPRINTFN(0, "Failed to read CSW: %s, try %d\n",
-		    usb2_errstr(xfer->error), sc->status_try);
+		    usbd_errstr(error), sc->status_try);
 
-		if ((xfer->error == USB_ERR_CANCELLED) ||
-		    (sc->status_try)) {
+		if (error == USB_ERR_CANCELLED || sc->status_try) {
 			bbb_done(sc, 1);
 		} else {
 			sc->status_try = 1;
@@ -447,23 +463,23 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
 	sc->actlen = 0;
 	sc->cmd_len = cmd_len;
 
-	usb2_transfer_start(sc->xfer[sc->state]);
+	usbd_transfer_start(sc->xfer[sc->state]);
 
-	while (usb2_transfer_pending(sc->xfer[sc->state])) {
-		usb2_cv_wait(&sc->cv, &sc->mtx);
+	while (usbd_transfer_pending(sc->xfer[sc->state])) {
+		cv_wait(&sc->cv, &sc->mtx);
 	}
 	return (sc->error);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_test_autoinstall
+ *	usb_test_autoinstall
  *
  * Return values:
  * 0: This interface is an auto install disk (CD-ROM)
  * Else: Not an auto install disk.
  *------------------------------------------------------------------------*/
 usb_error_t
-usb2_test_autoinstall(struct usb_device *udev, uint8_t iface_index,
+usb_test_autoinstall(struct usb_device *udev, uint8_t iface_index,
     uint8_t do_eject)
 {
 	struct usb_interface *iface;
@@ -476,7 +492,7 @@ usb2_test_autoinstall(struct usb_device *udev, uint8_t iface_index,
 	if (udev == NULL) {
 		return (USB_ERR_INVAL);
 	}
-	iface = usb2_get_iface(udev, iface_index);
+	iface = usbd_get_iface(udev, iface_index);
 	if (iface == NULL) {
 		return (USB_ERR_INVAL);
 	}
@@ -508,9 +524,9 @@ usb2_test_autoinstall(struct usb_device *udev, uint8_t iface_index,
 		return (USB_ERR_NOMEM);
 	}
 	mtx_init(&sc->mtx, "USB autoinstall", NULL, MTX_DEF);
-	usb2_cv_init(&sc->cv, "WBBB");
+	cv_init(&sc->cv, "WBBB");
 
-	err = usb2_transfer_setup(udev,
+	err = usbd_transfer_setup(udev,
 	    &iface_index, sc->xfer, bbb_config,
 	    ST_MAX, sc, &sc->mtx);
 
@@ -552,13 +568,13 @@ repeat_inquiry:
 				    NULL, 0, 6, USB_MS_HZ);
 
 				DPRINTFN(0, "Eject CD command "
-				    "status: %s\n", usb2_errstr(err));
+				    "status: %s\n", usbd_errstr(err));
 			}
 			err = 0;
 			goto done;
 		}
 	} else if ((err != 2) && --timeout) {
-		usb2_pause_mtx(&sc->mtx, hz);
+		usb_pause_mtx(&sc->mtx, hz);
 		goto repeat_inquiry;
 	}
 	err = USB_ERR_INVAL;
@@ -566,9 +582,9 @@ repeat_inquiry:
 
 done:
 	mtx_unlock(&sc->mtx);
-	usb2_transfer_unsetup(sc->xfer, ST_MAX);
+	usbd_transfer_unsetup(sc->xfer, ST_MAX);
 	mtx_destroy(&sc->mtx);
-	usb2_cv_destroy(&sc->cv);
+	cv_destroy(&sc->cv);
 	free(sc, M_USB);
 	return (err);
 }

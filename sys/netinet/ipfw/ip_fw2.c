@@ -135,19 +135,6 @@ static uma_zone_t ipfw_dyn_rule_zone;
 struct ip_fw *ip_fw_default_rule;
 
 /*
- * Data structure to cache our ucred related
- * information. This structure only gets used if
- * the user specified UID/GID based constraints in
- * a firewall rule.
- */
-struct ip_fw_ugid {
-	gid_t		fw_groups[NGROUPS];
-	int		fw_ngroups;
-	uid_t		fw_uid;
-	int		fw_prid;
-};
-
-/*
  * list of rules for layer 3
  */
 #ifdef VIMAGE_GLOBALS
@@ -2009,22 +1996,10 @@ dump_table(struct ip_fw_chain *ch, ipfw_table *tbl)
 	return (0);
 }
 
-static void
-fill_ugid_cache(struct inpcb *inp, struct ip_fw_ugid *ugp)
-{
-	struct ucred *cr;
-
-	cr = inp->inp_cred;
-	ugp->fw_prid = jailed(cr) ? cr->cr_prison->pr_id : -1;
-	ugp->fw_uid = cr->cr_uid;
-	ugp->fw_ngroups = cr->cr_ngroups;
-	bcopy(cr->cr_groups, ugp->fw_groups, sizeof(ugp->fw_groups));
-}
-
 static int
 check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
     struct in_addr dst_ip, u_int16_t dst_port, struct in_addr src_ip,
-    u_int16_t src_port, struct ip_fw_ugid *ugp, int *ugid_lookupp,
+    u_int16_t src_port, struct ucred **uc, int *ugid_lookupp,
     struct inpcb *inp)
 {
 	INIT_VNET_INET(curvnet);
@@ -2032,7 +2007,6 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	int wildcard;
 	struct inpcb *pcb;
 	int match;
-	gid_t *gp;
 
 	/*
 	 * Check to see if the UDP or TCP stack supplied us with
@@ -2042,7 +2016,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	if (inp && *ugid_lookupp == 0) {
 		INP_LOCK_ASSERT(inp);
 		if (inp->inp_socket != NULL) {
-			fill_ugid_cache(inp, ugp);
+			*uc = crhold(inp->inp_cred);
 			*ugid_lookupp = 1;
 		} else
 			*ugid_lookupp = -1;
@@ -2075,7 +2049,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 				dst_ip, htons(dst_port),
 				wildcard, NULL);
 		if (pcb != NULL) {
-			fill_ugid_cache(pcb, ugp);
+			*uc = crhold(inp->inp_cred);
 			*ugid_lookupp = 1;
 		}
 		INP_INFO_RUNLOCK(pi);
@@ -2091,16 +2065,11 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 		}
 	} 
 	if (insn->o.opcode == O_UID)
-		match = (ugp->fw_uid == (uid_t)insn->d[0]);
-	else if (insn->o.opcode == O_GID) {
-		for (gp = ugp->fw_groups;
-			gp < &ugp->fw_groups[ugp->fw_ngroups]; gp++)
-			if (*gp == (gid_t)insn->d[0]) {
-				match = 1;
-				break;
-			}
-	} else if (insn->o.opcode == O_JAIL)
-		match = (ugp->fw_prid == (int)insn->d[0]);
+		match = ((*uc)->cr_uid == (uid_t)insn->d[0]);
+	else if (insn->o.opcode == O_GID)
+		match = groupmember((gid_t)insn->d[0], *uc);
+	else if (insn->o.opcode == O_JAIL)
+		match = ((*uc)->cr_prison->pr_id == (int)insn->d[0]);
 	return match;
 }
 
@@ -2178,8 +2147,8 @@ ipfw_chk(struct ip_fw_args *args)
 	 * these types of constraints, as well as decrease contention
 	 * on pcb related locks.
 	 */
-	struct ip_fw_ugid fw_ugid_cache;
-	int ugid_lookup = 0;
+	struct ucred *ucred_cache = NULL;
+	int ucred_lookup = 0;
 
 	/*
 	 * divinput_flags	If non-zero, set to the IP_FW_DIVERT_*_FLAG
@@ -2641,8 +2610,8 @@ check_body:
 						    (ipfw_insn_u32 *)cmd,
 						    proto, oif,
 						    dst_ip, dst_port,
-						    src_ip, src_port, &fw_ugid_cache,
-						    &ugid_lookup, args->inp);
+						    src_ip, src_port, &ucred_cache,
+						    &ucred_lookup, args->inp);
 				break;
 
 			case O_RECV:
@@ -3270,6 +3239,8 @@ check_body:
 					/* XXX statistic */
 					/* drop packet */
 					IPFW_RUNLOCK(chain);
+					if (ucred_cache != NULL)
+						crfree(ucred_cache);
 					return (IP_FW_DENY);
 				}
 				dt = (struct divert_tag *)(mtag+1);
@@ -3475,6 +3446,8 @@ next_rule:;		/* try next rule		*/
 	}		/* end of outer for, scan rules */
 	printf("ipfw: ouch!, skip past end of rules, denying packet\n");
 	IPFW_RUNLOCK(chain);
+	if (ucred_cache != NULL)
+		crfree(ucred_cache);
 	return (IP_FW_DENY);
 
 done:
@@ -3483,6 +3456,8 @@ done:
 	f->bcnt += pktlen;
 	f->timestamp = time_uptime;
 	IPFW_RUNLOCK(chain);
+	if (ucred_cache != NULL)
+		crfree(ucred_cache);
 	return (retval);
 
 pullup_failed:

@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_IOCTL_H_
-#define	_USB2_IOCTL_H_
+#ifndef _USB_IOCTL_H_
+#define	_USB_IOCTL_H_
 
 #include <sys/ioccom.h>
 
@@ -49,9 +49,6 @@ struct usb_read_dir {
 struct usb_ctl_request {
 	void   *ucr_data;
 	uint16_t ucr_flags;
-#define	USB_SHORT_XFER_OK       0x0004	/* allow short reads */
-#define	USB_DELAY_STATUS_STAGE  0x0010	/* insert delay before STATUS stage */
-#define	USB_USER_DATA_PTR	0x0020	/* internal flag */
 	uint16_t ucr_actlen;		/* actual length transferred */
 	uint8_t	ucr_addr;		/* zero - currently not used */
 	struct usb_device_request ucr_request;
@@ -148,7 +145,7 @@ struct usb_fs_endpoint {
 	uint16_t isoc_time_complete;
 	/* timeout value for no timeout */
 #define	USB_FS_TIMEOUT_NONE 0
-	uint8_t	status;			/* see USB_ERR_XXX */
+	int	status;			/* see USB_ERR_XXX */
 };
 
 struct usb_fs_init {
@@ -272,4 +269,4 @@ struct usb_gen_quirk {
 #define	USB_DEV_QUIRK_ADD	_IOW ('Q', 2, struct usb_gen_quirk)
 #define	USB_DEV_QUIRK_REMOVE	_IOW ('Q', 3, struct usb_gen_quirk)
 
-#endif					/* _USB2_IOCTL_H_ */
+#endif					/* _USB_IOCTL_H_ */

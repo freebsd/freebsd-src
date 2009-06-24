@@ -377,13 +377,13 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
 
   // FIXME: handle sseregparm someday...
   if (TargetDecl) {
-    if (TargetDecl->hasAttr<NoThrowAttr>())
+    if (TargetDecl->hasAttr<NoThrowAttr>(getContext()))
       FuncAttrs |= llvm::Attribute::NoUnwind;
-    if (TargetDecl->hasAttr<NoReturnAttr>())
+    if (TargetDecl->hasAttr<NoReturnAttr>(getContext()))
       FuncAttrs |= llvm::Attribute::NoReturn;
-    if (TargetDecl->hasAttr<ConstAttr>())
+    if (TargetDecl->hasAttr<ConstAttr>(getContext()))
       FuncAttrs |= llvm::Attribute::ReadNone;
-    else if (TargetDecl->hasAttr<PureAttr>())
+    else if (TargetDecl->hasAttr<PureAttr>(getContext()))
       FuncAttrs |= llvm::Attribute::ReadOnly;
   }
 
@@ -432,7 +432,8 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
   // register variable.
   signed RegParm = 0;
   if (TargetDecl)
-    if (const RegparmAttr *RegParmAttr = TargetDecl->getAttr<RegparmAttr>())
+    if (const RegparmAttr *RegParmAttr 
+          = TargetDecl->getAttr<RegparmAttr>(getContext()))
       RegParm = RegParmAttr->getNumParams();
 
   unsigned PointerWidth = getContext().Target.getPointerWidth(0);
@@ -762,7 +763,8 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
       
       if (CE->getOpcode() == llvm::Instruction::BitCast &&
           ActualFT->getReturnType() == CurFT->getReturnType() &&
-          ActualFT->getNumParams() == CurFT->getNumParams()) {
+          ActualFT->getNumParams() == CurFT->getNumParams() &&
+          ActualFT->getNumParams() == Args.size()) {
         bool ArgsMatch = true;
         for (unsigned i = 0, e = ActualFT->getNumParams(); i != e; ++i)
           if (ActualFT->getParamType(i) != CurFT->getParamType(i)) {

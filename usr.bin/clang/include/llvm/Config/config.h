@@ -287,6 +287,9 @@
 /* Have pthread_mutex_lock */
 #define HAVE_PTHREAD_MUTEX_LOCK 1
 
+/* Have pthread_rwlock_init */
+#define HAVE_PTHREAD_RWLOCK_INIT 1
+
 /* Define to 1 if srand48/lrand48/drand48 exist in <stdlib.h> */
 #define HAVE_RAND48 1
 
@@ -393,6 +396,9 @@
 /* Define to 1 if you have the <sys/dl.h> header file. */
 /* #undef HAVE_SYS_DL_H */
 
+/* Define to 1 if you have the <sys/ioctl.h> header file. */
+#define HAVE_SYS_IOCTL_H 1
+
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #define HAVE_SYS_MMAN_H 1
 
@@ -418,6 +424,9 @@
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #define HAVE_SYS_WAIT_H 1
 
+/* Define to 1 if you have the <termios.h> header file. */
+#define HAVE_TERMIOS_H 1
+
 /* Define to 1 if the system has the type `uint64_t'. */
 #define HAVE_UINT64_T 1
 
@@ -435,6 +444,9 @@
 
 /* Define to 1 if you have the `__dso_handle' function. */
 #define HAVE___DSO_HANDLE 1
+
+/* Build multithreading support into LLVM */
+#define LLVM_MULTITHREADED 1
 
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1

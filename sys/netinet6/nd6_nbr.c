@@ -1223,7 +1223,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	 * (re)initialization.
 	 */
 	dp->dad_ifa = ifa;
-	IFAREF(ifa);	/* just for safety */
+	ifa_ref(ifa);	/* just for safety */
 	dp->dad_count = V_ip6_dad_count;
 	dp->dad_ns_icount = dp->dad_na_icount = 0;
 	dp->dad_ns_ocount = dp->dad_ns_tcount = 0;
@@ -1258,7 +1258,7 @@ nd6_dad_stop(struct ifaddr *ifa)
 	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 	free(dp, M_IP6NDP);
 	dp = NULL;
-	IFAFREE(ifa);
+	ifa_free(ifa);
 }
 
 static void
@@ -1301,7 +1301,7 @@ nd6_dad_timer(struct dadq *dp)
 		TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 		free(dp, M_IP6NDP);
 		dp = NULL;
-		IFAFREE(ifa);
+		ifa_free(ifa);
 		goto done;
 	}
 
@@ -1354,7 +1354,7 @@ nd6_dad_timer(struct dadq *dp)
 			TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 			free(dp, M_IP6NDP);
 			dp = NULL;
-			IFAFREE(ifa);
+			ifa_free(ifa);
 		}
 	}
 
@@ -1432,7 +1432,7 @@ nd6_dad_duplicated(struct ifaddr *ifa)
 	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 	free(dp, M_IP6NDP);
 	dp = NULL;
-	IFAFREE(ifa);
+	ifa_free(ifa);
 }
 
 static void

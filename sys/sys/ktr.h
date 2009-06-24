@@ -147,13 +147,13 @@ void	ktr_tracepoint(u_int mask, const char *file, int line,
 #define	CTR4(m, format, p1, p2, p3, p4)	CTR6(m, format, p1, p2, p3, p4, 0, 0)
 #define	CTR5(m, format, p1, p2, p3, p4, p5)	CTR6(m, format, p1, p2, p3, p4, p5, 0)
 #else	/* KTR */
-#define	CTR0(m, d)
-#define	CTR1(m, d, p1)
-#define	CTR2(m, d, p1, p2)
-#define	CTR3(m, d, p1, p2, p3)
-#define	CTR4(m, d, p1, p2, p3, p4)
-#define	CTR5(m, d, p1, p2, p3, p4, p5)
-#define	CTR6(m, d, p1, p2, p3, p4, p5, p6)
+#define	CTR0(m, d)			(void)0
+#define	CTR1(m, d, p1)			(void)0
+#define	CTR2(m, d, p1, p2)		(void)0
+#define	CTR3(m, d, p1, p2, p3)		(void)0
+#define	CTR4(m, d, p1, p2, p3, p4)	(void)0
+#define	CTR5(m, d, p1, p2, p3, p4, p5)	(void)0
+#define	CTR6(m, d, p1, p2, p3, p4, p5, p6)	(void)0
 #endif	/* KTR */
 
 #define	TR0(d)				CTR0(KTR_GEN, d)

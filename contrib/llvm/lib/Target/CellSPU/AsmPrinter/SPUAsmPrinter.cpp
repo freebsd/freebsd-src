@@ -287,12 +287,11 @@ namespace {
   /// LinuxAsmPrinter - SPU assembly printer, customized for Linux
   class VISIBILITY_HIDDEN LinuxAsmPrinter : public SPUAsmPrinter {
     DwarfWriter *DW;
-    MachineModuleInfo *MMI;
   public:
     explicit LinuxAsmPrinter(raw_ostream &O, SPUTargetMachine &TM,
                              const TargetAsmInfo *T, CodeGenOpt::Level F,
                              bool V)
-      : SPUAsmPrinter(O, TM, T, F, V), DW(0), MMI(0) {}
+      : SPUAsmPrinter(O, TM, T, F, V), DW(0) {}
 
     virtual const char *getPassName() const {
       return "STI CBEA SPU Assembly Printer";
@@ -490,12 +489,8 @@ LinuxAsmPrinter::runOnMachineFunction(MachineFunction &MF)
 
 bool LinuxAsmPrinter::doInitialization(Module &M) {
   bool Result = AsmPrinter::doInitialization(M);
-  SwitchToTextSection("\t.text");
-  // Emit initial debug information.
   DW = getAnalysisIfAvailable<DwarfWriter>();
-  assert(DW && "Dwarf Writer is not available");
-  MMI = getAnalysisIfAvailable<MachineModuleInfo>();
-  DW->BeginModule(&M, MMI, O, this, TAI);
+  SwitchToTextSection("\t.text");
   return Result;
 }
 
@@ -620,4 +615,18 @@ FunctionPass *llvm::createSPUAsmPrinterPass(raw_ostream &o,
                                             CodeGenOpt::Level OptLevel,
                                             bool verbose) {
   return new LinuxAsmPrinter(o, tm, tm.getTargetAsmInfo(), OptLevel, verbose);
+}
+
+// Force static initialization when called from
+// llvm/InitializeAllAsmPrinters.h
+namespace llvm {
+  void InitializeCellSPUAsmPrinter() { }
+}
+
+namespace {
+  static struct Register {
+    Register() {
+      SPUTargetMachine::registerAsmPrinter(createSPUAsmPrinterPass);
+    }
+  } Registrator;
 }

@@ -2031,14 +2031,6 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* nfsclnt */
-	case 375: {
-		struct nfsclnt_args *p = params;
-		iarg[0] = p->flag; /* int */
-		uarg[1] = (intptr_t) p->argp; /* caddr_t */
-		*n_args = 2;
-		break;
-	}
 	/* eaccess */
 	case 376: {
 		struct eaccess_args *p = params;
@@ -3062,6 +3054,13 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 	case 508: {
 		struct jail_remove_args *p = params;
 		iarg[0] = p->jid; /* int */
+		*n_args = 1;
+		break;
+	}
+	/* closefrom */
+	case 509: {
+		struct closefrom_args *p = params;
+		iarg[0] = p->lowfd; /* int */
 		*n_args = 1;
 		break;
 	}
@@ -6344,19 +6343,6 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* nfsclnt */
-	case 375:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "caddr_t";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* eaccess */
 	case 376:
 		switch(ndx) {
@@ -8129,6 +8115,16 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* jail_remove */
 	case 508:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* closefrom */
+	case 509:
 		switch(ndx) {
 		case 0:
 			p = "int";

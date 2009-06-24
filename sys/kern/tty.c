@@ -219,13 +219,6 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	struct tty *tp = dev->si_drv1;
 	int error = 0;
 
-	/* Disallow access when the TTY belongs to a different prison. */
-	if (dev->si_cred != NULL &&
-	    dev->si_cred->cr_prison != td->td_ucred->cr_prison &&
-	    priv_check(td, PRIV_TTY_PRISON)) {
-		return (EPERM);
-	}
-
 	tty_lock(tp);
 	if (tty_gone(tp)) {
 		/* Device is already gone. */
@@ -1486,16 +1479,19 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 			return (0);
 		}
 
-		if (p->p_session->s_ttyvp != NULL ||
-		    (tp->t_session != NULL && tp->t_session->s_ttyvp != NULL)) {
+		if (p->p_session->s_ttyp != NULL ||
+		    (tp->t_session != NULL && tp->t_session->s_ttyvp != NULL &&
+		    tp->t_session->s_ttyvp->v_type != VBAD)) {
 			/*
 			 * There is already a relation between a TTY and
 			 * a session, or the caller is not the session
 			 * leader.
 			 *
 			 * Allow the TTY to be stolen when the vnode is
-			 * NULL, but the reference to the TTY is still
-			 * active.
+			 * invalid, but the reference to the TTY is
+			 * still active.  This allows immediate reuse of
+			 * TTYs of which the session leader has been
+			 * killed or the TTY revoked.
 			 */
 			sx_xunlock(&proctree_lock);
 			return (EPERM);

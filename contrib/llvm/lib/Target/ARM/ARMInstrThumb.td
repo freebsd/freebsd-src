@@ -277,6 +277,7 @@ def tPUSH : TI<(outs), (ins reglist:$src1, variable_ops),
 //
 
 // Add with carry
+let isCommutable = 1 in
 def tADC : TIt<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),
                "adc $dst, $rhs",
                [(set tGPR:$dst, (adde tGPR:$lhs, tGPR:$rhs))]>;
@@ -311,13 +312,14 @@ def tADDrSPi : TI<(outs tGPR:$dst), (ins GPR:$sp, i32imm:$rhs),
 def tADDspi : TIt<(outs GPR:$dst), (ins GPR:$lhs, i32imm:$rhs),
                   "add $dst, $rhs * 4", []>;
 
+let isCommutable = 1 in
 def tAND : TIt<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),
                 "and $dst, $rhs",
                 [(set tGPR:$dst, (and tGPR:$lhs, tGPR:$rhs))]>;
 
 def tASRri : TI<(outs tGPR:$dst), (ins tGPR:$lhs, i32imm:$rhs),
                 "asr $dst, $lhs, $rhs",
-                [(set tGPR:$dst, (sra tGPR:$lhs, imm:$rhs))]>;
+                [(set tGPR:$dst, (sra tGPR:$lhs, (i32 imm:$rhs)))]>;
 
 def tASRrr : TIt<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),
                  "asr $dst, $rhs",
@@ -358,13 +360,14 @@ def tCMPNZr : TI<(outs), (ins tGPR:$lhs, tGPR:$rhs),
 
 // TODO: A7-37: CMP(3) - cmp hi regs
 
+let isCommutable = 1 in
 def tEOR : TIt<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),
                "eor $dst, $rhs",
                [(set tGPR:$dst, (xor tGPR:$lhs, tGPR:$rhs))]>;
 
 def tLSLri : TI<(outs tGPR:$dst), (ins tGPR:$lhs, i32imm:$rhs),
                 "lsl $dst, $lhs, $rhs",
-                [(set tGPR:$dst, (shl tGPR:$lhs, imm:$rhs))]>;
+                [(set tGPR:$dst, (shl tGPR:$lhs, (i32 imm:$rhs)))]>;
 
 def tLSLrr : TIt<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),
                  "lsl $dst, $rhs",
@@ -372,7 +375,7 @@ def tLSLrr : TIt<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),
 
 def tLSRri : TI<(outs tGPR:$dst), (ins tGPR:$lhs, i32imm:$rhs),
                 "lsr $dst, $lhs, $rhs",
-                [(set tGPR:$dst, (srl tGPR:$lhs, imm:$rhs))]>;
+                [(set tGPR:$dst, (srl tGPR:$lhs, (i32 imm:$rhs)))]>;
 
 def tLSRrr : TIt<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),
                  "lsr $dst, $rhs",
@@ -399,6 +402,7 @@ def tMOVhir2hir : TI<(outs GPR:$dst), (ins GPR:$src),
                       "cpy $dst, $src\t@ hir2hir", []>;
 } // neverHasSideEffects
 
+let isCommutable = 1 in
 def tMUL : TIt<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),
                "mul $dst, $rhs",
                [(set tGPR:$dst, (mul tGPR:$lhs, tGPR:$rhs))]>;
@@ -411,6 +415,7 @@ def tNEG : TI<(outs tGPR:$dst), (ins tGPR:$src),
               "neg $dst, $src",
               [(set tGPR:$dst, (ineg tGPR:$src))]>;
 
+let isCommutable = 1 in
 def tORR : TIt<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),
                "orr $dst, $rhs",
                [(set tGPR:$dst, (or tGPR:$lhs, tGPR:$rhs))]>;
@@ -424,18 +429,18 @@ def tREV : TI<(outs tGPR:$dst), (ins tGPR:$src),
 def tREV16 : TI<(outs tGPR:$dst), (ins tGPR:$src),
                 "rev16 $dst, $src",
                 [(set tGPR:$dst,
-                    (or (and (srl tGPR:$src, 8), 0xFF),
-                        (or (and (shl tGPR:$src, 8), 0xFF00),
-                            (or (and (srl tGPR:$src, 8), 0xFF0000),
-                                (and (shl tGPR:$src, 8), 0xFF000000)))))]>,
+                    (or (and (srl tGPR:$src, (i32 8)), 0xFF),
+                        (or (and (shl tGPR:$src, (i32 8)), 0xFF00),
+                            (or (and (srl tGPR:$src, (i32 8)), 0xFF0000),
+                                (and (shl tGPR:$src, (i32 8)), 0xFF000000)))))]>,
                 Requires<[IsThumb, HasV6]>;
 
 def tREVSH : TI<(outs tGPR:$dst), (ins tGPR:$src),
                 "revsh $dst, $src",
                 [(set tGPR:$dst,
                    (sext_inreg
-                     (or (srl (and tGPR:$src, 0xFFFF), 8),
-                         (shl tGPR:$src, 8)), i16))]>,
+                     (or (srl (and tGPR:$src, 0xFFFF), (i32 8)),
+                         (shl tGPR:$src, (i32 8))), i16))]>,
                 Requires<[IsThumb, HasV6]>;
 
 def tROR : TIt<(outs tGPR:$dst), (ins tGPR:$lhs, tGPR:$rhs),

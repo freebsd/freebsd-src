@@ -25,15 +25,23 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ValueHandle.h"
+#include "llvm/ADT/DenseMap.h"
 #include <iosfwd>
 
 namespace llvm {
   class APInt;
   class ConstantInt;
   class Type;
-  class SCEVHandle;
   class ScalarEvolution;
   class TargetData;
+  class SCEVConstant;
+  class SCEVTruncateExpr;
+  class SCEVZeroExtendExpr;
+  class SCEVCommutativeExpr;
+  class SCEVUDivExpr;
+  class SCEVSignExtendExpr;
+  class SCEVAddRecExpr;
+  class SCEVUnknown;
 
   /// SCEV - This class represents an analyzed expression in the program.  These
   /// are reference-counted opaque objects that the client is not allowed to
@@ -41,21 +49,14 @@ namespace llvm {
   ///
   class SCEV {
     const unsigned SCEVType;      // The SCEV baseclass this node corresponds to
-    mutable unsigned RefCount;
-
-    friend class SCEVHandle;
-    void addRef() const { ++RefCount; }
-    void dropRef() const {
-      if (--RefCount == 0)
-        delete this;
-    }
 
     SCEV(const SCEV &);            // DO NOT IMPLEMENT
     void operator=(const SCEV &);  // DO NOT IMPLEMENT
   protected:
     virtual ~SCEV();
   public:
-    explicit SCEV(unsigned SCEVTy) : SCEVType(SCEVTy), RefCount(0) {}
+    explicit SCEV(unsigned SCEVTy) : 
+      SCEVType(SCEVTy) {}
 
     unsigned getSCEVType() const { return SCEVType; }
 
@@ -86,9 +87,9 @@ namespace llvm {
     /// the same value, but which uses the concrete value Conc instead of the
     /// symbolic value.  If this SCEV does not use the symbolic value, it
     /// returns itself.
-    virtual SCEVHandle
-    replaceSymbolicValuesWithConcrete(const SCEVHandle &Sym,
-                                      const SCEVHandle &Conc,
+    virtual const SCEV*
+    replaceSymbolicValuesWithConcrete(const SCEV* Sym,
+                                      const SCEV* Conc,
                                       ScalarEvolution &SE) const = 0;
 
     /// dominates - Return true if elements that makes up this SCEV dominates
@@ -124,16 +125,15 @@ namespace llvm {
   /// marker.
   struct SCEVCouldNotCompute : public SCEV {
     SCEVCouldNotCompute();
-    ~SCEVCouldNotCompute();
 
     // None of these methods are valid for this object.
     virtual bool isLoopInvariant(const Loop *L) const;
     virtual const Type *getType() const;
     virtual bool hasComputableLoopEvolution(const Loop *L) const;
     virtual void print(raw_ostream &OS) const;
-    virtual SCEVHandle
-    replaceSymbolicValuesWithConcrete(const SCEVHandle &Sym,
-                                      const SCEVHandle &Conc,
+    virtual const SCEV*
+    replaceSymbolicValuesWithConcrete(const SCEV* Sym,
+                                      const SCEV* Conc,
                                       ScalarEvolution &SE) const;
 
     virtual bool dominates(BasicBlock *BB, DominatorTree *DT) const {
@@ -144,58 +144,6 @@ namespace llvm {
     static inline bool classof(const SCEVCouldNotCompute *S) { return true; }
     static bool classof(const SCEV *S);
   };
-
-  /// SCEVHandle - This class is used to maintain the SCEV object's refcounts,
-  /// freeing the objects when the last reference is dropped.
-  class SCEVHandle {
-    const SCEV *S;
-    SCEVHandle();  // DO NOT IMPLEMENT
-  public:
-    SCEVHandle(const SCEV *s) : S(s) {
-      assert(S && "Cannot create a handle to a null SCEV!");
-      S->addRef();
-    }
-    SCEVHandle(const SCEVHandle &RHS) : S(RHS.S) {
-      S->addRef();
-    }
-    ~SCEVHandle() { S->dropRef(); }
-
-    operator const SCEV*() const { return S; }
-
-    const SCEV &operator*() const { return *S; }
-    const SCEV *operator->() const { return S; }
-
-    bool operator==(const SCEV *RHS) const { return S == RHS; }
-    bool operator!=(const SCEV *RHS) const { return S != RHS; }
-
-    const SCEVHandle &operator=(SCEV *RHS) {
-      if (S != RHS) {
-        S->dropRef();
-        S = RHS;
-        S->addRef();
-      }
-      return *this;
-    }
-
-    const SCEVHandle &operator=(const SCEVHandle &RHS) {
-      if (S != RHS.S) {
-        S->dropRef();
-        S = RHS.S;
-        S->addRef();
-      }
-      return *this;
-    }
-  };
-
-  template<typename From> struct simplify_type;
-  template<> struct simplify_type<const SCEVHandle> {
-    typedef const SCEV* SimpleType;
-    static SimpleType getSimplifiedValue(const SCEVHandle &Node) {
-      return Node;
-    }
-  };
-  template<> struct simplify_type<SCEVHandle>
-    : public simplify_type<const SCEVHandle> {};
 
   /// ScalarEvolution - This class is the main scalar evolution driver.  Because
   /// client code (intentionally) can't do much with the SCEV objects directly,
@@ -229,11 +177,11 @@ namespace llvm {
 
     /// CouldNotCompute - This SCEV is used to represent unknown trip
     /// counts and things.
-    SCEVHandle CouldNotCompute;
+    const SCEV* CouldNotCompute;
 
     /// Scalars - This is a cache of the scalars we have analyzed so far.
     ///
-    std::map<SCEVCallbackVH, SCEVHandle> Scalars;
+    std::map<SCEVCallbackVH, const SCEV*> Scalars;
 
     /// BackedgeTakenInfo - Information about the backedge-taken count
     /// of a loop. This currently inclues an exact count and a maximum count.
@@ -241,19 +189,16 @@ namespace llvm {
     struct BackedgeTakenInfo {
       /// Exact - An expression indicating the exact backedge-taken count of
       /// the loop if it is known, or a SCEVCouldNotCompute otherwise.
-      SCEVHandle Exact;
+      const SCEV* Exact;
 
       /// Exact - An expression indicating the least maximum backedge-taken
       /// count of the loop that is known, or a SCEVCouldNotCompute.
-      SCEVHandle Max;
+      const SCEV* Max;
 
-      /*implicit*/ BackedgeTakenInfo(SCEVHandle exact) :
+      /*implicit*/ BackedgeTakenInfo(const SCEV* exact) :
         Exact(exact), Max(exact) {}
 
-      /*implicit*/ BackedgeTakenInfo(const SCEV *exact) :
-        Exact(exact), Max(exact) {}
-
-      BackedgeTakenInfo(SCEVHandle exact, SCEVHandle max) :
+      BackedgeTakenInfo(const SCEV* exact, const SCEV* max) :
         Exact(exact), Max(max) {}
 
       /// hasAnyInfo - Test whether this BackedgeTakenInfo contains any
@@ -283,23 +228,30 @@ namespace llvm {
 
     /// createSCEV - We know that there is no SCEV for the specified value.
     /// Analyze the expression.
-    SCEVHandle createSCEV(Value *V);
+    const SCEV* createSCEV(Value *V);
 
     /// createNodeForPHI - Provide the special handling we need to analyze PHI
     /// SCEVs.
-    SCEVHandle createNodeForPHI(PHINode *PN);
+    const SCEV* createNodeForPHI(PHINode *PN);
 
     /// createNodeForGEP - Provide the special handling we need to analyze GEP
     /// SCEVs.
-    SCEVHandle createNodeForGEP(User *GEP);
+    const SCEV* createNodeForGEP(User *GEP);
 
     /// ReplaceSymbolicValueWithConcrete - This looks up the computed SCEV value
     /// for the specified instruction and replaces any references to the
     /// symbolic value SymName with the specified value.  This is used during
     /// PHI resolution.
     void ReplaceSymbolicValueWithConcrete(Instruction *I,
-                                          const SCEVHandle &SymName,
-                                          const SCEVHandle &NewVal);
+                                          const SCEV* SymName,
+                                          const SCEV* NewVal);
+
+    /// getBECount - Subtract the end and start values and divide by the step,
+    /// rounding up, to get the number of times the backedge is executed. Return
+    /// CouldNotCompute if an intermediate computation overflows.
+    const SCEV* getBECount(const SCEV* Start,
+                          const SCEV* End,
+                          const SCEV* Step);
 
     /// getBackedgeTakenInfo - Return the BackedgeTakenInfo for the given
     /// loop, lazily computing new values if the loop hasn't been analyzed
@@ -310,9 +262,34 @@ namespace llvm {
     /// loop will iterate.
     BackedgeTakenInfo ComputeBackedgeTakenCount(const Loop *L);
 
+    /// ComputeBackedgeTakenCountFromExit - Compute the number of times the
+    /// backedge of the specified loop will execute if it exits via the
+    /// specified block.
+    BackedgeTakenInfo ComputeBackedgeTakenCountFromExit(const Loop *L,
+                                                      BasicBlock *ExitingBlock);
+
+    /// ComputeBackedgeTakenCountFromExitCond - Compute the number of times the
+    /// backedge of the specified loop will execute if its exit condition
+    /// were a conditional branch of ExitCond, TBB, and FBB.
+    BackedgeTakenInfo
+      ComputeBackedgeTakenCountFromExitCond(const Loop *L,
+                                            Value *ExitCond,
+                                            BasicBlock *TBB,
+                                            BasicBlock *FBB);
+
+    /// ComputeBackedgeTakenCountFromExitCondICmp - Compute the number of
+    /// times the backedge of the specified loop will execute if its exit
+    /// condition were a conditional branch of the ICmpInst ExitCond, TBB,
+    /// and FBB.
+    BackedgeTakenInfo
+      ComputeBackedgeTakenCountFromExitCondICmp(const Loop *L,
+                                                ICmpInst *ExitCond,
+                                                BasicBlock *TBB,
+                                                BasicBlock *FBB);
+
     /// ComputeLoadConstantCompareBackedgeTakenCount - Given an exit condition
     /// of 'icmp op load X, cst', try to see if we can compute the trip count.
-    SCEVHandle
+    const SCEV*
       ComputeLoadConstantCompareBackedgeTakenCount(LoadInst *LI,
                                                    Constant *RHS,
                                                    const Loop *L,
@@ -323,18 +300,18 @@ namespace llvm {
     /// try to evaluate a few iterations of the loop until we get the exit
     /// condition gets a value of ExitWhen (true or false).  If we cannot
     /// evaluate the trip count of the loop, return CouldNotCompute.
-    SCEVHandle ComputeBackedgeTakenCountExhaustively(const Loop *L, Value *Cond,
+    const SCEV* ComputeBackedgeTakenCountExhaustively(const Loop *L, Value *Cond,
                                                      bool ExitWhen);
 
     /// HowFarToZero - Return the number of times a backedge comparing the
     /// specified value to zero will execute.  If not computable, return
     /// CouldNotCompute.
-    SCEVHandle HowFarToZero(const SCEV *V, const Loop *L);
+    const SCEV* HowFarToZero(const SCEV *V, const Loop *L);
 
     /// HowFarToNonZero - Return the number of times a backedge checking the
     /// specified value for nonzero will execute.  If not computable, return
     /// CouldNotCompute.
-    SCEVHandle HowFarToNonZero(const SCEV *V, const Loop *L);
+    const SCEV* HowFarToNonZero(const SCEV *V, const Loop *L);
 
     /// HowManyLessThans - Return the number of times a backedge containing the
     /// specified less-than comparison will execute.  If not computable, return
@@ -386,100 +363,115 @@ namespace llvm {
 
     /// getSCEV - Return a SCEV expression handle for the full generality of the
     /// specified expression.
-    SCEVHandle getSCEV(Value *V);
+    const SCEV* getSCEV(Value *V);
 
-    SCEVHandle getConstant(ConstantInt *V);
-    SCEVHandle getConstant(const APInt& Val);
-    SCEVHandle getTruncateExpr(const SCEVHandle &Op, const Type *Ty);
-    SCEVHandle getZeroExtendExpr(const SCEVHandle &Op, const Type *Ty);
-    SCEVHandle getSignExtendExpr(const SCEVHandle &Op, const Type *Ty);
-    SCEVHandle getAnyExtendExpr(const SCEVHandle &Op, const Type *Ty);
-    SCEVHandle getAddExpr(std::vector<SCEVHandle> &Ops);
-    SCEVHandle getAddExpr(const SCEVHandle &LHS, const SCEVHandle &RHS) {
-      std::vector<SCEVHandle> Ops;
+    const SCEV* getConstant(ConstantInt *V);
+    const SCEV* getConstant(const APInt& Val);
+    const SCEV* getConstant(const Type *Ty, uint64_t V, bool isSigned = false);
+    const SCEV* getTruncateExpr(const SCEV* Op, const Type *Ty);
+    const SCEV* getZeroExtendExpr(const SCEV* Op, const Type *Ty);
+    const SCEV* getSignExtendExpr(const SCEV* Op, const Type *Ty);
+    const SCEV* getAnyExtendExpr(const SCEV* Op, const Type *Ty);
+    const SCEV* getAddExpr(SmallVectorImpl<const SCEV*> &Ops);
+    const SCEV* getAddExpr(const SCEV* LHS, const SCEV* RHS) {
+      SmallVector<const SCEV*, 2> Ops;
       Ops.push_back(LHS);
       Ops.push_back(RHS);
       return getAddExpr(Ops);
     }
-    SCEVHandle getAddExpr(const SCEVHandle &Op0, const SCEVHandle &Op1,
-                          const SCEVHandle &Op2) {
-      std::vector<SCEVHandle> Ops;
+    const SCEV* getAddExpr(const SCEV* Op0, const SCEV* Op1,
+                          const SCEV* Op2) {
+      SmallVector<const SCEV*, 3> Ops;
       Ops.push_back(Op0);
       Ops.push_back(Op1);
       Ops.push_back(Op2);
       return getAddExpr(Ops);
     }
-    SCEVHandle getMulExpr(std::vector<SCEVHandle> &Ops);
-    SCEVHandle getMulExpr(const SCEVHandle &LHS, const SCEVHandle &RHS) {
-      std::vector<SCEVHandle> Ops;
+    const SCEV* getMulExpr(SmallVectorImpl<const SCEV*> &Ops);
+    const SCEV* getMulExpr(const SCEV* LHS, const SCEV* RHS) {
+      SmallVector<const SCEV*, 2> Ops;
       Ops.push_back(LHS);
       Ops.push_back(RHS);
       return getMulExpr(Ops);
     }
-    SCEVHandle getUDivExpr(const SCEVHandle &LHS, const SCEVHandle &RHS);
-    SCEVHandle getAddRecExpr(const SCEVHandle &Start, const SCEVHandle &Step,
+    const SCEV* getUDivExpr(const SCEV* LHS, const SCEV* RHS);
+    const SCEV* getAddRecExpr(const SCEV* Start, const SCEV* Step,
                              const Loop *L);
-    SCEVHandle getAddRecExpr(std::vector<SCEVHandle> &Operands,
+    const SCEV* getAddRecExpr(SmallVectorImpl<const SCEV*> &Operands,
                              const Loop *L);
-    SCEVHandle getAddRecExpr(const std::vector<SCEVHandle> &Operands,
+    const SCEV* getAddRecExpr(const SmallVectorImpl<const SCEV*> &Operands,
                              const Loop *L) {
-      std::vector<SCEVHandle> NewOp(Operands);
+      SmallVector<const SCEV*, 4> NewOp(Operands.begin(), Operands.end());
       return getAddRecExpr(NewOp, L);
     }
-    SCEVHandle getSMaxExpr(const SCEVHandle &LHS, const SCEVHandle &RHS);
-    SCEVHandle getSMaxExpr(std::vector<SCEVHandle> Operands);
-    SCEVHandle getUMaxExpr(const SCEVHandle &LHS, const SCEVHandle &RHS);
-    SCEVHandle getUMaxExpr(std::vector<SCEVHandle> Operands);
-    SCEVHandle getUnknown(Value *V);
-    SCEVHandle getCouldNotCompute();
+    const SCEV* getSMaxExpr(const SCEV* LHS, const SCEV* RHS);
+    const SCEV* getSMaxExpr(SmallVectorImpl<const SCEV*> &Operands);
+    const SCEV* getUMaxExpr(const SCEV* LHS, const SCEV* RHS);
+    const SCEV* getUMaxExpr(SmallVectorImpl<const SCEV*> &Operands);
+    const SCEV* getSMinExpr(const SCEV* LHS, const SCEV* RHS);
+    const SCEV* getUMinExpr(const SCEV* LHS, const SCEV* RHS);
+    const SCEV* getUnknown(Value *V);
+    const SCEV* getCouldNotCompute();
 
     /// getNegativeSCEV - Return the SCEV object corresponding to -V.
     ///
-    SCEVHandle getNegativeSCEV(const SCEVHandle &V);
+    const SCEV* getNegativeSCEV(const SCEV* V);
 
     /// getNotSCEV - Return the SCEV object corresponding to ~V.
     ///
-    SCEVHandle getNotSCEV(const SCEVHandle &V);
+    const SCEV* getNotSCEV(const SCEV* V);
 
     /// getMinusSCEV - Return LHS-RHS.
     ///
-    SCEVHandle getMinusSCEV(const SCEVHandle &LHS,
-                            const SCEVHandle &RHS);
+    const SCEV* getMinusSCEV(const SCEV* LHS,
+                            const SCEV* RHS);
 
     /// getTruncateOrZeroExtend - Return a SCEV corresponding to a conversion
     /// of the input value to the specified type.  If the type must be
     /// extended, it is zero extended.
-    SCEVHandle getTruncateOrZeroExtend(const SCEVHandle &V, const Type *Ty);
+    const SCEV* getTruncateOrZeroExtend(const SCEV* V, const Type *Ty);
 
     /// getTruncateOrSignExtend - Return a SCEV corresponding to a conversion
     /// of the input value to the specified type.  If the type must be
     /// extended, it is sign extended.
-    SCEVHandle getTruncateOrSignExtend(const SCEVHandle &V, const Type *Ty);
+    const SCEV* getTruncateOrSignExtend(const SCEV* V, const Type *Ty);
 
     /// getNoopOrZeroExtend - Return a SCEV corresponding to a conversion of
     /// the input value to the specified type.  If the type must be extended,
     /// it is zero extended.  The conversion must not be narrowing.
-    SCEVHandle getNoopOrZeroExtend(const SCEVHandle &V, const Type *Ty);
+    const SCEV* getNoopOrZeroExtend(const SCEV* V, const Type *Ty);
 
     /// getNoopOrSignExtend - Return a SCEV corresponding to a conversion of
     /// the input value to the specified type.  If the type must be extended,
     /// it is sign extended.  The conversion must not be narrowing.
-    SCEVHandle getNoopOrSignExtend(const SCEVHandle &V, const Type *Ty);
+    const SCEV* getNoopOrSignExtend(const SCEV* V, const Type *Ty);
 
     /// getNoopOrAnyExtend - Return a SCEV corresponding to a conversion of
     /// the input value to the specified type. If the type must be extended,
     /// it is extended with unspecified bits. The conversion must not be
     /// narrowing.
-    SCEVHandle getNoopOrAnyExtend(const SCEVHandle &V, const Type *Ty);
+    const SCEV* getNoopOrAnyExtend(const SCEV* V, const Type *Ty);
 
     /// getTruncateOrNoop - Return a SCEV corresponding to a conversion of the
     /// input value to the specified type.  The conversion must not be
     /// widening.
-    SCEVHandle getTruncateOrNoop(const SCEVHandle &V, const Type *Ty);
+    const SCEV* getTruncateOrNoop(const SCEV* V, const Type *Ty);
 
     /// getIntegerSCEV - Given an integer or FP type, create a constant for the
     /// specified signed integer value and return a SCEV for the constant.
-    SCEVHandle getIntegerSCEV(int Val, const Type *Ty);
+    const SCEV* getIntegerSCEV(int Val, const Type *Ty);
+
+    /// getUMaxFromMismatchedTypes - Promote the operands to the wider of
+    /// the types using zero-extension, and then perform a umax operation
+    /// with them.
+    const SCEV* getUMaxFromMismatchedTypes(const SCEV* LHS,
+                                          const SCEV* RHS);
+
+    /// getUMinFromMismatchedTypes - Promote the operands to the wider of
+    /// the types using zero-extension, and then perform a umin operation
+    /// with them.
+    const SCEV* getUMinFromMismatchedTypes(const SCEV* LHS,
+                                           const SCEV* RHS);
 
     /// hasSCEV - Return true if the SCEV for this value has already been
     /// computed.
@@ -487,7 +479,7 @@ namespace llvm {
 
     /// setSCEV - Insert the specified SCEV into the map of current SCEVs for
     /// the specified value.
-    void setSCEV(Value *V, const SCEVHandle &H);
+    void setSCEV(Value *V, const SCEV* H);
 
     /// getSCEVAtScope - Return a SCEV expression handle for the specified value
     /// at the specified scope in the program.  The L value specifies a loop
@@ -499,11 +491,11 @@ namespace llvm {
     ///
     /// In the case that a relevant loop exit value cannot be computed, the
     /// original value V is returned.
-    SCEVHandle getSCEVAtScope(const SCEV *S, const Loop *L);
+    const SCEV* getSCEVAtScope(const SCEV *S, const Loop *L);
 
     /// getSCEVAtScope - This is a convenience function which does
     /// getSCEVAtScope(getSCEV(V), L).
-    SCEVHandle getSCEVAtScope(Value *V, const Loop *L);
+    const SCEV* getSCEVAtScope(Value *V, const Loop *L);
 
     /// isLoopGuardedByCond - Test whether entry to the loop is protected by
     /// a conditional between LHS and RHS.  This is used to help avoid max
@@ -522,12 +514,12 @@ namespace llvm {
     /// loop-invariant backedge-taken count (see
     /// hasLoopInvariantBackedgeTakenCount).
     ///
-    SCEVHandle getBackedgeTakenCount(const Loop *L);
+    const SCEV* getBackedgeTakenCount(const Loop *L);
 
     /// getMaxBackedgeTakenCount - Similar to getBackedgeTakenCount, except
     /// return the least SCEV value that is known never to be less than the
     /// actual backedge taken count.
-    SCEVHandle getMaxBackedgeTakenCount(const Loop *L);
+    const SCEV* getMaxBackedgeTakenCount(const Loop *L);
 
     /// hasLoopInvariantBackedgeTakenCount - Return true if the specified loop
     /// has an analyzable loop-invariant backedge-taken count.
@@ -539,6 +531,20 @@ namespace llvm {
     /// is deleted.
     void forgetLoopBackedgeTakenCount(const Loop *L);
 
+    /// GetMinTrailingZeros - Determine the minimum number of zero bits that S is
+    /// guaranteed to end in (at every loop iteration).  It is, at the same time,
+    /// the minimum number of times S is divisible by 2.  For example, given {4,+,8}
+    /// it returns 2.  If S is guaranteed to be 0, it returns the bitwidth of S.
+    uint32_t GetMinTrailingZeros(const SCEV* S);
+
+    /// GetMinLeadingZeros - Determine the minimum number of zero bits that S is
+    /// guaranteed to begin with (at every loop iteration).
+    uint32_t GetMinLeadingZeros(const SCEV* S);
+
+    /// GetMinSignBits - Determine the minimum number of sign bits that S is
+    /// guaranteed to begin with.
+    uint32_t GetMinSignBits(const SCEV* S);
+
     virtual bool runOnFunction(Function &F);
     virtual void releaseMemory();
     virtual void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -547,6 +553,23 @@ namespace llvm {
     void print(std::ostream *OS, const Module* M = 0) const {
       if (OS) print(*OS, M);
     }
+    
+  private:
+    // Uniquing tables.
+    std::map<ConstantInt*, SCEVConstant*> SCEVConstants;
+    std::map<std::pair<const SCEV*, const Type*>,
+             SCEVTruncateExpr*> SCEVTruncates;
+    std::map<std::pair<const SCEV*, const Type*>,
+             SCEVZeroExtendExpr*> SCEVZeroExtends;
+    std::map<std::pair<unsigned, std::vector<const SCEV*> >,
+             SCEVCommutativeExpr*> SCEVCommExprs;
+    std::map<std::pair<const SCEV*, const SCEV*>,
+             SCEVUDivExpr*> SCEVUDivs;
+    std::map<std::pair<const SCEV*, const Type*>,
+             SCEVSignExtendExpr*> SCEVSignExtends;
+    std::map<std::pair<const Loop *, std::vector<const SCEV*> >,
+             SCEVAddRecExpr*> SCEVAddRecExprs;
+    std::map<Value*, SCEVUnknown*> SCEVUnknowns;
   };
 }
 

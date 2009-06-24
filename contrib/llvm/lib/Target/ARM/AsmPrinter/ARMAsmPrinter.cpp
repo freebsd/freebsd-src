@@ -45,7 +45,6 @@ STATISTIC(EmittedInsts, "Number of machine instrs printed");
 namespace {
   class VISIBILITY_HIDDEN ARMAsmPrinter : public AsmPrinter {
     DwarfWriter *DW;
-    MachineModuleInfo *MMI;
 
     /// Subtarget - Keep a pointer to the ARMSubtarget around so that we can
     /// make the right decision when printing asm code for different targets.
@@ -84,7 +83,7 @@ namespace {
     explicit ARMAsmPrinter(raw_ostream &O, TargetMachine &TM,
                            const TargetAsmInfo *T, CodeGenOpt::Level OL,
                            bool V)
-      : AsmPrinter(O, TM, T, OL, V), DW(0), MMI(NULL), AFI(NULL), MCP(NULL),
+      : AsmPrinter(O, TM, T, OL, V), DW(0), AFI(NULL), MCP(NULL),
         InCPMode(false) {
       Subtarget = &TM.getSubtarget<ARMSubtarget>();
     }
@@ -97,7 +96,9 @@ namespace {
                       const char *Modifier = 0);
     void printSOImmOperand(const MachineInstr *MI, int opNum);
     void printSOImm2PartOperand(const MachineInstr *MI, int opNum);
+    void printSOOperand(const MachineInstr *MI, int OpNum);
     void printSORegOperand(const MachineInstr *MI, int opNum);
+    void printT2SOImmOperand(const MachineInstr *MI, int opNum);
     void printAddrMode2Operand(const MachineInstr *MI, int OpNo);
     void printAddrMode2OffsetOperand(const MachineInstr *MI, int OpNo);
     void printAddrMode3Operand(const MachineInstr *MI, int OpNo);
@@ -108,6 +109,7 @@ namespace {
                                const char *Modifier = 0);
     void printAddrModePCOperand(const MachineInstr *MI, int OpNo,
                                 const char *Modifier = 0);
+    void printBitfieldInvMaskImmOperand (const MachineInstr *MI, int OpNo);
     void printThumbAddrModeRROperand(const MachineInstr *MI, int OpNo);
     void printThumbAddrModeRI5Operand(const MachineInstr *MI, int OpNo,
                                       unsigned Scale);
@@ -285,12 +287,22 @@ void ARMAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
                                  const char *Modifier) {
   const MachineOperand &MO = MI->getOperand(opNum);
   switch (MO.getType()) {
-  case MachineOperand::MO_Register:
-    if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()))
-      O << TM.getRegisterInfo()->get(MO.getReg()).AsmName;
-    else
+  case MachineOperand::MO_Register: {
+    unsigned Reg = MO.getReg();
+    if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
+      if (Modifier && strcmp(Modifier, "dregpair") == 0) {
+        unsigned DRegLo = TRI->getSubReg(Reg, 5); // arm_dsubreg_0
+        unsigned DRegHi = TRI->getSubReg(Reg, 6); // arm_dsubreg_1
+        O << '{'
+          << TRI->getAsmName(DRegLo) << "-" << TRI->getAsmName(DRegHi)
+          << '}';
+      } else {
+        O << TRI->getAsmName(Reg);
+      }
+    } else
       assert(0 && "not implemented");
     break;
+  }
   case MachineOperand::MO_Immediate: {
     if (!Modifier || strcmp(Modifier, "no_hash") != 0)
       O << "#";
@@ -396,6 +408,28 @@ void ARMAsmPrinter::printSOImm2PartOperand(const MachineInstr *MI, int OpNum) {
   printSOImm(O, ARM_AM::getSOImmVal(V2), VerboseAsm, TAI);
 }
 
+// Constant shifts so_reg is a 3-operand unit corresponding to register forms of
+// the A5.1 "Addressing Mode 1 - Data-processing operands" forms.  This
+// includes:
+// REG 0 - e.g. R5
+// REG IMM, SH_OPC - e.g. R5, LSL #3
+void ARMAsmPrinter::printSOOperand(const MachineInstr *MI, int OpNum) {
+  const MachineOperand &MO1 = MI->getOperand(OpNum);
+  const MachineOperand &MO2 = MI->getOperand(OpNum+1);
+
+  unsigned Reg = MO1.getReg();
+  assert(TargetRegisterInfo::isPhysicalRegister(Reg));
+  O << TM.getRegisterInfo()->getAsmName(Reg);
+
+  // Print the shift opc.
+  O << ", "
+    << ARM_AM::getShiftOpcStr(ARM_AM::getSORegShOp(MO2.getImm()))
+    << " ";
+
+  assert(MO2.isImm() && "Not a valid t2_so_reg value!");
+  O << "#" << ARM_AM::getSORegOffset(MO2.getImm());
+}
+
 // so_reg is a 4-operand unit corresponding to register forms of the A5.1
 // "Addressing Mode 1 - Data-processing operands" forms.  This includes:
 //    REG 0   0    - e.g. R5
@@ -421,6 +455,24 @@ void ARMAsmPrinter::printSORegOperand(const MachineInstr *MI, int Op) {
   } else {
     O << "#" << ARM_AM::getSORegOffset(MO3.getImm());
   }
+}
+
+static void printT2SOImm(raw_ostream &O, int64_t V) {
+  unsigned Imm = ARM_AM::getT2SOImmValDecode(V);
+  
+  // Always print the immediate directly, as the "rotate" form
+  // is deprecated in some contexts.
+  O << "#" << Imm;
+}
+
+/// printT2SOImmOperand - T2SOImm is:
+///  1. a 4-bit splat control value and 8 bit immediate value
+///  2. a 5-bit rotate amount and a non-zero 8-bit immediate value
+///     represented by a normalizedin 7-bit value (msb is always 1)
+void ARMAsmPrinter::printT2SOImmOperand(const MachineInstr *MI, int OpNum) {
+  const MachineOperand &MO = MI->getOperand(OpNum);
+  assert(MO.isImm() && "Not a valid so_imm value!");
+  printT2SOImm(O, MO.getImm());
 }
 
 void ARMAsmPrinter::printAddrMode2Operand(const MachineInstr *MI, int Op) {
@@ -585,6 +637,16 @@ void ARMAsmPrinter::printAddrModePCOperand(const MachineInstr *MI, int Op,
   const MachineOperand &MO1 = MI->getOperand(Op);
   assert(TargetRegisterInfo::isPhysicalRegister(MO1.getReg()));
   O << "[pc, +" << TM.getRegisterInfo()->get(MO1.getReg()).AsmName << "]";
+}
+
+void
+ARMAsmPrinter::printBitfieldInvMaskImmOperand(const MachineInstr *MI, int Op) {
+  const MachineOperand &MO = MI->getOperand(Op);
+  uint32_t v = ~MO.getImm();
+  int32_t lsb = ffs (v) - 1;
+  int32_t width = fls (v) - lsb;
+  assert(MO.isImm() && "Not a valid bf_inv_mask_imm value!");
+  O << "#" << lsb << ", #" << width;
 }
 
 void
@@ -805,17 +867,11 @@ void ARMAsmPrinter::printMachineInstruction(const MachineInstr *MI) {
 bool ARMAsmPrinter::doInitialization(Module &M) {
 
   bool Result = AsmPrinter::doInitialization(M);
-
-  // Emit initial debug information.
-  MMI = getAnalysisIfAvailable<MachineModuleInfo>();
-  assert(MMI);
   DW = getAnalysisIfAvailable<DwarfWriter>();
-  assert(DW && "Dwarf Writer is not available");
-  DW->BeginModule(&M, MMI, O, this, TAI);
 
-  // Darwin wants symbols to be quoted if they have complex names.
-  if (Subtarget->isTargetDarwin())
-    Mang->setUseQuotes(true);
+  // Thumb-2 instructions are supported only in unified assembler syntax mode.
+  if (Subtarget->hasThumb2())
+    O << "\t.syntax unified\n";
 
   // Emit ARM Build Attributes
   if (Subtarget->isTargetELF()) {
@@ -1114,4 +1170,10 @@ namespace {
       ARMTargetMachine::registerAsmPrinter(createARMCodePrinterPass);
     }
   } Registrator;
+}
+
+// Force static initialization when called from
+// llvm/InitializeAllAsmPrinters.h
+namespace llvm {
+  void InitializeARMAsmPrinter() { }
 }

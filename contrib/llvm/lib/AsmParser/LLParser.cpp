@@ -808,8 +808,11 @@ bool LLParser::ParseOptionalVisibility(unsigned &Res) {
 ///   ::= 'coldcc'
 ///   ::= 'x86_stdcallcc'
 ///   ::= 'x86_fastcallcc'
+///   ::= 'arm_apcscc'
+///   ::= 'arm_aapcscc'
+///   ::= 'arm_aapcs_vfpcc'
 ///   ::= 'cc' UINT
-/// 
+///
 bool LLParser::ParseOptionalCallingConv(unsigned &CC) {
   switch (Lex.getKind()) {
   default:                       CC = CallingConv::C; return false;
@@ -818,6 +821,9 @@ bool LLParser::ParseOptionalCallingConv(unsigned &CC) {
   case lltok::kw_coldcc:         CC = CallingConv::Cold; break;
   case lltok::kw_x86_stdcallcc:  CC = CallingConv::X86_StdCall; break;
   case lltok::kw_x86_fastcallcc: CC = CallingConv::X86_FastCall; break;
+  case lltok::kw_arm_apcscc:     CC = CallingConv::ARM_APCS; break;
+  case lltok::kw_arm_aapcscc:    CC = CallingConv::ARM_AAPCS; break;
+  case lltok::kw_arm_aapcs_vfpcc:CC = CallingConv::ARM_AAPCS_VFP; break;
   case lltok::kw_cc:             Lex.Lex(); return ParseUInt32(CC);
   }
   Lex.Lex();
@@ -1743,7 +1749,7 @@ bool LLParser::ParseValID(ValID &ID) {
     Lex.Lex();
     if (ParseToken(lltok::lparen, "expected '(' after constantexpr cast") ||
         ParseGlobalTypeAndValue(SrcVal) ||
-        ParseToken(lltok::kw_to, "expected 'to' int constantexpr cast") ||
+        ParseToken(lltok::kw_to, "expected 'to' in constantexpr cast") ||
         ParseType(DestTy) ||
         ParseToken(lltok::rparen, "expected ')' at end of constantexpr cast"))
       return true;
@@ -3145,7 +3151,7 @@ bool LLParser::ParseFree(Instruction *&Inst, PerFunctionState &PFS) {
 }
 
 /// ParseLoad
-///   ::= 'volatile'? 'load' TypeAndValue (',' 'align' uint)?
+///   ::= 'volatile'? 'load' TypeAndValue (',' 'align' i32)?
 bool LLParser::ParseLoad(Instruction *&Inst, PerFunctionState &PFS,
                          bool isVolatile) {
   Value *Val; LocTy Loc;
@@ -3163,7 +3169,7 @@ bool LLParser::ParseLoad(Instruction *&Inst, PerFunctionState &PFS,
 }
 
 /// ParseStore
-///   ::= 'volatile'? 'store' TypeAndValue ',' TypeAndValue (',' 'align' uint)?
+///   ::= 'volatile'? 'store' TypeAndValue ',' TypeAndValue (',' 'align' i32)?
 bool LLParser::ParseStore(Instruction *&Inst, PerFunctionState &PFS,
                           bool isVolatile) {
   Value *Val, *Ptr; LocTy Loc, PtrLoc;
@@ -3186,7 +3192,7 @@ bool LLParser::ParseStore(Instruction *&Inst, PerFunctionState &PFS,
 }
 
 /// ParseGetResult
-///   ::= 'getresult' TypeAndValue ',' uint
+///   ::= 'getresult' TypeAndValue ',' i32
 /// FIXME: Remove support for getresult in LLVM 3.0
 bool LLParser::ParseGetResult(Instruction *&Inst, PerFunctionState &PFS) {
   Value *Val; LocTy ValLoc, EltLoc;

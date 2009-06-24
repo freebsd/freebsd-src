@@ -1181,9 +1181,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 	cred = nfsd->nd_cr;
 	if (cred->cr_uid == 0 || (exflags & MNT_EXPORTANON)) {
 		cred->cr_uid = credanon->cr_uid;
-		for (i = 0; i < credanon->cr_ngroups && i < NGROUPS; i++)
-			cred->cr_groups[i] = credanon->cr_groups[i];
-		cred->cr_ngroups = i;
+		crsetgroups(cred, credanon->cr_ngroups, credanon->cr_groups);
 	}
 	if (exflags & MNT_EXRDONLY)
 		*rdonlyp = 1;
