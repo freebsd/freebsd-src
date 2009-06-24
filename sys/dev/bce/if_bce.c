@@ -5895,6 +5895,9 @@ bce_rx_intr(struct bce_softc *sc)
 			/* Set the total packet length. */
 			m0->m_pkthdr.len = m0->m_len = pkt_len;
 		}
+#else
+        /* Set the total packet length. */
+		m0->m_pkthdr.len = m0->m_len = pkt_len;
 #endif
 
 		/* Remove the trailing Ethernet FCS. */
