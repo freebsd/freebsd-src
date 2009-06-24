@@ -2152,7 +2152,7 @@ ixgbe_allocate_msix(struct adapter *adapter)
 			return (error);
 		}
 		txr->msix = vector;
-#if __FreeBSD_version >= 800000
+#if defined(__i386__) || defined(__amd64__)
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
@@ -2189,7 +2189,7 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		rxr->msix = vector;
 		/* used in local timer */
 		adapter->rx_mask |= (u64)(1 << vector);
-#if __FreeBSD_version >= 800000
+#if defined(__i386__) || defined(__amd64__)
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
