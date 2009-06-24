@@ -50,6 +50,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
@@ -84,12 +85,6 @@ static int sysvmsg_modload(struct module *, int, void *);
 #endif
 
 static void msg_freehdr(struct msg *msghdr);
-
-/* XXX casting to (sy_call_t *) is bogus, as usual. */
-static sy_call_t *msgcalls[] = {
-	(sy_call_t *)msgctl, (sy_call_t *)msgget,
-	(sy_call_t *)msgsnd, (sy_call_t *)msgrcv
-};
 
 #ifndef MSGSSZ
 #define MSGSSZ	8		/* Each segment must be 2^N long */
@@ -308,7 +303,6 @@ static moduledata_t sysvmsg_mod = {
 	NULL
 };
 
-SYSCALL_MODULE_HELPER(msgsys);
 SYSCALL_MODULE_HELPER(msgctl);
 SYSCALL_MODULE_HELPER(msgget);
 SYSCALL_MODULE_HELPER(msgsnd);
@@ -316,33 +310,6 @@ SYSCALL_MODULE_HELPER(msgrcv);
 
 DECLARE_MODULE(sysvmsg, sysvmsg_mod, SI_SUB_SYSV_MSG, SI_ORDER_FIRST);
 MODULE_VERSION(sysvmsg, 1);
-
-/*
- * Entry point for all MSG calls.
- */
-int
-msgsys(td, uap)
-	struct thread *td;
-	/* XXX actually varargs. */
-	struct msgsys_args /* {
-		int	which;
-		int	a2;
-		int	a3;
-		int	a4;
-		int	a5;
-		int	a6;
-	} */ *uap;
-{
-	int error;
-
-	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
-		return (ENOSYS);
-	if (uap->which < 0 ||
-	    uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
-		return (EINVAL);
-	error = (*msgcalls[uap->which])(td, &uap->a2);
-	return (error);
-}
 
 static void
 msg_freehdr(msghdr)
@@ -1289,3 +1256,42 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, msgseg, CTLFLAG_RDTUN, &msginfo.msgseg, 0,
     "Number of message segments");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids, CTLFLAG_RD,
     NULL, 0, sysctl_msqids, "", "Message queue IDs");
+
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+SYSCALL_MODULE_HELPER(msgsys);
+
+/* XXX casting to (sy_call_t *) is bogus, as usual. */
+static sy_call_t *msgcalls[] = {
+	(sy_call_t *)msgctl, (sy_call_t *)msgget,
+	(sy_call_t *)msgsnd, (sy_call_t *)msgrcv
+};
+
+/*
+ * Entry point for all MSG calls.
+ */
+int
+msgsys(td, uap)
+	struct thread *td;
+	/* XXX actually varargs. */
+	struct msgsys_args /* {
+		int	which;
+		int	a2;
+		int	a3;
+		int	a4;
+		int	a5;
+		int	a6;
+	} */ *uap;
+{
+	int error;
+
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
+		return (ENOSYS);
+	if (uap->which < 0 ||
+	    uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
+		return (EINVAL);
+	error = (*msgcalls[uap->which])(td, &uap->a2);
+	return (error);
+}
+#endif	/* COMPAT_FREEBSD4 || COMPAT_FREEBSD5 || COMPAT_FREEBSD6 ||
+	   COMPAT_FREEBSD7 */

@@ -39,6 +39,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
@@ -89,12 +90,6 @@ static struct sem_undo *semu_alloc(struct thread *td);
 static int semundo_adjust(struct thread *td, struct sem_undo **supptr,
     int semid, int semseq, int semnum, int adjval);
 static void semundo_clear(int semid, int semnum);
-
-/* XXX casting to (sy_call_t *) is bogus, as usual. */
-static sy_call_t *semcalls[] = {
-	(sy_call_t *)__semctl, (sy_call_t *)semget,
-	(sy_call_t *)semop
-};
 
 static struct mtx	sem_mtx;	/* semaphore global lock */
 static struct mtx sem_undo_mtx;
@@ -317,39 +312,12 @@ static moduledata_t sysvsem_mod = {
 	NULL
 };
 
-SYSCALL_MODULE_HELPER(semsys);
 SYSCALL_MODULE_HELPER(__semctl);
 SYSCALL_MODULE_HELPER(semget);
 SYSCALL_MODULE_HELPER(semop);
 
 DECLARE_MODULE(sysvsem, sysvsem_mod, SI_SUB_SYSV_SEM, SI_ORDER_FIRST);
 MODULE_VERSION(sysvsem, 1);
-
-/*
- * Entry point for all SEM calls.
- */
-int
-semsys(td, uap)
-	struct thread *td;
-	/* XXX actually varargs. */
-	struct semsys_args /* {
-		int	which;
-		int	a2;
-		int	a3;
-		int	a4;
-		int	a5;
-	} */ *uap;
-{
-	int error;
-
-	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
-		return (ENOSYS);
-	if (uap->which < 0 ||
-	    uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
-		return (EINVAL);
-	error = (*semcalls[uap->which])(td, &uap->a2);
-	return (error);
-}
 
 /*
  * Allocate a new sem_undo structure for a process
@@ -1345,3 +1313,41 @@ sysctl_sema(SYSCTL_HANDLER_ARGS)
 	return (SYSCTL_OUT(req, sema,
 	    sizeof(struct semid_kernel) * seminfo.semmni));
 }
+
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+SYSCALL_MODULE_HELPER(semsys);
+
+/* XXX casting to (sy_call_t *) is bogus, as usual. */
+static sy_call_t *semcalls[] = {
+	(sy_call_t *)__semctl, (sy_call_t *)semget,
+	(sy_call_t *)semop
+};
+
+/*
+ * Entry point for all SEM calls.
+ */
+int
+semsys(td, uap)
+	struct thread *td;
+	/* XXX actually varargs. */
+	struct semsys_args /* {
+		int	which;
+		int	a2;
+		int	a3;
+		int	a4;
+		int	a5;
+	} */ *uap;
+{
+	int error;
+
+	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
+		return (ENOSYS);
+	if (uap->which < 0 ||
+	    uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
+		return (EINVAL);
+	error = (*semcalls[uap->which])(td, &uap->a2);
+	return (error);
+}
+#endif	/* COMPAT_FREEBSD4 || COMPAT_FREEBSD5 || COMPAT_FREEBSD6 ||
+	   COMPAT_FREEBSD7 */
