@@ -307,7 +307,7 @@ struct kinfo_ofile {
 };
 
 #if defined(__amd64__) || defined(__i386__)
-#define	KINFO_FILE_SIZE	1412
+#define	KINFO_FILE_SIZE	1392
 #endif
 
 struct kinfo_file {
@@ -324,12 +324,12 @@ struct kinfo_file {
 	int	kf_sock_protocol;		/* Socket protocol. */
 	struct sockaddr_storage kf_sa_local;	/* Socket address. */
 	struct sockaddr_storage	kf_sa_peer;	/* Peer address. */
-	long	kf_fsid;			/* Vnode filesystem id. */
-	long	kf_fileid;			/* Global file id. */
-	mode_t	kf_mode;			/* File mode. */
-	u_long	kf_size;			/* File size. */
-	dev_t	kf_rdev;			/* File device. */
-	int	_kf_ispare[16];			/* Space for more stuff. */
+	uint32_t	kf_fsid;		/* Vnode filesystem id. */
+	uint64_t	kf_fileid;		/* Global file id. */
+	uint32_t	kf_mode;		/* File mode. */
+	int64_t		kf_size;		/* File size. */
+	uint32_t	kf_rdev;		/* File device. */
+	int	_kf_ispare[9];			/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char	kf_path[PATH_MAX];		/* Path to file, if any. */
 };
