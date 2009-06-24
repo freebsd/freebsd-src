@@ -149,6 +149,7 @@ uint64_t	ifmedia_baudrate(int);
 #define IFM_10G_TWINAX_LONG	23	/* 10GBase Twinax Long copper */
 #define IFM_10G_LRM	24		/* 10GBase-LRM 850nm Multi-mode */
 #define IFM_UNKNOWN	25		/* media types not defined yet */
+#define IFM_10G_T	26		/* 10GBase-T - RJ45 */
 
 
 /* note 31 is the max! */
@@ -358,6 +359,7 @@ struct ifmedia_description {
 	{ IFM_10G_TWINAX,	"10Gbase-Twinax" },			\
 	{ IFM_10G_TWINAX_LONG,	"10Gbase-Twinax-Long" },		\
 	{ IFM_UNKNOWN,	"Unknown" },					\
+	{ IFM_10G_T,	"10Gbase-T" },					\
 	{ 0, NULL },							\
 }
 
@@ -615,6 +617,7 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_10G_TWINAX,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_10G_TWINAX_LONG,	IF_Gbps(10ULL) },	\
 	{ IFM_ETHER | IFM_10G_LRM,	IF_Gbps(10ULL) },		\
+	{ IFM_ETHER | IFM_10G_T,	IF_Gbps(10ULL) },		\
 									\
 	{ IFM_TOKEN | IFM_TOK_STP4,	IF_Mbps(4) },			\
 	{ IFM_TOKEN | IFM_TOK_STP16,	IF_Mbps(16) },			\
