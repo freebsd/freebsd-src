@@ -67,6 +67,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <jail.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -629,6 +630,34 @@ deletetunnel(const char *vname, int param, int s, const struct afswtch *afp)
 }
 
 static void
+setifvnet(const char *jname, int dummy __unused, int s,
+    const struct afswtch *afp)
+{
+	struct ifreq my_ifr;
+
+	memcpy(&my_ifr, &ifr, sizeof(my_ifr));
+	ifr.ifr_jid = jail_getid(jname);
+	if (ifr.ifr_jid < 0)
+		errx(1, "%s", jail_errmsg);
+	if (ioctl(s, SIOCSIFVNET, &ifr) < 0)
+		err(1, "SIOCSIFVNET");
+}
+
+static void
+setifrvnet(const char *jname, int dummy __unused, int s,
+    const struct afswtch *afp)
+{
+	struct ifreq my_ifr;
+
+	memcpy(&my_ifr, &ifr, sizeof(my_ifr));
+	ifr.ifr_jid = jail_getid(jname);
+	if (ifr.ifr_jid < 0)
+		errx(1, "%s", jail_errmsg);
+	if (ioctl(s, SIOCSIFRVNET, &ifr) < 0)
+		err(1, "SIOCSIFRVNET");
+}
+
+static void
 setifnetmask(const char *addr, int dummy __unused, int s,
     const struct afswtch *afp)
 {
@@ -1012,6 +1041,8 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD_ARG2("tunnel",			settunnel),
 	DEF_CMD("-tunnel", 0,			deletetunnel),
 	DEF_CMD("deletetunnel", 0,		deletetunnel),
+	DEF_CMD_ARG("vnet",			setifvnet),
+	DEF_CMD_ARG("-vnet",			setifrvnet),
 	DEF_CMD("link0",	IFF_LINK0,	setifflags),
 	DEF_CMD("-link0",	-IFF_LINK0,	setifflags),
 	DEF_CMD("link1",	IFF_LINK1,	setifflags),
