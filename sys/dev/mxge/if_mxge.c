@@ -105,6 +105,7 @@ static int mxge_ticks;
 static int mxge_max_slices = 1;
 static int mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
 static int mxge_always_promisc = 0;
+static int mxge_initial_mtu = ETHERMTU_JUMBO;
 static char *mxge_fw_unaligned = "mxge_ethp_z8e";
 static char *mxge_fw_aligned = "mxge_eth_z8e";
 static char *mxge_fw_rss_aligned = "mxge_rss_eth_z8e";
@@ -4009,6 +4010,7 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	TUNABLE_INT_FETCH("hw.mxge.lro_cnt", &sc->lro_cnt);
 	TUNABLE_INT_FETCH("hw.mxge.always_promisc", &mxge_always_promisc);
 	TUNABLE_INT_FETCH("hw.mxge.rss_hash_type", &mxge_rss_hash_type);
+	TUNABLE_INT_FETCH("hw.mxge.initial_mtu", &mxge_initial_mtu);
 	if (sc->lro_cnt != 0)
 		mxge_lro_cnt = sc->lro_cnt;
 
@@ -4023,6 +4025,9 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_MAX) {
 		mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
 	}
+	if (mxge_initial_mtu > ETHERMTU_JUMBO ||
+	    mxge_initial_mtu < ETHER_MIN_LEN)
+		mxge_initial_mtu = ETHERMTU_JUMBO;
 }
 
 
@@ -4586,9 +4591,9 @@ mxge_attach(device_t dev)
 	mxge_set_media(sc, IFM_ETHER | IFM_AUTO);
 	mxge_media_probe(sc);
 	ether_ifattach(ifp, sc->mac_addr);
-	/* ether_ifattach sets mtu to 1500 */
-	if (ifp->if_capabilities & IFCAP_JUMBO_MTU)
-		ifp->if_mtu = 9000;
+	/* ether_ifattach sets mtu to ETHERMTU */
+	if (mxge_initial_mtu != ETHERMTU)
+		mxge_change_mtu(sc, mxge_initial_mtu);
 
 	mxge_add_sysctls(sc);
 #ifdef IFNET_BUF_RING
