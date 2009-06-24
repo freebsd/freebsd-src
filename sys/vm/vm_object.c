@@ -787,7 +787,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 				continue;
 			}
 			vm_page_test_dirty(p);
-			if ((p->dirty & p->valid) == 0) {
+			if (p->dirty == 0) {
 				if (--scanlimit == 0)
 					break;
 				++tscan;
@@ -874,7 +874,7 @@ again:
 		}
 
 		vm_page_test_dirty(p);
-		if ((p->dirty & p->valid) == 0) {
+		if (p->dirty == 0) {
 			p->oflags &= ~VPO_CLEANCHK;
 			continue;
 		}
@@ -947,7 +947,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 				(tp->busy != 0))
 				break;
 			vm_page_test_dirty(tp);
-			if ((tp->dirty & tp->valid) == 0) {
+			if (tp->dirty == 0) {
 				tp->oflags &= ~VPO_CLEANCHK;
 				break;
 			}
@@ -971,7 +971,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 					(tp->busy != 0))
 					break;
 				vm_page_test_dirty(tp);
-				if ((tp->dirty & tp->valid) == 0) {
+				if (tp->dirty == 0) {
 					tp->oflags &= ~VPO_CLEANCHK;
 					break;
 				}
@@ -999,7 +999,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 
 	vm_pageout_flush(ma, runlen, pagerflags);
 	for (i = 0; i < runlen; i++) {
-		if (ma[i]->valid & ma[i]->dirty) {
+		if (ma[i]->dirty) {
 			pmap_remove_write(ma[i]);
 			ma[i]->oflags |= VPO_CLEANCHK;
 
@@ -1946,7 +1946,7 @@ again:
 		    ("vm_object_page_remove: page %p is fictitious", p));
 		if (clean_only && p->valid) {
 			pmap_remove_write(p);
-			if (p->valid & p->dirty)
+			if (p->dirty)
 				continue;
 		}
 		pmap_remove_all(p);

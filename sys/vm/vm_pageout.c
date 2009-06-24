@@ -105,8 +105,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#include <machine/mutex.h>
-
 /*
  * System initialization
  */
@@ -350,7 +348,7 @@ more:
 			break;
 		}
 		vm_page_test_dirty(p);
-		if ((p->dirty & p->valid) == 0 ||
+		if (p->dirty == 0 ||
 		    p->queue != PQ_INACTIVE ||
 		    p->wire_count != 0 ||	/* may be held by buf cache */
 		    p->hold_count != 0) {	/* may be undergoing I/O */
@@ -378,7 +376,7 @@ more:
 			break;
 		}
 		vm_page_test_dirty(p);
-		if ((p->dirty & p->valid) == 0 ||
+		if (p->dirty == 0 ||
 		    p->queue != PQ_INACTIVE ||
 		    p->wire_count != 0 ||	/* may be held by buf cache */
 		    p->hold_count != 0) {	/* may be undergoing I/O */
