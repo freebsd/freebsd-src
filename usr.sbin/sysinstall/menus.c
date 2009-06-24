@@ -191,6 +191,7 @@ DMenu MenuIndex = {
       { " Media, NFS",		"Select NFS installation media.",	NULL, mediaSetNFS },
       { " Media, Floppy",	"Select floppy installation media.",	NULL, mediaSetFloppy },
       { " Media, CDROM/DVD",	"Select CDROM/DVD installation media.",	NULL, mediaSetCDROM },
+      { " Media, USB",		"Select USB installation media.",	NULL, mediaSetUSB },
       { " Media, DOS",		"Select DOS installation media.",	NULL, mediaSetDOS },
       { " Media, UFS",		"Select UFS installation media.",	NULL, mediaSetUFS },
       { " Media, FTP",		"Select FTP installation media.",	NULL, mediaSetFTP },
@@ -426,6 +427,16 @@ DMenu MenuMediaFloppy = {
     NULL,
     NULL,
     { { NULL } },
+};
+
+DMenu MenuMediaUSB = {
+	DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+	"Choose a USB drive",
+	"You have more than one USB drive. Please choose which drive\n"
+	"you would like to use.",
+	NULL,
+	NULL,
+	{ { NULL } },
 };
 
 DMenu MenuMediaDOS = {
@@ -850,6 +861,7 @@ DMenu MenuMedia = {
       { "6 NFS",		"Install over NFS",			NULL, mediaSetNFS },
       { "7 File System",	"Install from an existing filesystem",	NULL, mediaSetUFS },
       { "8 Floppy",		"Install from a floppy disk set",	NULL, mediaSetFloppy },
+      { "9 USB",		"Install from a USB drive",		NULL, mediaSetUSB },
       { "X Options",		"Go to the Options screen",		NULL, optionsEditor },
       { NULL } },
 };
