@@ -8,7 +8,7 @@ SHARED_SRCS += e1000_80003es2lan.c e1000_82542.c e1000_82541.c e1000_82543.c
 SHARED_SRCS += e1000_82540.c e1000_ich8lan.c e1000_82571.c e1000_osdep.c
 SHARED_SRCS += e1000_82575.c
 
-CFLAGS += -I${.CURDIR}/../../dev/e1000
+CFLAGS += -I${.CURDIR}/../../dev/e1000 -DSMP
 
 # DEVICE_POLLING gives you non-interrupt handling
 # not advisable since MSIX gives better results

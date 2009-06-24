@@ -519,13 +519,6 @@ done2:
 }
 #endif
 
-#ifndef _SYS_SYSPROTO_H_
-struct shmctl_args {
-	int shmid;
-	int cmd;
-	struct shmid_ds *buf;
-};
-#endif
 int
 kern_shmctl(td, shmid, cmd, buf, bufsz)
 	struct thread *td;
@@ -636,6 +629,13 @@ done2:
 	return (error);
 }
 
+#ifndef _SYS_SYSPROTO_H_
+struct shmctl_args {
+	int shmid;
+	int cmd;
+	struct shmid_ds *buf;
+};
+#endif
 int
 shmctl(td, uap)
 	struct thread *td;
@@ -680,13 +680,6 @@ done:
 }
 
 
-#ifndef _SYS_SYSPROTO_H_
-struct shmget_args {
-	key_t key;
-	size_t size;
-	int shmflg;
-};
-#endif
 static int
 shmget_existing(td, uap, mode, segnum)
 	struct thread *td;
@@ -807,6 +800,13 @@ shmget_allocate_segment(td, uap, mode)
 	return (0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
+struct shmget_args {
+	key_t key;
+	size_t size;
+	int shmflg;
+};
+#endif
 int
 shmget(td, uap)
 	struct thread *td;
@@ -1024,6 +1024,5 @@ SYSCALL_MODULE_HELPER(shmctl);
 SYSCALL_MODULE_HELPER(shmdt);
 SYSCALL_MODULE_HELPER(shmget);
 
-DECLARE_MODULE(sysvshm, sysvshm_mod,
-	SI_SUB_SYSV_SHM, SI_ORDER_FIRST);
+DECLARE_MODULE(sysvshm, sysvshm_mod, SI_SUB_SYSV_SHM, SI_ORDER_FIRST);
 MODULE_VERSION(sysvshm, 1);
