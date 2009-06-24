@@ -138,7 +138,7 @@ ata_nvidia_probe(device_t dev)
 	ctlr->chipinit = ata_ahci_chipinit;
     else
 	ctlr->chipinit = ata_nvidia_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
