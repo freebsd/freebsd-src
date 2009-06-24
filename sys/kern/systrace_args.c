@@ -1192,16 +1192,6 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* __semctl */
-	case 220: {
-		struct __semctl_args *p = params;
-		iarg[0] = p->semid; /* int */
-		iarg[1] = p->semnum; /* int */
-		iarg[2] = p->cmd; /* int */
-		uarg[3] = (intptr_t) p->arg; /* union semun * */
-		*n_args = 4;
-		break;
-	}
 	/* semget */
 	case 221: {
 		struct semget_args *p = params;
@@ -1217,15 +1207,6 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		iarg[0] = p->semid; /* int */
 		uarg[1] = (intptr_t) p->sops; /* struct sembuf * */
 		uarg[2] = p->nsops; /* size_t */
-		*n_args = 3;
-		break;
-	}
-	/* msgctl */
-	case 224: {
-		struct msgctl_args *p = params;
-		iarg[0] = p->msqid; /* int */
-		iarg[1] = p->cmd; /* int */
-		uarg[2] = (intptr_t) p->buf; /* struct msqid_ds * */
 		*n_args = 3;
 		break;
 	}
@@ -1264,15 +1245,6 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		iarg[0] = p->shmid; /* int */
 		uarg[1] = (intptr_t) p->shmaddr; /* const void * */
 		iarg[2] = p->shmflg; /* int */
-		*n_args = 3;
-		break;
-	}
-	/* shmctl */
-	case 229: {
-		struct shmctl_args *p = params;
-		iarg[0] = p->shmid; /* int */
-		iarg[1] = p->cmd; /* int */
-		uarg[2] = (intptr_t) p->buf; /* struct shmid_ds * */
 		*n_args = 3;
 		break;
 	}
@@ -3062,6 +3034,34 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		struct closefrom_args *p = params;
 		iarg[0] = p->lowfd; /* int */
 		*n_args = 1;
+		break;
+	}
+	/* __semctl */
+	case 510: {
+		struct __semctl_args *p = params;
+		iarg[0] = p->semid; /* int */
+		iarg[1] = p->semnum; /* int */
+		iarg[2] = p->cmd; /* int */
+		uarg[3] = (intptr_t) p->arg; /* union semun * */
+		*n_args = 4;
+		break;
+	}
+	/* msgctl */
+	case 511: {
+		struct msgctl_args *p = params;
+		iarg[0] = p->msqid; /* int */
+		iarg[1] = p->cmd; /* int */
+		uarg[2] = (intptr_t) p->buf; /* struct msqid_ds * */
+		*n_args = 3;
+		break;
+	}
+	/* shmctl */
+	case 512: {
+		struct shmctl_args *p = params;
+		iarg[0] = p->shmid; /* int */
+		iarg[1] = p->cmd; /* int */
+		uarg[2] = (intptr_t) p->buf; /* struct shmid_ds * */
+		*n_args = 3;
 		break;
 	}
 	default:
@@ -4953,25 +4953,6 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* lkmnosys */
 	case 219:
 		break;
-	/* __semctl */
-	case 220:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "int";
-			break;
-		case 3:
-			p = "union semun *";
-			break;
-		default:
-			break;
-		};
-		break;
 	/* semget */
 	case 221:
 		switch(ndx) {
@@ -4999,22 +4980,6 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "size_t";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* msgctl */
-	case 224:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "struct msqid_ds *";
 			break;
 		default:
 			break;
@@ -5085,22 +5050,6 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* shmctl */
-	case 229:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "struct shmid_ds *";
 			break;
 		default:
 			break;
@@ -8128,6 +8077,57 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __semctl */
+	case 510:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "union semun *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* msgctl */
+	case 511:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "struct msqid_ds *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shmctl */
+	case 512:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "struct shmid_ds *";
 			break;
 		default:
 			break;
