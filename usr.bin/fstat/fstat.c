@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/devfs/devfs_int.h>
 #undef _KERNEL
 #include <nfs/nfsproto.h>
-#include <nfs/rpcv2.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
 

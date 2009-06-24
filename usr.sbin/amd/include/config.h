@@ -753,7 +753,7 @@
 /* #undef HAVE_NFS_PROT_HEADERS */
 
 /* Define to 1 if you have the <nfs/rpcv2.h> header file. */
-#define HAVE_NFS_RPCV2_H 1
+/* #define HAVE_NFS_RPCV2_H 1 */
 
 /* Define to 1 if you have the `nis_domain_of' function. */
 /* #undef HAVE_NIS_DOMAIN_OF */
