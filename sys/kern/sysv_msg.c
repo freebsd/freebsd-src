@@ -1260,10 +1260,11 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids, CTLFLAG_RD,
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 SYSCALL_MODULE_HELPER(msgsys);
+SYSCALL_MODULE_HELPER(freebsd7_msgctl);
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *msgcalls[] = {
-	(sy_call_t *)msgctl, (sy_call_t *)msgget,
+	(sy_call_t *)freebsd7_msgctl, (sy_call_t *)msgget,
 	(sy_call_t *)msgsnd, (sy_call_t *)msgrcv
 };
 
@@ -1293,5 +1294,65 @@ msgsys(td, uap)
 	error = (*msgcalls[uap->which])(td, &uap->a2);
 	return (error);
 }
+
+#define CP(src, dst, fld)	do { (dst).fld = (src).fld; } while (0)
+
+#ifndef _SYS_SYSPROTO_H_
+struct freebsd7_msgctl_args {
+	int	msqid;
+	int	cmd;
+	struct	msqid_ds_old *buf;
+};
+#endif
+int
+freebsd7_msgctl(td, uap)
+	struct thread *td;
+	struct freebsd7_msgctl_args *uap;
+{
+	struct msqid_ds_old msqold;
+	struct msqid_ds msqbuf;
+	int error;
+
+	DPRINTF(("call to freebsd7_msgctl(%d, %d, %p)\n", uap->msqid, uap->cmd,
+	    uap->buf));
+	if (uap->cmd == IPC_SET) {
+		error = copyin(uap->buf, &msqold, sizeof(msqold));
+		if (error)
+			return (error);
+		ipcperm_old2new(&msqold.msg_perm, &msqbuf.msg_perm);
+		CP(msqold, msqbuf, msg_first);
+		CP(msqold, msqbuf, msg_last);
+		CP(msqold, msqbuf, msg_cbytes);
+		CP(msqold, msqbuf, msg_qnum);
+		CP(msqold, msqbuf, msg_qbytes);
+		CP(msqold, msqbuf, msg_lspid);
+		CP(msqold, msqbuf, msg_lrpid);
+		CP(msqold, msqbuf, msg_stime);
+		CP(msqold, msqbuf, msg_rtime);
+		CP(msqold, msqbuf, msg_ctime);
+	}
+	error = kern_msgctl(td, uap->msqid, uap->cmd, &msqbuf);
+	if (error)
+		return (error);
+	if (uap->cmd == IPC_STAT) {
+		bzero(&msqold, sizeof(msqold));
+		ipcperm_new2old(&msqbuf.msg_perm, &msqold.msg_perm);
+		CP(msqbuf, msqold, msg_first);
+		CP(msqbuf, msqold, msg_last);
+		CP(msqbuf, msqold, msg_cbytes);
+		CP(msqbuf, msqold, msg_qnum);
+		CP(msqbuf, msqold, msg_qbytes);
+		CP(msqbuf, msqold, msg_lspid);
+		CP(msqbuf, msqold, msg_lrpid);
+		CP(msqbuf, msqold, msg_stime);
+		CP(msqbuf, msqold, msg_rtime);
+		CP(msqbuf, msqold, msg_ctime);
+		error = copyout(&msqold, uap->buf, sizeof(struct msqid_ds_old));
+	}
+	return (error);
+}
+
+#undef CP
+
 #endif	/* COMPAT_FREEBSD4 || COMPAT_FREEBSD5 || COMPAT_FREEBSD6 ||
 	   COMPAT_FREEBSD7 */

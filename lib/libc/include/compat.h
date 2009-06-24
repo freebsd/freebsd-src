@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2002 Doug Rabson
+ * Copyright (c) 2009 Advanced Computing Technologies LLC
+ * Written by: John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,61 +24,25 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
+/*
+ * This file defines compatiblity symbol versions for old system calls.  It
+ * is included in all generated system call files.
+ */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef __LIBC_COMPAT_H__
+#define	__LIBC_COMPAT_H__
 
-#define _WANT_SEMUN_OLD
+#define	__sym_compat(sym,impl,verid)	\
+	.symver impl , sym @ verid
 
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
-#include <stdarg.h>
-#include <stdlib.h>
+__sym_compat(__semctl, freebsd7___semctl, FBSD_1.0);
+__sym_compat(msgctl, freebsd7_msgctl, FBSD_1.0);
+__sym_compat(shmctl, freebsd7_shmctl, FBSD_1.0);
 
-int	__semctl(int semid, int semnum, int cmd, union semun *arg);
-int	freebsd7___semctl(int semid, int semnum, int cmd, union semun_old *arg);
+#undef __sym_compat
 
-int
-semctl(int semid, int semnum, int cmd, ...)
-{
-	va_list ap;
-	union semun semun;
-	union semun *semun_ptr;
+#endif	/* __LIBC_COMPAT_H__ */
 
-	va_start(ap, cmd);
-	if (cmd == IPC_SET || cmd == IPC_STAT || cmd == GETALL
-	    || cmd == SETVAL || cmd == SETALL) {
-		semun = va_arg(ap, union semun);
-		semun_ptr = &semun;
-	} else {
-		semun_ptr = NULL;
-	}
-	va_end(ap);
-
-	return (__semctl(semid, semnum, cmd, semun_ptr));
-}
-
-int
-freebsd7_semctl(int semid, int semnum, int cmd, ...)
-{
-	va_list ap;
-	union semun_old semun;
-	union semun_old *semun_ptr;
-
-	va_start(ap, cmd);
-	if (cmd == IPC_SET || cmd == IPC_STAT || cmd == GETALL
-	    || cmd == SETVAL || cmd == SETALL) {
-		semun = va_arg(ap, union semun_old);
-		semun_ptr = &semun;
-	} else {
-		semun_ptr = NULL;
-	}
-	va_end(ap);
-
-	return (freebsd7___semctl(semid, semnum, cmd, semun_ptr));
-}
-
-__sym_compat(semctl, freebsd7_semctl, FBSD_1.0);
