@@ -661,6 +661,7 @@ passin:
 #endif
 		}
 		IF_ADDR_UNLOCK(ifp);
+		ia = NULL;
 	}
 	/* RFC 3927 2.7: Do not forward datagrams for 169.254.0.0/16. */
 	if (IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr))) {
@@ -738,9 +739,11 @@ ours:
 	 * IPSTEALTH: Process non-routing options only
 	 * if the packet is destined for us.
 	 */
-	if (V_ipstealth && hlen > sizeof (struct ip) &&
-	    ip_dooptions(m, 1))
+	if (V_ipstealth && hlen > sizeof (struct ip) && ip_dooptions(m, 1)) {
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		return;
+	}
 #endif /* IPSTEALTH */
 
 	/* Count the packet in the ip address stats */
@@ -1349,7 +1352,7 @@ ip_rtaddr(struct in_addr dst, u_int fibnum)
 {
 	struct route sro;
 	struct sockaddr_in *sin;
-	struct in_ifaddr *ifa;
+	struct in_ifaddr *ia;
 
 	bzero(&sro, sizeof(sro));
 	sin = (struct sockaddr_in *)&sro.ro_dst;
@@ -1361,10 +1364,10 @@ ip_rtaddr(struct in_addr dst, u_int fibnum)
 	if (sro.ro_rt == NULL)
 		return (NULL);
 
-	ifa = ifatoia(sro.ro_rt->rt_ifa);
-	ifa_ref(&ifa->ia_ifa);
+	ia = ifatoia(sro.ro_rt->rt_ifa);
+	ifa_ref(&ia->ia_ifa);
 	RTFREE(sro.ro_rt);
-	return (ifa);
+	return (ia);
 }
 
 u_char inetctlerrmap[PRC_NCMDS] = {
