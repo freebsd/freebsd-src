@@ -88,7 +88,7 @@ static char	*expand_name(const char *, uid_t, pid_t);
 static int	killpg1(struct thread *td, int sig, int pgid, int all);
 static int	issignal(struct thread *p);
 static int	sigprop(int sig);
-static void	tdsigwakeup(struct thread *, int, sig_t, int);
+static int	tdsigwakeup(struct thread *, int, sig_t, int);
 static void	sig_suspend_threads(struct thread *, struct proc *, int);
 static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
@@ -2289,9 +2289,11 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	} else if (p->p_state == PRS_NORMAL) {
 		if (p->p_flag & P_TRACED || action == SIG_CATCH) {
 			thread_lock(td);
-			tdsigwakeup(td, sig, action, intrval);
+			wakeup_swapper = tdsigwakeup(td, sig, action, intrval);
 			thread_unlock(td);
 			PROC_SUNLOCK(p);
+			if (wakeup_swapper)
+				kick_proc0();
 			goto out;
 		}
 
@@ -2337,10 +2339,12 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 
 runfast:
 	thread_lock(td);
-	tdsigwakeup(td, sig, action, intrval);
+	wakeup_swapper = tdsigwakeup(td, sig, action, intrval);
 	thread_unlock(td);
 	thread_unsuspend(p);
 	PROC_SUNLOCK(p);
+	if (wakeup_swapper)
+		kick_proc0();
 out:
 	/* If we jump here, proc slock should not be owned. */
 	PROC_SLOCK_ASSERT(p, MA_NOTOWNED);
@@ -2352,7 +2356,7 @@ out:
  * thread.  We need to see what we can do about knocking it
  * out of any sleep it may be in etc.
  */
-static void
+static int
 tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 {
 	struct proc *p = td->td_proc;
@@ -2380,7 +2384,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 		 * trap() or syscall().
 		 */
 		if ((td->td_flags & TDF_SINTR) == 0)
-			return;
+			return (0);
 		/*
 		 * If SIGCONT is default (or ignored) and process is
 		 * asleep, we are finished; the process should not
@@ -2397,7 +2401,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 			sigqueue_delete(&td->td_sigqueue, sig);
 			PROC_SLOCK(p);
 			thread_lock(td);
-			return;
+			return (0);
 		}
 
 		/*
@@ -2418,8 +2422,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 			forward_signal(td);
 #endif
 	}
-	if (wakeup_swapper)
-		kick_proc0();
+	return (wakeup_swapper);
 }
 
 static void
