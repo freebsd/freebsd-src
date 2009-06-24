@@ -569,6 +569,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	vm_pindex_t pindex;
 	struct uidinfo *uip;
 
+	uip = NULL;
 	pindex = OFF_TO_IDX(offset + PAGE_MASK + size);
 	if (handle) {
 		mtx_lock(&Giant);
