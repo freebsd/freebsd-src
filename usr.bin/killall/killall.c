@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <jail.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -101,7 +102,6 @@ nosig(char *name)
 int
 main(int ac, char **av)
 {
-	struct iovec	jparams[2];
 	struct kinfo_proc *procs = NULL, *newprocs;
 	struct stat	sb;
 	struct passwd	*pw;
@@ -162,18 +162,9 @@ main(int ac, char **av)
 				jflag++;
 				if (*av == NULL)
 				    	errx(1, "must specify jail");
-				jid = strtoul(*av, &ep, 10);
-				if (!**av || *ep) {
-					*(const void **)&jparams[0].iov_base =
-					    "name";
-					jparams[0].iov_len = sizeof("name");
-					jparams[1].iov_base = *av;
-					jparams[1].iov_len = strlen(*av) + 1;
-					jid = jail_get(jparams, 2, 0);
-					if (jid < 0)
-						errx(1, "unknown jail: %s",
-						    *av);
-				}
+				jid = jail_getid(*av);
+				if (jid < 0)
+					errx(1, "%s", jail_errmsg);
 				if (jail_attach(jid) == -1)
 					err(1, "jail_attach(%d)", jid);
 				break;
