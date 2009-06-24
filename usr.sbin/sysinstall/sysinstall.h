@@ -271,6 +271,7 @@ typedef enum {
     DEVICE_TYPE_FTP,
     DEVICE_TYPE_NETWORK,
     DEVICE_TYPE_CDROM,
+    DEVICE_TYPE_USB,
     DEVICE_TYPE_DOS,
     DEVICE_TYPE_UFS,
     DEVICE_TYPE_NFS,
@@ -440,6 +441,7 @@ extern DMenu		MenuMedia;		/* Media type menu				*/
 extern DMenu		MenuMouse;		/* Mouse type menu				*/
 #endif
 extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
+extern DMenu		MenuMediaUSB;		/* USB media menu				*/
 extern DMenu		MenuMediaDOS;		/* DOS media menu				*/
 extern DMenu		MenuMediaFloppy;	/* Floppy media menu				*/
 extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
@@ -717,6 +719,7 @@ extern void	mediaClose(void);
 extern int	mediaTimeout(void);
 extern int	mediaSetCDROM(dialogMenuItem *self);
 extern int	mediaSetFloppy(dialogMenuItem *self);
+extern int	mediaSetUSB(dialogMenuItem *self);
 extern int	mediaSetDOS(dialogMenuItem *self);
 extern int	mediaSetFTP(dialogMenuItem *self);
 extern int	mediaSetFTPActive(dialogMenuItem *self);
@@ -847,6 +850,11 @@ extern void     configTtys(void);
 extern void	mediaShutdownUFS(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
 extern FILE	*mediaGetUFS(Device *dev, char *file, Boolean probe);
+
+/* usb.c */
+extern Boolean	mediaInitUSB(Device *dev);
+extern FILE	*mediaGetUSB(Device *dev, char *file, Boolean probe);
+extern void	mediaShutdownUSB(Device *dev);
 
 /* user.c */
 extern int	userAddGroup(dialogMenuItem *self);
