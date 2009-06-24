@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2009
+.Dd June 24, 2009
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -417,6 +417,18 @@ If the driver offers user-configurable VLAN support, disable
 reception of extended frames, tag processing in hardware, or
 frame filtering in hardware,
 respectively.
+.It Cm vnet Ar jail
+Move the interface to the
+.Xr jail 8 ,
+specified by name or JID.
+If the jail has a virtual network stack, the interface will disappear
+from the current environment and become visible to the jail.
+.It Fl vnet Ar jail
+Reclaim the interface from the
+.Xr jail 8 ,
+specified by name or JID.
+If the jail has a virtual network stack, the interface will disappear
+from the jail, and become visible to the current network environment.
 .It Cm polling
 Turn on
 .Xr polling 4
@@ -2367,6 +2379,7 @@ tried to alter an interface's configuration.
 .\" .Xr eon 5 ,
 .Xr rc 8 ,
 .Xr routed 8 ,
+.Xr jail 8 ,
 .Xr sysctl 8
 .Sh HISTORY
 The
