@@ -195,7 +195,9 @@ parse_fis_directory(u_char *buf, size_t bufsize, off_t offset, uint32_t offmask)
 	 */
 	fisdir = redbcfg = NULL;
 	*(tail = &head) = NULL;
-	for (i = 0; fd < efd && fd->name[0] != 0xff; i++, fd++) {
+	for (i = 0; fd < efd; i++, fd++) {
+		if (fd->name[0] == 0xff)
+			continue;
 		if (match(fd->name, FISDIR_NAME))
 			fisdir = fd;
 		else if (match(fd->name, REDBCFG_NAME))
