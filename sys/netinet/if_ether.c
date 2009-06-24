@@ -564,6 +564,7 @@ in_arpinput(struct mbuf *m)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ia = ifatoia(ifa);
 			ifa_ref(ifa);
+			IF_ADDR_UNLOCK(ifp);
 			goto match;
 		}
 	IF_ADDR_UNLOCK(ifp);
