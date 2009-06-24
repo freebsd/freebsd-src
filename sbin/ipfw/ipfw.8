@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2009
+.Dd June 24, 2009
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -1942,6 +1942,20 @@ with
 to reduce
 the granularity to 1ms or less).
 Default value is 0, meaning no delay.
+.Pp
+.It Cm burst Ar size
+If the data rate exceeds the pipe bandwith limit
+(and pipe was idle long enough),
+.Ar size
+bytes of data is allowed to bypass the
+.Nm dummynet
+scheduler (i.e. it will be sent without shaping), then transmission rate
+will not exceed pipe bandwidth. Effective burst size calculated as follows:
+MAX(
+.Ar size
+,
+.Nm bw
+* pipe_idle_time).
 .Pp
 .It Cm profile Ar filename
 A file specifying the additional overhead incurred in the transmission
