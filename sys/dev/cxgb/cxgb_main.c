@@ -93,6 +93,7 @@ static int cxgb_uninit_synchronized(struct port_info *);
 static int cxgb_ioctl(struct ifnet *, unsigned long, caddr_t);
 static int cxgb_media_change(struct ifnet *);
 static int cxgb_ifm_type(int);
+static void cxgb_build_medialist(struct port_info *);
 static void cxgb_media_status(struct ifnet *, struct ifmediareq *);
 static int setup_sge_qsets(adapter_t *);
 static void cxgb_async_intr(void *);
@@ -1021,7 +1022,7 @@ cxgb_port_attach(device_t dev)
 {
 	struct port_info *p;
 	struct ifnet *ifp;
-	int err, media_flags;
+	int err;
 	struct adapter *sc;
 	
 	
@@ -1082,53 +1083,12 @@ cxgb_port_attach(device_t dev)
 		printf("makedev failed %d\n", err);
 		return (err);
 	}
+
+	/* Create a list of media supported by this port */
 	ifmedia_init(&p->media, IFM_IMASK, cxgb_media_change,
 	    cxgb_media_status);
+	cxgb_build_medialist(p);
       
-	if (!strcmp(p->phy.desc,	"10GBASE-CX4")) {
-		media_flags = IFM_ETHER | IFM_10G_CX4 | IFM_FDX;
-	} else if (!strcmp(p->phy.desc, "10GBASE-SR")) {
-		media_flags = IFM_ETHER | IFM_10G_SR | IFM_FDX;
-	} else if (!strcmp(p->phy.desc, "10GBASE-R")) {
-		media_flags = cxgb_ifm_type(p->phy.modtype);
-	} else if (!strcmp(p->phy.desc, "10/100/1000BASE-T")) {
-		ifmedia_add(&p->media, IFM_ETHER | IFM_10_T, 0, NULL);
-		ifmedia_add(&p->media, IFM_ETHER | IFM_10_T | IFM_FDX,
-			    0, NULL);
-		ifmedia_add(&p->media, IFM_ETHER | IFM_100_TX,
-			    0, NULL);
-		ifmedia_add(&p->media, IFM_ETHER | IFM_100_TX | IFM_FDX,
-			    0, NULL);
-		ifmedia_add(&p->media, IFM_ETHER | IFM_1000_T | IFM_FDX,
-			    0, NULL);
-		media_flags = 0;
-	} else if (!strcmp(p->phy.desc, "1000BASE-X")) {
-		/*
-		 * XXX: This is not very accurate.  Fix when common code
-		 * returns more specific value - eg 1000BASE-SX, LX, etc.
-		 *
-		 * XXX: In the meantime, don't lie. Consider setting IFM_AUTO
-		 * instead of SX.
-		 */
-		media_flags = IFM_ETHER | IFM_1000_SX | IFM_FDX;
-	} else {
-	        printf("unsupported media type %s\n", p->phy.desc);
-		return (ENXIO);
-	}
-	if (media_flags) {
-		/*
-		 * Note the modtype on which we based our flags.  If modtype
-		 * changes, we'll redo the ifmedia for this ifp.  modtype may
-		 * change when transceivers are plugged in/out, and in other
-		 * situations.
-		 */
-		ifmedia_add(&p->media, media_flags, p->phy.modtype, NULL);
-		ifmedia_set(&p->media, media_flags);
-	} else {
-		ifmedia_add(&p->media, IFM_ETHER | IFM_AUTO, 0, NULL);
-		ifmedia_set(&p->media, IFM_ETHER | IFM_AUTO);
-	}	
-
 	t3_sge_init_port(p);
 
 	return (err);
@@ -1304,16 +1264,18 @@ void t3_os_phymod_changed(struct adapter *adap, int port_id)
 	static const char *mod_str[] = {
 		NULL, "SR", "LR", "LRM", "TWINAX", "TWINAX", "unknown"
 	};
-
 	struct port_info *pi = &adap->port[port_id];
+	int mod = pi->phy.modtype;
 
-	if (pi->phy.modtype == phy_modtype_none)
-		device_printf(adap->dev, "PHY module unplugged\n");
+	if (mod != pi->media.ifm_cur->ifm_data)
+		cxgb_build_medialist(pi);
+
+	if (mod == phy_modtype_none)
+		if_printf(pi->ifp, "PHY module unplugged\n");
 	else {
-		KASSERT(pi->phy.modtype < ARRAY_SIZE(mod_str),
-		    ("invalid PHY module type %d", pi->phy.modtype));
-		device_printf(adap->dev, "%s PHY module inserted\n",
-		    mod_str[pi->phy.modtype]);
+		KASSERT(mod < ARRAY_SIZE(mod_str),
+			("invalid PHY module type %d", mod));
+		if_printf(pi->ifp, "%s PHY module inserted\n", mod_str[mod]);
 	}
 }
 
@@ -2198,48 +2160,102 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 static int
 cxgb_media_change(struct ifnet *ifp)
 {
-	if_printf(ifp, "media change not supported\n");
-	return (ENXIO);
+	return (EOPNOTSUPP);
 }
 
 /*
- * Translates from phy->modtype to IFM_TYPE.
+ * Translates phy->modtype to the correct Ethernet media subtype.
  */
 static int
-cxgb_ifm_type(int phymod)
+cxgb_ifm_type(int mod)
 {
-	int rc = IFM_ETHER | IFM_FDX;
-
-	switch (phymod) {
+	switch (mod) {
 	case phy_modtype_sr:
-		rc |= IFM_10G_SR;
-		break;
+		return (IFM_10G_SR);
 	case phy_modtype_lr:
-		rc |= IFM_10G_LR;
-		break;
+		return (IFM_10G_LR);
 	case phy_modtype_lrm:
-#ifdef IFM_10G_LRM
-		rc |= IFM_10G_LRM;
-#endif
-		break;
+		return (IFM_10G_LRM);
 	case phy_modtype_twinax:
-#ifdef IFM_10G_TWINAX
-		rc |= IFM_10G_TWINAX;
-#endif
-		break;
+		return (IFM_10G_TWINAX);
 	case phy_modtype_twinax_long:
-#ifdef IFM_10G_TWINAX_LONG
-		rc |= IFM_10G_TWINAX_LONG;
-#endif
-		break;
+		return (IFM_10G_TWINAX_LONG);
 	case phy_modtype_none:
-		rc = IFM_ETHER | IFM_NONE;
-		break;
+		return (IFM_NONE);
 	case phy_modtype_unknown:
-		break;
+		return (IFM_UNKNOWN);
 	}
 
-	return (rc);
+	KASSERT(0, ("%s: modtype %d unknown", __func__, mod));
+	return (IFM_UNKNOWN);
+}
+
+/*
+ * Rebuilds the ifmedia list for this port, and sets the current media.
+ */
+static void
+cxgb_build_medialist(struct port_info *p)
+{
+	struct cphy *phy = &p->phy;
+	struct ifmedia *media = &p->media;
+	int mod = phy->modtype;
+	int m = IFM_ETHER | IFM_FDX;
+
+	PORT_LOCK(p);
+
+	ifmedia_removeall(media);
+	if (phy->caps & SUPPORTED_TP && phy->caps & SUPPORTED_Autoneg) {
+		/* Copper (RJ45) */
+
+		if (phy->caps & SUPPORTED_10000baseT_Full)
+			ifmedia_add(media, m | IFM_10G_T, mod, NULL);
+
+		if (phy->caps & SUPPORTED_1000baseT_Full)
+			ifmedia_add(media, m | IFM_1000_T, mod, NULL);
+
+		if (phy->caps & SUPPORTED_100baseT_Full)
+			ifmedia_add(media, m | IFM_100_TX, mod, NULL);
+
+		if (phy->caps & SUPPORTED_10baseT_Full)
+			ifmedia_add(media, m | IFM_10_T, mod, NULL);
+
+		ifmedia_add(media, IFM_ETHER | IFM_AUTO, mod, NULL);
+		ifmedia_set(media, IFM_ETHER | IFM_AUTO);
+
+	} else if (phy->caps & SUPPORTED_TP) {
+		/* Copper (CX4) */
+
+		KASSERT(phy->caps & SUPPORTED_10000baseT_Full,
+			("%s: unexpected cap 0x%x", __func__, phy->caps));
+
+		ifmedia_add(media, m | IFM_10G_CX4, mod, NULL);
+		ifmedia_set(media, m | IFM_10G_CX4);
+
+	} else if (phy->caps & SUPPORTED_FIBRE &&
+		   phy->caps & SUPPORTED_10000baseT_Full) {
+		/* 10G optical (but includes SFP+ twinax) */
+
+		m |= cxgb_ifm_type(mod);
+		if (IFM_SUBTYPE(m) == IFM_NONE)
+			m &= ~IFM_FDX;
+
+		ifmedia_add(media, m, mod, NULL);
+		ifmedia_set(media, m);
+
+	} else if (phy->caps & SUPPORTED_FIBRE &&
+		   phy->caps & SUPPORTED_1000baseT_Full) {
+		/* 1G optical */
+
+		/* XXX: Lie and claim to be SX, could actually be any 1G-X */
+		ifmedia_add(media, m | IFM_1000_SX, mod, NULL);
+		ifmedia_set(media, m | IFM_1000_SX);
+
+	} else {
+		KASSERT(0, ("%s: don't know how to handle 0x%x.", __func__,
+			    phy->caps));
+	}
+
+	PORT_UNLOCK(p);
 }
 
 static void
@@ -2247,47 +2263,40 @@ cxgb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct port_info *p = ifp->if_softc;
 	struct ifmedia_entry *cur = p->media.ifm_cur;
-	int m;
+	int speed = p->link_config.speed;
 
-	if (cur->ifm_data != p->phy.modtype) { 
-
-		PORT_LOCK(p);
-		m = cxgb_ifm_type(p->phy.modtype);
-		ifmedia_removeall(&p->media);
-		ifmedia_add(&p->media, m, p->phy.modtype, NULL); 
-		ifmedia_set(&p->media, m);
-		cur = p->media.ifm_cur; /* ifmedia_set modified ifm_cur */
-		ifmr->ifm_current = m;
-		PORT_UNLOCK(p);
+	if (cur->ifm_data != p->phy.modtype) {
+		cxgb_build_medialist(p);
+		cur = p->media.ifm_cur;
 	}
 
 	ifmr->ifm_status = IFM_AVALID;
-	ifmr->ifm_active = IFM_ETHER;
-
 	if (!p->link_config.link_ok)
 		return;
 
 	ifmr->ifm_status |= IFM_ACTIVE;
 
-	switch (p->link_config.speed) {
-	case 10:
-		ifmr->ifm_active |= IFM_10_T;
-		break;
-	case 100:
-		ifmr->ifm_active |= IFM_100_TX;
-			break;
-	case 1000:
+	/*
+	 * active and current will differ iff current media is autoselect.  That
+	 * can happen only for copper RJ45.
+	 */
+	if (IFM_SUBTYPE(cur->ifm_media) != IFM_AUTO)
+		return;
+	KASSERT(p->phy.caps & SUPPORTED_TP && p->phy.caps & SUPPORTED_Autoneg,
+		("%s: unexpected PHY caps 0x%x", __func__, p->phy.caps));
+
+	ifmr->ifm_active = IFM_ETHER | IFM_FDX;
+	if (speed == SPEED_10000)
+		ifmr->ifm_active |= IFM_10G_T;
+	else if (speed == SPEED_1000)
 		ifmr->ifm_active |= IFM_1000_T;
-		break;
-	case 10000:
-		ifmr->ifm_active |= IFM_SUBTYPE(cur->ifm_media);
-		break;
-	}
-	
-	if (p->link_config.duplex)
-		ifmr->ifm_active |= IFM_FDX;
+	else if (speed == SPEED_100)
+		ifmr->ifm_active |= IFM_100_TX;
+	else if (speed == SPEED_10)
+		ifmr->ifm_active |= IFM_10_T;
 	else
-		ifmr->ifm_active |= IFM_HDX;
+		KASSERT(0, ("%s: link up but speed unknown (%u)", __func__,
+			    speed));
 }
 
 static void
