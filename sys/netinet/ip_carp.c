@@ -1667,7 +1667,7 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 
 	/* we have to do it by hands to check we won't match on us */
 	ia_if = NULL; own = 0;
-	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
+	TAILQ_FOREACH(ia6, &V_in6_ifaddrhead, ia_link) {
 		int i;
 
 		for (i = 0; i < 4; i++) {
