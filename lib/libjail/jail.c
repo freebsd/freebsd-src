@@ -248,14 +248,14 @@ jailparam_import(struct jailparam *jp, const char *value)
 	int i, nval, fw;
 
 	if (!jp->jp_ctltype && jailparam_type(jp) < 0)
-		goto error;
+		return (-1);
 	if (value == NULL)
 		return (0);
 	if ((jp->jp_ctltype & CTLTYPE) == CTLTYPE_STRING) {
 		jp->jp_value = strdup(value);
-		if (!jp->jp_value) {
+		if (jp->jp_value == NULL) {
 			strerror_r(errno, jail_errmsg, JAIL_ERRMSGLEN);
-			goto error;
+			return (-1);
 		}
 		return (0);
 	}
@@ -263,9 +263,9 @@ jailparam_import(struct jailparam *jp, const char *value)
 	if (jp->jp_elemlen) {
 		if (value[0] == '\0' || (value[0] == '-' && value[1] == '\0')) {
 			jp->jp_value = strdup("");
-			if (value == NULL) {
+			if (jp->jp_value == NULL) {
 				strerror_r(errno, jail_errmsg, JAIL_ERRMSGLEN);
-				goto error;
+				return (-1);
 			}
 			jp->jp_valuelen = 0;
 			return (0);
@@ -275,9 +275,9 @@ jailparam_import(struct jailparam *jp, const char *value)
 		jp->jp_valuelen = jp->jp_elemlen * nval;
 	}
 	jp->jp_value = malloc(jp->jp_valuelen);
-	if (!jp->jp_value) {
+	if (jp->jp_value == NULL) {
 		strerror_r(errno, jail_errmsg, JAIL_ERRMSGLEN);
-		goto error;
+		return (-1);
 	}
 	avalue = value;
 	for (i = 0; i < nval; i++) {
@@ -395,17 +395,18 @@ jailparam_set(struct jailparam *jp, unsigned njp, int flags)
 {
 	struct iovec *jiov;
 	char *nname;
-	int i, jid;
+	int i, jid, bool0;
 	unsigned j;
 
 	jiov = alloca(sizeof(struct iovec) * 2 * (njp + 1));
+	bool0 = 0;
 	for (i = j = 0; j < njp; j++) {
 		jiov[i].iov_base = jp[j].jp_name;
 		jiov[i].iov_len = strlen(jp[j].jp_name) + 1;
 		i++;
 		if (jp[j].jp_flags & (JP_BOOL | JP_NOBOOL)) {
 			/*
-			 * Set booleans without values.  If one have a value of
+			 * Set booleans without values.  If one has a value of
 			 * zero, change it to (or from) its "no" counterpart.
 			 */
 			jiov[i].iov_base = NULL;
@@ -413,13 +414,18 @@ jailparam_set(struct jailparam *jp, unsigned njp, int flags)
 			if (jp[j].jp_value != NULL &&
 			    jp[j].jp_valuelen == sizeof(int) &&
 			    !*(int *)jp[j].jp_value) {
+				bool0 = 1;
 				nname = jp[j].jp_flags & JP_BOOL
-				    ? noname(jiov[i].iov_base)
-				    : nononame(jiov[i].iov_base);
-				if (nname == NULL)
-					return (-1);
-				free(jp[j].jp_name);
-				jiov[i].iov_base = jp[j].jp_name = nname;
+				    ? noname(jp[j].jp_name)
+				    : nononame(jp[j].jp_name);
+				if (nname == NULL) {
+					njp = j;
+					jid = -1;
+					goto done;
+				}
+				jiov[i - 1].iov_base = nname;
+				jiov[i - 1].iov_len = strlen(nname) + 1;
+				
 			}
 		} else {
 			jiov[i].iov_base = jp[j].jp_value;
@@ -441,6 +447,14 @@ jailparam_set(struct jailparam *jp, unsigned njp, int flags)
 	if (jid < 0 && !jail_errmsg[0])
 		snprintf(jail_errmsg, sizeof(jail_errmsg), "jail_set: %s",
 		    strerror(errno));
+ done:
+	if (bool0)
+		for (j = 0; j < njp; j++)
+			if ((jp[j].jp_flags & (JP_BOOL | JP_NOBOOL)) &&
+			    jp[j].jp_value != NULL &&
+			    jp[j].jp_valuelen == sizeof(int) &&
+			    !*(int *)jp[j].jp_value)
+				free(jiov[j * 2].iov_base);
 	return (jid);
 }
 
@@ -452,11 +466,16 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 	int i, ai, ki, jid, arrays, sanity;
 	unsigned j;
 
-	/* Find the key and any array parameters. */
+	/*
+	 * Get the types for all parameters.
+	 * Find the key and any array parameters.
+	 */
 	jiov = alloca(sizeof(struct iovec) * 2 * (njp + 1));
 	jp_lastjid = jp_jid = jp_name = NULL;
 	arrays = 0;
 	for (ai = j = 0; j < njp; j++) {
+		if (!jp[j].jp_ctltype && jailparam_type(jp + j) < 0)
+			return (-1);
 		if (!strcmp(jp[j].jp_name, "lastjid"))
 			jp_lastjid = jp + j;
 		else if (!strcmp(jp[j].jp_name, "jid"))
@@ -507,24 +526,36 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 		if (jp[j].jp_elemlen && !(jp[j].jp_flags & JP_RAWVALUE)) {
 			ai++;
 			jiov[ai].iov_len += jp[j].jp_elemlen * ARRAY_SLOP;
-			jiov[ai].iov_base = jp[j].jp_value =
-			    malloc(jiov[ai].iov_len);
-			if (jiov[ai].iov_base == NULL) {
-				strerror_r(errno, jail_errmsg, JAIL_ERRMSGLEN);
-				return (-1);
+			if (jp[j].jp_valuelen >= jiov[ai].iov_len)
+				jiov[ai].iov_len = jp[j].jp_valuelen;
+			else {
+				jp[j].jp_valuelen = jiov[ai].iov_len;
+				if (jp[j].jp_value != NULL)
+					free(jp[j].jp_value);
+				jp[j].jp_value = malloc(jp[j].jp_valuelen);
+				if (jp[j].jp_value == NULL) {
+					strerror_r(errno, jail_errmsg,
+					    JAIL_ERRMSGLEN);
+					return (-1);
+				}
 			}
+			jiov[ai].iov_base = jp[j].jp_value;
 			memset(jiov[ai].iov_base, 0, jiov[ai].iov_len);
 			ai++;
 		} else if (jp + j != jp_key) {
 			jiov[i].iov_base = jp[j].jp_name;
 			jiov[i].iov_len = strlen(jp[j].jp_name) + 1;
 			i++;
-			jiov[i].iov_base = jp[j].jp_value =
-			    malloc(jp[j].jp_valuelen);
-			if (jiov[i].iov_base == NULL) {
-				strerror_r(errno, jail_errmsg, JAIL_ERRMSGLEN);
-				return (-1);
+			if (jp[j].jp_value == NULL &&
+			    !(jp[j].jp_flags & JP_RAWVALUE)) {
+				jp[j].jp_value = malloc(jp[j].jp_valuelen);
+				if (jp[j].jp_value == NULL) {
+					strerror_r(errno, jail_errmsg,
+					    JAIL_ERRMSGLEN);
+					return (-1);
+				}
 			}
+			jiov[i].iov_base = jp[j].jp_value;
 			jiov[i].iov_len = jp[j].jp_valuelen;
 			memset(jiov[i].iov_base, 0, jiov[i].iov_len);
 			i++;
@@ -543,8 +574,7 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 			if (jp[j].jp_elemlen &&
 			    !(jp[j].jp_flags & JP_RAWVALUE)) {
 				ai++;
-				free(jiov[ai].iov_base);
-				jiov[ai].iov_base = jp[j].jp_value = NULL;
+				jiov[ai].iov_base = NULL;
 				jiov[ai].iov_len = 0;
 				ai++;
 			}
@@ -557,13 +587,21 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 				ai++;
 				jiov[ai].iov_len +=
 				    jp[j].jp_elemlen * ARRAY_SLOP;
-				jiov[ai].iov_base = jp[j].jp_value =
-				    malloc(jiov[ai].iov_len);
-				if (jiov[ai].iov_base == NULL) {
-					strerror_r(errno, jail_errmsg,
-					    JAIL_ERRMSGLEN);
-					return (-1);
+				if (jp[j].jp_valuelen >= jiov[ai].iov_len)
+					jiov[ai].iov_len = jp[j].jp_valuelen;
+				else {
+					jp[j].jp_valuelen = jiov[ai].iov_len;
+					if (jp[j].jp_value != NULL)
+						free(jp[j].jp_value);
+					jp[j].jp_value =
+					    malloc(jiov[ai].iov_len);
+					if (jp[j].jp_value == NULL) {
+						strerror_r(errno, jail_errmsg,
+						    JAIL_ERRMSGLEN);
+						return (-1);
+					}
 				}
+				jiov[ai].iov_base = jp[j].jp_value;
 				memset(jiov[ai].iov_base, 0, jiov[ai].iov_len);
 				ai++;
 			}
