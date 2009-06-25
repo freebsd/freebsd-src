@@ -518,4 +518,14 @@ intr_shuffle_irqs(void *arg __unused)
 }
 SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs,
     NULL);
+#else
+/*
+ * Always route interrupts to the current processor in the UP case.
+ */
+u_int
+intr_next_cpu(void)
+{
+
+	return (PCPU_GET(apic_id));
+}
 #endif
