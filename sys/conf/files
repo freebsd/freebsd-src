@@ -489,10 +489,10 @@ dev/asr/asr.c			optional asr pci
 #
 dev/ata/ata_if.m		optional ata | atacore
 dev/ata/ata-all.c		optional ata | atacore
+dev/ata/ata-dma.c		optional ata | atacore
 dev/ata/ata-lowlevel.c		optional ata | atacore
 dev/ata/ata-queue.c		optional ata | atacore
-dev/ata/ata-dma.c		optional ata | atadma
-dev/ata/ata-sata.c		optional ata | atasata
+dev/ata/ata-sata.c		optional ata | atacore
 dev/ata/ata-card.c		optional ata pccard | atapccard
 dev/ata/ata-cbus.c		optional ata pc98 | atapc98
 dev/ata/ata-isa.c		optional ata isa | ataisa
