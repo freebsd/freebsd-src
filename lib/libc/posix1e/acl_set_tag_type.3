@@ -49,7 +49,7 @@ to the value of
 .Pp
 Valid values are:
 .Pp
-.Bl -column -offset 3n "ACL_EVERYONE"
+.Bl -column -offset 3n "ACL_OTHER_OBJ"
 .It ACL_USER_OBJ	Permissions apply to file owner
 .It ACL_USER		Permissions apply to additional user specified by qualifier
 .It ACL_GROUP_OBJ	Permissions apply to file group
@@ -57,7 +57,15 @@ Valid values are:
 .It ACL_MASK		Permissions specify mask
 .It ACL_OTHER		Permissions apply to "other"
 .It ACL_OTHER_OBJ	Same as ACL_OTHER
+.It ACL_EVERYONE	Permissions apply to "everyone@"
 .El
+.Pp
+Calling
+.Fn acl_set_tag_type
+with
+.Fa tag_type
+equal to ACL_MASK, ACL_OTHER or ACL_OTHER_OBJ brands the ACL as POSIX.1e.
+Calling it with ACL_EVERYONE brands the ACL as NFSv4.
 .Sh RETURN VALUES
 .Rv -std acl_set_tag_type
 .Sh ERRORS
@@ -72,9 +80,11 @@ is not a valid descriptor for an ACL entry.
 Argument
 .Fa tag_type
 is not a valid ACL tag type.
+ACL is already branded differently.
 .El
 .Sh SEE ALSO
 .Xr acl 3 ,
+.Xr acl_get_brand_np 3 ,
 .Xr acl_get_tag_type 3 ,
 .Xr posix1e 3
 .Sh STANDARDS

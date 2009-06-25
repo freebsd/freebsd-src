@@ -52,11 +52,43 @@ that already exist in the permission set.
 .Pp
 For POSIX.1e ACLs, valid values are:
 .Pp
-.Bl -column -offset 3n "ACL_EXECUTE"
+.Bl -column -offset 3n "ACL_WRITE_NAMED_ATTRS"
 .It ACL_EXECUTE	Execute permission
 .It ACL_WRITE	Write permission
 .It ACL_READ	Read permission
 .El
+.Pp
+For NFSv4 ACLs, valid values are:
+.Pp
+.Bl -column -offset 3n "ACL_WRITE_NAMED_ATTRS"
+.It ACL_READ_DATA		Read permission
+.It ACL_LIST_DIRECTORY		Same as ACL_READ_DATA
+.It ACL_WRITE_DATA		Write permission, or permission to create files
+.It ACL_ADD_FILE		Same as ACL_READ_DATA
+.It ACL_APPEND_DATA		Permission to create directories.  Ignored for files
+.It ACL_ADD_SUBDIRECTORY	Same as ACL_APPEND_DATA
+.It ACL_READ_NAMED_ATTRS	Ignored
+.It ACL_WRITE_NAMED_ATTRS	Ignored
+.It ACL_EXECUTE			Execute permission
+.It ACL_DELETE_CHILD		Permission to delete files and subdirectories
+.It ACL_READ_ATTRIBUTES		Permission to read basic attributes
+.It ACL_WRITE_ATTRIBUTES	Permission to change basic attributes
+.It ACL_DELETE			Permission to delete the object this ACL is placed on
+.It ACL_READ_ACL		Permission to read ACL
+.It ACL_WRITE_ACL		Permission to change the ACL and file mode
+.It ACL_SYNCHRONIZE		Ignored
+.El
+.Pp
+Calling
+.Fn acl_add_perm
+with
+.Fa perm
+equal to ACL_WRITE or ACL_READ brands the ACL as POSIX.
+Calling it with ACL_READ_DATA, ACL_LIST_DIRECTORY, ACL_WRITE_DATA,
+ACL_ADD_FILE, ACL_APPEND_DATA, ACL_ADD_SUBDIRECTORY, ACL_READ_NAMED_ATTRS,
+ACL_WRITE_NAMED_ATTRS, ACL_DELETE_CHILD, ACL_READ_ATTRIBUTES,
+ACL_WRITE_ATTRIBUTES, ACL_DELETE, ACL_READ_ACL, ACL_WRITE_ACL
+or ACL_SYNCHRONIZE brands the ACL as NFSv4.
 .Sh RETURN VALUES
 .Rv -std acl_add_perm
 .Sh ERRORS
@@ -73,11 +105,13 @@ Argument
 does not contain a valid
 .Vt acl_perm_t
 value.
+ACL is already branded differently.
 .El
 .Sh SEE ALSO
 .Xr acl 3 ,
 .Xr acl_clear_perms 3 ,
 .Xr acl_delete_perm 3 ,
+.Xr acl_get_brand_np 3 ,
 .Xr acl_get_permset 3 ,
 .Xr acl_set_permset 3 ,
 .Xr posix1e 3

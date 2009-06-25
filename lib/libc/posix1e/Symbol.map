@@ -66,7 +66,21 @@ FBSD_1.0 {
 };
 
 FBSD_1.1 {
+	acl_add_flag_np;
 	acl_add_perm;
+	acl_clear_flags_np;
+	acl_create_entry_np;
+	acl_delete_entry_np;
+	acl_delete_flag_np;
 	acl_delete_perm;
+	acl_get_brand_np;
+	acl_get_entry_type_np;
+	acl_get_flag_np;
+	acl_get_flagset_np;
 	acl_get_perm_np;
+	acl_is_trivial_np;
+	acl_set_entry_type_np;
+	acl_set_flagset_np;
+	acl_strip_np;
+	acl_to_text_np;
 };

@@ -29,7 +29,8 @@
 .Dt ACL_DELETE_ENTRY 3
 .Os
 .Sh NAME
-.Nm acl_delete_entry
+.Nm acl_delete_entry ,
+.Nm acl_delete_entry_np ,
 .Nd delete an ACL entry from an ACL
 .Sh LIBRARY
 .Lb libc
@@ -38,6 +39,8 @@
 .In sys/acl.h
 .Ft int
 .Fn acl_delete_entry "acl_t acl" "acl_entry_t entry_d"
+.Ft int
+.Fn acl_delete_entry_np "acl_t acl" "int index"
 .Sh DESCRIPTION
 The
 .Fn acl_delete_entry
@@ -46,6 +49,18 @@ is a POSIX.1e call that removes the ACL entry
 .Fa entry_d
 from ACL
 .Fa acl .
+The
+.Fn acl_delete_entry_np
+function is a non-portable version that removes the ACL entry
+at position
+.Fa index
+from ACL
+.Fa acl .
+Positions are numbered starting from zero, i.e. calling
+.Fn acl_delete_entry_np
+with
+.Fa index
+argument equal to zero will remove the first ACL entry.
 .Sh RETURN VALUES
 .Rv -std acl_delete_entry
 .Sh ERRORS
@@ -61,6 +76,9 @@ Argument
 .Fa entry_d
 is not a valid descriptor for an ACL entry in
 .Fa acl .
+Argument
+.Fa index
+is out of bounds.
 .El
 .Sh SEE ALSO
 .Xr acl 3 ,
