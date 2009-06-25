@@ -150,6 +150,9 @@ extern int udp6_sendspace;
 extern int udp6_recvspace;
 #endif
 
+struct rwlock in6_ifaddr_lock;
+RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
+
 struct pfil_head inet6_pfil_hook;
 
 static void ip6_init2(void *);

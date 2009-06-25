@@ -493,6 +493,16 @@ extern struct icmp6stat icmp6stat;
 
 extern unsigned long in6_maxmtu;
 #endif /* VIMAGE_GLOBALS */
+
+extern struct rwlock in6_ifaddr_lock;
+#define	IN6_IFADDR_LOCK_ASSERT(	)	rw_assert(&in6_ifaddr_lock, RA_LOCKED)
+#define	IN6_IFADDR_RLOCK()		rw_rlock(&in6_ifaddr_lock)
+#define	IN6_IFADDR_RLOCK_ASSERT()	rw_assert(&in6_ifaddr_lock, RA_RLOCKED)
+#define	IN6_IFADDR_RUNLOCK()		rw_runlock(&in6_ifaddr_lock)
+#define	IN6_IFADDR_WLOCK()		rw_wlock(&in6_ifaddr_lock)
+#define	IN6_IFADDR_WLOCK_ASSERT()	rw_assert(&in6_ifaddr_lock, RA_WLOCKED)
+#define	IN6_IFADDR_WUNLOCK()		rw_wunlock(&in6_ifaddr_lock)
+
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\
