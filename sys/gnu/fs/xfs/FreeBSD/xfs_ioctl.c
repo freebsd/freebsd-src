@@ -703,7 +703,7 @@ xfs_ioc_space(
 	xfs_vnode_t		*vp,
 	struct file		*filp,
 	int			flags,
-	unsigned int		cmd,
+	u_long			cmd,
 	void			__user *arg);
 
 STATIC int
@@ -749,7 +749,7 @@ xfs_ioctl(
 	struct inode		*inode,
 	struct file		*filp,
 	int			ioflags,
-	unsigned int		cmd,
+	u_long			cmd,
 	void			*arg)
 {
 	int			error;
@@ -1021,7 +1021,7 @@ xfs_ioc_space(
 	xfs_vnode_t		*vp,
 	struct file		*filp,
 	int			ioflags,
-	unsigned int		cmd,
+	u_long			cmd,
 	void			__user *arg)
 {
 	xfs_flock64_t		bf;
@@ -1455,7 +1455,7 @@ xfs_ioctl(
 	struct inode		*inode,
 	struct file		*filp,
 	int			ioflags,
-	unsigned int		cmd,
+	u_long			cmd,
 	unsigned long		arg)
 {
 	return EINVAL;
