@@ -760,7 +760,7 @@ xfs_ioctl(
 //	vp = vn_from_inode(inode);
 	vp = BHV_TO_VNODE(bdp);
 
-	printf("xfs_ioctl: bdp %p flags 0x%x cmd 0x%x basecmd 0x%x arg %p\n",
+	printf("xfs_ioctl: bdp %p flags 0x%x cmd 0x%lx basecmd 0x%lx arg %p\n",
 	       bdp, ioflags, cmd,
 	       IOCBASECMD(cmd),
 	       arg);
