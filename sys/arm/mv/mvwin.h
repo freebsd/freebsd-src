@@ -91,7 +91,8 @@
 #define MV_GPIO_SIZE		0x20
 #define MV_RTC_BASE		(MV_BASE + 0x10300)
 #define MV_RTC_SIZE		0x08
-#define MV_TWSI_BASE		(MV_BASE + 0x11000)
+#define MV_TWSI0_BASE		(MV_BASE + 0x11000)
+#define MV_TWSI1_BASE		(MV_BASE + 0x11100)
 #define MV_TWSI_SIZE		0x20
 #define MV_UART0_BASE		(MV_BASE + 0x12000)
 #define MV_UART1_BASE		(MV_BASE + 0x12100)
