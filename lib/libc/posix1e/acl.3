@@ -59,6 +59,10 @@ all of these support routines are implemented in
 .Pp
 Available functions, sorted by behavior, include:
 .Bl -tag -width indent
+.It Fn acl_add_flag_np
+This function is described in
+.Xr acl_add_flag_np 3 ,
+and may be used to add flags to a flagset.
 .It Fn acl_add_perm
 This function is described in
 .Xr acl_add_perm 3 ,
@@ -70,6 +74,10 @@ and may be used to calculate and set the permissions associated with
 the
 .Dv ACL_MASK
 entry.
+.It Fn acl_clear_flags_np
+This function is described in
+.Xr acl_clear_flags_np 3 ,
+and may be used to clear all flags from a flagset.
 .It Fn acl_clear_perms
 This function is described in
 .Xr acl_clear_perms 3 ,
@@ -78,8 +86,11 @@ and may be used to clear all permissions from a permission set.
 This function is described in
 .Xr acl_copy_entry 3 ,
 and may be used to copy the contents of an ACL entry.
-.It Fn acl_create_entry
-This function is described in
+.It Xo
+.Fn acl_create_entry ,
+.Fn acl_create_entry_np
+.Xc
+These functions are described in
 .Xr acl_create_entry 3 ,
 and may be used to create an empty entry in an ACL.
 .It Xo
@@ -92,10 +103,17 @@ and may be used to create an empty entry in an ACL.
 These functions are described in
 .Xr acl_delete 3 ,
 and may be used to delete ACLs from file system objects.
-.It Fn acl_delete_entry
-This function is described in
+.It Xo
+.Fn acl_delete_entry ,
+.Fn acl_delete_entry_np ,
+.Xc
+This functions are described in
 .Xr acl_delete_entry 3 ,
 and may be used to delete an entry from an ACL.
+.It Fn acl_delete_flag_np
+This function is described in
+.Xr acl_delete_flag_np 3 ,
+and may be used to delete flags from a flagset.
 .It Fn acl_delete_perm
 This function is described in
 .Xr acl_delete_perm 3 ,
@@ -126,6 +144,14 @@ and may be used to retrieve a designated ACL entry from an ACL.
 These functions are described in
 .Xr acl_get 3 ,
 and may be used to retrieve ACLs from file system objects.
+.It Fn acl_get_entry_type_np
+This function is described in
+.Xr acl_get_entry_type_np 3 ,
+and may be used to retrieve an ACL type from an ACL entry.
+.It Fn acl_get_flagset_np
+This function is described in
+.Xr acl_get_flagset_np 3 ,
+and may be used to retrieve a flagset from an ACL entry.
 .It Fn acl_get_permset
 This function is described in
 .Xr acl_get_permset 3 ,
@@ -142,6 +168,10 @@ and may be used to retrieve the tag type from an ACL entry.
 This function is described in
 .Xr acl_init 3 ,
 and may be used to allocate a fresh (empty) ACL structure.
+.It Fn acl_is_trivial_np
+This function is described in
+.Xr acl_is_trivial_np 3 ,
+and may be used to find out whether ACL is trivial.
 .It Xo
 .Fn acl_set_fd ,
 .Fn acl_set_fd_np ,
@@ -151,6 +181,14 @@ and may be used to allocate a fresh (empty) ACL structure.
 These functions are described in
 .Xr acl_set 3 ,
 and may be used to assign an ACL to a file system object.
+.It Fn acl_set_entry_type_np
+This function is described in
+.Xr acl_set_entry_type_np 3 ,
+and may be used to set the ACL type of an ACL entry.
+.It Fn acl_set_flagset_np
+This function is described in
+.Xr acl_set_flagset_np 3 ,
+and may be used to set the flags of an ACL entry from a flagset.
 .It Fn acl_set_permset
 This function is described in
 .Xr acl_set_permset 3 ,
@@ -163,8 +201,15 @@ and may be used to set the qualifier of an ACL.
 This function is described in
 .Xr acl_set_tag_type 3 ,
 and may be used to set the tag type of an ACL.
-.It Fn acl_to_text
-This function is described in
+.It Fn acl_strip_np
+This function is describe din
+.Xr acl-strip_np 3 ,
+and may be used to remove extended entries from an ACL.
+.It Xo
+.Fn acl_to_text ,
+.Fn acl_to_text_np
+.Xc
+These functions are described in
 .Xr acl_to_text 3 ,
 and may be used to generate a text-form of a POSIX.1e semantics ACL.
 .It Xo
@@ -189,25 +234,34 @@ library.
 .Sh SEE ALSO
 .Xr getfacl 1 ,
 .Xr setfacl 1 ,
+.Xr acl_add_flag_np 3 ,
 .Xr acl_add_perm 3 ,
 .Xr acl_calc_mask 3 ,
+.Xr acl_clear_flags_np 3 ,
 .Xr acl_clear_perms 3 ,
 .Xr acl_copy_entry 3 ,
 .Xr acl_create_entry 3 ,
 .Xr acl_delete_entry 3 ,
+.Xr acl_delete_flag_np 3 ,
 .Xr acl_delete_perm 3 ,
 .Xr acl_dup 3 ,
 .Xr acl_free 3 ,
 .Xr acl_from_text 3 ,
 .Xr acl_get 3 ,
+.Xr acl_get_entry_type_np 3 ,
+.Xr acl_get_flagset_np 3 ,
 .Xr acl_get_permset 3 ,
 .Xr acl_get_qualifier 3 ,
 .Xr acl_get_tag_type 3 ,
 .Xr acl_init 3 ,
+.Xr acl_is_trivial_np 3 ,
 .Xr acl_set 3 ,
+.Xr acl_set_entry_type_np 3 ,
+.Xr acl_set_flagset_np 3 ,
 .Xr acl_set_permset 3 ,
 .Xr acl_set_qualifier 3 ,
 .Xr acl_set_tag_type 3 ,
+.Xr acl_strip_np 3 ,
 .Xr acl_to_text 3 ,
 .Xr acl_valid 3 ,
 .Xr posix1e 3 ,

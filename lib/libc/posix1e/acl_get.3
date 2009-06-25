@@ -99,7 +99,10 @@ argument are:
 .Bl -column -offset 3n "ACL_TYPE_DEFAULT"
 .It ACL_TYPE_ACCESS	POSIX.1e access ACL
 .It ACL_TYPE_DEFAULT	POSIX.1e default ACL
+.It ACL_TYPE_NFS4	NFSv4 ACL
 .El
+.Pp
+The ACL returned will be branded accordingly.
 .Sh IMPLEMENTATION NOTES
 .Fx Ns 's
 support for POSIX.1e interfaces and features is still under
@@ -146,6 +149,7 @@ The file system does not support ACL retrieval.
 .Xr acl 3 ,
 .Xr acl_free 3 ,
 .Xr acl_get 3 ,
+.Xr acl_get_brand_np 3 ,
 .Xr acl_set 3 ,
 .Xr posix1e 3
 .Sh STANDARDS

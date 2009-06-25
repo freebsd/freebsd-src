@@ -83,7 +83,13 @@ argument are:
 .Bl -column -offset 3n "ACL_TYPE_DEFAULT"
 .It ACL_TYPE_ACCESS	POSIX.1e access ACL
 .It ACL_TYPE_DEFAULT	POSIX.1e default ACL
+.It ACL_TYPE_NFS4	NFSv4 ACL
 .El
+.Pp
+Trying to set ACL_TYPE_NFS4 with
+.Va acl
+branded as POSIX.1e, or ACL_TYPE_ACCESS or ACL_TYPE_DEFAULT with ACL
+branded as NFSv4, will result in error.
 .Sh IMPLEMENTATION NOTES
 .Fx Ns 's
 support for POSIX.1e interfaces and features is still under
@@ -109,7 +115,7 @@ Argument
 does not point to a valid ACL for this object, or the ACL type
 specified in
 .Va type
-is invalid for this object, or both.
+is invalid for this object, or there is branding mismatch.
 .It Bq Er ENAMETOOLONG
 A component of a pathname exceeded 255 characters, or an
 entire path name exceeded 1023 characters.
@@ -132,6 +138,7 @@ read-only.
 .Xr acl 3 ,
 .Xr acl_delete 3 ,
 .Xr acl_get 3 ,
+.Xr acl_get_brand_np 3 ,
 .Xr acl_valid 3 ,
 .Xr posix1e 3
 .Sh STANDARDS
