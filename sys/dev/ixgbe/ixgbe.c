@@ -2156,7 +2156,8 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
 		*/
-		bus_bind_intr(dev, txr->res, i);
+		if (adapter->num_queues > 1)
+			bus_bind_intr(dev, txr->res, i);
 
 		TASK_INIT(&txr->tx_task, 0, ixgbe_handle_tx, txr);
 		txr->tq = taskqueue_create_fast("ixgbe_txq", M_NOWAIT,
@@ -2192,7 +2193,8 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
 		*/
-		bus_bind_intr(dev, rxr->res, i);
+		if (adapter->num_queues > 1)
+			bus_bind_intr(dev, rxr->res, i);
 
 		TASK_INIT(&rxr->rx_task, 0, ixgbe_handle_rx, rxr);
 		rxr->tq = taskqueue_create_fast("ixgbe_rxq", M_NOWAIT,
