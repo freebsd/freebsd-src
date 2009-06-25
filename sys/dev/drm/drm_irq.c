@@ -70,6 +70,9 @@ static void vblank_disable_fn(void *arg)
 	struct drm_device *dev = (struct drm_device *)arg;
 	int i;
 
+	/* Make sure that we are called with the lock held */
+	mtx_assert(&dev->vbl_lock, MA_OWNED);
+
 	if (callout_pending(&dev->vblank_disable_timer)) {
 		/* callout was reset */
 		return;
@@ -109,7 +112,9 @@ void drm_vblank_cleanup(struct drm_device *dev)
 
 	callout_drain(&dev->vblank_disable_timer);
 
+	DRM_SPINLOCK(&dev->vbl_lock);
 	vblank_disable_fn((void *)dev);
+	DRM_SPINUNLOCK(&dev->vbl_lock);
 
 	free(dev->vblank, DRM_MEM_DRIVER);
 
