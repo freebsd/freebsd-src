@@ -116,6 +116,10 @@ struct shmmap_state {
 	int shmid;
 };
 
+#if defined(__i386__) && (defined(COMPAT_FREEBSD4) || defined(COMPAT_43))
+struct oshmctl_args;
+static int oshmctl(struct thread *td, struct oshmctl_args *uap);
+#endif
 static void shm_deallocate_segment(struct shmid_kernel *);
 static int shm_find_segment_by_key(key_t);
 static struct shmid_kernel *shm_find_segment_by_shmid(int);
