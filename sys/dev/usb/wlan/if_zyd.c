@@ -517,6 +517,9 @@ zyd_tx_free(struct zyd_tx_data *data, int txerr)
 		m_freem(data->m);
 		data->m = NULL;
 
+		if (txerr == 0)
+			ieee80211_amrr_tx_complete(&ZYD_NODE(data->ni)->amn,
+			    IEEE80211_AMRR_SUCCESS, 0);
 		ieee80211_free_node(data->ni);
 		data->ni = NULL;
 	}
