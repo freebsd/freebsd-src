@@ -684,8 +684,6 @@ u3gstub_do_init(void *priv)
 			device_printf(sc->sc_dev,
 				      "changing ZTE STOR modem to modem mode\n");
 		u3gstub_BBB_cmd(sc, ztestor_cmd);
-		u3gstub_BBB_cmd(sc, scsi_test_unit_ready);
-		u3gstub_BBB_cmd(sc, scsi_start_stop_unit);
 		break;
 	case U3GINIT_CMOTECH:
 		if (bootverbose)
