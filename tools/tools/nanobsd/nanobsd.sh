@@ -664,7 +664,8 @@ late_customize_cmd () {
 #	Print $2 at level $1.
 pprint() {
     if [ "$1" -le $PPLEVEL ]; then
-	printf "%.${1}s %s\n" "#####" "$2"
+	runtime=$(( `date +%s` - $NANO_STARTTIME ))
+	printf "%s %.${1}s %s\n" "`date -u -r $runtime +%H:%M:%S`" "#####" "$2" 1>&3
     fi
 }
 
@@ -806,6 +807,10 @@ export NANO_BOOTLOADER
 #######################################################################
 # And then it is as simple as that...
 
+# File descriptor 3 is used for logging output, see pprint
+exec 3>&1
+
+NANO_STARTTIME=`date +%s`
 pprint 1 "NanoBSD image ${NANO_NAME} build starting"
 
 if $do_world ; then
