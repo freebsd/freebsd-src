@@ -380,8 +380,6 @@ int radeon_driver_irq_postinstall(struct drm_device * dev)
 	atomic_set(&dev_priv->swi_emitted, 0);
 	DRM_INIT_WAITQUEUE(&dev_priv->swi_queue);
 
-	dev->max_vblank_count = 0x001fffff;
-
 	radeon_irq_set_state(dev, RADEON_SW_INT_ENABLE, 1);
 
 	return 0;
