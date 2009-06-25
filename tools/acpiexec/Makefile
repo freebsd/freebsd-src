@@ -120,6 +120,7 @@ SRCS=	aetables.c aehandlers.c aeexec.c aemain.c \
 	../../utilities/utdelete.c \
 	../../utilities/uteval.c \
 	../../utilities/utglobal.c \
+	../../utilities/utids.c \
 	../../utilities/utinit.c \
 	../../utilities/utlock.c \
 	../../utilities/utmath.c \

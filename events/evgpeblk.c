@@ -995,7 +995,7 @@ AcpiEvCreateGpeInfoBlocks (
 
         /* Disable all GPEs within this register */
 
-        Status = AcpiWrite (0x00, &ThisRegister->EnableAddress);
+        Status = AcpiHwWrite (0x00, &ThisRegister->EnableAddress);
         if (ACPI_FAILURE (Status))
         {
             goto ErrorExit;
@@ -1003,7 +1003,7 @@ AcpiEvCreateGpeInfoBlocks (
 
         /* Clear any pending GPE events within this register */
 
-        Status = AcpiWrite (0xFF, &ThisRegister->StatusAddress);
+        Status = AcpiHwWrite (0xFF, &ThisRegister->StatusAddress);
         if (ACPI_FAILURE (Status))
         {
             goto ErrorExit;

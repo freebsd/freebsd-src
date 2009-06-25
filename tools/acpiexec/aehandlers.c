@@ -153,6 +153,10 @@ AeRegionInit (
     void                    *HandlerContext,
     void                    **RegionContext);
 
+void
+AeAttachedDataHandler (
+    ACPI_HANDLE             Object,
+    void                    *Data);
 
 UINT32                      SigintCount = 0;
 AE_DEBUG_REGIONS            AeRegions;
@@ -446,10 +450,30 @@ UINT32
 AeGpeHandler (
     void                    *Context)
 {
-
-
     AcpiOsPrintf ("Received a GPE at handler\n");
     return (0);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AeAttachedDataHandler
+ *
+ * DESCRIPTION: Handler for deletion of nodes with attached data (attached via
+ *              AcpiAttachData)
+ *
+ *****************************************************************************/
+
+void
+AeAttachedDataHandler (
+    ACPI_HANDLE             Object,
+    void                    *Data)
+{
+    ACPI_NAMESPACE_NODE     *Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Data);
+
+
+    AcpiOsPrintf ("Received an attached data deletion on %4.4s\n",
+        Node->Name.Ascii);
 }
 
 
@@ -493,8 +517,8 @@ AeRegionInit (
  *
  *****************************************************************************/
 
-ACPI_ADR_SPACE_TYPE         SpaceId[] = {0, 1, 2, 3, 4, 5, 6, 0x80};
-#define AEXEC_NUM_REGIONS   8
+ACPI_ADR_SPACE_TYPE         SpaceId[] = {0, 1, 2, 3, 4, 5, 6, 7, 0x80};
+#define AEXEC_NUM_REGIONS   9
 
 ACPI_STATUS
 AeInstallHandlers (void)
@@ -569,6 +593,10 @@ AeInstallHandlers (void)
             printf ("Could not install a notify handler, %s\n",
                 AcpiFormatException (Status));
         }
+
+        Status = AcpiAttachData (Handle, AeAttachedDataHandler, Handle);
+        Status = AcpiDetachData (Handle, AeAttachedDataHandler);
+        Status = AcpiAttachData (Handle, AeAttachedDataHandler, Handle);
     }
     else
     {
@@ -630,7 +658,8 @@ AeRegionHandler (
     void                    *RegionContext)
 {
 
-    ACPI_OPERAND_OBJECT     *RegionObject = (ACPI_OPERAND_OBJECT*) RegionContext;
+    ACPI_OPERAND_OBJECT     *RegionObject = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, RegionContext);
+    UINT8                   *Buffer = ACPI_CAST_PTR (UINT8, Value);
     ACPI_PHYSICAL_ADDRESS   BaseAddress;
     ACPI_SIZE               Length;
     BOOLEAN                 BufferExists;
@@ -681,8 +710,9 @@ AeRegionHandler (
             AcpiUtGetRegionName (RegionObject->Region.SpaceId),
             (UINT32) Address));
 
-    if (SpaceId == ACPI_ADR_SPACE_SYSTEM_IO)
+    switch (SpaceId)
     {
+    case ACPI_ADR_SPACE_SYSTEM_IO:
         /*
          * For I/O space, exercise the port validation
          */
@@ -707,10 +737,11 @@ AeRegionHandler (
         }
 
         /* Now go ahead and simulate the hardware */
-    }
+        break;
 
-    else if (SpaceId == ACPI_ADR_SPACE_SMBUS)
-    {
+
+    case ACPI_ADR_SPACE_SMBUS:
+
         Length = 0;
 
         switch (Function & ACPI_IO_MASK)
@@ -769,13 +800,37 @@ AeRegionHandler (
 
         for (i = 0; i < Length; i++)
         {
-            ((UINT8 *) Value)[i+2] = (UINT8) (0xA0 + i);
+            Buffer[i+2] = (UINT8) (0xA0 + i);
         }
 
-        ((UINT8 *) Value)[0] = 0x7A;
-        ((UINT8 *) Value)[1] = (UINT8) Length;
+        Buffer[0] = 0x7A;
+        Buffer[1] = (UINT8) Length;
+        return (AE_OK);
 
-        return AE_OK;
+
+    case ACPI_ADR_SPACE_IPMI: /* ACPI 4.0 */
+
+        AcpiOsPrintf ("AcpiExec: Received IPMI request: "
+            "Address %X BaseAddress %X Length %X Width %X BufferLength %u\n",
+            (UINT32) Address, (UINT32) BaseAddress,
+            Length, BitWidth, Buffer[1]);
+
+        /*
+         * Regardless of a READ or WRITE, this handler is passed a 66-byte
+         * buffer in which to return the IPMI status/length/data.
+         *
+         * Return some example data to show use of the bidirectional buffer
+         */
+        Buffer[0] = 0;       /* Status byte */
+        Buffer[1] = 64;      /* Return buffer data length */
+        Buffer[2] = 0;       /* Completion code */
+        Buffer[3] = 0x34;    /* Power measurement */
+        Buffer[4] = 0x12;    /* Power measurement */
+        Buffer[65] = 0xEE;   /* last buffer byte */
+        return (AE_OK);
+
+    default:
+        break;
     }
 
     /*

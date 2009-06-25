@@ -324,7 +324,8 @@ extern char const                       *AcpiGbl_ExceptionNames_Ctrl[];
 extern BOOLEAN                          AcpiGbl_Shutdown;
 extern UINT32                           AcpiGbl_StartupFlags;
 extern const char                      *AcpiGbl_SleepStateNames[ACPI_S_STATE_COUNT];
-extern const char                      *AcpiGbl_HighestDstateNames[4];
+extern const char                      *AcpiGbl_LowestDstateNames[ACPI_NUM_SxW_METHODS];
+extern const char                      *AcpiGbl_HighestDstateNames[ACPI_NUM_SxD_METHODS];
 extern const ACPI_OPCODE_INFO           AcpiGbl_AmlOpInfo[AML_NUM_OPCODES];
 extern const char                      *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS];
 #endif

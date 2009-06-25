@@ -152,6 +152,10 @@ void
 AeHardwareInterfaces (
     void);
 
+void
+AeGenericRegisters (
+    void);
+
 extern unsigned char Ssdt3Code[];
 
 
@@ -437,6 +441,41 @@ ExecuteOSI (
 
 /******************************************************************************
  *
+ * FUNCTION:    AeGenericRegisters
+ *
+ * DESCRIPTION: Call the AcpiRead/Write interfaces.
+ *
+ *****************************************************************************/
+
+ACPI_GENERIC_ADDRESS       GenericRegister;
+
+void
+AeGenericRegisters (
+    void)
+{
+    ACPI_STATUS             Status;
+    UINT64                  Value;
+
+
+    GenericRegister.Address = 0x1234;
+    GenericRegister.BitWidth = 64;
+    GenericRegister.BitOffset = 0;
+    GenericRegister.SpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
+
+    Status = AcpiRead (&Value, &GenericRegister);
+    Status = AcpiWrite (Value, &GenericRegister);
+
+    GenericRegister.Address = 0x12345678;
+    GenericRegister.BitOffset = 0;
+    GenericRegister.SpaceId = ACPI_ADR_SPACE_SYSTEM_MEMORY;
+
+    Status = AcpiRead (&Value, &GenericRegister);
+    Status = AcpiWrite (Value, &GenericRegister);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    AeHardwareInterfaces
  *
  * DESCRIPTION: Call various hardware support interfaces
@@ -487,6 +526,7 @@ AeMiscellaneousTests (
 
 
     AeHardwareInterfaces ();
+    AeGenericRegisters ();
     AeSetupConfiguration (Ssdt3Code);
 
     AeTestBufferArgument();
