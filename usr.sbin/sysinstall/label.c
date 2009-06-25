@@ -1389,7 +1389,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 #ifdef __ia64__
     AutoEfi = NULL;
     if (EfiChunk == NULL) {
-	sz = 100 * ONE_MEG;
+	sz = 400 * ONE_MEG;
 	AutoEfi = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 	    label_chunk_info[here].c, sz, efi, 0, 0);
 	if (AutoEfi == NULL) {
