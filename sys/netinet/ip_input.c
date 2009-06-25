@@ -117,7 +117,9 @@ static int	maxfragsperpacket;
 int	ipstealth;
 static int	nipq;	/* Total # of reass queues */
 #endif
+
 struct	rwlock in_ifaddr_lock;
+RW_SYSINIT(in_ifaddr_lock, &in_ifaddr_lock, "in_ifaddr_lock");
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_FORWARDING,
     forwarding, CTLFLAG_RW, ipforwarding, 0,
@@ -326,7 +328,6 @@ ip_init(void)
 
 	TAILQ_INIT(&V_in_ifaddrhead);
 	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);
-	IN_IFADDR_LOCK_INIT();
 
 	/* Initialize IP reassembly queue. */
 	for (i = 0; i < IPREASS_NHASH; i++)
