@@ -116,7 +116,6 @@ extern	u_long in_ifaddrhmask;			/* mask for hash table */
 
 extern	struct rwlock in_ifaddr_lock;
 
-#define	IN_IFADDR_LOCK_INIT()	rw_init(&in_ifaddr_lock, "in_ifaddr_lock")
 #define	IN_IFADDR_LOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_LOCKED)
 #define	IN_IFADDR_RLOCK()	rw_rlock(&in_ifaddr_lock)
 #define	IN_IFADDR_RLOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_RLOCKED)
