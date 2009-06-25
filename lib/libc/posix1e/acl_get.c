@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -102,7 +103,7 @@ acl_get_link_np(const char *path_p, acl_type_t type)
 acl_t
 acl_get_fd(int fd)
 {
-	if (fpathconf(fd, _PC_ACL_NFS4))
+	if (fpathconf(fd, _PC_ACL_NFS4) == 1)
 		return (acl_get_fd_np(fd, ACL_TYPE_NFS4));
 
 	return (acl_get_fd_np(fd, ACL_TYPE_ACCESS));
