@@ -644,17 +644,16 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 			return -EFAULT;
 		}
 	}
-	DRM_LOCK();
 
 	ret = i915_dispatch_batchbuffer(dev, batch);
 
-	if (sarea_priv)
-		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
-
-	DRM_UNLOCK();
 	if (batch->num_cliprects)
 		vsunlock(batch->cliprects, cliplen);
+
 	DRM_LOCK();
+
+	if (sarea_priv)
+		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 
 	return ret;
 }
@@ -697,10 +696,9 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 			return -EFAULT;
 		}
 	}
-	DRM_LOCK();
 
 	ret = i915_dispatch_cmdbuffer(dev, cmdbuf);
-	DRM_UNLOCK();
+
 	if (cmdbuf->num_cliprects) {
 		vsunlock(cmdbuf->buf, cmdbuf->sz);
 		vsunlock(cmdbuf->cliprects, cliplen);
