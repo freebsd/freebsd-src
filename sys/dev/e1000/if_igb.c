@@ -2189,13 +2189,12 @@ igb_allocate_msix(struct adapter *adapter)
 			txr->eims = E1000_EICR_TX_QUEUE0 << i;
 		else
 			txr->eims = 1 << vector;
-#if defined(__i386__) || defined(__amd64__)
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
 		*/
-		intr_bind(rman_get_start(txr->res), i);
-#endif
+		if (adapter->num_queues > 1)
+			bus_bind_intr(dev, txr->res, i);
 	}
 
 	/* RX Setup */
@@ -2226,7 +2225,6 @@ igb_allocate_msix(struct adapter *adapter)
 			rxr->eims = 1 << vector;
 		/* Get a mask for local timer */
 		adapter->rx_mask |= rxr->eims;
-#if defined(__i386__) || defined(__amd64__)
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
@@ -2234,8 +2232,8 @@ igb_allocate_msix(struct adapter *adapter)
 		** bound to each CPU, limited by the MSIX
 		** vectors.
 		*/
-		intr_bind(rman_get_start(rxr->res), i);
-#endif
+		if (adapter->num_queues > 1)
+			bus_bind_intr(dev, rxr->res, i);
 	}
 
 	/* And Link */
