@@ -744,11 +744,14 @@ void
 pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 {
 	int i;
+	vm_offset_t origva = va;
 
 	for (i = 0; i < count; i++) {
 		pmap_kenter(va, VM_PAGE_TO_PHYS(m[i]));
 		va += PAGE_SIZE;
 	}
+
+	mips_dcache_wbinv_range_index(origva, PAGE_SIZE*count);
 }
 
 /*
@@ -758,6 +761,11 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 void
 pmap_qremove(vm_offset_t va, int count)
 {
+	/*
+	 * No need to wb/inv caches here, 
+	 *   pmap_kremove will do it for us
+	 */
+
 	while (count-- > 0) {
 		pmap_kremove(va);
 		va += PAGE_SIZE;
