@@ -373,8 +373,7 @@ intr_setaffinity(int irq, void *m)
 	ie = intr_lookup(irq);
 	if (ie == NULL)
 		return (ESRCH);
-	intr_event_bind(ie, cpu);
-	return (0);
+	return (intr_event_bind(ie, cpu));
 }
 
 int
