@@ -130,7 +130,7 @@ and may be used to free userland working ACL storage.
 This function is described in
 .Xr acl_from_text 3 ,
 and may be used to convert a text-form ACL into working ACL state, if
-the ACL has POSIX.1e semantics.
+the ACL has POSIX.1e or NFSv4 semantics.
 .It Fn acl_get_entry
 This function is described in
 .Xr acl_get_entry 3 ,
@@ -211,7 +211,7 @@ and may be used to remove extended entries from an ACL.
 .Xc
 These functions are described in
 .Xr acl_to_text 3 ,
-and may be used to generate a text-form of a POSIX.1e semantics ACL.
+and may be used to generate a text-form of a POSIX.1e or NFSv4 semantics ACL.
 .It Xo
 .Fn acl_valid ,
 .Fn acl_valid_fd_np ,
