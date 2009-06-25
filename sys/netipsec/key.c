@@ -3939,6 +3939,7 @@ key_ismyaddr(sa)
 #ifdef INET
 	case AF_INET:
 		sin = (struct sockaddr_in *)sa;
+		IN_IFADDR_RLOCK();
 		for (ia = V_in_ifaddrhead.tqh_first; ia;
 		     ia = ia->ia_link.tqe_next)
 		{
@@ -3946,9 +3947,11 @@ key_ismyaddr(sa)
 			    sin->sin_len == ia->ia_addr.sin_len &&
 			    sin->sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			{
+				IN_IFADDR_RUNLOCK();
 				return 1;
 			}
 		}
+		IN_IFADDR_RUNLOCK();
 		break;
 #endif
 #ifdef INET6
