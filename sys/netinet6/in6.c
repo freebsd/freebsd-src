@@ -831,6 +831,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
 
+		ifa_ref(&ia->ia_ifa);			/* in6_if_addrhead */
 		TAILQ_INSERT_TAIL(&V_in6_ifaddrhead, ia, ia_link);
 	}
 
@@ -1147,8 +1148,8 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 * anyway.
 	 */
 	if (hostIsNew) {
-		ifa_free(&ia->ia_ifa);
 		in6_unlink_ifa(ia, ifp);
+		ifa_free(&ia->ia_ifa);
 	}
 	return (error);
 
@@ -1376,6 +1377,7 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	ifa_free(&ia->ia_ifa);			/* if_addrhead */
 
 	TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
+	ifa_free(&ia->ia_ifa);			/* in6_ifaddrhead */
 
 	/*
 	 * Release the reference to the base prefix.  There should be a
@@ -1398,12 +1400,6 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	if ((ia->ia6_flags & IN6_IFF_AUTOCONF)) {
 		pfxlist_onlink_check();
 	}
-
-	/*
-	 * release another refcnt for the link from in6_ifaddr.
-	 * Note that we should decrement the refcnt at least once for all *BSD.
-	 */
-	ifa_free(&ia->ia_ifa);
 
 	splx(s);
 }
