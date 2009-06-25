@@ -1,4 +1,23 @@
 
+	--- 9.6.1 released ---
+
+2607.	[bug]		named could incorrectly delete NSEC3 records for
+			empty nodes when processing a update request.  
+			[RT #19749]
+
+2606.	[bug]		"delegation-only" was not being accepted in
+			delegation-only type zones. [RT #19717]
+
+2605.	[bug]		Accept DS responses from delegation only zones.
+			[RT # 19296]
+
+2603.	[port]		win32: handle .exe extension of named-checkzone and
+			named-comilezone argv[0] names under windows.
+			[RT #19767]
+
+2602.	[port]		win32: fix debugging command line build of libisccfg.
+			[RT #19767]
+
 	--- 9.6.1rc1 released ---
 
 2599.	[bug]		Address rapid memory growth when validation fails.
