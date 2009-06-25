@@ -117,6 +117,7 @@ static int	maxfragsperpacket;
 int	ipstealth;
 static int	nipq;	/* Total # of reass queues */
 #endif
+struct	rwlock in_ifaddr_lock;
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_FORWARDING,
     forwarding, CTLFLAG_RW, ipforwarding, 0,
@@ -325,6 +326,7 @@ ip_init(void)
 
 	TAILQ_INIT(&V_in_ifaddrhead);
 	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);
+	IN_IFADDR_LOCK_INIT();
 
 	/* Initialize IP reassembly queue. */
 	for (i = 0; i < IPREASS_NHASH; i++)
@@ -615,6 +617,7 @@ passin:
 	/*
 	 * Check for exact addresses in the hash bucket.
 	 */
+	/* IN_IFADDR_RLOCK(); */
 	LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
 		/*
 		 * If the address matches, verify that the packet
@@ -624,9 +627,12 @@ passin:
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr && 
 		    (!checkif || ia->ia_ifp == ifp)) {
 			ifa_ref(&ia->ia_ifa);
+			/* IN_IFADDR_RUNLOCK(); */
 			goto ours;
 		}
 	}
+	/* IN_IFADDR_RUNLOCK(); */
+
 	/*
 	 * Check for broadcast addresses.
 	 *

@@ -813,16 +813,21 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * choose the broadcast address for that interface.
 		 */
 		if (faddr.s_addr == INADDR_ANY) {
+			IN_IFADDR_RLOCK();
 			faddr =
 			    IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
+			IN_IFADDR_RUNLOCK();
 			if (cred != NULL &&
 			    (error = prison_get_ip4(cred, &faddr)) != 0)
 				return (error);
-		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST &&
-		    (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
-		    IFF_BROADCAST))
-			faddr = satosin(&TAILQ_FIRST(
-			    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
+		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST) {
+			IN_IFADDR_RLOCK();
+			if (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
+			    IFF_BROADCAST)
+				faddr = satosin(&TAILQ_FIRST(
+				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
+			IN_IFADDR_RUNLOCK();
+		}
 	}
 	if (laddr.s_addr == INADDR_ANY) {
 		error = in_pcbladdr(inp, &faddr, &laddr, cred);
@@ -842,12 +847,16 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			imo = inp->inp_moptions;
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
+				IN_IFADDR_RLOCK();
 				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
 					if (ia->ia_ifp == ifp)
 						break;
-				if (ia == NULL)
+				if (ia == NULL) {
+					IN_IFADDR_RUNLOCK();
 					return (EADDRNOTAVAIL);
+				}
 				laddr = ia->ia_addr.sin_addr;
+				IN_IFADDR_RUNLOCK();
 			}
 		}
 	}
