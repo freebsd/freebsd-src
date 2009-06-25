@@ -1263,7 +1263,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	struct	tcpcb *tp;
 	struct	tcp_info ti;
 	char buf[TCP_CA_NAME_MAX];
-	struct cc_algo *cc_algo;
+	struct cc_algo *algo;
 
 	error = 0;
 	inp = sotoinpcb(so);
@@ -1387,9 +1387,9 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			 */
 			error = EINVAL;
 			CC_LIST_RLOCK();
-			STAILQ_FOREACH(cc_algo, &cc_list, entries) {
+			STAILQ_FOREACH(algo, &cc_list, entries) {
 				if (	strncmp(buf,
-					cc_algo->name,
+					algo->name,
 					TCP_CA_NAME_MAX) == 0) {
 					/*
 					 * we've found the requested algo,
@@ -1401,16 +1401,16 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 					 * so it's safe to do these things
 					 * without ordering concerns
 					 */
-					if (CC_ALGO(tp)->deinit != NULL)
-						CC_ALGO(tp)->deinit(tp);
-					CC_ALGO(tp) = cc_algo;
+					if (CC_ALGO(tp)->conn_destroy != NULL)
+						CC_ALGO(tp)->conn_destroy(tp);
+					CC_ALGO(tp) = algo;
 					/*
 					 * if something goes pear shaped
 					 * initialising the new algo,
 					 * fall back to newreno (which
 					 * does not require initialisation)
 					 */
-					if (cc_algo->init(tp) > 0) {
+					if (algo->conn_init(tp) > 0) {
 						CC_ALGO(tp) = &newreno_cc_algo;
 						/*
 						 * the only reason init() should

@@ -3282,7 +3282,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	if (metrics.rmx_bandwidth)
 		tp->snd_bandwidth = metrics.rmx_bandwidth;
 
-	/* set the initial cwnd value */
+	/* Set the initial cwnd value. */
 	if (CC_ALGO(tp)->cwnd_init != NULL)
 		CC_ALGO(tp)->cwnd_init(tp);
 

@@ -731,15 +731,14 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp = &tm->tcb;
 
 	/*
-	 * use the current system default cc algorithm, which is always
-	 * the first algorithm in cc_list
+	 * Use the current system default CC algorithm.
 	 */
 	CC_LIST_RLOCK();
-	CC_ALGO(tp) = STAILQ_FIRST(&cc_list);
+	CC_ALGO(tp) = CC_DEFAULT();
 	CC_LIST_RUNLOCK();
 
-	/* if the cc module fails to init, stop building the control block */
-	if (CC_ALGO(tp)->init(tp) > 0) {
+	/* If the CC module fails to init, stop building the control block. */
+	if (CC_ALGO(tp)->conn_init(tp) > 0) {
 		uma_zfree(V_tcpcb_zone, tp);
 		return NULL;
 	}
@@ -911,9 +910,9 @@ tcp_discardcb(struct tcpcb *tp)
 	tcp_offload_detach(tp);
 	tcp_free_sackholes(tp);
 
-	/* Allow the cc algorithm in use for this cb to clean up after itself */
-	if (CC_ALGO(tp)->deinit != NULL)
-		CC_ALGO(tp)->deinit(tp);
+	/* Allow the CC algorithm to clean up after itself. */
+	if (CC_ALGO(tp)->conn_destroy != NULL)
+		CC_ALGO(tp)->conn_destroy(tp);
 
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;

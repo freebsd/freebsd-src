@@ -27,7 +27,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
 /*
@@ -41,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
@@ -49,16 +49,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/time.h>
+#include <sys/vimage.h>
+
+#include <net/if.h>
 
 #include <netinet/cc.h>
 #include <netinet/cc_cubic.h>
+#include <netinet/cc_module.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/vinet.h>
 
 /* function prototypes */
-int cubic_init(struct tcpcb *tp);
-void cubic_deinit(struct tcpcb *tp);
+int cubic_conn_init(struct tcpcb *tp);
+void cubic_conn_destroy(struct tcpcb *tp);
 void cubic_pre_fr(struct tcpcb *tp, struct tcphdr *th);
 void cubic_post_fr(struct tcpcb *tp, struct tcphdr *th);
 void cubic_ack_received(struct tcpcb *tp, struct tcphdr *th);
@@ -88,8 +93,10 @@ MALLOC_DEFINE(M_CUBIC, "cubic data",
 /* function pointers for various hooks into the TCP stack */
 struct cc_algo cubic_cc_algo = {
 	.name = "cubic",
-	.init = cubic_init,
-	.deinit = cubic_deinit,
+	.mod_init = NULL,
+	.mod_destroy = NULL,
+	.conn_init = cubic_conn_init,
+	.conn_destroy = cubic_conn_destroy,
 	.cwnd_init = cubic_cwnd_init,
 	.ack_received = cubic_ack_received,
 	.pre_fr = cubic_pre_fr,
@@ -119,7 +126,7 @@ cubic_cwnd_init(struct tcpcb *tp)
  * in the control block
  */
 int
-cubic_init(struct tcpcb *tp)
+cubic_conn_init(struct tcpcb *tp)
 {
 	struct cubic *cubic_data;
 	
@@ -145,7 +152,7 @@ cubic_init(struct tcpcb *tp)
  * TCP control block.
  */
 void
-cubic_deinit(struct tcpcb *tp)
+cubic_conn_destroy(struct tcpcb *tp)
 {
 	if (CC_DATA(tp) != NULL)
 		free(CC_DATA(tp), M_CUBIC);
@@ -353,60 +360,4 @@ cubic_ssthresh_update(struct tcpcb *tp)
 		tp->snd_ssthresh = (tp->snd_cwnd * CUBIC_BETA) >> CUBIC_SHIFT;
 }
 
-/*
- * Init the HTCP module when it is first loaded into the kernel.
- * Calls the kernel function for registering a new congestion control
- * algorithm
- */
-static int
-init_module(void)
-{
-	cc_register_algorithm(&cubic_cc_algo);
-	return 0;
-}
-
-/*
- * Called when the module is unloaded from the kernel.
- */
-static int
-deinit_module(void)
-{
-	cc_deregister_algorithm(&cubic_cc_algo);
-	return 0;
-}
-
-/*
- * Tell the kernel which functions to use to init and de-init the module.
- */
-static int
-cubic_load_handler(module_t mod, int what, void *arg)
-{
-	switch(what) {
-		case MOD_LOAD:
-			return init_module();
-			break;
-	
-		case MOD_QUIESCE:
-		case MOD_SHUTDOWN:
-			return deinit_module();
-			break;
-	
-		case MOD_UNLOAD:
-			return 0;
-			break;
-	
-		default:
-			return EINVAL;
-			break;
-	}
-}
-
-/* a struct that holds basic data on the module */
-static moduledata_t cubic_mod =
-{
-	"cubic",            /* module's name */
-	cubic_load_handler, /* execution entry point for the module */
-	NULL
-};
-
-DECLARE_MODULE(cubic, cubic_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+DECLARE_CC_MODULE(cubic, &cubic_cc_algo);

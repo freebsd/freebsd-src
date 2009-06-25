@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2007-2009
  * 	Swinburne University of Technology, Melbourne, Australia
+ * Copyright (c) 2009 Lawrence Stewart <lstewart@freebsd.org>
  * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
@@ -28,7 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
  */
 
 /*
@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/queue.h>
@@ -52,11 +53,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
+
+#include <net/if.h>
 
 #include <netinet/cc.h>
+#include <netinet/cc_module.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/vinet.h>
 
 /* useful defines */
 #define MODNAME "HTCP congestion control"
@@ -125,8 +131,9 @@ __FBSDID("$FreeBSD$");
 )
 
 /* function prototypes */
-int htcp_init(struct tcpcb *tp);
-void htcp_deinit(struct tcpcb *tp);
+int htcp_mod_init(void);
+int htcp_conn_init(struct tcpcb *tp);
+void htcp_conn_destroy(struct tcpcb *tp);
 void htcp_recalc_alpha(struct tcpcb *tp);
 void htcp_recalc_beta(struct tcpcb *tp);
 void htcp_pre_fr(struct tcpcb *tp, struct tcphdr *th);
@@ -162,8 +169,10 @@ MALLOC_DEFINE(M_HTCP, "htcp data", "Per connection data required for the HTCP co
 /* function pointers for various hooks into the TCP stack */
 struct cc_algo htcp_cc_algo = {
 	.name = "htcp",
-	.init = htcp_init,
-	.deinit = htcp_deinit,
+	.mod_init = htcp_mod_init,
+	.mod_destroy = NULL,
+	.conn_init = htcp_conn_init,
+	.conn_destroy = htcp_conn_destroy,
 	.cwnd_init = newreno_cwnd_init,
 	.ack_received = htcp_ack_received,
 	.pre_fr = htcp_pre_fr,
@@ -178,7 +187,7 @@ struct cc_algo htcp_cc_algo = {
  * in the control block
  */
 int
-htcp_init(struct tcpcb *tp)
+htcp_conn_init(struct tcpcb *tp)
 {
 	struct htcp *htcp_data;
 	
@@ -209,7 +218,7 @@ htcp_init(struct tcpcb *tp)
  * TCP control block.
  */
 void
-htcp_deinit(struct tcpcb *tp)
+htcp_conn_destroy(struct tcpcb *tp)
 {
 #ifdef HTCP_DEBUG
 	printf("deinitialising tcp connection with htcp congestion control\n");
@@ -533,13 +542,9 @@ skip:
 }
 #endif
 
-/*
- * Init the HTCP module when it is first loaded into the kernel.
- * Calls the kernel function for registering a new congestion control
- * algorithm
- */
-static int
-init_module(void)
+
+int
+htcp_mod_init(void)
 {
 	/*
 	 * the maximum time in ticks after a congestion event before alpha stops
@@ -560,63 +565,9 @@ init_module(void)
 	/* set the default debug interval to 1 second */
 	htcp_debug_ticks = hz;
 #endif
-	
-	/* add htcp to the list of available algorithms */
-	cc_register_algorithm(&htcp_cc_algo);
-
-	uprintf("Loaded: %s v%s\n", MODNAME, MODVERSION);
 
 	return 0;
 }
-
-/*
- * Called when the module is unloaded from the kernel.
- */
-static int
-deinit_module(void)
-{
-	cc_deregister_algorithm(&htcp_cc_algo);
-
-	uprintf("Unloaded: %s v%s\n", MODNAME, MODVERSION);
-
-	return 0;
-}
-
-/*
- * Tell the kernel which functions to use to init and de-init the module.
- */
-static int 
-htcp_load_handler(module_t mod, int what, void *arg)
-{
-	switch(what) {
-		case MOD_LOAD:
-			return init_module();
-			break;
-
-		case MOD_QUIESCE:
-		case MOD_SHUTDOWN:
-			return deinit_module();
-			break;
-
-		case MOD_UNLOAD:
-			return 0;
-			break;
-
-		default:
-			return EINVAL;
-			break;
-	}
-}
-
-/* a struct that holds basic data on the module */
-static moduledata_t htcp_mod =
-{
-	"htcp",            /* module's name */
-	htcp_load_handler, /* execution entry point for the module */
-	NULL
-};
-
-DECLARE_MODULE(htcp, htcp_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 
 SYSCTL_DECL(_net_inet_tcp_cc_htcp);
 SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, htcp, CTLFLAG_RW, NULL, "H-TCP related settings");
@@ -626,3 +577,5 @@ SYSCTL_OID(_net_inet_tcp_cc_htcp, OID_AUTO, adaptive_backoff, CTLTYPE_UINT|CTLFL
 #ifdef HTCP_DEBUG
 SYSCTL_OID(_net_inet_tcp_cc_htcp, OID_AUTO, debug_ticks, CTLTYPE_UINT|CTLFLAG_RW, &htcp_debug_ticks, 0, &htcp_debug_ticks_handler, "IU", "set the approximate number of ticks between printing debug messages to syslog");
 #endif
+
+DECLARE_CC_MODULE(htcp, &htcp_cc_algo);

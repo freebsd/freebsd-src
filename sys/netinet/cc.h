@@ -1,5 +1,7 @@
 /*-
- * Copyright (c) 2008 Swinburne University of Technology, Melbourne, Australia
+ * Copyright (c) 2008-2009
+ * 	Swinburne University of Technology, Melbourne, Australia
+ * Copyright (c) 2009 Lawrence Stewart <lstewart@freebsd.org>
  * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
@@ -34,77 +36,78 @@
 #ifndef _NETINET_CC_H_
 #define _NETINET_CC_H_
 
-/* Needed for TCP_CA_NAME_MAX define which lives in tcp.h for compat reasons */
+/* Needed for TCP_CA_NAME_MAX define which lives in tcp.h for compat reasons. */
 #include <netinet/tcp.h>
 
 /*
- * Global CC vars
+ * Global CC vars.
  */
 extern	STAILQ_HEAD(cc_head, cc_algo) cc_list;
-extern	char cc_algorithm[];
 extern	const int tcprexmtthresh;
 extern	struct cc_algo newreno_cc_algo;
 
 /*
- * Define the new net.inet.tcp.cc sysctl tree
+ * Define the new net.inet.tcp.cc sysctl tree.
  */
 SYSCTL_DECL(_net_inet_tcp_cc);
 
 /*
- * CC housekeeping functions
+ * CC housekeeping functions.
  */
 void	cc_init(void);
-int	cc_register_algorithm(struct cc_algo *add_cc);
-int	cc_deregister_algorithm(struct cc_algo *remove_cc);
+int	cc_register_algo(struct cc_algo *add_cc);
+int	cc_deregister_algo(struct cc_algo *remove_cc);
 
 /*
- * NewReno CC functions
- */
-int	newreno_init(struct tcpcb *tp);
-void	newreno_cwnd_init(struct tcpcb *tp);
-void	newreno_ack_received(struct tcpcb *tp, struct tcphdr *th);
-void	newreno_pre_fr(struct tcpcb *tp, struct tcphdr *th);
-void	newreno_post_fr(struct tcpcb *tp, struct tcphdr *th);
-void	newreno_after_idle(struct tcpcb *tp);
-void	newreno_after_timeout(struct tcpcb *tp);
-void	newreno_ssthresh_update(struct tcpcb *tp);
-
-/*
- * Structure to hold function pointers to the functions responsible
- * for congestion control. Based on similar structure in the SCTP stack
+ * Structure to hold data and function pointers that together represent
+ * a congestion control algorithm.
+ * Based on similar structure in the SCTP stack.
  */
 struct cc_algo {
 	char name[TCP_CA_NAME_MAX];
 
-	/* init the congestion algorithm for the specified control block */
-	int (*init) (struct tcpcb *tp);
+	/* Init global module state on kldload. */
+	int (*mod_init) (void);
 
-	/* deinit the congestion algorithm for the specified control block */
-	void (*deinit) (struct tcpcb *tp);
+	/* Cleanup global module state on kldunload. */
+	int (*mod_destroy) (void);
 
-	/* initilise cwnd at the start of a connection */
+	/* Init CC state for a new connection. */
+	int (*conn_init) (struct tcpcb *tp);
+
+	/* Cleanup CC state for a terminating connection. */
+	void (*conn_destroy) (struct tcpcb *tp);
+
+	/* Init cwnd for a new connection. */
+	/* XXXLS: could this be folded into conn_init? */
 	void (*cwnd_init) (struct tcpcb *tp);
 
-	/* called on the receipt of a valid ack */
+	/* Called on receipt of a regular, valid ack. */
 	void (*ack_received) (struct tcpcb *tp, struct tcphdr *th);
 
-	/* called before entering FR */
+	/* Called before entering FR. */
 	void (*pre_fr) (struct tcpcb *tp, struct tcphdr *th);
 
-	/*  after exiting FR */
+	/* Called after exiting FR. */
 	void (*post_fr) (struct tcpcb *tp, struct tcphdr *th);
 
-	/* perform tasks when data transfer resumes after an idle period */
+	/* Called when data transfer resumes after an idle period. */
 	void (*after_idle) (struct tcpcb *tp);
 
-	/* perform tasks when the connection's retransmit timer expires */
+	/* Called each time the connection's retransmit timer fires. */
 	void (*after_timeout) (struct tcpcb *tp);
 
 	STAILQ_ENTRY(cc_algo) entries;
 };
 
-#define CC_ALGO(tp) ((tp)->cc_algo)
-#define CC_DATA(tp) ((tp)->cc_data)
+/* Macro to obtain the CC algo's struct ptr. */
+#define CC_ALGO(tp)	((tp)->cc_algo)
+
+/* Macro to obtain the CC algo's data ptr. */
+#define CC_DATA(tp)	((tp)->cc_data)
+
+/* Macro to obtain the system default CC algo's struct ptr. */
+#define CC_DEFAULT()	STAILQ_FIRST(&cc_list)
 
 extern struct rwlock cc_list_lock;
 #define CC_LIST_LOCK_INIT() rw_init(&cc_list_lock, "cc_list")
@@ -113,7 +116,6 @@ extern struct rwlock cc_list_lock;
 #define CC_LIST_RUNLOCK() rw_runlock(&cc_list_lock)
 #define CC_LIST_WLOCK() rw_wlock(&cc_list_lock)
 #define CC_LIST_WUNLOCK() rw_wunlock(&cc_list_lock)
-#define CC_LIST_TRY_WLOCK() rw_try_upgrade(&cc_list_lock)
-#define CC_LIST_W2RLOCK() rw_downgrade(&cc_list_lock)
+#define CC_LIST_WLOCK_ASSERT() rw_assert(&cc_list_lock, RA_WLOCKED)
 
 #endif /* _NETINET_CC_H_ */

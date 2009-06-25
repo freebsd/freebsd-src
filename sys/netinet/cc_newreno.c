@@ -3,6 +3,7 @@
  *	The Regents of the University of California.
  * Copyright (c) 2007-2009
  *	Swinburne University of Technology, Melbourne, Australia
+ * Copyright (c) 2009 Lawrence Stewart <lstewart@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,22 +32,28 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 
 #include <netinet/cc.h>
+#include <netinet/cc_module.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/vinet.h>
 
 /* newreno cc function pointers */
 struct cc_algo newreno_cc_algo = {
 	.name = "newreno",
-	.init = newreno_init,
-	.deinit = NULL,
+	.mod_init = NULL,
+	.mod_destroy = NULL,
+	.conn_init = newreno_conn_init,
+	.conn_destroy = NULL,
 	.cwnd_init = newreno_cwnd_init,
 	.ack_received = newreno_ack_received,
 	.pre_fr = newreno_pre_fr,
@@ -56,7 +63,7 @@ struct cc_algo newreno_cc_algo = {
 };
 
 int
-newreno_init(struct tcpcb *tp)
+newreno_conn_init(struct tcpcb *tp)
 {
 	return 0;
 }
@@ -255,3 +262,4 @@ newreno_after_timeout(struct tcpcb *tp)
 	tp->snd_cwnd = tp->t_maxseg;
 }
 
+DECLARE_CC_MODULE(newreno, &newreno_cc_algo);

@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2007-2009
  *	Swinburne University of Technology, Melbourne, Australia
+ * Copyright (c) 2009 Lawrence Stewart <lstewart@freebsd.org>
  * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
@@ -38,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/rwlock.h>
@@ -45,62 +47,82 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 
 #include <netinet/cc.h>
+#include <netinet/cc_module.h>
 #include <netinet/vinet.h>
 
-/* list of available cc algorithms on the current system */
+/*
+ * List of available cc algorithms on the current system. First element
+ * is used as the system default CC algorithm.
+ */
 struct cc_head cc_list = STAILQ_HEAD_INITIALIZER(cc_list); 
 
+/* Protects the cc_list TAILQ */
 struct rwlock cc_list_lock;
 
-/* the system wide default cc algorithm */
-char cc_algorithm[TCP_CA_NAME_MAX];
-
 /*
- * sysctl handler that allows the default cc algorithm for the system to be
- * viewed and changed
+ * Set the default CC algorithm to new_default. The default is identified
+ * by being the first element in the cc_list TAILQ.
  */
-static int
-cc_default_algorithm(SYSCTL_HANDLER_ARGS)
+static void
+cc_set_default(struct cc_algo *new_default)
 {
-	struct cc_algo *funcs;
+	CC_LIST_WLOCK_ASSERT();
 
-	if (req->newptr == NULL)
-		goto skip;
-
-	CC_LIST_RLOCK();
-	STAILQ_FOREACH(funcs, &cc_list, entries) {
-		if (strncmp((char *)req->newptr, funcs->name, TCP_CA_NAME_MAX) == 0)
-			goto reorder;
-	}
-	CC_LIST_RUNLOCK();
-
-	return 1;
-
-reorder:
 	/*
-	 * Make the selected system default cc algorithm
-	 * the first element in the list if it isn't already
+	 * Make the requested system default CC
+	 * algorithm the first element in the list
+	 * if it isn't already
 	 */
-	CC_LIST_RUNLOCK();
-	CC_LIST_WLOCK();
-	if (funcs != STAILQ_FIRST(&cc_list)) {
-		STAILQ_REMOVE(&cc_list, funcs, cc_algo, entries);
-		STAILQ_INSERT_HEAD(&cc_list, funcs, entries);
+	if (new_default != CC_DEFAULT()) {
+		STAILQ_REMOVE(&cc_list, new_default, cc_algo, entries);
+		STAILQ_INSERT_HEAD(&cc_list, new_default, entries);
 	}
-	CC_LIST_WUNLOCK();
-
-skip:
-	return sysctl_handle_string(oidp, arg1, arg2, req);
 }
 
 /*
- * sysctl handler that displays the available cc algorithms as a read
- * only value
+ * Sysctl handler to show and change the default CC algorithm.
+ */
+static int
+cc_default_algo(SYSCTL_HANDLER_ARGS)
+{
+	struct cc_algo *funcs;
+	int error = 0, found = 0;
+
+	if (req->newptr == NULL) {
+		/* Just print the current default. */
+		char default_cc[TCP_CA_NAME_MAX];
+		CC_LIST_RLOCK();
+		strlcpy(default_cc, CC_DEFAULT()->name, TCP_CA_NAME_MAX);
+		CC_LIST_RUNLOCK();
+		error = sysctl_handle_string(oidp, default_cc, 1, req);
+	} else {
+		/* Find algo with specified name and set it to default */
+		CC_LIST_WLOCK();
+		STAILQ_FOREACH(funcs, &cc_list, entries) {
+			if (strncmp((char *)req->newptr, funcs->name, TCP_CA_NAME_MAX) == 0) {
+				found = 1;
+				cc_set_default(funcs);
+			}
+		}
+		CC_LIST_WUNLOCK();
+
+		if (!found)
+			return (ESRCH);
+
+		error = sysctl_handle_string(oidp, arg1, arg2, req);
+	}
+
+	return (error);
+}
+
+/*
+ * Sysctl handler to display the list of available CC algorithms.
  */
 static int
 cc_list_available(SYSCTL_HANDLER_ARGS)
@@ -127,83 +149,81 @@ cc_list_available(SYSCTL_HANDLER_ARGS)
 	}
 
 	sbuf_delete(s);
-	return error;
+	return (error);
 }
 
 /*
- * Initialise cc on system boot
+ * Initialise CC subsystem on system boot.
  */
 void 
 cc_init()
 {
-	/* initialise the lock that will protect read/write access to our linked list */
 	CC_LIST_LOCK_INIT();
-
-	/* initilize list of cc algorithms */
 	STAILQ_INIT(&cc_list);
-
-	/* add newreno to the list of available algorithms */
-	cc_register_algorithm(&newreno_cc_algo);
-
-	/* set newreno to the system default */
-	strlcpy(cc_algorithm, newreno_cc_algo.name, TCP_CA_NAME_MAX);
+	/* Newreno must always be available as an algorithm. */
+	cc_register_algo(&newreno_cc_algo);
 }
 
 /*
- * Returns 1 on success, 0 on failure
+ * Returns non-zero on success, 0 on failure.
  */
 int
-cc_deregister_algorithm(struct cc_algo *remove_cc)
+cc_deregister_algo(struct cc_algo *remove_cc)
 {
 	struct cc_algo *funcs, *tmpfuncs;
-	register struct tcpcb *tp = NULL;
-	register struct inpcb *inp = NULL;
-	int success = 0;
+	struct tcpcb *tp = NULL;
+	struct inpcb *inp = NULL;
+	int error = EPERM;
 
-	/* remove the algorithm from the list available to the system */
-	CC_LIST_RLOCK();
+	/* Never allow newreno to be deregistered. */
+	if (&newreno_cc_algo == remove_cc)
+		return error;
+
+	/* Remove algo from cc_list so that new connections can't use it. */
+	CC_LIST_WLOCK();
 	STAILQ_FOREACH_SAFE(funcs, &cc_list, entries, tmpfuncs) {
 		if (funcs == remove_cc) {
-			if (CC_LIST_TRY_WLOCK()) {
-				/* if this algorithm is the system default, reset the default to newreno */
-				if (strncmp(cc_algorithm, remove_cc->name, TCP_CA_NAME_MAX) == 0)
-					snprintf(cc_algorithm, TCP_CA_NAME_MAX, "%s", newreno_cc_algo.name);
+			/*
+			 * If we're removing the current system default,
+			 * reset the default to newreno.
+			 */
+			if (strncmp(CC_DEFAULT()->name,
+			    remove_cc->name,
+			    TCP_CA_NAME_MAX) == 0)
+				cc_set_default(&newreno_cc_algo);
 
-				STAILQ_REMOVE(&cc_list, funcs, cc_algo, entries);
-				success = 1;
-				CC_LIST_W2RLOCK();
-			}
+			STAILQ_REMOVE(&cc_list, funcs, cc_algo, entries);
+			error = 0;
 			break;
 		}
 	}
-	CC_LIST_RUNLOCK();
+	CC_LIST_WUNLOCK();
 
-	if (success) {
+	if (!error) {
 		/*
-		 * check all active control blocks and change any that are using this
-		 * algorithm back to newreno. If the algorithm that was in use requires
-		 * deinit code to be run, call it
+		 * Check all active control blocks and change any that are
+		 * using this algorithm back to newreno. If the algorithm that
+		 * was in use requires cleanup code to be run, call it.
 		 */
 		INP_INFO_RLOCK(&V_tcbinfo);
 		LIST_FOREACH(inp, &V_tcb, inp_list) {
-			/* skip tcptw structs */
-			if (inp->inp_flags & INP_TIMEWAIT)
-				continue;
 			INP_WLOCK(inp);
-			if ((tp = intotcpcb(inp)) != NULL) {
-				if (strncmp(CC_ALGO(tp)->name, remove_cc->name, TCP_CA_NAME_MAX) == 0 ) {
+			/* Important to skip tcptw structs. */
+			if (!(inp->inp_flags & INP_TIMEWAIT) &&
+			    (tp = intotcpcb(inp)) != NULL) {
+				/*
+				 * By holding INP_WLOCK here, we are
+				 * assured that the connection is not
+				 * currently executing inside the CC
+				 * module's functions i.e. it is safe to
+				 * make the switch back to newreno.
+				 */
+				if (CC_ALGO(tp) == remove_cc) {
 					tmpfuncs = CC_ALGO(tp);
+					/* Newreno does not require any init. */
 					CC_ALGO(tp) = &newreno_cc_algo;
-					/*
-					 * XXX: We should stall here until
-					 * we're sure the tcb has stopped
-					 * using the deregistered algo's functions...
-					 * Not sure how to do that yet!
-					 */
-					if(CC_ALGO(tp)->init != NULL)
-						CC_ALGO(tp)->init(tp);
-					if (tmpfuncs->deinit != NULL)
-						tmpfuncs->deinit(tp);
+					if (tmpfuncs->conn_destroy != NULL)
+						tmpfuncs->conn_destroy(tp);
 				}
 			}
 			INP_WUNLOCK(inp);
@@ -211,26 +231,79 @@ cc_deregister_algorithm(struct cc_algo *remove_cc)
 		INP_INFO_RUNLOCK(&V_tcbinfo);
 	}
 
-	return success;
+	return (error);
 }
 
+/*
+ * Returns 0 on success, non-zero on failure.
+ */
 int
-cc_register_algorithm(struct cc_algo *add_cc)
+cc_register_algo(struct cc_algo *add_cc)
 {
+	struct cc_algo *funcs;
+	int error = 0;
+
+	/*
+	 * Iterate over list of registered CC algorithms and make sure
+	 * we're not trying to add a duplicate.
+	 */
 	CC_LIST_WLOCK();
-	STAILQ_INSERT_TAIL(&cc_list, add_cc, entries);
+	STAILQ_FOREACH(funcs, &cc_list, entries) {
+		if (funcs == add_cc ||
+		    strncmp(funcs->name, add_cc->name, TCP_CA_NAME_MAX) == 0)
+			error = EEXIST;
+	}
+
+	if (!error)
+		STAILQ_INSERT_TAIL(&cc_list, add_cc, entries);
+
 	CC_LIST_WUNLOCK();
-	return 1;
+
+	return (error);
+}
+
+/*
+ * Handles kld related events. Returns 0 on success, non-zero on failure.
+ */
+int
+cc_modevent(module_t mod, int event_type, void *data)
+{
+	int error = 0;
+	struct cc_algo *algo = (struct cc_algo *)data;
+
+	switch(event_type) {
+		case MOD_LOAD:
+			if (algo->mod_init != NULL)
+				error = algo->mod_init();
+			if (!error)
+				error = cc_register_algo(algo);
+			break;
+
+		case MOD_QUIESCE:
+			error = cc_deregister_algo(algo);
+			if (!error && algo->mod_destroy != NULL)
+				algo->mod_destroy();
+			break;
+
+		case MOD_SHUTDOWN:
+		case MOD_UNLOAD:
+			break;
+
+		default:
+			return EINVAL;
+			break;
+	}
+
+	return (error);
 }
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, cc, CTLFLAG_RW, NULL,
 	"congestion control related settings");
 
 SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, algorithm, CTLTYPE_STRING|CTLFLAG_RW,
-	&cc_algorithm, sizeof(cc_algorithm), cc_default_algorithm, "A",
+	NULL, 0, cc_default_algo, "A",
 	"default congestion control algorithm");
 
 SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, available, CTLTYPE_STRING|CTLFLAG_RD,
 	NULL, 0, cc_list_available, "A",
 	"list available congestion control algorithms");
-
