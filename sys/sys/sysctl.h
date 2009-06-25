@@ -179,6 +179,7 @@ int sysctl_handle_string(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
 
 int sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS);
+int sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS);
 int sysctl_dpcpu_quad(SYSCTL_HANDLER_ARGS);
 
 #ifdef VIMAGE
