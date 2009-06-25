@@ -994,12 +994,12 @@ ifsbreakup(char *string, struct arglist *arglist)
 	for (ifsp = &ifsfirst; ifsp != NULL; ifsp = ifsp->next) {
 		p = string + ifsp->begoff;
 		while (p < string + ifsp->endoff) {
-			had_param_ch = 1;
 			q = p;
 			if (*p == CTLESC)
 				p++;
 			if (ifsp->inquotes) {
 				/* Only NULs (should be from "$@") end args */
+				had_param_ch = 1;
 				if (*p != 0) {
 					p++;
 					continue;
@@ -1007,10 +1007,10 @@ ifsbreakup(char *string, struct arglist *arglist)
 				ifsspc = NULL;
 			} else {
 				if (!strchr(ifs, *p)) {
+					had_param_ch = 1;
 					p++;
 					continue;
 				}
-				had_param_ch = 0;
 				ifsspc = strchr(" \t\n", *p);
 
 				/* Ignore IFS whitespace at start */
@@ -1019,6 +1019,7 @@ ifsbreakup(char *string, struct arglist *arglist)
 					start = p;
 					continue;
 				}
+				had_param_ch = 0;
 			}
 
 			/* Save this argument... */
