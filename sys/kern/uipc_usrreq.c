@@ -672,7 +672,7 @@ uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 	KASSERT(unp != NULL, ("uipc_peeraddr: unp == NULL"));
 
 	*nam = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
-	UNP_PCB_LOCK(unp);
+	UNP_GLOBAL_RLOCK();
 	/*
 	 * XXX: It seems that this test always fails even when connection is
 	 * established.  So, this else clause is added as workaround to
@@ -682,7 +682,7 @@ uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 	if (unp2 != NULL) {
 		UNP_PCB_LOCK(unp2);
 		if (unp2->unp_addr != NULL)
-			sa = (struct sockaddr *) unp->unp_conn->unp_addr;
+			sa = (struct sockaddr *) unp2->unp_addr;
 		else
 			sa = &sun_noname;
 		bcopy(sa, *nam, sa->sa_len);
@@ -691,7 +691,7 @@ uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 		sa = &sun_noname;
 		bcopy(sa, *nam, sa->sa_len);
 	}
-	UNP_PCB_UNLOCK(unp);
+	UNP_GLOBAL_RUNLOCK();
 	return (0);
 }
 
