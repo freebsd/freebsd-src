@@ -936,7 +936,7 @@ oshmctl(struct thread *td, struct oshmctl_args *uap)
 			goto done2;
 		break;
 	default:
-		error = freebsd7_shmctl(td, (struct shmctl_args *)uap);
+		error = freebsd7_shmctl(td, (struct freebsd7_shmctl_args *)uap);
 		break;
 	}
 done2:
