@@ -2152,13 +2152,12 @@ ixgbe_allocate_msix(struct adapter *adapter)
 			return (error);
 		}
 		txr->msix = vector;
-#if defined(__i386__) || defined(__amd64__)
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
 		*/
-		intr_bind(rman_get_start(txr->res), i);
-#endif
+		bus_bind_intr(dev, txr->res, i);
+
 		TASK_INIT(&txr->tx_task, 0, ixgbe_handle_tx, txr);
 		txr->tq = taskqueue_create_fast("ixgbe_txq", M_NOWAIT,
 		    taskqueue_thread_enqueue, &txr->tq);
@@ -2189,13 +2188,12 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		rxr->msix = vector;
 		/* used in local timer */
 		adapter->rx_mask |= (u64)(1 << vector);
-#if defined(__i386__) || defined(__amd64__)
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
 		*/
-		intr_bind(rman_get_start(rxr->res), i);
-#endif
+		bus_bind_intr(dev, rxr->res, i);
+
 		TASK_INIT(&rxr->rx_task, 0, ixgbe_handle_rx, rxr);
 		rxr->tq = taskqueue_create_fast("ixgbe_rxq", M_NOWAIT,
 		    taskqueue_thread_enqueue, &rxr->tq);
