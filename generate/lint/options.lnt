@@ -33,6 +33,8 @@
 -emacro( (413), ACPI_PTR_DIFF )             // use of NULL pointer creates a stir
 -emacro( (413), ACPI_FADT_OFFSET )          // use of NULL pointer creates a stir
 -emacro( (413), ASL_RESDESC_OFFSET )        // use of NULL pointer creates a stir
+-emacro( (662), ACPI_ADD_PTR )              // allow pointer overrun for dynamic structs
+-emacro( (797), ACPI_ADD_PTR )              // allow pointer overrun for dynamic structs
 
 -emacro( 826, ACPI_NEXT_RESOURCE)           // Pointer cast
 -emacro( 826, ACPI_MOVE_UNALIGNED16_TO_16)  // Pointer cast
@@ -76,4 +78,5 @@
 -e834   // - followed by + is "confusing" NOT.
 -e820   // Allow Boolean test of a parenthesized assignment
 -e778   // Allow constant expressions to evaluate to zero
+-e662   // Allow "pointer overrun" for dynamic structures
 -e831

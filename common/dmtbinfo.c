@@ -299,12 +299,16 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoFacs[] =
     {ACPI_DMT_NAME4,    ACPI_FACS_OFFSET (Signature[0]),            "Signature"},
     {ACPI_DMT_UINT32,   ACPI_FACS_OFFSET (Length),                  "Length"},
     {ACPI_DMT_UINT32,   ACPI_FACS_OFFSET (HardwareSignature),       "Hardware Signature"},
-    {ACPI_DMT_UINT32,   ACPI_FACS_OFFSET (FirmwareWakingVector),    "Firmware Waking Vector(32)"},
+    {ACPI_DMT_UINT32,   ACPI_FACS_OFFSET (FirmwareWakingVector),    "32 Firmware Waking Vector"},
     {ACPI_DMT_UINT32,   ACPI_FACS_OFFSET (GlobalLock),              "Global Lock"},
     {ACPI_DMT_UINT32,   ACPI_FACS_OFFSET (Flags),                   "Flags (decoded below)"},
     {ACPI_DMT_FLAG0,    ACPI_FACS_FLAG_OFFSET (Flags,0),            "S4BIOS Support Present"},
-    {ACPI_DMT_UINT64,   ACPI_FACS_OFFSET (XFirmwareWakingVector),   "Firmware Waking Vector(64)"},
+    {ACPI_DMT_FLAG1,    ACPI_FACS_FLAG_OFFSET (Flags,0),            "64-bit Wake Supported (V2)"},
+    {ACPI_DMT_UINT64,   ACPI_FACS_OFFSET (XFirmwareWakingVector),   "64 Firmware Waking Vector"},
     {ACPI_DMT_UINT8,    ACPI_FACS_OFFSET (Version),                 "Version"},
+    {ACPI_DMT_UINT24,   ACPI_FACS_OFFSET (Reserved),                "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_FACS_OFFSET (OspmFlags),               "OspmFlags (decoded below)"},
+    {ACPI_DMT_FLAG0,    ACPI_FACS_FLAG_OFFSET (OspmFlags,0),        "64-bit Wake Env Required (V2)"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
@@ -1074,7 +1078,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoMadt8[] =
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
-/* 9: Processor Local X2_APIC (07/2008) */
+/* 9: Processor Local X2_APIC (ACPI 4.0) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoMadt9[] =
 {
@@ -1086,7 +1090,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoMadt9[] =
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
-/* 10: Local X2_APIC NMI (07/2008) */
+/* 10: Local X2_APIC NMI (ACPI 4.0) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoMadt10[] =
 {
@@ -1275,7 +1279,7 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat1[] =
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 
-/* 2: Processor Local X2_APIC Affinity (07/2008) */
+/* 2: Processor Local X2_APIC Affinity (ACPI 4.0) */
 
 ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat2[] =
 {
@@ -1284,6 +1288,8 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSrat2[] =
     {ACPI_DMT_UINT32,   ACPI_SRAT2_OFFSET (ApicId),                 "Apic ID"},
     {ACPI_DMT_UINT32,   ACPI_SRAT2_OFFSET (Flags),                  "Flags (decoded below)"},
     {ACPI_DMT_FLAG0,    ACPI_SRAT2_FLAG_OFFSET (Flags,0),           "Enabled"},
+    {ACPI_DMT_UINT32,   ACPI_SRAT2_OFFSET (ClockDomain),            "Clock Domain"},
+    {ACPI_DMT_UINT32,   ACPI_SRAT2_OFFSET (Reserved2),              "Reserved"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 

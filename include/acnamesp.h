@@ -241,6 +241,10 @@ AcpiNsDeleteNode (
     ACPI_NAMESPACE_NODE     *Node);
 
 void
+AcpiNsRemoveNode (
+    ACPI_NAMESPACE_NODE     *Node);
+
+void
 AcpiNsDeleteNamespaceSubtree (
     ACPI_NAMESPACE_NODE     *ParentHandle);
 

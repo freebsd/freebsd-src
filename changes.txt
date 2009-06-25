@@ -1,4 +1,82 @@
 ----------------------------------------
+25 June 2009. Summary of changes for version 20090625:
+
+This release is available at www.acpica.org/downloads
+
+The ACPI 4.0 Specification was released on June 16 and is available at 
+www.acpi.info. ACPICA implementation of ACPI 4.0 is underway and will 
+continue for the next few releases.
+
+1) ACPI CA Core Subsystem:
+
+ACPI 4.0: Implemented interpreter support for the IPMI operation region 
+address space. Includes support for bi-directional data buffers and an IPMI 
+address space handler (to be installed by an IPMI device driver.) ACPICA BZ 
+773. Lin Ming.
+
+ACPI 4.0: Added changes for existing ACPI tables - FACS and SRAT. Includes 
+support in both the header files and the disassembler.
+
+Completed a major update for the AcpiGetObjectInfo external interface. 
+Changes include:
+ - Support for variable, unlimited length HID, UID, and CID strings.
+ - Support Processor objects the same as Devices (HID,UID,CID,ADR,STA, etc.)
+ - Call the _SxW power methods on behalf of a device object.
+ - Determine if a device is a PCI root bridge.
+ - Change the ACPI_BUFFER parameter to ACPI_DEVICE_INFO.
+These changes will require an update to all callers of this interface. See 
+the updated ACPICA Programmer Reference for details. One new source file has 
+been added - utilities/utids.c. ACPICA BZ 368, 780.
+
+Updated the AcpiRead and AcpiWrite external interfaces to support 64-bit 
+transfers. The Value parameter has been extended from 32 bits to 64 bits in 
+order to support new ACPI 4.0 tables. These changes will require an update to 
+all callers of these interfaces. See the ACPICA Programmer Reference for 
+details. ACPICA BZ 768.
+
+Fixed several problems with AcpiAttachData. The handler was not invoked when 
+the host node was deleted. The data sub-object was not automatically deleted 
+when the host node was deleted. The interface to the handler had an unused 
+parameter, this was removed. ACPICA BZ 778.
+
+Enhanced the function that dumps ACPI table headers. All non-printable 
+characters in the string fields are now replaced with '?' (Signature, OemId, 
+OemTableId, and CompilerId.) ACPI tables with non-printable characters in 
+these fields are occasionally seen in the field. ACPICA BZ 788.
+
+Fixed a problem with predefined method repair code where the code that 
+attempts to repair/convert an object of incorrect type is only executed on 
+the first time the predefined method is called. The mechanism that disables 
+warnings on subsequent calls was interfering with the repair mechanism. 
+ACPICA BZ 781.
+
+Fixed a possible memory leak in the predefined validation/repair code when a 
+buffer is automatically converted to an expected string object.
+
+Removed obsolete 16-bit files from the distribution and from the current git 
+tree head. ACPICA BZ 776.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  83.4K Code, 17.5K Data, 100.9K Total
+    Debug Version:     158.9K Code, 50.0K Data, 208.9K Total
+  Current Release:
+    Non-Debug Version:  84.7K Code, 17.8K Data, 102.5K Total
+    Debug Version:     160.5K Code, 50.6K Data, 211.1K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+ACPI 4.0: iASL and Disassembler - implemented support for the new IPMI 
+operation region keyword. ACPICA BZ 771, 772. Lin Ming.
+
+ACPI 4.0: iASL - implemented compile-time validation support for all new 
+predefined names and control methods (31 total). ACPICA BZ 769.
+
+----------------------------------------
 21 May 2009. Summary of changes for version 20090521:
 
 This release is available at www.acpica.org/downloads

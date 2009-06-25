@@ -493,6 +493,23 @@ typedef union acpi_predefined_info
 
 } ACPI_PREDEFINED_INFO;
 
+
+/* Data block used during object validation */
+
+typedef struct acpi_predefined_data
+{
+    char                        *Pathname;
+    const ACPI_PREDEFINED_INFO  *Predefined;
+    UINT32                      Flags;
+    UINT8                       NodeFlags;
+
+} ACPI_PREDEFINED_DATA;
+
+/* Defines for Flags field above */
+
+#define ACPI_OBJECT_REPAIRED    1
+
+
 /*
  * Bitmapped return value types
  * Note: the actual data types must be contiguous, a loop in nspredef.c

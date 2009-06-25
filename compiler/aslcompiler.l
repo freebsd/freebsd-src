@@ -386,6 +386,7 @@ NamePathTail                [.]{NameSeg}
 "SMBus"                     { count (0); return (PARSEOP_REGIONSPACE_SMBUS); }
 "SystemCMOS"                { count (0); return (PARSEOP_REGIONSPACE_CMOS); }
 "PciBarTarget"              { count (0); return (PARSEOP_REGIONSPACE_PCIBAR); }
+"IPMI"                      { count (0); return (PARSEOP_REGIONSPACE_IPMI); }
 
 "FFixedHW"                  { count (0); return (PARSEOP_ADDRESSSPACE_FFIXEDHW); }
 

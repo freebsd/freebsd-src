@@ -1262,7 +1262,7 @@ typedef struct acpi_madt_interrupt_source
 
 #define ACPI_MADT_CPEI_OVERRIDE     (1)
 
-/* 9: Processor Local X2APIC (07/2008) */
+/* 9: Processor Local X2APIC (ACPI 4.0) */
 
 typedef struct acpi_madt_local_x2apic
 {
@@ -1274,7 +1274,7 @@ typedef struct acpi_madt_local_x2apic
 
 } ACPI_MADT_LOCAL_X2APIC;
 
-/* 10: Local X2APIC NMI (07/2008) */
+/* 10: Local X2APIC NMI (ACPI 4.0) */
 
 typedef struct acpi_madt_local_x2apic_nmi
 {
@@ -1493,7 +1493,7 @@ typedef struct acpi_srat_mem_affinity
 #define ACPI_SRAT_MEM_HOT_PLUGGABLE (1<<1)      /* 01: Memory region is hot pluggable */
 #define ACPI_SRAT_MEM_NON_VOLATILE  (1<<2)      /* 02: Memory region is non-volatile */
 
-/* 2: Processor Local X2_APIC Affinity (07/2008) */
+/* 2: Processor Local X2_APIC Affinity (ACPI 4.0) */
 
 typedef struct acpi_srat_x2apic_cpu_affinity
 {
@@ -1502,6 +1502,8 @@ typedef struct acpi_srat_x2apic_cpu_affinity
     UINT32                  ProximityDomain;
     UINT32                  ApicId;
     UINT32                  Flags;
+    UINT32                  ClockDomain;
+    UINT32                  Reserved2;
 
 } ACPI_SRAT_X2APIC_CPU_AFFINITY;
 
