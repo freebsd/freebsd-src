@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +18,10 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-signzone.docbook,v 1.31 2008/10/14 14:28:25 jreed Exp $ -->
+<!-- $Id: dnssec-signzone.docbook,v 1.31.44.6 2009/06/09 01:47:19 each Exp $ -->
 <refentry id="man.dnssec-signzone">
   <refentryinfo>
-    <date>June 30, 2000</date>
+    <date>June 08, 2009</date>
   </refentryinfo>
 
   <refmeta>
@@ -42,6 +42,7 @@
       <year>2006</year>
       <year>2007</year>
       <year>2008</year>
+      <year>2009</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -487,6 +488,33 @@ db.example.com.signed
 % dnssec-signzone -o example.com db.example.com
 db.example.com.signed
 %</programlisting>
+  </refsect1>
+
+  <refsect1>
+    <title>KNOWN BUGS</title>
+    <para>
+        <command>dnssec-signzone</command> was designed so that it could
+        sign a zone partially, using only a subset of the DNSSEC keys
+        needed to produce a fully-signed zone.  This permits a zone
+        administrator, for example, to sign a zone with one key on one
+        machine, move the resulting partially-signed zone to a second
+        machine, and sign it again with a second key.
+    </para>
+    <para>
+        An unfortunate side-effect of this flexibility is that
+        <command>dnssec-signzone</command> does not check to make sure
+        it's signing a zone with any valid keys at all.  An attempt to
+        sign a zone without any keys will appear to succeed, producing
+        a "signed" zone with no signatures.  There is no warning issued
+        when a zone is not fully signed.
+    </para>
+
+    <para>
+        This will be corrected in a future release.  In the meantime, ISC
+        recommends examining the output of <command>dnssec-signzone</command>
+        to confirm that the zone is properly signed by all keys before
+        using it.
+    </para>
   </refsect1>
 
   <refsect1>
