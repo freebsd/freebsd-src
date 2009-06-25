@@ -79,31 +79,45 @@ SYSCTL_INT(_kern_sched, OID_AUTO, preemption, CTLFLAG_RD,
  * with SCHED_STAT_DEFINE().
  */
 #ifdef SCHED_STATS
-long sched_switch_stats[SWT_COUNT];	/* Switch reasons from mi_switch(). */
-
 SYSCTL_NODE(_kern_sched, OID_AUTO, stats, CTLFLAG_RW, 0, "switch stats");
-SCHED_STAT_DEFINE_VAR(uncategorized, &sched_switch_stats[SWT_NONE], "");
-SCHED_STAT_DEFINE_VAR(preempt, &sched_switch_stats[SWT_PREEMPT], "");
-SCHED_STAT_DEFINE_VAR(owepreempt, &sched_switch_stats[SWT_OWEPREEMPT], "");
-SCHED_STAT_DEFINE_VAR(turnstile, &sched_switch_stats[SWT_TURNSTILE], "");
-SCHED_STAT_DEFINE_VAR(sleepq, &sched_switch_stats[SWT_SLEEPQ], "");
-SCHED_STAT_DEFINE_VAR(sleepqtimo, &sched_switch_stats[SWT_SLEEPQTIMO], "");
-SCHED_STAT_DEFINE_VAR(relinquish, &sched_switch_stats[SWT_RELINQUISH], "");
-SCHED_STAT_DEFINE_VAR(needresched, &sched_switch_stats[SWT_NEEDRESCHED], "");
-SCHED_STAT_DEFINE_VAR(idle, &sched_switch_stats[SWT_IDLE], "");
-SCHED_STAT_DEFINE_VAR(iwait, &sched_switch_stats[SWT_IWAIT], "");
-SCHED_STAT_DEFINE_VAR(suspend, &sched_switch_stats[SWT_SUSPEND], "");
-SCHED_STAT_DEFINE_VAR(remotepreempt, &sched_switch_stats[SWT_REMOTEPREEMPT],
-    "");
-SCHED_STAT_DEFINE_VAR(remotewakeidle, &sched_switch_stats[SWT_REMOTEWAKEIDLE],
-    "");
+
+/* Switch reasons from mi_switch(). */
+DPCPU_DEFINE(long, sched_switch_stats[SWT_COUNT]);
+SCHED_STAT_DEFINE_VAR(uncategorized,
+    &DPCPU_NAME(sched_switch_stats[SWT_NONE]), "");
+SCHED_STAT_DEFINE_VAR(preempt,
+    &DPCPU_NAME(sched_switch_stats[SWT_PREEMPT]), "");
+SCHED_STAT_DEFINE_VAR(owepreempt,
+    &DPCPU_NAME(sched_switch_stats[SWT_OWEPREEMPT]), "");
+SCHED_STAT_DEFINE_VAR(turnstile,
+    &DPCPU_NAME(sched_switch_stats[SWT_TURNSTILE]), "");
+SCHED_STAT_DEFINE_VAR(sleepq,
+    &DPCPU_NAME(sched_switch_stats[SWT_SLEEPQ]), "");
+SCHED_STAT_DEFINE_VAR(sleepqtimo,
+    &DPCPU_NAME(sched_switch_stats[SWT_SLEEPQTIMO]), "");
+SCHED_STAT_DEFINE_VAR(relinquish, 
+    &DPCPU_NAME(sched_switch_stats[SWT_RELINQUISH]), "");
+SCHED_STAT_DEFINE_VAR(needresched,
+    &DPCPU_NAME(sched_switch_stats[SWT_NEEDRESCHED]), "");
+SCHED_STAT_DEFINE_VAR(idle, 
+    &DPCPU_NAME(sched_switch_stats[SWT_IDLE]), "");
+SCHED_STAT_DEFINE_VAR(iwait,
+    &DPCPU_NAME(sched_switch_stats[SWT_IWAIT]), "");
+SCHED_STAT_DEFINE_VAR(suspend,
+    &DPCPU_NAME(sched_switch_stats[SWT_SUSPEND]), "");
+SCHED_STAT_DEFINE_VAR(remotepreempt,
+    &DPCPU_NAME(sched_switch_stats[SWT_REMOTEPREEMPT]), "");
+SCHED_STAT_DEFINE_VAR(remotewakeidle,
+    &DPCPU_NAME(sched_switch_stats[SWT_REMOTEWAKEIDLE]), "");
 
 static int
 sysctl_stats_reset(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *p;
+	uintptr_t counter;
         int error;
 	int val;
+	int i;
 
         val = 0;
         error = sysctl_handle_int(oidp, &val, 0, req);
@@ -118,7 +132,12 @@ sysctl_stats_reset(SYSCTL_HANDLER_ARGS)
 	SLIST_FOREACH(p, oidp->oid_parent, oid_link) {
 		if (p == oidp || p->oid_arg1 == NULL)
 			continue;
-		*(long *)p->oid_arg1 = 0;
+		counter = (uintptr_t)p->oid_arg1;
+		for (i = 0; i <= mp_maxid; i++) {
+			if (CPU_ABSENT(i))
+				continue;
+			*(long *)(dpcpu_off[i] + counter) = 0;
+		}
 	}
 	return (0);
 }
