@@ -28,7 +28,7 @@
 .\"     from: @(#)yp.8	1.0 (deraadt) 4/26/93
 .\" $FreeBSD$
 .\"
-.Dd April 5, 1993
+.Dd June 25, 2009
 .Dt YP 8
 .Os
 .Sh NAME
@@ -310,9 +310,15 @@ The
 .Tn NIS
 .Pa Makefile
 .Pq Pa /var/yp/Makefile
-will do this automatically if the administrator comments out the
-line which says
-.Dq Li NOPUSH=true
+will do this automatically if the administrator creates
+.Pa /var/yp/Makefile.local
+and empties the
+.Va NOPUSH
+variable:
+.Bd -literal -offset four
+.Li NOPUSH=
+.Ed
+.Pp
 .Va ( NOPUSH
 is set to true by default because the default configuration is
 for a small network with only one
@@ -394,9 +400,11 @@ To help prevent this,
 .Fx Ns 's
 .Tn NIS
 server handles the shadow password maps
-.Pa ( master.passwd.byname
+.Pa ( master.passwd.byname ,
+.Pa master.passwd.byuid ,
+.Pa shadow.byname
 and
-.Pa master.passwd.byuid )
+.Pa shadow.byuid )
 in a special way: the server will only provide access to these
 maps in response to requests that originate on privileged ports.
 Since only the super-user is allowed to bind to a privileged port,
