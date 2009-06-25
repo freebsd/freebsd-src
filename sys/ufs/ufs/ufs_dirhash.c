@@ -348,9 +348,12 @@ ufsdirhash_build(struct inode *ip)
 	int dirblocks, i, j, memreqd, nblocks, narrays, nslots, slot;
 
 	/* Take care of a decreased sysctl value. */
-	while (ufs_dirhashmem > ufs_dirhashmaxmem)
+	while (ufs_dirhashmem > ufs_dirhashmaxmem) {
 		if (ufsdirhash_recycle(0) != 0)
 			return (-1);
+		/* Recycled enough memory, so unlock the list. */
+		DIRHASHLIST_UNLOCK();
+	}
 
 	/* Check if we can/should use dirhash. */
 	if (ip->i_size < ufs_mindirhashsize || OFSFMT(ip->i_vnode) ||
