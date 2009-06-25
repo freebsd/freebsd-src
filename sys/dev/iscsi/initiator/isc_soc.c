@@ -322,12 +322,12 @@ so_getbhs(isc_session_t *sp)
      error = soreceive(sp->soc, NULL, uio, 0, 0, &flags);
 
      if(error)
-	  debug(2, "error=%d so_error=%d uio->uio_resid=%d iov.iov_len=%zd",
+	  debug(2, "error=%d so_error=%d uio->uio_resid=%zd iov.iov_len=%zd",
 		error,
 		sp->soc->so_error, uio->uio_resid, iov->iov_len);
      if(!error && (uio->uio_resid > 0)) {
 	  error = EPIPE; // was EAGAIN
-	  debug(2, "error=%d so_error=%d uio->uio_resid=%d iov.iov_len=%zd so_state=%x",
+	  debug(2, "error=%d so_error=%d uio->uio_resid=%zd iov.iov_len=%zd so_state=%x",
 		error,
 		sp->soc->so_error, uio->uio_resid, iov->iov_len, sp->soc->so_state);
      }
@@ -442,7 +442,7 @@ so_recv(isc_session_t *sp, pduq_t *pq)
 			      }
 			      mp = NULL;
 			      
-			      sdebug(4, "uio_resid=0x%x itt=0x%x bp=%p bo=%x len=%x/%x",
+			      sdebug(4, "uio_resid=0x%zx itt=0x%x bp=%p bo=%x len=%x/%x",
 				     uio->uio_resid,
 				     ntohl(pq->pdu.ipdu.bhs.itt),
 				     csio->data_ptr, ntohl(rcmd->bo), ntohl(cmd->edtlen), pq->pdu.ds_len);

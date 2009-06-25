@@ -888,7 +888,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (0);
 
 	if (uio->uio_resid < 0 || uio->uio_resid > TUNMRU) {
-		TUNDEBUG(ifp, "len=%d!\n", uio->uio_resid);
+		TUNDEBUG(ifp, "len=%zd!\n", uio->uio_resid);
 		return (EIO);
 	}
 
