@@ -667,7 +667,8 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			ni = ieee80211_find_txnode(vap, retry->macaddr);
 			if (ni != NULL) {
 				ieee80211_amrr_tx_complete(&ZYD_NODE(ni)->amn,
-				    IEEE80211_AMRR_FAILURE, 1);
+				    IEEE80211_AMRR_FAILURE,
+				    (int)(le16toh(retry->count) & 0xff));
 				ieee80211_free_node(ni);
 			}
 			if (le16toh(retry->count) & 0x100)
