@@ -89,7 +89,7 @@ static void vblank_disable_fn(void *arg)
 		return;
 
 	for (i = 0; i < dev->num_crtcs; i++) {
-		if (atomic_read(&dev->vblank[i].refcount) == 0 &&
+		if (dev->vblank[i].refcount == 0 &&
 		    dev->vblank[i].enabled && !dev->vblank[i].inmodeset) {
 			DRM_DEBUG("disabling vblank on crtc %d\n", i);
 			dev->vblank[i].last =
