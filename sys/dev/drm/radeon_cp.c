@@ -2064,16 +2064,22 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 			 drm_get_resource_len(dev, 2), _DRM_REGISTERS,
 			 _DRM_READ_ONLY | _DRM_DRIVER, &dev_priv->mmio);
 	if (ret != 0)
-		return ret;
+		goto error;
 
 	ret = drm_vblank_init(dev, 2);
-	if (ret) {
-		radeon_driver_unload(dev);
-		return ret;
-	}
+	if (ret != 0)
+		goto error;
+
+	dev->max_vblank_count = 0x001fffff;
 
 	DRM_DEBUG("%s card detected\n",
-		  ((dev_priv->flags & RADEON_IS_AGP) ? "AGP" : (((dev_priv->flags & RADEON_IS_PCIE) ? "PCIE" : "PCI"))));
+		  ((dev_priv->flags & RADEON_IS_AGP) ? "AGP" :
+		    (((dev_priv->flags & RADEON_IS_PCIE) ? "PCIE" : "PCI"))));
+
+	return ret;
+
+error:
+	radeon_driver_unload(dev);
 	return ret;
 }
 
