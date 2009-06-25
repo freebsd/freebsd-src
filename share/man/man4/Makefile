@@ -53,6 +53,7 @@ MAN=	aac.4 \
 	bktr.4 \
 	blackhole.4 \
 	bpf.4 \
+	bridge.4 \
 	bt.4 \
 	bwi.4 \
 	cardbus.4 \
@@ -130,7 +131,6 @@ MAN=	aac.4 \
 	ida.4 \
 	idt.4 \
 	ieee80211.4 \
-	if_bridge.4 \
 	ifmib.4 \
 	igb.4 \
 	igmp.4 \
@@ -474,6 +474,7 @@ MLINKS+=bce.4 if_bce.4
 MLINKS+=bfe.4 if_bfe.4
 MLINKS+=bge.4 if_bge.4
 MLINKS+=bktr.4 brooktree.4
+MLINKS+=bridge.4 if_bridge.4
 MLINKS+=bwi.4 if_bwi.4
 MLINKS+=cas.4 if_cas.4
 MLINKS+=crypto.4 cryptodev.4
@@ -506,7 +507,6 @@ MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=idt.4 if_idt.4
-MLINKS+=if_bridge.4 bridge.4
 MLINKS+=igb.4 if_igb.4
 MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
