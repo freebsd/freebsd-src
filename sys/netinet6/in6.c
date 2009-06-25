@@ -831,8 +831,10 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
 
-		ifa_ref(&ia->ia_ifa);			/* in6_if_addrhead */
+		ifa_ref(&ia->ia_ifa);			/* in6_ifaddrhead */
+		IN6_IFADDR_WLOCK();
 		TAILQ_INSERT_TAIL(&V_in6_ifaddrhead, ia, ia_link);
+		IN6_IFADDR_WUNLOCK();
 	}
 
 	/* update timestamp */
@@ -1376,7 +1378,9 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	IF_ADDR_UNLOCK(ifp);
 	ifa_free(&ia->ia_ifa);			/* if_addrhead */
 
+	IN6_IFADDR_WLOCK();
 	TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
+	IN6_IFADDR_WUNLOCK();
 	ifa_free(&ia->ia_ifa);			/* in6_ifaddrhead */
 
 	/*
@@ -1917,12 +1921,15 @@ in6_localaddr(struct in6_addr *in6)
 	if (IN6_IS_ADDR_LOOPBACK(in6) || IN6_IS_ADDR_LINKLOCAL(in6))
 		return 1;
 
+	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (IN6_ARE_MASKED_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr,
 		    &ia->ia_prefixmask.sin6_addr)) {
+			IN6_IFADDR_RUNLOCK();
 			return 1;
 		}
 	}
+	IN6_IFADDR_RUNLOCK();
 
 	return (0);
 }
@@ -1933,14 +1940,18 @@ in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
+	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
 				       &sa6->sin6_addr) &&
-		    (ia->ia6_flags & IN6_IFF_DEPRECATED) != 0)
+		    (ia->ia6_flags & IN6_IFF_DEPRECATED) != 0) {
+			IN6_IFADDR_RUNLOCK();
 			return (1); /* true */
+		}
 
 		/* XXX: do we still have to go thru the rest of the list? */
 	}
+	IN6_IFADDR_RUNLOCK();
 
 	return (0);		/* false */
 }
@@ -2074,7 +2085,9 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		IF_ADDR_UNLOCK(ifp);
 		return (besta);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
+	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -2092,10 +2105,10 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 
 		if (ifa != NULL)
 			ifa_ref(ifa);
-		IF_ADDR_UNLOCK(ifp);
+		IN6_IFADDR_RUNLOCK();
 		return (struct in6_ifaddr *)ifa;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IN6_IFADDR_RUNLOCK();
 
 	/* use the last-resort values, that are, deprecated addresses */
 	if (dep[0])

@@ -1500,6 +1500,8 @@ pfxlist_onlink_check()
 	 * detached.  Note, however, that a manually configured address should
 	 * always be attached.
 	 * The precise detection logic is same as the one for prefixes.
+	 *
+	 * XXXRW: in6_ifaddrhead locking.
 	 */
 	TAILQ_FOREACH(ifa, &V_in6_ifaddrhead, ia_link) {
 		if (!(ifa->ia6_flags & IN6_IFF_AUTOCONF))
@@ -1949,10 +1951,12 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	 * there may be a time lag between generation of the ID and generation
 	 * of the address.  So, we'll do one more sanity check.
 	 */
+	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
 		    &ifra.ifra_addr.sin6_addr)) {
 			if (trylimit-- == 0) {
+				IN6_IFADDR_RUNLOCK();
 				/*
 				 * Give up.  Something strange should have
 				 * happened.
@@ -1961,10 +1965,12 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 				    "find a unique random IFID\n"));
 				return (EEXIST);
 			}
+			IN6_IFADDR_RUNLOCK();
 			forcegen = 1;
 			goto again;
 		}
 	}
+	IN6_IFADDR_RUNLOCK();
 
 	/*
 	 * The Valid Lifetime is the lower of the Valid Lifetime of the

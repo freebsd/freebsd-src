@@ -836,7 +836,9 @@ in6_ifdetach(struct ifnet *ifp)
 		IF_ADDR_UNLOCK(ifp);
 		ifa_free(ifa);				/* if_addrhead */
 
+		IN6_IFADDR_WLOCK();
 		TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
+		IN6_IFADDR_WUNLOCK();
 		ifa_free(ifa);
 	}
 
