@@ -325,6 +325,10 @@ int drm_vblank_get(struct drm_device *dev, int crtc)
 		}
 	}
 
+	if (dev->vblank[crtc].enabled)
+		dev->vblank[crtc].last =
+		    dev->driver->get_vblank_counter(dev, crtc);
+
 	return ret;
 }
 
