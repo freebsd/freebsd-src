@@ -1680,6 +1680,7 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 
 	/* we have to do it by hands to check we won't match on us */
 	ia_if = NULL; own = 0;
+	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		int i;
 
@@ -1702,14 +1703,20 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		}
 	}
 
-	if (!ia_if)
+	if (!ia_if) {
+		IN6_IFADDR_RUNLOCK();
 		return (EADDRNOTAVAIL);
+	}
 	ia = ia_if;
+	ifa_ref(&ia->ia_ifa);
+	IN6_IFADDR_RUNLOCK();
 	ifp = ia->ia_ifp;
 
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0 ||
-	    (im6o->im6o_multicast_ifp && im6o->im6o_multicast_ifp != ifp))
+	    (im6o->im6o_multicast_ifp && im6o->im6o_multicast_ifp != ifp)) {
+		ifa_free(&ia->ia_ifa);
 		return (EADDRNOTAVAIL);
+	}
 
 	if (!sc->sc_naddrs6) {
 		struct in6_multi *in6m;
@@ -1811,12 +1818,14 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 	carp_setrun(sc, 0);
 
 	CARP_UNLOCK(cif);
+	ifa_free(&ia->ia_ifa);	/* XXXRW: should hold reference for softc. */
 
 	return (0);
 
 cleanup:
 	if (!sc->sc_naddrs6)
 		carp_multicast6_cleanup(sc);
+	ifa_free(&ia->ia_ifa);
 	return (error);
 }
 

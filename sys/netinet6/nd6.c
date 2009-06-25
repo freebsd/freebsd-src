@@ -624,6 +624,8 @@ nd6_timer(void *arg)
 	 * in the past the loop was inside prefix expiry processing.
 	 * However, from a stricter speci-confrmance standpoint, we should
 	 * rather separate address lifetimes and prefix lifetimes.
+	 *
+	 * XXXRW: in6_ifaddrhead locking.
 	 */
   addrloop:
 	TAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
@@ -1328,6 +1330,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				continue; /* XXX */
 
 			/* do we really have to remove addresses as well? */
+			/* XXXRW: in6_ifaddrhead locking. */
 			TAILQ_FOREACH_SAFE(ia, &V_in6_ifaddrhead, ia_link,
 			    ia_next) {
 				if ((ia->ia6_flags & IN6_IFF_AUTOCONF) == 0)

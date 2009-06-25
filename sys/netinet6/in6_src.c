@@ -289,6 +289,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	if (error)
 		return (error);
 
+	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		int new_scope = -1, new_matchlen = -1;
 		struct in6_addrpolicy *new_policy = NULL;
@@ -466,13 +467,16 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		break;
 	}
 
-	if ((ia = ia_best) == NULL)
+	if ((ia = ia_best) == NULL) {
+		IN6_IFADDR_RUNLOCK();
 		return (EADDRNOTAVAIL);
+	}
 
 	if (ifpp)
 		*ifpp = ifp;
 
 	bcopy(&ia->ia_addr.sin6_addr, srcp, sizeof(*srcp));
+	IN6_IFADDR_RUNLOCK();
 	return (0);
 }
 
