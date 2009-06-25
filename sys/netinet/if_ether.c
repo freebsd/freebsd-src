@@ -509,11 +509,13 @@ in_arpinput(struct mbuf *m)
 	 * request for the virtual host ip.
 	 * XXX: This is really ugly!
 	 */
+	IN_IFADDR_RLOCK();
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
 		if (((bridged && ia->ia_ifp->if_bridge != NULL) ||
 		    ia->ia_ifp == ifp) &&
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			ifa_ref(&ia->ia_ifa);
+			IN_IFADDR_RUNLOCK();
 			goto match;
 		}
 #ifdef DEV_CARP
@@ -522,6 +524,7 @@ in_arpinput(struct mbuf *m)
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			carp_match = 1;
 			ifa_ref(&ia->ia_ifa);
+			IN_IFADDR_RUNLOCK();
 			goto match;
 		}
 #endif
@@ -531,6 +534,7 @@ in_arpinput(struct mbuf *m)
 		    ia->ia_ifp == ifp) &&
 		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
 			ifa_ref(&ia->ia_ifa);
+			IN_IFADDR_RUNLOCK();
 			goto match;
 		}
 
@@ -549,11 +553,13 @@ in_arpinput(struct mbuf *m)
 			if (BDG_MEMBER_MATCHES_ARP(itaddr.s_addr, ifp, ia)) {
 				ifa_ref(&ia->ia_ifa);
 				ifp = ia->ia_ifp;
+				IN_IFADDR_RUNLOCK();
 				goto match;
 			}
 		}
 	}
 #undef BDG_MEMBER_MATCHES_ARP
+	IN_IFADDR_RUNLOCK();
 
 	/*
 	 * No match, use the first inet address on the receive interface
@@ -572,9 +578,13 @@ in_arpinput(struct mbuf *m)
 	/*
 	 * If bridging, fall back to using any inet address.
 	 */
-	if (!bridged || (ia = TAILQ_FIRST(&V_in_ifaddrhead)) == NULL)
+	IN_IFADDR_RLOCK();
+	if (!bridged || (ia = TAILQ_FIRST(&V_in_ifaddrhead)) == NULL) {
+		IN_IFADDR_RUNLOCK();
 		goto drop;
+	}
 	ifa_ref(&ia->ia_ifa);
+	IN_IFADDR_RUNLOCK();
 match:
 	if (!enaddr)
 		enaddr = (u_int8_t *)IF_LLADDR(ifp);

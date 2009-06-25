@@ -1400,11 +1400,15 @@ again:
 	CURVNET_SET(P_TO_VNET(&proc0));
 #ifdef INET
 	INIT_VNET_INET(curvnet);
+	IN_IFADDR_RLOCK();
 	if (!TAILQ_EMPTY(&V_in_ifaddrhead))
 		cverf.lval[0] = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr.s_addr;
 	else
 #endif
 		cverf.lval[0] = create_verf;
+#ifdef INET
+	IN_IFADDR_RUNLOCK();
+#endif
 	cverf.lval[1] = ++create_verf;
 	CURVNET_RESTORE();
 	error = nfsrpc_create(dvp, cnp->cn_nameptr, cnp->cn_namelen,
