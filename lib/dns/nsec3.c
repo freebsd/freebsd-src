@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006, 2008, 2009  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec3.c,v 1.6 2008/11/17 23:46:42 marka Exp $ */
+/* $Id: nsec3.c,v 1.6.12.2 2009/06/04 02:56:14 tbox Exp $ */
 
 #include <config.h>
 
@@ -943,6 +943,42 @@ dns_nsec3_addnsec3s(dns_db_t *db, dns_dbversion_t *version,
 	return (result);
 }
 
+/*%
+ * Determine whether any NSEC3 records that were associated with
+ * 'name' should be deleted or if they should continue to exist.
+ * ISC_TRUE indicates they should be deleted.
+ * ISC_FALSE indicates they should be retained.
+ */
+static isc_result_t
+deleteit(dns_db_t *db, dns_dbversion_t *ver, dns_name_t *name,
+	 isc_boolean_t *yesno)
+{
+	isc_result_t result;
+	dns_fixedname_t foundname;
+	dns_fixedname_init(&foundname);
+
+	result = dns_db_find(db, name, ver, dns_rdatatype_any,
+			     DNS_DBFIND_GLUEOK | DNS_DBFIND_NOWILD,
+			     (isc_stdtime_t) 0, NULL,
+			     dns_fixedname_name(&foundname),
+			     NULL, NULL);
+	if (result == DNS_R_EMPTYNAME || result == ISC_R_SUCCESS ||
+	    result ==  DNS_R_ZONECUT) {
+		*yesno = ISC_FALSE;
+		return (ISC_R_SUCCESS);
+	}
+	if (result == DNS_R_GLUE || result == DNS_R_DNAME ||
+	    result == DNS_R_DELEGATION || result == DNS_R_NXDOMAIN) {
+		*yesno = ISC_TRUE;
+		return (ISC_R_SUCCESS);
+	}
+	/*
+	 * Silence compiler.
+	 */
+	*yesno = ISC_TRUE;
+	return (result);
+}
+
 isc_result_t
 dns_nsec3_delnsec3(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 		   const dns_rdata_nsec3param_t *nsec3param, dns_diff_t *diff)
@@ -961,7 +997,7 @@ dns_nsec3_delnsec3(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 	dns_rdata_t rdata = DNS_RDATA_INIT;
 	dns_rdataset_t rdataset;
 	int pass;
-	isc_boolean_t exists;
+	isc_boolean_t yesno;
 	isc_buffer_t buffer;
 	isc_result_t result;
 	unsigned char *salt;
@@ -1096,8 +1132,8 @@ dns_nsec3_delnsec3(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 		if (labels <= dns_name_countlabels(origin))
 			break;
 		dns_name_getlabelsequence(&empty, 1, labels, &empty);
-		CHECK(name_exists(db, version, &empty, &exists));
-		if (exists)
+		CHECK(deleteit(db, version, &empty, &yesno));
+		if (!yesno)
 			break;
 
 		CHECK(dns_nsec3_hashname(&fixed, nexthash, &next_length,

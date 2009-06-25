@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.380.14.14 2009/04/02 15:30:12 jreed Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.380.14.15 2009/06/02 05:56:27 marka Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -4333,16 +4333,16 @@ category notify { null; };
                   <entry colname="1">
                     <para><command>delegation-only</command></para>
                   </entry>
-                  <entry colname="2">
-                    <para>
-                      Delegation only.  Logs queries that have
-                      been forced to NXDOMAIN as the result of a
-                      delegation-only zone or
-                      a <command>delegation-only</command> in a
-                      hint or stub zone declaration.
-                    </para>
-                  </entry>
-                </row>
+		  <entry colname="2">
+		    <para>
+		      Delegation only.  Logs queries that have been
+		      forced to NXDOMAIN as the result of a
+		      delegation-only zone or a
+		      <command>delegation-only</command> in a hint
+		      or stub zone declaration.
+		    </para>
+		  </entry>
+		</row>
                 <row rowsep="0">
                   <entry colname="1">
                     <para><command>edns-disabled</command></para>
@@ -5116,17 +5116,45 @@ category notify { null; };
             </listitem>
           </varlistentry>
 
-          <varlistentry>
+          <varlistentry id="root_delegation_only">
             <term><command>root-delegation-only</command></term>
             <listitem>
               <para>
-                Turn on enforcement of delegation-only in TLDs (top level domains) and root zones
-                with an optional
-                exclude list.
+                Turn on enforcement of delegation-only in TLDs
+		(top level domains) and root zones with an optional
+		exclude list.
               </para>
+	      <para>
+		DS queries are expected to be made to and be answered by
+		delegation only zones.  Such queries and responses are
+		treated as a exception to delegation-only processing
+		and are not converted to NXDOMAIN responses provided
+		a CNAME is not discovered at the query name.
+	      </para>
+	      <para>
+		If a delegation only zone server also serves a child
+		zone it is not always possible to determine whether
+		a answer comes from the delegation only zone or the
+		child zone.  SOA NS and DNSKEY records are apex
+		only records and a matching response that contains
+		these records or DS is treated as coming from a
+		child zone.  RRSIG records are also examined to see
+		if they are signed by a child zone or not.  The
+		authority section is also examined to see if there
+		is evidence that the answer is from the child zone.
+		Answers that are determined to be from a child zone
+		are not converted to NXDOMAIN responses.  Despite
+		all these checks there is still a possibility of
+		false negatives when a child zone is being served.
+	      </para>
+	      <para>
+		Similarly false positives can arise from empty nodes
+		(no records at the name) in the delegation only zone
+		when the query type is not ANY.
+	      </para>
               <para>
-                Note some TLDs are not delegation only (e.g. "DE", "LV", "US"
-                and "MUSEUM").
+                Note some TLDs are not delegation only (e.g. "DE", "LV",
+		"US" and "MUSEUM").  This list is not exhaustive.
               </para>
 
 <programlisting>
@@ -9027,20 +9055,22 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                     </entry>
                     <entry colname="2">
                       <para>
-                        This is used to enforce the delegation-only
-                        status of infrastructure zones (e.g. COM, NET, ORG).
-                        Any answer that
-                        is received without an explicit or implicit delegation
-                        in the authority
-                        section will be treated as NXDOMAIN.  This does not
-                        apply to the zone
-                        apex.  This should not be applied to leaf zones.
+			This is used to enforce the delegation-only
+			status of infrastructure zones (e.g. COM,
+			NET, ORG).  Any answer that is received
+			without an explicit or implicit delegation
+			in the authority section will be treated
+			as NXDOMAIN.  This does not apply to the
+			zone apex.  This should not be applied to
+			leaf zones.
                       </para>
                       <para>
                         <varname>delegation-only</varname> has no
-                        effect on answers received
-                        from forwarders.
+                        effect on answers received from forwarders.
                       </para>
+		      <para>
+			See caveats in <xref linkend="root_delegation_only"/>.
+		      </para>
                     </entry>
                   </row>
                 </tbody>
@@ -9299,9 +9329,11 @@ zone <replaceable>zone_name</replaceable> <optional><replaceable>class</replacea
                   <para>
                     The flag only applies to hint and stub zones.  If set
                     to <userinput>yes</userinput>, then the zone will also be
-                    treated as if it
-                    is also a delegation-only type zone.
+                    treated as if it is also a delegation-only type zone.
                   </para>
+		  <para>
+		    See caveats in <xref linkend="root_delegation_only"/>.
+		  </para>
                 </listitem>
               </varlistentry>
 
