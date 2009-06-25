@@ -372,7 +372,7 @@ ioapic_enable_intr(struct intsrc *isrc)
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
 	if (intpin->io_vector == 0)
-		ioapic_assign_cpu(isrc, pcpu_find(0)->pc_apic_id);
+		ioapic_assign_cpu(isrc, intr_next_cpu());
 	apic_enable_vector(intpin->io_cpu, intpin->io_vector);
 }
 
