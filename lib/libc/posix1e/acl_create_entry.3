@@ -30,6 +30,7 @@
 .Os
 .Sh NAME
 .Nm acl_create_entry
+.Nm acl_create_entry_np
 .Nd create a new ACL entry
 .Sh LIBRARY
 .Lb libc
@@ -38,6 +39,8 @@
 .In sys/acl.h
 .Ft int
 .Fn acl_create_entry "acl_t *acl_p" "acl_entry_t *entry_p"
+.Ft int 
+.Fn acl_create_entry_np "acl_t *acl_p" "acl_entry_t *entry_p" "int index"
 .Sh DESCRIPTION
 The
 .Fn acl_create_entry
@@ -45,6 +48,16 @@ function
 is a POSIX.1e call that creates a new ACL entry in the ACL
 pointed to by
 .Fa acl_p .
+The
+.Fn acl_create_entry_np
+function is a non-portable version that creates the ACL entry
+at position
+.Fa index .
+Positions are numbered starting from zero, i.e. calling
+.Fn acl_create_entry_np
+with
+.Fa index
+argument equal to zero will prepend the entry to the ACL.
 .Sh RETURN VALUES
 .Rv -std acl_create_entry
 .Sh ERRORS
@@ -56,6 +69,9 @@ function fails if:
 Argument
 .Fa acl_p
 does not point to a pointer to a valid ACL.
+Argument
+.Fa index
+is out of bounds.
 .It Bq Er ENOMEM
 The ACL working storage requires more memory than is
 allowed by the hardware or system-imposed memory

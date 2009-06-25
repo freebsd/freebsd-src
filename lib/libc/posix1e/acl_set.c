@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "acl_support.h"
 
@@ -59,6 +60,10 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 		return (-1);
 	}
 	type = _acl_type_unold(type);
+	if (_acl_type_not_valid_for_acl(acl, type)) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (_posix1e_acl(acl, type)) {
 		error = _posix1e_acl_sort(acl);
 		if (error) {
@@ -82,6 +87,10 @@ acl_set_link_np(const char *path_p, acl_type_t type, acl_t acl)
 		return (-1);
 	}
 	type = _acl_type_unold(type);
+	if (_acl_type_not_valid_for_acl(acl, type)) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (_posix1e_acl(acl, type)) {
 		error = _posix1e_acl_sort(acl);
 		if (error) {
@@ -98,17 +107,11 @@ acl_set_link_np(const char *path_p, acl_type_t type, acl_t acl)
 int
 acl_set_fd(int fd, acl_t acl)
 {
-	int	error;
 
-	error = _posix1e_acl_sort(acl);
-	if (error) {
-		errno = error;
-		return(-1);
-	}
+	if (fpathconf(fd, _PC_ACL_NFS4))
+		return (acl_set_fd_np(fd, acl, ACL_TYPE_NFS4));
 
-	acl->ats_cur_entry = 0;
-
-	return (___acl_set_fd(fd, ACL_TYPE_ACCESS, &acl->ats_acl));
+	return (acl_set_fd_np(fd, acl, ACL_TYPE_ACCESS));
 }
 
 int
@@ -116,7 +119,15 @@ acl_set_fd_np(int fd, acl_t acl, acl_type_t type)
 {
 	int	error;
 
+	if (acl == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	type = _acl_type_unold(type);
+	if (_acl_type_not_valid_for_acl(acl, type)) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (_posix1e_acl(acl, type)) {
 		error = _posix1e_acl_sort(acl);
 		if (error) {
@@ -143,6 +154,18 @@ acl_set_permset(acl_entry_t entry_d, acl_permset_t permset_d)
 		return (-1);
 	}
 
+	if ((*permset_d & ACL_POSIX1E_BITS) != *permset_d) {
+		if ((*permset_d & ACL_NFS4_PERM_BITS) != *permset_d) {
+			errno = EINVAL;
+			return (-1);
+		}
+		if (!_entry_brand_may_be(entry_d, ACL_BRAND_NFS4)) {
+			errno = EINVAL;
+			return (-1);
+		}
+		_entry_brand_as(entry_d, ACL_BRAND_NFS4);
+	}
+
 	entry_d->ae_perm = *permset_d;
 
 	return (0);
@@ -155,11 +178,11 @@ acl_set_permset(acl_entry_t entry_d, acl_permset_t permset_d)
 int
 acl_set_qualifier(acl_entry_t entry_d, const void *tag_qualifier_p)
 {
+
 	if (!entry_d || !tag_qualifier_p) {
 		errno = EINVAL;
 		return (-1);
 	}
-
 	switch(entry_d->ae_tag) {
 	case ACL_USER:
 	case ACL_GROUP:
@@ -187,13 +210,59 @@ acl_set_tag_type(acl_entry_t entry_d, acl_tag_t tag_type)
 	}
 
 	switch(tag_type) {
+	case ACL_OTHER:
+	case ACL_MASK:
+		if (!_entry_brand_may_be(entry_d, ACL_BRAND_POSIX)) {
+			errno = EINVAL;
+			return (-1);
+		}
+		_entry_brand_as(entry_d, ACL_BRAND_POSIX);
+		break;
+	case ACL_EVERYONE:
+		if (!_entry_brand_may_be(entry_d, ACL_BRAND_NFS4)) {
+			errno = EINVAL;
+			return (-1);
+		}
+		_entry_brand_as(entry_d, ACL_BRAND_NFS4);
+		break;
+	}
+
+	switch(tag_type) {
 	case ACL_USER_OBJ:
 	case ACL_USER:
 	case ACL_GROUP_OBJ:
 	case ACL_GROUP:
 	case ACL_MASK:
 	case ACL_OTHER:
+	case ACL_EVERYONE:
 		entry_d->ae_tag = tag_type;
+		return (0);
+	}
+
+	errno = EINVAL;
+	return (-1);
+}
+
+int
+acl_set_entry_type_np(acl_entry_t entry_d, acl_entry_type_t entry_type)
+{
+
+	if (entry_d == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+	if (!_entry_brand_may_be(entry_d, ACL_BRAND_NFS4)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	_entry_brand_as(entry_d, ACL_BRAND_NFS4);
+
+	switch (entry_type) {
+	case ACL_ENTRY_TYPE_ALLOW:
+	case ACL_ENTRY_TYPE_DENY:
+	case ACL_ENTRY_TYPE_AUDIT:
+	case ACL_ENTRY_TYPE_ALARM:
+		entry_d->ae_entry_type = entry_type;
 		return (0);
 	}
 
