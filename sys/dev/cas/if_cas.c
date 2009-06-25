@@ -1697,14 +1697,16 @@ cas_rint(struct cas_softc *sc)
 				refcount_acquire(&rxds->rxds_refcount);
 				bus_dmamap_sync(sc->sc_rdmatag,
 				    rxds->rxds_dmamap, BUS_DMASYNC_POSTREAD);
+#if __FreeBSD_version < 800016
 				MEXTADD(m, (caddr_t)rxds->rxds_buf +
 				    off * 256 + ETHER_ALIGN, len, cas_free,
-#if __FreeBSD_version < 800016
-				    rxds,
+				    rxds, M_RDONLY, EXT_NET_DRV);
 #else
+				MEXTADD(m, (caddr_t)rxds->rxds_buf +
+				    off * 256 + ETHER_ALIGN, len, cas_free,
 				    sc, (void *)(uintptr_t)idx,
-#endif
 				    M_RDONLY, EXT_NET_DRV);
+#endif
 				if ((m->m_flags & M_EXT) == 0) {
 					m_freem(m);
 					m = NULL;
@@ -1740,14 +1742,16 @@ cas_rint(struct cas_softc *sc)
 				m->m_len = min(CAS_PAGE_SIZE - off, len);
 				bus_dmamap_sync(sc->sc_rdmatag,
 				    rxds->rxds_dmamap, BUS_DMASYNC_POSTREAD);
-				MEXTADD(m, (caddr_t)rxds->rxds_buf + off,
-				    m->m_len, cas_free,
 #if __FreeBSD_version < 800016
-				    rxds,
+				MEXTADD(m, (caddr_t)rxds->rxds_buf + off,
+				    m->m_len, cas_free, rxds, M_RDONLY,
+				    EXT_NET_DRV);
 #else
-				    sc, (void *)(uintptr_t)idx,
+				MEXTADD(m, (caddr_t)rxds->rxds_buf + off,
+				    m->m_len, cas_free, sc,
+				    (void *)(uintptr_t)idx, M_RDONLY,
+				    EXT_NET_DRV);
 #endif
-				    M_RDONLY, EXT_NET_DRV);
 				if ((m->m_flags & M_EXT) == 0) {
 					m_freem(m);
 					m = NULL;
@@ -1774,14 +1778,16 @@ cas_rint(struct cas_softc *sc)
 					bus_dmamap_sync(sc->sc_rdmatag,
 					    rxds2->rxds_dmamap,
 					    BUS_DMASYNC_POSTREAD);
+#if __FreeBSD_version < 800016
+					MEXTADD(m2, (caddr_t)rxds2->rxds_buf,
+					    m2->m_len, cas_free, rxds2,
+					    M_RDONLY, EXT_NET_DRV);
+#else
 					MEXTADD(m2, (caddr_t)rxds2->rxds_buf,
 					    m2->m_len, cas_free,
-#if __FreeBSD_version < 800016
-					    rxds2,
-#else
 					    sc, (void *)(uintptr_t)idx2,
-#endif
 					    M_RDONLY, EXT_NET_DRV);
+#endif
 					if ((m2->m_flags & M_EXT) == 0) {
 						m_freem(m2);
 						m2 = NULL;
