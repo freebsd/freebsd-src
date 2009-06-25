@@ -316,8 +316,8 @@ struct vattr {
 #define	VADMIN			000000010000 /* being the file owner */
 #define	VAPPEND			000000040000 /* permission to write/append */
 /*
- * VEXPLICIT_DENY makes VOP_ACCESS(9) return EPERM or EACCES only
- * if permission was denied explicitly, by a "deny" rule in NFS4 ACL,
+ * VEXPLICIT_DENY makes VOP_ACCESSX(9) return EPERM or EACCES only
+ * if permission was denied explicitly, by a "deny" rule in NFSv4 ACL,
  * and 0 otherwise.  This never happens with ordinary unix access rights
  * or POSIX.1e ACLs.  Obviously, VEXPLICIT_DENY must be OR-ed with
  * some other V* constant.
