@@ -1161,7 +1161,7 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	}
 	if (auio.uio_resid) {
 		if (ppscheck || ppsratecheck(&lastfail, &curfail, 1))
-			printf("vnode_pager_putpages: residual I/O %d at %lu\n",
+			printf("vnode_pager_putpages: residual I/O %zd at %lu\n",
 			    auio.uio_resid, (u_long)m[0]->pindex);
 	}
 	for (i = 0; i < ncount; i++) {
