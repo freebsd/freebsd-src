@@ -161,8 +161,6 @@ msi_enable_intr(struct intsrc *isrc)
 {
 	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
 
-	if (msi->msi_vector == 0)
-		msi_assign_cpu(isrc, 0);
 	apic_enable_vector(msi->msi_cpu, msi->msi_vector);
 }
 
@@ -208,10 +206,11 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	/* Store information to free existing irq. */
 	old_vector = msi->msi_vector;
 	old_id = msi->msi_cpu;
-	if (old_vector && old_id == apic_id)
+	if (old_id == apic_id)
 		return;
-	if (old_vector && !msi->msi_msix && msi->msi_first->msi_count > 1)
+	if (!msi->msi_msix && msi->msi_first->msi_count > 1)
 		return;
+
 	/* Allocate IDT vector on this cpu. */
 	vector = apic_alloc_vector(apic_id, msi->msi_irq);
 	if (vector == 0)
@@ -223,14 +222,13 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 		    msi->msi_msix ? "MSI-X" : "MSI", msi->msi_irq,
 		    msi->msi_cpu, msi->msi_vector);
 	pci_remap_msi_irq(msi->msi_dev, msi->msi_irq);
+
 	/*
 	 * Free the old vector after the new one is established.  This is done
 	 * to prevent races where we could miss an interrupt.
 	 */
-	if (old_vector)
-		apic_free_vector(old_id, old_vector, msi->msi_irq);
+	apic_free_vector(old_id, old_vector, msi->msi_irq);
 }
-
 
 void
 msi_init(void)
@@ -287,7 +285,8 @@ int
 msi_alloc(device_t dev, int count, int maxcount, int *irqs)
 {
 	struct msi_intsrc *msi, *fsrc;
-	int cnt, i;
+	u_int cpu;
+	int cnt, i, vector;
 
 	if (!msi_enabled)
 		return (ENXIO);
@@ -333,12 +332,25 @@ again:
 	/* Ok, we now have the IRQs allocated. */
 	KASSERT(cnt == count, ("count mismatch"));
 
+	/* Allocate 'count' IDT vectors. */
+	cpu = intr_next_cpu();
+	vector = apic_alloc_vectors(cpu, irqs, count, maxcount);
+	if (vector == 0) {
+		mtx_unlock(&msi_lock);
+		return (ENOSPC);
+	}
+
 	/* Assign IDT vectors and make these messages owned by 'dev'. */
 	fsrc = (struct msi_intsrc *)intr_lookup_source(irqs[0]);
 	for (i = 0; i < count; i++) {
 		msi = (struct msi_intsrc *)intr_lookup_source(irqs[i]);
+		msi->msi_cpu = cpu;
 		msi->msi_dev = dev;
-		msi->msi_vector = 0;
+		msi->msi_vector = vector + i;
+		if (bootverbose)
+			printf(
+		    "msi: routing MSI IRQ %d to local APIC %u vector %u\n",
+			    msi->msi_irq, msi->msi_cpu, msi->msi_vector);
 		msi->msi_first = fsrc;
 		KASSERT(msi->msi_intsrc.is_handlers == 0,
 		    ("dead MSI has handlers"));
@@ -391,18 +403,14 @@ msi_release(int *irqs, int count)
 		KASSERT(msi->msi_dev == first->msi_dev, ("owner mismatch"));
 		msi->msi_first = NULL;
 		msi->msi_dev = NULL;
-		if (msi->msi_vector)
-			apic_free_vector(msi->msi_cpu, msi->msi_vector,
-			    msi->msi_irq);
+		apic_free_vector(msi->msi_cpu, msi->msi_vector, msi->msi_irq);
 		msi->msi_vector = 0;
 	}
 
 	/* Clear out the first message. */
 	first->msi_first = NULL;
 	first->msi_dev = NULL;
-	if (first->msi_vector)
-		apic_free_vector(first->msi_cpu, first->msi_vector,
-		    first->msi_irq);
+	apic_free_vector(first->msi_cpu, first->msi_vector, first->msi_irq);
 	first->msi_vector = 0;
 	first->msi_count = 0;
 
@@ -451,7 +459,8 @@ int
 msix_alloc(device_t dev, int *irq)
 {
 	struct msi_intsrc *msi;
-	int i;
+	u_int cpu;
+	int i, vector;
 
 	if (!msi_enabled)
 		return (ENXIO);
@@ -486,9 +495,17 @@ again:
 		goto again;
 	}
 
+	/* Allocate an IDT vector. */
+	cpu = intr_next_cpu();
+	vector = apic_alloc_vector(cpu, i);
+	if (bootverbose)
+		printf("msi: routing MSI-X IRQ %d to local APIC %u vector %u\n",
+		    msi->msi_irq, cpu, vector);
+	
 	/* Setup source. */
+	msi->msi_cpu = cpu;
 	msi->msi_dev = dev;
-	msi->msi_vector = 0;
+	msi->msi_vector = vector;
 	msi->msi_msix = 1;
 
 	KASSERT(msi->msi_intsrc.is_handlers == 0, ("dead MSI-X has handlers"));
@@ -520,8 +537,7 @@ msix_release(int irq)
 
 	/* Clear out the message. */
 	msi->msi_dev = NULL;
-	if (msi->msi_vector)
-		apic_free_vector(msi->msi_cpu, msi->msi_vector, msi->msi_irq);
+	apic_free_vector(msi->msi_cpu, msi->msi_vector, msi->msi_irq);
 	msi->msi_vector = 0;
 	msi->msi_msix = 0;
 
