@@ -108,7 +108,7 @@ int
 acl_set_fd(int fd, acl_t acl)
 {
 
-	if (fpathconf(fd, _PC_ACL_NFS4))
+	if (fpathconf(fd, _PC_ACL_NFS4) == 1)
 		return (acl_set_fd_np(fd, acl, ACL_TYPE_NFS4));
 
 	return (acl_set_fd_np(fd, acl, ACL_TYPE_ACCESS));
