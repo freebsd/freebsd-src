@@ -82,10 +82,11 @@ static usb_callback_t usbd_ctrl_callback;
 #define	USBD_CTRL_WRITE_PIPE		1
 #define	USBD_CTRL_MAX_PIPE		2
 #define	USBD_CTRL_READ_BUFFER_SP	256
+#define	USBD_CTRL_WRITE_BUFFER_SP	256
 #define	USBD_CTRL_READ_BUFFER_SIZE	\
 	(sizeof(struct usb_device_request) + USBD_CTRL_READ_BUFFER_SP)
 #define	USBD_CTRL_WRITE_BUFFER_SIZE	\
-	(sizeof(struct usb_device_request))
+	(sizeof(struct usb_device_request) + USBD_CTRL_WRITE_BUFFER_SP)
 static struct usb_config usbd_default_epconfig[USBD_CTRL_MAX_PIPE] = {
 	[USBD_CTRL_READ_PIPE] = {
 		.type =		UE_CONTROL,
@@ -1065,7 +1066,7 @@ next:
 				    vcreq->uvc_trans_buflen));
 			usbd_xfer_set_frames(xfer, 2);
 		} else {
-			if (nx->nx_urblen > 0)
+			if (nx->nx_urblen > USBD_CTRL_WRITE_BUFFER_SP)
 				device_printf(sc->ndis_dev,
 				    "warning: not enough write buffer space"
 				    " (%d).\n", nx->nx_urblen);
