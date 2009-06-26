@@ -1390,7 +1390,7 @@ xe_set_multicast(struct xe_softc *scp)
 
 	/* Iterate over multicast address list */
 	count = 0;
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
 		if (maddr->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1413,7 +1413,7 @@ xe_set_multicast(struct xe_softc *scp)
 			/* Nowhere else to put them on CE2 */
 			break;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	DEVPRINTF(2, (scp->dev, "set_multicast: count = %u\n", count));
 

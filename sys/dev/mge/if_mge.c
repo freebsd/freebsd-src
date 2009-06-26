@@ -1731,7 +1731,7 @@ mge_setup_multicast(struct mge_softc *sc)
 		memset(smt, 0, sizeof(smt));
 		memset(omt, 0, sizeof(omt));
 
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -1745,7 +1745,7 @@ mge_setup_multicast(struct mge_softc *sc)
 				omt[i >> 2] |= v << ((i & 0x03) << 3);
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 
 	for (i = 0; i < MGE_MCAST_REG_NUMBER; i++) {

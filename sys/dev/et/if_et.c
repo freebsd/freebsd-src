@@ -1361,7 +1361,7 @@ et_setmulti(struct et_softc *sc)
 	}
 
 	count = 0;
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		uint32_t *hp, h;
 
@@ -1387,7 +1387,7 @@ et_setmulti(struct et_softc *sc)
 
 		++count;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	for (i = 0; i < 4; ++i)
 		CSR_WRITE_4(sc, ET_MULTI_HASH + (i * 4), hash[i]);

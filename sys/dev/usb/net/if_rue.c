@@ -494,7 +494,7 @@ rue_setmulti(struct usb_ether *ue)
 	rue_csr_write_4(sc, RUE_MAR4, 0);
 
 	/* now program new ones */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH (ifma, &ifp->if_multiaddrs, ifma_link)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -507,7 +507,7 @@ rue_setmulti(struct usb_ether *ue)
 			hashes[1] |= (1 << (h - 32));
 		mcnt++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (mcnt)
 		rxcfg |= RUE_RCR_AM;
