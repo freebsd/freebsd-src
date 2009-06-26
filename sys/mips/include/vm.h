@@ -37,4 +37,4 @@
 
 #define	VM_CACHE_DEFAULT		VM_CACHE_CACHEABLE_NONCOHERENT
 
-#endif /* !_MACHINE_PMAP_H_ */
+#endif /* !_MACHINE_VM_H_ */
