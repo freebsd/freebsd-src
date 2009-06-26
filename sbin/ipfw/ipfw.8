@@ -1944,13 +1944,18 @@ the granularity to 1ms or less).
 The default value is 0, meaning no delay.
 .Pp
 .It Cm burst Ar size
-If the data rate exceeds the pipe bandwith limit
-(and pipe was idle long enough),
+If the data to be sent exceeds the pipe's bandwidth limit
+(and the pipe was previously idle), up to
 .Ar size
-bytes of data is allowed to bypass the
+bytes of data are allowed to bypass the
 .Nm dummynet
-scheduler (i.e. it will be sent without shaping), then transmission rate
-will not exceed pipe bandwidth. Effective burst size calculated as follows:
+scheduler, and will be sent as fast as the physical link allows.
+Any additional data will be transmitted at the rate specified
+by the
+.Nm pipe
+bandwidth.
+The burst size depends on how long the pipe has been idle;
+the effective burst size is calculated as follows:
 MAX(
 .Ar size
 ,
