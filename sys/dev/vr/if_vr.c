@@ -482,7 +482,7 @@ vr_set_filter(struct vr_softc *sc)
 	/* Now program new ones. */
 	error = 0;
 	mcnt = 0;
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	if ((sc->vr_quirks & VR_Q_CAM) != 0) {
 		/*
 		 * For hardwares that have CAM capability, use
@@ -523,7 +523,7 @@ vr_set_filter(struct vr_softc *sc)
 			mcnt++;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (mcnt > 0)
 		rxfilt |= VR_RXCFG_RX_MULTI;

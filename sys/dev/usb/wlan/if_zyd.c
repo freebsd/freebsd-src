@@ -2016,7 +2016,7 @@ zyd_set_multi(struct zyd_softc *sc)
 		low = 0xffffffff;
 		high = 0xffffffff;
 	} else {
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -2027,7 +2027,7 @@ zyd_set_multi(struct zyd_softc *sc)
 			else
 				high |= 1 << (v - 32);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 
 	/* reprogram multicast global hash table */

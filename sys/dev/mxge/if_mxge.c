@@ -1130,7 +1130,7 @@ mxge_set_multicast_list(mxge_softc_t *sc)
 
 	/* Walk the multicast list, and add each address */
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1146,11 +1146,11 @@ mxge_set_multicast_list(mxge_softc_t *sc)
 			       "MXGEFW_JOIN_MULTICAST_GROUP, error status:"
 			       "%d\t", err);
 			/* abort, leaving multicast filtering off */
-			IF_ADDR_UNLOCK(ifp);
+			if_maddr_runlock(ifp);
 			return;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 	/* Enable multicast filtering */
 	err = mxge_send_cmd(sc, MXGEFW_DISABLE_ALLMULTI, &cmd);
 	if (err != 0) {

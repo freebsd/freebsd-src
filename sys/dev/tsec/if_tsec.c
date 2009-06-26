@@ -1899,7 +1899,7 @@ tsec_setup_multicast(struct tsec_softc *sc)
 		return;
 	}
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -1910,7 +1910,7 @@ tsec_setup_multicast(struct tsec_softc *sc)
 
 		hashtable[(h >> 5)] |= 1 << (0x1F - (h & 0x1F));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	for (i = 0; i < 8; i++)
 		TSEC_WRITE(sc, TSEC_REG_GADDR(i), hashtable[i]);
