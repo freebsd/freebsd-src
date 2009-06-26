@@ -154,7 +154,7 @@ SYSCTL_INT(_net_isr, OID_AUTO, direct, CTLFLAG_RW,
  * CPU 0, so in practice we ignore values <= 1.  This must be set at boot.
  * We will create at most one thread per CPU.
  */
-static int	netisr_maxthreads = 1;		/* Max number of threads. */
+static int	netisr_maxthreads = -1;		/* Max number of threads. */
 TUNABLE_INT("net.isr.maxthreads", &netisr_maxthreads);
 SYSCTL_INT(_net_isr, OID_AUTO, maxthreads, CTLFLAG_RD,
     &netisr_maxthreads, 0,
@@ -393,7 +393,7 @@ netisr_register(const struct netisr_handler *nhp)
 	} else
 		np[proto].np_qlimit = nhp->nh_qlimit;
 	np[proto].np_policy = nhp->nh_policy;
-	for (i = 0; i < MAXCPU; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		if (CPU_ABSENT(i))
 			continue;
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
@@ -427,7 +427,7 @@ netisr_clearqdrops(const struct netisr_handler *nhp)
 	    ("%s(%u): protocol not registered for %s", __func__, proto,
 	    name));
 
-	for (i = 0; i < MAXCPU; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		if (CPU_ABSENT(i))
 			continue;
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
@@ -462,7 +462,7 @@ netisr_getqdrops(const struct netisr_handler *nhp, u_int64_t *qdropp)
 	    ("%s(%u): protocol not registered for %s", __func__, proto,
 	    name));
 
-	for (i = 0; i < MAXCPU; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		if (CPU_ABSENT(i))
 			continue;
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
@@ -528,7 +528,7 @@ netisr_setqlimit(const struct netisr_handler *nhp, u_int qlimit)
 	    name));
 
 	np[proto].np_qlimit = qlimit;
-	for (i = 0; i < MAXCPU; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		if (CPU_ABSENT(i))
 			continue;
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
@@ -594,7 +594,7 @@ netisr_unregister(const struct netisr_handler *nhp)
 	np[proto].np_m2cpuid = NULL;
 	np[proto].np_qlimit = 0;
 	np[proto].np_policy = 0;
-	for (i = 0; i < MAXCPU; i++) {
+	for (i = 0; i <= mp_maxid; i++) {
 		if (CPU_ABSENT(i))
 			continue;
 		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
@@ -818,8 +818,8 @@ netisr_queue_internal(u_int proto, struct mbuf *m, u_int cpuid)
 #ifdef NETISR_LOCKING
 	NETISR_LOCK_ASSERT();
 #endif
-	KASSERT(cpuid < MAXCPU, ("%s: cpuid too big (%u, %u)", __func__,
-	    cpuid, MAXCPU));
+	KASSERT(cpuid <= mp_maxid, ("%s: cpuid too big (%u, %u)", __func__,
+	    cpuid, mp_maxid));
 	KASSERT(!CPU_ABSENT(cpuid), ("%s: CPU %u absent", __func__, cpuid));
 
 	dosignal = 0;
@@ -1064,17 +1064,16 @@ netisr_init(void *arg)
 	KASSERT(curcpu == 0, ("%s: not on CPU 0", __func__));
 
 	NETISR_LOCK_INIT();
-	if (netisr_maxthreads < 1) {
-		printf("netisr2: forcing maxthreads to 1\n");
+	if (netisr_maxthreads < 1)
 		netisr_maxthreads = 1;
-	}
-	if (netisr_maxthreads > MAXCPU) {
-		printf("netisr2: forcing maxthreads to %d\n", MAXCPU);
-		netisr_maxthreads = MAXCPU;
+	if (netisr_maxthreads > mp_ncpus) {
+		printf("netisr2: forcing maxthreads from %d to %d\n",
+		    netisr_maxthreads, mp_ncpus);
+		netisr_maxthreads = mp_ncpus;
 	}
 	if (netisr_defaultqlimit > netisr_maxqlimit) {
-		printf("netisr2: forcing defaultqlimit to %d\n",
-		    netisr_maxqlimit);
+		printf("netisr2: forcing defaultqlimit from %d to %d\n",
+		    netisr_defaultqlimit, netisr_maxqlimit);
 		netisr_defaultqlimit = netisr_maxqlimit;
 	}
 #ifdef DEVICE_POLLING
@@ -1128,7 +1127,7 @@ DB_SHOW_COMMAND(netisr, db_show_netisr)
 
 	db_printf("%3s %6s %5s %5s %5s %8s %8s %8s %8s\n", "CPU", "Proto",
 	    "Len", "WMark", "Max", "Disp", "HDisp", "Drop", "Queue");
-	for (cpuid = 0; cpuid < MAXCPU; cpuid++) {
+	for (cpuid = 0; cpuid <= mp_maxid; cpuid++) {
 		if (CPU_ABSENT(cpuid))
 			continue;
 		nwsp = DPCPU_ID_PTR(cpuid, nws);
