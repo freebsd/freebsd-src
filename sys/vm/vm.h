@@ -61,6 +61,14 @@
 #ifndef VM_H
 #define VM_H
 
+#include <machine/vm.h>
+
+/*
+ * The exact set of cache control codes is machine dependent.  However, every
+ * machine is required to define VM_CACHE_DEFAULT.
+ */
+typedef	char vm_cache_mode_t;	/* cache control codes */
+
 typedef char vm_inherit_t;	/* inheritance codes */
 
 #define	VM_INHERIT_SHARE	((vm_inherit_t) 0)
