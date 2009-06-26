@@ -301,6 +301,9 @@ options 	COMPAT_43
 # Old tty interface.
 options 	COMPAT_43TTY
 
+# Note that as a general rule, COMPAT_FREEBSD<n> depends on
+# COMPAT_FREEBSD<n+1>, COMPAT_FREEBSD<n+2>, etc.
+
 # Enable FreeBSD4 compatibility syscalls
 options 	COMPAT_FREEBSD4
 
