@@ -37,4 +37,4 @@
 
 #define	VM_CACHE_DEFAULT		0
 
-#endif /* !_MACHINE_PMAP_H_ */
+#endif /* !_MACHINE_VM_H_ */
