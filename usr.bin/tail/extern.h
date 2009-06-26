@@ -61,16 +61,15 @@ typedef struct file_info file_info_t;
 enum STYLE { NOTSET = 0, FBYTES, FLINES, RBYTES, RLINES, REVERSE };
 
 void follow(file_info_t *, enum STYLE, off_t);
-void forward(FILE *, enum STYLE, off_t, struct stat *);
-void reverse(FILE *, enum STYLE, off_t, struct stat *);
+void forward(FILE *, const char *, enum STYLE, off_t, struct stat *);
+void reverse(FILE *, const char *, enum STYLE, off_t, struct stat *);
 
-int bytes(FILE *, off_t);
-int lines(FILE *, off_t);
+int bytes(FILE *, const char *, off_t);
+int lines(FILE *, const char *, off_t);
 
-void ierr(void);
+void ierr(const char *);
 void oerr(void);
 int mapprint(struct mapinfo *, off_t, off_t);
 int maparound(struct mapinfo *, off_t);
 
 extern int Fflag, fflag, qflag, rflag, rval, no_files;
-extern const char *fname;
