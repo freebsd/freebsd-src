@@ -25,7 +25,7 @@ Seventh Edition (V7)    |
                   \/                     |
                  3BSD                    |
                   |                      |
-               4.0BSD               2.7.9BSD
+               4.0BSD                2.79BSD
                   |                      |
                4.1BSD --------------> 2.8BSD
                   |                      |
@@ -260,6 +260,7 @@ was the announcement in Usenet or if it was available as tape.
 [OBD] OpenBSD Project, The.
 [QCU] Salus, Peter H. A quarter century of UNIX.
 [SMS] Steven M. Schultz. 2.11BSD, UNIX for the PDP-11.
+[TUHS] The Unix Historical Society.  http://minnie.tuhs.org/Unix_History/.
 [USE] Usenet announcement.
 [WRS] Wind River Systems, Inc.
 [dmr] Dennis Ritchie, via E-Mail
@@ -297,15 +298,15 @@ Tenth   Edition         1989-10-xx [QCU]
 				PDP-11, Pascal, ex(1)
 				30 free copies of 1BSD sent out
 				35 tapes sold for 50 USD [QCU]
-2BSD                    mid 1978 [QCU]
+2BSD                    mid 1978 [QCU] 1979-05-10 [TUHS]
 				75 2BSD tapes shipped
-2.7.9BSD		?? [SMS]
+2.79BSD			1980-04-xx [TUHS]
 2.8BSD			1981-07-xx [KSJ]
 
 2.8.1BSD		1982-01-xx [QCU]
 				set of performance improvements
 2.9BSD			1983-07-xx [KSJ]
-2.9.1BSD                1983-11-xx
+2.9.1BSD                1983-11-xx [TUHS]
 2.9BSD-Seismo		1985-08-xx [SMS]
 2.10BSD			1987-04-xx [KKK]
 2.10.1BSD		1989-01-xx [SMS]
@@ -313,7 +314,7 @@ Tenth   Edition         1989-10-xx [QCU]
 2.11BSD rev #430	1999-12-13 [SMS]
 
 32V			1978-1[01]-xx [QCU]
-3BSD                    late 1979 [QCU]
+3BSD                    late 1979 [QCU] March 1980 [TUHS]
 				virtual memory, page replacement,
                         	demand paging
 4.0BSD                  1980-10-xx
