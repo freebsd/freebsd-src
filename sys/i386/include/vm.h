@@ -42,4 +42,4 @@
 
 #define	VM_CACHE_DEFAULT		VM_CACHE_WRITE_BACK
 
-#endif /* !_MACHINE_PMAP_H_ */
+#endif /* !_MACHINE_VM_H_ */
