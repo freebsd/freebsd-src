@@ -1419,6 +1419,40 @@ if_rtdel(struct radix_node *rn, void *arg)
 }
 
 /*
+ * Wrapper functions for struct ifnet address list locking macros.  These are
+ * used by kernel modules to avoid encoding programming interface or binary
+ * interface assumptions that may be violated when kernel-internal locking
+ * approaches change.
+ */
+void
+if_addr_rlock(struct ifnet *ifp)
+{
+
+	IF_ADDR_LOCK(ifp);
+}
+
+void
+if_addr_runlock(struct ifnet *ifp)
+{
+
+	IF_ADDR_UNLOCK(ifp);
+}
+
+void
+if_maddr_rlock(struct ifnet *ifp)
+{
+
+	IF_ADDR_LOCK(ifp);
+}
+
+void
+if_maddr_runlock(struct ifnet *ifp)
+{
+
+	IF_ADDR_UNLOCK(ifp);
+}
+
+/*
  * Reference count functions for ifaddrs.
  */
 void
