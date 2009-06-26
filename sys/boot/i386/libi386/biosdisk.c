@@ -880,7 +880,7 @@ bd_open_gpt(struct open_disk *od, struct i386_devdesc *dev)
     for (i = 0; i < NDOSPART; i++) {
 	if (dp[i].dp_typ == 0xee)
 	    part++;
-	else if (dp[i].dp_typ != 0x00)
+	else if ((part != 1) && (dp[i].dp_typ != 0x00))
 	    return (EINVAL);
     }
     if (part != 1)
