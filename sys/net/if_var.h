@@ -253,6 +253,16 @@ typedef void if_init_f_t(void *);
 #define	IF_ADDR_LOCK_ASSERT(if)	mtx_assert(&(if)->if_addr_mtx, MA_OWNED)
 
 /*
+ * Function variations on locking macros intended to be used by loadable
+ * kernel modules in order to divorce them from the internals of address list
+ * locking.
+ */
+void	if_addr_rlock(struct ifnet *ifp);	/* if_addrhead */
+void	if_addr_runlock(struct ifnet *ifp);	/* if_addrhead */
+void	if_maddr_rlock(struct ifnet *ifp);	/* if_multiaddrs */
+void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
+
+/*
  * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
  * are queues of messages stored on ifqueue structures
  * (defined above).  Entries are added to and deleted from these structures
