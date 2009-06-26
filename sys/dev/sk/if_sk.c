@@ -759,7 +759,7 @@ sk_rxfilter_genesis(sc_if)
 		hashes[1] = 0xFFFFFFFF;
 	} else {
 		i = 1;
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH_REVERSE(ifma, &ifp->if_multiaddrs, ifmultihead,
 		    ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -783,7 +783,7 @@ sk_rxfilter_genesis(sc_if)
 				hashes[1] |= (1 << (h - 32));
 			mode |= XM_MODE_RX_USE_HASH;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 
 	SK_XM_WRITE_4(sc_if, XM_MODE, mode);
@@ -811,7 +811,7 @@ sk_rxfilter_yukon(sc_if)
 		hashes[1] = 0xFFFFFFFF;
 	} else {
 		mode |= YU_RCR_UFLEN;
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -822,7 +822,7 @@ sk_rxfilter_yukon(sc_if)
 			/* Set the corresponding bit in the hash table. */
 			hashes[crc >> 5] |= 1 << (crc & 0x1f);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 		if (hashes[0] != 0 || hashes[1] != 0)
 			mode |= YU_RCR_MUFLEN;
 	}

@@ -1577,14 +1577,14 @@ malo_setmcastfilter(struct malo_softc *sc)
 	    (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)))
 		goto all;
 	
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 
 		if (nmc == MALO_HAL_MCAST_MAX) {
 			ifp->if_flags |= IFF_ALLMULTI;
-			IF_ADDR_UNLOCK(ifp);
+			if_maddr_runlock(ifp);
 			goto all;
 		}
 		IEEE80211_ADDR_COPY(mp,
@@ -1592,7 +1592,7 @@ malo_setmcastfilter(struct malo_softc *sc)
 
 		mp += IEEE80211_ADDR_LEN, nmc++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	malo_hal_setmcast(sc->malo_mh, nmc, macs);
 

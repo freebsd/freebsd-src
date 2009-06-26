@@ -1168,7 +1168,7 @@ admsw_set_filter(struct admsw_softc *sc)
 
 		ifp->if_flags &= ~IFF_ALLMULTI;
 
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		{
 			if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -1176,7 +1176,7 @@ admsw_set_filter(struct admsw_softc *sc)
 
 			anymc |= vlan_matrix[i];
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 
 	conf = REG_READ(CPUP_CONF_REG);

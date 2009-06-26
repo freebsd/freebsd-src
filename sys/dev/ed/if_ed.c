@@ -1614,7 +1614,7 @@ ed_ds_getmcaf(struct ed_softc *sc, uint32_t *mcaf)
 	mcaf[0] = 0;
 	mcaf[1] = 0;
 
-	IF_ADDR_LOCK(sc->ifp);
+	if_maddr_rlock(sc->ifp);
 	TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1622,7 +1622,7 @@ ed_ds_getmcaf(struct ed_softc *sc, uint32_t *mcaf)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		af[index >> 3] |= 1 << (index & 7);
 	}
-	IF_ADDR_UNLOCK(sc->ifp);
+	if_maddr_runlock(sc->ifp);
 }
 
 int
