@@ -356,7 +356,7 @@ mbuf_jumbo_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
 	return ((void *)kmem_alloc_contig(kernel_map, bytes, wait,
-	    (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0));
+	    (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0, VM_CACHE_DEFAULT));
 }
 
 /*
