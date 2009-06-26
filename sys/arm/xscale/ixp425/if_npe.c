@@ -435,7 +435,7 @@ npe_setmcast(struct npe_softc *sc)
 		memset(clr, 0, ETHER_ADDR_LEN);
 		memset(set, 0xff, ETHER_ADDR_LEN);
 
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -445,7 +445,7 @@ npe_setmcast(struct npe_softc *sc)
 				set[i] &= mac[i];
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 
 		for (i = 0; i < ETHER_ADDR_LEN; i++) {
 			mask[i] = set[i] | ~clr[i];

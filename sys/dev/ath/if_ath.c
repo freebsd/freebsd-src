@@ -2408,7 +2408,7 @@ ath_update_mcast(struct ifnet *ifp)
 		 * Merge multicast addresses to form the hardware filter.
 		 */
 		mfilt[0] = mfilt[1] = 0;
-		IF_ADDR_LOCK(ifp);	/* XXX need some fiddling to remove? */
+		if_maddr_rlock(ifp);	/* XXX need some fiddling to remove? */
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			caddr_t dl;
 			u_int32_t val;
@@ -2423,7 +2423,7 @@ ath_update_mcast(struct ifnet *ifp)
 			pos &= 0x3f;
 			mfilt[pos / 32] |= (1 << (pos % 32));
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	} else
 		mfilt[0] = mfilt[1] = ~0;
 	ath_hal_setmcastfilter(sc->sc_ah, mfilt[0], mfilt[1]);

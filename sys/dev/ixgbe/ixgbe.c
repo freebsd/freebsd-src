@@ -1883,7 +1883,7 @@ ixgbe_set_multi(struct adapter *adapter)
 	
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCTRL, fctrl);
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1892,7 +1892,7 @@ ixgbe_set_multi(struct adapter *adapter)
 		    IXGBE_ETH_LENGTH_OF_ADDRESS);
 		mcnt++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	update_ptr = mta;
 	ixgbe_update_mc_addr_list(&adapter->hw,

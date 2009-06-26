@@ -1022,7 +1022,7 @@ cs_setmode(struct cs_softc *sc)
 			 * Set up the filter to only accept multicast
 			 * frames we're interested in.
 			 */
-			IF_ADDR_LOCK(ifp);
+			if_maddr_rlock(ifp);
 			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 				struct sockaddr_dl *dl =
 				    (struct sockaddr_dl *)ifma->ifma_addr;
@@ -1032,7 +1032,7 @@ cs_setmode(struct cs_softc *sc)
 				mask = (u_int16_t) (1 << (index & 0xf));
 				af[port] |= mask;
 			}
-			IF_ADDR_UNLOCK(ifp);
+			if_maddr_runlock(ifp);
 		}
 
 		cs_writereg(sc, PP_LAF + 0, af[0]);
