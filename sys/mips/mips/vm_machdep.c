@@ -351,9 +351,18 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	bzero(tf, sizeof(struct trapframe));
 	tf->sp = (register_t)sp;
 	tf->pc = (register_t)entry;
+	/* 
+	 * MIPS ABI requires T9 to be the same as PC 
+	 * in subroutine entry point
+	 */
+	tf->t9 = (register_t)entry; 
 	tf->a0 = (register_t)arg;
 
-	tf->sr = SR_KSU_USER | SR_EXL;
+	/*
+	 * Keep interrupt mask
+	 */
+	tf->sr = SR_KSU_USER | SR_EXL | (SR_INT_MASK & mips_rd_status()) |
+	    MIPS_SR_INT_IE;
 #ifdef TARGET_OCTEON
 	tf->sr |=  MIPS_SR_INT_IE | MIPS_SR_COP_0_BIT | MIPS_SR_UX |
 	  MIPS_SR_KX;
