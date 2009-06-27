@@ -17,14 +17,20 @@
 #include "AsmLexer.h"
 
 namespace llvm {
+class MCContext;
 class MCInst;
+class MCStreamer;
   
 class AsmParser {
   AsmLexer Lexer;
+  MCContext &Ctx;
+  MCStreamer &Out;
+  
   struct X86Operand;
   
 public:
-  AsmParser(SourceMgr &SM) : Lexer(SM) {}
+  AsmParser(SourceMgr &SM, MCContext &ctx, MCStreamer &OutStr)
+    : Lexer(SM), Ctx(ctx), Out(OutStr) {}
   ~AsmParser() {}
   
   bool Run();
@@ -37,6 +43,7 @@ private:
   
   void EatToEndOfStatement();
   
+  bool ParseAssignment(const char *Name, bool IsDotSet);
   bool ParseExpression(int64_t &Res);
   bool ParsePrimaryExpr(int64_t &Res);
   bool ParseBinOpRHS(unsigned Precedence, int64_t &Res);
@@ -46,6 +53,18 @@ private:
   bool ParseX86InstOperands(MCInst &Inst);
   bool ParseX86Operand(X86Operand &Op);
   bool ParseX86MemOperand(X86Operand &Op);
+  
+  // Directive Parsing.
+  bool ParseDirectiveDarwinSection(); // Darwin specific ".section".
+  bool ParseDirectiveSectionSwitch(const char *Section,
+                                   const char *Directives = 0);
+  bool ParseDirectiveAscii(bool ZeroTerminated); // ".ascii", ".asciiz"
+  bool ParseDirectiveValue(unsigned Size); // ".byte", ".long", ...
+  bool ParseDirectiveFill(); // ".fill"
+  bool ParseDirectiveSpace(); // ".space"
+  bool ParseDirectiveSet(); // ".set"
+  bool ParseDirectiveOrg(); // ".org"
+  
 };
 
 } // end namespace llvm

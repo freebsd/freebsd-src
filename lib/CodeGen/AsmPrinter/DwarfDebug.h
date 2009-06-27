@@ -460,21 +460,10 @@ class VISIBILITY_HIDDEN DwarfDebug : public Dwarf {
 
   void ConstructCompileUnit(GlobalVariable *GV);
 
-  /// ConstructCompileUnits - Create a compile unit DIEs.
-  void ConstructCompileUnits();
+  void ConstructGlobalVariableDIE(GlobalVariable *GV);
 
-  bool ConstructGlobalVariableDIE(GlobalVariable *GV);
+  void ConstructSubprogram(GlobalVariable *GV);
 
-  /// ConstructGlobalVariableDIEs - Create DIEs for each of the externally 
-  /// visible global variables. Return true if at least one global DIE is
-  /// created.
-  bool ConstructGlobalVariableDIEs();
-
-  bool ConstructSubprogram(GlobalVariable *GV);
-
-  /// ConstructSubprograms - Create DIEs for each of the externally visible
-  /// subprograms. Return true if at least one subprogram DIE is created.
-  bool ConstructSubprograms();
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
@@ -486,15 +475,9 @@ public:
   /// be emitted.
   bool ShouldEmitDwarfDebug() const { return shouldEmit; }
 
-  /// SetDebugInfo - Create global DIEs and emit initial debug info sections.
-  /// This is inovked by the target AsmPrinter.
-  void SetDebugInfo(MachineModuleInfo *mmi);
-
   /// BeginModule - Emit all Dwarf sections that should come prior to the
   /// content.
-  void BeginModule(Module *M) {
-    this->M = M;
-  }
+  void BeginModule(Module *M, MachineModuleInfo *MMI);
 
   /// EndModule - Emit all Dwarf sections that should come after the content.
   ///

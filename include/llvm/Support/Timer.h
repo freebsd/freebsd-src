@@ -16,6 +16,7 @@
 #define LLVM_SUPPORT_TIMER_H
 
 #include "llvm/Support/DataTypes.h"
+#include "llvm/System/Mutex.h"
 #include <string>
 #include <vector>
 #include <iosfwd>
@@ -34,28 +35,37 @@ class TimerGroup;
 /// if they are never started.
 ///
 class Timer {
-  int64_t Elapsed;        // Wall clock time elapsed in seconds
-  int64_t UserTime;       // User time elapsed
-  int64_t SystemTime;     // System time elapsed
-  int64_t MemUsed;       // Memory allocated (in bytes)
-  int64_t PeakMem;        // Peak memory used
-  int64_t PeakMemBase;    // Temporary for peak calculation...
+  double Elapsed;        // Wall clock time elapsed in seconds
+  double UserTime;       // User time elapsed
+  double SystemTime;     // System time elapsed
+  ssize_t MemUsed;       // Memory allocated (in bytes)
+  size_t PeakMem;        // Peak memory used
+  size_t PeakMemBase;    // Temporary for peak calculation...
   std::string Name;      // The name of this time variable
   bool Started;          // Has this time variable ever been started?
   TimerGroup *TG;        // The TimerGroup this Timer is in.
+  mutable sys::SmartMutex<true> Lock; // Mutex for the contents of this Timer.
 public:
   explicit Timer(const std::string &N);
   Timer(const std::string &N, TimerGroup &tg);
   Timer(const Timer &T);
   ~Timer();
 
-  int64_t getProcessTime() const { return UserTime+SystemTime; }
-  int64_t getWallTime() const { return Elapsed; }
-  int64_t getMemUsed() const { return MemUsed; }
-  int64_t getPeakMem() const { return PeakMem; }
+  double getProcessTime() const { return UserTime+SystemTime; }
+  double getWallTime() const { return Elapsed; }
+  ssize_t getMemUsed() const { return MemUsed; }
+  size_t getPeakMem() const { return PeakMem; }
   std::string getName() const { return Name; }
 
   const Timer &operator=(const Timer &T) {
+    if (&T < this) {
+      T.Lock.acquire();
+      Lock.acquire();
+    } else {
+      Lock.acquire();
+      T.Lock.acquire();
+    }
+    
     Elapsed = T.Elapsed;
     UserTime = T.UserTime;
     SystemTime = T.SystemTime;
@@ -65,6 +75,15 @@ public:
     Name = T.Name;
     Started = T.Started;
     assert(TG == T.TG && "Can only assign timers in the same TimerGroup!");
+    
+    if (&T < this) {
+      T.Lock.release();
+      Lock.release();
+    } else {
+      Lock.release();
+      T.Lock.release();
+    }
+    
     return *this;
   }
 
@@ -160,11 +179,9 @@ public:
 
 private:
   friend class Timer;
-  void addTimer() { ++NumTimers; }
+  void addTimer();
   void removeTimer();
-  void addTimerToPrint(const Timer &T) {
-    TimersToPrint.push_back(Timer(true, T));
-  }
+  void addTimerToPrint(const Timer &T);
 };
 
 } // End llvm namespace

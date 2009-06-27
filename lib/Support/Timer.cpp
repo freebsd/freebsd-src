@@ -38,6 +38,8 @@ static std::string &getLibSupportInfoOutputFilename() {
   return *LibSupportInfoOutputFilename;
 }
 
+static ManagedStatic<sys::SmartMutex<true> > TimerLock;
+
 namespace {
   static cl::opt<bool>
   TrackSpace("track-memory", cl::desc("Enable -time-passes memory "
@@ -112,7 +114,8 @@ static inline size_t getMemUsage() {
 }
 
 struct TimeRecord {
-  int64_t Elapsed, UserTime, SystemTime, MemUsed;
+  double Elapsed, UserTime, SystemTime;
+  ssize_t MemUsed;
 };
 
 static TimeRecord getTimeRecord(bool Start) {
@@ -122,7 +125,7 @@ static TimeRecord getTimeRecord(bool Start) {
   sys::TimeValue user(0,0);
   sys::TimeValue sys(0,0);
 
-  int64_t MemUsed = 0;
+  ssize_t MemUsed = 0;
   if (Start) {
     MemUsed = getMemUsage();
     sys::Process::GetTimeUsage(now,user,sys);
@@ -131,9 +134,9 @@ static TimeRecord getTimeRecord(bool Start) {
     MemUsed = getMemUsage();
   }
 
-  Result.Elapsed  = now.seconds() * 1000000 + now.microseconds();
-  Result.UserTime = user.seconds() * 1000000 + user.microseconds();
-  Result.SystemTime  = sys.seconds() * 1000000 + sys.microseconds();
+  Result.Elapsed  = now.seconds()  + now.microseconds()  / 1000000.0;
+  Result.UserTime = user.seconds() + user.microseconds() / 1000000.0;
+  Result.SystemTime  = sys.seconds()  + sys.microseconds()  / 1000000.0;
   Result.MemUsed  = MemUsed;
 
   return Result;
@@ -142,6 +145,7 @@ static TimeRecord getTimeRecord(bool Start) {
 static ManagedStatic<std::vector<Timer*> > ActiveTimers;
 
 void Timer::startTimer() {
+  sys::SmartScopedLock<true> L(&Lock);
   Started = true;
   ActiveTimers->push_back(this);
   TimeRecord TR = getTimeRecord(true);
@@ -153,6 +157,7 @@ void Timer::startTimer() {
 }
 
 void Timer::stopTimer() {
+  sys::SmartScopedLock<true> L(&Lock);
   TimeRecord TR = getTimeRecord(false);
   Elapsed    += TR.Elapsed;
   UserTime   += TR.UserTime;
@@ -170,11 +175,27 @@ void Timer::stopTimer() {
 }
 
 void Timer::sum(const Timer &T) {
+  if (&T < this) {
+    T.Lock.acquire();
+    Lock.acquire();
+  } else {
+    Lock.acquire();
+    T.Lock.acquire();
+  }
+  
   Elapsed    += T.Elapsed;
   UserTime   += T.UserTime;
   SystemTime += T.SystemTime;
   MemUsed    += T.MemUsed;
   PeakMem    += T.PeakMem;
+  
+  if (&T < this) {
+    T.Lock.release();
+    Lock.release();
+  } else {
+    Lock.release();
+    T.Lock.release();
+  }
 }
 
 /// addPeakMemoryMeasurement - This method should be called whenever memory
@@ -185,8 +206,11 @@ void Timer::addPeakMemoryMeasurement() {
   size_t MemUsed = getMemUsage();
 
   for (std::vector<Timer*>::iterator I = ActiveTimers->begin(),
-         E = ActiveTimers->end(); I != E; ++I)
+         E = ActiveTimers->end(); I != E; ++I) {
+    (*I)->Lock.acquire();
     (*I)->PeakMem = std::max((*I)->PeakMem, MemUsed-(*I)->PeakMemBase);
+    (*I)->Lock.release();
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -205,6 +229,7 @@ static ManagedStatic<Name2Timer> NamedTimers;
 static ManagedStatic<Name2Pair> NamedGroupedTimers;
 
 static Timer &getNamedRegionTimer(const std::string &Name) {
+  sys::SmartScopedLock<true> L(&*TimerLock);
   Name2Timer::iterator I = NamedTimers->find(Name);
   if (I != NamedTimers->end())
     return I->second;
@@ -214,6 +239,7 @@ static Timer &getNamedRegionTimer(const std::string &Name) {
 
 static Timer &getNamedRegionTimer(const std::string &Name,
                                   const std::string &GroupName) {
+  sys::SmartScopedLock<true> L(&*TimerLock);
 
   Name2Pair::iterator I = NamedGroupedTimers->find(GroupName);
   if (I == NamedGroupedTimers->end()) {
@@ -275,14 +301,21 @@ static void printVal(double Val, double Total, std::ostream &OS) {
 }
 
 void Timer::print(const Timer &Total, std::ostream &OS) {
+  if (&Total < this) {
+    Total.Lock.acquire();
+    Lock.acquire();
+  } else {
+    Lock.acquire();
+    Total.Lock.acquire();
+  }
+  
   if (Total.UserTime)
-    printVal(UserTime / 1000000.0, Total.UserTime / 1000000.0, OS);
+    printVal(UserTime, Total.UserTime, OS);
   if (Total.SystemTime)
-    printVal(SystemTime / 1000000.0, Total.SystemTime / 1000000.0, OS);
+    printVal(SystemTime, Total.SystemTime, OS);
   if (Total.getProcessTime())
-    printVal(getProcessTime() / 1000000.0,
-             Total.getProcessTime() / 1000000.0, OS);
-  printVal(Elapsed / 1000000.0, Total.Elapsed / 1000000.0, OS);
+    printVal(getProcessTime(), Total.getProcessTime(), OS);
+  printVal(Elapsed, Total.Elapsed, OS);
 
   OS << "  ";
 
@@ -300,6 +333,14 @@ void Timer::print(const Timer &Total, std::ostream &OS) {
   OS << Name << "\n";
 
   Started = false;  // Once printed, don't print again
+  
+  if (&Total < this) {
+    Total.Lock.release();
+    Lock.release();
+  } else {
+    Lock.release();
+    Total.Lock.release();
+  }
 }
 
 // GetLibSupportInfoOutputFile - Return a file stream to print our output on...
@@ -324,6 +365,7 @@ llvm::GetLibSupportInfoOutputFile() {
 
 
 void TimerGroup::removeTimer() {
+  sys::SmartScopedLock<true> L(&*TimerLock);
   if (--NumTimers == 0 && !TimersToPrint.empty()) { // Print timing report...
     // Sort the timers in descending order by amount of time taken...
     std::sort(TimersToPrint.begin(), TimersToPrint.end(),
@@ -355,23 +397,23 @@ void TimerGroup::removeTimer() {
       if (this != DefaultTimerGroup) {
         *OutStream << "  Total Execution Time: ";
 
-        printAlignedFP(Total.getProcessTime() / 1000000.0, 4, 5, *OutStream);
+        printAlignedFP(Total.getProcessTime(), 4, 5, *OutStream);
         *OutStream << " seconds (";
-        printAlignedFP(Total.getWallTime() / 1000000.0, 4, 5, *OutStream);
+        printAlignedFP(Total.getWallTime(), 4, 5, *OutStream);
         *OutStream << " wall clock)\n";
       }
       *OutStream << "\n";
 
-      if (Total.UserTime / 1000000.0)
+      if (Total.UserTime)
         *OutStream << "   ---User Time---";
-      if (Total.SystemTime / 1000000.0)
+      if (Total.SystemTime)
         *OutStream << "   --System Time--";
-      if (Total.getProcessTime() / 1000000.0)
+      if (Total.getProcessTime())
         *OutStream << "   --User+System--";
       *OutStream << "   ---Wall Time---";
-      if (Total.getMemUsed() / 1000000.0)
+      if (Total.getMemUsed())
         *OutStream << "  ---Mem---";
-      if (Total.getPeakMem() / 1000000.0)
+      if (Total.getPeakMem())
         *OutStream << "  -PeakMem-";
       *OutStream << "  --- Name ---\n";
 
@@ -389,5 +431,15 @@ void TimerGroup::removeTimer() {
     if (OutStream != cerr.stream() && OutStream != cout.stream())
       delete OutStream;   // Close the file...
   }
+}
+
+void TimerGroup::addTimer() {
+  sys::SmartScopedLock<true> L(&*TimerLock);
+  ++NumTimers;
+}
+
+void TimerGroup::addTimerToPrint(const Timer &T) {
+  sys::SmartScopedLock<true> L(&*TimerLock);
+  TimersToPrint.push_back(Timer(true, T));
 }
 

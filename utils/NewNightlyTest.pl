@@ -109,6 +109,13 @@ $BuildDir      = "$HOME/buildtest" unless $BuildDir;
 my $WebDir     = $ENV{'WEBDIR'};
 $WebDir        = "$HOME/cvs/testresults-X86" unless $WebDir;
 
+my $LLVMSrcDir   = $ENV{'LLVMSRCDIR'};
+$LLVMSrcDir    = "$BuildDir/llvm" unless $LLVMSrcDir;
+my $LLVMObjDir   = $ENV{'LLVMOBJDIR'};
+$LLVMObjDir    = "$BuildDir/llvm" unless $LLVMObjDir;
+my $LLVMTestDir   = $ENV{'LLVMTESTDIR'};
+$LLVMTestDir    = "$BuildDir/llvm/projects/llvm-test" unless $LLVMTestDir;
+
 ##############################################################
 #
 # Calculate the date prefix...
@@ -168,6 +175,7 @@ while (scalar(@ARGV) and ($_ = $ARGV[0], /^[-+]/)) {
   if (/^-disable-lto$/)    { $PROGTESTOPTS .= " DISABLE_LTO=1"; next; }
   if (/^-test-opts$/)      { $PROGTESTOPTS .= " $ARGV[0]"; shift; next; }
   if (/^-verbose$/)        { $VERBOSE = 1; next; }
+  if (/^-teelogs$/)        { $TEELOGS = 1; next; }
   if (/^-debug$/)          { $DEBUG = 1; next; }
   if (/^-nice$/)           { $NICE = "nice "; next; }
   if (/^-f2c$/)            { $CONFIGUREARGS .= " --with-f2c=$ARGV[0]";
@@ -291,6 +299,44 @@ sub GetDir {
   my @Result = reverse sort grep !/$DATE/, grep /[-0-9]+$Suffix/, readdir DH;
   closedir DH;
   return @Result;
+}
+
+sub RunLoggedCommand {
+  my $Command = shift;
+  my $Log = shift;
+  my $Title = shift;
+  if ($TEELOGS) {
+      if ($VERBOSE) {
+          print "$Title\n";
+          print "$Command 2>&1 | tee $Log\n";
+      }
+      system "$Command 2>&1 | tee $Log";
+  } else {
+      if ($VERBOSE) {
+          print "$Title\n";
+          print "$Command 2>&1 > $Log\n";
+      }
+      system "$Command 2>&1 > $Log";
+  }
+}
+
+sub RunAppendingLoggedCommand {
+  my $Command = shift;
+  my $Log = shift;
+  my $Title = shift;
+  if ($TEELOGS) {
+      if ($VERBOSE) {
+          print "$Title\n";
+          print "$Command 2>&1 | tee -a $Log\n";
+      }
+      system "$Command 2>&1 | tee -a $Log";
+  } else {
+      if ($VERBOSE) {
+          print "$Title\n";
+          print "$Command 2>&1 > $Log\n";
+      }
+      system "$Command 2>&1 >> $Log";
+  }
 }
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -458,7 +504,11 @@ sub SendData{
     WriteFile "$Prefix-sentdata.txt", $sentdata;
 
     if (!($SUBMITAUX eq "")) {
-      system "$SUBMITAUX \"$Prefix-sentdata.txt\"";
+        system "$SUBMITAUX \"$Prefix-sentdata.txt\"";
+    }
+
+    if (!$SUBMIT) { 
+        return "Skipped standard submit.\n";
     }
 
     # Create the content to send to the server.
@@ -528,7 +578,6 @@ if (!$NOCHECKOUT) {
     mkdir $BuildDir or die "Could not create checkout directory $BuildDir!";
   }
 }
-ChangeDir( $BuildDir, "checkout directory" );
 
 
 ##############################################################
@@ -537,38 +586,29 @@ ChangeDir( $BuildDir, "checkout directory" );
 #
 ##############################################################
 if (!$NOCHECKOUT) {
-  if ( $VERBOSE ) { print "CHECKOUT STAGE:\n"; }
+  ChangeDir( $BuildDir, "checkout directory" );
   if ($USESVN) {
       my $SVNCMD = "$NICE svn co --non-interactive $SVNURL";
       my $SVNCMD2 = "$NICE svn co --non-interactive $TestSVNURL";
-      if ($VERBOSE) {
-        print "( time -p $SVNCMD/llvm/trunk llvm; cd llvm/projects ; " .
-              "$SVNCMD2/test-suite/trunk llvm-test ) > $COLog 2>&1\n";
-      }
-      system "( time -p $SVNCMD/llvm/trunk llvm; cd llvm/projects ; " .
-            "$SVNCMD2/test-suite/trunk llvm-test ) > $COLog 2>&1\n";
+      RunLoggedCommand("( time -p $SVNCMD/llvm/trunk llvm; cd llvm/projects ; " .
+                       "$SVNCMD2/test-suite/trunk llvm-test )", $COLog,
+                       "CHECKOUT LLVM");
       if ($WITHCLANG) {
         my $SVNCMD = "$NICE svn co --non-interactive $SVNURL/cfe/trunk";
-        if ($VERBOSE) {
-          print "( time -p cd llvm/tools ; $SVNCMD clang ) > $COLog 2>&1\n"; 
-        }
-          system "( time -p cd llvm/tools ; $SVNCMD clang ) > $COLog 2>&1\n";
+        RunLoggedCommand("( time -p cd llvm/tools ; $SVNCMD clang )", $COLog,
+                         "CHECKOUT CLANG");
       }
   } else {
     my $CVSOPT = "";
     $CVSOPT = "-z3" # Use compression if going over ssh.
       if $CVSRootDir =~ /^:ext:/;
     my $CVSCMD = "$NICE cvs $CVSOPT -d $CVSRootDir co -P $CVSCOOPT";
-    if ($VERBOSE) {
-      print "( time -p $CVSCMD llvm; cd llvm/projects ; " .
-            "$CVSCMD llvm-test ) > $COLog 2>&1\n";
-    }
-    system "( time -p $CVSCMD llvm; cd llvm/projects ; " .
-          "$CVSCMD llvm-test ) > $COLog 2>&1\n";
+    RunLoggedCommand("( time -p $CVSCMD llvm; cd llvm/projects ; " .
+                     "$CVSCMD llvm-test )", $COLog,
+                     "CHECKOUT LLVM-TEST");
   }
 }
-ChangeDir( $BuildDir , "Checkout directory") ;
-ChangeDir( "llvm" , "llvm source directory") ;
+ChangeDir( $LLVMSrcDir , "llvm source directory") ;
 
 ##############################################################
 #
@@ -721,21 +761,11 @@ my $UserUpdateList = join "\n", sort keys %UsersUpdated;
 ##############################################################
 if (!$NOCHECKOUT && !$NOBUILD) {
   my $EXTRAFLAGS = "--enable-spec --with-objroot=.";
-  if ( $VERBOSE ) {
-    print "CONFIGURE STAGE:\n";
-    print "(time -p $NICE ./configure $CONFIGUREARGS $EXTRAFLAGS) " .
-          "> $BuildLog 2>&1\n";
-  }
-  system "(time -p $NICE ./configure $CONFIGUREARGS $EXTRAFLAGS) " .
-         "> $BuildLog 2>&1";
-  if ( $VERBOSE ) {
-    print "BUILD STAGE:\n";
-    print "(time -p $NICE $MAKECMD clean) >> $BuildLog 2>&1\n";
-    print "(time -p $NICE $MAKECMD $MAKEOPTS) >> $BuildLog 2>&1\n";
-  }
+  RunLoggedCommand("(time -p $NICE ./configure $CONFIGUREARGS $EXTRAFLAGS) ",
+                   $BuildLog, "CONFIGURE");
   # Build the entire tree, capturing the output into $BuildLog
-  system "(time -p $NICE $MAKECMD clean) >> $BuildLog 2>&1";
-  system "(time -p $NICE $MAKECMD $MAKEOPTS) >> $BuildLog 2>&1";
+  RunAppendingLoggedCommand("(time -p $NICE $MAKECMD clean)", $BuildLog, "BUILD CLEAN");
+  RunAppendingLoggedCommand("(time -p $NICE $MAKECMD $MAKEOPTS)", $BuildLog, "BUILD");
 }
 
 ##############################################################
@@ -751,7 +781,7 @@ if (!$NOCHECKOUT && !$NOBUILD) {
 
 # Get the number of lines of source code. Must be here after the build is done
 # because countloc.sh uses the llvm-config script which must be built.
-my $LOC = `utils/countloc.sh -topdir $BuildDir/llvm`;
+my $LOC = `utils/countloc.sh -topdir $LLVMSrcDir`;
 
 # Get the time taken by the configure script
 my $ConfigTimeU = GetRegexNum "^user", 0, "([0-9.]+)", "$BuildLog";
@@ -787,7 +817,7 @@ my $o_file_sizes="";
 if (!$BuildError) {
   print "Organizing size of .o and .a files\n"
     if ( $VERBOSE );
-  ChangeDir( "$BuildDir/llvm", "Build Directory" );
+  ChangeDir( "$LLVMObjDir", "Build Directory" );
 
   my @dirs = ('utils', 'lib', 'tools');
   if($BUILDTYPE eq "release"){
@@ -815,14 +845,9 @@ if (!$BuildError) {
 my $DejangnuTestResults=""; # String containing the results of the dejagnu
 my $dejagnu_output = "$DejagnuTestsLog";
 if (!$NODEJAGNU) {
-  if($VERBOSE) {
-    print "DEJAGNU FEATURE/REGRESSION TEST STAGE:\n";
-    print "(time -p $MAKECMD $MAKEOPTS check) > $dejagnu_output 2>&1\n";
-  }
-
   #Run the feature and regression tests, results are put into testrun.sum
   #Full log in testrun.log
-  system "(time -p $MAKECMD $MAKEOPTS check) > $dejagnu_output 2>&1";
+  RunLoggedCommand("(time -p $MAKECMD $MAKEOPTS check)", $dejagnu_output, "DEJAGNU");
 
   #Copy the testrun.log and testrun.sum to our webdir
   CopyFile("test/testrun.log", $DejagnuLog);
@@ -857,7 +882,7 @@ if (!$NODEJAGNU) {
     if ($Warning =~ m/Entering directory \`([^\`]+)\'/) {
       $CurDir = $1;                 # Keep track of directory warning is in...
       # Remove buildir prefix if included
-      if ($CurDir =~ m#$BuildDir/llvm/(.*)#) { $CurDir = $1; }
+      if ($CurDir =~ m#$LLVMSrcDir/(.*)#) { $CurDir = $1; }
     } else {
       push @Warnings, "$CurDir/$Warning";     # Add directory to warning...
     }
@@ -886,9 +911,10 @@ if (!$NODEJAGNU) {
 # "External")
 #
 ##############################################################
+
 sub TestDirectory {
   my $SubDir = shift;
-  ChangeDir( "$BuildDir/llvm/projects/llvm-test/$SubDir",
+  ChangeDir( "$LLVMTestDir/$SubDir",
              "Programs Test Subdirectory" ) || return ("", "");
 
   my $ProgramTestLog = "$Prefix-$SubDir-ProgramTest.txt";
@@ -899,8 +925,8 @@ sub TestDirectory {
       print "$MAKECMD -k $MAKEOPTS $PROGTESTOPTS report.nightly.csv ".
             "TEST=nightly > $ProgramTestLog 2>&1\n";
     }
-    system "$MAKECMD -k $MAKEOPTS $PROGTESTOPTS report.nightly.csv ".
-           "TEST=nightly > $ProgramTestLog 2>&1";
+    RunLoggedCommand("$MAKECMD -k $MAKEOPTS $PROGTESTOPTS report.nightly.csv ".
+                     "TEST=nightly", $ProgramTestLog, "TEST DIRECTORY $SubDir");
     $llcbeta_options=`$MAKECMD print-llcbeta-option`;
   }
 
@@ -933,21 +959,12 @@ sub TestDirectory {
 #
 ##############################################################
 if (!$BuildError) {
-  if ( $VERBOSE ) {
-     print "SingleSource TEST STAGE\n";
-  }
   ($SingleSourceProgramsTable, $llcbeta_options) =
     TestDirectory("SingleSource");
   WriteFile "$Prefix-SingleSource-Performance.txt", $SingleSourceProgramsTable;
-  if ( $VERBOSE ) {
-    print "MultiSource TEST STAGE\n";
-  }
   ($MultiSourceProgramsTable, $llcbeta_options) = TestDirectory("MultiSource");
   WriteFile "$Prefix-MultiSource-Performance.txt", $MultiSourceProgramsTable;
   if ( ! $NOEXTERNALS ) {
-    if ( $VERBOSE ) {
-      print "External TEST STAGE\n";
-    }
     ($ExternalProgramsTable, $llcbeta_options) = TestDirectory("External");
     WriteFile "$Prefix-External-Performance.txt", $ExternalProgramsTable;
     system "cat $Prefix-SingleSource-Tests.txt " .
@@ -1116,7 +1133,7 @@ my %hash_of_data = (
   'target_triple' => $targetTriple
 );
 
-if ($SUBMIT) {
+if ($SUBMIT || !($SUBMITAUX eq "")) {
   my $response = SendData $SUBMITSERVER,$SUBMITSCRIPT,\%hash_of_data;
   if( $VERBOSE) { print "============================\n$response"; }
 } else {

@@ -33,6 +33,7 @@ namespace llvm {
   class GlobalVariable;
   class MachineConstantPoolEntry;
   class MachineConstantPoolValue;
+  class MachineModuleInfo;
   class DwarfWriter;
   class Mangler;
   class Section;
@@ -58,14 +59,12 @@ namespace llvm {
     gcp_map_type GCMetadataPrinters;
     
   protected:
-    /// DW -This is needed because printDeclare() has to insert
-    /// DbgVariable entries into the dwarf table. This is a short term hack
-    /// that ought be fixed soon.
+    /// MMI - If available, this is a pointer to the current MachineModuleInfo.
+    MachineModuleInfo *MMI;
+    
+    /// DW - If available, this is a pointer to the current dwarf writer.
     DwarfWriter *DW;
     
-    // Necessary for external weak linkage support
-    std::set<const GlobalValue*> ExtWeakSymbols;
-
     /// OptLevel - Generating code at a specific optimization level.
     CodeGenOpt::Level OptLevel;
   public:
@@ -109,6 +108,15 @@ namespace llvm {
     /// VerboseAsm - Emit comments in assembly output if this is true.
     ///
     bool VerboseAsm;
+
+    /// Private state for PrintSpecial()
+    // Assign a unique ID to this machine instruction.
+    mutable const MachineInstr *LastMI;
+    mutable const Function *LastFn;
+    mutable unsigned Counter;
+    
+    // Private state for processDebugLock()
+    mutable DebugLocTuple PrevDLT;
 
   protected:
     explicit AsmPrinter(raw_ostream &o, TargetMachine &TM,

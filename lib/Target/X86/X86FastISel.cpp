@@ -396,8 +396,7 @@ bool X86FastISel::X86SelectAddress(Value *V, X86AddressMode &AM, bool isCall) {
           // Constant-offset addressing.
           Disp += CI->getSExtValue() * S;
         } else if (IndexReg == 0 &&
-                   (!AM.GV ||
-                    !getTargetMachine()->symbolicAddressesAreRIPRel()) &&
+                   (!AM.GV || !Subtarget->isPICStyleRIPRel()) &&
                    (S == 1 || S == 2 || S == 4 || S == 8)) {
           // Scaled-index addressing.
           Scale = S;
@@ -432,7 +431,7 @@ bool X86FastISel::X86SelectAddress(Value *V, X86AddressMode &AM, bool isCall) {
       return false;
 
     // RIP-relative addresses can't have additional register operands.
-    if (getTargetMachine()->symbolicAddressesAreRIPRel() &&
+    if (Subtarget->isPICStyleRIPRel() &&
         (AM.Base.Reg != 0 || AM.IndexReg != 0))
       return false;
 
@@ -443,6 +442,7 @@ bool X86FastISel::X86SelectAddress(Value *V, X86AddressMode &AM, bool isCall) {
 
     // Set up the basic address.
     AM.GV = GV;
+    
     if (!isCall &&
         TM.getRelocationModel() == Reloc::PIC_ &&
         !Subtarget->is64Bit())
@@ -481,12 +481,16 @@ bool X86FastISel::X86SelectAddress(Value *V, X86AddressMode &AM, bool isCall) {
 
       // Prevent loading GV stub multiple times in same MBB.
       LocalValueMap[V] = AM.Base.Reg;
+    } else if (Subtarget->isPICStyleRIPRel()) {
+      // Use rip-relative addressing if we can.
+      AM.Base.Reg = X86::RIP;
     }
+    
     return true;
   }
 
   // If all else fails, try to materialize the value in a register.
-  if (!AM.GV || !getTargetMachine()->symbolicAddressesAreRIPRel()) {
+  if (!AM.GV || !Subtarget->isPICStyleRIPRel()) {
     if (AM.Base.Reg == 0) {
       AM.Base.Reg = getRegForValue(V);
       return AM.Base.Reg != 0;
@@ -1140,12 +1144,10 @@ bool X86FastISel::X86SelectCall(Instruction *I) {
     return false;
   unsigned CalleeOp = 0;
   GlobalValue *GV = 0;
-  if (CalleeAM.Base.Reg != 0) {
-    assert(CalleeAM.GV == 0);
-    CalleeOp = CalleeAM.Base.Reg;
-  } else if (CalleeAM.GV != 0) {
-    assert(CalleeAM.GV != 0);
+  if (CalleeAM.GV != 0) {
     GV = CalleeAM.GV;
+  } else if (CalleeAM.Base.Reg != 0) {
+    CalleeOp = CalleeAM.Base.Reg;
   } else
     return false;
 
@@ -1493,15 +1495,22 @@ unsigned X86FastISel::TargetMaterializeConstant(Constant *C) {
   
   // x86-32 PIC requires a PIC base register for constant pools.
   unsigned PICBase = 0;
-  if (TM.getRelocationModel() == Reloc::PIC_ &&
-      !Subtarget->is64Bit())
-    PICBase = getInstrInfo()->getGlobalBaseReg(&MF);
+  unsigned char OpFlag = 0;
+  if (TM.getRelocationModel() == Reloc::PIC_) {
+    if (Subtarget->isPICStyleStub()) {
+      OpFlag = X86II::MO_PIC_BASE_OFFSET;
+      PICBase = getInstrInfo()->getGlobalBaseReg(&MF);
+    } else if (Subtarget->isPICStyleGOT()) {
+      OpFlag = X86II::MO_GOTOFF;
+      PICBase = getInstrInfo()->getGlobalBaseReg(&MF);
+    }
+  }
 
   // Create the load from the constant pool.
   unsigned MCPOffset = MCP.getConstantPoolIndex(C, Align);
   unsigned ResultReg = createResultReg(RC);
-  addConstantPoolReference(BuildMI(MBB, DL, TII.get(Opc), ResultReg), MCPOffset,
-                           PICBase);
+  addConstantPoolReference(BuildMI(MBB, DL, TII.get(Opc), ResultReg),
+                           MCPOffset, PICBase, OpFlag);
 
   return ResultReg;
 }

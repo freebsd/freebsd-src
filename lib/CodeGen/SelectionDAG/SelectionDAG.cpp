@@ -31,8 +31,10 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/System/Mutex.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallSet.h"
@@ -359,6 +361,9 @@ static void AddNodeIDNode(FoldingSetNodeID &ID,
 /// the NodeID data.
 static void AddNodeIDCustom(FoldingSetNodeID &ID, const SDNode *N) {
   switch (N->getOpcode()) {
+  case ISD::TargetExternalSymbol:
+  case ISD::ExternalSymbol:
+    assert(0 && "Should only be used on nodes with operands");
   default: break;  // Normal nodes don't need extra info.
   case ISD::ARG_FLAGS:
     ID.AddInteger(cast<ARG_FLAGSSDNode>(N)->getArgFlags().getRawBits());
@@ -379,6 +384,7 @@ static void AddNodeIDCustom(FoldingSetNodeID &ID, const SDNode *N) {
     const GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(N);
     ID.AddPointer(GA->getGlobal());
     ID.AddInteger(GA->getOffset());
+    ID.AddInteger(GA->getTargetFlags());
     break;
   }
   case ISD::BasicBlock:
@@ -409,6 +415,7 @@ static void AddNodeIDCustom(FoldingSetNodeID &ID, const SDNode *N) {
   case ISD::JumpTable:
   case ISD::TargetJumpTable:
     ID.AddInteger(cast<JumpTableSDNode>(N)->getIndex());
+    ID.AddInteger(cast<JumpTableSDNode>(N)->getTargetFlags());
     break;
   case ISD::ConstantPool:
   case ISD::TargetConstantPool: {
@@ -419,6 +426,7 @@ static void AddNodeIDCustom(FoldingSetNodeID &ID, const SDNode *N) {
       CP->getMachineCPVal()->AddSelectionDAGCSEId(ID);
     else
       ID.AddPointer(CP->getConstVal());
+    ID.AddInteger(CP->getTargetFlags());
     break;
   }
   case ISD::CALL: {
@@ -630,10 +638,13 @@ bool SelectionDAG::RemoveNodeFromCSEMaps(SDNode *N) {
   case ISD::ExternalSymbol:
     Erased = ExternalSymbols.erase(cast<ExternalSymbolSDNode>(N)->getSymbol());
     break;
-  case ISD::TargetExternalSymbol:
-    Erased =
-      TargetExternalSymbols.erase(cast<ExternalSymbolSDNode>(N)->getSymbol());
+  case ISD::TargetExternalSymbol: {
+    ExternalSymbolSDNode *ESN = cast<ExternalSymbolSDNode>(N);
+    Erased = TargetExternalSymbols.erase(
+               std::pair<std::string,unsigned char>(ESN->getSymbol(),
+                                                    ESN->getTargetFlags()));
     break;
+  }
   case ISD::VALUETYPE: {
     MVT VT = cast<VTSDNode>(N)->getVT();
     if (VT.isExtended()) {
@@ -953,9 +964,11 @@ SDValue SelectionDAG::getConstantFP(double Val, MVT VT, bool isTarget) {
 
 SDValue SelectionDAG::getGlobalAddress(const GlobalValue *GV,
                                        MVT VT, int64_t Offset,
-                                       bool isTargetGA) {
-  unsigned Opc;
-
+                                       bool isTargetGA,
+                                       unsigned char TargetFlags) {
+  assert((TargetFlags == 0 || isTargetGA) &&
+         "Cannot set target flags on target-independent globals");
+  
   // Truncate (with sign-extension) the offset value to the pointer size.
   unsigned BitWidth = TLI.getPointerTy().getSizeInBits();
   if (BitWidth < 64)
@@ -968,6 +981,7 @@ SDValue SelectionDAG::getGlobalAddress(const GlobalValue *GV,
       GVar = dyn_cast_or_null<GlobalVariable>(GA->resolveAliasedGlobal(false));
   }
 
+  unsigned Opc;
   if (GVar && GVar->isThreadLocal())
     Opc = isTargetGA ? ISD::TargetGlobalTLSAddress : ISD::GlobalTLSAddress;
   else
@@ -977,11 +991,12 @@ SDValue SelectionDAG::getGlobalAddress(const GlobalValue *GV,
   AddNodeIDNode(ID, Opc, getVTList(VT), 0, 0);
   ID.AddPointer(GV);
   ID.AddInteger(Offset);
+  ID.AddInteger(TargetFlags);
   void *IP = 0;
   if (SDNode *E = CSEMap.FindNodeOrInsertPos(ID, IP))
     return SDValue(E, 0);
   SDNode *N = NodeAllocator.Allocate<GlobalAddressSDNode>();
-  new (N) GlobalAddressSDNode(isTargetGA, GV, VT, Offset);
+  new (N) GlobalAddressSDNode(Opc, GV, VT, Offset, TargetFlags);
   CSEMap.InsertNode(N, IP);
   AllNodes.push_back(N);
   return SDValue(N, 0);
@@ -1002,16 +1017,20 @@ SDValue SelectionDAG::getFrameIndex(int FI, MVT VT, bool isTarget) {
   return SDValue(N, 0);
 }
 
-SDValue SelectionDAG::getJumpTable(int JTI, MVT VT, bool isTarget){
+SDValue SelectionDAG::getJumpTable(int JTI, MVT VT, bool isTarget,
+                                   unsigned char TargetFlags) {
+  assert((TargetFlags == 0 || isTarget) &&
+         "Cannot set target flags on target-independent jump tables");
   unsigned Opc = isTarget ? ISD::TargetJumpTable : ISD::JumpTable;
   FoldingSetNodeID ID;
   AddNodeIDNode(ID, Opc, getVTList(VT), 0, 0);
   ID.AddInteger(JTI);
+  ID.AddInteger(TargetFlags);
   void *IP = 0;
   if (SDNode *E = CSEMap.FindNodeOrInsertPos(ID, IP))
     return SDValue(E, 0);
   SDNode *N = NodeAllocator.Allocate<JumpTableSDNode>();
-  new (N) JumpTableSDNode(JTI, VT, isTarget);
+  new (N) JumpTableSDNode(JTI, VT, isTarget, TargetFlags);
   CSEMap.InsertNode(N, IP);
   AllNodes.push_back(N);
   return SDValue(N, 0);
@@ -1019,7 +1038,10 @@ SDValue SelectionDAG::getJumpTable(int JTI, MVT VT, bool isTarget){
 
 SDValue SelectionDAG::getConstantPool(Constant *C, MVT VT,
                                       unsigned Alignment, int Offset,
-                                      bool isTarget) {
+                                      bool isTarget, 
+                                      unsigned char TargetFlags) {
+  assert((TargetFlags == 0 || isTarget) &&
+         "Cannot set target flags on target-independent globals");
   if (Alignment == 0)
     Alignment = TLI.getTargetData()->getPrefTypeAlignment(C->getType());
   unsigned Opc = isTarget ? ISD::TargetConstantPool : ISD::ConstantPool;
@@ -1028,11 +1050,12 @@ SDValue SelectionDAG::getConstantPool(Constant *C, MVT VT,
   ID.AddInteger(Alignment);
   ID.AddInteger(Offset);
   ID.AddPointer(C);
+  ID.AddInteger(TargetFlags);
   void *IP = 0;
   if (SDNode *E = CSEMap.FindNodeOrInsertPos(ID, IP))
     return SDValue(E, 0);
   SDNode *N = NodeAllocator.Allocate<ConstantPoolSDNode>();
-  new (N) ConstantPoolSDNode(isTarget, C, VT, Offset, Alignment);
+  new (N) ConstantPoolSDNode(isTarget, C, VT, Offset, Alignment, TargetFlags);
   CSEMap.InsertNode(N, IP);
   AllNodes.push_back(N);
   return SDValue(N, 0);
@@ -1041,7 +1064,10 @@ SDValue SelectionDAG::getConstantPool(Constant *C, MVT VT,
 
 SDValue SelectionDAG::getConstantPool(MachineConstantPoolValue *C, MVT VT,
                                       unsigned Alignment, int Offset,
-                                      bool isTarget) {
+                                      bool isTarget,
+                                      unsigned char TargetFlags) {
+  assert((TargetFlags == 0 || isTarget) &&
+         "Cannot set target flags on target-independent globals");
   if (Alignment == 0)
     Alignment = TLI.getTargetData()->getPrefTypeAlignment(C->getType());
   unsigned Opc = isTarget ? ISD::TargetConstantPool : ISD::ConstantPool;
@@ -1050,11 +1076,12 @@ SDValue SelectionDAG::getConstantPool(MachineConstantPoolValue *C, MVT VT,
   ID.AddInteger(Alignment);
   ID.AddInteger(Offset);
   C->AddSelectionDAGCSEId(ID);
+  ID.AddInteger(TargetFlags);
   void *IP = 0;
   if (SDNode *E = CSEMap.FindNodeOrInsertPos(ID, IP))
     return SDValue(E, 0);
   SDNode *N = NodeAllocator.Allocate<ConstantPoolSDNode>();
-  new (N) ConstantPoolSDNode(isTarget, C, VT, Offset, Alignment);
+  new (N) ConstantPoolSDNode(isTarget, C, VT, Offset, Alignment, TargetFlags);
   CSEMap.InsertNode(N, IP);
   AllNodes.push_back(N);
   return SDValue(N, 0);
@@ -1106,16 +1133,19 @@ SDValue SelectionDAG::getExternalSymbol(const char *Sym, MVT VT) {
   SDNode *&N = ExternalSymbols[Sym];
   if (N) return SDValue(N, 0);
   N = NodeAllocator.Allocate<ExternalSymbolSDNode>();
-  new (N) ExternalSymbolSDNode(false, Sym, VT);
+  new (N) ExternalSymbolSDNode(false, Sym, 0, VT);
   AllNodes.push_back(N);
   return SDValue(N, 0);
 }
 
-SDValue SelectionDAG::getTargetExternalSymbol(const char *Sym, MVT VT) {
-  SDNode *&N = TargetExternalSymbols[Sym];
+SDValue SelectionDAG::getTargetExternalSymbol(const char *Sym, MVT VT,
+                                              unsigned char TargetFlags) {
+  SDNode *&N =
+    TargetExternalSymbols[std::pair<std::string,unsigned char>(Sym,
+                                                               TargetFlags)];
   if (N) return SDValue(N, 0);
   N = NodeAllocator.Allocate<ExternalSymbolSDNode>();
-  new (N) ExternalSymbolSDNode(true, Sym, VT);
+  new (N) ExternalSymbolSDNode(true, Sym, TargetFlags, VT);
   AllNodes.push_back(N);
   return SDValue(N, 0);
 }
@@ -3181,27 +3211,17 @@ static SDValue getMemcpyLoadsAndStores(SelectionDAG &DAG, DebugLoc dl,
     } else {
       // The type might not be legal for the target.  This should only happen
       // if the type is smaller than a legal type, as on PPC, so the right
-      // thing to do is generate a LoadExt/StoreTrunc pair.
+      // thing to do is generate a LoadExt/StoreTrunc pair.  These simplify
+      // to Load/Store if NVT==VT.
       // FIXME does the case above also need this?
-      if (TLI.isTypeLegal(VT)) {
-        Value = DAG.getLoad(VT, dl, Chain,
-                            getMemBasePlusOffset(Src, SrcOff, DAG),
-                            SrcSV, SrcSVOff + SrcOff, false, Align);
-        Store = DAG.getStore(Chain, dl, Value,
+      MVT NVT = TLI.getTypeToTransformTo(VT);
+      assert(NVT.bitsGE(VT));
+      Value = DAG.getExtLoad(ISD::EXTLOAD, dl, NVT, Chain,
+                             getMemBasePlusOffset(Src, SrcOff, DAG),
+                             SrcSV, SrcSVOff + SrcOff, VT, false, Align);
+      Store = DAG.getTruncStore(Chain, dl, Value,
                              getMemBasePlusOffset(Dst, DstOff, DAG),
-                             DstSV, DstSVOff + DstOff, false, DstAlign);
-      } else {
-        MVT NVT = VT;
-        while (!TLI.isTypeLegal(NVT)) {
-          NVT = (MVT::SimpleValueType(NVT.getSimpleVT() + 1));
-        }
-        Value = DAG.getExtLoad(ISD::EXTLOAD, dl, NVT, Chain,
-                               getMemBasePlusOffset(Src, SrcOff, DAG),
-                               SrcSV, SrcSVOff + SrcOff, VT, false, Align);
-        Store = DAG.getTruncStore(Chain, dl, Value,
-                               getMemBasePlusOffset(Dst, DstOff, DAG),
-                               DstSV, DstSVOff + DstOff, VT, false, DstAlign);
-      }
+                             DstSV, DstSVOff + DstOff, VT, false, DstAlign);
     }
     OutChains.push_back(Store);
     SrcOff += VTSize;
@@ -4915,15 +4935,10 @@ HandleSDNode::~HandleSDNode() {
   DropOperands();
 }
 
-GlobalAddressSDNode::GlobalAddressSDNode(bool isTarget, const GlobalValue *GA,
-                                         MVT VT, int64_t o)
-  : SDNode(isa<GlobalVariable>(GA) &&
-           cast<GlobalVariable>(GA)->isThreadLocal() ?
-           // Thread Local
-           (isTarget ? ISD::TargetGlobalTLSAddress : ISD::GlobalTLSAddress) :
-           // Non Thread Local
-           (isTarget ? ISD::TargetGlobalAddress : ISD::GlobalAddress),
-           DebugLoc::getUnknownLoc(), getSDVTList(VT)), Offset(o) {
+GlobalAddressSDNode::GlobalAddressSDNode(unsigned Opc, const GlobalValue *GA,
+                                         MVT VT, int64_t o, unsigned char TF)
+  : SDNode(Opc, DebugLoc::getUnknownLoc(), getSDVTList(VT)),
+    Offset(o), TargetFlags(TF) {
   TheGlobal = const_cast<GlobalValue*>(GA);
 }
 
@@ -4987,14 +5002,17 @@ void SDNode::Profile(FoldingSetNodeID &ID) const {
   AddNodeIDNode(ID, this);
 }
 
+static ManagedStatic<std::set<MVT, MVT::compareRawBits> > EVTs;
+static MVT VTs[MVT::LAST_VALUETYPE];
+static ManagedStatic<sys::SmartMutex<true> > VTMutex;
+
 /// getValueTypeList - Return a pointer to the specified value type.
 ///
 const MVT *SDNode::getValueTypeList(MVT VT) {
+  sys::SmartScopedLock<true> Lock(&*VTMutex);
   if (VT.isExtended()) {
-    static std::set<MVT, MVT::compareRawBits> EVTs;
-    return &(*EVTs.insert(VT).first);
+    return &(*EVTs->insert(VT).first);
   } else {
-    static MVT VTs[MVT::LAST_VALUETYPE];
     VTs[VT.getSimpleVT()] = VT;
     return &VTs[VT.getSimpleVT()];
   }
@@ -5486,10 +5504,14 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
       OS << " + " << offset;
     else
       OS << " " << offset;
+    if (unsigned char TF = GADN->getTargetFlags())
+      OS << " [TF=" << TF << ']';
   } else if (const FrameIndexSDNode *FIDN = dyn_cast<FrameIndexSDNode>(this)) {
     OS << "<" << FIDN->getIndex() << ">";
   } else if (const JumpTableSDNode *JTDN = dyn_cast<JumpTableSDNode>(this)) {
     OS << "<" << JTDN->getIndex() << ">";
+    if (unsigned char TF = JTDN->getTargetFlags())
+      OS << " [TF=" << TF << ']';
   } else if (const ConstantPoolSDNode *CP = dyn_cast<ConstantPoolSDNode>(this)){
     int offset = CP->getOffset();
     if (CP->isMachineConstantPoolEntry())
@@ -5500,6 +5522,8 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
       OS << " + " << offset;
     else
       OS << " " << offset;
+    if (unsigned char TF = CP->getTargetFlags())
+      OS << " [TF=" << TF << ']';
   } else if (const BasicBlockSDNode *BBDN = dyn_cast<BasicBlockSDNode>(this)) {
     OS << "<";
     const Value *LBB = (const Value*)BBDN->getBasicBlock()->getBasicBlock();
@@ -5516,6 +5540,8 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
   } else if (const ExternalSymbolSDNode *ES =
              dyn_cast<ExternalSymbolSDNode>(this)) {
     OS << "'" << ES->getSymbol() << "'";
+    if (unsigned char TF = ES->getTargetFlags())
+      OS << " [TF=" << TF << ']';
   } else if (const SrcValueSDNode *M = dyn_cast<SrcValueSDNode>(this)) {
     if (M->getValue())
       OS << "<" << M->getValue() << ">";

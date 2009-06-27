@@ -18,6 +18,7 @@
 #include "X86MachineFunctionInfo.h"
 #include "X86Subtarget.h"
 #include "X86TargetMachine.h"
+#include "llvm/GlobalVariable.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
@@ -28,7 +29,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetAsmInfo.h"
-
 using namespace llvm;
 
 namespace {
@@ -781,6 +781,29 @@ static bool regIsPICBase(unsigned BaseReg, const MachineRegisterInfo &MRI) {
 static inline bool isGVStub(GlobalValue *GV, X86TargetMachine &TM) {
   return TM.getSubtarget<X86Subtarget>().GVRequiresExtraLoad(GV, TM, false);
 }
+
+/// CanRematLoadWithDispOperand - Return true if a load with the specified
+/// operand is a candidate for remat: for this to be true we need to know that
+/// the load will always return the same value, even if moved.
+static bool CanRematLoadWithDispOperand(const MachineOperand &MO,
+                                        X86TargetMachine &TM) {
+  // Loads from constant pool entries can be remat'd.
+  if (MO.isCPI()) return true;
+  
+  // We can remat globals in some cases.
+  if (MO.isGlobal()) {
+    // If this is a load of a stub, not of the global, we can remat it.  This
+    // access will always return the address of the global.
+    if (isGVStub(MO.getGlobal(), TM))
+      return true;
+    
+    // If the global itself is constant, we can remat the load.
+    if (GlobalVariable *GV = dyn_cast<GlobalVariable>(MO.getGlobal()))
+      if (GV->isConstant())
+        return true;
+  }
+  return false;
+}
  
 bool
 X86InstrInfo::isReallyTriviallyReMaterializable(const MachineInstr *MI) const {
@@ -802,11 +825,9 @@ X86InstrInfo::isReallyTriviallyReMaterializable(const MachineInstr *MI) const {
       if (MI->getOperand(1).isReg() &&
           MI->getOperand(2).isImm() &&
           MI->getOperand(3).isReg() && MI->getOperand(3).getReg() == 0 &&
-          (MI->getOperand(4).isCPI() ||
-           (MI->getOperand(4).isGlobal() &&
-            isGVStub(MI->getOperand(4).getGlobal(), TM)))) {
+          CanRematLoadWithDispOperand(MI->getOperand(4), TM)) {
         unsigned BaseReg = MI->getOperand(1).getReg();
-        if (BaseReg == 0)
+        if (BaseReg == 0 || BaseReg == X86::RIP)
           return true;
         // Allow re-materialization of PIC load.
         if (!ReMatPICStubLoad && MI->getOperand(4).isGlobal())
@@ -3190,9 +3211,8 @@ unsigned X86InstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
   bool IsPIC = (TM.getRelocationModel() == Reloc::PIC_);
   bool Is64BitMode = TM.getSubtargetImpl()->is64Bit();
   unsigned Size = GetInstSizeWithDesc(*MI, &Desc, IsPIC, Is64BitMode);
-  if (Desc.getOpcode() == X86::MOVPC32r) {
+  if (Desc.getOpcode() == X86::MOVPC32r)
     Size += GetInstSizeWithDesc(*MI, &get(X86::POP32r), IsPIC, Is64BitMode);
-  }
   return Size;
 }
 
@@ -3220,17 +3240,17 @@ unsigned X86InstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
   const TargetInstrInfo *TII = TM.getInstrInfo();
   // Operand of MovePCtoStack is completely ignored by asm printer. It's
   // only used in JIT code emission as displacement to pc.
-  BuildMI(FirstMBB, MBBI, DL, TII->get(X86::MOVPC32r), PC)
-    .addImm(0);
+  BuildMI(FirstMBB, MBBI, DL, TII->get(X86::MOVPC32r), PC).addImm(0);
   
   // If we're using vanilla 'GOT' PIC style, we should use relative addressing
-  // not to pc, but to _GLOBAL_ADDRESS_TABLE_ external
+  // not to pc, but to _GLOBAL_OFFSET_TABLE_ external.
   if (TM.getRelocationModel() == Reloc::PIC_ &&
       TM.getSubtarget<X86Subtarget>().isPICStyleGOT()) {
-    GlobalBaseReg =
-      RegInfo.createVirtualRegister(X86::GR32RegisterClass);
+    GlobalBaseReg = RegInfo.createVirtualRegister(X86::GR32RegisterClass);
+    // Generate addl $__GLOBAL_OFFSET_TABLE_ + [.-piclabel], %some_register
     BuildMI(FirstMBB, MBBI, DL, TII->get(X86::ADD32ri), GlobalBaseReg)
-      .addReg(PC).addExternalSymbol("_GLOBAL_OFFSET_TABLE_");
+      .addReg(PC).addExternalSymbol("_GLOBAL_OFFSET_TABLE_", 0,
+                                    X86II::MO_GOT_ABSOLUTE_ADDRESS);
   } else {
     GlobalBaseReg = PC;
   }

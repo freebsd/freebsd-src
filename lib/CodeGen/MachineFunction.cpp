@@ -124,25 +124,28 @@ MachineFunction::MachineFunction(const Function *F,
                   MachineFrameInfo(*TM.getFrameInfo());
   ConstantPool = new (Allocator.Allocate<MachineConstantPool>())
                      MachineConstantPool(TM.getTargetData());
-  
+
   // Set up jump table.
   const TargetData &TD = *TM.getTargetData();
   bool IsPic = TM.getRelocationModel() == Reloc::PIC_;
   unsigned EntrySize = IsPic ? 4 : TD.getPointerSize();
-  unsigned Alignment = IsPic ? TD.getABITypeAlignment(Type::Int32Ty)
-                             : TD.getPointerABIAlignment();
+  unsigned TyAlignment = IsPic ? TD.getABITypeAlignment(Type::Int32Ty)
+                               : TD.getPointerABIAlignment();
   JumpTableInfo = new (Allocator.Allocate<MachineJumpTableInfo>())
-                      MachineJumpTableInfo(EntrySize, Alignment);
+                      MachineJumpTableInfo(EntrySize, TyAlignment);
 }
 
 MachineFunction::~MachineFunction() {
   BasicBlocks.clear();
   InstructionRecycler.clear(Allocator);
   BasicBlockRecycler.clear(Allocator);
-  if (RegInfo)
-    RegInfo->~MachineRegisterInfo();        Allocator.Deallocate(RegInfo);
+  if (RegInfo) {
+    RegInfo->~MachineRegisterInfo();
+    Allocator.Deallocate(RegInfo);
+  }
   if (MFInfo) {
-    MFInfo->~MachineFunctionInfo();       Allocator.Deallocate(MFInfo);
+    MFInfo->~MachineFunctionInfo();
+    Allocator.Deallocate(MFInfo);
   }
   FrameInfo->~MachineFrameInfo();         Allocator.Deallocate(FrameInfo);
   ConstantPool->~MachineConstantPool();   Allocator.Deallocate(ConstantPool);
@@ -295,12 +298,6 @@ void MachineFunction::print(std::ostream &OS) const {
   OS << "\n# End machine code for " << Fn->getName () << "().\n\n";
 }
 
-/// CFGOnly flag - This is used to control whether or not the CFG graph printer
-/// prints out the contents of basic blocks or not.  This is acceptable because
-/// this code is only really used for debugging purposes.
-///
-static bool CFGOnly = false;
-
 namespace llvm {
   template<>
   struct DOTGraphTraits<const MachineFunction*> : public DefaultDOTGraphTraits {
@@ -309,13 +306,14 @@ namespace llvm {
     }
 
     static std::string getNodeLabel(const MachineBasicBlock *Node,
-                                    const MachineFunction *Graph) {
-      if (CFGOnly && Node->getBasicBlock() &&
+                                    const MachineFunction *Graph,
+                                    bool ShortNames) {
+      if (ShortNames && Node->getBasicBlock() &&
           !Node->getBasicBlock()->getName().empty())
         return Node->getBasicBlock()->getName() + ":";
 
       std::ostringstream Out;
-      if (CFGOnly) {
+      if (ShortNames) {
         Out << Node->getNumber() << ':';
         return Out.str();
       }
@@ -348,9 +346,12 @@ void MachineFunction::viewCFG() const
 
 void MachineFunction::viewCFGOnly() const
 {
-  CFGOnly = true;
-  viewCFG();
-  CFGOnly = false;
+#ifndef NDEBUG
+  ViewGraph(this, "mf" + getFunction()->getName(), true);
+#else
+  cerr << "SelectionDAG::viewGraph is only available in debug builds on "
+       << "systems with Graphviz or gv!\n";
+#endif // NDEBUG
 }
 
 // The next two methods are used to construct and to retrieve

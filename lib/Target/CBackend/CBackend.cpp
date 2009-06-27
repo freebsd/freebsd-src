@@ -59,10 +59,8 @@ int CBackendTargetMachineModule = 0;
 // Register the target.
 static RegisterTarget<CTargetMachine> X("c", "C backend");
 
-// Force static initialization when called from llvm/InitializeAllTargets.h
-namespace llvm {
-  void InitializeCBackendTarget() { }
-}
+// Force static initialization.
+extern "C" void LLVMInitializeCBackendTarget() { }
 
 namespace {
   /// CBackendNameAllUsedStructsAndMergeFunctions - This pass inserts names for
@@ -102,12 +100,13 @@ namespace {
     std::set<Function*> intrinsicPrototypesAlreadyGenerated;
     std::set<const Argument*> ByValParams;
     unsigned FPCounter;
+    unsigned OpaqueCounter;
 
   public:
     static char ID;
     explicit CWriter(raw_ostream &o)
       : FunctionPass(&ID), Out(o), IL(0), Mang(0), LI(0), 
-        TheModule(0), TAsm(0), TD(0) {
+        TheModule(0), TAsm(0), TD(0), OpaqueCounter(0) {
       FPCounter = 0;
     }
 
@@ -647,8 +646,7 @@ raw_ostream &CWriter::printType(raw_ostream &Out, const Type *Ty,
   }
 
   case Type::OpaqueTyID: {
-    static int Count = 0;
-    std::string TyName = "struct opaque_" + itostr(Count++);
+    std::string TyName = "struct opaque_" + itostr(OpaqueCounter++);
     assert(TypeNames.find(Ty) == TypeNames.end());
     TypeNames[Ty] = TyName;
     return Out << TyName << ' ' << NameSoFar;
@@ -752,8 +750,7 @@ std::ostream &CWriter::printType(std::ostream &Out, const Type *Ty,
   }
 
   case Type::OpaqueTyID: {
-    static int Count = 0;
-    std::string TyName = "struct opaque_" + itostr(Count++);
+    std::string TyName = "struct opaque_" + itostr(OpaqueCounter++);
     assert(TypeNames.find(Ty) == TypeNames.end());
     TypeNames[Ty] = TyName;
     return Out << TyName << ' ' << NameSoFar;

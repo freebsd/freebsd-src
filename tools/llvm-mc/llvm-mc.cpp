@@ -12,6 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCStreamer.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -136,7 +139,13 @@ static int AssembleInput(const char *ProgName) {
   // it later.
   SrcMgr.setIncludeDirs(IncludeDirs);
   
-  AsmParser Parser(SrcMgr);
+  MCContext Ctx;
+  OwningPtr<MCStreamer> Str(createAsmStreamer(Ctx, outs()));
+
+  // FIXME: Target hook & command line option for initial section.
+  Str.get()->SwitchSection(Ctx.GetSection("__TEXT,__text,regular,pure_instructions"));
+
+  AsmParser Parser(SrcMgr, Ctx, *Str.get());
   return Parser.Run();
 }  
 

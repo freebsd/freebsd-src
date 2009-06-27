@@ -19,6 +19,7 @@
 #include "llvm/CallingConv.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/GlobalAlias.h"
 #include "llvm/GlobalVariable.h"
 #include "llvm/Function.h"
 #include "llvm/Intrinsics.h"
@@ -4311,21 +4312,102 @@ X86TargetLowering::LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) {
 SDValue
 X86TargetLowering::LowerConstantPool(SDValue Op, SelectionDAG &DAG) {
   ConstantPoolSDNode *CP = cast<ConstantPoolSDNode>(Op);
-  // FIXME there isn't really any debug info here, should come from the parent
-  DebugLoc dl = CP->getDebugLoc();
+  
+  // In PIC mode (unless we're in RIPRel PIC mode) we add an offset to the
+  // global base reg.
+  unsigned char OpFlag = 0;
+  unsigned WrapperKind = X86ISD::Wrapper;
+  if (getTargetMachine().getRelocationModel() == Reloc::PIC_) {
+    if (Subtarget->isPICStyleStub())
+      OpFlag = X86II::MO_PIC_BASE_OFFSET;
+    else if (Subtarget->isPICStyleGOT())
+      OpFlag = X86II::MO_GOTOFF;
+    else if (Subtarget->isPICStyleRIPRel() &&
+             getTargetMachine().getCodeModel() == CodeModel::Small)
+      WrapperKind = X86ISD::WrapperRIP;
+  }
+  
   SDValue Result = DAG.getTargetConstantPool(CP->getConstVal(), getPointerTy(),
-                                             CP->getAlignment());
-  Result = DAG.getNode(X86ISD::Wrapper, dl, getPointerTy(), Result);
+                                             CP->getAlignment(),
+                                             CP->getOffset(), OpFlag);
+  DebugLoc DL = CP->getDebugLoc();
+  Result = DAG.getNode(WrapperKind, DL, getPointerTy(), Result);
+  // With PIC, the address is actually $g + Offset.
+  if (OpFlag) {
+    Result = DAG.getNode(ISD::ADD, DL, getPointerTy(),
+                         DAG.getNode(X86ISD::GlobalBaseReg,
+                                     DebugLoc::getUnknownLoc(), getPointerTy()),
+                         Result);
+  }
+
+  return Result;
+}
+
+SDValue X86TargetLowering::LowerJumpTable(SDValue Op, SelectionDAG &DAG) {
+  JumpTableSDNode *JT = cast<JumpTableSDNode>(Op);
+  
+  // In PIC mode (unless we're in RIPRel PIC mode) we add an offset to the
+  // global base reg.
+  unsigned char OpFlag = 0;
+  unsigned WrapperKind = X86ISD::Wrapper;
+  if (getTargetMachine().getRelocationModel() == Reloc::PIC_) {
+    if (Subtarget->isPICStyleStub())
+      OpFlag = X86II::MO_PIC_BASE_OFFSET;
+    else if (Subtarget->isPICStyleGOT())
+      OpFlag = X86II::MO_GOTOFF;
+    else if (Subtarget->isPICStyleRIPRel())
+      WrapperKind = X86ISD::WrapperRIP;
+  }
+  
+  SDValue Result = DAG.getTargetJumpTable(JT->getIndex(), getPointerTy(),
+                                          OpFlag);
+  DebugLoc DL = JT->getDebugLoc();
+  Result = DAG.getNode(WrapperKind, DL, getPointerTy(), Result);
+  
+  // With PIC, the address is actually $g + Offset.
+  if (OpFlag) {
+    Result = DAG.getNode(ISD::ADD, DL, getPointerTy(),
+                         DAG.getNode(X86ISD::GlobalBaseReg,
+                                     DebugLoc::getUnknownLoc(), getPointerTy()),
+                         Result);
+  }
+  
+  return Result;
+}
+
+SDValue
+X86TargetLowering::LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) {
+  const char *Sym = cast<ExternalSymbolSDNode>(Op)->getSymbol();
+  
+  // In PIC mode (unless we're in RIPRel PIC mode) we add an offset to the
+  // global base reg.
+  unsigned char OpFlag = 0;
+  unsigned WrapperKind = X86ISD::Wrapper;
+  if (getTargetMachine().getRelocationModel() == Reloc::PIC_) {
+    if (Subtarget->isPICStyleStub())
+      OpFlag = X86II::MO_PIC_BASE_OFFSET;
+    else if (Subtarget->isPICStyleGOT())
+      OpFlag = X86II::MO_GOTOFF;
+    else if (Subtarget->isPICStyleRIPRel())
+      WrapperKind = X86ISD::WrapperRIP;
+  }
+  
+  SDValue Result = DAG.getTargetExternalSymbol(Sym, getPointerTy(), OpFlag);
+  
+  DebugLoc DL = Op.getDebugLoc();
+  Result = DAG.getNode(WrapperKind, DL, getPointerTy(), Result);
+  
+  
   // With PIC, the address is actually $g + Offset.
   if (getTargetMachine().getRelocationModel() == Reloc::PIC_ &&
       !Subtarget->isPICStyleRIPRel()) {
-    Result = DAG.getNode(ISD::ADD, dl, getPointerTy(),
+    Result = DAG.getNode(ISD::ADD, DL, getPointerTy(),
                          DAG.getNode(X86ISD::GlobalBaseReg,
                                      DebugLoc::getUnknownLoc(),
                                      getPointerTy()),
                          Result);
   }
-
+  
   return Result;
 }
 
@@ -4343,9 +4425,29 @@ X86TargetLowering::LowerGlobalAddress(const GlobalValue *GV, DebugLoc dl,
   if (!IsPic && !ExtraLoadRequired && isInt32(Offset)) {
     Result = DAG.getTargetGlobalAddress(GV, getPointerTy(), Offset);
     Offset = 0;
-  } else
-    Result = DAG.getTargetGlobalAddress(GV, getPointerTy(), 0);
-  Result = DAG.getNode(X86ISD::Wrapper, dl, getPointerTy(), Result);
+  } else {
+    unsigned char OpFlags = 0;
+    
+    if (Subtarget->isPICStyleRIPRel() &&
+        getTargetMachine().getRelocationModel() != Reloc::Static) {
+      if (ExtraLoadRequired)
+        OpFlags = X86II::MO_GOTPCREL;
+    } else if (Subtarget->isPICStyleGOT() &&
+               getTargetMachine().getRelocationModel() == Reloc::PIC_) {
+      if (ExtraLoadRequired)
+        OpFlags = X86II::MO_GOT;
+      else
+        OpFlags = X86II::MO_GOTOFF;
+    }
+    
+    Result = DAG.getTargetGlobalAddress(GV, getPointerTy(), 0, OpFlags);
+  }
+  
+  if (Subtarget->isPICStyleRIPRel() &&
+      getTargetMachine().getCodeModel() == CodeModel::Small)
+    Result = DAG.getNode(X86ISD::WrapperRIP, dl, getPointerTy(), Result);
+  else
+    Result = DAG.getNode(X86ISD::Wrapper, dl, getPointerTy(), Result);
 
   // With PIC, the address is actually $g + Offset.
   if (IsPic && !Subtarget->isPICStyleRIPRel()) {
@@ -4381,12 +4483,14 @@ X86TargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) {
 
 static SDValue
 GetTLSADDR(SelectionDAG &DAG, SDValue Chain, GlobalAddressSDNode *GA,
-           SDValue *InFlag, const MVT PtrVT, unsigned ReturnReg) {
+           SDValue *InFlag, const MVT PtrVT, unsigned ReturnReg,
+           unsigned char OperandFlags) {
   SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Flag);
   DebugLoc dl = GA->getDebugLoc();
   SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(),
                                            GA->getValueType(0),
-                                           GA->getOffset());
+                                           GA->getOffset(),
+                                           OperandFlags);
   if (InFlag) {
     SDValue Ops[] = { Chain,  TGA, *InFlag };
     Chain = DAG.getNode(X86ISD::TLSADDR, dl, NodeTys, Ops, 3);
@@ -4410,14 +4514,15 @@ LowerToTLSGeneralDynamicModel32(GlobalAddressSDNode *GA, SelectionDAG &DAG,
                                                  PtrVT), InFlag);
   InFlag = Chain.getValue(1);
 
-  return GetTLSADDR(DAG, Chain, GA, &InFlag, PtrVT, X86::EAX);
+  return GetTLSADDR(DAG, Chain, GA, &InFlag, PtrVT, X86::EAX, X86II::MO_TLSGD);
 }
 
 // Lower ISD::GlobalTLSAddress using the "general dynamic" model, 64 bit
 static SDValue
 LowerToTLSGeneralDynamicModel64(GlobalAddressSDNode *GA, SelectionDAG &DAG,
                                 const MVT PtrVT) {
-  return GetTLSADDR(DAG, DAG.getEntryNode(), GA, NULL, PtrVT, X86::RAX);
+  return GetTLSADDR(DAG, DAG.getEntryNode(), GA, NULL, PtrVT,
+                    X86::RAX, X86II::MO_TLSGD);
 }
 
 // Lower ISD::GlobalTLSAddress using the "initial exec" (for no-pic) or
@@ -4435,11 +4540,26 @@ static SDValue LowerToTLSExecModel(GlobalAddressSDNode *GA, SelectionDAG &DAG,
   SDValue ThreadPointer = DAG.getLoad(PtrVT, dl, DAG.getEntryNode(), Base,
                                       NULL, 0);
 
+  unsigned char OperandFlags = 0;
+  // Most TLS accesses are not RIP relative, even on x86-64.  One exception is
+  // initialexec.
+  unsigned WrapperKind = X86ISD::Wrapper;
+  if (model == TLSModel::LocalExec) {
+    OperandFlags = is64Bit ? X86II::MO_TPOFF : X86II::MO_NTPOFF;
+  } else if (is64Bit) {
+    assert(model == TLSModel::InitialExec);
+    OperandFlags = X86II::MO_GOTTPOFF;
+    WrapperKind = X86ISD::WrapperRIP;
+  } else {
+    assert(model == TLSModel::InitialExec);
+    OperandFlags = X86II::MO_INDNTPOFF;
+  }
+  
   // emit "addl x@ntpoff,%eax" (local exec) or "addl x@indntpoff,%eax" (initial
   // exec)
   SDValue TGA = DAG.getTargetGlobalAddress(GA->getGlobal(), GA->getValueType(0),
-                                           GA->getOffset());
-  SDValue Offset = DAG.getNode(X86ISD::Wrapper, dl, PtrVT, TGA);
+                                           GA->getOffset(), OperandFlags);
+  SDValue Offset = DAG.getNode(WrapperKind, dl, PtrVT, TGA);
 
   if (model == TLSModel::InitialExec)
     Offset = DAG.getLoad(PtrVT, dl, DAG.getEntryNode(), Offset,
@@ -4457,72 +4577,33 @@ X86TargetLowering::LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) {
   assert(Subtarget->isTargetELF() &&
          "TLS not implemented for non-ELF targets");
   GlobalAddressSDNode *GA = cast<GlobalAddressSDNode>(Op);
-  GlobalValue *GV = GA->getGlobal();
-  TLSModel::Model model =
-    getTLSModel (GV, getTargetMachine().getRelocationModel());
-  if (Subtarget->is64Bit()) {
-    switch (model) {
-    case TLSModel::GeneralDynamic:
-    case TLSModel::LocalDynamic: // not implemented
+  const GlobalValue *GV = GA->getGlobal();
+  
+  // If GV is an alias then use the aliasee for determining
+  // thread-localness.
+  if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(GV))
+    GV = GA->resolveAliasedGlobal(false);
+  
+  TLSModel::Model model = getTLSModel(GV,
+                                      getTargetMachine().getRelocationModel());
+  
+  switch (model) {
+  case TLSModel::GeneralDynamic:
+  case TLSModel::LocalDynamic: // not implemented
+    if (Subtarget->is64Bit())
       return LowerToTLSGeneralDynamicModel64(GA, DAG, getPointerTy());
-
-    case TLSModel::InitialExec:
-    case TLSModel::LocalExec:
-      return LowerToTLSExecModel(GA, DAG, getPointerTy(), model, true);
-    }
-  } else {
-    switch (model) {
-    case TLSModel::GeneralDynamic:
-    case TLSModel::LocalDynamic: // not implemented
-      return LowerToTLSGeneralDynamicModel32(GA, DAG, getPointerTy());
-
-    case TLSModel::InitialExec:
-    case TLSModel::LocalExec:
-      return LowerToTLSExecModel(GA, DAG, getPointerTy(), model, false);
-    }
+    return LowerToTLSGeneralDynamicModel32(GA, DAG, getPointerTy());
+    
+  case TLSModel::InitialExec:
+  case TLSModel::LocalExec:
+    return LowerToTLSExecModel(GA, DAG, getPointerTy(), model,
+                               Subtarget->is64Bit());
   }
+  
   assert(0 && "Unreachable");
   return SDValue();
 }
 
-SDValue
-X86TargetLowering::LowerExternalSymbol(SDValue Op, SelectionDAG &DAG) {
-  // FIXME there isn't really any debug info here
-  DebugLoc dl = Op.getDebugLoc();
-  const char *Sym = cast<ExternalSymbolSDNode>(Op)->getSymbol();
-  SDValue Result = DAG.getTargetExternalSymbol(Sym, getPointerTy());
-  Result = DAG.getNode(X86ISD::Wrapper, dl, getPointerTy(), Result);
-  // With PIC, the address is actually $g + Offset.
-  if (getTargetMachine().getRelocationModel() == Reloc::PIC_ &&
-      !Subtarget->isPICStyleRIPRel()) {
-    Result = DAG.getNode(ISD::ADD, dl, getPointerTy(),
-                         DAG.getNode(X86ISD::GlobalBaseReg,
-                                     DebugLoc::getUnknownLoc(),
-                                     getPointerTy()),
-                         Result);
-  }
-
-  return Result;
-}
-
-SDValue X86TargetLowering::LowerJumpTable(SDValue Op, SelectionDAG &DAG) {
-  JumpTableSDNode *JT = cast<JumpTableSDNode>(Op);
-  // FIXME there isn't really any debug into here
-  DebugLoc dl = JT->getDebugLoc();
-  SDValue Result = DAG.getTargetJumpTable(JT->getIndex(), getPointerTy());
-  Result = DAG.getNode(X86ISD::Wrapper, dl, getPointerTy(), Result);
-  // With PIC, the address is actually $g + Offset.
-  if (getTargetMachine().getRelocationModel() == Reloc::PIC_ &&
-      !Subtarget->isPICStyleRIPRel()) {
-    Result = DAG.getNode(ISD::ADD, dl, getPointerTy(),
-                         DAG.getNode(X86ISD::GlobalBaseReg,
-                                     DebugLoc::getUnknownLoc(),
-                                     getPointerTy()),
-                         Result);
-  }
-
-  return Result;
-}
 
 /// LowerShift - Lower SRA_PARTS and friends, which return two i32 values and
 /// take a 2 x i32 value to shift plus a shift amount.
@@ -6779,6 +6860,7 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::REP_MOVS:           return "X86ISD::REP_MOVS";
   case X86ISD::GlobalBaseReg:      return "X86ISD::GlobalBaseReg";
   case X86ISD::Wrapper:            return "X86ISD::Wrapper";
+  case X86ISD::WrapperRIP:         return "X86ISD::WrapperRIP";
   case X86ISD::PEXTRB:             return "X86ISD::PEXTRB";
   case X86ISD::PEXTRW:             return "X86ISD::PEXTRW";
   case X86ISD::INSERTPS:           return "X86ISD::INSERTPS";

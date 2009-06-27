@@ -45,8 +45,9 @@ AsmPrinter::AsmPrinter(raw_ostream &o, TargetMachine &tm,
                        const TargetAsmInfo *T, CodeGenOpt::Level OL, bool VDef)
   : MachineFunctionPass(&ID), FunctionNumber(0), OptLevel(OL), O(o),
     TM(tm), TAI(T), TRI(tm.getRegisterInfo()),
-    IsInTextSection(false)
-{
+    IsInTextSection(false), LastMI(0), LastFn(0), Counter(~0U),
+    PrevDLT(0, ~0U, ~0U) {
+  DW = 0; MMI = 0;
   switch (AsmVerbose) {
   case cl::BOU_UNSET: VerboseAsm = VDef;  break;
   case cl::BOU_TRUE:  VerboseAsm = true;  break;
@@ -177,28 +178,44 @@ bool AsmPrinter::doInitialization(Module &M) {
 
   SwitchToDataSection("");   // Reset back to no section.
   
-  if (TAI->doesSupportDebugInformation() 
-      || TAI->doesSupportExceptionHandling()) {
-    MachineModuleInfo *MMI = getAnalysisIfAvailable<MachineModuleInfo>();
-    if (MMI) {
+  if (TAI->doesSupportDebugInformation() ||
+      TAI->doesSupportExceptionHandling()) {
+    MMI = getAnalysisIfAvailable<MachineModuleInfo>();
+    if (MMI)
       MMI->AnalyzeModule(M);
-      DW = getAnalysisIfAvailable<DwarfWriter>();
-      if (DW)
-        DW->BeginModule(&M, MMI, O, this, TAI);
-    }
+    DW = getAnalysisIfAvailable<DwarfWriter>();
+    if (DW)
+      DW->BeginModule(&M, MMI, O, this, TAI);
   }
 
   return false;
 }
 
 bool AsmPrinter::doFinalization(Module &M) {
+  // Emit final debug information.
+  if (TAI->doesSupportDebugInformation() || TAI->doesSupportExceptionHandling())
+    DW->EndModule();
+  
+  // If the target wants to know about weak references, print them all.
   if (TAI->getWeakRefDirective()) {
-    if (!ExtWeakSymbols.empty())
-      SwitchToDataSection("");
+    // FIXME: This is not lazy, it would be nice to only print weak references
+    // to stuff that is actually used.  Note that doing so would require targets
+    // to notice uses in operands (due to constant exprs etc).  This should
+    // happen with the MC stuff eventually.
+    SwitchToDataSection("");
 
-    for (std::set<const GlobalValue*>::iterator i = ExtWeakSymbols.begin(),
-         e = ExtWeakSymbols.end(); i != e; ++i)
-      O << TAI->getWeakRefDirective() << Mang->getValueName(*i) << '\n';
+    // Print out module-level global variables here.
+    for (Module::const_global_iterator I = M.global_begin(), E = M.global_end();
+         I != E; ++I) {
+      if (I->hasExternalWeakLinkage())
+        O << TAI->getWeakRefDirective() << Mang->getValueName(I) << '\n';
+    }
+    
+    for (Module::const_iterator I = M.begin(), E = M.end();
+         I != E; ++I) {
+      if (I->hasExternalWeakLinkage())
+        O << TAI->getWeakRefDirective() << Mang->getValueName(I) << '\n';
+    }
   }
 
   if (TAI->getSetDirective()) {
@@ -207,7 +224,7 @@ bool AsmPrinter::doFinalization(Module &M) {
 
     O << '\n';
     for (Module::const_alias_iterator I = M.alias_begin(), E = M.alias_end();
-         I!=E; ++I) {
+         I != E; ++I) {
       std::string Name = Mang->getValueName(I);
       std::string Target;
 
@@ -235,12 +252,13 @@ bool AsmPrinter::doFinalization(Module &M) {
 
   // If we don't have any trampolines, then we don't require stack memory
   // to be executable. Some targets have a directive to declare this.
-  Function* InitTrampolineIntrinsic = M.getFunction("llvm.init.trampoline");
+  Function *InitTrampolineIntrinsic = M.getFunction("llvm.init.trampoline");
   if (!InitTrampolineIntrinsic || InitTrampolineIntrinsic->use_empty())
     if (TAI->getNonexecutableStackDirective())
       O << TAI->getNonexecutableStackDirective() << '\n';
 
   delete Mang; Mang = 0;
+  DW = 0; MMI = 0;
   return false;
 }
 
@@ -1298,20 +1316,15 @@ void AsmPrinter::PrintSpecial(const MachineInstr *MI, const char *Code) const {
     if (VerboseAsm)
       O << TAI->getCommentString();
   } else if (!strcmp(Code, "uid")) {
-    // Assign a unique ID to this machine instruction.
-    static const MachineInstr *LastMI = 0;
-    static const Function *F = 0;
-    static unsigned Counter = 0U-1;
-
     // Comparing the address of MI isn't sufficient, because machineinstrs may
     // be allocated to the same address across functions.
     const Function *ThisF = MI->getParent()->getParent()->getFunction();
     
-    // If this is a new machine instruction, bump the counter.
-    if (LastMI != MI || F != ThisF) {
+    // If this is a new LastFn instruction, bump the counter.
+    if (LastMI != MI || LastFn != ThisF) {
       ++Counter;
       LastMI = MI;
-      F = ThisF;
+      LastFn = ThisF;
     }
     O << Counter;
   } else {
@@ -1326,7 +1339,6 @@ void AsmPrinter::PrintSpecial(const MachineInstr *MI, const char *Code) const {
 void AsmPrinter::processDebugLoc(DebugLoc DL) {
   if (TAI->doesSupportDebugInformation() && DW->ShouldEmitDwarfDebug()) {
     if (!DL.isUnknown()) {
-      static DebugLocTuple PrevDLT(0, ~0U, ~0U);
       DebugLocTuple CurDLT = MF->getDebugLocTuple(DL);
 
       if (CurDLT.CompileUnit != 0 && PrevDLT != CurDLT)

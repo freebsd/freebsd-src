@@ -44,8 +44,8 @@ namespace llvm {
   class SCEVUnknown;
 
   /// SCEV - This class represents an analyzed expression in the program.  These
-  /// are reference-counted opaque objects that the client is not allowed to
-  /// do much with directly.
+  /// are opaque objects that the client is not allowed to do much with
+  /// directly.
   ///
   class SCEV {
     const unsigned SCEVType;      // The SCEV baseclass this node corresponds to
@@ -81,6 +81,11 @@ namespace llvm {
     /// isOne - Return true if the expression is a constant one.
     ///
     bool isOne() const;
+
+    /// isAllOnesValue - Return true if the expression is a constant
+    /// all-ones value.
+    ///
+    bool isAllOnesValue() const;
 
     /// replaceSymbolicValuesWithConcrete - If this SCEV internally references
     /// the symbolic value "Sym", construct and return a new SCEV that produces
@@ -300,8 +305,9 @@ namespace llvm {
     /// try to evaluate a few iterations of the loop until we get the exit
     /// condition gets a value of ExitWhen (true or false).  If we cannot
     /// evaluate the trip count of the loop, return CouldNotCompute.
-    const SCEV* ComputeBackedgeTakenCountExhaustively(const Loop *L, Value *Cond,
-                                                     bool ExitWhen);
+    const SCEV* ComputeBackedgeTakenCountExhaustively(const Loop *L,
+                                                      Value *Cond,
+                                                      bool ExitWhen);
 
     /// HowFarToZero - Return the number of times a backedge comparing the
     /// specified value to zero will execute.  If not computable, return
@@ -328,6 +334,12 @@ namespace llvm {
     /// successor from which BB is reachable, or null if no such block is
     /// found.
     BasicBlock* getPredecessorWithUniqueSuccessorForBB(BasicBlock *BB);
+
+    /// isNecessaryCond - Test whether the given CondValue value is a condition
+    /// which is at least as strict as the one described by Pred, LHS, and RHS.
+    bool isNecessaryCond(Value *Cond, ICmpInst::Predicate Pred,
+                         const SCEV *LHS, const SCEV *RHS,
+                         bool Inverse);
 
     /// getConstantEvolutionLoopExitValue - If we know that the specified Phi is
     /// in the header of its containing loop, we know the loop executes a
@@ -457,7 +469,7 @@ namespace llvm {
     /// widening.
     const SCEV* getTruncateOrNoop(const SCEV* V, const Type *Ty);
 
-    /// getIntegerSCEV - Given an integer or FP type, create a constant for the
+    /// getIntegerSCEV - Given a SCEVable type, create a constant for the
     /// specified signed integer value and return a SCEV for the constant.
     const SCEV* getIntegerSCEV(int Val, const Type *Ty);
 
@@ -531,10 +543,11 @@ namespace llvm {
     /// is deleted.
     void forgetLoopBackedgeTakenCount(const Loop *L);
 
-    /// GetMinTrailingZeros - Determine the minimum number of zero bits that S is
-    /// guaranteed to end in (at every loop iteration).  It is, at the same time,
-    /// the minimum number of times S is divisible by 2.  For example, given {4,+,8}
-    /// it returns 2.  If S is guaranteed to be 0, it returns the bitwidth of S.
+    /// GetMinTrailingZeros - Determine the minimum number of zero bits that S
+    /// is guaranteed to end in (at every loop iteration).  It is, at the same
+    /// time, the minimum number of times S is divisible by 2.  For example,
+    /// given {4,+,8} it returns 2.  If S is guaranteed to be 0, it returns the
+    /// bitwidth of S.
     uint32_t GetMinTrailingZeros(const SCEV* S);
 
     /// GetMinLeadingZeros - Determine the minimum number of zero bits that S is
