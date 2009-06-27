@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1993 The Regents of the University of California.
+ * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -26,24 +30,48 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
  */
 
-/*
- * Architecture specific syscalls (MIPS)
- */
-#ifndef _MACHINE_SYSARCH_H_
-#define _MACHINE_SYSARCH_H_
-
-#define	MIPS_SET_TLS	1
-#define	MIPS_GET_TLS	2
-
-#ifndef _KERNEL
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-__BEGIN_DECLS
-int sysarch(int, void *);
-__END_DECLS
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/sysproto.h>
+#include <sys/syscall.h>
+#include <sys/sysent.h>
+
+#include <machine/sysarch.h>
+
+#ifndef _SYS_SYSPROTO_H_
+struct sysarch_args {
+	int op;
+	char *parms;
+};
 #endif
 
-#endif /* !_MACHINE_SYSARCH_H_ */
+int
+sysarch(td, uap)
+	struct thread *td;
+	register struct sysarch_args *uap;
+{
+	int error;
+	void *tlsbase;
+
+	switch (uap->op) {
+	case MIPS_SET_TLS : 
+		td->td_md.md_tls = (void*)uap->parms;
+		error = 0;
+		break;
+
+	case MIPS_GET_TLS : 
+		tlsbase = td->td_md.md_tls;
+		error = copyout(&tlsbase, uap->parms, sizeof(tlsbase));
+		break;
+	default:
+		error = EINVAL;
+	}
+	return (error);
+}

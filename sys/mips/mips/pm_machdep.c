@@ -413,9 +413,16 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 		bcopy((void *)&td->td_frame->f0, (void *)&mcp->mc_fpregs,
 		    sizeof(mcp->mc_fpregs));
 	}
+	if (flags & GET_MC_CLEAR_RET) {
+		mcp->mc_regs[V0] = 0;
+		mcp->mc_regs[V1] = 0;
+		mcp->mc_regs[A3] = 0;
+	}
+
 	mcp->mc_pc = td->td_frame->pc;
 	mcp->mullo = td->td_frame->mullo;
 	mcp->mulhi = td->td_frame->mulhi;
+	mcp->mc_tls = td->td_md.md_tls;
 	return (0);
 }
 
@@ -436,6 +443,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	td->td_frame->pc = mcp->mc_pc;
 	td->td_frame->mullo = mcp->mullo;
 	td->td_frame->mulhi = mcp->mulhi;
+	td->td_md.md_tls = mcp->mc_tls;
 	/* Dont let user to set any bits in Status and casue registers */
 
 	return (0);

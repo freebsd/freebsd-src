@@ -156,6 +156,7 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	 *  that are needed.
 	 */
 
+	td2->td_md.md_tls = td1->td_md.md_tls;
 	td2->td_md.md_saved_intr = MIPS_SR_INT_IE;
 	td2->td_md.md_spinlock_count = 1;
 #ifdef TARGET_OCTEON
@@ -535,7 +536,7 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	/* TBD */
+	td->td_md.md_tls = tls_base;
 	return (0);
 }
 

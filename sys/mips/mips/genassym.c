@@ -69,6 +69,7 @@ ASSYM(TD_REALKSTACK, offsetof(struct thread, td_md.md_realstack));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
+ASSYM(TD_TLS, offsetof(struct thread, td_md.md_tls));
 
 ASSYM(TF_REG_SR, offsetof(struct trapframe, sr));
 
