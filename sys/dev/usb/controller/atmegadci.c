@@ -1113,7 +1113,7 @@ atmegadci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 static void
 atmegadci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
-    struct usb_endpoint *ep)
+    struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct atmegadci_softc *sc;
 	uint8_t ep_no;
