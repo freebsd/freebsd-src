@@ -150,7 +150,9 @@ void MachineOperand::ChangeToRegister(unsigned Reg, bool isDef, bool isImp,
 /// isIdenticalTo - Return true if this operand is identical to the specified
 /// operand.
 bool MachineOperand::isIdenticalTo(const MachineOperand &Other) const {
-  if (getType() != Other.getType()) return false;
+  if (getType() != Other.getType() ||
+      getTargetFlags() != Other.getTargetFlags())
+    return false;
   
   switch (getType()) {
   default: assert(0 && "Unrecognized operand type");
@@ -205,70 +207,72 @@ void MachineOperand::print(raw_ostream &OS, const TargetMachine *TM) const {
     }
 
     if (getSubReg() != 0) {
-      OS << ":" << getSubReg();
+      OS << ':' << getSubReg();
     }
 
     if (isDef() || isKill() || isDead() || isImplicit() || isEarlyClobber()) {
-      OS << "<";
+      OS << '<';
       bool NeedComma = false;
       if (isImplicit()) {
-        if (NeedComma) OS << ",";
+        if (NeedComma) OS << ',';
         OS << (isDef() ? "imp-def" : "imp-use");
         NeedComma = true;
       } else if (isDef()) {
-        if (NeedComma) OS << ",";
+        if (NeedComma) OS << ',';
         if (isEarlyClobber())
           OS << "earlyclobber,";
         OS << "def";
         NeedComma = true;
       }
       if (isKill() || isDead()) {
-        if (NeedComma) OS << ",";
+        if (NeedComma) OS << ',';
         if (isKill())  OS << "kill";
         if (isDead())  OS << "dead";
       }
-      OS << ">";
+      OS << '>';
     }
     break;
   case MachineOperand::MO_Immediate:
     OS << getImm();
     break;
   case MachineOperand::MO_FPImmediate:
-    if (getFPImm()->getType() == Type::FloatTy) {
+    if (getFPImm()->getType() == Type::FloatTy)
       OS << getFPImm()->getValueAPF().convertToFloat();
-    } else {
+    else
       OS << getFPImm()->getValueAPF().convertToDouble();
-    }
     break;
   case MachineOperand::MO_MachineBasicBlock:
     OS << "mbb<"
        << ((Value*)getMBB()->getBasicBlock())->getName()
-       << "," << (void*)getMBB() << ">";
+       << "," << (void*)getMBB() << '>';
     break;
   case MachineOperand::MO_FrameIndex:
-    OS << "<fi#" << getIndex() << ">";
+    OS << "<fi#" << getIndex() << '>';
     break;
   case MachineOperand::MO_ConstantPoolIndex:
     OS << "<cp#" << getIndex();
     if (getOffset()) OS << "+" << getOffset();
-    OS << ">";
+    OS << '>';
     break;
   case MachineOperand::MO_JumpTableIndex:
-    OS << "<jt#" << getIndex() << ">";
+    OS << "<jt#" << getIndex() << '>';
     break;
   case MachineOperand::MO_GlobalAddress:
     OS << "<ga:" << ((Value*)getGlobal())->getName();
     if (getOffset()) OS << "+" << getOffset();
-    OS << ">";
+    OS << '>';
     break;
   case MachineOperand::MO_ExternalSymbol:
     OS << "<es:" << getSymbolName();
     if (getOffset()) OS << "+" << getOffset();
-    OS << ">";
+    OS << '>';
     break;
   default:
     assert(0 && "Unrecognized operand type");
   }
+  
+  if (unsigned TF = getTargetFlags())
+    OS << "[TF=" << TF << ']';
 }
 
 //===----------------------------------------------------------------------===//
@@ -716,31 +720,37 @@ isRegTiedToUseOperand(unsigned DefOpIdx, unsigned *UseOpIdx) const {
     const MachineOperand &MO = getOperand(DefOpIdx);
     if (!MO.isReg() || !MO.isDef() || MO.getReg() == 0)
       return false;
-    // Determine the actual operand no corresponding to this index.
+    // Determine the actual operand index that corresponds to this index.
     unsigned DefNo = 0;
+    unsigned DefPart = 0;
     for (unsigned i = 1, e = getNumOperands(); i < e; ) {
       const MachineOperand &FMO = getOperand(i);
       assert(FMO.isImm());
       // Skip over this def.
-      i += InlineAsm::getNumOperandRegisters(FMO.getImm()) + 1;
-      if (i > DefOpIdx)
+      unsigned NumOps = InlineAsm::getNumOperandRegisters(FMO.getImm());
+      unsigned PrevDef = i + 1;
+      i = PrevDef + NumOps;
+      if (i > DefOpIdx) {
+        DefPart = DefOpIdx - PrevDef;
         break;
+      }
       ++DefNo;
     }
-    for (unsigned i = 0, e = getNumOperands(); i != e; ++i) {
+    for (unsigned i = 1, e = getNumOperands(); i != e; ++i) {
       const MachineOperand &FMO = getOperand(i);
       if (!FMO.isImm())
         continue;
       if (i+1 >= e || !getOperand(i+1).isReg() || !getOperand(i+1).isUse())
         continue;
       unsigned Idx;
-      if (InlineAsm::isUseOperandTiedToDef(FMO.getImm(), Idx) && 
+      if (InlineAsm::isUseOperandTiedToDef(FMO.getImm(), Idx) &&
           Idx == DefNo) {
         if (UseOpIdx)
-          *UseOpIdx = (unsigned)i + 1;
+          *UseOpIdx = (unsigned)i + 1 + DefPart;
         return true;
       }
     }
+    return false;
   }
 
   assert(getOperand(DefOpIdx).isDef() && "DefOpIdx is not a def!");
@@ -766,10 +776,16 @@ isRegTiedToDefOperand(unsigned UseOpIdx, unsigned *DefOpIdx) const {
     const MachineOperand &MO = getOperand(UseOpIdx);
     if (!MO.isReg() || !MO.isUse() || MO.getReg() == 0)
       return false;
-    assert(UseOpIdx > 0);
-    const MachineOperand &UFMO = getOperand(UseOpIdx-1);
-    if (!UFMO.isImm())
-      return false;  // Must be physreg uses.
+    int FlagIdx = UseOpIdx - 1;
+    if (FlagIdx < 1)
+      return false;
+    while (!getOperand(FlagIdx).isImm()) {
+      if (--FlagIdx == 0)
+        return false;
+    }
+    const MachineOperand &UFMO = getOperand(FlagIdx);
+    if (FlagIdx + InlineAsm::getNumOperandRegisters(UFMO.getImm()) < UseOpIdx)
+      return false;
     unsigned DefNo;
     if (InlineAsm::isUseOperandTiedToDef(UFMO.getImm(), DefNo)) {
       if (!DefOpIdx)
@@ -785,7 +801,7 @@ isRegTiedToDefOperand(unsigned UseOpIdx, unsigned *DefOpIdx) const {
         DefIdx += InlineAsm::getNumOperandRegisters(FMO.getImm()) + 1;
         --DefNo;
       }
-      *DefOpIdx = DefIdx+1;
+      *DefOpIdx = DefIdx + UseOpIdx - FlagIdx;
       return true;
     }
     return false;
@@ -1092,13 +1108,13 @@ bool MachineInstr::addRegisterDead(unsigned IncomingReg,
 
   // If not found, this means an alias of one of the operands is dead. Add a
   // new implicit operand if required.
-  if (!Found && AddIfNotFound) {
-    addOperand(MachineOperand::CreateReg(IncomingReg,
-                                         true  /*IsDef*/,
-                                         true  /*IsImp*/,
-                                         false /*IsKill*/,
-                                         true  /*IsDead*/));
-    return true;
-  }
-  return Found;
+  if (Found || !AddIfNotFound)
+    return Found;
+    
+  addOperand(MachineOperand::CreateReg(IncomingReg,
+                                       true  /*IsDef*/,
+                                       true  /*IsImp*/,
+                                       false /*IsKill*/,
+                                       true  /*IsDead*/));
+  return true;
 }

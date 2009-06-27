@@ -60,6 +60,9 @@ struct AlphaRegisterInfo : public AlphaGenRegisterInfo {
   int getDwarfRegNum(unsigned RegNum, bool isEH) const;
 
   static std::string getPrettyName(unsigned reg);
+  
+private:
+  mutable int curgpdist;
 };
 
 } // end namespace llvm

@@ -20,7 +20,6 @@
 ; RUN: grep floatsidf %t
 ; RUN: grep floatunsisf %t
 ; RUN: grep floatunsidf %t
-; RUN: llvm-as < %s | llc -march=thumb
 
 define float @f1(double %x) {
 entry:

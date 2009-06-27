@@ -17,6 +17,7 @@
 #include "AlphaInstrInfo.h"
 #include "AlphaTargetMachine.h"
 #include "llvm/Module.h"
+#include "llvm/MDNode.h"
 #include "llvm/Type.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/AsmPrinter.h"
@@ -121,8 +122,6 @@ void AlphaAsmPrinter::printOp(const MachineOperand &MO, bool IsCallOp) {
   case MachineOperand::MO_GlobalAddress: {
     GlobalValue *GV = MO.getGlobal();
     O << Mang->getValueName(GV);
-    if (GV->isDeclaration() && GV->hasExternalWeakLinkage())
-      ExtWeakSymbols.insert(GV);
     return;
   }
 
@@ -224,6 +223,8 @@ void AlphaAsmPrinter::printModuleLevelGV(const GlobalVariable* GVar) {
 
   std::string name = Mang->getValueName(GVar);
   Constant *C = GVar->getInitializer();
+  if (isa<MDNode>(C) || isa<MDString>(C))
+    return;
   unsigned Size = TD->getTypeAllocSize(C->getType());
   unsigned Align = TD->getPreferredAlignmentLog(GVar);
 
@@ -265,12 +266,6 @@ void AlphaAsmPrinter::printModuleLevelGV(const GlobalVariable* GVar) {
 
   O << name << ":\n";
 
-  // If the initializer is a extern weak symbol, remember to emit the weak
-  // reference!
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(C))
-    if (GV->hasExternalWeakLinkage())
-      ExtWeakSymbols.insert(GV);
-
   EmitGlobalConstant(C);
   O << '\n';
 }
@@ -304,11 +299,8 @@ bool AlphaAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
   return false;
 }
 
-// Force static initialization when called from
-// llvm/InitializeAllAsmPrinters.h
-namespace llvm {
-  void InitializeAlphaAsmPrinter() { }
-}
+// Force static initialization.
+extern "C" void LLVMInitializeAlphaAsmPrinter() { }
 
 namespace {
   static struct Register {

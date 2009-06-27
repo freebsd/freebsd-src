@@ -278,31 +278,37 @@ public:
     return getConstantFP(Val, VT, true);
   }
   SDValue getGlobalAddress(const GlobalValue *GV, MVT VT,
-                           int64_t offset = 0, bool isTargetGA = false);
+                           int64_t offset = 0, bool isTargetGA = false,
+                           unsigned char TargetFlags = 0);
   SDValue getTargetGlobalAddress(const GlobalValue *GV, MVT VT,
-                                 int64_t offset = 0) {
-    return getGlobalAddress(GV, VT, offset, true);
+                                 int64_t offset = 0,
+                                 unsigned char TargetFlags = 0) {
+    return getGlobalAddress(GV, VT, offset, true, TargetFlags);
   }
   SDValue getFrameIndex(int FI, MVT VT, bool isTarget = false);
   SDValue getTargetFrameIndex(int FI, MVT VT) {
     return getFrameIndex(FI, VT, true);
   }
-  SDValue getJumpTable(int JTI, MVT VT, bool isTarget = false);
-  SDValue getTargetJumpTable(int JTI, MVT VT) {
-    return getJumpTable(JTI, VT, true);
+  SDValue getJumpTable(int JTI, MVT VT, bool isTarget = false,
+                       unsigned char TargetFlags = 0);
+  SDValue getTargetJumpTable(int JTI, MVT VT, unsigned char TargetFlags = 0) {
+    return getJumpTable(JTI, VT, true, TargetFlags);
   }
   SDValue getConstantPool(Constant *C, MVT VT,
-                            unsigned Align = 0, int Offs = 0, bool isT=false);
+                          unsigned Align = 0, int Offs = 0, bool isT=false,
+                          unsigned char TargetFlags = 0);
   SDValue getTargetConstantPool(Constant *C, MVT VT,
-                                  unsigned Align = 0, int Offset = 0) {
-    return getConstantPool(C, VT, Align, Offset, true);
+                                unsigned Align = 0, int Offset = 0,
+                                unsigned char TargetFlags = 0) {
+    return getConstantPool(C, VT, Align, Offset, true, TargetFlags);
   }
   SDValue getConstantPool(MachineConstantPoolValue *C, MVT VT,
-                            unsigned Align = 0, int Offs = 0, bool isT=false);
+                          unsigned Align = 0, int Offs = 0, bool isT=false,
+                          unsigned char TargetFlags = 0);
   SDValue getTargetConstantPool(MachineConstantPoolValue *C,
                                   MVT VT, unsigned Align = 0,
-                                  int Offset = 0) {
-    return getConstantPool(C, VT, Align, Offset, true);
+                                  int Offset = 0, unsigned char TargetFlags=0) {
+    return getConstantPool(C, VT, Align, Offset, true, TargetFlags);
   }
   // When generating a branch to a BB, we don't in general know enough
   // to provide debug info for the BB at that time, so keep this one around.
@@ -310,8 +316,8 @@ public:
   SDValue getBasicBlock(MachineBasicBlock *MBB, DebugLoc dl);
   SDValue getExternalSymbol(const char *Sym, MVT VT);
   SDValue getExternalSymbol(const char *Sym, DebugLoc dl, MVT VT);
-  SDValue getTargetExternalSymbol(const char *Sym, MVT VT);
-  SDValue getTargetExternalSymbol(const char *Sym, DebugLoc dl, MVT VT);
+  SDValue getTargetExternalSymbol(const char *Sym, MVT VT,
+                                  unsigned char TargetFlags = 0);
   SDValue getArgFlags(ISD::ArgFlagsTy Flags);
   SDValue getValueType(MVT);
   SDValue getRegister(unsigned Reg, MVT VT);
@@ -862,7 +868,8 @@ private:
   std::vector<SDNode*> ValueTypeNodes;
   std::map<MVT, SDNode*, MVT::compareRawBits> ExtendedValueTypeNodes;
   StringMap<SDNode*> ExternalSymbols;
-  StringMap<SDNode*> TargetExternalSymbols;
+  
+  std::map<std::pair<std::string, unsigned char>,SDNode*> TargetExternalSymbols;
 };
 
 template <> struct GraphTraits<SelectionDAG*> : public GraphTraits<SDNode*> {
