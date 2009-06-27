@@ -15,57 +15,72 @@
 #
 
 # 20090624: update usbdi(9)
-OLD_FILES+=usr/share/man/man9/usbd_abort_default_pipe.9
-OLD_FILES+=usr/share/man/man9/usbd_abort_pipe.9
-OLD_FILES+=usr/share/man/man9/usbd_alloc_buffer.9
-OLD_FILES+=usr/share/man/man9/usbd_alloc_xfer.9
-OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_stall.9
-OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_stall_async.9
-OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_toggle.9
-OLD_FILES+=usr/share/man/man9/usbd_close_pipe.9
-OLD_FILES+=usr/share/man/man9/usbd_device2interface_handle.9
-OLD_FILES+=usr/share/man/man9/usbd_do_request_async.9
-OLD_FILES+=usr/share/man/man9/usbd_do_request_flags_pipe.9
-OLD_FILES+=usr/share/man/man9/usbd_endpoint_count.9
-OLD_FILES+=usr/share/man/man9/usbd_find_edesc.9
-OLD_FILES+=usr/share/man/man9/usbd_find_idesc.9
-OLD_FILES+=usr/share/man/man9/usbd_free_buffer.9
-OLD_FILES+=usr/share/man/man9/usbd_free_xfer.9
-OLD_FILES+=usr/share/man/man9/usbd_get_buffer.9
-OLD_FILES+=usr/share/man/man9/usbd_get_config.9
-OLD_FILES+=usr/share/man/man9/usbd_get_config_desc.9
-OLD_FILES+=usr/share/man/man9/usbd_get_config_desc_full.9
-OLD_FILES+=usr/share/man/man9/usbd_get_config_descriptor.9
-OLD_FILES+=usr/share/man/man9/usbd_get_device_descriptor.9
-OLD_FILES+=usr/share/man/man9/usbd_get_endpoint_descriptor.9
-OLD_FILES+=usr/share/man/man9/usbd_get_interface_altindex.9
-OLD_FILES+=usr/share/man/man9/usbd_get_interface_descriptor.9
-OLD_FILES+=usr/share/man/man9/usbd_get_no_alts.9
-OLD_FILES+=usr/share/man/man9/usbd_get_quirks.9
-OLD_FILES+=usr/share/man/man9/usbd_get_speed.9
-OLD_FILES+=usr/share/man/man9/usbd_get_string.9
-OLD_FILES+=usr/share/man/man9/usbd_get_string_desc.9
-OLD_FILES+=usr/share/man/man9/usbd_get_xfer_status.9
-OLD_FILES+=usr/share/man/man9/usbd_interface2device_handle.9
-OLD_FILES+=usr/share/man/man9/usbd_interface2endpoint_descriptor.9
-OLD_FILES+=usr/share/man/man9/usbd_interface_count.9
-OLD_FILES+=usr/share/man/man9/usbd_open_pipe.9
-OLD_FILES+=usr/share/man/man9/usbd_open_pipe_intr.9
-OLD_FILES+=usr/share/man/man9/usbd_pipe2device_handle.9
-OLD_FILES+=usr/share/man/man9/usbd_set_config_index.9
-OLD_FILES+=usr/share/man/man9/usbd_set_config_no.9
-OLD_FILES+=usr/share/man/man9/usbd_set_interface.9
-OLD_FILES+=usr/share/man/man9/usbd_setup_default_xfer.9
-OLD_FILES+=usr/share/man/man9/usbd_setup_isoc_xfer.9
-OLD_FILES+=usr/share/man/man9/usbd_setup_xfer.9
-OLD_FILES+=usr/share/man/man9/usbd_sync_transfer.9
-OLD_FILES+=usr/share/man/man9/usbd_transfer.9
-OLD_FILES+=usr/share/man/man9/usb_find_desc.9
+OLD_FILES+=usr/share/man/man9/usbd_abort_default_pipe.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_abort_pipe.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_alloc_buffer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_alloc_xfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_stall.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_stall_async.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_toggle.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_close_pipe.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_device2interface_handle.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_do_request_async.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_do_request_flags_pipe.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_endpoint_count.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_find_edesc.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_find_idesc.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_free_buffer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_free_xfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_buffer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_config.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_config_desc.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_config_desc_full.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_config_descriptor.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_device_descriptor.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_endpoint_descriptor.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_interface_altindex.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_interface_descriptor.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_no_alts.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_quirks.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_speed.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_string.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_string_desc.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_xfer_status.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_interface2device_handle.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_interface2endpoint_descriptor.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_interface_count.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_open_pipe.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_open_pipe_intr.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_pipe2device_handle.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_set_config_index.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_set_config_no.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_set_interface.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_setup_default_xfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_setup_isoc_xfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_setup_xfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_sync_transfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_transfer.9.gz
+OLD_FILES+=usr/share/man/man9/usb_find_desc.9.gz
+# 20090623: number of headers needed for a usb driver reduced
+OLD_FILES+=usr/include/dev/usb/usb_defs.h
+OLD_FILES+=usr/include/dev/usb/usb_error.h
+OLD_FILES+=usr/include/dev/usb/usb_handle_request.h
+OLD_FILES+=usr/include/dev/usb/usb_hid.h
+OLD_FILES+=usr/include/dev/usb/usb_lookup.h
+OLD_FILES+=usr/include/dev/usb/usb_mfunc.h
+OLD_FILES+=usr/include/dev/usb/usb_parse.h
+OLD_FILES+=usr/include/dev/usb/usb_revision.h
+# 20090609: devclass_add_driver is no longer public
+OLD_FILES+=usr/share/man/man9/devclass_add_driver.9.gz
+OLD_FILES+=usr/share/man/man9/devclass_delete_driver.9.gz
+OLD_FILES+=usr/share/man/man9/devclass_find_driver.9.gz
 # 20090605: removal of clists
 OLD_FILES+=usr/include/sys/clist.h
 # 20090602: removal of window(1)
 OLD_FILES+=usr/bin/window
 OLD_FILES+=usr/share/man/man1/window.1.gz
+# 20090531: bind 9.6.1rc1 import
+OLD_LIBS+=usr/lib/liblwres.so.30
 # 20090530: removal of early.sh
 OLD_FILES+=etc/rc.d/early.sh
 # 20090527: renaming of S{LIST,TAILQ}_REMOVE_NEXT() to _REMOVE_AFTER()
@@ -105,7 +120,7 @@ OLD_DIRS+=usr/include/legacy/dev/usb
 OLD_DIRS+=usr/include/legacy/dev
 OLD_DIRS+=usr/include/legacy
 # 20090526: removal of makekey(8)
-OLD_FILES+=libexec/makekey
+OLD_FILES+=usr/libexec/makekey
 OLD_FILES+=usr/share/man/man8/makekey.8.gz
 # 20090522: removal of University of Michigan NFSv4 client
 OLD_FILES+=etc/rc.d/idmapd
