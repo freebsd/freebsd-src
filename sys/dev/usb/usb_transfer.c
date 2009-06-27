@@ -2352,29 +2352,37 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 		    (type == UE_INTERRUPT)) {
 			struct usb_device *udev;
 			struct usb_xfer_root *info;
+			uint8_t did_stall;
 
 			info = xfer->xroot;
 			udev = info->udev;
-			ep->is_stalled = 1;
+			did_stall = 1;
 
 			if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 				(udev->bus->methods->set_stall) (
-				    udev, NULL, ep);
+				    udev, NULL, ep, &did_stall);
 			} else if (udev->default_xfer[1]) {
 				info = udev->default_xfer[1]->xroot;
-				if (usb_proc_msignal(
+				usb_proc_msignal(
 				    &info->bus->non_giant_callback_proc,
-				    &udev->cs_msg[0], &udev->cs_msg[1])) {
-					/* ignore */
-				}
+				    &udev->cs_msg[0], &udev->cs_msg[1]);
 			} else {
 				/* should not happen */
 				DPRINTFN(0, "No stall handler!\n");
 			}
 			/*
-			 * We get started again when the stall is cleared!
+			 * Check if we should stall. Some USB hardware
+			 * handles set- and clear-stall in hardware.
 			 */
-			return;
+			if (did_stall) {
+				/*
+				 * The transfer will be continued when
+				 * the clear-stall control endpoint
+				 * message is received.
+				 */
+				ep->is_stalled = 1;
+				return;
+			}
 		}
 	}
 	/* Set or clear stall complete - special case */
@@ -2966,6 +2974,12 @@ usbd_xfer_set_flag(struct usb_xfer *xfer, int flag)
 		case USB_SHORT_XFER_OK:
 			xfer->flags.short_xfer_ok = 1;
 			break;
+		case USB_MULTI_SHORT_OK:
+			xfer->flags.short_frames_ok = 1;
+			break;
+		case USB_MANUAL_STATUS:
+			xfer->flags.manual_status = 1;
+			break;
 	}
 }
 
@@ -2979,5 +2993,22 @@ usbd_xfer_clr_flag(struct usb_xfer *xfer, int flag)
 		case USB_SHORT_XFER_OK:
 			xfer->flags.short_xfer_ok = 0;
 			break;
+		case USB_MULTI_SHORT_OK:
+			xfer->flags.short_frames_ok = 0;
+			break;
+		case USB_MANUAL_STATUS:
+			xfer->flags.manual_status = 0;
+			break;
 	}
+}
+
+/*
+ * The following function returns in milliseconds when the isochronous
+ * transfer was completed by the hardware. The returned value wraps
+ * around 65536 milliseconds.
+ */
+uint16_t
+usbd_xfer_get_timestamp(struct usb_xfer *xfer)
+{
+	return (xfer->isoc_time_complete);
 }

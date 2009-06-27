@@ -475,10 +475,11 @@ ustorage_fs_transfer_stop(struct ustorage_fs_softc *sc)
 static int
 ustorage_fs_handle_request(device_t dev,
     const void *preq, void **pptr, uint16_t *plen,
-    uint16_t offset, uint8_t is_complete)
+    uint16_t offset, uint8_t *pstate)
 {
 	struct ustorage_fs_softc *sc = device_get_softc(dev);
 	const struct usb_device_request *req = preq;
+	uint8_t is_complete = *pstate;
 
 	if (!is_complete) {
 		if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&

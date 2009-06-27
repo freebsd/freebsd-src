@@ -198,6 +198,7 @@ usb_handle_iface_request(struct usb_xfer *xfer,
 	struct usb_device *udev = xfer->xroot->udev;
 	int error;
 	uint8_t iface_index;
+	uint8_t temp_state;
 
 	if ((req.bmRequestType & 0x1F) == UT_INTERFACE) {
 		iface_index = req.wIndex[0];	/* unicast */
@@ -222,6 +223,10 @@ tr_repeat:
 		/* end of interfaces non-existing interface */
 		goto tr_stalled;
 	}
+	/* set initial state */
+
+	temp_state = state;
+
 	/* forward request to interface, if any */
 
 	if ((error != 0) &&
@@ -233,7 +238,7 @@ tr_repeat:
 #endif
 		error = USB_HANDLE_REQUEST(iface->subdev,
 		    &req, ppdata, plen,
-		    off, state);
+		    off, &temp_state);
 	}
 	iface_parent = usbd_get_iface(udev, iface->parent_iface_index);
 
@@ -252,14 +257,18 @@ tr_repeat:
 	    (iface_parent->subdev != iface->subdev) &&
 	    device_is_attached(iface_parent->subdev)) {
 		error = USB_HANDLE_REQUEST(iface_parent->subdev,
-		    &req, ppdata, plen, off,
-		    state);
+		    &req, ppdata, plen, off, &temp_state);
 	}
 	if (error == 0) {
 		/* negativly adjust pointer and length */
 		*ppdata = ((uint8_t *)(*ppdata)) - off;
 		*plen += off;
-		goto tr_valid;
+
+		if ((state == USB_HR_NOT_COMPLETE) &&
+		    (temp_state == USB_HR_COMPLETE_OK))
+			goto tr_short;
+		else
+			goto tr_valid;
 	} else if (error == ENOTTY) {
 		goto tr_stalled;
 	}
@@ -336,6 +345,12 @@ tr_valid:
 	sx_unlock(udev->default_sx + 1);
 	USB_XFER_LOCK(xfer);
 	return (0);
+
+tr_short:
+	mtx_unlock(&Giant);
+	sx_unlock(udev->default_sx + 1);
+	USB_XFER_LOCK(xfer);
+	return (USB_ERR_SHORT_XFER);
 
 tr_stalled:
 	mtx_unlock(&Giant);
@@ -444,6 +459,7 @@ usb_handle_request(struct usb_xfer *xfer)
 	uint16_t wValue;
 	uint16_t wIndex;
 	uint8_t state;
+	uint8_t is_complete = 1;
 	usb_error_t err;
 	union {
 		uWord	wStatus;
@@ -596,6 +612,9 @@ usb_handle_request(struct usb_xfer *xfer)
 		    USB_ADD_BYTES(&src_zcopy, 0),
 		    &max_len, req, off, state);
 		if (err == 0) {
+			is_complete = 0;
+			goto tr_valid;
+		} else if (err == USB_ERR_SHORT_XFER) {
 			goto tr_valid;
 		}
 		/*
@@ -735,7 +754,7 @@ tr_valid:
 	if (rem > xfer->max_data_length) {
 		rem = usbd_xfer_max_len(xfer);
 	}
-	if (rem != max_len) {
+	if ((rem != max_len) && (is_complete != 0)) {
 		/*
 	         * If we don't transfer the data we can transfer, then
 	         * the transfer is short !

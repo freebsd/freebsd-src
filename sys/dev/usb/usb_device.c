@@ -936,7 +936,7 @@ usbd_set_endpoint_stall(struct usb_device *udev, struct usb_endpoint *ep,
 		 * complete the USB transfer like in case of a timeout
 		 * setting the error code "USB_ERR_STALLED".
 		 */
-		(udev->bus->methods->set_stall) (udev, xfer, ep);
+		(udev->bus->methods->set_stall) (udev, xfer, ep, &do_stall);
 	}
 	if (!do_stall) {
 		ep->toggle_next = 0;	/* reset data toggle */
