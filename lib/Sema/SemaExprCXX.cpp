@@ -771,7 +771,7 @@ Sema::ActOnCXXConditionDeclarationExpr(Scope *S, SourceLocation StartLoc,
       Diag(ED->getLocation(), diag::err_type_defined_in_condition);
   }
 
-  DeclPtrTy Dcl = ActOnDeclarator(S, D, DeclPtrTy());
+  DeclPtrTy Dcl = ActOnDeclarator(S, D);
   if (!Dcl)
     return ExprError();
   AddInitializerToDecl(Dcl, move(AssignExprVal), /*DirectInit=*/false);
@@ -1567,7 +1567,7 @@ Sema::OwningExprResult Sema::MaybeBindToTemporary(Expr *E) {
   CXXTemporary *Temp = CXXTemporary::Create(Context, 
                                             RD->getDestructor(Context));
   ExprTemporaries.push_back(Temp);
-  
+  MarcDestructorReferenced(E->getExprLoc(), E->getType());
   // FIXME: Add the temporary to the temporaries vector.
   return Owned(CXXBindTemporaryExpr::Create(Context, Temp, E));
 }

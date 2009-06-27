@@ -319,16 +319,16 @@ void Sema::PushOnScopeChains(NamedDecl *D, Scope *S) {
         return;
       }
     }
-  } else if (isa<FunctionDecl>(D) &&
-             AllowOverloadingOfFunction(D, Context)) {
-    // We are pushing the name of a function, which might be an
-    // overloaded name.
-    FunctionDecl *FD = cast<FunctionDecl>(D);
+  } else if ((isa<FunctionDecl>(D) &&
+              AllowOverloadingOfFunction(D, Context)) ||
+             isa<FunctionTemplateDecl>(D)) {
+    // We are pushing the name of a function or function template,
+    // which might be an overloaded name.
     IdentifierResolver::iterator Redecl
-      = std::find_if(IdResolver.begin(FD->getDeclName()),
+      = std::find_if(IdResolver.begin(D->getDeclName()),
                      IdResolver.end(),
                      std::bind1st(std::mem_fun(&NamedDecl::declarationReplaces),
-                                  FD));
+                                  D));
     if (Redecl != IdResolver.end() &&
         S->isDeclScope(DeclPtrTy::make(*Redecl))) {
       // There is already a declaration of a function on our
@@ -655,7 +655,12 @@ bool Sema::MergeFunctionDecl(FunctionDecl *New, Decl *OldD) {
          "Cannot merge with an overloaded function declaration");
 
   // Verify the old decl was also a function.
-  FunctionDecl *Old = dyn_cast<FunctionDecl>(OldD);
+  FunctionDecl *Old = 0;
+  if (FunctionTemplateDecl *OldFunctionTemplate 
+        = dyn_cast<FunctionTemplateDecl>(OldD))
+    Old = OldFunctionTemplate->getTemplatedDecl();
+  else 
+    Old = dyn_cast<FunctionDecl>(OldD);
   if (!Old) {
     Diag(New->getLocation(), diag::err_redefinition_different_kind)
       << New->getDeclName();
@@ -1385,7 +1390,9 @@ static bool isNearlyMatchingFunction(ASTContext &Context,
 }
 
 Sema::DeclPtrTy 
-Sema::ActOnDeclarator(Scope *S, Declarator &D, bool IsFunctionDefinition) {
+Sema::HandleDeclarator(Scope *S, Declarator &D, 
+                       MultiTemplateParamsArg TemplateParamLists,
+                       bool IsFunctionDefinition) {
   DeclarationName Name = GetNameForDeclarator(D);
 
   // All of these full declarators require an identifier.  If it doesn't have
@@ -1500,9 +1507,15 @@ Sema::ActOnDeclarator(Scope *S, Declarator &D, bool IsFunctionDefinition) {
 
   bool Redeclaration = false;
   if (D.getDeclSpec().getStorageClassSpec() == DeclSpec::SCS_typedef) {
+    if (TemplateParamLists.size()) {
+      Diag(D.getIdentifierLoc(), diag::err_template_typedef);
+      return DeclPtrTy();
+    }
+      
     New = ActOnTypedefDeclarator(S, D, DC, R, PrevDecl, Redeclaration);
   } else if (R->isFunctionType()) {
     New = ActOnFunctionDeclarator(S, D, DC, R, PrevDecl, 
+                                  move(TemplateParamLists),
                                   IsFunctionDefinition, Redeclaration);
   } else {
     New = ActOnVariableDeclarator(S, D, DC, R, PrevDecl, Redeclaration);
@@ -1799,6 +1812,15 @@ Sema::ActOnVariableDeclarator(Scope* S, Declarator& D, DeclContext* DC,
     } else if (SC == VarDecl::None)
       SC = VarDecl::Static;
   }
+  if (SC == VarDecl::Static) {
+    if (const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(DC)) {
+      if (RD->isLocalClass())
+        Diag(D.getIdentifierLoc(), 
+             diag::err_static_data_member_not_allowed_in_local_class)
+          << Name << RD->getDeclName();
+    }
+  }
+        
     
   // The variable can not 
   NewVD = VarDecl::Create(Context, DC, D.getIdentifierLoc(), 
@@ -1987,6 +2009,7 @@ void Sema::CheckVariableDeclaration(VarDecl *NewVD, NamedDecl *PrevDecl,
 NamedDecl* 
 Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                               QualType R, NamedDecl* PrevDecl,
+                              MultiTemplateParamsArg TemplateParamLists,
                               bool IsFunctionDefinition, bool &Redeclaration) {
   assert(R.getTypePtr()->isFunctionType());
 
@@ -2044,6 +2067,11 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
       << R->getAsFunctionType()->getResultType();
     D.setInvalidType();
   }
+
+  // Check that we can declare a template here.
+  if (TemplateParamLists.size() && 
+      CheckTemplateDeclScope(S, TemplateParamLists))
+    return 0;
   
   bool isVirtualOkay = false;
   FunctionDecl *NewFD;
@@ -2143,6 +2171,26 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   // from the semantic context.
   NewFD->setLexicalDeclContext(CurContext);
 
+  // If there is a template parameter list, then we are dealing with a 
+  // template declaration or specialization.
+  FunctionTemplateDecl *FunctionTemplate = 0;
+  if (TemplateParamLists.size()) {
+    // FIXME: member templates!
+    TemplateParameterList *TemplateParams 
+      = static_cast<TemplateParameterList *>(*TemplateParamLists.release());
+    
+    if (TemplateParams->size() > 0) {
+      // This is a function template
+      FunctionTemplate = FunctionTemplateDecl::Create(Context, CurContext,
+                                                      NewFD->getLocation(),
+                                                      Name, TemplateParams,
+                                                      NewFD);
+      NewFD->setDescribedFunctionTemplate(FunctionTemplate);
+    } else {
+      // FIXME: Handle function template specializations
+    }
+  }
+  
   // C++ [dcl.fct.spec]p5:
   //   The virtual specifier shall only be used in declarations of
   //   nonstatic class member functions that appear within a
@@ -2261,8 +2309,6 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
   }
   // Finally, we know we have the right number of parameters, install them.
   NewFD->setParams(Context, Params.data(), Params.size());
-
-  
     
   // If name lookup finds a previous declaration that is not in the
   // same scope as the new declaration, this may still be an
@@ -2342,6 +2388,15 @@ Sema::ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
       && !NewFD->isInvalidDecl())
     RegisterLocallyScopedExternCDecl(NewFD, PrevDecl, S);
 
+  // Set this FunctionDecl's range up to the right paren.
+  NewFD->setLocEnd(D.getSourceRange().getEnd());
+
+  if (FunctionTemplate && NewFD->isInvalidDecl())
+    FunctionTemplate->setInvalidDecl();
+  
+  if (FunctionTemplate)
+    return FunctionTemplate;
+  
   return NewFD;
 }
 
@@ -2470,7 +2525,11 @@ void Sema::CheckFunctionDeclaration(FunctionDecl *NewFD, NamedDecl *&PrevDecl,
       if (MergeFunctionDecl(NewFD, OldDecl))
         return NewFD->setInvalidDecl();
 
-      NewFD->setPreviousDeclaration(cast<FunctionDecl>(OldDecl));
+      if (FunctionTemplateDecl *OldTemplateDecl
+            = dyn_cast<FunctionTemplateDecl>(OldDecl))
+        NewFD->setPreviousDeclaration(OldTemplateDecl->getTemplatedDecl());
+      else
+        NewFD->setPreviousDeclaration(cast<FunctionDecl>(OldDecl));
     }
   }
 
@@ -2733,9 +2792,13 @@ void Sema::ActOnUninitializedDecl(DeclPtrTy dcl) {
                                                  IK_Default);
         if (!Constructor)
           Var->setInvalidDecl();
-        else 
+        else { 
           if (!RD->hasTrivialConstructor())
             InitializeVarWithConstructor(Var, Constructor, InitType, 0, 0);
+          // FIXME. Must do all that is needed to destroy the object
+          // on scope exit. For now, just mark the destructor as used.
+          MarcDestructorReferenced(Var->getLocation(), InitType);
+        }
       }
     }
 
@@ -2987,11 +3050,15 @@ Sema::DeclPtrTy Sema::ActOnStartOfFunctionDef(Scope *FnBodyScope,
   
   Scope *ParentScope = FnBodyScope->getParent();
 
-  DeclPtrTy DP = ActOnDeclarator(ParentScope, D, /*IsFunctionDefinition=*/true);
+  DeclPtrTy DP = HandleDeclarator(ParentScope, D, 
+                                  MultiTemplateParamsArg(*this),
+                                  /*IsFunctionDefinition=*/true);
   return ActOnStartOfFunctionDef(FnBodyScope, DP);
 }
 
 Sema::DeclPtrTy Sema::ActOnStartOfFunctionDef(Scope *FnBodyScope, DeclPtrTy D) {
+  if (!D)
+    return D;
   FunctionDecl *FD = cast<FunctionDecl>(D.getAs<Decl>());
 
   CurFunctionNeedsScopeChecking = false;
@@ -3219,7 +3286,7 @@ NamedDecl *Sema::ImplicitlyDefineFunction(SourceLocation Loc,
   CurContext = Context.getTranslationUnitDecl();
  
   FunctionDecl *FD = 
- dyn_cast<FunctionDecl>(ActOnDeclarator(TUScope, D, DeclPtrTy()).getAs<Decl>());
+ dyn_cast<FunctionDecl>(ActOnDeclarator(TUScope, D).getAs<Decl>());
   FD->setImplicit();
 
   CurContext = PrevDC;

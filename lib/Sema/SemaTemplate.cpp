@@ -67,9 +67,10 @@ TemplateNameKind Sema::isTemplateName(const IdentifierInfo &II, Scope *S,
       }
     }
 
-    // FIXME: What follows is a gross hack.
+    // FIXME: What follows is a slightly less gross hack than what used to 
+    // follow.
     if (FunctionDecl *FD = dyn_cast<FunctionDecl>(IIDecl)) {
-      if (FD->getType()->isDependentType()) {
+      if (FD->getDescribedFunctionTemplate()) {
         TemplateResult = TemplateTy::make(FD);
         return TNK_Function_template;
       }
@@ -78,7 +79,7 @@ TemplateNameKind Sema::isTemplateName(const IdentifierInfo &II, Scope *S,
       for (OverloadedFunctionDecl::function_iterator F = Ovl->function_begin(),
                                                   FEnd = Ovl->function_end();
            F != FEnd; ++F) {
-        if ((*F)->getType()->isDependentType()) {
+        if (isa<FunctionTemplateDecl>(*F)) {
           TemplateResult = TemplateTy::make(Ovl);
           return TNK_Function_template;
         }
@@ -1808,8 +1809,8 @@ bool Sema::CheckTemplateArgument(TemplateTemplateParmDecl *Param,
       !isa<TemplateTemplateParmDecl>(Template)) {
     assert(isa<FunctionTemplateDecl>(Template) && 
            "Only function templates are possible here");
-    Diag(Arg->getSourceRange().getBegin(), 
-         diag::note_template_arg_refers_here_func)
+    Diag(Arg->getLocStart(), diag::err_template_arg_not_class_template);
+    Diag(Template->getLocation(), diag::note_template_arg_refers_here_func)
       << Template;
   }
 
@@ -1873,15 +1874,17 @@ Sema::TemplateParameterListsAreEqual(TemplateParameterList *New,
          OldParmEnd = Old->end(), NewParm = New->begin();
        OldParm != OldParmEnd; ++OldParm, ++NewParm) {
     if ((*OldParm)->getKind() != (*NewParm)->getKind()) {
-      unsigned NextDiag = diag::err_template_param_different_kind;
-      if (TemplateArgLoc.isValid()) {
-        Diag(TemplateArgLoc, diag::err_template_arg_template_params_mismatch);
-        NextDiag = diag::note_template_param_different_kind;
+      if (Complain) {
+        unsigned NextDiag = diag::err_template_param_different_kind;
+        if (TemplateArgLoc.isValid()) {
+          Diag(TemplateArgLoc, diag::err_template_arg_template_params_mismatch);
+          NextDiag = diag::note_template_param_different_kind;
+        }
+        Diag((*NewParm)->getLocation(), NextDiag)
+        << IsTemplateTemplateParm;
+        Diag((*OldParm)->getLocation(), diag::note_template_prev_declaration)
+        << IsTemplateTemplateParm;
       }
-      Diag((*NewParm)->getLocation(), NextDiag)
-        << IsTemplateTemplateParm;
-      Diag((*OldParm)->getLocation(), diag::note_template_prev_declaration)
-        << IsTemplateTemplateParm;
       return false;
     }
 
@@ -2497,6 +2500,40 @@ Sema::ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec, TagKind TK,
   // context. However, specializations are not found by name lookup.
   CurContext->addDecl(Context, Specialization);
   return DeclPtrTy::make(Specialization);
+}
+
+Sema::DeclPtrTy 
+Sema::ActOnTemplateDeclarator(Scope *S, 
+                              MultiTemplateParamsArg TemplateParameterLists,
+                              Declarator &D) {
+  return HandleDeclarator(S, D, move(TemplateParameterLists), false);
+}
+
+Sema::DeclPtrTy 
+Sema::ActOnStartOfFunctionTemplateDef(Scope *FnBodyScope, 
+                               MultiTemplateParamsArg TemplateParameterLists,
+                                      Declarator &D) {
+  assert(getCurFunctionDecl() == 0 && "Function parsing confused");
+  assert(D.getTypeObject(0).Kind == DeclaratorChunk::Function &&
+         "Not a function declarator!");
+  DeclaratorChunk::FunctionTypeInfo &FTI = D.getTypeObject(0).Fun;
+  
+  if (FTI.hasPrototype) {
+    // FIXME: Diagnose arguments without names in C. 
+  }
+  
+  Scope *ParentScope = FnBodyScope->getParent();
+  
+  DeclPtrTy DP = HandleDeclarator(ParentScope, D, 
+                                  move(TemplateParameterLists),
+                                  /*IsFunctionDefinition=*/true);
+  FunctionTemplateDecl *FunctionTemplate 
+    = cast_or_null<FunctionTemplateDecl>(DP.getAs<Decl>());
+  if (FunctionTemplate)
+    return ActOnStartOfFunctionDef(FnBodyScope, 
+                      DeclPtrTy::make(FunctionTemplate->getTemplatedDecl()));
+
+  return DeclPtrTy();
 }
 
 // Explicit instantiation of a class template specialization

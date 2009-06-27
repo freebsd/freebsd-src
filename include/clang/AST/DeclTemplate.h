@@ -153,7 +153,7 @@ protected:
   NamedDecl *TemplatedDecl;
   TemplateParameterList* TemplateParams;
 };
-
+ 
 /// Declaration of a template function.
 class FunctionTemplateDecl : public TemplateDecl {
 protected:
@@ -580,6 +580,30 @@ public:
     return reinterpret_cast<Expr *>(TypeOrValue);
   }
 
+  /// \brief Iterator that traverses the elements of a template argument pack.
+  typedef const TemplateArgument * pack_iterator;
+  
+  /// \brief Iterator referencing the first argument of a template argument 
+  /// pack.
+  pack_iterator pack_begin() const {
+    assert(Kind == Pack);
+    return Args.Args;
+  }
+
+  /// \brief Iterator referencing one past the last argument of a template
+  /// argument pack.
+  pack_iterator pack_end() const {
+    assert(Kind == Pack);
+    return Args.Args + Args.NumArgs;
+  }
+  
+  /// \brief The number of template arguments in the given template argument
+  /// pack.
+  unsigned pack_size() const {
+    assert(Kind == Pack);
+    return Args.NumArgs;
+  }
+  
   /// \brief Retrieve the location where the template argument starts.
   SourceLocation getLocation() const { return StartLoc; }
 
@@ -956,6 +980,10 @@ public:
 
   virtual void Destroy(ASTContext& C);
 };
+
+/// Implementation of inline functions that require the template declarations
+inline AnyFunctionDecl::AnyFunctionDecl(FunctionTemplateDecl *FTD) 
+  : Function(FTD) { }
 
 } /* end of namespace clang */
 

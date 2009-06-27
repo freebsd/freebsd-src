@@ -1,4 +1,4 @@
-//= GRState*cpp - Path-Sens. "State" for tracking valuues -----*- C++ -*--=//
+//= GRState.cpp - Path-Sensitive "State" for tracking values -----*- C++ -*--=//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This file defines SymbolRef, ExprBindKey, and GRState*
+//  This file implements GRState and GRStateManager.
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,6 +20,7 @@
 using namespace clang;
 
 // Give the vtable for ConstraintManager somewhere to live.
+// FIXME: Move this elsewhere.
 ConstraintManager::~ConstraintManager() {}
 
 GRStateManager::~GRStateManager() {
@@ -56,16 +57,63 @@ GRStateManager::RemoveDeadBindings(const GRState* state, Stmt* Loc,
                                            SymReaper);
 }
 
-const GRState* GRStateManager::Unbind(const GRState* St, Loc LV) {
-  Store OldStore = St->getStore();
-  Store NewStore = StoreMgr->Remove(OldStore, LV);
+const GRState *GRState::unbindLoc(Loc LV) const {
+  Store OldStore = getStore();
+  Store NewStore = Mgr->StoreMgr->Remove(OldStore, LV);
   
   if (NewStore == OldStore)
-    return St;
+    return this;
   
-  GRState NewSt = *St;
+  GRState NewSt = *this;
   NewSt.St = NewStore;
-  return getPersistentState(NewSt);    
+  return Mgr->getPersistentState(NewSt);    
+}
+
+SVal GRState::getSValAsScalarOrLoc(const MemRegion *R) const {
+  // We only want to do fetches from regions that we can actually bind
+  // values.  For example, SymbolicRegions of type 'id<...>' cannot
+  // have direct bindings (but their can be bindings on their subregions).
+  if (!R->isBoundable())
+    return UnknownVal();
+
+  if (const TypedRegion *TR = dyn_cast<TypedRegion>(R)) {
+    QualType T = TR->getValueType(Mgr->getContext());
+    if (Loc::IsLocType(T) || T->isIntegerType())
+      return getSVal(R);
+  }
+
+  return UnknownVal();
+}
+
+
+const GRState *GRState::bindExpr(const Stmt* Ex, SVal V, bool isBlkExpr,
+                                 bool Invalidate) const {
+  
+  Environment NewEnv = Mgr->EnvMgr.BindExpr(Env, Ex, V, isBlkExpr, Invalidate);
+  
+  if (NewEnv == Env)
+    return this;
+  
+  GRState NewSt = *this;
+  NewSt.Env = NewEnv;
+  return Mgr->getPersistentState(NewSt);
+}
+
+const GRState *GRState::bindExpr(const Stmt* Ex, SVal V,
+                                 bool Invalidate) const {
+  
+  bool isBlkExpr = false;
+  
+  if (Ex == Mgr->CurrentStmt) {
+      // FIXME: Should this just be an assertion?  When would we want to set
+      // the value of a block-level expression if it wasn't CurrentStmt?
+    isBlkExpr = Mgr->cfg.isBlkExpr(Ex);
+    
+    if (!isBlkExpr)
+      return this;
+  }
+  
+  return bindExpr(Ex, V, isBlkExpr, Invalidate);
 }
 
 const GRState* GRStateManager::getInitialState() {
@@ -101,7 +149,8 @@ const GRState* GRState::makeWithStore(Store store) const {
 //  State pretty-printing.
 //===----------------------------------------------------------------------===//
 
-void GRState::print(std::ostream& Out, const char* nl, const char* sep) const {  
+void GRState::print(llvm::raw_ostream& Out, const char* nl,
+                    const char* sep) const {  
   // Print the store.
   Mgr->getStoreManager().print(getStore(), Out, nl, sep);
   
@@ -117,9 +166,7 @@ void GRState::print(std::ostream& Out, const char* nl, const char* sep) const {
     else { Out << nl; }
     
     Out << " (" << (void*) I.getKey() << ") ";
-    llvm::raw_os_ostream OutS(Out);
-    I.getKey()->printPretty(OutS);
-    OutS.flush();
+    I.getKey()->printPretty(Out);
     Out << " : ";
     I.getData().print(Out);
   }
@@ -136,9 +183,7 @@ void GRState::print(std::ostream& Out, const char* nl, const char* sep) const {
     else { Out << nl; }
     
     Out << " (" << (void*) I.getKey() << ") ";
-    llvm::raw_os_ostream OutS(Out);
-    I.getKey()->printPretty(OutS);
-    OutS.flush();
+    I.getKey()->printPretty(Out);
     Out << " : ";
     I.getData().print(Out);
   }
@@ -152,12 +197,12 @@ void GRState::print(std::ostream& Out, const char* nl, const char* sep) const {
   }
 }
 
-void GRState::printDOT(std::ostream& Out) const {
+void GRState::printDOT(llvm::raw_ostream& Out) const {
   print(Out, "\\l", "\\|");
 }
 
 void GRState::printStdErr() const {
-  print(*llvm::cerr);
+  print(llvm::errs());
 }
 
 //===----------------------------------------------------------------------===//

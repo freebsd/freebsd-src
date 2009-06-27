@@ -125,21 +125,32 @@ MaybeConstructOverloadSet(ASTContext &Context,
   assert(!isa<OverloadedFunctionDecl>(*I) && 
          "Cannot have an overloaded function");
 
-  if (isa<FunctionDecl>(*I)) {
+  if ((*I)->isFunctionOrFunctionTemplate()) {
     // If we found a function, there might be more functions. If
     // so, collect them into an overload set.
     DeclIterator Last = I;
     OverloadedFunctionDecl *Ovl = 0;
-    for (++Last; Last != IEnd && isa<FunctionDecl>(*Last); ++Last) {
+    for (++Last; 
+         Last != IEnd && (*Last)->isFunctionOrFunctionTemplate(); 
+         ++Last) {
       if (!Ovl) {
         // FIXME: We leak this overload set. Eventually, we want to stop
         // building the declarations for these overload sets, so there will be
         // nothing to leak.
         Ovl = OverloadedFunctionDecl::Create(Context, (*I)->getDeclContext(),
                                              (*I)->getDeclName());
-        Ovl->addOverload(cast<FunctionDecl>(*I));
+        NamedDecl *ND = (*I)->getUnderlyingDecl();
+        if (isa<FunctionDecl>(ND))
+          Ovl->addOverload(cast<FunctionDecl>(ND));
+        else
+          Ovl->addOverload(cast<FunctionTemplateDecl>(ND));
       }
-      Ovl->addOverload(cast<FunctionDecl>(*Last));
+
+      NamedDecl *ND = (*Last)->getUnderlyingDecl();
+      if (isa<FunctionDecl>(ND))
+        Ovl->addOverload(cast<FunctionDecl>(ND));
+      else
+        Ovl->addOverload(cast<FunctionTemplateDecl>(ND));
     }
     
     // If we had more than one function, we built an overload
@@ -202,11 +213,12 @@ MergeLookupResults(ASTContext &Context, LookupResultsTy &Results) {
       break;
 
     case LResult::Found: {
-      NamedDecl *ND = I->getAsDecl();
+      NamedDecl *ND = I->getAsDecl()->getUnderlyingDecl();
+        
       if (TagDecl *TD = dyn_cast<TagDecl>(ND)) {
         TagFound = Context.getCanonicalDecl(TD);
         TagNames += FoundDecls.insert(TagFound)?  1 : 0;
-      } else if (isa<FunctionDecl>(ND))
+      } else if (ND->isFunctionOrFunctionTemplate())
         Functions += FoundDecls.insert(ND)? 1 : 0;
       else
         FoundDecls.insert(ND);
@@ -313,10 +325,9 @@ getIdentifierNamespacesFromLookupNameKind(Sema::LookupNameKind NameKind,
 
 Sema::LookupResult
 Sema::LookupResult::CreateLookupResult(ASTContext &Context, NamedDecl *D) {
-  if (ObjCCompatibleAliasDecl *Alias 
-        = dyn_cast_or_null<ObjCCompatibleAliasDecl>(D))
-    D = Alias->getClassInterface();
-
+  if (D)
+    D = D->getUnderlyingDecl();
+  
   LookupResult Result;
   Result.StoredKind = (D && isa<OverloadedFunctionDecl>(D))?
     OverloadedDeclSingleDecl : SingleDecl;
@@ -334,10 +345,10 @@ Sema::LookupResult::CreateLookupResult(ASTContext &Context,
   LookupResult Result;
   Result.Context = &Context;
 
-  if (F != L && isa<FunctionDecl>(*F)) {
+  if (F != L && (*F)->isFunctionOrFunctionTemplate()) {
     IdentifierResolver::iterator Next = F;
     ++Next;
-    if (Next != L && isa<FunctionDecl>(*Next)) {
+    if (Next != L && (*Next)->isFunctionOrFunctionTemplate()) {
       Result.StoredKind = OverloadedDeclFromIdResolver;
       Result.First = F.getAsOpaqueValue();
       Result.Last = L.getAsOpaqueValue();
@@ -345,11 +356,10 @@ Sema::LookupResult::CreateLookupResult(ASTContext &Context,
     }
   } 
 
-  Decl *D = *F;
-  if (ObjCCompatibleAliasDecl *Alias 
-        = dyn_cast_or_null<ObjCCompatibleAliasDecl>(D))
-    D = Alias->getClassInterface();
-    
+  NamedDecl *D = *F;
+  if (D)
+    D = D->getUnderlyingDecl();
+
   Result.StoredKind = SingleDecl;
   Result.First = reinterpret_cast<uintptr_t>(D);
   Result.Last = 0;
@@ -363,10 +373,10 @@ Sema::LookupResult::CreateLookupResult(ASTContext &Context,
   LookupResult Result;
   Result.Context = &Context;
 
-  if (F != L && isa<FunctionDecl>(*F)) {
+  if (F != L && (*F)->isFunctionOrFunctionTemplate()) {
     DeclContext::lookup_iterator Next = F;
     ++Next;
-    if (Next != L && isa<FunctionDecl>(*Next)) {
+    if (Next != L && (*Next)->isFunctionOrFunctionTemplate()) {
       Result.StoredKind = OverloadedDeclFromDeclContext;
       Result.First = reinterpret_cast<uintptr_t>(F);
       Result.Last = reinterpret_cast<uintptr_t>(L);
@@ -374,10 +384,9 @@ Sema::LookupResult::CreateLookupResult(ASTContext &Context,
     }
   }
 
-  Decl *D = *F;
-  if (ObjCCompatibleAliasDecl *Alias 
-        = dyn_cast_or_null<ObjCCompatibleAliasDecl>(D))
-    D = Alias->getClassInterface();
+  NamedDecl *D = *F;
+  if (D)
+    D = D->getUnderlyingDecl();
   
   Result.StoredKind = SingleDecl;
   Result.First = reinterpret_cast<uintptr_t>(D);
@@ -1083,7 +1092,7 @@ Sema::LookupQualifiedName(DeclContext *LookupCtx, DeclarationName Name,
   // Lookup in a base class succeeded; return these results.
 
   // If we found a function declaration, return an overload set.
-  if (isa<FunctionDecl>(*Paths.front().Decls.first))
+  if ((*Paths.front().Decls.first)->isFunctionOrFunctionTemplate())
     return LookupResult::CreateLookupResult(Context, 
                         Paths.front().Decls.first, Paths.front().Decls.second);
 
@@ -1239,7 +1248,8 @@ static void
 addAssociatedClassesAndNamespaces(CXXRecordDecl *Class, 
                                   ASTContext &Context,
                             Sema::AssociatedNamespaceSet &AssociatedNamespaces,
-                            Sema::AssociatedClassSet &AssociatedClasses) {
+                            Sema::AssociatedClassSet &AssociatedClasses,
+                                  bool &GlobalScope) {
   // C++ [basic.lookup.koenig]p2:
   //   [...]
   //     -- If T is a class type (including unions), its associated
@@ -1252,13 +1262,14 @@ addAssociatedClassesAndNamespaces(CXXRecordDecl *Class,
   DeclContext *Ctx = Class->getDeclContext();
   if (CXXRecordDecl *EnclosingClass = dyn_cast<CXXRecordDecl>(Ctx))
     AssociatedClasses.insert(EnclosingClass);
-
   // Add the associated namespace for this class.
   while (Ctx->isRecord())
     Ctx = Ctx->getParent();
   if (NamespaceDecl *EnclosingNamespace = dyn_cast<NamespaceDecl>(Ctx))
     AssociatedNamespaces.insert(EnclosingNamespace);
-
+  else if (Ctx->isTranslationUnit())
+    GlobalScope = true;
+  
   // Add the class itself. If we've already seen this class, we don't
   // need to visit base classes.
   if (!AssociatedClasses.insert(Class))
@@ -1288,6 +1299,8 @@ addAssociatedClassesAndNamespaces(CXXRecordDecl *Class,
           BaseCtx = BaseCtx->getParent();
         if (NamespaceDecl *EnclosingNamespace = dyn_cast<NamespaceDecl>(BaseCtx))
           AssociatedNamespaces.insert(EnclosingNamespace);
+        else if (BaseCtx->isTranslationUnit())
+          GlobalScope = true;
 
         // Make sure we visit the bases of this base class.
         if (BaseDecl->bases_begin() != BaseDecl->bases_end())
@@ -1304,7 +1317,8 @@ static void
 addAssociatedClassesAndNamespaces(QualType T, 
                                   ASTContext &Context,
                             Sema::AssociatedNamespaceSet &AssociatedNamespaces,
-                            Sema::AssociatedClassSet &AssociatedClasses) {
+                                  Sema::AssociatedClassSet &AssociatedClasses,
+                                  bool &GlobalScope) {
   // C++ [basic.lookup.koenig]p2:
   //
   //   For each argument type T in the function call, there is a set
@@ -1346,7 +1360,8 @@ addAssociatedClassesAndNamespaces(QualType T,
         = dyn_cast<CXXRecordDecl>(ClassType->getDecl())) {
       addAssociatedClassesAndNamespaces(ClassDecl, Context, 
                                         AssociatedNamespaces, 
-                                        AssociatedClasses);
+                                        AssociatedClasses,
+                                        GlobalScope);
       return;
     }
 
@@ -1366,6 +1381,8 @@ addAssociatedClassesAndNamespaces(QualType T,
       Ctx = Ctx->getParent();
     if (NamespaceDecl *EnclosingNamespace = dyn_cast<NamespaceDecl>(Ctx))
       AssociatedNamespaces.insert(EnclosingNamespace);
+    else if (Ctx->isTranslationUnit())
+      GlobalScope = true;
 
     return;
   }
@@ -1377,7 +1394,8 @@ addAssociatedClassesAndNamespaces(QualType T,
     // Return type
     addAssociatedClassesAndNamespaces(FunctionType->getResultType(), 
                                       Context,
-                                      AssociatedNamespaces, AssociatedClasses);
+                                      AssociatedNamespaces, AssociatedClasses,
+                                      GlobalScope);
 
     const FunctionProtoType *Proto = dyn_cast<FunctionProtoType>(FunctionType);
     if (!Proto)
@@ -1388,7 +1406,8 @@ addAssociatedClassesAndNamespaces(QualType T,
                                            ArgEnd = Proto->arg_type_end(); 
          Arg != ArgEnd; ++Arg)
       addAssociatedClassesAndNamespaces(*Arg, Context,
-                                        AssociatedNamespaces, AssociatedClasses);
+                                        AssociatedNamespaces, AssociatedClasses,
+                                        GlobalScope);
       
     return;
   }
@@ -1406,13 +1425,15 @@ addAssociatedClassesAndNamespaces(QualType T,
     // Handle the type that the pointer to member points to.
     addAssociatedClassesAndNamespaces(MemberPtr->getPointeeType(),
                                       Context,
-                                      AssociatedNamespaces, AssociatedClasses);
+                                      AssociatedNamespaces, AssociatedClasses,
+                                      GlobalScope);
 
     // Handle the class type into which this points.
     if (const RecordType *Class = MemberPtr->getClass()->getAsRecordType())
       addAssociatedClassesAndNamespaces(cast<CXXRecordDecl>(Class->getDecl()),
                                         Context,
-                                        AssociatedNamespaces, AssociatedClasses);
+                                        AssociatedNamespaces, AssociatedClasses,
+                                        GlobalScope);
 
     return;
   }
@@ -1431,7 +1452,8 @@ addAssociatedClassesAndNamespaces(QualType T,
 void 
 Sema::FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
                                  AssociatedNamespaceSet &AssociatedNamespaces,
-                                 AssociatedClassSet &AssociatedClasses) {
+                                 AssociatedClassSet &AssociatedClasses,
+                                         bool &GlobalScope) {
   AssociatedNamespaces.clear();
   AssociatedClasses.clear();
 
@@ -1447,7 +1469,8 @@ Sema::FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
 
     if (Arg->getType() != Context.OverloadTy) {
       addAssociatedClassesAndNamespaces(Arg->getType(), Context,
-                                        AssociatedNamespaces, AssociatedClasses);
+                                        AssociatedNamespaces, AssociatedClasses,
+                                        GlobalScope);
       continue;
     }
 
@@ -1475,7 +1498,9 @@ Sema::FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
     for (OverloadedFunctionDecl::function_iterator Func = Ovl->function_begin(),
                                                 FuncEnd = Ovl->function_end();
          Func != FuncEnd; ++Func) {
-      FunctionDecl *FDecl = cast<FunctionDecl>(*Func);
+      FunctionDecl *FDecl = dyn_cast<FunctionDecl>(*Func);
+      if (!FDecl)
+        FDecl = cast<FunctionTemplateDecl>(*Func)->getTemplatedDecl();
 
       // Add the namespace in which this function was defined. Note
       // that, if this is a member function, we do *not* consider the
@@ -1483,11 +1508,14 @@ Sema::FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
       DeclContext *Ctx = FDecl->getDeclContext();
       if (NamespaceDecl *EnclosingNamespace = dyn_cast<NamespaceDecl>(Ctx))
         AssociatedNamespaces.insert(EnclosingNamespace);
+      else if (Ctx->isTranslationUnit())
+        GlobalScope = true;
 
       // Add the classes and namespaces associated with the parameter
       // types and return type of this function.
       addAssociatedClassesAndNamespaces(FDecl->getType(), Context,
-                                        AssociatedNamespaces, AssociatedClasses);
+                                        AssociatedNamespaces, AssociatedClasses,
+                                        GlobalScope);
     }
   }
 }
@@ -1589,8 +1617,10 @@ void Sema::ArgumentDependentLookup(DeclarationName Name,
   // arguments we have.
   AssociatedNamespaceSet AssociatedNamespaces;
   AssociatedClassSet AssociatedClasses;
+  bool GlobalScope = false;
   FindAssociatedClassesAndNamespaces(Args, NumArgs, 
-                                     AssociatedNamespaces, AssociatedClasses);
+                                     AssociatedNamespaces, AssociatedClasses,
+                                     GlobalScope);
 
   // C++ [basic.lookup.argdep]p3:
   //   Let X be the lookup set produced by unqualified lookup (3.4.1)
@@ -1623,6 +1653,19 @@ void Sema::ArgumentDependentLookup(DeclarationName Name,
       if (!Func)
         break;
 
+      Functions.insert(Func);
+    }
+  }
+  
+  if (GlobalScope) {
+    DeclContext::lookup_iterator I, E;
+    for (llvm::tie(I, E) 
+           = Context.getTranslationUnitDecl()->lookup(Context, Name); 
+         I != E; ++I) {
+      FunctionDecl *Func = dyn_cast<FunctionDecl>(*I);
+      if (!Func)
+        break;
+      
       Functions.insert(Func);
     }
   }

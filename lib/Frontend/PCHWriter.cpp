@@ -185,6 +185,11 @@ void PCHTypeWriter::VisitTypeOfType(const TypeOfType *T) {
   Code = pch::TYPE_TYPEOF;
 }
 
+void PCHTypeWriter::VisitDecltypeType(const DecltypeType *T) {
+  Writer.AddStmt(T->getUnderlyingExpr());
+  Code = pch::TYPE_DECLTYPE;
+}
+
 void PCHTypeWriter::VisitTagType(const TagType *T) {
   Writer.AddDeclRef(T->getDecl(), Record);
   assert(!T->isBeingDefined() && 
@@ -526,6 +531,7 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
   Record.push_back(LangOpts.PascalStrings);  // Allow Pascal strings
   Record.push_back(LangOpts.WritableStrings);  // Allow writable strings
   Record.push_back(LangOpts.LaxVectorConversions);
+  Record.push_back(LangOpts.AltiVec);
   Record.push_back(LangOpts.Exceptions);  // Support exception handling.
 
   Record.push_back(LangOpts.NeXTRuntime); // Use NeXT runtime.
@@ -563,6 +569,7 @@ void PCHWriter::WriteLanguageOptions(const LangOptions &LangOpts) {
   Record.push_back(LangOpts.getGCMode());
   Record.push_back(LangOpts.getVisibilityMode());
   Record.push_back(LangOpts.InstantiationDepth);
+  Record.push_back(LangOpts.OpenCL);
   Stream.EmitRecord(pch::LANGUAGE_OPTIONS, Record);
 }
 
@@ -1615,6 +1622,12 @@ void PCHWriter::WriteAttributeRecord(const Attr *Attr) {
     case Attr::Regparm:
       Record.push_back(cast<RegparmAttr>(Attr)->getNumParams());
       break;
+        
+    case Attr::ReqdWorkGroupSize:
+      Record.push_back(cast<ReqdWorkGroupSizeAttr>(Attr)->getXDim());
+      Record.push_back(cast<ReqdWorkGroupSizeAttr>(Attr)->getYDim());
+      Record.push_back(cast<ReqdWorkGroupSizeAttr>(Attr)->getZDim());
+      break;
 
     case Attr::Section:
       AddString(cast<SectionAttr>(Attr)->getName(), Record);
@@ -1896,6 +1909,9 @@ void PCHWriter::AddTypeRef(QualType T, RecordData &Record) {
     case BuiltinType::NullPtr:    ID = pch::PREDEF_TYPE_NULLPTR_ID;    break;
     case BuiltinType::Overload:   ID = pch::PREDEF_TYPE_OVERLOAD_ID;   break;
     case BuiltinType::Dependent:  ID = pch::PREDEF_TYPE_DEPENDENT_ID;  break;
+    case BuiltinType::UndeducedAuto:
+      assert(0 && "Should not see undeduced auto here");
+      break;
     }
 
     Record.push_back((ID << 3) | T.getCVRQualifiers());

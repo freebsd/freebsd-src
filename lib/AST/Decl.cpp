@@ -269,6 +269,14 @@ bool NamedDecl::declarationReplaces(NamedDecl *OldD) const {
     // For function declarations, we keep track of redeclarations.
     return FD->getPreviousDeclaration() == OldD;
 
+  // For function templates, the underlying function declarations are linked.
+  if (const FunctionTemplateDecl *FunctionTemplate
+        = dyn_cast<FunctionTemplateDecl>(this))
+    if (const FunctionTemplateDecl *OldFunctionTemplate
+          = dyn_cast<FunctionTemplateDecl>(OldD))
+      return FunctionTemplate->getTemplatedDecl()
+               ->declarationReplaces(OldFunctionTemplate->getTemplatedDecl());
+  
   // For method declarations, we keep track of redeclarations.
   if (isa<ObjCMethodDecl>(this))
     return false;
@@ -287,6 +295,19 @@ bool NamedDecl::hasLinkage() const {
     return true;
 
   return false;
+}
+
+NamedDecl *NamedDecl::getUnderlyingDecl() {
+  NamedDecl *ND = this;
+  while (true) {
+    if (UsingDecl *UD = dyn_cast<UsingDecl>(ND))
+      ND = UD->getTargetDecl();
+    else if (ObjCCompatibleAliasDecl *AD
+              = dyn_cast<ObjCCompatibleAliasDecl>(ND))
+      return AD->getClassInterface();
+    else
+      return ND;
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -351,6 +372,10 @@ void FunctionDecl::Destroy(ASTContext& C) {
 
   C.Deallocate(ParamInfo);
 
+  if (TemplateSpecializationInfo *Info 
+        = TemplateOrSpecialization.dyn_cast<TemplateSpecializationInfo*>())
+    C.Deallocate(Info);
+  
   Decl::Destroy(C);
 }
 
@@ -545,6 +570,20 @@ OverloadedOperatorKind FunctionDecl::getOverloadedOperator() const {
     return getDeclName().getCXXOverloadedOperator();
   else
     return OO_None;
+}
+
+void 
+FunctionDecl::setFunctionTemplateSpecialization(ASTContext &Context,
+                                                FunctionTemplateDecl *Template,
+                                     const TemplateArgumentList *TemplateArgs) {
+  TemplateSpecializationInfo *Info 
+    = TemplateOrSpecialization.dyn_cast<TemplateSpecializationInfo*>();
+  if (!Info)
+    Info = new (Context) TemplateSpecializationInfo;
+  
+  Info->Template = Template;
+  Info->TemplateArguments = TemplateArgs;
+  TemplateOrSpecialization = Info;
 }
 
 //===----------------------------------------------------------------------===//

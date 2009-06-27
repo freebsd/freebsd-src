@@ -12,7 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "GRSimpleVals.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Analysis/PathSensitive/GRExprEngineBuilders.h"
@@ -22,6 +21,7 @@
 #include "clang/Analysis/PathDiagnostic.h"
 #include "clang/Analysis/PathSensitive/BugReporter.h"
 #include "clang/Analysis/PathSensitive/SymbolManager.h"
+#include "clang/Analysis/PathSensitive/GRTransferFuncs.h"
 #include "clang/AST/DeclObjC.h"   
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
@@ -30,7 +30,6 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/ADT/STLExtras.h"
-#include <ostream>
 #include <stdarg.h>
 
 using namespace clang;
@@ -1674,10 +1673,10 @@ public:
     ID.Add(T);
   }
 
-  void print(std::ostream& Out) const;
+  void print(llvm::raw_ostream& Out) const;
 };
   
-void RefVal::print(std::ostream& Out) const {
+void RefVal::print(llvm::raw_ostream& Out) const {
   if (!T.isNull())
     Out << "Tracked Type:" << T.getAsString() << '\n';
     
@@ -1827,11 +1826,11 @@ static const GRState * SendAutorelease(const GRState *state,
 
 namespace {
   
-class VISIBILITY_HIDDEN CFRefCount : public GRSimpleVals {
+class VISIBILITY_HIDDEN CFRefCount : public GRTransferFuncs {
 public:
   class BindingsPrinter : public GRState::Printer {
   public:
-    virtual void Print(std::ostream& Out, const GRState* state,
+    virtual void Print(llvm::raw_ostream& Out, const GRState* state,
                        const char* nl, const char* sep);
   };
 
@@ -1959,7 +1958,8 @@ public:
 
 } // end anonymous namespace
 
-static void PrintPool(std::ostream &Out, SymbolRef Sym, const GRState *state) {
+static void PrintPool(llvm::raw_ostream &Out, SymbolRef Sym,
+                      const GRState *state) {
   Out << ' ';
   if (Sym)
     Out << Sym->getSymbolID();
@@ -1975,10 +1975,9 @@ static void PrintPool(std::ostream &Out, SymbolRef Sym, const GRState *state) {
   Out << '}';  
 }
 
-void CFRefCount::BindingsPrinter::Print(std::ostream& Out, const GRState* state,
+void CFRefCount::BindingsPrinter::Print(llvm::raw_ostream& Out,
+                                        const GRState* state,
                                         const char* nl, const char* sep) {
-  
-  
     
   RefBindings B = state->get<RefBindings>();
   
@@ -2790,10 +2789,7 @@ void CFRefCount::EvalSummary(ExplodedNodeSet<GRState>& Dst,
         if (Summ.getArg(idx) == DoNothingByRef)
           continue;
         
-        // Invalidate the value of the variable passed by reference.
-        
-        // FIXME: Either this logic should also be replicated in GRSimpleVals
-        //  or should be pulled into a separate "constraint engine."
+        // Invalidate the value of the variable passed by reference.        
         
         // FIXME: We can have collisions on the conjured symbol if the
         //  expression *I also creates conjured symbols.  We probably want
@@ -2942,11 +2938,10 @@ void CFRefCount::EvalSummary(ExplodedNodeSet<GRState>& Dst,
     default:
       assert (false && "Unhandled RetEffect."); break;
       
-    case RetEffect::NoRet: {
-      
+    case RetEffect::NoRet: {      
       // Make up a symbol for the return value (not reference counted).
-      // FIXME: This is basically copy-and-paste from GRSimpleVals.  We 
-      //  should compose behavior, not copy it.
+      // FIXME: Most of this logic is not specific to the retain/release
+      // checker.
       
       // FIXME: We eventually should handle structs and other compound types
       // that are returned by value.
@@ -3091,7 +3086,7 @@ void CFRefCount::EvalObjCMessageExpr(ExplodedNodeSet<GRState>& Dst,
       if (Expr* Receiver = ME->getReceiver()) {
         SVal X = St->getSValAsScalarOrLoc(Receiver);
         if (loc::MemRegionVal* L = dyn_cast<loc::MemRegionVal>(&X))
-          if (L->getRegion() == Eng.getStateManager().getSelfRegion(St)) {
+          if (L->getRegion() == St->getSelfRegion()) {
             // Update the summary to make the default argument effect
             // 'StopTracking'.
             Summ = Summaries.copySummary(Summ);
