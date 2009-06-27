@@ -970,8 +970,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			    "%s on %s (errno=%d)\n",
 			    ip6_sprintf(ip6buf, &llsol), if_name(ifp),
 			    error));
-			in6_purgeaddr((struct ifaddr *)ia);
-			return (error);
+			goto cleanup;
 		}
 		LIST_INSERT_HEAD(&ia->ia6_memberships,
 		    imm, i6mm_chain);
@@ -1378,10 +1377,14 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	IF_ADDR_UNLOCK(ifp);
 	ifa_free(&ia->ia_ifa);			/* if_addrhead */
 
+	/*
+	 * Defer the release of what might be the last reference to the
+	 * in6_ifaddr so that it can't be freed before the remainder of the
+	 * cleanup.
+	 */
 	IN6_IFADDR_WLOCK();
 	TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
 	IN6_IFADDR_WUNLOCK();
-	ifa_free(&ia->ia_ifa);			/* in6_ifaddrhead */
 
 	/*
 	 * Release the reference to the base prefix.  There should be a
@@ -1404,7 +1407,7 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	if ((ia->ia6_flags & IN6_IFF_AUTOCONF)) {
 		pfxlist_onlink_check();
 	}
-
+	ifa_free(&ia->ia_ifa);			/* in6_ifaddrhead */
 	splx(s);
 }
 
