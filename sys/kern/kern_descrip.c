@@ -1144,7 +1144,7 @@ closefrom(struct thread *td, struct closefrom_args *uap)
 	int fd;
 
 	fdp = td->td_proc->p_fd;
-	AUDIT_ARG(fd, uap->lowfd);
+	AUDIT_ARG_FD(uap->lowfd);
 
 	/*
 	 * Treat negative starting file descriptor values identical to
@@ -1219,12 +1219,12 @@ kern_fstat(struct thread *td, int fd, struct stat *sbp)
 	struct file *fp;
 	int error;
 
-	AUDIT_ARG(fd, fd);
+	AUDIT_ARG_FD(fd);
 
 	if ((error = fget(td, fd, &fp)) != 0)
 		return (error);
 
-	AUDIT_ARG(file, td->td_proc, fp);
+	AUDIT_ARG_FILE(td->td_proc, fp);
 
 	error = fo_stat(fp, sbp, td->td_ucred, td);
 	fdrop(fp, td);

@@ -2924,7 +2924,7 @@ freebsd32_nmount(struct thread *td,
 	struct uio *auio;
 	int error;
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 
 	/*
 	 * Filter out MNT_ROOTFS.  We do not want clients of nmount() in
