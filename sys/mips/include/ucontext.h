@@ -53,6 +53,7 @@ typedef struct	__mcontext {
 	int		mc_fpused;	/* fp has been used */
 	f_register_t	mc_fpregs[33];	/* fp regs 0 to 31 and csr */
 	register_t	mc_fpc_eir;	/* fp exception instruction reg */
+	void		*mc_tls;	/* pointer to TLS area */
 	int	__spare__[8];	/* XXX reserved */ 
 } mcontext_t;
 #endif
