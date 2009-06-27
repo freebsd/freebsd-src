@@ -87,7 +87,7 @@ sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
 	 * XXXKIB check that the BSM generation code knows to encode
 	 * the op argument.
 	 */
-	AUDIT_ARG(cmd, uap->op);
+	AUDIT_ARG_CMD(uap->op);
 	if (uap_space == UIO_USERSPACE) {
 		error = copyin(uap->parms, &la, sizeof(struct i386_ldt_args));
 		if (error != 0)

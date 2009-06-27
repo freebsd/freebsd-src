@@ -388,7 +388,7 @@ nmount(td, uap)
 	int error;
 	u_int iovcnt;
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 	CTR4(KTR_VFS, "%s: iovp %p with iovcnt %d and flags %d", __func__,
 	    uap->iovp, uap->iovcnt, uap->flags);
 
@@ -750,7 +750,7 @@ mount(td, uap)
 	struct mntarg *ma = NULL;
 	int error;
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 
 	/*
 	 * Filter out MNT_ROOTFS.  We do not want clients of mount() in
@@ -767,7 +767,7 @@ mount(td, uap)
 		return (error);
 	}
 
-	AUDIT_ARG(text, fstype);
+	AUDIT_ARG_TEXT(fstype);
 	mtx_lock(&Giant);
 	vfsp = vfs_byname_kld(fstype, td, &error);
 	free(fstype, M_TEMP);
@@ -1125,7 +1125,7 @@ unmount(td, uap)
 		free(pathbuf, M_TEMP);
 		return (error);
 	}
-	AUDIT_ARG(upath, td, pathbuf, ARG_UPATH1);
+	AUDIT_ARG_UPATH(td, pathbuf, ARG_UPATH1);
 	mtx_lock(&Giant);
 	if (uap->flags & MNT_BYFSID) {
 		/* Decode the filesystem ID. */
