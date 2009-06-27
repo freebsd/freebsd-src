@@ -182,12 +182,149 @@ void	 audit_thread_alloc(struct thread *td);
 void	 audit_thread_free(struct thread *td);
 
 /*
- * Define a macro to wrap the audit_arg_* calls by checking the global
+ * Define macros to wrap the audit_arg_* calls by checking the global
  * audit_enabled flag before performing the actual call.
  */
-#define	AUDIT_ARG(op, args...)	do {					\
-	if (td->td_pflags & TDP_AUDITREC)				\
-		audit_arg_ ## op (args);				\
+#define	AUDITING_TD(td)		((td)->td_pflags & TDP_AUDITREC)
+
+#define	AUDIT_ARG_ADDR(addr) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_addr((addr));					\
+} while (0)
+
+#define	AUDIT_ARG_ARGV(argv, argc, length) do {				\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_argv((argv), (argc), (length));		\
+} while (0)
+
+#define	AUDIT_ARG_AUDITON(udata) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_auditon((udata));				\
+} while (0)
+
+#define	AUDIT_ARG_CMD(cmd) do {						\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_cmd((cmd));					\
+} while (0)
+
+#define	AUDIT_ARG_DEV(dev) do {						\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_dev((dev));					\
+} while (0)
+
+#define	AUDIT_ARG_EGID(egid) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_egid((egid));					\
+} while (0)
+
+#define	AUDIT_ARG_ENVV(envv, envc, length) do {				\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_envv((envv), (envc), (length));		\
+} while (0)
+
+#define	AUDIT_ARG_EXIT(status, retval) do {				\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_exit((status), (retval));			\
+} while (0)
+
+#define	AUDIT_ARG_EUID(euid) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_euid((euid));					\
+} while (0)
+
+#define	AUDIT_ARG_FD(fd) do {						\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_fd((fd));					\
+} while (0)
+
+#define	AUDIT_ARG_FILE(p, fp) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_file((p), (fp));				\
+} while (0)
+
+#define	AUDIT_ARG_FFLAGS(fflags) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_fflags((fflags));				\
+} while (0)
+
+#define	AUDIT_ARG_GID(gid) do {						\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_gid((gid));					\
+} while (0)
+
+#define	AUDIT_ARG_GROUPSET(gidset, gidset_size) do {			\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_groupset((gidset), (gidset_size));		\
+} while (0)
+
+#define	AUDIT_ARG_MODE(mode) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_mode((mode));					\
+} while (0)
+
+#define	AUDIT_ARG_OWNER(uid, gid) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_owner((uid), (gid));				\
+} while (0)
+
+#define	AUDIT_ARG_PID(pid) do {						\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_pid((pid));					\
+} while (0)
+
+#define	AUDIT_ARG_PROCESS(p) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_process((p));					\
+} while (0)
+
+#define	AUDIT_ARG_RGID(rgid) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_gid((rgid));					\
+} while (0)
+
+#define	AUDIT_ARG_RUID(ruid) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_ruid((ruid));					\
+} while (0)
+
+#define	AUDIT_ARG_SIGNUM(signum) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_signum((signum));				\
+} while (0)
+
+#define	AUDIT_ARG_SGID(sgid) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_sgid((sgid));					\
+} while (0)
+
+#define	AUDIT_ARG_SUID(suid) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_suid((suid));					\
+} while (0)
+
+#define	AUDIT_ARG_TEXT(text) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_text((text));					\
+} while (0)
+
+#define	AUDIT_ARG_UID(uid) do {						\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_uid((uid));					\
+} while (0)
+
+#define	AUDIT_ARG_UPATH(td, upath, flags) do {				\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_upath((td), (upath), (flags));		\
+} while (0)
+
+#define	AUDIT_ARG_VALUE(value) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_value((value));				\
+} while (0)
+
+#define	AUDIT_ARG_VNODE(vp, flags) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_vnode((vp), (flags));				\
 } while (0)
 
 #define	AUDIT_SYSCALL_ENTER(code, td)	do {				\
@@ -216,17 +353,39 @@ void	 audit_thread_free(struct thread *td);
 
 #else /* !AUDIT */
 
-#define	AUDIT_ARG(op, args...)	do {					\
-} while (0)
+#define	AUDIT_ARG_ADDR(addr)
+#define	AUDIT_ARG_ARGV(argv, argc, length)
+#define	AUDIT_ARG_AUDITON(udata)
+#define	AUDIT_ARG_CMD(cmd)
+#define	AUDIT_ARG_DEV(dev)
+#define	AUDIT_ARG_EGID(egid)
+#define	AUDIT_ARG_ENVV(envv, envc, length)
+#define	AUDIT_ARG_EXIT(status, retval)
+#define	AUDIT_ARG_EUID(euid)
+#define	AUDIT_ARG_FD(fd)
+#define	AUDIT_ARG_FILE(p, fp)
+#define	AUDIT_ARG_FFLAGS(fflags)
+#define	AUDIT_ARG_GID(gid)
+#define	AUDIT_ARG_GROUPSET(gidset, gidset_size)
+#define	AUDIT_ARG_MODE(mode)
+#define	AUDIT_ARG_OWNER(uid, gid)
+#define	AUDIT_ARG_PID(pid)
+#define	AUDIT_ARG_PROCESS(p)
+#define	AUDIT_ARG_RGID(rgid)
+#define	AUDIT_ARG_RUID(ruid)
+#define	AUDIT_ARG_SIGNUM(signum)
+#define	AUDIT_ARG_SGID(sgid)
+#define	AUDIT_ARG_SUID(suid)
+#define	AUDIT_ARG_TEXT(text)
+#define	AUDIT_ARG_UID(uid)
+#define	AUDIT_ARG_UPATH(td, upath, flags)
+#define	AUDIT_ARG_VALUE(value)
+#define	AUDIT_ARG_VNODE(vp, flags)
 
-#define	AUDIT_SYSCALL_ENTER(code, td)	do {				\
-} while (0)
+#define	AUDIT_SYSCALL_ENTER(code, td)
+#define	AUDIT_SYSCALL_EXIT(error, td)
 
-#define	AUDIT_SYSCALL_EXIT(error, td)	do {				\
-} while (0)
-
-#define	AUDIT_SYSCLOSE(p, fd)	do {					\
-} while (0)
+#define	AUDIT_SYSCLOSE(p, fd)
 
 #endif /* AUDIT */
 
