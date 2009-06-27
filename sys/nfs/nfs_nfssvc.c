@@ -79,7 +79,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 
 	KASSERT(!mtx_owned(&Giant), ("nfssvc(): called with Giant"));
 
-	AUDIT_ARG(cmd, uap->flag);
+	AUDIT_ARG_CMD(uap->flag);
 
 	error = priv_check(td, PRIV_NFS_DAEMON);
 	if (error)

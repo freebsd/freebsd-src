@@ -400,10 +400,10 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	if (SV_CURPROC_FLAG(SV_ILP32))
 		wrap32 = 1;
 #endif
-	AUDIT_ARG(pid, uap->pid);
-	AUDIT_ARG(cmd, uap->req);
-	AUDIT_ARG(addr, uap->addr);
-	AUDIT_ARG(value, uap->data);
+	AUDIT_ARG_PID(uap->pid);
+	AUDIT_ARG_CMD(uap->req);
+	AUDIT_ARG_ADDR(uap->addr);
+	AUDIT_ARG_VALUE(uap->data);
 	addr = &r;
 	switch (uap->req) {
 	case PT_GETREGS:
@@ -549,7 +549,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			pid = p->p_pid;
 		}
 	}
-	AUDIT_ARG(process, p);
+	AUDIT_ARG_PROCESS(p);
 
 	if ((p->p_flag & P_WEXIT) != 0) {
 		error = ESRCH;
