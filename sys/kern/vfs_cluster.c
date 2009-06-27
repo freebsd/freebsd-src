@@ -310,7 +310,9 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	struct bufobj *bo;
 	struct buf *bp, *tbp;
 	daddr_t bn;
-	int i, inc, j;
+	off_t off;
+	long tinc, tsize;
+	int i, inc, j, toff;
 
 	KASSERT(size == vp->v_mount->mnt_stat.f_iosize,
 	    ("cluster_rbuild: size %ld != filesize %jd\n",
@@ -402,15 +404,24 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			 * take part in the cluster.  If it is partially valid
 			 * then we stop.
 			 */
+			off = tbp->b_offset;
+			tsize = size;
 			VM_OBJECT_LOCK(tbp->b_bufobj->bo_object);
-			for (j = 0;j < tbp->b_npages; j++) {
+			for (j = 0; tsize > 0; j++) {
+				toff = off & PAGE_MASK;
+				tinc = tsize;
+				if (toff + tinc > PAGE_SIZE)
+					tinc = PAGE_SIZE - toff;
 				VM_OBJECT_LOCK_ASSERT(tbp->b_pages[j]->object,
 				    MA_OWNED);
-				if (tbp->b_pages[j]->valid)
+				if ((tbp->b_pages[j]->valid &
+				    vm_page_bits(toff, tinc)) != 0)
 					break;
+				off += tinc;
+				tsize -= tinc;
 			}
 			VM_OBJECT_UNLOCK(tbp->b_bufobj->bo_object);
-			if (j != tbp->b_npages) {
+			if (tsize > 0) {
 				bqrelse(tbp);
 				break;
 			}
