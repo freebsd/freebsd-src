@@ -350,12 +350,6 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 }
 
 int
-sysarch(struct thread *td, register struct sysarch_args *uap)
-{
-	return (ENOSYS);
-}
-
-int
 fill_dbregs(struct thread *td, struct dbreg *dbregs)
 {
 
