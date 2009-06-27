@@ -170,7 +170,7 @@ sysarch(td, uap)
 	 * XXXKIB check that the BSM generation code knows to encode
 	 * the op argument.
 	 */
-	AUDIT_ARG(cmd, uap->op);
+	AUDIT_ARG_CMD(uap->op);
 	switch (uap->op) {
 	case I386_GET_IOPERM:
 	case I386_SET_IOPERM:
