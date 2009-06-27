@@ -22,9 +22,6 @@
 #include "llvm/Support/Compiler.h"
 #include <llvm/Support/Allocator.h>
 #include <llvm/Support/Format.h>
-#include <iomanip>
-#include <algorithm>
-#include <sstream>
 
 using namespace clang;
 
@@ -1887,7 +1884,8 @@ void CFG::viewCFG() const {
 namespace llvm {
 template<>
 struct DOTGraphTraits<const CFG*> : public DefaultDOTGraphTraits {
-  static std::string getNodeLabel(const CFGBlock* Node, const CFG* Graph) {
+  static std::string getNodeLabel(const CFGBlock* Node, const CFG* Graph,
+                                  bool ShortNames) {
 
 #ifndef NDEBUG
     std::string OutSStr;

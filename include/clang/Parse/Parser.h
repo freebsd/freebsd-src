@@ -636,7 +636,8 @@ private:
   DeclGroupPtrTy ParseDeclarationOrFunctionDefinition(
             AccessSpecifier AS = AS_none);
                                                
-  DeclPtrTy ParseFunctionDefinition(Declarator &D);
+  DeclPtrTy ParseFunctionDefinition(Declarator &D,
+                 const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo());
   void ParseKNRParamDeclarations(Declarator &D);
   // EndLoc, if non-NULL, is filled with the location of the last token of
   // the simple-asm.
@@ -909,7 +910,8 @@ private:
   DeclGroupPtrTy ParseSimpleDeclaration(unsigned Context,
                                         SourceLocation &DeclEnd,
                                         bool RequireSemi = true);
-  DeclPtrTy ParseDeclarationAfterDeclarator(Declarator &D);
+  DeclPtrTy ParseDeclarationAfterDeclarator(Declarator &D,
+               const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo());
   DeclGroupPtrTy ParseInitDeclaratorListAfterFirstDeclarator(Declarator &D);
   DeclPtrTy ParseFunctionStatementBody(DeclPtrTy Decl);
   DeclPtrTy ParseFunctionTryBlock(DeclPtrTy Decl);
@@ -1069,6 +1071,7 @@ private:
   AttributeList *ParseMicrosoftDeclSpec(AttributeList* CurrAttr = 0);
   AttributeList *ParseMicrosoftTypeAttributes(AttributeList* CurrAttr = 0);
   void ParseTypeofSpecifier(DeclSpec &DS);
+  void ParseDecltypeSpecifier(DeclSpec &DS);
 
   /// DeclaratorScopeObj - RAII object used in Parser::ParseDirectDeclarator to
   /// enter a new C++ declarator scope and exit it when the function is
@@ -1190,7 +1193,7 @@ private:
                                TemplateArgLocationList &TemplateArgLocations,
                                         SourceLocation &RAngleLoc);
 
-  void AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
+  bool AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
                                const CXXScopeSpec *SS,
                                SourceLocation TemplateKWLoc = SourceLocation(),
                                bool AllowTypeAnnotation = true);

@@ -3,6 +3,7 @@ set(LLVM_NO_RTTI 1)
 add_clang_library(clangFrontend
   AnalysisConsumer.cpp
   ASTConsumers.cpp
+  ASTUnit.cpp
   Backend.cpp
   CacheTokens.cpp
   DeclXML.cpp
@@ -25,6 +26,7 @@ add_clang_library(clangFrontend
   PlistDiagnostics.cpp
   PrintParserCallbacks.cpp
   PrintPreprocessedOutput.cpp
+  ResolveLocation.cpp
   RewriteBlocks.cpp
   RewriteMacros.cpp
   RewriteObjC.cpp
@@ -36,4 +38,7 @@ add_clang_library(clangFrontend
   Warnings.cpp
   )
 
-add_dependencies(clangFrontend ClangDiagnosticFrontend)
+add_dependencies(clangFrontend 
+  ClangDiagnosticFrontend 
+  ClangDiagnosticLex
+  ClangDiagnosticSema)

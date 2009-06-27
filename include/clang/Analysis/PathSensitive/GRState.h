@@ -34,7 +34,7 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <functional>
 
@@ -199,6 +199,14 @@ public:
                                bool assumption) const;
   
   //==---------------------------------------------------------------------==//
+  // Utility methods for getting regions.
+  //==---------------------------------------------------------------------==//
+
+  const VarRegion* getRegion(const VarDecl* D) const;
+
+  const MemRegion* getSelfRegion() const;
+
+  //==---------------------------------------------------------------------==//
   // Binding and retrieving values to/from the environment and symbolic store.
   //==---------------------------------------------------------------------==//
   
@@ -217,6 +225,10 @@ public:
   const GRState *bindBlkExpr(const Stmt *Ex, SVal V) const {
     return bindExpr(Ex, V, true, false);
   }
+  
+  const GRState *bindDecl(const VarDecl* VD, SVal IVal) const;
+  
+  const GRState *bindDeclWithNoInit(const VarDecl* VD) const;  
   
   const GRState *bindLoc(Loc location, SVal V) const;
   
@@ -314,17 +326,17 @@ public:
   class Printer {
   public:
     virtual ~Printer() {}
-    virtual void Print(std::ostream& Out, const GRState* state,
+    virtual void Print(llvm::raw_ostream& Out, const GRState* state,
                        const char* nl, const char* sep) = 0;
   };
   
   // Pretty-printing.
-  void print(std::ostream& Out, const char *nl = "\n",
+  void print(llvm::raw_ostream& Out, const char *nl = "\n",
              const char *sep = "") const;  
 
   void printStdErr() const; 
   
-  void printDOT(std::ostream& Out) const;  
+  void printDOT(llvm::raw_ostream& Out) const;  
   
   // Tags used for the Generic Data Map.
   struct NullDerefTag {
@@ -427,18 +439,7 @@ private:
   /// Liveness - live-variables information of the ValueDecl* and block-level
   /// Expr* in the CFG. Used to get initial store and prune out dead state.
   LiveVariables& Liveness;
-
-private:
-
-  Environment RemoveBlkExpr(const Environment& Env, Expr* E) {
-    return EnvMgr.RemoveBlkExpr(Env, E);
-  }
   
-  // FIXME: Remove when we do lazy initializaton of variable bindings.
-//   const GRState* BindVar(const GRState* St, VarDecl* D, SVal V) {
-//     return SetSVal(St, getLoc(D), V);
-//   }
-    
 public:
   
   GRStateManager(ASTContext& Ctx,
@@ -460,7 +461,7 @@ public:
   
   ~GRStateManager();
 
-  const GRState* getInitialState();
+  const GRState *getInitialState();
         
   ASTContext &getContext() { return ValueMgr.getContext(); }
   const ASTContext &getContext() const { return ValueMgr.getContext(); }               
@@ -498,16 +499,6 @@ public:
   StoreManager& getStoreManager() { return *StoreMgr; }
   ConstraintManager& getConstraintManager() { return *ConstraintMgr; }
 
-  const GRState* BindDecl(const GRState* St, const VarDecl* VD, SVal IVal) {
-    // Store manager should return a persistent state.
-    return StoreMgr->BindDecl(St, VD, IVal);
-  }
-
-  const GRState* BindDeclWithNoInit(const GRState* St, const VarDecl* VD) {
-    // Store manager should return a persistent state.
-    return StoreMgr->BindDeclWithNoInit(St, VD);
-  }
-
   const GRState* RemoveDeadBindings(const GRState* St, Stmt* Loc, 
                                     SymbolReaper& SymReaper);
 
@@ -516,55 +507,7 @@ public:
     NewSt.Env = EnvMgr.RemoveSubExprBindings(NewSt.Env);
     return getPersistentState(NewSt);
   }
-
   
-  // Utility methods for getting regions.
-  
-  VarRegion* getRegion(const VarDecl* D) {
-    return getRegionManager().getVarRegion(D);
-  }
-  
-  const MemRegion* getSelfRegion(const GRState* state) {
-    return StoreMgr->getSelfRegion(state->getStore());
-  }
-  
-private:
-
-  SVal GetBlkExprSVal(const GRState* St, const Stmt* Ex) {
-    return St->getEnvironment().GetBlkExprSVal(Ex, ValueMgr);
-  }
-  
-  const GRState* BindExpr(const GRState* St, const Stmt* Ex, SVal V,
-                          bool isBlkExpr, bool Invalidate) {
-    
-    const Environment& OldEnv = St->getEnvironment();
-    Environment NewEnv = EnvMgr.BindExpr(OldEnv, Ex, V, isBlkExpr, Invalidate);
-    
-    if (NewEnv == OldEnv)
-      return St;
-    
-    GRState NewSt = *St;
-    NewSt.Env = NewEnv;
-    return getPersistentState(NewSt);
-  }
-  
-  const GRState* BindExpr(const GRState* St, const Stmt* Ex, SVal V,
-                          bool Invalidate = true) {
-    
-    bool isBlkExpr = false;
-    
-    if (Ex == CurrentStmt) {
-      // FIXME: Should this just be an assertion?  When would we want to set
-      // the value of a block-level expression if it wasn't CurrentStmt?
-      isBlkExpr = cfg.isBlkExpr(Ex);
-      
-      if (!isBlkExpr)
-        return St;
-    }
-    
-    return BindExpr(St, Ex, V, isBlkExpr, Invalidate);
-  }
-
 public:
 
   SVal ArrayToPointer(Loc Array) {
@@ -579,37 +522,7 @@ public:
   void iterBindings(const GRState* state, StoreManager::BindingsHandler& F) {
     StoreMgr->iterBindings(state->getStore(), F);
   }
-  
-  SVal GetSVal(const GRState* state, const MemRegion* R) {
-    return StoreMgr->Retrieve(state, loc::MemRegionVal(R));
-  }  
 
-  SVal GetSValAsScalarOrLoc(const GRState* state, const MemRegion *R) {
-    // We only want to do fetches from regions that we can actually bind
-    // values.  For example, SymbolicRegions of type 'id<...>' cannot
-    // have direct bindings (but their can be bindings on their subregions).
-    if (!R->isBoundable())
-      return UnknownVal();
-    
-    if (const TypedRegion *TR = dyn_cast<TypedRegion>(R)) {
-      QualType T = TR->getValueType(getContext());
-      if (Loc::IsLocType(T) || T->isIntegerType())
-        return GetSVal(state, R);
-    }
-  
-    return UnknownVal();
-  }
-  
-  const GRState* BindLoc(const GRState* St, Loc LV, SVal V) {
-    return StoreMgr->Bind(St, LV, V);
-  }
-
-  void Unbind(GRState& St, Loc LV) {
-    St.St = StoreMgr->Remove(St.St, LV);
-  }
-  
-  const GRState* Unbind(const GRState* St, Loc LV);
-  
   const GRState* getPersistentState(GRState& Impl);
 
   bool isEqual(const GRState* state, Expr* Ex, const llvm::APSInt& V);
@@ -695,6 +608,14 @@ public:
 // Out-of-line method definitions for GRState.
 //===----------------------------------------------------------------------===//
 
+inline const VarRegion* GRState::getRegion(const VarDecl* D) const {
+  return Mgr->getRegionManager().getVarRegion(D);
+}
+
+inline const MemRegion* GRState::getSelfRegion() const {
+  return Mgr->StoreMgr->getSelfRegion(getStore());
+}
+  
 inline const GRState *GRState::assume(SVal Cond, bool Assumption) const {
   return Mgr->ConstraintMgr->Assume(this, Cond, Assumption);
 }
@@ -709,18 +630,16 @@ inline const GRState *GRState::bindCompoundLiteral(const CompoundLiteralExpr* CL
   return Mgr->StoreMgr->BindCompoundLiteral(this, CL, V);
 }
   
-inline const GRState *GRState::bindExpr(const Stmt* Ex, SVal V, bool isBlkExpr,
-                                        bool Invalidate) const {
-  return Mgr->BindExpr(this, Ex, V, isBlkExpr, Invalidate);
+inline const GRState *GRState::bindDecl(const VarDecl* VD, SVal IVal) const {
+  return Mgr->StoreMgr->BindDecl(this, VD, IVal);
 }
 
-inline const GRState *GRState::bindExpr(const Stmt* Ex, SVal V,
-                                        bool Invalidate) const {
-  return Mgr->BindExpr(this, Ex, V, Invalidate);
+inline const GRState *GRState::bindDeclWithNoInit(const VarDecl* VD) const {
+  return Mgr->StoreMgr->BindDeclWithNoInit(this, VD);
 }
   
 inline const GRState *GRState::bindLoc(Loc LV, SVal V) const {
-  return Mgr->BindLoc(this, LV, V);
+  return Mgr->StoreMgr->Bind(this, LV, V);
 }
 
 inline const GRState *GRState::bindLoc(SVal LV, SVal V) const {
@@ -756,11 +675,11 @@ inline const llvm::APSInt *GRState::getSymVal(SymbolRef sym) const {
 }
   
 inline SVal GRState::getSVal(const Stmt* Ex) const {
-  return getEnvironment().GetSVal(Ex, Mgr->ValueMgr);
+  return Env.GetSVal(Ex, Mgr->ValueMgr);
 }
 
 inline SVal GRState::getBlkExprSVal(const Stmt* Ex) const {  
-  return Mgr->GetBlkExprSVal(this, Ex);
+  return Env.GetBlkExprSVal(Ex, Mgr->ValueMgr);
 }
 
 inline SVal GRState::getSValAsScalarOrLoc(const Stmt *S) const {
@@ -778,11 +697,7 @@ inline SVal GRState::getSVal(Loc LV, QualType T) const {
 }
 
 inline SVal GRState::getSVal(const MemRegion* R) const {
-  return Mgr->GetSVal(this, R);
-}
-
-inline SVal GRState::getSValAsScalarOrLoc(const MemRegion *R) const {
-  return Mgr->GetSValAsScalarOrLoc(this, R);
+  return Mgr->StoreMgr->Retrieve(this, loc::MemRegionVal(R));
 }
   
 inline BasicValueFactory &GRState::getBasicVals() const {
@@ -841,10 +756,6 @@ CB GRState::scanReachableSymbols(SVal val) const {
   CB cb(this);
   scanReachableSymbols(val, cb);
   return cb;
-}
-  
-inline const GRState *GRState::unbindLoc(Loc LV) const {
-  return Mgr->Unbind(this, LV);
 }
 
 } // end clang namespace

@@ -572,7 +572,10 @@ public:
     NullPtr,  // This is the type of C++0x 'nullptr'.
 
     Overload,  // This represents the type of an overloaded function declaration.
-    Dependent  // This represents the type of a type-dependent expression.
+    Dependent, // This represents the type of a type-dependent expression.
+    
+    UndeducedAuto  // In C++0x, this represents the type of an auto variable
+                   // that has not been deduced yet.
   };
 private:
   Kind TypeKind;
@@ -1103,11 +1106,17 @@ public:
       case '7': return 7;
       case '8': return 8;
       case '9': return 9;
+      case 'A':
       case 'a': return 10;
+      case 'B':
       case 'b': return 11;
+      case 'C':
       case 'c': return 12;
+      case 'D':
       case 'd': return 13;
+      case 'E':
       case 'e': return 14;
+      case 'F':
       case 'f': return 15;
     }
   }
@@ -1358,6 +1367,21 @@ public:
   static bool classof(const TypeOfType *) { return true; }
 };
 
+/// DecltypeType (C++0x)
+class DecltypeType : public Type {
+  Expr *E;
+  DecltypeType(Expr *E, QualType can);
+  friend class ASTContext;  // ASTContext creates these.
+public:
+  Expr *getUnderlyingExpr() const { return E; }
+  
+  virtual void getAsStringInternal(std::string &InnerString, 
+                                   const PrintingPolicy &Policy) const;
+  
+  static bool classof(const Type *T) { return T->getTypeClass() == Decltype; }
+  static bool classof(const DecltypeType *) { return true; }
+};
+  
 class TagType : public Type {
   /// Stores the TagDecl associated with this type. The decl will
   /// point to the TagDecl that actually defines the entity (or is a
