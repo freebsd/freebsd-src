@@ -423,6 +423,7 @@ meta_exit(void)
 	char sharedobj[MAXPATHLEN];
 	const char *curdir;
 	const char *filedep_name;
+	const char *meta_created;
 	const char *objdir;
 	const char *objroot;
 	const char *p_incmk;
@@ -468,12 +469,13 @@ meta_exit(void)
 		objroot = Var_Value(".OBJROOT", VAR_GLOBAL);
 		objdir = Var_Value(".OBJDIR", VAR_GLOBAL);
 		filedep_name = Var_Value(".FILEDEP_NAME", VAR_GLOBAL);
+		meta_created = Var_Value(".META_CREATED", VAR_GLOBAL);
 
 		snprintf(sharedobj, sizeof(sharedobj), "%s/../shared", objroot);
 
 		/* Add any new directory and/or source dependencies. */
 		jdirdep(srctop, curdir, srcrel, objroot, objdir, sharedobj, filedep_name,
-		    JDIRDEP_OPT_ADD | JDIRDEP_OPT_SOURCE | JDIRDEP_OPT_UPDATE);
+		    meta_created, JDIRDEP_OPT_ADD | JDIRDEP_OPT_SOURCE | JDIRDEP_OPT_UPDATE);
 	}
 }
 
@@ -679,6 +681,8 @@ meta_create(GNode *gn)
 	fprintf(fp, "-- command output --\n");
 
 	n_meta_created++;
+
+	Var_Append(".META_CREATED", fname, VAR_GLOBAL);
 
 	return (fp);
 }

@@ -4,7 +4,7 @@
 #
 
 PORTNAME=      jbuild
-PORTVERSION=   11
+PORTVERSION=   12
 CATEGORIES=    devel
 
 MAINTAINER=    rodrigc@FreeBSD.org

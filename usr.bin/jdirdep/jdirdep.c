@@ -45,6 +45,11 @@ struct incmk {
 	TAILQ_ENTRY(incmk) link;
 };
 
+struct metas {
+	char *s;
+	TAILQ_ENTRY(metas) link;
+};
+
 struct file_track {
 	int64_t *filids;
 	int max_idx;
@@ -55,10 +60,24 @@ static TAILQ_HEAD(, dirdep) dirdeps = TAILQ_HEAD_INITIALIZER(dirdeps);
 static TAILQ_HEAD(, dirdep) srcdirdeps = TAILQ_HEAD_INITIALIZER(srcdirdeps);
 static TAILQ_HEAD(, incmk) incmks = TAILQ_HEAD_INITIALIZER(incmks);
 static TAILQ_HEAD(, march) marchs = TAILQ_HEAD_INITIALIZER(marchs);
+static TAILQ_HEAD(, metas) metass = TAILQ_HEAD_INITIALIZER(metass);
 static int f_db = 0;
 static int f_quiet = 1;
 static struct file_track read_filids = { NULL, 0, 0 };
 static struct file_track write_filids = { NULL, 0, 0 };
+
+static int
+meta_lookup(const char *mname)
+{
+	struct metas *m;
+
+	TAILQ_FOREACH(m, &metass, link) {
+		if (strcmp(m->s, mname) == 0)
+			return(1);
+	}
+
+	return(0);
+}
 
 static void
 file_track_add(struct file_track *ft, int64_t filid)
@@ -649,6 +668,7 @@ do_dirdep(const char *srctop, const char *curdir, const char *srcrel, const char
 	int f_doit = 0;
 	int f_error = 0;
 	int f_force = (options & JDIRDEP_OPT_FORCE);
+	int f_meta = (options & JDIRDEP_OPT_META);
 	int f_rewrite = 0;
 	int f_src = (options & JDIRDEP_OPT_SOURCE);
 	int f_update = (options & JDIRDEP_OPT_UPDATE);
@@ -819,6 +839,13 @@ do_dirdep(const char *srctop, const char *curdir, const char *srcrel, const char
 						continue;
 
 					snprintf(mname, sizeof(mname), "%s/%s", objdir, de->d_name);
+
+					/*
+					 * If a list of meta data files has been specified,
+					 * then only parse the meata data file if it is in the list.
+					 */
+					if (f_meta && !meta_lookup(mname))
+						continue;
 
 					/*
 					 * Parse the meta data file and watch out that we don't get
@@ -1207,15 +1234,33 @@ jdirdep_incmk(const char *p)
 /* This is the public function. */
 int
 jdirdep(const char *srctop, const char *curdir, const char *srcrel, const char *objroot,
-    const char *objdir, const char *sharedobj, const char *filedep_name, int options)
+    const char *objdir, const char *sharedobj, const char *filedep_name,
+    const char *meta_created, int options)
 {
 	FILE *fp;
+	char *meta_str = NULL;
+	char *s;
+	char *str;
 	int ret = 0;
+	struct metas *metasp;
 
 	if (filedep_name != NULL) {
 		f_db = 1;
 
 		jdirdep_db_open(filedep_name);
+	}
+
+	if (meta_created != NULL) {
+		meta_str = strdup(meta_created);
+		str = meta_str;
+		for (s = str; (s = strsep(&str, " ")) != NULL; ) {
+			if ((metasp = malloc(sizeof(struct metas))) == NULL)
+				err(1, "Could not allocate memory for struct metas");
+			metasp->s = s;
+			TAILQ_INSERT_TAIL(&metass, metasp, link);
+		}
+
+		options |= JDIRDEP_OPT_META;
 	}
 
 	if ((options & JDIRDEP_OPT_GRAPH) != 0) {
@@ -1246,6 +1291,9 @@ jdirdep(const char *srctop, const char *curdir, const char *srcrel, const char *
 		do_dirdep(srctop, curdir, srcrel, objroot, sharedobj, options);
 
 	jdirdep_db_close();
+
+	if (meta_str != NULL)
+		free(meta_str);
 
 	return(ret);
 }
@@ -1373,6 +1421,6 @@ main(int argc, char *argv[])
 		}
 	}
 
-	return(jdirdep(srctop, curdir, srcrel, objroot, objdir, sharedobj, filedep_name, options));
+	return(jdirdep(srctop, curdir, srcrel, objroot, objdir, sharedobj, filedep_name, NULL, options));
 }
 #endif
