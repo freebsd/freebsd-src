@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090624:
+	The ABI of various structures related to the SYSV IPC API have
+	been changed.  As a result, the COMPAT_FREEBSD[456] kernel
+	options now all require COMPAT_FREEBSD7.  Bump __FreeBSD_version
+	to 800100.
+
 20090622:
 	Layout of struct vnet has changed as routing related variables
 	were moved to their own Vimage module. Modules need to be
@@ -79,12 +85,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	file system modules, such as igmp, ipdivert, and others, should be
 	rebuilt.
 	Bump __FreeBSD_version to 800096.
-
-20090531:
-	For those who use ipfw and especially pf, those two firewalls
-	are now started BEFORE the network is initialized (i.e., before
-	rc.d/netif). Please review your rules to make sure that your
-	interfaces will be properly described.
 
 20090530:
 	Remove the tunable/sysctl debug.mpsafevfs as its initial purpose

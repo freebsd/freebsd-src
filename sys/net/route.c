@@ -559,6 +559,7 @@ rtredirect_fib(struct sockaddr *dst,
 	struct ifaddr *ifa;
 	struct radix_node_head *rnh;
 
+	ifa = NULL;
 	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
 	if (rnh == NULL) {
 		error = EAFNOSUPPORT;
@@ -664,6 +665,8 @@ out:
 	info.rti_info[RTAX_NETMASK] = netmask;
 	info.rti_info[RTAX_AUTHOR] = src;
 	rt_missmsg(RTM_REDIRECT, &info, flags, error);
+	if (ifa != NULL)
+		ifa_free(ifa);
 }
 
 int
@@ -693,6 +696,9 @@ rtioctl_fib(u_long req, caddr_t data, u_int fibnum)
 #endif /* INET */
 }
 
+/*
+ * For both ifa_ifwithroute() routines, 'ifa' is returned referenced.
+ */
 struct ifaddr *
 ifa_ifwithroute(int flags, struct sockaddr *dst, struct sockaddr *gateway)
 {
@@ -749,11 +755,13 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		default:
 			break;
 		}
+		if (!not_found && rt->rt_ifa != NULL) {
+			ifa = rt->rt_ifa;
+			ifa_ref(ifa);
+		}
 		RT_REMREF(rt);
 		RT_UNLOCK(rt);
-		if (not_found)
-			return (NULL);
-		if ((ifa = rt->rt_ifa) == NULL)
+		if (not_found || ifa == NULL)
 			return (NULL);
 	}
 	if (ifa->ifa_addr->sa_family != dst->sa_family) {
@@ -761,6 +769,8 @@ ifa_ifwithroute_fib(int flags, struct sockaddr *dst, struct sockaddr *gateway,
 		ifa = ifaof_ifpforaddr(dst, ifa->ifa_ifp);
 		if (ifa == NULL)
 			ifa = oifa;
+		else
+			ifa_free(oifa);
 	}
 	return (ifa);
 }
@@ -819,6 +829,10 @@ rt_getifa(struct rt_addrinfo *info)
 	return (rt_getifa_fib(info, 0));
 }
 
+/*
+ * Look up rt_addrinfo for a specific fib.  Note that if rti_ifa is defined,
+ * it will be referenced so the caller must free it.
+ */
 int
 rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 {
@@ -831,8 +845,10 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 */
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
 	    ifpaddr->sa_family == AF_LINK &&
-	    (ifa = ifa_ifwithnet(ifpaddr)) != NULL)
+	    (ifa = ifa_ifwithnet(ifpaddr)) != NULL) {
 		info->rti_ifp = ifa->ifa_ifp;
+		ifa_free(ifa);
+	}
 	if (info->rti_ifa == NULL && ifaaddr != NULL)
 		info->rti_ifa = ifa_ifwithaddr(ifaaddr);
 	if (info->rti_ifa == NULL) {
@@ -1123,12 +1139,19 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		    (gateway->sa_family != AF_UNSPEC) && (gateway->sa_family != AF_LINK))
 			senderr(EINVAL);
 
-		if (info->rti_ifa == NULL && (error = rt_getifa_fib(info, fibnum)))
-			senderr(error);
+		if (info->rti_ifa == NULL) {
+			error = rt_getifa_fib(info, fibnum);
+			if (error)
+				senderr(error);
+		} else
+			ifa_ref(info->rti_ifa);
 		ifa = info->rti_ifa;
 		rt = uma_zalloc(V_rtzone, M_NOWAIT | M_ZERO);
-		if (rt == NULL)
+		if (rt == NULL) {
+			if (ifa != NULL)
+				ifa_free(ifa);
 			senderr(ENOBUFS);
+		}
 		RT_LOCK_INIT(rt);
 		rt->rt_flags = RTF_UP | flags;
 		rt->rt_fibnum = fibnum;
@@ -1139,6 +1162,8 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		RT_LOCK(rt);
 		if ((error = rt_setgate(rt, dst, gateway)) != 0) {
 			RT_LOCK_DESTROY(rt);
+			if (ifa != NULL)
+				ifa_free(ifa);
 			uma_zfree(V_rtzone, rt);
 			senderr(error);
 		}
@@ -1157,11 +1182,10 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			bcopy(dst, ndst, dst->sa_len);
 
 		/*
-		 * Note that we now have a reference to the ifa.
+		 * We use the ifa reference returned by rt_getifa_fib().
 		 * This moved from below so that rnh->rnh_addaddr() can
 		 * examine the ifa and  ifa->ifa_ifp if it so desires.
 		 */
-		ifa_ref(ifa);
 		rt->rt_ifa = ifa;
 		rt->rt_ifp = ifa->ifa_ifp;
 		rt->rt_rmx.rmx_weight = 1;

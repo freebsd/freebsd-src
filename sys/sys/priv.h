@@ -283,6 +283,14 @@
 #define	PRIV_VM_MADV_PROTECT	360	/* Can set MADV_PROTECT. */
 #define	PRIV_VM_MLOCK		361	/* Can mlock(), mlockall(). */
 #define	PRIV_VM_MUNLOCK		362	/* Can munlock(), munlockall(). */
+#define	PRIV_VM_SWAP_NOQUOTA	363	/*
+					 * Can override the global
+					 * swap reservation limits.
+					 */
+#define	PRIV_VM_SWAP_NORLIMIT	364	/*
+					 * Can override the per-uid
+					 * swap reservation limits.
+					 */
 
 /*
  * Device file system privileges.
@@ -300,8 +308,8 @@
  */
 #define	PRIV_NET_BRIDGE		390	/* Administer bridge. */
 #define	PRIV_NET_GRE		391	/* Administer GRE. */
-#define	PRIV_NET_PPP		392	/* Administer PPP. */
-#define	PRIV_NET_SLIP		393	/* Administer SLIP. */
+#define	_PRIV_NET_PPP		392	/* Removed. */
+#define	_PRIV_NET_SLIP		393	/* Removed. */
 #define	PRIV_NET_BPF		394	/* Monitor BPF. */
 #define	PRIV_NET_RAW		395	/* Open raw socket. */
 #define	PRIV_NET_ROUTE		396	/* Administer routing. */

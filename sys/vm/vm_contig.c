@@ -236,7 +236,7 @@ contigmalloc(
 	void *ret;
 
 	ret = (void *)kmem_alloc_contig(kernel_map, size, flags, low, high,
-	    alignment, boundary);
+	    alignment, boundary, VM_CACHE_DEFAULT);
 	if (ret != NULL)
 		malloc_type_allocated(type, round_page(size));
 	return (ret);
@@ -244,7 +244,8 @@ contigmalloc(
 
 vm_offset_t
 kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
-    vm_paddr_t high, unsigned long alignment, unsigned long boundary)
+    vm_paddr_t high, unsigned long alignment, unsigned long boundary,
+    vm_cache_mode_t mode)
 {
 	vm_offset_t ret;
 	vm_page_t pages;
@@ -255,7 +256,8 @@ kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags, vm_paddr_t low,
 	npgs = size >> PAGE_SHIFT;
 	tries = 0;
 retry:
-	pages = vm_phys_alloc_contig(npgs, low, high, alignment, boundary);
+	pages = vm_phys_alloc_contig(npgs, low, high, alignment, boundary,
+	    mode);
 	if (pages == NULL) {
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
 			vm_page_lock_queues();

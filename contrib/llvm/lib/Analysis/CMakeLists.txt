@@ -18,6 +18,7 @@ add_llvm_library(LLVMAnalysis
   LibCallAliasAnalysis.cpp
   LibCallSemantics.cpp
   LiveValues.cpp
+  LoopDependenceAnalysis.cpp
   LoopInfo.cpp
   LoopPass.cpp
   LoopVR.cpp
@@ -32,3 +33,5 @@ add_llvm_library(LLVMAnalysis
   Trace.cpp
   ValueTracking.cpp
   )
+
+target_link_libraries (LLVMAnalysis LLVMSupport)

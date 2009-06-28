@@ -194,7 +194,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	case R_PPC_RELATIVE: /* word32 B + A */
-       		*where = relocbase + addend;
+       		*where = elf_relocaddr(lf, relocbase + addend);
 	       	break;
 
 	default:

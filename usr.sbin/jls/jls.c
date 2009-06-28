@@ -33,32 +33,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/uio.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
 #include <err.h>
 #include <errno.h>
+#include <jail.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#define	SJPARAM		"security.jail.param"
-#define	ARRAY_SLOP	5
-
-#define	CTLTYPE_BOOL	(CTLTYPE + 1)
-#define	CTLTYPE_NOBOOL	(CTLTYPE + 2)
-#define	CTLTYPE_IPADDR	(CTLTYPE + 3)
-#define	CTLTYPE_IP6ADDR	(CTLTYPE + 4)
-
-#define	PARAM_KEY	0x01
-#define	PARAM_USER	0x02
-#define	PARAM_ARRAY	0x04
-#define	PARAM_OPT	0x08
-#define	PARAM_WR	0x10
+#define	JP_USER		0x01000000
+#define	JP_OPT		0x02000000
 
 #define	PRINT_DEFAULT	0x01
 #define	PRINT_HEADER	0x02
@@ -67,31 +56,17 @@ __FBSDID("$FreeBSD$");
 #define	PRINT_SKIP	0x10
 #define	PRINT_VERBOSE	0x20
 
-struct param {
-	char	*name;
-	void	*value;
-	size_t	 size;
-	int	 type;
-	unsigned flags;
-	int	 noparent;
-};
-
-struct iovec2 {
-	struct iovec	name;
-	struct iovec	value;
-};
-
-static struct param *params;
+static struct jailparam *params;
+static int *param_noparent;
 static int nparams;
-static char errmsg[256];
 
-static int add_param(const char *name, void *value, unsigned flags);
-static int get_param(const char *name, struct param *param);
+static int add_param(const char *name, void *value, size_t valuelen,
+		struct jailparam *source, unsigned flags);
 static int sort_param(const void *a, const void *b);
 static char *noname(const char *name);
 static char *nononame(const char *name);
 static int print_jail(int pflags, int jflags);
-static void quoted_print(char *str, int len);
+static void quoted_print(char *str);
 
 int
 main(int argc, char **argv)
@@ -136,50 +111,54 @@ main(int argc, char **argv)
 	/* Add the parameters to print. */
 	if (optind == argc) {
 		if (pflags & PRINT_VERBOSE) {
-			add_param("jid", NULL, PARAM_USER);
-			add_param("host.hostname", NULL, PARAM_USER);
-			add_param("path", NULL, PARAM_USER);
-			add_param("name", NULL, PARAM_USER);
-			add_param("dying", NULL, PARAM_USER);
-			add_param("cpuset.id", NULL, PARAM_USER);
-			add_param("ip4.addr", NULL, PARAM_USER);
-			add_param("ip6.addr", NULL, PARAM_USER | PARAM_OPT);
+			add_param("jid", NULL, (size_t)0, NULL, JP_USER);
+			add_param("host.hostname", NULL, (size_t)0, NULL,
+			    JP_USER);
+			add_param("path", NULL, (size_t)0, NULL, JP_USER);
+			add_param("name", NULL, (size_t)0, NULL, JP_USER);
+			add_param("dying", NULL, (size_t)0, NULL, JP_USER);
+			add_param("cpuset.id", NULL, (size_t)0, NULL, JP_USER);
+			add_param("ip4.addr", NULL, (size_t)0, NULL, JP_USER);
+			add_param("ip6.addr", NULL, (size_t)0, NULL,
+			    JP_USER | JP_OPT);
 		} else {
 			pflags = (pflags &
 			    ~(PRINT_NAMEVAL | PRINT_SKIP | PRINT_VERBOSE)) |
 			    PRINT_DEFAULT;
-			add_param("jid", NULL, PARAM_USER);
-			add_param("ip4.addr", NULL, PARAM_USER);
-			add_param("host.hostname", NULL, PARAM_USER);
-			add_param("path", NULL, PARAM_USER);
+			add_param("jid", NULL, (size_t)0, NULL, JP_USER);
+			add_param("ip4.addr", NULL, (size_t)0, NULL, JP_USER);
+			add_param("host.hostname", NULL, (size_t)0, NULL,
+			    JP_USER);
+			add_param("path", NULL, (size_t)0, NULL, JP_USER);
 		}
 	} else
 		while (optind < argc)
-			add_param(argv[optind++], NULL, PARAM_USER);
+			add_param(argv[optind++], NULL, (size_t)0, NULL,
+			    JP_USER);
 
 	if (pflags & PRINT_SKIP) {
 		/* Check for parameters with boolean parents. */
 		for (i = 0; i < nparams; i++) {
-			if ((params[i].flags & PARAM_USER) &&
-			    (dot = strchr(params[i].name, '.'))) {
+			if ((params[i].jp_flags & JP_USER) &&
+			    (dot = strchr(params[i].jp_name, '.'))) {
 				*dot = 0;
-				nname = noname(params[i].name);
+				nname = noname(params[i].jp_name);
 				*dot = '.';
-				params[i].noparent =
-				    add_param(nname, NULL, PARAM_OPT);
+				param_noparent[i] =
+				    add_param(nname, NULL, (size_t)0, NULL,
+					JP_OPT);
 				free(nname);
 			}
 		}
 	}
 
-	/* Add the index key and errmsg parameters. */
+	/* Add the index key parameters. */
 	if (jid != 0)
-		add_param("jid", &jid, PARAM_KEY);
+		add_param("jid", &jid, sizeof(jid), NULL, 0);
 	else if (jname != NULL)
-		add_param("name", jname, PARAM_KEY);
+		add_param("name", jname, strlen(jname), NULL, 0);
 	else
-		add_param("lastjid", &lastjid, PARAM_KEY);
-	add_param("errmsg", errmsg, PARAM_KEY);
+		add_param("lastjid", &lastjid, sizeof(lastjid), NULL, 0);
 
 	/* Print a header line if requested. */
 	if (pflags & PRINT_VERBOSE)
@@ -192,105 +171,63 @@ main(int argc, char **argv)
 		       "Hostname                      Path\n");
 	else if (pflags & PRINT_HEADER) {
 		for (i = spc = 0; i < nparams; i++)
-			if (params[i].flags & PARAM_USER) {
+			if (params[i].jp_flags & JP_USER) {
 				if (spc)
 					putchar(' ');
 				else
 					spc = 1;
-				fputs(params[i].name, stdout);
+				fputs(params[i].jp_name, stdout);
 			}
 		putchar('\n');
 	}
 
 	/* Fetch the jail(s) and print the paramters. */
 	if (jid != 0 || jname != NULL) {
-		if (print_jail(pflags, jflags) < 0) {
-			if (errmsg[0])
-				errx(1, "%s", errmsg);
-			err(1, "jail_get");
-		}
+		if (print_jail(pflags, jflags) < 0)
+			errx(1, "%s", jail_errmsg);
 	} else {
 		for (lastjid = 0;
 		     (lastjid = print_jail(pflags, jflags)) >= 0; )
 			;
-		if (errno != 0 && errno != ENOENT) {
-			if (errmsg[0])
-				errx(1, "%s", errmsg);
-			err(1, "jail_get");
-		}
+		if (errno != 0 && errno != ENOENT)
+			errx(1, "%s", jail_errmsg);
 	}
 
 	return (0);
 }
 
 static int
-add_param(const char *name, void *value, unsigned flags)
+add_param(const char *name, void *value, size_t valuelen,
+    struct jailparam *source, unsigned flags)
 {
-	struct param *param;
-	char *nname;
-	size_t mlen1, mlen2, buflen;
-	int mib1[CTL_MAXNAME], mib2[CTL_MAXNAME - 2];
+	struct jailparam *param, *tparams;
 	int i, tnparams;
-	char buf[MAXPATHLEN];
 
 	static int paramlistsize;
 
 	/* The pseudo-parameter "all" scans the list of available parameters. */
 	if (!strcmp(name, "all")) {
-		tnparams = nparams;
-		mib1[0] = 0;
-		mib1[1] = 2;
-		mlen1 = CTL_MAXNAME - 2;
-		if (sysctlnametomib(SJPARAM, mib1 + 2, &mlen1) < 0)
-			err(1, "sysctlnametomib(" SJPARAM ")");
-		for (;;) {
-			/* Get the next parameter. */
-			mlen2 = sizeof(mib2);
-			if (sysctl(mib1, mlen1 + 2, mib2, &mlen2, NULL, 0) < 0)
-				err(1, "sysctl(0.2)");
-			if (mib2[0] != mib1[2] || mib2[1] != mib1[3] ||
-			    mib2[2] != mib1[4])
-				break;
-			/* Convert it to an ascii name. */
-			memcpy(mib1 + 2, mib2, mlen2);
-			mlen1 = mlen2 / sizeof(int);
-			mib1[1] = 1;
-			buflen = sizeof(buf);
-			if (sysctl(mib1, mlen1 + 2, buf, &buflen, NULL, 0) < 0)
-				err(1, "sysctl(0.1)");
-			add_param(buf + sizeof(SJPARAM), NULL, flags);
-			/*
-			 * Convert nobool parameters to bool if their
-			 * counterpart is a node, ortherwise discard them.
-			 */
-			param = &params[nparams - 1];
-			if (param->type == CTLTYPE_NOBOOL) {
-				nname = nononame(param->name);
-				if (get_param(nname, param) >= 0 &&
-				    param->type != CTLTYPE_NODE) {
-					free(nname);
-					nparams--;
-				} else {
-					free(param->name);
-					param->name = nname;
-					param->type = CTLTYPE_BOOL;
-					param->size = sizeof(int);
-					param->value = NULL;
-				}
-			}
-			mib1[1] = 2;
-		}
-
-		qsort(params + tnparams, (size_t)(nparams - tnparams),
-		    sizeof(struct param), sort_param);
+		tnparams = jailparam_all(&tparams);
+		if (tnparams < 0)
+			errx(1, "%s", jail_errmsg);
+		qsort(tparams, (size_t)tnparams, sizeof(struct jailparam),
+		    sort_param);
+		for (i = 0; i < tnparams; i++)
+			add_param(tparams[i].jp_name, NULL, (size_t)0,
+			    tparams + i, flags);
+		free(tparams);
 		return -1;
 	}
 
 	/* Check for repeat parameters. */
 	for (i = 0; i < nparams; i++)
-		if (!strcmp(name, params[i].name)) {
-			params[i].value = value;
-			params[i].flags |= flags;
+		if (!strcmp(name, params[i].jp_name)) {
+			if (value != NULL && jailparam_import_raw(params + i,
+			    value, valuelen) < 0)
+				errx(1, "%s", jail_errmsg);
+			params[i].jp_flags |= flags;
+			if (source != NULL)
+				jailparam_free(source, 1);
 			return i;
 		}
 
@@ -298,151 +235,57 @@ add_param(const char *name, void *value, unsigned flags)
 	if (!nparams) {
 		paramlistsize = 32;
 		params = malloc(paramlistsize * sizeof(*params));
-		if (params == NULL)
+		param_noparent =
+		    malloc(paramlistsize * sizeof(*param_noparent));
+		if (params == NULL || param_noparent == NULL)
 			err(1, "malloc");
 	} else if (nparams >= paramlistsize) {
 		paramlistsize *= 2;
 		params = realloc(params, paramlistsize * sizeof(*params));
-		if (params == NULL)
+		param_noparent = realloc(param_noparent,
+		    paramlistsize * sizeof(*param_noparent));
+		if (params == NULL || param_noparent == NULL)
 			err(1, "realloc");
 	}
 
 	/* Look up the parameter. */
+	param_noparent[nparams] = -1;
 	param = params + nparams++;
-	memset(param, 0, sizeof *param);
-	param->name = strdup(name);
-	if (param->name == NULL)
-		err(1, "strdup");
-	param->flags = flags;
-	param->noparent = -1;
-	/* We have to know about pseudo-parameters without asking. */
-	if (!strcmp(param->name, "lastjid")) {
-		param->type = CTLTYPE_INT;
-		param->size = sizeof(int);
-		goto got_type;
+	if (source != NULL) {
+		*param = *source;
+		param->jp_flags |= flags;
+		return param - params;
 	}
-	if (!strcmp(param->name, "errmsg")) {
-		param->type = CTLTYPE_STRING;
-		param->size = sizeof(errmsg);
-		goto got_type;
-	}
-	if (get_param(name, param) < 0) {
-		if (errno != ENOENT)
-			err(1, "sysctl(0.3.%s)", name);
-		/* See if this the "no" part of an existing boolean. */
-		if ((nname = nononame(name))) {
-			i = get_param(nname, param);
-			free(nname);
-			if (i >= 0 && param->type == CTLTYPE_BOOL) {
-				param->type = CTLTYPE_NOBOOL;
-				goto got_type;
-			}
-		}
-		if (flags & PARAM_OPT) {
+	if (jailparam_init(param, name) < 0)
+		errx(1, "%s", jail_errmsg);
+	param->jp_flags = flags;
+	if ((value != NULL ? jailparam_import_raw(param, value, valuelen)
+	     : jailparam_import(param, value)) < 0) {
+		if (flags & JP_OPT) {
 			nparams--;
-			return -1;
+			return (-1);
 		}
-		errx(1, "unknown parameter: %s", name);
+		errx(1, "%s", jail_errmsg);
 	}
-	if (param->type == CTLTYPE_NODE) {
-		/*
-		 * A node isn't normally a parameter, but may be a boolean
-		 * if its "no" counterpart exists.
-		 */
-		nname = noname(name);
-		i = get_param(nname, param);
-		free(nname);
-		if (i >= 0 && param->type == CTLTYPE_NOBOOL) {
-			param->type = CTLTYPE_BOOL;
-			goto got_type;
-		}
-		errx(1, "unknown parameter: %s", name);
-	}
-
- got_type:
-	param->value = value;
 	return param - params;
-}
-
-static int
-get_param(const char *name, struct param *param)
-{
-	char *p;
-	size_t buflen, mlen;
-	int mib[CTL_MAXNAME];
-	struct {
-		int i;
-		char s[MAXPATHLEN];
-	} buf;
-
-	/* Look up the MIB. */
-	mib[0] = 0;
-	mib[1] = 3;
-	snprintf(buf.s, sizeof(buf.s), SJPARAM ".%s", name);
-	mlen = sizeof(mib) - 2 * sizeof(int);
-	if (sysctl(mib, 2, mib + 2, &mlen, buf.s, strlen(buf.s)) < 0)
-		return (-1);
-	/* Get the type and size. */
-	mib[1] = 4;
-	buflen = sizeof(buf);
-	if (sysctl(mib, (mlen / sizeof(int)) + 2, &buf, &buflen, NULL, 0) < 0)
-		err(1, "sysctl(0.4.%s)", name);
-	param->type = buf.i & CTLTYPE;
-	if (buf.i & (CTLFLAG_WR | CTLFLAG_TUN))
-		param->flags |= PARAM_WR;
-	p = strchr(buf.s, '\0');
-	if (p - 2 >= buf.s && !strcmp(p - 2, ",a")) {
-		p[-2] = 0;
-		param->flags |= PARAM_ARRAY;
-	}
-	switch (param->type) {
-	case CTLTYPE_INT:
-		/* An integer parameter might be a boolean. */
-		if (buf.s[0] == 'B')
-			param->type = buf.s[1] == 'N'
-			    ? CTLTYPE_NOBOOL : CTLTYPE_BOOL;
-	case CTLTYPE_UINT:
-		param->size = sizeof(int);
-		break;
-	case CTLTYPE_LONG:
-	case CTLTYPE_ULONG:
-		param->size = sizeof(long);
-		break;
-	case CTLTYPE_STRUCT:
-		if (!strcmp(buf.s, "S,in_addr")) {
-			param->type = CTLTYPE_IPADDR;
-			param->size = sizeof(struct in_addr);
-		} else if (!strcmp(buf.s, "S,in6_addr")) {
-			param->type = CTLTYPE_IP6ADDR;
-			param->size = sizeof(struct in6_addr);
-		}
-		break;
-	case CTLTYPE_STRING:
-		buf.s[0] = 0;
-		sysctl(mib + 2, mlen / sizeof(int), buf.s, &buflen, NULL, 0);
-		param->size = strtoul(buf.s, NULL, 10);
-		if (param->size == 0)
-			param->size = BUFSIZ;
-	}
-	return (0);
 }
 
 static int
 sort_param(const void *a, const void *b)
 {
-	const struct param *parama, *paramb;
+	const struct jailparam *parama, *paramb;
 	char *ap, *bp;
 
 	/* Put top-level parameters first. */
 	parama = a;
 	paramb = b;
-	ap = strchr(parama->name, '.');
-	bp = strchr(paramb->name, '.');
+	ap = strchr(parama->jp_name, '.');
+	bp = strchr(paramb->jp_name, '.');
 	if (ap && !bp)
 		return (1);
 	if (bp && !ap)
 		return (-1);
-	return (strcmp(parama->name, paramb->name));
+	return (strcmp(parama->jp_name, paramb->jp_name));
 }
 
 static char *
@@ -483,126 +326,38 @@ static int
 print_jail(int pflags, int jflags)
 {
 	char *nname;
-	int i, ai, jid, count, sanity, spc;
+	char **param_values;
+	int i, ai, jid, count, spc;
 	char ipbuf[INET6_ADDRSTRLEN];
 
-	static struct iovec2 *iov, *aiov;
-	static int narray, nkey;
-
-	/* Set up the parameter list(s) the first time around. */
-	if (iov == NULL) {
-		iov = malloc(nparams * sizeof(struct iovec2));
-		if (iov == NULL)
-			err(1, "malloc");
-		for (i = narray = 0; i < nparams; i++) {
-			iov[i].name.iov_base = params[i].name;
-			iov[i].name.iov_len = strlen(params[i].name) + 1;
-			iov[i].value.iov_base = params[i].value;
-			iov[i].value.iov_len =
-			    params[i].type == CTLTYPE_STRING &&
-			    params[i].value != NULL &&
-			    ((char *)params[i].value)[0] != '\0'
-			    ? strlen(params[i].value) + 1 : params[i].size;
-			if (params[i].flags & (PARAM_KEY | PARAM_ARRAY)) {
-				narray++;
-				if (params[i].flags & PARAM_KEY)
-					nkey++;
-			}
-		}
-		if (narray > nkey) {
-			aiov = malloc(narray * sizeof(struct iovec2));
-			if (aiov == NULL)
-				err(1, "malloc");
-			for (i = ai = 0; i < nparams; i++)
-				if (params[i].flags &
-				    (PARAM_KEY | PARAM_ARRAY))
-					aiov[ai++] = iov[i];
-		}
-	}
-	/* If there are array parameters, find their sizes. */
-	if (aiov != NULL) {
-		for (ai = 0; ai < narray; ai++)
-			if (aiov[ai].value.iov_base == NULL)
-				aiov[ai].value.iov_len = 0;
-		if (jail_get((struct iovec *)aiov, 2 * narray, jflags) < 0)
-			return (-1);
-	}
-	/* Allocate storage for all parameters. */
-	for (i = ai = 0; i < nparams; i++) {
-		if (params[i].flags & (PARAM_KEY | PARAM_ARRAY)) {
-			if (params[i].flags & PARAM_ARRAY) {
-				iov[i].value.iov_len = aiov[ai].value.iov_len +
-				    ARRAY_SLOP * params[i].size;
-				iov[i].value.iov_base =
-				    malloc(iov[i].value.iov_len);
-			}
-			ai++;
-		} else
-			iov[i].value.iov_base = malloc(params[i].size);
-		if (iov[i].value.iov_base == NULL)
-			err(1, "malloc");
-		if (params[i].value == NULL)
-			memset(iov[i].value.iov_base, 0, iov[i].value.iov_len);
-	}
-	/*
-	 * Get the actual prison.  If there are array elements, retry a few
-	 * times in case the size changed from under us.
-	 */
-	if ((jid = jail_get((struct iovec *)iov, 2 * nparams, jflags)) < 0) {
-		if (errno != EINVAL || aiov == NULL || errmsg[0])
-			return (-1);
-		for (sanity = 0;; sanity++) {
-			if (sanity == 10)
-				return (-1);
-			for (ai = 0; ai < narray; ai++)
-				if (params[i].flags & PARAM_ARRAY)
-					aiov[ai].value.iov_len = 0;
-			if (jail_get((struct iovec *)iov, 2 * narray, jflags) <
-			    0)
-				return (-1);
-			for (i = ai = 0; i < nparams; i++) {
-				if (!(params[i].flags &
-				    (PARAM_KEY | PARAM_ARRAY)))
-					continue;
-				if (params[i].flags & PARAM_ARRAY) {
-					iov[i].value.iov_len =
-					    aiov[ai].value.iov_len +
-					    ARRAY_SLOP * params[i].size;
-					iov[i].value.iov_base =
-					    realloc(iov[i].value.iov_base,
-					    iov[i].value.iov_len);
-					if (iov[i].value.iov_base == NULL)
-						err(1, "malloc");
-				}
-				ai++;
-			}
-		}
-	}
+	jid = jailparam_get(params, nparams, jflags);
+	if (jid < 0)
+		return jid;
 	if (pflags & PRINT_VERBOSE) {
 		printf("%6d  %-29.29s %.74s\n"
 		       "%6s  %-29.29s %.74s\n"
 		       "%6s  %-6d\n",
-		    *(int *)iov[0].value.iov_base,
-		    (char *)iov[1].value.iov_base,
-		    (char *)iov[2].value.iov_base,
+		    *(int *)params[0].jp_value,
+		    (char *)params[1].jp_value,
+		    (char *)params[2].jp_value,
 		    "",
-		    (char *)iov[3].value.iov_base,
-		    *(int *)iov[4].value.iov_base ? "DYING" : "ACTIVE",
+		    (char *)params[3].jp_value,
+		    *(int *)params[4].jp_value ? "DYING" : "ACTIVE",
 		    "",
-		    *(int *)iov[5].value.iov_base);
-		count = iov[6].value.iov_len / sizeof(struct in_addr);
+		    *(int *)params[5].jp_value);
+		count = params[6].jp_valuelen / sizeof(struct in_addr);
 		for (ai = 0; ai < count; ai++)
 			if (inet_ntop(AF_INET,
-			    &((struct in_addr *)iov[6].value.iov_base)[ai],
+			    &((struct in_addr *)params[6].jp_value)[ai],
 			    ipbuf, sizeof(ipbuf)) == NULL)
 				err(1, "inet_ntop");
 			else
 				printf("%6s  %-15.15s\n", "", ipbuf);
-		if (!strcmp(params[7].name, "ip6.addr")) {
-			count = iov[7].value.iov_len / sizeof(struct in6_addr);
+		if (!strcmp(params[7].jp_name, "ip6.addr")) {
+			count = params[7].jp_valuelen / sizeof(struct in6_addr);
 			for (ai = 0; ai < count; ai++)
-				if (inet_ntop(AF_INET6, &((struct in_addr *)
-				    iov[7].value.iov_base)[ai],
+				if (inet_ntop(AF_INET6,
+				    &((struct in_addr *)params[7].jp_value)[ai],
 				    ipbuf, sizeof(ipbuf)) == NULL)
 					err(1, "inet_ntop");
 				else
@@ -610,19 +365,28 @@ print_jail(int pflags, int jflags)
 		}
 	} else if (pflags & PRINT_DEFAULT)
 		printf("%6d  %-15.15s %-29.29s %.74s\n",
-		    *(int *)iov[0].value.iov_base,
-		    iov[1].value.iov_len == 0 ? "-"
-		    : inet_ntoa(*(struct in_addr *)iov[1].value.iov_base),
-		    (char *)iov[2].value.iov_base,
-		    (char *)iov[3].value.iov_base);
+		    *(int *)params[0].jp_value,
+		    params[1].jp_valuelen == 0 ? "-"
+		    : inet_ntoa(*(struct in_addr *)params[1].jp_value),
+		    (char *)params[2].jp_value,
+		    (char *)params[3].jp_value);
 	else {
+		param_values = alloca(nparams * sizeof(*param_values));
+		for (i = 0; i < nparams; i++) {
+			if (!(params[i].jp_flags & JP_USER))
+				continue;
+			param_values[i] = jailparam_export(params + i);
+			if (param_values[i] == NULL)
+				errx(1, "%s", jail_errmsg);
+		}
 		for (i = spc = 0; i < nparams; i++) {
-			if (!(params[i].flags & PARAM_USER))
+			if (!(params[i].jp_flags & JP_USER))
 				continue;
 			if ((pflags & PRINT_SKIP) &&
-			    ((!(params[i].flags & PARAM_WR)) ||
-			     (params[i].noparent >= 0 &&
-			      *(int *)iov[params[i].noparent].value.iov_base)))
+			    ((!(params[i].jp_ctltype &
+				(CTLFLAG_WR | CTLFLAG_TUN))) ||
+			     (param_noparent[i] >= 0 &&
+			      *(int *)params[param_noparent[i]].jp_value)))
 				continue;
 			if (spc)
 				putchar(' ');
@@ -633,109 +397,48 @@ print_jail(int pflags, int jflags)
 				 * Generally "name=value", but for booleans
 				 * either "name" or "noname".
 				 */
-				switch (params[i].type) {
-				case CTLTYPE_BOOL:
-					if (*(int *)iov[i].value.iov_base)
-						printf("%s", params[i].name);
+				if (params[i].jp_flags &
+				    (JP_BOOL | JP_NOBOOL)) {
+					if (*(int *)params[i].jp_value)
+						printf("%s", params[i].jp_name);
 					else {
-						nname = noname(params[i].name);
+						nname = (params[i].jp_flags &
+						    JP_NOBOOL) ?
+						    nononame(params[i].jp_name)
+						    : noname(params[i].jp_name);
 						printf("%s", nname);
 						free(nname);
 					}
-					break;
-				case CTLTYPE_NOBOOL:
-					if (*(int *)iov[i].value.iov_base)
-						printf("%s", params[i].name);
-					else {
-						nname =
-						    nononame(params[i].name);
-						printf("%s", nname);
-						free(nname);
-					}
-					break;
-				default:
-					printf("%s=", params[i].name);
+					continue;
 				}
+				printf("%s=", params[i].jp_name);
 			}
-			count = params[i].flags & PARAM_ARRAY
-			    ? iov[i].value.iov_len / params[i].size : 1;
-			if (count == 0) {
+			if (params[i].jp_valuelen == 0) {
 				if (pflags & PRINT_QUOTED)
 					printf("\"\"");
 				else if (!(pflags & PRINT_NAMEVAL))
 					putchar('-');
-			}
-			for (ai = 0; ai < count; ai++) {
-				if (ai > 0)
-					putchar(',');
-				switch (params[i].type) {
-				case CTLTYPE_INT:
-					printf("%d", ((int *)
-					    iov[i].value.iov_base)[ai]);
-					break;
-				case CTLTYPE_UINT:
-					printf("%u", ((int *)
-					    iov[i].value.iov_base)[ai]);
-					break;
-				case CTLTYPE_IPADDR:
-					if (inet_ntop(AF_INET,
-					    &((struct in_addr *)
-					    iov[i].value.iov_base)[ai],
-					    ipbuf, sizeof(ipbuf)) == NULL)
-						err(1, "inet_ntop");
-					else
-						printf("%s", ipbuf);
-					break;
-				case CTLTYPE_IP6ADDR:
-					if (inet_ntop(AF_INET6,
-					    &((struct in6_addr *)
-					    iov[i].value.iov_base)[ai],
-					    ipbuf, sizeof(ipbuf)) == NULL)
-						err(1, "inet_ntop");
-					else
-						printf("%s", ipbuf);
-					break;
-				case CTLTYPE_LONG:
-					printf("%ld", ((long *)
-					    iov[i].value.iov_base)[ai]);
-				case CTLTYPE_ULONG:
-					printf("%lu", ((long *)
-					    iov[i].value.iov_base)[ai]);
-					break;
-				case CTLTYPE_STRING:
-					if (pflags & PRINT_QUOTED)
-						quoted_print((char *)
-						    iov[i].value.iov_base,
-						    params[i].size);
-					else
-						printf("%.*s",
-						    (int)params[i].size,
-						    (char *)
-						    iov[i].value.iov_base);
-					break;
-				case CTLTYPE_BOOL:
-				case CTLTYPE_NOBOOL:
-					if (!(pflags & PRINT_NAMEVAL))
-						printf(((int *)
-						    iov[i].value.iov_base)[ai]
-						    ? "true" : "false");
-				}
-			}
+			} else
+				quoted_print(param_values[i]);
 		}
 		putchar('\n');
+		for (i = 0; i < nparams; i++)
+			if (params[i].jp_flags & JP_USER)
+				free(param_values[i]);
 	}
 	for (i = 0; i < nparams; i++)
-		if (params[i].value == NULL)
-			free(iov[i].value.iov_base);
+		if (!(params[i].jp_flags & JP_RAWVALUE)) {
+			free(params[i].jp_value);
+			params[i].jp_value = NULL;
+		}
 	return (jid);
 }
 
 static void
-quoted_print(char *str, int len)
+quoted_print(char *str)
 {
 	int c, qc;
 	char *p = str;
-	char *ep = str + len;
 
 	/* An empty string needs quoting. */
 	if (!*p) {
@@ -753,7 +456,7 @@ quoted_print(char *str, int len)
 	    : 0;
 	if (qc)
 		putchar(qc);
-	while (p < ep && (c = *p++)) {
+	while ((c = *p++)) {
 		if (c == '\\' || c == qc)
 			putchar('\\');
 		putchar(c);

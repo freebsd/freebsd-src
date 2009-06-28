@@ -20,6 +20,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Dwarf.h"
 
 namespace llvm {
@@ -36,7 +37,7 @@ namespace llvm {
 
   class DIDescriptor {
   protected:    
-    GlobalVariable *GV;
+    GlobalVariable *DbgGV;
 
     /// DIDescriptor constructor.  If the specified GV is non-null, this checks
     /// to make sure that the tag in the descriptor matches 'RequiredTag'.  If
@@ -58,12 +59,12 @@ namespace llvm {
     GlobalVariable *getGlobalVariableField(unsigned Elt) const;
 
   public:
-    explicit DIDescriptor() : GV(0) {}
-    explicit DIDescriptor(GlobalVariable *gv) : GV(gv) {}
+    explicit DIDescriptor() : DbgGV(0) {}
+    explicit DIDescriptor(GlobalVariable *GV) : DbgGV(GV) {}
 
-    bool isNull() const { return GV == 0; }
+    bool isNull() const { return DbgGV == 0; }
 
-    GlobalVariable *getGV() const { return GV; }
+    GlobalVariable *getGV() const { return DbgGV; }
 
     unsigned getVersion() const {
       return getUnsignedField(0) & LLVMDebugVersionMask;
@@ -78,15 +79,6 @@ namespace llvm {
 
     /// dump - print descriptor.
     void dump() const;
-  };
-
-  /// DIAnchor - A wrapper for various anchor descriptors.
-  class DIAnchor : public DIDescriptor {
-  public:
-    explicit DIAnchor(GlobalVariable *GV = 0)
-      : DIDescriptor(GV, dwarf::DW_TAG_anchor) {}
-
-    unsigned getAnchorTag() const { return getUnsignedField(1); }
   };
 
   /// DISubrange - This is used to represent ranges, for array bounds.
@@ -245,7 +237,7 @@ namespace llvm {
     explicit DIDerivedType(GlobalVariable *GV)
       : DIType(GV, true, true) {
       if (GV && !isDerivedType(getTag()))
-        GV = 0;
+        DbgGV = 0;
     }
 
     DIType getTypeDerivedFrom() const { return getFieldAs<DIType>(9); }
@@ -265,7 +257,7 @@ namespace llvm {
     explicit DICompositeType(GlobalVariable *GV)
       : DIDerivedType(GV, true, true) {
       if (GV && !isCompositeType(getTag()))
-        GV = 0;
+        DbgGV = 0;
     }
 
     DIArray getTypeArray() const { return getFieldAs<DIArray>(10); }
@@ -330,6 +322,19 @@ namespace llvm {
 
     DICompositeType getType() const { return getFieldAs<DICompositeType>(8); }
 
+    /// getReturnTypeName - Subprogram return types are encoded either as
+    /// DIType or as DICompositeType.
+    const std::string &getReturnTypeName(std::string &F) const {
+      DICompositeType DCT(getFieldAs<DICompositeType>(8));
+      if (!DCT.isNull()) {
+        DIArray A = DCT.getTypeArray();
+        DIType T(A.getElement(0).getGV());
+        return T.getName(F);
+      }
+      DIType T(getFieldAs<DIType>(8));
+      return T.getName(F);
+    }
+
     /// Verify - Verify that a subprogram descriptor is well formed.
     bool Verify() const;
 
@@ -360,10 +365,10 @@ namespace llvm {
   /// global etc).
   class DIVariable : public DIDescriptor {
   public:
-    explicit DIVariable(GlobalVariable *gv = 0)
-      : DIDescriptor(gv) {
-      if (gv && !isVariable(getTag()))
-        GV = 0;
+    explicit DIVariable(GlobalVariable *GV = 0)
+      : DIDescriptor(GV) {
+      if (GV && !isVariable(getTag()))
+        DbgGV = 0;
     }
 
     DIDescriptor getContext() const { return getDescriptorField(1); }
@@ -398,7 +403,6 @@ namespace llvm {
   class DIFactory {
     Module &M;
     // Cached values for uniquing and faster lookups.
-    DIAnchor CompileUnitAnchor, SubProgramAnchor, GlobalVariableAnchor;
     const Type *EmptyStructPtr; // "{}*".
     Function *StopPointFn;   // llvm.dbg.stoppoint
     Function *FuncStartFn;   // llvm.dbg.func.start
@@ -412,18 +416,6 @@ namespace llvm {
     void operator=(const DIFactory&); // DO NOT IMPLEMENT
   public:
     explicit DIFactory(Module &m);
-
-    /// GetOrCreateCompileUnitAnchor - Return the anchor for compile units,
-    /// creating a new one if there isn't already one in the module.
-    DIAnchor GetOrCreateCompileUnitAnchor();
-
-    /// GetOrCreateSubprogramAnchor - Return the anchor for subprograms,
-    /// creating a new one if there isn't already one in the module.
-    DIAnchor GetOrCreateSubprogramAnchor();
-
-    /// GetOrCreateGlobalVariableAnchor - Return the anchor for globals,
-    /// creating a new one if there isn't already one in the module.
-    DIAnchor GetOrCreateGlobalVariableAnchor();
 
     /// GetOrCreateArray - Create an descriptor for an array of descriptors. 
     /// This implicitly uniques the arrays created.
@@ -527,7 +519,6 @@ namespace llvm {
   private:
     Constant *GetTagConstant(unsigned TAG);
     Constant *GetStringConstant(const std::string &String);
-    DIAnchor GetOrCreateAnchor(unsigned TAG, const char *Name);
 
     /// getCastToEmpty - Return the descriptor as a Constant* with type '{}*'.
     Constant *getCastToEmpty(DIDescriptor D);
@@ -550,6 +541,13 @@ namespace llvm {
 
   bool getLocationInfo(const Value *V, std::string &DisplayName, std::string &Type, 
                        unsigned &LineNo, std::string &File, std::string &Dir); 
+
+  /// CollectDebugInfoAnchors - Collect debugging information anchors.
+  void CollectDebugInfoAnchors(Module &M,
+                               SmallVector<GlobalVariable *, 2> &CompileUnits,
+                               SmallVector<GlobalVariable *, 4> &GlobalVars,
+                               SmallVector<GlobalVariable *, 4> &Subprograms);
+
 } // end namespace llvm
 
 #endif

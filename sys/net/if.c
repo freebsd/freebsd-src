@@ -261,6 +261,8 @@ ifaddr_byindex(u_short idx)
 
 	IFNET_RLOCK();
 	ifa = ifnet_byindex_locked(idx)->if_addr;
+	if (ifa != NULL)
+		ifa_ref(ifa);
 	IFNET_RUNLOCK();
 	return (ifa);
 }
@@ -1416,6 +1418,40 @@ if_rtdel(struct radix_node *rn, void *arg)
 }
 
 /*
+ * Wrapper functions for struct ifnet address list locking macros.  These are
+ * used by kernel modules to avoid encoding programming interface or binary
+ * interface assumptions that may be violated when kernel-internal locking
+ * approaches change.
+ */
+void
+if_addr_rlock(struct ifnet *ifp)
+{
+
+	IF_ADDR_LOCK(ifp);
+}
+
+void
+if_addr_runlock(struct ifnet *ifp)
+{
+
+	IF_ADDR_UNLOCK(ifp);
+}
+
+void
+if_maddr_rlock(struct ifnet *ifp)
+{
+
+	IF_ADDR_LOCK(ifp);
+}
+
+void
+if_maddr_runlock(struct ifnet *ifp)
+{
+
+	IF_ADDR_UNLOCK(ifp);
+}
+
+/*
  * Reference count functions for ifaddrs.
  */
 void
@@ -1464,7 +1500,7 @@ ifa_free(struct ifaddr *ifa)
  */
 /*ARGSUSED*/
 static struct ifaddr *
-ifa_ifwithaddr_internal(struct sockaddr *addr)
+ifa_ifwithaddr_internal(struct sockaddr *addr, int getref)
 {
 	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
@@ -1477,6 +1513,8 @@ ifa_ifwithaddr_internal(struct sockaddr *addr)
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
 			if (sa_equal(addr, ifa->ifa_addr)) {
+				if (getref)
+					ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto done;
 			}
@@ -1485,6 +1523,8 @@ ifa_ifwithaddr_internal(struct sockaddr *addr)
 			    ifa->ifa_broadaddr &&
 			    ifa->ifa_broadaddr->sa_len != 0 &&
 			    sa_equal(ifa->ifa_broadaddr, addr)) {
+				if (getref)
+					ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto done;
 			}
@@ -1501,14 +1541,14 @@ struct ifaddr *
 ifa_ifwithaddr(struct sockaddr *addr)
 {
 
-	return (ifa_ifwithaddr_internal(addr));
+	return (ifa_ifwithaddr_internal(addr, 1));
 }
 
 int
 ifa_ifwithaddr_check(struct sockaddr *addr)
 {
 
-	return (ifa_ifwithaddr_internal(addr) != NULL);
+	return (ifa_ifwithaddr_internal(addr, 0) != NULL);
 }
 
 /*
@@ -1532,6 +1572,7 @@ ifa_ifwithbroadaddr(struct sockaddr *addr)
 			    ifa->ifa_broadaddr &&
 			    ifa->ifa_broadaddr->sa_len != 0 &&
 			    sa_equal(ifa->ifa_broadaddr, addr)) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto done;
 			}
@@ -1565,6 +1606,7 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 				continue;
 			if (ifa->ifa_dstaddr != NULL &&
 			    sa_equal(addr, ifa->ifa_dstaddr)) {
+				ifa_ref(ifa);
 				IF_ADDR_UNLOCK(ifp);
 				goto done;
 			}
@@ -1587,7 +1629,7 @@ ifa_ifwithnet(struct sockaddr *addr)
 	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
-	struct ifaddr *ifa_maybe = (struct ifaddr *) 0;
+	struct ifaddr *ifa_maybe = NULL;
 	u_int af = addr->sa_family;
 	char *addr_data = addr->sa_data, *cplim;
 
@@ -1602,8 +1644,10 @@ ifa_ifwithnet(struct sockaddr *addr)
 	}
 
 	/*
-	 * Scan though each interface, looking for ones that have
-	 * addresses in this address family.
+	 * Scan though each interface, looking for ones that have addresses
+	 * in this address family.  Maintain a reference on ifa_maybe once
+	 * we find one, as we release the IF_ADDR_LOCK() that kept it stable
+	 * when we move onto the next interface.
 	 */
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
@@ -1624,6 +1668,7 @@ next:				continue;
 				 */
 				if (ifa->ifa_dstaddr != NULL &&
 				    sa_equal(addr, ifa->ifa_dstaddr)) {
+					ifa_ref(ifa);
 					IF_ADDR_UNLOCK(ifp);
 					goto done;
 				}
@@ -1634,6 +1679,7 @@ next:				continue;
 				 */
 				if (ifa->ifa_claim_addr) {
 					if ((*ifa->ifa_claim_addr)(ifa, addr)) {
+						ifa_ref(ifa);
 						IF_ADDR_UNLOCK(ifp);
 						goto done;
 					}
@@ -1664,17 +1710,24 @@ next:				continue;
 				 * before continuing to search
 				 * for an even better one.
 				 */
-				if (ifa_maybe == 0 ||
+				if (ifa_maybe == NULL ||
 				    rn_refines((caddr_t)ifa->ifa_netmask,
-				    (caddr_t)ifa_maybe->ifa_netmask))
+				    (caddr_t)ifa_maybe->ifa_netmask)) {
+					if (ifa_maybe != NULL)
+						ifa_free(ifa_maybe);
 					ifa_maybe = ifa;
+					ifa_ref(ifa_maybe);
+				}
 			}
 		}
 		IF_ADDR_UNLOCK(ifp);
 	}
 	ifa = ifa_maybe;
+	ifa_maybe = NULL;
 done:
 	IFNET_RUNLOCK();
+	if (ifa_maybe != NULL)
+		ifa_free(ifa_maybe);
 	return (ifa);
 }
 
@@ -1688,7 +1741,7 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 	struct ifaddr *ifa;
 	char *cp, *cp2, *cp3;
 	char *cplim;
-	struct ifaddr *ifa_maybe = 0;
+	struct ifaddr *ifa_maybe = NULL;
 	u_int af = addr->sa_family;
 
 	if (af >= AF_MAX)
@@ -1697,7 +1750,7 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != af)
 			continue;
-		if (ifa_maybe == 0)
+		if (ifa_maybe == NULL)
 			ifa_maybe = ifa;
 		if (ifa->ifa_netmask == 0) {
 			if (sa_equal(addr, ifa->ifa_addr) ||
@@ -1723,6 +1776,8 @@ ifaof_ifpforaddr(struct sockaddr *addr, struct ifnet *ifp)
 	}
 	ifa = ifa_maybe;
 done:
+	if (ifa != NULL)
+		ifa_ref(ifa);
 	IF_ADDR_UNLOCK(ifp);
 	return (ifa);
 }
@@ -1748,7 +1803,6 @@ link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 		return;
 	ifa = ifaof_ifpforaddr(dst, ifp);
 	if (ifa) {
-		ifa_ref(ifa);		/* XXX */
 		oifa = rt->rt_ifa;
 		rt->rt_ifa = ifa;
 		ifa_free(oifa);
@@ -3124,14 +3178,23 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	struct ifaddr *ifa;
 	struct ifreq ifr;
 
+	IF_ADDR_LOCK(ifp);
 	ifa = ifp->if_addr;
-	if (ifa == NULL)
+	if (ifa == NULL) {
+		IF_ADDR_UNLOCK(ifp);
 		return (EINVAL);
+	}
+	ifa_ref(ifa);
+	IF_ADDR_UNLOCK(ifp);
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-	if (sdl == NULL)
+	if (sdl == NULL) {
+		ifa_free(ifa);
 		return (EINVAL);
-	if (len != sdl->sdl_alen)	/* don't allow length to change */
+	}
+	if (len != sdl->sdl_alen) {	/* don't allow length to change */
+		ifa_free(ifa);
 		return (EINVAL);
+	}
 	switch (ifp->if_type) {
 	case IFT_ETHER:
 	case IFT_FDDI:
@@ -3143,10 +3206,13 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_IEEE8023ADLAG:
 	case IFT_IEEE80211:
 		bcopy(lladdr, LLADDR(sdl), len);
+		ifa_free(ifa);
 		break;
 	default:
+		ifa_free(ifa);
 		return (ENODEV);
 	}
+
 	/*
 	 * If the interface is already up, we need
 	 * to re-init it in order to reprogram its

@@ -214,6 +214,7 @@ fork1(td, flags, pages, procp)
 	struct thread *td2;
 	struct sigacts *newsigacts;
 	struct vmspace *vm2;
+	vm_ooffset_t mem_charged;
 	int error;
 
 	/* Can't copy and clear. */
@@ -274,6 +275,7 @@ norfproc_fail:
 	 * however it proved un-needed and caused problems
 	 */
 
+	mem_charged = 0;
 	vm2 = NULL;
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
@@ -295,12 +297,24 @@ norfproc_fail:
 		}
 	}
 	if ((flags & RFMEM) == 0) {
-		vm2 = vmspace_fork(p1->p_vmspace);
+		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
 		if (vm2 == NULL) {
 			error = ENOMEM;
 			goto fail1;
 		}
-	}
+		if (!swap_reserve(mem_charged)) {
+			/*
+			 * The swap reservation failed. The accounting
+			 * from the entries of the copied vm2 will be
+			 * substracted in vmspace_free(), so force the
+			 * reservation there.
+			 */
+			swap_reserve_force(mem_charged);
+			error = ENOMEM;
+			goto fail1;
+		}
+	} else
+		vm2 = NULL;
 #ifdef MAC
 	mac_proc_init(newproc);
 #endif

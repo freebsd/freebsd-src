@@ -302,15 +302,24 @@ let TargetPrefix = "arm" in {
 
   // Interleaving vector stores from N-element structures.
   def int_arm_neon_vst3i : Intrinsic<[llvm_void_ty],
-                                     [llvm_anyint_ty, llvm_ptr_ty],
+                                     [llvm_ptr_ty, llvm_anyint_ty],
                                      [IntrWriteArgMem]>;
   def int_arm_neon_vst3f : Intrinsic<[llvm_void_ty],
-                                     [llvm_anyfloat_ty, llvm_ptr_ty],
+                                     [llvm_ptr_ty, llvm_anyfloat_ty],
                                      [IntrWriteArgMem]>;
   def int_arm_neon_vst4i : Intrinsic<[llvm_void_ty],
-                                     [llvm_anyint_ty, llvm_ptr_ty],
+                                     [llvm_ptr_ty, llvm_anyint_ty],
                                      [IntrWriteArgMem]>;
   def int_arm_neon_vst4f : Intrinsic<[llvm_void_ty],
-                                     [llvm_anyfloat_ty, llvm_ptr_ty],
+                                     [llvm_ptr_ty, llvm_anyfloat_ty],
                                      [IntrWriteArgMem]>;
+
+  // Vector Table Lookup
+  def int_arm_neon_vtbl : Intrinsic<[llvm_v8i8_ty],
+                                    [llvm_anyint_ty, llvm_v8i8_ty],
+                                    [IntrNoMem]>;
+  // Vector Table Extension
+  def int_arm_neon_vtbx : Intrinsic<[llvm_v8i8_ty],
+                                    [llvm_v8i8_ty, llvm_anyint_ty,
+                                     llvm_v8i8_ty], [IntrNoMem]>;
 }

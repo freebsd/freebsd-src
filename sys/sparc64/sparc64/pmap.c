@@ -363,6 +363,11 @@ pmap_bootstrap(vm_offset_t ekva)
 	bzero(tsb_kernel, tsb_kernel_size);
 
 	/*
+	 * Allocate and map the dynamic per-CPU area for the BSP.
+	 */
+	dpcpu0 = (void *)TLB_PHYS_TO_DIRECT(pmap_bootstrap_alloc(DPCPU_SIZE));
+
+	/*
 	 * Allocate and map the message buffer.
 	 */
 	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE);
@@ -624,8 +629,8 @@ pmap_init(void)
 			continue;
 		if (addr < VM_MIN_PROM_ADDRESS || addr > VM_MAX_PROM_ADDRESS)
 			continue;
-		result = vm_map_find(kernel_map, NULL, 0, &addr, size, FALSE,
-		    VM_PROT_ALL, VM_PROT_ALL, 0);
+		result = vm_map_find(kernel_map, NULL, 0, &addr, size,
+		    VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 		if (result != KERN_SUCCESS || addr != translations[i].om_start)
 			panic("pmap_init: vm_map_find");
 	}

@@ -494,7 +494,7 @@ udav_setmulti(struct usb_ether *ue)
 	udav_csr_write(sc, UDAV_MAR, hashtbl, sizeof(hashtbl));
 
 	/* now program new ones */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -503,7 +503,7 @@ udav_setmulti(struct usb_ether *ue)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		hashtbl[h / 8] |= 1 << (h % 8);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	/* disable all multicast */
 	UDAV_CLRBIT(sc, UDAV_RCR, UDAV_RCR_ALL);

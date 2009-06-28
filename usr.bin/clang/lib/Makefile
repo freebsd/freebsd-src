@@ -18,6 +18,7 @@ SUBDIR=	libclanganalysis \
 	libllvmcore \
 	libllvmipa \
 	libllvmipo \
+	libllvmmc \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \

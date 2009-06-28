@@ -300,7 +300,18 @@ Sema::IsOverload(FunctionDecl *New, Decl* OldD,
 
     // This function overloads every function in the overload set.
     return true;
-  } else if (FunctionDecl* Old = dyn_cast<FunctionDecl>(OldD)) {
+  } else if (FunctionTemplateDecl *Old = dyn_cast<FunctionTemplateDecl>(OldD))
+    return IsOverload(New, Old->getTemplatedDecl(), MatchedDecl);
+  else if (FunctionDecl* Old = dyn_cast<FunctionDecl>(OldD)) {
+    FunctionTemplateDecl *OldTemplate = Old->getDescribedFunctionTemplate();
+    FunctionTemplateDecl *NewTemplate = New->getDescribedFunctionTemplate(); 
+    
+    // C++ [temp.fct]p2:
+    //   A function template can be overloaded with other function templates
+    //   and with normal (non-template) functions.
+    if ((OldTemplate == 0) != (NewTemplate == 0))
+      return true;
+
     // Is the function New an overload of the function Old?
     QualType OldQType = Context.getCanonicalType(Old->getType());
     QualType NewQType = Context.getCanonicalType(New->getType());
@@ -315,8 +326,8 @@ Sema::IsOverload(FunctionDecl *New, Decl* OldD,
         isa<FunctionNoProtoType>(NewQType.getTypePtr()))
       return false;
 
-    FunctionProtoType* OldType = cast<FunctionProtoType>(OldQType.getTypePtr());
-    FunctionProtoType* NewType = cast<FunctionProtoType>(NewQType.getTypePtr());
+    FunctionProtoType* OldType = cast<FunctionProtoType>(OldQType);
+    FunctionProtoType* NewType = cast<FunctionProtoType>(NewQType);
 
     // The signature of a function includes the types of its
     // parameters (C++ 1.3.10), which includes the presence or absence
@@ -328,6 +339,22 @@ Sema::IsOverload(FunctionDecl *New, Decl* OldD,
                      NewType->arg_type_begin())))
       return true;
 
+    // C++ [temp.over.link]p4:
+    //   The signature of a function template consists of its function 
+    //   signature, its return type and its template parameter list. The names
+    //   of the template parameters are significant only for establishing the
+    //   relationship between the template parameters and the rest of the 
+    //   signature.
+    //
+    // We check the return type and template parameter lists for function
+    // templates first; the remaining checks follow.
+    if (NewTemplate &&
+        (!TemplateParameterListsAreEqual(NewTemplate->getTemplateParameters(), 
+                                         OldTemplate->getTemplateParameters(), 
+                                         false, false, SourceLocation()) ||
+         OldType->getResultType() != NewType->getResultType()))
+      return true;
+    
     // If the function is a class member, its signature includes the
     // cv-qualifiers (if any) on the function itself.
     //
@@ -2048,7 +2075,9 @@ Sema::AddOverloadCandidate(FunctionDecl *Function,
   assert(Proto && "Functions without a prototype cannot be overloaded");
   assert(!isa<CXXConversionDecl>(Function) && 
          "Use AddConversionCandidate for conversion functions");
-
+  assert(!Function->getDescribedFunctionTemplate() && 
+         "Use AddTemplateOverloadCandidate for function templates");
+  
   if (CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(Function)) {
     if (!isa<CXXConstructorDecl>(Method)) {
       // If we get here, it's because we're calling a member function
@@ -2233,6 +2262,42 @@ Sema::AddMethodCandidate(CXXMethodDecl *Method, Expr *Object,
   }
 }
 
+/// \brief Add a C++ function template as a candidate in the candidate set,
+/// using template argument deduction to produce an appropriate function
+/// template specialization.
+void 
+Sema::AddTemplateOverloadCandidate(FunctionTemplateDecl *FunctionTemplate,
+                                   Expr **Args, unsigned NumArgs,
+                                   OverloadCandidateSet& CandidateSet,
+                                   bool SuppressUserConversions,
+                                   bool ForceRValue) {
+  // C++ [over.match.funcs]p7:
+  //   In each case where a candidate is a function template, candidate 
+  //   function template specializations are generated using template argument
+  //   deduction (14.8.3, 14.8.2). Those candidates are then handled as 
+  //   candidate functions in the usual way.113) A given name can refer to one
+  //   or more function templates and also to a set of overloaded non-template
+  //   functions. In such a case, the candidate functions generated from each
+  //   function template are combined with the set of non-template candidate
+  //   functions.
+  TemplateDeductionInfo Info(Context);
+  FunctionDecl *Specialization = 0;
+  if (TemplateDeductionResult Result
+        = DeduceTemplateArguments(FunctionTemplate, Args, NumArgs, 
+                                  Specialization, Info)) {
+    // FIXME: Record what happened with template argument deduction, so
+    // that we can give the user a beautiful diagnostic.
+    (void)Result;
+    return;
+  }
+                            
+  // Add the function template specialization produced by template argument
+  // deduction as a candidate.
+  assert(Specialization && "Missing function template specialization?");
+  AddOverloadCandidate(Specialization, Args, NumArgs, CandidateSet,
+                       SuppressUserConversions, ForceRValue);
+}
+  
 /// AddConversionCandidate - Add a C++ conversion function as a
 /// candidate in the candidate set (C++ [over.match.conv], 
 /// C++ [over.match.copy]). From is the expression we're converting from,
@@ -3653,8 +3718,15 @@ Sema::ResolveAddressOfOverloadedFunction(Expr *From, QualType ToType,
     } else if (IsMember)
       continue;
 
-    if (FunctionType == Context.getCanonicalType((*Fun)->getType()))
-      return *Fun;
+    if (FunctionDecl *FunDecl = dyn_cast<FunctionDecl>(*Fun)) {
+      if (FunctionType == Context.getCanonicalType(FunDecl->getType()))
+        return FunDecl;
+    } else {
+      unsigned DiagID 
+        = PP.getDiagnostics().getCustomDiagID(Diagnostic::Warning,
+                   "Clang does not yet support templated conversion functions");
+      Diag(From->getLocStart(), DiagID);
+    }
   }
 
   return 0;
@@ -3699,10 +3771,18 @@ FunctionDecl *Sema::ResolveOverloadedCallFn(Expr *Fn, NamedDecl *Callee,
     for (OverloadedFunctionDecl::function_iterator Func = Ovl->function_begin(),
                                                 FuncEnd = Ovl->function_end();
          Func != FuncEnd; ++Func) {
-      AddOverloadCandidate(*Func, Args, NumArgs, CandidateSet);
+      DeclContext *Ctx = 0;
+      if (FunctionDecl *FunDecl = dyn_cast<FunctionDecl>(*Func)) {
+        AddOverloadCandidate(FunDecl, Args, NumArgs, CandidateSet);
+        Ctx = FunDecl->getDeclContext();
+      } else {
+        FunctionTemplateDecl *FunTmpl = cast<FunctionTemplateDecl>(*Func);
+        AddTemplateOverloadCandidate(FunTmpl, Args, NumArgs, CandidateSet);
+        Ctx = FunTmpl->getDeclContext();
+      }
 
-      if ((*Func)->getDeclContext()->isRecord() ||
-          (*Func)->getDeclContext()->isFunctionOrMethod())
+
+      if (Ctx->isRecord() || Ctx->isFunctionOrMethod())
         ArgumentDependentLookup = false;
     }
   } else if (FunctionDecl *Func = dyn_cast_or_null<FunctionDecl>(Callee)) {
@@ -3711,7 +3791,13 @@ FunctionDecl *Sema::ResolveOverloadedCallFn(Expr *Fn, NamedDecl *Callee,
     if (Func->getDeclContext()->isRecord() ||
         Func->getDeclContext()->isFunctionOrMethod())
       ArgumentDependentLookup = false;
-  } 
+  } else if (FunctionTemplateDecl *FuncTemplate 
+               = dyn_cast_or_null<FunctionTemplateDecl>(Callee)) {
+    AddTemplateOverloadCandidate(FuncTemplate, Args, NumArgs, CandidateSet);
+
+    if (FuncTemplate->getDeclContext()->isRecord())
+      ArgumentDependentLookup = false;
+  }
 
   if (Callee)
     UnqualifiedName = Callee->getDeclName();

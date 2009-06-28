@@ -288,6 +288,7 @@ again:
 			goto bad;
 		}
 		ia = ifatoia(ro->ro_rt->rt_ifa);
+		ifa_ref(&ia->ia_ifa);
 		ifp = ro->ro_rt->rt_ifp;
 		ro->ro_rt->rt_rmx.rmx_pksent++;
 		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
@@ -667,6 +668,8 @@ done:
 	if (ro == &iproute && ro->ro_rt && !nortfree) {
 		RTFREE(ro->ro_rt);
 	}
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	return (error);
 bad:
 	m_freem(m);

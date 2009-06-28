@@ -967,12 +967,13 @@ public:
 
   /// ActOnUsingDirective - This is called when using-directive is parsed.
   virtual DeclPtrTy ActOnUsingDeclaration(Scope *CurScope,
-                                        SourceLocation UsingLoc,
-                                        const CXXScopeSpec &SS,
-                                        SourceLocation IdentLoc,
-                                        IdentifierInfo *TargetName,
-                                        AttributeList *AttrList,
-                                        bool IsTypeName);
+                                          SourceLocation UsingLoc,
+                                          const CXXScopeSpec &SS,
+                                          SourceLocation IdentLoc,
+                                          IdentifierInfo *TargetName,
+                                          OverloadedOperatorKind Op,
+                                          AttributeList *AttrList,
+                                          bool IsTypeName);
                                          
   /// ActOnParamDefaultArgument - Parse default argument for function parameter
   virtual void ActOnParamDefaultArgument(DeclPtrTy param,
@@ -1453,6 +1454,26 @@ public:
     return DeclResult();
   }
 
+  /// \brief Invoked when a declarator that has one or more template parameter
+  /// lists has been parsed.
+  ///
+  /// This action is similar to ActOnDeclarator(), except that the declaration
+  /// being created somehow involves a template, e.g., it is a template 
+  /// declaration or specialization.
+  virtual DeclPtrTy ActOnTemplateDeclarator(Scope *S, 
+                              MultiTemplateParamsArg TemplateParameterLists,
+                                            Declarator &D) {
+    return DeclPtrTy();
+  }
+  
+  /// \brief Invoked when the parser is beginning to parse a function template
+  /// or function template specialization definition.
+  virtual DeclPtrTy ActOnStartOfFunctionTemplateDef(Scope *FnBodyScope, 
+                                MultiTemplateParamsArg TemplateParameterLists,
+                                                    Declarator &D) {
+    return DeclPtrTy();
+  }
+  
   /// \brief Process the explicit instantiation of a class template
   /// specialization.
   ///

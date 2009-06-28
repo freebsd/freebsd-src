@@ -999,6 +999,8 @@ struct flash_spec {
 #define BCE_PORT_FEATURE_MBA_VLAN_TAG_MASK	 0xffff
 #define BCE_PORT_FEATURE_MBA_VLAN_ENABLE	 0x10000
 
+#define BCE_MFW_VER_PTR			0x00000014c
+
 #define BCE_BC_STATE_RESET_TYPE		0x000001c0
 #define BCE_BC_STATE_RESET_TYPE_SIG		 0x00005254
 #define BCE_BC_STATE_RESET_TYPE_SIG_MASK	 0x0000ffff
@@ -1054,7 +1056,13 @@ struct flash_spec {
 #define BCE_BC_STATE_ERR_NO_RXP			(BCE_BC_STATE_SIGN | 0x0600)
 #define BCE_BC_STATE_ERR_TOO_MANY_RBUF	(BCE_BC_STATE_SIGN | 0x0700)
 
-#define BCE_BC_CONDITION				0x000001c8
+#define BCE_BC_STATE_CONDITION	        0x000001c8
+#define BCE_CONDITION_MFW_RUN_UNKNOWN   0x00000000
+#define BCE_CONDITION_MFW_RUN_IPMI	    0x00002000
+#define BCE_CONDITION_MFW_RUN_UMP	    0x00004000
+#define BCE_CONDITION_MFW_RUN_NCSI	    0x00006000
+#define BCE_CONDITION_MFW_RUN_NONE		0x0000e000
+#define BCE_CONDITION_MFW_RUN_MASK		0x0000e000
 
 #define BCE_BC_STATE_DEBUG_CMD					0x1dc
 #define BCE_BC_STATE_BC_DBG_CMD_SIGNATURE		0x42440000
@@ -6457,7 +6465,8 @@ struct bce_softc
 	char *				bce_name;			/* Name string */
 
 	/* Tracks the version of bootcode firmware. */
-	u32					bce_bc_ver;
+	char			    bce_bc_ver[32];
+    char                bce_mfw_ver[32];
 
 	/* Tracks the state of the firmware.  0 = Running while any     */
 	/* other value indicates that the firmware is not responding.   */

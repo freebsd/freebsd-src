@@ -24,6 +24,7 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
+#include "llvm/MDNode.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/DwarfWriter.h"
@@ -194,8 +195,6 @@ namespace {
             std::string Name = Mang->getValueName(GV);
             FnStubs.insert(Name);
             printSuffixedName(Name, "$stub");
-            if (GV->hasExternalWeakLinkage())
-              ExtWeakSymbols.insert(GV);
             return;
           }
         }
@@ -295,20 +294,17 @@ namespace {
 
   /// PPCLinuxAsmPrinter - PowerPC assembly printer, customized for Linux
   class VISIBILITY_HIDDEN PPCLinuxAsmPrinter : public PPCAsmPrinter {
-    DwarfWriter *DW;
-    MachineModuleInfo *MMI;
   public:
     explicit PPCLinuxAsmPrinter(raw_ostream &O, PPCTargetMachine &TM,
                                 const TargetAsmInfo *T, CodeGenOpt::Level OL,
                                 bool V)
-      : PPCAsmPrinter(O, TM, T, OL, V), DW(0), MMI(0) {}
+      : PPCAsmPrinter(O, TM, T, OL, V){}
 
     virtual const char *getPassName() const {
       return "Linux PPC Assembly Printer";
     }
 
     bool runOnMachineFunction(MachineFunction &F);
-    bool doInitialization(Module &M);
     bool doFinalization(Module &M);
 
     void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -324,14 +320,12 @@ namespace {
   /// PPCDarwinAsmPrinter - PowerPC assembly printer, customized for Darwin/Mac
   /// OS X
   class VISIBILITY_HIDDEN PPCDarwinAsmPrinter : public PPCAsmPrinter {
-    DwarfWriter *DW;
-    MachineModuleInfo *MMI;
     raw_ostream &OS;
   public:
     explicit PPCDarwinAsmPrinter(raw_ostream &O, PPCTargetMachine &TM,
                                  const TargetAsmInfo *T, CodeGenOpt::Level OL,
                                  bool V)
-      : PPCAsmPrinter(O, TM, T, OL, V), DW(0), MMI(0), OS(O) {}
+      : PPCAsmPrinter(O, TM, T, OL, V), OS(O) {}
 
     virtual const char *getPassName() const {
       return "Darwin PPC Assembly Printer";
@@ -403,17 +397,12 @@ void PPCAsmPrinter::printOp(const MachineOperand &MO) {
           GVStubs.insert(Name);
           printSuffixedName(Name, "$non_lazy_ptr");
         }
-        if (GV->hasExternalWeakLinkage())
-          ExtWeakSymbols.insert(GV);
         return;
       }
     }
     O << Name;
 
     printOffset(MO.getOffset());
-
-    if (GV->hasExternalWeakLinkage())
-      ExtWeakSymbols.insert(GV);
     return;
   }
 
@@ -644,15 +633,6 @@ bool PPCLinuxAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   return false;
 }
 
-bool PPCLinuxAsmPrinter::doInitialization(Module &M) {
-  bool Result = AsmPrinter::doInitialization(M);
-  DW = getAnalysisIfAvailable<DwarfWriter>();
-  MMI = getAnalysisIfAvailable<MachineModuleInfo>();
-  assert(MMI);
-  SwitchToSection(TAI->getTextSection());
-  return Result;
-}
-
 /// PrintUnmangledNameSafely - Print out the printable characters in the name.
 /// Don't print things like \\n or \\0.
 static void PrintUnmangledNameSafely(const Value *V, raw_ostream &OS) {
@@ -677,6 +657,8 @@ void PPCLinuxAsmPrinter::printModuleLevelGV(const GlobalVariable* GVar) {
   printVisibility(name, GVar->getVisibility());
 
   Constant *C = GVar->getInitializer();
+  if (isa<MDNode>(C) || isa<MDString>(C))
+    return;
   const Type *Type = C->getType();
   unsigned Size = TD->getTypeAllocSize(Type);
   unsigned Align = TD->getPreferredAlignmentLog(GVar);
@@ -743,12 +725,6 @@ void PPCLinuxAsmPrinter::printModuleLevelGV(const GlobalVariable* GVar) {
   }
   O << '\n';
 
-  // If the initializer is a extern weak symbol, remember to emit the weak
-  // reference!
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(C))
-    if (GV->hasExternalWeakLinkage())
-      ExtWeakSymbols.insert(GV);
-
   EmitGlobalConstant(C);
   O << '\n';
 }
@@ -758,11 +734,6 @@ bool PPCLinuxAsmPrinter::doFinalization(Module &M) {
   for (Module::const_global_iterator I = M.global_begin(), E = M.global_end();
        I != E; ++I)
     printModuleLevelGV(I);
-
-  // TODO
-
-  // Emit initial debug information.
-  DW->EndModule();
 
   return AsmPrinter::doFinalization(M);
 }
@@ -866,8 +837,6 @@ bool PPCDarwinAsmPrinter::doInitialization(Module &M) {
   O << "\t.machine " << CPUDirectives[Directive] << '\n';
 
   bool Result = AsmPrinter::doInitialization(M);
-  DW = getAnalysisIfAvailable<DwarfWriter>();
-  MMI = getAnalysisIfAvailable<MachineModuleInfo>();
   assert(MMI);
 
   // Prime text sections so they are adjacent.  This reduces the likelihood a
@@ -987,12 +956,6 @@ void PPCDarwinAsmPrinter::printModuleLevelGV(const GlobalVariable* GVar) {
   }
   O << '\n';
 
-  // If the initializer is a extern weak symbol, remember to emit the weak
-  // reference!
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(C))
-    if (GV->hasExternalWeakLinkage())
-      ExtWeakSymbols.insert(GV);
-
   EmitGlobalConstant(C);
   O << '\n';
 }
@@ -1100,8 +1063,7 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
   if (TAI->doesSupportExceptionHandling() && MMI) {
     // Add the (possibly multiple) personalities to the set of global values.
     // Only referenced functions get into the Personalities list.
-    const std::vector<Function *>& Personalities = MMI->getPersonalities();
-
+    const std::vector<Function *> &Personalities = MMI->getPersonalities();
     for (std::vector<Function *>::const_iterator I = Personalities.begin(),
            E = Personalities.end(); I != E; ++I)
       if (*I) GVStubs.insert("_" + (*I)->getName());
@@ -1138,10 +1100,6 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
       O << p << '\n';
     }
   }
-
-
-  // Emit initial debug information.
-  DW->EndModule();
 
   // Funny Darwin hack: This flag tells the linker that no global symbols
   // contain code that falls through to other global symbols (e.g. the obvious
@@ -1185,8 +1143,5 @@ namespace {
 extern "C" int PowerPCAsmPrinterForceLink;
 int PowerPCAsmPrinterForceLink = 0;
 
-// Force static initialization when called from
-// llvm/InitializeAllAsmPrinters.h
-namespace llvm {
-  void InitializePowerPCAsmPrinter() { }
-}
+// Force static initialization.
+extern "C" void LLVMInitializePowerPCAsmPrinter() { }

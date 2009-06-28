@@ -18,9 +18,9 @@ LIBDEPS=clangfrontend clangrewrite clanglex clangparse clanganalysis \
 	llvmpowerpcasmprinter llvmpowerpccodegen \
 	llvmx86asmprinter llvmx86codegen \
 	\
-	llvmselectiondag llvmasmprinter llvmcodegen llvmscalaropts \
-	llvmbitreader llvmbitwriter llvmtarget llvmipo llvmipa \
-	llvmtransformutils llvmanalysis llvmcore llvmsupport \
+	llvmmc llvmselectiondag llvmasmprinter llvmcodegen \
+	llvmscalaropts llvmbitreader llvmbitwriter llvmtarget llvmipo \
+	llvmipa llvmtransformutils llvmanalysis llvmcore llvmsupport \
 	llvmsystem
 
 .include "../../clang.prog.mk"

@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/uio.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -41,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
+#include <jail.h>
 #include <login_cap.h>
 #include <netdb.h>
 #include <paths.h>
@@ -50,15 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#define	SJPARAM		"security.jail.param"
-#define	ERRMSG_SIZE	256
-
-struct param {
-	struct iovec name;
-	struct iovec value;
-};
-
-static struct param *params;
+static struct jailparam *params;
 static char **param_values;
 static int nparams;
 
@@ -113,7 +105,6 @@ int
 main(int argc, char **argv)
 {
 	login_cap_t *lcap = NULL;
-	struct iovec rparams[2];
 	struct passwd *pwd = NULL;
 	gid_t *groups;
 	size_t sysvallen;
@@ -121,8 +112,8 @@ main(int argc, char **argv)
 	int hflag, iflag, Jflag, lflag, rflag, uflag, Uflag;
 	long ngroups_max;
 	unsigned pi;
-	char *ep, *jailname, *securelevel, *username, *JidFile;
-	char errmsg[ERRMSG_SIZE], enforce_statfs[4];
+	char *jailname, *securelevel, *username, *JidFile;
+	char enforce_statfs[4];
 	static char *cleanenv;
 	const char *shell, *p = NULL;
 	FILE *fp;
@@ -176,16 +167,9 @@ main(int argc, char **argv)
 			jail_set_flags |= JAIL_UPDATE;
 			break;
 		case 'r':
-			jid = strtoul(optarg, &ep, 10);
-			if (!*optarg || *ep) {
-				*(const void **)&rparams[0].iov_base = "name";
-				rparams[0].iov_len = sizeof("name");
-				rparams[1].iov_base = optarg;
-				rparams[1].iov_len = strlen(optarg) + 1;
-				jid = jail_get(rparams, 2, 0);
-				if (jid < 0)
-					errx(1, "unknown jail: %s", optarg);
-			}
+			jid = jail_getid(optarg);
+			if (jid < 0)
+				errx(1, "%s", jail_errmsg);
 			rflag = 1;
 			break;
 		default:
@@ -280,21 +264,16 @@ main(int argc, char **argv)
 	if (ip6_addr != NULL)
 		set_param("ip6.addr", ip6_addr);
 #endif
-	errmsg[0] = 0;
-	set_param("errmsg", errmsg);
 
 	if (Jflag) {
 		fp = fopen(JidFile, "w");
 		if (fp == NULL)
 			errx(1, "Could not create JidFile: %s", JidFile);
 	}
-	jid = jail_set(&params->name, 2 * nparams,
+	jid = jailparam_set(params, nparams, 
 	    jail_set_flags ? jail_set_flags : JAIL_CREATE | JAIL_ATTACH);
-	if (jid < 0) {
-		if (errmsg[0] != '\0')
-			errx(1, "%s", errmsg);
-		err(1, "jail_set");
-	}
+	if (jid < 0)
+		errx(1, "%s", jail_errmsg);
 	if (iflag) {
 		printf("%d\n", jid);
 		fflush(stdout);
@@ -303,10 +282,9 @@ main(int argc, char **argv)
 		if (jail_set_flags) {
 			fprintf(fp, "jid=%d", jid);
 			for (i = 0; i < nparams; i++)
-				if (strcmp(params[i].name.iov_base, "jid") &&
-				    strcmp(params[i].name.iov_base, "errmsg")) {
+				if (strcmp(params[i].jp_name, "jid")) {
 					fprintf(fp, " %s",
-					    (char *)params[i].name.iov_base);
+					    (char *)params[i].jp_name);
 					if (param_values[i]) {
 						putc('=', fp);
 						quoted_print(fp,
@@ -316,19 +294,19 @@ main(int argc, char **argv)
 			fprintf(fp, "\n");
 		} else {
 			for (i = 0; i < nparams; i++)
-				if (!strcmp(params[i].name.iov_base, "path"))
+				if (!strcmp(params[i].jp_name, "path"))
 					break;
 #ifdef INET6
 			fprintf(fp, "%d\t%s\t%s\t%s%s%s\t%s\n",
 			    jid, i < nparams
-			    ? (char *)params[i].value.iov_base : argv[0],
+			    ? (char *)params[i].jp_value : argv[0],
 			    argv[1], ip4_addr ? ip4_addr : "",
 			    ip4_addr && ip4_addr[0] && ip6_addr && ip6_addr[0]
 			    ? "," : "", ip6_addr ? ip6_addr : "", argv[3]);
 #else
 			fprintf(fp, "%d\t%s\t%s\t%s\t%s\n",
 			    jid, i < nparams
-			    ? (char *)params[i].value.iov_base : argv[0],
+			    ? (char *)params[i].jp_value : argv[0],
 			    argv[1], ip4_addr ? ip4_addr : "", argv[3]);
 #endif
 		}
@@ -497,14 +475,8 @@ quoted_print(FILE *fp, char *str)
 static void
 set_param(const char *name, char *value)
 {
-	struct param *param;
-	char *ep, *p;
-	size_t buflen, mlen;
-	int i, nval, mib[CTL_MAXNAME];
-	struct {
-		int i;
-		char s[MAXPATHLEN];
-	} buf;
+	struct jailparam *param;
+	int i;
 
 	static int paramlistsize;
 
@@ -517,9 +489,10 @@ set_param(const char *name, char *value)
 
 	/* Check for repeat parameters */
 	for (i = 0; i < nparams; i++)
-		if (!strcmp(name, params[i].name.iov_base)) {
+		if (!strcmp(name, params[i].jp_name)) {
+			jailparam_free(params + i, 1);
 			memcpy(params + i, params + i + 1,
-			    (--nparams - i) * sizeof(struct param));
+			    (--nparams - i) * sizeof(struct jailparam));
 			break;
 		}
 
@@ -542,141 +515,9 @@ set_param(const char *name, char *value)
 	/* Look up the paramter. */
 	param_values[nparams] = value;
 	param = params + nparams++;
-	*(const void **)&param->name.iov_base = name;
-	param->name.iov_len = strlen(name) + 1;
-	/* Trivial values - no value or errmsg. */
-	if (value == NULL) {
-		param->value.iov_base = NULL;
-		param->value.iov_len = 0;
-		return;
-	}
-	if (!strcmp(name, "errmsg")) {
-		param->value.iov_base = value;
-		param->value.iov_len = ERRMSG_SIZE;
-		return;
-	}
-	mib[0] = 0;
-	mib[1] = 3;
-	snprintf(buf.s, sizeof(buf.s), SJPARAM ".%s", name);
-	mlen = sizeof(mib) - 2 * sizeof(int);
-	if (sysctl(mib, 2, mib + 2, &mlen, buf.s, strlen(buf.s)) < 0)
-		errx(1, "unknown parameter: %s", name);
-	mib[1] = 4;
-	buflen = sizeof(buf);
-	if (sysctl(mib, (mlen / sizeof(int)) + 2, &buf, &buflen, NULL, 0) < 0)
-		err(1, "sysctl(0.4.%s)", name);
-	/*
-	 * See if this is an array type.
-	 * Treat non-arrays as an array of one.
-	 */
-	p = strchr(buf.s, '\0');
-	nval = 1;
-	if (p - 2 >= buf.s && !strcmp(p - 2, ",a")) {
-		if (value[0] == '\0' ||
-		    (value[0] == '-' && value[1] == '\0')) {
-			param->value.iov_base = value;
-			param->value.iov_len = 0;
-			return;
-		}
-		p[-2] = 0;
-		for (p = strchr(value, ','); p; p = strchr(p + 1, ',')) {
-			*p = '\0';
-			nval++;
-		}
-	}
-	
-	/* Set the values according to the parameter type. */
-	switch (buf.i & CTLTYPE) {
-	case CTLTYPE_INT:
-	case CTLTYPE_UINT:
-		param->value.iov_len = nval * sizeof(int);
-		break;
-	case CTLTYPE_LONG:
-	case CTLTYPE_ULONG:
-		param->value.iov_len = nval * sizeof(long);
-		break;
-	case CTLTYPE_STRUCT:
-		if (!strcmp(buf.s, "S,in_addr"))
-			param->value.iov_len = nval * sizeof(struct in_addr);
-#ifdef INET6
-		else if (!strcmp(buf.s, "S,in6_addr"))
-			param->value.iov_len = nval * sizeof(struct in6_addr);
-#endif
-		else
-			errx(1, "%s: unknown parameter structure (%s)",
-			    name, buf.s);
-		break;
-	case CTLTYPE_STRING:
-		if (!strcmp(name, "path")) {
-			param->value.iov_base = malloc(MAXPATHLEN);
-			if (param->value.iov_base == NULL)
-				err(1, "malloc");
-			if (realpath(value, param->value.iov_base) == NULL)
-				err(1, "%s: realpath(%s)", name, value);
-			if (chdir(param->value.iov_base) != 0)
-				err(1, "chdir: %s",
-				    (char *)param->value.iov_base);
-		} else
-			param->value.iov_base = value;
-		param->value.iov_len = strlen(param->value.iov_base) + 1;
-		return;
-	default:
-		errx(1, "%s: unknown parameter type %d (%s)",
-		    name, buf.i, buf.s);
-	}
-	param->value.iov_base = malloc(param->value.iov_len);
-	for (i = 0; i < nval; i++) {
-		switch (buf.i & CTLTYPE) {
-		case CTLTYPE_INT:
-			((int *)param->value.iov_base)[i] =
-			    strtol(value, &ep, 10);
-			if (ep[0] != '\0')
-				errx(1, "%s: non-integer value \"%s\"",
-				    name, value);
-			break;
-		case CTLTYPE_UINT:
-			((unsigned *)param->value.iov_base)[i] =
-			    strtoul(value, &ep, 10);
-			if (ep[0] != '\0')
-				errx(1, "%s: non-integer value \"%s\"",
-				    name, value);
-			break;
-		case CTLTYPE_LONG:
-			((long *)param->value.iov_base)[i] =
-			    strtol(value, &ep, 10);
-			if (ep[0] != '\0')
-			    errx(1, "%s: non-integer value \"%s\"",
-				name, value);
-			break;
-		case CTLTYPE_ULONG:
-			((unsigned long *)param->value.iov_base)[i] =
-			    strtoul(value, &ep, 10);
-			if (ep[0] != '\0')
-			    errx(1, "%s: non-integer value \"%s\"",
-				name, value);
-			break;
-		case CTLTYPE_STRUCT:
-			if (!strcmp(buf.s, "S,in_addr")) {
-				if (inet_pton(AF_INET, value,
-				    &((struct in_addr *)
-				    param->value.iov_base)[i]) != 1)
-					errx(1, "%s: not an IPv4 address: %s",
-					    name, value);
-			}
-#ifdef INET6
-			else if (!strcmp(buf.s, "S,in6_addr")) {
-				if (inet_pton(AF_INET6, value,
-				    &((struct in6_addr *)
-				    param->value.iov_base)[i]) != 1)
-					errx(1, "%s: not an IPv6 address: %s",
-					    name, value);
-			}
-#endif
-		}
-		if (i > 0)
-			value[-1] = ',';
-		value = strchr(value, '\0') + 1;
-	}
+	if (jailparam_init(param, name) < 0 ||
+	    jailparam_import(param, value) < 0)
+		errx(1, "%s", jail_errmsg);
 }
 
 static void

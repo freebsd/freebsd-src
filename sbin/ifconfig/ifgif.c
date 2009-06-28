@@ -66,7 +66,7 @@ gif_status(int s)
 {
 	int opts;
 	int nopts = 0;
-	int i;
+	size_t i;
 
 	ifr.ifr_data = (caddr_t)&opts;
 	if (ioctl(s, GIFGOPTS, &ifr) == -1)
@@ -123,7 +123,7 @@ static __constructor void
 gif_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(gif_cmds); i++)
 		cmd_register(&gif_cmds[i]);

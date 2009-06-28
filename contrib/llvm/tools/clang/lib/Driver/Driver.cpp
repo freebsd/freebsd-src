@@ -50,6 +50,9 @@ Driver::Driver(const char *_Name, const char *_Dir,
     CCCUseClangCPP(true), CCCUsePCH(true),
     SuppressMissingInputWarning(false)
 {
+  // Act as a C++ compiler when called as one.
+  CCCIsCXX = Name == "c++" || Name == "CC";
+
   // Only use clang on i386 and x86_64 by default.
   CCCClangArchs.insert("i386");
   CCCClangArchs.insert("x86_64");

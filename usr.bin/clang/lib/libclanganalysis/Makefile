@@ -9,11 +9,11 @@ SRCS=	BasicConstraintManager.cpp BasicObjCFoundationChecks.cpp \
 	CheckObjCDealloc.cpp CheckObjCInstMethSignature.cpp \
 	CheckObjCUnusedIVars.cpp Environment.cpp ExplodedGraph.cpp \
 	GRBlockCounter.cpp GRCoreEngine.cpp GRExprEngine.cpp \
-	GRExprEngineInternalChecks.cpp GRSimpleVals.cpp GRState.cpp \
-	GRTransferFuncs.cpp LiveVariables.cpp MemRegion.cpp \
-	PathDiagnostic.cpp RangeConstraintManager.cpp RegionStore.cpp \
-	SVals.cpp SimpleConstraintManager.cpp Store.cpp \
-	SymbolManager.cpp UninitializedValues.cpp ValueManager.cpp
+	GRExprEngineInternalChecks.cpp GRState.cpp LiveVariables.cpp \
+	MemRegion.cpp PathDiagnostic.cpp RangeConstraintManager.cpp \
+	RegionStore.cpp SVals.cpp SimpleConstraintManager.cpp \
+	SimpleSValuator.cpp Store.cpp SymbolManager.cpp \
+	UninitializedValues.cpp ValueManager.cpp
 
 TGHDRS=	DiagnosticAnalysisKinds DiagnosticCommonKinds
 

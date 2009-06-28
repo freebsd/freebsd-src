@@ -97,6 +97,7 @@ struct tty {
 	/* Sleeping mechanisms. */
 	struct cv	t_inwait;	/* (t) Input wait queue. */
 	struct cv	t_outwait;	/* (t) Output wait queue. */
+	struct cv	t_outserwait;	/* (t) Serial output wait queue. */
 	struct cv	t_bgwait;	/* (t) Background wait queue. */
 	struct cv	t_dcdwait;	/* (t) Carrier Detect wait queue. */
 

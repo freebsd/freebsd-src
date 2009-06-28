@@ -19,6 +19,7 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
+#include "llvm/MDNode.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/DwarfWriter.h"
@@ -361,9 +362,6 @@ void SPUAsmPrinter::printOp(const MachineOperand &MO) {
       }
     }
     O << Name;
-
-    if (GV->hasExternalWeakLinkage())
-      ExtWeakSymbols.insert(GV);
     return;
   }
 
@@ -524,6 +522,8 @@ void LinuxAsmPrinter::printModuleLevelGV(const GlobalVariable* GVar) {
   printVisibility(name, GVar->getVisibility());
 
   Constant *C = GVar->getInitializer();
+  if (isa<MDNode>(C) || isa<MDString>(C))
+    return;
   const Type *Type = C->getType();
   unsigned Size = TD->getTypeAllocSize(Type);
   unsigned Align = TD->getPreferredAlignmentLog(GVar);
@@ -584,12 +584,6 @@ void LinuxAsmPrinter::printModuleLevelGV(const GlobalVariable* GVar) {
   PrintUnmangledNameSafely(GVar, O);
   O << "'\n";
 
-  // If the initializer is a extern weak symbol, remember to emit the weak
-  // reference!
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(C))
-    if (GV->hasExternalWeakLinkage())
-      ExtWeakSymbols.insert(GV);
-
   EmitGlobalConstant(C);
   O << '\n';
 }
@@ -599,9 +593,6 @@ bool LinuxAsmPrinter::doFinalization(Module &M) {
   for (Module::const_global_iterator I = M.global_begin(), E = M.global_end();
        I != E; ++I)
     printModuleLevelGV(I);
-
-  // Emit initial debug information.
-  DW->EndModule();
 
   return AsmPrinter::doFinalization(M);
 }
@@ -617,11 +608,8 @@ FunctionPass *llvm::createSPUAsmPrinterPass(raw_ostream &o,
   return new LinuxAsmPrinter(o, tm, tm.getTargetAsmInfo(), OptLevel, verbose);
 }
 
-// Force static initialization when called from
-// llvm/InitializeAllAsmPrinters.h
-namespace llvm {
-  void InitializeCellSPUAsmPrinter() { }
-}
+// Force static initialization.
+extern "C" void LLVMInitializeCellSPUAsmPrinter() { }
 
 namespace {
   static struct Register {

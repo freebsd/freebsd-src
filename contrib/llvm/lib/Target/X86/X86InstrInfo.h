@@ -71,7 +71,86 @@ namespace X86 {
 namespace X86II {
   enum {
     //===------------------------------------------------------------------===//
-    // Instruction types.  These are the standard/most common forms for X86
+    // X86 Specific MachineOperand flags.
+    
+    MO_NO_FLAG = 0,
+    
+    /// MO_GOT_ABSOLUTE_ADDRESS - On a symbol operand, this represents a
+    /// relocation of:
+    ///    SYMBOL_LABEL + [. - PICBASELABEL]
+    MO_GOT_ABSOLUTE_ADDRESS = 1,
+    
+    /// MO_PIC_BASE_OFFSET - On a symbol operand this indicates that the
+    /// immediate should get the value of the symbol minus the PIC base label:
+    ///    SYMBOL_LABEL - PICBASELABEL
+    MO_PIC_BASE_OFFSET = 2,
+
+    /// MO_GOT - On a symbol operand this indicates that the immediate is the
+    /// offset to the GOT entry for the symbol name from the base of the GOT.
+    ///
+    /// See the X86-64 ELF ABI supplement for more details. 
+    ///    SYMBOL_LABEL @GOT
+    MO_GOT = 3,
+    
+    /// MO_GOTOFF - On a symbol operand this indicates that the immediate is
+    /// the offset to the location of the symbol name from the base of the GOT. 
+    ///
+    /// See the X86-64 ELF ABI supplement for more details. 
+    ///    SYMBOL_LABEL @GOTOFF
+    MO_GOTOFF = 4,
+    
+    /// MO_GOTPCREL - On a symbol operand this indicates that the immediate is
+    /// offset to the GOT entry for the symbol name from the current code
+    /// location. 
+    ///
+    /// See the X86-64 ELF ABI supplement for more details. 
+    ///    SYMBOL_LABEL @GOTPCREL
+    MO_GOTPCREL = 5,
+    
+    /// MO_PLT - On a symbol operand this indicates that the immediate is
+    /// offset to the PLT entry of symbol name from the current code location. 
+    ///
+    /// See the X86-64 ELF ABI supplement for more details. 
+    ///    SYMBOL_LABEL @PLT
+    MO_PLT = 6,
+    
+    /// MO_TLSGD - On a symbol operand this indicates that the immediate is
+    /// some TLS offset.
+    ///
+    /// See 'ELF Handling for Thread-Local Storage' for more details. 
+    ///    SYMBOL_LABEL @TLSGD
+    MO_TLSGD = 7,
+    
+    /// MO_GOTTPOFF - On a symbol operand this indicates that the immediate is
+    /// some TLS offset.
+    ///
+    /// See 'ELF Handling for Thread-Local Storage' for more details. 
+    ///    SYMBOL_LABEL @GOTTPOFF
+    MO_GOTTPOFF = 8,
+   
+    /// MO_INDNTPOFF - On a symbol operand this indicates that the immediate is
+    /// some TLS offset.
+    ///
+    /// See 'ELF Handling for Thread-Local Storage' for more details. 
+    ///    SYMBOL_LABEL @INDNTPOFF
+    MO_INDNTPOFF = 9,
+    
+    /// MO_TPOFF - On a symbol operand this indicates that the immediate is
+    /// some TLS offset.
+    ///
+    /// See 'ELF Handling for Thread-Local Storage' for more details. 
+    ///    SYMBOL_LABEL @TPOFF
+    MO_TPOFF = 10,
+    
+    /// MO_NTPOFF - On a symbol operand this indicates that the immediate is
+    /// some TLS offset.
+    ///
+    /// See 'ELF Handling for Thread-Local Storage' for more details. 
+    ///    SYMBOL_LABEL @NTPOFF
+    MO_NTPOFF = 11,
+    
+    //===------------------------------------------------------------------===//
+    // Instruction encodings.  These are the standard/most common forms for X86
     // instructions.
     //
 

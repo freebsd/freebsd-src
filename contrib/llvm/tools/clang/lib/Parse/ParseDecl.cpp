@@ -149,13 +149,35 @@ AttributeList *Parser::ParseAttributes(SourceLocation *EndLoc) {
             }
           }
         } else { // not an identifier
+          switch (Tok.getKind()) {
+          case tok::r_paren:
           // parse a possibly empty comma separated list of expressions
-          if (Tok.is(tok::r_paren)) { 
             // __attribute__(( nonnull() ))
             ConsumeParen(); // ignore the right paren loc for now
             CurrAttr = new AttributeList(AttrName, AttrNameLoc, 
                                          0, SourceLocation(), 0, 0, CurrAttr);
-          } else { 
+            break;
+          case tok::kw_char:
+          case tok::kw_wchar_t:
+          case tok::kw_bool:
+          case tok::kw_short:
+          case tok::kw_int:
+          case tok::kw_long:
+          case tok::kw_signed:
+          case tok::kw_unsigned:
+          case tok::kw_float:
+          case tok::kw_double:
+          case tok::kw_void:
+          case tok::kw_typeof:
+            // If it's a builtin type name, eat it and expect a rparen
+            // __attribute__(( vec_type_hint(char) ))
+            ConsumeToken();
+            CurrAttr = new AttributeList(AttrName, AttrNameLoc, 
+                                         0, SourceLocation(), 0, 0, CurrAttr);
+            if (Tok.is(tok::r_paren))
+              ConsumeParen();
+            break;
+          default:
             // __attribute__(( aligned(16) ))
             ExprVector ArgExprs(Actions);
             bool ArgExprsOk = true;
@@ -181,6 +203,7 @@ AttributeList *Parser::ParseAttributes(SourceLocation *EndLoc) {
                            SourceLocation(), ArgExprs.take(), ArgExprs.size(),
                            CurrAttr);
             }
+            break;
           }
         }
       } else {
@@ -371,7 +394,8 @@ Parser::DeclGroupPtrTy Parser::ParseSimpleDeclaration(unsigned Context,
 /// According to the standard grammar, =default and =delete are function
 /// definitions, but that definitely doesn't fit with the parser here.
 ///
-Parser::DeclPtrTy Parser::ParseDeclarationAfterDeclarator(Declarator &D) {
+Parser::DeclPtrTy Parser::ParseDeclarationAfterDeclarator(Declarator &D,
+                                     const ParsedTemplateInfo &TemplateInfo) {
   // If a simple-asm-expr is present, parse it.
   if (Tok.is(tok::kw_asm)) {
     SourceLocation Loc;
@@ -393,7 +417,13 @@ Parser::DeclPtrTy Parser::ParseDeclarationAfterDeclarator(Declarator &D) {
   }
   
   // Inform the current actions module that we just parsed this declarator.
-  DeclPtrTy ThisDecl = Actions.ActOnDeclarator(CurScope, D);
+  DeclPtrTy ThisDecl = TemplateInfo.TemplateParams? 
+      Actions.ActOnTemplateDeclarator(CurScope,
+                             Action::MultiTemplateParamsArg(Actions,
+                                          TemplateInfo.TemplateParams->data(),
+                                          TemplateInfo.TemplateParams->size()),
+                                    D)
+    : Actions.ActOnDeclarator(CurScope, D);
   
   // Parse declarator '=' initializer.
   if (Tok.is(tok::equal)) {
@@ -896,7 +926,10 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       isInvalid = DS.SetStorageClassSpec(DeclSpec::SCS_static, Loc, PrevSpec);
       break;
     case tok::kw_auto:
-      isInvalid = DS.SetStorageClassSpec(DeclSpec::SCS_auto, Loc, PrevSpec);
+      if (getLang().CPlusPlus0x)
+        isInvalid = DS.SetTypeSpecType(DeclSpec::TST_auto, Loc, PrevSpec);
+      else
+        isInvalid = DS.SetStorageClassSpec(DeclSpec::SCS_auto, Loc, PrevSpec);
       break;
     case tok::kw_register:
       isInvalid = DS.SetStorageClassSpec(DeclSpec::SCS_register, Loc, PrevSpec);
@@ -1018,6 +1051,10 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       ParseTypeofSpecifier(DS);
       continue;
 
+    case tok::kw_decltype:
+      ParseDecltypeSpecifier(DS);
+      continue;
+
     case tok::less:
       // GCC ObjC supports types like "<SomeProtocol>" as a synonym for
       // "id<SomeProtocol>".  This is hopelessly old fashioned and dangerous,
@@ -1095,6 +1132,7 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
 /// [GNU]   typeof-specifier
 /// [OBJC]  class-name objc-protocol-refs[opt]    [TODO]
 /// [OBJC]  typedef-name objc-protocol-refs[opt]  [TODO]
+/// [C++0x] 'decltype' ( expression )
 bool Parser::ParseOptionalTypeSpecifier(DeclSpec &DS, int& isInvalid,
                                         const char *&PrevSpec,
                                       const ParsedTemplateInfo &TemplateInfo) {
@@ -1235,6 +1273,18 @@ bool Parser::ParseOptionalTypeSpecifier(DeclSpec &DS, int& isInvalid,
     ParseTypeofSpecifier(DS);
     return true;
 
+  // C++0x decltype support.
+  case tok::kw_decltype:
+    ParseDecltypeSpecifier(DS);
+    return true;
+      
+  // C++0x auto support.
+  case tok::kw_auto:
+    if (!getLang().CPlusPlus0x)
+      return false;
+
+    isInvalid = DS.SetTypeSpecType(DeclSpec::TST_auto, Loc, PrevSpec);
+    break;
   case tok::kw___ptr64:
   case tok::kw___w64:
   case tok::kw___cdecl:

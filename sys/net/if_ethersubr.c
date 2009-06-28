@@ -261,14 +261,17 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 
 	    if ((aa = at_ifawithnet((struct sockaddr_at *)dst)) == NULL)
 		    senderr(EHOSTUNREACH); /* XXX */
-	    if (!aarpresolve(ifp, m, (struct sockaddr_at *)dst, edst))
+	    if (!aarpresolve(ifp, m, (struct sockaddr_at *)dst, edst)) {
+		    ifa_free(&aa->aa_ifa);
 		    return (0);
+	    }
 	    /*
 	     * In the phase 2 case, need to prepend an mbuf for the llc header.
 	     */
 	    if ( aa->aa_flags & AFA_PHASE2 ) {
 		struct llc llc;
 
+		ifa_free(&aa->aa_ifa);
 		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
 		if (m == NULL)
 			senderr(ENOBUFS);
@@ -280,6 +283,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		type = htons(m->m_pkthdr.len);
 		hlen = LLC_SNAPFRAMELEN + ETHER_HDR_LEN;
 	    } else {
+		ifa_free(&aa->aa_ifa);
 		type = htons(ETHERTYPE_AT);
 	    }
 	    break;

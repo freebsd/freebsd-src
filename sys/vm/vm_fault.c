@@ -1163,7 +1163,11 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 	VM_OBJECT_LOCK(dst_object);
 	dst_entry->object.vm_object = dst_object;
 	dst_entry->offset = 0;
-
+	if (dst_entry->uip != NULL) {
+		dst_object->uip = dst_entry->uip;
+		dst_object->charge = dst_entry->end - dst_entry->start;
+		dst_entry->uip = NULL;
+	}
 	prot = dst_entry->max_protection;
 
 	/*

@@ -588,7 +588,7 @@ vm_phys_zero_pages_idle(void)
  */
 vm_page_t
 vm_phys_alloc_contig(unsigned long npages, vm_paddr_t low, vm_paddr_t high,
-    unsigned long alignment, unsigned long boundary)
+    unsigned long alignment, unsigned long boundary, vm_cache_mode_t mode)
 {
 	struct vm_freelist *fl;
 	struct vm_phys_seg *seg;

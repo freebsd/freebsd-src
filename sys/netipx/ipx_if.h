@@ -75,7 +75,7 @@ struct ipx_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
 #define	ia_ifp		ia_ifa.ifa_ifp
 #define	ia_flags	ia_ifa.ifa_flags
-	struct	ipx_ifaddr *ia_next;	/* next in list of ipx addresses */
+	TAILQ_ENTRY(ipx_ifaddr)	ia_link;	/* list of IPv6 addresses */
 	struct	sockaddr_ipx ia_addr;	/* reserve space for my address */
 	struct	sockaddr_ipx ia_dstaddr;	/* space for my broadcast address */
 #define ia_broadaddr	ia_dstaddr
@@ -88,6 +88,12 @@ struct	ipx_aliasreq {
 	struct	sockaddr_ipx ifra_broadaddr;
 #define ifra_dstaddr ifra_broadaddr
 };
+
+/*
+ * List of ipx_ifaddr's.
+ */
+TAILQ_HEAD(ipx_ifaddrhead, ipx_ifaddr);
+
 /*
  * Given a pointer to an ipx_ifaddr (ifaddr),
  * return a pointer to the addr as a sockadd_ipx.
@@ -106,7 +112,7 @@ struct	ipx_aliasreq {
 
 #ifdef	_KERNEL
 extern struct rwlock		 ipx_ifaddr_rw;
-extern struct ipx_ifaddr	*ipx_ifaddr;
+extern struct ipx_ifaddrhead	 ipx_ifaddrhead;
 
 #define	IPX_IFADDR_LOCK_INIT()		rw_init(&ipx_ifaddr_rw, "ipx_ifaddr_rw")
 #define	IPX_IFADDR_LOCK_ASSERT()	rw_assert(&ipx_ifaddr_rw, RA_LOCKED)

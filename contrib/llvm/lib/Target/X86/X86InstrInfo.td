@@ -50,9 +50,9 @@ def SDTX86atomicBinary : SDTypeProfile<2, 3, [SDTCisInt<0>, SDTCisInt<1>,
                                 SDTCisPtrTy<2>, SDTCisInt<3>,SDTCisInt<4>]>;
 def SDTX86Ret     : SDTypeProfile<0, -1, [SDTCisVT<0, i16>]>;
 
-def SDT_X86CallSeqStart : SDCallSeqStart<[ SDTCisVT<0, i32> ]>;
-def SDT_X86CallSeqEnd   : SDCallSeqEnd<[ SDTCisVT<0, i32>,
-                                         SDTCisVT<1, i32> ]>;
+def SDT_X86CallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>]>;
+def SDT_X86CallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>,
+                                        SDTCisVT<1, i32>]>;
 
 def SDT_X86Call   : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 
@@ -236,6 +236,10 @@ def HasSSE3      : Predicate<"Subtarget->hasSSE3()">;
 def HasSSSE3     : Predicate<"Subtarget->hasSSSE3()">;
 def HasSSE41     : Predicate<"Subtarget->hasSSE41()">;
 def HasSSE42     : Predicate<"Subtarget->hasSSE42()">;
+def HasSSE4A     : Predicate<"Subtarget->hasSSE4A()">;
+def HasAVX       : Predicate<"Subtarget->hasAVX()">;
+def HasFMA3      : Predicate<"Subtarget->hasFMA3()">;
+def HasFMA4      : Predicate<"Subtarget->hasFMA4()">;
 def FPStackf32   : Predicate<"!Subtarget->hasSSE1()">;
 def FPStackf64   : Predicate<"!Subtarget->hasSSE2()">;
 def In32BitMode  : Predicate<"!Subtarget->is64Bit()">;

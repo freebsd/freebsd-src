@@ -14,9 +14,9 @@
 // Shifted operands. No register controlled shifts for Thumb2.
 // Note: We do not support rrx shifted operands yet.
 def t2_so_reg : Operand<i32>,    // reg imm
-                ComplexPattern<i32, 2, "SelectThumb2ShifterOperandReg",
+                ComplexPattern<i32, 2, "SelectT2ShifterOperandReg",
                                [shl,srl,sra,rotr]> {
-  let PrintMethod = "printSOOperand";
+  let PrintMethod = "printT2SOOperand";
   let MIOperandInfo = (ops GPR, i32imm);
 }
 
@@ -68,6 +68,11 @@ def t2_so_imm_neg : Operand<i32>,
      }], t2_so_imm_neg_XFORM> {
   let PrintMethod = "printT2SOImmOperand";
 }
+
+/// imm1_31 predicate - True if the 32-bit immediate is in the range [1,31].
+def imm1_31 : PatLeaf<(i32 imm), [{
+  return (int32_t)N->getZExtValue() >= 1 && (int32_t)N->getZExtValue() < 32;
+}]>;
 
 /// imm0_4095 predicate - True if the 32-bit immediate is in the range [0.4095].
 def imm0_4095 : PatLeaf<(i32 imm), [{
@@ -121,137 +126,287 @@ def t2_lo16AllZero : PatLeaf<(i32 imm), [{
   return (((uint32_t)N->getZExtValue()) & 0xFFFFUL) == 0;
   }], t2_hi16>;
 
+
 //===----------------------------------------------------------------------===//
-//  Thumb2 to cover the functionality of the ARM instruction set.
+// Multiclass helpers...
 //
 
-/// T2I_bin_is - Defines a set of (op reg, {so_imm|so_reg}) patterns for a
-//  binary operation that produces a value.
-multiclass T2I_bin_is<string opc, PatFrag opnode> {
+/// T2I_un_irs - Defines a set of (op reg, {so_imm|r|so_reg}) patterns for a
+/// unary operation that produces a value. These are predicable and can be
+/// changed to modify CPSR.
+multiclass T2I_un_irs<string opc, PatFrag opnode, bit Cheap = 0, bit ReMat = 0>{
    // shifted imm
-   def ri : T2I<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs),
-                !strconcat(opc, " $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>;
+   def i : T2sI<(outs GPR:$dst), (ins t2_so_imm:$src),
+                opc, " $dst, $src",
+                [(set GPR:$dst, (opnode t2_so_imm:$src))]> {
+     let isAsCheapAsAMove = Cheap;
+     let isReMaterializable = ReMat;
+   }
+   // register
+   def r : T2I<(outs GPR:$dst), (ins GPR:$src),
+               opc, " $dst, $src",
+                [(set GPR:$dst, (opnode GPR:$src))]>;
    // shifted register
-   def rs : T2I<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs),
-                !strconcat(opc, " $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>;
+   def s : T2I<(outs GPR:$dst), (ins t2_so_reg:$src),
+               opc, " $dst, $src",
+               [(set GPR:$dst, (opnode t2_so_reg:$src))]>;
 }
 
-/// T2I_2bin_is - Same as T2I_bin_is except the order of operands are reversed.
+/// T2I_bin_irs - Defines a set of (op reg, {so_imm|r|so_reg}) patterns for a
+//  binary operation that produces a value. These are predicable and can be
+/// changed to modify CPSR.
+multiclass T2I_bin_irs<string opc, PatFrag opnode, bit Commutable = 0> {
+   // shifted imm
+   def ri : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>;
+   // register
+   def rr : T2sI<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, GPR:$rhs))]> {
+     let isCommutable = Commutable;
+   }
+   // shifted register
+   def rs : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>;
+}
+
+/// T2I_rbin_is - Same as T2I_bin_irs except the order of operands are
+/// reversed. It doesn't define the 'rr' form since it's handled by its
+/// T2I_bin_irs counterpart.
 multiclass T2I_rbin_is<string opc, PatFrag opnode> {
    // shifted imm
    def ri : T2I<(outs GPR:$dst), (ins GPR:$rhs, t2_so_imm:$lhs),
-                !strconcat(opc, " $dst, $lhs, $rhs"),
+                opc, " $dst, $rhs, $lhs",
                 [(set GPR:$dst, (opnode t2_so_imm:$lhs, GPR:$rhs))]>;
    // shifted register
    def rs : T2I<(outs GPR:$dst), (ins GPR:$rhs, t2_so_reg:$lhs),
-                !strconcat(opc, " $dst, $lhs, $rhs"),
+                opc, " $dst, $rhs, $lhs",
                 [(set GPR:$dst, (opnode t2_so_reg:$lhs, GPR:$rhs))]>;
 }
 
-/// T2I_bin_s_is - Similar to T2I_bin_is except it sets the 's' bit so the
+/// T2I_bin_s_irs - Similar to T2I_bin_irs except it sets the 's' bit so the
 /// instruction modifies the CPSR register.
 let Defs = [CPSR] in {
-multiclass T2I_bin_s_is<string opc, PatFrag opnode> {
+multiclass T2I_bin_s_irs<string opc, PatFrag opnode, bit Commutable = 0> {
    // shifted imm
    def ri : T2I<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs),
-                !strconcat(opc, "s $dst, $lhs, $rhs"),
+                !strconcat(opc, "s"), " $dst, $lhs, $rhs",
                 [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>;
-
+   // register
+   def rr : T2I<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+                !strconcat(opc, "s"), " $dst, $lhs, $rhs",
+                [(set GPR:$dst, (opnode GPR:$lhs, GPR:$rhs))]> {
+     let isCommutable = Commutable;
+   }
    // shifted register
    def rs : T2I<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs),
-                !strconcat(opc, "s $dst, $lhs, $rhs"),
+                !strconcat(opc, "s"), " $dst, $lhs, $rhs",
                 [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>;
 }
 }
 
-/// T2I_rbin_s_is - Same as T2I_bin_s_is except the order of operands are
-/// reversed.
+/// T2I_bin_ii12rs - Defines a set of (op reg, {so_imm|imm0_4095|r|so_reg})
+/// patterns for a binary operation that produces a value.
+multiclass T2I_bin_ii12rs<string opc, PatFrag opnode, bit Commutable = 0> {
+   // shifted imm
+   def ri : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>;
+   // 12-bit imm
+   def ri12 : T2sI<(outs GPR:$dst), (ins GPR:$lhs, i32imm:$rhs),
+                   !strconcat(opc, "w"), " $dst, $lhs, $rhs",
+                   [(set GPR:$dst, (opnode GPR:$lhs, imm0_4095:$rhs))]>;
+   // register
+   def rr : T2sI<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, GPR:$rhs))]> {
+     let isCommutable = Commutable;
+   }
+   // shifted register
+   def rs : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>;
+}
+
+/// T2I_adde_sube_irs - Defines a set of (op reg, {so_imm|r|so_reg}) patterns for a
+/// binary operation that produces a value and use and define the carry bit.
+/// It's not predicable.
+let Uses = [CPSR] in {
+multiclass T2I_adde_sube_irs<string opc, PatFrag opnode, bit Commutable = 0> {
+   // shifted imm
+   def ri : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>,
+                 Requires<[IsThumb, HasThumb2, CarryDefIsUnused]>;
+   // register
+   def rr : T2sI<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, GPR:$rhs))]>,
+                 Requires<[IsThumb, HasThumb2, CarryDefIsUnused]> {
+     let isCommutable = Commutable;
+   }
+   // shifted register
+   def rs : T2sI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>,
+                 Requires<[IsThumb, HasThumb2, CarryDefIsUnused]>;
+   // Carry setting variants
+   // shifted imm
+   def Sri : T2XI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs),
+                  !strconcat(opc, "s $dst, $lhs, $rhs"),
+                  [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>,
+                  Requires<[IsThumb, HasThumb2, CarryDefIsUsed]> {
+                    let Defs = [CPSR];
+                  }
+   // register
+   def Srr : T2XI<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+                  !strconcat(opc, "s $dst, $lhs, $rhs"),
+                  [(set GPR:$dst, (opnode GPR:$lhs, GPR:$rhs))]>,
+                  Requires<[IsThumb, HasThumb2, CarryDefIsUsed]> {
+                    let Defs = [CPSR];
+                    let isCommutable = Commutable;
+   }
+   // shifted register
+   def Srs : T2XI<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs),
+                  !strconcat(opc, "s $dst, $lhs, $rhs"),
+                  [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>,
+                  Requires<[IsThumb, HasThumb2, CarryDefIsUsed]> {
+                    let Defs = [CPSR];
+   }
+}
+}
+
+/// T2I_rsc_is - Same as T2I_adde_sube_irs except the order of operands are
+/// reversed. It doesn't define the 'rr' form since it's handled by its
+/// T2I_adde_sube_irs counterpart.
+let Defs = [CPSR], Uses = [CPSR] in {
+multiclass T2I_rsc_is<string opc, PatFrag opnode> {
+   // shifted imm
+   def ri : T2sI<(outs GPR:$dst), (ins GPR:$rhs, t2_so_imm:$lhs),
+                 opc, " $dst, $rhs, $lhs",
+                 [(set GPR:$dst, (opnode t2_so_imm:$lhs, GPR:$rhs))]>,
+                 Requires<[IsThumb, HasThumb2, CarryDefIsUnused]>;
+   // shifted register
+   def rs : T2sI<(outs GPR:$dst), (ins GPR:$rhs, t2_so_reg:$lhs),
+                 opc, " $dst, $rhs, $lhs",
+                 [(set GPR:$dst, (opnode t2_so_reg:$lhs, GPR:$rhs))]>,
+                 Requires<[IsThumb, HasThumb2, CarryDefIsUnused]>;
+   // shifted imm
+   def Sri : T2XI<(outs GPR:$dst), (ins GPR:$rhs, t2_so_imm:$lhs),
+                 !strconcat(opc, "s $dst, $rhs, $lhs"),
+                 [(set GPR:$dst, (opnode t2_so_imm:$lhs, GPR:$rhs))]>,
+                 Requires<[IsThumb, HasThumb2, CarryDefIsUsed]> {
+                   let Defs = [CPSR];
+   }
+   // shifted register
+   def Srs : T2XI<(outs GPR:$dst), (ins GPR:$rhs, t2_so_reg:$lhs),
+                 !strconcat(opc, "s $dst, $rhs, $lhs"),
+                 [(set GPR:$dst, (opnode t2_so_reg:$lhs, GPR:$rhs))]>,
+                 Requires<[IsThumb, HasThumb2, CarryDefIsUsed]> {
+                   let Defs = [CPSR];
+   }
+}
+}
+
+/// T2I_rbin_s_is - Same as T2I_bin_s_irs except the order of operands are
+/// reversed. It doesn't define the 'rr' form since it's handled by its
+/// T2I_bin_s_irs counterpart.
 let Defs = [CPSR] in {
 multiclass T2I_rbin_s_is<string opc, PatFrag opnode> {
    // shifted imm
-   def ri : T2I<(outs GPR:$dst), (ins GPR:$rhs, t2_so_imm:$lhs),
-                !strconcat(opc, "s $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode t2_so_imm:$lhs, GPR:$rhs))]>;
-
+   def ri : T2XI<(outs GPR:$dst), (ins GPR:$rhs, t2_so_imm:$lhs, cc_out:$s),
+                 !strconcat(opc, "${s} $dst, $rhs, $lhs"),
+                 [(set GPR:$dst, (opnode t2_so_imm:$lhs, GPR:$rhs))]>;
    // shifted register
-   def rs : T2I<(outs GPR:$dst), (ins GPR:$rhs, t2_so_reg:$lhs),
-                !strconcat(opc, "s $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode t2_so_reg:$lhs, GPR:$rhs))]>;
+   def rs : T2XI<(outs GPR:$dst), (ins GPR:$rhs, t2_so_reg:$lhs, cc_out:$s),
+                 !strconcat(opc, "${s} $dst, $rhs, $lhs"),
+                 [(set GPR:$dst, (opnode t2_so_reg:$lhs, GPR:$rhs))]>;
 }
 }
 
-/// T2I_bin_ii12s - Defines a set of (op reg, {so_imm|imm0_4095|so_reg}) patterns
-/// for a binary operation that produces a value.
-multiclass T2I_bin_ii12s<string opc, PatFrag opnode> {
-   // shifted imm
-   def ri : T2I<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs),
-                !strconcat(opc, " $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>;
-   // 12-bit imm
-   def ri12 : T2I<(outs GPR:$dst), (ins GPR:$lhs, i32imm:$rhs),
-                !strconcat(opc, "w $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode GPR:$lhs, imm0_4095:$rhs))]>;
-   // shifted register
-   def rs : T2I<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs),
-                !strconcat(opc, " $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>;
+/// T2I_sh_ir - Defines a set of (op reg, {so_imm|r}) patterns for a shift /
+//  rotate operation that produces a value.
+multiclass T2I_sh_ir<string opc, PatFrag opnode> {
+   // 5-bit imm
+   def ri : T2sI<(outs GPR:$dst), (ins GPR:$lhs, i32imm:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, imm1_31:$rhs))]>;
+   // register
+   def rr : T2sI<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+                 opc, " $dst, $lhs, $rhs",
+                 [(set GPR:$dst, (opnode GPR:$lhs, GPR:$rhs))]>;
 }
 
-/// T2I_bin_c_is - Defines a set of (op reg, {so_imm|reg}) patterns for a
-//  binary operation that produces a value and set the carry bit. It can also
-/// optionally set CPSR.
-let Uses = [CPSR] in {
-multiclass T2I_bin_c_is<string opc, PatFrag opnode> {
-   // shifted imm
-   def ri : T2I<(outs GPR:$dst), (ins GPR:$lhs, t2_so_imm:$rhs, cc_out:$s),
-                !strconcat(opc, "${s} $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode GPR:$lhs, t2_so_imm:$rhs))]>;
-
-   // shifted register
-   def rs : T2I<(outs GPR:$dst), (ins GPR:$lhs, t2_so_reg:$rhs, cc_out:$s),
-                !strconcat(opc, "${s} $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode GPR:$lhs, t2_so_reg:$rhs))]>;
-}
-}
-
-/// T2I_rbin_c_is - Same as T2I_bin_c_is except the order of operands are
-/// reversed.
-let Uses = [CPSR] in {
-multiclass T2I_rbin_c_is<string opc, PatFrag opnode> {
-   // shifted imm
-   def ri : T2I<(outs GPR:$dst), (ins GPR:$rhs, t2_so_imm:$lhs, cc_out:$s),
-                !strconcat(opc, "${s} $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode t2_so_imm:$lhs, GPR:$rhs))]>;
-
-   // shifted register
-   def rs : T2I<(outs GPR:$dst), (ins GPR:$rhs, t2_so_reg:$lhs, cc_out:$s),
-                !strconcat(opc, "${s} $dst, $lhs, $rhs"),
-                [(set GPR:$dst, (opnode t2_so_reg:$lhs, GPR:$rhs))]>;
-}
-}
-
-
-/// T21_cmp_irs - Defines a set of (op r, {so_imm|so_reg}) cmp / test
-/// patterns. Similar to T2I_bin_is except the instruction does not produce
+/// T21_cmp_irs - Defines a set of (op r, {so_imm|r|so_reg}) cmp / test
+/// patterns. Similar to T2I_bin_irs except the instruction does not produce
 /// a explicit result, only implicitly set CPSR.
 let Uses = [CPSR] in {
 multiclass T2I_cmp_is<string opc, PatFrag opnode> {
    // shifted imm
    def ri : T2I<(outs), (ins GPR:$lhs, t2_so_imm:$rhs),
-                !strconcat(opc, " $lhs, $rhs"),
+                opc, " $lhs, $rhs",
                 [(opnode GPR:$lhs, t2_so_imm:$rhs)]>;
-
+   // register
+   def rr : T2I<(outs), (ins GPR:$lhs, GPR:$rhs),
+                opc, " $lhs, $rhs",
+                [(opnode GPR:$lhs, GPR:$rhs)]>;
    // shifted register
    def rs : T2I<(outs), (ins GPR:$lhs, t2_so_reg:$rhs),
-                !strconcat(opc, " $lhs, $rhs"),
+                opc, " $lhs, $rhs",
                 [(opnode GPR:$lhs, t2_so_reg:$rhs)]>;
 }
 }
 
 //===----------------------------------------------------------------------===//
-//  Arithmetic Instructions.
+// Instructions
+//===----------------------------------------------------------------------===//
+
+//===----------------------------------------------------------------------===//
+//  Miscellaneous Instructions.
+//
+
+let isNotDuplicable = 1 in
+def t2PICADD : T2XI<(outs tGPR:$dst), (ins tGPR:$lhs, pclabel:$cp),
+                    "$cp:\n\tadd $dst, pc",
+                    [(set tGPR:$dst, (ARMpic_add tGPR:$lhs, imm:$cp))]>;
+
+
+// LEApcrel - Load a pc-relative address into a register without offending the
+// assembler.
+def t2LEApcrel : T2XI<(outs GPR:$dst), (ins i32imm:$label, pred:$p),
+                   !strconcat(!strconcat(".set PCRELV${:uid}, ($label-(",
+                                         "${:private}PCRELL${:uid}+8))\n"),
+                              !strconcat("${:private}PCRELL${:uid}:\n\t",
+                                         "add$p $dst, pc, #PCRELV${:uid}")),
+                   []>;
+
+def t2LEApcrelJT : T2XI<(outs GPR:$dst),
+                       (ins i32imm:$label, i32imm:$id, pred:$p),
+          !strconcat(!strconcat(".set PCRELV${:uid}, (${label}_${id:no_hash}-(",
+                                         "${:private}PCRELL${:uid}+8))\n"),
+                              !strconcat("${:private}PCRELL${:uid}:\n\t",
+                                         "add$p $dst, pc, #PCRELV${:uid}")),
+                   []>;
+
+// ADD rd, sp, #so_imm
+def t2ADDrSPi : T2XI<(outs GPR:$dst), (ins GPR:$sp, t2_so_imm:$imm),
+                     "add $dst, $sp, $imm",
+                     []>;
+
+// ADD rd, sp, #imm12
+def t2ADDrSPi12 : T2XI<(outs GPR:$dst), (ins GPR:$sp, i32imm:$imm),
+                       "addw $dst, $sp, $imm",
+                       []>;
+
+def t2ADDrSPs : T2XI<(outs GPR:$dst), (ins GPR:$sp, t2_so_reg:$rhs),
+                     "addw $dst, $sp, $rhs",
+                     []>;
+
+
+//===----------------------------------------------------------------------===//
+//  Load / store Instructions.
 //
 
 //===----------------------------------------------------------------------===//
@@ -259,90 +414,95 @@ multiclass T2I_cmp_is<string opc, PatFrag opnode> {
 //
 
 let neverHasSideEffects = 1 in
-def t2MOVr : T2I<(outs GPR:$dst), (ins GPR:$src),
-                  "mov $dst, $src", []>;
+def t2MOVr : T2sI<(outs GPR:$dst), (ins GPR:$src),
+                   "mov", " $dst, $src", []>;
 
+let isReMaterializable = 1, isAsCheapAsAMove = 1 in
+def t2MOVi : T2sI<(outs GPR:$dst), (ins t2_so_imm:$src),
+                   "mov", " $dst, $src",
+                   [(set GPR:$dst, t2_so_imm:$src)]>;
+
+let isReMaterializable = 1, isAsCheapAsAMove = 1 in
 def t2MOVi16 : T2I<(outs GPR:$dst), (ins i32imm:$src),
-                   "movw $dst, $src",
+                   "movw", " $dst, $src",
                    [(set GPR:$dst, imm0_65535:$src)]>;
-
-
-// FIXME: Move (shifted register) is a pseudo-instruction for ASR, LSL, LSR,
-// ROR, and RRX. Consider splitting into multiple instructions.
-def t2MOVs  : T2I<(outs GPR:$dst), (ins t2_so_reg:$src),
-                  "mov $dst, $src",
-                  [(set GPR:$dst, t2_so_reg:$src)]>;
-def t2MOVrx : T2I<(outs GPR:$dst), (ins GPR:$src),
-                  "mov $dst, $src, rrx",
-                  [(set GPR:$dst, (ARMrrx GPR:$src))]>;
-
 
 // FIXME: Also available in ARM mode.
 let Constraints = "$src = $dst" in
-def t2MOVTi16 : T2I<(outs GPR:$dst), (ins GPR:$src, i32imm:$imm),
-                   "movt $dst, $imm",
-                   [(set GPR:$dst,
-                         (or (and GPR:$src, 0xffff), t2_lo16AllZero:$imm))]>;
+def t2MOVTi16 : T2sI<(outs GPR:$dst), (ins GPR:$src, i32imm:$imm),
+                     "movt", " $dst, $imm",
+                     [(set GPR:$dst,
+                           (or (and GPR:$src, 0xffff), t2_lo16AllZero:$imm))]>;
 
 //===----------------------------------------------------------------------===//
 //  Arithmetic Instructions.
 //
 
-defm t2ADD  : T2I_bin_ii12s<"add", BinOpFrag<(add  node:$LHS, node:$RHS)>>;
-defm t2SUB  : T2I_bin_ii12s<"sub", BinOpFrag<(sub  node:$LHS, node:$RHS)>>;
+defm t2ADD  : T2I_bin_ii12rs<"add", BinOpFrag<(add  node:$LHS, node:$RHS)>, 1>;
+defm t2SUB  : T2I_bin_ii12rs<"sub", BinOpFrag<(sub  node:$LHS, node:$RHS)>>;
 
 // ADD and SUB with 's' bit set. No 12-bit immediate (T4) variants.
-defm t2ADDS : T2I_bin_s_is<"add", BinOpFrag<(addc node:$LHS, node:$RHS)>>;
-defm t2SUBS : T2I_bin_s_is<"sub", BinOpFrag<(subc node:$LHS, node:$RHS)>>;
+defm t2ADDS : T2I_bin_s_irs <"add",  BinOpFrag<(addc node:$LHS, node:$RHS)>, 1>;
+defm t2SUBS : T2I_bin_s_irs <"sub",  BinOpFrag<(subc node:$LHS, node:$RHS)>>;
 
-// FIXME: predication support
-defm t2ADC  : T2I_bin_c_is<"adc", BinOpFrag<(adde node:$LHS, node:$RHS)>>;
-defm t2SBC  : T2I_bin_c_is<"sbc", BinOpFrag<(sube node:$LHS, node:$RHS)>>;
+defm t2ADC  : T2I_adde_sube_irs<"adc",BinOpFrag<(adde node:$LHS, node:$RHS)>,1>;
+defm t2SBC  : T2I_adde_sube_irs<"sbc",BinOpFrag<(sube node:$LHS, node:$RHS)>>;
 
 // RSB, RSC
-defm t2RSB  : T2I_rbin_is  <"rsb", BinOpFrag<(sub  node:$LHS, node:$RHS)>>;
-defm t2RSBS : T2I_rbin_c_is<"rsb", BinOpFrag<(subc node:$LHS, node:$RHS)>>;
-defm t2RSC  : T2I_rbin_s_is<"rsc", BinOpFrag<(sube node:$LHS, node:$RHS)>>;
+defm t2RSB  : T2I_rbin_is   <"rsb", BinOpFrag<(sub  node:$LHS, node:$RHS)>>;
+defm t2RSBS : T2I_rbin_s_is <"rsb", BinOpFrag<(subc node:$LHS, node:$RHS)>>;
+defm t2RSC  : T2I_rsc_is    <"rsc", BinOpFrag<(sube node:$LHS, node:$RHS)>>;
 
 // (sub X, imm) gets canonicalized to (add X, -imm).  Match this form.
-def : Thumb2Pat<(add       GPR:$src, t2_so_imm_neg:$imm),
-                (t2SUBri   GPR:$src, t2_so_imm_neg:$imm)>;
-def : Thumb2Pat<(add       GPR:$src, imm0_4095_neg:$imm),
-                (t2SUBri12 GPR:$src, imm0_4095_neg:$imm)>;
+def : T2Pat<(add       GPR:$src, t2_so_imm_neg:$imm),
+            (t2SUBri   GPR:$src, t2_so_imm_neg:$imm)>;
+def : T2Pat<(add       GPR:$src, imm0_4095_neg:$imm),
+            (t2SUBri12 GPR:$src, imm0_4095_neg:$imm)>;
 
+
+//===----------------------------------------------------------------------===//
+//  Shift and rotate Instructions.
+//
+
+defm t2LSL  : T2I_sh_ir<"lsl", BinOpFrag<(shl  node:$LHS, node:$RHS)>>;
+defm t2LSR  : T2I_sh_ir<"lsr", BinOpFrag<(srl  node:$LHS, node:$RHS)>>;
+defm t2ASR  : T2I_sh_ir<"asr", BinOpFrag<(sra  node:$LHS, node:$RHS)>>;
+defm t2ROR  : T2I_sh_ir<"ror", BinOpFrag<(rotr node:$LHS, node:$RHS)>>;
+
+def t2MOVrx : T2sI<(outs GPR:$dst), (ins GPR:$src),
+                   "mov", " $dst, $src, rrx",
+                   [(set GPR:$dst, (ARMrrx GPR:$src))]>;
 
 //===----------------------------------------------------------------------===//
 //  Bitwise Instructions.
 //
 
-defm t2AND  : T2I_bin_is  <"and", BinOpFrag<(and node:$LHS, node:$RHS)>>;
-defm t2ORR  : T2I_bin_is  <"orr", BinOpFrag<(or  node:$LHS, node:$RHS)>>;
-defm t2EOR  : T2I_bin_is  <"eor", BinOpFrag<(xor node:$LHS, node:$RHS)>>;
+defm t2AND  : T2I_bin_irs<"and", BinOpFrag<(and node:$LHS, node:$RHS)>, 1>;
+defm t2ORR  : T2I_bin_irs<"orr", BinOpFrag<(or  node:$LHS, node:$RHS)>, 1>;
+defm t2EOR  : T2I_bin_irs<"eor", BinOpFrag<(xor node:$LHS, node:$RHS)>, 1>;
 
-defm t2BIC  : T2I_bin_is  <"bic", BinOpFrag<(and node:$LHS, (not node:$RHS))>>;
+defm t2BIC  : T2I_bin_irs<"bic", BinOpFrag<(and node:$LHS, (not node:$RHS))>>;
 
-def : Thumb2Pat<(and     GPR:$src, t2_so_imm_not:$imm),
-                (t2BICri GPR:$src, t2_so_imm_not:$imm)>;
+def : T2Pat<(and     GPR:$src, t2_so_imm_not:$imm),
+            (t2BICri GPR:$src, t2_so_imm_not:$imm)>;
 
-defm t2ORN  : T2I_bin_is  <"orn", BinOpFrag<(or  node:$LHS, (not node:$RHS))>>;
+defm t2ORN  : T2I_bin_irs<"orn", BinOpFrag<(or  node:$LHS, (not node:$RHS))>>;
 
-def : Thumb2Pat<(or      GPR:$src, t2_so_imm_not:$imm),
-                (t2ORNri GPR:$src, t2_so_imm_not:$imm)>;
+def : T2Pat<(or      GPR:$src, t2_so_imm_not:$imm),
+            (t2ORNri GPR:$src, t2_so_imm_not:$imm)>;
 
+// Prefer over of t2EORri ra, rb, -1 because mvn has 16-bit version
+let AddedComplexity = 1 in
+defm t2MVN  : T2I_un_irs  <"mvn", UnOpFrag<(not node:$Src)>, 1, 1>;
 
-def t2MVNr : T2I<(outs GPR:$dst), (ins t2_so_reg:$rhs),
-                  "mvn $dst, $rhs",
-                 [(set GPR:$dst, (not t2_so_reg:$rhs))]>;
-let isReMaterializable = 1, isAsCheapAsAMove = 1 in
-def t2MVNi : T2I<(outs GPR:$dst), (ins t2_so_imm_not:$rhs),
-                  "mvn $dst, $rhs",
-                 [(set GPR:$dst, t2_so_imm_not:$rhs)]>;
+def : T2Pat<(t2_so_imm_not:$src),
+            (t2MVNi t2_so_imm_not:$src)>;
 
 // A8.6.17  BFC - Bitfield clear
 // FIXME: Also available in ARM mode.
 let Constraints = "$src = $dst" in
 def t2BFC : T2I<(outs GPR:$dst), (ins GPR:$src, bf_inv_mask_imm:$imm),
-                "bfc $dst, $imm",
+                "bfc", " $dst, $imm",
                 [(set GPR:$dst, (and GPR:$src, bf_inv_mask_imm:$imm))]>;
 
 // FIXME: A8.6.18  BFI - Bitfield insert (Encoding T1)
@@ -350,16 +510,17 @@ def t2BFC : T2I<(outs GPR:$dst), (ins GPR:$src, bf_inv_mask_imm:$imm),
 //===----------------------------------------------------------------------===//
 //  Multiply Instructions.
 //
+let isCommutable = 1 in
 def t2MUL: T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b),
-                "mul $dst, $a, $b",
+                "mul", " $dst, $a, $b",
                 [(set GPR:$dst, (mul GPR:$a, GPR:$b))]>;
 
 def t2MLA: T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$c),
-		"mla $dst, $a, $b, $c",
+		"mla", " $dst, $a, $b, $c",
 		[(set GPR:$dst, (add (mul GPR:$a, GPR:$b), GPR:$c))]>;
 
 def t2MLS: T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$c),
-		"mls $dst, $a, $b, $c",
+		"mls", " $dst, $a, $b, $c",
                 [(set GPR:$dst, (sub GPR:$c, (mul GPR:$a, GPR:$b)))]>;
 
 // FIXME: SMULL, etc.
@@ -368,20 +529,16 @@ def t2MLS: T2I<(outs GPR:$dst), (ins GPR:$a, GPR:$b, GPR:$c),
 //  Misc. Arithmetic Instructions.
 //
 
-/////
-/// A8.6.31  CLZ
-/////
-// FIXME not firing? but ARM version does...
 def t2CLZ : T2I<(outs GPR:$dst), (ins GPR:$src),
-                "clz $dst, $src",
+                "clz", " $dst, $src",
                 [(set GPR:$dst, (ctlz GPR:$src))]>;
 
 def t2REV : T2I<(outs GPR:$dst), (ins GPR:$src),
-                "rev $dst, $src",
+                "rev", " $dst, $src",
                 [(set GPR:$dst, (bswap GPR:$src))]>;
 
 def t2REV16 : T2I<(outs GPR:$dst), (ins GPR:$src),
-                "rev16 $dst, $src",
+                "rev16", " $dst, $src",
                 [(set GPR:$dst,
                     (or (and (srl GPR:$src, (i32 8)), 0xFF),
                         (or (and (shl GPR:$src, (i32 8)), 0xFF00),
@@ -392,7 +549,7 @@ def t2REV16 : T2I<(outs GPR:$dst), (ins GPR:$src),
 /// A8.6.137  REVSH
 /////
 def t2REVSH : T2I<(outs GPR:$dst), (ins GPR:$src),
-                 "revsh $dst, $src",
+                 "revsh", " $dst, $src",
                  [(set GPR:$dst,
                     (sext_inreg
                       (or (srl (and GPR:$src, 0xFFFF), (i32 8)),
@@ -414,11 +571,11 @@ defm t2CMN   : T2I_cmp_is<"cmn",
 defm t2CMNnz : T2I_cmp_is<"cmn",
                           BinOpFrag<(ARMcmpNZ node:$LHS,(ineg node:$RHS))>>;
 
-def : Thumb2Pat<(ARMcmp  GPR:$src, t2_so_imm_neg:$imm),
-                (t2CMNri GPR:$src, t2_so_imm_neg:$imm)>;
+def : T2Pat<(ARMcmp  GPR:$src, t2_so_imm_neg:$imm),
+            (t2CMNri GPR:$src, t2_so_imm_neg:$imm)>;
 
-def : Thumb2Pat<(ARMcmpNZ  GPR:$src, t2_so_imm_neg:$imm),
-                (t2CMNri   GPR:$src, t2_so_imm_neg:$imm)>;
+def : T2Pat<(ARMcmpNZ  GPR:$src, t2_so_imm_neg:$imm),
+            (t2CMNri   GPR:$src, t2_so_imm_neg:$imm)>;
 
 // FIXME: TST, TEQ, etc.
 
@@ -433,8 +590,13 @@ def : Thumb2Pat<(ARMcmpNZ  GPR:$src, t2_so_imm_neg:$imm),
 // Non-Instruction Patterns
 //
 
+// ConstantPool, GlobalAddress, and JumpTable
+def : T2Pat<(ARMWrapper  tglobaladdr :$dst), (t2LEApcrel tglobaladdr :$dst)>;
+def : T2Pat<(ARMWrapper  tconstpool  :$dst), (t2LEApcrel tconstpool  :$dst)>;
+def : T2Pat<(ARMWrapperJT tjumptable:$dst, imm:$id),
+            (t2LEApcrelJT tjumptable:$dst, imm:$id)>;
+
 // Large immediate handling.
 
-def : Thumb2Pat<(i32 imm:$src),
-                (t2MOVTi16 (t2MOVi16 (t2_lo16 imm:$src)),
-                           (t2_hi16 imm:$src))>;
+def : T2Pat<(i32 imm:$src),
+            (t2MOVTi16 (t2MOVi16 (t2_lo16 imm:$src)), (t2_hi16 imm:$src))>;

@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 static void dev_pager_init(void);
 static vm_object_t dev_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
-		vm_ooffset_t);
+    vm_ooffset_t, struct ucred *);
 static void dev_pager_dealloc(vm_object_t);
 static int dev_pager_getpages(vm_object_t, vm_page_t *, int, int);
 static void dev_pager_putpages(vm_object_t, vm_page_t *, int, 
@@ -97,7 +97,8 @@ dev_pager_init()
  * MPSAFE
  */
 static vm_object_t
-dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff)
+dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
+    vm_ooffset_t foff, struct ucred *cred)
 {
 	struct cdev *dev;
 	vm_object_t object, object1;

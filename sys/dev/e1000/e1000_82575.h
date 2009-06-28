@@ -214,7 +214,7 @@ union e1000_adv_rx_desc {
 	} wb;  /* writeback */
 };
 
-#define E1000_RXDADV_RSSTYPE_MASK        0x0000F000
+#define E1000_RXDADV_RSSTYPE_MASK        0x0000000F
 #define E1000_RXDADV_RSSTYPE_SHIFT       12
 #define E1000_RXDADV_HDRBUFLEN_MASK      0x7FE0
 #define E1000_RXDADV_HDRBUFLEN_SHIFT     5
@@ -421,21 +421,11 @@ struct e1000_adv_tx_context_desc {
 #define E1000_IOVCTL 0x05BBC
 #define E1000_IOVCTL_REUSE_VFQ 0x00000001
 
+#define E1000_RPLOLR_STRVLAN   0x40000000
+#define E1000_RPLOLR_STRCRC    0x80000000
+
 #define ALL_QUEUES   0xFFFF
 
-void e1000_vmdq_loopback_enable_pf(struct e1000_hw *hw);
-void e1000_vmdq_loopback_disable_pf(struct e1000_hw *hw);
-void e1000_vmdq_replication_enable_pf(struct e1000_hw *hw, u32 enables);
-void e1000_vmdq_replication_disable_pf(struct e1000_hw *hw);
-void e1000_vmdq_enable_replication_mode_pf(struct e1000_hw *hw);
-void e1000_vmdq_broadcast_replication_enable_pf(struct e1000_hw *hw,
-						u32 enables);
-void e1000_vmdq_multicast_promiscuous_enable_pf(struct e1000_hw *hw,
-						u32 enables);
-void e1000_vmdq_broadcast_replication_disable_pf(struct e1000_hw *hw,
-						u32 disables);
-void e1000_vmdq_multicast_promiscuous_disable_pf(struct e1000_hw *hw,
-						u32 disables);
-void e1000_vmdq_aupe_enable_pf(struct e1000_hw *hw, u32 enables);
-void e1000_vmdq_aupe_disable_pf(struct e1000_hw *hw, u32 disables);
+void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable);
+void e1000_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable);
 #endif /* _E1000_82575_H_ */

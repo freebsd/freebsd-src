@@ -421,9 +421,12 @@ public:
   virtual DeclSpec::TST isTagName(IdentifierInfo &II, Scope *S);
   
   virtual DeclPtrTy ActOnDeclarator(Scope *S, Declarator &D) {
-    return ActOnDeclarator(S, D, false);
+    return HandleDeclarator(S, D, MultiTemplateParamsArg(*this), false);
   }
-  DeclPtrTy ActOnDeclarator(Scope *S, Declarator &D, bool IsFunctionDefinition);
+  
+  DeclPtrTy HandleDeclarator(Scope *S, Declarator &D, 
+                             MultiTemplateParamsArg TemplateParameterLists,
+                             bool IsFunctionDefinition);
   void RegisterLocallyScopedExternCDecl(NamedDecl *ND, NamedDecl *PrevDecl,
                                         Scope *S);
   void DiagnoseFunctionSpecifiers(Declarator& D);
@@ -437,6 +440,7 @@ public:
                                 bool &Redeclaration);
   NamedDecl* ActOnFunctionDeclarator(Scope* S, Declarator& D, DeclContext* DC,
                                      QualType R, NamedDecl* PrevDecl, 
+                                     MultiTemplateParamsArg TemplateParamLists,
                                      bool IsFunctionDefinition,
                                      bool &Redeclaration);
   void CheckFunctionDeclaration(FunctionDecl *NewFD, NamedDecl *&PrevDecl,
@@ -693,6 +697,11 @@ public:
                           OverloadCandidateSet& CandidateSet,
                           bool SuppressUserConversions = false,
                           bool ForceRValue = false);
+  void AddTemplateOverloadCandidate(FunctionTemplateDecl *FunctionTemplate,
+                                    Expr **Args, unsigned NumArgs,
+                                    OverloadCandidateSet& CandidateSet,
+                                    bool SuppressUserConversions = false,
+                                    bool ForceRValue = false);
   void AddConversionCandidate(CXXConversionDecl *Conversion,
                               Expr *From, QualType ToType,
                               OverloadCandidateSet& CandidateSet);
@@ -1137,7 +1146,8 @@ public:
 
   void FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
                                    AssociatedNamespaceSet &AssociatedNamespaces,
-                                   AssociatedClassSet &AssociatedClasses);
+                                   AssociatedClassSet &AssociatedClasses,
+                                          bool &GlobalScope);
 
   bool DiagnoseAmbiguousLookup(LookupResult &Result, DeclarationName Name,
                                SourceLocation NameLoc, 
@@ -1372,9 +1382,10 @@ public:
                                                     bool HasTrailingLParen,
                                                     const CXXScopeSpec &SS,
                                                     bool isAddressOfOperand);
-  DeclRefExpr *BuildDeclRefExpr(NamedDecl *D, QualType Ty, SourceLocation Loc,
-                                bool TypeDependent, bool ValueDependent,
-                                const CXXScopeSpec *SS = 0);
+  OwningExprResult BuildDeclRefExpr(NamedDecl *D, QualType Ty, 
+                                    SourceLocation Loc, bool TypeDependent, 
+                                    bool ValueDependent,
+                                    const CXXScopeSpec *SS = 0);
   VarDecl *BuildAnonymousStructUnionMemberPath(FieldDecl *Field,
                                     llvm::SmallVectorImpl<FieldDecl *> &Path);
   OwningExprResult
@@ -1563,6 +1574,7 @@ public:
                                         const CXXScopeSpec &SS,
                                         SourceLocation IdentLoc,
                                         IdentifierInfo *TargetName,
+                                        OverloadedOperatorKind Op,
                                         AttributeList *AttrList,
                                         bool IsTypeName);
   
@@ -1581,17 +1593,36 @@ public:
                                     CXXConstructorDecl *Constructor,
                                     QualType DeclInitType, 
                                     Expr **Exprs, unsigned NumExprs);
+
+  /// MarcDestructorReferenced - Prepare for calling destructor on the
+  /// constructed decl.
+  void MarcDestructorReferenced(SourceLocation Loc, QualType DeclInitType);
   
   /// DefineImplicitDefaultConstructor - Checks for feasibility of 
   /// defining this constructor as the default constructor.
   void DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
                                         CXXConstructorDecl *Constructor);
   
+  /// DefineImplicitDestructor - Checks for feasibility of 
+  /// defining this destructor as the default destructor.
+  void DefineImplicitDestructor(SourceLocation CurrentLocation,
+                                        CXXDestructorDecl *Destructor);
+  
   /// DefineImplicitCopyConstructor - Checks for feasibility of 
   /// defining this constructor as the copy constructor.
   void DefineImplicitCopyConstructor(SourceLocation CurrentLocation,
                                      CXXConstructorDecl *Constructor,
                                      unsigned TypeQuals);
+  
+  /// DefineImplicitOverloadedAssign - Checks for feasibility of
+  /// defining implicit this overloaded assignment operator.
+  void DefineImplicitOverloadedAssign(SourceLocation CurrentLocation, 
+                                      CXXMethodDecl *MethodDecl);
+  
+  /// getAssignOperatorMethod - Returns the default copy assignmment operator
+  /// for the class.
+  CXXMethodDecl *getAssignOperatorMethod(ParmVarDecl *Decl,
+                                         CXXRecordDecl *ClassDecl);  
 
   /// MaybeBindToTemporary - If the passed in expression has a record type with
   /// a non-trivial destructor, this will return CXXBindTemporaryExpr. Otherwise
@@ -2067,6 +2098,14 @@ public:
                                    AttributeList *Attr,
                                  MultiTemplateParamsArg TemplateParameterLists);
 
+  virtual DeclPtrTy ActOnTemplateDeclarator(Scope *S, 
+                                  MultiTemplateParamsArg TemplateParameterLists,
+                                            Declarator &D);
+  
+  virtual DeclPtrTy ActOnStartOfFunctionTemplateDef(Scope *FnBodyScope, 
+                                                    MultiTemplateParamsArg TemplateParameterLists,
+                                                    Declarator &D);
+  
   virtual DeclResult
   ActOnExplicitInstantiation(Scope *S, SourceLocation TemplateLoc,
                              unsigned TagSpec, 
@@ -2180,7 +2219,13 @@ public:
     /// into a non-deduced context produced a type or value that
     /// produces a type that does not match the original template
     /// arguments provided.
-    TDK_NonDeducedMismatch
+    TDK_NonDeducedMismatch,
+    /// \brief When performing template argument deduction for a function 
+    /// template, there were too many call arguments.
+    TDK_TooManyArguments,
+    /// \brief When performing template argument deduction for a class 
+    /// template, there were too few call arguments.
+    TDK_TooFewArguments
   };
 
   /// \brief Provides information about an attempted template argument
@@ -2260,6 +2305,12 @@ public:
                           const TemplateArgumentList &TemplateArgs,
                           TemplateDeductionInfo &Info);
                    
+  TemplateDeductionResult
+  DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
+                          Expr **Args, unsigned NumArgs,
+                          FunctionDecl *&Specialization,
+                          TemplateDeductionInfo &Info);
+  
   void MarkDeducedTemplateParameters(const TemplateArgumentList &TemplateArgs,
                                      llvm::SmallVectorImpl<bool> &Deduced);
           
@@ -3021,6 +3072,13 @@ public:
   // We allow casting between vectors and integer datatypes of the same size.
   // returns true if the cast is invalid
   bool CheckVectorCast(SourceRange R, QualType VectorTy, QualType Ty);
+  
+  // CheckExtVectorCast - check type constraints for extended vectors. 
+  // Since vectors are an extension, there are no C standard reference for this.
+  // We allow casting between vectors and integer datatypes of the same size,
+  // or vectors and the element type of that vector.
+  // returns true if the cast is invalid
+  bool CheckExtVectorCast(SourceRange R, QualType VectorTy, QualType Ty);
   
   /// CheckMessageArgumentTypes - Check types in an Obj-C message send. 
   /// \param Method - May be null.

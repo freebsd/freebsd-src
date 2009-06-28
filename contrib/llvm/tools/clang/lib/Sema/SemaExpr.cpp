@@ -623,17 +623,42 @@ Sema::OwningExprResult Sema::ActOnIdentifierExpr(Scope *S, SourceLocation Loc,
 /// BuildDeclRefExpr - Build either a DeclRefExpr or a
 /// QualifiedDeclRefExpr based on whether or not SS is a
 /// nested-name-specifier.
-DeclRefExpr *
+Sema::OwningExprResult
 Sema::BuildDeclRefExpr(NamedDecl *D, QualType Ty, SourceLocation Loc,
                        bool TypeDependent, bool ValueDependent,
                        const CXXScopeSpec *SS) {
+  if (Context.getCanonicalType(Ty) == Context.UndeducedAutoTy) {
+    Diag(Loc,
+         diag::err_auto_variable_cannot_appear_in_own_initializer) 
+      << D->getDeclName();
+    return ExprError();
+  }
+  
+  if (const VarDecl *VD = dyn_cast<VarDecl>(D)) {
+    if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(CurContext)) {
+      if (const FunctionDecl *FD = MD->getParent()->isLocalClass()) {
+        if (VD->hasLocalStorage() && VD->getDeclContext() != CurContext) {
+          Diag(Loc, diag::err_reference_to_local_var_in_enclosing_function) 
+            << D->getIdentifier() << FD->getDeclName();
+          Diag(D->getLocation(), diag::note_local_variable_declared_here) 
+            << D->getIdentifier();
+          return ExprError();
+        }
+      }
+    }
+  }
+  
   MarkDeclarationReferenced(Loc, D);
+  
+  Expr *E;
   if (SS && !SS->isEmpty()) {
-    return new (Context) QualifiedDeclRefExpr(D, Ty, Loc, TypeDependent, 
-                                              ValueDependent, SS->getRange(),
+    E = new (Context) QualifiedDeclRefExpr(D, Ty, Loc, TypeDependent, 
+                                          ValueDependent, SS->getRange(),
                   static_cast<NestedNameSpecifier *>(SS->getScopeRep()));
   } else
-    return new (Context) DeclRefExpr(D, Ty, Loc, TypeDependent, ValueDependent);
+    E = new (Context) DeclRefExpr(D, Ty, Loc, TypeDependent, ValueDependent);
+  
+  return Owned(E);
 }
 
 /// getObjectForAnonymousRecordDecl - Retrieve the (unnamed) field or
@@ -968,7 +993,7 @@ Sema::ActOnDeclarationNameExpr(Scope *S, SourceLocation Loc,
         // The pointer is type- and value-dependent if it points into something
         // dependent.
         bool Dependent = DC->isDependentContext();
-        return Owned(BuildDeclRefExpr(D, DType, Loc, Dependent, Dependent, SS));
+        return BuildDeclRefExpr(D, DType, Loc, Dependent, Dependent, SS);
       }
     }
   }
@@ -1061,11 +1086,11 @@ Sema::ActOnDeclarationNameExpr(Scope *S, SourceLocation Loc,
 
   // Make the DeclRefExpr or BlockDeclRefExpr for the decl.
   if (OverloadedFunctionDecl *Ovl = dyn_cast<OverloadedFunctionDecl>(D))
-    return Owned(BuildDeclRefExpr(Ovl, Context.OverloadTy, Loc,
-                                  false, false, SS));
+    return BuildDeclRefExpr(Ovl, Context.OverloadTy, Loc,
+                           false, false, SS);
   else if (TemplateDecl *Template = dyn_cast<TemplateDecl>(D))
-    return Owned(BuildDeclRefExpr(Template, Context.OverloadTy, Loc,
-                                  false, false, SS));
+    return BuildDeclRefExpr(Template, Context.OverloadTy, Loc,
+                            false, false, SS);
   ValueDecl *VD = cast<ValueDecl>(D);
 
   // Check whether this declaration can be used. Note that we suppress
@@ -1113,7 +1138,7 @@ Sema::ActOnDeclarationNameExpr(Scope *S, SourceLocation Loc,
       QualType NoProtoType = T;
       if (const FunctionProtoType *Proto = T->getAsFunctionProtoType())
         NoProtoType = Context.getFunctionNoProtoType(Proto->getResultType());
-      return Owned(BuildDeclRefExpr(VD, NoProtoType, Loc, false, false, SS));
+      return BuildDeclRefExpr(VD, NoProtoType, Loc, false, false, SS);
     }
   }
 
@@ -1194,8 +1219,8 @@ Sema::ActOnDeclarationNameExpr(Scope *S, SourceLocation Loc,
     }
   }
 
-  return Owned(BuildDeclRefExpr(VD, VD->getType().getNonReferenceType(), Loc,
-                                TypeDependent, ValueDependent, SS));
+  return BuildDeclRefExpr(VD, VD->getType().getNonReferenceType(), Loc,
+                          TypeDependent, ValueDependent, SS);
 }
 
 Sema::OwningExprResult Sema::ActOnPredefinedExpr(SourceLocation Loc,
@@ -1886,7 +1911,7 @@ CheckExtVectorComponent(QualType baseType, SourceLocation OpLoc,
 
   // This flag determines whether or not CompName has an 's' char prefix,
   // indicating that it is a string of hex values to be used as vector indices.
-  bool HexSwizzle = *compStr == 's';
+  bool HexSwizzle = *compStr == 's' || *compStr == 'S';
 
   // Check that we've found one of the special components, or that the component
   // names must come from the same set.
@@ -2586,11 +2611,16 @@ Sema::ActOnCallExpr(Scope *S, ExprArg fn, SourceLocation LParenLoc,
                                                 CommaLocs, RParenLoc));
 
     // Determine whether this is a call to a member function.
-    if (MemberExpr *MemExpr = dyn_cast<MemberExpr>(Fn->IgnoreParens()))
-      if (isa<OverloadedFunctionDecl>(MemExpr->getMemberDecl()) ||
-          isa<CXXMethodDecl>(MemExpr->getMemberDecl()))
+    if (MemberExpr *MemExpr = dyn_cast<MemberExpr>(Fn->IgnoreParens())) {
+      NamedDecl *MemDecl = MemExpr->getMemberDecl();
+      if (isa<OverloadedFunctionDecl>(MemDecl) ||
+          isa<CXXMethodDecl>(MemDecl) ||
+          (isa<FunctionTemplateDecl>(MemDecl) &&
+           isa<CXXMethodDecl>(
+                cast<FunctionTemplateDecl>(MemDecl)->getTemplatedDecl())))
         return Owned(BuildCallToMemberFunction(S, Fn, LParenLoc, Args, NumArgs,
                                                CommaLocs, RParenLoc));
+    }
   }
 
   // If we're directly calling a function, get the appropriate declaration.
@@ -2626,13 +2656,19 @@ Sema::ActOnCallExpr(Scope *S, ExprArg fn, SourceLocation LParenLoc,
   }
 
   OverloadedFunctionDecl *Ovl = 0;
+  FunctionTemplateDecl *FunctionTemplate = 0;
   if (DRExpr) {
     FDecl = dyn_cast<FunctionDecl>(DRExpr->getDecl());
+    if ((FunctionTemplate = dyn_cast<FunctionTemplateDecl>(DRExpr->getDecl())))
+      FDecl = FunctionTemplate->getTemplatedDecl();
+    else
+      FDecl = dyn_cast<FunctionDecl>(DRExpr->getDecl());
     Ovl = dyn_cast<OverloadedFunctionDecl>(DRExpr->getDecl());
     NDecl = dyn_cast<NamedDecl>(DRExpr->getDecl());
   }
 
-  if (Ovl || (getLangOptions().CPlusPlus && (FDecl || UnqualifiedName))) {
+  if (Ovl || FunctionTemplate || 
+      (getLangOptions().CPlusPlus && (FDecl || UnqualifiedName))) {
     // We don't perform ADL for implicit declarations of builtins.
     if (FDecl && FDecl->getBuiltinID(Context) && FDecl->isImplicit())
       ADL = false;
@@ -2641,7 +2677,7 @@ Sema::ActOnCallExpr(Scope *S, ExprArg fn, SourceLocation LParenLoc,
     if (!getLangOptions().CPlusPlus)
       ADL = false;
 
-    if (Ovl || ADL) {
+    if (Ovl || FunctionTemplate || ADL) {
       FDecl = ResolveOverloadedCallFn(Fn, DRExpr? DRExpr->getDecl() : 0,
                                       UnqualifiedName, LParenLoc, Args,
                                       NumArgs, CommaLocs, RParenLoc, ADL);
@@ -2846,11 +2882,14 @@ bool Sema::CheckCastTypes(SourceRange TyR, QualType castType, Expr *&castExpr) {
     return Diag(castExpr->getLocStart(),
                 diag::err_typecheck_expect_scalar_operand)
       << castExpr->getType() << castExpr->getSourceRange();
-  } else if (castExpr->getType()->isVectorType()) {
-    if (CheckVectorCast(TyR, castExpr->getType(), castType))
+  } else if (castType->isExtVectorType()) {
+    if (CheckExtVectorCast(TyR, castType, castExpr->getType()))
       return true;
   } else if (castType->isVectorType()) {
     if (CheckVectorCast(TyR, castType, castExpr->getType()))
+      return true;
+  } else if (castExpr->getType()->isVectorType()) {
+    if (CheckVectorCast(TyR, castExpr->getType(), castType))
       return true;
   } else if (getLangOptions().ObjC1 && isa<ObjCSuperExpr>(castExpr)) {
     return Diag(castExpr->getLocStart(), diag::err_illegal_super_cast) << TyR;
@@ -2886,6 +2925,35 @@ bool Sema::CheckVectorCast(SourceRange R, QualType VectorTy, QualType Ty) {
                 diag::err_invalid_conversion_between_vector_and_scalar)
       << VectorTy << Ty << R;
 
+  return false;
+}
+
+bool Sema::CheckExtVectorCast(SourceRange R, QualType DestTy, QualType SrcTy) {
+  assert(DestTy->isExtVectorType() && "Not an extended vector type!");
+  
+  // If SrcTy is also an ExtVectorType, the types must be identical unless 
+  // lax vector conversions is enabled.
+  if (SrcTy->isExtVectorType()) {
+    if (getLangOptions().LaxVectorConversions &&
+        Context.getTypeSize(DestTy) == Context.getTypeSize(SrcTy))
+      return false;
+    if (DestTy != SrcTy)
+      return Diag(R.getBegin(),diag::err_invalid_conversion_between_ext_vectors)
+      << DestTy << SrcTy << R;
+    return false;
+  }
+  
+  // If SrcTy is a VectorType, then only the total size must match.
+  if (SrcTy->isVectorType()) {
+    if (Context.getTypeSize(DestTy) != Context.getTypeSize(SrcTy))
+      return Diag(R.getBegin(),diag::err_invalid_conversion_between_ext_vectors)
+        << DestTy << SrcTy << R;
+    return false;
+  }
+
+  // All scalar -> ext vector "c-style" casts are legal; the appropriate
+  // conversion will take place first from scalar to elt type, and then
+  // splat from elt type to vector.
   return false;
 }
 
@@ -5525,18 +5593,27 @@ void Sema::MarkDeclarationReferenced(SourceLocation Loc, Decl *D) {
       if (!Constructor->isUsed())
         DefineImplicitCopyConstructor(Loc, Constructor, TypeQuals);
     }
-    // FIXME: more checking for other implicits go here.
-    else
-      Constructor->setUsed(true);
-  } 
-  
+  } else if (CXXDestructorDecl *Destructor = dyn_cast<CXXDestructorDecl>(D)) {
+    if (Destructor->isImplicit() && !Destructor->isUsed())
+      DefineImplicitDestructor(Loc, Destructor);
+    
+  } else if (CXXMethodDecl *MethodDecl = dyn_cast<CXXMethodDecl>(D)) {
+    if (MethodDecl->isImplicit() && MethodDecl->isOverloadedOperator() &&
+        MethodDecl->getOverloadedOperator() == OO_Equal) {
+      if (!MethodDecl->isUsed())
+        DefineImplicitOverloadedAssign(Loc, MethodDecl);
+    }
+  }
   if (FunctionDecl *Function = dyn_cast<FunctionDecl>(D)) {
-    // Implicit instantiation of function templates
+    // Implicit instantiation of function templates and member functions of 
+    // class templates.
     if (!Function->getBody(Context)) {
-      if (Function->getInstantiatedFromMemberFunction())
+      // FIXME: distinguish between implicit instantiations of function
+      // templates and explicit specializations (the latter don't get
+      // instantiated, naturally).
+      if (Function->getInstantiatedFromMemberFunction() ||
+          Function->getPrimaryTemplate())
         PendingImplicitInstantiations.push(std::make_pair(Function, Loc));
-
-      // FIXME: check for function template specializations.
     }
     
     

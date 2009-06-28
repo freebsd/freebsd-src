@@ -683,6 +683,13 @@ route_output(struct mbuf *m, struct socket *so)
 				RT_UNLOCK(rt);
 				RADIX_NODE_HEAD_LOCK(rnh);
 				error = rt_getifa_fib(&info, rt->rt_fibnum);
+				/*
+				 * XXXRW: Really we should release this
+				 * reference later, but this maintains
+				 * historical behavior.
+				 */
+				if (info.rti_ifa != NULL)
+					ifa_free(info.rti_ifa);
 				RADIX_NODE_HEAD_UNLOCK(rnh);
 				if (error != 0)
 					senderr(error);

@@ -1945,9 +1945,7 @@ urtw_set_multi(void *arg)
 	 * XXX don't know how to set a device.  Lack of docs.  Just try to set
 	 * IFF_ALLMULTI flag here.
 	 */
-	IF_ADDR_LOCK(ifp);
 	ifp->if_flags |= IFF_ALLMULTI;
-	IF_ADDR_UNLOCK(ifp);
 }
 
 static usb_error_t

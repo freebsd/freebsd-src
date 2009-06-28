@@ -897,6 +897,7 @@ void
 apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 {
 	struct thread *td;
+
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
 	    ("Vector %u does not map to an IRQ line", vector));

@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 int
-busdma_map_sg_collapse(struct sge_txq *txq, bus_dmamap_t map,
+busdma_map_sg_collapse(bus_dma_tag_t tag, bus_dmamap_t map,
 	struct mbuf **m, bus_dma_segment_t *segs, int *nsegs)
 {
 	struct mbuf *n = *m;
@@ -73,7 +73,7 @@ retry:
 	psegs = segs;
 	seg_count = 0;
 	if (n->m_next == NULL) {
-		busdma_map_mbuf_fast(txq, map, n, segs);
+		busdma_map_mbuf_fast(tag, map, n, segs);
 		*nsegs = 1;
 		return (0);
 	}
@@ -84,14 +84,13 @@ retry:
 		 */
 		if (__predict_true(n->m_len != 0)) {
 			seg_count++;
-			busdma_map_mbuf_fast(txq, map, n, psegs);
+			busdma_map_mbuf_fast(tag, map, n, psegs);
 			psegs++;
 		}
 		n = n->m_next;
 	}
 #else
-	err = bus_dmamap_load_mbuf_sg(txq->entry_tag, map, *m, segs,
-		    &seg_count, 0);
+	err = bus_dmamap_load_mbuf_sg(tag, map, *m, segs, &seg_count, 0);
 #endif	
 	if (seg_count == 0) {
 		if (cxgb_debug)
@@ -122,11 +121,11 @@ err_out:
 }
 
 void
-busdma_map_sg_vec(struct sge_txq *txq, bus_dmamap_t map,
+busdma_map_sg_vec(bus_dma_tag_t tag, bus_dmamap_t map,
     struct mbuf *m, bus_dma_segment_t *segs, int *nsegs)
 {
 
 	for (*nsegs = 0; m != NULL ; segs++, *nsegs += 1, m = m->m_nextpkt)
-		busdma_map_mbuf_fast(txq, map, m, segs);
+		busdma_map_mbuf_fast(tag, map, m, segs);
 }
 

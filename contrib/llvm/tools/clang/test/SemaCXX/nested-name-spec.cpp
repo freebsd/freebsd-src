@@ -171,3 +171,26 @@ Y::foo y; // expected-error{{incomplete type 'struct Y' named in nested name spe
 X::X() : a(5) { } // expected-error{{use of undeclared identifier 'X'}} \
       // expected-error{{C++ requires a type specifier for all declarations}} \
       // expected-error{{only constructors take base initializers}}
+
+
+
+
+namespace somens {
+  struct a { };
+}
+
+template <typename T>
+class foo {
+};
+
+
+// PR4452
+// FIXME: This error recovery sucks.
+foo<somens:a> a2;  // expected-error {{unexpected namespace name 'somens': expected expression}} \
+expected-error {{C++ requires a type specifier for all declarations}}
+
+somens::a a3 = a2;
+
+
+
+

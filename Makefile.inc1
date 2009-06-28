@@ -285,7 +285,7 @@ LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
 		CC="gcc ${LIB32FLAGS}" \
-		CXX="${CXX} ${LIB32FLAGS}" \
+		CXX="g++ ${LIB32FLAGS}" \
 		OBJC="gcc ${LIB32FLAGS}" \
 		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
 		AS="${AS} --32" \

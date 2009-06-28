@@ -89,7 +89,7 @@ static __constructor void
 gre_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(gre_cmds);  i++)
 		cmd_register(&gre_cmds[i]);

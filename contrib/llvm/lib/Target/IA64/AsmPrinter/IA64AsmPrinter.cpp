@@ -20,6 +20,7 @@
 #include "IA64.h"
 #include "IA64TargetMachine.h"
 #include "llvm/Module.h"
+#include "llvm/MDNode.h"
 #include "llvm/Type.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/DwarfWriter.h"
@@ -269,6 +270,8 @@ void IA64AsmPrinter::printModuleLevelGV(const GlobalVariable* GVar) {
   O << "\n\n";
   std::string name = Mang->getValueName(GVar);
   Constant *C = GVar->getInitializer();
+  if (isa<MDNode>(C) || isa<MDString>(C))
+    return;
   unsigned Size = TD->getTypeAllocSize(C->getType());
   unsigned Align = TD->getPreferredAlignmentLog(GVar);
 
@@ -384,8 +387,5 @@ namespace {
 }
 
 
-// Force static initialization when called from
-// llvm/InitializeAllAsmPrinters.h
-namespace llvm {
-  void InitializeIA64AsmPrinter() { }
-}
+// Force static initialization.
+extern "C" void LLVMInitializeIA64AsmPrinter() { }

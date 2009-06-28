@@ -3939,6 +3939,7 @@ key_ismyaddr(sa)
 #ifdef INET
 	case AF_INET:
 		sin = (struct sockaddr_in *)sa;
+		IN_IFADDR_RLOCK();
 		for (ia = V_in_ifaddrhead.tqh_first; ia;
 		     ia = ia->ia_link.tqe_next)
 		{
@@ -3946,9 +3947,11 @@ key_ismyaddr(sa)
 			    sin->sin_len == ia->ia_addr.sin_len &&
 			    sin->sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			{
+				IN_IFADDR_RUNLOCK();
 				return 1;
 			}
 		}
+		IN_IFADDR_RUNLOCK();
 		break;
 #endif
 #ifdef INET6
@@ -3979,10 +3982,13 @@ key_ismyaddr6(sin6)
 	struct in6_multi *in6m;
 #endif
 
-	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
+	IN6_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (key_sockaddrcmp((struct sockaddr *)&sin6,
-		    (struct sockaddr *)&ia->ia_addr, 0) == 0)
+		    (struct sockaddr *)&ia->ia_addr, 0) == 0) {
+			IN6_IFADDR_RUNLOCK();
 			return 1;
+		}
 
 #if 0
 		/*
@@ -3993,10 +3999,13 @@ key_ismyaddr6(sin6)
 		 */
 		in6m = NULL;
 		IN6_LOOKUP_MULTI(sin6->sin6_addr, ia->ia_ifp, in6m);
-		if (in6m)
+		if (in6m) {
+			IN6_IFADDR_RUNLOCK();
 			return 1;
+		}
 #endif
 	}
+	IN6_IFADDR_RUNLOCK();
 
 	/* loopback, just for safety */
 	if (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))

@@ -9,7 +9,9 @@ SRCS=	driver.cpp
 MAN=
 
 .if ${MK_CLANG_IS_CC} != "no"
-LINKS=	${BINDIR}/clang ${BINDIR}/cc
+LINKS=	${BINDIR}/clang ${BINDIR}/cc \
+	${BINDIR}/clang ${BINDIR}/c++ \
+	${BINDIR}/clang ${BINDIR}/CC
 .endif
 
 TGHDRS=	DiagnosticCommonKinds

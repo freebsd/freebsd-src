@@ -2851,7 +2851,7 @@ fxp_mc_addrs(struct fxp_softc *sc)
 
 	nmcasts = 0;
 	if ((ifp->if_flags & IFF_ALLMULTI) == 0) {
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -2864,7 +2864,7 @@ fxp_mc_addrs(struct fxp_softc *sc)
 			    &sc->mcsp->mc_addr[nmcasts][0], ETHER_ADDR_LEN);
 			nmcasts++;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 	mcsp->mc_cnt = htole16(nmcasts * ETHER_ADDR_LEN);
 	return (nmcasts);

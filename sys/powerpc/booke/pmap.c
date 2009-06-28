@@ -963,6 +963,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	vm_size_t physsz, hwphyssz, kstack0_sz;
 	vm_offset_t kernel_pdir, kstack0, va;
 	vm_paddr_t kstack0_phys;
+	void *dpcpu;
 	pte_t *pte;
 
 	debugf("mmu_booke_bootstrap: entered\n");
@@ -987,6 +988,11 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	    data_end);
 
 	data_end = round_page(data_end);
+
+	/* Allocate the dynamic per-cpu area. */
+	dpcpu = (void *)data_end;
+	data_end += DPCPU_SIZE;
+	dpcpu_init(dpcpu, 0);
 
 	/* Allocate space for ptbl_bufs. */
 	ptbl_bufs = (struct ptbl_buf *)data_end;

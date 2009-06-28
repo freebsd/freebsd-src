@@ -87,7 +87,7 @@ rtc_probe(device_t dev)
 	if (devtype != LBC_DEVTYPE_RTC)
 		return (EINVAL);
 
-	device_set_desc(dev, "Real Time Clock");
+	device_set_desc(dev, "Dallas Semiconductor DS1553 RTC");
 
 	return (0);
 }

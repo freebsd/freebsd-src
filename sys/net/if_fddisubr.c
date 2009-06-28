@@ -222,6 +222,7 @@ fddi_output(ifp, m, dst, ro)
 	    } else {
 		type = htons(ETHERTYPE_AT);
 	    }
+	    ifa_free(&aa->aa_ifa);
 	    break;
 	}
 #endif /* NETATALK */

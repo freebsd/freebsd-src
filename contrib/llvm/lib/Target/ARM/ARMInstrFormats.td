@@ -742,32 +742,85 @@ class TIx2<dag outs, dag ins, string asm, list<dag> pattern>
 class TJTI<dag outs, dag ins, string asm, list<dag> pattern>
   : ThumbI<outs, ins, AddrModeNone, SizeSpecial, asm, "", pattern>;
 
-// ThumbPat - Same as Pat<>, but requires that the compiler be in Thumb mode.
-class ThumbPat<dag pattern, dag result> : Pat<pattern, result> {
+// TPat - Same as Pat<>, but requires that the compiler be in Thumb mode.
+class TPat<dag pattern, dag result> : Pat<pattern, result> {
   list<Predicate> Predicates = [IsThumb];
 }
 
-class ThumbV5Pat<dag pattern, dag result> : Pat<pattern, result> {
+class Tv5Pat<dag pattern, dag result> : Pat<pattern, result> {
   list<Predicate> Predicates = [IsThumb, HasV5T];
 }
 
-// T2I - Thumb2 instruction.
-
-class Thumb2I<dag outs, dag ins, AddrMode am, SizeFlagVal sz,
+// Thumb1 only
+class Thumb1I<dag outs, dag ins, AddrMode am, SizeFlagVal sz,
              string asm, string cstr, list<dag> pattern>
   : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr> {
   let OutOperandList = outs;
   let InOperandList = ins;
   let AsmString   = asm;
   let Pattern = pattern;
+  list<Predicate> Predicates = [IsThumb1Only];
+}
+
+class T1I<dag outs, dag ins, string asm, list<dag> pattern>
+  : Thumb1I<outs, ins, AddrModeNone, Size2Bytes, asm, "", pattern>;
+
+// Two-address instructions
+class T1It<dag outs, dag ins, string asm, list<dag> pattern>
+  : Thumb1I<outs, ins, AddrModeNone, Size2Bytes, asm, "$lhs = $dst", pattern>;
+
+class T1Pat<dag pattern, dag result> : Pat<pattern, result> {
+  list<Predicate> Predicates = [IsThumb1Only];
+}
+
+// Thumb2I - Thumb2 instruction. Almost all Thumb2 instructions are predicable.
+class Thumb2I<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
+              string opc, string asm, string cstr, list<dag> pattern>
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr> {
+  let OutOperandList = oops;
+  let InOperandList = !con(iops, (ops pred:$p));
+  let AsmString = !strconcat(opc, !strconcat("${p}", asm));
+  let Pattern = pattern;
   list<Predicate> Predicates = [IsThumb, HasThumb2];
 }
 
-class T2I<dag outs, dag ins, string asm, list<dag> pattern>
-  : Thumb2I<outs, ins, AddrModeNone, Size4Bytes, asm, "", pattern>;
+// Same as Thumb2I except it can optionally modify CPSR. Note it's modeled as
+// an input operand since by default it's a zero register. It will
+// become an implicit def once it's "flipped".
+// FIXME: This uses unified syntax so {s} comes before {p}. We should make it
+// more consistent.
+class Thumb2sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
+               string opc, string asm, string cstr, list<dag> pattern>
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr> {
+  let OutOperandList = oops;
+  let InOperandList = !con(iops, (ops pred:$p, cc_out:$s));
+  let AsmString   = !strconcat(opc, !strconcat("${s}${p}", asm));
+  let Pattern = pattern;
+  list<Predicate> Predicates = [IsThumb, HasThumb2];
+}
 
-// Thumb2Pat - Same as Pat<>, but requires that the compiler be in Thumb2 mode.
-class Thumb2Pat<dag pattern, dag result> : Pat<pattern, result> {
+// Special cases
+class Thumb2XI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
+               string asm, string cstr, list<dag> pattern>
+  : InstARM<am, sz, IndexModeNone, ThumbFrm, cstr> {
+  let OutOperandList = oops;
+  let InOperandList = iops;
+  let AsmString   = asm;
+  let Pattern = pattern;
+  list<Predicate> Predicates = [IsThumb, HasThumb2];
+}
+
+class T2I<dag oops, dag iops, string opc, string asm, list<dag> pattern>
+  : Thumb2I<oops, iops, AddrModeNone, Size4Bytes, opc, asm, "", pattern>;
+
+class T2sI<dag oops, dag iops, string opc, string asm, list<dag> pattern>
+  : Thumb2sI<oops, iops, AddrModeNone, Size4Bytes, opc, asm, "", pattern>;
+
+class T2XI<dag oops, dag iops, string asm, list<dag> pattern>
+  : Thumb2XI<oops, iops, AddrModeNone, Size4Bytes, asm, "", pattern>;
+
+// T2Pat - Same as Pat<>, but requires that the compiler be in Thumb2 mode.
+class T2Pat<dag pattern, dag result> : Pat<pattern, result> {
   list<Predicate> Predicates = [IsThumb, HasThumb2];
 }
 

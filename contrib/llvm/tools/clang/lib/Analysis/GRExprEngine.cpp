@@ -15,7 +15,6 @@
 
 #include "clang/Analysis/PathSensitive/GRExprEngine.h"
 #include "clang/Analysis/PathSensitive/GRExprEngineBuilders.h"
-#include "clang/Analysis/PathSensitive/BugReporter.h"
 #include "clang/AST/ParentMap.h"
 #include "clang/AST/StmtObjC.h"
 #include "clang/Basic/Builtins.h"
@@ -29,7 +28,6 @@
 
 #ifndef NDEBUG
 #include "llvm/Support/GraphWriter.h"
-#include <sstream>
 #endif
 
 using namespace clang;
@@ -126,6 +124,7 @@ GRExprEngine::GRExprEngine(CFG& cfg, Decl& CD, ASTContext& Ctx,
     StateMgr(G.getContext(), SMC, CMC, G.getAllocator(), cfg, CD, L),
     SymMgr(StateMgr.getSymbolManager()),
     ValMgr(StateMgr.getValueManager()),
+    SVator(clang::CreateSimpleSValuator(ValMgr)), // FIXME: Generalize later.
     CurrentStmt(NULL),
     NSExceptionII(NULL), NSExceptionInstanceRaiseSelectors(NULL),
     RaiseSel(GetNullarySelector("raise", G.getContext())), 
@@ -176,7 +175,7 @@ const GRState* GRExprEngine::getInitialState() {
       const ParmVarDecl *PD = FD->getParamDecl(0);
       QualType T = PD->getType();
       if (T->isIntegerType())
-        if (const MemRegion *R = StateMgr.getRegion(PD)) {
+        if (const MemRegion *R = state->getRegion(PD)) {
           SVal V = state->getSVal(loc::MemRegionVal(R));
           SVal Constraint = EvalBinOp(state, BinaryOperator::GT, V,
                                       ValMgr.makeZeroVal(T),
@@ -1046,7 +1045,7 @@ void GRExprEngine::EvalBind(NodeSet& Dst, Expr* Ex, NodeTy* Pred,
   else {
     // We are binding to a value other than 'unknown'.  Perform the binding
     // using the StoreManager.
-    newState = StateMgr.BindLoc(state, cast<Loc>(location), Val);
+    newState = state->bindLoc(cast<Loc>(location), Val);
   }
 
   // The next thing to do is check if the GRTransferFuncs object wants to
@@ -1296,9 +1295,8 @@ static bool EvalOSAtomicCompareAndSwap(ExplodedNodeSet<GRState>& Dst,
     SVal oldValueVal = stateLoad->getSVal(oldValueExpr);
         
     // Perform the comparison.
-    SVal Cmp = Engine.EvalBinOp(stateLoad,
-                                BinaryOperator::EQ, theValueVal, oldValueVal,
-                                Engine.getContext().IntTy);
+    SVal Cmp = Engine.EvalBinOp(stateLoad, BinaryOperator::EQ, theValueVal,
+                                oldValueVal, Engine.getContext().IntTy);
 
     const GRState *stateEqual = stateLoad->assume(Cmp, true);
     
@@ -2247,17 +2245,17 @@ void GRExprEngine::VisitDeclStmt(DeclStmt* DS, NodeTy* Pred, NodeSet& Dst) {
         InitVal = ValMgr.getConjuredSymbolVal(InitEx, Count);
       }        
       
-      state = StateMgr.BindDecl(state, VD, InitVal);
+      state = state->bindDecl(VD, InitVal);
       
       // The next thing to do is check if the GRTransferFuncs object wants to
       // update the state based on the new binding.  If the GRTransferFunc
       // object doesn't do anything, just auto-propagate the current state.
       GRStmtNodeBuilderRef BuilderRef(Dst, *Builder, *this, *I, state, DS,true);
-      getTF().EvalBind(BuilderRef, loc::MemRegionVal(StateMgr.getRegion(VD)),
+      getTF().EvalBind(BuilderRef, loc::MemRegionVal(state->getRegion(VD)),
                        InitVal);      
     } 
     else {
-      state = StateMgr.BindDeclWithNoInit(state, VD);
+      state = state->bindDeclWithNoInit(VD);
       MakeNode(Dst, DS, *I, state);
     }
   }
@@ -2562,7 +2560,7 @@ void GRExprEngine::VisitUnaryOperator(UnaryOperator* U, NodeTy* Pred,
             
           case UnaryOperator::Minus:
             // FIXME: Do we need to handle promotions?
-            state = state->bindExpr(U, EvalMinus(U, cast<NonLoc>(V)));
+            state = state->bindExpr(U, EvalMinus(cast<NonLoc>(V)));
             break;   
             
           case UnaryOperator::LNot:   
@@ -2571,24 +2569,20 @@ void GRExprEngine::VisitUnaryOperator(UnaryOperator* U, NodeTy* Pred,
             //
             //  Note: technically we do "E == 0", but this is the same in the
             //    transfer functions as "0 == E".
+            SVal Result;
             
             if (isa<Loc>(V)) {
               Loc X = ValMgr.makeNull();
-              SVal Result = EvalBinOp(state,BinaryOperator::EQ, cast<Loc>(V), X,
-                                      U->getType());
-              state = state->bindExpr(U, Result);
+              Result = EvalBinOp(state, BinaryOperator::EQ, cast<Loc>(V), X,
+                                 U->getType());
             }
             else {
               nonloc::ConcreteInt X(getBasicVals().getValue(0, Ex->getType()));
-#if 0            
-              SVal Result = EvalBinOp(BinaryOperator::EQ, cast<NonLoc>(V), X);
-              state = SetSVal(state, U, Result);
-#else
-              EvalBinOp(Dst, U, BinaryOperator::EQ, cast<NonLoc>(V), X, *I,
-                        U->getType());
-              continue;
-#endif
+              Result = EvalBinOp(BinaryOperator::EQ, cast<NonLoc>(V), X,
+                                 U->getType());
             }
+            
+            state = state->bindExpr(U, Result);
             
             break;
         }
@@ -2640,8 +2634,8 @@ void GRExprEngine::VisitUnaryOperator(UnaryOperator* U, NodeTy* Pred,
                                              Builder->getCurrentBlockCount());
         
         // If the value is a location, ++/-- should always preserve
-        // non-nullness.  Check if the original value was non-null, and if so propagate
-        // that constraint.        
+        // non-nullness.  Check if the original value was non-null, and if so
+        // propagate that constraint.        
         if (Loc::IsLocType(U->getType())) {
           SVal Constraint = EvalBinOp(state, BinaryOperator::EQ, V2,
                                       ValMgr.makeZeroVal(U->getType()),
@@ -2907,9 +2901,8 @@ void GRExprEngine::VisitBinaryOperator(BinaryOperator* B,
           if (B->isAssignmentOp())
             break;
           
-          // Process non-assignements except commas or short-circuited
-          // logical expressions (LAnd and LOr).
-          
+          // Process non-assignments except commas or short-circuited
+          // logical expressions (LAnd and LOr).          
           SVal Result = EvalBinOp(state, Op, LeftV, RightV, B->getType());
           
           if (Result.isUnknown()) {
@@ -3024,7 +3017,7 @@ void GRExprEngine::VisitBinaryOperator(BinaryOperator* B,
         }
       
         // Compute the result of the operation.      
-        SVal Result = EvalCast(EvalBinOp(state, Op, V, RightV, CTy), 
+        SVal Result = EvalCast(EvalBinOp(state, Op, V, RightV, CTy),
                                B->getType());
           
         if (Result.isUndef()) {
@@ -3073,26 +3066,6 @@ void GRExprEngine::VisitBinaryOperator(BinaryOperator* B,
 // Transfer-function Helpers.
 //===----------------------------------------------------------------------===//
 
-void GRExprEngine::EvalBinOp(ExplodedNodeSet<GRState>& Dst, Expr* Ex,
-                             BinaryOperator::Opcode Op,
-                             NonLoc L, NonLoc R,
-                             ExplodedNode<GRState>* Pred, QualType T) {
-
-  GRStateSet OStates;
-  EvalBinOp(OStates, GetState(Pred), Ex, Op, L, R, T);
-
-  for (GRStateSet::iterator I=OStates.begin(), E=OStates.end(); I!=E; ++I)
-    MakeNode(Dst, Ex, Pred, *I);
-}
-
-void GRExprEngine::EvalBinOp(GRStateSet& OStates, const GRState* state,
-                             Expr* Ex, BinaryOperator::Opcode Op,
-                             NonLoc L, NonLoc R, QualType T) {
-  
-  GRStateSet::AutoPopulate AP(OStates, state);
-  if (R.isValid()) getTF().EvalBinOpNN(OStates, *this, state, Ex, Op, L, R, T);
-}
-
 SVal GRExprEngine::EvalBinOp(const GRState* state, BinaryOperator::Opcode Op, 
                              SVal L, SVal R, QualType T) {
   
@@ -3104,9 +3077,9 @@ SVal GRExprEngine::EvalBinOp(const GRState* state, BinaryOperator::Opcode Op,
   
   if (isa<Loc>(L)) {
     if (isa<Loc>(R))
-      return getTF().EvalBinOp(*this, Op, cast<Loc>(L), cast<Loc>(R));
+      return SVator->EvalBinOpLL(Op, cast<Loc>(L), cast<Loc>(R), T);
     else
-      return getTF().EvalBinOp(*this, state, Op, cast<Loc>(L), cast<NonLoc>(R));
+      return SVator->EvalBinOpLN(state, Op, cast<Loc>(L), cast<NonLoc>(R), T);
   }
   
   if (isa<Loc>(R)) {
@@ -3116,11 +3089,10 @@ SVal GRExprEngine::EvalBinOp(const GRState* state, BinaryOperator::Opcode Op,
     assert (Op == BinaryOperator::Add || Op == BinaryOperator::Sub);
     
     // Commute the operands.
-    return getTF().EvalBinOp(*this, state, Op, cast<Loc>(R), cast<NonLoc>(L));
+    return SVator->EvalBinOpLN(state, Op, cast<Loc>(R), cast<NonLoc>(L), T);
   }
   else
-    return getTF().DetermEvalBinOpNN(*this, Op, cast<NonLoc>(L),
-                                     cast<NonLoc>(R), T);
+    return SVator->EvalBinOpNN(Op, cast<NonLoc>(L), cast<NonLoc>(R), T);
 }
 
 //===----------------------------------------------------------------------===//
@@ -3156,8 +3128,11 @@ struct VISIBILITY_HIDDEN DOTGraphTraits<GRExprEngine::NodeTy*> :
     return "";
   }
     
-  static std::string getNodeLabel(const GRExprEngine::NodeTy* N, void*) {
-    std::ostringstream Out;
+  static std::string getNodeLabel(const GRExprEngine::NodeTy* N, void*,
+                                  bool ShortNames) {
+    
+    std::string sbuf;
+    llvm::raw_string_ostream Out(sbuf);
 
     // Program Location.
     ProgramPoint Loc = N->getLocation();
@@ -3179,9 +3154,7 @@ struct VISIBILITY_HIDDEN DOTGraphTraits<GRExprEngine::NodeTy*> :
           SourceLocation SLoc = S->getLocStart();
 
           Out << S->getStmtClassName() << ' ' << (void*) S << ' ';        
-          llvm::raw_os_ostream OutS(Out);
-          S->printPretty(OutS);
-          OutS.flush();
+          S->printPretty(Out);
           
           if (SLoc.isFileID()) {        
             Out << "\\lline="
@@ -3235,10 +3208,7 @@ struct VISIBILITY_HIDDEN DOTGraphTraits<GRExprEngine::NodeTy*> :
           SourceLocation SLoc = T->getLocStart();
          
           Out << "\\|Terminator: ";
-          
-          llvm::raw_os_ostream OutS(Out);
-          E.getSrc()->printTerminator(OutS);
-          OutS.flush();
+          E.getSrc()->printTerminator(Out);
           
           if (SLoc.isFileID()) {
             Out << "\\lline="
@@ -3253,14 +3223,11 @@ struct VISIBILITY_HIDDEN DOTGraphTraits<GRExprEngine::NodeTy*> :
             if (Label) {                        
               if (CaseStmt* C = dyn_cast<CaseStmt>(Label)) {
                 Out << "\\lcase ";
-                llvm::raw_os_ostream OutS(Out);
-                C->getLHS()->printPretty(OutS);
-                OutS.flush();
+                C->getLHS()->printPretty(Out);
               
                 if (Stmt* RHS = C->getRHS()) {
                   Out << " .. ";
-                  RHS->printPretty(OutS);
-                  OutS.flush();
+                  RHS->printPretty(Out);
                 }
                 
                 Out << ":";

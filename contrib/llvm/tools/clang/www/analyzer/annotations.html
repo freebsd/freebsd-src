@@ -90,13 +90,12 @@ int foo(int *p, int *q) {
    return !p ? bar(q, 2, p) 
              : bar(p, 2, q);
 }
-
-<span class="command">$ clang --analyze test.m</span>
-test.m:4:16: warning: Null pointer passed as an argument to a 'nonnull' parameter
-   return !p ? bar(q, 2, p) 
-               ^         ~
-1 diagnostic generated.
 </pre>
+
+<p>Running <tt>scan-build</tt> over this source produces the following
+output:</p>
+
+<img src="images/example_attribute_nonnull.png">
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <h2 id="macosx">Mac OS X API Annotations</h2>
@@ -174,14 +173,11 @@ use 'cf_returns_retained'.</p>
   return [[NSString alloc] initWithCString:"flag a leak"];
 }
 @end
-
-<span class="command">$ clang --analyze test.m</span>
-$ clang --analyze test.m
-test.m:21:10: warning: Potential leak of an object allocated on line 21
-  return [[NSString alloc] initWithCString:"flag a leak"];
-         ^
-1 diagnostic generated.
 </pre>
+
+<p>Running <tt>scan-build</tt> on this source file produces the following output:</p>
+
+<img src="images/example_ns_returns_retained.png">
 
 <h4 id="attr_cf_returns_retained">Attribute 'cf_returns_retained'
 (Clang-specific)</h4>
@@ -262,22 +258,20 @@ CFDateRef returnsRetainedCFDate()  {
   return (NSDate*) returnsRetainedCFDate(); // Report a leak when using GC.  
 }
 @end
-
-<span class="command">$ clang --analyze test.m</span>
-test.m:28:20: warning: Potential leak of an object allocated on line 28
-  return (NSDate*) returnsRetainedCFDate(); // Always report a leak.
-                   ^
-1 diagnostic generated.
-
-<span class="command">$ clang --analyze test.m <span class="code_highlight">-fobjc-gc-only</span></span>
-test.m:28:20: warning: Potential leak (when using garbage collection) of an object allocated on line 28
-  return (NSDate*) returnsRetainedCFDate(); // Always report a leak.
-                   ^
-test.m:32:20: warning: Potential leak (when using garbage collection) of an object allocated on line 32
-  return (NSDate*) returnsRetainedCFDate(); // Report a leak when using GC.  
-                   ^
-2 diagnostics generated.
 </pre>
+
+<p>Running <tt>scan-build</tt> on this example produces the following output:</p>
+
+<img src="images/example_cf_returns_retained.png">
+
+</p>When the above code is compiled using Objective-C garbage collection (i.e.,
+code is compiled with the flag <tt>-fobjc-gc</tt> or <tt>-fobjc-gc-only</tt>),
+<tt>scan-build</tt> produces both the above error (with slightly different text
+to indicate the code uses garbage collection) as well as the following warning,
+which indicates a leak that occurs <em>only</em> when using garbage
+collection:</p>
+
+<img src="images/example_cf_returns_retained_gc.png">
 
 <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
 <h2 id="custom_assertions">Custom Assertion Handlers</h2>

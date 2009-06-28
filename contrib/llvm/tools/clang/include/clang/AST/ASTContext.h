@@ -192,6 +192,7 @@ public:
   QualType VoidPtrTy, NullPtrTy;
   QualType OverloadTy;
   QualType DependentTy;
+  QualType UndeducedAutoTy;
 
   ASTContext(const LangOptions& LOpts, SourceManager &SM, TargetInfo &t,
              IdentifierTable &idents, SelectorTable &sels,
@@ -359,6 +360,9 @@ public:
   /// getTypeOfType - GCC extension.
   QualType getTypeOfExprType(Expr *e);
   QualType getTypeOfType(QualType t);
+  
+  /// getDecltypeType - C++0x decltype.
+  QualType getDecltypeType(Expr *e);
   
   /// getTagDeclType - Return the unique reference to the type for the
   /// specified TagDecl (struct/union/class/enum) decl.

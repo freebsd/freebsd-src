@@ -96,6 +96,13 @@ bool Decl::isTemplateParameterPack() const {
   return false;
 }
 
+bool Decl::isFunctionOrFunctionTemplate() const {
+  if (const UsingDecl *UD = dyn_cast<UsingDecl>(this))
+    return UD->getTargetDecl()->isFunctionOrFunctionTemplate();
+    
+  return isa<FunctionDecl>(this) || isa<FunctionTemplateDecl>(this);
+}
+
 //===----------------------------------------------------------------------===//
 // PrettyStackTraceDecl Implementation
 //===----------------------------------------------------------------------===//

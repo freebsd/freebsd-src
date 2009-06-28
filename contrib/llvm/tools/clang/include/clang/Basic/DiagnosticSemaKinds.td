@@ -398,6 +398,15 @@ def err_init_reference_member_uninitialized : Error<
 def note_uninit_reference_member : Note<
   "uninitialized reference member is here">;
 
+// C++0x auto
+def err_auto_variable_cannot_appear_in_own_initializer : Error<
+  "variable %0 declared with 'auto' type cannot appear in its own initializer">;
+def err_illegal_decl_array_of_auto : Error<
+  "'%0' declared as array of 'auto'">;
+def err_auto_not_allowed : Error<
+  "'auto' not allowed in %select{function prototype|struct member|union member"
+  "|class member|exception declaration|template parameter|block literal}0">;
+  
 // Objective-C++
 def err_objc_decls_may_only_appear_in_global_scope : Error<
   "Objective-C declarations may only appear in global scope">;
@@ -584,6 +593,12 @@ def err_defining_default_ctor : Error<
   "%2 does not have any default constructor">;
 def note_previous_class_decl : Note<
   "%0 declared here">;
+def err_uninitialized_member_for_assign : Error<
+  "cannot define the implicit default assignment operator for %0, because "
+  "non-static %select{reference|const}1 member %2 can't use default "
+  "assignment operator">;
+def note_first_required_here : Note<
+  "synthesized method is first required here">;
 def err_unintialized_member : Error<
   "cannot define the implicit default constructor for %0, because "
   "%select{reference|const}1 member %2 cannot be default-initialized">;
@@ -651,6 +666,7 @@ def note_template_export_unsupported : Note<
 def err_template_outside_namespace_or_class_scope : Error<
   "templates can only be declared in namespace or class scope">;
 def err_template_linkage : Error<"templates must have C++ linkage">;
+def err_template_typedef : Error<"a typedef cannot be a template">;
 def err_template_unnamed_class : Error<
   "cannot declare a class template with no name">;
 def err_template_param_list_different_arity : Error<
@@ -697,14 +713,15 @@ def err_template_arg_must_be_expr : Error<
 def err_template_arg_nontype_ambig : Error<
   "template argument for non-type template parameter is treated as type %0">;
 def err_template_arg_must_be_template : Error<
-  "template argument for template template parameter must be a template">;
+  "template argument for template template parameter must be a class template">;
 def err_template_arg_local_type : Error<"template argument uses local type %0">;
 def err_template_arg_unnamed_type : Error<
   "template argument uses unnamed type">;
 def note_template_unnamed_type_here : Note<
   "unnamed type used in template argument was declared here">;
 def err_template_arg_not_class_template : Error<
-  "template argument does not refer to a class template">;
+  "template argument does not refer to a class template or template "
+  "template parameter">;
 def note_template_arg_refers_here_func : Note<
   "template argument refers to function template %0, here">;
 def err_template_arg_template_params_mismatch : Error<
@@ -813,6 +830,9 @@ def note_template_member_class_here : Note<
   "in instantiation of member class %0 requested here">;
 def note_template_member_function_here : Note<
   "in instantiation of member function %q0 requested here">;
+def note_function_template_spec_here : Note<
+  "in instantiation of function template specialization %q0 requested here">;
+  
 def note_default_arg_instantiation_here : Note<
   "in instantiation of default argument for '%0' required here">;
 def note_partial_spec_deduct_instantiation_here : Note<
@@ -1602,6 +1622,14 @@ def err_anonymous_record_nonpublic_member : Error<
   "anonymous %select{struct|union}0 cannot contain a "
   "%select{private|protected}1 data member">;
 
+// C++ local classes
+def err_reference_to_local_var_in_enclosing_function : Error<
+  "reference to local variable %0 declared in enclosed function %1">;
+def note_local_variable_declared_here : Note<
+  "%0 declared here">;
+def err_static_data_member_not_allowed_in_local_class : Error<
+  "static data member %0 not allowed in local class %1">; 
+  
 // C++ derived classes
 def err_base_clause_on_union : Error<"unions cannot have base classes">;
 def err_base_must_be_class : Error<"base specifier must name a class">;
@@ -1840,6 +1868,9 @@ def err_selector_element_type : Error<
   "selector element type %0 is not a valid object">;
 def err_collection_expr_type : Error<
   "collection expression type %0 is not a valid object">;
+
+def err_invalid_conversion_between_ext_vectors : Error<
+  "invalid conversion between ext-vector type %0 and %1">;
 
 // Type
 def ext_invalid_sign_spec : Extension<"'%0' cannot be signed or unsigned">;

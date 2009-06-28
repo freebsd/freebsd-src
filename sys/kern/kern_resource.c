@@ -1213,6 +1213,8 @@ uifind(uid)
 		} else {
 			refcount_init(&uip->ui_ref, 0);
 			uip->ui_uid = uid;
+			mtx_init(&uip->ui_vmsize_mtx, "ui_vmsize", NULL,
+			    MTX_DEF);
 			LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
 		}
 	}
@@ -1269,6 +1271,10 @@ uifree(uip)
 		if (uip->ui_proccnt != 0)
 			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
 			    uip->ui_uid, uip->ui_proccnt);
+		if (uip->ui_vmsize != 0)
+			printf("freeing uidinfo: uid = %d, swapuse = %lld\n",
+			    uip->ui_uid, (unsigned long long)uip->ui_vmsize);
+		mtx_destroy(&uip->ui_vmsize_mtx);
 		free(uip, M_UIDINFO);
 		return;
 	}

@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.92 2008/07/21 14:19:22 lukem Exp $	*/
+/*	$NetBSD: gzip.c,v 1.94 2009/04/12 10:31:14 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
@@ -1360,10 +1360,10 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 #ifndef SMALL
 	if (method == FT_GZIP && Nflag) {
 		unsigned char ts[4];	/* timestamp */
-		int rv;
+		ssize_t rv;
 
 		rv = pread(fd, ts, sizeof ts, GZIP_TIMESTAMP);
-		if (rv >= 0 && (size_t)rv < sizeof ts)
+		if (rv >= 0 && rv < (ssize_t)(sizeof ts))
 			goto unexpected_EOF;
 		if (rv == -1) {
 			if (!fflag)

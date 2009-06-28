@@ -590,7 +590,8 @@ Parser::ParseDeclarationOrFunctionDefinition(AccessSpecifier AS) {
 /// [C++] function-definition: [C++ 8.4]
 ///         decl-specifier-seq[opt] declarator function-try-block
 ///
-Parser::DeclPtrTy Parser::ParseFunctionDefinition(Declarator &D) {
+Parser::DeclPtrTy Parser::ParseFunctionDefinition(Declarator &D,
+                                     const ParsedTemplateInfo &TemplateInfo) {
   const DeclaratorChunk &FnTypeInfo = D.getTypeObject(0);
   assert(FnTypeInfo.Kind == DeclaratorChunk::Function &&
          "This isn't a function declarator!");
@@ -632,7 +633,13 @@ Parser::DeclPtrTy Parser::ParseFunctionDefinition(Declarator &D) {
 
   // Tell the actions module that we have entered a function definition with the
   // specified Declarator for the function.
-  DeclPtrTy Res = Actions.ActOnStartOfFunctionDef(CurScope, D);
+  DeclPtrTy Res = TemplateInfo.TemplateParams? 
+      Actions.ActOnStartOfFunctionTemplateDef(CurScope,
+                              Action::MultiTemplateParamsArg(Actions,
+                                          TemplateInfo.TemplateParams->data(),
+                                         TemplateInfo.TemplateParams->size()),
+                                              D)
+    : Actions.ActOnStartOfFunctionDef(CurScope, D);
 
   if (Tok.is(tok::kw_try))
     return ParseFunctionTryBlock(Res);
@@ -832,7 +839,8 @@ Parser::OwningExprResult Parser::ParseSimpleAsm(SourceLocation *EndLoc) {
 /// specifier, and another one to get the actual type inside
 /// ParseDeclarationSpecifiers).
 ///
-/// This returns true if the token was annotated.
+/// This returns true if the token was annotated or an unrecoverable error
+/// occurs.
 /// 
 /// Note that this routine emits an error if you call it with ::new or ::delete
 /// as the current tokens, so only call it in contexts where these are invalid.
@@ -927,7 +935,12 @@ bool Parser::TryAnnotateTypeOrScopeToken() {
       if (TemplateNameKind TNK 
             = Actions.isTemplateName(*Tok.getIdentifierInfo(),
                                      CurScope, Template, &SS))
-        AnnotateTemplateIdToken(Template, TNK, &SS);
+        if (AnnotateTemplateIdToken(Template, TNK, &SS)) {
+          // If an unrecoverable error occurred, we need to return true here,
+          // because the token stream is in a damaged state.  We may not return
+          // a valid identifier.
+          return Tok.isNot(tok::identifier);
+        }
     }
 
     // The current token, which is either an identifier or a
@@ -950,7 +963,7 @@ bool Parser::TryAnnotateTypeOrScopeToken() {
   }
 
   if (SS.isEmpty())
-    return false;
+    return Tok.isNot(tok::identifier) && Tok.isNot(tok::coloncolon);
   
   // A C++ scope specifier that isn't followed by a typename.
   // Push the current token back into the token stream (or revert it if it is
@@ -971,7 +984,8 @@ bool Parser::TryAnnotateTypeOrScopeToken() {
 
 /// TryAnnotateScopeToken - Like TryAnnotateTypeOrScopeToken but only
 /// annotates C++ scope specifiers and template-ids.  This returns
-/// true if the token was annotated.
+/// true if the token was annotated or there was an error that could not be
+/// recovered from.
 /// 
 /// Note that this routine emits an error if you call it with ::new or ::delete
 /// as the current tokens, so only call it in contexts where these are invalid.

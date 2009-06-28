@@ -22,6 +22,7 @@
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
+#include "llvm/MDNode.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/DwarfWriter.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -483,6 +484,8 @@ printModuleLevelGV(const GlobalVariable* GVar) {
   O << "\n\n";
   std::string name = Mang->getValueName(GVar);
   Constant *C = GVar->getInitializer();
+  if (isa<MDNode>(C) || isa<MDString>(C))
+    return;
   const Type *CTy = C->getType();
   unsigned Size = TD->getTypeAllocSize(CTy);
   const ConstantArray *CVA = dyn_cast<ConstantArray>(C);
@@ -587,8 +590,5 @@ namespace {
   } Registrator;
 }
 
-// Force static initialization when called from
-// llvm/InitializeAllAsmPrinters.h
-namespace llvm {
-  void InitializeMipsAsmPrinter() { }
-}
+// Force static initialization.
+extern "C" void LLVMInitializeMipsAsmPrinter() { }

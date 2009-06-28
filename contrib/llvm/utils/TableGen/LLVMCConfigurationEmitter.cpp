@@ -1132,12 +1132,14 @@ void TokenizeCmdline(const std::string& CmdLine, StrVector& Out) {
   enum TokenizerState
   { Normal, SpecialCommand, InsideSpecialCommand, InsideQuotationMarks }
   cur_st  = Normal;
+
+  if (CmdLine.empty())
+    return;
   Out.push_back("");
 
   std::string::size_type B = CmdLine.find_first_not_of(Delimiters),
     E = CmdLine.size();
-  if (B == std::string::npos)
-    throw "Empty command-line string!";
+
   for (; B != E; ++B) {
     char cur_ch = CmdLine[B];
 
@@ -1278,7 +1280,7 @@ void EmitCmdLineVecFill(const Init* CmdLine, const std::string& ToolName,
   TokenizeCmdline(InitPtrToString(CmdLine), StrVec);
 
   if (StrVec.empty())
-    throw "Tool " + ToolName + " has empty command line!";
+    throw "Tool '" + ToolName + "' has empty command line!";
 
   StrVector::const_iterator I = StrVec.begin(), E = StrVec.end();
 
@@ -1652,11 +1654,11 @@ void EmitToolClassDefinition (const ToolDescription& D,
 
 }
 
-/// EmitOptionDefintions - Iterate over a list of option descriptions
+/// EmitOptionDefinitions - Iterate over a list of option descriptions
 /// and emit registration code.
-void EmitOptionDefintions (const OptionDescriptions& descs,
-                           bool HasSink, bool HasExterns,
-                           std::ostream& O)
+void EmitOptionDefinitions (const OptionDescriptions& descs,
+                            bool HasSink, bool HasExterns,
+                            std::ostream& O)
 {
   std::vector<OptionDescription> Aliases;
 
@@ -1681,7 +1683,7 @@ void EmitOptionDefintions (const OptionDescriptions& descs,
       continue;
     }
 
-    O << "(\"" << val.Name << '\"';
+    O << "(\"" << val.Name << "\"\n";
 
     if (val.Type == OptionType::Prefix || val.Type == OptionType::PrefixList)
       O << ", cl::Prefix";
@@ -1712,7 +1714,7 @@ void EmitOptionDefintions (const OptionDescriptions& descs,
     if (!val.Help.empty())
       O << ", cl::desc(\"" << val.Help << "\")";
 
-    O << ");\n";
+    O << ");\n\n";
   }
 
   // Emit the aliases (they should go after all the 'proper' options).
@@ -1984,6 +1986,7 @@ void EmitRegisterPlugin(int Priority, std::ostream& O) {
 /// additional declarations.
 void EmitIncludes(std::ostream& O) {
   O << "#include \"llvm/CompilerDriver/CompilationGraph.h\"\n"
+    << "#include \"llvm/CompilerDriver/ForceLinkageMacros.h\"\n"
     << "#include \"llvm/CompilerDriver/Plugin.h\"\n"
     << "#include \"llvm/CompilerDriver/Tool.h\"\n\n"
 
@@ -2081,7 +2084,7 @@ void EmitPluginCode(const PluginData& Data, std::ostream& O) {
   EmitIncludes(O);
 
   // Emit global option registration code.
-  EmitOptionDefintions(Data.OptDescs, Data.HasSink, Data.HasExterns, O);
+  EmitOptionDefinitions(Data.OptDescs, Data.HasSink, Data.HasExterns, O);
 
   // Emit hook declarations.
   EmitHookDeclarations(Data.ToolDescs, O);
@@ -2106,7 +2109,13 @@ void EmitPluginCode(const PluginData& Data, std::ostream& O) {
   // Emit code for plugin registration.
   EmitRegisterPlugin(Data.Priority, O);
 
-  O << "} // End anonymous namespace.\n";
+  O << "} // End anonymous namespace.\n\n";
+
+  // Force linkage magic.
+  O << "namespace llvmc {\n";
+  O << "LLVMC_FORCE_LINKAGE_DECL(LLVMC_PLUGIN_NAME) {}\n";
+  O << "}\n";
+
   // EOF
 }
 

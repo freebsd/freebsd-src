@@ -37,9 +37,9 @@
 .In sys/types.h
 .In libutil.h
 .Ft struct kinfo_vmentry *
-.Fn kinfo_getfile "pid_t pid" "int *cntp"
+.Fn kinfo_getvmmap "pid_t pid" "int *cntp"
 .Sh DESCRIPTION
-This function is used for obtaining the file descriptor information
+This function is used for obtaining virtual memory mapping information
 of a particular process.
 .Pp
 The

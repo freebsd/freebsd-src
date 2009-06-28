@@ -222,14 +222,17 @@ cpuctl_do_msr(int cpu, cpuctl_msr_args_t *data, u_long cmd, struct thread *td)
 	 * Explicitly clear cpuid data to avoid returning stale
 	 * info
 	 */
-	data->data = 0;
 	DPRINTF("[cpuctl,%d]: operating on MSR %#0x for %d cpu\n", __LINE__,
 	    data->msr, cpu);
 	oldcpu = td->td_oncpu;
 	is_bound = cpu_sched_is_bound(td);
 	set_cpu(cpu, td);
-	ret = cmd == CPUCTL_RDMSR ? rdmsr_safe(data->msr, &data->data) :
-	    wrmsr_safe(data->msr, data->data);
+	if (cmd == CPUCTL_RDMSR) {
+		data->data = 0;
+		ret = rdmsr_safe(data->msr, &data->data);
+	} else {
+		ret = wrmsr_safe(data->msr, data->data);
+	}
 	restore_cpu(oldcpu, is_bound, td);
 	return (ret);
 }
@@ -368,7 +371,7 @@ update_amd(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	/*
 	 * Perform update.
 	 */
-	wrmsr_safe(MSR_K8_UCODE_UPDATE, (uintptr_t)args->data);
+	wrmsr_safe(MSR_K8_UCODE_UPDATE, (uintptr_t)ptr);
 
 	/*
 	 * Serialize instruction flow.

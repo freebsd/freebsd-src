@@ -112,6 +112,8 @@ QualType Type::getDesugaredType(bool ForDisplay) const {
     return TOE->getUnderlyingExpr()->getType().getDesugaredType();
   if (const TypeOfType *TOT = dyn_cast<TypeOfType>(this))
     return TOT->getUnderlyingType().getDesugaredType();
+  if (const DecltypeType *DTT = dyn_cast<DecltypeType>(this))
+    return DTT->getUnderlyingExpr()->getType().getDesugaredType();
   if (const TemplateSpecializationType *Spec 
         = dyn_cast<TemplateSpecializationType>(this)) {
     if (ForDisplay)
@@ -962,6 +964,7 @@ const char *BuiltinType::getName(bool CPlusPlus) const {
   case NullPtr:           return "nullptr_t";
   case Overload:          return "<overloaded function type>";
   case Dependent:         return "<dependent type>";
+  case UndeducedAuto:     return "<undeduced auto type>";
   }
 }
 
@@ -1049,6 +1052,13 @@ QualType TypedefType::LookThroughTypedefs() const {
 
 TypeOfExprType::TypeOfExprType(Expr *E, QualType can)
   : Type(TypeOfExpr, can, E->isTypeDependent()), TOExpr(E) {
+  assert(!isa<TypedefType>(can) && "Invalid canonical type");
+}
+
+DecltypeType::DecltypeType(Expr *E, QualType can)
+  : Type(Decltype, can, E->isTypeDependent()), E(E) {
+  assert(can->isDependentType() == E->isTypeDependent() &&
+         "type dependency mismatch!");
   assert(!isa<TypedefType>(can) && "Invalid canonical type");
 }
 
@@ -1419,6 +1429,16 @@ void TypeOfType::getAsStringInternal(std::string &InnerString, const PrintingPol
   std::string Tmp;
   getUnderlyingType().getAsStringInternal(Tmp, Policy);
   InnerString = "typeof(" + Tmp + ")" + InnerString;
+}
+
+void DecltypeType::getAsStringInternal(std::string &InnerString, 
+                                       const PrintingPolicy &Policy) const {
+  if (!InnerString.empty())    // Prefix the basic type, e.g. 'decltype(t) X'.
+    InnerString = ' ' + InnerString;
+  std::string Str;
+  llvm::raw_string_ostream s(Str);
+  getUnderlyingExpr()->printPretty(s, 0, Policy);
+  InnerString = "decltype(" + s.str() + ")" + InnerString;
 }
 
 void FunctionNoProtoType::getAsStringInternal(std::string &S, const PrintingPolicy &Policy) const {

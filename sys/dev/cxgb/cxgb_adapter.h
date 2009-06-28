@@ -467,7 +467,7 @@ t3_get_next_mcaddr(struct t3_rx_mode *rm)
 	struct ifmultiaddr *ifma;
 	int i = 0;
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -477,8 +477,7 @@ t3_get_next_mcaddr(struct t3_rx_mode *rm)
 		}
 		i++;
 	}
-	IF_ADDR_UNLOCK(ifp);
-
+	if_maddr_runlock(ifp);
 	
 	rm->idx++;
 	return (macaddr);
