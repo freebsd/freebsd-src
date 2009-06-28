@@ -1212,7 +1212,7 @@ ng_ksocket_finish_accept(priv_p priv)
 	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
 
-	/* XXX KNOTE(&head->so_rcv.sb_sel.si_note, 0); */
+	/* XXX KNOTE_UNLOCKED(&head->so_rcv.sb_sel.si_note, 0); */
 
 	soaccept(so, &sa);
 
