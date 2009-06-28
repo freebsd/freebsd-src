@@ -657,7 +657,7 @@ vfs_statfs_t	__vfs_statfs;
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
 	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
-		VN_KNOTE((vp), (hint), 1);				\
+		VN_KNOTE((vp), (hint), KNF_LISTLOCKED);			\
 } while (0)
 
 #define VFS_KNOTE_UNLOCKED(vp, hint) do					\
