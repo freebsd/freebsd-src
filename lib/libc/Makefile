@@ -26,7 +26,7 @@ PRECIOUSLIB=
 #
 DPADD+=	${LIBGCC}
 LDFLAGS+= -nodefaultlibs
-LDADD+= -lgcc
+LDADD+= -lgcc -lssp_nonshared
 
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:

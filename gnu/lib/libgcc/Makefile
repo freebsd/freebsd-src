@@ -6,6 +6,12 @@ LIB=		gcc
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
 
+#
+# libgcc is linked in last and thus cannot depend on ssp symbols coming
+# from earlier libraries. Disable stack protection for this library.
+#
+WITHOUT_SSP=	yes
+
 .include <bsd.own.mk>
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
@@ -18,7 +24,7 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-I${.CURDIR}/../../usr.bin/cc/cc_tools
 
 LDFLAGS+=	-nodefaultlibs
-LDADD+=		-lc
+LDADD+=		-lc -lssp_nonshared
 
 OBJS=		# added to below in various ways depending on TARGET_ARCH
 
