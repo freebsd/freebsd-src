@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090628:
+	The documentation from the FreeBSD Documentation Project
+	(Handbook, FAQ, etc.) is now installed via packages by
+	sysinstall(8) and under the /usr/local/share/doc/freebsd
+	directory instead of /usr/share/doc.
+
 20090624:
 	The ABI of various structures related to the SYSV IPC API have
 	been changed.  As a result, the COMPAT_FREEBSD[456] kernel
