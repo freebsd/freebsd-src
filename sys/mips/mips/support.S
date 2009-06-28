@@ -474,12 +474,31 @@ XLEAF(suword32)
 END(suword)
 
 /*
+ * XXXMIPS: ATM it's the same as casuword32, but MIPS64 will require
+ * own implementation
  * casuword(9)
  * <v0>u_long casuword(<a0>u_long *p, <a1>u_long oldval, <a2>u_long newval)
  */
 ENTRY(casuword)
-	break
+	blt	a0, zero, fswberr	# make sure address is in user space
+	li	v0, FSWBERR
+	GET_CPU_PCPU(v1)
+	lw	v1, PC_CURPCB(v1)
+	sw	v0, U_PCB_ONFAULT(v1)
+1:
+	move	t0, a2
+	ll	v0, 0(a0)
+	bne	a1, v0, 2f
+	nop
+	sc	t0, 0(a0)		# store word
+	beqz	t0, 1b
+	nop
+	j	3f
+	nop
+2:
 	li	v0, -1
+3:
+	sw	zero, U_PCB_ONFAULT(v1)
 	jr	ra
 	nop
 END(casuword)
@@ -490,8 +509,25 @@ END(casuword)
  *							<a2>uint32_t newval)
  */
 ENTRY(casuword32)
-	break
+	blt	a0, zero, fswberr	# make sure address is in user space
+	li	v0, FSWBERR
+	GET_CPU_PCPU(v1)
+	lw	v1, PC_CURPCB(v1)
+	sw	v0, U_PCB_ONFAULT(v1)
+1:
+	move	t0, a2
+	ll	v0, 0(a0)
+	bne	a1, v0, 2f
+	nop
+	sc	t0, 0(a0)		# store word
+	beqz	t0, 1b
+	nop
+	j	3f
+	nop
+2:
 	li	v0, -1
+3:
+	sw	zero, U_PCB_ONFAULT(v1)
 	jr	ra
 	nop
 END(casuword32)
