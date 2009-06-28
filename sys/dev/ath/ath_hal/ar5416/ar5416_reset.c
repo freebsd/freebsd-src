@@ -124,7 +124,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	if (!ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip did not wakeup\n",
 		    __func__);
-		// FAIL(HAL_EIO);
+		FAIL(HAL_EIO);
 	}
 
 	/*
