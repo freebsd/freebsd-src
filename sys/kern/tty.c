@@ -1341,6 +1341,10 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 	case FIONREAD:
 		*(int *)data = ttyinq_bytescanonicalized(&tp->t_inq);
 		return (0);
+	case FIONWRITE:
+	case TIOCOUTQ:
+		*(int *)data = ttyoutq_bytesused(&tp->t_outq);
+		return (0);
 	case FIOSETOWN:
 		if (tp->t_session != NULL && !tty_is_ctty(tp, td->td_proc))
 			/* Not allowed to set ownership. */
@@ -1602,9 +1606,6 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		return (0);
 	case TIOCNXCL:
 		tp->t_flags &= ~TF_EXCLUDE;
-		return (0);
-	case TIOCOUTQ:
-		*(unsigned int *)data = ttyoutq_bytesused(&tp->t_outq);
 		return (0);
 	case TIOCSTOP:
 		tp->t_flags |= TF_STOPPED;
