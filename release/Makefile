@@ -39,6 +39,10 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 # checking out from a local CVS repository, set this option.
 #EXTPORTSDIR=/usr/ports
 #
+# To use a checked-out doc/ directory instead of
+# checking out from a local CVS repository, set this option.
+#EXTDOCDIR=/usr/doc
+#
 # To add other options to the CVS subcommands (co,up), set
 #CVSCMDARGS="-D '01/01/2002 00:00:00 UTC'"
 #
@@ -91,15 +95,13 @@ RELEASEPORTSMODULE?=	ports
 # the ports tree, so NOPORTS can be set together with NODOC in order
 # to have neither ports or docs.  If only NOPORTS is set to YES, but
 # docs are still desired, the DOMINIMALDOCPORTS logic below will only
-# install the ports that are minimally required for the docs.  This is
+# install the ports that are minimally required for the release note documentation.  This is
 # intended as a compromise, less disk space is required than for using
 # the entire ports collection (and much less time due to the huge number
 # of directories it would create), but still quite a bit as well as some
 # CPU cycles (some of the programs are C++, and things like ghostscript
 # belong to the required ports nevertheless).
 #
-# Setting this also disables building of release note documentation
-# (RELNOTESng).
 #NODOC=  YES
 #NOPORTS=  YES
 
@@ -141,11 +143,6 @@ NOPORTSATALL=	YES
 #
 # Doing 'make index' in /usr/ports requires Perl.
 MAKEINDEXPORTS=	lang/perl5.8
-# By default, documentation (Handbook, FAQ, etc.) is built for all
-# the languages.  To speed up building, set the DOC_LANG to just
-# the languages you need.  (The language for the release notes is
-# controlled by the RELNOTES_LANG variable above.)
-#DOC_LANG=	en_US.ISO8859-1
 DOCPORTS=	textproc/docproj
 # Set this to wherever the distfiles required by release procedures.
 .if defined(DOCDISTFILES)
@@ -348,7 +345,7 @@ release rerelease:
 	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
 .endif
 .if defined(NOPORTSATALL) && !defined(NODOC)
-	@echo "Ports are required for building the docs.  Either set NODOC or"
+	@echo "Ports are required for building the release docs.  Either set NODOC or"
 	@echo "unset NOPORTS, or set at least DOMINIMALDOCPORTS to YES!"
 	@exit 1
 .endif
@@ -477,7 +474,6 @@ release rerelease:
 	BUILDNAME \
 	CD_PACKAGE_TREE \
 	DISTRIBUTIONS \
-	DOC_LANG \
 	DOMINIMALDOCPORTS \
 	EXTRA_SRC \
 	FTP_PASSIVE_MODE \
@@ -1037,21 +1033,7 @@ cdrom.2:
 	@echo "Building CDROM docs filesystem image"
 	@mkdir -p ${CD_DOCS}
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DOCS}/cdrom.inf
-	@mkdir -p ${CD_DOCS}/usr/share/doc
-.if defined(MAKE_DVD)
-	@mkdir -p ${CD_DVD1}/usr/share/doc
-.endif
-	@for i in `ls ${CD_LIVEFS}/usr/share/doc`; do \
-		if [ -L ${CD_LIVEFS}/usr/share/doc/$$i -o \
-		    -d /usr/doc/$$i ]; then \
-			mv ${CD_LIVEFS}/usr/share/doc/$$i \
-			    ${CD_DOCS}/usr/share/doc; \
-		fi \
-	done
-.if defined(MAKE_DVD)
-	@cd ${CD_DOCS}/usr/share/doc && find . -print | \
-	    cpio -dumpl ${CD_DVD1}/usr/share/doc
-.endif
+	@echo "CD_VOLUME = 3" >> ${CD_DOCS}/cdrom.inf
 .endif
 	touch ${.TARGET}
 
@@ -1081,6 +1063,11 @@ CD_DISC1_PKGS=	${CD_PACKAGE_TREE}/disc1
 .endif
 .if exists(${CD_PACKAGE_TREE}/disc2)
 CD_DISC2_PKGS=	${CD_PACKAGE_TREE}/disc2
+.endif
+# scripts/package-trees.sh names all discs according to the "discX"
+# scheme where X is the number of the disc
+.if exists(${CD_PACKAGE_TREE}/disc3)
+CD_DOCS_PKGS=	${CD_PACKAGE_TREE}/disc3
 .endif
 .if exists(${CD_PACKAGE_TREE}/dvd1)
 CD_DVD1_PKGS=	${CD_PACKAGE_TREE}/dvd1
@@ -1113,7 +1100,8 @@ iso.1:
 .if !defined(NODOC)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
 	    FreeBSD_Documentation \
-	    ${CD}/${BUILDNAME}-${TARGET}-docs.iso ${CD_DOCS}
+	    ${CD}/${BUILDNAME}-${TARGET}-disc3.iso ${CD_DOCS} \
+	    ${CD_DOCS_PKGS}
 .endif
 .if defined(SEPARATE_LIVEFS)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
@@ -1139,9 +1127,6 @@ doc.1:
 		make all install clean BATCH=yes WITHOUT_X11=yes JADETEX=no \
 		WITHOUT_PYTHON=yes FORCE_PKG_REGISTER=yes; \
 	done
-	@cd /usr/doc && make all install 'FORMATS=html html-split txt' \
-	    INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/base/usr/share/doc \
-	    URLS_ABSOLUTE=YES	
 	touch ${.TARGET}
 
 #
