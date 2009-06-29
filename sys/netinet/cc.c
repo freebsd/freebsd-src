@@ -102,7 +102,7 @@ cc_default_algo(SYSCTL_HANDLER_ARGS)
 		CC_LIST_RUNLOCK();
 		error = sysctl_handle_string(oidp, default_cc, 1, req);
 	} else {
-		/* Find algo with specified name and set it to default */
+		/* Find algo with specified name and set it to default. */
 		CC_LIST_WLOCK();
 		STAILQ_FOREACH(funcs, &cc_list, entries) {
 			if (strncmp((char *)req->newptr, funcs->name, TCP_CA_NAME_MAX) == 0) {

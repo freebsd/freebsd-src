@@ -1381,9 +1381,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 			INP_WLOCK_RECHECK(inp);
 			/*
-			 * We return EINVAL if we can't find the requested cc
-			 * algo. We set error here and reset to 0 if found to
-			 * simplify the error checking,
+			 * Return EINVAL if we can't find the requested cc algo.
 			 */
 			error = EINVAL;
 			CC_LIST_RLOCK();
@@ -1391,34 +1389,31 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 				if (	strncmp(buf,
 					algo->name,
 					TCP_CA_NAME_MAX) == 0) {
-					/*
-					 * we've found the requested algo,
-					 * so revert the EINVAL error condition.
-					 */
+					/* We've found the requested algo. */
 					error = 0;
 					/*
-					 * we hold a write lock over the tcb
+					 * We hold a write lock over the tcb
 					 * so it's safe to do these things
-					 * without ordering concerns
+					 * without ordering concerns.
 					 */
 					if (CC_ALGO(tp)->conn_destroy != NULL)
 						CC_ALGO(tp)->conn_destroy(tp);
 					CC_ALGO(tp) = algo;
 					/*
-					 * if something goes pear shaped
+					 * If something goes pear shaped
 					 * initialising the new algo,
 					 * fall back to newreno (which
-					 * does not require initialisation)
+					 * does not require initialisation).
 					 */
 					if (algo->conn_init(tp) > 0) {
 						CC_ALGO(tp) = &newreno_cc_algo;
 						/*
-						 * the only reason init() should
-						 * fail is because of malloc
+						 * The only reason init should
+						 * fail is because of malloc.
 						 */
 						error = ENOMEM;
 					}
-					break; /* break the STAILQ_FOREACH */
+					break; /* Break the STAILQ_FOREACH. */
 				}
 			}
 			CC_LIST_RUNLOCK();
