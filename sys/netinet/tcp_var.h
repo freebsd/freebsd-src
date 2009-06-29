@@ -232,6 +232,8 @@ struct tcpcb {
 #define ENTER_FASTRECOVERY(tp)	tp->t_flags |= TF_FASTRECOVERY
 #define EXIT_FASTRECOVERY(tp)	tp->t_flags &= ~TF_FASTRECOVERY
 
+#define BYTES_ACKED(tp, th)	(th->th_ack - tp->snd_una)
+
 /*
  * Flags for the t_oobflags field.
  */

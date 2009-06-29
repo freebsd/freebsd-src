@@ -1323,7 +1323,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 							ticks - tp->t_rtttime);
 				}
 				tcp_xmit_bandwidth_limit(tp, th->th_ack);
-				acked = th->th_ack - tp->snd_una;
+				acked = BYTES_ACKED(tp, th);
 				TCPSTAT_INC(tcps_rcvackpack);
 				TCPSTAT_ADD(tcps_rcvackbyte, acked);
 				sbdrop(&so->so_snd, acked);
@@ -2220,7 +2220,7 @@ process_ACK:
 		    ("tcp_input: process_ACK ti_locked %d", ti_locked));
 		INP_WLOCK_ASSERT(tp->t_inpcb);
 
-		acked = th->th_ack - tp->snd_una;
+		acked = BYTES_ACKED(tp, th);
 		TCPSTAT_INC(tcps_rcvackpack);
 		TCPSTAT_ADD(tcps_rcvackbyte, acked);
 
@@ -3341,7 +3341,7 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 	 * Set snd_cwnd to one segment beyond acknowledged offset.
 	 * (tp->snd_una has not yet been updated when this function is called.)
 	 */
-	tp->snd_cwnd = tp->t_maxseg + (th->th_ack - tp->snd_una);
+	tp->snd_cwnd = tp->t_maxseg + BYTES_ACKED(tp, th);
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
 	tp->snd_cwnd = ocwnd;
@@ -3351,8 +3351,8 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 	 * Partial window deflation.  Relies on fact that tp->snd_una
 	 * not updated yet.
 	 */
-	if (tp->snd_cwnd > th->th_ack - tp->snd_una)
-		tp->snd_cwnd -= th->th_ack - tp->snd_una;
+	if (tp->snd_cwnd > BYTES_ACKED(tp, th))
+		tp->snd_cwnd -= BYTES_ACKED(tp, th);
 	else
 		tp->snd_cwnd = 0;
 	tp->snd_cwnd += tp->t_maxseg;
