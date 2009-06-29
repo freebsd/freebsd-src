@@ -100,6 +100,10 @@ struct vnet_net vnet_net_0;
 #endif
 #endif
 
+struct ifindex_entry {
+	struct  ifnet *ife_ifnet;
+};
+
 static int slowtimo_started;
 
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
@@ -163,21 +167,14 @@ struct	ifnethead ifnet;	/* depend on static init XXX */
 struct	ifgrouphead ifg_head;
 int	if_index;
 static	int if_indexlim;
-/* Table of ifnet/cdev by index.  Locked with ifnet_lock. */
+/* Table of ifnet by index.  Locked with ifnet_lock. */
 static struct ifindex_entry *ifindex_table;
-static struct	knlist ifklist;
 #endif
 
 int	ifqmaxlen = IFQ_MAXLEN;
 struct rwlock ifnet_lock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
-
-static void	filt_netdetach(struct knote *kn);
-static int	filt_netdev(struct knote *kn, long hint);
-
-static struct filterops netdev_filtops =
-    { 1, NULL, filt_netdetach, filt_netdev };
 
 #ifndef VIMAGE_GLOBALS
 static struct vnet_symmap vnet_net_symmap[] = {
@@ -267,150 +264,6 @@ ifaddr_byindex(u_short idx)
 	return (ifa);
 }
 
-struct cdev *
-ifdev_byindex(u_short idx)
-{
-	INIT_VNET_NET(curvnet);
-	struct cdev *cdev;
-
-	IFNET_RLOCK();
-	cdev = V_ifindex_table[idx].ife_dev;
-	IFNET_RUNLOCK();
-	return (cdev);
-}
-
-static void
-ifdev_setbyindex(u_short idx, struct cdev *cdev)
-{
-	INIT_VNET_NET(curvnet);
-
-	IFNET_WLOCK();
-	V_ifindex_table[idx].ife_dev = cdev;
-	IFNET_WUNLOCK();
-}
-
-static d_open_t		netopen;
-static d_close_t	netclose;
-static d_ioctl_t	netioctl;
-static d_kqfilter_t	netkqfilter;
-
-static struct cdevsw net_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	netopen,
-	.d_close =	netclose,
-	.d_ioctl =	netioctl,
-	.d_name =	"net",
-	.d_kqfilter =	netkqfilter,
-};
-
-static int
-netopen(struct cdev *dev, int flag, int mode, struct thread *td)
-{
-	return (0);
-}
-
-static int
-netclose(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	return (0);
-}
-
-static int
-netioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-{
-	struct ifnet *ifp;
-	int error, idx;
-
-	/* only support interface specific ioctls */
-	if (IOCGROUP(cmd) != 'i')
-		return (EOPNOTSUPP);
-	idx = dev2unit(dev);
-	if (idx == 0) {
-		/*
-		 * special network device, not interface.
-		 */
-		if (cmd == SIOCGIFCONF)
-			return (ifconf(cmd, data));	/* XXX remove cmd */
-#ifdef __amd64__
-		if (cmd == SIOCGIFCONF32)
-			return (ifconf(cmd, data));	/* XXX remove cmd */
-#endif
-		return (EOPNOTSUPP);
-	}
-
-	ifp = ifnet_byindex(idx);
-	if (ifp == NULL)
-		return (ENXIO);
-
-	error = ifhwioctl(cmd, ifp, data, td);
-	if (error == ENOIOCTL)
-		error = EOPNOTSUPP;
-	return (error);
-}
-
-static int
-netkqfilter(struct cdev *dev, struct knote *kn)
-{
-	INIT_VNET_NET(curvnet);
-	struct knlist *klist;
-	struct ifnet *ifp;
-	int idx;
-
-	switch (kn->kn_filter) {
-	case EVFILT_NETDEV:
-		kn->kn_fop = &netdev_filtops;
-		break;
-	default:
-		return (EINVAL);
-	}
-
-	idx = dev2unit(dev);
-	if (idx == 0) {
-		klist = &V_ifklist;
-	} else {
-		ifp = ifnet_byindex(idx);
-		if (ifp == NULL)
-			return (1);
-		klist = &ifp->if_klist;
-	}
-
-	kn->kn_hook = (caddr_t)klist;
-
-	knlist_add(klist, kn, 0);
-
-	return (0);
-}
-
-static void
-filt_netdetach(struct knote *kn)
-{
-	struct knlist *klist = (struct knlist *)kn->kn_hook;
-
-	knlist_remove(klist, kn, 0);
-}
-
-static int
-filt_netdev(struct knote *kn, long hint)
-{
-	struct knlist *klist = (struct knlist *)kn->kn_hook;
-
-	/*
-	 * Currently NOTE_EXIT is abused to indicate device detach.
-	 */
-	if (hint == NOTE_EXIT) {
-		kn->kn_data = NOTE_LINKINV;
-		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
-		knlist_remove_inevent(klist, kn);
-		return (1);
-	}
-	if (hint != 0)
-		kn->kn_data = hint;			/* current status */
-	if (kn->kn_sfflags & hint)
-		kn->kn_fflags |= hint;
-	return (kn->kn_fflags != 0);
-}
-
 /*
  * Network interface utility routines.
  *
@@ -430,8 +283,6 @@ if_init(void *dummy __unused)
 #endif
 
 	IFNET_LOCK_INIT();
-	ifdev_setbyindex(0, make_dev(&net_cdevsw, 0, UID_ROOT, GID_WHEEL,
-	    0600, "network"));
 	if_clone_init();
 }
 
@@ -446,7 +297,6 @@ vnet_net_iattach(const void *unused __unused)
 
 	TAILQ_INIT(&V_ifnet);
 	TAILQ_INIT(&V_ifg_head);
-	knlist_init_mtx(&V_ifklist, NULL);
 	if_grow();				/* create initial table */
 
 	return (0);
@@ -460,7 +310,6 @@ vnet_net_idetach(const void *unused __unused)
 
 	VNET_ASSERT(TAILQ_EMPTY(&V_ifnet));
 	VNET_ASSERT(TAILQ_EMPTY(&V_ifg_head));
-	VNET_ASSERT(SLIST_EMPTY(&V_ifklist.kl_list));
 
 	free((caddr_t)V_ifindex_table, M_IFNET);
 
@@ -549,7 +398,6 @@ if_alloc(u_char type)
 	TAILQ_INIT(&ifp->if_prefixhead);
 	TAILQ_INIT(&ifp->if_multiaddrs);
 	TAILQ_INIT(&ifp->if_groups);
-	knlist_init_mtx(&ifp->if_klist, NULL);
 #ifdef MAC
 	mac_ifnet_init(ifp);
 #endif
@@ -591,9 +439,6 @@ if_free_internal(struct ifnet *ifp)
 #ifdef MAC
 	mac_ifnet_destroy(ifp);
 #endif /* MAC */
-	KNOTE_UNLOCKED(&ifp->if_klist, NOTE_EXIT);
-	knlist_clear(&ifp->if_klist, 0);
-	knlist_destroy(&ifp->if_klist);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
 	ifq_delete(&ifp->if_snd);
@@ -733,14 +578,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 #ifdef MAC
 		mac_ifnet_create(ifp);
 #endif
-
-		if (IS_DEFAULT_VNET(curvnet)) {
-			ifdev_setbyindex(ifp->if_index, make_dev(&net_cdevsw,
-			    ifp->if_index, UID_ROOT, GID_WHEEL, 0600, "%s/%s",
-			    net_cdevsw.d_name, ifp->if_xname));
-			make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
-			    net_cdevsw.d_name, ifp->if_index);
-		}
 
 		/*
 		 * Create a Link Level name for this device.
@@ -1003,9 +840,6 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		 * Clean up all addresses.
 		 */
 		ifp->if_addr = NULL;
-		if (IS_DEFAULT_VNET(curvnet))
-			destroy_dev(ifdev_byindex(ifp->if_index));
-		ifdev_setbyindex(ifp->if_index, NULL);	
 
 		/* We can now free link ifaddr. */
 		if (!TAILQ_EMPTY(&ifp->if_addrhead)) {
@@ -1905,7 +1739,6 @@ do_link_state_change(void *arg, int pending)
 		link = NOTE_LINKDOWN;
 	else
 		link = NOTE_LINKINV;
-	KNOTE_UNLOCKED(&ifp->if_klist, link);
 	if (ifp->if_vlantrunk != NULL)
 		(*vlan_link_state_p)(ifp, link);
 
