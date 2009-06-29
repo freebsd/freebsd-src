@@ -135,7 +135,6 @@ struct ifnet {
 		 * However, access to the AF_LINK address through this
 		 * field is deprecated. Use if_addr or ifaddr_byindex() instead.
 		 */
-	struct	knlist if_klist;	/* events attached to this if */
 	int	if_pcount;		/* number of promiscuous listeners */
 	struct	carp_if *if_carp;	/* carp interface structure */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
@@ -764,11 +763,6 @@ extern	struct rwlock ifnet_lock;
 #define	IFNET_RLOCK()		rw_rlock(&ifnet_lock)
 #define	IFNET_RUNLOCK()		rw_runlock(&ifnet_lock)	
 
-struct ifindex_entry {
-	struct	ifnet *ife_ifnet;
-	struct cdev *ife_dev;
-};
-
 /*
  * Look up an ifnet given its index; the _ref variant also acquires a
  * reference that must be freed using if_rele().  It is almost always a bug
@@ -784,7 +778,6 @@ struct ifnet	*ifnet_byindex_ref(u_short idx);
  * it to traverse the list of addresses associated to the interface.
  */
 struct ifaddr	*ifaddr_byindex(u_short idx);
-struct cdev	*ifdev_byindex(u_short idx);
 
 #ifdef VIMAGE_GLOBALS
 extern	struct ifnethead ifnet;
