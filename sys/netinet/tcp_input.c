@@ -214,24 +214,6 @@ static void	 tcp_pulloutofband(struct socket *,
 		     struct tcphdr *, struct mbuf *, int);
 static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
-static void inline
-		 tcp_congestion_exp(struct tcpcb *);
-
-static void inline
-tcp_congestion_exp(struct tcpcb *tp)
-{
-	u_int win;
-	
-	win = min(tp->snd_wnd, tp->snd_cwnd) /
-	    2 / tp->t_maxseg;
-	if (win < 2)
-		win = 2;
-	tp->snd_ssthresh = win * tp->t_maxseg;
-	ENTER_FASTRECOVERY(tp);
-	tp->snd_recover = tp->snd_max;
-	if (tp->t_flags & TF_ECN_PERMIT)
-		tp->t_flags |= TF_ECN_SND_CWR;
-}
 
 /* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
 #ifdef INET6
@@ -1178,7 +1160,17 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((thflags & TH_ECE) &&
 		    SEQ_LEQ(th->th_ack, tp->snd_recover)) {
 			TCPSTAT_INC(tcps_ecn_rcwnd);
-			tcp_congestion_exp(tp);
+			/*
+			 * If the current CC algo has
+			 * defined a hook for tasks to run
+			 * before entering FR, call it.
+			 */
+			if (CC_ALGO(tp)->pre_fr != NULL)
+				CC_ALGO(tp)->pre_fr(tp, th);
+			ENTER_FASTRECOVERY(tp);
+			tp->snd_recover = tp->snd_max;
+			if (tp->t_flags & TF_ECN_PERMIT)
+				tp->t_flags |= TF_ECN_SND_CWR;
 		}
 	}
 
@@ -2114,16 +2106,16 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					}
 
 					/*
-					 * If the current tcp cc module has
+					 * If the current CC algo has
 					 * defined a hook for tasks to run
-					 * before entering FR, call it
+					 * before entering FR, call it.
 					 */
 					if (CC_ALGO(tp)->pre_fr != NULL)
 						CC_ALGO(tp)->pre_fr(tp, th);
-
 					ENTER_FASTRECOVERY(tp);
 					tp->snd_recover = tp->snd_max;
-					tcp_congestion_exp(tp);
+					if (tp->t_flags & TF_ECN_PERMIT)
+						tp->t_flags |= TF_ECN_SND_CWR;
 					tcp_timer_activate(tp, TT_REXMT, 0);
 					tp->t_rtttime = 0;
 					if (tp->t_flags & TF_SACK_PERMIT) {
