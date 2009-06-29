@@ -876,6 +876,7 @@ mwl_radar_proc(void *arg, int pending)
 	    __func__, pending);
 
 	sc->sc_stats.mst_radardetect++;
+	/* XXX stop h/w BA streams? */
 
 	IEEE80211_LOCK(ic);
 	ieee80211_dfs_notify_radar(ic, ic->ic_curchan);
@@ -991,13 +992,13 @@ mwl_setupdma(struct mwl_softc *sc)
 	WR4(sc, sc->sc_hwspecs.rxDescRead, sc->sc_hwdma.rxDescRead);
 	WR4(sc, sc->sc_hwspecs.rxDescWrite, sc->sc_hwdma.rxDescRead);
 
-	for (i = 0; i < MWL_NUM_TX_QUEUES; i++) {
+	for (i = 0; i < MWL_NUM_TX_QUEUES-MWL_NUM_ACK_QUEUES; i++) {
 		struct mwl_txq *txq = &sc->sc_txq[i];
 		sc->sc_hwdma.wcbBase[i] = txq->dma.dd_desc_paddr;
 		WR4(sc, sc->sc_hwspecs.wcbBase[i], sc->sc_hwdma.wcbBase[i]);
 	}
 	sc->sc_hwdma.maxNumTxWcb = mwl_txbuf;
-	sc->sc_hwdma.maxNumWCB = MWL_NUM_TX_QUEUES;
+	sc->sc_hwdma.maxNumWCB = MWL_NUM_TX_QUEUES-MWL_NUM_ACK_QUEUES;
 
 	error = mwl_hal_sethwdma(sc->sc_mh, &sc->sc_hwdma);
 	if (error != 0) {
@@ -1057,7 +1058,9 @@ mwl_setrates(struct ieee80211vap *vap)
 	/* while here calculate EAPOL fixed rate cookie */
 	mvp->mv_eapolformat = htole16(mwl_calcformat(rates.MgtRate, ni));
 
-	return mwl_hal_settxrate(mvp->mv_hvap, RATE_AUTO, &rates);
+	return mwl_hal_settxrate(mvp->mv_hvap,
+	    tp->ucastrate != IEEE80211_FIXED_RATE_NONE ?
+		RATE_FIXED : RATE_AUTO, &rates);
 }
 
 /*
@@ -1136,11 +1139,15 @@ mwl_hal_reset(struct mwl_softc *sc)
 	mwl_hal_setradio(mh, 1, WL_AUTO_PREAMBLE);
 	mwl_hal_setwmm(sc->sc_mh, (ic->ic_flags & IEEE80211_F_WME) != 0);
 	mwl_chan_set(sc, ic->ic_curchan);
-	mwl_hal_setrateadaptmode(mh, ic->ic_regdomain.location == 'O');
+	/* NB: RF/RA performance tuned for indoor mode */
+	mwl_hal_setrateadaptmode(mh, 0);
 	mwl_hal_setoptimizationlevel(mh,
 	    (ic->ic_flags & IEEE80211_F_BURST) != 0);
 
 	mwl_hal_setregioncode(mh, mwl_map2regioncode(&ic->ic_regdomain));
+
+	mwl_hal_setaggampduratemode(mh, 1, 80);		/* XXX */
+	mwl_hal_setcfend(mh, 0);			/* XXX */
 
 	return 1;
 }
@@ -1196,6 +1203,7 @@ mwl_init_locked(struct mwl_softc *sc)
 		     | MACREG_A2HRIC_BIT_QUEUE_EMPTY
 #endif
 		     | MACREG_A2HRIC_BIT_BA_WATCHDOG
+		     | MACREQ_A2HRIC_BIT_TX_ACK
 		     ;
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -1297,6 +1305,7 @@ mwl_reset(struct ieee80211vap *vap, u_long cmd)
 		struct mwl_softc *sc = ifp->if_softc;
 		struct mwl_hal *mh = sc->sc_mh;
 
+		/* XXX handle DWDS sta vap change */
 		/* XXX do we need to disable interrupts? */
 		mwl_hal_intrset(mh, 0);		/* disable interrupts */
 		error = mwl_reset_vap(vap, vap->iv_state);
@@ -2884,11 +2893,7 @@ mwl_rx_proc(void *arg, int npending)
 			mn->mn_ai.rsvd1 = rssi;
 #endif
 			/* tag AMPDU aggregates for reorder processing */
-#if 0
-			if ((ds->Rate & 0x80) && (ds->HtSig2 & 0x8))
-#else
 			if (ni->ni_flags & IEEE80211_NODE_HT)
-#endif
 				m->m_flags |= M_AMPDU;
 			(void) ieee80211_input(ni, m, rssi, nf);
 			ieee80211_free_node(ni);
@@ -3126,7 +3131,7 @@ mwl_calcformat(uint8_t rate, const struct ieee80211_node *ni)
 	fmt = SM(3, EAGLE_TXD_ANTENNA)
 	    | (IEEE80211_IS_CHAN_HT40D(ni->ni_chan) ?
 		EAGLE_TXD_EXTCHAN_LO : EAGLE_TXD_EXTCHAN_HI);
-	if (rate & 0x80) {		/* HT MCS */
+	if (rate & IEEE80211_RATE_MCS) {	/* HT MCS */
 		fmt |= EAGLE_TXD_FORMAT_HT
 		    /* NB: 0x80 implicitly stripped from ucastrate */
 		    | SM(rate, EAGLE_TXD_RATE);
@@ -3317,6 +3322,7 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 	/* NB: pPhysNext, DataRate, and SapPktInfo setup once, don't touch */
 	ds->Format = 0;
 	ds->pad = 0;
+	ds->ack_wcb_addr = 0;
 
 	mn = MWL_NODE(ni);
 	/*
@@ -3343,8 +3349,7 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 				ds->Format = mvp->mv_eapolformat;
 				ds->pad = htole16(
 				    EAGLE_TXD_FIXED_RATE | EAGLE_TXD_DONT_AGGR);
-			} else if (tp != NULL && /* XXX temp dwds WAR */
-			    tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
+			} else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
 				/* XXX pre-calculate per node */
 				ds->Format = htole16(
 				    mwl_calcformat(tp->ucastrate, ni));
@@ -3675,6 +3680,7 @@ mwl_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	int dialogtoken, int baparamset, int batimeout)
 {
 	struct mwl_softc *sc = ni->ni_ic->ic_ifp->if_softc;
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct mwl_node *mn = MWL_NODE(ni);
 	struct mwl_bastate *bas;
 
@@ -3713,9 +3719,10 @@ mwl_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 			return 0;
 		}
 		/* NB: no held reference to ni */
-		sp = mwl_hal_bastream_alloc(sc->sc_mh,
-		    1/* XXX immediate*/, ni->ni_macaddr, tap->txa_ac,
-		    ni->ni_htparam, ni, tap);
+		sp = mwl_hal_bastream_alloc(MWL_VAP(vap)->mv_hvap,
+		    (baparamset & IEEE80211_BAPS_POLICY_IMMEDIATE) != 0,
+		    ni->ni_macaddr, WME_AC_TO_TID(tap->txa_ac), ni->ni_htparam,
+		    ni, tap);
 		if (sp == NULL) {
 			/*
 			 * No available stream, return 0 so no
@@ -3734,6 +3741,7 @@ mwl_addba_request(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	}
 	/* fetch current seq# from the firmware; if available */
 	if (mwl_hal_bastream_get_seqno(sc->sc_mh, bas->bastream,
+	    vap->iv_opmode == IEEE80211_M_STA ? vap->iv_myaddr : ni->ni_macaddr,
 	    &tap->txa_start) != 0)
 		tap->txa_start = 0;
 	return sc->sc_addba_request(ni, tap, dialogtoken, baparamset, batimeout);
@@ -3756,6 +3764,7 @@ mwl_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 		return 0;
 	}
 	if (code == IEEE80211_STATUS_SUCCESS) {
+		struct ieee80211vap *vap = ni->ni_vap;
 		int bufsiz, error;
 
 		/*
@@ -3766,8 +3775,8 @@ mwl_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 		bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
 		if (bufsiz == 0)
 			bufsiz = IEEE80211_AGGR_BAWMAX;
-		error = mwl_hal_bastream_create(sc->sc_mh, bas->bastream,
-		    bufsiz, bufsiz-1, tap->txa_start);
+		error = mwl_hal_bastream_create(MWL_VAP(vap)->mv_hvap,
+		    bas->bastream, bufsiz, bufsiz, tap->txa_start);
 		if (error != 0) {
 			/*
 			 * Setup failed, return immediately so no a-mpdu
@@ -4065,6 +4074,86 @@ mwl_setglobalkeys(struct ieee80211vap *vap)
 }
 
 /*
+ * Convert a legacy rate set to a firmware bitmask.
+ */
+static uint32_t
+get_rate_bitmap(const struct ieee80211_rateset *rs)
+{
+	uint32_t rates;
+	int i;
+
+	rates = 0;
+	for (i = 0; i < rs->rs_nrates; i++)
+		switch (rs->rs_rates[i] & IEEE80211_RATE_VAL) {
+		case 2:	  rates |= 0x001; break;
+		case 4:	  rates |= 0x002; break;
+		case 11:  rates |= 0x004; break;
+		case 22:  rates |= 0x008; break;
+		case 44:  rates |= 0x010; break;
+		case 12:  rates |= 0x020; break;
+		case 18:  rates |= 0x040; break;
+		case 24:  rates |= 0x080; break;
+		case 36:  rates |= 0x100; break;
+		case 48:  rates |= 0x200; break;
+		case 72:  rates |= 0x400; break;
+		case 96:  rates |= 0x800; break;
+		case 108: rates |= 0x1000; break;
+		}
+	return rates;
+}
+
+/*
+ * Construct an HT firmware bitmask from an HT rate set.
+ */
+static uint32_t
+get_htrate_bitmap(const struct ieee80211_htrateset *rs)
+{
+	uint32_t rates;
+	int i;
+
+	rates = 0;
+	for (i = 0; i < rs->rs_nrates; i++) {
+		if (rs->rs_rates[i] < 16)
+			rates |= 1<<rs->rs_rates[i];
+	}
+	return rates;
+}
+
+/*
+ * Craft station database entry for station.
+ * NB: use host byte order here, the hal handles byte swapping.
+ */
+static MWL_HAL_PEERINFO *
+mkpeerinfo(MWL_HAL_PEERINFO *pi, const struct ieee80211_node *ni)
+{
+	const struct ieee80211vap *vap = ni->ni_vap;
+
+	memset(pi, 0, sizeof(*pi));
+	pi->LegacyRateBitMap = get_rate_bitmap(&ni->ni_rates);
+	pi->CapInfo = ni->ni_capinfo;
+	if (ni->ni_flags & IEEE80211_NODE_HT) {
+		/* HT capabilities, etc */
+		pi->HTCapabilitiesInfo = ni->ni_htcap;
+		/* XXX pi.HTCapabilitiesInfo */
+	        pi->MacHTParamInfo = ni->ni_htparam;	
+		pi->HTRateBitMap = get_htrate_bitmap(&ni->ni_htrates);
+		pi->AddHtInfo.ControlChan = ni->ni_htctlchan;
+		pi->AddHtInfo.AddChan = ni->ni_ht2ndchan;
+		pi->AddHtInfo.OpMode = ni->ni_htopmode;
+		pi->AddHtInfo.stbc = ni->ni_htstbc;
+
+		/* constrain according to local configuration */
+		if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40) == 0)
+			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI40;
+		if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
+			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI20;
+		if (ni->ni_chw != 40)
+			pi->HTCapabilitiesInfo &= ~IEEE80211_HTCAP_CHWIDTH40;
+	}
+	return pi;
+}
+
+/*
  * Re-create the local sta db entry for a vap to ensure
  * up to date WME state is pushed to the firmware.  Because
  * this resets crypto state this must be followed by a
@@ -4076,13 +4165,16 @@ mwl_localstadb(struct ieee80211vap *vap)
 #define	WME(ie) ((const struct ieee80211_wme_info *) ie)
 	struct mwl_hal_vap *hvap = MWL_VAP(vap)->mv_hvap;
 	struct ieee80211_node *bss;
+	MWL_HAL_PEERINFO pi;
 	int error;
 
 	switch (vap->iv_opmode) {
 	case IEEE80211_M_STA:
 		bss = vap->iv_bss;
-		error = mwl_hal_newstation(hvap, vap->iv_myaddr,
-		    0, 0, NULL, bss->ni_flags & IEEE80211_NODE_QOS,
+		error = mwl_hal_newstation(hvap, vap->iv_myaddr, 0, 0,
+		    vap->iv_state == IEEE80211_S_RUN ?
+			mkpeerinfo(&pi, bss) : NULL,
+		    (bss->ni_flags & (IEEE80211_NODE_QOS | IEEE80211_NODE_HT)),
 		    bss->ni_ies.wme_ie != NULL ?
 			WME(bss->ni_ies.wme_ie)->wme_info : 0);
 		if (error == 0)
@@ -4182,7 +4274,7 @@ mwl_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		    ieee80211_chan2ieee(ic, ic->ic_curchan));
 
 		/*
-		 * Recreate local sta db entry to update WME state.
+		 * Recreate local sta db entry to update WME/HT state.
 		 */
 		mwl_localstadb(vap);
 		switch (vap->iv_opmode) {
@@ -4216,6 +4308,9 @@ mwl_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			mwl_hal_setassocid(hvap, ni->ni_bssid, ni->ni_associd);
 			mwl_setrates(vap);
 			mwl_hal_setrtsthreshold(hvap, vap->iv_rtsthreshold);
+			if ((vap->iv_flags & IEEE80211_F_DWDS) &&
+			    sc->sc_ndwdsvaps++ == 0)
+				mwl_hal_setdwds(mh, 1);
 			break;
 		case IEEE80211_M_WDS:
 			DPRINTF(sc, MWL_DEBUG_STATE, "%s: %s: bssid %s\n",
@@ -4244,55 +4339,11 @@ mwl_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			    mwl_agestations, sc);
 	} else if (nstate == IEEE80211_S_SLEEP) {
 		/* XXX set chip in power save */
-	}
+	} else if ((vap->iv_flags & IEEE80211_F_DWDS) &&
+	    --sc->sc_ndwdsvaps == 0)
+		mwl_hal_setdwds(mh, 0);
 bad:
 	return error;
-}
-
-/*
- * Convert a legacy rate set to a firmware bitmask.
- */
-static uint32_t
-get_rate_bitmap(const struct ieee80211_rateset *rs)
-{
-	uint32_t rates;
-	int i;
-
-	rates = 0;
-	for (i = 0; i < rs->rs_nrates; i++)
-		switch (rs->rs_rates[i] & IEEE80211_RATE_VAL) {
-		case 2:	  rates |= 0x001; break;
-		case 4:	  rates |= 0x002; break;
-		case 11:  rates |= 0x004; break;
-		case 22:  rates |= 0x008; break;
-		case 44:  rates |= 0x010; break;
-		case 12:  rates |= 0x020; break;
-		case 18:  rates |= 0x040; break;
-		case 24:  rates |= 0x080; break;
-		case 36:  rates |= 0x100; break;
-		case 48:  rates |= 0x200; break;
-		case 72:  rates |= 0x400; break;
-		case 96:  rates |= 0x800; break;
-		case 108: rates |= 0x1000; break;
-		}
-	return rates;
-}
-
-/*
- * Construct an HT firmware bitmask from an HT rate set.
- */
-static uint32_t
-get_htrate_bitmap(const struct ieee80211_htrateset *rs)
-{
-	uint32_t rates;
-	int i;
-
-	rates = 0;
-	for (i = 0; i < rs->rs_nrates; i++) {
-		if (rs->rs_rates[i] < 16)
-			rates |= 1<<rs->rs_rates[i];
-	}
-	return rates;
 }
 
 /*
@@ -4347,33 +4398,7 @@ mwl_newassoc(struct ieee80211_node *ni, int isnew)
 	}
 	DPRINTF(sc, MWL_DEBUG_NODE, "%s: mac %s isnew %d aid %d staid %d\n",
 	    __func__, ether_sprintf(ni->ni_macaddr), isnew, aid, mn->mn_staid);
-	/*
-	 * Craft station database entry for station.
-	 * NB: use host byte order here, the hal handles byte swapping.
-	 */
-	memset(&pi, 0, sizeof(pi));
-	pi.LegacyRateBitMap = get_rate_bitmap(&ni->ni_rates);
-	pi.CapInfo = ni->ni_capinfo;
-	if (ni->ni_flags & IEEE80211_NODE_HT) {
-		/* HT capabilities, etc */
-		pi.HTCapabilitiesInfo = ni->ni_htcap;
-		/* XXX pi.HTCapabilitiesInfo */
-	        pi.MacHTParamInfo = ni->ni_htparam;	
-		pi.HTRateBitMap = get_htrate_bitmap(&ni->ni_htrates);
-		pi.AddHtInfo.ControlChan = ni->ni_htctlchan;
-		pi.AddHtInfo.AddChan = ni->ni_ht2ndchan;
-		pi.AddHtInfo.OpMode = ni->ni_htopmode;
-		pi.AddHtInfo.stbc = ni->ni_htstbc;
-
-		/* constrain according to local configuration */
-		if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI40) == 0)
-			pi.HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI40;
-		if ((vap->iv_flags_ht & IEEE80211_FHT_SHORTGI20) == 0)
-			pi.HTCapabilitiesInfo &= ~IEEE80211_HTCAP_SHORTGI20;
-		if (ni->ni_chw != 40)
-			pi.HTCapabilitiesInfo &= ~IEEE80211_HTCAP_CHWIDTH40;
-	}
-	error = mwl_peerstadb(ni, aid, mn->mn_staid, &pi);
+	error = mwl_peerstadb(ni, aid, mn->mn_staid, mkpeerinfo(&pi, ni));
 	if (error != 0) {
 		DPRINTF(sc, MWL_DEBUG_NODE,
 		    "%s: error %d creating sta db entry\n",
@@ -4393,8 +4418,7 @@ mwl_agestations(void *arg)
 
 	mwl_hal_setkeepalive(sc->sc_mh);
 	if (sc->sc_ageinterval != 0)		/* NB: catch dynamic changes */
-		callout_reset(&sc->sc_timer, sc->sc_ageinterval*hz,
-			mwl_agestations, sc);
+		callout_schedule(&sc->sc_timer, sc->sc_ageinterval*hz);
 }
 
 static const struct mwl_hal_channel *
