@@ -487,7 +487,7 @@ struct	in6_rrenumreq {
 
 #ifdef _KERNEL
 #ifdef VIMAGE_GLOBALS
-extern struct in6_ifaddr *in6_ifaddr;
+extern struct in6_ifaddrhead in6_ifaddrhead;
 
 extern struct icmp6stat icmp6stat;
 
