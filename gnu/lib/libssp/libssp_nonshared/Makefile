@@ -13,6 +13,6 @@ SRCS=	ssp-local.c
 
 CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR}/..  -I${GCCLIB}/libssp  -I${GCCLIB}/include
-CFLAGS+= -fPIC -DPIC -fvisibility=hidden
+CFLAGS+= -fPIC -DPIC
 
 .include <bsd.lib.mk>
