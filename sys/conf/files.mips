@@ -70,6 +70,7 @@ mips/mips/mem.c			optional	mem
 mips/mips/nexus.c		standard
 mips/mips/stack_machdep.c	optional	ddb | stack
 mips/mips/support.S		standard
+mips/mips/sys_machdep.c		standard
 mips/mips/swtch.S		standard
 mips/mips/uio_machdep.c		standard
 geom/geom_bsd.c			optional	geom_bsd
