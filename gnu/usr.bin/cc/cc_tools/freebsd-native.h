@@ -62,11 +62,3 @@
 
 /* FreeBSD is 4.4BSD derived */
 #define bsd4_4
-
-/*
- * Link in libssp_nonshared to get local hidden symbol for
- * __stack_chk_fail_local into each binary that needs it.
- * Linux does this with static part of their libc.so linker script, we reuse
- * libssp_nonshared.a for the same purpose.
- */
-#define LINK_SSP_SPEC "%{fstack-protector|fstack-protector-all:-lssp_nonshared}"
