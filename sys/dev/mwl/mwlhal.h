@@ -48,9 +48,10 @@
 #define MWL_NUM_HCCA_QUEUES	0
 #define MWL_NUM_BA_QUEUES	0
 #define MWL_NUM_MGMT_QUEUES	0
+#define MWL_NUM_ACK_QUEUES	0
 #define MWL_NUM_TX_QUEUES \
 	(MWL_NUM_EDCA_QUEUES + MWL_NUM_HCCA_QUEUES + MWL_NUM_BA_QUEUES + \
-	 MWL_NUM_MGMT_QUEUES)
+	 MWL_NUM_MGMT_QUEUES + MWL_NUM_ACK_QUEUES)
 #define MWL_MAX_RXWCB_QUEUES	1
 
 #define MWL_MAX_SUPPORTED_RATES	12
@@ -208,7 +209,7 @@ struct mwl_hal_hwspec {
 	uint32_t   rxDescRead;
 	uint32_t   rxDescWrite;
 	uint32_t   ulFwAwakeCookie;
-	uint32_t   wcbBase[4];
+	uint32_t   wcbBase[MWL_NUM_TX_QUEUES - MWL_NUM_ACK_QUEUES];
 };
 int	mwl_hal_gethwspecs(struct mwl_hal *mh, struct mwl_hal_hwspec *);
 
@@ -220,7 +221,7 @@ struct mwl_hal_txrxdma {
 	uint32_t   maxNumTxWcb;		/* max # of tx descs per WCB */
 	uint32_t   rxDescRead;
 	uint32_t   rxDescWrite;
-	uint32_t   wcbBase[4];
+	uint32_t   wcbBase[MWL_NUM_TX_QUEUES - MWL_NUM_ACK_QUEUES];
 };
 int	mwl_hal_sethwdma(struct mwl_hal *mh, const struct mwl_hal_txrxdma *);
 
@@ -507,19 +508,25 @@ typedef struct {
 	int	txq;
 } MWL_HAL_BASTREAM;
 
-const MWL_HAL_BASTREAM *mwl_hal_bastream_alloc(struct mwl_hal *mh,
-	    int ba_type, const uint8_t Macaddr[16], uint8_t Tid,
+const MWL_HAL_BASTREAM *mwl_hal_bastream_alloc(struct mwl_hal_vap *,
+	    int ba_type, const uint8_t Macaddr[6], uint8_t Tid,
 	    uint8_t ParamInfo, void *, void *);
 const MWL_HAL_BASTREAM *mwl_hal_bastream_lookup(struct mwl_hal *mh, int s);
-int	mwl_hal_bastream_create(struct mwl_hal *mh, const MWL_HAL_BASTREAM *,
+int	mwl_hal_bastream_create(struct mwl_hal_vap *, const MWL_HAL_BASTREAM *,
 	    int BarThrs, int WindowSize, uint16_t seqno);
 int	mwl_hal_bastream_destroy(struct mwl_hal *mh, const MWL_HAL_BASTREAM *);
-int	mwl_hal_bastream_get_seqno(struct mwl_hal *mh, const MWL_HAL_BASTREAM *,
-	    uint16_t *pseqno);
 int	mwl_hal_getwatchdogbitmap(struct mwl_hal *mh, uint8_t bitmap[1]);
+int	mwl_hal_bastream_get_seqno(struct mwl_hal *mh, const MWL_HAL_BASTREAM *,
+	    const uint8_t Macaddr[6], uint16_t *pseqno);
 /* for sysctl hookup for debugging */
 void	mwl_hal_setbastreams(struct mwl_hal *mh, int mask);
 int	mwl_hal_getbastreams(struct mwl_hal *mh);
+
+/*
+ * Set/get A-MPDU aggregation parameters.
+ */
+int	mwl_hal_setaggampduratemode(struct mwl_hal *, int mode, int thresh);
+int	mwl_hal_getaggampduratemode(struct mwl_hal *, int *mode, int *thresh);
 
 /*
  * Inform the firmware of a new association station.
@@ -577,6 +584,13 @@ int	mwl_hal_setapmode(struct mwl_hal_vap *, MWL_HAL_APMODE);
  */
 int	mwl_hal_stop(struct mwl_hal_vap *);
 int	mwl_hal_start(struct mwl_hal_vap *);
+
+/*
+ * Add/Remove station from Power Save TIM handling.
+ *
+ * If set is non-zero the AID is enabled, if zero it is removed.
+ */
+int	mwl_hal_updatetim(struct mwl_hal_vap *, uint16_t aid, int set);
 
 /*
  * Enable/disable 11g protection use.  This call specifies
@@ -649,6 +663,16 @@ int	mwl_hal_SetRifs(struct mwl_hal *mh, uint8_t QNum);
  */
 int	mwl_hal_setpromisc(struct mwl_hal *, int ena);
 int	mwl_hal_getpromisc(struct mwl_hal *);
+
+/*
+ * Enable/disable CF-End use.
+ */
+int	mwl_hal_setcfend(struct mwl_hal *, int ena);
+
+/*
+ * Enable/disable sta-mode DWDS use/operation.
+ */
+int	mwl_hal_setdwds(struct mwl_hal *, int ena);
 
 /*
  * Diagnostic interface.  This is an open-ended interface that
