@@ -71,12 +71,8 @@ struct msqid_ds {
 	pid_t	msg_lspid;	/* pid of last msgsnd() */
 	pid_t	msg_lrpid;	/* pid of last msgrcv() */
 	time_t	msg_stime;	/* time of last msgsnd() */
-	long	msg_pad1;
 	time_t	msg_rtime;	/* time of last msgrcv() */
-	long	msg_pad2;
 	time_t	msg_ctime;	/* time of last msgctl() */
-	long	msg_pad3;
-	long	msg_pad4[4];
 };
 .Ed
 .Pp
@@ -89,11 +85,11 @@ structure is defined in
 and looks like this:
 .Bd -literal
 struct ipc_perm {
-	unsigned short	cuid;	/* creator user id */
-	unsigned short	cgid;	/* creator group id */
-	unsigned short	uid;	/* user id */
-	unsigned short	gid;	/* group id */
-	unsigned short	mode;	/* r/w permission */
+	uid_t		cuid;	/* creator user id */
+	gid_t		cgid;	/* creator group id */
+	uid_t		uid;	/* user id */
+	gid_t		gid;	/* group id */
+	mode_t		mode;	/* r/w permission */
 	unsigned short	seq;	/* sequence # (to generate unique ipcid) */
 	key_t		key;	/* user specified msg/sem/shm key */
 };
