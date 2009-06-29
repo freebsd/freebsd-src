@@ -4446,7 +4446,7 @@ em_rxeof(struct adapter *adapter, int count)
 	struct mbuf	*mp;
 	u8		status, accept_frame = 0, eop = 0;
 	u16 		len, desc_len, prev_len_adj;
-	u32		i, rx_sent = 0;
+	int		i, rx_sent = 0;
 	struct e1000_rx_desc   *current_desc;
 
 	EM_RX_LOCK(adapter);
