@@ -22,7 +22,7 @@ MLINKS=		rtld.1 ld-elf.so.1.1 \
 CFLAGS+=	-fpic -DPIC
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
-LDADD=		-lc_pic -lssp_nonshared
+LDADD=		-lc_pic
 
 .if ${MACHINE_ARCH} != "ia64"
 .if ${MK_SYMVER} == "yes"
