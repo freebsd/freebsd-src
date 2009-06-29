@@ -50,6 +50,7 @@ MALLOC_DECLARE(M_AUDITBSM);
 MALLOC_DECLARE(M_AUDITDATA);
 MALLOC_DECLARE(M_AUDITPATH);
 MALLOC_DECLARE(M_AUDITTEXT);
+MALLOC_DECLARE(M_AUDITGIDSET);
 #endif
 
 /*
@@ -104,8 +105,8 @@ struct vnode_au_info {
 };
 
 struct groupset {
-	gid_t	gidset[NGROUPS];
-	u_int	gidset_size;
+	gid_t	*gidset;
+	u_int	 gidset_size;
 };
 
 struct socket_au_info {
