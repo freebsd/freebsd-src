@@ -35,6 +35,8 @@
 
 #include <net/if_var.h>
 
+struct ifindex_entry;
+
 struct vnet_net {
 	int			_if_index;
 	struct ifindex_entry *	_ifindex_table;
@@ -42,7 +44,6 @@ struct vnet_net {
 	struct ifgrouphead	_ifg_head;
 
 	int			_if_indexlim;
-	struct knlist		_ifklist;
 
 	struct ifnet *		_loif;
 	struct if_clone *	_lo_cloner;
