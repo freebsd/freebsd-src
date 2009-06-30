@@ -356,14 +356,6 @@ static const char * const wtnames[] = {
 	"**unknown 15**",
 };
 
-void setPQL2(int *const size, int *const ways);
-
-void
-setPQL2(int *const size, int *const ways)
-{
-	return;
-}
-
 
 extern int ctrl;
 void
