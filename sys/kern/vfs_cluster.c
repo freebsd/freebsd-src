@@ -471,9 +471,6 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		}
 		VM_OBJECT_UNLOCK(tbp->b_bufobj->bo_object);
 		/*
-		 * XXX shouldn't this be += size for both, like in
-		 * cluster_wbuild()?
-		 *
 		 * Don't inherit tbp->b_bufsize as it may be larger due to
 		 * a non-page-aligned size.  Instead just aggregate using
 		 * 'size'.
