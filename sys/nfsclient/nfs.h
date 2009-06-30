@@ -147,11 +147,6 @@ extern int nfsv3_procid[NFS_NPROCS];
 		(e) != ERESTART && (e) != EWOULDBLOCK && \
 		((s) & PR_CONNREQUIRED) == 0)
 
-/*
- * This is only needed to keep things working while we support
- * compiling for both RPC implementations.
- */
-struct nfsreq;
 struct nfsmount;
 
 struct buf;
@@ -262,7 +257,7 @@ int	nfs_asyncio(struct nfsmount *, struct buf *, struct ucred *, struct thread *
 int	nfs_doio(struct vnode *, struct buf *, struct ucred *, struct thread *);
 void	nfs_doio_directwrite (struct buf *);
 int	nfs_readlinkrpc(struct vnode *, struct uio *, struct ucred *);
-int	nfs_sigintr(struct nfsmount *, struct nfsreq *, struct thread *);
+int	nfs_sigintr(struct nfsmount *, struct thread *);
 int	nfs_readdirplusrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_request(struct vnode *, struct mbuf *, int, struct thread *,
 	    struct ucred *, struct mbuf **, struct mbuf **, caddr_t *);
@@ -274,7 +269,7 @@ void	nfs_nhuninit(void);
 int	nfs_nmcancelreqs(struct nfsmount *);
 void	nfs_timer(void*);
 
-int	nfs_connect(struct nfsmount *, struct nfsreq *);
+int	nfs_connect(struct nfsmount *);
 void	nfs_disconnect(struct nfsmount *);
 void	nfs_safedisconnect(struct nfsmount *);
 int	nfs_getattrcache(struct vnode *, struct vattr *);

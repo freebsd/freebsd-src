@@ -3128,7 +3128,7 @@ loop:
 				error = 0;
 				goto loop;
 			}
-			if (nfs_sigintr(nmp, NULL, td)) {
+			if (nfs_sigintr(nmp, td)) {
 				error = EINTR;
 				goto done;
 			}
@@ -3151,7 +3151,7 @@ loop:
 		else
 		    bp->b_flags |= B_ASYNC;
 		bwrite(bp);
-		if (nfs_sigintr(nmp, NULL, td)) {
+		if (nfs_sigintr(nmp, td)) {
 			error = EINTR;
 			goto done;
 		}
@@ -3167,7 +3167,7 @@ loop:
 			error = bufobj_wwait(bo, slpflag, slptimeo);
 			if (error) {
 			    BO_UNLOCK(bo);
-			    error = nfs_sigintr(nmp, NULL, td);
+			    error = nfs_sigintr(nmp, td);
 			    if (error)
 				goto done;
 			    if (slpflag == PCATCH) {
@@ -3192,7 +3192,7 @@ loop:
 					   &np->n_mtx, slpflag | (PRIBIO + 1), 
 					   "nfsfsync", 0);
 			if (error) {
-				if (nfs_sigintr(nmp, NULL, td)) {
+				if (nfs_sigintr(nmp, td)) {
 					mtx_unlock(&np->n_mtx);
 					error = EINTR;	
 					goto done;
