@@ -1966,6 +1966,16 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	    /* Search main program and all libraries loaded by it. */
 	    def = symlook_list(name, hash, &list_main, &defobj, ve, flags,
 			       &donelist);
+
+	    /*
+	     * We do not distinguish between 'main' object and global scope.
+	     * If symbol is not defined by objects loaded at startup, continue
+	     * search among dynamically loaded objects with RTLD_GLOBAL
+	     * scope.
+	     */
+	    if (def == NULL)
+		def = symlook_list(name, hash, &list_global, &defobj, ve,
+		    		    flags, &donelist);
 	} else {
 	    Needed_Entry fake;
 
