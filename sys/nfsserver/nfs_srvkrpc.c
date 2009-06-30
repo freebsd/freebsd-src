@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <rpc/replay.h>
 
 #include <nfs/xdr_subs.h>
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsserver/nfs.h>
 #include <nfsserver/nfsm_subs.h>
@@ -83,8 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfs_fha.h>
 
 #include <security/mac/mac_framework.h>
-
-#ifndef NFS_LEGACYRPC
 
 static MALLOC_DEFINE(M_NFSSVC, "nfss_srvsock", "Nfs server structure");
 
@@ -607,5 +604,3 @@ nfsrv_init(int terminating)
 
 	NFSD_LOCK();
 }
-
-#endif /* !NFS_LEGACYRPC */

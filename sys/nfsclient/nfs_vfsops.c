@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
@@ -142,9 +141,7 @@ VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfs, 1);
-#ifndef NFS_LEGACYRPC
 MODULE_DEPEND(nfs, krpc, 1, 1, 1);
-#endif
 #ifdef KGSSAPI
 MODULE_DEPEND(nfs, kgssapi, 1, 1, 1);
 #endif
@@ -551,7 +548,6 @@ nfs_mountdiskless(char *path,
 	return (0);
 }
 
-#ifndef NFS_LEGACYRPC
 static int
 nfs_sec_name_to_num(char *sec)
 {
@@ -569,7 +565,6 @@ nfs_sec_name_to_num(char *sec)
 	 */
 	return (AUTH_SYS);
 }
-#endif
 
 static void
 nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
@@ -579,10 +574,8 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	int adjsock;
 	int maxio;
 	char *p;
-#ifndef NFS_LEGACYRPC
 	char *secname;
 	char *principal;
-#endif
 
 	s = splnet();
 
@@ -734,13 +727,7 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	nmp->nm_sotype = argp->sotype;
 	nmp->nm_soproto = argp->proto;
 
-	if (
-#ifdef NFS_LEGACYRPC
-		nmp->nm_so
-#else
-		nmp->nm_client
-#endif
-	    && adjsock) {
+	if (nmp->nm_client && adjsock) {
 		nfs_safedisconnect(nmp);
 		if (nmp->nm_sotype == SOCK_DGRAM)
 			while (nfs_connect(nmp, NULL)) {
@@ -757,7 +744,6 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 			*p = '\0';
 	}
 
-#ifndef NFS_LEGACYRPC
 	if (vfs_getopt(mp->mnt_optnew, "sec",
 		(void **) &secname, NULL) == 0) {
 		nmp->nm_secflavor = nfs_sec_name_to_num(secname);
@@ -773,7 +759,6 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 		snprintf(nmp->nm_principal, sizeof(nmp->nm_principal),
 		    "nfs@%s", nmp->nm_hostname);
 	}
-#endif
 }
 
 static const char *nfs_opts[] = { "from", "nfs_args",
