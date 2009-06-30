@@ -527,6 +527,7 @@ dorecs:
 		 (slp->ns_flag & (SLP_NEEDQ | SLP_DISCONN))))
 		nfsrv_wakenfsd(slp);
 	NFSD_UNLOCK();
+	return (SU_OK);
 }
 
 /*
