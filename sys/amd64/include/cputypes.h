@@ -33,15 +33,21 @@
 /*
  * Classes of processor.
  */
-#define	CPUCLASS_X86	0	/* X86 */
-#define	CPUCLASS_K8	1	/* K8 AMD64 class */
+#define	CPUCLASS_X86		0	/* X86 */
+#define	CPUCLASS_K8		1	/* K8 AMD64 class */
 
 /*
  * Kinds of processor.
  */
-#define	CPU_X86		0	/* Intel */
-#define	CPU_CLAWHAMMER	1	/* AMD Clawhammer */
-#define	CPU_SLEDGEHAMMER 2	/* AMD Sledgehammer */
+#define	CPU_X86			0	/* Intel */
+#define	CPU_CLAWHAMMER		1	/* AMD Clawhammer */
+#define	CPU_SLEDGEHAMMER	2	/* AMD Sledgehammer */
+
+/*
+ * Vendors of processor.
+ */
+#define	CPU_VENDOR_AMD		0x1022		/* AMD */
+#define	CPU_VENDOR_INTEL	0x8086		/* Intel */
 
 #ifndef LOCORE
 extern int	cpu;

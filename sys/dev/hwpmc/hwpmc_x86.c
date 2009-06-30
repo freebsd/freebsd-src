@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
+#include <machine/cputypes.h>
 #include <machine/apicreg.h>
 #include <machine/pmc_mdep.h>
 #include <machine/md_var.h>
@@ -252,9 +253,9 @@ pmc_md_initialize()
 
 	/* determine the CPU kind */
 	md = NULL;
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
+	if (cpu_vendor_id == CPU_VENDOR_AMD)
 		md = pmc_amd_initialize();
-	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
+	else if (cpu_vendor_id == CPU_VENDOR_INTEL)
 		md = pmc_intel_initialize();
 	else
 		KASSERT(0, ("[x86,%d] Unknown vendor", __LINE__));
@@ -270,9 +271,9 @@ pmc_md_initialize()
 void
 pmc_md_finalize(struct pmc_mdep *md)
 {
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
+	if (cpu_vendor_id == CPU_VENDOR_AMD)
 		pmc_amd_finalize(md);
-	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
+	else if (cpu_vendor_id == CPU_VENDOR_INTEL)
 		pmc_intel_finalize(md);
 	else
 		KASSERT(0, ("[x86,%d] Unknown vendor", __LINE__));

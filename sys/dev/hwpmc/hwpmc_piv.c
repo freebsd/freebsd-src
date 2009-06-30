@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -1610,7 +1611,7 @@ pmc_p4_initialize(struct pmc_mdep *md, int ncpus)
 	struct p4_event_descr *pe;
 
 	KASSERT(md != NULL, ("[p4,%d] md is NULL", __LINE__));
-	KASSERT(strcmp(cpu_vendor, "GenuineIntel") == 0,
+	KASSERT(cpu_vendor_id == CPU_VENDOR_INTEL,
 	    ("[p4,%d] Initializing non-intel processor", __LINE__));
 
 	PMCDBG(MDP,INI,1, "%s", "p4-initialize");

@@ -59,6 +59,7 @@ extern	u_int	cpu_mxcsr_mask;
 extern	u_int	cpu_procinfo;
 extern	u_int	cpu_procinfo2;
 extern	char	cpu_vendor[];
+extern	u_int	cpu_vendor_id;
 extern	u_int	cyrix_did;
 extern	char	kstack[];
 extern	char	sigcode[];
