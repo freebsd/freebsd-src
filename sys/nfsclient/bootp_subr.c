@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/vnet.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsdiskless.h>
@@ -1776,6 +1775,13 @@ md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
 	int authcount;
 	int authver;
 
+#define	RPCPROG_MNT	100005
+#define	RPCMNT_VER1	1
+#define RPCMNT_VER3	3
+#define	RPCMNT_MOUNT	1
+#define	AUTH_SYS	1		/* unix style (uid, gids) */
+#define AUTH_UNIX	AUTH_SYS
+
 	/* XXX honor v2/v3 flags in args->flags? */
 #ifdef BOOTP_NFSV3
 	/* First try NFS v3 */
@@ -1836,7 +1842,7 @@ md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
 		while (authcount > 0) {
 			if (xdr_int_decode(&m, &authver) != 0)
 				goto bad;
-			if (authver == RPCAUTH_UNIX)
+			if (authver == AUTH_UNIX)
 				authunixok = 1;
 			authcount--;
 		}
