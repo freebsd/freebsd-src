@@ -48,5 +48,7 @@ typedef struct {
 #define	CPUCTL_WRMSR	_IOWR('c', 2, cpuctl_msr_args_t)
 #define	CPUCTL_CPUID	_IOWR('c', 3, cpuctl_cpuid_args_t)
 #define	CPUCTL_UPDATE	_IOWR('c', 4, cpuctl_update_args_t)
+#define	CPUCTL_MSRSBIT	_IOWR('c', 5, cpuctl_msr_args_t)
+#define	CPUCTL_MSRCBIT	_IOWR('c', 6, cpuctl_msr_args_t)
 
 #endif /* _CPUCTL_H_ */
