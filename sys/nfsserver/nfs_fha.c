@@ -39,13 +39,10 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 #include <nfs/xdr_subs.h>
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsserver/nfs.h>
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfs_fha.h>
-
-#ifndef NFS_LEGACYRPC
 
 static MALLOC_DEFINE(M_NFS_FHA, "NFS FHA", "NFS FHA");
 
@@ -598,5 +595,3 @@ fhe_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(&sb);
 	return (error);
 }
-
-#endif /* !NFS_LEGACYRPC */

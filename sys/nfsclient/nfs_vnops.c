@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/fifofs/fifo.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
@@ -3193,7 +3192,7 @@ loop:
 					   &np->n_mtx, slpflag | (PRIBIO + 1), 
 					   "nfsfsync", 0);
 			if (error) {
-				if (nfs_sigintr(nmp, (struct nfsreq *)0, td)) {
+				if (nfs_sigintr(nmp, NULL, td)) {
 					mtx_unlock(&np->n_mtx);
 					error = EINTR;	
 					goto done;
