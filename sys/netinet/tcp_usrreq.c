@@ -1396,8 +1396,8 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 					 * so it's safe to do these things
 					 * without ordering concerns.
 					 */
-					if (CC_ALGO(tp)->conn_destroy != NULL)
-						CC_ALGO(tp)->conn_destroy(tp);
+					if (CC_ALGO(tp)->cb_destroy != NULL)
+						CC_ALGO(tp)->cb_destroy(tp);
 					CC_ALGO(tp) = algo;
 					/*
 					 * If something goes pear shaped
@@ -1405,14 +1405,16 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 					 * fall back to newreno (which
 					 * does not require initialisation).
 					 */
-					if (algo->conn_init(tp) > 0) {
-						CC_ALGO(tp) = &newreno_cc_algo;
-						/*
-						 * The only reason init should
-						 * fail is because of malloc.
-						 */
-						error = ENOMEM;
-					}
+					if (algo->cb_init != NULL)
+						if (algo->cb_init(tp) > 0) {
+							CC_ALGO(tp) = &newreno_cc_algo;
+							/*
+							 * The only reason init
+							 * should fail is
+							 * because of malloc.
+							 */
+							error = ENOMEM;
+						}
 					break; /* Break the STAILQ_FOREACH. */
 				}
 			}

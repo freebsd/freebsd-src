@@ -737,11 +737,11 @@ tcp_newtcpcb(struct inpcb *inp)
 	CC_ALGO(tp) = CC_DEFAULT();
 	CC_LIST_RUNLOCK();
 
-	/* If the CC module fails to init, stop building the control block. */
-	if (CC_ALGO(tp)->conn_init(tp) > 0) {
-		uma_zfree(V_tcpcb_zone, tp);
-		return NULL;
-	}
+	if (CC_ALGO(tp)->cb_init != NULL)
+		if (CC_ALGO(tp)->cb_init(tp) > 0) {
+			uma_zfree(V_tcpcb_zone, tp);
+			return NULL;
+		}
 
 #ifdef VIMAGE
 	tp->t_vnet = inp->inp_vnet;
@@ -911,8 +911,8 @@ tcp_discardcb(struct tcpcb *tp)
 	tcp_free_sackholes(tp);
 
 	/* Allow the CC algorithm to clean up after itself. */
-	if (CC_ALGO(tp)->conn_destroy != NULL)
-		CC_ALGO(tp)->conn_destroy(tp);
+	if (CC_ALGO(tp)->cb_destroy != NULL)
+		CC_ALGO(tp)->cb_destroy(tp);
 
 	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;

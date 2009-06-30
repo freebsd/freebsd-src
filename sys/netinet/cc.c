@@ -222,8 +222,8 @@ cc_deregister_algo(struct cc_algo *remove_cc)
 					tmpfuncs = CC_ALGO(tp);
 					/* Newreno does not require any init. */
 					CC_ALGO(tp) = &newreno_cc_algo;
-					if (tmpfuncs->conn_destroy != NULL)
-						tmpfuncs->conn_destroy(tp);
+					if (tmpfuncs->cb_destroy != NULL)
+						tmpfuncs->cb_destroy(tp);
 				}
 			}
 			INP_WUNLOCK(inp);

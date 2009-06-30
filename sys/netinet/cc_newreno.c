@@ -50,10 +50,7 @@ __FBSDID("$FreeBSD$");
 /* newreno cc function pointers */
 struct cc_algo newreno_cc_algo = {
 	.name = "newreno",
-	.mod_init = NULL,
-	.mod_destroy = NULL,
-	.conn_init = newreno_conn_init,
-	.conn_destroy = NULL,
+	.cb_init = newreno_cb_init,
 	.cwnd_init = newreno_cwnd_init,
 	.ack_received = newreno_ack_received,
 	.pre_fr = newreno_pre_fr,
@@ -63,7 +60,7 @@ struct cc_algo newreno_cc_algo = {
 };
 
 int
-newreno_conn_init(struct tcpcb *tp)
+newreno_cb_init(struct tcpcb *tp)
 {
 	return 0;
 }

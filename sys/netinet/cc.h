@@ -72,14 +72,14 @@ struct cc_algo {
 	/* Cleanup global module state on kldunload. */
 	int (*mod_destroy) (void);
 
-	/* Init CC state for a new connection. */
-	int (*conn_init) (struct tcpcb *tp);
+	/* Init CC state for a new control block. */
+	int (*cb_init) (struct tcpcb *tp);
 
-	/* Cleanup CC state for a terminating connection. */
-	void (*conn_destroy) (struct tcpcb *tp);
+	/* Cleanup CC state for a terminating control block. */
+	void (*cb_destroy) (struct tcpcb *tp);
 
 	/* Init cwnd for a new connection. */
-	/* XXXLS: could this be folded into conn_init? */
+	/* XXXLS: could this be renamed conn_init or conn_established? */
 	void (*cwnd_init) (struct tcpcb *tp);
 
 	/* Called on receipt of a regular, valid ack. */

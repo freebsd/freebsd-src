@@ -132,8 +132,8 @@ __FBSDID("$FreeBSD$");
 
 /* function prototypes */
 int htcp_mod_init(void);
-int htcp_conn_init(struct tcpcb *tp);
-void htcp_conn_destroy(struct tcpcb *tp);
+int htcp_cb_init(struct tcpcb *tp);
+void htcp_cb_destroy(struct tcpcb *tp);
 void htcp_recalc_alpha(struct tcpcb *tp);
 void htcp_recalc_beta(struct tcpcb *tp);
 void htcp_pre_fr(struct tcpcb *tp, struct tcphdr *th);
@@ -170,9 +170,8 @@ MALLOC_DEFINE(M_HTCP, "htcp data", "Per connection data required for the HTCP co
 struct cc_algo htcp_cc_algo = {
 	.name = "htcp",
 	.mod_init = htcp_mod_init,
-	.mod_destroy = NULL,
-	.conn_init = htcp_conn_init,
-	.conn_destroy = htcp_conn_destroy,
+	.cb_init = htcp_cb_init,
+	.cb_destroy = htcp_cb_destroy,
 	.cwnd_init = newreno_cwnd_init,
 	.ack_received = htcp_ack_received,
 	.pre_fr = htcp_pre_fr,
@@ -187,7 +186,7 @@ struct cc_algo htcp_cc_algo = {
  * in the control block
  */
 int
-htcp_conn_init(struct tcpcb *tp)
+htcp_cb_init(struct tcpcb *tp)
 {
 	struct htcp *htcp_data;
 	
@@ -218,7 +217,7 @@ htcp_conn_init(struct tcpcb *tp)
  * TCP control block.
  */
 void
-htcp_conn_destroy(struct tcpcb *tp)
+htcp_cb_destroy(struct tcpcb *tp)
 {
 #ifdef HTCP_DEBUG
 	printf("deinitialising tcp connection with htcp congestion control\n");

@@ -39,7 +39,7 @@
 /*
  * NewReno CC functions
  */
-int	newreno_conn_init(struct tcpcb *tp);
+int	newreno_cb_init(struct tcpcb *tp);
 void	newreno_cwnd_init(struct tcpcb *tp);
 void	newreno_ack_received(struct tcpcb *tp, struct tcphdr *th);
 void	newreno_pre_fr(struct tcpcb *tp, struct tcphdr *th);

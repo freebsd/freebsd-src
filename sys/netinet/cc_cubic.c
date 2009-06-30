@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/vinet.h>
 
 /* function prototypes */
-int cubic_conn_init(struct tcpcb *tp);
-void cubic_conn_destroy(struct tcpcb *tp);
+int cubic_cb_init(struct tcpcb *tp);
+void cubic_cb_destroy(struct tcpcb *tp);
 void cubic_pre_fr(struct tcpcb *tp, struct tcphdr *th);
 void cubic_post_fr(struct tcpcb *tp, struct tcphdr *th);
 void cubic_ack_received(struct tcpcb *tp, struct tcphdr *th);
@@ -95,8 +95,8 @@ struct cc_algo cubic_cc_algo = {
 	.name = "cubic",
 	.mod_init = NULL,
 	.mod_destroy = NULL,
-	.conn_init = cubic_conn_init,
-	.conn_destroy = cubic_conn_destroy,
+	.cb_init = cubic_cb_init,
+	.cb_destroy = cubic_cb_destroy,
 	.cwnd_init = cubic_cwnd_init,
 	.ack_received = cubic_ack_received,
 	.pre_fr = cubic_pre_fr,
@@ -126,7 +126,7 @@ cubic_cwnd_init(struct tcpcb *tp)
  * in the control block
  */
 int
-cubic_conn_init(struct tcpcb *tp)
+cubic_cb_init(struct tcpcb *tp)
 {
 	struct cubic *cubic_data;
 	
@@ -152,7 +152,7 @@ cubic_conn_init(struct tcpcb *tp)
  * TCP control block.
  */
 void
-cubic_conn_destroy(struct tcpcb *tp)
+cubic_cb_destroy(struct tcpcb *tp)
 {
 	if (CC_DATA(tp) != NULL)
 		free(CC_DATA(tp), M_CUBIC);
