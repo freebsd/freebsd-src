@@ -183,7 +183,7 @@ nfs_init_rtt(struct nfsmount *nmp)
  * We do not free the sockaddr if error.
  */
 int
-nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
+nfs_connect(struct nfsmount *nmp)
 {
 	int rcvreserve, sndreserve;
 	int pktscale;
@@ -511,7 +511,7 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 	 * and let clnt_reconnect_create handle reconnects.
 	 */
 	if (!nmp->nm_client)
-		nfs_connect(nmp, NULL);
+		nfs_connect(nmp);
 
 	auth = nfs_getauth(nmp, cred);
 	if (!auth) {
@@ -799,7 +799,7 @@ nfs_msleep(struct thread *td, void *ident, struct mtx *mtx, int priority, char *
  * This is used for NFSMNT_INT mounts.
  */
 int
-nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
+nfs_sigintr(struct nfsmount *nmp, struct thread *td)
 {
 	struct proc *p;
 	sigset_t tmpset;
