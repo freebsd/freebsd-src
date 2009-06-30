@@ -106,6 +106,7 @@ ACPI_MODULE_NAME("HP")
 #define ACPI_HP_CMI_DETAIL_PATHS		0x01
 #define ACPI_HP_CMI_DETAIL_ENUMS		0x02
 #define ACPI_HP_CMI_DETAIL_FLAGS		0x04
+#define ACPI_HP_CMI_DETAIL_SHOW_MAX_INSTANCE	0x08
 
 struct acpi_hp_inst_seq_pair {
 	UINT32	sequence;	/* sequence number as suggested by cmi bios */
@@ -489,9 +490,10 @@ acpi_hp_attach(device_t dev)
 			sc->has_notify = 1;
 		}
 	}
-	if (ACPI_WMI_PROVIDES_GUID_STRING(sc->wmi_dev, ACPI_HP_WMI_CMI_GUID)) {
+	if ((sc->has_cmi = 
+	    ACPI_WMI_PROVIDES_GUID_STRING(sc->wmi_dev, ACPI_HP_WMI_CMI_GUID)
+	    )) {
 		device_printf(dev, "HP CMI GUID detected\n");
-		sc->has_cmi = 1;
 	}
 
 	if (sc->has_cmi) {
@@ -752,6 +754,10 @@ acpi_hp_sysctl_set(struct acpi_hp_softc *sc, int method, int arg, int oldarg)
 				    arg?1:0));
 		case ACPI_HP_METHOD_CMI_DETAIL:
 			sc->cmi_detail = arg;
+			if ((arg & ACPI_HP_CMI_DETAIL_SHOW_MAX_INSTANCE) != 
+			    (oldarg & ACPI_HP_CMI_DETAIL_SHOW_MAX_INSTANCE)) {
+			    sc->cmi_order_size = -1;
+			}
 			break;
 		}
 	}
@@ -1103,6 +1109,7 @@ acpi_hp_hpcmi_read(struct cdev *dev, struct uio *buf, int flag)
 	struct acpi_hp_softc *sc;
 	int pos, i, l, ret;
 	UINT8 instance;
+	UINT8 maxInstance;
 	UINT32 sequence;
 	int linesize = 1025;
 	char line[linesize];
@@ -1119,14 +1126,20 @@ acpi_hp_hpcmi_read(struct cdev *dev, struct uio *buf, int flag)
 	else {
 		if (!sbuf_done(&sc->hpcmi_sbuf)) {
 			if (sc->cmi_order_size < 0) {
+				maxInstance = sc->has_cmi;
+				if (!(sc->cmi_detail & 
+				    ACPI_HP_CMI_DETAIL_SHOW_MAX_INSTANCE) &&
+				    maxInstance > 0) {
+					maxInstance--;
+				}
 				sc->cmi_order_size = 0;
-				for (instance = 0; instance < 128;
+				for (instance = 0; instance < maxInstance;
 				    ++instance) {
 					if (acpi_hp_get_cmi_block(sc->wmi_dev,
 						ACPI_HP_WMI_CMI_GUID, instance,
 						line, linesize, &sequence,
 						sc->cmi_detail)) {
-						instance = 128;
+						instance = maxInstance;
 					}
 					else {
 						pos = sc->cmi_order_size;
