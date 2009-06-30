@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -175,7 +176,7 @@ static void
 k6_mem_drvinit(void *unused)
 {
 
-	if (strcmp(cpu_vendor, "AuthenticAMD") != 0)
+	if (cpu_vendor_id != CPU_VENDOR_AMD)
 		return;
 	if ((cpu_id & 0xf00) != 0x500)
 		return;

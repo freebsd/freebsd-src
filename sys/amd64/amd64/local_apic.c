@@ -323,7 +323,7 @@ lapic_setup(int boot)
 
 	/* XXX: Error and thermal LVTs */
 
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+	if (cpu_vendor_id == CPU_VENDOR_AMD) {
 		/*
 		 * Detect the presence of C1E capability mostly on latest
 		 * dual-cores (or future) k8 family.  This feature renders

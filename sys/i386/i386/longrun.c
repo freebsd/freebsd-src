@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/types.h>
 
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -262,8 +263,8 @@ tmx86_longrun_profile_sysctl(SYSCTL_HANDLER_ARGS)
 static void
 setup_tmx86_longrun(void *dummy __unused)
 {
-	if (strcmp(cpu_vendor, "GenuineTMx86") != 0 &&
-	    strcmp(cpu_vendor, "TransmetaCPU") != 0)
+
+	if (cpu_vendor_id != CPU_VENDOR_TRANSMETA)
 		return;
 
 	crusoe_longrun = tmx86_get_longrun_mode();
