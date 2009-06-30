@@ -803,6 +803,7 @@ netisr_queue_workstream(struct netisr_workstream *nwsp, u_int proto,
 		npwp->nw_queued++;
 		return (0);
 	} else {
+		m_freem(m);
 		npwp->nw_qdrops++;
 		return (ENOBUFS);
 	}
