@@ -180,15 +180,36 @@ struct vop_vector ffs_fifoops2 = {
 static int
 ffs_fsync(struct vop_fsync_args *ap)
 {
+	struct vnode *vp;
+	struct bufobj *bo;
 	int error;
 
-	error = ffs_syncvnode(ap->a_vp, ap->a_waitfor);
+	vp = ap->a_vp;
+	bo = &vp->v_bufobj;
+retry:
+	error = ffs_syncvnode(vp, ap->a_waitfor);
 	if (error)
 		return (error);
 	if (ap->a_waitfor == MNT_WAIT &&
-	    (ap->a_vp->v_mount->mnt_flag & MNT_SOFTDEP))
-                error = softdep_fsync(ap->a_vp);
-	return (error);
+	    (vp->v_mount->mnt_flag & MNT_SOFTDEP)) {
+		error = softdep_fsync(vp);
+		if (error)
+			return (error);
+
+		/*
+		 * The softdep_fsync() function may drop vp lock,
+		 * allowing for dirty buffers to reappear on the
+		 * bo_dirty list. Recheck and resync as needed.
+		 */
+		BO_LOCK(bo);
+		if (vp->v_type == VREG && (bo->bo_numoutput > 0 ||
+		    bo->bo_dirty.bv_cnt > 0)) {
+			BO_UNLOCK(bo);
+			goto retry;
+		}
+		BO_UNLOCK(bo);
+	}
+	return (0);
 }
 
 int
