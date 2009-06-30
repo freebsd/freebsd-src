@@ -807,7 +807,7 @@ tryagain:
  * XXX TO DO
  * Make nfs_realign() non-blocking. Also make nfsm_dissect() nonblocking.
  */
-static int
+static void
 nfs_clnt_match_xid(struct socket *so, 
 		   struct nfsmount *nmp, 
 		   struct mbuf *mrep)
@@ -947,7 +947,7 @@ nfs_copy_len(struct mbuf *mp, char *buf, int len)
 	return (len);
 }
 
-static void
+static int
 nfs_clnt_tcp_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	struct nfsmount *nmp = (struct nfsmount *)arg;
@@ -1085,7 +1085,7 @@ mark_reconnect:
 	return (SU_OK);
 }
 
-static void
+static int
 nfs_clnt_udp_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	struct nfsmount *nmp = (struct nfsmount *)arg;
