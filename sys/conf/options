@@ -228,11 +228,6 @@ KGSSAPI_DEBUG	opt_kgssapi.h
 NFSCLIENT	opt_nfs.h
 NFSSERVER	opt_nfs.h
 
-# Use this option to compile both NFS client and server using the
-# legacy RPC implementation instead of the newer KRPC system (which
-# supports modern features such as RPCSEC_GSS
-NFS_LEGACYRPC	opt_nfs.h
-
 # Use these options to compile the experimental nfs client and/or
 # server that supports NFSv4 into a kernel.
 # NFSCL - client

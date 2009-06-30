@@ -57,7 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <netinet/in.h>
 
-#include <nfs/rpcv2.h>
+#include <rpc/types.h>
+#include <rpc/auth.h>
+#include <rpc/rpc_msg.h>
 #include <nfsclient/krpc.h>
 #include <nfs/xdr_subs.h>
 
@@ -284,7 +286,7 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 	call->rp_vers = txdr_unsigned(vers);
 	call->rp_proc = txdr_unsigned(func);
 	/* rpc_auth part (auth_unix as root) */
-	call->rpc_auth.authtype = txdr_unsigned(RPCAUTH_UNIX);
+	call->rpc_auth.authtype = txdr_unsigned(AUTH_UNIX);
 	call->rpc_auth.authlen  = txdr_unsigned(sizeof(struct auth_unix));
 	/* rpc_verf part (auth_null) */
 	call->rpc_verf.authtype = 0;
@@ -359,7 +361,7 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 			reply = mtod(m, struct krpc_reply *);
 
 			/* Is it the right reply? */
-			if (reply->rp_direction != txdr_unsigned(RPC_REPLY))
+			if (reply->rp_direction != txdr_unsigned(REPLY))
 				continue;
 
 			if (reply->rp_xid != txdr_unsigned(xid))
@@ -375,7 +377,7 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 			/* Did the call succeed? */
 			if (reply->rp_status != 0) {
 				error = fxdr_unsigned(u_int32_t, reply->rp_status);
-				if (error == RPC_PROGMISMATCH) {
+				if (error == PROG_MISMATCH) {
 				  error = EBADRPC;
 				  goto out;
 				}

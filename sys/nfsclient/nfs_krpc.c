@@ -61,15 +61,12 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
-
-#ifndef NFS_LEGACYRPC
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -899,5 +896,3 @@ nfs_up(struct nfsmount *nmp, struct thread *td, const char *msg,
 	} else
 		mtx_unlock(&nmp->nm_mtx);
 }
-
-#endif /* !NFS_LEGACYRPC */
