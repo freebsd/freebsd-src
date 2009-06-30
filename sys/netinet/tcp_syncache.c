@@ -891,13 +891,15 @@ syncache_add(inc, to, th, sop, m)
 		/* NB: guarded by INP_INFO_WLOCK(&tcbinfo) */
 		for (i = SYNCACHE_MAXREXMTS; i >= 0; i--) {
 			sc = TAILQ_FIRST(&tcp_syncache.timerq[i]);
-			if (sc != NULL)
+			if (sc != NULL) {
+				sc->sc_tp->ts_recent = ticks;
+				syncache_drop(sc, NULL);
+				tcpstat.tcps_sc_zonefail++;
+				sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT |
+				    M_ZERO);
 				break;
+			}
 		}
-		sc->sc_tp->ts_recent = ticks;
-		syncache_drop(sc, NULL);
-		tcpstat.tcps_sc_zonefail++;
-		sc = uma_zalloc(tcp_syncache.zone, M_NOWAIT | M_ZERO);
 		if (sc == NULL) {
 			if (ipopts)
 				(void) m_free(ipopts);
