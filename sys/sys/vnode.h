@@ -219,9 +219,10 @@ struct xvnode {
 #define VN_KNOTE(vp, b, a)					\
 	do {							\
 		if (!VN_KNLIST_EMPTY(vp))			\
-			KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b), (a)); \
+			KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b), \
+			    (a) | KNF_NOKQLOCK);		\
 	} while (0)
-#define	VN_KNOTE_LOCKED(vp, b)		VN_KNOTE(vp, b, 1)
+#define	VN_KNOTE_LOCKED(vp, b)		VN_KNOTE(vp, b, KNF_LISTLOCKED)
 #define	VN_KNOTE_UNLOCKED(vp, b)	VN_KNOTE(vp, b, 0)
 
 /*

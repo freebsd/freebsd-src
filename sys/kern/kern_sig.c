@@ -1674,8 +1674,8 @@ kill(td, uap)
 	register struct proc *p;
 	int error;
 
-	AUDIT_ARG(signum, uap->signum);
-	AUDIT_ARG(pid, uap->pid);
+	AUDIT_ARG_SIGNUM(uap->signum);
+	AUDIT_ARG_PID(uap->pid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
@@ -1685,7 +1685,7 @@ kill(td, uap)
 			if ((p = zpfind(uap->pid)) == NULL)
 				return (ESRCH);
 		}
-		AUDIT_ARG(process, p);
+		AUDIT_ARG_PROCESS(p);
 		error = p_cansignal(td, p, uap->signum);
 		if (error == 0 && uap->signum)
 			psignal(p, uap->signum);
@@ -1717,8 +1717,8 @@ okillpg(td, uap)
 	register struct okillpg_args *uap;
 {
 
-	AUDIT_ARG(signum, uap->signum);
-	AUDIT_ARG(pid, uap->pgid);
+	AUDIT_ARG_SIGNUM(uap->signum);
+	AUDIT_ARG_PID(uap->pgid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 

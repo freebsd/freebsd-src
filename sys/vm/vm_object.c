@@ -1782,25 +1782,11 @@ vm_object_collapse(vm_object_t object)
 			 * and no object references within it, all that is
 			 * necessary is to dispose of it.
 			 */
-			if (backing_object->uip != NULL) {
-				swap_release_by_uid(backing_object->charge,
-				    backing_object->uip);
-				backing_object->charge = 0;
-				uifree(backing_object->uip);
-				backing_object->uip = NULL;
-			}
-			KASSERT(backing_object->ref_count == 1, ("backing_object %p was somehow re-referenced during collapse!", backing_object));
+			KASSERT(backing_object->ref_count == 1, (
+"backing_object %p was somehow re-referenced during collapse!",
+			    backing_object));
 			VM_OBJECT_UNLOCK(backing_object);
-
-			mtx_lock(&vm_object_list_mtx);
-			TAILQ_REMOVE(
-			    &vm_object_list, 
-			    backing_object,
-			    object_list
-			);
-			mtx_unlock(&vm_object_list_mtx);
-
-			uma_zfree(obj_zone, backing_object);
+			vm_object_destroy(backing_object);
 
 			object_collapses++;
 		} else {

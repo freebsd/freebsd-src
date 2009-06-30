@@ -561,13 +561,13 @@ kern_ftruncate(td, fd, length)
 	struct file *fp;
 	int error;
 
-	AUDIT_ARG(fd, fd);
+	AUDIT_ARG_FD(fd);
 	if (length < 0)
 		return (EINVAL);
 	error = fget(td, fd, &fp);
 	if (error)
 		return (error);
-	AUDIT_ARG(file, td->td_proc, fp);
+	AUDIT_ARG_FILE(td->td_proc, fp);
 	if (!(fp->f_flag & FWRITE)) {
 		fdrop(fp, td);
 		return (EINVAL);

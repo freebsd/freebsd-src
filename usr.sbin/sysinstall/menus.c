@@ -72,6 +72,15 @@ clearKernel(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
+static int
+setDocAll(dialogMenuItem *self)
+{
+    Dists |= DIST_DOC;
+    DocDists = DIST_DOC_ALL;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+
 #define _IS_SET(dist, set) (((dist) & (set)) == (set))
 
 #define IS_DEVELOPER(dist, extra) (_IS_SET(dist, _DIST_DEVELOPER | extra) || \
@@ -108,6 +117,7 @@ static int
 checkDistEverything(dialogMenuItem *self)
 {
     return Dists == DIST_ALL &&
+	_IS_SET(DocDists, DIST_DOC_ALL) &&
 	_IS_SET(SrcDists, DIST_SRC_ALL) &&
 	_IS_SET(KernelDists, DIST_KERNEL_ALL);
 }
@@ -122,6 +132,12 @@ static int
 kernelFlagCheck(dialogMenuItem *item)
 {
     return KernelDists;
+}
+
+static int
+docFlagCheck(dialogMenuItem *item)
+{
+    return DocDists;
 }
 
 static int
@@ -167,6 +183,7 @@ DMenu MenuIndex = {
       { " Dists, User",		"Select average user distribution.",	checkDistUser, distSetUser },
       { " Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
       { " Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
+      { " Documentation Installation",	"Installation of FreeBSD documentation set", NULL, distSetDocMenu },
       { " Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "README" },
       { " Doc, Errata",		"The distribution errata.",	NULL, dmenuDisplayFile, NULL, "ERRATA" },
       { " Doc, Hardware",	"The distribution hardware guide.",	NULL, dmenuDisplayFile,	NULL, "HARDWARE" },
@@ -283,6 +300,62 @@ DMenu MenuDocumentation = {
       { "5 Release"	,"The release notes for this version of FreeBSD.", NULL, dmenuDisplayFile, NULL, "RELNOTES" },
       { "6 Shortcuts",	"Creating shortcuts to sysinstall.",		NULL, dmenuDisplayFile, NULL, "shortcuts" },
       { "7 HTML Docs",	"Go to the HTML documentation menu (post-install).", NULL, docBrowser },
+      { NULL } },
+};
+
+/* The FreeBSD documentation installation menu */
+DMenu MenuDocInstall = {
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
+    "FreeBSD Documentation Installation Menu",
+    "This menu will allow you to install the whole documentation set\n"
+    "from the FreeBSD Documentation Project: Handbook, FAQ and articles.\n\n"
+    "Please select the language versions you wish to install.  At minimum,\n"
+    "you should install the English version, this is the original version\n"
+    "of the documentation.",
+    NULL,
+    NULL,
+    { { "X Exit",	"Exit this menu (returning to previous)",
+	      checkTrue,      dmenuExit, NULL, NULL, '<', '<', '<' },
+      { "All",		"Select all below",
+	      NULL,	      setDocAll, NULL, NULL, ' ', ' ', ' ' },
+      { " bn", 	"Bengali Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_BN },
+      { " da", 	"Danish Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_DA },
+      { " de", 	"German Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_DE },
+      { " el", 	"Greek Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_EL },
+      { " en", 	"English Documentation (recommended)",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_EN },
+      { " es", 	"Spanish Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_ES },
+      { " fr", 	"French Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_FR },
+      { " hu", 	"Hungarian Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_HU },
+      { " it", 	"Italian Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_IT },
+      { " ja", 	"Japanese Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_JA },
+      { " mn", 	"Mongolian Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_MN },
+      { " nl", 	"Dutch Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_NL },
+      { " pl", 	"Polish Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_PL },
+      { " pt", 	"Portuguese Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_PT },
+      { " ru", 	"Russian Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_RU },
+      { " sr", 	"Serbian Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_SR },
+      { " tr", 	"Turkish Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_TR },
+      { " zh_cn", 	"Simplified Chinese Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_ZH_CN },
+      { " zh_tw", 	"Traditional Chinese Documentation",
+	      dmenuFlagCheck, dmenuSetFlag, NULL, &DocDists, '[', 'X', ']', DIST_DOC_ZH_TW },
       { NULL } },
 };
 
@@ -917,8 +990,10 @@ DMenu MenuSubDistributions = {
 	kernelFlagCheck,distSetKernel },
       { " dict",	"Spelling checker dictionary files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DICT },
-      { " doc",		"Miscellaneous FreeBSD online docs",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DOC },
+      { " doc",		"FreeBSD Documentation set",
+	docFlagCheck,	distSetDoc },
+      { " docuser",		"Miscellaneous userland docs",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DOCUSERLAND },
       { " games",	"Games (non-commercial)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_GAMES },
       { " info",	"GNU info files",
@@ -1138,6 +1213,8 @@ DMenu MenuConfigure = {
 	NULL,	dmenuExit },
       { " Distributions", "Install additional distribution sets",
 	NULL, distExtractAll },
+      { " Documentation installation", "Install FreeBSD Documentation set",
+	NULL, distSetDocMenu },
       { " Packages",	"Install pre-packaged software for FreeBSD",
 	NULL, configPackages },
       { " Root Password", "Set the system manager's password",
