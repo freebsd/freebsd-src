@@ -139,6 +139,11 @@ argument, defined in
 .In sys/time.h .
 .Pp
 The following options are recognized at the socket level.
+For protocol-specific options, see protocol manual pages,
+e.g.
+.Xr ip 4
+or
+.Xr tcp 4 .
 Except as noted, each may be examined with
 .Fn getsockopt
 and set with
@@ -499,6 +504,10 @@ on a non-listening socket was attempted.
 .Xr getprotoent 3 ,
 .Xr mac 3 ,
 .Xr sysctl 3 ,
+.Xr ip 4 ,
+.Xr ip6 4 ,
+.Xr sctp 4 ,
+.Xr tcp 4 ,
 .Xr protocols 5 ,
 .Xr sysctl 8 ,
 .Xr accept_filter 9 ,
