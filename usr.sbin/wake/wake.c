@@ -27,18 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <net/bpf.h>
-#include <net/if.h>
-
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -50,70 +38,89 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-#define _PATH_BPF	"/dev/bpf"
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <net/bpf.h>
+#include <net/if.h>
+
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+
+#define	_PATH_BPF	"/dev/bpf"
 
 #ifndef SYNC_LEN
-#define SYNC_LEN 6
+#define	SYNC_LEN	6
 #endif
 
 #ifndef DESTADDR_COUNT
-#define DESTADDR_COUNT 16
+#define	DESTADDR_COUNT	16
 #endif
 
-void usage(void);
+static void	usage(void);
+static int	wake(const char *iface, const char *host);
+static int	bind_if_to_bpf(char const *ifname, int bpf);
+static int	get_ether(char const *text, struct ether_addr *addr);
+static int	send_wakeup(int bpf, struct ether_addr const *addr);
 
-int wake(const char *iface, const char *host);
-int bind_if_to_bpf(char const *ifname, int bpf);
-int get_ether(char const *text, struct ether_addr *addr);
-int send_wakeup(int bpf, struct ether_addr const *addr);
-
-void
+static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: wake interface lladdr\n");
+
+	(void)fprintf(stderr, "usage: wake interface lladdr...\n");
 	exit(0);
 }
 
-int
+static int
 wake(const char *iface, const char *host)
 {
-	int res, bpf;
 	struct ether_addr macaddr;
+	int bpf, res;
 
 	bpf = open(_PATH_BPF, O_RDWR);
 	if (bpf == -1) {
-		printf("no bpf\n");
-		return -1;
+		warn("no bpf");
+		return (-1);
 	}
 	if (bind_if_to_bpf(iface, bpf) == -1 ||
 	    get_ether(host, &macaddr) == -1) {
 		(void)close(bpf);
-		return -1;
+		return (-1);
 	}
 	res = send_wakeup(bpf, &macaddr);
 	(void)close(bpf);
-	return res;
+	return (res);
 }
 
-int
+static int
 bind_if_to_bpf(char const *ifname, int bpf)
 {
 	struct ifreq ifr;
 	u_int dlt;
 
 	if (strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name)) >=
-	    sizeof(ifr.ifr_name))
-		return -1;
-	if (ioctl(bpf, BIOCSETIF, &ifr) == -1)
-		return -1;
-	if (ioctl(bpf, BIOCGDLT, &dlt) == -1)
-		return -1;
-	if (dlt != DLT_EN10MB)
-		return -1;
-	return 0;
+	    sizeof(ifr.ifr_name)) {
+		warnx("interface name too long: %s", ifname);
+		return (-1);
+	}
+	if (ioctl(bpf, BIOCSETIF, &ifr) == -1) {
+		warn("ioctl(%s)", "BIOCSETIF");
+		return (-1);
+	}
+	if (ioctl(bpf, BIOCGDLT, &dlt) == -1) {
+		warn("ioctl(%s)", "BIOCGDLT");
+		return (-1);
+	}
+	if (dlt != DLT_EN10MB) {
+		warnx("incompatible media");
+		return (-1);
+	}
+	return (0);
 }
 
-int
+static int
 get_ether(char const *text, struct ether_addr *addr)
 {
 	struct ether_addr *paddr;
@@ -121,24 +128,26 @@ get_ether(char const *text, struct ether_addr *addr)
 	paddr = ether_aton(text);
 	if (paddr != NULL) {
 		*addr = *paddr;
-		return 0;
+		return (0);
 	}
-	if (ether_hostton(text, addr))
-		return -1;
-	return 0;
+	if (ether_hostton(text, addr)) {
+		warnx("no match for host %s found", text);
+		return (-1);
+	}
+	return (0);
 }
 
-int
+static int
 send_wakeup(int bpf, struct ether_addr const *addr)
 {
 	struct {
 		struct ether_header hdr;
 		u_char data[SYNC_LEN + ETHER_ADDR_LEN * DESTADDR_COUNT];
-	} pkt;
-	u_char *p;
-	int i;
+	} __packed pkt;
 	ssize_t bw;
 	ssize_t len;
+	int i;
+	u_char *p;
 
 	(void)memset(pkt.hdr.ether_dhost, 0xff, sizeof(pkt.hdr.ether_dhost));
 	pkt.hdr.ether_type = htons(0);
@@ -150,12 +159,14 @@ send_wakeup(int bpf, struct ether_addr const *addr)
 	len = sizeof(pkt);
 	bw = 0;
 	while (len) {
-		if ((bw = write(bpf, &pkt, sizeof(pkt))) == -1)
-			return -1;
+		if ((bw = write(bpf, p, len)) == -1) {
+			warn("write()");
+			return (-1);
+		}
 		len -= bw;
 		p += bw;
 	}
-	return 0;
+	return (0);
 }
 
 int
@@ -170,5 +181,5 @@ main(int argc, char *argv[])
 		if (wake(argv[1], argv[n]))
 			warnx("error sending Wake on LAN frame over %s to %s",
 			    argv[1], argv[n]);
-	return 0;
+	return (0);
 }
