@@ -706,10 +706,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		/* FALLTHROUGH */
 
-	case AUE_ACCESS:
 	case AUE_CHDIR:
 	case AUE_CHROOT:
-	case AUE_EACCESS:
 	case AUE_GETATTRLIST:
 	case AUE_JAIL:
 	case AUE_LUTIMES:
@@ -730,6 +728,15 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_UNLINK:
 	case AUE_UTIMES:
 		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_ACCESS:
+	case AUE_EACCESS:
+		UPATH1_VNODE1_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "mode", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
 		break;
 
 	case AUE_FHSTATFS:
