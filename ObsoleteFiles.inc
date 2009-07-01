@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090630: old kernel RPC implementation removal
+OLD_FILES+=usr/include/nfs/rpcv2.h
 # 20090624: update usbdi(9)
 OLD_FILES+=usr/share/man/man9/usbd_abort_default_pipe.9.gz
 OLD_FILES+=usr/share/man/man9/usbd_abort_pipe.9.gz
