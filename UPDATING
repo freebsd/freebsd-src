@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090630:
+	Remove the old kernel RPC implementation and the NFS_LEGACYRPC
+	option.  Kernel configurations may need to be adjusted.
+
 20090629:
 	The network interface device nodes at /dev/net/<interface> have
 	been removed.  All ioctl operations can be performed the normal
