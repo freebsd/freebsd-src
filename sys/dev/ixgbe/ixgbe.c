@@ -46,7 +46,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "1.8.7";
+char ixgbe_driver_version[] = "1.8.8";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -452,7 +452,7 @@ ixgbe_attach(device_t dev)
 	** system mbuf allocation. Tuning nmbclusters
 	** can alleviate this.
 	*/
-	if ((adapter->num_queues > 1) && (nmbclusters > 0 )){
+	if (nmbclusters > 0 ) {
 		int s;
 		/* Calculate the total RX mbuf needs */
 		s = (ixgbe_rxd * adapter->num_queues) * ixgbe_total_ports;
@@ -3629,7 +3629,7 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 	struct	rx_ring	*rxr = adapter->rx_rings;
 	struct ixgbe_hw	*hw = &adapter->hw;
 	struct ifnet   *ifp = adapter->ifp;
-	u32		rxctrl, fctrl, srrctl, rxcsum;
+	u32		bufsz, rxctrl, fctrl, srrctl, rxcsum;
 	u32		reta, mrqc = 0, hlreg, random[10];
 
 
@@ -3648,51 +3648,49 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 	fctrl |= IXGBE_FCTRL_PMCF;
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
 
-	srrctl = IXGBE_READ_REG(hw, IXGBE_SRRCTL(0));
-	srrctl &= ~IXGBE_SRRCTL_BSIZEHDR_MASK;
-	srrctl &= ~IXGBE_SRRCTL_BSIZEPKT_MASK;
-
-	hlreg = IXGBE_READ_REG(hw, IXGBE_HLREG0);
 	/* Set for Jumbo Frames? */
+	hlreg = IXGBE_READ_REG(hw, IXGBE_HLREG0);
 	if (ifp->if_mtu > ETHERMTU) {
 		hlreg |= IXGBE_HLREG0_JUMBOEN;
-		srrctl |= 4096 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+		bufsz = 4096 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 	} else {
 		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
-		srrctl |= 2048 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+		bufsz = 2048 >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg);
 
-	if (rxr->hdr_split) {
-		/* Use a standard mbuf for the header */
-		srrctl |= ((IXGBE_RX_HDR << IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT)
-		    & IXGBE_SRRCTL_BSIZEHDR_MASK);
-		srrctl |= IXGBE_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
-		if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-			/* PSRTYPE must be initialized in 82599 */
-			u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
-				      IXGBE_PSRTYPE_UDPHDR |
-				      IXGBE_PSRTYPE_IPV4HDR |
-				      IXGBE_PSRTYPE_IPV6HDR;
-			psrtype |= (7 << 29);
-			IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
-		}
-	} else
-		srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
-
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
-		srrctl |= IXGBE_SRRCTL_DROP_EN;
-
-	IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(0), srrctl);
-
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 rdba = rxr->rxdma.dma_paddr;
+
 		/* Setup the Base and Length of the Rx Descriptor Ring */
 		IXGBE_WRITE_REG(hw, IXGBE_RDBAL(i),
 			       (rdba & 0x00000000ffffffffULL));
 		IXGBE_WRITE_REG(hw, IXGBE_RDBAH(i), (rdba >> 32));
 		IXGBE_WRITE_REG(hw, IXGBE_RDLEN(i),
 		    adapter->num_rx_desc * sizeof(union ixgbe_adv_rx_desc));
+
+		/* Set up the SRRCTL register */
+		srrctl = IXGBE_READ_REG(hw, IXGBE_SRRCTL(i));
+		srrctl &= ~IXGBE_SRRCTL_BSIZEHDR_MASK;
+		srrctl &= ~IXGBE_SRRCTL_BSIZEPKT_MASK;
+		srrctl |= bufsz;
+		if (rxr->hdr_split) {
+			/* Use a standard mbuf for the header */
+			srrctl |= ((IXGBE_RX_HDR <<
+			    IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT)
+			    & IXGBE_SRRCTL_BSIZEHDR_MASK);
+			srrctl |= IXGBE_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
+			if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+				/* PSRTYPE must be initialized in 82599 */
+				u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
+					      IXGBE_PSRTYPE_UDPHDR |
+					      IXGBE_PSRTYPE_IPV4HDR |
+					      IXGBE_PSRTYPE_IPV6HDR;
+				IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
+			}
+		} else
+			srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
+		IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(i), srrctl);
 
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */
 		IXGBE_WRITE_REG(hw, IXGBE_RDH(i), 0);
@@ -3722,10 +3720,7 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 			IXGBE_WRITE_REG(hw, IXGBE_RSSRK(i), random[i]);
 
 		/* Perform hash on these packet types */
-		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
-			mrqc = IXGBE_MRQC_VMDQRSS32EN;
-
-		mrqc |= IXGBE_MRQC_RSSEN
+		mrqc = IXGBE_MRQC_RSSEN
 		     | IXGBE_MRQC_RSS_FIELD_IPV4
 		     | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
 		     | IXGBE_MRQC_RSS_FIELD_IPV4_UDP
