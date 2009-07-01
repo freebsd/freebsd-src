@@ -1498,6 +1498,10 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			tok = au_to_arg32(0, "pid", ar->ar_arg_pid);
 			kau_write(rec, tok);
 		}
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(0, "options", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
 		break;
 
 	case AUE_NULL:
