@@ -113,6 +113,8 @@ struct msi_intsrc {
 	u_int msi_vector:8;		/* IDT vector. */
 	u_int msi_cpu:8;		/* Local APIC ID. (g) */
 	u_int msi_count:8;		/* Messages in this group. (g) */
+	u_int msi_maxcount:8;		/* Alignment for this group. (g) */
+	int *msi_irqs;			/* Group's IRQ list. (g) */
 };
 
 static void	msi_create_source(void);
@@ -125,7 +127,7 @@ static int	msi_vector(struct intsrc *isrc);
 static int	msi_source_pending(struct intsrc *isrc);
 static int	msi_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		    enum intr_polarity pol);
-static void	msi_assign_cpu(struct intsrc *isrc, u_int apic_id);
+static int	msi_assign_cpu(struct intsrc *isrc, u_int apic_id);
 
 struct pic msi_pic = { msi_enable_source, msi_disable_source, msi_eoi_source,
 		       msi_enable_intr, msi_disable_intr, msi_vector,
@@ -195,32 +197,52 @@ msi_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	return (ENODEV);
 }
 
-static void
+static int
 msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 {
-	struct msi_intsrc *msi = (struct msi_intsrc *)isrc;
+	struct msi_intsrc *sib, *msi = (struct msi_intsrc *)isrc;
 	int old_vector;
 	u_int old_id;
-	int vector;
+	int i, vector;
+
+	/*
+	 * Only allow CPUs to be assigned to the first message for an
+	 * MSI group.
+	 */
+	if (msi->msi_first != msi)
+		return (EINVAL);
 
 	/* Store information to free existing irq. */
 	old_vector = msi->msi_vector;
 	old_id = msi->msi_cpu;
 	if (old_id == apic_id)
-		return;
-	if (!msi->msi_msix && msi->msi_first->msi_count > 1)
-		return;
+		return (0);
 
-	/* Allocate IDT vector on this cpu. */
-	vector = apic_alloc_vector(apic_id, msi->msi_irq);
+	/* Allocate IDT vectors on this cpu. */
+	if (msi->msi_count > 1) {
+		KASSERT(msi->msi_msix == 0, ("MSI-X message group"));
+		vector = apic_alloc_vectors(apic_id, msi->msi_irqs,
+		    msi->msi_count, msi->msi_maxcount);
+	} else
+		vector = apic_alloc_vector(apic_id, msi->msi_irq);
 	if (vector == 0)
-		return; /* XXX alloc_vector panics on failure. */
+		return (ENOSPC);
+
 	msi->msi_cpu = apic_id;
 	msi->msi_vector = vector;
 	if (bootverbose)
 		printf("msi: Assigning %s IRQ %d to local APIC %u vector %u\n",
 		    msi->msi_msix ? "MSI-X" : "MSI", msi->msi_irq,
 		    msi->msi_cpu, msi->msi_vector);
+	for (i = 1; i < msi->msi_count; i++) {
+		sib = (struct msi_intsrc *)intr_lookup_source(msi->msi_irqs[i]);
+		sib->msi_cpu = apic_id;
+		sib->msi_vector = vector + i;
+		if (bootverbose)
+			printf(
+		    "msi: Assigning MSI IRQ %d to local APIC %u vector %u\n",
+			    sib->msi_irq, sib->msi_cpu, sib->msi_vector);
+	}
 	pci_remap_msi_irq(msi->msi_dev, msi->msi_irq);
 
 	/*
@@ -228,6 +250,9 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	 * to prevent races where we could miss an interrupt.
 	 */
 	apic_free_vector(old_id, old_vector, msi->msi_irq);
+	for (i = 1; i < msi->msi_count; i++)
+		apic_free_vector(old_id, old_vector + i, msi->msi_irqs[i]);
+	return (0);
 }
 
 void
@@ -268,7 +293,7 @@ msi_create_source(void)
 	msi_last_irq++;
 	mtx_unlock(&msi_lock);
 
-	msi = malloc(sizeof(struct msi_intsrc), M_MSI, M_WAITOK | M_ZERO);	
+	msi = malloc(sizeof(struct msi_intsrc), M_MSI, M_WAITOK | M_ZERO);
 	msi->msi_intsrc.is_pic = &msi_pic;
 	msi->msi_irq = irq;
 	intr_register_source(&msi->msi_intsrc);
@@ -276,21 +301,22 @@ msi_create_source(void)
 }
 
 /*
- * Try to allocate 'count' interrupt sources with contiguous IDT values.  If
- * we allocate any new sources, then their IRQ values will be at the end of
- * the irqs[] array, with *newirq being the index of the first new IRQ value
- * and *newcount being the number of new IRQ values added.
+ * Try to allocate 'count' interrupt sources with contiguous IDT values.
  */
 int
 msi_alloc(device_t dev, int count, int maxcount, int *irqs)
 {
 	struct msi_intsrc *msi, *fsrc;
 	u_int cpu;
-	int cnt, i, vector;
+	int cnt, i, *mirqs, vector;
 
 	if (!msi_enabled)
 		return (ENXIO);
 
+	if (count > 1)
+		mirqs = malloc(count * sizeof(*mirqs), M_MSI, M_WAITOK);
+	else
+		mirqs = NULL;
 again:
 	mtx_lock(&msi_lock);
 
@@ -317,6 +343,7 @@ again:
 		/* If we would exceed the max, give up. */
 		if (i + (count - cnt) > FIRST_MSI_INT + NUM_MSI_INTS) {
 			mtx_unlock(&msi_lock);
+			free(mirqs, M_MSI);
 			return (ENXIO);
 		}
 		mtx_unlock(&msi_lock);
@@ -337,6 +364,7 @@ again:
 	vector = apic_alloc_vectors(cpu, irqs, count, maxcount);
 	if (vector == 0) {
 		mtx_unlock(&msi_lock);
+		free(mirqs, M_MSI);
 		return (ENOSPC);
 	}
 
@@ -356,6 +384,10 @@ again:
 		    ("dead MSI has handlers"));
 	}
 	fsrc->msi_count = count;
+	fsrc->msi_maxcount = maxcount;
+	if (count > 1)
+		bcopy(irqs, mirqs, count * sizeof(*mirqs));
+	fsrc->msi_irqs = mirqs;
 	mtx_unlock(&msi_lock);
 
 	return (0);
@@ -413,6 +445,9 @@ msi_release(int *irqs, int count)
 	apic_free_vector(first->msi_cpu, first->msi_vector, first->msi_irq);
 	first->msi_vector = 0;
 	first->msi_count = 0;
+	first->msi_maxcount = 0;
+	free(first->msi_irqs, M_MSI);
+	first->msi_irqs = NULL;
 
 	mtx_unlock(&msi_lock);
 	return (0);
@@ -498,15 +533,23 @@ again:
 	/* Allocate an IDT vector. */
 	cpu = intr_next_cpu();
 	vector = apic_alloc_vector(cpu, i);
+	if (vector == 0) {
+		mtx_unlock(&msi_lock);
+		return (ENOSPC);
+	}
 	if (bootverbose)
 		printf("msi: routing MSI-X IRQ %d to local APIC %u vector %u\n",
 		    msi->msi_irq, cpu, vector);
-	
+
 	/* Setup source. */
 	msi->msi_cpu = cpu;
 	msi->msi_dev = dev;
+	msi->msi_first = msi;
 	msi->msi_vector = vector;
 	msi->msi_msix = 1;
+	msi->msi_count = 1;
+	msi->msi_maxcount = 1;
+	msi->msi_irqs = NULL;
 
 	KASSERT(msi->msi_intsrc.is_handlers == 0, ("dead MSI-X has handlers"));
 	mtx_unlock(&msi_lock);
@@ -536,10 +579,13 @@ msix_release(int irq)
 	KASSERT(msi->msi_dev != NULL, ("unowned message"));
 
 	/* Clear out the message. */
+	msi->msi_first = NULL;
 	msi->msi_dev = NULL;
 	apic_free_vector(msi->msi_cpu, msi->msi_vector, msi->msi_irq);
 	msi->msi_vector = 0;
 	msi->msi_msix = 0;
+	msi->msi_count = 0;
+	msi->msi_maxcount = 0;
 
 	mtx_unlock(&msi_lock);
 	return (0);
