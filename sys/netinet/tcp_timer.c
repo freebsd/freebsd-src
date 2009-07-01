@@ -118,6 +118,24 @@ int	tcp_maxpersistidle;
 	/* max idle time in persist */
 int	tcp_maxidle;
 
+static void inline	cc_after_timeout(struct tcpcb *tp);
+
+/*
+ * CC wrapper hook functions
+ */
+static void inline
+cc_after_timeout(struct tcpcb *tp)
+{
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	if (CC_ALGO(tp)->after_timeout != NULL)
+		CC_ALGO(tp)->after_timeout(tp);
+
+	tp->t_dupacks = 0;
+	EXIT_FASTRECOVERY(tp);
+	tp->t_bytes_acked = 0;
+}
+
 /*
  * Tcp protocol timeout routine called every 500 ms.
  * Updates timestamps used for TCP
@@ -555,12 +573,8 @@ tcp_timer_rexmt(void * xtp)
 	 */
 	tp->t_rtttime = 0;
 
-	if (CC_ALGO(tp)->after_timeout != NULL)
-		CC_ALGO(tp)->after_timeout(tp);
+	cc_after_timeout(tp);
 
-	tp->t_dupacks = 0;
-	EXIT_FASTRECOVERY(tp);
-	tp->t_bytes_acked = 0;
 	(void) tcp_output(tp);
 
 out:

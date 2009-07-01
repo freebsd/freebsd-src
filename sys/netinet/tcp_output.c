@@ -125,6 +125,19 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, sendbuf_max,
 	CTLFLAG_RW, tcp_autosndbuf_max, 0,
 	"Max size of automatic send buffer");
 
+static void inline	cc_after_idle(struct tcpcb *tp);
+
+/*
+ * CC wrapper hook functions
+ */
+static void inline
+cc_after_idle(struct tcpcb *tp)
+{
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	if (CC_ALGO(tp)->after_idle != NULL)
+		CC_ALGO(tp)->after_idle(tp);
+}
 
 /*
  * Tcp output routine: figure out what should be sent and send it.
@@ -169,11 +182,8 @@ tcp_output(struct tcpcb *tp)
 	 * to send, then transmit; otherwise, investigate further.
 	 */
 	idle = (tp->t_flags & TF_LASTIDLE) || (tp->snd_max == tp->snd_una);
-	if (idle && ticks - tp->t_rcvtime >= tp->t_rxtcur) {
-		/* reset cwnd after a period of idleness */
-		if (CC_ALGO(tp)->after_idle != NULL)
-			CC_ALGO(tp)->after_idle(tp);
-	}
+	if (idle && ticks - tp->t_rcvtime >= tp->t_rxtcur)
+		cc_after_idle(tp);
 	tp->t_flags &= ~TF_LASTIDLE;
 	if (idle) {
 		if (tp->t_flags & TF_MORETOCOME) {

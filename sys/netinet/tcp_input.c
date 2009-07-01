@@ -214,6 +214,59 @@ static void	 tcp_pulloutofband(struct socket *,
 		     struct tcphdr *, struct mbuf *, int);
 static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
+static void inline	cc_ack_received(struct tcpcb *tp, struct tcphdr *th);
+static void inline	cc_cwnd_init(struct tcpcb *tp);
+static void inline	cc_pre_fr(struct tcpcb *tp, struct tcphdr *th);
+static void inline	cc_post_fr(struct tcpcb *tp, struct tcphdr *th);
+
+/*
+ * CC wrapper hook functions
+ */
+static void inline
+cc_ack_received(struct tcpcb *tp, struct tcphdr *th)
+{
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	if (!IN_FASTRECOVERY(tp) && CC_ALGO(tp)->ack_received != NULL)
+		CC_ALGO(tp)->ack_received(tp, th);
+}
+
+static void inline
+cc_cwnd_init(struct tcpcb *tp)
+{
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	/*
+	 * XXXLS: Should rename this hook and do
+	 * ssthresh init in there as well
+	 */
+
+	if (CC_ALGO(tp)->cwnd_init != NULL)
+		CC_ALGO(tp)->cwnd_init(tp);
+}
+
+static void inline
+cc_pre_fr(struct tcpcb *tp, struct tcphdr *th)
+{
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	if (CC_ALGO(tp)->pre_fr != NULL)
+		CC_ALGO(tp)->pre_fr(tp, th);
+
+	ENTER_FASTRECOVERY(tp);
+	tp->snd_recover = tp->snd_max;
+	if (tp->t_flags & TF_ECN_PERMIT)
+		tp->t_flags |= TF_ECN_SND_CWR;
+}
+
+static void inline
+cc_post_fr(struct tcpcb *tp, struct tcphdr *th)
+{
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	if (CC_ALGO(tp)->post_fr != NULL)
+		CC_ALGO(tp)->post_fr(tp, th);
+}
 
 /* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
 #ifdef INET6
@@ -1160,17 +1213,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((thflags & TH_ECE) &&
 		    SEQ_LEQ(th->th_ack, tp->snd_recover)) {
 			TCPSTAT_INC(tcps_ecn_rcwnd);
-			/*
-			 * If the current CC algo has
-			 * defined a hook for tasks to run
-			 * before entering FR, call it.
-			 */
-			if (CC_ALGO(tp)->pre_fr != NULL)
-				CC_ALGO(tp)->pre_fr(tp, th);
-			ENTER_FASTRECOVERY(tp);
-			tp->snd_recover = tp->snd_max;
-			if (tp->t_flags & TF_ECN_PERMIT)
-				tp->t_flags |= TF_ECN_SND_CWR;
+			cc_pre_fr(tp, th);
 		}
 	}
 
@@ -2105,17 +2148,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						}
 					}
 
-					/*
-					 * If the current CC algo has
-					 * defined a hook for tasks to run
-					 * before entering FR, call it.
-					 */
-					if (CC_ALGO(tp)->pre_fr != NULL)
-						CC_ALGO(tp)->pre_fr(tp, th);
-					ENTER_FASTRECOVERY(tp);
-					tp->snd_recover = tp->snd_max;
-					if (tp->t_flags & TF_ECN_PERMIT)
-						tp->t_flags |= TF_ECN_SND_CWR;
+					cc_pre_fr(tp, th);
 					tcp_timer_activate(tp, TT_REXMT, 0);
 					tp->t_rtttime = 0;
 					if (tp->t_flags & TF_SACK_PERMIT) {
@@ -2186,10 +2219,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tcp_sack_partialack(tp, th);
 				else
 					tcp_newreno_partial_ack(tp, th);
-			} else {
-				if (CC_ALGO(tp)->post_fr != NULL)
-					CC_ALGO(tp)->post_fr(tp, th);
-			}
+			} else
+				cc_post_fr(tp, th);
 		}
 		tp->t_dupacks = 0;
 		/*
@@ -2292,10 +2323,8 @@ process_ACK:
 		 * The specifics of how this is achieved are up to the
 		 * congestion control algorithm in use for this connection.
 		 */
-		if (!IN_FASTRECOVERY(tp)) {
-			if (CC_ALGO(tp)->ack_received != NULL)
-				CC_ALGO(tp)->ack_received(tp, th);
-		}
+		cc_ack_received(tp, th);
+
 		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > so->so_snd.sb_cc) {
 			tp->snd_wnd -= so->so_snd.sb_cc;
@@ -3274,9 +3303,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	if (metrics.rmx_bandwidth)
 		tp->snd_bandwidth = metrics.rmx_bandwidth;
 
-	/* Set the initial cwnd value. */
-	if (CC_ALGO(tp)->cwnd_init != NULL)
-		CC_ALGO(tp)->cwnd_init(tp);
+	cc_cwnd_init(tp);
 
 	/* Check the interface for TSO capabilities. */
 	if (mtuflags & CSUM_TSO)

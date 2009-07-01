@@ -204,6 +204,12 @@ cc_deregister_algo(struct cc_algo *remove_cc)
 		 * Check all active control blocks and change any that are
 		 * using this algorithm back to newreno. If the algorithm that
 		 * was in use requires cleanup code to be run, call it.
+		 *
+		 * New connections already part way through being initialised
+		 * with the CC algo we're removing will not race with this code
+		 * because the INP_INFO_WLOCK is held during initialisation.
+		 * We therefore don't enter the loop below until the connection
+		 * list has stabilised.
 		 */
 		INP_INFO_RLOCK(&V_tcbinfo);
 		LIST_FOREACH(inp, &V_tcb, inp_list) {
