@@ -27,27 +27,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <err.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <limits.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sysexits.h>
-#include <unistd.h>
-
-#include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <net/bpf.h>
 #include <net/if.h>
-
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
+
+#include <err.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define	_PATH_BPF	"/dev/bpf"
 
@@ -59,18 +52,18 @@ __FBSDID("$FreeBSD$");
 #define	DESTADDR_COUNT	16
 #endif
 
-static void	usage(void);
-static int	wake(const char *iface, const char *host);
 static int	bind_if_to_bpf(char const *ifname, int bpf);
 static int	get_ether(char const *text, struct ether_addr *addr);
 static int	send_wakeup(int bpf, struct ether_addr const *addr);
+static void	usage(void);
+static int	wake(const char *iface, const char *host);
 
 static void
 usage(void)
 {
 
 	(void)fprintf(stderr, "usage: wake interface lladdr...\n");
-	exit(0);
+	exit(1);
 }
 
 static int
@@ -144,10 +137,10 @@ send_wakeup(int bpf, struct ether_addr const *addr)
 		struct ether_header hdr;
 		u_char data[SYNC_LEN + ETHER_ADDR_LEN * DESTADDR_COUNT];
 	} __packed pkt;
+	u_char *p;
 	ssize_t bw;
 	ssize_t len;
 	int i;
-	u_char *p;
 
 	(void)memset(pkt.hdr.ether_dhost, 0xff, sizeof(pkt.hdr.ether_dhost));
 	pkt.hdr.ether_type = htons(0);
