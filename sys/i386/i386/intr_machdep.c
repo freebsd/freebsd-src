@@ -290,7 +290,8 @@ static int
 intr_assign_cpu(void *arg, u_char cpu)
 {
 #ifdef SMP
-	struct intsrc *isrc;	
+	struct intsrc *isrc;
+	int error;
 
 	/*
 	 * Don't do anything during early boot.  We will pick up the
@@ -299,10 +300,11 @@ intr_assign_cpu(void *arg, u_char cpu)
 	if (assign_cpu && cpu != NOCPU) {
 		isrc = arg;
 		mtx_lock(&intr_table_lock);
-		isrc->is_pic->pic_assign_cpu(isrc, cpu_apic_ids[cpu]);
+		error = isrc->is_pic->pic_assign_cpu(isrc, cpu_apic_ids[cpu]);
 		mtx_unlock(&intr_table_lock);
-	}
-	return (0);
+	} else
+		error = 0;
+	return (error);
 #else
 	return (EOPNOTSUPP);
 #endif
@@ -359,7 +361,7 @@ intr_init(void *dummy __unused)
 	intrcnt_setname("???", 0);
 	intrcnt_index = 1;
 	STAILQ_INIT(&pics);
-	mtx_init(&intr_table_lock, "intr sources", NULL, MTX_DEF | MTX_RECURSE);
+	mtx_init(&intr_table_lock, "intr sources", NULL, MTX_DEF);
 	mtx_init(&intrcnt_lock, "intrcnt", NULL, MTX_SPIN);
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
@@ -407,14 +409,14 @@ intr_next_cpu(void)
 	if (!assign_cpu)
 		return (cpu_apic_ids[0]);
 
-	mtx_lock(&intr_table_lock);
+	mtx_lock_spin(&icu_lock);
 	apic_id = cpu_apic_ids[current_cpu];
 	do {
 		current_cpu++;
 		if (current_cpu > mp_maxid)
 			current_cpu = 0;
 	} while (!(intr_cpus & (1 << current_cpu)));
-	mtx_unlock(&intr_table_lock);
+	mtx_unlock_spin(&icu_lock);
 	return (apic_id);
 }
 
@@ -455,7 +457,6 @@ static void
 intr_shuffle_irqs(void *arg __unused)
 {
 	struct intsrc *isrc;
-	u_int apic_id;
 	int i;
 
 #ifdef XEN
@@ -463,8 +464,8 @@ intr_shuffle_irqs(void *arg __unused)
 	 * Doesn't work yet
 	 */
 	return;
-#endif	
-	
+#endif
+
 	/* Don't bother on UP. */
 	if (mp_ncpus == 1)
 		return;
@@ -478,13 +479,17 @@ intr_shuffle_irqs(void *arg __unused)
 			/*
 			 * If this event is already bound to a CPU,
 			 * then assign the source to that CPU instead
-			 * of picking one via round-robin.
+			 * of picking one via round-robin.  Note that
+			 * this is careful to only advance the
+			 * round-robin if the CPU assignment succeeds.
 			 */
 			if (isrc->is_event->ie_cpu != NOCPU)
-				apic_id = isrc->is_event->ie_cpu;
-			else
-				apic_id = intr_next_cpu();
-			isrc->is_pic->pic_assign_cpu(isrc, apic_id);
+				(void)isrc->is_pic->pic_assign_cpu(isrc,
+				    isrc->is_event->ie_cpu);
+			else if (isrc->is_pic->pic_assign_cpu(isrc,
+				cpu_apic_ids[current_cpu]) == 0)
+				(void)intr_next_cpu();
+
 		}
 	}
 	mtx_unlock(&intr_table_lock);
