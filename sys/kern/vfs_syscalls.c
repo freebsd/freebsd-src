@@ -1583,7 +1583,7 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
+	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE2,
 	    segflg, path2, fd2, td);
 	if ((error = namei(&nd)) == 0) {
 		lvfslocked = NDHASGIANT(&nd);
