@@ -1113,6 +1113,7 @@ unmount(td, uap)
 	char *pathbuf;
 	int error, id0, id1;
 
+	AUDIT_ARG_VALUE(uap->flags);
 	if (jailed(td->td_ucred) || usermount == 0) {
 		error = priv_check(td, PRIV_VFS_UNMOUNT);
 		if (error)
@@ -1125,9 +1126,9 @@ unmount(td, uap)
 		free(pathbuf, M_TEMP);
 		return (error);
 	}
-	AUDIT_ARG_UPATH(td, pathbuf, ARG_UPATH1);
 	mtx_lock(&Giant);
 	if (uap->flags & MNT_BYFSID) {
+		AUDIT_ARG_TEXT(pathbuf);
 		/* Decode the filesystem ID. */
 		if (sscanf(pathbuf, "FSID:%d:%d", &id0, &id1) != 2) {
 			mtx_unlock(&Giant);
@@ -1143,6 +1144,7 @@ unmount(td, uap)
 		}
 		mtx_unlock(&mountlist_mtx);
 	} else {
+		AUDIT_ARG_UPATH(td, pathbuf, ARG_UPATH1);
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)
