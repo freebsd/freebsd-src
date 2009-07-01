@@ -139,7 +139,7 @@ static inthand_t *ioint_handlers[] = {
 };
 
 
-static u_int32_t lapic_timer_divisors[] = { 
+static u_int32_t lapic_timer_divisors[] = {
 	APIC_TDCR_1, APIC_TDCR_2, APIC_TDCR_4, APIC_TDCR_8, APIC_TDCR_16,
 	APIC_TDCR_32, APIC_TDCR_64, APIC_TDCR_128
 };
@@ -799,7 +799,7 @@ apic_alloc_vector(u_int apic_id, u_int irq)
 		return (vector + APIC_IO_INTS);
 	}
 	mtx_unlock_spin(&icu_lock);
-	panic("Couldn't find an APIC vector for IRQ %u", irq);
+	return (0);
 }
 
 /*
@@ -1062,7 +1062,7 @@ DB_SHOW_COMMAND(lapic, db_show_lapic)
 static SLIST_HEAD(, apic_enumerator) enumerators =
 	SLIST_HEAD_INITIALIZER(enumerators);
 static struct apic_enumerator *best_enum;
-	
+
 void
 apic_register_enumerator(struct apic_enumerator *enumerator)
 {
