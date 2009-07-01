@@ -1070,7 +1070,15 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_UMOUNT:
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "flags", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
 		UPATH1_VNODE1_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_TEXT)) {
+			tok = au_to_text(ar->ar_arg_text);
+			kau_write(rec, tok);
+		}
 		break;
 
 	case AUE_MSGCTL:
