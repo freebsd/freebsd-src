@@ -161,7 +161,7 @@ static void atpic_resume(struct pic *pic);
 static int atpic_source_pending(struct intsrc *isrc);
 static int atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol);
-static void atpic_assign_cpu(struct intsrc *isrc, u_int apic_id);
+static int atpic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 static void i8259_init(struct atpic *pic, int slave);
 
 static struct atpic atpics[] = {
@@ -389,7 +389,7 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 #endif /* PC98 */
 }
 
-static void
+static int
 atpic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 {
 
