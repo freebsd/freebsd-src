@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
@@ -161,6 +162,7 @@ socket(td, uap)
 	struct file *fp;
 	int fd, error;
 
+	AUDIT_ARG_SOCKET(uap->domain, uap->type, uap->protocol);
 #ifdef MAC
 	error = mac_socket_check_create(td->td_ucred, uap->domain, uap->type,
 	    uap->protocol);
@@ -586,6 +588,7 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	struct socket *so1, *so2;
 	int fd, error;
 
+	AUDIT_ARG_SOCKET(domain, type, protocol);
 #ifdef MAC
 	/* We might want to have a separate check for socket pairs. */
 	error = mac_socket_check_create(td->td_ucred, domain, type,
