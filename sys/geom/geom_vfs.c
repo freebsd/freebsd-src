@@ -106,7 +106,7 @@ g_vfs_strategy(struct bufobj *bo, struct buf *bp)
 	int vfslocked;
 
 	cp = bo->bo_private;
-	G_VALID_CONSUMER(cp);
+	/* G_VALID_CONSUMER(cp); We likely lack topology lock */
 
 	/*
 	 * If the the provider has orphaned us, just return EXIO.
