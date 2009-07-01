@@ -375,7 +375,7 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 
 	while (!powerof2(fl_q_size))
 		fl_q_size--;
-#if __FreeBSD_version > 700000
+#if __FreeBSD_version >= 700111
 	if (cxgb_use_16k_clusters) 
 		jumbo_q_size = min(nmbjumbo16/(3*nqsets), JUMBO_Q_SIZE);
 	else
@@ -2377,7 +2377,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->fl[0].buf_size = (MCLBYTES - header_size);
 	q->fl[0].zone = zone_clust;
 	q->fl[0].type = EXT_CLUSTER;
-#if __FreeBSD_version > 800000
+#if __FreeBSD_version >= 700111
 	if (cxgb_use_16k_clusters) {		
 		q->fl[1].buf_size = MJUM16BYTES - header_size;
 		q->fl[1].zone = zone_jumbo16;
