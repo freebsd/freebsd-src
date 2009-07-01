@@ -234,11 +234,83 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th)
 static void inline
 cc_conn_init(struct tcpcb *tp)
 {
+	struct hc_metrics_lite metrics;
+	struct inpcb *inp = tp->t_inpcb;
+	struct socket *so = inp->inp_socket;
+	int rtt;
+#ifdef INET6
+	int isipv6 = ((inp->inp_vflag & INP_IPV6) != 0) ? 1 : 0;
+#endif
+
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
+	tcp_hc_get(&inp->inp_inc, &metrics);
+
+	if (tp->t_srtt == 0 && (rtt = metrics.rmx_rtt)) {
+		tp->t_srtt = rtt;
+		tp->t_rttbest = tp->t_srtt + TCP_RTT_SCALE;
+		TCPSTAT_INC(tcps_usedrtt);
+		if (metrics.rmx_rttvar) {
+			tp->t_rttvar = metrics.rmx_rttvar;
+			TCPSTAT_INC(tcps_usedrttvar);
+		} else {
+			/* default variation is +- 1 rtt */
+			tp->t_rttvar =
+			    tp->t_srtt * TCP_RTTVAR_SCALE / TCP_RTT_SCALE;
+		}
+		TCPT_RANGESET(tp->t_rxtcur,
+			      ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1,
+			      tp->t_rttmin, TCPTV_REXMTMAX);
+	}
+	if (metrics.rmx_ssthresh) {
+		/*
+		 * There's some sort of gateway or interface
+		 * buffer limit on the path.  Use this to set
+		 * the slow start threshhold, but set the
+		 * threshold to no less than 2*mss.
+		 */
+		tp->snd_ssthresh = max(2 * tp->t_maxseg, metrics.rmx_ssthresh);
+		TCPSTAT_INC(tcps_usedssthresh);
+	}
+	if (metrics.rmx_bandwidth)
+		tp->snd_bandwidth = metrics.rmx_bandwidth;
+
 	/*
-	 * XXXLS: Should do ssthresh init in there as well
+	 * Set the slow-start flight size depending on whether this
+	 * is a local network or not.
+	 *
+	 * Extend this so we cache the cwnd too and retrieve it here.
+	 * Make cwnd even bigger than RFC3390 suggests but only if we
+	 * have previous experience with the remote host. Be careful
+	 * not make cwnd bigger than remote receive window or our own
+	 * send socket buffer. Maybe put some additional upper bound
+	 * on the retrieved cwnd. Should do incremental updates to
+	 * hostcache when cwnd collapses so next connection doesn't
+	 * overloads the path again.
+	 *
+	 * RFC3390 says only do this if SYN or SYN/ACK didn't got lost.
+	 * We currently check only in syncache_socket for that.
 	 */
+#define TCP_METRICS_CWND
+#ifdef TCP_METRICS_CWND
+	if (metrics.rmx_cwnd)
+		tp->snd_cwnd = max(tp->t_maxseg,
+				min(metrics.rmx_cwnd / 2,
+				 min(tp->snd_wnd, so->so_snd.sb_hiwat)));
+	else
+#endif
+	if (V_tcp_do_rfc3390)
+		tp->snd_cwnd = min(4 * tp->t_maxseg, max(2 * tp->t_maxseg,
+4380));
+#ifdef INET6
+	else if ((isipv6 && in6_localaddr(&inp->in6p_faddr)) ||
+		 (!isipv6 && in_localaddr(inp->inp_faddr)))
+#else
+	else if (in_localaddr(inp->inp_faddr))
+#endif
+		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
+	else
+		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz;
 
 	if (CC_ALGO(tp)->conn_init != NULL)
 		CC_ALGO(tp)->conn_init(tp);
@@ -3214,15 +3286,13 @@ tcp_mss_update(struct tcpcb *tp, int offer,
 void
 tcp_mss(struct tcpcb *tp, int offer)
 {
-	int rtt, mss;
+	int mss;
 	u_long bufsize;
 	struct inpcb *inp;
 	struct socket *so;
 	struct hc_metrics_lite metrics;
 	int mtuflags = 0;
-#ifdef INET6
-	int isipv6;
-#endif
+
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
 	INIT_VNET_INET(tp->t_vnet);
 	
@@ -3230,9 +3300,6 @@ tcp_mss(struct tcpcb *tp, int offer)
 
 	mss = tp->t_maxseg;
 	inp = tp->t_inpcb;
-#ifdef INET6
-	isipv6 = ((inp->inp_vflag & INP_IPV6) != 0) ? 1 : 0;
-#endif
 
 	/*
 	 * If there's a pipesize, change the socket buffer to that size,
@@ -3272,37 +3339,6 @@ tcp_mss(struct tcpcb *tp, int offer)
 			(void)sbreserve_locked(&so->so_rcv, bufsize, so, NULL);
 	}
 	SOCKBUF_UNLOCK(&so->so_rcv);
-	/*
-	 * While we're here, check the others too.
-	 */
-	if (tp->t_srtt == 0 && (rtt = metrics.rmx_rtt)) {
-		tp->t_srtt = rtt;
-		tp->t_rttbest = tp->t_srtt + TCP_RTT_SCALE;
-		TCPSTAT_INC(tcps_usedrtt);
-		if (metrics.rmx_rttvar) {
-			tp->t_rttvar = metrics.rmx_rttvar;
-			TCPSTAT_INC(tcps_usedrttvar);
-		} else {
-			/* default variation is +- 1 rtt */
-			tp->t_rttvar =
-			    tp->t_srtt * TCP_RTTVAR_SCALE / TCP_RTT_SCALE;
-		}
-		TCPT_RANGESET(tp->t_rxtcur,
-			      ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1,
-			      tp->t_rttmin, TCPTV_REXMTMAX);
-	}
-	if (metrics.rmx_ssthresh) {
-		/*
-		 * There's some sort of gateway or interface
-		 * buffer limit on the path.  Use this to set
-		 * the slow start threshhold, but set the
-		 * threshold to no less than 2*mss.
-		 */
-		tp->snd_ssthresh = max(2 * mss, metrics.rmx_ssthresh);
-		TCPSTAT_INC(tcps_usedssthresh);
-	}
-	if (metrics.rmx_bandwidth)
-		tp->snd_bandwidth = metrics.rmx_bandwidth;
 
 	/* Check the interface for TSO capabilities. */
 	if (mtuflags & CSUM_TSO)

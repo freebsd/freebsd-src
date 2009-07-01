@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/vinet.h>
 
 /* function prototypes */
+int cubic_mod_init(void);
 int cubic_cb_init(struct tcpcb *tp);
 void cubic_cb_destroy(struct tcpcb *tp);
 void cubic_pre_fr(struct tcpcb *tp, struct tcphdr *th);
@@ -93,22 +94,27 @@ MALLOC_DEFINE(M_CUBIC, "cubic data",
 /* function pointers for various hooks into the TCP stack */
 struct cc_algo cubic_cc_algo = {
 	.name = "cubic",
+	.mod_init = cubic_mod_init,
 	.cb_init = cubic_cb_init,
 	.cb_destroy = cubic_cb_destroy,
 	.conn_init = cubic_conn_init,
 	.ack_received = cubic_ack_received,
 	.pre_fr = cubic_pre_fr,
 	.post_fr = cubic_post_fr,
-	.after_idle = newreno_after_idle,
 	.after_timeout = cubic_after_timeout
 };
+
+int
+cubic_mod_init(void)
+{
+	cubic_cc_algo.after_idle = newreno_cc_algo.after_idle;
+	return (0);
+}
 
 void
 cubic_conn_init(struct tcpcb *tp)
 {
 	struct cubic *cubic_data = CC_DATA(tp);
-
-	newreno_conn_init(tp);
 
 	/*
 	 * Ensure we have a sane initial value for max_cwnd recorded.
@@ -253,7 +259,7 @@ cubic_ack_received(struct tcpcb *tp, struct tcphdr *th)
 	if ((tp->snd_cwnd < tp->snd_ssthresh) ||
 		(tp->snd_ssthresh == TCP_MAXWIN << TCP_MAX_WINSHIFT) ||
 			(cubic_data->min_rtt_ticks == TCPTV_SRTTBASE))
-                newreno_ack_received(tp, th);
+                newreno_cc_algo.ack_received(tp, th);
 	else {
 		/* num ticks since last congestion */
 		ticks_since_cong = ticks - cubic_data->t_last_cong;
@@ -339,7 +345,7 @@ cubic_after_timeout(struct tcpcb *tp)
 	if (tp->t_rxtshift >= 2)
 		cubic_data->t_last_cong = ticks;
 
-	newreno_after_timeout(tp);
+	newreno_cc_algo.after_timeout(tp);
 }
 
 /*

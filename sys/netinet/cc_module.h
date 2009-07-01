@@ -36,18 +36,6 @@
 #ifndef _NETINET_CC_MODULE_H_
 #define _NETINET_CC_MODULE_H_
 
-/*
- * NewReno CC functions
- */
-int	newreno_cb_init(struct tcpcb *tp);
-void	newreno_conn_init(struct tcpcb *tp);
-void	newreno_ack_received(struct tcpcb *tp, struct tcphdr *th);
-void	newreno_pre_fr(struct tcpcb *tp, struct tcphdr *th);
-void	newreno_post_fr(struct tcpcb *tp, struct tcphdr *th);
-void	newreno_after_idle(struct tcpcb *tp);
-void	newreno_after_timeout(struct tcpcb *tp);
-void	newreno_ssthresh_update(struct tcpcb *tp);
-
 #define	DECLARE_CC_MODULE(ccname, ccalgo) 				\
 	static moduledata_t cc_##ccname = {				\
 		#ccname,						\

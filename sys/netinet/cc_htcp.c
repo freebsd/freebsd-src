@@ -140,7 +140,6 @@ void htcp_pre_fr(struct tcpcb *tp, struct tcphdr *th);
 void htcp_post_fr(struct tcpcb *tp, struct tcphdr *th);
 void htcp_ack_received(struct tcpcb *tp, struct tcphdr *th);
 void htcp_after_timeout(struct tcpcb *tp);
-void htcp_after_idle(struct tcpcb *tp);
 void htcp_ssthresh_update(struct tcpcb *tp);
 void htcp_record_rtt(struct tcpcb *tp);
 
@@ -172,11 +171,9 @@ struct cc_algo htcp_cc_algo = {
 	.mod_init = htcp_mod_init,
 	.cb_init = htcp_cb_init,
 	.cb_destroy = htcp_cb_destroy,
-	.conn_init = newreno_conn_init,
 	.ack_received = htcp_ack_received,
 	.pre_fr = htcp_pre_fr,
 	.post_fr = htcp_post_fr,
-	.after_idle = htcp_after_idle,
 	.after_timeout = htcp_after_timeout
 };
 
@@ -435,7 +432,7 @@ htcp_ack_received(struct tcpcb *tp, struct tcphdr *th)
 	 * Alpha will equal 1 for the first HTCP_DELTA_L ticks after the flow starts and after congestion
 	 */
 	if (htcp_data->alpha == 1 || tp->snd_cwnd < tp->snd_ssthresh)
-		newreno_ack_received(tp, th);
+		newreno_cc_algo.ack_received(tp, th);
 	else
 	{
 		/*
@@ -447,13 +444,6 @@ htcp_ack_received(struct tcpcb *tp, struct tcphdr *th)
 		incr = (((htcp_data->alpha << HTCP_SHIFT) / cwnd_in_pkts) * tp->t_maxseg) >> HTCP_SHIFT;
 		tp->snd_cwnd = min(tp->snd_cwnd + incr, TCP_MAXWIN << tp->snd_scale);
 	}
-}
-
-void
-htcp_after_idle(struct tcpcb *tp)
-{
-    printf("after_idle hook called\n");
-    newreno_after_idle(tp);
 }
 
 /*
@@ -475,7 +465,7 @@ htcp_after_timeout(struct tcpcb *tp)
 	if (tp->t_rxtshift >= 2)
 		htcp_data->t_last_cong = ticks;
 
-	newreno_after_timeout(tp);
+	newreno_cc_algo.after_timeout(tp);
 }
 
 /*
@@ -545,6 +535,9 @@ skip:
 int
 htcp_mod_init(void)
 {
+
+	htcp_cc_algo.after_idle = newreno_cc_algo.after_idle;
+
 	/*
 	 * the maximum time in ticks after a congestion event before alpha stops
 	 * increasing, due to the risk of overflow.
