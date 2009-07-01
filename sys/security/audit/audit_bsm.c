@@ -679,7 +679,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_GETRESUID:
 	case AUE_GETRESGID:
 	case AUE_KQUEUE:
-	case AUE_LSEEK:
 	case AUE_MODLOAD:
 	case AUE_MODUNLOAD:
 	case AUE_MSGSYS:
@@ -870,6 +869,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_FUTIMES:
 	case AUE_GETDIRENTRIES:
 	case AUE_GETDIRENTRIESATTR:
+	case AUE_LSEEK:
 	case AUE_POLL:
 	case AUE_READ:
 	case AUE_READV:

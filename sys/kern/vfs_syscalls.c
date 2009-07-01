@@ -1924,6 +1924,7 @@ lseek(td, uap)
 	int error, noneg;
 	int vfslocked;
 
+	AUDIT_ARG_FD(uap->fd);
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE)) {
