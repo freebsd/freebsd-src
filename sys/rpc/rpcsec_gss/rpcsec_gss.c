@@ -929,6 +929,20 @@ rpc_gss_refresh(AUTH *auth, void *msg)
 {
 	struct rpc_msg *reply = (struct rpc_msg *) msg;
 	rpc_gss_options_ret_t options;
+	struct rpc_gss_data *gd;
+
+	gd = AUTH_PRIVATE(auth);
+	
+	/*
+	 * If the context is in DESTROYING state, then just return, since
+	 * there is no point in refreshing the credentials.
+	 */
+	mtx_lock(&gd->gd_lock);
+	if (gd->gd_state == RPCSEC_GSS_DESTROYING) {
+		mtx_unlock(&gd->gd_lock);
+		return (FALSE);
+	}
+	mtx_unlock(&gd->gd_lock);
 
 	/*
 	 * If the error was RPCSEC_GSS_CREDPROBLEM of
