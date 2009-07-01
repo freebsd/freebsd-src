@@ -804,6 +804,7 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	int error, nfound;
 
 	AUDIT_ARG_PID(pid);
+	AUDIT_ARG_VALUE(options);
 
 	q = td->td_proc;
 	if (pid == 0) {
