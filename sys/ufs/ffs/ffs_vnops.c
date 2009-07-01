@@ -1401,7 +1401,7 @@ struct vop_openextattr_args {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	return (ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td));
@@ -1429,7 +1429,7 @@ struct vop_closeextattr_args {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	if (ap->a_commit && (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY))
@@ -1462,7 +1462,7 @@ vop_deleteextattr {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	if (strlen(ap->a_name) == 0)
@@ -1549,7 +1549,7 @@ vop_getextattr {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
@@ -1605,7 +1605,7 @@ vop_listextattr {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
@@ -1668,7 +1668,7 @@ vop_setextattr {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	if (strlen(ap->a_name) == 0)
