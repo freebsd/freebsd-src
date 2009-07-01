@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static void usage(void);
+static int may_have_nfs4acl(const FTSENT *ent);
 
 int
 main(int argc, char *argv[])
@@ -180,8 +181,14 @@ done:	argv += optind;
 			break;
 		}
 		newmode = getmode(set, p->fts_statp->st_mode);
-		if ((newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
-			continue;
+		/*
+		 * With NFSv4 ACLs, it is possible that applying a mode
+		 * identical to the one computed from an ACL will change
+		 * that ACL.
+		 */
+		if (may_have_nfs4acl(p) == 0 &&
+		    (newmode & ALLPERMS) == (p->fts_statp->st_mode & ALLPERMS))
+				continue;
 		if ((*change_mode)(p->fts_accpath, newmode) && !fflag) {
 			warn("%s", p->fts_path);
 			rval = 1;
@@ -218,4 +225,25 @@ usage(void)
 	(void)fprintf(stderr,
 	    "usage: chmod [-fhv] [-R [-H | -L | -P]] mode file ...\n");
 	exit(1);
+}
+
+static int
+may_have_nfs4acl(const FTSENT *ent)
+{
+	int ret;
+	static dev_t previous_dev = (dev_t)-1;
+	static int supports_acls = -1;
+
+	if (previous_dev != ent->fts_statp->st_dev) {
+		previous_dev = ent->fts_statp->st_dev;
+		supports_acls = 0;
+
+		ret = pathconf(ent->fts_accpath, _PC_ACL_NFS4);
+		if (ret > 0)
+			supports_acls = 1;
+		else if (ret < 0 && errno != EINVAL)
+			warn("%s", ent->fts_path);
+	}
+
+	return (supports_acls);
 }
