@@ -215,7 +215,7 @@ static void	 tcp_pulloutofband(struct socket *,
 static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
 static void inline	cc_ack_received(struct tcpcb *tp, struct tcphdr *th);
-static void inline	cc_cwnd_init(struct tcpcb *tp);
+static void inline	cc_conn_init(struct tcpcb *tp);
 static void inline	cc_pre_fr(struct tcpcb *tp, struct tcphdr *th);
 static void inline	cc_post_fr(struct tcpcb *tp, struct tcphdr *th);
 
@@ -232,17 +232,16 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th)
 }
 
 static void inline
-cc_cwnd_init(struct tcpcb *tp)
+cc_conn_init(struct tcpcb *tp)
 {
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
-	 * XXXLS: Should rename this hook and do
-	 * ssthresh init in there as well
+	 * XXXLS: Should do ssthresh init in there as well
 	 */
 
-	if (CC_ALGO(tp)->cwnd_init != NULL)
-		CC_ALGO(tp)->cwnd_init(tp);
+	if (CC_ALGO(tp)->conn_init != NULL)
+		CC_ALGO(tp)->conn_init(tp);
 }
 
 static void inline
@@ -1632,6 +1631,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				thflags &= ~TH_SYN;
 			} else {
 				tp->t_state = TCPS_ESTABLISHED;
+				cc_conn_init(tp);
 				tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
 			}
 		} else {
@@ -2035,6 +2035,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_flags &= ~TF_NEEDFIN;
 		} else {
 			tp->t_state = TCPS_ESTABLISHED;
+			cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
 		}
 		/*
@@ -3302,8 +3303,6 @@ tcp_mss(struct tcpcb *tp, int offer)
 	}
 	if (metrics.rmx_bandwidth)
 		tp->snd_bandwidth = metrics.rmx_bandwidth;
-
-	cc_cwnd_init(tp);
 
 	/* Check the interface for TSO capabilities. */
 	if (mtuflags & CSUM_TSO)

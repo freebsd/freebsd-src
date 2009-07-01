@@ -78,9 +78,8 @@ struct cc_algo {
 	/* Cleanup CC state for a terminating control block. */
 	void (*cb_destroy) (struct tcpcb *tp);
 
-	/* Init cwnd for a new connection. */
-	/* XXXLS: could this be renamed conn_init or conn_established? */
-	void (*cwnd_init) (struct tcpcb *tp);
+	/* Init variables for a newly established connection. */
+	void (*conn_init) (struct tcpcb *tp);
 
 	/* Called on receipt of a regular, valid ack. */
 	void (*ack_received) (struct tcpcb *tp, struct tcphdr *th);

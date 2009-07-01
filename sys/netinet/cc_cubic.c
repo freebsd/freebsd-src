@@ -70,7 +70,7 @@ void cubic_ack_received(struct tcpcb *tp, struct tcphdr *th);
 void cubic_after_timeout(struct tcpcb *tp);
 void cubic_after_idle(struct tcpcb *tp);
 void cubic_ssthresh_update(struct tcpcb *tp);
-void cubic_cwnd_init(struct tcpcb *tp);
+void cubic_conn_init(struct tcpcb *tp);
 void cubic_record_rtt(struct tcpcb *tp);
 
 struct cubic {
@@ -93,11 +93,9 @@ MALLOC_DEFINE(M_CUBIC, "cubic data",
 /* function pointers for various hooks into the TCP stack */
 struct cc_algo cubic_cc_algo = {
 	.name = "cubic",
-	.mod_init = NULL,
-	.mod_destroy = NULL,
 	.cb_init = cubic_cb_init,
 	.cb_destroy = cubic_cb_destroy,
-	.cwnd_init = cubic_cwnd_init,
+	.conn_init = cubic_conn_init,
 	.ack_received = cubic_ack_received,
 	.pre_fr = cubic_pre_fr,
 	.post_fr = cubic_post_fr,
@@ -106,11 +104,11 @@ struct cc_algo cubic_cc_algo = {
 };
 
 void
-cubic_cwnd_init(struct tcpcb *tp)
+cubic_conn_init(struct tcpcb *tp)
 {
 	struct cubic *cubic_data = CC_DATA(tp);
 
-	newreno_cwnd_init(tp);
+	newreno_conn_init(tp);
 
 	/*
 	 * Ensure we have a sane initial value for max_cwnd recorded.

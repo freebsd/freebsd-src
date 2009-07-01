@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 struct cc_algo newreno_cc_algo = {
 	.name = "newreno",
 	.cb_init = newreno_cb_init,
-	.cwnd_init = newreno_cwnd_init,
+	.conn_init = newreno_conn_init,
 	.ack_received = newreno_ack_received,
 	.pre_fr = newreno_pre_fr,
 	.post_fr = newreno_post_fr,
@@ -89,7 +89,7 @@ newreno_ssthresh_update(struct tcpcb *tp)
  * otherwise use the sysctl variables configured by the administrator
  */
 void
-newreno_cwnd_init(struct tcpcb *tp)
+newreno_conn_init(struct tcpcb *tp)
 {
 	struct hc_metrics_lite metrics;
 	struct inpcb *inp = tp->t_inpcb;
