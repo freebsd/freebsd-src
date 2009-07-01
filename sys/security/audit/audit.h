@@ -297,6 +297,11 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_sgid((sgid));					\
 } while (0)
 
+#define	AUDIT_ARG_SOCKET(sodomain, sotype, soprotocol) do {		\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_socket((sodomain), (sotype), (soprotocol));	\
+} while (0)
+
 #define	AUDIT_ARG_SUID(suid) do {					\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_suid((suid));					\
@@ -375,6 +380,7 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_RUID(ruid)
 #define	AUDIT_ARG_SIGNUM(signum)
 #define	AUDIT_ARG_SGID(sgid)
+#define	AUDIT_ARG_SOCKET(sodomain, sotype, soprotocol)
 #define	AUDIT_ARG_SUID(suid)
 #define	AUDIT_ARG_TEXT(text)
 #define	AUDIT_ARG_UID(uid)
