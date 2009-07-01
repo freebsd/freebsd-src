@@ -547,11 +547,13 @@ get_reply:
 		tv -= time_waited;
 
 		if (tv > 0) {
-			if (cu->cu_closing || cu->cu_closed)
+			if (cu->cu_closing || cu->cu_closed) {
 				error = 0;
-			else
+				cr->cr_error = ESHUTDOWN;
+			} else {
 				error = msleep(cr, &cs->cs_lock,
 				    cu->cu_waitflag, cu->cu_waitchan, tv);
+			}
 		} else {
 			error = EWOULDBLOCK;
 		}
