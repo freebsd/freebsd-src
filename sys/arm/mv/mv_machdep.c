@@ -528,9 +528,9 @@ initarm(void *mdp, void *unused __unused)
 	    L2_TABLE_SIZE_REAL * l2size,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 
-	/* Map allocated stacks and msgbuf */
-	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
-	    freemempos - irqstack.pv_va,
+	/* Map allocated DPCPU, stacks and msgbuf */
+	pmap_map_chunk(l1pagetable, dpcpu.pv_va, dpcpu.pv_pa,
+	    freemempos - dpcpu.pv_va,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
 	/* Link and map the vector page */
