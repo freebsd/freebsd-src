@@ -353,3 +353,37 @@ $ rmdir ddd/ddd
 $ rm ddd/xxx
 $ rmdir ddd
 
+# Test if we deal properly with fifos.
+$ mkfifo fff
+$ ls -l fff | cut -d' ' -f1
+> prw-r--r--
+
+$ setfacl -m u:42:r,g:43:w fff
+$ getfacl fff
+> # file: fff
+> # owner: root
+> # group: wheel
+> user::rw-
+> user:42:r--
+> group::r--
+> group:43:-w-
+> mask::rw-
+> other::r--
+
+$ ls -l fff | cut -d' ' -f1
+> prw-rw-r--+
+
+$ setfacl -bn fff
+$ getfacl fff
+> # file: fff
+> # owner: root
+> # group: wheel
+> user::rw-
+> group::r--
+> other::r--
+
+$ ls -l fff | cut -d' ' -f1
+> prw-r--r--
+
+$ rm fff
+
