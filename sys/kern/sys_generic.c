@@ -693,6 +693,8 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 	int error;
 	int tmp;
 
+	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_CMD(com);
 	if ((error = fget(td, fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
