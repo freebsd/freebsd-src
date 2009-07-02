@@ -1307,9 +1307,11 @@ vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
 	    ("vn_vget_ino: vp not locked"));
 	error = vfs_busy(mp, MBF_NOWAIT);
 	if (error != 0) {
+		vfs_ref(mp);
 		VOP_UNLOCK(vp, 0);
 		error = vfs_busy(mp, 0);
 		vn_lock(vp, ltype | LK_RETRY);
+		vfs_rel(mp);
 		if (error != 0)
 			return (ENOENT);
 		if (vp->v_iflag & VI_DOOMED) {
