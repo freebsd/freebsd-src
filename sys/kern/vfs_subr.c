@@ -461,8 +461,7 @@ vfs_suser(struct mount *mp, struct thread *td)
 	 * If the file system was mounted outside the jail of the calling
 	 * thread, deny immediately.
 	 */
-	if (mp->mnt_cred->cr_prison != td->td_ucred->cr_prison &&
-	    !prison_ischild(td->td_ucred->cr_prison, mp->mnt_cred->cr_prison))
+	if (prison_check(td->td_ucred, mp->mnt_cred) != 0)
 		return (EPERM);
 
 	/*
