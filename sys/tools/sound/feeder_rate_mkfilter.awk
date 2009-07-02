@@ -592,7 +592,7 @@ BEGIN {
 	if (ARGC < 2) {
 		ARGC = 1;
 		ARGV[ARGC++] = "100:8:0.85";
-		ARGV[ARGC++] = "100:36:0.90";
+		ARGV[ARGC++] = "100:36:0.92";
 		ARGV[ARGC++] = "100:164:0.97";
 		#ARGV[ARGC++] = "100:8";
 		#ARGV[ARGC++] = "100:16";
