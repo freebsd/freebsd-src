@@ -278,7 +278,7 @@ kau_free(struct au_record *rec)
 
 /*
  * Not all pointer arguments to system calls are of interest, but in some
- * cases they reflect delegation of rights, such as mmap(2) falled by
+ * cases they reflect delegation of rights, such as mmap(2) followed by
  * minherit(2) before execve(2), so do the best we can.
  */
 #define	ADDR_TOKEN(argnum, argname) do {				\
