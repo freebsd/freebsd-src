@@ -690,6 +690,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_MSGSYS:
 	case AUE_NTP_ADJTIME:
 	case AUE_PIPE:
+	case AUE_POSIX_OPENPT:
 	case AUE_PROFILE:
 	case AUE_RTPRIO:
 	case AUE_SEMSYS:
