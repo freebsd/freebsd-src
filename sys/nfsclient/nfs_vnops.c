@@ -1043,9 +1043,11 @@ nfs_lookup(struct vop_lookup_args *ap)
 		ltype = VOP_ISLOCKED(dvp);
 		error = vfs_busy(mp, MBF_NOWAIT);
 		if (error != 0) {
+			vfs_ref(mp);
 			VOP_UNLOCK(dvp, 0);
 			error = vfs_busy(mp, 0);
 			vn_lock(dvp, ltype | LK_RETRY);
+			vfs_rel(mp);
 			if (error == 0 && (dvp->v_iflag & VI_DOOMED)) {
 				vfs_unbusy(mp);
 				error = ENOENT;
