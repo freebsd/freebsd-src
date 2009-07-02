@@ -79,6 +79,9 @@ struct flag2str {
 #define	DEBUG_VAR	0x0200
 #define	DEBUG_FOR	0x0400
 #define	DEBUG_LOUD	0x0800
+#ifdef MAKE_IS_BUILD
+#define	DEBUG_WHY	0x1000
+#endif
 
 #define	DEBUG(module)	(debug & CONCAT(DEBUG_,module))
 #define	DEBUGF(module,args)		\

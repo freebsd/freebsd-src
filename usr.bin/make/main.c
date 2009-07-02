@@ -458,6 +458,11 @@ rearg:
 				case 'v':
 					debug |= DEBUG_VAR;
 					break;
+#ifdef MAKE_IS_BUILD
+				case 'w':
+					debug |= DEBUG_WHY;
+					break;
+#endif
 				default:
 					warnx("illegal argument to d option "
 					    "-- %c", *modules);

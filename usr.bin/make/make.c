@@ -350,7 +350,7 @@ Make_OODate(GNode *gn)
 						if (stat(p, &fs) == 0 &&
 						    !S_ISDIR(fs.st_mode) &&
 						    fs.st_mtime > gn->mtime) {
-							DEBUGF(MAKE, ("File '%s' is newer than the target...", p));
+							DEBUGF(WHY, ("File '%s' is newer than the target...", p));
 							oodate = TRUE;
 						}
 						break;
@@ -364,13 +364,13 @@ Make_OODate(GNode *gn)
 				 */
 				} else if (strcmp(bufr, "CMD") == 0) {
 					if (lnp == NULL) {
-						DEBUGF(MAKE, ("There were more build commands in the meta data file than there are now..."));
+						DEBUGF(WHY, ("There were more build commands in the meta data file than there are now..."));
 						oodate = TRUE;
 					} else {
 						char *cmd = Buf_Peel(Var_Subst(lnp->datum, gn, TRUE));
 
 						if (strcmp(p, cmd) != 0) {
-							DEBUGF(MAKE, ("A build command has changed\n%s\nvs\n%s\n... ", p, cmd));
+							DEBUGF(WHY, ("A build command has changed\n%s\nvs\n%s\n... ", p, cmd));
 							oodate = TRUE;
 						}
 
@@ -379,7 +379,7 @@ Make_OODate(GNode *gn)
 				} else if (strcmp(bufr, "CWD") == 0) {
 					char curdir[MAXPATHLEN];
 					if (strcmp(p, getcwd(curdir, sizeof(curdir))) != 0) {
-						DEBUGF(MAKE, ("The current working directory has changed from '%s' to '%s'.. ", p, curdir));
+						DEBUGF(WHY, ("The current working directory has changed from '%s' to '%s'.. ", p, curdir));
 						oodate = TRUE;
 					}
 				}
@@ -390,7 +390,7 @@ Make_OODate(GNode *gn)
 			 * data file.
 			 */
 			if (!oodate && lnp != NULL) {
-				DEBUGF(MAKE, ("There are extra build commands now that weren't in the meta data file"));
+				DEBUGF(WHY, ("There are extra build commands now that weren't in the meta data file"));
 				oodate = TRUE;
 			}
 
