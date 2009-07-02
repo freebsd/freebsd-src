@@ -3588,7 +3588,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		if (mpt->is_spi && cpi->max_target > 15) {
 			cpi->max_target = 15;
 		}
-		cpi->max_lun = 7;
+		if (mpt->is_spi)
+			cpi->max_lun = 7;
+		else
+			cpi->max_lun = MPT_MAX_LUNS;
 		cpi->initiator_id = mpt->mpt_ini_id;
 		cpi->bus_id = cam_sim_bus(sim);
 
