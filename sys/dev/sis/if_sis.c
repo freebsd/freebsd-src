@@ -773,7 +773,7 @@ sis_setmulti_ns(struct sis_softc *sc)
 		CSR_WRITE_4(sc, SIS_RXFILT_DATA, 0);
 	}
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -786,7 +786,7 @@ sis_setmulti_ns(struct sis_softc *sc)
 			bit -= 0x10;
 		SIS_SETBIT(sc, SIS_RXFILT_DATA, (1 << bit));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave);
 
@@ -825,7 +825,7 @@ sis_setmulti_sis(struct sis_softc *sc)
 		for (i = 0; i < n; i++)
 			hashes[i] = 0;
 		i = 0;
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -834,7 +834,7 @@ sis_setmulti_sis(struct sis_softc *sc)
 			hashes[h >> 4] |= 1 << (h & 0xf);
 			i++;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 		if (i > n) {
 			ctl |= SIS_RXFILTCTL_ALLMULTI;
 			for (i = 0; i < n; i++)

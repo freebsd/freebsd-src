@@ -230,7 +230,7 @@ mfi_issue_cmd_ppc(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt)
 static int
 mfi_transition_firmware(struct mfi_softc *sc)
 {
-	int32_t fw_state, cur_state;
+	uint32_t fw_state, cur_state;
 	int max_wait, i;
 
 	fw_state = sc->mfi_read_fw_status(sc)& MFI_FWSTATE_MASK;

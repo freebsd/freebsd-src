@@ -324,6 +324,7 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	struct socket *so = NULL;
 	struct sockaddr *sa = NULL;
 	int error;
+	SVCXPRT *new_xprt;
 
 	/*
 	 * The socket upcall calls xprt_active() which will eventually
@@ -383,10 +384,14 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 	/*
 	 * svc_vc_create_conn will call xprt_register - we don't need
-	 * to do anything with the new connection.
+	 * to do anything with the new connection except derefence it.
 	 */
-	if (!svc_vc_create_conn(xprt->xp_pool, so, sa))
+	new_xprt = svc_vc_create_conn(xprt->xp_pool, so, sa);
+	if (!new_xprt) {
 		soclose(so);
+	} else {
+		SVC_RELEASE(new_xprt);
+	}
 
 	free(sa, M_SONAME);
 

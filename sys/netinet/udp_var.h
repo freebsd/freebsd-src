@@ -64,6 +64,12 @@ struct udpcb {
 #define	intoudpcb(ip)	((struct udpcb *)(ip)->inp_ppcb)
 #define	sotoudpcb(so)	(intoudpcb(sotoinpcb(so)))
 
+				/* IPsec: ESP in UDP tunneling: */
+#define	UF_ESPINUDP_NON_IKE	0x00000001	/* w/ non-IKE marker .. */
+	/* .. per draft-ietf-ipsec-nat-t-ike-0[01],
+	 * and draft-ietf-ipsec-udp-encaps-(00/)01.txt */
+#define	UF_ESPINUDP		0x00000002	/* w/ non-ESP marker. */
+
 struct udpstat {
 				/* input statistics: */
 	u_long	udps_ipackets;		/* total input packets */
@@ -127,6 +133,7 @@ int		 udp_newudpcb(struct inpcb *);
 void		 udp_discardcb(struct udpcb *);
 
 void		 udp_ctlinput(int, struct sockaddr *, void *);
+int	 	 udp_ctloutput(struct socket *, struct sockopt *);
 void		 udp_init(void);
 #ifdef VIMAGE
 void		 udp_destroy(void);

@@ -1247,7 +1247,7 @@ ufs_dir_dd_ino(struct vnode *vp, struct ucred *cred, ino_t *dd_ino)
 		return (ENOTDIR);
 	error = vn_rdwr(UIO_READ, vp, (caddr_t)&dirbuf,
 	    sizeof (struct dirtemplate), (off_t)0, UIO_SYSSPACE,
-	    IO_NODELOCKED | IO_NOMACCHECK, cred, NOCRED, (int *)0, NULL);
+	    IO_NODELOCKED | IO_NOMACCHECK, cred, NOCRED, NULL, NULL);
 	if (error != 0)
 		return (error);
 #if (BYTE_ORDER == LITTLE_ENDIAN)

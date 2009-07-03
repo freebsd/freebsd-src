@@ -78,6 +78,7 @@
 #include <sys/priv.h>
 #include <sys/kthread.h>
 #include <sys/syscallsubr.h>
+#include <sys/vimage.h>
 #include <fs/fifofs/fifo.h>
 #include <net/if.h>
 #include <net/radix.h>
@@ -628,7 +629,7 @@ int nfsmsleep(void *, void *, int, const char *, struct timespec *);
  * Define whatever it takes to do a vn_rdwr().
  */
 #define	NFSD_RDWR(r, v, b, l, o, s, i, c, a, p) \
-	vn_rdwr((r), (v), (b), (l), (o), (s), (i), (c), NULL, (int *)(a), (p))
+	vn_rdwr((r), (v), (b), (l), (o), (s), (i), (c), NULL, (a), (p))
 
 /*
  * Macros for handling memory for different BSDen.

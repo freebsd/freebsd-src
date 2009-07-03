@@ -220,18 +220,18 @@ static void test1(const EVP_CIPHER *c,const unsigned char *key,int kn,
 	    test1_exit(7);
 	    }
 
-	if(outl+outl2 != cn)
+	if(outl+outl2 != pn)
 	    {
 	    fprintf(stderr,"Plaintext length mismatch got %d expected %d\n",
-		    outl+outl2,cn);
+		    outl+outl2,pn);
 	    test1_exit(8);
 	    }
 
-	if(memcmp(out,plaintext,cn))
+	if(memcmp(out,plaintext,pn))
 	    {
 	    fprintf(stderr,"Plaintext mismatch\n");
-	    hexdump(stderr,"Got",out,cn);
-	    hexdump(stderr,"Expected",plaintext,cn);
+	    hexdump(stderr,"Got",out,pn);
+	    hexdump(stderr,"Expected",plaintext,pn);
 	    test1_exit(9);
 	    }
 	}
@@ -419,6 +419,13 @@ int main(int argc,char **argv)
 #endif
 #ifdef OPENSSL_NO_CAMELLIA
 	    if (strstr(cipher, "CAMELLIA") == cipher)
+		{
+		fprintf(stdout, "Cipher disabled, skipping %s\n", cipher); 
+		continue;
+		}
+#endif
+#ifdef OPENSSL_NO_SEED
+	    if (strstr(cipher, "SEED") == cipher)
 		{
 		fprintf(stdout, "Cipher disabled, skipping %s\n", cipher); 
 		continue;

@@ -155,14 +155,16 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		ro = &iproute;
 		bzero(ro, sizeof (*ro));
 
+#ifdef FLOWTABLE
 		/*
 		 * The flow table returns route entries valid for up to 30
 		 * seconds; we rely on the remainder of ip_output() taking no
 		 * longer than that long for the stability of ro_rt.  The
 		 * flow ID assignment must have happened before this point.
 		 */
-		if (flowtable_lookup(ip_ft, m, ro) == 0)
+		if (flowtable_lookup(V_ip_ft, m, ro) == 0)
 			nortfree = 1;
+#endif
 	}
 
 	if (opt) {
@@ -286,6 +288,7 @@ again:
 			goto bad;
 		}
 		ia = ifatoia(ro->ro_rt->rt_ifa);
+		ifa_ref(&ia->ia_ifa);
 		ifp = ro->ro_rt->rt_ifp;
 		ro->ro_rt->rt_rmx.rmx_pksent++;
 		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
@@ -665,6 +668,8 @@ done:
 	if (ro == &iproute && ro->ro_rt && !nortfree) {
 		RTFREE(ro->ro_rt);
 	}
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	return (error);
 bad:
 	m_freem(m);

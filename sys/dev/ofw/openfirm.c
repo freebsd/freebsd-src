@@ -65,8 +65,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofwvar.h>
+#include <dev/ofw/openfirm.h>
 
 #include "ofw_if.h"
 
@@ -88,12 +88,12 @@ SET_DECLARE(ofw_set, ofw_def_t);
 boolean_t
 OF_install(char *name, int prio)
 {
-	ofw_def_t  **ofwpp, *ofwp;
+	ofw_def_t *ofwp, **ofwpp;
 	static int curr_prio = 0;
 
 	/*
-	* Try and locate the OFW kobj corresponding to the name
-	*/
+	 * Try and locate the OFW kobj corresponding to the name.
+	 */
 	SET_FOREACH(ofwpp, ofw_set) {
 		ofwp = *ofwpp;
 
@@ -109,8 +109,7 @@ OF_install(char *name, int prio)
 	return (FALSE);
 }
 
-/* Initialiser */
-
+/* Initializer */
 void
 OF_init(void *cookie)
 {
@@ -119,7 +118,7 @@ OF_init(void *cookie)
 	ofw_obj = &ofw_kernel_obj;
 	/*
 	 * Take care of compiling the selected class, and
-	 * then statically initialize the OFW object
+	 * then statically initialize the OFW object.
 	 */
 	kobj_class_compile_static(ofw_def_impl, &ofw_kernel_kops);
 	kobj_init((kobj_t)ofw_obj, ofw_def_impl);
@@ -152,6 +151,7 @@ OF_printf(const char *fmt, ...)
 int
 OF_test(const char *name)
 {
+
 	return (OFW_TEST(ofw_obj, name));
 }
 
@@ -183,6 +183,7 @@ OF_interpret(const char *cmd, int nreturns, ...)
 phandle_t
 OF_peer(phandle_t node)
 {
+
 	return (OFW_PEER(ofw_obj, node));
 }
 
@@ -190,6 +191,7 @@ OF_peer(phandle_t node)
 phandle_t
 OF_child(phandle_t node)
 {
+
 	return (OFW_CHILD(ofw_obj, node));
 }
 
@@ -197,6 +199,7 @@ OF_child(phandle_t node)
 phandle_t
 OF_parent(phandle_t node)
 {
+
 	return (OFW_PARENT(ofw_obj, node));
 }
 
@@ -204,6 +207,7 @@ OF_parent(phandle_t node)
 phandle_t
 OF_instance_to_package(ihandle_t instance)
 {
+
 	return (OFW_INSTANCE_TO_PACKAGE(ofw_obj, instance));
 }
 
@@ -211,6 +215,7 @@ OF_instance_to_package(ihandle_t instance)
 ssize_t
 OF_getproplen(phandle_t package, const char *propname)
 {
+
 	return (OFW_GETPROPLEN(ofw_obj, package, propname));
 }
 
@@ -218,6 +223,7 @@ OF_getproplen(phandle_t package, const char *propname)
 ssize_t
 OF_getprop(phandle_t package, const char *propname, void *buf, size_t buflen)
 {
+
 	return (OFW_GETPROP(ofw_obj, package, propname, buf, buflen));
 }
 
@@ -227,20 +233,19 @@ OF_getprop(phandle_t package, const char *propname, void *buf, size_t buflen)
  * first match.
  */
 ssize_t
-OF_searchprop(phandle_t node, char *propname, void *buf, size_t len)
+OF_searchprop(phandle_t node, const char *propname, void *buf, size_t len)
 {
 	ssize_t rv;
 
-	for (; node != 0; node = OF_parent(node)) {
+	for (; node != 0; node = OF_parent(node))
 		if ((rv = OF_getprop(node, propname, buf, len)) != -1)
 			return (rv);
-	}
 	return (-1);
 }
 
 /*
  * Store the value of a property of a package into newly allocated memory
- * (using the M_OFWPROP malloc pool and M_WAITOK). elsz is the size of a
+ * (using the M_OFWPROP malloc pool and M_WAITOK).  elsz is the size of a
  * single element, the number of elements is return in number.
  */
 ssize_t
@@ -266,6 +271,7 @@ OF_getprop_alloc(phandle_t package, const char *propname, int elsz, void **buf)
 int
 OF_nextprop(phandle_t package, const char *previous, char *buf, size_t size)
 {
+
 	return (OFW_NEXTPROP(ofw_obj, package, previous, buf, size));
 }
 
@@ -273,6 +279,7 @@ OF_nextprop(phandle_t package, const char *previous, char *buf, size_t size)
 int
 OF_setprop(phandle_t package, const char *propname, const void *buf, size_t len)
 {
+
 	return (OFW_SETPROP(ofw_obj, package, propname, buf,len));
 }
 
@@ -280,6 +287,7 @@ OF_setprop(phandle_t package, const char *propname, const void *buf, size_t len)
 ssize_t
 OF_canon(const char *device, char *buf, size_t len)
 {
+
 	return (OFW_CANON(ofw_obj, device, buf, len));
 }
 
@@ -287,6 +295,7 @@ OF_canon(const char *device, char *buf, size_t len)
 phandle_t
 OF_finddevice(const char *device)
 {
+
 	return (OFW_FINDDEVICE(ofw_obj, device));
 }
 
@@ -294,6 +303,7 @@ OF_finddevice(const char *device)
 ssize_t
 OF_instance_to_path(ihandle_t instance, char *buf, size_t len)
 {
+
 	return (OFW_INSTANCE_TO_PATH(ofw_obj, instance, buf, len));
 }
 
@@ -301,6 +311,7 @@ OF_instance_to_path(ihandle_t instance, char *buf, size_t len)
 ssize_t
 OF_package_to_path(phandle_t package, char *buf, size_t len)
 {
+
 	return (OFW_PACKAGE_TO_PATH(ofw_obj, package, buf, len));
 }
 
@@ -321,7 +332,6 @@ OF_call_method(const char *method, ihandle_t instance, int nargs, int nreturns,
 
 	status = OFW_CALL_METHOD(ofw_obj, instance, method, nargs, nreturns,
 	    args_n_results);
-
 	if (status != 0)
 		return (status);
 
@@ -339,6 +349,7 @@ OF_call_method(const char *method, ihandle_t instance, int nargs, int nreturns,
 ihandle_t
 OF_open(const char *device)
 {
+
 	return (OFW_OPEN(ofw_obj, device));
 }
 
@@ -346,6 +357,7 @@ OF_open(const char *device)
 void
 OF_close(ihandle_t instance)
 {
+
 	OFW_CLOSE(ofw_obj, instance);
 }
 
@@ -353,6 +365,7 @@ OF_close(ihandle_t instance)
 ssize_t
 OF_read(ihandle_t instance, void *addr, size_t len)
 {
+
 	return (OFW_READ(ofw_obj, instance, addr, len));
 }
 
@@ -360,6 +373,7 @@ OF_read(ihandle_t instance, void *addr, size_t len)
 ssize_t
 OF_write(ihandle_t instance, const void *addr, size_t len)
 {
+
 	return (OFW_WRITE(ofw_obj, instance, addr, len));
 }
 
@@ -367,6 +381,7 @@ OF_write(ihandle_t instance, const void *addr, size_t len)
 int
 OF_seek(ihandle_t instance, uint64_t pos)
 {
+
 	return (OFW_SEEK(ofw_obj, instance, pos));
 }
 
@@ -378,6 +393,7 @@ OF_seek(ihandle_t instance, uint64_t pos)
 void *
 OF_claim(void *virt, size_t size, u_int align)
 {
+
 	return (OFW_CLAIM(ofw_obj, virt, size, align));
 }
 
@@ -385,6 +401,7 @@ OF_claim(void *virt, size_t size, u_int align)
 void
 OF_release(void *virt, size_t size)
 {
+
 	OFW_RELEASE(ofw_obj, virt, size);
 }
 
@@ -396,6 +413,7 @@ OF_release(void *virt, size_t size)
 void
 OF_enter()
 {
+
 	OFW_ENTER(ofw_obj);
 }
 
@@ -403,10 +421,10 @@ OF_enter()
 void
 OF_exit()
 {
+
 	/* Should not return */
 	OFW_EXIT(ofw_obj);
 
 	for (;;)			/* just in case */
 		;
 }
-

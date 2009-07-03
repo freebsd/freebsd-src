@@ -90,6 +90,8 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_var.h>
 
+#include <security/mac/mac_framework.h>
+
 /*
  * IPX protocol implementation.
  */
@@ -185,6 +187,12 @@ ipx_input(struct mbuf *m, struct ipxpcb *ipxp)
 		m->m_pkthdr.len -= sizeof(struct ipx);
 		m->m_data += sizeof(struct ipx);
 	}
+#ifdef MAC
+	if (mac_socket_check_deliver(ipxp->ipxp_socket, m) != 0) {
+		m_freem(m);
+		return;
+	}
+#endif
 	if (sbappendaddr(&ipxp->ipxp_socket->so_rcv,
 	    (struct sockaddr *)&ipx_ipx, m, NULL) == 0)
 		m_freem(m);
@@ -577,6 +585,9 @@ ipx_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 * used by ipx_pcbconnect() and ipx_pcbdisconnect(), just the IPX
 	 * pcb lock.
 	 */
+#ifdef MAC
+	mac_socket_create_mbuf(so, m);
+#endif
 	if (nam != NULL) {
 		IPX_LIST_LOCK();
 		IPX_LOCK(ipxp);

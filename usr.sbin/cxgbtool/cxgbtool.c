@@ -1408,26 +1408,11 @@ static int get_up_ioqs(int argc, char *argv[], int start_arg, const char *iff_na
 	return 0;
 }
 
-int main(int argc, char *argv[])
+static int
+run_cmd(int argc, char *argv[], const char *iff_name)
 {
 	int r = -1;
-	const char *iff_name;
 
-	progname = argv[0];
-
-	if (argc == 2) {
-		if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
-			usage(stdout);
-		if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")) {
-			printf("%s version %s\n", PROGNAME, VERSION);
-			printf("%s\n", COPYRIGHT);
-			exit(0);
-		}
-	}
-
-	if (argc < 3) usage(stderr);
-
-	iff_name = argv[1];
 	if (!strcmp(argv[2], "reg"))
 		r = register_io(argc, argv, 3, iff_name);
 	else if (!strcmp(argv[2], "mdio"))
@@ -1474,5 +1459,85 @@ int main(int argc, char *argv[])
 	if (r == -1)
 		usage(stderr);
 
-	return 0;
+	return (0);
+}
+
+static int
+run_cmd_loop(int argc, char *argv[], const char *iff_name)
+{
+	int n, i;
+	char buf[64];
+	char *args[8], *s;
+
+	args[0] = argv[0];
+	args[1] = argv[1];
+
+	/*
+	 * Fairly simplistic loop.  Displays a "> " prompt and processes any
+	 * input as a cxgbtool command.  You're supposed to enter only the part
+	 * after "cxgbtool cxgbX".  Use "quit" or "exit" to exit.  Any error in
+	 * the command will also terminate cxgbtool.
+	 */
+	for (;;) {
+		fprintf(stdout, "> ");
+		fflush(stdout);
+		n = read(STDIN_FILENO, buf, sizeof(buf));
+		if (n > sizeof(buf) - 1) {
+			fprintf(stdout, "too much input.\n");
+			return (0);
+		} else if (n <= 0)
+			return (0);
+
+		if (buf[--n] != '\n')
+			continue;
+		else
+			buf[n] = 0;
+
+		s = &buf[0];
+		for (i = 2; i < sizeof(args)/sizeof(args[0]) - 1; i++) {
+			while (s && (*s == ' ' || *s == '\t'))
+				s++;
+			if ((args[i] = strsep(&s, " \t")) == NULL)
+				break;
+		}
+		args[sizeof(args)/sizeof(args[0]) - 1] = 0;
+
+		if (!strcmp(args[2], "quit") || !strcmp(args[2], "exit"))
+			return (0);
+
+		(void) run_cmd(i, args, iff_name);
+	}
+
+	/* Can't really get here */
+	return (0);
+}
+
+int
+main(int argc, char *argv[])
+{
+	int r = -1;
+	const char *iff_name;
+
+	progname = argv[0];
+
+	if (argc == 2) {
+		if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
+			usage(stdout);
+		if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")) {
+			printf("%s version %s\n", PROGNAME, VERSION);
+			printf("%s\n", COPYRIGHT);
+			exit(0);
+		}
+	}
+
+	if (argc < 3) usage(stderr);
+
+	iff_name = argv[1];
+
+	if (argc == 3 && !strcmp(argv[2], "stdio"))
+		r = run_cmd_loop(argc, argv, iff_name);
+	else
+		r = run_cmd(argc, argv, iff_name);
+
+	return (r);
 }

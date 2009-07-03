@@ -89,6 +89,8 @@ __FBSDID("$FreeBSD$");
 #include <netipx/spx_timer.h>
 #include <netipx/spx_var.h>
 
+#include <security/mac/mac_framework.h>
+
 /*
  * SPX protocol implementation.
  */
@@ -222,6 +224,11 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 
 	so = ipxp->ipxp_socket;
 	KASSERT(so != NULL, ("spx_input: so == NULL"));
+
+#ifdef MAC
+	if (mac_socket_check_deliver(so, m) != 0)
+		goto drop;
+#endif
 
 	if (so->so_options & SO_DEBUG || traceallspxs) {
 		ostate = cb->s_state;
@@ -376,7 +383,7 @@ spx_input(struct mbuf *m, struct ipxpcb *ipxp)
 	m->m_pkthdr.len -= sizeof(struct ipx);
 	m->m_data += sizeof(struct ipx);
 
-	if (spx_reass(cb, si))
+	if (spx_reass(cb, m, si))
 		m_freem(m);
 	if (cb->s_force || (cb->s_flags & (SF_ACKNOW|SF_WIN|SF_RXT)))
 		spx_output(cb, NULL);
@@ -812,6 +819,10 @@ send:
 	cb->s_outx = 4;
 	if (so->so_options & SO_DEBUG || traceallspxs)
 		spx_trace(SA_OUTPUT, cb->s_state, cb, si, 0);
+
+#ifdef MAC
+	mac_socket_create_mbuf(so, m);
+#endif
 
 	if (so->so_options & SO_DONTROUTE)
 		error = ipx_outputfl(m, NULL, IPX_ROUTETOIF);

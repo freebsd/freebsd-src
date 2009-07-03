@@ -24,21 +24,21 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_DEVICE_H_
-#define	_USB2_DEVICE_H_
+#ifndef _USB_DEVICE_H_
+#define	_USB_DEVICE_H_
 
 struct usb_symlink;		/* UGEN */
 struct usb_device;		/* linux compat */
 
 #define	USB_DEFAULT_XFER_MAX 2
 
-/* "usb2_parse_config()" commands */
+/* "usb_parse_config()" commands */
 
 #define	USB_CFG_ALLOC 0
 #define	USB_CFG_FREE 1
 #define	USB_CFG_INIT 2
 
-/* "usb2_unconfigure()" flags */
+/* "usb_unconfigure()" flags */
 
 #define	USB_UNCFG_FLAG_NONE 0x00
 #define	USB_UNCFG_FLAG_FREE_SUBDEV 0x01		/* subdevices are freed */
@@ -75,44 +75,6 @@ struct usb_host_interface {
 	uint16_t extralen;
 	uint8_t	bsd_iface_index;
 } __aligned(USB_HOST_ALIGN);
-
-/*
- * The following structure defines an USB endpoint
- * USB endpoint.
- */
-struct usb_endpoint {
-	struct usb_xfer_queue endpoint_q;	/* queue of USB transfers */
-
-	struct usb_endpoint_descriptor *edesc;
-	struct usb_pipe_methods *methods;	/* set by HC driver */
-
-	uint16_t isoc_next;
-	uint16_t refcount;
-
-	uint8_t	toggle_next:1;		/* next data toggle value */
-	uint8_t	is_stalled:1;		/* set if endpoint is stalled */
-	uint8_t	is_synced:1;		/* set if we a synchronised */
-	uint8_t	unused:5;
-	uint8_t	iface_index;		/* not used by "default endpoint" */
-};
-
-/*
- * The following structure defines an USB interface.
- */
-struct usb_interface {
-	struct usb_interface_descriptor *idesc;
-	device_t subdev;
-	uint8_t	alt_index;
-	uint8_t	parent_iface_index;
-
-	/* Linux compat */
-	struct usb_host_interface *altsetting;
-	struct usb_host_interface *cur_altsetting;
-	struct usb_device *linux_udev;
-	void   *bsd_priv_sc;		/* device specific information */
-	uint8_t	num_altsetting;		/* number of alternate settings */
-	uint8_t	bsd_iface_index;
-};
 
 /*
  * The following structure defines the USB device flags.
@@ -166,7 +128,7 @@ struct usb_device {
 	struct usb_config_descriptor *cdesc;	/* full config descr */
 	struct usb_hub *hub;		/* only if this is a hub */
 	struct usb_xfer *default_xfer[USB_DEFAULT_XFER_MAX];
-	struct usb_temp_data *usb2_template_ptr;
+	struct usb_temp_data *usb_template_ptr;
 	struct usb_endpoint *ep_curr;	/* current clear stall endpoint */
 #if USB_HAVE_UGEN
 	struct usb_fifo *fifo[USB_FIFO_MAX];
@@ -224,36 +186,30 @@ struct usb_device {
 
 /* globals */
 
-extern int usb2_template;
+extern int usb_template;
 
 /* function prototypes */
 
-struct usb_device *usb2_alloc_device(device_t parent_dev, struct usb_bus *bus,
+const char *usb_statestr(enum usb_dev_state state);
+struct usb_device *usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		    struct usb_device *parent_hub, uint8_t depth,
 		    uint8_t port_index, uint8_t port_no,
 		    enum usb_dev_speed speed, enum usb_hc_mode mode);
-struct usb_endpoint *usb2_get_endpoint(struct usb_device *udev, uint8_t iface_index,
-		    const struct usb_config *setup);
-struct usb_endpoint *usb2_get_ep_by_addr(struct usb_device *udev, uint8_t ea_val);
-usb_error_t	usb2_interface_count(struct usb_device *udev, uint8_t *count);
-usb_error_t	usb2_probe_and_attach(struct usb_device *udev,
+usb_error_t	usb_probe_and_attach(struct usb_device *udev,
 		    uint8_t iface_index);
-usb_error_t	usb2_reset_iface_endpoints(struct usb_device *udev,
+usb_error_t	usb_reset_iface_endpoints(struct usb_device *udev,
 		    uint8_t iface_index);
-usb_error_t	usb2_set_config_index(struct usb_device *udev, uint8_t index);
-usb_error_t	usb2_set_endpoint_stall(struct usb_device *udev,
+usb_error_t	usbd_set_config_index(struct usb_device *udev, uint8_t index);
+usb_error_t	usbd_set_endpoint_stall(struct usb_device *udev,
 		    struct usb_endpoint *ep, uint8_t do_stall);
-usb_error_t	usb2_suspend_resume(struct usb_device *udev,
+usb_error_t	usb_suspend_resume(struct usb_device *udev,
 		    uint8_t do_suspend);
-void	usb2_devinfo(struct usb_device *udev, char *dst_ptr, uint16_t dst_len);
-void	usb2_free_device(struct usb_device *, uint8_t);
-void	*usb2_find_descriptor(struct usb_device *udev, void *id,
-	    uint8_t iface_index, uint8_t type, uint8_t type_mask,
-	    uint8_t subtype, uint8_t subtype_mask);
+void	usb_devinfo(struct usb_device *udev, char *dst_ptr, uint16_t dst_len);
+void	usb_free_device(struct usb_device *, uint8_t);
 void	usb_linux_free_device(struct usb_device *dev);
-uint8_t	usb2_peer_can_wakeup(struct usb_device *udev);
-struct usb_endpoint *usb2_endpoint_foreach(struct usb_device *udev, struct usb_endpoint *ep);
-void	usb2_set_device_state(struct usb_device *udev,
+uint8_t	usb_peer_can_wakeup(struct usb_device *udev);
+struct usb_endpoint *usb_endpoint_foreach(struct usb_device *udev, struct usb_endpoint *ep);
+void	usb_set_device_state(struct usb_device *udev,
 	    enum usb_dev_state state);
 
-#endif					/* _USB2_DEVICE_H_ */
+#endif					/* _USB_DEVICE_H_ */

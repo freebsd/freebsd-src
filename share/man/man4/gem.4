@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2009
+.Dd June 14, 2009
 .Dt GEM 4
 .Os
 .Sh NAME
@@ -57,9 +57,16 @@ if_gem_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the GMac Ethernet hardware found mostly in
+driver provides support for the GMAC Ethernet hardware found mostly in
 the last Apple PowerBooks G3s and most G4-based Apple hardware, as
-well as many Sun UltraSPARCs.
+well as Sun UltraSPARC machines.
+.Pp                                                                            
+All controllers supported by the                                               
+.Nm                                                                            
+driver have TCP checksum offload capability for both receive and transmit,     
+support for the reception and transmission of extended frames for              
+.Xr vlan 4                                                                     
+and a 512-bit multicast hash filter.                                           
 .Sh HARDWARE
 .Pp
 Chips supported by the
@@ -84,6 +91,9 @@ driver at this time:
 .It
 Sun Gigabit Ethernet PCI 2.0/3.0 (GBE/P)
 (part no.\& 501-4373)
+.It
+Sun Gigabit Ethernet SBus 2.0/3.0 (GBE/S)
+(part no.\& 501-4375)
 .El
 .Sh NOTES
 On sparc64 the
@@ -108,15 +118,11 @@ the system's default MAC address.
 Supported interfaces having their own MAC address include the on-board
 Sun ERI 10/100 Mbps on boards equipped with more than one Ethernet interface
 and the Sun Gigabit Ethernet 2.0/3.0 GBE add-on cards.
-.Sh CAVEATS
-Currently the
-.Nm
-driver fails to attach to Sun Gigabit Ethernet SBus 2.0/3.0 (GBE/S) cards,
-as no SBus front-end has been written so far.
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr miibus 4 ,
 .Xr netintro 4 ,
+.Xr vlan 4 ,
 .Xr eeprom 8 ,
 .Xr ifconfig 8
 .Sh HISTORY
@@ -132,9 +138,19 @@ version to include it was
 .An -nosplit
 The
 .Nm
-driver was written by
+driver was written for
+.Nx
+by
 .An Eduardo Horvath
 .Aq eeh@NetBSD.org .
+It was ported to
+.Fx
+by
+.An Thomas Moestl
+.Aq tmm@FreeBSD.org
+and later on improved by
+.An Marius Strobl
+.Aq marus@FreeBSD.org .
 The man page was written by
 .An Thomas Klausner
 .Aq wiz@NetBSD.org .

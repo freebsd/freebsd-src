@@ -784,6 +784,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_1S, 0x10, 4, 0,
 	},
 
+	{   0x9710, 0x9835, 0x1000, 2,
+	    "NetMos NM9835 based 2-port serial",
+	    DEFAULT_RCLK,
+	    PUC_PORT_2S, 0x10, 4, 0,
+	},
+
 	{   0x9710, 0x9835, 0xffff, 0,
 	    "NetMos NM9835 Dual UART and 1284 Printer port",
 	    DEFAULT_RCLK,

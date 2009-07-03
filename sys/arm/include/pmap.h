@@ -94,6 +94,7 @@ struct	pv_entry;
 
 struct	md_page {
 	int pvh_attrs;
+	vm_offset_t pv_kva;		/* first kernel VA mapping */
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 
@@ -494,6 +495,7 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #define	PVF_EXEC	0x10		/* mapping is executable */
 #define	PVF_NC		0x20		/* mapping is non-cacheable */
 #define	PVF_MWC		0x40		/* mapping is used multiple times in userland */
+#define	PVF_UNMAN	0x80		/* mapping is unmanaged */
 
 void vector_page_setprot(int);
 

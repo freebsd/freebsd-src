@@ -87,6 +87,8 @@ s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw)
 	mac->ops.stop_adapter = &ixgbe_stop_adapter_generic;
 	mac->ops.get_bus_info = &ixgbe_get_bus_info_generic;
 	mac->ops.set_lan_id = &ixgbe_set_lan_id_multi_port_pcie;
+	mac->ops.acquire_swfw_sync = &ixgbe_acquire_swfw_sync;
+	mac->ops.release_swfw_sync = &ixgbe_release_swfw_sync;
 
 	/* LEDs */
 	mac->ops.led_on = &ixgbe_led_on_generic;
@@ -792,12 +794,9 @@ static s32 ixgbe_acquire_eeprom(struct ixgbe_hw *hw)
 static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 {
 	s32 status = IXGBE_ERR_EEPROM;
-	u32 timeout;
+	u32 timeout = 2000;
 	u32 i;
 	u32 swsm;
-
-	/* Set timeout value based on size of EEPROM */
-	timeout = hw->eeprom.word_size + 1;
 
 	/* Get SMBI software semaphore between device drivers first */
 	for (i = 0; i < timeout; i++) {
@@ -1078,6 +1077,9 @@ static void ixgbe_release_eeprom(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_EEC, eec);
 
 	ixgbe_release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
+
+	/* Delay before attempt to obtain semaphore again to allow FW access */
+	msec_delay(hw->eeprom.semaphore_delay);
 }
 
 /**
@@ -1633,6 +1635,7 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	s32 ret_val = IXGBE_SUCCESS;
 	u32 mflcn_reg, fccfg_reg;
 	u32 reg;
+	u32 rx_pba_size;
 
 	DEBUGFUNC("ixgbe_fc_enable_generic");
 
@@ -1699,22 +1702,41 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, mflcn_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, fccfg_reg);
 
-	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
-	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
-		if (hw->fc.send_xon) {
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num),
-			                (hw->fc.low_water | IXGBE_FCRTL_XONE));
-		} else {
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num),
-			                hw->fc.low_water);
-		}
+	reg = IXGBE_READ_REG(hw, IXGBE_MTQC);
+	/* Thresholds are different for link flow control when in DCB mode */
+	if (reg & IXGBE_MTQC_RT_ENA) {
+		rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num));
 
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num),
-		                (hw->fc.high_water | IXGBE_FCRTH_FCEN));
+		/* Always disable XON for LFC when in DCB mode */
+		reg = (rx_pba_size >> 5) & 0xFFE0;
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num), reg);
+
+		reg = (rx_pba_size >> 2) & 0xFFE0;
+		if (hw->fc.current_mode & ixgbe_fc_tx_pause)
+			reg |= IXGBE_FCRTH_FCEN;
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num), reg);
+	} else {
+		/* Set up and enable Rx high/low water mark thresholds,
+		 * enable XON. */
+		if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
+			if (hw->fc.send_xon) {
+				IXGBE_WRITE_REG(hw,
+				              IXGBE_FCRTL_82599(packetbuf_num),
+				              (hw->fc.low_water |
+				              IXGBE_FCRTL_XONE));
+			} else {
+				IXGBE_WRITE_REG(hw,
+				              IXGBE_FCRTL_82599(packetbuf_num),
+				              hw->fc.low_water);
+			}
+
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num),
+			               (hw->fc.high_water | IXGBE_FCRTH_FCEN));
+		}
 	}
 
 	/* Configure pause time (2 TCs per register) */
-	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num));
+	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num / 2));
 	if ((packetbuf_num & 1) == 0)
 		reg = (reg & 0xFFFF0000) | hw->fc.pause_time;
 	else
@@ -2043,9 +2065,6 @@ void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u16 mask)
 	IXGBE_WRITE_REG(hw, IXGBE_GSSR, gssr);
 
 	ixgbe_release_eeprom_semaphore(hw);
-
-	/* Delay before attempt to obtain semaphore again to allow FW access */
-	msec_delay(hw->eeprom.semaphore_delay);
 }
 
 /**
@@ -2081,6 +2100,8 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	hw->mac.ops.check_link(hw, &speed, &link_up, FALSE);
 
 	if (!link_up) {
+
+		autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 		autoc_reg |= IXGBE_AUTOC_FLU;
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
 		msec_delay(10);
@@ -2103,6 +2124,7 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 {
 	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+
 
 	autoc_reg &= ~IXGBE_AUTOC_FLU;
 	autoc_reg |= IXGBE_AUTOC_AN_RESTART;

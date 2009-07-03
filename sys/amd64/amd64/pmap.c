@@ -3322,78 +3322,74 @@ void
 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
     vm_pindex_t pindex, vm_size_t size)
 {
-	vm_offset_t va;
+	pd_entry_t *pde;
+	vm_paddr_t pa, ptepa;
 	vm_page_t p, pdpg;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->type == OBJT_DEVICE,
 	    ("pmap_object_init_pt: non-device object"));
-	if (((addr & (NBPDR - 1)) == 0) && ((size & (NBPDR - 1)) == 0)) {
-		vm_page_t m[1];
-		pd_entry_t ptepa, *pde;
-
-		PMAP_LOCK(pmap);
-		pde = pmap_pde(pmap, addr);
-		if (pde != 0 && (*pde & PG_V) != 0)
-			goto out;
-		PMAP_UNLOCK(pmap);
-retry:
+	if ((addr & (NBPDR - 1)) == 0 && (size & (NBPDR - 1)) == 0) {
+		if (!vm_object_populate(object, pindex, pindex + atop(size)))
+			return;
 		p = vm_page_lookup(object, pindex);
-		if (p != NULL) {
-			if (vm_page_sleep_if_busy(p, FALSE, "init4p"))
-				goto retry;
-		} else {
-			p = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
-			if (p == NULL)
-				return;
-			m[0] = p;
+		KASSERT(p->valid == VM_PAGE_BITS_ALL,
+		    ("pmap_object_init_pt: invalid page %p", p));
 
-			if (vm_pager_get_pages(object, m, 1, 0) != VM_PAGER_OK) {
-				vm_page_lock_queues();
-				vm_page_free(p);
-				vm_page_unlock_queues();
-				return;
-			}
-
-			p = vm_page_lookup(object, pindex);
-			vm_page_wakeup(p);
-		}
-
+		/*
+		 * Abort the mapping if the first page is not physically
+		 * aligned to a 2MB page boundary.
+		 */
 		ptepa = VM_PAGE_TO_PHYS(p);
 		if (ptepa & (NBPDR - 1))
 			return;
 
-		p->valid = VM_PAGE_BITS_ALL;
+		/*
+		 * Skip the first page.  Abort the mapping if the rest of
+		 * the pages are not physically contiguous.
+		 */
+		p = TAILQ_NEXT(p, listq);
+		for (pa = ptepa + PAGE_SIZE; pa < ptepa + size;
+		    pa += PAGE_SIZE) {
+			KASSERT(p->valid == VM_PAGE_BITS_ALL,
+			    ("pmap_object_init_pt: invalid page %p", p));
+			if (pa != VM_PAGE_TO_PHYS(p))
+				return;
+			p = TAILQ_NEXT(p, listq);
+		}
 
+		/* Map using 2MB pages. */
 		PMAP_LOCK(pmap);
-		for (va = addr; va < addr + size; va += NBPDR) {
-			while ((pdpg =
-			    pmap_allocpde(pmap, va, M_NOWAIT)) == NULL) {
-				PMAP_UNLOCK(pmap);
-				vm_page_busy(p);
-				VM_OBJECT_UNLOCK(object);
-				VM_WAIT;
-				VM_OBJECT_LOCK(object);
-				vm_page_wakeup(p);
-				PMAP_LOCK(pmap);
+		for (pa = ptepa; pa < ptepa + size; pa += NBPDR) {
+			pdpg = pmap_allocpde(pmap, addr, M_NOWAIT);
+			if (pdpg == NULL) {
+				/*
+				 * The creation of mappings below is only an
+				 * optimization.  If a page directory page
+				 * cannot be allocated without blocking,
+				 * continue on to the next mapping rather than
+				 * blocking.
+				 */
+				addr += NBPDR;
+				continue;
 			}
 			pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pdpg));
-			pde = &pde[pmap_pde_index(va)];
+			pde = &pde[pmap_pde_index(addr)];
 			if ((*pde & PG_V) == 0) {
-				pde_store(pde, ptepa | PG_PS | PG_M | PG_A |
+				pde_store(pde, pa | PG_PS | PG_M | PG_A |
 				    PG_U | PG_RW | PG_V);
-				pmap->pm_stats.resident_count +=
-				    NBPDR / PAGE_SIZE;
+				pmap->pm_stats.resident_count += NBPDR /
+				    PAGE_SIZE;
+				pmap_pde_mappings++;
 			} else {
+				/* Continue on if the PDE is already valid. */
 				pdpg->wire_count--;
 				KASSERT(pdpg->wire_count > 0,
 				    ("pmap_object_init_pt: missing reference "
-				     "to page directory page, va: 0x%lx", va));
+				    "to page directory page, va: 0x%lx", addr));
 			}
-			ptepa += NBPDR;
+			addr += NBPDR;
 		}
-		pmap_invalidate_all(pmap);
-out:
 		PMAP_UNLOCK(pmap);
 	}
 }

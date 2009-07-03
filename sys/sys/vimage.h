@@ -69,11 +69,13 @@ struct vi_req {
 #define	VNET_DEBUG
 #endif
 
+struct vimage;
 struct vprocg;
 struct vnet;
 struct vi_req;
 struct ifnet;
 struct kld_sym_lookup;
+struct thread;
 
 typedef int vnet_attach_fn(const void *);
 typedef int vnet_detach_fn(const void *);
@@ -120,6 +122,7 @@ struct vnet_modlink {
 #define	VNET_MOD_ACCF_HTTP	11
 #define	VNET_MOD_IGMP		12
 #define	VNET_MOD_MLD		13
+#define	VNET_MOD_RTABLE		14
 
 /* Stateless modules. */
 #define	VNET_MOD_IF_CLONE	19
@@ -132,7 +135,7 @@ struct vnet_modlink {
 #define	VNET_MOD_IPCOMP	 	26	
 #define	VNET_MOD_GIF		27
 #define	VNET_MOD_ARP		28
-#define	VNET_MOD_RTABLE		29
+#define	VNET_MOD_FLOWTABLE	29
 #define	VNET_MOD_LOIF		30
 #define	VNET_MOD_DOMAIN		31
 #define	VNET_MOD_DYNAMIC_START	32
@@ -152,18 +155,22 @@ struct vnet_modlink {
 #define	V_MOD_vnet_pf		VNET_MOD_PF
 #define	V_MOD_vnet_gif		VNET_MOD_GIF
 #define	V_MOD_vnet_ipsec	VNET_MOD_IPSEC
+#define	V_MOD_vnet_rtable	VNET_MOD_RTABLE
  
 #define	V_MOD_vprocg		0	/* no minor module ids like in vnet */
 
 int	vi_symlookup(struct kld_sym_lookup *, char *);
 int	vi_td_ioctl(u_long, struct vi_req *, struct thread *);
-int	vi_if_move(struct vi_req *, struct ifnet *, struct vimage *);
+int	vi_if_move(struct thread *, struct ifnet *, char *, int,
+	    struct vi_req *);
 int	vi_child_of(struct vimage *, struct vimage *);
 struct vimage *vimage_by_name(struct vimage *, char *);
 void	vnet_mod_register(const struct vnet_modinfo *);
 void	vnet_mod_register_multi(const struct vnet_modinfo *, void *, char *);
 void	vnet_mod_deregister(const struct vnet_modinfo *);
 void	vnet_mod_deregister_multi(const struct vnet_modinfo *, void *, char *);
+struct vnet *vnet_alloc(void);
+void	vnet_destroy(struct vnet *);
 
 #endif /* !VIMAGE_GLOBALS */
 
@@ -199,7 +206,7 @@ struct vimage {
 	LIST_HEAD(, vimage)	 vi_child_head;	/* direct offspring list */
 	struct vimage		*vi_parent;	/* ptr to parent vimage */
 	u_int			 vi_id;		/* ID num */
-	u_int			 vi_ucredrefc;	/* # of ucreds pointing to us */
+	volatile u_int		 vi_ucredrefc;	/* # of ucreds pointing to us */
 	char			 vi_name[MAXHOSTNAMELEN];
 	struct vnet		*v_net;
 	struct vprocg		*v_procg;
@@ -209,7 +216,6 @@ struct vnet {
 	void			*mod_data[VNET_MOD_MAX];
 	LIST_ENTRY(vnet)	 vnet_le;	/* all vnets list */
 	u_int			 vnet_magic_n;
-	u_int			 vnet_id;	/* ID num */
 	u_int			 ifcnt;
 	u_int			 sockcnt;
 };
@@ -319,20 +325,24 @@ extern struct vprocg_list_head vprocg_head;
 
 #ifdef VIMAGE
 #define	IS_DEFAULT_VIMAGE(arg)	((arg)->vi_id == 0)
-#define	IS_DEFAULT_VNET(arg)	((arg)->vnet_id == 0)
+#define	IS_DEFAULT_VNET(arg)	((arg) == vnet0)
 #else
 #define	IS_DEFAULT_VIMAGE(arg)	1
 #define	IS_DEFAULT_VNET(arg)	1
 #endif
 
 #ifdef VIMAGE
+#define	CRED_TO_VNET(cr)						\
+	(IS_DEFAULT_VIMAGE((cr)->cr_vimage) ? (cr)->cr_prison->pr_vnet	\
+	    : (cr)->cr_vimage->v_net)
 #define	TD_TO_VIMAGE(td)	(td)->td_ucred->cr_vimage
-#define	TD_TO_VNET(td)		(td)->td_ucred->cr_vimage->v_net
+#define	TD_TO_VNET(td)		CRED_TO_VNET((td)->td_ucred)
 #define	TD_TO_VPROCG(td)	(td)->td_ucred->cr_vimage->v_procg
 #define	P_TO_VIMAGE(p)		(p)->p_ucred->cr_vimage
-#define	P_TO_VNET(p)		(p)->p_ucred->cr_vimage->v_net
+#define	P_TO_VNET(p)		CRED_TO_VNET((p)->p_ucred)
 #define	P_TO_VPROCG(p)		(p)->p_ucred->cr_vimage->v_procg
 #else /* !VIMAGE */
+#define	CRED_TO_VNET(cr)	NULL
 #define	TD_TO_VIMAGE(td)	NULL
 #define	TD_TO_VNET(td)		NULL
 #define	P_TO_VIMAGE(p)		NULL
@@ -359,43 +369,43 @@ extern struct vprocg_list_head vprocg_head;
  * See description further down to see how to get the new values.
  */
 #ifdef __amd64__
-#define	SIZEOF_vnet_net		192
+#define	SIZEOF_vnet_net		156
 #define	SIZEOF_vnet_inet	4424
 #define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __arm__
-#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_net		72
 #define	SIZEOF_vnet_inet	2616
 #define	SIZEOF_vnet_inet6	8524
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __i386__ /* incl. pc98 */
-#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_net		72
 #define	SIZEOF_vnet_inet	2612
 #define	SIZEOF_vnet_inet6	8512
 #define	SIZEOF_vnet_ipsec	31024
 #endif
 #ifdef __ia64__
-#define	SIZEOF_vnet_net		192
+#define	SIZEOF_vnet_net		156
 #define	SIZEOF_vnet_inet	4424
 #define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160
 #endif
 #ifdef __mips__
-#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_net		72
 #define	SIZEOF_vnet_inet	2648
 #define	SIZEOF_vnet_inet6	8544
 #define	SIZEOF_vnet_ipsec	1
 #endif
 #ifdef __powerpc__
-#define	SIZEOF_vnet_net		104
+#define	SIZEOF_vnet_net		72
 #define	SIZEOF_vnet_inet	2640
 #define	SIZEOF_vnet_inet6	8520
 #define	SIZEOF_vnet_ipsec	31048
 #endif
 #ifdef __sparc64__ /* incl. sun4v */
-#define	SIZEOF_vnet_net		192
+#define	SIZEOF_vnet_net		156
 #define	SIZEOF_vnet_inet	4424
 #define	SIZEOF_vnet_inet6	8808
 #define	SIZEOF_vnet_ipsec	31160

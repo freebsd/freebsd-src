@@ -110,7 +110,7 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 
 	pr = curthread->td_ucred->cr_prison;
 	mtx_lock(&pr->pr_mtx);
-	hostnamelen = strlen(pr->pr_host);
+	hostnamelen = strlen(pr->pr_hostname);
 #if 0
 	/* we need at least several letters as seed for ifid */
 	if (hostnamelen < 3) {
@@ -122,7 +122,7 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	/* generate 8 bytes of pseudo-random value. */
 	bzero(&ctxt, sizeof(ctxt));
 	MD5Init(&ctxt);
-	MD5Update(&ctxt, pr->pr_host, hostnamelen);
+	MD5Update(&ctxt, pr->pr_hostname, hostnamelen);
 	mtx_unlock(&pr->pr_mtx);
 	MD5Final(digest, &ctxt);
 
@@ -253,6 +253,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	return -1;
 
 found:
+	IF_ADDR_LOCK_ASSERT(ifp);
 	addr = LLADDR(sdl);
 	addrlen = sdl->sdl_alen;
 
@@ -513,6 +514,7 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 		/* NOTREACHED */
 	}
 #endif
+	ifa_free(&ia->ia_ifa);
 
 	/*
 	 * Make the link-local prefix (fe80::%link/64) as on-link.
@@ -637,7 +639,7 @@ in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
 	if (!name && namelen == -1) {
 		pr = curthread->td_ucred->cr_prison;
 		mtx_lock(&pr->pr_mtx);
-		name = pr->pr_host;
+		name = pr->pr_hostname;
 		namelen = strlen(name);
 	} else
 		pr = NULL;
@@ -737,11 +739,15 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	 * XXX multiple loopback interface case.
 	 */
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
+		struct ifaddr *ifa;
+
 		in6 = in6addr_loopback;
-		if (in6ifa_ifpwithaddr(ifp, &in6) == NULL) {
+		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &in6);
+		if (ifa == NULL) {
 			if (in6_ifattach_loopback(ifp) != 0)
 				return;
-		}
+		} else
+			ifa_free(ifa);
 	}
 
 	/*
@@ -755,7 +761,8 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 			} else {
 				/* failed to assign linklocal address. bark? */
 			}
-		}
+		} else
+			ifa_free(&ia->ia_ifa);
 	}
 
 #ifdef IFT_STF			/* XXX */
@@ -777,7 +784,7 @@ in6_ifdetach(struct ifnet *ifp)
 {
 	INIT_VNET_INET(ifp->if_vnet);
 	INIT_VNET_INET6(ifp->if_vnet);
-	struct in6_ifaddr *ia, *oia;
+	struct in6_ifaddr *ia;
 	struct ifaddr *ifa, *next;
 	struct radix_node_head *rnh;
 	struct rtentry *rt;
@@ -825,27 +832,14 @@ in6_ifdetach(struct ifnet *ifp)
 
 		/* remove from the linked list */
 		IF_ADDR_LOCK(ifp);
-		TAILQ_REMOVE(&ifp->if_addrhead, (struct ifaddr *)ia, ifa_link);
+		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
-		IFAFREE(&ia->ia_ifa);
+		ifa_free(ifa);				/* if_addrhead */
 
-		/* also remove from the IPv6 address chain(itojun&jinmei) */
-		oia = ia;
-		if (oia == (ia = V_in6_ifaddr))
-			V_in6_ifaddr = ia->ia_next;
-		else {
-			while (ia->ia_next && (ia->ia_next != oia))
-				ia = ia->ia_next;
-			if (ia->ia_next)
-				ia->ia_next = oia->ia_next;
-			else {
-				nd6log((LOG_ERR,
-				    "%s: didn't unlink in6ifaddr from list\n",
-				    if_name(ifp)));
-			}
-		}
-
-		IFAFREE(&oia->ia_ifa);
+		IN6_IFADDR_WLOCK();
+		TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
+		IN6_IFADDR_WUNLOCK();
+		ifa_free(ifa);
 	}
 
 	in6_pcbpurgeif0(&V_udbinfo, ifp);

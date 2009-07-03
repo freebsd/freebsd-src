@@ -113,6 +113,9 @@ struct ata_params {
 #define ATA_SATA_GEN2                   0x0004
 #define ATA_SUPPORT_NCQ                 0x0100
 #define ATA_SUPPORT_IFPWRMNGTRCV        0x0200
+#define ATA_SUPPORT_PHYEVENTCNT         0x0400
+#define ATA_SUPPORT_NCQ_UNLOAD          0x0800
+#define ATA_SUPPORT_NCQ_PRIO            0x1000
 
 	u_int16_t       reserved77;
 	u_int16_t       satasupport;

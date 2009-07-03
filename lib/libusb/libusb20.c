@@ -65,8 +65,6 @@ dummy_callback(struct libusb20_transfer *xfer)
 #define	dummy_get_config_desc_full (void *)dummy_int
 #define	dummy_get_config_index (void *)dummy_int
 #define	dummy_set_config_index (void *)dummy_int
-#define	dummy_claim_interface (void *)dummy_int
-#define	dummy_release_interface (void *)dummy_int
 #define	dummy_set_alt_index (void *)dummy_int
 #define	dummy_reset_device (void *)dummy_int
 #define	dummy_set_power_mode (void *)dummy_int
@@ -451,24 +449,6 @@ libusb20_tr_start(struct libusb20_transfer *xfer)
 /* USB device operations */
 
 int
-libusb20_dev_claim_interface(struct libusb20_device *pdev, uint8_t ifaceIndex)
-{
-	int error;
-
-	if (ifaceIndex >= 32) {
-		error = LIBUSB20_ERROR_INVALID_PARAM;
-	} else if (pdev->claimed_interfaces & (1 << ifaceIndex)) {
-		error = LIBUSB20_ERROR_NOT_FOUND;
-	} else {
-		error = pdev->methods->claim_interface(pdev, ifaceIndex);
-	}
-	if (!error) {
-		pdev->claimed_interfaces |= (1 << ifaceIndex);
-	}
-	return (error);
-}
-
-int
 libusb20_dev_close(struct libusb20_device *pdev)
 {
 	struct libusb20_transfer *xfer;
@@ -494,7 +474,11 @@ libusb20_dev_close(struct libusb20_device *pdev)
 
 	pdev->is_opened = 0;
 
-	pdev->claimed_interfaces = 0;
+	/* 
+	 * The following variable is only used by the libusb v0.1
+	 * compat layer:
+	 */
+	pdev->claimed_interface = 0;
 
 	return (error);
 }
@@ -575,24 +559,6 @@ libusb20_dev_open(struct libusb20_device *pdev, uint16_t nTransferMax)
 		pdev->nTransfer = 0;
 	} else {
 		pdev->is_opened = 1;
-	}
-	return (error);
-}
-
-int
-libusb20_dev_release_interface(struct libusb20_device *pdev, uint8_t ifaceIndex)
-{
-	int error;
-
-	if (ifaceIndex >= 32) {
-		error = LIBUSB20_ERROR_INVALID_PARAM;
-	} else if (!(pdev->claimed_interfaces & (1 << ifaceIndex))) {
-		error = LIBUSB20_ERROR_NOT_FOUND;
-	} else {
-		error = pdev->methods->release_interface(pdev, ifaceIndex);
-	}
-	if (!error) {
-		pdev->claimed_interfaces &= ~(1 << ifaceIndex);
 	}
 	return (error);
 }

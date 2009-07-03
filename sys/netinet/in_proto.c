@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -124,7 +125,7 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_input =		udp_input,
 	.pr_ctlinput =		udp_ctlinput,
-	.pr_ctloutput =		ip_ctloutput,
+	.pr_ctloutput =		udp_ctloutput,
 	.pr_init =		udp_init,
 #ifdef VIMAGE
 	.pr_destroy =		udp_destroy,

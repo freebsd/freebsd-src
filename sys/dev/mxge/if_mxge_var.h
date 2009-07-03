@@ -196,6 +196,8 @@ struct mxge_slice_state {
 	volatile uint32_t *irq_claim;
 	u_long ipackets;
 	u_long opackets;
+	u_long obytes;
+	u_long omcasts;
 	u_long oerrors;
 	int if_drv_flags;
 	struct lro_head lro_active;
@@ -264,6 +266,7 @@ struct mxge_softc {
 	int need_media_probe;
 	int num_slices;
 	int rx_ring_size;
+	int dying;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
 	struct sysctl_oid *slice_sysctl_tree;

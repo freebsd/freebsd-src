@@ -31,10 +31,28 @@ __FBSDID("$FreeBSD$");
  * This file contains the USB templates for an USB Mass Storage Device.
  */
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
 
-#include <dev/usb/usb_core.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
 
 #include <dev/usb/template/usb_template.h>
 
@@ -95,7 +113,7 @@ USB_MAKE_STRING_DESC(STRING_MSC_SERIAL, string_msc_serial);
 
 /* prototypes */
 
-static usb2_temp_get_string_desc_t msc_get_string_desc;
+static usb_temp_get_string_desc_t msc_get_string_desc;
 
 static const struct usb_temp_packet_size bulk_mps = {
 	.mps[USB_SPEED_FULL] = 64,
@@ -153,7 +171,7 @@ static const struct usb_temp_config_desc *msc_configs[] = {
 	NULL,
 };
 
-const struct usb_temp_device_desc usb2_template_msc = {
+const struct usb_temp_device_desc usb_template_msc = {
 	.getStringDesc = &msc_get_string_desc,
 	.ppConfigDesc = msc_configs,
 	.idVendor = 0x0001,

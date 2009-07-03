@@ -45,6 +45,9 @@
 #ifndef MWL_TXBUF
 #define MWL_TXBUF	256		/* number of TX descriptors/buffers */
 #endif
+#ifndef MWL_TXACKBUF
+#define MWL_TXACKBUF	(MWL_TXBUF/2)	/* number of TX ACK desc's/buffers */
+#endif
 #ifndef MWL_RXDESC
 #define MWL_RXDESC	256		/* number of RX descriptors */
 #endif
@@ -274,6 +277,7 @@ struct mwl_softc {
 	uint8_t			sc_napvaps;	/* # ap mode vaps */
 	uint8_t			sc_nwdsvaps;	/* # wds mode vaps */
 	uint8_t			sc_nstavaps;	/* # sta mode vaps */
+	uint8_t			sc_ndwdsvaps;	/* # sta mode dwds vaps */
 	uint8_t			sc_nbssid0;	/* # vap's using base mac */
 	uint32_t		sc_bssidmask;	/* bssid mask */
 

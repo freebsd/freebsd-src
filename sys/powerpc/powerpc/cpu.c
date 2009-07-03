@@ -277,6 +277,12 @@ cpu_setup(u_int cpuid)
 			if (bootverbose)
 				cpu_print_cacheinfo(cpuid, vers);
 			break;
+		case IBM970:
+		case IBM970FX:
+		case IBM970MP:
+			cpu_print_speed();
+			printf("\n");
+			break;
 		default:
 			printf("\n");
 			break;
@@ -299,8 +305,11 @@ int
 cpu_est_clockrate(int cpu_id, uint64_t *cps)
 {
 	uint16_t	vers;
+	register_t	msr;
 
 	vers = mfpvr() >> 16;
+	msr = mfmsr();
+	mtmsr(msr & ~PSL_EE);
 
 	switch (vers) {
 		case MPC7450:
@@ -315,11 +324,33 @@ cpu_est_clockrate(int cpu_id, uint64_t *cps)
 			mtspr(SPR_MMCR0, SPR_MMCR0_FC);
 			mtspr(SPR_PMC1, 0);
 			mtspr(SPR_MMCR0, SPR_MMCR0_PMC1SEL(PMCN_CYCLES));
-			DELAY(100000);
-			*cps = (mfspr(SPR_PMC1) * 10) + 4999;
+			DELAY(1000);
+			*cps = (mfspr(SPR_PMC1) * 1000) + 4999;
+			mtspr(SPR_MMCR0, SPR_MMCR0_FC);
+
+			mtmsr(msr);
+			return (0);
+		case IBM970:
+		case IBM970FX:
+		case IBM970MP:
+			isync();
+			mtspr(SPR_970MMCR0, SPR_MMCR0_FC);
+			isync();
+			mtspr(SPR_970MMCR1, 0);
+			mtspr(SPR_970MMCRA, 0);
+			mtspr(SPR_970PMC1, 0);
+			mtspr(SPR_970MMCR0,
+			    SPR_970MMCR0_PMC1SEL(PMC970N_CYCLES));
+			isync();
+			DELAY(1000);
+			powerpc_sync();
+			mtspr(SPR_970MMCR0, SPR_MMCR0_FC);
+			*cps = (mfspr(SPR_970PMC1) * 1000) + 4999;
+
+			mtmsr(msr);
 			return (0);
 	}
-		
+	
 	return (ENXIO);
 }
 

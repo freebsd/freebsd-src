@@ -16,9 +16,7 @@ MISRCS+=_Exit.c a64l.c abort.c abs.c atexit.c atof.c atoi.c atol.c atoll.c \
 SYM_MAPS+= ${.CURDIR}/stdlib/Symbol.map
 
 # machine-dependent stdlib sources
-.if exists(${.CURDIR}/${MACHINE_ARCH}/stdlib/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_ARCH}/stdlib/Makefile.inc"
-.endif
+.sinclude "${.CURDIR}/${MACHINE_ARCH}/stdlib/Makefile.inc"
 
 MAN+=	a64l.3 abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
 	div.3 exit.3 getenv.3 getopt.3 getopt_long.3 getsubopt.3 \

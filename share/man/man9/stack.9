@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2007 Robert N. M. Watson
+.\" Copyright (c) 2007-2009 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2007
+.Dd June 24, 2009
 .Dt STACK 9
 .Os
 .Sh NAME
@@ -53,6 +53,10 @@ In the kernel configuration file:
 .Fn stack_print "struct stack *st"
 .Ft void
 .Fn stack_print_ddb "struct stack *st"
+.Ft void
+.Fn stack_print_short "struct stack *st"
+.Ft void
+.Fn stack_print_short_ddb "struct stack *st"
 .Ft void
 .Fn stack_sbuf_print "struct sbuf sb*" "struct stack *st"
 .Ft void
@@ -84,6 +88,8 @@ A trace of the current kernel thread's call stack may be captured using
 .Fn stack_save .
 .Pp
 .Fn stack_print
+and
+.Fn stack_print_short
 may be used to print a stack trace using the kernel
 .Xr printf 9 ,
 and may sleep as a result of acquiring
@@ -91,7 +97,9 @@ and may sleep as a result of acquiring
 locks in the kernel linker while looking up symbol names.
 In locking-sensitive environments, the unsynchronized
 .Fn stack_print_ddb
-variant may be invoked.
+and
+.Fn stack_print_short_ddb
+variants may be invoked.
 This function bypasses kernel linker locking, making it usable in
 .Xr ddb 4 ,
 but not in a live system where linker data structures may change.

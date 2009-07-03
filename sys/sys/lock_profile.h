@@ -63,10 +63,10 @@ lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested,
 
 #else /* !LOCK_PROFILING */
 
-#define	lock_profile_release_lock(lo)
-#define lock_profile_obtain_lock_failed(lo, contested, waittime)
-#define lock_profile_obtain_lock_success(lo, contested, waittime, file, line)
-#define	lock_profile_thread_exit(td)
+#define	lock_profile_release_lock(lo)					(void)0
+#define lock_profile_obtain_lock_failed(lo, contested, waittime)	(void)0
+#define lock_profile_obtain_lock_success(lo, contested, waittime, file, line)	(void)0
+#define	lock_profile_thread_exit(td)					(void)0
 
 #endif  /* !LOCK_PROFILING */
 

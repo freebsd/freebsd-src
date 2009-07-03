@@ -78,7 +78,7 @@ ata_ite_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_ite_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int

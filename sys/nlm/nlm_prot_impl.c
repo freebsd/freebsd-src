@@ -1389,7 +1389,7 @@ nlm_register_services(SVCPOOL *pool, int addr_count, char **addrs)
 		return (EINVAL);
 	}
 
-	xprts = malloc(addr_count * sizeof(SVCXPRT *), M_NLM, M_WAITOK);
+	xprts = malloc(addr_count * sizeof(SVCXPRT *), M_NLM, M_WAITOK|M_ZERO);
 	for (i = 0; i < version_count; i++) {
 		for (j = 0; j < addr_count; j++) {
 			/*
@@ -1447,6 +1447,10 @@ nlm_register_services(SVCPOOL *pool, int addr_count, char **addrs)
 	}
 	error = 0;
 out:
+	for (j = 0; j < addr_count; j++) {
+		if (xprts[j])
+			SVC_RELEASE(xprts[j]);
+	}
 	free(xprts, M_NLM);
 	return (error);
 }

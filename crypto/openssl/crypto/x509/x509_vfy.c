@@ -164,7 +164,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 					goto end;
 					}
 				CRYPTO_add(&xtmp->references,1,CRYPTO_LOCK_X509);
-				sk_X509_delete_ptr(sktmp,xtmp);
+				(void)sk_X509_delete_ptr(sktmp,xtmp);
 				ctx->last_untrusted++;
 				x=xtmp;
 				num++;
@@ -214,7 +214,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 				 */
 				X509_free(x);
 				x = xtmp;
-				sk_X509_set(ctx->chain, i - 1, x);
+				(void)sk_X509_set(ctx->chain, i - 1, x);
 				ctx->last_untrusted=0;
 				}
 			}
@@ -394,7 +394,7 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
 #ifdef OPENSSL_NO_CHAIN_VERIFY
 	return 1;
 #else
-	int i, ok=0, must_be_ca;
+	int i, ok=0, must_be_ca, plen = 0;
 	X509 *x;
 	int (*cb)(int xok,X509_STORE_CTX *xctx);
 	int proxy_path_length = 0;
@@ -495,9 +495,10 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
 				if (!ok) goto end;
 				}
 			}
-		/* Check pathlen */
-		if ((i > 1) && (x->ex_pathlen != -1)
-			   && (i > (x->ex_pathlen + proxy_path_length + 1)))
+		/* Check pathlen if not self issued */
+		if ((i > 1) && !(x->ex_flags & EXFLAG_SI)
+			   && (x->ex_pathlen != -1)
+			   && (plen > (x->ex_pathlen + proxy_path_length + 1)))
 			{
 			ctx->error = X509_V_ERR_PATH_LENGTH_EXCEEDED;
 			ctx->error_depth = i;
@@ -505,6 +506,9 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
 			ok=cb(0,ctx);
 			if (!ok) goto end;
 			}
+		/* Increment path length if not self issued */
+		if (!(x->ex_flags & EXFLAG_SI))
+			plen++;
 		/* If this certificate is a proxy certificate, the next
 		   certificate must be another proxy certificate or a EE
 		   certificate.  If not, the next certificate must be a

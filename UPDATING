@@ -22,6 +22,63 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090630:
+	The NFS_LEGACYRPC option has been removed along with the old
+	kernel RPC implementation that this option selected. Kernel
+	configurations may need to be adjusted.
+
+20090629:
+	The network interface device nodes at /dev/net/<interface> have
+	been removed.  All ioctl operations can be performed the normal
+	way using routing sockets.  The kqueue functionality can
+	generally be replaced with routing sockets.
+
+20090628:
+	The documentation from the FreeBSD Documentation Project
+	(Handbook, FAQ, etc.) is now installed via packages by
+	sysinstall(8) and under the /usr/local/share/doc/freebsd
+	directory instead of /usr/share/doc.
+
+20090624:
+	The ABI of various structures related to the SYSV IPC API have
+	been changed.  As a result, the COMPAT_FREEBSD[456] kernel
+	options now all require COMPAT_FREEBSD7.  Bump __FreeBSD_version
+	to 800100.
+
+20090622:
+	Layout of struct vnet has changed as routing related variables
+	were moved to their own Vimage module. Modules need to be
+	recompiled.  Bump __FreeBSD_version to 800099.
+
+20090619:
+	NGROUPS_MAX and NGROUPS have been increased from 16 to 1023
+	and 1024 respectively.  As long as no more than 16 groups per
+	process are used, no changes should be visible.  When more
+	than 16 groups are used, old binaries may fail if they call
+	getgroups() or getgrouplist() with statically sized storage.
+	Recompiling will work around this, but applications should be
+	modified to use dynamically allocated storage for group arrays
+	as POSIX.1-2008 does not cap an implementation's number of
+	supported groups at NGROUPS_MAX+1 as previous versions did.
+
+	NFS and portalfs mounts may also be affected as the list of
+	groups is truncated to 16.  Users of NFS who use more than 16
+	groups, should take care that negative group permissions are not
+	used on the exported file systems as they will not be reliable
+	unless a GSSAPI based authentication method is used.
+
+20090616:
+	The compiling option ADAPTIVE_LOCKMGRS has been introduced.
+	This option compiles in the support for adaptive spinning for lockmgrs
+	which want to enable it.  The lockinit() function now accepts the
+	flag LK_ADAPTIVE in order to make the lock object subject to
+	adaptive spinning when both held in write and read mode.
+
+20090613:
+	The layout of the structure returned by IEEE80211_IOC_STA_INFO
+	has changed.  User applications that use this ioctl need to be
+	rebuilt.
+
 20090611:
 	The layout of struct thread has changed.  Kernel and modules
 	need to be rebuilt.
@@ -45,12 +102,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	file system modules, such as igmp, ipdivert, and others, should be
 	rebuilt.
 	Bump __FreeBSD_version to 800096.
-
-20090531:
-	For those who use ipfw and especially pf, those two firewalls
-	are now started BEFORE the network is initialized (i.e., before
-	rc.d/netif). Please review your rules to make sure that your
-	interfaces will be properly described.
 
 20090530:
 	Remove the tunable/sysctl debug.mpsafevfs as its initial purpose

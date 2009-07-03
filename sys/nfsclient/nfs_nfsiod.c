@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 
 #include <nfs/xdr_subs.h>
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsm_subs.h>

@@ -120,9 +120,8 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		np->netc_exflags = argp->ex_flags;
 		np->netc_anon = crget();
 		np->netc_anon->cr_uid = argp->ex_anon.cr_uid;
-		np->netc_anon->cr_ngroups = argp->ex_anon.cr_ngroups;
-		bcopy(argp->ex_anon.cr_groups, np->netc_anon->cr_groups,
-		    sizeof(np->netc_anon->cr_groups));
+		crsetgroups(np->netc_anon, argp->ex_anon.cr_ngroups,
+		    argp->ex_anon.cr_groups);
 		np->netc_numsecflavors = argp->ex_numsecflavors;
 		bcopy(argp->ex_secflavors, np->netc_secflavors,
 		    sizeof(np->netc_secflavors));
@@ -205,9 +204,8 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	np->netc_exflags = argp->ex_flags;
 	np->netc_anon = crget();
 	np->netc_anon->cr_uid = argp->ex_anon.cr_uid;
-	np->netc_anon->cr_ngroups = argp->ex_anon.cr_ngroups;
-	bcopy(argp->ex_anon.cr_groups, np->netc_anon->cr_groups,
-	    sizeof(np->netc_anon->cr_groups));
+	crsetgroups(np->netc_anon, argp->ex_anon.cr_ngroups,
+	    np->netc_anon->cr_groups);
 	np->netc_numsecflavors = argp->ex_numsecflavors;
 	bcopy(argp->ex_secflavors, np->netc_secflavors,
 	    sizeof(np->netc_secflavors));
@@ -222,9 +220,13 @@ out:
 static int
 vfs_free_netcred(struct radix_node *rn, void *w)
 {
-	register struct radix_node_head *rnh = (struct radix_node_head *) w;
+	struct radix_node_head *rnh = (struct radix_node_head *) w;
+	struct ucred *cred;
 
 	(*rnh->rnh_deladdr) (rn->rn_key, rn->rn_mask, rnh);
+	cred = ((struct netcred *)rn)->netc_anon;
+	if (cred != NULL)
+		crfree(cred);
 	free(rn, M_NETADDR);
 	return (0);
 }
@@ -235,10 +237,11 @@ vfs_free_netcred(struct radix_node *rn, void *w)
 static void
 vfs_free_addrlist(struct netexport *nep)
 {
-	register int i;
-	register struct radix_node_head *rnh;
+	int i;
+	struct radix_node_head *rnh;
+	struct ucred *cred;
 
-	for (i = 0; i <= AF_MAX; i++)
+	for (i = 0; i <= AF_MAX; i++) {
 		if ((rnh = nep->ne_rtable[i])) {
 			RADIX_NODE_HEAD_LOCK(rnh);
 			(*rnh->rnh_walktree) (rnh, vfs_free_netcred, rnh);
@@ -247,6 +250,11 @@ vfs_free_addrlist(struct netexport *nep)
 			free(rnh, M_RTABLE);
 			nep->ne_rtable[i] = NULL;	/* not SMP safe XXX */
 		}
+	}
+	cred = nep->ne_defexported.netc_anon;
+	if (cred != NULL)
+		crfree(cred);
+
 }
 
 /*

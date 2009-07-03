@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/namei.h>
@@ -992,22 +993,23 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
+	struct mount *mp = dvp->v_mount;
 	int flags = cnp->cn_flags;
 	struct vnode *newvp;
 	struct nfsmount *nmp;
 	struct nfsnode *np;
-	int error = 0, attrflag, dattrflag;
+	int error = 0, attrflag, dattrflag, ltype;
 	struct thread *td = cnp->cn_thread;
 	struct nfsfh *nfhp;
 	struct nfsvattr dnfsva, nfsva;
 	
 	*vpp = NULLVP;
-	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
+	if ((flags & ISLASTCN) && (mp->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
-	nmp = VFSTONFS(dvp->v_mount);
+	nmp = VFSTONFS(mp);
 	np = VTONFS(dvp);
 
 	/* For NFSv4, wait until any remove is done. */
@@ -1073,7 +1075,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		}
 		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
 		    (flags & ISLASTCN) && error == ENOENT) {
-			if (dvp->v_mount->mnt_flag & MNT_RDONLY)
+			if (mp->mnt_flag & MNT_RDONLY)
 				error = EROFS;
 			else
 				error = EJUSTRETURN;
@@ -1093,8 +1095,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			FREE((caddr_t)nfhp, M_NFSFH);
 			return (EISDIR);
 		}
-		error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp, td, &np,
-		    NULL);
+		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL);
 		if (error)
 			return (error);
 		newvp = NFSTOV(np);
@@ -1106,14 +1107,37 @@ nfs_lookup(struct vop_lookup_args *ap)
 		return (0);
 	}
 
-	if ((flags & ISDOTDOT)) {
+	if (flags & ISDOTDOT) {
+		ltype = VOP_ISLOCKED(dvp);
+		error = vfs_busy(mp, MBF_NOWAIT);
+		if (error != 0) {
+			VOP_UNLOCK(dvp, 0);
+			error = vfs_busy(mp, 0);
+			vn_lock(dvp, ltype | LK_RETRY);
+			if (error == 0 && (dvp->v_iflag & VI_DOOMED)) {
+				vfs_unbusy(mp);
+				error = ENOENT;
+			}
+			if (error != 0)
+				return (error);
+		}
 		VOP_UNLOCK(dvp, 0);
-		error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp, td, &np,
-		    NULL);
-		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
-		if (error)
+		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL);
+		if (error == 0)
+			newvp = NFSTOV(np);
+		vfs_unbusy(mp);
+		vn_lock(dvp, ltype | LK_RETRY);
+		if (dvp->v_iflag & VI_DOOMED) {
+			if (error == 0) {
+				if (newvp == dvp)
+					vrele(newvp);
+				else
+					vput(newvp);
+			}
+			error = ENOENT;
+		}
+		if (error != 0)
 			return (error);
-		newvp = NFSTOV(np);
 		if (attrflag)
 			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL, NULL,
 			    0, 1);
@@ -1125,8 +1149,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL, NULL,
 			    0, 1);
 	} else {
-		error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp, td, &np,
-		    NULL);
+		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL);
 		if (error)
 			return (error);
 		newvp = NFSTOV(np);
@@ -1377,11 +1400,15 @@ again:
 	CURVNET_SET(P_TO_VNET(&proc0));
 #ifdef INET
 	INIT_VNET_INET(curvnet);
+	IN_IFADDR_RLOCK();
 	if (!TAILQ_EMPTY(&V_in_ifaddrhead))
 		cverf.lval[0] = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr.s_addr;
 	else
 #endif
 		cverf.lval[0] = create_verf;
+#ifdef INET
+	IN_IFADDR_RUNLOCK();
+#endif
 	cverf.lval[1] = ++create_verf;
 	CURVNET_RESTORE();
 	error = nfsrpc_create(dvp, cnp->cn_nameptr, cnp->cn_namelen,

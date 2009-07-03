@@ -438,7 +438,7 @@ struct mtx_args {
 #define GIANT_REQUIRED	mtx_assert(&Giant, MA_OWNED)
 
 #else	/* INVARIANTS */
-#define mtx_assert(m, what)
+#define mtx_assert(m, what)	(void)0
 #define GIANT_REQUIRED
 #endif	/* INVARIANTS */
 

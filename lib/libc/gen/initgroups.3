@@ -65,6 +65,13 @@ function may fail and set
 .Va errno
 for any of the errors specified for the library function
 .Xr setgroups 2 .
+It may also return:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The
+.Fn initgroups
+function was unable to allocate temporary storage.
+.El
 .Sh SEE ALSO
 .Xr setgroups 2 ,
 .Xr getgrouplist 3

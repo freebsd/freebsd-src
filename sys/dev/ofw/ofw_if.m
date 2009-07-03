@@ -32,7 +32,7 @@
 /**
  * @defgroup OFW ofw - KObj methods for Open Firmware RTAS implementations
  * @brief A set of methods to implement the Open Firmware client side interface.
- *@{
+ * @{
  */
 
 INTERFACE ofw;
@@ -49,59 +49,59 @@ METHOD void init {
 };
 
 /**
- * @brief Return next sibling of node
+ * @brief Return next sibling of node.
  *
  * @param _node		Selected node
  */
 METHOD phandle_t peer {
 	ofw_t		_ofw;
-	phandle_t 	_node;
+	phandle_t	_node;
 };
 
 /**
- * @brief Return parent of node
+ * @brief Return parent of node.
  *
  * @param _node		Selected node
  */
 METHOD phandle_t parent {
 	ofw_t		_ofw;
-	phandle_t 	_node;
+	phandle_t	_node;
 };
 
 /**
- * @brief Return first child of node
+ * @brief Return first child of node.
  *
  * @param _node		Selected node
  */
 METHOD phandle_t child {
 	ofw_t		_ofw;
-	phandle_t 	_node;
+	phandle_t	_node;
 };
 
 /**
- * @brief Return package corresponding to instance
+ * @brief Return package corresponding to instance.
  *
  * @param _handle	Selected instance
  */
 METHOD phandle_t instance_to_package {
 	ofw_t		_ofw;
-	ihandle_t 	_handle;
+	ihandle_t	_handle;
 };
 
 /**
- * @brief Return length of node property
+ * @brief Return length of node property.
  *
  * @param _node		Selected node
  * @param _prop		Property name
  */
 METHOD ssize_t getproplen {
 	ofw_t		_ofw;
-	phandle_t 	_node;
-	const char 	*_prop;
+	phandle_t	_node;
+	const char	*_prop;
 };
 
 /**
- * @brief Read node property
+ * @brief Read node property.
  *
  * @param _node		Selected node
  * @param _prop		Property name
@@ -110,14 +110,14 @@ METHOD ssize_t getproplen {
  */
 METHOD ssize_t getprop {
 	ofw_t		_ofw;
-	phandle_t 	_node;
+	phandle_t	_node;
 	const char	*_prop;
 	void		*_buf;
 	size_t		_size;
 };
 
 /**
- * @brief Get next property name
+ * @brief Get next property name.
  *
  * @param _node		Selected node
  * @param _prop		Current property name
@@ -126,14 +126,14 @@ METHOD ssize_t getprop {
  */
 METHOD int nextprop {
 	ofw_t		_ofw;
-	phandle_t 	_node;
+	phandle_t	_node;
 	const char	*_prop;
-	char 		*_buf;
+	char		*_buf;
 	size_t		_size;
 };
 
 /**
- * @brief Set property
+ * @brief Set property.
  *
  * @param _node		Selected node
  * @param _prop		Property name
@@ -142,14 +142,14 @@ METHOD int nextprop {
  */
 METHOD int setprop {
 	ofw_t		_ofw;
-	phandle_t 	_node;
-	const char 	*_prop;
+	phandle_t	_node;
+	const char	*_prop;
 	const void	*_buf;
 	size_t		_size;
 };
 
 /**
- * @brief Canonicalize path
+ * @brief Canonicalize path.
  *
  * @param _path		Path to canonicalize
  * @param _buf		Buffer for canonicalized path
@@ -163,17 +163,17 @@ METHOD ssize_t canon {
 };
 
 /**
- * @brief Return phandle for named device
+ * @brief Return phandle for named device.
  *
  * @param _path		Device path
  */
 METHOD phandle_t finddevice {
 	ofw_t		_ofw;
-	const char 	*_path;
+	const char	*_path;
 };
 
 /**
- * @brief Return path for node instance
+ * @brief Return path for node instance.
  *
  * @param _handle	Instance handle
  * @param _path		Buffer for path
@@ -182,12 +182,12 @@ METHOD phandle_t finddevice {
 METHOD ssize_t instance_to_path {
 	ofw_t		_ofw;
 	ihandle_t	_handle;
-	char	 	*_path;
+	char		*_path;
 	size_t		_size;
 };
 
 /**
- * @brief Return path for node
+ * @brief Return path for node.
  *
  * @param _node		Package node
  * @param _path		Buffer for path
@@ -196,10 +196,9 @@ METHOD ssize_t instance_to_path {
 METHOD ssize_t package_to_path {
 	ofw_t		_ofw;
 	phandle_t	_node;
-	char	 	*_path;
+	char		*_path;
 	size_t		_size;
 };
-
 
 # Methods for OF method calls (optional)
 
@@ -214,7 +213,7 @@ METHOD int test {
 };
 
 /**
- * @brief Call method belonging to an instance handle
+ * @brief Call method belonging to an instance handle.
  *
  * @param _instance	Instance handle
  * @param _method	Method name
@@ -228,13 +227,13 @@ METHOD int call_method {
 	ihandle_t	_instance;
 	const char	*_method;
 	int		_nargs;
-	int 		_nreturns;
+	int		_nreturns;
 
 	unsigned long	*_args_and_returns;
 };
 
 /**
- * @brief Interpret a forth command
+ * @brief Interpret a forth command.
  *
  * @param _cmd		Command
  * @param _nreturns	Number of return values
@@ -244,14 +243,14 @@ METHOD int call_method {
 METHOD int interpret {
 	ofw_t		_ofw;
 	const char	*_cmd;
-	int 		_nreturns;
+	int		_nreturns;
 	unsigned long	*_returns;
 };
 
 # Device I/O Functions (optional)
 
 /**
- * @brief Open node, returning instance handle
+ * @brief Open node, returning instance handle.
  *
  * @param _path		Path to node
  */
@@ -261,7 +260,7 @@ METHOD ihandle_t open {
 }
 
 /**
- * @brief Close node instance
+ * @brief Close node instance.
  *
  * @param _instance	Instance to close
  */
@@ -271,7 +270,7 @@ METHOD void close {
 }
 
 /**
- * @brief Read from device
+ * @brief Read from device.
  *
  * @param _instance	Device instance
  * @param _buf		Buffer to read to
@@ -285,7 +284,7 @@ METHOD ssize_t read {
 }
 
 /**
- * @brief Write to device
+ * @brief Write to device.
  *
  * @param _instance	Device instance
  * @param _buf		Buffer to write from
@@ -299,7 +298,7 @@ METHOD ssize_t write {
 }
 
 /**
- * @brief Seek device
+ * @brief Seek device.
  *
  * @param _instance	Device instance
  * @param _off		Offset to which to seek
@@ -313,7 +312,7 @@ METHOD int seek {
 # Open Firmware memory management
 
 /**
- * @brief Claim virtual memory
+ * @brief Claim virtual memory.
  *
  * @param _addr		Requested memory location (NULL for first available)
  * @param _size		Requested size in bytes
@@ -327,7 +326,7 @@ METHOD caddr_t claim {
 }
 
 /**
- * @brief Release virtual memory
+ * @brief Release virtual memory.
  *
  * @param _addr		Memory location
  * @param _size		Size in bytes
@@ -341,17 +340,15 @@ METHOD void release {
 # Commands for returning control to the firmware
 
 /**
- * @brief Temporarily return control to firmware
+ * @brief Temporarily return control to firmware.
  */
 METHOD void enter {
 	ofw_t		_ofw;
 };
 
 /**
- * @brief Halt and return control to firmware
+ * @brief Halt and return control to firmware.
  */
 METHOD void exit {
 	ofw_t		_ofw;
 };
-
-

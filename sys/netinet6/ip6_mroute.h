@@ -265,7 +265,7 @@ struct rtdetq {		/* XXX: rtdetq is also defined in ip_mroute.h */
 extern int	(*ip6_mrouter_set)(struct socket *so, struct sockopt *sopt);
 extern int	(*ip6_mrouter_get)(struct socket *so, struct sockopt *sopt);
 extern int	(*ip6_mrouter_done)(void);
-extern int	(*mrt6_ioctl)(int, caddr_t);
+extern int	(*mrt6_ioctl)(u_long, caddr_t);
 #endif /* _KERNEL */
 
 #endif /* !_NETINET6_IP6_MROUTE_H_ */

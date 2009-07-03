@@ -135,7 +135,6 @@ struct ifnet {
 		 * However, access to the AF_LINK address through this
 		 * field is deprecated. Use if_addr or ifaddr_byindex() instead.
 		 */
-	struct	knlist if_klist;	/* events attached to this if */
 	int	if_pcount;		/* number of promiscuous listeners */
 	struct	carp_if *if_carp;	/* carp interface structure */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
@@ -251,6 +250,16 @@ typedef void if_init_f_t(void *);
 #define	IF_ADDR_LOCK(if)	mtx_lock(&(if)->if_addr_mtx)
 #define	IF_ADDR_UNLOCK(if)	mtx_unlock(&(if)->if_addr_mtx)
 #define	IF_ADDR_LOCK_ASSERT(if)	mtx_assert(&(if)->if_addr_mtx, MA_OWNED)
+
+/*
+ * Function variations on locking macros intended to be used by loadable
+ * kernel modules in order to divorce them from the internals of address list
+ * locking.
+ */
+void	if_addr_rlock(struct ifnet *ifp);	/* if_addrhead */
+void	if_addr_runlock(struct ifnet *ifp);	/* if_addrhead */
+void	if_maddr_rlock(struct ifnet *ifp);	/* if_multiaddrs */
+void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
 
 /*
  * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
@@ -586,13 +595,27 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 }
 
 static __inline void
-drbr_free(struct buf_ring *br, struct malloc_type *type)
+drbr_flush(struct ifnet *ifp, struct buf_ring *br)
 {
 	struct mbuf *m;
 
+#ifdef ALTQ
+	if (ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		while (!IFQ_IS_EMPTY(&ifp->if_snd)) {
+			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+			m_freem(m);
+		}
+	}
+#endif	
 	while ((m = buf_ring_dequeue_sc(br)) != NULL)
 		m_freem(m);
+}
 
+static __inline void
+drbr_free(struct buf_ring *br, struct malloc_type *type)
+{
+
+	drbr_flush(NULL, br);
 	buf_ring_free(br, type);
 }
 
@@ -692,11 +715,14 @@ struct ifaddr {
 /* for compatibility with other BSDs */
 #define	ifa_list	ifa_link
 
-#define	IFA_LOCK_INIT(ifa)	\
-    mtx_init(&(ifa)->ifa_mtx, "ifaddr", NULL, MTX_DEF)
+#ifdef _KERNEL
 #define	IFA_LOCK(ifa)		mtx_lock(&(ifa)->ifa_mtx)
 #define	IFA_UNLOCK(ifa)		mtx_unlock(&(ifa)->ifa_mtx)
-#define	IFA_DESTROY(ifa)	mtx_destroy(&(ifa)->ifa_mtx)
+
+void	ifa_free(struct ifaddr *ifa);
+void	ifa_init(struct ifaddr *ifa);
+void	ifa_ref(struct ifaddr *ifa);
+#endif
 
 /*
  * The prefix structure contains information about one prefix
@@ -727,24 +753,6 @@ struct ifmultiaddr {
 };
 
 #ifdef _KERNEL
-#define	IFAFREE(ifa)					\
-	do {						\
-		IFA_LOCK(ifa);				\
-		KASSERT((ifa)->ifa_refcnt > 0,		\
-		    ("ifa %p !(ifa_refcnt > 0)", ifa));	\
-		if (--(ifa)->ifa_refcnt == 0) {		\
-			IFA_DESTROY(ifa);		\
-			free(ifa, M_IFADDR);		\
-		} else 					\
-			IFA_UNLOCK(ifa);		\
-	} while (0)
-
-#define IFAREF(ifa)					\
-	do {						\
-		IFA_LOCK(ifa);				\
-		++(ifa)->ifa_refcnt;			\
-		IFA_UNLOCK(ifa);			\
-	} while (0)
 
 extern	struct rwlock ifnet_lock;
 #define	IFNET_LOCK_INIT() \
@@ -754,11 +762,6 @@ extern	struct rwlock ifnet_lock;
 #define	IFNET_WLOCK_ASSERT()	rw_assert(&ifnet_lock, RA_LOCKED)
 #define	IFNET_RLOCK()		rw_rlock(&ifnet_lock)
 #define	IFNET_RUNLOCK()		rw_runlock(&ifnet_lock)	
-
-struct ifindex_entry {
-	struct	ifnet *ife_ifnet;
-	struct cdev *ife_dev;
-};
 
 /*
  * Look up an ifnet given its index; the _ref variant also acquires a
@@ -775,7 +778,6 @@ struct ifnet	*ifnet_byindex_ref(u_short idx);
  * it to traverse the list of addresses associated to the interface.
  */
 struct ifaddr	*ifaddr_byindex(u_short idx);
-struct cdev	*ifdev_byindex(u_short idx);
 
 #ifdef VIMAGE_GLOBALS
 extern	struct ifnethead ifnet;
@@ -817,10 +819,11 @@ int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
 struct	ifnet *ifunit_ref(const char *);
 
-void	ifq_attach(struct ifaltq *, struct ifnet *ifp);
-void	ifq_detach(struct ifaltq *);
+void	ifq_init(struct ifaltq *, struct ifnet *ifp);
+void	ifq_delete(struct ifaltq *);
 
 struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
+int		ifa_ifwithaddr_check(struct sockaddr *);
 struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithnet(struct sockaddr *);

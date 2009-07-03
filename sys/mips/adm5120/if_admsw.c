@@ -133,8 +133,6 @@ static int	admsw_ioctl(struct ifnet *, u_long, caddr_t);
 static void	admsw_init(void *);
 static void	admsw_stop(struct ifnet *, int);
 
-static int	admsw_shutdown(device_t);
-
 static void	admsw_reset(struct admsw_softc *);
 static void	admsw_set_filter(struct admsw_softc *);
 
@@ -153,6 +151,7 @@ static int	admsw_intr(void *);
 static int	admsw_probe(device_t dev);
 static int	admsw_attach(device_t dev);
 static int	admsw_detach(device_t dev);
+static int	admsw_shutdown(device_t dev);
 
 static void
 admsw_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
@@ -574,9 +573,10 @@ admsw_detach(device_t dev)
 static int
 admsw_shutdown(device_t dev)
 {
-	struct admsw_softc *sc = (struct admsw_softc *) device_get_softc(dev);
+	struct admsw_softc *sc;
 	int i;
 
+	sc = device_get_softc(dev);
 	for (i = 0; i < SW_DEVS; i++)
 		admsw_stop(sc->sc_ifnet[i], 1);
 
@@ -1168,7 +1168,7 @@ admsw_set_filter(struct admsw_softc *sc)
 
 		ifp->if_flags &= ~IFF_ALLMULTI;
 
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		{
 			if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -1176,7 +1176,7 @@ admsw_set_filter(struct admsw_softc *sc)
 
 			anymc |= vlan_matrix[i];
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 
 	conf = REG_READ(CPUP_CONF_REG);

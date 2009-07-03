@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_core.h>
+#include <dev/usb/usbdi.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -183,6 +183,8 @@ static void ndis_init		(void *);
 static void ndis_stop		(struct ndis_softc *);
 static int ndis_ifmedia_upd	(struct ifnet *);
 static void ndis_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static int ndis_get_bssid_list	(struct ndis_softc *,
+					ndis_80211_bssid_list_ex **);
 static int ndis_get_assoc	(struct ndis_softc *, ndis_wlan_bssid_ex **);
 static int ndis_probe_offload	(struct ndis_softc *);
 static int ndis_set_offload	(struct ndis_softc *);
@@ -318,7 +320,7 @@ ndis_setmulti(sc)
 	sc->ndis_filter |= NDIS_PACKET_TYPE_MULTICAST;
 
 	len = 0;
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -326,13 +328,13 @@ ndis_setmulti(sc)
 		    mclist + (ETHER_ADDR_LEN * len), ETHER_ADDR_LEN);
 		len++;
 		if (len > mclistsz) {
-			IF_ADDR_UNLOCK(ifp);
+			if_maddr_runlock(ifp);
 			sc->ndis_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
 			sc->ndis_filter &= ~NDIS_PACKET_TYPE_MULTICAST;
 			goto out;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	len = len * ETHER_ADDR_LEN;
 	error = ndis_set_info(sc, OID_802_3_MULTICAST_LIST, mclist, &len);
@@ -942,6 +944,9 @@ got_crypto:
 		ic->ic_vap_delete = ndis_vap_delete;
 		ic->ic_update_mcast = ndis_update_mcast;
 		ic->ic_update_promisc = ndis_update_promisc;
+
+		if (bootverbose)
+			ieee80211_announce(ic);
 
 	} else {
 		ifmedia_init(&sc->ifmedia, IFM_IMASK, ndis_ifmedia_upd,
@@ -2277,6 +2282,7 @@ ndis_setstate_80211(sc)
 	struct ndis_softc	*sc;
 {
 	struct ieee80211com	*ic;
+	struct ieee80211vap	*vap;
 	ndis_80211_macaddr	bssid;
 	ndis_80211_config	config;
 	int			rval = 0, len;
@@ -2285,6 +2291,7 @@ ndis_setstate_80211(sc)
 
 	ifp = sc->ifp;
 	ic = ifp->if_l2com;
+	vap = TAILQ_FIRST(&ic->ic_vaps);
 
 	if (!NDIS_INITIALIZED(sc)) {
 		DPRINTF(("%s: NDIS not initialized\n", __func__));
@@ -2313,7 +2320,7 @@ ndis_setstate_80211(sc)
 	/* Set power management */
 
 	len = sizeof(arg);
-	if (ic->ic_flags & IEEE80211_F_PMGTON)
+	if (vap->iv_flags & IEEE80211_F_PMGTON)
 		arg = NDIS_80211_POWERMODE_FAST_PSP;
 	else
 		arg = NDIS_80211_POWERMODE_CAM;
@@ -2619,6 +2626,36 @@ ndis_auth_and_assoc(sc, vap)
 }
 
 static int
+ndis_get_bssid_list(sc, bl)
+	struct ndis_softc	*sc;
+	ndis_80211_bssid_list_ex	**bl;
+{
+	int	len, error;
+
+	len = sizeof(uint32_t) + (sizeof(ndis_wlan_bssid_ex) * 16);
+	*bl = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (*bl == NULL)
+		return (ENOMEM);
+
+	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, *bl, &len);
+	if (error == ENOSPC) {
+		free(*bl, M_DEVBUF);
+		*bl = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (*bl == NULL)
+			return (ENOMEM);
+
+		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, *bl, &len);
+	}
+	if (error) {
+		DPRINTF(("%s: failed to read\n", __func__));
+		free(*bl, M_DEVBUF);
+		return (error);
+	}
+
+	return (0);
+}
+
+static int
 ndis_get_assoc(sc, assoc)
 	struct ndis_softc	*sc;
 	ndis_wlan_bssid_ex	**assoc;
@@ -2645,25 +2682,9 @@ ndis_get_assoc(sc, assoc)
 	vap = TAILQ_FIRST(&ic->ic_vaps);
 	ni = vap->iv_bss;
 
-	len = sizeof(uint32_t) + (sizeof(ndis_wlan_bssid_ex) * 16);
-	bl = malloc(len, M_TEMP, M_NOWAIT | M_ZERO);
-	if (bl == NULL)
-		return (ENOMEM);
-
-	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
-	if (error == ENOSPC) {
-		free(bl, M_TEMP);
-		bl = malloc(len, M_TEMP, M_NOWAIT | M_ZERO);
-		if (bl == NULL)
-			return (ENOMEM);
-
-		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
-	}
-	if (error) {
-		free(bl, M_TEMP);
-		device_printf(sc->ndis_dev, "bssid_list failed\n");
+	error = ndis_get_bssid_list(sc, &bl);
+	if (error)
 		return (error);
-	}
 
 	bs = (ndis_wlan_bssid_ex *)&bl->nblx_bssid[0];
 	for (i = 0; i < bl->nblx_items; i++) {
@@ -2737,9 +2758,9 @@ ndis_getstate_80211(sc)
 			device_printf(sc->ndis_dev,
 			    "get power mode failed: %d\n", rval);
 		if (arg == NDIS_80211_POWERMODE_CAM)
-			ic->ic_flags &= ~IEEE80211_F_PMGTON;
+			vap->iv_flags &= ~IEEE80211_F_PMGTON;
 		else
-			ic->ic_flags |= IEEE80211_F_PMGTON;
+			vap->iv_flags |= IEEE80211_F_PMGTON;
 	}
 
 	/* Get TX power */
@@ -2776,7 +2797,7 @@ ndis_getstate_80211(sc)
 		device_printf (sc->ndis_dev,
 		    "get authmode status failed: %d\n", rval);
 	else {
-		ic->ic_flags &= ~IEEE80211_F_WPA;
+		vap->iv_flags &= ~IEEE80211_F_WPA;
 		switch(arg) {
 		case NDIS_80211_AUTHMODE_OPEN:
 			ni->ni_authmode = IEEE80211_AUTH_OPEN;
@@ -2791,12 +2812,12 @@ ndis_getstate_80211(sc)
 		case NDIS_80211_AUTHMODE_WPAPSK:
 		case NDIS_80211_AUTHMODE_WPANONE:
 			ni->ni_authmode = IEEE80211_AUTH_WPA;
-			ic->ic_flags |= IEEE80211_F_WPA1;
+			vap->iv_flags |= IEEE80211_F_WPA1;
 			break;
 		case NDIS_80211_AUTHMODE_WPA2:
 		case NDIS_80211_AUTHMODE_WPA2PSK:
 			ni->ni_authmode = IEEE80211_AUTH_WPA;
-			ic->ic_flags |= IEEE80211_F_WPA2;
+			vap->iv_flags |= IEEE80211_F_WPA2;
 			break;
 		default:
 			ni->ni_authmode = IEEE80211_AUTH_NONE;
@@ -2812,9 +2833,9 @@ ndis_getstate_80211(sc)
 		    "get wep status failed: %d\n", rval);
 
 	if (arg == NDIS_80211_WEPSTAT_ENABLED)
-		ic->ic_flags |= IEEE80211_F_PRIVACY|IEEE80211_F_DROPUNENC;
+		vap->iv_flags |= IEEE80211_F_PRIVACY|IEEE80211_F_DROPUNENC;
 	else
-		ic->ic_flags &= ~(IEEE80211_F_PRIVACY|IEEE80211_F_DROPUNENC);
+		vap->iv_flags &= ~(IEEE80211_F_PRIVACY|IEEE80211_F_DROPUNENC);
 	return;
 }
 
@@ -3279,7 +3300,7 @@ ndis_scan_results(struct ndis_softc *sc)
 	struct ieee80211_frame wh;
 	struct ieee80211_channel *saved_chan;
 	int i, j;
-	int error, len, rssi, noise, freq, chanflag;
+	int rssi, noise, freq, chanflag;
 	uint8_t ssid[2+IEEE80211_NWID_LEN];
 	uint8_t rates[2+IEEE80211_RATE_MAXSIZE];
 	uint8_t *frm, *efrm;
@@ -3289,25 +3310,8 @@ ndis_scan_results(struct ndis_softc *sc)
 	saved_chan = ic->ic_curchan;
 	noise = -96;
 
-	len = sizeof(uint32_t) + (sizeof(ndis_wlan_bssid_ex) * 16);
-	bl = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (bl == NULL)
+	if (ndis_get_bssid_list(sc, &bl))
 		return;
-
-	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
-	if (error == ENOSPC) {
-		free(bl, M_DEVBUF);
-		bl = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (bl == NULL)
-			return;
-
-		error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
-	}
-	if (error) {
-		DPRINTF(("%s: failed to read\n", __func__));
-		free(bl, M_DEVBUF);
-		return;;
-	}
 
 	DPRINTF(("%s: %d results\n", __func__, bl->nblx_items));
 	wb = &bl->nblx_bssid[0];

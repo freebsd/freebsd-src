@@ -88,6 +88,7 @@ typedef void		 netisr_handler_t (struct mbuf *m);
 typedef struct mbuf	*netisr_m2cpuid_t(struct mbuf *m, uintptr_t source,
 			 u_int *cpuid);
 typedef	struct mbuf	*netisr_m2flow_t(struct mbuf *m, uintptr_t source);
+typedef void		 netisr_drainedcpu_t(u_int cpuid);
 
 #define	NETISR_POLICY_SOURCE	1	/* Maintain source ordering. */
 #define	NETISR_POLICY_FLOW	2	/* Maintain flow ordering. */
@@ -101,6 +102,7 @@ struct netisr_handler {
 	netisr_handler_t *nh_handler;	/* Protocol handler. */
 	netisr_m2flow_t	*nh_m2flow;	/* Query flow for untagged packet. */
 	netisr_m2cpuid_t *nh_m2cpuid;	/* Query CPU to process mbuf on. */
+	netisr_drainedcpu_t *nh_drainedcpu; /* Callback when drained a queue. */
 	u_int		 nh_proto;	/* Integer protocol ID. */
 	u_int		 nh_qlimit;	/* Maximum per-CPU queue depth. */
 	u_int		 nh_policy;	/* Work placement policy. */

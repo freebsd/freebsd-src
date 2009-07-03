@@ -83,6 +83,7 @@
 #define MACREG_A2HRIC_BIT_CHAN_SWITCH   0x00001000
 #define MACREG_A2HRIC_BIT_TX_WATCHDOG	0x00002000
 #define MACREG_A2HRIC_BIT_BA_WATCHDOG	0x00000400
+#define	MACREQ_A2HRIC_BIT_TX_ACK	0x00008000
 #define ISR_SRC_BITS        ((MACREG_A2HRIC_BIT_RX_RDY)   | \
                              (MACREG_A2HRIC_BIT_TX_DONE)  | \
                              (MACREG_A2HRIC_BIT_OPC_DONE) | \
@@ -93,14 +94,15 @@
                              (MACREG_A2HRIC_BIT_CHAN_SWITCH)| \
                              (MACREG_A2HRIC_BIT_TX_WATCHDOG)| \
                              (MACREG_A2HRIC_BIT_QUEUE_EMPTY)| \
-                             (MACREG_A2HRIC_BIT_BA_WATCHDOG))
+                             (MACREG_A2HRIC_BIT_BA_WATCHDOG)| \
+			     (MACREQ_A2HRIC_BIT_TX_ACK))
 
 #define MACREG_A2HRIC_BIT_MASK      ISR_SRC_BITS                             
 
 
 //	Bit definitio for MACREG_REG_H2A_INTERRUPT_CAUSE (H2ARIC)
-#define MACREG_H2ARIC_BIT_PPA_READY         0x00000001 // bit 0
-#define MACREG_H2ARIC_BIT_DOOR_BELL         0x00000002 // bit 1
+#define MACREG_H2ARIC_BIT_PPA_READY	0x00000001 // bit 0
+#define MACREG_H2ARIC_BIT_DOOR_BELL	0x00000002 // bit 1
 #define ISR_RESET           				(1<<15)
 
 //	INT code register event definition
@@ -120,9 +122,10 @@
 #define NUM_HCCA_QUEUES		0
 #define NUM_BA_QUEUES		0
 #define NUM_MGMT_QUEUES		0
+#define	NUM_ACK_EVENT_QUEUE	1
 #define TOTAL_TX_QUEUES \
-	(NUM_EDCA_QUEUES + NUM_HCCA_QUEUES + NUM_BA_QUEUES + NUM_MGMT_QUEUES)
-#define MAX_TXWCB_QUEUES	TOTAL_TX_QUEUES
+	(NUM_EDCA_QUEUES + NUM_HCCA_QUEUES + NUM_BA_QUEUES + NUM_MGMT_QUEUES + NUM_ACK_EVENT_QUEUE)
+#define MAX_TXWCB_QUEUES	TOTAL_TX_QUEUES - NUM_ACK_EVENT_QUEUE
 #define MAX_RXWCB_QUEUES	1
 
 //=============================================================================
@@ -201,6 +204,7 @@ struct mwl_txdesc {
 	uint16_t	pad;		/* align to 4-byte boundary */
 #define	EAGLE_TXD_FIXED_RATE	0x0100	/* get tx rate from Format */
 #define	EAGLE_TXD_DONT_AGGR	0x0200	/* don't aggregate frame */
+	uint32_t	ack_wcb_addr;
 } __packed;
 
 struct mwl_ant_info {
@@ -213,6 +217,7 @@ struct mwl_ant_info {
 	uint8_t		nf_c;	/* Noise floor for antenna C */
 	uint8_t		rsvd2;	/* Reserved */
 	uint8_t		nf;		/* Noise floor */
+	uint8_t		rsvd3[3];   /* Reserved - To make word aligned */
 } __packed;
 
 struct mwl_rxdesc {
@@ -320,6 +325,9 @@ struct mwl_rxdesc {
 #define HostCmd_CMD_SET_TIM			0x1141
 #define HostCmd_CMD_GET_TIM			0x1142
 #define	HostCmd_CMD_GET_SEQNO			0x1143
+#define	HostCmd_CMD_DWDS_ENABLE			0x1144
+#define	HostCmd_CMD_AMPDU_RETRY_RATEDROP_MODE	0x1145
+#define	HostCmd_CMD_CFEND_ENABLE		0x1146
 
 /*
 //          Define general result code for each command
@@ -467,9 +475,7 @@ typedef struct {
     u_int32_t   RxPdWrPtr;
     u_int32_t   RxPdRdPtr;
     u_int32_t   ulFwAwakeCookie;
-    u_int32_t   WcbBase1;
-    u_int32_t   WcbBase2;
-    u_int32_t   WcbBase3;
+    u_int32_t   WcbBase1[TOTAL_TX_QUEUES-1];
 } __packed HostCmd_DS_GET_HW_SPEC;
 
 typedef struct {
@@ -894,6 +900,7 @@ typedef struct {
    PeerInfo_t	 PeerInfo;
    uint8_t       Qosinfo;
    uint8_t       isQosSta;
+   uint32_t      FwStaPtr;
 } __packed HostCmd_FW_SET_NEW_STN;
 
 typedef struct {
@@ -1218,6 +1225,9 @@ typedef struct {
 	BASTREAM_CONTEXT FwBaContext;
 	uint8_t		ResetSeqNo;  /** 0 or 1**/
 	uint16_t	StartSeqNo; 
+    
+	// proxy sta MAC Address
+	uint8_t		StaSrcMacAddr[6];
 }__packed BASTREAM_CREATE_STREAM;
 
 // new transmit sequence number information 
@@ -1349,4 +1359,21 @@ typedef struct {
 	uint16_t SeqNo;
 	uint8_t	reserved;
 } __packed HostCmd_GET_SEQNO;
+
+typedef struct {
+	FWCmdHdr    CmdHdr;
+	uint32_t    Enable;    //0 -- Disbale. or 1 -- Enable.
+} __packed HostCmd_DWDS_ENABLE;
+
+typedef struct {
+	FWCmdHdr    CmdHdr;
+	uint16_t    Action;  /* 0: Get. 1:Set */
+	uint32_t    Option;  /* 0: default. 1:Aggressive */
+	uint32_t    Threshold;  /* Range 0-200, default 8 */
+}__packed HostCmd_FW_AMPDU_RETRY_RATEDROP_MODE;
+
+typedef struct {
+	FWCmdHdr    CmdHdr;
+	uint32_t    Enable; /* 0 -- Disable. or 1 -- Enable */
+}__packed HostCmd_CFEND_ENABLE;
 #endif /* _MWL_HALREG_H_ */

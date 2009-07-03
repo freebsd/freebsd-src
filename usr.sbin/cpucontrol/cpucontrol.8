@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2008
+.Dd June 30, 2009
 .Dt CPUCONTROL 8
 .Os
 .Sh NAME
@@ -35,7 +35,25 @@ device.
 .Sh SYNOPSIS
 .Nm
 .Op Fl vh
-.Fl m Ar msr Ns Op = Ns Ar value
+.Fl m Ar msr
+.Bk
+.Ar device
+.Ek
+.Nm
+.Op Fl vh
+.Fl m Ar msr Ns = Ns Ar value
+.Bk
+.Ar device
+.Ek
+.Nm
+.Op Fl vh
+.Fl m Ar msr Ns &= Ns Ar mask
+.Bk
+.Ar device
+.Ek
+.Nm
+.Op Fl vh
+.Fl m Ar msr Ns |= Ns Ar mask
 .Bk
 .Ar device
 .Ek
@@ -67,8 +85,32 @@ The following options are available:
 Where to look for microcode images.
 The option can be specified multiple times.
 .It Fl m Ar msr Ns Op = Ns Ar value
-Read/write the specified MSR.
-Both the MSR and the value should be given as a hex number.
+Show value of the specified MSR.
+MSR register number should be given as a hexadecimal number.
+.It Fl m Ar msr Ns = Ns Ar value
+Store the
+.Ar value
+in the specified MSR register.
+The
+.Ar value
+argument can be prefixed with ~ operator.
+In this case the inverted value of argument will be stored in the register.
+.It Fl m Ar msr Ns &= Ns Ar mask
+Store the result of bitwise AND operation between
+.Ar mask
+and the current MSR value in the MSR register.
+The
+.Ar mask
+argument can be prefixed with ~ operator.
+In this case the inverted value of mask will be used.
+.It Fl m Ar msr Ns |= Ns Ar mask
+Store the result of bitwise OR operation between
+.Ar mask
+and the current MSR value in the MSR register.
+The
+.Ar mask
+argument can be prefixed with ~ operator.
+In this case the inverted value of mask will be used.
 .It Fl i Ar level
 Retrieve CPUID info.
 Level should be given as a hex number.
@@ -94,7 +136,15 @@ will read the contents of TSC MSR from CPU 0.
 .Pp
 To set the CPU 0 TSC MSR register value to 0x1 issue
 .Pp
-.Dq Li "cpucontrol -m 0x10=0x1 /dev/cpuctl0"
+.Dq Li "cpucontrol -m 0x10=0x1 /dev/cpuctl0" .
+.Pp
+The following command will clear the second bit of TSC register:
+.Pp
+.Dq Li "cpucontrol -m 0x10&=~0x02 /dev/cpuctl0" .
+.Pp
+The following command will set the forth and second bit of TSC register:
+.Pp
+.Dq Li "cpucontrol -m 0x10|=0x0a /dev/cpuctl0" .
 .Pp
 The command
 .Pp

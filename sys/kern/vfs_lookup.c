@@ -164,9 +164,9 @@ namei(struct nameidata *ndp)
 
 	/* If we are auditing the kernel pathname, save the user pathname. */
 	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG(upath, td, cnp->cn_pnbuf, ARG_UPATH1);
+		AUDIT_ARG_UPATH(td, cnp->cn_pnbuf, ARG_UPATH1);
 	if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG(upath, td, cnp->cn_pnbuf, ARG_UPATH2);
+		AUDIT_ARG_UPATH(td, cnp->cn_pnbuf, ARG_UPATH2);
 
 	/*
 	 * Don't allow empty pathnames.
@@ -460,9 +460,6 @@ lookup(struct nameidata *ndp)
 	int dvfslocked;			/* VFS Giant state for parent */
 	int tvfslocked;
 	int lkflags_save;
-#ifdef AUDIT
-	struct thread *td = curthread;
-#endif
 	
 	/*
 	 * Setup: break out flag bits into variables.
@@ -572,9 +569,9 @@ dirloop:
 		ndp->ni_vp = dp;
 
 		if (cnp->cn_flags & AUDITVNODE1)
-			AUDIT_ARG(vnode, dp, ARG_VNODE1);
+			AUDIT_ARG_VNODE(dp, ARG_VNODE1);
 		else if (cnp->cn_flags & AUDITVNODE2)
-			AUDIT_ARG(vnode, dp, ARG_VNODE2);
+			AUDIT_ARG_VNODE(dp, ARG_VNODE2);
 
 		if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
 			VOP_UNLOCK(dp, 0);
@@ -857,9 +854,9 @@ nextname:
 		VOP_UNLOCK(ndp->ni_dvp, 0);
 
 	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG(vnode, dp, ARG_VNODE1);
+		AUDIT_ARG_VNODE(dp, ARG_VNODE1);
 	else if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG(vnode, dp, ARG_VNODE2);
+		AUDIT_ARG_VNODE(dp, ARG_VNODE2);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0);

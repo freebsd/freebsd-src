@@ -223,6 +223,7 @@ dev/syscons/scvtb.c		optional sc
 dev/syscons/teken/teken.c	optional sc
 dev/uart/uart_cpu_i386.c	optional uart
 dev/acpica/acpi_if.m		standard
+dev/acpi_support/acpi_wmi_if.m	standard
 dev/wpi/if_wpi.c		optional wpi
 i386/acpica/OsdEnvironment.c	optional acpi
 i386/acpica/acpi_machdep.c	optional acpi

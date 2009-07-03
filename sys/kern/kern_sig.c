@@ -1674,8 +1674,8 @@ kill(td, uap)
 	register struct proc *p;
 	int error;
 
-	AUDIT_ARG(signum, uap->signum);
-	AUDIT_ARG(pid, uap->pid);
+	AUDIT_ARG_SIGNUM(uap->signum);
+	AUDIT_ARG_PID(uap->pid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
@@ -1685,7 +1685,7 @@ kill(td, uap)
 			if ((p = zpfind(uap->pid)) == NULL)
 				return (ESRCH);
 		}
-		AUDIT_ARG(process, p);
+		AUDIT_ARG_PROCESS(p);
 		error = p_cansignal(td, p, uap->signum);
 		if (error == 0 && uap->signum)
 			psignal(p, uap->signum);
@@ -1717,8 +1717,8 @@ okillpg(td, uap)
 	register struct okillpg_args *uap;
 {
 
-	AUDIT_ARG(signum, uap->signum);
-	AUDIT_ARG(pid, uap->pgid);
+	AUDIT_ARG_SIGNUM(uap->signum);
+	AUDIT_ARG_PID(uap->pgid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
@@ -2940,7 +2940,8 @@ coredump(struct thread *td)
 restart:
 	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, name, td);
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
-	error = vn_open(&nd, &flags, S_IRUSR | S_IWUSR, NULL);
+	error = vn_open_cred(&nd, &flags, S_IRUSR | S_IWUSR, VN_OPEN_NOAUDIT,
+	    cred, NULL);
 	if (error) {
 #ifdef AUDIT
 		audit_proc_coredump(td, name, error);

@@ -387,13 +387,19 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 	case 0: case 127: case 255:
 		return 0;
 	}
+
 	/* reject packets with broadcast on source */
+	/* XXXRW: should use hash lists? */
+	IN_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia4, &V_in_ifaddrhead, ia_link) {
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
-		if (ip->ip_src.s_addr == ia4->ia_broadaddr.sin_addr.s_addr)
+		if (ip->ip_src.s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {
+			IN_IFADDR_RUNLOCK();
 			return 0;
+		}
 	}
+	IN_IFADDR_RUNLOCK();
 
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {

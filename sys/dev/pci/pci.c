@@ -2883,8 +2883,10 @@ pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 					goto bad;
 				dinfo->cfg.msi.msi_addr = addr;
 				dinfo->cfg.msi.msi_data = data;
-				pci_enable_msi(child, addr, data);
 			}
+			if (dinfo->cfg.msi.msi_handlers == 0)
+				pci_enable_msi(child, dinfo->cfg.msi.msi_addr,
+				    dinfo->cfg.msi.msi_data);
 			dinfo->cfg.msi.msi_handlers++;
 		} else {
 			KASSERT(dinfo->cfg.msix.msix_alloc > 0,

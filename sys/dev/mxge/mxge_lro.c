@@ -54,6 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/mxge/mxge_mcp.h>
 #include <dev/mxge/if_mxge_var.h>
 
+#include "opt_inet.h"
+
+#ifdef INET
 
 /* Assume len is a multiple of 4 */
 static uint16_t
@@ -340,6 +343,8 @@ mxge_lro_rx(struct mxge_slice_state *ss, struct mbuf *m_head, uint32_t csum)
 	lro->m_tail = m_tail;
 	return 0;
 }
+
+#endif /* INET */
 /*
   This file uses Myri10GE driver indentation.
 

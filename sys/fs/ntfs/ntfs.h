@@ -296,11 +296,11 @@ MALLOC_DECLARE(M_NTFSNTHASH);
 #if NTFS_DEBUG > 1
 #define ddprintf(a) printf a
 #else
-#define ddprintf(a)
+#define ddprintf(a)	(void)0
 #endif
 #else
-#define dprintf(a)
-#define ddprintf(a)
+#define dprintf(a)	(void)0
+#define ddprintf(a)	(void)0
 #endif
 
 extern struct vop_vector ntfs_vnodeops;

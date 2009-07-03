@@ -86,11 +86,34 @@ def disc2_packages():
             'ports-mgmt/portaudit'])
     return pkgs
 
+def docs_packages():
+    pkgs = ['misc/freebsd-doc-bn',
+	    'misc/freebsd-doc-da',
+	    'misc/freebsd-doc-de',
+	    'misc/freebsd-doc-el',
+	    'misc/freebsd-doc-en',
+	    'misc/freebsd-doc-es',
+	    'misc/freebsd-doc-fr',
+	    'misc/freebsd-doc-hu',
+	    'misc/freebsd-doc-it',
+	    'misc/freebsd-doc-ja',
+	    'misc/freebsd-doc-mn',
+	    'misc/freebsd-doc-nl',
+	    'misc/freebsd-doc-pl',
+	    'misc/freebsd-doc-pt',
+	    'misc/freebsd-doc-ru',
+	    'misc/freebsd-doc-sr',
+	    'misc/freebsd-doc-tr',
+	    'misc/freebsd-doc-zh_cn',
+	    'misc/freebsd-doc-zh_tw']
+    return pkgs
+
 # The list of desired packages
 def desired_packages():
     disc1 = disc1_packages()
     disc2 = disc2_packages()
-    return [disc1, disc2]
+    docs = docs_packages()
+    return [disc1, disc2, docs]
 
 # Suck the entire INDEX file into a two different dictionaries.  The first
 # dictionary maps port names (origins) to package names.  The second

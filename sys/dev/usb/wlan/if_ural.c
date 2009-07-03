@@ -68,18 +68,12 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_amrr.h>
 
-#define	USB_DEBUG_VAR ural_debug
-
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 #include "usbdevs.h"
 
+#define	USB_DEBUG_VAR ural_debug
+#include <dev/usb/usb_debug.h>
 
 #include <dev/usb/wlan/if_uralreg.h>
 #include <dev/usb/wlan/if_uralvar.h>
@@ -421,7 +415,7 @@ ural_match(device_t self)
 	if (uaa->info.bIfaceIndex != RAL_IFACE_INDEX)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(ural_devs, sizeof(ural_devs), uaa));
+	return (usbd_lookup_id_by_uaa(ural_devs, sizeof(ural_devs), uaa));
 }
 
 static int
@@ -434,7 +428,7 @@ ural_attach(device_t self)
 	uint8_t iface_index, bands;
 	int error;
 
-	device_set_usb2_desc(self);
+	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = self;
 
@@ -442,12 +436,12 @@ ural_attach(device_t self)
 	    MTX_NETWORK_LOCK, MTX_DEF);
 
 	iface_index = RAL_IFACE_INDEX;
-	error = usb2_transfer_setup(uaa->device,
+	error = usbd_transfer_setup(uaa->device,
 	    &iface_index, sc->sc_xfer, ural_config,
 	    URAL_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(self, "could not allocate USB transfers, "
-		    "err=%s\n", usb2_errstr(error));
+		    "err=%s\n", usbd_errstr(error));
 		goto detach;
 	}
 
@@ -538,7 +532,7 @@ ural_detach(device_t self)
 	struct ieee80211com *ic;
 
 	/* stop all USB transfers */
-	usb2_transfer_unsetup(sc->sc_xfer, URAL_N_TRANSFER);
+	usbd_transfer_unsetup(sc->sc_xfer, URAL_N_TRANSFER);
 
 	/* free TX list, if any */
 	RAL_LOCK(sc);
@@ -563,13 +557,13 @@ ural_do_request(struct ural_softc *sc,
 	int ntries = 10;
 
 	while (ntries--) {
-		err = usb2_do_request_flags(sc->sc_udev, &sc->sc_mtx,
+		err = usbd_do_request_flags(sc->sc_udev, &sc->sc_mtx,
 		    req, data, 0, NULL, 250 /* ms */);
 		if (err == 0)
 			break;
 
 		DPRINTFN(1, "Control request failed, %s (retrying)\n",
-		    usb2_errstr(err));
+		    usbd_errstr(err));
 		if (ural_pause(sc, hz / 100))
 			break;
 	}
@@ -601,7 +595,7 @@ ural_vap_create(struct ieee80211com *ic,
 	uvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = ural_newstate;
 
-	usb2_callout_init_mtx(&uvp->amrr_ch, &sc->sc_mtx, 0);
+	usb_callout_init_mtx(&uvp->amrr_ch, &sc->sc_mtx, 0);
 	TASK_INIT(&uvp->amrr_task, 0, ural_amrr_task, uvp);
 	ieee80211_amrr_init(&uvp->amrr, vap,
 	    IEEE80211_AMRR_MIN_SUCCESS_THRESHOLD,
@@ -620,7 +614,7 @@ ural_vap_delete(struct ieee80211vap *vap)
 	struct ural_vap *uvp = URAL_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
 
-	usb2_callout_drain(&uvp->amrr_ch);
+	usb_callout_drain(&uvp->amrr_ch);
 	ieee80211_draintask(ic, &uvp->amrr_task);
 	ieee80211_amrr_cleanup(&uvp->amrr);
 	ieee80211_vap_detach(vap);
@@ -707,7 +701,7 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	IEEE80211_UNLOCK(ic);
 	RAL_LOCK(sc);
-	usb2_callout_stop(&uvp->amrr_ch);
+	usb_callout_stop(&uvp->amrr_ch);
 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
@@ -777,23 +771,26 @@ ural_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 
 static void
-ural_bulk_write_callback(struct usb_xfer *xfer)
+ural_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ural_softc *sc = xfer->priv_sc;
+	struct ural_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211vap *vap;
 	struct ural_tx_data *data;
 	struct mbuf *m;
-	unsigned int len;
+	struct usb_page_cache *pc;
+	int len;
+
+	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		DPRINTFN(11, "transfer complete, %d bytes\n", xfer->actlen);
+		DPRINTFN(11, "transfer complete, %d bytes\n", len);
 
 		/* free resources */
-		data = xfer->priv_fifo;
+		data = usbd_xfer_get_priv(xfer);
 		ural_tx_free(data, 0);
-		xfer->priv_fifo = NULL;
+		usbd_xfer_set_priv(xfer, NULL);
 
 		ifp->if_opackets++;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -811,9 +808,9 @@ tr_setup:
 				    m->m_pkthdr.len);
 				m->m_pkthdr.len = (RAL_FRAME_SIZE + RAL_TX_DESC_SIZE);
 			}
-			usb2_copy_in(xfer->frbuffers, 0, &data->desc,
-			    RAL_TX_DESC_SIZE);
-			usb2_m_copy_in(xfer->frbuffers, RAL_TX_DESC_SIZE, m, 0,
+			pc = usbd_xfer_get_frame(xfer, 0);
+			usbd_copy_in(pc, 0, &data->desc, RAL_TX_DESC_SIZE);
+			usbd_m_copy_in(pc, RAL_TX_DESC_SIZE, m, 0,
 			    m->m_pkthdr.len);
 
 			vap = data->ni->ni_vap;
@@ -835,53 +832,55 @@ tr_setup:
 			DPRINTFN(11, "sending frame len=%u xferlen=%u\n",
 			    m->m_pkthdr.len, len);
 
-			xfer->frlengths[0] = len;
-			xfer->priv_fifo = data;
+			usbd_xfer_set_frame_len(xfer, 0, len);
+			usbd_xfer_set_priv(xfer, data);
 
-			usb2_start_hardware(xfer);
+			usbd_transfer_submit(xfer);
 		}
 		break;
 
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(error));
 
 		ifp->if_oerrors++;
-		data = xfer->priv_fifo;
+		data = usbd_xfer_get_priv(xfer);
 		if (data != NULL) {
-			ural_tx_free(data, xfer->error);
-			xfer->priv_fifo = NULL;
+			ural_tx_free(data, error);
+			usbd_xfer_set_priv(xfer, NULL);
 		}
 
-		if (xfer->error == USB_ERR_STALLED) {
+		if (error == USB_ERR_STALLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		if (xfer->error == USB_ERR_TIMEOUT)
+		if (error == USB_ERR_TIMEOUT)
 			device_printf(sc->sc_dev, "device timeout\n");
 		break;
 	}
 }
 
 static void
-ural_bulk_read_callback(struct usb_xfer *xfer)
+ural_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ural_softc *sc = xfer->priv_sc;
+	struct ural_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL;
+	struct usb_page_cache *pc;
 	uint32_t flags;
 	int8_t rssi = 0, nf = 0;
-	unsigned int len;
+	int len;
+
+	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 
-		DPRINTFN(15, "rx done, actlen=%d\n", xfer->actlen);
+		DPRINTFN(15, "rx done, actlen=%d\n", len);
 
-		len = xfer->actlen;
 		if (len < RAL_RX_DESC_SIZE + IEEE80211_MIN_LEN) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
@@ -891,8 +890,8 @@ ural_bulk_read_callback(struct usb_xfer *xfer)
 
 		len -= RAL_RX_DESC_SIZE;
 		/* rx descriptor is located at the end */
-		usb2_copy_out(xfer->frbuffers, len, &sc->sc_rx_desc,
-		    RAL_RX_DESC_SIZE);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, len, &sc->sc_rx_desc, RAL_RX_DESC_SIZE);
 
 		rssi = URAL_RSSI(sc->sc_rx_desc.rssi);
 		nf = RAL_NOISE_FLOOR;
@@ -914,7 +913,7 @@ ural_bulk_read_callback(struct usb_xfer *xfer)
 			ifp->if_ierrors++;
 			goto tr_setup;
 		}
-		usb2_copy_out(xfer->frbuffers, 0, mtod(m, uint8_t *), len);
+		usbd_copy_out(pc, 0, mtod(m, uint8_t *), len);
 
 		/* finalize mbuf */
 		m->m_pkthdr.rcvif = ifp;
@@ -938,8 +937,8 @@ ural_bulk_read_callback(struct usb_xfer *xfer)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 
 		/*
 		 * At the end of a USB callback it is always safe to unlock
@@ -960,9 +959,9 @@ tr_setup:
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -1071,7 +1070,7 @@ ural_tx_bcn(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    m0->m_pkthdr.len, tp->mgmtrate);
 
 	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
-	usb2_transfer_start(sc->sc_xfer[URAL_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[URAL_BULK_WR]);
 
 	return (0);
 }
@@ -1132,7 +1131,7 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    m0->m_pkthdr.len, tp->mgmtrate);
 
 	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
-	usb2_transfer_start(sc->sc_xfer[URAL_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[URAL_BULK_WR]);
 
 	return 0;
 }
@@ -1183,7 +1182,7 @@ ural_sendprot(struct ural_softc *sc,
 	ural_setup_tx_desc(sc, &data->desc, flags, mprot->m_pkthdr.len, protrate);
 
 	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
-	usb2_transfer_start(sc->sc_xfer[URAL_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[URAL_BULK_WR]);
 
 	return 0;
 }
@@ -1236,7 +1235,7 @@ ural_tx_raw(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	    m0->m_pkthdr.len, rate);
 
 	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
-	usb2_transfer_start(sc->sc_xfer[URAL_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[URAL_BULK_WR]);
 
 	return 0;
 }
@@ -1316,7 +1315,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	    m0->m_pkthdr.len, rate);
 
 	STAILQ_INSERT_TAIL(&sc->tx_q, data, next);
-	usb2_transfer_start(sc->sc_xfer[URAL_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[URAL_BULK_WR]);
 
 	return 0;
 }
@@ -1403,7 +1402,7 @@ ural_set_testmode(struct ural_softc *sc)
 	error = ural_do_request(sc, &req, NULL);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not set test mode: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 	}
 }
 
@@ -1422,7 +1421,7 @@ ural_eeprom_read(struct ural_softc *sc, uint16_t addr, void *buf, int len)
 	error = ural_do_request(sc, &req, buf);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not read EEPROM: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 	}
 }
 
@@ -1442,7 +1441,7 @@ ural_read(struct ural_softc *sc, uint16_t reg)
 	error = ural_do_request(sc, &req, &val);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not read MAC register: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 		return 0;
 	}
 
@@ -1464,7 +1463,7 @@ ural_read_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 	error = ural_do_request(sc, &req, buf);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not read MAC register: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 	}
 }
 
@@ -1483,7 +1482,7 @@ ural_write(struct ural_softc *sc, uint16_t reg, uint16_t val)
 	error = ural_do_request(sc, &req, NULL);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not write MAC register: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 	}
 }
 
@@ -1502,7 +1501,7 @@ ural_write_multi(struct ural_softc *sc, uint16_t reg, void *buf, int len)
 	error = ural_do_request(sc, &req, buf);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not write MAC register: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 	}
 }
 
@@ -2120,8 +2119,8 @@ ural_init_locked(struct ural_softc *sc)
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	usb2_transfer_set_stall(sc->sc_xfer[URAL_BULK_WR]);
-	usb2_transfer_start(sc->sc_xfer[URAL_BULK_RD]);
+	usbd_xfer_set_stall(sc->sc_xfer[URAL_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[URAL_BULK_RD]);
 	return;
 
 fail:	ural_stop(sc);
@@ -2156,8 +2155,8 @@ ural_stop(struct ural_softc *sc)
 	 * Drain all the transfers, if not already drained:
 	 */
 	RAL_UNLOCK(sc);
-	usb2_transfer_drain(sc->sc_xfer[URAL_BULK_WR]);
-	usb2_transfer_drain(sc->sc_xfer[URAL_BULK_RD]);
+	usbd_transfer_drain(sc->sc_xfer[URAL_BULK_WR]);
+	usbd_transfer_drain(sc->sc_xfer[URAL_BULK_RD]);
 	RAL_LOCK(sc);
 
 	ural_unsetup_tx_list(sc);
@@ -2234,7 +2233,7 @@ ural_amrr_start(struct ural_softc *sc, struct ieee80211_node *ni)
 
 	ieee80211_amrr_node_init(&uvp->amrr, &URAL_NODE(ni)->amn, ni);
 
-	usb2_callout_reset(&uvp->amrr_ch, hz, ural_amrr_timeout, uvp);
+	usb_callout_reset(&uvp->amrr_ch, hz, ural_amrr_timeout, uvp);
 }
 
 static void
@@ -2272,7 +2271,7 @@ ural_amrr_task(void *arg, int pending)
 
 	ifp->if_oerrors += fail;	/* count TX retry-fail as Tx errors */
 
-	usb2_callout_reset(&uvp->amrr_ch, hz, ural_amrr_timeout, uvp);
+	usb_callout_reset(&uvp->amrr_ch, hz, ural_amrr_timeout, uvp);
 	RAL_UNLOCK(sc);
 }
 
@@ -2280,6 +2279,6 @@ static int
 ural_pause(struct ural_softc *sc, int timeout)
 {
 
-	usb2_pause_mtx(&sc->sc_mtx, timeout);
+	usb_pause_mtx(&sc->sc_mtx, timeout);
 	return (0);
 }

@@ -624,10 +624,11 @@ nd6_timer(void *arg)
 	 * in the past the loop was inside prefix expiry processing.
 	 * However, from a stricter speci-confrmance standpoint, we should
 	 * rather separate address lifetimes and prefix lifetimes.
+	 *
+	 * XXXRW: in6_ifaddrhead locking.
 	 */
   addrloop:
-	for (ia6 = V_in6_ifaddr; ia6; ia6 = nia6) {
-		nia6 = ia6->ia_next;
+	TAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
 		/* check address lifetime */
 		lt6 = &ia6->ia6_lifetime;
 		if (IFA6_IS_INVALID(ia6)) {
@@ -957,8 +958,13 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * a p2p interface, the address should be a neighbor.
 	 */
 	dstaddr = ifa_ifwithdstaddr((struct sockaddr *)addr);
-	if ((dstaddr != NULL) && (dstaddr->ifa_ifp == ifp))
-		return (1);
+	if (dstaddr != NULL) {
+		if (dstaddr->ifa_ifp == ifp) {
+			ifa_free(dstaddr);
+			return (1);
+		}
+		ifa_free(dstaddr);
+	}
 
 	/*
 	 * If the default router list is empty, all addresses are regarded
@@ -1324,10 +1330,9 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				continue; /* XXX */
 
 			/* do we really have to remove addresses as well? */
-			for (ia = V_in6_ifaddr; ia; ia = ia_next) {
-				/* ia might be removed.  keep the next ptr. */
-				ia_next = ia->ia_next;
-
+			/* XXXRW: in6_ifaddrhead locking. */
+			TAILQ_FOREACH_SAFE(ia, &V_in6_ifaddrhead, ia_link,
+			    ia_next) {
 				if ((ia->ia6_flags & IN6_IFF_AUTOCONF) == 0)
 					continue;
 

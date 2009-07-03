@@ -606,6 +606,12 @@ This all occurs within the current shell.
 .Pp
 Shell built-in commands are executed internally to the shell, without
 spawning a new process.
+There are two kinds of built-in commands: regular and special.
+Assignments before special builtins persist after they finish
+executing and assignment errors, redirection errors and certain
+operand errors cause a script to be aborted.
+Both regular and special builtins can affect the shell in ways
+normal programs cannot.
 .Pp
 Otherwise, if the command name does not match a function
 or built-in command, the command is searched for as a normal
@@ -885,7 +891,7 @@ loops.
 The
 .Ic continue
 command continues with the next iteration of the innermost loop.
-These are implemented as built-in commands.
+These are implemented as special built-in commands.
 .Pp
 The syntax of the
 .Ic case
@@ -1001,7 +1007,7 @@ It terminates the current executional scope, returning from the previous
 nested function, sourced script, or shell instance, in that order.
 The
 .Ic return
-command is implemented as a built-in command.
+command is implemented as a special built-in command.
 .Ss Variables and Parameters
 The shell maintains a set of parameters.
 A parameter
@@ -1590,6 +1596,7 @@ where
 is either
 the path name to
 .Ar utility ,
+a special shell builtin,
 a shell builtin,
 a shell function,
 a shell keyword
@@ -2114,7 +2121,8 @@ Interpret each
 .Ar name
 as a command and print the resolution of the command search.
 Possible resolutions are:
-shell keyword, alias, shell built-in command, command, tracked alias
+shell keyword, alias, special shell builtin, shell builtin, command,
+tracked alias
 and not found.
 For aliases the alias expansion is printed;
 for commands and tracked aliases

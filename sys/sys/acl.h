@@ -128,8 +128,15 @@ struct acl {
 struct acl_t_struct {
 	struct acl		ats_acl;
 	int			ats_cur_entry;
-	/* Will be used for ACL branding. */
-	int			ats_spare;
+	/*
+	 * ats_brand is for libc internal bookkeeping only.
+	 * Applications should use acl_get_brand_np(3).
+	 * Kernel code should use the "type" argument passed
+	 * to VOP_SETACL, VOP_GETACL or VOP_ACLCHECK calls;
+	 * ACL_TYPE_ACCESS or ACL_TYPE_DEFAULT mean POSIX.1e
+	 * ACL, ACL_TYPE_NFS4 means NFSv4 ACL.
+	 */
+	int			ats_brand;
 };
 typedef struct acl_t_struct *acl_t;
 
@@ -139,6 +146,13 @@ typedef void *acl_entry_t;
 typedef void *acl_t;
 
 #endif /* !_KERNEL && !_ACL_PRIVATE */
+
+/*
+ * Possible valid values for ats_brand field.
+ */
+#define	ACL_BRAND_UNKNOWN	0
+#define	ACL_BRAND_POSIX		1
+#define	ACL_BRAND_NFS4		2
 
 /*
  * Possible valid values for ae_tag field.  For explanation, see acl(9).
@@ -236,7 +250,12 @@ typedef void *acl_t;
  */
 #define	ACL_UNDEFINED_ID	((uid_t)-1)
 
-#ifdef _KERNEL
+/*
+ * Possible values for _flags parameter in acl_to_text_np(3).
+ */
+#define	ACL_TEXT_VERBOSE	0x01
+#define	ACL_TEXT_NUMERIC_IDS	0x02
+#define	ACL_TEXT_APPEND_ID	0x04
 
 /*
  * POSIX.1e ACLs are capable of expressing the read, write, and execute bits
@@ -246,6 +265,8 @@ typedef void *acl_t;
  */
 #define	ACL_OVERRIDE_MASK	(S_IRWXU | S_IRWXG | S_IRWXO)
 #define	ACL_PRESERVE_MASK	(~ACL_OVERRIDE_MASK)
+
+#ifdef _KERNEL
 
 /*
  * Filesystem-independent code to move back and forth between POSIX mode and
@@ -263,6 +284,17 @@ mode_t			acl_posix1e_newfilemode(mode_t cmode,
 			    struct acl *dacl);
 struct acl		*acl_alloc(int flags);
 void			acl_free(struct acl *aclp);
+
+void			acl_nfs4_sync_acl_from_mode(struct acl *aclp,
+			    mode_t mode, int file_owner_id);
+void			acl_nfs4_sync_mode_from_acl(mode_t *mode,
+			    const struct acl *aclp);
+int			acl_nfs4_is_trivial(const struct acl *aclp,
+			    int file_owner_id);
+void			acl_nfs4_compute_inherited_acl(
+			    const struct acl *parent_aclp,
+			    struct acl *child_aclp, mode_t mode,
+			    int file_owner_id, int is_directory);
 int			acl_copy_oldacl_into_acl(const struct oldacl *source,
 			    struct acl *dest);
 int			acl_copy_acl_into_oldacl(const struct acl *source,
@@ -272,11 +304,11 @@ int			acl_copy_acl_into_oldacl(const struct acl *source,
  * To allocate 'struct acl', use acl_alloc()/acl_free() instead of this.
  */
 MALLOC_DECLARE(M_ACL);
-
 /*
  * Filesystem-independent syntax check for a POSIX.1e ACL.
  */
 int			acl_posix1e_check(struct acl *acl);
+int 			acl_nfs4_check(const struct acl *aclp, int is_directory);
 
 #else /* !_KERNEL */
 
@@ -312,46 +344,60 @@ __END_DECLS
  * filesystems (i.e., AFS).
  */
 __BEGIN_DECLS
+int	acl_add_flag_np(acl_flagset_t _flagset_d, acl_flag_t _flag);
 int	acl_add_perm(acl_permset_t _permset_d, acl_perm_t _perm);
 int	acl_calc_mask(acl_t *_acl_p);
+int	acl_clear_flags_np(acl_flagset_t _flagset_d);
 int	acl_clear_perms(acl_permset_t _permset_d);
 int	acl_copy_entry(acl_entry_t _dest_d, acl_entry_t _src_d);
 ssize_t	acl_copy_ext(void *_buf_p, acl_t _acl, ssize_t _size);
 acl_t	acl_copy_int(const void *_buf_p);
 int	acl_create_entry(acl_t *_acl_p, acl_entry_t *_entry_p);
+int	acl_create_entry_np(acl_t *_acl_p, acl_entry_t *_entry_p, int _index);
 int	acl_delete_entry(acl_t _acl, acl_entry_t _entry_d);
+int	acl_delete_entry_np(acl_t _acl, int _index);
 int	acl_delete_fd_np(int _filedes, acl_type_t _type);
 int	acl_delete_file_np(const char *_path_p, acl_type_t _type);
 int	acl_delete_link_np(const char *_path_p, acl_type_t _type);
 int	acl_delete_def_file(const char *_path_p);
 int	acl_delete_def_link_np(const char *_path_p);
+int	acl_delete_flag_np(acl_flagset_t _flagset_d, acl_flag_t _flag);
 int	acl_delete_perm(acl_permset_t _permset_d, acl_perm_t _perm);
 acl_t	acl_dup(acl_t _acl);
 int	acl_free(void *_obj_p);
 acl_t	acl_from_text(const char *_buf_p);
+int	acl_get_brand_np(acl_t _acl, int *_brand_p);
 int	acl_get_entry(acl_t _acl, int _entry_id, acl_entry_t *_entry_p);
 acl_t	acl_get_fd(int _fd);
 acl_t	acl_get_fd_np(int fd, acl_type_t _type);
 acl_t	acl_get_file(const char *_path_p, acl_type_t _type);
+int	acl_get_entry_type_np(acl_entry_t _entry_d, acl_entry_type_t *_entry_type_p);
 acl_t	acl_get_link_np(const char *_path_p, acl_type_t _type);
 void	*acl_get_qualifier(acl_entry_t _entry_d);
+int	acl_get_flag_np(acl_flagset_t _flagset_d, acl_flag_t _flag);
 int	acl_get_perm_np(acl_permset_t _permset_d, acl_perm_t _perm);
+int	acl_get_flagset_np(acl_entry_t _entry_d, acl_flagset_t *_flagset_p);
 int	acl_get_permset(acl_entry_t _entry_d, acl_permset_t *_permset_p);
 int	acl_get_tag_type(acl_entry_t _entry_d, acl_tag_t *_tag_type_p);
 acl_t	acl_init(int _count);
 int	acl_set_fd(int _fd, acl_t _acl);
 int	acl_set_fd_np(int _fd, acl_t _acl, acl_type_t _type);
 int	acl_set_file(const char *_path_p, acl_type_t _type, acl_t _acl);
+int	acl_set_entry_type_np(acl_entry_t _entry_d, acl_entry_type_t _entry_type);
 int	acl_set_link_np(const char *_path_p, acl_type_t _type, acl_t _acl);
+int	acl_set_flagset_np(acl_entry_t _entry_d, acl_flagset_t _flagset_d);
 int	acl_set_permset(acl_entry_t _entry_d, acl_permset_t _permset_d);
 int	acl_set_qualifier(acl_entry_t _entry_d, const void *_tag_qualifier_p);
 int	acl_set_tag_type(acl_entry_t _entry_d, acl_tag_t _tag_type);
 ssize_t	acl_size(acl_t _acl);
 char	*acl_to_text(acl_t _acl, ssize_t *_len_p);
+char	*acl_to_text_np(acl_t _acl, ssize_t *_len_p, int _flags);
 int	acl_valid(acl_t _acl);
 int	acl_valid_fd_np(int _fd, acl_type_t _type, acl_t _acl);
 int	acl_valid_file_np(const char *_path_p, acl_type_t _type, acl_t _acl);
 int	acl_valid_link_np(const char *_path_p, acl_type_t _type, acl_t _acl);
+int	acl_is_trivial_np(const acl_t _acl, int *_trivialp);
+acl_t	acl_strip_np(const acl_t _acl, int recalculate_mask);
 __END_DECLS
 
 #endif /* !_KERNEL */

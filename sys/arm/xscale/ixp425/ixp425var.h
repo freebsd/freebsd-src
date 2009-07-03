@@ -65,6 +65,8 @@ struct ixp425_softc {
 	bus_dma_tag_t sc_dmat;
 };
 
+void	ixp425_set_gpio(struct ixp425_softc *sc, int pin, int type);
+
 struct ixppcib_softc {
 	device_t                sc_dev;
 	
@@ -95,12 +97,16 @@ struct ixppcib_softc {
 extern struct bus_space ixp425_bs_tag;
 extern struct bus_space ixp425_a4x_bs_tag;
 
+extern struct bus_space cambria_exp_bs_tag;
+void	cambria_exp_bus_init(struct ixp425_softc *);
+
 void	ixp425_io_bs_init(bus_space_tag_t, void *);
 void	ixp425_mem_bs_init(bus_space_tag_t, void *);
 
 uint32_t ixp425_sdram_size(void);
 uint32_t ixp435_ddram_size(void);
 uint32_t ixp4xx_read_feature_bits(void);
+void	ixp4xx_write_feature_bits(uint32_t);
 
 int	ixp425_md_route_interrupt(device_t, device_t, int);
 void	ixp425_md_attach(device_t);

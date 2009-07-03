@@ -331,7 +331,7 @@ coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw, int ioflag,
 	int error = 0;
 
 	MARK_ENTRY(CODA_RDWR_STATS);
-	CODADEBUG(CODA_RDWR, myprintf(("coda_rdwr(%d, %p, %d, %lld, %d)\n",
+	CODADEBUG(CODA_RDWR, myprintf(("coda_rdwr(%d, %p, %zd, %lld, %d)\n",
 	    rw, (void *)uiop->uio_iov->iov_base, uiop->uio_resid,
 	    (long long)uiop->uio_offset, uiop->uio_segflg)););
 
@@ -1470,7 +1470,7 @@ coda_readdir(struct vop_readdir_args *ap)
 	int opened_internally = 0;
 
 	MARK_ENTRY(CODA_READDIR_STATS);
-	CODADEBUG(CODA_READDIR, myprintf(("coda_readdir(%p, %d, %lld, %d)\n",
+	CODADEBUG(CODA_READDIR, myprintf(("coda_readdir(%p, %zd, %lld, %d)\n",
 	    (void *)uiop->uio_iov->iov_base, uiop->uio_resid,
 	    (long long)uiop->uio_offset, uiop->uio_segflg)););
 

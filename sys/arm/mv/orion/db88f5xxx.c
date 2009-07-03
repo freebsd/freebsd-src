@@ -41,12 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/intr.h>
 #include <machine/pte.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
+#include <arm/mv/mvwin.h>
 
 /*
  * Virtual address space layout:

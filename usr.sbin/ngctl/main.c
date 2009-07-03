@@ -79,7 +79,7 @@ static int	ReadCmd(int ac, char **av);
 static int	HelpCmd(int ac, char **av);
 static int	QuitCmd(int ac, char **av);
 #ifdef EDITLINE
-static sig_atomic_t	unblock;
+static volatile sig_atomic_t unblock;
 static pthread_mutex_t	mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t	cond = PTHREAD_COND_INITIALIZER;
 #endif

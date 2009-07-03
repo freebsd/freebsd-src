@@ -139,12 +139,12 @@ struct tcpcb {
 
 	u_int	t_maxopd;		/* mss plus options */
 
-	int	t_rcvtime;		/* inactivity time */
-	int	t_starttime;		/* time connection was established */
-	int	t_rtttime;		/* round trip time */
+	u_int	t_rcvtime;		/* inactivity time */
+	u_int	t_starttime;		/* time connection was established */
+	u_int	t_rtttime;		/* RTT measurement start time */
 	tcp_seq	t_rtseq;		/* sequence number being timed */
 
-	int	t_bw_rtttime;		/* used for bandwidth calculation */
+	u_int	t_bw_rtttime;		/* used for bandwidth calculation */
 	tcp_seq	t_bw_rtseq;		/* used for bandwidth calculation */
 
 	int	t_rxtcur;		/* current retransmit value (ticks) */
@@ -167,7 +167,7 @@ struct tcpcb {
 	u_char	rcv_scale;		/* window scaling for recv window */
 	u_char	request_r_scale;	/* pending window scaling */
 	u_int32_t  ts_recent;		/* timestamp echo data */
-	int	ts_recent_age;		/* when last updated */
+	u_int	ts_recent_age;		/* when last updated */
 	u_int32_t  ts_offset;		/* our timestamp offset */
 
 	tcp_seq	last_ack_sent;
@@ -175,7 +175,7 @@ struct tcpcb {
 	u_long	snd_cwnd_prev;		/* cwnd prior to retransmit */
 	u_long	snd_ssthresh_prev;	/* ssthresh prior to retransmit */
 	tcp_seq	snd_recover_prev;	/* snd_recover prior to retransmit */
-	int	t_badrxtwin;		/* window for retransmit recovery */
+	u_int	t_badrxtwin;		/* window for retransmit recovery */
 	u_char	snd_limited;		/* segments limited transmitted */
 /* SACK related state */
 	int	snd_numholes;		/* number of holes seen by sender */
@@ -306,9 +306,9 @@ struct tcptw {
 	u_short		last_win;	/* cached window value */
 	u_short		tw_so_options;	/* copy of so_options */
 	struct ucred	*tw_cred;	/* user credentials */
-	u_long		t_recent;
+	u_int32_t	t_recent;
 	u_int32_t	ts_offset;	/* our timestamp offset */
-	u_long		t_starttime;
+	u_int		t_starttime;
 	int		tw_time;
 	TAILQ_ENTRY(tcptw) tw_2msl;
 };

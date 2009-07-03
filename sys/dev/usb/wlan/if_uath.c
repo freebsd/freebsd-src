@@ -105,12 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_radiotap.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
+#include <dev/usb/usbdi.h>
 #include "usbdevs.h"
 
 #include <dev/usb/wlan/if_uathreg.h>
@@ -338,7 +333,7 @@ uath_match(device_t dev)
 	if (uaa->info.bIfaceIndex != UATH_IFACE_INDEX)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(uath_devs, sizeof(uath_devs), uaa));
+	return (usbd_lookup_id_by_uaa(uath_devs, sizeof(uath_devs), uaa));
 }
 
 static int
@@ -357,7 +352,7 @@ uath_attach(device_t dev)
 #ifdef UATH_DEBUG
 	sc->sc_debug = uath_debug;
 #endif
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	/*
 	 * Only post-firmware devices here.
@@ -378,11 +373,11 @@ uath_attach(device_t dev)
 		goto fail;
 	}
 
-	error = usb2_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
+	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 	    uath_usbconfig, UATH_N_XFERS, sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "could not allocate USB transfers, "
-		    "err=%s\n", usb2_errstr(error));
+		    "err=%s\n", usbd_errstr(error));
 		goto fail1;
 	}
 
@@ -497,7 +492,7 @@ uath_attach(device_t dev)
 
 fail4:	if_free(ifp);
 fail3:	UATH_UNLOCK(sc);
-fail2:	usb2_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
+fail2:	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
 fail1:	uath_free_cmd_list(sc, sc->sc_cmd, UATH_CMD_LIST_COUNT);
 fail:
 	return (error);
@@ -513,14 +508,17 @@ uath_detach(device_t dev)
 	if (!device_is_attached(dev))
 		return (0);
 
+	UATH_LOCK(sc);
 	sc->sc_flags |= UATH_FLAG_INVALID;
+	UATH_UNLOCK(sc);
+
+	ieee80211_ifdetach(ic);
 	uath_stop(ifp);
 
 	callout_drain(&sc->stat_ch);
 	callout_drain(&sc->watchdog_ch);
 
-	usb2_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
-	ieee80211_ifdetach(ic);
+	usbd_transfer_unsetup(sc->sc_xfer, UATH_N_XFERS);
 
 	/* free buffers */
 	UATH_LOCK(sc);
@@ -735,10 +733,10 @@ uath_cmdsend(struct uath_softc *sc, uint32_t code, const void *idata, int ilen,
 
 	STAILQ_INSERT_TAIL(&sc->sc_cmd_pending, cmd, next);
 	UATH_STAT_INC(sc, st_cmd_pending);
-	usb2_transfer_start(sc->sc_xfer[UATH_INTR_TX]);
+	usbd_transfer_start(sc->sc_xfer[UATH_INTR_TX]);
 
 	if (cmd->flags & UATH_CMD_FLAG_READ) {
-		usb2_transfer_start(sc->sc_xfer[UATH_INTR_RX]);
+		usbd_transfer_start(sc->sc_xfer[UATH_INTR_RX]);
 
 		/* wait at most two seconds for command reply */
 		error = mtx_sleep(cmd, &sc->sc_mtx, 0, "uathcmd", 2 * hz);
@@ -1168,7 +1166,7 @@ uath_init_locked(void *arg)
 	/* XXX? check */
 	uath_cmd_write(sc, WDCMSG_RESET_KEY_CACHE, NULL, 0, 0);
 
-	usb2_transfer_start(sc->sc_xfer[UATH_BULK_RX]);
+	usbd_transfer_start(sc->sc_xfer[UATH_BULK_RX]);
 	/* enable Rx */
 	uath_set_rxfilter(sc, 0x0, UATH_FILTER_OP_INIT);
 	uath_set_rxfilter(sc,
@@ -1355,7 +1353,7 @@ uath_abort_xfers(struct uath_softc *sc)
 	UATH_ASSERT_LOCKED(sc);
 	/* abort any pending transfers */
 	for (i = 0; i < UATH_N_XFERS; i++)
-		usb2_transfer_stop(sc->sc_xfer[i]);
+		usbd_transfer_stop(sc->sc_xfer[i]);
 }
 
 static int
@@ -1425,7 +1423,7 @@ uath_dataflush(struct uath_softc *sc)
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
 	UATH_STAT_INC(sc, st_tx_pending);
 	sc->sc_tx_timer = 5;
-	usb2_transfer_start(sc->sc_xfer[UATH_BULK_TX]);
+	usbd_transfer_start(sc->sc_xfer[UATH_BULK_TX]);
 
 	return (0);
 }
@@ -1692,7 +1690,7 @@ uath_tx_start(struct uath_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 
 	STAILQ_INSERT_TAIL(&sc->sc_tx_pending, data, next);
 	UATH_STAT_INC(sc, st_tx_pending);
-	usb2_transfer_start(sc->sc_xfer[UATH_BULK_TX]);
+	usbd_transfer_start(sc->sc_xfer[UATH_BULK_TX]);
 
 	return (0);
 }
@@ -1857,7 +1855,8 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct uath_softc *sc = ifp->if_softc;
 
 	/* prevent management frames from being sent if we're not ready */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
+	    !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		m_freem(m);
 		ieee80211_free_node(ni);
 		return (ENETDOWN);
@@ -1907,6 +1906,11 @@ uath_set_channel(struct ieee80211com *ic)
 	struct uath_softc *sc = ifp->if_softc;
 
 	UATH_LOCK(sc);
+	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		UATH_UNLOCK(sc);
+		return;
+	}
 	(void)uath_switch_channel(sc, ic->ic_curchan);
 	UATH_UNLOCK(sc);
 }
@@ -1923,6 +1927,11 @@ uath_update_mcast(struct ifnet *ifp)
 	struct uath_softc *sc = ifp->if_softc;
 
 	UATH_LOCK(sc);
+	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		UATH_UNLOCK(sc);
+		return;
+	}
 	/*
 	 * this is for avoiding the race condition when we're try to
 	 * connect to the AP with WPA.
@@ -1938,6 +1947,11 @@ uath_update_promisc(struct ifnet *ifp)
 	struct uath_softc *sc = ifp->if_softc;
 
 	UATH_LOCK(sc);
+	if ((sc->sc_flags & UATH_FLAG_INVALID) ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		UATH_UNLOCK(sc);
+		return;
+	}
 	if (sc->sc_flags & UATH_FLAG_INITDONE) {
 		uath_set_rxfilter(sc,
 		    UATH_FILTER_RX_UCAST | UATH_FILTER_RX_MCAST |
@@ -2382,10 +2396,14 @@ uath_cmdeof(struct uath_softc *sc, struct uath_cmd *cmd)
 }
 
 static void
-uath_intr_rx_callback(struct usb_xfer *xfer)
+uath_intr_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct uath_cmd *cmd;
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	UATH_ASSERT_LOCKED(sc);
 
@@ -2399,18 +2417,19 @@ uath_intr_rx_callback(struct usb_xfer *xfer)
 		STAILQ_INSERT_TAIL(&sc->sc_cmd_inactive, cmd, next);
 		UATH_STAT_INC(sc, st_cmd_inactive);
 
-		KASSERT(xfer->actlen >= sizeof(struct uath_cmd_hdr),
+		KASSERT(actlen >= sizeof(struct uath_cmd_hdr),
 		    ("short xfer error"));
-		usb2_copy_out(xfer->frbuffers, 0, cmd->buf, xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, cmd->buf, actlen);
 		uath_cmdeof(sc, cmd);
 	case USB_ST_SETUP:
 setup:
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		break;
 	default:
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			goto setup;
 		}
 		break;
@@ -2418,9 +2437,9 @@ setup:
 }
 
 static void
-uath_intr_tx_callback(struct usb_xfer *xfer)
+uath_intr_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct uath_cmd *cmd;
 
 	UATH_ASSERT_LOCKED(sc);
@@ -2456,13 +2475,12 @@ setup:
 		else
 			UATH_STAT_INC(sc, st_cmd_active);
 
-		usb2_set_frame_data(xfer, cmd->buf, 0);
-		xfer->frlengths[0] = cmd->buflen;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_data(xfer, 0, cmd->buf, cmd->buflen);
+		usbd_transfer_submit(xfer);
 		break;
 	default:
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			goto setup;
 		}
 		break;
@@ -2507,17 +2525,20 @@ static struct mbuf *
 uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
     struct uath_rx_desc **pdesc)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct uath_chunk *chunk;
 	struct uath_rx_desc *desc;
 	struct mbuf *m = data->m, *mnew, *mp;
 	uint16_t chunklen;
+	int actlen;
 
-	if (xfer->actlen < UATH_MIN_RXBUFSZ) {
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	if (actlen < UATH_MIN_RXBUFSZ) {
 		DPRINTF(sc, UATH_DEBUG_RECV | UATH_DEBUG_RECV_ALL,
-		    "%s: wrong xfer size (len=%d)\n", __func__, xfer->actlen);
+		    "%s: wrong xfer size (len=%d)\n", __func__, actlen);
 		ifp->if_ierrors++;
 		return (NULL);
 	}
@@ -2649,7 +2670,8 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 	}
 
 	/* there are a lot more fields in the RX descriptor */
-	if (ieee80211_radiotap_active(ic)) {
+	if ((sc->sc_flags & UATH_FLAG_INVALID) == 0 &&
+	    ieee80211_radiotap_active(ic)) {
 		struct uath_rx_radiotap_header *tap = &sc->sc_rxtap;
 		uint32_t tsf_hi = be32toh(desc->tstamp_high);
 		uint32_t tsf_lo = be32toh(desc->tstamp_low);
@@ -2674,9 +2696,9 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 }
 
 static void
-uath_bulk_rx_callback(struct usb_xfer *xfer)
+uath_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ieee80211_frame *wh;
@@ -2708,15 +2730,20 @@ setup:
 		UATH_STAT_DEC(sc, st_rx_inactive);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_active, data, next);
 		UATH_STAT_INC(sc, st_rx_active);
-		usb2_set_frame_data(xfer, data->buf, 0);
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_data(xfer, 0, data->buf,
+		    usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 
 		/*
 		 * To avoid LOR we should unlock our private mutex here to call
 		 * ieee80211_input() because here is at the end of a USB
 		 * callback and safe to unlock.
 		 */
+		if (sc->sc_flags & UATH_FLAG_INVALID) {
+			if (m != NULL)
+				m_freem(m);
+			return;
+		}
 		UATH_UNLOCK(sc);
 		if (m != NULL && desc != NULL) {
 			wh = mtod(m, struct ieee80211_frame *);
@@ -2745,8 +2772,8 @@ setup:
 			STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);
 			UATH_STAT_INC(sc, st_rx_inactive);
 		}
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			ifp->if_ierrors++;
 			goto setup;
 		}
@@ -2757,7 +2784,7 @@ setup:
 static void
 uath_data_txeof(struct usb_xfer *xfer, struct uath_data *data)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct mbuf *m;
 
@@ -2769,7 +2796,8 @@ uath_data_txeof(struct usb_xfer *xfer, struct uath_data *data)
 	 */
 	if (data->m) {
 		m = data->m;
-		if (m->m_flags & M_TXCB) {
+		if (m->m_flags & M_TXCB &&
+		    (sc->sc_flags & UATH_FLAG_INVALID) == 0) {
 			/* XXX status? */
 			ieee80211_process_callback(data->ni, m, 0);
 		}
@@ -2777,7 +2805,8 @@ uath_data_txeof(struct usb_xfer *xfer, struct uath_data *data)
 		data->m = NULL;
 	}
 	if (data->ni) {
-		ieee80211_free_node(data->ni);
+		if ((sc->sc_flags & UATH_FLAG_INVALID) == 0)
+			ieee80211_free_node(data->ni);
 		data->ni = NULL;
 	}
 	sc->sc_tx_timer = 0;
@@ -2786,9 +2815,9 @@ uath_data_txeof(struct usb_xfer *xfer, struct uath_data *data)
 }
 
 static void
-uath_bulk_tx_callback(struct usb_xfer *xfer)
+uath_bulk_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uath_softc *sc = xfer->priv_sc;
+	struct uath_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct uath_data *data;
 
@@ -2818,9 +2847,8 @@ setup:
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
 		UATH_STAT_INC(sc, st_tx_active);
 
-		usb2_set_frame_data(xfer, data->buf, 0);
-		xfer->frlengths[0] = data->buflen;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
+		usbd_transfer_submit(xfer);
 
 		UATH_UNLOCK(sc);
 		uath_start(ifp);
@@ -2831,12 +2859,13 @@ setup:
 		if (data == NULL)
 			goto setup;
 		if (data->ni != NULL) {
-			ieee80211_free_node(data->ni);
+			if ((sc->sc_flags & UATH_FLAG_INVALID) == 0)
+				ieee80211_free_node(data->ni);
 			data->ni = NULL;
 			ifp->if_oerrors++;
 		}
-		if (xfer->error != USB_ERR_CANCELLED) {
-			xfer->flags.stall_pipe = 1;
+		if (error != USB_ERR_CANCELLED) {
+			usbd_xfer_set_stall(xfer);
 			goto setup;
 		}
 		break;
