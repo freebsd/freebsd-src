@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 
+/* count xmits ourselves, rather than via drbr */
+#define NO_SLOW_STATS
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
@@ -89,6 +91,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf_ring.h>
 #endif
 
+#include "opt_inet.h"
+
 /* tunable params */
 static int mxge_nvidia_ecrc_enable = 1;
 static int mxge_force_firmware = 0;
@@ -101,6 +105,7 @@ static int mxge_ticks;
 static int mxge_max_slices = 1;
 static int mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
 static int mxge_always_promisc = 0;
+static int mxge_initial_mtu = ETHERMTU_JUMBO;
 static char *mxge_fw_unaligned = "mxge_ethp_z8e";
 static char *mxge_fw_aligned = "mxge_eth_z8e";
 static char *mxge_fw_rss_aligned = "mxge_rss_eth_z8e";
@@ -1125,7 +1130,7 @@ mxge_set_multicast_list(mxge_softc_t *sc)
 
 	/* Walk the multicast list, and add each address */
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1141,11 +1146,11 @@ mxge_set_multicast_list(mxge_softc_t *sc)
 			       "MXGEFW_JOIN_MULTICAST_GROUP, error status:"
 			       "%d\t", err);
 			/* abort, leaving multicast filtering off */
-			IF_ADDR_UNLOCK(ifp);
+			if_maddr_runlock(ifp);
 			return;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 	/* Enable multicast filtering */
 	err = mxge_send_cmd(sc, MXGEFW_DISABLE_ALLMULTI, &cmd);
 	if (err != 0) {
@@ -1306,7 +1311,7 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 	}
 	sc->rdma_tags_available = 15;
 	status = mxge_update_mac_address(sc);
-	mxge_change_promisc(sc, 0);
+	mxge_change_promisc(sc, sc->ifp->if_flags & IFF_PROMISC);
 	mxge_change_pause(sc, sc->pause);
 	mxge_set_multicast_list(sc);
 	return status;
@@ -2198,7 +2203,6 @@ mxge_transmit_locked(struct mxge_slice_state *ss, struct mbuf *m)
 		BPF_MTAP(ifp, m);
 		/* give it to the nic */
 		mxge_encap(ss, m);
-		drbr_stats_update(ifp, m->m_pkthdr.len, m->m_flags);
 	} else if ((err = drbr_enqueue(ifp, tx->br, m)) != 0) {
 		return (err);
 	}
@@ -2408,10 +2412,13 @@ mxge_rx_csum(struct mbuf *m, int csum)
 	if (__predict_false(ip->ip_p != IPPROTO_TCP &&
 			    ip->ip_p != IPPROTO_UDP))
 		return 1;
-
+#ifdef INET
 	c = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		      htonl(ntohs(csum) + ntohs(ip->ip_len) +
 			    - (ip->ip_hl << 2) + ip->ip_p));
+#else
+	c = 1;
+#endif
 	c ^= 0xffff;
 	return (c);
 }
@@ -2607,7 +2614,6 @@ static inline void
 mxge_clean_rx_done(struct mxge_slice_state *ss)
 {
 	mxge_rx_done_t *rx_done = &ss->rx_done;
-	struct lro_entry *lro;
 	int limit = 0;
 	uint16_t length;
 	uint16_t checksum;
@@ -2628,11 +2634,13 @@ mxge_clean_rx_done(struct mxge_slice_state *ss)
 		if (__predict_false(++limit > rx_done->mask / 2))
 			break;
 	}
+#ifdef INET
 	while (!SLIST_EMPTY(&ss->lro_active)) {
-		lro = SLIST_FIRST(&ss->lro_active);
+		struct lro_entry *lro = SLIST_FIRST(&ss->lro_active);
 		SLIST_REMOVE_HEAD(&ss->lro_active, next);
 		mxge_lro_flush(ss, lro);
 	}
+#endif
 }
 
 
@@ -2655,6 +2663,9 @@ mxge_tx_done(struct mxge_slice_state *ss, uint32_t mcp_idx)
 		/* mbuf and DMA map only attached to the first
 		   segment per-mbuf */
 		if (m != NULL) {
+			ss->obytes += m->m_pkthdr.len;
+			if (m->m_flags & M_MCAST)
+				ss->omcasts++;
 			ss->opackets++;
 			tx->info[idx].m = NULL;
 			map = tx->info[idx].map;
@@ -3781,6 +3792,11 @@ mxge_update_stats(mxge_softc_t *sc)
 	struct mxge_slice_state *ss;
 	u_long ipackets = 0;
 	u_long opackets = 0;
+#ifdef IFNET_BUF_RING
+	u_long obytes = 0;
+	u_long omcasts = 0;
+	u_long odrops = 0;
+#endif
 	u_long oerrors = 0;
 	int slice;
 
@@ -3788,10 +3804,20 @@ mxge_update_stats(mxge_softc_t *sc)
 		ss = &sc->ss[slice];
 		ipackets += ss->ipackets;
 		opackets += ss->opackets;
+#ifdef IFNET_BUF_RING
+		obytes += ss->obytes;
+		omcasts += ss->omcasts;
+		odrops += ss->tx.br->br_drops;
+#endif
 		oerrors += ss->oerrors;
 	}
 	sc->ifp->if_ipackets = ipackets;
 	sc->ifp->if_opackets = opackets;
+#ifdef IFNET_BUF_RING
+	sc->ifp->if_obytes = obytes;
+	sc->ifp->if_omcasts = omcasts;
+	sc->ifp->if_snd.ifq_drops = odrops;
+#endif
 	sc->ifp->if_oerrors = oerrors;
 }
 
@@ -3880,6 +3906,10 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCSIFFLAGS:
 		mtx_lock(&sc->driver_mtx);
+		if (sc->dying) {
+			mtx_unlock(&sc->driver_mtx);
+			return EINVAL;
+		}
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				err = mxge_open(sc);
@@ -3984,6 +4014,7 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	TUNABLE_INT_FETCH("hw.mxge.lro_cnt", &sc->lro_cnt);
 	TUNABLE_INT_FETCH("hw.mxge.always_promisc", &mxge_always_promisc);
 	TUNABLE_INT_FETCH("hw.mxge.rss_hash_type", &mxge_rss_hash_type);
+	TUNABLE_INT_FETCH("hw.mxge.initial_mtu", &mxge_initial_mtu);
 	if (sc->lro_cnt != 0)
 		mxge_lro_cnt = sc->lro_cnt;
 
@@ -3995,9 +4026,12 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 		mxge_ticks = hz / 2;
 	sc->pause = mxge_flow_control;
 	if (mxge_rss_hash_type < MXGEFW_RSS_HASH_TYPE_IPV4 
-	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_SRC_PORT) {
+	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_MAX) {
 		mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
 	}
+	if (mxge_initial_mtu > ETHERMTU_JUMBO ||
+	    mxge_initial_mtu < ETHER_MIN_LEN)
+		mxge_initial_mtu = ETHERMTU_JUMBO;
 }
 
 
@@ -4529,7 +4563,10 @@ mxge_attach(device_t dev)
 
 	ifp->if_baudrate = IF_Gbps(10UL);
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
-		IFCAP_VLAN_MTU | IFCAP_LRO;
+		IFCAP_VLAN_MTU;
+#ifdef INET
+	ifp->if_capabilities |= IFCAP_LRO;
+#endif
 
 #ifdef MXGE_NEW_VLAN_API
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
@@ -4557,10 +4594,11 @@ mxge_attach(device_t dev)
 		     mxge_media_status);
 	mxge_set_media(sc, IFM_ETHER | IFM_AUTO);
 	mxge_media_probe(sc);
+	sc->dying = 0;
 	ether_ifattach(ifp, sc->mac_addr);
-	/* ether_ifattach sets mtu to 1500 */
-	if (ifp->if_capabilities & IFCAP_JUMBO_MTU)
-		ifp->if_mtu = 9000;
+	/* ether_ifattach sets mtu to ETHERMTU */
+	if (mxge_initial_mtu != ETHERMTU)
+		mxge_change_mtu(sc, mxge_initial_mtu);
 
 	mxge_add_sysctls(sc);
 #ifdef IFNET_BUF_RING
@@ -4604,6 +4642,7 @@ mxge_detach(device_t dev)
 		return EBUSY;
 	}
 	mtx_lock(&sc->driver_mtx);
+	sc->dying = 1;
 	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
 		mxge_close(sc);
 	mtx_unlock(&sc->driver_mtx);

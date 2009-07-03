@@ -42,8 +42,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-extern uintptr_t kernbase;
-uintptr_t kernelbase = (uintptr_t) &kernbase;
 
 uint8_t dtrace_fuword8_nocheck(void *);
 uint16_t dtrace_fuword16_nocheck(void *);
@@ -524,9 +522,9 @@ dtrace_getreg(struct regs *rp, uint_t reg)
 static int
 dtrace_copycheck(uintptr_t uaddr, uintptr_t kaddr, size_t size)
 {
-	ASSERT(kaddr >= kernelbase && kaddr + size >= kaddr);
+	ASSERT(INKERNEL(kaddr) && kaddr + size >= kaddr);
 
-	if (uaddr + size >= kernelbase || uaddr + size < uaddr) {
+	if (uaddr + size > VM_MAXUSER_ADDRESS || uaddr + size < uaddr) {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
 		cpu_core[curcpu].cpuc_dtrace_illval = uaddr;
 		return (0);
@@ -570,7 +568,7 @@ dtrace_copyoutstr(uintptr_t kaddr, uintptr_t uaddr, size_t size,
 uint8_t
 dtrace_fuword8(void *uaddr)
 {
-	if ((uintptr_t)uaddr >= kernelbase) {
+	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
@@ -581,7 +579,7 @@ dtrace_fuword8(void *uaddr)
 uint16_t
 dtrace_fuword16(void *uaddr)
 {
-	if ((uintptr_t)uaddr >= kernelbase) {
+	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
@@ -592,7 +590,7 @@ dtrace_fuword16(void *uaddr)
 uint32_t
 dtrace_fuword32(void *uaddr)
 {
-	if ((uintptr_t)uaddr >= kernelbase) {
+	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);
@@ -603,7 +601,7 @@ dtrace_fuword32(void *uaddr)
 uint64_t
 dtrace_fuword64(void *uaddr)
 {
-	if ((uintptr_t)uaddr >= kernelbase) {
+	if ((uintptr_t)uaddr > VM_MAXUSER_ADDRESS) {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
 		cpu_core[curcpu].cpuc_dtrace_illval = (uintptr_t)uaddr;
 		return (0);

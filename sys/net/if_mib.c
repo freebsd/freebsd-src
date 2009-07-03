@@ -38,7 +38,6 @@
 
 #include <net/if.h>
 #include <net/if_mib.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 /*

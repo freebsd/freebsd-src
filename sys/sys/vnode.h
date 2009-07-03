@@ -219,9 +219,10 @@ struct xvnode {
 #define VN_KNOTE(vp, b, a)					\
 	do {							\
 		if (!VN_KNLIST_EMPTY(vp))			\
-			KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b), (a)); \
+			KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b), \
+			    (a) | KNF_NOKQLOCK);		\
 	} while (0)
-#define	VN_KNOTE_LOCKED(vp, b)		VN_KNOTE(vp, b, 1)
+#define	VN_KNOTE_LOCKED(vp, b)		VN_KNOTE(vp, b, KNF_LISTLOCKED)
 #define	VN_KNOTE_UNLOCKED(vp, b)	VN_KNOTE(vp, b, 0)
 
 /*
@@ -316,8 +317,8 @@ struct vattr {
 #define	VADMIN			000000010000 /* being the file owner */
 #define	VAPPEND			000000040000 /* permission to write/append */
 /*
- * VEXPLICIT_DENY makes VOP_ACCESS(9) return EPERM or EACCES only
- * if permission was denied explicitly, by a "deny" rule in NFS4 ACL,
+ * VEXPLICIT_DENY makes VOP_ACCESSX(9) return EPERM or EACCES only
+ * if permission was denied explicitly, by a "deny" rule in NFSv4 ACL,
  * and 0 otherwise.  This never happens with ordinary unix access rights
  * or POSIX.1e ACLs.  Obviously, VEXPLICIT_DENY must be OR-ed with
  * some other V* constant.
@@ -562,6 +563,9 @@ vn_canvmio(struct vnode *vp)
  */
 #include "vnode_if.h"
 
+/* vn_open_flags */
+#define	VN_OPEN_NOAUDIT		0x00000001
+
 /*
  * Public vnode manipulation functions.
  */
@@ -598,7 +602,8 @@ int	insmntque1(struct vnode *vp, struct mount *mp,
 int	insmntque(struct vnode *vp, struct mount *mp);
 u_quad_t init_va_filerev(void);
 int	speedup_syncer(void);
-int	vn_vptocnp(struct vnode **vp, char *buf, u_int *buflen);
+int	vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf,
+	    u_int *buflen);
 #define textvp_fullpath(p, rb, rfb) \
 	vn_fullpath(FIRST_THREAD_IN_PROC(p), (p)->p_textvp, rb, rfb)
 int	vn_fullpath(struct thread *td, struct vnode *vn,
@@ -637,7 +642,7 @@ int	_vn_lock(struct vnode *vp, int flags, char *file, int line);
 #define vn_lock(vp, flags) _vn_lock(vp, flags, __FILE__, __LINE__)
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
-	    struct ucred *cred, struct file *fp);
+	    u_int vn_open_flags, struct ucred *cred, struct file *fp);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);
 int	vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,

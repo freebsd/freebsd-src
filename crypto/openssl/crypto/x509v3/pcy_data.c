@@ -1,5 +1,5 @@
 /* pcy_data.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2004.
  */
 /* ====================================================================
@@ -87,6 +87,12 @@ X509_POLICY_DATA *policy_data_new(POLICYINFO *policy, ASN1_OBJECT *id, int crit)
 	X509_POLICY_DATA *ret;
 	if (!policy && !id)
 		return NULL;
+	if (id)
+		{
+		id = OBJ_dup(id);
+		if (!id)
+			return NULL;
+		}
 	ret = OPENSSL_malloc(sizeof(X509_POLICY_DATA));
 	if (!ret)
 		return NULL;
@@ -94,6 +100,8 @@ X509_POLICY_DATA *policy_data_new(POLICYINFO *policy, ASN1_OBJECT *id, int crit)
 	if (!ret->expected_policy_set)
 		{
 		OPENSSL_free(ret);
+		if (id)
+			ASN1_OBJECT_free(id);
 		return NULL;
 		}
 

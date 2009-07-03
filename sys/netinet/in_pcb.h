@@ -39,8 +39,6 @@
 #include <sys/_mutex.h>
 #include <sys/_rwlock.h>
 
-#include <net/route.h>
-
 #ifdef _KERNEL
 #include <sys/rwlock.h>
 #endif

@@ -77,6 +77,7 @@ static MALLOC_DEFINE(M_AUDITCRED, "audit_cred", "Audit cred storage");
 MALLOC_DEFINE(M_AUDITDATA, "audit_data", "Audit data storage");
 MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
 MALLOC_DEFINE(M_AUDITTEXT, "audit_text", "Audit text storage");
+MALLOC_DEFINE(M_AUDITGIDSET, "audit_gidset", "Audit GID set storage");
 
 SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
     "TrustedBSD audit controls");
@@ -253,6 +254,8 @@ audit_record_dtor(void *mem, int size, void *arg)
 		free(ar->k_ar.ar_arg_argv, M_AUDITTEXT);
 	if (ar->k_ar.ar_arg_envv != NULL)
 		free(ar->k_ar.ar_arg_envv, M_AUDITTEXT);
+	if (ar->k_ar.ar_arg_groups.gidset != NULL)
+		free(ar->k_ar.ar_arg_groups.gidset, M_AUDITGIDSET);
 }
 
 /*

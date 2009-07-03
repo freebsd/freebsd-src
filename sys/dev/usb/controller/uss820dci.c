@@ -32,10 +32,28 @@
  * NOTE: The datasheet does not document everything.
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_revision.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
 
 #define	USB_DEBUG_VAR uss820dcidebug
 
@@ -303,7 +321,7 @@ uss820dci_setup_rx(struct uss820dci_td *td)
 	    USS820_RXCON, temp);
 
 	/* copy data into real buffer */
-	usb2_copy_in(td->pc, 0, &req, sizeof(req));
+	usbd_copy_in(td->pc, 0, &req, sizeof(req));
 
 	td->offset = sizeof(req);
 	td->remainder = 0;
@@ -446,7 +464,7 @@ repeat:
 		return (0);		/* we are complete */
 	}
 	while (count > 0) {
-		usb2_get_page(td->pc, td->offset, &buf_res);
+		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
 		if (buf_res.length > count) {
@@ -545,7 +563,7 @@ repeat:
 	count_copy = count;
 	while (count > 0) {
 
-		usb2_get_page(td->pc, td->offset, &buf_res);
+		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
 		if (buf_res.length > count) {
@@ -830,7 +848,7 @@ uss820dci_setup_standard_chain(struct usb_xfer *xfer)
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpointno),
-	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
+	    xfer->sumlen, usbd_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
 
@@ -1030,11 +1048,11 @@ uss820dci_start_standard_chain(struct usb_xfer *xfer)
 		uss820dci_intr_set(xfer, 1);
 
 		/* put transfer on interrupt queue */
-		usb2_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
+		usbd_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
 
 		/* start timeout, if any */
 		if (xfer->timeout != 0) {
-			usb2_transfer_timeout_ms(xfer,
+			usbd_transfer_timeout_ms(xfer,
 			    &uss820dci_timeout, xfer->timeout);
 		}
 	}
@@ -1179,12 +1197,12 @@ uss820dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 		uss820dci_intr_set(xfer, 0);
 	}
 	/* dequeue transfer and start next transfer */
-	usb2_transfer_done(xfer, error);
+	usbd_transfer_done(xfer, error);
 }
 
 static void
 uss820dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
-    struct usb_endpoint *ep)
+    struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct uss820dci_softc *sc;
 	uint8_t ep_no;
@@ -1341,7 +1359,7 @@ uss820dci_init(struct uss820dci_softc *sc)
 	uss820dci_pull_down(sc);
 
 	/* wait 10ms for pulldown to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
+	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
 
 	/* check hardware revision */
 	temp = USS820_READ_1(sc, USS820_REV);
@@ -1676,7 +1694,7 @@ uss820dci_device_isoc_fs_enter(struct usb_xfer *xfer)
 	 * pre-compute when the isochronous transfer will be finished:
 	 */
 	xfer->isoc_time_complete =
-	    usb2_isoc_time_expand(&sc->sc_bus, nframes) + temp +
+	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
 	    xfer->nframes;
 
 	/* compute frame number for next insertion */
@@ -2201,7 +2219,7 @@ uss820dci_xfer_setup(struct usb_setup_params *parm)
 	parm->hc_max_packet_count = 1;
 	parm->hc_max_frame_size = 0x500;
 
-	usb2_transfer_setup_sub(parm);
+	usbd_transfer_setup_sub(parm);
 
 	/*
 	 * compute maximum number of TDs
@@ -2228,7 +2246,7 @@ uss820dci_xfer_setup(struct usb_setup_params *parm)
 	}
 
 	/*
-	 * check if "usb2_transfer_setup_sub" set an error
+	 * check if "usbd_transfer_setup_sub" set an error
 	 */
 	if (parm->err) {
 		return;

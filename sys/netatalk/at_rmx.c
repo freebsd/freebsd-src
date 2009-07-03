@@ -40,6 +40,7 @@
 
 int	at_inithead(void **head, int off);
 
+#if 0
 #define	HEXBUF_LEN	256
 
 static const char *
@@ -65,74 +66,35 @@ prsockaddr(void *v, char *hexbuf)
 	*bp = '\0';
 	return (hexbuf);
 }
+#endif
 
 static struct radix_node *
 at_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	    struct radix_node *treenodes)
 {
-	struct radix_node *rn;
-	char hexbuf[HEXBUF_LEN];
 
-	printf("at_addroute: v=%s\n", prsockaddr(v_arg, hexbuf));
-	printf("at_addroute: n=%s\n", prsockaddr(n_arg, hexbuf));
-	printf("at_addroute: head=%p treenodes=%p\n", (void *)head,
-	    (void *)treenodes);
-
-	rn = rn_addroute(v_arg, n_arg, head, treenodes);
-
-	printf("at_addroute: returns rn=%p\n", (void *)rn);
-
-	return (rn);
+	return (rn_addroute(v_arg, n_arg, head, treenodes));
 }
 
 static struct radix_node *
 at_matroute(void *v_arg, struct radix_node_head *head)
 {
-	struct radix_node *rn;
-	char hexbuf[HEXBUF_LEN];
 
-	printf("at_matroute: v=%s\n", prsockaddr(v_arg, hexbuf));
-	printf("at_matroute: head=%p\n", (void *)head);
-
-	rn = rn_match(v_arg, head);
-
-	printf("at_matroute: returnr rn=%p\n", (void *)rn);
-
-	return (rn);
+	return (rn_match(v_arg, head));
 }
 
 static struct radix_node *
 at_lookup(void *v_arg, void *m_arg, struct radix_node_head *head)
 {
-	struct radix_node *rn;
-	char hexbuf[HEXBUF_LEN];
 
-	printf("at_lookup: v=%s\n", prsockaddr(v_arg, hexbuf));
-	printf("at_lookup: n=%s\n", prsockaddr(m_arg, hexbuf));
-	printf("at_lookup: head=%p\n", (void *)head);
-
-	rn = rn_lookup(v_arg, m_arg, head);
-
-	printf("at_lookup: returns rn=%p\n", (void *)rn);
-
-	return (rn);
+	return (rn_lookup(v_arg, m_arg, head));
 }
 
 static struct radix_node *
 at_delroute(void *v_arg, void *netmask_arg, struct radix_node_head *head)
 {
-	struct radix_node *rn;
-	char hexbuf[HEXBUF_LEN];
 
-	printf("at_delroute: v=%s\n", prsockaddr(v_arg, hexbuf));
-	printf("at_delroute: n=%s\n", prsockaddr(netmask_arg, hexbuf));
-	printf("at_delroute: head=%p\n", (void *)head);
-
-	rn = rn_delete(v_arg, netmask_arg, head);
-
-	printf("at_delroute: returns rn=%p\n", (void *)rn);
-
-	return (rn);
+	return (rn_delete(v_arg, netmask_arg, head));
 }
 
 /*

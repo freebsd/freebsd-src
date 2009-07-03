@@ -24,9 +24,31 @@
  * SUCH DAMAGE.
  */
 
-#define	USB_DEBUG_VAR usb2_proc_debug
+#define	USB_DEBUG_VAR usb_proc_debug
 
-#include <dev/usb/usb_core.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usb_process.h>
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_util.h>
@@ -52,11 +74,11 @@
 #define	USB_THREAD_EXIT(err)	kthread_exit(err)
 #endif
 
-#if USB_DEBUG
-static int usb2_proc_debug;
+#ifdef USB_DEBUG
+static int usb_proc_debug;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, proc, CTLFLAG_RW, 0, "USB process");
-SYSCTL_INT(_hw_usb_proc, OID_AUTO, debug, CTLFLAG_RW, &usb2_proc_debug, 0,
+SYSCTL_INT(_hw_usb_proc, OID_AUTO, debug, CTLFLAG_RW, &usb_proc_debug, 0,
     "Debug level");
 #endif
 
@@ -150,21 +172,21 @@ usb_process(void *arg)
 		/* end if messages - check if anyone is waiting for sync */
 		if (up->up_dsleep) {
 			up->up_dsleep = 0;
-			usb2_cv_broadcast(&up->up_drain);
+			cv_broadcast(&up->up_drain);
 		}
 		up->up_msleep = 1;
-		usb2_cv_wait(&up->up_cv, up->up_mtx);
+		cv_wait(&up->up_cv, up->up_mtx);
 	}
 
 	up->up_ptr = NULL;
-	usb2_cv_signal(&up->up_cv);
+	cv_signal(&up->up_cv);
 	mtx_unlock(up->up_mtx);
 
 	USB_THREAD_EXIT(0);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_proc_create
+ *	usb_proc_create
  *
  * This function will create a process using the given "prio" that can
  * execute callbacks. The mutex pointed to by "p_mtx" will be applied
@@ -177,7 +199,7 @@ usb_process(void *arg)
  * Else: failure
  *------------------------------------------------------------------------*/
 int
-usb2_proc_create(struct usb_process *up, struct mtx *p_mtx,
+usb_proc_create(struct usb_process *up, struct mtx *p_mtx,
     const char *pmesg, uint8_t prio)
 {
 	up->up_mtx = p_mtx;
@@ -185,8 +207,8 @@ usb2_proc_create(struct usb_process *up, struct mtx *p_mtx,
 
 	TAILQ_INIT(&up->up_qhead);
 
-	usb2_cv_init(&up->up_cv, "wmsg");
-	usb2_cv_init(&up->up_drain, "dmsg");
+	cv_init(&up->up_cv, "wmsg");
+	cv_init(&up->up_drain, "dmsg");
 
 	if (USB_THREAD_CREATE(&usb_process, up,
 	    &up->up_ptr, pmesg)) {
@@ -197,12 +219,12 @@ usb2_proc_create(struct usb_process *up, struct mtx *p_mtx,
 	return (0);
 
 error:
-	usb2_proc_free(up);
+	usb_proc_free(up);
 	return (ENOMEM);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_proc_free
+ *	usb_proc_free
  *
  * NOTE: If the structure pointed to by "up" is all zero, this
  * function does nothing.
@@ -211,23 +233,23 @@ error:
  * removed nor called.
  *------------------------------------------------------------------------*/
 void
-usb2_proc_free(struct usb_process *up)
+usb_proc_free(struct usb_process *up)
 {
 	/* check if not initialised */
 	if (up->up_mtx == NULL)
 		return;
 
-	usb2_proc_drain(up);
+	usb_proc_drain(up);
 
-	usb2_cv_destroy(&up->up_cv);
-	usb2_cv_destroy(&up->up_drain);
+	cv_destroy(&up->up_cv);
+	cv_destroy(&up->up_drain);
 
 	/* make sure that we do not enter here again */
 	up->up_mtx = NULL;
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_proc_msignal
+ *	usb_proc_msignal
  *
  * This function will queue one of the passed USB process messages on
  * the USB process queue. The first message that is not already queued
@@ -238,7 +260,7 @@ usb2_proc_free(struct usb_process *up)
  * at a time. The message that was queued is returned.
  *------------------------------------------------------------------------*/
 void   *
-usb2_proc_msignal(struct usb_process *up, void *_pm0, void *_pm1)
+usb_proc_msignal(struct usb_process *up, void *_pm0, void *_pm1)
 {
 	struct usb_proc_msg *pm0 = _pm0;
 	struct usb_proc_msg *pm1 = _pm1;
@@ -308,20 +330,20 @@ usb2_proc_msignal(struct usb_process *up, void *_pm0, void *_pm1)
 
 	if (up->up_msleep) {
 		up->up_msleep = 0;	/* save "cv_signal()" calls */
-		usb2_cv_signal(&up->up_cv);
+		cv_signal(&up->up_cv);
 	}
 	return (pm2);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_proc_is_gone
+ *	usb_proc_is_gone
  *
  * Return values:
  *    0: USB process is running
  * Else: USB process is tearing down
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_proc_is_gone(struct usb_process *up)
+usb_proc_is_gone(struct usb_process *up)
 {
 	if (up->up_gone)
 		return (1);
@@ -331,14 +353,14 @@ usb2_proc_is_gone(struct usb_process *up)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_proc_mwait
+ *	usb_proc_mwait
  *
  * This function will return when the USB process message pointed to
  * by "pm" is no longer on a queue. This function must be called
  * having "up->up_mtx" locked.
  *------------------------------------------------------------------------*/
 void
-usb2_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
+usb_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
 {
 	struct usb_proc_msg *pm0 = _pm0;
 	struct usb_proc_msg *pm1 = _pm1;
@@ -366,12 +388,12 @@ usb2_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
 			if (up->up_gone)
 				break;
 			up->up_dsleep = 1;
-			usb2_cv_wait(&up->up_drain, up->up_mtx);
+			cv_wait(&up->up_drain, up->up_mtx);
 		}
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_proc_drain
+ *	usb_proc_drain
  *
  * This function will tear down an USB process, waiting for the
  * currently executing command to return.
@@ -380,7 +402,7 @@ usb2_proc_mwait(struct usb_process *up, void *_pm0, void *_pm1)
  * this function does nothing.
  *------------------------------------------------------------------------*/
 void
-usb2_proc_drain(struct usb_process *up)
+usb_proc_drain(struct usb_process *up)
 {
 	/* check if not initialised */
 	if (up->up_mtx == NULL)
@@ -402,7 +424,7 @@ usb2_proc_drain(struct usb_process *up)
 		if (up->up_msleep || up->up_csleep) {
 			up->up_msleep = 0;
 			up->up_csleep = 0;
-			usb2_cv_signal(&up->up_cv);
+			cv_signal(&up->up_cv);
 		}
 		/* Check if we are still cold booted */
 
@@ -412,13 +434,13 @@ usb2_proc_drain(struct usb_process *up)
 			    "been left suspended!\n");
 			break;
 		}
-		usb2_cv_wait(&up->up_cv, up->up_mtx);
+		cv_wait(&up->up_cv, up->up_mtx);
 	}
 	/* Check if someone is waiting - should not happen */
 
 	if (up->up_dsleep) {
 		up->up_dsleep = 0;
-		usb2_cv_broadcast(&up->up_drain);
+		cv_broadcast(&up->up_drain);
 		DPRINTF("WARNING: Someone is waiting "
 		    "for USB process drain!\n");
 	}

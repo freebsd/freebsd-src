@@ -471,6 +471,9 @@ device		tdfx_linux		# Enable Linuxulator support
 device		acpi
 options 	ACPI_DEBUG
 
+# ACPI WMI Mapping driver
+device		acpi_wmi
+
 # ACPI Asus Desktop Extras. (voltage, temp, fan)
 device		acpi_aiboost
 
@@ -479,6 +482,9 @@ device		acpi_asus
 
 # ACPI Fujitsu Extras (Buttons)
 device		acpi_fujitsu
+
+# ACPI extras driver for HP laptops
+device		acpi_hp
 
 # ACPI extras driver for IBM laptops
 device		acpi_ibm

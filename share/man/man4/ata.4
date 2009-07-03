@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 4, 2008
+.Dd June 24, 2009
 .Dt ATA 4
 .Os
 .Sh NAME
@@ -93,6 +93,24 @@ set to 1 for DMA access, 0 for PIO (default is DMA).
 set to 1 to enable Write Caching, 0 to disable (default is enabled).
 .Em WARNING :
 can cause data loss on power failures and crashes.
+.It Va hint.atapci.X.msi
+set to 1 to allow Message Signalled Interrupts (MSI) to be used by
+specified PCI ATA controller, if supported.
+.It Va hint.ata.X.pm_level
+controls SATA interface Power Management for specified channel,
+allowing to save some power by the cost of additional command latency.
+Possible values:
+.Bl -tag -compact
+.It 0
+interface Power Management is disabled, default value.
+.It 1
+device is allowed to initiate PM state change, host is passive.
+.It 2
+host initiates PARTIAL PM state transition every time port becomes idle.
+.It 3
+host initiates SLUMBER PM state transition every time port becomes idle.
+.El
+Modes 2 and 3 are implemented only for AHCI driver now.
 .El
 .Sh DESCRIPTION
 The

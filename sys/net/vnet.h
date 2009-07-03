@@ -35,6 +35,8 @@
 
 #include <net/if_var.h>
 
+struct ifindex_entry;
+
 struct vnet_net {
 	int			_if_index;
 	struct ifindex_entry *	_ifindex_table;
@@ -42,12 +44,6 @@ struct vnet_net {
 	struct ifgrouphead	_ifg_head;
 
 	int			_if_indexlim;
-	struct knlist		_ifklist;
-
-	struct rtstat		_rtstat;
-	struct radix_node_head *_rt_tables;
-	int			_rttrash;
-	uma_zone_t		_rtzone;
 
 	struct ifnet *		_loif;
 	struct if_clone *	_lo_cloner;
@@ -91,9 +87,5 @@ extern struct vnet_net vnet_net_0;
 #define	V_lo_cloner_data	VNET_NET(lo_cloner_data)
 #define	V_loif			VNET_NET(loif)
 #define	V_rawcb_list		VNET_NET(rawcb_list)
-#define	V_rt_tables		VNET_NET(rt_tables)
-#define	V_rtstat		VNET_NET(rtstat)
-#define	V_rttrash		VNET_NET(rttrash)
-#define	V_rtzone		VNET_NET(rtzone)
 
 #endif /* !_NET_VNET_H_ */

@@ -719,7 +719,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			maxhlen = M_TRAILINGSPACE(n) - maxlen;
 			pr = curthread->td_ucred->cr_prison;
 			mtx_lock(&pr->pr_mtx);
-			hlen = strlen(pr->pr_host);
+			hlen = strlen(pr->pr_hostname);
 			if (maxhlen > hlen)
 				maxhlen = hlen;
 			/*
@@ -731,7 +731,8 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			bcopy(icmp6, nicmp6, sizeof(struct icmp6_hdr));
 			p = (u_char *)(nicmp6 + 1);
 			bzero(p, 4);
-			bcopy(pr->pr_host, p + 4, maxhlen); /* meaningless TTL */
+			/* meaningless TTL */
+			bcopy(pr->pr_hostname, p + 4, maxhlen);
 			mtx_unlock(&pr->pr_mtx);
 			noff = sizeof(struct ip6_hdr);
 			n->m_pkthdr.len = n->m_len = sizeof(struct ip6_hdr) +
@@ -1243,11 +1244,13 @@ ni6_input(struct mbuf *m, int off)
 
 		if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) &&
 		    !(V_icmp6_nodeinfo & ICMP6_NODEINFO_TMPADDROK)) {
+			ifa_free(&ia6->ia_ifa);
 			nd6log((LOG_DEBUG, "ni6_input: ignore node info to "
 				"a temporary address in %s:%d",
 			       __FILE__, __LINE__));
 			goto bad;
 		}
+		ifa_free(&ia6->ia_ifa);
 	}
 
 	/* validate query Subject field. */
@@ -1334,7 +1337,8 @@ ni6_input(struct mbuf *m, int off)
 			 */
 			pr = curthread->td_ucred->cr_prison;
 			mtx_lock(&pr->pr_mtx);
-			n = ni6_nametodns(pr->pr_host, strlen(pr->pr_host), 0);
+			n = ni6_nametodns(pr->pr_hostname,
+			    strlen(pr->pr_hostname), 0);
 			mtx_unlock(&pr->pr_mtx);
 			if (!n || n->m_next || n->m_len == 0)
 				goto bad;
@@ -1461,8 +1465,8 @@ ni6_input(struct mbuf *m, int off)
 		 */
 		pr = curthread->td_ucred->cr_prison;
 		mtx_lock(&pr->pr_mtx);
-		n->m_next =
-		    ni6_nametodns(pr->pr_host, strlen(pr->pr_host), oldfqdn);
+		n->m_next = ni6_nametodns(pr->pr_hostname,
+		    strlen(pr->pr_hostname), oldfqdn);
 		mtx_unlock(&pr->pr_mtx);
 		if (n->m_next == NULL)
 			goto bad;
@@ -2072,11 +2076,11 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 	struct icmp6_hdr *icmp6;
-	struct in6_ifaddr *ia;
+	struct in6_ifaddr *ia = NULL;
 	int plen;
 	int type, code;
 	struct ifnet *outif = NULL;
-	struct in6_addr origdst, *src = NULL;
+	struct in6_addr origdst, src, *srcp = NULL;
 
 	/* too short to reflect */
 	if (off < sizeof(struct ip6_hdr)) {
@@ -2144,7 +2148,7 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		if ((ia = ip6_getdstifaddr(m))) {
 			if (!(ia->ia6_flags &
 			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY)))
-				src = &ia->ia_addr.sin6_addr;
+				srcp = &ia->ia_addr.sin6_addr;
 		} else {
 			struct sockaddr_in6 d;
 
@@ -2157,12 +2161,12 @@ icmp6_reflect(struct mbuf *m, size_t off)
 			if (ia &&
 			    !(ia->ia6_flags &
 			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY))) {
-				src = &ia->ia_addr.sin6_addr;
+				srcp = &ia->ia_addr.sin6_addr;
 			}
 		}
 	}
 
-	if (src == NULL) {
+	if (srcp == NULL) {
 		int e;
 		struct sockaddr_in6 sin6;
 		struct route_in6 ro;
@@ -2178,10 +2182,10 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		sin6.sin6_addr = ip6->ip6_dst; /* zone ID should be embedded */
 
 		bzero(&ro, sizeof(ro));
-		src = in6_selectsrc(&sin6, NULL, NULL, &ro, NULL, &outif, &e);
+		e = in6_selectsrc(&sin6, NULL, NULL, &ro, NULL, &outif, &src);
 		if (ro.ro_rt)
 			RTFREE(ro.ro_rt); /* XXX: we could use this */
-		if (src == NULL) {
+		if (e) {
 			char ip6buf[INET6_ADDRSTRLEN];
 			nd6log((LOG_DEBUG,
 			    "icmp6_reflect: source can't be determined: "
@@ -2189,9 +2193,10 @@ icmp6_reflect(struct mbuf *m, size_t off)
 			    ip6_sprintf(ip6buf, &sin6.sin6_addr), e));
 			goto bad;
 		}
+		srcp = &src;
 	}
 
-	ip6->ip6_src = *src;
+	ip6->ip6_src = *srcp;
 	ip6->ip6_flow = 0;
 	ip6->ip6_vfc &= ~IPV6_VERSION_MASK;
 	ip6->ip6_vfc |= IPV6_VERSION;
@@ -2218,9 +2223,13 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	if (outif)
 		icmp6_ifoutstat_inc(outif, type, code);
 
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	return;
 
  bad:
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	m_freem(m);
 	return;
 }
@@ -2539,6 +2548,8 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 						 IN6_IFF_ANYCAST)) == NULL)
 			goto fail;
 		ifp_ll6 = &ia->ia_addr.sin6_addr;
+		/* XXXRW: reference released prematurely. */
+		ifa_free(&ia->ia_ifa);
 	}
 
 	/* get ip6 linklocal address for the router. */

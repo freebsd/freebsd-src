@@ -716,7 +716,6 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	struct l_new_utsname utsname;
 	char osname[LINUX_MAX_UTSNAME];
 	char osrelease[LINUX_MAX_UTSNAME];
-	struct prison *pr;
 	char *p;
 
 #ifdef DEBUG
@@ -730,6 +729,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	bzero(&utsname, sizeof(utsname));
 	strlcpy(utsname.sysname, osname, LINUX_MAX_UTSNAME);
 	getcredhostname(td->td_ucred, utsname.nodename, LINUX_MAX_UTSNAME);
+	getcreddomainname(td->td_ucred, utsname.domainname, LINUX_MAX_UTSNAME);
 	strlcpy(utsname.release, osrelease, LINUX_MAX_UTSNAME);
 	strlcpy(utsname.version, version, LINUX_MAX_UTSNAME);
 	for (p = utsname.version; *p != '\0'; ++p)
@@ -738,11 +738,6 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 			break;
 		}
 	strlcpy(utsname.machine, linux_platform, LINUX_MAX_UTSNAME);
-
-	pr = td->td_ucred->cr_prison;
-	mtx_lock(&pr->pr_mtx);
-	strlcpy(utsname.domainname, pr->pr_domain, LINUX_MAX_UTSNAME);
-	mtx_unlock(&pr->pr_mtx);
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
 }
@@ -1137,7 +1132,7 @@ int
 linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 {
 	struct ucred *newcred, *oldcred;
-	l_gid_t linux_gidset[NGROUPS];
+	l_gid_t *linux_gidset;
 	gid_t *bsd_gidset;
 	int ngrp, error;
 	struct proc *p;
@@ -1145,13 +1140,14 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	ngrp = args->gidsetsize;
 	if (ngrp < 0 || ngrp >= NGROUPS)
 		return (EINVAL);
+	linux_gidset = malloc(ngrp * sizeof(*linux_gidset), M_TEMP, M_WAITOK);
 	error = copyin(args->grouplist, linux_gidset, ngrp * sizeof(l_gid_t));
 	if (error)
-		return (error);
+		goto out;
 	newcred = crget();
 	p = td->td_proc;
 	PROC_LOCK(p);
-	oldcred = p->p_ucred;
+	oldcred = crcopysafe(p, newcred);
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from
@@ -1162,10 +1158,9 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	if ((error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS, 0)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
-		return (error);
+		goto out;
 	}
 
-	crcopy(newcred, oldcred);
 	if (ngrp > 0) {
 		newcred->cr_ngroups = ngrp + 1;
 
@@ -1182,14 +1177,17 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
 	crfree(oldcred);
-	return (0);
+	error = 0;
+out:
+	free(linux_gidset, M_TEMP);
+	return (error);
 }
 
 int
 linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 {
 	struct ucred *cred;
-	l_gid_t linux_gidset[NGROUPS];
+	l_gid_t *linux_gidset;
 	gid_t *bsd_gidset;
 	int bsd_gidsetsz, ngrp, error;
 
@@ -1212,13 +1210,16 @@ linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 		return (EINVAL);
 
 	ngrp = 0;
+	linux_gidset = malloc(bsd_gidsetsz * sizeof(*linux_gidset),
+	    M_TEMP, M_WAITOK);
 	while (ngrp < bsd_gidsetsz) {
 		linux_gidset[ngrp] = bsd_gidset[ngrp + 1];
 		ngrp++;
 	}
 
-	if ((error = copyout(linux_gidset, args->grouplist,
-	    ngrp * sizeof(l_gid_t))))
+	error = copyout(linux_gidset, args->grouplist, ngrp * sizeof(l_gid_t));
+	free(linux_gidset, M_TEMP);
+	if (error)
 		return (error);
 
 	td->td_retval[0] = ngrp;

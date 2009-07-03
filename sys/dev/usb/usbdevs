@@ -514,7 +514,7 @@ vendor TANGTOP		0x0d3d	Tangtop
 vendor SMC3		0x0d5c	Standard Microsystems
 vendor ADDON		0x0d7d	Add-on Technology
 vendor ACDC		0x0d7e	American Computer & Digital Components
-vendor ABC		0x0d8c	ABC
+vendor CMEDIA		0x0d8c	CMEDIA
 vendor CONCEPTRONIC	0x0d8e	Conceptronic
 vendor SKANHEX		0x0d96	Skanhex Technology, Inc.
 vendor MSI		0x0db0	Micro Star International
@@ -552,6 +552,7 @@ vendor USI		0x10ab	USI
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor SILABS		0x10c4	Silicon Labs
+vendor ACTIONS		0x10d6  Actions
 vendor ANALOG		0x1110	Analog Devices
 vendor TENX		0x1130	Ten X Technology, Inc.
 vendor ISSC		0x1131	Integrated System Solution Corp.
@@ -740,6 +741,9 @@ product ACERP AWL400		0x9001	AWL400 Wireless Adapter
 
 /* Acer Warp products */
 product ACERW WARPLINK		0x0204	Warplink
+
+/* Actions products */
+product ACTIONS MP4		0x1101  Actions MP4 Player
 
 /* Actiontec, Inc. products */
 product ACTIONTEC PRISM_25	0x0408	Prism2.5 Wireless Adapter
@@ -1819,6 +1823,7 @@ product MSYSTEMS DISKONKEY	0x0010	DiskOnKey
 product MSYSTEMS DISKONKEY2	0x0011	DiskOnKey
 
 /* Myson products */
+product MYSON HEDEN_8813	0x8813	USB-IDE
 product MYSON HEDEN		0x8818	USB-IDE
 product MYSON STARREADER	0x9920	USB flash card adapter
 

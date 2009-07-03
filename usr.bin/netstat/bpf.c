@@ -91,10 +91,17 @@ bpf_flags(struct xbpf_d *bd, char *flagbuf)
 void
 bpf_stats(char *ifname)
 {
-	struct xbpf_d *d, *bd;
+	struct xbpf_d *d, *bd, zerostat;
 	char *pname, flagbuf[12];
 	size_t size;
 
+	if (zflag) {
+		bzero(&zerostat, sizeof(zerostat));
+		if (sysctlbyname("net.bpf.stats", NULL, NULL,
+		    &zerostat, sizeof(zerostat)) < 0)
+			warn("failed to zero bpf counters");
+		return;
+	}
 	if (sysctlbyname("net.bpf.stats", NULL, &size,
 	    NULL, 0) < 0) {
 		warn("net.bpf.stats");

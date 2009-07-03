@@ -183,13 +183,8 @@ static const struct pmap_devmap ixp435_devmap[] = {
     { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
-	/* Expansion Bus */
     { IXP425_EXP_VBASE, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
-
-	/* CFI Flash on the Expansion Bus */
-    { IXP425_EXP_BUS_CS0_VBASE, IXP425_EXP_BUS_CS0_HWBASE,
-      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
 	/* IXP425 PCI Configuration */
     { IXP425_PCI_VBASE, IXP425_PCI_HWBASE, IXP425_PCI_SIZE,
@@ -207,11 +202,23 @@ static const struct pmap_devmap ixp435_devmap[] = {
     { IXP425_QMGR_VBASE, IXP425_QMGR_HWBASE, IXP425_QMGR_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
+	/* CFI Flash on the Expansion Bus */
+    { IXP425_EXP_BUS_CS0_VBASE, IXP425_EXP_BUS_CS0_HWBASE,
+      IXP425_EXP_BUS_CS0_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
 	/* USB1 Memory Space */
     { IXP435_USB1_VBASE, IXP435_USB1_HWBASE, IXP435_USB1_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 	/* USB2 Memory Space */
     { IXP435_USB2_VBASE, IXP435_USB2_HWBASE, IXP435_USB2_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* GPS Memory Space */
+    { CAMBRIA_GPS_VBASE, CAMBRIA_GPS_HWBASE, CAMBRIA_GPS_SIZE,
+      VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
+
+	/* RS485 Memory Space */
+    { CAMBRIA_RS485_VBASE, CAMBRIA_RS485_HWBASE, CAMBRIA_RS485_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
 
     { 0 }
@@ -225,6 +232,7 @@ initarm(void *arg, void *arg2)
 #define	next_chunk2(a,b)	(((a) + (b)) &~ ((b)-1))
 #define	next_page(a)		next_chunk2(a,PAGE_SIZE)
 	struct pv_addr  kernel_l1pt;
+	struct pv_addr  dpcpu;
 	int loop, i;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
@@ -295,6 +303,10 @@ initarm(void *arg, void *arg2)
 	 * shared by all processes.
 	 */
 	valloc_pages(systempage, 1);
+
+	/* Allocate dynamic per-cpu area. */
+	valloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
+	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
 	valloc_pages(irqstack, IRQ_STACK_SIZE);
@@ -456,8 +468,8 @@ initarm(void *arg, void *arg2)
 	phys_avail[i++] = PHYSADDR;
 	phys_avail[i++] = PHYSADDR + PAGE_SIZE; 	/*
 					 *XXX: Gross hack to get our
-					 * pages in the vm_page_array
-					 . */
+					 * pages in the vm_page_array.
+					 */
 #endif
 	phys_avail[i++] = round_page(virtual_avail - KERNBASE + PHYSADDR);
 	phys_avail[i++] = trunc_page(PHYSADDR + memsize - 1);

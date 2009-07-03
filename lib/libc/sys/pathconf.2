@@ -28,7 +28,7 @@
 .\"	@(#)pathconf.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 5, 2007
+.Dd June 25, 2009
 .Dt PATHCONF 2
 .Os
 .Sh NAME
@@ -132,6 +132,9 @@ Recommended file transfer buffer alignment.
 Maximum number of bytes in a symbolic link.
 .It Li _PC_ACL_EXTENDED
 Returns 1 if an Access Control List (ACL) can be set on the specified
+file, otherwise 0.
+.It Li _PC_ACL_NFS4
+Returns 1 if an NFSv4 ACLs can be set on the specified
 file, otherwise 0.
 .It Li _PC_ACL_PATH_MAX
 Maximum number of ACL entries per file.

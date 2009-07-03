@@ -57,8 +57,8 @@
  * $FreeBSD$
  */
 
-#ifndef _OPENFIRM_H_
-#define _OPENFIRM_H_
+#ifndef _DEV_OPENFIRM_H_
+#define _DEV_OPENFIRM_H_
 
 #include <sys/types.h>
 
@@ -66,7 +66,7 @@
  * Prototypes for Open Firmware Interface Routines
  */
 
-typedef	uint32_t	ihandle_t;
+typedef uint32_t	ihandle_t;
 typedef uint32_t	phandle_t;
 typedef uint32_t	pcell_t;
 
@@ -78,7 +78,7 @@ typedef uint32_t	pcell_t;
 MALLOC_DECLARE(M_OFWPROP);
 
 /*
- * Open Firmware interface initialization. OF_install installs the named
+ * Open Firmware interface initialization.  OF_install installs the named
  * interface as the Open Firmware access mechanism, OF_init initializes it.
  */
 
@@ -94,8 +94,8 @@ void		OF_init(void *cookie);
 #define	OFW_FDT		"ofw_fdt"	/* Flattened Device Tree */
 
 /* Generic functions */
-int		OF_test(const char *);
-void		OF_printf(const char *, ...);
+int		OF_test(const char *name);
+void		OF_printf(const char *fmt, ...);
 
 /* Device tree functions */
 phandle_t	OF_peer(phandle_t node);
@@ -104,7 +104,7 @@ phandle_t	OF_parent(phandle_t node);
 ssize_t		OF_getproplen(phandle_t node, const char *propname);
 ssize_t		OF_getprop(phandle_t node, const char *propname, void *buf,
 		    size_t len);
-ssize_t		OF_searchprop(phandle_t node, char *propname, void *buf,
+ssize_t		OF_searchprop(phandle_t node, const char *propname, void *buf,
 		    size_t len);
 ssize_t		OF_getprop_alloc(phandle_t node, const char *propname,
 		    int elsz, void **buf);
@@ -129,7 +129,7 @@ int		OF_call_method(const char *method, ihandle_t instance,
 		    int nargs, int nreturns, ...);
 
 /* Memory functions */
-void 		*OF_claim(void *virtrequest, size_t size, u_int align);
+void		*OF_claim(void *virtrequest, size_t size, u_int align);
 void		OF_release(void *virt, size_t size);
 
 /* Control transfer functions */
@@ -140,4 +140,4 @@ void		OF_exit(void) __attribute__((noreturn));
 int		OF_interpret(const char *cmd, int nreturns, ...);
 
 #endif /* _KERNEL */
-#endif /* _OPENFIRM_H_ */
+#endif /* _DEV_OPENFIRM_H_ */

@@ -29,10 +29,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/socket.h>
+
 #include <sys/event.h>
+#include <sys/socket.h>
 #include <sys/uio.h>
 #include <sys/un.h>
+
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -70,9 +72,10 @@ safe_write(struct nscd_connection_ *connection, const void *data,
 		nevents = kevent(connection->write_queue, NULL, 0, &eventlist,
 	    		1, &timeout);
 		if ((nevents == 1) && (eventlist.filter == EVFILT_WRITE)) {
-			s_result = write(connection->sockfd, data + result,
-				eventlist.data < data_size - result ?
-		    		eventlist.data : data_size - result);
+			s_result = write(connection->sockfd,
+				(char *)data + result,
+				(size_t)eventlist.data < data_size - result ?
+		    		(size_t)eventlist.data : data_size - result);
 			if (s_result == -1)
 				return (-1);
 			else
@@ -106,9 +109,10 @@ safe_read(struct nscd_connection_ *connection, void *data, size_t data_size)
 		nevents = kevent(connection->read_queue, NULL, 0, &eventlist, 1,
 			&timeout);
 		if ((nevents == 1) && (eventlist.filter == EVFILT_READ)) {
-			s_result = read(connection->sockfd, data + result,
-			eventlist.data <= data_size - result ? eventlist.data :
-				data_size - result);
+			s_result = read(connection->sockfd,
+				(char *)data + result,
+				(size_t)eventlist.data <= data_size - result ?
+				(size_t)eventlist.data : data_size - result);
 			if (s_result == -1)
 				return (-1);
 			else
@@ -201,7 +205,7 @@ open_nscd_connection__(struct nscd_connection_params const *params)
 	}
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 
-	retval = calloc(1, sizeof(struct nscd_connection_));
+	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->sockfd = client_socket;

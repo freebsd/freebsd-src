@@ -151,6 +151,12 @@ struct secasvar {
 	struct auth_hash *tdb_authalgxform;	/* authentication algorithm */
 	struct comp_algo *tdb_compalgxform;	/* compression algorithm */
 	u_int64_t tdb_cryptoid;		/* crypto session id */
+
+	/*
+	 * NAT-Traversal.
+	 */
+	u_int16_t natt_type;		/* IKE/ESP-marker in output. */
+	u_int16_t natt_esp_frag_len;	/* MTU for payload fragmentation. */
 };
 
 #define	SECASVAR_LOCK_INIT(_sav) \

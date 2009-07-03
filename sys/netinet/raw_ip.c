@@ -111,7 +111,7 @@ int (*ip_mrouter_get)(struct socket *, struct sockopt *);
 int (*ip_mrouter_done)(void);
 int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
 		   struct ip_moptions *);
-int (*mrt_ioctl)(int, caddr_t, int);
+int (*mrt_ioctl)(u_long, caddr_t, int);
 int (*legal_vif_num)(int);
 u_long (*ip_mcast_src)(int);
 
@@ -678,9 +678,12 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 
 	switch (cmd) {
 	case PRC_IFDOWN:
+		IN_IFADDR_RLOCK();
 		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 			if (ia->ia_ifa.ifa_addr == sa
 			    && (ia->ia_flags & IFA_ROUTE)) {
+				ifa_ref(&ia->ia_ifa);
+				IN_IFADDR_RUNLOCK();
 				/*
 				 * in_ifscrub kills the interface route.
 				 */
@@ -692,18 +695,26 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 				 * routing process they will come back.
 				 */
 				in_ifadown(&ia->ia_ifa, 0);
+				ifa_free(&ia->ia_ifa);
 				break;
 			}
 		}
+		if (ia == NULL)		/* If ia matched, already unlocked. */
+			IN_IFADDR_RUNLOCK();
 		break;
 
 	case PRC_IFUP:
+		IN_IFADDR_RLOCK();
 		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 			if (ia->ia_ifa.ifa_addr == sa)
 				break;
 		}
-		if (ia == 0 || (ia->ia_flags & IFA_ROUTE))
+		if (ia == NULL || (ia->ia_flags & IFA_ROUTE)) {
+			IN_IFADDR_RUNLOCK();
 			return;
+		}
+		ifa_ref(&ia->ia_ifa);
+		IN_IFADDR_RUNLOCK();
 		flags = RTF_UP;
 		ifp = ia->ia_ifa.ifa_ifp;
 
@@ -714,6 +725,7 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		err = rtinit(&ia->ia_ifa, RTM_ADD, flags);
 		if (err == 0)
 			ia->ia_flags |= IFA_ROUTE;
+		ifa_free(&ia->ia_ifa);
 		break;
 	}
 }
@@ -875,7 +887,7 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    (addr->sin_family != AF_INET && addr->sin_family != AF_IMPLINK) ||
 	    (addr->sin_addr.s_addr &&
 	     (inp->inp_flags & INP_BINDANY) == 0 &&
-	     ifa_ifwithaddr((struct sockaddr *)addr) == NULL))
+	     ifa_ifwithaddr_check((struct sockaddr *)addr) == 0))
 		return (EADDRNOTAVAIL);
 
 	INP_INFO_WLOCK(&V_ripcbinfo);

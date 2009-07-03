@@ -274,9 +274,9 @@ kern_execve(td, args, mac_p)
 	struct proc *p = td->td_proc;
 	int error;
 
-	AUDIT_ARG(argv, args->begin_argv, args->argc,
+	AUDIT_ARG_ARGV(args->begin_argv, args->argc,
 	    args->begin_envv - args->begin_argv);
-	AUDIT_ARG(envv, args->begin_envv, args->envc,
+	AUDIT_ARG_ENVV(args->begin_envv, args->envc,
 	    args->endp - args->begin_envv);
 	if (p->p_flag & P_HADTHREADS) {
 		PROC_LOCK(p);
@@ -413,13 +413,13 @@ interpret:
 		binvp  = nd.ni_vp;
 		imgp->vp = binvp;
 	} else {
-		AUDIT_ARG(fd, args->fd);
+		AUDIT_ARG_FD(args->fd);
 		error = fgetvp(td, args->fd, &binvp);
 		if (error)
 			goto exec_fail;
 		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
-		AUDIT_ARG(vnode, binvp, ARG_VNODE1);
+		AUDIT_ARG_VNODE(binvp, ARG_VNODE1);
 		imgp->vp = binvp;
 	}
 
@@ -579,6 +579,7 @@ interpret:
 	 * reset.
 	 */
 	PROC_LOCK(p);
+	oldcred = crcopysafe(p, newcred);
 	if (sigacts_shared(p->p_sigacts)) {
 		oldsigacts = p->p_sigacts;
 		PROC_UNLOCK(p);
@@ -629,7 +630,6 @@ interpret:
 	 * XXXMAC: For the time being, use NOSUID to also prohibit
 	 * transitions on the file system.
 	 */
-	oldcred = p->p_ucred;
 	credential_changing = 0;
 	credential_changing |= (attr.va_mode & S_ISUID) && oldcred->cr_uid !=
 	    attr.va_uid;
@@ -683,7 +683,6 @@ interpret:
 		/*
 		 * Set the new credentials.
 		 */
-		crcopy(newcred, oldcred);
 		if (attr.va_mode & S_ISUID)
 			change_euid(newcred, euip);
 		if (attr.va_mode & S_ISGID)
@@ -723,7 +722,6 @@ interpret:
 		 */
 		if (oldcred->cr_svuid != oldcred->cr_uid ||
 		    oldcred->cr_svgid != oldcred->cr_gid) {
-			crcopy(newcred, oldcred);
 			change_svuid(newcred, newcred->cr_uid);
 			change_svgid(newcred, newcred->cr_gid);
 			p->p_ucred = newcred;

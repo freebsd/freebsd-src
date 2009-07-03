@@ -146,8 +146,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 			kp->ki_rgid = ucred.cr_rgid;
 			kp->ki_svgid = ucred.cr_svgid;
 			kp->ki_ngroups = ucred.cr_ngroups;
-			bcopy(ucred.cr_groups, kp->ki_groups,
-			    NGROUPS * sizeof(gid_t));
+			kp->ki_groups = ucred.cr_groups;
 			kp->ki_uid = ucred.cr_uid;
 			if (ucred.cr_prison != NULL) {
 				if (KREAD(kd, (u_long)ucred.cr_prison, &pr)) {

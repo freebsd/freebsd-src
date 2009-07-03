@@ -178,6 +178,10 @@ int sysctl_handle_intptr(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_string(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
 
+int sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS);
+int sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS);
+int sysctl_dpcpu_quad(SYSCTL_HANDLER_ARGS);
+
 #ifdef VIMAGE
 int sysctl_handle_v_int(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_v_string(SYSCTL_HANDLER_ARGS);
@@ -456,7 +460,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 		break;							\
 	case V_NET:							\
 		cp = (char *)						\
-		    TD_TO_VNET(curthread)->mod_data[oidp->oid_v_mod];	\
+		    TD_TO_VNET(req->td)->mod_data[oidp->oid_v_mod];	\
 		arg1 = cp + (size_t) arg1;				\
 		break;							\
 	case V_PROCG:							\

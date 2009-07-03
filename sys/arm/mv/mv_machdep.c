@@ -358,6 +358,7 @@ void *
 initarm(void *mdp, void *unused __unused)
 {
 	struct pv_addr kernel_l1pt;
+	struct pv_addr dpcpu;
 	vm_offset_t freemempos, l2_start, lastaddr;
 	uint32_t memsize, l2size;
 	struct bi_mem_region *mr;
@@ -479,6 +480,10 @@ initarm(void *mdp, void *unused __unused)
 	 */
 	valloc_pages(systempage, 1);
 
+	/* Allocate dynamic per-cpu area. */
+	valloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
+	dpcpu_init((void *)dpcpu.pv_va, 0);
+
 	/* Allocate stacks for all modes */
 	valloc_pages(irqstack, IRQ_STACK_SIZE);
 	valloc_pages(abtstack, ABT_STACK_SIZE);
@@ -523,9 +528,9 @@ initarm(void *mdp, void *unused __unused)
 	    L2_TABLE_SIZE_REAL * l2size,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 
-	/* Map allocated stacks and msgbuf */
-	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
-	    freemempos - irqstack.pv_va,
+	/* Map allocated DPCPU, stacks and msgbuf */
+	pmap_map_chunk(l1pagetable, dpcpu.pv_va, dpcpu.pv_pa,
+	    freemempos - dpcpu.pv_va,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
 	/* Link and map the vector page */

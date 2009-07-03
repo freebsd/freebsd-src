@@ -29,18 +29,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
+
 #include <assert.h>
-#include <nsswitch.h>
 #include <netdb.h>
-#include <string.h>
+#include <nsswitch.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "../debug.h"
 #include "services.h"
 
 static int services_marshal_func(struct servent *, char *, size_t *);
 static int services_lookup_func(const char *, size_t, char **, size_t *);
-static void *services_mp_init_func();
+static void *services_mp_init_func(void);
 static int services_mp_lookup_func(char **, size_t *, void *);
 static void services_mp_destroy_func(void *);
 
@@ -145,7 +146,7 @@ services_lookup_func(const char *key, size_t key_size, char **buffer,
 	switch (lookup_type) {
 	case nss_lt_name:
 		size = key_size - sizeof(enum nss_lookup_type);
-		name = (char *)calloc(1, size + 1);
+		name = calloc(1, size + 1);
 		assert(name != NULL);
 		memcpy(name, key + sizeof(enum nss_lookup_type), size);
 
@@ -168,7 +169,7 @@ services_lookup_func(const char *key, size_t key_size, char **buffer,
 
 		size = key_size - sizeof(enum nss_lookup_type) - sizeof(int);
 		if (size > 0) {
-			proto = (char *)calloc(1, size + 1);
+			proto = calloc(1, size + 1);
 			assert(proto != NULL);
 			memcpy(proto, key + sizeof(enum nss_lookup_type) +
 				sizeof(int), size);
@@ -195,7 +196,7 @@ services_lookup_func(const char *key, size_t key_size, char **buffer,
 
 	if (result != NULL) {
 		services_marshal_func(result, NULL, buffer_size);
-		*buffer = (char *)malloc(*buffer_size);
+		*buffer = malloc(*buffer_size);
 		assert(*buffer != NULL);
 		services_marshal_func(result, *buffer, buffer_size);
 	}
@@ -205,7 +206,7 @@ services_lookup_func(const char *key, size_t key_size, char **buffer,
 }
 
 static void *
-services_mp_init_func()
+services_mp_init_func(void)
 {
 	TRACE_IN(services_mp_init_func);
 	setservent(0);
@@ -223,7 +224,7 @@ services_mp_lookup_func(char **buffer, size_t *buffer_size, void *mdata)
 	result = getservent();
 	if (result != NULL) {
 		services_marshal_func(result, NULL, buffer_size);
-		*buffer = (char *)malloc(*buffer_size);
+		*buffer = malloc(*buffer_size);
 		assert(*buffer != NULL);
 		services_marshal_func(result, *buffer, buffer_size);
 	}
@@ -240,12 +241,12 @@ services_mp_destroy_func(void *mdata)
 }
 
 struct agent *
-init_services_agent()
+init_services_agent(void)
 {
 	struct common_agent	*retval;
 	TRACE_IN(init_services_agent);
 
-	retval = (struct common_agent *)calloc(1, sizeof(struct common_agent));
+	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent.name = strdup("services");
@@ -259,13 +260,13 @@ init_services_agent()
 }
 
 struct agent *
-init_services_mp_agent()
+init_services_mp_agent(void)
 {
 	struct multipart_agent	*retval;
 
 	TRACE_IN(init_services_mp_agent);
-	retval = (struct multipart_agent *)calloc(1,
-		sizeof(struct multipart_agent));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent.name = strdup("services");

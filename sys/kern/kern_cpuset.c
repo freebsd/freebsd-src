@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/cpuset.h>
 #include <sys/sx.h>
-#include <sys/refcount.h>
 #include <sys/queue.h>
 #include <sys/limits.h>
 #include <sys/bus.h>

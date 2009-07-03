@@ -89,6 +89,8 @@ struct pmap;
 
 #ifdef _KERNEL
 
+extern void *dpcpu0;
+
 struct pcpu;
 
 register struct pcpu *pcpup __asm__(__XSTRING(PCPU_REG));

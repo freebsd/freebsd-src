@@ -398,9 +398,11 @@ dev/aac/aac_debug.c		optional aac
 dev/aac/aac_disk.c		optional aac
 dev/aac/aac_linux.c		optional aac compat_linux
 dev/aac/aac_pci.c		optional aac pci
+dev/acpi_support/acpi_wmi.c	optional acpi_wmi acpi
 dev/acpi_support/acpi_aiboost.c	optional acpi_aiboost acpi
 dev/acpi_support/acpi_asus.c	optional acpi_asus acpi
 dev/acpi_support/acpi_fujitsu.c	optional acpi_fujitsu acpi
+dev/acpi_support/acpi_hp.c	optional acpi_hp acpi
 dev/acpi_support/acpi_ibm.c	optional acpi_ibm acpi
 dev/acpi_support/acpi_panasonic.c optional acpi_panasonic acpi
 dev/acpi_support/acpi_sony.c	optional acpi_sony acpi
@@ -487,14 +489,14 @@ dev/asr/asr.c			optional asr pci
 #
 dev/ata/ata_if.m		optional ata | atacore
 dev/ata/ata-all.c		optional ata | atacore
+dev/ata/ata-dma.c		optional ata | atacore
 dev/ata/ata-lowlevel.c		optional ata | atacore
 dev/ata/ata-queue.c		optional ata | atacore
+dev/ata/ata-sata.c		optional ata | atacore
 dev/ata/ata-card.c		optional ata pccard | atapccard
 dev/ata/ata-cbus.c		optional ata pc98 | atapc98
 dev/ata/ata-isa.c		optional ata isa | ataisa
 dev/ata/ata-pci.c		optional ata pci | atapci
-dev/ata/ata-dma.c		optional ata pci | atapci
-dev/ata/ata-sata.c		optional ata pci | atapci
 dev/ata/chipsets/ata-ahci.c	optional ata pci | ataahci | ataacerlabs | \
 					 ataati | ataintel | atajmicron | atavia
 dev/ata/chipsets/ata-acard.c	optional ata pci | ataacard
@@ -738,6 +740,7 @@ dev/bwi/if_bwi_pci.c		optional bwi pci
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
+dev/cas/if_cas.c		optional cas
 dev/cfi/cfi_core.c		optional cfi
 dev/cfi/cfi_dev.c		optional cfi
 dev/cfi/cfi_disk.c		optional cfid
@@ -754,8 +757,6 @@ dev/cxgb/cxgb_main.c		optional cxgb pci \
 dev/cxgb/cxgb_offload.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_sge.c		optional cxgb pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgb"
-dev/cxgb/cxgb_multiq.c		optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_mc5.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
@@ -774,8 +775,6 @@ dev/cxgb/common/cxgb_t3_hw.c	optional cxgb pci \
 dev/cxgb/common/cxgb_tn1010.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"	
 dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgb"
-dev/cxgb/sys/cxgb_support.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
@@ -925,6 +924,7 @@ dev/flash/mx25l.c		optional mx25l
 dev/fxp/if_fxp.c		optional fxp inet
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
+dev/gem/if_gem_sbus.c		optional gem sbus
 dev/hatm/if_hatm.c		optional hatm pci
 dev/hatm/if_hatm_intr.c		optional hatm pci
 dev/hatm/if_hatm_ioctl.c	optional hatm pci
@@ -1209,12 +1209,12 @@ mwlboot.fw		optional mwlfw					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/mwl/mwlboot.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"mwlboot.fw"
-dev/mxge/if_mxge.c		optional mxge pci inet
-dev/mxge/mxge_lro.c		optional mxge pci inet
-dev/mxge/mxge_eth_z8e.c		optional mxge pci inet
-dev/mxge/mxge_ethp_z8e.c	optional mxge pci inet
-dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci inet
-dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci inet
+dev/mxge/if_mxge.c		optional mxge pci
+dev/mxge/mxge_lro.c		optional mxge pci
+dev/mxge/mxge_eth_z8e.c		optional mxge pci
+dev/mxge/mxge_ethp_z8e.c	optional mxge pci
+dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci
+dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
@@ -1853,6 +1853,7 @@ geom/label/g_label_msdosfs.c	optional geom_label
 geom/label/g_label_ntfs.c	optional geom_label
 geom/label/g_label_reiserfs.c	optional geom_label
 geom/label/g_label_ufs.c	optional geom_label
+geom/label/g_label_gpt.c	optional geom_label
 geom/linux_lvm/g_linux_lvm.c	optional geom_linux_lvm
 geom/mirror/g_mirror.c		optional geom_mirror
 geom/mirror/g_mirror_ctl.c	optional geom_mirror
@@ -2333,6 +2334,7 @@ netgraph/ng_mppc.c		optional netgraph_mppc_compression | \
 netgraph/ng_nat.c		optional netgraph_nat inet libalias
 netgraph/ng_one2many.c		optional netgraph_one2many
 netgraph/ng_parse.c		optional netgraph
+netgraph/ng_pipe.c		optional netgraph_pipe
 netgraph/ng_ppp.c		optional netgraph_ppp
 netgraph/ng_pppoe.c		optional netgraph_pppoe
 netgraph/ng_pptpgre.c		optional netgraph_pptpgre
@@ -2489,7 +2491,6 @@ nfsclient/krpc_subr.c		optional bootp nfsclient
 nfsclient/nfs_bio.c		optional nfsclient
 nfsclient/nfs_diskless.c	optional nfsclient nfs_root
 nfsclient/nfs_node.c		optional nfsclient
-nfsclient/nfs_socket.c		optional nfsclient
 nfsclient/nfs_krpc.c		optional nfsclient
 nfsclient/nfs_subs.c		optional nfsclient
 nfsclient/nfs_nfsiod.c		optional nfsclient
@@ -2499,10 +2500,7 @@ nfsclient/nfs_lock.c		optional nfsclient
 nfsserver/nfs_fha.c		optional nfsserver
 nfsserver/nfs_serv.c		optional nfsserver
 nfsserver/nfs_srvkrpc.c		optional nfsserver
-nfsserver/nfs_srvsock.c		optional nfsserver
-nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
-nfsserver/nfs_syscalls.c	optional nfsserver
 nfs/nfs_nfssvc.c		optional nfsserver | nfscl | nfsd
 nlm/nlm_advlock.c		optional nfslockd nfsclient | nfsd nfsclient
 nlm/nlm_prot_clnt.c		optional nfslockd | nfsd

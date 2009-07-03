@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 
 #include "acl_support.h"
 
@@ -48,6 +50,37 @@ __FBSDID("$FreeBSD$");
 #define ACL_STRING_PERM_EXEC    'x'
 #define ACL_STRING_PERM_NONE    '-'
 
+/*
+ * Return 0, if both ACLs are identical.
+ */
+int
+_acl_differs(const acl_t a, const acl_t b)
+{
+	int i;
+	struct acl_entry *entrya, *entryb;
+
+	assert(_acl_brand(a) == _acl_brand(b));
+	assert(_acl_brand(a) != ACL_BRAND_UNKNOWN);
+	assert(_acl_brand(b) != ACL_BRAND_UNKNOWN);
+
+	if (a->ats_acl.acl_cnt != b->ats_acl.acl_cnt)
+		return (1);
+
+	for (i = 0; i < b->ats_acl.acl_cnt; i++) {
+		entrya = &(a->ats_acl.acl_entry[i]);
+		entryb = &(b->ats_acl.acl_entry[i]);
+
+		if (entrya->ae_tag != entryb->ae_tag ||
+		    entrya->ae_id != entryb->ae_id ||
+		    entrya->ae_perm != entryb->ae_perm ||
+		    entrya->ae_entry_type != entryb->ae_entry_type ||
+		    entrya->ae_flags != entryb->ae_flags)
+			return (1);
+	}
+
+	return (0);
+}
+		    
 /*
  * _posix1e_acl_entry_compare -- compare two acl_entry structures to
  * determine the order they should appear in.  Used by _posix1e_acl_sort to
@@ -59,6 +92,10 @@ typedef int (*compare)(const void *, const void *);
 static int
 _posix1e_acl_entry_compare(struct acl_entry *a, struct acl_entry *b)
 {
+
+	assert(_entry_brand(a) == ACL_BRAND_POSIX);
+	assert(_entry_brand(b) == ACL_BRAND_POSIX);
+
 	/*
 	 * First, sort between tags -- conveniently defined in the correct
 	 * order for verification.
@@ -115,6 +152,9 @@ _posix1e_acl_sort(acl_t acl)
 int
 _posix1e_acl(acl_t acl, acl_type_t type)
 {
+
+	if (_acl_brand(acl) != ACL_BRAND_POSIX)
+		return (0);
 
 	return ((type == ACL_TYPE_ACCESS) || (type == ACL_TYPE_DEFAULT));
 }
@@ -243,7 +283,8 @@ _posix1e_acl_check(acl_t acl)
  * MAY HAVE SIDE-EFFECTS
  */
 int
-_posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
+_posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf,
+    int flags)
 {
 	struct group	*g;
 	struct passwd	*p;
@@ -251,7 +292,10 @@ _posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
 
 	switch(tag) {
 	case ACL_USER:
-		p = getpwuid(id);
+		if (flags & ACL_TEXT_NUMERIC_IDS)
+			p = NULL;
+		else
+			p = getpwuid(id);
 		if (!p)
 			i = snprintf(buf, buf_len, "%d", id);
 		else
@@ -264,7 +308,10 @@ _posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
 		return (0);
 
 	case ACL_GROUP:
-		g = getgrgid(id);
+		if (flags & ACL_TEXT_NUMERIC_IDS)
+			g = NULL;
+		else
+			g = getgrgid(id);
 		if (g == NULL) 
 			i = snprintf(buf, buf_len, "%d", id);
 		else
@@ -379,21 +426,52 @@ _posix1e_acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id, acl_perm_t perm)
 
 /*
  * Convert "old" type - ACL_TYPE_{ACCESS,DEFAULT}_OLD - into its "new"
- * counterpart.  It's neccessary for the old (pre-NFS4 ACLs) binaries
+ * counterpart.  It's neccessary for the old (pre-NFSv4 ACLs) binaries
  * to work with new libc and kernel.  Fixing 'type' for old binaries with
  * old libc and new kernel is being done by kern/vfs_acl.c:type_unold().
  */
 int
 _acl_type_unold(acl_type_t type)
 {
+
 	switch (type) {
 	case ACL_TYPE_ACCESS_OLD:
 		return (ACL_TYPE_ACCESS);
-
 	case ACL_TYPE_DEFAULT_OLD:
 		return (ACL_TYPE_DEFAULT);
-
 	default:
 		return (type);
 	}
+}
+
+char *
+string_skip_whitespace(char *string)
+{
+
+	while (*string && ((*string == ' ') || (*string == '\t')))
+		string++;
+
+	return (string);
+}
+
+void
+string_trim_trailing_whitespace(char *string)
+{
+	char	*end;
+
+	if (*string == '\0')
+		return;
+
+	end = string + strlen(string) - 1;
+
+	while (end != string) {
+		if ((*end == ' ') || (*end == '\t')) {
+			*end = '\0';
+			end--;
+		} else {
+			return;
+		}
+	}
+
+	return;
 }

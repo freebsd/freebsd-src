@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -74,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <rpc/replay.h>
 
 #include <nfs/xdr_subs.h>
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsserver/nfs.h>
 #include <nfsserver/nfsm_subs.h>
@@ -82,8 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfs_fha.h>
 
 #include <security/mac/mac_framework.h>
-
-#ifndef NFS_LEGACYRPC
 
 static MALLOC_DEFINE(M_NFSSVC, "nfss_srvsock", "Nfs server structure");
 
@@ -466,6 +464,7 @@ nfssvc_addsock(struct file *fp, struct thread *td)
 		fp->f_data = NULL;
 		svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program, NULL);
 		svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program, NULL);
+		SVC_RELEASE(xprt);
 	}
 
 	return (0);
@@ -605,5 +604,3 @@ nfsrv_init(int terminating)
 
 	NFSD_LOCK();
 }
-
-#endif /* !NFS_LEGACYRPC */

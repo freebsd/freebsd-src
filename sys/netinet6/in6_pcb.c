@@ -123,7 +123,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	if (!V_in6_ifaddr) /* XXX broken! */
+	if (TAILQ_EMPTY(&V_in6_ifaddrhead))	/* XXX broken! */
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
@@ -162,10 +162,11 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			if (so->so_options & SO_REUSEADDR)
 				reuseport = SO_REUSEADDR|SO_REUSEPORT;
 		} else if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
-			struct ifaddr *ia;
+			struct ifaddr *ifa;
 
 			sin6->sin6_port = 0;		/* yech... */
-			if ((ia = ifa_ifwithaddr((struct sockaddr *)sin6)) == NULL &&
+			if ((ifa = ifa_ifwithaddr((struct sockaddr *)sin6)) ==
+			    NULL &&
 			    (inp->inp_flags & INP_BINDANY) == 0) {
 				return (EADDRNOTAVAIL);
 			}
@@ -176,11 +177,14 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			 * We should allow to bind to a deprecated address, since
 			 * the application dares to use it.
 			 */
-			if (ia &&
-			    ((struct in6_ifaddr *)ia)->ia6_flags &
+			if (ifa != NULL &&
+			    ((struct in6_ifaddr *)ifa)->ia6_flags &
 			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|IN6_IFF_DETACHED)) {
+				ifa_free(ifa);
 				return (EADDRNOTAVAIL);
 			}
+			if (ifa != NULL)
+				ifa_free(ifa);
 		}
 		if (lport) {
 			struct inpcb *t;
@@ -285,13 +289,14 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
  */
 int
 in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
-    struct in6_addr **plocal_addr6)
+    struct in6_addr *plocal_addr6)
 {
 	INIT_VNET_INET6(inp->inp_vnet);
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	int error = 0;
 	struct ifnet *ifp = NULL;
 	int scope_ambiguous = 0;
+	struct in6_addr in6a;
 
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
@@ -308,7 +313,7 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
 		return(error);
 
-	if (V_in6_ifaddr) {
+	if (!TAILQ_EMPTY(&V_in6_ifaddrhead)) {
 		/*
 		 * If the destination address is UNSPECIFIED addr,
 		 * use the loopback addr, e.g ::1.
@@ -319,25 +324,25 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
 		return (error);
 
-	/*
-	 * XXX: in6_selectsrc might replace the bound local address
-	 * with the address specified by setsockopt(IPV6_PKTINFO).
-	 * Is it the intended behavior?
-	 */
-	*plocal_addr6 = in6_selectsrc(sin6, inp->in6p_outputopts,
-				      inp, NULL,
-				      inp->inp_cred,
-				      &ifp, &error);
+	error = in6_selectsrc(sin6, inp->in6p_outputopts,
+	    inp, NULL, inp->inp_cred, &ifp, &in6a);
+	if (error)
+		return (error);
+
 	if (ifp && scope_ambiguous &&
 	    (error = in6_setscope(&sin6->sin6_addr, ifp, NULL)) != 0) {
 		return(error);
 	}
 
-	if (*plocal_addr6 == NULL) {
-		if (error == 0)
-			error = EADDRNOTAVAIL;
-		return (error);
-	}
+	/*
+	 * Do not update this earlier, in case we return with an error.
+	 *
+	 * XXX: this in6_selectsrc result might replace the bound local
+	 * aaddress with the address specified by setsockopt(IPV6_PKTINFO).
+	 * Is it the intended behavior?
+	 */
+	*plocal_addr6 = in6a;
+
 	/*
 	 * Don't do pcblookup call here; return interface in
 	 * plocal_addr6
@@ -358,8 +363,8 @@ int
 in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
     struct ucred *cred)
 {
-	struct in6_addr *addr6;
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
+	struct in6_addr addr6;
 	int error;
 
 	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
@@ -375,7 +380,7 @@ in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
 	if (in6_pcblookup_hash(inp->inp_pcbinfo, &sin6->sin6_addr,
 			       sin6->sin6_port,
 			      IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)
-			      ? addr6 : &inp->in6p_laddr,
+			      ? &addr6 : &inp->in6p_laddr,
 			      inp->inp_lport, 0, NULL) != NULL) {
 		return (EADDRINUSE);
 	}
@@ -385,7 +390,7 @@ in6_pcbconnect(register struct inpcb *inp, struct sockaddr *nam,
 			if (error)
 				return (error);
 		}
-		inp->in6p_laddr = *addr6;
+		inp->in6p_laddr = addr6;
 	}
 	inp->in6p_faddr = sin6->sin6_addr;
 	inp->inp_fport = sin6->sin6_port;

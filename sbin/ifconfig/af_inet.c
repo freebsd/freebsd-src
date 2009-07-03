@@ -130,7 +130,7 @@ in_getaddr(const char *s, int which)
 		return;
 	if ((hp = gethostbyname(s)) != 0)
 		bcopy(hp->h_addr, (char *)&sin->sin_addr, 
-		    MIN(hp->h_length, sizeof(sin->sin_addr)));
+		    MIN((size_t)hp->h_length, sizeof(sin->sin_addr)));
 	else if ((np = getnetbyname(s)) != 0)
 		sin->sin_addr = inet_makeaddr(np->n_net, INADDR_ANY);
 	else

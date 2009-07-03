@@ -575,20 +575,4 @@
 #define	VIA_CRYPT_CWLO_KEY192		0x0000040c	/* 192bit, 12 rds */
 #define	VIA_CRYPT_CWLO_KEY256		0x0000080e	/* 256bit, 15 rds */
 
-#ifndef LOCORE
-static __inline u_char
-read_cyrix_reg(u_char reg)
-{
-	outb(0x22, reg);
-	return inb(0x23);
-}
-
-static __inline void
-write_cyrix_reg(u_char reg, u_char data)
-{
-	outb(0x22, reg);
-	outb(0x23, data);
-}
-#endif
-
 #endif /* !_MACHINE_SPECIALREG_H_ */

@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <dirent.h>
 #include <err.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1002,7 +1003,7 @@ main(int argc, char **argv)
 				char *sep = strchr(locale, '_');
 				if (sep != NULL && isupper(sep[1]) &&
 				    isupper(sep[2])) {
-					asprintf(&lang_locale, "%.*s%s", sep - locale, locale, &sep[3]);
+					asprintf(&lang_locale, "%.*s%s", (int)(ptrdiff_t)(sep - locale), locale, &sep[3]);
 				}
 			}
 			break;

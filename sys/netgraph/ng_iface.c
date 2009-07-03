@@ -382,7 +382,8 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	/* Protect from deadly infinite recursion. */
-	while ((mtag = m_tag_locate(m, MTAG_NGIF, MTAG_NGIF_CALLED, NULL))) {
+	mtag = NULL;
+	while ((mtag = m_tag_locate(m, MTAG_NGIF, MTAG_NGIF_CALLED, mtag))) {
 		if (*(struct ifnet **)(mtag + 1) == ifp) {
 			log(LOG_NOTICE, "Loop detected on %s\n", ifp->if_xname);
 			m_freem(m);
@@ -683,7 +684,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			struct ifaddr *ifa;
 
 			/* Return the first configured IP address */
-			IF_ADDR_LOCK(ifp);
+			if_addr_rlock(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				struct ng_cisco_ipaddr *ips;
 
@@ -701,7 +702,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 						ifa->ifa_netmask)->sin_addr;
 				break;
 			}
-			IF_ADDR_UNLOCK(ifp);
+			if_addr_runlock(ifp);
 
 			/* No IP addresses on this interface? */
 			if (ifa == NULL)

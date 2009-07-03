@@ -443,7 +443,7 @@ fw_write_async(struct fw_drv1 *d, struct uio *uio, int ioflag)
 	xfer->send.pay_len = uio->uio_resid;
 	if (uio->uio_resid > 0) {
 		if ((err = uiomove((caddr_t)&xfer->send.payload[0],
-		    uio->uio_resid, uio)));
+		    uio->uio_resid, uio)))
 			goto out;
 	}
 

@@ -60,6 +60,12 @@ typedef	struct _cpuset {
 		(p)->__bits[__i] = 0;			\
 } while (0)
 
+#define	CPU_FILL(p) do {				\
+	__size_t __i;					\
+	for (__i = 0; __i < _NCPUWORDS; __i++)		\
+		(p)->__bits[__i] = -1;			\
+} while (0)
+
 /* Is p empty. */
 #define	CPU_EMPTY(p) __extension__ ({			\
 	__size_t __i;					\

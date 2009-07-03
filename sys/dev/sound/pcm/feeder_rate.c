@@ -789,13 +789,11 @@ z_resampler_sinc_len(struct z_info *info)
     defined(Z_COEFF_INTER_BSPLINE) || defined(Z_COEFF_INTERP_OPT32X) ||		\
     defined(Z_COEFF_INTERP_OPT16X) || defined(Z_COEFF_INTERP_OPT8X) ||		\
     defined(Z_COEFF_INTERP_OPT4X) || defined(Z_COEFF_INTERP_OPT2X))
-#if Z_DRIFT_SHIFT >= 8
+#if Z_DRIFT_SHIFT >= 12
 #define Z_COEFF_INTERP_LINEAR		1
-#elif Z_DRIFT_SHIFT == 7
+#elif Z_DRIFT_SHIFT >= 8
 #define Z_COEFF_INTERP_QUADRATIC	1
-#elif Z_DRIFT_SHIFT == 6
-#define Z_COEFF_INTERP_HERMITE		1
-#elif Z_DRIFT_SHIFT == 5
+#elif Z_DRIFT_SHIFT >= 5
 #define Z_COEFF_INTERP_OPT32X		1
 #elif Z_DRIFT_SHIFT == 4
 #define Z_COEFF_INTERP_OPT16X		1
@@ -1666,11 +1664,10 @@ z_resampler_feed_internal(struct pcm_feeder *f, struct pcm_channel *c,
 			 *
 			 * Notice that there are 2 methods of doing the drift
 			 * operations: The former is much cleaner (in a sense
-			 * sense of mathematical readings of my eyes), but
-			 * slower due to integer division in z_gy2gx().
-			 * Nevertheless, both should give the same exact
-			 * accurate drifting results, so the later is
-			 * favourable.
+			 * of mathematical readings of my eyes), but slower
+			 * due to integer division in z_gy2gx(). Nevertheless,
+			 * both should give the same exact accurate drifting
+			 * results, so the later is favourable.
 			 */
 			do {
 				info->z_resample(info, dst);

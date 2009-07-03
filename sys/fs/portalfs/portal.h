@@ -43,7 +43,7 @@ struct portal_cred {
 	int		pcr_flag;		/* File open mode */
 	uid_t		pcr_uid;		/* From ucred */
 	short		pcr_ngroups;		/* From ucred */
-	gid_t		pcr_groups[NGROUPS];	/* From ucred */
+	gid_t		pcr_groups[XU_NGROUPS];	/* From ucred */
 };
 
 #ifdef _KERNEL

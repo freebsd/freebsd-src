@@ -10375,13 +10375,6 @@ sctp_send_nr_sack(struct sctp_tcb *stcb)
 		nr_sack->ch.chunk_flags |= (asoc->cmt_dac_pkts_rcvd << 6);
 		asoc->cmt_dac_pkts_rcvd = 0;
 	}
-	/*
-	 * EY - this is a never reneging receiver, that makes all gaps are
-	 * nr-gaps, set the All bit
-	 */
-	if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
-		nr_sack->ch.chunk_flags |= SCTP_NR_SACK_ALL_BIT;
-	}
 #ifdef SCTP_ASOCLOG_OF_TSNS
 	stcb->asoc.cumack_logsnt[stcb->asoc.cumack_log_atsnt] = asoc->cumulative_tsn;
 	stcb->asoc.cumack_log_atsnt++;

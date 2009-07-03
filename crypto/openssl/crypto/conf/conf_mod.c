@@ -1,5 +1,5 @@
 /* conf_mod.c */
-/* Written by Stephen Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Stephen Henson (steve@openssl.org) for the OpenSSL
  * project 2001.
  */
 /* ====================================================================
@@ -126,17 +126,18 @@ int CONF_modules_load(const CONF *cnf, const char *appname,
 	{
 	STACK_OF(CONF_VALUE) *values;
 	CONF_VALUE *vl;
-	char *vsection;
+	char *vsection = NULL;
 
 	int ret, i;
 
 	if (!cnf)
 		return 1;
 
-	if (appname == NULL)
-		appname = "openssl_conf";
+	if (appname)
+		vsection = NCONF_get_string(cnf, NULL, appname);
 
-	vsection = NCONF_get_string(cnf, NULL, appname); 
+	if (!appname || (!vsection && (flags & CONF_MFLAGS_DEFAULT_SECTION)))
+		vsection = NCONF_get_string(cnf, NULL, "openssl_conf");
 
 	if (!vsection)
 		{
@@ -431,7 +432,7 @@ void CONF_modules_unload(int all)
 		if (((md->links > 0) || !md->dso) && !all)
 			continue;
 		/* Since we're working in reverse this is OK */
-		sk_CONF_MODULE_delete(supported_modules, i);
+		(void)sk_CONF_MODULE_delete(supported_modules, i);
 		module_free(md);
 		}
 	if (sk_CONF_MODULE_num(supported_modules) == 0)

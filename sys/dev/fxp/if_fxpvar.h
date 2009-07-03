@@ -142,6 +142,13 @@ struct fxp_desc_list {
 	bus_dma_tag_t rx_tag;
 };
 
+struct fxp_ident {
+	uint16_t	devid;
+	int16_t		revid;		/* -1 matches anything */
+	uint8_t		ich;
+	char 		*name;
+};
+
 /*
  * NOTE: Elements are ordered for optimal cacheline behavior, and NOT
  *	 for functional grouping.
@@ -151,8 +158,10 @@ struct fxp_softc {
 	struct resource	*fxp_res[2];	/* I/O and IRQ resources */
 	struct resource_spec *fxp_spec;	/* the resource spec we used */
 	void *ih;			/* interrupt handler cookie */
+	struct fxp_ident *ident;
 	struct mtx sc_mtx;
-	bus_dma_tag_t fxp_mtag;		/* bus DMA tag for mbufs */
+	bus_dma_tag_t fxp_txmtag;	/* bus DMA tag for Tx mbufs */
+	bus_dma_tag_t fxp_rxmtag;	/* bus DMA tag for Rx mbufs */
 	bus_dma_tag_t fxp_stag;		/* bus DMA tag for stats */
 	bus_dmamap_t fxp_smap;		/* bus DMA map for stats */
 	bus_dma_tag_t cbl_tag;		/* DMA tag for the TxCB list */
@@ -164,7 +173,6 @@ struct fxp_softc {
 	int maxtxseg;			/* maximum # of TX segments */
 	int maxsegsize;			/* maximum size of a TX segment */
 	int tx_queued;			/* # of active TxCB's */
-	int need_mcsetup;		/* multicast filter needs programming */
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
 	uint32_t stats_addr;		/* DMA address of the stats structure */
 	int rx_idle_secs;		/* # of seconds RX has been idle */
@@ -184,6 +192,7 @@ struct fxp_softc {
 	int cu_resume_bug;
 	int revision;
 	int flags;
+	int if_flags;
 	uint8_t rfa_size;
 	uint32_t tx_cmd;
 };
@@ -194,7 +203,6 @@ struct fxp_softc {
 #define FXP_FLAG_EXT_TXCB	0x0008	/* enable use of extended TXCB */
 #define FXP_FLAG_SERIAL_MEDIA	0x0010	/* 10Mbps serial interface */
 #define FXP_FLAG_LONG_PKT_EN	0x0020	/* enable long packet reception */
-#define FXP_FLAG_ALL_MCAST	0x0040	/* accept all multicast frames */
 #define FXP_FLAG_CU_RESUME_BUG	0x0080	/* requires workaround for CU_RESUME */
 #define FXP_FLAG_UCODE		0x0100	/* ucode is loaded */
 #define FXP_FLAG_DEFERRED_RNR	0x0200	/* DEVICE_POLLING deferred RNR */
@@ -203,6 +211,7 @@ struct fxp_softc {
 #define FXP_FLAG_82559_RXCSUM	0x1000	/* 82559 compatible RX checksum */
 #define FXP_FLAG_WOLCAP		0x2000	/* WOL capability */
 #define FXP_FLAG_WOL		0x4000	/* WOL active */
+#define FXP_FLAG_RXBUG		0x8000	/* Rx lock-up bug */
 
 /* Macros to ease CSR access. */
 #define	CSR_READ_1(sc, reg)		bus_read_1(sc->fxp_res[0], reg)

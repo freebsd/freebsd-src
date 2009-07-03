@@ -633,6 +633,8 @@ mprotect(td, uap)
 		return (0);
 	case KERN_PROTECTION_FAILURE:
 		return (EACCES);
+	case KERN_RESOURCE_SHORTAGE:
+		return (ENOMEM);
 	}
 	return (EINVAL);
 }
@@ -1208,7 +1210,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	objsize = round_page(va.va_size);
 	if (va.va_nlink == 0)
 		flags |= MAP_NOSYNC;
-	obj = vm_pager_allocate(OBJT_VNODE, vp, objsize, prot, foff);
+	obj = vm_pager_allocate(OBJT_VNODE, vp, objsize, prot, foff, td->td_ucred);
 	if (obj == NULL) {
 		error = ENOMEM;
 		goto done;
@@ -1289,7 +1291,8 @@ vm_mmap_cdev(struct thread *td, vm_size_t objsize,
 	dev_relthread(cdev);
 	if (error != ENODEV)
 		return (error);
-	obj = vm_pager_allocate(OBJT_DEVICE, cdev, objsize, prot, *foff);
+	obj = vm_pager_allocate(OBJT_DEVICE, cdev, objsize, prot, *foff,
+	    td->td_ucred);
 	if (obj == NULL)
 		return (EINVAL);
 	*objp = obj;

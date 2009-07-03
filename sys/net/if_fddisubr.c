@@ -222,6 +222,7 @@ fddi_output(ifp, m, dst, ro)
 	    } else {
 		type = htons(ETHERTYPE_AT);
 	    }
+	    ifa_free(&aa->aa_ifa);
 	    break;
 	}
 #endif /* NETATALK */
@@ -617,7 +618,7 @@ fddi_ifdetach(ifp, bpf)
 int
 fddi_ioctl (ifp, command, data)
 	struct ifnet *ifp;
-	int command;
+	u_long command;
 	caddr_t data;
 {
 	struct ifaddr *ifa;

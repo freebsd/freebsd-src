@@ -692,7 +692,7 @@ mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
 	kdh->dumplength = htod64(dumplen);
 	kdh->dumptime = htod64(time_second);
 	kdh->blocksize = htod32(blksz);
-	strncpy(kdh->hostname, prison0.pr_host, sizeof(kdh->hostname));
+	strncpy(kdh->hostname, prison0.pr_hostname, sizeof(kdh->hostname));
 	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
 	if (panicstr != NULL)
 		strncpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));

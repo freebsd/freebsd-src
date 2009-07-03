@@ -1,5 +1,5 @@
 /* x509v3.h */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */
 /* ====================================================================
@@ -363,6 +363,8 @@ DECLARE_ASN1_FUNCTIONS(PROXY_CERT_INFO_EXTENSION)
 #define EXFLAG_NSCERT		0x8
 
 #define EXFLAG_CA		0x10
+/* Really self issued not necessarily self signed */
+#define EXFLAG_SI		0x20
 #define EXFLAG_SS		0x20
 #define EXFLAG_V1		0x40
 #define EXFLAG_INVALID		0x80
@@ -370,7 +372,7 @@ DECLARE_ASN1_FUNCTIONS(PROXY_CERT_INFO_EXTENSION)
 #define EXFLAG_CRITICAL		0x200
 #define EXFLAG_PROXY		0x400
 
-#define EXFLAG_INVALID_POLICY	0x400
+#define EXFLAG_INVALID_POLICY	0x800
 
 #define KU_DIGITAL_SIGNATURE	0x0080
 #define KU_NON_REPUDIATION	0x0040
@@ -617,6 +619,7 @@ int X509_PURPOSE_get_id(X509_PURPOSE *);
 STACK *X509_get1_email(X509 *x);
 STACK *X509_REQ_get1_email(X509_REQ *x);
 void X509_email_free(STACK *sk);
+STACK *X509_get1_ocsp(X509 *x);
 
 ASN1_OCTET_STRING *a2i_IPADDRESS(const char *ipasc);
 ASN1_OCTET_STRING *a2i_IPADDRESS_NC(const char *ipasc);

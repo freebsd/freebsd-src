@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_QUIRK_H_
-#define	_USB2_QUIRK_H_
+#ifndef _USB_QUIRK_H_
+#define	_USB_QUIRK_H_
 
 /* NOTE: UQ_NONE is not a valid quirk */
 enum {	/* keep in sync with usb_quirk_str table */
@@ -56,4 +56,6 @@ enum {	/* keep in sync with usb_quirk_str table */
 	USB_QUIRK_MAX
 };
 
-#endif					/* _USB2_QUIRK_H_ */
+uint8_t	usb_test_quirk(const struct usb_attach_arg *uaa, uint16_t quirk);
+
+#endif					/* _USB_QUIRK_H_ */

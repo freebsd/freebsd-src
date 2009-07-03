@@ -631,7 +631,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 }
 
 int
-firewire_ioctl(struct ifnet *ifp, int command, caddr_t data)
+firewire_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;

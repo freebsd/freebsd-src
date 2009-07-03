@@ -166,7 +166,7 @@ int
 svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
 {
 	struct ucred *cr = NULL;
-	int flavor, i;
+	int flavor;
 	struct xucred *xcr;
 
 	flavor = rqst->rq_cred.oa_flavor;
@@ -178,9 +178,7 @@ svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
 		xcr = (struct xucred *) rqst->rq_clntcred;
 		cr = crget();
 		cr->cr_uid = cr->cr_ruid = cr->cr_svuid = xcr->cr_uid;
-		cr->cr_ngroups = xcr->cr_ngroups;
-		for (i = 0; i < xcr->cr_ngroups; i++)
-			cr->cr_groups[i] = xcr->cr_groups[i];
+		crsetgroups(cr, xcr->cr_ngroups, xcr->cr_groups);
 		cr->cr_rgid = cr->cr_svgid = cr->cr_groups[0];
 		cr->cr_prison = &prison0;
 		prison_hold(cr->cr_prison);

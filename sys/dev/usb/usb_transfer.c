@@ -24,11 +24,31 @@
  * SUCH DAMAGE.
  */ 
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
 
-#define	USB_DEBUG_VAR usb2_debug
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+
+#define	USB_DEBUG_VAR usb_debug
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
@@ -41,7 +61,7 @@
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 
-struct usb2_std_packet_size {
+struct usb_std_packet_size {
 	struct {
 		uint16_t min;		/* inclusive */
 		uint16_t max;		/* inclusive */
@@ -50,9 +70,9 @@ struct usb2_std_packet_size {
 	uint16_t fixed[4];
 };
 
-static usb_callback_t usb2_request_callback;
+static usb_callback_t usb_request_callback;
 
-static const struct usb_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
+static const struct usb_config usb_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 
 	/* This transfer is used for generic control endpoint transfers */
 
@@ -62,7 +82,7 @@ static const struct usb_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 		.direction = UE_DIR_ANY,
 		.bufsize = USB_EP0_BUFSIZE,	/* bytes */
 		.flags = {.proxy_buffer = 1,},
-		.callback = &usb2_request_callback,
+		.callback = &usb_request_callback,
 		.usb_mode = USB_MODE_DUAL,	/* both modes */
 	},
 
@@ -73,7 +93,7 @@ static const struct usb_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
 		.bufsize = sizeof(struct usb_device_request),
-		.callback = &usb2_do_clear_stall_callback,
+		.callback = &usb_do_clear_stall_callback,
 		.timeout = 1000,	/* 1 second */
 		.interval = 50,	/* 50ms */
 		.usb_mode = USB_MODE_HOST,
@@ -82,39 +102,39 @@ static const struct usb_config usb2_control_ep_cfg[USB_DEFAULT_XFER_MAX] = {
 
 /* function prototypes */
 
-static void	usb2_update_max_frame_size(struct usb_xfer *);
-static void	usb2_transfer_unsetup_sub(struct usb_xfer_root *, uint8_t);
-static void	usb2_control_transfer_init(struct usb_xfer *);
-static uint8_t	usb2_start_hardware_sub(struct usb_xfer *);
-static void	usb2_callback_proc(struct usb_proc_msg *);
-static void	usb2_callback_ss_done_defer(struct usb_xfer *);
-static void	usb2_callback_wrapper(struct usb_xfer_queue *);
-static void	usb2_dma_delay_done_cb(void *);
-static void	usb2_transfer_start_cb(void *);
-static uint8_t	usb2_callback_wrapper_sub(struct usb_xfer *);
-static void	usb2_get_std_packet_size(struct usb2_std_packet_size *ptr, 
+static void	usbd_update_max_frame_size(struct usb_xfer *);
+static void	usbd_transfer_unsetup_sub(struct usb_xfer_root *, uint8_t);
+static void	usbd_control_transfer_init(struct usb_xfer *);
+static int	usbd_setup_ctrl_transfer(struct usb_xfer *);
+static void	usb_callback_proc(struct usb_proc_msg *);
+static void	usbd_callback_ss_done_defer(struct usb_xfer *);
+static void	usbd_callback_wrapper(struct usb_xfer_queue *);
+static void	usb_dma_delay_done_cb(void *);
+static void	usbd_transfer_start_cb(void *);
+static uint8_t	usbd_callback_wrapper_sub(struct usb_xfer *);
+static void	usbd_get_std_packet_size(struct usb_std_packet_size *ptr, 
 		    uint8_t type, enum usb_dev_speed speed);
 
 /*------------------------------------------------------------------------*
- *	usb2_request_callback
+ *	usb_request_callback
  *------------------------------------------------------------------------*/
 static void
-usb2_request_callback(struct usb_xfer *xfer)
+usb_request_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE)
-		usb2_handle_request_callback(xfer);
+		usb_handle_request_callback(xfer, error);
 	else
-		usb2_do_request_callback(xfer);
+		usbd_do_request_callback(xfer, error);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_update_max_frame_size
+ *	usbd_update_max_frame_size
  *
  * This function updates the maximum frame size, hence high speed USB
  * can transfer multiple consecutive packets.
  *------------------------------------------------------------------------*/
 static void
-usb2_update_max_frame_size(struct usb_xfer *xfer)
+usbd_update_max_frame_size(struct usb_xfer *xfer)
 {
 	/* compute maximum frame size */
 
@@ -128,7 +148,7 @@ usb2_update_max_frame_size(struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_get_dma_delay
+ *	usbd_get_dma_delay
  *
  * The following function is called when we need to
  * synchronize with DMA hardware.
@@ -138,7 +158,7 @@ usb2_update_max_frame_size(struct usb_xfer *xfer)
  * Else: milliseconds of DMA delay
  *------------------------------------------------------------------------*/
 usb_timeout_t
-usb2_get_dma_delay(struct usb_bus *bus)
+usbd_get_dma_delay(struct usb_bus *bus)
 {
 	uint32_t temp = 0;
 
@@ -155,7 +175,7 @@ usb2_get_dma_delay(struct usb_bus *bus)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_setup_sub_malloc
+ *	usbd_transfer_setup_sub_malloc
  *
  * This function will allocate one or more DMA'able memory chunks
  * according to "size", "align" and "count" arguments. "ppc" is
@@ -167,7 +187,7 @@ usb2_get_dma_delay(struct usb_bus *bus)
  *------------------------------------------------------------------------*/
 #if USB_HAVE_BUSDMA
 uint8_t
-usb2_transfer_setup_sub_malloc(struct usb_setup_params *parm,
+usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
     struct usb_page_cache **ppc, usb_size_t size, usb_size_t align,
     usb_size_t count)
 {
@@ -244,7 +264,7 @@ usb2_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 			z = r * size;
 			n_obj = r;
 		}
-		if (usb2_pc_alloc_mem(parm->dma_page_cache_ptr,
+		if (usb_pc_alloc_mem(parm->dma_page_cache_ptr,
 		    pg, z, align)) {
 			return (1);	/* failure */
 		}
@@ -257,14 +277,14 @@ usb2_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 		for (y = 0; (y != n_obj); y++, r--, pc++, pg++) {
 
 			/* Load sub-chunk into DMA */
-			if (usb2_pc_dmamap_create(pc, size)) {
+			if (usb_pc_dmamap_create(pc, size)) {
 				return (1);	/* failure */
 			}
 			pc->buffer = USB_ADD_BYTES(buf, y * size);
 			pc->page_start = pg;
 
 			mtx_lock(pc->tag_parent->mtx);
-			if (usb2_pc_load_mem(pc, size, 1 /* synchronous */ )) {
+			if (usb_pc_load_mem(pc, size, 1 /* synchronous */ )) {
 				mtx_unlock(pc->tag_parent->mtx);
 				return (1);	/* failure */
 			}
@@ -279,7 +299,7 @@ usb2_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 #endif
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_setup_sub - transfer setup subroutine
+ *	usbd_transfer_setup_sub - transfer setup subroutine
  *
  * This function must be called from the "xfer_setup" callback of the
  * USB Host or Device controller driver when setting up an USB
@@ -288,7 +308,7 @@ usb2_transfer_setup_sub_malloc(struct usb_setup_params *parm,
  * structure.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_setup_sub(struct usb_setup_params *parm)
+usbd_transfer_setup_sub(struct usb_setup_params *parm)
 {
 	enum {
 		REQ_SIZE = 8,
@@ -297,7 +317,7 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 	struct usb_xfer *xfer = parm->curr_xfer;
 	const struct usb_config *setup = parm->curr_setup;
 	struct usb_endpoint_descriptor *edesc;
-	struct usb2_std_packet_size std_size;
+	struct usb_std_packet_size std_size;
 	usb_frcount_t n_frlengths;
 	usb_frcount_t n_frbuffers;
 	usb_frcount_t x;
@@ -348,7 +368,7 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 	}
 	/* filter "wMaxPacketSize" according to standard sizes */
 
-	usb2_get_std_packet_size(&std_size, type, parm->speed);
+	usbd_get_std_packet_size(&std_size, type, parm->speed);
 
 	if (std_size.range.min || std_size.range.max) {
 
@@ -374,7 +394,7 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 
 	/* compute "max_frame_size" */
 
-	usb2_update_max_frame_size(xfer);
+	usbd_update_max_frame_size(xfer);
 
 	/* check interrupt interval and transfer pre-delay */
 
@@ -478,7 +498,7 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 			xfer->max_packet_size = MIN_PKT;
 			xfer->max_packet_count = 1;
 			parm->bufsize = 0;	/* automatic setup length */
-			usb2_update_max_frame_size(xfer);
+			usbd_update_max_frame_size(xfer);
 
 		} else {
 			parm->err = USB_ERR_ZERO_MAXP;
@@ -575,16 +595,15 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 		xfer->max_data_length -= REQ_SIZE;
 	}
 	/* setup "frlengths" */
-
 	xfer->frlengths = parm->xfer_length_ptr;
-
 	parm->xfer_length_ptr += n_frlengths;
 
 	/* setup "frbuffers" */
-
 	xfer->frbuffers = parm->xfer_page_cache_ptr;
-
 	parm->xfer_page_cache_ptr += n_frbuffers;
+
+	/* initialize max frame count */
+	xfer->max_frame_count = xfer->nframes;
 
 	/*
 	 * check if we need to setup
@@ -601,10 +620,10 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 			xfer->local_buffer =
 			    USB_ADD_BYTES(parm->buf, parm->size[0]);
 
-			usb2_set_frame_offset(xfer, 0, 0);
+			usbd_xfer_set_frame_offset(xfer, 0, 0);
 
 			if ((type == UE_CONTROL) && (n_frbuffers > 1)) {
-				usb2_set_frame_offset(xfer, REQ_SIZE, 1);
+				usbd_xfer_set_frame_offset(xfer, REQ_SIZE, 1);
 			}
 		}
 		parm->size[0] += parm->bufsize;
@@ -662,9 +681,6 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 		parm->err = USB_ERR_INVAL;
 		goto done;
 	}
-	/* initialize max frame count */
-
-	xfer->max_frame_count = xfer->nframes;
 
 	/* initialize frame buffers */
 
@@ -676,7 +692,7 @@ usb2_transfer_setup_sub(struct usb_setup_params *parm)
 			if (xfer->flags_int.bdma_enable &&
 			    (parm->bufsize_max > 0)) {
 
-				if (usb2_pc_dmamap_create(
+				if (usb_pc_dmamap_create(
 				    xfer->frbuffers + x,
 				    parm->bufsize_max)) {
 					parm->err = USB_ERR_NOMEM;
@@ -701,10 +717,10 @@ done:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_setup - setup an array of USB transfers
+ *	usbd_transfer_setup - setup an array of USB transfers
  *
- * NOTE: You must always call "usb2_transfer_unsetup" after calling
- * "usb2_transfer_setup" if success was returned.
+ * NOTE: You must always call "usbd_transfer_unsetup" after calling
+ * "usbd_transfer_setup" if success was returned.
  *
  * The idea is that the USB device driver should pre-allocate all its
  * transfers by one call to this function.
@@ -714,7 +730,7 @@ done:
  * Else: Failure
  *------------------------------------------------------------------------*/
 usb_error_t
-usb2_transfer_setup(struct usb_device *udev,
+usbd_transfer_setup(struct usb_device *udev,
     const uint8_t *ifaces, struct usb_xfer **ppxfer,
     const struct usb_config *setup_start, uint16_t n_setup,
     void *priv_sc, struct mtx *xfer_mtx)
@@ -735,7 +751,7 @@ usb2_transfer_setup(struct usb_device *udev,
 	info = NULL;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "usb2_transfer_setup can sleep!");
+	    "usbd_transfer_setup can sleep!");
 
 	/* do some checking first */
 
@@ -771,7 +787,7 @@ usb2_transfer_setup(struct usb_device *udev,
 	bzero(&parm, sizeof(parm));
 
 	parm.udev = udev;
-	parm.speed = usb2_get_speed(udev);
+	parm.speed = usbd_get_speed(udev);
 	parm.hc_max_packet_count = 1;
 
 	if (parm.speed >= USB_SPEED_MAX) {
@@ -799,27 +815,27 @@ usb2_transfer_setup(struct usb_device *udev,
 			info->xfer_page_cache_start = USB_ADD_BYTES(buf, parm.size[5]);
 			info->xfer_page_cache_end = USB_ADD_BYTES(buf, parm.size[2]);
 
-			usb2_cv_init(&info->cv_drain, "WDRAIN");
+			cv_init(&info->cv_drain, "WDRAIN");
 
 			info->xfer_mtx = xfer_mtx;
 #if USB_HAVE_BUSDMA
-			usb2_dma_tag_setup(&info->dma_parent_tag,
+			usb_dma_tag_setup(&info->dma_parent_tag,
 			    parm.dma_tag_p, udev->bus->dma_parent_tag[0].tag,
-			    xfer_mtx, &usb2_bdma_done_event, 32, parm.dma_tag_max);
+			    xfer_mtx, &usb_bdma_done_event, 32, parm.dma_tag_max);
 #endif
 
 			info->bus = udev->bus;
 			info->udev = udev;
 
 			TAILQ_INIT(&info->done_q.head);
-			info->done_q.command = &usb2_callback_wrapper;
+			info->done_q.command = &usbd_callback_wrapper;
 #if USB_HAVE_BUSDMA
 			TAILQ_INIT(&info->dma_q.head);
-			info->dma_q.command = &usb2_bdma_work_loop;
+			info->dma_q.command = &usb_bdma_work_loop;
 #endif
-			info->done_m[0].hdr.pm_callback = &usb2_callback_proc;
+			info->done_m[0].hdr.pm_callback = &usb_callback_proc;
 			info->done_m[0].xroot = info;
-			info->done_m[1].hdr.pm_callback = &usb2_callback_proc;
+			info->done_m[1].hdr.pm_callback = &usb_callback_proc;
 			info->done_m[1].xroot = info;
 
 			/* 
@@ -828,7 +844,7 @@ usb2_transfer_setup(struct usb_device *udev,
 			 * context, else there is a chance of
 			 * deadlock!
 			 */
-			if (setup_start == usb2_control_ep_cfg)
+			if (setup_start == usb_control_ep_cfg)
 				info->done_p = 
 				    &udev->bus->control_xfer_proc;
 			else if (xfer_mtx == &Giant)
@@ -852,7 +868,7 @@ usb2_transfer_setup(struct usb_device *udev,
 				continue;
 			}
 			/* see if there is a matching endpoint */
-			ep = usb2_get_endpoint(udev,
+			ep = usbd_get_endpoint(udev,
 			    ifaces[setup->if_index], setup);
 
 			if ((ep == NULL) || (ep->methods == NULL)) {
@@ -881,7 +897,7 @@ usb2_transfer_setup(struct usb_device *udev,
 				xfer->priv_sc = priv_sc;
 				xfer->xroot = info;
 
-				usb2_callout_init_mtx(&xfer->timeout_handle,
+				usb_callout_init_mtx(&xfer->timeout_handle,
 				    &udev->bus->bus_mtx, 0);
 			} else {
 				/*
@@ -1031,26 +1047,26 @@ done:
 	if (buf) {
 		if (info->setup_refcount == 0) {
 			/*
-			 * "usb2_transfer_unsetup_sub" will unlock
+			 * "usbd_transfer_unsetup_sub" will unlock
 			 * the bus mutex before returning !
 			 */
 			USB_BUS_LOCK(info->bus);
 
 			/* something went wrong */
-			usb2_transfer_unsetup_sub(info, 0);
+			usbd_transfer_unsetup_sub(info, 0);
 		}
 	}
 	if (parm.err) {
-		usb2_transfer_unsetup(ppxfer, n_setup);
+		usbd_transfer_unsetup(ppxfer, n_setup);
 	}
 	return (parm.err);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_unsetup_sub - factored out code
+ *	usbd_transfer_unsetup_sub - factored out code
  *------------------------------------------------------------------------*/
 static void
-usb2_transfer_unsetup_sub(struct usb_xfer_root *info, uint8_t needs_delay)
+usbd_transfer_unsetup_sub(struct usb_xfer_root *info, uint8_t needs_delay)
 {
 	struct usb_page_cache *pc;
 
@@ -1060,13 +1076,13 @@ usb2_transfer_unsetup_sub(struct usb_xfer_root *info, uint8_t needs_delay)
 
 	if (needs_delay) {
 		usb_timeout_t temp;
-		temp = usb2_get_dma_delay(info->bus);
-		usb2_pause_mtx(&info->bus->bus_mtx,
+		temp = usbd_get_dma_delay(info->bus);
+		usb_pause_mtx(&info->bus->bus_mtx,
 		    USB_MS_TO_TICKS(temp));
 	}
 
 	/* make sure that our done messages are not queued anywhere */
-	usb2_proc_mwait(info->done_p, &info->done_m[0], &info->done_m[1]);
+	usb_proc_mwait(info->done_p, &info->done_m[0], &info->done_m[1]);
 
 	USB_BUS_UNLOCK(info->bus);
 
@@ -1074,22 +1090,22 @@ usb2_transfer_unsetup_sub(struct usb_xfer_root *info, uint8_t needs_delay)
 	/* free DMA'able memory, if any */
 	pc = info->dma_page_cache_start;
 	while (pc != info->dma_page_cache_end) {
-		usb2_pc_free_mem(pc);
+		usb_pc_free_mem(pc);
 		pc++;
 	}
 
 	/* free DMA maps in all "xfer->frbuffers" */
 	pc = info->xfer_page_cache_start;
 	while (pc != info->xfer_page_cache_end) {
-		usb2_pc_dmamap_destroy(pc);
+		usb_pc_dmamap_destroy(pc);
 		pc++;
 	}
 
 	/* free all DMA tags */
-	usb2_dma_tag_unsetup(&info->dma_parent_tag);
+	usb_dma_tag_unsetup(&info->dma_parent_tag);
 #endif
 
-	usb2_cv_destroy(&info->cv_drain);
+	cv_destroy(&info->cv_drain);
 
 	/*
 	 * free the "memory_base" last, hence the "info" structure is
@@ -1099,21 +1115,21 @@ usb2_transfer_unsetup_sub(struct usb_xfer_root *info, uint8_t needs_delay)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_unsetup - unsetup/free an array of USB transfers
+ *	usbd_transfer_unsetup - unsetup/free an array of USB transfers
  *
  * NOTE: All USB transfers in progress will get called back passing
  * the error code "USB_ERR_CANCELLED" before this function
  * returns.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
+usbd_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
 {
 	struct usb_xfer *xfer;
 	struct usb_xfer_root *info;
 	uint8_t needs_delay = 0;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "usb2_transfer_unsetup can sleep!");
+	    "usbd_transfer_unsetup can sleep!");
 
 	while (n_setup--) {
 		xfer = pxfer[n_setup];
@@ -1130,13 +1146,13 @@ usb2_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
 		 * HINT: when you start/stop a transfer, it might be a
 		 * good idea to directly use the "pxfer[]" structure:
 		 *
-		 * usb2_transfer_start(sc->pxfer[0]);
-		 * usb2_transfer_stop(sc->pxfer[0]);
+		 * usbd_transfer_start(sc->pxfer[0]);
+		 * usbd_transfer_stop(sc->pxfer[0]);
 		 *
 		 * That way, if your code has many parts that will not
 		 * stop running under the same lock, in other words
-		 * "xfer_mtx", the usb2_transfer_start and
-		 * usb2_transfer_stop functions will simply return
+		 * "xfer_mtx", the usbd_transfer_start and
+		 * usbd_transfer_stop functions will simply return
 		 * when they detect a NULL pointer argument.
 		 *
 		 * To avoid any races we clear the "pxfer[]" pointer
@@ -1147,7 +1163,7 @@ usb2_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
 		USB_BUS_UNLOCK(info->bus);
 		USB_XFER_UNLOCK(xfer);
 
-		usb2_transfer_drain(xfer);
+		usbd_transfer_drain(xfer);
 
 #if USB_HAVE_BUSDMA
 		if (xfer->flags_int.bdma_enable)
@@ -1159,7 +1175,7 @@ usb2_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
 		 */
 		xfer->endpoint->refcount--;
 
-		usb2_callout_drain(&xfer->timeout_handle);
+		usb_callout_drain(&xfer->timeout_handle);
 
 		USB_BUS_LOCK(info->bus);
 
@@ -1169,7 +1185,7 @@ usb2_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
 		info->setup_refcount--;
 
 		if (info->setup_refcount == 0) {
-			usb2_transfer_unsetup_sub(info,
+			usbd_transfer_unsetup_sub(info,
 			    needs_delay);
 		} else {
 			USB_BUS_UNLOCK(info->bus);
@@ -1178,7 +1194,7 @@ usb2_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_control_transfer_init - factored out code
+ *	usbd_control_transfer_init - factored out code
  *
  * In USB Device Mode we have to wait for the SETUP packet which
  * containst the "struct usb_device_request" structure, before we can
@@ -1189,13 +1205,13 @@ usb2_transfer_unsetup(struct usb_xfer **pxfer, uint16_t n_setup)
  * initialisation code, so that we don't duplicate the code.
  *------------------------------------------------------------------------*/
 static void
-usb2_control_transfer_init(struct usb_xfer *xfer)
+usbd_control_transfer_init(struct usb_xfer *xfer)
 {
 	struct usb_device_request req;
 
 	/* copy out the USB request header */
 
-	usb2_copy_out(xfer->frbuffers, 0, &req, sizeof(req));
+	usbd_copy_out(xfer->frbuffers, 0, &req, sizeof(req));
 
 	/* setup remainder */
 
@@ -1209,7 +1225,7 @@ usb2_control_transfer_init(struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_start_hardware_sub
+ *	usbd_setup_ctrl_transfer
  *
  * This function handles initialisation of control transfers. Control
  * transfers are special in that regard that they can both transmit
@@ -1219,8 +1235,8 @@ usb2_control_transfer_init(struct usb_xfer *xfer)
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static uint8_t
-usb2_start_hardware_sub(struct usb_xfer *xfer)
+static int
+usbd_setup_ctrl_transfer(struct usb_xfer *xfer)
 {
 	usb_frlength_t len;
 
@@ -1261,7 +1277,7 @@ usb2_start_hardware_sub(struct usb_xfer *xfer)
 
 			/* setup control transfer */
 			if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
-				usb2_control_transfer_init(xfer);
+				usbd_control_transfer_init(xfer);
 			}
 		}
 		/* get data length */
@@ -1294,14 +1310,14 @@ usb2_start_hardware_sub(struct usb_xfer *xfer)
 			/*
 			 * Set a dummy "control_rem" value.  This
 			 * variable will be overwritten later by a
-			 * call to "usb2_control_transfer_init()" !
+			 * call to "usbd_control_transfer_init()" !
 			 */
 			xfer->flags_int.control_rem = 0xFFFF;
 		} else {
 
 			/* setup "endpoint" and "control_rem" */
 
-			usb2_control_transfer_init(xfer);
+			usbd_control_transfer_init(xfer);
 		}
 
 		/* set transfer-header flag */
@@ -1362,12 +1378,12 @@ error:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_start_hardware - start USB hardware for the given transfer
+ *	usbd_transfer_submit - start USB hardware for the given transfer
  *
  * This function should only be called from the USB callback.
  *------------------------------------------------------------------------*/
 void
-usb2_start_hardware(struct usb_xfer *xfer)
+usbd_transfer_submit(struct usb_xfer *xfer)
 {
 	struct usb_xfer_root *info;
 	struct usb_bus *bus;
@@ -1384,7 +1400,7 @@ usb2_start_hardware(struct usb_xfer *xfer)
 	if (USB_DEBUG_VAR > 0) {
 		USB_BUS_LOCK(bus);
 
-		usb2_dump_endpoint(xfer->endpoint);
+		usb_dump_endpoint(xfer->endpoint);
 
 		USB_BUS_UNLOCK(bus);
 	}
@@ -1408,7 +1424,7 @@ usb2_start_hardware(struct usb_xfer *xfer)
 
 #if USB_HAVE_POWERD
 	/* increment power reference */
-	usb2_transfer_power_ref(xfer, 1);
+	usbd_transfer_power_ref(xfer, 1);
 #endif
 	/*
 	 * Check if the transfer is waiting on a queue, most
@@ -1416,7 +1432,7 @@ usb2_start_hardware(struct usb_xfer *xfer)
 	 */
 	if (xfer->wait_queue) {
 		USB_BUS_LOCK(bus);
-		usb2_transfer_dequeue(xfer);
+		usbd_transfer_dequeue(xfer);
 		USB_BUS_UNLOCK(bus);
 	}
 	/* clear "did_dma_delay" flag */
@@ -1447,7 +1463,7 @@ usb2_start_hardware(struct usb_xfer *xfer)
 		 * Must return cancelled error code else
 		 * device drivers can hang.
 		 */
-		usb2_transfer_done(xfer, USB_ERR_CANCELLED);
+		usbd_transfer_done(xfer, USB_ERR_CANCELLED);
 		USB_BUS_UNLOCK(bus);
 		return;
 	}
@@ -1464,12 +1480,12 @@ usb2_start_hardware(struct usb_xfer *xfer)
 			USB_BUS_LOCK(bus);
 			xfer->flags_int.can_cancel_immed = 1;
 			/* start the transfer */
-			usb2_command_wrapper(&xfer->endpoint->endpoint_q, xfer);
+			usb_command_wrapper(&xfer->endpoint->endpoint_q, xfer);
 			USB_BUS_UNLOCK(bus);
 			return;
 		}
 		USB_BUS_LOCK(bus);
-		usb2_transfer_done(xfer, USB_ERR_INVAL);
+		usbd_transfer_done(xfer, USB_ERR_INVAL);
 		USB_BUS_UNLOCK(bus);
 		return;
 	}
@@ -1480,7 +1496,7 @@ usb2_start_hardware(struct usb_xfer *xfer)
 		if (xfer->sumlen < xfer->frlengths[x]) {
 			/* length wrapped around */
 			USB_BUS_LOCK(bus);
-			usb2_transfer_done(xfer, USB_ERR_INVAL);
+			usbd_transfer_done(xfer, USB_ERR_INVAL);
 			USB_BUS_UNLOCK(bus);
 			return;
 		}
@@ -1495,9 +1511,9 @@ usb2_start_hardware(struct usb_xfer *xfer)
 
 	if (xfer->flags_int.control_xfr) {
 
-		if (usb2_start_hardware_sub(xfer)) {
+		if (usbd_setup_ctrl_transfer(xfer)) {
 			USB_BUS_LOCK(bus);
-			usb2_transfer_done(xfer, USB_ERR_STALLED);
+			usbd_transfer_done(xfer, USB_ERR_STALLED);
 			USB_BUS_UNLOCK(bus);
 			return;
 		}
@@ -1540,7 +1556,7 @@ usb2_start_hardware(struct usb_xfer *xfer)
 #if USB_HAVE_BUSDMA
 	if (xfer->flags_int.bdma_enable) {
 		/* insert the USB transfer last in the BUS-DMA queue */
-		usb2_command_wrapper(&xfer->xroot->dma_q, xfer);
+		usb_command_wrapper(&xfer->xroot->dma_q, xfer);
 		return;
 	}
 #endif
@@ -1548,14 +1564,14 @@ usb2_start_hardware(struct usb_xfer *xfer)
 	 * Enter the USB transfer into the Host Controller or
 	 * Device Controller schedule:
 	 */
-	usb2_pipe_enter(xfer);
+	usbd_pipe_enter(xfer);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pipe_enter - factored out code
+ *	usbd_pipe_enter - factored out code
  *------------------------------------------------------------------------*/
 void
-usb2_pipe_enter(struct usb_xfer *xfer)
+usbd_pipe_enter(struct usb_xfer *xfer)
 {
 	struct usb_endpoint *ep;
 
@@ -1575,25 +1591,25 @@ usb2_pipe_enter(struct usb_xfer *xfer)
 	/* check for transfer error */
 	if (xfer->error) {
 		/* some error has happened */
-		usb2_transfer_done(xfer, 0);
+		usbd_transfer_done(xfer, 0);
 		USB_BUS_UNLOCK(xfer->xroot->bus);
 		return;
 	}
 
 	/* start the transfer */
-	usb2_command_wrapper(&ep->endpoint_q, xfer);
+	usb_command_wrapper(&ep->endpoint_q, xfer);
 	USB_BUS_UNLOCK(xfer->xroot->bus);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_start - start an USB transfer
+ *	usbd_transfer_start - start an USB transfer
  *
  * NOTE: Calling this function more than one time will only
  *       result in a single transfer start, until the USB transfer
  *       completes.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_start(struct usb_xfer *xfer)
+usbd_transfer_start(struct usb_xfer *xfer)
 {
 	if (xfer == NULL) {
 		/* transfer is gone */
@@ -1613,20 +1629,20 @@ usb2_transfer_start(struct usb_xfer *xfer)
 	}
 	USB_BUS_LOCK(xfer->xroot->bus);
 	/* call the USB transfer callback */
-	usb2_callback_ss_done_defer(xfer);
+	usbd_callback_ss_done_defer(xfer);
 	USB_BUS_UNLOCK(xfer->xroot->bus);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_stop - stop an USB transfer
+ *	usbd_transfer_stop - stop an USB transfer
  *
  * NOTE: Calling this function more than one time will only
  *       result in a single transfer stop.
  * NOTE: When this function returns it is not safe to free nor
- *       reuse any DMA buffers. See "usb2_transfer_drain()".
+ *       reuse any DMA buffers. See "usbd_transfer_drain()".
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_stop(struct usb_xfer *xfer)
+usbd_transfer_stop(struct usb_xfer *xfer)
 {
 	struct usb_endpoint *ep;
 
@@ -1679,7 +1695,7 @@ usb2_transfer_stop(struct usb_xfer *xfer)
 
 		/*
 		 * Any additional DMA delay is done by
-		 * "usb2_transfer_unsetup()".
+		 * "usbd_transfer_unsetup()".
 		 */
 
 		/*
@@ -1693,7 +1709,7 @@ usb2_transfer_stop(struct usb_xfer *xfer)
 		 * to start the next one:
 		 */
 		if (ep->endpoint_q.curr == xfer) {
-			usb2_command_wrapper(&ep->endpoint_q, NULL);
+			usb_command_wrapper(&ep->endpoint_q, NULL);
 		}
 	}
 
@@ -1701,7 +1717,7 @@ usb2_transfer_stop(struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_pending
+ *	usbd_transfer_pending
  *
  * This function will check if an USB transfer is pending which is a
  * little bit complicated!
@@ -1710,7 +1726,7 @@ usb2_transfer_stop(struct usb_xfer *xfer)
  * 1: Pending: The USB transfer will receive a callback in the future.
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_transfer_pending(struct usb_xfer *xfer)
+usbd_transfer_pending(struct usb_xfer *xfer)
 {
 	struct usb_xfer_root *info;
 	struct usb_xfer_queue *pq;
@@ -1745,7 +1761,7 @@ usb2_transfer_pending(struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_drain
+ *	usbd_transfer_drain
  *
  * This function will stop the USB transfer and wait for any
  * additional BUS-DMA and HW-DMA operations to complete. Buffers that
@@ -1753,10 +1769,10 @@ usb2_transfer_pending(struct usb_xfer *xfer)
  * function has returned.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_drain(struct usb_xfer *xfer)
+usbd_transfer_drain(struct usb_xfer *xfer)
 {
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "usb2_transfer_drain can sleep!");
+	    "usbd_transfer_drain can sleep!");
 
 	if (xfer == NULL) {
 		/* transfer is gone */
@@ -1767,21 +1783,37 @@ usb2_transfer_drain(struct usb_xfer *xfer)
 	}
 	USB_XFER_LOCK(xfer);
 
-	usb2_transfer_stop(xfer);
+	usbd_transfer_stop(xfer);
 
-	while (usb2_transfer_pending(xfer)) {
+	while (usbd_transfer_pending(xfer)) {
 		xfer->flags_int.draining = 1;
 		/*
 		 * Wait until the current outstanding USB
 		 * transfer is complete !
 		 */
-		usb2_cv_wait(&xfer->xroot->cv_drain, xfer->xroot->xfer_mtx);
+		cv_wait(&xfer->xroot->cv_drain, xfer->xroot->xfer_mtx);
 	}
 	USB_XFER_UNLOCK(xfer);
 }
 
+struct usb_page_cache *
+usbd_xfer_get_frame(struct usb_xfer *xfer, usb_frcount_t frindex)
+{
+	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
+
+	return (&xfer->frbuffers[frindex]);
+}
+
+usb_frlength_t
+usbd_xfer_frame_len(struct usb_xfer *xfer, usb_frcount_t frindex)
+{
+	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
+
+	return (xfer->frlengths[frindex]);
+}
+
 /*------------------------------------------------------------------------*
- *	usb2_set_frame_data
+ *	usbd_xfer_set_frame_data
  *
  * This function sets the pointer of the buffer that should
  * loaded directly into DMA for the given USB frame. Passing "ptr"
@@ -1789,37 +1821,113 @@ usb2_transfer_drain(struct usb_xfer *xfer)
  * than zero gives undefined results!
  *------------------------------------------------------------------------*/
 void
-usb2_set_frame_data(struct usb_xfer *xfer, void *ptr, usb_frcount_t frindex)
+usbd_xfer_set_frame_data(struct usb_xfer *xfer, usb_frcount_t frindex,
+    void *ptr, usb_frlength_t len)
 {
+	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
+
 	/* set virtual address to load and length */
 	xfer->frbuffers[frindex].buffer = ptr;
+	usbd_xfer_set_frame_len(xfer, frindex, len);
+}
+
+void
+usbd_xfer_frame_data(struct usb_xfer *xfer, usb_frcount_t frindex,
+    void **ptr, int *len)
+{
+	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
+
+	if (ptr != NULL)
+		*ptr = xfer->frbuffers[frindex].buffer;
+	if (len != NULL)
+		*len = xfer->frlengths[frindex];
+}
+
+void
+usbd_xfer_status(struct usb_xfer *xfer, int *actlen, int *sumlen, int *aframes,
+    int *nframes)
+{
+	if (actlen != NULL)
+		*actlen = xfer->actlen;
+	if (sumlen != NULL)
+		*sumlen = xfer->sumlen;
+	if (aframes != NULL)
+		*aframes = xfer->aframes;
+	if (nframes != NULL)
+		*nframes = xfer->nframes;
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_set_frame_offset
+ *	usbd_xfer_set_frame_offset
  *
  * This function sets the frame data buffer offset relative to the beginning
  * of the USB DMA buffer allocated for this USB transfer.
  *------------------------------------------------------------------------*/
 void
-usb2_set_frame_offset(struct usb_xfer *xfer, usb_frlength_t offset,
+usbd_xfer_set_frame_offset(struct usb_xfer *xfer, usb_frlength_t offset,
     usb_frcount_t frindex)
 {
-	USB_ASSERT(!xfer->flags.ext_buffer, ("Cannot offset data frame "
+	KASSERT(!xfer->flags.ext_buffer, ("Cannot offset data frame "
 	    "when the USB buffer is external!\n"));
+	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
 
 	/* set virtual address to load */
 	xfer->frbuffers[frindex].buffer =
 	    USB_ADD_BYTES(xfer->local_buffer, offset);
 }
 
+void
+usbd_xfer_set_interval(struct usb_xfer *xfer, int i)
+{
+	xfer->interval = i;
+}
+
+void
+usbd_xfer_set_timeout(struct usb_xfer *xfer, int t)
+{
+	xfer->timeout = t;
+}
+
+void
+usbd_xfer_set_frames(struct usb_xfer *xfer, usb_frcount_t n)
+{
+	xfer->nframes = n;
+}
+
+usb_frcount_t
+usbd_xfer_max_frames(struct usb_xfer *xfer)
+{
+	return (xfer->max_frame_count);
+}
+
+usb_frlength_t
+usbd_xfer_max_len(struct usb_xfer *xfer)
+{
+	return (xfer->max_data_length);
+}
+
+usb_frlength_t
+usbd_xfer_max_framelen(struct usb_xfer *xfer)
+{
+	return (xfer->max_frame_size);
+}
+
+void
+usbd_xfer_set_frame_len(struct usb_xfer *xfer, usb_frcount_t frindex,
+    usb_frlength_t len)
+{
+	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
+
+	xfer->frlengths[frindex] = len;
+}
+
 /*------------------------------------------------------------------------*
- *	usb2_callback_proc - factored out code
+ *	usb_callback_proc - factored out code
  *
  * This function performs USB callbacks.
  *------------------------------------------------------------------------*/
 static void
-usb2_callback_proc(struct usb_proc_msg *_pm)
+usb_callback_proc(struct usb_proc_msg *_pm)
 {
 	struct usb_done_msg *pm = (void *)_pm;
 	struct usb_xfer_root *info = pm->xroot;
@@ -1835,20 +1943,20 @@ usb2_callback_proc(struct usb_proc_msg *_pm)
 	USB_BUS_LOCK(info->bus);
 
 	/* Continue where we lost track */
-	usb2_command_wrapper(&info->done_q,
+	usb_command_wrapper(&info->done_q,
 	    info->done_q.curr);
 
 	mtx_unlock(info->xfer_mtx);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_callback_ss_done_defer
+ *	usbd_callback_ss_done_defer
  *
  * This function will defer the start, stop and done callback to the
  * correct thread.
  *------------------------------------------------------------------------*/
 static void
-usb2_callback_ss_done_defer(struct usb_xfer *xfer)
+usbd_callback_ss_done_defer(struct usb_xfer *xfer)
 {
 	struct usb_xfer_root *info = xfer->xroot;
 	struct usb_xfer_queue *pq = &info->done_q;
@@ -1856,7 +1964,7 @@ usb2_callback_ss_done_defer(struct usb_xfer *xfer)
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
 	if (pq->curr != xfer) {
-		usb2_transfer_enqueue(pq, xfer);
+		usbd_transfer_enqueue(pq, xfer);
 	}
 	if (!pq->recurse_1) {
 
@@ -1865,7 +1973,7 @@ usb2_callback_ss_done_defer(struct usb_xfer *xfer)
 	         * will have a Lock Order Reversal, LOR, if we try to
 	         * proceed !
 	         */
-		if (usb2_proc_msignal(info->done_p,
+		if (usb_proc_msignal(info->done_p,
 		    &info->done_m[0], &info->done_m[1])) {
 			/* ignore */
 		}
@@ -1878,7 +1986,7 @@ usb2_callback_ss_done_defer(struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_callback_wrapper
+ *	usbd_callback_wrapper
  *
  * This is a wrapper for USB callbacks. This wrapper does some
  * auto-magic things like figuring out if we can call the callback
@@ -1886,7 +1994,7 @@ usb2_callback_ss_done_defer(struct usb_xfer *xfer)
  * interrupt process.
  *------------------------------------------------------------------------*/
 static void
-usb2_callback_wrapper(struct usb_xfer_queue *pq)
+usbd_callback_wrapper(struct usb_xfer_queue *pq)
 {
 	struct usb_xfer *xfer = pq->curr;
 	struct usb_xfer_root *info = xfer->xroot;
@@ -1905,7 +2013,7 @@ usb2_callback_wrapper(struct usb_xfer_queue *pq)
 	         * will have a Lock Order Reversal, LOR, if we try to
 	         * proceed !
 	         */
-		if (usb2_proc_msignal(info->done_p,
+		if (usb_proc_msignal(info->done_p,
 		    &info->done_m[0], &info->done_m[1])) {
 			/* ignore */
 		}
@@ -1928,7 +2036,7 @@ usb2_callback_wrapper(struct usb_xfer_queue *pq)
 
 	/* set correct USB state for callback */
 	if (!xfer->flags_int.transferring) {
-		xfer->usb2_state = USB_ST_SETUP;
+		xfer->usb_state = USB_ST_SETUP;
 		if (!xfer->flags_int.started) {
 			/* we got stopped before we even got started */
 			USB_BUS_LOCK(info->bus);
@@ -1936,34 +2044,34 @@ usb2_callback_wrapper(struct usb_xfer_queue *pq)
 		}
 	} else {
 
-		if (usb2_callback_wrapper_sub(xfer)) {
+		if (usbd_callback_wrapper_sub(xfer)) {
 			/* the callback has been deferred */
 			USB_BUS_LOCK(info->bus);
 			goto done;
 		}
 #if USB_HAVE_POWERD
 		/* decrement power reference */
-		usb2_transfer_power_ref(xfer, -1);
+		usbd_transfer_power_ref(xfer, -1);
 #endif
 		xfer->flags_int.transferring = 0;
 
 		if (xfer->error) {
-			xfer->usb2_state = USB_ST_ERROR;
+			xfer->usb_state = USB_ST_ERROR;
 		} else {
 			/* set transferred state */
-			xfer->usb2_state = USB_ST_TRANSFERRED;
+			xfer->usb_state = USB_ST_TRANSFERRED;
 #if USB_HAVE_BUSDMA
 			/* sync DMA memory, if any */
 			if (xfer->flags_int.bdma_enable &&
 			    (!xfer->flags_int.bdma_no_post_sync)) {
-				usb2_bdma_post_sync(xfer);
+				usb_bdma_post_sync(xfer);
 			}
 #endif
 		}
 	}
 
 	/* call processing routine */
-	(xfer->callback) (xfer);
+	(xfer->callback) (xfer, xfer->error);
 
 	/* pickup the USB mutex again */
 	USB_BUS_LOCK(info->bus);
@@ -1974,9 +2082,9 @@ usb2_callback_wrapper(struct usb_xfer_queue *pq)
 	 */
 	if ((!xfer->flags_int.open) &&
 	    (xfer->flags_int.started) &&
-	    (xfer->usb2_state == USB_ST_ERROR)) {
+	    (xfer->usb_state == USB_ST_ERROR)) {
 		/* try to loop, but not recursivly */
-		usb2_command_wrapper(&info->done_q, xfer);
+		usb_command_wrapper(&info->done_q, xfer);
 		return;
 	}
 
@@ -1986,18 +2094,18 @@ done:
 	 */
 	if (xfer->flags_int.draining &&
 	    (!xfer->flags_int.transferring)) {
-		/* "usb2_transfer_drain()" is waiting for end of transfer */
+		/* "usbd_transfer_drain()" is waiting for end of transfer */
 		xfer->flags_int.draining = 0;
-		usb2_cv_broadcast(&info->cv_drain);
+		cv_broadcast(&info->cv_drain);
 	}
 
 	/* do the next callback, if any */
-	usb2_command_wrapper(&info->done_q,
+	usb_command_wrapper(&info->done_q,
 	    info->done_q.curr);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_dma_delay_done_cb
+ *	usb_dma_delay_done_cb
  *
  * This function is called when the DMA delay has been exectuded, and
  * will make sure that the callback is called to complete the USB
@@ -2005,7 +2113,7 @@ done:
  * error like USB_ERR_CANCELLED.
  *------------------------------------------------------------------------*/
 static void
-usb2_dma_delay_done_cb(void *arg)
+usb_dma_delay_done_cb(void *arg)
 {
 	struct usb_xfer *xfer = arg;
 
@@ -2014,11 +2122,11 @@ usb2_dma_delay_done_cb(void *arg)
 	DPRINTFN(3, "Completed %p\n", xfer);
 
 	/* queue callback for execution, again */
-	usb2_transfer_done(xfer, 0);
+	usbd_transfer_done(xfer, 0);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_dequeue
+ *	usbd_transfer_dequeue
  *
  *  - This function is used to remove an USB transfer from a USB
  *  transfer queue.
@@ -2026,7 +2134,7 @@ usb2_dma_delay_done_cb(void *arg)
  *  - This function can be called multiple times in a row.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_dequeue(struct usb_xfer *xfer)
+usbd_transfer_dequeue(struct usb_xfer *xfer)
 {
 	struct usb_xfer_queue *pq;
 
@@ -2038,7 +2146,7 @@ usb2_transfer_dequeue(struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_enqueue
+ *	usbd_transfer_enqueue
  *
  *  - This function is used to insert an USB transfer into a USB *
  *  transfer queue.
@@ -2046,7 +2154,7 @@ usb2_transfer_dequeue(struct usb_xfer *xfer)
  *  - This function can be called multiple times in a row.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_enqueue(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
+usbd_transfer_enqueue(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
 {
 	/*
 	 * Insert the USB transfer into the queue, if it is not
@@ -2059,7 +2167,7 @@ usb2_transfer_enqueue(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_done
+ *	usbd_transfer_done
  *
  *  - This function is used to remove an USB transfer from the busdma,
  *  pipe or interrupt queue.
@@ -2070,11 +2178,11 @@ usb2_transfer_enqueue(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
  *  - This function is used to stop any USB transfer timeouts.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_done(struct usb_xfer *xfer, usb_error_t error)
+usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 {
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
-	DPRINTF("err=%s\n", usb2_errstr(error));
+	DPRINTF("err=%s\n", usbd_errstr(error));
 
 	/*
 	 * If we are not transferring then just return.
@@ -2089,14 +2197,14 @@ usb2_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 		xfer->error = error;
 	}
 	/* stop any callouts */
-	usb2_callout_stop(&xfer->timeout_handle);
+	usb_callout_stop(&xfer->timeout_handle);
 
 	/*
 	 * If we are waiting on a queue, just remove the USB transfer
 	 * from the queue, if any. We should have the required locks
 	 * locked to do the remove when this function is called.
 	 */
-	usb2_transfer_dequeue(xfer);
+	usbd_transfer_dequeue(xfer);
 
 #if USB_HAVE_BUSDMA
 	if (mtx_owned(xfer->xroot->xfer_mtx)) {
@@ -2110,7 +2218,7 @@ usb2_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 
 		if (pq->curr == xfer) {
 			/* start the next BUS-DMA load, if any */
-			usb2_command_wrapper(pq, NULL);
+			usb_command_wrapper(pq, NULL);
 		}
 	}
 #endif
@@ -2124,18 +2232,18 @@ usb2_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 	}
 
 	/* call the USB transfer callback */
-	usb2_callback_ss_done_defer(xfer);
+	usbd_callback_ss_done_defer(xfer);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_start_cb
+ *	usbd_transfer_start_cb
  *
  * This function is called to start the USB transfer when
  * "xfer->interval" is greater than zero, and and the endpoint type is
  * BULK or CONTROL.
  *------------------------------------------------------------------------*/
 static void
-usb2_transfer_start_cb(void *arg)
+usbd_transfer_start_cb(void *arg)
 {
 	struct usb_xfer *xfer = arg;
 	struct usb_endpoint *ep = xfer->endpoint;
@@ -2152,18 +2260,18 @@ usb2_transfer_start_cb(void *arg)
 	/* check for error */
 	if (xfer->error) {
 		/* some error has happened */
-		usb2_transfer_done(xfer, 0);
+		usbd_transfer_done(xfer, 0);
 	}
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_set_stall
+ *	usbd_xfer_set_stall
  *
  * This function is used to set the stall flag outside the
  * callback. This function is NULL safe.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_set_stall(struct usb_xfer *xfer)
+usbd_xfer_set_stall(struct usb_xfer *xfer)
 {
 	if (xfer == NULL) {
 		/* tearing down */
@@ -2173,20 +2281,24 @@ usb2_transfer_set_stall(struct usb_xfer *xfer)
 
 	/* avoid any races by locking the USB mutex */
 	USB_BUS_LOCK(xfer->xroot->bus);
-
 	xfer->flags.stall_pipe = 1;
-
 	USB_BUS_UNLOCK(xfer->xroot->bus);
 }
 
+int
+usbd_xfer_is_stalled(struct usb_xfer *xfer)
+{
+	return (xfer->endpoint->is_stalled);
+}
+
 /*------------------------------------------------------------------------*
- *	usb2_transfer_clear_stall
+ *	usbd_transfer_clear_stall
  *
  * This function is used to clear the stall flag outside the
  * callback. This function is NULL safe.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_clear_stall(struct usb_xfer *xfer)
+usbd_transfer_clear_stall(struct usb_xfer *xfer)
 {
 	if (xfer == NULL) {
 		/* tearing down */
@@ -2203,12 +2315,12 @@ usb2_transfer_clear_stall(struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_pipe_start
+ *	usbd_pipe_start
  *
  * This function is used to add an USB transfer to the pipe transfer list.
  *------------------------------------------------------------------------*/
 void
-usb2_pipe_start(struct usb_xfer_queue *pq)
+usbd_pipe_start(struct usb_xfer_queue *pq)
 {
 	struct usb_endpoint *ep;
 	struct usb_xfer *xfer;
@@ -2240,36 +2352,44 @@ usb2_pipe_start(struct usb_xfer_queue *pq)
 		    (type == UE_INTERRUPT)) {
 			struct usb_device *udev;
 			struct usb_xfer_root *info;
+			uint8_t did_stall;
 
 			info = xfer->xroot;
 			udev = info->udev;
-			ep->is_stalled = 1;
+			did_stall = 1;
 
 			if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 				(udev->bus->methods->set_stall) (
-				    udev, NULL, ep);
+				    udev, NULL, ep, &did_stall);
 			} else if (udev->default_xfer[1]) {
 				info = udev->default_xfer[1]->xroot;
-				if (usb2_proc_msignal(
+				usb_proc_msignal(
 				    &info->bus->non_giant_callback_proc,
-				    &udev->cs_msg[0], &udev->cs_msg[1])) {
-					/* ignore */
-				}
+				    &udev->cs_msg[0], &udev->cs_msg[1]);
 			} else {
 				/* should not happen */
 				DPRINTFN(0, "No stall handler!\n");
 			}
 			/*
-			 * We get started again when the stall is cleared!
+			 * Check if we should stall. Some USB hardware
+			 * handles set- and clear-stall in hardware.
 			 */
-			return;
+			if (did_stall) {
+				/*
+				 * The transfer will be continued when
+				 * the clear-stall control endpoint
+				 * message is received.
+				 */
+				ep->is_stalled = 1;
+				return;
+			}
 		}
 	}
 	/* Set or clear stall complete - special case */
 	if (xfer->nframes == 0) {
 		/* we are complete */
 		xfer->aframes = 0;
-		usb2_transfer_done(xfer, 0);
+		usbd_transfer_done(xfer, 0);
 		return;
 	}
 	/*
@@ -2287,8 +2407,8 @@ usb2_pipe_start(struct usb_xfer_queue *pq)
 		type = (ep->edesc->bmAttributes & UE_XFERTYPE);
 		if ((type == UE_BULK) ||
 		    (type == UE_CONTROL)) {
-			usb2_transfer_timeout_ms(xfer,
-			    &usb2_transfer_start_cb,
+			usbd_transfer_timeout_ms(xfer,
+			    &usbd_transfer_start_cb,
 			    xfer->interval);
 			return;
 		}
@@ -2303,30 +2423,30 @@ usb2_pipe_start(struct usb_xfer_queue *pq)
 	/* check for error */
 	if (xfer->error) {
 		/* some error has happened */
-		usb2_transfer_done(xfer, 0);
+		usbd_transfer_done(xfer, 0);
 	}
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_transfer_timeout_ms
+ *	usbd_transfer_timeout_ms
  *
  * This function is used to setup a timeout on the given USB
  * transfer. If the timeout has been deferred the callback given by
  * "cb" will get called after "ms" milliseconds.
  *------------------------------------------------------------------------*/
 void
-usb2_transfer_timeout_ms(struct usb_xfer *xfer,
+usbd_transfer_timeout_ms(struct usb_xfer *xfer,
     void (*cb) (void *arg), usb_timeout_t ms)
 {
 	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
 
 	/* defer delay */
-	usb2_callout_reset(&xfer->timeout_handle,
+	usb_callout_reset(&xfer->timeout_handle,
 	    USB_MS_TO_TICKS(ms), cb, xfer);
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_callback_wrapper_sub
+ *	usbd_callback_wrapper_sub
  *
  *  - This function will update variables in an USB transfer after
  *  that the USB transfer is complete.
@@ -2343,7 +2463,7 @@ usb2_transfer_timeout_ms(struct usb_xfer *xfer,
  * Else: The callback has been deferred.
  *------------------------------------------------------------------------*/
 static uint8_t
-usb2_callback_wrapper_sub(struct usb_xfer *xfer)
+usbd_callback_wrapper_sub(struct usb_xfer *xfer)
 {
 	struct usb_endpoint *ep;
 	usb_frcount_t x;
@@ -2374,15 +2494,15 @@ usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 		/* we can not cancel this delay */
 		xfer->flags_int.can_cancel_immed = 0;
 
-		temp = usb2_get_dma_delay(xfer->xroot->bus);
+		temp = usbd_get_dma_delay(xfer->xroot->bus);
 
 		DPRINTFN(3, "DMA delay, %u ms, "
 		    "on %p\n", temp, xfer);
 
 		if (temp != 0) {
 			USB_BUS_LOCK(xfer->xroot->bus);
-			usb2_transfer_timeout_ms(xfer,
-			    &usb2_dma_delay_done_cb, temp);
+			usbd_transfer_timeout_ms(xfer,
+			    &usb_dma_delay_done_cb, temp);
 			USB_BUS_UNLOCK(xfer->xroot->bus);
 			return (1);	/* wait for new callback */
 		}
@@ -2411,7 +2531,7 @@ usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 	 * of frames transferred, "xfer->aframes":
 	 */
 	for (; x < xfer->nframes; x++) {
-		xfer->frlengths[x] = 0;
+		usbd_xfer_set_frame_len(xfer, x, 0);
 	}
 
 	/* check actual length */
@@ -2425,7 +2545,7 @@ usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 			xfer->actlen = xfer->sumlen;
 		}
 	}
-	DPRINTFN(6, "xfer=%p endpoint=%p sts=%d alen=%d, slen=%d, afrm=%d, nfrm=%d\n",
+	DPRINTFN(1, "xfer=%p endpoint=%p sts=%d alen=%d, slen=%d, afrm=%d, nfrm=%d\n",
 	    xfer, xfer->endpoint, xfer->error, xfer->actlen, xfer->sumlen,
 	    xfer->aframes, xfer->nframes);
 
@@ -2477,7 +2597,7 @@ usb2_callback_wrapper_sub(struct usb_xfer *xfer)
 	 */
 	USB_BUS_LOCK(xfer->xroot->bus);
 	if (ep->endpoint_q.curr == xfer) {
-		usb2_command_wrapper(&ep->endpoint_q, NULL);
+		usb_command_wrapper(&ep->endpoint_q, NULL);
 
 		if (ep->endpoint_q.curr || TAILQ_FIRST(&ep->endpoint_q.head)) {
 			/* there is another USB transfer waiting */
@@ -2493,13 +2613,13 @@ done:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_command_wrapper
+ *	usb_command_wrapper
  *
  * This function is used to execute commands non-recursivly on an USB
  * transfer.
  *------------------------------------------------------------------------*/
 void
-usb2_command_wrapper(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
+usb_command_wrapper(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
 {
 	if (xfer) {
 		/*
@@ -2507,7 +2627,7 @@ usb2_command_wrapper(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
 		 * queue it!
 		 */
 		if (pq->curr != xfer) {
-			usb2_transfer_enqueue(pq, xfer);
+			usbd_transfer_enqueue(pq, xfer);
 			if (pq->curr != NULL) {
 				/* something is already processing */
 				DPRINTFN(6, "busy %p\n", pq->curr);
@@ -2554,13 +2674,13 @@ usb2_command_wrapper(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_default_transfer_setup
+ *	usbd_default_transfer_setup
  *
  * This function is used to setup the default USB control endpoint
  * transfer.
  *------------------------------------------------------------------------*/
 void
-usb2_default_transfer_setup(struct usb_device *udev)
+usbd_default_transfer_setup(struct usb_device *udev)
 {
 	struct usb_xfer *xfer;
 	uint8_t no_resetup;
@@ -2585,7 +2705,7 @@ repeat:
 				 * starting the USB transfer must be
 				 * atomic!
 				 */
-				usb2_transfer_start(xfer);
+				usbd_transfer_start(xfer);
 			}
 		}
 		USB_XFER_UNLOCK(xfer);
@@ -2609,15 +2729,15 @@ repeat:
 	/*
 	 * Unsetup any existing USB transfer:
 	 */
-	usb2_transfer_unsetup(udev->default_xfer, USB_DEFAULT_XFER_MAX);
+	usbd_transfer_unsetup(udev->default_xfer, USB_DEFAULT_XFER_MAX);
 
 	/*
 	 * Try to setup a new USB transfer for the
 	 * default control endpoint:
 	 */
 	iface_index = 0;
-	if (usb2_transfer_setup(udev, &iface_index,
-	    udev->default_xfer, usb2_control_ep_cfg, USB_DEFAULT_XFER_MAX, NULL,
+	if (usbd_transfer_setup(udev, &iface_index,
+	    udev->default_xfer, usb_control_ep_cfg, USB_DEFAULT_XFER_MAX, NULL,
 	    udev->default_mtx)) {
 		DPRINTFN(0, "could not setup default "
 		    "USB transfer!\n");
@@ -2627,13 +2747,13 @@ repeat:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_clear_data_toggle - factored out code
+ *	usbd_clear_data_toggle - factored out code
  *
  * NOTE: the intention of this function is not to reset the hardware
  * data toggle.
  *------------------------------------------------------------------------*/
 void
-usb2_clear_data_toggle(struct usb_device *udev, struct usb_endpoint *ep)
+usbd_clear_data_toggle(struct usb_device *udev, struct usb_endpoint *ep)
 {
 	DPRINTFN(5, "udev=%p endpoint=%p\n", udev, ep);
 
@@ -2643,7 +2763,7 @@ usb2_clear_data_toggle(struct usb_device *udev, struct usb_endpoint *ep)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_clear_stall_callback - factored out clear stall callback
+ *	usbd_clear_stall_callback - factored out clear stall callback
  *
  * Input parameters:
  *  xfer1: Clear Stall Control Transfer
@@ -2668,11 +2788,11 @@ usb2_clear_data_toggle(struct usb_device *udev, struct usb_endpoint *ep)
  *	.usb_mode = USB_MODE_HOST,
  * };
  *
- * ** "my_clear_stall_callback" calls "usb2_clear_stall_callback"
+ * ** "my_clear_stall_callback" calls "usbd_clear_stall_callback"
  * passing the correct parameters.
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_clear_stall_callback(struct usb_xfer *xfer1,
+usbd_clear_stall_callback(struct usb_xfer *xfer1,
     struct usb_xfer *xfer2)
 {
 	struct usb_device_request req;
@@ -2693,7 +2813,7 @@ usb2_clear_stall_callback(struct usb_xfer *xfer1,
 		 * "ata-usb.c" depends on this)
 		 */
 
-		usb2_clear_data_toggle(xfer2->xroot->udev, xfer2->endpoint);
+		usbd_clear_data_toggle(xfer2->xroot->udev, xfer2->endpoint);
 
 		/* setup a clear-stall packet */
 
@@ -2705,20 +2825,20 @@ usb2_clear_stall_callback(struct usb_xfer *xfer1,
 		USETW(req.wLength, 0);
 
 		/*
-		 * "usb2_transfer_setup_sub()" will ensure that
+		 * "usbd_transfer_setup_sub()" will ensure that
 		 * we have sufficient room in the buffer for
 		 * the request structure!
 		 */
 
 		/* copy in the transfer */
 
-		usb2_copy_in(xfer1->frbuffers, 0, &req, sizeof(req));
+		usbd_copy_in(xfer1->frbuffers, 0, &req, sizeof(req));
 
 		/* set length */
 		xfer1->frlengths[0] = sizeof(req);
 		xfer1->nframes = 1;
 
-		usb2_start_hardware(xfer1);
+		usbd_transfer_submit(xfer1);
 		return (0);
 
 	case USB_ST_TRANSFERRED:
@@ -2734,19 +2854,19 @@ usb2_clear_stall_callback(struct usb_xfer *xfer1,
 }
 
 void
-usb2_do_poll(struct usb_xfer **ppxfer, uint16_t max)
+usbd_transfer_poll(struct usb_xfer **ppxfer, uint16_t max)
 {
 	static uint8_t once = 0;
 	/* polling is currently not supported */
 	if (!once) {
 		once = 1;
-		printf("usb2_do_poll: USB polling is "
+		printf("usbd_transfer_poll: USB polling is "
 		    "not supported!\n");
 	}
 }
 
 static void
-usb2_get_std_packet_size(struct usb2_std_packet_size *ptr,
+usbd_get_std_packet_size(struct usb_std_packet_size *ptr,
     uint8_t type, enum usb_dev_speed speed)
 {
 	static const uint16_t intr_range_max[USB_SPEED_MAX] = {
@@ -2818,4 +2938,77 @@ usb2_get_std_packet_size(struct usb2_std_packet_size *ptr,
 		}
 		break;
 	}
+}
+
+void	*
+usbd_xfer_softc(struct usb_xfer *xfer)
+{
+	return (xfer->priv_sc);
+}
+
+void *
+usbd_xfer_get_priv(struct usb_xfer *xfer)
+{
+	return (xfer->priv_fifo);
+}
+
+void
+usbd_xfer_set_priv(struct usb_xfer *xfer, void *ptr)
+{
+	xfer->priv_fifo = ptr;
+}
+
+uint8_t
+usbd_xfer_state(struct usb_xfer *xfer)
+{
+	return (xfer->usb_state);
+}
+
+void
+usbd_xfer_set_flag(struct usb_xfer *xfer, int flag)
+{
+	switch (flag) {
+		case USB_FORCE_SHORT_XFER:
+			xfer->flags.force_short_xfer = 1;
+			break;
+		case USB_SHORT_XFER_OK:
+			xfer->flags.short_xfer_ok = 1;
+			break;
+		case USB_MULTI_SHORT_OK:
+			xfer->flags.short_frames_ok = 1;
+			break;
+		case USB_MANUAL_STATUS:
+			xfer->flags.manual_status = 1;
+			break;
+	}
+}
+
+void
+usbd_xfer_clr_flag(struct usb_xfer *xfer, int flag)
+{
+	switch (flag) {
+		case USB_FORCE_SHORT_XFER:
+			xfer->flags.force_short_xfer = 0;
+			break;
+		case USB_SHORT_XFER_OK:
+			xfer->flags.short_xfer_ok = 0;
+			break;
+		case USB_MULTI_SHORT_OK:
+			xfer->flags.short_frames_ok = 0;
+			break;
+		case USB_MANUAL_STATUS:
+			xfer->flags.manual_status = 0;
+			break;
+	}
+}
+
+/*
+ * The following function returns in milliseconds when the isochronous
+ * transfer was completed by the hardware. The returned value wraps
+ * around 65536 milliseconds.
+ */
+uint16_t
+usbd_xfer_get_timestamp(struct usb_xfer *xfer)
+{
+	return (xfer->isoc_time_complete);
 }

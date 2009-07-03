@@ -1,5 +1,20 @@
 /* crypto/opensslconf.h.in */
 
+#ifdef OPENSSL_DOING_MAKEDEPEND
+
+/* Include any symbols here that have to be explicitly set to enable a feature
+ * that should be visible to makedepend.
+ *
+ * [Our "make depend" doesn't actually look at this, we use actual build settings
+ * instead; we want to make it easy to remove subdirectories with disabled algorithms.]
+ */
+
+#ifndef OPENSSL_FIPS
+#define OPENSSL_FIPS
+#endif
+
+#endif
+
 /* Generate 80386 code? */
 #undef I386_ONLY
 

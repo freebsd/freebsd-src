@@ -550,7 +550,7 @@ setup_pagetables(unsigned int pt_addr, vm_paddr_t physstart, vm_paddr_t physend,
 	for (addr = physstart; addr < physend; addr += L1_S_SIZE) {
 		pd[addr >> L1_S_SHIFT] = L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW)|
 		    L1_S_DOM(PMAP_DOMAIN_KERNEL) | addr;
-		if (write_back)
+		if (write_back && 0)
 			pd[addr >> L1_S_SHIFT] |= L1_S_B;
 	}
 	/* XXX: See below */
@@ -610,12 +610,6 @@ __start(void)
 		    (unsigned int)&func_end + 800 , 0);
 		if (altdst > dst)
 			dst = altdst;
-		cpu_idcache_wbinv_all();
-		cpu_l2cache_wbinv_all();
-		__asm __volatile("mrc p15, 0, %0, c1, c0, 0\n"
-		    "bic %0, %0, #1\n" /* MMU_ENABLE */
-		    "mcr p15, 0, %0, c1, c0, 0\n"
-		    : "=r" (pt_addr));
 	} else
 #endif
 		dst = 4 + load_kernel((unsigned int)&kernel_start, 

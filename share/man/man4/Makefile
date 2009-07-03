@@ -7,12 +7,14 @@ MAN=	aac.4 \
 	${_acpi_asus.4} \
 	${_acpi_dock.4} \
 	${_acpi_fujitsu.4} \
+	${_acpi_hp.4} \
 	${_acpi_ibm.4} \
 	${_acpi_panasonic.4} \
 	${_acpi_sony.4} \
 	acpi_thermal.4 \
 	${_acpi_toshiba.4} \
 	acpi_video.4 \
+	${_acpi_wmi.4} \
 	adv.4 \
 	adw.4 \
 	ae.4 \
@@ -51,10 +53,12 @@ MAN=	aac.4 \
 	bktr.4 \
 	blackhole.4 \
 	bpf.4 \
+	bridge.4 \
 	bt.4 \
 	bwi.4 \
 	cardbus.4 \
 	carp.4 \
+	cas.4 \
 	ccd.4 \
 	cd.4 \
 	cdce.4 \
@@ -127,7 +131,6 @@ MAN=	aac.4 \
 	ida.4 \
 	idt.4 \
 	ieee80211.4 \
-	if_bridge.4 \
 	ifmib.4 \
 	igb.4 \
 	igmp.4 \
@@ -471,7 +474,9 @@ MLINKS+=bce.4 if_bce.4
 MLINKS+=bfe.4 if_bfe.4
 MLINKS+=bge.4 if_bge.4
 MLINKS+=bktr.4 brooktree.4
+MLINKS+=bridge.4 if_bridge.4
 MLINKS+=bwi.4 if_bwi.4
+MLINKS+=cas.4 if_cas.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=dc.4 if_dc.4
@@ -502,7 +507,6 @@ MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=idt.4 if_idt.4
-MLINKS+=if_bridge.4 bridge.4
 MLINKS+=igb.4 if_igb.4
 MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
@@ -592,10 +596,12 @@ _acpi_aiboost.4=acpi_aiboost.4
 _acpi_asus.4=	acpi_asus.4
 _acpi_dock.4=	acpi_dock.4
 _acpi_fujitsu.4=acpi_fujitsu.4
+_acpi_hp.4=	acpi_hp.4
 _acpi_ibm.4=	acpi_ibm.4
 _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
+_acpi_wmi.4=	acpi_wmi.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4

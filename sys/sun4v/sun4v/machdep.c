@@ -129,6 +129,7 @@ int cold = 1;
 long Maxmem;
 long realmem;
 
+void *dpcpu0;
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
 struct trapframe frame0;
 int trap_conversion[256];
@@ -500,6 +501,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Initialize the message buffer (after setting trap table).
 	 */
 	BVPRINTF("initialize msgbuf\n");
+	dpcpu_init(dpcpu0, 0);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 	BVPRINTF("initialize mutexes\n");

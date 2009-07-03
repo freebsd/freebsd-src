@@ -70,11 +70,15 @@ kiconv_add_xlat16_table(const char *to, const char *from, const void *data, int 
 
 #else /* statically linked */
 
+#include <sys/types.h>
+#include <sys/iconv.h>
 #include <errno.h>
 
 int
-kiconv_add_xlat16_table(const char *to, const char *from, const void *data, int datalen)
+kiconv_add_xlat16_table(const char *to __unused, const char *from __unused,
+    const void *data __unused, int datalen __unused)
 {
+
 	return (EINVAL);
 }
 

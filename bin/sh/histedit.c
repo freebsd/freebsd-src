@@ -173,25 +173,11 @@ histcmd(int argc, char **argv)
 	char *pat = NULL, *repl;
 	static int active = 0;
 	struct jmploc jmploc;
-	struct jmploc *volatile savehandler;
-	char editfile[PATH_MAX];
+	struct jmploc *savehandler;
+	char editfilestr[PATH_MAX];
+	char *volatile editfile;
 	FILE *efp;
 	int oldhistnum;
-#ifdef __GNUC__
-	/* Avoid longjmp clobbering */
-	(void) &editor;
-	(void) &lflg;
-	(void) &nflg;
-	(void) &rflg;
-	(void) &sflg;
-	(void) &firststr;
-	(void) &laststr;
-	(void) &pat;
-	(void) &repl;
-	(void) &efp;
-	(void) &argc;
-	(void) &argv;
-#endif
 
 	if (hist == NULL)
 		error("history not active");
@@ -232,19 +218,19 @@ histcmd(int argc, char **argv)
 	 */
 	if (lflg == 0 || editor || sflg) {
 		lflg = 0;	/* ignore */
-		editfile[0] = '\0';
+		editfile = NULL;
 		/*
 		 * Catch interrupts to reset active counter and
 		 * cleanup temp files.
 		 */
+		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			active = 0;
-			if (*editfile)
+			if (editfile)
 				unlink(editfile);
 			handler = savehandler;
 			longjmp(handler->loc, 1);
 		}
-		savehandler = handler;
 		handler = &jmploc;
 		if (++active > MAXHISTLOOPS) {
 			active = 0;
@@ -318,9 +304,10 @@ histcmd(int argc, char **argv)
 	if (editor) {
 		int fd;
 		INTOFF;		/* easier */
-		sprintf(editfile, "%s/_shXXXXXX", _PATH_TMP);
-		if ((fd = mkstemp(editfile)) < 0)
+		sprintf(editfilestr, "%s/_shXXXXXX", _PATH_TMP);
+		if ((fd = mkstemp(editfilestr)) < 0)
 			error("can't create temporary file %s", editfile);
+		editfile = editfilestr;
 		if ((efp = fdopen(fd, "w")) == NULL) {
 			close(fd);
 			error("can't allocate stdio buffer for temp");

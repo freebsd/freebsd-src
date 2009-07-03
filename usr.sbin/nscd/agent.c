@@ -29,8 +29,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "agent.h"
 #include "debug.h"
 
@@ -55,12 +56,12 @@ agent_cmp_func(const void *a1, const void *a2)
 }
 
 struct agent_table *
-init_agent_table()
+init_agent_table(void)
 {
    	struct agent_table	*retval;
 
 	TRACE_IN(init_agent_table);
-	retval = (struct agent_table *)calloc(1, sizeof(struct agent_table));
+	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
 	TRACE_OUT(init_agent_table);
@@ -77,7 +78,7 @@ register_agent(struct agent_table *at, struct agent *a)
 	assert(at != NULL);
 	assert(a != NULL);
 	new_agents_num = at->agents_num + 1;
-	new_agents = (struct agent **)malloc(sizeof(struct agent *) *
+	new_agents = malloc(sizeof(*new_agents) *
 		new_agents_num);
 	assert(new_agents != NULL);
 	memcpy(new_agents, at->agents, at->agents_num * sizeof(struct agent *));

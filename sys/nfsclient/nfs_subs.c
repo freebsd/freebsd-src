@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
@@ -105,8 +104,6 @@ uint32_t nfsclient_attrcache_load_done_id;
  * This is kinda hokey, but may save a little time doing byte swaps
  */
 u_int32_t	nfs_xdrneg1;
-u_int32_t	rpc_call, rpc_vers, rpc_reply, rpc_msgdenied, rpc_autherr,
-		    rpc_mismatch, rpc_auth_unix, rpc_msgaccepted;
 u_int32_t	nfs_true, nfs_false;
 
 /* And other global data */
@@ -118,10 +115,6 @@ static enum vtype nv2tov_type[8]= {
 int		nfs_ticks;
 int		nfs_pbuf_freecnt = -1;	/* start out unlimited */
 
-#ifdef NFS_LEGACYRPC
-struct nfs_reqq	nfs_reqq;
-struct mtx nfs_reqq_mtx;
-#endif
 struct nfs_bufq	nfs_bufq;
 static struct mtx nfs_xid_mtx;
 
@@ -191,87 +184,6 @@ nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz)
 		MCLGET(mb, M_WAIT);
 	mb->m_len = 0;
 	return (mb);
-}
-
-/*
- * Build the RPC header and fill in the authorization info.
- * The authorization string argument is only used when the credentials
- * come from outside of the kernel.
- * Returns the head of the mbuf list.
- */
-struct mbuf *
-nfsm_rpchead(struct ucred *cr, int nmflag, int procid, int auth_type,
-    int auth_len, struct mbuf *mrest, int mrest_len, struct mbuf **mbp,
-    u_int32_t **xidpp)
-{
-	struct mbuf *mb;
-	u_int32_t *tl;
-	caddr_t bpos;
-	int i;
-	struct mbuf *mreq;
-	int grpsiz, authsiz;
-
-	authsiz = nfsm_rndup(auth_len);
-	MGETHDR(mb, M_WAIT, MT_DATA);
-	if ((authsiz + 10 * NFSX_UNSIGNED) >= MINCLSIZE) {
-		MCLGET(mb, M_WAIT);
-	} else if ((authsiz + 10 * NFSX_UNSIGNED) < MHLEN) {
-		MH_ALIGN(mb, authsiz + 10 * NFSX_UNSIGNED);
-	} else {
-		MH_ALIGN(mb, 8 * NFSX_UNSIGNED);
-	}
-	mb->m_len = 0;
-	mreq = mb;
-	bpos = mtod(mb, caddr_t);
-
-	/*
-	 * First the RPC header.
-	 */
-	tl = nfsm_build(u_int32_t *, 8 * NFSX_UNSIGNED);
-
-	*xidpp = tl;
-	*tl++ = txdr_unsigned(nfs_xid_gen());
-	*tl++ = rpc_call;
-	*tl++ = rpc_vers;
-	*tl++ = txdr_unsigned(NFS_PROG);
-	if (nmflag & NFSMNT_NFSV3) {
-		*tl++ = txdr_unsigned(NFS_VER3);
-		*tl++ = txdr_unsigned(procid);
-	} else {
-		*tl++ = txdr_unsigned(NFS_VER2);
-		*tl++ = txdr_unsigned(nfsv2_procid[procid]);
-	}
-
-	/*
-	 * And then the authorization cred.
-	 */
-	*tl++ = txdr_unsigned(auth_type);
-	*tl = txdr_unsigned(authsiz);
-	switch (auth_type) {
-	case RPCAUTH_UNIX:
-		tl = nfsm_build(u_int32_t *, auth_len);
-		*tl++ = 0;		/* stamp ?? */
-		*tl++ = 0;		/* NULL hostname */
-		*tl++ = txdr_unsigned(cr->cr_uid);
-		*tl++ = txdr_unsigned(cr->cr_groups[0]);
-		grpsiz = (auth_len >> 2) - 5;
-		*tl++ = txdr_unsigned(grpsiz);
-		for (i = 1; i <= grpsiz; i++)
-			*tl++ = txdr_unsigned(cr->cr_groups[i]);
-		break;
-	}
-
-	/*
-	 * And the verifier...
-	 */
-	tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
-	*tl++ = txdr_unsigned(RPCAUTH_NULL);
-	*tl = 0;
-	mb->m_next = mrest;
-	mreq->m_pkthdr.len = authsiz + 10 * NFSX_UNSIGNED + mrest_len;
-	mreq->m_pkthdr.rcvif = NULL;
-	*mbp = mb;
-	return (mreq);
 }
 
 /*
@@ -427,14 +339,6 @@ nfs_init(struct vfsconf *vfsp)
 
 	nfsmount_zone = uma_zcreate("NFSMOUNT", sizeof(struct nfsmount),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	rpc_vers = txdr_unsigned(RPC_VER2);
-	rpc_call = txdr_unsigned(RPC_CALL);
-	rpc_reply = txdr_unsigned(RPC_REPLY);
-	rpc_msgdenied = txdr_unsigned(RPC_MSGDENIED);
-	rpc_msgaccepted = txdr_unsigned(RPC_MSGACCEPTED);
-	rpc_mismatch = txdr_unsigned(RPC_MISMATCH);
-	rpc_autherr = txdr_unsigned(RPC_AUTHERR);
-	rpc_auth_unix = txdr_unsigned(RPCAUTH_UNIX);
 	nfs_true = txdr_unsigned(TRUE);
 	nfs_false = txdr_unsigned(FALSE);
 	nfs_xdrneg1 = txdr_unsigned(-1);
@@ -451,11 +355,6 @@ nfs_init(struct vfsconf *vfsp)
 	/*
 	 * Initialize reply list and start timer
 	 */
-#ifdef NFS_LEGACYRPC
-	TAILQ_INIT(&nfs_reqq);
-	mtx_init(&nfs_reqq_mtx, "NFS reqq lock", NULL, MTX_DEF);
-	callout_init(&nfs_callout, CALLOUT_MPSAFE);
-#endif
 	mtx_init(&nfs_iod_mtx, "NFS iod lock", NULL, MTX_DEF);
 	mtx_init(&nfs_xid_mtx, "NFS xid lock", NULL, MTX_DEF);
 
@@ -468,13 +367,6 @@ int
 nfs_uninit(struct vfsconf *vfsp)
 {
 	int i;
-
-#ifdef NFS_LEGACYRPC
-	callout_stop(&nfs_callout);
-
-	KASSERT(TAILQ_EMPTY(&nfs_reqq),
-	    ("nfs_uninit: request queue not empty"));
-#endif
 
 	/*
 	 * Tell all nfsiod processes to exit. Clear nfs_iodmax, and wakeup

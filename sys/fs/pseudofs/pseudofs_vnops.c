@@ -622,9 +622,9 @@ pfs_read(struct vop_read_args *va)
 	VOP_UNLOCK(vn, 0);
 
 	if (pn->pn_flags & PFS_RAWRD) {
-		PFS_TRACE(("%lu resid", (unsigned long)uio->uio_resid));
+		PFS_TRACE(("%zd resid", uio->uio_resid));
 		error = pn_fill(curthread, proc, pn, NULL, uio);
-		PFS_TRACE(("%lu resid", (unsigned long)uio->uio_resid));
+		PFS_TRACE(("%zd resid", uio->uio_resid));
 		goto ret;
 	}
 

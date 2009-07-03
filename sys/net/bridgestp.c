@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_llc.h>
 #include <net/if_media.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -68,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #ifdef	BRIDGESTP_DEBUG
 #define	DPRINTF(fmt, arg...)	printf("bstp: " fmt, ##arg)
 #else
-#define	DPRINTF(fmt, arg...)
+#define	DPRINTF(fmt, arg...)	(void)0
 #endif
 
 #define	PV2ADDR(pv, eaddr)	do {		\

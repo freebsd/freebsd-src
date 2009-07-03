@@ -33,17 +33,17 @@
 #ifndef _VM_EXTERN_H_
 #define	_VM_EXTERN_H_
 
-struct buf;
 struct proc;
 struct vmspace;
-struct vmtotal;
-struct mount;
 struct vnode;
 
 #ifdef _KERNEL
 
 int kernacc(void *, int, int);
 vm_offset_t kmem_alloc(vm_map_t, vm_size_t);
+vm_offset_t kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags,
+    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
+    unsigned long boundary, vm_cache_mode_t mode);
 vm_offset_t kmem_alloc_nofault(vm_map_t, vm_size_t);
 vm_offset_t kmem_alloc_wait(vm_map_t, vm_size_t);
 void kmem_free(vm_map_t, vm_offset_t, vm_size_t);
@@ -63,7 +63,7 @@ void vm_waitproc(struct proc *);
 int vm_mmap(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, objtype_t, void *, vm_ooffset_t);
 void vm_set_page_size(void);
 struct vmspace *vmspace_alloc(vm_offset_t, vm_offset_t);
-struct vmspace *vmspace_fork(struct vmspace *);
+struct vmspace *vmspace_fork(struct vmspace *, vm_ooffset_t *);
 int vmspace_exec(struct proc *, vm_offset_t, vm_offset_t);
 int vmspace_unshare(struct proc *);
 void vmspace_exit(struct thread *);

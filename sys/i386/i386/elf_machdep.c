@@ -149,7 +149,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 
 	if (local) {
 		if (rtype == R_386_RELATIVE) {	/* A + B */
-			addr = relocbase + addend;
+			addr = elf_relocaddr(lf, relocbase + addend);
 			if (*where != addr)
 				*where = addr;
 		}

@@ -36,9 +36,28 @@
  * NOTE: The current implementation only supports Device Side Mode!
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
 
 #define	USB_DEBUG_VAR musbotgdebug
 
@@ -64,7 +83,7 @@
 #define	MUSBOTG_PC2SC(pc) \
    MUSBOTG_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
 
-#if USB_DEBUG
+#ifdef USB_DEBUG
 static int musbotgdebug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, musbotg, CTLFLAG_RW, 0, "USB musbotg");
@@ -209,7 +228,7 @@ musbotg_wakeup_peer(struct musbotg_softc *sc)
 
 	/* wait 8 milliseconds */
 	/* Wait for reset to complete. */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
+	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 125);
 
 	temp = MUSB2_READ_1(sc, MUSB2_REG_POWER);
 	temp &= ~MUSB2_MASK_RESUME;
@@ -301,7 +320,7 @@ musbotg_setup_rx(struct musbotg_td *td)
 	    MUSB2_REG_EPFIFO(0), (void *)&req, sizeof(req));
 
 	/* copy data into real buffer */
-	usb2_copy_in(td->pc, 0, &req, sizeof(req));
+	usbd_copy_in(td->pc, 0, &req, sizeof(req));
 
 	td->offset = sizeof(req);
 	td->remainder = 0;
@@ -404,7 +423,7 @@ musbotg_setup_data_rx(struct musbotg_td *td)
 	while (count > 0) {
 		uint32_t temp;
 
-		usb2_get_page(td->pc, td->offset, &buf_res);
+		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
 		if (buf_res.length > count) {
@@ -428,7 +447,7 @@ musbotg_setup_data_rx(struct musbotg_td *td)
 				    MUSB2_REG_EPFIFO(0),
 				    (void *)(&sc->sc_bounce_buf[count / 4]), temp);
 			}
-			usb2_copy_in(td->pc, td->offset,
+			usbd_copy_in(td->pc, td->offset,
 			    sc->sc_bounce_buf, count);
 
 			/* update offset and remainder */
@@ -522,7 +541,7 @@ musbotg_setup_data_tx(struct musbotg_td *td)
 	while (count > 0) {
 		uint32_t temp;
 
-		usb2_get_page(td->pc, td->offset, &buf_res);
+		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
 		if (buf_res.length > count) {
@@ -531,7 +550,7 @@ musbotg_setup_data_tx(struct musbotg_td *td)
 		/* check for unaligned memory address */
 		if (USB_P2U(buf_res.buffer) & 3) {
 
-			usb2_copy_out(td->pc, td->offset,
+			usbd_copy_out(td->pc, td->offset,
 			    sc->sc_bounce_buf, count);
 
 			temp = count & ~3;
@@ -692,7 +711,7 @@ repeat:
 	while (count > 0) {
 		uint32_t temp;
 
-		usb2_get_page(td->pc, td->offset, &buf_res);
+		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
 		if (buf_res.length > count) {
@@ -716,7 +735,7 @@ repeat:
 				    sc->sc_io_hdl, MUSB2_REG_EPFIFO(td->ep_no),
 				    ((void *)&sc->sc_bounce_buf[count / 4]), temp);
 			}
-			usb2_copy_in(td->pc, td->offset,
+			usbd_copy_in(td->pc, td->offset,
 			    sc->sc_bounce_buf, count);
 
 			/* update offset and remainder */
@@ -810,7 +829,7 @@ repeat:
 	while (count > 0) {
 		uint32_t temp;
 
-		usb2_get_page(td->pc, td->offset, &buf_res);
+		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
 		if (buf_res.length > count) {
@@ -819,7 +838,7 @@ repeat:
 		/* check for unaligned memory address */
 		if (USB_P2U(buf_res.buffer) & 3) {
 
-			usb2_copy_out(td->pc, td->offset,
+			usbd_copy_out(td->pc, td->offset,
 			    sc->sc_bounce_buf, count);
 
 			temp = count & ~3;
@@ -1115,7 +1134,7 @@ musbotg_setup_standard_chain(struct usb_xfer *xfer)
 
 	DPRINTFN(8, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpointno),
-	    xfer->sumlen, usb2_get_speed(xfer->xroot->udev));
+	    xfer->sumlen, usbd_get_speed(xfer->xroot->udev));
 
 	temp.max_frame_size = xfer->max_frame_size;
 
@@ -1297,11 +1316,11 @@ musbotg_start_standard_chain(struct usb_xfer *xfer)
 		DPRINTFN(14, "enabled interrupts on endpoint\n");
 
 		/* put transfer on interrupt queue */
-		usb2_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
+		usbd_transfer_enqueue(&xfer->xroot->bus->intr_q, xfer);
 
 		/* start timeout, if any */
 		if (xfer->timeout != 0) {
-			usb2_transfer_timeout_ms(xfer,
+			usbd_transfer_timeout_ms(xfer,
 			    &musbotg_timeout, xfer->timeout);
 		}
 	}
@@ -1449,12 +1468,12 @@ musbotg_device_done(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTFN(14, "disabled interrupts on endpoint\n");
 	}
 	/* dequeue transfer and start next transfer */
-	usb2_transfer_done(xfer, error);
+	usbd_transfer_done(xfer, error);
 }
 
 static void
 musbotg_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
-    struct usb_endpoint *ep)
+    struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct musbotg_softc *sc;
 	uint8_t ep_no;
@@ -1689,7 +1708,7 @@ musbotg_init(struct musbotg_softc *sc)
 		(sc->sc_clocks_on) (sc->sc_clocks_arg);
 	}
 	/* wait a little for things to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
+	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
 
 	/* disable all interrupts */
 
@@ -1702,7 +1721,7 @@ musbotg_init(struct musbotg_softc *sc)
 	musbotg_pull_common(sc, 0);
 
 	/* wait a little bit (10ms) */
-	usb2_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
+	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
 
 	/* disable double packet buffering */
 	MUSB2_WRITE_2(sc, MUSB2_REG_RXDBDIS, 0xFFFF);
@@ -2011,7 +2030,7 @@ musbotg_device_isoc_enter(struct usb_xfer *xfer)
 	 */
 	temp = (nframes - xfer->endpoint->isoc_next) & MUSB2_MASK_FRAME;
 
-	if (usb2_get_speed(xfer->xroot->udev) == USB_SPEED_HIGH) {
+	if (usbd_get_speed(xfer->xroot->udev) == USB_SPEED_HIGH) {
 		fs_frames = (xfer->nframes + 7) / 8;
 	} else {
 		fs_frames = xfer->nframes;
@@ -2039,7 +2058,7 @@ musbotg_device_isoc_enter(struct usb_xfer *xfer)
 	 * pre-compute when the isochronous transfer will be finished:
 	 */
 	xfer->isoc_time_complete =
-	    usb2_isoc_time_expand(&sc->sc_bus, nframes) + temp +
+	    usb_isoc_time_expand(&sc->sc_bus, nframes) + temp +
 	    fs_frames;
 
 	/* compute frame number for next insertion */
@@ -2581,7 +2600,7 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 	else
 		parm->hc_max_packet_count = 1;
 
-	usb2_transfer_setup_sub(parm);
+	usbd_transfer_setup_sub(parm);
 
 	/*
 	 * compute maximum number of TDs
@@ -2608,7 +2627,7 @@ musbotg_xfer_setup(struct usb_setup_params *parm)
 	}
 
 	/*
-	 * check if "usb2_transfer_setup_sub" set an error
+	 * check if "usbd_transfer_setup_sub" set an error
 	 */
 	if (parm->err) {
 		return;

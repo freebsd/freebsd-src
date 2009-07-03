@@ -68,12 +68,12 @@ void	callback_register(callback_func *, void *);
 #define	DECL_CMD_FUNC2(name, arg1, arg2) \
 	void name(const char *arg1, const char *arg2, int s, const struct afswtch *afp)
 
-#define	DEF_CMD(name, param, func)	{ name, param, { .c_func = func } }
-#define	DEF_CMD_ARG(name, func)		{ name, NEXTARG, { .c_func = func } }
-#define	DEF_CMD_OPTARG(name, func)	{ name, OPTARG, { .c_func = func } }
-#define	DEF_CMD_ARG2(name, func)	{ name, NEXTARG2, { .c_func2 = func } }
-#define	DEF_CLONE_CMD(name, param, func) { name, param, { .c_func = func }, 1 }
-#define	DEF_CLONE_CMD_ARG(name, func)	{ name, NEXTARG, { .c_func = func }, 1 }
+#define	DEF_CMD(name, param, func)	{ name, param, { .c_func = func }, 0, NULL }
+#define	DEF_CMD_ARG(name, func)		{ name, NEXTARG, { .c_func = func }, 0, NULL }
+#define	DEF_CMD_OPTARG(name, func)	{ name, OPTARG, { .c_func = func }, 0, NULL }
+#define	DEF_CMD_ARG2(name, func)	{ name, NEXTARG2, { .c_func2 = func }, 0, NULL }
+#define	DEF_CLONE_CMD(name, param, func) { name, param, { .c_func = func }, 1, NULL }
+#define	DEF_CLONE_CMD_ARG(name, func)	{ name, NEXTARG, { .c_func = func }, 1, NULL }
 
 struct ifaddrs;
 struct addrinfo;

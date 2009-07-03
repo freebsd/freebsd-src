@@ -1927,61 +1927,41 @@ linker_basename(const char *path)
 }
 
 #ifdef HWPMC_HOOKS
-
-struct hwpmc_context {
-	int	nobjects;
-	int	nmappings;
-	struct pmckern_map_in *kobase;
-};
-
-static int
-linker_hwpmc_list_object(linker_file_t lf, void *arg)
-{
-	struct hwpmc_context *hc;
-
-	hc = arg;
-
-	/* If we run out of mappings, fail. */
-	if (hc->nobjects >= hc->nmappings)
-		return (1);
-
-	/* Save the info for this linker file. */
-	hc->kobase[hc->nobjects].pm_file = lf->filename;
-	hc->kobase[hc->nobjects].pm_address = (uintptr_t)lf->address;
-	hc->nobjects++;
-	return (0);
-}
-
 /*
  * Inform hwpmc about the set of kernel modules currently loaded.
  */
 void *
 linker_hwpmc_list_objects(void)
 {
-	struct hwpmc_context hc;
+	linker_file_t lf;
+	struct pmckern_map_in *kobase;
+	int i, nmappings;
 
-	hc.nmappings = 15;	/* a reasonable default */
+	nmappings = 0;
+	KLD_LOCK();
+	TAILQ_FOREACH(lf, &linker_files, link)
+		nmappings++;
 
- retry:
-	/* allocate nmappings+1 entries */
-	hc.kobase = malloc((hc.nmappings + 1) * sizeof(struct pmckern_map_in),
+	/* Allocate nmappings + 1 entries. */
+	kobase = malloc((nmappings + 1) * sizeof(struct pmckern_map_in),
 	    M_LINKER, M_WAITOK | M_ZERO);
+	i = 0;
+	TAILQ_FOREACH(lf, &linker_files, link) {
 
-	hc.nobjects = 0;
-	if (linker_file_foreach(linker_hwpmc_list_object, &hc) != 0) {
-		hc.nmappings = hc.nobjects;
-		free(hc.kobase, M_LINKER);
-		goto retry;
+		/* Save the info for this linker file. */
+		kobase[i].pm_file = lf->filename;
+		kobase[i].pm_address = (uintptr_t)lf->address;
+		i++;
 	}
+	KLD_UNLOCK();
 
-	KASSERT(hc.nobjects > 0, ("linker_hpwmc_list_objects: no kernel "
-		"objects?"));
+	KASSERT(i > 0, ("linker_hpwmc_list_objects: no kernel objects?"));
 
 	/* The last entry of the malloced area comprises of all zeros. */
-	KASSERT(hc.kobase[hc.nobjects].pm_file == NULL,
+	KASSERT(kobase[i].pm_file == NULL,
 	    ("linker_hwpmc_list_objects: last object not NULL"));
 
-	return ((void *)hc.kobase);
+	return ((void *)kobase);
 }
 #endif
 

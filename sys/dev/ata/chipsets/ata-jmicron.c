@@ -94,7 +94,7 @@ ata_jmicron_probe(device_t dev)
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_jmicron_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int

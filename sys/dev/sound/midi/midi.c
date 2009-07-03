@@ -852,7 +852,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 		used = MIN(MIDIQ_AVAIL(m->outq), uio->uio_resid);
 		used = MIN(used, MIDI_WSIZE);
-		MIDI_DEBUG(5, printf("midiout: resid %d len %jd avail %jd\n",
+		MIDI_DEBUG(5, printf("midiout: resid %zd len %jd avail %jd\n",
 		    uio->uio_resid, (intmax_t)MIDIQ_LEN(m->outq),
 		    (intmax_t)MIDIQ_AVAIL(m->outq)));
 

@@ -44,6 +44,7 @@
 #include <libutil.h>
 
 unsigned int Dists;
+unsigned int DocDists;
 unsigned int SrcDists;
 unsigned int KernelDists;
 
@@ -60,6 +61,7 @@ typedef struct _dist {
     } my_data;
 } Distribution;
 
+static Distribution DocDistTable[];
 static Distribution KernelDistTable[];
 static Distribution SrcDistTable[];
 
@@ -77,7 +79,8 @@ static Distribution SrcDistTable[];
 static Distribution DistTable[] = {
     DTE_TARBALL("base",	    &Dists, BASE,     "/"),
     DTE_SUBDIST("kernels",  &Dists, KERNEL,   KernelDistTable),
-    DTE_TARBALL("doc",	    &Dists, DOC,      "/"),
+    DTE_TARBALL("doc",	    &Dists, DOCUSERLAND,      "/"),
+    DTE_SUBDIST("docproj",  &Dists, DOC,      DocDistTable),
     DTE_TARBALL("games",    &Dists, GAMES,    "/"),
     DTE_TARBALL("manpages", &Dists, MANPAGES, "/"),
     DTE_TARBALL("catpages", &Dists, CATPAGES, "/"),
@@ -128,6 +131,30 @@ static Distribution SrcDistTable[] = {
     DTE_END,
 };
 
+/* The Documentation distribution */
+static Distribution DocDistTable[] = {
+    DTE_PACKAGE("Bengali Documentation",		&DocDists, DOC_BN,	"bn-freebsd-doc"),
+    DTE_PACKAGE("Danish Documentation",			&DocDists, DOC_DA,	"da-freebsd-doc"),
+    DTE_PACKAGE("German Documentation",			&DocDists, DOC_DE,	"de-freebsd-doc"),
+    DTE_PACKAGE("Greek Documentation",			&DocDists, DOC_EL,	"el-freebsd-doc"),
+    DTE_PACKAGE("English Documentation",		&DocDists, DOC_EN,	"en-freebsd-doc"),
+    DTE_PACKAGE("Spanish Documentation",		&DocDists, DOC_ES,	"es-freebsd-doc"),
+    DTE_PACKAGE("French Documentation",			&DocDists, DOC_FR,	"fr-freebsd-doc"),
+    DTE_PACKAGE("Hungarian Documentation",		&DocDists, DOC_HU,	"hu-freebsd-doc"),
+    DTE_PACKAGE("Italian Documentation",		&DocDists, DOC_IT,	"it-freebsd-doc"),
+    DTE_PACKAGE("Japanese Documentation",		&DocDists, DOC_JA,	"ja-freebsd-doc"),
+    DTE_PACKAGE("Mongolian Documentation",		&DocDists, DOC_MN,	"mn-freebsd-doc-mn"),
+    DTE_PACKAGE("Dutch Documentation",			&DocDists, DOC_NL,	"nl-freebsd-doc"),
+    DTE_PACKAGE("Polish Documentation",			&DocDists, DOC_PL,	"pl-freebsd-doc"),
+    DTE_PACKAGE("Portuguese Documentation",		&DocDists, DOC_PT,	"pt-freebsd-doc"),
+    DTE_PACKAGE("Russian Documentation",		&DocDists, DOC_RU,	"ru-freebsd-doc"),
+    DTE_PACKAGE("Serbian Documentation",		&DocDists, DOC_SR,	"sr-freebsd-doc"),
+    DTE_PACKAGE("Turkish Documentation",		&DocDists, DOC_TR,	"tr-freebsd-doc"),
+    DTE_PACKAGE("Simplified Chinese Documentation",	&DocDists, DOC_ZH_CN,	"zh_cn-freebsd-doc"),
+    DTE_PACKAGE("Traditional Chinese Documentation",	&DocDists, DOC_ZH_TW,	"zh_tw-freebsd-doc"),
+    DTE_END,
+};
+
 static int	distMaybeSetPorts(dialogMenuItem *self);
 
 static void
@@ -137,15 +164,18 @@ distVerifyFlags(void)
 	Dists |= DIST_SRC;
     if (KernelDists)
 	Dists |= DIST_KERNEL;
+    if (DocDists)
+	Dists |= DIST_DOC;
     if (isDebug())
-	msgDebug("Dist Masks: Dists: %0x, Srcs: %0x Kernels: %0x\n", Dists,
-	    SrcDists, KernelDists);
+	msgDebug("Dist Masks: Dists: %0x, Srcs: %0x Kernels: %0x Docs: %0x\n", Dists,
+	    SrcDists, KernelDists, DocDists);
 }
 
 int
 distReset(dialogMenuItem *self)
 {
     Dists = 0;
+    DocDists = 0;
     SrcDists = 0;
     KernelDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
@@ -160,6 +190,9 @@ distConfig(dialogMenuItem *self)
 
     if ((cp = variable_get(VAR_DIST_MAIN)) != NULL)
 	Dists = atoi(cp);
+
+    if ((cp = variable_get(VAR_DIST_DOC)) != NULL)
+	DocDists = atoi(cp);
 
     if ((cp = variable_get(VAR_DIST_SRC)) != NULL)
 	SrcDists = atoi(cp);
@@ -191,7 +224,8 @@ distSetDeveloper(dialogMenuItem *self)
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
     KernelDists = selectKernel();
-    i = distMaybeSetPorts(self);
+    i = distSetDoc(self);
+    i |= distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -205,7 +239,8 @@ distSetKernDeveloper(dialogMenuItem *self)
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS | DIST_SRC_BASE;
     KernelDists = selectKernel();
-    i = distMaybeSetPorts(self);
+    i = distSetDoc(self);
+    i |= distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -218,7 +253,8 @@ distSetUser(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_USER;
     KernelDists = selectKernel();
-    i = distMaybeSetPorts(self);
+    i = distSetDoc(self);
+    i |= distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -241,6 +277,7 @@ distSetEverything(dialogMenuItem *self)
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
     KernelDists = DIST_KERNEL_ALL;
+    DocDists = DIST_DOC_ALL;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i | DITEM_REDRAW;
@@ -739,6 +776,61 @@ distExtract(char *parent, Distribution *me)
     sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
     restorescr(w);
     return status;
+}
+
+int
+distSetDoc(dialogMenuItem *self)
+{
+    int i;
+
+    dialog_clear_norefresh();
+    if (!dmenuOpenSimple(&MenuDocInstall, FALSE))
+	i = DITEM_FAILURE;
+    else
+	i = DITEM_SUCCESS;
+
+    distVerifyFlags();
+
+    return i | DITEM_RESTORE;
+}
+
+int
+distSetDocMenu(dialogMenuItem *self)
+{
+    int i, status;
+    WINDOW *w;
+
+    if (RunningAsInit && !strstr(variable_get(SYSTEM_STATE), "install")) {
+	    msgConfirm("This option may only be used after the system is installed, sorry!");
+	    return DITEM_FAILURE;
+    }
+
+    dialog_clear_norefresh();
+    if (!dmenuOpenSimple(&MenuDocInstall, FALSE))
+	i = DITEM_FAILURE;
+    else
+	i = DITEM_SUCCESS;
+
+    distVerifyFlags();
+
+    dialog_clear_norefresh();
+    w = savescr();
+    msgNotify("Attempting to install all selected documentations...");
+
+    for (i = 0; DocDistTable[i].my_name; i++) {
+	    if (!(DocDistTable[i].my_bit & *(DocDistTable[i].my_mask)))
+		    continue;
+	     dialog_clear_norefresh();
+	     msgNotify("Installing %s distribution...", DocDistTable[i].my_name);
+	     status = (package_add(DocDistTable[i].my_data.my_string) == DITEM_SUCCESS);
+	     if (!status)
+		     break;
+    }
+
+    dialog_clear_norefresh();
+
+    restorescr(w);
+    return (status ? DITEM_SUCCESS : DITEM_FAILURE);
 }
 
 static void

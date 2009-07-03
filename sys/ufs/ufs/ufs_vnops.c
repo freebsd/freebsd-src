@@ -112,6 +112,7 @@ static vop_symlink_t	ufs_symlink;
 static vop_whiteout_t	ufs_whiteout;
 static vop_close_t	ufsfifo_close;
 static vop_kqfilter_t	ufsfifo_kqfilter;
+static vop_pathconf_t	ufsfifo_pathconf;
 
 /*
  * A virgin directory (no blushing please).
@@ -1849,7 +1850,7 @@ ufs_symlink(ap)
 	} else
 		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
 		    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
-		    ap->a_cnp->cn_cred, NOCRED, (int *)0, (struct thread *)0);
+		    ap->a_cnp->cn_cred, NOCRED, NULL, NULL);
 	if (error)
 		vput(vp);
 	return (error);
@@ -2101,6 +2102,29 @@ ufsfifo_kqfilter(ap)
 }
 
 /*
+ * Return POSIX pathconf information applicable to fifos.
+ */
+static int
+ufsfifo_pathconf(ap)
+	struct vop_pathconf_args /* {
+		struct vnode *a_vp;
+		int a_name;
+		int *a_retval;
+	} */ *ap;
+{
+
+	switch (ap->a_name) {
+	case _PC_ACL_EXTENDED:
+	case _PC_ACL_PATH_MAX:
+	case _PC_MAC_PRESENT:
+		return (ufs_pathconf(ap));
+	default:
+		return (fifo_specops.vop_pathconf(ap));
+	}
+	/* NOTREACHED */
+}
+
+/*
  * Return POSIX pathconf information applicable to ufs filesystems.
  */
 static int
@@ -2266,6 +2290,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	{
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
+		gid_t ucred_group;
 		ucp = cnp->cn_cred;
 #endif
 		/*
@@ -2292,6 +2317,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			refcount_init(&ucred.cr_ref, 1);
 			ucred.cr_uid = ip->i_uid;
 			ucred.cr_ngroups = 1;
+			ucred.cr_groups = &ucred_group;
 			ucred.cr_groups[0] = pdir->i_gid;
 			ucp = &ucred;
 #endif
@@ -2518,6 +2544,7 @@ struct vop_vector ufs_fifoops = {
 	.vop_inactive =		ufs_inactive,
 	.vop_kqfilter =		ufsfifo_kqfilter,
 	.vop_markatime =	ufs_markatime,
+	.vop_pathconf = 	ufsfifo_pathconf,
 	.vop_print =		ufs_print,
 	.vop_read =		VOP_PANIC,
 	.vop_reclaim =		ufs_reclaim,

@@ -269,7 +269,8 @@ chownerr(const char *file)
 {
 	static uid_t euid = -1;
 	static int ngroups = -1;
-	gid_t groups[NGROUPS_MAX];
+	static long ngroups_max;
+	gid_t *groups;
 
 	/* Check for chown without being root. */
 	if (errno != EPERM || (uid != (uid_t)-1 &&
@@ -281,7 +282,10 @@ chownerr(const char *file)
 	/* Check group membership; kernel just returns EPERM. */
 	if (gid != (gid_t)-1 && ngroups == -1 &&
 	    euid == (uid_t)-1 && (euid = geteuid()) != 0) {
-		ngroups = getgroups(NGROUPS_MAX, groups);
+		ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
+		if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
+			err(1, "malloc");
+		ngroups = getgroups(ngroups_max, groups);
 		while (--ngroups >= 0 && gid != groups[ngroups]);
 		if (ngroups < 0) {
 			warnx("you are not a member of group %s", gname);

@@ -179,9 +179,9 @@ static char *
 spa_history_zone()
 {
 #ifdef _KERNEL
-	/* XXX: pr_host can be changed by default from within a jail! */
+	/* XXX: pr_hostname can be changed by default from within a jail! */
 	if (jailed(curthread->td_ucred))
-		return (curthread->td_ucred->cr_prison->pr_host);
+		return (curthread->td_ucred->cr_prison->pr_hostname);
 #endif
 	return ("global");
 }
