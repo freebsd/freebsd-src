@@ -68,7 +68,9 @@ static int 	asmc_detach(device_t dev);
  * SMC functions.
  */
 static int 	asmc_init(device_t dev);
+static int 	asmc_command(device_t dev, uint8_t command);
 static int 	asmc_wait(device_t dev, uint8_t val);
+static int 	asmc_wait_ack(device_t dev, uint8_t val, int amount);
 static int 	asmc_key_write(device_t dev, const char *key, uint8_t *buf,
     uint8_t len);
 static int 	asmc_key_read(device_t dev, const char *key, uint8_t *buf,
@@ -99,6 +101,7 @@ static int 	asmc_mb_sysctl_sms_y(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mb_sysctl_sms_z(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_left(SYSCTL_HANDLER_ARGS);
 static int 	asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS);
+static int 	asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS);
 
 struct asmc_model {
 	const char 	 *smc_model;	/* smbios.system.product env var. */
@@ -115,6 +118,7 @@ struct asmc_model {
 	int (*smc_fan_targetspeed)(SYSCTL_HANDLER_ARGS);
 	int (*smc_light_left)(SYSCTL_HANDLER_ARGS);
 	int (*smc_light_right)(SYSCTL_HANDLER_ARGS);
+	int (*smc_light_control)(SYSCTL_HANDLER_ARGS);
 
 	const char 	*smc_temps[ASMC_TEMP_MAX];
 	const char 	*smc_tempnames[ASMC_TEMP_MAX];
@@ -131,18 +135,19 @@ static struct asmc_model *asmc_match(device_t dev);
 			asmc_mb_sysctl_fanmaxspeed, \
 			asmc_mb_sysctl_fantargetspeed
 #define ASMC_LIGHT_FUNCS asmc_mbp_sysctl_light_left, \
-			 asmc_mbp_sysctl_light_right
+			 asmc_mbp_sysctl_light_right, \
+			 asmc_mbp_sysctl_light_control
 
 struct asmc_model asmc_models[] = {
 	{ 
 	  "MacBook1,1", "Apple SMC MacBook Core Duo",
-	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL,
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
 	  ASMC_MB_TEMPS, ASMC_MB_TEMPNAMES, ASMC_MB_TEMPDESCS
 	},
 
 	{ 
 	  "MacBook2,1", "Apple SMC MacBook Core 2 Duo",
-	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL,
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
 	  ASMC_MB_TEMPS, ASMC_MB_TEMPNAMES, ASMC_MB_TEMPDESCS
 	},
 
@@ -182,12 +187,18 @@ struct asmc_model asmc_models[] = {
 	  ASMC_MBP_TEMPS, ASMC_MBP_TEMPNAMES, ASMC_MBP_TEMPDESCS
 	},
 	
+	{ 
+	  "MacBookPro4,1", "Apple SMC MacBook Pro Core 2 Duo (Penryn)",
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, ASMC_LIGHT_FUNCS,
+	  ASMC_MBP4_TEMPS, ASMC_MBP4_TEMPNAMES, ASMC_MBP4_TEMPDESCS
+	},
+	
 	/* The Mac Mini has no SMS */
 	{ 
 	  "Macmini1,1", "Apple SMC Mac Mini",
 	  NULL, NULL, NULL,
 	  ASMC_FAN_FUNCS,
-	  NULL, NULL,
+	  NULL, NULL, NULL,
 	  ASMC_MM_TEMPS, ASMC_MM_TEMPNAMES, ASMC_MM_TEMPDESCS
 	},
 
@@ -196,13 +207,13 @@ struct asmc_model asmc_models[] = {
 	  "MacPro2", "Apple SMC Mac Pro (8-core)",
 	  NULL, NULL, NULL,
 	  ASMC_FAN_FUNCS,
-	  NULL, NULL,
+	  NULL, NULL, NULL,
 	  ASMC_MP_TEMPS, ASMC_MP_TEMPNAMES, ASMC_MP_TEMPDESCS
 	},
 
 	{
 	  "MacBookAir1,1", "Apple SMC MacBook Air",
-	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL,
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL, NULL,
 	  ASMC_MBA_TEMPS, ASMC_MBA_TEMPNAMES, ASMC_MBA_TEMPDESCS
 	},	
 
@@ -242,6 +253,7 @@ ACPI_MODULE_NAME("ASMC")
 #define ASMC_DPRINTF(str)	
 #endif
 
+/* NB: can't be const */
 static char *asmc_ids[] = { "APP0001", NULL };
 
 static devclass_t asmc_devclass;
@@ -385,6 +397,33 @@ asmc_attach(device_t dev)
 		    model->smc_tempdescs[i]);
 	}
 
+	/*
+	 * dev.asmc.n.light
+	 */
+	if (model->smc_light_left) {
+		sc->sc_light_tree = SYSCTL_ADD_NODE(sysctlctx,
+		    SYSCTL_CHILDREN(sysctlnode), OID_AUTO, "light",
+		    CTLFLAG_RD, 0, "Keyboard backlight sensors");
+		
+		SYSCTL_ADD_PROC(sysctlctx,
+		    SYSCTL_CHILDREN(sc->sc_light_tree),
+		    OID_AUTO, "left", CTLTYPE_INT | CTLFLAG_RD,
+		    dev, 0, model->smc_light_left, "I",
+		    "Keyboard backlight left sensor");
+	
+		SYSCTL_ADD_PROC(sysctlctx,
+		    SYSCTL_CHILDREN(sc->sc_light_tree),
+		    OID_AUTO, "right", CTLTYPE_INT | CTLFLAG_RD,
+		    dev, 0, model->smc_light_right, "I",
+		    "Keyboard backlight right sensor");
+
+		SYSCTL_ADD_PROC(sysctlctx,
+		    SYSCTL_CHILDREN(sc->sc_light_tree),
+		    OID_AUTO, "control", CTLTYPE_INT | CTLFLAG_RW,
+		    dev, 0, model->smc_light_control, "I",
+		    "Keyboard backlight brightness control");
+	}
+
 	if (model->smc_sms_x == NULL)
 		goto nosms;
 
@@ -412,27 +451,6 @@ asmc_attach(device_t dev)
 	    OID_AUTO, "z", CTLTYPE_INT | CTLFLAG_RD,
 	    dev, 0, model->smc_sms_z, "I",
 	    "Sudden Motion Sensor Z value");
-
-	/*
-	 * dev.asmc.n.light
-	 */
-	if (model->smc_light_left) {
-		sc->sc_light_tree = SYSCTL_ADD_NODE(sysctlctx,
-		    SYSCTL_CHILDREN(sysctlnode), OID_AUTO, "light",
-		    CTLFLAG_RD, 0, "Keyboard backlight sensors");
-		
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(sc->sc_light_tree),
-		    OID_AUTO, "left", CTLTYPE_INT | CTLFLAG_RW,
-		    dev, 0, model->smc_light_left, "I",
-		    "Keyboard backlight left sensor");
-	
-		SYSCTL_ADD_PROC(sysctlctx,
-		    SYSCTL_CHILDREN(sc->sc_light_tree),
-		    OID_AUTO, "right", CTLTYPE_INT | CTLFLAG_RW,
-		    dev, 0, model->smc_light_right, "I",
-		    "Keyboard backlight right sensor");
-	}
 
 	/*
 	 * Need a taskqueue to send devctl_notify() events
@@ -606,38 +624,81 @@ nosms:
 
 /*
  * We need to make sure that the SMC acks the byte sent.
- * Just wait up to 100 ms.
+ * Just wait up to (amount * 10)  ms.
  */
 static int
-asmc_wait(device_t dev, uint8_t val)
+asmc_wait_ack(device_t dev, uint8_t val, int amount)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
 	u_int i;
 
 	val = val & ASMC_STATUS_MASK;
 
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < amount; i++) {
 		if ((ASMC_CMDPORT_READ(sc) & ASMC_STATUS_MASK) == val)
 			return (0);
 		DELAY(10);
 	}
 
+	return (1);
+}
+
+/*
+ * We need to make sure that the SMC acks the byte sent.
+ * Just wait up to 100 ms.
+ */
+static int
+asmc_wait(device_t dev, uint8_t val)
+{
+	struct asmc_softc *sc;
+
+	if (asmc_wait_ack(dev, val, 1000) == 0)
+		return (0);
+
+	sc = device_get_softc(dev);
+	val = val & ASMC_STATUS_MASK;
+
+#ifdef DEBUG
 	device_printf(dev, "%s failed: 0x%x, 0x%x\n", __func__, val,
 	    ASMC_CMDPORT_READ(sc));
+#endif	
+	return (1);
+}
 	
+/*
+ * Send the given command, retrying up to 10 times if
+ * the acknowledgement fails.
+ */
+static int
+asmc_command(device_t dev, uint8_t command) {
+
+	int i;
+	struct asmc_softc *sc = device_get_softc(dev);
+
+	for (i=0; i < 10; i++) {
+		ASMC_CMDPORT_WRITE(sc, command);
+		if (asmc_wait_ack(dev, 0x0c, 100) == 0) {
+			return (0);
+		}
+	}
+
+#ifdef DEBUG
+	device_printf(dev, "%s failed: 0x%x, 0x%x\n", __func__, command,
+	    ASMC_CMDPORT_READ(sc));
+#endif
 	return (1);
 }
 
 static int
 asmc_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 {
-	int i, error = 1;
+	int i, error = 1, try = 0;
 	struct asmc_softc *sc = device_get_softc(dev);
 
 	mtx_lock_spin(&sc->sc_mtx);
 
-	ASMC_CMDPORT_WRITE(sc, ASMC_CMDREAD);
-	if (asmc_wait(dev, 0x0c))
+begin:
+	if (asmc_command(dev, ASMC_CMDREAD))
 		goto out;
 
 	for (i = 0; i < 4; i++) {
@@ -656,6 +717,12 @@ asmc_key_read(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 
 	error = 0;
 out:
+	if (error) {
+		if (++try < 10) goto begin;
+		device_printf(dev,"%s for key %s failed %d times, giving up\n",
+			__func__, key, try);
+	}
+
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (error);
@@ -664,14 +731,14 @@ out:
 static int
 asmc_key_write(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 {
-	int i, error = -1;
+	int i, error = -1, try = 0;
 	struct asmc_softc *sc = device_get_softc(dev);
 
 	mtx_lock_spin(&sc->sc_mtx);
 
+begin:
 	ASMC_DPRINTF(("cmd port: cmd write\n"));
-	ASMC_CMDPORT_WRITE(sc, ASMC_CMDWRITE);
-	if (asmc_wait(dev, 0x0c))
+	if (asmc_command(dev, ASMC_CMDWRITE))
 		goto out;
 
 	ASMC_DPRINTF(("data port: key\n"));
@@ -692,6 +759,12 @@ asmc_key_write(device_t dev, const char *key, uint8_t *buf, uint8_t len)
 
 	error = 0;
 out:
+	if (error) {
+		if (++try < 10) goto begin;
+		device_printf(dev,"%s for key %s failed %d times, giving up\n",
+			__func__, key, try);
+	}
+
 	mtx_unlock_spin(&sc->sc_mtx);
 
 	return (error);
@@ -993,20 +1066,11 @@ asmc_mbp_sysctl_light_left(SYSCTL_HANDLER_ARGS)
 	device_t dev = (device_t) arg1;
 	uint8_t buf[6];
 	int error;
-	unsigned int level;
 	int32_t v;
 
 	asmc_key_read(dev, ASMC_KEY_LIGHTLEFT, buf, 6);
 	v = buf[2];
 	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
-	if (error == 0 && req->newptr != NULL) {
-		level = *(unsigned int *)req->newptr;
-		if (level > 255)
-			return (EINVAL);
-		buf[0] = level;
-		buf[1] = 0x00;
-		asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, 2);
-	}
 
 	return (error);
 }
@@ -1017,16 +1081,30 @@ asmc_mbp_sysctl_light_right(SYSCTL_HANDLER_ARGS)
 	device_t dev = (device_t) arg1;
 	uint8_t buf[6];
 	int error;
-	unsigned int level;
 	int32_t v;
 	
 	asmc_key_read(dev, ASMC_KEY_LIGHTRIGHT, buf, 6);
 	v = buf[2];
 	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
+	
+	return (error);
+}
+
+static int
+asmc_mbp_sysctl_light_control(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t) arg1;
+	uint8_t buf[2];
+	int error;
+	unsigned int level;
+	static int32_t v;
+	
+	error = sysctl_handle_int(oidp, &v, sizeof(v), req);
 	if (error == 0 && req->newptr != NULL) {
 		level = *(unsigned int *)req->newptr;
 		if (level > 255)
 			return (EINVAL);
+		v = level;
 		buf[0] = level;
 		buf[1] = 0x00;
 		asmc_key_write(dev, ASMC_KEY_LIGHTVALUE, buf, 2);

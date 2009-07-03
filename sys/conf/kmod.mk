@@ -320,7 +320,8 @@ ${_src}:
 .endfor
 .endif
 
-MFILES?= dev/acpica/acpi_if.m dev/agp/agp_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
+MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
+	dev/agp/agp_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
 	dev/iicbus/iicbb_if.m dev/iicbus/iicbus_if.m \
 	dev/mmc/mmcbr_if.m dev/mmc/mmcbus_if.m \
 	dev/mii/miibus_if.m dev/ofw/ofw_bus_if.m \

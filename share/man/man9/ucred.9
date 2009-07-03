@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2002
+.Dd June 19, 2009
 .Dt UCRED 9
 .Os
 .Sh NAME
@@ -54,7 +54,11 @@
 .Ft void
 .Fn crcopy "struct ucred *dest" "struct ucred *src"
 .Ft "struct ucred *"
+.Fn crcopysafe "struct proc *p" "struct ucred *cr"
+.Ft "struct ucred *"
 .Fn crdup "struct ucred *cr"
+.Ft void
+.Fn crsetgroups "struct ucred *cr" "int ngrp" "gid_t *groups"
 .Ft void
 .Fn cru2x "struct ucred *cr" "struct xucred *xcr"
 .Ft void
@@ -98,6 +102,18 @@ by calling
 .Xr uihold 9 .
 .Pp
 The
+.Fn crcopysafe
+function copies the current credential associated with the process
+.Fa p
+into the newly allocated credential
+.Fa cr .
+The process lock on
+.Fa p
+must be held and will be dropped and reacquired as needed to allocate
+group storage space in
+.Fa cr .
+.Pp
+The
 .Fn crdup
 function allocates memory for a new structure and copies the
 contents of
@@ -105,6 +121,20 @@ contents of
 into it.
 The actual copying is performed by
 .Fn crcopy .
+.Pp
+The
+.Fn crsetgroups
+function sets the
+.Va cr_groups
+and
+.Va cr_ngroups
+variables and allocates space as needed.
+It also truncates the group list to the current maximum number of
+groups.
+No other mechanism should be used to modify the
+.Va cr_groups
+array except for updating the primary group via assignment to
+.Va cr_groups[0] .
 .Pp
 The
 .Fn cru2x
@@ -133,9 +163,10 @@ function sets the credentials of
 to that of its process, freeing its old credential if required.
 .Sh RETURN VALUES
 .Fn crget ,
-.Fn crhold
+.Fn crhold ,
+.Fn crdup ,
 and
-.Fn crdup
+.Fn crcopysafe
 all return a pointer to a
 .Vt ucred
 structure.
@@ -152,9 +183,10 @@ structure contains extensible fields.
 This means that the correct protocol must always be followed to create
 a fresh and writable credential structure: new credentials must always
 be derived from existing credentials using
-.Fn crget
+.Fn crget ,
+.Fn crcopy ,
 and
-.Fn crcopy .
+.Fn crcopysafe .
 .Pp
 In the common case, credentials required for access control decisions are
 used in a read-only manner.

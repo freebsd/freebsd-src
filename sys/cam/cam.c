@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #else /* _KERNEL */
 #include <stdlib.h>
 #include <stdio.h>
+#include <camlib.h>
 #endif /* _KERNEL */
 
 #include <cam/cam.h>

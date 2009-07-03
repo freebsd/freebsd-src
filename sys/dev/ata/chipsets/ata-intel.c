@@ -146,7 +146,7 @@ ata_intel_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_intel_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int

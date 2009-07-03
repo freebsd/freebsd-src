@@ -237,9 +237,20 @@ struct rss_header {
 
 #ifndef CHELSIO_FW
 struct work_request_hdr {
-	__be32 wr_hi;
-	__be32 wr_lo;
+	union {
+		struct {
+			__be32 wr_hi;
+			__be32 wr_lo;
+		} ilp32;
+		struct {
+			__be64 wr_hilo;
+		} lp64;
+	} u;
 };
+
+#define	wrh_hi		u.ilp32.wr_hi
+#define	wrh_lo		u.ilp32.wr_lo
+#define	wrh_hilo	u.lp64.wr_hilo
 
 /* wr_hi fields */
 #define S_WR_SGE_CREDITS    0
@@ -817,8 +828,7 @@ struct cpl_peer_close {
 };
 
 struct tx_data_wr {
-	__be32 wr_hi;
-	__be32 wr_lo;
+	WR_HDR;
 	__be32 len;
 	__be32 flags;
 	__be32 sndseq;
@@ -936,8 +946,7 @@ struct cpl_rdma_ec_status {
 };
 
 struct mngt_pktsched_wr {
-	__be32 wr_hi;
-	__be32 wr_lo;
+	WR_HDR;
 	__u8  mngt_opcode;
 	__u8  rsvd[7];
 	__u8  sched;

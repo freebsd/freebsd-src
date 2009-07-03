@@ -352,7 +352,7 @@ struct sockopt;
 extern int	(*ip_mrouter_set)(struct socket *, struct sockopt *);
 extern int	(*ip_mrouter_get)(struct socket *, struct sockopt *);
 extern int	(*ip_mrouter_done)(void);
-extern int	(*mrt_ioctl)(int, caddr_t, int);
+extern int	(*mrt_ioctl)(u_long, caddr_t, int);
 
 #endif /* _KERNEL */
 

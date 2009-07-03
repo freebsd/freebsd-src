@@ -31,11 +31,29 @@ __FBSDID("$FreeBSD$");
  * This file contains the USB templates for a CDC USB ethernet device.
  */
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usb_cdc.h>
-#include <dev/usb/usb_mfunc.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
 
-#include <dev/usb/usb_core.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usb_cdc.h>
 
 #include <dev/usb/template/usb_template.h>
 
@@ -116,7 +134,7 @@ USB_MAKE_STRING_DESC(STRING_ETH_SERIAL, string_eth_serial);
 
 /* prototypes */
 
-static usb2_temp_get_string_desc_t eth_get_string_desc;
+static usb_temp_get_string_desc_t eth_get_string_desc;
 
 static const struct usb_cdc_union_descriptor eth_union_desc = {
 	.bLength = sizeof(eth_union_desc),
@@ -244,7 +262,7 @@ static const struct usb_temp_config_desc *eth_configs[] = {
 	NULL,
 };
 
-const struct usb_temp_device_desc usb2_template_cdce = {
+const struct usb_temp_device_desc usb_template_cdce = {
 	.getStringDesc = &eth_get_string_desc,
 	.ppConfigDesc = eth_configs,
 	.idVendor = 0x0001,

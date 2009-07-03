@@ -393,17 +393,19 @@ get_keys(struct krb5_context *kc)
 }
 
 static void
-krb5_init(struct krb5_context *kc)
+krb5_init(gss_ctx_id_t ctx)
 {
+	struct krb5_context *kc = (struct krb5_context *)ctx;
 
 	mtx_init(&kc->kc_lock, "krb5 gss lock", NULL, MTX_DEF);
 }
 
 static OM_uint32
-krb5_import(struct krb5_context *kc,
+krb5_import(gss_ctx_id_t ctx,
     enum sec_context_format format,
     const gss_buffer_t context_token)
 {
+	struct krb5_context *kc = (struct krb5_context *)ctx;
 	OM_uint32 res;
 	const uint8_t *p = (const uint8_t *) context_token->value;
 	size_t len = context_token->length;
@@ -489,8 +491,9 @@ krb5_import(struct krb5_context *kc,
 }
 
 static void
-krb5_delete(struct krb5_context *kc, gss_buffer_t output_token)
+krb5_delete(gss_ctx_id_t ctx, gss_buffer_t output_token)
 {
+	struct krb5_context *kc = (struct krb5_context *)ctx;
 
 	delete_address(&kc->kc_local_address);
 	delete_address(&kc->kc_remote_address);
@@ -525,7 +528,7 @@ krb5_delete(struct krb5_context *kc, gss_buffer_t output_token)
 }
 
 static gss_OID
-krb5_mech_type(struct krb5_context *kc)
+krb5_mech_type(gss_ctx_id_t ctx)
 {
 
 	return (&krb5_mech_oid);
@@ -1002,9 +1005,10 @@ krb5_get_mic_new(struct krb5_context *kc,  struct mbuf *m,
 }
 
 static OM_uint32
-krb5_get_mic(struct krb5_context *kc, OM_uint32 *minor_status,
+krb5_get_mic(gss_ctx_id_t ctx, OM_uint32 *minor_status,
     gss_qop_t qop_req, struct mbuf *m, struct mbuf **micp)
 {
+	struct krb5_context *kc = (struct krb5_context *)ctx;
 
 	*minor_status = 0;
 
@@ -1211,9 +1215,10 @@ krb5_verify_mic_new(struct krb5_context *kc, struct mbuf *m, struct mbuf *mic)
 }
 
 static OM_uint32
-krb5_verify_mic(struct krb5_context *kc, OM_uint32 *minor_status,
+krb5_verify_mic(gss_ctx_id_t ctx, OM_uint32 *minor_status,
     struct mbuf *m, struct mbuf *mic, gss_qop_t *qop_state)
 {
+	struct krb5_context *kc = (struct krb5_context *)ctx;
 
 	*minor_status = 0;
 	if (qop_state)
@@ -1536,10 +1541,11 @@ krb5_wrap_new(struct krb5_context *kc, int conf_req_flag,
 }
 
 static OM_uint32
-krb5_wrap(struct krb5_context *kc, OM_uint32 *minor_status,
+krb5_wrap(gss_ctx_id_t ctx, OM_uint32 *minor_status,
     int conf_req_flag, gss_qop_t qop_req,
     struct mbuf **mp, int *conf_state)
 {
+	struct krb5_context *kc = (struct krb5_context *)ctx;
 
 	*minor_status = 0;
 	if (conf_state)
@@ -1946,9 +1952,10 @@ krb5_unwrap_new(struct krb5_context *kc, struct mbuf **mp, int *conf_state)
 }
 
 static OM_uint32
-krb5_unwrap(struct krb5_context *kc, OM_uint32 *minor_status,
+krb5_unwrap(gss_ctx_id_t ctx, OM_uint32 *minor_status,
     struct mbuf **mp, int *conf_state, gss_qop_t *qop_state)
 {
+	struct krb5_context *kc = (struct krb5_context *)ctx;
 	OM_uint32 maj_stat;
 
 	*minor_status = 0;
@@ -1991,10 +1998,11 @@ krb5_unwrap(struct krb5_context *kc, OM_uint32 *minor_status,
 }
 
 static OM_uint32
-krb5_wrap_size_limit(struct krb5_context *kc, OM_uint32 *minor_status,
+krb5_wrap_size_limit(gss_ctx_id_t ctx, OM_uint32 *minor_status,
     int conf_req_flag, gss_qop_t qop_req, OM_uint32 req_output_size,
     OM_uint32 *max_input_size)
 {
+	struct krb5_context *kc = (struct krb5_context *)ctx;
 	const struct krb5_encryption_class *ec;
 	OM_uint32 overhead;
 

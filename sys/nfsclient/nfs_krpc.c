@@ -61,15 +61,12 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
-
-#ifndef NFS_LEGACYRPC
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -186,7 +183,7 @@ nfs_init_rtt(struct nfsmount *nmp)
  * We do not free the sockaddr if error.
  */
 int
-nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
+nfs_connect(struct nfsmount *nmp)
 {
 	int rcvreserve, sndreserve;
 	int pktscale;
@@ -514,7 +511,7 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 	 * and let clnt_reconnect_create handle reconnects.
 	 */
 	if (!nmp->nm_client)
-		nfs_connect(nmp, NULL);
+		nfs_connect(nmp);
 
 	auth = nfs_getauth(nmp, cred);
 	if (!auth) {
@@ -802,7 +799,7 @@ nfs_msleep(struct thread *td, void *ident, struct mtx *mtx, int priority, char *
  * This is used for NFSMNT_INT mounts.
  */
 int
-nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
+nfs_sigintr(struct nfsmount *nmp, struct thread *td)
 {
 	struct proc *p;
 	sigset_t tmpset;
@@ -899,5 +896,3 @@ nfs_up(struct nfsmount *nmp, struct thread *td, const char *msg,
 	} else
 		mtx_unlock(&nmp->nm_mtx);
 }
-
-#endif /* !NFS_LEGACYRPC */

@@ -193,12 +193,8 @@ int
 setvarsafe(char *name, char *val, int flags)
 {
 	struct jmploc jmploc;
-	struct jmploc *volatile savehandler = handler;
+	struct jmploc *const savehandler = handler;
 	int err = 0;
-#ifdef __GNUC__
-	/* Avoid longjmp clobbering */
-	(void) &err;
-#endif
 
 	if (setjmp(jmploc.loc))
 		err = 1;

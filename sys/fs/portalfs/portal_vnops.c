@@ -311,8 +311,9 @@ portal_open(ap)
 
 	pcred.pcr_flag = ap->a_mode;
 	pcred.pcr_uid = ap->a_cred->cr_uid;
-	pcred.pcr_ngroups = ap->a_cred->cr_ngroups;
-	bcopy(ap->a_cred->cr_groups, pcred.pcr_groups, NGROUPS * sizeof(gid_t));
+	pcred.pcr_ngroups = MIN(ap->a_cred->cr_ngroups, XU_NGROUPS);
+	bcopy(ap->a_cred->cr_groups, pcred.pcr_groups,
+	    pcred.pcr_ngroups * sizeof(gid_t));
 	aiov[0].iov_base = (caddr_t) &pcred;
 	aiov[0].iov_len = sizeof(pcred);
 	aiov[1].iov_base = pt->pt_arg;

@@ -288,7 +288,8 @@ int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b)
 			if (!(nabit & STR_TYPE_CMP) ||
 				!(nbbit & STR_TYPE_CMP))
 				return j;
-			j = asn1_string_memcmp(na->value, nb->value);
+			if (!asn1_string_memcmp(na->value, nb->value))
+				j = 0;
 			}
 		else if (na->value->type == V_ASN1_PRINTABLESTRING)
 			j=nocase_spacenorm_cmp(na->value, nb->value);
@@ -322,10 +323,16 @@ unsigned long X509_NAME_hash(X509_NAME *x)
 	{
 	unsigned long ret=0;
 	unsigned char md[16];
+	EVP_MD_CTX md_ctx;
 
 	/* Make sure X509_NAME structure contains valid cached encoding */
 	i2d_X509_NAME(x,NULL);
-	EVP_Digest(x->bytes->data, x->bytes->length, md, NULL, EVP_md5(), NULL);
+	EVP_MD_CTX_init(&md_ctx);
+	EVP_MD_CTX_set_flags(&md_ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
+	EVP_DigestInit_ex(&md_ctx, EVP_md5(), NULL);
+	EVP_DigestUpdate(&md_ctx, x->bytes->data, x->bytes->length);
+	EVP_DigestFinal_ex(&md_ctx,md,NULL);
+	EVP_MD_CTX_cleanup(&md_ctx);
 
 	ret=(	((unsigned long)md[0]     )|((unsigned long)md[1]<<8L)|
 		((unsigned long)md[2]<<16L)|((unsigned long)md[3]<<24L)

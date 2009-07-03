@@ -30,28 +30,26 @@
 #define __NSCD_NSCDCLI_H__
 
 struct nscd_connection_params {
-	char	*socket_path;
-	struct	timeval	timeout;
+	char *socket_path;
+	struct timeval timeout;
 };
 
 struct nscd_connection_ {
-	int	sockfd;
+	int sockfd;
 	int read_queue;
 	int write_queue;
 };
 
 /* simple abstractions for not to write "struct" every time */
-typedef struct nscd_connection_		*nscd_connection;
-typedef struct nscd_connection_		*nscd_mp_write_session;
-typedef struct nscd_connection_		*nscd_mp_read_session;
+typedef struct nscd_connection_ *nscd_connection;
+typedef struct nscd_connection_ *nscd_mp_write_session;
+typedef struct nscd_connection_ *nscd_mp_read_session;
 
 #define	INVALID_NSCD_CONNECTION	(NULL)
 
 /* initialization/destruction routines */
-extern	nscd_connection	open_nscd_connection__(
-	struct nscd_connection_params const *);
-extern	void	close_nscd_connection__(nscd_connection);
-
-extern	int nscd_transform__(nscd_connection, const char *, int);
+nscd_connection	open_nscd_connection__(struct nscd_connection_params const *);
+void close_nscd_connection__(nscd_connection);
+int nscd_transform__(nscd_connection, const char *, int);
 
 #endif

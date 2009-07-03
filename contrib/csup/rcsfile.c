@@ -730,7 +730,7 @@ rcsfile_print(struct rcsfile *rf)
 		lprintf(1, "Strict!\n");
 	if (rf->comment != NULL)
 		lprintf(1, "comment: '%s'\n", rf->comment);
-	if (rf->expand != EXPAND_DEFAULT);
+	if (rf->expand != EXPAND_DEFAULT)
 		lprintf(1, "expand: '%s'\n", keyword_encode_expand(rf->expand));
 	
 	/* Print all deltas. */

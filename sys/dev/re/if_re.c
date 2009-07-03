@@ -640,7 +640,7 @@ re_set_rxmode(struct rl_softc *sc)
 		goto done;
 	}
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -651,7 +651,7 @@ re_set_rxmode(struct rl_softc *sc)
 		else
 			hashes[1] |= (1 << (h - 32));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (hashes[0] != 0 || hashes[1] != 0) {
 		/*

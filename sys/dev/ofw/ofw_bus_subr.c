@@ -74,10 +74,11 @@ ofw_bus_gen_destroy_devinfo(struct ofw_bus_devinfo *obd)
 		free(obd->obd_type, M_OFWPROP);
 }
 
-int 
+int
 ofw_bus_gen_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
+
 	if (ofw_bus_get_name(child) != NULL) {
 		strlcat(buf, "name=", buflen);
 		strlcat(buf, ofw_bus_get_name(child), buflen);
@@ -87,7 +88,6 @@ ofw_bus_gen_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
 		strlcat(buf, " compat=", buflen);
 		strlcat(buf, ofw_bus_get_compat(child), buflen);
 	}
-
 	return (0);
 };
 
@@ -95,19 +95,19 @@ const char *
 ofw_bus_gen_get_compat(device_t bus, device_t dev)
 {
 	const struct ofw_bus_devinfo *obd;
- 
- 	obd = OFW_BUS_GET_DEVINFO(bus, dev);
+
+	obd = OFW_BUS_GET_DEVINFO(bus, dev);
 	if (obd == NULL)
 		return (NULL);
 	return (obd->obd_compat);
 }
- 
+
 const char *
 ofw_bus_gen_get_model(device_t bus, device_t dev)
 {
 	const struct ofw_bus_devinfo *obd;
 
- 	obd = OFW_BUS_GET_DEVINFO(bus, dev);
+	obd = OFW_BUS_GET_DEVINFO(bus, dev);
 	if (obd == NULL)
 		return (NULL);
 	return (obd->obd_model);
@@ -118,7 +118,7 @@ ofw_bus_gen_get_name(device_t bus, device_t dev)
 {
 	const struct ofw_bus_devinfo *obd;
 
- 	obd = OFW_BUS_GET_DEVINFO(bus, dev);
+	obd = OFW_BUS_GET_DEVINFO(bus, dev);
 	if (obd == NULL)
 		return (NULL);
 	return (obd->obd_name);
@@ -129,7 +129,7 @@ ofw_bus_gen_get_node(device_t bus, device_t dev)
 {
 	const struct ofw_bus_devinfo *obd;
 
- 	obd = OFW_BUS_GET_DEVINFO(bus, dev);
+	obd = OFW_BUS_GET_DEVINFO(bus, dev);
 	if (obd == NULL)
 		return (0);
 	return (obd->obd_node);
@@ -140,7 +140,7 @@ ofw_bus_gen_get_type(device_t bus, device_t dev)
 {
 	const struct ofw_bus_devinfo *obd;
 
- 	obd = OFW_BUS_GET_DEVINFO(bus, dev);
+	obd = OFW_BUS_GET_DEVINFO(bus, dev);
 	if (obd == NULL)
 		return (NULL);
 	return (obd->obd_type);
@@ -162,15 +162,13 @@ ofw_bus_setup_iinfo(phandle_t node, struct ofw_bus_iinfo *ii, int intrsz)
 		msksz = OF_getprop_alloc(node, "interrupt-map-mask", 1,
 		    (void **)&ii->opi_imapmsk);
 		/*
-		 * Failure to get the mask is ignored; a full mask is used then.
-		 * Barf on bad mask sizes, however.
+		 * Failure to get the mask is ignored; a full mask is used
+		 * then.  We barf on bad mask sizes, however.
 		 */
-		if (msksz != -1 && msksz != ii->opi_addrc + intrsz) {
+		if (msksz != -1 && msksz != ii->opi_addrc + intrsz)
 			panic("ofw_bus_setup_iinfo: bad interrupt-map-mask "
 			    "property!");
-		}
 	}
-
 }
 
 int
@@ -197,10 +195,10 @@ ofw_bus_lookup_imap(phandle_t node, struct ofw_bus_iinfo *ii, void *reg,
  * Map an interrupt using the firmware reg, interrupt-map and
  * interrupt-map-mask properties.
  * The interrupt property to be mapped must be of size intrsz, and pointed to
- * by intr. The regs property of the node for which the mapping is done must
+ * by intr.  The regs property of the node for which the mapping is done must
  * be passed as regs. This property is an array of register specifications;
  * the size of the address part of such a specification must be passed as
- * physsz. Only the first element of the property is used.
+ * physsz.  Only the first element of the property is used.
  * imap and imapsz hold the interrupt mask and it's size.
  * imapmsk is a pointer to the interrupt-map-mask property, which must have
  * a size of physsz + intrsz; it may be NULL, in which case a full mask is
@@ -216,11 +214,11 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
     int rintrsz)
 {
 	phandle_t parent;
-	u_int8_t *ref = maskbuf;
-	u_int8_t *uiintr = intr;
-	u_int8_t *uiregs = regs;
-	u_int8_t *uiimapmsk = imapmsk;
-	u_int8_t *mptr;
+	uint8_t *ref = maskbuf;
+	uint8_t *uiintr = intr;
+	uint8_t *uiregs = regs;
+	uint8_t *uiimapmsk = imapmsk;
+	uint8_t *mptr;
 	pcell_t pintrsz;
 	int i, rsz, tsz;
 
@@ -244,13 +242,13 @@ ofw_bus_search_intrmap(void *intr, int intrsz, void *regs, int physsz,
 			pintrsz = 1;	/* default */
 		pintrsz *= sizeof(pcell_t);
 
-		/* Compute the map stride size */
+		/* Compute the map stride size. */
 		tsz = physsz + intrsz + sizeof(phandle_t) + pintrsz;
 		KASSERT(i >= tsz, ("ofw_bus_search_intrmap: truncated map"));
-	
+
 		/*
 		 * XXX: Apple hardware uses a second cell to set information
-		 * on the interrupt trigger type. This information should
+		 * on the interrupt trigger type.  This information should
 		 * be used somewhere to program the PIC.
 		 */
 

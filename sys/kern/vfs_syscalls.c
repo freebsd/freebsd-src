@@ -189,8 +189,8 @@ quotactl(td, uap)
 	int error;
 	struct nameidata nd;
 
-	AUDIT_ARG(cmd, uap->cmd);
-	AUDIT_ARG(uid, uap->uid);
+	AUDIT_ARG_CMD(uap->cmd);
+	AUDIT_ARG_UID(uap->uid);
 	if (!prison_allow(td->td_ucred, PR_ALLOW_QUOTAS))
 		return (EPERM);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
@@ -371,7 +371,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	struct vnode *vp;
 	int error;
 
-	AUDIT_ARG(fd, fd);
+	AUDIT_ARG_FD(fd);
 	error = getvnode(td->td_proc->p_fd, fd, &fp);
 	if (error)
 		return (error);
@@ -379,7 +379,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 #ifdef AUDIT
-	AUDIT_ARG(vnode, vp, ARG_VNODE1);
+	AUDIT_ARG_VNODE(vp, ARG_VNODE1);
 #endif
 	mp = vp->v_mount;
 	if (mp)
@@ -744,7 +744,7 @@ fchdir(td, uap)
 	int vfslocked;
 	int error;
 
-	AUDIT_ARG(fd, uap->fd);
+	AUDIT_ARG_FD(uap->fd);
 	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
 		return (error);
 	vp = fp->f_vnode;
@@ -752,7 +752,7 @@ fchdir(td, uap)
 	fdrop(fp, td);
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	AUDIT_ARG(vnode, vp, ARG_VNODE1);
+	AUDIT_ARG_VNODE(vp, ARG_VNODE1);
 	error = change_dir(vp, td);
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
 		int tvfslocked;
@@ -1055,8 +1055,8 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int vfslocked;
 
-	AUDIT_ARG(fflags, flags);
-	AUDIT_ARG(mode, mode);
+	AUDIT_ARG_FFLAGS(flags);
+	AUDIT_ARG_MODE(mode);
 	/* XXX: audit dirfd */
 	/*
 	 * Only one of the O_EXEC, O_RDONLY, O_WRONLY and O_RDWR may
@@ -1265,8 +1265,8 @@ kern_mknodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int vfslocked;
 
-	AUDIT_ARG(mode, mode);
-	AUDIT_ARG(dev, dev);
+	AUDIT_ARG_MODE(mode);
+	AUDIT_ARG_DEV(dev);
 	switch (mode & S_IFMT) {
 	case S_IFCHR:
 	case S_IFBLK:
@@ -1414,7 +1414,7 @@ kern_mkfifoat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int vfslocked;
 
-	AUDIT_ARG(mode, mode);
+	AUDIT_ARG_MODE(mode);
 restart:
 	bwillwrite();
 	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
@@ -1507,7 +1507,7 @@ linkat(struct thread *td, struct linkat_args *uap)
 	    UIO_USERSPACE, (flag & AT_SYMLINK_FOLLOW) ? FOLLOW : NOFOLLOW));
 }
 
-static int hardlink_check_uid = 0;
+int hardlink_check_uid = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, hardlink_check_uid, CTLFLAG_RW,
     &hardlink_check_uid, 0,
     "Unprivileged processes cannot create hard links to files owned by other "
@@ -1583,7 +1583,7 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
+	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE2,
 	    segflg, path2, fd2, td);
 	if ((error = namei(&nd)) == 0) {
 		lvfslocked = NDHASGIANT(&nd);
@@ -1677,7 +1677,7 @@ kern_symlinkat(struct thread *td, char *path1, int fd, char *path2,
 		if ((error = copyinstr(path1, syspath, MAXPATHLEN, NULL)) != 0)
 			goto out;
 	}
-	AUDIT_ARG(text, syspath);
+	AUDIT_ARG_TEXT(syspath);
 restart:
 	bwillwrite();
 	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
@@ -1924,6 +1924,7 @@ lseek(td, uap)
 	int error, noneg;
 	int vfslocked;
 
+	AUDIT_ARG_FD(uap->fd);
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE)) {
@@ -2132,6 +2133,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		td->td_ucred = tmpcred;
 	} else
 		cred = tmpcred = td->td_ucred;
+	AUDIT_ARG_VALUE(mode);
 	NDINIT_AT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
 	    AUDITVNODE1, pathseg, path, fd, td);
 	if ((error = namei(&nd)) != 0)
@@ -2689,7 +2691,7 @@ chflags(td, uap)
 	struct nameidata nd;
 	int vfslocked;
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
@@ -2717,7 +2719,7 @@ lchflags(td, uap)
 	struct nameidata nd;
 	int vfslocked;
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
@@ -2751,14 +2753,14 @@ fchflags(td, uap)
 	int vfslocked;
 	int error;
 
-	AUDIT_ARG(fd, uap->fd);
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FD(uap->fd);
+	AUDIT_ARG_FFLAGS(uap->flags);
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
+	AUDIT_ARG_VNODE(fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setfflags(td, fp->f_vnode, uap->flags);
@@ -2877,7 +2879,7 @@ kern_fchmodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	int vfslocked;
 	int follow;
 
-	AUDIT_ARG(mode, mode);
+	AUDIT_ARG_MODE(mode);
 	follow = (flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW : FOLLOW;
 	NDINIT_AT(&nd, LOOKUP,  follow | MPSAFE | AUDITVNODE1, pathseg, path,
 	    fd, td);
@@ -2912,14 +2914,14 @@ fchmod(td, uap)
 	int vfslocked;
 	int error;
 
-	AUDIT_ARG(fd, uap->fd);
-	AUDIT_ARG(mode, uap->mode);
+	AUDIT_ARG_FD(uap->fd);
+	AUDIT_ARG_MODE(uap->mode);
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
+	AUDIT_ARG_VNODE(fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setfmode(td, fp->f_vnode, uap->mode);
@@ -3019,7 +3021,7 @@ kern_fchownat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int error, vfslocked, follow;
 
-	AUDIT_ARG(owner, uid, gid);
+	AUDIT_ARG_OWNER(uid, gid);
 	follow = (flag & AT_SYMLINK_NOFOLLOW) ? NOFOLLOW : FOLLOW;
 	NDINIT_AT(&nd, LOOKUP, follow | MPSAFE | AUDITVNODE1, pathseg, path,
 	    fd, td);
@@ -3089,14 +3091,14 @@ fchown(td, uap)
 	int vfslocked;
 	int error;
 
-	AUDIT_ARG(fd, uap->fd);
-	AUDIT_ARG(owner, uap->uid, uap->gid);
+	AUDIT_ARG_FD(uap->fd);
+	AUDIT_ARG_OWNER(uap->uid, uap->gid);
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
+	AUDIT_ARG_VNODE(fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setfown(td, fp->f_vnode, uap->uid, uap->gid);
@@ -3324,7 +3326,7 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	int vfslocked;
 	int error;
 
-	AUDIT_ARG(fd, fd);
+	AUDIT_ARG_FD(fd);
 	if ((error = getutimes(tptr, tptrseg, ts)) != 0)
 		return (error);
 	if ((error = getvnode(td->td_proc->p_fd, fd, &fp)) != 0)
@@ -3332,7 +3334,7 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
 	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
-	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
+	AUDIT_ARG_VNODE(fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
 	error = setutimes(td, fp->f_vnode, ts, 2, tptr == NULL);
@@ -3478,7 +3480,7 @@ fsync(td, uap)
 	int vfslocked;
 	int error, lock_flags;
 
-	AUDIT_ARG(fd, uap->fd);
+	AUDIT_ARG_FD(uap->fd);
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 	vp = fp->f_vnode;
@@ -3492,7 +3494,7 @@ fsync(td, uap)
 		lock_flags = LK_EXCLUSIVE;
 	}
 	vn_lock(vp, lock_flags | LK_RETRY);
-	AUDIT_ARG(vnode, vp, ARG_VNODE1);
+	AUDIT_ARG_VNODE(vp, ARG_VNODE1);
 	if (vp->v_object != NULL) {
 		VM_OBJECT_LOCK(vp->v_object);
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
@@ -3717,7 +3719,7 @@ kern_mkdirat(struct thread *td, int fd, char *path, enum uio_seg segflg,
 	struct nameidata nd;
 	int vfslocked;
 
-	AUDIT_ARG(mode, mode);
+	AUDIT_ARG_MODE(mode);
 restart:
 	bwillwrite();
 	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
@@ -4056,7 +4058,7 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	long loff;
 	int error, eofflag;
 
-	AUDIT_ARG(fd, fd);
+	AUDIT_ARG_FD(fd);
 	if (count > INT_MAX)
 		return (EINVAL);
 	if ((error = getvnode(td->td_proc->p_fd, fd, &fp)) != 0)
@@ -4082,7 +4084,7 @@ unionread:
 	auio.uio_td = td;
 	auio.uio_resid = count;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	AUDIT_ARG(vnode, vp, ARG_VNODE1);
+	AUDIT_ARG_VNODE(vp, ARG_VNODE1);
 	loff = auio.uio_offset = fp->f_offset;
 #ifdef MAC
 	error = mac_vnode_check_readdir(td->td_ucred, vp);

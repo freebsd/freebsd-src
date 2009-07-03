@@ -31,21 +31,35 @@
  * $FreeBSD$
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
+
 #include "usbdevs.h"
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
 #include <dev/usb/usb_ioctl.h>
 
-#define	USB_DEBUG_VAR usb2_debug
-
-#include <dev/usb/usb_core.h>
+#define	USB_DEBUG_VAR usb_debug
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_parse.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_mbuf.h>
 #include <dev/usb/usb_dev.h>
 
 /*
@@ -180,7 +194,7 @@ ubtbcmfw_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != 0)
 		return (ENXIO);
 
-	return (usb2_lookup_id_by_uaa(devs, sizeof(devs), uaa));
+	return (usbd_lookup_id_by_uaa(devs, sizeof(devs), uaa));
 } /* ubtbcmfw_probe */
 
 /*
@@ -197,27 +211,27 @@ ubtbcmfw_attach(device_t dev)
 
 	sc->sc_udev = uaa->device;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "ubtbcmfw lock", NULL, MTX_DEF | MTX_RECURSE);
 
 	iface_index = UBTBCMFW_IFACE_IDX;
-	error = usb2_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
+	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
 				ubtbcmfw_config, UBTBCMFW_N_TRANSFER,
 				sc, &sc->sc_mtx);
 	if (error != 0) {
 		device_printf(dev, "allocating USB transfers failed. %s\n",
-			usb2_errstr(error));
+			usbd_errstr(error));
 		goto detach;
 	}
 
-	error = usb2_fifo_attach(uaa->device, sc, &sc->sc_mtx,
+	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
 			&ubtbcmfw_fifo_methods, &sc->sc_fifo,
 			device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
 			UID_ROOT, GID_OPERATOR, 0644);
 	if (error != 0) {
 		device_printf(dev, "could not attach fifo. %s\n",
-			usb2_errstr(error));
+			usbd_errstr(error));
 		goto detach;
 	}
 
@@ -238,9 +252,9 @@ ubtbcmfw_detach(device_t dev)
 {
 	struct ubtbcmfw_softc	*sc = device_get_softc(dev);
 
-	usb2_fifo_detach(&sc->sc_fifo);
+	usb_fifo_detach(&sc->sc_fifo);
 
-	usb2_transfer_unsetup(sc->sc_xfer, UBTBCMFW_N_TRANSFER);
+	usbd_transfer_unsetup(sc->sc_xfer, UBTBCMFW_N_TRANSFER);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -252,27 +266,29 @@ ubtbcmfw_detach(device_t dev)
  */
 
 static void
-ubtbcmfw_write_callback(struct usb_xfer *xfer)
+ubtbcmfw_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ubtbcmfw_softc	*sc = xfer->priv_sc;
+	struct ubtbcmfw_softc	*sc = usbd_xfer_softc(xfer);
 	struct usb_fifo	*f = sc->sc_fifo.fp[USB_FIFO_TX];
+	struct usb_page_cache	*pc;
 	uint32_t		actlen;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 setup_next:
-		if (usb2_fifo_get_data(f, xfer->frbuffers, 0,
-				xfer->max_data_length, &actlen, 0)) {
-			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (usb_fifo_get_data(f, pc, 0, usbd_xfer_max_len(xfer),
+			    &actlen, 0)) {
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_transfer_submit(xfer);
 		}
 		break;
 
 	default: /* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto setup_next;
 		}
 		break;
@@ -284,28 +300,33 @@ setup_next:
  */
 
 static void
-ubtbcmfw_read_callback(struct usb_xfer *xfer)
+ubtbcmfw_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ubtbcmfw_softc	*sc = xfer->priv_sc;
+	struct ubtbcmfw_softc	*sc = usbd_xfer_softc(xfer);
 	struct usb_fifo	*fifo = sc->sc_fifo.fp[USB_FIFO_RX];
+	struct usb_page_cache	*pc;
+	int			actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_fifo_put_data(fifo, xfer->frbuffers, 0, xfer->actlen, 1);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usb_fifo_put_data(fifo, pc, 0, actlen, 1);
 		/* FALLTHROUGH */
 
 	case USB_ST_SETUP:
 setup_next:
-		if (usb2_fifo_put_bytes_max(fifo) > 0) {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
+		if (usb_fifo_put_bytes_max(fifo) > 0) {
+			usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+			usbd_transfer_submit(xfer);
 		}
 		break;
 
 	default: /* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto setup_next;
 		}
 		break;
@@ -319,9 +340,9 @@ setup_next:
 static void
 ubtbcmfw_start_read(struct usb_fifo *fifo)
 {
-	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
 
-	usb2_transfer_start(sc->sc_xfer[UBTBCMFW_INTR_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UBTBCMFW_INTR_DT_RD]);
 } /* ubtbcmfw_start_read */
 
 /*
@@ -331,9 +352,9 @@ ubtbcmfw_start_read(struct usb_fifo *fifo)
 static void
 ubtbcmfw_stop_read(struct usb_fifo *fifo)
 {
-	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
 
-	usb2_transfer_stop(sc->sc_xfer[UBTBCMFW_INTR_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UBTBCMFW_INTR_DT_RD]);
 } /* ubtbcmfw_stop_read */
 
 /*
@@ -344,9 +365,9 @@ ubtbcmfw_stop_read(struct usb_fifo *fifo)
 static void
 ubtbcmfw_start_write(struct usb_fifo *fifo)
 {
-	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
 
-	usb2_transfer_start(sc->sc_xfer[UBTBCMFW_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UBTBCMFW_BULK_DT_WR]);
 } /* ubtbcmfw_start_write */
 
 /*
@@ -356,9 +377,9 @@ ubtbcmfw_start_write(struct usb_fifo *fifo)
 static void
 ubtbcmfw_stop_write(struct usb_fifo *fifo)
 {
-	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
 
-	usb2_transfer_stop(sc->sc_xfer[UBTBCMFW_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UBTBCMFW_BULK_DT_WR]);
 } /* ubtbcmfw_stop_write */
 
 /*
@@ -368,7 +389,7 @@ ubtbcmfw_stop_write(struct usb_fifo *fifo)
 static int
 ubtbcmfw_open(struct usb_fifo *fifo, int fflags)
 {
-	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
 	struct usb_xfer	*xfer;
 
 	/*
@@ -383,7 +404,7 @@ ubtbcmfw_open(struct usb_fifo *fifo, int fflags)
 	else
 		return (EINVAL);	/* should not happen */
 
-	if (usb2_fifo_alloc_buffer(fifo, xfer->max_data_length,
+	if (usb_fifo_alloc_buffer(fifo, usbd_xfer_max_len(xfer),
 			UBTBCMFW_IFQ_MAXLEN) != 0)
 		return (ENOMEM);
 
@@ -398,7 +419,7 @@ static void
 ubtbcmfw_close(struct usb_fifo *fifo, int fflags)
 {
 	if (fflags & (FREAD | FWRITE))
-		usb2_fifo_free_buffer(fifo);
+		usb_fifo_free_buffer(fifo);
 } /* ubtbcmfw_close */
 
 /*
@@ -409,12 +430,12 @@ static int
 ubtbcmfw_ioctl(struct usb_fifo *fifo, u_long cmd, void *data,
     int fflags)
 {
-	struct ubtbcmfw_softc	*sc = fifo->priv_sc0;
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
 	int			error = 0;
 
 	switch (cmd) {
 	case USB_GET_DEVICE_DESC:
-		memcpy(data, usb2_get_device_descriptor(sc->sc_udev),
+		memcpy(data, usbd_get_device_descriptor(sc->sc_udev),
 			sizeof(struct usb_device_descriptor));
 		break;
 

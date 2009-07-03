@@ -185,6 +185,7 @@
 #define	PRIV_SCHED_SET		204	/* Can set thread scheduler. */
 #define	PRIV_SCHED_SETPARAM	205	/* Can set thread scheduler params. */
 #define	PRIV_SCHED_CPUSET	206	/* Can manipulate cpusets. */
+#define	PRIV_SCHED_CPUSET_INTR	207	/* Can adjust IRQ to CPU binding. */
 
 /*
  * POSIX semaphore privileges.
@@ -211,7 +212,7 @@
 #define	PRIV_TTY_DRAINWAIT	251	/* Set tty drain wait time. */
 #define	PRIV_TTY_DTRWAIT	252	/* Set DTR wait on tty. */
 #define	PRIV_TTY_EXCLUSIVE	253	/* Override tty exclusive flag. */
-#define	PRIV_TTY_PRISON		254	/* Can open pts across jails. */
+#define	_PRIV_TTY_PRISON	254	/* Removed. */
 #define	PRIV_TTY_STI		255	/* Simulate input on another tty. */
 #define	PRIV_TTY_SETA		256	/* Set tty termios structure. */
 
@@ -283,6 +284,14 @@
 #define	PRIV_VM_MADV_PROTECT	360	/* Can set MADV_PROTECT. */
 #define	PRIV_VM_MLOCK		361	/* Can mlock(), mlockall(). */
 #define	PRIV_VM_MUNLOCK		362	/* Can munlock(), munlockall(). */
+#define	PRIV_VM_SWAP_NOQUOTA	363	/*
+					 * Can override the global
+					 * swap reservation limits.
+					 */
+#define	PRIV_VM_SWAP_NORLIMIT	364	/*
+					 * Can override the per-uid
+					 * swap reservation limits.
+					 */
 
 /*
  * Device file system privileges.
@@ -300,8 +309,8 @@
  */
 #define	PRIV_NET_BRIDGE		390	/* Administer bridge. */
 #define	PRIV_NET_GRE		391	/* Administer GRE. */
-#define	PRIV_NET_PPP		392	/* Administer PPP. */
-#define	PRIV_NET_SLIP		393	/* Administer SLIP. */
+#define	_PRIV_NET_PPP		392	/* Removed. */
+#define	_PRIV_NET_SLIP		393	/* Removed. */
 #define	PRIV_NET_BPF		394	/* Monitor BPF. */
 #define	PRIV_NET_RAW		395	/* Open raw socket. */
 #define	PRIV_NET_ROUTE		396	/* Administer routing. */
@@ -325,6 +334,7 @@
 #define	PRIV_NET_DELIFADDR	414	/* Delete protocol addr on interface. */
 #define	PRIV_NET_LAGG		415	/* Administer lagg interface. */
 #define	PRIV_NET_GIF		416	/* Administer gif interface. */
+#define	PRIV_NET_SETIFVNET	417	/* Move interface to vnet. */
 
 /*
  * 802.11-related privileges.

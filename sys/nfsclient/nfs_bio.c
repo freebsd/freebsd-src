@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>
@@ -101,7 +100,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 
 	if ((object = vp->v_object) == NULL) {
 		nfs_printf("nfs_getpages: called with non-merged cache vnode??\n");
-		return VM_PAGER_ERROR;
+		return (VM_PAGER_ERROR);
 	}
 
 	if (nfs_directio_enable && !nfs_directio_allow_mmap) {
@@ -109,7 +108,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 		if ((np->n_flag & NNONCACHE) && (vp->v_type == VREG)) {
 			mtx_unlock(&np->n_mtx);
 			nfs_printf("nfs_getpages: called on non-cacheable vnode??\n");
-			return VM_PAGER_ERROR;
+			return (VM_PAGER_ERROR);
 		} else
 			mtx_unlock(&np->n_mtx);
 	}
@@ -130,23 +129,18 @@ nfs_getpages(struct vop_getpages_args *ap)
 	 * allow the pager to zero-out the blanks.  Partially valid pages
 	 * can only occur at the file EOF.
 	 */
-
-	{
-		vm_page_t m = pages[ap->a_reqpage];
-
-		VM_OBJECT_LOCK(object);
-		if (m->valid != 0) {
-			vm_page_lock_queues();
-			for (i = 0; i < npages; ++i) {
-				if (i != ap->a_reqpage)
-					vm_page_free(pages[i]);
-			}
-			vm_page_unlock_queues();
-			VM_OBJECT_UNLOCK(object);
-			return(0);
+	VM_OBJECT_LOCK(object);
+	if (pages[ap->a_reqpage]->valid != 0) {
+		vm_page_lock_queues();
+		for (i = 0; i < npages; ++i) {
+			if (i != ap->a_reqpage)
+				vm_page_free(pages[i]);
 		}
+		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
+		return (0);
 	}
+	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
@@ -184,7 +178,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 		}
 		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
-		return VM_PAGER_ERROR;
+		return (VM_PAGER_ERROR);
 	}
 
 	/*
@@ -250,7 +244,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 	}
 	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(object);
-	return 0;
+	return (0);
 }
 
 /*
@@ -510,7 +504,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			if (incore(&vp->v_bufobj, rabn) == NULL) {
 			    rabp = nfs_getcacheblk(vp, rabn, biosize, td);
 			    if (!rabp) {
-				error = nfs_sigintr(nmp, NULL, td);
+				error = nfs_sigintr(nmp, td);
 				return (error ? error : EINTR);
 			    }
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
@@ -541,7 +535,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		bp = nfs_getcacheblk(vp, lbn, bcount, td);
 
 		if (!bp) {
-			error = nfs_sigintr(nmp, NULL, td);
+			error = nfs_sigintr(nmp, td);
 			return (error ? error : EINTR);
 		}
 
@@ -576,7 +570,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		nfsstats.biocache_readlinks++;
 		bp = nfs_getcacheblk(vp, (daddr_t)0, NFS_MAXPATHLEN, td);
 		if (!bp) {
-			error = nfs_sigintr(nmp, NULL, td);
+			error = nfs_sigintr(nmp, td);
 			return (error ? error : EINTR);
 		}
 		if ((bp->b_flags & B_CACHE) == 0) {
@@ -602,7 +596,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		on = uio->uio_offset & (NFS_DIRBLKSIZ - 1);
 		bp = nfs_getcacheblk(vp, lbn, NFS_DIRBLKSIZ, td);
 		if (!bp) {
-		    error = nfs_sigintr(nmp, NULL, td);
+		    error = nfs_sigintr(nmp, td);
 		    return (error ? error : EINTR);
 		}
 		if ((bp->b_flags & B_CACHE) == 0) {
@@ -631,7 +625,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 				    return (0);
 			    bp = nfs_getcacheblk(vp, i, NFS_DIRBLKSIZ, td);
 			    if (!bp) {
-				error = nfs_sigintr(nmp, NULL, td);
+				error = nfs_sigintr(nmp, td);
 				return (error ? error : EINTR);
 			    }
 			    if ((bp->b_flags & B_CACHE) == 0) {
@@ -1086,7 +1080,7 @@ again:
 		}
 
 		if (!bp) {
-			error = nfs_sigintr(nmp, NULL, td);
+			error = nfs_sigintr(nmp, td);
 			if (!error)
 				error = EINTR;
 			break;
@@ -1263,7 +1257,7 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
 		bp = getblk(vp, bn, size, PCATCH, 0, 0);
  		nfs_restore_sigmask(td, &oldset);
 		while (bp == NULL) {
-			if (nfs_sigintr(nmp, NULL, td))
+			if (nfs_sigintr(nmp, td))
 				return (NULL);
 			bp = getblk(vp, bn, size, 0, 2 * hz, 0);
 		}
@@ -1327,13 +1321,13 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 		 * Not doing so, we run the risk of losing dirty pages in the 
 		 * vinvalbuf() call below.
 		 */
-		if (intrflg && (error = nfs_sigintr(nmp, NULL, td)))
+		if (intrflg && (error = nfs_sigintr(nmp, td)))
 			goto out;
 	}
 
 	error = vinvalbuf(vp, flags, slpflag, 0);
 	while (error) {
-		if (intrflg && (error = nfs_sigintr(nmp, NULL, td)))
+		if (intrflg && (error = nfs_sigintr(nmp, td)))
 			goto out;
 		error = vinvalbuf(vp, flags, 0, slptimeo);
 	}
@@ -1440,7 +1434,7 @@ again:
 					   slpflag | PRIBIO,
  					   "nfsaio", slptimeo);
 			if (error) {
-				error2 = nfs_sigintr(nmp, NULL, td);
+				error2 = nfs_sigintr(nmp, td);
 				if (error2) {
 					mtx_unlock(&nfs_iod_mtx);					
 					return (error2);

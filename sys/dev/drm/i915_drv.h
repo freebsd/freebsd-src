@@ -129,7 +129,6 @@ typedef struct drm_i915_private {
 	int page_flipping;
 
 	wait_queue_head_t irq_queue;
-	atomic_t irq_received;
 	/** Protects user_irq_refcount and irq_mask_reg */
 	DRM_SPINTYPE user_irq_lock;
 	/** Refcount for i915_user_irq_get() versus i915_user_irq_put(). */
@@ -453,7 +452,7 @@ extern int i915_vblank_pipe_get(struct drm_device *dev, void *data,
 extern int i915_enable_vblank(struct drm_device *dev, int crtc);
 extern void i915_disable_vblank(struct drm_device *dev, int crtc);
 extern u32 i915_get_vblank_counter(struct drm_device *dev, int crtc);
-extern u32 gm45_get_vblank_counter(struct drm_device *dev, int crtc);
+extern u32 g45_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 

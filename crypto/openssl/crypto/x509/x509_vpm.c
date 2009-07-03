@@ -1,5 +1,5 @@
 /* x509_vpm.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2004.
  */
 /* ====================================================================
@@ -74,7 +74,7 @@ static void x509_verify_param_zero(X509_VERIFY_PARAM *param)
 	param->name = NULL;
 	param->purpose = 0;
 	param->trust = 0;
-	param->inh_flags = X509_VP_FLAG_DEFAULT;
+	param->inh_flags = 0;
 	param->flags = 0;
 	param->depth = -1;
 	if (param->policies)
@@ -320,11 +320,21 @@ static const X509_VERIFY_PARAM default_table[] = {
 	0,		/* flags */
 	0,		/* purpose */
 	0,		/* trust */
-	9,		/* depth */
+	100,		/* depth */
 	NULL		/* policies */
 	},
 	{
-	"pkcs7",			/* SSL/TLS client parameters */
+	"pkcs7",			/* S/MIME signing parameters */
+	0,				/* Check time */
+	0,				/* internal flags */
+	0,				/* flags */
+	X509_PURPOSE_SMIME_SIGN,	/* purpose */
+	X509_TRUST_EMAIL,		/* trust */
+	-1,				/* depth */
+	NULL				/* policies */
+	},
+	{
+	"smime_sign",			/* S/MIME signing parameters */
 	0,				/* Check time */
 	0,				/* internal flags */
 	0,				/* flags */
@@ -385,7 +395,7 @@ int X509_VERIFY_PARAM_add0_table(X509_VERIFY_PARAM *param)
 			{
 			ptmp = sk_X509_VERIFY_PARAM_value(param_table, idx);
 			X509_VERIFY_PARAM_free(ptmp);
-			sk_X509_VERIFY_PARAM_delete(param_table, idx);
+			(void)sk_X509_VERIFY_PARAM_delete(param_table, idx);
 			}
 		}
 	if (!sk_X509_VERIFY_PARAM_push(param_table, param))

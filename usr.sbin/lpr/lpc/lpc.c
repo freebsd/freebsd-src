@@ -356,7 +356,8 @@ ingroup(const char *grname)
 {
 	static struct group *gptr=NULL;
 	static int ngroups = 0;
-	static gid_t groups[NGROUPS];
+	static long ngroups_max;
+	static gid_t *groups;
 	register gid_t gid;
 	register int i;
 
@@ -365,7 +366,10 @@ ingroup(const char *grname)
 			warnx("warning: unknown group '%s'", grname);
 			return(0);
 		}
-		ngroups = getgroups(NGROUPS, groups);
+		ngroups_max = sysconf(_SC_NGROUPS_MAX);
+		if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
+			err(1, "malloc");
+		ngroups = getgroups(ngroups_max, groups);
 		if (ngroups < 0)
 			err(1, "getgroups");
 	}

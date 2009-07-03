@@ -190,6 +190,7 @@ SUBDIR=	${_ac} \
 	${_usbconfig} \
 	${_vidcontrol} \
 	vipw \
+	wake \
 	watch \
 	watchdogd \
 	${_wlandebug} \

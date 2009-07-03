@@ -61,6 +61,14 @@
 #ifndef VM_H
 #define VM_H
 
+#include <machine/vm.h>
+
+/*
+ * The exact set of cache control codes is machine dependent.  However, every
+ * machine is required to define VM_CACHE_DEFAULT.
+ */
+typedef	char vm_cache_mode_t;	/* cache control codes */
+
 typedef char vm_inherit_t;	/* inheritance codes */
 
 #define	VM_INHERIT_SHARE	((vm_inherit_t) 0)
@@ -132,6 +140,13 @@ struct kva_md_info {
 
 extern struct kva_md_info	kmi;
 extern void vm_ksubmap_init(struct kva_md_info *);
+
+struct uidinfo;
+int swap_reserve(vm_ooffset_t incr);
+int swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip);
+void swap_reserve_force(vm_ooffset_t incr);
+void swap_release(vm_ooffset_t decr);
+void swap_release_by_uid(vm_ooffset_t decr, struct uidinfo *uip);
 
 #endif				/* VM_H */
 

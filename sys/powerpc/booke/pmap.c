@@ -156,8 +156,6 @@ static void mmu_booke_enter_locked(mmu_t, pmap_t, vm_offset_t, vm_page_t,
 unsigned int kptbl_min;		/* Index of the first kernel ptbl. */
 unsigned int kernel_ptbls;	/* Number of KVA ptbls. */
 
-static int pagedaemon_waken;
-
 /*
  * If user pmap is processed with mmu_booke_remove and the resident count
  * drops to 0, there are no more pages to remove, so we need not continue.
@@ -275,8 +273,8 @@ void pmap_bootstrap_ap(volatile uint32_t *);
 static void		mmu_booke_change_wiring(mmu_t, pmap_t, vm_offset_t, boolean_t);
 static void		mmu_booke_clear_modify(mmu_t, vm_page_t);
 static void		mmu_booke_clear_reference(mmu_t, vm_page_t);
-static void		mmu_booke_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t,
-    vm_offset_t);
+static void		mmu_booke_copy(mmu_t, pmap_t, pmap_t, vm_offset_t,
+    vm_size_t, vm_offset_t);
 static void		mmu_booke_copy_page(mmu_t, vm_page_t, vm_page_t);
 static void		mmu_booke_enter(mmu_t, pmap_t, vm_offset_t, vm_page_t,
     vm_prot_t, boolean_t);
@@ -712,11 +710,8 @@ pv_alloc(void)
 	pv_entry_t pv;
 
 	pv_entry_count++;
-	if ((pv_entry_count > pv_entry_high_water) &&
-	    (pagedaemon_waken == 0)) {
-		pagedaemon_waken = 1;
-		wakeup(&vm_pages_needed);
-	}
+	if (pv_entry_count > pv_entry_high_water)
+		pagedaemon_wakeup();
 	pv = uma_zalloc(pvzone, M_NOWAIT);
 
 	return (pv);
@@ -968,6 +963,7 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	vm_size_t physsz, hwphyssz, kstack0_sz;
 	vm_offset_t kernel_pdir, kstack0, va;
 	vm_paddr_t kstack0_phys;
+	void *dpcpu;
 	pte_t *pte;
 
 	debugf("mmu_booke_bootstrap: entered\n");
@@ -992,6 +988,11 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	    data_end);
 
 	data_end = round_page(data_end);
+
+	/* Allocate the dynamic per-cpu area. */
+	dpcpu = (void *)data_end;
+	data_end += DPCPU_SIZE;
+	dpcpu_init(dpcpu, 0);
 
 	/* Allocate space for ptbl_bufs. */
 	ptbl_bufs = (struct ptbl_buf *)data_end;
@@ -1890,8 +1891,8 @@ mmu_booke_deactivate(mmu_t mmu, struct thread *td)
  * This routine is only advisory and need not do anything.
  */
 static void
-mmu_booke_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
-    vm_size_t len, vm_offset_t src_addr)
+mmu_booke_copy(mmu_t mmu, pmap_t dst_pmap, pmap_t src_pmap,
+    vm_offset_t dst_addr, vm_size_t len, vm_offset_t src_addr)
 {
 
 }

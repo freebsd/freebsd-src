@@ -106,6 +106,11 @@ extern void key_destroy(void);
 extern void key_sa_recordxfer __P((struct secasvar *, struct mbuf *));
 extern void key_sa_routechange __P((struct sockaddr *));
 extern void key_sa_stir_iv __P((struct secasvar *));
+#ifdef IPSEC_NAT_T
+u_int16_t key_portfromsaddr(struct sockaddr *);
+#define	KEY_PORTFROMSADDR(saddr)				\
+	key_portfromsaddr((struct sockaddr *)(saddr))
+#endif
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IPSEC_SA);

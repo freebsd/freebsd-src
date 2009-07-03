@@ -38,11 +38,28 @@ __FBSDID("$FreeBSD$");
  * operating system the VID and PID of your device.
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-
-#include <dev/usb/usb_core.h>
-
+#include <dev/usb/usbdi.h>
 #include <dev/usb/template/usb_template.h>
 
 #define	MTP_BREQUEST 0x08
@@ -100,8 +117,8 @@ USB_MAKE_STRING_DESC(STRING_MTP_SERIAL, string_mtp_serial);
 
 /* prototypes */
 
-static usb2_temp_get_string_desc_t mtp_get_string_desc;
-static usb2_temp_get_vendor_desc_t mtp_get_vendor_desc;
+static usb_temp_get_string_desc_t mtp_get_string_desc;
+static usb_temp_get_vendor_desc_t mtp_get_vendor_desc;
 
 static const struct usb_temp_packet_size bulk_mps = {
 	.mps[USB_SPEED_FULL] = 64,
@@ -171,7 +188,7 @@ static const struct usb_temp_config_desc *mtp_configs[] = {
 	NULL,
 };
 
-const struct usb_temp_device_desc usb2_template_mtp = {
+const struct usb_temp_device_desc usb_template_mtp = {
 	.getStringDesc = &mtp_get_string_desc,
 	.getVendorDesc = &mtp_get_vendor_desc,
 	.ppConfigDesc = mtp_configs,

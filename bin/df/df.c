@@ -476,7 +476,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	(void)printf("\n");
 }
 
-void
+static void
 addstat(struct statfs *totalfsp, struct statfs *statfsp)
 {
 	uint64_t bsize;

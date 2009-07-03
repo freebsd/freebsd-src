@@ -85,6 +85,12 @@ ixp4xx_read_feature_bits(void)
 	return bits;
 }
 
+void
+ixp4xx_write_feature_bits(uint32_t v)
+{
+	IXPREG(IXP425_EXP_VBASE + EXP_FCTRL_OFFSET) = ~v;
+}
+
 struct arm32_dma_range *
 bus_dma_get_range(void)
 {
@@ -107,7 +113,7 @@ static const uint8_t int2gpio[32] __attribute__ ((aligned(32))) = {
 	0xff, 0xff				/* INT#30 -> INT#31 */
 };
 
-static __inline u_int32_t
+static __inline uint32_t
 ixp425_irq2gpio_bit(int irq)
 {
 	return (1U << int2gpio[irq]);
@@ -133,8 +139,8 @@ DB_SHOW_COMMAND(gpio, db_show_gpio)
 	uint32_t gpit2r = GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPIT2R);
 	int i, j;
 
-	db_printf("GPOUTR %08x GPOER  %08x GPINR  %08x GPISR %08x\n",
-	   gpoutr, gpoer, gpinr,
+	db_printf("GPOUTR %08x GPINR  %08x GPOER  %08x GPISR %08x\n",
+	   gpoutr, gpinr, gpoer,
 	   GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPISR));
 	db_printf("GPIT1R %08x GPIT2R %08x GPCLKR %08x\n",
 	   gpit1r, gpit2r, GPIO_CONF_READ_4(ixp425_softc, IXP425_GPIO_GPCLKR));
@@ -154,10 +160,44 @@ DB_SHOW_COMMAND(gpio, db_show_gpio)
 #endif
 
 void
+ixp425_set_gpio(struct ixp425_softc *sc, int pin, int type)
+{
+	uint32_t gpiotr = GPIO_CONF_READ_4(sc, GPIO_TYPE_REG(pin));
+
+	/* clear interrupt type */
+	GPIO_CONF_WRITE_4(sc, GPIO_TYPE_REG(pin),
+	    gpiotr &~ GPIO_TYPE(pin, GPIO_TYPE_MASK));
+	/* clear any pending interrupt */
+	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPISR, (1<<pin));
+	/* set new interrupt type */
+	GPIO_CONF_WRITE_4(sc, GPIO_TYPE_REG(pin),
+	    gpiotr | GPIO_TYPE(pin, type));
+
+	/* configure gpio line as an input */
+	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPOER, 
+	    GPIO_CONF_READ_4(sc, IXP425_GPIO_GPOER) | (1<<pin));
+}
+
+static __inline void
+ixp425_gpio_ack(int irq)
+{
+	if (irq < 32 && ((1 << irq) & IXP425_INT_GPIOMASK))
+		IXPREG(IXP425_GPIO_VBASE + IXP425_GPIO_GPISR) =
+		    ixp425_irq2gpio_bit(irq);
+}
+
+static void
+ixp425_post_filter(void *arg)
+{
+	uintptr_t irq = (uintptr_t) arg;
+	ixp425_gpio_ack(irq);
+}
+
+void
 arm_mask_irq(uintptr_t nb)
 {
 	int i;
-	
+
 	i = disable_interrupts(I32_bit);
 	if (nb < 32) {
 		intr_enabled &= ~(1 << nb);
@@ -168,16 +208,14 @@ arm_mask_irq(uintptr_t nb)
 	}
 	restore_interrupts(i);
 	/*XXX; If it's a GPIO interrupt, ACK it know. Can it be a problem ?*/
-	if (nb < 32 && ((1 << nb) & IXP425_INT_GPIOMASK))
-		IXPREG(IXP425_GPIO_VBASE + IXP425_GPIO_GPISR) =
-		    ixp425_irq2gpio_bit(nb);
+	ixp425_gpio_ack(nb);
 }
 
 void
 arm_unmask_irq(uintptr_t nb)
 {
 	int i;
-	
+
 	i = disable_interrupts(I32_bit);
 	if (nb < 32) {
 		intr_enabled |= (1 << nb);
@@ -202,15 +240,27 @@ ixp435_irq_read(void)
 }
 
 int
-arm_get_next_irq(int last __unused)
+arm_get_next_irq(int last)
 {
-	uint32_t irq;
+	uint32_t mask;
 
-	if ((irq = ixp425_irq_read()))
-		return (ffs(irq) - 1);
-	if (cpu_is_ixp43x() && (irq = ixp435_irq_read()))
-		return (32 + ffs(irq) - 1);
-	return (-1);
+	last += 1;		/* always advance fwd, NB: handles -1 */
+	if (last < 32) {
+		mask = ixp425_irq_read() >> last;
+		for (; mask != 0; mask >>= 1, last++) {
+			if (mask & 1)
+				return last;
+		}
+		last = 32;
+	}
+	if (cpu_is_ixp43x()) {
+		mask = ixp435_irq_read() >> (32-last);
+		for (; mask != 0; mask >>= 1, last++) {
+			if (mask & 1)
+				return last;
+		}
+	}
+	return -1;
 }
 
 void
@@ -261,6 +311,18 @@ ixp425_attach(device_t dev)
 		ixp435_set_intrmask();
 		ixp435_set_intrsteer();
 	}
+	arm_post_filter = ixp425_post_filter;
+
+	if (bus_space_map(sc->sc_iot, IXP425_GPIO_HWBASE, IXP425_GPIO_SIZE,
+	    0, &sc->sc_gpio_ioh))
+		panic("%s: unable to map GPIO registers", __func__);
+	if (bus_space_map(sc->sc_iot, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
+	    0, &sc->sc_exp_ioh))
+		panic("%s: unable to map Expansion Bus registers", __func__);
+
+	/* XXX belongs in platform init */
+	if (cpu_is_ixp43x())
+		cambria_exp_bus_init(sc);
 
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
@@ -287,13 +349,6 @@ ixp425_attach(device_t dev)
 
 	/* attach wired devices via hints */
 	bus_enumerate_hinted_children(dev);
-
-	if (bus_space_map(sc->sc_iot, IXP425_GPIO_HWBASE, IXP425_GPIO_SIZE,
-	    0, &sc->sc_gpio_ioh))
-		panic("%s: unable to map GPIO registers", __func__);
-	if (bus_space_map(sc->sc_iot, IXP425_EXP_HWBASE, IXP425_EXP_SIZE,
-	    0, &sc->sc_exp_ioh))
-		panic("%s: unable to map Expansion Bus registers", __func__);
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -369,6 +424,7 @@ struct hwvtrans {
 	uint32_t	size;
 	uint32_t	vbase;
 	int		isa4x;	/* XXX needs special bus space tag */
+	int		isslow;	/* XXX needs special bus space tag */
 };
 
 static const struct hwvtrans *
@@ -400,16 +456,14 @@ gethwvtrans(uint32_t hwbase, uint32_t size)
 	    { .hwbase	= IXP435_USB2_HWBASE,
 	      .size 	= IXP435_USB2_SIZE,
 	      .vbase	= IXP435_USB2_VBASE },
-#ifdef CAMBRIA_GPS_VBASE
 	    { .hwbase	= CAMBRIA_GPS_HWBASE,
 	      .size 	= CAMBRIA_GPS_SIZE,
-	      .vbase	= CAMBRIA_GPS_VBASE },
-#endif
-#ifdef CAMBRIA_RS485_VBASE
+	      .vbase	= CAMBRIA_GPS_VBASE,
+	      .isslow	= 1 },
 	    { .hwbase	= CAMBRIA_RS485_HWBASE,
 	      .size 	= CAMBRIA_RS485_SIZE,
-	      .vbase	= CAMBRIA_RS485_VBASE },
-#endif
+	      .vbase	= CAMBRIA_RS485_VBASE,
+	      .isslow	= 1 },
 	};
 	int i;
 
@@ -475,7 +529,8 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 					device_printf(child,
 					    "%s: assign 0x%lx:0x%lx%s\n",
 					    __func__, start, end - start,
-					    vtrans->isa4x ? " A4X" : "");
+					    vtrans->isa4x ? " A4X" : 
+					    vtrans->isslow ? " SLOW" : "");
 			}
 		} else
 			vtrans = gethwvtrans(start, end - start);
@@ -531,6 +586,8 @@ ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
 		}
 		if (vtrans->isa4x)
 			rman_set_bustag(r, &ixp425_a4x_bs_tag);
+		else if (vtrans->isslow)
+			rman_set_bustag(r, &cambria_exp_bs_tag);
 		else
 			rman_set_bustag(r, sc->sc_iot);
 		rman_set_bushandle(r, vtrans->vbase);

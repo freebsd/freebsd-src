@@ -1495,9 +1495,16 @@ death(void)
 	/* NB: should send a message to the session logger to avoid blocking. */
 	logwtmp("~", "shutdown", "");
 
+	/*
+	 * Also revoke the TTY here.  Because runshutdown() may reopen
+	 * the TTY whose getty we're killing here, there is no guarantee
+	 * runshutdown() will perform the initial open() call, causing
+	 * the terminal attributes to be misconfigured.
+	 */
 	for (sp = sessions; sp; sp = sp->se_next) {
 		sp->se_flags |= SE_SHUTDOWN;
 		kill(sp->se_process, SIGHUP);
+		revoke(sp->se_device);
 	}
 
 	/* Try to run the rc.shutdown script within a period of time */
@@ -1556,29 +1563,13 @@ runshutdown(void)
 	shell = get_shell();
 
 	if ((pid = fork()) == 0) {
-		int	fd;
-
-		/* Assume that init already grab console as ctty before */
-
 		sigemptyset(&sa.sa_mask);
 		sa.sa_flags = 0;
 		sa.sa_handler = SIG_IGN;
 		sigaction(SIGTSTP, &sa, (struct sigaction *)0);
 		sigaction(SIGHUP, &sa, (struct sigaction *)0);
 
-		if ((fd = open(_PATH_CONSOLE, O_RDWR)) == -1)
-			warning("can't open %s: %m", _PATH_CONSOLE);
-		else {
-			dup2(fd, 0);
-			dup2(fd, 1);
-			dup2(fd, 2);
-			if (fd > 2)
-				close(fd);
-		}
-
-		/*
-		 * Run the shutdown script.
-		 */
+		setctty(_PATH_CONSOLE);
 
 		char _sh[]	= "sh";
 		char _reboot[]	= "reboot";

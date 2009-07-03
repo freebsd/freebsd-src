@@ -68,29 +68,15 @@ static int
 uart_ixp425_probe(device_t dev)
 {
 	struct uart_softc *sc;
+	int unit = device_get_unit(dev);
+	u_int rclk;
 
 	sc = device_get_softc(dev);
 	sc->sc_class = &uart_ns8250_class;
-	sc->sc_rrid = 0;
-	sc->sc_rtype = SYS_RES_MEMORY;
-	sc->sc_rres = bus_alloc_resource(dev, sc->sc_rtype, &sc->sc_rrid,
-	    0, ~0, uart_getrange(sc->sc_class), RF_ACTIVE);
-	if (sc->sc_rres == NULL) {
-		return (ENXIO);
-	}
-	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
-	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
-	/*
-	 * XXX set UART Unit Enable (0x40) AND
-	 *     receiver timeout int enable (0x10).
-	 * The first turns on the UART.  The second is necessary to get
-	 * interrupts when the FIFO has data but is not full.  Note that
-	 * uart_ns8250 carefully avoids touching these bits so we can
-	 * just set them here and proceed.  But this is fragile...
-	 */
-	bus_space_write_4(sc->sc_bas.bst, sc->sc_bas.bsh, IXP425_UART_IER,
-	    IXP425_UART_IER_UUE | IXP425_UART_IER_RTOIE);
-	bus_release_resource(dev, sc->sc_rtype, sc->sc_rrid, sc->sc_rres);
+	if (resource_int_value("uart", unit, "rclk", &rclk))
+		rclk = IXP425_UART_FREQ;
+	if (bootverbose)
+		device_printf(dev, "rclk %u\n", rclk);
 
-	return uart_bus_probe(dev, 0, IXP425_UART_FREQ, 0, 0);
+	return uart_bus_probe(dev, 0, rclk, 0, 0);
 }

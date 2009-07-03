@@ -620,6 +620,14 @@ ale_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
+	/*
+	 * Even though controllers supported by ale(3) have Rx checksum
+	 * offload bug the workaround for fragmented frames seemed to
+	 * work so far. However it seems Rx checksum offload does not
+	 * work under certain conditions. So disable Rx checksum offload
+	 * until I find more clue about it but allow users to override it.
+	 */
+	ifp->if_capenable &= ~IFCAP_RXCSUM;
 
 	/* Tell the upper layer(s) we support long frames. */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
@@ -3048,7 +3056,7 @@ ale_rxfilter(struct ale_softc *sc)
 	/* Program new filter. */
 	bzero(mchash, sizeof(mchash));
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &sc->ale_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -3056,7 +3064,7 @@ ale_rxfilter(struct ale_softc *sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN);
 		mchash[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	CSR_WRITE_4(sc, ALE_MAR0, mchash[0]);
 	CSR_WRITE_4(sc, ALE_MAR1, mchash[1]);

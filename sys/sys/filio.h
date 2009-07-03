@@ -55,6 +55,8 @@ struct fiodgname_arg {
 	void	*buf;
 };
 #define	FIODGNAME	_IOW('f', 120, struct fiodgname_arg) /* get dev. name */
+#define	FIONWRITE	_IOR('f', 119, int)	/* get # bytes (yet) to write */
+#define	FIONSPACE	_IOR('f', 118, int)	/* get space in send queue */
 /* Handle lseek SEEK_DATA and SEEK_HOLE for holey file knowledge. */
 #define	FIOSEEKDATA	_IOWR('f', 97, off_t)	/* SEEK_DATA */
 #define	FIOSEEKHOLE	_IOWR('f', 98, off_t)	/* SEEK_HOLE */

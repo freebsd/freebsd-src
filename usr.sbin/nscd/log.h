@@ -37,7 +37,7 @@
 #define LOG_ERR_2(sender, err, ...) __log_err(2, sender, err, ##__VA_ARGS__)
 #define LOG_ERR_3(sender, err, ...) __log_err(3, sender, err, ##__VA_ARGS__)
 
-extern void __log_msg(int, const char *, const char *, ...);
-extern void __log_err(int, const char *, const char *, ...);
+void __log_msg(int, const char *, const char *, ...);
+void __log_err(int, const char *, const char *, ...);
 
 #endif

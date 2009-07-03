@@ -114,6 +114,16 @@ extern	u_long in_ifaddrhmask;			/* mask for hash table */
 #define INADDR_HASH(x) \
 	(&V_in_ifaddrhashtbl[INADDR_HASHVAL(x) & V_in_ifaddrhmask])
 
+extern	struct rwlock in_ifaddr_lock;
+
+#define	IN_IFADDR_LOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_LOCKED)
+#define	IN_IFADDR_RLOCK()	rw_rlock(&in_ifaddr_lock)
+#define	IN_IFADDR_RLOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_RLOCKED)
+#define	IN_IFADDR_RUNLOCK()	rw_runlock(&in_ifaddr_lock)
+#define	IN_IFADDR_WLOCK()	rw_wlock(&in_ifaddr_lock)
+#define	IN_IFADDR_WLOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_WLOCKED)
+#define	IN_IFADDR_WUNLOCK()	rw_wunlock(&in_ifaddr_lock)
+
 /*
  * Macro for finding the internet address structure (in_ifaddr)
  * corresponding to one of our IP addresses (in_addr).
@@ -146,14 +156,16 @@ do { \
  * Macro for finding the internet address structure (in_ifaddr) corresponding
  * to a given interface (ifnet structure).
  */
-#define IFP_TO_IA(ifp, ia) \
-	/* struct ifnet *ifp; */ \
-	/* struct in_ifaddr *ia; */ \
-{ \
-	for ((ia) = TAILQ_FIRST(&V_in_ifaddrhead); \
-	    (ia) != NULL && (ia)->ia_ifp != (ifp); \
-	    (ia) = TAILQ_NEXT((ia), ia_link)) \
-		continue; \
+#define IFP_TO_IA(ifp, ia)						\
+	/* struct ifnet *ifp; */					\
+	/* struct in_ifaddr *ia; */					\
+{									\
+	for ((ia) = TAILQ_FIRST(&V_in_ifaddrhead);			\
+	    (ia) != NULL && (ia)->ia_ifp != (ifp);			\
+	    (ia) = TAILQ_NEXT((ia), ia_link))				\
+		continue;						\
+	if ((ia) != NULL)						\
+		ifa_ref(&(ia)->ia_ifa);					\
 }
 #endif
 

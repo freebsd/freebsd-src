@@ -1,6 +1,6 @@
 .\" -*- nroff-fill -*-
 .\" $FreeBSD$
-.Dd January 31, 2006
+.Dd June 25, 2009
 .Os
 .Dt PICOBSD 8
 .Sh NAME
@@ -49,9 +49,83 @@ After the boot phase, the system runs entirely from RAM.
 .Pp
 The following options are available (but also check the
 .Nm
-script for more details):
+script for more details).
+The most important options for common operations are
+.Fl src ,
+.Fl init ,
+.Fl n and
+.Fl v.
 .Pp
 .Bl -tag -width indent
+.\"
+.It Fl -all_in_mfs
+Put the entire contents of the file system in the
+memory file system image which is contained in the
+kernel.
+This is the default behaviour, and is
+extremely useful as the kernel itself can be loaded,
+using
+.Xr etherboot
+or
+.Xr pxeboot 8 ,
+.\"
+.It Fl c , Fl clean
+Clean the product of previous builds.
+.\"
+.It Fl -cfg Ar file
+Specify a file that contains additional config commands.
+.\"
+.It Fl -floppy_size Ar size
+Set the size of the disk image.
+Typical values for a floppy disk are 1440 or 2880,
+but other values can be used for other media (flash memories,
+CDROM, network booted kernels).
+Note that this option is overridden by the content of the
+config files (config in the image tree, or the one
+specified with
+.Fl Fl cfg )
+.\"
+.It Fl -init
+When used together with the
+.Fl -src
+option, this initializes the
+.Ao Ar SRC_PATH Ac Ns Pa /../usr
+subtree as necessary to subsequently build
+.Nm
+images.
+.\"
+.It Fl -iso
+Generate an ISO image, picobsd.iso, in addition to the disk image picobsd.bin
+.\"
+.It Fl -modules
+Also build kernel modules.
+These are not stored on the
+.Nm
+image but are left available in the build directory.
+.\"
+.It Fl n
+Make the script non-interactive, skipping the initial menu
+and proceeding with the build process without requiring user input.
+.\"
+.It Fl -no_all_in_mfs
+Leaves files contained in the
+.Pa floppy.tree
+on the
+.Nm
+image, so they can be loaded separately
+from the kernel (and updated individually to
+customize the image).
+.\"
+.It Fl -no_loader
+Omit /boot/loader, just rely on boot2 to load the kernel.
+This saves some space but may have problems with kernels > 4MB.
+.\"
+.It Fl -objdir Ar directory
+Specify a directory with the result of a previous buildworld.
+This saves the need for an
+.Fl Fl init
+call before creating an image.
+.\"
 .It Fl -src Ar SRC_PATH
 Use the source tree at
 .Ar SRC_PATH
@@ -66,7 +140,7 @@ with the correct header files, libraries, and tools (such as the
 .Xr config 8
 program) that are necessary for the cross-build (see the
 .Fl -init
-option below).
+option).
 The source files are unmodified by the
 .Nm
 script.
@@ -78,53 +152,13 @@ its subdirectories, and also the process of initializing the
 .Pa usr
 subtree touches some parts of the source tree (this is a bug
 in the release build scripts which might go away with time).
-.It Fl -init
-When used together with the
-.Fl -src
-option, this initializes the
-.Ao Ar SRC_PATH Ac Ns Pa /../usr
-subtree as necessary to subsequently build
-.Nm
-images.
-.It Fl -modules
-Also build kernel modules.
-These are not stored on the
-.Nm
-image but are left available in the build directory.
-.It Fl n
-Make the script non-interactive, skipping the initial menu
-and proceeding with the build process without requiring user input.
+.\"
 .It Fl v
 Make the script verbose, showing
 commands to be executed and waiting for user
 input before executing each of them.
 Useful for debugging.
-.It Fl -all_in_mfs
-Put the entire contents of the file system in the
-memory file system image which is contained in the
-kernel.
-This is the default behaviour, and is
-extremely useful as the kernel itself can be loaded,
-using
-.Xr etherboot
-or
-.Xr pxeboot 8 ,
 as a fully functional system.
-.It Fl -no_all_in_mfs
-Leaves files contained in the
-.Pa floppy.tree
-on the
-.Nm
-image, so they can be loaded separately
-from the kernel (and updated individually to
-customize the image).
-.It Fl -floppy_size Ar size
-Set the size of the disk image.
-Typical values for a floppy disk are 1440 or 2880,
-but other values can be used for other media (flash memories,
-CDROM, network booted kernels).
-.It Fl c , clean
-Clean the product of previous builds.
 .El
 .Sh ENVIRONMENT
 As a result of extreme size limitations, the
@@ -414,24 +448,12 @@ Note that the image size can be smaller than the slice size
 (indicated as partition
 .Dq Li c: ) .
 .Ss CDROM Install
-Another option is to put the image on a CDROM.
-Assuming your image
-for disk type
-.Pa foo
-is in the directory
-.Pa build_dir-foo
-then you can produce a bootable
+.Nm
+can produce an ISO image named picobsd.iso,
+which does not use
 .Dq "El Torito"
-image (and burn it) with the
-following command:
-.Bd -literal -offset indent
-mkisofs -b picobsd.bin -c boot.catalog -d -N -D -R -T \\
-    -o cd.img build_dir-foo
-burncd -f /dev/acd0c -s 4 data cd.img fixate
-.Ed
-.Pp
-Note that the image size is restricted to 1.44MB or 2.88MB, other sizes
-most likely will not work.
+emulation, so it has no size restrictions.
+Installing means just burning a media with the file.
 .Ss Booting From The Network
 Yet another way to use
 .Nm
@@ -638,8 +660,4 @@ Man page and
 created by
 .An Greg Lehey Aq grog@lemis.com .
 .Sh BUGS
-Building
-.Nm
-is still a black art.
-The biggest problem is determining what will fit on the
-floppies, and the only practical method is trial and error.
+Documentation is still incomplete.

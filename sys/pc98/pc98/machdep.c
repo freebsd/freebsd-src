@@ -1954,6 +1954,7 @@ init386(first)
 	struct gate_descriptor *gdp;
 	int gsel_tss, metadata_missing, x;
 	struct pcpu *pc;
+	int pa;
 
 	thread0.td_kstack = proc0kstack;
 	thread0.td_pcb = (struct pcb *)
@@ -2010,6 +2011,11 @@ init386(first)
 	lgdt(&r_gdt);
 
 	pcpu_init(pc, 0, sizeof(struct pcpu));
+	for (pa = first; pa < first + DPCPU_SIZE; pa += PAGE_SIZE)
+		pmap_kenter(pa + KERNBASE, pa);
+	dpcpu_init((void *)(first + KERNBASE), 0);
+	first += DPCPU_SIZE;
+
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);

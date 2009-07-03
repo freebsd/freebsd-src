@@ -206,7 +206,8 @@ SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD | CTLFLAG_MPSAFE,
 
 
 static void cache_zap(struct namecache *ncp);
-static int vn_vptocnp_locked(struct vnode **vp, char *buf, u_int *buflen);
+static int vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
+    u_int *buflen);
 static int vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, u_int buflen);
 
@@ -1037,12 +1038,12 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 }
 
 int
-vn_vptocnp(struct vnode **vp, char *buf, u_int *buflen)
+vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, u_int *buflen)
 {
 	int error;
 
 	CACHE_RLOCK();
-	error = vn_vptocnp_locked(vp, buf, buflen);
+	error = vn_vptocnp_locked(vp, cred, buf, buflen);
 	if (error == 0) {
 		/*
 		 * vn_vptocnp_locked() dropped hold acquired by
@@ -1057,7 +1058,8 @@ vn_vptocnp(struct vnode **vp, char *buf, u_int *buflen)
 }
 
 static int
-vn_vptocnp_locked(struct vnode **vp, char *buf, u_int *buflen)
+vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf,
+    u_int *buflen)
 {
 	struct vnode *dvp;
 	struct namecache *ncp;
@@ -1089,7 +1091,7 @@ vn_vptocnp_locked(struct vnode **vp, char *buf, u_int *buflen)
 	CACHE_RUNLOCK();
 	vfslocked = VFS_LOCK_GIANT((*vp)->v_mount);
 	vn_lock(*vp, LK_SHARED | LK_RETRY);
-	error = VOP_VPTOCNP(*vp, &dvp, buf, buflen);
+	error = VOP_VPTOCNP(*vp, &dvp, cred, buf, buflen);
 	VOP_UNLOCK(*vp, 0);
 	vdrop(*vp);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -1137,7 +1139,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	numfullpathcalls++;
 	CACHE_RLOCK();
 	if (vp->v_type != VDIR) {
-		error = vn_vptocnp_locked(&vp, buf, &buflen);
+		error = vn_vptocnp_locked(&vp, td->td_ucred, buf, &buflen);
 		if (error)
 			return (error);
 		if (buflen == 0) {
@@ -1167,7 +1169,7 @@ vn_fullpath1(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			    error, vp, NULL, 0, 0);
 			break;
 		}
-		error = vn_vptocnp_locked(&vp, buf, &buflen);
+		error = vn_vptocnp_locked(&vp, td->td_ucred, buf, &buflen);
 		if (error)
 			break;
 		if (buflen == 0) {

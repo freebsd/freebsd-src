@@ -192,7 +192,7 @@ static __constructor void
 vlan_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(vlan_cmds);  i++)
 		cmd_register(&vlan_cmds[i]);

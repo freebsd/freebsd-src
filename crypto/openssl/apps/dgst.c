@@ -76,7 +76,7 @@
 
 int do_fp(BIO *out, unsigned char *buf, BIO *bp, int sep, int binout,
 	  EVP_PKEY *key, unsigned char *sigin, int siglen, const char *title,
-	  const char *file,BIO *bmd,const char *hmac_key);
+	  const char *file,BIO *bmd,const char *hmac_key, int non_fips_allow);
 
 int MAIN(int, char **);
 
@@ -84,7 +84,7 @@ int MAIN(int argc, char **argv)
 	{
 	ENGINE *e = NULL;
 	unsigned char *buf=NULL;
-	int i,err=0;
+	int i,err=1;
 	const EVP_MD *md=NULL,*m;
 	BIO *in=NULL,*inp;
 	BIO *bmd=NULL;
@@ -101,14 +101,16 @@ int MAIN(int argc, char **argv)
 	EVP_PKEY *sigkey = NULL;
 	unsigned char *sigbuf = NULL;
 	int siglen = 0;
+	unsigned int sig_flags = 0;
 	char *passargin = NULL, *passin = NULL;
 #ifndef OPENSSL_NO_ENGINE
 	char *engine=NULL;
 #endif
 	char *hmac_key=NULL;
+	int non_fips_allow = 0;
 
 	apps_startup();
-
+ERR_load_crypto_strings();
 	if ((buf=(unsigned char *)OPENSSL_malloc(BUFSIZE)) == NULL)
 		{
 		BIO_printf(bio_err,"out of memory\n");
@@ -167,6 +169,27 @@ int MAIN(int argc, char **argv)
 			keyfile=*(++argv);
 			do_verify = 1;
 			}
+		else if (strcmp(*argv,"-x931") == 0)
+			sig_flags = EVP_MD_CTX_FLAG_PAD_X931;
+		else if (strcmp(*argv,"-pss_saltlen") == 0)
+			{
+			int saltlen;
+			if (--argc < 1) break;
+			saltlen=atoi(*(++argv));
+			if (saltlen == -1)
+				sig_flags = EVP_MD_CTX_FLAG_PSS_MREC;
+			else if (saltlen == -2)
+				sig_flags = EVP_MD_CTX_FLAG_PSS_MDLEN;
+			else if (saltlen < -2 || saltlen >= 0xFFFE)
+				{
+				BIO_printf(bio_err, "Invalid PSS salt length %d\n", saltlen);
+				goto end;
+				}
+			else
+				sig_flags = saltlen;
+			sig_flags <<= 16;
+			sig_flags |= EVP_MD_CTX_FLAG_PAD_PSS;
+			}
 		else if (strcmp(*argv,"-signature") == 0)
 			{
 			if (--argc < 1) break;
@@ -190,6 +213,10 @@ int MAIN(int argc, char **argv)
 			out_bin = 1;
 		else if (strcmp(*argv,"-d") == 0)
 			debug=1;
+		else if (strcmp(*argv,"-non-fips-allow") == 0)
+			non_fips_allow=1;
+		else if (!strcmp(*argv,"-fips-fingerprint"))
+			hmac_key = "etaonrishdlcupfm";
 		else if (!strcmp(*argv,"-hmac"))
 			{
 			if (--argc < 1)
@@ -227,33 +254,38 @@ int MAIN(int argc, char **argv)
 		BIO_printf(bio_err,"-keyform arg    key file format (PEM or ENGINE)\n");
 		BIO_printf(bio_err,"-signature file signature to verify\n");
 		BIO_printf(bio_err,"-binary         output in binary form\n");
+		BIO_printf(bio_err,"-hmac key       create hashed MAC with key\n");
 #ifndef OPENSSL_NO_ENGINE
 		BIO_printf(bio_err,"-engine e       use engine e, possibly a hardware device.\n");
 #endif
 
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm (default)\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm (default)\n",
 			LN_md5,LN_md5);
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_md4,LN_md4);
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_md2,LN_md2);
 #ifndef OPENSSL_NO_SHA
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_sha1,LN_sha1);
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_sha,LN_sha);
 #ifndef OPENSSL_NO_SHA256
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
+			LN_sha224,LN_sha224);
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_sha256,LN_sha256);
 #endif
 #ifndef OPENSSL_NO_SHA512
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
+			LN_sha384,LN_sha384);
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_sha512,LN_sha512);
 #endif
 #endif
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_mdc2,LN_mdc2);
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_ripemd160,LN_ripemd160);
 		err=1;
 		goto end;
@@ -349,8 +381,20 @@ int MAIN(int argc, char **argv)
 			goto end;
 		}
 	}
-		
 
+	if (non_fips_allow)
+		{
+		EVP_MD_CTX *md_ctx;
+		BIO_get_md_ctx(bmd,&md_ctx);
+		EVP_MD_CTX_set_flags(md_ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
+		}
+
+	if (sig_flags)
+		{
+		EVP_MD_CTX *md_ctx;
+		BIO_get_md_ctx(bmd,&md_ctx);
+		EVP_MD_CTX_set_flags(md_ctx, sig_flags);
+		}
 
 	/* we use md as a filter, reading from 'in' */
 	if (!BIO_set_md(bmd,md))
@@ -366,11 +410,12 @@ int MAIN(int argc, char **argv)
 		{
 		BIO_set_fp(in,stdin,BIO_NOCLOSE);
 		err=do_fp(out, buf,inp,separator, out_bin, sigkey, sigbuf,
-			  siglen,"","(stdin)",bmd,hmac_key);
+			  siglen,"","(stdin)",bmd,hmac_key,non_fips_allow);
 		}
 	else
 		{
 		name=OBJ_nid2sn(md->type);
+		err = 0;
 		for (i=0; i<argc; i++)
 			{
 			char *tmp,*tofree=NULL;
@@ -392,7 +437,7 @@ int MAIN(int argc, char **argv)
 			else
 				tmp="";
 			r=do_fp(out,buf,inp,separator,out_bin,sigkey,sigbuf,
-				siglen,tmp,argv[i],bmd,hmac_key);
+				siglen,tmp,argv[i],bmd,hmac_key,non_fips_allow);
 			if(r)
 			    err=r;
 			if(tofree)
@@ -419,7 +464,7 @@ end:
 
 int do_fp(BIO *out, unsigned char *buf, BIO *bp, int sep, int binout,
 	  EVP_PKEY *key, unsigned char *sigin, int siglen, const char *title,
-	  const char *file,BIO *bmd,const char *hmac_key)
+	  const char *file,BIO *bmd,const char *hmac_key,int non_fips_allow)
 	{
 	unsigned int len;
 	int i;

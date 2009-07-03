@@ -83,7 +83,7 @@ opensolaris_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		utsname.nodename = prison0.pr_host;
+		utsname.nodename = prison0.pr_hostname;
 		break;
 
 	case MOD_UNLOAD:

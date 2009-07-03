@@ -39,6 +39,7 @@ extern volatile sig_atomic_t gotwinch;
 
 int trapcmd(int, char **);
 void clear_traps(void);
+int have_traps(void);
 void setsignal(int);
 void ignoresig(int);
 void onsig(int);

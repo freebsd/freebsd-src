@@ -365,9 +365,9 @@ S_timeval(int l2, void *p)
 		warnx("S_timeval %d != %d", l2, sizeof(*tv));
 		return (1);
 	}
-	printf(hflag ? "{ sec = %'ld, usec = %'ld } " :
-		"{ sec = %ld, usec = %ld } ",
-		tv->tv_sec, tv->tv_usec);
+	printf(hflag ? "{ sec = %'jd, usec = %'ld } " :
+		"{ sec = %jd, usec = %ld } ",
+		(intmax_t)tv->tv_sec, tv->tv_usec);
 	tv_sec = tv->tv_sec;
 	p1 = strdup(ctime(&tv_sec));
 	for (p2=p1; *p2 ; p2++)

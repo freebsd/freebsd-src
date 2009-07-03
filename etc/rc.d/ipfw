@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: ipfw
-# REQUIRE: FILESYSTEMS
+# REQUIRE: ppp
 # KEYWORD: nojail
 
 . /etc/rc.subr

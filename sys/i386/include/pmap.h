@@ -185,9 +185,7 @@ extern pd_entry_t PTDpde[];
 extern pdpt_entry_t *IdlePDPT;
 #endif
 extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
-#endif
 
-#ifdef _KERNEL
 /*
  * virtual address to page table entry and
  * to physical address.
@@ -362,15 +360,8 @@ pte_load(pt_entry_t *ptep)
 static __inline pt_entry_t
 pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
 {
-	pt_entry_t r;
-
-	__asm __volatile(
-	    "xchgl %0,%1"
-	    : "=m" (*ptep),
-	      "=r" (r)
-	    : "1" (pte),
-	      "m" (*ptep));
-	return (r);
+	__asm volatile("xchgl %0, %1" : "+m" (*ptep), "+r" (pte));
+	return (pte);
 }
 
 #define	pte_load_clear(pte)	atomic_readandclear_int(pte)
@@ -456,14 +447,6 @@ struct pv_chunk {
 };
 
 #ifdef	_KERNEL
-
-#define NPPROVMTRR		8
-#define PPRO_VMTRRphysBase0	0x200
-#define PPRO_VMTRRphysMask0	0x201
-struct ppro_vmtrr {
-	u_int64_t base, mask;
-};
-extern struct ppro_vmtrr PPro_vmtrr[NPPROVMTRR];
 
 extern caddr_t	CADDR1;
 extern pt_entry_t *CMAP1;

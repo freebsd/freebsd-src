@@ -245,8 +245,18 @@ extern "C" {
 
 #define BN_FLG_MALLOCED		0x01
 #define BN_FLG_STATIC_DATA	0x02
-#define BN_FLG_EXP_CONSTTIME	0x04 /* avoid leaking exponent information through timings
-                            	      * (BN_mod_exp_mont() will call BN_mod_exp_mont_consttime) */
+#define BN_FLG_CONSTTIME	0x04 /* avoid leaking exponent information through timing,
+                                      * BN_mod_exp_mont() will call BN_mod_exp_mont_consttime,
+                                      * BN_div() will call BN_div_no_branch,
+                                      * BN_mod_inverse() will call BN_mod_inverse_no_branch.
+                                      */
+
+#ifndef OPENSSL_NO_DEPRECATED
+#define BN_FLG_EXP_CONSTTIME BN_FLG_CONSTTIME /* deprecated name for the flag */
+                                      /* avoid leaking exponent information through timings
+                                      * (BN_mod_exp_mont() will call BN_mod_exp_mont_consttime) */
+#endif
+
 #ifndef OPENSSL_NO_DEPRECATED
 #define BN_FLG_FREE		0x8000	/* used for debuging */
 #endif
@@ -293,7 +303,12 @@ struct bn_mont_ctx_st
 	BIGNUM N;      /* The modulus */
 	BIGNUM Ni;     /* R*(1/R mod N) - N*Ni = 1
 	                * (Ni is only stored for bignum algorithm) */
+#if 0
+	/* OpenSSL 0.9.9 preview: */
+	BN_ULONG n0[2];/* least significant word(s) of Ni */
+#else
 	BN_ULONG n0;   /* least significant word of Ni */
+#endif
 	int flags;
 	};
 
@@ -393,8 +408,8 @@ BIGNUM *BN_CTX_get(BN_CTX *ctx);
 void	BN_CTX_end(BN_CTX *ctx);
 int     BN_rand(BIGNUM *rnd, int bits, int top,int bottom);
 int     BN_pseudo_rand(BIGNUM *rnd, int bits, int top,int bottom);
-int	BN_rand_range(BIGNUM *rnd, BIGNUM *range);
-int	BN_pseudo_rand_range(BIGNUM *rnd, BIGNUM *range);
+int	BN_rand_range(BIGNUM *rnd, const BIGNUM *range);
+int	BN_pseudo_rand_range(BIGNUM *rnd, const BIGNUM *range);
 int	BN_num_bits(const BIGNUM *a);
 int	BN_num_bits_word(BN_ULONG);
 BIGNUM *BN_new(void);
@@ -516,6 +531,17 @@ int	BN_is_prime_ex(const BIGNUM *p,int nchecks, BN_CTX *ctx, BN_GENCB *cb);
 int	BN_is_prime_fasttest_ex(const BIGNUM *p,int nchecks, BN_CTX *ctx,
 		int do_trial_division, BN_GENCB *cb);
 
+int BN_X931_generate_Xpq(BIGNUM *Xp, BIGNUM *Xq, int nbits, BN_CTX *ctx);
+
+int BN_X931_derive_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2,
+			const BIGNUM *Xp, const BIGNUM *Xp1, const BIGNUM *Xp2,
+			const BIGNUM *e, BN_CTX *ctx, BN_GENCB *cb);
+int BN_X931_generate_prime_ex(BIGNUM *p, BIGNUM *p1, BIGNUM *p2,
+			BIGNUM *Xp1, BIGNUM *Xp2,
+			const BIGNUM *Xp,
+			const BIGNUM *e, BN_CTX *ctx,
+			BN_GENCB *cb);
+
 BN_MONT_CTX *BN_MONT_CTX_new(void );
 void BN_MONT_CTX_init(BN_MONT_CTX *ctx);
 int BN_mod_mul_montgomery(BIGNUM *r,const BIGNUM *a,const BIGNUM *b,
@@ -534,7 +560,7 @@ BN_MONT_CTX *BN_MONT_CTX_set_locked(BN_MONT_CTX **pmont, int lock,
 #define	BN_BLINDING_NO_UPDATE	0x00000001
 #define	BN_BLINDING_NO_RECREATE	0x00000002
 
-BN_BLINDING *BN_BLINDING_new(const BIGNUM *A, const BIGNUM *Ai, BIGNUM *mod);
+BN_BLINDING *BN_BLINDING_new(const BIGNUM *A, const BIGNUM *Ai, /* const */ BIGNUM *mod);
 void BN_BLINDING_free(BN_BLINDING *b);
 int BN_BLINDING_update(BN_BLINDING *b,BN_CTX *ctx);
 int BN_BLINDING_convert(BIGNUM *n, BN_BLINDING *b, BN_CTX *ctx);
@@ -546,7 +572,7 @@ void BN_BLINDING_set_thread_id(BN_BLINDING *, unsigned long);
 unsigned long BN_BLINDING_get_flags(const BN_BLINDING *);
 void BN_BLINDING_set_flags(BN_BLINDING *, unsigned long);
 BN_BLINDING *BN_BLINDING_create_param(BN_BLINDING *b,
-	const BIGNUM *e, BIGNUM *m, BN_CTX *ctx,
+	const BIGNUM *e, /* const */ BIGNUM *m, BN_CTX *ctx,
 	int (*bn_mod_exp)(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
 			  const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx),
 	BN_MONT_CTX *m_ctx);
@@ -775,6 +801,7 @@ void ERR_load_BN_strings(void);
 #define BN_F_BN_CTX_NEW					 106
 #define BN_F_BN_CTX_START				 129
 #define BN_F_BN_DIV					 107
+#define BN_F_BN_DIV_NO_BRANCH				 138
 #define BN_F_BN_DIV_RECP				 130
 #define BN_F_BN_EXP					 123
 #define BN_F_BN_EXPAND2					 108
@@ -793,6 +820,7 @@ void ERR_load_BN_strings(void);
 #define BN_F_BN_MOD_EXP_RECP				 125
 #define BN_F_BN_MOD_EXP_SIMPLE				 126
 #define BN_F_BN_MOD_INVERSE				 110
+#define BN_F_BN_MOD_INVERSE_NO_BRANCH			 139
 #define BN_F_BN_MOD_LSHIFT_QUICK			 119
 #define BN_F_BN_MOD_MUL_RECIPROCAL			 111
 #define BN_F_BN_MOD_SQRT				 121

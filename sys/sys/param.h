@@ -53,11 +53,12 @@
  *	doc/en_US.ISO8859-1/books/porters-handbook/book.sgml
  *
  * scheme is:  <major><two digit minor>Rxx
- *		'R' is 0 if release branch or x.0-CURRENT before RELENG_*_0
- *		is created, otherwise 1.
+ *		'R' is in the range 0 to 4 if this is a release branch or
+ *		x.0-CURRENT before RELENG_*_0 is created, otherwise 'R' is
+ *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 800097	/* Master, propagated to newvers */
+#define __FreeBSD_version 800101	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
@@ -77,7 +78,7 @@
 #define	MAXLOGNAME	17		/* max login name length (incl. NUL) */
 #define	MAXUPRC		CHILD_MAX	/* max simultaneous processes */
 #define	NCARGS		ARG_MAX		/* max bytes for an exec function */
-#define	NGROUPS		NGROUPS_MAX	/* max number groups */
+#define	NGROUPS		(NGROUPS_MAX+1)	/* max number groups */
 #define	NOFILE		OPEN_MAX	/* max open files per process */
 #define	NOGROUP		65535		/* marker for empty group set member */
 #define MAXHOSTNAMELEN	256		/* max hostname size */

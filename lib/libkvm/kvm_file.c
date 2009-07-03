@@ -61,6 +61,7 @@ static char sccsid[] = "@(#)kvm_file.c	8.1 (Berkeley) 6/4/93";
 #include <limits.h>
 #include <ndbm.h>
 #include <paths.h>
+#include <stdlib.h>
 
 #include "kvm_private.h"
 

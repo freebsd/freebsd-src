@@ -220,14 +220,9 @@ nfsrv_lookupfilename(struct nameidata *ndp, char *fname, NFSPROC_T *p)
 void
 newnfs_copycred(struct nfscred *nfscr, struct ucred *cr)
 {
-	int ngroups, i;
 
 	cr->cr_uid = nfscr->nfsc_uid;
-	ngroups = (nfscr->nfsc_ngroups < NGROUPS) ?
-	    nfscr->nfsc_ngroups : NGROUPS;
-	for (i = 0; i < ngroups; i++)
-		cr->cr_groups[i] = nfscr->nfsc_groups[i];
-	cr->cr_ngroups = ngroups;
+	crsetgroups(cr, nfscr->nfsc_ngroups, nfscr->nfsc_groups);
 }
 
 /*

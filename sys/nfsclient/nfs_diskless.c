@@ -50,11 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/ethernet.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsdiskless.h>

@@ -500,7 +500,7 @@ setup_blkring(device_t dev, struct blkfront_info *info)
 /**
  * Callback received when the backend's state changes.
  */
-static void
+static int
 blkfront_backend_changed(device_t dev, XenbusState backend_state)
 {
 	struct blkfront_info *info = device_get_softc(dev);
@@ -542,6 +542,8 @@ blkfront_backend_changed(device_t dev, XenbusState backend_state)
 		bdput(bd);
 #endif
 	}
+
+	return (0);
 }
 
 /* 

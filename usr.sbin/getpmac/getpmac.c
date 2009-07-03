@@ -119,7 +119,8 @@ main(int argc, char *argv[])
 		exit(EX_DATAERR);
 	}
 
-	printf("%s\n", string);
+	if (strlen(string) > 0)
+		printf("%s\n", string);
 		
 	mac_free(label);
 	free(string);

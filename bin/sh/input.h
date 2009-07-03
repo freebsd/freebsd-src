@@ -48,6 +48,7 @@ extern int init_editline;	/* 0 == not setup, 1 == OK, -1 == failed */
 char *pfgets(char *, int);
 int pgetc(void);
 int preadbuffer(void);
+int preadateof(void);
 void pungetc(void);
 void pushstring(char *, int, void *);
 void popstring(void);

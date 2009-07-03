@@ -37,9 +37,9 @@
 .In sys/types.h
 .In libutil.h
 .Ft struct kinfo_vmentry *
-.Fn kinfo_getfile "pid_t pid" "int *cntp"
+.Fn kinfo_getvmmap "pid_t pid" "int *cntp"
 .Sh DESCRIPTION
-This function is used for obtaining the file descriptor information
+This function is used for obtaining virtual memory mapping information
 of a particular process.
 .Pp
 The
@@ -58,15 +58,20 @@ mib.
 While the kernel returns a packed structure, this function expands the
 data into a fixed record format.
 .Sh RETURN VALUES
-The
+On success the
 .Fn kinfo_getvmmap
 function returns a pointer to an array of
 .Vt struct kinfo_vmentry
-structures.
+structures as defined by
+.In sys/user.h .
 The array was obtained by an internal call to
 .Xr malloc 3
 and must be freed by the caller with a call to
 .Xr free 3 .
+On failure the
+.Fn kinfo_getvmmap
+function returns
+.Dv NULL .
 .Sh SEE ALSO
 .Xr free 3 ,
 .Xr kinfo_getfile 3 ,

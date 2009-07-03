@@ -51,6 +51,9 @@
 #define	KICONV_UPPER		2	/* toupper converted character */
 #define	KICONV_FROM_LOWER	4	/* tolower source character, then convert */
 #define	KICONV_FROM_UPPER	8	/* toupper source character, then convert */
+#define	KICONV_WCTYPE		16	/* towlower/towupper characters */
+
+#define	KICONV_WCTYPE_NAME	"_wctype"
 
 /*
  * Entry for cslist sysctl
@@ -95,6 +98,8 @@ int   kiconv_add_xlat_table(const char *, const char *, const u_char *);
 int   kiconv_add_xlat16_cspair(const char *, const char *, int);
 int   kiconv_add_xlat16_cspairs(const char *, const char *);
 int   kiconv_add_xlat16_table(const char *, const char *, const void *, int);
+int   kiconv_lookupconv(const char *drvname);
+int   kiconv_lookupcs(const char *tocode, const char *fromcode);
 const char *kiconv_quirkcs(const char *, int);
 
 __END_DECLS
@@ -128,7 +133,7 @@ struct iconv_cspair {
 	TAILQ_ENTRY(iconv_cspair)	cp_link;
 };
 
-#define	KICONV_CONVERTER(name,size) 			\
+#define	KICONV_CONVERTER(name,size)			\
     static struct iconv_converter_class iconv_ ## name ## _class = { \
 	"iconv_"#name, iconv_ ## name ## _methods, size, NULL \
     };							\
@@ -138,7 +143,7 @@ struct iconv_cspair {
     };							\
     DECLARE_MODULE(iconv_ ## name, iconv_ ## name ## _mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 
-#define	KICONV_CES(name,size) 				\
+#define	KICONV_CES(name,size)				\
     static DEFINE_CLASS(iconv_ces_ ## name, iconv_ces_ ## name ## _methods, (size)); \
     static moduledata_t iconv_ces_ ## name ## _mod = {	\
 	"iconv_ces_"#name, iconv_cesmod_handler,	\
@@ -166,6 +171,9 @@ int iconv_convchr_case(void *handle, const char **inbuf,
 char* iconv_convstr(void *handle, char *dst, const char *src);
 void* iconv_convmem(void *handle, void *dst, const void *src, int size);
 int iconv_vfs_refcount(const char *fsname);
+
+int towlower(int c, void *handle);
+int towupper(int c, void *handle);
 
 /*
  * Bridge struct of iconv functions
@@ -233,6 +241,7 @@ int iconv_lookupcp(char **cpp, const char *s);
 
 int iconv_converter_initstub(struct iconv_converter_class *dp);
 int iconv_converter_donestub(struct iconv_converter_class *dp);
+int iconv_converter_tolowerstub(int c, void *handle);
 int iconv_converter_handler(module_t mod, int type, void *data);
 
 #ifdef ICONV_DEBUG

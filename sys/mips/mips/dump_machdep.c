@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Fill this file and put your name here
+ * Copyright (c) 2006 Oleksandr Tymoshenko
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

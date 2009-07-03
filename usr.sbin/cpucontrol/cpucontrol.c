@@ -60,6 +60,12 @@ int	verbosity_level = 0;
 #define	FLAG_M	0x02
 #define	FLAG_U	0x04
 
+#define	OP_INVAL	0x00
+#define	OP_READ		0x01
+#define	OP_WRITE	0x02
+#define	OP_OR		0x04
+#define	OP_AND		0x08
+
 #define	HIGH(val)	(uint32_t)(((val) >> 32) & 0xffffffff)
 #define	LOW(val)	(uint32_t)((val) & 0xffffffff)
 
@@ -166,28 +172,64 @@ do_msr(const char *cmdarg, const char *dev)
 {
 	unsigned int msr;
 	cpuctl_msr_args_t args;
+	size_t len;
+	uint64_t data = 0;
+	unsigned long command;
+	int do_invert = 0, op;
 	int fd, error;
-	int wr = 0;
-	char *p;
 	char *endptr;
+	char *p;
 
 	assert(cmdarg != NULL);
 	assert(dev != NULL);
+	len = strlen(cmdarg);
+	if (len == 0) {
+		WARNX(0, "MSR register expected");
+		usage();
+		/* NOTREACHED */
+	}
 
-	p = strchr(cmdarg, '=');
-	if (p != NULL) {
-		wr = 1;
-		*p++ = '\0';
-		args.data = strtoull(p, &endptr, 16);
-		if (*p == '\0' || *endptr != '\0') {
-			WARNX(0, "incorrect MSR value: %s", p);
-			usage();
-			/* NOTREACHED */
+	/*
+	 * Parse command string.
+	 */
+	msr = strtoul(cmdarg, &endptr, 16);
+	switch (*endptr) {
+	case '\0':
+		op = OP_READ;
+		break;
+	case '=':
+		op = OP_WRITE;
+		break;
+	case '&':
+		op = OP_AND;
+		endptr++;
+		break;
+	case '|':
+		op = OP_OR;
+		endptr++;
+		break;
+	default:
+		op = OP_INVAL;
+	}
+	if (op != OP_READ) {	/* Complex operation. */
+		if (*endptr != '=')
+			op = OP_INVAL;
+		else {
+			p = ++endptr;
+			if (*p == '~') {
+				do_invert = 1;
+				p++;
+			}
+			data = strtoull(p, &endptr, 16);
+			if (*p == '\0' || *endptr != '\0') {
+				WARNX(0, "argument required: %s", cmdarg);
+				usage();
+				/* NOTREACHED */
+			}
 		}
 	}
-	msr = strtoul(cmdarg, &endptr, 16);
-	if (*cmdarg == '\0' || *endptr != '\0') {
-		WARNX(0, "incorrect MSR register: %s", cmdarg);
+	if (op == OP_INVAL) {
+		WARNX(0, "invalid operator: %s", cmdarg);
 		usage();
 		/* NOTREACHED */
 	}
@@ -196,20 +238,39 @@ do_msr(const char *cmdarg, const char *dev)
 	 * Fill ioctl argument structure.
 	 */
 	args.msr = msr;
-	fd = open(dev, wr == 0 ? O_RDONLY : O_WRONLY);
+	if ((do_invert != 0) ^ (op == OP_AND))
+		args.data = ~data;
+	else
+		args.data = data;
+	switch (op) {
+	case OP_READ:
+		command = CPUCTL_RDMSR;
+		break;
+	case OP_WRITE:
+		command = CPUCTL_WRMSR;
+		break;
+	case OP_OR:
+		command = CPUCTL_MSRSBIT;
+		break;
+	case OP_AND:
+		command = CPUCTL_MSRCBIT;
+		break;
+	default:
+		abort();
+	}
+	fd = open(dev, op == OP_READ ? O_RDONLY : O_WRONLY);
 	if (fd < 0) {
 		WARN(0, "error opening %s for %s", dev,
-		    wr == 0 ? "reading" : "writing");
+		    op == OP_READ ? "reading" : "writing");
 		return (1);
 	}
-	error = ioctl(fd, wr == 0 ? CPUCTL_RDMSR : CPUCTL_WRMSR, &args);
+	error = ioctl(fd, command, &args);
 	if (error < 0) {
-		WARN(0, "ioctl(%s, %s)", dev,
-		    wr == 0 ? "CPUCTL_RDMSR" : "CPUCTL_WRMSR");
+		WARN(0, "ioctl(%s, %lu)", dev, command);
 		close(fd);
 		return (1);
 	}
-	if (wr == 0)
+	if (op == OP_READ)
 		fprintf(stdout, "MSR 0x%x: 0x%.8x 0x%.8x\n", msr,
 		    HIGH(args.data), LOW(args.data));
 	close(fd);

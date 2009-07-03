@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef _OFW_OFWVAR_H_
-#define _OFW_OFWVAR_H_
+#ifndef _DEV_OFW_OFWVAR_H_
+#define	_DEV_OFW_OFWVAR_H_
 
 /*
  * An Open Firmware client implementation is declared with a kernel object and
@@ -45,7 +45,7 @@
  * };
  *
  * static ofw_def_t ofw_fdt = {
- * 	"ofw_fdt",
+ *	"ofw_fdt",
  *	fdt_methods,
  *	sizeof(fdt_softc),	// or 0 if no softc
  * };
@@ -69,21 +69,21 @@ struct ofw_kobj {
 
 	/*
 	 * Opaque data that can be overlaid with an instance-private
-	 * structure. OFW code can test that this is large enough at
-	 * compile time with a sizeof() test againt it's softc. There
+	 * structure.  OFW code can test that this is large enough at
+	 * compile time with a sizeof() test againt it's softc.  There
 	 * is also a run-time test when the MMU kernel object is
 	 * registered.
 	 */
-#define OFW_OPAQUESZ	64
+#define	OFW_OPAQUESZ	64
 	u_int		ofw_opaque[OFW_OPAQUESZ];
 };
 
 typedef struct ofw_kobj		*ofw_t;
 typedef struct kobj_class	ofw_def_t;
 
-#define ofw_method_t	kobj_method_t
-#define OFWMETHOD	KOBJMETHOD
+#define	ofw_method_t	kobj_method_t
+#define	OFWMETHOD	KOBJMETHOD
 
-#define OFW_DEF(name)	DATA_SET(ofw_set, name)
+#define	OFW_DEF(name)	DATA_SET(ofw_set, name)
 
-#endif /* _OFW_OFWVAR_H_ */
+#endif /* _DEV_OFW_OFWVAR_H_ */

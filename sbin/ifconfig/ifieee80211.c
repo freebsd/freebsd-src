@@ -104,19 +104,25 @@
 
 /* XXX need these publicly defined or similar */
 #ifndef IEEE80211_NODE_AUTH
-#define	IEEE80211_NODE_AUTH	0x0001		/* authorized for data */
-#define	IEEE80211_NODE_QOS	0x0002		/* QoS enabled */
-#define	IEEE80211_NODE_ERP	0x0004		/* ERP enabled */
-#define	IEEE80211_NODE_PWR_MGT	0x0010		/* power save mode enabled */
-#define	IEEE80211_NODE_HT	0x0040		/* HT enabled */
-#define	IEEE80211_NODE_HTCOMPAT	0x0080		/* HT setup w/ vendor OUI's */
-#define	IEEE80211_NODE_WPS	0x0100		/* WPS association */
-#define	IEEE80211_NODE_TSN	0x0200		/* TSN association */
-#define	IEEE80211_NODE_AMPDU_RX	0x0400		/* AMPDU rx enabled */
-#define	IEEE80211_NODE_AMPDU_TX	0x0800		/* AMPDU tx enabled */
-#define	IEEE80211_NODE_MIMO_PS	0x1000		/* MIMO power save enabled */
-#define	IEEE80211_NODE_MIMO_RTS	0x2000		/* send RTS in MIMO PS */
-#define	IEEE80211_NODE_RIFS	0x4000		/* RIFS enabled */
+#define	IEEE80211_NODE_AUTH	0x000001	/* authorized for data */
+#define	IEEE80211_NODE_QOS	0x000002	/* QoS enabled */
+#define	IEEE80211_NODE_ERP	0x000004	/* ERP enabled */
+#define	IEEE80211_NODE_PWR_MGT	0x000010	/* power save mode enabled */
+#define	IEEE80211_NODE_AREF	0x000020	/* authentication ref held */
+#define	IEEE80211_NODE_HT	0x000040	/* HT enabled */
+#define	IEEE80211_NODE_HTCOMPAT	0x000080	/* HT setup w/ vendor OUI's */
+#define	IEEE80211_NODE_WPS	0x000100	/* WPS association */
+#define	IEEE80211_NODE_TSN	0x000200	/* TSN association */
+#define	IEEE80211_NODE_AMPDU_RX	0x000400	/* AMPDU rx enabled */
+#define	IEEE80211_NODE_AMPDU_TX	0x000800	/* AMPDU tx enabled */
+#define	IEEE80211_NODE_MIMO_PS	0x001000	/* MIMO power save enabled */
+#define	IEEE80211_NODE_MIMO_RTS	0x002000	/* send RTS in MIMO PS */
+#define	IEEE80211_NODE_RIFS	0x004000	/* RIFS enabled */
+#define	IEEE80211_NODE_SGI20	0x008000	/* Short GI in HT20 enabled */
+#define	IEEE80211_NODE_SGI40	0x010000	/* Short GI in HT40 enabled */
+#define	IEEE80211_NODE_ASSOCID	0x020000	/* xmit requires associd */
+#define	IEEE80211_NODE_AMSDU_RX	0x040000	/* AMSDU rx enabled */
+#define	IEEE80211_NODE_AMSDU_TX	0x080000	/* AMSDU tx enabled */
 #endif
 
 #define	MAXCHAN	1536		/* max 1.5K channels */
@@ -2302,6 +2308,16 @@ getflags(int flags)
 	}
 	if (flags & IEEE80211_NODE_RIFS)
 		*cp++ = 'I';
+	if (flags & IEEE80211_NODE_SGI40) {
+		*cp++ = 'S';
+		if (flags & IEEE80211_NODE_SGI20)
+			*cp++ = '+';
+	} else if (flags & IEEE80211_NODE_SGI20)
+		*cp++ = 's';
+	if (flags & IEEE80211_NODE_AMSDU_TX)
+		*cp++ = 't';
+	if (flags & IEEE80211_NODE_AMSDU_RX)
+		*cp++ = 'r';
 	*cp = '\0';
 	return flagstring;
 }
@@ -3081,8 +3097,6 @@ static enum ieee80211_opmode get80211opmode(int s);
 static int
 gettxseq(const struct ieee80211req_sta_info *si)
 {
-#define	IEEE80211_NODE_QOS	0x0002		/* QoS enabled */
-
 	int i, txseq;
 
 	if ((si->isi_state & IEEE80211_NODE_QOS) == 0)
@@ -3093,14 +3107,11 @@ gettxseq(const struct ieee80211req_sta_info *si)
 		if (si->isi_txseqs[i] > txseq)
 			txseq = si->isi_txseqs[i];
 	return txseq;
-#undef IEEE80211_NODE_QOS
 }
 
 static int
 getrxseq(const struct ieee80211req_sta_info *si)
 {
-#define	IEEE80211_NODE_QOS	0x0002		/* QoS enabled */
-
 	int i, rxseq;
 
 	if ((si->isi_state & IEEE80211_NODE_QOS) == 0)
@@ -3111,7 +3122,6 @@ getrxseq(const struct ieee80211req_sta_info *si)
 		if (si->isi_rxseqs[i] > rxseq)
 			rxseq = si->isi_rxseqs[i];
 	return rxseq;
-#undef IEEE80211_NODE_QOS
 }
 
 static void
@@ -3141,7 +3151,7 @@ list_stations(int s)
 
 	getchaninfo(s);
 
-	printf("%-17.17s %4s %4s %4s %4s %4s %6s %6s %4s %4s\n"
+	printf("%-17.17s %4s %4s %4s %4s %4s %6s %6s %4s %-7s\n"
 		, "ADDR"
 		, "AID"
 		, "CHAN"
@@ -3160,7 +3170,7 @@ list_stations(int s)
 		si = (const struct ieee80211req_sta_info *) cp;
 		if (si->isi_len < sizeof(*si))
 			break;
-		printf("%s %4u %4d %3dM %3.1f %4d %6d %6d %-4.4s %-4.4s"
+		printf("%s %4u %4d %3dM %3.1f %4d %6d %6d %-4.4s %-7.7s"
 			, ether_ntoa((const struct ether_addr*) si->isi_macaddr)
 			, IEEE80211_AID(si->isi_associd)
 			, ieee80211_mhz2ieee(si->isi_freq, si->isi_flags)

@@ -105,8 +105,7 @@ main(int argc, char *argv[])
 		reg = (dr != NULL) ? dr->addr : (uint32_t) strtoul(argv[0], NULL, 0);
 		if (cp != NULL)
 			regwrite(s, &atd, reg, (uint32_t) strtoul(cp, NULL, 0));
-		else
-			printf("%s = %08x\n", argv[0], regread(s, &atd, reg));
+		printf("%s = %08x\n", argv[0], regread(s, &atd, reg));
 	}
 	return 0;
 }

@@ -605,7 +605,7 @@ lance_setladrf(struct lance_softc *sc, uint16_t *af)
 	}
 
 	af[0] = af[1] = af[2] = af[3] = 0x0000;
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -619,7 +619,7 @@ lance_setladrf(struct lance_softc *sc, uint16_t *af)
 		/* Set the corresponding bit in the filter. */
 		af[crc >> 4] |= LE_HTOLE16(1 << (crc & 0xf));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 }
 
 /*

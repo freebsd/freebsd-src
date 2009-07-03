@@ -31,7 +31,6 @@ FBSD_1.0 {
 	__mac_set_file;
 	__mac_set_link;
 	__mac_set_proc;
-	__semctl;
 	__setugid;
 	__syscall;
 	__sysctl;
@@ -184,7 +183,6 @@ FBSD_1.0 {
 	modstat;
 	mount;
 	mprotect;
-	msgctl;
 	msgget;
 	msgrcv;
 	msgsnd;
@@ -196,7 +194,6 @@ FBSD_1.0 {
 	nanosleep;
 	netbsd_lchown;
 	netbsd_msync;
-	nfsclnt;
 	nfssvc;
 	nfstat;
 	nlstat;
@@ -268,7 +265,6 @@ FBSD_1.0 {
 	shm_open;
 	shm_unlink;
 	shmat;
-	shmctl;
 	shmdt;
 	shmget;
 	shmsys;
@@ -333,6 +329,8 @@ FBSD_1.0 {
 };
 
 FBSD_1.1 {
+	__semctl;
+	closefrom;
 	cpuset;
 	cpuset_getid;
 	cpuset_setid;
@@ -351,10 +349,12 @@ FBSD_1.1 {
 	mkdirat;
 	mkfifoat;
 	mknodat;
+	msgctl;
 	openat;
 	readlinkat;
 	renameat;
 	setfib;
+	shmctl;
 	symlinkat;
 	unlinkat;
 };
@@ -472,6 +472,8 @@ FBSDprivate_1.0 {
 	__sys_clock_settime;
 	_close;
 	__sys_close;
+	_closefrom;
+	__sys_closefrom;
 	_connect;
 	__sys_connect;
 	_cpuset;
@@ -745,8 +747,6 @@ FBSDprivate_1.0 {
 	__sys_netbsd_lchown;
 	_netbsd_msync;
 	__sys_netbsd_msync;
-	_nfsclnt;
-	__sys_nfsclnt;
 	_nfssvc;
 	__sys_nfssvc;
 	_nfstat;

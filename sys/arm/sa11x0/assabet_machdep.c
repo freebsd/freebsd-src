@@ -209,6 +209,7 @@ initarm(void *arg, void *arg2)
 	struct pv_addr  kernel_l1pt;
 	struct pv_addr	md_addr;
 	struct pv_addr	md_bla;
+	struct pv_addr  dpcpu;
 	int loop;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
@@ -268,6 +269,10 @@ initarm(void *arg, void *arg2)
 	 */
 	valloc_pages(systempage, 1);
 
+	/* Allocate dynamic per-cpu area. */
+	valloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
+	dpcpu_init((void *)dpcpu.pv_va, 0);
+
 	/* Allocate stacks for all modes */
 	valloc_pages(irqstack, IRQ_STACK_SIZE);
 	valloc_pages(abtstack, ABT_STACK_SIZE);
@@ -308,6 +313,9 @@ initarm(void *arg, void *arg2)
 	pmap_map_chunk(l1pagetable, KERNBASE, KERNBASE,
 	    ((uint32_t)lastaddr - KERNBASE), VM_PROT_READ|VM_PROT_WRITE,
 	    PTE_CACHE);
+	/* Map the DPCPU pages */
+	pmap_map_chunk(l1pagetable, dpcpu.pv_va, dpcpu.pv_pa, DPCPU_SIZE,
+	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	/* Map the stack pages */
 	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
 	    IRQ_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);

@@ -56,7 +56,6 @@
  *
  */
 
-#ifndef OPENSSL_NO_ENGINE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,6 +65,7 @@
 #endif
 #include "apps.h"
 #include <openssl/err.h>
+#ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #include <openssl/ssl.h>
 
@@ -252,7 +252,7 @@ static int util_verbose(ENGINE *e, int verbose, BIO *bio_out, const char *indent
                         /* Now decide on the output */
                         if(xpos == 0)
                                 /* Do an indent */
-                                xpos = BIO_printf(bio_out, indent);
+                                xpos = BIO_puts(bio_out, indent);
                         else
                                 /* Otherwise prepend a ", " */
                                 xpos += BIO_printf(bio_out, ", ");
@@ -263,7 +263,7 @@ static int util_verbose(ENGINE *e, int verbose, BIO *bio_out, const char *indent
 					(xpos + (int)strlen(name) > line_wrap))
                                         {
                                         BIO_printf(bio_out, "\n");
-                                        xpos = BIO_printf(bio_out, indent);
+                                        xpos = BIO_puts(bio_out, indent);
                                         }
                                 xpos += BIO_printf(bio_out, "%s", name);
                                 }

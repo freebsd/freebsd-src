@@ -76,7 +76,7 @@ static	int mainbus_deactivate_resource(device_t, device_t, int, int,
 static	int mainbus_release_resource(device_t, device_t, int, int,
 	    struct resource *);
 static	int mainbus_setup_intr(device_t, device_t, struct resource *,
-	    int flags, int (*)(void *), void *, void **);
+	    int flags, driver_filter_t, void (*)(void *), void *, void **);
 static	int mainbus_teardown_intr(device_t, device_t, struct resource *,
 	    void *);
 
@@ -319,7 +319,8 @@ mainbus_release_resource(device_t bus, device_t child, int type, int rid,
  */
 static int
 mainbus_setup_intr(device_t bus, device_t child, struct resource *irq,
-    int flags, int (*ihand)(void *), void *arg, void **cookiep)
+    int flags, driver_filter_t filter, void (*ihand)(void *), void *arg,
+    void **cookiep)
 {
 	panic("can never mainbus_setup_intr");
 }

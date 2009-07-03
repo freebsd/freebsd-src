@@ -285,6 +285,7 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 	if (ia6 && (ia6->ia6_flags & IN6_IFF_ANYCAST)) {
 		struct ip6_hdr *ip6;
 
+		ifa_free(&ia6->ia_ifa);
 		ip6 = mtod(m, struct ip6_hdr *);
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_ADDR,
 			    (caddr_t)&ip6->ip6_dst - (caddr_t)ip6);
@@ -939,8 +940,10 @@ findpcb:
 		if (isipv6 && !V_ip6_use_deprecated) {
 			struct in6_ifaddr *ia6;
 
-			if ((ia6 = ip6_getdstifaddr(m)) &&
+			ia6 = ip6_getdstifaddr(m);
+			if (ia6 != NULL &&
 			    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
+				ifa_free(&ia6->ia_ifa);
 				if ((s = tcp_log_addrs(&inc, th, NULL, NULL)))
 				    log(LOG_DEBUG, "%s; %s: Listen socket: "
 					"Connection attempt to deprecated "
@@ -949,6 +952,7 @@ findpcb:
 				rstreason = BANDLIM_RST_OPENPORT;
 				goto dropwithreset;
 			}
+			ifa_free(&ia6->ia_ifa);
 		}
 #endif
 		/*
@@ -1296,7 +1300,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * "bad retransmit" recovery.
 				 */
 				if (tp->t_rxtshift == 1 &&
-				    ticks < tp->t_badrxtwin) {
+				    (int)(ticks - tp->t_badrxtwin) < 0) {
 					TCPSTAT_INC(tcps_sndrexmitbad);
 					tp->snd_cwnd = tp->snd_cwnd_prev;
 					tp->snd_ssthresh =
@@ -2253,7 +2257,7 @@ process_ACK:
 		 * original cwnd and ssthresh, and proceed to transmit where
 		 * we left off.
 		 */
-		if (tp->t_rxtshift == 1 && ticks < tp->t_badrxtwin) {
+		if (tp->t_rxtshift == 1 && (int)(ticks - tp->t_badrxtwin) < 0) {
 			TCPSTAT_INC(tcps_sndrexmitbad);
 			tp->snd_cwnd = tp->snd_cwnd_prev;
 			tp->snd_ssthresh = tp->snd_ssthresh_prev;
