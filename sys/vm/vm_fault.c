@@ -1126,11 +1126,9 @@ vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *		entry corresponding to a main map entry that is wired down).
  */
 void
-vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
-	vm_map_t dst_map;
-	vm_map_t src_map;
-	vm_map_entry_t dst_entry;
-	vm_map_entry_t src_entry;
+vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
+    vm_map_entry_t dst_entry, vm_map_entry_t src_entry,
+    vm_ooffset_t *fork_charge)
 {
 	vm_object_t backing_object, dst_object, object;
 	vm_object_t src_object;
@@ -1161,13 +1159,16 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 #endif
 
 	VM_OBJECT_LOCK(dst_object);
+	KASSERT(dst_entry->object.vm_object == NULL,
+	    ("vm_fault_copy_entry: vm_object not NULL"));
 	dst_entry->object.vm_object = dst_object;
 	dst_entry->offset = 0;
-	if (dst_entry->uip != NULL) {
-		dst_object->uip = dst_entry->uip;
-		dst_object->charge = dst_entry->end - dst_entry->start;
-		dst_entry->uip = NULL;
-	}
+	dst_object->uip = curthread->td_ucred->cr_ruidinfo;
+	uihold(dst_object->uip);
+	dst_object->charge = dst_entry->end - dst_entry->start;
+	KASSERT(dst_entry->uip == NULL,
+	    ("vm_fault_copy_entry: leaked swp charge"));
+	*fork_charge += dst_object->charge;
 	prot = dst_entry->max_protection;
 
 	/*
