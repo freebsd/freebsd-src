@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2008 Lawrence Stewart <lstewart@FreeBSD.org>
+.\" Copyright (c) 2008-2009 Lawrence Stewart <lstewart@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -30,15 +30,12 @@
 .Os
 .Sh NAME
 .Nm cc ,
-.Nm cc_register_algorithm ,
-.Nm cc_deregister_algorithm
+.Nm DECLARE_CC_MODULE
 .Nd Modular Congestion Control
 .Sh SYNOPSIS
 .In netinet/cc.h
-.Ft int
-.Fn cc_register_algorithm "struct cc_algo *add_cc"
-.Ft int
-.Fn cc_deregister_algorithm "struct cc_algo *remove_cc"
+.In netinet/cc_module.h
+.Fn DECLARE_CC_MODULE "name" "name_cc_algo"
 .Sh DESCRIPTION
 The
 .Nm
@@ -52,9 +49,11 @@ which has the following members:
 .Bd -literal -offset indent
 struct cc_algo {
 	char	name[TCP_CA_NAME_MAX];
-	int	(*init) (struct tcpcb *tp);
-	void	(*deinit) (struct tcpcb *tp);
-	void	(*cwnd_init) (struct tcpcb *tp);
+	int	(*mod_init) (void);
+	int	(*mod_destroy) (void);
+	int	(*cb_init) (struct tcpcb *tp);
+	void	(*cb_destroy) (struct tcpcb *tp);
+	void	(*conn_init) (struct tcpcb *tp);
 	void	(*ack_received) (struct tcpcb *tp, struct tcphdr *th);
 	void	(*pre_fr) (struct tcpcb *tp, struct tcphdr *th);
 	void	(*post_fr) (struct tcpcb *tp, struct tcphdr *th);
@@ -66,6 +65,19 @@ struct cc_algo {
 The
 .Va name
 field identifies the unique name of the algorithm.
+.Pp
+The
+.Va mod_init
+function pointer is called by the framework when a new module is loaded into
+the system.
+It should be implemented if a module needs to set up some global state prior to
+being available for use by new connections.
+The
+.Va mod_destroy
+function pointer is called by the framework when an existing module is unloaded
+from the system.
+It should be implemented if a module needs to perform any cleanup activities
+related to global state before being removed from the kernel.
 .Ss Runtime Configuration
 The following
 .Xr sysctl 8
@@ -85,18 +97,21 @@ list will change the system default for all new connections.
 .El
 .Sh FUNCTIONS
 The
-.Fn cc_register_algorithm
+.Fn cc_register_algo
 function registers the algorithm pointed to by
 .Fa add_cc
 with the framework.
 .Sh IMPLEMENTATION NOTES
 .Sh RETURN VALUES
 The
-.Fn cc_register_algorithm
+.Fn cc_register_algo
 function returns non-zero on failure.
 .Sh SEE ALSO
-.Xr cc_cubic 4 ,
-.Xr cc_htcp 4 ,
+
+.\" Coming soon...
+.\" .Xr cc_cubic 4 ,
+.\" .Xr cc_htcp 4 ,
+.Xr cc_newreno 4 ,
 .Xr sctp 4
 .Xr tcp 4 ,
 .Sh HISTORY
