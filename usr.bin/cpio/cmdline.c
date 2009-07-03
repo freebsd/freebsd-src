@@ -268,16 +268,36 @@ cpio_getopt(struct cpio *cpio)
  * Parse the argument to the -R or --owner flag.
  *
  * The format is one of the following:
- *   <user>    - Override user but not group
- *   <user>:   - Override both, group is user's default group
- *   <user>:<group> - Override both
- *   :<group>  - Override group but not user
+ *   <username|uid>    - Override user but not group
+ *   <username>:   - Override both, group is user's default group
+ *   <uid>:    - Override user but not group
+ *   <username|uid>:<groupname|gid> - Override both
+ *   :<groupname|gid>  - Override group but not user
+ *
+ * Where uid/gid are decimal representations and groupname/username
+ * are names to be looked up in system database.  Note that
+ * uid/gid parsing takes priority over username/groupname lookup,
+ * so this won't do a lookup for usernames or group names that
+ * consist entirely of digits.
  *
  * A period can be used instead of the colon.
  *
- * Sets uid/gid as appropriate, -1 indicates uid/gid not specified.
+ * Sets uid/gid return as appropriate, -1 indicates uid/gid not specified.
  *
  */
+static int
+decimal_parse(const char *p)
+{
+	/* TODO: guard against overflow. */
+	int n = 0;
+	for (; *p != '\0'; ++p) {
+		if (*p < '0' || *p > '9')
+			return (-1);
+		n = n * 10 + *p - '0';
+	}
+	return (n);
+}
+
 int
 owner_parse(const char *spec, int *uid, int *gid)
 {
@@ -318,24 +338,34 @@ owner_parse(const char *spec, int *uid, int *gid)
 		}
 		memcpy(user, u, ue - u);
 		user[ue - u] = '\0';
-		pwent = getpwnam(user);
-		if (pwent == NULL) {
-			cpio_warnc(errno, "Couldn't lookup user ``%s''", user);
-			return (1);
+		*uid = decimal_parse(user);
+		if (*uid < 0) {
+			/* Couldn't parse as integer, try username lookup. */
+			pwent = getpwnam(user);
+			if (pwent == NULL) {
+				cpio_warnc(errno,
+				    "Couldn't lookup user ``%s''", user);
+				return (1);
+			}
+			*uid = pwent->pw_uid;
+			if (*ue != '\0' && *g == '\0')
+				*gid = pwent->pw_gid;
 		}
 		free(user);
-		*uid = pwent->pw_uid;
-		if (*ue != '\0' && *g == '\0')
-			*gid = pwent->pw_gid;
 	}
 	if (*g != '\0') {
-		struct group *grp;
-		grp = getgrnam(g);
-		if (grp != NULL)
-			*gid = grp->gr_gid;
-		else {
-			cpio_warnc(errno, "Couldn't look up group ``%s''", g);
-			return (1);
+		*gid = decimal_parse(g);
+		if (*gid < 0) {
+			/* Couldn't parse int, try group name lookup. */
+			struct group *grp;
+			grp = getgrnam(g);
+			if (grp != NULL)
+				*gid = grp->gr_gid;
+			else {
+				cpio_warnc(errno,
+				    "Couldn't look up group ``%s''", g);
+				return (1);
+			}
 		}
 	}
 	return (0);
