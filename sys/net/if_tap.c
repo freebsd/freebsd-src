@@ -934,7 +934,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (0);
 
 	if ((uio->uio_resid < 0) || (uio->uio_resid > TAPMRU)) {
-		TAPDEBUG("%s invalid packet len = %d, minor = %#x\n",
+		TAPDEBUG("%s invalid packet len = %zd, minor = %#x\n",
 			ifp->if_xname, uio->uio_resid, dev2unit(dev));
 
 		return (EIO);

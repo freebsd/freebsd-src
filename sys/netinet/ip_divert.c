@@ -254,7 +254,7 @@ divert_packet(struct mbuf *m, int incoming)
 
 		/* Find IP address for receive interface */
 		ifp = m->m_pkthdr.rcvif;
-		IF_ADDR_LOCK(ifp);
+		if_addr_rlock(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
@@ -262,7 +262,7 @@ divert_packet(struct mbuf *m, int incoming)
 			    ((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
 			break;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_addr_runlock(ifp);
 	}
 	/*
 	 * Record the incoming interface name whenever we have one.

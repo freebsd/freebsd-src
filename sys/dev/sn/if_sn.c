@@ -1404,10 +1404,10 @@ sn_getmcf(struct ifnet *ifp, uint8_t *mcf)
 
 	bzero(mcf, MCFSZ);
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 	    if (ifma->ifma_addr->sa_family != AF_LINK) {
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 		return 0;
 	    }
 	    index = ether_crc32_le(LLADDR((struct sockaddr_dl *)
@@ -1420,6 +1420,6 @@ sn_getmcf(struct ifnet *ifp, uint8_t *mcf)
 	    }
 	    af[index2 >> 3] |= 1 << (index2 & 7);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 	return 1;  /* use multicast filter */
 }

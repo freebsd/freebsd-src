@@ -318,7 +318,7 @@ cue_setmulti(struct usb_ether *ue)
 	}
 
 	/* now program new ones */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -326,7 +326,7 @@ cue_setmulti(struct usb_ether *ue)
 		h = cue_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		hashtbl[h >> 3] |= 1 << (h & 0x7);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	/*
 	 * Also include the broadcast address in the filter

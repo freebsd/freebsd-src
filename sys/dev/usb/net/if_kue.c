@@ -368,7 +368,7 @@ kue_setmulti(struct usb_ether *ue)
 
 	sc->sc_rxfilt &= ~KUE_RXFILT_ALLMULTI;
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -383,7 +383,7 @@ kue_setmulti(struct usb_ether *ue)
 		    KUE_MCFILT(sc, i), ETHER_ADDR_LEN);
 		i++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (i == KUE_MCFILTCNT(sc))
 		sc->sc_rxfilt |= KUE_RXFILT_ALLMULTI;

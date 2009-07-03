@@ -83,6 +83,8 @@
 #define true                1
 #define CMD_MEM_WRT_INVALIDATE          0x0010  /* BIT_4 */
 #define PCI_COMMAND_REGISTER            PCIR_COMMAND
+#define UNREFERENCED_PARAMETER(_p)
+
 
 #define IXGBE_HTONL	htonl
 

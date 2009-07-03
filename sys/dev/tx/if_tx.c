@@ -1400,7 +1400,7 @@ epic_set_mc_table(epic_softc_t *sc)
 	filter[2] = 0;
 	filter[3] = 0;
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1408,7 +1408,7 @@ epic_set_mc_table(epic_softc_t *sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		filter[h >> 4] |= 1 << (h & 0xF);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	CSR_WRITE_4(sc, MC0, filter[0]);
 	CSR_WRITE_4(sc, MC1, filter[1]);

@@ -38,6 +38,7 @@
  * 82575GB Gigabit Network Connection
  * 82575GB Gigabit Network Connection
  * 82576 Gigabit Network Connection
+ * 82576 Quad Port Gigabit Mezzanine Adapter
  */
 
 #include "e1000_api.h"
@@ -77,6 +78,7 @@ static s32  e1000_reset_init_script_82575(struct e1000_hw *hw);
 static s32  e1000_read_mac_addr_82575(struct e1000_hw *hw);
 static void e1000_power_down_phy_copper_82575(struct e1000_hw *hw);
 void e1000_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw);
+static s32 e1000_set_pcie_completion_timeout(struct e1000_hw *hw);
 
 /**
  *  e1000_init_phy_params_82575 - Init PHY func ptrs.
@@ -326,11 +328,12 @@ void e1000_init_function_pointers_82575(struct e1000_hw *hw)
  **/
 static s32 e1000_acquire_phy_82575(struct e1000_hw *hw)
 {
-	u16 mask;
+	u16 mask = E1000_SWFW_PHY0_SM;
 
 	DEBUGFUNC("e1000_acquire_phy_82575");
 
-	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
+	if (hw->bus.func == E1000_FUNC_1)
+		mask = E1000_SWFW_PHY1_SM;
 
 	return e1000_acquire_swfw_sync_82575(hw, mask);
 }
@@ -343,11 +346,13 @@ static s32 e1000_acquire_phy_82575(struct e1000_hw *hw)
  **/
 static void e1000_release_phy_82575(struct e1000_hw *hw)
 {
-	u16 mask;
+	u16 mask = E1000_SWFW_PHY0_SM;
 
 	DEBUGFUNC("e1000_release_phy_82575");
 
-	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
+	if (hw->bus.func == E1000_FUNC_1)
+		mask = E1000_SWFW_PHY1_SM;
+
 	e1000_release_swfw_sync_82575(hw, mask);
 }
 
@@ -785,9 +790,8 @@ static s32 e1000_get_cfg_done_82575(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_get_cfg_done_82575");
 
-	if (hw->bus.func == 1)
+	if (hw->bus.func == E1000_FUNC_1)
 		mask = E1000_NVM_CFG_DONE_PORT_1;
-
 	while (timeout) {
 		if (E1000_READ_REG(hw, E1000_EEMNGCTL) & mask)
 			break;
@@ -937,13 +941,13 @@ void e1000_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw)
 	u32 reg;
 	u16 eeprom_data = 0;
 
-	if (hw->mac.type != e1000_82576 ||
-	   (hw->phy.media_type != e1000_media_type_fiber &&
-	    hw->phy.media_type != e1000_media_type_internal_serdes))
+	if (hw->phy.media_type != e1000_media_type_internal_serdes)
 		return;
 
-	if (hw->bus.func == 0)
+	if (hw->bus.func == E1000_FUNC_0)
 		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
+	else if (hw->bus.func == E1000_FUNC_1)
+		hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
 
 	/*
 	 * If APM is not enabled in the EEPROM and management interface is
@@ -970,250 +974,42 @@ void e1000_shutdown_fiber_serdes_link_82575(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_vmdq_loopback_enable_pf- Enables VM to VM queue loopback replication
+ *  e1000_vmdq_set_loopback_pf - enable or disable vmdq loopback
  *  @hw: pointer to the HW structure
+ *  @enable: state to enter, either enabled or disabled
+ *
+ *  enables/disables L2 switch loopback functionality
  **/
-void e1000_vmdq_loopback_enable_pf(struct e1000_hw *hw)
+void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable)
 {
 	u32 reg;
 
 	reg = E1000_READ_REG(hw, E1000_DTXSWC);
-	reg |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+	if (enable)
+		reg |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+	else
+		reg &= ~(E1000_DTXSWC_VMDQ_LOOPBACK_EN);
 	E1000_WRITE_REG(hw, E1000_DTXSWC, reg);
 }
 
 /**
- *  e1000_vmdq_loopback_disable_pf - Disable VM to VM queue loopbk replication
+ *  e1000_vmdq_set_replication_pf - enable or disable vmdq replication
  *  @hw: pointer to the HW structure
- **/
-void e1000_vmdq_loopback_disable_pf(struct e1000_hw *hw)
-{
-	u32 reg;
-
-	reg = E1000_READ_REG(hw, E1000_DTXSWC);
-	reg &= ~(E1000_DTXSWC_VMDQ_LOOPBACK_EN);
-	E1000_WRITE_REG(hw, E1000_DTXSWC, reg);
-}
-
-/**
- *  e1000_vmdq_replication_enable_pf - Enable replication of brdcst & multicst
- *  @hw: pointer to the HW structure
+ *  @enable: state to enter, either enabled or disabled
  *
- *  Enables replication of broadcast and multicast packets from the network
- *  to VM's which have their respective broadcast and multicast accept
- *  bits set in the VM Offload Register.  This gives the PF driver per
- *  VM granularity control over which VM's get replicated broadcast traffic.
+ *  enables/disables replication of packets across multiple pools
  **/
-void e1000_vmdq_replication_enable_pf(struct e1000_hw *hw, u32 enables)
-{
-	u32 reg;
-	u32 i;
-
-	for (i = 0; i < MAX_NUM_VFS; i++) {
-		if (enables & (1 << i)) {
-			reg = E1000_READ_REG(hw, E1000_VMOLR(i));
-			reg |= (E1000_VMOLR_AUPE |
-				E1000_VMOLR_BAM |
-				E1000_VMOLR_MPME);
-			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
-		}
-	}
-
-	reg = E1000_READ_REG(hw, E1000_VT_CTL);
-	reg |= E1000_VT_CTL_VM_REPL_EN;
-	E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
-}
-
-/**
- *  e1000_vmdq_replication_disable_pf - Disable replication of brdcst & multicst
- *  @hw: pointer to the HW structure
- *
- *  Disables replication of broadcast and multicast packets to the VM's.
- **/
-void e1000_vmdq_replication_disable_pf(struct e1000_hw *hw)
+void e1000_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable)
 {
 	u32 reg;
 
 	reg = E1000_READ_REG(hw, E1000_VT_CTL);
-	reg &= ~(E1000_VT_CTL_VM_REPL_EN);
-	E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
-}
-
-/**
- *  e1000_vmdq_enable_replication_mode_pf - Enables replication mode in the device
- *  @hw: pointer to the HW structure
- **/
-void e1000_vmdq_enable_replication_mode_pf(struct e1000_hw *hw)
-{
-	u32 reg;
-
-	reg = E1000_READ_REG(hw, E1000_VT_CTL);
-	reg |= E1000_VT_CTL_VM_REPL_EN;
-	E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
-}
-
-/**
- *  e1000_vmdq_broadcast_replication_enable_pf - Enable replication of brdcst
- *  @hw: pointer to the HW structure
- *  @enables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
- *
- *  Enables replication of broadcast packets from the network
- *  to VM's which have their respective broadcast accept
- *  bits set in the VM Offload Register.  This gives the PF driver per
- *  VM granularity control over which VM's get replicated broadcast traffic.
- **/
-void e1000_vmdq_broadcast_replication_enable_pf(struct e1000_hw *hw,
-						u32 enables)
-{
-	u32 reg;
-	u32 i;
-
-	for (i = 0; i < MAX_NUM_VFS; i++) {
-		if ((enables == ALL_QUEUES) || (enables & (1 << i))) {
-			reg = E1000_READ_REG(hw, E1000_VMOLR(i));
-			reg |= E1000_VMOLR_BAM;
-			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
-		}
-	}
-}
-
-/**
- *  e1000_vmdq_broadcast_replication_disable_pf - Disable replication
- *  of broadcast packets
- *  @hw: pointer to the HW structure
- *  @disables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
- *
- *  Disables replication of broadcast packets for specific pools.
- *  If bam/mpe is disabled on all pools then replication mode is
- *  turned off.
- **/
-void e1000_vmdq_broadcast_replication_disable_pf(struct e1000_hw *hw,
-						 u32 disables)
-{
-	u32 reg;
-	u32 i;
-	u32 oneenabled = 0;
-
-	for (i = 0; i < MAX_NUM_VFS; i++) {
-		reg = E1000_READ_REG(hw, E1000_VMOLR(i));
-		if ((disables == ALL_QUEUES) || (disables & (1 << i))) {
-			reg &= ~(E1000_VMOLR_BAM);
-			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
-		}
-		if (!oneenabled && (reg & (E1000_VMOLR_AUPE |
-				E1000_VMOLR_BAM |
-				E1000_VMOLR_MPME)))
-				oneenabled = 1;
-	}
-	if (!oneenabled) {
-		reg = E1000_READ_REG(hw, E1000_VT_CTL);
+	if (enable)
+		reg |= E1000_VT_CTL_VM_REPL_EN;
+	else
 		reg &= ~(E1000_VT_CTL_VM_REPL_EN);
-		E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
-	}
-}
 
-/**
- *  e1000_vmdq_multicast_promiscuous_enable_pf - Enable promiscuous reception
- *  @hw: pointer to the HW structure
- *  @enables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
- *
- *  Enables promiscuous reception of multicast packets from the network
- *  to VM's which have their respective multicast promiscuous mode enable
- *  bits set in the VM Offload Register.  This gives the PF driver per
- *  VM granularity control over which VM's get all multicast traffic.
- **/
-void e1000_vmdq_multicast_promiscuous_enable_pf(struct e1000_hw *hw,
-						u32 enables)
-{
-	u32 reg;
-	u32 i;
-
-	for (i = 0; i < MAX_NUM_VFS; i++) {
-		if ((enables == ALL_QUEUES) || (enables & (1 << i))) {
-			reg = E1000_READ_REG(hw, E1000_VMOLR(i));
-			reg |= E1000_VMOLR_MPME;
-			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
-		}
-	}
-}
-
-/**
- *  e1000_vmdq_multicast_promiscuous_disable_pf - Disable promiscuous
- *  reception of multicast packets
- *  @hw: pointer to the HW structure
- *  @disables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
- *
- *  Disables promiscuous reception of multicast packets for specific pools.
- *  If bam/mpe is disabled on all pools then replication mode is
- *  turned off.
- **/
-void e1000_vmdq_multicast_promiscuous_disable_pf(struct e1000_hw *hw,
-						 u32 disables)
-{
-	u32 reg;
-	u32 i;
-	u32 oneenabled = 0;
-
-	for (i = 0; i < MAX_NUM_VFS; i++) {
-		reg = E1000_READ_REG(hw, E1000_VMOLR(i));
-		if ((disables == ALL_QUEUES) || (disables & (1 << i))) {
-			reg &= ~(E1000_VMOLR_MPME);
-			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
-		}
-		if (!oneenabled && (reg & (E1000_VMOLR_AUPE |
-				E1000_VMOLR_BAM |
-				E1000_VMOLR_MPME)))
-				oneenabled = 1;
-	}
-	if (!oneenabled) {
-		reg = E1000_READ_REG(hw, E1000_VT_CTL);
-		reg &= ~(E1000_VT_CTL_VM_REPL_EN);
-		E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
-	}
-}
-
-/**
- *  e1000_vmdq_aupe_enable_pf - Enable acceptance of untagged packets
- *  @hw: pointer to the HW structure
- *  @enables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
- *
- *  Enables acceptance of packets from the network which do not have
- *  a VLAN tag but match the exact MAC filter of a given VM.
- **/
-void e1000_vmdq_aupe_enable_pf(struct e1000_hw *hw, u32 enables)
-{
-	u32 reg;
-	u32 i;
-
-	for (i = 0; i < MAX_NUM_VFS; i++) {
-	if ((enables == ALL_QUEUES) || (enables & (1 << i))) {
-			reg = E1000_READ_REG(hw, E1000_VMOLR(i));
-			reg |= E1000_VMOLR_AUPE;
-			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
-		}
-	}
-}
-
-/**
- *  e1000_vmdq_aupe_disable_pf - Disable acceptance of untagged packets
- *  @hw: pointer to the HW structure
- *  @disables: PoolSet Bit - if set to ALL_QUEUES, apply to all pools.
- *
- *  Disables acceptance of packets from the network which do not have
- *  a VLAN tag but match the exact MAC filter of a given VM.
- **/
-void e1000_vmdq_aupe_disable_pf(struct e1000_hw *hw, u32 disables)
-{
-	u32 reg;
-	u32 i;
-
-	for (i = 0; i < MAX_NUM_VFS; i++) {
-		if ((disables == ALL_QUEUES) || (disables & (1 << i))) {
-			reg = E1000_READ_REG(hw, E1000_VMOLR(i));
-			reg &= ~E1000_VMOLR_AUPE;
-			E1000_WRITE_REG(hw, E1000_VMOLR(i), reg);
-		}
-	}
+	E1000_WRITE_REG(hw, E1000_VT_CTL, reg);
 }
 
 /**
@@ -1236,6 +1032,12 @@ static s32 e1000_reset_hw_82575(struct e1000_hw *hw)
 	ret_val = e1000_disable_pcie_master_generic(hw);
 	if (ret_val) {
 		DEBUGOUT("PCI-E Master disable polling has failed.\n");
+	}
+
+	/* set the completion timeout for interface */
+	ret_val = e1000_set_pcie_completion_timeout(hw);
+	if (ret_val) {
+		DEBUGOUT("PCI-E Set completion timeout has failed.\n");
 	}
 
 	DEBUGOUT("Masking off all interrupts\n");
@@ -1333,7 +1135,7 @@ static s32 e1000_init_hw_82575(struct e1000_hw *hw)
  **/
 static s32 e1000_setup_copper_link_82575(struct e1000_hw *hw)
 {
-	u32 ctrl, led_ctrl;
+	u32 ctrl;
 	s32  ret_val;
 	bool link;
 
@@ -1350,11 +1152,6 @@ static s32 e1000_setup_copper_link_82575(struct e1000_hw *hw)
 		break;
 	case e1000_phy_igp_3:
 		ret_val = e1000_copper_link_setup_igp(hw);
-		/* Setup activity LED */
-		led_ctrl = E1000_READ_REG(hw, E1000_LEDCTL);
-		led_ctrl &= IGP_ACTIVITY_LED_MASK;
-		led_ctrl |= (IGP_ACTIVITY_LED_ENABLE | IGP_LED3_MODE);
-		E1000_WRITE_REG(hw, E1000_LEDCTL, led_ctrl);
 		break;
 	default:
 		ret_val = -E1000_ERR_PHY;
@@ -1433,15 +1230,14 @@ static s32 e1000_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 	 */
 	E1000_WRITE_REG(hw, E1000_SCTL, E1000_SCTL_DISABLE_SERDES_LOOPBACK);
 
-	/* Force link up, set 1gb, set both sw defined pins */
+	/* Force link up, set 1gb */
 	reg = E1000_READ_REG(hw, E1000_CTRL);
-	reg |= E1000_CTRL_SLU |
-	       E1000_CTRL_SPD_1000 |
-	       E1000_CTRL_FRCSPD |
-	       E1000_CTRL_SWDPIN0 |
-	       E1000_CTRL_SWDPIN1;
+	reg |= E1000_CTRL_SLU | E1000_CTRL_SPD_1000 | E1000_CTRL_FRCSPD;
+	if (hw->mac.type == e1000_82575 || hw->mac.type == e1000_82576) {
+		/* set both sw defined pins */
+		reg |= E1000_CTRL_SWDPIN0 | E1000_CTRL_SWDPIN1;
+	}
 	E1000_WRITE_REG(hw, E1000_CTRL, reg);
-
 	/* Power on phy for 82576 fiber adapters */
 	if (hw->mac.type == e1000_82576) {
 		reg = E1000_READ_REG(hw, E1000_CTRL_EXT);
@@ -1514,7 +1310,6 @@ static s32 e1000_valid_led_default_82575(struct e1000_hw *hw, u16 *data)
 
 	if (*data == ID_LED_RESERVED_0000 || *data == ID_LED_RESERVED_FFFF) {
 		switch(hw->phy.media_type) {
-		case e1000_media_type_fiber:
 		case e1000_media_type_internal_serdes:
 			*data = ID_LED_DEFAULT_82575_SERDES;
 			break;
@@ -1605,12 +1400,6 @@ out:
 static bool e1000_sgmii_active_82575(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
-
-	DEBUGFUNC("e1000_sgmii_active_82575");
-
-	if (hw->mac.type != e1000_82575 && hw->mac.type != e1000_82576)
-		return FALSE;
-
 	return dev_spec->sgmii_active;
 }
 
@@ -1762,6 +1551,7 @@ static void e1000_clear_hw_cntrs_82575(struct e1000_hw *hw)
 	if (hw->phy.media_type == e1000_media_type_internal_serdes)
 		E1000_READ_REG(hw, E1000_SCVPC);
 }
+
 /**
  *  e1000_rx_fifo_flush_82575 - Clean rx fifo after RX enable
  *  @hw: pointer to the HW structure
@@ -1834,5 +1624,56 @@ void e1000_rx_fifo_flush_82575(struct e1000_hw *hw)
 	E1000_READ_REG(hw, E1000_ROC);
 	E1000_READ_REG(hw, E1000_RNBC);
 	E1000_READ_REG(hw, E1000_MPC);
+}
+
+/**
+ *  e1000_set_pcie_completion_timeout - set pci-e completion timeout
+ *  @hw: pointer to the HW structure
+ *
+ *  The defaults for 82575 and 82576 should be in the range of 50us to 50ms,
+ *  however the hardware default for these parts is 500us to 1ms which is less
+ *  than the 10ms recommended by the pci-e spec.  To address this we need to
+ *  increase the value to either 10ms to 200ms for capability version 1 config,
+ *  or 16ms to 55ms for version 2.
+ **/
+static s32 e1000_set_pcie_completion_timeout(struct e1000_hw *hw)
+{
+	u32 gcr = E1000_READ_REG(hw, E1000_GCR);
+	s32 ret_val = E1000_SUCCESS;
+	u16 pcie_devctl2;
+
+	/* only take action if timeout value is defaulted to 0 */
+	if (gcr & E1000_GCR_CMPL_TMOUT_MASK)
+		goto out;
+
+	/*
+	 * if capababilities version is type 1 we can write the
+	 * timeout of 10ms to 200ms through the GCR register
+	 */
+	if (!(gcr & E1000_GCR_CAP_VER2)) {
+		gcr |= E1000_GCR_CMPL_TMOUT_10ms;
+		goto out;
+	}
+
+	/*
+	 * for version 2 capabilities we need to write the config space
+	 * directly in order to set the completion timeout value for
+	 * 16ms to 55ms
+	 */
+	ret_val = e1000_read_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
+	                                  &pcie_devctl2);
+	if (ret_val)
+		goto out;
+
+	pcie_devctl2 |= PCIE_DEVICE_CONTROL2_16ms;
+
+	ret_val = e1000_write_pcie_cap_reg(hw, PCIE_DEVICE_CONTROL2,
+	                                   &pcie_devctl2);
+out:
+	/* disable completion timeout resend */
+	gcr &= ~E1000_GCR_CMPL_TMOUT_RESEND;
+
+	E1000_WRITE_REG(hw, E1000_GCR, gcr);
+	return ret_val;
 }
 

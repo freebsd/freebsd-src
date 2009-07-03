@@ -266,6 +266,7 @@ struct mxge_softc {
 	int need_media_probe;
 	int num_slices;
 	int rx_ring_size;
+	int dying;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
 	struct sysctl_oid *slice_sysctl_tree;

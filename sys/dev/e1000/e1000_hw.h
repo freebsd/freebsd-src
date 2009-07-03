@@ -95,6 +95,7 @@ struct e1000_hw;
 #define E1000_DEV_ID_82573L                   0x109A
 #define E1000_DEV_ID_82574L                   0x10D3
 #define E1000_DEV_ID_82574LA                  0x10F6
+#define E1000_DEV_ID_82583V                   0x150C
 #define E1000_DEV_ID_80003ES2LAN_COPPER_DPT   0x1096
 #define E1000_DEV_ID_80003ES2LAN_SERDES_DPT   0x1098
 #define E1000_DEV_ID_80003ES2LAN_COPPER_SPT   0x10BA
@@ -120,11 +121,16 @@ struct e1000_hw;
 #define E1000_DEV_ID_ICH10_R_BM_V             0x10CE
 #define E1000_DEV_ID_ICH10_D_BM_LM            0x10DE
 #define E1000_DEV_ID_ICH10_D_BM_LF            0x10DF
+#define E1000_DEV_ID_PCH_M_HV_LM              0x10EA
+#define E1000_DEV_ID_PCH_M_HV_LC              0x10EB
+#define E1000_DEV_ID_PCH_D_HV_DM              0x10EF
+#define E1000_DEV_ID_PCH_D_HV_DC              0x10F0
 #define E1000_DEV_ID_82576                    0x10C9
 #define E1000_DEV_ID_82576_FIBER              0x10E6
 #define E1000_DEV_ID_82576_SERDES             0x10E7
 #define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
 #define E1000_DEV_ID_82576_NS                 0x150A
+#define E1000_DEV_ID_82576_SERDES_QUAD	      0x150D
 #define E1000_DEV_ID_82575EB_COPPER           0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
@@ -159,10 +165,12 @@ enum e1000_mac_type {
 	e1000_82572,
 	e1000_82573,
 	e1000_82574,
+	e1000_82583,
 	e1000_80003es2lan,
 	e1000_ich8lan,
 	e1000_ich9lan,
 	e1000_ich10lan,
+	e1000_pchlan,
 	e1000_82575,
 	e1000_82576,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for TRUE count. */
@@ -203,6 +211,8 @@ enum e1000_phy_type {
 	e1000_phy_igp_3,
 	e1000_phy_ife,
 	e1000_phy_bm,
+	e1000_phy_82578,
+	e1000_phy_82577,
 	e1000_phy_vf,
 };
 
@@ -647,9 +657,9 @@ struct e1000_mac_info {
 	u16 ifs_ratio;
 	u16 ifs_step_size;
 	u16 mta_reg_count;
-#define MAX_MTA_REG 128	/* this must be the maximum size of the MTA register
-			 * table in all supported adapters
-			 */
+
+	/* Maximum size of the MTA register table in all supported adapters */
+	#define MAX_MTA_REG 128
 	u32 mta_shadow[MAX_MTA_REG];
 	u16 rar_entry_count;
 
@@ -755,6 +765,7 @@ struct e1000_dev_spec_82543 {
 
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
+	u32 smb_counter;
 };
 
 struct e1000_shadow_ram {
@@ -823,6 +834,7 @@ struct e1000_hw {
 void e1000_pci_clear_mwi(struct e1000_hw *hw);
 void e1000_pci_set_mwi(struct e1000_hw *hw);
 s32  e1000_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
+s32  e1000_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
 void e1000_read_pci_cfg(struct e1000_hw *hw, u32 reg, u16 *value);
 void e1000_write_pci_cfg(struct e1000_hw *hw, u32 reg, u16 *value);
 

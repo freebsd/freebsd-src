@@ -211,7 +211,7 @@ exit1(struct thread *td, int rv)
 	 * it was.  The exit status is WEXITSTATUS(rv), but it's not clear
 	 * what the return value is.
 	 */
-	AUDIT_ARG(exit, WEXITSTATUS(rv), 0);
+	AUDIT_ARG_EXIT(WEXITSTATUS(rv), 0);
 	AUDIT_SYSCALL_EXIT(0, td);
 #endif
 
@@ -803,7 +803,8 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	struct proc *p, *q;
 	int error, nfound;
 
-	AUDIT_ARG(pid, pid);
+	AUDIT_ARG_PID(pid);
+	AUDIT_ARG_VALUE(options);
 
 	q = td->td_proc;
 	if (pid == 0) {

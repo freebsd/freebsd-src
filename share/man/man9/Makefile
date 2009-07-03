@@ -1210,55 +1210,58 @@ MLINKS+=uidinfo.9 uifind.9 \
 	uidinfo.9 uihashinit.9 \
 	uidinfo.9 uihold.9
 MLINKS+=uio.9 uiomove.9
-MLINKS+=usbdi.9 usbd_abort_default_pipe.9 \
-	usbdi.9 usbd_abort_pipe.9 \
-	usbdi.9 usbd_alloc_buffer.9 \
-	usbdi.9 usbd_alloc_xfer.9 \
-	usbdi.9 usbd_clear_endpoint_stall.9 \
-	usbdi.9 usbd_clear_endpoint_stall_async.9 \
-	usbdi.9 usbd_clear_endpoint_toggle.9 \
-	usbdi.9 usbd_close_pipe.9 \
-	usbdi.9 usbd_device2interface_handle.9 \
+MLINKS+=usbdi.9 usb_fifo_alloc_buffer.9 \
+	usbdi.9 usb_fifo_attach.9 \
+	usbdi.9 usb_fifo_detach.9 \
+	usbdi.9 usb_fifo_free_buffer.9 \
+	usbdi.9 usb_fifo_get_data.9 \
+	usbdi.9 usb_fifo_get_data_buffer.9 \
+	usbdi.9 usb_fifo_get_data_error.9 \
+	usbdi.9 usb_fifo_get_data_linear.9 \
+	usbdi.9 usb_fifo_put_bytes_max.9 \
+	usbdi.9 usb_fifo_put_data.9 \
+	usbdi.9 usb_fifo_put_data_buffer.9 \
+	usbdi.9 usb_fifo_put_data_error.9 \
+	usbdi.9 usb_fifo_put_data_linear.9 \
+	usbdi.9 usb_fifo_reset.9 \
+	usbdi.9 usb_fifo_softc.9 \
+	usbdi.9 usb_fifo_wakeup.9 \
 	usbdi.9 usbd_do_request.9 \
-	usbdi.9 usbd_do_request_async.9 \
 	usbdi.9 usbd_do_request_flags.9 \
-	usbdi.9 usbd_do_request_flags_pipe.9 \
-	usbdi.9 usbd_endpoint_count.9 \
 	usbdi.9 usbd_errstr.9 \
-	usbdi.9 usbd_find_edesc.9 \
-	usbdi.9 usbd_find_idesc.9 \
-	usbdi.9 usbd_free_buffer.9 \
-	usbdi.9 usbd_free_xfer.9 \
-	usbdi.9 usbd_get_buffer.9 \
-	usbdi.9 usbd_get_config.9 \
-	usbdi.9 usbd_get_config_desc.9 \
-	usbdi.9 usbd_get_config_desc_full.9 \
-	usbdi.9 usbd_get_config_descriptor.9 \
-	usbdi.9 usbd_get_device_descriptor.9 \
-	usbdi.9 usbd_get_endpoint_descriptor.9 \
-	usbdi.9 usbd_get_interface_altindex.9 \
-	usbdi.9 usbd_get_interface_descriptor.9 \
-	usbdi.9 usbd_get_no_alts.9 \
-	usbdi.9 usbd_get_quirks.9 \
-	usbdi.9 usbd_get_speed.9 \
-	usbdi.9 usbd_get_string.9 \
-	usbdi.9 usbd_get_string_desc.9 \
-	usbdi.9 usbd_get_xfer_status.9 \
-	usbdi.9 usbd_interface2device_handle.9 \
-	usbdi.9 usbd_interface2endpoint_descriptor.9 \
-	usbdi.9 usbd_interface_count.9 \
-	usbdi.9 usbd_open_pipe.9 \
-	usbdi.9 usbd_open_pipe_intr.9 \
-	usbdi.9 usbd_pipe2device_handle.9 \
-	usbdi.9 usbd_set_config_index.9 \
-	usbdi.9 usbd_set_config_no.9 \
-	usbdi.9 usbd_set_interface.9 \
-	usbdi.9 usbd_setup_default_xfer.9 \
-	usbdi.9 usbd_setup_isoc_xfer.9 \
-	usbdi.9 usbd_setup_xfer.9 \
-	usbdi.9 usbd_sync_transfer.9 \
-	usbdi.9 usbd_transfer.9 \
-	usbdi.9 usb_find_desc.9
+	usbdi.9 usbd_lookup_id_by_info.9 \
+	usbdi.9 usbd_lookup_id_by_uaa.9 \
+	usbdi.9 usbd_transfer_clear_stall.9 \
+	usbdi.9 usbd_transfer_drain.9 \
+	usbdi.9 usbd_transfer_pending.9 \
+	usbdi.9 usbd_transfer_poll.9 \
+	usbdi.9 usbd_transfer_setup.9 \
+	usbdi.9 usbd_transfer_start.9 \
+	usbdi.9 usbd_transfer_stop.9 \
+	usbdi.9 usbd_transfer_submit.9 \
+	usbdi.9 usbd_transfer_unsetup.9 \
+	usbdi.9 usbd_xfer_clr_flag.9 \
+	usbdi.9 usbd_xfer_frame_data.9 \
+	usbdi.9 usbd_xfer_frame_len.9 \
+	usbdi.9 usbd_xfer_get_frame.9 \
+	usbdi.9 usbd_xfer_get_priv.9 \
+	usbdi.9 usbd_xfer_is_stalled.9 \
+	usbdi.9 usbd_xfer_max_framelen.9 \
+	usbdi.9 usbd_xfer_max_frames.9 \
+	usbdi.9 usbd_xfer_max_len.9 \
+	usbdi.9 usbd_xfer_set_flag.9 \
+	usbdi.9 usbd_xfer_set_frame_data.9 \
+	usbdi.9 usbd_xfer_set_frame_len.9 \
+	usbdi.9 usbd_xfer_set_frame_offset.9 \
+	usbdi.9 usbd_xfer_set_frames.9 \
+	usbdi.9 usbd_xfer_set_interval.9 \
+	usbdi.9 usbd_xfer_set_priv.9 \
+	usbdi.9 usbd_xfer_set_stall.9 \
+	usbdi.9 usbd_xfer_set_timeout.9 \
+	usbdi.9 usbd_xfer_softc.9 \
+	usbdi.9 usbd_xfer_state.9 \
+	usbdi.9 usbd_xfer_state.9 \
+	usbdi.9 usbd_xfer_status.9
 MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \

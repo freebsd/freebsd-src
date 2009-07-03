@@ -53,12 +53,6 @@ __FBSDID("$FreeBSD$");
 #define I915_INTERRUPT_ENABLE_MASK	(I915_INTERRUPT_ENABLE_FIX | \
 				    	 I915_INTERRUPT_ENABLE_VAR)
 
-#define I915_PIPE_VBLANK_STATUS		(PIPE_START_VBLANK_INTERRUPT_STATUS |\
-					 PIPE_VBLANK_INTERRUPT_STATUS)
- 
-#define I915_PIPE_VBLANK_ENABLE		(PIPE_START_VBLANK_INTERRUPT_ENABLE |\
-					 PIPE_VBLANK_INTERRUPT_ENABLE)
-  
 #define DRM_I915_VBLANK_PIPE_ALL	(DRM_I915_VBLANK_PIPE_A | \
 					 DRM_I915_VBLANK_PIPE_B)
 
@@ -154,7 +148,7 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	low_frame = pipe ? PIPEBFRAMEPIXEL : PIPEAFRAMEPIXEL;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_ERROR("trying to get vblank count for disabled pipe %d\n", pipe);
+		DRM_DEBUG("trying to get vblank count for disabled pipe %d\n", pipe);
 		return 0;
 	}
 
@@ -183,7 +177,7 @@ u32 g45_get_vblank_counter(struct drm_device *dev, int pipe)
 	int reg = pipe ? PIPEB_FRMCOUNT_GM45 : PIPEA_FRMCOUNT_GM45;
 
 	if (!i915_pipe_enabled(dev, pipe)) {
-		DRM_ERROR("trying to get vblank count for disabled pipe %d\n", pipe);
+		DRM_DEBUG("trying to get vblank count for disabled pipe %d\n", pipe);
 		return 0;
 	}
 
@@ -200,12 +194,10 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	u32 vblank_enable;
 	int irq_received;
 
-	atomic_inc(&dev_priv->irq_received);
-
 	iir = I915_READ(IIR);
 
 	if (IS_I965G(dev)) {
-		vblank_status = I915_START_VBLANK_INTERRUPT_STATUS;
+		vblank_status = PIPE_START_VBLANK_INTERRUPT_STATUS;
 		vblank_enable = PIPE_START_VBLANK_INTERRUPT_ENABLE;
 	} else {
 		vblank_status = I915_VBLANK_INTERRUPT_STATUS;
@@ -305,9 +297,12 @@ void i915_user_irq_get(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
+	if (dev->irq_enabled == 0)
+		return;
+
 	DRM_DEBUG("\n");
 	DRM_SPINLOCK(&dev_priv->user_irq_lock);
-	if (dev->irq_enabled && (++dev_priv->user_irq_refcount == 1))
+	if (++dev_priv->user_irq_refcount == 1)
 		i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
 	DRM_SPINUNLOCK(&dev_priv->user_irq_lock);
 }
@@ -316,12 +311,13 @@ void i915_user_irq_put(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
+	if (dev->irq_enabled == 0)
+		return;
+
 	DRM_SPINLOCK(&dev_priv->user_irq_lock);
-	if (dev->irq_enabled) {
-		KASSERT(dev_priv->user_irq_refcount > 0, ("invalid refcount"));
-		if (--dev_priv->user_irq_refcount == 0)
-			i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
-	}
+	KASSERT(dev_priv->user_irq_refcount > 0, ("invalid refcount"));
+	if (--dev_priv->user_irq_refcount == 0)
+		i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
 	DRM_SPINUNLOCK(&dev_priv->user_irq_lock);
 }
 
@@ -408,11 +404,8 @@ int i915_irq_wait(struct drm_device *dev, void *data,
 int i915_enable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
-	u32 pipeconf;
 
-	pipeconf = I915_READ(pipeconf_reg);
-	if (!(pipeconf & PIPEACONF_ENABLE))
+	if (!i915_pipe_enabled(dev, pipe))
 		return -EINVAL;
 
 	DRM_SPINLOCK(&dev_priv->user_irq_lock);
@@ -500,8 +493,6 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
-	atomic_set_int(&dev_priv->irq_received, 0);
-
 	I915_WRITE(HWSTAM, 0xeffe);
 	I915_WRITE(PIPEASTAT, 0);
 	I915_WRITE(PIPEBSTAT, 0);
@@ -519,9 +510,6 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask_reg = ~I915_INTERRUPT_ENABLE_FIX;
 
-	dev_priv->pipestat[0] = 0;
-	dev_priv->pipestat[1] = 0;
-
 	/* Disable pipe interrupt enables, clear pending pipe status */
 	I915_WRITE(PIPEASTAT, I915_READ(PIPEASTAT) & 0x8000ffff);
 	I915_WRITE(PIPEBSTAT, I915_READ(PIPEBSTAT) & 0x8000ffff);
@@ -531,6 +519,10 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(IER, I915_INTERRUPT_ENABLE_MASK);
 	I915_WRITE(IMR, dev_priv->irq_mask_reg);
+	I915_WRITE(PIPEASTAT, dev_priv->pipestat[0] |
+	    (dev_priv->pipestat[0] >> 16));
+	I915_WRITE(PIPEBSTAT, dev_priv->pipestat[1] |
+	    (dev_priv->pipestat[1] >> 16));
 	(void) I915_READ(IER);
 
 	return 0;

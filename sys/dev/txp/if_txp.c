@@ -2725,7 +2725,7 @@ txp_set_filter(struct txp_softc *sc)
 
 	mchash[0] = mchash[1] = 0;
 	mcnt = 0;
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -2735,7 +2735,7 @@ txp_set_filter(struct txp_softc *sc)
 		mchash[crc >> 5] |= 1 << (crc & 0x1f);
 		mcnt++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (mcnt > 0) {
 		filter |= TXP_RXFILT_HASHMULTI;

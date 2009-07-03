@@ -98,7 +98,7 @@ ata_serverworks_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_serverworks_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 #ifdef __powerpc__

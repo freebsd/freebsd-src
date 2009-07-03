@@ -138,6 +138,9 @@ struct cas_softc {
 	u_char		sc_enaddr[ETHER_ADDR_LEN];
 	struct callout	sc_tick_ch;	/* tick callout */
 	struct callout	sc_rx_ch;	/* delayed RX callout */
+	struct task	sc_intr_task;
+	struct task	sc_tx_task;
+	struct taskqueue	*sc_tq;
 	u_int		sc_wdog_timer;	/* watchdog timer */
 
 	void		*sc_ih;

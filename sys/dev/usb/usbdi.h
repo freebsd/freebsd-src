@@ -78,6 +78,8 @@ typedef enum {	/* keep in sync with usb_errstr_table */
 #define	USB_SHORT_XFER_OK	0x0004	/* allow short reads */
 #define	USB_DELAY_STATUS_STAGE	0x0010	/* insert delay before STATUS stage */
 #define	USB_USER_DATA_PTR	0x0020	/* internal flag */
+#define	USB_MULTI_SHORT_OK	0x0040	/* allow multiple short frames */
+#define	USB_MANUAL_STATUS	0x0080	/* manual ctrl status */
 
 #define	USB_NO_TIMEOUT 0
 #define	USB_DEFAULT_TIMEOUT 5000	/* 5000 ms = 5 seconds */
@@ -486,6 +488,7 @@ void	usbd_xfer_set_stall(struct usb_xfer *xfer);
 int	usbd_xfer_is_stalled(struct usb_xfer *xfer);
 void	usbd_xfer_set_flag(struct usb_xfer *xfer, int flag);
 void	usbd_xfer_clr_flag(struct usb_xfer *xfer, int flag);
+uint16_t usbd_xfer_get_timestamp(struct usb_xfer *xfer);
 
 void	usbd_copy_in(struct usb_page_cache *cache, usb_frlength_t offset,
 	    const void *ptr, usb_frlength_t len);

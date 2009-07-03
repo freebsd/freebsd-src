@@ -31,13 +31,13 @@
 #include <sys/jail.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/uio.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
 #include <err.h>
 #include <errno.h>
+#include <jail.h>
 #include <limits.h>
 #include <login_cap.h>
 #include <stdio.h>
@@ -67,14 +67,13 @@ static void	usage(void);
 int
 main(int argc, char *argv[])
 {
-	struct iovec params[2];
 	int jid;
 	login_cap_t *lcap = NULL;
 	struct passwd *pwd = NULL;
 	gid_t *groups = NULL;
 	int ch, ngroups, uflag, Uflag;
 	long ngroups_max;
-	char *ep, *username;
+	char *username;
 
 	ch = uflag = Uflag = 0;
 	username = NULL;
@@ -107,18 +106,11 @@ main(int argc, char *argv[])
 		usage();
 	if (uflag)
 		GET_USER_INFO;
-	jid = strtoul(argv[0], &ep, 10);
-	if (!*argv[0] || *ep) {
-		*(const void **)&params[0].iov_base = "name";
-		params[0].iov_len = sizeof("name");
-		params[1].iov_base = argv[0];
-		params[1].iov_len = strlen(argv[0]) + 1;
-		jid = jail_get(params, 2, 0);
-		if (jid < 0)
-			errx(1, "Unknown jail: %s", argv[0]);
-	}
+	jid = jail_getid(argv[0]);
+	if (jid < 0)
+		errx(1, "%s", jail_errmsg);
 	if (jail_attach(jid) == -1)
-		err(1, "jail_attach(): %d", jid);
+		err(1, "jail_attach(%d)", jid);
 	if (chdir("/") == -1)
 		err(1, "chdir(): /");
 	if (username != NULL) {

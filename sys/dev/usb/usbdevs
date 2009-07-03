@@ -552,6 +552,7 @@ vendor USI		0x10ab	USI
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
 vendor SILABS		0x10c4	Silicon Labs
+vendor ACTIONS		0x10d6  Actions
 vendor ANALOG		0x1110	Analog Devices
 vendor TENX		0x1130	Ten X Technology, Inc.
 vendor ISSC		0x1131	Integrated System Solution Corp.
@@ -740,6 +741,9 @@ product ACERP AWL400		0x9001	AWL400 Wireless Adapter
 
 /* Acer Warp products */
 product ACERW WARPLINK		0x0204	Warplink
+
+/* Actions products */
+product ACTIONS MP4		0x1101  Actions MP4 Player
 
 /* Actiontec, Inc. products */
 product ACTIONTEC PRISM_25	0x0408	Prism2.5 Wireless Adapter

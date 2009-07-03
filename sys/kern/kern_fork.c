@@ -146,7 +146,7 @@ rfork(td, uap)
 	if ((uap->flags & RFKERNELONLY) != 0)
 		return (EINVAL);
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 	error = fork1(td, uap->flags, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
@@ -452,7 +452,7 @@ again:
 	thread_lock(td);
 	sched_fork(td, td2);
 	thread_unlock(td);
-	AUDIT_ARG(pid, p2->p_pid);
+	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
 

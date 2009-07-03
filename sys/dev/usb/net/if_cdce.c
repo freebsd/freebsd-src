@@ -764,7 +764,7 @@ tr_setup:
 static int
 cdce_handle_request(device_t dev,
     const void *req, void **pptr, uint16_t *plen,
-    uint16_t offset, uint8_t is_complete)
+    uint16_t offset, uint8_t *pstate)
 {
 	return (ENXIO);			/* use builtin handler */
 }

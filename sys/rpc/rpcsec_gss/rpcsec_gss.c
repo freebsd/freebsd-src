@@ -193,6 +193,7 @@ rpc_gss_secfind(CLIENT *clnt, struct ucred *cred, const char *principal,
 	uint32_t		h, th;
 	AUTH			*auth;
 	struct rpc_gss_data	*gd, *tgd;
+	rpc_gss_options_ret_t	options;
 
 	if (rpc_gss_count > RPC_GSS_MAX) {
 		while (rpc_gss_count > RPC_GSS_MAX) {
@@ -230,6 +231,17 @@ again:
 				sx_xunlock(&rpc_gss_lock);
 			} else {
 				sx_sunlock(&rpc_gss_lock);
+			}
+
+			/*
+			 * If the state != ESTABLISHED, try and initialize
+			 * the authenticator again. This will happen if the
+			 * user's credentials have expired. It may succeed now,
+			 * if they have done a kinit or similar.
+			 */
+			if (gd->gd_state != RPCSEC_GSS_ESTABLISHED) {
+				memset(&options, 0, sizeof (options));
+				(void) rpc_gss_init(gd->gd_auth, &options);
 			}
 			return (gd->gd_auth);
 		}
@@ -730,6 +742,9 @@ rpc_gss_init(AUTH *auth, rpc_gss_options_ret_t *options_ret)
 	gd->gd_state = RPCSEC_GSS_CONTEXT;
 	mtx_unlock(&gd->gd_lock);
 
+	gd->gd_cred.gc_proc = RPCSEC_GSS_INIT;
+	gd->gd_cred.gc_seq = 0;
+
 	principal_desc.value = (void *)gd->gd_principal;
 	principal_desc.length = strlen(gd->gd_principal);
 	maj_stat = gss_import_name(&min_stat, &principal_desc,
@@ -741,9 +756,6 @@ rpc_gss_init(AUTH *auth, rpc_gss_options_ret_t *options_ret)
 	}
 
 	/* GSS context establishment loop. */
-	gd->gd_cred.gc_proc = RPCSEC_GSS_INIT;
-	gd->gd_cred.gc_seq = 0;
-
 	memset(&recv_token, 0, sizeof(recv_token));
 	memset(&gr, 0, sizeof(gr));
 	memset(options_ret, 0, sizeof(*options_ret));
@@ -917,6 +929,20 @@ rpc_gss_refresh(AUTH *auth, void *msg)
 {
 	struct rpc_msg *reply = (struct rpc_msg *) msg;
 	rpc_gss_options_ret_t options;
+	struct rpc_gss_data *gd;
+
+	gd = AUTH_PRIVATE(auth);
+	
+	/*
+	 * If the context is in DESTROYING state, then just return, since
+	 * there is no point in refreshing the credentials.
+	 */
+	mtx_lock(&gd->gd_lock);
+	if (gd->gd_state == RPCSEC_GSS_DESTROYING) {
+		mtx_unlock(&gd->gd_lock);
+		return (FALSE);
+	}
+	mtx_unlock(&gd->gd_lock);
 
 	/*
 	 * If the error was RPCSEC_GSS_CREDPROBLEM of

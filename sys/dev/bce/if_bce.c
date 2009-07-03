@@ -7260,7 +7260,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 		/* Accept one or more multicast(s). */
 		DBPRINT(sc, BCE_INFO_MISC, "Enabling selective multicast mode.\n");
 
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -7268,7 +7268,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 			    ifma->ifma_addr), ETHER_ADDR_LEN) & 0xFF;
 			    hashes[(h & 0xE0) >> 5] |= 1 << (h & 0x1F);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 
 		for (i = 0; i < NUM_MC_HASH_REGISTERS; i++)
 			REG_WR(sc, BCE_EMAC_MULTICAST_HASH0 + (i * 4), hashes[i]);

@@ -87,7 +87,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090614_0135"
+#define HDA_DRV_TEST_REV	"20090624_0136"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -474,6 +474,7 @@ static uint32_t hdac_fmt[] = {
 static struct pcmchan_caps hdac_caps = {48000, 48000, hdac_fmt, 0};
 
 #define HDAC_NO_MSI	1
+#define HDAC_NO_64BIT	2
 
 static const struct {
 	uint32_t	model;
@@ -498,10 +499,10 @@ static const struct {
 	{ HDA_NVIDIA_MCP67_2, "NVidia MCP67",	0 },
 	{ HDA_NVIDIA_MCP73_1, "NVidia MCP73",	0 },
 	{ HDA_NVIDIA_MCP73_2, "NVidia MCP73",	0 },
-	{ HDA_NVIDIA_MCP78_1, "NVidia MCP78",	0 },
-	{ HDA_NVIDIA_MCP78_2, "NVidia MCP78",	0 },
-	{ HDA_NVIDIA_MCP78_3, "NVidia MCP78",	0 },
-	{ HDA_NVIDIA_MCP78_4, "NVidia MCP78",	0 },
+	{ HDA_NVIDIA_MCP78_1, "NVidia MCP78",	HDAC_NO_64BIT },
+	{ HDA_NVIDIA_MCP78_2, "NVidia MCP78",	HDAC_NO_64BIT },
+	{ HDA_NVIDIA_MCP78_3, "NVidia MCP78",	HDAC_NO_64BIT },
+	{ HDA_NVIDIA_MCP78_4, "NVidia MCP78",	HDAC_NO_64BIT },
 	{ HDA_NVIDIA_MCP79_1, "NVidia MCP79",	0 },
 	{ HDA_NVIDIA_MCP79_2, "NVidia MCP79",	0 },
 	{ HDA_NVIDIA_MCP79_3, "NVidia MCP79",	0 },
@@ -1593,22 +1594,21 @@ hdac_dma_cb(void *callback_arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 {
-	bus_addr_t lowaddr;
 	bus_size_t roundsz;
 	int result;
 
 	roundsz = roundup2(size, HDAC_DMA_ALIGNMENT);
-	lowaddr = (sc->support_64bit) ? BUS_SPACE_MAXADDR :
-	    BUS_SPACE_MAXADDR_32BIT;
 	bzero(dma, sizeof(*dma));
 
 	/*
 	 * Create a DMA tag
 	 */
-	result = bus_dma_tag_create(NULL,	/* parent */
+	result = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),		/* parent */
 	    HDAC_DMA_ALIGNMENT,			/* alignment */
 	    0,					/* boundary */
-	    lowaddr,				/* lowaddr */
+	    (sc->support_64bit) ? BUS_SPACE_MAXADDR :
+		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */
 	    NULL,				/* filtfunc */
 	    NULL,				/* fistfuncarg */
@@ -4044,29 +4044,6 @@ hdac_attach(device_t dev)
 	else
 		sc->polling = 0;
 
-	result = bus_dma_tag_create(NULL,	/* parent */
-	    HDAC_DMA_ALIGNMENT,			/* alignment */
-	    0,					/* boundary */
-	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
-	    BUS_SPACE_MAXADDR,			/* highaddr */
-	    NULL,				/* filtfunc */
-	    NULL,				/* fistfuncarg */
-	    HDA_BUFSZ_MAX, 			/* maxsize */
-	    1,					/* nsegments */
-	    HDA_BUFSZ_MAX, 			/* maxsegsz */
-	    0,					/* flags */
-	    NULL,				/* lockfunc */
-	    NULL,				/* lockfuncarg */
-	    &sc->chan_dmat);			/* dmat */
-	if (result != 0) {
-		device_printf(dev, "%s: bus_dma_tag_create failed (%x)\n",
-		     __func__, result);
-		snd_mtxfree(sc->lock);
-		free(sc, M_DEVBUF);
-		return (ENXIO);
-	}
-
-
 	sc->hdabus = NULL;
 	for (i = 0; i < HDAC_CODEC_MAX; i++)
 		sc->codecs[i] = NULL;
@@ -4163,6 +4140,9 @@ hdac_attach(device_t dev)
 	if (result != 0)
 		goto hdac_attach_fail;
 
+	if (devid >= 0 && (hdac_devices[devid].flags & HDAC_NO_64BIT))
+		sc->support_64bit = 0;
+
 	/* Allocate CORB and RIRB dma memory */
 	result = hdac_dma_alloc(sc, &sc->corb_dma,
 	    sc->corb_size * sizeof(uint32_t));
@@ -4172,6 +4152,28 @@ hdac_attach(device_t dev)
 	    sc->rirb_size * sizeof(struct hdac_rirb));
 	if (result != 0)
 		goto hdac_attach_fail;
+
+	result = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),		/* parent */
+	    HDAC_DMA_ALIGNMENT,			/* alignment */
+	    0,					/* boundary */
+	    (sc->support_64bit) ? BUS_SPACE_MAXADDR :
+		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL,				/* filtfunc */
+	    NULL,				/* fistfuncarg */
+	    HDA_BUFSZ_MAX, 			/* maxsize */
+	    1,					/* nsegments */
+	    HDA_BUFSZ_MAX, 			/* maxsegsz */
+	    0,					/* flags */
+	    NULL,				/* lockfunc */
+	    NULL,				/* lockfuncarg */
+	    &sc->chan_dmat);			/* dmat */
+	if (result != 0) {
+		device_printf(dev, "%s: bus_dma_tag_create failed (%x)\n",
+		     __func__, result);
+		goto hdac_attach_fail;
+	}
 
 	/* Quiesce everything */
 	HDA_BOOTHVERBOSE(

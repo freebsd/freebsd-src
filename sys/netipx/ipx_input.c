@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2004-2005 Robert N. M. Watson
+ * Copyright (c) 2004-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -146,6 +146,7 @@ ipx_init(void)
 
 	LIST_INIT(&ipxpcb_list);
 	LIST_INIT(&ipxrawpcb_list);
+	TAILQ_INIT(&ipx_ifaddrhead);
 
 	IPX_LIST_LOCK_INIT();
 	IPX_IFADDR_LOCK_INIT();
@@ -175,7 +176,7 @@ ipxintr(struct mbuf *m)
 	 * If no IPX addresses have been set yet but the interfaces
 	 * are receiving, can't do anything with incoming packets yet.
 	 */
-	if (ipx_ifaddr == NULL) {
+	if (TAILQ_EMPTY(&ipx_ifaddrhead)) {
 		m_freem(m);
 		return;
 	}
@@ -257,13 +258,14 @@ ipxintr(struct mbuf *m)
 			 * received from, treat it as ours.
 			 */
 			IPX_IFADDR_RLOCK();
-			for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
-				if((ia->ia_ifa.ifa_ifp == m->m_pkthdr.rcvif) &&
-				   ipx_neteq(ia->ia_addr.sipx_addr,
-					     ipx->ipx_dna)) {
+			TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
+				if ((ia->ia_ifa.ifa_ifp == m->m_pkthdr.rcvif)
+				    && ipx_neteq(ia->ia_addr.sipx_addr,
+				    ipx->ipx_dna)) {
 					IPX_IFADDR_RUNLOCK();
 					goto ours;
 				}
+			}
 			IPX_IFADDR_RUNLOCK();
 
 			/*
@@ -286,11 +288,12 @@ ipxintr(struct mbuf *m)
 	 */
 	} else {
 		IPX_IFADDR_RLOCK();
-		for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
+		TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
 			if (ipx_hosteq(ipx->ipx_dna, ia->ia_addr.sipx_addr) &&
 			    (ipx_neteq(ipx->ipx_dna, ia->ia_addr.sipx_addr) ||
 			     ipx_neteqnn(ipx->ipx_dna.x_net, ipx_zeronet)))
 				break;
+		}
 		IPX_IFADDR_RUNLOCK();
 		if (ia == NULL) {
 			ipx_forward(m);

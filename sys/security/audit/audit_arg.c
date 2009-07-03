@@ -236,9 +236,16 @@ audit_arg_groupset(gid_t *gidset, u_int gidset_size)
 	u_int i;
 	struct kaudit_record *ar;
 
+	KASSERT(gidset_size <= NGROUPS,
+	    ("audit_arg_groupset: gidset_size > NGROUPS"));
+
 	ar = currecord();
 	if (ar == NULL)
 		return;
+
+	if (ar->k_ar.ar_arg_groups.gidset == NULL)
+		ar->k_ar.ar_arg_groups.gidset = malloc(
+		    sizeof(gid_t) * gidset_size, M_AUDITGIDSET, M_WAITOK);
 
 	for (i = 0; i < gidset_size; i++)
 		ar->k_ar.ar_arg_groups.gidset[i] = gidset[i];

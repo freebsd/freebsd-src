@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
  * The IPX-layer address list is protected by ipx_ifaddr_rw.
  */
 struct rwlock		 ipx_ifaddr_rw;
-struct ipx_ifaddr	*ipx_ifaddr;
+struct ipx_ifaddrhead	 ipx_ifaddrhead;
 
 static void	ipx_ifscrub(struct ifnet *ifp, struct ipx_ifaddr *ia);
 static int	ipx_ifinit(struct ifnet *ifp, struct ipx_ifaddr *ia,
@@ -102,9 +102,8 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	struct ipx_aliasreq *ifra = (struct ipx_aliasreq *)data;
 	struct ipx_ifaddr *ia;
 	struct ifaddr *ifa;
-	struct ipx_ifaddr *oia;
 	int dstIsNew, hostIsNew;
-	int error = 0, priv;
+	int error, priv;
 
 	/*
 	 * Find address for this interface, if it exists.
@@ -112,11 +111,16 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	if (ifp == NULL)
 		return (EADDRNOTAVAIL);
 
-	IPX_IFADDR_WLOCK();
-	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
+	IPX_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
 		if (ia->ia_ifp == ifp)
 			break;
+	}
+	if (ia != NULL)
+		ifa_ref(&ia->ia_ifa);
+	IPX_IFADDR_RUNLOCK();
 
+	error = 0;
 	switch (cmd) {
 	case SIOCGIFADDR:
 		if (ia == NULL) {
@@ -158,13 +162,23 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		    PRIV_NET_DELIFADDR;
 		if (td && (error = priv_check(td, priv)) != 0)
 			goto out;
-		if (ifra->ifra_addr.sipx_family == AF_IPX)
-		    for (oia = ia; ia != NULL; ia = ia->ia_next) {
-			if (ia->ia_ifp == ifp  &&
-			    ipx_neteq(ia->ia_addr.sipx_addr,
-				  ifra->ifra_addr.sipx_addr))
-			    break;
-		    }
+
+		IPX_IFADDR_RLOCK();
+		if (ifra->ifra_addr.sipx_family == AF_IPX) {
+			struct ipx_ifaddr *oia;
+
+			for (oia = ia; ia; ia = TAILQ_NEXT(ia, ia_link)) {
+				if (ia->ia_ifp == ifp  &&
+				    ipx_neteq(ia->ia_addr.sipx_addr,
+				    ifra->ifra_addr.sipx_addr))
+					break;
+			}
+			if (oia != NULL && oia != ia)
+				ifa_free(&oia->ia_ifa);
+			if (ia != NULL && oia != ia)
+				ifa_ref(&ia->ia_ifa);
+		}
+		IPX_IFADDR_RUNLOCK();
 		if (cmd == SIOCDIFADDR && ia == NULL) {
 			error = EADDRNOTAVAIL;
 			goto out;
@@ -176,20 +190,11 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		if (td && (error = priv_check(td, PRIV_NET_SETLLADDR)) != 0)
 			goto out;
 		if (ia == NULL) {
-			oia = (struct ipx_ifaddr *)
-				malloc(sizeof(*ia), M_IFADDR,
-				M_NOWAIT | M_ZERO);
-			if (oia == NULL) {
+			ia = malloc(sizeof(*ia), M_IFADDR, M_NOWAIT | M_ZERO);
+			if (ia == NULL) {
 				error = ENOBUFS;
 				goto out;
 			}
-			if ((ia = ipx_ifaddr) != NULL) {
-				for ( ; ia->ia_next != NULL; ia = ia->ia_next)
-					;
-				ia->ia_next = oia;
-			} else
-				ipx_ifaddr = oia;
-			ia = oia;
 			ifa = (struct ifaddr *)ia;
 			ifa_init(ifa);
 			ia->ia_ifp = ifp;
@@ -203,6 +208,12 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				ia->ia_broadaddr.sipx_addr.x_host =
 				    ipx_broadhost;
 			}
+			ifa_ref(&ia->ia_ifa);		/* ipx_ifaddrhead */
+			IPX_IFADDR_WLOCK();
+			TAILQ_INSERT_TAIL(&ipx_ifaddrhead, ia, ia_link);
+			IPX_IFADDR_WUNLOCK();
+
+			ifa_ref(&ia->ia_ifa);		/* if_addrhead */
 			IF_ADDR_LOCK(ifp);
 			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 			IF_ADDR_UNLOCK(ifp);
@@ -224,54 +235,34 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			rtinit(&(ia->ia_ifa), (int)RTM_DELETE, RTF_HOST);
 			ia->ia_flags &= ~IFA_ROUTE;
 		}
-		ifa_ref(&ia->ia_ifa);
-		IPX_IFADDR_WUNLOCK();
 		if (ifp->if_ioctl) {
 			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR,
 			    (void *)ia);
-			if (error) {
-				ifa_free(&ia->ia_ifa);
-				return (error);
-			}
+			if (error)
+				goto out;
 		}
 		*(struct sockaddr *)&ia->ia_dstaddr = ifr->ifr_dstaddr;
-		ifa_free(&ia->ia_ifa);
-		return (0);
+		goto out;
 
 	case SIOCSIFADDR:
-		ifa_ref(&ia->ia_ifa);
-		IPX_IFADDR_WUNLOCK();
 		error = ipx_ifinit(ifp, ia,
 		    (struct sockaddr_ipx *)&ifr->ifr_addr, 1);
-		ifa_free(&ia->ia_ifa);
-		return (error);
+		goto out;
 
 	case SIOCDIFADDR:
-		/* XXXRW: Potential race here while ipx_ifaddr_rw is dropped. */
-		ifa_ref(&ia->ia_ifa);
-		IPX_IFADDR_WUNLOCK();
 		ipx_ifscrub(ifp, ia);
-		IPX_IFADDR_WLOCK();
-		ifa_free(&ia->ia_ifa);
 		ifa = (struct ifaddr *)ia;
+
 		IF_ADDR_LOCK(ifp);
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
-		oia = ia;
-		if (oia == (ia = ipx_ifaddr)) {
-			ipx_ifaddr = ia->ia_next;
-		} else {
-			while (ia->ia_next && (ia->ia_next != oia)) {
-				ia = ia->ia_next;
-			}
-			if (ia->ia_next)
-			    ia->ia_next = oia->ia_next;
-			else
-				printf("Didn't unlink ipxifadr from list\n");
-		}
-		ifa_free(&oia->ia_ifa);
+		ifa_free(ifa);				/* if_addrhead */
+
+		IPX_IFADDR_WLOCK();
+		TAILQ_REMOVE(&ipx_ifaddrhead, ia, ia_link);
 		IPX_IFADDR_WUNLOCK();
-		return (0);
+		ifa_free(&ia->ia_ifa);			/* ipx_ifaddrhead */
+		goto out;
 
 	case SIOCAIFADDR:
 		dstIsNew = 0;
@@ -284,8 +275,6 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 					 ia->ia_addr.sipx_addr))
 				hostIsNew = 0;
 		}
-		ifa_ref(&ia->ia_ifa);
-		IPX_IFADDR_WUNLOCK();
 		if ((ifp->if_flags & IFF_POINTOPOINT) &&
 		    (ifra->ifra_dstaddr.sipx_family == AF_IPX)) {
 			if (hostIsNew == 0)
@@ -296,18 +285,19 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		if (ifra->ifra_addr.sipx_family == AF_IPX &&
 					    (hostIsNew || dstIsNew))
 			error = ipx_ifinit(ifp, ia, &ifra->ifra_addr, 0);
-		ifa_free(&ia->ia_ifa);
-		return (error);
+		goto out;
 
 	default:
-		IPX_IFADDR_WUNLOCK();
-		if (ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
-		return ((*ifp->if_ioctl)(ifp, cmd, data));
+		if (ifp->if_ioctl == NULL) {
+			error = EOPNOTSUPP;
+			goto out;
+		}
+		error = ((*ifp->if_ioctl)(ifp, cmd, data));
 	}
 
 out:
-	IPX_IFADDR_WUNLOCK();
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	return (error);
 }
 
@@ -393,7 +383,7 @@ ipx_iaonnetof(struct ipx_addr *dst)
 
 	IPX_IFADDR_LOCK_ASSERT();
 
-	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next) {
+	TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
 		if ((ifp = ia->ia_ifp) != NULL) {
 			if (ifp->if_flags & IFF_POINTOPOINT) {
 				compare = &satoipx_addr(ia->ia_dstaddr);

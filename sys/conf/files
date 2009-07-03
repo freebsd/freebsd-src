@@ -489,10 +489,10 @@ dev/asr/asr.c			optional asr pci
 #
 dev/ata/ata_if.m		optional ata | atacore
 dev/ata/ata-all.c		optional ata | atacore
+dev/ata/ata-dma.c		optional ata | atacore
 dev/ata/ata-lowlevel.c		optional ata | atacore
 dev/ata/ata-queue.c		optional ata | atacore
-dev/ata/ata-dma.c		optional ata | atadma
-dev/ata/ata-sata.c		optional ata | atasata
+dev/ata/ata-sata.c		optional ata | atacore
 dev/ata/ata-card.c		optional ata pccard | atapccard
 dev/ata/ata-cbus.c		optional ata pc98 | atapc98
 dev/ata/ata-isa.c		optional ata isa | ataisa
@@ -2492,7 +2492,6 @@ nfsclient/krpc_subr.c		optional bootp nfsclient
 nfsclient/nfs_bio.c		optional nfsclient
 nfsclient/nfs_diskless.c	optional nfsclient nfs_root
 nfsclient/nfs_node.c		optional nfsclient
-nfsclient/nfs_socket.c		optional nfsclient
 nfsclient/nfs_krpc.c		optional nfsclient
 nfsclient/nfs_subs.c		optional nfsclient
 nfsclient/nfs_nfsiod.c		optional nfsclient
@@ -2502,10 +2501,7 @@ nfsclient/nfs_lock.c		optional nfsclient
 nfsserver/nfs_fha.c		optional nfsserver
 nfsserver/nfs_serv.c		optional nfsserver
 nfsserver/nfs_srvkrpc.c		optional nfsserver
-nfsserver/nfs_srvsock.c		optional nfsserver
-nfsserver/nfs_srvcache.c	optional nfsserver
 nfsserver/nfs_srvsubs.c		optional nfsserver
-nfsserver/nfs_syscalls.c	optional nfsserver
 nfs/nfs_nfssvc.c		optional nfsserver | nfscl | nfsd
 nlm/nlm_advlock.c		optional nfslockd nfsclient | nfsd nfsclient
 nlm/nlm_prot_clnt.c		optional nfslockd | nfsd

@@ -384,7 +384,7 @@ stf_getsrcifa6(ifp)
 	struct sockaddr_in6 *sin6;
 	struct in_addr in;
 
-	IF_ADDR_LOCK(ifp);
+	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 		if (ia->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -400,10 +400,10 @@ stf_getsrcifa6(ifp)
 			continue;
 
 		ifa_ref(ia);
-		IF_ADDR_UNLOCK(ifp);
+		if_addr_runlock(ifp);
 		return (struct in6_ifaddr *)ia;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_addr_runlock(ifp);
 
 	return NULL;
 }
@@ -620,15 +620,19 @@ stf_checkaddr4(sc, in, inifp)
 	/*
 	 * reject packets with broadcast
 	 */
+	IN_IFADDR_RLOCK();
 	for (ia4 = TAILQ_FIRST(&V_in_ifaddrhead);
 	     ia4;
 	     ia4 = TAILQ_NEXT(ia4, ia_link))
 	{
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
-		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr)
+		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {
+			IN_IFADDR_RUNLOCK();
 			return -1;
+		}
 	}
+	IN_IFADDR_RUNLOCK();
 
 	/*
 	 * perform ingress filter

@@ -3446,7 +3446,7 @@ alc_rxfilter(struct alc_softc *sc)
 		goto chipit;
 	}
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &sc->alc_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -3454,7 +3454,7 @@ alc_rxfilter(struct alc_softc *sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN);
 		mchash[crc >> 31] |= 1 << ((crc >> 26) & 0x1f);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 chipit:
 	CSR_WRITE_4(sc, ALC_MAR0, mchash[0]);
