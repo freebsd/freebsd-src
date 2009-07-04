@@ -1,0 +1,501 @@
+/*-
+ * Copyright (c) 2009 Neelkanth Natu
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/systm.h>
+#include <sys/module.h>
+#include <sys/bus.h>
+#include <sys/malloc.h>
+#include <sys/rman.h>
+
+#include <machine/resource.h>
+#include <machine/intr_machdep.h>
+
+#include "sb_scd.h"
+
+__FBSDID("$FreeBSD$");
+
+static MALLOC_DEFINE(M_INTMAP, "sb1250 intmap", "Sibyte 1250 Interrupt Mapper");
+
+#define	NUM_HARD_IRQS	6
+
+struct sb_intmap {
+	int intsrc;		/* interrupt mapper register number (0 - 63) */
+	int active;		/* Does this source generate interrupts? */
+
+	/*
+	 * The device that the interrupt belongs to. Note that multiple
+	 * devices may share an interrupt. For e.g. PCI_INT_x lines.
+	 *
+	 * The device 'dev' in combination with the 'rid' uniquely
+	 * identify this interrupt source.
+	 */
+	device_t dev;
+	int rid;
+
+	SLIST_ENTRY(sb_intmap) next;
+};
+
+/*
+ * We register 'sb_intsrc.isrc' using cpu_register_hard_intsrc() for each
+ * hard interrupt source [0-5].
+ *
+ * The mask/unmask callbacks use the information in 'sb_intmap' to figure
+ * out the corresponding interrupt sources to mask/unmask.
+ */
+struct sb_intsrc {
+	struct intsrc isrc;
+	SLIST_HEAD(, sb_intmap) sb_intmap_head;
+};
+
+static struct sb_intsrc sb_intsrc[NUM_HARD_IRQS];
+
+static struct sb_intmap *
+sb_intmap_lookup(int intrnum, device_t dev, int rid)
+{
+	struct sb_intsrc *isrc;
+	struct sb_intmap *map;
+
+	isrc = &sb_intsrc[intrnum];
+	SLIST_FOREACH(map, &isrc->sb_intmap_head, next) {
+		if (dev == map->dev && rid == map->rid)
+			break;
+	}
+	return (map);
+}
+
+/*
+ * Keep track of which (dev,rid) tuple is using the interrupt source.
+ *
+ * We don't actually unmask the interrupt source until the device calls
+ * a bus_setup_intr() on the resource.
+ */
+static void
+sb_intmap_add(int intrnum, device_t dev, int rid, int intsrc)
+{
+	struct sb_intsrc *isrc;
+	struct sb_intmap *map;
+	register_t sr;
+	
+	KASSERT(intrnum >= 0 && intrnum < NUM_HARD_IRQS,
+		("intrnum is out of range: %d", intrnum));
+
+	isrc = &sb_intsrc[intrnum];
+	map = sb_intmap_lookup(intrnum, dev, rid);
+	if (map) {
+		KASSERT(intsrc == map->intsrc,
+			("%s%d allocating SYS_RES_IRQ resource with rid %d "
+			 "with a different intsrc (%d versus %d)",
+			device_get_name(dev), device_get_unit(dev), rid,
+			intsrc, map->intsrc));
+		return;
+	}
+
+	map = malloc(sizeof(*map), M_INTMAP, M_WAITOK | M_ZERO);
+	map->intsrc = intsrc;
+	map->dev = dev;
+	map->rid = rid;
+
+	sr = intr_disable();
+	SLIST_INSERT_HEAD(&isrc->sb_intmap_head, map, next);
+	intr_restore(sr);
+}
+
+static void
+sb_intmap_activate(int intrnum, device_t dev, int rid)
+{
+	struct sb_intmap *map;
+	register_t sr;
+	
+	KASSERT(intrnum >= 0 && intrnum < NUM_HARD_IRQS,
+		("intrnum is out of range: %d", intrnum));
+
+	map = sb_intmap_lookup(intrnum, dev, rid);
+	if (map) {
+		/*
+		 * See comments in sb_unmask_func() about disabling cpu intr
+		 */
+		sr = intr_disable();
+		map->active = 1;
+		sb_enable_intsrc(map->intsrc);
+		intr_restore(sr);
+	} else {
+		/*
+		 * In zbbus_setup_intr() we blindly call sb_intmap_activate()
+		 * for every interrupt activation that comes our way.
+		 *
+		 * We might end up here if we did not "hijack" the SYS_RES_IRQ
+		 * resource in zbbus_alloc_resource().
+		 */
+		printf("sb_intmap_activate: unable to activate interrupt %d "
+		       "for device %s%d rid %d.\n", intrnum,
+		       device_get_name(dev), device_get_unit(dev), rid);
+	}
+}
+
+static void
+sb_mask_func(struct intsrc *arg)
+{
+	struct sb_intmap *map;
+	struct sb_intsrc *isrc;
+	uint64_t isrc_bitmap;
+
+	isrc_bitmap = 0;
+	isrc = (struct sb_intsrc *)arg;
+	SLIST_FOREACH(map, &isrc->sb_intmap_head, next) {
+		if (map->active == 0)
+			continue;
+		/*
+		 * If we have already disabled this interrupt source then don't
+		 * do it again. This can happen when multiple devices share
+		 * an interrupt source (e.g. PCI_INT_x).
+		 */
+		if (isrc_bitmap & (1ULL << map->intsrc))
+			continue;
+		sb_disable_intsrc(map->intsrc);
+		isrc_bitmap |= 1ULL << map->intsrc;
+	}
+}
+
+static void
+sb_unmask_func(struct intsrc *arg)
+{
+	struct sb_intmap *map;
+	struct sb_intsrc *sb_isrc;
+	uint64_t isrc_bitmap;
+	register_t sr;
+	
+	isrc_bitmap = 0;
+	sb_isrc = (struct sb_intsrc *)arg;
+
+	/*
+	 * Make sure we disable the cpu interrupts when enabling the
+	 * interrupt sources.
+	 *
+	 * This is to prevent a condition where some interrupt sources have
+	 * been enabled (but not all) and one of those interrupt sources
+	 * triggers an interrupt.
+	 *
+	 * If any of the interrupt handlers executes in an ithread then
+	 * cpu_intr() will return with all interrupt sources feeding into
+	 * that cpu irq masked. But when the loop below picks up where it
+	 * left off it will enable the remaining interrupt sources!!!
+	 *
+	 * If the disable the cpu interrupts then this race does not happen.
+	 */
+	sr = intr_disable();
+
+	SLIST_FOREACH(map, &sb_isrc->sb_intmap_head, next) {
+		if (map->active == 0)
+			continue;
+		/*
+		 * If we have already enabled this interrupt source then don't
+		 * do it again. This can happen when multiple devices share
+		 * an interrupt source (e.g. PCI_INT_x).
+		 */
+		if (isrc_bitmap & (1ULL << map->intsrc))
+			continue;
+		sb_enable_intsrc(map->intsrc);
+		isrc_bitmap |= 1ULL << map->intsrc;
+	}
+
+	intr_restore(sr);
+}
+
+struct zbbus_devinfo {
+	struct resource_list resources;
+};
+
+static MALLOC_DEFINE(M_ZBBUSDEV, "zbbusdev", "zbbusdev");
+
+static int
+zbbus_probe(device_t dev)
+{
+
+	device_set_desc(dev, "Broadcom/Sibyte ZBbus");
+	return (0);
+}
+
+static int
+zbbus_attach(device_t dev)
+{
+	int i, error;
+	struct intsrc *isrc;
+
+	if (bootverbose) {
+		device_printf(dev, "attached.\n");
+	}
+
+	for (i = 0; i < NUM_HARD_IRQS; ++i) {
+		isrc = &sb_intsrc[i].isrc;
+		isrc->intrnum = i;
+		isrc->mask_func = sb_mask_func;
+		isrc->unmask_func = sb_unmask_func;
+		error = cpu_register_hard_intsrc(isrc);
+		if (error)
+			panic("Error %d registering intsrc %d", error, i);
+	}
+	
+	bus_generic_probe(dev);
+	bus_enumerate_hinted_children(dev);
+	bus_generic_attach(dev);
+
+	return (0);
+}
+
+static void
+zbbus_hinted_child(device_t bus, const char *dname, int dunit)
+{
+	device_t child;
+	long maddr, msize;
+	int err, irq;
+
+	if (resource_disabled(dname, dunit))
+		return;
+
+	child = BUS_ADD_CHILD(bus, 0, dname, dunit);
+	if (child == NULL) {
+		panic("zbbus: could not add child %s unit %d\n", dname, dunit);
+	}
+
+	if (bootverbose)
+		device_printf(bus, "Adding hinted child %s%d\n", dname, dunit);
+
+	/*
+	 * Assign any pre-defined resources to the child.
+	 */
+	if (resource_long_value(dname, dunit, "msize", &msize) == 0 &&
+	    resource_long_value(dname, dunit, "maddr", &maddr) == 0) {
+		if (bootverbose) {
+			device_printf(bus, "Assigning memory resource "
+					   "0x%0lx/%ld to child %s%d\n",
+					   maddr, msize, dname, dunit);
+		}
+		err = bus_set_resource(child, SYS_RES_MEMORY, 0, maddr, msize);
+		if (err) {
+			device_printf(bus, "Unable to set memory resource "
+					   "0x%0lx/%ld for child %s%d: %d\n",
+					   maddr, msize, dname, dunit, err);
+		}
+	}
+
+	if (resource_int_value(dname, dunit, "irq", &irq) == 0) {
+		if (bootverbose) {
+			device_printf(bus, "Assigning irq resource %d to "
+					   "child %s%d\n", irq, dname, dunit);
+		}
+		err = bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
+		if (err) {
+			device_printf(bus, "Unable to set irq resource %d"
+					   "for child %s%d: %d\n",
+					   irq, dname, dunit, err);
+		}
+	}
+}
+
+static struct resource *
+zbbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
+		     u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource *res;
+	int intrnum, intsrc, isdefault;
+	struct resource_list *rl;
+	struct resource_list_entry *rle;
+	struct zbbus_devinfo *dinfo;
+
+	isdefault = (start == 0UL && end == ~0UL && count == 1);
+
+	/*
+	 * Our direct child is asking for a default resource allocation.
+	 */
+	if (device_get_parent(child) == bus) {
+		dinfo = device_get_ivars(child);
+		rl = &dinfo->resources;
+		rle = resource_list_find(rl, type, *rid);
+		if (rle) {
+			if (rle->res)
+				panic("zbbus_alloc_resource: resource is busy");
+			if (isdefault) {
+				start = rle->start;
+				count = ulmax(count, rle->count);
+				end = ulmax(rle->end, start + count - 1);
+			}
+		} else {
+			if (isdefault) {
+				/*
+				 * Our child is requesting a default
+				 * resource allocation but we don't have the
+				 * 'type/rid' tuple in the resource list.
+				 *
+				 * We have to fail the resource allocation.
+				 */
+				return (NULL);
+			} else {
+				/*
+				 * The child is requesting a non-default
+				 * resource. We just pass the request up
+				 * to our parent. If the resource allocation
+				 * succeeds we will create a resource list
+				 * entry corresponding to that resource.
+				 */
+			}
+		}
+	} else {
+		rl = NULL;
+		rle = NULL;
+	}
+
+	/*
+	 * nexus doesn't know about the interrupt mapper and only wants to
+	 * see the hard irq numbers [0-6]. We translate from the interrupt
+	 * source presented to the mapper to the interrupt number presented
+	 * to the cpu.
+	 */
+	if ((count == 1) && (type == SYS_RES_IRQ)) {
+		intsrc = start;
+		intrnum = sb_route_intsrc(intsrc);
+		start = end = intrnum;
+	} else {
+		intsrc = -1;		/* satisfy gcc */
+		intrnum = -1;
+	}
+
+	res = bus_generic_alloc_resource(bus, child, type, rid,
+ 					 start, end, count, flags);
+
+	/*
+	 * Keep track of the input into the interrupt mapper that maps
+	 * to the resource allocated by 'child' with resource id 'rid'.
+	 *
+	 * If we don't record the mapping here then we won't be able to
+	 * locate the interrupt source when bus_setup_intr(child,rid) is
+	 * called.
+	 */
+	if (res != NULL && intrnum != -1)
+		sb_intmap_add(intrnum, child, rman_get_rid(res), intsrc);
+
+	/*
+	 * If a non-default resource allocation by our child was successful
+	 * then keep track of the resource in the resource list associated
+	 * with the child.
+	 */
+	if (res != NULL && rle == NULL && device_get_parent(child) == bus) {
+		resource_list_add(rl, type, *rid, start, end, count);
+		rle = resource_list_find(rl, type, *rid);
+		if (rle == NULL)
+			panic("zbbus_alloc_resource: cannot find resource");
+	}
+
+	if (rle != NULL) {
+		KASSERT(device_get_parent(child) == bus,
+			("rle should be NULL for passthru device"));
+		rle->res = res;
+		if (rle->res) {
+			rle->start = rman_get_start(rle->res);
+			rle->end = rman_get_end(rle->res);
+			rle->count = count;
+		}
+	}
+
+	return (res);
+}
+
+static int
+zbbus_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
+		 driver_filter_t *filter, driver_intr_t *intr, void *arg, 
+		 void **cookiep)
+{
+	int error;
+
+	error = bus_generic_setup_intr(dev, child, irq, flags,
+				       filter, intr, arg, cookiep);
+	if (error == 0)
+		sb_intmap_activate(rman_get_start(irq), child,
+				   rman_get_rid(irq));
+
+	return (error);
+}
+
+static device_t
+zbbus_add_child(device_t bus, int order, const char *name, int unit)
+{
+	device_t child;
+	struct zbbus_devinfo *dinfo;
+
+	child = device_add_child_ordered(bus, order, name, unit);
+	if (child != NULL) {
+		dinfo = malloc(sizeof(struct zbbus_devinfo), M_ZBBUSDEV,
+			       M_WAITOK | M_ZERO);
+		resource_list_init(&dinfo->resources);
+		device_set_ivars(child, dinfo);
+	}
+
+	return (child);
+}
+
+static struct resource_list *
+zbbus_get_resource_list(device_t dev, device_t child)
+{
+	struct zbbus_devinfo *dinfo = device_get_ivars(child);
+
+	return (&dinfo->resources);
+}
+
+static device_method_t zbbus_methods[] ={
+	/* Device interface */
+	DEVMETHOD(device_probe,		zbbus_probe),
+	DEVMETHOD(device_attach,	zbbus_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_alloc_resource,	zbbus_alloc_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_get_resource_list,zbbus_get_resource_list),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_delete_resource,	bus_generic_rl_delete_resource),
+	DEVMETHOD(bus_setup_intr,	zbbus_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_add_child,	zbbus_add_child),
+	DEVMETHOD(bus_hinted_child,	zbbus_hinted_child),
+	
+	{ 0, 0 }
+};
+
+static driver_t zbbus_driver = {
+	"zbbus",
+	zbbus_methods
+};
+
+static devclass_t zbbus_devclass;
+
+DRIVER_MODULE(zbbus, nexus, zbbus_driver, zbbus_devclass, 0, 0);
