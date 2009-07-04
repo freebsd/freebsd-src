@@ -180,6 +180,7 @@ typedef struct Job {
 
 #ifdef MAKE_IS_BUILD
 	char		mon_fname[MAXPATHLEN];
+	char		meta_fname[MAXPATHLEN];
 #ifndef BUILDMON
 	int		filemon_fd;
 	int		mon_fd;
@@ -593,7 +594,7 @@ meta_name(struct GNode *gn, char *mname, size_t mnamelen)
 }
 
 static FILE *
-meta_create(GNode *gn)
+meta_create(GNode *gn, char *p_mname, size_t mnamelen)
 {
 	FILE *fp;
 	LstNode	*ln;
@@ -663,12 +664,17 @@ meta_create(GNode *gn)
 		/* Don't create meta data. */
 		return (NULL);
 
-	meta_name(gn, fname, sizeof(fname));
+	if (p_mname == NULL) {
+		p_mname = fname;
+		mnamelen = sizeof(fname);
+	}
 
-	if ((fp = fopen(fname, "w")) == NULL)
-		err(1, "Could not open meta file '%s'", fname);
+	meta_name(gn, p_mname, mnamelen);
 
-	fprintf(fp, "# Meta data file %s\n", fname);
+	if ((fp = fopen(p_mname, "w")) == NULL)
+		err(1, "Could not open meta file '%s'", p_mname);
+
+	fprintf(fp, "# Meta data file %s\n", p_mname);
 
 	LST_FOREACH(ln, &gn->commands)
 		fprintf(fp, "CMD %s\n", Buf_Peel(Var_Subst(Lst_Datum(ln), gn, FALSE)));
@@ -682,7 +688,7 @@ meta_create(GNode *gn)
 
 	n_meta_created++;
 
-	Var_Append(".META_CREATED", fname, VAR_GLOBAL);
+	Var_Append(".META_CREATED", p_mname, VAR_GLOBAL);
 
 	return (fp);
 }
@@ -1280,6 +1286,26 @@ JobFinish(Job *job, int *status)
 				if (job->flags & JOB_IGNERR) {
 					*status = 0;
 				}
+#ifdef MAKE_IS_BUILD
+				else {
+					GNode *errornode = Targ_FindNode(".ERROR", TARG_NOCREATE);
+
+					if (errornode != NULL) {
+#ifndef BUILDMON
+						close(job->filemon_fd);
+						close(job->mon_fd);
+#endif
+						/* Process the build monitor file. */
+						buildmon_read(job->mfp, job->mon_fname);
+
+						Var_SetGlobal(".ERRORTGT", job->node->path);
+						Var_SetGlobal(".ERRORCWD", job->cwd);
+						Var_SetGlobal(".ERRORSEE", job->meta_fname);
+
+						JobStart(errornode, JOB_SPECIAL | JOB_IGNDOTS, NULL);
+					}
+				}
+#endif
 			}
 
 			fflush(out);
@@ -2074,7 +2100,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 			 */
 			numCommands = 0;
 #ifdef MAKE_IS_BUILD
-			job->mfp = meta_create(gn);
+			job->mfp = meta_create(gn, job->meta_fname, sizeof(job->meta_fname));
 #endif
 			LST_FOREACH(ln, &gn->commands) {
 				if (JobPrintCommand(Lst_Datum(ln), job))

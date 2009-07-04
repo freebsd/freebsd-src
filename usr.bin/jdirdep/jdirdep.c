@@ -382,17 +382,25 @@ static void
 parse_meta(const char *srctop, const char *thissrcrel, const char *objtop, const char *objroot,
     const char *sharedobj, const char *mname, struct march *march)
 {
-	FILE *fp;
 	FILE *fp1;
+	FILE *fp;
+	char *bufr;
+	char *p1;
+	char *p2;
+	char *p;
 	char fname[MAXPATHLEN];
 	char srcrel[MAXPATHLEN];
-	char tname[MAXPATHLEN];
 	char tname1[MAXPATHLEN];
 	char tname2[MAXPATHLEN];
+	char tname[MAXPATHLEN];
+	int f = 0;
+	int lineno = 0;
 	size_t l_objroot;
 	size_t l_objtop;
 	size_t l_sharedobj;
 	size_t l_srctop;
+	size_t len;
+	size_t s_bufr = 128 * 1024;
 	struct stat fs;
 
 	l_objroot = strlen(objroot);
@@ -401,18 +409,12 @@ parse_meta(const char *srctop, const char *thissrcrel, const char *objtop, const
 	l_srctop = strlen(srctop);
 
 	if ((fp = fopen(mname, "r")) != NULL) {
-		char *bufr;
-		char *p;
-		char *p1;
-		char *p2;
-		int f = 0;
-		size_t len;
-		size_t s_bufr = 128 * 1024;
-
 		if ((bufr = malloc(s_bufr)) == NULL)
 			err(1, "Cannot allocate memory for a read buffer");
 
 		while (fgets(bufr, s_bufr, fp) != NULL) {
+			lineno++;
+
 			/* Whack the trailing newline. */
 			bufr[strlen(bufr) - 1] = '\0';
 
@@ -441,7 +443,7 @@ parse_meta(const char *srctop, const char *thissrcrel, const char *objtop, const
 				case 'S':
 				case 'W':
 					/* Skip the pid. */
-					if (strsep(&p, " ") == NULL)
+					if (strsep(&p, " ") == NULL || p == NULL)
 						break;
 
 					if (*p != '/')
