@@ -1277,16 +1277,28 @@ void Parser::ParseConstructorInitializer(DeclPtrTy ConstructorDecl) {
 ///         '::'[opt] nested-name-specifier[opt] class-name
 ///         identifier
 Parser::MemInitResult Parser::ParseMemInitializer(DeclPtrTy ConstructorDecl) {
-  // FIXME: parse '::'[opt] nested-name-specifier[opt]
-
-  if (Tok.isNot(tok::identifier)) {
+  // parse '::'[opt] nested-name-specifier[opt]
+  CXXScopeSpec SS;
+  ParseOptionalCXXScopeSpecifier(SS);
+  TypeTy *TemplateTypeTy = 0;
+  if (Tok.is(tok::annot_template_id)) {
+    TemplateIdAnnotation *TemplateId
+      = static_cast<TemplateIdAnnotation *>(Tok.getAnnotationValue());
+    if (TemplateId->Kind == TNK_Type_template) {
+      AnnotateTemplateIdTokenAsType(&SS);
+      assert(Tok.is(tok::annot_typename) && "template-id -> type failed");
+      TemplateTypeTy = Tok.getAnnotationValue();
+    }
+    // FIXME. May need to check for TNK_Dependent_template as well.
+  }
+  if (!TemplateTypeTy && Tok.isNot(tok::identifier)) {
     Diag(Tok, diag::err_expected_member_or_base_name);
     return true;
   }
-
+  
   // Get the identifier. This may be a member name or a class name,
   // but we'll let the semantic analysis determine which it is.
-  IdentifierInfo *II = Tok.getIdentifierInfo();
+  IdentifierInfo *II = Tok.is(tok::identifier) ? Tok.getIdentifierInfo() : 0;
   SourceLocation IdLoc = ConsumeToken();
 
   // Parse the '('.
@@ -1306,7 +1318,8 @@ Parser::MemInitResult Parser::ParseMemInitializer(DeclPtrTy ConstructorDecl) {
 
   SourceLocation RParenLoc = MatchRHSPunctuation(tok::r_paren, LParenLoc);
 
-  return Actions.ActOnMemInitializer(ConstructorDecl, CurScope, II, IdLoc,
+  return Actions.ActOnMemInitializer(ConstructorDecl, CurScope, SS, II,
+                                     TemplateTypeTy, IdLoc,
                                      LParenLoc, ArgExprs.take(),
                                      ArgExprs.size(), CommaLocs.data(),
                                      RParenLoc);

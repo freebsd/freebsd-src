@@ -166,7 +166,7 @@ Sema::CheckFunctionCall(FunctionDecl *FDecl, CallExpr *TheCall) {
   // handlers.
 
   // Printf checking.
-  if (const FormatAttr *Format = FDecl->getAttr<FormatAttr>(Context)) {
+  if (const FormatAttr *Format = FDecl->getAttr<FormatAttr>()) {
     if (Format->getType() == "printf") {
       bool HasVAListArg = Format->getFirstArg() == 0;
       if (!HasVAListArg) {
@@ -178,7 +178,7 @@ Sema::CheckFunctionCall(FunctionDecl *FDecl, CallExpr *TheCall) {
                            HasVAListArg ? 0 : Format->getFirstArg() - 1);
     }
   }
-  for (const Attr *attr = FDecl->getAttrs(Context); 
+  for (const Attr *attr = FDecl->getAttrs(); 
        attr; attr = attr->getNext()) {
     if (const NonNullAttr *NonNull = dyn_cast<NonNullAttr>(attr))
       CheckNonNullArguments(NonNull, TheCall);
@@ -192,7 +192,7 @@ Sema::CheckBlockCall(NamedDecl *NDecl, CallExpr *TheCall) {
 
   OwningExprResult TheCallResult(Owned(TheCall));
   // Printf checking.
-  const FormatAttr *Format = NDecl->getAttr<FormatAttr>(Context);
+  const FormatAttr *Format = NDecl->getAttr<FormatAttr>();
   if (!Format)
     return move(TheCallResult);
   const VarDecl *V = dyn_cast<VarDecl>(NDecl);
@@ -717,8 +717,6 @@ bool Sema::SemaCheckStringLiteral(const Expr *E, const CallExpr *TheCall,
   if (E->isTypeDependent() || E->isValueDependent())
     return false;
 
-  E = E->IgnoreParenCasts();
-  
   switch (E->getStmtClass()) {
   case Stmt::ConditionalOperatorClass: {
     const ConditionalOperator *C = cast<ConditionalOperator>(E);
@@ -763,6 +761,28 @@ bool Sema::SemaCheckStringLiteral(const Expr *E, const CallExpr *TheCall,
           return SemaCheckStringLiteral(Init, TheCall,
                                         HasVAListArg, format_idx, firstDataArg);
       }
+      
+      // For vprintf* functions (i.e., HasVAListArg==true), we add a
+      // special check to see if the format string is a function parameter
+      // of the function calling the printf function.  If the function
+      // has an attribute indicating it is a printf-like function, then we
+      // should suppress warnings concerning non-literals being used in a call
+      // to a vprintf function.  For example:
+      //
+      // void
+      // logmessage(char const *fmt __attribute__ (format (printf, 1, 2)), ...){
+      //      va_list ap;
+      //      va_start(ap, fmt);
+      //      vprintf(fmt, ap);  // Do NOT emit a warning about "fmt".
+      //      ...
+      //
+      //
+      //  FIXME: We don't have full attribute support yet, so just check to see
+      //    if the argument is a DeclRefExpr that references a parameter.  We'll
+      //    add proper support for checking the attribute later.
+      if (HasVAListArg)
+        if (isa<ParmVarDecl>(VD))
+          return true;
     }
         
     return false;
@@ -774,7 +794,7 @@ bool Sema::SemaCheckStringLiteral(const Expr *E, const CallExpr *TheCall,
           = dyn_cast<ImplicitCastExpr>(CE->getCallee())) {
       if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(ICE->getSubExpr())) {
         if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(DRE->getDecl())) {
-          if (const FormatArgAttr *FA = FD->getAttr<FormatArgAttr>(Context)) {
+          if (const FormatArgAttr *FA = FD->getAttr<FormatArgAttr>()) {
             unsigned ArgIndex = FA->getFormatIdx();
             const Expr *Arg = CE->getArg(ArgIndex - 1);
             
@@ -900,29 +920,6 @@ Sema::CheckPrintfArguments(const CallExpr *TheCall, bool HasVAListArg,
   if (SemaCheckStringLiteral(OrigFormatExpr, TheCall, HasVAListArg, format_idx,
                              firstDataArg))
     return;  // Literal format string found, check done!
-
-  // For vprintf* functions (i.e., HasVAListArg==true), we add a
-  // special check to see if the format string is a function parameter
-  // of the function calling the printf function.  If the function
-  // has an attribute indicating it is a printf-like function, then we
-  // should suppress warnings concerning non-literals being used in a call
-  // to a vprintf function.  For example:
-  //
-  // void
-  // logmessage(char const *fmt __attribute__ (format (printf, 1, 2)), ...) {
-  //      va_list ap;
-  //      va_start(ap, fmt);
-  //      vprintf(fmt, ap);  // Do NOT emit a warning about "fmt".
-  //      ...
-  //
-  //
-  //  FIXME: We don't have full attribute support yet, so just check to see
-  //    if the argument is a DeclRefExpr that references a parameter.  We'll
-  //    add proper support for checking the attribute later.
-  if (HasVAListArg)
-    if (const DeclRefExpr *DR = dyn_cast<DeclRefExpr>(OrigFormatExpr))
-      if (isa<ParmVarDecl>(DR->getDecl()))
-        return;
 
   // If there are no arguments specified, warn with -Wformat-security, otherwise
   // warn only with -Wformat-nonliteral.

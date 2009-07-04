@@ -41,7 +41,7 @@ void Attr::Destroy(ASTContext &C) {
  
 
 TranslationUnitDecl *TranslationUnitDecl::Create(ASTContext &C) {
-  return new (C) TranslationUnitDecl();
+  return new (C) TranslationUnitDecl(C);
 }
 
 NamespaceDecl *NamespaceDecl::Create(ASTContext &C, DeclContext *DC,
@@ -226,8 +226,7 @@ std::string NamedDecl::getQualifiedNameAsString() const {
     if (const ClassTemplateSpecializationDecl *Spec 
           = dyn_cast<ClassTemplateSpecializationDecl>(Ctx)) {
       const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
-      PrintingPolicy Policy;
-      Policy.CPlusPlus = true;
+      PrintingPolicy Policy(getASTContext().getLangOptions());
       std::string TemplateArgsStr
         = TemplateSpecializationType::PrintTemplateArgumentList(
                                            TemplateArgs.getFlatArgumentList(),
@@ -372,20 +371,15 @@ void FunctionDecl::Destroy(ASTContext& C) {
 
   C.Deallocate(ParamInfo);
 
-  if (TemplateSpecializationInfo *Info 
-        = TemplateOrSpecialization.dyn_cast<TemplateSpecializationInfo*>())
-    C.Deallocate(Info);
-  
   Decl::Destroy(C);
 }
 
 
-Stmt *FunctionDecl::getBody(ASTContext &Context,
-                            const FunctionDecl *&Definition) const {
+Stmt *FunctionDecl::getBody(const FunctionDecl *&Definition) const {
   for (const FunctionDecl *FD = this; FD != 0; FD = FD->PreviousDeclaration) {
     if (FD->Body) {
       Definition = FD;
-      return FD->Body.get(Context.getExternalSource());
+      return FD->Body.get(getASTContext().getExternalSource());
     }
   }
 
@@ -417,14 +411,14 @@ bool FunctionDecl::isExternC(ASTContext &Context) const {
   // In C, any non-static, non-overloadable function has external
   // linkage.
   if (!Context.getLangOptions().CPlusPlus)
-    return getStorageClass() != Static && !getAttr<OverloadableAttr>(Context);
+    return getStorageClass() != Static && !getAttr<OverloadableAttr>();
 
   for (const DeclContext *DC = getDeclContext(); !DC->isTranslationUnit(); 
        DC = DC->getParent()) {
     if (const LinkageSpecDecl *Linkage = dyn_cast<LinkageSpecDecl>(DC))  {
       if (Linkage->getLanguage() == LinkageSpecDecl::lang_c)
         return getStorageClass() != Static && 
-               !getAttr<OverloadableAttr>(Context);
+               !getAttr<OverloadableAttr>();
 
       break;
     }
@@ -489,7 +483,7 @@ unsigned FunctionDecl::getBuiltinID(ASTContext &Context) const {
   if (isa<LinkageSpecDecl>(getDeclContext()) &&
       cast<LinkageSpecDecl>(getDeclContext())->getLanguage() 
         == LinkageSpecDecl::lang_c &&
-      !getAttr<OverloadableAttr>(Context))
+      !getAttr<OverloadableAttr>())
     return BuiltinID;
 
   // Not a builtin
@@ -540,12 +534,12 @@ unsigned FunctionDecl::getMinRequiredArguments() const {
 }
 
 bool FunctionDecl::hasActiveGNUInlineAttribute(ASTContext &Context) const {
-  if (!isInline() || !hasAttr<GNUInlineAttr>(Context))
+  if (!isInline() || !hasAttr<GNUInlineAttr>())
     return false;
 
   for (const FunctionDecl *FD = getPreviousDeclaration(); FD; 
        FD = FD->getPreviousDeclaration()) {
-    if (FD->isInline() && !FD->hasAttr<GNUInlineAttr>(Context))
+    if (FD->isInline() && !FD->hasAttr<GNUInlineAttr>())
       return false;
   }
 
@@ -557,10 +551,22 @@ bool FunctionDecl::isExternGNUInline(ASTContext &Context) const {
     return false;
 
   for (const FunctionDecl *FD = this; FD; FD = FD->getPreviousDeclaration())
-    if (FD->getStorageClass() == Extern && FD->hasAttr<GNUInlineAttr>(Context))
+    if (FD->getStorageClass() == Extern && FD->hasAttr<GNUInlineAttr>())
       return true;
 
   return false;
+}
+
+void 
+FunctionDecl::setPreviousDeclaration(FunctionDecl *PrevDecl) {
+  PreviousDeclaration = PrevDecl;
+  
+  if (FunctionTemplateDecl *FunTmpl = getDescribedFunctionTemplate()) {
+    FunctionTemplateDecl *PrevFunTmpl 
+      = PrevDecl? PrevDecl->getDescribedFunctionTemplate() : 0;
+    assert((!PrevDecl || PrevFunTmpl) && "Function/function template mismatch");
+    FunTmpl->setPreviousDeclaration(PrevFunTmpl);
+  }
 }
 
 /// getOverloadedOperator - Which C++ overloaded operator this
@@ -572,18 +578,64 @@ OverloadedOperatorKind FunctionDecl::getOverloadedOperator() const {
     return OO_None;
 }
 
+FunctionTemplateDecl *FunctionDecl::getPrimaryTemplate() const {
+  if (FunctionTemplateSpecializationInfo *Info 
+        = TemplateOrSpecialization
+            .dyn_cast<FunctionTemplateSpecializationInfo*>()) {
+    return Info->Template.getPointer();
+  }
+  return 0;
+}
+
+const TemplateArgumentList *
+FunctionDecl::getTemplateSpecializationArgs() const {
+  if (FunctionTemplateSpecializationInfo *Info 
+      = TemplateOrSpecialization
+      .dyn_cast<FunctionTemplateSpecializationInfo*>()) {
+    return Info->TemplateArguments;
+  }
+  return 0;
+}
+
 void 
 FunctionDecl::setFunctionTemplateSpecialization(ASTContext &Context,
                                                 FunctionTemplateDecl *Template,
-                                     const TemplateArgumentList *TemplateArgs) {
-  TemplateSpecializationInfo *Info 
-    = TemplateOrSpecialization.dyn_cast<TemplateSpecializationInfo*>();
+                                     const TemplateArgumentList *TemplateArgs,
+                                                void *InsertPos) {
+  FunctionTemplateSpecializationInfo *Info 
+    = TemplateOrSpecialization.dyn_cast<FunctionTemplateSpecializationInfo*>();
   if (!Info)
-    Info = new (Context) TemplateSpecializationInfo;
+    Info = new (Context) FunctionTemplateSpecializationInfo;
   
-  Info->Template = Template;
+  Info->Function = this;
+  Info->Template.setPointer(Template);
+  Info->Template.setInt(0); // Implicit instantiation, unless told otherwise
   Info->TemplateArguments = TemplateArgs;
   TemplateOrSpecialization = Info;
+  
+  // Insert this function template specialization into the set of known
+  // function template specialiations.
+  Template->getSpecializations().InsertNode(Info, InsertPos);
+}
+
+bool FunctionDecl::isExplicitSpecialization() const {
+  // FIXME: check this property for explicit specializations of member
+  // functions of class templates.
+  FunctionTemplateSpecializationInfo *Info 
+    = TemplateOrSpecialization.dyn_cast<FunctionTemplateSpecializationInfo*>();
+  if (!Info)
+    return false;
+  
+  return Info->isExplicitSpecialization();
+}
+
+void FunctionDecl::setExplicitSpecialization(bool ES) {
+  // FIXME: set this property for explicit specializations of member functions
+  // of class templates.
+  FunctionTemplateSpecializationInfo *Info 
+    = TemplateOrSpecialization.dyn_cast<FunctionTemplateSpecializationInfo*>();
+  if (Info)
+    Info->setExplicitSpecialization(ES);
 }
 
 //===----------------------------------------------------------------------===//

@@ -67,12 +67,17 @@ public:
                                           const void* SymbolTag = 0) {    
     return SymMgr.getConjuredSymbol(E, VisitCount, SymbolTag);
   }
-  
+
   /// makeZeroVal - Construct an SVal representing '0' for the specified type.
   SVal makeZeroVal(QualType T);
 
-  /// GetRegionValueSymbolVal - make a unique symbol for value of R.
-  SVal getRegionValueSymbolVal(const MemRegion* R, QualType T = QualType());
+  /// getRegionValueSymbolVal - make a unique symbol for value of R.
+  SVal getRegionValueSymbolVal(const MemRegion *R, QualType T = QualType());
+  
+  SVal getRegionValueSymbolValOrUnknown(const MemRegion *R, QualType T) {
+    return SymMgr.canSymbolicate(T) ? getRegionValueSymbolVal(R, T) 
+                                    : UnknownVal();    
+  }
   
   SVal getConjuredSymbolVal(const Expr *E, unsigned Count);  
   SVal getConjuredSymbolVal(const Expr* E, QualType T, unsigned Count);

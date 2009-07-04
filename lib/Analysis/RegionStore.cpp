@@ -347,9 +347,6 @@ public:
   
   // FIXME: Remove.
   ASTContext& getContext() { return StateMgr.getContext(); }
-
-  // FIXME: Use ValueManager?
-  SymbolManager& getSymbolManager() { return StateMgr.getSymbolManager(); }  
 };
 
 } // end anonymous namespace
@@ -822,12 +819,6 @@ SVal RegionStoreManager::Retrieve(const GRState *state, Loc L, QualType T) {
   const TypedRegion *R = cast<TypedRegion>(MR);
   assert(R && "bad region");
 
-  if (const FieldRegion* FR = dyn_cast<FieldRegion>(R))
-    return RetrieveField(state, FR);
-
-  if (const ElementRegion* ER = dyn_cast<ElementRegion>(R))
-    return RetrieveElement(state, ER);
-
   // FIXME: We should eventually handle funny addressing.  e.g.:
   //
   //   int x = ...;
@@ -848,6 +839,12 @@ SVal RegionStoreManager::Retrieve(const GRState *state, Loc L, QualType T) {
   // FIXME: handle Vector types.
   if (RTy->isVectorType())
       return UnknownVal();
+
+  if (const FieldRegion* FR = dyn_cast<FieldRegion>(R))
+    return RetrieveField(state, FR);
+
+  if (const ElementRegion* ER = dyn_cast<ElementRegion>(R))
+    return RetrieveElement(state, ER);
   
   RegionBindingsTy B = GetRegionBindings(state->getStore());
   RegionBindingsTy::data_type* V = B.lookup(R);
@@ -882,14 +879,8 @@ SVal RegionStoreManager::Retrieve(const GRState *state, Loc L, QualType T) {
     if (VD == SelfDecl)
       return loc::MemRegionVal(getSelfRegion(0));
     
-    if (isa<ParmVarDecl>(VD) || isa<ImplicitParamDecl>(VD) ||
-        VD->hasGlobalStorage()) {
-      QualType VTy = VD->getType();
-      if (Loc::IsLocType(VTy) || VTy->isIntegerType())
-        return ValMgr.getRegionValueSymbolVal(VR);
-      else
-        return UnknownVal();
-    }
+    if (VR->hasGlobalsOrParametersStorage())
+      return ValMgr.getRegionValueSymbolValOrUnknown(VR, VD->getType());
   }  
 
   if (R->hasHeapOrStackStorage()) {
@@ -907,23 +898,21 @@ SVal RegionStoreManager::Retrieve(const GRState *state, Loc L, QualType T) {
     RTy = T->getAsPointerType()->getPointeeType();
   }
 
-  // All other integer values are symbolic.
-  if (Loc::IsLocType(RTy) || RTy->isIntegerType())
-    return ValMgr.getRegionValueSymbolVal(R, RTy);
-  else
-    return UnknownVal();
+  // All other values are symbolic.
+  return ValMgr.getRegionValueSymbolValOrUnknown(R, RTy);
 }
 
 SVal RegionStoreManager::RetrieveElement(const GRState* state,
                                          const ElementRegion* R) {
   // Check if the region has a binding.
   RegionBindingsTy B = GetRegionBindings(state->getStore());
-  const SVal* V = B.lookup(R);
-  if (V)
+  if (const SVal* V = B.lookup(R))
     return *V;
 
+  const MemRegion* superR = R->getSuperRegion();
+
   // Check if the region is an element region of a string literal.
-  if (const StringRegion *StrR=dyn_cast<StringRegion>(R->getSuperRegion())) {
+  if (const StringRegion *StrR=dyn_cast<StringRegion>(superR)) {
     const StringLiteral *Str = StrR->getStringLiteral();
     SVal Idx = R->getIndex();
     if (nonloc::ConcreteInt *CI = dyn_cast<nonloc::ConcreteInt>(&Idx)) {
@@ -937,18 +926,38 @@ SVal RegionStoreManager::RetrieveElement(const GRState* state,
     }
   }
 
-  const MemRegion* SuperR = R->getSuperRegion();
-  const SVal* D = state->get<RegionDefaultValue>(SuperR);
-
-  if (D) {
+  // Check if the super region has a default value.
+  if (const SVal *D = state->get<RegionDefaultValue>(superR)) {
     if (D->hasConjuredSymbol())
       return ValMgr.getRegionValueSymbolVal(R);
     else
       return *D;
   }
 
-  if (R->hasHeapOrStackStorage())
+  // Check if the super region has a binding.
+  if (B.lookup(superR)) {
+    // We do not extract the bit value from super region for now.
+    return UnknownVal();
+  }
+  
+  if (R->hasHeapStorage()) {
+    // FIXME: If the region has heap storage and we know nothing special
+    // about its bindings, should we instead return UnknownVal?  Seems like
+    // we should only return UndefinedVal in the cases where we know the value
+    // will be undefined.
     return UndefinedVal();
+  }
+
+  if (R->hasStackStorage() && !R->hasParametersStorage()) {
+    // Currently we don't reason specially about Clang-style vectors.  Check
+    // if superR is a vector and if so return Unknown.
+    if (const TypedRegion *typedSuperR = dyn_cast<TypedRegion>(superR)) {
+      if (typedSuperR->getValueType(getContext())->isVectorType())
+        return UnknownVal();
+    }
+
+    return UndefinedVal();
+  }
 
   QualType Ty = R->getValueType(getContext());
 
@@ -957,10 +966,7 @@ SVal RegionStoreManager::RetrieveElement(const GRState* state,
   if (const QualType *p = state->get<RegionCasts>(R))
     Ty = (*p)->getAsPointerType()->getPointeeType();
 
-  if (Loc::IsLocType(Ty) || Ty->isIntegerType())
-    return ValMgr.getRegionValueSymbolVal(R, Ty);
-  else
-    return UnknownVal();
+  return ValMgr.getRegionValueSymbolValOrUnknown(R, Ty);
 }
 
 SVal RegionStoreManager::RetrieveField(const GRState* state, 
@@ -969,13 +975,11 @@ SVal RegionStoreManager::RetrieveField(const GRState* state,
 
   // Check if the region has a binding.
   RegionBindingsTy B = GetRegionBindings(state->getStore());
-  const SVal* V = B.lookup(R);
-  if (V)
+  if (const SVal* V = B.lookup(R))
     return *V;
 
-  const MemRegion* SuperR = R->getSuperRegion();
-  const SVal* D = state->get<RegionDefaultValue>(SuperR);
-  if (D) {
+  const MemRegion* superR = R->getSuperRegion();
+  if (const SVal* D = state->get<RegionDefaultValue>(superR)) {
     if (D->hasConjuredSymbol())
       return ValMgr.getRegionValueSymbolVal(R);
 
@@ -988,7 +992,11 @@ SVal RegionStoreManager::RetrieveField(const GRState* state,
     assert(0 && "Unknown default value");
   }
 
-  if (R->hasHeapOrStackStorage())
+  // FIXME: Is this correct?  Should it be UnknownVal?
+  if (R->hasHeapStorage())
+    return UndefinedVal();
+  
+  if (R->hasStackStorage() && !R->hasParametersStorage())
     return UndefinedVal();
 
   // If the region is already cast to another type, use that type to create the
@@ -998,11 +1006,8 @@ SVal RegionStoreManager::RetrieveField(const GRState* state,
     Ty = tmp->getAsPointerType()->getPointeeType();
   }
 
-  // All other integer values are symbolic.
-  if (Loc::IsLocType(Ty) || Ty->isIntegerType())
-    return ValMgr.getRegionValueSymbolVal(R, Ty);
-  else
-    return UnknownVal();
+  // All other values are symbolic.
+  return ValMgr.getRegionValueSymbolValOrUnknown(R, Ty);
 }
 
 SVal RegionStoreManager::RetrieveStruct(const GRState *state, 
@@ -1018,8 +1023,7 @@ SVal RegionStoreManager::RetrieveStruct(const GRState *state,
 
   // FIXME: We shouldn't use a std::vector.  If RecordDecl doesn't have a
   // reverse iterator, we should implement one.
-  std::vector<FieldDecl *> Fields(RD->field_begin(getContext()), 
-                                  RD->field_end(getContext()));
+  std::vector<FieldDecl *> Fields(RD->field_begin(), RD->field_end());
 
   for (std::vector<FieldDecl *>::reverse_iterator Field = Fields.rbegin(),
                                                FieldEnd = Fields.rend();
@@ -1074,6 +1078,9 @@ Store RegionStoreManager::Remove(Store store, Loc L) {
 }
 
 const GRState *RegionStoreManager::Bind(const GRState *state, Loc L, SVal V) {
+  if (isa<loc::ConcreteInt>(L))
+    return state;
+
   // If we get here, the location should be a region.
   const MemRegion* R = cast<loc::MemRegionVal>(L).getRegion();
   
@@ -1204,8 +1211,7 @@ RegionStoreManager::BindStruct(const GRState *state, const TypedRegion* R,
 
   RecordDecl::field_iterator FI, FE;
 
-  for (FI = RD->field_begin(getContext()), FE = RD->field_end(getContext());
-       FI != FE; ++FI, ++VI) {
+  for (FI = RD->field_begin(), FE = RD->field_end(); FI != FE; ++FI, ++VI) {
 
     if (VI == VE)
       break;
@@ -1357,8 +1363,9 @@ Store RegionStoreManager::RemoveDeadBindings(const GRState *state, Stmt* Loc,
     IntermediateRoots.pop_back();
     
     if (const VarRegion* VR = dyn_cast<VarRegion>(R)) {
-      if (SymReaper.isLive(Loc, VR->getDecl()))
+      if (SymReaper.isLive(Loc, VR->getDecl())) {
         RegionRoots.push_back(VR); // This is a live "root".
+      }
     } 
     else if (const SymbolicRegion* SR = dyn_cast<SymbolicRegion>(R)) {
       if (SymReaper.isLive(SR->getSymbol()))
@@ -1366,19 +1373,19 @@ Store RegionStoreManager::RemoveDeadBindings(const GRState *state, Stmt* Loc,
     }
     else {
       // Get the super region for R.
-      const MemRegion* SuperR = cast<SubRegion>(R)->getSuperRegion();
+      const MemRegion* superR = cast<SubRegion>(R)->getSuperRegion();
       
       // Get the current set of subregions for SuperR.
-      const SubRegionsTy* SRptr = SubRegMap.lookup(SuperR);
+      const SubRegionsTy* SRptr = SubRegMap.lookup(superR);
       SubRegionsTy SRs = SRptr ? *SRptr : SubRegF.GetEmptySet();
       
       // Add R to the subregions of SuperR.
-      SubRegMap = SubRegMapF.Add(SubRegMap, SuperR, SubRegF.Add(SRs, R));
+      SubRegMap = SubRegMapF.Add(SubRegMap, superR, SubRegF.Add(SRs, R));
       
       // Super region may be VarRegion or subregion of another VarRegion. Add it
       // to the work list.
-      if (isa<SubRegion>(SuperR))
-        IntermediateRoots.push_back(SuperR);
+      if (isa<SubRegion>(superR))
+        IntermediateRoots.push_back(superR);
     }
   }
   
@@ -1409,9 +1416,19 @@ Store RegionStoreManager::RemoveDeadBindings(const GRState *state, Stmt* Loc,
       SVal X = *Xptr;
       UpdateLiveSymbols(X, SymReaper); // Update the set of live symbols.
       
-      // If X is a region, then add it the RegionRoots.
-      if (loc::MemRegionVal* RegionX = dyn_cast<loc::MemRegionVal>(&X))
-        RegionRoots.push_back(RegionX->getRegion());
+      // If X is a region, then add it to the RegionRoots.
+      if (const MemRegion *RX = X.getAsRegion()) {
+        RegionRoots.push_back(RX);
+
+        // Mark the super region of the RX as live.
+        // e.g.: int x; char *y = (char*) &x; if (*y) ... 
+        // 'y' => element region. 'x' is its super region.
+        // We only add one level super region for now.
+        // FIXME: maybe multiple level of super regions should be added.
+        if (const SubRegion *SR = dyn_cast<SubRegion>(RX)) {
+          RegionRoots.push_back(SR->getSuperRegion());
+        }
+      }
     }
     
     // Get the subregions of R.  These are RegionRoots as well since they
@@ -1422,6 +1439,7 @@ Store RegionStoreManager::RemoveDeadBindings(const GRState *state, Stmt* Loc,
     
     for (SubRegionsTy::iterator I=SR.begin(), E=SR.end(); I!=E; ++I)
       RegionRoots.push_back(*I);
+
   }
   
   // We have now scanned the store, marking reachable regions and symbols
@@ -1429,7 +1447,6 @@ Store RegionStoreManager::RemoveDeadBindings(const GRState *state, Stmt* Loc,
   // as well as update DSymbols with the set symbols that are now dead.  
   for (RegionBindingsTy::iterator I = B.begin(), E = B.end(); I != E; ++I) {
     const MemRegion* R = I.getKey();
-    
     // If this region live?  Is so, none of its symbols are dead.
     if (Marked.count(R))
       continue;

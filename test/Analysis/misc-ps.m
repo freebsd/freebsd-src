@@ -1,8 +1,7 @@
 // RUN: clang-cc -analyze -checker-cfref --analyzer-store=basic -analyzer-constraints=basic --verify -fblocks %s &&
-// RUN: clang-cc -analyze -checker-cfref --analyzer-store=basic -analyzer-constraints=range --verify -fblocks %s
-
-// NOWORK: clang-cc -analyze -checker-cfref --analyzer-store=region -analyzer-constraints=basic --verify -fblocks %s &&
-// NOWORK: clang-cc -analyze -checker-cfref --analyzer-store=region -analyzer-constraints=range --verify -fblocks %s
+// RUN: clang-cc -analyze -checker-cfref --analyzer-store=basic -analyzer-constraints=range --verify -fblocks %s &&
+// RUN: clang-cc -analyze -checker-cfref --analyzer-store=region -analyzer-constraints=basic --verify -fblocks %s &&
+// RUN: clang-cc -analyze -checker-cfref --analyzer-store=region -analyzer-constraints=range --verify -fblocks %s
 
 typedef struct objc_selector *SEL;
 typedef signed char BOOL;
@@ -284,4 +283,16 @@ int test_invalidate_by_ref() {
     return 1;
   return 0;  
 }
+
+// Test for <rdar://problem/7027684>.  This just tests that the CFG is
+// constructed correctly.  Previously, the successor block of the entrance
+// was the block containing the merge for '?', which would trigger an
+// assertion failure.
+int rdar_7027684_aux();
+int rdar_7027684_aux_2() __attribute__((noreturn));
+void rdar_7027684(int x, int y) {
+  {}; // this empty compound statement is critical.
+  (rdar_7027684_aux() ? rdar_7027684_aux_2() : (void) 0);
+}
+
 

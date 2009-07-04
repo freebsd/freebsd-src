@@ -171,7 +171,7 @@ namespace {
       // Get the new text.
       std::string SStr;
       llvm::raw_string_ostream S(SStr);
-      New->printPretty(S, *Context);
+      New->printPretty(S, *Context, 0, PrintingPolicy(LangOpts));
       const std::string &Str = S.str();
 
       // If replacement succeeded or warning disabled return with no warning.
@@ -597,8 +597,8 @@ void RewriteObjC::HandleTopLevelSingleDecl(Decl *D) {
     RewriteForwardProtocolDecl(FP);
   } else if (LinkageSpecDecl *LSD = dyn_cast<LinkageSpecDecl>(D)) {
     // Recurse into linkage specifications
-    for (DeclContext::decl_iterator DI = LSD->decls_begin(*Context),
-                                 DIEnd = LSD->decls_end(*Context);
+    for (DeclContext::decl_iterator DI = LSD->decls_begin(),
+                                 DIEnd = LSD->decls_end();
          DI != DIEnd; ++DI)
       HandleTopLevelSingleDecl(*DI);
   }
@@ -789,13 +789,11 @@ void RewriteObjC::RewriteCategoryDecl(ObjCCategoryDecl *CatDecl) {
   ReplaceText(LocStart, 0, "// ", 3);
   
   for (ObjCCategoryDecl::instmeth_iterator 
-         I = CatDecl->instmeth_begin(*Context), 
-         E = CatDecl->instmeth_end(*Context); 
+         I = CatDecl->instmeth_begin(), E = CatDecl->instmeth_end(); 
        I != E; ++I)
     RewriteMethodDeclaration(*I);
   for (ObjCCategoryDecl::classmeth_iterator 
-         I = CatDecl->classmeth_begin(*Context), 
-         E = CatDecl->classmeth_end(*Context);
+         I = CatDecl->classmeth_begin(), E = CatDecl->classmeth_end();
        I != E; ++I)
     RewriteMethodDeclaration(*I);
 
@@ -812,13 +810,11 @@ void RewriteObjC::RewriteProtocolDecl(ObjCProtocolDecl *PDecl) {
   ReplaceText(LocStart, 0, "// ", 3);
   
   for (ObjCProtocolDecl::instmeth_iterator 
-         I = PDecl->instmeth_begin(*Context), 
-         E = PDecl->instmeth_end(*Context); 
+         I = PDecl->instmeth_begin(), E = PDecl->instmeth_end(); 
        I != E; ++I)
     RewriteMethodDeclaration(*I);
   for (ObjCProtocolDecl::classmeth_iterator
-         I = PDecl->classmeth_begin(*Context), 
-         E = PDecl->classmeth_end(*Context);
+         I = PDecl->classmeth_begin(), E = PDecl->classmeth_end();
        I != E; ++I)
     RewriteMethodDeclaration(*I);
 
@@ -986,14 +982,14 @@ void RewriteObjC::RewriteImplementationDecl(Decl *OID) {
     InsertText(CID->getLocStart(), "// ", 3);
       
   for (ObjCCategoryImplDecl::instmeth_iterator
-       I = IMD ? IMD->instmeth_begin(*Context) : CID->instmeth_begin(*Context),
-       E = IMD ? IMD->instmeth_end(*Context) : CID->instmeth_end(*Context);
+       I = IMD ? IMD->instmeth_begin() : CID->instmeth_begin(),
+       E = IMD ? IMD->instmeth_end() : CID->instmeth_end();
        I != E; ++I) {
     std::string ResultStr;
     ObjCMethodDecl *OMD = *I;
     RewriteObjCMethodDecl(OMD, ResultStr);
     SourceLocation LocStart = OMD->getLocStart();
-    SourceLocation LocEnd = OMD->getCompoundBody(*Context)->getLocStart();
+    SourceLocation LocEnd = OMD->getCompoundBody()->getLocStart();
 
     const char *startBuf = SM->getCharacterData(LocStart);
     const char *endBuf = SM->getCharacterData(LocEnd);
@@ -1002,14 +998,14 @@ void RewriteObjC::RewriteImplementationDecl(Decl *OID) {
   }
   
   for (ObjCCategoryImplDecl::classmeth_iterator
-       I = IMD ? IMD->classmeth_begin(*Context) : CID->classmeth_begin(*Context),
-       E = IMD ? IMD->classmeth_end(*Context) : CID->classmeth_end(*Context);
+       I = IMD ? IMD->classmeth_begin() : CID->classmeth_begin(),
+       E = IMD ? IMD->classmeth_end() : CID->classmeth_end();
        I != E; ++I) {
     std::string ResultStr;
     ObjCMethodDecl *OMD = *I;
     RewriteObjCMethodDecl(OMD, ResultStr);
     SourceLocation LocStart = OMD->getLocStart();
-    SourceLocation LocEnd = OMD->getCompoundBody(*Context)->getLocStart();
+    SourceLocation LocEnd = OMD->getCompoundBody()->getLocStart();
     
     const char *startBuf = SM->getCharacterData(LocStart);
     const char *endBuf = SM->getCharacterData(LocEnd);
@@ -1017,8 +1013,8 @@ void RewriteObjC::RewriteImplementationDecl(Decl *OID) {
                 ResultStr.c_str(), ResultStr.size());    
   }
   for (ObjCCategoryImplDecl::propimpl_iterator
-       I = IMD ? IMD->propimpl_begin(*Context) : CID->propimpl_begin(*Context),
-       E = IMD ? IMD->propimpl_end(*Context) : CID->propimpl_end(*Context); 
+       I = IMD ? IMD->propimpl_begin() : CID->propimpl_begin(),
+       E = IMD ? IMD->propimpl_end() : CID->propimpl_end(); 
        I != E; ++I) {
     RewritePropertyImplDecl(*I, IMD, CID);
   }
@@ -1047,17 +1043,15 @@ void RewriteObjC::RewriteInterfaceDecl(ObjCInterfaceDecl *ClassDecl) {
   }
   SynthesizeObjCInternalStruct(ClassDecl, ResultStr);
     
-  for (ObjCInterfaceDecl::prop_iterator I = ClassDecl->prop_begin(*Context), 
-         E = ClassDecl->prop_end(*Context); I != E; ++I)
+  for (ObjCInterfaceDecl::prop_iterator I = ClassDecl->prop_begin(), 
+         E = ClassDecl->prop_end(); I != E; ++I)
     RewriteProperty(*I);
   for (ObjCInterfaceDecl::instmeth_iterator 
-         I = ClassDecl->instmeth_begin(*Context), 
-         E = ClassDecl->instmeth_end(*Context);
+         I = ClassDecl->instmeth_begin(), E = ClassDecl->instmeth_end();
        I != E; ++I)
     RewriteMethodDeclaration(*I);
   for (ObjCInterfaceDecl::classmeth_iterator 
-         I = ClassDecl->classmeth_begin(*Context), 
-         E = ClassDecl->classmeth_end(*Context); 
+         I = ClassDecl->classmeth_begin(), E = ClassDecl->classmeth_end(); 
        I != E; ++I)
     RewriteMethodDeclaration(*I);
 
@@ -1149,8 +1143,7 @@ Stmt *RewriteObjC::RewriteObjCIvarRefExpr(ObjCIvarRefExpr *IV,
         dyn_cast<ObjCInterfaceType>(pType->getPointeeType());
       // lookup which class implements the instance variable.
       ObjCInterfaceDecl *clsDeclared = 0;
-      iFaceDecl->getDecl()->lookupInstanceVariable(*Context, 
-                                                   D->getIdentifier(), 
+      iFaceDecl->getDecl()->lookupInstanceVariable(D->getIdentifier(), 
                                                    clsDeclared);
       assert(clsDeclared && "RewriteObjCIvarRefExpr(): Can't find class");
       
@@ -1195,8 +1188,7 @@ Stmt *RewriteObjC::RewriteObjCIvarRefExpr(ObjCIvarRefExpr *IV,
       ObjCInterfaceType *iFaceDecl = dyn_cast<ObjCInterfaceType>(pType->getPointeeType());
       // lookup which class implements the instance variable.
       ObjCInterfaceDecl *clsDeclared = 0;
-      iFaceDecl->getDecl()->lookupInstanceVariable(*Context, 
-                                                   D->getIdentifier(), 
+      iFaceDecl->getDecl()->lookupInstanceVariable(D->getIdentifier(), 
                                                    clsDeclared);
       assert(clsDeclared && "RewriteObjCIvarRefExpr(): Can't find class");
       
@@ -1514,7 +1506,8 @@ Stmt *RewriteObjC::RewriteObjCSynchronizedStmt(ObjCAtSynchronizedStmt *S) {
                                                 SourceLocation());
   std::string syncExprBufS;
   llvm::raw_string_ostream syncExprBuf(syncExprBufS);
-  syncExpr->printPretty(syncExprBuf, *Context);
+  syncExpr->printPretty(syncExprBuf, *Context, 0,
+                        PrintingPolicy(LangOpts));
   buf += syncExprBuf.str();
   buf += ");\n";
   buf += "  if (_rethrow) objc_exception_throw(_rethrow);\n";
@@ -2143,7 +2136,8 @@ Stmt *RewriteObjC::RewriteObjCStringLiteral(ObjCStringLiteral *Exp) {
   // The pretty printer for StringLiteral handles escape characters properly.
   std::string prettyBufS;
   llvm::raw_string_ostream prettyBuf(prettyBufS);
-  Exp->getString()->printPretty(prettyBuf, *Context);
+  Exp->getString()->printPretty(prettyBuf, *Context, 0,
+                                PrintingPolicy(LangOpts));
   Preamble += prettyBuf.str();
   Preamble += ",";
   // The minus 2 removes the begin/end double quotes.
@@ -2192,8 +2186,7 @@ QualType RewriteObjC::getSuperStructType() {
 
     // Create fields
     for (unsigned i = 0; i < 2; ++i) {
-      SuperStructDecl->addDecl(*Context,
-                               FieldDecl::Create(*Context, SuperStructDecl, 
+      SuperStructDecl->addDecl(FieldDecl::Create(*Context, SuperStructDecl, 
                                                  SourceLocation(), 0, 
                                                  FieldTypes[i], /*BitWidth=*/0,
                                                  /*Mutable=*/false));
@@ -2222,8 +2215,7 @@ QualType RewriteObjC::getConstantStringStructType() {
 
     // Create fields
     for (unsigned i = 0; i < 4; ++i) {
-      ConstantStringDecl->addDecl(*Context,
-                                  FieldDecl::Create(*Context, 
+      ConstantStringDecl->addDecl(FieldDecl::Create(*Context, 
                                                     ConstantStringDecl, 
                                                     SourceLocation(), 0,
                                                     FieldTypes[i], 
@@ -2889,9 +2881,9 @@ RewriteObjCProtocolMetaData(ObjCProtocolDecl *PDecl, const char *prefix,
   if (ObjCSynthesizedProtocols.count(PDecl))
     return;
          
-    if (PDecl->instmeth_begin(*Context) != PDecl->instmeth_end(*Context)) {
-      unsigned NumMethods = std::distance(PDecl->instmeth_begin(*Context),
-                                          PDecl->instmeth_end(*Context));
+    if (PDecl->instmeth_begin() != PDecl->instmeth_end()) {
+      unsigned NumMethods = std::distance(PDecl->instmeth_begin(),
+                                          PDecl->instmeth_end());
     /* struct _objc_protocol_method_list {
      int protocol_method_count;
      struct protocol_methods protocols[];
@@ -2908,10 +2900,9 @@ RewriteObjCProtocolMetaData(ObjCProtocolDecl *PDecl, const char *prefix,
     
     // Output instance methods declared in this protocol.
     for (ObjCProtocolDecl::instmeth_iterator 
-           I = PDecl->instmeth_begin(*Context), 
-           E = PDecl->instmeth_end(*Context); 
+           I = PDecl->instmeth_begin(), E = PDecl->instmeth_end(); 
          I != E; ++I) {
-      if (I == PDecl->instmeth_begin(*Context))
+      if (I == PDecl->instmeth_begin())
         Result += "\t  ,{{(struct objc_selector *)\"";
       else
         Result += "\t  ,{(struct objc_selector *)\"";
@@ -2926,8 +2917,8 @@ RewriteObjCProtocolMetaData(ObjCProtocolDecl *PDecl, const char *prefix,
   }
   
   // Output class methods declared in this protocol.
-  unsigned NumMethods = std::distance(PDecl->classmeth_begin(*Context),
-                                      PDecl->classmeth_end(*Context));
+  unsigned NumMethods = std::distance(PDecl->classmeth_begin(),
+                                      PDecl->classmeth_end());
   if (NumMethods > 0) {
     /* struct _objc_protocol_method_list {
      int protocol_method_count;
@@ -2947,10 +2938,9 @@ RewriteObjCProtocolMetaData(ObjCProtocolDecl *PDecl, const char *prefix,
     
     // Output instance methods declared in this protocol.
     for (ObjCProtocolDecl::classmeth_iterator 
-           I = PDecl->classmeth_begin(*Context), 
-           E = PDecl->classmeth_end(*Context);
+           I = PDecl->classmeth_begin(), E = PDecl->classmeth_end();
          I != E; ++I) {
-      if (I == PDecl->classmeth_begin(*Context))
+      if (I == PDecl->classmeth_begin())
         Result += "\t  ,{{(struct objc_selector *)\"";
       else
         Result += "\t  ,{(struct objc_selector *)\"";
@@ -2993,14 +2983,14 @@ RewriteObjCProtocolMetaData(ObjCProtocolDecl *PDecl, const char *prefix,
     "{\n\t0, \"";
   Result += PDecl->getNameAsString();
   Result += "\", 0, ";
-  if (PDecl->instmeth_begin(*Context) != PDecl->instmeth_end(*Context)) {
+  if (PDecl->instmeth_begin() != PDecl->instmeth_end()) {
     Result += "(struct _objc_protocol_method_list *)&_OBJC_PROTOCOL_INSTANCE_METHODS_";
     Result += PDecl->getNameAsString();
     Result += ", ";
   }
   else
     Result += "0, ";
-  if (PDecl->classmeth_begin(*Context) != PDecl->classmeth_end(*Context)) {
+  if (PDecl->classmeth_begin() != PDecl->classmeth_end()) {
     Result += "(struct _objc_protocol_method_list *)&_OBJC_PROTOCOL_CLASS_METHODS_";
     Result += PDecl->getNameAsString();
     Result += "\n";
@@ -3076,13 +3066,12 @@ void RewriteObjC::RewriteObjCCategoryImplDecl(ObjCCategoryImplDecl *IDecl,
     
   // Build _objc_method_list for class's instance methods if needed
   llvm::SmallVector<ObjCMethodDecl *, 32> 
-    InstanceMethods(IDecl->instmeth_begin(*Context),
-                    IDecl->instmeth_end(*Context));
+    InstanceMethods(IDecl->instmeth_begin(), IDecl->instmeth_end());
 
   // If any of our property implementations have associated getters or
   // setters, produce metadata for them as well.
-  for (ObjCImplDecl::propimpl_iterator Prop = IDecl->propimpl_begin(*Context),
-         PropEnd = IDecl->propimpl_end(*Context);
+  for (ObjCImplDecl::propimpl_iterator Prop = IDecl->propimpl_begin(),
+         PropEnd = IDecl->propimpl_end();
        Prop != PropEnd; ++Prop) {
     if ((*Prop)->getPropertyImplementation() == ObjCPropertyImplDecl::Dynamic)
       continue;
@@ -3103,8 +3092,7 @@ void RewriteObjC::RewriteObjCCategoryImplDecl(ObjCCategoryImplDecl *IDecl,
                              Result);
   
   // Build _objc_method_list for class's class methods if needed
-  RewriteObjCMethodsMetaData(IDecl->classmeth_begin(*Context),
-                             IDecl->classmeth_end(*Context),
+  RewriteObjCMethodsMetaData(IDecl->classmeth_begin(), IDecl->classmeth_end(),
                              false, "CATEGORY_", FullCategoryName.c_str(),
                              Result);
   
@@ -3147,7 +3135,7 @@ void RewriteObjC::RewriteObjCCategoryImplDecl(ObjCCategoryImplDecl *IDecl,
   Result += ClassDecl->getNameAsString();
   Result += "\"\n";
   
-  if (IDecl->instmeth_begin(*Context) != IDecl->instmeth_end(*Context)) {
+  if (IDecl->instmeth_begin() != IDecl->instmeth_end()) {
     Result += "\t, (struct _objc_method_list *)"
            "&_OBJC_CATEGORY_INSTANCE_METHODS_";
     Result += FullCategoryName;
@@ -3155,7 +3143,7 @@ void RewriteObjC::RewriteObjCCategoryImplDecl(ObjCCategoryImplDecl *IDecl,
   }
   else
     Result += "\t, 0\n";
-  if (IDecl->classmeth_begin(*Context) != IDecl->classmeth_end(*Context)) {
+  if (IDecl->classmeth_begin() != IDecl->classmeth_end()) {
     Result += "\t, (struct _objc_method_list *)"
            "&_OBJC_CATEGORY_CLASS_METHODS_";
     Result += FullCategoryName;
@@ -3210,8 +3198,8 @@ void RewriteObjC::RewriteObjCClassMetaData(ObjCImplementationDecl *IDecl,
   }
   
   // Build _objc_ivar_list metadata for classes ivars if needed
-  unsigned NumIvars = !IDecl->ivar_empty(*Context)
-                      ? IDecl->ivar_size(*Context) 
+  unsigned NumIvars = !IDecl->ivar_empty()
+                      ? IDecl->ivar_size() 
                       : (CDecl ? CDecl->ivar_size() : 0);
   if (NumIvars > 0) {
     static bool objc_ivar = false;
@@ -3249,10 +3237,9 @@ void RewriteObjC::RewriteObjCClassMetaData(ObjCImplementationDecl *IDecl,
     
     ObjCInterfaceDecl::ivar_iterator IVI, IVE;
     llvm::SmallVector<ObjCIvarDecl *, 8> IVars;
-    if (!IDecl->ivar_empty(*Context)) {
+    if (!IDecl->ivar_empty()) {
       for (ObjCImplementationDecl::ivar_iterator 
-             IV = IDecl->ivar_begin(*Context),
-             IVEnd = IDecl->ivar_end(*Context);
+             IV = IDecl->ivar_begin(), IVEnd = IDecl->ivar_end();
            IV != IVEnd; ++IV)
         IVars.push_back(*IV);
       IVI = IVars.begin();
@@ -3289,13 +3276,12 @@ void RewriteObjC::RewriteObjCClassMetaData(ObjCImplementationDecl *IDecl,
   
   // Build _objc_method_list for class's instance methods if needed
   llvm::SmallVector<ObjCMethodDecl *, 32> 
-    InstanceMethods(IDecl->instmeth_begin(*Context),
-                    IDecl->instmeth_end(*Context));
+    InstanceMethods(IDecl->instmeth_begin(), IDecl->instmeth_end());
 
   // If any of our property implementations have associated getters or
   // setters, produce metadata for them as well.
-  for (ObjCImplDecl::propimpl_iterator Prop = IDecl->propimpl_begin(*Context),
-         PropEnd = IDecl->propimpl_end(*Context);
+  for (ObjCImplDecl::propimpl_iterator Prop = IDecl->propimpl_begin(),
+         PropEnd = IDecl->propimpl_end();
        Prop != PropEnd; ++Prop) {
     if ((*Prop)->getPropertyImplementation() == ObjCPropertyImplDecl::Dynamic)
       continue;
@@ -3315,8 +3301,7 @@ void RewriteObjC::RewriteObjCClassMetaData(ObjCImplementationDecl *IDecl,
                              true, "", IDecl->getNameAsCString(), Result);
   
   // Build _objc_method_list for class's class methods if needed
-  RewriteObjCMethodsMetaData(IDecl->classmeth_begin(*Context), 
-                             IDecl->classmeth_end(*Context),
+  RewriteObjCMethodsMetaData(IDecl->classmeth_begin(), IDecl->classmeth_end(),
                              false, "", IDecl->getNameAsCString(), Result);
     
   // Protocols referenced in class declaration?
@@ -3389,7 +3374,7 @@ void RewriteObjC::RewriteObjCClassMetaData(ObjCImplementationDecl *IDecl,
   // Set 'ivars' field for root class to 0. ObjC1 runtime does not use it.
   // 'info' field is initialized to CLS_META(2) for metaclass
   Result += ", 0,2, sizeof(struct _objc_class), 0";
-  if (IDecl->classmeth_begin(*Context) != IDecl->classmeth_end(*Context)) {
+  if (IDecl->classmeth_begin() != IDecl->classmeth_end()) {
     Result += "\n\t, (struct _objc_method_list *)&_OBJC_CLASS_METHODS_";
     Result += IDecl->getNameAsString();
     Result += "\n"; 
@@ -3442,7 +3427,7 @@ void RewriteObjC::RewriteObjCClassMetaData(ObjCImplementationDecl *IDecl,
   }
   else
     Result += ",0";
-  if (IDecl->instmeth_begin(*Context) != IDecl->instmeth_end(*Context)) {
+  if (IDecl->instmeth_begin() != IDecl->instmeth_end()) {
     Result += ", (struct _objc_method_list *)&_OBJC_INSTANCE_METHODS_";
     Result += CDecl->getNameAsString();
     Result += ", 0\n\t"; 
@@ -4552,7 +4537,7 @@ void RewriteObjC::HandleDeclInMainFile(Decl *D) {
     RewriteBlocksInFunctionProtoType(FD->getType(), FD);
 
     // FIXME: If this should support Obj-C++, support CXXTryStmt
-    if (CompoundStmt *Body = FD->getCompoundBody(*Context)) {
+    if (CompoundStmt *Body = FD->getCompoundBody()) {
       CurFunctionDef = FD;
       CollectPropertySetters(Body);
       CurrentBody = Body;
@@ -4572,7 +4557,7 @@ void RewriteObjC::HandleDeclInMainFile(Decl *D) {
     return;
   }
   if (ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
-    if (CompoundStmt *Body = MD->getBody()) {
+    if (CompoundStmt *Body = MD->getCompoundBody()) {
       CurMethodDef = MD;
       CollectPropertySetters(Body);
       CurrentBody = Body;
@@ -4636,8 +4621,8 @@ void RewriteObjC::HandleDeclInMainFile(Decl *D) {
   }
   if (RecordDecl *RD = dyn_cast<RecordDecl>(D)) {
     if (RD->isDefinition()) {
-      for (RecordDecl::field_iterator i = RD->field_begin(*Context), 
-             e = RD->field_end(*Context); i != e; ++i) {
+      for (RecordDecl::field_iterator i = RD->field_begin(), 
+             e = RD->field_end(); i != e; ++i) {
         FieldDecl *FD = *i;
         if (isTopLevelBlockPointerType(FD->getType()))
           RewriteBlockPointerDecl(FD);

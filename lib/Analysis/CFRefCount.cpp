@@ -156,13 +156,13 @@ static bool followsFundamentalRule(Selector S) {
 }
 
 static const ObjCMethodDecl*
-ResolveToInterfaceMethodDecl(const ObjCMethodDecl *MD, ASTContext &Context) {  
+ResolveToInterfaceMethodDecl(const ObjCMethodDecl *MD) {  
   ObjCInterfaceDecl *ID =
     const_cast<ObjCInterfaceDecl*>(MD->getClassInterface());
   
   return MD->isInstanceMethod()
-         ? ID->lookupInstanceMethod(Context, MD->getSelector())
-         : ID->lookupClassMethod(Context, MD->getSelector());
+         ? ID->lookupInstanceMethod(MD->getSelector())
+         : ID->lookupClassMethod(MD->getSelector());
 }
 
 namespace {
@@ -827,8 +827,7 @@ public:
     QualType ResultTy = MD->getResultType();
     
     // Resolve the method decl last.    
-    if (const ObjCMethodDecl *InterfaceMD =
-        ResolveToInterfaceMethodDecl(MD, Ctx))
+    if (const ObjCMethodDecl *InterfaceMD = ResolveToInterfaceMethodDecl(MD))
       MD = InterfaceMD;
     
     if (MD->isInstanceMethod())
@@ -1248,15 +1247,15 @@ RetainSummaryManager::updateSummaryFromAnnotations(RetainSummary &Summ,
   
   // Determine if there is a special return effect for this method.
   if (isTrackedObjCObjectType(RetTy)) {
-    if (FD->getAttr<NSReturnsRetainedAttr>(Ctx)) {
+    if (FD->getAttr<NSReturnsRetainedAttr>()) {
       Summ.setRetEffect(ObjCAllocRetE);
     }
-    else if (FD->getAttr<CFReturnsRetainedAttr>(Ctx)) {
+    else if (FD->getAttr<CFReturnsRetainedAttr>()) {
       Summ.setRetEffect(RetEffect::MakeOwned(RetEffect::CF, true));
     }
   }
   else if (RetTy->getAsPointerType()) {
-    if (FD->getAttr<CFReturnsRetainedAttr>(Ctx)) {
+    if (FD->getAttr<CFReturnsRetainedAttr>()) {
       Summ.setRetEffect(RetEffect::MakeOwned(RetEffect::CF, true));
     }
   }
@@ -1270,10 +1269,10 @@ RetainSummaryManager::updateSummaryFromAnnotations(RetainSummary &Summ,
 
   // Determine if there is a special return effect for this method.
   if (isTrackedObjCObjectType(MD->getResultType())) {
-    if (MD->getAttr<NSReturnsRetainedAttr>(Ctx)) {
+    if (MD->getAttr<NSReturnsRetainedAttr>()) {
       Summ.setRetEffect(ObjCAllocRetE);
     }
-    else if (MD->getAttr<CFReturnsRetainedAttr>(Ctx)) {
+    else if (MD->getAttr<CFReturnsRetainedAttr>()) {
       Summ.setRetEffect(RetEffect::MakeOwned(RetEffect::CF, true));
     }
   }
@@ -2632,7 +2631,7 @@ CFRefLeakReport::getEndPath(BugReporterContext& BRC,
   
   if (!L.isValid()) {
     const Decl &D = BRC.getCodeDecl();
-    L = PathDiagnosticLocation(D.getBodyRBrace(BRC.getASTContext()), SMgr);
+    L = PathDiagnosticLocation(D.getBodyRBrace(), SMgr);
   }
   
   std::string sbuf;
@@ -2796,7 +2795,7 @@ void CFRefCount::EvalSummary(ExplodedNodeSet<GRState>& Dst,
         //  to identify conjured symbols by an expression pair: the enclosing
         //  expression (the context) and the expression itself.  This should
         //  disambiguate conjured symbols. 
-        
+        unsigned Count = Builder.getCurrentBlockCount();
         const TypedRegion* R = dyn_cast<TypedRegion>(MR->getRegion());
 
         if (R) {
@@ -2833,7 +2832,7 @@ void CFRefCount::EvalSummary(ExplodedNodeSet<GRState>& Dst,
           
           if (R->isBoundable()) {
             // Set the value of the variable to be a conjured symbol.
-            unsigned Count = Builder.getCurrentBlockCount();
+
             QualType T = R->getValueType(Ctx);
           
             if (Loc::IsLocType(T) || (T->isIntegerType() && T->isScalarType())){
@@ -2857,20 +2856,31 @@ void CFRefCount::EvalSummary(ExplodedNodeSet<GRState>& Dst,
                 state->getStateManager().getRegionManager();
               
               // Iterate through the fields and construct new symbols.
-              for (RecordDecl::field_iterator FI=RD->field_begin(Ctx),
-                   FE=RD->field_end(Ctx); FI!=FE; ++FI) {
+              for (RecordDecl::field_iterator FI=RD->field_begin(),
+                   FE=RD->field_end(); FI!=FE; ++FI) {
                 
                 // For now just handle scalar fields.
                 FieldDecl *FD = *FI;
                 QualType FT = FD->getType();
-                
+                const FieldRegion* FR = MRMgr.getFieldRegion(FD, R);
+
                 if (Loc::IsLocType(FT) || 
                     (FT->isIntegerType() && FT->isScalarType())) {
-                  const FieldRegion* FR = MRMgr.getFieldRegion(FD, R);
-
                   SVal V = ValMgr.getConjuredSymbolVal(*I, FT, Count);
                   state = state->bindLoc(ValMgr.makeLoc(FR), V);
-                }                
+                }
+                else if (FT->isStructureType()) {
+                  // set the default value of the struct field to conjured
+                  // symbol. Note that the type of the symbol is irrelavant.
+                  // We cannot use the type of the struct otherwise ValMgr won't
+                  // give us the conjured symbol.
+                  StoreManager& StoreMgr = 
+                    Eng.getStateManager().getStoreManager();
+                  SVal V = ValMgr.getConjuredSymbolVal(*I, 
+                                                       Eng.getContext().IntTy,
+                                                       Count);
+                  state = StoreMgr.setDefaultValue(state, FR, V);
+                }
               }
             } else if (const ArrayType *AT = Ctx.getAsArrayType(T)) {
               // Set the default value of the array to conjured symbol.
@@ -2883,6 +2893,15 @@ void CFRefCount::EvalSummary(ExplodedNodeSet<GRState>& Dst,
               state = state->bindLoc(*MR, UnknownVal());
             }
           }
+        }
+        else if (isa<AllocaRegion>(MR->getRegion())) {
+          // Invalidate the alloca region by setting its default value to 
+          // conjured symbol. The type of the symbol is irrelavant.
+          SVal V = ValMgr.getConjuredSymbolVal(*I, Eng.getContext().IntTy, 
+                                               Count);
+          StoreManager& StoreMgr = 
+                    Eng.getStateManager().getStoreManager();
+          state = StoreMgr.setDefaultValue(state, MR->getRegion(), V);
         }
         else
           state = state->bindLoc(*MR, UnknownVal());

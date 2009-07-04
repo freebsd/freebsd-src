@@ -307,7 +307,7 @@ void AnalysisConsumer::HandleTopLevelSingleDecl(Decl *D) {
           Opts.AnalyzeSpecificFunction != FD->getIdentifier()->getName())
         break;
       
-      Stmt* Body = FD->getBody(*Ctx);
+      Stmt* Body = FD->getBody();
       if (Body) HandleCode(FD, Body, FunctionActions);
       break;
     }
@@ -341,8 +341,8 @@ void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
   if (!ObjCImplementationActions.empty()) {
     TranslationUnitDecl *TUD = C.getTranslationUnitDecl();
     
-    for (DeclContext::decl_iterator I = TUD->decls_begin(C),
-                                    E = TUD->decls_end(C);
+    for (DeclContext::decl_iterator I = TUD->decls_begin(),
+                                    E = TUD->decls_end();
          I != E; ++I)
       if (ObjCImplementationDecl* ID = dyn_cast<ObjCImplementationDecl>(*I))
         HandleCode(ID, 0, ObjCImplementationActions);
@@ -479,14 +479,16 @@ static void ActionDisplayLiveVariables(AnalysisManager& mgr) {
 static void ActionCFGDump(AnalysisManager& mgr) {
   if (CFG* c = mgr.getCFG()) {
     mgr.DisplayFunction();
-    c->dump();
+    LangOptions LO;  // FIXME!
+    c->dump(LO);
   }
 }
 
 static void ActionCFGView(AnalysisManager& mgr) {
   if (CFG* c = mgr.getCFG()) {
     mgr.DisplayFunction();
-    c->viewCFG();  
+    LangOptions LO; // FIXME!
+    c->viewCFG(LO);
   }
 }
 

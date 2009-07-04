@@ -34,8 +34,8 @@ class DocumentXML::DeclPrinter : public DeclVisitor<DocumentXML::DeclPrinter>
 
   void addSubNodes(RecordDecl* RD)
   {
-    for (RecordDecl::field_iterator i = RD->field_begin(*Doc.Ctx), e = RD->field_end(*Doc.Ctx); i != e; ++i)
-    {
+    for (RecordDecl::field_iterator i = RD->field_begin(),
+                                    e = RD->field_end(); i != e; ++i) {
       Visit(*i);
       Doc.toParent();
     }
@@ -43,8 +43,8 @@ class DocumentXML::DeclPrinter : public DeclVisitor<DocumentXML::DeclPrinter>
 
   void addSubNodes(EnumDecl* ED)
   {
-    for (EnumDecl::enumerator_iterator i = ED->enumerator_begin(*Doc.Ctx), e = ED->enumerator_end(*Doc.Ctx); i != e; ++i)
-    {
+    for (EnumDecl::enumerator_iterator i = ED->enumerator_begin(),
+                                       e = ED->enumerator_end(); i != e; ++i) {
       Visit(*i);
       Doc.toParent();
     }
@@ -147,7 +147,7 @@ void DocumentXML::writeDeclToXML(Decl *D)
   DeclPrinter(*this).Visit(D);
   if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) 
   {
-    if (Stmt *Body = FD->getBody(*Ctx)) {
+    if (Stmt *Body = FD->getBody()) {
       addSubNode("Body");
       PrintStmt(Body);
       toParent();

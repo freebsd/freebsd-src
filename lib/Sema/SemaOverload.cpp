@@ -1375,7 +1375,7 @@ bool Sema::IsUserDefinedConversion(Expr *From, QualType ToType,
                           Context.getCanonicalType(ToType).getUnqualifiedType());
       DeclContext::lookup_iterator Con, ConEnd;
       for (llvm::tie(Con, ConEnd) 
-             = ToRecordDecl->lookup(Context, ConstructorName);
+             = ToRecordDecl->lookup(ConstructorName);
            Con != ConEnd; ++Con) {
         CXXConstructorDecl *Constructor = cast<CXXConstructorDecl>(*Con);
         if (Constructor->isConvertingConstructor())
@@ -2161,9 +2161,16 @@ void Sema::AddFunctionCandidates(const FunctionSet &Functions,
                                  bool SuppressUserConversions) {
   for (FunctionSet::const_iterator F = Functions.begin(), 
                                 FEnd = Functions.end();
-       F != FEnd; ++F)
-    AddOverloadCandidate(*F, Args, NumArgs, CandidateSet, 
-                         SuppressUserConversions);
+       F != FEnd; ++F) {
+    if (FunctionDecl *FD = dyn_cast<FunctionDecl>(*F))
+      AddOverloadCandidate(FD, Args, NumArgs, CandidateSet, 
+                           SuppressUserConversions);
+    else
+      AddTemplateOverloadCandidate(cast<FunctionTemplateDecl>(*F),
+                                   /*FIXME: explicit args */false, 0, 0,
+                                   Args, NumArgs, CandidateSet, 
+                                   SuppressUserConversions);
+  }
 }
 
 /// AddMethodCandidate - Adds the given C++ member function to the set
@@ -2267,6 +2274,9 @@ Sema::AddMethodCandidate(CXXMethodDecl *Method, Expr *Object,
 /// template specialization.
 void 
 Sema::AddTemplateOverloadCandidate(FunctionTemplateDecl *FunctionTemplate,
+                                   bool HasExplicitTemplateArgs,
+                                 const TemplateArgument *ExplicitTemplateArgs,
+                                   unsigned NumExplicitTemplateArgs,
                                    Expr **Args, unsigned NumArgs,
                                    OverloadCandidateSet& CandidateSet,
                                    bool SuppressUserConversions,
@@ -2283,8 +2293,9 @@ Sema::AddTemplateOverloadCandidate(FunctionTemplateDecl *FunctionTemplate,
   TemplateDeductionInfo Info(Context);
   FunctionDecl *Specialization = 0;
   if (TemplateDeductionResult Result
-        = DeduceTemplateArguments(FunctionTemplate, Args, NumArgs, 
-                                  Specialization, Info)) {
+        = DeduceTemplateArguments(FunctionTemplate, HasExplicitTemplateArgs,
+                                  ExplicitTemplateArgs, NumExplicitTemplateArgs,
+                                  Args, NumArgs, Specialization, Info)) {
     // FIXME: Record what happened with template argument deduction, so
     // that we can give the user a beautiful diagnostic.
     (void)Result;
@@ -2510,7 +2521,7 @@ void Sema::AddMemberOperatorCandidates(OverloadedOperatorKind Op,
   // FIXME: Lookup in base classes, too!
   if (const RecordType *T1Rec = T1->getAsRecordType()) {
     DeclContext::lookup_const_iterator Oper, OperEnd;
-    for (llvm::tie(Oper, OperEnd) = T1Rec->getDecl()->lookup(Context, OpName);
+    for (llvm::tie(Oper, OperEnd) = T1Rec->getDecl()->lookup(OpName);
          Oper != OperEnd; ++Oper)
       AddMethodCandidate(cast<CXXMethodDecl>(*Oper), Args[0], 
                          Args+1, NumArgs - 1, CandidateSet,
@@ -3405,8 +3416,11 @@ Sema::AddArgumentDependentLookupCandidates(DeclarationName Name,
   for (OverloadCandidateSet::iterator Cand = CandidateSet.begin(),
                                    CandEnd = CandidateSet.end();
        Cand != CandEnd; ++Cand)
-    if (Cand->Function)
+    if (Cand->Function) {
       Functions.insert(Cand->Function);
+      if (FunctionTemplateDecl *FunTmpl = Cand->Function->getPrimaryTemplate())
+        Functions.insert(FunTmpl);
+    }
 
   ArgumentDependentLookup(Name, Args, NumArgs, Functions);
 
@@ -3415,15 +3429,24 @@ Sema::AddArgumentDependentLookupCandidates(DeclarationName Name,
   for (OverloadCandidateSet::iterator Cand = CandidateSet.begin(),
                                    CandEnd = CandidateSet.end();
        Cand != CandEnd; ++Cand)
-    if (Cand->Function)
+    if (Cand->Function) {
       Functions.erase(Cand->Function);
+      if (FunctionTemplateDecl *FunTmpl = Cand->Function->getPrimaryTemplate())
+        Functions.erase(FunTmpl);
+    }
 
   // For each of the ADL candidates we found, add it to the overload
   // set.
   for (FunctionSet::iterator Func = Functions.begin(),
                           FuncEnd = Functions.end();
-       Func != FuncEnd; ++Func)
-    AddOverloadCandidate(*Func, Args, NumArgs, CandidateSet);
+       Func != FuncEnd; ++Func) {
+    if (FunctionDecl *FD = dyn_cast<FunctionDecl>(*Func))
+      AddOverloadCandidate(FD, Args, NumArgs, CandidateSet);
+    else
+      AddTemplateOverloadCandidate(cast<FunctionTemplateDecl>(*Func),  
+                                   /*FIXME: explicit args */false, 0, 0,
+                                   Args, NumArgs, CandidateSet);
+  }
 }
 
 /// isBetterOverloadCandidate - Determines whether the first overload
@@ -3556,7 +3579,7 @@ Sema::BestViableFunction(OverloadCandidateSet& CandidateSet,
   // Best is the best viable function.
   if (Best->Function &&
       (Best->Function->isDeleted() || 
-       Best->Function->getAttr<UnavailableAttr>(Context)))
+       Best->Function->getAttr<UnavailableAttr>()))
     return OR_Deleted;
 
   // C++ [basic.def.odr]p2:
@@ -3583,7 +3606,7 @@ Sema::PrintOverloadCandidates(OverloadCandidateSet& CandidateSet,
     if (Cand->Viable || !OnlyViable) {
       if (Cand->Function) {
         if (Cand->Function->isDeleted() ||
-            Cand->Function->getAttr<UnavailableAttr>(Context)) {
+            Cand->Function->getAttr<UnavailableAttr>()) {
           // Deleted or "unavailable" function.
           Diag(Cand->Function->getLocation(), diag::err_ovl_candidate_deleted)
             << Cand->Function->isDeleted();
@@ -3741,6 +3764,9 @@ Sema::ResolveAddressOfOverloadedFunction(Expr *From, QualType ToType,
 /// arguments and Fn, and returns NULL.
 FunctionDecl *Sema::ResolveOverloadedCallFn(Expr *Fn, NamedDecl *Callee,
                                             DeclarationName UnqualifiedName,
+                                            bool HasExplicitTemplateArgs,
+                                 const TemplateArgument *ExplicitTemplateArgs,
+                                            unsigned NumExplicitTemplateArgs,
                                             SourceLocation LParenLoc,
                                             Expr **Args, unsigned NumArgs,
                                             SourceLocation *CommaLocs, 
@@ -3773,11 +3799,17 @@ FunctionDecl *Sema::ResolveOverloadedCallFn(Expr *Fn, NamedDecl *Callee,
          Func != FuncEnd; ++Func) {
       DeclContext *Ctx = 0;
       if (FunctionDecl *FunDecl = dyn_cast<FunctionDecl>(*Func)) {
+        if (HasExplicitTemplateArgs)
+          continue;
+        
         AddOverloadCandidate(FunDecl, Args, NumArgs, CandidateSet);
         Ctx = FunDecl->getDeclContext();
       } else {
         FunctionTemplateDecl *FunTmpl = cast<FunctionTemplateDecl>(*Func);
-        AddTemplateOverloadCandidate(FunTmpl, Args, NumArgs, CandidateSet);
+        AddTemplateOverloadCandidate(FunTmpl, HasExplicitTemplateArgs,
+                                     ExplicitTemplateArgs,
+                                     NumExplicitTemplateArgs,
+                                     Args, NumArgs, CandidateSet);
         Ctx = FunTmpl->getDeclContext();
       }
 
@@ -3786,6 +3818,7 @@ FunctionDecl *Sema::ResolveOverloadedCallFn(Expr *Fn, NamedDecl *Callee,
         ArgumentDependentLookup = false;
     }
   } else if (FunctionDecl *Func = dyn_cast_or_null<FunctionDecl>(Callee)) {
+    assert(!HasExplicitTemplateArgs && "Explicit template arguments?");
     AddOverloadCandidate(Func, Args, NumArgs, CandidateSet);
 
     if (Func->getDeclContext()->isRecord() ||
@@ -3793,7 +3826,10 @@ FunctionDecl *Sema::ResolveOverloadedCallFn(Expr *Fn, NamedDecl *Callee,
       ArgumentDependentLookup = false;
   } else if (FunctionTemplateDecl *FuncTemplate 
                = dyn_cast_or_null<FunctionTemplateDecl>(Callee)) {
-    AddTemplateOverloadCandidate(FuncTemplate, Args, NumArgs, CandidateSet);
+    AddTemplateOverloadCandidate(FuncTemplate, HasExplicitTemplateArgs,
+                                 ExplicitTemplateArgs,
+                                 NumExplicitTemplateArgs, 
+                                 Args, NumArgs, CandidateSet);
 
     if (FuncTemplate->getDeclContext()->isRecord())
       ArgumentDependentLookup = false;
@@ -3802,6 +3838,7 @@ FunctionDecl *Sema::ResolveOverloadedCallFn(Expr *Fn, NamedDecl *Callee,
   if (Callee)
     UnqualifiedName = Callee->getDeclName();
 
+  // FIXME: Pass explicit template arguments through for ADL
   if (ArgumentDependentLookup)
     AddArgumentDependentLookupCandidates(UnqualifiedName, Args, NumArgs,
                                          CandidateSet);
@@ -4273,7 +4310,7 @@ Sema::BuildCallToObjectOfClassType(Scope *S, Expr *Object,
   OverloadCandidateSet CandidateSet;
   DeclarationName OpName = Context.DeclarationNames.getCXXOperatorName(OO_Call);
   DeclContext::lookup_const_iterator Oper, OperEnd;
-  for (llvm::tie(Oper, OperEnd) = Record->getDecl()->lookup(Context, OpName);
+  for (llvm::tie(Oper, OperEnd) = Record->getDecl()->lookup(OpName);
        Oper != OperEnd; ++Oper)
     AddMethodCandidate(cast<CXXMethodDecl>(*Oper), Object, Args, NumArgs, 
                        CandidateSet, /*SuppressUserConversions=*/false);
@@ -4477,8 +4514,7 @@ Sema::BuildOverloadedArrowExpr(Scope *S, Expr *Base, SourceLocation OpLoc,
   
   DeclContext::lookup_const_iterator Oper, OperEnd;
   for (llvm::tie(Oper, OperEnd) 
-         = BaseRecord->getDecl()->lookup(Context, OpName);
-       Oper != OperEnd; ++Oper)
+         = BaseRecord->getDecl()->lookup(OpName); Oper != OperEnd; ++Oper)
     AddMethodCandidate(cast<CXXMethodDecl>(*Oper), Base, 0, 0, CandidateSet,
                        /*SuppressUserConversions=*/false);
 

@@ -74,14 +74,13 @@ namespace {
   };
 }
 
-void Decl::print(llvm::raw_ostream &Out, ASTContext &Context, 
-                 unsigned Indentation) {
-  print(Out, Context, Context.PrintingPolicy, Indentation);
+void Decl::print(llvm::raw_ostream &Out, unsigned Indentation) {
+  print(Out, getASTContext().PrintingPolicy, Indentation);
 }
 
-void Decl::print(llvm::raw_ostream &Out, ASTContext &Context, 
-                 const PrintingPolicy &Policy, unsigned Indentation) {
-  DeclPrinter Printer(Out, Context, Policy, Indentation);
+void Decl::print(llvm::raw_ostream &Out, const PrintingPolicy &Policy,
+                 unsigned Indentation) {
+  DeclPrinter Printer(Out, getASTContext(), Policy, Indentation);
   Printer.Visit(this);
 }
 
@@ -97,6 +96,8 @@ static QualType GetBaseType(QualType T) {
       BaseType = ATy->getElementType();
     else if (const FunctionType* FTy = BaseType->getAsFunctionType())
       BaseType = FTy->getResultType();
+    else if (const VectorType *VTy = BaseType->getAsVectorType())
+      BaseType = VTy->getElementType();
     else
       assert(0 && "Unknown declarator!");
   }
@@ -112,11 +113,10 @@ static QualType getDeclType(Decl* D) {
 }
 
 void Decl::printGroup(Decl** Begin, unsigned NumDecls,
-                      llvm::raw_ostream &Out, ASTContext &Context, 
-                      const PrintingPolicy &Policy,
+                      llvm::raw_ostream &Out, const PrintingPolicy &Policy,
                       unsigned Indentation) {
   if (NumDecls == 1) {
-    (*Begin)->print(Out, Context, Policy, Indentation);
+    (*Begin)->print(Out, Policy, Indentation);
     return;
   }
 
@@ -127,7 +127,7 @@ void Decl::printGroup(Decl** Begin, unsigned NumDecls,
 
   PrintingPolicy SubPolicy(Policy);
   if (TD && TD->isDefinition()) {
-    TD->print(Out, Context, Policy, Indentation);
+    TD->print(Out, Policy, Indentation);
     Out << " ";
     SubPolicy.SuppressTag = true;
   }
@@ -142,12 +142,12 @@ void Decl::printGroup(Decl** Begin, unsigned NumDecls,
       SubPolicy.SuppressSpecifiers = true;
     }
 
-    (*Begin)->print(Out, Context, SubPolicy, Indentation);
+    (*Begin)->print(Out, SubPolicy, Indentation);
   }
 }
 
-void Decl::dump(ASTContext &Context) {
-  print(llvm::errs(), Context);
+void Decl::dump() {
+  print(llvm::errs());
 }
 
 llvm::raw_ostream& DeclPrinter::Indent() {
@@ -158,8 +158,7 @@ llvm::raw_ostream& DeclPrinter::Indent() {
 
 void DeclPrinter::ProcessDeclGroup(llvm::SmallVectorImpl<Decl*>& Decls) {
   this->Indent();
-  Decl::printGroup(Decls.data(), Decls.size(), Out, Context,
-                   Policy, Indentation);
+  Decl::printGroup(Decls.data(), Decls.size(), Out, Policy, Indentation);
   Out << ";\n";
   Decls.clear();
 
@@ -174,8 +173,7 @@ void DeclPrinter::VisitDeclContext(DeclContext *DC, bool Indent) {
     Indentation += Policy.Indentation;
 
   llvm::SmallVector<Decl*, 2> Decls;
-  for (DeclContext::decl_iterator D = DC->decls_begin(Context),
-         DEnd = DC->decls_end(Context);
+  for (DeclContext::decl_iterator D = DC->decls_begin(), DEnd = DC->decls_end();
        D != DEnd; ++D) {
     if (!Policy.Dump) {
       // Skip over implicit declarations in pretty-printing mode.
@@ -364,7 +362,7 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
     } else
       Out << ' ';
 
-    D->getBody(Context)->printPretty(Out, Context, 0, SubPolicy, Indentation);
+    D->getBody()->printPretty(Out, Context, 0, SubPolicy, Indentation);
     Out << '\n';
   }
 }
@@ -504,7 +502,7 @@ void DeclPrinter::VisitLinkageSpecDecl(LinkageSpecDecl *D) {
     VisitDeclContext(D);
     Indent() << "}";
   } else
-    Visit(*D->decls_begin(Context));
+    Visit(*D->decls_begin());
 }
 
 void DeclPrinter::VisitTemplateDecl(TemplateDecl *D) {

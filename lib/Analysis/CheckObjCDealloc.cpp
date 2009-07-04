@@ -109,7 +109,7 @@ void clang::CheckObjCDealloc(ObjCImplementationDecl* D,
     QualType T = ID->getType();
     
     if (!Ctx.isObjCObjectPointerType(T) ||
-        ID->getAttr<IBOutletAttr>(Ctx)) // Skip IBOutlets.
+        ID->getAttr<IBOutletAttr>()) // Skip IBOutlets.
       continue;
     
     containsPointerIvar = true;
@@ -147,8 +147,8 @@ void clang::CheckObjCDealloc(ObjCImplementationDecl* D,
   ObjCMethodDecl* MD = 0;
   
   // Scan the instance methods for "dealloc".
-  for (ObjCImplementationDecl::instmeth_iterator I = D->instmeth_begin(Ctx),
-       E = D->instmeth_end(Ctx); I!=E; ++I) {
+  for (ObjCImplementationDecl::instmeth_iterator I = D->instmeth_begin(),
+       E = D->instmeth_end(); I!=E; ++I) {
     
     if ((*I)->getSelector() == S) {
       MD = *I;
@@ -172,7 +172,7 @@ void clang::CheckObjCDealloc(ObjCImplementationDecl* D,
   }
   
   // dealloc found.  Scan for missing [super dealloc].
-  if (MD->getBody(Ctx) && !scan_dealloc(MD->getBody(Ctx), S)) {
+  if (MD->getBody() && !scan_dealloc(MD->getBody(), S)) {
     
     const char* name = LOpts.getGCMode() == LangOptions::NonGC
                        ? "missing [super dealloc]"
@@ -198,8 +198,8 @@ void clang::CheckObjCDealloc(ObjCImplementationDecl* D,
   
   // Scan for missing and extra releases of ivars used by implementations
   // of synthesized properties
-  for (ObjCImplementationDecl::propimpl_iterator I = D->propimpl_begin(Ctx),
-       E = D->propimpl_end(Ctx); I!=E; ++I) {
+  for (ObjCImplementationDecl::propimpl_iterator I = D->propimpl_begin(),
+       E = D->propimpl_end(); I!=E; ++I) {
 
     // We can only check the synthesized properties
     if((*I)->getPropertyImplementation() != ObjCPropertyImplDecl::Synthesize)
@@ -223,7 +223,7 @@ void clang::CheckObjCDealloc(ObjCImplementationDecl* D,
               
     // ivar must be released if and only if the kind of setter was not 'assign'
     bool requiresRelease = PD->getSetterKind() != ObjCPropertyDecl::Assign;
-    if(scan_ivar_release(MD->getBody(Ctx), ID, PD, RS, SelfII, Ctx) 
+    if(scan_ivar_release(MD->getBody(), ID, PD, RS, SelfII, Ctx) 
        != requiresRelease) {
       const char *name;
       const char* category = "Memory (Core Foundation/Objective-C)";

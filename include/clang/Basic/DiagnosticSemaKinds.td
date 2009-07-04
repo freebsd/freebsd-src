@@ -287,6 +287,8 @@ def err_distant_exception_spec : Error<
 def err_incomplete_in_exception_spec : Error<
   "%select{|pointer to |reference to }1incomplete type %0 is not allowed "
   "in exception specification">;
+def err_mismatched_exception_spec : Error<
+  "exception specification in declaration does not match previous declaration">;
 
 // C++ access checking
 def err_class_redeclared_with_different_access : Error<
@@ -398,6 +400,10 @@ def err_init_reference_member_uninitialized : Error<
 def note_uninit_reference_member : Note<
   "uninitialized reference member is here">;
 
+// C++0x decltype
+def err_cannot_determine_declared_type_of_overloaded_function : Error<
+    "can't determine the declared type of an overloaded function">;
+    
 // C++0x auto
 def err_auto_variable_cannot_appear_in_own_initializer : Error<
   "variable %0 declared with 'auto' type cannot appear in its own initializer">;
@@ -835,6 +841,12 @@ def note_function_template_spec_here : Note<
   
 def note_default_arg_instantiation_here : Note<
   "in instantiation of default argument for '%0' required here">;
+def note_explicit_template_arg_substitution_here : Note<
+  "while substituting explicitly-specified template arguments into function "
+  "template %f, here">;
+def note_function_template_deduction_instantiation_here : Note<
+  "while substituting deduced template arguments into function template %0, "
+  "here">;
 def note_partial_spec_deduct_instantiation_here : Note<
   "during template argument deduction for class template partial "
   "specialization %0, here">;
@@ -1070,6 +1082,8 @@ def err_array_star_outside_prototype : Error<
   "star modifier used outside of function prototype">;
 def err_illegal_decl_pointer_to_reference : Error<
   "'%0' declared as a pointer to a reference">;
+def err_illegal_decl_mempointer_to_reference : Error<
+  "'%0' declared as a member pointer to a reference">;
 def err_illegal_decl_mempointer_to_void : Error<
   "'%0' declared as a member pointer to void">;
 def err_illegal_decl_mempointer_in_nonclass : Error<
@@ -1207,6 +1221,10 @@ def err_typecheck_sub_ptr_object : Error<
   "subtraction of pointer %0 requires pointee to be a complete object type">;
 def err_typecheck_sub_ptr_compatible : Error<
   "%0 and %1 are not pointers to compatible types">;
+def ext_typecheck_ordered_comparison_of_pointer_integer : ExtWarn<
+  "ordered comparison between pointer and integer (%0 and %1)">;
+def ext_typecheck_ordered_comparison_of_function_pointers : ExtWarn<
+  "ordered comparison of function pointers (%0 and %1)">;
 def ext_typecheck_comparison_of_pointer_integer : ExtWarn<
   "comparison between pointer and integer (%0 and %1)">;
 def ext_typecheck_comparison_of_distinct_pointers : ExtWarn<
@@ -1579,6 +1597,12 @@ def err_overload_multiple_match : Error<
 def err_only_constructors_take_base_inits : Error<
   "only constructors take base initializers">;
 
+def error_multiple_mem_initialization : Error <
+  "multiple initializations given for non-static member '%0'">;
+
+def error_multiple_base_initialization : Error <
+  "multiple initializations given for base %0">;
+
 def err_mem_init_not_member_or_class : Error<
   "member initializer %0 does not name a non-static data member or base "
   "class">;
@@ -1588,6 +1612,8 @@ def err_base_init_does_not_name_class : Error<
 def err_base_init_direct_and_virtual : Error<
   "base class initializer %0 names both a direct base class and an "
   "inherited virtual base class">;
+def err_not_direct_base_or_virtual : Error<
+  "type %0 is not a direct or virtual base of '%1'">;
 
 def err_in_class_initializer_non_integral_type : Error<
   "in-class initializer has non-integral, non-enumeration type %0">;

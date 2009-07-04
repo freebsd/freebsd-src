@@ -29,9 +29,9 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/OwningPtr.h"
+#include <deque>
 #include <list>
 #include <string>
-#include <queue>
 #include <vector>
 
 namespace llvm {
@@ -86,6 +86,7 @@ namespace clang {
   class ObjCMethodDecl;
   class ObjCPropertyDecl;
   class ObjCContainerDecl;
+  class FunctionProtoType;
   class BasePaths;
   struct MemberLookupCriteria;
   class CXXTemporary;
@@ -362,6 +363,8 @@ public:
     return CurBlock ? CurBlock->SwitchStack : FunctionSwitchStack;
   }
   
+  virtual void ActOnComment(SourceRange Comment);
+
   //===--------------------------------------------------------------------===//
   // Type Analysis / Processing: SemaType.cpp.
   //
@@ -392,6 +395,9 @@ public:
   DeclarationName GetNameForDeclarator(Declarator &D);
   bool CheckSpecifiedExceptionType(QualType T, const SourceRange &Range);
   bool CheckDistantExceptionSpec(QualType T);
+  bool CheckEquivalentExceptionSpec(
+      const FunctionProtoType *Old, SourceLocation OldLoc,
+      const FunctionProtoType *New, SourceLocation NewLoc);
 
   QualType ObjCGetTypeForMethodDefinition(DeclPtrTy D);
 
@@ -406,6 +412,9 @@ public:
 
   QualType getQualifiedNameType(const CXXScopeSpec &SS, QualType T);
 
+  QualType BuildTypeofExprType(Expr *E);
+  QualType BuildDecltypeType(Expr *E);
+  
   //===--------------------------------------------------------------------===//
   // Symbol table / Decl tracking callbacks: SemaDecl.cpp.
   //
@@ -482,7 +491,7 @@ public:
   void DiagnoseUnusedParameters(InputIterator Param, InputIterator ParamEnd) {
     for (; Param != ParamEnd; ++Param) {
       if (!(*Param)->isUsed() && (*Param)->getDeclName() && 
-          !(*Param)->template hasAttr<UnusedAttr>(Context))
+          !(*Param)->template hasAttr<UnusedAttr>())
         Diag((*Param)->getLocation(), diag::warn_unused_parameter)
           << (*Param)->getDeclName();
     }
@@ -679,7 +688,7 @@ public:
     OR_Deleted              ///< Overload resoltuion refers to a deleted function.
   };
 
-  typedef llvm::SmallPtrSet<FunctionDecl *, 16> FunctionSet;
+  typedef llvm::SmallPtrSet<AnyFunctionDecl, 16> FunctionSet;
   typedef llvm::SmallPtrSet<NamespaceDecl *, 16> AssociatedNamespaceSet;
   typedef llvm::SmallPtrSet<CXXRecordDecl *, 16> AssociatedClassSet;
 
@@ -698,6 +707,9 @@ public:
                           bool SuppressUserConversions = false,
                           bool ForceRValue = false);
   void AddTemplateOverloadCandidate(FunctionTemplateDecl *FunctionTemplate,
+                                    bool HasExplicitTemplateArgs,
+                                  const TemplateArgument *ExplicitTemplateArgs,
+                                    unsigned NumExplicitTemplateArgs,
                                     Expr **Args, unsigned NumArgs,
                                     OverloadCandidateSet& CandidateSet,
                                     bool SuppressUserConversions = false,
@@ -744,6 +756,9 @@ public:
 
   FunctionDecl *ResolveOverloadedCallFn(Expr *Fn, NamedDecl *Callee,
                                         DeclarationName UnqualifiedName,
+                                        bool HasExplicitTemplateArgs,
+                                const TemplateArgument *ExplicitTemplateArgs,
+                                        unsigned NumExplicitTemplateArgs,
                                         SourceLocation LParenLoc,
                                         Expr **Args, unsigned NumArgs,
                                         SourceLocation *CommaLocs, 
@@ -1398,7 +1413,11 @@ public:
                                             bool HasTrailingLParen,
                                             const CXXScopeSpec *SS,
                                             bool isAddressOfOperand = false);
-
+  OwningExprResult BuildDeclarationNameExpr(SourceLocation Loc, NamedDecl *D,
+                                            bool HasTrailingLParen,
+                                            const CXXScopeSpec *SS, 
+                                            bool isAddressOfOperand);
+    
   virtual OwningExprResult ActOnPredefinedExpr(SourceLocation Loc,
                                                tok::TokenKind Kind);
   virtual OwningExprResult ActOnNumericConstant(const Token &);
@@ -1594,9 +1613,9 @@ public:
                                     QualType DeclInitType, 
                                     Expr **Exprs, unsigned NumExprs);
 
-  /// MarcDestructorReferenced - Prepare for calling destructor on the
+  /// MarkDestructorReferenced - Prepare for calling destructor on the
   /// constructed decl.
-  void MarcDestructorReferenced(SourceLocation Loc, QualType DeclInitType);
+  void MarkDestructorReferenced(SourceLocation Loc, QualType DeclInitType);
   
   /// DefineImplicitDefaultConstructor - Checks for feasibility of 
   /// defining this constructor as the default constructor.
@@ -1884,7 +1903,9 @@ public:
 
   virtual MemInitResult ActOnMemInitializer(DeclPtrTy ConstructorD,
                                             Scope *S,
+                                            const CXXScopeSpec &SS,
                                             IdentifierInfo *MemberOrBase,
+                                            TypeTy *TemplateTypeTy,
                                             SourceLocation IdLoc,
                                             SourceLocation LParenLoc,
                                             ExprTy **Args, unsigned NumArgs,
@@ -2068,6 +2089,20 @@ public:
                       SourceLocation *TemplateArgLocs,
                       SourceLocation RAngleLoc);
   
+  OwningExprResult BuildTemplateIdExpr(TemplateName Template,
+                                       SourceLocation TemplateNameLoc,
+                                       SourceLocation LAngleLoc,
+                                       const TemplateArgument *TemplateArgs,
+                                       unsigned NumTemplateArgs,
+                                       SourceLocation RAngleLoc);
+  
+  virtual OwningExprResult ActOnTemplateIdExpr(TemplateTy Template,
+                                               SourceLocation TemplateNameLoc,
+                                               SourceLocation LAngleLoc,
+                                               ASTTemplateArgsPtr TemplateArgs,
+                                               SourceLocation *TemplateArgLocs,
+                                               SourceLocation RAngleLoc);
+    
   virtual TemplateTy ActOnDependentTemplateName(SourceLocation TemplateKWLoc,
                                                 const IdentifierInfo &Name,
                                                 SourceLocation NameLoc,
@@ -2134,6 +2169,7 @@ public:
                                  const TemplateArgument *TemplateArgs,
                                  unsigned NumTemplateArgs,
                                  SourceLocation RAngleLoc,
+                                 bool PartialTemplateArgs,
                                  TemplateArgumentListBuilder &Converted);
 
   bool CheckTemplateTypeArgument(TemplateTypeParmDecl *Param, 
@@ -2225,7 +2261,10 @@ public:
     TDK_TooManyArguments,
     /// \brief When performing template argument deduction for a class 
     /// template, there were too few call arguments.
-    TDK_TooFewArguments
+    TDK_TooFewArguments,
+    /// \brief The explicitly-specified template arguments were not valid
+    /// template arguments for the given template.
+    TDK_InvalidExplicitArguments
   };
 
   /// \brief Provides information about an attempted template argument
@@ -2307,6 +2346,9 @@ public:
                    
   TemplateDeductionResult
   DeduceTemplateArguments(FunctionTemplateDecl *FunctionTemplate,
+                          bool HasExplicitTemplateArgs,
+                          const TemplateArgument *ExplicitTemplateArgs,
+                          unsigned NumExplicitTemplateArgs,
                           Expr **Args, unsigned NumArgs,
                           FunctionDecl *&Specialization,
                           TemplateDeductionInfo &Info);
@@ -2323,7 +2365,7 @@ public:
   /// \brief A template instantiation that is currently in progress.
   struct ActiveTemplateInstantiation {
     /// \brief The kind of template instantiation we are performing
-    enum {
+    enum InstantiationKind {
       /// We are instantiating a template declaration. The entity is
       /// the declaration we're instantiating (e.g., a CXXRecordDecl).
       TemplateInstantiation,
@@ -2335,13 +2377,16 @@ public:
       /// FIXME: Use a TemplateArgumentList
       DefaultTemplateArgumentInstantiation,
 
-      /// We are performing template argument deduction for a class
-      /// template partial specialization. The Entity is the class
-      /// template partial specialization, and
-      /// TemplateArgs/NumTemplateArgs provides the deduced template
-      /// arguments.
-      /// FIXME: Use a TemplateArgumentList
-      PartialSpecDeductionInstantiation
+      /// We are substituting explicit template arguments provided for 
+      /// a function template. The entity is a FunctionTemplateDecl.
+      ExplicitTemplateArgumentSubstitution,
+      
+      /// We are substituting template argument determined as part of
+      /// template argument deduction for either a class template
+      /// partial specialization or a function template. The
+      /// Entity is either a ClassTemplatePartialSpecializationDecl or
+      /// a FunctionTemplateDecl.
+      DeducedTemplateArgumentSubstitution
     } Kind;
 
     /// \brief The point of instantiation within the source code.
@@ -2375,7 +2420,8 @@ public:
         return true;
 
       case DefaultTemplateArgumentInstantiation:
-      case PartialSpecDeductionInstantiation:
+      case ExplicitTemplateArgumentSubstitution:
+      case DeducedTemplateArgumentSubstitution:
         return X.TemplateArgs == Y.TemplateArgs;
       }
 
@@ -2432,6 +2478,15 @@ public:
                           unsigned NumTemplateArgs,
                           SourceRange InstantiationRange = SourceRange());
 
+    /// \brief Note that we are instantiating a default argument in a
+    /// template-id.
+    InstantiatingTemplate(Sema &SemaRef, SourceLocation PointOfInstantiation,
+                          FunctionTemplateDecl *FunctionTemplate,
+                          const TemplateArgument *TemplateArgs,
+                          unsigned NumTemplateArgs,
+                          ActiveTemplateInstantiation::InstantiationKind Kind,
+                          SourceRange InstantiationRange = SourceRange());
+    
     /// \brief Note that we are instantiating as part of template
     /// argument deduction for a class template partial
     /// specialization.
@@ -2574,7 +2629,7 @@ public:
   
   /// \brief The queue of implicit template instantiations that are required
   /// but have not yet been performed.
-  std::queue<PendingImplicitInstantiation> PendingImplicitInstantiations;
+  std::deque<PendingImplicitInstantiation> PendingImplicitInstantiations;
 
   void PerformPendingImplicitInstantiations();
   
@@ -2629,7 +2684,8 @@ public:
                                const TemplateArgumentList &TemplateArgs);
 
   void InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
-                                     FunctionDecl *Function);
+                                     FunctionDecl *Function,
+                                     bool Recursive = false);
   void InstantiateVariableDefinition(VarDecl *Var);
 
   NamedDecl *InstantiateCurrentDeclRef(NamedDecl *D);

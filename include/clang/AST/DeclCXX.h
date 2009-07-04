@@ -32,6 +32,8 @@ class ClassTemplateSpecializationDecl;
 class AnyFunctionDecl {
   NamedDecl *Function;
   
+  AnyFunctionDecl(NamedDecl *ND) : Function(ND) { }
+  
 public:
   AnyFunctionDecl(FunctionDecl *FD) : Function(FD) { }
   AnyFunctionDecl(FunctionTemplateDecl *FTD);
@@ -42,6 +44,10 @@ public:
   
   /// \brief Retrieve the underlying function or function template.
   NamedDecl *get() const { return Function; }
+  
+  static AnyFunctionDecl getFromNamedDecl(NamedDecl *ND) { 
+    return AnyFunctionDecl(ND);
+  }
 };
   
 } // end namespace clang
@@ -57,6 +63,22 @@ namespace llvm {
   };
   template<> struct simplify_type< ::clang::AnyFunctionDecl>
   : public simplify_type<const ::clang::AnyFunctionDecl> {};
+  
+  // Provide PointerLikeTypeTraits for non-cvr pointers.
+  template<>
+  class PointerLikeTypeTraits< ::clang::AnyFunctionDecl> {
+  public:
+    static inline void *getAsVoidPointer(::clang::AnyFunctionDecl F) {
+      return F.get(); 
+    }
+    static inline ::clang::AnyFunctionDecl getFromVoidPointer(void *P) {
+      return ::clang::AnyFunctionDecl::getFromNamedDecl(
+                                      static_cast< ::clang::NamedDecl*>(P));
+    }
+    
+    enum { NumLowBitsAvailable = 2 };
+  };
+  
 } // end namespace llvm
 
 namespace clang {
@@ -91,24 +113,10 @@ public:
   static OverloadedFunctionDecl *Create(ASTContext &C, DeclContext *DC,
                                         DeclarationName N);
 
-  /// addOverload - Add an overloaded function FD to this set of
-  /// overloaded functions.
-  void addOverload(FunctionDecl *FD) {
-    assert((FD->getDeclName() == getDeclName() ||
-            isa<CXXConversionDecl>(FD) || isa<CXXConstructorDecl>(FD)) &&
-           "Overloaded functions must have the same name");
-    Functions.push_back(FD);
+  /// \brief Add a new overloaded function or function template to the set
+  /// of overloaded function templates.
+  void addOverload(AnyFunctionDecl F);
 
-    // An overloaded function declaration always has the location of
-    // the most-recently-added function declaration.
-    if (FD->getLocation().isValid())
-      this->setLocation(FD->getLocation());
-  }
-
-  /// addOverload - Add an overloaded function template FTD to this set of
-  /// overloaded functions.
-  void addOverload(FunctionTemplateDecl *FTD);
-  
   function_iterator function_begin() { return Functions.begin(); }
   function_iterator function_end() { return Functions.end(); }
   function_const_iterator function_begin() const { return Functions.begin(); }
@@ -289,8 +297,11 @@ public:
                                CXXRecordDecl* PrevDecl=0,
                                bool DelayTypeCreation = false);
   
+  virtual void Destroy(ASTContext& C);
+  
   /// setBases - Sets the base classes of this struct or class.
-  void setBases(CXXBaseSpecifier const * const *Bases, unsigned NumBases);
+  void setBases(ASTContext &C,
+                CXXBaseSpecifier const * const *Bases, unsigned NumBases);
 
   /// getNumBases - Retrieves the number of base classes of this
   /// class.
@@ -580,15 +591,20 @@ class CXXBaseOrMemberInitializer {
   /// Args - The arguments used to initialize the base or member.
   Expr **Args;
   unsigned NumArgs;
+  
+  /// IdLoc - Location of the id in ctor-initializer list.
+  SourceLocation IdLoc;
 
 public:
   /// CXXBaseOrMemberInitializer - Creates a new base-class initializer.
   explicit 
-  CXXBaseOrMemberInitializer(QualType BaseType, Expr **Args, unsigned NumArgs);
+  CXXBaseOrMemberInitializer(QualType BaseType, Expr **Args, unsigned NumArgs,
+                             SourceLocation L);
 
   /// CXXBaseOrMemberInitializer - Creates a new member initializer.
   explicit 
-  CXXBaseOrMemberInitializer(FieldDecl *Member, Expr **Args, unsigned NumArgs);
+  CXXBaseOrMemberInitializer(FieldDecl *Member, Expr **Args, unsigned NumArgs,
+                             SourceLocation L);
 
   /// ~CXXBaseOrMemberInitializer - Destroy the base or member initializer.
   ~CXXBaseOrMemberInitializer();
@@ -601,6 +617,10 @@ public:
   /// arguments.
   typedef Expr * const * arg_const_iterator;
 
+  /// getBaseOrMember - get the generic 'member' representing either the field
+  /// or a base class.
+  void* getBaseOrMember() const { return reinterpret_cast<void*>(BaseOrMember); }
+  
   /// isBaseInitializer - Returns true when this initializer is
   /// initializing a base class.
   bool isBaseInitializer() const { return (BaseOrMember & 0x1) != 0; }
@@ -641,6 +661,8 @@ public:
       return 0;
   }
 
+  SourceLocation getSourceLocation() const { return IdLoc; }
+  
   /// begin() - Retrieve an iterator to the first initializer argument.
   arg_iterator       begin()       { return Args; }
   /// begin() - Retrieve an iterator to the first initializer argument.
@@ -677,16 +699,22 @@ class CXXConstructorDecl : public CXXMethodDecl {
   /// @c !Implicit && ImplicitlyDefined.
   bool ImplicitlyDefined : 1;
   
-  /// FIXME: Add support for base and member initializers.
-
+  /// Support for base and member initializers.
+  /// BaseOrMemberInitializers - The arguments used to initialize the base 
+  /// or member.
+  CXXBaseOrMemberInitializer **BaseOrMemberInitializers;
+  unsigned NumBaseOrMemberInitializers;
+  
   CXXConstructorDecl(CXXRecordDecl *RD, SourceLocation L,
                      DeclarationName N, QualType T,
                      bool isExplicit, bool isInline, bool isImplicitlyDeclared)
     : CXXMethodDecl(CXXConstructor, RD, L, N, T, false, isInline),
-      Explicit(isExplicit), ImplicitlyDefined(false) { 
+      Explicit(isExplicit), ImplicitlyDefined(false),
+      BaseOrMemberInitializers(0), NumBaseOrMemberInitializers(0) { 
     setImplicit(isImplicitlyDeclared);
   }
-
+  virtual void Destroy(ASTContext& C);
+  
 public:
   static CXXConstructorDecl *Create(ASTContext &C, CXXRecordDecl *RD,
                                     SourceLocation L, DeclarationName N,
@@ -702,7 +730,8 @@ public:
   /// already been defined.
   bool isImplicitlyDefined(ASTContext &C) const { 
     assert(isThisDeclarationADefinition() && 
-           "Can only get the implicit-definition flag once the constructor has been defined");
+           "Can only get the implicit-definition flag once the "
+           "constructor has been defined");
     return ImplicitlyDefined; 
   }
 
@@ -710,9 +739,40 @@ public:
   /// implicitly defined or not.
   void setImplicitlyDefined(bool ID) { 
     assert(isThisDeclarationADefinition() && 
-           "Can only set the implicit-definition flag once the constructor has been defined");
+           "Can only set the implicit-definition flag once the constructor "
+           "has been defined");
     ImplicitlyDefined = ID; 
   }
+  
+  /// init_iterator - Iterates through the member/base initializer list.
+  typedef CXXBaseOrMemberInitializer **init_iterator;
+  
+  /// init_const_iterator - Iterates through the memberbase initializer list.
+  typedef CXXBaseOrMemberInitializer * const * init_const_iterator;
+  
+  /// begin() - Retrieve an iterator to the first initializer.
+  init_iterator       begin()       { return BaseOrMemberInitializers; }
+  /// begin() - Retrieve an iterator to the first initializer.
+  init_const_iterator begin() const { return BaseOrMemberInitializers; }
+  
+  /// end() - Retrieve an iterator past the last initializer.
+  init_iterator       end()       { 
+    return BaseOrMemberInitializers + NumBaseOrMemberInitializers; 
+  }
+  /// end() - Retrieve an iterator past the last initializer.
+  init_const_iterator end() const { 
+    return BaseOrMemberInitializers + NumBaseOrMemberInitializers; 
+  }
+  
+  /// getNumArgs - Determine the number of arguments used to
+  /// initialize the member or base.
+  unsigned getNumBaseOrMemberInitializers() const { 
+      return NumBaseOrMemberInitializers; 
+  }
+  
+  void setBaseOrMemberInitializers(ASTContext &C,
+                                   CXXBaseOrMemberInitializer **Initializers,
+                                   unsigned NumInitializers);
   
   /// isDefaultConstructor - Whether this constructor is a default
   /// constructor (C++ [class.ctor]p5), which can be used to

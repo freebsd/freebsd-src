@@ -62,7 +62,6 @@ protected:
   ASTContext &getContext() const;
 
 public:
-  // virtual MemExtent getExtent(MemRegionManager& mrm) const = 0;
   virtual void Profile(llvm::FoldingSetNodeID& ID) const = 0;
 
   virtual MemRegionManager* getMemRegionManager() const = 0;
@@ -73,17 +72,25 @@ public:
     
   bool hasStackStorage() const;
   
+  bool hasParametersStorage() const;
+  
+  bool hasGlobalsStorage() const;
+  
+  bool hasGlobalsOrParametersStorage() const;
+  
   bool hasHeapStorage() const;
   
   bool hasHeapOrStackStorage() const;
 
-  virtual void print(llvm::raw_ostream& os) const;  
+  virtual void print(llvm::raw_ostream& os) const;
+
+  void printStdErr() const;
   
   Kind getKind() const { return kind; }  
   
   template<typename RegionTy> const RegionTy* getAs() const;
   
-  virtual bool isBoundable() const { return true; }
+  virtual bool isBoundable() const { return false; }
 
   static bool classof(const MemRegion*) { return true; }
 };
@@ -104,8 +111,6 @@ protected:
   }
 
 public:
-  //RegionExtent getExtent() const { return UndefinedExtent(); }
-
   void Profile(llvm::FoldingSetNodeID& ID) const;
 
   bool isBoundable() const { return false; }
@@ -315,6 +320,8 @@ public:
     return Str->getType();
   }
 
+  bool isBoundable() const { return false; }
+
   void Profile(llvm::FoldingSetNodeID& ID) const {
     ProfileRegion(ID, Str, superRegion);
   }
@@ -384,7 +391,9 @@ public:
   QualType getValueType(ASTContext& C) const {
     return C.getCanonicalType(CL->getType());
   }
-  
+
+  bool isBoundable() const { return !CL->isFileScope(); }
+
   void Profile(llvm::FoldingSetNodeID& ID) const;
   
   void print(llvm::raw_ostream& os) const;
@@ -584,15 +593,17 @@ class MemRegionManager {
   llvm::BumpPtrAllocator& A;
   llvm::FoldingSet<MemRegion> Regions;
   
-  MemSpaceRegion* globals;
-  MemSpaceRegion* stack;
-  MemSpaceRegion* heap;
-  MemSpaceRegion* unknown;
-  MemSpaceRegion* code;
+  MemSpaceRegion *globals;
+  MemSpaceRegion *stack;
+  MemSpaceRegion *stackArguments;
+  MemSpaceRegion *heap;
+  MemSpaceRegion *unknown;
+  MemSpaceRegion *code;
 
 public:
   MemRegionManager(ASTContext &c, llvm::BumpPtrAllocator& a)
-    : C(c), A(a), globals(0), stack(0), heap(0), unknown(0), code(0) {}
+    : C(c), A(a), globals(0), stack(0), stackArguments(0), heap(0),
+      unknown(0), code(0) {}
   
   ~MemRegionManager() {}
   
@@ -600,24 +611,28 @@ public:
   
   /// getStackRegion - Retrieve the memory region associated with the
   ///  current stack frame.
-  MemSpaceRegion* getStackRegion();
+  MemSpaceRegion *getStackRegion();
+
+  /// getStackArgumentsRegion - Retrieve the memory region associated with
+  ///  function/method arguments of the current stack frame.
+  MemSpaceRegion *getStackArgumentsRegion();
   
   /// getGlobalsRegion - Retrieve the memory region associated with
   ///  all global variables.
-  MemSpaceRegion* getGlobalsRegion();
+  MemSpaceRegion *getGlobalsRegion();
   
   /// getHeapRegion - Retrieve the memory region associated with the
   ///  generic "heap".
-  MemSpaceRegion* getHeapRegion();
+  MemSpaceRegion *getHeapRegion();
 
   /// getUnknownRegion - Retrieve the memory region associated with unknown
   /// memory space.
-  MemSpaceRegion* getUnknownRegion();
+  MemSpaceRegion *getUnknownRegion();
 
-  MemSpaceRegion* getCodeRegion();
+  MemSpaceRegion *getCodeRegion();
 
   /// getAllocaRegion - Retrieve a region associated with a call to alloca().
-  AllocaRegion* getAllocaRegion(const Expr* Ex, unsigned Cnt);
+  AllocaRegion *getAllocaRegion(const Expr* Ex, unsigned Cnt);
   
   /// getCompoundLiteralRegion - Retrieve the region associated with a
   ///  given CompoundLiteral.
@@ -785,8 +800,12 @@ template <> struct MemRegionManagerTrait<VarRegion> {
   typedef MemRegion SuperRegionTy;
   static const SuperRegionTy* getSuperRegion(MemRegionManager& MRMgr,
                                              const VarDecl *d) {
-    return d->hasLocalStorage() ? MRMgr.getStackRegion() 
-                                : MRMgr.getGlobalsRegion();
+    if (d->hasLocalStorage()) {
+      return isa<ParmVarDecl>(d) || isa<ImplicitParamDecl>(d)
+             ? MRMgr.getStackArgumentsRegion() : MRMgr.getStackRegion();
+    }
+    
+    return MRMgr.getGlobalsRegion();
   }
 };
   

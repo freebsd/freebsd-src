@@ -21,8 +21,8 @@
 #include <errno.h>
 using namespace clang::driver;
 
-Compilation::Compilation(Driver &D,
-                         ToolChain &_DefaultToolChain,
+Compilation::Compilation(const Driver &D,
+                         const ToolChain &_DefaultToolChain,
                          InputArgList *_Args) 
   : TheDriver(D), DefaultToolChain(_DefaultToolChain), Args(_Args) {
 }
@@ -105,7 +105,8 @@ bool Compilation::CleanupFileList(const ArgStringList &Files,
   return Success;
 }
 
-int Compilation::ExecuteCommand(const Command &C) const {
+int Compilation::ExecuteCommand(const Command &C,
+                                const Command *&FailingCommand) const {
   llvm::sys::Path Prog(C.getExecutable());
   const char **Argv = new const char*[C.getArguments().size() + 2];
   Argv[0] = C.getExecutable();
@@ -126,49 +127,31 @@ int Compilation::ExecuteCommand(const Command &C) const {
     getDriver().Diag(clang::diag::err_drv_command_failure) << Error;
   }
   
+  if (Res)
+    FailingCommand = &C;
+
   delete[] Argv;
   return Res;
 }
 
-int Compilation::ExecuteJob(const Job &J) const {
+int Compilation::ExecuteJob(const Job &J, 
+                            const Command *&FailingCommand) const {
   if (const Command *C = dyn_cast<Command>(&J)) {
-    return ExecuteCommand(*C);
+    return ExecuteCommand(*C, FailingCommand);
   } else if (const PipedJob *PJ = dyn_cast<PipedJob>(&J)) {
     // Piped commands with a single job are easy.
     if (PJ->size() == 1)
-      return ExecuteCommand(**PJ->begin());
+      return ExecuteCommand(**PJ->begin(), FailingCommand);
       
+    FailingCommand = *PJ->begin();
     getDriver().Diag(clang::diag::err_drv_unsupported_opt) << "-pipe";
     return 1;
   } else {
     const JobList *Jobs = cast<JobList>(&J);
     for (JobList::const_iterator 
            it = Jobs->begin(), ie = Jobs->end(); it != ie; ++it)
-      if (int Res = ExecuteJob(**it))
+      if (int Res = ExecuteJob(**it, FailingCommand))
         return Res;
     return 0;
   }
-}
-
-int Compilation::Execute() const {
-  // Just print if -### was present.
-  if (getArgs().hasArg(options::OPT__HASH_HASH_HASH)) {
-    PrintJob(llvm::errs(), Jobs, "\n", true);
-    return 0;
-  }
-
-  // If there were errors building the compilation, quit now.
-  if (getDriver().getDiags().getNumErrors())
-    return 1;
-
-  int Res = ExecuteJob(Jobs);
-  
-  // Remove temp files.
-  CleanupFileList(TempFiles);
-
-  // If the compilation failed, remove result files as well.
-  if (Res != 0 && !getArgs().hasArg(options::OPT_save_temps))
-    CleanupFileList(ResultFiles, true);
-
-  return Res;
 }

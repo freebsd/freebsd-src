@@ -152,6 +152,10 @@ public:
   /// an empty string if not.  This is used for pretty crash reporting. 
   virtual std::string getDeclName(DeclPtrTy D) { return ""; }
   
+  /// \brief Invoked for each comment in the source code, providing the source
+  /// range that contains the comment.
+  virtual void ActOnComment(SourceRange Comment) { }
+  
   //===--------------------------------------------------------------------===//
   // Declaration Tracking Callbacks.
   //===--------------------------------------------------------------------===//
@@ -1203,7 +1207,9 @@ public:
 
   virtual MemInitResult ActOnMemInitializer(DeclPtrTy ConstructorDecl,
                                             Scope *S,
+                                            const CXXScopeSpec &SS,
                                             IdentifierInfo *MemberOrBase,
+                                            TypeTy *TemplateTypeTy,
                                             SourceLocation IdLoc,
                                             SourceLocation LParenLoc,
                                             ExprTy **Args, unsigned NumArgs,
@@ -1379,6 +1385,24 @@ public:
     return TypeResult();
   };
 
+  /// \brief Form a reference to a template-id (that will refer to a function)
+  /// from a template and a list of template arguments.
+  ///
+  /// This action forms an expression that references the given template-id,
+  /// possibly checking well-formedness of the template arguments. It does not
+  /// imply the declaration of any entity.
+  ///
+  /// \param Template  A template whose specialization results in a
+  /// function or a dependent template.
+  virtual OwningExprResult ActOnTemplateIdExpr(TemplateTy Template,
+                                               SourceLocation TemplateNameLoc,
+                                               SourceLocation LAngleLoc,
+                                               ASTTemplateArgsPtr TemplateArgs,
+                                               SourceLocation *TemplateArgLocs,
+                                               SourceLocation RAngleLoc) {
+    return ExprError();
+  }
+  
   /// \brief Form a dependent template name.
   ///
   /// This action forms a dependent template name given the template

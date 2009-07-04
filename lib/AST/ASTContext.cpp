@@ -37,12 +37,12 @@ ASTContext::ASTContext(const LangOptions& LOpts, SourceManager &SM,
                        bool FreeMem, unsigned size_reserve) : 
   GlobalNestedNameSpecifier(0), CFConstantStringTypeDecl(0), 
   ObjCFastEnumerationStateTypeDecl(0), SourceMgr(SM), LangOpts(LOpts), 
-  FreeMemory(FreeMem), Target(t), Idents(idents), Selectors(sels),
-  BuiltinInfo(builtins), ExternalSource(0) {  
+  LoadedExternalComments(false), FreeMemory(FreeMem), Target(t), 
+  Idents(idents), Selectors(sels),
+  BuiltinInfo(builtins), ExternalSource(0), PrintingPolicy(LOpts) {  
   if (size_reserve > 0) Types.reserve(size_reserve);    
   InitBuiltinTypes();
   TUDecl = TranslationUnitDecl::Create(*this);
-  PrintingPolicy.CPlusPlus = LangOpts.CPlusPlus;
 }
 
 ASTContext::~ASTContext() {
@@ -203,6 +203,207 @@ void ASTContext::InitBuiltinTypes() {
   InitBuiltinType(NullPtrTy,           BuiltinType::NullPtr);
 }
 
+namespace {
+  class BeforeInTranslationUnit 
+    : std::binary_function<SourceRange, SourceRange, bool> {
+    SourceManager *SourceMgr;
+    
+  public:
+    explicit BeforeInTranslationUnit(SourceManager *SM) : SourceMgr(SM) { }
+      
+    bool operator()(SourceRange X, SourceRange Y) {
+      return SourceMgr->isBeforeInTranslationUnit(X.getBegin(), Y.getBegin());
+    }
+  };
+}
+
+/// \brief Determine whether the given comment is a Doxygen-style comment.
+///
+/// \param Start the start of the comment text.
+///
+/// \param End the end of the comment text.
+///
+/// \param Member whether we want to check whether this is a member comment
+/// (which requires a < after the Doxygen-comment delimiter). Otherwise,
+/// we only return true when we find a non-member comment.
+static bool 
+isDoxygenComment(SourceManager &SourceMgr, SourceRange Comment, 
+                 bool Member = false) {
+  const char *BufferStart 
+    = SourceMgr.getBufferData(SourceMgr.getFileID(Comment.getBegin())).first;
+  const char *Start = BufferStart + SourceMgr.getFileOffset(Comment.getBegin());
+  const char* End = BufferStart + SourceMgr.getFileOffset(Comment.getEnd());
+  
+  if (End - Start < 4)
+    return false;
+
+  assert(Start[0] == '/' && "Not a comment?");
+  if (Start[1] == '*' && !(Start[2] == '!' || Start[2] == '*'))
+    return false;
+  if (Start[1] == '/' && !(Start[2] == '!' || Start[2] == '/'))
+    return false;
+
+  return (Start[3] == '<') == Member;
+}
+
+/// \brief Retrieve the comment associated with the given declaration, if
+/// it has one. 
+const char *ASTContext::getCommentForDecl(const Decl *D) {
+  if (!D)
+    return 0;
+  
+  // Check whether we have cached a comment string for this declaration
+  // already.
+  llvm::DenseMap<const Decl *, std::string>::iterator Pos 
+    = DeclComments.find(D);
+  if (Pos != DeclComments.end())
+    return Pos->second.c_str();
+
+  // If we have an external AST source and have not yet loaded comments from 
+  // that source, do so now.
+  if (ExternalSource && !LoadedExternalComments) {
+    std::vector<SourceRange> LoadedComments;
+    ExternalSource->ReadComments(LoadedComments);
+    
+    if (!LoadedComments.empty())
+      Comments.insert(Comments.begin(), LoadedComments.begin(),
+                      LoadedComments.end());
+    
+    LoadedExternalComments = true;
+  }
+  
+  // If there are no comments anywhere, we won't find anything.  
+  if (Comments.empty())
+    return 0;
+
+  // If the declaration doesn't map directly to a location in a file, we
+  // can't find the comment.
+  SourceLocation DeclStartLoc = D->getLocStart();
+  if (DeclStartLoc.isInvalid() || !DeclStartLoc.isFileID())
+    return 0;
+
+  // Find the comment that occurs just before this declaration.
+  std::vector<SourceRange>::iterator LastComment
+    = std::lower_bound(Comments.begin(), Comments.end(), 
+                       SourceRange(DeclStartLoc),
+                       BeforeInTranslationUnit(&SourceMgr));
+  
+  // Decompose the location for the start of the declaration and find the
+  // beginning of the file buffer.
+  std::pair<FileID, unsigned> DeclStartDecomp 
+    = SourceMgr.getDecomposedLoc(DeclStartLoc);
+  const char *FileBufferStart 
+    = SourceMgr.getBufferData(DeclStartDecomp.first).first;
+  
+  // First check whether we have a comment for a member.
+  if (LastComment != Comments.end() &&
+      !isa<TagDecl>(D) && !isa<NamespaceDecl>(D) &&
+      isDoxygenComment(SourceMgr, *LastComment, true)) {
+    std::pair<FileID, unsigned> LastCommentEndDecomp
+      = SourceMgr.getDecomposedLoc(LastComment->getEnd());
+    if (DeclStartDecomp.first == LastCommentEndDecomp.first &&
+        SourceMgr.getLineNumber(DeclStartDecomp.first, DeclStartDecomp.second)
+          == SourceMgr.getLineNumber(LastCommentEndDecomp.first, 
+                                     LastCommentEndDecomp.second)) {
+      // The Doxygen member comment comes after the declaration starts and
+      // is on the same line and in the same file as the declaration. This
+      // is the comment we want.
+      std::string &Result = DeclComments[D];
+      Result.append(FileBufferStart + 
+                      SourceMgr.getFileOffset(LastComment->getBegin()), 
+                    FileBufferStart + LastCommentEndDecomp.second + 1);
+      return Result.c_str();
+    }
+  }
+  
+  if (LastComment == Comments.begin())
+    return 0;
+  --LastComment;
+
+  // Decompose the end of the comment.
+  std::pair<FileID, unsigned> LastCommentEndDecomp
+    = SourceMgr.getDecomposedLoc(LastComment->getEnd());
+  
+  // If the comment and the declaration aren't in the same file, then they
+  // aren't related.
+  if (DeclStartDecomp.first != LastCommentEndDecomp.first)
+    return 0;
+  
+  // Check that we actually have a Doxygen comment.
+  if (!isDoxygenComment(SourceMgr, *LastComment))
+    return 0;
+      
+  // Compute the starting line for the declaration and for the end of the
+  // comment (this is expensive).
+  unsigned DeclStartLine 
+    = SourceMgr.getLineNumber(DeclStartDecomp.first, DeclStartDecomp.second);
+  unsigned CommentEndLine
+    = SourceMgr.getLineNumber(LastCommentEndDecomp.first, 
+                              LastCommentEndDecomp.second);
+  
+  // If the comment does not end on the line prior to the declaration, then
+  // the comment is not associated with the declaration at all.
+  if (CommentEndLine + 1 != DeclStartLine)
+    return 0;
+  
+  // We have a comment, but there may be more comments on the previous lines.
+  // Keep looking so long as the comments are still Doxygen comments and are
+  // still adjacent.
+  unsigned ExpectedLine 
+    = SourceMgr.getSpellingLineNumber(LastComment->getBegin()) - 1;
+  std::vector<SourceRange>::iterator FirstComment = LastComment;
+  while (FirstComment != Comments.begin()) {
+    // Look at the previous comment
+    --FirstComment;
+    std::pair<FileID, unsigned> Decomp
+      = SourceMgr.getDecomposedLoc(FirstComment->getEnd());
+    
+    // If this previous comment is in a different file, we're done.
+    if (Decomp.first != DeclStartDecomp.first) {
+      ++FirstComment;
+      break;
+    }
+    
+    // If this comment is not a Doxygen comment, we're done.
+    if (!isDoxygenComment(SourceMgr, *FirstComment)) {
+      ++FirstComment;
+      break;
+    }
+    
+    // If the line number is not what we expected, we're done.
+    unsigned Line = SourceMgr.getLineNumber(Decomp.first, Decomp.second);
+    if (Line != ExpectedLine) {
+      ++FirstComment;
+      break;
+    }
+    
+    // Set the next expected line number.
+    ExpectedLine 
+      = SourceMgr.getSpellingLineNumber(FirstComment->getBegin()) - 1;
+  }
+  
+  // The iterator range [FirstComment, LastComment] contains all of the
+  // BCPL comments that, together, are associated with this declaration.
+  // Form a single comment block string for this declaration that concatenates
+  // all of these comments.
+  std::string &Result = DeclComments[D];
+  while (FirstComment != LastComment) {
+    std::pair<FileID, unsigned> DecompStart
+      = SourceMgr.getDecomposedLoc(FirstComment->getBegin());
+    std::pair<FileID, unsigned> DecompEnd
+      = SourceMgr.getDecomposedLoc(FirstComment->getEnd());
+    Result.append(FileBufferStart + DecompStart.second,
+                  FileBufferStart + DecompEnd.second + 1);
+    ++FirstComment;
+  }
+  
+  // Append the last comment line.
+  Result.append(FileBufferStart + 
+                  SourceMgr.getFileOffset(LastComment->getBegin()), 
+                FileBufferStart + LastCommentEndDecomp.second + 1);
+  return Result.c_str();
+}
+
 //===----------------------------------------------------------------------===//
 //                         Type Sizing and Analysis
 //===----------------------------------------------------------------------===//
@@ -226,7 +427,7 @@ const llvm::fltSemantics &ASTContext::getFloatTypeSemantics(QualType T) const {
 unsigned ASTContext::getDeclAlignInBytes(const Decl *D) {
   unsigned Align = Target.getCharWidth();
 
-  if (const AlignedAttr* AA = D->getAttr<AlignedAttr>(*this))
+  if (const AlignedAttr* AA = D->getAttr<AlignedAttr>())
     Align = std::max(Align, AA->getAlignment());
 
   if (const ValueDecl *VD = dyn_cast<ValueDecl>(D)) {
@@ -449,7 +650,7 @@ ASTContext::getTypeInfo(const Type *T) {
 
   case Type::Typedef: {
     const TypedefDecl *Typedef = cast<TypedefType>(T)->getDecl();
-    if (const AlignedAttr *Aligned = Typedef->getAttr<AlignedAttr>(*this)) {
+    if (const AlignedAttr *Aligned = Typedef->getAttr<AlignedAttr>()) {
       Align = Aligned->getAlignment();
       Width = getTypeSize(Typedef->getUnderlyingType().getTypePtr());
     } else
@@ -513,7 +714,7 @@ void ASTRecordLayout::LayoutField(const FieldDecl *FD, unsigned FieldNo,
 
   // FIXME: Should this override struct packing? Probably we want to
   // take the minimum?
-  if (const PackedAttr *PA = FD->getAttr<PackedAttr>(Context))
+  if (const PackedAttr *PA = FD->getAttr<PackedAttr>())
     FieldPacking = PA->getAlignment();
   
   if (const Expr *BitWidthExpr = FD->getBitWidth()) {
@@ -533,7 +734,7 @@ void ASTRecordLayout::LayoutField(const FieldDecl *FD, unsigned FieldNo,
     FieldAlign = FieldInfo.second;
     if (FieldPacking)
       FieldAlign = std::min(FieldAlign, FieldPacking);
-    if (const AlignedAttr *AA = FD->getAttr<AlignedAttr>(Context))
+    if (const AlignedAttr *AA = FD->getAttr<AlignedAttr>())
       FieldAlign = std::max(FieldAlign, AA->getAlignment());
     
     // Check if we need to add padding to give the field the correct
@@ -573,7 +774,7 @@ void ASTRecordLayout::LayoutField(const FieldDecl *FD, unsigned FieldNo,
     // is smaller than the specified packing?
     if (FieldPacking)
       FieldAlign = std::min(FieldAlign, std::max(8U, FieldPacking));
-    if (const AlignedAttr *AA = FD->getAttr<AlignedAttr>(Context))
+    if (const AlignedAttr *AA = FD->getAttr<AlignedAttr>())
       FieldAlign = std::max(FieldAlign, AA->getAlignment());
     
     // Round up the current record size to the field's alignment boundary.
@@ -631,8 +832,8 @@ void ASTContext::ShallowCollectObjCIvars(const ObjCInterfaceDecl *OI,
 
 void ASTContext::CollectProtocolSynthesizedIvars(const ObjCProtocolDecl *PD,
                                 llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars) {
-  for (ObjCContainerDecl::prop_iterator I = PD->prop_begin(*this),
-       E = PD->prop_end(*this); I != E; ++I)
+  for (ObjCContainerDecl::prop_iterator I = PD->prop_begin(),
+       E = PD->prop_end(); I != E; ++I)
     if (ObjCIvarDecl *Ivar = (*I)->getPropertyIvarDecl())
       Ivars.push_back(Ivar);
   
@@ -647,8 +848,8 @@ void ASTContext::CollectProtocolSynthesizedIvars(const ObjCProtocolDecl *PD,
 ///
 void ASTContext::CollectSynthesizedIvars(const ObjCInterfaceDecl *OI,
                                 llvm::SmallVectorImpl<ObjCIvarDecl*> &Ivars) {
-  for (ObjCInterfaceDecl::prop_iterator I = OI->prop_begin(*this),
-       E = OI->prop_end(*this); I != E; ++I) {
+  for (ObjCInterfaceDecl::prop_iterator I = OI->prop_begin(),
+       E = OI->prop_end(); I != E; ++I) {
     if (ObjCIvarDecl *Ivar = (*I)->getPropertyIvarDecl())
       Ivars.push_back(Ivar);
   }
@@ -663,8 +864,8 @@ void ASTContext::CollectSynthesizedIvars(const ObjCInterfaceDecl *OI,
 
 unsigned ASTContext::CountProtocolSynthesizedIvars(const ObjCProtocolDecl *PD) {
   unsigned count = 0;
-  for (ObjCContainerDecl::prop_iterator I = PD->prop_begin(*this),
-       E = PD->prop_end(*this); I != E; ++I)
+  for (ObjCContainerDecl::prop_iterator I = PD->prop_begin(),
+       E = PD->prop_end(); I != E; ++I)
     if ((*I)->getPropertyIvarDecl())
       ++count;
 
@@ -678,8 +879,8 @@ unsigned ASTContext::CountProtocolSynthesizedIvars(const ObjCProtocolDecl *PD) {
 unsigned ASTContext::CountSynthesizedIvars(const ObjCInterfaceDecl *OI)
 {
   unsigned count = 0;
-  for (ObjCInterfaceDecl::prop_iterator I = OI->prop_begin(*this),
-       E = OI->prop_end(*this); I != E; ++I) {
+  for (ObjCInterfaceDecl::prop_iterator I = OI->prop_begin(),
+       E = OI->prop_end(); I != E; ++I) {
     if ((*I)->getPropertyIvarDecl())
       ++count;
   }
@@ -739,10 +940,10 @@ ASTContext::getObjCLayout(const ObjCInterfaceDecl *D,
   }
 
   unsigned StructPacking = 0;
-  if (const PackedAttr *PA = D->getAttr<PackedAttr>(*this))
+  if (const PackedAttr *PA = D->getAttr<PackedAttr>())
     StructPacking = PA->getAlignment();
 
-  if (const AlignedAttr *AA = D->getAttr<AlignedAttr>(*this))
+  if (const AlignedAttr *AA = D->getAttr<AlignedAttr>())
     NewEntry->SetAlignment(std::max(NewEntry->getAlignment(), 
                                     AA->getAlignment()));
 
@@ -786,23 +987,22 @@ const ASTRecordLayout &ASTContext::getASTRecordLayout(const RecordDecl *D) {
   Entry = NewEntry;
 
   // FIXME: Avoid linear walk through the fields, if possible.
-  NewEntry->InitializeLayout(std::distance(D->field_begin(*this), 
-                                           D->field_end(*this)));
+  NewEntry->InitializeLayout(std::distance(D->field_begin(), D->field_end()));
   bool IsUnion = D->isUnion();
 
   unsigned StructPacking = 0;
-  if (const PackedAttr *PA = D->getAttr<PackedAttr>(*this))
+  if (const PackedAttr *PA = D->getAttr<PackedAttr>())
     StructPacking = PA->getAlignment();
 
-  if (const AlignedAttr *AA = D->getAttr<AlignedAttr>(*this))
+  if (const AlignedAttr *AA = D->getAttr<AlignedAttr>())
     NewEntry->SetAlignment(std::max(NewEntry->getAlignment(), 
                                     AA->getAlignment()));
 
   // Layout each field, for now, just sequentially, respecting alignment.  In
   // the future, this will need to be tweakable by targets.
   unsigned FieldIdx = 0;
-  for (RecordDecl::field_iterator Field = D->field_begin(*this),
-                               FieldEnd = D->field_end(*this);
+  for (RecordDecl::field_iterator Field = D->field_begin(),
+                               FieldEnd = D->field_end();
        Field != FieldEnd; (void)++Field, ++FieldIdx)
     NewEntry->LayoutField(*Field, FieldIdx, IsUnion, StructPacking, *this);
 
@@ -1636,13 +1836,6 @@ QualType ASTContext::getObjCQualifiedInterfaceType(ObjCInterfaceDecl *Decl,
   return QualType(QType, 0);
 }
 
-/// getObjCQualifiedIdType - Return an ObjCQualifiedIdType for the 'id' decl
-/// and the conforming protocol list.
-QualType ASTContext::getObjCQualifiedIdType(ObjCProtocolDecl **Protocols, 
-                                            unsigned NumProtocols) {
-  return getObjCObjectPointerType(0, Protocols, NumProtocols);
-}
-
 /// getTypeOfExprType - Unlike many "get<Type>" functions, we can't unique
 /// TypeOfExprType AST's (since expression's are never shared). For example,
 /// multiple declarations that refer to "typeof(x)" all contain different
@@ -1813,6 +2006,12 @@ Decl *ASTContext::getCanonicalDecl(Decl *D) {
     return const_cast<FunctionDecl *>(Function);
   }
 
+  if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(D)) {
+    while (FunTmpl->getPreviousDeclaration())
+      FunTmpl = FunTmpl->getPreviousDeclaration();
+    return FunTmpl;
+  }
+  
   if (const VarDecl *Var = dyn_cast<VarDecl>(D)) {
     while (Var->getPreviousDeclaration())
       Var = Var->getPreviousDeclaration();
@@ -2143,7 +2342,7 @@ QualType ASTContext::getCFConstantStringType() {
                                            SourceLocation(), 0,
                                            FieldTypes[i], /*BitWidth=*/0, 
                                            /*Mutable=*/false);
-      CFConstantStringTypeDecl->addDecl(*this, Field);
+      CFConstantStringTypeDecl->addDecl(Field);
     }
 
     CFConstantStringTypeDecl->completeDefinition(*this);
@@ -2179,7 +2378,7 @@ QualType ASTContext::getObjCFastEnumerationStateType()
                                            SourceLocation(), 0, 
                                            FieldTypes[i], /*BitWidth=*/0, 
                                            /*Mutable=*/false);
-      ObjCFastEnumerationStateTypeDecl->addDecl(*this, Field);
+      ObjCFastEnumerationStateTypeDecl->addDecl(Field);
     }
     
     ObjCFastEnumerationStateTypeDecl->completeDefinition(*this);
@@ -2306,7 +2505,7 @@ void ASTContext::getObjCEncodingForPropertyDecl(const ObjCPropertyDecl *PD,
     if (const ObjCCategoryImplDecl *CID = 
         dyn_cast<ObjCCategoryImplDecl>(Container)) {
       for (ObjCCategoryImplDecl::propimpl_iterator
-             i = CID->propimpl_begin(*this), e = CID->propimpl_end(*this);
+             i = CID->propimpl_begin(), e = CID->propimpl_end();
            i != e; ++i) {
         ObjCPropertyImplDecl *PID = *i;
         if (PID->getPropertyDecl() == PD) {
@@ -2320,7 +2519,7 @@ void ASTContext::getObjCEncodingForPropertyDecl(const ObjCPropertyDecl *PD,
     } else {
       const ObjCImplementationDecl *OID=cast<ObjCImplementationDecl>(Container);
       for (ObjCCategoryImplDecl::propimpl_iterator
-             i = OID->propimpl_begin(*this), e = OID->propimpl_end(*this);
+             i = OID->propimpl_begin(), e = OID->propimpl_end();
            i != e; ++i) {
         ObjCPropertyImplDecl *PID = *i;
         if (PID->getPropertyDecl() == PD) {
@@ -2611,8 +2810,8 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string& S,
     }
     if (ExpandStructures) {
       S += '=';
-      for (RecordDecl::field_iterator Field = RDecl->field_begin(*this),
-                                   FieldEnd = RDecl->field_end(*this);
+      for (RecordDecl::field_iterator Field = RDecl->field_begin(),
+                                   FieldEnd = RDecl->field_end();
            Field != FieldEnd; ++Field) {
         if (FD) {
           S += '"';
@@ -2834,7 +3033,7 @@ QualType ASTContext::getFromTargetType(unsigned Type) const {
 bool ASTContext::isObjCNSObjectType(QualType Ty) const {
   if (TypedefType *TDT = dyn_cast<TypedefType>(Ty)) {
     if (TypedefDecl *TD = TDT->getDecl())
-      if (TD->getAttr<ObjCNSObjectAttr>(*const_cast<ASTContext*>(this)))
+      if (TD->getAttr<ObjCNSObjectAttr>())
         return true;
   }
   return false;  
@@ -3578,7 +3777,7 @@ static QualType DecodeTypeFromStr(const char *&Str, ASTContext &Context,
   case 'P': {
     IdentifierInfo *II = &Context.Idents.get("FILE");
     DeclContext::lookup_result Lookup 
-      = Context.getTranslationUnitDecl()->lookup(Context, II);
+      = Context.getTranslationUnitDecl()->lookup(II);
     if (Lookup.first != Lookup.second && isa<TypeDecl>(*Lookup.first)) {
       Type = Context.getTypeDeclType(cast<TypeDecl>(*Lookup.first));
       break;

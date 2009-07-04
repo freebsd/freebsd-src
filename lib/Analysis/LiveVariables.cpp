@@ -135,9 +135,10 @@ void TransferFuncs::Visit(Stmt *S) {
     StmtVisitor<TransferFuncs,void>::Visit(S);
     
   }
-  else
+  else {
     // For block-level expressions, mark that they are live.
     LiveState(S,AD) = Alive;
+  }
 }
   
 void TransferFuncs::VisitTerminator(CFGBlock* B) {

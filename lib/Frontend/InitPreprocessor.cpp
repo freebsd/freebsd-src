@@ -383,7 +383,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   
   // 16-bit targets doesn't necessarily have a 64-bit type.
   if (TI.getLongLongWidth() == 64)
-    DefineBuiltinMacro(Buf, "__INT64_TYPE__=long long");
+    DefineType("__INT64_TYPE__", TI.getInt64Type(), Buf);
   
   // Add __builtin_va_list typedef.
   {
@@ -423,7 +423,12 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   sprintf(MacroBuf, "__DECIMAL_DIG__=%d",
           PickFP(&TI.getLongDoubleFormat(), -1/*FIXME*/, 17, 21, 33, 36));
   DefineBuiltinMacro(Buf, MacroBuf);
-  
+
+  if (LangOpts.getStackProtectorMode() == LangOptions::SSPOn)
+    DefineBuiltinMacro(Buf, "__SSP__=1");
+  else if (LangOpts.getStackProtectorMode() == LangOptions::SSPReq)
+    DefineBuiltinMacro(Buf, "__SSP_ALL__=2");
+
   // Get other target #defines.
   TI.getTargetDefines(LangOpts, Buf);
 }

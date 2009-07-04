@@ -124,7 +124,7 @@ public:
   /// with location to warn on and the source range[s] to report with the
   /// warning.
   bool isUnusedResultAWarning(SourceLocation &Loc, SourceRange &R1,
-                              SourceRange &R2, ASTContext &Context) const;
+                              SourceRange &R2) const;
   
   /// isLvalue - C99 6.3.2.1: an lvalue is an expression with an object type or
   /// incomplete type other than void. Nonarray expressions that can be lvalues:
@@ -467,9 +467,9 @@ class FloatingLiteral : public Expr {
   bool IsExact : 1;
   SourceLocation Loc;
 public:
-  FloatingLiteral(const llvm::APFloat &V, bool* isexact, 
+  FloatingLiteral(const llvm::APFloat &V, bool isexact, 
                   QualType Type, SourceLocation L)
-    : Expr(FloatingLiteralClass, Type), Value(V), IsExact(*isexact), Loc(L) {} 
+    : Expr(FloatingLiteralClass, Type), Value(V), IsExact(isexact), Loc(L) {} 
 
   /// \brief Construct an empty floating-point literal.
   explicit FloatingLiteral(EmptyShell Empty) 
@@ -2432,9 +2432,6 @@ public:
   SourceLocation getCaretLocation() const;
   const Stmt *getBody() const;
   Stmt *getBody();
-
-  const Stmt *getBody(ASTContext &C) const { return getBody(); }
-  Stmt *getBody(ASTContext &C) { return getBody(); }
 
   virtual SourceRange getSourceRange() const {
     return SourceRange(getCaretLocation(), getBody()->getLocEnd());
