@@ -44,6 +44,8 @@ ISA_MIPS64v2	opt_cputype.h
 YAMON		opt_global.h
 CFE		opt_global.h
 CFE_CONSOLE	opt_global.h
+CFE_ENV		opt_global.h
+CFE_ENV_SIZE	opt_global.h
 
 KERNPHYSADDR	opt_global.h
 KERNVIRTADDR	opt_global.h
