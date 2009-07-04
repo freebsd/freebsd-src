@@ -20,7 +20,7 @@
 #define ENABLE_PIC 1
 
 /* Define if threads enabled */
-#define ENABLE_THREADS 1
+/* #undef ENABLE_THREADS */
 
 /* Define to 1 if you have `alloca', as a function or macro. */
 #define HAVE_ALLOCA 1
@@ -446,7 +446,7 @@
 #define HAVE___DSO_HANDLE 1
 
 /* Build multithreading support into LLVM */
-#define LLVM_MULTITHREADED 1
+/* #undef LLVM_MULTITHREADED */
 
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1
