@@ -96,6 +96,7 @@ libkern/umoddi3.c		standard
 
 dev/cfe/cfe_api.c		optional	cfe
 dev/cfe/cfe_console.c		optional	cfe_console
+dev/cfe/cfe_env.c		optional	cfe_env
 #dev/cfe/cfe_resource.c		optional	cfe	# not yet needed
 
 dev/siba/siba.c			optional	siba
