@@ -35,7 +35,7 @@ namespace  {
 
   public:
     StmtPrinter(llvm::raw_ostream &os, ASTContext &C, PrinterHelper* helper, 
-                const PrintingPolicy &Policy = PrintingPolicy(),
+                const PrintingPolicy &Policy,
                 unsigned Indentation = 0)
       : OS(os), Context(C), IndentLevel(Indentation), Helper(helper),
         Policy(Policy) {}
@@ -114,7 +114,7 @@ void StmtPrinter::PrintRawCompoundStmt(CompoundStmt *Node) {
 }
 
 void StmtPrinter::PrintRawDecl(Decl *D) {
-  D->print(OS, Context, Policy, IndentLevel);
+  D->print(OS, Policy, IndentLevel);
 }
 
 void StmtPrinter::PrintRawDeclStmt(DeclStmt *S) {
@@ -123,8 +123,7 @@ void StmtPrinter::PrintRawDeclStmt(DeclStmt *S) {
   for ( ; Begin != End; ++Begin) 
     Decls.push_back(*Begin);
 
-  Decl::printGroup(Decls.data(), Decls.size(), OS, Context, Policy,
-                   IndentLevel);
+  Decl::printGroup(Decls.data(), Decls.size(), OS, Policy, IndentLevel);
 }
 
 void StmtPrinter::VisitNullStmt(NullStmt *Node) {
@@ -489,6 +488,18 @@ void StmtPrinter::VisitQualifiedDeclRefExpr(QualifiedDeclRefExpr *Node) {
 void StmtPrinter::VisitUnresolvedDeclRefExpr(UnresolvedDeclRefExpr *Node) {  
   Node->getQualifier()->print(OS, Policy);
   OS << Node->getDeclName().getAsString();
+}
+
+void StmtPrinter::VisitTemplateIdRefExpr(TemplateIdRefExpr *Node) {
+  if (Node->getQualifier())
+    Node->getQualifier()->print(OS, Policy);
+  Node->getTemplateName().print(OS, Policy, true);
+  OS << '<';
+  OS << TemplateSpecializationType::PrintTemplateArgumentList(
+                                                      Node->getTemplateArgs(),
+                                                   Node->getNumTemplateArgs(),
+                                                              Policy);
+  OS << '>';
 }
 
 void StmtPrinter::VisitObjCIvarRefExpr(ObjCIvarRefExpr *Node) {
@@ -861,7 +872,7 @@ void StmtPrinter::VisitDesignatedInitExpr(DesignatedInitExpr *Node) {
 }
 
 void StmtPrinter::VisitImplicitValueInitExpr(ImplicitValueInitExpr *Node) {
-  if (Policy.CPlusPlus)
+  if (Policy.LangOpts.CPlusPlus)
     OS << "/*implicit*/" << Node->getType().getAsString(Policy) << "()";
   else {
     OS << "/*implicit*/(" << Node->getType().getAsString(Policy) << ")";
@@ -1216,7 +1227,8 @@ void StmtPrinter::VisitBlockDeclRefExpr(BlockDeclRefExpr *Node) {
 //===----------------------------------------------------------------------===//
 
 void Stmt::dumpPretty(ASTContext& Context) const {
-  printPretty(llvm::errs(), Context, 0, PrintingPolicy());
+  printPretty(llvm::errs(), Context, 0,
+              PrintingPolicy(Context.getLangOptions()));
 }
 
 void Stmt::printPretty(llvm::raw_ostream &OS, ASTContext& Context,

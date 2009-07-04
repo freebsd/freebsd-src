@@ -198,7 +198,7 @@ SVal BasicStoreManager::getLValueElement(const GRState *state,
     return Base;
   
   Loc BaseL = cast<Loc>(Base);  
-  const TypedRegion* BaseR = 0;
+  const MemRegion* BaseR = 0;
   
   switch(BaseL.getSubKind()) {
     case loc::GotoLabelKind:
@@ -216,15 +216,9 @@ SVal BasicStoreManager::getLValueElement(const GRState *state,
         return Base;
       }
       
-      
-      if (const TypedRegion *TR = dyn_cast<TypedRegion>(R)) {
-        BaseR = TR;
+      if (isa<TypedRegion>(R) || isa<SymbolicRegion>(R)) {
+        BaseR = R;
         break;
-      }
-      
-      if (const SymbolicRegion* SR = dyn_cast<SymbolicRegion>(R)) {
-        SymbolRef Sym = SR->getSymbol();
-        BaseR = MRMgr.getTypedViewRegion(Sym->getType(getContext()), SR);
       }
       
       break;
@@ -242,9 +236,10 @@ SVal BasicStoreManager::getLValueElement(const GRState *state,
       return Base;
   }
   
-  if (BaseR)  
+  if (BaseR) { 
     return ValMgr.makeLoc(MRMgr.getElementRegion(elementType, UnknownVal(),
                                                  BaseR, getContext()));
+  }
   else
     return UnknownVal();
 }
@@ -319,54 +314,50 @@ SVal BasicStoreManager::Retrieve(const GRState *state, Loc loc, QualType T) {
 }
   
 Store BasicStoreManager::BindInternal(Store store, Loc loc, SVal V) {    
-  switch (loc.getSubKind()) {      
-    case loc::MemRegionKind: {
-      const MemRegion* R = cast<loc::MemRegionVal>(loc).getRegion();
-      ASTContext &C = StateMgr.getContext();
-      
-      // Special case: handle store of pointer values (Loc) to pointers via
-      // a cast to intXX_t*, void*, etc.  This is needed to handle
-      // OSCompareAndSwap32Barrier/OSCompareAndSwap64Barrier.
-      if (isa<Loc>(V) || isa<nonloc::LocAsInteger>(V))
-        if (const ElementRegion *ER = dyn_cast<ElementRegion>(R)) {
-          // FIXME: Should check for index 0.
-          QualType T = ER->getLocationType(C);
-        
-          if (isHigherOrderRawPtr(T, C))
-            R = ER->getSuperRegion();
-        }      
-      
-      if (!(isa<VarRegion>(R) || isa<ObjCIvarRegion>(R)))
-        return store;
-      
-      // We only track bindings to self.ivar.
-      if (const ObjCIvarRegion *IVR = dyn_cast<ObjCIvarRegion>(R))
-        if (IVR->getSuperRegion() != SelfRegion)
-          return store;
-      
-      if (nonloc::LocAsInteger *X = dyn_cast<nonloc::LocAsInteger>(&V)) {
-        // Only convert 'V' to a location iff the underlying region type
-        // is a location as well.
-        // FIXME: We are allowing a store of an arbitrary location to
-        // a pointer.  We may wish to flag a type error here if the types
-        // are incompatible.  This may also cause lots of breakage
-        // elsewhere. Food for thought.
-        if (const TypedRegion *TyR = dyn_cast<TypedRegion>(R)) {
-          if (TyR->isBoundable() &&
-              Loc::IsLocType(TyR->getValueType(C)))              
-            V = X->getLoc();
-        }
-      }
+  if (isa<loc::ConcreteInt>(loc))
+    return store;
 
-      BindingsTy B = GetBindings(store);
-      return V.isUnknown()
-        ? VBFactory.Remove(B, R).getRoot()
-        : VBFactory.Add(B, R, V).getRoot();
-    }
-    default:
-      assert ("SetSVal for given Loc type not yet implemented.");
+  const MemRegion* R = cast<loc::MemRegionVal>(loc).getRegion();
+  ASTContext &C = StateMgr.getContext();
+      
+  // Special case: handle store of pointer values (Loc) to pointers via
+  // a cast to intXX_t*, void*, etc.  This is needed to handle
+  // OSCompareAndSwap32Barrier/OSCompareAndSwap64Barrier.
+  if (isa<Loc>(V) || isa<nonloc::LocAsInteger>(V))
+    if (const ElementRegion *ER = dyn_cast<ElementRegion>(R)) {
+      // FIXME: Should check for index 0.
+      QualType T = ER->getLocationType(C);
+        
+      if (isHigherOrderRawPtr(T, C))
+        R = ER->getSuperRegion();
+    }      
+      
+  if (!(isa<VarRegion>(R) || isa<ObjCIvarRegion>(R)))
+    return store;
+      
+  // We only track bindings to self.ivar.
+  if (const ObjCIvarRegion *IVR = dyn_cast<ObjCIvarRegion>(R))
+    if (IVR->getSuperRegion() != SelfRegion)
       return store;
+      
+  if (nonloc::LocAsInteger *X = dyn_cast<nonloc::LocAsInteger>(&V)) {
+    // Only convert 'V' to a location iff the underlying region type
+    // is a location as well.
+    // FIXME: We are allowing a store of an arbitrary location to
+    // a pointer.  We may wish to flag a type error here if the types
+    // are incompatible.  This may also cause lots of breakage
+    // elsewhere. Food for thought.
+    if (const TypedRegion *TyR = dyn_cast<TypedRegion>(R)) {
+      if (TyR->isBoundable() &&
+          Loc::IsLocType(TyR->getValueType(C)))              
+        V = X->getLoc();
+    }
   }
+
+  BindingsTy B = GetBindings(store);
+  return V.isUnknown()
+    ? VBFactory.Remove(B, R).getRoot()
+    : VBFactory.Add(B, R, V).getRoot();
 }
 
 Store BasicStoreManager::Remove(Store store, Loc loc) {
@@ -521,7 +512,7 @@ Store BasicStoreManager::getInitialStore() {
           
           // Scan the method for ivar references.  While this requires an
           // entire AST scan, the cost should not be high in practice.
-          St = scanForIvars(MD->getBody(getContext()), PD, St);
+          St = scanForIvars(MD->getBody(), PD, St);
         }
       }
     }
@@ -537,10 +528,9 @@ Store BasicStoreManager::getInitialStore() {
       // Initialize globals and parameters to symbolic values.
       // Initialize local variables to undefined.
       const MemRegion *R = ValMgr.getRegionManager().getVarRegion(VD);
-      SVal X = (VD->hasGlobalStorage() || isa<ParmVarDecl>(VD) ||
-                isa<ImplicitParamDecl>(VD))
-            ? ValMgr.getRegionValueSymbolVal(R)
-            : UndefinedVal();
+      SVal X = R->hasGlobalsOrParametersStorage()
+               ? ValMgr.getRegionValueSymbolVal(R)
+               : UndefinedVal();
 
       St = BindInternal(St, ValMgr.makeLoc(R), X);
     }
@@ -594,7 +584,7 @@ Store BasicStoreManager::BindDeclInternal(Store store, const VarDecl* VD,
   } else {
     // Process local scalar variables.
     QualType T = VD->getType();
-    if (Loc::IsLocType(T) || T->isIntegerType()) {
+    if (ValMgr.getSymbolManager().canSymbolicate(T)) {
       SVal V = InitVal ? *InitVal : UndefinedVal();
       store = BindInternal(store, getLoc(VD), V);
     }

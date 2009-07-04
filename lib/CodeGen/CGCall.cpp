@@ -142,8 +142,8 @@ void CodeGenTypes::GetExpandedTypes(QualType Ty,
   assert(!RD->hasFlexibleArrayMember() && 
          "Cannot expand structure with flexible array.");
   
-  for (RecordDecl::field_iterator i = RD->field_begin(Context), 
-         e = RD->field_end(Context); i != e; ++i) {
+  for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
+         i != e; ++i) {
     const FieldDecl *FD = *i;
     assert(!FD->isBitField() && 
            "Cannot expand structure with bit-field members.");
@@ -167,8 +167,8 @@ CodeGenFunction::ExpandTypeFromArgs(QualType Ty, LValue LV,
   assert(LV.isSimple() && 
          "Unexpected non-simple lvalue during struct expansion.");  
   llvm::Value *Addr = LV.getAddress();
-  for (RecordDecl::field_iterator i = RD->field_begin(getContext()), 
-         e = RD->field_end(getContext()); i != e; ++i) {
+  for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
+         i != e; ++i) {
     FieldDecl *FD = *i;    
     QualType FT = FD->getType();
 
@@ -194,8 +194,8 @@ CodeGenFunction::ExpandTypeToArgs(QualType Ty, RValue RV,
   RecordDecl *RD = RT->getDecl();
   assert(RV.isAggregate() && "Unexpected rvalue during struct expansion");
   llvm::Value *Addr = RV.getAggregateAddr();
-  for (RecordDecl::field_iterator i = RD->field_begin(getContext()), 
-         e = RD->field_end(getContext()); i != e; ++i) {
+  for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
+         i != e; ++i) {
     FieldDecl *FD = *i;    
     QualType FT = FD->getType();
     
@@ -377,13 +377,13 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
 
   // FIXME: handle sseregparm someday...
   if (TargetDecl) {
-    if (TargetDecl->hasAttr<NoThrowAttr>(getContext()))
+    if (TargetDecl->hasAttr<NoThrowAttr>())
       FuncAttrs |= llvm::Attribute::NoUnwind;
-    if (TargetDecl->hasAttr<NoReturnAttr>(getContext()))
+    if (TargetDecl->hasAttr<NoReturnAttr>())
       FuncAttrs |= llvm::Attribute::NoReturn;
-    if (TargetDecl->hasAttr<ConstAttr>(getContext()))
+    if (TargetDecl->hasAttr<ConstAttr>())
       FuncAttrs |= llvm::Attribute::ReadNone;
-    else if (TargetDecl->hasAttr<PureAttr>(getContext()))
+    else if (TargetDecl->hasAttr<PureAttr>())
       FuncAttrs |= llvm::Attribute::ReadOnly;
   }
 
@@ -391,6 +391,11 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
     FuncAttrs |= llvm::Attribute::NoRedZone;
   if (CompileOpts.NoImplicitFloat)
     FuncAttrs |= llvm::Attribute::NoImplicitFloat;
+
+  if (Features.getStackProtectorMode() == LangOptions::SSPOn)
+    FuncAttrs |= llvm::Attribute::StackProtect;
+  else if (Features.getStackProtectorMode() == LangOptions::SSPReq)
+    FuncAttrs |= llvm::Attribute::StackProtectReq;
 
   QualType RetTy = FI.getReturnType();
   unsigned Index = 1;
@@ -433,7 +438,7 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
   signed RegParm = 0;
   if (TargetDecl)
     if (const RegparmAttr *RegParmAttr 
-          = TargetDecl->getAttr<RegparmAttr>(getContext()))
+          = TargetDecl->getAttr<RegparmAttr>())
       RegParm = RegParmAttr->getNumParams();
 
   unsigned PointerWidth = getContext().Target.getPointerWidth(0);

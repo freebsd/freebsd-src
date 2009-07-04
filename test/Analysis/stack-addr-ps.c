@@ -41,3 +41,19 @@ void* alloca_test() {
   return p; // expected-warning{{Address of stack memory}}
 }
 
+int array_test(int x[2]) {
+  return x[0]; // no-warning
+}
+
+struct baz {
+  int x;
+  int y[2];
+};
+
+int struct_test(struct baz byVal, int flag) {
+  if (flag)  
+    return byVal.x; // no-warning
+  else {
+    return byVal.y[0]; // no-warning
+  }
+}

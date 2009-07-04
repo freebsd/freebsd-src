@@ -306,39 +306,33 @@ void RewriteBlocks::RewriteMethodDecl(ObjCMethodDecl *Method) {
 
 void RewriteBlocks::RewriteInterfaceDecl(ObjCInterfaceDecl *ClassDecl) {
   for (ObjCInterfaceDecl::instmeth_iterator 
-         I = ClassDecl->instmeth_begin(*Context), 
-         E = ClassDecl->instmeth_end(*Context); 
+         I = ClassDecl->instmeth_begin(), E = ClassDecl->instmeth_end(); 
        I != E; ++I)
     RewriteMethodDecl(*I);
   for (ObjCInterfaceDecl::classmeth_iterator 
-         I = ClassDecl->classmeth_begin(*Context), 
-         E = ClassDecl->classmeth_end(*Context);
+         I = ClassDecl->classmeth_begin(), E = ClassDecl->classmeth_end();
        I != E; ++I)
     RewriteMethodDecl(*I);
 }
 
 void RewriteBlocks::RewriteCategoryDecl(ObjCCategoryDecl *CatDecl) {
   for (ObjCCategoryDecl::instmeth_iterator 
-         I = CatDecl->instmeth_begin(*Context), 
-         E = CatDecl->instmeth_end(*Context); 
+         I = CatDecl->instmeth_begin(), E = CatDecl->instmeth_end(); 
        I != E; ++I)
     RewriteMethodDecl(*I);
   for (ObjCCategoryDecl::classmeth_iterator 
-         I = CatDecl->classmeth_begin(*Context), 
-         E = CatDecl->classmeth_end(*Context);
+         I = CatDecl->classmeth_begin(), E = CatDecl->classmeth_end();
        I != E; ++I)
     RewriteMethodDecl(*I);
 }
 
 void RewriteBlocks::RewriteProtocolDecl(ObjCProtocolDecl *PDecl) {
   for (ObjCProtocolDecl::instmeth_iterator 
-         I = PDecl->instmeth_begin(*Context), 
-         E = PDecl->instmeth_end(*Context); 
+         I = PDecl->instmeth_begin(), E = PDecl->instmeth_end(); 
        I != E; ++I)
     RewriteMethodDecl(*I);
   for (ObjCProtocolDecl::classmeth_iterator 
-         I = PDecl->classmeth_begin(*Context), 
-         E = PDecl->classmeth_end(*Context); 
+         I = PDecl->classmeth_begin(), E = PDecl->classmeth_end(); 
        I != E; ++I)
     RewriteMethodDecl(*I);
 }
@@ -724,7 +718,8 @@ std::string RewriteBlocks::SynthesizeBlockCall(CallExpr *Exp) {
   BlockCall += "((struct __block_impl *)";
   std::string closureExprBufStr;
   llvm::raw_string_ostream closureExprBuf(closureExprBufStr);
-  Exp->getCallee()->printPretty(closureExprBuf, *Context);
+  Exp->getCallee()->printPretty(closureExprBuf, *Context, 0,
+                                PrintingPolicy(LangOpts));
   BlockCall += closureExprBuf.str();
   BlockCall += ")->FuncPtr)";
   
@@ -735,7 +730,7 @@ std::string RewriteBlocks::SynthesizeBlockCall(CallExpr *Exp) {
        E = Exp->arg_end(); I != E; ++I) {
     std::string syncExprBufS;
     llvm::raw_string_ostream Buf(syncExprBufS);
-    (*I)->printPretty(Buf, *Context);
+    (*I)->printPretty(Buf, *Context, 0, PrintingPolicy(LangOpts));
     BlockCall += ", " + Buf.str();
   }
   return BlockCall;
@@ -1088,7 +1083,7 @@ void RewriteBlocks::HandleDeclInMainFile(Decl *D) {
     RewriteFunctionProtoType(FD->getType(), FD);
 
     // FIXME: Handle CXXTryStmt
-    if (CompoundStmt *Body = FD->getCompoundBody(*Context)) {
+    if (CompoundStmt *Body = FD->getCompoundBody()) {
       CurFunctionDef = FD;
       FD->setBody(cast_or_null<CompoundStmt>(RewriteFunctionBody(Body)));
       // This synthesizes and inserts the block "impl" struct, invoke function,
@@ -1100,7 +1095,7 @@ void RewriteBlocks::HandleDeclInMainFile(Decl *D) {
   }
   if (ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
     RewriteMethodDecl(MD);
-    if (Stmt *Body = MD->getBody(*Context)) {
+    if (Stmt *Body = MD->getBody()) {
       CurMethodDef = MD;
       RewriteFunctionBody(Body);
       InsertBlockLiteralsWithinMethod(MD);
@@ -1112,7 +1107,7 @@ void RewriteBlocks::HandleDeclInMainFile(Decl *D) {
       RewriteBlockPointerDecl(VD);
       if (VD->getInit()) {
         if (BlockExpr *CBE = dyn_cast<BlockExpr>(VD->getInit())) {
-          RewriteFunctionBody(CBE->getBody(*Context));
+          RewriteFunctionBody(CBE->getBody());
 
           // We've just rewritten the block body in place.
           // Now we snarf the rewritten text and stash it away for later use.
@@ -1146,8 +1141,8 @@ void RewriteBlocks::HandleDeclInMainFile(Decl *D) {
   }
   if (RecordDecl *RD = dyn_cast<RecordDecl>(D)) {
     if (RD->isDefinition()) {
-      for (RecordDecl::field_iterator i = RD->field_begin(*Context), 
-             e = RD->field_end(*Context); i != e; ++i) {
+      for (RecordDecl::field_iterator i = RD->field_begin(), 
+             e = RD->field_end(); i != e; ++i) {
         FieldDecl *FD = *i;
         if (isBlockPointerType(FD->getType()))
           RewriteBlockPointerDecl(FD);

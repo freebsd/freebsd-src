@@ -213,6 +213,13 @@ public:
   const DeclContext *getDeclContext() const {
     return const_cast<Decl*>(this)->getDeclContext();
   }
+
+  TranslationUnitDecl *getTranslationUnitDecl();
+  const TranslationUnitDecl *getTranslationUnitDecl() const {
+    return const_cast<Decl*>(this)->getTranslationUnitDecl();
+  }
+
+  ASTContext &getASTContext() const;
   
   void setAccess(AccessSpecifier AS) {
     Access = AS; 
@@ -225,23 +232,23 @@ public:
   }
 
   bool hasAttrs() const { return HasAttrs; }
-  void addAttr(ASTContext &Context, Attr *attr);
-  const Attr *getAttrs(ASTContext &Context) const {
+  void addAttr(Attr *attr);
+  const Attr *getAttrs() const {
     if (!HasAttrs) return 0;  // common case, no attributes.
-    return getAttrsImpl(Context);    // Uncommon case, out of line hash lookup.
+    return getAttrsImpl();    // Uncommon case, out of line hash lookup.
   }
-  void swapAttrs(ASTContext &Context, Decl *D);
-  void invalidateAttrs(ASTContext &Context);
+  void swapAttrs(Decl *D);
+  void invalidateAttrs();
 
-  template<typename T> const T *getAttr(ASTContext &Context) const {
-    for (const Attr *attr = getAttrs(Context); attr; attr = attr->getNext())
+  template<typename T> const T *getAttr() const {
+    for (const Attr *attr = getAttrs(); attr; attr = attr->getNext())
       if (const T *V = dyn_cast<T>(attr))
         return V;
     return 0;
   }
     
-  template<typename T> bool hasAttr(ASTContext &Context) const {
-    return getAttr<T>(Context) != 0;
+  template<typename T> bool hasAttr() const {
+    return getAttr<T>() != 0;
   }
   
   /// setInvalidDecl - Indicates the Decl had a semantic error. This
@@ -307,14 +314,14 @@ public:
   /// getBody - If this Decl represents a declaration for a body of code,
   ///  such as a function or method definition, this method returns the
   ///  top-level Stmt* of that body.  Otherwise this method returns null.
-  virtual Stmt* getBody(ASTContext &Context) const { return 0; }
+  virtual Stmt* getBody() const { return 0; }
 
   /// getCompoundBody - Returns getBody(), dyn_casted to a CompoundStmt.
-  CompoundStmt* getCompoundBody(ASTContext &Context) const;
+  CompoundStmt* getCompoundBody() const;
 
   /// getBodyRBrace - Gets the right brace of the body, if a body exists.
   /// This works whether the body is a CompoundStmt or a CXXTryStmt.
-  SourceLocation getBodyRBrace(ASTContext &Context) const;
+  SourceLocation getBodyRBrace() const;
 
   // global temp stats (until we have a per-module visitor)
   static void addDeclKind(Kind k);
@@ -340,18 +347,16 @@ public:
   /// Destroy - Call destructors and release memory.
   virtual void Destroy(ASTContext& C);
 
-  void print(llvm::raw_ostream &Out, ASTContext &Context, 
+  void print(llvm::raw_ostream &Out, unsigned Indentation = 0);
+  void print(llvm::raw_ostream &Out, const PrintingPolicy &Policy,
              unsigned Indentation = 0);
-  void print(llvm::raw_ostream &Out, ASTContext &Context, 
-             const PrintingPolicy &Policy, unsigned Indentation = 0);
   static void printGroup(Decl** Begin, unsigned NumDecls,
-                         llvm::raw_ostream &Out, ASTContext &Context, 
-                         const PrintingPolicy &Policy,
+                         llvm::raw_ostream &Out, const PrintingPolicy &Policy,
                          unsigned Indentation = 0);
-  void dump(ASTContext &Context);
+  void dump();
 
 private:
-  const Attr *getAttrsImpl(ASTContext &Context) const;
+  const Attr *getAttrsImpl() const;
 
 };
 
@@ -454,7 +459,11 @@ public:
   const DeclContext *getLexicalParent() const {
     return const_cast<DeclContext*>(this)->getLexicalParent();
   }    
-  
+
+  ASTContext &getParentASTContext() const {
+    return cast<Decl>(this)->getASTContext();
+  }
+
   bool isFunctionOrMethod() const {
     switch (DeclKind) {
     case Decl::Block:
@@ -592,9 +601,9 @@ public:
 
   /// decls_begin/decls_end - Iterate over the declarations stored in
   /// this context. 
-  decl_iterator decls_begin(ASTContext &Context) const;
-  decl_iterator decls_end(ASTContext &Context) const;
-  bool decls_empty(ASTContext &Context) const;
+  decl_iterator decls_begin() const;
+  decl_iterator decls_end() const;
+  bool decls_empty() const;
 
   /// specific_decl_iterator - Iterates over a subrange of
   /// declarations stored in a DeclContext, providing only those that
@@ -750,7 +759,7 @@ public:
   ///
   /// If D is also a NamedDecl, it will be made visible within its
   /// semantic context via makeDeclVisibleInContext.
-  void addDecl(ASTContext &Context, Decl *D);
+  void addDecl(Decl *D);
 
   /// lookup_iterator - An iterator that provides access to the results
   /// of looking up a name within this context.
@@ -769,8 +778,8 @@ public:
   /// the declarations with this name, with object, function, member,
   /// and enumerator names preceding any tag name. Note that this
   /// routine will not look into parent contexts.
-  lookup_result lookup(ASTContext &Context, DeclarationName Name);
-  lookup_const_result lookup(ASTContext &Context, DeclarationName Name) const;
+  lookup_result lookup(DeclarationName Name);
+  lookup_const_result lookup(DeclarationName Name) const;
 
   /// @brief Makes a declaration visible within this context.
   ///
@@ -786,7 +795,7 @@ public:
   /// visible from this context, as determined by
   /// NamedDecl::declarationReplaces, the previous declaration will be
   /// replaced with D.
-  void makeDeclVisibleInContext(ASTContext &Context, NamedDecl *D);
+  void makeDeclVisibleInContext(NamedDecl *D);
 
   /// udir_iterator - Iterates through the using-directives stored
   /// within this context.
@@ -794,14 +803,14 @@ public:
   
   typedef std::pair<udir_iterator, udir_iterator> udir_iterator_range;
 
-  udir_iterator_range getUsingDirectives(ASTContext &Context) const;
+  udir_iterator_range getUsingDirectives() const;
 
-  udir_iterator using_directives_begin(ASTContext &Context) const {
-    return getUsingDirectives(Context).first;
+  udir_iterator using_directives_begin() const {
+    return getUsingDirectives().first;
   }
 
-  udir_iterator using_directives_end(ASTContext &Context) const {
-    return getUsingDirectives(Context).second;
+  udir_iterator using_directives_end() const {
+    return getUsingDirectives().second;
   }
 
   // Low-level accessors
@@ -836,11 +845,11 @@ public:
 #include "clang/AST/DeclNodes.def"
 
 private:
-  void LoadLexicalDeclsFromExternalStorage(ASTContext &Context) const;
-  void LoadVisibleDeclsFromExternalStorage(ASTContext &Context) const;
+  void LoadLexicalDeclsFromExternalStorage() const;
+  void LoadVisibleDeclsFromExternalStorage() const;
 
-  void buildLookup(ASTContext &Context, DeclContext *DCtx);
-  void makeDeclVisibleInContextImpl(ASTContext &Context, NamedDecl *D);
+  void buildLookup(DeclContext *DCtx);
+  void makeDeclVisibleInContextImpl(NamedDecl *D);
 };
 
 inline bool Decl::isTemplateParameter() const {

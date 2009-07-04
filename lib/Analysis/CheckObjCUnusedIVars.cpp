@@ -59,9 +59,6 @@ void clang::CheckObjCUnusedIvar(ObjCImplementationDecl* D, BugReporter& BR) {
   ObjCInterfaceDecl* ID = D->getClassInterface();
   IvarUsageMap M;
 
-
-  ASTContext &Ctx = BR.getContext();
-
   // Iterate over the ivars.
   for (ObjCInterfaceDecl::ivar_iterator I=ID->ivar_begin(), E=ID->ivar_end();
        I!=E; ++I) {
@@ -73,7 +70,7 @@ void clang::CheckObjCUnusedIvar(ObjCImplementationDecl* D, BugReporter& BR) {
       continue;
 
     // Skip IB Outlets.
-    if (ID->getAttr<IBOutletAttr>(Ctx))
+    if (ID->getAttr<IBOutletAttr>())
       continue;
     
     M[ID] = Unused;
@@ -83,14 +80,14 @@ void clang::CheckObjCUnusedIvar(ObjCImplementationDecl* D, BugReporter& BR) {
     return;
   
   // Now scan the methods for accesses.
-  for (ObjCImplementationDecl::instmeth_iterator I = D->instmeth_begin(Ctx),
-       E = D->instmeth_end(Ctx); I!=E; ++I)
-    Scan(M, (*I)->getBody(Ctx));
+  for (ObjCImplementationDecl::instmeth_iterator I = D->instmeth_begin(),
+       E = D->instmeth_end(); I!=E; ++I)
+    Scan(M, (*I)->getBody());
   
   // Scan for @synthesized property methods that act as setters/getters
   // to an ivar.
-  for (ObjCImplementationDecl::propimpl_iterator I = D->propimpl_begin(Ctx),
-       E = D->propimpl_end(Ctx); I!=E; ++I)
+  for (ObjCImplementationDecl::propimpl_iterator I = D->propimpl_begin(),
+       E = D->propimpl_end(); I!=E; ++I)
     Scan(M, *I);  
   
   // Find ivars that are unused.

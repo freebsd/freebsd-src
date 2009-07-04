@@ -44,7 +44,7 @@ namespace {
     virtual void HandleTranslationUnit(ASTContext &Context) {
       PrintingPolicy Policy = Context.PrintingPolicy;
       Policy.Dump = Dump;
-      Context.getTranslationUnitDecl()->print(Out, Context, Policy);
+      Context.getTranslationUnitDecl()->print(Out, Policy);
     }
   };
 } // end anonymous namespace
@@ -70,8 +70,8 @@ namespace {
     virtual void HandleTranslationUnit(ASTContext &Ctx) {
       Doc.addSubNode("TranslationUnit");
       for (DeclContext::decl_iterator 
-             D = Ctx.getTranslationUnitDecl()->decls_begin(Ctx),
-             DEnd = Ctx.getTranslationUnitDecl()->decls_end(Ctx);
+             D = Ctx.getTranslationUnitDecl()->decls_begin(),
+             DEnd = Ctx.getTranslationUnitDecl()->decls_end();
            D != DEnd; 
            ++D)
       {
@@ -114,7 +114,7 @@ namespace {
 
 void ASTViewer::HandleTopLevelSingleDecl(Decl *D) {
   if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
-    FD->print(llvm::errs(), *Context);
+    FD->print(llvm::errs());
     
     if (FD->getBodyIfAvailable()) {
       llvm::cerr << '\n';
@@ -125,7 +125,7 @@ void ASTViewer::HandleTopLevelSingleDecl(Decl *D) {
   }
   
   if (ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D)) {
-    MD->print(llvm::errs(), *Context);
+    MD->print(llvm::errs());
     
     if (MD->getBody()) {
       llvm::cerr << '\n';
@@ -340,10 +340,7 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
   Out << "\n";
 
   // Print decls in the DeclContext.
-  // FIXME: Should not use a NULL DeclContext!
-  ASTContext *Context = 0;
-  for (DeclContext::decl_iterator I = DC->decls_begin(*Context), 
-         E = DC->decls_end(*Context);
+  for (DeclContext::decl_iterator I = DC->decls_begin(), E = DC->decls_end();
        I != E; ++I) {
     for (unsigned i = 0; i < Indentation; ++i)
       Out << "  ";

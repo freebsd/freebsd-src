@@ -242,8 +242,8 @@ APValue LValueExprEvaluator::VisitMemberExpr(MemberExpr *E) {
 
   // FIXME: This is linear time.
   unsigned i = 0;
-  for (RecordDecl::field_iterator Field = RD->field_begin(Info.Ctx),
-                               FieldEnd = RD->field_end(Info.Ctx);
+  for (RecordDecl::field_iterator Field = RD->field_begin(),
+                               FieldEnd = RD->field_end();
        Field != FieldEnd; (void)++Field, ++i) {
     if (*Field == FD)
       break;
@@ -485,6 +485,11 @@ static bool EvaluateVector(const Expr* E, APValue& Result, EvalInfo &Info) {
 }
 
 APValue VectorExprEvaluator::VisitCastExpr(const CastExpr* E) {
+  const VectorType *VTy = E->getType()->getAsVectorType();
+  QualType EltTy = VTy->getElementType();
+  unsigned NElts = VTy->getNumElements();
+  unsigned EltWidth = Info.Ctx.getTypeSize(EltTy);
+  
   const Expr* SE = E->getSubExpr();
   QualType SETy = SE->getType();
   APValue Result = APValue();
@@ -494,20 +499,62 @@ APValue VectorExprEvaluator::VisitCastExpr(const CastExpr* E) {
     return this->Visit(const_cast<Expr*>(SE));
   } else if (SETy->isIntegerType()) {
     APSInt IntResult;
-    if (EvaluateInteger(SE, IntResult, Info))
-      Result = APValue(IntResult);
+    if (!EvaluateInteger(SE, IntResult, Info))
+      return APValue();
+    Result = APValue(IntResult);
   } else if (SETy->isRealFloatingType()) {
     APFloat F(0.0);
-    if (EvaluateFloat(SE, F, Info))
-      Result = APValue(F);
+    if (!EvaluateFloat(SE, F, Info))
+      return APValue();
+    Result = APValue(F);
+  } else
+    return APValue();
+
+  // For casts of a scalar to ExtVector, convert the scalar to the element type
+  // and splat it to all elements.
+  if (E->getType()->isExtVectorType()) {
+    if (EltTy->isIntegerType() && Result.isInt())
+      Result = APValue(HandleIntToIntCast(EltTy, SETy, Result.getInt(),
+                                          Info.Ctx));
+    else if (EltTy->isIntegerType())
+      Result = APValue(HandleFloatToIntCast(EltTy, SETy, Result.getFloat(),
+                                            Info.Ctx));
+    else if (EltTy->isRealFloatingType() && Result.isInt())
+      Result = APValue(HandleIntToFloatCast(EltTy, SETy, Result.getInt(),
+                                            Info.Ctx));
+    else if (EltTy->isRealFloatingType())
+      Result = APValue(HandleFloatToFloatCast(EltTy, SETy, Result.getFloat(),
+                                              Info.Ctx));
+    else
+      return APValue();
+
+    // Splat and create vector APValue.
+    llvm::SmallVector<APValue, 4> Elts(NElts, Result);
+    return APValue(&Elts[0], Elts.size());
   }
 
-  if (Result.isInt() || Result.isFloat()) {
-    unsigned NumElts = E->getType()->getAsVectorType()->getNumElements();
-    llvm::SmallVector<APValue, 4> Elts(NumElts, Result);
-    Result = APValue(&Elts[0], Elts.size());
+  // For casts of a scalar to regular gcc-style vector type, bitcast the scalar
+  // to the vector. To construct the APValue vector initializer, bitcast the
+  // initializing value to an APInt, and shift out the bits pertaining to each
+  // element.
+  APSInt Init;
+  Init = Result.isInt() ? Result.getInt() : Result.getFloat().bitcastToAPInt();
+  
+  llvm::SmallVector<APValue, 4> Elts;
+  for (unsigned i = 0; i != NElts; ++i) {
+    APSInt Tmp = Init;
+    Tmp.extOrTrunc(EltWidth);
+    
+    if (EltTy->isIntegerType())
+      Elts.push_back(APValue(Tmp));
+    else if (EltTy->isRealFloatingType())
+      Elts.push_back(APValue(APFloat(Tmp)));
+    else
+      return APValue();
+
+    Init >>= EltWidth;
   }
-  return Result;
+  return APValue(&Elts[0], Elts.size());
 }
 
 APValue 

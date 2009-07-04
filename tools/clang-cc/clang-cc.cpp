@@ -50,6 +50,7 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/Version.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringExtras.h"
@@ -660,6 +661,11 @@ PICLevel("pic-level", llvm::cl::desc("Value for __PIC__"));
 static llvm::cl::opt<bool>
 StaticDefine("static-define", llvm::cl::desc("Should __STATIC__ be defined"));
 
+static llvm::cl::opt<int>
+StackProtector("stack-protector",
+               llvm::cl::desc("Enable stack protectors"),
+               llvm::cl::init(-1));
+
 static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
                                        TargetInfo *Target,
                                        const llvm::StringMap<bool> &Features) {
@@ -779,6 +785,9 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
   if (AccessControl)
     Options.AccessControl = 1;
   
+  // OpenCL and C++ both have bool, true, false keywords.
+  Options.Bool = Options.OpenCL | Options.CPlusPlus;
+  
   Options.MathErrno = MathErrno;
 
   Options.InstantiationDepth = TemplateDepth;
@@ -813,6 +822,15 @@ static void InitializeLanguageStandard(LangOptions &Options, LangKind LK,
   Options.NoInline = !OptSize && !OptLevel;
 
   Options.Static = StaticDefine;
+
+  switch (StackProtector) {
+  default:
+    assert(StackProtector <= 2 && "Invalid value for -stack-protector");
+  case -1: break;
+  case 0: Options.setStackProtectorMode(LangOptions::SSPOff); break;
+  case 1: Options.setStackProtectorMode(LangOptions::SSPOn);  break;
+  case 2: Options.setStackProtectorMode(LangOptions::SSPReq); break;
+  }
 
   if (MainFileName.getPosition())
     Options.setMainFileName(MainFileName.c_str());
@@ -1729,7 +1747,8 @@ static llvm::raw_ostream* ComputeOutFile(const std::string& InFile,
 ///
 static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
                              const std::string &InFile, ProgActions PA,
-                             const llvm::StringMap<bool> &Features) {
+                             const llvm::StringMap<bool> &Features,
+                             llvm::LLVMContext& Context) {
   llvm::OwningPtr<llvm::raw_ostream> OS;
   llvm::OwningPtr<ASTConsumer> Consumer;
   bool ClearSourceMgr = false;
@@ -1796,7 +1815,7 @@ static void ProcessInputFile(Preprocessor &PP, PreprocessorFactory &PPF,
     InitializeCompileOptions(Opts, PP.getLangOptions(), Features);
     Consumer.reset(CreateBackendConsumer(Act, PP.getDiagnostics(),
                                          PP.getLangOptions(), Opts, InFile,
-                                         OS.get()));
+                                         OS.get(), Context));
     break;
   }
 
@@ -2088,9 +2107,10 @@ InputFilenames(llvm::cl::Positional, llvm::cl::desc("<input files>"));
 int main(int argc, char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal();
   llvm::PrettyStackTraceProgram X(argc, argv);
+  llvm::LLVMContext Context;
   llvm::cl::ParseCommandLineOptions(argc, argv,
                               "LLVM 'Clang' Compiler: http://clang.llvm.org\n");
-
+  
   llvm::InitializeAllTargets();
   llvm::InitializeAllAsmPrinters();
   
@@ -2264,7 +2284,7 @@ int main(int argc, char **argv) {
       ((PathDiagnosticClient*)DiagClient.get())->SetPreprocessor(PP.get());
 
     // Process the source file.
-    ProcessInputFile(*PP, PPFactory, InFile, ProgAction, Features);
+    ProcessInputFile(*PP, PPFactory, InFile, ProgAction, Features, Context);
     
     HeaderInfo.ClearFileInfo();
     DiagClient->setLangOptions(0);

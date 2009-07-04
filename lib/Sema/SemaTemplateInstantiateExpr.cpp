@@ -107,12 +107,49 @@ TemplateExprInstantiator::VisitUnresolvedFunctionNameExpr(
 }
 
 Sema::OwningExprResult
+TemplateExprInstantiator::VisitTemplateIdRefExpr(TemplateIdRefExpr *E) {
+  TemplateName Template 
+    = SemaRef.InstantiateTemplateName(E->getTemplateName(), E->getTemplateNameLoc(),
+                                      TemplateArgs);
+  // FIXME: Can InstantiateTemplateName report an error?
+  
+  llvm::SmallVector<TemplateArgument, 4> InstantiatedArgs;
+  for (unsigned I = 0, N = E->getNumTemplateArgs(); I != N; ++I) {
+    TemplateArgument InstArg = SemaRef.Instantiate(E->getTemplateArgs()[I],
+                                                   TemplateArgs);
+    if (InstArg.isNull())
+      return SemaRef.ExprError();
+    
+    InstantiatedArgs.push_back(InstArg);
+  }
+  
+  // FIXME: It's possible that we'll find out now that the template name 
+  // actually refers to a type, in which case this is a functional cast. 
+  // Implement this!
+  
+  return SemaRef.BuildTemplateIdExpr(Template, E->getTemplateNameLoc(),
+                                     E->getLAngleLoc(),
+                                     InstantiatedArgs.data(),
+                                     InstantiatedArgs.size(),
+                                     E->getRAngleLoc());
+}
+
+Sema::OwningExprResult
 TemplateExprInstantiator::VisitDeclRefExpr(DeclRefExpr *E) {
   NamedDecl *D = E->getDecl();
   if (NonTypeTemplateParmDecl *NTTP = dyn_cast<NonTypeTemplateParmDecl>(D)) {
     assert(NTTP->getDepth() == 0 && "No nested templates yet");
-    const TemplateArgument &Arg = TemplateArgs[NTTP->getPosition()]; 
 
+    // If the corresponding template argument is NULL or non-existent, it's 
+    // because we are performing instantiation from explicitly-specified 
+    // template arguments in a function template, but there were some
+    // arguments left unspecified.
+    if (NTTP->getPosition() >= TemplateArgs.size() ||
+        TemplateArgs[NTTP->getPosition()].isNull())
+      return SemaRef.Owned(E); // FIXME: Clone the expression!
+    
+    const TemplateArgument &Arg = TemplateArgs[NTTP->getPosition()]; 
+    
     // The template argument itself might be an expression, in which
     // case we just return that expression.
     if (Arg.getKind() == TemplateArgument::Expression)
@@ -156,18 +193,15 @@ TemplateExprInstantiator::VisitDeclRefExpr(DeclRefExpr *E) {
                                                            false, false));
   }
 
-  ValueDecl *NewD 
-    = dyn_cast_or_null<ValueDecl>(SemaRef.InstantiateCurrentDeclRef(D));
-  if (!NewD)
+  NamedDecl *InstD = SemaRef.InstantiateCurrentDeclRef(D);
+  if (!InstD)
     return SemaRef.ExprError();
 
-  // FIXME: Build QualifiedDeclRefExpr?
-  QualType T = NewD->getType();
-  return SemaRef.Owned(new (SemaRef.Context) DeclRefExpr(NewD,
-                                                      T.getNonReferenceType(),
-                                                           E->getLocation(),
-                                                        T->isDependentType(),
-                                                        T->isDependentType()));
+  // FIXME: nested-name-specifier for QualifiedDeclRefExpr
+  return SemaRef.BuildDeclarationNameExpr(E->getLocation(), InstD, 
+                                          /*FIXME:*/false,
+                                          /*FIXME:*/0, 
+                                          /*FIXME:*/false);
 }
 
 Sema::OwningExprResult
@@ -525,8 +559,7 @@ TemplateExprInstantiator::VisitShuffleVectorExpr(ShuffleVectorExpr *E) {
   const IdentifierInfo &Name 
     = SemaRef.Context.Idents.get("__builtin_shufflevector");
   TranslationUnitDecl *TUDecl = SemaRef.Context.getTranslationUnitDecl();
-  DeclContext::lookup_result Lookup 
-    = TUDecl->lookup(SemaRef.Context, DeclarationName(&Name));
+  DeclContext::lookup_result Lookup = TUDecl->lookup(DeclarationName(&Name));
   assert(Lookup.first != Lookup.second && "No __builtin_shufflevector?");
   
   // Build a reference to the __builtin_shufflevector builtin

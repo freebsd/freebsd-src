@@ -22,6 +22,7 @@ class LangOptions {
 public:
   unsigned Trigraphs         : 1;  // Trigraphs in source files.
   unsigned BCPLComment       : 1;  // BCPL-style '//' comments.
+  unsigned Bool              : 1;  // 'bool', 'true', 'false' keywords.
   unsigned DollarIdents      : 1;  // '$' allowed in identifiers.
   unsigned AsmPreprocessor   : 1;  // Preprocessor in asm mode.
   unsigned GNUMode           : 1;  // True in gnu99 mode false in c99 mode (etc)
@@ -84,12 +85,16 @@ public:
 
   unsigned OpenCL            : 1; // OpenCL C99 language extensions.
 
-
 private:
-  unsigned GC : 2; // Objective-C Garbage Collection modes.  We declare
-                   // this enum as unsigned because MSVC insists on making enums
-                   // signed.  Set/Query this value using accessors.  
+  unsigned GC : 2;                // Objective-C Garbage Collection modes.  We
+                                  // declare this enum as unsigned because MSVC
+                                  // insists on making enums signed.  Set/Query
+                                  // this value using accessors.
   unsigned SymbolVisibility  : 3; // Symbol's visibility.
+  unsigned StackProtector    : 2; // Whether stack protectors are on. We declare
+                                  // this enum as unsigned because MSVC insists
+                                  // on making enums signed.  Set/Query this
+                                  // value using accessors.
 
   /// The user provided name for the "main file", if non-null. This is
   /// useful in situations where the input file name does not match
@@ -100,6 +105,7 @@ public:
   unsigned InstantiationDepth;    // Maximum template instantiation depth.
 
   enum GCMode { NonGC, GCOnly, HybridGC };
+  enum StackProtectorMode { SSPOff, SSPOn, SSPReq };
   enum VisibilityMode { 
     Default, 
     Protected, 
@@ -107,7 +113,7 @@ public:
   };
   
   LangOptions() {
-    Trigraphs = BCPLComment = DollarIdents = AsmPreprocessor = 0;
+    Trigraphs = BCPLComment = Bool = DollarIdents = AsmPreprocessor = 0;
     GNUMode = ImplicitInt = Digraphs = 0;
     HexFloats = 0;
     GC = ObjC1 = ObjC2 = ObjCNonFragileABI = 0;
@@ -116,7 +122,7 @@ public:
     Exceptions = NeXTRuntime = Freestanding = NoBuiltin = 0;
     LaxVectorConversions = 1;
     HeinousExtensions = 0;
-    AltiVec = OpenCL = 0;
+    AltiVec = OpenCL = StackProtector = 0;
     
     SymbolVisibility = (unsigned) Default;
     
@@ -151,6 +157,13 @@ public:
   
   GCMode getGCMode() const { return (GCMode) GC; }
   void setGCMode(GCMode m) { GC = (unsigned) m; }
+
+  StackProtectorMode getStackProtectorMode() const {
+    return static_cast<StackProtectorMode>(StackProtector);
+  }
+  void setStackProtectorMode(StackProtectorMode m) {
+    StackProtector = static_cast<unsigned>(m);
+  }
 
   const char *getMainFileName() const { return MainFileName; }
   void setMainFileName(const char *Name) { MainFileName = Name; }

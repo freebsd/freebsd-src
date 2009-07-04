@@ -143,6 +143,10 @@ void CodeTextRegion::Profile(llvm::FoldingSetNodeID& ID) const {
 // Region pretty-printing.
 //===----------------------------------------------------------------------===//
 
+void MemRegion::printStdErr() const {
+  print(llvm::errs());
+}
+
 std::string MemRegion::getString() const {
   std::string s;
   llvm::raw_string_ostream os(s);
@@ -184,7 +188,8 @@ void FieldRegion::print(llvm::raw_ostream& os) const {
 }
 
 void StringRegion::print(llvm::raw_ostream& os) const {
-  Str->printPretty(os);
+  LangOptions LO; // FIXME.
+  Str->printPretty(os, 0, PrintingPolicy(LO));
 }
 
 void SymbolicRegion::print(llvm::raw_ostream& os) const {
@@ -216,6 +221,10 @@ MemSpaceRegion* MemRegionManager::LazyAllocate(MemSpaceRegion*& region) {
 
 MemSpaceRegion* MemRegionManager::getStackRegion() {
   return LazyAllocate(stack);
+}
+
+MemSpaceRegion* MemRegionManager::getStackArgumentsRegion() {
+  return LazyAllocate(stackArguments);
 }
 
 MemSpaceRegion* MemRegionManager::getGlobalsRegion() {
@@ -327,8 +336,10 @@ const MemSpaceRegion *MemRegion::getMemorySpace() const {
 }
 
 bool MemRegion::hasStackStorage() const {
-  if (const MemSpaceRegion *MS = getMemorySpace())
-    return MS == getMemRegionManager()->getStackRegion();
+  if (const MemSpaceRegion *MS = getMemorySpace()) {
+    MemRegionManager *Mgr = getMemRegionManager();
+    return MS == Mgr->getStackRegion() || MS == Mgr->getStackArgumentsRegion();
+  }
 
   return false;
 }
@@ -343,10 +354,35 @@ bool MemRegion::hasHeapStorage() const {
 bool MemRegion::hasHeapOrStackStorage() const {
   if (const MemSpaceRegion *MS = getMemorySpace()) {
     MemRegionManager *Mgr = getMemRegionManager();
-    return MS == Mgr->getHeapRegion() || MS == Mgr->getStackRegion();
+    return MS == Mgr->getHeapRegion()
+      || MS == Mgr->getStackRegion()
+      || MS == Mgr->getStackArgumentsRegion();
   }
   return false;
-}  
+}
+
+bool MemRegion::hasGlobalsStorage() const {
+  if (const MemSpaceRegion *MS = getMemorySpace())
+    return MS == getMemRegionManager()->getGlobalsRegion();
+
+  return false;
+}
+
+bool MemRegion::hasParametersStorage() const {
+  if (const MemSpaceRegion *MS = getMemorySpace())
+    return MS == getMemRegionManager()->getStackArgumentsRegion();
+  
+  return false;
+}
+
+bool MemRegion::hasGlobalsOrParametersStorage() const {
+  if (const MemSpaceRegion *MS = getMemorySpace()) {
+    MemRegionManager *Mgr = getMemRegionManager();
+    return MS == Mgr->getGlobalsRegion()
+    || MS == Mgr->getStackArgumentsRegion();
+  }
+  return false;
+}
 
 //===----------------------------------------------------------------------===//
 // View handling.

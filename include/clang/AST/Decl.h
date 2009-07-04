@@ -26,13 +26,19 @@ class Stmt;
 class CompoundStmt;
 class StringLiteral;
 class TemplateArgumentList;
+class FunctionTemplateSpecializationInfo;
   
 /// TranslationUnitDecl - The top declaration context.
 class TranslationUnitDecl : public Decl, public DeclContext {
-  TranslationUnitDecl()
+  ASTContext &Ctx;
+  
+  explicit TranslationUnitDecl(ASTContext &ctx)
     : Decl(TranslationUnit, 0, SourceLocation()),
-      DeclContext(TranslationUnit) {}
+      DeclContext(TranslationUnit),
+      Ctx(ctx) {}
 public:
+  ASTContext &getASTContext() const { return Ctx; }
+  
   static TranslationUnitDecl *Create(ASTContext &C);
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return D->getKind() == TranslationUnit; }
@@ -621,15 +627,8 @@ public:
   enum StorageClass {
     None, Extern, Static, PrivateExtern
   };
-private:
-  /// \brief Provides information about a function template specialization, 
-  /// which is a FunctionDecl that has been explicitly specialization or
-  /// instantiated from a function template.
-  struct TemplateSpecializationInfo {
-    FunctionTemplateDecl *Template;
-    const TemplateArgumentList *TemplateArguments;
-  };
   
+private:  
   /// ParamInfo - new[]'d array of pointers to VarDecls for the formal
   /// parameters of this function.  This is null if a prototype or if there are
   /// no formals.
@@ -684,7 +683,8 @@ private:
   /// the template being specialized and the template arguments involved in 
   /// that specialization.
   llvm::PointerUnion3<FunctionTemplateDecl*, FunctionDecl*,
-                      TemplateSpecializationInfo*> TemplateOrSpecialization;
+                      FunctionTemplateSpecializationInfo*>
+    TemplateOrSpecialization;
 
 protected:
   FunctionDecl(Kind DK, DeclContext *DC, SourceLocation L,
@@ -724,11 +724,11 @@ public:
   /// function. The variant that accepts a FunctionDecl pointer will
   /// set that function declaration to the actual declaration
   /// containing the body (if there is one).
-  Stmt *getBody(ASTContext &Context, const FunctionDecl *&Definition) const;
+  Stmt *getBody(const FunctionDecl *&Definition) const;
 
-  virtual Stmt *getBody(ASTContext &Context) const {
+  virtual Stmt *getBody() const {
     const FunctionDecl* Definition;
-    return getBody(Context, Definition);
+    return getBody(Definition);
   }
 
   /// \brief If the function has a body that is immediately available,
@@ -809,9 +809,7 @@ public:
     return PreviousDeclaration;
   }
 
-  void setPreviousDeclaration(FunctionDecl * PrevDecl) {
-    PreviousDeclaration = PrevDecl;
-  }
+  void setPreviousDeclaration(FunctionDecl * PrevDecl);
 
   unsigned getBuiltinID(ASTContext &Context) const;
 
@@ -940,27 +938,14 @@ public:
   ///
   /// If this function declaration is not a function template specialization,
   /// returns NULL.
-  FunctionTemplateDecl *getPrimaryTemplate() const {
-    if (TemplateSpecializationInfo *Info 
-          = TemplateOrSpecialization.dyn_cast<TemplateSpecializationInfo*>()) {
-      return Info->Template;
-    }
-    return 0;
-  }
+  FunctionTemplateDecl *getPrimaryTemplate() const;
   
   /// \brief Retrieve the template arguments used to produce this function
   /// template specialization from the primary template.
   ///
   /// If this function declaration is not a function template specialization,
   /// returns NULL.
-  const TemplateArgumentList *getTemplateSpecializationArgs() const {
-    if (TemplateSpecializationInfo *Info 
-          = TemplateOrSpecialization.dyn_cast<TemplateSpecializationInfo*>()) {
-      return Info->TemplateArguments;
-    }
-    return 0;
-  }
-  
+  const TemplateArgumentList *getTemplateSpecializationArgs() const;  
   
   /// \brief Specify that this function declaration is actually a function
   /// template specialization.
@@ -974,8 +959,17 @@ public:
   /// function template specialization from the template.
   void setFunctionTemplateSpecialization(ASTContext &Context,
                                          FunctionTemplateDecl *Template,
-                                      const TemplateArgumentList *TemplateArgs);
-  
+                                      const TemplateArgumentList *TemplateArgs,
+                                         void *InsertPos);
+
+  /// \brief Determine whether this is an explicit specialization of a 
+  /// function template or a member function of a class template.
+  bool isExplicitSpecialization() const;
+
+  /// \brief Note that this is an explicit specialization of a function template
+  /// or a member function of a class template.
+  void setExplicitSpecialization(bool ES);
+                                 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) {
     return D->getKind() >= FunctionFirst && D->getKind() <= FunctionLast;
@@ -1268,12 +1262,12 @@ public:
   // enumeration.
   typedef specific_decl_iterator<EnumConstantDecl> enumerator_iterator;
 
-  enumerator_iterator enumerator_begin(ASTContext &Context) const { 
-    return enumerator_iterator(this->decls_begin(Context));
+  enumerator_iterator enumerator_begin() const { 
+    return enumerator_iterator(this->decls_begin());
   }
 
-  enumerator_iterator enumerator_end(ASTContext &Context) const { 
-    return enumerator_iterator(this->decls_end(Context));
+  enumerator_iterator enumerator_end() const { 
+    return enumerator_iterator(this->decls_end());
   }
 
   /// getIntegerType - Return the integer type this enum decl corresponds to.
@@ -1376,17 +1370,17 @@ public:
   // data members, functions, constructors, destructors, etc.
   typedef specific_decl_iterator<FieldDecl> field_iterator;
 
-  field_iterator field_begin(ASTContext &Context) const {
-    return field_iterator(decls_begin(Context));
+  field_iterator field_begin() const {
+    return field_iterator(decls_begin());
   }
-  field_iterator field_end(ASTContext &Context) const {
-    return field_iterator(decls_end(Context));
+  field_iterator field_end() const {
+    return field_iterator(decls_end());
   }
 
   // field_empty - Whether there are any fields (non-static data
   // members) in this record.
-  bool field_empty(ASTContext &Context) const { 
-    return field_begin(Context) == field_end(Context);
+  bool field_empty() const { 
+    return field_begin() == field_end();
   }
 
   /// completeDefinition - Notes that the definition of this type is
@@ -1448,8 +1442,8 @@ public:
   bool IsVariadic() const { return isVariadic; }
   void setIsVariadic(bool value) { isVariadic = value; }
   
-  CompoundStmt *getBody() const { return (CompoundStmt*) Body; }
-  Stmt *getBody(ASTContext &C) const { return (Stmt*) Body; }
+  CompoundStmt *getCompoundBody() const { return (CompoundStmt*) Body; }
+  Stmt *getBody() const { return (Stmt*) Body; }
   void setBody(CompoundStmt *B) { Body = (Stmt*) B; }
 
   // Iterator access to formal parameters.

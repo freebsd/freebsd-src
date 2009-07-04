@@ -37,7 +37,8 @@ class TestStatus:
 
     kNames = ['Pass','XFail','Fail','XPass','NoRunLine','Invalid']
     @staticmethod
-    def getName(code): return TestStatus.kNames[code]
+    def getName(code): 
+        return TestStatus.kNames[code]
 
 def mkdir_p(path):
     if not path:

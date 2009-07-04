@@ -44,11 +44,16 @@ CXXRecordDecl *CXXRecordDecl::Create(ASTContext &C, TagKind TK, DeclContext *DC,
 }
 
 CXXRecordDecl::~CXXRecordDecl() {
-  delete [] Bases;
+}
+
+void CXXRecordDecl::Destroy(ASTContext &C) {
+  C.Deallocate(Bases);
+  this->RecordDecl::Destroy(C);
 }
 
 void 
-CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases, 
+CXXRecordDecl::setBases(ASTContext &C,
+                        CXXBaseSpecifier const * const *Bases, 
                         unsigned NumBases) {
   // C++ [dcl.init.aggr]p1: 
   //   An aggregate is an array or a class (clause 9) with [...]
@@ -56,10 +61,9 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
   Aggregate = false;
 
   if (this->Bases)
-    delete [] this->Bases;
+    C.Deallocate(this->Bases);
 
-  // FIXME: allocate using the ASTContext
-  this->Bases = new CXXBaseSpecifier[NumBases];
+  this->Bases = new(C) CXXBaseSpecifier [NumBases];
   this->NumBases = NumBases;
   for (unsigned i = 0; i < NumBases; ++i)
     this->Bases[i] = *Bases[i];
@@ -78,7 +82,7 @@ CXXConstructorDecl *CXXRecordDecl::getCopyConstructor(ASTContext &Context,
                                           Context.getCanonicalType(ClassType));
   unsigned FoundTQs;
   DeclContext::lookup_const_iterator Con, ConEnd;
-  for (llvm::tie(Con, ConEnd) = this->lookup(Context, ConstructorName);
+  for (llvm::tie(Con, ConEnd) = this->lookup(ConstructorName);
        Con != ConEnd; ++Con) {
     if (cast<CXXConstructorDecl>(*Con)->isCopyConstructor(Context, 
                                                           FoundTQs)) {
@@ -97,7 +101,7 @@ bool CXXRecordDecl::hasConstCopyAssignment(ASTContext &Context) const {
   DeclarationName OpName =Context.DeclarationNames.getCXXOperatorName(OO_Equal);
 
   DeclContext::lookup_const_iterator Op, OpEnd;
-  for (llvm::tie(Op, OpEnd) = this->lookup(Context, OpName);
+  for (llvm::tie(Op, OpEnd) = this->lookup(OpName);
        Op != OpEnd; ++Op) {
     // C++ [class.copy]p9:
     //   A user-declared copy assignment operator is a non-static non-template
@@ -201,7 +205,7 @@ CXXRecordDecl::getDefaultConstructor(ASTContext &Context) {
                       Context.getCanonicalType(ClassType.getUnqualifiedType()));
   
   DeclContext::lookup_const_iterator Con, ConEnd;
-  for (llvm::tie(Con, ConEnd) = lookup(Context, ConstructorName);
+  for (llvm::tie(Con, ConEnd) = lookup(ConstructorName);
        Con != ConEnd; ++Con) {
     CXXConstructorDecl *Constructor = cast<CXXConstructorDecl>(*Con);
     if (Constructor->isDefaultConstructor())
@@ -218,7 +222,7 @@ CXXRecordDecl::getDestructor(ASTContext &Context) {
     = Context.DeclarationNames.getCXXDestructorName(ClassType);
 
   DeclContext::lookup_iterator I, E;
-  llvm::tie(I, E) = lookup(Context, Name); 
+  llvm::tie(I, E) = lookup(Name); 
   assert(I != E && "Did not find a destructor!");
   
   const CXXDestructorDecl *Dtor = cast<CXXDestructorDecl>(*I);
@@ -294,8 +298,9 @@ QualType CXXMethodDecl::getThisType(ASTContext &C) const {
 }
 
 CXXBaseOrMemberInitializer::
-CXXBaseOrMemberInitializer(QualType BaseType, Expr **Args, unsigned NumArgs) 
-  : Args(0), NumArgs(0) {
+CXXBaseOrMemberInitializer(QualType BaseType, Expr **Args, unsigned NumArgs,
+                           SourceLocation L) 
+  : Args(0), NumArgs(0), IdLoc(L) {
   BaseOrMember = reinterpret_cast<uintptr_t>(BaseType.getTypePtr());
   assert((BaseOrMember & 0x01) == 0 && "Invalid base class type pointer");
   BaseOrMember |= 0x01;
@@ -309,8 +314,9 @@ CXXBaseOrMemberInitializer(QualType BaseType, Expr **Args, unsigned NumArgs)
 }
 
 CXXBaseOrMemberInitializer::
-CXXBaseOrMemberInitializer(FieldDecl *Member, Expr **Args, unsigned NumArgs)
-  : Args(0), NumArgs(0) {
+CXXBaseOrMemberInitializer(FieldDecl *Member, Expr **Args, unsigned NumArgs,
+                           SourceLocation L)
+  : Args(0), NumArgs(0), IdLoc(L) {
   BaseOrMember = reinterpret_cast<uintptr_t>(Member);
   assert((BaseOrMember & 0x01) == 0 && "Invalid member pointer");  
 
@@ -405,6 +411,27 @@ CXXDestructorDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                                    isImplicitlyDeclared);
 }
 
+void
+CXXConstructorDecl::setBaseOrMemberInitializers(
+                                    ASTContext &C,
+                                    CXXBaseOrMemberInitializer **Initializers,
+                                    unsigned NumInitializers) {
+  if (NumInitializers > 0) {
+    NumBaseOrMemberInitializers = NumInitializers;
+    BaseOrMemberInitializers = 
+      new (C, 8) CXXBaseOrMemberInitializer*[NumInitializers]; 
+    for (unsigned Idx = 0; Idx < NumInitializers; ++Idx)
+      BaseOrMemberInitializers[Idx] = Initializers[Idx];
+  }
+}
+
+void
+CXXConstructorDecl::Destroy(ASTContext& C) {
+  C.Deallocate(BaseOrMemberInitializers);
+  this->~CXXMethodDecl();
+  C.Deallocate((void *)this);
+}
+
 CXXConversionDecl *
 CXXConversionDecl::Create(ASTContext &C, CXXRecordDecl *RD,
                           SourceLocation L, DeclarationName N,
@@ -420,13 +447,9 @@ OverloadedFunctionDecl::Create(ASTContext &C, DeclContext *DC,
   return new (C) OverloadedFunctionDecl(DC, N);
 }
 
-void OverloadedFunctionDecl::addOverload(FunctionTemplateDecl *FTD) {
-  Functions.push_back(FTD);
-  
-  // An overloaded function declaration always has the location of
-  // the most-recently-added function declaration.
-  if (FTD->getLocation().isValid())
-    this->setLocation(FTD->getLocation());  
+void OverloadedFunctionDecl::addOverload(AnyFunctionDecl F) {
+  Functions.push_back(F);
+  this->setLocation(F.get()->getLocation());
 }
 
 LinkageSpecDecl *LinkageSpecDecl::Create(ASTContext &C,

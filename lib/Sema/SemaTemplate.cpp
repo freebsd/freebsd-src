@@ -852,7 +852,7 @@ QualType Sema::CheckTemplateIdType(TemplateName Name,
                                         NumTemplateArgs);
   if (CheckTemplateArgumentList(Template, TemplateLoc, LAngleLoc, 
                                 TemplateArgs, NumTemplateArgs, RAngleLoc,
-                                Converted))
+                                false, Converted))
     return QualType();
 
   assert((Converted.structuredSize() == 
@@ -931,6 +931,42 @@ Sema::ActOnTemplateIdType(TemplateTy TemplateD, SourceLocation TemplateLoc,
     return true;
 
   return Result.getAsOpaquePtr();
+}
+
+Sema::OwningExprResult Sema::BuildTemplateIdExpr(TemplateName Template,
+                                                 SourceLocation TemplateNameLoc,
+                                                 SourceLocation LAngleLoc,
+                                           const TemplateArgument *TemplateArgs,
+                                                 unsigned NumTemplateArgs,
+                                                 SourceLocation RAngleLoc) {
+  // FIXME: Can we do any checking at this point? I guess we could check the
+  // template arguments that we have against the template name, if the template
+  // name refers to a single template. That's not a terribly common case, 
+  // though.
+  return Owned(TemplateIdRefExpr::Create(Context, 
+                                         /*FIXME: New type?*/Context.OverloadTy,
+                                         /*FIXME: Necessary?*/0,
+                                         /*FIXME: Necessary?*/SourceRange(),
+                                         Template, TemplateNameLoc, LAngleLoc,
+                                         TemplateArgs, 
+                                         NumTemplateArgs, RAngleLoc));
+}
+
+Sema::OwningExprResult Sema::ActOnTemplateIdExpr(TemplateTy TemplateD,
+                                                 SourceLocation TemplateNameLoc,
+                                                 SourceLocation LAngleLoc,
+                                              ASTTemplateArgsPtr TemplateArgsIn,
+                                                SourceLocation *TemplateArgLocs,
+                                                 SourceLocation RAngleLoc) {
+  TemplateName Template = TemplateD.getAsVal<TemplateName>();
+  
+  // Translate the parser's template argument list in our AST format.
+  llvm::SmallVector<TemplateArgument, 16> TemplateArgs;
+  translateTemplateArguments(TemplateArgsIn, TemplateArgLocs, TemplateArgs);
+  
+  return BuildTemplateIdExpr(Template, TemplateNameLoc, LAngleLoc,
+                             TemplateArgs.data(), TemplateArgs.size(),
+                             RAngleLoc);
 }
 
 /// \brief Form a dependent template name.
@@ -1019,6 +1055,7 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
                                      const TemplateArgument *TemplateArgs,
                                      unsigned NumTemplateArgs,
                                      SourceLocation RAngleLoc,
+                                     bool PartialTemplateArgs,
                                      TemplateArgumentListBuilder &Converted) {
   TemplateParameterList *Params = Template->getTemplateParameters();
   unsigned NumParams = Params->size();
@@ -1029,7 +1066,8 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
     NumParams > 0 && Params->getParam(NumParams - 1)->isTemplateParameterPack();
   
   if ((NumArgs > NumParams && !HasParameterPack) ||
-      NumArgs < Params->getMinRequiredArguments()) {
+      (NumArgs < Params->getMinRequiredArguments() &&
+       !PartialTemplateArgs)) {
     // FIXME: point at either the first arg beyond what we can handle,
     // or the '>', depending on whether we have too many or too few
     // arguments.
@@ -1056,6 +1094,9 @@ bool Sema::CheckTemplateArgumentList(TemplateDecl *Template,
   for (TemplateParameterList::iterator Param = Params->begin(),
                                        ParamEnd = Params->end();
        Param != ParamEnd; ++Param, ++ArgIdx) {
+    if (ArgIdx > NumArgs && PartialTemplateArgs)
+      break;
+    
     // Decode the template argument
     TemplateArgument Arg;
     if (ArgIdx >= NumArgs) {
@@ -2302,7 +2343,7 @@ Sema::ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec, TagKind TK,
                                         TemplateArgs.size());
   if (CheckTemplateArgumentList(ClassTemplate, TemplateNameLoc, LAngleLoc, 
                                 TemplateArgs.data(), TemplateArgs.size(),
-                                RAngleLoc, Converted))
+                                RAngleLoc, false, Converted))
     return true;
 
   assert((Converted.structuredSize() == 
@@ -2498,7 +2539,7 @@ Sema::ActOnClassTemplateSpecialization(Scope *S, unsigned TagSpec, TagKind TK,
   // Add the specialization into its lexical context, so that it can
   // be seen when iterating through the list of declarations in that
   // context. However, specializations are not found by name lookup.
-  CurContext->addDecl(Context, Specialization);
+  CurContext->addDecl(Specialization);
   return DeclPtrTy::make(Specialization);
 }
 
@@ -2597,7 +2638,7 @@ Sema::ActOnExplicitInstantiation(Scope *S, SourceLocation TemplateLoc,
                                         TemplateArgs.size());
   if (CheckTemplateArgumentList(ClassTemplate, TemplateNameLoc, LAngleLoc, 
                                 TemplateArgs.data(), TemplateArgs.size(),
-                                RAngleLoc, Converted))
+                                RAngleLoc, false, Converted))
     return true;
 
   assert((Converted.structuredSize() == 
@@ -2654,7 +2695,7 @@ Sema::ActOnExplicitInstantiation(Scope *S, SourceLocation TemplateLoc,
                                                   ClassTemplate,
                                                   Converted, 0);
       Specialization->setLexicalDeclContext(CurContext);
-      CurContext->addDecl(Context, Specialization);
+      CurContext->addDecl(Specialization);
       return DeclPtrTy::make(Specialization);
     }
 
@@ -2703,7 +2744,7 @@ Sema::ActOnExplicitInstantiation(Scope *S, SourceLocation TemplateLoc,
   // since explicit instantiations are never found by name lookup, we
   // just put it into the declaration context directly.
   Specialization->setLexicalDeclContext(CurContext);
-  CurContext->addDecl(Context, Specialization);
+  CurContext->addDecl(Specialization);
 
   // C++ [temp.explicit]p3:
   //   A definition of a class template or class member template
