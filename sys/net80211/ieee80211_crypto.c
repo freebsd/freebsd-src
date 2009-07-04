@@ -235,13 +235,13 @@ ieee80211_crypto_available(u_int cipher)
 
 /* XXX well-known names! */
 static const char *cipher_modnames[IEEE80211_CIPHER_MAX] = {
-	"wlan_wep",	/* IEEE80211_CIPHER_WEP */
-	"wlan_tkip",	/* IEEE80211_CIPHER_TKIP */
-	"wlan_aes_ocb",	/* IEEE80211_CIPHER_AES_OCB */
-	"wlan_ccmp",	/* IEEE80211_CIPHER_AES_CCM */
-	"#4",		/* reserved */
-	"wlan_ckip",	/* IEEE80211_CIPHER_CKIP */
-	"wlan_none",	/* IEEE80211_CIPHER_NONE */
+	[IEEE80211_CIPHER_WEP]	   = "wlan_wep",
+	[IEEE80211_CIPHER_TKIP]	   = "wlan_tkip",
+	[IEEE80211_CIPHER_AES_OCB] = "wlan_aes_ocb",
+	[IEEE80211_CIPHER_AES_CCM] = "wlan_ccmp",
+	[IEEE80211_CIPHER_TKIPMIC] = "#4",	/* NB: reserved */
+	[IEEE80211_CIPHER_CKIP]	   = "wlan_ckip",
+	[IEEE80211_CIPHER_NONE]	   = "wlan_none",
 };
 
 /*

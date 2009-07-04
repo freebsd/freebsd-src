@@ -39,13 +39,14 @@
 #define	LK_SHARE			0x01
 #define	LK_SHARED_WAITERS		0x02
 #define	LK_EXCLUSIVE_WAITERS		0x04
+#define	LK_EXCLUSIVE_SPINNERS		0x08
 #define	LK_ALL_WAITERS							\
 	(LK_SHARED_WAITERS | LK_EXCLUSIVE_WAITERS)
 #define	LK_FLAGMASK							\
-	(LK_SHARE | LK_ALL_WAITERS)
+	(LK_SHARE | LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS)
 
 #define	LK_HOLDER(x)			((x) & ~LK_FLAGMASK)
-#define	LK_SHARERS_SHIFT		3
+#define	LK_SHARERS_SHIFT		4
 #define	LK_SHARERS(x)			(LK_HOLDER(x) >> LK_SHARERS_SHIFT)
 #define	LK_SHARERS_LOCK(x)		((x) << LK_SHARERS_SHIFT | LK_SHARE)
 #define	LK_ONE_SHARER			(1 << LK_SHARERS_SHIFT)
@@ -141,6 +142,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_NOSHARE	0x000008
 #define	LK_NOWITNESS	0x000010
 #define	LK_QUIET	0x000020
+#define	LK_ADAPTIVE	0x000040
 
 /*
  * Additional attributes to be used in lockmgr().

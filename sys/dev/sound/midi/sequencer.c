@@ -66,6 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/selinfo.h>
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
 
 #include <dev/sound/midi/midi.h>
 #include <dev/sound/midi/midiq.h>
@@ -258,13 +261,17 @@ midi_cmdtab	cmdtab_seqccmn[] = {
 	{-1,			NULL},
 };
 
+#ifndef KOBJMETHOD_END
+#define KOBJMETHOD_END	{ NULL, NULL }
+#endif
+
 /*
  * static const char *mpu401_mprovider(kobj_t obj, struct mpu401 *m);
  */
 
 static kobj_method_t seq_methods[] = {
 	/* KOBJMETHOD(mpu_provider,mpu401_mprovider), */
-	{0, 0}
+	KOBJMETHOD_END
 };
 
 DEFINE_CLASS(sequencer, seq_methods, 0);
@@ -459,7 +466,12 @@ done:
 	cv_broadcast(&scp->th_cv);
 	mtx_unlock(&scp->seq_lock);
 	SEQ_DEBUG(2, printf("seq_eventthread finished\n"));
+#if __FreeBSD_version >= 800002
 	kproc_exit(0);
+#else
+	mtx_lock(&Giant);
+	kthread_exit(0);
+#endif
 }
 
 /*
@@ -574,7 +586,13 @@ seq_addunit(void)
 	 * TODO: Add to list of sequencers this module provides
 	 */
 
-	ret = kproc_create(seq_eventthread, scp, NULL, RFHIGHPID, 0,
+	ret =
+#if __FreeBSD_version >= 800002
+	    kproc_create
+#else
+	    kthread_create
+#endif
+	    (seq_eventthread, scp, NULL, RFHIGHPID, 0,
 	    "sequencer %02d", scp->unit);
 
 	if (ret)
@@ -860,7 +878,7 @@ seq_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	if (scp == NULL)
 		return ENXIO;
 
-	SEQ_DEBUG(7, printf("seq_read: unit %d, resid %d.\n",
+	SEQ_DEBUG(7, printf("seq_read: unit %d, resid %zd.\n",
 	    scp->unit, uio->uio_resid));
 
 	mtx_lock(&scp->seq_lock);
@@ -918,7 +936,7 @@ seq_read(struct cdev *i_dev, struct uio *uio, int ioflag)
 	retval = 0;
 err1:
 	mtx_unlock(&scp->seq_lock);
-	SEQ_DEBUG(6, printf("seq_read: ret %d, resid %d.\n",
+	SEQ_DEBUG(6, printf("seq_read: ret %d, resid %zd.\n",
 	    retval, uio->uio_resid));
 
 	return retval;
@@ -932,7 +950,7 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 	int retval;
 	int used;
 
-	SEQ_DEBUG(7, printf("seq_write: unit %d, resid %d.\n",
+	SEQ_DEBUG(7, printf("seq_write: unit %d, resid %zd.\n",
 	    scp->unit, uio->uio_resid));
 
 	if (scp == NULL)
@@ -977,7 +995,7 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 		used = MIN(uio->uio_resid, 4);
 
-		SEQ_DEBUG(8, printf("seqout: resid %d len %jd avail %jd\n",
+		SEQ_DEBUG(8, printf("seqout: resid %zd len %jd avail %jd\n",
 		    uio->uio_resid, (intmax_t)MIDIQ_LEN(scp->out_q),
 		    (intmax_t)MIDIQ_AVAIL(scp->out_q)));
 
@@ -1097,7 +1115,7 @@ seq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 err0:
 	SEQ_DEBUG(6,
-	    printf("seq_write done: leftover buffer length %d retval %d\n",
+	    printf("seq_write done: leftover buffer length %zd retval %d\n",
 	    uio->uio_resid, retval));
 	mtx_unlock(&scp->seq_lock);
 	return retval;

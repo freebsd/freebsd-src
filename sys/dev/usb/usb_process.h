@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_PROCESS_H_
-#define	_USB2_PROCESS_H_
+#ifndef _USB_PROCESS_H_
+#define	_USB_PROCESS_H_
 
 #include <sys/priority.h>
 
@@ -40,19 +40,6 @@
 /* structure prototypes */
 
 struct usb_proc_msg;
-
-/* typedefs */
-
-typedef void (usb_proc_callback_t)(struct usb_proc_msg *hdr);
-
-/*
- * The following structure defines the USB process message header.
- */
-struct usb_proc_msg {
-	TAILQ_ENTRY(usb_proc_msg) pm_qentry;
-	usb_proc_callback_t *pm_callback;
-	usb_size_t pm_num;
-};
 
 /*
  * The following structure defines the USB process.
@@ -77,12 +64,12 @@ struct usb_process {
 
 /* prototypes */
 
-uint8_t	usb2_proc_is_gone(struct usb_process *up);
-int	usb2_proc_create(struct usb_process *up, struct mtx *p_mtx,
+uint8_t	usb_proc_is_gone(struct usb_process *up);
+int	usb_proc_create(struct usb_process *up, struct mtx *p_mtx,
 	    const char *pmesg, uint8_t prio);
-void	usb2_proc_drain(struct usb_process *up);
-void	usb2_proc_mwait(struct usb_process *up, void *pm0, void *pm1);
-void	usb2_proc_free(struct usb_process *up);
-void   *usb2_proc_msignal(struct usb_process *up, void *pm0, void *pm1);
+void	usb_proc_drain(struct usb_process *up);
+void	usb_proc_mwait(struct usb_process *up, void *pm0, void *pm1);
+void	usb_proc_free(struct usb_process *up);
+void   *usb_proc_msignal(struct usb_process *up, void *pm0, void *pm1);
 
-#endif					/* _USB2_PROCESS_H_ */
+#endif					/* _USB_PROCESS_H_ */

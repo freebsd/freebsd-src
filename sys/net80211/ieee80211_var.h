@@ -131,6 +131,7 @@ struct ieee80211com {
 
 	uint32_t		ic_flags;	/* state flags */
 	uint32_t		ic_flags_ext;	/* extended state flags */
+	uint32_t		ic_flags_ht;	/* HT state flags */
 	uint32_t		ic_flags_ven;	/* vendor state flags */
 	uint32_t		ic_caps;	/* capabilities */
 	uint32_t		ic_htcaps;	/* HT capabilities */
@@ -329,6 +330,7 @@ struct ieee80211vap {
 	uint8_t			iv_myaddr[IEEE80211_ADDR_LEN];
 	uint32_t		iv_flags;	/* state flags */
 	uint32_t		iv_flags_ext;	/* extended state flags */
+	uint32_t		iv_flags_ht;	/* HT state flags */
 	uint32_t		iv_flags_ven;	/* vendor state flags */
 	uint32_t		iv_caps;	/* capabilities */
 	uint32_t		iv_htcaps;	/* HT capabilities */
@@ -516,7 +518,6 @@ MALLOC_DECLARE(M_80211_VAP);
 	((vap)->iv_flags & (ni)->ni_ath_flags & (bit))
 
 /* ic_flags_ext/iv_flags_ext */
-#define	IEEE80211_FEXT_NONHT_PR	 0x00000001	/* STATUS: non-HT sta present */
 #define	IEEE80211_FEXT_INACT	 0x00000002	/* CONF: sta inact handling */
 #define	IEEE80211_FEXT_SCANWAIT	 0x00000004	/* STATUS: awaiting scan */
 /* 0x00000006 reserved */
@@ -536,25 +537,32 @@ MALLOC_DECLARE(M_80211_VAP);
 /* NB: immutable: should be set only when creating a vap */
 #define	IEEE80211_FEXT_WDSLEGACY 0x00010000	/* CONF: legacy WDS operation */
 #define	IEEE80211_FEXT_PROBECHAN 0x00020000	/* CONF: probe passive channel*/
-#define	IEEE80211_FEXT_GF  	 0x00040000	/* CONF: Greenfield enabled */
-#define	IEEE80211_FEXT_HT	 0x00080000	/* CONF: HT supported */
-#define	IEEE80211_FEXT_AMPDU_TX	 0x00100000	/* CONF: A-MPDU tx supported */
-#define	IEEE80211_FEXT_AMPDU_RX	 0x00200000	/* CONF: A-MPDU rx supported */
-#define	IEEE80211_FEXT_AMSDU_TX	 0x00400000	/* CONF: A-MSDU tx supported */
-#define	IEEE80211_FEXT_AMSDU_RX	 0x00800000	/* CONF: A-MSDU rx supported */
-#define	IEEE80211_FEXT_USEHT40	 0x01000000	/* CONF: 20/40 use enabled */
-#define	IEEE80211_FEXT_PUREN	 0x02000000	/* CONF: 11n w/o legacy sta's */
-#define	IEEE80211_FEXT_SHORTGI20 0x04000000	/* CONF: short GI in HT20 */
-#define	IEEE80211_FEXT_SHORTGI40 0x08000000	/* CONF: short GI in HT40 */
-#define	IEEE80211_FEXT_HTCOMPAT  0x10000000	/* CONF: HT vendor OUI's */
-#define	IEEE80211_FEXT_RIFS  	 0x20000000	/* CONF: RIFS enabled */
-#define	IEEE80211_FEXT_STBC_TX 	 0x40000000	/* CONF: STBC tx enabled */
-#define	IEEE80211_FEXT_STBC_RX 	 0x80000000	/* CONF: STBC rx enabled */
 
 #define	IEEE80211_FEXT_BITS \
-	"\20\1NONHT_PR\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
+	"\20\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
 	"\0114ADDR\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\16STATEWAIT\17REINIT" \
-	"\20BPF\21WDSLEGACY\22PROBECHAN\23GF\24HT\25AMDPU_TX\26AMPDU_TX" \
+	"\20BPF\21WDSLEGACY\22PROBECHAN"
+
+/* ic_flags_ht/iv_flags_ht */
+#define	IEEE80211_FHT_NONHT_PR	 0x00000001	/* STATUS: non-HT sta present */
+#define	IEEE80211_FHT_GF  	 0x00040000	/* CONF: Greenfield enabled */
+#define	IEEE80211_FHT_HT	 0x00080000	/* CONF: HT supported */
+#define	IEEE80211_FHT_AMPDU_TX	 0x00100000	/* CONF: A-MPDU tx supported */
+#define	IEEE80211_FHT_AMPDU_RX	 0x00200000	/* CONF: A-MPDU rx supported */
+#define	IEEE80211_FHT_AMSDU_TX	 0x00400000	/* CONF: A-MSDU tx supported */
+#define	IEEE80211_FHT_AMSDU_RX	 0x00800000	/* CONF: A-MSDU rx supported */
+#define	IEEE80211_FHT_USEHT40	 0x01000000	/* CONF: 20/40 use enabled */
+#define	IEEE80211_FHT_PUREN	 0x02000000	/* CONF: 11n w/o legacy sta's */
+#define	IEEE80211_FHT_SHORTGI20	 0x04000000	/* CONF: short GI in HT20 */
+#define	IEEE80211_FHT_SHORTGI40	 0x08000000	/* CONF: short GI in HT40 */
+#define	IEEE80211_FHT_HTCOMPAT 	 0x10000000	/* CONF: HT vendor OUI's */
+#define	IEEE80211_FHT_RIFS  	 0x20000000	/* CONF: RIFS enabled */
+#define	IEEE80211_FHT_STBC_TX 	 0x40000000	/* CONF: STBC tx enabled */
+#define	IEEE80211_FHT_STBC_RX 	 0x80000000	/* CONF: STBC rx enabled */
+
+#define	IEEE80211_FHT_BITS \
+	"\20\1NONHT_PR" \
+	"\23GF\24HT\25AMDPU_TX\26AMPDU_TX" \
 	"\27AMSDU_TX\30AMSDU_RX\31USEHT40\32PUREN\33SHORTGI20\34SHORTGI40" \
 	"\35HTCOMPAT\36RIFS\37STBC_TX\40STBC_RX"
 
@@ -751,14 +759,14 @@ ieee80211_beacon_notify(struct ieee80211vap *vap, int what)
 
 /*
  * Calculate HT channel promotion flags for a channel.
- * XXX belongs in ieee80211_ht.h but needs IEEE80211_FEXT_*
+ * XXX belongs in ieee80211_ht.h but needs IEEE80211_FHT_*
  */
 static __inline int
 ieee80211_htchanflags(const struct ieee80211_channel *c)
 {
 	return IEEE80211_IS_CHAN_HT40(c) ?
-	    IEEE80211_FEXT_HT | IEEE80211_FEXT_USEHT40 :
-	    IEEE80211_IS_CHAN_HT(c) ?  IEEE80211_FEXT_HT : 0;
+	    IEEE80211_FHT_HT | IEEE80211_FHT_USEHT40 :
+	    IEEE80211_IS_CHAN_HT(c) ?  IEEE80211_FHT_HT : 0;
 }
 
 /*

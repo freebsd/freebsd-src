@@ -111,8 +111,7 @@ static int des_ede_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 #ifdef KSSL_DEBUG
 	{
         int i;
-        char *cp;
-	printf("des_ede_cbc_cipher(ctx=%lx, buflen=%d)\n", ctx, ctx->buf_len);
+	printf("des_ede_cbc_cipher(ctx=%lx, buflen=%d)\n", (unsigned long)ctx, ctx->buf_len);
 	printf("\t iv= ");
         for(i=0;i<8;i++)
                 printf("%02X",ctx->iv[i]);
@@ -164,9 +163,9 @@ static int des_ede3_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     }
 
 BLOCK_CIPHER_defs(des_ede, DES_EDE_KEY, NID_des_ede, 8, 16, 8, 64,
-			EVP_CIPH_RAND_KEY, des_ede_init_key, NULL, 
-			EVP_CIPHER_set_asn1_iv,
-			EVP_CIPHER_get_asn1_iv,
+		EVP_CIPH_RAND_KEY|EVP_CIPH_FLAG_FIPS|EVP_CIPH_FLAG_DEFAULT_ASN1,
+			des_ede_init_key,
+			NULL, NULL, NULL,
 			des3_ctrl)
 
 #define des_ede3_cfb64_cipher des_ede_cfb64_cipher
@@ -175,21 +174,21 @@ BLOCK_CIPHER_defs(des_ede, DES_EDE_KEY, NID_des_ede, 8, 16, 8, 64,
 #define des_ede3_ecb_cipher des_ede_ecb_cipher
 
 BLOCK_CIPHER_defs(des_ede3, DES_EDE_KEY, NID_des_ede3, 8, 24, 8, 64,
-			EVP_CIPH_RAND_KEY, des_ede3_init_key, NULL, 
-			EVP_CIPHER_set_asn1_iv,
-			EVP_CIPHER_get_asn1_iv,
+		EVP_CIPH_RAND_KEY|EVP_CIPH_FLAG_FIPS|EVP_CIPH_FLAG_DEFAULT_ASN1,
+			des_ede3_init_key,
+			NULL, NULL, NULL,
 			des3_ctrl)
 
 BLOCK_CIPHER_def_cfb(des_ede3,DES_EDE_KEY,NID_des_ede3,24,8,1,
-		     EVP_CIPH_RAND_KEY, des_ede3_init_key,NULL,
-		     EVP_CIPHER_set_asn1_iv,
-		     EVP_CIPHER_get_asn1_iv,
+		EVP_CIPH_RAND_KEY|EVP_CIPH_FLAG_FIPS|EVP_CIPH_FLAG_DEFAULT_ASN1,
+		     des_ede3_init_key,
+		     NULL, NULL, NULL,
 		     des3_ctrl)
 
 BLOCK_CIPHER_def_cfb(des_ede3,DES_EDE_KEY,NID_des_ede3,24,8,8,
-		     EVP_CIPH_RAND_KEY, des_ede3_init_key,NULL,
-		     EVP_CIPHER_set_asn1_iv,
-		     EVP_CIPHER_get_asn1_iv,
+		EVP_CIPH_RAND_KEY|EVP_CIPH_FLAG_FIPS|EVP_CIPH_FLAG_DEFAULT_ASN1,
+		     des_ede3_init_key,
+		     NULL, NULL, NULL,
 		     des3_ctrl)
 
 static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
@@ -216,7 +215,7 @@ static int des_ede3_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 #ifdef KSSL_DEBUG
 	{
         int i;
-        printf("des_ede3_init_key(ctx=%lx)\n", ctx);
+        printf("des_ede3_init_key(ctx=%lx)\n", (unsigned long)ctx);
 	printf("\tKEY= ");
         for(i=0;i<24;i++) printf("%02X",key[i]); printf("\n");
 	printf("\t IV= ");

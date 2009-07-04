@@ -298,8 +298,6 @@ ccmp_init_blocks(rijndael_ctx *ctx, struct ieee80211_frame *wh,
 	uint8_t b0[AES_BLOCK_LEN], uint8_t aad[2 * AES_BLOCK_LEN],
 	uint8_t auth[AES_BLOCK_LEN], uint8_t s0[AES_BLOCK_LEN])
 {
-#define	IS_4ADDRESS(wh) \
-	((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 #define	IS_QOS_DATA(wh)	IEEE80211_QOS_HAS_SEQ(wh)
 
 	/* CCM Initial Block:
@@ -344,7 +342,7 @@ ccmp_init_blocks(rijndael_ctx *ctx, struct ieee80211_frame *wh,
 	 * initial block as we know whether or not we have
 	 * a QOS frame.
 	 */
-	if (IS_4ADDRESS(wh)) {
+	if (IEEE80211_IS_DSTODS(wh)) {
 		IEEE80211_ADDR_COPY(aad + 24,
 			((struct ieee80211_frame_addr4 *)wh)->i_addr4);
 		if (IS_QOS_DATA(wh)) {
@@ -386,7 +384,6 @@ ccmp_init_blocks(rijndael_ctx *ctx, struct ieee80211_frame *wh,
 	b0[14] = b0[15] = 0;
 	rijndael_encrypt(ctx, b0, s0);
 #undef	IS_QOS_DATA
-#undef	IS_4ADDRESS
 }
 
 #define	CCMP_ENCRYPT(_i, _b, _b0, _pos, _e, _len) do {	\

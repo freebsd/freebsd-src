@@ -47,6 +47,8 @@ extern int	uaudio_chan_set_param_speed(struct uaudio_chan *ch,
 		    uint32_t speed);
 extern int	uaudio_chan_getptr(struct uaudio_chan *ch);
 extern struct	pcmchan_caps *uaudio_chan_getcaps(struct uaudio_chan *ch);
+extern struct	pcmchan_matrix *uaudio_chan_getmatrix(struct uaudio_chan *ch,
+		    uint32_t format);
 extern int	uaudio_chan_set_param_format(struct uaudio_chan *ch,
 		    uint32_t format);
 extern int	uaudio_chan_start(struct uaudio_chan *ch);

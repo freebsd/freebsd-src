@@ -99,7 +99,7 @@ struct fddi_header {
 
 void	fddi_ifattach(struct ifnet *, const u_int8_t *, int);
 void	fddi_ifdetach(struct ifnet *, int);
-int	fddi_ioctl(struct ifnet *, int, caddr_t);
+int	fddi_ioctl(struct ifnet *, u_long, caddr_t);
 
 #endif	/* _KERNEL */
 #endif	/* _NET_FDDI_H_ */

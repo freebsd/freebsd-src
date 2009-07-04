@@ -413,7 +413,7 @@ ate_setmcast(struct ate_softc *sc)
 	 */
 	mcaf[0] = 0;
 	mcaf[1] = 0;
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -421,14 +421,14 @@ ate_setmcast(struct ate_softc *sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
 		af[index >> 3] |= 1 << (index & 7);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	/*
 	 * Write the hash to the hash register.  This card can also
 	 * accept unicast packets as well as multicast packets using this
 	 * register for easier bridging operations, but we don't take
 	 * advantage of that.  Locks here are to avoid LOR with the
-	 * IF_ADDR_LOCK, but might not be strictly necessary.
+	 * if_maddr_rlock, but might not be strictly necessary.
 	 */
 	WR4(sc, ETH_HSL, mcaf[0]);
 	WR4(sc, ETH_HSH, mcaf[1]);
@@ -1190,7 +1190,7 @@ ate_miibus_readreg(device_t dev, int phy, int reg)
 	return (val);
 }
 
-static void
+static int
 ate_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct ate_softc *sc;
@@ -1204,7 +1204,7 @@ ate_miibus_writereg(device_t dev, int phy, int reg, int data)
 	WR4(sc, ETH_MAN, ETH_MAN_REG_WR(phy, reg, data));
 	while ((RD4(sc, ETH_SR) & ETH_SR_IDLE) == 0)
 		continue;
-	return;
+	return (0);
 }
 
 static device_method_t ate_methods[] = {

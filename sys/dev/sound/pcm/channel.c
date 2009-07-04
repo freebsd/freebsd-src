@@ -1,6 +1,8 @@
 /*-
- * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
- * Portions Copyright by Luigi Rizzo - 1997-99
+ * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
+ * Portions Copyright (c) Ryan Beasley <ryan.beasley@gmail.com> - GSoC 2006
+ * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
+ * Portions Copyright (c) Luigi Rizzo <luigi@FreeBSD.org> - 1997-99
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +29,12 @@
 
 #include "opt_isa.h"
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
+#include <dev/sound/pcm/vchan.h>
 
 #include "feeder_if.h"
 
@@ -36,6 +43,10 @@ SND_DECLARE_FILE("$FreeBSD$");
 int report_soft_formats = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_formats, CTLFLAG_RW,
 	&report_soft_formats, 1, "report software-emulated formats");
+
+int report_soft_matrix = 1;
+SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_matrix, CTLFLAG_RW,
+	&report_soft_matrix, 1, "report software-emulated channel matrixing");
 
 int chn_latency = CHN_LATENCY_DEFAULT;
 TUNABLE_INT("hw.snd.latency", &chn_latency);
@@ -107,6 +118,80 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, timeout, CTLTYPE_INT | CTLFLAG_RW,
 	"interrupt timeout (1 - 10) seconds");
 #endif
 
+static int chn_vpc_autoreset = 1;
+TUNABLE_INT("hw.snd.vpc_autoreset", &chn_vpc_autoreset);
+SYSCTL_INT(_hw_snd, OID_AUTO, vpc_autoreset, CTLFLAG_RW,
+	&chn_vpc_autoreset, 0, "automatically reset channels volume to 0db");
+
+static int chn_vol_0db_pcm = SND_VOL_0DB_PCM;
+
+static void
+chn_vpc_proc(int reset, int db)
+{
+	struct snddev_info *d;
+	struct pcm_channel *c;
+	int i;
+
+	for (i = 0; pcm_devclass != NULL &&
+	    i < devclass_get_maxunit(pcm_devclass); i++) {
+		d = devclass_get_softc(pcm_devclass, i);
+		if (!PCM_REGISTERED(d))
+			continue;
+		PCM_LOCK(d);
+		PCM_WAIT(d);
+		PCM_ACQUIRE(d);
+		CHN_FOREACH(c, d, channels.pcm) {
+			CHN_LOCK(c);
+			CHN_SETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_VOL_0DB, db);
+			if (reset != 0)
+				chn_vpc_reset(c, SND_VOL_C_PCM, 1);
+			CHN_UNLOCK(c);
+		}
+		PCM_RELEASE(d);
+		PCM_UNLOCK(d);
+	}
+}
+
+static int
+sysctl_hw_snd_vpc_0db(SYSCTL_HANDLER_ARGS)
+{
+	int err, val;
+
+	val = chn_vol_0db_pcm;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+	if (val < SND_VOL_0DB_MIN || val > SND_VOL_0DB_MAX)
+		return (EINVAL);
+
+	chn_vol_0db_pcm = val;
+	chn_vpc_proc(0, val);
+
+	return (0);
+}
+SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_0db, CTLTYPE_INT | CTLFLAG_RW,
+	0, sizeof(int), sysctl_hw_snd_vpc_0db, "I",
+	"0db relative level");
+
+static int
+sysctl_hw_snd_vpc_reset(SYSCTL_HANDLER_ARGS)
+{
+	int err, val;
+
+	val = 0;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL || val == 0)
+		return (err);
+
+	chn_vol_0db_pcm = SND_VOL_0DB_PCM;
+	chn_vpc_proc(1, SND_VOL_0DB_PCM);
+
+	return (0);
+}
+SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_reset, CTLTYPE_INT | CTLFLAG_RW,
+	0, sizeof(int), sysctl_hw_snd_vpc_reset, "I",
+	"reset volume on all channels");
+
 static int chn_usefrags = 0;
 TUNABLE_INT("hw.snd.usefrags", &chn_usefrags);
 static int chn_syncdelay = -1;
@@ -137,8 +222,6 @@ MTX_SYSINIT(pcm_syncgroup, &snd_pcm_syncgroups_mtx, "PCM channel sync group lock
  */
 struct pcm_synclist snd_pcm_syncgroups = SLIST_HEAD_INITIALIZER(head);
 
-static int chn_buildfeeder(struct pcm_channel *c);
-
 static void
 chn_lockinit(struct pcm_channel *c, int dir)
 {
@@ -159,9 +242,8 @@ chn_lockinit(struct pcm_channel *c, int dir)
 		c->lock = snd_mtxcreate(c->name, "pcm virtual record channel");
 		cv_init(&c->intr_cv, "pcmrdv");
 		break;
-	case 0:
-		c->lock = snd_mtxcreate(c->name, "pcm fake channel");
-		cv_init(&c->intr_cv, "pcmfk");
+	default:
+		panic("%s(): Invalid direction=%d", __func__, dir);
 		break;
 	}
 
@@ -192,33 +274,31 @@ static int
 chn_polltrigger(struct pcm_channel *c)
 {
 	struct snd_dbuf *bs = c->bufsoft;
-	unsigned amt, lim;
+	u_int delta;
 
 	CHN_LOCKASSERT(c);
-	if (c->flags & CHN_F_MAPPED) {
-		if (sndbuf_getprevblocks(bs) == 0)
-			return 1;
+
+	if (c->flags & CHN_F_MMAP) {
+		if (sndbuf_getprevtotal(bs) < c->lw)
+			delta = c->lw;
 		else
-			return (sndbuf_getblocks(bs) > sndbuf_getprevblocks(bs))? 1 : 0;
+			delta = sndbuf_gettotal(bs) - sndbuf_getprevtotal(bs);
 	} else {
-		amt = (c->direction == PCMDIR_PLAY)? sndbuf_getfree(bs) : sndbuf_getready(bs);
-#if 0
-		lim = (c->flags & CHN_F_HAS_SIZE)? sndbuf_getblksz(bs) : 1;
-#endif
-		lim = c->lw;
-		return (amt >= lim) ? 1 : 0;
+		if (c->direction == PCMDIR_PLAY)
+			delta = sndbuf_getfree(bs);
+		else
+			delta = sndbuf_getready(bs);
 	}
-	return 0;
+
+	return ((delta < c->lw) ? 0 : 1);
 }
 
-static int
+static void
 chn_pollreset(struct pcm_channel *c)
 {
-	struct snd_dbuf *bs = c->bufsoft;
 
 	CHN_LOCKASSERT(c);
-	sndbuf_updateprevtotal(bs);
-	return 1;
+	sndbuf_updateprevtotal(c->bufsoft);
 }
 
 static void
@@ -289,12 +369,12 @@ chn_dmaupdate(struct pcm_channel *c)
 
 	if (c->direction == PCMDIR_PLAY) {
 		amt = min(delta, sndbuf_getready(b));
-		amt -= amt % sndbuf_getbps(b);
+		amt -= amt % sndbuf_getalign(b);
 		if (amt > 0)
 			sndbuf_dispose(b, NULL, amt);
 	} else {
 		amt = min(delta, sndbuf_getfree(b));
-		amt -= amt % sndbuf_getbps(b);
+		amt -= amt % sndbuf_getalign(b);
 		if (amt > 0)
 		       sndbuf_acquire(b, NULL, amt);
 	}
@@ -309,40 +389,22 @@ chn_dmaupdate(struct pcm_channel *c)
 	return delta;
 }
 
-void
-chn_wrupdate(struct pcm_channel *c)
-{
-	int ret;
-
-	CHN_LOCKASSERT(c);
-	KASSERT(c->direction == PCMDIR_PLAY, ("chn_wrupdate on bad channel"));
-
-	if ((c->flags & (CHN_F_MAPPED | CHN_F_VIRTUAL)) || CHN_STOPPED(c))
-		return;
-	chn_dmaupdate(c);
-	ret = chn_wrfeed(c);
-	/* tell the driver we've updated the primary buffer */
-	chn_trigger(c, PCMTRIG_EMLDMAWR);
-	DEB(if (ret)
-		printf("chn_wrupdate: chn_wrfeed returned %d\n", ret);)
-
-}
-
-int
+static void
 chn_wrfeed(struct pcm_channel *c)
 {
     	struct snd_dbuf *b = c->bufhard;
     	struct snd_dbuf *bs = c->bufsoft;
-	unsigned int ret, amt;
+	unsigned int amt;
 
 	CHN_LOCKASSERT(c);
 
-	if ((c->flags & CHN_F_MAPPED) && !(c->flags & CHN_F_CLOSING))
+	if ((c->flags & CHN_F_MMAP) && !(c->flags & CHN_F_CLOSING))
 		sndbuf_acquire(bs, NULL, sndbuf_getfree(bs));
 
 	amt = sndbuf_getfree(b);
+	if (amt > 0)
+		sndbuf_feed(bs, b, c, c->feeder, amt);
 
-	ret = (amt > 0) ? sndbuf_feed(bs, b, c, c->feeder, amt) : ENOSPC;
 	/*
 	 * Possible xruns. There should be no empty space left in buffer.
 	 */
@@ -351,24 +413,36 @@ chn_wrfeed(struct pcm_channel *c)
 
 	if (sndbuf_getfree(b) < amt)
 		chn_wakeup(c);
-
-	return ret;
 }
+
+#if 0
+static void
+chn_wrupdate(struct pcm_channel *c)
+{
+
+	CHN_LOCKASSERT(c);
+	KASSERT(c->direction == PCMDIR_PLAY, ("%s(): bad channel", __func__));
+
+	if ((c->flags & (CHN_F_MMAP | CHN_F_VIRTUAL)) || CHN_STOPPED(c))
+		return;
+	chn_dmaupdate(c);
+	chn_wrfeed(c);
+	/* tell the driver we've updated the primary buffer */
+	chn_trigger(c, PCMTRIG_EMLDMAWR);
+}
+#endif
 
 static void
 chn_wrintr(struct pcm_channel *c)
 {
-	int ret;
 
 	CHN_LOCKASSERT(c);
 	/* update pointers in primary buffer */
 	chn_dmaupdate(c);
 	/* ...and feed from secondary to primary */
-	ret = chn_wrfeed(c);
+	chn_wrfeed(c);
 	/* tell the driver we've updated the primary buffer */
 	chn_trigger(c, PCMTRIG_EMLDMAWR);
-	DEB(if (ret)
-		printf("chn_wrintr: chn_wrfeed returned %d\n", ret);)
 }
 
 /*
@@ -431,8 +505,9 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 			if (ret == EAGAIN) {
 				ret = EINVAL;
 				c->flags |= CHN_F_DEAD;
-				printf("%s: play interrupt timeout, "
-				    "channel dead\n", c->name);
+				device_printf(c->dev, "%s(): %s: "
+				    "play interrupt timeout, channel dead\n",
+				    __func__, c->name);
 			} else if (ret == ERESTART || ret == EINTR)
 				c->flags |= CHN_F_ABORTING;
 		}
@@ -444,20 +519,21 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 /*
  * Feed new data from the read buffer. Can be called in the bottom half.
  */
-int
+static void
 chn_rdfeed(struct pcm_channel *c)
 {
     	struct snd_dbuf *b = c->bufhard;
     	struct snd_dbuf *bs = c->bufsoft;
-	unsigned int ret, amt;
+	unsigned int amt;
 
 	CHN_LOCKASSERT(c);
 
-	if (c->flags & CHN_F_MAPPED)
+	if (c->flags & CHN_F_MMAP)
 		sndbuf_dispose(bs, NULL, sndbuf_getready(bs));
 
 	amt = sndbuf_getfree(bs);
-	ret = (amt > 0) ? sndbuf_feed(b, bs, c, c->feeder, amt) : ENOSPC;
+	if (amt > 0)
+		sndbuf_feed(b, bs, c, c->feeder, amt);
 
 	amt = sndbuf_getready(b);
 	if (amt > 0) {
@@ -467,33 +543,28 @@ chn_rdfeed(struct pcm_channel *c)
 
 	if (sndbuf_getready(bs) > 0)
 		chn_wakeup(c);
-
-	return ret;
 }
 
-void
+#if 0
+static void
 chn_rdupdate(struct pcm_channel *c)
 {
-	int ret;
 
 	CHN_LOCKASSERT(c);
 	KASSERT(c->direction == PCMDIR_REC, ("chn_rdupdate on bad channel"));
 
-	if ((c->flags & (CHN_F_MAPPED | CHN_F_VIRTUAL)) || CHN_STOPPED(c))
+	if ((c->flags & (CHN_F_MMAP | CHN_F_VIRTUAL)) || CHN_STOPPED(c))
 		return;
 	chn_trigger(c, PCMTRIG_EMLDMARD);
 	chn_dmaupdate(c);
-	ret = chn_rdfeed(c);
-	DEB(if (ret)
-		printf("chn_rdfeed: %d\n", ret);)
-
+	chn_rdfeed(c);
 }
+#endif
 
 /* read interrupt routine. Must be called with interrupts blocked. */
 static void
 chn_rdintr(struct pcm_channel *c)
 {
-	int ret;
 
 	CHN_LOCKASSERT(c);
 	/* tell the driver to update the primary buffer if non-dma */
@@ -501,7 +572,7 @@ chn_rdintr(struct pcm_channel *c)
 	/* update pointers in primary buffer */
 	chn_dmaupdate(c);
 	/* ...and feed from primary to secondary */
-	ret = chn_rdfeed(c);
+	chn_rdfeed(c);
 }
 
 /*
@@ -557,8 +628,9 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 			if (ret == EAGAIN) {
 				ret = EINVAL;
 				c->flags |= CHN_F_DEAD;
-				printf("%s: record interrupt timeout, "
-				    "channel dead\n", c->name);
+				device_printf(c->dev, "%s(): %s: "
+				    "record interrupt timeout, channel dead\n",
+				    __func__, c->name);
 			} else if (ret == ERESTART || ret == EINTR)
 				c->flags |= CHN_F_ABORTING;
 		}
@@ -568,28 +640,31 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 }
 
 void
-chn_intr(struct pcm_channel *c)
+chn_intr_locked(struct pcm_channel *c)
 {
-	uint8_t do_unlock;
-	if (CHN_LOCK_OWNED(c)) {
-		/* 
-		 * Allow sound drivers to call this function with
-		 * "CHN_LOCK()" locked:
-		 */
-		do_unlock = 0;
-	} else {
-		do_unlock = 1;
-		CHN_LOCK(c);
-	}
+
+	CHN_LOCKASSERT(c);
+
 	c->interrupts++;
+
 	if (c->direction == PCMDIR_PLAY)
 		chn_wrintr(c);
 	else
 		chn_rdintr(c);
-	if (do_unlock) {
-		CHN_UNLOCK(c);
+}
+
+void
+chn_intr(struct pcm_channel *c)
+{
+
+	if (CHN_LOCKOWNED(c)) {
+		chn_intr_locked(c);
+		return;
 	}
-	return;
+
+	CHN_LOCK(c);
+	chn_intr_locked(c);
+	CHN_UNLOCK(c);
 }
 
 u_int32_t
@@ -623,37 +698,43 @@ chn_start(struct pcm_channel *c, int force)
 
 				pb = CHN_BUF_PARENT(c, b);
 				i = sndbuf_xbytes(sndbuf_getready(bs), bs, pb);
-				j = sndbuf_getbps(pb);
+				j = sndbuf_getalign(pb);
 			}
 		}
 		if (snd_verbose > 3 && CHN_EMPTY(c, children))
-			printf("%s: %s (%s) threshold i=%d j=%d\n",
-			    __func__, CHN_DIRSTR(c),
-			    (c->flags & CHN_F_VIRTUAL) ? "virtual" : "hardware",
-			    i, j);
+			device_printf(c->dev, "%s(): %s (%s) threshold "
+			    "i=%d j=%d\n", __func__, CHN_DIRSTR(c),
+			    (c->flags & CHN_F_VIRTUAL) ? "virtual" :
+			    "hardware", i, j);
 	}
 
 	if (i >= j) {
 		c->flags |= CHN_F_TRIGGERED;
 		sndbuf_setrun(b, 1);
-		c->feedcount = (c->flags & CHN_F_CLOSING) ? 2 : 0;
-		c->interrupts = 0;
-		c->xruns = 0;
-		if (c->direction == PCMDIR_PLAY && c->parentchannel == NULL) {
-			sndbuf_fillsilence(b);
+		if (c->flags & CHN_F_CLOSING)
+			c->feedcount = 2;
+		else {
+			c->feedcount = 0;
+			c->interrupts = 0;
+			c->xruns = 0;
+		}
+		if (c->parentchannel == NULL) {
+			if (c->direction == PCMDIR_PLAY)
+				sndbuf_fillsilence(b);
 			if (snd_verbose > 3)
-				printf("%s: %s starting! (%s) (ready=%d "
-				    "force=%d i=%d j=%d intrtimeout=%u "
-				    "latency=%dms)\n",
+				device_printf(c->dev,
+				    "%s(): %s starting! (%s/%s) "
+				    "(ready=%d force=%d i=%d j=%d "
+				    "intrtimeout=%u latency=%dms)\n",
 				    __func__,
 				    (c->flags & CHN_F_HAS_VCHAN) ?
-				    "VCHAN" : "HW",
+				    "VCHAN PARENT" : "HW", CHN_DIRSTR(c),
 				    (c->flags & CHN_F_CLOSING) ? "closing" :
 				    "running",
 				    sndbuf_getready(b),
 				    force, i, j, c->timeout,
 				    (sndbuf_getsize(b) * 1000) /
-				    (sndbuf_getbps(b) * sndbuf_getspd(b)));
+				    (sndbuf_getalign(b) * sndbuf_getspd(b)));
 		}
 		err = chn_trigger(c, PCMTRIG_START);
 	}
@@ -720,10 +801,10 @@ chn_sync(struct pcm_channel *c, int threshold)
 	 * to avoid audible truncation.
 	 */
 	if (syncdelay > 0)
-		minflush += (sndbuf_getbps(bs) * sndbuf_getspd(bs) *
+		minflush += (sndbuf_getalign(bs) * sndbuf_getspd(bs) *
 		    ((syncdelay > 1000) ? 1000 : syncdelay)) / 1000;
 
-	minflush -= minflush % sndbuf_getbps(bs);
+	minflush -= minflush % sndbuf_getalign(bs);
 
 	if (minflush > 0) {
 		threshold = min(minflush, sndbuf_getfree(bs));
@@ -736,7 +817,8 @@ chn_sync(struct pcm_channel *c, int threshold)
 	residp = resid;
 	blksz = sndbuf_getblksz(b);
 	if (blksz < 1) {
-		printf("%s: WARNING: blksz < 1 ! maxsize=%d [%d/%d/%d]\n",
+		device_printf(c->dev,
+		    "%s(): WARNING: blksz < 1 ! maxsize=%d [%d/%d/%d]\n",
 		    __func__, sndbuf_getmaxsize(b), sndbuf_getsize(b),
 		    sndbuf_getblksz(b), sndbuf_getblkcnt(b));
 		if (sndbuf_getblkcnt(b) > 0)
@@ -749,7 +831,7 @@ chn_sync(struct pcm_channel *c, int threshold)
 	ret = 0;
 
 	if (snd_verbose > 3)
-		printf("%s: [begin] timeout=%d count=%d "
+		device_printf(c->dev, "%s(): [begin] timeout=%d count=%d "
 		    "minflush=%d resid=%d\n", __func__, c->timeout, count,
 		    minflush, resid);
 
@@ -765,7 +847,8 @@ chn_sync(struct pcm_channel *c, int threshold)
 			if (resid == residp) {
 				--count;
 				if (snd_verbose > 3)
-					printf("%s: [stalled] timeout=%d "
+					device_printf(c->dev,
+					    "%s(): [stalled] timeout=%d "
 					    "count=%d hcount=%d "
 					    "resid=%d minflush=%d\n",
 					    __func__, c->timeout, count,
@@ -773,7 +856,8 @@ chn_sync(struct pcm_channel *c, int threshold)
 			} else if (resid < residp && count < hcount) {
 				++count;
 				if (snd_verbose > 3)
-					printf("%s: [resume] timeout=%d "
+					device_printf(c->dev,
+					    "%s((): [resume] timeout=%d "
 					    "count=%d hcount=%d "
 					    "resid=%d minflush=%d\n",
 					    __func__, c->timeout, count,
@@ -795,7 +879,8 @@ chn_sync(struct pcm_channel *c, int threshold)
 	c->flags |= cflag;
 
 	if (snd_verbose > 3)
-		printf("%s: timeout=%d count=%d hcount=%d resid=%d residp=%d "
+		device_printf(c->dev,
+		    "%s(): timeout=%d count=%d hcount=%d resid=%d residp=%d "
 		    "minflush=%d ret=%d\n",
 		    __func__, c->timeout, count, hcount, resid, residp,
 		    minflush, ret);
@@ -811,16 +896,20 @@ chn_poll(struct pcm_channel *c, int ev, struct thread *td)
 	int ret;
 
 	CHN_LOCKASSERT(c);
-    	if (!(c->flags & (CHN_F_MAPPED | CHN_F_TRIGGERED))) {
+
+    	if (!(c->flags & (CHN_F_MMAP | CHN_F_TRIGGERED))) {
 		ret = chn_start(c, 1);
 		if (ret != 0)
 			return (0);
 	}
+
 	ret = 0;
-	if (chn_polltrigger(c) && chn_pollreset(c))
+	if (chn_polltrigger(c)) {
+		chn_pollreset(c);
 		ret = ev;
-	else
+	} else
 		selrecord(td, sndbuf_getsel(bs));
+
 	return (ret);
 }
 
@@ -886,145 +975,179 @@ chn_flush(struct pcm_channel *c)
 }
 
 int
-fmtvalid(u_int32_t fmt, u_int32_t *fmtlist)
+snd_fmtvalid(uint32_t fmt, uint32_t *fmtlist)
 {
 	int i;
 
-	for (i = 0; fmtlist[i]; i++)
-		if (fmt == fmtlist[i])
-			return 1;
-	return 0;
+	for (i = 0; fmtlist[i] != 0; i++) {
+		if (fmt == fmtlist[i] ||
+		    ((fmt & AFMT_PASSTHROUGH) &&
+		    (AFMT_ENCODING(fmt) & fmtlist[i])))
+			return (1);
+	}
+
+	return (0);
 }
 
-static struct afmtstr_table default_afmtstr_table[] = {
-	{  "alaw", AFMT_A_LAW  }, { "mulaw", AFMT_MU_LAW },
-	{    "u8", AFMT_U8     }, {    "s8", AFMT_S8     },
-	{ "s16le", AFMT_S16_LE }, { "s16be", AFMT_S16_BE },
-	{ "u16le", AFMT_U16_LE }, { "u16be", AFMT_U16_BE },
-	{ "s24le", AFMT_S24_LE }, { "s24be", AFMT_S24_BE },
-	{ "u24le", AFMT_U24_LE }, { "u24be", AFMT_U24_BE },
-	{ "s32le", AFMT_S32_LE }, { "s32be", AFMT_S32_BE },
-	{ "u32le", AFMT_U32_LE }, { "u32be", AFMT_U32_BE },
-	{    NULL, 0           },
+static const struct {
+	char *name, *alias1, *alias2;
+	uint32_t afmt;
+} afmt_tab[] = {
+	{  "alaw",  NULL, NULL, AFMT_A_LAW  },
+	{ "mulaw",  NULL, NULL, AFMT_MU_LAW },
+	{    "u8",   "8", NULL, AFMT_U8     },
+	{    "s8",  NULL, NULL, AFMT_S8     },
+#if BYTE_ORDER == LITTLE_ENDIAN
+	{ "s16le", "s16", "16", AFMT_S16_LE },
+	{ "s16be",  NULL, NULL, AFMT_S16_BE },
+#else
+	{ "s16le",  NULL, NULL, AFMT_S16_LE },
+	{ "s16be", "s16", "16", AFMT_S16_BE },
+#endif
+	{ "u16le",  NULL, NULL, AFMT_U16_LE },
+	{ "u16be",  NULL, NULL, AFMT_U16_BE },
+	{ "s24le",  NULL, NULL, AFMT_S24_LE },
+	{ "s24be",  NULL, NULL, AFMT_S24_BE },
+	{ "u24le",  NULL, NULL, AFMT_U24_LE },
+	{ "u24be",  NULL, NULL, AFMT_U24_BE },
+#if BYTE_ORDER == LITTLE_ENDIAN
+	{ "s32le", "s32", "32", AFMT_S32_LE },
+	{ "s32be",  NULL, NULL, AFMT_S32_BE },
+#else
+	{ "s32le",  NULL, NULL, AFMT_S32_LE },
+	{ "s32be", "s32", "32", AFMT_S32_BE },
+#endif
+	{ "u32le",  NULL, NULL, AFMT_U32_LE },
+	{ "u32be",  NULL, NULL, AFMT_U32_BE },
+	{   "ac3",  NULL, NULL, AFMT_AC3    },
+	{    NULL,  NULL, NULL, 0           }
 };
 
-int
-afmtstr_swap_sign(char *s)
+static const struct {
+	char *name, *alias1, *alias2;
+	int matrix_id;
+} matrix_id_tab[] = {
+	{ "1.0",  "1",   "mono", SND_CHN_MATRIX_1_0     },
+	{ "2.0",  "2", "stereo", SND_CHN_MATRIX_2_0     },
+	{ "2.1", NULL,     NULL, SND_CHN_MATRIX_2_1     },
+	{ "3.0",  "3",     NULL, SND_CHN_MATRIX_3_0     },
+	{ "4.0",  "4",   "quad", SND_CHN_MATRIX_4_0     },
+	{ "4.1", NULL,     NULL, SND_CHN_MATRIX_4_1     },
+	{ "5.0",  "5",     NULL, SND_CHN_MATRIX_5_0     },
+	{ "5.1",  "6",     NULL, SND_CHN_MATRIX_5_1     },
+	{ "6.0", NULL,     NULL, SND_CHN_MATRIX_6_0     },
+	{ "6.1",  "7",     NULL, SND_CHN_MATRIX_6_1     },
+	{ "7.1",  "8",     NULL, SND_CHN_MATRIX_7_1     },
+	{  NULL, NULL,     NULL, SND_CHN_MATRIX_UNKNOWN }
+};
+
+uint32_t
+snd_str2afmt(const char *req)
 {
-	if (s == NULL || strlen(s) < 2) /* full length of "s8" */
-		return 0;
-	if (*s == 's')
-		*s = 'u';
-	else if (*s == 'u')
-		*s = 's';
-	else
-		return 0;
-	return 1;
+	uint32_t i, afmt;
+	int matrix_id;
+	char b1[8], b2[8];
+
+	i = sscanf(req, "%5[^:]:%6s", b1, b2);
+
+	if (i == 1) {
+		if (strlen(req) != strlen(b1))
+			return (0);
+		strlcpy(b2, "2.0", sizeof(b2));
+	} else if (i == 2) {
+		if (strlen(req) != (strlen(b1) + 1 + strlen(b2)))
+			return (0);
+	} else
+		return (0);
+
+	afmt = 0;
+	matrix_id = SND_CHN_MATRIX_UNKNOWN;
+
+	for (i = 0; afmt == 0 && afmt_tab[i].name != NULL; i++) {
+		if (strcasecmp(afmt_tab[i].name, b1) == 0 ||
+		    (afmt_tab[i].alias1 != NULL &&
+		    strcasecmp(afmt_tab[i].alias1, b1) == 0) ||
+		    (afmt_tab[i].alias2 != NULL &&
+		    strcasecmp(afmt_tab[i].alias2, b1) == 0)) {
+			afmt = afmt_tab[i].afmt;
+			strlcpy(b1, afmt_tab[i].name, sizeof(b1));
+		}
+	}
+
+	if (afmt == 0)
+		return (0);
+
+	for (i = 0; matrix_id == SND_CHN_MATRIX_UNKNOWN &&
+	    matrix_id_tab[i].name != NULL; i++) {
+		if (strcmp(matrix_id_tab[i].name, b2) == 0 ||
+		    (matrix_id_tab[i].alias1 != NULL &&
+		    strcmp(matrix_id_tab[i].alias1, b2) == 0) ||
+		    (matrix_id_tab[i].alias2 != NULL &&
+		    strcasecmp(matrix_id_tab[i].alias2, b2) == 0)) {
+			matrix_id = matrix_id_tab[i].matrix_id;
+			strlcpy(b2, matrix_id_tab[i].name, sizeof(b2));
+		}
+	}
+
+	if (matrix_id == SND_CHN_MATRIX_UNKNOWN)
+		return (0);
+
+#ifndef _KERNEL
+	printf("Parse OK: '%s' -> '%s:%s' %d\n", req, b1, b2,
+	    (int)(b2[0]) - '0' + (int)(b2[2]) - '0');
+#endif
+
+	return (SND_FORMAT(afmt, b2[0] - '0' + b2[2] - '0', b2[2] - '0'));
 }
 
-int
-afmtstr_swap_endian(char *s)
+uint32_t
+snd_afmt2str(uint32_t afmt, char *buf, size_t len)
 {
-	if (s == NULL || strlen(s) < 5) /* full length of "s16le" */
-		return 0;
-	if (s[3] == 'l')
-		s[3] = 'b';
-	else if (s[3] == 'b')
-		s[3] = 'l';
-	else
-		return 0;
-	return 1;
-}
+	uint32_t i, enc, ch, ext;
+	char tmp[AFMTSTR_LEN];
 
-u_int32_t
-afmtstr2afmt(struct afmtstr_table *tbl, const char *s, int stereo)
-{
-	size_t fsz, sz;
+	if (buf == NULL || len < AFMTSTR_LEN)
+		return (0);
 
-	sz = (s == NULL) ? 0 : strlen(s);
+	
+	bzero(tmp, sizeof(tmp));
 
-	if (sz > 1) {
+	enc = AFMT_ENCODING(afmt);
+	ch = AFMT_CHANNEL(afmt);
+	ext = AFMT_EXTCHANNEL(afmt);
 
-		if (tbl == NULL)
-			tbl = default_afmtstr_table;
-
-		for (; tbl->fmtstr != NULL; tbl++) {
-			fsz = strlen(tbl->fmtstr);
-			if (sz < fsz)
-				continue;
-			if (strncmp(s, tbl->fmtstr, fsz) != 0)
-				continue;
-			if (fsz == sz)
-				return tbl->format |
-					    ((stereo) ? AFMT_STEREO : 0);
-			if ((sz - fsz) < 2 || s[fsz] != ':')
-				break;
-			/*
-			 * For now, just handle mono/stereo.
-			 */
-			if ((s[fsz + 2] == '\0' && (s[fsz + 1] == 'm' ||
-				    s[fsz + 1] == '1')) ||
-				    strcmp(s + fsz + 1, "mono") == 0)
-				return tbl->format;
-			if ((s[fsz + 2] == '\0' && (s[fsz + 1] == 's' ||
-				    s[fsz + 1] == '2')) ||
-				    strcmp(s + fsz + 1, "stereo") == 0)
-				return tbl->format | AFMT_STEREO;
+	for (i = 0; afmt_tab[i].name != NULL; i++) {
+		if (enc == afmt_tab[i].afmt) {
+			strlcpy(tmp, afmt_tab[i].name, sizeof(tmp));
+			strlcat(tmp, ":", sizeof(tmp));
 			break;
 		}
 	}
 
-	return 0;
-}
-
-u_int32_t
-afmt2afmtstr(struct afmtstr_table *tbl, u_int32_t afmt, char *dst,
-					size_t len, int type, int stereo)
-{
-	u_int32_t fmt = 0;
-	char *fmtstr = NULL, *tag = "";
-
-	if (tbl == NULL)
-		tbl = default_afmtstr_table;
-
-	for (; tbl->format != 0; tbl++) {
-		if (tbl->format == 0)
-			break;
-		if ((afmt & ~AFMT_STEREO) != tbl->format)
-			continue;
-		fmt = afmt;
-		fmtstr = tbl->fmtstr;
-		break;
-	}
-
-	if (fmt != 0 && fmtstr != NULL && dst != NULL && len > 0) {
-		strlcpy(dst, fmtstr, len);
-		switch (type) {
-		case AFMTSTR_SIMPLE:
-			tag = (fmt & AFMT_STEREO) ? ":s" : ":m";
-			break;
-		case AFMTSTR_NUM:
-			tag = (fmt & AFMT_STEREO) ? ":2" : ":1";
-			break;
-		case AFMTSTR_FULL:
-			tag = (fmt & AFMT_STEREO) ? ":stereo" : ":mono";
-			break;
-		case AFMTSTR_NONE:
-		default:
+	if (strlen(tmp) == 0)
+		return (0);
+	
+	for (i = 0; matrix_id_tab[i].name != NULL; i++) {
+		if (ch == (matrix_id_tab[i].name[0] - '0' +
+		    matrix_id_tab[i].name[2] - '0') &&
+		    ext == (matrix_id_tab[i].name[2] - '0')) {
+			strlcat(tmp, matrix_id_tab[i].name, sizeof(tmp));
 			break;
 		}
-		if (strlen(tag) > 0 && ((stereo && !(fmt & AFMT_STEREO)) || \
-			    (!stereo && (fmt & AFMT_STEREO))))
-			strlcat(dst, tag, len);
 	}
 
-	return fmt;
+	if (strlen(tmp) == 0)
+		return (0);
+
+	strlcpy(buf, tmp, len);
+
+	return (snd_str2afmt(buf));
 }
 
 int
-chn_reset(struct pcm_channel *c, u_int32_t fmt)
+chn_reset(struct pcm_channel *c, uint32_t fmt, uint32_t spd)
 {
-	int hwspd, r;
+	int r;
 
 	CHN_LOCKASSERT(c);
 	c->feedcount = 0;
@@ -1033,27 +1156,19 @@ chn_reset(struct pcm_channel *c, u_int32_t fmt)
 	c->timeout = 1;
 	c->xruns = 0;
 
-	r = CHANNEL_RESET(c->methods, c->devinfo);
-	if (fmt != 0) {
-#if 0
-		hwspd = DSP_DEFAULT_SPEED;
-		/* only do this on a record channel until feederbuilder works */
-		if (c->direction == PCMDIR_REC)
-			RANGE(hwspd, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
-		c->speed = hwspd;
-#endif
-		hwspd = chn_getcaps(c)->minspeed;
-		c->speed = hwspd;
+	c->flags |= (pcm_getflags(c->dev) & SD_F_BITPERFECT) ?
+	    CHN_F_BITPERFECT : 0;
 
-		if (r == 0)
-			r = chn_setformat(c, fmt);
-		if (r == 0)
-			r = chn_setspeed(c, hwspd);
-#if 0
-		if (r == 0)
-			r = chn_setvolume(c, 100, 100);
-#endif
+	r = CHANNEL_RESET(c->methods, c->devinfo);
+	if (r == 0 && fmt != 0 && spd != 0) {
+		r = chn_setparam(c, fmt, spd);
+		fmt = 0;
+		spd = 0;
 	}
+	if (r == 0 && fmt != 0)
+		r = chn_setformat(c, fmt);
+	if (r == 0 && spd != 0)
+		r = chn_setspeed(c, spd);
 	if (r == 0)
 		r = chn_setlatency(c, chn_latency);
 	if (r == 0) {
@@ -1068,7 +1183,7 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction)
 {
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
-	int ret;
+	int i, ret;
 
 	if (chn_timeout < CHN_TIMEOUT_MIN || chn_timeout > CHN_TIMEOUT_MAX)
 		chn_timeout = CHN_TIMEOUT;
@@ -1114,6 +1229,20 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction)
 	c->flags = 0;
 	c->feederflags = 0;
 	c->sm = NULL;
+	c->format = SND_FORMAT(AFMT_U8, 1, 0);
+	c->speed = DSP_DEFAULT_SPEED;
+
+	c->matrix = *feeder_matrix_id_map(SND_CHN_MATRIX_1_0);
+	c->matrix.id = SND_CHN_MATRIX_PCMCHANNEL;
+
+	for (i = 0; i < SND_CHN_T_MAX; i++) {
+		c->volume[SND_VOL_C_MASTER][i] = SND_VOL_0DB_MASTER;
+	}
+
+	c->volume[SND_VOL_C_MASTER][SND_CHN_T_VOL_0DB] = SND_VOL_0DB_MASTER;
+	c->volume[SND_VOL_C_PCM][SND_CHN_T_VOL_0DB] = chn_vol_0db_pcm;
+
+	chn_vpc_reset(c, SND_VOL_C_PCM, 1);
 
 	ret = ENODEV;
 	CHN_UNLOCK(c); /* XXX - Unlock for CHANNEL_INIT() malloc() call */
@@ -1126,17 +1255,13 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction)
 	if ((sndbuf_getsize(b) == 0) && ((c->flags & CHN_F_VIRTUAL) == 0))
 		goto out;
 
-	ret = chn_setdir(c, direction);
-	if (ret)
-		goto out;
+	ret = 0;
+	c->direction = direction;
 
-	ret = sndbuf_setfmt(b, AFMT_U8);
-	if (ret)
-		goto out;
-
-	ret = sndbuf_setfmt(bs, AFMT_U8);
-	if (ret)
-		goto out;
+	sndbuf_setfmt(b, c->format);
+	sndbuf_setspd(b, c->speed);
+	sndbuf_setfmt(bs, c->format);
+	sndbuf_setspd(bs, c->speed);
 
 	/**
 	 * @todo Should this be moved somewhere else?  The primary buffer
@@ -1197,39 +1322,226 @@ chn_kill(struct pcm_channel *c)
 	return (0);
 }
 
-int
-chn_setdir(struct pcm_channel *c, int dir)
-{
-#ifdef DEV_ISA
-    	struct snd_dbuf *b = c->bufhard;
-#endif
-	int r;
-
-	CHN_LOCKASSERT(c);
-	c->direction = dir;
-	r = CHANNEL_SETDIR(c->methods, c->devinfo, c->direction);
-#ifdef DEV_ISA
-	if (!r && SND_DMA(b))
-		sndbuf_dmasetdir(b, c->direction);
-#endif
-	return r;
-}
-
+/* XXX Obsolete. Use *_matrix() variant instead. */
 int
 chn_setvolume(struct pcm_channel *c, int left, int right)
 {
+	int ret;
+
+	ret = chn_setvolume_matrix(c, SND_VOL_C_MASTER, SND_CHN_T_FL, left);
+	ret |= chn_setvolume_matrix(c, SND_VOL_C_MASTER, SND_CHN_T_FR,
+	    right) << 8;
+
+	return (ret);
+}
+
+int
+chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
+    int center)
+{
+	int i, ret;
+
+	ret = 0;
+
+	for (i = 0; i < SND_CHN_T_MAX; i++) {
+		if ((1 << i) & SND_CHN_LEFT_MASK)
+			ret |= chn_setvolume_matrix(c, vc, i, left);
+		else if ((1 << i) & SND_CHN_RIGHT_MASK)
+			ret |= chn_setvolume_matrix(c, vc, i, right) << 8;
+		else
+			ret |= chn_setvolume_matrix(c, vc, i, center) << 16;
+	}
+
+	return (ret);
+}
+
+int
+chn_setvolume_matrix(struct pcm_channel *c, int vc, int vt, int val)
+{
+	int i;
+
+	KASSERT(c != NULL && vc >= SND_VOL_C_MASTER && vc < SND_VOL_C_MAX &&
+	    (vc == SND_VOL_C_MASTER || (vc & 1)) &&
+	    (vt == SND_CHN_T_VOL_0DB || (vt >= SND_CHN_T_BEGIN &&
+	    vt <= SND_CHN_T_END)) && (vt != SND_CHN_T_VOL_0DB ||
+	    (val >= SND_VOL_0DB_MIN && val <= SND_VOL_0DB_MAX)),
+	    ("%s(): invalid volume matrix c=%p vc=%d vt=%d val=%d",
+	    __func__, c, vc, vt, val));
 	CHN_LOCKASSERT(c);
-	/* should add a feeder for volume changing if channel returns -1 */
-	if (left > 100)
-		left = 100;
-	if (left < 0)
-		left = 0;
-	if (right > 100)
-		right = 100;
-	if (right < 0)
-		right = 0;
-	c->volume = left | (right << 8);
-	return 0;
+
+	if (val < 0)
+		val = 0;
+	if (val > 100)
+		val = 100;
+
+	c->volume[vc][vt] = val;
+
+	/*
+	 * Do relative calculation here and store it into class + 1
+	 * to ease the job of feeder_volume.
+	 */
+	if (vc == SND_VOL_C_MASTER) {
+		for (vc = SND_VOL_C_BEGIN; vc <= SND_VOL_C_END;
+		    vc += SND_VOL_C_STEP)
+			c->volume[SND_VOL_C_VAL(vc)][vt] =
+			    SND_VOL_CALC_VAL(c->volume, vc, vt);
+	} else if (vc & 1) {
+		if (vt == SND_CHN_T_VOL_0DB)
+			for (i = SND_CHN_T_BEGIN; i <= SND_CHN_T_END;
+			    i += SND_CHN_T_STEP) {
+				c->volume[SND_VOL_C_VAL(vc)][i] =
+				    SND_VOL_CALC_VAL(c->volume, vc, i);
+			}
+		else
+			c->volume[SND_VOL_C_VAL(vc)][vt] =
+			    SND_VOL_CALC_VAL(c->volume, vc, vt);
+	}
+
+	return (val);
+}
+
+int
+chn_getvolume_matrix(struct pcm_channel *c, int vc, int vt)
+{
+	KASSERT(c != NULL && vc >= SND_VOL_C_MASTER && vc < SND_VOL_C_MAX &&
+	    (vt == SND_CHN_T_VOL_0DB ||
+	    (vt >= SND_CHN_T_BEGIN && vt <= SND_CHN_T_END)),
+	    ("%s(): invalid volume matrix c=%p vc=%d vt=%d",
+	    __func__, c, vc, vt));
+	CHN_LOCKASSERT(c);
+
+	return (c->volume[vc][vt]);
+}
+
+struct pcmchan_matrix *
+chn_getmatrix(struct pcm_channel *c)
+{
+
+	KASSERT(c != NULL, ("%s(): NULL channel", __func__));
+	CHN_LOCKASSERT(c);
+
+	if (!(c->format & AFMT_CONVERTIBLE))
+		return (NULL);
+
+	return (&c->matrix);
+}
+
+int
+chn_setmatrix(struct pcm_channel *c, struct pcmchan_matrix *m)
+{
+
+	KASSERT(c != NULL && m != NULL,
+	    ("%s(): NULL channel or matrix", __func__));
+	CHN_LOCKASSERT(c);
+
+	if (!(c->format & AFMT_CONVERTIBLE))
+		return (EINVAL);
+
+	c->matrix = *m;
+	c->matrix.id = SND_CHN_MATRIX_PCMCHANNEL;
+
+	return (chn_setformat(c, SND_FORMAT(c->format, m->channels, m->ext)));
+}
+
+/*
+ * XXX chn_oss_* exists for the sake of compatibility.
+ */
+int
+chn_oss_getorder(struct pcm_channel *c, unsigned long long *map)
+{
+
+	KASSERT(c != NULL && map != NULL,
+	    ("%s(): NULL channel or map", __func__));
+	CHN_LOCKASSERT(c);
+
+	if (!(c->format & AFMT_CONVERTIBLE))
+		return (EINVAL);
+
+	return (feeder_matrix_oss_get_channel_order(&c->matrix, map));
+}
+
+int
+chn_oss_setorder(struct pcm_channel *c, unsigned long long *map)
+{
+	struct pcmchan_matrix m;
+	int ret;
+
+	KASSERT(c != NULL && map != NULL,
+	    ("%s(): NULL channel or map", __func__));
+	CHN_LOCKASSERT(c);
+
+	if (!(c->format & AFMT_CONVERTIBLE))
+		return (EINVAL);
+
+	m = c->matrix;
+	ret = feeder_matrix_oss_set_channel_order(&m, map);
+	if (ret != 0)
+		return (ret);
+
+	return (chn_setmatrix(c, &m));
+}
+
+#define SND_CHN_OSS_FRONT	(SND_CHN_T_MASK_FL | SND_CHN_T_MASK_FR)
+#define SND_CHN_OSS_SURR	(SND_CHN_T_MASK_SL | SND_CHN_T_MASK_SR)
+#define SND_CHN_OSS_CENTER_LFE	(SND_CHN_T_MASK_FC | SND_CHN_T_MASK_LF)
+#define SND_CHN_OSS_REAR	(SND_CHN_T_MASK_BL | SND_CHN_T_MASK_BR)
+
+int
+chn_oss_getmask(struct pcm_channel *c, uint32_t *retmask)
+{
+	struct pcmchan_matrix *m;
+	struct pcmchan_caps *caps;
+	uint32_t i, format;
+
+	KASSERT(c != NULL && retmask != NULL,
+	    ("%s(): NULL channel or retmask", __func__));
+	CHN_LOCKASSERT(c);
+
+	caps = chn_getcaps(c);
+	if (caps == NULL || caps->fmtlist == NULL)
+		return (ENODEV);
+
+	for (i = 0; caps->fmtlist[i] != 0; i++) {
+		format = caps->fmtlist[i];
+		if (!(format & AFMT_CONVERTIBLE)) {
+			*retmask |= DSP_BIND_SPDIF;
+			continue;
+		}
+		m = CHANNEL_GETMATRIX(c->methods, c->devinfo, format);
+		if (m == NULL)
+			continue;
+		if (m->mask & SND_CHN_OSS_FRONT)
+			*retmask |= DSP_BIND_FRONT;
+		if (m->mask & SND_CHN_OSS_SURR)
+			*retmask |= DSP_BIND_SURR;
+		if (m->mask & SND_CHN_OSS_CENTER_LFE)
+			*retmask |= DSP_BIND_CENTER_LFE;
+		if (m->mask & SND_CHN_OSS_REAR)
+			*retmask |= DSP_BIND_REAR;
+	}
+
+	/* report software-supported binding mask */
+	if (!CHN_BITPERFECT(c) && report_soft_matrix)
+		*retmask |= DSP_BIND_FRONT | DSP_BIND_SURR |
+		    DSP_BIND_CENTER_LFE | DSP_BIND_REAR;
+
+	return (0);
+}
+
+void
+chn_vpc_reset(struct pcm_channel *c, int vc, int force)
+{
+	int i;
+
+	KASSERT(c != NULL && vc >= SND_VOL_C_BEGIN && vc <= SND_VOL_C_END,
+	    ("%s(): invalid reset c=%p vc=%d", __func__, c, vc));
+	CHN_LOCKASSERT(c);
+
+	if (force == 0 && chn_vpc_autoreset == 0)
+		return;
+
+	for (i = SND_CHN_T_BEGIN; i <= SND_CHN_T_END; i += SND_CHN_T_STEP)
+		CHN_SETVOLUME(c, vc, i, c->volume[vc][SND_CHN_T_VOL_0DB]);
 }
 
 static u_int32_t
@@ -1380,7 +1692,7 @@ chn_calclatency(int dir, int latency, int bps, u_int32_t datarate,
 			*rblksz = CHN_2NDBUFMAXSIZE >> 1;
 		if (rblkcnt != NULL)
 			*rblkcnt = 2;
-		printf("%s: FAILED dir=%d latency=%d bps=%d "
+		printf("%s(): FAILED dir=%d latency=%d bps=%d "
 		    "datarate=%u max=%u\n",
 		    __func__, dir, latency, bps, datarate, max);
 		return CHN_2NDBUFMAXSIZE;
@@ -1420,7 +1732,7 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 
 	CHN_LOCKASSERT(c);
 
-	if ((c->flags & (CHN_F_MAPPED | CHN_F_TRIGGERED)) ||
+	if ((c->flags & (CHN_F_MMAP | CHN_F_TRIGGERED)) ||
 	    !(c->direction == PCMDIR_PLAY || c->direction == PCMDIR_REC))
 		return EINVAL;
 
@@ -1442,12 +1754,12 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 	b = c->bufhard;
 
 	if (!(blksz == 0 || blkcnt == -1) &&
-	    (blksz < 16 || blksz < sndbuf_getbps(bs) || blkcnt < 2 ||
+	    (blksz < 16 || blksz < sndbuf_getalign(bs) || blkcnt < 2 ||
 	    (blksz * blkcnt) > CHN_2NDBUFMAXSIZE))
 		return EINVAL;
 
-	chn_calclatency(c->direction, latency, sndbuf_getbps(bs),
-	    sndbuf_getbps(bs) * sndbuf_getspd(bs), CHN_2NDBUFMAXSIZE,
+	chn_calclatency(c->direction, latency, sndbuf_getalign(bs),
+	    sndbuf_getalign(bs) * sndbuf_getspd(bs), CHN_2NDBUFMAXSIZE,
 	    &sblksz, &sblkcnt);
 
 	if (blksz == 0 || blkcnt == -1) {
@@ -1468,7 +1780,7 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		 * defeat the purpose of having custom control. The least
 		 * we can do is round it to the nearest ^2 and align it.
 		 */
-		sblksz = round_blksz(blksz, sndbuf_getbps(bs));
+		sblksz = round_blksz(blksz, sndbuf_getalign(bs));
 		sblkcnt = round_pow2(blkcnt);
 		limit = 0;
 	}
@@ -1487,17 +1799,17 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		hblkcnt = 2;
 		if (c->flags & CHN_F_HAS_SIZE) {
 			hblksz = round_blksz(sndbuf_xbytes(sblksz, bs, b),
-			    sndbuf_getbps(b));
+			    sndbuf_getalign(b));
 			hblkcnt = round_pow2(sndbuf_getblkcnt(bs));
 		} else
 			chn_calclatency(c->direction, latency,
-			    sndbuf_getbps(b),
-			    sndbuf_getbps(b) * sndbuf_getspd(b),
+			    sndbuf_getalign(b),
+			    sndbuf_getalign(b) * sndbuf_getspd(b),
 			    CHN_2NDBUFMAXSIZE, &hblksz, &hblkcnt);
 
 		if ((hblksz << 1) > sndbuf_getmaxsize(b))
 			hblksz = round_blksz(sndbuf_getmaxsize(b) >> 1,
-			    sndbuf_getbps(b));
+			    sndbuf_getalign(b));
 
 		while ((hblksz * hblkcnt) > sndbuf_getmaxsize(b)) {
 			if (hblkcnt < 4)
@@ -1506,18 +1818,18 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 				hblkcnt >>= 1;
 		}
 
-		hblksz -= hblksz % sndbuf_getbps(b);
+		hblksz -= hblksz % sndbuf_getalign(b);
 
 #if 0
 		hblksz = sndbuf_getmaxsize(b) >> 1;
-		hblksz -= hblksz % sndbuf_getbps(b);
+		hblksz -= hblksz % sndbuf_getalign(b);
 		hblkcnt = 2;
 #endif
 
 		CHN_UNLOCK(c);
 		if (chn_usefrags == 0 ||
 		    CHANNEL_SETFRAGMENTS(c->methods, c->devinfo,
-		    hblksz, hblkcnt) < 1)
+		    hblksz, hblkcnt) != 0)
 			sndbuf_setblksz(b, CHANNEL_SETBLOCKSIZE(c->methods,
 			    c->devinfo, hblksz));
 		CHN_LOCK(c);
@@ -1525,7 +1837,7 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		if (!CHN_EMPTY(c, children)) {
 			sblksz = round_blksz(
 			    sndbuf_xbytes(sndbuf_getsize(b) >> 1, b, bs),
-			    sndbuf_getbps(bs));
+			    sndbuf_getalign(bs));
 			sblkcnt = 2;
 			limit = 0;
 		} else if (limit != 0)
@@ -1535,7 +1847,7 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		 * Interrupt timeout
 		 */
 		c->timeout = ((u_int64_t)hz * sndbuf_getsize(b)) /
-		    ((u_int64_t)sndbuf_getspd(b) * sndbuf_getbps(b));
+		    ((u_int64_t)sndbuf_getspd(b) * sndbuf_getalign(b));
 		if (c->timeout < 1)
 			c->timeout = 1;
 	}
@@ -1561,14 +1873,14 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 			sblkcnt >>= 1;
 	}
 
-	sblksz -= sblksz % sndbuf_getbps(bs);
+	sblksz -= sblksz % sndbuf_getalign(bs);
 
 	if (sndbuf_getblkcnt(bs) != sblkcnt || sndbuf_getblksz(bs) != sblksz ||
 	    sndbuf_getsize(bs) != (sblkcnt * sblksz)) {
 		ret = sndbuf_remalloc(bs, sblkcnt, sblksz);
 		if (ret != 0) {
-			printf("%s: Failed: %d %d\n", __func__,
-			    sblkcnt, sblksz);
+			device_printf(c->dev, "%s(): Failed: %d %d\n",
+			    __func__, sblkcnt, sblksz);
 			return ret;
 		}
 	}
@@ -1581,7 +1893,7 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 	chn_resetbuf(c);
 
 	if (snd_verbose > 3)
-		printf("%s: %s (%s) timeout=%u "
+		device_printf(c->dev, "%s(): %s (%s) timeout=%u "
 		    "b[%d/%d/%d] bs[%d/%d/%d] limit=%d\n",
 		    __func__, CHN_DIRSTR(c),
 		    (c->flags & CHN_F_VIRTUAL) ? "virtual" : "hardware",
@@ -1610,132 +1922,204 @@ chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz)
 	return chn_resizebuf(c, -1, blkcnt, blksz);
 }
 
-static int
-chn_tryspeed(struct pcm_channel *c, int speed)
+int
+chn_setparam(struct pcm_channel *c, uint32_t format, uint32_t speed)
 {
-	struct pcm_feeder *f;
-    	struct snd_dbuf *b = c->bufhard;
-    	struct snd_dbuf *bs = c->bufsoft;
-    	struct snd_dbuf *x;
-	int r, delta;
+	struct pcmchan_caps *caps;
+	uint32_t hwspeed, delta;
+	int ret;
 
 	CHN_LOCKASSERT(c);
-	DEB(printf("setspeed, channel %s\n", c->name));
-	DEB(printf("want speed %d, ", speed));
-	if (speed <= 0)
-		return EINVAL;
-	if (CHN_STOPPED(c)) {
-		r = 0;
-		c->speed = speed;
-		sndbuf_setspd(bs, speed);
-		RANGE(speed, chn_getcaps(c)->minspeed, chn_getcaps(c)->maxspeed);
-		DEB(printf("try speed %d, ", speed));
-		sndbuf_setspd(b, CHANNEL_SETSPEED(c->methods, c->devinfo, speed));
-		DEB(printf("got speed %d\n", sndbuf_getspd(b)));
 
-		delta = sndbuf_getspd(b) - sndbuf_getspd(bs);
-		if (delta < 0)
-			delta = -delta;
+	if (speed < 1 || format == 0 || CHN_STARTED(c))
+		return (EINVAL);
 
-		c->feederflags &= ~(1 << FEEDER_RATE);
-		/*
-		 * Used to be 500. It was too big!
-		 */
-		if (delta > feeder_rate_round)
-			c->feederflags |= 1 << FEEDER_RATE;
-		else
-			sndbuf_setspd(bs, sndbuf_getspd(b));
+	c->format = format;
+	c->speed = speed;
 
-		r = chn_buildfeeder(c);
-		DEB(printf("r = %d\n", r));
-		if (r)
-			goto out;
+	caps = chn_getcaps(c);
 
-		if (!(c->feederflags & (1 << FEEDER_RATE)))
-			goto out;
+	hwspeed = speed;
+	RANGE(hwspeed, caps->minspeed, caps->maxspeed);
 
-		r = EINVAL;
-		f = chn_findfeeder(c, FEEDER_RATE);
-		DEB(printf("feedrate = %p\n", f));
-		if (f == NULL)
-			goto out;
+	sndbuf_setspd(c->bufhard, CHANNEL_SETSPEED(c->methods, c->devinfo,
+	    hwspeed));
+	hwspeed = sndbuf_getspd(c->bufhard);
 
-		x = (c->direction == PCMDIR_REC)? b : bs;
-		r = FEEDER_SET(f, FEEDRATE_SRC, sndbuf_getspd(x));
-		DEB(printf("feeder_set(FEEDRATE_SRC, %d) = %d\n", sndbuf_getspd(x), r));
-		if (r)
-			goto out;
+	delta = (hwspeed > speed) ? (hwspeed - speed) : (speed - hwspeed);
 
-		x = (c->direction == PCMDIR_REC)? bs : b;
-		r = FEEDER_SET(f, FEEDRATE_DST, sndbuf_getspd(x));
-		DEB(printf("feeder_set(FEEDRATE_DST, %d) = %d\n", sndbuf_getspd(x), r));
-out:
-		if (!r)
-			r = CHANNEL_SETFORMAT(c->methods, c->devinfo,
-							sndbuf_getfmt(b));
-		if (!r)
-			sndbuf_setfmt(bs, c->format);
-		if (!r)
-			r = chn_resizebuf(c, -2, 0, 0);
-		DEB(printf("setspeed done, r = %d\n", r));
-		return r;
-	} else
-		return EINVAL;
+	if (delta <= feeder_rate_round)
+		c->speed = hwspeed;
+
+	ret = feeder_chain(c);
+
+	if (ret == 0)
+		ret = CHANNEL_SETFORMAT(c->methods, c->devinfo,
+		    sndbuf_getfmt(c->bufhard));
+
+	if (ret == 0)
+		ret = chn_resizebuf(c, -2, 0, 0);
+
+	return (ret);
 }
 
 int
-chn_setspeed(struct pcm_channel *c, int speed)
+chn_setspeed(struct pcm_channel *c, uint32_t speed)
 {
-	int r, oldspeed = c->speed;
+	uint32_t oldformat, oldspeed, format;
+	int ret;
 
-	r = chn_tryspeed(c, speed);
-	if (r) {
+#if 0
+	/* XXX force 48k */
+	if (c->format & AFMT_PASSTHROUGH)
+		speed = AFMT_PASSTHROUGH_RATE;
+#endif
+
+	oldformat = c->format;
+	oldspeed = c->speed;
+	format = oldformat;
+
+	ret = chn_setparam(c, format, speed);
+	if (ret != 0) {
 		if (snd_verbose > 3)
-			printf("Failed to set speed %d falling back to %d\n",
-			    speed, oldspeed);
-		r = chn_tryspeed(c, oldspeed);
+			device_printf(c->dev,
+			    "%s(): Setting speed %d failed, "
+			    "falling back to %d\n",
+			    __func__, speed, oldspeed);
+		chn_setparam(c, c->format, oldspeed);
 	}
-	return r;
+
+	return (ret);
 }
 
-static int
-chn_tryformat(struct pcm_channel *c, u_int32_t fmt)
+int
+chn_setformat(struct pcm_channel *c, uint32_t format)
 {
-	struct snd_dbuf *b = c->bufhard;
-	struct snd_dbuf *bs = c->bufsoft;
-	int r;
+	uint32_t oldformat, oldspeed, speed;
+	int ret;
+
+	/* XXX force stereo */
+	if (format & AFMT_PASSTHROUGH)
+		format = SND_FORMAT(format, AFMT_PASSTHROUGH_CHANNEL,
+		    AFMT_PASSTHROUGH_EXTCHANNEL);
+
+	oldformat = c->format;
+	oldspeed = c->speed;
+	speed = oldspeed;
+
+	ret = chn_setparam(c, format, speed);
+	if (ret != 0) {
+		if (snd_verbose > 3)
+			device_printf(c->dev,
+			    "%s(): Format change 0x%08x failed, "
+			    "falling back to 0x%08x\n",
+			    __func__, format, oldformat);
+		chn_setparam(c, oldformat, oldspeed);
+	}
+
+	return (ret);
+}
+
+void
+chn_syncstate(struct pcm_channel *c)
+{
+	struct snddev_info *d;
+	struct snd_mixer *m;
+
+	d = (c != NULL) ? c->parentsnddev : NULL;
+	m = (d != NULL && d->mixer_dev != NULL) ? d->mixer_dev->si_drv1 :
+	    NULL;
+
+	if (d == NULL || m == NULL)
+		return;
 
 	CHN_LOCKASSERT(c);
-	if (CHN_STOPPED(c)) {
-		DEB(printf("want format %d\n", fmt));
-		c->format = fmt;
-		r = chn_buildfeeder(c);
-		if (r == 0) {
-			sndbuf_setfmt(bs, c->format);
-			chn_resetbuf(c);
-			r = CHANNEL_SETFORMAT(c->methods, c->devinfo, sndbuf_getfmt(b));
-			if (r == 0)
-				r = chn_tryspeed(c, c->speed);
+
+	if (c->feederflags & (1 << FEEDER_VOLUME)) {
+		uint32_t parent;
+		int vol, pvol, left, right, center;
+
+		if (c->direction == PCMDIR_PLAY &&
+		    (d->flags & SD_F_SOFTPCMVOL)) {
+			/* CHN_UNLOCK(c); */
+			vol = mix_get(m, SOUND_MIXER_PCM);
+			parent = mix_getparent(m, SOUND_MIXER_PCM);
+			if (parent != SOUND_MIXER_NONE)
+				pvol = mix_get(m, parent);
+			else
+				pvol = 100 | (100 << 8);
+			/* CHN_LOCK(c); */
+		} else {
+			vol = 100 | (100 << 8);
+			pvol = vol;
 		}
-		return r;
-	} else
-		return EINVAL;
-}
 
-int
-chn_setformat(struct pcm_channel *c, u_int32_t fmt)
-{
-	u_int32_t oldfmt = c->format;
-	int r;
+		if (vol == -1) {
+			device_printf(c->dev,
+			    "Soft PCM Volume: Failed to read pcm "
+			    "default value\n");
+			vol = 100 | (100 << 8);
+		}
 
-	r = chn_tryformat(c, fmt);
-	if (r) {
-		if (snd_verbose > 3)
-			printf("Format change 0x%08x failed, reverting to 0x%08x\n",
-			    fmt, oldfmt);
-		chn_tryformat(c, oldfmt);
+		if (pvol == -1) {
+			device_printf(c->dev,
+			    "Soft PCM Volume: Failed to read parent "
+			    "default value\n");
+			pvol = 100 | (100 << 8);
+		}
+
+		left = ((vol & 0x7f) * (pvol & 0x7f)) / 100;
+		right = (((vol >> 8) & 0x7f) * ((pvol >> 8) & 0x7f)) / 100;
+		center = (left + right) >> 1;
+
+		chn_setvolume_multi(c, SND_VOL_C_MASTER, left, right, center);
 	}
-	return r;
+
+	if (c->feederflags & (1 << FEEDER_EQ)) {
+		struct pcm_feeder *f;
+		int treble, bass, state;
+
+		/* CHN_UNLOCK(c); */
+		treble = mix_get(m, SOUND_MIXER_TREBLE);
+		bass = mix_get(m, SOUND_MIXER_BASS);
+		/* CHN_LOCK(c); */
+
+		if (treble == -1)
+			treble = 50;
+		else
+			treble = ((treble & 0x7f) +
+			    ((treble >> 8) & 0x7f)) >> 1;
+
+		if (bass == -1)
+			bass = 50;
+		else
+			bass = ((bass & 0x7f) + ((bass >> 8) & 0x7f)) >> 1;
+
+		f = chn_findfeeder(c, FEEDER_EQ);
+		if (f != NULL) {
+			if (FEEDER_SET(f, FEEDEQ_TREBLE, treble) != 0)
+				device_printf(c->dev,
+				    "EQ: Failed to set treble -- %d\n",
+				    treble);
+			if (FEEDER_SET(f, FEEDEQ_BASS, bass) != 0)
+				device_printf(c->dev,
+				    "EQ: Failed to set bass -- %d\n",
+				    bass);
+			if (FEEDER_SET(f, FEEDEQ_PREAMP, d->eqpreamp) != 0)
+				device_printf(c->dev,
+				    "EQ: Failed to set preamp -- %d\n",
+				    d->eqpreamp);
+			if (d->flags & SD_F_EQ_BYPASSED)
+				state = FEEDEQ_BYPASS;
+			else if (d->flags & SD_F_EQ_ENABLED)
+				state = FEEDEQ_ENABLE;
+			else
+				state = FEEDEQ_DISABLE;
+			if (FEEDER_SET(f, FEEDEQ_STATE, state) != 0)
+				device_printf(c->dev,
+				    "EQ: Failed to set state -- %d\n", state);
+		}
+	}
 }
 
 int
@@ -1772,10 +2156,11 @@ chn_trigger(struct pcm_channel *c, int go)
 		if (c->trigger != PCMTRIG_START) {
 			c->trigger = go;
 			CHN_UNLOCK(c);
-			pcm_lock(d);
+			PCM_LOCK(d);
 			CHN_INSERT_HEAD(d, c, channels.pcm.busy);
-			pcm_unlock(d);
+			PCM_UNLOCK(d);
 			CHN_LOCK(c);
+			chn_syncstate(c);
 		}
 		break;
 	case PCMTRIG_STOP:
@@ -1788,9 +2173,9 @@ chn_trigger(struct pcm_channel *c, int go)
 		if (c->trigger == PCMTRIG_START) {
 			c->trigger = go;
 			CHN_UNLOCK(c);
-			pcm_lock(d);
+			PCM_LOCK(d);
 			CHN_REMOVE(d, c, channels.pcm.busy);
-			pcm_unlock(d);
+			PCM_UNLOCK(d);
 			CHN_LOCK(c);
 		}
 		break;
@@ -1819,7 +2204,7 @@ chn_getptr(struct pcm_channel *c)
 
 	CHN_LOCKASSERT(c);
 	hwptr = (CHN_STARTED(c)) ? CHANNEL_GETPTR(c->methods, c->devinfo) : 0;
-	return (hwptr - (hwptr % sndbuf_getbps(c->bufhard)));
+	return (hwptr - (hwptr % sndbuf_getalign(c->bufhard)));
 }
 
 struct pcmchan_caps *
@@ -1841,238 +2226,20 @@ chn_getformats(struct pcm_channel *c)
 		fmts |= fmtlist[i];
 
 	/* report software-supported formats */
-	if (report_soft_formats)
-		fmts |= AFMT_MU_LAW|AFMT_A_LAW|AFMT_U32_LE|AFMT_U32_BE|
-		    AFMT_S32_LE|AFMT_S32_BE|AFMT_U24_LE|AFMT_U24_BE|
-		    AFMT_S24_LE|AFMT_S24_BE|AFMT_U16_LE|AFMT_U16_BE|
-		    AFMT_S16_LE|AFMT_S16_BE|AFMT_U8|AFMT_S8;
+	if (!CHN_BITPERFECT(c) && report_soft_formats)
+		fmts |= AFMT_CONVERTIBLE;
 
-	return fmts;
-}
-
-static int
-chn_buildfeeder(struct pcm_channel *c)
-{
-	struct feeder_class *fc;
-	struct pcm_feederdesc desc;
-	struct snd_mixer *m;
-	u_int32_t tmp[2], type, flags, hwfmt, *fmtlist;
-	int err;
-	char fmtstr[AFMTSTR_MAXSZ];
-
-	CHN_LOCKASSERT(c);
-	while (chn_removefeeder(c) == 0)
-		;
-	KASSERT((c->feeder == NULL), ("feeder chain not empty"));
-
-	c->align = sndbuf_getalign(c->bufsoft);
-
-	if (CHN_EMPTY(c, children) || c->direction == PCMDIR_REC) {
-		/*
-		 * Virtual rec need this.
-		 */
-		fc = feeder_getclass(NULL);
-		KASSERT(fc != NULL, ("can't find root feeder"));
-
-		err = chn_addfeeder(c, fc, NULL);
-		if (err) {
-			DEB(printf("can't add root feeder, err %d\n", err));
-
-			return err;
-		}
-		c->feeder->desc->out = c->format;
-	} else if (c->direction == PCMDIR_PLAY) {
-		if (c->flags & CHN_F_HAS_VCHAN) {
-			desc.type = FEEDER_MIXER;
-			desc.in = c->format;
-		} else {
-			DEB(printf("can't decide which feeder type to use!\n"));
-			return EOPNOTSUPP;
-		}
-		desc.out = c->format;
-		desc.flags = 0;
-		fc = feeder_getclass(&desc);
-		if (fc == NULL) {
-			DEB(printf("can't find vchan feeder\n"));
-
-			return EOPNOTSUPP;
-		}
-
-		err = chn_addfeeder(c, fc, &desc);
-		if (err) {
-			DEB(printf("can't add vchan feeder, err %d\n", err));
-
-			return err;
-		}
-	} else
-		return EOPNOTSUPP;
-
-	/* XXX These are too much.. */
-	if (c->parentsnddev != NULL && c->parentsnddev->mixer_dev != NULL &&
-	    c->parentsnddev->mixer_dev->si_drv1 != NULL)
-		m = c->parentsnddev->mixer_dev->si_drv1;
-	else
-		m = NULL;
-
-	c->feederflags &= ~(1 << FEEDER_VOLUME);
-	if (c->direction == PCMDIR_PLAY && !(c->flags & CHN_F_VIRTUAL) && m &&
-	    (c->parentsnddev->flags & SD_F_SOFTPCMVOL))
-		c->feederflags |= 1 << FEEDER_VOLUME;
-
-	if (!(c->flags & CHN_F_VIRTUAL) && c->parentsnddev &&
-	    ((c->direction == PCMDIR_PLAY &&
-	    (c->parentsnddev->flags & SD_F_PSWAPLR)) ||
-	    (c->direction == PCMDIR_REC &&
-	    (c->parentsnddev->flags & SD_F_RSWAPLR))))
-		c->feederflags |= 1 << FEEDER_SWAPLR;
-
-	flags = c->feederflags;
-	fmtlist = chn_getcaps(c)->fmtlist;
-
-	DEB(printf("feederflags %x\n", flags));
-
-	for (type = FEEDER_RATE; type < FEEDER_LAST; type++) {
-		if (flags & (1 << type)) {
-			desc.type = type;
-			desc.in = 0;
-			desc.out = 0;
-			desc.flags = 0;
-			DEB(printf("find feeder type %d, ", type));
-			if (type == FEEDER_VOLUME || type == FEEDER_RATE) {
-				if (c->feeder->desc->out & AFMT_32BIT)
-					strlcpy(fmtstr,"s32le", sizeof(fmtstr));
-				else if (c->feeder->desc->out & AFMT_24BIT)
-					strlcpy(fmtstr, "s24le", sizeof(fmtstr));
-				else {
-					/*
-					 * 8bit doesn't provide enough headroom
-					 * for proper processing without
-					 * creating too much noises. Force to
-					 * 16bit instead.
-					 */
-					strlcpy(fmtstr, "s16le", sizeof(fmtstr));
-				}
-				if (!(c->feeder->desc->out & AFMT_8BIT) &&
-					    c->feeder->desc->out & AFMT_BIGENDIAN)
-					afmtstr_swap_endian(fmtstr);
-				if (!(c->feeder->desc->out & (AFMT_A_LAW | AFMT_MU_LAW)) &&
-					    !(c->feeder->desc->out & AFMT_SIGNED))
-					afmtstr_swap_sign(fmtstr);
-				desc.in = afmtstr2afmt(NULL, fmtstr, AFMTSTR_MONO_RETURN);
-				if (desc.in == 0)
-					desc.in = AFMT_S16_LE;
-				/* feeder_volume need stereo processing */
-				if (type == FEEDER_VOLUME ||
-					    c->feeder->desc->out & AFMT_STEREO)
-					desc.in |= AFMT_STEREO;
-				desc.out = desc.in;
-			} else if (type == FEEDER_SWAPLR) {
-				desc.in = c->feeder->desc->out;
-				desc.in |= AFMT_STEREO;
-				desc.out = desc.in;
-			}
-
-			fc = feeder_getclass(&desc);
-			DEB(printf("got %p\n", fc));
-			if (fc == NULL) {
-				DEB(printf("can't find required feeder type %d\n", type));
-
-				return EOPNOTSUPP;
-			}
-
-			if (desc.in == 0 || desc.out == 0)
-				desc = *fc->desc;
-
- 			DEB(printf("build fmtchain from 0x%08x to 0x%08x: ", c->feeder->desc->out, fc->desc->in));
-			tmp[0] = desc.in;
-			tmp[1] = 0;
-			if (chn_fmtchain(c, tmp) == 0) {
-				DEB(printf("failed\n"));
-
-				return ENODEV;
-			}
- 			DEB(printf("ok\n"));
-
-			err = chn_addfeeder(c, fc, &desc);
-			if (err) {
-				DEB(printf("can't add feeder %p, output 0x%x, err %d\n", fc, fc->desc->out, err));
-
-				return err;
-			}
-			DEB(printf("added feeder %p, output 0x%x\n", fc, c->feeder->desc->out));
-		}
-	}
-
- 	if (c->direction == PCMDIR_REC) {
-	 	tmp[0] = c->format;
- 		tmp[1] = 0;
- 		hwfmt = chn_fmtchain(c, tmp);
- 	} else
- 		hwfmt = chn_fmtchain(c, fmtlist);
-
-	if (hwfmt == 0 || !fmtvalid(hwfmt, fmtlist)) {
-		DEB(printf("Invalid hardware format: 0x%08x\n", hwfmt));
-		return ENODEV;
-	} else if (c->direction == PCMDIR_REC && !CHN_EMPTY(c, children)) {
-		/*
-		 * Kind of awkward. This whole "MIXER" concept need a
-		 * rethinking, I guess :) . Recording is the inverse
-		 * of Playback, which is why we push mixer vchan down here.
-		 */
-		if (c->flags & CHN_F_HAS_VCHAN) {
-			desc.type = FEEDER_MIXER;
-			desc.in = c->format;
-		} else
-			return EOPNOTSUPP;
-		desc.out = c->format;
-		desc.flags = 0;
-		fc = feeder_getclass(&desc);
-		if (fc == NULL)
-			return EOPNOTSUPP;
-
-		err = chn_addfeeder(c, fc, &desc);
-		if (err != 0)
-			return err;
-	}
-
-	sndbuf_setfmt(c->bufhard, hwfmt);
-
-	if ((flags & (1 << FEEDER_VOLUME))) {
-		u_int32_t parent;
-		int vol, left, right;
-
-		CHN_UNLOCK(c);
-		vol = mix_get(m, SOUND_MIXER_PCM);
-		if (vol == -1) {
-			device_printf(c->dev,
-			    "Soft PCM Volume: Failed to read default value\n");
-			vol = 100 | (100 << 8);
-		}
-		left = vol & 0x7f;
-		right = (vol >> 8) & 0x7f;
-		parent = mix_getparent(m, SOUND_MIXER_PCM);
-		if (parent != SOUND_MIXER_NONE) {
-			vol = mix_get(m, parent);
-			if (vol == -1) {
-				device_printf(c->dev,
-				    "Soft Volume: Failed to read parent "
-				    "default value\n");
-				vol = 100 | (100 << 8);
-			}
-			left = (left * (vol & 0x7f)) / 100;
-			right = (right * ((vol >> 8) & 0x7f)) / 100;
-		}
-		CHN_LOCK(c);
-		chn_setvolume(c, left, right);
-	}
-
-	return 0;
+	return (AFMT_ENCODING(fmts));
 }
 
 int
 chn_notify(struct pcm_channel *c, u_int32_t flags)
 {
-	int err, run, nrun;
+	struct pcm_channel *ch;
+	struct pcmchan_caps *caps;
+	uint32_t bestformat, bestspeed, besthwformat, *vchanformat, *vchanrate;
+	uint32_t vpflags;
+	int dirty, err, run, nrun;
 
 	CHN_LOCKASSERT(c);
 
@@ -2090,26 +2257,188 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 		flags &= CHN_N_VOLUME | CHN_N_TRIGGER;
 
 	if (flags & CHN_N_RATE) {
-		/* XXX I'll make good use of this someday. */
+		/*
+		 * XXX I'll make good use of this someday.
+		 *     However this is currently being superseded by
+		 *     the availability of CHN_F_VCHAN_DYNAMIC.
+		 */
 	}
+
 	if (flags & CHN_N_FORMAT) {
-		/* XXX I'll make good use of this someday. */
+		/*
+		 * XXX I'll make good use of this someday.
+		 *     However this is currently being superseded by
+		 *     the availability of CHN_F_VCHAN_DYNAMIC.
+		 */
 	}
+
 	if (flags & CHN_N_VOLUME) {
-		/* XXX I'll make good use of this someday. */
+		/*
+		 * XXX I'll make good use of this someday, though
+		 *     soft volume control is currently pretty much
+		 *     integrated.
+		 */
 	}
+
 	if (flags & CHN_N_BLOCKSIZE) {
 		/*
 		 * Set to default latency profile
 		 */
 		chn_setlatency(c, chn_latency);
 	}
-	if (flags & CHN_N_TRIGGER) {
+
+	if ((flags & CHN_N_TRIGGER) && !(c->flags & CHN_F_VCHAN_DYNAMIC)) {
 		nrun = CHN_EMPTY(c, children.busy) ? 0 : 1;
 		if (nrun && !run)
 			err = chn_start(c, 1);
 		if (!nrun && run)
 			chn_abort(c);
+		flags &= ~CHN_N_TRIGGER;
+	}
+
+	if (flags & CHN_N_TRIGGER) {
+		if (c->direction == PCMDIR_PLAY) {
+			vchanformat = &c->parentsnddev->pvchanformat;
+			vchanrate = &c->parentsnddev->pvchanrate;
+		} else {
+			vchanformat = &c->parentsnddev->rvchanformat;
+			vchanrate = &c->parentsnddev->rvchanrate;
+		}
+
+		/* Dynamic Virtual Channel */
+		if (!(c->flags & CHN_F_VCHAN_ADAPTIVE)) {
+			bestformat = *vchanformat;
+			bestspeed = *vchanrate;
+		} else {
+			bestformat = 0;
+			bestspeed = 0;
+		}
+
+		besthwformat = 0;
+		nrun = 0;
+		caps = chn_getcaps(c);
+		dirty = 0;
+		vpflags = 0;
+
+		CHN_FOREACH(ch, c, children.busy) {
+			CHN_LOCK(ch);
+			if ((ch->format & AFMT_PASSTHROUGH) &&
+			    snd_fmtvalid(ch->format, caps->fmtlist)) {
+				bestformat = ch->format;
+				bestspeed = ch->speed;
+				CHN_UNLOCK(ch);
+				vpflags = CHN_F_PASSTHROUGH;
+				nrun++;
+				break;
+			}
+			if ((ch->flags & CHN_F_EXCLUSIVE) && vpflags == 0) {
+				if (c->flags & CHN_F_VCHAN_ADAPTIVE) {
+					bestspeed = ch->speed;
+					RANGE(bestspeed, caps->minspeed,
+					    caps->maxspeed);
+					besthwformat = snd_fmtbest(ch->format,
+					    caps->fmtlist);
+					if (besthwformat != 0)
+						bestformat = besthwformat;
+				}
+				CHN_UNLOCK(ch);
+				vpflags = CHN_F_EXCLUSIVE;
+				nrun++;
+				continue;
+			}
+			if (!(c->flags & CHN_F_VCHAN_ADAPTIVE) ||
+			    vpflags != 0) {
+				CHN_UNLOCK(ch);
+				nrun++;
+				continue;
+			}
+			if (ch->speed > bestspeed) {
+				bestspeed = ch->speed;
+				RANGE(bestspeed, caps->minspeed,
+				    caps->maxspeed);
+			}
+			besthwformat = snd_fmtbest(ch->format, caps->fmtlist);
+			if (!(besthwformat & AFMT_VCHAN)) {
+				CHN_UNLOCK(ch);
+				nrun++;
+				continue;
+			}
+			if (AFMT_CHANNEL(besthwformat) >
+			    AFMT_CHANNEL(bestformat))
+				bestformat = besthwformat;
+			else if (AFMT_CHANNEL(besthwformat) ==
+			    AFMT_CHANNEL(bestformat) &&
+			    AFMT_BIT(besthwformat) > AFMT_BIT(bestformat))
+				bestformat = besthwformat;
+			CHN_UNLOCK(ch);
+			nrun++;
+		}
+
+		if (bestformat == 0)
+			bestformat = c->format;
+		if (bestspeed == 0)
+			bestspeed = c->speed;
+
+		if (bestformat != c->format || bestspeed != c->speed)
+			dirty = 1;
+
+		c->flags &= ~(CHN_F_PASSTHROUGH | CHN_F_EXCLUSIVE);
+		c->flags |= vpflags;
+
+		if (nrun && !run) {
+			if (dirty) {
+				bestspeed = CHANNEL_SETSPEED(c->methods,
+				    c->devinfo, bestspeed);
+				err = chn_reset(c, bestformat, bestspeed);
+			}
+			if (err == 0 && dirty) {
+				CHN_FOREACH(ch, c, children.busy) {
+					CHN_LOCK(ch);
+					if (VCHAN_SYNC_REQUIRED(ch))
+						vchan_sync(ch);
+					CHN_UNLOCK(ch);
+				}
+			}
+			if (err == 0) {
+				if (dirty)
+					c->flags |= CHN_F_DIRTY;
+				err = chn_start(c, 1);
+			}
+		}
+
+		if (nrun && run && dirty) {
+			chn_abort(c);
+			bestspeed = CHANNEL_SETSPEED(c->methods, c->devinfo,
+			    bestspeed);
+			err = chn_reset(c, bestformat, bestspeed);
+			if (err == 0) {
+				CHN_FOREACH(ch, c, children.busy) {
+					CHN_LOCK(ch);
+					if (VCHAN_SYNC_REQUIRED(ch))
+						vchan_sync(ch);
+					CHN_UNLOCK(ch);
+				}
+			}
+			if (err == 0) {
+				c->flags |= CHN_F_DIRTY;
+				err = chn_start(c, 1);
+			}
+		}
+
+		if (err == 0 && !(bestformat & AFMT_PASSTHROUGH) &&
+		    (bestformat & AFMT_VCHAN)) {
+			*vchanformat = bestformat;
+			*vchanrate = bestspeed;
+		}
+
+		if (!nrun && run) {
+			c->flags &= ~(CHN_F_PASSTHROUGH | CHN_F_EXCLUSIVE);
+			bestformat = *vchanformat;
+			bestspeed = *vchanrate;
+			chn_abort(c);
+			if (c->format != bestformat || c->speed != bestspeed)
+				chn_reset(c, bestformat, bestspeed);
+		}
 	}
 
 	return (err);
@@ -2184,18 +2513,6 @@ chn_syncdestroy(struct pcm_channel *c)
 	}
 
 	return sg_id;
-}
-
-void
-chn_lock(struct pcm_channel *c)
-{
-	CHN_LOCK(c);
-}
-
-void
-chn_unlock(struct pcm_channel *c)
-{
-	CHN_UNLOCK(c);
 }
 
 #ifdef OSSV4_EXPERIMENT

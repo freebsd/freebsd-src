@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #ifdef INET6
@@ -131,7 +132,7 @@ static int	tcp_inflight_stab;
 static int
 sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
+	INIT_VNET_INET(TD_TO_VNET(req->td));
 	int error, new;
 
 	new = V_tcp_mssdflt;
@@ -154,7 +155,7 @@ SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
 static int
 sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
+	INIT_VNET_INET(TD_TO_VNET(req->td));
 	int error, new;
 
 	new = V_tcp_v6mssdflt;
@@ -425,6 +426,25 @@ tcp_init(void)
 	EVENTHANDLER_REGISTER(maxsockets_change, tcp_zone_change, NULL,
 		EVENTHANDLER_PRI_ANY);
 }
+
+#ifdef VIMAGE
+void
+tcp_destroy(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	tcp_tw_destroy();
+	tcp_hc_destroy();
+	syncache_destroy();
+
+	/* XXX check that hashes are empty! */
+	hashdestroy(V_tcbinfo.ipi_hashbase, M_PCB,
+	    V_tcbinfo.ipi_hashmask);
+	hashdestroy(V_tcbinfo.ipi_porthashbase, M_PCB,
+	    V_tcbinfo.ipi_porthashmask);
+	INP_INFO_LOCK_DESTROY(&V_tcbinfo);
+}
+#endif
 
 void
 tcp_fini(void *xtp)

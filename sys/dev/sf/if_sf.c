@@ -494,7 +494,7 @@ sf_rxfilter(struct sf_softc *sc)
 
 	/* Now program new ones. */
 	i = 1;
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH_REVERSE(ifma, &ifp->if_multiaddrs, ifmultihead,
 	    ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -514,7 +514,7 @@ sf_rxfilter(struct sf_softc *sc)
 		sf_sethash(sc,
 		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr), 0);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 done:
 	csr_write_4(sc, SF_RXFILT, rxfilt);

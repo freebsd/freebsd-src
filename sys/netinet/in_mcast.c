@@ -35,8 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -1724,6 +1722,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 				if (ia != NULL) {
 					mreqn.imr_address =
 					    IA_SIN(ia)->sin_addr;
+					ifa_free(&ia->ia_ifa);
 				}
 			}
 		}
@@ -1835,6 +1834,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 			struct ifnet *mifp;
 
 			mifp = NULL;
+			IN_IFADDR_RLOCK();
 			TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 				mifp = ia->ia_ifp;
 				if (!(mifp->if_flags & IFF_LOOPBACK) &&
@@ -1843,6 +1843,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 					break;
 				}
 			}
+			IN_IFADDR_RUNLOCK();
 		}
 	}
 

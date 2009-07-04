@@ -74,8 +74,10 @@ main(int argc, char **argv)
 	int ch;
 
 	skipclean = 1;
-	while ((ch = getopt(argc, argv, "fFnpy")) != -1) {
+	while ((ch = getopt(argc, argv, "CfFnpy")) != -1) {
 		switch (ch) {
+		case 'C': /* for fsck_ffs compatibility */
+			break;
 		case 'f':
 			skipclean = 0;
 			break;

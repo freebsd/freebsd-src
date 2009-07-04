@@ -52,8 +52,9 @@ ENCODINGS=      CP1251 ISO8859-1 ISO8859-2 ISO8859-4 ISO8859-5 \
 ASCIILINKS=	en_AU en_CA en_GB en_NZ en_US
 US-ASCII_US-ASCII= ${ASCIILINKS:C/^/la_LN:/}
 
-LATIN1XLINKS=   af_ZA ca_ES da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ \
-		en_US es_ES eu_ES fi_FI fr_BE fr_CA fr_CH fr_FR is_IS it_CH \
+LATIN1XLINKS=	af_ZA ca_AD ca_ES ca_FR ca_IT da_DK de_AT de_CH de_DE \
+		en_AU en_CA en_GB en_NZ en_US es_ES eu_ES \
+		fi_FI fr_BE fr_CA fr_CH fr_FR is_IS it_CH \
 		it_IT nb_NO nl_BE nl_NL nn_NO no_NO pt_PT sv_SE
 LATIN1LINKS=	${LATIN1XLINKS} pt_BR
 ISO8859-1_ISO8859-1= ${LATIN1LINKS:C/^/la_LN:/}
@@ -73,7 +74,8 @@ ISO8859-5_ISO8859-5= ${LATIN5LINKS:C/^/ru_RU:/}
 CP1251LINKS=    ru_RU be_BY uk_UA
 CP1251_CP1251=	${CP1251LINKS:C/^/bg_BG:/}
 
-UTF8LINKS=	af_ZA be_BY bg_BG ca_ES cs_CZ da_DK de_AT de_CH de_DE el_GR \
+UTF8LINKS=	af_ZA be_BY bg_BG ca_AD ca_ES ca_FR ca_IT cs_CZ \
+		da_DK de_AT de_CH de_DE el_GR \
 		en_AU en_CA en_GB en_IE en_NZ en_US es_ES et_EE eu_ES fi_FI \
 		fr_BE \
 		fr_CA fr_CH fr_FR he_IL hr_HR hu_HU hy_AM is_IS it_CH it_IT \

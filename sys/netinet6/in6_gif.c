@@ -144,8 +144,22 @@ in6_gif_output(struct ifnet *ifp,
 #endif
 	case AF_LINK:
 		proto = IPPROTO_ETHERIP;
-		eiphdr.eip_ver = ETHERIP_VERSION & ETHERIP_VER_VERS_MASK;
-		eiphdr.eip_pad = 0;
+
+		/*
+		 * GIF_SEND_REVETHIP (disabled by default) intentionally
+		 * sends an EtherIP packet with revered version field in
+		 * the header.  This is a knob for backward compatibility
+		 * with FreeBSD 7.2R or prior.
+		 */
+		if ((sc->gif_options & GIF_SEND_REVETHIP)) {
+			eiphdr.eip_ver = 0;
+			eiphdr.eip_resvl = ETHERIP_VERSION;
+			eiphdr.eip_resvh = 0;
+		} else {
+			eiphdr.eip_ver = ETHERIP_VERSION;
+			eiphdr.eip_resvl = 0;
+			eiphdr.eip_resvh = 0;
+		}
 		/* prepend Ethernet-in-IP header */
 		M_PREPEND(m, sizeof(struct etherip_header), M_DONTWAIT);
 		if (m && m->m_len < sizeof(struct etherip_header))

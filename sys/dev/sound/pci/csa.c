@@ -37,7 +37,11 @@
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <sys/soundcard.h>
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/chip.h>
 #include <dev/sound/pci/csareg.h>
@@ -884,13 +888,13 @@ int
 csa_readcodec(csa_res *resp, u_long offset, u_int32_t *data)
 {
 	int i;
-	u_int32_t acsda, acctl, acsts;
+	u_int32_t acctl, acsts;
 
 	/*
 	 * Make sure that there is not data sitting around from a previous
 	 * uncompleted access. ACSDA = Status Data Register = 47Ch
 	 */
-	acsda = csa_readio(resp, BA0_ACSDA);
+	csa_readio(resp, BA0_ACSDA);
 
 	/*
 	 * Setup the AC97 control registers on the CS461x to send the

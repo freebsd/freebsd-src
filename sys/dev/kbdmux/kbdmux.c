@@ -181,10 +181,10 @@ kbdmux_kbd_putc(kbdmux_state_t *state, char c)
 	state->ks_inq_length++;
 }
 
-static char
+static int
 kbdmux_kbd_getc(kbdmux_state_t *state)
 {
-	char c;
+	unsigned char c;
 
 	if (state->ks_inq_length == 0)
 		return (-1);

@@ -26,7 +26,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_route.h"
 #include "opt_compat.h"
 
 #include <sys/cdefs.h>
@@ -45,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
+#include <sys/jail.h>
 #include <sys/kbio.h>
 #include <sys/kernel.h>
 #include <sys/linker_set.h>
@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #ifdef COMPAT_LINUX32
@@ -2092,9 +2091,9 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
  */
 
 static struct ifnet *
-ifname_linux_to_bsd(const char *lxname, char *bsdname)
+ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 {
-	INIT_VNET_NET(TD_TO_VNET(curthread));
+	INIT_VNET_NET(TD_TO_VNET(td));
 	struct ifnet *ifp;
 	int len, unit;
 	char *ep;
@@ -2380,7 +2379,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		printf("%s(): ioctl %d on %.*s\n", __func__,
 		    args->cmd & 0xffff, LINUX_IFNAMSIZ, lifname);
 #endif
-		ifp = ifname_linux_to_bsd(lifname, ifname);
+		ifp = ifname_linux_to_bsd(td, lifname, ifname);
 		if (ifp == NULL)
 			return (EINVAL);
 		/*

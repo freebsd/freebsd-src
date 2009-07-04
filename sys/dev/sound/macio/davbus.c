@@ -40,7 +40,13 @@
 #include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
+
 #include <dev/sound/macio/aoa.h>
 #include <dev/sound/macio/davbusreg.h>
 
@@ -115,7 +121,7 @@ static void	burgundy_set_outputs(struct davbus_softc *d, u_int mask);
 static u_int	burgundy_read_status(struct davbus_softc *d, u_int status);
 static int	burgundy_set(struct snd_mixer *m, unsigned dev, unsigned left,
 		    unsigned right);
-static int	burgundy_setrecsrc(struct snd_mixer *m, u_int32_t src);
+static u_int32_t	burgundy_setrecsrc(struct snd_mixer *m, u_int32_t src);
 
 static kobj_method_t burgundy_mixer_methods[] = {
 	KOBJMETHOD(mixer_init, 		burgundy_init),
@@ -123,7 +129,7 @@ static kobj_method_t burgundy_mixer_methods[] = {
 	KOBJMETHOD(mixer_reinit, 	burgundy_reinit),
 	KOBJMETHOD(mixer_set, 		burgundy_set),
 	KOBJMETHOD(mixer_setrecsrc,	burgundy_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 MIXER_DECLARE(burgundy_mixer);
@@ -293,7 +299,7 @@ burgundy_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return (0);
 }
 
-static int
+static u_int32_t
 burgundy_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	return (0);
@@ -311,7 +317,7 @@ static void	screamer_set_outputs(struct davbus_softc *d, u_int mask);
 static u_int	screamer_read_status(struct davbus_softc *d, u_int status);
 static int	screamer_set(struct snd_mixer *m, unsigned dev, unsigned left,
 		    unsigned right);
-static int	screamer_setrecsrc(struct snd_mixer *m, u_int32_t src);
+static u_int32_t	screamer_setrecsrc(struct snd_mixer *m, u_int32_t src);
 
 static kobj_method_t screamer_mixer_methods[] = {
 	KOBJMETHOD(mixer_init, 		screamer_init),
@@ -319,7 +325,7 @@ static kobj_method_t screamer_mixer_methods[] = {
 	KOBJMETHOD(mixer_reinit, 	screamer_reinit),
 	KOBJMETHOD(mixer_set, 		screamer_set),
 	KOBJMETHOD(mixer_setrecsrc,	screamer_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 MIXER_DECLARE(screamer_mixer);
@@ -479,7 +485,7 @@ screamer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return (0);
 }
 
-static int
+static u_int32_t
 screamer_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	return (0);

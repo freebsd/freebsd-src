@@ -139,12 +139,12 @@ struct tcpcb {
 
 	u_int	t_maxopd;		/* mss plus options */
 
-	u_long	t_rcvtime;		/* inactivity time */
-	u_long	t_starttime;		/* time connection was established */
-	int	t_rtttime;		/* round trip time */
+	u_int	t_rcvtime;		/* inactivity time */
+	u_int	t_starttime;		/* time connection was established */
+	u_int	t_rtttime;		/* RTT measurement start time */
 	tcp_seq	t_rtseq;		/* sequence number being timed */
 
-	int	t_bw_rtttime;		/* used for bandwidth calculation */
+	u_int	t_bw_rtttime;		/* used for bandwidth calculation */
 	tcp_seq	t_bw_rtseq;		/* used for bandwidth calculation */
 
 	int	t_rxtcur;		/* current retransmit value (ticks) */
@@ -167,7 +167,7 @@ struct tcpcb {
 	u_char	rcv_scale;		/* window scaling for recv window */
 	u_char	request_r_scale;	/* pending window scaling */
 	u_int32_t  ts_recent;		/* timestamp echo data */
-	u_long	ts_recent_age;		/* when last updated */
+	u_int	ts_recent_age;		/* when last updated */
 	u_int32_t  ts_offset;		/* our timestamp offset */
 
 	tcp_seq	last_ack_sent;
@@ -175,7 +175,7 @@ struct tcpcb {
 	u_long	snd_cwnd_prev;		/* cwnd prior to retransmit */
 	u_long	snd_ssthresh_prev;	/* ssthresh prior to retransmit */
 	tcp_seq	snd_recover_prev;	/* snd_recover prior to retransmit */
-	u_long	t_badrxtwin;		/* window for retransmit recovery */
+	u_int	t_badrxtwin;		/* window for retransmit recovery */
 	u_char	snd_limited;		/* segments limited transmitted */
 /* SACK related state */
 	int	snd_numholes;		/* number of holes seen by sender */
@@ -306,9 +306,9 @@ struct tcptw {
 	u_short		last_win;	/* cached window value */
 	u_short		tw_so_options;	/* copy of so_options */
 	struct ucred	*tw_cred;	/* user credentials */
-	u_long		t_recent;
+	u_int32_t	t_recent;
 	u_int32_t	ts_offset;	/* our timestamp offset */
-	u_long		t_starttime;
+	u_int		t_starttime;
 	int		tw_time;
 	TAILQ_ENTRY(tcptw) tw_2msl;
 };
@@ -584,6 +584,9 @@ struct tcpcb *
 void	 tcp_drain(void);
 void	 tcp_fasttimo(void);
 void	 tcp_init(void);
+#ifdef VIMAGE
+void	 tcp_destroy(void);
+#endif
 void	 tcp_fini(void *);
 char 	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
@@ -605,6 +608,9 @@ int	 tcp_output(struct tcpcb *);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
 void	 tcp_tw_init(void);
+#ifdef VIMAGE
+void	 tcp_tw_destroy(void);
+#endif
 void	 tcp_tw_zone_change(void);
 int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
@@ -625,6 +631,9 @@ void	 tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq);
  * All tcp_hc_* functions are IPv4 and IPv6 (via in_conninfo)
  */
 void	 tcp_hc_init(void);
+#ifdef VIMAGE
+void	 tcp_hc_destroy(void);
+#endif
 void	 tcp_hc_get(struct in_conninfo *, struct hc_metrics_lite *);
 u_long	 tcp_hc_getmtu(struct in_conninfo *);
 void	 tcp_hc_updatemtu(struct in_conninfo *, u_long);

@@ -372,6 +372,7 @@ nfsrvd_addsock(struct file *fp)
 		if (nfs_maxvers >= NFS_VER4)
 			svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program,
 			    NULL);
+		SVC_RELEASE(xprt);
 	}
 
 	return (0);

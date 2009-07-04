@@ -252,7 +252,7 @@ snc_attach(dev)
   Shutdown routine
  ****************************************************************/
 
-void
+int
 snc_shutdown(dev)
 	device_t dev;
 {
@@ -261,4 +261,6 @@ snc_shutdown(dev)
 	SNC_LOCK(sc);
 	sncshutdown(sc);
 	SNC_UNLOCK(sc);
+
+	return (0);
 }

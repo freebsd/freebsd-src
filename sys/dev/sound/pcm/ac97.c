@@ -24,6 +24,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pcm/ac97_patch.h>
@@ -822,7 +826,7 @@ struct ac97_info *
 ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 {
 	struct ac97_info *codec;
-	int eapdinv;
+	int i;
 
 	codec = malloc(sizeof(*codec), M_AC97, M_WAITOK | M_ZERO);
 	snprintf(codec->name, sizeof(codec->name), "%s:ac97",
@@ -832,11 +836,15 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 	codec->dev = dev;
 	codec->devinfo = devinfo;
 	codec->flags = 0;
+
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-		    "eapdinv", &eapdinv) == 0) {
-		if (eapdinv != 0)
-			codec->flags |= AC97_F_EAPD_INV;
-	}
+	    "eapdinv", &i) == 0 && i != 0)
+		codec->flags |= AC97_F_EAPD_INV;
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "softpcmvol", &i) == 0 && i != 0)
+		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SOFTPCMVOL);
+
 	return codec;
 }
 
@@ -864,7 +872,6 @@ ac97_getflags(struct ac97_info *codec)
 
 /* -------------------------------------------------------------------- */
 
-#ifdef SND_DYNSYSCTL
 static int
 sysctl_hw_snd_ac97_eapd(SYSCTL_HANDLER_ARGS)
 {
@@ -892,12 +899,10 @@ sysctl_hw_snd_ac97_eapd(SYSCTL_HANDLER_ARGS)
 	}
 	return err;
 }
-#endif
 
 static void
 ac97_init_sysctl(struct ac97_info *codec)
 {
-#ifdef SND_DYNSYSCTL
 	u_int16_t orig, val;
 
 	if (codec == NULL || codec->dev == NULL)
@@ -915,7 +920,6 @@ ac97_init_sysctl(struct ac97_info *codec)
             OID_AUTO, "eapd", CTLTYPE_INT | CTLFLAG_RW,
 	    codec, sizeof(codec), sysctl_hw_snd_ac97_eapd,
 	    "I", "AC97 External Amplifier");
-#endif
 }
 
 static int
@@ -984,7 +988,6 @@ ac97mix_init(struct snd_mixer *m)
 	case 0x434d4978:	/* CMI9761 */
 	case 0x434d4982:	/* CMI9761 */
 	case 0x434d4983:	/* CMI9761 */
-		ac97_wrcd(codec, AC97_MIX_PCM, 0);
 		bzero(&codec->mix[SOUND_MIXER_PCM],
 		    sizeof(codec->mix[SOUND_MIXER_PCM]));
 		pcm_setflags(codec->dev, pcm_getflags(codec->dev) |
@@ -995,6 +998,8 @@ ac97mix_init(struct snd_mixer *m)
 		break;
 	}
 
+	if (pcm_getflags(codec->dev) & SD_F_SOFTPCMVOL)
+		ac97_wrcd(codec, AC97_MIX_PCM, 0);
 #if 0
 	/* XXX For the sake of debugging purposes */
 	mix_setparentchild(m, SOUND_MIXER_VOLUME,
@@ -1053,7 +1058,7 @@ ac97mix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return ac97_setmixer(codec, dev, left, right);
 }
 
-static int
+static u_int32_t
 ac97mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	int i;
@@ -1064,7 +1069,7 @@ ac97mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 	for (i = 0; i < AC97_MIXER_SIZE; i++)
 		if ((src & (1 << i)) != 0)
 			break;
-	return (ac97_setrecsrc(codec, i) == 0)? 1 << i : -1;
+	return (ac97_setrecsrc(codec, i) == 0)? 1U << i : 0xffffffffU;
 }
 
 static kobj_method_t ac97mixer_methods[] = {
@@ -1073,7 +1078,7 @@ static kobj_method_t ac97mixer_methods[] = {
     	KOBJMETHOD(mixer_reinit,	ac97mix_reinit),
     	KOBJMETHOD(mixer_set,		ac97mix_set),
     	KOBJMETHOD(mixer_setrecsrc,	ac97mix_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(ac97mixer);
 

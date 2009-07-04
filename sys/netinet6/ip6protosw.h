@@ -129,6 +129,8 @@ struct ip6protosw {
 /* utility hooks */
 	void	(*pr_init)		/* initialization hook */
 			__P((void));
+	void	(*pr_destroy)		/* cleanup hook */
+			__P((void));
 
 	void	(*pr_fasttimo)		/* fast timeout (200ms) */
 			__P((void));

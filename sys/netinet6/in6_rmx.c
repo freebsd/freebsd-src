@@ -75,8 +75,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -93,7 +91,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
-#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>
@@ -112,6 +109,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 
 extern int	in6_inithead(void **head, int off);
+#ifdef VIMAGE
+extern int	in6_detachhead(void **head, int off);
+#endif
 
 #define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
@@ -408,28 +408,6 @@ in6_mtutimo(void *rock)
 	CURVNET_RESTORE();
 }
 
-#if 0
-void
-in6_rtqdrain(void)
-{
-	INIT_VNET_NET(curvnet);
-	struct radix_node_head *rnh;
-	struct rtqk_arg arg;
-
-	rnh = rt_tables_get_rnh(0, AF_INET6);
-	if (rnh == NULL)
-		panic("%s: rnh == NULL", __func__);
-	arg.found = arg.killed = 0;
-	arg.rnh = rnh;
-	arg.nextstop = 0;
-	arg.draining = 1;
-	arg.updating = 0;
-	RADIX_NODE_HEAD_LOCK(rnh);
-	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
-	RADIX_NODE_HEAD_UNLOCK(rnh);
-}
-#endif
-
 /*
  * Initialize our routing tree.
  * XXX MRT When off == 0, we are being called from vfs_export.c
@@ -464,3 +442,15 @@ in6_inithead(void **head, int off)
 	in6_mtutimo(curvnet);	/* kick off timeout first time */
 	return 1;
 }
+
+#ifdef VIMAGE
+int
+in6_detachhead(void **head, int off)
+{
+	INIT_VNET_INET6(curvnet);
+
+	callout_drain(&V_rtq_timer6);
+	callout_drain(&V_rtq_mtutimer);
+	return (1);
+}
+#endif

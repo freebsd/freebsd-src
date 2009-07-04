@@ -601,7 +601,7 @@ msk_rxfilter(struct msk_if_softc *sc_if)
 		mchash[1] = 0xffff;
 	} else {
 		mode |= GM_RXCR_UCF_ENA;
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -612,7 +612,7 @@ msk_rxfilter(struct msk_if_softc *sc_if)
 			/* Set the corresponding bit in the hash table. */
 			mchash[crc >> 5] |= 1 << (crc & 0x1f);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 		if (mchash[0] != 0 || mchash[1] != 0)
 			mode |= GM_RXCR_MCF_ENA;
 	}

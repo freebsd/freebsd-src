@@ -139,7 +139,7 @@ static inthand_t *ioint_handlers[] = {
 };
 
 
-static u_int32_t lapic_timer_divisors[] = { 
+static u_int32_t lapic_timer_divisors[] = {
 	APIC_TDCR_1, APIC_TDCR_2, APIC_TDCR_4, APIC_TDCR_8, APIC_TDCR_16,
 	APIC_TDCR_32, APIC_TDCR_64, APIC_TDCR_128
 };
@@ -328,29 +328,6 @@ lapic_setup(int boot)
 	}
 
 	/* XXX: Error and thermal LVTs */
-
-	if (cpu_vendor_id == CPU_VENDOR_AMD) {
-		/*
-		 * Detect the presence of C1E capability mostly on latest
-		 * dual-cores (or future) k8 family.  This feature renders
-		 * the local APIC timer dead, so we disable it by reading
-		 * the Interrupt Pending Message register and clearing both
-		 * C1eOnCmpHalt (bit 28) and SmiOnCmpHalt (bit 27).
-		 * 
-		 * Reference:
-		 *   "BIOS and Kernel Developer's Guide for AMD NPT
-		 *    Family 0Fh Processors"
-		 *   #32559 revision 3.00
-		 */
-		if ((cpu_id & 0x00000f00) == 0x00000f00 &&
-		    (cpu_id & 0x0fff0000) >=  0x00040000) {
-			uint64_t msr;
-
-			msr = rdmsr(0xc0010055);
-			if (msr & 0x18000000)
-				wrmsr(0xc0010055, msr & ~0x18000000ULL);
-		}
-	}
 
 	intr_restore(eflags);
 }
@@ -820,7 +797,7 @@ apic_alloc_vector(u_int apic_id, u_int irq)
 		return (vector + APIC_IO_INTS);
 	}
 	mtx_unlock_spin(&icu_lock);
-	panic("Couldn't find an APIC vector for IRQ %u", irq);
+	return (0);
 }
 
 /*
@@ -920,6 +897,7 @@ void
 apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 {
 	struct thread *td;
+
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
 	    ("Vector %u does not map to an IRQ line", vector));
@@ -1080,7 +1058,7 @@ DB_SHOW_COMMAND(lapic, db_show_lapic)
 static SLIST_HEAD(, apic_enumerator) enumerators =
 	SLIST_HEAD_INITIALIZER(enumerators);
 static struct apic_enumerator *best_enum;
-	
+
 void
 apic_register_enumerator(struct apic_enumerator *enumerator)
 {

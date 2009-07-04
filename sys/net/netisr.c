@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/rmlock.h>
 #include <sys/sched.h>
@@ -153,7 +154,7 @@ SYSCTL_INT(_net_isr, OID_AUTO, direct, CTLFLAG_RW,
  * CPU 0, so in practice we ignore values <= 1.  This must be set at boot.
  * We will create at most one thread per CPU.
  */
-static int	netisr_maxthreads = 1;		/* Max number of threads. */
+static int	netisr_maxthreads = -1;		/* Max number of threads. */
 TUNABLE_INT("net.isr.maxthreads", &netisr_maxthreads);
 SYSCTL_INT(_net_isr, OID_AUTO, maxthreads, CTLFLAG_RD,
     &netisr_maxthreads, 0,
@@ -197,6 +198,7 @@ struct netisr_proto {
 	netisr_handler_t *np_handler;	/* Protocol handler. */
 	netisr_m2flow_t	*np_m2flow;	/* Query flow for untagged packet. */
 	netisr_m2cpuid_t *np_m2cpuid;	/* Query CPU to process packet on. */
+	netisr_drainedcpu_t *np_drainedcpu; /* Callback when drained a queue. */
 	u_int		 np_qlimit;	/* Maximum per-CPU queue depth. */
 	u_int		 np_policy;	/* Work placement policy. */
 };
@@ -257,14 +259,14 @@ struct netisr_workstream {
 } __aligned(CACHE_LINE_SIZE);
 
 /*
- * Per-CPU workstream data, indexed by CPU ID.
+ * Per-CPU workstream data.
  */
-static struct netisr_workstream		 nws[MAXCPU];
+DPCPU_DEFINE(struct netisr_workstream, nws);
 
 /*
  * Map contiguous values between 0 and nws_count into CPU IDs appropriate for
- * indexing the nws[] array.  This allows constructions of the form
- * nws[nws_array(arbitraryvalue % nws_count)].
+ * accessing workstreams.  This allows constructions of the form
+ * DPCPU_ID_GET(nws_array[arbitraryvalue % nws_count], nws).
  */
 static u_int				 nws_array[MAXCPU];
 
@@ -380,6 +382,7 @@ netisr_register(const struct netisr_handler *nhp)
 	np[proto].np_handler = nhp->nh_handler;
 	np[proto].np_m2flow = nhp->nh_m2flow;
 	np[proto].np_m2cpuid = nhp->nh_m2cpuid;
+	np[proto].np_drainedcpu = nhp->nh_drainedcpu;
 	if (nhp->nh_qlimit == 0)
 		np[proto].np_qlimit = netisr_defaultqlimit;
 	else if (nhp->nh_qlimit > netisr_maxqlimit) {
@@ -390,8 +393,10 @@ netisr_register(const struct netisr_handler *nhp)
 	} else
 		np[proto].np_qlimit = nhp->nh_qlimit;
 	np[proto].np_policy = nhp->nh_policy;
-	for (i = 0; i < MAXCPU; i++) {
-		npwp = &nws[i].nws_work[proto];
+	for (i = 0; i <= mp_maxid; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		bzero(npwp, sizeof(*npwp));
 		npwp->nw_qlimit = np[proto].np_qlimit;
 	}
@@ -422,8 +427,10 @@ netisr_clearqdrops(const struct netisr_handler *nhp)
 	    ("%s(%u): protocol not registered for %s", __func__, proto,
 	    name));
 
-	for (i = 0; i < MAXCPU; i++) {
-		npwp = &nws[i].nws_work[proto];
+	for (i = 0; i <= mp_maxid; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		npwp->nw_qdrops = 0;
 	}
 	NETISR_WUNLOCK();
@@ -455,8 +462,10 @@ netisr_getqdrops(const struct netisr_handler *nhp, u_int64_t *qdropp)
 	    ("%s(%u): protocol not registered for %s", __func__, proto,
 	    name));
 
-	for (i = 0; i < MAXCPU; i++) {
-		npwp = &nws[i].nws_work[proto];
+	for (i = 0; i <= mp_maxid; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		*qdropp += npwp->nw_qdrops;
 	}
 	NETISR_RUNLOCK(&tracker);
@@ -519,8 +528,10 @@ netisr_setqlimit(const struct netisr_handler *nhp, u_int qlimit)
 	    name));
 
 	np[proto].np_qlimit = qlimit;
-	for (i = 0; i < MAXCPU; i++) {
-		npwp = &nws[i].nws_work[proto];
+	for (i = 0; i <= mp_maxid; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		npwp->nw_qlimit = qlimit;
 	}
 	NETISR_WUNLOCK();
@@ -583,8 +594,10 @@ netisr_unregister(const struct netisr_handler *nhp)
 	np[proto].np_m2cpuid = NULL;
 	np[proto].np_qlimit = 0;
 	np[proto].np_policy = 0;
-	for (i = 0; i < MAXCPU; i++) {
-		npwp = &nws[i].nws_work[proto];
+	for (i = 0; i <= mp_maxid; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		npwp = &(DPCPU_ID_PTR(i, nws))->nws_work[proto];
 		netisr_drain_proto(npwp);
 		bzero(npwp, sizeof(*npwp));
 	}
@@ -705,6 +718,8 @@ netisr_process_workstream_proto(struct netisr_workstream *nwsp, u_int proto)
 	}
 	KASSERT(local_npw.nw_len == 0,
 	    ("%s(%u): len %u", __func__, proto, local_npw.nw_len));
+	if (np[proto].np_drainedcpu)
+		np[proto].np_drainedcpu(nwsp->nws_cpu);
 	NWS_LOCK(nwsp);
 	npwp->nw_handled += handled;
 	return (handled);
@@ -788,6 +803,7 @@ netisr_queue_workstream(struct netisr_workstream *nwsp, u_int proto,
 		npwp->nw_queued++;
 		return (0);
 	} else {
+		m_freem(m);
 		npwp->nw_qdrops++;
 		return (ENOBUFS);
 	}
@@ -803,12 +819,13 @@ netisr_queue_internal(u_int proto, struct mbuf *m, u_int cpuid)
 #ifdef NETISR_LOCKING
 	NETISR_LOCK_ASSERT();
 #endif
-	KASSERT(cpuid < MAXCPU, ("%s: cpuid too big (%u, %u)", __func__,
-	    cpuid, MAXCPU));
+	KASSERT(cpuid <= mp_maxid, ("%s: cpuid too big (%u, %u)", __func__,
+	    cpuid, mp_maxid));
+	KASSERT(!CPU_ABSENT(cpuid), ("%s: CPU %u absent", __func__, cpuid));
 
 	dosignal = 0;
 	error = 0;
-	nwsp = &nws[cpuid];
+	nwsp = DPCPU_ID_PTR(cpuid, nws);
 	npwp = &nwsp->nws_work[proto];
 	NWS_LOCK(nwsp);
 	error = netisr_queue_workstream(nwsp, proto, npwp, m, &dosignal);
@@ -837,9 +854,11 @@ netisr_queue_src(u_int proto, uintptr_t source, struct mbuf *m)
 	    ("%s: invalid proto %u", __func__, proto));
 
 	m = netisr_select_cpuid(&np[proto], source, m, &cpuid);
-	if (m != NULL)
+	if (m != NULL) {
+		KASSERT(!CPU_ABSENT(cpuid), ("%s: CPU %u absent", __func__,
+		    cpuid));
 		error = netisr_queue_internal(proto, m, cpuid);
-	else
+	} else
 		error = ENOBUFS;
 #ifdef NETISR_LOCKING
 	NETISR_RUNLOCK(&tracker);
@@ -891,7 +910,7 @@ netisr_dispatch_src(u_int proto, uintptr_t source, struct mbuf *m)
 	 * to always being forced to directly dispatch.
 	 */
 	if (netisr_direct_force) {
-		nwsp = &nws[curcpu];
+		nwsp = DPCPU_PTR(nws);
 		npwp = &nwsp->nws_work[proto];
 		npwp->nw_dispatched++;
 		npwp->nw_handled++;
@@ -910,10 +929,11 @@ netisr_dispatch_src(u_int proto, uintptr_t source, struct mbuf *m)
 		error = ENOBUFS;
 		goto out_unlock;
 	}
+	KASSERT(!CPU_ABSENT(cpuid), ("%s: CPU %u absent", __func__, cpuid));
 	sched_pin();
 	if (cpuid != curcpu)
 		goto queue_fallback;
-	nwsp = &nws[cpuid];
+	nwsp = DPCPU_PTR(nws);
 	npwp = &nwsp->nws_work[proto];
 
 	/*-
@@ -927,7 +947,7 @@ netisr_dispatch_src(u_int proto, uintptr_t source, struct mbuf *m)
 	if (nwsp->nws_flags & (NWS_RUNNING | NWS_DISPATCHING | NWS_SCHEDULED)) {
 		error = netisr_queue_workstream(nwsp, proto, npwp, m,
 		    &dosignal);
-		NWS_UNLOCK(nws);
+		NWS_UNLOCK(nwsp);
 		if (dosignal)
 			NWS_SIGNAL(nwsp);
 		goto out_unpin;
@@ -995,7 +1015,7 @@ netisr_sched_poll(void)
 {
 	struct netisr_workstream *nwsp;
 
-	nwsp = &nws[nws_array[0]];
+	nwsp = DPCPU_ID_PTR(nws_array[0], nws);
 	NWS_SIGNAL(nwsp);
 }
 #endif
@@ -1007,7 +1027,9 @@ netisr_start_swi(u_int cpuid, struct pcpu *pc)
 	struct netisr_workstream *nwsp;
 	int error;
 
-	nwsp = &nws[cpuid];
+	KASSERT(!CPU_ABSENT(cpuid), ("%s: CPU %u absent", __func__, cpuid));
+
+	nwsp = DPCPU_ID_PTR(cpuid, nws);
 	mtx_init(&nwsp->nws_mtx, "netisr_mtx", NULL, MTX_DEF);
 	nwsp->nws_cpu = cpuid;
 	snprintf(swiname, sizeof(swiname), "netisr %u", cpuid);
@@ -1043,17 +1065,16 @@ netisr_init(void *arg)
 	KASSERT(curcpu == 0, ("%s: not on CPU 0", __func__));
 
 	NETISR_LOCK_INIT();
-	if (netisr_maxthreads < 1) {
-		printf("netisr2: forcing maxthreads to 1\n");
+	if (netisr_maxthreads < 1)
 		netisr_maxthreads = 1;
-	}
-	if (netisr_maxthreads > MAXCPU) {
-		printf("netisr2: forcing maxthreads to %d\n", MAXCPU);
-		netisr_maxthreads = MAXCPU;
+	if (netisr_maxthreads > mp_ncpus) {
+		printf("netisr2: forcing maxthreads from %d to %d\n",
+		    netisr_maxthreads, mp_ncpus);
+		netisr_maxthreads = mp_ncpus;
 	}
 	if (netisr_defaultqlimit > netisr_maxqlimit) {
-		printf("netisr2: forcing defaultqlimit to %d\n",
-		    netisr_maxqlimit);
+		printf("netisr2: forcing defaultqlimit from %d to %d\n",
+		    netisr_defaultqlimit, netisr_maxqlimit);
 		netisr_defaultqlimit = netisr_maxqlimit;
 	}
 #ifdef DEVICE_POLLING
@@ -1103,12 +1124,14 @@ DB_SHOW_COMMAND(netisr, db_show_netisr)
 	struct netisr_workstream *nwsp;
 	struct netisr_work *nwp;
 	int first, proto;
-	u_int cpu;
+	u_int cpuid;
 
 	db_printf("%3s %6s %5s %5s %5s %8s %8s %8s %8s\n", "CPU", "Proto",
 	    "Len", "WMark", "Max", "Disp", "HDisp", "Drop", "Queue");
-	for (cpu = 0; cpu < MAXCPU; cpu++) {
-		nwsp = &nws[cpu];
+	for (cpuid = 0; cpuid <= mp_maxid; cpuid++) {
+		if (CPU_ABSENT(cpuid))
+			continue;
+		nwsp = DPCPU_ID_PTR(cpuid, nws);
 		if (nwsp->nws_intr_event == NULL)
 			continue;
 		first = 1;
@@ -1117,7 +1140,7 @@ DB_SHOW_COMMAND(netisr, db_show_netisr)
 				continue;
 			nwp = &nwsp->nws_work[proto];
 			if (first) {
-				db_printf("%3d ", cpu);
+				db_printf("%3d ", cpuid);
 				first = 0;
 			} else
 				db_printf("%3s ", "");

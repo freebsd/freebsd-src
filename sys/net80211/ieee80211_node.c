@@ -225,8 +225,8 @@ ieee80211_node_unauthorize(struct ieee80211_node *ni)
 /*
  * Fix tx parameters for a node according to ``association state''.
  */
-static void
-node_setuptxparms(struct ieee80211_node *ni)
+void
+ieee80211_node_setuptxparms(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	enum ieee80211_phymode mode;
@@ -287,10 +287,10 @@ ieee80211_node_set_chan(struct ieee80211_node *ni,
 		 * and non-ERP rates in 11g for mixed ERP+non-ERP bss.
 		 */
 		if (mode == IEEE80211_MODE_11NA &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_PUREN) == 0)
+		    (vap->iv_flags_ht & IEEE80211_FHT_PUREN) == 0)
 			mode = IEEE80211_MODE_11A;
 		else if (mode == IEEE80211_MODE_11NG &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_PUREN) == 0)
+		    (vap->iv_flags_ht & IEEE80211_FHT_PUREN) == 0)
 			mode = IEEE80211_MODE_11G;
 		if (mode == IEEE80211_MODE_11G &&
 		    (vap->iv_flags & IEEE80211_F_PUREG) == 0)
@@ -650,7 +650,7 @@ ieee80211_setupcurchan(struct ieee80211com *ic, struct ieee80211_channel *c)
 		 * set of running vap's.  This assumes we are called
 		 * after ni_chan is setup for each vap.
 		 */
-		/* NB: this assumes IEEE80211_FEXT_USEHT40 > IEEE80211_FEXT_HT */
+		/* NB: this assumes IEEE80211_FHT_USEHT40 > IEEE80211_FHT_HT */
 		if (flags > ieee80211_htchanflags(c))
 			c = ieee80211_ht_adjust_channel(ic, c, flags);
 	}
@@ -794,7 +794,7 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 		IEEE80211_F_DOSORT);
 	if (ieee80211_iserp_rateset(&ni->ni_rates))
 		ni->ni_flags |= IEEE80211_NODE_ERP;
-	node_setuptxparms(ni);
+	ieee80211_node_setuptxparms(ni);
 
 	return ieee80211_sta_join1(ieee80211_ref_node(ni));
 }
@@ -1204,7 +1204,7 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 			ni->ni_flags |= IEEE80211_NODE_FF;
 #endif
 		if ((ic->ic_htcaps & IEEE80211_HTC_HT) &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
+		    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 			/*
 			 * Device is HT-capable and HT is enabled for
 			 * the vap; setup HT operation.  On return
@@ -1364,7 +1364,7 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 				ni->ni_flags |= IEEE80211_NODE_FF;
 #endif
 		}
-		node_setuptxparms(ni);
+		ieee80211_node_setuptxparms(ni);
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
@@ -1430,7 +1430,7 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 		ieee80211_init_neighbor(ni, wh, sp);
 		if (ieee80211_iserp_rateset(&ni->ni_rates))
 			ni->ni_flags |= IEEE80211_NODE_ERP;
-		node_setuptxparms(ni);
+		ieee80211_node_setuptxparms(ni);
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
@@ -2297,7 +2297,7 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 		", turbo" : ""
 	);
 
-	node_setuptxparms(ni);
+	ieee80211_node_setuptxparms(ni);
 	/* give driver a chance to setup state like ni_txrate */
 	if (ic->ic_newassoc != NULL)
 		ic->ic_newassoc(ni, newassoc);

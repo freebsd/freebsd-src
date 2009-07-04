@@ -46,8 +46,6 @@
  * ng_ether(4) netgraph node type
  */
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -65,7 +63,6 @@
 #include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_bridgevar.h>
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netgraph/ng_message.h>
@@ -284,7 +281,9 @@ ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
 		return (0);
 
 	/* Send it out "upper" hook */
+	NG_OUTBOUND_THREAD_REF();
 	NG_SEND_DATA_ONLY(error, priv->upper, *mp);
+	NG_OUTBOUND_THREAD_UNREF();
 	return (error);
 }
 
@@ -418,6 +417,7 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 	if (strcmp(name, NG_ETHER_HOOK_UPPER) == 0) {
 		hookptr = &priv->upper;
 		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_upper);
+		NG_HOOK_SET_TO_INBOUND(hook);
 	} else if (strcmp(name, NG_ETHER_HOOK_LOWER) == 0) {
 		hookptr = &priv->lower;
 		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_lower);
@@ -434,7 +434,7 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 	/* Disable hardware checksums while 'upper' hook is connected */
 	if (hookptr == &priv->upper)
 		priv->ifp->if_hwassist = 0;
-
+	NG_HOOK_HI_STACK(hook);
 	/* OK */
 	*hookptr = hook;
 	return (0);
@@ -551,10 +551,10 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			 * lose a race while we check if the membership
 			 * already exists.
 			 */
-			IF_ADDR_LOCK(priv->ifp);
+			if_maddr_rlock(priv->ifp);
 			ifma = if_findmulti(priv->ifp,
 			    (struct sockaddr *)&sa_dl);
-			IF_ADDR_UNLOCK(priv->ifp);
+			if_maddr_runlock(priv->ifp);
 			if (ifma != NULL) {
 				error = EADDRINUSE;
 			} else {

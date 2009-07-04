@@ -750,6 +750,12 @@ s32 e1000_check_for_copper_link_generic(struct e1000_hw *hw)
 
 	mac->get_link_status = FALSE;
 
+	if (hw->phy.type == e1000_phy_82578) {
+		ret_val = e1000_link_stall_workaround_hv(hw);
+		if (ret_val)
+			goto out;
+	}
+
 	/*
 	 * Check if there was DownShift, must be checked
 	 * immediately after link-up

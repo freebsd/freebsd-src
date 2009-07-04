@@ -165,7 +165,7 @@ cd9660_open(ap)
 		int a_mode;
 		struct ucred *a_cred;
 		struct thread *a_td;
-		int a_fdidx;
+		struct file *a_fp;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -251,20 +251,35 @@ cd9660_ioctl(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-	struct iso_node *ip = VTOI(vp);
+	struct vnode *vp;
+	struct iso_node *ip;
+	int error;
 
-	if (vp->v_type == VCHR || vp->v_type == VBLK)
+	vp = ap->a_vp;
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	if (vp->v_iflag & VI_DOOMED) {
+		VOP_UNLOCK(vp, 0);
+		return (EBADF);
+	}
+	if (vp->v_type == VCHR || vp->v_type == VBLK) {
+		VOP_UNLOCK(vp, 0);
 		return (EOPNOTSUPP);
+	}
+
+	ip = VTOI(vp);
+	error = 0;
 
 	switch (ap->a_command) {
-
 	case FIOGETLBA:
 		*(int *)(ap->a_data) = ip->iso_start;
-		return 0;
+		break;
 	default:
-		return (ENOTTY);
+		error = ENOTTY;
+		break;
 	}
+
+	VOP_UNLOCK(vp, 0);
+	return (error);
 }
 
 /*

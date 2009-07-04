@@ -411,10 +411,10 @@ svr4_sys_systeminfo(td, uap)
 	struct thread *td;
 	struct svr4_sys_systeminfo_args *uap;
 {
-	struct prison	*pr;
 	char		*str = NULL;
 	int		error = 0;
 	register_t	*retval = td->td_retval;
+	u_long		hostid;
 	size_t		len = 0;
 	char		buf[MAXHOSTNAMELEN];
 	u_int		rlen = uap->len;
@@ -458,10 +458,8 @@ svr4_sys_systeminfo(td, uap)
 		break;
 
 	case SVR4_SI_HW_SERIAL:
-		pr = td->td_ucred->cr_prison;
-		mtx_lock(&pr->pr_mtx);
-		snprintf(buf, sizeof(buf), "%lu", pr->pr_hostid);
-		mtx_unlock(&pr->pr_mtx);
+		getcredhostid(td->td_ucred, &hostid);
+		snprintf(buf, sizeof(buf), "%lu", hostid);
 		str = buf;
 		break;
 
@@ -470,10 +468,7 @@ svr4_sys_systeminfo(td, uap)
 		break;
 
 	case SVR4_SI_SRPC_DOMAIN:
-		pr = td->td_ucred->cr_prison;
-		mtx_lock(&pr->pr_mtx);
-		strlcpy(buf, pr->pr_domain, sizeof(buf));
-		mtx_unlock(&pr->pr_mtx);
+		getcreddomainname(td->td_ucred, buf, sizeof(buf));
 		str = buf;
 		break;
 

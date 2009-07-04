@@ -23,6 +23,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 
 #include <dev/pci/pcireg.h>
@@ -48,14 +52,14 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ESS18XX_MPSAFE	1
 
 static u_int32_t ess_playfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S8,
-	AFMT_STEREO | AFMT_S8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_U16_LE,
-	AFMT_STEREO | AFMT_U16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S8, 1, 0),
+	SND_FORMAT(AFMT_S8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_U16_LE, 1, 0),
+	SND_FORMAT(AFMT_U16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps ess_playcaps = {6000, 48000, ess_playfmt, 0};
@@ -64,14 +68,14 @@ static struct pcmchan_caps ess_playcaps = {6000, 48000, ess_playfmt, 0};
  * Recording output is byte-swapped
  */
 static u_int32_t ess_recfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S8,
-	AFMT_STEREO | AFMT_S8,
-	AFMT_S16_BE,
-	AFMT_STEREO | AFMT_S16_BE,
-	AFMT_U16_BE,
-	AFMT_STEREO | AFMT_U16_BE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S8, 1, 0),
+	SND_FORMAT(AFMT_S8, 2, 0),
+	SND_FORMAT(AFMT_S16_BE, 1, 0),
+	SND_FORMAT(AFMT_S16_BE, 2, 0),
+	SND_FORMAT(AFMT_U16_BE, 1, 0),
+	SND_FORMAT(AFMT_U16_BE, 2, 0),
 	0
 };
 static struct pcmchan_caps ess_reccaps = {6000, 48000, ess_recfmt, 0};
@@ -424,8 +428,8 @@ ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int le
 {
 	int play = (dir == PCMDIR_PLAY)? 1 : 0;
 	int b16 = (fmt & AFMT_16BIT)? 1 : 0;
-	int stereo = (fmt & AFMT_STEREO)? 1 : 0;
-	int unsign = (fmt == AFMT_U8 || fmt == AFMT_U16_LE || fmt == AFMT_U16_BE)? 1 : 0;
+	int stereo = (AFMT_CHANNEL(fmt) > 1)? 1 : 0;
+	int unsign = (!(fmt & AFMT_SIGNED))? 1 : 0;
 	u_int8_t spdval, fmtval;
 
 	DEB(printf("ess_setupch\n"));
@@ -556,7 +560,7 @@ esschan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 esschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct ess_chinfo *ch = data;
@@ -570,7 +574,7 @@ esschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return ch->spd;
 }
 
-static int
+static u_int32_t
 esschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct ess_chinfo *ch = data;
@@ -608,12 +612,12 @@ esschan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 esschan_getptr(kobj_t obj, void *data)
 {
 	struct ess_chinfo *ch = data;
 	struct ess_info *sc = ch->parent;
-	int ret;
+	u_int32_t ret;
 
 	ess_lock(sc);
 	ret = ess_dmapos(sc, ch->hwch);
@@ -637,7 +641,7 @@ static kobj_method_t esschan_methods[] = {
     	KOBJMETHOD(channel_trigger,		esschan_trigger),
     	KOBJMETHOD(channel_getptr,		esschan_getptr),
     	KOBJMETHOD(channel_getcaps,		esschan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(esschan);
 
@@ -720,7 +724,7 @@ essmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
     	return left | (right << 8);
 }
 
-static int
+static u_int32_t
 essmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
     	struct ess_info *sc = mix_getdevinfo(m);
@@ -755,7 +759,7 @@ static kobj_method_t solomixer_methods[] = {
     	KOBJMETHOD(mixer_init,		essmix_init),
     	KOBJMETHOD(mixer_set,		essmix_set),
     	KOBJMETHOD(mixer_setrecsrc,	essmix_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(solomixer);
 

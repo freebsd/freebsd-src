@@ -93,9 +93,10 @@ static int bootAP;
 /* Free these after use */
 void *bootstacks[MAXCPU];
 
-/* Temporary holder for double fault stack */
+/* Temporary variables for init_secondary()  */
 char *doublefault_stack;
 char *nmi_stack;
+void *dpcpu;
 
 /* Hotwire a 0->4MB V==P mapping */
 extern pt_entry_t *KPTphys;
@@ -590,6 +591,7 @@ init_secondary(void)
 
 	/* prime data page for it to use */
 	pcpu_init(pc, cpu, sizeof(struct pcpu));
+	dpcpu_init(dpcpu, cpu);
 	pc->pc_apic_id = cpu_apic_ids[cpu];
 	pc->pc_prvspace = pc;
 	pc->pc_curthread = 0;
@@ -885,6 +887,7 @@ start_all_aps(void)
 		bootstacks[cpu] = (void *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
 		doublefault_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
 		nmi_stack = (char *)kmem_alloc(kernel_map, PAGE_SIZE);
+		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
 
 		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
 		bootAP = cpu;

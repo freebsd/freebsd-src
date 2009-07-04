@@ -117,7 +117,7 @@ static int mv_twsi_start(device_t dev, u_char slave, int timeout);
 static int mv_twsi_stop(device_t dev);
 static int mv_twsi_read(device_t dev, char *buf, int len, int *read, int last,
     int delay);
-static int mv_twsi_write(device_t dev, char *buf, int len, int *sent,
+static int mv_twsi_write(device_t dev, const char *buf, int len, int *sent,
     int timeout);
 
 static struct resource_spec res_spec[] = {
@@ -488,7 +488,7 @@ out:
 }
 
 static int
-mv_twsi_write(device_t dev, char *buf, int len, int *sent, int timeout)
+mv_twsi_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 {
 	struct mv_twsi_softc *sc;
 	uint32_t status;

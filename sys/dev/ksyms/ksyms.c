@@ -129,7 +129,7 @@ static int
 ksyms_size_permod(linker_file_t lf, void *arg)
 {
 	struct tsizes *ts;
-	Elf_Sym *symtab;
+	const Elf_Sym *symtab;
 	caddr_t strtab;
 	long syms;
 	
@@ -170,7 +170,8 @@ static int
 ksyms_add(linker_file_t lf, void *arg)
 {
 	struct toffsets *to;
-	Elf_Sym *symtab, *symp;
+	const Elf_Sym *symtab;
+	Elf_Sym *symp;
 	caddr_t strtab;
 	long symsz;
 	size_t strsz, numsyms;

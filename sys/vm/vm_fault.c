@@ -394,7 +394,7 @@ RetryFault:;
 			 * found the page ).
 			 */
 			vm_page_busy(fs.m);
-			if (((fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
+			if (fs.m->valid != VM_PAGE_BITS_ALL &&
 				fs.m->object != kernel_object && fs.m->object != kmem_object) {
 				goto readrest;
 			}
@@ -433,7 +433,7 @@ RetryFault:;
 				unlock_and_deallocate(&fs);
 				VM_WAITPFAULT;
 				goto RetryFault;
-			} else if ((fs.m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
+			} else if (fs.m->valid == VM_PAGE_BITS_ALL)
 				break;
 		}
 
@@ -1024,9 +1024,8 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			VM_OBJECT_UNLOCK(lobject);
 			break;
 		}
-		if (((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+		if (m->valid == VM_PAGE_BITS_ALL &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
-
 			vm_page_lock_queues();
 			pmap_enter_quick(pmap, addr, m, entry->protection);
 			vm_page_unlock_queues();
@@ -1127,11 +1126,9 @@ vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *		entry corresponding to a main map entry that is wired down).
  */
 void
-vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
-	vm_map_t dst_map;
-	vm_map_t src_map;
-	vm_map_entry_t dst_entry;
-	vm_map_entry_t src_entry;
+vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
+    vm_map_entry_t dst_entry, vm_map_entry_t src_entry,
+    vm_ooffset_t *fork_charge)
 {
 	vm_object_t backing_object, dst_object, object;
 	vm_object_t src_object;
@@ -1162,9 +1159,16 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 #endif
 
 	VM_OBJECT_LOCK(dst_object);
+	KASSERT(dst_entry->object.vm_object == NULL,
+	    ("vm_fault_copy_entry: vm_object not NULL"));
 	dst_entry->object.vm_object = dst_object;
 	dst_entry->offset = 0;
-
+	dst_object->uip = curthread->td_ucred->cr_ruidinfo;
+	uihold(dst_object->uip);
+	dst_object->charge = dst_entry->end - dst_entry->start;
+	KASSERT(dst_entry->uip == NULL,
+	    ("vm_fault_copy_entry: leaked swp charge"));
+	*fork_charge += dst_object->charge;
 	prot = dst_entry->max_protection;
 
 	/*

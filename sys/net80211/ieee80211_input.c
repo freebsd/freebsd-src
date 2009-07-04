@@ -572,7 +572,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			else if (istdmaoui(frm))
 				scan->tdma = frm;
 #endif
-			else if (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
+			else if (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) {
 				/*
 				 * Accept pre-draft HT ie's if the
 				 * standard ones have not been seen.

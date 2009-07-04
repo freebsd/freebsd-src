@@ -41,8 +41,8 @@ $FreeBSD$
 
 #include <dev/mii/mii.h>
 
+#define	CONFIG_CHELSIO_T3_CORE
 #include <common/cxgb_version.h>
-#include <cxgb_config.h>
 
 #ifndef _CXGB_OSDEP_H_
 #define _CXGB_OSDEP_H_
@@ -113,8 +113,8 @@ struct t3_mbuf_hdr {
 #include "opt_inet.h"
 #ifdef INET
 #define LRO_SUPPORTED
-#endif
 #define TOE_SUPPORTED
+#endif
 #endif
 
 #if __FreeBSD_version < 800054
@@ -165,8 +165,7 @@ struct t3_mbuf_hdr {
 #define TX_MAX_DESC                       4     /* max descriptors per packet    */
 
 
-#define TX_START_MIN_DESC  (TX_MAX_DESC << 2)
-#define TX_START_MAX_DESC (TX_MAX_DESC << 3)    /* maximum number of descriptors
+#define TX_START_MAX_DESC (TX_MAX_DESC << 2)    /* maximum number of descriptors
 						 * call to start used per 	 */
 
 #define TX_CLEAN_MAX_DESC (TX_MAX_DESC << 4)    /* maximum tx descriptors
@@ -177,18 +176,17 @@ struct t3_mbuf_hdr {
 #define TX_WR_COUNT_MAX         7              /* the maximum total number of packets that can be
 						* aggregated into a single TX WR
 						*/
+#if defined(__i386__) || defined(__amd64__)  
 
-
-#if defined(__i386__) || defined(__amd64__)
-#define smp_mb() mb()
-
-#define L1_CACHE_BYTES 128
 static __inline
 void prefetch(void *x) 
 { 
         __asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
-} 
+}
 
+#define smp_mb() mb()
+
+#define L1_CACHE_BYTES 128
 extern void kdb_backtrace(void);
 
 #define WARN_ON(condition) do { \
@@ -198,8 +196,7 @@ extern void kdb_backtrace(void);
         } \
 } while (0)
 
-
-#else /* !i386 && !amd64 */
+#else 
 #define smp_mb()
 #define prefetch(x)
 #define L1_CACHE_BYTES 32

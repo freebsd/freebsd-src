@@ -100,7 +100,7 @@ nmdm_alloc(unsigned long unit)
 	struct nmdmsoftc *ns;
 	struct tty *tp;
 
-	atomic_add_acq_int(&nmdm_count, 1);
+	atomic_add_int(&nmdm_count, 1);
 
 	ns = malloc(sizeof(*ns), M_NMDM, M_WAITOK|M_ZERO);
 	mtx_init(&ns->ns_mtx, "nmdm", NULL, MTX_DEF);
@@ -109,12 +109,12 @@ nmdm_alloc(unsigned long unit)
 	ns->ns_part1.np_pair = ns;
 	ns->ns_part1.np_other = &ns->ns_part2;
 	TASK_INIT(&ns->ns_part1.np_task, 0, nmdm_task_tty, &ns->ns_part1);
-	callout_init(&ns->ns_part1.np_callout, CALLOUT_MPSAFE);
+	callout_init_mtx(&ns->ns_part1.np_callout, &ns->ns_mtx, 0);
 
 	ns->ns_part2.np_pair = ns;
 	ns->ns_part2.np_other = &ns->ns_part1;
 	TASK_INIT(&ns->ns_part2.np_task, 0, nmdm_task_tty, &ns->ns_part2);
-	callout_init(&ns->ns_part2.np_callout, CALLOUT_MPSAFE);
+	callout_init_mtx(&ns->ns_part2.np_callout, &ns->ns_mtx, 0);
 
 	/* Create device nodes. */
 	tp = ns->ns_part1.np_tty = tty_alloc_mutex(&nmdm_class, &ns->ns_part1,

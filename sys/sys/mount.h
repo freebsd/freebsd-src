@@ -336,6 +336,9 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 
+#define	MNT_SHARED_WRITES(mp) (((mp) != NULL) && 	\
+				((mp)->mnt_kern_flag & MNTK_SHARED_WRITES))
+
 /*
  * Sysctl CTL_VFS definitions.
  *
@@ -654,7 +657,7 @@ vfs_statfs_t	__vfs_statfs;
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
 	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
-		VN_KNOTE((vp), (hint), 1);				\
+		VN_KNOTE((vp), (hint), KNF_LISTLOCKED);			\
 } while (0)
 
 #define VFS_KNOTE_UNLOCKED(vp, hint) do					\

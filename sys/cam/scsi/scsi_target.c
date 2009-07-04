@@ -194,7 +194,7 @@ targopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	TAILQ_INIT(&softc->work_queue);
 	TAILQ_INIT(&softc->abort_queue);
 	TAILQ_INIT(&softc->user_ccb_queue);
-	knlist_init(&softc->read_select.si_note, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&softc->read_select.si_note, NULL);
 
 	return (0);
 }
@@ -552,7 +552,7 @@ targwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	softc = (struct targ_softc *)dev->si_drv1;
 	write_len = error = 0;
 	CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH,
-		  ("write - uio_resid %d\n", uio->uio_resid));
+		  ("write - uio_resid %zd\n", uio->uio_resid));
 	while (uio->uio_resid >= sizeof(user_ccb) && error == 0) {
 		union ccb *ccb;
 

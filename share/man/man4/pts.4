@@ -148,11 +148,14 @@ pseudo-terminals implementation are:
 .Pp
 .Bl -tag -width ".Pa /dev/pts/[num]"
 .It Pa /dev/ptmx
-Control device, returns a file descriptor to a new master pseudo-terminal
-when opened. This device should not be opened directly. It's only
-available for binary compatibility. New devices should only be created
-though
-.Xr posix_openpt 2 .
+Control device, returns a file descriptor to a new master
+pseudo-terminal when opened.
+This device should not be opened directly.
+It's only available for binary compatibility.
+New devices should only be allocated with
+.Xr posix_openpt 2
+and
+.Xr openpty 3 .
 .It Pa /dev/pts/[num]
 Pseudo-terminal slave devices.
 .El

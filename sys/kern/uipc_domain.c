@@ -66,6 +66,9 @@ SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
     NULL);
 
 static vnet_attach_fn net_init_domain;
+#ifdef VIMAGE
+static vnet_detach_fn net_detach_domain;
+#endif
 
 static struct callout pffast_callout;
 static struct callout pfslow_callout;
@@ -107,7 +110,10 @@ struct pr_usrreqs nousrreqs = {
 vnet_modinfo_t vnet_domain_modinfo = {
 	.vmi_id		= VNET_MOD_DOMAIN,
 	.vmi_name	= "domain",
-	.vmi_iattach	= net_init_domain
+	.vmi_iattach	= net_init_domain,
+#ifdef VIMAGE
+	.vmi_idetach	= net_detach_domain,
+#endif
 };
 #endif
 
@@ -189,6 +195,26 @@ net_init_domain(const void *arg)
 		panic("%s: max_datalen < 1", __func__);
 	return (0);
 }
+
+#ifdef VIMAGE
+/*
+ * Detach / free a domain instance.
+ */
+static int
+net_detach_domain(const void *arg)
+{
+	const struct domain *dp = arg;
+	struct protosw *pr;
+
+	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
+		if (pr->pr_destroy)
+			(*pr->pr_destroy)();
+	if (dp->dom_destroy)
+		(*dp->dom_destroy)();
+
+	return (0);
+}
+#endif
 
 /*
  * Add a new protocol domain to the list of supported domains

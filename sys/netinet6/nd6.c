@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -134,13 +133,7 @@ void
 nd6_init(void)
 {
 	INIT_VNET_INET6(curvnet);
-	static int nd6_init_done = 0;
 	int i;
-
-	if (nd6_init_done) {
-		log(LOG_NOTICE, "nd6_init called more than once(ignored)\n");
-		return;
-	}
 
 	V_nd6_prune	= 1;	/* walk list every 1 seconds */
 	V_nd6_delay	= 5;	/* delay first probe time 5 second */
@@ -180,6 +173,8 @@ nd6_init(void)
 	V_ip6_temp_valid_lifetime = DEF_TEMP_VALID_LIFETIME;
 	V_ip6_temp_regen_advance = TEMPADDR_REGEN_ADVANCE;
 
+	V_ip6_desync_factor = 0;
+
 	all1_sa.sin6_family = AF_INET6;
 	all1_sa.sin6_len = sizeof(struct sockaddr_in6);
 	for (i = 0; i < sizeof(all1_sa.sin6_addr); i++)
@@ -191,10 +186,19 @@ nd6_init(void)
 	callout_init(&V_nd6_slowtimo_ch, 0);
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
-
-	nd6_init_done = 1;
-
 }
+
+
+#ifdef VIMAGE
+void
+nd6_destroy()
+{
+	INIT_VNET_INET6(curvnet);
+
+	callout_drain(&V_nd6_slowtimo_ch);
+	callout_drain(&V_nd6_timer_ch);
+}
+#endif
 
 struct nd_ifinfo *
 nd6_ifattach(struct ifnet *ifp)
@@ -620,10 +624,11 @@ nd6_timer(void *arg)
 	 * in the past the loop was inside prefix expiry processing.
 	 * However, from a stricter speci-confrmance standpoint, we should
 	 * rather separate address lifetimes and prefix lifetimes.
+	 *
+	 * XXXRW: in6_ifaddrhead locking.
 	 */
   addrloop:
-	for (ia6 = V_in6_ifaddr; ia6; ia6 = nia6) {
-		nia6 = ia6->ia_next;
+	TAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
 		/* check address lifetime */
 		lt6 = &ia6->ia6_lifetime;
 		if (IFA6_IS_INVALID(ia6)) {
@@ -953,8 +958,13 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * a p2p interface, the address should be a neighbor.
 	 */
 	dstaddr = ifa_ifwithdstaddr((struct sockaddr *)addr);
-	if ((dstaddr != NULL) && (dstaddr->ifa_ifp == ifp))
-		return (1);
+	if (dstaddr != NULL) {
+		if (dstaddr->ifa_ifp == ifp) {
+			ifa_free(dstaddr);
+			return (1);
+		}
+		ifa_free(dstaddr);
+	}
 
 	/*
 	 * If the default router list is empty, all addresses are regarded
@@ -1320,10 +1330,9 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				continue; /* XXX */
 
 			/* do we really have to remove addresses as well? */
-			for (ia = V_in6_ifaddr; ia; ia = ia_next) {
-				/* ia might be removed.  keep the next ptr. */
-				ia_next = ia->ia_next;
-
+			/* XXXRW: in6_ifaddrhead locking. */
+			TAILQ_FOREACH_SAFE(ia, &V_in6_ifaddrhead, ia_link,
+			    ia_next) {
 				if ((ia->ia6_flags & IN6_IFF_AUTOCONF) == 0)
 					continue;
 

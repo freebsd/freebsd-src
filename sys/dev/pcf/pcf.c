@@ -378,7 +378,7 @@ pcf_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 }
 
 int
-pcf_write(device_t dev, char *buf, int len, int *sent, int timeout /* us */)
+pcf_write(device_t dev, const char *buf, int len, int *sent, int timeout /* us */)
 {
 	struct pcf_softc *sc = DEVTOSOFTC(dev);
 	int bytes, error = 0;

@@ -109,7 +109,9 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	u_int8_t		atype, adst;
 	int			loop_copy = 0;
 	int			isphds;
+#if defined(INET) || defined(INET6)
 	struct llentry		*lle;
+#endif
 
 	if (!((ifp->if_flags & IFF_UP) &&
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
@@ -670,7 +672,7 @@ arc_ifdetach(struct ifnet *ifp)
 }
 
 int
-arc_ioctl(struct ifnet *ifp, int command, caddr_t data)
+arc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;

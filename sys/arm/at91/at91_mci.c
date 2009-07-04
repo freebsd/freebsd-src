@@ -612,7 +612,7 @@ at91_mci_intr(void *arg)
 }
 
 static int
-at91_mci_read_ivar(device_t bus, device_t child, int which, u_char *result)
+at91_mci_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct at91_mci_softc *sc = device_get_softc(bus);
 

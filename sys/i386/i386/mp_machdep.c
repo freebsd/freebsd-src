@@ -143,6 +143,7 @@ static int bootAP;
 
 /* Free these after use */
 void *bootstacks[MAXCPU];
+static void *dpcpu;
 
 /* Hotwire a 0->4MB V==P mapping */
 extern pt_entry_t *KPTphys;
@@ -610,6 +611,7 @@ init_secondary(void)
 
 	/* prime data page for it to use */
 	pcpu_init(pc, myid, sizeof(struct pcpu));
+	dpcpu_init(dpcpu, myid);
 	pc->pc_apic_id = cpu_apic_ids[myid];
 	pc->pc_prvspace = pc;
 	pc->pc_curthread = 0;
@@ -897,8 +899,9 @@ start_all_aps(void)
 		apic_id = cpu_apic_ids[cpu];
 
 		/* allocate and set up a boot stack data page */
-		bootstacks[cpu] = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-
+		bootstacks[cpu] =
+		    (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
+		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
 		*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);

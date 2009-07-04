@@ -28,7 +28,7 @@
 
 #ifndef _GEOM_H_
 #define	_GEOM_H_
-#define	G_LIB_VERSION	3
+#define	G_LIB_VERSION	4
 
 #define	G_FLAG_NONE	0x0000
 #define	G_FLAG_VERBOSE	0x0001
@@ -38,7 +38,9 @@
 #define	G_TYPE_BOOL	0x01
 #define	G_TYPE_STRING	0x02
 #define	G_TYPE_NUMBER	0x03
-#define	G_TYPE_MASK	0x03
+#define	G_TYPE_ASCNUM	0x04
+#define	G_TYPE_ASCLBA	0x05
+#define	G_TYPE_MASK	0x0f
 #define	G_TYPE_DONE	0x10
 
 #define	G_OPT_MAX	16

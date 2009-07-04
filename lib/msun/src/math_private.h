@@ -262,7 +262,7 @@ irint(double x)
 {
 	int n;
 
-	asm("cvtsd2si %1,%0" : "=r" (n) : "Y" (x));
+	asm("cvtsd2si %1,%0" : "=r" (n) : "x" (x));
 	return (n);
 }
 #define	HAVE_EFFICIENT_IRINT

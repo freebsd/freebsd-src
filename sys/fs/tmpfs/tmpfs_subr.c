@@ -142,7 +142,8 @@ tmpfs_alloc_node(struct tmpfs_mount *tmp, enum vtype type,
 
 	case VREG:
 		nnode->tn_reg.tn_aobj =
-		    vm_pager_allocate(OBJT_SWAP, NULL, 0, VM_PROT_DEFAULT, 0);
+		    vm_pager_allocate(OBJT_SWAP, NULL, 0, VM_PROT_DEFAULT, 0,
+			NULL /* XXXKIB - tmpfs needs swap reservation */);
 		nnode->tn_reg.tn_aobj_pages = 0;
 		break;
 

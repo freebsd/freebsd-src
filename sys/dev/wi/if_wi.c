@@ -571,12 +571,13 @@ wi_vap_delete(struct ieee80211vap *vap)
 	free(wvp, M_80211_VAP);
 }
 
-void
+int
 wi_shutdown(device_t dev)
 {
 	struct wi_softc *sc = device_get_softc(dev);
 
 	wi_stop(sc, 1);
+	return (0);
 }
 
 void
@@ -1581,7 +1582,7 @@ allmulti:
 	}
 
 	n = 0;
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1591,7 +1592,7 @@ allmulti:
 		    (LLADDR((struct sockaddr_dl *)ifma->ifma_addr)));
 		n++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 	return wi_write_rid(sc, WI_RID_MCAST_LIST, &mlist,
 	    IEEE80211_ADDR_LEN * n);
 }

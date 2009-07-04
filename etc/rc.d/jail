@@ -52,7 +52,7 @@ init_variables()
 	eval _exec_start=\"\${jail_${_j}_exec_start:-${jail_exec_start}}\"
 
 	i=1
-	while [ true ]; do
+	while : ; do
 		eval _exec_afterstart${i}=\"\${jail_${_j}_exec_afterstart${i}:-\${jail_exec_afterstart${i}}}\"
 		[ -z "$(eval echo \"\$_exec_afterstart${i}\")" ] &&  break
 		i=$((i + 1))
@@ -132,7 +132,6 @@ init_variables()
 	debug "$_j procdir: $_procdir"
 	debug "$_j ruleset: $_ruleset"
 	debug "$_j fstab: $_fstab"
-	debug "$_j consolelog: $_consolelog"
 
 	i=0
 	while : ; do
@@ -147,7 +146,7 @@ init_variables()
 	debug "$_j exec start: $_exec_start"
 
 	i=1
-	while [ true ]; do
+	while : ; do
 		eval out=\"\${_exec_afterstart${i}:-''}\"
 
 		if [ -z "$out" ]; then
@@ -642,7 +641,7 @@ jail_start()
 		if [ "$?" -eq 0 ] ; then
 			_jail_id=$(head -1 ${_tmp_jail})
 			i=1
-			while [ true ]; do
+			while : ; do
 				eval out=\"\${_exec_afterstart${i}:-''}\"
 
 				if [ -z "$out" ]; then

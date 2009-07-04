@@ -111,7 +111,7 @@ typedef struct _drv_t {
 	cp_board_t	*board;
 	cp_dma_mem_t	dmamem;
 #ifdef NETGRAPH
-	char	nodename [NG_NODELEN+1];
+	char	nodename [NG_NODESIZE];
 	hook_p	hook;
 	hook_p	debug_hook;
 	node_p	node;
@@ -2121,7 +2121,7 @@ static int ng_cp_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			l += print_e1_stats (s + l, d->chan);
 			} else
 				l += sprintf (s + l, "Error: node not connect to channel");
-			strncpy ((resp)->header.cmdstr, "status", NG_CMDSTRLEN);
+			strncpy ((resp)->header.cmdstr, "status", NG_CMDSTRSIZ);
 			}
 			break;
 		}

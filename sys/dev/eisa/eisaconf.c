@@ -315,7 +315,7 @@ eisa_find_ioaddr(struct eisa_device *e_dev, int rid)
 }
 
 static int
-eisa_read_ivar(device_t dev, device_t child, int which, u_long *result)
+eisa_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct eisa_device *e_dev = device_get_ivars(child);
 	struct irq_node *irq;

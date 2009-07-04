@@ -27,6 +27,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -128,34 +132,34 @@ static int 		pnpmss_attach(device_t dev);
 static driver_intr_t 	opti931_intr;
 
 static u_int32_t mss_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_MU_LAW,
-	AFMT_STEREO | AFMT_MU_LAW,
-	AFMT_A_LAW,
-	AFMT_STEREO | AFMT_A_LAW,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_MU_LAW, 1, 0),
+	SND_FORMAT(AFMT_MU_LAW, 2, 0),
+	SND_FORMAT(AFMT_A_LAW, 1, 0),
+	SND_FORMAT(AFMT_A_LAW, 2, 0),
 	0
 };
 static struct pcmchan_caps mss_caps = {4000, 48000, mss_fmt, 0};
 
 static u_int32_t guspnp_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_A_LAW,
-	AFMT_STEREO | AFMT_A_LAW,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_A_LAW, 1, 0),
+	SND_FORMAT(AFMT_A_LAW, 2, 0),
 	0
 };
 static struct pcmchan_caps guspnp_caps = {4000, 48000, guspnp_fmt, 0};
 
 static u_int32_t opti931_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
@@ -520,7 +524,7 @@ mssmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return left | (right << 8);
 }
 
-static int
+static u_int32_t
 mssmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
@@ -535,7 +539,7 @@ static kobj_method_t mssmix_mixer_methods[] = {
     	KOBJMETHOD(mixer_init,		mssmix_init),
     	KOBJMETHOD(mixer_set,		mssmix_set),
     	KOBJMETHOD(mixer_setrecsrc,	mssmix_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(mssmix_mixer);
 
@@ -604,7 +608,7 @@ ymmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return left | (right << 8);
 }
 
-static int
+static u_int32_t
 ymmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct mss_info *mss = mix_getdevinfo(m);
@@ -618,7 +622,7 @@ static kobj_method_t ymmix_mixer_methods[] = {
     	KOBJMETHOD(mixer_init,		ymmix_init),
     	KOBJMETHOD(mixer_set,		ymmix_set),
     	KOBJMETHOD(mixer_setrecsrc,	ymmix_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(ymmix_mixer);
 
@@ -997,7 +1001,7 @@ static int
 mss_format(struct mss_chinfo *ch, u_int32_t format)
 {
     	struct mss_info *mss = ch->parent;
-    	int i, arg = format & ~AFMT_STEREO;
+    	int i, arg = AFMT_ENCODING(format);
 
     	/*
      	* The data format uses 3 bits (just 2 on the 1848). For each
@@ -1014,7 +1018,7 @@ mss_format(struct mss_chinfo *ch, u_int32_t format)
 	ch->fmt = format;
     	for (i = 0; i < 8; i++) if (arg == fmts[i]) break;
     	arg = i << 1;
-    	if (format & AFMT_STEREO) arg |= 1;
+    	if (AFMT_CHANNEL(format) > 1) arg |= 1;
     	arg <<= 4;
     	ad_enter_MCE(mss);
     	ad_write(mss, 8, (ad_read(mss, 8) & 0x0f) | arg);
@@ -1035,7 +1039,7 @@ mss_trigger(struct mss_chinfo *ch, int go)
     	int retry, wr, cnt, ss;
 
 	ss = 1;
-	ss <<= (ch->fmt & AFMT_STEREO)? 1 : 0;
+	ss <<= (AFMT_CHANNEL(ch->fmt) > 1)? 1 : 0;
 	ss <<= (ch->fmt & AFMT_16BIT)? 1 : 0;
 
 	wr = (ch->dir == PCMDIR_PLAY)? 1 : 0;
@@ -1170,12 +1174,12 @@ msschan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 msschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct mss_chinfo *ch = data;
 	struct mss_info *mss = ch->parent;
-	int r;
+	u_int32_t r;
 
 	mss_lock(mss);
 	r = mss_speed(ch, speed);
@@ -1184,7 +1188,7 @@ msschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return r;
 }
 
-static int
+static u_int32_t
 msschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct mss_chinfo *ch = data;
@@ -1211,7 +1215,7 @@ msschan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 msschan_getptr(kobj_t obj, void *data)
 {
 	struct mss_chinfo *ch = data;
@@ -1247,7 +1251,7 @@ static kobj_method_t msschan_methods[] = {
     	KOBJMETHOD(channel_trigger,		msschan_trigger),
     	KOBJMETHOD(channel_getptr,		msschan_getptr),
     	KOBJMETHOD(channel_getcaps,		msschan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(msschan);
 

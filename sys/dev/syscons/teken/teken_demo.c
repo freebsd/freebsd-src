@@ -232,7 +232,7 @@ test_copy(void *s __unused, const teken_rect_t *r, const teken_pos_t *p)
 }
 
 static void
-test_param(void *s __unused, int cmd, int value)
+test_param(void *s __unused, int cmd, unsigned int value)
 {
 
 	switch (cmd) {

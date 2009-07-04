@@ -43,8 +43,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_route.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -57,7 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
-#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -65,6 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/vinet.h>
 
 extern int	in_inithead(void **head, int off);
+#ifdef VIMAGE
+extern int	in_detachhead(void **head, int off);
+#endif
 
 #define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
@@ -381,6 +381,17 @@ in_inithead(void **head, int off)
 	}
 	return 1;
 }
+
+#ifdef VIMAGE
+int
+in_detachhead(void **head, int off)
+{
+	INIT_VNET_INET(curvnet);
+
+	callout_drain(&V_rtq_timer);
+	return (1);
+}
+#endif
 
 /*
  * This zaps old routes when the interface goes down or interface

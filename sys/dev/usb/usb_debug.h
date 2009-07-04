@@ -26,14 +26,11 @@
 
 /* This file contains various factored out debug macros. */
 
-#ifndef _USB2_DEBUG_H_
-#define	_USB2_DEBUG_H_
-
-/* Declare parent SYSCTL USB node. */
-SYSCTL_DECL(_hw_usb);
+#ifndef _USB_DEBUG_H_
+#define	_USB_DEBUG_H_
 
 /* Declare global USB debug variable. */
-extern int usb2_debug;
+extern int usb_debug;
 
 /* Check if USB debugging is enabled. */
 #ifdef USB_DEBUG_VAR
@@ -53,13 +50,13 @@ extern int usb2_debug;
 
 struct usb_interface;
 struct usb_device;
-struct usb_pipe;
+struct usb_endpoint;
 struct usb_xfer;
 
-void	usb2_dump_iface(struct usb_interface *iface);
-void	usb2_dump_device(struct usb_device *udev);
-void	usb2_dump_queue(struct usb_pipe *pipe);
-void	usb2_dump_pipe(struct usb_pipe *pipe);
-void	usb2_dump_xfer(struct usb_xfer *xfer);
+void	usb_dump_iface(struct usb_interface *iface);
+void	usb_dump_device(struct usb_device *udev);
+void	usb_dump_queue(struct usb_endpoint *ep);
+void	usb_dump_endpoint(struct usb_endpoint *ep);
+void	usb_dump_xfer(struct usb_xfer *xfer);
 
-#endif					/* _USB2_DEBUG_H_ */
+#endif					/* _USB_DEBUG_H_ */

@@ -359,7 +359,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 */
 
 	msr = mfmsr();
-	mtmsr(msr & ~(PSL_IR | PSL_DR));
+	mtmsr((msr & ~(PSL_IR | PSL_DR)) | PSL_RI);
 	isync();
 
 	/*
@@ -379,6 +379,12 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	/* Find the first byte dcbz did not zero to get the cache line size */
 	for (cacheline_size = 0; cacheline_size < 0x100 &&
 	    cache_check[cacheline_size] == 0; cacheline_size++);
+
+	/* Work around psim bug */
+	if (cacheline_size == 0) {
+		printf("WARNING: cacheline size undetermined, setting to 32\n");
+		cacheline_size = 32;
+	}
 
 	/*
 	 * Figure out whether we need to use the 64 bit PMAP. This works by

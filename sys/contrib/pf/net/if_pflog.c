@@ -99,8 +99,10 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
 
+#ifdef INET
 #ifdef __FreeBSD__
 #include <machine/in_cksum.h>
+#endif
 #endif
 
 #define PFLOGMTU	(32768 + MHLEN + MLEN)

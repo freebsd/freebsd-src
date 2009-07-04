@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 1995
+.Dd June 4, 2009
 .Dt FSCK_MSDOSFS 8
 .Os
 .Sh NAME
@@ -41,10 +41,10 @@
 .Sh SYNOPSIS
 .Nm
 .Fl p
-.Op Fl f
+.Op Fl Cf
 .Ar filesystem ...
 .Nm
-.Op Fl ny
+.Op Fl Cny
 .Ar filesystem ...
 .Sh DESCRIPTION
 The
@@ -80,6 +80,10 @@ making any changes.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl C
+Compatibility with the corresponding
+.Xr fsck 8
+option (skip check if clean), defined to no-op.
 .It Fl F
 Compatibility with the wrapper
 .Xr fsck 8

@@ -48,6 +48,8 @@ struct domain {
 	char	*dom_name;
 	void	(*dom_init)		/* initialize domain data structures */
 		(void);
+	void	(*dom_destroy)		/* cleanup structures / state */
+		(void);
 	int	(*dom_externalize)	/* externalize access rights */
 		(struct mbuf *, struct mbuf **);
 	void	(*dom_dispose)		/* dispose of internalized rights */
@@ -55,6 +57,8 @@ struct domain {
 	struct	protosw *dom_protosw, *dom_protoswNPROTOSW;
 	struct	domain *dom_next;
 	int	(*dom_rtattach)		/* initialize routing table */
+		(void **, int);
+	int	(*dom_rtdetach)		/* clean up routing table */
 		(void **, int);
 	int	dom_rtoffset;		/* an arg to rtattach, in bits */
 		/* XXX MRT.

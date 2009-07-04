@@ -163,7 +163,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	AUDIT_ARG(cmd, uap->cmd);
+	AUDIT_ARG_CMD(uap->cmd);
 
 #ifdef MAC
 	error = mac_system_check_auditon(td->td_ucred, uap->cmd);
@@ -205,7 +205,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 		error = copyin(uap->data, (void *)&udata, uap->length);
 		if (error)
 			return (error);
-		AUDIT_ARG(auditon, &udata);
+		AUDIT_ARG_AUDITON(&udata);
 		break;
 	}
 

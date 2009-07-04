@@ -184,7 +184,7 @@ typedef struct {
 	int		ti_pri;
 	lwpid_t		ti_lid;
 	char		ti_db_suspended;
-	int		ti_traceme;
+	char		ti_traceme;
 	sigset_t	ti_sigmask;
 	sigset_t	ti_pending;
 	psaddr_t	ti_tls;

@@ -35,6 +35,9 @@
 #ifdef _KERNEL
 
 void	 syncache_init(void);
+#ifdef VIMAGE
+void	syncache_destroy(void);
+#endif
 void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
 int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct socket **, struct mbuf *);

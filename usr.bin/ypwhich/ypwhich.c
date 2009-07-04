@@ -64,6 +64,7 @@ struct ypalias {
 } ypaliases[] = {
 	{ "passwd", "passwd.byname" },
 	{ "master.passwd", "master.passwd.byname" },
+	{ "shadow", "shadow.byname" },
 	{ "group", "group.byname" },
 	{ "networks", "networks.byaddr" },
 	{ "hosts", "hosts.byaddr" },

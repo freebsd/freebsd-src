@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2001 Cameron Grant <cg@freebsd.org>
+ * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
+ * Copyright (c) 2001 Cameron Grant <cg@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,16 +27,31 @@
  * $FreeBSD$
  */
 
-int vchan_create(struct pcm_channel *parent, int num);
-int vchan_destroy(struct pcm_channel *c);
-int vchan_initsys(device_t dev);
+#ifndef _SND_VCHAN_H_
+#define _SND_VCHAN_H_
+
+int vchan_create(struct pcm_channel *, int);
+int vchan_destroy(struct pcm_channel *);
+
+#ifdef SND_DEBUG
+int vchan_passthrough(struct pcm_channel *, const char *);
+#define vchan_sync(c)		vchan_passthrough(c, __func__)
+#else
+int vchan_sync(struct pcm_channel *);
+#endif
+
+#define VCHAN_SYNC_REQUIRED(c)						\
+	(((c)->flags & CHN_F_VIRTUAL) && (((c)->flags & CHN_F_DIRTY) ||	\
+	sndbuf_getfmt((c)->bufhard) != (c)->parentchannel->format ||	\
+	sndbuf_getspd((c)->bufhard) != (c)->parentchannel->speed))
+
+void vchan_initsys(device_t);
 
 /*
- * Default speed / format
+ * Default format / rate
  */
-#define VCHAN_DEFAULT_SPEED	48000
-#define VCHAN_DEFAULT_AFMT	(AFMT_S16_LE | AFMT_STEREO)
-#define VCHAN_DEFAULT_STRFMT	"s16le"
+#define VCHAN_DEFAULT_FORMAT	SND_FORMAT(AFMT_S16_LE, 2, 0)
+#define VCHAN_DEFAULT_RATE	48000
 
 #define VCHAN_PLAY		0
 #define VCHAN_REC		1
@@ -50,3 +66,5 @@ int vchan_initsys(device_t dev);
 #define VCHAN_SYSCTL_DATA_SIZE	sizeof(void *)
 #define VCHAN_SYSCTL_UNIT(x)	((int)(((intptr_t)(x) >> 2) & 0xfff) - 1)
 #define VCHAN_SYSCTL_DIR(x)	((int)((intptr_t)(x) & 0x3) - 1)
+
+#endif	/* _SND_VCHAN_H_ */

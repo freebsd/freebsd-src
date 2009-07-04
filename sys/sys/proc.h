@@ -235,6 +235,7 @@ struct thread {
 	char		td_name[MAXCOMLEN + 1];	/* (*) Thread name. */
 	struct file	*td_fpop;	/* (k) file referencing cdev under op */
 	int		td_dbgflags;	/* (c) Userland debugger flags */
+	int		td_ng_outbound;	/* (k) Thread entered ng from above. */
 	struct osd	td_osd;		/* (k) Object specific data. */
 #define	td_endzero td_base_pri
 
@@ -277,8 +278,8 @@ struct thread {
 	struct lpohead	td_lprof[2];	/* (a) lock profiling objects. */
 	struct kdtrace_thread	*td_dtrace; /* (*) DTrace-specific data. */
 	int		td_errno;	/* Error returned by last syscall. */
-	struct vnet	*td_vnet;	/* (*) Effective vnet. */
-	const char	*td_vnet_lpush;	/* (*) Debugging vnet push / pop. */
+	struct vnet	*td_vnet;	/* (k) Effective vnet. */
+	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
 };
 
 struct mtx *thread_lock_block(struct thread *);

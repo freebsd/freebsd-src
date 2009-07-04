@@ -68,7 +68,7 @@ static int	pmu_detach(device_t);
 static u_int	pmu_adb_send(device_t dev, u_char command_byte, int len, 
 		    u_char *data, u_char poll);
 static u_int	pmu_adb_autopoll(device_t dev, uint16_t mask);
-static void	pmu_poll(device_t dev);
+static u_int	pmu_poll(device_t dev);
 
 static void	pmu_set_sleepled(void *xsc, int onoff);
 static int	pmu_server_mode(SYSCTL_HANDLER_ARGS);
@@ -575,10 +575,11 @@ done:
 }
 
 
-static void
+static u_int
 pmu_poll(device_t dev)
 {
 	pmu_intr(dev);
+	return (0);
 }
 
 static void

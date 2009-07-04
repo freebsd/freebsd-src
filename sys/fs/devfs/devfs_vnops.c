@@ -48,6 +48,7 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -706,6 +707,22 @@ devfs_kqfilter_f(struct file *fp, struct knote *kn)
 	return (error);
 }
 
+static inline int
+devfs_prison_check(struct devfs_dirent *de, struct ucred *tcr)
+{
+	struct cdev_priv *cdp;
+	struct ucred *dcr;
+
+	cdp = de->de_cdp;
+	if (cdp == NULL)
+		return (0);
+	dcr = cdp->cdp_c.si_cred;
+	if (dcr == NULL)
+		return (0);
+
+	return (prison_check(tcr, dcr));
+}
+
 static int
 devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 {
@@ -830,6 +847,9 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		}
 		return (ENOENT);
 	}
+
+	if (devfs_prison_check(de, td->td_ucred))
+		return (ENOENT);
 
 	if ((cnp->cn_nameiop == DELETE) && (flags & ISLASTCN)) {
 		error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, td);
@@ -1106,6 +1126,8 @@ devfs_readdir(struct vop_readdir_args *ap)
 		KASSERT(dd->de_cdp != (void *)0xdeadc0de, ("%s %d\n", __func__, __LINE__));
 		if (dd->de_flags & DE_WHITEOUT)
 			continue;
+		if (devfs_prison_check(dd, ap->a_cred))
+			continue;
 		if (dd->de_dirent->d_type == DT_DIR)
 			de = dd->de_dir;
 		else
@@ -1276,11 +1298,19 @@ devfs_revoke(struct vop_revoke_args *ap)
 static int
 devfs_rioctl(struct vop_ioctl_args *ap)
 {
-	int error;
+	struct vnode *vp;
 	struct devfs_mount *dmp;
+	int error;
 
-	dmp = VFSTODEVFS(ap->a_vp->v_mount);
+	vp = ap->a_vp;
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	if (vp->v_iflag & VI_DOOMED) {
+		VOP_UNLOCK(vp, 0);
+		return (EBADF);
+	}
+	dmp = VFSTODEVFS(vp->v_mount);
 	sx_xlock(&dmp->dm_lock);
+	VOP_UNLOCK(vp, 0);
 	DEVFS_DMP_HOLD(dmp);
 	devfs_populate(dmp);
 	if (DEVFS_DMP_DROP(dmp)) {

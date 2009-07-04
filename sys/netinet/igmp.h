@@ -115,19 +115,6 @@ struct igmp_report {
 #define IGMP_MTRACE_QUERY		0x1f	/* mtrace(8) probe */
 #define IGMP_v3_HOST_MEMBERSHIP_REPORT	0x22	/* Ver. 3 membership report */
 
-#ifndef BURN_BRIDGES
-/*
- * Legacy FreeBSD definitions for the above message types.
- */
-#define IGMP_MEMBERSHIP_QUERY		IGMP_HOST_MEMBERSHIP_QUERY
-#define IGMP_V1_MEMBERSHIP_REPORT	IGMP_v1_HOST_MEMBERSHIP_REPORT
-#define IGMP_V2_MEMBERSHIP_REPORT	IGMP_v2_HOST_MEMBERSHIP_REPORT
-#define IGMP_MTRACE_RESP		IGMP_MTRACE_REPLY
-#define IGMP_MTRACE			IGMP_MTRACE_QUERY
-#define IGMP_V2_LEAVE_GROUP		IGMP_HOST_LEAVE_MESSAGE
-#define IGMP_V3_MEMBERSHIP_REPORT	IGMP_v3_HOST_MEMBERSHIP_REPORT
-#endif /* BURN_BRIDGES */
-
 /*
  * IGMPv3 report modes.
  */

@@ -62,6 +62,8 @@ struct pmap;
 
 #ifdef _KERNEL
 
+extern void *dpcpu0;
+
 struct pcb;
 struct pcpu;
 

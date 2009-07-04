@@ -49,10 +49,12 @@ struct buf_ring {
 	int              	br_prod_size;
 	int              	br_prod_mask;
 	uint64_t		br_drops;
+	uint64_t		br_prod_bufs;
+	uint64_t		br_prod_bytes;
 	/*
 	 * Pad out to next L2 cache line
 	 */
-	uint64_t	  	_pad0[13];
+	uint64_t	  	_pad0[11];
 
 	volatile uint32_t	br_cons_head;
 	volatile uint32_t	br_cons_tail;
@@ -74,7 +76,7 @@ struct buf_ring {
  *
  */
 static __inline int
-buf_ring_enqueue(struct buf_ring *br, void *buf)
+buf_ring_enqueue_bytes(struct buf_ring *br, void *buf, int nbytes)
 {
 	uint32_t prod_head, prod_next;
 	uint32_t cons_tail;
@@ -116,10 +118,18 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 	 */   
 	while (br->br_prod_tail != prod_head)
 		cpu_spinwait();
+	br->br_prod_bufs++;
+	br->br_prod_bytes += nbytes;
 	br->br_prod_tail = prod_next;
-	mb();
 	critical_exit();
 	return (0);
+}
+
+static __inline int
+buf_ring_enqueue(struct buf_ring *br, void *buf)
+{
+
+	return (buf_ring_enqueue_bytes(br, buf, 0));
 }
 
 /*
@@ -154,7 +164,7 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 #ifdef DEBUG_BUFRING
 	br->br_ring[cons_head] = NULL;
 #endif
-	mb();
+	rmb();
 	
 	/*
 	 * If there are other dequeues in progress
@@ -165,7 +175,6 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 		cpu_spinwait();
 
 	br->br_cons_tail = cons_next;
-	mb();
 	critical_exit();
 
 	return (buf);
@@ -179,25 +188,29 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 static __inline void *
 buf_ring_dequeue_sc(struct buf_ring *br)
 {
-	uint32_t cons_head, cons_next;
+	uint32_t cons_head, cons_next, cons_next_next;
 	uint32_t prod_tail;
 	void *buf;
 	
-	critical_enter();
 	cons_head = br->br_cons_head;
 	prod_tail = br->br_prod_tail;
 	
 	cons_next = (cons_head + 1) & br->br_cons_mask;
-		
-	if (cons_head == prod_tail) {
-		critical_exit();
-		return (NULL);
-	}
+	cons_next_next = (cons_head + 2) & br->br_cons_mask;
 	
+	if (cons_head == prod_tail) 
+		return (NULL);
+
+#ifdef PREFETCH_DEFINED	
+	if (cons_next != prod_tail) {		
+		prefetch(br->br_ring[cons_next]);
+		if (cons_next_next != prod_tail) 
+			prefetch(br->br_ring[cons_next_next]);
+	}
+#endif
 	br->br_cons_head = cons_next;
 	buf = br->br_ring[cons_head];
-	mb();
-	
+
 #ifdef DEBUG_BUFRING
 	br->br_ring[cons_head] = NULL;
 	if (!mtx_owned(br->br_lock))
@@ -207,8 +220,6 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 		    br->br_cons_tail, cons_head);
 #endif
 	br->br_cons_tail = cons_next;
-	mb();
-	critical_exit();
 	return (buf);
 }
 
@@ -225,7 +236,12 @@ buf_ring_peek(struct buf_ring *br)
 	if ((br->br_lock != NULL) && !mtx_owned(br->br_lock))
 		panic("lock not held on single consumer dequeue");
 #endif	
-	mb();
+	/*
+	 * I believe it is safe to not have a memory barrier
+	 * here because we control cons and tail is worst case
+	 * a lagging indicator so we worst case we might
+	 * return NULL immediately after a buffer has been enqueued
+	 */
 	if (br->br_cons_head == br->br_prod_tail)
 		return (NULL);
 	

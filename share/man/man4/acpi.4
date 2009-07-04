@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2006
+.Dd June 8, 2009
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -451,10 +451,6 @@ ACPI drivers
 The supported levels are:
 .Pp
 .Bl -tag -compact -width ".Li ACPI_LV_AML_DISASSEMBLE"
-.It Li ACPI_LV_ERROR
-Fatal error conditions
-.It Li ACPI_LV_WARN
-Warnings and potential problems
 .It Li ACPI_LV_INIT
 Initialization progress
 .It Li ACPI_LV_DEBUG_OBJECT
@@ -463,9 +459,7 @@ Stores to objects
 General information and progress
 .It Li ACPI_LV_ALL_EXCEPTIONS
 All the previous levels
-.It Li ACPI_LV_INIT_NAMES
 .It Li ACPI_LV_PARSE
-.It Li ACPI_LV_LOAD
 .It Li ACPI_LV_DISPATCH
 .It Li ACPI_LV_EXEC
 .It Li ACPI_LV_NAMES
@@ -483,7 +477,10 @@ All the previous levels
 .It Li ACPI_LV_FUNCTIONS
 .It Li ACPI_LV_OPTIMIZATIONS
 .It Li ACPI_LV_VERBOSITY2
+All the previous levels
 .It Li ACPI_LV_ALL
+Synonym for
+.Qq Li ACPI_LV_VERBOSITY2
 .It Li ACPI_LV_MUTEX
 .It Li ACPI_LV_THREADS
 .It Li ACPI_LV_IO
@@ -497,6 +494,8 @@ All the previous levels
 .It Li ACPI_LV_VERBOSE
 All levels after
 .Qq Li ACPI_LV_VERBOSITY3
+.It Li ACPI_LV_INIT_NAMES
+.It Li ACPI_LV_LOAD
 .El
 .Pp
 Selection of the appropriate layer and level values is important

@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_core.h>
+#include <dev/usb/usbdi.h>
 
 #include <net80211/ieee80211_var.h>
 
@@ -149,7 +149,7 @@ ndisusb_match(device_t self)
 	db = windrv_match((matchfuncptr)ndisusb_devcompare, self);
 	if (db == NULL)
 		return (ENXIO);
-	uaa->driver_info = db;
+	uaa->driver_ivar = db;
 
 	return (0);
 }
@@ -165,7 +165,7 @@ ndisusb_attach(device_t self)
 	driver_object		*drv;
 	int			devidx = 0;
 
-	db = uaa->driver_info;
+	db = uaa->driver_ivar;
 	sc = (struct ndis_softc *)dummy;
 	sc->ndis_dev = self;
 	mtx_init(&sc->ndisusb_mtx, "NDIS USB", MTX_NETWORK_LOCK, MTX_DEF);
@@ -211,12 +211,12 @@ ndisusb_detach(device_t self)
 	ndis_pnpevent_nic(self, NDIS_PNP_EVENT_SURPRISE_REMOVED);
 
 	if (sc->ndisusb_status & NDISUSB_STATUS_SETUP_EP) {
-		usb2_transfer_unsetup(sc->ndisusb_dread_ep.ne_xfer, 1);
-		usb2_transfer_unsetup(sc->ndisusb_dwrite_ep.ne_xfer, 1);
+		usbd_transfer_unsetup(sc->ndisusb_dread_ep.ne_xfer, 1);
+		usbd_transfer_unsetup(sc->ndisusb_dwrite_ep.ne_xfer, 1);
 	}
 	for (i = 0; i < NDISUSB_ENDPT_MAX; i++) {
 		ne = &sc->ndisusb_ep[i];
-		usb2_transfer_unsetup(ne->ne_xfer, 1);
+		usbd_transfer_unsetup(ne->ne_xfer, 1);
 	}
 
 	(void)ndis_detach(self);

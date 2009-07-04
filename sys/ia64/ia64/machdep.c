@@ -647,6 +647,21 @@ ia64_init(void)
 		bootverbose = 1;
 
 	/*
+	 * Find the beginning and end of the kernel.
+	 */
+	kernstart = trunc_page(kernel_text);
+#ifdef DDB
+	ksym_start = bootinfo.bi_symtab;
+	ksym_end = bootinfo.bi_esymtab;
+	kernend = (vm_offset_t)round_page(ksym_end);
+#else
+	kernend = (vm_offset_t)round_page(_end);
+#endif
+	/* But if the bootstrap tells us otherwise, believe it! */
+	if (bootinfo.bi_kernend)
+		kernend = round_page(bootinfo.bi_kernend);
+
+	/*
 	 * Setup the PCPU data for the bootstrap processor. It is needed
 	 * by printf(). Also, since printf() has critical sections, we
 	 * need to initialize at least pc_curthread.
@@ -654,6 +669,8 @@ ia64_init(void)
 	pcpup = &pcpu0;
 	ia64_set_k4((u_int64_t)pcpup);
 	pcpu_init(pcpup, 0, sizeof(pcpu0));
+	dpcpu_init((void *)kernend, 0);
+	kernend += DPCPU_SIZE;
 	PCPU_SET(curthread, &thread0);
 
 	/*
@@ -682,21 +699,6 @@ ia64_init(void)
 	ia64_sal_init();
 	calculate_frequencies();
 
-	/*
-	 * Find the beginning and end of the kernel.
-	 */
-	kernstart = trunc_page(kernel_text);
-#ifdef DDB
-	ksym_start = bootinfo.bi_symtab;
-	ksym_end = bootinfo.bi_esymtab;
-	kernend = (vm_offset_t)round_page(ksym_end);
-#else
-	kernend = (vm_offset_t)round_page(_end);
-#endif
-
-	/* But if the bootstrap tells us otherwise, believe it! */
-	if (bootinfo.bi_kernend)
-		kernend = round_page(bootinfo.bi_kernend);
 	if (metadata_missing)
 		printf("WARNING: loader(8) metadata is missing!\n");
 

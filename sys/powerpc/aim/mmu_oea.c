@@ -669,6 +669,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	int		ofw_mappings;
 	vm_size_t	size, physsz, hwphyssz;
 	vm_offset_t	pa, va, off;
+	void		*dpcpu;
 
         /*
          * Set up BAT0 to map the lowest 256 MB area
@@ -938,6 +939,20 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
 	}
+
+	/*
+	 * Allocate virtual address space for the dynamic percpu area.
+	 */
+	pa = moea_bootstrap_alloc(DPCPU_SIZE, PAGE_SIZE);
+	dpcpu = (void *)virtual_avail;
+	va = virtual_avail;
+	virtual_avail += DPCPU_SIZE;
+	while (va < virtual_avail) {
+		moea_kenter(mmup, va, pa);;
+		pa += PAGE_SIZE;
+		va += PAGE_SIZE;
+	}
+	dpcpu_init(dpcpu, 0);
 }
 
 /*

@@ -502,19 +502,10 @@ typedef struct drm_local_map {
 	TAILQ_ENTRY(drm_local_map) link;
 } drm_local_map_t;
 
-TAILQ_HEAD(drm_vbl_sig_list, drm_vbl_sig);
-typedef struct drm_vbl_sig {
-	TAILQ_ENTRY(drm_vbl_sig) link;
-	unsigned int	sequence;
-	int		signo;
-	int		pid;
-} drm_vbl_sig_t;
-
 struct drm_vblank_info {
 	wait_queue_head_t queue;	/* vblank wait queue */
 	atomic_t count;			/* number of VBLANK interrupts */
 					/* (driver must alloc the right number of counters) */
-	struct drm_vbl_sig_list sigs;	/* signal list to send on VBLANK */
 	atomic_t refcount;		/* number of users of vblank interrupts */
 	u32 last;			/* protected by dev->vbl_lock, used */
 					/* for wraparound handling */
@@ -684,7 +675,6 @@ struct drm_device {
 	int		  last_context;	/* Last current context		   */
 
 	int		  vblank_disable_allowed;
-	atomic_t 	  vbl_signal_pending;	/* number of signals pending on all crtcs */
 	struct callout	  vblank_disable_timer;
 	u32		  max_vblank_count;	/* size of vblank counter register */
 	struct drm_vblank_info *vblank;		/* per crtc vblank info */
@@ -802,7 +792,6 @@ void	drm_vblank_put(struct drm_device *dev, int crtc);
 void	drm_vblank_cleanup(struct drm_device *dev);
 int	drm_vblank_wait(struct drm_device *dev, unsigned int *vbl_seq);
 int	drm_vblank_init(struct drm_device *dev, int num_crtcs);
-void	drm_vbl_send_signals(struct drm_device *dev, int crtc);
 int 	drm_modeset_ctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 

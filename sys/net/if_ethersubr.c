@@ -34,7 +34,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
-#include "opt_route.h"
 #include "opt_netgraph.h"
 #include "opt_carp.h"
 #include "opt_mbuf_profiling.h"
@@ -80,8 +79,10 @@
 #include <netinet6/nd6.h>
 #endif
 
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
+#endif
 #endif
 
 #ifdef IPX
@@ -146,8 +147,7 @@ MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 
 #if defined(INET) || defined(INET6)
 int
-ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
-	struct ip_fw **rule, int shared);
+ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared);
 #ifdef VIMAGE_GLOBALS
 static int ether_ipfw;
 #endif
@@ -261,14 +261,17 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 
 	    if ((aa = at_ifawithnet((struct sockaddr_at *)dst)) == NULL)
 		    senderr(EHOSTUNREACH); /* XXX */
-	    if (!aarpresolve(ifp, m, (struct sockaddr_at *)dst, edst))
+	    if (!aarpresolve(ifp, m, (struct sockaddr_at *)dst, edst)) {
+		    ifa_free(&aa->aa_ifa);
 		    return (0);
+	    }
 	    /*
 	     * In the phase 2 case, need to prepend an mbuf for the llc header.
 	     */
 	    if ( aa->aa_flags & AFA_PHASE2 ) {
 		struct llc llc;
 
+		ifa_free(&aa->aa_ifa);
 		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
 		if (m == NULL)
 			senderr(ENOBUFS);
@@ -280,6 +283,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		type = htons(m->m_pkthdr.len);
 		hlen = LLC_SNAPFRAMELEN + ETHER_HDR_LEN;
 	    } else {
+		ifa_free(&aa->aa_ifa);
 		type = htons(ETHERTYPE_AT);
 	    }
 	    break;
@@ -395,10 +399,12 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		return (error);
 	}
 
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 	if (ifp->if_carp &&
 	    (error = carp_output(ifp, m, dst, NULL)))
 		goto bad;
+#endif
 #endif
 
 	/* Handle ng_ether(4) processing, if any */
@@ -429,10 +435,9 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
 #if defined(INET) || defined(INET6)
 	INIT_VNET_NET(ifp->if_vnet);
-	struct ip_fw *rule = ip_dn_claim_rule(m);
 
 	if (ip_fw_chk_ptr && V_ether_ipfw != 0) {
-		if (ether_ipfw_chk(&m, ifp, &rule, 0) == 0) {
+		if (ether_ipfw_chk(&m, ifp, 0) == 0) {
 			if (m) {
 				m_freem(m);
 				return EACCES;	/* pkt dropped */
@@ -456,8 +461,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
  * ether_output_frame.
  */
 int
-ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
-	struct ip_fw **rule, int shared)
+ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
 {
 	INIT_VNET_INET(dst->if_vnet);
 	struct ether_header *eh;
@@ -465,9 +469,19 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	struct mbuf *m;
 	int i;
 	struct ip_fw_args args;
+	struct dn_pkt_tag *dn_tag;
 
-	if (*rule != NULL && V_fw_one_pass)
-		return 1; /* dummynet packet, already partially processed */
+	dn_tag = ip_dn_claim_tag(*m0);
+
+	if (dn_tag != NULL) {
+		if (dn_tag->rule != NULL && V_fw_one_pass)
+			/* dummynet packet, already partially processed */
+			return (1);
+		args.rule = dn_tag->rule;	/* matching rule to restart */
+		args.rule_id = dn_tag->rule_id;
+		args.chain_id = dn_tag->chain_id;
+	} else
+		args.rule = NULL;
 
 	/*
 	 * I need some amt of data to be contiguous, and in case others need
@@ -488,7 +502,6 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 
 	args.m = m;		/* the packet we are looking at		*/
 	args.oif = dst;		/* destination, if any			*/
-	args.rule = *rule;	/* matching rule to restart		*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
 	args.inp = NULL;	/* used by ipfw uid/gid/jail rules	*/
@@ -509,7 +522,6 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 				ETHER_HDR_LEN);
 	}
 	*m0 = m;
-	*rule = args.rule;
 
 	if (i == IP_FW_DENY) /* drop */
 		return 0;
@@ -708,6 +720,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 		}
 	}
 
+#if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
 	/*
 	 * Clear M_PROMISC on frame so that carp(4) will see it when the
@@ -722,6 +735,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	if (ifp->if_carp && carp_forus(ifp->if_carp, eh->ether_dhost)) {
 		m->m_flags &= ~M_PROMISC;
 	} else
+#endif
 #endif
 	{
 		/*
@@ -766,9 +780,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	 * Do not do this for PROMISC frames in case we are re-entered.
 	 */
 	if (ip_fw_chk_ptr && V_ether_ipfw != 0 && !(m->m_flags & M_PROMISC)) {
-		struct ip_fw *rule = ip_dn_claim_rule(m);
-
-		if (ether_ipfw_chk(&m, NULL, &rule, 0) == 0) {
+		if (ether_ipfw_chk(&m, NULL, 0) == 0) {
 			if (m)
 				m_freem(m);	/* dropped; free mbuf chain */
 			return;			/* consumed */

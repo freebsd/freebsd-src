@@ -1,5 +1,5 @@
 /* pk7_smime.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */
 /* ====================================================================
@@ -229,8 +229,7 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
 				sk_X509_free(signers);
 				return 0;
 				}
-			X509_STORE_CTX_set_purpose(&cert_ctx,
-						X509_PURPOSE_SMIME_SIGN);
+			X509_STORE_CTX_set_default(&cert_ctx, "smime_sign");
 		} else if(!X509_STORE_CTX_init (&cert_ctx, store, signer, NULL)) {
 			PKCS7err(PKCS7_F_PKCS7_VERIFY,ERR_R_X509_LIB);
 			sk_X509_free(signers);
@@ -282,6 +281,7 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
 			PKCS7err(PKCS7_F_PKCS7_VERIFY,ERR_R_MALLOC_FAILURE);
 			goto err;
 		}
+		BIO_set_mem_eof_return(tmpout, 0);
 	} else tmpout = out;
 
 	/* We now have to 'read' from p7bio to calculate digests etc. */
@@ -426,7 +426,7 @@ PKCS7 *PKCS7_encrypt(STACK_OF(X509) *certs, BIO *in, const EVP_CIPHER *cipher,
 
 	SMIME_crlf_copy(in, p7bio, flags);
 
-	BIO_flush(p7bio);
+	(void)BIO_flush(p7bio);
 
         if (!PKCS7_dataFinal(p7,p7bio)) {
 		PKCS7err(PKCS7_F_PKCS7_ENCRYPT,PKCS7_R_PKCS7_DATAFINAL_ERROR);

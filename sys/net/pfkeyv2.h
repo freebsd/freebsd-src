@@ -255,6 +255,34 @@ struct sadb_x_ipsecrequest {
    */
 };
 
+/* NAT-Traversal type, see RFC 3948 (and drafts). */
+/* sizeof(struct sadb_x_nat_t_type) == 8 */
+struct sadb_x_nat_t_type {
+  u_int16_t sadb_x_nat_t_type_len;
+  u_int16_t sadb_x_nat_t_type_exttype;
+  u_int8_t sadb_x_nat_t_type_type;
+  u_int8_t sadb_x_nat_t_type_reserved[3];
+};
+
+/* NAT-Traversal source or destination port. */
+/* sizeof(struct sadb_x_nat_t_port) == 8 */
+struct sadb_x_nat_t_port { 
+  u_int16_t sadb_x_nat_t_port_len;
+  u_int16_t sadb_x_nat_t_port_exttype;
+  u_int16_t sadb_x_nat_t_port_port;
+  u_int16_t sadb_x_nat_t_port_reserved;
+};
+
+/* ESP fragmentation size. */
+/* sizeof(struct sadb_x_nat_t_frag) == 8 */
+struct sadb_x_nat_t_frag {
+  u_int16_t sadb_x_nat_t_frag_len;
+  u_int16_t sadb_x_nat_t_frag_exttype;
+  u_int16_t sadb_x_nat_t_frag_fraglen;
+  u_int16_t sadb_x_nat_t_frag_reserved;
+};
+
+
 #define SADB_EXT_RESERVED             0
 #define SADB_EXT_SA                   1
 #define SADB_EXT_LIFETIME_CURRENT     2
@@ -275,7 +303,14 @@ struct sadb_x_ipsecrequest {
 #define SADB_X_EXT_KMPRIVATE          17
 #define SADB_X_EXT_POLICY             18
 #define SADB_X_EXT_SA2                19
-#define SADB_EXT_MAX                  19
+#define SADB_X_EXT_NAT_T_TYPE         20
+#define SADB_X_EXT_NAT_T_SPORT        21
+#define SADB_X_EXT_NAT_T_DPORT        22
+#define SADB_X_EXT_NAT_T_OA           23	/* Deprecated. */
+#define SADB_X_EXT_NAT_T_OAI          23	/* Peer's NAT_OA for src of SA. */
+#define SADB_X_EXT_NAT_T_OAR          24	/* Peer's NAT_OA for dst of SA. */
+#define SADB_X_EXT_NAT_T_FRAG         25	/* Manual MTU override. */
+#define SADB_EXT_MAX                  25
 
 #define SADB_SATYPE_UNSPEC	0
 #define SADB_SATYPE_AH		2

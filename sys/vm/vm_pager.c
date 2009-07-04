@@ -88,7 +88,7 @@ int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
 static int dead_pager_getpages(vm_object_t, vm_page_t *, int, int);
 static vm_object_t dead_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
-	vm_ooffset_t);
+    vm_ooffset_t, struct ucred *);
 static void dead_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t dead_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static void dead_pager_dealloc(vm_object_t);
@@ -105,7 +105,7 @@ dead_pager_getpages(obj, ma, count, req)
 
 static vm_object_t
 dead_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
-    vm_ooffset_t off)
+    vm_ooffset_t off, struct ucred *cred)
 {
 	return NULL;
 }
@@ -227,14 +227,14 @@ vm_pager_bufferinit()
  */
 vm_object_t
 vm_pager_allocate(objtype_t type, void *handle, vm_ooffset_t size,
-		  vm_prot_t prot, vm_ooffset_t off)
+    vm_prot_t prot, vm_ooffset_t off, struct ucred *cred)
 {
 	vm_object_t ret;
 	struct pagerops *ops;
 
 	ops = pagertab[type];
 	if (ops)
-		ret = (*ops->pgo_alloc) (handle, size, prot, off);
+		ret = (*ops->pgo_alloc) (handle, size, prot, off, cred);
 	else
 		ret = NULL;
 	return (ret);

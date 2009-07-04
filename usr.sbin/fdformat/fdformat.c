@@ -146,7 +146,7 @@ main(int argc, char **argv)
 	struct fdc_status fdcs[MAXPRINTERRS];
 	int format, fill, quiet, verify, verify_only, confirm;
 	int fd, c, i, track, error, tracks_per_dot, bytes_per_track, errs;
-	int fdopts, flags;
+	int flags;
 	char *fmtstring, *device;
 	const char *name, *descr;
 
@@ -250,11 +250,6 @@ main(int argc, char **argv)
 		errx(EX_OSERR, "not a floppy disk: %s", device);
 	if (ioctl(fd, FD_GDTYPE, &type) == -1)
 		err(EX_OSERR, "ioctl(FD_GDTYPE)");
-	if (ioctl(fd, FD_GOPTS, &fdopts) == -1)
-		err(EX_OSERR, "ioctl(FD_GOPTS)");
-	fdopts |= FDOPT_NOERRLOG;
-	if (ioctl(fd, FD_SOPTS, &fdopts) == -1)
-		err(EX_OSERR, "ioctl(FD_SOPTS, FDOPT_NOERRLOG)");
 	if (format) {
 		getname(type, &name, &descr);
 		fdtp = get_fmt(format, type);

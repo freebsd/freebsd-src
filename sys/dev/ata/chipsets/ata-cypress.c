@@ -76,7 +76,7 @@ ata_cypress_probe(device_t dev)
 	pci_get_subclass(dev) == PCIS_STORAGE_IDE) {
 	device_set_desc(dev, "Cypress 82C693 ATA controller");
 	ctlr->chipinit = ata_cypress_chipinit;
-	return 0;
+	return (BUS_PROBE_DEFAULT);
     }
     return ENXIO;
 }

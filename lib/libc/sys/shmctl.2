@@ -100,14 +100,13 @@ structure is defined as follows:
 .Bd -literal
 struct shmid_ds {
     struct ipc_perm shm_perm;   /* operation permission structure */
-    int             shm_segsz;  /* size of segment in bytes */
+    size_t          shm_segsz;  /* size of segment in bytes */
     pid_t           shm_lpid;   /* process ID of last shared memory op */
     pid_t           shm_cpid;   /* process ID of creator */
-    short           shm_nattch; /* number of current attaches */
+    int             shm_nattch; /* number of current attaches */
     time_t          shm_atime;  /* time of last shmat() */
     time_t          shm_dtime;  /* time of last shmdt() */
     time_t          shm_ctime;  /* time of last change by shmctl() */
-    void           *shm_internal; /* sysv stupidity */
 };
 .Ed
 .Sh RETURN VALUES
@@ -132,16 +131,6 @@ the shared memory segment's owner or creator.
 .It Bq Er EACCES
 Permission denied due to mismatch between operation and mode of
 shared memory segment.
-.El
-.Sh "BUGS"
-The segment size has size_t type.
-The shm_segsz member of the
-.Vt shmid_ds
-structure has type int, which is too short to represent the full range
-of values for a segment size.
-If shared memory limits are raised to allow segments with size > 2 GB
-to be created, be aware that IPC_STAT call may return a truncated value
-for shm_segsz.
 .El
 .Sh "SEE ALSO"
 .Xr shmat 2 ,

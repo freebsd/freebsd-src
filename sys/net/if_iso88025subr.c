@@ -149,7 +149,7 @@ iso88025_ifdetach(ifp, bpf)
 }
 
 int
-iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
+iso88025_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
         struct ifaddr *ifa;
         struct ifreq *ifr;
@@ -243,8 +243,10 @@ iso88025_output(ifp, m, dst, ro)
 	struct iso88025_header *th;
 	struct iso88025_header gen_th;
 	struct sockaddr_dl *sdl = NULL;
-	struct llentry *lle;
 	struct rtentry *rt0 = NULL;
+#if defined(INET) || defined(INET6)
+	struct llentry *lle;
+#endif
 
 	if (ro != NULL)
 		rt0 = ro->ro_rt;

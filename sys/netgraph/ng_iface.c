@@ -382,7 +382,8 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	/* Protect from deadly infinite recursion. */
-	while ((mtag = m_tag_locate(m, MTAG_NGIF, MTAG_NGIF_CALLED, NULL))) {
+	mtag = NULL;
+	while ((mtag = m_tag_locate(m, MTAG_NGIF, MTAG_NGIF_CALLED, mtag))) {
 		if (*(struct ifnet **)(mtag + 1) == ifp) {
 			log(LOG_NOTICE, "Loop detected on %s\n", ifp->if_xname);
 			m_freem(m);
@@ -482,9 +483,10 @@ ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
 	/* Copy length before the mbuf gets invalidated. */
 	len = m->m_pkthdr.len;
 
-	/* Send packet. If hook is not connected,
-	   mbuf will get freed. */
+	/* Send packet. If hook is not connected, mbuf will get freed. */
+	NG_OUTBOUND_THREAD_REF();
 	NG_SEND_DATA_ONLY(error, *get_hook_from_iffam(priv, iffam), m);
+	NG_OUTBOUND_THREAD_UNREF();
 
 	/* Update stats. */
 	if (error == 0) {
@@ -610,6 +612,7 @@ ng_iface_newhook(node_p node, hook_p hook, const char *name)
 		return (EISCONN);
 	*hookptr = hook;
 	NG_HOOK_HI_STACK(hook);
+	NG_HOOK_SET_TO_INBOUND(hook);
 	return (0);
 }
 
@@ -681,7 +684,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			struct ifaddr *ifa;
 
 			/* Return the first configured IP address */
-			IF_ADDR_LOCK(ifp);
+			if_addr_rlock(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				struct ng_cisco_ipaddr *ips;
 
@@ -699,7 +702,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 						ifa->ifa_netmask)->sin_addr;
 				break;
 			}
-			IF_ADDR_UNLOCK(ifp);
+			if_addr_runlock(ifp);
 
 			/* No IP addresses on this interface? */
 			if (ifa == NULL)

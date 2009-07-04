@@ -122,8 +122,6 @@ hardclockintr(struct trapframe *frame)
 		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	else
 		hardclock_cpu(TRAPF_USERMODE(frame));
-	if (!using_atrtc_timer)
-		statclockintr(frame);
 	return (FILTER_HANDLED);
 }
 
@@ -131,8 +129,7 @@ int
 statclockintr(struct trapframe *frame)
 {
 
-	if (profprocs != 0)
-		profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	profclockintr(frame);
 	statclock(TRAPF_USERMODE(frame));
 	return (FILTER_HANDLED);
 }
@@ -141,7 +138,10 @@ int
 profclockintr(struct trapframe *frame)
 {
 
-	profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	if (!using_atrtc_timer)
+		hardclockintr(frame);
+	if (profprocs != 0)
+		profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	return (FILTER_HANDLED);
 }
 
@@ -161,11 +161,30 @@ clkintr(struct trapframe *frame)
 		mtx_unlock_spin(&clock_lock);
 	}
 	KASSERT(!using_lapic_timer, ("clk interrupt enabled with lapic timer"));
+
+	if (using_atrtc_timer) {
 #ifdef SMP
-	if (smp_started)
-		ipi_all_but_self(IPI_HARDCLOCK);
+		if (smp_started)
+			ipi_all_but_self(IPI_HARDCLOCK);
 #endif
-	hardclockintr(frame);
+		hardclockintr(frame);
+	} else {
+		if (--pscnt <= 0) {
+			pscnt = psratio;
+#ifdef SMP
+			if (smp_started)
+				ipi_all_but_self(IPI_STATCLOCK);
+#endif
+			statclockintr(frame);
+		} else {
+#ifdef SMP
+			if (smp_started)
+				ipi_all_but_self(IPI_PROFCLOCK);
+#endif
+			profclockintr(frame);
+		}
+	}
+
 	return (FILTER_HANDLED);
 }
 
@@ -243,21 +262,19 @@ rtcintr(struct trapframe *frame)
 
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
 		flag = 1;
-		if (profprocs != 0) {
-			if (--pscnt == 0)
-				pscnt = psdiv;
-#ifdef SMP
-			if (pscnt != psdiv && smp_started)
-				ipi_all_but_self(IPI_PROFCLOCK);
-#endif
-			profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-		}
-		if (pscnt == psdiv) {
+		if (--pscnt <= 0) {
+			pscnt = psdiv;
 #ifdef SMP
 			if (smp_started)
 				ipi_all_but_self(IPI_STATCLOCK);
 #endif
-			statclock(TRAPF_USERMODE(frame));
+			statclockintr(frame);
+		} else {
+#ifdef SMP
+			if (smp_started)
+				ipi_all_but_self(IPI_PROFCLOCK);
+#endif
+			profclockintr(frame);
 		}
 	}
 	return(flag ? FILTER_HANDLED : FILTER_STRAY);
@@ -500,7 +517,11 @@ cpu_initclocks()
 			    INTR_TYPE_CLK, NULL);
 			atrtc_enable_intr();
 		} else {
-			profhz = stathz = hz;
+			profhz = hz;
+			if (hz < 128)
+				stathz = hz;
+			else
+				stathz = hz / (hz / 128);
 		}
 	}
 
@@ -511,7 +532,7 @@ void
 cpu_startprofclock(void)
 {
 
-	if (using_lapic_timer)
+	if (using_lapic_timer || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_PROF);
 	psdiv = pscnt = psratio;
@@ -521,7 +542,7 @@ void
 cpu_stopprofclock(void)
 {
 
-	if (using_lapic_timer)
+	if (using_lapic_timer || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_NOPROF);
 	psdiv = pscnt = 1;

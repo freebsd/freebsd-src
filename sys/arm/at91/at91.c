@@ -702,9 +702,8 @@ arm_mask_irq(uintptr_t nb)
 }
 
 int
-arm_get_next_irq()
+arm_get_next_irq(int last __unused)
 {
-
 	int status;
 	int irq;
 	

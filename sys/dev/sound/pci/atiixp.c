@@ -53,6 +53,10 @@
  *   random ninja hackery.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
@@ -140,13 +144,13 @@ struct atiixp_info {
 #define atiixp_assert(_sc)	snd_mtxassert((_sc)->lock)
 
 static uint32_t atiixp_fmt_32bit[] = {
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S32_LE,
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_S32_LE, 2, 0),
 	0
 };
 
 static uint32_t atiixp_fmt[] = {
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 
@@ -187,13 +191,13 @@ static int atiixp_wrcd(kobj_t, void *, int, uint32_t);
 static void  *atiixp_chan_init(kobj_t, void *, struct snd_dbuf *,
 						struct pcm_channel *, int);
 static int    atiixp_chan_setformat(kobj_t, void *, uint32_t);
-static int    atiixp_chan_setspeed(kobj_t, void *, uint32_t);
-static int    atiixp_chan_setfragments(kobj_t, void *, uint32_t, uint32_t);
-static int    atiixp_chan_setblocksize(kobj_t, void *, uint32_t);
+static uint32_t    atiixp_chan_setspeed(kobj_t, void *, uint32_t);
+static int         atiixp_chan_setfragments(kobj_t, void *, uint32_t, uint32_t);
+static uint32_t    atiixp_chan_setblocksize(kobj_t, void *, uint32_t);
 static void   atiixp_buildsgdt(struct atiixp_chinfo *);
 static int    atiixp_chan_trigger(kobj_t, void *, int);
 static __inline uint32_t atiixp_dmapos(struct atiixp_chinfo *);
-static int    atiixp_chan_getptr(kobj_t, void *);
+static uint32_t          atiixp_chan_getptr(kobj_t, void *);
 static struct pcmchan_caps *atiixp_chan_getcaps(kobj_t, void *);
 
 static void atiixp_intr(void *);
@@ -420,7 +424,7 @@ atiixp_wrcd(kobj_t obj, void *devinfo, int reg, uint32_t data)
 static kobj_method_t atiixp_ac97_methods[] = {
 	KOBJMETHOD(ac97_read,		atiixp_rdcd),
 	KOBJMETHOD(ac97_write,		atiixp_wrcd),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(atiixp_ac97);
 
@@ -515,7 +519,7 @@ atiixp_chan_setformat(kobj_t obj, void *data, uint32_t format)
 	return (0);
 }
 
-static int
+static uint32_t
 atiixp_chan_setspeed(kobj_t obj, void *data, uint32_t spd)
 {
 	/* XXX We're supposed to do VRA/DRA processing right here */
@@ -558,10 +562,10 @@ atiixp_chan_setfragments(kobj_t obj, void *data,
 	ch->blksz = sndbuf_getblksz(ch->buffer);
 	ch->blkcnt = sndbuf_getblkcnt(ch->buffer);
 
-	return (1);
+	return (0);
 }
 
-static int
+static uint32_t
 atiixp_chan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 {
 	struct atiixp_chinfo *ch = data;
@@ -735,7 +739,7 @@ atiixp_chan_trigger(kobj_t obj, void *data, int go)
 			ch->ptr = 0;
 			ch->prevptr = 0;
 			pollticks = ((uint64_t)hz * ch->blksz) /
-			    ((uint64_t)sndbuf_getbps(ch->buffer) *
+			    ((uint64_t)sndbuf_getalign(ch->buffer) *
 			    sndbuf_getspd(ch->buffer));
 			pollticks >>= 2;
 			if (pollticks > hz)
@@ -777,7 +781,7 @@ atiixp_chan_trigger(kobj_t obj, void *data, int go)
 				else
 					ch = &sc->rch;
 				pollticks = ((uint64_t)hz * ch->blksz) /
-				    ((uint64_t)sndbuf_getbps(ch->buffer) *
+				    ((uint64_t)sndbuf_getalign(ch->buffer) *
 				    sndbuf_getspd(ch->buffer));
 				pollticks >>= 2;
 				if (pollticks > hz)
@@ -818,7 +822,7 @@ atiixp_chan_trigger(kobj_t obj, void *data, int go)
 	return (0);
 }
 
-static int
+static uint32_t
 atiixp_chan_getptr(kobj_t obj, void *data)
 {
 	struct atiixp_chinfo *ch = data;
@@ -854,7 +858,7 @@ static kobj_method_t atiixp_chan_methods[] = {
 	KOBJMETHOD(channel_trigger,		atiixp_chan_trigger),
 	KOBJMETHOD(channel_getptr,		atiixp_chan_getptr),
 	KOBJMETHOD(channel_getcaps,		atiixp_chan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(atiixp_chan);
 
@@ -954,7 +958,6 @@ atiixp_chip_pre_init(struct atiixp_info *sc)
 	atiixp_unlock(sc);
 }
 
-#ifdef SND_DYNSYSCTL
 static int
 sysctl_atiixp_polling(SYSCTL_HANDLER_ARGS)
 {
@@ -994,7 +997,6 @@ sysctl_atiixp_polling(SYSCTL_HANDLER_ARGS)
 
 	return (err);
 }
-#endif
 
 static void
 atiixp_chip_post_init(void *arg)
@@ -1090,12 +1092,10 @@ atiixp_chip_post_init(void *arg)
 	for (i = 0; i < ATI_IXP_NRCHAN; i++)
 		pcm_addchan(sc->dev, PCMDIR_REC, &atiixp_chan_class, sc);
 
-#ifdef SND_DYNSYSCTL
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
 	    "polling", CTLTYPE_INT | CTLFLAG_RW, sc->dev, sizeof(sc->dev),
 	    sysctl_atiixp_polling, "I", "Enable polling mode");
-#endif
 
 	snprintf(status, SND_STATUSLEN, "at memory 0x%lx irq %ld %s",
 	    rman_get_start(sc->reg), rman_get_start(sc->irq),

@@ -94,7 +94,7 @@ at91_cfata_attach(device_t dev)
 	/* XXX: init CF controller? */
 
 	callout_init(&sc->tick, 1);	/* Callout to poll the device. */
-	device_add_child(dev, "ata", devclass_find_free_unit(ata_devclass, 0));
+	device_add_child(dev, "ata", -1);
 	bus_generic_attach(dev);
 	return (0);
 }

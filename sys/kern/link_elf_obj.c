@@ -139,7 +139,7 @@ static int	link_elf_each_function_nameval(linker_file_t,
 				linker_function_nameval_callback_t,
 				void *);
 static void	link_elf_reloc_local(linker_file_t);
-static long	link_elf_symtab_get(linker_file_t, Elf_Sym **);
+static long	link_elf_symtab_get(linker_file_t, const Elf_Sym **);
 static long	link_elf_strtab_get(linker_file_t, caddr_t *);
 
 static Elf_Addr elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps);
@@ -333,6 +333,20 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 			if (ef->shstrtab && shdr[i].sh_name != 0)
 				ef->progtab[pb].name =
 				    ef->shstrtab + shdr[i].sh_name;
+			if (ef->progtab[pb].name != NULL && 
+			    !strcmp(ef->progtab[pb].name, "set_pcpu")) {
+				void *dpcpu;
+
+				dpcpu = dpcpu_alloc(shdr[i].sh_size);
+				if (dpcpu == NULL) {
+					error = ENOSPC;
+					goto out;
+				}
+				memcpy(dpcpu, ef->progtab[pb].addr,
+				    ef->progtab[pb].size);
+				dpcpu_copy(dpcpu, shdr[i].sh_size);
+				ef->progtab[pb].addr = dpcpu;
+			}
 
 			/* Update all symbol values with the offset. */
 			for (j = 0; j < ef->ddbsymcnt; j++) {
@@ -712,9 +726,27 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			alignmask = shdr[i].sh_addralign - 1;
 			mapbase += alignmask;
 			mapbase &= ~alignmask;
-			ef->progtab[pb].addr = (void *)(uintptr_t)mapbase;
-			if (shdr[i].sh_type == SHT_PROGBITS) {
+			if (ef->shstrtab && shdr[i].sh_name != 0)
+				ef->progtab[pb].name =
+				    ef->shstrtab + shdr[i].sh_name;
+			else if (shdr[i].sh_type == SHT_PROGBITS)
 				ef->progtab[pb].name = "<<PROGBITS>>";
+			else
+				ef->progtab[pb].name = "<<NOBITS>>";
+			if (ef->progtab[pb].name != NULL && 
+			    !strcmp(ef->progtab[pb].name, "set_pcpu"))
+				ef->progtab[pb].addr =
+				    dpcpu_alloc(shdr[i].sh_size);
+			else
+				ef->progtab[pb].addr =
+				    (void *)(uintptr_t)mapbase;
+			if (ef->progtab[pb].addr == NULL) {
+				error = ENOSPC;
+				goto out;
+			}
+			ef->progtab[pb].size = shdr[i].sh_size;
+			ef->progtab[pb].sec = i;
+			if (shdr[i].sh_type == SHT_PROGBITS) {
 				error = vn_rdwr(UIO_READ, nd.ni_vp,
 				    ef->progtab[pb].addr,
 				    shdr[i].sh_size, shdr[i].sh_offset,
@@ -726,15 +758,12 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 					error = EINVAL;
 					goto out;
 				}
-			} else {
-				ef->progtab[pb].name = "<<NOBITS>>";
+				/* Initialize the per-cpu area. */
+				if (ef->progtab[pb].addr != (void *)mapbase)
+					dpcpu_copy(ef->progtab[pb].addr,
+					    shdr[i].sh_size);
+			} else
 				bzero(ef->progtab[pb].addr, shdr[i].sh_size);
-			}
-			ef->progtab[pb].size = shdr[i].sh_size;
-			ef->progtab[pb].sec = i;
-			if (ef->shstrtab && shdr[i].sh_name != 0)
-				ef->progtab[pb].name =
-				    ef->shstrtab + shdr[i].sh_name;
 
 			/* Update all symbol values with the offset. */
 			for (j = 0; j < ef->ddbsymcnt; j++) {
@@ -839,6 +868,17 @@ link_elf_unload_file(linker_file_t file)
 	/* Notify MD code that a module is being unloaded. */
 	elf_cpu_unload_file(file);
 
+	if (ef->progtab) {
+		for (i = 0; i < ef->nprogtab; i++) {
+			if (ef->progtab[i].size == 0)
+				continue;
+			if (ef->progtab[i].name == NULL)
+				continue;
+			if (!strcmp(ef->progtab[i].name, "set_pcpu"))
+				dpcpu_free(ef->progtab[i].addr,
+				    ef->progtab[i].size);
+		}
+	}
 	if (ef->preloaded) {
 		if (ef->reltab)
 			free(ef->reltab, M_LINKER);
@@ -1291,7 +1331,7 @@ link_elf_reloc_local(linker_file_t lf)
 }
 
 static long
-link_elf_symtab_get(linker_file_t lf, Elf_Sym **symtab)
+link_elf_symtab_get(linker_file_t lf, const Elf_Sym **symtab)
 {
     elf_file_t ef = (elf_file_t)lf;
     

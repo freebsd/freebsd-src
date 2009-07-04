@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Ariff Abdullah <ariff@FreeBSD.org>
+ * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,159 +26,316 @@
 
 /* feeder_volume, a long 'Lost Technology' rather than a new feature. */
 
+#ifdef _KERNEL
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
 #include <dev/sound/pcm/sound.h>
+#include <dev/sound/pcm/pcm.h>
 #include "feeder_if.h"
 
+#define SND_USE_FXDIV
+#include "snd_fxdiv_gen.h"
+
 SND_DECLARE_FILE("$FreeBSD$");
+#endif
 
-#define FVOL_OSS_SCALE		100
-#define FVOL_RESOLUTION		PCM_FXSHIFT
-#define FVOL_CLAMP(val)		(((val) << FVOL_RESOLUTION) / FVOL_OSS_SCALE)
-#define FVOL_LEFT(val)		FVOL_CLAMP((val) & 0x7f)
-#define FVOL_RIGHT(val)		FVOL_LEFT((val) >> 8)
-#define FVOL_MAX		(1 << FVOL_RESOLUTION)
-#define FVOL_CALC(sval, vval)	(((sval) * (vval)) >> FVOL_RESOLUTION)
+typedef void (*feed_volume_t)(int *, int *, uint32_t, uint8_t *, uint32_t);
 
-typedef uint32_t (*feed_volume_filter)(uint8_t *, int *, uint32_t);
+#define FEEDVOLUME_CALC8(s, v)	(SND_VOL_CALC_SAMPLE((intpcm_t)		\
+				 (s) << 8, v) >> 8)
+#define FEEDVOLUME_CALC16(s, v)	SND_VOL_CALC_SAMPLE((intpcm_t)(s), v)
+#define FEEDVOLUME_CALC24(s, v)	SND_VOL_CALC_SAMPLE((intpcm64_t)(s), v)
+#define FEEDVOLUME_CALC32(s, v)	SND_VOL_CALC_SAMPLE((intpcm64_t)(s), v)
 
-#define FEEDER_VOLUME_FILTER(FMTBIT, VOL_INTCAST, SIGN, SIGNS, ENDIAN, ENDIANS)	\
-static uint32_t									\
-feed_volume_filter_##SIGNS##FMTBIT##ENDIANS(uint8_t *b, int *vol,		\
-							uint32_t count)		\
-{										\
-	int32_t j;								\
-	int i;									\
-										\
-	i = count;								\
-	b += i;									\
-										\
-	do {									\
-		b -= PCM_##FMTBIT##_BPS;					\
-		i -= PCM_##FMTBIT##_BPS;					\
-		j = PCM_READ_##SIGN##FMTBIT##_##ENDIAN(b);			\
-		j = FVOL_CALC((VOL_INTCAST)j,					\
-		    vol[(i / PCM_##FMTBIT##_BPS) & 1]);				\
-		PCM_WRITE_##SIGN##FMTBIT##_##ENDIAN(b, j);			\
-	} while (i != 0);							\
-										\
-	return (count);								\
+#define FEEDVOLUME_DECLARE(SIGN, BIT, ENDIAN)				\
+static void								\
+feed_volume_##SIGN##BIT##ENDIAN(int *vol, int *matrix,			\
+    uint32_t channels, uint8_t *dst, uint32_t count)			\
+{									\
+	intpcm##BIT##_t v;						\
+	intpcm_t x;							\
+	uint32_t i;							\
+									\
+	dst += count * PCM_##BIT##_BPS * channels;			\
+	do {								\
+		i = channels;						\
+		do {							\
+			dst -= PCM_##BIT##_BPS;				\
+			i--;						\
+			x = PCM_READ_##SIGN##BIT##_##ENDIAN(dst);	\
+			v = FEEDVOLUME_CALC##BIT(x, vol[matrix[i]]);	\
+			x = PCM_CLAMP_##SIGN##BIT(v);			\
+			_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, x);	\
+		} while (i != 0);					\
+	} while (--count != 0);						\
 }
 
-FEEDER_VOLUME_FILTER(8, int32_t, S, s, NE, ne)
-FEEDER_VOLUME_FILTER(16, int32_t, S, s, LE, le)
-FEEDER_VOLUME_FILTER(24, int32_t, S, s, LE, le)
-FEEDER_VOLUME_FILTER(32, intpcm_t, S, s, LE, le)
-FEEDER_VOLUME_FILTER(16, int32_t, S, s, BE, be)
-FEEDER_VOLUME_FILTER(24, int32_t, S, s, BE, be)
-FEEDER_VOLUME_FILTER(32, intpcm_t, S, s, BE, be)
-FEEDER_VOLUME_FILTER(8, int32_t, U, u, NE, ne)
-FEEDER_VOLUME_FILTER(16, int32_t, U, u, LE, le)
-FEEDER_VOLUME_FILTER(24, int32_t, U, u, LE, le)
-FEEDER_VOLUME_FILTER(32, intpcm_t, U, u, LE, le)
-FEEDER_VOLUME_FILTER(16, int32_t, U, u, BE, be)
-FEEDER_VOLUME_FILTER(24, int32_t, U, u, BE, be)
-FEEDER_VOLUME_FILTER(32, intpcm_t, U, u, BE, be)
+#if BYTE_ORDER == LITTLE_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
+FEEDVOLUME_DECLARE(S, 16, LE)
+FEEDVOLUME_DECLARE(S, 32, LE)
+#endif
+#if BYTE_ORDER == BIG_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
+FEEDVOLUME_DECLARE(S, 16, BE)
+FEEDVOLUME_DECLARE(S, 32, BE)
+#endif
+#ifdef SND_FEEDER_MULTIFORMAT
+FEEDVOLUME_DECLARE(S,  8, NE)
+FEEDVOLUME_DECLARE(S, 24, LE)
+FEEDVOLUME_DECLARE(S, 24, BE)
+FEEDVOLUME_DECLARE(U,  8, NE)
+FEEDVOLUME_DECLARE(U, 16, LE)
+FEEDVOLUME_DECLARE(U, 24, LE)
+FEEDVOLUME_DECLARE(U, 32, LE)
+FEEDVOLUME_DECLARE(U, 16, BE)
+FEEDVOLUME_DECLARE(U, 24, BE)
+FEEDVOLUME_DECLARE(U, 32, BE)
+#endif
 
 struct feed_volume_info {
+	uint32_t bps, channels;
+	feed_volume_t apply;
+	int volume_class;
+	int state;
+	int matrix[SND_CHN_MAX];
+};
+
+#define FEEDVOLUME_ENTRY(SIGN, BIT, ENDIAN)				\
+	{								\
+		AFMT_##SIGN##BIT##_##ENDIAN,				\
+		feed_volume_##SIGN##BIT##ENDIAN				\
+	}
+
+static const struct {
 	uint32_t format;
-	int bps;
-	feed_volume_filter filter;
+	feed_volume_t apply;
+} feed_volume_info_tab[] = {
+#if BYTE_ORDER == LITTLE_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
+	FEEDVOLUME_ENTRY(S, 16, LE),
+	FEEDVOLUME_ENTRY(S, 32, LE),
+#endif
+#if BYTE_ORDER == BIG_ENDIAN || defined(SND_FEEDER_MULTIFORMAT)
+	FEEDVOLUME_ENTRY(S, 16, BE),
+	FEEDVOLUME_ENTRY(S, 32, BE),
+#endif
+#ifdef SND_FEEDER_MULTIFORMAT
+	FEEDVOLUME_ENTRY(S,  8, NE),
+	FEEDVOLUME_ENTRY(S, 24, LE),
+	FEEDVOLUME_ENTRY(S, 24, BE),
+	FEEDVOLUME_ENTRY(U,  8, NE),
+	FEEDVOLUME_ENTRY(U, 16, LE),
+	FEEDVOLUME_ENTRY(U, 24, LE),
+	FEEDVOLUME_ENTRY(U, 32, LE),
+	FEEDVOLUME_ENTRY(U, 16, BE),
+	FEEDVOLUME_ENTRY(U, 24, BE),
+	FEEDVOLUME_ENTRY(U, 32, BE)
+#endif
 };
 
-static struct feed_volume_info feed_volume_tbl[] = {
-	{ AFMT_S8,     PCM_8_BPS,  feed_volume_filter_s8ne  },
-	{ AFMT_S16_LE, PCM_16_BPS, feed_volume_filter_s16le },
-	{ AFMT_S24_LE, PCM_24_BPS, feed_volume_filter_s24le },
-	{ AFMT_S32_LE, PCM_32_BPS, feed_volume_filter_s32le },
-	{ AFMT_S16_BE, PCM_16_BPS, feed_volume_filter_s16be },
-	{ AFMT_S24_BE, PCM_24_BPS, feed_volume_filter_s24be },
-	{ AFMT_S32_BE, PCM_32_BPS, feed_volume_filter_s32be },
-	{ AFMT_U8,     PCM_8_BPS,  feed_volume_filter_u8ne  },
-	{ AFMT_U16_LE, PCM_16_BPS, feed_volume_filter_u16le },
-	{ AFMT_U24_LE, PCM_24_BPS, feed_volume_filter_u24le },
-	{ AFMT_U32_LE, PCM_32_BPS, feed_volume_filter_u32le },
-	{ AFMT_U16_BE, PCM_16_BPS, feed_volume_filter_u16be },
-	{ AFMT_U24_BE, PCM_24_BPS, feed_volume_filter_u24be },
-	{ AFMT_U32_BE, PCM_32_BPS, feed_volume_filter_u32be },
-};
-
-#define FVOL_DATA(i, c)		((intptr_t)((((i) & 0x1f) << 4) | ((c) & 0xf)))
-#define FVOL_INFOIDX(m)		(((m) >> 4) & 0x1f)
-#define FVOL_CHANNELS(m)	((m) & 0xf)
+#define FEEDVOLUME_TAB_SIZE	((int32_t)				\
+				 (sizeof(feed_volume_info_tab) /	\
+				  sizeof(feed_volume_info_tab[0])))
 
 static int
 feed_volume_init(struct pcm_feeder *f)
 {
-	int i, channels;
+	struct feed_volume_info *info;
+	struct pcmchan_matrix *m;
+	uint32_t i;
+	int ret;
 
-	if (f->desc->in != f->desc->out)
+	if (f->desc->in != f->desc->out ||
+	    AFMT_CHANNEL(f->desc->in) > SND_CHN_MAX)
 		return (EINVAL);
 
-	/* For now, this is mandatory! */
-	if (!(f->desc->out & AFMT_STEREO))
-		return (EINVAL);
+	for (i = 0; i < FEEDVOLUME_TAB_SIZE; i++) {
+		if (AFMT_ENCODING(f->desc->in) ==
+		    feed_volume_info_tab[i].format) {
+			info = malloc(sizeof(*info), M_DEVBUF,
+			    M_NOWAIT | M_ZERO);
+			if (info == NULL)
+				return (ENOMEM);
 
-	channels = 2;
+			info->bps = AFMT_BPS(f->desc->in);
+			info->channels = AFMT_CHANNEL(f->desc->in);
+			info->apply = feed_volume_info_tab[i].apply;
+			info->volume_class = SND_VOL_C_PCM;
+			info->state = FEEDVOLUME_ENABLE;
 
-	for (i = 0; i < sizeof(feed_volume_tbl) / sizeof(feed_volume_tbl[0]);
-	    i++) {
-		if ((f->desc->out & ~AFMT_STEREO) ==
-		    feed_volume_tbl[i].format) {
-			f->data = (void *)FVOL_DATA(i, channels);
-			return (0);
+			f->data = info;
+			m = feeder_matrix_default_channel_map(info->channels);
+			if (m == NULL) {
+				free(info, M_DEVBUF);
+				return (EINVAL);
+			}
+
+			ret = feeder_volume_apply_matrix(f, m);
+			if (ret != 0)
+				free(info, M_DEVBUF);
+
+			return (ret);
 		}
 	}
 
-	return (-1);
+	return (EINVAL);
 }
 
 static int
-feed_volume(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
-						uint32_t count, void *source)
+feed_volume_free(struct pcm_feeder *f)
 {
 	struct feed_volume_info *info;
-	int vol[2];
-	int k, smpsz;
 
-	vol[0] = FVOL_LEFT(c->volume);
-	vol[1] = FVOL_RIGHT(c->volume);
+	info = f->data;
+	if (info != NULL)
+		free(info, M_DEVBUF);
 
-	if (vol[0] == FVOL_MAX && vol[1] == FVOL_MAX)
+	f->data = NULL;
+
+	return (0);
+}
+
+static int
+feed_volume_set(struct pcm_feeder *f, int what, int value)
+{
+	struct feed_volume_info *info;
+	struct pcmchan_matrix *m;
+	int ret;
+
+	info = f->data;
+	ret = 0;
+
+	switch (what) {
+	case FEEDVOLUME_CLASS:
+		if (value < SND_VOL_C_BEGIN || value > SND_VOL_C_END)
+			return (EINVAL);
+		info->volume_class = value;
+		break;
+	case FEEDVOLUME_CHANNELS:
+		if (value < SND_CHN_MIN || value > SND_CHN_MAX)
+			return (EINVAL);
+		m = feeder_matrix_default_channel_map(value);
+		if (m == NULL)
+			return (EINVAL);
+		ret = feeder_volume_apply_matrix(f, m);
+		break;
+	case FEEDVOLUME_STATE:
+		if (!(value == FEEDVOLUME_ENABLE || value == FEEDVOLUME_BYPASS))
+			return (EINVAL);
+		info->state = value;
+		break;
+	default:
+		return (EINVAL);
+		break;
+	}
+
+	return (ret);
+}
+
+static int
+feed_volume_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
+    uint32_t count, void *source)
+{
+	struct feed_volume_info *info;
+	uint32_t j, align;
+	int i, *vol, *matrix;
+	uint8_t *dst;
+
+	/*
+	 * Fetch filter data operation.
+	 */
+	info = f->data;
+
+	if (info->state == FEEDVOLUME_BYPASS)
 		return (FEEDER_FEED(f->source, c, b, count, source));
 
-	info = &feed_volume_tbl[FVOL_INFOIDX((intptr_t)f->data)];
-	smpsz = info->bps * FVOL_CHANNELS((intptr_t)f->data);
-	if (count < smpsz)
-		return (0);
+	vol = c->volume[SND_VOL_C_VAL(info->volume_class)];
+	matrix = info->matrix;
 
-	k = FEEDER_FEED(f->source, c, b, count - (count % smpsz), source);
-	if (k < smpsz)
-		return (0);
+	/*
+	 * First, let see if we really need to apply gain at all.
+	 */
+	j = 0;
+	i = info->channels;
+	do {
+		if (vol[matrix[--i]] != SND_VOL_FLAT) {
+			j = 1;
+			break;
+		}
+	} while (i != 0);
 
-	k -= k % smpsz;
-	return (info->filter(b, vol, k));
+	/* Nope, just bypass entirely. */
+	if (j == 0)
+		return (FEEDER_FEED(f->source, c, b, count, source));
+
+	dst = b;
+	align = info->bps * info->channels;
+
+	do {
+		if (count < align)
+			break;
+
+		j = SND_FXDIV(FEEDER_FEED(f->source, c, dst, count, source),
+		    align);
+		if (j == 0)
+			break;
+
+		info->apply(vol, matrix, info->channels, dst, j);
+
+		j *= align;
+		dst += j;
+		count -= j;
+
+	} while (count != 0);
+
+	return (dst - b);
 }
 
 static struct pcm_feederdesc feeder_volume_desc[] = {
-	{FEEDER_VOLUME, AFMT_S8 | AFMT_STEREO, AFMT_S8 | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_S16_LE | AFMT_STEREO, AFMT_S16_LE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_S24_LE | AFMT_STEREO, AFMT_S24_LE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_S32_LE | AFMT_STEREO, AFMT_S32_LE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_S16_BE | AFMT_STEREO, AFMT_S16_BE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_S24_BE | AFMT_STEREO, AFMT_S24_BE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_S32_BE | AFMT_STEREO, AFMT_S32_BE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_U8 | AFMT_STEREO, AFMT_U8 | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_U16_LE | AFMT_STEREO, AFMT_U16_LE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_U24_LE | AFMT_STEREO, AFMT_U24_LE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_U32_LE | AFMT_STEREO, AFMT_U32_LE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_U16_BE | AFMT_STEREO, AFMT_U16_BE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_U24_BE | AFMT_STEREO, AFMT_U24_BE | AFMT_STEREO, 0},
-	{FEEDER_VOLUME, AFMT_U32_BE | AFMT_STEREO, AFMT_U32_BE | AFMT_STEREO, 0},
-	{0, 0, 0, 0},
+	{ FEEDER_VOLUME, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0 }
 };
+
 static kobj_method_t feeder_volume_methods[] = {
 	KOBJMETHOD(feeder_init,		feed_volume_init),
-	KOBJMETHOD(feeder_feed,		feed_volume),
-	{0, 0}
+	KOBJMETHOD(feeder_free,		feed_volume_free),
+	KOBJMETHOD(feeder_set,		feed_volume_set),
+	KOBJMETHOD(feeder_feed,		feed_volume_feed),
+	KOBJMETHOD_END
 };
-FEEDER_DECLARE(feeder_volume, 2, NULL);
+
+FEEDER_DECLARE(feeder_volume, NULL);
+
+/* Extern */
+
+/*
+ * feeder_volume_apply_matrix(): For given matrix map, apply its configuration
+ *                               to feeder_volume matrix structure. There are
+ *                               possibilites that feeder_volume be inserted
+ *                               before or after feeder_matrix, which in this
+ *                               case feeder_volume must be in a good terms
+ *                               with _current_ matrix.
+ */
+int
+feeder_volume_apply_matrix(struct pcm_feeder *f, struct pcmchan_matrix *m)
+{
+	struct feed_volume_info *info;
+	uint32_t i;
+
+	if (f == NULL || f->desc == NULL || f->desc->type != FEEDER_VOLUME ||
+	    f->data == NULL || m == NULL || m->channels < SND_CHN_MIN ||
+	    m->channels > SND_CHN_MAX)
+		return (EINVAL);
+
+	info = f->data;
+
+	for (i = 0; i < (sizeof(info->matrix) / sizeof(info->matrix[0])); i++) {
+		if (i < m->channels)
+			info->matrix[i] = m->map[i].type;
+		else
+			info->matrix[i] = SND_CHN_T_FL;
+	}
+
+	info->channels = m->channels;
+
+	return (0);
+}

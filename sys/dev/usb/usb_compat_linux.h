@@ -39,46 +39,6 @@ typedef void (usb_complete_t)(struct urb *);
 #define	USB_MAX_FULL_SPEED_ISOC_FRAMES (60 * 1)
 #define	USB_MAX_HIGH_SPEED_ISOC_FRAMES (60 * 8)
 
-/*
- * Linux compatible USB device drivers put their device information
- * into the "usb_device_id" structure using the "USB_DEVICE()" macro.
- * The "MODULE_DEVICE_TABLE()" macro can be used to export this
- * information to userland.
- */
-struct usb_device_id {
-	/* which fields to match against */
-	uint16_t match_flags;
-#define	USB_DEVICE_ID_MATCH_VENDOR		0x0001
-#define	USB_DEVICE_ID_MATCH_PRODUCT		0x0002
-#define	USB_DEVICE_ID_MATCH_DEV_LO		0x0004
-#define	USB_DEVICE_ID_MATCH_DEV_HI		0x0008
-#define	USB_DEVICE_ID_MATCH_DEV_CLASS		0x0010
-#define	USB_DEVICE_ID_MATCH_DEV_SUBCLASS	0x0020
-#define	USB_DEVICE_ID_MATCH_DEV_PROTOCOL	0x0040
-#define	USB_DEVICE_ID_MATCH_INT_CLASS		0x0080
-#define	USB_DEVICE_ID_MATCH_INT_SUBCLASS	0x0100
-#define	USB_DEVICE_ID_MATCH_INT_PROTOCOL	0x0200
-
-	/* Used for product specific matches; the BCD range is inclusive */
-	uint16_t idVendor;
-	uint16_t idProduct;
-	uint16_t bcdDevice_lo;
-	uint16_t bcdDevice_hi;
-
-	/* Used for device class matches */
-	uint8_t	bDeviceClass;
-	uint8_t	bDeviceSubClass;
-	uint8_t	bDeviceProtocol;
-
-	/* Used for interface class matches */
-	uint8_t	bInterfaceClass;
-	uint8_t	bInterfaceSubClass;
-	uint8_t	bInterfaceProtocol;
-
-	/* Hook for driver specific information */
-	unsigned long driver_info;
-};
-
 #define	USB_DEVICE_ID_MATCH_DEVICE \
 	(USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_PRODUCT)
 
@@ -214,7 +174,7 @@ struct usb_driver {
 #define	PIPE_BULK			0x02	/* UE_BULK */
 
 /* Whenever Linux references an USB endpoint:
- * a) to initialize "urb->pipe"
+ * a) to initialize "urb->endpoint"
  * b) second argument passed to "usb_control_msg()"
  *
  * Then it uses one of the following macros. The "endpoint" argument
@@ -271,7 +231,7 @@ struct urb {
 	struct cv cv_wait;
 
 	struct usb_device *dev;		/* (in) pointer to associated device */
-	struct usb_host_endpoint *pipe;	/* (in) pipe pointer */
+	struct usb_host_endpoint *endpoint;	/* (in) pipe pointer */
 	uint8_t *setup_packet;		/* (in) setup packet (control only) */
 	uint8_t *bsd_data_ptr;
 	void   *transfer_buffer;	/* (in) associated data buffer */
@@ -311,7 +271,7 @@ struct urb {
 int	usb_submit_urb(struct urb *urb, uint16_t mem_flags);
 int	usb_unlink_urb(struct urb *urb);
 int	usb_clear_halt(struct usb_device *dev, struct usb_host_endpoint *uhe);
-int	usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *pipe,
+int	usb_control_msg(struct usb_device *dev, struct usb_host_endpoint *ep,
 	    uint8_t request, uint8_t requesttype, uint16_t value,
 	    uint16_t index, void *data, uint16_t size, usb_timeout_t timeout);
 int	usb_set_interface(struct usb_device *dev, uint8_t ifnum,
@@ -328,7 +288,7 @@ struct usb_interface *usb_ifnum_to_if(struct usb_device *dev, uint8_t iface_no);
 
 void   *usb_buffer_alloc(struct usb_device *dev, usb_size_t size,
 	    uint16_t mem_flags, uint8_t *dma_addr);
-void   *usb_get_intfdata(struct usb_interface *intf);
+void   *usbd_get_intfdata(struct usb_interface *intf);
 
 void	usb_buffer_free(struct usb_device *dev, usb_size_t size, void *addr, uint8_t dma_addr);
 void	usb_free_urb(struct urb *urb);

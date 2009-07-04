@@ -235,7 +235,8 @@ kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
 
 	*min = vm_map_min(parent);
 	ret = vm_map_find(parent, NULL, 0, min, size, superpage_align ?
-	    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
+	    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL,
+	    MAP_ACC_NO_CHARGE);
 	if (ret != KERN_SUCCESS)
 		panic("kmem_suballoc: bad status return of %d", ret);
 	*max = *min + size;
@@ -422,6 +423,8 @@ kmem_alloc_wait(map, size)
 	vm_offset_t addr;
 
 	size = round_page(size);
+	if (!swap_reserve(size))
+		return (0);
 
 	for (;;) {
 		/*
@@ -434,12 +437,14 @@ kmem_alloc_wait(map, size)
 		/* no space now; see if we can ever get space */
 		if (vm_map_max(map) - vm_map_min(map) < size) {
 			vm_map_unlock(map);
+			swap_release(size);
 			return (0);
 		}
 		map->needs_wakeup = TRUE;
 		vm_map_unlock_and_wait(map, 0);
 	}
-	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
+	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_ALL,
+	    VM_PROT_ALL, MAP_ACC_CHARGED);
 	vm_map_unlock(map);
 	return (addr);
 }

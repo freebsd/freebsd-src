@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
+#include <sys/lock.h>
 #include <sys/sx.h>
 
 #include <net/if.h>
@@ -617,7 +618,7 @@ netfront_send_fake_arp(device_t dev, struct netfront_info *info)
 /**
  * Callback received when the backend's state changes.
  */
-static void
+static int
 netfront_backend_changed(device_t dev, XenbusState newstate)
 {
 	struct netfront_info *sc = device_get_softc(dev);
@@ -645,6 +646,7 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		xenbus_set_state(dev, XenbusStateClosed);
 		break;
 	}
+	return (0);
 }
 
 static void

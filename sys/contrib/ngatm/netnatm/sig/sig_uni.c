@@ -109,7 +109,7 @@ static const char *sig_names[] = {
 };
 
 static const char *verb_names[] = {
-# define UNI_DEBUG_DEFINE(D) [UNI_FAC_##D] #D,
+# define UNI_DEBUG_DEFINE(D) [UNI_FAC_##D] = #D,
 	UNI_DEBUG_FACILITIES
 # undef UNI_DEBUG_DEFINE
 };

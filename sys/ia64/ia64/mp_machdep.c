@@ -207,6 +207,7 @@ cpu_mp_add(u_int acpiid, u_int apicid, u_int apiceid)
 {
 	struct pcpu *pc;
 	u_int64_t lid;
+	void *dpcpu;
 
 	/* Ignore any processor numbers outside our range */
 	if (acpiid > mp_maxid)
@@ -224,7 +225,9 @@ cpu_mp_add(u_int acpiid, u_int apicid, u_int apiceid)
 
 	if (acpiid != 0) {
 		pc = (struct pcpu *)malloc(sizeof(*pc), M_SMP, M_WAITOK);
+		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
 		pcpu_init(pc, acpiid, sizeof(*pc));
+		dpcpu_init(dpcpu, acpiid);
 	} else
 		pc = pcpup;
 

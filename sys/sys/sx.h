@@ -293,7 +293,7 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 #ifdef INVARIANTS
 #define	sx_assert(sx, what)	_sx_assert((sx), (what), LOCK_FILE, LOCK_LINE)
 #else
-#define	sx_assert(sx, what)
+#define	sx_assert(sx, what)	(void)0
 #endif
 
 #endif /* _KERNEL */

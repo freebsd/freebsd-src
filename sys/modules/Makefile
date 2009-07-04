@@ -19,6 +19,7 @@ SUBDIR=	${_3dfx} \
 	aio \
 	${_amd} \
 	${_amdtemp} \
+	alc \
 	ale \
 	amr \
 	${_an} \
@@ -42,6 +43,7 @@ SUBDIR=	${_3dfx} \
 	${_canbepm} \
 	${_canbus} \
 	${_cardbus} \
+	cas \
 	${_cbb} \
 	cd9660 \
 	cd9660_iconv \

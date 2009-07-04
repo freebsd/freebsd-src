@@ -46,6 +46,8 @@
 #define	IER_ERLS	0x4
 #define	IER_EMSC	0x8
 
+#define	IER_BITS	"\20\1ERXRDY\2ETXRDY\3ERLS\4EMSC"
+
 #define	com_iir		2	/* interrupt identification register (R) */
 #define	REG_IIR		com_iir
 #define	IIR_IMASK	0xf
@@ -56,6 +58,8 @@
 #define	IIR_NOPEND	0x1
 #define	IIR_MLSC	0x0
 #define	IIR_FIFO_MASK	0xc0	/* set if FIFOs are enabled */
+
+#define	IIR_BITS	"\20\1NOPEND\2TXRDY\3RXRDY"
 
 #define	com_lcr		3	/* line control register (R/W) */
 #define	com_cfcr	com_lcr	/* character format control register (R/W) */
@@ -97,6 +101,8 @@
 #define	MCR_RTS		0x02
 #define	MCR_DTR		0x01
 
+#define	MCR_BITS	"\20\1DTR\2RTS\3DRS\4IE\5LOOPBACK\10PRESCALE"
+
 #define	com_lsr		5	/* line status register (R/W) */
 #define	REG_LSR		com_lsr
 #define	LSR_RCV_FIFO	0x80
@@ -111,6 +117,8 @@
 #define	LSR_RXRDY	0x01
 #define	LSR_RCV_MASK	0x1f
 
+#define	LSR_BITS	"\20\1RXRDY\2OE\3PE\4FE\5BI\6THRE\7TEMT\10RCV_FIFO"
+
 #define	com_msr		6	/* modem status register (R/W) */
 #define	REG_MSR		com_msr
 #define	MSR_DCD		0x80
@@ -121,6 +129,8 @@
 #define	MSR_TERI	0x04
 #define	MSR_DDSR	0x02
 #define	MSR_DCTS	0x01
+
+#define	MSR_BITS	"\20\1DCTS\2DDSR\3TERI\4DDCD\5CTS\6DSR\7RI\10DCD"
 
 /* 8250 multiplexed registers #[0-1].  Access enabled by LCR[7]. */
 #define	com_dll		0	/* divisor latch low (R/W) */
@@ -153,6 +163,8 @@
 #define	FIFO_RX_MEDH	FCR_RX_MEDH
 #define	FCR_RX_HIGH	0xc0
 #define	FIFO_RX_HIGH	FCR_RX_HIGH
+
+#define	FCR_BITS	"\20\1ENABLE\2RCV_RST\3XMT_RST\4DMA"
 
 /* 16650 registers #2,[4-7].  Access enabled by LCR_EFR_ENABLE. */
 

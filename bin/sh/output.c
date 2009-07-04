@@ -133,32 +133,38 @@ void
 outqstr(const char *p, struct output *file)
 {
 	char ch;
+	int inquotes;
 
 	if (p[0] == '\0') {
 		outstr("''", file);
 		return;
 	}
-	if (p[strcspn(p, "|&;<>()$`\\\"'")] == '\0' && (!ifsset() ||
-	    p[strcspn(p, ifsval())] == '\0')) {
+	/* Caller will handle '=' if necessary */
+	if (p[strcspn(p, "|&;<>()$`\\\"' \t\n*?[~#")] == '\0' ||
+			strcmp(p, "[") == 0) {
 		outstr(p, file);
 		return;
 	}
 
-	out1c('\'');
+	inquotes = 0;
 	while ((ch = *p++) != '\0') {
 		switch (ch) {
 		case '\'':
-			/*
-			 * Can't quote single quotes inside single quotes;
-			 * close them, write escaped single quote, open again.
-			 */
-			outstr("'\\''", file);
+			/* Can't quote single quotes inside single quotes. */
+			if (inquotes)
+				outc('\'', file);
+			inquotes = 0;
+			outstr("\\'", file);
 			break;
 		default:
+			if (!inquotes)
+				outc('\'', file);
+			inquotes = 1;
 			outc(ch, file);
 		}
 	}
-	out1c('\'');
+	if (inquotes)
+		outc('\'', file);
 }
 
 STATIC char out_junk[16];

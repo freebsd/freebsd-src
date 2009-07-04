@@ -276,6 +276,7 @@ ddp_init(void)
 {
 
 	DDP_LIST_LOCK_INIT();
+	TAILQ_INIT(&at_ifaddrhead);
 	netisr_register(&atalk1_nh);
 	netisr_register(&atalk2_nh);
 	netisr_register(&aarp_nh);

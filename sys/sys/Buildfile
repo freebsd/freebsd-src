@@ -43,7 +43,6 @@ INCS = \
 	cdrio.h \
 	cfictl.h \
 	chio.h \
-	clist.h \
 	clock.h \
 	condvar.h \
 	conf.h \
@@ -190,6 +189,7 @@ INCS = \
 	semaphore.h \
 	serial.h \
 	sf_buf.h \
+	sglist.h \
 	shm.h \
 	sigio.h \
 	signal.h \

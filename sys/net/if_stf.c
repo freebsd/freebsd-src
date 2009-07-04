@@ -349,8 +349,10 @@ stf_encapcheck(m, off, proto, arg)
 	 * success on: dst = 10.1.1.1, ia6->ia_addr = 2002:0a01:0101:...
 	 */
 	if (bcmp(GET_V4(&ia6->ia_addr.sin6_addr), &ip.ip_dst,
-	    sizeof(ip.ip_dst)) != 0)
+	    sizeof(ip.ip_dst)) != 0) {
+		ifa_free(&ia6->ia_ifa);
 		return 0;
+	}
 
 	/*
 	 * check if IPv4 src matches the IPv4 address derived from the
@@ -361,6 +363,7 @@ stf_encapcheck(m, off, proto, arg)
 	bzero(&a, sizeof(a));
 	bcopy(GET_V4(&ia6->ia_addr.sin6_addr), &a, sizeof(a));
 	bcopy(GET_V4(&ia6->ia_prefixmask.sin6_addr), &mask, sizeof(mask));
+	ifa_free(&ia6->ia_ifa);
 	a.s_addr &= mask.s_addr;
 	b = ip.ip_src;
 	b.s_addr &= mask.s_addr;
@@ -381,7 +384,7 @@ stf_getsrcifa6(ifp)
 	struct sockaddr_in6 *sin6;
 	struct in_addr in;
 
-	IF_ADDR_LOCK(ifp);
+	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 		if (ia->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -396,10 +399,11 @@ stf_getsrcifa6(ifp)
 		if (ia4 == NULL)
 			continue;
 
-		IF_ADDR_UNLOCK(ifp);
+		ifa_ref(ia);
+		if_addr_runlock(ifp);
 		return (struct in6_ifaddr *)ia;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_addr_runlock(ifp);
 
 	return NULL;
 }
@@ -457,6 +461,7 @@ stf_output(ifp, m, dst, ro)
 	if (m->m_len < sizeof(*ip6)) {
 		m = m_pullup(m, sizeof(*ip6));
 		if (!m) {
+			ifa_free(&ia6->ia_ifa);
 			ifp->if_oerrors++;
 			return ENOBUFS;
 		}
@@ -483,6 +488,7 @@ stf_output(ifp, m, dst, ro)
 	else if (IN6_IS_ADDR_6TO4(&dst6->sin6_addr))
 		ptr = GET_V4(&dst6->sin6_addr);
 	else {
+		ifa_free(&ia6->ia_ifa);
 		m_freem(m);
 		ifp->if_oerrors++;
 		return ENETUNREACH;
@@ -505,6 +511,7 @@ stf_output(ifp, m, dst, ro)
 	if (m && m->m_len < sizeof(struct ip))
 		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {
+		ifa_free(&ia6->ia_ifa);
 		ifp->if_oerrors++;
 		return ENOBUFS;
 	}
@@ -514,6 +521,7 @@ stf_output(ifp, m, dst, ro)
 
 	bcopy(GET_V4(&((struct sockaddr_in6 *)&ia6->ia_addr)->sin6_addr),
 	    &ip->ip_src, sizeof(ip->ip_src));
+	ifa_free(&ia6->ia_ifa);
 	bcopy(&in4, &ip->ip_dst, sizeof(ip->ip_dst));
 	ip->ip_p = IPPROTO_IPV6;
 	ip->ip_ttl = ip_stf_ttl;
@@ -612,15 +620,19 @@ stf_checkaddr4(sc, in, inifp)
 	/*
 	 * reject packets with broadcast
 	 */
+	IN_IFADDR_RLOCK();
 	for (ia4 = TAILQ_FIRST(&V_in_ifaddrhead);
 	     ia4;
 	     ia4 = TAILQ_NEXT(ia4, ia_link))
 	{
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
-		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr)
+		if (in->s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {
+			IN_IFADDR_RUNLOCK();
 			return -1;
+		}
 	}
+	IN_IFADDR_RUNLOCK();
 
 	/*
 	 * perform ingress filter

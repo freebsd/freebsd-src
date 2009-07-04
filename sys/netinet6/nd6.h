@@ -371,6 +371,9 @@ union nd_opts {
 /* XXX: need nd6_var.h?? */
 /* nd6.c */
 void nd6_init __P((void));
+#ifdef VIMAGE
+void nd6_destroy __P((void));
+#endif
 struct nd_ifinfo *nd6_ifattach __P((struct ifnet *));
 void nd6_ifdetach __P((struct nd_ifinfo *));
 int nd6_is_addr_neighbor __P((struct sockaddr_in6 *, struct ifnet *));

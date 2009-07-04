@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
  * include files marked with XXX are probably not needed
  */
 
-#include <sys/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -243,7 +242,6 @@ static void	dummynet_flush(void);
 static void	dummynet_send(struct mbuf *);
 void		dummynet_drain(void);
 static int	dummynet_io(struct mbuf **, int , struct ip_fw_args *);
-static void	dn_rule_delete(void *);
 
 /*
  * Heap management functions.
@@ -663,7 +661,7 @@ ready_event(struct dn_flow_queue *q, struct mbuf **head, struct mbuf **tail)
 		 * queue on error hoping next time we are luckier.
 		 */
 	} else		/* RED needs to know when the queue becomes empty. */
-		q->q_time = curr_time;
+		q->idle_time = curr_time;
 
 	/*
 	 * If the delay line was empty call transmit_event() now.
@@ -687,16 +685,11 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	int p_was_empty = (p->head == NULL);
 	struct dn_heap *sch = &(p->scheduler_heap);
 	struct dn_heap *neh = &(p->not_eligible_heap);
-	int64_t p_numbytes = p->numbytes;
 
 	DUMMYNET_LOCK_ASSERT();
 
 	if (p->if_name[0] == 0)		/* tx clock is simulated */
-		/*
-		 * Since result may not fit into p->numbytes (32bit) we
-		 * are using 64bit var here.
-		 */
-		p_numbytes += (curr_time - p->sched_time) * p->bandwidth;
+		p->numbytes += (curr_time - p->sched_time) * p->bandwidth;
 	else {	/*
 		 * tx clock is for real,
 		 * the ifq must be empty or this is a NOP.
@@ -713,7 +706,7 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 	 * While we have backlogged traffic AND credit, we need to do
 	 * something on the queue.
 	 */
-	while (p_numbytes >= 0 && (sch->elements > 0 || neh->elements > 0)) {
+	while (p->numbytes >= 0 && (sch->elements > 0 || neh->elements > 0)) {
 		if (sch->elements > 0) {
 			/* Have some eligible pkts to send out. */
 			struct dn_flow_queue *q = sch->p[0].object;
@@ -723,7 +716,7 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 			int len_scaled = p->bandwidth ? len * 8 * hz : 0;
 
 			heap_extract(sch, NULL); /* Remove queue from heap. */
-			p_numbytes -= len_scaled;
+			p->numbytes -= len_scaled;
 			move_pkt(pkt, q, p, len);
 
 			p->V += (len << MY_M) / p->sum;	/* Update V. */
@@ -764,38 +757,41 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 		}
 
 		if (p->if_name[0] != '\0') { /* Tx clock is from a real thing */
-			p_numbytes = -1;	/* Mark not ready for I/O. */
+			p->numbytes = -1;	/* Mark not ready for I/O. */
 			break;
 		}
 	}
-	if (sch->elements == 0 && neh->elements == 0 && p_numbytes >= 0 &&
-	    p->idle_heap.elements > 0) {
+	if (sch->elements == 0 && neh->elements == 0 && p->numbytes >= 0) {
+		p->idle_time = curr_time;
 		/*
 		 * No traffic and no events scheduled.
 		 * We can get rid of idle-heap.
 		 */
-		int i;
+		if (p->idle_heap.elements > 0) {
+			int i;
 
-		for (i = 0; i < p->idle_heap.elements; i++) {
-			struct dn_flow_queue *q = p->idle_heap.p[i].object;
-
-			q->F = 0;
-			q->S = q->F + 1;
+			for (i = 0; i < p->idle_heap.elements; i++) {
+				struct dn_flow_queue *q;
+				
+				q = p->idle_heap.p[i].object;
+				q->F = 0;
+				q->S = q->F + 1;
+			}
+			p->sum = 0;
+			p->V = 0;
+			p->idle_heap.elements = 0;
 		}
-		p->sum = 0;
-		p->V = 0;
-		p->idle_heap.elements = 0;
 	}
 	/*
 	 * If we are getting clocks from dummynet (not a real interface) and
 	 * If we are under credit, schedule the next ready event.
 	 * Also fix the delivery time of the last packet.
 	 */
-	if (p->if_name[0]==0 && p_numbytes < 0) { /* This implies bw > 0. */
+	if (p->if_name[0]==0 && p->numbytes < 0) { /* This implies bw > 0. */
 		dn_key t = 0;		/* Number of ticks i have to wait. */
 
 		if (p->bandwidth > 0)
-			t = (p->bandwidth - 1 - p_numbytes) / p->bandwidth;
+			t = (p->bandwidth - 1 - p->numbytes) / p->bandwidth;
 		dn_tag_get(p->tail)->output_time += t;
 		p->sched_time = curr_time;
 		heap_insert(&wfq_ready_heap, curr_time + t, (void *)p);
@@ -804,14 +800,6 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 		 * queue on error hoping next time we are luckier.
 		 */
 	}
-
-	/* Fit (adjust if necessary) 64bit result into 32bit variable. */
-	if (p_numbytes > INT_MAX)
-		p->numbytes = INT_MAX;
-	else if (p_numbytes < INT_MIN)
-		p->numbytes = INT_MIN;
-	else
-		p->numbytes = p_numbytes;
 
 	/*
 	 * If the delay line was empty call transmit_event() now.
@@ -1057,7 +1045,7 @@ create_queue(struct dn_flow_set *fs, int i)
 	q->hash_slot = i;
 	q->next = fs->rq[i];
 	q->S = q->F + 1;	/* hack - mark timestamp as invalid. */
-	q->numbytes = io_fast ? fs->pipe->bandwidth : 0;
+	q->numbytes = fs->pipe->burst + (io_fast ? fs->pipe->bandwidth : 0);
 	fs->rq[i] = q;
 	fs->rq_elements++;
 	return (q);
@@ -1219,7 +1207,7 @@ red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
 		 * XXX check wraps...
 		 */
 		if (q->avg) {
-			u_int t = (curr_time - q->q_time) / fs->lookup_step;
+			u_int t = (curr_time - q->idle_time) / fs->lookup_step;
 
 			q->avg = (t < fs->lookup_depth) ?
 			    SCALE_MUL(q->avg, fs->w_q_lookup[t]) : 0;
@@ -1399,6 +1387,8 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	 * Build and enqueue packet + parameters.
 	 */
 	pkt->rule = fwa->rule;
+	pkt->rule_id = fwa->rule_id;
+	pkt->chain_id = fwa->chain_id;
 	pkt->dn_dir = dir;
 
 	pkt->ifp = fwa->oif;
@@ -1414,9 +1404,30 @@ dummynet_io(struct mbuf **m0, int dir, struct ip_fw_args *fwa)
 	if (q->head != m)		/* Flow was not idle, we are done. */
 		goto done;
 
-	if (q->q_time < curr_time)
-		q->numbytes = io_fast ? fs->pipe->bandwidth : 0;
-	q->q_time = curr_time;
+	if (is_pipe) {			/* Fixed rate queues. */
+		if (q->idle_time < curr_time) {
+			/* Calculate available burst size. */
+			q->numbytes +=
+			    (curr_time - q->idle_time) * pipe->bandwidth;
+			if (q->numbytes > pipe->burst)
+				q->numbytes = pipe->burst;
+			if (io_fast)
+				q->numbytes += pipe->bandwidth;
+		}
+	} else {			/* WF2Q. */
+		if (pipe->idle_time < curr_time) {
+			/* Calculate available burst size. */
+			pipe->numbytes +=
+			    (curr_time - pipe->idle_time) * pipe->bandwidth;
+			if (pipe->numbytes > pipe->burst)
+				pipe->numbytes = pipe->burst;
+			if (io_fast)
+				pipe->numbytes += pipe->bandwidth;
+		}
+		pipe->idle_time = curr_time;
+	}
+	/* Necessary for both: fixed rate & WF2Q queues. */
+	q->idle_time = curr_time;
 
 	/*
 	 * If we reach this point the flow was previously idle, so we need
@@ -1622,60 +1633,6 @@ dummynet_flush(void)
 	DUMMYNET_UNLOCK();
 }
 
-extern struct ip_fw *ip_fw_default_rule ;
-static void
-dn_rule_delete_fs(struct dn_flow_set *fs, void *r)
-{
-    int i ;
-    struct dn_flow_queue *q ;
-    struct mbuf *m ;
-
-    for (i = 0 ; i <= fs->rq_size ; i++) /* last one is ovflow */
-	for (q = fs->rq[i] ; q ; q = q->next )
-	    for (m = q->head ; m ; m = m->m_nextpkt ) {
-		struct dn_pkt_tag *pkt = dn_tag_get(m) ;
-		if (pkt->rule == r)
-		    pkt->rule = ip_fw_default_rule ;
-	    }
-}
-
-/*
- * When a firewall rule is deleted, scan all queues and remove the pointer
- * to the rule from matching packets, making them point to the default rule.
- * The pointer is used to reinject packets in case one_pass = 0.
- */
-void
-dn_rule_delete(void *r)
-{
-    struct dn_pipe *pipe;
-    struct dn_flow_set *fs;
-    struct dn_pkt_tag *pkt;
-    struct mbuf *m;
-    int i;
-
-    DUMMYNET_LOCK();
-    /*
-     * If the rule references a queue (dn_flow_set), then scan
-     * the flow set, otherwise scan pipes. Should do either, but doing
-     * both does not harm.
-     */
-    for (i = 0; i < HASHSIZE; i++)
-	SLIST_FOREACH(fs, &flowsethash[i], next)
-		dn_rule_delete_fs(fs, r);
-
-    for (i = 0; i < HASHSIZE; i++)
-	SLIST_FOREACH(pipe, &pipehash[i], next) {
-		fs = &(pipe->fs);
-		dn_rule_delete_fs(fs, r);
-		for (m = pipe->head ; m ; m = m->m_nextpkt ) {
-			pkt = dn_tag_get(m);
-			if (pkt->rule == r)
-				pkt->rule = ip_fw_default_rule;
-		}
-	}
-    DUMMYNET_UNLOCK();
-}
-
 /*
  * setup RED parameters
  */
@@ -1798,6 +1755,8 @@ config_pipe(struct dn_pipe *p)
 	 * qsize = slots/bytes
 	 */
 	p->delay = (p->delay * hz) / 1000;
+	/* Scale burst size: bytes -> bits * hz */
+	p->burst *= 8 * hz;
 	/* We need either a pipe number or a flow_set number. */
 	if (p->pipe_nr == 0 && pfs->fs_nr == 0)
 		return (EINVAL);
@@ -1829,11 +1788,14 @@ config_pipe(struct dn_pipe *p)
 		} else
 			/* Flush accumulated credit for all queues. */
 			for (i = 0; i <= pipe->fs.rq_size; i++)
-				for (q = pipe->fs.rq[i]; q; q = q->next)
-					q->numbytes = io_fast ? p->bandwidth : 0;
+				for (q = pipe->fs.rq[i]; q; q = q->next) {
+					q->numbytes = p->burst +
+					    (io_fast ? p->bandwidth : 0);
+				}
 
 		pipe->bandwidth = p->bandwidth;
-		pipe->numbytes = 0;		/* just in case... */
+		pipe->burst = p->burst;
+		pipe->numbytes = pipe->burst + (io_fast ? pipe->bandwidth : 0);
 		bcopy(p->if_name, pipe->if_name, sizeof(p->if_name));
 		pipe->ifp = NULL;		/* reset interface ptr */
 		pipe->delay = p->delay;
@@ -2174,6 +2136,7 @@ dummynet_get(struct sockopt *sopt)
 		 */
 		bcopy(pipe, bp, sizeof(*pipe));
 		pipe_bp->delay = (pipe_bp->delay * 1000) / hz;
+		pipe_bp->burst /= 8 * hz;
 		/*
 		 * XXX the following is a hack based on ->next being the
 		 * first field in dn_pipe and dn_flow_set. The correct
@@ -2218,9 +2181,8 @@ dummynet_get(struct sockopt *sopt)
 static int
 ip_dn_ctl(struct sockopt *sopt)
 {
-    int error = 0 ;
-    struct dn_pipe *p;
-    struct dn_pipe_max tmp_pipe;	/* pipe + large buffer */
+    int error;
+    struct dn_pipe *p = NULL;
 
     error = priv_check(sopt->sopt_td, PRIV_NETINET_DUMMYNET);
     if (error)
@@ -2241,7 +2203,8 @@ ip_dn_ctl(struct sockopt *sopt)
     switch (sopt->sopt_name) {
     default :
 	printf("dummynet: -- unknown option %d", sopt->sopt_name);
-	return EINVAL ;
+	error = EINVAL ;
+	break;
 
     case IP_DUMMYNET_GET :
 	error = dummynet_get(sopt);
@@ -2252,25 +2215,27 @@ ip_dn_ctl(struct sockopt *sopt)
 	break ;
 
     case IP_DUMMYNET_CONFIGURE :
-	p = (struct dn_pipe *)&tmp_pipe ;
-	error = sooptcopyin(sopt, p, sizeof(tmp_pipe), sizeof *p);
+	p = malloc(sizeof(struct dn_pipe_max), M_TEMP, M_WAITOK);
+	error = sooptcopyin(sopt, p, sizeof(struct dn_pipe_max), sizeof *p);
 	if (error)
 	    break ;
 	if (p->samples_no > 0)
-	    p->samples = &tmp_pipe.samples[0];
+	    p->samples = &(((struct dn_pipe_max *)p)->samples[0]);
 
 	error = config_pipe(p);
 	break ;
 
     case IP_DUMMYNET_DEL :	/* remove a pipe or queue */
-	p = (struct dn_pipe *)&tmp_pipe ;
-	error = sooptcopyin(sopt, p, sizeof *p, sizeof *p);
+	p = malloc(sizeof(struct dn_pipe), M_TEMP, M_WAITOK);
+	error = sooptcopyin(sopt, p, sizeof(struct dn_pipe), sizeof *p);
 	if (error)
 	    break ;
 
 	error = delete_pipe(p);
 	break ;
     }
+    if (p != NULL)
+	free(p, M_TEMP);
     return error ;
 }
 
@@ -2299,7 +2264,6 @@ ip_dn_init(void)
 
 	ip_dn_ctl_ptr = ip_dn_ctl;
 	ip_dn_io_ptr = dummynet_io;
-	ip_dn_ruledel_ptr = dn_rule_delete;
 
 	TASK_INIT(&dn_task, 0, dummynet_task, NULL);
 	dn_tq = taskqueue_create_fast("dummynet", M_NOWAIT,
@@ -2319,7 +2283,6 @@ ip_dn_destroy(void)
 {
 	ip_dn_ctl_ptr = NULL;
 	ip_dn_io_ptr = NULL;
-	ip_dn_ruledel_ptr = NULL;
 
 	DUMMYNET_LOCK();
 	callout_stop(&dn_timeout);

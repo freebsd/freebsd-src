@@ -102,7 +102,7 @@ static u_long
 chrp_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
 	phandle_t phandle;
-	u_long ticks = -1;
+	long ticks = -1;
 
 	phandle = cpuref->cr_hwref;
 
@@ -122,8 +122,14 @@ chrp_smp_fill_cpuref(struct cpuref *cpuref, phandle_t cpu)
 
 	cpuref->cr_hwref = cpu;
 	res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
-	if (res < 0)
-		return (ENOENT);
+
+	/*
+	 * psim doesn't have a reg property, so assume 0 as for the
+	 * uniprocessor case in the CHRP spec. 
+	 */
+	if (res < 0) {
+		cpuid = 0;
+	}
 
 	cpuref->cr_cpuid = cpuid & 0xff;
 	return (0);
@@ -145,10 +151,18 @@ chrp_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 			break;
 		dev = OF_peer(dev);
 	}
-	if (dev == 0)
-		return (ENOENT);
+	if (dev == 0) {
+		/*
+		 * psim doesn't have a name property on the /cpus node,
+		 * but it can be found directly
+		 */
+		dev = OF_finddevice("/cpus");
+		if (dev == 0)
+			return (ENOENT);
+	}
 
 	cpu = OF_child(dev);
+
 	while (cpu != 0) {
 		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
 		if (res > 0 && strcmp(buf, "cpu") == 0)

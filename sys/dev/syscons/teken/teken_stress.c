@@ -83,7 +83,7 @@ stress_copy(void *s __unused, const teken_rect_t *r __unused,
 }
 
 static void
-stress_param(void *s __unused, int cmd __unused, int value __unused)
+stress_param(void *s __unused, int cmd __unused, unsigned int value __unused)
 {
 }
 

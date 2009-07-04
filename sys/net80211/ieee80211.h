@@ -158,6 +158,9 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_FC1_DIR_FROMDS		0x02	/* AP ->STA */
 #define	IEEE80211_FC1_DIR_DSTODS		0x03	/* AP ->AP  */
 
+#define	IEEE80211_IS_DSTODS(wh) \
+	(((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
+
 #define	IEEE80211_FC1_MORE_FRAG			0x04
 #define	IEEE80211_FC1_RETRY			0x08
 #define	IEEE80211_FC1_PWR_MGT			0x10

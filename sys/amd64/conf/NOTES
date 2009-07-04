@@ -237,12 +237,9 @@ device		tdfx			# Enable 3Dfx Voodoo support
 # kernel environment variables to select initial debugging levels for the
 # Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
 # defined when it is built).
-#
-# ACPI_NO_SEMAPHORES makes the AcpiOs*Semaphore routines a no-op.
 
 device		acpi
 options 	ACPI_DEBUG
-#!options 	ACPI_NO_SEMAPHORES
 
 # The cpufreq(4) driver provides support for non-ACPI CPU frequency control
 device		cpufreq

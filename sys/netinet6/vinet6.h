@@ -48,7 +48,7 @@
 #include <netinet6/scope6_var.h>
 
 struct vnet_inet6 {
-	struct in6_ifaddr *	_in6_ifaddr;
+	struct in6_ifaddrhead	_in6_ifaddrhead;
 
 	u_int			_frag6_nfragpackets;
 	u_int			_frag6_nfrags;
@@ -189,7 +189,7 @@ extern struct vnet_inet6 vnet_inet6_0;
 #define	V_icmp6errppslim		VNET_INET6(icmp6errppslim)
 #define	V_icmp6errppslim_last		VNET_INET6(icmp6errppslim_last)
 #define	V_icmp6stat			VNET_INET6(icmp6stat)
-#define	V_in6_ifaddr			VNET_INET6(in6_ifaddr)
+#define	V_in6_ifaddrhead		VNET_INET6(in6_ifaddrhead)
 #define	V_in6_maxmtu			VNET_INET6(in6_maxmtu)
 #define	V_in6_tmpaddrtimer_ch		VNET_INET6(in6_tmpaddrtimer_ch)
 #define	V_interface_timers_running6	\

@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB2_CONTROLLER_H_
-#define	_USB2_CONTROLLER_H_
+#ifndef _USB_CONTROLLER_H_
+#define	_USB_CONTROLLER_H_
 
 /* defines */
 
@@ -35,7 +35,7 @@
 
 struct usb_bus;
 struct usb_page;
-struct usb_pipe;
+struct usb_endpoint;
 struct usb_page_cache;
 struct usb_setup_params;
 struct usb_hw_ep_profile;
@@ -58,7 +58,8 @@ struct usb_bus_methods {
 
 	usb_handle_req_t *roothub_exec;
 
-	void    (*pipe_init) (struct usb_device *, struct usb_endpoint_descriptor *, struct usb_pipe *);
+	void    (*endpoint_init) (struct usb_device *,
+		    struct usb_endpoint_descriptor *, struct usb_endpoint *);
 	void    (*xfer_setup) (struct usb_setup_params *);
 	void    (*xfer_unsetup) (struct usb_xfer *);
 	void    (*get_dma_delay) (struct usb_bus *, uint32_t *);
@@ -95,8 +96,8 @@ struct usb_bus_methods {
 	/* USB Device mode only - Mandatory */
 
 	void    (*get_hw_ep_profile) (struct usb_device *udev, const struct usb_hw_ep_profile **ppf, uint8_t ep_addr);
-	void    (*set_stall) (struct usb_device *udev, struct usb_xfer *xfer, struct usb_pipe *pipe);
-	void    (*clear_stall) (struct usb_device *udev, struct usb_pipe *pipe);
+	void    (*set_stall) (struct usb_device *udev, struct usb_xfer *xfer, struct usb_endpoint *ep, uint8_t *did_stall);
+	void    (*clear_stall) (struct usb_device *udev, struct usb_endpoint *ep);
 
 };
 
@@ -108,11 +109,11 @@ struct usb_pipe_methods {
 
 	/* Mandatory USB Device and Host mode callbacks: */
 
-	usb_callback_t *open;
-	usb_callback_t *close;
+	void	(*open)(struct usb_xfer *);
+	void	(*close)(struct usb_xfer *);
 
-	usb_callback_t *enter;
-	usb_callback_t *start;
+	void	(*enter)(struct usb_xfer *);
+	void	(*start)(struct usb_xfer *);
 
 	/* Optional */
 
@@ -182,11 +183,11 @@ struct usb_temp_setup {
 
 /* prototypes */
 
-void	usb2_bus_mem_flush_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
-uint8_t	usb2_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat, usb_bus_mem_cb_t *cb);
-void	usb2_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
-uint16_t usb2_isoc_time_expand(struct usb_bus *bus, uint16_t isoc_time_curr);
-uint16_t usb2_fs_isoc_schedule_isoc_time_expand(struct usb_device *udev, struct usb_fs_isoc_schedule **pp_start, struct usb_fs_isoc_schedule **pp_end, uint16_t isoc_time);
-uint8_t	usb2_fs_isoc_schedule_alloc(struct usb_fs_isoc_schedule *fss, uint8_t *pstart, uint16_t len);
+void	usb_bus_mem_flush_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
+uint8_t	usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat, usb_bus_mem_cb_t *cb);
+void	usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
+uint16_t usb_isoc_time_expand(struct usb_bus *bus, uint16_t isoc_time_curr);
+uint16_t usbd_fs_isoc_schedule_isoc_time_expand(struct usb_device *udev, struct usb_fs_isoc_schedule **pp_start, struct usb_fs_isoc_schedule **pp_end, uint16_t isoc_time);
+uint8_t	usbd_fs_isoc_schedule_alloc(struct usb_fs_isoc_schedule *fss, uint8_t *pstart, uint16_t len);
 
-#endif					/* _USB2_CONTROLLER_H_ */
+#endif					/* _USB_CONTROLLER_H_ */

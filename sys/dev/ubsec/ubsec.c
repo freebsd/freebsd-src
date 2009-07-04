@@ -107,7 +107,7 @@ static	int ubsec_attach(device_t);
 static	int ubsec_detach(device_t);
 static	int ubsec_suspend(device_t);
 static	int ubsec_resume(device_t);
-static	void ubsec_shutdown(device_t);
+static	int ubsec_shutdown(device_t);
 
 static	int ubsec_newsession(device_t, u_int32_t *, struct cryptoini *);
 static	int ubsec_freesession(device_t, u_int64_t);
@@ -558,12 +558,13 @@ ubsec_detach(device_t dev)
  * Stop all chip i/o so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 ubsec_shutdown(device_t dev)
 {
 #ifdef notyet
 	ubsec_stop(device_get_softc(dev));
 #endif
+	return (0);
 }
 
 /*

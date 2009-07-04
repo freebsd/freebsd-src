@@ -3,6 +3,6 @@
 .PATH: ${.CURDIR}/../../net
 
 KMOD=	bridgestp
-SRCS=	bridgestp.c opt_route.h
+SRCS=	bridgestp.c
 
 .include <bsd.kmod.mk>

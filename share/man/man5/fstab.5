@@ -198,6 +198,8 @@ command to determine which file systems need to be dumped.
 If the fifth field is not present, a value of zero is returned and
 .Nm dump
 will assume that the file system does not need to be dumped.
+If the fifth field is greater than 0, then it specifies the number of days
+between dumps for this file system.
 .Pp
 The sixth field,
 .Pq Fa fs_passno ,

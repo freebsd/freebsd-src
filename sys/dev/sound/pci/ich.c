@@ -25,6 +25,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pci/ich.h>
@@ -80,7 +84,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #if 0
 #define ICH_DEBUG(stmt)		do {	\
 	stmt				\
-} while(0)
+} while (0)
 #else
 #define ICH_DEBUG(...)
 #endif
@@ -198,7 +202,7 @@ struct sc_info {
 /* -------------------------------------------------------------------- */
 
 static uint32_t ich_fmt[] = {
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps ich_vrcaps = {8000, 48000, ich_fmt, 0};
@@ -269,7 +273,7 @@ ich_rdcd(kobj_t obj, void *devinfo, int regno)
 }
 
 static int
-ich_wrcd(kobj_t obj, void *devinfo, int regno, uint16_t data)
+ich_wrcd(kobj_t obj, void *devinfo, int regno, uint32_t data)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 
@@ -283,7 +287,7 @@ ich_wrcd(kobj_t obj, void *devinfo, int regno, uint16_t data)
 static kobj_method_t ich_ac97_methods[] = {
 	KOBJMETHOD(ac97_read,		ich_rdcd),
 	KOBJMETHOD(ac97_write,		ich_wrcd),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(ich_ac97);
 
@@ -439,7 +443,7 @@ ichchan_setformat(kobj_t obj, void *data, uint32_t format)
 	return (0);
 }
 
-static int
+static uint32_t
 ichchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct sc_chinfo *ch = data;
@@ -473,7 +477,7 @@ ichchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	return (ch->spd);
 }
 
-static int
+static uint32_t
 ichchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
@@ -535,7 +539,7 @@ ichchan_trigger(kobj_t obj, void *data, int go)
 	return (0);
 }
 
-static int
+static uint32_t
 ichchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
@@ -583,7 +587,7 @@ static kobj_method_t ichchan_methods[] = {
 	KOBJMETHOD(channel_trigger,		ichchan_trigger),
 	KOBJMETHOD(channel_getptr,		ichchan_getptr),
 	KOBJMETHOD(channel_getcaps,		ichchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(ichchan);
 
@@ -665,7 +669,6 @@ ich_intr(void *p)
 static int
 ich_initsys(struct sc_info* sc)
 {
-#ifdef SND_DYNSYSCTL
 	/* XXX: this should move to a device specific sysctl "dev.pcm.X.yyy"
 	   via device_get_sysctl_*() as discussed on multimedia@ in msg-id
 	   <861wujij2q.fsf@xps.des.no> */
@@ -674,7 +677,7 @@ ich_initsys(struct sc_info* sc)
 		       OID_AUTO, "ac97rate", CTLFLAG_RW,
 		       &sc->ac97rate, 48000,
 		       "AC97 link rate (default = 48000)");
-#endif /* SND_DYNSYSCTL */
+
 	return (0);
 }
 

@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2009
+.Dd June 24, 2009
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -316,7 +316,7 @@ file systems are mounted (yet) by the time
 is being run (e.g.\& when they are mounted over NFS).
 Once
 .Fl p
-has been specified, any additional arguments as passed on to the preprocessor
+has been specified, any additional arguments are passed on to the preprocessor
 for interpretation.
 This allows for flexible configuration files (like conditionalizing
 them on the local hostname) and the use of macros to centralize
@@ -1941,7 +1941,26 @@ with
 .Dq "options HZ=1000"
 to reduce
 the granularity to 1ms or less).
-Default value is 0, meaning no delay.
+The default value is 0, meaning no delay.
+.Pp
+.It Cm burst Ar size
+If the data to be sent exceeds the pipe's bandwidth limit
+(and the pipe was previously idle), up to
+.Ar size
+bytes of data are allowed to bypass the
+.Nm dummynet
+scheduler, and will be sent as fast as the physical link allows.
+Any additional data will be transmitted at the rate specified
+by the
+.Nm pipe
+bandwidth.
+The burst size depends on how long the pipe has been idle;
+the effective burst size is calculated as follows:
+MAX(
+.Ar size
+,
+.Nm bw
+* pipe_idle_time).
 .Pp
 .It Cm profile Ar filename
 A file specifying the additional overhead incurred in the transmission
@@ -1973,22 +1992,26 @@ that represents its distribution.
 The empirical curve may have both vertical and horizontal lines.
 Vertical lines represent constant delay for a range of
 probabilities.
-Horizontal lines correspond to a discontinuty in the delay
+Horizontal lines correspond to a discontinuity in the delay
 distribution: the pipe will use the largest delay for a
 given probability.
 .Pp
 The file format is the following, with whitespace acting as
 a separator and '#' indicating the beginning a comment:
 .Bl -tag -width indent
+.It Cm name Ar identifier
+optional name (listed by "ipfw pipe show")
+to identify the delay distribution;
+.It Cm bw Ar value
+the bandwidth used for the pipe.
+If not specified here, it must be present
+explicitly as a configuration parameter for the pipe;
+.It Cm loss-level Ar L
+the probability above which packets are lost.
+(0.0 <= L <= 1.0, default 1.0 i.e. no loss);
 .It Cm samples Ar N
 the number of samples used in the internal
-representation (2..1024; default 100);
-.It Cm loss-level Ar L
-The probability above which packets are lost.
-(0.0 <= L <= 1.0, default 1.0 i.e. no loss);
-.It Cm name Ar identifier
-Optional a name (listed by "ipfw pipe show")
-to identify the distribution;
+representation of the curve (2..1024; default 100);
 .It Cm "delay prob" | "prob delay"
 One of these two lines is mandatory and defines
 the format of the following lines with data points.
@@ -1997,9 +2020,9 @@ the format of the following lines with data points.
 with either delay or probability first, according
 to the chosen format.
 The unit for delay is milliseconds.
-Data points do not need to be ordered or equal to the number
-specified in the "samples" line.
-The
+Data points do not need to be sorted.
+Also, tne number of actual lines can be different
+from the value of the "samples" parameter:
 .Nm
 utility will sort and interpolate
 the curve as needed.

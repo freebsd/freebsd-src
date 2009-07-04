@@ -27,7 +27,10 @@
  */
 
 
-#include <sys/soundcard.h>
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/chip.h>
 #include <dev/sound/usb/uaudio.h>
@@ -57,13 +60,13 @@ ua_chan_setformat(kobj_t obj, void *data, uint32_t format)
 	return (uaudio_chan_set_param_format(data, format));
 }
 
-static int
+static uint32_t
 ua_chan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	return (uaudio_chan_set_param_speed(data, speed));
 }
 
-static int
+static uint32_t
 ua_chan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	return (uaudio_chan_set_param_blocksize(data, blocksize));
@@ -88,7 +91,7 @@ ua_chan_trigger(kobj_t obj, void *data, int go)
 	}
 }
 
-static int
+static uint32_t
 ua_chan_getptr(kobj_t obj, void *data)
 {
 	return (uaudio_chan_getptr(data));
@@ -98,6 +101,12 @@ static struct pcmchan_caps *
 ua_chan_getcaps(kobj_t obj, void *data)
 {
 	return (uaudio_chan_getcaps(data));
+}
+
+static struct pcmchan_matrix *
+ua_chan_getmatrix(kobj_t obj, void *data, uint32_t format)
+{
+	return (uaudio_chan_getmatrix(data, format));
 }
 
 static kobj_method_t ua_chan_methods[] = {
@@ -110,7 +119,8 @@ static kobj_method_t ua_chan_methods[] = {
 	KOBJMETHOD(channel_trigger, ua_chan_trigger),
 	KOBJMETHOD(channel_getptr, ua_chan_getptr),
 	KOBJMETHOD(channel_getcaps, ua_chan_getcaps),
-	{0, 0}
+	KOBJMETHOD(channel_getmatrix, ua_chan_getmatrix),
+	KOBJMETHOD_END
 };
 
 CHANNEL_DECLARE(ua_chan);
@@ -141,7 +151,7 @@ ua_mixer_set(struct snd_mixer *m, unsigned type, unsigned left, unsigned right)
 	return (left | (right << 8));
 }
 
-static int
+static uint32_t
 ua_mixer_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
 	struct mtx *mtx = mixer_get_lock(m);
@@ -172,8 +182,7 @@ static kobj_method_t ua_mixer_methods[] = {
 	KOBJMETHOD(mixer_uninit, ua_mixer_uninit),
 	KOBJMETHOD(mixer_set, ua_mixer_set),
 	KOBJMETHOD(mixer_setrecsrc, ua_mixer_setrecsrc),
-
-	{0, 0}
+	KOBJMETHOD_END
 };
 
 MIXER_DECLARE(ua_mixer);

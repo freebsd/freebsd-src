@@ -190,7 +190,7 @@ static struct bi_ige_test const bi_ige_test_vectors[] = {
 
 static int run_test_vectors(void)
 	{
-	int n;
+	unsigned int n;
 	int errs = 0;
 
 	for(n=0 ; n < sizeof(ige_test_vectors)/sizeof(ige_test_vectors[0]) ; ++n)
@@ -212,6 +212,23 @@ static int run_test_vectors(void)
 		if(memcmp(v->out, buf, v->length))
 			{
 			printf("IGE test vector %d failed\n", n);
+			hexdump(stdout, "key", v->key, sizeof v->key);
+			hexdump(stdout, "iv", v->iv, sizeof v->iv);
+			hexdump(stdout, "in", v->in, v->length);
+			hexdump(stdout, "expected", v->out, v->length);
+			hexdump(stdout, "got", buf, v->length);
+
+			++errs;
+			}
+
+		/* try with in == out */
+		memcpy(iv, v->iv, sizeof iv);
+		memcpy(buf, v->in, v->length);
+		AES_ige_encrypt(buf, buf, v->length, &key, iv, v->encrypt);
+
+		if(memcmp(v->out, buf, v->length))
+			{
+			printf("IGE test vector %d failed (with in == out)\n", n);
 			hexdump(stdout, "key", v->key, sizeof v->key);
 			hexdump(stdout, "iv", v->iv, sizeof v->iv);
 			hexdump(stdout, "in", v->in, v->length);
@@ -275,7 +292,7 @@ int main(int argc, char **argv)
 	unsigned char iv[AES_BLOCK_SIZE*4];
 	unsigned char saved_iv[AES_BLOCK_SIZE*4];
 	int err = 0;
-	int n;
+	unsigned int n;
 	unsigned matches;
 
 	assert(BIG_TEST_SIZE >= TEST_SIZE);

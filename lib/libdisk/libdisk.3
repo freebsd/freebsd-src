@@ -181,14 +181,7 @@ These are the valid
 .Ql flags
 values for a
 .Ql struct chunk .
-.Bl -tag -offset indent -width CHUNK_BSD_COMPATXX
-.It CHUNK_PAST_1024
-This chunk cannot be booted from because it extends past cylinder 1024.
-.It CHUNK_BSD_COMPAT
-This chunk is in the
-.Bx Ns -compatibility ,
-and has a short name too, i.e.\&
-.Ql wd0s4f -> wd0f .
+.Bl -tag -offset indent -width CHUNK_AUTO_SIZEXX
 .It CHUNK_ALIGN
 This chunk should be aligned.
 .It CHUNK_IS_ROOT
@@ -202,6 +195,10 @@ This is the active slice in the MBR.
 Force a dedicated disk for
 .Fx ,
 bypassing all BIOS geometry considerations.
+.It CHUNK_AUTO_SIZE
+This chunk was auto-sized and can fill out any deleted following chunks.
+.It CHUNK_NEWFS
+newfs pending, used to enable auto-resizing on delete (along with AUTO_SIZE).
 .El
 .Pp
 The

@@ -37,6 +37,10 @@
  *
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pci/spicds.h>
@@ -63,7 +67,7 @@ struct sc_info;
 
 #define ENVY24HT_TIMEOUT 1000
 
-#define ENVY24HT_DEFAULT_FORMAT (AFMT_STEREO | AFMT_S16_LE)
+#define ENVY24HT_DEFAULT_FORMAT	SND_FORMAT(AFMT_S16_LE, 2, 0)
 
 #define ENVY24HT_NAMELEN 32
 
@@ -186,10 +190,10 @@ static void envy24ht_r32sl(struct sc_chinfo *);
 /* channel interface */
 static void *envy24htchan_init(kobj_t, void *, struct snd_dbuf *, struct pcm_channel *, int);
 static int envy24htchan_setformat(kobj_t, void *, u_int32_t);
-static int envy24htchan_setspeed(kobj_t, void *, u_int32_t);
-static int envy24htchan_setblocksize(kobj_t, void *, u_int32_t);
+static u_int32_t envy24htchan_setspeed(kobj_t, void *, u_int32_t);
+static u_int32_t envy24htchan_setblocksize(kobj_t, void *, u_int32_t);
 static int envy24htchan_trigger(kobj_t, void *, int);
-static int envy24htchan_getptr(kobj_t, void *);
+static u_int32_t envy24htchan_getptr(kobj_t, void *);
 static struct pcmchan_caps *envy24htchan_getcaps(kobj_t, void *);
 
 /* mixer interface */
@@ -411,16 +415,16 @@ static struct cfg_info cfg_table[] = {
 };
 
 static u_int32_t envy24ht_recfmt[] = {
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S32_LE,
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_S32_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps envy24ht_reccaps = {8000, 96000, envy24ht_recfmt, 0};
 
 static u_int32_t envy24ht_playfmt[] = {
-	AFMT_STEREO | AFMT_U8,
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S32_LE,
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_S32_LE, 2, 0),
 	0
 };
 
@@ -433,15 +437,15 @@ struct envy24ht_emldma {
 };
 
 static struct envy24ht_emldma envy24ht_pemltab[] = {
-	{AFMT_STEREO | AFMT_U8, envy24ht_p8u, 2},
-	{AFMT_STEREO | AFMT_S16_LE, envy24ht_p16sl, 4},
-	{AFMT_STEREO | AFMT_S32_LE, envy24ht_p32sl, 8},
+	{SND_FORMAT(AFMT_U8, 2, 0), envy24ht_p8u, 2},
+	{SND_FORMAT(AFMT_S16_LE, 2, 0), envy24ht_p16sl, 4},
+	{SND_FORMAT(AFMT_S32_LE, 2, 0), envy24ht_p32sl, 8},
 	{0, NULL, 0}
 };
 
 static struct envy24ht_emldma envy24ht_remltab[] = {
-	{AFMT_STEREO | AFMT_S16_LE, envy24ht_r16sl, 4},
-	{AFMT_STEREO | AFMT_S32_LE, envy24ht_r32sl, 8},
+	{SND_FORMAT(AFMT_S16_LE, 2, 0), envy24ht_r16sl, 4},
+	{SND_FORMAT(AFMT_S32_LE, 2, 0), envy24ht_r32sl, 8},
 	{0, NULL, 0}
 };
 
@@ -809,7 +813,7 @@ envy24ht_wrcd(kobj_t obj, void *devinfo, int regno, u_int16_t data)
 static kobj_method_t envy24ht_ac97_methods[] = {
 	KOBJMETHOD(ac97_read,	envy24ht_rdcd),
 	KOBJMETHOD(ac97_write,	envy24ht_wrcd),
-	{0, 0}
+	KOBJMETHOD_END
 };
 AC97_DECLARE(envy24ht_ac97);
 #endif
@@ -1037,7 +1041,7 @@ static struct {
 	{0, 0x10}
 };
 
-static int
+static u_int32_t
 envy24ht_setspeed(struct sc_info *sc, u_int32_t speed) {
 	u_int32_t code, i2sfmt;
 	int i = 0;
@@ -1602,7 +1606,7 @@ envy24htchan_setformat(kobj_t obj, void *data, u_int32_t format)
   start triggerd, some other channel is running, and that channel's
   speed isn't same with, then trigger function will fail.
 */
-static int
+static u_int32_t
 envy24htchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_chinfo *ch = data;
@@ -1627,7 +1631,7 @@ envy24htchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return ch->speed;
 }
 
-static int
+static u_int32_t
 envy24htchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
@@ -1780,13 +1784,12 @@ fail:
 	return (error);
 }
 
-static int
+static u_int32_t
 envy24htchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
-	u_int32_t ptr;
-	int rtn;
+	u_int32_t ptr, rtn;
 
 #if(0)
 	device_printf(sc->dev, "envy24htchan_getptr()\n");
@@ -1840,7 +1843,7 @@ static kobj_method_t envy24htchan_methods[] = {
 	KOBJMETHOD(channel_trigger,		envy24htchan_trigger),
 	KOBJMETHOD(channel_getptr,		envy24htchan_getptr),
 	KOBJMETHOD(channel_getcaps,		envy24htchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(envy24htchan);
 
@@ -1965,7 +1968,7 @@ static kobj_method_t envy24htmixer_methods[] = {
 	KOBJMETHOD(mixer_uninit,	envy24htmixer_uninit),
 	KOBJMETHOD(mixer_set,		envy24htmixer_set),
 	KOBJMETHOD(mixer_setrecsrc,	envy24htmixer_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(envy24htmixer);
 

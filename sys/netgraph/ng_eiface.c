@@ -261,7 +261,9 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		 * Send packet; if hook is not connected, mbuf will get
 		 * freed.
 		 */
+		NG_OUTBOUND_THREAD_REF();
 		NG_SEND_DATA_ONLY(error, priv->ether, m);
+		NG_OUTBOUND_THREAD_UNREF();
 
 		/* Update stats */
 		if (error == 0)
@@ -385,12 +387,10 @@ ng_eiface_constructor(node_p node)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_flags = (IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 
-#if 0
-	/* Give this node name */
-	bzero(ifname, sizeof(ifname));
-	sprintf(ifname, "if%s", ifp->if_xname);
-	(void)ng_name_node(node, ifname);
-#endif
+	/* Give this node the same name as the interface (if possible) */
+	if (ng_name_node(node, ifp->if_xname) != 0)
+		log(LOG_WARNING, "%s: can't acquire netgraph name\n",
+		    ifp->if_xname);
 
 	/* Attach the interface */
 	ether_ifattach(ifp, eaddr);
@@ -414,6 +414,7 @@ ng_eiface_newhook(node_p node, hook_p hook, const char *name)
 		return (EISCONN);
 	priv->ether = hook;
 	NG_HOOK_SET_PRIVATE(hook, &priv->ether);
+	NG_HOOK_SET_TO_INBOUND(hook);
 
 	if_link_state_change(ifp, LINK_STATE_UP);
 
@@ -465,12 +466,12 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			/* Determine size of response and allocate it */
 			buflen = 0;
-			IF_ADDR_LOCK(ifp);
+			if_addr_rlock(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 				buflen += SA_SIZE(ifa->ifa_addr);
 			NG_MKRESPONSE(resp, msg, buflen, M_NOWAIT);
 			if (resp == NULL) {
-				IF_ADDR_UNLOCK(ifp);
+				if_addr_runlock(ifp);
 				error = ENOMEM;
 				break;
 			}
@@ -489,7 +490,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ptr += len;
 				buflen -= len;
 			}
-			IF_ADDR_UNLOCK(ifp);
+			if_addr_runlock(ifp);
 			break;
 		    }
 

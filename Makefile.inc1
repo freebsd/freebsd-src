@@ -94,6 +94,8 @@ CLEANDIR=	cleandir
 
 CVS?=		cvs
 CVSFLAGS?=	-A -P -d -I!
+SVN?=		svn
+SVNFLAGS?=	-r HEAD
 SUP?=		/usr/bin/csup
 SUPFLAGS?=	-g -L 2
 .if defined(SUPHOST)
@@ -854,10 +856,24 @@ update:
 .endif
 .endif
 .if defined(CVS_UPDATE)
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT}
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; ${CVS} -R -q update ${CVSFLAGS}
+	@cd ${.CURDIR} ; \
+	if [ -d CVS ] ; then \
+		echo "--------------------------------------------------------------" ; \
+		echo ">>> Updating ${.CURDIR} from CVS repository" ${CVSROOT} ; \
+		echo "--------------------------------------------------------------" ; \
+		echo ${CVS} -R -q update ${CVSFLAGS} ; \
+		${CVS} -R -q update ${CVSFLAGS} ; \
+	fi
+.endif
+.if defined(SVN_UPDATE)
+	@cd ${.CURDIR} ; \
+	if [ -d .svn ] ; then \
+		echo "--------------------------------------------------------------" ; \
+		echo ">>> Updating ${.CURDIR} using Subversion" ; \
+		echo "--------------------------------------------------------------" ; \
+		echo ${SVN} update ${SVNFLAGS} ; \
+		${SVN} update ${SVNFLAGS} ; \
+	fi
 .endif
 
 #

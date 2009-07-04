@@ -137,7 +137,7 @@ typedef struct _drv_t {
 	int cd;
 	int running;
 #ifdef NETGRAPH
-	char	nodename [NG_NODELEN+1];
+	char	nodename [NG_NODESIZ];
 	hook_p	hook;
 	hook_p	debug_hook;
 	node_p	node;
@@ -2399,7 +2399,7 @@ static int ng_cx_rcvmsg (node_p node, item_p item, hook_p lasthook)
 			l += print_chan (s + l, d->chan);
 			l += print_stats (s + l, d->chan, 1);
 			l += print_modems (s + l, d->chan, 1);
-			strncpy ((resp)->header.cmdstr, "status", NG_CMDSTRLEN);
+			strncpy ((resp)->header.cmdstr, "status", NG_CMDSTRSIZ);
 			}
 			break;
 		}

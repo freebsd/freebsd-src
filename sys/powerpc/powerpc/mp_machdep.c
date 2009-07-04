@@ -37,6 +37,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
@@ -146,8 +153,12 @@ cpu_mp_start(void)
 			goto next;
 		}
 		if (cpu.cr_cpuid != bsp.cr_cpuid) {
+			void *dpcpu;
+
 			pc = &__pcpu[cpu.cr_cpuid];
+			dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
 			pcpu_init(pc, cpu.cr_cpuid, sizeof(*pc));
+			dpcpu_init(dpcpu, cpu.cr_cpuid);
 		} else {
 			pc = pcpup;
 			pc->pc_cpuid = bsp.cr_cpuid;

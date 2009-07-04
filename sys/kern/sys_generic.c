@@ -124,6 +124,7 @@ struct selfd {
 };
 
 static uma_zone_t selfd_zone;
+static struct mtx_pool *mtxpool_select;
 
 #ifndef _SYS_SYSPROTO_H_
 struct read_args {
@@ -561,13 +562,13 @@ kern_ftruncate(td, fd, length)
 	struct file *fp;
 	int error;
 
-	AUDIT_ARG(fd, fd);
+	AUDIT_ARG_FD(fd);
 	if (length < 0)
 		return (EINVAL);
 	error = fget(td, fd, &fp);
 	if (error)
 		return (error);
-	AUDIT_ARG(file, td->td_proc, fp);
+	AUDIT_ARG_FILE(td->td_proc, fp);
 	if (!(fp->f_flag & FWRITE)) {
 		fdrop(fp, td);
 		return (EINVAL);
@@ -692,6 +693,8 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 	int error;
 	int tmp;
 
+	AUDIT_ARG_FD(fd);
+	AUDIT_ARG_CMD(com);
 	if ((error = fget(td, fd, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
@@ -794,11 +797,8 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	if (nd < 0)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
-	
-	FILEDESC_SLOCK(fdp);
-	if (nd > td->td_proc->p_fd->fd_nfiles)
-		nd = td->td_proc->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
-	FILEDESC_SUNLOCK(fdp);
+	if (nd > fdp->fd_lastfile + 1)
+		nd = fdp->fd_lastfile + 1;
 
 	/*
 	 * Allocate just enough bits for the non-null fd_sets.  Use the
@@ -1373,7 +1373,9 @@ selrecord(selector, sip)
 		stp->st_free2 = NULL;
 	else
 		panic("selrecord: No free selfd on selq");
-	mtxp = mtx_pool_find(mtxpool_sleep, sip);
+	mtxp = sip->si_mtx;
+	if (mtxp == NULL)
+		mtxp = mtx_pool_find(mtxpool_select, sip);
 	/*
 	 * Initialize the sfp and queue it in the thread.
 	 */
@@ -1529,6 +1531,8 @@ SYSINIT(select, SI_SUB_SYSCALLS, SI_ORDER_ANY, selectinit, NULL);
 static void
 selectinit(void *dummy __unused)
 {
+
 	selfd_zone = uma_zcreate("selfd", sizeof(struct selfd), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
+	mtxpool_select = mtx_pool_create("select mtxpool", 128, MTX_DEF);
 }

@@ -72,7 +72,7 @@ sobota
 #
 # date_fmt
 #
-%a %e %b %X %Y %Z
+%a %e %b %Y %X %Z
 #
 # Long month names (without case ending)
 #

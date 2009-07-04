@@ -457,6 +457,7 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 {
 	const td_thragent_t *ta = th->th_ta;
 	struct ptrace_lwpinfo linfo;
+	int traceme;
 	int state;
 	int ret;
 
@@ -470,7 +471,8 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	if (ret != 0)
 		return (TD_ERR);
 	ret = thr_pread_int(ta, th->th_thread + ta->thread_off_report_events,
-	    &info->ti_traceme);
+	    &traceme);
+	info->ti_traceme = traceme;
 	if (ret != 0)
 		return (TD_ERR);
 	ret = ps_pread(ta->ph, th->th_thread + ta->thread_off_event_mask,

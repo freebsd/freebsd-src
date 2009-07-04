@@ -29,6 +29,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 
 #include  <dev/sound/isa/sb.h>
@@ -44,24 +48,24 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define PLAIN_SB16(x) ((((x)->bd_flags) & (BD_F_SB16|BD_F_SB16X)) == BD_F_SB16)
 
 static u_int32_t sb16_fmt8[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
 	0
 };
 static struct pcmchan_caps sb16_caps8 = {5000, 45000, sb16_fmt8, 0};
 
 static u_int32_t sb16_fmt16[] = {
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps sb16_caps16 = {5000, 45000, sb16_fmt16, 0};
 
 static u_int32_t sb16x_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps sb16x_caps = {5000, 49000, sb16x_fmt, 0};
@@ -366,7 +370,7 @@ sb16mix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
     	return left | (right << 8);
 }
 
-static int
+static u_int32_t
 sb16mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
@@ -420,7 +424,7 @@ static kobj_method_t sb16mix_mixer_methods[] = {
     	KOBJMETHOD(mixer_init,		sb16mix_init),
     	KOBJMETHOD(mixer_set,		sb16mix_set),
     	KOBJMETHOD(mixer_setrecsrc,	sb16mix_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(sb16mix_mixer);
 
@@ -633,7 +637,7 @@ sb_setup(struct sb_info *sb)
 		v |= (ch->fmt & AFMT_16BIT)? DSP_DMA16 : DSP_DMA8;
 		sb_cmd(sb, v);
 
-		v = (ch->fmt & AFMT_STEREO)? DSP_F16_STEREO : 0;
+		v = (AFMT_CHANNEL(ch->fmt) > 1)? DSP_F16_STEREO : 0;
 		v |= (ch->fmt & AFMT_SIGNED)? DSP_F16_SIGNED : 0;
 		sb_cmd2(sb, v, l);
 		sndbuf_dma(ch->buffer, PCMTRIG_START);
@@ -658,7 +662,7 @@ sb_setup(struct sb_info *sb)
 		v |= (ch->fmt & AFMT_16BIT)? DSP_DMA16 : DSP_DMA8;
 		sb_cmd(sb, v);
 
-		v = (ch->fmt & AFMT_STEREO)? DSP_F16_STEREO : 0;
+		v = (AFMT_CHANNEL(ch->fmt) > 1)? DSP_F16_STEREO : 0;
 		v |= (ch->fmt & AFMT_SIGNED)? DSP_F16_SIGNED : 0;
 		sb_cmd2(sb, v, l);
 		sndbuf_dma(ch->buffer, PCMTRIG_START);
@@ -700,7 +704,7 @@ sb16chan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 sb16chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sb_chinfo *ch = data;
@@ -709,7 +713,7 @@ sb16chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return speed;
 }
 
-static int
+static u_int32_t
 sb16chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sb_chinfo *ch = data;
@@ -737,7 +741,7 @@ sb16chan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 sb16chan_getptr(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
@@ -777,7 +781,7 @@ static kobj_method_t sb16chan_methods[] = {
     	KOBJMETHOD(channel_trigger,		sb16chan_trigger),
     	KOBJMETHOD(channel_getptr,		sb16chan_getptr),
     	KOBJMETHOD(channel_getcaps,		sb16chan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(sb16chan);
 

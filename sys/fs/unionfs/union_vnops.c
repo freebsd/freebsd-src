@@ -638,7 +638,6 @@ unionfs_check_corrected_access(accmode_t accmode,
 	uid_t		uid;	/* upper side vnode's uid */
 	gid_t		gid;	/* upper side vnode's gid */
 	u_short		vmode;	/* upper side vnode's mode */
-	gid_t          *gp;
 	u_short		mask;
 
 	mask = 0;
@@ -659,17 +658,14 @@ unionfs_check_corrected_access(accmode_t accmode,
 
 	/* check group */
 	count = 0;
-	gp = cred->cr_groups;
-	for (; count < cred->cr_ngroups; count++, gp++) {
-		if (gid == *gp) {
-			if (accmode & VEXEC)
-				mask |= S_IXGRP;
-			if (accmode & VREAD)
-				mask |= S_IRGRP;
-			if (accmode & VWRITE)
-				mask |= S_IWGRP;
-			return ((vmode & mask) == mask ? 0 : EACCES);
-		}
+	if (groupmember(gid, cred)) {
+		if (accmode & VEXEC)
+			mask |= S_IXGRP;
+		if (accmode & VREAD)
+			mask |= S_IRGRP;
+		if (accmode & VWRITE)
+			mask |= S_IWGRP;
+		return ((vmode & mask) == mask ? 0 : EACCES);
 	}
 
 	/* check other */

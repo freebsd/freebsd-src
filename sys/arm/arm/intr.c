@@ -120,7 +120,8 @@ arm_handler_execute(struct trapframe *frame, int irqnb)
 	int i;
 
 	PCPU_INC(cnt.v_intr);
-	while ((i = arm_get_next_irq()) != -1) {
+	i = -1;
+	while ((i = arm_get_next_irq(i)) != -1) {
 		intrcnt[intrcnt_tab[i]]++;
 		event = intr_events[i];
 		if (intr_event_handle(event, frame) != 0) {

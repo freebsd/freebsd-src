@@ -1230,6 +1230,22 @@ backtrace_command_1 (char *count_exp, int show_locals, int from_tty)
     printf_filtered ("(More stack frames follow...)\n");
 }
 
+struct backtrace_command_args
+  {
+    char *count_exp;
+    int show_locals;
+    int from_tty;
+  };
+
+/* Stub to call backtrace_command_1 by way of an error catcher.  */
+static int
+backtrace_command_stub (void *data)
+{
+  struct backtrace_command_args *args = (struct backtrace_command_args *)data;
+  backtrace_command_1 (args->count_exp, args->show_locals, args->from_tty);
+  return 0;
+}
+
 static void
 backtrace_command (char *arg, int from_tty)
 {
@@ -1237,6 +1253,7 @@ backtrace_command (char *arg, int from_tty)
   char **argv = (char **) NULL;
   int argIndicatingFullTrace = (-1), totArgLen = 0, argc = 0;
   char *argPtr = arg;
+  struct backtrace_command_args btargs;
 
   if (arg != (char *) NULL)
     {
@@ -1286,7 +1303,10 @@ backtrace_command (char *arg, int from_tty)
 	}
     }
 
-  backtrace_command_1 (argPtr, (argIndicatingFullTrace >= 0), from_tty);
+  btargs.count_exp = argPtr;
+  btargs.show_locals = (argIndicatingFullTrace >= 0);
+  btargs.from_tty = from_tty;
+  catch_errors (backtrace_command_stub, (char *)&btargs, "", RETURN_MASK_ERROR);
 
   if (argIndicatingFullTrace >= 0 && totArgLen > 0)
     xfree (argPtr);
@@ -1299,7 +1319,11 @@ static void backtrace_full_command (char *arg, int from_tty);
 static void
 backtrace_full_command (char *arg, int from_tty)
 {
-  backtrace_command_1 (arg, 1, from_tty);
+  struct backtrace_command_args btargs;
+  btargs.count_exp = arg;
+  btargs.show_locals = 1;
+  btargs.from_tty = from_tty;
+  catch_errors (backtrace_command_stub, (char *)&btargs, "", RETURN_MASK_ERROR);
 }
 
 

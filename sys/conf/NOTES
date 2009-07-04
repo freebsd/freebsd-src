@@ -301,6 +301,9 @@ options 	COMPAT_43
 # Old tty interface.
 options 	COMPAT_43TTY
 
+# Note that as a general rule, COMPAT_FREEBSD<n> depends on
+# COMPAT_FREEBSD<n+1>, COMPAT_FREEBSD<n+2>, etc.
+
 # Enable FreeBSD4 compatibility syscalls
 options 	COMPAT_FREEBSD4
 
@@ -534,6 +537,11 @@ options 	IPSEC			#IP security (requires device crypto)
 # using ipfw(8)'s 'ipsec' keyword, when this option is enabled.
 #
 #options 	IPSEC_FILTERTUNNEL	#filter ipsec packets from a tunnel
+#
+# Set IPSEC_NAT_T to enable NAT-Traversal support.  This enables
+# optional UDP encapsulation of ESP packets.
+#
+options		IPSEC_NAT_T		#NAT-T support, UDP encap of ESP
 
 options 	IPX			#IPX/SPX communications protocols
 
@@ -685,6 +693,7 @@ options 	NETGRAPH_MPPC_ENCRYPTION
 options 	NETGRAPH_NETFLOW
 options 	NETGRAPH_NAT
 options 	NETGRAPH_ONE2MANY
+options 	NETGRAPH_PIPE
 options 	NETGRAPH_PPP
 options 	NETGRAPH_PPPOE
 options 	NETGRAPH_PPTPGRE
@@ -1754,6 +1763,7 @@ device		miibus
 #       L2 PCI-Express FastEthernet controllers.
 # age:  Support for gigabit ethernet adapters based on the Attansic/Atheros
 #       L1 PCI express gigabit ethernet controllers.
+# alc:  Support for Atheros AR8131/AR8132 PCIe ethernet controllers.
 # ale:  Support for Atheros AR8121/AR8113/AR8114 PCIe ethernet controllers.
 # bce:	Broadcom NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet
 #       adapters.
@@ -1762,6 +1772,7 @@ device		miibus
 #	BCM570x family of controllers, including the 3Com 3c996-T,
 #	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
 #	the embedded gigE NICs on Dell PowerEdge 2550 servers.
+# cas:	Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
@@ -1896,10 +1907,12 @@ device		xe
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		ae		# Attansic/Atheros L2 FastEthernet
 device		age		# Attansic/Atheros L1 Gigabit Ethernet
+device		alc		# Atheros AR8131/AR8132 Ethernet
 device		ale		# Atheros AR8121/AR8113/AR8114 Ethernet
 device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe		# Broadcom BCM440x 10/100 Ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
+device		cas		# Sun Cassini/Cassini+ and NS DP83065 Saturn
 device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
 device		dc		# DEC/Intel 21143 and various workalikes
@@ -2108,6 +2121,42 @@ hint.gusc.0.port="0x220"
 hint.gusc.0.irq="5"
 hint.gusc.0.drq="1"
 hint.gusc.0.flags="0x13"
+
+#
+# Following options are intended for debugging/testing purposes:
+#
+# SND_DEBUG                    Enable extra debugging code that includes
+#                              sanity checking and possible increase of
+#                              verbosity.
+#
+# SND_DIAGNOSTIC               Simmilar in a spirit of INVARIANTS/DIAGNOSTIC,
+#                              zero tolerance against inconsistencies.
+#
+# SND_FEEDER_MULTIFORMAT       By default, only 16/32 bit feeders are compiled
+#                              in. This options enable most feeder converters
+#                              except for 8bit. WARNING: May bloat the kernel.
+#
+# SND_FEEDER_FULL_MULTIFORMAT  Ditto, but includes 8bit feeders as well.
+#
+# SND_FEEDER_RATE_HP           (feeder_rate) High precision 64bit arithmetic
+#                              as much as possible (the default trying to
+#                              avoid it). Possible slowdown.
+#
+# SND_PCM_64                   (Only applicable for i386/32bit arch)
+#                              Process 32bit samples through 64bit
+#                              integer/arithmetic. Slight increase of dynamic
+#                              range at a cost of possible slowdown.
+#
+# SND_OLDSTEREO                Only 2 channels are allowed, effectively
+#                              disabling multichannel processing.
+#
+options		SND_DEBUG
+options		SND_DIAGNOSTIC
+options		SND_FEEDER_MULTIFORMAT
+options		SND_FEEDER_FULL_MULTIFORMAT
+options		SND_FEEDER_RATE_HP
+options		SND_PCM_64
+options		SND_OLDSTEREO
 
 #
 # IEEE-488 hardware:

@@ -29,7 +29,6 @@
 #include "opt_inet.h"
 #include "opt_ipx.h"
 #include "opt_ef.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -49,7 +48,6 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-#include <net/route.h>
 #include <net/bpf.h>
 #include <net/vnet.h>
 

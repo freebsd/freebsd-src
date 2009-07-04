@@ -102,7 +102,7 @@ led_attach(device_t dev)
 	return 0;
 }
 
-static void
+static int
 led_detach(device_t dev)
 {
 	struct led_softc *sc = device_get_softc(dev);
@@ -113,12 +113,13 @@ led_detach(device_t dev)
 		if (led != NULL)
 			led_destroy(led);
 	}
+	return (0);
 }
 
 static device_method_t led_methods[] = {
 	DEVMETHOD(device_probe,		led_probe),
 	DEVMETHOD(device_attach,	led_attach),
-	DEVMETHOD(device_attach,	led_detach),
+	DEVMETHOD(device_detach,	led_detach),
 
 	{0, 0},
 };

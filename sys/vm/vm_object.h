@@ -133,6 +133,8 @@ struct vm_object {
 			int swp_bcount;
 		} swp;
 	} un_pager;
+	struct uidinfo *uip;
+	vm_ooffset_t charge;
 };
 
 /*
@@ -198,7 +200,8 @@ void vm_object_pip_wait(vm_object_t object, char *waitid);
 
 vm_object_t vm_object_allocate (objtype_t, vm_pindex_t);
 void _vm_object_allocate (objtype_t, vm_pindex_t, vm_object_t);
-boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t);
+boolean_t vm_object_coalesce(vm_object_t, vm_ooffset_t, vm_size_t, vm_size_t,
+   boolean_t);
 void vm_object_collapse (vm_object_t);
 void vm_object_deallocate (vm_object_t);
 void vm_object_destroy (vm_object_t);
@@ -207,6 +210,7 @@ void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
 void vm_object_page_clean (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
 void vm_object_page_remove (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
+boolean_t vm_object_populate(vm_object_t, vm_pindex_t, vm_pindex_t);
 void vm_object_reference (vm_object_t);
 void vm_object_reference_locked(vm_object_t);
 void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);

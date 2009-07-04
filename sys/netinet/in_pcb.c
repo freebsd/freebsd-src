@@ -357,7 +357,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			 * to any endpoint address, local or not.
 			 */
 			if ((inp->inp_flags & INP_BINDANY) == 0 &&
-			    ifa_ifwithaddr((struct sockaddr *)sin) == NULL)
+			    ifa_ifwithaddr_check((struct sockaddr *)sin) == 0) 
 				return (EADDRNOTAVAIL);
 		}
 		laddr = sin->sin_addr;
@@ -549,7 +549,6 @@ static int
 in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
     struct ucred *cred)
 {
-	struct in_ifaddr *ia;
 	struct ifaddr *ifa;
 	struct sockaddr *sa;
 	struct sockaddr_in *sin;
@@ -559,7 +558,6 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
 
 	error = 0;
-	ia = NULL;
 	bzero(&sro, sizeof(sro));
 
 	sin = (struct sockaddr_in *)&sro.ro_dst;
@@ -585,6 +583,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * the source address from.
 	 */
 	if (sro.ro_rt == NULL || sro.ro_rt->rt_ifp == NULL) {
+		struct in_ifaddr *ia;
 		struct ifnet *ifp;
 
 		ia = ifatoia(ifa_ifwithdstaddr((struct sockaddr *)sin));
@@ -597,10 +596,12 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 
 		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			ifa_free(&ia->ia_ifa);
 			goto done;
 		}
 
 		ifp = ia->ia_ifp;
+		ifa_free(&ia->ia_ifa);
 		ia = NULL;
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -636,6 +637,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * 3. as a last resort return the 'default' jail address.
 	 */
 	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) {
+		struct in_ifaddr *ia;
 		struct ifnet *ifp;
 
 		/* If not jailed, use the default returned. */
@@ -658,10 +660,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		 * 2. Check if we have any address on the outgoing interface
 		 *    belonging to this jail.
 		 */
+		ia = NULL;
 		ifp = sro.ro_rt->rt_ifp;
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
 				continue;
@@ -694,6 +696,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 */
 	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
 		struct sockaddr_in sain;
+		struct in_ifaddr *ia;
 
 		bzero(&sain, sizeof(struct sockaddr_in));
 		sain.sin_family = AF_INET;
@@ -705,15 +708,12 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
 
 		if (cred == NULL || !prison_flag(cred, PR_IP4)) {
-#if __FreeBSD_version < 800000
-			if (ia == NULL)
-				ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
-#endif
 			if (ia == NULL) {
 				error = ENETUNREACH;
 				goto done;
 			}
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			ifa_free(&ia->ia_ifa);
 			goto done;
 		}
 
@@ -722,6 +722,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			struct ifnet *ifp;
 
 			ifp = ia->ia_ifp;
+			ifa_free(&ia->ia_ifa);
 			ia = NULL;
 			IF_ADDR_LOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -812,16 +813,21 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * choose the broadcast address for that interface.
 		 */
 		if (faddr.s_addr == INADDR_ANY) {
+			IN_IFADDR_RLOCK();
 			faddr =
 			    IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
+			IN_IFADDR_RUNLOCK();
 			if (cred != NULL &&
 			    (error = prison_get_ip4(cred, &faddr)) != 0)
 				return (error);
-		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST &&
-		    (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
-		    IFF_BROADCAST))
-			faddr = satosin(&TAILQ_FIRST(
-			    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
+		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST) {
+			IN_IFADDR_RLOCK();
+			if (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
+			    IFF_BROADCAST)
+				faddr = satosin(&TAILQ_FIRST(
+				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
+			IN_IFADDR_RUNLOCK();
+		}
 	}
 	if (laddr.s_addr == INADDR_ANY) {
 		error = in_pcbladdr(inp, &faddr, &laddr, cred);
@@ -841,12 +847,16 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			imo = inp->inp_moptions;
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
+				IN_IFADDR_RLOCK();
 				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
 					if (ia->ia_ifp == ifp)
 						break;
-				if (ia == NULL)
+				if (ia == NULL) {
+					IN_IFADDR_RUNLOCK();
 					return (EADDRNOTAVAIL);
+				}
 				laddr = ia->ia_addr.sin_addr;
+				IN_IFADDR_RUNLOCK();
 			}
 		}
 	}

@@ -73,6 +73,11 @@ ASENTRY_NP(_start)
 
 	mov	ip, r0
 
+	/* Make sure interrupts are disabled. */
+	mrs	r7, cpsr
+	orr	r7, r7, #(I32_bit|F32_bit)
+	msr	cpsr_c, r7
+
 #if defined (FLASHADDR) && defined(LOADERRAMADDR)
 	/* Check if we're running from flash. */
 	ldr	r7, =FLASHADDR

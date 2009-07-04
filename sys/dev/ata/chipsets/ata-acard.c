@@ -93,7 +93,7 @@ ata_acard_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_acard_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int

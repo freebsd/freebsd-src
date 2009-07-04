@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -133,18 +132,7 @@ static int default_to_accept;
 #endif
 static uma_zone_t ipfw_dyn_rule_zone;
 
-/*
- * Data structure to cache our ucred related
- * information. This structure only gets used if
- * the user specified UID/GID based constraints in
- * a firewall rule.
- */
-struct ip_fw_ugid {
-	gid_t		fw_groups[NGROUPS];
-	int		fw_ngroups;
-	uid_t		fw_uid;
-	int		fw_prid;
-};
+struct ip_fw *ip_fw_default_rule;
 
 /*
  * list of rules for layer 3
@@ -487,17 +475,17 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 	} else {
 		struct ifaddr *ia;
 
-		IF_ADDR_LOCK(ifp);
+		if_addr_rlock(ifp);
 		TAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 			if (ia->ifa_addr->sa_family != AF_INET)
 				continue;
 			if (cmd->p.ip.s_addr == ((struct sockaddr_in *)
 			    (ia->ifa_addr))->sin_addr.s_addr) {
-				IF_ADDR_UNLOCK(ifp);
+				if_addr_runlock(ifp);
 				return(1);	/* match */
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_addr_runlock(ifp);
 	}
 	return(0);	/* no match, fail ... */
 }
@@ -600,7 +588,7 @@ search_ip6_addr_net (struct in6_addr * ip6_addr)
 	struct in6_addr copia;
 
 	TAILQ_FOREACH(mdc, &V_ifnet, if_link) {
-		IF_ADDR_LOCK(mdc);
+		if_addr_rlock(mdc);
 		TAILQ_FOREACH(mdc2, &mdc->if_addrhead, ifa_link) {
 			if (mdc2->ifa_addr->sa_family == AF_INET6) {
 				fdm = (struct in6_ifaddr *)mdc2;
@@ -608,12 +596,12 @@ search_ip6_addr_net (struct in6_addr * ip6_addr)
 				/* need for leaving scope_id in the sock_addr */
 				in6_clearscope(&copia);
 				if (IN6_ARE_ADDR_EQUAL(ip6_addr, &copia)) {
-					IF_ADDR_UNLOCK(mdc);
+					if_addr_runlock(mdc);
 					return 1;
 				}
 			}
 		}
-		IF_ADDR_UNLOCK(mdc);
+		if_addr_runlock(mdc);
 	}
 	return 0;
 }
@@ -2008,22 +1996,10 @@ dump_table(struct ip_fw_chain *ch, ipfw_table *tbl)
 	return (0);
 }
 
-static void
-fill_ugid_cache(struct inpcb *inp, struct ip_fw_ugid *ugp)
-{
-	struct ucred *cr;
-
-	cr = inp->inp_cred;
-	ugp->fw_prid = jailed(cr) ? cr->cr_prison->pr_id : -1;
-	ugp->fw_uid = cr->cr_uid;
-	ugp->fw_ngroups = cr->cr_ngroups;
-	bcopy(cr->cr_groups, ugp->fw_groups, sizeof(ugp->fw_groups));
-}
-
 static int
 check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
     struct in_addr dst_ip, u_int16_t dst_port, struct in_addr src_ip,
-    u_int16_t src_port, struct ip_fw_ugid *ugp, int *ugid_lookupp,
+    u_int16_t src_port, struct ucred **uc, int *ugid_lookupp,
     struct inpcb *inp)
 {
 	INIT_VNET_INET(curvnet);
@@ -2031,7 +2007,6 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	int wildcard;
 	struct inpcb *pcb;
 	int match;
-	gid_t *gp;
 
 	/*
 	 * Check to see if the UDP or TCP stack supplied us with
@@ -2041,7 +2016,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	if (inp && *ugid_lookupp == 0) {
 		INP_LOCK_ASSERT(inp);
 		if (inp->inp_socket != NULL) {
-			fill_ugid_cache(inp, ugp);
+			*uc = crhold(inp->inp_cred);
 			*ugid_lookupp = 1;
 		} else
 			*ugid_lookupp = -1;
@@ -2074,7 +2049,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 				dst_ip, htons(dst_port),
 				wildcard, NULL);
 		if (pcb != NULL) {
-			fill_ugid_cache(pcb, ugp);
+			*uc = crhold(inp->inp_cred);
 			*ugid_lookupp = 1;
 		}
 		INP_INFO_RUNLOCK(pi);
@@ -2090,16 +2065,11 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 		}
 	} 
 	if (insn->o.opcode == O_UID)
-		match = (ugp->fw_uid == (uid_t)insn->d[0]);
-	else if (insn->o.opcode == O_GID) {
-		for (gp = ugp->fw_groups;
-			gp < &ugp->fw_groups[ugp->fw_ngroups]; gp++)
-			if (*gp == (gid_t)insn->d[0]) {
-				match = 1;
-				break;
-			}
-	} else if (insn->o.opcode == O_JAIL)
-		match = (ugp->fw_prid == (int)insn->d[0]);
+		match = ((*uc)->cr_uid == (uid_t)insn->d[0]);
+	else if (insn->o.opcode == O_GID)
+		match = groupmember((gid_t)insn->d[0], *uc);
+	else if (insn->o.opcode == O_JAIL)
+		match = ((*uc)->cr_prison->pr_id == (int)insn->d[0]);
 	return match;
 }
 
@@ -2177,8 +2147,8 @@ ipfw_chk(struct ip_fw_args *args)
 	 * these types of constraints, as well as decrease contention
 	 * on pcb related locks.
 	 */
-	struct ip_fw_ugid fw_ugid_cache;
-	int ugid_lookup = 0;
+	struct ucred *ucred_cache = NULL;
+	int ucred_lookup = 0;
 
 	/*
 	 * divinput_flags	If non-zero, set to the IP_FW_DIVERT_*_FLAG
@@ -2521,9 +2491,21 @@ do {									\
 	if (args->rule) {
 		/*
 		 * Packet has already been tagged. Look for the next rule
-		 * to restart processing.
+		 * to restart processing. Make sure that args->rule still
+		 * exists and not changed.
 		 */
-		f = args->rule->next_rule;
+		if (chain->id != args->chain_id) {
+			for (f = chain->rules; f != NULL; f = f->next)
+				if (f == args->rule && f->id == args->rule_id)
+					break;
+
+			if (f != NULL)
+				f = f->next_rule;
+			else
+				f = ip_fw_default_rule;
+		} else 
+			f = args->rule->next_rule;
+
 		if (f == NULL)
 			f = lookup_next_rule(args->rule, 0);
 	} else {
@@ -2628,8 +2610,8 @@ check_body:
 						    (ipfw_insn_u32 *)cmd,
 						    proto, oif,
 						    dst_ip, dst_port,
-						    src_ip, src_port, &fw_ugid_cache,
-						    &ugid_lookup, args->inp);
+						    src_ip, src_port, &ucred_cache,
+						    &ucred_lookup, args->inp);
 				break;
 
 			case O_RECV:
@@ -3235,6 +3217,8 @@ check_body:
 			case O_PIPE:
 			case O_QUEUE:
 				args->rule = f; /* report matching rule */
+				args->rule_id = f->id;
+				args->chain_id = chain->id;
 				if (cmd->arg1 == IP_FW_TABLEARG)
 					args->cookie = tablearg;
 				else
@@ -3255,6 +3239,8 @@ check_body:
 					/* XXX statistic */
 					/* drop packet */
 					IPFW_RUNLOCK(chain);
+					if (ucred_cache != NULL)
+						crfree(ucred_cache);
 					return (IP_FW_DENY);
 				}
 				dt = (struct divert_tag *)(mtag+1);
@@ -3343,6 +3329,8 @@ check_body:
 			case O_NETGRAPH:
 			case O_NGTEE:
 				args->rule = f;	/* report matching rule */
+				args->rule_id = f->id;
+				args->chain_id = chain->id;
 				if (cmd->arg1 == IP_FW_TABLEARG)
 					args->cookie = tablearg;
 				else
@@ -3365,6 +3353,8 @@ check_body:
 
  				if (IPFW_NAT_LOADED) {
 					args->rule = f; /* Report matching rule. */
+					args->rule_id = f->id;
+					args->chain_id = chain->id;
 					t = ((ipfw_insn_nat *)cmd)->nat;
 					if (t == NULL) {
 						nat_id = (cmd->arg1 == IP_FW_TABLEARG) ?
@@ -3423,6 +3413,8 @@ check_body:
 							ip->ip_sum = in_cksum(m, hlen);
 						retval = IP_FW_REASS;
 						args->rule = f;
+						args->rule_id = f->id;
+						args->chain_id = chain->id;
 						goto done;
 					} else {
 						retval = IP_FW_DENY;
@@ -3454,6 +3446,8 @@ next_rule:;		/* try next rule		*/
 	}		/* end of outer for, scan rules */
 	printf("ipfw: ouch!, skip past end of rules, denying packet\n");
 	IPFW_RUNLOCK(chain);
+	if (ucred_cache != NULL)
+		crfree(ucred_cache);
 	return (IP_FW_DENY);
 
 done:
@@ -3462,6 +3456,8 @@ done:
 	f->bcnt += pktlen;
 	f->timestamp = time_uptime;
 	IPFW_RUNLOCK(chain);
+	if (ucred_cache != NULL)
+		crfree(ucred_cache);
 	return (retval);
 
 pullup_failed:
@@ -3480,6 +3476,8 @@ flush_rule_ptrs(struct ip_fw_chain *chain)
 	struct ip_fw *rule;
 
 	IPFW_WLOCK_ASSERT(chain);
+
+	chain->id++;
 
 	for (rule = chain->rules; rule; rule = rule->next)
 		rule->next_rule = NULL;
@@ -3517,6 +3515,7 @@ add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 
 	if (chain->rules == NULL) {	/* default rule */
 		chain->rules = rule;
+		rule->id = ++chain->id;
 		goto done;
         }
 
@@ -3558,6 +3557,8 @@ add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 		}
 	}
 	flush_rule_ptrs(chain);
+	/* chain->id incremented inside flush_rule_ptrs() */
+	rule->id = chain->id;
 done:
 	V_static_count++;
 	V_static_len += l;
@@ -3603,14 +3604,9 @@ remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
 }
 
 /*
- * Hook for cleaning up dummynet when an ipfw rule is deleted.
- * Set/cleared when dummynet module is loaded/unloaded.
- */
-void   (*ip_dn_ruledel_ptr)(void *) = NULL;
-
-/**
  * Reclaim storage associated with a list of rules.  This is
  * typically the list created using remove_rule.
+ * A NULL pointer on input is handled correctly.
  */
 static void
 reap_rules(struct ip_fw *head)
@@ -3619,8 +3615,6 @@ reap_rules(struct ip_fw *head)
 
 	while ((rule = head) != NULL) {
 		head = head->next;
-		if (ip_dn_ruledel_ptr)
-			ip_dn_ruledel_ptr(rule);
 		free(rule, M_IPFW);
 	}
 }
@@ -3637,6 +3631,7 @@ free_chain(struct ip_fw_chain *chain, int kill_default)
 
 	IPFW_WLOCK_ASSERT(chain);
 
+	chain->reap = NULL;
 	flush_rule_ptrs(chain); /* more efficient to do outside the loop */
 	for (prev = NULL, rule = chain->rules; rule ; )
 		if (kill_default || rule->set != RESVD_SET)
@@ -3683,8 +3678,8 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 	}
 
 	IPFW_WLOCK(chain);
-	rule = chain->rules;
-	chain->reap = NULL;
+	rule = chain->rules;	/* common starting point */
+	chain->reap = NULL;	/* prepare for deletions */
 	switch (cmd) {
 	case 0:	/* delete rules with given number */
 		/*
@@ -3708,18 +3703,17 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 
 	case 1:	/* delete all rules with given set number */
 		flush_rule_ptrs(chain);
-		rule = chain->rules;
-		while (rule->rulenum < IPFW_DEFAULT_RULE)
+		while (rule->rulenum < IPFW_DEFAULT_RULE) {
 			if (rule->set == rulenum)
 				rule = remove_rule(chain, rule, prev);
 			else {
 				prev = rule;
 				rule = rule->next;
 			}
+		}
 		break;
 
 	case 2:	/* move rules with given number to new set */
-		rule = chain->rules;
 		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
 			if (rule->rulenum == rulenum)
 				rule->set = new_set;
@@ -3738,6 +3732,7 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 			else if (rule->set == new_set)
 				rule->set = rulenum;
 		break;
+
 	case 5: /* delete rules with given number and with given set number.
 		 * rulenum - given rule number;
 		 * new_set - given set number.
@@ -3764,10 +3759,8 @@ del_entry(struct ip_fw_chain *chain, u_int32_t arg)
 	 * avoid a LOR with dummynet.
 	 */
 	rule = chain->reap;
-	chain->reap = NULL;
 	IPFW_WUNLOCK(chain);
-	if (rule)
-		reap_rules(rule);
+	reap_rules(rule);
 	return 0;
 }
 
@@ -4297,6 +4290,8 @@ ipfw_ctl(struct sockopt *sopt)
 		if (V_ipfw_dyn_v)		/* add size of dyn.rules */
 			size += (V_dyn_count * sizeof(ipfw_dyn_rule));
 
+		if (size >= sopt->sopt_valsize)
+			break;
 		/*
 		 * XXX todo: if the user passes a short length just to know
 		 * how much room is needed, do not bother filling up the
@@ -4323,13 +4318,10 @@ ipfw_ctl(struct sockopt *sopt)
 		 */
 
 		IPFW_WLOCK(&V_layer3_chain);
-		V_layer3_chain.reap = NULL;
 		free_chain(&V_layer3_chain, 0 /* keep default rule */);
 		rule = V_layer3_chain.reap;
-		V_layer3_chain.reap = NULL;
 		IPFW_WUNLOCK(&V_layer3_chain);
-		if (rule != NULL)
-			reap_rules(rule);
+		reap_rules(rule);
 		break;
 
 	case IP_FW_ADD:
@@ -4521,15 +4513,6 @@ ipfw_ctl(struct sockopt *sopt)
 	return (error);
 #undef RULE_MAXSIZE
 }
-
-/**
- * dummynet needs a reference to the default rule, because rules can be
- * deleted while packets hold a reference to them. When this happens,
- * dummynet changes the reference to the default rule (it could well be a
- * NULL pointer, but this way we do not need to check for the special
- * case, plus here he have info on the default behaviour).
- */
-struct ip_fw *ip_fw_default_rule;
 
 /*
  * This procedure is only used to handle keepalives. It is invoked
@@ -4726,12 +4709,10 @@ ipfw_destroy(void)
 	callout_drain(&V_ipfw_timeout);
 	IPFW_WLOCK(&V_layer3_chain);
 	flush_tables(&V_layer3_chain);
-	V_layer3_chain.reap = NULL;
 	free_chain(&V_layer3_chain, 1 /* kill default rule */);
-	reap = V_layer3_chain.reap, V_layer3_chain.reap = NULL;
+	reap = V_layer3_chain.reap;
 	IPFW_WUNLOCK(&V_layer3_chain);
-	if (reap != NULL)
-		reap_rules(reap);
+	reap_rules(reap);
 	IPFW_DYN_LOCK_DESTROY();
 	uma_zdestroy(ipfw_dyn_rule_zone);
 	if (V_ipfw_dyn_v != NULL)

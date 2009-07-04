@@ -198,7 +198,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 
 	if ((object = vp->v_object) == NULL) {
 		ncl_printf("nfs_getpages: called with non-merged cache vnode??\n");
-		return VM_PAGER_ERROR;
+		return (VM_PAGER_ERROR);
 	}
 
 	if (newnfs_directio_enable && !newnfs_directio_allow_mmap) {
@@ -206,7 +206,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 		if ((np->n_flag & NNONCACHE) && (vp->v_type == VREG)) {
 			mtx_unlock(&np->n_mtx);
 			ncl_printf("nfs_getpages: called on non-cacheable vnode??\n");
-			return VM_PAGER_ERROR;
+			return (VM_PAGER_ERROR);
 		} else
 			mtx_unlock(&np->n_mtx);
 	}
@@ -227,23 +227,18 @@ ncl_getpages(struct vop_getpages_args *ap)
 	 * allow the pager to zero-out the blanks.  Partially valid pages
 	 * can only occur at the file EOF.
 	 */
-
-	{
-		vm_page_t m = pages[ap->a_reqpage];
-
-		VM_OBJECT_LOCK(object);
-		if (m->valid != 0) {
-			vm_page_lock_queues();
-			for (i = 0; i < npages; ++i) {
-				if (i != ap->a_reqpage)
-					vm_page_free(pages[i]);
-			}
-			vm_page_unlock_queues();
-			VM_OBJECT_UNLOCK(object);
-			return(0);
+	VM_OBJECT_LOCK(object);
+	if (pages[ap->a_reqpage]->valid != 0) {
+		vm_page_lock_queues();
+		for (i = 0; i < npages; ++i) {
+			if (i != ap->a_reqpage)
+				vm_page_free(pages[i]);
 		}
+		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
+		return (0);
 	}
+	VM_OBJECT_UNLOCK(object);
 
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
@@ -281,7 +276,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 		}
 		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
-		return VM_PAGER_ERROR;
+		return (VM_PAGER_ERROR);
 	}
 
 	/*
@@ -347,7 +342,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 	}
 	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(object);
-	return 0;
+	return (0);
 }
 
 /*
@@ -485,6 +480,11 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 	 * But for now, this suffices.
 	 */
 	old_lock = ncl_upgrade_vnlock(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		ncl_downgrade_vnlock(vp, old_lock);
+		return (EBADF);
+	}
+
 	mtx_lock(&np->n_mtx);
 	if (np->n_flag & NMODIFIED) {
 		mtx_unlock(&np->n_mtx);
@@ -1391,14 +1391,6 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 
 	ASSERT_VOP_LOCKED(vp, "ncl_vinvalbuf");
 
-	/*
-	 * XXX This check stops us from needlessly doing a vinvalbuf when
-	 * being called through vclean().  It is not clear that this is
-	 * unsafe.
-	 */
-	if (vp->v_iflag & VI_DOOMED)
-		return (0);
-
 	if ((nmp->nm_flag & NFSMNT_INT) == 0)
 		intrflg = 0;
 	if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF))
@@ -1412,6 +1404,16 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	}
 
 	old_lock = ncl_upgrade_vnlock(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		/*
+		 * Since vgonel() uses the generic vinvalbuf() to flush
+		 * dirty buffers and it does not call this function, it
+		 * is safe to just return OK when VI_DOOMED is set.
+		 */
+		ncl_downgrade_vnlock(vp, old_lock);
+		return (0);
+	}
+
 	/*
 	 * Now, flush as required.
 	 */

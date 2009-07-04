@@ -130,6 +130,7 @@ struct ng_hook {
 #define HK_FORCE_WRITER		0x0004	/* Incoming data queued as a writer */
 #define HK_DEAD			0x0008	/* This is the dead hook.. don't free */
 #define HK_HI_STACK		0x0010	/* Hook has hi stack usage */
+#define HK_TO_INBOUND		0x0020	/* Hook on ntw. stack inbound path. */
 
 /*
  * Public Methods for hook
@@ -150,6 +151,8 @@ void ng_unref_hook(hook_p hook); /* don't move this */
 #define _NG_HOOK_FORCE_WRITER(hook)				\
 		do { hook->hk_flags |= HK_FORCE_WRITER; } while (0)
 #define _NG_HOOK_FORCE_QUEUE(hook) do { hook->hk_flags |= HK_QUEUE; } while (0)
+#define _NG_HOOK_SET_TO_INBOUND(hook)				\
+		do { hook->hk_flags |= HK_TO_INBOUND; } while (0)
 #define _NG_HOOK_HI_STACK(hook) do { hook->hk_flags |= HK_HI_STACK; } while (0)
 
 /* Some shortcuts */
@@ -176,8 +179,11 @@ static __inline int	_ng_hook_is_valid(hook_p hook, char * file, int line);
 static __inline node_p	_ng_hook_node(hook_p hook, char * file, int line);
 static __inline hook_p	_ng_hook_peer(hook_p hook, char * file, int line);
 static __inline void	_ng_hook_force_writer(hook_p hook, char * file,
-					int line);
-static __inline void	_ng_hook_force_queue(hook_p hook, char * file, int line);
+				int line);
+static __inline void	_ng_hook_force_queue(hook_p hook, char * file,
+				int line);
+static __inline void	_ng_hook_set_to_inbound(hook_p hook, char * file,
+				int line);
 
 static __inline void
 _chkhook(hook_p hook, char *file, int line)
@@ -282,6 +288,13 @@ _ng_hook_force_queue(hook_p hook, char * file, int line)
 }
 
 static __inline void
+_ng_hook_set_to_inbound(hook_p hook, char * file, int line)
+{
+	_chkhook(hook, file, line);
+	_NG_HOOK_SET_TO_INBOUND(hook);
+}
+
+static __inline void
 _ng_hook_hi_stack(hook_p hook, char * file, int line)
 {
 	_chkhook(hook, file, line);
@@ -302,6 +315,7 @@ _ng_hook_hi_stack(hook_p hook, char * file, int line)
 #define NG_HOOK_PEER(hook)		_ng_hook_peer(hook, _NN_)
 #define NG_HOOK_FORCE_WRITER(hook)	_ng_hook_force_writer(hook, _NN_)
 #define NG_HOOK_FORCE_QUEUE(hook)	_ng_hook_force_queue(hook, _NN_)
+#define NG_HOOK_SET_TO_INBOUND(hook)	_ng_hook_set_to_inbound(hook, _NN_)
 #define NG_HOOK_HI_STACK(hook)		_ng_hook_hi_stack(hook, _NN_)
 
 #else	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
@@ -319,6 +333,7 @@ _ng_hook_hi_stack(hook_p hook, char * file, int line)
 #define NG_HOOK_PEER(hook)		_NG_HOOK_PEER(hook)
 #define NG_HOOK_FORCE_WRITER(hook)	_NG_HOOK_FORCE_WRITER(hook)
 #define NG_HOOK_FORCE_QUEUE(hook)	_NG_HOOK_FORCE_QUEUE(hook)
+#define NG_HOOK_SET_TO_INBOUND(hook)	_NG_HOOK_SET_TO_INBOUND(hook)
 #define NG_HOOK_HI_STACK(hook)		_NG_HOOK_HI_STACK(hook)
 
 #endif	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
@@ -1188,6 +1203,20 @@ typedef void *meta_p;
 /* Hash related definitions */
 #define	NG_ID_HASH_SIZE 128 /* most systems wont need even this many */
 #define	NG_NAME_HASH_SIZE 128 /* most systems wont need even this many */
+
+/*
+ * Mark the current thread when called from the outbound path of the
+ * network stack, in order to enforce queuing on ng nodes calling into
+ * the inbound network stack path.
+ */
+#define NG_OUTBOUND_THREAD_REF()					\
+	curthread->td_ng_outbound++
+#define NG_OUTBOUND_THREAD_UNREF()					\
+	do {								\
+		curthread->td_ng_outbound--;				\
+		KASSERT(curthread->td_ng_outbound >= 0,			\
+		    ("%s: negative td_ng_outbound", __func__));		\
+	} while (0)
 
 /* Virtualization macros */
 #define	INIT_VNET_NETGRAPH(vnet) \

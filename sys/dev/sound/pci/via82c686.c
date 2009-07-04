@@ -24,6 +24,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
@@ -90,10 +94,10 @@ struct via_info {
 };
 
 static u_int32_t via_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps via_vracaps = {4000, 48000, via_fmt, 0};
@@ -207,7 +211,7 @@ via_read_codec(kobj_t obj, void *addr, int reg)
 static kobj_method_t via_ac97_methods[] = {
     	KOBJMETHOD(ac97_read,		via_read_codec),
     	KOBJMETHOD(ac97_write,		via_write_codec),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(via_ac97);
 
@@ -284,7 +288,7 @@ viachan_setformat(kobj_t obj, void *data, u_int32_t format)
 	int mode, mode_set;
 
 	mode_set = 0;
-	if (format & AFMT_STEREO)
+	if (AFMT_CHANNEL(format) > 1)
 		mode_set |= VIA_RPMODE_STEREO;
 	if (format & AFMT_S16_LE)
 		mode_set |= VIA_RPMODE_16BIT;
@@ -300,7 +304,7 @@ viachan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 viachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct via_chinfo *ch = data;
@@ -323,7 +327,7 @@ viachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 		return 48000;
 }
 
-static int
+static u_int32_t
 viachan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct via_chinfo *ch = data;
@@ -361,14 +365,14 @@ viachan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 viachan_getptr(kobj_t obj, void *data)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
 	struct via_dma_op *ado;
 	bus_addr_t sgd_addr = ch->sgd_addr;
-	int ptr, base, base1, len, seg;
+	u_int32_t ptr, base, base1, len, seg;
 
 	ado = ch->sgd_table;
 	snd_mtxlock(via->lock);
@@ -396,7 +400,7 @@ viachan_getptr(kobj_t obj, void *data)
 		ptr = ptr & ~0x1f;
 	}
 
-	DEB(printf("return ptr=%d\n", ptr));
+	DEB(printf("return ptr=%u\n", ptr));
 	return ptr;
 }
 
@@ -417,7 +421,7 @@ static kobj_method_t viachan_methods[] = {
     	KOBJMETHOD(channel_trigger,		viachan_trigger),
     	KOBJMETHOD(channel_getptr,		viachan_getptr),
     	KOBJMETHOD(channel_getcaps,		viachan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(viachan);
 

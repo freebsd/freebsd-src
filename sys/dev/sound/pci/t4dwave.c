@@ -24,6 +24,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pci/t4dwave.h>
@@ -103,27 +107,27 @@ struct tr_info {
 /* -------------------------------------------------------------------- */
 
 static u_int32_t tr_recfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S8,
-	AFMT_STEREO | AFMT_S8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_U16_LE,
-	AFMT_STEREO | AFMT_U16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S8, 1, 0),
+	SND_FORMAT(AFMT_S8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_U16_LE, 1, 0),
+	SND_FORMAT(AFMT_U16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps tr_reccaps = {4000, 48000, tr_recfmt, 0};
 
 static u_int32_t tr_playfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S8,
-	AFMT_STEREO | AFMT_S8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_U16_LE,
-	AFMT_STEREO | AFMT_U16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S8, 1, 0),
+	SND_FORMAT(AFMT_S8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_U16_LE, 1, 0),
+	SND_FORMAT(AFMT_U16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps tr_playcaps = {4000, 48000, tr_playfmt, 0};
@@ -289,7 +293,7 @@ tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 static kobj_method_t tr_ac97_methods[] = {
     	KOBJMETHOD(ac97_read,		tr_rdcd),
     	KOBJMETHOD(ac97_write,		tr_wrcd),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(tr_ac97);
 
@@ -473,7 +477,7 @@ tr_fmttobits(u_int32_t fmt)
 
 	bits = 0;
 	bits |= (fmt & AFMT_SIGNED)? 0x2 : 0;
-	bits |= (fmt & AFMT_STEREO)? 0x4 : 0;
+	bits |= (AFMT_CHANNEL(fmt) > 1)? 0x4 : 0;
 	bits |= (fmt & AFMT_16BIT)? 0x8 : 0;
 
 	return bits;
@@ -510,7 +514,7 @@ trpchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 trpchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct tr_chinfo *ch = data;
@@ -519,7 +523,7 @@ trpchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return (ch->delta * 48000) >> 12;
 }
 
-static int
+static u_int32_t
 trpchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct tr_chinfo *ch = data;
@@ -543,7 +547,7 @@ trpchan_trigger(kobj_t obj, void *data, int go)
 		ch->alpha = 0;
 		ch->lba = sndbuf_getbufaddr(ch->buffer);
 		ch->cso = 0;
-		ch->eso = (sndbuf_getsize(ch->buffer) / sndbuf_getbps(ch->buffer)) - 1;
+		ch->eso = (sndbuf_getsize(ch->buffer) / sndbuf_getalign(ch->buffer)) - 1;
 		ch->rvol = ch->cvol = 0x7f;
 		ch->gvsel = 0;
 		ch->pan = 0;
@@ -561,13 +565,13 @@ trpchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 trpchan_getptr(kobj_t obj, void *data)
 {
 	struct tr_chinfo *ch = data;
 
 	tr_rdch(ch);
-	return ch->cso * sndbuf_getbps(ch->buffer);
+	return ch->cso * sndbuf_getalign(ch->buffer);
 }
 
 static struct pcmchan_caps *
@@ -584,7 +588,7 @@ static kobj_method_t trpchan_methods[] = {
     	KOBJMETHOD(channel_trigger,		trpchan_trigger),
     	KOBJMETHOD(channel_getptr,		trpchan_getptr),
     	KOBJMETHOD(channel_getcaps,		trpchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(trpchan);
 
@@ -627,7 +631,7 @@ trrchan_setformat(kobj_t obj, void *data, u_int32_t format)
 
 }
 
-static int
+static u_int32_t
 trrchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct tr_rchinfo *ch = data;
@@ -641,7 +645,7 @@ trrchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return (48000 << 12) / ch->delta;
 }
 
-static int
+static u_int32_t
 trrchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct tr_rchinfo *ch = data;
@@ -683,7 +687,7 @@ trrchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 trrchan_getptr(kobj_t obj, void *data)
 {
  	struct tr_rchinfo *ch = data;
@@ -707,7 +711,7 @@ static kobj_method_t trrchan_methods[] = {
     	KOBJMETHOD(channel_trigger,		trrchan_trigger),
     	KOBJMETHOD(channel_getptr,		trrchan_getptr),
     	KOBJMETHOD(channel_getcaps,		trrchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(trrchan);
 

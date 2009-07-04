@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2005
+.Dd June 10, 2009
 .Dt NG_IPFW 4
 .Os
 .Sh NAME
@@ -84,11 +84,12 @@ to
 struct ng_ipfw_tag {
 	struct m_tag	mt;		/* tag header */
 	struct ip_fw	*rule;		/* matching rule */
+	uint32_t	rule_id;	/* matching rule id */
+	uint32_t	chain_id;	/* ruleset id */
         struct ifnet	*ifp;		/* interface, for ip_output */
 	int		dir;		/* packet direction */
 #define	NG_IPFW_OUT	0
 #define	NG_IPFW_IN	1
-	int		flags;		/* flags, for ip_output() */
 };
 .Ed
 .Pp

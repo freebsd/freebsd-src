@@ -31,7 +31,6 @@
  */
 #include "opt_sctp.h"
 #include "opt_mpath.h"
-#include "opt_route.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -66,9 +65,11 @@
 #include <netinet6/scope6_var.h>
 #endif
 
+#if defined(INET) || defined(INET6)
 #ifdef SCTP
 extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
 #endif /* SCTP */
+#endif
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
@@ -682,6 +683,13 @@ route_output(struct mbuf *m, struct socket *so)
 				RT_UNLOCK(rt);
 				RADIX_NODE_HEAD_LOCK(rnh);
 				error = rt_getifa_fib(&info, rt->rt_fibnum);
+				/*
+				 * XXXRW: Really we should release this
+				 * reference later, but this maintains
+				 * historical behavior.
+				 */
+				if (info.rti_ifa != NULL)
+					ifa_free(info.rti_ifa);
 				RADIX_NODE_HEAD_UNLOCK(rnh);
 				if (error != 0)
 					senderr(error);
@@ -693,7 +701,7 @@ route_output(struct mbuf *m, struct socket *so)
 			    rt->rt_ifa->ifa_rtrequest != NULL) {
 				rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt,
 				    &info);
-				IFAFREE(rt->rt_ifa);
+				ifa_free(rt->rt_ifa);
 			}
 			if (info.rti_info[RTAX_GATEWAY] != NULL) {
 				RT_UNLOCK(rt);
@@ -711,7 +719,7 @@ route_output(struct mbuf *m, struct socket *so)
 			}
 			if (info.rti_ifa != NULL &&
 			    info.rti_ifa != rt->rt_ifa) {
-				IFAREF(info.rti_ifa);
+				ifa_ref(info.rti_ifa);
 				rt->rt_ifa = info.rti_ifa;
 				rt->rt_ifp = info.rti_ifp;
 			}
@@ -1064,6 +1072,7 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
 		("unexpected cmd %u", cmd));
+#if defined(INET) || defined(INET6)
 #ifdef SCTP
 	/*
 	 * notify the SCTP stack
@@ -1072,6 +1081,7 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 	 */
 	sctp_addr_change(ifa, cmd);
 #endif /* SCTP */
+#endif
 	if (route_cb.any_count == 0)
 		return;
 	for (pass = 1; pass < 3; pass++) {

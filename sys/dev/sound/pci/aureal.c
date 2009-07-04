@@ -24,6 +24,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pci/aureal.h>
@@ -38,19 +42,19 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* channel interface */
 static u_int32_t au_playfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps au_playcaps = {4000, 48000, au_playfmt, 0};
 
 static u_int32_t au_recfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps au_reccaps = {4000, 48000, au_recfmt, 0};
@@ -167,7 +171,7 @@ au_wrcd(kobj_t obj, void *arg, int regno, u_int32_t data)
 static kobj_method_t au_ac97_methods[] = {
     	KOBJMETHOD(ac97_read,		au_rdcd),
     	KOBJMETHOD(ac97_write,		au_wrcd),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(au_ac97);
 
@@ -242,13 +246,13 @@ static void
 au_prepareoutput(struct au_chinfo *ch, u_int32_t format)
 {
 	struct au_info *au = ch->parent;
-	int i, stereo = (format & AFMT_STEREO)? 1 : 0;
+	int i, stereo = (AFMT_CHANNEL(format) > 1)? 1 : 0;
 	u_int32_t baseaddr = sndbuf_getbufaddr(ch->buffer);
 
 	au_wr(au, 0, 0x1061c, 0, 4);
 	au_wr(au, 0, 0x10620, 0, 4);
 	au_wr(au, 0, 0x10624, 0, 4);
-	switch(format & ~AFMT_STEREO) {
+	switch(AFMT_ENCODING(format)) {
 		case 1:
 			i=0xb000;
 			break;
@@ -382,7 +386,7 @@ static kobj_method_t auchan_methods[] = {
     	KOBJMETHOD(channel_trigger,		auchan_trigger),
     	KOBJMETHOD(channel_getptr,		auchan_getptr),
     	KOBJMETHOD(channel_getcaps,		auchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(auchan);
 

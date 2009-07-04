@@ -536,10 +536,12 @@ icmp_input(struct mbuf *m, int off)
 		}
 		ia = (struct in_ifaddr *)ifaof_ifpforaddr(
 			    (struct sockaddr *)&icmpdst, m->m_pkthdr.rcvif);
-		if (ia == 0)
+		if (ia == NULL)
 			break;
-		if (ia->ia_ifp == 0)
+		if (ia->ia_ifp == NULL) {
+			ifa_free(&ia->ia_ifa);
 			break;
+		}
 		icp->icmp_type = ICMP_MASKREPLY;
 		if (V_icmpmaskfake == 0)
 			icp->icmp_mask = ia->ia_sockmask.sin_addr.s_addr;
@@ -551,6 +553,7 @@ icmp_input(struct mbuf *m, int off)
 			else if (ia->ia_ifp->if_flags & IFF_POINTOPOINT)
 			    ip->ip_src = satosin(&ia->ia_dstaddr)->sin_addr;
 		}
+		ifa_free(&ia->ia_ifa);
 reflect:
 		ip->ip_len += hlen;	/* since ip_input deducts this */
 		ICMPSTAT_INC(icps_reflect);
@@ -672,12 +675,16 @@ icmp_reflect(struct mbuf *m)
 	 * If the incoming packet was addressed directly to one of our
 	 * own addresses, use dst as the src for the reply.
 	 */
+	IN_IFADDR_RLOCK();
 	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash) {
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr) {
 			t = IA_SIN(ia)->sin_addr;
+			IN_IFADDR_RUNLOCK();
 			goto match;
 		}
 	}
+	IN_IFADDR_RUNLOCK();
+
 	/*
 	 * If the incoming packet was addressed to one of our broadcast
 	 * addresses, use the first non-broadcast address which corresponds
@@ -748,6 +755,7 @@ icmp_reflect(struct mbuf *m)
 		goto done;
 	}
 	t = IA_SIN(ia)->sin_addr;
+	ifa_free(&ia->ia_ifa);
 match:
 #ifdef MAC
 	mac_netinet_icmp_replyinplace(m);

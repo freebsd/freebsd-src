@@ -269,6 +269,7 @@ struct ata_pci_controller {
 #define ATA_NFORCE_MCP67_A9     0x055910de
 #define ATA_NFORCE_MCP67_AA     0x055A10de
 #define ATA_NFORCE_MCP67_AB     0x055B10de
+#define ATA_NFORCE_MCP67_AC     0x058410de
 #define ATA_NFORCE_MCP67        0x056010de
 #define ATA_NFORCE_MCP73        0x056c10de
 #define ATA_NFORCE_MCP73_A0     0x07f010de
@@ -450,15 +451,6 @@ void ata_print_cable(device_t dev, u_int8_t *who);
 int ata_check_80pin(device_t dev, int mode);
 int ata_mode2idx(int mode);
 
-/* global prototypes ata-sata.c */
-void ata_sata_phy_check_events(device_t dev);
-int ata_sata_scr_read(struct ata_channel *ch, int port, int reg, uint32_t *val);
-int ata_sata_scr_write(struct ata_channel *ch, int port, int reg, uint32_t val);
-int ata_sata_phy_reset(device_t dev, int port, int quick);
-void ata_sata_setmode(device_t dev, int mode);
-int ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis);
-void ata_pm_identify(device_t dev);
-
 /* global prototypes from chipsets/ata-*.c */
 int ata_ahci_chipinit(device_t);
 int ata_ahci_ch_attach(device_t dev);
@@ -469,10 +461,6 @@ int ata_ahci_ctlr_reset(device_t dev);
 void ata_ahci_reset(device_t dev);
 int ata_marvell_edma_chipinit(device_t);
 int ata_sii_chipinit(device_t);
-
-/* global prototypes ata-dma.c */
-void ata_dmainit(device_t);
-void ata_dmafini(device_t dev);
 
 /* externs */
 extern devclass_t ata_pci_devclass;

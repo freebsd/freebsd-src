@@ -174,8 +174,8 @@ i80321_pci_conf_setup(struct i80321_pci_softc *sc, int bus, int slot, int func,
 }
 
 static u_int32_t
-i80321_pci_read_config(device_t dev, int bus, int slot, int func, int reg,
-    int bytes)
+i80321_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
+    u_int reg, int bytes)
 {
 	struct i80321_pci_softc *sc = device_get_softc(dev);
 	uint32_t isr;
@@ -215,8 +215,8 @@ i80321_pci_read_config(device_t dev, int bus, int slot, int func, int reg,
 }
 
 static void
-i80321_pci_write_config(device_t dev, int bus, int slot, int func, int reg,
-    u_int32_t data, int bytes)
+i80321_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
+    u_int reg, u_int32_t data, int bytes)
 {
 	struct i80321_pci_softc *sc = device_get_softc(dev);
 	uint32_t addr;

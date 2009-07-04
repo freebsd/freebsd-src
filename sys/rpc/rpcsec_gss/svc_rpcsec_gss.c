@@ -65,12 +65,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sx.h>
 #include <sys/ucred.h>
 
@@ -121,7 +123,7 @@ enum svc_rpc_gss_client_state {
 #define SVC_RPC_GSS_SEQWINDOW	128
 
 struct svc_rpc_gss_clientid {
-	uint32_t		ci_hostid;
+	unsigned long		ci_hostid;
 	uint32_t		ci_boottime;
 	uint32_t		ci_id;
 };
@@ -427,7 +429,6 @@ rpc_gss_svc_getcred(struct svc_req *req, struct ucred **crp, int *flavorp)
 	struct svc_rpc_gss_cookedcred *cc;
 	struct svc_rpc_gss_client *client;
 	rpc_gss_ucred_t *uc;
-	int i;
 
 	if (req->rq_cred.oa_flavor != RPCSEC_GSS)
 		return (FALSE);
@@ -447,11 +448,7 @@ rpc_gss_svc_getcred(struct svc_req *req, struct ucred **crp, int *flavorp)
 	cr = client->cl_cred = crget();
 	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = uc->uid;
 	cr->cr_rgid = cr->cr_svgid = uc->gid;
-	cr->cr_ngroups = uc->gidlen;
-	if (cr->cr_ngroups > NGROUPS)
-		cr->cr_ngroups = NGROUPS;
-	for (i = 0; i < cr->cr_ngroups; i++)
-		cr->cr_groups[i] = uc->gidlist[i];
+	crsetgroups(cr, uc->gidlen, uc->gidlist);
 	*crp = crhold(cr);
 
 	return (TRUE);
@@ -505,9 +502,11 @@ svc_rpc_gss_find_client(struct svc_rpc_gss_clientid *id)
 {
 	struct svc_rpc_gss_client *client;
 	struct svc_rpc_gss_client_list *list;
+	unsigned long hostid;
 
 	rpc_gss_log_debug("in svc_rpc_gss_find_client(%d)", id->ci_id);
 
+	getcredhostid(curthread->td_ucred, &hostid);
 	if (id->ci_hostid != hostid || id->ci_boottime != boottime.tv_sec)
 		return (NULL);
 
@@ -536,6 +535,7 @@ svc_rpc_gss_create_client(void)
 {
 	struct svc_rpc_gss_client *client;
 	struct svc_rpc_gss_client_list *list;
+	unsigned long hostid;
 
 	rpc_gss_log_debug("in svc_rpc_gss_create_client()");
 
@@ -543,6 +543,7 @@ svc_rpc_gss_create_client(void)
 	memset(client, 0, sizeof(struct svc_rpc_gss_client));
 	refcount_init(&client->cl_refs, 1);
 	sx_init(&client->cl_lock, "GSS-client");
+	getcredhostid(curthread->td_ucred, &hostid);
 	client->cl_id.ci_hostid = hostid;
 	client->cl_id.ci_boottime = boottime.tv_sec;
 	client->cl_id.ci_id = svc_rpc_gss_next_clientid++;
@@ -1442,7 +1443,7 @@ svc_rpc_gss_wrap(SVCAUTH *auth, struct mbuf **mp)
 	cc = (struct svc_rpc_gss_cookedcred *) auth->svc_ah_private;
 	client = cc->cc_client;
 	if (client->cl_state != CLIENT_ESTABLISHED
-	    || cc->cc_service == rpc_gss_svc_none) {
+	    || cc->cc_service == rpc_gss_svc_none || *mp == NULL) {
 		return (TRUE);
 	}
 	

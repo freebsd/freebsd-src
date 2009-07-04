@@ -159,7 +159,7 @@ static void wb_init(void *);
 static void wb_init_locked(struct wb_softc *);
 static void wb_stop(struct wb_softc *);
 static void wb_watchdog(struct ifnet *);
-static void wb_shutdown(device_t);
+static int wb_shutdown(device_t);
 static int wb_ifmedia_upd(struct ifnet *);
 static void wb_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
@@ -605,7 +605,7 @@ wb_setmulti(sc)
 	CSR_WRITE_4(sc, WB_MAR1, 0);
 
 	/* now program new ones */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -617,7 +617,7 @@ wb_setmulti(sc)
 			hashes[1] |= (1 << (h - 32));
 		mcnt++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (mcnt)
 		rxfilt |= WB_NETCFG_RX_MULTI;
@@ -1832,7 +1832,7 @@ wb_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 wb_shutdown(dev)
 	device_t		dev;
 {
@@ -1844,5 +1844,5 @@ wb_shutdown(dev)
 	wb_stop(sc);
 	WB_UNLOCK(sc);
 
-	return;
+	return (0);
 }

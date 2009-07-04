@@ -644,17 +644,16 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 			return -EFAULT;
 		}
 	}
-	DRM_LOCK();
 
 	ret = i915_dispatch_batchbuffer(dev, batch);
 
-	if (sarea_priv)
-		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
-
-	DRM_UNLOCK();
 	if (batch->num_cliprects)
 		vsunlock(batch->cliprects, cliplen);
+
 	DRM_LOCK();
+
+	if (sarea_priv)
+		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 
 	return ret;
 }
@@ -697,10 +696,9 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 			return -EFAULT;
 		}
 	}
-	DRM_LOCK();
 
 	ret = i915_dispatch_cmdbuffer(dev, cmdbuf);
-	DRM_UNLOCK();
+
 	if (cmdbuf->num_cliprects) {
 		vsunlock(cmdbuf->buf, cmdbuf->sz);
 		vsunlock(cmdbuf->cliprects, cliplen);
@@ -871,10 +869,13 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	ret = drm_addmap(dev, base, size, _DRM_REGISTERS,
 	    _DRM_KERNEL | _DRM_DRIVER, &dev_priv->mmio_map);
 
-	if (IS_GM45(dev))
-		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
-	else
+	if (IS_G4X(dev)) {
+		dev->driver->get_vblank_counter = g45_get_vblank_counter;
+		dev->max_vblank_count = 0xffffffff; /* 32 bits of frame count */
+	} else {
 		dev->driver->get_vblank_counter = i915_get_vblank_counter;
+		dev->max_vblank_count = 0x00ffffff; /* 24 bits of frame count */
+	}
 
 #ifdef I915_HAVE_GEM
 	i915_gem_load(dev);

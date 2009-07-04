@@ -339,6 +339,9 @@ int	icmp6_ctloutput __P((struct socket *, struct sockopt *sopt));
 
 struct in6_ifaddr;
 void	ip6_init __P((void));
+#ifdef VIMAGE
+void	ip6_destroy __P((void));
+#endif
 void	ip6_input __P((struct mbuf *));
 struct in6_ifaddr *ip6_getdstifaddr __P((struct mbuf *));
 void	ip6_freepcbopts __P((struct ip6_pktopts *));
@@ -399,9 +402,9 @@ int	rip6_usrreq __P((struct socket *,
 int	dest6_input __P((struct mbuf **, int *, int));
 int	none_input __P((struct mbuf **, int *, int));
 
-struct in6_addr *in6_selectsrc __P((struct sockaddr_in6 *, struct ip6_pktopts *,
+int	in6_selectsrc(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct inpcb *inp, struct route_in6 *, struct ucred *cred,
-	struct ifnet **, int *));
+	struct ifnet **, struct in6_addr *);
 int in6_selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
 	struct rtentry **));

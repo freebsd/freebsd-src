@@ -1561,7 +1561,7 @@ notfound:
 				chan = adhoc_pick_channel(ss, 0);
 				if (chan != NULL)
 					chan = ieee80211_ht_adjust_channel(ic,
-					    chan, vap->iv_flags_ext);
+					    chan, vap->iv_flags_ht);
 			} else
 				chan = vap->iv_des_chan;
 			if (chan != NULL) {
@@ -1761,7 +1761,7 @@ ap_end(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 		return 1;
 	}
 	ieee80211_create_ibss(vap,
-	    ieee80211_ht_adjust_channel(ic, bestchan, vap->iv_flags_ext));
+	    ieee80211_ht_adjust_channel(ic, bestchan, vap->iv_flags_ht));
 	return 1;
 }
 

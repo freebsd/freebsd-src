@@ -166,6 +166,7 @@ void *
 initarm(void *arg, void *arg2)
 {
 	struct pv_addr  kernel_l1pt;
+	struct pv_addr  dpcpu;
 	int loop;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
@@ -217,6 +218,10 @@ initarm(void *arg, void *arg2)
 	 * shared by all processes.
 	 */
 	valloc_pages(systempage, 1);
+
+	/* Allocate dynamic per-cpu area. */
+	valloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
+	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
 	valloc_pages(irqstack, IRQ_STACK_SIZE);

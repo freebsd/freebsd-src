@@ -117,6 +117,7 @@ archive_read_set_format_options(struct archive *_a, const char *s)
 	struct archive_read *a;
 	struct archive_format_descriptor *format;
 	char key[64], val[64];
+	char *valp;
 	size_t i;
 	int len, r;
 
@@ -135,10 +136,10 @@ archive_read_set_format_options(struct archive *_a, const char *s)
 
 		while ((len = __archive_parse_options(s, format->name,
 		    sizeof(key), key, sizeof(val), val)) > 0) {
-			if (val[0] == '\0')
-				r = format->options(a, key, NULL);
-			else
-				r = format->options(a, key, val);
+			valp = val[0] == '\0' ? NULL : val;
+			a->format = format;
+			r = format->options(a, key, valp);
+			a->format = NULL;
 			if (r == ARCHIVE_FATAL)
 				return (r);
 			s += len;

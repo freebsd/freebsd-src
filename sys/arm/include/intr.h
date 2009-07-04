@@ -56,7 +56,7 @@
 
 #include <machine/psl.h>
 
-int arm_get_next_irq(void);
+int arm_get_next_irq(int);
 void arm_mask_irq(uintptr_t);
 void arm_unmask_irq(uintptr_t);
 void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*), 

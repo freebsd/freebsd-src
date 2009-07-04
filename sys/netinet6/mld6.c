@@ -149,13 +149,8 @@ static int	mld_v2_process_group_query(struct in6_multi *,
 static int	sysctl_mld_gsr(SYSCTL_HANDLER_ARGS);
 static int	sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS);
 
-#ifdef VIMAGE
 static vnet_attach_fn	vnet_mld_iattach;
 static vnet_detach_fn	vnet_mld_idetach;
-#else
-static int	vnet_mld_iattach(const void *);
-static int	vnet_mld_idetach(const void *);
-#endif /* VIMAGE */
 
 /*
  * Normative references: RFC 2710, RFC 3590, RFC 3810.
@@ -1157,8 +1152,13 @@ mld_v1_input_report(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	 */
 	ia = in6ifa_ifpforlinklocal(ifp, IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
 	if ((ia && IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, IA6_IN6(ia))) ||
-	    (ia == NULL && IN6_IS_ADDR_UNSPECIFIED(&src)))
+	    (ia == NULL && IN6_IS_ADDR_UNSPECIFIED(&src))) {
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		return (0);
+	}
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 
 	CTR3(KTR_MLD, "process v1 report %s on ifp %p(%s)",
 	    ip6_sprintf(ip6tbuf, &mld->mld_addr), ifp, ifp->if_xname);
@@ -1801,11 +1801,16 @@ mld_v1_transmit_report(struct in6_multi *in6m, const int type)
 	/* ia may be NULL if link-local address is tentative. */
 
 	MGETHDR(mh, M_DONTWAIT, MT_HEADER);
-	if (mh == NULL)
+	if (mh == NULL) {
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		return (ENOMEM);
+	}
 	MGET(md, M_DONTWAIT, MT_DATA);
 	if (md == NULL) {
 		m_free(mh);
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		return (ENOMEM);
 	}
 	mh->m_next = md;
@@ -1844,6 +1849,8 @@ mld_v1_transmit_report(struct in6_multi *in6m, const int type)
 
 	mld_dispatch_packet(mh);
 
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	return (0);
 }
 
@@ -3141,6 +3148,8 @@ mld_v2_encap_report(struct ifnet *ifp, struct mbuf *m)
 
 	MGETHDR(mh, M_DONTWAIT, MT_HEADER);
 	if (mh == NULL) {
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
 		m_freem(m);
 		return (NULL);
 	}
@@ -3159,6 +3168,8 @@ mld_v2_encap_report(struct ifnet *ifp, struct mbuf *m)
 	ip6->ip6_vfc |= IPV6_VERSION;
 	ip6->ip6_nxt = IPPROTO_ICMPV6;
 	ip6->ip6_src = ia ? ia->ia_addr.sin6_addr : in6addr_any;
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	ip6->ip6_dst = in6addr_linklocal_allv2routers;
 	/* scope ID will be set in netisr */
 
@@ -3173,7 +3184,6 @@ mld_v2_encap_report(struct ifnet *ifp, struct mbuf *m)
 	mh->m_next = m;
 	mld->mld_cksum = in6_cksum(mh, IPPROTO_ICMPV6,
 	    sizeof(struct ip6_hdr), sizeof(struct mldv2_report) + mldreclen);
-
 	return (mh);
 }
 
@@ -3296,9 +3306,7 @@ mld_modevent(module_t mod, int type, void *unused __unused)
 	break;
     case MOD_UNLOAD:
 #ifndef VIMAGE_GLOBALS
-#ifdef NOTYET
 	vnet_mod_deregister(&vnet_mld_modinfo);
-#endif
 #else
 	vnet_mld_idetach(NULL);
 #endif

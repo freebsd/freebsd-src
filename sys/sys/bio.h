@@ -43,6 +43,9 @@
 struct disk;
 struct bio;
 
+/* Empty classifier tag, to prevent further classification. */
+#define	BIO_NOTCLASSIFIED		(void *)(~0UL)
+
 typedef void bio_task_t(void *);
 
 /*
@@ -78,6 +81,10 @@ struct bio {
 
 	bio_task_t *bio_task;		/* Task_queue handler */
 	void	*bio_task_arg;		/* Argument to above */
+
+	void	*bio_classifier1;	/* Classifier tag. */
+	void	*bio_classifier2;	/* Classifier tag. */
+
 #ifdef DIAGNOSTIC
 	void	*_bio_caller1;
 	void	*_bio_caller2;

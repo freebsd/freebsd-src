@@ -25,6 +25,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/socket.h>
@@ -226,7 +227,7 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 	else
 		append_unit = 0;
 
-	CURVNET_SET(TD_TO_VNET(curthread));
+	CURVNET_SET(CRED_TO_VNET(cred));
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&tunclones, &tun_cdevsw, &u, dev, 0);
 	if (i) {
@@ -391,7 +392,7 @@ tuncreate(const char *name, struct cdev *dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 	ifp->if_snd.ifq_drv_maxlen = 0;
 	IFQ_SET_READY(&ifp->if_snd);
-	knlist_init(&sc->tun_rsel.si_note, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&sc->tun_rsel.si_note, NULL);
 
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
@@ -519,7 +520,7 @@ tuninit(struct ifnet *ifp)
 	getmicrotime(&ifp->if_lastchange);
 
 #ifdef INET
-	IF_ADDR_LOCK(ifp);
+	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			struct sockaddr_in *si;
@@ -535,7 +536,7 @@ tuninit(struct ifnet *ifp)
 			mtx_unlock(&tp->tun_mtx);
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_addr_runlock(ifp);
 #endif
 	return (error);
 }
@@ -887,7 +888,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (0);
 
 	if (uio->uio_resid < 0 || uio->uio_resid > TUNMRU) {
-		TUNDEBUG(ifp, "len=%d!\n", uio->uio_resid);
+		TUNDEBUG(ifp, "len=%zd!\n", uio->uio_resid);
 		return (EIO);
 	}
 

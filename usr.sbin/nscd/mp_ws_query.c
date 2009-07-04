@@ -28,15 +28,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+
 #include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "cachelib.h"
 #include "config.h"
@@ -121,7 +122,7 @@ on_mp_write_session_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		c_mp_ws_request->entry = (char *)calloc(1,
+		c_mp_ws_request->entry = calloc(1,
 			c_mp_ws_request->entry_length + 1);
 		assert(c_mp_ws_request->entry != NULL);
 
@@ -144,7 +145,7 @@ on_mp_write_session_request_read2(struct query_state *qstate)
 	result = qstate->read_func(qstate, c_mp_ws_request->entry,
 		c_mp_ws_request->entry_length);
 
-	if (result != qstate->kevent_watermark) {
+	if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 		LOG_ERR_3("on_mp_write_session_request_read2",
 			"read failed");
 		TRACE_OUT(on_mp_write_session_request_read2);
@@ -215,7 +216,7 @@ on_mp_write_session_request_process(struct query_state *qstate)
 	 * cache entries - each with its own decorated name.
 	 */
 	asprintf(&dec_cache_entry_name, "%s%s", qstate->eid_str,
-		qstate->config_entry->mp_cache_params.entry_name);
+		qstate->config_entry->mp_cache_params.cep.entry_name);
 	assert(dec_cache_entry_name != NULL);
 
 	configuration_lock_rdlock(s_configuration);
@@ -374,7 +375,7 @@ on_mp_write_session_write_request_read1(struct query_state *qstate)
 		return (-1);
 	}
 
-	write_request->data = (char *)calloc(1, write_request->data_size);
+	write_request->data = calloc(1, write_request->data_size);
 	assert(write_request->data != NULL);
 
 	qstate->kevent_watermark = write_request->data_size;
@@ -396,7 +397,7 @@ on_mp_write_session_write_request_read2(struct query_state *qstate)
 	result = qstate->read_func(qstate, write_request->data,
 		write_request->data_size);
 
-	if (result != qstate->kevent_watermark) {
+	if (result < 0 || (size_t)result != qstate->kevent_watermark) {
 		LOG_ERR_3("on_mp_write_session_write_request_read2",
 			"read failed");
 		TRACE_OUT(on_mp_write_session_write_request_read2);
@@ -521,12 +522,12 @@ cache_entry register_new_mp_cache_entry(struct query_state *qstate,
 	configuration_lock_entry(qstate->config_entry, CELT_MULTIPART);
 
 	configuration_lock_wrlock(s_configuration);
-	en_bkp = qstate->config_entry->mp_cache_params.entry_name;
-	qstate->config_entry->mp_cache_params.entry_name =
+	en_bkp = qstate->config_entry->mp_cache_params.cep.entry_name;
+	qstate->config_entry->mp_cache_params.cep.entry_name =
 		(char *)dec_cache_entry_name;
 	register_cache_entry(s_cache, (struct cache_entry_params *)
 		&qstate->config_entry->mp_cache_params);
-	qstate->config_entry->mp_cache_params.entry_name = en_bkp;
+	qstate->config_entry->mp_cache_params.cep.entry_name = en_bkp;
 	configuration_unlock(s_configuration);
 
 	configuration_lock_rdlock(s_configuration);

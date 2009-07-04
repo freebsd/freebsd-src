@@ -148,8 +148,22 @@ in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
 #endif /* INET6 */
 	case AF_LINK:
  		proto = IPPROTO_ETHERIP;
- 		eiphdr.eip_ver = ETHERIP_VERSION & ETHERIP_VER_VERS_MASK;
- 		eiphdr.eip_pad = 0;
+
+		/*
+		 * GIF_SEND_REVETHIP (disabled by default) intentionally
+		 * sends an EtherIP packet with revered version field in
+		 * the header.  This is a knob for backward compatibility
+		 * with FreeBSD 7.2R or prior.
+		 */
+		if ((sc->gif_options & GIF_SEND_REVETHIP)) {
+ 			eiphdr.eip_ver = 0;
+ 			eiphdr.eip_resvl = ETHERIP_VERSION;
+ 			eiphdr.eip_resvh = 0;
+		} else {
+ 			eiphdr.eip_ver = ETHERIP_VERSION;
+ 			eiphdr.eip_resvl = 0;
+ 			eiphdr.eip_resvh = 0;
+		}
  		/* prepend Ethernet-in-IP header */
  		M_PREPEND(m, sizeof(struct etherip_header), M_DONTWAIT);
  		if (m && m->m_len < sizeof(struct etherip_header))
@@ -373,13 +387,19 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 	case 0: case 127: case 255:
 		return 0;
 	}
+
 	/* reject packets with broadcast on source */
+	/* XXXRW: should use hash lists? */
+	IN_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia4, &V_in_ifaddrhead, ia_link) {
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;
-		if (ip->ip_src.s_addr == ia4->ia_broadaddr.sin_addr.s_addr)
+		if (ip->ip_src.s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {
+			IN_IFADDR_RUNLOCK();
 			return 0;
+		}
 	}
+	IN_IFADDR_RUNLOCK();
 
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {

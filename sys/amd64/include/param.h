@@ -137,15 +137,6 @@
 #endif
 
 /*
- * Ceiling on size of buffer cache (really only effects write queueing,
- * the VM page cache is not effected), can be changed via
- * the kern.maxbcache /boot/loader.conf variable.
- */
-#ifndef VM_BCACHE_SIZE_MAX
-#define	VM_BCACHE_SIZE_MAX	(1024 * 1024 * 1024)
-#endif
-
-/*
  * Mach derived conversion macros
  */
 #define	round_page(x)	((((unsigned long)(x)) + PAGE_MASK) & ~(PAGE_MASK))

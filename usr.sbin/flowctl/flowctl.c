@@ -77,7 +77,7 @@ struct ip_ctl_cmd cmds[] = {
 };
 
 int	cs;
-char	ng_nodename[NG_PATHLEN + 1];
+char	ng_nodename[NG_PATHSIZ];
 
 int
 main(int argc, char **argv)
@@ -150,7 +150,7 @@ ctl_show(int argc, char **argv)
 {
 	struct ng_mesg *ng_mesg;
 	struct ngnf_flows *data;
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 	int token, nread, last = 0;
 	int verbose = 0;
 

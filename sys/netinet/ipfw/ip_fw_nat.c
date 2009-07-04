@@ -92,7 +92,7 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 	LIST_FOREACH(ptr, &V_layer3_chain.nat, _next) {
 		/* ...using nic 'ifp->if_xname' as dynamic alias address. */
 		if (strncmp(ptr->if_name, ifp->if_xname, IF_NAMESIZE) == 0) {
-			IF_ADDR_LOCK(ifp);
+			if_addr_rlock(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr == NULL)
 					continue;
@@ -102,7 +102,7 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 				    (ifa->ifa_addr))->sin_addr;
 				LibAliasSetAddress(ptr->lib, ptr->ip);
 			}
-			IF_ADDR_UNLOCK(ifp);
+			if_addr_runlock(ifp);
 		}
 	}
 	IPFW_WUNLOCK(&V_layer3_chain);	
