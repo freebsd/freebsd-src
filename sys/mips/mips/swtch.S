@@ -81,14 +81,12 @@
 #define	_MFC0	dmfc0
 #define	_MTC0	dmtc0
 #define WIRED_SHIFT 34
-#define PAGE_SHIFT 34
 #else
 #define _SLL	sll
 #define	_SRL	srl
 #define	_MFC0	mfc0
 #define	_MTC0	mtc0
 #define WIRED_SHIFT 2
-#define PAGE_SHIFT 2
 #endif
 	.set	noreorder			# Noreorder is default style!
 #if defined(ISA_MIPS32)
@@ -366,7 +364,7 @@ entry0:
 	nop
 pgm:
 	bltz	s0, entry0set
-	li	t1, MIPS_KSEG0_START + 0x0fff0000	# invalidate tlb entry
+	li	t1, MIPS_KSEG0_START		# invalidate tlb entry
 	sll	s0, PAGE_SHIFT + 1
 	addu	t1, s0
 	mtc0	t1, COP_0_TLB_HI
