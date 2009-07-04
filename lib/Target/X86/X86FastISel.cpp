@@ -452,25 +452,38 @@ bool X86FastISel::X86SelectAddress(Value *V, X86AddressMode &AM, bool isCall) {
     if (Subtarget->GVRequiresExtraLoad(GV, TM, isCall)) {
       // Check to see if we've already materialized this
       // value in a register in this block.
-      if (unsigned Reg = LocalValueMap[V]) {
-        AM.Base.Reg = Reg;
+      DenseMap<const Value *, unsigned>::iterator I = LocalValueMap.find(V);
+      if (I != LocalValueMap.end() && I->second != 0) {
+        AM.Base.Reg = I->second;
         AM.GV = 0;
         return true;
       }
-      // Issue load from stub if necessary.
+      
+      // Issue load from stub.
       unsigned Opc = 0;
       const TargetRegisterClass *RC = NULL;
-      if (TLI.getPointerTy() == MVT::i32) {
-        Opc = X86::MOV32rm;
-        RC  = X86::GR32RegisterClass;
-      } else {
-        Opc = X86::MOV64rm;
-        RC  = X86::GR64RegisterClass;
-      }
-
       X86AddressMode StubAM;
       StubAM.Base.Reg = AM.Base.Reg;
       StubAM.GV = AM.GV;
+      
+      if (TLI.getPointerTy() == MVT::i32) {
+        Opc = X86::MOV32rm;
+        RC  = X86::GR32RegisterClass;
+        
+        if (Subtarget->isPICStyleGOT() &&
+            TM.getRelocationModel() == Reloc::PIC_)
+          StubAM.GVOpFlags = X86II::MO_GOT;
+        
+      } else {
+        Opc = X86::MOV64rm;
+        RC  = X86::GR64RegisterClass;
+        
+        if (TM.getRelocationModel() != Reloc::Static) {
+          StubAM.GVOpFlags = X86II::MO_GOTPCREL;
+          StubAM.Base.Reg = X86::RIP;
+        }
+      }
+
       unsigned ResultReg = createResultReg(RC);
       addFullAddress(BuildMI(MBB, DL, TII.get(Opc), ResultReg), StubAM);
 
@@ -1503,7 +1516,9 @@ unsigned X86FastISel::TargetMaterializeConstant(Constant *C) {
     } else if (Subtarget->isPICStyleGOT()) {
       OpFlag = X86II::MO_GOTOFF;
       PICBase = getInstrInfo()->getGlobalBaseReg(&MF);
-    }
+    } else if (Subtarget->isPICStyleRIPRel() &&
+               TM.getCodeModel() == CodeModel::Small)
+      PICBase = X86::RIP;
   }
 
   // Create the load from the constant pool.

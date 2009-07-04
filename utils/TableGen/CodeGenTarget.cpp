@@ -19,7 +19,6 @@
 #include "Record.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Streams.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -53,18 +52,24 @@ std::string llvm::getName(MVT::SimpleValueType T) {
   case MVT::isVoid:return "MVT::isVoid";
   case MVT::v2i8:  return "MVT::v2i8";
   case MVT::v4i8:  return "MVT::v4i8";
-  case MVT::v2i16: return "MVT::v2i16";
   case MVT::v8i8:  return "MVT::v8i8";
-  case MVT::v4i16: return "MVT::v4i16";
-  case MVT::v2i32: return "MVT::v2i32";
-  case MVT::v1i64: return "MVT::v1i64";
   case MVT::v16i8: return "MVT::v16i8";
+  case MVT::v32i8: return "MVT::v32i8";
+  case MVT::v2i16: return "MVT::v2i16";
+  case MVT::v4i16: return "MVT::v4i16";
   case MVT::v8i16: return "MVT::v8i16";
+  case MVT::v16i16: return "MVT::v16i16";
+  case MVT::v2i32: return "MVT::v2i32";
   case MVT::v4i32: return "MVT::v4i32";
+  case MVT::v8i32: return "MVT::v8i32";
+  case MVT::v1i64: return "MVT::v1i64";
   case MVT::v2i64: return "MVT::v2i64";
+  case MVT::v4i64: return "MVT::v4i64";
   case MVT::v2f32: return "MVT::v2f32";
   case MVT::v4f32: return "MVT::v4f32";
+  case MVT::v8f32: return "MVT::v8f32";
   case MVT::v2f64: return "MVT::v2f64";
+  case MVT::v4f64: return "MVT::v4f64";
   case MVT::v3i32: return "MVT::v3i32";
   case MVT::v3f32: return "MVT::v3f32";
   case MVT::iPTR:  return "TLI.getPointerTy()";
@@ -93,18 +98,24 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::isVoid:return "MVT::isVoid";
   case MVT::v2i8:  return "MVT::v2i8";
   case MVT::v4i8:  return "MVT::v4i8";
-  case MVT::v2i16: return "MVT::v2i16";
   case MVT::v8i8:  return "MVT::v8i8";
-  case MVT::v4i16: return "MVT::v4i16";
-  case MVT::v2i32: return "MVT::v2i32";
-  case MVT::v1i64: return "MVT::v1i64";
   case MVT::v16i8: return "MVT::v16i8";
+  case MVT::v32i8: return "MVT::v32i8";
+  case MVT::v2i16: return "MVT::v2i16";
+  case MVT::v4i16: return "MVT::v4i16";
   case MVT::v8i16: return "MVT::v8i16";
+  case MVT::v16i16: return "MVT::v16i16";
+  case MVT::v2i32: return "MVT::v2i32";
   case MVT::v4i32: return "MVT::v4i32";
+  case MVT::v8i32: return "MVT::v8i32";
+  case MVT::v1i64: return "MVT::v1i64";
   case MVT::v2i64: return "MVT::v2i64";
+  case MVT::v4i64: return "MVT::v4i64";
   case MVT::v2f32: return "MVT::v2f32";
   case MVT::v4f32: return "MVT::v4f32";
+  case MVT::v8f32: return "MVT::v8f32";
   case MVT::v2f64: return "MVT::v2f64";
+  case MVT::v4f64: return "MVT::v4f64";
   case MVT::v3i32: return "MVT::v3i32";
   case MVT::v3f32: return "MVT::v3f32";
   case MVT::iPTR:  return "MVT::iPTR";
@@ -411,8 +422,8 @@ ComplexPattern::ComplexPattern(Record *R) {
     } else if (PropList[i]->getName() == "SDNPMemOperand") {
       Properties |= 1 << SDNPMemOperand;
     } else {
-      cerr << "Unsupported SD Node property '" << PropList[i]->getName()
-           << "' on ComplexPattern '" << R->getName() << "'!\n";
+      errs() << "Unsupported SD Node property '" << PropList[i]->getName()
+             << "' on ComplexPattern '" << R->getName() << "'!\n";
       exit(1);
     }
   
@@ -423,8 +434,8 @@ ComplexPattern::ComplexPattern(Record *R) {
     if (PropList[i]->getName() == "CPAttrParentAsRoot") {
       Attributes |= 1 << CPAttrParentAsRoot;
     } else {
-      cerr << "Unsupported pattern attribute '" << PropList[i]->getName()
-           << "' on ComplexPattern '" << R->getName() << "'!\n";
+      errs() << "Unsupported pattern attribute '" << PropList[i]->getName()
+             << "' on ComplexPattern '" << R->getName() << "'!\n";
       exit(1);
     }
 }

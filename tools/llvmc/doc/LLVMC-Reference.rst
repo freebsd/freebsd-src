@@ -71,9 +71,8 @@ impossible for LLVMC to choose the right linker in that case::
     $ ./a.out
     hello
 
-By default, LLVMC uses ``llvm-gcc`` to compile the source code. It is
-also possible to choose the work-in-progress ``clang`` compiler with
-the ``-clang`` option.
+By default, LLVMC uses ``llvm-gcc`` to compile the source code. It is also
+possible to choose the ``clang`` compiler with the ``-clang`` option.
 
 
 Predefined options
@@ -677,6 +676,28 @@ errors as its status code.
 
 .. _Graphviz: http://www.graphviz.org/
 .. _Ghostview: http://pages.cs.wisc.edu/~ghost/
+
+Conditioning on the executable name
+-----------------------------------
+
+For now, the executable name (the value passed to the driver in ``argv[0]``) is
+accessible only in the C++ code (i.e. hooks). Use the following code::
+
+    namespace llvmc {
+    extern const char* ProgramName;
+    }
+
+    std::string MyHook() {
+    //...
+    if (strcmp(ProgramName, "mydriver") == 0) {
+       //...
+
+    }
+
+In general, you're encouraged not to make the behaviour dependent on the
+executable file name, and use command-line switches instead. See for example how
+the ``Base`` plugin behaves when it needs to choose the correct linker options
+(think ``g++`` vs. ``gcc``).
 
 .. raw:: html
 

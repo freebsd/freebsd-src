@@ -411,7 +411,8 @@ which case the user must specify it explicitly.</dd>
 <dt><tt>!cast<type>(a)</tt></dt>
   <dd>A symbol of type <em>type</em> obtained by looking up the string 'a' in
 the symbol table.  If the type of 'a' does not match <em>type</em>, TableGen
-aborts with an error. </dd>
+aborts with an error. !cast<string> is a special case in that the argument must
+be an object defined by a 'def' construct.</dd>
 <dt><tt>!nameconcat&lt;type&gt;(a, b)</tt></dt>
   <dd>Shorthand for !cast<type>(!strconcat(a, b))</dd>
 <dt><tt>!subst(a, b, c)</tt></dt>
@@ -781,7 +782,7 @@ This should highlight the APIs in <tt>TableGen/Record.h</tt>.</p>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-06-09 20:31:17 +0200 (Tue, 09 Jun 2009) $
+  Last modified: $Date: 2009-06-29 22:05:29 +0200 (Mon, 29 Jun 2009) $
 </address>
 
 </body>

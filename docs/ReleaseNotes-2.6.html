@@ -419,7 +419,7 @@ it run faster:</p>
 <div class="doc_text">
 
 <p>If you're already an LLVM user or developer with out-of-tree changes based
-on LLVM 2.4, this section lists some "gotchas" that you may run into upgrading
+on LLVM 2.5, this section lists some "gotchas" that you may run into upgrading
 from the previous release.</p>
 
 <ul>
@@ -433,6 +433,13 @@ from the previous release.</p>
 API changes are:</p>
 
 <ul>
+<li>LLVM's global uniquing tables for <tt>Type</tt>s and <tt>Constant</tt>s have
+    been privatized into members of an <tt>LLVMContext</tt>.  A number of APIs
+    now take an <tt>LLVMContext</tt> as a parameter.  To smooth the transition
+    for clients that will only ever use a single context, the new 
+    <tt>getGlobalContext()</tt> API can be used to access a default global 
+    context which can be passed in any and all cases where a context is 
+    required.
 <li>The <tt>getABITypeSize</tt> methods are now called <tt>getAllocSize</tt>.</li>
 </ul>
 
@@ -770,7 +777,7 @@ lists</a>.</p>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2009-06-24 23:26:42 +0200 (Wed, 24 Jun 2009) $
+  Last modified: $Date: 2009-07-02 18:48:38 +0200 (Thu, 02 Jul 2009) $
 </address>
 
 </body>

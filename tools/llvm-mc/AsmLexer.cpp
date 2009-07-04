@@ -42,14 +42,15 @@ SMLoc AsmLexer::getLoc() const {
   return SMLoc::getFromPointer(TokStart);
 }
 
-void AsmLexer::PrintMessage(SMLoc Loc, const std::string &Msg) const {
-  SrcMgr.PrintMessage(Loc, Msg);
+void AsmLexer::PrintMessage(SMLoc Loc, const std::string &Msg, 
+                            const char *Type) const {
+  SrcMgr.PrintMessage(Loc, Msg, Type);
 }
 
 /// ReturnError - Set the error to the specified string at the specified
 /// location.  This is defined to always return asmtok::Error.
 asmtok::TokKind AsmLexer::ReturnError(const char *Loc, const std::string &Msg) {
-  SrcMgr.PrintMessage(SMLoc::getFromPointer(Loc), Msg);
+  SrcMgr.PrintMessage(SMLoc::getFromPointer(Loc), Msg, "error");
   return asmtok::Error;
 }
 
@@ -109,8 +110,11 @@ asmtok::TokKind AsmLexer::LexPercent() {
 /// LexSlash: Slash: /
 ///           C-Style Comment: /* ... */
 asmtok::TokKind AsmLexer::LexSlash() {
-  if (*CurPtr != '*')
-    return asmtok::Slash;
+  switch (*CurPtr) {
+  case '*': break; // C style comment.
+  case '/': return ++CurPtr, LexLineComment();
+  default:  return asmtok::Slash;
+  }
 
   // C Style comment.
   ++CurPtr;  // skip the star.
@@ -129,8 +133,9 @@ asmtok::TokKind AsmLexer::LexSlash() {
   }
 }
 
-/// LexHash: Comment: #[^\n]*
-asmtok::TokKind AsmLexer::LexHash() {
+/// LexLineComment: Comment: #[^\n]*
+///                        : //[^\n]*
+asmtok::TokKind AsmLexer::LexLineComment() {
   int CurChar = getNextChar();
   while (CurChar != '\n' && CurChar != '\n' && CurChar != EOF)
     CurChar = getNextChar();
@@ -262,32 +267,43 @@ asmtok::TokKind AsmLexer::LexToken() {
   case '*': return asmtok::Star;
   case ',': return asmtok::Comma;
   case '$': return asmtok::Dollar;
-  case '=': return asmtok::Equal;
-  case '|': return asmtok::Pipe;
+  case '=': 
+    if (*CurPtr == '=')
+      return ++CurPtr, asmtok::EqualEqual;
+    return asmtok::Equal;
+  case '|': 
+    if (*CurPtr == '|')
+      return ++CurPtr, asmtok::PipePipe;
+    return asmtok::Pipe;
   case '^': return asmtok::Caret;
-  case '&': return asmtok::Amp;
-  case '!': return asmtok::Exclaim;
+  case '&': 
+    if (*CurPtr == '&')
+      return ++CurPtr, asmtok::AmpAmp;
+    return asmtok::Amp;
+  case '!': 
+    if (*CurPtr == '=')
+      return ++CurPtr, asmtok::ExclaimEqual;
+    return asmtok::Exclaim;
   case '%': return LexPercent();
   case '/': return LexSlash();
-  case '#': return LexHash();
+  case '#': return LexLineComment();
   case '"': return LexQuote();
   case '0': case '1': case '2': case '3': case '4':
   case '5': case '6': case '7': case '8': case '9':
     return LexDigit();
   case '<':
-    if (*CurPtr == '<') {
-      ++CurPtr;
-      return asmtok::LessLess;
+    switch (*CurPtr) {
+    case '<': return ++CurPtr, asmtok::LessLess;
+    case '=': return ++CurPtr, asmtok::LessEqual;
+    case '>': return ++CurPtr, asmtok::LessGreater;
+    default: return asmtok::Less;
     }
-    // Don't have any use for bare '<' yet.
-    return ReturnError(TokStart, "invalid character in input");
   case '>':
-    if (*CurPtr == '>') {
-      ++CurPtr;
-      return asmtok::GreaterGreater;
+    switch (*CurPtr) {
+    case '>': return ++CurPtr, asmtok::GreaterGreater;      
+    case '=': return ++CurPtr, asmtok::GreaterEqual;      
+    default: return asmtok::Greater;
     }
-    // Don't have any use for bare '>' yet.
-    return ReturnError(TokStart, "invalid character in input");
       
   // TODO: Quoted identifiers (objc methods etc)
   // local labels: [0-9][:]

@@ -8,8 +8,10 @@
 ##===----------------------------------------------------------------------===##
 LEVEL = ..
 
-PARALLEL_DIRS = VMCore AsmParser Bitcode Archive Analysis Transforms CodeGen \
-                Target ExecutionEngine Debugger Linker CompilerDriver MC
+include $(LEVEL)/Makefile.config
+
+PARALLEL_DIRS := VMCore AsmParser Bitcode Archive Analysis Transforms CodeGen \
+                Target ExecutionEngine Debugger Linker MC CompilerDriver
 
 include $(LEVEL)/Makefile.common
 

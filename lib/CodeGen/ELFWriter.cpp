@@ -30,9 +30,9 @@
 
 #define DEBUG_TYPE "elfwriter"
 
+#include "ELF.h"
 #include "ELFWriter.h"
 #include "ELFCodeEmitter.h"
-#include "ELF.h"
 #include "llvm/Constants.h"
 #include "llvm/Module.h"
 #include "llvm/PassManager.h"
@@ -41,14 +41,14 @@
 #include "llvm/CodeGen/FileWriters.h"
 #include "llvm/CodeGen/MachineCodeEmitter.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/Target/TargetAsmInfo.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetELFWriterInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/Mangler.h"
 #include "llvm/Support/Streams.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Debug.h"
-#include <list>
 using namespace llvm;
 
 char ELFWriter::ID = 0;
@@ -141,7 +141,22 @@ bool ELFWriter::doInitialization(Module &M) {
   return false;
 }
 
-unsigned ELFWriter::getGlobalELFLinkage(const GlobalVariable *GV) {
+unsigned ELFWriter::getGlobalELFVisibility(const GlobalValue *GV) {
+  switch (GV->getVisibility()) {
+  default:
+    assert(0 && "unknown visibility type");
+  case GlobalValue::DefaultVisibility:
+    return ELFSym::STV_DEFAULT;
+  case GlobalValue::HiddenVisibility:
+    return ELFSym::STV_HIDDEN;
+  case GlobalValue::ProtectedVisibility:
+    return ELFSym::STV_PROTECTED;
+  }
+
+  return 0;
+}
+
+unsigned ELFWriter::getGlobalELFLinkage(const GlobalValue *GV) {
   if (GV->hasInternalLinkage())
     return ELFSym::STB_LOCAL;
 
@@ -151,43 +166,51 @@ unsigned ELFWriter::getGlobalELFLinkage(const GlobalVariable *GV) {
   return ELFSym::STB_GLOBAL;
 }
 
+// getElfSectionFlags - Get the ELF Section Header based on the
+// flags defined in ELFTargetAsmInfo.
+unsigned ELFWriter::getElfSectionFlags(unsigned Flags) {
+  unsigned ElfSectionFlags = ELFSection::SHF_ALLOC;
+
+  if (Flags & SectionFlags::Code)
+    ElfSectionFlags |= ELFSection::SHF_EXECINSTR;
+  if (Flags & SectionFlags::Writeable)
+    ElfSectionFlags |= ELFSection::SHF_WRITE;
+  if (Flags & SectionFlags::Mergeable)
+    ElfSectionFlags |= ELFSection::SHF_MERGE;
+  if (Flags & SectionFlags::TLS)
+    ElfSectionFlags |= ELFSection::SHF_TLS;
+  if (Flags & SectionFlags::Strings)
+    ElfSectionFlags |= ELFSection::SHF_STRINGS;
+
+  return ElfSectionFlags;
+}
+
 // For global symbols without a section, return the Null section as a
 // placeholder
 ELFSection &ELFWriter::getGlobalSymELFSection(const GlobalVariable *GV,
                                               ELFSym &Sym) {
-  const Section *S = TAI->SectionForGlobal(GV);
-  unsigned Flags = S->getFlags();
-  unsigned SectionType = ELFSection::SHT_PROGBITS;
-  unsigned SHdrFlags = ELFSection::SHF_ALLOC;
-  DOUT << "Section " << S->getName() << " for global " << GV->getName() << "\n";
-
-  // If this is an external global, the symbol does not have a section.
+  // If this is a declaration, the symbol does not have a section.
   if (!GV->hasInitializer()) {
     Sym.SectionIdx = ELFSection::SHN_UNDEF;
     return getNullSection();
   }
 
+  // Get the name and flags of the section for the global
+  const Section *S = TAI->SectionForGlobal(GV);
+  unsigned SectionType = ELFSection::SHT_PROGBITS;
+  unsigned SectionFlags = getElfSectionFlags(S->getFlags());
+  DOUT << "Section " << S->getName() << " for global " << GV->getName() << "\n";
+
   const TargetData *TD = TM.getTargetData();
   unsigned Align = TD->getPreferredAlignment(GV);
   Constant *CV = GV->getInitializer();
-
-  if (Flags & SectionFlags::Code)
-    SHdrFlags |= ELFSection::SHF_EXECINSTR;
-  if (Flags & SectionFlags::Writeable)
-    SHdrFlags |= ELFSection::SHF_WRITE;
-  if (Flags & SectionFlags::Mergeable)
-    SHdrFlags |= ELFSection::SHF_MERGE;
-  if (Flags & SectionFlags::TLS)
-    SHdrFlags |= ELFSection::SHF_TLS;
-  if (Flags & SectionFlags::Strings)
-    SHdrFlags |= ELFSection::SHF_STRINGS;
 
   // If this global has a zero initializer, go to .bss or common section.
   // Variables are part of the common block if they are zero initialized
   // and allowed to be merged with other symbols.
   if (CV->isNullValue() || isa<UndefValue>(CV)) {
     SectionType = ELFSection::SHT_NOBITS;
-    ELFSection &ElfS = getSection(S->getName(), SectionType, SHdrFlags);
+    ELFSection &ElfS = getSection(S->getName(), SectionType, SectionFlags);
     if (GV->hasLinkOnceLinkage() || GV->hasWeakLinkage() ||
         GV->hasCommonLinkage()) {
       Sym.SectionIdx = ELFSection::SHN_COMMON;
@@ -203,7 +226,7 @@ ELFSection &ELFWriter::getGlobalSymELFSection(const GlobalVariable *GV,
   }
 
   Sym.IsConstant = true;
-  ELFSection &ElfS = getSection(S->getName(), SectionType, SHdrFlags);
+  ELFSection &ElfS = getSection(S->getName(), SectionType, SectionFlags);
   Sym.SectionIdx = ElfS.SectionIdx;
   ElfS.Align = std::max(ElfS.Align, Align);
   return ElfS;
@@ -213,6 +236,7 @@ void ELFWriter::EmitFunctionDeclaration(const Function *F) {
   ELFSym GblSym(F);
   GblSym.setBind(ELFSym::STB_GLOBAL);
   GblSym.setType(ELFSym::STT_NOTYPE);
+  GblSym.setVisibility(ELFSym::STV_DEFAULT);
   GblSym.SectionIdx = ELFSection::SHN_UNDEF;
   SymbolList.push_back(GblSym);
 }
@@ -222,6 +246,7 @@ void ELFWriter::EmitGlobalVar(const GlobalVariable *GV) {
   unsigned Align=0, Size=0;
   ELFSym GblSym(GV);
   GblSym.setBind(SymBind);
+  GblSym.setVisibility(getGlobalELFVisibility(GV));
 
   if (GV->hasInitializer()) {
     GblSym.setType(ELFSym::STT_OBJECT);
@@ -402,6 +427,7 @@ bool ELFWriter::doFinalization(Module &M) {
     SectionSym.Size = 0;
     SectionSym.setBind(ELFSym::STB_LOCAL);
     SectionSym.setType(ELFSym::STT_SECTION);
+    SectionSym.setVisibility(ELFSym::STV_DEFAULT);
 
     // Local symbols go in the list front
     SymbolList.push_front(SectionSym);
@@ -443,7 +469,8 @@ void ELFWriter::EmitRelocations() {
 
     // Get the relocation section for section 'I'
     bool HasRelA = TEW->hasRelocationAddend();
-    ELFSection &RelSec = getRelocSection(I->getName(), HasRelA);
+    ELFSection &RelSec = getRelocSection(I->getName(), HasRelA,
+                                         TEW->getPrefELFAlignment());
 
     // 'Link' - Section hdr idx of the associated symbol table
     // 'Info' - Section hdr idx of the section to which the relocation applies

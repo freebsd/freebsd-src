@@ -16,21 +16,23 @@
 
 #include "llvm/ADT/SetVector.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetAsmInfo.h"
-#include "llvm/Target/TargetELFWriterInfo.h"
-#include "ELF.h"
 #include <list>
 #include <map>
 
 namespace llvm {
   class BinaryObject;
+  class Constant;
   class ConstantStruct;
   class ELFCodeEmitter;
   class GlobalVariable;
   class Mangler;
   class MachineCodeEmitter;
+  class TargetAsmInfo;
+  class TargetELFWriterInfo;
   class raw_ostream;
+  class ELFSection;
+  class ELFSym;
+  class ELFRelocation;
 
   /// ELFWriter - This class implements the common target-independent code for
   /// writing ELF files.  Targets should derive a class from this to
@@ -116,19 +118,33 @@ namespace llvm {
     /// is seen, the symbol will move from this list to the SymbolList.
     SetVector<GlobalValue*> PendingGlobals;
 
+    // Remove tab from section name prefix. This is necessary becase TAI 
+    // sometimes return a section name prefixed with a "\t" char. This is
+    // a little bit dirty. FIXME: find a better approach, maybe add more
+    // methods to TAI to get the clean name?
+    void fixNameForSection(std::string &Name) {
+      size_t Pos = Name.find("\t");
+      if (Pos != std::string::npos)
+        Name.erase(Pos, 1);
+
+      Pos = Name.find(".section ");
+      if (Pos != std::string::npos)
+        Name.erase(Pos, 9);
+
+      Pos = Name.find("\n");
+      if (Pos != std::string::npos)
+        Name.erase(Pos, 1);
+    }
+
     /// getSection - Return the section with the specified name, creating a new
     /// section if one does not already exist.
     ELFSection &getSection(const std::string &Name, unsigned Type,
                            unsigned Flags = 0, unsigned Align = 0) {
-      ELFSection *&SN = SectionLookup[Name];
-      if (SN) return *SN;
-
-      // Remove tab from section name prefix. This is necessary becase TAI 
-      // sometimes return a section name prefixed with a "\t" char.
       std::string SectionName(Name);
-      size_t Pos = SectionName.find("\t");
-      if (Pos != std::string::npos)
-        SectionName.erase(Pos, 1);
+      fixNameForSection(SectionName);
+
+      ELFSection *&SN = SectionLookup[SectionName];
+      if (SN) return *SN;
 
       SectionList.push_back(ELFSection(SectionName, isLittleEndian, is64Bit));
       SN = &SectionList.back();
@@ -147,6 +163,12 @@ namespace llvm {
                         ELFSection::SHF_EXECINSTR | ELFSection::SHF_ALLOC);
     }
 
+    /// Get jump table section on the section name returned by TAI
+    ELFSection &getJumpTableSection(std::string SName, unsigned Align) {
+      return getSection(SName, ELFSection::SHT_PROGBITS,
+                        ELFSection::SHF_ALLOC, Align);
+    }
+
     /// Get a constant pool section based on the section name returned by TAI
     ELFSection &getConstantPoolSection(std::string SName, unsigned Align) {
       return getSection(SName, ELFSection::SHT_PROGBITS,
@@ -155,14 +177,14 @@ namespace llvm {
 
     /// Return the relocation section of section 'S'. 'RelA' is true
     /// if the relocation section contains entries with addends.
-    ELFSection &getRelocSection(std::string SName, bool RelA) {
+    ELFSection &getRelocSection(std::string SName, bool RelA, unsigned Align) {
       std::string RelSName(".rel");
       unsigned SHdrTy = RelA ? ELFSection::SHT_RELA : ELFSection::SHT_REL;
 
       if (RelA) RelSName.append("a");
       RelSName.append(SName);
 
-      return getSection(RelSName, SHdrTy, 0, TEW->getPrefELFAlignment());
+      return getSection(RelSName, SHdrTy, 0, Align);
     }
 
     ELFSection &getNonExecStackSection() {
@@ -195,6 +217,11 @@ namespace llvm {
       return getSection("", ELFSection::SHT_NULL, 0);
     }
 
+    // Helpers for obtaining ELF specific info.
+    unsigned getGlobalELFLinkage(const GlobalValue *GV);
+    unsigned getGlobalELFVisibility(const GlobalValue *GV);
+    unsigned getElfSectionFlags(unsigned Flags);
+
     // As we complete the ELF file, we need to update fields in the ELF header
     // (e.g. the location of the section table).  These members keep track of
     // the offset in ELFHeader of these various pieces to update and other
@@ -209,7 +236,6 @@ namespace llvm {
     void EmitGlobalConstant(const Constant *C, ELFSection &GblS);
     void EmitGlobalConstantStruct(const ConstantStruct *CVS,
                                   ELFSection &GblS);
-    unsigned getGlobalELFLinkage(const GlobalVariable *GV);
     ELFSection &getGlobalSymELFSection(const GlobalVariable *GV, ELFSym &Sym);
     void EmitRelocations();
     void EmitRelocation(BinaryObject &RelSec, ELFRelocation &Rel, bool HasRelA);

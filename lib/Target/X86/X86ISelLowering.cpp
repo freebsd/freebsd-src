@@ -700,6 +700,9 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
       // Do not attempt to custom lower non-power-of-2 vectors
       if (!isPowerOf2_32(VT.getVectorNumElements()))
         continue;
+      // Do not attempt to custom lower non-128-bit vectors
+      if (!VT.is128BitVector())
+        continue;
       setOperationAction(ISD::BUILD_VECTOR,       VT, Custom);
       setOperationAction(ISD::VECTOR_SHUFFLE,     VT, Custom);
       setOperationAction(ISD::EXTRACT_VECTOR_ELT, VT, Custom);
@@ -718,17 +721,23 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     }
 
     // Promote v16i8, v8i16, v4i32 load, select, and, or, xor to v2i64.
-    for (unsigned VT = (unsigned)MVT::v16i8; VT != (unsigned)MVT::v2i64; VT++) {
-      setOperationAction(ISD::AND,    (MVT::SimpleValueType)VT, Promote);
-      AddPromotedToType (ISD::AND,    (MVT::SimpleValueType)VT, MVT::v2i64);
-      setOperationAction(ISD::OR,     (MVT::SimpleValueType)VT, Promote);
-      AddPromotedToType (ISD::OR,     (MVT::SimpleValueType)VT, MVT::v2i64);
-      setOperationAction(ISD::XOR,    (MVT::SimpleValueType)VT, Promote);
-      AddPromotedToType (ISD::XOR,    (MVT::SimpleValueType)VT, MVT::v2i64);
-      setOperationAction(ISD::LOAD,   (MVT::SimpleValueType)VT, Promote);
-      AddPromotedToType (ISD::LOAD,   (MVT::SimpleValueType)VT, MVT::v2i64);
-      setOperationAction(ISD::SELECT, (MVT::SimpleValueType)VT, Promote);
-      AddPromotedToType (ISD::SELECT, (MVT::SimpleValueType)VT, MVT::v2i64);
+    for (unsigned i = (unsigned)MVT::v16i8; i != (unsigned)MVT::v2i64; i++) {
+      MVT VT = (MVT::SimpleValueType)i;
+
+      // Do not attempt to promote non-128-bit vectors
+      if (!VT.is128BitVector()) {
+        continue;
+      }
+      setOperationAction(ISD::AND,    VT, Promote);
+      AddPromotedToType (ISD::AND,    VT, MVT::v2i64);
+      setOperationAction(ISD::OR,     VT, Promote);
+      AddPromotedToType (ISD::OR,     VT, MVT::v2i64);
+      setOperationAction(ISD::XOR,    VT, Promote);
+      AddPromotedToType (ISD::XOR,    VT, MVT::v2i64);
+      setOperationAction(ISD::LOAD,   VT, Promote);
+      AddPromotedToType (ISD::LOAD,   VT, MVT::v2i64);
+      setOperationAction(ISD::SELECT, VT, Promote);
+      AddPromotedToType (ISD::SELECT, VT, MVT::v2i64);
     }
 
     setTruncStoreAction(MVT::f64, MVT::f32, Expand);
@@ -775,6 +784,114 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
     setOperationAction(ISD::VSETCC,             MVT::v2i64, Custom);
   }
 
+  if (!UseSoftFloat && Subtarget->hasAVX()) {
+    addRegisterClass(MVT::v8f32, X86::VR256RegisterClass);
+    addRegisterClass(MVT::v4f64, X86::VR256RegisterClass);
+    addRegisterClass(MVT::v8i32, X86::VR256RegisterClass);
+    addRegisterClass(MVT::v4i64, X86::VR256RegisterClass);
+
+    setOperationAction(ISD::LOAD,               MVT::v8f32, Legal);
+    setOperationAction(ISD::LOAD,               MVT::v8i32, Legal);
+    setOperationAction(ISD::LOAD,               MVT::v4f64, Legal);
+    setOperationAction(ISD::LOAD,               MVT::v4i64, Legal);
+    setOperationAction(ISD::FADD,               MVT::v8f32, Legal);
+    setOperationAction(ISD::FSUB,               MVT::v8f32, Legal);
+    setOperationAction(ISD::FMUL,               MVT::v8f32, Legal);
+    setOperationAction(ISD::FDIV,               MVT::v8f32, Legal);
+    setOperationAction(ISD::FSQRT,              MVT::v8f32, Legal);
+    setOperationAction(ISD::FNEG,               MVT::v8f32, Custom);
+    //setOperationAction(ISD::BUILD_VECTOR,       MVT::v8f32, Custom);
+    //setOperationAction(ISD::VECTOR_SHUFFLE,     MVT::v8f32, Custom);
+    //setOperationAction(ISD::EXTRACT_VECTOR_ELT, MVT::v8f32, Custom);
+    //setOperationAction(ISD::SELECT,             MVT::v8f32, Custom);
+    //setOperationAction(ISD::VSETCC,             MVT::v8f32, Custom);
+
+    // Operations to consider commented out -v16i16 v32i8
+    //setOperationAction(ISD::ADD,                MVT::v16i16, Legal);
+    setOperationAction(ISD::ADD,                MVT::v8i32, Custom);
+    setOperationAction(ISD::ADD,                MVT::v4i64, Custom);
+    //setOperationAction(ISD::SUB,                MVT::v32i8, Legal);
+    //setOperationAction(ISD::SUB,                MVT::v16i16, Legal);
+    setOperationAction(ISD::SUB,                MVT::v8i32, Custom);
+    setOperationAction(ISD::SUB,                MVT::v4i64, Custom);
+    //setOperationAction(ISD::MUL,                MVT::v16i16, Legal);
+    setOperationAction(ISD::FADD,               MVT::v4f64, Legal);
+    setOperationAction(ISD::FSUB,               MVT::v4f64, Legal);
+    setOperationAction(ISD::FMUL,               MVT::v4f64, Legal);
+    setOperationAction(ISD::FDIV,               MVT::v4f64, Legal);
+    setOperationAction(ISD::FSQRT,              MVT::v4f64, Legal);
+    setOperationAction(ISD::FNEG,               MVT::v4f64, Custom);
+
+    setOperationAction(ISD::VSETCC,             MVT::v4f64, Custom);
+    // setOperationAction(ISD::VSETCC,             MVT::v32i8, Custom);
+    // setOperationAction(ISD::VSETCC,             MVT::v16i16, Custom);
+    setOperationAction(ISD::VSETCC,             MVT::v8i32, Custom);
+
+    // setOperationAction(ISD::SCALAR_TO_VECTOR,   MVT::v32i8, Custom);
+    // setOperationAction(ISD::SCALAR_TO_VECTOR,   MVT::v16i16, Custom);
+    // setOperationAction(ISD::INSERT_VECTOR_ELT,  MVT::v16i16, Custom);
+    setOperationAction(ISD::INSERT_VECTOR_ELT,  MVT::v8i32, Custom);
+    setOperationAction(ISD::INSERT_VECTOR_ELT,  MVT::v8f32, Custom);
+
+    setOperationAction(ISD::BUILD_VECTOR,       MVT::v4f64, Custom);
+    setOperationAction(ISD::BUILD_VECTOR,       MVT::v4i64, Custom);
+    setOperationAction(ISD::VECTOR_SHUFFLE,     MVT::v4f64, Custom);
+    setOperationAction(ISD::VECTOR_SHUFFLE,     MVT::v4i64, Custom);
+    setOperationAction(ISD::INSERT_VECTOR_ELT,  MVT::v4f64, Custom);
+    setOperationAction(ISD::EXTRACT_VECTOR_ELT, MVT::v4f64, Custom);
+
+#if 0
+    // Not sure we want to do this since there are no 256-bit integer
+    // operations in AVX
+
+    // Custom lower build_vector, vector_shuffle, and extract_vector_elt.
+    // This includes 256-bit vectors
+    for (unsigned i = (unsigned)MVT::v16i8; i != (unsigned)MVT::v4i64; ++i) {
+      MVT VT = (MVT::SimpleValueType)i;
+
+      // Do not attempt to custom lower non-power-of-2 vectors
+      if (!isPowerOf2_32(VT.getVectorNumElements()))
+        continue;
+
+      setOperationAction(ISD::BUILD_VECTOR,       VT, Custom);
+      setOperationAction(ISD::VECTOR_SHUFFLE,     VT, Custom);
+      setOperationAction(ISD::EXTRACT_VECTOR_ELT, VT, Custom);
+    }
+
+    if (Subtarget->is64Bit()) {
+      setOperationAction(ISD::INSERT_VECTOR_ELT,  MVT::v4i64, Custom);
+      setOperationAction(ISD::EXTRACT_VECTOR_ELT, MVT::v4i64, Custom);
+    }    
+#endif
+
+#if 0
+    // Not sure we want to do this since there are no 256-bit integer
+    // operations in AVX
+
+    // Promote v32i8, v16i16, v8i32 load, select, and, or, xor to v4i64.
+    // Including 256-bit vectors
+    for (unsigned i = (unsigned)MVT::v16i8; i != (unsigned)MVT::v4i64; i++) {
+      MVT VT = (MVT::SimpleValueType)i;
+
+      if (!VT.is256BitVector()) {
+        continue;
+      }
+      setOperationAction(ISD::AND,    VT, Promote);
+      AddPromotedToType (ISD::AND,    VT, MVT::v4i64);
+      setOperationAction(ISD::OR,     VT, Promote);
+      AddPromotedToType (ISD::OR,     VT, MVT::v4i64);
+      setOperationAction(ISD::XOR,    VT, Promote);
+      AddPromotedToType (ISD::XOR,    VT, MVT::v4i64);
+      setOperationAction(ISD::LOAD,   VT, Promote);
+      AddPromotedToType (ISD::LOAD,   VT, MVT::v4i64);
+      setOperationAction(ISD::SELECT, VT, Promote);
+      AddPromotedToType (ISD::SELECT, VT, MVT::v4i64);
+    }
+
+    setTruncStoreAction(MVT::f64, MVT::f32, Expand);
+#endif
+  }
+
   // We want to custom lower some of our intrinsics.
   setOperationAction(ISD::INTRINSIC_WO_CHAIN, MVT::Other, Custom);
 
@@ -805,6 +922,7 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   setTargetDAGCombine(ISD::SRA);
   setTargetDAGCombine(ISD::SRL);
   setTargetDAGCombine(ISD::STORE);
+  setTargetDAGCombine(ISD::MEMBARRIER);
   if (Subtarget->is64Bit())
     setTargetDAGCombine(ISD::MUL);
 
@@ -907,6 +1025,11 @@ SDValue X86TargetLowering::getPICJumpTableRelocBase(SDValue Table,
     return DAG.getNode(X86ISD::GlobalBaseReg, DebugLoc::getUnknownLoc(),
                        getPointerTy());
   return Table;
+}
+
+/// getFunctionAlignment - Return the Log2 alignment of this function.
+unsigned X86TargetLowering::getFunctionAlignment(const Function *F) const {
+  return F->hasFnAttr(Attribute::OptimizeForSize) ? 1 : 4;
 }
 
 //===----------------------------------------------------------------------===//
@@ -5690,7 +5813,7 @@ X86TargetLowering::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
       Args.push_back(Entry);
       std::pair<SDValue,SDValue> CallResult =
         LowerCallTo(Chain, Type::VoidTy, false, false, false, false,
-                    CallingConv::C, false,
+                    0, CallingConv::C, false,
                     DAG.getExternalSymbol(bzeroEntry, IntPtr), Args, DAG, dl);
       return CallResult.second;
     }
@@ -8454,6 +8577,58 @@ static SDValue PerformVZEXT_MOVLCombine(SDNode *N, SelectionDAG &DAG) {
   return SDValue();
 }
 
+// On X86 and X86-64, atomic operations are lowered to locked instructions.
+// Locked instructions, in turn, have implicit fence semantics (all memory
+// operations are flushed before issuing the locked instruction, and the
+// are not buffered), so we can fold away the common pattern of 
+// fence-atomic-fence.
+static SDValue PerformMEMBARRIERCombine(SDNode* N, SelectionDAG &DAG) {
+  SDValue atomic = N->getOperand(0);
+  switch (atomic.getOpcode()) {
+    case ISD::ATOMIC_CMP_SWAP:
+    case ISD::ATOMIC_SWAP:
+    case ISD::ATOMIC_LOAD_ADD:
+    case ISD::ATOMIC_LOAD_SUB:
+    case ISD::ATOMIC_LOAD_AND:
+    case ISD::ATOMIC_LOAD_OR:
+    case ISD::ATOMIC_LOAD_XOR:
+    case ISD::ATOMIC_LOAD_NAND:
+    case ISD::ATOMIC_LOAD_MIN:
+    case ISD::ATOMIC_LOAD_MAX:
+    case ISD::ATOMIC_LOAD_UMIN:
+    case ISD::ATOMIC_LOAD_UMAX:
+      break;
+    default:
+      return SDValue();
+  }
+  
+  SDValue fence = atomic.getOperand(0);
+  if (fence.getOpcode() != ISD::MEMBARRIER)
+    return SDValue();
+  
+  switch (atomic.getOpcode()) {
+    case ISD::ATOMIC_CMP_SWAP:
+      return DAG.UpdateNodeOperands(atomic, fence.getOperand(0),
+                                    atomic.getOperand(1), atomic.getOperand(2),
+                                    atomic.getOperand(3));
+    case ISD::ATOMIC_SWAP:
+    case ISD::ATOMIC_LOAD_ADD:
+    case ISD::ATOMIC_LOAD_SUB:
+    case ISD::ATOMIC_LOAD_AND:
+    case ISD::ATOMIC_LOAD_OR:
+    case ISD::ATOMIC_LOAD_XOR:
+    case ISD::ATOMIC_LOAD_NAND:
+    case ISD::ATOMIC_LOAD_MIN:
+    case ISD::ATOMIC_LOAD_MAX:
+    case ISD::ATOMIC_LOAD_UMIN:
+    case ISD::ATOMIC_LOAD_UMAX:
+      return DAG.UpdateNodeOperands(atomic, fence.getOperand(0),
+                                    atomic.getOperand(1), atomic.getOperand(2));
+    default:
+      return SDValue();
+  }
+}
+
 SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
                                              DAGCombinerInfo &DCI) const {
   SelectionDAG &DAG = DCI.DAG;
@@ -8472,6 +8647,7 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case X86ISD::FAND:        return PerformFANDCombine(N, DAG);
   case X86ISD::BT:          return PerformBTCombine(N, DAG, DCI);
   case X86ISD::VZEXT_MOVL:  return PerformVZEXT_MOVLCombine(N, DAG);
+  case ISD::MEMBARRIER:     return PerformMEMBARRIERCombine(N, DAG);
   }
 
   return SDValue();

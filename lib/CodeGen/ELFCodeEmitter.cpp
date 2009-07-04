@@ -9,6 +9,8 @@
 
 #define DEBUG_TYPE "elfce"
 
+#include "ELF.h"
+#include "ELFWriter.h"
 #include "ELFCodeEmitter.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
@@ -16,8 +18,10 @@
 #include "llvm/CodeGen/BinaryObject.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
+#include "llvm/CodeGen/MachineRelocation.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetAsmInfo.h"
 #include "llvm/Support/Debug.h"
 
 //===----------------------------------------------------------------------===//
@@ -40,10 +44,11 @@ void ELFCodeEmitter::startFunction(MachineFunction &MF) {
   BufferBegin = &BD[0];
   BufferEnd = BufferBegin + BD.capacity();
 
-  // Align the output buffer with function alignment, and
-  // upgrade the section alignment if required
-  unsigned Align =
-    TM.getELFWriterInfo()->getFunctionAlignment(MF.getFunction());
+  // Get the function alignment in bytes
+  unsigned Align = (1 << MF.getAlignment());
+
+  // Align the section size with the function alignment, so the function can
+  // start in a aligned offset, also update the section alignment if needed.
   if (ES->Align < Align) ES->Align = Align;
   ES->Size = (ES->Size + (Align-1)) & (-Align);
 
@@ -66,46 +71,34 @@ void ELFCodeEmitter::startFunction(MachineFunction &MF) {
 /// finishFunction - This callback is invoked after the function is completely
 /// finished.
 bool ELFCodeEmitter::finishFunction(MachineFunction &MF) {
-  // Add a symbol to represent the function.
-  ELFSym FnSym(MF.getFunction());
-
   // Update Section Size
   ES->Size = CurBufferPtr - BufferBegin;
 
-  // Set the symbol type as a function
+  // Add a symbol to represent the function.
+  const Function *F = MF.getFunction();
+  ELFSym FnSym(F);
   FnSym.setType(ELFSym::STT_FUNC);
+  FnSym.setBind(EW.getGlobalELFLinkage(F));
+  FnSym.setVisibility(EW.getGlobalELFVisibility(F));
   FnSym.SectionIdx = ES->SectionIdx;
   FnSym.Size = CurBufferPtr-FnStartPtr;
 
   // Offset from start of Section
   FnSym.Value = FnStartPtr-BufferBegin;
 
-  // Figure out the binding (linkage) of the symbol.
-  switch (MF.getFunction()->getLinkage()) {
-  default:
-    // appending linkage is illegal for functions.
-    assert(0 && "Unknown linkage type!");
-  case GlobalValue::ExternalLinkage:
-    FnSym.setBind(ELFSym::STB_GLOBAL);
-    EW.SymbolList.push_back(FnSym);
-    break;
-  case GlobalValue::LinkOnceAnyLinkage:
-  case GlobalValue::LinkOnceODRLinkage:
-  case GlobalValue::WeakAnyLinkage:
-  case GlobalValue::WeakODRLinkage:
-    FnSym.setBind(ELFSym::STB_WEAK);
-    EW.SymbolList.push_back(FnSym);
-    break;
-  case GlobalValue::PrivateLinkage:
-    assert (0 && "PrivateLinkage should not be in the symbol table.");
-  case GlobalValue::InternalLinkage:
-    FnSym.setBind(ELFSym::STB_LOCAL);
-    EW.SymbolList.push_front(FnSym);
-    break;
+  // Locals should go on the symbol list front
+  if (!F->hasPrivateLinkage()) {
+    if (FnSym.getBind() == ELFSym::STB_LOCAL)
+      EW.SymbolList.push_front(FnSym);
+    else
+      EW.SymbolList.push_back(FnSym);
   }
 
   // Emit constant pool to appropriate section(s)
   emitConstantPool(MF.getConstantPool());
+
+  // Emit jump tables to appropriate section
+  emitJumpTables(MF.getJumpTableInfo());
 
   // Relocations
   // -----------
@@ -126,13 +119,22 @@ bool ELFCodeEmitter::finishFunction(MachineFunction &MF) {
       Addr = getConstantPoolEntryAddress(MR.getConstantPoolIndex());
       MR.setConstantVal(CPSections[MR.getConstantPoolIndex()]);
       MR.setResultPointer((void*)Addr);
+    } else if (MR.isJumpTableIndex()) {
+      Addr = getJumpTableEntryAddress(MR.getJumpTableIndex());
+      MR.setResultPointer((void*)Addr);
+      MR.setConstantVal(JumpTableSectionIdx);
     } else {
       assert(0 && "Unhandled relocation type");
     }
     ES->addRelocation(MR);
   }
-  Relocations.clear();
 
+  // Clear per-function data structures.
+  Relocations.clear();
+  CPLocations.clear();
+  CPSections.clear();
+  JTLocations.clear();
+  MBBLocations.clear();
   return false;
 }
 
@@ -165,6 +167,58 @@ void ELFCodeEmitter::emitConstantPool(MachineConstantPool *MCP) {
 
     // Emit the constant to constant pool section
     EW.EmitGlobalConstant(CPE.Val.ConstVal, CstPoolSection);
+  }
+}
+
+/// emitJumpTables - Emit all the jump tables for a given jump table info
+/// record to the appropriate section.
+void ELFCodeEmitter::emitJumpTables(MachineJumpTableInfo *MJTI) {
+  const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
+  if (JT.empty()) return;
+
+  // FIXME: handle PIC codegen
+  assert(TM.getRelocationModel() != Reloc::PIC_ &&
+         "PIC codegen not yet handled for elf jump tables!");
+
+  const TargetAsmInfo *TAI = TM.getTargetAsmInfo();
+
+  // Get the ELF Section to emit the jump table
+  unsigned Align = TM.getTargetData()->getPointerABIAlignment();
+  std::string JTName(TAI->getJumpTableDataSection());
+  ELFSection &JTSection = EW.getJumpTableSection(JTName, Align);
+  JumpTableSectionIdx = JTSection.SectionIdx;
+
+  // Entries in the JT Section are relocated against the text section
+  ELFSection &TextSection = EW.getTextSection();
+
+  // For each JT, record its offset from the start of the section
+  for (unsigned i = 0, e = JT.size(); i != e; ++i) {
+    const std::vector<MachineBasicBlock*> &MBBs = JT[i].MBBs;
+
+    DOUT << "JTSection.size(): " << JTSection.size() << "\n";
+    DOUT << "JTLocations.size: " << JTLocations.size() << "\n";
+
+    // Record JT 'i' offset in the JT section
+    JTLocations.push_back(JTSection.size());
+
+    // Each MBB entry in the Jump table section has a relocation entry
+    // against the current text section.
+    for (unsigned mi = 0, me = MBBs.size(); mi != me; ++mi) {
+      MachineRelocation MR =
+        MachineRelocation::getBB(JTSection.size(),
+                                 MachineRelocation::VANILLA,
+                                 MBBs[mi]);
+
+      // Offset of JT 'i' in JT section
+      MR.setResultPointer((void*)getMachineBasicBlockAddress(MBBs[mi]));
+      MR.setConstantVal(TextSection.SectionIdx);
+
+      // Add the relocation to the Jump Table section
+      JTSection.addRelocation(MR);
+
+      // Output placeholder for MBB in the JT section
+      JTSection.emitWord(0);
+    }
   }
 }
 

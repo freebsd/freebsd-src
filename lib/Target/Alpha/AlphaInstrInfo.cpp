@@ -289,19 +289,22 @@ MachineInstr *AlphaInstrInfo::foldMemoryOperandImpl(MachineFunction &MF,
        if (Ops[0] == 0) {  // move -> store
          unsigned InReg = MI->getOperand(1).getReg();
          bool isKill = MI->getOperand(1).isKill();
+         bool isUndef = MI->getOperand(1).isUndef();
          Opc = (Opc == Alpha::BISr) ? Alpha::STQ : 
            ((Opc == Alpha::CPYSS) ? Alpha::STS : Alpha::STT);
          NewMI = BuildMI(MF, MI->getDebugLoc(), get(Opc))
-           .addReg(InReg, getKillRegState(isKill))
+           .addReg(InReg, getKillRegState(isKill) | getUndefRegState(isUndef))
            .addFrameIndex(FrameIndex)
            .addReg(Alpha::F31);
        } else {           // load -> move
          unsigned OutReg = MI->getOperand(0).getReg();
          bool isDead = MI->getOperand(0).isDead();
+         bool isUndef = MI->getOperand(0).isUndef();
          Opc = (Opc == Alpha::BISr) ? Alpha::LDQ : 
            ((Opc == Alpha::CPYSS) ? Alpha::LDS : Alpha::LDT);
          NewMI = BuildMI(MF, MI->getDebugLoc(), get(Opc))
-           .addReg(OutReg, RegState::Define | getDeadRegState(isDead))
+           .addReg(OutReg, RegState::Define | getDeadRegState(isDead) |
+                   getUndefRegState(isUndef))
            .addFrameIndex(FrameIndex)
            .addReg(Alpha::F31);
        }
@@ -470,6 +473,7 @@ unsigned AlphaInstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
   bool Ok = TII->copyRegToReg(FirstMBB, MBBI, GlobalBaseReg, Alpha::R29,
                               &Alpha::GPRCRegClass, &Alpha::GPRCRegClass);
   assert(Ok && "Couldn't assign to global base register!");
+  Ok = Ok; // Silence warning when assertions are turned off.
   RegInfo.addLiveIn(Alpha::R29);
 
   AlphaFI->setGlobalBaseReg(GlobalBaseReg);
@@ -496,6 +500,7 @@ unsigned AlphaInstrInfo::getGlobalRetAddr(MachineFunction *MF) const {
   bool Ok = TII->copyRegToReg(FirstMBB, MBBI, GlobalRetAddr, Alpha::R26,
                               &Alpha::GPRCRegClass, &Alpha::GPRCRegClass);
   assert(Ok && "Couldn't assign to global return address register!");
+  Ok = Ok; // Silence warning when assertions are turned off.
   RegInfo.addLiveIn(Alpha::R26);
 
   AlphaFI->setGlobalRetAddr(GlobalRetAddr);

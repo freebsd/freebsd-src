@@ -15,6 +15,7 @@
 #include "LTOModule.h"
 
 #include "llvm/Constants.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/ModuleProvider.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -67,7 +68,8 @@ bool LTOModule::isBitcodeFileForTarget(const char* path,
 // takes ownership of buffer
 bool LTOModule::isTargetMatch(MemoryBuffer* buffer, const char* triplePrefix)
 {
-    OwningPtr<ModuleProvider> mp(getBitcodeModuleProvider(buffer));
+    OwningPtr<ModuleProvider> mp(getBitcodeModuleProvider(buffer,
+                                                          getGlobalContext()));
     // on success, mp owns buffer and both are deleted at end of this method
     if ( !mp ) {
         delete buffer;
@@ -84,7 +86,8 @@ LTOModule::LTOModule(Module* m, TargetMachine* t)
 {
 }
 
-LTOModule* LTOModule::makeLTOModule(const char* path, std::string& errMsg)
+LTOModule* LTOModule::makeLTOModule(const char* path,
+                                    std::string& errMsg)
 {
     OwningPtr<MemoryBuffer> buffer(MemoryBuffer::getFile(path, &errMsg));
     if ( !buffer )
@@ -136,10 +139,11 @@ std::string getFeatureString(const char *TargetTriple) {
   return Features.getString();
 }
 
-LTOModule* LTOModule::makeLTOModule(MemoryBuffer* buffer, std::string& errMsg)
+LTOModule* LTOModule::makeLTOModule(MemoryBuffer* buffer,
+                                    std::string& errMsg)
 {
     // parse bitcode buffer
-    OwningPtr<Module> m(ParseBitcodeFile(buffer, &errMsg));
+    OwningPtr<Module> m(ParseBitcodeFile(buffer, getGlobalContext(), &errMsg));
     if ( !m )
         return NULL;
     // find machine architecture for this module

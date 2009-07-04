@@ -14,6 +14,7 @@
 
 #include "AsmParser.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/Support/SourceMgr.h"
 using namespace llvm;
 
 /// X86Operand - Instances of this class represent one X86 machine instruction.
@@ -30,78 +31,91 @@ struct AsmParser::X86Operand {
     } Reg;
 
     struct {
-      // FIXME: Should be a general expression.
-      int64_t Val;
+      MCValue Val;
     } Imm;
     
     struct {
       unsigned SegReg;
-      int64_t Disp;     // FIXME: Should be a general expression.
+      MCValue Disp;
       unsigned BaseReg;
+      unsigned IndexReg;
       unsigned Scale;
-      unsigned ScaleReg;
     } Mem;
   };
   
+  unsigned getReg() const {
+    assert(Kind == Register && "Invalid access!");
+    return Reg.RegNo;
+  }
+
   static X86Operand CreateReg(unsigned RegNo) {
     X86Operand Res;
     Res.Kind = Register;
     Res.Reg.RegNo = RegNo;
     return Res;
   }
-  static X86Operand CreateImm(int64_t Val) {
+  static X86Operand CreateImm(MCValue Val) {
     X86Operand Res;
     Res.Kind = Immediate;
     Res.Imm.Val = Val;
     return Res;
   }
-  static X86Operand CreateMem(unsigned SegReg, int64_t Disp, unsigned BaseReg,
-                              unsigned Scale, unsigned ScaleReg) {
+  static X86Operand CreateMem(unsigned SegReg, MCValue Disp, unsigned BaseReg,
+                              unsigned IndexReg, unsigned Scale) {
+    // If there is no index register, we should never have a scale, and we
+    // should always have a scale (in {1,2,4,8}) if we do.
+    assert(((Scale == 0 && !IndexReg) ||
+            (IndexReg && (Scale == 1 || Scale == 2 || 
+                          Scale == 4 || Scale == 8))) &&
+           "Invalid scale!");
     X86Operand Res;
     Res.Kind = Memory;
     Res.Mem.SegReg   = SegReg;
     Res.Mem.Disp     = Disp;
     Res.Mem.BaseReg  = BaseReg;
+    Res.Mem.IndexReg = IndexReg;
     Res.Mem.Scale    = Scale;
-    Res.Mem.ScaleReg = ScaleReg;
     return Res;
   }
-  
-  void AddToMCInst(MCInst &I) {
-    // FIXME: Add in x86 order here.
-  }
 };
+
+bool AsmParser::ParseX86Register(X86Operand &Op) {
+  assert(Lexer.getKind() == asmtok::Register && "Invalid token kind!");
+
+  // FIXME: Decode register number.
+  Op = X86Operand::CreateReg(123);
+  Lexer.Lex(); // Eat register token.
+
+  return false;
+}
 
 bool AsmParser::ParseX86Operand(X86Operand &Op) {
   switch (Lexer.getKind()) {
   default:
     return ParseX86MemOperand(Op);
   case asmtok::Register:
-    // FIXME: Decode reg #.
     // FIXME: if a segment register, this could either be just the seg reg, or
     // the start of a memory operand.
-    Op = X86Operand::CreateReg(123);
-    Lexer.Lex(); // Eat register.
-    return false;
+    return ParseX86Register(Op);
   case asmtok::Dollar: {
     // $42 -> immediate.
     Lexer.Lex();
-    int64_t Val;
-    if (ParseExpression(Val))
-      return TokError("expected integer constant");
-    Op = X86Operand::CreateReg(Val);
+    MCValue Val;
+    if (ParseRelocatableExpression(Val))
+      return true;
+    Op = X86Operand::CreateImm(Val);
     return false;
-  case asmtok::Star:
+  }
+  case asmtok::Star: {
     Lexer.Lex(); // Eat the star.
     
     if (Lexer.is(asmtok::Register)) {
-      Op = X86Operand::CreateReg(123);
-      Lexer.Lex(); // Eat register.
+      if (ParseX86Register(Op))
+        return true;
     } else if (ParseX86MemOperand(Op))
       return true;
 
-    // FIXME: Note that these are 'dereferenced' so that clients know the '*' is
-    // there.
+    // FIXME: Note the '*' in the operand for use by the matcher.
     return false;
   }
   }
@@ -116,9 +130,9 @@ bool AsmParser::ParseX86MemOperand(X86Operand &Op) {
   // of a memory operand with a missing displacement "(%ebx)" or "(,%eax)".  The
   // only way to do this without lookahead is to eat the ( and see what is after
   // it.
-  int64_t Disp = 0;
+  MCValue Disp = MCValue::get(0, 0, 0);
   if (Lexer.isNot(asmtok::LParen)) {
-    if (ParseExpression(Disp)) return true;
+    if (ParseRelocatableExpression(Disp)) return true;
     
     // After parsing the base expression we could either have a parenthesized
     // memory address or not.  If not, return now.  If so, eat the (.
@@ -139,8 +153,7 @@ bool AsmParser::ParseX86MemOperand(X86Operand &Op) {
       // memory operand consumed.
     } else {
       // It must be an parenthesized expression, parse it now.
-      if (ParseParenExpr(Disp) ||
-          ParseBinOpRHS(1, Disp))
+      if (ParseParenRelocatableExpression(Disp))
         return true;
       
       // After parsing the base expression we could either have a parenthesized
@@ -157,33 +170,57 @@ bool AsmParser::ParseX86MemOperand(X86Operand &Op) {
   
   // If we reached here, then we just ate the ( of the memory operand.  Process
   // the rest of the memory operand.
-  unsigned BaseReg = 0, ScaleReg = 0, Scale = 0;
+  unsigned BaseReg = 0, IndexReg = 0, Scale = 0;
   
   if (Lexer.is(asmtok::Register)) {
-    BaseReg = 123; // FIXME: decode reg #
-    Lexer.Lex();  // eat the register.
+    if (ParseX86Register(Op))
+      return true;
+    BaseReg = Op.getReg();
   }
   
   if (Lexer.is(asmtok::Comma)) {
-    Lexer.Lex(); // eat the comma.
-    
-    if (Lexer.is(asmtok::Register)) {
-      ScaleReg = 123; // FIXME: decode reg #
-      Lexer.Lex();  // eat the register.
-      Scale = 1;      // If not specified, the scale defaults to 1.
-    }
-    
-    if (Lexer.is(asmtok::Comma)) {
-      Lexer.Lex(); // eat the comma.
+    Lexer.Lex(); // Eat the comma.
 
-      // If present, get and validate scale amount.
-      if (Lexer.is(asmtok::IntVal)) {
-        int64_t ScaleVal = Lexer.getCurIntVal();
-        if (ScaleVal != 1 && ScaleVal != 2 && ScaleVal != 4 && ScaleVal != 8)
-          return TokError("scale factor in address must be 1, 2, 4 or 8");
-        Lexer.Lex();  // eat the scale.
-        Scale = (unsigned)ScaleVal;
+    // Following the comma we should have either an index register, or a scale
+    // value. We don't support the later form, but we want to parse it
+    // correctly.
+    //
+    // Not that even though it would be completely consistent to support syntax
+    // like "1(%eax,,1)", the assembler doesn't.
+    if (Lexer.is(asmtok::Register)) {
+      if (ParseX86Register(Op))
+        return true;
+      IndexReg = Op.getReg();
+      Scale = 1;      // If not specified, the scale defaults to 1.
+    
+      if (Lexer.isNot(asmtok::RParen)) {
+        // Parse the scale amount:
+        //  ::= ',' [scale-expression]
+        if (Lexer.isNot(asmtok::Comma))
+          return true;
+        Lexer.Lex(); // Eat the comma.
+
+        if (Lexer.isNot(asmtok::RParen)) {
+          int64_t ScaleVal;
+          if (ParseAbsoluteExpression(ScaleVal))
+            return true;
+          
+          // Validate the scale amount.
+          if (ScaleVal != 1 && ScaleVal != 2 && ScaleVal != 4 && ScaleVal != 8)
+            return TokError("scale factor in address must be 1, 2, 4 or 8");
+          Scale = (unsigned)ScaleVal;
+        }
       }
+    } else if (Lexer.isNot(asmtok::RParen)) {
+      // Otherwise we have the unsupported form of a scale amount without an
+      // index.
+      SMLoc Loc = Lexer.getLoc();
+
+      int64_t Value;
+      if (ParseAbsoluteExpression(Value))
+        return true;
+      
+      return Error(Loc, "cannot have scale factor without index register");
     }
   }
   
@@ -192,31 +229,38 @@ bool AsmParser::ParseX86MemOperand(X86Operand &Op) {
     return TokError("unexpected token in memory operand");
   Lexer.Lex(); // Eat the ')'.
   
-  Op = X86Operand::CreateMem(SegReg, Disp, BaseReg, Scale, ScaleReg);
+  Op = X86Operand::CreateMem(SegReg, Disp, BaseReg, IndexReg, Scale);
+  return false;
+}
+
+/// MatchX86Inst - Convert a parsed instruction name and operand list into a
+/// concrete instruction.
+static bool MatchX86Inst(const char *Name, 
+                         llvm::SmallVector<AsmParser::X86Operand, 3> &Operands,
+                         MCInst &Inst) {
   return false;
 }
 
 /// ParseX86InstOperands - Parse the operands of an X86 instruction and return
 /// them as the operands of an MCInst.
-bool AsmParser::ParseX86InstOperands(MCInst &Inst) {
-  // If no operands are present, just return.
-  if (Lexer.is(asmtok::EndOfStatement))
-    return false;
+bool AsmParser::ParseX86InstOperands(const char *InstName, MCInst &Inst) {
+  llvm::SmallVector<X86Operand, 3> Operands;
 
-  // Read the first operand.
-  X86Operand Op;
-  if (ParseX86Operand(Op))
-    return true;
-  Op.AddToMCInst(Inst);
-  
-  while (Lexer.is(asmtok::Comma)) {
-    Lexer.Lex();  // Eat the comma.
-    
-    // Parse and remember the operand.
-    Op = X86Operand();
-    if (ParseX86Operand(Op))
+  if (Lexer.isNot(asmtok::EndOfStatement)) {
+    // Read the first operand.
+    Operands.push_back(X86Operand());
+    if (ParseX86Operand(Operands.back()))
       return true;
-    Op.AddToMCInst(Inst);
+    
+    while (Lexer.is(asmtok::Comma)) {
+      Lexer.Lex();  // Eat the comma.
+      
+      // Parse and remember the operand.
+      Operands.push_back(X86Operand());
+      if (ParseX86Operand(Operands.back()))
+        return true;
+    }
   }
-  return false;
+
+  return MatchX86Inst(InstName, Operands, Inst);
 }

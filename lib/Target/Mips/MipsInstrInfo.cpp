@@ -291,14 +291,17 @@ foldMemoryOperandImpl(MachineFunction &MF,
       if (Ops[0] == 0) {    // COPY -> STORE
         unsigned SrcReg = MI->getOperand(2).getReg();
         bool isKill = MI->getOperand(2).isKill();
+        bool isUndef = MI->getOperand(2).isUndef();
         NewMI = BuildMI(MF, MI->getDebugLoc(), get(Mips::SW))
-          .addReg(SrcReg, getKillRegState(isKill))
+          .addReg(SrcReg, getKillRegState(isKill) | getUndefRegState(isUndef))
           .addImm(0).addFrameIndex(FI);
       } else {              // COPY -> LOAD
         unsigned DstReg = MI->getOperand(0).getReg();
         bool isDead = MI->getOperand(0).isDead();
+        bool isUndef = MI->getOperand(0).isUndef();
         NewMI = BuildMI(MF, MI->getDebugLoc(), get(Mips::LW))
-          .addReg(DstReg, RegState::Define | getDeadRegState(isDead))
+          .addReg(DstReg, RegState::Define | getDeadRegState(isDead) |
+                  getUndefRegState(isUndef))
           .addImm(0).addFrameIndex(FI);
       }
     }
@@ -321,14 +324,17 @@ foldMemoryOperandImpl(MachineFunction &MF,
       if (Ops[0] == 0) {    // COPY -> STORE
         unsigned SrcReg = MI->getOperand(1).getReg();
         bool isKill = MI->getOperand(1).isKill();
+        bool isUndef = MI->getOperand(2).isUndef();
         NewMI = BuildMI(MF, MI->getDebugLoc(), get(StoreOpc))
-          .addReg(SrcReg, getKillRegState(isKill))
+          .addReg(SrcReg, getKillRegState(isKill) | getUndefRegState(isUndef))
           .addImm(0).addFrameIndex(FI) ;
       } else {              // COPY -> LOAD
         unsigned DstReg = MI->getOperand(0).getReg();
         bool isDead = MI->getOperand(0).isDead();
+        bool isUndef = MI->getOperand(0).isUndef();
         NewMI = BuildMI(MF, MI->getDebugLoc(), get(LoadOpc))
-          .addReg(DstReg, RegState::Define | getDeadRegState(isDead))
+          .addReg(DstReg, RegState::Define | getDeadRegState(isDead) |
+                  getUndefRegState(isUndef))
           .addImm(0).addFrameIndex(FI);
       }
     }
@@ -645,6 +651,7 @@ unsigned MipsInstrInfo::getGlobalBaseReg(MachineFunction *MF) const {
                               Mips::CPURegsRegisterClass,
                               Mips::CPURegsRegisterClass);
   assert(Ok && "Couldn't assign to global base register!");
+  Ok = Ok; // Silence warning when assertions are turned off.
   RegInfo.addLiveIn(Mips::GP);
 
   MipsFI->setGlobalBaseReg(GlobalBaseReg);

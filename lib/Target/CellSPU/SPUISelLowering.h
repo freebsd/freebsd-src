@@ -89,7 +89,6 @@ namespace llvm {
     public TargetLowering
   {
     int VarArgsFrameIndex;            // FrameIndex for start of varargs area.
-    int ReturnAddrIndex;              // FrameIndex for return slot.
     SPUTargetMachine &SPUTM;
 
   public:
@@ -148,6 +147,9 @@ namespace llvm {
     virtual bool isLegalAddressImmediate(GlobalValue *) const;
 
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
+
+    /// getFunctionAlignment - Return the Log2 alignment of this function.
+    virtual unsigned getFunctionAlignment(const Function *F) const;
   };
 }
 

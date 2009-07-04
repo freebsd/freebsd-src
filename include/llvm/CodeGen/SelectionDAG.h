@@ -17,7 +17,6 @@
 
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/Target/TargetMachine.h"
@@ -537,7 +536,8 @@ public:
   ///
   SDValue getCall(unsigned CallingConv, DebugLoc dl, bool IsVarArgs,
                   bool IsTailCall, bool isInreg, SDVTList VTs,
-                  const SDValue *Operands, unsigned NumOperands);
+                  const SDValue *Operands, unsigned NumOperands,
+                  unsigned NumFixedArgs);
 
   /// getLoad - Loads are not normal binary operators: their result type is not
   /// determined by their operands, and they produce a value AND a token chain.

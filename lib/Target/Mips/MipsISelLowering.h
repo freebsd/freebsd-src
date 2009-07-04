@@ -68,8 +68,6 @@ namespace llvm {
   //===--------------------------------------------------------------------===//
   class MipsTargetLowering : public TargetLowering 
   {
-    // FrameIndex for return slot.
-    int ReturnAddrIndex;
   public:
 
     explicit MipsTargetLowering(MipsTargetMachine &TM);
@@ -84,6 +82,8 @@ namespace llvm {
     /// getSetCCResultType - get the ISD::SETCC result ValueType
     MVT getSetCCResultType(MVT VT) const;
 
+    /// getFunctionAlignment - Return the Log2 alignment of this function.
+    virtual unsigned getFunctionAlignment(const Function *F) const;
   private:
     // Subtarget Info
     const MipsSubtarget *Subtarget;

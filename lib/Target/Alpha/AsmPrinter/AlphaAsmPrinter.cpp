@@ -38,9 +38,8 @@ namespace {
     ///
 
     explicit AlphaAsmPrinter(raw_ostream &o, TargetMachine &tm,
-                             const TargetAsmInfo *T, CodeGenOpt::Level OL,
-                             bool V)
-      : AsmPrinter(o, tm, T, OL, V) {}
+                             const TargetAsmInfo *T, bool V)
+      : AsmPrinter(o, tm, T, V) {}
 
     virtual const char *getPassName() const {
       return "Alpha Assembly Printer";
@@ -70,9 +69,8 @@ namespace {
 ///
 FunctionPass *llvm::createAlphaCodePrinterPass(raw_ostream &o,
                                                TargetMachine &tm,
-                                               CodeGenOpt::Level OptLevel,
                                                bool verbose) {
-  return new AlphaAsmPrinter(o, tm, tm.getTargetAsmInfo(), OptLevel, verbose);
+  return new AlphaAsmPrinter(o, tm, tm.getTargetAsmInfo(), verbose);
 }
 
 #include "AlphaGenAsmWriter.inc"
@@ -155,7 +153,7 @@ bool AlphaAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   const Function *F = MF.getFunction();
   SwitchToSection(TAI->SectionForGlobal(F));
 
-  EmitAlignment(4, F);
+  EmitAlignment(MF.getAlignment(), F);
   switch (F->getLinkage()) {
   default: assert(0 && "Unknown linkage type!");
   case Function::InternalLinkage:  // Symbols default to internal.

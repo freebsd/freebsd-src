@@ -32,12 +32,21 @@ extern "C" {
 int LLVMParseBitcode(LLVMMemoryBufferRef MemBuf,
                      LLVMModuleRef *OutModule, char **OutMessage);
 
+int LLVMParseBitcodeInContext(LLVMMemoryBufferRef MemBuf,
+                              LLVMContextRef ContextRef,
+                              LLVMModuleRef *OutModule, char **OutMessage);
+
 /* Reads a module from the specified path, returning via the OutMP parameter
    a module provider which performs lazy deserialization. Returns 0 on success.
    Optionally returns a human-readable error message via OutMessage. */ 
 int LLVMGetBitcodeModuleProvider(LLVMMemoryBufferRef MemBuf,
                                  LLVMModuleProviderRef *OutMP,
                                  char **OutMessage);
+
+int LLVMGetBitcodeModuleProviderInContext(LLVMMemoryBufferRef MemBuf,
+                                          LLVMContextRef ContextRef,
+                                          LLVMModuleProviderRef *OutMP,
+                                          char **OutMessage);
 
 
 #ifdef __cplusplus

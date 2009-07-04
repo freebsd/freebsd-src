@@ -221,7 +221,7 @@ DbgScope::~DbgScope() {
 } // end llvm namespace
 
 DwarfDebug::DwarfDebug(raw_ostream &OS, AsmPrinter *A, const TargetAsmInfo *T)
-  : Dwarf(OS, A, T, "dbg"), MainCU(0),
+  : Dwarf(OS, A, T, "dbg"), ModuleCU(0),
     AbbreviationsSet(InitAbbreviationsSetSize), Abbreviations(),
     ValuesSet(InitValuesSetSize), Values(), StringPool(), SectionMap(),
     SectionSourceLines(), didInitial(false), shouldEmit(false),
@@ -678,9 +678,6 @@ void DwarfDebug::ConstructTypeDIE(CompileUnit *DW_Unit, DIE &Buffer,
       if (Element.getTag() == dwarf::DW_TAG_subprogram)
         ElemDie = CreateSubprogramDIE(DW_Unit,
                                       DISubprogram(Element.getGV()));
-      else if (Element.getTag() == dwarf::DW_TAG_variable) // ??
-        ElemDie = CreateGlobalVariableDIE(DW_Unit,
-                                          DIGlobalVariable(Element.getGV()));
       else
         ElemDie = CreateMemberDIE(DW_Unit,
                                   DIDerivedType(Element.getGV()));
@@ -1093,13 +1090,8 @@ void DwarfDebug::ConstructFunctionDbgScope(DbgScope *RootScope,
   // Get the subprogram debug information entry.
   DISubprogram SPD(Desc.getGV());
 
-  // Get the compile unit context.
-  CompileUnit *Unit = MainCU;
-  if (!Unit)
-    Unit = &FindCompileUnit(SPD.getCompileUnit());
-
   // Get the subprogram die.
-  DIE *SPDie = Unit->getDieMapSlotFor(SPD.getGV());
+  DIE *SPDie = ModuleCU->getDieMapSlotFor(SPD.getGV());
   assert(SPDie && "Missing subprogram descriptor");
 
   if (!AbstractScope) {
@@ -1112,55 +1104,27 @@ void DwarfDebug::ConstructFunctionDbgScope(DbgScope *RootScope,
     AddAddress(SPDie, dwarf::DW_AT_frame_base, Location);
   }
 
-  ConstructDbgScope(RootScope, 0, 0, SPDie, Unit);
+  ConstructDbgScope(RootScope, 0, 0, SPDie, ModuleCU);
 }
 
 /// ConstructDefaultDbgScope - Construct a default scope for the subprogram.
 ///
 void DwarfDebug::ConstructDefaultDbgScope(MachineFunction *MF) {
   const char *FnName = MF->getFunction()->getNameStart();
-  if (MainCU) {
-    StringMap<DIE*> &Globals = MainCU->getGlobals();
-    StringMap<DIE*>::iterator GI = Globals.find(FnName);
-    if (GI != Globals.end()) {
-      DIE *SPDie = GI->second;
-
-      // Add the function bounds.
-      AddLabel(SPDie, dwarf::DW_AT_low_pc, dwarf::DW_FORM_addr,
-               DWLabel("func_begin", SubprogramCount));
-      AddLabel(SPDie, dwarf::DW_AT_high_pc, dwarf::DW_FORM_addr,
-               DWLabel("func_end", SubprogramCount));
-
-      MachineLocation Location(RI->getFrameRegister(*MF));
-      AddAddress(SPDie, dwarf::DW_AT_frame_base, Location);
-      return;
-    }
-  } else {
-    for (unsigned i = 0, e = CompileUnits.size(); i != e; ++i) {
-      CompileUnit *Unit = CompileUnits[i];
-      StringMap<DIE*> &Globals = Unit->getGlobals();
-      StringMap<DIE*>::iterator GI = Globals.find(FnName);
-      if (GI != Globals.end()) {
-        DIE *SPDie = GI->second;
-
-        // Add the function bounds.
-        AddLabel(SPDie, dwarf::DW_AT_low_pc, dwarf::DW_FORM_addr,
-                 DWLabel("func_begin", SubprogramCount));
-        AddLabel(SPDie, dwarf::DW_AT_high_pc, dwarf::DW_FORM_addr,
-                 DWLabel("func_end", SubprogramCount));
-
-        MachineLocation Location(RI->getFrameRegister(*MF));
-        AddAddress(SPDie, dwarf::DW_AT_frame_base, Location);
-        return;
-      }
-    }
+  StringMap<DIE*> &Globals = ModuleCU->getGlobals();
+  StringMap<DIE*>::iterator GI = Globals.find(FnName);
+  if (GI != Globals.end()) {
+    DIE *SPDie = GI->second;
+    
+    // Add the function bounds.
+    AddLabel(SPDie, dwarf::DW_AT_low_pc, dwarf::DW_FORM_addr,
+             DWLabel("func_begin", SubprogramCount));
+    AddLabel(SPDie, dwarf::DW_AT_high_pc, dwarf::DW_FORM_addr,
+             DWLabel("func_end", SubprogramCount));
+    
+    MachineLocation Location(RI->getFrameRegister(*MF));
+    AddAddress(SPDie, dwarf::DW_AT_frame_base, Location);
   }
-
-#if 0
-  // FIXME: This is causing an abort because C++ mangled names are compared with
-  // their unmangled counterparts. See PR2885. Don't do this assert.
-  assert(0 && "Couldn't find DIE for machine function!");
-#endif
 }
 
 /// GetOrCreateSourceID - Look up the source id with the given directory and
@@ -1233,10 +1197,11 @@ void DwarfDebug::ConstructCompileUnit(GlobalVariable *GV) {
             dwarf::DW_FORM_data1, RVer);
 
   CompileUnit *Unit = new CompileUnit(ID, Die);
-  if (DIUnit.isMain()) {
-    assert(!MainCU && "Multiple main compile units are found!");
-    MainCU = Unit;
-    }
+  if (!ModuleCU && DIUnit.isMain()) {
+    // Use first compile unit marked as isMain as the compile unit
+    // for this module.
+    ModuleCU = Unit;
+  }
 
   CompileUnitMap[DIUnit.getGV()] = Unit;
   CompileUnits.push_back(Unit);
@@ -1244,16 +1209,13 @@ void DwarfDebug::ConstructCompileUnit(GlobalVariable *GV) {
 
 void DwarfDebug::ConstructGlobalVariableDIE(GlobalVariable *GV) {
   DIGlobalVariable DI_GV(GV);
-  CompileUnit *DW_Unit = MainCU;
-  if (!DW_Unit)
-    DW_Unit = &FindCompileUnit(DI_GV.getCompileUnit());
 
   // Check for pre-existence.
-  DIE *&Slot = DW_Unit->getDieMapSlotFor(DI_GV.getGV());
+  DIE *&Slot = ModuleCU->getDieMapSlotFor(DI_GV.getGV());
   if (Slot)
     return;
 
-  DIE *VariableDie = CreateGlobalVariableDIE(DW_Unit, DI_GV);
+  DIE *VariableDie = CreateGlobalVariableDIE(ModuleCU, DI_GV);
 
   // Add address.
   DIEBlock *Block = new DIEBlock();
@@ -1267,22 +1229,19 @@ void DwarfDebug::ConstructGlobalVariableDIE(GlobalVariable *GV) {
   Slot = VariableDie;
 
   // Add to context owner.
-  DW_Unit->getDie()->AddChild(VariableDie);
+  ModuleCU->getDie()->AddChild(VariableDie);
 
   // Expose as global. FIXME - need to check external flag.
   std::string Name;
-  DW_Unit->AddGlobal(DI_GV.getName(Name), VariableDie);
+  ModuleCU->AddGlobal(DI_GV.getName(Name), VariableDie);
   return;
 }
 
 void DwarfDebug::ConstructSubprogram(GlobalVariable *GV) {
   DISubprogram SP(GV);
-  CompileUnit *Unit = MainCU;
-  if (!Unit)
-    Unit = &FindCompileUnit(SP.getCompileUnit());
 
   // Check for pre-existence.
-  DIE *&Slot = Unit->getDieMapSlotFor(GV);
+  DIE *&Slot = ModuleCU->getDieMapSlotFor(GV);
   if (Slot)
     return;
 
@@ -1291,17 +1250,17 @@ void DwarfDebug::ConstructSubprogram(GlobalVariable *GV) {
     // class type.
     return;
 
-  DIE *SubprogramDie = CreateSubprogramDIE(Unit, SP);
+  DIE *SubprogramDie = CreateSubprogramDIE(ModuleCU, SP);
 
   // Add to map.
   Slot = SubprogramDie;
 
   // Add to context owner.
-  Unit->getDie()->AddChild(SubprogramDie);
+  ModuleCU->getDie()->AddChild(SubprogramDie);
 
   // Expose as global.
   std::string Name;
-  Unit->AddGlobal(SP.getName(Name), SubprogramDie);
+  ModuleCU->AddGlobal(SP.getName(Name), SubprogramDie);
   return;
 }
 
@@ -1330,6 +1289,11 @@ void DwarfDebug::BeginModule(Module *M, MachineModuleInfo *mmi) {
 
     return;
   }
+
+  // If main compile unit for this module is not seen than randomly
+  // select first compile unit.
+  if (!ModuleCU)
+    ModuleCU = CompileUnits[0];
 
   // If there is not any debug info available for any global variables and any
   // subprograms then there is not any debug info to emit.
@@ -1707,9 +1671,6 @@ unsigned DwarfDebug::RecordInlinedFnStart(DISubprogram &SP, DICompileUnit CU,
   if (TimePassesIsEnabled)
     DebugTimer->startTimer();
 
-  CompileUnit *Unit = MainCU;
-  if (!Unit)
-    Unit = &FindCompileUnit(SP.getCompileUnit());
   GlobalVariable *GV = SP.getGV();
   DenseMap<const GlobalVariable *, DbgScope *>::iterator
     II = AbstractInstanceRootMap.find(GV);
@@ -1720,9 +1681,9 @@ unsigned DwarfDebug::RecordInlinedFnStart(DISubprogram &SP, DICompileUnit CU,
     DbgScope *Scope = new DbgScope(NULL, DIDescriptor(GV));
 
     // Get the compile unit context.
-    DIE *SPDie = Unit->getDieMapSlotFor(GV);
+    DIE *SPDie = ModuleCU->getDieMapSlotFor(GV);
     if (!SPDie)
-      SPDie = CreateSubprogramDIE(Unit, SP, false, true);
+      SPDie = CreateSubprogramDIE(ModuleCU, SP, false, true);
 
     // Mark as being inlined. This makes this subprogram entry an abstract
     // instance root.
@@ -1741,12 +1702,12 @@ unsigned DwarfDebug::RecordInlinedFnStart(DISubprogram &SP, DICompileUnit CU,
   // Create a concrete inlined instance for this inlined function.
   DbgConcreteScope *ConcreteScope = new DbgConcreteScope(DIDescriptor(GV));
   DIE *ScopeDie = new DIE(dwarf::DW_TAG_inlined_subroutine);
-  ScopeDie->setAbstractCompileUnit(Unit);
+  ScopeDie->setAbstractCompileUnit(ModuleCU);
 
-  DIE *Origin = Unit->getDieMapSlotFor(GV);
+  DIE *Origin = ModuleCU->getDieMapSlotFor(GV);
   AddDIEEntry(ScopeDie, dwarf::DW_AT_abstract_origin,
               dwarf::DW_FORM_ref4, Origin);
-  AddUInt(ScopeDie, dwarf::DW_AT_call_file, 0, Unit->getID());
+  AddUInt(ScopeDie, dwarf::DW_AT_call_file, 0, ModuleCU->getID());
   AddUInt(ScopeDie, dwarf::DW_AT_call_line, 0, Line);
   AddUInt(ScopeDie, dwarf::DW_AT_call_column, 0, Col);
 
@@ -1907,22 +1868,8 @@ void DwarfDebug::SizeAndOffsets() {
     sizeof(int32_t) + // Offset Into Abbrev. Section
     sizeof(int8_t);   // Pointer Size (in bytes)
 
-  // Process base compile unit.
-  if (MainCU) {
-    SizeAndOffsetDie(MainCU->getDie(), Offset, true);
-    CompileUnitOffsets[MainCU] = 0;
-    return;
-  }
-
-  // Process all compile units.
-  unsigned PrevOffset = 0;
-
-  for (unsigned i = 0, e = CompileUnits.size(); i != e; ++i) {
-    CompileUnit *Unit = CompileUnits[i];
-    CompileUnitOffsets[Unit] = PrevOffset;
-    PrevOffset += SizeAndOffsetDie(Unit->getDie(), Offset, true)
-      + sizeof(int32_t);  // FIXME - extra pad for gdb bug.
-  }
+  SizeAndOffsetDie(ModuleCU->getDie(), Offset, true);
+  CompileUnitOffsets[ModuleCU] = 0;
 }
 
 /// EmitInitial - Emit initial Dwarf declarations.  This is necessary for cc
@@ -2067,13 +2014,7 @@ void DwarfDebug::EmitDebugInfo() {
   // Start debug info section.
   Asm->SwitchToDataSection(TAI->getDwarfInfoSection());
 
-  if (MainCU) {
-    EmitDebugInfoPerCU(MainCU);
-    return;
-  }
-
-  for (unsigned i = 0, e = CompileUnits.size(); i != e; ++i)
-    EmitDebugInfoPerCU(CompileUnits[i]);
+  EmitDebugInfoPerCU(ModuleCU);
 }
 
 /// EmitAbbreviations - Emit the abbreviation section.
@@ -2405,13 +2346,7 @@ void DwarfDebug::EmitDebugPubNames() {
   // Start the dwarf pubnames section.
   Asm->SwitchToDataSection(TAI->getDwarfPubNamesSection());
 
-  if (MainCU) {
-    EmitDebugPubNamesPerCU(MainCU);
-    return;
-  }
-
-  for (unsigned i = 0, e = CompileUnits.size(); i != e; ++i)
-    EmitDebugPubNamesPerCU(CompileUnits[i]);
+  EmitDebugPubNamesPerCU(ModuleCU);
 }
 
 /// EmitDebugStr - Emit visible names into a debug str section.
@@ -2521,7 +2456,7 @@ void DwarfDebug::EmitDebugInlineInfo() {
   if (!TAI->doesDwarfUsesInlineInfoSection())
     return;
 
-  if (!MainCU)
+  if (!ModuleCU)
     return;
 
   Asm->SwitchToDataSection(TAI->getDwarfDebugInlineSection());
@@ -2555,7 +2490,7 @@ void DwarfDebug::EmitDebugInlineInfo() {
 
     for (SmallVector<unsigned, 4>::iterator LI = Labels.begin(),
            LE = Labels.end(); LI != LE; ++LI) {
-      DIE *SP = MainCU->getDieMapSlotFor(GV);
+      DIE *SP = ModuleCU->getDieMapSlotFor(GV);
       Asm->EmitInt32(SP->getOffset()); Asm->EOL("DIE offset");
 
       if (TD->getPointerSize() == sizeof(int32_t))

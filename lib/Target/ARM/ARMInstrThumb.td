@@ -187,23 +187,24 @@ let isCall = 1,
 let isBranch = 1, isTerminator = 1 in {
   let isBarrier = 1 in {
     let isPredicable = 1 in
-    def tB   : TI<(outs), (ins brtarget:$target), "b $target",
-                  [(br bb:$target)]>;
+    def tB   : T1I<(outs), (ins brtarget:$target), "b $target",
+                   [(br bb:$target)]>;
 
   // Far jump
-  def tBfar : TIx2<(outs), (ins brtarget:$target), "bl $target\t@ far jump",[]>;
+  def tBfar : T1Ix2<(outs), (ins brtarget:$target), 
+                    "bl $target\t@ far jump",[]>;
 
-  def tBR_JTr : TJTI<(outs),
-                     (ins tGPR:$target, jtblock_operand:$jt, i32imm:$id),
-                     "cpy pc, $target \n\t.align\t2\n$jt",
-                     [(ARMbrjt tGPR:$target, tjumptable:$jt, imm:$id)]>;
+  def tBR_JTr : T1JTI<(outs),
+                      (ins tGPR:$target, jtblock_operand:$jt, i32imm:$id),
+                      "cpy pc, $target \n\t.align\t2\n$jt",
+                      [(ARMbrjt tGPR:$target, tjumptable:$jt, imm:$id)]>;
   }
 }
 
 // FIXME: should be able to write a pattern for ARMBrcond, but can't use
 // a two-value operand where a dag node expects two operands. :(
 let isBranch = 1, isTerminator = 1 in
-  def tBcc : TI<(outs), (ins brtarget:$target, pred:$cc), "b$cc $target",
+  def tBcc : T1I<(outs), (ins brtarget:$target, pred:$cc), "b$cc $target",
                  [/*(ARMbrcond bb:$target, imm:$cc)*/]>;
 
 //===----------------------------------------------------------------------===//
@@ -211,68 +212,68 @@ let isBranch = 1, isTerminator = 1 in
 //
 
 let canFoldAsLoad = 1 in
-def tLDR : TI4<(outs tGPR:$dst), (ins t_addrmode_s4:$addr),
+def tLDR : T1I4<(outs tGPR:$dst), (ins t_addrmode_s4:$addr),
                "ldr $dst, $addr",
                [(set tGPR:$dst, (load t_addrmode_s4:$addr))]>;
 
-def tLDRB : TI1<(outs tGPR:$dst), (ins t_addrmode_s1:$addr),
+def tLDRB : T1I1<(outs tGPR:$dst), (ins t_addrmode_s1:$addr),
                 "ldrb $dst, $addr",
                 [(set tGPR:$dst, (zextloadi8 t_addrmode_s1:$addr))]>;
 
-def tLDRH : TI2<(outs tGPR:$dst), (ins t_addrmode_s2:$addr),
+def tLDRH : T1I2<(outs tGPR:$dst), (ins t_addrmode_s2:$addr),
                 "ldrh $dst, $addr",
                 [(set tGPR:$dst, (zextloadi16 t_addrmode_s2:$addr))]>;
 
-def tLDRSB : TI1<(outs tGPR:$dst), (ins t_addrmode_rr:$addr),
+def tLDRSB : T1I1<(outs tGPR:$dst), (ins t_addrmode_rr:$addr),
                  "ldrsb $dst, $addr",
                  [(set tGPR:$dst, (sextloadi8 t_addrmode_rr:$addr))]>;
 
-def tLDRSH : TI2<(outs tGPR:$dst), (ins t_addrmode_rr:$addr),
+def tLDRSH : T1I2<(outs tGPR:$dst), (ins t_addrmode_rr:$addr),
                  "ldrsh $dst, $addr",
                  [(set tGPR:$dst, (sextloadi16 t_addrmode_rr:$addr))]>;
 
 let canFoldAsLoad = 1 in
-def tLDRspi : TIs<(outs tGPR:$dst), (ins t_addrmode_sp:$addr),
+def tLDRspi : T1Is<(outs tGPR:$dst), (ins t_addrmode_sp:$addr),
                   "ldr $dst, $addr",
                   [(set tGPR:$dst, (load t_addrmode_sp:$addr))]>;
 
 // Special instruction for restore. It cannot clobber condition register
 // when it's expanded by eliminateCallFramePseudoInstr().
 let canFoldAsLoad = 1, mayLoad = 1 in
-def tRestore : TIs<(outs tGPR:$dst), (ins t_addrmode_sp:$addr),
+def tRestore : T1Is<(outs tGPR:$dst), (ins t_addrmode_sp:$addr),
                     "ldr $dst, $addr", []>;
 
 // Load tconstpool
 let canFoldAsLoad = 1 in
-def tLDRpci : TIs<(outs tGPR:$dst), (ins i32imm:$addr),
+def tLDRpci : T1Is<(outs tGPR:$dst), (ins i32imm:$addr),
                   "ldr $dst, $addr",
                   [(set tGPR:$dst, (load (ARMWrapper tconstpool:$addr)))]>;
 
 // Special LDR for loads from non-pc-relative constpools.
 let canFoldAsLoad = 1, mayLoad = 1, isReMaterializable = 1 in
-def tLDRcp  : TIs<(outs tGPR:$dst), (ins i32imm:$addr),
+def tLDRcp  : T1Is<(outs tGPR:$dst), (ins i32imm:$addr),
                   "ldr $dst, $addr", []>;
 
-def tSTR : TI4<(outs), (ins tGPR:$src, t_addrmode_s4:$addr),
+def tSTR : T1I4<(outs), (ins tGPR:$src, t_addrmode_s4:$addr),
                "str $src, $addr",
                [(store tGPR:$src, t_addrmode_s4:$addr)]>;
 
-def tSTRB : TI1<(outs), (ins tGPR:$src, t_addrmode_s1:$addr),
+def tSTRB : T1I1<(outs), (ins tGPR:$src, t_addrmode_s1:$addr),
                  "strb $src, $addr",
                  [(truncstorei8 tGPR:$src, t_addrmode_s1:$addr)]>;
 
-def tSTRH : TI2<(outs), (ins tGPR:$src, t_addrmode_s2:$addr),
+def tSTRH : T1I2<(outs), (ins tGPR:$src, t_addrmode_s2:$addr),
                  "strh $src, $addr",
                  [(truncstorei16 tGPR:$src, t_addrmode_s2:$addr)]>;
 
-def tSTRspi : TIs<(outs), (ins tGPR:$src, t_addrmode_sp:$addr),
+def tSTRspi : T1Is<(outs), (ins tGPR:$src, t_addrmode_sp:$addr),
                    "str $src, $addr",
                    [(store tGPR:$src, t_addrmode_sp:$addr)]>;
 
 let mayStore = 1 in {
 // Special instruction for spill. It cannot clobber condition register
 // when it's expanded by eliminateCallFramePseudoInstr().
-def tSpill : TIs<(outs), (ins tGPR:$src, t_addrmode_sp:$addr),
+def tSpill : T1Is<(outs), (ins tGPR:$src, t_addrmode_sp:$addr),
                   "str $src, $addr", []>;
 }
 
@@ -362,9 +363,9 @@ let Defs = [CPSR] in {
 def tCMN : T1I<(outs), (ins tGPR:$lhs, tGPR:$rhs),
               "cmn $lhs, $rhs",
               [(ARMcmp tGPR:$lhs, (ineg tGPR:$rhs))]>;
-def tCMNNZ : T1I<(outs), (ins tGPR:$lhs, tGPR:$rhs),
-                "cmn $lhs, $rhs",
-                [(ARMcmpNZ tGPR:$lhs, (ineg tGPR:$rhs))]>;
+def tCMNZ : T1I<(outs), (ins tGPR:$lhs, tGPR:$rhs),
+               "cmn $lhs, $rhs",
+               [(ARMcmpZ tGPR:$lhs, (ineg tGPR:$rhs))]>;
 }
 
 // CMP immediate
@@ -372,9 +373,9 @@ let Defs = [CPSR] in {
 def tCMPi8 : T1I<(outs), (ins tGPR:$lhs, i32imm:$rhs),
                "cmp $lhs, $rhs",
                [(ARMcmp tGPR:$lhs, imm0_255:$rhs)]>;
-def tCMPNZi8 : T1I<(outs), (ins tGPR:$lhs, i32imm:$rhs),
-                 "cmp $lhs, $rhs",
-                 [(ARMcmpNZ tGPR:$lhs, imm0_255:$rhs)]>;
+def tCMPZi8 : T1I<(outs), (ins tGPR:$lhs, i32imm:$rhs),
+                "cmp $lhs, $rhs",
+                [(ARMcmpZ tGPR:$lhs, imm0_255:$rhs)]>;
 
 }
 
@@ -383,9 +384,9 @@ let Defs = [CPSR] in {
 def tCMPr : T1I<(outs), (ins tGPR:$lhs, tGPR:$rhs),
                "cmp $lhs, $rhs",
                [(ARMcmp tGPR:$lhs, tGPR:$rhs)]>;
-def tCMPNZr : T1I<(outs), (ins tGPR:$lhs, tGPR:$rhs),
-                 "cmp $lhs, $rhs",
-                 [(ARMcmpNZ tGPR:$lhs, tGPR:$rhs)]>;
+def tCMPZr : T1I<(outs), (ins tGPR:$lhs, tGPR:$rhs),
+                "cmp $lhs, $rhs",
+                [(ARMcmpZ tGPR:$lhs, tGPR:$rhs)]>;
 }
 
 // TODO: A7-37: CMP(3) - cmp hi regs
@@ -551,7 +552,7 @@ def tSXTH  : T1I<(outs tGPR:$dst), (ins tGPR:$src),
 let isCommutable = 1, Defs = [CPSR] in
 def tTST  : T1I<(outs), (ins tGPR:$lhs, tGPR:$rhs),
                "tst $lhs, $rhs",
-               [(ARMcmpNZ (and tGPR:$lhs, tGPR:$rhs), 0)]>;
+               [(ARMcmpZ (and tGPR:$lhs, tGPR:$rhs), 0)]>;
 
 // zero-extend byte
 def tUXTB  : T1I<(outs tGPR:$dst), (ins tGPR:$src),
@@ -622,13 +623,13 @@ def : Tv5Pat<(ARMcall texternalsym:$func), (tBLXi texternalsym:$func)>;
 def : Tv5Pat<(ARMcall tGPR:$dst), (tBLXr tGPR:$dst)>;
 
 // zextload i1 -> zextload i8
-def : TPat<(zextloadi1 t_addrmode_s1:$addr),
-           (tLDRB t_addrmode_s1:$addr)>;
+def : T1Pat<(zextloadi1 t_addrmode_s1:$addr),
+            (tLDRB t_addrmode_s1:$addr)>;
 
 // extload -> zextload
-def : TPat<(extloadi1  t_addrmode_s1:$addr),  (tLDRB t_addrmode_s1:$addr)>;
-def : TPat<(extloadi8  t_addrmode_s1:$addr),  (tLDRB t_addrmode_s1:$addr)>;
-def : TPat<(extloadi16 t_addrmode_s2:$addr),  (tLDRH t_addrmode_s2:$addr)>;
+def : T1Pat<(extloadi1  t_addrmode_s1:$addr),  (tLDRB t_addrmode_s1:$addr)>;
+def : T1Pat<(extloadi8  t_addrmode_s1:$addr),  (tLDRB t_addrmode_s1:$addr)>;
+def : T1Pat<(extloadi16 t_addrmode_s2:$addr),  (tLDRH t_addrmode_s2:$addr)>;
 
 // Large immediate handling.
 

@@ -21,6 +21,7 @@
 #include "llvm/Module.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Support/Dwarf.h"
+#include "llvm/Support/DebugLoc.h"
 #include "llvm/Support/Streams.h"
 
 using namespace llvm;
@@ -321,13 +322,140 @@ bool DISubprogram::describes(const Function *F) {
 }
 
 //===----------------------------------------------------------------------===//
+// DIDescriptor: dump routines for all descriptors.
+//===----------------------------------------------------------------------===//
+
+
+/// dump - Print descriptor.
+void DIDescriptor::dump() const {
+  cerr << "[" << dwarf::TagString(getTag()) << "] ";
+  cerr << std::hex << "[GV:" << DbgGV << "]" << std::dec;
+}
+
+/// dump - Print compile unit.
+void DICompileUnit::dump() const {
+  if (getLanguage())
+    cerr << " [" << dwarf::LanguageString(getLanguage()) << "] ";
+
+  std::string Res1, Res2;
+  cerr << " [" << getDirectory(Res1) << "/" << getFilename(Res2) << " ]";
+}
+
+/// dump - Print type.
+void DIType::dump() const {
+  if (isNull()) return;
+
+  std::string Res;
+  if (!getName(Res).empty())
+    cerr << " [" << Res << "] ";
+
+  unsigned Tag = getTag();
+  cerr << " [" << dwarf::TagString(Tag) << "] ";
+
+  // TODO : Print context
+  getCompileUnit().dump();
+  cerr << " [" 
+       << getLineNumber() << ", " 
+       << getSizeInBits() << ", "
+       << getAlignInBits() << ", "
+       << getOffsetInBits() 
+       << "] ";
+
+  if (isPrivate()) 
+    cerr << " [private] ";
+  else if (isProtected())
+    cerr << " [protected] ";
+
+  if (isForwardDecl())
+    cerr << " [fwd] ";
+
+  if (isBasicType(Tag))
+    DIBasicType(DbgGV).dump();
+  else if (isDerivedType(Tag))
+    DIDerivedType(DbgGV).dump();
+  else if (isCompositeType(Tag))
+    DICompositeType(DbgGV).dump();
+  else {
+    cerr << "Invalid DIType\n";
+    return;
+  }
+
+  cerr << "\n";
+}
+
+/// dump - Print basic type.
+void DIBasicType::dump() const {
+  cerr << " [" << dwarf::AttributeEncodingString(getEncoding()) << "] ";
+}
+
+/// dump - Print derived type.
+void DIDerivedType::dump() const {
+  cerr << "\n\t Derived From: "; getTypeDerivedFrom().dump();
+}
+
+/// dump - Print composite type.
+void DICompositeType::dump() const {
+  DIArray A = getTypeArray();
+  if (A.isNull())
+    return;
+  cerr << " [" << A.getNumElements() << " elements]";
+}
+
+/// dump - Print global.
+void DIGlobal::dump() const {
+  std::string Res;
+  if (!getName(Res).empty())
+    cerr << " [" << Res << "] ";
+
+  unsigned Tag = getTag();
+  cerr << " [" << dwarf::TagString(Tag) << "] ";
+
+  // TODO : Print context
+  getCompileUnit().dump();
+  cerr << " [" << getLineNumber() << "] ";
+
+  if (isLocalToUnit())
+    cerr << " [local] ";
+
+  if (isDefinition())
+    cerr << " [def] ";
+
+  if (isGlobalVariable(Tag))
+    DIGlobalVariable(DbgGV).dump();
+
+  cerr << "\n";
+}
+
+/// dump - Print subprogram.
+void DISubprogram::dump() const {
+  DIGlobal::dump();
+}
+
+/// dump - Print global variable.
+void DIGlobalVariable::dump() const {
+  cerr << " ["; getGlobal()->dump(); cerr << "] ";
+}
+
+/// dump - Print variable.
+void DIVariable::dump() const {
+  std::string Res;
+  if (!getName(Res).empty())
+    cerr << " [" << Res << "] ";
+
+  getCompileUnit().dump();
+  cerr << " [" << getLineNumber() << "] ";
+  getType().dump();
+  cerr << "\n";
+}
+
+//===----------------------------------------------------------------------===//
 // DIFactory: Basic Helpers
 //===----------------------------------------------------------------------===//
 
 DIFactory::DIFactory(Module &m)
   : M(m), StopPointFn(0), FuncStartFn(0), RegionStartFn(0), RegionEndFn(0),
     DeclareFn(0) {
-  EmptyStructPtr = PointerType::getUnqual(StructType::get(NULL, NULL));
+  EmptyStructPtr = PointerType::getUnqual(StructType::get());
 }
 
 /// getCastToEmpty - Return this descriptor as a Constant* with type '{}*'.
@@ -923,127 +1051,108 @@ namespace llvm {
       }
     }
   }
-}
 
-/// dump - Print descriptor.
-void DIDescriptor::dump() const {
-  cerr << "[" << dwarf::TagString(getTag()) << "] ";
-  cerr << std::hex << "[GV:" << DbgGV << "]" << std::dec;
-}
-
-/// dump - Print compile unit.
-void DICompileUnit::dump() const {
-  if (getLanguage())
-    cerr << " [" << dwarf::LanguageString(getLanguage()) << "] ";
-
-  std::string Res1, Res2;
-  cerr << " [" << getDirectory(Res1) << "/" << getFilename(Res2) << " ]";
-}
-
-/// dump - Print type.
-void DIType::dump() const {
-  if (isNull()) return;
-
-  std::string Res;
-  if (!getName(Res).empty())
-    cerr << " [" << Res << "] ";
-
-  unsigned Tag = getTag();
-  cerr << " [" << dwarf::TagString(Tag) << "] ";
-
-  // TODO : Print context
-  getCompileUnit().dump();
-  cerr << " [" 
-       << getLineNumber() << ", " 
-       << getSizeInBits() << ", "
-       << getAlignInBits() << ", "
-       << getOffsetInBits() 
-       << "] ";
-
-  if (isPrivate()) 
-    cerr << " [private] ";
-  else if (isProtected())
-    cerr << " [protected] ";
-
-  if (isForwardDecl())
-    cerr << " [fwd] ";
-
-  if (isBasicType(Tag))
-    DIBasicType(DbgGV).dump();
-  else if (isDerivedType(Tag))
-    DIDerivedType(DbgGV).dump();
-  else if (isCompositeType(Tag))
-    DICompositeType(DbgGV).dump();
-  else {
-    cerr << "Invalid DIType\n";
-    return;
+  /// isValidDebugInfoIntrinsic - Return true if SPI is a valid debug 
+  /// info intrinsic.
+  bool isValidDebugInfoIntrinsic(DbgStopPointInst &SPI, 
+                                 CodeGenOpt::Level OptLev) {
+    return DIDescriptor::ValidDebugInfo(SPI.getContext(), OptLev);
   }
 
-  cerr << "\n";
+  /// isValidDebugInfoIntrinsic - Return true if FSI is a valid debug 
+  /// info intrinsic.
+  bool isValidDebugInfoIntrinsic(DbgFuncStartInst &FSI,
+                                 CodeGenOpt::Level OptLev) {
+    return DIDescriptor::ValidDebugInfo(FSI.getSubprogram(), OptLev);
+  }
+
+  /// isValidDebugInfoIntrinsic - Return true if RSI is a valid debug 
+  /// info intrinsic.
+  bool isValidDebugInfoIntrinsic(DbgRegionStartInst &RSI,
+                                 CodeGenOpt::Level OptLev) {
+    return DIDescriptor::ValidDebugInfo(RSI.getContext(), OptLev);
+  }
+
+  /// isValidDebugInfoIntrinsic - Return true if REI is a valid debug 
+  /// info intrinsic.
+  bool isValidDebugInfoIntrinsic(DbgRegionEndInst &REI,
+                                 CodeGenOpt::Level OptLev) {
+    return DIDescriptor::ValidDebugInfo(REI.getContext(), OptLev);
+  }
+
+
+  /// isValidDebugInfoIntrinsic - Return true if DI is a valid debug 
+  /// info intrinsic.
+  bool isValidDebugInfoIntrinsic(DbgDeclareInst &DI,
+                                 CodeGenOpt::Level OptLev) {
+    return DIDescriptor::ValidDebugInfo(DI.getVariable(), OptLev);
+  }
+
+  /// ExtractDebugLocation - Extract debug location information 
+  /// from llvm.dbg.stoppoint intrinsic.
+  DebugLoc ExtractDebugLocation(DbgStopPointInst &SPI,
+                                DebugLocTracker &DebugLocInfo) {
+    DebugLoc DL;
+    Value *Context = SPI.getContext();
+
+    // If this location is already tracked then use it.
+    DebugLocTuple Tuple(cast<GlobalVariable>(Context), SPI.getLine(), 
+                        SPI.getColumn());
+    DenseMap<DebugLocTuple, unsigned>::iterator II
+      = DebugLocInfo.DebugIdMap.find(Tuple);
+    if (II != DebugLocInfo.DebugIdMap.end())
+      return DebugLoc::get(II->second);
+
+    // Add a new location entry.
+    unsigned Id = DebugLocInfo.DebugLocations.size();
+    DebugLocInfo.DebugLocations.push_back(Tuple);
+    DebugLocInfo.DebugIdMap[Tuple] = Id;
+    
+    return DebugLoc::get(Id);
+  }
+
+  /// ExtractDebugLocation - Extract debug location information 
+  /// from llvm.dbg.func_start intrinsic.
+  DebugLoc ExtractDebugLocation(DbgFuncStartInst &FSI,
+                                DebugLocTracker &DebugLocInfo) {
+    DebugLoc DL;
+    Value *SP = FSI.getSubprogram();
+
+    DISubprogram Subprogram(cast<GlobalVariable>(SP));
+    unsigned Line = Subprogram.getLineNumber();
+    DICompileUnit CU(Subprogram.getCompileUnit());
+
+    // If this location is already tracked then use it.
+    DebugLocTuple Tuple(CU.getGV(), Line, /* Column */ 0);
+    DenseMap<DebugLocTuple, unsigned>::iterator II
+      = DebugLocInfo.DebugIdMap.find(Tuple);
+    if (II != DebugLocInfo.DebugIdMap.end())
+      return DebugLoc::get(II->second);
+
+    // Add a new location entry.
+    unsigned Id = DebugLocInfo.DebugLocations.size();
+    DebugLocInfo.DebugLocations.push_back(Tuple);
+    DebugLocInfo.DebugIdMap[Tuple] = Id;
+    
+    return DebugLoc::get(Id);
+  }
+
+  /// isInlinedFnStart - Return true if FSI is starting an inlined function.
+  bool isInlinedFnStart(DbgFuncStartInst &FSI, const Function *CurrentFn) {
+    DISubprogram Subprogram(cast<GlobalVariable>(FSI.getSubprogram()));
+    if (Subprogram.describes(CurrentFn))
+      return false;
+
+    return true;
+  }
+
+  /// isInlinedFnEnd - Return true if REI is ending an inlined function.
+  bool isInlinedFnEnd(DbgRegionEndInst &REI, const Function *CurrentFn) {
+    DISubprogram Subprogram(cast<GlobalVariable>(REI.getContext()));
+    if (Subprogram.isNull() || Subprogram.describes(CurrentFn))
+      return false;
+
+    return true;
+  }
+
 }
-
-/// dump - Print basic type.
-void DIBasicType::dump() const {
-  cerr << " [" << dwarf::AttributeEncodingString(getEncoding()) << "] ";
-}
-
-/// dump - Print derived type.
-void DIDerivedType::dump() const {
-  cerr << "\n\t Derived From: "; getTypeDerivedFrom().dump();
-}
-
-/// dump - Print composite type.
-void DICompositeType::dump() const {
-  DIArray A = getTypeArray();
-  if (A.isNull())
-    return;
-  cerr << " [" << A.getNumElements() << " elements]";
-}
-
-/// dump - Print global.
-void DIGlobal::dump() const {
-  std::string Res;
-  if (!getName(Res).empty())
-    cerr << " [" << Res << "] ";
-
-  unsigned Tag = getTag();
-  cerr << " [" << dwarf::TagString(Tag) << "] ";
-
-  // TODO : Print context
-  getCompileUnit().dump();
-  cerr << " [" << getLineNumber() << "] ";
-
-  if (isLocalToUnit())
-    cerr << " [local] ";
-
-  if (isDefinition())
-    cerr << " [def] ";
-
-  if (isGlobalVariable(Tag))
-    DIGlobalVariable(DbgGV).dump();
-
-  cerr << "\n";
-}
-
-/// dump - Print subprogram.
-void DISubprogram::dump() const {
-  DIGlobal::dump();
-}
-
-/// dump - Print global variable.
-void DIGlobalVariable::dump() const {
-  cerr << " ["; getGlobal()->dump(); cerr << "] ";
-}
-
-/// dump - Print variable.
-void DIVariable::dump() const {
-  std::string Res;
-  if (!getName(Res).empty())
-    cerr << " [" << Res << "] ";
-
-  getCompileUnit().dump();
-  cerr << " [" << getLineNumber() << "] ";
-  getType().dump();
-  cerr << "\n";
-}
-

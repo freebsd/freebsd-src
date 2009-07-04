@@ -42,10 +42,12 @@ namespace asmtok {
     Plus, Minus, Tilde,
     Slash,    // '/'
     LParen, RParen,
-    Star, Comma, Dollar, Equal,
+    Star, Comma, Dollar, Equal, EqualEqual,
     
-    Pipe, Caret, Amp, Exclaim,
-    Percent, LessLess, GreaterGreater
+    Pipe, PipePipe, Caret, 
+    Amp, AmpAmp, Exclaim, ExclaimEqual, Percent, 
+    Less, LessEqual, LessLess, LessGreater,
+    Greater, GreaterEqual, GreaterGreater
   };
 }
 
@@ -95,7 +97,7 @@ public:
   
   SMLoc getLoc() const;
   
-  void PrintMessage(SMLoc Loc, const std::string &Msg) const;
+  void PrintMessage(SMLoc Loc, const std::string &Msg, const char *Type) const;
   
 private:
   int getNextChar();
@@ -106,7 +108,7 @@ private:
   asmtok::TokKind LexIdentifier();
   asmtok::TokKind LexPercent();
   asmtok::TokKind LexSlash();
-  asmtok::TokKind LexHash();
+  asmtok::TokKind LexLineComment();
   asmtok::TokKind LexDigit();
   asmtok::TokKind LexQuote();
 };

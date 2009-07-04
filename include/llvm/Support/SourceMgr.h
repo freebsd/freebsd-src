@@ -7,9 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file declares the SourceMgr class.  This class is used as a simple
-// substrate for diagnostics, #include handling, and other low level things for
-// simple parsers.
+// This file declares the SMLoc, SMDiagnostic and SourceMgr classes.  This
+// provides a simple substrate for diagnostics, #include handling, and other low
+// level things for simple parsers.
 //
 //===----------------------------------------------------------------------===//
 
@@ -23,6 +23,8 @@
 namespace llvm {
   class MemoryBuffer;
   class SourceMgr;
+  class SMDiagnostic;
+  class raw_ostream;
   
 class SMLoc {
   const char *Ptr;
@@ -30,6 +32,8 @@ public:
   SMLoc() : Ptr(0) {}
   SMLoc(const SMLoc &RHS) : Ptr(RHS.Ptr) {}
   
+  bool isValid() const { return Ptr != 0; }
+
   bool operator==(const SMLoc &RHS) const { return RHS.Ptr == Ptr; }
   bool operator!=(const SMLoc &RHS) const { return RHS.Ptr != Ptr; }
 
@@ -42,8 +46,8 @@ public:
   }
 };
 
-/// SourceMgr - This owns the files read by tblgen, handles include stacks,
-/// and handles printing of diagnostics.
+/// SourceMgr - This owns the files read by a parser, handles include stacks,
+/// and handles diagnostic wrangling.
 class SourceMgr {
   struct SrcBuffer {
     /// Buffer - The memory buffer for the file.
@@ -109,10 +113,51 @@ public:
   
   /// PrintMessage - Emit a message about the specified location with the
   /// specified string.
-  void PrintMessage(SMLoc Loc, const std::string &Msg) const;
+  ///
+  /// @param Type - If non-null, the kind of message (e.g., "error") which is
+  /// prefixed to the message.
+  void PrintMessage(SMLoc Loc, const std::string &Msg, const char *Type) const;
+  
+  
+  /// GetMessage - Return an SMDiagnostic at the specified location with the
+  /// specified string.
+  ///
+  /// @param Type - If non-null, the kind of message (e.g., "error") which is
+  /// prefixed to the message.
+  SMDiagnostic GetMessage(SMLoc Loc,
+                          const std::string &Msg, const char *Type) const;
+  
   
 private:
-  void PrintIncludeStack(SMLoc IncludeLoc) const;
+  void PrintIncludeStack(SMLoc IncludeLoc, raw_ostream &OS) const;
+};
+
+  
+/// SMDiagnostic - Instances of this class encapsulate one diagnostic report,
+/// allowing printing to a raw_ostream as a caret diagnostic.
+class SMDiagnostic {
+  std::string Filename;
+  int LineNo, ColumnNo;
+  std::string Message, LineContents;
+public:
+  SMDiagnostic() : LineNo(0), ColumnNo(0) {}
+  SMDiagnostic(const std::string &FN, int Line, int Col,
+               const std::string &Msg, const std::string &LineStr)
+    : Filename(FN), LineNo(Line), ColumnNo(Col), Message(Msg),
+      LineContents(LineStr) {}
+  SMDiagnostic(const SMDiagnostic &RHS) {
+    operator=(RHS);
+  }
+
+  void operator=(const SMDiagnostic &E) {
+    Filename = E.Filename;
+    LineNo = E.LineNo;
+    ColumnNo = E.ColumnNo;
+    Message = E.Message;
+    LineContents = E.LineContents;
+  }
+
+  void Print(const char *ProgName, raw_ostream &S);
 };
   
 }  // end llvm namespace
