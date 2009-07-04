@@ -45,7 +45,7 @@ namespace llvm {
       PIC_ADD,      // Add with a PC operand and a PIC label.
 
       CMP,          // ARM compare instructions.
-      CMPNZ,        // ARM compare that uses only N or Z flags.
+      CMPZ,         // ARM compare that sets only Z flag.
       CMPFP,        // ARM VFP compare instruction, sets FPSCR.
       CMPFPw0,      // ARM VFP compare against zero instruction, sets FPSCR.
       FMSTAT,       // ARM fmstat instruction.
@@ -196,6 +196,9 @@ namespace llvm {
     virtual const ARMSubtarget* getSubtarget() {
       return Subtarget;
     }
+
+    /// getFunctionAlignment - Return the Log2 alignment of this function.
+    virtual unsigned getFunctionAlignment(const Function *F) const;
 
   private:
     /// Subtarget - Keep a pointer to the ARMSubtarget around so that we can

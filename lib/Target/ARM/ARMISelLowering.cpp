@@ -231,16 +231,18 @@ ARMTargetLowering::ARMTargetLowering(TargetMachine &TM)
   setLoadExtAction(ISD::SEXTLOAD, MVT::i1, Promote);
 
   // ARM supports all 4 flavors of integer indexed load / store.
-  for (unsigned im = (unsigned)ISD::PRE_INC;
-       im != (unsigned)ISD::LAST_INDEXED_MODE; ++im) {
-    setIndexedLoadAction(im,  MVT::i1,  Legal);
-    setIndexedLoadAction(im,  MVT::i8,  Legal);
-    setIndexedLoadAction(im,  MVT::i16, Legal);
-    setIndexedLoadAction(im,  MVT::i32, Legal);
-    setIndexedStoreAction(im, MVT::i1,  Legal);
-    setIndexedStoreAction(im, MVT::i8,  Legal);
-    setIndexedStoreAction(im, MVT::i16, Legal);
-    setIndexedStoreAction(im, MVT::i32, Legal);
+  if (!Subtarget->isThumb1Only()) {
+    for (unsigned im = (unsigned)ISD::PRE_INC;
+         im != (unsigned)ISD::LAST_INDEXED_MODE; ++im) {
+      setIndexedLoadAction(im,  MVT::i1,  Legal);
+      setIndexedLoadAction(im,  MVT::i8,  Legal);
+      setIndexedLoadAction(im,  MVT::i16, Legal);
+      setIndexedLoadAction(im,  MVT::i32, Legal);
+      setIndexedStoreAction(im, MVT::i1,  Legal);
+      setIndexedStoreAction(im, MVT::i8,  Legal);
+      setIndexedStoreAction(im, MVT::i16, Legal);
+      setIndexedStoreAction(im, MVT::i32, Legal);
+    }
   }
 
   // i64 operation support.
@@ -301,7 +303,7 @@ ARMTargetLowering::ARMTargetLowering(TargetMachine &TM)
   setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32,   Expand);
   setOperationAction(ISD::MEMBARRIER,         MVT::Other, Expand);
 
-  if (!Subtarget->hasV6Ops()) {
+  if (!Subtarget->hasV6Ops() && !Subtarget->isThumb2()) {
     setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16, Expand);
     setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8,  Expand);
   }
@@ -402,7 +404,7 @@ const char *ARMTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case ARMISD::RET_FLAG:      return "ARMISD::RET_FLAG";
   case ARMISD::PIC_ADD:       return "ARMISD::PIC_ADD";
   case ARMISD::CMP:           return "ARMISD::CMP";
-  case ARMISD::CMPNZ:         return "ARMISD::CMPNZ";
+  case ARMISD::CMPZ:          return "ARMISD::CMPZ";
   case ARMISD::CMPFP:         return "ARMISD::CMPFP";
   case ARMISD::CMPFPw0:       return "ARMISD::CMPFPw0";
   case ARMISD::FMSTAT:        return "ARMISD::FMSTAT";
@@ -453,6 +455,11 @@ const char *ARMTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case ARMISD::VGETLANEs:     return "ARMISD::VGETLANEs";
   case ARMISD::VDUPLANEQ:     return "ARMISD::VDUPLANEQ";
   }
+}
+
+/// getFunctionAlignment - Return the Log2 alignment of this function.
+unsigned ARMTargetLowering::getFunctionAlignment(const Function *F) const {
+  return getTargetMachine().getSubtarget<ARMSubtarget>().isThumb() ? 1 : 2;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1152,7 +1159,7 @@ ARMTargetLowering::LowerToTLSGeneralDynamicModel(GlobalAddressSDNode *GA,
   // FIXME: is there useful debug info available here?
   std::pair<SDValue, SDValue> CallResult =
     LowerCallTo(Chain, (const Type *) Type::Int32Ty, false, false, false, false,
-                CallingConv::C, false,
+                0, CallingConv::C, false,
                 DAG.getExternalSymbol("__tls_get_addr", PtrVT), Args, DAG, dl);
   return CallResult.first;
 }
@@ -1592,10 +1599,8 @@ static SDValue getARMCmp(SDValue LHS, SDValue RHS, ISD::CondCode CC,
     break;
   case ARMCC::EQ:
   case ARMCC::NE:
-  case ARMCC::MI:
-  case ARMCC::PL:
-    // Uses only N and Z Flags
-    CompareType = ARMISD::CMPNZ;
+    // Uses only Z Flag
+    CompareType = ARMISD::CMPZ;
     break;
   }
   ARMCC = DAG.getConstant(CondCode, MVT::i32);
@@ -2920,10 +2925,10 @@ bool ARMTargetLowering::isLegalAddressingMode(const AddrMode &AM,
   return true;
 }
 
-static bool getIndexedAddressParts(SDNode *Ptr, MVT VT,
-                                   bool isSEXTLoad, SDValue &Base,
-                                   SDValue &Offset, bool &isInc,
-                                   SelectionDAG &DAG) {
+static bool getARMIndexedAddressParts(SDNode *Ptr, MVT VT,
+                                      bool isSEXTLoad, SDValue &Base,
+                                      SDValue &Offset, bool &isInc,
+                                      SelectionDAG &DAG) {
   if (Ptr->getOpcode() != ISD::ADD && Ptr->getOpcode() != ISD::SUB)
     return false;
 
@@ -2933,6 +2938,7 @@ static bool getIndexedAddressParts(SDNode *Ptr, MVT VT,
     if (ConstantSDNode *RHS = dyn_cast<ConstantSDNode>(Ptr->getOperand(1))) {
       int RHSC = (int)RHS->getZExtValue();
       if (RHSC < 0 && RHSC > -256) {
+        assert(Ptr->getOpcode() == ISD::ADD);
         isInc = false;
         Offset = DAG.getConstant(-RHSC, RHS->getValueType(0));
         return true;
@@ -2946,6 +2952,7 @@ static bool getIndexedAddressParts(SDNode *Ptr, MVT VT,
     if (ConstantSDNode *RHS = dyn_cast<ConstantSDNode>(Ptr->getOperand(1))) {
       int RHSC = (int)RHS->getZExtValue();
       if (RHSC < 0 && RHSC > -0x1000) {
+        assert(Ptr->getOpcode() == ISD::ADD);
         isInc = false;
         Offset = DAG.getConstant(-RHSC, RHS->getValueType(0));
         Base = Ptr->getOperand(0);
@@ -2976,6 +2983,31 @@ static bool getIndexedAddressParts(SDNode *Ptr, MVT VT,
   return false;
 }
 
+static bool getT2IndexedAddressParts(SDNode *Ptr, MVT VT,
+                                     bool isSEXTLoad, SDValue &Base,
+                                     SDValue &Offset, bool &isInc,
+                                     SelectionDAG &DAG) {
+  if (Ptr->getOpcode() != ISD::ADD && Ptr->getOpcode() != ISD::SUB)
+    return false;
+
+  Base = Ptr->getOperand(0);
+  if (ConstantSDNode *RHS = dyn_cast<ConstantSDNode>(Ptr->getOperand(1))) {
+    int RHSC = (int)RHS->getZExtValue();
+    if (RHSC < 0 && RHSC > -0x100) { // 8 bits.
+      assert(Ptr->getOpcode() == ISD::ADD);
+      isInc = false;
+      Offset = DAG.getConstant(-RHSC, RHS->getValueType(0));
+      return true;
+    } else if (RHSC > 0 && RHSC < 0x100) { // 8 bit, no zero.
+      isInc = Ptr->getOpcode() == ISD::ADD;
+      Offset = DAG.getConstant(RHSC, RHS->getValueType(0));
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /// getPreIndexedAddressParts - returns true by value, base pointer and
 /// offset pointer and addressing mode by reference if the node's address
 /// can be legally represented as pre-indexed load / store address.
@@ -2984,7 +3016,7 @@ ARMTargetLowering::getPreIndexedAddressParts(SDNode *N, SDValue &Base,
                                              SDValue &Offset,
                                              ISD::MemIndexedMode &AM,
                                              SelectionDAG &DAG) const {
-  if (Subtarget->isThumb())
+  if (Subtarget->isThumb1Only())
     return false;
 
   MVT VT;
@@ -3001,13 +3033,18 @@ ARMTargetLowering::getPreIndexedAddressParts(SDNode *N, SDValue &Base,
     return false;
 
   bool isInc;
-  bool isLegal = getIndexedAddressParts(Ptr.getNode(), VT, isSEXTLoad, Base, Offset,
-                                        isInc, DAG);
-  if (isLegal) {
-    AM = isInc ? ISD::PRE_INC : ISD::PRE_DEC;
-    return true;
-  }
-  return false;
+  bool isLegal = false;
+  if (Subtarget->isThumb2())
+    isLegal = getT2IndexedAddressParts(Ptr.getNode(), VT, isSEXTLoad, Base,
+                                       Offset, isInc, DAG);
+  else 
+    isLegal = getARMIndexedAddressParts(Ptr.getNode(), VT, isSEXTLoad, Base,
+                                        Offset, isInc, DAG);
+  if (!isLegal)
+    return false;
+
+  AM = isInc ? ISD::PRE_INC : ISD::PRE_DEC;
+  return true;
 }
 
 /// getPostIndexedAddressParts - returns true by value, base pointer and
@@ -3018,7 +3055,7 @@ bool ARMTargetLowering::getPostIndexedAddressParts(SDNode *N, SDNode *Op,
                                                    SDValue &Offset,
                                                    ISD::MemIndexedMode &AM,
                                                    SelectionDAG &DAG) const {
-  if (Subtarget->isThumb())
+  if (Subtarget->isThumb1Only())
     return false;
 
   MVT VT;
@@ -3033,13 +3070,18 @@ bool ARMTargetLowering::getPostIndexedAddressParts(SDNode *N, SDNode *Op,
     return false;
 
   bool isInc;
-  bool isLegal = getIndexedAddressParts(Op, VT, isSEXTLoad, Base, Offset,
+  bool isLegal = false;
+  if (Subtarget->isThumb2())
+    isLegal = getT2IndexedAddressParts(Op, VT, isSEXTLoad, Base, Offset,
                                         isInc, DAG);
-  if (isLegal) {
-    AM = isInc ? ISD::POST_INC : ISD::POST_DEC;
-    return true;
-  }
-  return false;
+  else 
+    isLegal = getARMIndexedAddressParts(Op, VT, isSEXTLoad, Base, Offset,
+                                        isInc, DAG);
+  if (!isLegal)
+    return false;
+
+  AM = isInc ? ISD::POST_INC : ISD::POST_DEC;
+  return true;
 }
 
 void ARMTargetLowering::computeMaskedBitsForTargetNode(const SDValue Op,

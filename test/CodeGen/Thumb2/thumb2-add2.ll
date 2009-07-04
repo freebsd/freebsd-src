@@ -29,8 +29,3 @@ define i32 @f5(i32 %a) {
     %tmp = add i32 %a, 510
     ret i32 %tmp
 }
-
-define i32 @f6(i32 %a) {
-    %tmp = add i32 %a, 4095
-    ret i32 %tmp
-}

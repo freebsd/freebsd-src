@@ -59,6 +59,49 @@ def NEONDupFrm    : Format<27>;
 class UnaryDP  { bit isUnaryDataProc = 1; }
 
 //===----------------------------------------------------------------------===//
+// ARM Instruction flags.  These need to match ARMInstrInfo.h.
+//
+
+// Addressing mode.
+class AddrMode<bits<4> val> {
+  bits<4> Value = val;
+}
+def AddrModeNone  : AddrMode<0>;
+def AddrMode1     : AddrMode<1>;
+def AddrMode2     : AddrMode<2>;
+def AddrMode3     : AddrMode<3>;
+def AddrMode4     : AddrMode<4>;
+def AddrMode5     : AddrMode<5>;
+def AddrMode6     : AddrMode<6>;
+def AddrModeT1_1  : AddrMode<7>;
+def AddrModeT1_2  : AddrMode<8>;
+def AddrModeT1_4  : AddrMode<9>;
+def AddrModeT1_s  : AddrMode<10>;
+def AddrModeT2_i12: AddrMode<12>;
+def AddrModeT2_i8 : AddrMode<12>;
+def AddrModeT2_so : AddrMode<13>;
+def AddrModeT2_pc : AddrMode<14>;
+def AddrModeT2_i8s4 : AddrMode<15>;
+
+// Instruction size.
+class SizeFlagVal<bits<3> val> {
+  bits<3> Value = val;
+}
+def SizeInvalid  : SizeFlagVal<0>;  // Unset.
+def SizeSpecial  : SizeFlagVal<1>;  // Pseudo or special.
+def Size8Bytes   : SizeFlagVal<2>;
+def Size4Bytes   : SizeFlagVal<3>;
+def Size2Bytes   : SizeFlagVal<4>;
+
+// Load / store index mode.
+class IndexMode<bits<2> val> {
+  bits<2> Value = val;
+}
+def IndexModeNone : IndexMode<0>;
+def IndexModePre  : IndexMode<1>;
+def IndexModePost : IndexMode<2>;
+
+//===----------------------------------------------------------------------===//
 
 // ARM Instruction templates.
 //
@@ -706,7 +749,6 @@ class ARMV6Pat<dag pattern, dag result> : Pat<pattern, result> {
 // Thumb Instruction Format Definitions.
 //
 
-
 // TI - Thumb instruction.
 
 class ThumbI<dag outs, dag ins, AddrMode am, SizeFlagVal sz,
@@ -721,18 +763,6 @@ class ThumbI<dag outs, dag ins, AddrMode am, SizeFlagVal sz,
 
 class TI<dag outs, dag ins, string asm, list<dag> pattern>
   : ThumbI<outs, ins, AddrModeNone, Size2Bytes, asm, "", pattern>;
-class TI1<dag outs, dag ins, string asm, list<dag> pattern>
-  : ThumbI<outs, ins, AddrModeT1, Size2Bytes, asm, "", pattern>;
-class TI2<dag outs, dag ins, string asm, list<dag> pattern>
-  : ThumbI<outs, ins, AddrModeT2, Size2Bytes, asm, "", pattern>;
-class TI4<dag outs, dag ins, string asm, list<dag> pattern>
-  : ThumbI<outs, ins, AddrModeT4, Size2Bytes, asm, "", pattern>;
-class TIs<dag outs, dag ins, string asm, list<dag> pattern>
-  : ThumbI<outs, ins, AddrModeTs, Size2Bytes, asm, "", pattern>;
-
-// Two-address instructions
-class TIt<dag outs, dag ins, string asm, list<dag> pattern>
-  : ThumbI<outs, ins, AddrModeNone, Size2Bytes, asm, "$lhs = $dst", pattern>;
 
 // BL, BLX(1) are translated by assembler into two instructions
 class TIx2<dag outs, dag ins, string asm, list<dag> pattern>
@@ -764,6 +794,18 @@ class Thumb1I<dag outs, dag ins, AddrMode am, SizeFlagVal sz,
 
 class T1I<dag outs, dag ins, string asm, list<dag> pattern>
   : Thumb1I<outs, ins, AddrModeNone, Size2Bytes, asm, "", pattern>;
+class T1I1<dag outs, dag ins, string asm, list<dag> pattern>
+  : Thumb1I<outs, ins, AddrModeT1_1, Size2Bytes, asm, "", pattern>;
+class T1I2<dag outs, dag ins, string asm, list<dag> pattern>
+  : Thumb1I<outs, ins, AddrModeT1_2, Size2Bytes, asm, "", pattern>;
+class T1I4<dag outs, dag ins, string asm, list<dag> pattern>
+  : Thumb1I<outs, ins, AddrModeT1_4, Size2Bytes, asm, "", pattern>;
+class T1Is<dag outs, dag ins, string asm, list<dag> pattern>
+  : Thumb1I<outs, ins, AddrModeT1_s, Size2Bytes, asm, "", pattern>;
+class T1Ix2<dag outs, dag ins, string asm, list<dag> pattern>
+  : Thumb1I<outs, ins, AddrModeNone, Size4Bytes, asm, "", pattern>;
+class T1JTI<dag outs, dag ins, string asm, list<dag> pattern>
+  : Thumb1I<outs, ins, AddrModeNone, SizeSpecial, asm, "", pattern>;
 
 // Two-address instructions
 class T1It<dag outs, dag ins, string asm, list<dag> pattern>
@@ -781,7 +823,7 @@ class Thumb2I<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
   let InOperandList = !con(iops, (ops pred:$p));
   let AsmString = !strconcat(opc, !strconcat("${p}", asm));
   let Pattern = pattern;
-  list<Predicate> Predicates = [IsThumb, HasThumb2];
+  list<Predicate> Predicates = [IsThumb2];
 }
 
 // Same as Thumb2I except it can optionally modify CPSR. Note it's modeled as
@@ -796,7 +838,7 @@ class Thumb2sI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
   let InOperandList = !con(iops, (ops pred:$p, cc_out:$s));
   let AsmString   = !strconcat(opc, !strconcat("${s}${p}", asm));
   let Pattern = pattern;
-  list<Predicate> Predicates = [IsThumb, HasThumb2];
+  list<Predicate> Predicates = [IsThumb2];
 }
 
 // Special cases
@@ -807,21 +849,45 @@ class Thumb2XI<dag oops, dag iops, AddrMode am, SizeFlagVal sz,
   let InOperandList = iops;
   let AsmString   = asm;
   let Pattern = pattern;
-  list<Predicate> Predicates = [IsThumb, HasThumb2];
+  list<Predicate> Predicates = [IsThumb2];
 }
 
 class T2I<dag oops, dag iops, string opc, string asm, list<dag> pattern>
   : Thumb2I<oops, iops, AddrModeNone, Size4Bytes, opc, asm, "", pattern>;
+class T2Ii12<dag oops, dag iops, string opc, string asm, list<dag> pattern>
+  : Thumb2I<oops, iops, AddrModeT2_i12, Size4Bytes, opc, asm, "", pattern>;
+class T2Ii8<dag oops, dag iops, string opc, string asm, list<dag> pattern>
+  : Thumb2I<oops, iops, AddrModeT2_i8, Size4Bytes, opc, asm, "", pattern>;
+class T2Iso<dag oops, dag iops, string opc, string asm, list<dag> pattern>
+  : Thumb2I<oops, iops, AddrModeT2_so, Size4Bytes, opc, asm, "", pattern>;
+class T2Ipc<dag oops, dag iops, string opc, string asm, list<dag> pattern>
+  : Thumb2I<oops, iops, AddrModeT2_pc, Size4Bytes, opc, asm, "", pattern>;
+class T2Ii8s4<dag oops, dag iops, string opc, string asm, list<dag> pattern>
+  : Thumb2I<oops, iops, AddrModeT2_i8s4, Size4Bytes, opc, asm, "", pattern>;
 
 class T2sI<dag oops, dag iops, string opc, string asm, list<dag> pattern>
   : Thumb2sI<oops, iops, AddrModeNone, Size4Bytes, opc, asm, "", pattern>;
 
 class T2XI<dag oops, dag iops, string asm, list<dag> pattern>
   : Thumb2XI<oops, iops, AddrModeNone, Size4Bytes, asm, "", pattern>;
+class T2JTI<dag oops, dag iops, string asm, list<dag> pattern>
+  : Thumb2XI<oops, iops, AddrModeNone, SizeSpecial, asm, "", pattern>;
+
+// T2Iidxldst - Thumb2 indexed load / store instructions.
+class T2Iidxldst<dag oops, dag iops, AddrMode am, IndexMode im,
+                 string opc, string asm, string cstr, list<dag> pattern>
+  : InstARM<am, Size4Bytes, im, ThumbFrm, cstr> {
+  let OutOperandList = oops;
+  let InOperandList = !con(iops, (ops pred:$p));
+  let AsmString = !strconcat(opc, !strconcat("${p}", asm));
+  let Pattern = pattern;
+  list<Predicate> Predicates = [IsThumb2];
+}
+
 
 // T2Pat - Same as Pat<>, but requires that the compiler be in Thumb2 mode.
 class T2Pat<dag pattern, dag result> : Pat<pattern, result> {
-  list<Predicate> Predicates = [IsThumb, HasThumb2];
+  list<Predicate> Predicates = [IsThumb2];
 }
 
 //===----------------------------------------------------------------------===//

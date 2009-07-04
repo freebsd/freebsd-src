@@ -18,6 +18,7 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/Instructions.h"
+#include "llvm/LLVMContext.h"
 #include "llvm/MDNode.h"
 #include "llvm/Module.h"
 #include "llvm/ValueSymbolTable.h"
@@ -109,6 +110,7 @@ bool LLParser::ParseTopLevelEntities() {
     case lltok::StringConstant: // FIXME: REMOVE IN LLVM 3.0
     case lltok::LocalVar:   if (ParseNamedType()) return true; break;
     case lltok::GlobalVar:  if (ParseNamedGlobal()) return true; break;
+    case lltok::Metadata:   if (ParseStandaloneMetadata()) return true; break;
 
     // The Global variable production with no name can have many different
     // optional leading prefixes, the production is:
@@ -129,7 +131,7 @@ bool LLParser::ParseTopLevelEntities() {
       unsigned Linkage, Visibility;
       if (ParseOptionalLinkage(Linkage) ||
           ParseOptionalVisibility(Visibility) ||
-          ParseGlobal("", 0, Linkage, true, Visibility))
+          ParseGlobal("", SMLoc(), Linkage, true, Visibility))
         return true;
       break;
     }
@@ -138,7 +140,7 @@ bool LLParser::ParseTopLevelEntities() {
     case lltok::kw_protected: {   // OptionalVisibility
       unsigned Visibility;
       if (ParseOptionalVisibility(Visibility) ||
-          ParseGlobal("", 0, 0, false, Visibility))
+          ParseGlobal("", SMLoc(), 0, false, Visibility))
         return true;
       break;
     }
@@ -147,7 +149,7 @@ bool LLParser::ParseTopLevelEntities() {
     case lltok::kw_addrspace:     // OptionalAddrSpace
     case lltok::kw_constant:      // GlobalType
     case lltok::kw_global:        // GlobalType
-      if (ParseGlobal("", 0, 0, false, 0)) return true;
+      if (ParseGlobal("", SMLoc(), 0, false, 0)) return true;
       break;
     }
   }
@@ -353,6 +355,34 @@ bool LLParser::ParseNamedGlobal() {
   if (HasLinkage || Lex.getKind() != lltok::kw_alias)
     return ParseGlobal(Name, NameLoc, Linkage, HasLinkage, Visibility);
   return ParseAlias(Name, NameLoc, Visibility);
+}
+
+/// ParseStandaloneMetadata:
+///   !42 = !{...} 
+bool LLParser::ParseStandaloneMetadata() {
+  assert(Lex.getKind() == lltok::Metadata);
+  Lex.Lex();
+  unsigned MetadataID = 0;
+  if (ParseUInt32(MetadataID))
+    return true;
+  if (MetadataCache.find(MetadataID) != MetadataCache.end())
+    return TokError("Metadata id is already used");
+  if (ParseToken(lltok::equal, "expected '=' here"))
+    return true;
+
+  LocTy TyLoc;
+  bool IsConstant;    
+  PATypeHolder Ty(Type::VoidTy);
+  if (ParseGlobalType(IsConstant) ||
+      ParseType(Ty, TyLoc))
+    return true;
+  
+  Constant *Init = 0;
+  if (ParseGlobalValue(Ty, Init))
+      return true;
+
+  MetadataCache[MetadataID] = Init;
+  return false;
 }
 
 /// ParseAlias:
@@ -968,7 +998,7 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
     break;
   case lltok::kw_opaque:
     // TypeRec ::= 'opaque'
-    Result = OpaqueType::get();
+    Result = Context.getOpaqueType();
     Lex.Lex();
     break;
   case lltok::lbrace:
@@ -998,7 +1028,7 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
     if (const Type *T = M->getTypeByName(Lex.getStrVal())) {
       Result = T;
     } else {
-      Result = OpaqueType::get();
+      Result = Context.getOpaqueType();
       ForwardRefTypes.insert(std::make_pair(Lex.getStrVal(),
                                             std::make_pair(Result,
                                                            Lex.getLoc())));
@@ -1017,7 +1047,7 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
       if (I != ForwardRefTypeIDs.end())
         Result = I->second.first;
       else {
-        Result = OpaqueType::get();
+        Result = Context.getOpaqueType();
         ForwardRefTypeIDs.insert(std::make_pair(Lex.getUIntVal(),
                                                 std::make_pair(Result,
                                                                Lex.getLoc())));
@@ -1030,7 +1060,7 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
     Lex.Lex();
     unsigned Val;
     if (ParseUInt32(Val)) return true;
-    OpaqueType *OT = OpaqueType::get();        // Use temporary placeholder.
+    OpaqueType *OT = Context.getOpaqueType(); //Use temporary placeholder.
     UpRefs.push_back(UpRefRecord(Lex.getLoc(), Val, OT));
     Result = OT;
     break;
@@ -1051,7 +1081,7 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
         return TokError("pointers to void are invalid; use i8* instead");
       if (!PointerType::isValidElementType(Result.get()))
         return TokError("pointer to this type is invalid");
-      Result = HandleUpRefs(PointerType::getUnqual(Result.get()));
+      Result = HandleUpRefs(Context.getPointerTypeUnqual(Result.get()));
       Lex.Lex();
       break;
 
@@ -1068,7 +1098,7 @@ bool LLParser::ParseTypeRec(PATypeHolder &Result) {
           ParseToken(lltok::star, "expected '*' in address space"))
         return true;
 
-      Result = HandleUpRefs(PointerType::get(Result.get(), AddrSpace));
+      Result = HandleUpRefs(Context.getPointerType(Result.get(), AddrSpace));
       break;
     }
         
@@ -1229,7 +1259,8 @@ bool LLParser::ParseFunctionType(PATypeHolder &Result) {
   for (unsigned i = 0, e = ArgList.size(); i != e; ++i)
     ArgListTy.push_back(ArgList[i].Type);
     
-  Result = HandleUpRefs(FunctionType::get(Result.get(), ArgListTy, isVarArg));
+  Result = HandleUpRefs(Context.getFunctionType(Result.get(),
+                                                ArgListTy, isVarArg));
   return false;
 }
 
@@ -1244,7 +1275,7 @@ bool LLParser::ParseStructType(PATypeHolder &Result, bool Packed) {
   Lex.Lex(); // Consume the '{'
   
   if (EatIfPresent(lltok::rbrace)) {
-    Result = StructType::get(std::vector<const Type*>(), Packed);
+    Result = Context.getStructType(Packed);
     return false;
   }
 
@@ -1276,7 +1307,7 @@ bool LLParser::ParseStructType(PATypeHolder &Result, bool Packed) {
   std::vector<const Type*> ParamsListTy;
   for (unsigned i = 0, e = ParamsList.size(); i != e; ++i)
     ParamsListTy.push_back(ParamsList[i].get());
-  Result = HandleUpRefs(StructType::get(ParamsListTy, Packed));
+  Result = HandleUpRefs(Context.getStructType(ParamsListTy, Packed));
   return false;
 }
 
@@ -1315,11 +1346,11 @@ bool LLParser::ParseArrayVectorType(PATypeHolder &Result, bool isVector) {
       return Error(SizeLoc, "size too large for vector");
     if (!VectorType::isValidElementType(EltTy))
       return Error(TypeLoc, "vector element type must be fp or integer");
-    Result = VectorType::get(EltTy, unsigned(Size));
+    Result = Context.getVectorType(EltTy, unsigned(Size));
   } else {
     if (!ArrayType::isValidElementType(EltTy))
       return Error(TypeLoc, "invalid array element type");
-    Result = HandleUpRefs(ArrayType::get(EltTy, Size));
+    Result = HandleUpRefs(Context.getArrayType(EltTy, Size));
   }
   return false;
 }
@@ -1343,8 +1374,8 @@ LLParser::PerFunctionState::~PerFunctionState() {
   for (std::map<std::string, std::pair<Value*, LocTy> >::iterator
        I = ForwardRefVals.begin(), E = ForwardRefVals.end(); I != E; ++I)
     if (!isa<BasicBlock>(I->second.first)) {
-      I->second.first->replaceAllUsesWith(UndefValue::get(I->second.first
-                                                          ->getType()));
+      I->second.first->replaceAllUsesWith(
+                           P.getContext().getUndef(I->second.first->getType()));
       delete I->second.first;
       I->second.first = 0;
     }
@@ -1352,8 +1383,8 @@ LLParser::PerFunctionState::~PerFunctionState() {
   for (std::map<unsigned, std::pair<Value*, LocTy> >::iterator
        I = ForwardRefValIDs.begin(), E = ForwardRefValIDs.end(); I != E; ++I)
     if (!isa<BasicBlock>(I->second.first)) {
-      I->second.first->replaceAllUsesWith(UndefValue::get(I->second.first
-                                                          ->getType()));
+      I->second.first->replaceAllUsesWith(
+                           P.getContext().getUndef(I->second.first->getType()));
       delete I->second.first;
       I->second.first = 0;
     }
@@ -1592,16 +1623,27 @@ bool LLParser::ParseValID(ValID &ID) {
           ParseToken(lltok::rbrace, "expected end of metadata node"))
         return true;
 
-      ID.ConstantVal = MDNode::get(Elts.data(), Elts.size());
+      ID.ConstantVal = Context.getMDNode(Elts.data(), Elts.size());
       return false;
     }
 
+    // Standalone metadata reference
+    // !{ ..., !42, ... }
+    unsigned MID = 0;
+    if (!ParseUInt32(MID)) {
+      std::map<unsigned, Constant *>::iterator I = MetadataCache.find(MID);
+      if (I == MetadataCache.end())
+	return TokError("Unknown metadata reference");
+      ID.ConstantVal = I->second;
+      return false;
+    }
+    
     // MDString:
     //   ::= '!' STRINGCONSTANT
     std::string Str;
     if (ParseStringConstant(Str)) return true;
 
-    ID.ConstantVal = MDString::get(Str.data(), Str.data() + Str.size());
+    ID.ConstantVal = Context.getMDString(Str.data(), Str.data() + Str.size());
     return false;
   }
   case lltok::APSInt:
@@ -1613,11 +1655,11 @@ bool LLParser::ParseValID(ValID &ID) {
     ID.Kind = ValID::t_APFloat;
     break;
   case lltok::kw_true:
-    ID.ConstantVal = ConstantInt::getTrue();
+    ID.ConstantVal = Context.getConstantIntTrue();
     ID.Kind = ValID::t_Constant;
     break;
   case lltok::kw_false:
-    ID.ConstantVal = ConstantInt::getFalse();
+    ID.ConstantVal = Context.getConstantIntFalse();
     ID.Kind = ValID::t_Constant;
     break;
   case lltok::kw_null: ID.Kind = ValID::t_Null; break;
@@ -1632,7 +1674,7 @@ bool LLParser::ParseValID(ValID &ID) {
         ParseToken(lltok::rbrace, "expected end of struct constant"))
       return true;
     
-    ID.ConstantVal = ConstantStruct::get(Elts.data(), Elts.size(), false);
+    ID.ConstantVal = Context.getConstantStruct(Elts.data(), Elts.size(), false);
     ID.Kind = ValID::t_Constant;
     return false;
   }
@@ -1651,7 +1693,8 @@ bool LLParser::ParseValID(ValID &ID) {
       return true;
     
     if (isPackedStruct) {
-      ID.ConstantVal = ConstantStruct::get(Elts.data(), Elts.size(), true);
+      ID.ConstantVal =
+        Context.getConstantStruct(Elts.data(), Elts.size(), true);
       ID.Kind = ValID::t_Constant;
       return false;
     }
@@ -1671,7 +1714,7 @@ bool LLParser::ParseValID(ValID &ID) {
                      "vector element #" + utostr(i) +
                     " is not of type '" + Elts[0]->getType()->getDescription());
     
-    ID.ConstantVal = ConstantVector::get(Elts.data(), Elts.size());
+    ID.ConstantVal = Context.getConstantVector(Elts.data(), Elts.size());
     ID.Kind = ValID::t_Constant;
     return false;
   }
@@ -1695,7 +1738,7 @@ bool LLParser::ParseValID(ValID &ID) {
       return Error(FirstEltLoc, "invalid array element type: " + 
                    Elts[0]->getType()->getDescription());
           
-    ArrayType *ATy = ArrayType::get(Elts[0]->getType(), Elts.size());
+    ArrayType *ATy = Context.getArrayType(Elts[0]->getType(), Elts.size());
     
     // Verify all elements are correct type!
     for (unsigned i = 0, e = Elts.size(); i != e; ++i) {
@@ -1705,13 +1748,13 @@ bool LLParser::ParseValID(ValID &ID) {
                      " is not of type '" +Elts[0]->getType()->getDescription());
     }
     
-    ID.ConstantVal = ConstantArray::get(ATy, Elts.data(), Elts.size());
+    ID.ConstantVal = Context.getConstantArray(ATy, Elts.data(), Elts.size());
     ID.Kind = ValID::t_Constant;
     return false;
   }
   case lltok::kw_c:  // c "foo"
     Lex.Lex();
-    ID.ConstantVal = ConstantArray::get(Lex.getStrVal(), false);
+    ID.ConstantVal = Context.getConstantArray(Lex.getStrVal(), false);
     if (ParseToken(lltok::StringConstant, "expected string")) return true;
     ID.Kind = ValID::t_Constant;
     return false;
@@ -1757,8 +1800,8 @@ bool LLParser::ParseValID(ValID &ID) {
       return Error(ID.Loc, "invalid cast opcode for cast from '" +
                    SrcVal->getType()->getDescription() + "' to '" +
                    DestTy->getDescription() + "'");
-    ID.ConstantVal = ConstantExpr::getCast((Instruction::CastOps)Opc, SrcVal,
-                                           DestTy);
+    ID.ConstantVal = Context.getConstantExprCast((Instruction::CastOps)Opc, 
+                                                 SrcVal, DestTy);
     ID.Kind = ValID::t_Constant;
     return false;
   }
@@ -1777,7 +1820,7 @@ bool LLParser::ParseValID(ValID &ID) {
                                           Indices.end()))
       return Error(ID.Loc, "invalid indices for extractvalue");
     ID.ConstantVal =
-      ConstantExpr::getExtractValue(Val, Indices.data(), Indices.size());
+      Context.getConstantExprExtractValue(Val, Indices.data(), Indices.size());
     ID.Kind = ValID::t_Constant;
     return false;
   }
@@ -1797,8 +1840,8 @@ bool LLParser::ParseValID(ValID &ID) {
     if (!ExtractValueInst::getIndexedType(Val0->getType(), Indices.begin(),
                                           Indices.end()))
       return Error(ID.Loc, "invalid indices for insertvalue");
-    ID.ConstantVal =
-      ConstantExpr::getInsertValue(Val0, Val1, Indices.data(), Indices.size());
+    ID.ConstantVal = Context.getConstantExprInsertValue(Val0, Val1,
+                       Indices.data(), Indices.size());
     ID.Kind = ValID::t_Constant;
     return false;
   }
@@ -1825,24 +1868,24 @@ bool LLParser::ParseValID(ValID &ID) {
     if (Opc == Instruction::FCmp) {
       if (!Val0->getType()->isFPOrFPVector())
         return Error(ID.Loc, "fcmp requires floating point operands");
-      ID.ConstantVal = ConstantExpr::getFCmp(Pred, Val0, Val1);
+      ID.ConstantVal = Context.getConstantExprFCmp(Pred, Val0, Val1);
     } else if (Opc == Instruction::ICmp) {
       if (!Val0->getType()->isIntOrIntVector() &&
           !isa<PointerType>(Val0->getType()))
         return Error(ID.Loc, "icmp requires pointer or integer operands");
-      ID.ConstantVal = ConstantExpr::getICmp(Pred, Val0, Val1);
+      ID.ConstantVal = Context.getConstantExprICmp(Pred, Val0, Val1);
     } else if (Opc == Instruction::VFCmp) {
       // FIXME: REMOVE VFCMP Support
       if (!Val0->getType()->isFPOrFPVector() ||
           !isa<VectorType>(Val0->getType()))
         return Error(ID.Loc, "vfcmp requires vector floating point operands");
-      ID.ConstantVal = ConstantExpr::getVFCmp(Pred, Val0, Val1);
+      ID.ConstantVal = Context.getConstantExprVFCmp(Pred, Val0, Val1);
     } else if (Opc == Instruction::VICmp) {
       // FIXME: REMOVE VICMP Support
       if (!Val0->getType()->isIntOrIntVector() ||
           !isa<VectorType>(Val0->getType()))
         return Error(ID.Loc, "vicmp requires vector floating point operands");
-      ID.ConstantVal = ConstantExpr::getVICmp(Pred, Val0, Val1);
+      ID.ConstantVal = Context.getConstantExprVICmp(Pred, Val0, Val1);
     }
     ID.Kind = ValID::t_Constant;
     return false;
@@ -1875,7 +1918,7 @@ bool LLParser::ParseValID(ValID &ID) {
     if (!Val0->getType()->isIntOrIntVector() &&
         !Val0->getType()->isFPOrFPVector())
       return Error(ID.Loc,"constexpr requires integer, fp, or vector operands");
-    ID.ConstantVal = ConstantExpr::get(Opc, Val0, Val1);
+    ID.ConstantVal = Context.getConstantExpr(Opc, Val0, Val1);
     ID.Kind = ValID::t_Constant;
     return false;
   }
@@ -1901,7 +1944,7 @@ bool LLParser::ParseValID(ValID &ID) {
     if (!Val0->getType()->isIntOrIntVector())
       return Error(ID.Loc,
                    "constexpr requires integer or integer vector operands");
-    ID.ConstantVal = ConstantExpr::get(Opc, Val0, Val1);
+    ID.ConstantVal = Context.getConstantExpr(Opc, Val0, Val1);
     ID.Kind = ValID::t_Constant;
     return false;
   }  
@@ -1926,7 +1969,7 @@ bool LLParser::ParseValID(ValID &ID) {
       if (!GetElementPtrInst::getIndexedType(Elts[0]->getType(),
                                              (Value**)&Elts[1], Elts.size()-1))
         return Error(ID.Loc, "invalid indices for getelementptr");
-      ID.ConstantVal = ConstantExpr::getGetElementPtr(Elts[0],
+      ID.ConstantVal = Context.getConstantExprGetElementPtr(Elts[0],
                                                       &Elts[1], Elts.size()-1);
     } else if (Opc == Instruction::Select) {
       if (Elts.size() != 3)
@@ -1934,26 +1977,28 @@ bool LLParser::ParseValID(ValID &ID) {
       if (const char *Reason = SelectInst::areInvalidOperands(Elts[0], Elts[1],
                                                               Elts[2]))
         return Error(ID.Loc, Reason);
-      ID.ConstantVal = ConstantExpr::getSelect(Elts[0], Elts[1], Elts[2]);
+      ID.ConstantVal = Context.getConstantExprSelect(Elts[0], Elts[1], Elts[2]);
     } else if (Opc == Instruction::ShuffleVector) {
       if (Elts.size() != 3)
         return Error(ID.Loc, "expected three operands to shufflevector");
       if (!ShuffleVectorInst::isValidOperands(Elts[0], Elts[1], Elts[2]))
         return Error(ID.Loc, "invalid operands to shufflevector");
-      ID.ConstantVal = ConstantExpr::getShuffleVector(Elts[0], Elts[1],Elts[2]);
+      ID.ConstantVal =
+                 Context.getConstantExprShuffleVector(Elts[0], Elts[1],Elts[2]);
     } else if (Opc == Instruction::ExtractElement) {
       if (Elts.size() != 2)
         return Error(ID.Loc, "expected two operands to extractelement");
       if (!ExtractElementInst::isValidOperands(Elts[0], Elts[1]))
         return Error(ID.Loc, "invalid extractelement operands");
-      ID.ConstantVal = ConstantExpr::getExtractElement(Elts[0], Elts[1]);
+      ID.ConstantVal = Context.getConstantExprExtractElement(Elts[0], Elts[1]);
     } else {
       assert(Opc == Instruction::InsertElement && "Unknown opcode");
       if (Elts.size() != 3)
       return Error(ID.Loc, "expected three operands to insertelement");
       if (!InsertElementInst::isValidOperands(Elts[0], Elts[1], Elts[2]))
         return Error(ID.Loc, "invalid insertelement operands");
-      ID.ConstantVal = ConstantExpr::getInsertElement(Elts[0], Elts[1],Elts[2]);
+      ID.ConstantVal =
+                 Context.getConstantExprInsertElement(Elts[0], Elts[1],Elts[2]);
     }
     
     ID.Kind = ValID::t_Constant;
@@ -1997,7 +2042,7 @@ bool LLParser::ConvertGlobalValIDToValue(const Type *Ty, ValID &ID,
     if (!isa<IntegerType>(Ty))
       return Error(ID.Loc, "integer constant must have integer type");
     ID.APSIntVal.extOrTrunc(Ty->getPrimitiveSizeInBits());
-    V = ConstantInt::get(ID.APSIntVal);
+    V = Context.getConstantInt(ID.APSIntVal);
     return false;
   case ValID::t_APFloat:
     if (!Ty->isFloatingPoint() ||
@@ -2012,7 +2057,7 @@ bool LLParser::ConvertGlobalValIDToValue(const Type *Ty, ValID &ID,
       ID.APFloatVal.convert(APFloat::IEEEsingle, APFloat::rmNearestTiesToEven,
                             &Ignored);
     }
-    V = ConstantFP::get(ID.APFloatVal);
+    V = Context.getConstantFP(ID.APFloatVal);
       
     if (V->getType() != Ty)
       return Error(ID.Loc, "floating point constant does not have type '" +
@@ -2022,25 +2067,25 @@ bool LLParser::ConvertGlobalValIDToValue(const Type *Ty, ValID &ID,
   case ValID::t_Null:
     if (!isa<PointerType>(Ty))
       return Error(ID.Loc, "null must be a pointer type");
-    V = ConstantPointerNull::get(cast<PointerType>(Ty));
+    V = Context.getConstantPointerNull(cast<PointerType>(Ty));
     return false;
   case ValID::t_Undef:
     // FIXME: LabelTy should not be a first-class type.
     if ((!Ty->isFirstClassType() || Ty == Type::LabelTy) &&
         !isa<OpaqueType>(Ty))
       return Error(ID.Loc, "invalid type for undef constant");
-    V = UndefValue::get(Ty);
+    V = Context.getUndef(Ty);
     return false;
   case ValID::t_EmptyArray:
     if (!isa<ArrayType>(Ty) || cast<ArrayType>(Ty)->getNumElements() != 0)
       return Error(ID.Loc, "invalid empty array initializer");
-    V = UndefValue::get(Ty);
+    V = Context.getUndef(Ty);
     return false;
   case ValID::t_Zero:
     // FIXME: LabelTy should not be a first-class type.
     if (!Ty->isFirstClassType() || Ty == Type::LabelTy)
       return Error(ID.Loc, "invalid type for null constant");
-    V = Constant::getNullValue(Ty);
+    V = Context.getNullValue(Ty);
     return false;
   case ValID::t_Constant:
     if (ID.ConstantVal->getType() != Ty)
@@ -2242,8 +2287,9 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
       RetType != Type::VoidTy)
     return Error(RetTypeLoc, "functions with 'sret' argument must return void"); 
   
-  const FunctionType *FT = FunctionType::get(RetType, ParamTypeList, isVarArg);
-  const PointerType *PFT = PointerType::getUnqual(FT);
+  const FunctionType *FT =
+    Context.getFunctionType(RetType, ParamTypeList, isVarArg);
+  const PointerType *PFT = Context.getPointerTypeUnqual(FT);
 
   Fn = 0;
   if (!FunctionName.empty()) {
@@ -2558,7 +2604,7 @@ bool LLParser::ParseRet(Instruction *&Inst, BasicBlock *BB,
       RVs.push_back(RV);
     }
 
-    RV = UndefValue::get(PFS.getFunction().getReturnType());
+    RV = Context.getUndef(PFS.getFunction().getReturnType());
     for (unsigned i = 0, e = RVs.size(); i != e; ++i) {
       Instruction *I = InsertValueInst::Create(RV, RVs[i], i, "mrv");
       BB->getInstList().push_back(I);
@@ -2696,8 +2742,8 @@ bool LLParser::ParseInvoke(Instruction *&Inst, PerFunctionState &PFS) {
     if (!FunctionType::isValidReturnType(RetType))
       return Error(RetTypeLoc, "Invalid result type for LLVM function");
     
-    Ty = FunctionType::get(RetType, ParamTypes, false);
-    PFTy = PointerType::getUnqual(Ty);
+    Ty = Context.getFunctionType(RetType, ParamTypes, false);
+    PFTy = Context.getPointerTypeUnqual(Ty);
   }
   
   // Look up the callee.
@@ -3045,8 +3091,8 @@ bool LLParser::ParseCall(Instruction *&Inst, PerFunctionState &PFS,
     if (!FunctionType::isValidReturnType(RetType))
       return Error(RetTypeLoc, "Invalid result type for LLVM function");
     
-    Ty = FunctionType::get(RetType, ParamTypes, false);
-    PFTy = PointerType::getUnqual(Ty);
+    Ty = Context.getFunctionType(RetType, ParamTypes, false);
+    PFTy = Context.getPointerTypeUnqual(Ty);
   }
   
   // Look up the callee.
@@ -3116,7 +3162,7 @@ bool LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS,
                           unsigned Opc) {
   PATypeHolder Ty(Type::VoidTy);
   Value *Size = 0;
-  LocTy SizeLoc = 0;
+  LocTy SizeLoc;
   unsigned Alignment = 0;
   if (ParseType(Ty)) return true;
 

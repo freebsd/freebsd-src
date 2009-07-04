@@ -305,7 +305,7 @@ namespace ARM_AM {
   ///     abcdefgh abcdefgh abcdefgh abcdefgh    control = 3
   /// Return -1 if none of the above apply.
   /// See ARM Reference Manual A6.3.2.
-  static inline int getT2SOImmValSplat (unsigned V) {
+  static inline int getT2SOImmValSplat(unsigned V) {
     unsigned u, Vs, Imm;
     // control = 0
     if ((V & 0xffffff00) == 0) 
@@ -459,13 +459,13 @@ namespace ARM_AM {
   //
   // addrmode5 := reg +/- imm8*4
   //
-  // The first operand is always a Reg.  The third field encodes the operation
-  // in bit 8, the immediate in bits 0-7.
+  // The first operand is always a Reg.  The second operand encodes the
+  // operation in bit 8 and the immediate in bits 0-7.
   //
-  // This can also be used for FP load/store multiple ops. The third field encodes
-  // writeback mode in bit 8, the number of registers (or 2 times the number of
-  // registers for DPR ops) in bits 0-7. In addition, bit 9-11 encodes one of the
-  // following two sub-modes:
+  // This is also used for FP load/store multiple ops. The second operand
+  // encodes the writeback mode in bit 8 and the number of registers (or 2
+  // times the number of registers for DPR ops) in bits 0-7. In addition,
+  // bits 9-11 encode one of the following two sub-modes:
   //
   //    IA - Increment after
   //    DB - Decrement before
@@ -496,7 +496,29 @@ namespace ARM_AM {
   static inline bool getAM5WBFlag(unsigned AM5Opc) {
     return ((AM5Opc >> 8) & 1);
   }
-  
+
+  //===--------------------------------------------------------------------===//
+  // Addressing Mode #6
+  //===--------------------------------------------------------------------===//
+  //
+  // This is used for NEON load / store instructions.
+  //
+  // addrmode6 := reg with optional writeback
+  //
+  // This is stored in three operands [regaddr, regupdate, opc].  The first is
+  // the address register.  The second register holds the value of a post-access
+  // increment for writeback or reg0 if no writeback or if the writeback
+  // increment is the size of the memory access.  The third operand encodes
+  // whether there is writeback to the address register.
+
+  static inline unsigned getAM6Opc(bool WB = false) {
+    return (int)WB;
+  }
+
+  static inline bool getAM6WBFlag(unsigned Mode) {
+    return Mode & 1;
+  }
+
 } // end namespace ARM_AM
 } // end namespace llvm
 

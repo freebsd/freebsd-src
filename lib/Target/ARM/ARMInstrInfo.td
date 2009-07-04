@@ -75,8 +75,8 @@ def ARMbrjt          : SDNode<"ARMISD::BR_JT", SDT_ARMBrJT,
 def ARMcmp           : SDNode<"ARMISD::CMP", SDT_ARMCmp,
                               [SDNPOutFlag]>;
 
-def ARMcmpNZ         : SDNode<"ARMISD::CMPNZ", SDT_ARMCmp,
-                              [SDNPOutFlag]>;
+def ARMcmpZ          : SDNode<"ARMISD::CMPZ", SDT_ARMCmp,
+                              [SDNPOutFlag,SDNPCommutative]>;
 
 def ARMpic_add       : SDNode<"ARMISD::PIC_ADD", SDT_ARMPICAdd>;
 
@@ -99,7 +99,7 @@ def HasVFP3   : Predicate<"Subtarget->hasVFP3()">;
 def HasNEON   : Predicate<"Subtarget->hasNEON()">;
 def IsThumb   : Predicate<"Subtarget->isThumb()">;
 def IsThumb1Only : Predicate<"Subtarget->isThumb1Only()">;
-def HasThumb2 : Predicate<"Subtarget->hasThumb2()">;
+def IsThumb2  : Predicate<"Subtarget->isThumb2()">;
 def IsARM     : Predicate<"!Subtarget->isThumb()">;
 def IsDarwin    : Predicate<"Subtarget->isTargetDarwin()">;
 def IsNotDarwin : Predicate<"!Subtarget->isTargetDarwin()">;
@@ -287,6 +287,14 @@ def addrmode5 : Operand<i32>,
   let MIOperandInfo = (ops GPR, i32imm);
 }
 
+// addrmode6 := reg with optional writeback
+//
+def addrmode6 : Operand<i32>,
+                ComplexPattern<i32, 3, "SelectAddrMode6", []> {
+  let PrintMethod = "printAddrMode6Operand";
+  let MIOperandInfo = (ops GPR:$addr, GPR:$upd, i32imm);
+}
+
 // addrmodepc := pc + reg
 //
 def addrmodepc : Operand<i32>,
@@ -307,43 +315,6 @@ def pred : PredicateOperand<OtherVT, (ops i32imm, CCR),
 def cc_out : OptionalDefOperand<OtherVT, (ops CCR), (ops (i32 zero_reg))> {
   let PrintMethod = "printSBitModifierOperand";
 }
-
-//===----------------------------------------------------------------------===//
-// ARM Instruction flags.  These need to match ARMInstrInfo.h.
-//
-
-// Addressing mode.
-class AddrMode<bits<4> val> {
-  bits<4> Value = val;
-}
-def AddrModeNone : AddrMode<0>;
-def AddrMode1    : AddrMode<1>;
-def AddrMode2    : AddrMode<2>;
-def AddrMode3    : AddrMode<3>;
-def AddrMode4    : AddrMode<4>;
-def AddrMode5    : AddrMode<5>;
-def AddrModeT1   : AddrMode<6>;
-def AddrModeT2   : AddrMode<7>;
-def AddrModeT4   : AddrMode<8>;
-def AddrModeTs   : AddrMode<9>;
-
-// Instruction size.
-class SizeFlagVal<bits<3> val> {
-  bits<3> Value = val;
-}
-def SizeInvalid  : SizeFlagVal<0>;  // Unset.
-def SizeSpecial  : SizeFlagVal<1>;  // Pseudo or special.
-def Size8Bytes   : SizeFlagVal<2>;
-def Size4Bytes   : SizeFlagVal<3>;
-def Size2Bytes   : SizeFlagVal<4>;
-
-// Load / store index mode.
-class IndexMode<bits<2> val> {
-  bits<2> Value = val;
-}
-def IndexModeNone : IndexMode<0>;
-def IndexModePre  : IndexMode<1>;
-def IndexModePost : IndexMode<2>;
 
 //===----------------------------------------------------------------------===//
 
@@ -780,7 +751,7 @@ def LDRSB_PRE : AI3ldsbpr<(outs GPR:$dst, GPR:$base_wb),
 
 def LDRSB_POST: AI3ldsbpo<(outs GPR:$dst, GPR:$base_wb),
                       (ins GPR:$base,am3offset:$offset), LdMiscFrm,
-                      "ldr", "sb $dst, [$base], $offset", "$base = $base_wb", []>;
+                    "ldr", "sb $dst, [$base], $offset", "$base = $base_wb", []>;
 }
 
 // Store
@@ -1309,19 +1280,19 @@ defm CMN  : AI1_cmp_irs<0b1011, "cmn",
 
 // Note that TST/TEQ don't set all the same flags that CMP does!
 defm TST  : AI1_cmp_irs<0b1000, "tst",
-                        BinOpFrag<(ARMcmpNZ (and node:$LHS, node:$RHS), 0)>, 1>;
+                        BinOpFrag<(ARMcmpZ (and node:$LHS, node:$RHS), 0)>, 1>;
 defm TEQ  : AI1_cmp_irs<0b1001, "teq",
-                        BinOpFrag<(ARMcmpNZ (xor node:$LHS, node:$RHS), 0)>, 1>;
+                        BinOpFrag<(ARMcmpZ (xor node:$LHS, node:$RHS), 0)>, 1>;
 
-defm CMPnz : AI1_cmp_irs<0b1010, "cmp",
-                         BinOpFrag<(ARMcmpNZ node:$LHS, node:$RHS)>>;
-defm CMNnz : AI1_cmp_irs<0b1011, "cmn",
-                         BinOpFrag<(ARMcmpNZ node:$LHS,(ineg node:$RHS))>>;
+defm CMPz  : AI1_cmp_irs<0b1010, "cmp",
+                         BinOpFrag<(ARMcmpZ node:$LHS, node:$RHS)>>;
+defm CMNz  : AI1_cmp_irs<0b1011, "cmn",
+                         BinOpFrag<(ARMcmpZ node:$LHS,(ineg node:$RHS))>>;
 
 def : ARMPat<(ARMcmp GPR:$src, so_imm_neg:$imm),
              (CMNri  GPR:$src, so_imm_neg:$imm)>;
 
-def : ARMPat<(ARMcmpNZ GPR:$src, so_imm_neg:$imm),
+def : ARMPat<(ARMcmpZ GPR:$src, so_imm_neg:$imm),
              (CMNri  GPR:$src, so_imm_neg:$imm)>;
 
 

@@ -33,16 +33,22 @@ namespace ARMII {
     // This four-bit field describes the addressing mode used.
 
     AddrModeMask  = 0xf,
-    AddrModeNone  = 0,
-    AddrMode1     = 1,
-    AddrMode2     = 2,
-    AddrMode3     = 3,
-    AddrMode4     = 4,
-    AddrMode5     = 5,
-    AddrModeT1    = 6,
-    AddrModeT2    = 7,
-    AddrModeT4    = 8,
-    AddrModeTs    = 9,  // i8 * 4 for pc and sp relative data
+    AddrModeNone    = 0,
+    AddrMode1       = 1,
+    AddrMode2       = 2,
+    AddrMode3       = 3,
+    AddrMode4       = 4,
+    AddrMode5       = 5,
+    AddrMode6       = 6,
+    AddrModeT1_1    = 7,
+    AddrModeT1_2    = 8,
+    AddrModeT1_4    = 9,
+    AddrModeT1_s    = 10, // i8 * 4 for pc and sp relative data
+    AddrModeT2_i12  = 11,
+    AddrModeT2_i8   = 12,
+    AddrModeT2_so   = 13,
+    AddrModeT2_pc   = 14, // +/- i12 for pc relative data
+    AddrModeT2_i8s4 = 15, // i8 * 4
 
     // Size* - Flags to keep track of the size of an instruction.
     SizeShift     = 4,
@@ -147,24 +153,15 @@ namespace ARMII {
 }
 
 class ARMBaseInstrInfo : public TargetInstrInfoImpl {
-  const ARMRegisterInfo RI;
 protected:
   // Can be only subclassed.
   explicit ARMBaseInstrInfo(const ARMSubtarget &STI);
 public:
-
-  /// getRegisterInfo - TargetInstrInfo is a superset of MRegister info.  As
-  /// such, whenever a client has an instance of instruction info, it should
-  /// always be able to get register info as well (through this method).
-  ///
-  virtual const ARMRegisterInfo &getRegisterInfo() const { return RI; }
-
-  void reMaterialize(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
-                     unsigned DestReg, const MachineInstr *Orig) const;
-
   virtual MachineInstr *convertToThreeAddress(MachineFunction::iterator &MFI,
                                               MachineBasicBlock::iterator &MBBI,
                                               LiveVariables *LV) const;
+
+  virtual const ARMBaseRegisterInfo &getRegisterInfo() const =0;
 
   // Branch analysis.
   virtual bool AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
@@ -175,9 +172,6 @@ public:
   virtual unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                                 MachineBasicBlock *FBB,
                             const SmallVectorImpl<MachineOperand> &Cond) const;
-
-  virtual bool canFoldMemoryOperand(const MachineInstr *MI,
-                                    const SmallVectorImpl<unsigned> &Ops) const;
 
   virtual bool BlockHasNoFallThrough(const MachineBasicBlock &MBB) const;
   virtual
@@ -206,11 +200,6 @@ public:
   /// GetInstSize - Returns the size of the specified MachineInstr.
   ///
   virtual unsigned GetInstSizeInBytes(const MachineInstr* MI) const;
-};
-
-class ARMInstrInfo : public ARMBaseInstrInfo {
-public:
-  explicit ARMInstrInfo(const ARMSubtarget &STI);
 
   /// Return true if the instruction is a register to register move and return
   /// the source and dest operands and their sub-register indices by reference.
@@ -248,17 +237,33 @@ public:
                                const TargetRegisterClass *RC,
                                SmallVectorImpl<MachineInstr*> &NewMIs) const;
 
+  virtual bool canFoldMemoryOperand(const MachineInstr *MI,
+                                    const SmallVectorImpl<unsigned> &Ops) const;
+  
   virtual MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
                                               MachineInstr* MI,
-                                           const SmallVectorImpl<unsigned> &Ops,
+                                              const SmallVectorImpl<unsigned> &Ops,
                                               int FrameIndex) const;
 
   virtual MachineInstr* foldMemoryOperandImpl(MachineFunction &MF,
                                               MachineInstr* MI,
-                                           const SmallVectorImpl<unsigned> &Ops,
-                                              MachineInstr* LoadMI) const {
-    return 0;
-  }
+                                              const SmallVectorImpl<unsigned> &Ops,
+                                              MachineInstr* LoadMI) const;
+};
+
+class ARMInstrInfo : public ARMBaseInstrInfo {
+  ARMRegisterInfo RI;
+public:
+  explicit ARMInstrInfo(const ARMSubtarget &STI);
+
+  /// getRegisterInfo - TargetInstrInfo is a superset of MRegister info.  As
+  /// such, whenever a client has an instance of instruction info, it should
+  /// always be able to get register info as well (through this method).
+  ///
+  const ARMRegisterInfo &getRegisterInfo() const { return RI; }
+
+  void reMaterialize(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+                     unsigned DestReg, const MachineInstr *Orig) const;
 };
 
 }

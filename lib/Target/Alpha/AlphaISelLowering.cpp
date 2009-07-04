@@ -181,6 +181,11 @@ const char *AlphaTargetLowering::getTargetNodeName(unsigned Opcode) const {
   }
 }
 
+/// getFunctionAlignment - Return the Log2 alignment of this function.
+unsigned AlphaTargetLowering::getFunctionAlignment(const Function *F) const {
+  return 4;
+}
+
 static SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) {
   MVT PtrVT = Op.getValueType();
   JumpTableSDNode *JT = cast<JumpTableSDNode>(Op);
@@ -360,7 +365,8 @@ static SDValue LowerRET(SDValue Op, SelectionDAG &DAG) {
 std::pair<SDValue, SDValue>
 AlphaTargetLowering::LowerCallTo(SDValue Chain, const Type *RetTy, 
                                  bool RetSExt, bool RetZExt, bool isVarArg,
-                                 bool isInreg, unsigned CallingConv, 
+                                 bool isInreg, unsigned NumFixedArgs,
+                                 unsigned CallingConv, 
                                  bool isTailCall, SDValue Callee, 
                                  ArgListTy &Args, SelectionDAG &DAG,
                                  DebugLoc dl) {

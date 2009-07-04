@@ -50,9 +50,8 @@ namespace {
     std::set<std::string> FnStubs, GVStubs;
   public:
     explicit SPUAsmPrinter(raw_ostream &O, TargetMachine &TM,
-                           const TargetAsmInfo *T, CodeGenOpt::Level OL,
-                           bool V) :
-      AsmPrinter(O, TM, T, OL, V) {}
+                           const TargetAsmInfo *T, bool V) :
+      AsmPrinter(O, TM, T, V) {}
 
     virtual const char *getPassName() const {
       return "STI CBEA SPU Assembly Printer";
@@ -290,9 +289,8 @@ namespace {
     DwarfWriter *DW;
   public:
     explicit LinuxAsmPrinter(raw_ostream &O, SPUTargetMachine &TM,
-                             const TargetAsmInfo *T, CodeGenOpt::Level F,
-                             bool V)
-      : SPUAsmPrinter(O, TM, T, F, V), DW(0) {}
+                             const TargetAsmInfo *T, bool V)
+      : SPUAsmPrinter(O, TM, T, V), DW(0) {}
 
     virtual const char *getPassName() const {
       return "STI CBEA SPU Assembly Printer";
@@ -433,7 +431,7 @@ LinuxAsmPrinter::runOnMachineFunction(MachineFunction &MF)
   const Function *F = MF.getFunction();
 
   SwitchToSection(TAI->SectionForGlobal(F));
-  EmitAlignment(3, F);
+  EmitAlignment(MF.getAlignment(), F);
 
   switch (F->getLinkage()) {
   default: assert(0 && "Unknown linkage type!");
@@ -603,9 +601,8 @@ bool LinuxAsmPrinter::doFinalization(Module &M) {
 ///
 FunctionPass *llvm::createSPUAsmPrinterPass(raw_ostream &o,
                                             SPUTargetMachine &tm,
-                                            CodeGenOpt::Level OptLevel,
                                             bool verbose) {
-  return new LinuxAsmPrinter(o, tm, tm.getTargetAsmInfo(), OptLevel, verbose);
+  return new LinuxAsmPrinter(o, tm, tm.getTargetAsmInfo(), verbose);
 }
 
 // Force static initialization.

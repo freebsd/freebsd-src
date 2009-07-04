@@ -12,20 +12,27 @@
 //===----------------------------------------------------------------------===//
 
 #include "AsmParser.h"
+
+#include "AsmExpr.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCStreamer.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
+void AsmParser::Warning(SMLoc L, const char *Msg) {
+  Lexer.PrintMessage(L, Msg, "warning");
+}
+
 bool AsmParser::Error(SMLoc L, const char *Msg) {
-  Lexer.PrintMessage(L, Msg);
+  Lexer.PrintMessage(L, Msg, "error");
   return true;
 }
 
 bool AsmParser::TokError(const char *Msg) {
-  Lexer.PrintMessage(Lexer.getLoc(), Msg);
+  Lexer.PrintMessage(Lexer.getLoc(), Msg, "error");
   return true;
 }
 
@@ -33,11 +40,18 @@ bool AsmParser::Run() {
   // Prime the lexer.
   Lexer.Lex();
   
-  while (Lexer.isNot(asmtok::Eof))
-    if (ParseStatement())
-      return true;
+  bool HadError = false;
   
-  return false;
+  // While we have input, parse each statement.
+  while (Lexer.isNot(asmtok::Eof)) {
+    if (!ParseStatement()) continue;
+  
+    // If we had an error, remember it and recover by skipping to the next line.
+    HadError = true;
+    EatToEndOfStatement();
+  }
+  
+  return HadError;
 }
 
 /// EatToEndOfStatement - Throw away the rest of the line for testing purposes.
@@ -57,7 +71,7 @@ void AsmParser::EatToEndOfStatement() {
 ///
 /// parenexpr ::= expr)
 ///
-bool AsmParser::ParseParenExpr(int64_t &Res) {
+bool AsmParser::ParseParenExpr(AsmExpr *&Res) {
   if (ParseExpression(Res)) return true;
   if (Lexer.isNot(asmtok::RParen))
     return TokError("expected ')' in parentheses expression");
@@ -70,28 +84,54 @@ bool AsmParser::ParseParenExpr(int64_t &Res) {
 ///  primaryexpr ::= symbol
 ///  primaryexpr ::= number
 ///  primaryexpr ::= ~,+,- primaryexpr
-bool AsmParser::ParsePrimaryExpr(int64_t &Res) {
+bool AsmParser::ParsePrimaryExpr(AsmExpr *&Res) {
   switch (Lexer.getKind()) {
   default:
     return TokError("unknown token in expression");
-  case asmtok::Identifier:
+  case asmtok::Exclaim:
+    Lexer.Lex(); // Eat the operator.
+    if (ParsePrimaryExpr(Res))
+      return true;
+    Res = new AsmUnaryExpr(AsmUnaryExpr::LNot, Res);
+    return false;
+  case asmtok::Identifier: {
     // This is a label, this should be parsed as part of an expression, to
-    // handle things like LFOO+4
-    Res = 0; // FIXME.
+    // handle things like LFOO+4.
+    MCSymbol *Sym = Ctx.GetOrCreateSymbol(Lexer.getCurStrVal());
+
+    // If this is use of an undefined symbol then mark it external.
+    if (!Sym->getSection() && !Ctx.GetSymbolValue(Sym))
+      Sym->setExternal(true);
+    
+    Res = new AsmSymbolRefExpr(Sym);
     Lexer.Lex(); // Eat identifier.
     return false;
+  }
   case asmtok::IntVal:
-    Res = Lexer.getCurIntVal();
+    Res = new AsmConstantExpr(Lexer.getCurIntVal());
     Lexer.Lex(); // Eat identifier.
     return false;
   case asmtok::LParen:
     Lexer.Lex(); // Eat the '('.
     return ParseParenExpr(Res);
-  case asmtok::Tilde:
-  case asmtok::Plus:
   case asmtok::Minus:
     Lexer.Lex(); // Eat the operator.
-    return ParsePrimaryExpr(Res);
+    if (ParsePrimaryExpr(Res))
+      return true;
+    Res = new AsmUnaryExpr(AsmUnaryExpr::Minus, Res);
+    return false;
+  case asmtok::Plus:
+    Lexer.Lex(); // Eat the operator.
+    if (ParsePrimaryExpr(Res))
+      return true;
+    Res = new AsmUnaryExpr(AsmUnaryExpr::Plus, Res);
+    return false;
+  case asmtok::Tilde:
+    Lexer.Lex(); // Eat the operator.
+    if (ParsePrimaryExpr(Res))
+      return true;
+    Res = new AsmUnaryExpr(AsmUnaryExpr::Not, Res);
+    return false;
   }
 }
 
@@ -102,59 +142,152 @@ bool AsmParser::ParsePrimaryExpr(int64_t &Res) {
 ///  expr ::= expr *,/,%,<<,>> expr  -> highest.
 ///  expr ::= primaryexpr
 ///
-bool AsmParser::ParseExpression(int64_t &Res) {
+bool AsmParser::ParseExpression(AsmExpr *&Res) {
+  Res = 0;
   return ParsePrimaryExpr(Res) ||
          ParseBinOpRHS(1, Res);
 }
 
-static unsigned getBinOpPrecedence(asmtok::TokKind K) {
+bool AsmParser::ParseAbsoluteExpression(int64_t &Res) {
+  AsmExpr *Expr;
+  
+  SMLoc StartLoc = Lexer.getLoc();
+  if (ParseExpression(Expr))
+    return true;
+
+  if (!Expr->EvaluateAsAbsolute(Ctx, Res))
+    return Error(StartLoc, "expected absolute expression");
+
+  return false;
+}
+
+bool AsmParser::ParseRelocatableExpression(MCValue &Res) {
+  AsmExpr *Expr;
+  
+  SMLoc StartLoc = Lexer.getLoc();
+  if (ParseExpression(Expr))
+    return true;
+
+  if (!Expr->EvaluateAsRelocatable(Ctx, Res))
+    return Error(StartLoc, "expected relocatable expression");
+
+  return false;
+}
+
+bool AsmParser::ParseParenRelocatableExpression(MCValue &Res) {
+  AsmExpr *Expr;
+  
+  SMLoc StartLoc = Lexer.getLoc();
+  if (ParseParenExpr(Expr))
+    return true;
+
+  if (!Expr->EvaluateAsRelocatable(Ctx, Res))
+    return Error(StartLoc, "expected relocatable expression");
+
+  return false;
+}
+
+static unsigned getBinOpPrecedence(asmtok::TokKind K, 
+                                   AsmBinaryExpr::Opcode &Kind) {
   switch (K) {
   default: return 0;    // not a binop.
-  case asmtok::Plus:
-  case asmtok::Minus:
+
+    // Lowest Precedence: &&, ||
+  case asmtok::AmpAmp:
+    Kind = AsmBinaryExpr::LAnd;
     return 1;
-  case asmtok::Pipe:
-  case asmtok::Caret:
-  case asmtok::Amp:
-  case asmtok::Exclaim:
+  case asmtok::PipePipe:
+    Kind = AsmBinaryExpr::LOr;
+    return 1;
+
+    // Low Precedence: +, -, ==, !=, <>, <, <=, >, >=
+  case asmtok::Plus:
+    Kind = AsmBinaryExpr::Add;
     return 2;
-  case asmtok::Star:
-  case asmtok::Slash:
-  case asmtok::Percent:
-  case asmtok::LessLess:
-  case asmtok::GreaterGreater:
+  case asmtok::Minus:
+    Kind = AsmBinaryExpr::Sub;
+    return 2;
+  case asmtok::EqualEqual:
+    Kind = AsmBinaryExpr::EQ;
+    return 2;
+  case asmtok::ExclaimEqual:
+  case asmtok::LessGreater:
+    Kind = AsmBinaryExpr::NE;
+    return 2;
+  case asmtok::Less:
+    Kind = AsmBinaryExpr::LT;
+    return 2;
+  case asmtok::LessEqual:
+    Kind = AsmBinaryExpr::LTE;
+    return 2;
+  case asmtok::Greater:
+    Kind = AsmBinaryExpr::GT;
+    return 2;
+  case asmtok::GreaterEqual:
+    Kind = AsmBinaryExpr::GTE;
+    return 2;
+
+    // Intermediate Precedence: |, &, ^
+    //
+    // FIXME: gas seems to support '!' as an infix operator?
+  case asmtok::Pipe:
+    Kind = AsmBinaryExpr::Or;
     return 3;
+  case asmtok::Caret:
+    Kind = AsmBinaryExpr::Xor;
+    return 3;
+  case asmtok::Amp:
+    Kind = AsmBinaryExpr::And;
+    return 3;
+
+    // Highest Precedence: *, /, %, <<, >>
+  case asmtok::Star:
+    Kind = AsmBinaryExpr::Mul;
+    return 4;
+  case asmtok::Slash:
+    Kind = AsmBinaryExpr::Div;
+    return 4;
+  case asmtok::Percent:
+    Kind = AsmBinaryExpr::Mod;
+    return 4;
+  case asmtok::LessLess:
+    Kind = AsmBinaryExpr::Shl;
+    return 4;
+  case asmtok::GreaterGreater:
+    Kind = AsmBinaryExpr::Shr;
+    return 4;
   }
 }
 
 
 /// ParseBinOpRHS - Parse all binary operators with precedence >= 'Precedence'.
 /// Res contains the LHS of the expression on input.
-bool AsmParser::ParseBinOpRHS(unsigned Precedence, int64_t &Res) {
+bool AsmParser::ParseBinOpRHS(unsigned Precedence, AsmExpr *&Res) {
   while (1) {
-    unsigned TokPrec = getBinOpPrecedence(Lexer.getKind());
+    AsmBinaryExpr::Opcode Kind = AsmBinaryExpr::Add;
+    unsigned TokPrec = getBinOpPrecedence(Lexer.getKind(), Kind);
     
     // If the next token is lower precedence than we are allowed to eat, return
     // successfully with what we ate already.
     if (TokPrec < Precedence)
       return false;
     
-    //asmtok::TokKind BinOp = Lexer.getKind();
     Lexer.Lex();
     
     // Eat the next primary expression.
-    int64_t RHS;
+    AsmExpr *RHS;
     if (ParsePrimaryExpr(RHS)) return true;
     
     // If BinOp binds less tightly with RHS than the operator after RHS, let
     // the pending operator take RHS as its LHS.
-    unsigned NextTokPrec = getBinOpPrecedence(Lexer.getKind());
+    AsmBinaryExpr::Opcode Dummy;
+    unsigned NextTokPrec = getBinOpPrecedence(Lexer.getKind(), Dummy);
     if (TokPrec < NextTokPrec) {
       if (ParseBinOpRHS(Precedence+1, RHS)) return true;
     }
 
-    // Merge LHS/RHS: fixme use the right operator etc.
-    Res += RHS;
+    // Merge LHS and RHS according to operator.
+    Res = new AsmBinaryExpr(Kind, Res, RHS);
   }
 }
 
@@ -183,16 +316,28 @@ bool AsmParser::ParseStatement() {
   
   // Consume the identifier, see what is after it.
   switch (Lexer.Lex()) {
-  case asmtok::Colon:
+  case asmtok::Colon: {
     // identifier ':'   -> Label.
     Lexer.Lex();
+
+    // Diagnose attempt to use a variable as a label.
+    //
+    // FIXME: Diagnostics. Note the location of the definition as a label.
+    // FIXME: This doesn't diagnose assignment to a symbol which has been
+    // implicitly marked as external.
+    MCSymbol *Sym = Ctx.GetOrCreateSymbol(IDVal);
+    if (Sym->getSection())
+      return Error(IDLoc, "invalid symbol redefinition");
+    if (Ctx.GetSymbolValue(Sym))
+      return Error(IDLoc, "symbol already used as assembler variable");
     
     // Since we saw a label, create a symbol and emit it.
     // FIXME: If the label starts with L it is an assembler temporary label.
     // Why does the client of this api need to know this?
-    Out.EmitLabel(Ctx.GetOrCreateSymbol(IDVal));
-    
+    Out.EmitLabel(Sym);
+   
     return ParseStatement();
+  }
 
   case asmtok::Equal:
     // identifier '=' ... -> assignment statement
@@ -322,20 +467,66 @@ bool AsmParser::ParseStatement() {
       return ParseDirectiveValue(4);
     if (!strcmp(IDVal, ".quad"))
       return ParseDirectiveValue(8);
-    if (!strcmp(IDVal, ".fill"))
-      return ParseDirectiveFill();
+
+    // FIXME: Target hooks for IsPow2.
+    if (!strcmp(IDVal, ".align"))
+      return ParseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/1);
+    if (!strcmp(IDVal, ".align32"))
+      return ParseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/4);
+    if (!strcmp(IDVal, ".balign"))
+      return ParseDirectiveAlign(/*IsPow2=*/false, /*ExprSize=*/1);
+    if (!strcmp(IDVal, ".balignw"))
+      return ParseDirectiveAlign(/*IsPow2=*/false, /*ExprSize=*/2);
+    if (!strcmp(IDVal, ".balignl"))
+      return ParseDirectiveAlign(/*IsPow2=*/false, /*ExprSize=*/4);
+    if (!strcmp(IDVal, ".p2align"))
+      return ParseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/1);
+    if (!strcmp(IDVal, ".p2alignw"))
+      return ParseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/2);
+    if (!strcmp(IDVal, ".p2alignl"))
+      return ParseDirectiveAlign(/*IsPow2=*/true, /*ExprSize=*/4);
+
     if (!strcmp(IDVal, ".org"))
       return ParseDirectiveOrg();
+
+    if (!strcmp(IDVal, ".fill"))
+      return ParseDirectiveFill();
     if (!strcmp(IDVal, ".space"))
       return ParseDirectiveSpace();
 
-    Lexer.PrintMessage(IDLoc, "warning: ignoring directive for now");
+    // Symbol attribute directives
+    if (!strcmp(IDVal, ".globl") || !strcmp(IDVal, ".global"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::Global);
+    if (!strcmp(IDVal, ".hidden"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::Hidden);
+    if (!strcmp(IDVal, ".indirect_symbol"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::IndirectSymbol);
+    if (!strcmp(IDVal, ".internal"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::Internal);
+    if (!strcmp(IDVal, ".lazy_reference"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::LazyReference);
+    if (!strcmp(IDVal, ".no_dead_strip"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::NoDeadStrip);
+    if (!strcmp(IDVal, ".private_extern"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::PrivateExtern);
+    if (!strcmp(IDVal, ".protected"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::Protected);
+    if (!strcmp(IDVal, ".reference"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::Reference);
+    if (!strcmp(IDVal, ".weak"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::Weak);
+    if (!strcmp(IDVal, ".weak_definition"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::WeakDefinition);
+    if (!strcmp(IDVal, ".weak_reference"))
+      return ParseDirectiveSymbolAttribute(MCStreamer::WeakReference);
+
+    Warning(IDLoc, "ignoring directive for now");
     EatToEndOfStatement();
     return false;
   }
 
   MCInst Inst;
-  if (ParseX86InstOperands(Inst))
+  if (ParseX86InstOperands(IDVal, Inst))
     return true;
   
   if (Lexer.isNot(asmtok::EndOfStatement))
@@ -345,16 +536,18 @@ bool AsmParser::ParseStatement() {
   Lexer.Lex();
   
   // Instruction is good, process it.
-  outs() << "Found instruction: " << IDVal << " with " << Inst.getNumOperands()
-         << " operands.\n";
+  Out.EmitInstruction(Inst);
   
   // Skip to end of line for now.
   return false;
 }
 
 bool AsmParser::ParseAssignment(const char *Name, bool IsDotSet) {
-  int64_t Value;
-  if (ParseExpression(Value))
+  // FIXME: Use better location, we should use proper tokens.
+  SMLoc EqualLoc = Lexer.getLoc();
+
+  MCValue Value;
+  if (ParseRelocatableExpression(Value))
     return true;
   
   if (Lexer.isNot(asmtok::EndOfStatement))
@@ -363,10 +556,21 @@ bool AsmParser::ParseAssignment(const char *Name, bool IsDotSet) {
   // Eat the end of statement marker.
   Lexer.Lex();
 
-  // Get the symbol for this name.
+  // Diagnose assignment to a label.
+  //
+  // FIXME: Diagnostics. Note the location of the definition as a label.
+  // FIXME: This doesn't diagnose assignment to a symbol which has been
+  // implicitly marked as external.
   // FIXME: Handle '.'.
+  // FIXME: Diagnose assignment to protected identifier (e.g., register name).
   MCSymbol *Sym = Ctx.GetOrCreateSymbol(Name);
-  Out.EmitAssignment(Sym, MCValue::get(Value), IsDotSet);
+  if (Sym->getSection())
+    return Error(EqualLoc, "invalid assignment to symbol emitted as a label");
+  if (Sym->isExternal())
+    return Error(EqualLoc, "invalid assignment to external symbol");
+
+  // Do the assignment.
+  Out.EmitAssignment(Sym, Value, IsDotSet);
 
   return false;
 }
@@ -433,7 +637,7 @@ bool AsmParser::ParseDirectiveSectionSwitch(const char *Section,
 }
 
 /// ParseDirectiveAscii:
-///   ::= ( .ascii | .asciiz ) [ "string" ( , "string" )* ]
+///   ::= ( .ascii | .asciz ) [ "string" ( , "string" )* ]
 bool AsmParser::ParseDirectiveAscii(bool ZeroTerminated) {
   if (Lexer.isNot(asmtok::EndOfStatement)) {
     for (;;) {
@@ -468,11 +672,11 @@ bool AsmParser::ParseDirectiveAscii(bool ZeroTerminated) {
 bool AsmParser::ParseDirectiveValue(unsigned Size) {
   if (Lexer.isNot(asmtok::EndOfStatement)) {
     for (;;) {
-      int64_t Expr;
-      if (ParseExpression(Expr))
+      MCValue Expr;
+      if (ParseRelocatableExpression(Expr))
         return true;
 
-      Out.EmitValue(MCValue::get(Expr), Size);
+      Out.EmitValue(Expr, Size);
 
       if (Lexer.is(asmtok::EndOfStatement))
         break;
@@ -492,7 +696,7 @@ bool AsmParser::ParseDirectiveValue(unsigned Size) {
 ///  ::= .space expression [ , expression ]
 bool AsmParser::ParseDirectiveSpace() {
   int64_t NumBytes;
-  if (ParseExpression(NumBytes))
+  if (ParseAbsoluteExpression(NumBytes))
     return true;
 
   int64_t FillExpr = 0;
@@ -502,7 +706,7 @@ bool AsmParser::ParseDirectiveSpace() {
       return TokError("unexpected token in '.space' directive");
     Lexer.Lex();
     
-    if (ParseExpression(FillExpr))
+    if (ParseAbsoluteExpression(FillExpr))
       return true;
 
     HasFillExpr = true;
@@ -527,7 +731,7 @@ bool AsmParser::ParseDirectiveSpace() {
 ///  ::= .fill expression , expression , expression
 bool AsmParser::ParseDirectiveFill() {
   int64_t NumValues;
-  if (ParseExpression(NumValues))
+  if (ParseAbsoluteExpression(NumValues))
     return true;
 
   if (Lexer.isNot(asmtok::Comma))
@@ -535,7 +739,7 @@ bool AsmParser::ParseDirectiveFill() {
   Lexer.Lex();
   
   int64_t FillSize;
-  if (ParseExpression(FillSize))
+  if (ParseAbsoluteExpression(FillSize))
     return true;
 
   if (Lexer.isNot(asmtok::Comma))
@@ -543,7 +747,7 @@ bool AsmParser::ParseDirectiveFill() {
   Lexer.Lex();
   
   int64_t FillExpr;
-  if (ParseExpression(FillExpr))
+  if (ParseAbsoluteExpression(FillExpr))
     return true;
 
   if (Lexer.isNot(asmtok::EndOfStatement))
@@ -563,8 +767,8 @@ bool AsmParser::ParseDirectiveFill() {
 /// ParseDirectiveOrg
 ///  ::= .org expression [ , expression ]
 bool AsmParser::ParseDirectiveOrg() {
-  int64_t Offset;
-  if (ParseExpression(Offset))
+  MCValue Offset;
+  if (ParseRelocatableExpression(Offset))
     return true;
 
   // Parse optional fill expression.
@@ -574,7 +778,7 @@ bool AsmParser::ParseDirectiveOrg() {
       return TokError("unexpected token in '.org' directive");
     Lexer.Lex();
     
-    if (ParseExpression(FillExpr))
+    if (ParseAbsoluteExpression(FillExpr))
       return true;
 
     if (Lexer.isNot(asmtok::EndOfStatement))
@@ -582,8 +786,113 @@ bool AsmParser::ParseDirectiveOrg() {
   }
 
   Lexer.Lex();
-  
-  Out.EmitValueToOffset(MCValue::get(Offset), FillExpr);
+
+  // FIXME: Only limited forms of relocatable expressions are accepted here, it
+  // has to be relative to the current section.
+  Out.EmitValueToOffset(Offset, FillExpr);
 
   return false;
+}
+
+/// ParseDirectiveAlign
+///  ::= {.align, ...} expression [ , expression [ , expression ]]
+bool AsmParser::ParseDirectiveAlign(bool IsPow2, unsigned ValueSize) {
+  int64_t Alignment;
+  if (ParseAbsoluteExpression(Alignment))
+    return true;
+
+  SMLoc MaxBytesLoc;
+  bool HasFillExpr = false;
+  int64_t FillExpr = 0;
+  int64_t MaxBytesToFill = 0;
+  if (Lexer.isNot(asmtok::EndOfStatement)) {
+    if (Lexer.isNot(asmtok::Comma))
+      return TokError("unexpected token in directive");
+    Lexer.Lex();
+
+    // The fill expression can be omitted while specifying a maximum number of
+    // alignment bytes, e.g:
+    //  .align 3,,4
+    if (Lexer.isNot(asmtok::Comma)) {
+      HasFillExpr = true;
+      if (ParseAbsoluteExpression(FillExpr))
+        return true;
+    }
+
+    if (Lexer.isNot(asmtok::EndOfStatement)) {
+      if (Lexer.isNot(asmtok::Comma))
+        return TokError("unexpected token in directive");
+      Lexer.Lex();
+
+      MaxBytesLoc = Lexer.getLoc();
+      if (ParseAbsoluteExpression(MaxBytesToFill))
+        return true;
+      
+      if (Lexer.isNot(asmtok::EndOfStatement))
+        return TokError("unexpected token in directive");
+    }
+  }
+
+  Lexer.Lex();
+
+  if (!HasFillExpr) {
+    // FIXME: Sometimes fill with nop.
+    FillExpr = 0;
+  }
+
+  // Compute alignment in bytes.
+  if (IsPow2) {
+    // FIXME: Diagnose overflow.
+    Alignment = 1 << Alignment;
+  }
+
+  // Diagnose non-sensical max bytes to fill.
+  if (MaxBytesLoc.isValid()) {
+    if (MaxBytesToFill < 1) {
+      Warning(MaxBytesLoc, "alignment directive can never be satisfied in this "
+              "many bytes, ignoring");
+      return false;
+    }
+
+    if (MaxBytesToFill >= Alignment) {
+      Warning(MaxBytesLoc, "maximum bytes expression exceeds alignment and "
+              "has no effect");
+      MaxBytesToFill = 0;
+    }
+  }
+
+  // FIXME: Target specific behavior about how the "extra" bytes are filled.
+  Out.EmitValueToAlignment(Alignment, FillExpr, ValueSize, MaxBytesToFill);
+
+  return false;
+}
+
+/// ParseDirectiveSymbolAttribute
+///  ::= { ".globl", ".weak", ... } [ identifier ( , identifier )* ]
+bool AsmParser::ParseDirectiveSymbolAttribute(MCStreamer::SymbolAttr Attr) {
+  if (Lexer.isNot(asmtok::EndOfStatement)) {
+    for (;;) {
+      if (Lexer.isNot(asmtok::Identifier))
+        return TokError("expected identifier in directive");
+      
+      MCSymbol *Sym = Ctx.GetOrCreateSymbol(Lexer.getCurStrVal());
+      Lexer.Lex();
+
+      // If this is use of an undefined symbol then mark it external.
+      if (!Sym->getSection() && !Ctx.GetSymbolValue(Sym))
+        Sym->setExternal(true);
+
+      Out.EmitSymbolAttribute(Sym, Attr);
+
+      if (Lexer.is(asmtok::EndOfStatement))
+        break;
+
+      if (Lexer.isNot(asmtok::Comma))
+        return TokError("unexpected token in directive");
+      Lexer.Lex();
+    }
+  }
+
+  Lexer.Lex();
+  return false;  
 }

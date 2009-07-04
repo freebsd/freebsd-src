@@ -13,6 +13,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Constants.h"
@@ -22,13 +23,14 @@
 using namespace llvm;
 
 int main() {
+  LLVMContext Context;
+
   // Create the "module" or "program" or "translation unit" to hold the
   // function
-  Module *M = new Module("test");
+  Module *M = new Module("test", Context);
 
   // Create the main function: first create the type 'int ()'
-  FunctionType *FT = FunctionType::get(Type::Int32Ty, std::vector<const Type*>(),
-                                       /*not vararg*/false);
+  FunctionType *FT = FunctionType::get(Type::Int32Ty, /*not vararg*/false);
 
   // By passing a module as the last parameter to the Function constructor,
   // it automatically gets appended to the Module.

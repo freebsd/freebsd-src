@@ -21,24 +21,35 @@
 #define LLVM_ANALYSIS_LOOP_DEPENDENCE_ANALYSIS_H
 
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Support/raw_ostream.h"
+#include <iosfwd>
 
 namespace llvm {
 
+  class AliasAnalysis;
   class AnalysisUsage;
-  class LoopPass;
   class ScalarEvolution;
+  class Value;
 
   class LoopDependenceAnalysis : public LoopPass {
     Loop *L;
+    AliasAnalysis *AA;
     ScalarEvolution *SE;
 
   public:
     static char ID; // Class identification, replacement for typeinfo
     LoopDependenceAnalysis() : LoopPass(&ID) {}
 
+    /// TODO: docs
+    bool isDependencePair(const Value*, const Value*) const;
+    bool depends(Value*, Value*);
+
     bool runOnLoop(Loop*, LPPassManager&);
 
     virtual void getAnalysisUsage(AnalysisUsage&) const;
+
+    void print(raw_ostream&, const Module* = 0) const;
+    virtual void print(std::ostream&, const Module* = 0) const;
   }; // class LoopDependenceAnalysis
 
 

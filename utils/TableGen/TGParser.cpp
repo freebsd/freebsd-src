@@ -11,13 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <algorithm>
-#include <sstream>
-
 #include "TGParser.h"
 #include "Record.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Support/Streams.h"
+#include <algorithm>
+#include <sstream>
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -45,11 +43,11 @@ struct SubMultiClassReference {
 };
 
 void SubMultiClassReference::dump() const {
-  cerr << "Multiclass:\n";
+  errs() << "Multiclass:\n";
  
   MC->dump();
  
-  cerr << "Template args:\n";
+  errs() << "Template args:\n";
   for (std::vector<Init *>::const_iterator i = TemplateArgs.begin(),
          iend = TemplateArgs.end();
        i != iend;
@@ -1395,7 +1393,7 @@ TGParser::ParseDagArgList(Record *CurRec) {
 std::vector<Init*> TGParser::ParseValueList(Record *CurRec, Record *ArgsRec, RecTy *EltTy) {
   std::vector<Init*> Result;
   RecTy *ItemType = EltTy;
-  int ArgN = 0;
+  unsigned int ArgN = 0;
   if (ArgsRec != 0 && EltTy == 0) {
     const std::vector<std::string> &TArgs = ArgsRec->getTemplateArgs();
     const RecordVal *RV = ArgsRec->getValue(TArgs[ArgN]);
@@ -1411,6 +1409,10 @@ std::vector<Init*> TGParser::ParseValueList(Record *CurRec, Record *ArgsRec, Rec
     
     if (ArgsRec != 0 && EltTy == 0) {
       const std::vector<std::string> &TArgs = ArgsRec->getTemplateArgs();
+      if (ArgN >= TArgs.size()) {
+        TokError("too many template arguments");
+        return std::vector<Init*>();
+      }        
       const RecordVal *RV = ArgsRec->getValue(TArgs[ArgN]);
       assert(RV && "Template argument record not found??");
       ItemType = RV->getType();

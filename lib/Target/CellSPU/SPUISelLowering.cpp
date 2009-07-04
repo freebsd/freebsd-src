@@ -113,7 +113,7 @@ namespace {
     const Type *RetTy = Op.getNode()->getValueType(0).getTypeForMVT();
     std::pair<SDValue, SDValue> CallInfo =
             TLI.LowerCallTo(InChain, RetTy, isSigned, !isSigned, false, false,
-                            CallingConv::C, false, Callee, Args, DAG,
+                            0, CallingConv::C, false, Callee, Args, DAG,
                             Op.getDebugLoc());
 
     return CallInfo.first;
@@ -479,6 +479,11 @@ SPUTargetLowering::getTargetNodeName(unsigned Opcode) const
   std::map<unsigned, const char *>::iterator i = node_names.find(Opcode);
 
   return ((i != node_names.end()) ? i->second : 0);
+}
+
+/// getFunctionAlignment - Return the Log2 alignment of this function.
+unsigned SPUTargetLowering::getFunctionAlignment(const Function *) const {
+  return 3;
 }
 
 //===----------------------------------------------------------------------===//

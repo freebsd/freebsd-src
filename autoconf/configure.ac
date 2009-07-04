@@ -240,7 +240,7 @@ case "$llvm_cv_target_arch" in
     x86_64)  LLVM_NATIVE_ARCH="X86" ;;
     *)       LLVM_NATIVE_ARCH="$llvm_cv_target_arch" ;;
 esac
-  
+
 dnl Define a substitution, ARCH, for the target architecture
 AC_SUBST(ARCH,$llvm_cv_target_arch)
 
@@ -453,7 +453,7 @@ for a_target in $TARGETS_TO_BUILD; do
   fi
 done
 
-# Build the LLVM_TARGET and LLVM_ASM_PRINTER macro uses for 
+# Build the LLVM_TARGET and LLVM_ASM_PRINTER macro uses for
 # Targets.def and AsmPrinters.def.
 LLVM_ENUM_TARGETS=""
 LLVM_ENUM_ASM_PRINTERS=""
@@ -592,6 +592,35 @@ case "$enableval" in
   no)  llvm_cv_enable_libffi="no"  ;;
   *) AC_MSG_ERROR([Invalid setting for --enable-libffi. Use "yes" or "no"]) ;;
 esac
+
+dnl Only Windows needs dynamic libCompilerDriver to support plugins.
+if test "$llvm_cv_os_type" = "Win32" ; then
+   llvmc_dynamic="yes"
+else
+   llvmc_dynamic="no"
+fi
+
+dnl --enable-llvmc-dynamic : should LLVMC link libCompilerDriver dynamically?
+AC_ARG_ENABLE(llvmc-dynamic,AS_HELP_STRING(
+--enable-llvmc-dynamic,
+[Link LLVMC dynamically (default is NO, unless on Win32)]),,
+enableval=$llvmc_dynamic)
+if test ${enableval} = "yes" && test "$ENABLE_PIC" -eq 1 ; then
+   AC_SUBST(ENABLE_LLVMC_DYNAMIC,[[ENABLE_LLVMC_DYNAMIC=1]])
+else
+   AC_SUBST(ENABLE_LLVMC_DYNAMIC,[[]])
+fi
+
+dnl --enable-llvmc-dynamic-plugins : should LLVMC support dynamic plugins?
+AC_ARG_ENABLE(llvmc-dynamic-plugins,AS_HELP_STRING(
+--enable-llvmc-dynamic-plugins,
+[Enable dynamic LLVMC plugins (default is YES)]),,
+enableval=yes)
+if test ${enableval} = "yes" ; then
+   AC_SUBST(ENABLE_LLVMC_DYNAMIC_PLUGINS,[[ENABLE_LLVMC_DYNAMIC_PLUGINS=1]])
+else
+   AC_SUBST(ENABLE_LLVMC_DYNAMIC_PLUGINS,[[]])
+fi
 
 dnl===-----------------------------------------------------------------------===
 dnl===
@@ -914,7 +943,8 @@ AC_CHECK_FUNCS([backtrace ceilf floorf roundf rintf nearbyintf getcwd ])
 AC_CHECK_FUNCS([powf fmodf strtof round ])
 AC_CHECK_FUNCS([getpagesize getrusage getrlimit setrlimit gettimeofday ])
 AC_CHECK_FUNCS([isatty mkdtemp mkstemp ])
-AC_CHECK_FUNCS([mktemp realpath sbrk setrlimit strdup strerror strerror_r ])
+AC_CHECK_FUNCS([mktemp realpath sbrk setrlimit strdup ])
+AC_CHECK_FUNCS([strerror strerror_r strerror_s ])
 AC_CHECK_FUNCS([strtoll strtoq sysconf malloc_zone_statistics ])
 AC_CHECK_FUNCS([setjmp longjmp sigsetjmp siglongjmp])
 AC_C_PRINTF_A
@@ -951,7 +981,7 @@ dnl atomic builtins are required for threading support.
 AC_MSG_CHECKING(for GCC atomic builtins)
 AC_LINK_IFELSE(
   AC_LANG_SOURCE(
-    [[int main() { 
+    [[int main() {
         volatile unsigned long val = 1;
         __sync_synchronize();
         __sync_val_compare_and_swap(&val, 1, 0);

@@ -13,9 +13,8 @@
 
 #include "Record.h"
 #include "llvm/Support/DataTypes.h"
-#include "llvm/Support/Streams.h"
+#include "llvm/Support/Format.h"
 #include "llvm/ADT/StringExtras.h"
-#include <ios>
 
 using namespace llvm;
 
@@ -23,7 +22,7 @@ using namespace llvm;
 //    Type implementations
 //===----------------------------------------------------------------------===//
 
-void RecTy::dump() const { print(*cerr.stream()); }
+void RecTy::dump() const { print(errs()); }
 
 Init *BitRecTy::convertValue(BitsInit *BI) {
   if (BI->getNumBits() != 1) return 0; // Only accept if just one bit!
@@ -330,7 +329,7 @@ RecTy *llvm::resolveTypes(RecTy *T1, RecTy *T2) {
 //    Initializer implementations
 //===----------------------------------------------------------------------===//
 
-void Init::dump() const { return print(*cerr.stream()); }
+void Init::dump() const { return print(errs()); }
 
 Init *BitsInit::convertInitializerBitRange(const std::vector<unsigned> &Bits) {
   BitsInit *BI = new BitsInit(Bits.size());
@@ -360,7 +359,7 @@ std::string BitsInit::getAsString() const {
   return Result + " }";
 }
 
-bool BitsInit::printInHex(std::ostream &OS) const {
+bool BitsInit::printInHex(raw_ostream &OS) const {
   // First, attempt to convert the value into an integer value...
   int64_t Result = 0;
   for (unsigned i = 0, e = getNumBits(); i != e; ++i)
@@ -370,11 +369,11 @@ bool BitsInit::printInHex(std::ostream &OS) const {
       return true;
     }
 
-  OS << "0x" << std::hex << Result << std::dec;
+  OS << format("0x%x", Result);
   return false;
 }
 
-bool BitsInit::printAsVariable(std::ostream &OS) const {
+bool BitsInit::printAsVariable(raw_ostream &OS) const {
   // Get the variable that we may be set equal to...
   assert(getNumBits() != 0);
   VarBitInit *FirstBit = dynamic_cast<VarBitInit*>(getBit(0));
@@ -397,7 +396,7 @@ bool BitsInit::printAsVariable(std::ostream &OS) const {
   return false;
 }
 
-bool BitsInit::printAsUnset(std::ostream &OS) const {
+bool BitsInit::printAsUnset(raw_ostream &OS) const {
   for (unsigned i = 0, e = getNumBits(); i != e; ++i)
     if (!dynamic_cast<UnsetInit*>(getBit(i)))
       return true;
@@ -537,52 +536,65 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
   switch (getOpcode()) {
   default: assert(0 && "Unknown unop");
   case CAST: {
-    StringInit *LHSs = dynamic_cast<StringInit*>(LHS);
-    if (LHSs) {
-      std::string Name = LHSs->getValue();
+    if (getType()->getAsString() == "string") {
+      StringInit *LHSs = dynamic_cast<StringInit*>(LHS);
+      if (LHSs) {
+        return LHSs;
+      }
 
-      // From TGParser::ParseIDValue
-      if (CurRec) {
-        if (const RecordVal *RV = CurRec->getValue(Name)) {
-          if (RV->getType() != getType()) {
-            throw "type mismatch in nameconcat";
+      DefInit *LHSd = dynamic_cast<DefInit*>(LHS);
+      if (LHSd) {
+        return new StringInit(LHSd->getDef()->getName());
+      }
+    }
+    else {
+      StringInit *LHSs = dynamic_cast<StringInit*>(LHS);
+      if (LHSs) {
+        std::string Name = LHSs->getValue();
+
+        // From TGParser::ParseIDValue
+        if (CurRec) {
+          if (const RecordVal *RV = CurRec->getValue(Name)) {
+            if (RV->getType() != getType()) {
+              throw "type mismatch in nameconcat";
+            }
+            return new VarInit(Name, RV->getType());
           }
-          return new VarInit(Name, RV->getType());
+
+          std::string TemplateArgName = CurRec->getName()+":"+Name;
+          if (CurRec->isTemplateArg(TemplateArgName)) {
+            const RecordVal *RV = CurRec->getValue(TemplateArgName);
+            assert(RV && "Template arg doesn't exist??");
+
+            if (RV->getType() != getType()) {
+              throw "type mismatch in nameconcat";
+            }
+
+            return new VarInit(TemplateArgName, RV->getType());
+          }
+        }
+
+        if (CurMultiClass) {
+          std::string MCName = CurMultiClass->Rec.getName()+"::"+Name;
+          if (CurMultiClass->Rec.isTemplateArg(MCName)) {
+            const RecordVal *RV = CurMultiClass->Rec.getValue(MCName);
+            assert(RV && "Template arg doesn't exist??");
+            
+            if (RV->getType() != getType()) {
+              throw "type mismatch in nameconcat";
+            }
+            
+            return new VarInit(MCName, RV->getType());
+          }
         }
         
-        std::string TemplateArgName = CurRec->getName()+":"+Name;
-        if (CurRec->isTemplateArg(TemplateArgName)) {
-          const RecordVal *RV = CurRec->getValue(TemplateArgName);
-          assert(RV && "Template arg doesn't exist??");
+        if (Record *D = Records.getDef(Name))
+          return new DefInit(D);
 
-          if (RV->getType() != getType()) {
-            throw "type mismatch in nameconcat";
-          }
-
-          return new VarInit(TemplateArgName, RV->getType());
-        }
+        errs() << "Variable not defined: '" + Name + "'\n";
+        assert(0 && "Variable not found");
+        return 0;
       }
-
-      if (CurMultiClass) {
-        std::string MCName = CurMultiClass->Rec.getName()+"::"+Name;
-        if (CurMultiClass->Rec.isTemplateArg(MCName)) {
-          const RecordVal *RV = CurMultiClass->Rec.getValue(MCName);
-          assert(RV && "Template arg doesn't exist??");
-
-          if (RV->getType() != getType()) {
-            throw "type mismatch in nameconcat";
-          }
-          
-          return new VarInit(MCName, RV->getType());
-        }
-      }
-
-      if (Record *D = Records.getDef(Name))
-        return new DefInit(D);
-
-      cerr << "Variable not defined: '" + Name + "'\n";
-      assert(0 && "Variable not found");
-      return 0;
     }
     break;
   }
@@ -652,6 +664,23 @@ std::string UnOpInit::getAsString() const {
   case LNULL: Result = "!null"; break;
   }
   return Result + "(" + LHS->getAsString() + ")";
+}
+
+RecTy *UnOpInit::getFieldType(const std::string &FieldName) const {
+  switch (getOpcode()) {
+  default: assert(0 && "Unknown unop");
+  case CAST: {
+    RecordRecTy *RecordType = dynamic_cast<RecordRecTy *>(getType());
+    if (RecordType) {
+      RecordVal *Field = RecordType->getRecord()->getValue(FieldName);
+      if (Field) {
+        return Field->getType();
+      }
+    }
+    break;
+  }
+  }
+  return 0;
 }
 
 Init *BinOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
@@ -741,7 +770,7 @@ Init *BinOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
       if (Record *D = Records.getDef(Name))
         return new DefInit(D);
 
-      cerr << "Variable not defined in !nameconcat: '" + Name + "'\n";
+      errs() << "Variable not defined in !nameconcat: '" + Name + "'\n";
       assert(0 && "Variable not found in !nameconcat");
       return 0;
     }
@@ -856,14 +885,14 @@ static Init *ForeachHelper(Init *LHS, Init *MHS, Init *RHS, RecTy *Type,
   OpInit *RHSo = dynamic_cast<OpInit*>(RHS);
 
   if (!RHSo) {
-    cerr << "!foreach requires an operator\n";
+    errs() << "!foreach requires an operator\n";
     assert(0 && "No operator for !foreach");
   }
 
   TypedInit *LHSt = dynamic_cast<TypedInit*>(LHS);
 
   if (!LHSt) {
-    cerr << "!foreach requires typed variable\n";
+    errs() << "!foreach requires typed variable\n";
     assert(0 && "No typed variable for !foreach");
   }
 
@@ -1278,9 +1307,9 @@ RecordVal::RecordVal(const std::string &N, RecTy *T, unsigned P)
   assert(Value && "Cannot create unset value for current type!");
 }
 
-void RecordVal::dump() const { cerr << *this; }
+void RecordVal::dump() const { errs() << *this; }
 
-void RecordVal::print(std::ostream &OS, bool PrintSem) const {
+void RecordVal::print(raw_ostream &OS, bool PrintSem) const {
   if (getPrefix()) OS << "field ";
   OS << *getType() << " " << getName();
 
@@ -1313,9 +1342,9 @@ void Record::resolveReferencesTo(const RecordVal *RV) {
 }
 
 
-void Record::dump() const { cerr << *this; }
+void Record::dump() const { errs() << *this; }
 
-std::ostream &llvm::operator<<(std::ostream &OS, const Record &R) {
+raw_ostream &llvm::operator<<(raw_ostream &OS, const Record &R) {
   OS << R.getName();
 
   const std::vector<std::string> &TArgs = R.getTemplateArgs();
@@ -1526,10 +1555,10 @@ std::string Record::getValueAsCode(const std::string &FieldName) const {
 
 
 void MultiClass::dump() const {
-  cerr << "Record:\n";
+  errs() << "Record:\n";
   Rec.dump();
   
-  cerr << "Defs:\n";
+  errs() << "Defs:\n";
   for (RecordVector::const_iterator r = DefPrototypes.begin(),
          rend = DefPrototypes.end();
        r != rend;
@@ -1539,9 +1568,9 @@ void MultiClass::dump() const {
 }
 
 
-void RecordKeeper::dump() const { cerr << *this; }
+void RecordKeeper::dump() const { errs() << *this; }
 
-std::ostream &llvm::operator<<(std::ostream &OS, const RecordKeeper &RK) {
+raw_ostream &llvm::operator<<(raw_ostream &OS, const RecordKeeper &RK) {
   OS << "------------- Classes -----------------\n";
   const std::map<std::string, Record*> &Classes = RK.getClasses();
   for (std::map<std::string, Record*>::const_iterator I = Classes.begin(),

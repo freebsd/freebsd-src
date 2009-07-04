@@ -51,9 +51,8 @@ namespace {
     const MipsSubtarget *Subtarget;
   public:
     explicit MipsAsmPrinter(raw_ostream &O, MipsTargetMachine &TM, 
-                            const TargetAsmInfo *T, CodeGenOpt::Level OL,
-                            bool V)
-      : AsmPrinter(O, TM, T, OL, V) {
+                            const TargetAsmInfo *T, bool V)
+      : AsmPrinter(O, TM, T, V) {
       Subtarget = &TM.getSubtarget<MipsSubtarget>();
     }
 
@@ -93,9 +92,8 @@ namespace {
 /// regardless of whether the function is in SSA form.
 FunctionPass *llvm::createMipsCodePrinterPass(raw_ostream &o,
                                               MipsTargetMachine &tm,
-                                              CodeGenOpt::Level OptLevel,
                                               bool verbose) {
-  return new MipsAsmPrinter(o, tm, tm.getTargetAsmInfo(), OptLevel, verbose);
+  return new MipsAsmPrinter(o, tm, tm.getTargetAsmInfo(), verbose);
 }
 
 //===----------------------------------------------------------------------===//
@@ -230,7 +228,7 @@ emitFunctionStart(MachineFunction &MF)
   SwitchToSection(TAI->SectionForGlobal(F));
 
   // 2 bits aligned
-  EmitAlignment(2, F);
+  EmitAlignment(MF.getAlignment(), F);
 
   O << "\t.globl\t"  << CurrentFnName << '\n';
   O << "\t.ent\t"    << CurrentFnName << '\n';

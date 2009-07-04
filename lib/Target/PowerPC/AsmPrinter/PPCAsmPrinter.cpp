@@ -56,9 +56,8 @@ namespace {
     const PPCSubtarget &Subtarget;
   public:
     explicit PPCAsmPrinter(raw_ostream &O, TargetMachine &TM,
-                           const TargetAsmInfo *T, CodeGenOpt::Level OL,
-                           bool V)
-      : AsmPrinter(O, TM, T, OL, V),
+                           const TargetAsmInfo *T, bool V)
+      : AsmPrinter(O, TM, T, V),
         Subtarget(TM.getSubtarget<PPCSubtarget>()) {}
 
     virtual const char *getPassName() const {
@@ -189,8 +188,7 @@ namespace {
       if (TM.getRelocationModel() != Reloc::Static) {
         if (MO.getType() == MachineOperand::MO_GlobalAddress) {
           GlobalValue *GV = MO.getGlobal();
-          if (((GV->isDeclaration() || GV->hasWeakLinkage() ||
-                GV->hasLinkOnceLinkage() || GV->hasCommonLinkage()))) {
+          if (GV->isDeclaration() || GV->isWeakForLinker()) {
             // Dynamically-resolved functions need a stub for the function.
             std::string Name = Mang->getValueName(GV);
             FnStubs.insert(Name);
@@ -296,9 +294,8 @@ namespace {
   class VISIBILITY_HIDDEN PPCLinuxAsmPrinter : public PPCAsmPrinter {
   public:
     explicit PPCLinuxAsmPrinter(raw_ostream &O, PPCTargetMachine &TM,
-                                const TargetAsmInfo *T, CodeGenOpt::Level OL,
-                                bool V)
-      : PPCAsmPrinter(O, TM, T, OL, V){}
+                                const TargetAsmInfo *T, bool V)
+      : PPCAsmPrinter(O, TM, T, V){}
 
     virtual const char *getPassName() const {
       return "Linux PPC Assembly Printer";
@@ -323,9 +320,8 @@ namespace {
     raw_ostream &OS;
   public:
     explicit PPCDarwinAsmPrinter(raw_ostream &O, PPCTargetMachine &TM,
-                                 const TargetAsmInfo *T, CodeGenOpt::Level OL,
-                                 bool V)
-      : PPCAsmPrinter(O, TM, T, OL, V), OS(O) {}
+                                 const TargetAsmInfo *T, bool V)
+      : PPCAsmPrinter(O, TM, T, V), OS(O) {}
 
     virtual const char *getPassName() const {
       return "Darwin PPC Assembly Printer";
@@ -387,11 +383,12 @@ void PPCAsmPrinter::printOp(const MachineOperand &MO) {
     if (TM.getRelocationModel() != Reloc::Static) {
       if (GV->isDeclaration() || GV->isWeakForLinker()) {
         if (GV->hasHiddenVisibility()) {
-          if (!GV->isDeclaration() && !GV->hasCommonLinkage())
-            O << Name;
-          else {
+          if (GV->isDeclaration() || GV->hasCommonLinkage() ||
+              GV->hasAvailableExternallyLinkage()) {
             HiddenGVStubs.insert(Name);
             printSuffixedName(Name, "$non_lazy_ptr");
+          } else {
+            O << Name;
           }
         } else {
           GVStubs.insert(Name);
@@ -596,7 +593,7 @@ bool PPCLinuxAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
 
   printVisibility(CurrentFnName, F->getVisibility());
 
-  EmitAlignment(2, F);
+  EmitAlignment(MF.getAlignment(), F);
   O << CurrentFnName << ":\n";
 
   // Emit pre-function debug information.
@@ -773,7 +770,7 @@ bool PPCDarwinAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
 
   printVisibility(CurrentFnName, F->getVisibility());
 
-  EmitAlignment(F->hasFnAttr(Attribute::OptimizeForSize) ? 2 : 4, F);
+  EmitAlignment(MF.getAlignment(), F);
   O << CurrentFnName << ":\n";
 
   // Emit pre-function debug information.
@@ -1119,16 +1116,13 @@ bool PPCDarwinAsmPrinter::doFinalization(Module &M) {
 ///
 FunctionPass *llvm::createPPCAsmPrinterPass(raw_ostream &o,
                                             PPCTargetMachine &tm,
-                                            CodeGenOpt::Level OptLevel,
                                             bool verbose) {
   const PPCSubtarget *Subtarget = &tm.getSubtarget<PPCSubtarget>();
 
   if (Subtarget->isDarwin()) {
-    return new PPCDarwinAsmPrinter(o, tm, tm.getTargetAsmInfo(),
-                                   OptLevel, verbose);
+    return new PPCDarwinAsmPrinter(o, tm, tm.getTargetAsmInfo(), verbose);
   } else {
-    return new PPCLinuxAsmPrinter(o, tm, tm.getTargetAsmInfo(),
-                                  OptLevel, verbose);
+    return new PPCLinuxAsmPrinter(o, tm, tm.getTargetAsmInfo(), verbose);
   }
 }
 

@@ -256,7 +256,7 @@ public:
         return getTypeAction(NVT) == Promote ? getTypeToTransformTo(NVT) : NVT;
     }
     assert(0 && "Unsupported extended type!");
-    return MVT(); // Not reached
+    return MVT(MVT::Other); // Not reached
   }
 
   /// getTypeToExpandTo - For types supported by the target, this is an
@@ -557,7 +557,7 @@ public:
       return getRegisterType(getTypeToTransformTo(VT));
     }
     assert(0 && "Unsupported extended type!");
-    return MVT(); // Not reached
+    return MVT(MVT::Other); // Not reached
   }
 
   /// getNumRegisters - Return the number of registers that this ValueType will
@@ -735,6 +735,9 @@ public:
   /// with the given GlobalAddress is legal.  It is frequently not legal in
   /// PIC relocation models.
   virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
+
+  /// getFunctionAlignment - Return the Log2 alignment of this function.
+  virtual unsigned getFunctionAlignment(const Function *) const = 0;
 
   //===--------------------------------------------------------------------===//
   // TargetLowering Optimization Methods
@@ -1119,9 +1122,9 @@ public:
   typedef std::vector<ArgListEntry> ArgListTy;
   virtual std::pair<SDValue, SDValue>
   LowerCallTo(SDValue Chain, const Type *RetTy, bool RetSExt, bool RetZExt,
-              bool isVarArg, bool isInreg, unsigned CallingConv, 
-              bool isTailCall, SDValue Callee, ArgListTy &Args, 
-              SelectionDAG &DAG, DebugLoc dl);
+              bool isVarArg, bool isInreg, unsigned NumFixedArgs,
+              unsigned CallingConv, bool isTailCall, SDValue Callee,
+              ArgListTy &Args, SelectionDAG &DAG, DebugLoc dl);
 
   /// EmitTargetCodeForMemcpy - Emit target-specific code that performs a
   /// memcpy. This can be used by targets to provide code sequences for cases

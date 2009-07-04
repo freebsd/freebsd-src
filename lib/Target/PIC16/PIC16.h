@@ -151,6 +151,7 @@ namespace PIC16CC {
         return STATIC_LOCAL;
  
       assert (0 && "Could not determine Symbol's tag");
+      return PREFIX_SYMBOL; // Silence warning when assertions are turned off.
     }
 
     // addPrefix - add prefix symbol to a name if there isn't one already.
@@ -331,7 +332,6 @@ namespace PIC16CC {
   FunctionPass *createPIC16ISelDag(PIC16TargetMachine &TM);
   FunctionPass *createPIC16CodePrinterPass(raw_ostream &OS, 
                                            PIC16TargetMachine &TM,
-                                           CodeGenOpt::Level OptLevel,
                                            bool Verbose);
   // Banksel optimzer pass.
   FunctionPass *createPIC16MemSelOptimizerPass();

@@ -62,7 +62,7 @@ namespace llvm {
     virtual std::pair<SDValue, SDValue>
       LowerCallTo(SDValue Chain, const Type *RetTy,
                   bool RetSExt, bool RetZExt, bool isVarArg, bool isInreg,
-                  unsigned CC, bool isTailCall, 
+                  unsigned NumFixedArgs, unsigned CC, bool isTailCall, 
                   SDValue Callee, ArgListTy &Args, SelectionDAG &DAG,
                   DebugLoc dl);
 
@@ -70,6 +70,8 @@ namespace llvm {
     /// (currently, only "ret void")
     virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG);
     
+    /// getFunctionAlignment - Return the Log2 alignment of this function.
+    virtual unsigned getFunctionAlignment(const Function *F) const;
   };
 }
 

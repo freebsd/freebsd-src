@@ -223,7 +223,7 @@ RDYNAMIC := @RDYNAMIC@
 #ENABLE_PROFILING = 1
 @ENABLE_PROFILING@
 
-# When DISABLE_ASSERTIONS is enabled, builds of all of the LLVM code will 
+# When DISABLE_ASSERTIONS is enabled, builds of all of the LLVM code will
 # exclude assertion checks, otherwise they are included.
 #DISABLE_ASSERTIONS = 1
 @DISABLE_ASSERTIONS@
@@ -297,3 +297,14 @@ endif
 
 # Location of the plugin header file for gold.
 BINUTILS_INCDIR := @BINUTILS_INCDIR@
+
+# When ENABLE_LLVMC_DYNAMIC is enabled, LLVMC will link libCompilerDriver
+# dynamically. This is needed to make dynamic plugins work on some targets
+# (Windows).
+ENABLE_LLVMC_DYNAMIC = 0
+#@ENABLE_LLVMC_DYNAMIC@
+
+# When ENABLE_LLVMC_DYNAMIC_PLUGINS is enabled, LLVMC will have dynamic plugin
+# support (via the -load option).
+ENABLE_LLVMC_DYNAMIC_PLUGINS = 1
+#@ENABLE_LLVMC_DYNAMIC_PLUGINS@

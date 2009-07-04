@@ -10,6 +10,7 @@
 #include "llvm/MC/MCStreamer.h"
 
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
@@ -25,7 +26,7 @@ namespace {
 
   public:
     MCAsmStreamer(MCContext &Context, raw_ostream &_OS)
-      : MCStreamer(Context), OS(_OS) {}
+      : MCStreamer(Context), OS(_OS), CurSection(0) {}
     ~MCAsmStreamer() {}
 
     /// @name MCStreamer Interface
@@ -66,11 +67,11 @@ static inline raw_ostream &operator<<(raw_ostream &os, const MCValue &Value) {
     os << Value.getSymA()->getName();
     if (Value.getSymB())
       os << " - " << Value.getSymB()->getName();
-    if (Value.getCst())
-      os << " + " << Value.getCst();
+    if (Value.getConstant())
+      os << " + " << Value.getConstant();
   } else {
     assert(!Value.getSymB() && "Invalid machine code value!");
-    os << Value.getCst();
+    os << Value.getConstant();
   }
 
   return os;
@@ -83,7 +84,7 @@ static inline int64_t truncateToSize(int64_t Value, unsigned Bytes) {
 
 static inline MCValue truncateToSize(const MCValue &Value, unsigned Bytes) {
   return MCValue::get(Value.getSymA(), Value.getSymB(), 
-                      truncateToSize(Value.getCst(), Bytes));
+                      truncateToSize(Value.getConstant(), Bytes));
 }
 
 void MCAsmStreamer::SwitchSection(MCSection *Section) {
@@ -105,6 +106,7 @@ void MCAsmStreamer::EmitLabel(MCSymbol *Symbol) {
 
   OS << Symbol->getName() << ":\n";
   Symbol->setSection(CurSection);
+  Symbol->setExternal(false);
 }
 
 void MCAsmStreamer::EmitAssignment(MCSymbol *Symbol, const MCValue &Value,
@@ -164,20 +166,23 @@ void MCAsmStreamer::EmitValue(const MCValue &Value, unsigned Size) {
 void MCAsmStreamer::EmitValueToAlignment(unsigned ByteAlignment, int64_t Value,
                                          unsigned ValueSize,
                                          unsigned MaxBytesToEmit) {
+  // Some assemblers don't support .balign, so we always emit as .p2align if
+  // this is a power of two. Otherwise we assume the client knows the target
+  // supports .balign and use that.
   unsigned Pow2 = Log2_32(ByteAlignment);
-  assert((1U << Pow2) == ByteAlignment && "Invalid alignment!");
+  bool IsPow2 = (1U << Pow2) == ByteAlignment;
 
   switch (ValueSize) {
   default:
     assert(0 && "Invalid size for machine code value!");
   case 8:
     assert(0 && "Unsupported alignment size!");
-  case 1: OS << ".p2align"; break;
-  case 2: OS << ".p2alignw"; break;
-  case 4: OS << ".p2alignl"; break;
+  case 1: OS << (IsPow2 ? ".p2align" : ".balign"); break;
+  case 2: OS << (IsPow2 ? ".p2alignw" : ".balignw"); break;
+  case 4: OS << (IsPow2 ? ".p2alignl" : ".balignl"); break;
   }
 
-  OS << ' ' << Pow2;
+  OS << ' ' << (IsPow2 ? Pow2 : ByteAlignment);
 
   OS << ", " << truncateToSize(Value, ValueSize);
   if (MaxBytesToEmit) 
@@ -191,10 +196,30 @@ void MCAsmStreamer::EmitValueToOffset(const MCValue &Offset,
   OS << ".org " << Offset << ", " << (unsigned) Value << '\n';
 }
 
+static raw_ostream &operator<<(raw_ostream &OS, const MCOperand &Op) {
+  if (Op.isReg())
+    return OS << "reg:" << Op.getReg();
+  if (Op.isImm())
+    return OS << "imm:" << Op.getImm();
+  if (Op.isMBBLabel())
+    return OS << "mbblabel:(" 
+              << Op.getMBBLabelFunction() << ", " << Op.getMBBLabelBlock();
+  assert(Op.isMCValue() && "Invalid operand!");
+  return OS << "val:" << Op.getMCValue();
+}
+
 void MCAsmStreamer::EmitInstruction(const MCInst &Inst) {
   assert(CurSection && "Cannot emit contents before setting section!");
-  // FIXME: Implement.
-  OS << "# FIXME: Implement instruction printing!\n";
+  // FIXME: Implement proper printing.
+  OS << "MCInst("
+     << "opcode=" << Inst.getOpcode() << ", "
+     << "operands=[";
+  for (unsigned i = 0, e = Inst.getNumOperands(); i != e; ++i) {
+    if (i)
+      OS << ", ";
+    OS << Inst.getOperand(i);
+  }
+  OS << "])\n";
 }
 
 void MCAsmStreamer::Finish() {

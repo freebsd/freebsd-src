@@ -43,8 +43,9 @@ class VR<bits<5> num, string n> : PPCReg<n> {
 }
 
 // CR - One of the 8 4-bit condition registers
-class CR<bits<3> num, string n> : PPCReg<n> {
+class CR<bits<3> num, string n, list<Register> subregs> : PPCReg<n> {
   field bits<3> Num = num;
+  let SubRegs = subregs;
 }
 
 // CRBIT - One of the 32 1-bit condition register fields
@@ -189,16 +190,6 @@ def V29 : VR<29, "v29">, DwarfRegNum<[106]>;
 def V30 : VR<30, "v30">, DwarfRegNum<[107]>;
 def V31 : VR<31, "v31">, DwarfRegNum<[108]>;
 
-// Condition registers
-def CR0 : CR<0, "cr0">, DwarfRegNum<[68]>;
-def CR1 : CR<1, "cr1">, DwarfRegNum<[69]>;
-def CR2 : CR<2, "cr2">, DwarfRegNum<[70]>;
-def CR3 : CR<3, "cr3">, DwarfRegNum<[71]>;
-def CR4 : CR<4, "cr4">, DwarfRegNum<[72]>;
-def CR5 : CR<5, "cr5">, DwarfRegNum<[73]>;
-def CR6 : CR<6, "cr6">, DwarfRegNum<[74]>;
-def CR7 : CR<7, "cr7">, DwarfRegNum<[75]>;
-
 // Condition register bits
 def CR0LT : CRBIT< 0, "0">, DwarfRegNum<[0]>;
 def CR0GT : CRBIT< 1, "1">, DwarfRegNum<[0]>;
@@ -232,6 +223,16 @@ def CR7LT : CRBIT<28, "28">, DwarfRegNum<[0]>;
 def CR7GT : CRBIT<29, "29">, DwarfRegNum<[0]>;
 def CR7EQ : CRBIT<30, "30">, DwarfRegNum<[0]>;
 def CR7UN : CRBIT<31, "31">, DwarfRegNum<[0]>;
+
+// Condition registers
+def CR0 : CR<0, "cr0", [CR0LT, CR0GT, CR0EQ, CR0UN]>, DwarfRegNum<[68]>;
+def CR1 : CR<1, "cr1", [CR1LT, CR1GT, CR1EQ, CR1UN]>, DwarfRegNum<[69]>;
+def CR2 : CR<2, "cr2", [CR2LT, CR2GT, CR2EQ, CR2UN]>, DwarfRegNum<[70]>;
+def CR3 : CR<3, "cr3", [CR3LT, CR3GT, CR3EQ, CR3UN]>, DwarfRegNum<[71]>;
+def CR4 : CR<4, "cr4", [CR4LT, CR4GT, CR4EQ, CR4UN]>, DwarfRegNum<[72]>;
+def CR5 : CR<5, "cr5", [CR5LT, CR5GT, CR5EQ, CR5UN]>, DwarfRegNum<[73]>;
+def CR6 : CR<6, "cr6", [CR6LT, CR6GT, CR6EQ, CR6UN]>, DwarfRegNum<[74]>;
+def CR7 : CR<7, "cr7", [CR7LT, CR7GT, CR7EQ, CR7UN]>, DwarfRegNum<[75]>;
 
 def : SubRegSet<1, [CR0, CR1, CR2, CR3, CR4, CR5, CR6, CR7],
                    [CR0LT, CR1LT, CR2LT, CR3LT, CR4LT, CR5LT, CR6LT, CR7LT]>;
@@ -290,7 +291,12 @@ def GPRC : RegisterClass<"PPC", [i32], 32,
       // On PPC64, r13 is the thread pointer.  Never allocate this register.
       // Note that this is overconservative, as it also prevents allocation of
       // R31 when the FP is not needed.
-      if (MF.getTarget().getSubtarget<PPCSubtarget>().isPPC64())
+      // When using the SVR4 ABI, r13 is reserved for the Small Data Area
+      // pointer.
+      const PPCSubtarget &Subtarget
+        = MF.getTarget().getSubtarget<PPCSubtarget>();
+         
+      if (Subtarget.isPPC64() || Subtarget.isSVR4ABI())
         return end()-5;  // don't allocate R13, R31, R0, R1, LR
         
       if (needsFP(MF))
@@ -324,22 +330,24 @@ def G8RC : RegisterClass<"PPC", [i64], 64,
   }];
 }
 
-
-
+// Allocate volatiles first, then non-volatiles in reverse order. With the SVR4
+// ABI the size of the Floating-point register save area is determined by the
+// allocated non-volatile register with the lowest register number, as FP
+// register N is spilled to offset 8 * (32 - N) below the back chain word of the
+// previous stack frame. By allocating non-volatiles in reverse order we make
+// sure that the Floating-point register save area is always as small as
+// possible because there aren't any unused spill slots.
 def F8RC : RegisterClass<"PPC", [f64], 64, [F0, F1, F2, F3, F4, F5, F6, F7,
-  F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21,
-  F22, F23, F24, F25, F26, F27, F28, F29, F30, F31]>;
+  F8, F9, F10, F11, F12, F13, F31, F30, F29, F28, F27, F26, F25, F24, F23,
+  F22, F21, F20, F19, F18, F17, F16, F15, F14]>;
 def F4RC : RegisterClass<"PPC", [f32], 32, [F0, F1, F2, F3, F4, F5, F6, F7,
-  F8, F9, F10, F11, F12, F13, F14, F15, F16, F17, F18, F19, F20, F21,
-  F22, F23, F24, F25, F26, F27, F28, F29, F30, F31]>;
+  F8, F9, F10, F11, F12, F13, F31, F30, F29, F28, F27, F26, F25, F24, F23,
+  F22, F21, F20, F19, F18, F17, F16, F15, F14]>;
 
 def VRRC : RegisterClass<"PPC", [v16i8,v8i16,v4i32,v4f32], 128,
  [V2, V3, V4, V5, V0, V1, 
-  V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V20, V21,
-  V22, V23, V24, V25, V26, V27, V28, V29, V30, V31]>;
-
-def CRRC : RegisterClass<"PPC", [i32], 32, [CR0, CR1, CR5, CR6, CR7, CR2, 
-  CR3, CR4]>;
+  V6, V7, V8, V9, V10, V11, V12, V13, V14, V15, V16, V17, V18, V19, V31, V30,
+  V29, V28, V27, V26, V25, V24, V23, V22, V21, V20]>;
 
 def CRBITRC : RegisterClass<"PPC", [i32], 32,
   [CR0LT, CR0GT, CR0EQ, CR0UN,
@@ -355,6 +363,13 @@ def CRBITRC : RegisterClass<"PPC", [i32], 32,
   let CopyCost = -1;
 }
 
+def CRRC : RegisterClass<"PPC", [i32], 32, [CR0, CR1, CR5, CR6, CR7, CR2, 
+  CR3, CR4]>
+{
+  let SubRegClassList = [CRBITRC, CRBITRC, CRBITRC, CRBITRC];
+}
 
 def CTRRC : RegisterClass<"PPC", [i32], 32, [CTR]>;
 def CTRRC8 : RegisterClass<"PPC", [i64], 64, [CTR8]>;
+def VRSAVERC : RegisterClass<"PPC", [i32], 32, [VRSAVE]>;
+

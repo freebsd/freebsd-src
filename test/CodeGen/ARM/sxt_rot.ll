@@ -1,7 +1,14 @@
 ; RUN: llvm-as < %s | llc -march=arm -mattr=+v6 | \
-; RUN:   grep sxtb | count 1
+; RUN:   grep sxtb | count 2
+; RUN: llvm-as < %s | llc -march=arm -mattr=+v6 | \
+; RUN:   grep sxtb | grep ror | count 1
 ; RUN: llvm-as < %s | llc -march=arm -mattr=+v6 | \
 ; RUN:   grep sxtab | count 1
+
+define i32 @test0(i8 %A) {
+        %B = sext i8 %A to i32
+	ret i32 %B
+}
 
 define i8 @test1(i32 %A) signext {
 	%B = lshr i32 %A, 8
