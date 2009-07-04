@@ -81,14 +81,12 @@
 #define	_MFC0	dmfc0
 #define	_MTC0	dmtc0
 #define WIRED_SHIFT 34
-#define PAGE_SHIFT 34
 #else
 #define _SLL	sll
 #define	_SRL	srl
 #define	_MFC0	mfc0
 #define	_MTC0	mtc0
 #define WIRED_SHIFT 2
-#define PAGE_SHIFT 2
 #endif
 	.set	noreorder			# Noreorder is default style!
 #if defined(ISA_MIPS32)
@@ -232,28 +230,38 @@ LEAF(Mips_TLBFlush)
 	mtc0	zero, COP_0_STATUS_REG		# Disable interrupts
 	ITLBNOPFIX
 	mfc0	t1, COP_0_TLB_WIRED
-	li	v0, MIPS_KSEG3_START + 0x0fff0000 # invalid address
 	_MFC0	t0, COP_0_TLB_HI		# Save the PID
-
 	_MTC0	v0, COP_0_TLB_HI		# Mark entry high as invalid
 	_MTC0	zero, COP_0_TLB_LO0		# Zero out low entry0.
 	_MTC0	zero, COP_0_TLB_LO1		# Zero out low entry1.
 	mtc0	zero, COP_0_TLB_PG_MASK 	# Zero out mask entry.
+	#
+	# Load invalid entry, each TLB entry should have it's own bogus 
+	# address calculated by following expression:
+	# MIPS_KSEG0_START + 2 * i * PAGE_SIZE;
+	# One bogus value for every TLB entry might cause MCHECK exception
+	#
+	sll	t3, t1, PGSHIFT + 1
+	li	v0, MIPS_KSEG0_START		# invalid address
+	addu	v0, t3
 /*
  * Align the starting value (t1) and the upper bound (a0).
  */
 1:
 	mtc0	t1, COP_0_TLB_INDEX		# Set the index register.
 	ITLBNOPFIX
-	_MTC0	t0, COP_0_TLB_HI		# Restore the PID
+#xxx imp
+#	_MTC0	t0, COP_0_TLB_HI		# Restore the PID
+	_MTC0	v0, COP_0_TLB_HI		# Mark entry high as invalid
 	addu	t1, t1, 1			# Increment index.
-	addu	t0, t0, 8 * 1024
+#xxx imp
+#	addu	t0, t0, 8 * 1024
+	addu	v0, v0, 8 * 1024
 	MIPS_CPU_NOP_DELAY
 	tlbwi					# Write the TLB entry.
 	MIPS_CPU_NOP_DELAY
 	bne	t1, a0, 1b
 	nop
-
 	_MTC0	t0, COP_0_TLB_HI		# Restore the PID
 	mtc0	v1, COP_0_STATUS_REG		# Restore the status register
 	ITLBNOPFIX
@@ -289,14 +297,14 @@ LEAF(Mips_TLBFlushAddr)
 	tlbp					# Probe for the entry.
 	MIPS_CPU_NOP_DELAY
 	mfc0	v0, COP_0_TLB_INDEX		# See what we got
-	li	t1, MIPS_KSEG0_START + 0x0fff0000
+	li	t1, MIPS_KSEG0_START
 	bltz	v0, 1f				# index < 0 => !found
 	nop
 	# Load invalid entry, each TLB entry should have it's own bogus 
 	# address calculated by following expression:
-	# MIPS_KSEG0_START + 0x0fff0000 + 2 * i * PAGE_SIZE;
+	# MIPS_KSEG0_START + 2 * i * PAGE_SIZE;
 	# One bogus value for every TLB entry might cause MCHECK exception
-	sll	v0, PAGE_SHIFT + 1
+	sll	v0, PGSHIFT + 1
 	addu	t1, v0
 	_MTC0	t1, COP_0_TLB_HI		# Mark entry high as invalid
 
@@ -473,7 +481,17 @@ LEAF(mips_TBIAP)
 	_MFC0	t4, COP_0_TLB_HI		# Get current PID
 	move	t2, a0
 	mfc0	t1, COP_0_TLB_WIRED
-	li	v0, MIPS_KSEG0_START + 0x0fff0000	# invalid address
+	li	v0, MIPS_KSEG0_START		# invalid address
+	#
+	# Load invalid entry, each TLB entry should have it's own bogus 
+	# address calculated by following expression:
+	# MIPS_KSEG0_START + 2 * i * PAGE_SIZE;
+	# One bogus value for every TLB entry might cause MCHECK exception
+	#
+	sll	t3, t1, PGSHIFT + 1
+	li	v0, MIPS_KSEG0_START		# invalid address
+	addu	v0, t3
+
 	mfc0	t3, COP_0_TLB_PG_MASK		# save current pgMask
 
 	# do {} while (t1 < t2)
@@ -495,7 +513,7 @@ LEAF(mips_TBIAP)
 	tlbwi					# invalidate the TLB entry
 2:
 	addu	t1, t1, 1
-	addu	v0, 1 << (PAGE_SHIFT + 1)
+	addu	v0, 1 << (PGSHIFT + 1)
 	bne	t1, t2, 1b
 	nop
 
