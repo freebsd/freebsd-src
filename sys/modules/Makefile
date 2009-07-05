@@ -271,7 +271,7 @@ SUBDIR=	${_3dfx} \
 	ubsec \
 	udf \
 	udf_iconv \
-	${_ufs} \
+	ufs \
 	unionfs \
 	usb \
 	utopia \
@@ -302,10 +302,6 @@ SUBDIR=	${_3dfx} \
 .if ${MACHINE_ARCH} != "powerpc"
 _syscons=	syscons
 _vpo=		vpo
-.endif
-
-.if defined(ALL_MODULES)
-_ufs=		ufs
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
