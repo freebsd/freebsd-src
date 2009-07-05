@@ -112,6 +112,7 @@ struct ieee80211_rate_table;
 struct ieee80211_tx_ampdu;
 struct ieee80211_rx_ampdu;
 struct ieee80211_superg;
+struct ieee80211_frame;
 
 struct ieee80211com {
 	struct ifnet		*ic_ifp;	/* associated device */
@@ -282,11 +283,11 @@ struct ieee80211com {
 	 * driver passes out-of-order frames to ieee80211_input
 	 * from an assocated HT station.
 	 */
-	void			(*ic_recv_action)(struct ieee80211_node *,
+	int			(*ic_recv_action)(struct ieee80211_node *,
+				    const struct ieee80211_frame *,
 				    const uint8_t *frm, const uint8_t *efrm);
 	int			(*ic_send_action)(struct ieee80211_node *,
-				    int category, int action,
-				    uint16_t args[4]);
+				    int category, int action, void *);
 	/* check if A-MPDU should be enabled this station+ac */
 	int			(*ic_ampdu_enable)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *);

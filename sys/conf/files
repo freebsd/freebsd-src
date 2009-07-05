@@ -2231,6 +2231,7 @@ net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 ddb_ctf
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
+net80211/ieee80211_action.c	optional wlan
 net80211/ieee80211_adhoc.c	optional wlan
 net80211/ieee80211_amrr.c	optional wlan wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan
