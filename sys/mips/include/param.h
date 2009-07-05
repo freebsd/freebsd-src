@@ -146,12 +146,13 @@
 /*
  * Conversion macros
  */
-#define	mips_round_page(x)	((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
-#define	mips_trunc_page(x)	((unsigned)(x) & ~(NBPG-1))
-#define	mips_btop(x)		((unsigned)(x) >> PGSHIFT)
-#define	mips_ptob(x)		((unsigned)(x) << PGSHIFT)
+#define	mips_round_page(x)	((((uintptr_t)(x)) + NBPG - 1) & ~(NBPG-1))
+#define	mips_trunc_page(x)	((uintptr_t)(x) & ~(NBPG-1))
+#define	mips_btop(x)		((uintptr_t)(x) >> PGSHIFT)
+#define	mips_ptob(x)		((uintptr_t)(x) << PGSHIFT)
 #define	round_page		mips_round_page
 #define	trunc_page		mips_trunc_page
+/* XXXimp: Is unsigned long the right cast type here? PA can be > 32bits */
 #define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
 #define	ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
 
