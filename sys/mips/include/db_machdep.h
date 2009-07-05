@@ -46,7 +46,7 @@ typedef struct trapframe db_regs_t;
 extern db_regs_t	ddb_regs;	/* register state */
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
-typedef	int		db_expr_t;	/* expression - signed */
+typedef	intptr_t	db_expr_t;	/* expression - signed */
 
 #if BYTE_ORDER == _BIG_ENDIAN
 #define	BYTE_MSF	(1)
