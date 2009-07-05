@@ -323,7 +323,7 @@ NON_LEAF(cpu_switch, STAND_FRAME_SIZE, ra)
 
 mips_sw1:
 #if defined(SMP) && defined(SCHED_ULE)
-	la	t0, _C_LABEL(blocked_lock)
+	PTR_LA	t0, _C_LABEL(blocked_lock)
 blocked_loop:
 	lw	t1, TD_LOCK(a1)
 	beq	t0, t1, blocked_loop
@@ -388,7 +388,7 @@ entry0set:
  * Now running on new u struct.
  */
 sw2:
-	la	t1, _C_LABEL(pmap_activate)	# s7 = new proc pointer
+	PTR_LA	t1, _C_LABEL(pmap_activate)	# s7 = new proc pointer
 	jalr	t1				# s7 = new proc pointer
 	move	a0, s7				# BDSLOT
 /*
