@@ -220,7 +220,7 @@ atomic_add_64(__volatile uint64_t *p, uint64_t v)
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
-		"addu	%0, %2, %0\n\t"		/* calculate new value */
+		"daddu	%0, %2, %0\n\t"		/* calculate new value */
 		"scd	%0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=m" (*p)
@@ -236,7 +236,7 @@ atomic_subtract_64(__volatile uint64_t *p, uint64_t v)
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %3\n\t"		/* load old value */
-		"subu	%0, %2\n\t"		/* calculate new value */
+		"dsubu	%0, %2\n\t"		/* calculate new value */
 		"scd	%0, %1\n\t"		/* attempt to store */
 		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=m" (*p)
