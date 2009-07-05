@@ -838,7 +838,7 @@ wds_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		}
 		ni->ni_inact = ni->ni_inact_reload;
 		if (ieee80211_parse_action(ni, m0) == 0)
-			ic->ic_recv_action(ni, frm, efrm);
+			ic->ic_recv_action(ni, wh, frm, efrm);
 		break;
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
