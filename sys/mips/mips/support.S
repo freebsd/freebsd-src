@@ -1316,17 +1316,11 @@ END(atomic_subtract_8)
 	.set	mips3
 #endif
 
-LEAF(atomic_readandclear_64)
-1:
-	lld	v0, 0(a0)
-	li	t0, 0
-	scd	t0, 0(a0)
-	beqz	t0, 1b
-	nop
-	j	ra
-	nop
-END(atomic_readandclear_64)
-
+#if !defined(__mips_n64) && !defined(__mips_n32)	
+	/*
+	 * I don't know if these routines have the right number of
+	 * NOPs in it for all processors.  XXX
+	 */
 LEAF(atomic_store_64)
 	mfc0	t1, COP_0_STATUS_REG
 	and	t2, t1, ~SR_INT_ENAB
@@ -1372,6 +1366,7 @@ LEAF(atomic_load_64)
 	j	ra
 	nop
 END(atomic_load_64)
+#endif
 
 #if defined(DDB) || defined(DEBUG)
 
