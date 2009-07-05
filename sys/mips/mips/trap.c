@@ -364,7 +364,7 @@ trap(trapframe)
 		printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
 		MachTLBGetPID(pid);
-		printf("badaddr = %p, pc = %p, ra = %p, sp = %p, sr = 0x%x, pid = %d, ASID = 0x%x\n",
+		printf("badaddr = 0x%0x, pc = 0x%0x, ra = 0x%0x, sp = 0x%0x, sr = 0x%x, pid = %d, ASID = 0x%x\n",
 		    trapframe->badvaddr, trapframe->pc, trapframe->ra,
 		    trapframe->sp, trapframe->sr,
 		    (curproc ? curproc->p_pid : -1), pid);
@@ -388,7 +388,7 @@ trap(trapframe)
 		    ((type & ~T_USER) != T_SYSCALL)) {
 			if (++count == 3) {
 				trap_frame_dump(trapframe);
-				panic("too many faults at %p\n", last_badvaddr);
+				panic("too many faults at %x\n", last_badvaddr);
 			}
 		} else {
 			last_badvaddr = this_badvaddr;
@@ -569,7 +569,7 @@ dofault:
 			--p->p_lock;
 			PROC_UNLOCK(p);
 #ifdef VMFAULT_TRACE
-			printf("vm_fault(%x (pmap %x), %x (%x), %x, %d) -> %x at pc %x\n",
+			printf("vm_fault(%p (pmap %p), %x (%x), %x, %d) -> %x at pc %x\n",
 			    map, &vm->vm_pmap, va, trapframe->badvaddr, ftype, flag,
 			    rv, trapframe->pc);
 #endif
@@ -1538,39 +1538,39 @@ static void
 log_frame_dump(struct trapframe *frame)
 {
 	log(LOG_ERR, "Trapframe Register Dump:\n");
-	log(LOG_ERR, "\tzero: %08x\tat: %08x\tv0: %08x\tv1: %08x\n",
-	    0, frame->ast, frame->v0, frame->v1);
+	log(LOG_ERR, "\tzero: %p\tat: %p\tv0: %p\tv1: %p\n",
+	    (void *)0, (void *)frame->ast, (void *)frame->v0, (void *)frame->v1);
 
-	log(LOG_ERR, "\ta0: %08x\ta1: %08x\ta2: %08x\ta3: %08x\n",
-	    frame->a0, frame->a1, frame->a2, frame->a3);
+	log(LOG_ERR, "\ta0: %p\ta1: %p\ta2: %p\ta3: %p\n",
+	    (void *)frame->a0, (void *)frame->a1, (void *)frame->a2, (void *)frame->a3);
 
-	log(LOG_ERR, "\tt0: %08x\tt1: %08x\tt2: %08x\tt3: %08x\n",
-	    frame->t0, frame->t1, frame->t2, frame->t3);
+	log(LOG_ERR, "\tt0: %p\tt1: %p\tt2: %p\tt3: %p\n",
+	    (void *)frame->t0, (void *)frame->t1, (void *)frame->t2, (void *)frame->t3);
 
-	log(LOG_ERR, "\tt4: %08x\tt5: %08x\tt6: %08x\tt7: %08x\n",
-	    frame->t4, frame->t5, frame->t6, frame->t7);
+	log(LOG_ERR, "\tt4: %p\tt5: %p\tt6: %p\tt7: %p\n",
+	    (void *)frame->t4, (void *)frame->t5, (void *)frame->t6, (void *)frame->t7);
 
-	log(LOG_ERR, "\tt8: %08x\tt9: %08x\ts0: %08x\ts1: %08x\n",
-	    frame->t8, frame->t9, frame->s0, frame->s1);
+	log(LOG_ERR, "\tt8: %p\tt9: %p\ts0: %p\ts1: %p\n",
+	    (void *)frame->t8, (void *)frame->t9, (void *)frame->s0, (void *)frame->s1);
 
-	log(LOG_ERR, "\ts2: %08x\ts3: %08x\ts4: %08x\ts5: %08x\n",
-	    frame->s2, frame->s3, frame->s4, frame->s5);
+	log(LOG_ERR, "\ts2: %p\ts3: %p\ts4: %p\ts5: %p\n",
+	    (void *)frame->s2, (void *)frame->s3, (void *)frame->s4, (void *)frame->s5);
 
-	log(LOG_ERR, "\ts6: %08x\ts7: %08x\tk0: %08x\tk1: %08x\n",
-	    frame->s6, frame->s7, frame->k0, frame->k1);
+	log(LOG_ERR, "\ts6: %p\ts7: %p\tk0: %p\tk1: %p\n",
+	    (void *)frame->s6, (void *)frame->s7, (void *)frame->k0, (void *)frame->k1);
 
-	log(LOG_ERR, "\tgp: %08x\tsp: %08x\ts8: %08x\tra: %08x\n",
-	    frame->gp, frame->sp, frame->s8, frame->ra);
+	log(LOG_ERR, "\tgp: %p\tsp: %p\ts8: %p\tra: %p\n",
+	    (void *)frame->gp, (void *)frame->sp, (void *)frame->s8, (void *)frame->ra);
 
-	log(LOG_ERR, "\tsr: %08x\tmullo: %08x\tmulhi: %08x\tbadvaddr: %08x\n",
-	    frame->sr, frame->mullo, frame->mulhi, frame->badvaddr);
+	log(LOG_ERR, "\tsr: %p\tmullo: %p\tmulhi: %p\tbadvaddr: %p\n",
+	    (void *)frame->sr, (void *)frame->mullo, (void *)frame->mulhi, (void *)frame->badvaddr);
 
 #ifdef IC_REG
-	log(LOG_ERR, "\tcause: %08x\tpc: %08x\tic: %08x\n",
-	    frame->cause, frame->pc, frame->ic);
+	log(LOG_ERR, "\tcause: %p\tpc: %p\tic: %p\n",
+	    (void *)frame->cause, (void *)frame->pc, (void *)frame->ic);
 #else
-	log(LOG_ERR, "\tcause: %08x\tpc: %08x\n",
-	    frame->cause, frame->pc);
+	log(LOG_ERR, "\tcause: %p\tpc: %p\n",
+	    (void *)frame->cause, (void *)frame->pc);
 #endif
 }
 
@@ -1579,39 +1579,39 @@ static void
 trap_frame_dump(struct trapframe *frame)
 {
 	printf("Trapframe Register Dump:\n");
-	printf("\tzero: %08x\tat: %08x\tv0: %08x\tv1: %08x\n",
-	    0, frame->ast, frame->v0, frame->v1);
+	printf("\tzero: %p\tat: %p\tv0: %p\tv1: %p\n",
+	    (void *)0, (void *)frame->ast, (void *)frame->v0, (void *)frame->v1);
 
-	printf("\ta0: %08x\ta1: %08x\ta2: %08x\ta3: %08x\n",
-	    frame->a0, frame->a1, frame->a2, frame->a3);
+	printf("\ta0: %p\ta1: %p\ta2: %p\ta3: %p\n",
+	    (void *)frame->a0, (void *)frame->a1, (void *)frame->a2, (void *)frame->a3);
 
-	printf("\tt0: %08x\tt1: %08x\tt2: %08x\tt3: %08x\n",
-	    frame->t0, frame->t1, frame->t2, frame->t3);
+	printf("\tt0: %p\tt1: %p\tt2: %p\tt3: %p\n",
+	    (void *)frame->t0, (void *)frame->t1, (void *)frame->t2, (void *)frame->t3);
 
-	printf("\tt4: %08x\tt5: %08x\tt6: %08x\tt7: %08x\n",
-	    frame->t4, frame->t5, frame->t6, frame->t7);
+	printf("\tt4: %p\tt5: %p\tt6: %p\tt7: %p\n",
+	    (void *)frame->t4, (void *)frame->t5, (void *)frame->t6, (void *)frame->t7);
 
-	printf("\tt8: %08x\tt9: %08x\ts0: %08x\ts1: %08x\n",
-	    frame->t8, frame->t9, frame->s0, frame->s1);
+	printf("\tt8: %p\tt9: %p\ts0: %p\ts1: %p\n",
+	    (void *)frame->t8, (void *)frame->t9, (void *)frame->s0, (void *)frame->s1);
 
-	printf("\ts2: %08x\ts3: %08x\ts4: %08x\ts5: %08x\n",
-	    frame->s2, frame->s3, frame->s4, frame->s5);
+	printf("\ts2: %p\ts3: %p\ts4: %p\ts5: %p\n",
+	    (void *)frame->s2, (void *)frame->s3, (void *)frame->s4, (void *)frame->s5);
 
-	printf("\ts6: %08x\ts7: %08x\tk0: %08x\tk1: %08x\n",
-	    frame->s6, frame->s7, frame->k0, frame->k1);
+	printf("\ts6: %p\ts7: %p\tk0: %p\tk1: %p\n",
+	    (void *)frame->s6, (void *)frame->s7, (void *)frame->k0, (void *)frame->k1);
 
-	printf("\tgp: %08x\tsp: %08x\ts8: %08x\tra: %08x\n",
-	    frame->gp, frame->sp, frame->s8, frame->ra);
+	printf("\tgp: %p\tsp: %p\ts8: %p\tra: %p\n",
+	    (void *)frame->gp, (void *)frame->sp, (void *)frame->s8, (void *)frame->ra);
 
-	printf("\tsr: %08x\tmullo: %08x\tmulhi: %08x\tbadvaddr: %08x\n",
-	    frame->sr, frame->mullo, frame->mulhi, frame->badvaddr);
+	printf("\tsr: %p\tmullo: %p\tmulhi: %p\tbadvaddr: %p\n",
+	    (void *)frame->sr, (void *)frame->mullo, (void *)frame->mulhi, (void *)frame->badvaddr);
 
 #ifdef IC_REG
-	printf("\tcause: %08x\tpc: %08x\tic: %08x\n",
-	    frame->cause, frame->pc, frame->ic);
+	printf("\tcause: %p\tpc: %p\tic: %p\n",
+	    (void *)frame->cause, (void *)frame->pc, (void *)frame->ic);
 #else
-	printf("\tcause: %08x\tpc: %08x\n",
-	    frame->cause, frame->pc);
+	printf("\tcause: %p\tpc: %p\n",
+	    (void *)frame->cause, (void *)frame->pc);
 #endif
 }
 
@@ -1666,12 +1666,12 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	}
 
 	pc = frame->pc + (DELAYBRANCH(frame->cause) ? 4 : 0);
-	log(LOG_ERR, "%s: pid %d (%s), uid %d: pc 0x%x got a %s fault at 0x%x\n",
+	log(LOG_ERR, "%s: pid %d (%s), uid %d: pc %p got a %s fault at %p\n",
 	    msg, p->p_pid, p->p_comm,
 	    p->p_ucred ? p->p_ucred->cr_uid : -1,
-	    pc,
+	    (void *)pc,
 	    read_or_write,
-	    frame->badvaddr);
+	    (void *)frame->badvaddr);
 
 	/* log registers in trap frame */
 	log_frame_dump(frame);
@@ -1686,8 +1686,8 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	    (trap_type != T_BUS_ERR_IFETCH) &&
 	    useracc((caddr_t)pc, sizeof(int) * 4, VM_PROT_READ)) {
 		/* dump page table entry for faulting instruction */
-		log(LOG_ERR, "Page table info for pc address 0x%x: pde = %p, pte = 0x%lx\n",
-		    pc, *pdep, ptep ? *ptep : 0);
+		log(LOG_ERR, "Page table info for pc address %p: pde = %p, pte = 0x%lx\n",
+		    (void *)pc, *pdep, ptep ? *ptep : 0);
 
 		addr = (unsigned int *)pc;
 		log(LOG_ERR, "Dumping 4 words starting at pc address %p: \n",
@@ -1695,8 +1695,8 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 		log(LOG_ERR, "%08x %08x %08x %08x\n",
 		    addr[0], addr[1], addr[2], addr[3]);
 	} else {
-		log(LOG_ERR, "pc address 0x%x is inaccessible, pde = 0x%p, pte = 0x%lx\n",
-		    pc, *pdep, ptep ? *ptep : 0);
+		log(LOG_ERR, "pc address %p is inaccessible, pde = 0x%p, pte = 0x%lx\n",
+		    (void *)pc, *pdep, ptep ? *ptep : 0);
 	}
 	/*	panic("Bad trap");*/
 }
@@ -1805,8 +1805,9 @@ emulate_unaligned_access(struct trapframe *frame)
 			else
 				frame->pc += 4;
 
-			log(LOG_INFO, "Unaligned %s: pc=0x%x, badvaddr=0x%x\n",
-			    access_name[access_type - 1], pc, frame->badvaddr);
+			log(LOG_INFO, "Unaligned %s: pc=%p, badvaddr=%p\n",
+			    access_name[access_type - 1], (void *)pc,
+			    (void *)frame->badvaddr);
 		}
 	}
 	return access_type;
