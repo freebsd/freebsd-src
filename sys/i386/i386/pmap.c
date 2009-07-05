@@ -562,17 +562,14 @@ pmap_page_init(vm_page_t m)
 }
 
 #ifdef PAE
-
-static MALLOC_DEFINE(M_PMAPPDPT, "pmap", "pmap pdpt");
-
 static void *
 pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
-	return (contigmalloc(PAGE_SIZE, M_PMAPPDPT, 0, 0x0ULL, 0xffffffffULL,
-	    1, 0));
+	return ((void *)kmem_alloc_contig(kernel_map, bytes, wait, 0x0ULL,
+	    0xffffffffULL, 1, 0, VM_CACHE_DEFAULT));
 }
 #endif
 
