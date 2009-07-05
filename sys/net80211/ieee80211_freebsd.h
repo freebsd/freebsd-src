@@ -100,25 +100,12 @@ typedef struct {
 #define	IEEE80211_NODE_ITERATE_UNLOCK(_nt) \
 	mtx_unlock(IEEE80211_NODE_ITERATE_LOCK_OBJ(_nt))
 
-#define	_AGEQ_ENQUEUE(_ifq, _m, _qlen, _age) do {		\
-	(_m)->m_nextpkt = NULL;					\
-	if ((_ifq)->ifq_tail != NULL) { 			\
-		_age -= M_AGE_GET((_ifq)->ifq_head);		\
-		(_ifq)->ifq_tail->m_nextpkt = (_m);		\
-	} else { 						\
-		(_ifq)->ifq_head = (_m); 			\
-	}							\
-	M_AGE_SET(_m, _age);					\
-	(_ifq)->ifq_tail = (_m); 				\
-	(_qlen) = ++(_ifq)->ifq_len; 				\
-} while (0)
-
 /*
  * Power-save queue definitions. 
  */
 typedef struct mtx ieee80211_psq_lock_t;
 #define	IEEE80211_PSQ_INIT(_psq, _name) \
-	mtx_init(&(_psq)->psq_lock, _name, "802.11 ps q", MTX_DEF);
+	mtx_init(&(_psq)->psq_lock, _name, "802.11 ps q", MTX_DEF)
 #define	IEEE80211_PSQ_DESTROY(_psq)	mtx_destroy(&(_psq)->psq_lock)
 #define	IEEE80211_PSQ_LOCK(_psq)	mtx_lock(&(_psq)->psq_lock)
 #define	IEEE80211_PSQ_UNLOCK(_psq)	mtx_unlock(&(_psq)->psq_lock)
@@ -137,24 +124,16 @@ typedef struct mtx ieee80211_psq_lock_t;
 	IF_UNLOCK(ifq);						\
 } while (0)
 #endif /* IF_PREPEND_LIST */
-
-/* XXX temporary */
-#define	IEEE80211_NODE_WDSQ_INIT(_ni, _name) do {		\
-	mtx_init(&(_ni)->ni_wdsq.ifq_mtx, _name, "802.11 wds queue", MTX_DEF);\
-	(_ni)->ni_wdsq.ifq_maxlen = IEEE80211_PS_MAX_QUEUE;	\
-} while (0)
-#define	IEEE80211_NODE_WDSQ_DESTROY(_ni) do { \
-	mtx_destroy(&(_ni)->ni_wdsq.ifq_mtx); \
-} while (0)
-#define	IEEE80211_NODE_WDSQ_QLEN(_ni)	_IF_QLEN(&(_ni)->ni_wdsq)
-#define	IEEE80211_NODE_WDSQ_LOCK(_ni)	IF_LOCK(&(_ni)->ni_wdsq)
-#define	IEEE80211_NODE_WDSQ_UNLOCK(_ni)	IF_UNLOCK(&(_ni)->ni_wdsq)
-#define	_IEEE80211_NODE_WDSQ_DEQUEUE_HEAD(_ni, _m) do {		\
-	_IF_DEQUEUE(&(_ni)->ni_wdsq, m);			\
-} while (0)
-#define	_IEEE80211_NODE_WDSQ_ENQUEUE(_ni, _m, _qlen, _age) do {	\
-	_AGEQ_ENQUEUE(&ni->ni_wdsq, _m, _qlen, _age);		\
-} while (0)
+ 
+/*
+ * Age queue definitions.
+ */
+typedef struct mtx ieee80211_ageq_lock_t;
+#define	IEEE80211_AGEQ_INIT(_aq, _name) \
+	mtx_init(&(_aq)->aq_lock, _name, "802.11 age q", MTX_DEF)
+#define	IEEE80211_AGEQ_DESTROY(_aq)	mtx_destroy(&(_aq)->aq_lock)
+#define	IEEE80211_AGEQ_LOCK(_aq)	mtx_lock(&(_aq)->aq_lock)
+#define	IEEE80211_AGEQ_UNLOCK(_aq)	mtx_unlock(&(_aq)->aq_lock)
 
 /*
  * 802.1x MAC ACL database locking definitions.
