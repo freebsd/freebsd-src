@@ -452,8 +452,8 @@ print_kshmptr(int i, int option, struct shmid_kernel *kshmptr)
 		    kshmptr->u.shm_nattch);
 
 	if (option & BIGGEST)
-		printf(" %12d",
-		    kshmptr->u.shm_segsz);
+		printf(" %12zu",
+		    kshmptr->shm_bsegsz);
 
 	if (option & PID)
 		printf(" %12d %12d",
