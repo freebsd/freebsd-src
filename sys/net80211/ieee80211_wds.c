@@ -97,6 +97,28 @@ wds_vattach(struct ieee80211vap *vap)
 	vap->iv_opdetach = wds_vdetach;
 }
 
+static void
+wds_flush(struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct mbuf *m, *next;
+	int8_t rssi, nf;
+
+	m = ieee80211_ageq_remove(&ic->ic_stageq,
+	    (void *)(uintptr_t) ieee80211_mac_hash(ic, ni->ni_macaddr));
+	if (m == NULL)
+		return;
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_WDS, ni,
+	    "%s", "flush wds queue");
+	ic->ic_node_getsignal(ni, &rssi, &nf);
+	for (; m != NULL; m = next) {
+		next = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		ieee80211_input(ni, m, rssi, nf);
+	}
+}
+
 static int
 ieee80211_create_wds(struct ieee80211vap *vap, struct ieee80211_channel *chan)
 {
@@ -195,26 +217,10 @@ ieee80211_create_wds(struct ieee80211vap *vap, struct ieee80211_channel *chan)
 	}
 
 	/*
-	 * Flush pending frames now that were setup.
+	 * Flush any pending frames now that were setup.
 	 */
-	if (ni != NULL && IEEE80211_NODE_WDSQ_QLEN(ni) != 0) {
-		int8_t rssi, nf;
-
-		IEEE80211_NOTE(vap, IEEE80211_MSG_WDS, ni,
-		    "flush wds queue, %u packets queued",
-		    IEEE80211_NODE_WDSQ_QLEN(ni));
-		ic->ic_node_getsignal(ni, &rssi, &nf);
-		for (;;) {
-			struct mbuf *m;
-
-			IEEE80211_NODE_WDSQ_LOCK(ni);
-			_IEEE80211_NODE_WDSQ_DEQUEUE_HEAD(ni, m);
-			IEEE80211_NODE_WDSQ_UNLOCK(ni);
-			if (m == NULL)
-				break;
-			ieee80211_input(ni, m, rssi, nf);
-		}
-	}
+	if (ni != NULL)
+		wds_flush(ni);
 	return (ni == NULL ? ENOENT : 0);
 }
 
@@ -310,88 +316,21 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 void
 ieee80211_dwds_discover(struct ieee80211_node *ni, struct mbuf *m)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	int qlen, age;
 
-	IEEE80211_NODE_WDSQ_LOCK(ni);
-	if (!_IF_QFULL(&ni->ni_wdsq)) {
-		/*
-		 * Tag the frame with it's expiry time and insert
-		 * it in the queue.  The aging interval is 4 times
-		 * the listen interval specified by the station. 
-		 * Frames that sit around too long are reclaimed
-		 * using this information.
-		 */
-		/* XXX handle overflow? */
-		/* XXX per/vap beacon interval? */
-		/* NB: TU -> secs */
-		age = ((ni->ni_intval * ic->ic_lintval) << 2) / 1024;
-		_IEEE80211_NODE_WDSQ_ENQUEUE(ni, m, qlen, age);
-		IEEE80211_NODE_WDSQ_UNLOCK(ni);
-
-		IEEE80211_NOTE(vap, IEEE80211_MSG_WDS, ni,
-		    "save frame, %u now queued", qlen);
-	} else {
-		vap->iv_stats.is_dwds_qdrop++;
-		_IF_DROP(&ni->ni_wdsq);
-		IEEE80211_NODE_WDSQ_UNLOCK(ni);
-
-		IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT | IEEE80211_MSG_WDS,
-		    mtod(m, struct ieee80211_frame *), "wds data",
-		    "pending q overflow, drops %d (len %d)",
-		    ni->ni_wdsq.ifq_drops, ni->ni_wdsq.ifq_len);
-
-#ifdef IEEE80211_DEBUG
-		if (ieee80211_msg_dumppkts(vap))
-			ieee80211_dump_pkt(ic, mtod(m, caddr_t),
-			    m->m_len, -1, -1);
-#endif
-		/* XXX tail drop? */
-		m_freem(m);
-	}
+	/*
+	 * Save the frame with an aging interval 4 times
+	 * the listen interval specified by the station. 
+	 * Frames that sit around too long are reclaimed
+	 * using this information.
+	 * XXX handle overflow?
+	 * XXX per/vap beacon interval?
+	 */
+	m->m_pkthdr.rcvif = (void *)(uintptr_t)
+	    ieee80211_mac_hash(ic, ni->ni_macaddr);
+	(void) ieee80211_ageq_append(&ic->ic_stageq, m,
+	    ((ni->ni_intval * ic->ic_lintval) << 2) / 1024);
 	ieee80211_notify_wds_discover(ni);
-}
-
-/*
- * Age frames on the WDS pending queue. The aging interval is
- * 4 times the listen interval specified by the station.  This
- * number is factored into the age calculations when the frame
- * is placed on the queue.  We store ages as time differences
- * so we can check and/or adjust only the head of the list.
- * If a frame's age exceeds the threshold then discard it.
- * The number of frames discarded is returned to the caller.
- */
-int
-ieee80211_node_wdsq_age(struct ieee80211_node *ni)
-{
-#ifdef IEEE80211_DEBUG
-	struct ieee80211vap *vap = ni->ni_vap;
-#endif
-	struct mbuf *m;
-	int discard = 0;
-
-	IEEE80211_NODE_WDSQ_LOCK(ni);
-	while (_IF_POLL(&ni->ni_wdsq, m) != NULL &&
-	     M_AGE_GET(m) < IEEE80211_INACT_WAIT) {
-		IEEE80211_NOTE(vap, IEEE80211_MSG_WDS, ni,
-			"discard frame, age %u", M_AGE_GET(m));
-
-		/* XXX could be optimized */
-		_IEEE80211_NODE_WDSQ_DEQUEUE_HEAD(ni, m);
-		m_freem(m);
-		discard++;
-	}
-	if (m != NULL)
-		M_AGE_SUB(m, IEEE80211_INACT_WAIT);
-	IEEE80211_NODE_WDSQ_UNLOCK(ni);
-
-	IEEE80211_NOTE(vap, IEEE80211_MSG_WDS, ni,
-	    "discard %u frames for age", discard);
-#if 0
-	IEEE80211_NODE_STAT_ADD(ni, wds_discard, discard);
-#endif
-	return discard;
 }
 
 /*

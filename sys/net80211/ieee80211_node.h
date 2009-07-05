@@ -193,8 +193,6 @@ struct ieee80211_node {
 	struct ieee80211_nodestats ni_stats;	/* per-node statistics */
 
 	struct ieee80211vap	*ni_wdsvap;	/* associated WDS vap */
-	/* XXX move to vap? */
-	struct ifqueue		ni_wdsq;	/* wds pending queue */
 	uint64_t		ni_spare[4];
 };
 MALLOC_DECLARE(M_80211_NODE);
