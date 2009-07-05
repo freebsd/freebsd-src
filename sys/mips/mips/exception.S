@@ -272,7 +272,7 @@ SlowFault:
 	and     a0, a0, a2              ; \
 	mtc0	a0, COP_0_STATUS_REG
 #endif
-
+	
 #define	SAVE_CPU \
 	SAVE_REG(AT, AST, sp)		;\
 	.set	at		        ; \
@@ -286,10 +286,10 @@ SlowFault:
 	SAVE_REG(t1, T1, sp)		;\
 	SAVE_REG(t2, T2, sp)		;\
 	SAVE_REG(t3, T3, sp)		;\
-	SAVE_REG(t4, T4, sp)		;\
-	SAVE_REG(t5, T5, sp)		;\
-	SAVE_REG(t6, T6, sp)		;\
-	SAVE_REG(t7, T7, sp)		;\
+	SAVE_REG(ta0, TA0, sp)		;\
+	SAVE_REG(ta1, TA1, sp)		;\
+	SAVE_REG(ta2, TA2, sp)		;\
+	SAVE_REG(ta3, TA3, sp)		;\
 	SAVE_REG(t8, T8, sp)		;\
 	SAVE_REG(t9, T9, sp)		;\
 	SAVE_REG(gp, GP, sp)		;\
@@ -332,7 +332,7 @@ SlowFault:
 	mtlo	t0			;\
 	mthi	t1			;\
 	_MTC0	v0, COP_0_EXC_PC	;\
-	.set noat		        ; \
+	.set noat		        ;\
 	RESTORE_REG(AT, AST, sp)	;\
 	RESTORE_REG(v0, V0, sp)		;\
 	RESTORE_REG(v1, V1, sp)		;\
@@ -344,10 +344,10 @@ SlowFault:
 	RESTORE_REG(t1, T1, sp)		;\
 	RESTORE_REG(t2, T2, sp)		;\
 	RESTORE_REG(t3, T3, sp)		;\
-	RESTORE_REG(t4, T4, sp)		;\
-	RESTORE_REG(t5, T5, sp)		;\
-	RESTORE_REG(t6, T6, sp)		;\
-	RESTORE_REG(t7, T7, sp)		;\
+	RESTORE_REG(ta0, TA0, sp)	;\
+	RESTORE_REG(ta1, TA1, sp)	;\
+	RESTORE_REG(ta2, TA2, sp)	;\
+	RESTORE_REG(ta3, TA3, sp)	;\
 	RESTORE_REG(t8, T8, sp)		;\
 	RESTORE_REG(t9, T9, sp)		;\
 	RESTORE_REG(s0, S0, sp)		;\
@@ -451,11 +451,11 @@ NNON_LEAF(MipsUserGenException, STAND_FRAME_SIZE, ra)
 	SAVE_U_PCB_REG(t1, T1, k1)
 	SAVE_U_PCB_REG(t2, T2, k1)
 	SAVE_U_PCB_REG(t3, T3, k1)
-	SAVE_U_PCB_REG(t4, T4, k1)
+	SAVE_U_PCB_REG(ta0, TA0, k1)
 	mfc0	a0, COP_0_STATUS_REG		# First arg is the status reg.
-	SAVE_U_PCB_REG(t5, T5, k1)
-	SAVE_U_PCB_REG(t6, T6, k1)
-	SAVE_U_PCB_REG(t7, T7, k1)
+	SAVE_U_PCB_REG(ta1, TA1, k1)
+	SAVE_U_PCB_REG(ta2, TA2, k1)
+	SAVE_U_PCB_REG(ta3, TA3, k1)
 	SAVE_U_PCB_REG(s0, S0, k1)
 	mfc0	a1, COP_0_CAUSE_REG		# Second arg is the cause reg.
 	SAVE_U_PCB_REG(s1, S1, k1)
@@ -548,10 +548,10 @@ NNON_LEAF(MipsUserGenException, STAND_FRAME_SIZE, ra)
 	RESTORE_U_PCB_REG(t1, T1, k1)
 	RESTORE_U_PCB_REG(t2, T2, k1)
 	RESTORE_U_PCB_REG(t3, T3, k1)
-	RESTORE_U_PCB_REG(t4, T4, k1)
-	RESTORE_U_PCB_REG(t5, T5, k1)
-	RESTORE_U_PCB_REG(t6, T6, k1)
-	RESTORE_U_PCB_REG(t7, T7, k1)
+	RESTORE_U_PCB_REG(ta0, TA0, k1)
+	RESTORE_U_PCB_REG(ta1, TA1, k1)
+	RESTORE_U_PCB_REG(ta2, TA2, k1)
+	RESTORE_U_PCB_REG(ta3, TA3, k1)
 	RESTORE_U_PCB_REG(s0, S0, k1)
 	RESTORE_U_PCB_REG(s1, S1, k1)
 	RESTORE_U_PCB_REG(s2, S2, k1)
@@ -684,10 +684,10 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 	SAVE_U_PCB_REG(t1, T1, k1)
 	SAVE_U_PCB_REG(t2, T2, k1)
 	SAVE_U_PCB_REG(t3, T3, k1)
-	SAVE_U_PCB_REG(t4, T4, k1)
-	SAVE_U_PCB_REG(t5, T5, k1)
-	SAVE_U_PCB_REG(t6, T6, k1)
-	SAVE_U_PCB_REG(t7, T7, k1)
+	SAVE_U_PCB_REG(ta0, TA0, k1)
+	SAVE_U_PCB_REG(ta1, TA1, k1)
+	SAVE_U_PCB_REG(ta2, TA2, k1)
+	SAVE_U_PCB_REG(ta3, TA3, k1)
 	SAVE_U_PCB_REG(t8, T8, k1)
 	SAVE_U_PCB_REG(t9, T9, k1)
 	SAVE_U_PCB_REG(gp, GP, k1)
@@ -790,10 +790,10 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 	RESTORE_U_PCB_REG(t1, T1, k1)
 	RESTORE_U_PCB_REG(t2, T2, k1)
 	RESTORE_U_PCB_REG(t3, T3, k1)
-	RESTORE_U_PCB_REG(t4, T4, k1)
-	RESTORE_U_PCB_REG(t5, T5, k1)
-	RESTORE_U_PCB_REG(t6, T6, k1)
-	RESTORE_U_PCB_REG(t7, T7, k1)
+	RESTORE_U_PCB_REG(ta0, TA0, k1)
+	RESTORE_U_PCB_REG(ta1, TA1, k1)
+	RESTORE_U_PCB_REG(ta2, TA2, k1)
+	RESTORE_U_PCB_REG(ta3, TA3, k1)
 	RESTORE_U_PCB_REG(t8, T8, k1)
 	RESTORE_U_PCB_REG(t9, T9, k1)
 	RESTORE_U_PCB_REG(gp, GP, k1)
