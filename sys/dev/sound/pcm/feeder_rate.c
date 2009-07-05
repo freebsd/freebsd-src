@@ -527,7 +527,7 @@ z_feed_linear_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)		\
 	z &= Z_MASK;							\
 	coeff = Z_COEFF_INTERPOLATE(z, z_coeff[c], z_dcoeff[c]);	\
 	x = _PCM_READ_##SIGN##BIT##_##ENDIAN(p);			\
-	v += (intpcm64_t)x * coeff;					\
+	v += Z_NORM_##BIT((intpcm64_t)x * coeff);			\
 	z += info->z_dy;						\
 	p adv##= info->channels * PCM_##BIT##_BPS
 
@@ -582,7 +582,7 @@ z_feed_sinc_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)		\
 		if (info->z_scale != Z_ONE)					\
 			v = Z_SCALE_##BIT(v, info->z_scale);			\
 		else								\
-			v >>= Z_COEFF_SHIFT;					\
+			v >>= Z_COEFF_SHIFT - Z_GUARD_BIT_##BIT;		\
 		Z_CLIP_CHECK(v, BIT);						\
 		_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, Z_CLAMP(v, BIT));	\
 	} while (ch != 0);							\
@@ -610,18 +610,18 @@ z_feed_sinc_polyphase_##SIGN##BIT##ENDIAN(struct z_info *info, uint8_t *dst)	\
 		    ((info->z_alpha * info->z_size) << 1);			\
 		for (i = info->z_size; i != 0; i--) {				\
 			x = _PCM_READ_##SIGN##BIT##_##ENDIAN(p);		\
-			v += (intpcm64_t)x * *z_pcoeff;				\
+			v += Z_NORM_##BIT((intpcm64_t)x * *z_pcoeff);		\
 			z_pcoeff++;						\
 			p += info->channels * PCM_##BIT##_BPS;			\
 			x = _PCM_READ_##SIGN##BIT##_##ENDIAN(p);		\
-			v += (intpcm64_t)x * *z_pcoeff;				\
+			v += Z_NORM_##BIT((intpcm64_t)x * *z_pcoeff);		\
 			z_pcoeff++;						\
 			p += info->channels * PCM_##BIT##_BPS;			\
 		}								\
 		if (info->z_scale != Z_ONE)					\
 			v = Z_SCALE_##BIT(v, info->z_scale);			\
 		else								\
-			v >>= Z_COEFF_SHIFT;					\
+			v >>= Z_COEFF_SHIFT - Z_GUARD_BIT_##BIT;		\
 		Z_CLIP_CHECK(v, BIT);						\
 		_PCM_WRITE_##SIGN##BIT##_##ENDIAN(dst, Z_CLAMP(v, BIT));	\
 	} while (ch != 0);							\
@@ -882,7 +882,7 @@ z_coeff_interpolate(int32_t z, int32_t *z_coeff)
 	zoo2 = z_coeff[2] - z_coeff[-1];
 	zoo3 = z_coeff[3] - z_coeff[-2];
 
-	zoc0 = (((0x1ac2260dLL * zoe1)) >> 30) +
+	zoc0 = ((0x1ac2260dLL * zoe1) >> 30) +
 	    ((0x0526cdcaLL * zoe2) >> 30) + ((0x00170c29LL * zoe3) >> 30);
 	zoc1 = ((0x14f8a49aLL * zoo1) >> 30) +
 	    ((0x0d6d1109LL * zoo2) >> 30) + ((0x008cd4dcLL * zoo3) >> 30);
@@ -911,7 +911,7 @@ z_coeff_interpolate(int32_t z, int32_t *z_coeff)
 	zoo2 = z_coeff[2] - z_coeff[-1];
 	zoo3 = z_coeff[3] - z_coeff[-2];
 
-	zoc0 = (((0x1ac2260dLL * zoe1)) >> 30) +
+	zoc0 = ((0x1ac2260dLL * zoe1) >> 30) +
 	    ((0x0526cdcaLL * zoe2) >> 30) + ((0x00170c29LL * zoe3) >> 30);
 	zoc1 = ((0x14f8a49aLL * zoo1) >> 30) +
 	    ((0x0d6d1109LL * zoo2) >> 30) + ((0x008cd4dcLL * zoo3) >> 30);
@@ -940,7 +940,7 @@ z_coeff_interpolate(int32_t z, int32_t *z_coeff)
 	zoo2 = z_coeff[2] - z_coeff[-1];
 	zoo3 = z_coeff[3] - z_coeff[-2];
 
-	zoc0 = (((0x1aa9b47dLL * zoe1)) >> 30) +
+	zoc0 = ((0x1aa9b47dLL * zoe1) >> 30) +
 	    ((0x053d9944LL * zoe2) >> 30) + ((0x0018b23fLL * zoe3) >> 30);
 	zoc1 = ((0x14a104d1LL * zoo1) >> 30) +
 	    ((0x0d7d2504LL * zoo2) >> 30) + ((0x0094b599LL * zoo3) >> 30);
@@ -969,7 +969,7 @@ z_coeff_interpolate(int32_t z, int32_t *z_coeff)
 	zoo2 = z_coeff[2] - z_coeff[-1];
 	zoo3 = z_coeff[3] - z_coeff[-2];
 
-	zoc0 = (((0x1a8eda43LL * zoe1)) >> 30) +
+	zoc0 = ((0x1a8eda43LL * zoe1) >> 30) +
 	    ((0x0556ee38LL * zoe2) >> 30) + ((0x001a3784LL * zoe3) >> 30);
 	zoc1 = ((0x143d863eLL * zoo1) >> 30) +
 	    ((0x0d910e36LL * zoo2) >> 30) + ((0x009ca889LL * zoo3) >> 30);
@@ -998,7 +998,7 @@ z_coeff_interpolate(int32_t z, int32_t *z_coeff)
 	zoo2 = z_coeff[2] - z_coeff[-1];
 	zoo3 = z_coeff[3] - z_coeff[-2];
 
-	zoc0 = (((0x19edb6fdLL * zoe1)) >> 30) +
+	zoc0 = ((0x19edb6fdLL * zoe1) >> 30) +
 	    ((0x05ebd062LL * zoe2) >> 30) + ((0x00267881LL * zoe3) >> 30);
 	zoc1 = ((0x1223af76LL * zoo1) >> 30) +
 	    ((0x0de3dd6bLL * zoo2) >> 30) + ((0x00d683cdLL * zoo3) >> 30);
