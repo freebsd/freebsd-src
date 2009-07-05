@@ -39,7 +39,7 @@
 /*
  * Miscellaneous machine-dependent declarations.
  */
-extern	int	Maxmem;
+extern	long	Maxmem;
 extern	char	sigcode[];
 extern	int	szsigcode, szosigcode;
 
@@ -52,6 +52,7 @@ u_int	MipsEmulateBranch(struct trapframe *, int, int, u_int);
 u_long	kvtop(void *addr);
 int	is_physical_memory(vm_offset_t addr);
 int	is_cacheable_mem(vm_offset_t pa);
+int	is_coherent_mem(vm_offset_t pa);
 
 #define	MIPS_DEBUG   0
 
