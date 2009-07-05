@@ -138,7 +138,11 @@ VECTOR(_locore, unknown)
 	mtc0	t2, COP_0_STATUS_REG
 	COP0_SYNC
 	/* Make sure KSEG0 is cached */
+#ifdef CPU_SB1
+	li	t0, CFG_K0_COHERENT
+#else
 	li	t0, CFG_K0_CACHED
+#endif
 	mtc0	t0, MIPS_COP_0_CONFIG
 	COP0_SYNC
 
@@ -164,8 +168,8 @@ VECTOR(_locore, unknown)
 /*
  * Initialize stack and call machine startup.
  */
-	la	sp, _C_LABEL(topstack) - START_FRAME
-	la	gp, _C_LABEL(_gp)
+	PTR_LA	sp, _C_LABEL(topstack) - START_FRAME
+	PTR_LA	gp, _C_LABEL(_gp)
 	sw	zero, START_FRAME - 4(sp)  # Zero out old ra for debugger
 
 	/*xxximp
@@ -187,7 +191,7 @@ VECTOR(_locore, unknown)
 no_cfe:
 #endif
 #if defined(TARGET_OCTEON)
-	la	a0, app_descriptor_addr
+	PTR_LA	a0, app_descriptor_addr
 	sw	a3, 0(a0)		/* Store app descriptor ptr */
 #endif
 
@@ -232,7 +236,7 @@ no_cfe:
 	nop
 
 #ifdef SMP
-	la	t0, _C_LABEL(__pcpu)
+	PTR_LA	t0, _C_LABEL(__pcpu)
 	SET_CPU_PCPU(t0)
 	/* If not master cpu, jump... */
 /*XXX this assumes the above #if 0'd code runs */
@@ -244,7 +248,7 @@ no_cfe:
 	jal	_C_LABEL(platform_start)
 	sw	zero, START_FRAME - 8(sp)	# Zero out old fp for debugger
 
-	la      sp, _C_LABEL(thread0)
+	PTR_LA	sp, _C_LABEL(thread0)
 	lw      a0, TD_PCB(sp)
 	li	t0, ~7
 	and	a0, a0, t0
