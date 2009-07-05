@@ -144,7 +144,8 @@ static void	mwl_tx_proc(void *, int);
 static int	mwl_chan_set(struct mwl_softc *, struct ieee80211_channel *);
 static void	mwl_draintxq(struct mwl_softc *);
 static void	mwl_cleartxq(struct mwl_softc *, struct ieee80211vap *);
-static void	mwl_recv_action(struct ieee80211_node *,
+static int	mwl_recv_action(struct ieee80211_node *,
+			const struct ieee80211_frame *,
 			const uint8_t *, const uint8_t *);
 static int	mwl_addba_request(struct ieee80211_node *,
 			struct ieee80211_tx_ampdu *, int dialogtoken,
@@ -3656,8 +3657,9 @@ mwl_cleartxq(struct mwl_softc *sc, struct ieee80211vap *vap)
 	}
 }
 
-static void
-mwl_recv_action(struct ieee80211_node *ni, const uint8_t *frm, const uint8_t *efrm)
+static int
+mwl_recv_action(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
+	const uint8_t *frm, const uint8_t *efrm)
 {
 	struct mwl_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	const struct ieee80211_action *ia;
@@ -3671,8 +3673,9 @@ mwl_recv_action(struct ieee80211_node *ni, const uint8_t *frm, const uint8_t *ef
 		mwl_hal_setmimops(sc->sc_mh, ni->ni_macaddr,
 		    mps->am_control & IEEE80211_A_HT_MIMOPWRSAVE_ENA,
 		    MS(mps->am_control, IEEE80211_A_HT_MIMOPWRSAVE_MODE));
+		return 0;
 	} else
-		sc->sc_recv_action(ni, frm, efrm);
+		return sc->sc_recv_action(ni, wh, frm, efrm);
 }
 
 static int
