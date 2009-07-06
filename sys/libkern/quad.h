@@ -94,7 +94,7 @@ union uu {
  * (sizeof(long)*CHAR_BIT/2).
  */
 #define	HHALF(x)	((x) >> HALF_BITS)
-#define	LHALF(x)	((x) & ((1 << HALF_BITS) - 1))
+#define	LHALF(x)	((x) & ((1UL << HALF_BITS) - 1))
 #define	LHUP(x)		((x) << HALF_BITS)
 
 typedef unsigned int	qshift_t;
