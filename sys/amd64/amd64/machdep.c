@@ -100,8 +100,9 @@ __FBSDID("$FreeBSD$");
 #ifndef KDB
 #error KDB must be enabled in order for DDB to work!
 #endif
-#endif
 #include <ddb/ddb.h>
+#include <ddb/db_sym.h>
+#endif
 
 #include <net/netisr.h>
 
@@ -1082,6 +1083,30 @@ extern inthand_t
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
 	IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
+
+#ifdef DDB
+/*
+ * Display the index and function name of any IDT entries that don't use
+ * the default 'rsvd' entry point.
+ */
+DB_SHOW_COMMAND(idt, db_show_idt)
+{
+	struct gate_descriptor *ip;
+	int idx;
+	uintptr_t func;
+
+	ip = idt;
+	for (idx = 0; idx < NIDT && !db_pager_quit; idx++) {
+		func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
+		if (func != (uintptr_t)&IDTVEC(rsvd)) {
+			db_printf("%3d\t", idx);
+			db_printsym(func, DB_STGY_PROC);
+			db_printf("\n");
+		}
+		ip++;
+	}
+}
+#endif
 
 void
 sdtossd(sd, ssd)
