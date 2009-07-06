@@ -66,8 +66,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-__asm(".set mips32");
-
 static int picache_size;
 static int picache_stride;
 static int picache_loopcount;
