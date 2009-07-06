@@ -423,7 +423,7 @@ static inline octeon_wqe_t *octeon_pow_work_request_sync_nocheck (octeon_pow_wai
     if (result.s_work.no_work || !result.s_work.addr) {
         return NULL;
     }
-    return (octeon_wqe_t *) OCTEON_PHYS2PTR(result.s_work.addr);
+    return (octeon_wqe_t *) MIPS_PHYS_TO_KSEG0(result.s_work.addr);
 }
 
 static inline octeon_wqe_t *octeon_pow_work_request_sync_nocheck_debug (octeon_pow_wait_t wait)
@@ -440,13 +440,14 @@ static inline octeon_wqe_t *octeon_pow_work_request_sync_nocheck_debug (octeon_p
     result.word64 = oct_read64(ptr.word64);
 
     printf("WQE Result: 0x%llX  No-work %X   Addr %llX  Ptr: %p\n",
-           result.word64,  result.s_work.no_work, (uint64_t)result.s_work.addr,
-	   OCTEON_PHYS2PTR(result.s_work.addr));
+	(unsigned long long)result.word64,  result.s_work.no_work,
+	(unsigned long long)result.s_work.addr,
+	(void *)MIPS_PHYS_TO_KSEG0(result.s_work.addr));
 
     if (result.s_work.no_work || !result.s_work.addr) {
         return NULL;
     }
-    return (octeon_wqe_t *) OCTEON_PHYS2PTR(result.s_work.addr);
+    return (octeon_wqe_t *) MIPS_PHYS_TO_KSEG0(result.s_work.addr);
 }
 
 static inline octeon_wqe_t *octeon_pow_work_request_sync (octeon_pow_wait_t wait)
@@ -482,7 +483,7 @@ static inline octeon_wqe_t *octeon_pow_work_response_async(int scratch_addr)
     if (result.s_work.no_work) {
         return NULL;
     }
-    return (octeon_wqe_t*) OCTEON_PHYS2PTR(result.s_work.addr);
+    return (octeon_wqe_t*) MIPS_PHYS_TO_KSEG0(result.s_work.addr);
 }
 
 
@@ -493,16 +494,12 @@ static inline octeon_wqe_t *octeon_pow_work_response_async(int scratch_addr)
  */
 static inline void *octeon_pow_pktptr_to_kbuffer (octeon_buf_ptr_t pkt_ptr)
 {
-    return (OCTEON_PHYS2PTR(((pkt_ptr.bits.addr >> 7) - pkt_ptr.bits.back) << 7));
+    return ((void *)MIPS_PHYS_TO_KSEG0(
+	((pkt_ptr.bits.addr >> 7) - pkt_ptr.bits.back) << 7));
 }
-
-
-
 
 #define INTERFACE(port) (port >> 4) /* Ports 0-15 are interface 0, 16-31 are interface 1 */
 #define INDEX(port) (port & 0xf)
-
-
 
 
 #define  OCTEON_RGMX_PRTX_CFG(index,interface)	(0x8001180008000010ull+((index)*2048)+((interface)*0x8000000ull))

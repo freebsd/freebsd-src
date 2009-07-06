@@ -168,7 +168,7 @@ static inline void octeon_fpa_free (void *ptr, u_int pool,
 {
     octeon_addr_t free_ptr;
 
-    free_ptr.word64 = (uint64_t) OCTEON_PTR2PHYS(ptr);
+    free_ptr.word64 = (uint64_t)OCTEON_PTR2PHYS(ptr);
 
     free_ptr.sfilldidspace.didspace = OCTEON_ADDR_DIDSPACE(
         OCTEON_ADDR_FULL_DID(OCTEON_DID_FPA, pool));
@@ -200,15 +200,14 @@ static inline void *octeon_fpa_alloc (u_int pool)
 /*
  * 32 bit FPA pointers only
  */
-
         /*
          * We only use 32 bit pointers at this time
          */
-        return ((void *) OCTEON_PHYS2PTR(address & 0xffffffff));
+/*XXX mips64 issue */
+        return ((void *) MIPS_PHYS_TO_KSEG0(address & 0xffffffff));
     }
     return (NULL);
 }
-
 
 static inline uint64_t octeon_fpa_alloc_phys (u_int pool)
 {
@@ -216,31 +215,5 @@ static inline uint64_t octeon_fpa_alloc_phys (u_int pool)
     return (oct_read64(OCTEON_ADDR_DID(OCTEON_ADDR_FULL_DID(OCTEON_DID_FPA,
                                                             pool))));
 }
-
-
-#if 0
-
-/*
- * octeon_fpa_alloc
- *
- * Allocate a new block from the FPA
- *
- * Buffer passes away from FPA management to SW control
- */
-static inline void *octeon_fpa_alloc (u_int pool)
-{
-    uint64_t address;
-
-    address = oct_read64(OCTEON_ADDR_DID(OCTEON_ADDR_FULL_DID(OCTEON_DID_FPA,
-                                                              pool)));
-    if (address) {
-        return ((void *) (oct_ptr_size) OCTEON_PHYS2PTR(address));
-    }
-    return (NULL);
-}
-
-#endif
-
-
 
 #endif /* ___OCTEON_FPA__H___ */
