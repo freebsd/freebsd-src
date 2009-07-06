@@ -538,17 +538,6 @@ typedef enum {
  * We limit the allocated device physical blocks to low mem. So use Kseg0
  */
 
-#ifndef AVOID_CODE_NOT_64_BIT    /*  #ifdef PTR_SIZE == sizeof(u_int32) */
-//#define OCTEON_PHYS2PTR(addr)  ((void *) (((uint32_t) addr)    | 0x80000000))
-#define OCTEON_PHYS2PTR(addr)  ((void *) (((vm_offset_t) addr) | MIPS_KSEG0_START))
-#endif
-
-#ifdef IN_FUTURE_64_BIT
-#ifdef PTR_SIZE == sizeof(u_int64)
-#define OCTEON_PHYS2PTR(addr)  ((void *) (((uint64_t) addr) | (1ul << 63))
-#endif
-#endif
-
 /*
  * Need to go back to kernel to find v->p mappings & vice-versa
  * We are getting non 1-1 mappings.
@@ -560,17 +549,14 @@ typedef enum {
 
 /*  PTR_SIZE == sizeof(uint32_t)  */
 
+#if 0
 #define mipsx_addr_size				uint32_t	// u_int64
 #define MIPSX_ADDR_SIZE_KSEGX_BIT_SHIFT		30		// 62
 #define MIPSX_ADDR_SIZE_KSEGX_MASK_REMOVED	0x1fffffff	// 0x1fffffff
-
-
-#ifdef CODE_FOR_64_BIT_NEEDED
-#ifdef PTR_SIZE == sizeof(uint64_t)
+#else
 #define mipsx_addr_size				uint64_t
 #define MIPSX_ADDR_SIZE_KSEGX_BIT_SHIFT		62
-#define MIPSX_ADDR_SIZE_KSEGX_MASK_REMOVED	0x1fffffff ffff ffff
-#endif
+#define MIPSX_ADDR_SIZE_KSEGX_MASK_REMOVED	0x1fffffffffffffff
 #endif
 
 
@@ -1071,11 +1057,6 @@ typedef union {
 #define OCTEON_GENTIMER_LEN_1MS		(0x7a120ull)   /* Back of envelope. 500Mhz Octeon */ // FIXME IF WRONG
 #define OCTEON_GENTIMER_LEN_1SEC	((OCTEON_GENTIMER_LEN_1MS) * 1000)
 
-
-
-
-
-
 /*
  * Physical Memory Banks
  */
@@ -1095,18 +1076,4 @@ typedef union {
 #define OCTEON_DRAM_ABOVE_512_END	(0x0000000300000000ull - 1ull)  /* To be calculated as remaining */
 #define OCTEON_DRAM_THIRD_BANK_SIZE	(OCTEON_DRAM_ABOVE_512_END - OCTEON_DRAM_ABOVE_512_START + 1ull)
 
-
-/*
- * Mips  Address Range conversions
- */
-#define PHY_TO_KSEG1(x)    ((x)+0xA0000000)
-#define PHY_TO_KSEG0(x)    ((x)+0x80000000)
-#define PHY_ADDR(x)        ((x)&0x1FFFFFFF)
-#define ROM_OFFSET(x)      ((x)&0x000FFFFF)
-#define KSEG1_TO_KSEG0(x)  ((x)-0x20000000)
-
-
-
-
 #endif /* !OCTEON_PCMAP_REGS_H__ */
-
