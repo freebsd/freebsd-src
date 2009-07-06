@@ -693,7 +693,7 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		printf("%s: ucomwritecb: %s\n",
 		       device_get_nameunit(sc->sc_dev), usbd_errstr(status));
 		if (status == USBD_STALLED)
-			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
+			usbd_clear_endpoint_stall_async(sc->sc_bulkout_pipe);
 		/* XXX we should restart after some delay. */
 		goto error;
 	}
