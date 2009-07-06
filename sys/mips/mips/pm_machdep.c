@@ -230,13 +230,13 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 /* #ifdef DEBUG */
 	if (ucp->uc_mcontext.mc_regs[ZERO] != UCONTEXT_MAGIC) {
 		printf("sigreturn: pid %d, ucp %p\n", p->p_pid, ucp);
-		printf("  old sp %x ra %x pc %x\n",
-		    regs->sp, regs->ra, regs->pc);
-		printf("  new sp %x ra %x pc %x z %x\n",
-		    ucp->uc_mcontext.mc_regs[SP],
-		    ucp->uc_mcontext.mc_regs[RA],
-		    ucp->uc_mcontext.mc_regs[PC],
-		    ucp->uc_mcontext.mc_regs[ZERO]);
+		printf("  old sp %p ra %p pc %p\n",
+		    (void *)regs->sp, (void *)regs->ra, (void *)regs->pc);
+		printf("  new sp %p ra %p pc %p z %p\n",
+		    (void *)ucp->uc_mcontext.mc_regs[SP],
+		    (void *)ucp->uc_mcontext.mc_regs[RA],
+		    (void *)ucp->uc_mcontext.mc_regs[PC],
+		    (void *)ucp->uc_mcontext.mc_regs[ZERO]);
 		return EINVAL;
 	}
 /* #endif */
@@ -327,7 +327,7 @@ ptrace_single_step(struct thread *td)
 	/* compute next address after current location */
 	if(curinstr != 0) {
 		va = MipsEmulateBranch(locr0, locr0->pc, locr0->fsr,
-		    (u_int)&curinstr);
+		    (uintptr_t)&curinstr);
 	} else {
 		va = locr0->pc + 4;
 	}
