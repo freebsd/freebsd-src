@@ -174,7 +174,9 @@ static void octeon_pko_doorbell_data_dump (uint64_t port)
 
     octeon_pko_get_port_status(port, 0, &status);
     printf("\n Port #%lld  Pkts %ld   Bytes %lld  DoorBell %lld",
-           port, status.packets, status.octets, status.doorbell);
+	(unsigned long long)port, status.packets,
+	(unsigned long long)status.octets,
+	(unsigned long long)status.doorbell);
 }
 
 /*
@@ -229,7 +231,7 @@ void octeon_pko_show (u_int start_port, u_int end_port)
         printf("\n  Port # %d   Queue %3d   [%d]  BufPtr: 0x%llX Mask: %X%s",
                octeon_pko_queue_cfg.bits.port, octeon_pko_queue_cfg.bits.queue,
                octeon_pko_queue_cfg.bits.index,
-               (uint64_t)octeon_pko_queue_cfg.bits.buf_ptr,
+               (unsigned long long)octeon_pko_queue_cfg.bits.buf_ptr,
 	       octeon_pko_queue_cfg.bits.qos_mask,
                (octeon_pko_queue_cfg.bits.tail)? "  Last":"");
     }
@@ -238,8 +240,6 @@ void octeon_pko_show (u_int start_port, u_int end_port)
     for (port = start_port; port < (end_port + 1); port++) {
 
         octeon_pko_get_port_status(port, 0, &status);
-        printf("\n Port #%d  Packets %ld   Bytes %lld  DoorBell %lld",
-               port, status.packets, status.octets, status.doorbell);
         octeon_pko_doorbell_data_dump(port);
 
     }
