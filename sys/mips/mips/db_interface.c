@@ -197,7 +197,7 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 				break;
 			case 8:
 				atomic_store_64((volatile u_int64_t *)addr,
-				    (u_int64_t *)data);
+				    *(u_int64_t *)data);
 			break;
 			}
 		} else {
