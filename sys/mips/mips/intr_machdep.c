@@ -56,7 +56,7 @@ static int last_printed = 0;
 static void
 mips_mask_hard_irq(void *source)
 {
-	int irq = (int)source;
+	uintptr_t irq = (uintptr_t)source;
 
 	mips_wr_status(mips_rd_status() & ~(((1 << irq) << 8) << 2));
 }
@@ -64,7 +64,7 @@ mips_mask_hard_irq(void *source)
 static void
 mips_unmask_hard_irq(void *source)
 {
-	int irq = (int)source;
+	uintptr_t irq = (uintptr_t)source;
 
 	mips_wr_status(mips_rd_status() | (((1 << irq) << 8) << 2));
 }
@@ -72,7 +72,7 @@ mips_unmask_hard_irq(void *source)
 static void
 mips_mask_soft_irq(void *source)
 {
-	int irq = (int)source;
+	uintptr_t irq = (uintptr_t)source;
 
 	mips_wr_status(mips_rd_status() & ~((1 << irq) << 8));
 }
@@ -80,7 +80,7 @@ mips_mask_soft_irq(void *source)
 static void
 mips_unmask_soft_irq(void *source)
 {
-	int irq = (int)source;
+	uintptr_t irq = (uintptr_t)source;
 
 	mips_wr_status(mips_rd_status() | ((1 << irq) << 8));
 }
@@ -105,8 +105,8 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 
 	event = hardintr_events[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0, irq,
-		    mips_mask_hard_irq, mips_unmask_hard_irq,
+		error = intr_event_create(&event, (void *)(uintptr_t)irq, 0,
+		    irq, mips_mask_hard_irq, mips_unmask_hard_irq,
 		    NULL, NULL, "hard intr%d:", irq);
 		if (error)
 			return;
@@ -124,7 +124,7 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 	intr_event_add_handler(event, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 
-	mips_unmask_hard_irq((void*)irq);
+	mips_unmask_hard_irq((void*)(uintptr_t)irq);
 }
 
 void
@@ -144,8 +144,8 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
 
 	event = softintr_events[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0, irq,
-		    mips_mask_soft_irq, mips_unmask_soft_irq,
+		error = intr_event_create(&event, (void *)(uintptr_t)irq, 0,
+		    irq, mips_mask_soft_irq, mips_unmask_soft_irq,
 		    NULL, NULL, "intr%d:", irq);
 		if (error)
 			return;
@@ -155,7 +155,7 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
 	intr_event_add_handler(event, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 
-	mips_unmask_soft_irq((void*)irq);
+	mips_unmask_soft_irq((void*)(uintptr_t)irq);
 }
 
 void
