@@ -2218,11 +2218,19 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		/*
 		 * Invalidate the 2MB page mapping and return "failure" if the
 		 * mapping was never accessed or the allocation of the new
-		 * page table page fails.
+		 * page table page fails.  If the 2MB page mapping belongs to
+		 * the direct map region of the kernel's address space, then
+		 * the page allocation request specifies the highest possible
+		 * priority (VM_ALLOC_INTERRUPT).  Otherwise, the priority is
+		 * normal.  Page table pages are preallocated for every other
+		 * part of the kernel address space, so the direct map region
+		 * is the only part of the kernel address space that must be
+		 * handled here.
 		 */
 		if ((oldpde & PG_A) == 0 || (mpte = vm_page_alloc(NULL,
-		    pmap_pde_pindex(va), VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL |
-		    VM_ALLOC_WIRED)) == NULL) {
+		    pmap_pde_pindex(va), (va >= DMAP_MIN_ADDRESS && va <
+		    DMAP_MAX_ADDRESS ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL) |
+		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 			free = NULL;
 			pmap_remove_pde(pmap, pde, trunc_2mpage(va), &free);
 			pmap_invalidate_page(pmap, trunc_2mpage(va));
