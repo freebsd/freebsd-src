@@ -509,7 +509,7 @@ static void cf_identify (driver_t *drv, device_t parent)
     	if (!octeon_board_real())
 		return;
 
-	base_addr = (void *) OCTEON_PHYS2PTR(OCTEON_CF_COMMON_BASE_ADDR);
+	base_addr = (void *) MIPS_PHYS_TO_KSEG0(OCTEON_CF_COMMON_BASE_ADDR);
 
         for (bus_region = 0; bus_region < 8; bus_region++)
         {
