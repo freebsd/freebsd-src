@@ -696,7 +696,7 @@ static struct mbuf *octeon_rgmx_build_new_rx_mbuf (struct ifnet *ifp, void *data
 		}
 
 		if (m == m0) {
-			newdata = (caddr_t) ALIGN(m->m_data + ETHER_HDR_LEN) - ETHER_HDR_LEN;
+			newdata = (caddr_t)ALIGN(m->m_data + ETHER_HDR_LEN) - ETHER_HDR_LEN;
 			len -= newdata - m->m_data;
 			m->m_data = newdata;
 		}
@@ -969,7 +969,7 @@ static u_int octeon_rgmx_pko_xmit_packet (struct rgmx_softc_dev *sc, void *out_b
 #ifdef DEBUG_TX
     printf(" temp: 0x%X ", temp);
 #endif
-    xmit_cmd_ptr = (uint64_t *) OCTEON_PHYS2PTR(temp);
+    xmit_cmd_ptr = (uint64_t *) MIPS_PHYS_TO_KSEG0(temp);
     xmit_cmd_index = xmit_cmd_state & OCTEON_PKO_INDEX_MASK;
     xmit_cmd_ptr += xmit_cmd_index;
 
