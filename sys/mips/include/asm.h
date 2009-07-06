@@ -326,7 +326,7 @@ _C_LABEL(x):
 	nop                                         ;\
 	PTR_LA	s0, _C_LABEL(ast)                   ;\
 	jalr	s0                                  ;\
-	addu	a0, s3, U_PCB_REGS                  ;\
+	PTR_ADDU a0, s3, U_PCB_REGS                 ;\
 	j 44b			                    ;\
         nop                                         ;\
 4:
@@ -371,6 +371,7 @@ _C_LABEL(x):
 #define	REG_EPILOGUE	.set pop
 #define	SZREG		4
 #define	PTR_LA		la
+#define	PTR_ADDU	addu
 #else
 #define	REG_L		ld
 #define	REG_S		sd
@@ -379,6 +380,7 @@ _C_LABEL(x):
 #define	REG_EPILOGUE	.set pop
 #define	SZREG		8
 #define	PTR_LA		dla
+#define	PTR_ADDU	daddu
 #endif	/* _MIPS_BSD_API */
 
 #define	mfc0_macro(data, spr)						\
