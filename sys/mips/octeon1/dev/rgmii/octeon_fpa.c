@@ -36,7 +36,7 @@ void octeon_dump_fpa (void)
         return;
     }
     printf(" FPA  Ctrl-Status-reg 0x%llX := 0x%llX  EN %X  M1_E %X  M0_E %X\n",
-           OCTEON_FPA_CTL_STATUS, status.word64,
+           OCTEON_FPA_CTL_STATUS, (unsigned long long)status.word64,
            status.bits.enb, status.bits.mem1_err, status.bits.mem0_err);
     for (i = 0; i < OCTEON_FPA_QUEUES; i++) {
         printf("   Pool: %d\n", i);
@@ -61,7 +61,7 @@ void octeon_dump_fpa_pool (u_int pool)
         return;
     }
     printf(" FPA  Ctrl-Status-reg 0x%llX := 0x%llX  EN %X  M1_E %X  M0_E %X\n",
-           OCTEON_FPA_CTL_STATUS, status.word64,
+           OCTEON_FPA_CTL_STATUS, (unsigned long long)status.word64,
            status.bits.enb, status.bits.mem1_err, status.bits.mem0_err);
     q_avail.word64 = oct_read64((OCTEON_FPA_QUEUE_AVAILABLE + (pool)*8ull));
     printf("   FPA Pool: %u   Avail-reg 0x%llX :=   Size: 0x%X\n", pool,
@@ -168,8 +168,8 @@ void octeon_fpa_fill_pool_mem (u_int pool, u_int elem_size_words, u_int elem_num
     memory = (void *) OCTEON_ALIGN(memory);
 
 #ifdef FPA_DEBUG_TERSE
-    printf("FPA fill: %u  Count: %u  SizeBytes: %u  SizeBytesAligned: %u  1st: 0x%X = 0x%X\n",
-           pool, elem_num, elem_size_bytes, block_size, memory, OCTEON_PTR2PHYS(memory));
+    printf("FPA fill: %u  Count: %u  SizeBytes: %u  SizeBytesAligned: %u  1st: 0x%X = %p\n",
+           pool, elem_num, elem_size_bytes, block_size, memory, (void *)OCTEON_PTR2PHYS(memory));
 #endif
 
 //    memory = (void *) ((((u_int) memory / OCTEON_FPA_POOL_ALIGNMENT) + 1) * OCTEON_FPA_POOL_ALIGNMENT);
