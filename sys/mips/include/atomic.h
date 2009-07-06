@@ -137,7 +137,7 @@ atomic_subtract_32(__volatile uint32_t *p, uint32_t v)
 		"1:\tll	%0, %3\n\t"		/* load old value */
 		"subu	%0, %2\n\t"		/* calculate new value */
 		"sc	%0, %1\n\t"		/* attempt to store */
-		"beqz	%0, 1b\n\t"			/* spin if failed */
+		"beqz	%0, 1b\n\t"		/* spin if failed */
 		: "=&r" (temp), "=m" (*p)
 		: "r" (v), "m" (*p)
 		: "memory");
@@ -492,7 +492,7 @@ atomic_fetchadd_64(__volatile uint64_t *p, uint64_t v)
 	__asm __volatile (
 		"1:\n\t"
 		"lld	%0, %1\n\t"		/* load old value */
-		"addu	%2, %3, %0\n\t"		/* calculate new value */
+		"daddu	%2, %3, %0\n\t"		/* calculate new value */
 		"scd	%2, %1\n\t"		/* attempt to store */
 		"beqz	%2, 1b\n\t"		/* spin if failed */
 		: "=&r" (value), "=m" (*p), "=&r" (temp)
