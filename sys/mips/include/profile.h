@@ -41,6 +41,8 @@
 
 /*XXX The cprestore instruction is a "dummy" to shut up as(1). */
 
+/*XXX This is not MIPS64 safe. */
+
 #define	MCOUNT \
 	__asm(".globl _mcount;"		\
 	".type _mcount,@function;"	\
