@@ -49,7 +49,7 @@ mips/mips/tick.c		standard
 # ----------------------------------------------------------------------
 # Phase 5
 # ----------------------------------------------------------------------
-mips/mips/fp.S			standard
+mips/mips/fp.S			optional	hardfp
 mips/mips/pm_machdep.c		standard
 mips/mips/swtch.S		standard
 mips/mips/tlb.S			standard
@@ -86,7 +86,7 @@ libkern/flsl.c			standard
 libkern/lshrdi3.c		standard
 libkern/memmove.c		standard
 libkern/moddi3.c		standard
-libkern/qdivrem.c		standard
+libkern/qdivrem.c		optional	isa_mips32
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 
