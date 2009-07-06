@@ -432,17 +432,17 @@ LEAF(Mips_TLBRead)
 	MIPS_CPU_NOP_DELAY
 	mfc0	t2, COP_0_TLB_PG_MASK		# fetch the hi entry
 	_MFC0	t3, COP_0_TLB_HI		# fetch the hi entry
-	_MFC0	t4, COP_0_TLB_LO0		# See what we got
-	_MFC0	t5, COP_0_TLB_LO1		# See what we got
+	_MFC0	ta0, COP_0_TLB_LO0		# See what we got
+	_MFC0	ta1, COP_0_TLB_LO1		# See what we got
 	_MTC0	t0, COP_0_TLB_HI		# restore PID
 	MIPS_CPU_NOP_DELAY
 	mtc0	v1, COP_0_STATUS_REG		# Restore the status register
 	ITLBNOPFIX
 	sw	t2, 0(a1)
 	sw	t3, 4(a1)
-	sw	t4, 8(a1)
+	sw	ta0, 8(a1)
 	j	ra
-	sw	t5, 12(a1)
+	sw	ta1, 12(a1)
 END(Mips_TLBRead)
 
 /*--------------------------------------------------------------------------
@@ -478,7 +478,7 @@ LEAF(mips_TBIAP)
 	mfc0	v1, COP_0_STATUS_REG		# save status register
 	mtc0	zero, COP_0_STATUS_REG		# disable interrupts
 
-	_MFC0	t4, COP_0_TLB_HI		# Get current PID
+	_MFC0	ta0, COP_0_TLB_HI		# Get current PID
 	move	t2, a0
 	mfc0	t1, COP_0_TLB_WIRED
 	li	v0, MIPS_KSEG0_START		# invalid address
@@ -517,7 +517,7 @@ LEAF(mips_TBIAP)
 	bne	t1, t2, 1b
 	nop
 
-	_MTC0	t4, COP_0_TLB_HI		# restore PID
+	_MTC0	ta0, COP_0_TLB_HI		# restore PID
 	mtc0	t3, COP_0_TLB_PG_MASK		# restore pgMask
 	MIPS_CPU_NOP_DELAY
 	mtc0	v1, COP_0_STATUS_REG		# restore status register
