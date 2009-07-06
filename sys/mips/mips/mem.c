@@ -101,8 +101,15 @@ memrw(dev, uio, flags)
 			vm_paddr_t pa;
 			register int o;
 
+#ifdef CPU_SB1
+			if (!is_physical_memory(v) ||
+			    !is_physical_memory(roundup2(v, PAGE_SIZE) - 1)) {
+				return (EFAULT);
+			}
+#else
 			if (v + c > (SDRAM_ADDR_START + ctob(physmem)))
 				return (EFAULT);
+#endif
 
 			if (is_cacheable_mem(v) && is_cacheable_mem(v + c)) {
 				struct fpage *fp;
@@ -117,7 +124,7 @@ memrw(dev, uio, flags)
 				va = pmap_map_fpage(pa, fp, FALSE);
 				o = (int)uio->uio_offset & PAGE_MASK;
 				c = (u_int)(PAGE_SIZE -
-					    ((int)iov->iov_base & PAGE_MASK));
+					    ((uintptr_t)iov->iov_base & PAGE_MASK));
 				c = min(c, (u_int)(PAGE_SIZE - o));
 				c = min(c, (u_int)iov->iov_len);
 				error = uiomove((caddr_t)(va + o), (int)c, uio);
@@ -158,7 +165,7 @@ memrw(dev, uio, flags)
 							return EFAULT;
 
 					if (!kernacc(
-					    (caddr_t)(int)uio->uio_offset, c,
+					    (caddr_t)(uintptr_t)uio->uio_offset, c,
 					    uio->uio_rw == UIO_READ ?
 					    VM_PROT_READ : VM_PROT_WRITE))
 						return (EFAULT);
