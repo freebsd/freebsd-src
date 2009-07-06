@@ -12,12 +12,15 @@ COMMENT=       Utility for building software and tracking build dependencies.
 
 BUILD_DEPENDS += ${LOCALBASE}/lib/mysql/libmysqlclient.a:${PORTSDIR}/databases/mysql60-client
 
+MAN1= jbuild.1
+
 do-fetch:
 	${DO_NADA}
 
 do-extract:
 	mkdir -p ${WRKSRC}
 	( cd ${WRKSRC} ;  ln -s ../../../filemon . ; ln -s ../../../../jbuild .; ln -s ../../../../jdirdep .; ln -s ../../../../make .)
+	( cd ${WRKSRC}; cp ../../../../make/make.1 jbuild.1 )
 	cp Makefile.port ${WRKSRC}/Makefile
 
 do-install:
@@ -26,6 +29,7 @@ do-install:
 	( cd ${WRKSRC}/jdirdep; ${MAKE} install BINDIR=${PREFIX}/bin )
 	cp ${WRKSRC}/jdirdep/jcommit ${PREFIX}/bin
 	cp ${WRKSRC}/jdirdep/jgetsrc ${PREFIX}/bin
+	${INSTALL_MAN} ${WRKSRC}/jbuild.1 ${MANPREFIX}/man/man1
 
 do-clean:
 	( cd ${WRKSRC}/filemon; ${MAKE} clean )
