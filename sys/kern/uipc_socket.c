@@ -2885,13 +2885,8 @@ sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
 	SOCKBUF_LOCK(&so->so_snd);
 	SOCKBUF_LOCK(&so->so_rcv);
 	if (events & (POLLIN | POLLRDNORM))
-		if (soreadable(so))
+		if (soreadabledata(so))
 			revents |= events & (POLLIN | POLLRDNORM);
-
-	if (events & POLLINIGNEOF)
-		if (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat ||
-		    !TAILQ_EMPTY(&so->so_comp) || so->so_error)
-			revents |= POLLINIGNEOF;
 
 	if (events & (POLLOUT | POLLWRNORM))
 		if (sowriteable(so))
@@ -2901,10 +2896,16 @@ sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
 		if (so->so_oobmark || (so->so_rcv.sb_state & SBS_RCVATMARK))
 			revents |= events & (POLLPRI | POLLRDBAND);
 
+	if ((events & POLLINIGNEOF) == 0) {
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
+			revents |= events & (POLLIN | POLLRDNORM);
+			if (so->so_snd.sb_state & SBS_CANTSENDMORE)
+				revents |= POLLHUP;
+		}
+	}
+
 	if (revents == 0) {
-		if (events &
-		    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM |
-		     POLLRDBAND)) {
+		if (events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
 			selrecord(td, &so->so_rcv.sb_sel);
 			so->so_rcv.sb_flags |= SB_SEL;
 		}
