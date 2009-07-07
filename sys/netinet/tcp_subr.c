@@ -734,6 +734,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	 * Use the current system default CC algorithm.
 	 */
 	CC_LIST_RLOCK();
+	KASSERT(!STAILQ_EMPTY(&cc_list), ("cc_list is empty!"));
 	CC_ALGO(tp) = CC_DEFAULT();
 	CC_LIST_RUNLOCK();
 

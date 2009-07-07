@@ -114,8 +114,6 @@ cc_default_algo(SYSCTL_HANDLER_ARGS)
 
 		if (!found)
 			return (ESRCH);
-
-		error = sysctl_handle_string(oidp, arg1, arg2, req);
 	}
 
 	return (error);
@@ -160,8 +158,6 @@ cc_init()
 {
 	CC_LIST_LOCK_INIT();
 	STAILQ_INIT(&cc_list);
-	/* Newreno must always be available as an algorithm. */
-	cc_register_algo(&newreno_cc_algo);
 }
 
 /*
