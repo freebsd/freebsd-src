@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 6, 2009
+.Dd July 7, 2009
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -237,19 +237,13 @@ rates.
 Maximum allowable sample rate.
 .It Va hw.snd.feeder_rate_min
 Minimum allowable sample rate.
-.It Va hw.snd.feeder_rate_round
-Sample rate rounding threshold, to avoid large prime division at the
-cost of accuracy.
-All requested sample rates will be rounded to the nearest threshold value.
-Possible values range between 0 (disabled) and 500.
-Default is 25.
-.It Va hw.snd.feeder_polyphase_max
+.It Va hw.snd.feeder_rate_polyphase_max
 Adjust to set the maximum number of allowed polyphase entries during the
 process of building resampling filters.
 Only applicable when the SINC interpolator is used.
 Default value is 183040.
 Set to 0 to disable polyphase resampling.
-.It Va hw.snd.feeder_quality
+.It Va hw.snd.feeder_rate_quality
 Sample rate converter quality.
 Default value is 1, linear interpolation.
 Available options include:
@@ -277,6 +271,12 @@ taps and 90% bandwidth as quality values.
 Continuation of the bandlimited SINC inteprolator, with 100dB stopband, 164
 taps and 97% bandwidth as quality values.
 .El
+.It Va hw.snd.feeder_rate_round
+Sample rate rounding threshold, to avoid large prime division at the
+cost of accuracy.
+All requested sample rates will be rounded to the nearest threshold value.
+Possible values range between 0 (disabled) and 500.
+Default is 25.
 .It Va hw.snd.latency
 Configure the buffering latency.
 Only affects applications that do not explicitly request
