@@ -42,6 +42,10 @@
 #define AR71XX_PCI_IRQ_START		0
 #define AR71XX_PCI_IRQ_END		2
 #define AR71XX_PCI_NIRQS		3
+/*
+ * PCI devices slots are starting from this number
+ */
+#define	AR71XX_PCI_BASE_SLOT		17
 
 /* PCI config registers */
 #define	AR71XX_PCI_LCONF_CMD		0x17010000
