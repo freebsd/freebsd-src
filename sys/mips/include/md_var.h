@@ -70,4 +70,7 @@ void	mips_proc0_init(void);
 /* Platform call-downs. */
 void	platform_identify(void);
 
+extern int busdma_swi_pending;
+void busdma_swi(void);
+
 #endif /* !_MACHINE_MD_VAR_H_ */
