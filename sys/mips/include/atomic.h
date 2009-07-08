@@ -346,10 +346,9 @@ void atomic_store_64(__volatile uint64_t *, uint64_t *);
 void atomic_load_64(__volatile uint64_t *, uint64_t *);
 #else
 static __inline void
-atomic_store_64(__volatile uint64_t *p, uint64_t v)
+atomic_store_64(__volatile uint64_t *p, uint64_t *v)
 {
-
-	*p = v;
+	*p = *v;
 }
 
 static __inline void
