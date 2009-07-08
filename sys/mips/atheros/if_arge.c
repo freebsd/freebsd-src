@@ -162,7 +162,6 @@ DRIVER_MODULE(miibus, arge, miibus_driver, miibus_devclass, 0, 0);
  */
 extern uint32_t ar711_base_mac[ETHER_ADDR_LEN];
 
-
 /*
  * Flushes all 
  */
@@ -1323,7 +1322,7 @@ arge_rx_ring_init(struct arge_softc *sc)
 
 	bus_dmamap_sync(sc->arge_cdata.arge_rx_ring_tag,
 	    sc->arge_cdata.arge_rx_ring_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
@@ -1356,8 +1355,6 @@ arge_newbuf(struct arge_softc *sc, int idx)
 
 	rxd = &sc->arge_cdata.arge_rxdesc[idx];
 	if (rxd->rx_m != NULL) {
-		bus_dmamap_sync(sc->arge_cdata.arge_rx_tag, rxd->rx_dmamap,
-		    BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->arge_cdata.arge_rx_tag, rxd->rx_dmamap);
 	}
 	map = rxd->rx_dmamap;
@@ -1369,6 +1366,10 @@ arge_newbuf(struct arge_softc *sc, int idx)
 		panic("RX packet address unaligned");
 	desc->packet_addr = segs[0].ds_addr;
 	desc->packet_ctrl = ARGE_DESC_EMPTY | ARGE_DMASIZE(segs[0].ds_len);
+
+	bus_dmamap_sync(sc->arge_cdata.arge_rx_ring_tag,
+	    sc->arge_cdata.arge_rx_ring_map,
+	    BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
@@ -1382,8 +1383,12 @@ arge_fixup_rx(struct mbuf *m)
 	src = mtod(m, uint16_t *);
 	dst = src - 1;
 
-	for (i = 0; i < (m->m_len / sizeof(uint16_t) + 1); i++)
+	for (i = 0; i < m->m_len / sizeof(uint16_t); i++) {
 		*dst++ = *src++;
+	}
+
+	if (m->m_len % sizeof(uint16_t))
+		*(uint8_t *)dst = *(uint8_t *)src;
 
 	m->m_data -= ETHER_ALIGN;
 }
@@ -1497,7 +1502,7 @@ arge_rx_locked(struct arge_softc *sc)
 
 		packet_len = ARGE_DMASIZE(cur_rx->packet_ctrl);
 		bus_dmamap_sync(sc->arge_cdata.arge_rx_tag, rxd->rx_dmamap,
-		    BUS_DMASYNC_PREREAD);
+		    BUS_DMASYNC_POSTREAD);
 		m = rxd->rx_m;
 
 		arge_fixup_rx(m);
@@ -1526,14 +1531,9 @@ arge_rx_locked(struct arge_softc *sc)
 
 		bus_dmamap_sync(sc->arge_cdata.arge_rx_ring_tag,
 		    sc->arge_cdata.arge_rx_ring_map,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-
+		    BUS_DMASYNC_PREWRITE);
 
 		sc->arge_cdata.arge_rx_cons = cons;
-
-		bus_dmamap_sync(sc->arge_cdata.arge_rx_ring_tag,
-		    sc->arge_cdata.arge_rx_ring_map,
-		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	}
 }
 
