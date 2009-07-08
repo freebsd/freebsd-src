@@ -50,6 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 
 #include <isofs/cd9660/cd9660_node.h>
+#define _KERNEL
+#include <isofs/cd9660/iso.h>
+#undef _KERNEL
 
 #include <kvm.h>
 #include <stdio.h>
@@ -61,20 +64,25 @@ int
 isofs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
 {
 	struct iso_node isonode;
+	struct iso_mnt mnt;
 
 	if (!kvm_read_all(kd, (unsigned long)VTOI(vp), &isonode,
 	    sizeof(isonode))) {
 		dprintf(stderr, "can't read iso_node at %p\n",
 		    (void *)VTOI(vp));
-		return 0;
+		return (0);
 	}
-#if 0
-	fsp->fsid = dev2udev(isonode.i_dev);
-#endif
+	if (!kvm_read_all(kd, (unsigned long)isonode.i_mnt, &mnt,
+	    sizeof(mnt))) {
+		dprintf(stderr, "can't read iso_mnt at %p\n",
+		    (void *)VTOI(vp));
+		return (0);
+	}
+	fsp->fsid = dev2udev(kd, mnt.im_dev);
 	fsp->mode = (mode_t)isonode.inode.iso_mode;
 	fsp->rdev = isonode.inode.iso_rdev;
 
 	fsp->fileid = (long)isonode.i_number;
 	fsp->size = (u_long)isonode.i_size;
-	return 1;
+	return (1);
 }
