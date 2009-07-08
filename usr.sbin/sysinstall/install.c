@@ -327,6 +327,33 @@ installFixitHoloShell(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
+/*
+ * Load the live filesystem from USB media.
+ */
+int
+installFixitUSB(dialogMenuItem *self)
+{
+	if (!RunningAsInit)
+		return (DITEM_SUCCESS);
+
+	variable_set2(SYSTEM_STATE, "fixit", 0);
+
+	if (DITEM_STATUS(mediaSetUSB(NULL)) != DITEM_SUCCESS ||
+	    !DEVICE_INIT(mediaDevice)) {
+		msgConfirm("No USB devices found!");
+		return (DITEM_FAILURE);
+	} else if (!file_readable("/dist/rescue/ldconfig")) {
+		msgConfirm("Unable to find a FreeBSD live filesystem.");
+		return (DITEM_FAILURE);
+	}
+
+	if (DITEM_STATUS(fixit_livefs_common(self)) == DITEM_FAILURE)
+		return (DITEM_FAILURE);
+
+	mediaClose();
+	return (DITEM_SUCCESS);
+}
+
 int
 installFixitCDROM(dialogMenuItem *self)
 {
