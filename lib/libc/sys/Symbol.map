@@ -346,6 +346,7 @@ FBSD_1.1 {
 	jail_set;
 	jail_remove;
 	linkat;
+	lpathconf;
 	mkdirat;
 	mkfifoat;
 	mknodat;

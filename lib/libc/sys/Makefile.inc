@@ -159,6 +159,7 @@ MLINKS+=mq_send.2 mq_timedsend.2
 MLINKS+=ntp_adjtime.2 ntp_gettime.2
 MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
+MLINKS+=pathconf.2 lpathconf.2
 MLINKS+=read.2 pread.2 read.2 preadv.2 read.2 readv.2
 MLINKS+=readlink.2 readlinkat.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
