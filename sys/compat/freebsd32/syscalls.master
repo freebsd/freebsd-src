@@ -900,3 +900,4 @@
 				    struct msqid_ds32 *buf); }
 512	AUE_SHMCTL	STD	{ int freebsd32_shmctl(int shmid, int cmd, \
 				    struct shmid_ds32 *buf); }
+513	AUE_LPATHCONF	STD	{ int lpathconf(char *path, int name); }
