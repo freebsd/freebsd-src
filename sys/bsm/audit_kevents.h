@@ -597,6 +597,7 @@
 #define	AUE_PWRITE		43193	/* Darwin/FreeBSD. */
 #define	AUE_FSCTL		43194	/* Darwin. */
 #define	AUE_FFSCTL		43195	/* Darwin. */
+#define	AUE_LPATHCONF		43196	/* FreeBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the

@@ -2506,17 +2506,36 @@ pathconf(td, uap)
 	} */ *uap;
 {
 
-	return (kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name));
+	return (kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name, FOLLOW));
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct lpathconf_args {
+	char	*path;
+	int	name;
+};
+#endif
+int
+lpathconf(td, uap)
+	struct thread *td;
+	register struct lpathconf_args /* {
+		char *path;
+		int name;
+	} */ *uap;
+{
+
+	return (kern_pathconf(td, uap->path, UIO_USERSPACE, uap->name, NOFOLLOW));
 }
 
 int
-kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name)
+kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name,
+    u_long flags)
 {
 	struct nameidata nd;
 	int error, vfslocked;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
-	    AUDITVNODE1, pathseg, path, td);
+	NDINIT(&nd, LOOKUP, LOCKSHARED | LOCKLEAF | MPSAFE | AUDITVNODE1 |
+	    flags, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
