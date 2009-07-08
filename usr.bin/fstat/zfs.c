@@ -52,7 +52,6 @@
 #define ZFS
 #undef dprintf
 #include "common.h"
-#include "fstat.h"
 
 /* 
  * Offset calculations that are used to get data from znode without having the

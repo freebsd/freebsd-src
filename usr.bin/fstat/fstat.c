@@ -103,7 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 
 #include "common.h"
-#include "fstat.h"
+#include "functions.h"
 
 #define	TEXT	-1
 #define	CDIR	-2
@@ -111,8 +111,6 @@ __FBSDID("$FreeBSD$");
 #define	TRACE	-4
 #define	MMAP	-5
 #define	JDIR	-6
-
-DEVS *devs;
 
 #ifdef notdef
 struct nlist nl[] = {
@@ -140,6 +138,14 @@ int maxfiles;
 		maxfiles = (d); \
 	}
 
+typedef struct devs {
+	struct devs	*next;
+	long		fsid;
+	long		ino;
+	const char	*name;
+} DEVS;
+
+DEVS *devs;
 char *memf, *nlistf;
 kvm_t *kd;
 
@@ -157,7 +163,7 @@ int  getfname(const char *filename);
 void usage(void);
 
 int
-main(int argc, char **argv)
+do_fstat(int argc, char **argv)
 {
 	struct passwd *passwd;
 	int arg, ch, what;

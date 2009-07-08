@@ -4,12 +4,15 @@
 .include <bsd.own.mk>
 
 PROG=	fstat
-SRCS=	cd9660.c common.c fstat.c msdosfs.c
+SRCS=	cd9660.c common.c fstat.c main.c msdosfs.c fuser.c
+LINKS=	${BINDIR}/fstat ${BINDIR}/fuser
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 BINGRP=	kmem
 BINMODE=2555
 WARNS?=	6
+
+MAN1=	fuser.1 fstat.1
 
 CFLAGS+=-D_KVM_VNODE
 
