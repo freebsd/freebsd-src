@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2009
+.Dd July 8, 2009
 .Dt JLS 8
 .Os
 .Sh NAME
@@ -54,6 +54,8 @@ for a description of some core parameters.
 .Pp
 If no
 .Ar parameters
+or any of the options
+.Fl hns
 are given, the following four columns will be printed:
 jail identifier (jid), IP address (ip4.addr), hostname (host.hostname),
 and path (path).
@@ -66,17 +68,20 @@ List
 as well as active jails.
 .It Fl h
 Print a header line containing the parameters listed.
-If no parameters are given on the command line, the default output always
-contains a header.
+If no parameters are given on the command line,
+.Va all
+is assumed.
 .It Fl n
 Print parameters in
 .Dq name=value
 format, where each parameter is preceded by its name.
-This option is ignored for the default four-column output.
+If no parameters are given on the command line,
+.Va all
+is assumed.
 .It Fl q
 Put quotes around parameters if they contain spaces or quotes, or are
 the empty string.
-.It Fl c
+.It Fl s
 Print parameters suitable for passing to
 .Xr jail 8 ,
 skipping read-only and unused parameters.
