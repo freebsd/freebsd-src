@@ -49,7 +49,7 @@ mips/mips/tick.c		standard
 # ----------------------------------------------------------------------
 # Phase 5
 # ----------------------------------------------------------------------
-mips/mips/fp.S			optional	hardfp
+mips/mips/fp.S			standard
 mips/mips/pm_machdep.c		standard
 mips/mips/swtch.S		standard
 mips/mips/tlb.S			standard
