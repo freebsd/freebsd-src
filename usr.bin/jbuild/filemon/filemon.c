@@ -22,7 +22,16 @@
 #include <sys/uio.h>
 #include "filemon.h"
 
+#ifdef COMPAT_IA32
+#include <compat/freebsd32/freebsd32_syscall.h>
+#include <compat/freebsd32/freebsd32_proto.h>
+
+extern struct sysentvec ia32_freebsd_sysvec;
+
+#endif
+
 extern struct sysentvec elf32_freebsd_sysvec;
+extern struct sysentvec elf64_freebsd_sysvec;
 
 static d_close_t	filemon_close;
 static d_ioctl_t	filemon_ioctl;
