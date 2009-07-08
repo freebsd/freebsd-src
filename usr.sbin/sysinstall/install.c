@@ -65,6 +65,7 @@ int NCpus;
 
 static void	create_termcap(void);
 static void	fixit_common(void);
+int		fixit_livefs_common(dialogMenuItem *self);
 
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
 
@@ -336,9 +337,6 @@ installFixitCDROM(dialogMenuItem *self)
 	return DITEM_SUCCESS;
 
     variable_set2(SYSTEM_STATE, "fixit", 0);
-    (void)unlink("/mnt2");
-    (void)rmdir("/mnt2");
-
     need_eject = 0;
     CDROMInitQuiet = 1;
     while (1) {
@@ -363,53 +361,9 @@ installFixitCDROM(dialogMenuItem *self)
     }
     CDROMInitQuiet = 0;
 
-    /* Since the fixit code expects everything to be in /mnt2, and the CDROM mounting stuff /dist, do
-     * a little kludge dance here..
-     */
-    if (symlink("/dist", "/mnt2")) {
-	msgConfirm("Unable to symlink /mnt2 to the disc mount point.  Please report this\n"
-		   "unexpected failure to freebsd-bugs@FreeBSD.org.");
-	return DITEM_FAILURE;
-    }
+    if (DITEM_STATUS(fixit_livefs_common(self)) == DITEM_FAILURE)
+	return (DITEM_FAILURE);
 
-    /*
-     * If /tmp points to /mnt2/tmp from a previous fixit floppy session, it's
-     * not very good for us if we point it to the CDROM now.  Rather make it
-     * a directory in the root MFS then.  Experienced admins will still be
-     * able to mount their disk's /tmp over this if they need.
-     */
-    if (lstat("/tmp", &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK)
-	(void)unlink("/tmp");
-    Mkdir("/tmp");
-
-    /*
-     * Since setuid binaries ignore LD_LIBRARY_PATH, we indeed need the
-     * ld.so.hints file.  Fortunately, it's fairly small (~ 3 KB).
-     */
-    if (!file_readable("/var/run/ld.so.hints")) {
-	Mkdir("/var/run");
-	if (vsystem("/mnt2/rescue/ldconfig -s /mnt2/lib /mnt2/usr/lib")) {
-	    msgConfirm("Warning: ldconfig could not create the ld.so hints file.\n"
-		       "Dynamic executables from the disc likely won't work.");
-	}
-    }
-
-    /* Yet more iggly hardcoded pathnames. */
-    Mkdir("/libexec");
-    if (!file_readable("/libexec/ld.so") && file_readable("/mnt2/libexec/ld.so")) {
-	if (symlink("/mnt2/libexec/ld.so", "/libexec/ld.so"))
-	    msgDebug("Couldn't link to ld.so - not necessarily a problem for ELF\n");
-    }
-    if (!file_readable("/libexec/ld-elf.so.1")) {
-	if (symlink("/mnt2/libexec/ld-elf.so.1", "/libexec/ld-elf.so.1")) {
-	    msgConfirm("Warning: could not create the symlink for ld-elf.so.1\n"
-		       "Dynamic executables from the disc likely won't work.");
-	}
-    }
-    /* optional nicety */
-    if (!file_readable("/usr/bin/vi"))
-	symlink("/mnt2/usr/bin/vi", "/usr/bin/vi");
-    fixit_common();
     mediaClose();
     if (need_eject)
 	msgConfirm("Please remove the FreeBSD fixit CDROM/DVD now.");
@@ -552,6 +506,73 @@ fixit_common(void)
     dialog_clear();
 }
 
+/*
+ * Some path/lib setup is required for the livefs fixit image. Since there's
+ * more than one media type for livefs now, this has been broken off into it's
+ * own function.
+ */
+int
+fixit_livefs_common(dialogMenuItem *self)
+{
+	struct stat sb;
+
+	/*
+	 * USB and CDROM media get mounted to /dist, but fixit code looks in
+	 * /mnt2.
+	 */
+	unlink("/mnt2");
+	rmdir("/mnt2");
+
+	if (symlink("/dist", "/mnt2")) {
+		msgConfirm("Unable to symlink /mnt2 to the disc mount point.");
+		return (DITEM_FAILURE);
+	}
+
+	/*
+	 * If /tmp points to /mnt2/tmp from a previous fixit floppy session,
+	 * recreate it.
+	 */
+	if (lstat("/tmp", &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK)
+		unlink("/tmp");
+	Mkdir("/tmp");
+
+	/* Generate a new ld.so.hints */
+	if (!file_readable("/var/run/ld.so.hints")) {
+		Mkdir("/var/run");
+		if (vsystem("/mnt2/rescue/ldconfig -s /mnt2/lib "
+		    "/mnt2/usr/lib")) {
+			msgConfirm("Warning: ldconfig could not create the "
+			    "ld.so hints file.\nDynamic executables from the "
+			    "disc likely won't work.");
+		}
+	}
+
+	/* Create required libexec symlinks. */
+	Mkdir("/libexec");
+	if (!file_readable("/libexec/ld.so") &&
+	    file_readable("/mnt2/libexec/ld.so")) {
+		if (symlink("/mnt2/libexec/ld.so", "/libexec/ld.so"))
+			msgDebug("Couldn't link to ld.so\n");
+	}
+
+	if (!file_readable("/libexec/ld-elf.so.1")) {
+		if (symlink("/mnt2/libexec/ld-elf.so.1",
+		    "/libexec/ld-elf.so.1")) {
+			msgConfirm("Warning: could not create the symlink for "
+			    "ld-elf.so.1\nDynamic executables from the disc "
+			    "likely won't work.");
+		}
+	}
+
+	/* $PATH doesn't include /mnt2 by default. Create convenient symlink. */
+	if (!file_readable("/usr/bin/vi"))
+		symlink("/mnt2/usr/bin/vi", "/usr/bin/vi");
+
+	/* Shared code used by all fixit types. */
+	fixit_common();
+
+	return (DITEM_SUCCESS);
+}
 
 int
 installExpress(dialogMenuItem *self)
