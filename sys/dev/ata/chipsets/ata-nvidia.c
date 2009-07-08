@@ -138,7 +138,7 @@ ata_nvidia_probe(device_t dev)
 	ctlr->chipinit = ata_ahci_chipinit;
     else
 	ctlr->chipinit = ata_nvidia_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -287,3 +287,4 @@ ata_nvidia_setmode(device_t dev, int mode)
 }
 
 ATA_DECLARE_DRIVER(ata_nvidia);
+MODULE_DEPEND(ata_nvidia, ata_ahci, 1, 1, 1);

@@ -2292,6 +2292,7 @@ g_journal_create(struct g_class *mp, struct g_provider *pp,
 		gp->orphan = g_journal_orphan;
 		gp->access = g_journal_access;
 		gp->softc = sc;
+		gp->flags |= G_GEOM_VOLATILE_BIO;
 		sc->sc_geom = gp;
 
 		mtx_init(&sc->sc_mtx, "gjournal", NULL, MTX_DEF);

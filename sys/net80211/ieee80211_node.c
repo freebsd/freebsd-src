@@ -99,6 +99,9 @@ MALLOC_DEFINE(M_80211_NODE_IE, "80211nodeie", "802.11 node ie");
 void
 ieee80211_node_attach(struct ieee80211com *ic)
 {
+	/* XXX really want maxlen enforced per-sta */
+	ieee80211_ageq_init(&ic->ic_stageq, ic->ic_max_keyix * 8,
+	    "802.11 staging q");
 	ieee80211_node_table_init(ic, &ic->ic_sta, "station",
 		IEEE80211_INACT_INIT, ic->ic_max_keyix);
 	callout_init(&ic->ic_inact, CALLOUT_MPSAFE);
@@ -127,6 +130,7 @@ ieee80211_node_detach(struct ieee80211com *ic)
 
 	callout_drain(&ic->ic_inact);
 	ieee80211_node_table_cleanup(&ic->ic_sta);
+	ieee80211_ageq_cleanup(&ic->ic_stageq);
 }
 
 void
@@ -927,6 +931,7 @@ node_cleanup(struct ieee80211_node *ni)
 {
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	int i;
 
 	/* NB: preserve ni_table */
@@ -946,6 +951,11 @@ node_cleanup(struct ieee80211_node *ni)
 	else if (ni->ni_ath_flags & IEEE80211_NODE_ATH)
 		ieee80211_ff_node_cleanup(ni);
 #endif
+	/*
+	 * Clear any staging queue entries.
+	 */
+	ieee80211_ageq_drain_node(&ic->ic_stageq, ni);
+
 	/*
 	 * Clear AREF flag that marks the authorization refcnt bump
 	 * has happened.  This is probably not needed as the node
@@ -999,7 +1009,6 @@ node_free(struct ieee80211_node *ni)
 	ic->ic_node_cleanup(ni);
 	ieee80211_ies_cleanup(&ni->ni_ies);
 	ieee80211_psq_cleanup(&ni->ni_psq);
-	IEEE80211_NODE_WDSQ_DESTROY(ni);
 	free(ni, M_80211_NODE);
 }
 
@@ -1016,11 +1025,6 @@ node_age(struct ieee80211_node *ni)
 	if (ieee80211_node_psq_age(ni) != 0 &&
 	    ni->ni_psq.psq_len == 0 && vap->iv_set_tim != NULL)
 		vap->iv_set_tim(ni, 0);
-	/*
-	 * Age frames on the wds pending queue.
-	 */
-	if (IEEE80211_NODE_WDSQ_QLEN(ni) != 0)
-		ieee80211_node_wdsq_age(ni);
 	/*
 	 * Age out HT resources (e.g. frames on the
 	 * A-MPDU reorder queues).
@@ -1086,7 +1090,6 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	ni->ni_inact = ni->ni_inact_reload;
 	ni->ni_ath_defkeyix = 0x7fff;
 	ieee80211_psq_init(&ni->ni_psq, "unknown");
-	IEEE80211_NODE_WDSQ_INIT(ni, "unknown");
 
 	IEEE80211_NODE_LOCK(nt);
 	TAILQ_INSERT_TAIL(&nt->nt_node, ni, ni_list);
@@ -1136,7 +1139,6 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 		ni->ni_txpower = bss->ni_txpower;
 		/* XXX optimize away */
 		ieee80211_psq_init(&ni->ni_psq, "unknown");
-		IEEE80211_NODE_WDSQ_INIT(ni, "unknown");
 	} else {
 		/* XXX msg */
 		vap->iv_stats.is_rx_nodealloc++;
@@ -2075,6 +2077,7 @@ ieee80211_node_timeout(void *arg)
 	if ((ic->ic_flags & IEEE80211_F_CSAPENDING) == 0) {
 		ieee80211_scan_timeout(ic);
 		ieee80211_timeout_stations(ic);
+		ieee80211_ageq_age(&ic->ic_stageq, IEEE80211_INACT_WAIT);
 
 		IEEE80211_LOCK(ic);
 		ieee80211_erp_timeout(ic);

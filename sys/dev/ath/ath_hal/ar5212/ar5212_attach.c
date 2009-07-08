@@ -833,11 +833,15 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	ahpriv->ah_rxornIsFatal =
 	    (AH_PRIVATE(ah)->ah_macVersion < AR_SREV_VERSION_VENICE);
 
-	/* h/w phy counters first appeared in Hainan */
-	pCap->halHwPhyCounterSupport =
-	    (AH_PRIVATE(ah)->ah_macVersion == AR_SREV_VERSION_VENICE &&
+	/* enable features that first appeared in Hainan */
+	if ((AH_PRIVATE(ah)->ah_macVersion == AR_SREV_VERSION_VENICE &&
 	     AH_PRIVATE(ah)->ah_macRev == AR_SREV_HAINAN) ||
-	    AH_PRIVATE(ah)->ah_macVersion > AR_SREV_VERSION_VENICE;
+	    AH_PRIVATE(ah)->ah_macVersion > AR_SREV_VERSION_VENICE) {
+		/* h/w phy counters */
+		pCap->halHwPhyCounterSupport = AH_TRUE;
+		/* bssid match disable */
+		pCap->halBssidMatchSupport = AH_TRUE;
+	}
 
 	pCap->halTstampPrecision = 15;
 	pCap->halIntrMask = HAL_INT_COMMON

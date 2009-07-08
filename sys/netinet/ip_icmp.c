@@ -675,12 +675,16 @@ icmp_reflect(struct mbuf *m)
 	 * If the incoming packet was addressed directly to one of our
 	 * own addresses, use dst as the src for the reply.
 	 */
+	IN_IFADDR_RLOCK();
 	LIST_FOREACH(ia, INADDR_HASH(t.s_addr), ia_hash) {
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr) {
 			t = IA_SIN(ia)->sin_addr;
+			IN_IFADDR_RUNLOCK();
 			goto match;
 		}
 	}
+	IN_IFADDR_RUNLOCK();
+
 	/*
 	 * If the incoming packet was addressed to one of our broadcast
 	 * addresses, use the first non-broadcast address which corresponds

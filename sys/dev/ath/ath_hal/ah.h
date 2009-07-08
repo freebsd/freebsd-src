@@ -110,6 +110,7 @@ typedef enum {
 	HAL_CAP_BB_HANG		= 35,	/* can baseband hang */
 	HAL_CAP_MAC_HANG	= 36,	/* can MAC hang */
 	HAL_CAP_INTRMASK	= 37,	/* bitmask of supported interrupts */
+	HAL_CAP_BSSIDMATCH	= 38,	/* hardware has disable bssid match */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -296,6 +297,7 @@ typedef enum {
 	HAL_RX_FILTER_PHYERR	= 0x00000100,	/* Allow phy errors */
 	HAL_RX_FILTER_PHYRADAR	= 0x00000200,	/* Allow phy radar errors */
 	HAL_RX_FILTER_COMPBAR	= 0x00000400,	/* Allow compressed BAR */
+	HAL_RX_FILTER_BSSID	= 0x00000800,	/* Disable BSSID match */
 } HAL_RX_FILTER;
 
 typedef enum {

@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/fifofs/fifo.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
@@ -1044,9 +1043,11 @@ nfs_lookup(struct vop_lookup_args *ap)
 		ltype = VOP_ISLOCKED(dvp);
 		error = vfs_busy(mp, MBF_NOWAIT);
 		if (error != 0) {
+			vfs_ref(mp);
 			VOP_UNLOCK(dvp, 0);
 			error = vfs_busy(mp, 0);
 			vn_lock(dvp, ltype | LK_RETRY);
+			vfs_rel(mp);
 			if (error == 0 && (dvp->v_iflag & VI_DOOMED)) {
 				vfs_unbusy(mp);
 				error = ENOENT;
@@ -1553,11 +1554,15 @@ again:
 			tl = nfsm_build(u_int32_t *, NFSX_V3CREATEVERF);
 #ifdef INET
 			INIT_VNET_INET(curvnet);
+			IN_IFADDR_RLOCK();
 			if (!TAILQ_EMPTY(&V_in_ifaddrhead))
 				*tl++ = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr.s_addr;
 			else
 #endif
 				*tl++ = create_verf;
+#ifdef INET
+			IN_IFADDR_RUNLOCK();
+#endif
 			*tl = ++create_verf;
 		} else {
 			*tl = txdr_unsigned(NFSV3CREATE_UNCHECKED);
@@ -3125,7 +3130,7 @@ loop:
 				error = 0;
 				goto loop;
 			}
-			if (nfs_sigintr(nmp, NULL, td)) {
+			if (nfs_sigintr(nmp, td)) {
 				error = EINTR;
 				goto done;
 			}
@@ -3148,7 +3153,7 @@ loop:
 		else
 		    bp->b_flags |= B_ASYNC;
 		bwrite(bp);
-		if (nfs_sigintr(nmp, NULL, td)) {
+		if (nfs_sigintr(nmp, td)) {
 			error = EINTR;
 			goto done;
 		}
@@ -3164,7 +3169,7 @@ loop:
 			error = bufobj_wwait(bo, slpflag, slptimeo);
 			if (error) {
 			    BO_UNLOCK(bo);
-			    error = nfs_sigintr(nmp, NULL, td);
+			    error = nfs_sigintr(nmp, td);
 			    if (error)
 				goto done;
 			    if (slpflag == PCATCH) {
@@ -3189,7 +3194,7 @@ loop:
 					   &np->n_mtx, slpflag | (PRIBIO + 1), 
 					   "nfsfsync", 0);
 			if (error) {
-				if (nfs_sigintr(nmp, (struct nfsreq *)0, td)) {
+				if (nfs_sigintr(nmp, td)) {
 					mtx_unlock(&np->n_mtx);
 					error = EINTR;	
 					goto done;

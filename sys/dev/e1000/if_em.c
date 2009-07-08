@@ -2538,7 +2538,7 @@ em_set_multi(struct adapter *adapter)
 	if (mta == NULL)
 		panic("em_set_multi memory failure\n");
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -2550,7 +2550,7 @@ em_set_multi(struct adapter *adapter)
 		    &mta[mcnt * ETH_ADDR_LEN], ETH_ADDR_LEN);
 		mcnt++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES) {
 		reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
@@ -4446,7 +4446,7 @@ em_rxeof(struct adapter *adapter, int count)
 	struct mbuf	*mp;
 	u8		status, accept_frame = 0, eop = 0;
 	u16 		len, desc_len, prev_len_adj;
-	u32		i, rx_sent = 0;
+	int		i, rx_sent = 0;
 	struct e1000_rx_desc   *current_desc;
 
 	EM_RX_LOCK(adapter);

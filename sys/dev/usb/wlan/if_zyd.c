@@ -517,6 +517,9 @@ zyd_tx_free(struct zyd_tx_data *data, int txerr)
 		m_freem(data->m);
 		data->m = NULL;
 
+		if (txerr == 0)
+			ieee80211_amrr_tx_complete(&ZYD_NODE(data->ni)->amn,
+			    IEEE80211_AMRR_SUCCESS, 0);
 		ieee80211_free_node(data->ni);
 		data->ni = NULL;
 	}
@@ -667,7 +670,8 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			ni = ieee80211_find_txnode(vap, retry->macaddr);
 			if (ni != NULL) {
 				ieee80211_amrr_tx_complete(&ZYD_NODE(ni)->amn,
-				    IEEE80211_AMRR_FAILURE, 1);
+				    IEEE80211_AMRR_FAILURE,
+				    (int)(le16toh(retry->count) & 0xff));
 				ieee80211_free_node(ni);
 			}
 			if (le16toh(retry->count) & 0x100)
@@ -2012,7 +2016,7 @@ zyd_set_multi(struct zyd_softc *sc)
 		low = 0xffffffff;
 		high = 0xffffffff;
 	} else {
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -2023,7 +2027,7 @@ zyd_set_multi(struct zyd_softc *sc)
 			else
 				high |= 1 << (v - 32);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 
 	/* reprogram multicast global hash table */

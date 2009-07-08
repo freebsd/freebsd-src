@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
@@ -161,6 +162,7 @@ socket(td, uap)
 	struct file *fp;
 	int fd, error;
 
+	AUDIT_ARG_SOCKET(uap->domain, uap->type, uap->protocol);
 #ifdef MAC
 	error = mac_socket_check_create(td->td_ucred, uap->domain, uap->type,
 	    uap->protocol);
@@ -215,6 +217,7 @@ kern_bind(td, fd, sa)
 	struct file *fp;
 	int error;
 
+	AUDIT_ARG_FD(fd);
 	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
 		return (error);
@@ -245,6 +248,7 @@ listen(td, uap)
 	struct file *fp;
 	int error;
 
+	AUDIT_ARG_FD(uap->s);
 	error = getsock(td->td_proc->p_fd, uap->s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
@@ -338,6 +342,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 			return (EINVAL);
 	}
 
+	AUDIT_ARG_FD(s);
 	fdp = td->td_proc->p_fd;
 	error = getsock(fdp, s, &headfp, &fflag);
 	if (error)
@@ -528,6 +533,7 @@ kern_connect(td, fd, sa)
 	int error;
 	int interrupted = 0;
 
+	AUDIT_ARG_FD(fd);
 	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
 		return (error);
@@ -586,6 +592,7 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	struct socket *so1, *so2;
 	int fd, error;
 
+	AUDIT_ARG_SOCKET(domain, type, protocol);
 #ifdef MAC
 	/* We might want to have a separate check for socket pairs. */
 	error = mac_socket_check_create(td->td_ucred, domain, type,
@@ -735,6 +742,7 @@ kern_sendit(td, s, mp, flags, control, segflg)
 	struct uio *ktruio = NULL;
 #endif
 
+	AUDIT_ARG_FD(s);
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error)
 		return (error);
@@ -934,6 +942,7 @@ kern_recvit(td, s, mp, fromseg, controlp)
 	if(controlp != NULL)
 		*controlp = 0;
 
+	AUDIT_ARG_FD(s);
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error)
 		return (error);
@@ -1249,6 +1258,7 @@ shutdown(td, uap)
 	struct file *fp;
 	int error;
 
+	AUDIT_ARG_FD(uap->s);
 	error = getsock(td->td_proc->p_fd, uap->s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
@@ -1311,6 +1321,7 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 		panic("kern_setsockopt called with bad valseg");
 	}
 
+	AUDIT_ARG_FD(s);
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
@@ -1391,6 +1402,7 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 		panic("kern_getsockopt called with bad valseg");
 	}
 
+	AUDIT_ARG_FD(s);
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
@@ -1454,6 +1466,7 @@ kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 	if (*alen < 0)
 		return (EINVAL);
 
+	AUDIT_ARG_FD(fd);
 	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
 		return (error);
@@ -1553,6 +1566,7 @@ kern_getpeername(struct thread *td, int fd, struct sockaddr **sa,
 	if (*alen < 0)
 		return (EINVAL);
 
+	AUDIT_ARG_FD(fd);
 	error = getsock(td->td_proc->p_fd, fd, &fp, NULL);
 	if (error)
 		return (error);
@@ -1808,6 +1822,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * File offset must be positive.  If it goes beyond EOF
 	 * we send only the header/trailer and no payload data.
 	 */
+	AUDIT_ARG_FD(uap->fd);
 	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
 		goto out;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
@@ -2282,6 +2297,7 @@ sctp_peeloff(td, uap)
 	u_int fflag;
 
 	fdp = td->td_proc->p_fd;
+	AUDIT_ARG_FD(uap->sd);
 	error = fgetsock(td, uap->sd, &head, &fflag);
 	if (error)
 		goto done2;
@@ -2389,6 +2405,7 @@ sctp_generic_sendmsg (td, uap)
 		}
 	}
 
+	AUDIT_ARG_FD(uap->sd);
 	error = getsock(td->td_proc->p_fd, uap->sd, &fp, NULL);
 	if (error)
 		goto sctp_bad;
@@ -2490,6 +2507,7 @@ sctp_generic_sendmsg_iov(td, uap)
 		}
 	}
 
+	AUDIT_ARG_FD(uap->sd);
 	error = getsock(td->td_proc->p_fd, uap->sd, &fp, NULL);
 	if (error)
 		goto sctp_bad1;
@@ -2588,6 +2606,8 @@ sctp_generic_recvmsg(td, uap)
 #ifdef KTRACE
 	struct uio *ktruio = NULL;
 #endif
+
+	AUDIT_ARG_FD(uap->sd);
 	error = getsock(td->td_proc->p_fd, uap->sd, &fp, NULL);
 	if (error) {
 		return (error);

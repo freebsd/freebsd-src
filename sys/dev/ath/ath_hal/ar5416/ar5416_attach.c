@@ -811,6 +811,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halMbssidAggrSupport = AH_TRUE;
 	pCap->halForcePpmSupport = AH_TRUE;
 	pCap->halEnhancedPmSupport = AH_TRUE;
+	pCap->halBssidMatchSupport = AH_TRUE;
 
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {

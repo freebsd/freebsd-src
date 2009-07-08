@@ -546,8 +546,8 @@ linux_do_tkill(struct thread *td, l_int tgid, l_int pid, l_int signum)
 	ksiginfo_t ksi;
 	int error;
 
-	AUDIT_ARG(signum, signum);
-	AUDIT_ARG(pid, pid);
+	AUDIT_ARG_SIGNUM(signum);
+	AUDIT_ARG_PID(pid);
 
 	/*
 	 * Allow signal 0 as a means to check for privileges
@@ -563,7 +563,7 @@ linux_do_tkill(struct thread *td, l_int tgid, l_int pid, l_int signum)
 			return (ESRCH);
 	}
 
-	AUDIT_ARG(process, p);
+	AUDIT_ARG_PROCESS(p);
 	error = p_cansignal(td, p, signum);
 	if (error)
 		goto out;

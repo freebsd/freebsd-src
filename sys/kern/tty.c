@@ -536,25 +536,23 @@ ttydev_poll(struct cdev *dev, int events, struct thread *td)
 	int error, revents = 0;
 
 	error = ttydev_enter(tp);
-	if (error) {
-		/* Don't return the error here, but the event mask. */
-		return (events &
-		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
-	}
+	if (error)
+		return ((events & (POLLIN|POLLRDNORM)) | POLLHUP);
 
 	if (events & (POLLIN|POLLRDNORM)) {
 		/* See if we can read something. */
 		if (ttydisc_read_poll(tp) > 0)
 			revents |= events & (POLLIN|POLLRDNORM);
 	}
-	if (events & (POLLOUT|POLLWRNORM)) {
+
+	if (tp->t_flags & TF_ZOMBIE) {
+		/* Hangup flag on zombie state. */
+		revents |= POLLHUP;
+	} else if (events & (POLLOUT|POLLWRNORM)) {
 		/* See if we can write something. */
 		if (ttydisc_write_poll(tp) > 0)
 			revents |= events & (POLLOUT|POLLWRNORM);
 	}
-	if (tp->t_flags & TF_ZOMBIE)
-		/* Hangup flag on zombie state. */
-		revents |= events & POLLHUP;
 
 	if (revents == 0) {
 		if (events & (POLLIN|POLLRDNORM))
@@ -1341,6 +1339,10 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 	case FIONREAD:
 		*(int *)data = ttyinq_bytescanonicalized(&tp->t_inq);
 		return (0);
+	case FIONWRITE:
+	case TIOCOUTQ:
+		*(int *)data = ttyoutq_bytesused(&tp->t_outq);
+		return (0);
 	case FIOSETOWN:
 		if (tp->t_session != NULL && !tty_is_ctty(tp, td->td_proc))
 			/* Not allowed to set ownership. */
@@ -1602,9 +1604,6 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		return (0);
 	case TIOCNXCL:
 		tp->t_flags &= ~TF_EXCLUDE;
-		return (0);
-	case TIOCOUTQ:
-		*(unsigned int *)data = ttyoutq_bytesused(&tp->t_outq);
 		return (0);
 	case TIOCSTOP:
 		tp->t_flags |= TF_STOPPED;

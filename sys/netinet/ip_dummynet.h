@@ -229,7 +229,7 @@ struct dn_flow_queue {
     int avg ;                   /* average queue length est. (scaled) */
     int count ;                 /* arrivals since last RED drop */
     int random ;                /* random value (scaled) */
-    dn_key q_time;		/* start of queue idle time */
+    dn_key idle_time;		/* start of queue idle time */
 
     /* WF2Q+ support */
     struct dn_flow_set *fs ;	/* parent flow set */
@@ -341,8 +341,10 @@ struct dn_pipe {		/* a pipe */
 
     /* Same as in dn_flow_queue, numbytes can become large */
     int64_t numbytes;		/* bits I can transmit (more or less). */
+    uint64_t burst;		/* burst size, scaled: bits * hz */
 
     dn_key sched_time ;		/* time pipe was scheduled in ready_heap */
+    dn_key idle_time;		/* start of pipe idle time */
 
     /*
      * When the tx clock come from an interface (if_name[0] != '\0'), its name

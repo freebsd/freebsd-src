@@ -2909,7 +2909,8 @@ vm_map_copy_entry(
 		 * Cause wired pages to be copied into the new map by
 		 * simulating faults (the new pages are pageable)
 		 */
-		vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry);
+		vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry,
+		    fork_charge);
 	}
 }
 
@@ -3073,6 +3074,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wired_count = 0;
 			new_entry->object.vm_object = NULL;
+			new_entry->uip = NULL;
 			vm_map_entry_link(new_map, new_map->header.prev,
 			    new_entry);
 			vmspace_map_entry_forked(vm1, vm2, new_entry);

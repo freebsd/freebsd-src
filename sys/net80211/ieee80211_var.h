@@ -44,6 +44,7 @@
 
 #include <net80211/_ieee80211.h>
 #include <net80211/ieee80211.h>
+#include <net80211/ieee80211_ageq.h>
 #include <net80211/ieee80211_crypto.h>
 #include <net80211/ieee80211_dfs.h>
 #include <net80211/ieee80211_ioctl.h>		/* for ieee80211_stats */
@@ -112,6 +113,7 @@ struct ieee80211_rate_table;
 struct ieee80211_tx_ampdu;
 struct ieee80211_rx_ampdu;
 struct ieee80211_superg;
+struct ieee80211_frame;
 
 struct ieee80211com {
 	struct ifnet		*ic_ifp;	/* associated device */
@@ -193,6 +195,8 @@ struct ieee80211com {
 	/* NB: this is the union of all vap stations/neighbors */
 	int			ic_max_keyix;	/* max h/w key index */
 	struct ieee80211_node_table ic_sta;	/* stations/neighbors */
+	struct ieee80211_ageq	ic_stageq;	/* frame staging queue */
+	uint32_t		ic_hash_key;	/* random key for mac hash */
 
 	/* XXX multi-bss: split out common/vap parts */
 	struct ieee80211_wme_state ic_wme;	/* WME/WMM state */
@@ -282,11 +286,11 @@ struct ieee80211com {
 	 * driver passes out-of-order frames to ieee80211_input
 	 * from an assocated HT station.
 	 */
-	void			(*ic_recv_action)(struct ieee80211_node *,
+	int			(*ic_recv_action)(struct ieee80211_node *,
+				    const struct ieee80211_frame *,
 				    const uint8_t *frm, const uint8_t *efrm);
 	int			(*ic_send_action)(struct ieee80211_node *,
-				    int category, int action,
-				    uint16_t args[4]);
+				    int category, int action, void *);
 	/* check if A-MPDU should be enabled this station+ac */
 	int			(*ic_ampdu_enable)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *);
@@ -658,6 +662,8 @@ struct ieee80211_channel *ieee80211_find_channel_byieee(struct ieee80211com *,
 		int ieee, int flags);
 int	ieee80211_setmode(struct ieee80211com *, enum ieee80211_phymode);
 enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
+uint32_t ieee80211_mac_hash(const struct ieee80211com *,
+		const uint8_t addr[IEEE80211_ADDR_LEN]);
 
 void	ieee80211_radiotap_attach(struct ieee80211com *,
 	    struct ieee80211_radiotap_header *th, int tlen,

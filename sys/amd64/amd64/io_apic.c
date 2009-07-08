@@ -120,7 +120,7 @@ static int	ioapic_source_pending(struct intsrc *isrc);
 static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		    enum intr_polarity pol);
 static void	ioapic_resume(struct pic *pic);
-static void	ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id);
+static int	ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
 
 static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
@@ -322,12 +322,12 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	mtx_unlock_spin(&icu_lock);
 }
 
-static void
+static int
 ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = (struct ioapic *)isrc->is_pic;
-	u_int old_vector;
+	u_int old_vector, new_vector;
 	u_int old_id;
 
 	/*
@@ -342,14 +342,20 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	old_vector = intpin->io_vector;
 	old_id = intpin->io_cpu;
 	if (old_vector && apic_id == old_id)
-		return;
+		return (0);
 
 	/*
 	 * Allocate an APIC vector for this interrupt pin.  Once
 	 * we have a vector we program the interrupt pin.
 	 */
+	new_vector = apic_alloc_vector(apic_id, intpin->io_irq);
+	if (new_vector == 0)
+		return (ENOSPC);
+
 	intpin->io_cpu = apic_id;
-	intpin->io_vector = apic_alloc_vector(apic_id, intpin->io_irq);
+	intpin->io_vector = new_vector;
+	if (isrc->is_handlers > 0)
+		apic_enable_vector(intpin->io_cpu, intpin->io_vector);
 	if (bootverbose) {
 		printf("ioapic%u: routing intpin %u (", io->io_id,
 		    intpin->io_intpin);
@@ -362,8 +368,12 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	 * Free the old vector after the new one is established.  This is done
 	 * to prevent races where we could miss an interrupt.
 	 */
-	if (old_vector)
+	if (old_vector) {
+		if (isrc->is_handlers > 0)
+			apic_disable_vector(old_id, old_vector);
 		apic_free_vector(old_id, old_vector, intpin->io_irq);
+	}
+	return (0);
 }
 
 static void
@@ -372,7 +382,9 @@ ioapic_enable_intr(struct intsrc *isrc)
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
 	if (intpin->io_vector == 0)
-		ioapic_assign_cpu(isrc, pcpu_find(0)->pc_apic_id);
+		if (ioapic_assign_cpu(isrc, intr_next_cpu()) != 0)
+			panic("Couldn't find an APIC vector for IRQ %d",
+			    intpin->io_irq);
 	apic_enable_vector(intpin->io_cpu, intpin->io_vector);
 }
 
@@ -496,7 +508,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	io->io_pic = ioapic_template;
 	mtx_lock_spin(&icu_lock);
 	io->io_id = next_id++;
-	io->io_apic_id = ioapic_read(apic, IOAPIC_ID) >> APIC_ID_SHIFT;	
+	io->io_apic_id = ioapic_read(apic, IOAPIC_ID) >> APIC_ID_SHIFT;
 	if (apic_id != -1 && io->io_apic_id != apic_id) {
 		ioapic_write(apic, IOAPIC_ID, apic_id << APIC_ID_SHIFT);
 		mtx_unlock_spin(&icu_lock);
@@ -730,7 +742,7 @@ ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
 	if (pin >= io->io_numintr || trigger == INTR_TRIGGER_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
-		return (EINVAL);	
+		return (EINVAL);
 	edgetrigger = (trigger == INTR_TRIGGER_EDGE);
 	if (io->io_pins[pin].io_edgetrigger == edgetrigger)
 		return (0);

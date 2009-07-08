@@ -684,7 +684,6 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 {
 	INIT_VNET_INET6(ifp->if_vnet);
 	int error = 0, hostIsNew = 0, plen = -1;
-	struct in6_ifaddr *oia;
 	struct sockaddr_in6 dst6;
 	struct in6_addrlifetime *lt;
 	struct in6_multi_mship *imm;
@@ -826,19 +825,16 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			ia->ia_ifa.ifa_dstaddr = NULL;
 		}
 		ia->ia_ifa.ifa_netmask = (struct sockaddr *)&ia->ia_prefixmask;
-
 		ia->ia_ifp = ifp;
-		if ((oia = V_in6_ifaddr) != NULL) {
-			for ( ; oia->ia_next; oia = oia->ia_next)
-				continue;
-			oia->ia_next = ia;
-		} else
-			V_in6_ifaddr = ia;
-
 		ifa_ref(&ia->ia_ifa);			/* if_addrhead */
 		IF_ADDR_LOCK(ifp);
 		TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
+
+		ifa_ref(&ia->ia_ifa);			/* in6_ifaddrhead */
+		IN6_IFADDR_WLOCK();
+		TAILQ_INSERT_TAIL(&V_in6_ifaddrhead, ia, ia_link);
+		IN6_IFADDR_WUNLOCK();
 	}
 
 	/* update timestamp */
@@ -974,8 +970,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			    "%s on %s (errno=%d)\n",
 			    ip6_sprintf(ip6buf, &llsol), if_name(ifp),
 			    error));
-			in6_purgeaddr((struct ifaddr *)ia);
-			return (error);
+			goto cleanup;
 		}
 		LIST_INSERT_HEAD(&ia->ia6_memberships,
 		    imm, i6mm_chain);
@@ -1154,8 +1149,8 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 * anyway.
 	 */
 	if (hostIsNew) {
-		ifa_free(&ia->ia_ifa);
 		in6_unlink_ifa(ia, ifp);
+		ifa_free(&ia->ia_ifa);
 	}
 	return (error);
 
@@ -1375,7 +1370,6 @@ static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
 	INIT_VNET_INET6(ifp->if_vnet);
-	struct in6_ifaddr *oia;
 	int	s = splnet();
 
 	IF_ADDR_LOCK(ifp);
@@ -1383,31 +1377,26 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	IF_ADDR_UNLOCK(ifp);
 	ifa_free(&ia->ia_ifa);			/* if_addrhead */
 
-	oia = ia;
-	if (oia == (ia = V_in6_ifaddr))
-		V_in6_ifaddr = ia->ia_next;
-	else {
-		while (ia->ia_next && (ia->ia_next != oia))
-			ia = ia->ia_next;
-		if (ia->ia_next)
-			ia->ia_next = oia->ia_next;
-		else {
-			/* search failed */
-			printf("Couldn't unlink in6_ifaddr from in6_ifaddr\n");
-		}
-	}
+	/*
+	 * Defer the release of what might be the last reference to the
+	 * in6_ifaddr so that it can't be freed before the remainder of the
+	 * cleanup.
+	 */
+	IN6_IFADDR_WLOCK();
+	TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
+	IN6_IFADDR_WUNLOCK();
 
 	/*
 	 * Release the reference to the base prefix.  There should be a
 	 * positive reference.
 	 */
-	if (oia->ia6_ndpr == NULL) {
+	if (ia->ia6_ndpr == NULL) {
 		nd6log((LOG_NOTICE,
 		    "in6_unlink_ifa: autoconf'ed address "
-		    "%p has no prefix\n", oia));
+		    "%p has no prefix\n", ia));
 	} else {
-		oia->ia6_ndpr->ndpr_refcnt--;
-		oia->ia6_ndpr = NULL;
+		ia->ia6_ndpr->ndpr_refcnt--;
+		ia->ia6_ndpr = NULL;
 	}
 
 	/*
@@ -1415,16 +1404,10 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	 * pfxlist_onlink_check() since the release might affect the status of
 	 * other (detached) addresses.
 	 */
-	if ((oia->ia6_flags & IN6_IFF_AUTOCONF)) {
+	if ((ia->ia6_flags & IN6_IFF_AUTOCONF)) {
 		pfxlist_onlink_check();
 	}
-
-	/*
-	 * release another refcnt for the link from in6_ifaddr.
-	 * Note that we should decrement the refcnt at least once for all *BSD.
-	 */
-	ifa_free(&oia->ia_ifa);
-
+	ifa_free(&ia->ia_ifa);			/* in6_ifaddrhead */
 	splx(s);
 }
 
@@ -1941,12 +1924,15 @@ in6_localaddr(struct in6_addr *in6)
 	if (IN6_IS_ADDR_LOOPBACK(in6) || IN6_IS_ADDR_LINKLOCAL(in6))
 		return 1;
 
-	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
+	IN6_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (IN6_ARE_MASKED_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr,
 		    &ia->ia_prefixmask.sin6_addr)) {
+			IN6_IFADDR_RUNLOCK();
 			return 1;
 		}
 	}
+	IN6_IFADDR_RUNLOCK();
 
 	return (0);
 }
@@ -1957,14 +1943,18 @@ in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
-	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
+	IN6_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
 				       &sa6->sin6_addr) &&
-		    (ia->ia6_flags & IN6_IFF_DEPRECATED) != 0)
+		    (ia->ia6_flags & IN6_IFF_DEPRECATED) != 0) {
+			IN6_IFADDR_RUNLOCK();
 			return (1); /* true */
+		}
 
 		/* XXX: do we still have to go thru the rest of the list? */
 	}
+	IN6_IFADDR_RUNLOCK();
 
 	return (0);		/* false */
 }
@@ -2098,7 +2088,9 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		IF_ADDR_UNLOCK(ifp);
 		return (besta);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
+	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -2116,10 +2108,10 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 
 		if (ifa != NULL)
 			ifa_ref(ifa);
-		IF_ADDR_UNLOCK(ifp);
+		IN6_IFADDR_RUNLOCK();
 		return (struct in6_ifaddr *)ifa;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IN6_IFADDR_RUNLOCK();
 
 	/* use the last-resort values, that are, deprecated addresses */
 	if (dep[0])

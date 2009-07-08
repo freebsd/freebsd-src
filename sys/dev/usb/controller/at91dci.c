@@ -1227,7 +1227,7 @@ at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 static void
 at91dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
-    struct usb_endpoint *ep)
+    struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct at91dci_softc *sc;
 	uint32_t csr_val;

@@ -388,7 +388,7 @@ nmount(td, uap)
 	int error;
 	u_int iovcnt;
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 	CTR4(KTR_VFS, "%s: iovp %p with iovcnt %d and flags %d", __func__,
 	    uap->iovp, uap->iovcnt, uap->flags);
 
@@ -750,7 +750,7 @@ mount(td, uap)
 	struct mntarg *ma = NULL;
 	int error;
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 
 	/*
 	 * Filter out MNT_ROOTFS.  We do not want clients of mount() in
@@ -767,7 +767,7 @@ mount(td, uap)
 		return (error);
 	}
 
-	AUDIT_ARG(text, fstype);
+	AUDIT_ARG_TEXT(fstype);
 	mtx_lock(&Giant);
 	vfsp = vfs_byname_kld(fstype, td, &error);
 	free(fstype, M_TEMP);
@@ -1113,6 +1113,7 @@ unmount(td, uap)
 	char *pathbuf;
 	int error, id0, id1;
 
+	AUDIT_ARG_VALUE(uap->flags);
 	if (jailed(td->td_ucred) || usermount == 0) {
 		error = priv_check(td, PRIV_VFS_UNMOUNT);
 		if (error)
@@ -1125,9 +1126,9 @@ unmount(td, uap)
 		free(pathbuf, M_TEMP);
 		return (error);
 	}
-	AUDIT_ARG(upath, td, pathbuf, ARG_UPATH1);
 	mtx_lock(&Giant);
 	if (uap->flags & MNT_BYFSID) {
+		AUDIT_ARG_TEXT(pathbuf);
 		/* Decode the filesystem ID. */
 		if (sscanf(pathbuf, "FSID:%d:%d", &id0, &id1) != 2) {
 			mtx_unlock(&Giant);
@@ -1143,6 +1144,7 @@ unmount(td, uap)
 		}
 		mtx_unlock(&mountlist_mtx);
 	} else {
+		AUDIT_ARG_UPATH(td, pathbuf, ARG_UPATH1);
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)

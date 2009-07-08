@@ -125,7 +125,7 @@ ata_marvell_probe(device_t dev)
 	ctlr->chipinit = ata_marvell_pata_chipinit;
 	break;
     }
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int

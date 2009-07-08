@@ -1606,17 +1606,18 @@ kqueue_wakeup(struct kqueue *kq)
  * first.
  */
 void
-knote(struct knlist *list, long hint, int islocked)
+knote(struct knlist *list, long hint, int lockflags)
 {
 	struct kqueue *kq;
 	struct knote *kn;
+	int error;
 
 	if (list == NULL)
 		return;
 
-	KNL_ASSERT_LOCK(list, islocked);
+	KNL_ASSERT_LOCK(list, lockflags & KNF_LISTLOCKED);
 
-	if (!islocked) 
+	if ((lockflags & KNF_LISTLOCKED) == 0)
 		list->kl_lock(list->kl_lockarg); 
 
 	/*
@@ -1631,17 +1632,28 @@ knote(struct knlist *list, long hint, int islocked)
 		kq = kn->kn_kq;
 		if ((kn->kn_status & KN_INFLUX) != KN_INFLUX) {
 			KQ_LOCK(kq);
-			if ((kn->kn_status & KN_INFLUX) != KN_INFLUX) {
+			if ((kn->kn_status & KN_INFLUX) == KN_INFLUX) {
+				KQ_UNLOCK(kq);
+			} else if ((lockflags & KNF_NOKQLOCK) != 0) {
+				kn->kn_status |= KN_INFLUX;
+				KQ_UNLOCK(kq);
+				error = kn->kn_fop->f_event(kn, hint);
+				KQ_LOCK(kq);
+				kn->kn_status &= ~KN_INFLUX;
+				if (error)
+					KNOTE_ACTIVATE(kn, 1);
+				KQ_UNLOCK_FLUX(kq);
+			} else {
 				kn->kn_status |= KN_HASKQLOCK;
 				if (kn->kn_fop->f_event(kn, hint))
 					KNOTE_ACTIVATE(kn, 1);
 				kn->kn_status &= ~KN_HASKQLOCK;
+				KQ_UNLOCK(kq);
 			}
-			KQ_UNLOCK(kq);
 		}
 		kq = NULL;
 	}
-	if (!islocked)
+	if ((lockflags & KNF_LISTLOCKED) == 0)
 		list->kl_unlock(list->kl_lockarg); 
 }
 

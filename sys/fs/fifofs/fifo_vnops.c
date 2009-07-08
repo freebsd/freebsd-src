@@ -84,6 +84,7 @@ struct fifoinfo {
 	struct socket	*fi_writesock;
 	long		fi_readers;
 	long		fi_writers;
+	int		fi_wgen;
 };
 
 static vop_print_t	fifo_print;
@@ -232,6 +233,7 @@ fail1:
 				sowwakeup(fip->fi_writesock);
 			}
 		}
+		fp->f_seqcount = fip->fi_wgen - fip->fi_writers;
 	}
 	if (ap->a_mode & FWRITE) {
 		if ((ap->a_mode & O_NONBLOCK) && fip->fi_readers == 0) {
@@ -279,6 +281,9 @@ fail1:
 				fip->fi_writers--;
 				if (fip->fi_writers == 0) {
 					socantrcvmore(fip->fi_readsock);
+					mtx_lock(&fifo_mtx);
+					fip->fi_wgen++;
+					mtx_unlock(&fifo_mtx);
 					fifo_cleanup(vp);
 				}
 				return (error);
@@ -395,8 +400,12 @@ fifo_close(ap)
 	}
 	if (ap->a_fflag & FWRITE) {
 		fip->fi_writers--;
-		if (fip->fi_writers == 0)
+		if (fip->fi_writers == 0) {
 			socantrcvmore(fip->fi_readsock);
+			mtx_lock(&fifo_mtx);
+			fip->fi_wgen++;
+			mtx_unlock(&fifo_mtx);
+		}
 	}
 	fifo_cleanup(vp);
 	return (0);
@@ -634,28 +643,13 @@ fifo_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 	levents = events &
 	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
 	if ((fp->f_flag & FREAD) && levents) {
-		/*
-		 * If POLLIN or POLLRDNORM is requested and POLLINIGNEOF is
-		 * not, then convert the first two to the last one.  This
-		 * tells the socket poll function to ignore EOF so that we
-		 * block if there is no writer (and no data).  Callers can
-		 * set POLLINIGNEOF to get non-blocking behavior.
-		 */
-		if (levents & (POLLIN | POLLRDNORM) &&
-		    !(levents & POLLINIGNEOF)) {
-			levents &= ~(POLLIN | POLLRDNORM);
-			levents |= POLLINIGNEOF;
-		}
-
 		filetmp.f_data = fip->fi_readsock;
 		filetmp.f_cred = cred;
+		mtx_lock(&fifo_mtx);
+		if (fp->f_seqcount == fip->fi_wgen)
+			levents |= POLLINIGNEOF;
+		mtx_unlock(&fifo_mtx);
 		revents |= soo_poll(&filetmp, levents, cred, td);
-
-		/* Reverse the above conversion. */
-		if ((revents & POLLINIGNEOF) && !(events & POLLINIGNEOF)) {
-			revents |= (events & (POLLIN | POLLRDNORM));
-			revents &= ~POLLINIGNEOF;
-		}
 	}
 	levents = events & (POLLOUT | POLLWRNORM | POLLWRBAND);
 	if ((fp->f_flag & FWRITE) && levents) {

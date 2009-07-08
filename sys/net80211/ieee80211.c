@@ -268,6 +268,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	ic->ic_update_mcast = null_update_mcast;
 	ic->ic_update_promisc = null_update_promisc;
 
+	ic->ic_hash_key = arc4random();
 	ic->ic_bintval = IEEE80211_BINTVAL_DEFAULT;
 	ic->ic_lintval = ic->ic_bintval;
 	ic->ic_txpowlimit = IEEE80211_TXPOWER_MAX;
@@ -1568,3 +1569,39 @@ ieee80211_media2rate(int mword)
 		ieeerates[IFM_SUBTYPE(mword)] : 0;
 #undef N
 }
+
+/*
+ * The following hash function is adapted from "Hash Functions" by Bob Jenkins
+ * ("Algorithm Alley", Dr. Dobbs Journal, September 1997).
+ */
+#define	mix(a, b, c)							\
+do {									\
+	a -= b; a -= c; a ^= (c >> 13);					\
+	b -= c; b -= a; b ^= (a << 8);					\
+	c -= a; c -= b; c ^= (b >> 13);					\
+	a -= b; a -= c; a ^= (c >> 12);					\
+	b -= c; b -= a; b ^= (a << 16);					\
+	c -= a; c -= b; c ^= (b >> 5);					\
+	a -= b; a -= c; a ^= (c >> 3);					\
+	b -= c; b -= a; b ^= (a << 10);					\
+	c -= a; c -= b; c ^= (b >> 15);					\
+} while (/*CONSTCOND*/0)
+
+uint32_t
+ieee80211_mac_hash(const struct ieee80211com *ic,
+	const uint8_t addr[IEEE80211_ADDR_LEN])
+{
+	uint32_t a = 0x9e3779b9, b = 0x9e3779b9, c = ic->ic_hash_key;
+
+	b += addr[5] << 8;
+	b += addr[4];
+	a += addr[3] << 24;
+	a += addr[2] << 16;
+	a += addr[1] << 8;
+	a += addr[0];
+
+	mix(a, b, c);
+
+	return c;
+}
+#undef mix

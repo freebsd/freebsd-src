@@ -590,6 +590,8 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_FASTFRAME, 0, NULL) == HAL_OK)
 #define	ath_hal_hasbssidmask(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_BSSIDMASK, 0, NULL) == HAL_OK)
+#define	ath_hal_hasbssidmatch(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_BSSIDMATCH, 0, NULL) == HAL_OK)
 #define	ath_hal_hastsfadjust(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_TSF_ADJUST, 0, NULL) == HAL_OK)
 #define	ath_hal_gettsfadjust(_ah) \

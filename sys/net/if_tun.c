@@ -520,7 +520,7 @@ tuninit(struct ifnet *ifp)
 	getmicrotime(&ifp->if_lastchange);
 
 #ifdef INET
-	IF_ADDR_LOCK(ifp);
+	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			struct sockaddr_in *si;
@@ -536,7 +536,7 @@ tuninit(struct ifnet *ifp)
 			mtx_unlock(&tp->tun_mtx);
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_addr_runlock(ifp);
 #endif
 	return (error);
 }
@@ -888,7 +888,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (0);
 
 	if (uio->uio_resid < 0 || uio->uio_resid > TUNMRU) {
-		TUNDEBUG(ifp, "len=%d!\n", uio->uio_resid);
+		TUNDEBUG(ifp, "len=%zd!\n", uio->uio_resid);
 		return (EIO);
 	}
 

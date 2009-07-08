@@ -107,9 +107,6 @@ static struct {
 };
 
 
-extern int pq_l2size;
-extern int pq_l2nways;
-
 void
 printcpuinfo(void)
 {

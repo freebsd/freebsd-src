@@ -1886,7 +1886,7 @@ igb_set_multi(struct adapter *adapter)
 
 	IOCTL_DEBUGOUT("igb_set_multi: begin");
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1898,7 +1898,7 @@ igb_set_multi(struct adapter *adapter)
 		    &mta[mcnt * ETH_ADDR_LEN], ETH_ADDR_LEN);
 		mcnt++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (mcnt >= MAX_NUM_MULTICAST_ADDRESSES) {
 		reg_rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
@@ -2189,13 +2189,12 @@ igb_allocate_msix(struct adapter *adapter)
 			txr->eims = E1000_EICR_TX_QUEUE0 << i;
 		else
 			txr->eims = 1 << vector;
-#if __FreeBSD_version >= 800000
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
 		*/
-		intr_bind(rman_get_start(txr->res), i);
-#endif
+		if (adapter->num_queues > 1)
+			bus_bind_intr(dev, txr->res, i);
 	}
 
 	/* RX Setup */
@@ -2226,7 +2225,6 @@ igb_allocate_msix(struct adapter *adapter)
 			rxr->eims = 1 << vector;
 		/* Get a mask for local timer */
 		adapter->rx_mask |= rxr->eims;
-#if __FreeBSD_version >= 800000
 		/*
 		** Bind the msix vector, and thus the
 		** ring to the corresponding cpu.
@@ -2234,8 +2232,8 @@ igb_allocate_msix(struct adapter *adapter)
 		** bound to each CPU, limited by the MSIX
 		** vectors.
 		*/
-		intr_bind(rman_get_start(rxr->res), i);
-#endif
+		if (adapter->num_queues > 1)
+			bus_bind_intr(dev, rxr->res, i);
 	}
 
 	/* And Link */
@@ -4661,8 +4659,8 @@ igb_print_debug_info(struct adapter *adapter)
 		device_printf(dev, "Queue(%d) tdh = %d, tdt = %d\n", i,
 		    E1000_READ_REG(&adapter->hw, E1000_TDH(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_TDT(i)));
-		device_printf(dev, "no descriptors avail event = %lu\n",
-		    txr->no_desc_avail);
+		device_printf(dev, "TX(%d) no descriptors avail event = %lld\n",
+		    txr->me, (long long)txr->no_desc_avail);
 		device_printf(dev, "TX(%d) MSIX IRQ Handled = %lld\n", txr->me,
 		    (long long)txr->tx_irq);
 		device_printf(dev, "TX(%d) Packets sent = %lld\n", txr->me,

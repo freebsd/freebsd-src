@@ -551,10 +551,10 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			 * lose a race while we check if the membership
 			 * already exists.
 			 */
-			IF_ADDR_LOCK(priv->ifp);
+			if_maddr_rlock(priv->ifp);
 			ifma = if_findmulti(priv->ifp,
 			    (struct sockaddr *)&sa_dl);
-			IF_ADDR_UNLOCK(priv->ifp);
+			if_maddr_runlock(priv->ifp);
 			if (ifma != NULL) {
 				error = EADDRINUSE;
 			} else {

@@ -36,6 +36,11 @@ INTERFACE usb;
 
 # The device received a control request
 #
+# The value pointed to by "pstate" can be updated to
+# "USB_HR_COMPLETE_OK" to indicate that the control
+# read transfer is complete, in case of short USB
+# control transfers.
+#
 # Return values:
 # 0: Success
 # ENOTTY: Transaction stalled
@@ -47,5 +52,5 @@ METHOD int handle_request {
 	void **pptr; /* data pointer */
 	uint16_t *plen; /* maximum transfer length */
 	uint16_t offset; /* data offset */
-	uint8_t is_complete; /* set if transfer is complete, see USB_HR_XXX */
+	uint8_t *pstate; /* set if transfer is complete, see USB_HR_XXX */
 };

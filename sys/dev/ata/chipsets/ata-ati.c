@@ -136,7 +136,7 @@ ata_ati_probe(device_t dev)
 	ctlr->chipinit = ata_ati_ahci_chipinit;
 	break;
     }
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int

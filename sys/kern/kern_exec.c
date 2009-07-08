@@ -274,9 +274,9 @@ kern_execve(td, args, mac_p)
 	struct proc *p = td->td_proc;
 	int error;
 
-	AUDIT_ARG(argv, args->begin_argv, args->argc,
+	AUDIT_ARG_ARGV(args->begin_argv, args->argc,
 	    args->begin_envv - args->begin_argv);
-	AUDIT_ARG(envv, args->begin_envv, args->envc,
+	AUDIT_ARG_ENVV(args->begin_envv, args->envc,
 	    args->endp - args->begin_envv);
 	if (p->p_flag & P_HADTHREADS) {
 		PROC_LOCK(p);
@@ -413,13 +413,13 @@ interpret:
 		binvp  = nd.ni_vp;
 		imgp->vp = binvp;
 	} else {
-		AUDIT_ARG(fd, args->fd);
+		AUDIT_ARG_FD(args->fd);
 		error = fgetvp(td, args->fd, &binvp);
 		if (error)
 			goto exec_fail;
 		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
-		AUDIT_ARG(vnode, binvp, ARG_VNODE1);
+		AUDIT_ARG_VNODE(binvp, ARG_VNODE1);
 		imgp->vp = binvp;
 	}
 

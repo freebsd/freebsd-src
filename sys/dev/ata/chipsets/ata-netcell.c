@@ -68,7 +68,7 @@ ata_netcell_probe(device_t dev)
     if (pci_get_devid(dev) == ATA_NETCELL_SR) {
 	device_set_desc(dev, "Netcell SyncRAID SR3000/5000 RAID Controller");
 	ctlr->chipinit = ata_netcell_chipinit;
-	return 0;
+	return (BUS_PROBE_DEFAULT);
     }
     return ENXIO;
 }
