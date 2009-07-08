@@ -4,6 +4,7 @@
 #
 
 PORTNAME=      jbuild
+PORTDIRNAME=	${PORTNAME}
 PORTVERSION=   12
 CATEGORIES=    devel
 
