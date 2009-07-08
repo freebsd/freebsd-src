@@ -513,8 +513,11 @@ ar71xx_pci_maxslots(device_t dev)
 static int
 ar71xx_pci_route_interrupt(device_t pcib, device_t device, int pin)
 {
+	if (pci_get_slot(device) < AR71XX_PCI_BASE_SLOT)
+		panic("%s: PCI slot %d is less then AR71XX_PCI_BASE_SLOT",
+		    __func__, pci_get_slot(device));
 
-	return (pin);
+	return (pci_get_slot(device) - AR71XX_PCI_BASE_SLOT);
 }
 
 static device_method_t ar71xx_pci_methods[] = {
