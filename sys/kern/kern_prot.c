@@ -623,7 +623,6 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	/*
 	 * Everything's okay, do it.
 	 */
-	crcopy(newcred, oldcred);
 	if (oldcred->cr_uid != euid) {
 		change_euid(newcred, euip);
 		setsugid(p);
