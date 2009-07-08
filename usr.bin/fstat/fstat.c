@@ -102,6 +102,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <netdb.h>
 
+#include "common.h"
 #include "fstat.h"
 
 #define	TEXT	-1
@@ -124,7 +125,6 @@ int 	fsflg,	/* show files on same filesystem as file(s) argument */
 	uflg;	/* show files open by a particular (effective) user */
 int 	checkfile; /* true if restricting to particular files or filesystems */
 int	nflg;	/* (numerical) display f.s. and rdev as dev_t */
-int	vflg;	/* display errors in locating kernel data objects etc... */
 int	mflg;	/* include memory-mapped files */
 
 
@@ -148,9 +148,6 @@ static void fstat_sysctl(int, int);
 void dofiles(struct kinfo_proc *kp);
 void dommap(struct kinfo_proc *kp);
 void vtrans(struct vnode *vp, int i, int flag);
-int  ufs_filestat(struct vnode *vp, struct filestat *fsp);
-int  nfs_filestat(struct vnode *vp, struct filestat *fsp);
-int  devfs_filestat(struct vnode *vp, struct filestat *fsp);
 char *getmnton(struct mount *m);
 void pipetrans(struct pipe *pi, int i, int flag);
 void socktrans(struct socket *sock, int i);
@@ -158,7 +155,6 @@ void ptstrans(struct tty *tp, int i, int flag);
 void getinetproto(int number);
 int  getfname(const char *filename);
 void usage(void);
-char *kdevtoname(struct cdev *dev);
 
 int
 main(int argc, char **argv)
@@ -338,7 +334,8 @@ dofiles(struct kinfo_proc *kp)
 
 	if (kp->ki_fd == NULL)
 		return;
-	if (!KVM_READ(kp->ki_fd, &filed, sizeof (filed))) {
+	if (!kvm_read_all(kd, (unsigned long)kp->ki_fd, &filed,
+	    sizeof(filed))) {
 		dprintf(stderr, "can't read filedesc at %p for pid %d\n",
 		    (void *)kp->ki_fd, Pid);
 		return;
@@ -379,7 +376,7 @@ dofiles(struct kinfo_proc *kp)
 		return;
 
 	ALLOC_OFILES(filed.fd_lastfile+1);
-	if (!KVM_READ(filed.fd_ofiles, ofiles,
+	if (!kvm_read_all(kd, (unsigned long)filed.fd_ofiles, ofiles,
 	    (filed.fd_lastfile+1) * FPSIZE)) {
 		dprintf(stderr,
 		    "can't read file structures at %p for pid %d\n",
@@ -389,7 +386,8 @@ dofiles(struct kinfo_proc *kp)
 	for (i = 0; i <= filed.fd_lastfile; i++) {
 		if (ofiles[i] == NULL)
 			continue;
-		if (!KVM_READ(ofiles[i], &file, sizeof (struct file))) {
+		if (!kvm_read_all(kd, (unsigned long)ofiles[i], &file,
+		    sizeof(struct file))) {
 			dprintf(stderr, "can't read file %d at %p for pid %d\n",
 			    i, (void *)ofiles[i], Pid);
 			continue;
@@ -437,7 +435,8 @@ dommap(struct kinfo_proc *kp)
 	vm_object_t objp;
 	int prot, fflags;
 
-	if (!KVM_READ(kp->ki_vmspace, &vmspace, sizeof(vmspace))) {
+	if (!kvm_read_all(kd, (unsigned long)kp->ki_vmspace, &vmspace,
+	    sizeof(vmspace))) {
 		dprintf(stderr,
 		    "can't read vmspace at %p for pid %d\n",
 		    (void *)kp->ki_vmspace, Pid);
@@ -447,7 +446,8 @@ dommap(struct kinfo_proc *kp)
 
 	for (entryp = map->header.next;
 	    entryp != &kp->ki_vmspace->vm_map.header; entryp = entry.next) {
-		if (!KVM_READ(entryp, &entry, sizeof(entry))) {
+		if (!kvm_read_all(kd, (unsigned long)entryp, &entry,
+		    sizeof(entry))) {
 			dprintf(stderr,
 			    "can't read vm_map_entry at %p for pid %d\n",
 			    (void *)entryp, Pid);
@@ -461,7 +461,8 @@ dommap(struct kinfo_proc *kp)
 			continue;
 
 		for (; objp; objp = object.backing_object) {
-			if (!KVM_READ(objp, &object, sizeof(object))) {
+			if (!kvm_read_all(kd, (unsigned long)objp, &object,
+			    sizeof(object))) {
 				dprintf(stderr,
 				    "can't read vm_object at %p for pid %d\n",
 				    (void *)objp, Pid);
@@ -483,16 +484,6 @@ dommap(struct kinfo_proc *kp)
 	}
 }
 
-char *
-kdevtoname(struct cdev *dev)
-{
-	struct cdev si;
-
-	if (!KVM_READ(dev, &si, sizeof si))
-		return (NULL);
-	return (strdup(si.__si_namebuf));
-}
-
 void
 vtrans(struct vnode *vp, int i, int flag)
 {
@@ -502,13 +493,14 @@ vtrans(struct vnode *vp, int i, int flag)
 	const char *badtype, *filename;
 
 	filename = badtype = NULL;
-	if (!KVM_READ(vp, &vn, sizeof (struct vnode))) {
+	if (!kvm_read_all(kd, (unsigned long)vp, &vn, sizeof(struct vnode))) {
 		dprintf(stderr, "can't read vnode at %p for pid %d\n",
 		    (void *)vp, Pid);
 		return;
 	}
-	if (!KVM_READ(&vp->v_tag, &tagptr, sizeof tagptr) ||
-	    !KVM_READ(tagptr, tagstr, sizeof tagstr)) {
+	if (!kvm_read_all(kd, (unsigned long)&vp->v_tag, &tagptr,
+	    sizeof(tagptr)) || !kvm_read_all(kd, (unsigned long)tagptr, tagstr,
+	    sizeof(tagstr))) {
 		dprintf(stderr, "can't read v_tag at %p for pid %d\n",
 		    (void *)vp, Pid);
 		return;
@@ -520,23 +512,23 @@ vtrans(struct vnode *vp, int i, int flag)
 		badtype = "bad";
 	else {
 		if (!strcmp("ufs", tagstr)) {
-			if (!ufs_filestat(&vn, &fst))
+			if (!ufs_filestat(kd, &vn, &fst))
 				badtype = "error";
 		} else if (!strcmp("devfs", tagstr)) {
-			if (!devfs_filestat(&vn, &fst))
+			if (!devfs_filestat(kd, &vn, &fst))
 				badtype = "error";
 		} else if (!strcmp("nfs", tagstr)) {
-			if (!nfs_filestat(&vn, &fst))
+			if (!nfs_filestat(kd, &vn, &fst))
 				badtype = "error";
 		} else if (!strcmp("msdosfs", tagstr)) {
-			if (!msdosfs_filestat(&vn, &fst))
+			if (!msdosfs_filestat(kd, &vn, &fst))
 				badtype = "error";
 		} else if (!strcmp("isofs", tagstr)) {
-			if (!isofs_filestat(&vn, &fst))
+			if (!isofs_filestat(kd, &vn, &fst))
 				badtype = "error";
 #ifdef ZFS
 		} else if (!strcmp("zfs", tagstr)) {
-			if (!zfs_filestat(&vn, &fst))
+			if (!zfs_filestat(kd, &vn, &fst))
 				badtype = "error";
 #endif
 		} else {
@@ -581,7 +573,7 @@ vtrans(struct vnode *vp, int i, int flag)
 	case VCHR: {
 		char *name;
 
-		name = kdevtoname(vn.v_rdev);
+		name = kdevtoname(kd, vn.v_rdev);
 		if (nflg || !name)
 			printf("  %2d,%-2d", major(fst.rdev), minor(fst.rdev));
 		else {
@@ -604,118 +596,6 @@ vtrans(struct vnode *vp, int i, int flag)
 	putchar('\n');
 }
 
-int
-ufs_filestat(struct vnode *vp, struct filestat *fsp)
-{
-	struct inode inode;
-
-	if (!KVM_READ(VTOI(vp), &inode, sizeof (inode))) {
-		dprintf(stderr, "can't read inode at %p for pid %d\n",
-		    (void *)VTOI(vp), Pid);
-		return 0;
-	}
-	/*
-	 * The st_dev from stat(2) is a dev_t. These kernel structures
-	 * contain cdev pointers. We need to convert to dev_t to make
-	 * comparisons
-	 */
-	fsp->fsid = dev2udev(inode.i_dev);
-	fsp->fileid = (long)inode.i_number;
-	fsp->mode = (mode_t)inode.i_mode;
-	fsp->size = (u_long)inode.i_size;
-#if should_be_but_is_hard
-	/* XXX - need to load i_ump and i_din[12] from kernel memory */
-	if (inode.i_ump->um_fstype == UFS1)
-		fsp->rdev = inode.i_din1->di_rdev;
-	else
-		fsp->rdev = inode.i_din2->di_rdev;
-#else
-	fsp->rdev = 0;
-#endif
-
-	return 1;
-}
-
-int
-devfs_filestat(struct vnode *vp, struct filestat *fsp)
-{
-	struct devfs_dirent devfs_dirent;
-	struct mount mount;
-	struct vnode vnode;
-
-	if (!KVM_READ(vp->v_data, &devfs_dirent, sizeof (devfs_dirent))) {
-		dprintf(stderr, "can't read devfs_dirent at %p for pid %d\n",
-		    (void *)vp->v_data, Pid);
-		return 0;
-	}
-	if (!KVM_READ(vp->v_mount, &mount, sizeof (mount))) {
-		dprintf(stderr, "can't read mount at %p for pid %d\n",
-		    (void *)vp->v_mount, Pid);
-		return 0;
-	}
-	if (!KVM_READ(devfs_dirent.de_vnode, &vnode, sizeof (vnode))) {
-		dprintf(stderr, "can't read vnode at %p for pid %d\n",
-		    (void *)devfs_dirent.de_vnode, Pid);
-		return 0;
-	}
-	fsp->fsid = (long)mount.mnt_stat.f_fsid.val[0];
-	fsp->fileid = devfs_dirent.de_inode;
-	fsp->mode = (devfs_dirent.de_mode & ~S_IFMT) | S_IFCHR;
-	fsp->size = 0;
-	fsp->rdev = dev2udev(vnode.v_rdev);
-
-	return 1;
-}
-
-int
-nfs_filestat(struct vnode *vp, struct filestat *fsp)
-{
-	struct nfsnode nfsnode;
-	mode_t mode;
-
-	if (!KVM_READ(VTONFS(vp), &nfsnode, sizeof (nfsnode))) {
-		dprintf(stderr, "can't read nfsnode at %p for pid %d\n",
-		    (void *)VTONFS(vp), Pid);
-		return 0;
-	}
-	fsp->fsid = nfsnode.n_vattr.va_fsid;
-	fsp->fileid = nfsnode.n_vattr.va_fileid;
-	fsp->size = nfsnode.n_size;
-	fsp->rdev = nfsnode.n_vattr.va_rdev;
-	mode = (mode_t)nfsnode.n_vattr.va_mode;
-	switch (vp->v_type) {
-	case VREG:
-		mode |= S_IFREG;
-		break;
-	case VDIR:
-		mode |= S_IFDIR;
-		break;
-	case VBLK:
-		mode |= S_IFBLK;
-		break;
-	case VCHR:
-		mode |= S_IFCHR;
-		break;
-	case VLNK:
-		mode |= S_IFLNK;
-		break;
-	case VSOCK:
-		mode |= S_IFSOCK;
-		break;
-	case VFIFO:
-		mode |= S_IFIFO;
-		break;
-	case VNON:
-	case VBAD:
-	case VMARKER:
-		return 0;
-	};
-	fsp->mode = mode;
-
-	return 1;
-}
-
-
 char *
 getmnton(struct mount *m)
 {
@@ -730,7 +610,7 @@ getmnton(struct mount *m)
 	for (mt = mhead; mt != NULL; mt = mt->next)
 		if (m == mt->m)
 			return (mt->mntonname);
-	if (!KVM_READ(m, &mount, sizeof(struct mount))) {
+	if (!kvm_read_all(kd, (unsigned long)m, &mount, sizeof(struct mount))) {
 		warnx("can't read mount table at %p", (void *)m);
 		return (NULL);
 	}
@@ -752,7 +632,7 @@ pipetrans(struct pipe *pi, int i, int flag)
 	PREFIX(i);
 
 	/* fill in socket */
-	if (!KVM_READ(pi, &pip, sizeof(struct pipe))) {
+	if (!kvm_read_all(kd, (unsigned long)pi, &pip, sizeof(struct pipe))) {
 		dprintf(stderr, "can't read pipe at %p\n", (void *)pi);
 		goto bad;
 	}
@@ -795,26 +675,29 @@ socktrans(struct socket *sock, int i)
 	PREFIX(i);
 
 	/* fill in socket */
-	if (!KVM_READ(sock, &so, sizeof(struct socket))) {
+	if (!kvm_read_all(kd, (unsigned long)sock, &so,
+	    sizeof(struct socket))) {
 		dprintf(stderr, "can't read sock at %p\n", (void *)sock);
 		goto bad;
 	}
 
 	/* fill in protosw entry */
-	if (!KVM_READ(so.so_proto, &proto, sizeof(struct protosw))) {
+	if (!kvm_read_all(kd, (unsigned long)so.so_proto, &proto,
+	    sizeof(struct protosw))) {
 		dprintf(stderr, "can't read protosw at %p",
 		    (void *)so.so_proto);
 		goto bad;
 	}
 
 	/* fill in domain */
-	if (!KVM_READ(proto.pr_domain, &dom, sizeof(struct domain))) {
+	if (!kvm_read_all(kd, (unsigned long)proto.pr_domain, &dom,
+	    sizeof(struct domain))) {
 		dprintf(stderr, "can't read domain at %p\n",
 		    (void *)proto.pr_domain);
 		goto bad;
 	}
 
-	if ((len = kvm_read(kd, (u_long)dom.dom_name, dname,
+	if ((len = kvm_read(kd, (unsigned long)dom.dom_name, dname,
 	    sizeof(dname) - 1)) < 0) {
 		dprintf(stderr, "can't read domain name at %p\n",
 		    (void *)dom.dom_name);
@@ -905,13 +788,13 @@ ptstrans(struct tty *tp, int i, int flag)
 	PREFIX(i);
 
 	/* Obtain struct tty. */
-	if (!KVM_READ(tp, &tty, sizeof(struct tty))) {
+	if (!kvm_read_all(kd, (unsigned long)tp, &tty, sizeof(struct tty))) {
 		dprintf(stderr, "can't read tty at %p\n", (void *)tp);
 		goto bad;
 	}
 
 	/* Figure out the device name. */
-	name = kdevtoname(tty.t_dev);
+	name = kdevtoname(kd, tty.t_dev);
 	if (name == NULL) {
 		dprintf(stderr, "can't determine tty name at %p\n", (void *)tp);
 		goto bad;
@@ -925,7 +808,7 @@ ptstrans(struct tty *tp, int i, int flag)
 
 	printf("* pseudo-terminal master ");
 	if (nflg || !name) {
-		rdev = dev2udev(tty.t_dev);
+		rdev = dev2udev(kd, tty.t_dev);
 		printf("%10d,%-2d", major(rdev), minor(rdev));
 	} else {
 		printf("%10s", name);
@@ -937,23 +820,6 @@ ptstrans(struct tty *tp, int i, int flag)
 	return;
 bad:
 	printf("* error\n");
-}
-
-/*
- * Read the cdev structure in the kernel in order to work out the
- * associated dev_t
- */
-dev_t
-dev2udev(struct cdev *dev)
-{
-	struct cdev_priv priv;
-
-	if (KVM_READ(cdev2priv(dev), &priv, sizeof priv)) {
-		return ((dev_t)priv.cdp_inode);
-	} else {
-		dprintf(stderr, "can't convert cdev *%p to a dev_t\n", dev);
-		return -1;
-	}
 }
 
 /*
@@ -994,20 +860,6 @@ getfname(const char *filename)
 	cur->name = filename;
 	return(1);
 }
-
-#ifdef ZFS
-void *
-getvnodedata(struct vnode *vp)
-{
-	return (vp->v_data);
-}
-
-struct mount *
-getvnodemount(struct vnode *vp)
-{
-	return (vp->v_mount);
-}
-#endif
 
 void
 usage(void)

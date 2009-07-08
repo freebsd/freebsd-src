@@ -51,7 +51,8 @@
 
 #define ZFS
 #undef dprintf
-#include <fstat.h>
+#include "common.h"
+#include "fstat.h"
 
 /* 
  * Offset calculations that are used to get data from znode without having the
@@ -61,7 +62,7 @@
 #define LOCATION_ZPHYS(zsize) ((zsize) - (2 * sizeof(void *) + sizeof(struct task)))
 
 int
-zfs_filestat(struct vnode *vp, struct filestat *fsp)
+zfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
 {
 
 	znode_phys_t zphys;
@@ -86,9 +87,9 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 
 	/* Since we have problems including vnode.h, we'll use the wrappers. */
 	vnodeptr = getvnodedata(vp);
-	if (!KVM_READ(vnodeptr, znodeptr, (size_t)size)) {
-		dprintf(stderr, "can't read znode at %p for pid %d\n",
-		    (void *)vnodeptr, Pid);
+	if (!kvm_read_all(kd, (unsigned long)vnodeptr, znodeptr,
+	    (size_t)size)) {
+		dprintf(stderr, "can't read znode at %p\n", (void *)vnodeptr);
 		goto bad;
 	}
 
@@ -103,17 +104,16 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 	zid = (uint64_t *)(dataptr + LOCATION_ZID);
 	zphys_addr = *(void **)(dataptr + LOCATION_ZPHYS(size));
 
-	if (!KVM_READ(zphys_addr, &zphys, sizeof(zphys))) {
-		dprintf(stderr, "can't read znode_phys at %p for pid %d\n",
-		    zphys_addr, Pid);
+	if (!kvm_read_all(kd, (unsigned long)zphys_addr, &zphys,
+	    sizeof(zphys))) {
+		dprintf(stderr, "can't read znode_phys at %p\n", zphys_addr);
 		goto bad;
 	}
 
 	/* Get the mount pointer, and read from the address. */
 	mountptr = getvnodemount(vp);
-	if (!KVM_READ(mountptr, &mount, sizeof(mount))) {
-		dprintf(stderr, "can't read mount at %p for pid %d\n",
-		    (void *)mountptr, Pid);
+	if (!kvm_read_all(kd, (unsigned long)mountptr, &mount, sizeof(mount))) {
+		dprintf(stderr, "can't read mount at %p\n", (void *)mountptr);
 		goto bad;
 	}
 

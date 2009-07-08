@@ -1,9 +1,6 @@
-/* 
- * Copyright (c) 2000 Peter Edwards
+/*-
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by Peter Edwards
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,49 +29,41 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
+
+#ifndef	__COMMON_H__
+#define	__COMMON_H__
+
+struct  filestat {
+	long	fsid;
+	long	fileid;
+	mode_t	mode;
+	u_long	size;
+	dev_t	rdev;
+};
+
+extern int vflg;
+
+dev_t	dev2udev(kvm_t *kd, struct cdev *dev);
+void	dprintf(FILE *file, const char *fmt, ...);
+char	*kdevtoname(kvm_t *kd, struct cdev *dev);
+int	kvm_read_all(kvm_t *kd, unsigned long addr, void *buf,
+    size_t nbytes);
 
 /*
- * XXX -
- * This had to be separated from fstat.c because cd9660s has namespace
- * conflicts with UFS.
+ * Filesystems specific access routines.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/param.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/vnode.h>
-#include <sys/mount.h>
-
-#include <isofs/cd9660/cd9660_node.h>
-
-#include <kvm.h>
-#include <stdio.h>
-
-#include "common.h"
-#include "fstat.h"
-
-int
-isofs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
-{
-	struct iso_node isonode;
-
-	if (!kvm_read_all(kd, (unsigned long)VTOI(vp), &isonode,
-	    sizeof(isonode))) {
-		dprintf(stderr, "can't read iso_node at %p\n",
-		    (void *)VTOI(vp));
-		return 0;
-	}
-#if 0
-	fsp->fsid = dev2udev(isonode.i_dev);
+int	devfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
+int	isofs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
+int	msdosfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
+int	nfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
+int	ufs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
+#ifdef ZFS
+int	zfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
+void	*getvnodedata(struct vnode *vp);
+struct mount	*getvnodemount(struct vnode *vp);
 #endif
-	fsp->mode = (mode_t)isonode.inode.iso_mode;
-	fsp->rdev = isonode.inode.iso_rdev;
 
-	fsp->fileid = (long)isonode.i_number;
-	fsp->size = (u_long)isonode.i_size;
-	return 1;
-}
+#endif /* __COMMON_H__ */

@@ -4,7 +4,7 @@
 .include <bsd.own.mk>
 
 PROG=	fstat
-SRCS=	cd9660.c fstat.c msdosfs.c
+SRCS=	cd9660.c common.c fstat.c msdosfs.c
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 BINGRP=	kmem

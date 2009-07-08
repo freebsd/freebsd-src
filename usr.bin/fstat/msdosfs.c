@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
  */
 #define VTODE(vp) ((struct denode *)(vp)->v_data)
 
+#include "common.h"
 #include "fstat.h"
 
 struct dosmount {
@@ -73,7 +74,7 @@ struct dosmount {
 };
 
 int
-msdosfs_filestat(struct vnode *vp, struct filestat *fsp)
+msdosfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
 {
 	struct denode denode;
 	static struct dosmount *mounts;
@@ -81,9 +82,9 @@ msdosfs_filestat(struct vnode *vp, struct filestat *fsp)
 	u_long dirsperblk;
 	int fileid;
 
-	if (!KVM_READ(VTODE(vp), &denode, sizeof (denode))) {
-		dprintf(stderr, "can't read denode at %p for pid %d\n",
-		    (void *)VTODE(vp), Pid);
+	if (!kvm_read_all(kd, (unsigned long)VTODE(vp), &denode,
+	    sizeof(denode))) {
+		dprintf(stderr, "can't read denode at %p\n", (void *)VTODE(vp));
 		return 0;
 	}
 
@@ -98,11 +99,12 @@ msdosfs_filestat(struct vnode *vp, struct filestat *fsp)
 	if (!mnt) {
 		if ((mnt = malloc(sizeof(struct dosmount))) == NULL)
 			err(1, NULL);
-		if (!KVM_READ(denode.de_pmp, &mnt->data, sizeof mnt->data)) {
+		if (!kvm_read_all(kd, (unsigned long)denode.de_pmp,
+		    &mnt->data, sizeof(mnt->data))) {
 			free(mnt);
 			dprintf(stderr,
-			    "can't read mount info at %p for pid %d\n",
-			    (void *)denode.de_pmp, Pid);
+			    "can't read mount info at %p\n",
+			    (void *)denode.de_pmp);
 			return 0;
 		}
 		mnt->next = mounts;
@@ -110,7 +112,7 @@ msdosfs_filestat(struct vnode *vp, struct filestat *fsp)
 		mnt->kptr = denode.de_pmp;
 	}
 
-	fsp->fsid = dev2udev(mnt->data.pm_dev);
+	fsp->fsid = dev2udev(kd, mnt->data.pm_dev);
 	fsp->mode = 0555;
 	fsp->mode |= denode.de_Attributes & ATTR_READONLY ? 0 : 0222;
 	fsp->mode &= mnt->data.pm_mask;
