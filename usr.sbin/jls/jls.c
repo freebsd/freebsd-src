@@ -88,7 +88,8 @@ main(int argc, char **argv)
 				jname = optarg;
 			break;
 		case 'h':
-			pflags = (pflags & ~PRINT_SKIP) | PRINT_HEADER;
+			pflags = (pflags & ~(PRINT_SKIP | PRINT_VERBOSE)) |
+			    PRINT_HEADER;
 			break;
 		case 'n':
 			pflags = (pflags & ~PRINT_VERBOSE) | PRINT_NAMEVAL;
@@ -101,7 +102,8 @@ main(int argc, char **argv)
 			    PRINT_NAMEVAL | PRINT_QUOTED | PRINT_SKIP;
 			break;
 		case 'v':
-			pflags = (pflags & ~(PRINT_NAMEVAL | PRINT_SKIP)) |
+			pflags = (pflags &
+			    ~(PRINT_HEADER | PRINT_NAMEVAL | PRINT_SKIP)) |
 			    PRINT_VERBOSE;
 			break;
 		default:
@@ -110,7 +112,9 @@ main(int argc, char **argv)
 
 	/* Add the parameters to print. */
 	if (optind == argc) {
-		if (pflags & PRINT_VERBOSE) {
+		if (pflags & (PRINT_HEADER | PRINT_NAMEVAL))
+			add_param("all", NULL, (size_t)0, NULL, JP_USER);
+		else if (pflags & PRINT_VERBOSE) {
 			add_param("jid", NULL, (size_t)0, NULL, JP_USER);
 			add_param("host.hostname", NULL, (size_t)0, NULL,
 			    JP_USER);
@@ -122,9 +126,7 @@ main(int argc, char **argv)
 			add_param("ip6.addr", NULL, (size_t)0, NULL,
 			    JP_USER | JP_OPT);
 		} else {
-			pflags = (pflags &
-			    ~(PRINT_NAMEVAL | PRINT_SKIP | PRINT_VERBOSE)) |
-			    PRINT_DEFAULT;
+			pflags |= PRINT_DEFAULT;
 			add_param("jid", NULL, (size_t)0, NULL, JP_USER);
 			add_param("ip4.addr", NULL, (size_t)0, NULL, JP_USER);
 			add_param("host.hostname", NULL, (size_t)0, NULL,
