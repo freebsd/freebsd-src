@@ -450,7 +450,7 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 {
 	struct nfsclclient *clp;
 	struct nfsclowner *owp;
-	struct nfsclopen *op;
+	struct nfsclopen *op = NULL;
 	struct nfscllockowner *lp;
 	struct nfscldeleg *dp;
 	struct nfsnode *np;
@@ -512,40 +512,40 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 		nfscl_filllockowner(p, own);
 		error = nfscl_getopen(&clp->nfsc_owner, nfhp, fhlen, NULL, p,
 		    mode, NULL, &op);
-		if (error) {
-			NFSUNLOCKCLSTATE();
-			return (error);
+		if (error == 0) {
+			/* now look for a lockowner */
+			LIST_FOREACH(lp, &op->nfso_lock, nfsl_list) {
+				if (!NFSBCMP(lp->nfsl_owner, own,
+				    NFSV4CL_LOCKNAMELEN)) {
+					stateidp->seqid =
+					    lp->nfsl_stateid.seqid;
+					stateidp->other[0] =
+					    lp->nfsl_stateid.other[0];
+					stateidp->other[1] =
+					    lp->nfsl_stateid.other[1];
+					stateidp->other[2] =
+					    lp->nfsl_stateid.other[2];
+					NFSUNLOCKCLSTATE();
+					return (0);
+				}
+			}
 		}
-
-		/* now look for a lockowner */
-		LIST_FOREACH(lp, &op->nfso_lock, nfsl_list) {
-		    if (!NFSBCMP(lp->nfsl_owner, own, NFSV4CL_LOCKNAMELEN)) {
-			stateidp->seqid = lp->nfsl_stateid.seqid;
-			stateidp->other[0] = lp->nfsl_stateid.other[0];
-			stateidp->other[1] = lp->nfsl_stateid.other[1];
-			stateidp->other[2] = lp->nfsl_stateid.other[2];
-			NFSUNLOCKCLSTATE();
-			return (0);
-		    }
-		}
-	} else  {
-		/*
-		 * If p == NULL, it is a read ahead or write behind,
-		 * so just look for any OpenOwner that will work.
-		 */
+	}
+	if (op == NULL) {
+		/* If not found, just look for any OpenOwner that will work. */
 		done = 0;
 		owp = LIST_FIRST(&clp->nfsc_owner);
 		while (!done && owp != NULL) {
-		    LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
-			if (op->nfso_fhlen == fhlen &&
-			    !NFSBCMP(op->nfso_fh, nfhp, fhlen) &&
-			    (mode & op->nfso_mode) == mode) {
-			    done = 1;
-			    break;
+			LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
+				if (op->nfso_fhlen == fhlen &&
+				    !NFSBCMP(op->nfso_fh, nfhp, fhlen) &&
+				    (mode & op->nfso_mode) == mode) {
+					done = 1;
+					break;
+				}
 			}
-		    }
-		    if (!done)
-			owp = LIST_NEXT(owp, nfsow_list);
+			if (!done)
+				owp = LIST_NEXT(owp, nfsow_list);
 		}
 		if (!done) {
 			NFSUNLOCKCLSTATE();
@@ -2752,33 +2752,30 @@ nfscl_dupopen(vnode_t vp, int dupopens)
 /*
  * During close, find an open that needs to be dereferenced and
  * dereference it. If there are no more opens for this file,
- * return the list of opens, so they can be closed on the
- * server. As such, opens aren't closed on the server until
- * all the opens for the file are closed off.
+ * log a message to that effect.
+ * Opens aren't actually Close'd until VOP_INACTIVE() is performed
+ * on the file's vnode.
  * This is the safe way, since it is difficult to identify
- * which open the close is for.
+ * which open the close is for and I/O can be performed after the
+ * close(2) system call when a file is mmap'd.
  * If it returns 0 for success, there will be a referenced
- * clp returned via clpp and a list of opens to close/free
- * on ohp.
+ * clp returned via clpp.
  */
 APPLESTATIC int
-nfscl_getclose(vnode_t vp, struct nfsclclient **clpp,
-    struct nfsclopenhead *ohp)
+nfscl_getclose(vnode_t vp, struct nfsclclient **clpp)
 {
 	struct nfsclclient *clp;
-	struct nfsclowner *owp, *nowp;
-	struct nfsclopen *op, *nop;
+	struct nfsclowner *owp;
+	struct nfsclopen *op;
 	struct nfscldeleg *dp;
 	struct nfsfh *nfhp;
-	int error, notdecr, candelete;
+	int error, notdecr;
 
 	error = nfscl_getcl(vp, NULL, NULL, &clp);
 	if (error)
 		return (error);
 	*clpp = clp;
 
-	if (ohp != NULL)
-		LIST_INIT(ohp);
 	nfhp = VTONFS(vp)->n_fhp;
 	notdecr = 1;
 	NFSLOCKCLSTATE();
@@ -2788,7 +2785,7 @@ nfscl_getclose(vnode_t vp, struct nfsclclient **clpp,
 	 * the server are DENY_NONE, I don't see a problem with hanging
 	 * onto them. (It is much easier to use one of the extant Opens
 	 * that I already have on the server when a Delegation is recalled
-	 * than to do fresh Opens.) Someday, I might need to rethink this, but..
+	 * than to do fresh Opens.) Someday, I might need to rethink this, but.
 	 */
 	dp = nfscl_finddeleg(clp, nfhp->nfh_fh, nfhp->nfh_len);
 	if (dp != NULL) {
@@ -2813,9 +2810,7 @@ nfscl_getclose(vnode_t vp, struct nfsclclient **clpp,
 
 	/* Now process the opens against the server. */
 	LIST_FOREACH(owp, &clp->nfsc_owner, nfsow_list) {
-		op = LIST_FIRST(&owp->nfsow_open);
-		while (op != NULL) {
-			nop = LIST_NEXT(op, nfso_list);
+		LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
 			if (op->nfso_fhlen == nfhp->nfh_len &&
 			    !NFSBCMP(op->nfso_fh, nfhp->nfh_fh,
 			    nfhp->nfh_len)) {
@@ -2825,74 +2820,76 @@ nfscl_getclose(vnode_t vp, struct nfsclclient **clpp,
 					op->nfso_opencnt--;
 				}
 				/*
-				 * There are more opens, so just return after
-				 * putting any opens already found back in the
-				 * state list.
+				 * There are more opens, so just return.
 				 */
 				if (op->nfso_opencnt > 0) {
-					if (ohp != NULL) {
-					    /* Reattach open until later */
-					    op = LIST_FIRST(ohp);
-					    while (op != NULL) {
-						nop = LIST_NEXT(op, nfso_list);
-						LIST_REMOVE(op, nfso_list);
-						LIST_INSERT_HEAD(
-						    &op->nfso_own->nfsow_open,
-						    op, nfso_list);
-						op = nop;
-					    }
-					    LIST_INIT(ohp);
-					}
 					NFSUNLOCKCLSTATE();
 					return (0);
 				}
-
-				/*
-				 * Move this entry to the list of opens to be
-				 * returned. (If we find other open(s) still in
-				 * use, it will be put back in the state list
-				 * in the code just above.)
-				 */
-				if (ohp != NULL) {
-					LIST_REMOVE(op, nfso_list);
-					LIST_INSERT_HEAD(ohp, op, nfso_list);
-				}
-			}
-			op = nop;
-		}
-	}
-
-	if (dp != NULL && ohp != NULL) {
-		/*
-		 * If we are flushing all writes against the server for this
-		 * file upon close, we do not need to keep the local opens
-		 * (against the delegation) if they all have an opencnt == 0,
-		 * since there are now no opens on the file and no dirty blocks.
-		 * If the writes aren't being flushed upon close,
-		 * a test for "no dirty blocks to write back" would have to
-		 * be added to this code.
-		 */
-		candelete = 1;
-		LIST_FOREACH(owp, &dp->nfsdl_owner, nfsow_list) {
-			op = LIST_FIRST(&owp->nfsow_open);
-			if (op != NULL && op->nfso_opencnt > 0) {
-				candelete = 0;
-				break;
-			}
-		}
-		if (candelete) {
-			LIST_FOREACH_SAFE(owp, &dp->nfsdl_owner, nfsow_list,
-			    nowp) {
-				op = LIST_FIRST(&owp->nfsow_open);
-				if (op != NULL)
-					nfscl_freeopen(op, 1);
-				nfscl_freeopenowner(owp, 1);
 			}
 		}
 	}
 	NFSUNLOCKCLSTATE();
-	if (notdecr && ohp == NULL)
+	if (notdecr)
 		printf("nfscl: never fnd open\n");
+	return (0);
+}
+
+APPLESTATIC int
+nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
+{
+	struct nfsclclient *clp;
+	struct nfsclowner *owp, *nowp;
+	struct nfsclopen *op;
+	struct nfscldeleg *dp;
+	struct nfsfh *nfhp;
+	int error;
+
+	error = nfscl_getcl(vp, NULL, NULL, &clp);
+	if (error)
+		return (error);
+	*clpp = clp;
+
+	nfhp = VTONFS(vp)->n_fhp;
+	NFSLOCKCLSTATE();
+	/*
+	 * First get rid of the local Open structures, which should be no
+	 * longer in use.
+	 */
+	dp = nfscl_finddeleg(clp, nfhp->nfh_fh, nfhp->nfh_len);
+	if (dp != NULL) {
+		LIST_FOREACH_SAFE(owp, &dp->nfsdl_owner, nfsow_list, nowp) {
+			op = LIST_FIRST(&owp->nfsow_open);
+			if (op != NULL) {
+				KASSERT((op->nfso_opencnt == 0),
+				    ("nfscl: bad open cnt on deleg"));
+				nfscl_freeopen(op, 1);
+			}
+			nfscl_freeopenowner(owp, 1);
+		}
+	}
+
+	/* Now process the opens against the server. */
+lookformore:
+	LIST_FOREACH(owp, &clp->nfsc_owner, nfsow_list) {
+		op = LIST_FIRST(&owp->nfsow_open);
+		while (op != NULL) {
+			if (op->nfso_fhlen == nfhp->nfh_len &&
+			    !NFSBCMP(op->nfso_fh, nfhp->nfh_fh,
+			    nfhp->nfh_len)) {
+				/* Found an open, close it. */
+				KASSERT((op->nfso_opencnt == 0),
+				    ("nfscl: bad open cnt on server"));
+				NFSUNLOCKCLSTATE();
+				nfsrpc_doclose(VFSTONFS(vnode_mount(vp)), op,
+				    p);
+				NFSLOCKCLSTATE();
+				goto lookformore;
+			}
+			op = LIST_NEXT(op, nfso_list);
+		}
+	}
+	NFSUNLOCKCLSTATE();
 	return (0);
 }
 

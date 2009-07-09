@@ -81,8 +81,6 @@ static int nfsrpc_createv4(vnode_t , char *, int, struct vattr *,
 static int nfsrpc_locku(struct nfsrv_descript *, struct nfsmount *,
     struct nfscllockowner *, u_int64_t, u_int64_t,
     u_int32_t, struct ucred *, NFSPROC_T *, int);
-static void nfsrpc_doclose(struct nfsmount *, struct nfsclopenhead *,
-    NFSPROC_T *);
 #ifdef NFS4_ACL_EXTATTR_NAME
 static int nfsrpc_setaclrpc(vnode_t, struct ucred *, NFSPROC_T *,
     struct acl *, nfsv4stateid_t *, void *);
@@ -553,119 +551,117 @@ APPLESTATIC int
 nfsrpc_close(vnode_t vp, int doclose, NFSPROC_T *p)
 {
 	struct nfsclclient *clp;
-	struct nfsclopenhead oh;
 	int error;
 
 	if (vnode_vtype(vp) != VREG)
 		return (0);
 	if (doclose)
-		error = nfscl_getclose(vp, &clp, &oh);
+		error = nfscl_doclose(vp, &clp, p);
 	else
-		error = nfscl_getclose(vp, &clp, NULL);
+		error = nfscl_getclose(vp, &clp);
 	if (error)
 		return (error);
 
-	if (doclose && !LIST_EMPTY(&oh))
-		nfsrpc_doclose(VFSTONFS(vnode_mount(vp)), &oh, p);
 	nfscl_clientrelease(clp);
 	return (0);
 }
 
 /*
- * Close/free all the opens in the list.
+ * Close the open.
  */
-static void
-nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopenhead *ohp, NFSPROC_T *p)
+APPLESTATIC void
+nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
-	struct nfsclopen *op, *nop;
 	struct nfscllockowner *lp;
 	struct nfscllock *lop, *nlop;
 	struct ucred *tcred;
 	u_int64_t off = 0, len = 0;
 	u_int32_t type = NFSV4LOCKT_READ;
-	int error;
+	int error, do_unlock, trycnt;
 
 	tcred = newnfs_getcred();
-	op = LIST_FIRST(ohp);
-	while (op != NULL) {
-		nop = LIST_NEXT(op, nfso_list);
-		newnfs_copycred(&op->nfso_cred, tcred);
-		/*
-		 * (Theoretically this could be done in the same
-		 *  compound as the close, but having multiple
-		 *  sequenced Ops in the same compound might be
-		 *  too scary for some servers.)
-		 */
-		if (op->nfso_posixlock) {
-		    off = 0;
-		    len = NFS64BITSSET;
-		    type = NFSV4LOCKT_READ;
-		}
-		LIST_FOREACH(lp, &op->nfso_lock, nfsl_list) {
-		    lop = LIST_FIRST(&lp->nfsl_lock);
-		    while (lop != NULL) {
-			nlop = LIST_NEXT(lop, nfslo_list);
+	newnfs_copycred(&op->nfso_cred, tcred);
+	/*
+	 * (Theoretically this could be done in the same
+	 *  compound as the close, but having multiple
+	 *  sequenced Ops in the same compound might be
+	 *  too scary for some servers.)
+	 */
+	if (op->nfso_posixlock) {
+		off = 0;
+		len = NFS64BITSSET;
+		type = NFSV4LOCKT_READ;
+	}
+
+	/*
+	 * Since this function is only called from VOP_INACTIVE(), no
+	 * other thread will be manipulating this Open. As such, the
+	 * lock lists are not being changed by other threads, so it should
+	 * be safe to do this without locking.
+	 */
+	LIST_FOREACH(lp, &op->nfso_lock, nfsl_list) {
+		do_unlock = 1;
+		LIST_FOREACH_SAFE(lop, &lp->nfsl_lock, nfslo_list, nlop) {
 			if (op->nfso_posixlock == 0) {
-			    off = lop->nfslo_first;
-			    len = lop->nfslo_end - lop->nfslo_first;
-			    if (lop->nfslo_type == F_WRLCK)
-				type = NFSV4LOCKT_WRITE;
-			    else
-				type = NFSV4LOCKT_READ;
+				off = lop->nfslo_first;
+				len = lop->nfslo_end - lop->nfslo_first;
+				if (lop->nfslo_type == F_WRLCK)
+					type = NFSV4LOCKT_WRITE;
+				else
+					type = NFSV4LOCKT_READ;
 			}
-			if (lop == LIST_FIRST(&lp->nfsl_lock) ||
-			    op->nfso_posixlock == 0) {
-			    NFSLOCKCLSTATE();
-			    nfscl_lockexcl(&lp->nfsl_rwlock,
-				NFSCLSTATEMUTEXPTR);
-			    NFSUNLOCKCLSTATE();
-			    do {
-				error = nfsrpc_locku(nd, nmp, lp, off, len,
-				    type, tcred, p, 0);
-				if ((nd->nd_repstat == NFSERR_GRACE ||
-				     nd->nd_repstat == NFSERR_DELAY) &&
-				    error == 0)
-				    (void) nfs_catnap(PZERO, "nfs_close");
-			    } while ((nd->nd_repstat == NFSERR_GRACE ||
-				nd->nd_repstat == NFSERR_DELAY) && error == 0);
-			    NFSLOCKCLSTATE();
-			    nfscl_lockunlock(&lp->nfsl_rwlock);
-			    NFSUNLOCKCLSTATE();
+			if (do_unlock) {
+				trycnt = 0;
+				do {
+					error = nfsrpc_locku(nd, nmp, lp, off,
+					    len, type, tcred, p, 0);
+					if ((nd->nd_repstat == NFSERR_GRACE ||
+					    nd->nd_repstat == NFSERR_DELAY) &&
+					    error == 0)
+						(void) nfs_catnap(PZERO,
+						    "nfs_close");
+				} while ((nd->nd_repstat == NFSERR_GRACE ||
+				    nd->nd_repstat == NFSERR_DELAY) &&
+				    error == 0 && trycnt++ < 5);
+				if (op->nfso_posixlock)
+					do_unlock = 0;
 			}
 			nfscl_freelock(lop, 0);
-			lop = nlop;
-		    }
 		}
-		NFSLOCKCLSTATE();
-		nfscl_lockexcl(&op->nfso_own->nfsow_rwlock, NFSCLSTATEMUTEXPTR);
-		NFSUNLOCKCLSTATE();
-		do {
-			error = nfscl_tryclose(op, tcred, nmp, p);
-			if (error == NFSERR_GRACE)
-				(void) nfs_catnap(PZERO, "nfs_close");
-		} while (error == NFSERR_GRACE);
-		NFSLOCKCLSTATE();
-		nfscl_lockunlock(&op->nfso_own->nfsow_rwlock);
-		NFSUNLOCKCLSTATE();
-
-		/*
-		 * Move the lockowner to nfsc_defunctlockowner,
-		 * so the Renew thread will do the ReleaseLockOwner
-		 * Op on it later. There might still be other
-		 * opens using the same lockowner name.
-		 */
-		lp = LIST_FIRST(&op->nfso_lock);
-		if (lp != NULL) {
-		    while (LIST_NEXT(lp, nfsl_list) != NULL)
-			lp = LIST_NEXT(lp, nfsl_list);
-		    LIST_PREPEND(&nmp->nm_clp->nfsc_defunctlockowner,
-			&op->nfso_lock, lp, nfsl_list);
-		    LIST_INIT(&op->nfso_lock);
-		}
-		nfscl_freeopen(op, 0);
-		op = nop;
 	}
+
+	/*
+	 * There could be other Opens for different files on the same
+	 * OpenOwner, so locking is required.
+	 */
+	NFSLOCKCLSTATE();
+	nfscl_lockexcl(&op->nfso_own->nfsow_rwlock, NFSCLSTATEMUTEXPTR);
+	NFSUNLOCKCLSTATE();
+	do {
+		error = nfscl_tryclose(op, tcred, nmp, p);
+		if (error == NFSERR_GRACE)
+			(void) nfs_catnap(PZERO, "nfs_close");
+	} while (error == NFSERR_GRACE);
+	NFSLOCKCLSTATE();
+	nfscl_lockunlock(&op->nfso_own->nfsow_rwlock);
+
+	/*
+	 * Move the lockowner to nfsc_defunctlockowner,
+	 * so the Renew thread will do the ReleaseLockOwner
+	 * Op on it later. There might still be other
+	 * opens using the same lockowner name.
+	 */
+	lp = LIST_FIRST(&op->nfso_lock);
+	if (lp != NULL) {
+		while (LIST_NEXT(lp, nfsl_list) != NULL)
+			lp = LIST_NEXT(lp, nfsl_list);
+		LIST_PREPEND(&nmp->nm_clp->nfsc_defunctlockowner,
+		    &op->nfso_lock, lp, nfsl_list);
+		LIST_INIT(&op->nfso_lock);
+	}
+	nfscl_freeopen(op, 0);
+	NFSUNLOCKCLSTATE();
 	NFSFREECRED(tcred);
 }
 
