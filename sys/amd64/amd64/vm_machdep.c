@@ -186,6 +186,9 @@ cpu_fork(td1, p2, td2, flags)
 	/* As an i386, do not copy io permission bitmap. */
 	pcb2->pcb_tssp = NULL;
 
+	/* New segment registers. */
+	pcb2->pcb_full_iret = 1;
+
 	/* Copy the LDT, if necessary. */
 	mdp1 = &td1->td_proc->p_md;
 	mdp2 = &p2->p_md;
@@ -336,6 +339,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 	pcb2->pcb_flags &= ~PCB_FPUINITDONE;
+	pcb2->pcb_full_iret = 1;
 
 	/*
 	 * Create a new fresh stack for the new thread.
@@ -450,6 +454,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	}
 #endif
 	td->td_pcb->pcb_fsbase = (register_t)tls_base;
+	td->td_pcb->pcb_full_iret = 1;
 	return (0);
 }
 
