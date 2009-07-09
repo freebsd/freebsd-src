@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2009
+.Dd July 9, 2009
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -210,10 +210,22 @@ are global settings and
 are device specific.
 .Bl -tag -width indent
 .It Va hw.snd.compat_linux_mmap
-Enable to allow PROT_EXEC page mappings.
-All Linux applications using sound and
+Linux
 .Xr mmap 2
-require this.
+compability.
+The following values are supported (default is 0):
+.Bl -tag -width 2n
+.It -1
+Force disabling/denying PROT_EXEC
+.Xr mmap 2
+requests.
+.It 0
+Auto detect proc/ABI type, allow
+.Xr mmap 2
+for Linux applications, and deny for everything else.
+.It 1
+Always allow PROT_EXEC page mappings.
+.El
 .It Va hw.snd.default_auto
 Enable to automatically assign default sound unit to the most recent
 attached device.
@@ -240,6 +252,8 @@ Minimum allowable sample rate.
 .It Va hw.snd.feeder_rate_polyphase_max
 Adjust to set the maximum number of allowed polyphase entries during the
 process of building resampling filters.
+Disabling polyphase resampling has the benefit of reducing memory usage, at
+the expense of slower and lower quality conversion.
 Only applicable when the SINC interpolator is used.
 Default value is 183040.
 Set to 0 to disable polyphase resampling.
