@@ -882,18 +882,18 @@ z_coeff_interpolate(int32_t z, int32_t *z_coeff)
 	zoo2 = z_coeff[2] - z_coeff[-1];
 	zoo3 = z_coeff[3] - z_coeff[-2];
 
-	zoc0 = ((0x1ac2260dLL * zoe1) >> 30) +
-	    ((0x0526cdcaLL * zoe2) >> 30) + ((0x00170c29LL * zoe3) >> 30);
-	zoc1 = ((0x14f8a49aLL * zoo1) >> 30) +
-	    ((0x0d6d1109LL * zoo2) >> 30) + ((0x008cd4dcLL * zoo3) >> 30);
-	zoc2 = ((-0x0d3e94a4LL * zoe1) >> 30) +
-	    ((0x0bddded4LL * zoe2) >> 30) + ((0x0160b5d0LL * zoe3) >> 30);
-	zoc3 = ((-0x0de10cc4LL * zoo1) >> 30) +
-	    ((0x019b2a7dLL * zoo2) >> 30) + ((0x01cfe914LL * zoo3) >> 30);
-	zoc4 = ((0x02aa12d7LL * zoe1) >> 30) +
-	    ((-0x03ff1bb3LL * zoe2) >> 30) + ((0x015508ddLL * zoe3) >> 30);
-	zoc5 = ((0x051d29e5LL * zoo1) >> 30) +
-	    ((-0x028e7647LL * zoo2) >> 30) + ((0x0082d81aLL * zoo3) >> 30);
+	zoc0 = ((0x1ac2260dLL * zoe1) + (0x0526cdcaLL * zoe2) +
+	    (0x00170c29LL * zoe3)) >> 30;
+	zoc1 = ((0x14f8a49aLL * zoo1) + (0x0d6d1109LL * zoo2) +
+	    (0x008cd4dcLL * zoo3)) >> 30;
+	zoc2 = ((-0x0d3e94a4LL * zoe1) + (0x0bddded4LL * zoe2) +
+	    (0x0160b5d0LL * zoe3)) >> 30;
+	zoc3 = ((-0x0de10cc4LL * zoo1) + (0x019b2a7dLL * zoo2) +
+	    (0x01cfe914LL * zoo3)) >> 30;
+	zoc4 = ((0x02aa12d7LL * zoe1) + (-0x03ff1bb3LL * zoe2) +
+	    (0x015508ddLL * zoe3)) >> 30;
+	zoc5 = ((0x051d29e5LL * zoo1) + (-0x028e7647LL * zoo2) +
+	    (0x0082d81aLL * zoo3)) >> 30;
 
 	coeff = (((((((((((((((int64_t)zoc5 * zoz) >> Z_SHIFT) +
 	    zoc4) * zoz) >> Z_SHIFT) + zoc3) * zoz) >> Z_SHIFT) +
@@ -911,18 +911,18 @@ z_coeff_interpolate(int32_t z, int32_t *z_coeff)
 	zoo2 = z_coeff[2] - z_coeff[-1];
 	zoo3 = z_coeff[3] - z_coeff[-2];
 
-	zoc0 = ((0x1ac2260dLL * zoe1) >> 30) +
-	    ((0x0526cdcaLL * zoe2) >> 30) + ((0x00170c29LL * zoe3) >> 30);
-	zoc1 = ((0x14f8a49aLL * zoo1) >> 30) +
-	    ((0x0d6d1109LL * zoo2) >> 30) + ((0x008cd4dcLL * zoo3) >> 30);
-	zoc2 = ((-0x0d3e94a4LL * zoe1) >> 30) +
-	    ((0x0bddded4LL * zoe2) >> 30) + ((0x0160b5d0LL * zoe3) >> 30);
-	zoc3 = ((-0x0de10cc4LL * zoo1) >> 30) +
-	    ((0x019b2a7dLL * zoo2) >> 30) + ((0x01cfe914LL * zoo3) >> 30);
-	zoc4 = ((0x02aa12d7LL * zoe1) >> 30) +
-	    ((-0x03ff1bb3LL * zoe2) >> 30) + ((0x015508ddLL * zoe3) >> 30);
-	zoc5 = ((0x051d29e5LL * zoo1) >> 30) +
-	    ((-0x028e7647LL * zoo2) >> 30) + ((0x0082d81aLL * zoo3) >> 30);
+	zoc0 = ((0x1ac2260dLL * zoe1) + (0x0526cdcaLL * zoe2) +
+	    (0x00170c29LL * zoe3)) >> 30;
+	zoc1 = ((0x14f8a49aLL * zoo1) + (0x0d6d1109LL * zoo2) +
+	    (0x008cd4dcLL * zoo3)) >> 30;
+	zoc2 = ((-0x0d3e94a4LL * zoe1) + (0x0bddded4LL * zoe2) +
+	    (0x0160b5d0LL * zoe3)) >> 30;
+	zoc3 = ((-0x0de10cc4LL * zoo1) + (0x019b2a7dLL * zoo2) +
+	    (0x01cfe914LL * zoo3)) >> 30;
+	zoc4 = ((0x02aa12d7LL * zoe1) + (-0x03ff1bb3LL * zoe2) +
+	    (0x015508ddLL * zoe3)) >> 30;
+	zoc5 = ((0x051d29e5LL * zoo1) + (-0x028e7647LL * zoo2) +
+	    (0x0082d81aLL * zoo3)) >> 30;
 
 	coeff = (((((((((((((((int64_t)zoc5 * zoz) >> Z_SHIFT) +
 	    zoc4) * zoz) >> Z_SHIFT) + zoc3) * zoz) >> Z_SHIFT) +
@@ -940,18 +940,18 @@ z_coeff_interpolate(int32_t z, int32_t *z_coeff)
 	zoo2 = z_coeff[2] - z_coeff[-1];
 	zoo3 = z_coeff[3] - z_coeff[-2];
 
-	zoc0 = ((0x1aa9b47dLL * zoe1) >> 30) +
-	    ((0x053d9944LL * zoe2) >> 30) + ((0x0018b23fLL * zoe3) >> 30);
-	zoc1 = ((0x14a104d1LL * zoo1) >> 30) +
-	    ((0x0d7d2504LL * zoo2) >> 30) + ((0x0094b599LL * zoo3) >> 30);
-	zoc2 = ((-0x0d22530bLL * zoe1) >> 30) +
-	    ((0x0bb37a2cLL * zoe2) >> 30) + ((0x016ed8e0LL * zoe3) >> 30);
-	zoc3 = ((-0x0d744b1cLL * zoo1) >> 30) +
-	    ((0x01649591LL * zoo2) >> 30) + ((0x01dae93aLL * zoo3) >> 30);
-	zoc4 = ((0x02a7ee1bLL * zoe1) >> 30) +
-	    ((-0x03fbdb24LL * zoe2) >> 30) + ((0x0153ed07LL * zoe3) >> 30);
-	zoc5 = ((0x04cf9b6cLL * zoo1) >> 30) +
-	    ((-0x0266b378LL * zoo2) >> 30) + ((0x007a7c26LL * zoo3) >> 30);
+	zoc0 = ((0x1aa9b47dLL * zoe1) + (0x053d9944LL * zoe2) +
+	    (0x0018b23fLL * zoe3)) >> 30;
+	zoc1 = ((0x14a104d1LL * zoo1) + (0x0d7d2504LL * zoo2) +
+	    (0x0094b599LL * zoo3)) >> 30;
+	zoc2 = ((-0x0d22530bLL * zoe1) + (0x0bb37a2cLL * zoe2) +
+	    (0x016ed8e0LL * zoe3)) >> 30;
+	zoc3 = ((-0x0d744b1cLL * zoo1) + (0x01649591LL * zoo2) +
+	    (0x01dae93aLL * zoo3)) >> 30;
+	zoc4 = ((0x02a7ee1bLL * zoe1) + (-0x03fbdb24LL * zoe2) +
+	    (0x0153ed07LL * zoe3)) >> 30;
+	zoc5 = ((0x04cf9b6cLL * zoo1) + (-0x0266b378LL * zoo2) +
+	    (0x007a7c26LL * zoo3)) >> 30;
 
 	coeff = (((((((((((((((int64_t)zoc5 * zoz) >> Z_SHIFT) +
 	    zoc4) * zoz) >> Z_SHIFT) + zoc3) * zoz) >> Z_SHIFT) +
@@ -969,18 +969,18 @@ z_coeff_interpolate(int32_t z, int32_t *z_coeff)
 	zoo2 = z_coeff[2] - z_coeff[-1];
 	zoo3 = z_coeff[3] - z_coeff[-2];
 
-	zoc0 = ((0x1a8eda43LL * zoe1) >> 30) +
-	    ((0x0556ee38LL * zoe2) >> 30) + ((0x001a3784LL * zoe3) >> 30);
-	zoc1 = ((0x143d863eLL * zoo1) >> 30) +
-	    ((0x0d910e36LL * zoo2) >> 30) + ((0x009ca889LL * zoo3) >> 30);
-	zoc2 = ((-0x0d026821LL * zoe1) >> 30) +
-	    ((0x0b837773LL * zoe2) >> 30) + ((0x017ef0c6LL * zoe3) >> 30);
-	zoc3 = ((-0x0cef1502LL * zoo1) >> 30) +
-	    ((0x01207a8eLL * zoo2) >> 30) + ((0x01e936dbLL * zoo3) >> 30);
-	zoc4 = ((0x029fe643LL * zoe1) >> 30) +
-	    ((-0x03ef3fc8LL * zoe2) >> 30) + ((0x014f5923LL * zoe3) >> 30);
-	zoc5 = ((0x043a9d08LL * zoo1) >> 30) +
-	    ((-0x02154febLL * zoo2) >> 30) + ((0x00670dbdLL * zoo3) >> 30);
+	zoc0 = ((0x1a8eda43LL * zoe1) + (0x0556ee38LL * zoe2) +
+	    (0x001a3784LL * zoe3)) >> 30;
+	zoc1 = ((0x143d863eLL * zoo1) + (0x0d910e36LL * zoo2) +
+	    (0x009ca889LL * zoo3)) >> 30;
+	zoc2 = ((-0x0d026821LL * zoe1) + (0x0b837773LL * zoe2) +
+	    (0x017ef0c6LL * zoe3)) >> 30;
+	zoc3 = ((-0x0cef1502LL * zoo1) + (0x01207a8eLL * zoo2) +
+	    (0x01e936dbLL * zoo3)) >> 30;
+	zoc4 = ((0x029fe643LL * zoe1) + (-0x03ef3fc8LL * zoe2) +
+	    (0x014f5923LL * zoe3)) >> 30;
+	zoc5 = ((0x043a9d08LL * zoo1) + (-0x02154febLL * zoo2) +
+	    (0x00670dbdLL * zoo3)) >> 30;
 
 	coeff = (((((((((((((((int64_t)zoc5 * zoz) >> Z_SHIFT) +
 	    zoc4) * zoz) >> Z_SHIFT) + zoc3) * zoz) >> Z_SHIFT) +
@@ -998,18 +998,18 @@ z_coeff_interpolate(int32_t z, int32_t *z_coeff)
 	zoo2 = z_coeff[2] - z_coeff[-1];
 	zoo3 = z_coeff[3] - z_coeff[-2];
 
-	zoc0 = ((0x19edb6fdLL * zoe1) >> 30) +
-	    ((0x05ebd062LL * zoe2) >> 30) + ((0x00267881LL * zoe3) >> 30);
-	zoc1 = ((0x1223af76LL * zoo1) >> 30) +
-	    ((0x0de3dd6bLL * zoo2) >> 30) + ((0x00d683cdLL * zoo3) >> 30);
-	zoc2 = ((-0x0c3ee068LL * zoe1) >> 30) +
-	    ((0x0a5c3769LL * zoe2) >> 30) + ((0x01e2aceaLL * zoe3) >> 30);
-	zoc3 = ((-0x0a8ab614LL * zoo1) >> 30) +
-	    ((-0x0019522eLL * zoo2) >> 30) + ((0x022cefc7LL * zoo3) >> 30);
-	zoc4 = ((0x0276187dLL * zoe1) >> 30) +
-	    ((-0x03a801e8LL * zoe2) >> 30) + ((0x0131d935LL * zoe3) >> 30);
-	zoc5 = ((0x02c373f5LL * zoo1) >> 30) +
-	    ((-0x01275f83LL * zoo2) >> 30) + ((0x0018ee79LL * zoo3) >> 30);
+	zoc0 = ((0x19edb6fdLL * zoe1) + (0x05ebd062LL * zoe2) +
+	    (0x00267881LL * zoe3)) >> 30;
+	zoc1 = ((0x1223af76LL * zoo1) + (0x0de3dd6bLL * zoo2) +
+	    (0x00d683cdLL * zoo3)) >> 30;
+	zoc2 = ((-0x0c3ee068LL * zoe1) + (0x0a5c3769LL * zoe2) +
+	    (0x01e2aceaLL * zoe3)) >> 30;
+	zoc3 = ((-0x0a8ab614LL * zoo1) + (-0x0019522eLL * zoo2) +
+	    (0x022cefc7LL * zoo3)) >> 30;
+	zoc4 = ((0x0276187dLL * zoe1) + (-0x03a801e8LL * zoe2) +
+	    (0x0131d935LL * zoe3)) >> 30;
+	zoc5 = ((0x02c373f5LL * zoo1) + (-0x01275f83LL * zoo2) +
+	    (0x0018ee79LL * zoo3)) >> 30;
 
 	coeff = (((((((((((((((int64_t)zoc5 * zoz) >> Z_SHIFT) +
 	    zoc4) * zoz) >> Z_SHIFT) + zoc3) * zoz) >> Z_SHIFT) +
