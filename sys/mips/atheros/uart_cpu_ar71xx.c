@@ -53,20 +53,9 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
-	uint32_t pll_config, div;
 	uint64_t freq;
 
-	/* PLL freq */
-	pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
-	div = ((pll_config >> PLL_FB_SHIFT) & PLL_FB_MASK) + 1;
-	freq = div * AR71XX_BASE_FREQ;
-	/* CPU freq */
-	div = ((pll_config >> PLL_CPU_DIV_SEL_SHIFT) & PLL_CPU_DIV_SEL_MASK) 
-	    + 1;
-	freq = freq / div;
-	/* AHB freq */
-	div = (((pll_config >> PLL_AHB_DIV_SHIFT) & PLL_AHB_DIV_MASK) + 1) * 2;
-	freq = freq / div;
+	freq = ar71xx_ahb_freq();
 
 	di->ops = uart_getops(&uart_ns8250_class);
 	di->bas.chan = 0;

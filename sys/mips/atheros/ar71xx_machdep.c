@@ -100,8 +100,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	vm_offset_t kernend;
-	uint64_t platform_counter_freq, freq;
-	uint32_t reg, div, pll_config;
+	uint64_t platform_counter_freq;
+	uint32_t reg;
 	int argc, i, count = 0;
 	char **argv, **envp;
 
@@ -151,12 +151,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * should be called first.
 	 */
 	init_param1();
-	pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
-	div = ((pll_config >> PLL_FB_SHIFT) & PLL_FB_MASK) + 1;
-	freq = div * AR71XX_BASE_FREQ;
-	div = ((pll_config >> PLL_CPU_DIV_SEL_SHIFT) & PLL_CPU_DIV_SEL_MASK) 
-	    + 1;
-	platform_counter_freq = freq / div;
+	platform_counter_freq = ar71xx_cpu_freq();
 	mips_timer_init_params(platform_counter_freq, 1);
 	cninit();
 
