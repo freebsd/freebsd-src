@@ -40,7 +40,6 @@
 #include <machine/frame.h>
 #include <vm/pmap.h>
 
-extern uintptr_t 	kernelbase;
 extern uintptr_t 	dtrace_in_probe_addr;
 extern int		dtrace_in_probe;
 
