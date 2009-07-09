@@ -611,32 +611,18 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 	if (flags & BUS_DMA_COHERENT) {
 		void *tmpaddr = (void *)*vaddr;
-		unsigned char *buf1 = (void *)*vaddr;
 
 		if (tmpaddr) {
-			int gi;
 			tmpaddr = (void *)MIPS_PHYS_TO_KSEG1(vtophys(tmpaddr));
-			unsigned char *buf2 = tmpaddr;
-			unsigned char *buf3 = (void
-			    *)MIPS_PHYS_TO_KSEG0(vtophys(tmpaddr));
 			newmap->origbuffer = *vaddr;
 			newmap->allocbuffer = tmpaddr;
 			mips_dcache_wbinv_range((vm_offset_t)*vaddr,
 			    dmat->maxsize);
 			*vaddr = tmpaddr;
-			for (gi = 0; gi < dmat->maxsize; gi++) {
-				if (buf1[gi] != buf2[gi])
-					panic("cache fucked up\n");
-
-				if (buf1[gi] != buf3[gi])
-					panic("cache fucked up2\n");
-			}
 		} else
 			newmap->origbuffer = newmap->allocbuffer = NULL;
-	} else {
-		unsigned char *buf1 = (void *)*vaddr;
+	} else
 		newmap->origbuffer = newmap->allocbuffer = NULL;
-	}
 
         return (0);
 }
@@ -807,8 +793,6 @@ segdone:
 
 	*segp = seg;
 	*lastaddrp = lastaddr;
-	if (map->flags & DMAMAP_COHERENT)
-		panic("not coherent\n");
 
 	/*
 	 * Did we fit?
@@ -1065,7 +1049,6 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct bounce_page *bpage;
 
-	panic("sync bp");
 	STAILQ_FOREACH(bpage, &map->bpages, links) {
 		if (op & BUS_DMASYNC_PREWRITE) {
 			bcopy((void *)bpage->datavaddr,
