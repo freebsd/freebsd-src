@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 The FreeBSD Project.
+ * Copyright (c) 2009 Stanislav Sedov <stas@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
