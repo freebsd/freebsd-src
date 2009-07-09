@@ -1381,7 +1381,7 @@ ohci_softintr(void *v)
 			 */
 			opipe = (struct ohci_pipe *)xfer->pipe;
 
-			DPRINTFN(15,("ohci_process_done: error cc=%d (%s)\n",
+			DPRINTF(("ohci_process_done: error cc=%d (%s)\n",
 			  OHCI_TD_GET_CC(le32toh(std->td.td_flags)),
 			  ohci_cc_strs[OHCI_TD_GET_CC(le32toh(std->td.td_flags))]));
 			callout_stop(&xfer->timeout_handle);
