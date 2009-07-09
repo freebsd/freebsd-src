@@ -26,12 +26,6 @@
 #ifndef _AR71XX_REG_H_
 #define _AR71XX_REG_H_
 
-#define ATH_READ_REG(reg) \
-    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg)))
-
-#define ATH_WRITE_REG(reg, val) \
-    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
-
 /* PCI region */
 #define AR71XX_PCI_MEM_BASE		0x10000000
 /* 
@@ -174,6 +168,15 @@
 #define	AR71XX_PLL_ETH_EXT_CLK		0x18050018
 #define	AR71XX_PLL_PCI_CLK		0x1805001C
 
+#define AR71XX_RST_WDOG_CONTROL	0x18060008
+#define		RST_WDOG_LAST			(1 << 31)
+#define		RST_WDOG_ACTION_MASK		3
+#define		RST_WDOG_ACTION_RESET		3
+#define		RST_WDOG_ACTION_NMI		2
+#define		RST_WDOG_ACTION_GP_INTR		1
+#define		RST_WDOG_ACTION_NOACTION	0
+
+#define AR71XX_RST_WDOG_TIMER	0x1806000C
 /* 
  * APB interrupt status and mask register and interrupt bit numbers for 
  */
@@ -418,5 +421,44 @@
 #define			SPI_IO_CTRL_CLK			(1 << 8)
 #define			SPI_IO_CTRL_DO			1
 #define		AR71XX_SPI_RDS		0x0C
+
+#define ATH_READ_REG(reg) \
+    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg)))
+
+#define ATH_WRITE_REG(reg, val) \
+    *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
+
+static inline uint64_t
+ar71xx_cpu_freq(void)
+{
+        uint32_t pll_config, div;
+        uint64_t freq;
+
+        /* PLL freq */
+        pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
+        div = ((pll_config >> PLL_FB_SHIFT) & PLL_FB_MASK) + 1;
+        freq = div * AR71XX_BASE_FREQ;
+        /* CPU freq */
+        div = ((pll_config >> PLL_CPU_DIV_SEL_SHIFT) & PLL_CPU_DIV_SEL_MASK)
+            + 1;
+        freq = freq / div;
+
+	return (freq);
+}
+
+static inline uint64_t
+ar71xx_ahb_freq(void)
+{
+        uint32_t pll_config, div;
+        uint64_t freq;
+
+        /* PLL freq */
+        pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
+        /* AHB freq */
+        div = (((pll_config >> PLL_AHB_DIV_SHIFT) & PLL_AHB_DIV_MASK) + 1) * 2;
+        freq = ar71xx_cpu_freq() / div;
+	return (freq);
+}
+
 
 #endif /* _AR71XX_REG_H_ */
