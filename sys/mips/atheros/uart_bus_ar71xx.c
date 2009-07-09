@@ -67,20 +67,9 @@ static int
 uart_ar71xx_probe(device_t dev)
 {
 	struct uart_softc *sc;
-	uint32_t pll_config, div;
 	uint64_t freq;
 
-	/* PLL freq */
-	pll_config = ATH_READ_REG(AR71XX_PLL_CPU_CONFIG);
-	div = ((pll_config >> PLL_FB_SHIFT) & PLL_FB_MASK) + 1;
-	freq = div * AR71XX_BASE_FREQ;
-	/* CPU freq */
-	div = ((pll_config >> PLL_CPU_DIV_SEL_SHIFT) & PLL_CPU_DIV_SEL_MASK) 
-	    + 1;
-	freq = freq / div;
-	/* AHB freq */
-	div = (((pll_config >> PLL_AHB_DIV_SHIFT) & PLL_AHB_DIV_MASK) + 1) * 2;
-	freq = freq / div;
+	freq = ar71xx_ahb_freq();
 
 	sc = device_get_softc(dev);
 	sc->sc_sysdev = SLIST_FIRST(&uart_sysdevs);
