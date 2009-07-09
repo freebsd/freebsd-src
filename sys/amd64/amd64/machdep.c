@@ -382,6 +382,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
+	td->td_pcb->pcb_full_iret = 1;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -483,6 +484,7 @@ sigreturn(td, uap)
 	signotify(td);
 	PROC_UNLOCK(p);
 	td->td_pcb->pcb_flags |= PCB_FULLCTX;
+	td->td_pcb->pcb_full_iret = 1;
 	return (EJUSTRETURN);
 }
 
@@ -853,6 +855,7 @@ exec_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_gsbase = 0;
 	pcb->pcb_flags &= ~(PCB_32BIT | PCB_GS32BIT);
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
+	pcb->pcb_full_iret = 1;
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
@@ -2031,6 +2034,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		td->td_pcb->pcb_gsbase = mcp->mc_gsbase;
 	}
 	td->td_pcb->pcb_flags |= PCB_FULLCTX;
+	td->td_pcb->pcb_full_iret = 1;
 	return (0);
 }
 
