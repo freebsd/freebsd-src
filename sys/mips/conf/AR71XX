@@ -74,6 +74,8 @@ device		ar71xx_spi
 device		mx25l
 # device		geom_redboot
 
+device		ar71xx_wdog
+
 device		uart
 
 device		loop
