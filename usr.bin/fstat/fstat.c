@@ -93,7 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include <libutil.h>
 #include <limits.h>
-#include <nlist.h>
 #include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -113,31 +112,12 @@ __FBSDID("$FreeBSD$");
 #define	MMAP	-5
 #define	JDIR	-6
 
-#ifdef notdef
-struct nlist nl[] = {
-	{ "" },
-};
-#endif
-
 int 	fsflg,	/* show files on same filesystem as file(s) argument */
 	pflg,	/* show files open by a particular pid */
 	uflg;	/* show files open by a particular (effective) user */
 int 	checkfile; /* true if restricting to particular files or filesystems */
 int	nflg;	/* (numerical) display f.s. and rdev as dev_t */
 int	mflg;	/* include memory-mapped files */
-
-
-struct file **ofiles;	/* buffer of pointers to file structures */
-int maxfiles;
-#define ALLOC_OFILES(d)	\
-	if ((d) > maxfiles) { \
-		free(ofiles); \
-		ofiles = malloc((d) * sizeof(struct file *)); \
-		if (ofiles == NULL) { \
-			err(1, NULL); \
-		} \
-		maxfiles = (d); \
-	}
 
 typedef struct devs {
 	struct devs	*next;
@@ -268,8 +248,6 @@ fstat_kvm(int what, int arg)
 	char buf[_POSIX2_LINE_MAX];
 	int cnt;
 
-	ALLOC_OFILES(256);	/* reserve space for file pointers */
-
 	/*
 	 * Discard setgid privileges if not the running kernel so that bad
 	 * guys can't print interesting stuff from kernel memory.
@@ -280,10 +258,6 @@ fstat_kvm(int what, int arg)
 	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf)) == NULL)
 		errx(1, "%s", buf);
 	setgid(getgid());
-#ifdef notdef
-	if (kvm_nlist(kd, nl) != 0)
-		errx(1, "no namelist: %s", kvm_geterr(kd));
-#endif
 	if ((p = kvm_getprocs(kd, what, arg, &cnt)) == NULL)
 		errx(1, "%s", kvm_geterr(kd));
 	print_header();
@@ -395,6 +369,8 @@ dofiles(struct kinfo_proc *kp)
 	int i;
 	struct file file;
 	struct filedesc filed;
+	unsigned int nfiles;
+	struct file **ofiles;
 
 	Uname = user_from_uid(kp->ki_uid, 0);
 	Pid = kp->ki_pid;
@@ -443,12 +419,18 @@ dofiles(struct kinfo_proc *kp)
 	if (filed.fd_lastfile <= -1 || filed.fd_lastfile > MAX_LASTFILE)
 		return;
 
-	ALLOC_OFILES(filed.fd_lastfile+1);
+	nfiles = filed.fd_lastfile + 1;
+	ofiles = malloc(nfiles * sizeof(struct file *));
+	if (ofiles == NULL) {
+		warn("malloc(%zd)", nfiles * sizeof(struct file *));
+		return;
+	}
 	if (!kvm_read_all(kd, (unsigned long)filed.fd_ofiles, ofiles,
 	    (filed.fd_lastfile+1) * FPSIZE)) {
 		dprintf(stderr,
 		    "can't read file structures at %p for pid %d\n",
 		    (void *)filed.fd_ofiles, Pid);
+		free(ofiles);
 		return;
 	}
 	for (i = 0; i <= filed.fd_lastfile; i++) {
@@ -490,6 +472,7 @@ dofiles(struct kinfo_proc *kp)
 			    file.f_type, i, Pid);
 		}
 	}
+	free(ofiles);
 }
 
 /*
