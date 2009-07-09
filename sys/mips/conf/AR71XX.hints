@@ -41,3 +41,6 @@ hint.spi.0.msize=0x10
 
 hint.mx25l.0.at="spibus0"
 hint.mx25l.0.cs=0
+
+# Watchdog
+hint.ar71xx_wdog.0.at="nexus0"
