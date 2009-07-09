@@ -65,8 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/conf.h>
 #define	_KERNEL
-#include <sys/pipe.h>
 #include <sys/mount.h>
+#include <sys/pipe.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <fs/devfs/devfs.h>
@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <kvm.h>
+#include <libutil.h>
 #include <limits.h>
 #include <nlist.h>
 #include <paths.h>
@@ -152,6 +153,7 @@ kvm_t *kd;
 static void fstat_kvm(int, int);
 static void fstat_sysctl(int, int);
 void dofiles(struct kinfo_proc *kp);
+void dofiles_kinfo(struct kinfo_proc *kp);
 void dommap(struct kinfo_proc *kp);
 void vtrans(struct vnode *vp, int i, int flag);
 char *getmnton(struct mount *m);
@@ -161,6 +163,12 @@ void ptstrans(struct tty *tp, int i, int flag);
 void getinetproto(int number);
 int  getfname(const char *filename);
 void usage(void);
+static int kinfo_proc_compare(const void *, const void *);
+static void kinfo_proc_sort(struct kinfo_proc *, int);
+void vtrans_kinfo(struct kinfo_file *, int i, int flag);
+
+/* XXX: sys/mount.h */
+int	statfs(const char *, struct statfs *);
 
 int
 do_fstat(int argc, char **argv)
@@ -288,12 +296,66 @@ fstat_kvm(int what, int arg)
 	}
 }
 
+/*
+ * Sort processes first by pid and then tid.
+ */
+static int
+kinfo_proc_compare(const void *a, const void *b)
+{
+	int i;
+
+	i = ((const struct kinfo_proc *)b)->ki_pid -
+	    ((const struct kinfo_proc *)a)->ki_pid;
+	if (i != 0)
+		return (i);
+	i = ((const struct kinfo_proc *)b)->ki_tid -
+	    ((const struct kinfo_proc *)a)->ki_tid;
+	return (i);
+}
+
+static void
+kinfo_proc_sort(struct kinfo_proc *kipp, int count)
+{
+
+	qsort(kipp, count, sizeof(*kipp), kinfo_proc_compare);
+}
+
 static void
 fstat_sysctl(int what, int arg)
 {
+	struct kinfo_proc *kipp;
+	int name[4];
+	size_t len;
+	unsigned int i;
 
-	/* not yet implemented */
-	fstat_kvm(what, arg);
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = what;
+	name[3] = arg;
+
+	len = 0;
+	if (sysctl(name, 4, NULL, &len, NULL, 0) < 0)
+		err(-1, "sysctl: kern.proc");
+	kipp = malloc(len);
+	if (kipp == NULL)
+		err(-1, "malloc");
+
+	if (sysctl(name, 4, kipp, &len, NULL, 0) < 0) {
+		free(kipp);
+		err(-1, "sysctl: kern.proc");
+	}
+	if (len % sizeof(*kipp) != 0)
+		err(-1, "kinfo_proc mismatch");
+	if (kipp->ki_structsize != sizeof(*kipp))
+		err(-1, "kinfo_proc structure mismatch");
+	kinfo_proc_sort(kipp, len / sizeof(*kipp));
+	print_header();
+	for (i = 0; i < len / sizeof(*kipp); i++) {
+		dofiles_kinfo(&kipp[i]);
+		if (mflg)
+			dommap(&kipp[i]);
+	}
+	free(kipp);
 }
 
 const char	*Uname, *Comm;
@@ -428,6 +490,108 @@ dofiles(struct kinfo_proc *kp)
 			    file.f_type, i, Pid);
 		}
 	}
+}
+
+/*
+ * print open files attributed to this process using kinfo
+ */
+void
+dofiles_kinfo(struct kinfo_proc *kp)
+{
+	struct kinfo_file *kif, *freep;
+#if 0
+	struct kinfo_file kifb;
+#endif
+	int i, cnt, fd_type, flags;
+
+	Uname = user_from_uid(kp->ki_uid, 0);
+	Pid = kp->ki_pid;
+	Comm = kp->ki_comm;
+
+	if (kp->ki_fd == NULL)
+		return;
+
+#if 0
+	/*
+	 * ktrace vnode, if one
+	 */
+	if (kp->ki_tracep)
+		vtrans_kin(kp->ki_tracep, TRACE, FREAD|FWRITE);
+	/*
+	 * text vnode, if one
+	 */
+		vtrans(kp->ki_textvp, TEXT, FREAD);
+	/* Text vnode. */
+	if (kp->ki_textvp) {
+		if (gettextvp(kp, &kifb) == 0) 
+			vtrans_kinfo(&kifb, TEXT, FREAD);
+	}
+#endif
+
+	/*
+	 * open files
+	 */
+	freep = kinfo_getfile(kp->ki_pid, &cnt);
+	if (freep == NULL)
+		err(1, "kinfo_getfile");
+
+	for (i = 0; i < cnt; i++) {
+		kif = &freep[i];
+		switch (kif->kf_type) {
+		case KF_TYPE_VNODE:
+			if (kif->kf_fd == KF_FD_TYPE_CWD) {
+				fd_type = CDIR;
+				flags = FREAD;
+			} else if (kif->kf_fd == KF_FD_TYPE_ROOT) {
+				fd_type = RDIR;
+				flags = FREAD;
+			} else if (kif->kf_fd == KF_FD_TYPE_JAIL) {
+				fd_type = JDIR;
+				flags = FREAD;
+			} else {
+				fd_type = i;
+				flags = kif->kf_flags;
+			}
+			/* Only do this if the attributes are valid. */
+			if (kif->kf_status & KF_ATTR_VALID)
+				vtrans_kinfo(kif, fd_type, flags);
+			break;
+#if 0
+		case KF_TYPE_PIPE:
+			if (checkfile == 0)
+				pipetrans_kinfo(kif, i, kif->kf_flags);
+			break;
+		else if (file.f_type == DTYPE_SOCKET) {
+			if (checkfile == 0)
+				socktrans(file.f_data, i);
+		}
+#ifdef DTYPE_PIPE
+		else if (file.f_type == DTYPE_PIPE) {
+			if (checkfile == 0)
+				pipetrans(file.f_data, i, file.f_flag);
+		}
+#endif
+#ifdef DTYPE_FIFO
+		else if (file.f_type == DTYPE_FIFO) {
+			if (checkfile == 0)
+				vtrans(file.f_vnode, i, file.f_flag);
+		}
+#endif
+#ifdef DTYPE_PTS
+		else if (file.f_type == DTYPE_PTS) {
+			if (checkfile == 0)
+				ptstrans(file.f_data, i, file.f_flag);
+		}
+#endif
+		else {
+			dprintf(stderr,
+			    "unknown file type %d for file %d of pid %d\n",
+			    file.f_type, i, Pid);
+		}
+#endif
+		}
+	}
+	free(freep);
 }
 
 void
@@ -602,10 +766,106 @@ vtrans(struct vnode *vp, int i, int flag)
 	putchar('\n');
 }
 
+void
+vtrans_kinfo(struct kinfo_file *kif, int i, int flag)
+{
+	struct filestat fst;
+	char rw[3], mode[15];
+	const char *badtype, *filename;
+	struct statfs stbuf;
+
+	filename = badtype = NULL;
+	fst.fsid = fst.fileid = fst.mode = fst.size = fst.rdev = 0;
+	bzero(&stbuf, sizeof(struct statfs));
+	switch (kif->kf_vnode_type) {
+	case VNON:
+		badtype = "none";
+		break;
+	case VBAD:
+		badtype = "bad";
+		break;
+	default:
+		fst.fsid = kif->kf_file_fsid;
+		fst.fileid = kif->kf_file_fileid;
+		fst.mode = kif->kf_file_mode;
+		fst.size = kif->kf_file_size;
+		fst.rdev = kif->kf_file_rdev;
+		break;
+	}
+	if (checkfile) {
+		int fsmatch = 0;
+		DEVS *d;
+
+		if (badtype)
+			return;
+		for (d = devs; d != NULL; d = d->next)
+			if (d->fsid == fst.fsid) {
+				fsmatch = 1;
+				if (d->ino == fst.fileid) {
+					filename = d->name;
+					break;
+				}
+			}
+		if (fsmatch == 0 || (filename == NULL && fsflg == 0))
+			return;
+	}
+	PREFIX(i);
+	if (badtype) {
+		(void)printf(" -         -  %10s    -\n", badtype);
+		return;
+	}
+	if (nflg)
+		(void)printf(" %2d,%-2d", major(fst.fsid), minor(fst.fsid));
+	else {
+		if (strlen(kif->kf_path) > 0)
+			statfs(kif->kf_path, &stbuf);
+		(void)printf(" %-8s", stbuf.f_mntonname);
+	}
+	if (nflg)
+		(void)sprintf(mode, "%o", fst.mode);
+	else {
+		strmode(fst.mode, mode);
+	}
+	(void)printf(" %6ld %10s", fst.fileid, mode);
+	switch (kif->kf_vnode_type) {
+	case KF_VTYPE_VBLK: {
+		char *name;
+		name = devname(fst.rdev, S_IFBLK);
+		if (nflg || !name)
+			printf("  %2d,%-2d", major(fst.rdev), minor(fst.rdev));
+		else {
+			printf(" %6s", name);
+		}
+		break;
+	}
+	case KF_VTYPE_VCHR: {
+		char *name;
+		name = devname(fst.rdev, S_IFCHR);
+		if (nflg || !name)
+			printf("  %2d,%-2d", major(fst.rdev), minor(fst.rdev));
+		else {
+			printf(" %6s", name);
+		}
+		break;
+	}
+	default:
+		printf(" %6lu", fst.size);
+	}
+	rw[0] = '\0';
+	if (flag & FREAD)
+		strcat(rw, "r");
+	if (flag & FWRITE)
+		strcat(rw, "w");
+	printf(" %2s", rw);
+	if (filename && !fsflg)
+		printf("  %s", filename);
+	putchar('\n');
+}
+
 char *
 getmnton(struct mount *m)
 {
-	static struct mount mount;
+	static struct mount mnt;
 	static struct mtab {
 		struct mtab *next;
 		struct mount *m;
@@ -616,14 +876,14 @@ getmnton(struct mount *m)
 	for (mt = mhead; mt != NULL; mt = mt->next)
 		if (m == mt->m)
 			return (mt->mntonname);
-	if (!kvm_read_all(kd, (unsigned long)m, &mount, sizeof(struct mount))) {
+	if (!kvm_read_all(kd, (unsigned long)m, &mnt, sizeof(struct mount))) {
 		warnx("can't read mount table at %p", (void *)m);
 		return (NULL);
 	}
 	if ((mt = malloc(sizeof (struct mtab))) == NULL)
 		err(1, NULL);
 	mt->m = m;
-	bcopy(&mount.mnt_stat.f_mntonname[0], &mt->mntonname[0], MNAMELEN);
+	bcopy(&mnt.mnt_stat.f_mntonname[0], &mt->mntonname[0], MNAMELEN);
 	mt->next = mhead;
 	mhead = mt;
 	return (mt->mntonname);
