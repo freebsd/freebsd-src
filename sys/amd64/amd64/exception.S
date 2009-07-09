@@ -162,19 +162,20 @@ IDTVEC(align)
 	.globl	alltraps
 	.type	alltraps,@function
 alltraps:
+	movq	%rdi,TF_RDI(%rsp)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	alltraps_testi		/* already running with kernel GS.base */
 	swapgs
+	movq	PCPU(CURPCB),%rdi
+	movb	$0,PCB_FULL_IRET(%rdi)
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
 alltraps_testi:
 	testl	$PSL_I,TF_RFLAGS(%rsp)
-	jz	alltraps_pushregs
+	jz	alltraps_pushregs_no_rdi
 	sti
-alltraps_pushregs:
-	movq	%rdi,TF_RDI(%rsp)
 alltraps_pushregs_no_rdi:
 	movq	%rsi,TF_RSI(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
@@ -233,14 +234,17 @@ calltrap:
 	.globl	alltraps_noen
 	.type	alltraps_noen,@function
 alltraps_noen:
+	movq	%rdi,TF_RDI(%rsp)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	1f	/* already running with kernel GS.base */
 	swapgs
+	movq	PCPU(CURPCB),%rdi
+	movb	$0,PCB_FULL_IRET(%rdi)
 1:	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
-	jmp	alltraps_pushregs
+	jmp	alltraps_pushregs_no_rdi
 
 IDTVEC(dblfault)
 	subq	$TF_ERR,%rsp
@@ -278,12 +282,13 @@ IDTVEC(dblfault)
 IDTVEC(page)
 	subq	$TF_ERR,%rsp
 	movl	$T_PAGEFLT,TF_TRAPNO(%rsp)
+	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	1f			/* already running with kernel GS.base */
 	swapgs
-1:
-	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
-	movq	%cr2,%rdi		/* preserve %cr2 before ..  */
+	movq	PCPU(CURPCB),%rdi
+	movb	$0,PCB_FULL_IRET(%rdi)
+1:	movq	%cr2,%rdi		/* preserve %cr2 before ..  */
 	movq	%rdi,TF_ADDR(%rsp)	/* enabling interrupts. */
 	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
@@ -311,7 +316,9 @@ IDTVEC(prot)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
 	jz	2f			/* already running with kernel GS.base */
 1:	swapgs
-2:	movw	%fs,TF_FS(%rsp)
+2:	movq	PCPU(CURPCB),%rdi
+	movb	$1,PCB_FULL_IRET(%rdi)	/* always full iret from GPF */
+	movw	%fs,TF_FS(%rsp)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
@@ -341,6 +348,8 @@ IDTVEC(fast_syscall)
 	movw	%gs,TF_GS(%rsp)
 	movw	%es,TF_ES(%rsp)
 	movw	%ds,TF_DS(%rsp)
+	movq	PCPU(CURPCB),%r11
+	movb	$0,PCB_FULL_IRET(%r11)
 	sti
 	movq	$KUDSEL,TF_SS(%rsp)
 	movq	$KUCSEL,TF_CS(%rsp)
@@ -644,7 +653,8 @@ doreti_exit:
 	 */
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jz	ld_regs
-
+	cmpb	$0,PCB_FULL_IRET(%r8)
+	je	ld_regs
 	testl	$TF_HASSEGS,TF_FLAGS(%rsp)
 	je	set_segs
 
