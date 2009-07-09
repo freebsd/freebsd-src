@@ -95,7 +95,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/ucomvar.h>
 
-#ifdef USB_DEBUG
 static int	ucomdebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
 SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
@@ -109,10 +108,6 @@ SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
 				if (ucomdebug > (n)) \
 					printf x; \
 			} while (0)
-#else
-#define DPRINTF(x)
-#define DPRINTFN(n, x)
-#endif
 
 static int ucom_modevent(module_t, int, void *);
 static void ucom_cleanup(struct ucom_softc *);
@@ -690,11 +685,19 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		goto error;
 
 	if (status != USBD_NORMAL_COMPLETION) {
-		printf("%s: ucomwritecb: %s\n",
-		       device_get_nameunit(sc->sc_dev), usbd_errstr(status));
-		if (status == USBD_STALLED)
+		if (status == USBD_STALLED) {
+			printf("%s: ucomwritecb: STALLED; clearing.\n",
+			       device_get_nameunit(sc->sc_dev));
 			usbd_clear_endpoint_stall_async(sc->sc_bulkout_pipe);
-		/* XXX we should restart after some delay. */
+		} else if (status == USBD_IOERROR) {
+			printf("%s: ucomwritecb: IOERROR; resetting device.\n",
+			       device_get_nameunit(sc->sc_dev));
+			usbd_reset_device(sc->sc_udev);
+		} else if (status != USBD_CANCELLED) {
+			printf("%s: ucomwritecb: %s\n",
+			       device_get_nameunit(sc->sc_dev),
+			       usbd_errstr(status));
+		}
 		goto error;
 	}
 
@@ -774,7 +777,21 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		sc->sc_state |= UCS_RXSTOP;
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
-		/* XXX we should restart after some delay. */
+		else if (status == USBD_IOERROR)
+			usbd_reset_device(sc->sc_udev);
+		if (status == USBD_STALLED) {
+			printf("%s: ucomreadcb: STALLED; clearing.\n",
+			       device_get_nameunit(sc->sc_dev));
+			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
+		} else if (status == USBD_IOERROR) {
+			printf("%s: ucomreadcb: IOERROR; resetting device.\n",
+			       device_get_nameunit(sc->sc_dev));
+			usbd_reset_device(sc->sc_udev);
+		} else if (status != USBD_CANCELLED) {
+			printf("%s: ucomreadcb: %s\n",
+			       device_get_nameunit(sc->sc_dev),
+			       usbd_errstr(status));
+		}
 		return;
 	}
 	sc->sc_state |= UCS_RXSTOP;

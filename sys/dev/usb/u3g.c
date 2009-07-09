@@ -39,6 +39,7 @@
 #include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/selinfo.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -51,16 +52,13 @@
 #endif
 #include "usbdevs.h"
 
-//#define U3G_DEBUG
-#ifdef U3G_DEBUG
-#define DPRINTF(x...)		device_printf(sc->sc_dev, ##x)
-#define bootverbose		(1)
-#else
-#define DPRINTF(x...)		/* nop */
-#endif
+static int u3gdebug = 1;
+SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB u3g");
+SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
+	   &u3gdebug, 0, "u3g debug level");
+#define DPRINTF(x...)		if (u3gdebug) device_printf(sc->sc_dev, ##x)
 
-#define U3G_MAXPORTS		4
-#define U3G_CONFIG_INDEX	0
+#define U3G_MAXPORTS		6
 
 struct u3g_softc {
 	struct ucom_softc	sc_ucom[U3G_MAXPORTS];
@@ -258,6 +256,9 @@ u3g_attach(device_t self)
 	sprintf(devnamefmt,"U%d.%%d", device_get_unit(self));
 	int portno = 0;
 	for (i = 0; i < uaa->nifaces && portno < U3G_MAXPORTS; i++) {
+		DPRINTF("Interface %d of %d, %sin use\n",
+			i, uaa->nifaces,
+			(uaa->ifaces[i]? "not ":""));
 		if (uaa->ifaces[i] == NULL)
 			continue;
 
@@ -268,7 +269,7 @@ u3g_attach(device_t self)
 			 * Claim the first umass device (cdX) as it contains
 			 * only Windows drivers anyway (CD-ROM), hiding it.
 			 */
-			if (!bootverbose)
+			if (!(bootverbose || u3gdebug))
 				if (uaa->vendor == USB_VENDOR_HUAWEI)
 					if (id->bInterfaceNumber == 2)
 						uaa->ifaces[i] = NULL;
@@ -279,6 +280,9 @@ u3g_attach(device_t self)
 		int claim_iface = 0;
 		for (n = 0; n < id->bNumEndpoints && portno < U3G_MAXPORTS; n++) {
 			ed = usbd_interface2endpoint_descriptor(uaa->ifaces[i], n);
+			DPRINTF(" Endpoint %d of %d%s\n",
+				n, id->bNumEndpoints,
+				(ed? "":"no descriptor"));
 			if (ed == NULL)
 				continue;
 			if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN
@@ -585,7 +589,7 @@ u3gstub_BBB_cmd(struct u3gstub_softc *sc, unsigned char *cmd)
 					      usbd_errstr(err));
 			}
 		} else if (err != USBD_NORMAL_COMPLETION) {
-			if (bootverbose)
+			if (u3gdebug)
 				device_printf(sc->sc_dev,
 					      "Failed to retrieve CSW to "
 					      "change to modem mode: %s\n",
@@ -609,13 +613,10 @@ u3gstub_sierra_init(struct u3gstub_softc *sc)
 	USETW(req.wLength, 0);
 
 	err = usbd_do_request(sc->sc_udev, &req, 0);
-	if (bootverbose) {
-		if (err) {
-			device_printf(sc->sc_dev,
-				      "Failed to send Sierra request: %s\n",
-				      usbd_errstr(err));
-		}
-	}
+	if (err && u3gdebug)
+		device_printf(sc->sc_dev,
+			      "Failed to send Sierra request: %s\n",
+			      usbd_errstr(err));
 
 	return 1;
 }
@@ -633,13 +634,10 @@ u3gstub_huawei_init(struct u3gstub_softc *sc)
 	USETW(req.wLength, 0);
 
 	err = usbd_do_request(sc->sc_udev, &req, 0);
-	if (bootverbose) {
-		if (err) {
-			device_printf(sc->sc_dev,
-				      "Failed to send Huawei request: %s\n",
-				      usbd_errstr(err));
-		}
-	}
+	if (err && u3gdebug)
+		device_printf(sc->sc_dev,
+			      "Failed to send Huawei request: %s\n",
+			      usbd_errstr(err));
 
 	return 1;
 }
@@ -659,19 +657,19 @@ u3gstub_do_init(void *priv)
 	u3g_dev_type = u3g_lookup(sc->sc_vendor, sc->sc_product);
 	switch (u3g_dev_type->init) {
 	case U3GINIT_HUAWEI:
-		if (bootverbose)
+		if (bootverbose || u3gdebug)
 			device_printf(sc->sc_dev,
 				      "changing Huawei modem to modem mode\n");
 		u3gstub_huawei_init(sc);
 		break;
 	case U3GINIT_SIERRA:
-		if (bootverbose)
+		if (bootverbose || u3gdebug)
 			device_printf(sc->sc_dev,
 				      "changing Sierra modem to modem mode\n");
 		u3gstub_sierra_init(sc);
 		break;
 	case U3GINIT_EJECT:
-		if (bootverbose)
+		if (bootverbose || u3gdebug)
 			device_printf(sc->sc_dev,
 				      "sending CD eject command to change to modem mode\n");
 		while (!sc->sc_dying
@@ -680,20 +678,20 @@ u3gstub_do_init(void *priv)
 			;	/* nop */
 		break;
 	case U3GINIT_ZTESTOR:
-		if (bootverbose)
+		if (bootverbose || u3gdebug)
 			device_printf(sc->sc_dev,
 				      "changing ZTE STOR modem to modem mode\n");
 		u3gstub_BBB_cmd(sc, ztestor_cmd);
 		break;
 	case U3GINIT_CMOTECH:
-		if (bootverbose)
+		if (bootverbose || u3gdebug)
 			device_printf(sc->sc_dev,
 				      "changing CMOTECH modem to modem mode\n");
 		u3gstub_BBB_cmd(sc, cmotech_cmd);
 		break;
 	case U3GINIT_WAIT:
 	default:
-		if (bootverbose)
+		if (bootverbose || u3gdebug)
 			device_printf(sc->sc_dev,
 				      "waiting for modem to change to modem mode\n");
 		/* nop  */
@@ -726,7 +724,7 @@ u3gstub_match(device_t self)
 		id = usbd_get_interface_descriptor(uaa->iface);
 		if (id && id->bInterfaceNumber == 0
 		    && id->bInterfaceClass == UICLASS_MASS) {
-			if (!bootverbose)
+			if (u3gdebug == 0)
 				device_quiet(self);
 
 			return UMATCH_VENDOR_PRODUCT;
@@ -745,7 +743,7 @@ u3gstub_attach(device_t self)
 	usb_endpoint_descriptor_t *ed;
 	int i, err;
 
-	if (!bootverbose)
+	if (u3gdebug == 0)
 		device_quiet(self);
 
 	for (i = 0; i < uaa->nifaces; i++)
