@@ -2818,6 +2818,9 @@ wpi_config(struct wpi_softc *sc)
 		sc->config.filter |= htole32(WPI_FILTER_MULTICAST |
 			WPI_FILTER_CTL | WPI_FILTER_PROMISC);
 		break;
+	default:
+		device_printf(sc->sc_dev, "unknown opmode %d\n", ic->ic_opmode);
+		return EINVAL;
 	}
 	sc->config.cck_mask  = 0x0f;	/* not yet negotiated */
 	sc->config.ofdm_mask = 0xff;	/* not yet negotiated */
