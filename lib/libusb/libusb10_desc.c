@@ -47,7 +47,7 @@ libusb_get_device_descriptor(libusb_device * dev,
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_descriptor enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_descriptor enter");
 
 	if ((dev == NULL) || (desc == NULL))
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -70,7 +70,7 @@ libusb_get_device_descriptor(libusb_device * dev,
 	desc->iSerialNumber = pdesc->iSerialNumber;
 	desc->bNumConfigurations = pdesc->bNumConfigurations;
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_descriptor leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_descriptor leave");
 	return (0);
 }
 
@@ -84,12 +84,12 @@ libusb_get_active_config_descriptor(libusb_device * dev,
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_active_config_descriptor enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_active_config_descriptor enter");
 
 	pdev = dev->os_priv;
 	idx = libusb20_dev_get_config_index(pdev);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_active_config_descriptor leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_active_config_descriptor leave");
 	return (libusb_get_config_descriptor(dev, idx, config));
 }
 
@@ -113,7 +113,7 @@ libusb_get_config_descriptor(libusb_device * dev, uint8_t config_index,
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor enter");
 
 	if (dev == NULL || config == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -225,7 +225,7 @@ libusb_get_config_descriptor(libusb_device * dev, uint8_t config_index,
 	}
 
 	free(pconf);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor leave");
 	return (0);
 }
 
@@ -241,7 +241,7 @@ libusb_get_config_descriptor_by_value(libusb_device * dev,
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor_by_value enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor_by_value enter");
 
 	if (dev == NULL || config == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -259,7 +259,7 @@ libusb_get_config_descriptor_by_value(libusb_device * dev,
 		free(pconf);
 	}
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor_by_value leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor_by_value leave");
 	return (LIBUSB_ERROR_NOT_FOUND);
 }
 
@@ -270,10 +270,10 @@ libusb_free_config_descriptor(struct libusb_config_descriptor *config)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_config_descriptor enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_config_descriptor enter");
 
 	free(config);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_config_descriptor leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_config_descriptor leave");
 }
 
 int
@@ -282,17 +282,16 @@ libusb_get_string_descriptor_ascii(libusb_device_handle * dev,
 {
 	struct libusb20_device *pdev;
 	libusb_context *ctx;
-	int ret;
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_string_descriptor_ascii enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_string_descriptor_ascii enter");
 
 	if (dev == NULL || data == NULL)
 		return (LIBUSB20_ERROR_INVALID_PARAM);
 
 	pdev = dev->os_priv;
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_string_descriptor_ascii leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_string_descriptor_ascii leave");
 	if (libusb20_dev_req_string_simple_sync(pdev, desc_index, 
 	    data, length) == 0)
 		return (strlen(data));
