@@ -139,12 +139,14 @@ VECTOR_END(MipsTLBMiss)
  *----------------------------------------------------------------------------
  */
 MipsDoTLBMiss:
+#xxx mips64 unsafe?
 #ifndef SMP
 	lui	k1, %hi(_C_LABEL(pcpup))
 #endif
 						#k0 already has BadVA
 	bltz	k0, 1f				#02: k0<0 -> 1f (kernel fault)
 	srl	k0, k0, SEGSHIFT - 2		#03: k0=seg offset (almost)
+#xxx mips64 unsafe?
 #ifdef SMP
 	GET_CPU_PCPU(k1)
 #else
@@ -153,6 +155,7 @@ MipsDoTLBMiss:
 	lw	k1, PC_SEGBASE(k1)
 	beqz	k1, 2f			      #05: make sure segbase is not null
 	andi	k0, k0, 0x7fc			#06: k0=seg offset (mask 0x3)
+#xxx mips64 unsafe?
 	addu	k1, k0, k1			#07: k1=seg entry address
 	lw	k1, 0(k1)			#08: k1=seg entry
 	mfc0	k0, COP_0_BAD_VADDR		#09: k0=bad address (again)
@@ -160,6 +163,7 @@ MipsDoTLBMiss:
 	srl	k0, PGSHIFT - 2			#0b: k0=VPN (aka va>>10)
 
 	andi	k0, k0, ((NPTEPG/2) - 1) << 3	#0c: k0=page tab offset
+#xxx mips64 unsafe?
 	addu	k1, k1, k0			#0d: k1=pte address
 	lw	k0, 0(k1)			#0e: k0=lo0 pte
 	lw	k1, 4(k1)			#0f: k1=lo1 pte
@@ -199,8 +203,8 @@ VECTOR(MipsException, unknown)
 	and	k1, k1, CR_EXC_CODE		# Mask out the cause bits.
 	or	k1, k1, k0			# change index to user table
 1:
-	la	k0, _C_LABEL(machExceptionTable)  # get base of the jump table
-	addu	k0, k0, k1			# Get the address of the
+	PTR_LA	k0, _C_LABEL(machExceptionTable)  # get base of the jump table
+	PTR_ADDU k0, k0, k1			# Get the address of the
 						#  function entry.  Note that
 						#  the cause is already
 						#  shifted left by 2 bits so
@@ -315,10 +319,10 @@ SlowFault:
 	SAVE_REG(ra, RA, sp)		;\
 	SAVE_REG(a2, BADVADDR, sp)	;\
 	SAVE_REG(a3, PC, sp)		;\
-	addu	v0, sp, KERN_EXC_FRAME_SIZE ;\
+	PTR_ADDU v0, sp, KERN_EXC_FRAME_SIZE ;\
 	SAVE_REG(v0, SP, sp)		;\
 	CLEAR_STATUS			;\
-	addu	a0, sp, STAND_ARG_SIZE	;\
+	PTR_ADDU a0, sp, STAND_ARG_SIZE	;\
 	ITLBNOPFIX
 
 #define	RESTORE_REG(reg, offs, base) \
@@ -361,7 +365,7 @@ SlowFault:
 	RESTORE_REG(s8, S8, sp)	        ;\
 	RESTORE_REG(gp, GP, sp)		;\
 	RESTORE_REG(ra, RA, sp)		;\
-	addu	sp, sp, KERN_EXC_FRAME_SIZE;\
+	PTR_ADDU sp, sp, KERN_EXC_FRAME_SIZE;\
 	mtc0	k0, COP_0_STATUS_REG
 
 
@@ -384,8 +388,8 @@ NNON_LEAF(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 /*
  *  Call the exception handler. a0 points at the saved frame.
  */
-	la	gp, _C_LABEL(_gp)
-	la	k0, _C_LABEL(trap)
+	PTR_LA	gp, _C_LABEL(_gp)
+	PTR_LA	k0, _C_LABEL(trap)
 	jalr	k0
 	sw	a3, STAND_RA_OFFSET + KERN_REG_SIZE(sp)		# for debugging
 
@@ -481,20 +485,20 @@ NNON_LEAF(MipsUserGenException, STAND_FRAME_SIZE, ra)
 	SAVE_U_PCB_REG(a2, BADVADDR, k1)
 	SAVE_U_PCB_REG(a3, PC, k1)
 	sw	a3, STAND_RA_OFFSET(sp)	# for debugging
-	la	gp, _C_LABEL(_gp)	# switch to kernel GP
+	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 # Turn off fpu and enter kernel mode
 	and	t0, a0, ~(SR_COP_1_BIT | SR_EXL | SR_KSU_MASK | SR_INT_ENAB)
 #ifdef TARGET_OCTEON
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX)
 #endif	
 	mtc0	t0, COP_0_STATUS_REG
-	addu	a0, k1, U_PCB_REGS
+	PTR_ADDU a0, k1, U_PCB_REGS
 	ITLBNOPFIX
 
 /*
  * Call the exception handler.
  */
-	la	k0, _C_LABEL(trap)
+	PTR_LA	k0, _C_LABEL(trap)
 	jalr	k0
 	nop
 
@@ -615,9 +619,9 @@ NNON_LEAF(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 /*
  * Call the interrupt handler.
  */
-	la	gp, _C_LABEL(_gp)
-	addu	a0, sp, STAND_ARG_SIZE
-	la	k0, _C_LABEL(cpu_intr)
+	PTR_LA	gp, _C_LABEL(_gp)
+	PTR_ADDU a0, sp, STAND_ARG_SIZE
+	PTR_LA	k0, _C_LABEL(cpu_intr)
 	jalr	k0
 	sw	a3, STAND_RA_OFFSET + KERN_REG_SIZE(sp)
 	/* Why no AST processing here? */
@@ -717,7 +721,7 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 	SAVE_U_PCB_REG(a1, CAUSE, k1)
 	SAVE_U_PCB_REG(a3, PC, k1)	# PC in a3, note used later!
 	subu	sp, k1, STAND_FRAME_SIZE  # switch to kernel SP
-	la	gp, _C_LABEL(_gp)	# switch to kernel GP
+	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 
 # Turn off fpu, disable interrupts, set kernel mode kernel mode, clear exception level.
 	and	t0, a0, ~(SR_COP_1_BIT | SR_EXL | SR_INT_ENAB | SR_KSU_MASK)
@@ -726,11 +730,11 @@ NNON_LEAF(MipsUserIntr, STAND_FRAME_SIZE, ra)
 #endif	
 	mtc0	t0, COP_0_STATUS_REG
 	ITLBNOPFIX
-	addu	a0, k1, U_PCB_REGS
+	PTR_ADDU a0, k1, U_PCB_REGS
 /*
  * Call the interrupt handler.
  */
-	la	k0, _C_LABEL(cpu_intr)
+	PTR_LA	k0, _C_LABEL(cpu_intr)
 	jalr	k0
 	sw	a3, STAND_RA_OFFSET(sp)	# for debugging
 
@@ -879,6 +883,7 @@ NLEAF(MipsKernTLBInvalidException)
 2:
 	srl	k0, 20				# k0=seg offset (almost)
 	andi	k0, k0, 0xffc			# k0=seg offset (mask 0x3)
+#xxx mips64 unsafe?
 	addu	k1, k0, k1			# k1=seg entry address
 	lw	k1, 0(k1)			# k1=seg entry
 	mfc0	k0, COP_0_BAD_VADDR		# k0=bad address (again)
@@ -886,6 +891,7 @@ NLEAF(MipsKernTLBInvalidException)
 	srl	k0, k0, PGSHIFT-2
 	andi	k0, k0, 0xffc			# compute offset from index
 	tlbp					# Probe the invalid entry
+#xxx mips64 unsafe?
 	addu	k1, k1, k0
 	and	k0, k0, 4			# check even/odd page
 	nop					# required for QED 5230
@@ -951,6 +957,7 @@ NLEAF(MipsUserTLBInvalidException)
 	sltu	k1, k0, k1
 	beqz	k1, _C_LABEL(MipsUserGenException)
 	nop
+#xxx mips64 unsafe?
 #ifdef SMP
 	GET_CPU_PCPU(k1)
 #else
@@ -963,6 +970,7 @@ NLEAF(MipsUserTLBInvalidException)
 2:
 	srl	k0, 20				# k0=seg offset (almost)
 	andi	k0, k0, 0xffc			# k0=seg offset (mask 0x3)
+#xxx mips64 unsafe?
 	addu	k1, k0, k1			# k1=seg entry address
 	lw	k1, 0(k1)			# k1=seg entry
 	mfc0	k0, COP_0_BAD_VADDR		# k0=bad address (again)
@@ -970,6 +978,7 @@ NLEAF(MipsUserTLBInvalidException)
 	srl	k0, k0, PGSHIFT-2
 	andi	k0, k0, 0xffc			# compute offset from index
 	tlbp					# Probe the invalid entry
+#xxx mips64 unsafe?
 	addu	k1, k1, k0
 	and	k0, k0, 4			# check even/odd page
 	nop					# required for QED 5230
@@ -1053,12 +1062,14 @@ NLEAF(MipsTLBMissException)
 	lw	k1, %lo(_C_LABEL(kernel_segmap))(k1)  # k1=segment tab base
 	beq	k1, zero, _C_LABEL(MipsKernGenException)  # ==0 -- no seg tab
 	andi	k0, k0, 0xffc			# k0=seg offset (mask 0x3)
+#xxx mips64 unsafe
 	addu	k1, k0, k1			# k1=seg entry address
 	lw	k1, 0(k1)			# k1=seg entry
 	mfc0	k0, COP_0_BAD_VADDR		# k0=bad address (again)
 	beq	k1, zero, _C_LABEL(MipsKernGenException)  # ==0 -- no page table
 	srl	k0, 10				# k0=VPN (aka va>>10)
 	andi	k0, k0, 0xff8			# k0=page tab offset
+#xxx mips64 unsafe
 	addu	k1, k1, k0			# k1=pte address
 	lw	k0, 0(k1)			# k0=lo0 pte
 	lw	k1, 4(k1)			# k1=lo1 pte
@@ -1083,31 +1094,31 @@ sys_stk_chk:
 	nop
 
 # stack overflow
-	la	a0, _C_LABEL(_start) - START_FRAME - 8  # set sp to a valid place
+	PTR_LA	a0, _C_LABEL(_start) - START_FRAME - 8  # set sp to a valid place
 	sw	sp, 24(a0)
 	move	sp, a0
-	la	a0, 1f
+	PTR_LA	a0, 1f
 	mfc0	a2, COP_0_STATUS_REG
 	mfc0	a3, COP_0_CAUSE_REG
 	_MFC0	a1, COP_0_EXC_PC
 	sw	a2, 16(sp)
 	sw	a3, 20(sp)
 	move	a2, ra
-	la	k0, _C_LABEL(printf)
+	PTR_LA	k0, _C_LABEL(printf)
 	jalr	k0
 	mfc0	a3, COP_0_BAD_VADDR
 
-	la	sp, _C_LABEL(_start) - START_FRAME  # set sp to a valid place
+	PTR_LA	sp, _C_LABEL(_start) - START_FRAME  # set sp to a valid place
 
 #if !defined(SMP) && defined(DDB)
-	la	a0, 2f
-	la	k0, _C_LABEL(trapDump)
+	PTR_LA	a0, 2f
+	PTR_LA	k0, _C_LABEL(trapDump)
 	jalr	k0
 	nop
 
 	li	a0, 0
 	lw	a1, _C_LABEL(num_tlbentries)
-	la	k0, _C_LABEL(db_dump_tlb)
+	PTR_LA	k0, _C_LABEL(db_dump_tlb)
 	jalr	k0
 	addu	a1, -1
 
@@ -1184,11 +1195,12 @@ NON_LEAF(MipsFPTrap, STAND_FRAME_SIZE, ra)
  */
 	sw	a2, STAND_FRAME_SIZE + 8(sp)
 	GET_CPU_PCPU(a0)
+#mips64 unsafe?
 	lw	a0, PC_CURPCB(a0)
-	addu	a0, a0, U_PCB_REGS		# first arg is ptr to CPU registers
+	PTR_ADDU a0, a0, U_PCB_REGS		# first arg is ptr to CPU registers
 	move	a1, a2				# second arg is instruction PC
 	move	a2, t1				# third arg is floating point CSR
-	la	t3, _C_LABEL(MipsEmulateBranch)	# compute PC after branch
+	PTR_LA	t3, _C_LABEL(MipsEmulateBranch)	# compute PC after branch
 	jalr	t3				# compute PC after branch
 	move	a3, zero			# fourth arg is FALSE
 /*
@@ -1204,6 +1216,7 @@ NON_LEAF(MipsFPTrap, STAND_FRAME_SIZE, ra)
  */
 1:
 	lw	a0, 0(a2)			# a0 = coproc instruction
+#xxx mips64 unsafe?
 	addu	v0, a2, 4			# v0 = next pc
 2:
 	GET_CPU_PCPU(t2)
@@ -1224,7 +1237,7 @@ NON_LEAF(MipsFPTrap, STAND_FRAME_SIZE, ra)
 	lw	a0, PC_CURTHREAD(a0)		# get current thread
 	cfc1	a2, FPC_CSR			# code = FP execptions
 	ctc1	zero, FPC_CSR			# Clear exceptions
-	la	t3, _C_LABEL(trapsignal)
+	PTR_LA	t3, _C_LABEL(trapsignal)
 	jalr	t3
 	li	a1, SIGFPE
 	b	FPReturn
@@ -1234,7 +1247,7 @@ NON_LEAF(MipsFPTrap, STAND_FRAME_SIZE, ra)
  * Finally, we can call MipsEmulateFP() where a0 is the instruction to emulate.
  */
 4:
-	la	t3, _C_LABEL(MipsEmulateFP)
+	PTR_LA	t3, _C_LABEL(MipsEmulateFP)
 	jalr	t3
 	nop
 
@@ -1248,25 +1261,8 @@ FPReturn:
 	mtc0	t0, COP_0_STATUS_REG
 	ITLBNOPFIX
 	j	ra
-	addu	sp, sp, STAND_FRAME_SIZE
+	PTR_ADDU sp, sp, STAND_FRAME_SIZE
 END(MipsFPTrap)
-
-
-#if 0
-/*
- *  Atomic ipending update
- */
-LEAF(set_sint)
-	la	v1, ipending
-1:
-	ll	v0, 0(v1)
-	or	v0, a0
-	sc	v0, 0(v1)
-	beqz	v0, 1b
-	j	ra
-	nop
-END(set_sint)
-#endif
 
 /*
  * Interrupt counters for vmstat.
@@ -1294,7 +1290,7 @@ eintrcnt:
  */
 	.text
 VECTOR(MipsCache, unknown)
-	la	k0, _C_LABEL(MipsCacheException)
+	PTR_LA	k0, _C_LABEL(MipsCacheException)
 	li	k1, MIPS_PHYS_MASK
 	and	k0, k1
 	li	k1, MIPS_UNCACHED_MEMORY_ADDR
@@ -1313,8 +1309,8 @@ VECTOR_END(MipsCache)
 NESTED_NOPROFILE(MipsCacheException, KERN_EXC_FRAME_SIZE, ra)
 	.set	noat
 	.mask	0x80000000, -4
-	la	k0, _C_LABEL(panic)		# return to panic
-	la	a0, 9f				# panicstr
+	PTR_LA	k0, _C_LABEL(panic)		# return to panic
+	PTR_LA	a0, 9f				# panicstr
 	_MFC0	a1, COP_0_ERROR_PC
 	mfc0	a2, COP_0_CACHE_ERR		# 3rd arg cache error
 
