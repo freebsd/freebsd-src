@@ -1121,7 +1121,7 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 {
 	union ccb *ccb;
 	struct ata_params *ident_buf;
-	int error = 0;
+	u_int i, error = 0;
 	int16_t *ptr;
 	
 	ccb = cam_getccb(device);
@@ -1135,22 +1135,21 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 	bzero(&(&ccb->ccb_h)[1],
 	      sizeof(struct ccb_ataio) - sizeof(struct ccb_hdr));
 
-	ident_buf = (struct ata_params *)malloc(
-		sizeof(struct ata_params));
+	ptr = (uint16_t *)malloc(sizeof(struct ata_params));
 
-	if (ident_buf == NULL) {
+	if (ptr == NULL) {
 		cam_freeccb(ccb);
 		warnx("can't malloc memory for identify\n");
 		return(1);
 	}
-	bzero(ident_buf, sizeof(*ident_buf));
+	bzero(ptr, sizeof(struct ata_params));
 
 	cam_fill_ataio(&ccb->ataio,
 		      retry_count,
 		      NULL,
 		      /*flags*/CAM_DIR_IN,
 		      MSG_SIMPLE_Q_TAG,
-		      /*data_ptr*/(u_int8_t *)ident_buf,
+		      /*data_ptr*/(u_int8_t *)ptr,
 		      /*dxfer_len*/sizeof(struct ata_params),
 		      timeout ? timeout : 30 * 1000);
 //	if (periph->path->device->protocol == PROTO_ATA)
@@ -1172,6 +1171,7 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 					CAM_EPF_ALL, stderr);
 		}
 
+		free(ptr);
 		cam_freeccb(ccb);
 		return(1);
 	}
@@ -1188,14 +1188,14 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 	cam_freeccb(ccb);
 
 	if (error != 0) {
-		free(ident_buf);
+		free(ptr);
 		return(error);
 	}
 
-	for (ptr = (int16_t *)ident_buf;
-	     ptr < (int16_t *)ident_buf + sizeof(struct ata_params)/2; ptr++) {
-		*ptr = le16toh(*ptr);
-	}
+	for (i = 0; i < sizeof(struct ata_params) / 2; i++)
+		ptr[i] = le16toh(ptr[i]);
+	ident_buf = (struct ata_params *)ptr;
+
 	if (strncmp(ident_buf->model, "FX", 2) &&
 	    strncmp(ident_buf->model, "NEC", 3) &&
 	    strncmp(ident_buf->model, "Pioneer", 7) &&
