@@ -766,38 +766,38 @@ doreti_iret_fault:
 	.globl	ds_load_fault
 ds_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
-	movzwl	TF_DS(%rsp),%edx
-	movl	%edx,TF_ERR(%rsp)
+	movq	%rsp, %rdi
+	call	trap
 	movw	$KUDSEL,TF_DS(%rsp)
-	jmp	calltrap
+	jmp	doreti
 
 	ALIGN_TEXT
 	.globl	es_load_fault
 es_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
-	movzwl	TF_ES(%rsp),%edx
-	movl	%edx,TF_ERR(%rsp)
+	movq	%rsp, %rdi
+	call	trap
 	movw	$KUDSEL,TF_ES(%rsp)
-	jmp	calltrap
+	jmp	doreti
 
 	ALIGN_TEXT
 	.globl	fs_load_fault
 fs_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
-	movzwl	TF_FS(%rsp),%edx
-	movl	%edx,TF_ERR(%rsp)
+	movq	%rsp, %rdi
+	call	trap
 	movw	$KUF32SEL,TF_FS(%rsp)
-	jmp	calltrap
+	jmp	doreti
 
 	ALIGN_TEXT
 	.globl	gs_load_fault
 gs_load_fault:
 	popfq
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
-	movzwl	TF_GS(%rsp),%edx
-	movl	%edx,TF_ERR(%rsp)
+	movq	%rsp, %rdi
+	call	trap
 	movw	$KUG32SEL,TF_GS(%rsp)
-	jmp	calltrap
+	jmp	doreti
 #ifdef HWPMC_HOOKS
 	ENTRY(end_exceptions)
 #endif
