@@ -795,9 +795,9 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	/*
 	 * XXX: we should say that nsegs is 'unrestricted, but that
 	 * XXX: tickles a horrible bug in the busdma code. Instead,
-	 * XXX: we'll derive a reasonable segment limit from MAXPHYS
+	 * XXX: we'll derive a reasonable segment limit from MPT_MAXPHYS
 	 */
-	nsegs = (MAXPHYS / PAGE_SIZE) + 1;
+	nsegs = (MPT_MAXPHYS / PAGE_SIZE) + 1;
 	if (mpt_dma_tag_create(mpt, mpt->parent_dmat, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, MAXBSIZE, nsegs, BUS_SPACE_MAXSIZE_32BIT, 0,

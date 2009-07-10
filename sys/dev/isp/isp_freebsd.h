@@ -561,7 +561,8 @@ void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
 #endif
 
 /* Should be BUS_SPACE_MAXSIZE, but MAXPHYS is larger than BUS_SPACE_MAXSIZE */
-#define ISP_NSEGS ((MAXPHYS / PAGE_SIZE) + 1)  
+#define ISP_MAXPHYS (128 * 1024)
+#define ISP_NSEGS ((ISP_MAXPHYS / PAGE_SIZE) + 1)  
 
 /*
  * Platform specific inline functions

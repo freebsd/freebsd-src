@@ -141,6 +141,9 @@ struct ciss_request
 #define CISS_COMMAND_SG_LENGTH	((CISS_COMMAND_ALLOC_SIZE - sizeof(struct ciss_command)) \
 				 / sizeof(struct ciss_sg_entry))
 
+/* XXX Prep for increasing max i/o */
+#define CISS_MAX_SG_ELEMENTS   33
+
 /*
  * Per-logical-drive data.
  */
