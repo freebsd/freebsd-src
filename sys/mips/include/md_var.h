@@ -48,7 +48,7 @@ extern vm_offset_t kstack0;
 void	MipsSaveCurFPState(struct thread *);
 void	fork_trampoline(void);
 void	cpu_swapin(struct proc *);
-u_int	MipsEmulateBranch(struct trapframe *, int, int, u_int);
+uintptr_t MipsEmulateBranch(struct trapframe *, uintptr_t, int, uintptr_t);
 u_long	kvtop(void *addr);
 int	is_physical_memory(vm_offset_t addr);
 int	is_cacheable_mem(vm_offset_t pa);
