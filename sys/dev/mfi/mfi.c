@@ -341,7 +341,7 @@ mfi_attach(struct mfi_softc *sc)
 	status = sc->mfi_read_fw_status(sc);
 	sc->mfi_max_fw_cmds = status & MFI_FWSTATE_MAXCMD_MASK;
 	max_fw_sge = (status & MFI_FWSTATE_MAXSGL_MASK) >> 16;
-	sc->mfi_max_sge = min(max_fw_sge, ((MAXPHYS / PAGE_SIZE) + 1));
+	sc->mfi_max_sge = min(max_fw_sge, ((MFI_MAXPHYS / PAGE_SIZE) + 1));
 
 	/*
 	 * Create the dma tag for data buffers.  Used both for block I/O

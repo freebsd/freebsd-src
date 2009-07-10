@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/stdint.h>
 #include <sys/types.h>
+#include <sys/endian.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_da.h>
 #include <cam/scsi/scsi_pass.h>
 #include <cam/scsi/scsi_message.h>
+#include <cam/ata/ata_all.h>
 #include <camlib.h>
 #include "camcontrol.h"
 
@@ -71,7 +73,8 @@ typedef enum {
 	CAM_CMD_RATE		= 0x0000000f,
 	CAM_CMD_DETACH		= 0x00000010,
 	CAM_CMD_REPORTLUNS	= 0x00000011,
-	CAM_CMD_READCAP		= 0x00000012
+	CAM_CMD_READCAP		= 0x00000012,
+	CAM_CMD_IDENTIFY	= 0x00000013
 } cam_cmdmask;
 
 typedef enum {
@@ -126,6 +129,7 @@ struct camcontrol_opts option_table[] = {
 #ifndef MINIMALISTIC
 	{"tur", CAM_CMD_TUR, CAM_ARG_NONE, NULL},
 	{"inquiry", CAM_CMD_INQUIRY, CAM_ARG_NONE, "DSR"},
+	{"identify", CAM_CMD_IDENTIFY, CAM_ARG_NONE, NULL},
 	{"start", CAM_CMD_STARTSTOP, CAM_ARG_START_UNIT, NULL},
 	{"stop", CAM_CMD_STARTSTOP, CAM_ARG_NONE, NULL},
 	{"load", CAM_CMD_STARTSTOP, CAM_ARG_START_UNIT | CAM_ARG_EJECT, NULL},
@@ -401,19 +405,35 @@ getdevtree(void)
 				} else
 					skip_device = 0;
 
-				cam_strvis(vendor, dev_result->inq_data.vendor,
+				if (dev_result->protocol == PROTO_SCSI) {
+				    cam_strvis(vendor, dev_result->inq_data.vendor,
 					   sizeof(dev_result->inq_data.vendor),
 					   sizeof(vendor));
-				cam_strvis(product,
+				    cam_strvis(product,
 					   dev_result->inq_data.product,
 					   sizeof(dev_result->inq_data.product),
 					   sizeof(product));
-				cam_strvis(revision,
+				    cam_strvis(revision,
 					   dev_result->inq_data.revision,
 					  sizeof(dev_result->inq_data.revision),
 					   sizeof(revision));
-				sprintf(tmpstr, "<%s %s %s>", vendor, product,
+				    sprintf(tmpstr, "<%s %s %s>", vendor, product,
 					revision);
+				} else if (dev_result->protocol == PROTO_ATA ||
+				    dev_result->protocol == PROTO_SATAPM) {
+				    cam_strvis(product,
+					   dev_result->ident_data.model,
+					   sizeof(dev_result->ident_data.model),
+					   sizeof(product));
+				    cam_strvis(revision,
+					   dev_result->ident_data.revision,
+					  sizeof(dev_result->ident_data.revision),
+					   sizeof(revision));
+				    sprintf(tmpstr, "<%s %s>", product,
+					revision);
+				} else {
+				    sprintf(tmpstr, "<>");
+				}
 				if (need_close) {
 					fprintf(stdout, ")\n");
 					need_close = 0;
@@ -899,6 +919,14 @@ scsixferrate(struct cam_device *device)
 		if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) != 0) {
 			freq = scsi_calc_syncsrate(spi->sync_period);
 			speed = freq;
+		} else {
+			struct ccb_pathinq cpi;
+
+			retval = get_cpi(device, &cpi);
+			if (retval == 0) {
+				speed = cpi.base_transfer_speed;
+				freq = 0;
+			}
 		}
 
 		fprintf(stdout, "%s%d: ", device->device_name,
@@ -973,6 +1001,224 @@ xferrate_bailout:
 	cam_freeccb(ccb);
 
 	return(retval);
+}
+
+static void
+atacapprint(struct ata_params *parm)
+{
+	u_int32_t lbasize = (u_int32_t)parm->lba_size_1 |
+				((u_int32_t)parm->lba_size_2 << 16);
+
+	u_int64_t lbasize48 = ((u_int64_t)parm->lba_size48_1) |
+				((u_int64_t)parm->lba_size48_2 << 16) |
+				((u_int64_t)parm->lba_size48_3 << 32) |
+				((u_int64_t)parm->lba_size48_4 << 48);
+
+	printf("\n");
+	printf("Protocol              ");
+	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
+		if (parm->satacapabilities & ATA_SATA_GEN2)
+			printf("SATA revision 2.x\n");
+		else if (parm->satacapabilities & ATA_SATA_GEN1)
+			printf("SATA revision 1.x\n");
+		else
+			printf("Unknown SATA revision\n");
+	}
+	else
+		printf("ATA/ATAPI revision %d\n", ata_version(parm->version_major));
+	printf("device model          %.40s\n", parm->model);
+	printf("serial number         %.20s\n", parm->serial);
+	printf("firmware revision     %.8s\n", parm->revision);
+
+	printf("cylinders             %d\n", parm->cylinders);
+	printf("heads                 %d\n", parm->heads);
+	printf("sectors/track         %d\n", parm->sectors);
+
+	if (parm->config == ATA_PROTO_CFA ||
+	    (parm->support.command2 & ATA_SUPPORT_CFA))
+		printf("CFA supported\n");
+
+	printf("lba%ssupported         ",
+		parm->capabilities1 & ATA_SUPPORT_LBA ? " " : " not ");
+	if (lbasize)
+		printf("%d sectors\n", lbasize);
+	else
+		printf("\n");
+
+	printf("lba48%ssupported       ",
+		parm->support.command2 & ATA_SUPPORT_ADDRESS48 ? " " : " not ");
+	if (lbasize48)
+		printf("%ju sectors\n", (uintmax_t)lbasize48);
+	else
+		printf("\n");
+
+	printf("dma%ssupported\n",
+		parm->capabilities1 & ATA_SUPPORT_DMA ? " " : " not ");
+
+	printf("overlap%ssupported\n",
+		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? " " : " not ");
+
+	printf("\nFeature                      "
+		"Support  Enable    Value           Vendor\n");
+
+	printf("write cache                    %s	%s\n",
+		parm->support.command1 & ATA_SUPPORT_WRITECACHE ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_WRITECACHE ? "yes" : "no");
+
+	printf("read ahead                     %s	%s\n",
+		parm->support.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");
+
+	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
+		printf("Native Command Queuing (NCQ)   %s	%s"
+			"	%d/0x%02X\n",
+			parm->satacapabilities & ATA_SUPPORT_NCQ ?
+				"yes" : "no", " -",
+			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
+				ATA_QUEUE_LEN(parm->queue) : 0,
+			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
+				ATA_QUEUE_LEN(parm->queue) : 0);
+	}
+	printf("Tagged Command Queuing (TCQ)   %s	%s	%d/0x%02X\n",
+		parm->support.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_QUEUED ? "yes" : "no",
+		ATA_QUEUE_LEN(parm->queue), ATA_QUEUE_LEN(parm->queue));
+
+	printf("SMART                          %s	%s\n",
+		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_SMART ? "yes" : "no");
+
+	printf("microcode download             %s	%s\n",
+		parm->support.command2 & ATA_SUPPORT_MICROCODE ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_MICROCODE ? "yes" : "no");
+
+	printf("security                       %s	%s\n",
+		parm->support.command1 & ATA_SUPPORT_SECURITY ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_SECURITY ? "yes" : "no");
+
+	printf("power management               %s	%s\n",
+		parm->support.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no",
+		parm->enabled.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no");
+
+	printf("advanced power management      %s	%s	%d/0x%02X\n",
+		parm->support.command2 & ATA_SUPPORT_APM ? "yes" : "no",
+		parm->enabled.command2 & ATA_SUPPORT_APM ? "yes" : "no",
+		parm->apm_value, parm->apm_value);
+
+	printf("automatic acoustic management  %s	%s	"
+		"%d/0x%02X	%d/0x%02X\n",
+		parm->support.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no",
+		parm->enabled.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no",
+		ATA_ACOUSTIC_CURRENT(parm->acoustic),
+		ATA_ACOUSTIC_CURRENT(parm->acoustic),
+		ATA_ACOUSTIC_VENDOR(parm->acoustic),
+		ATA_ACOUSTIC_VENDOR(parm->acoustic));
+}
+
+
+static int
+ataidentify(struct cam_device *device, int retry_count, int timeout)
+{
+	union ccb *ccb;
+	struct ata_params *ident_buf;
+	int error = 0;
+	int16_t *ptr;
+	
+	ccb = cam_getccb(device);
+
+	if (ccb == NULL) {
+		warnx("couldn't allocate CCB");
+		return(1);
+	}
+
+	/* cam_getccb cleans up the header, caller has to zero the payload */
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_ataio) - sizeof(struct ccb_hdr));
+
+	ident_buf = (struct ata_params *)malloc(
+		sizeof(struct ata_params));
+
+	if (ident_buf == NULL) {
+		cam_freeccb(ccb);
+		warnx("can't malloc memory for identify\n");
+		return(1);
+	}
+	bzero(ident_buf, sizeof(*ident_buf));
+
+	cam_fill_ataio(&ccb->ataio,
+		      retry_count,
+		      NULL,
+		      /*flags*/CAM_DIR_IN,
+		      MSG_SIMPLE_Q_TAG,
+		      /*data_ptr*/(u_int8_t *)ident_buf,
+		      /*dxfer_len*/sizeof(struct ata_params),
+		      timeout ? timeout : 30 * 1000);
+//	if (periph->path->device->protocol == PROTO_ATA)
+		ata_36bit_cmd(&ccb->ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
+//	else
+//		ata_36bit_cmd(&ccb->ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
+
+	/* Disable freezing the device queue */
+	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
+
+	if (arglist & CAM_ARG_ERR_RECOVER)
+		ccb->ccb_h.flags |= CAM_PASS_ERR_RECOVER;
+
+	if (cam_send_ccb(device, ccb) < 0) {
+		perror("error sending ATA identify");
+
+		if (arglist & CAM_ARG_VERBOSE) {
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		}
+
+		cam_freeccb(ccb);
+		return(1);
+	}
+
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		error = 1;
+
+		if (arglist & CAM_ARG_VERBOSE) {
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		}
+	}
+
+	cam_freeccb(ccb);
+
+	if (error != 0) {
+		free(ident_buf);
+		return(error);
+	}
+
+	for (ptr = (int16_t *)ident_buf;
+	     ptr < (int16_t *)ident_buf + sizeof(struct ata_params)/2; ptr++) {
+		*ptr = le16toh(*ptr);
+	}
+	if (strncmp(ident_buf->model, "FX", 2) &&
+	    strncmp(ident_buf->model, "NEC", 3) &&
+	    strncmp(ident_buf->model, "Pioneer", 7) &&
+	    strncmp(ident_buf->model, "SHARP", 5)) {
+		ata_bswap(ident_buf->model, sizeof(ident_buf->model));
+		ata_bswap(ident_buf->revision, sizeof(ident_buf->revision));
+		ata_bswap(ident_buf->serial, sizeof(ident_buf->serial));
+	}
+	ata_btrim(ident_buf->model, sizeof(ident_buf->model));
+	ata_bpack(ident_buf->model, ident_buf->model, sizeof(ident_buf->model));
+	ata_btrim(ident_buf->revision, sizeof(ident_buf->revision));
+	ata_bpack(ident_buf->revision, ident_buf->revision, sizeof(ident_buf->revision));
+	ata_btrim(ident_buf->serial, sizeof(ident_buf->serial));
+	ata_bpack(ident_buf->serial, ident_buf->serial, sizeof(ident_buf->serial));
+
+	fprintf(stdout, "%s%d: ", device->device_name,
+		device->dev_unit_num);
+	ata_print_ident(ident_buf);
+	atacapprint(ident_buf);
+
+	free(ident_buf);
+
+	return(0);
 }
 #endif /* MINIMALISTIC */
 
@@ -3675,6 +3921,7 @@ usage(int verbose)
 "        camcontrol periphlist [dev_id][-n dev_name] [-u unit]\n"
 "        camcontrol tur        [dev_id][generic args]\n"
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
+"        camcontrol identify   [dev_id][generic args]\n"
 "        camcontrol reportluns [dev_id][generic args] [-c] [-l] [-r report]\n"
 "        camcontrol readcap    [dev_id][generic args] [-b] [-h] [-H] [-N]\n"
 "                              [-q] [-s]\n"
@@ -3710,6 +3957,7 @@ usage(int verbose)
 "periphlist  list all CAM peripheral drivers attached to a device\n"
 "tur         send a test unit ready to the named device\n"
 "inquiry     send a SCSI inquiry command to the named device\n"
+"identify    send a ATA identify command to the named device\n"
 "reportluns  send a SCSI report luns command to the device\n"
 "readcap     send a SCSI read capacity command to the device\n"
 "start       send a Start Unit command to the device\n"
@@ -4034,6 +4282,9 @@ main(int argc, char **argv)
 		case CAM_CMD_INQUIRY:
 			error = scsidoinquiry(cam_dev, argc, argv, combinedopt,
 					      retry_count, timeout);
+			break;
+		case CAM_CMD_IDENTIFY:
+			error = ataidentify(cam_dev, retry_count, timeout);
 			break;
 		case CAM_CMD_STARTSTOP:
 			error = scsistart(cam_dev, arglist & CAM_ARG_START_UNIT,
