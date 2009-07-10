@@ -129,6 +129,7 @@ typedef enum {
 				 * requests for the target at the sim level
 				 * back into the XPT queue.
 				 */
+	CAM_ATA_STATUS_ERROR,	/* ATA error, look at error code in CCB */
 	CAM_SCSI_IT_NEXUS_LOST,	/* Initiator/Target Nexus lost. */
 	CAM_IDE = 0x33,		/* Initiator Detected Error */
 	CAM_RESRC_UNAVAIL,	/* Resource Unavailable */

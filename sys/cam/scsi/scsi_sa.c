@@ -1398,6 +1398,9 @@ saasync(void *callback_arg, u_int32_t code,
 		if (cgd == NULL)
 			break;
 
+		if (cgd->protocol != PROTO_SCSI)
+			break;
+
 		if (SID_TYPE(&cgd->inq_data) != T_SEQUENTIAL)
 			break;
 
