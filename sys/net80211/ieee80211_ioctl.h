@@ -302,7 +302,7 @@ enum {
 
 struct ieee80211req_maclist {
 	uint8_t		ml_macaddr[IEEE80211_ADDR_LEN];
-};
+} __packed;
 
 /*
  * Set the active channel list by IEEE channel #: each channel
