@@ -2976,6 +2976,7 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->transport_version = 2;
 	cpi->protocol = PROTO_SCSI;
 	cpi->protocol_version = SCSI_REV_2;
+	cpi->maxio = (CISS_MAX_SG_ELEMENTS - 1) * PAGE_SIZE;
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	break;
     }

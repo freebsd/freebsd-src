@@ -58,6 +58,8 @@ typedef u_int8_t target_bit_vector;
 #define ADV_MAX_TID		7
 #define ADV_MAX_LUN		7
 
+#define ADV_MAXPHYS		(128 * 1024)
+
 /* Enumeration of board types */
 typedef enum {
 	ADV_NONE	= 0x000,

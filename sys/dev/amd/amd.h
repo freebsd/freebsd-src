@@ -95,7 +95,8 @@ struct amd_sg {
 #define AMD_MAX_SYNC_OFFSET	15
 #define AMD_TARGET_MAX	7
 #define AMD_LUN_MAX		7
-#define AMD_NSEG		(btoc(MAXPHYS) + 1)
+#define AMD_MAXPHYS		(128 * 1024) /* legacy MAXPHYS */
+#define AMD_NSEG		(btoc(AMD_MAXPHYS) + 1)
 #define AMD_MAXTRANSFER_SIZE	0xFFFFFF /* restricted by 24 bit counter */
 #define MAX_DEVICES		10
 #define MAX_TAGS_CMD_QUEUE	256

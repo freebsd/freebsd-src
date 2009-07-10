@@ -14,6 +14,7 @@ SUBDIR=	${_3dfx} \
 	${_agp} \
 	aha \
 	${_ahb} \
+	ahci \
 	${_aic} \
 	aic7xxx \
 	aio \
