@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.func.c,v 3.143 2006/08/24 20:56:31 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.func.c,v 3.153 2009/06/25 21:15:37 christos Exp $ */
 /*
  * sh.func.c: csh builtin functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.func.c,v 3.143 2006/08/24 20:56:31 christos Exp $")
+RCSID("$tcsh: sh.func.c,v 3.153 2009/06/25 21:15:37 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -62,6 +62,7 @@ static	void	doagain		(void);
 static  const char *isrchx	(int);
 static	void	search		(int, int, Char *);
 static	int	getword		(struct Strbuf *);
+static	struct wordent	*histgetword	(struct wordent *);
 static	void	toend		(void);
 static	void	xecho		(int, Char **);
 static	int	islocale_var	(Char *);
@@ -688,7 +689,8 @@ dorepeat(Char **v, struct command *kp)
 	reexecute(kp);
 	--i;
     }
-    cleanup_until(&pintr_disabled);
+    if (setintr && pintr_disabled == 1)
+        cleanup_until(&pintr_disabled);
     donefds();
 }
 
@@ -753,6 +755,7 @@ search(int type, int level, Char *goal)
     Char *cp;
     struct whyle *wp;
     int wlevel = 0;
+    struct wordent *histent = NULL, *ohistent = NULL;
 
     Stype = type;
     Sgoal = goal;
@@ -764,11 +767,28 @@ search(int type, int level, Char *goal)
     }
     cleanup_push(&word, Strbuf_cleanup);
     do {
+	    
+	if (intty) {
+	    histent = xmalloc(sizeof(*histent));
+	    ohistent = xmalloc(sizeof(*histent));
+	    ohistent->word = STRNULL;
+	    ohistent->next = histent;
+	    histent->prev = ohistent;
+	}
+
 	if (intty && fseekp == feobp && aret == TCSH_F_SEEK)
 	    printprompt(1, isrchx(type == TC_BREAK ? zlast : type));
 	/* xprintf("? "), flush(); */
 	(void) getword(&word);
 	Strbuf_terminate(&word);
+
+	if (intty && Strlen(word.s) > 0) {
+	    histent->word = Strsave(word.s);
+	    histent->next = xmalloc(sizeof(*histent));
+	    histent->next->prev = histent;
+	    histent = histent->next;
+	}
+
 	switch (srchx(word.s)) {
 
 	case TC_ELSE:
@@ -855,10 +875,127 @@ search(int type, int level, Char *goal)
 		level = -1;
 	    break;
 	}
-	(void) getword(NULL);
+	if (intty) {
+	    ohistent->prev = histgetword(histent);
+	    ohistent->prev->next = ohistent;
+	    savehist(ohistent, 0);
+	    freelex(ohistent);
+	    xfree(ohistent);
+	} else 
+	    (void) getword(NULL);
     } while (level >= 0);
  end:
     cleanup_until(&word);
+}
+
+static struct wordent *
+histgetword(struct wordent *histent) 
+{
+    int found = 0, first;
+    eChar c, d;
+    int e;
+    struct Strbuf *tmp;
+    tmp = xmalloc(sizeof(*tmp));
+    tmp->size = 0;
+    tmp->s = NULL;
+    c = readc(1);
+    d = 0;
+    e = 0;
+    for (;;) {
+	tmp->len = 0;
+	Strbuf_terminate (tmp);
+	while (c == ' ' || c == '\t')
+	    c = readc(1);
+	if (c == '#')
+	    do
+		c = readc(1);
+	    while (c != CHAR_ERR && c != '\n');
+	if (c == CHAR_ERR)
+	    goto past;
+	if (c == '\n') 
+	    goto nl;
+	unreadc(c);
+	found = 1;
+	first = 1;
+	do {
+	    e = (c == '\\');
+	    c = readc(1);
+	    if (c == '\\' && !e) {
+		if ((c = readc(1)) == '\n') {
+		    e = 1;
+		    c = ' ';
+		} else {
+		    unreadc(c);
+		    c = '\\';
+		}
+	    }
+	    if ((c == '\'' || c == '"') && !e) {
+		if (d == 0)
+		    d = c;
+		else if (d == c)
+		    d = 0;
+	    }
+	    if (c == CHAR_ERR)
+		goto past;
+	    
+	    Strbuf_append1(tmp, (Char) c);
+	    
+	    if (!first && !d && c == '(' && !e) {
+		break;
+	    }
+	    first = 0;
+	} while (d || e || (c != ' ' && c != '\t' && c != '\n'));
+	tmp->len--;
+	if (tmp->len) {
+	    Strbuf_terminate(tmp);
+	    histent->word = Strsave(tmp->s);
+	    histent->next = xmalloc(sizeof (*histent));
+	    histent->next->prev = histent;
+	    histent = histent->next;
+	}
+	if (c == '\n') {
+	nl:
+	    tmp->len = 0;
+	    Strbuf_append1(tmp, (Char) c);
+	    Strbuf_terminate(tmp);
+	    histent->word = Strsave(tmp->s);
+	    return histent;
+	}
+    }
+    
+    unreadc(c);
+    return histent;
+
+past:
+    switch (Stype) {
+
+    case TC_IF:
+	stderror(ERR_NAME | ERR_NOTFOUND, "then/endif");
+	break;
+
+    case TC_ELSE:
+	stderror(ERR_NAME | ERR_NOTFOUND, "endif");
+	break;
+
+    case TC_BRKSW:
+    case TC_SWITCH:
+	stderror(ERR_NAME | ERR_NOTFOUND, "endsw");
+	break;
+
+    case TC_BREAK:
+	stderror(ERR_NAME | ERR_NOTFOUND, "end");
+	break;
+
+    case TC_GOTO:
+	setname(short2str(Sgoal));
+	stderror(ERR_NAME | ERR_NOTFOUND, "label");
+	break;
+
+    default:
+	break;
+    }
+    /* NOTREACHED */
+    return NULL;
 }
 
 static int
@@ -1796,6 +1933,10 @@ struct limits limits[] =
     { RLIMIT_SBSIZE,	"sbsize",	1,	""		},
 # endif /* RLIMIT_SBSIZE */
 
+# ifdef RLIMIT_SWAP 
+    { RLIMIT_SWAP,	"swapsize",	1024,	"kbytes"	}, 
+# endif /* RLIMIT_SWAP */ 
+
     { -1, 		NULL, 		0, 	NULL		}
 };
 
@@ -2135,10 +2276,9 @@ void
 dosuspend(Char **v, struct command *c)
 {
 #ifdef BSDJOBS
-    int     ctpgrp;
     struct sigaction old;
 #endif /* BSDJOBS */
-    
+
     USE(c);
     USE(v);
 
@@ -2158,17 +2298,8 @@ dosuspend(Char **v, struct command *c)
 
 #ifdef BSDJOBS
     if (tpgrp != -1) {
-retry:
-	ctpgrp = tcgetpgrp(FSHTTY);
-	if (ctpgrp == -1)
+	if (grabpgrp(FSHTTY, opgrp) == -1)
 	    stderror(ERR_SYSTEM, "tcgetpgrp", strerror(errno));
-	if (ctpgrp != opgrp) {
-	    sigaction(SIGTTIN, NULL, &old);
-	    signal(SIGTTIN, SIG_DFL);
-	    (void) kill(0, SIGTTIN);
-	    sigaction(SIGTTIN, &old, NULL);
-	    goto retry;
-	}
 	(void) setpgid(0, shpgrp);
 	(void) tcsetpgrp(FSHTTY, shpgrp);
     }
@@ -2221,13 +2352,15 @@ doeval_cleanup(void *xstate)
     close_on_exec(SHDIAG = dmove(state->saveDIAG, state->SHDIAG), 1);
 }
 
+static Char **Ggv;
 /*ARGSUSED*/
 void
 doeval(Char **v, struct command *c)
 {
     struct doeval_state state;
-    int gflag;
+    int gflag, my_reenter;
     Char **gv;
+    jmp_buf_t osetexit;
 
     USE(c);
     v++;
@@ -2247,6 +2380,7 @@ doeval(Char **v, struct command *c)
 	trim(v);
     }
 
+    Ggv = gv;
     state.evalvec = evalvec;
     state.evalp = evalp;
     state.didfds = didfds;
@@ -2263,21 +2397,39 @@ doeval(Char **v, struct command *c)
 
     cleanup_push(&state, doeval_cleanup);
 
-    evalvec = v;
-    evalp = 0;
-    (void)close_on_exec(SHIN = dcopy(0, -1), 1);
-    (void)close_on_exec(SHOUT = dcopy(1, -1), 1);
-    (void)close_on_exec(SHDIAG = dcopy(2, -1), 1);
+    getexit(osetexit);
+
+    /* PWP: setjmp/longjmp bugfix for optimizing compilers */
+#ifdef cray
+    my_reenter = 1;             /* assume non-zero return val */
+    if (setexit() == 0) {
+	my_reenter = 0;         /* Oh well, we were wrong */
+#else /* !cray */
+    if ((my_reenter = setexit()) == 0) {
+#endif /* cray */
+	evalvec = v;
+	evalp = 0;
+	(void)close_on_exec(SHIN = dcopy(0, -1), 1);
+	(void)close_on_exec(SHOUT = dcopy(1, -1), 1);
+	(void)close_on_exec(SHDIAG = dcopy(2, -1), 1);
 #ifndef CLOSE_ON_EXEC
-    didcch = 0;
+	didcch = 0;
 #endif /* CLOSE_ON_EXEC */
-    didfds = 0;
-    process(0);
+	didfds = 0;
+	gv = Ggv;
+	process(0);
+	Ggv = gv;
+    }
 
-    cleanup_until(&state);
+    if (my_reenter == 0) {
+	cleanup_until(&state);
+	if (Ggv)
+	    cleanup_until(Ggv);
+    }
 
-    if (gv)
-	cleanup_until(gv);
+    resexit(osetexit);
+    if (my_reenter)
+	stderror(ERR_SILENT);
 }
 
 /*************************************************************************/

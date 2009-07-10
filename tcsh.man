@@ -72,7 +72,7 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\" 
-.TH TCSH 1 "3 March 2007" "Astron 6.15.00"
+.TH TCSH 1 "10 July 2009" "Astron 6.17.00"
 .SH NAME
 tcsh \- C shell with file name completion and command line editing
 .SH SYNOPSIS
@@ -1785,7 +1785,7 @@ Equivalent to `\-P \fIfile\fR & \fImode\fR', e.g., `\-P22 \fIfile\fR' returns
 and `0' if by neither
 .TP 8
 .B P\fImode\fB:
-Like \fBP\fImode\fB:\fR, with leading zero
+Like \fBP\fImode\fR, with leading zero
 .TP 8
 .B U
 Numeric userid
@@ -1894,9 +1894,9 @@ default \fInotify\fR marks the current process; simply say `notify' after
 starting a background job to mark it.
 .PP
 When you try to leave the shell while jobs are stopped, you will be
-warned that `You have stopped jobs.' You may use the \fIjobs\fR command to see
-what they are.  If you do this or immediately try to exit again, the shell will
-not warn you a second time, and the suspended jobs will be terminated.
+warned that `There are suspended jobs.' You may use the \fIjobs\fR command to
+see what they are.  If you do this or immediately try to exit again, the shell
+will not warn you a second time, and the suspended jobs will be terminated.
 .SS "Automatic, periodic and timed events (+)"
 There are various ways to run commands and take other actions automatically
 at various times in the ``life cycle'' of the shell.  They are summarized here,
@@ -2413,6 +2413,14 @@ completion.  If null, no character is appended.  If omitted (in which
 case the fourth delimiter can also be omitted), a slash is appended to
 directories and a space to other words.
 .PP
+\fIcommand\fR invoked from `...` version has additional environment
+variable set, the variable name is \%\fBCOMMAND_LINE\fR\% and
+contains (as its name indicates) contents of the current (already
+typed in) command line. One can examine and use contents of the
+\%\fBCOMMAND_LINE\fR\% variable in her custom script to build more
+sophisticated completions (see completion for svn(1) included in
+this package).
+.PP
 Now for some examples.  Some commands take only directories as arguments,
 so there's no point completing plain files.
 .IP "" 4
@@ -2921,6 +2929,9 @@ the maximum number of simultaneous processes for this user id
 .TP
 \fIsbsize\fR
 the maximum size of socket buffer usage for this user
+.TP 
+\fIswapsize\fR 
+the maximum amount of swap space reserved or used for this user 
 .PP
 \fImaximum-use\fR may be given as a (floating point or
 integer) number followed by a scale factor.  For all limits
@@ -3367,13 +3378,14 @@ executed programs.
 .B universe \fIuniverse\fR (+)
 Sets the universe to \fIuniverse\fR.  (Masscomp/RTU only)
 .TP 8
-.B unlimit \fR[\fB\-h\fR] [\fIresource\fR]
+.B unlimit \fR[\fB\-hf\fR] [\fIresource\fR]
 Removes the limitation on \fIresource\fR or, if no \fIresource\fR is
 specified, all \fIresource\fR limitations.
 With \fB\-h\fR, the corresponding hard limits are removed.
 Only the super-user may do this.
 Note that \fBunlimit\fR may not exit successful, since most systems
 do not allow \fIdescriptors\fR to be unlimited.
+With \fB\-f\fR errors are ignored.
 .TP 8
 .B unset \fIpattern
 Removes all variables whose names match \fIpattern\fR, unless they are read-only.
@@ -3466,7 +3478,7 @@ Runs before each command gets executed, or when the command changes state.
 This is similar to \fIpostcmd\fR, but it does not print builtins.
 .RS +8
 .IP "" 4
-> alias jobcmd  'echo \-n "^[]2\e;\e!#^G"'
+> alias jobcmd  'echo \-n "^[]2\e;\e!#:q^G"'
 .PP
 then executing \fIvi foo.c\fR will put the command string in the xterm title bar.
 .RE
@@ -3515,7 +3527,7 @@ should be used.
 Runs before each command gets executed.
 .RS +8
 .IP "" 4
-> alias postcmd  'echo \-n "^[]2\e;\e!#^G"'
+> alias postcmd  'echo \-n "^[]2\e;\e!#:q^G"'
 .PP
 then executing \fIvi foo.c\fR will put the command string in the xterm title bar.
 .RE
@@ -3566,7 +3578,8 @@ each completion attempt.
 .TP 8
 .B autoexpand \fR(+)
 If set, the \fIexpand-history\fR editor command is invoked automatically
-before each completion attempt.
+before each completion attempt. If this is set to \fIonlyhistory\fR, then
+only history will be expanded and a second completion will expand filenames.
 .TP 8
 .B autolist \fR(+)
 If set, possibilities are listed after an ambiguous completion.
@@ -3614,6 +3627,10 @@ And display colorful NLS messages.
 .TP 8
 .B command \fR(+)
 If set, the command which was passed to the shell with the \fB-c\fR flag (q.v.).
+.TP 8
+.B compat_expr \fR(+)
+If set, the shell will evaluate expressions right to left, like the original
+\fIcsh\fR.
 .TP 8
 .B complete \fR(+)
 If set to `enhance', completion 1) ignores case and 2) considers
@@ -5057,9 +5074,7 @@ supervisor call mechanism [are my IBM roots also showing?]).
 The creator of tcsh was impressed by this feature and several others of TENEX
 and TOPS-20, and created a version of csh which mimicked them.
 .SH LIMITATIONS
-Words can be no longer than 1024 characters.
-.PP
-The system limits argument lists to 10240 characters.
+The system limits argument lists to ARG_MAX characters.
 .PP
 The number of arguments to a command which involves filename expansion is
 limited to 1/6th the number of characters allowed in an argument list.
@@ -5076,7 +5091,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .SH VERSION
-This manual documents tcsh 6.15.00 (Astron) 2007-03-03.
+This manual documents tcsh 6.17.00 (Astron) 2009-07-10.
 .SH AUTHORS
 .PD 0
 .TP 2

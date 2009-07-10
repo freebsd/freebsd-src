@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.func.c,v 3.136 2006/09/01 12:51:35 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.func.c,v 3.139 2009/06/25 21:15:38 christos Exp $ */
 /*
  * tc.func.c: New tcsh builtins.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.func.c,v 3.136 2006/09/01 12:51:35 christos Exp $")
+RCSID("$tcsh: tc.func.c,v 3.139 2009/06/25 21:15:38 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -632,7 +632,7 @@ xgetpass(const char *prm)
     }
     strbuf_terminate(&pass);
 
-    cleanup_until(&sa);
+    cleanup_until(&osa);
 
     return pass.s;
 }
@@ -798,7 +798,7 @@ precmd(void)
     cleanup_push(&pintr_disabled, disabled_cleanup);
     if (precmd_active) {	/* an error must have been caught */
 	aliasrun(2, STRunalias, STRprecmd);
-	xprintf(CGETS(22, 3, "Faulty alias 'precmd' removed.\n"));
+	xprintf("%s", CGETS(22, 3, "Faulty alias 'precmd' removed.\n"));
 	goto leave;
     }
     precmd_active = 1;
@@ -816,7 +816,7 @@ postcmd(void)
     cleanup_push(&pintr_disabled, disabled_cleanup);
     if (postcmd_active) {	/* an error must have been caught */
 	aliasrun(2, STRunalias, STRpostcmd);
-	xprintf(CGETS(22, 3, "Faulty alias 'postcmd' removed.\n"));
+	xprintf("%s", CGETS(22, 3, "Faulty alias 'postcmd' removed.\n"));
 	goto leave;
     }
     postcmd_active = 1;
@@ -840,7 +840,7 @@ cwd_cmd(void)
     cleanup_push(&pintr_disabled, disabled_cleanup);
     if (cwdcmd_active) {	/* an error must have been caught */
 	aliasrun(2, STRunalias, STRcwdcmd);
-	xprintf(CGETS(22, 4, "Faulty alias 'cwdcmd' removed.\n"));
+	xprintf("%s", CGETS(22, 4, "Faulty alias 'cwdcmd' removed.\n"));
 	goto leave;
     }
     cwdcmd_active = 1;
@@ -862,7 +862,7 @@ beep_cmd(void)
     cleanup_push(&pintr_disabled, disabled_cleanup);
     if (beepcmd_active) {	/* an error must have been caught */
 	aliasrun(2, STRunalias, STRbeepcmd);
-	xprintf(CGETS(22, 5, "Faulty alias 'beepcmd' removed.\n"));
+	xprintf("%s", CGETS(22, 5, "Faulty alias 'beepcmd' removed.\n"));
     }
     else {
 	beepcmd_active = 1;
@@ -889,7 +889,7 @@ period_cmd(void)
     cleanup_push(&pintr_disabled, disabled_cleanup);
     if (periodic_active) {	/* an error must have been caught */
 	aliasrun(2, STRunalias, STRperiodic);
-	xprintf(CGETS(22, 6, "Faulty alias 'periodic' removed.\n"));
+	xprintf("%s", CGETS(22, 6, "Faulty alias 'periodic' removed.\n"));
 	goto leave;
     }
     periodic_active = 1;
@@ -927,7 +927,7 @@ job_cmd(Char *args)
     cleanup_push(&pintr_disabled, disabled_cleanup);
     if (jobcmd_active) {	/* an error must have been caught */
 	aliasrun(2, STRunalias, STRjobcmd);
-	xprintf(CGETS(22, 14, "Faulty alias 'jobcmd' removed.\n"));
+	xprintf("%s", CGETS(22, 14, "Faulty alias 'jobcmd' removed.\n"));
 	goto leave;
     }
     jobcmd_active = 1;
@@ -1134,7 +1134,7 @@ rmstar(struct wordent *cp)
 		    if (!Strcmp(args->word, STRstar))
 			star = 1;
 		if (ask && star) {
-		    xprintf(CGETS(22, 8,
+		    xprintf("%s", CGETS(22, 8,
 			    "Do you really want to delete all files? [n/y] "));
 		    flush();
 		    (void) force_read(SHIN, &c, 1);
@@ -1773,9 +1773,9 @@ hashbang(int fd, Char ***vp)
 	switch (*p) {
 	case ' ':
 	case '\t':
-#ifdef WINNT_NATIVE
+#if defined(WINNT_NATIVE) || defined (__CYGWIN__)
 	case '\r':
-#endif /* WINNT_NATIVE */
+#endif /* WINNT_NATIVE || __CYGWIN__ */
 	    if (ws) {	/* a blank after a word.. save it */
 		*p = '\0';
 #ifdef WINNT_NATIVE
