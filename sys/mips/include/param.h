@@ -80,11 +80,11 @@
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
  * data types (int, long, ...).	  The result is u_int and must be cast to
- * any desired pointer type.
+ * any desired pointer type. XXX u_int isn't big enough to hod a pointer.
  */
 #define	_ALIGNBYTES	7
-#define	_ALIGN(p)	(((u_int)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
-#define	ALIGNED_POINTER(p, t)	((((u_int32_t)(p)) & (sizeof (t) - 1)) == 0)
+#define	_ALIGN(p)	(((uintptr_t)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
+#define	ALIGNED_POINTER(p, t)	((((uintptr_t)(p)) & (sizeof (t) - 1)) == 0)
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
