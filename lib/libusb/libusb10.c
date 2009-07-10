@@ -75,8 +75,8 @@ libusb_init(libusb_context ** context)
 
 	pthread_mutex_init(&ctx->usb_devs_lock, NULL);
 	pthread_mutex_init(&ctx->open_devs_lock, NULL);
-	USB_LIST_INIT(&ctx->usb_devs);
-	USB_LIST_INIT(&ctx->open_devs);
+	TAILQ_INIT(&ctx->usb_devs);
+	TAILQ_INIT(&ctx->open_devs);
 
 	pthread_mutex_init(&ctx->flying_transfers_lock, NULL);
 	pthread_mutex_init(&ctx->pollfds_lock, NULL);
@@ -85,8 +85,8 @@ libusb_init(libusb_context ** context)
 	pthread_mutex_init(&ctx->event_waiters_lock, NULL);
 	pthread_cond_init(&ctx->event_waiters_cond, NULL);
 
-	USB_LIST_INIT(&ctx->flying_transfers);
-	USB_LIST_INIT(&ctx->pollfds);
+	TAILQ_INIT(&ctx->flying_transfers);
+	TAILQ_INIT(&ctx->pollfds);
 
 	ret = pipe(ctx->ctrl_pipe);
 	if (ret < 0) {
@@ -123,7 +123,7 @@ libusb_exit(libusb_context * ctx)
 {
 	GET_CONTEXT(ctx);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_exit enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_exit enter");
 	usb_remove_pollfd(ctx, ctx->ctrl_pipe[0]);
 	close(ctx->ctrl_pipe[0]);
 	close(ctx->ctrl_pipe[1]);
@@ -135,7 +135,7 @@ libusb_exit(libusb_context * ctx)
 	pthread_mutex_unlock(&default_context_lock);
 
 	free(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_exit leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_exit leave");
 }
 
 /* Device handling and initialisation. */
@@ -150,7 +150,7 @@ libusb_get_device_list(libusb_context * ctx, libusb_device *** list)
 	int i;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_list enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_list enter");
 
 	usb_backend = libusb20_be_alloc_default();
 	if (usb_backend == NULL)
@@ -178,6 +178,10 @@ libusb_get_device_list(libusb_context * ctx, libusb_device *** list)
 		ddesc = libusb20_dev_get_device_desc(pdev);
 		dev = malloc(sizeof(*dev));
 		if (dev == NULL) {
+			while (i != 0) {
+				libusb_unref_device((*list)[i - 1]);
+				i--;
+			}
 			free(*list);
 			libusb20_be_free(usb_backend);
 			return (LIBUSB_ERROR_NO_MEM);
@@ -194,7 +198,7 @@ libusb_get_device_list(libusb_context * ctx, libusb_device *** list)
 		dev->os_priv = pdev;
 
 		pthread_mutex_lock(&ctx->usb_devs_lock);
-		LIST_ADD(&dev->list, &ctx->usb_devs);
+		TAILQ_INSERT_HEAD(&ctx->usb_devs, dev, list);
 		pthread_mutex_unlock(&ctx->usb_devs_lock);
 
 		(*list)[i] = libusb_ref_device(dev);
@@ -203,7 +207,7 @@ libusb_get_device_list(libusb_context * ctx, libusb_device *** list)
 	(*list)[i] = NULL;
 
 	libusb20_be_free(usb_backend);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_list leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_list leave");
 	return (i);
 }
 
@@ -219,7 +223,7 @@ libusb_free_device_list(libusb_device **list, int unref_devices)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_device_list enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_device_list enter");
 
 	if (list == NULL)
 		return ;
@@ -229,7 +233,7 @@ libusb_free_device_list(libusb_device **list, int unref_devices)
 			libusb_unref_device(list[i]);
 	}
 	free(list);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_device_list leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_device_list leave");
 }
 
 uint8_t
@@ -239,11 +243,11 @@ libusb_get_bus_number(libusb_device * dev)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_bus_number enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_bus_number enter");
 
 	if (dev == NULL)
 		return (LIBUSB_ERROR_NO_DEVICE);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_bus_number leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_bus_number leave");
 	return (dev->bus_number);
 }
 
@@ -254,11 +258,11 @@ libusb_get_device_address(libusb_device * dev)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_address enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_address enter");
 
 	if (dev == NULL)
 		return (LIBUSB_ERROR_NO_DEVICE);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_address leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_address leave");
 	return (dev->device_address);
 }
 
@@ -274,7 +278,7 @@ libusb_get_max_packet_size(libusb_device *dev, unsigned char endpoint)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_max_packet_size enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_max_packet_size enter");
 
 	if (dev == NULL)
 		return (LIBUSB_ERROR_NO_DEVICE);
@@ -299,7 +303,7 @@ libusb_get_max_packet_size(libusb_device *dev, unsigned char endpoint)
 
 out:
 	libusb_free_config_descriptor(pdconf);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_max_packet_size leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_max_packet_size leave");
 	return (ret);
 }
 
@@ -310,7 +314,7 @@ libusb_ref_device(libusb_device * dev)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_ref_device enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_ref_device enter");
 
 	if (dev == NULL)
 		return (NULL);
@@ -319,7 +323,7 @@ libusb_ref_device(libusb_device * dev)
 	dev->refcnt++;
 	pthread_mutex_unlock(&dev->lock);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_ref_device leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_ref_device leave");
 	return (dev);
 }
 
@@ -330,7 +334,7 @@ libusb_unref_device(libusb_device * dev)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unref_device enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unref_device enter");
 
 	if (dev == NULL)
 		return;
@@ -341,13 +345,13 @@ libusb_unref_device(libusb_device * dev)
 
 	if (dev->refcnt == 0) {
 		pthread_mutex_lock(&dev->ctx->usb_devs_lock);
-		LIST_DEL(&dev->list);
+		TAILQ_REMOVE(&ctx->usb_devs, dev, list);
 		pthread_mutex_unlock(&dev->ctx->usb_devs_lock);
 
 		libusb20_dev_free(dev->os_priv);
 		free(dev);
 	}
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unref_device leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unref_device leave");
 }
 
 int
@@ -360,7 +364,7 @@ libusb_open(libusb_device * dev, libusb_device_handle **devh)
 	int err;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open enter");
 
 	dummy = 1;
 	if (devh == NULL)
@@ -378,6 +382,7 @@ libusb_open(libusb_device * dev, libusb_device_handle **devh)
 	memset(hdl, 0, sizeof(*hdl));
 	pthread_mutex_init(&hdl->lock, NULL);
 
+	TAILQ_INIT(&hdl->ep_list);
 	hdl->dev = libusb_ref_device(dev);
 	hdl->claimed_interfaces = 0;
 	hdl->os_priv = dev->os_priv;
@@ -390,7 +395,7 @@ libusb_open(libusb_device * dev, libusb_device_handle **devh)
 	}
 
 	pthread_mutex_lock(&ctx->open_devs_lock);
-	LIST_ADD(&hdl->list, &ctx->open_devs);
+	TAILQ_INSERT_HEAD(&ctx->open_devs, hdl, list);
 	pthread_mutex_unlock(&ctx->open_devs_lock);
 
 	*devh = hdl;
@@ -414,7 +419,7 @@ libusb_open(libusb_device * dev, libusb_device_handle **devh)
 	pthread_mutex_unlock(&ctx->pollfd_modify_lock);
 	libusb_unlock_events(ctx);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open leave");
 	return (0);
 }
 
@@ -429,7 +434,7 @@ libusb_open_device_with_vid_pid(libusb_context * ctx, uint16_t vendor_id,
 	int i, j;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_width_vid_pid enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_width_vid_pid enter");
 
 	devh = NULL;
 
@@ -440,13 +445,15 @@ libusb_open_device_with_vid_pid(libusb_context * ctx, uint16_t vendor_id,
 		pdev = (struct libusb20_device *)devs[j]->os_priv;
 		pdesc = libusb20_dev_get_device_desc(pdev);
 		if (pdesc->idVendor == vendor_id &&
-		    pdesc->idProduct == product_id)
+		    pdesc->idProduct == product_id) {
 			if (libusb_open(devs[j], &devh) < 0)
 				devh = NULL;
+			break ;
+		}
 	}
 
 	libusb_free_device_list(devs, 1);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_width_vid_pid leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_width_vid_pid leave");
 	return (devh);
 }
 
@@ -455,6 +462,7 @@ libusb_close(libusb_device_handle * devh)
 {
 	libusb_context *ctx;
 	struct libusb20_device *pdev;
+	struct usb_ep_tr *eptr;
 	unsigned char dummy = 1;
 	int err;
 
@@ -465,7 +473,7 @@ libusb_close(libusb_device_handle * devh)
 	pdev = devh->os_priv;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_close enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_close enter");
 
 	pthread_mutex_lock(&ctx->pollfd_modify_lock);
 	ctx->pollfd_modify++;
@@ -475,12 +483,21 @@ libusb_close(libusb_device_handle * devh)
 	
 	if (err <= 0) {
 		pthread_mutex_lock(&ctx->open_devs_lock);
-		LIST_DEL(&devh->list);
+		TAILQ_REMOVE(&ctx->open_devs, devh, list);
 		pthread_mutex_unlock(&ctx->open_devs_lock);
 
 		usb_remove_pollfd(ctx, libusb20_dev_get_fd(pdev));
-		libusb_unref_device(devh->dev);
 		libusb20_dev_close(pdev);
+		libusb_unref_device(devh->dev);
+		TAILQ_FOREACH(eptr, &devh->ep_list, list) {
+			TAILQ_REMOVE(&devh->ep_list, eptr, list);
+			libusb20_tr_close(((struct libusb20_transfer **)
+			    eptr->os_priv)[0]);
+			if (eptr->flags)
+				libusb20_tr_close(((struct libusb20_transfer **)
+			            eptr->os_priv)[1]);
+			free((struct libusb20_transfer **)eptr->os_priv);
+		}
 		free(devh);
 
 		pthread_mutex_lock(&ctx->pollfd_modify_lock);
@@ -492,12 +509,21 @@ libusb_close(libusb_device_handle * devh)
 
 	read(ctx->ctrl_pipe[0], &dummy, sizeof(dummy));
 	pthread_mutex_lock(&ctx->open_devs_lock);
-	LIST_DEL(&devh->list);
+	TAILQ_REMOVE(&ctx->open_devs, devh, list);
 	pthread_mutex_unlock(&ctx->open_devs_lock);
 
 	usb_remove_pollfd(ctx, libusb20_dev_get_fd(pdev));
-	libusb_unref_device(devh->dev);
 	libusb20_dev_close(pdev);
+	libusb_unref_device(devh->dev);
+	TAILQ_FOREACH(eptr, &devh->ep_list, list) {
+		TAILQ_REMOVE(&devh->ep_list, eptr, list);
+		libusb20_tr_close(((struct libusb20_transfer **)
+		    eptr->os_priv)[0]);
+		if (eptr->flags)
+			libusb20_tr_close(((struct libusb20_transfer **)
+			    eptr->os_priv)[1]);
+		free((struct libusb20_transfer **)eptr->os_priv);
+	}
 	free(devh);
 
 	pthread_mutex_lock(&ctx->pollfd_modify_lock);
@@ -505,7 +531,7 @@ libusb_close(libusb_device_handle * devh)
 	pthread_mutex_unlock(&ctx->pollfd_modify_lock);
 
 	libusb_unlock_events(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_close leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_close leave");
 }
 
 libusb_device *
@@ -515,12 +541,12 @@ libusb_get_device(libusb_device_handle * devh)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device enter");
 
 	if (devh == NULL)
 		return (NULL);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device leave");
 	return (devh->dev);
 }
 
@@ -531,7 +557,7 @@ libusb_get_configuration(libusb_device_handle * devh, int *config)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_configuration enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_configuration enter");
 
 	if (devh == NULL || config == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -539,13 +565,9 @@ libusb_get_configuration(libusb_device_handle * devh, int *config)
 	*config = libusb20_dev_get_config_index((struct libusb20_device *)
 	    devh->dev->os_priv);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_configuration leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_configuration leave");
 	return (0);
 }
-
-/*
- *	XXX this code is wrong. need update.
- */
 
 int
 libusb_set_configuration(libusb_device_handle * devh, int configuration)
@@ -555,16 +577,15 @@ libusb_set_configuration(libusb_device_handle * devh, int configuration)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_configuration enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_configuration enter");
 
 	if (devh == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	pdev = (struct libusb20_device *)devh->dev->os_priv;
 
-	libusb20_dev_set_alt_index(pdev, libusb20_dev_get_config_index(pdev),
-	    configuration);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_configuration leave");
+	libusb20_dev_set_config_index(pdev, configuration);
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_configuration leave");
 	return (0);
 }
 
@@ -576,7 +597,7 @@ libusb_claim_interface(libusb_device_handle * dev, int interface_number)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_claim_interface enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_claim_interface enter");
 
 	if (dev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -592,7 +613,7 @@ libusb_claim_interface(libusb_device_handle * dev, int interface_number)
 		dev->claimed_interfaces |= (1 << interface_number);
 	pthread_mutex_unlock(&(dev->lock));
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_claim_interface leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_claim_interface leave");
 	return (ret);
 }
 
@@ -604,7 +625,7 @@ libusb_release_interface(libusb_device_handle * dev, int interface_number)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_release_interface enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_release_interface enter");
 
 	ret = 0;
 	if (dev == NULL)
@@ -621,7 +642,7 @@ libusb_release_interface(libusb_device_handle * dev, int interface_number)
 		dev->claimed_interfaces &= ~(1 << interface_number);
 	pthread_mutex_unlock(&(dev->lock));
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_release_interface leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_release_interface leave");
 	return (ret);
 }
 
@@ -630,11 +651,10 @@ libusb_set_interface_alt_setting(libusb_device_handle * dev,
     int interface_number, int alternate_setting)
 {
 	libusb_context *ctx;
-	int ret;
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_interface_alt_setting enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_interface_alt_setting enter");
 
 	if (dev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -653,7 +673,7 @@ libusb_set_interface_alt_setting(libusb_device_handle * dev,
 	    alternate_setting) != 0)
 		return (LIBUSB_ERROR_OTHER);
 	
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_interface_alt_setting leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_interface_alt_setting leave");
 	return (0);
 }
 
@@ -661,14 +681,19 @@ int
 libusb_clear_halt(libusb_device_handle * devh, unsigned char endpoint)
 {
 	struct libusb20_transfer *xfer;
+	struct libusb20_device *pdev;
 	libusb_context *ctx;
 	int ret; 
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_clear_halt enter");
-
-	GET_XFER(xfer, endpoint, devh->os_priv);
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_clear_halt enter");
+	
+	pdev = devh->os_priv;
+	xfer = libusb20_tr_get_pointer(pdev, 
+	    ((endpoint / 0x40) | (endpoint * 4)) % (16 * 4));
+	if (xfer == NULL)
+		return (LIBUSB_ERROR_NO_MEM);
 
 	pthread_mutex_lock(&libusb20_lock);
 	ret = libusb20_tr_open(xfer, 0, 0, endpoint);
@@ -682,7 +707,7 @@ libusb_clear_halt(libusb_device_handle * devh, unsigned char endpoint)
 		libusb20_tr_close(xfer);
 	pthread_mutex_unlock(&libusb20_lock);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_clear_halt leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_clear_halt leave");
 	return (0);
 }
 
@@ -693,13 +718,13 @@ libusb_reset_device(libusb_device_handle * dev)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_reset_device enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_reset_device enter");
 
 	if (dev == NULL)
 		return (LIBUSB20_ERROR_INVALID_PARAM);
 
 	libusb20_dev_reset(dev->os_priv);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_reset_device leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_reset_device leave");
 	return (0);
 }
 
@@ -710,12 +735,12 @@ libusb_kernel_driver_active(libusb_device_handle * devh, int interface)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_kernel_driver_active enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_kernel_driver_active enter");
 
 	if (devh == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_kernel_driver_active leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_kernel_driver_active leave");
 	return (libusb20_dev_kernel_driver_active(devh->os_priv, interface));
 }
 
@@ -727,7 +752,7 @@ libusb_detach_kernel_driver(libusb_device_handle * devh, int interface)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_detach_kernel_driver enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_detach_kernel_driver enter");
 
 	if (devh == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -736,7 +761,7 @@ libusb_detach_kernel_driver(libusb_device_handle * devh, int interface)
 	if (libusb20_dev_detach_kernel_driver(pdev, interface) == LIBUSB20_ERROR_OTHER)
 		return (LIBUSB_ERROR_OTHER);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_detach_kernel_driver leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_detach_kernel_driver leave");
 	return (0);
 }
 
@@ -751,12 +776,12 @@ libusb_attach_kernel_driver(libusb_device_handle * devh, int interface)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_attach_kernel_driver enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_attach_kernel_driver enter");
 
 	if (devh == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_attach_kernel_driver leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_attach_kernel_driver leave");
 	return (0);
 }
 
@@ -772,7 +797,7 @@ libusb_alloc_transfer(int iso_packets)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_alloc_transfer enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_alloc_transfer enter");
 
 	len = sizeof(struct libusb_transfer) +
 	    sizeof(struct usb_transfer) +
@@ -788,7 +813,7 @@ libusb_alloc_transfer(int iso_packets)
 	xfer = (struct libusb_transfer *) ((uint8_t *)bxfer + 
 	    sizeof(struct usb_transfer));
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_alloc_transfer leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_alloc_transfer leave");
 	return (xfer);
 }
 
@@ -800,7 +825,7 @@ libusb_free_transfer(struct libusb_transfer *xfer)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_transfer enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_transfer enter");
 
 	if (xfer == NULL)
 		return ;
@@ -809,119 +834,8 @@ libusb_free_transfer(struct libusb_transfer *xfer)
 	    sizeof(struct usb_transfer));
 
 	free(bxfer);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_transfer leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_transfer leave");
 	return;
-}
-
-static void
-libusb10_proxy(struct libusb20_transfer *xfer)
-{
-	struct usb_transfer *usb_backend;
-	struct libusb20_device *pdev;
-	libusb_transfer *usb_xfer;
-	libusb_context *ctx;
-	uint8_t status;
-	uint32_t iso_packets;
-	int i;
-
-	status = libusb20_tr_get_status(xfer);
-	usb_xfer = libusb20_tr_get_priv_sc0(xfer);
-	usb_backend = (struct usb_transfer *) ((uint8_t *)usb_xfer - 
-	    sizeof(struct usb_transfer));
-	pdev = usb_xfer->dev_handle->dev->os_priv;
-	ctx = usb_xfer->dev_handle->dev->ctx;
-	GET_CONTEXT(ctx);
-
-	switch (status) {
-	case LIBUSB20_TRANSFER_COMPLETED:
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "LIBUSB20 SUBMIT");
-		usb_xfer->actual_length += libusb20_tr_get_actual_length(xfer);
-		usb_xfer->callback(usb_xfer);
-		
-		pthread_mutex_lock(&ctx->flying_transfers_lock);
-		LIST_DEL(&usb_backend->list);
-		pthread_mutex_unlock(&ctx->flying_transfers_lock);
-		break ;
-	case LIBUSB20_TRANSFER_START:
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "LIBUSB20 START");
-		usb_xfer->actual_length = 0;
-		switch (usb_xfer->type) {
-			case LIBUSB_TRANSFER_TYPE_CONTROL:
-				dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "TYPE CTR");
-				libusb20_tr_setup_control(xfer, usb_xfer->buffer,
-				    (void *)(((uint8_t *) usb_xfer->buffer) + 
-			            sizeof(libusb_control_setup)), 
-				    usb_xfer->timeout);
-				break ;
-			case LIBUSB_TRANSFER_TYPE_ISOCHRONOUS:
-				dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "TYPE ISO");
-				iso_packets = libusb20_tr_get_max_frames(xfer);
-				if (usb_xfer->num_iso_packets > iso_packets)
-					usb_xfer->num_iso_packets = iso_packets;
-				for (i = 0 ; i < usb_xfer->num_iso_packets ; i++) {
-					libusb20_tr_setup_isoc(xfer, 
-					    usb_xfer->buffer, usb_xfer->length, i);
-				}
-				libusb20_tr_set_total_frames(xfer, i);
-				break ;
-			case LIBUSB_TRANSFER_TYPE_BULK:
-				dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "TYPE BULK");
-				libusb20_tr_setup_bulk(xfer, usb_xfer->buffer, 
-				    usb_xfer->length, usb_xfer->timeout);
-				break ;
-			case LIBUSB_TRANSFER_TYPE_INTERRUPT:
-				dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "TYPE INTR");
-				libusb20_tr_setup_intr(xfer, usb_xfer->buffer, 
-				    usb_xfer->length, usb_xfer->timeout);
-				break ;
-		}
-		libusb20_tr_submit(xfer);
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "LIBUSB20 SUBMITED");
-		break ;
-	default:
-		if (ctx->debug == LIBUSB_DEBUG_TRANSFER)
-			printf("LIBUSB TRANSFER DEFAULT 0x%x\n", status);
-		usb_xfer->actual_length = 0;
-		usb_xfer->status = LIBUSB_TRANSFER_CANCELLED;
-
-		pthread_mutex_lock(&ctx->flying_transfers_lock);
-		LIST_DEL(&usb_backend->list);
-		pthread_mutex_unlock(&ctx->flying_transfers_lock);
-		usb_xfer->callback(usb_xfer);
-
-		break ;
-	}
-
-	switch (status) {
-	case LIBUSB20_TRANSFER_COMPLETED:
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS COMPLETED");
-		usb_xfer->status = LIBUSB_TRANSFER_COMPLETED;
-		break ;
-	case LIBUSB20_TRANSFER_OVERFLOW:
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS TR OVERFLOW");
-		usb_xfer->status = LIBUSB_TRANSFER_OVERFLOW;
-		break ;
-	case LIBUSB20_TRANSFER_NO_DEVICE:
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS TR NO DEVICE");
-		usb_xfer->status = LIBUSB_TRANSFER_NO_DEVICE;
-		break ;
-	case LIBUSB20_TRANSFER_STALL:
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS TR STALL");
-		usb_xfer->status = LIBUSB_TRANSFER_STALL;
-		break ;
-	case LIBUSB20_TRANSFER_CANCELLED:
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS TR CANCELLED");
-		usb_xfer->status = LIBUSB_TRANSFER_CANCELLED;
-		break ;
-	case LIBUSB20_TRANSFER_TIMED_OUT:
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS TR TIMEOUT");
-		usb_xfer->status = LIBUSB_TRANSFER_TIMED_OUT;
-		break ;
-	case LIBUSB20_TRANSFER_ERROR:
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "ERROR");
-		usb_xfer->status = LIBUSB_TRANSFER_ERROR;
-		break ;
-	}
 }
 
 static int
@@ -975,11 +889,10 @@ libusb_get_buffsize(struct libusb20_device *pdev, libusb_transfer *xfer)
 			case LIBUSB20_SPEED_FULL:
 				ret = 64;
 				break ;
-			case LIBUSB20_SPEED_HIGH:
+			default:
 				ret = 64;
 				break ;
 		}
-		/*add */
 		ret += 8;
 		break ;
 	default :
@@ -1000,6 +913,121 @@ libusb_get_buffsize(struct libusb20_device *pdev, libusb_transfer *xfer)
 	return ret;
 }
 
+static void
+libusb10_proxy(struct libusb20_transfer *xfer)
+{
+	struct usb_transfer *usb_backend;
+	struct libusb20_device *pdev;
+	libusb_transfer *usb_xfer;
+	libusb_context *ctx;
+	uint32_t pos;
+	uint32_t max;
+	uint32_t size;
+	uint8_t status;
+	uint32_t iso_packets;
+	int i;
+
+	status = libusb20_tr_get_status(xfer);
+	usb_xfer = libusb20_tr_get_priv_sc0(xfer);
+	usb_backend = (struct usb_transfer *) ((uint8_t *)usb_xfer - 
+	    sizeof(struct usb_transfer));
+	pdev = usb_xfer->dev_handle->dev->os_priv;
+	ctx = usb_xfer->dev_handle->dev->ctx;
+	GET_CONTEXT(ctx);
+
+	switch (status) {
+	case LIBUSB20_TRANSFER_COMPLETED:
+		usb_backend->transferred += libusb20_tr_get_actual_length(xfer);
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "LIBUSB20 TRANSFER %i bytes",
+		    usb_backend->transferred);
+		if (usb_backend->transferred != usb_xfer->length)
+			goto tr_start;
+
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "LIBUSB20 TRANSFER COMPLETE");
+		usb_handle_transfer_completion(usb_backend, LIBUSB_TRANSFER_COMPLETED);
+
+		break ;
+	case LIBUSB20_TRANSFER_START:
+tr_start:
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "LIBUSB20 START");
+		max = libusb_get_buffsize(pdev, usb_xfer);
+		pos = usb_backend->transferred;
+		size = (usb_xfer->length - pos);
+		size = (size > max) ? max : size;
+		usb_xfer->actual_length = 0;
+		switch (usb_xfer->type) {
+			case LIBUSB_TRANSFER_TYPE_CONTROL:
+				DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "TYPE CTR");
+				libusb20_tr_setup_control(xfer, usb_xfer->buffer,
+				    (void *)(((uint8_t *) &usb_xfer->buffer[pos]) + 
+			            sizeof(libusb_control_setup)), 
+				    usb_xfer->timeout);
+				break ;
+			case LIBUSB_TRANSFER_TYPE_ISOCHRONOUS:
+				DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "TYPE ISO");
+				iso_packets = libusb20_tr_get_max_frames(xfer);
+				if (usb_xfer->num_iso_packets > iso_packets)
+					usb_xfer->num_iso_packets = iso_packets;
+				for (i = 0 ; i < usb_xfer->num_iso_packets ; i++) {
+					libusb20_tr_setup_isoc(xfer, 
+					    &usb_xfer->buffer[pos], size, i);
+				}
+				libusb20_tr_set_total_frames(xfer, i);
+				break ;
+			case LIBUSB_TRANSFER_TYPE_BULK:
+				DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "TYPE BULK");
+				libusb20_tr_setup_bulk(xfer, &usb_xfer->buffer[pos],
+				    size, usb_xfer->timeout);
+				break ;
+			case LIBUSB_TRANSFER_TYPE_INTERRUPT:
+				DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "TYPE INTR");
+				libusb20_tr_setup_intr(xfer, &usb_xfer->buffer[pos],
+				    size, usb_xfer->timeout);
+				break ;
+		}
+		libusb20_tr_submit(xfer);
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "LIBUSB20 SUBMITED");
+		break ;
+	default:
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "TRANSFER DEFAULT 0x%x\n", 
+		    status);
+		usb_backend->transferred = 0;
+		usb_handle_transfer_completion(usb_backend, LIBUSB_TRANSFER_CANCELLED);
+		break ;
+	}
+
+	switch (status) {
+	case LIBUSB20_TRANSFER_COMPLETED:
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS COMPLETED");
+		usb_xfer->status = LIBUSB_TRANSFER_COMPLETED;
+		break ;
+	case LIBUSB20_TRANSFER_OVERFLOW:
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS TR OVERFLOW");
+		usb_xfer->status = LIBUSB_TRANSFER_OVERFLOW;
+		break ;
+	case LIBUSB20_TRANSFER_NO_DEVICE:
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS TR NO DEVICE");
+		usb_xfer->status = LIBUSB_TRANSFER_NO_DEVICE;
+		break ;
+	case LIBUSB20_TRANSFER_STALL:
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS TR STALL");
+		usb_xfer->status = LIBUSB_TRANSFER_STALL;
+		break ;
+	case LIBUSB20_TRANSFER_CANCELLED:
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS TR CANCELLED");
+		usb_xfer->status = LIBUSB_TRANSFER_CANCELLED;
+		break ;
+	case LIBUSB20_TRANSFER_TIMED_OUT:
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "STATUS TR TIMEOUT");
+		usb_xfer->status = LIBUSB_TRANSFER_TIMED_OUT;
+		break ;
+	case LIBUSB20_TRANSFER_ERROR:
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "ERROR");
+		usb_xfer->status = LIBUSB_TRANSFER_ERROR;
+		break ;
+	}
+}
+
 int
 libusb_submit_transfer(struct libusb_transfer *xfer)
 {
@@ -1007,15 +1035,15 @@ libusb_submit_transfer(struct libusb_transfer *xfer)
 	struct usb_transfer *usb_backend;
 	struct usb_transfer *usb_node;
 	struct libusb20_device *pdev;
-	struct libusb_context *ctx;
+	struct usb_ep_tr *eptr;
 	struct timespec cur_ts;
 	struct timeval *cur_tv;
+	libusb_device_handle *devh;
+	libusb_context *ctx;
 	int maxframe;
 	int buffsize;
-	int num_frame;
 	int ep_idx;
 	int ret;
-	int i;
 
 	if (xfer == NULL)
 		return (LIBUSB_ERROR_NO_MEM);
@@ -1026,8 +1054,9 @@ libusb_submit_transfer(struct libusb_transfer *xfer)
 
 	ctx = xfer->dev_handle->dev->ctx;
 	pdev = xfer->dev_handle->os_priv;
+	devh = xfer->dev_handle;
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_submit_transfer enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_submit_transfer enter");
 
 	usb_backend = (struct usb_transfer *) ((uint8_t *)xfer - 
 	    sizeof(struct usb_transfer));
@@ -1045,37 +1074,36 @@ libusb_submit_transfer(struct libusb_transfer *xfer)
 		}
 		
 		TIMESPEC_TO_TIMEVAL(&usb_backend->timeout, &cur_ts);
-	}
+	} 
 
 	/*Add to flying list*/
 	pthread_mutex_lock(&ctx->flying_transfers_lock);
-	if (USB_LIST_EMPTY(&ctx->flying_transfers)) {
-		LIST_ADD(&usb_backend->list, &ctx->flying_transfers);
+	if (TAILQ_EMPTY(&ctx->flying_transfers)) {
+		TAILQ_INSERT_HEAD(&ctx->flying_transfers, usb_backend, list);
 		goto out;
 	}
 	if (timerisset(&usb_backend->timeout) == 0) {
-		LIST_ADD_TAIL(&usb_backend->list, &ctx->flying_transfers);
+		TAILQ_INSERT_HEAD(&ctx->flying_transfers, usb_backend, list);
 		goto out;
 	}
-	LIST_FOREACH_ENTRY(usb_node, &ctx->flying_transfers, list) {
+	TAILQ_FOREACH(usb_node, &ctx->flying_transfers, list) {
 		cur_tv = &usb_node->timeout;
 		if (timerisset(cur_tv) == 0 || 
 		    (cur_tv->tv_sec > usb_backend->timeout.tv_sec) ||
 		    (cur_tv->tv_sec == usb_backend->timeout.tv_sec &&
 		    cur_tv->tv_usec > usb_backend->timeout.tv_usec)) {
-			LIST_ADD_TAIL(&usb_backend->list, &usb_node->list);
+			TAILQ_INSERT_TAIL(&ctx->flying_transfers, usb_backend, list);
 			goto out;
 		}
 	}	
-	LIST_ADD_TAIL(&usb_backend->list, &ctx->flying_transfers);
+	TAILQ_INSERT_TAIL(&ctx->flying_transfers, usb_backend, list);
 
 out:
 	pthread_mutex_unlock(&ctx->flying_transfers_lock);
 
-	usb20_xfer[0] = libusb20_tr_get_pointer(pdev, 
-	    ((xfer->endpoint / 0x40) | (xfer->endpoint * 4)) % (16 * 4));
-	usb20_xfer[1] = libusb20_tr_get_pointer(pdev,
-	    (((xfer->endpoint / 0x40) | (xfer->endpoint * 4)) % (16 * 4)) + 1);
+	ep_idx = (xfer->endpoint / 0x40) | (xfer->endpoint * 4) % (16 * 4);
+	usb20_xfer[0] = libusb20_tr_get_pointer(pdev, ep_idx);
+	usb20_xfer[1] = libusb20_tr_get_pointer(pdev, ep_idx + 1);
 	
 	if (usb20_xfer[0] == NULL)
 		return (LIBUSB_ERROR_OTHER);
@@ -1087,18 +1115,31 @@ out:
 	buffsize = libusb_get_buffsize(pdev, xfer);
 	maxframe = libusb_get_maxframe(pdev, xfer);
 	
-	ret = libusb20_tr_open(usb20_xfer[0], buffsize, 
-	    maxframe, xfer->endpoint);
-	if (xfer->type == LIBUSB_TRANSFER_TYPE_ISOCHRONOUS)
-		ret |= libusb20_tr_open(usb20_xfer[1], buffsize,
-		    maxframe, xfer->endpoint);
+	ret = 0;
+	TAILQ_FOREACH(eptr, &devh->ep_list, list) {
+		if (xfer->endpoint == eptr->addr)
+			ret++;
+	}
+	if (ret == 0) {
+		eptr = malloc(sizeof(struct usb_ep_tr));
+		eptr->addr = xfer->endpoint;
+		eptr->idx = ep_idx;
+		eptr->os_priv = usb20_xfer;
+		eptr->flags = (xfer->type == LIBUSB_TRANSFER_TYPE_ISOCHRONOUS)?1:0; 
+		TAILQ_INSERT_HEAD(&devh->ep_list, eptr, list);
+		ret = libusb20_tr_open(usb20_xfer[0], buffsize, 
+	    		maxframe, xfer->endpoint);
+		if (xfer->type == LIBUSB_TRANSFER_TYPE_ISOCHRONOUS)
+			ret |= libusb20_tr_open(usb20_xfer[1], buffsize,
+		    	maxframe, xfer->endpoint);
        
-	if (ret != 0) {
-		pthread_mutex_unlock(&libusb20_lock);
-		pthread_mutex_lock(&ctx->flying_transfers_lock);
-		LIST_DEL(&usb_backend->list);
-		pthread_mutex_unlock(&ctx->flying_transfers_lock);
-		return (LIBUSB_ERROR_OTHER);
+		if (ret != 0) {
+			pthread_mutex_unlock(&libusb20_lock);
+			pthread_mutex_lock(&ctx->flying_transfers_lock);
+			TAILQ_REMOVE(&ctx->flying_transfers, usb_backend, list);
+			pthread_mutex_unlock(&ctx->flying_transfers_lock);
+			return (LIBUSB_ERROR_OTHER);
+		}
 	}
 
 	libusb20_tr_set_priv_sc0(usb20_xfer[0], xfer);
@@ -1108,13 +1149,14 @@ out:
 		libusb20_tr_set_callback(usb20_xfer[1], libusb10_proxy);
 	}	
 
+	DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "LIBUSB20_TR_START");
 	libusb20_tr_start(usb20_xfer[0]);
 	if (xfer->type == LIBUSB_TRANSFER_TYPE_ISOCHRONOUS) 
 		libusb20_tr_start(usb20_xfer[1]);
 
 	pthread_mutex_unlock(&libusb20_lock);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_submit_transfer leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_submit_transfer leave");
 	return (0);
 }
 
@@ -1125,7 +1167,7 @@ libusb_cancel_transfer(struct libusb_transfer *xfer)
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_cancel_transfer enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_cancel_transfer enter");
 
 	if (xfer == NULL)
 		return (LIBUSB_ERROR_NO_MEM);
@@ -1134,7 +1176,7 @@ libusb_cancel_transfer(struct libusb_transfer *xfer)
 	libusb20_tr_stop(xfer->os_priv);
 	pthread_mutex_unlock(&libusb20_lock);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_cancel_transfer leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_cancel_transfer leave");
 	return (0);
 }
 

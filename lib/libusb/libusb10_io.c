@@ -39,15 +39,135 @@
 #include "libusb.h"
 #include "libusb10.h"
 
-static int 
+UNEXPORTED int
+usb_add_pollfd(libusb_context *ctx, int fd, short events)
+{
+	struct usb_pollfd *pollfd;
+
+	if (ctx == NULL)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+	
+	pollfd = malloc(sizeof(*pollfd));
+	if (pollfd == NULL)
+		return (LIBUSB_ERROR_NO_MEM);
+
+	pollfd->pollfd.fd = fd;
+	pollfd->pollfd.events = events;
+
+	pthread_mutex_lock(&ctx->pollfds_lock);
+	TAILQ_INSERT_TAIL(&ctx->pollfds, pollfd, list);
+	pthread_mutex_unlock(&ctx->pollfds_lock);
+
+	if (ctx->fd_added_cb)
+		ctx->fd_added_cb(fd, events, ctx->fd_cb_user_data);
+	return (0);
+}
+
+UNEXPORTED void
+usb_remove_pollfd(libusb_context *ctx, int fd)
+{
+	struct usb_pollfd *pollfd;
+	int found;
+
+	found = 0;
+	pthread_mutex_lock(&ctx->pollfds_lock);
+
+	TAILQ_FOREACH(pollfd, &ctx->pollfds, list) {
+		if (pollfd->pollfd.fd == fd) {
+			found = 1;
+			break ;
+		}
+	}
+
+	if (found == 0) {
+		pthread_mutex_unlock(&ctx->pollfds_lock);
+		return ;
+	}
+
+	TAILQ_REMOVE(&ctx->pollfds, pollfd, list);
+	pthread_mutex_unlock(&ctx->pollfds_lock);
+	free(pollfd);
+
+	if (ctx->fd_removed_cb)
+		ctx->fd_removed_cb(fd, ctx->fd_cb_user_data);
+}
+
+UNEXPORTED void
+usb_handle_transfer_completion(struct usb_transfer *uxfer, 
+    enum libusb_transfer_status status)
+{
+	libusb_transfer *xfer;
+	libusb_context *ctx;
+	int len;
+
+	xfer = (struct libusb_transfer *) ((uint8_t *)uxfer + 
+	    sizeof(struct usb_transfer));
+	ctx = xfer->dev_handle->dev->ctx;
+
+	pthread_mutex_lock(&ctx->flying_transfers_lock);
+	TAILQ_REMOVE(&ctx->flying_transfers, uxfer, list);
+	pthread_mutex_unlock(&ctx->flying_transfers_lock);
+
+	if (status == LIBUSB_TRANSFER_COMPLETED && xfer->flags &
+	    LIBUSB_TRANSFER_SHORT_NOT_OK) {
+		len = xfer->length;
+		if (xfer->type == LIBUSB_TRANSFER_TYPE_CONTROL)
+			len -= sizeof(libusb_control_setup);
+		if (len != uxfer->transferred) {
+			status = LIBUSB_TRANSFER_ERROR;
+		}
+	}
+
+	xfer->status = status;
+	xfer->actual_length = uxfer->transferred;
+
+	if (xfer->callback)
+		xfer->callback(xfer);
+	if (xfer->flags & LIBUSB_TRANSFER_FREE_TRANSFER)
+		libusb_free_transfer(xfer);
+
+	pthread_mutex_lock(&ctx->event_waiters_lock);
+	pthread_cond_broadcast(&ctx->event_waiters_cond);
+	pthread_mutex_unlock(&ctx->event_waiters_lock);
+}
+
+UNEXPORTED void
+usb_handle_disconnect(struct libusb_device_handle *devh)
+{
+	struct libusb_context *ctx;
+	struct libusb_transfer *xfer;
+	struct usb_transfer *cur;
+	struct usb_transfer *to_cancel;
+
+	ctx = devh->dev->ctx;
+
+	while (1) {
+		pthread_mutex_lock(&ctx->flying_transfers_lock);
+		to_cancel = NULL;
+		TAILQ_FOREACH(cur, &ctx->flying_transfers, list) {
+			xfer = (struct libusb_transfer *) ((uint8_t *)cur + 
+	    		    sizeof(struct usb_transfer));
+			if (xfer->dev_handle == devh) {
+				to_cancel = cur;
+				break ;
+			}
+		}
+		pthread_mutex_unlock(&ctx->flying_transfers_lock);
+
+		if (to_cancel == NULL)
+			break ;
+		
+		usb_handle_transfer_completion(to_cancel, LIBUSB_TRANSFER_NO_DEVICE);
+	}
+	return ;
+}
+
+UNEXPORTED int 
 get_next_timeout(libusb_context *ctx, struct timeval *tv, struct timeval *out)
 {
 	struct timeval timeout;
-	int ret;
 
-	ret = libusb_get_next_timeout(ctx, &timeout);
-	
-	if (ret) {
+	if (libusb_get_next_timeout(ctx, &timeout)) {
 		if (timerisset(&timeout) == 0)
 			return 1;
 		if (timercmp(&timeout, tv, <) != 0)
@@ -61,7 +181,7 @@ get_next_timeout(libusb_context *ctx, struct timeval *tv, struct timeval *out)
 	return (0);
 }	
 
-static int 
+UNEXPORTED int 
 handle_timeouts(struct libusb_context *ctx)
 {
 	struct timespec sys_ts;
@@ -75,13 +195,13 @@ handle_timeouts(struct libusb_context *ctx)
 	ret = 0;
 
 	pthread_mutex_lock(&ctx->flying_transfers_lock);
-	if (USB_LIST_EMPTY(&ctx->flying_transfers))
+	if (TAILQ_EMPTY(&ctx->flying_transfers))
 		goto out;
 
 	ret = clock_gettime(CLOCK_MONOTONIC, &sys_ts);
 	TIMESPEC_TO_TIMEVAL(&sys_tv, &sys_ts);
 
-	LIST_FOREACH_ENTRY(xfer, &ctx->flying_transfers, list) {
+	TAILQ_FOREACH(xfer, &ctx->flying_transfers, list) {
 		cur_tv = &xfer->timeout;
 
 		if (timerisset(cur_tv) == 0)
@@ -104,39 +224,35 @@ out:
 	return (ret);
 }
 
-static int
+UNEXPORTED int
 handle_events(struct libusb_context *ctx, struct timeval *tv)
 {
 	struct libusb_pollfd *tmppollfd;
 	struct libusb_device_handle *devh;
 	struct usb_pollfd *ipollfd;
-	struct usb_transfer *cur;
-	struct usb_transfer *cancel;
-	struct libusb_transfer *xfer;
 	struct pollfd *fds;
 	struct pollfd *tfds;
 	nfds_t nfds;
 	int tmpfd;
-	int tmp;
 	int ret;
 	int timeout;
 	int i;
        
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "handle_events enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "handle_events enter");
 
 	nfds = 0;
 	i = -1;
 
 	pthread_mutex_lock(&ctx->pollfds_lock);
-	LIST_FOREACH_ENTRY(ipollfd, &ctx->pollfds, list)
+	TAILQ_FOREACH(ipollfd, &ctx->pollfds, list)
 		nfds++;
 
-	fds = malloc(sizeof(*fds) * nfds);
+	fds = alloca(sizeof(*fds) * nfds);
 	if (fds == NULL)
 		return (LIBUSB_ERROR_NO_MEM);
 
-	LIST_FOREACH_ENTRY(ipollfd, &ctx->pollfds, list) {
+	TAILQ_FOREACH(ipollfd, &ctx->pollfds, list) {
 		tmppollfd = &ipollfd->pollfd;
 		tmpfd = tmppollfd->fd;
 		i++;
@@ -152,16 +268,12 @@ handle_events(struct libusb_context *ctx, struct timeval *tv)
 		timeout++;
 
 	ret = poll(fds, nfds, timeout);
-	if (ret == 0) {
-		free(fds);
+	if (ret == 0) 
 		return (handle_timeouts(ctx));
-	} else if (ret == -1 && errno == EINTR) {
-		free(fds);
+	else if (ret == -1 && errno == EINTR)
 		return (LIBUSB_ERROR_INTERRUPTED);
-	} else if (ret < 0) {
-		free(fds);
+	else if (ret < 0) 
 		return (LIBUSB_ERROR_IO);
-	}	
 
 	if (fds[0].revents) {
 		if (ret == 1){
@@ -174,28 +286,30 @@ handle_events(struct libusb_context *ctx, struct timeval *tv)
 	}
 
 	pthread_mutex_lock(&ctx->open_devs_lock);
-	for (i = 0 ; i < nfds && ret > 0 ; i++) {
+	for (i = 0, devh = NULL ; i < nfds && ret > 0 ; i++) {
 
 		tfds = &fds[i];
 		if (!tfds->revents)
 			continue;
 
 		ret--;
-		LIST_FOREACH_ENTRY(devh, &ctx->open_devs, list) {
+		TAILQ_FOREACH(devh, &ctx->open_devs, list) {
 			if (libusb20_dev_get_fd(devh->os_priv) == tfds->fd)
 				break ;
 		}
 
 		if (tfds->revents & POLLERR) {
 			usb_remove_pollfd(ctx, libusb20_dev_get_fd(devh->os_priv));
-			usb_handle_disconnect(devh);
+			if (devh != NULL)
+				usb_handle_disconnect(devh);
 			continue ;
 		}
 
 
 		pthread_mutex_lock(&libusb20_lock);
-		dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "LIBUSB20_PROCESS");
-		ret = libusb20_dev_process(devh->os_priv);
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "LIBUSB20_PROCESS");
+		if (devh != NULL)
+			ret = libusb20_dev_process(devh->os_priv);
 		pthread_mutex_unlock(&libusb20_lock);
 
 
@@ -210,8 +324,7 @@ out:
 	pthread_mutex_unlock(&ctx->open_devs_lock);
 
 handled:
-	free(fds);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "handle_events leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "handle_events leave");
 	return ret;
 }
 
@@ -223,7 +336,7 @@ libusb_try_lock_events(libusb_context * ctx)
 	int ret;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_try_lock_events enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_try_lock_events enter");
 
 	pthread_mutex_lock(&ctx->pollfd_modify_lock);
 	ret = ctx->pollfd_modify;
@@ -239,7 +352,7 @@ libusb_try_lock_events(libusb_context * ctx)
 	
 	ctx->event_handler_active = 1;
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_try_lock_events leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_try_lock_events leave");
 	return (0);
 }
 
@@ -247,19 +360,19 @@ void
 libusb_lock_events(libusb_context * ctx)
 {
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_lock_events enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_lock_events enter");
 
 	pthread_mutex_lock(&ctx->events_lock);
 	ctx->event_handler_active = 1;
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_lock_events leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_lock_events leave");
 }
 
 void
 libusb_unlock_events(libusb_context * ctx)
 {
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unlock_events enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unlock_events enter");
 
 	ctx->event_handler_active = 0;
 	pthread_mutex_unlock(&ctx->events_lock);
@@ -268,7 +381,7 @@ libusb_unlock_events(libusb_context * ctx)
 	pthread_cond_broadcast(&ctx->event_waiters_cond);
 	pthread_mutex_unlock(&ctx->event_waiters_lock);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unlock_events leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unlock_events leave");
 }
 
 int
@@ -277,7 +390,7 @@ libusb_event_handling_ok(libusb_context * ctx)
 	int ret;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_event_handling_ok enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_event_handling_ok enter");
 
 	pthread_mutex_lock(&ctx->pollfd_modify_lock);
 	ret = ctx->pollfd_modify;
@@ -286,7 +399,7 @@ libusb_event_handling_ok(libusb_context * ctx)
 	if (ret != 0)
 		return (0);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_event_handling_ok leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_event_handling_ok leave");
 	return (1);
 }
 
@@ -296,7 +409,7 @@ libusb_event_handler_active(libusb_context * ctx)
 	int ret;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_event_handler_active enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_event_handler_active enter");
 
 	pthread_mutex_lock(&ctx->pollfd_modify_lock);
 	ret = ctx->pollfd_modify;
@@ -305,7 +418,7 @@ libusb_event_handler_active(libusb_context * ctx)
 	if (ret != 0)
 		return (1);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_event_handler_active leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_event_handler_active leave");
 	return (ctx->event_handler_active);
 }
 
@@ -313,22 +426,22 @@ void
 libusb_lock_event_waiters(libusb_context * ctx)
 {
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_lock_event_waiters enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_lock_event_waiters enter");
 
 	pthread_mutex_lock(&ctx->event_waiters_lock);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_lock_event_waiters leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_lock_event_waiters leave");
 }
 
 void
 libusb_unlock_event_waiters(libusb_context * ctx)
 {
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unlock_event_waiters enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unlock_event_waiters enter");
 
 	pthread_mutex_unlock(&ctx->event_waiters_lock);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unlock_event_waiters leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_unlock_event_waiters leave");
 }
 
 int
@@ -338,7 +451,7 @@ libusb_wait_for_event(libusb_context * ctx, struct timeval *tv)
 	struct timespec ts;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_wait_for_event enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_wait_for_event enter");
 
 	if (tv == NULL) {
 		pthread_cond_wait(&ctx->event_waiters_cond, 
@@ -363,19 +476,18 @@ libusb_wait_for_event(libusb_context * ctx, struct timeval *tv)
 	if (ret == ETIMEDOUT)
 		return (1);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_wait_for_event leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_wait_for_event leave");
 	return (0);
 }
 
 int
 libusb_handle_events_timeout(libusb_context * ctx, struct timeval *tv)
 {
-	struct timeval timeout;
 	struct timeval poll_timeout;
 	int ret;
 	
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_timeout enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_timeout enter");
 
 	ret = get_next_timeout(ctx, tv, &poll_timeout);
 	if (ret != 0) {
@@ -402,7 +514,7 @@ retry:
 	else if (ret == 1)
 		return (handle_timeouts(ctx));
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_timeout leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_timeout leave");
 	return (0);
 }
 
@@ -413,13 +525,13 @@ libusb_handle_events(libusb_context * ctx)
 	int ret;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events enter");
 
 	tv.tv_sec = 2;
 	tv.tv_usec = 0;
 	ret = libusb_handle_events_timeout(ctx, &tv);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events leave");
 	return (ret);
 }
 
@@ -430,7 +542,7 @@ libusb_handle_events_locked(libusb_context * ctx, struct timeval *tv)
 	struct timeval poll_tv;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_locked enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_locked enter");
 
 	ret = get_next_timeout(ctx, tv, &poll_tv);
 	if (ret != 0) {
@@ -439,7 +551,7 @@ libusb_handle_events_locked(libusb_context * ctx, struct timeval *tv)
 
 	ret = handle_events(ctx, &poll_tv);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_locked leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_locked leave");
 	return (ret);
 }
 
@@ -454,16 +566,16 @@ libusb_get_next_timeout(libusb_context * ctx, struct timeval *tv)
 	int ret;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_next_timeout enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_next_timeout enter");
 
 	found = 0;
 	pthread_mutex_lock(&ctx->flying_transfers_lock);
-	if (USB_LIST_EMPTY(&ctx->flying_transfers)) {
+	if (TAILQ_EMPTY(&ctx->flying_transfers)) {
 		pthread_mutex_unlock(&ctx->flying_transfers_lock);
 		return (0);
 	}
 
-	LIST_FOREACH_ENTRY(xfer, &ctx->flying_transfers, list) {
+	TAILQ_FOREACH(xfer, &ctx->flying_transfers, list) {
 		if (!(xfer->flags & USB_TIMED_OUT)) {
 			found = 1;
 			break ;
@@ -489,7 +601,7 @@ libusb_get_next_timeout(libusb_context * ctx, struct timeval *tv)
 	else
 		timersub(next_tv, &cur_tv, tv);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_next_timeout leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_next_timeout leave");
 	return (1);
 }
 
@@ -499,13 +611,13 @@ libusb_set_pollfd_notifiers(libusb_context * ctx,
     void *user_data)
 {
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_pollfd_notifiers enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_pollfd_notifiers enter");
 
 	ctx->fd_added_cb = added_cb;
 	ctx->fd_removed_cb = removed_cb;
 	ctx->fd_cb_user_data = user_data;
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_pollfd_notifiers leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_set_pollfd_notifiers leave");
 }
 
 struct libusb_pollfd **
@@ -516,11 +628,11 @@ libusb_get_pollfds(libusb_context * ctx)
 	int i;
 
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_pollfds enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_pollfds enter");
 
 	i = 0;
 	pthread_mutex_lock(&ctx->pollfds_lock);
-	LIST_FOREACH_ENTRY(pollfd, &ctx->pollfds, list)
+	TAILQ_FOREACH(pollfd, &ctx->pollfds, list)
 		i++;
 
 	ret = calloc(i + 1 , sizeof(struct libusb_pollfd *));
@@ -530,11 +642,11 @@ libusb_get_pollfds(libusb_context * ctx)
 	}
 
 	i = 0;
-	LIST_FOREACH_ENTRY(pollfd, &ctx->pollfds, list)
+	TAILQ_FOREACH(pollfd, &ctx->pollfds, list)
 		ret[i++] = (struct libusb_pollfd *) pollfd;
 	ret[i] = NULL;
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_pollfds leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_pollfds leave");
 	return (ret);
 }
 
@@ -548,7 +660,7 @@ static void ctrl_tr_cb(struct libusb_transfer *transfer)
        
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_TRANSFER, "CALLBACK ENTER");
+	DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "CALLBACK ENTER");
 
 	complet = transfer->user_data;
 	*complet = 1;
@@ -568,7 +680,7 @@ libusb_control_transfer(libusb_device_handle * devh,
 
 	ctx = devh->dev->ctx;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_control_transfer enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_control_transfer enter");
 
 	if (devh == NULL || data == NULL)
 		return (LIBUSB_ERROR_NO_MEM);
@@ -637,7 +749,7 @@ libusb_control_transfer(libusb_device_handle * devh,
 	}
 	libusb_free_transfer(xfer);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_control_transfer leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_control_transfer leave");
 	return (ret);
 }
 
@@ -659,6 +771,7 @@ do_transfer(struct libusb_device_handle *devh,
 		return (LIBUSB_ERROR_NO_MEM);
 
 	ctx = devh->dev->ctx;
+	GET_CONTEXT(ctx);
 
 	xfer->dev_handle = devh;
 	xfer->endpoint = endpoint;
@@ -670,8 +783,10 @@ do_transfer(struct libusb_device_handle *devh,
 	xfer->callback = ctrl_tr_cb;
 	complet = 0;
 
+	DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "SUBMIT_TRANSFER");
 	if ((ret = libusb_submit_transfer(xfer)) < 0) {
 		libusb_free_transfer(xfer);
+		DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "SUBMIT_TRANSFER FAILED %i", ret);
 		return (ret);
 	}
 
@@ -688,6 +803,7 @@ do_transfer(struct libusb_device_handle *devh,
 	}
 
 	*transferred = xfer->actual_length;
+	DPRINTF(ctx, LIBUSB_DEBUG_TRANSFER, "xfer->status %i", xfer->status);
 	switch (xfer->status) {
 	case LIBUSB_TRANSFER_COMPLETED:
 		ret = xfer->actual_length;
@@ -716,12 +832,12 @@ libusb_bulk_transfer(struct libusb_device_handle *devh,
 	
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_bulk_transfer enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_bulk_transfer enter");
 
 	ret = do_transfer(devh, endpoint, data, length, transferred,
 	    timeout, LIBUSB_TRANSFER_TYPE_BULK);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_bulk_transfer leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_bulk_transfer leave");
 	return (ret);
 }
 
@@ -738,11 +854,11 @@ libusb_interrupt_transfer(struct libusb_device_handle *devh,
 
 	ctx = NULL;
 	GET_CONTEXT(ctx);
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_interrupt_transfer enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_interrupt_transfer enter");
 
 	ret = do_transfer(devh, endpoint, data, length, transferred,
 	    timeout, LIBUSB_TRANSFER_TYPE_INTERRUPT);
 
-	dprintf(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_interrupt_transfer leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_interrupt_transfer leave");
 	return (ret);
 }

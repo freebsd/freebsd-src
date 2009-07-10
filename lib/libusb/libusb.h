@@ -27,14 +27,16 @@
 #ifndef __LIBUSB_H__
 #define	__LIBUSB_H__
 
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/endian.h>
+#include <sys/queue.h>
+
 #include <stdint.h>
 #include <time.h>
 #include <string.h>
 #include <pthread.h>
 
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/endian.h>
 
 #ifdef __cplusplus
 extern	"C" {
@@ -43,10 +45,6 @@ extern	"C" {
 }					/* indent fix */
 
 #endif
-
-struct list_head {
-	struct list_head *prev, *next;
-};
 
 /* libusb enums */
 
@@ -183,6 +181,33 @@ enum libusb_debug_level {
 	LIBUSB_DEBUG_TRANSFER=2,
 };
 
+/* internal structures */
+
+typedef struct libusb_pollfd {
+	int	fd;
+	short	events;
+}	libusb_pollfd;
+
+struct usb_pollfd {
+	TAILQ_ENTRY(usb_pollfd) list;
+	struct libusb_pollfd pollfd;
+};
+
+struct usb_transfer {
+	TAILQ_ENTRY(usb_transfer) list;
+	int num_iso_packets;
+	struct timeval timeout;
+	int transferred;
+	uint8_t flags;
+};
+
+struct usb_ep_tr {
+	TAILQ_ENTRY(usb_ep_tr) list;
+	uint8_t addr;
+	uint8_t idx;
+	uint8_t flags;
+	void *os_priv;
+};
 /* libusb structures */
 
 typedef void (*libusb_pollfd_added_cb) (int fd, short events, void *user_data);
@@ -194,16 +219,16 @@ typedef struct libusb_context {
 
 	int	ctrl_pipe[2];
 
-	struct list_head usb_devs;
+	TAILQ_HEAD(usb_devs_list, libusb_device) usb_devs;
 	pthread_mutex_t usb_devs_lock;
 
-	struct list_head open_devs;
+	TAILQ_HEAD(open_devs_list, libusb_device_handle) open_devs;
 	pthread_mutex_t open_devs_lock;
 
-	struct list_head flying_transfers;
+	TAILQ_HEAD(flying_transfers_list, usb_transfer) flying_transfers;
 	pthread_mutex_t flying_transfers_lock;
 
-	struct list_head pollfds;
+	TAILQ_HEAD(pollfds_list, usb_pollfd) pollfds;
 	pthread_mutex_t pollfds_lock;
 
 	unsigned int pollfd_modify;
@@ -230,7 +255,7 @@ typedef struct libusb_device {
 	uint8_t	device_address;
 	uint8_t	num_configurations;
 
-	struct list_head list;
+	TAILQ_ENTRY(libusb_device) list;
 	unsigned long session_data;
 	void   *os_priv;
 }	libusb_device;
@@ -239,9 +264,10 @@ typedef struct libusb_device_handle {
 	pthread_mutex_t lock;
 	unsigned long claimed_interfaces;
 
-	struct list_head list;
+	TAILQ_ENTRY(libusb_device_handle) list;
 	struct libusb_device *dev;
 	void   *os_priv;
+	TAILQ_HEAD(ep_list, usb_ep_tr) ep_list; 
 }	libusb_device_handle;
 
 typedef struct libusb_device_descriptor {
@@ -343,11 +369,6 @@ typedef struct libusb_transfer {
 	struct libusb_iso_packet_descriptor iso_packet_desc[0];
 }	libusb_transfer __aligned(sizeof(void *));
 
-typedef struct libusb_pollfd {
-	int	fd;
-	short	events;
-}	libusb_pollfd;
-
 /* Library initialisation */
 
 void	libusb_set_debug(libusb_context * ctx, int level);
@@ -360,6 +381,7 @@ ssize_t libusb_get_device_list(libusb_context * ctx, libusb_device *** list);
 void	libusb_free_device_list(libusb_device ** list, int unref_devices);
 uint8_t	libusb_get_bus_number(libusb_device * dev);
 uint8_t	libusb_get_device_address(libusb_device * dev);
+int	libusb_clear_halt(libusb_device_handle *devh, unsigned char endpoint);
 int	libusb_get_max_packet_size(libusb_device * dev, unsigned char endpoint);
 libusb_device *libusb_ref_device(libusb_device * dev);
 void	libusb_unref_device(libusb_device * dev);
