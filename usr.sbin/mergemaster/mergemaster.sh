@@ -353,7 +353,8 @@ case "${AUTO_UPGRADE}" in
 *)
   if [ ! -s "${DESTDIR}${MTREEFILE}" ]; then
     echo ''
-    echo "*** Unable to find mtree database. Skipping auto-upgrade."
+    echo "*** Unable to find mtree database. Skipping auto-upgrade on this run."
+    echo "    It will be created for the next run when this one is complete."
     echo ''
     press_to_continue
     unset AUTO_UPGRADE
@@ -674,8 +675,11 @@ rm -f ${TEMPROOT}/etc/*.db ${TEMPROOT}/etc/passwd
 # We only need to compare things like freebsd.cf once
 find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
 
-# Delete 0 length files to make the mtree database as small as possible.
+# Delete stuff we do not need to keep the mtree database small,
+# and to make the actual comparison faster.
+find ${TEMPROOT}/usr -type l -delete 2>/dev/null
 find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
+find -d ${TEMPROOT} -type d -empty -delete 2>/dev/null
 
 # Build the mtree database in a temporary location.
 MTREENEW=`mktemp -t mergemaster.mtree`
@@ -963,11 +967,7 @@ if [ -r "${MM_PRE_COMPARE_SCRIPT}" ]; then
   . "${MM_PRE_COMPARE_SCRIPT}"
 fi
 
-# Using -size +0 avoids uselessly checking the empty log files created
-# by ${SOURCEDIR}/etc/Makefile and the device entries in ./dev, but does
-# check the scripts in ./dev, as we'd like (assuming no devfs of course).
-#
-for COMPFILE in `find . -type f -size +0`; do
+for COMPFILE in `find . -type f`; do
 
   # First, check to see if the file exists in DESTDIR.  If not, the
   # diff_loop function knows how to handle it.
