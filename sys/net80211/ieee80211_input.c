@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_MESH
+#include <net80211/ieee80211_mesh.h>
+#endif
 
 #include <net/bpf.h>
 
@@ -230,7 +233,16 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 struct mbuf *
 ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 {
-	struct ieee80211_qosframe_addr4 wh;	/* Max size address frames */
+#ifdef IEEE80211_SUPPORT_MESH
+	union {
+		struct ieee80211_qosframe_addr4 wh4;
+		uint8_t b[sizeof(struct ieee80211_qosframe_addr4) +
+			  sizeof(struct ieee80211_meshcntl_ae11)];
+	} whu;
+#define	wh	whu.wh4
+#else
+	struct ieee80211_qosframe_addr4 wh;
+#endif
 	struct ether_header *eh;
 	struct llc *llc;
 
@@ -327,6 +339,7 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 		eh->ether_type = htons(m->m_pkthdr.len - sizeof(*eh));
 	}
 	return m;
+#undef	wh
 }
 
 /*
@@ -484,6 +497,8 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	 *	[tlv] HT capabilities
 	 *	[tlv] HT information
 	 *	[tlv] Atheros capabilities
+	 *	[tlv] Mesh ID
+	 *	[tlv] Mesh Configuration
 	 */
 	IEEE80211_VERIFY_LENGTH(efrm - frm, 12,
 	    return (scan->status = IEEE80211_BPARSE_BADIELEN));
@@ -559,6 +574,14 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		case IEEE80211_ELEMID_HTINFO:
 			scan->htinfo = frm;
 			break;
+#ifdef IEEE80211_SUPPORT_TDMA
+		case IEEE80211_ELEMID_MESHID:
+			scan->meshid = frm;
+			break;
+		case IEEE80211_ELEMID_MESHCONF:
+			scan->meshconf = frm;
+			break;
+#endif
 		case IEEE80211_ELEMID_VENDOR:
 			if (iswpaoui(frm))
 				scan->wpa = frm;

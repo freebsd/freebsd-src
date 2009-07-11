@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_tdma.h>
 #endif
 #include <net80211/ieee80211_wds.h>
+#include <net80211/ieee80211_mesh.h>
 
 #ifdef INET
 #include <netinet/in.h> 
@@ -70,6 +71,18 @@ __FBSDID("$FreeBSD$");
 
 #define	ETHER_HEADER_COPY(dst, src) \
 	memcpy(dst, src, sizeof(struct ether_header))
+
+/* unalligned little endian access */     
+#define LE_WRITE_2(p, v) do {				\
+	((uint8_t *)(p))[0] = (v) & 0xff;		\
+	((uint8_t *)(p))[1] = ((v) >> 8) & 0xff;	\
+} while (0)
+#define LE_WRITE_4(p, v) do {				\
+	((uint8_t *)(p))[0] = (v) & 0xff;		\
+	((uint8_t *)(p))[1] = ((v) >> 8) & 0xff;	\
+	((uint8_t *)(p))[2] = ((v) >> 16) & 0xff;	\
+	((uint8_t *)(p))[3] = ((v) >> 24) & 0xff;	\
+} while (0)
 
 static int ieee80211_fragment(struct ieee80211vap *, struct mbuf *,
 	u_int hdrsize, u_int ciphdrsize, u_int mtu);
@@ -205,25 +218,42 @@ ieee80211_start(struct ifnet *ifp)
 				ieee80211_dwds_mcast(vap, m);
 			}
 		}
-		ni = ieee80211_find_txnode(vap, eh->ether_dhost);
-		if (ni == NULL) {
-			/* NB: ieee80211_find_txnode does stat+msg */
-			ifp->if_oerrors++;
-			m_freem(m);
-			continue;
+#ifdef IEEE80211_SUPPORT_MESH
+		if (vap->iv_opmode != IEEE80211_M_MBSS) {
+#endif
+			ni = ieee80211_find_txnode(vap, eh->ether_dhost);
+			if (ni == NULL) {
+				/* NB: ieee80211_find_txnode does stat+msg */
+				ifp->if_oerrors++;
+				m_freem(m);
+				continue;
+			}
+			if (ni->ni_associd == 0 &&
+			    (ni->ni_flags & IEEE80211_NODE_ASSOCID)) {
+				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
+				    eh->ether_dhost, NULL,
+				    "sta not associated (type 0x%04x)",
+				    htons(eh->ether_type));
+				vap->iv_stats.is_tx_notassoc++;
+				ifp->if_oerrors++;
+				m_freem(m);
+				ieee80211_free_node(ni);
+				continue;
+			}
+#ifdef IEEE80211_SUPPORT_MESH
+		} else {
+			ni = ieee80211_mesh_discover(vap, eh->ether_dhost, m);
+			if (ni == NULL) {
+				/*
+				 * NB: ieee80211_mesh_discover function
+				 *   holds/disposes frame
+				 *   (e.g. queueing on path discovery).
+				 */
+				ifp->if_oerrors++;
+				continue;
+			}
 		}
-		if (ni->ni_associd == 0 &&
-		    (ni->ni_flags & IEEE80211_NODE_ASSOCID)) {
-			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
-			    eh->ether_dhost, NULL,
-			    "sta not associated (type 0x%04x)",
-			    htons(eh->ether_type));
-			vap->iv_stats.is_tx_notassoc++;
-			ifp->if_oerrors++;
-			m_freem(m);
-			ieee80211_free_node(ni);
-			continue;
-		}
+#endif
 
 		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 		    (m->m_flags & M_PWR_SAV) == 0) {
@@ -455,7 +485,7 @@ bad:
  * frame.  Note this should be called early on in constructing
  * a frame as it sets i_fc[1]; other bits can then be or'd in.
  */
-static void
+void
 ieee80211_send_setup(
 	struct ieee80211_node *ni,
 	struct mbuf *m,
@@ -465,13 +495,12 @@ ieee80211_send_setup(
 	const uint8_t bssid[IEEE80211_ADDR_LEN])
 {
 #define	WH4(wh)	((struct ieee80211_frame_addr4 *)wh)
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_seq seqno;
 
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | type;
 	if ((type & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_DATA) {
-		struct ieee80211vap *vap = ni->ni_vap;
-
 		switch (vap->iv_opmode) {
 		case IEEE80211_M_STA:
 			wh->i_fc[1] = IEEE80211_FC1_DIR_TODS;
@@ -499,6 +528,25 @@ ieee80211_send_setup(
 			IEEE80211_ADDR_COPY(wh->i_addr3, da);
 			IEEE80211_ADDR_COPY(WH4(wh)->i_addr4, sa);
 			break;
+		case IEEE80211_M_MBSS:
+#ifdef IEEE80211_SUPPORT_MESH
+			/* XXX add support for proxied addresses */
+			if (IEEE80211_IS_MULTICAST(da)) {
+				wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
+				/* XXX next hop */
+				IEEE80211_ADDR_COPY(wh->i_addr1, da);
+				IEEE80211_ADDR_COPY(wh->i_addr2,
+				    vap->iv_myaddr);
+			} else {
+				wh->i_fc[1] = IEEE80211_FC1_DIR_DSTODS;
+				IEEE80211_ADDR_COPY(wh->i_addr1, da);
+				IEEE80211_ADDR_COPY(wh->i_addr2,
+				    vap->iv_myaddr);
+				IEEE80211_ADDR_COPY(wh->i_addr3, da);
+				IEEE80211_ADDR_COPY(WH4(wh)->i_addr4, sa);
+			}
+#endif
+			break;
 		case IEEE80211_M_MONITOR:	/* NB: to quiet compiler */
 			break;
 		}
@@ -506,7 +554,12 @@ ieee80211_send_setup(
 		wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
 		IEEE80211_ADDR_COPY(wh->i_addr1, da);
 		IEEE80211_ADDR_COPY(wh->i_addr2, sa);
-		IEEE80211_ADDR_COPY(wh->i_addr3, bssid);
+#ifdef IEEE80211_SUPPORT_MESH
+		if (vap->iv_opmode == IEEE80211_M_MBSS)
+			IEEE80211_ADDR_COPY(wh->i_addr3, sa);
+		else
+#endif
+			IEEE80211_ADDR_COPY(wh->i_addr3, bssid);
 	}
 	*(uint16_t *)&wh->i_dur[0] = 0;
 
@@ -932,12 +985,18 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 {
 #define	WH4(wh)	((struct ieee80211_frame_addr4 *)(wh))
 	struct ieee80211com *ic = ni->ni_ic;
+#ifdef IEEE80211_SUPPORT_MESH
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_meshcntl_ae11 *mc;
+#endif
 	struct ether_header eh;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *key;
 	struct llc *llc;
 	int hdrsize, hdrspace, datalen, addqos, txfrag, is4addr;
 	ieee80211_seq seqno;
+	int meshhdrsize, meshae;
+	uint8_t *qos;
 
 	/*
 	 * Copy existing Ethernet header to a safe place.  The
@@ -990,17 +1049,56 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		hdrsize = sizeof(struct ieee80211_qosframe);
 	else
 		hdrsize = sizeof(struct ieee80211_frame);
-	/*
-	 * 4-address frames need to be generated for:
-	 * o packets sent through a WDS vap (IEEE80211_M_WDS)
-	 * o packets sent through a vap marked for relaying
-	 *   (e.g. a station operating with dynamic WDS)
-	 */
-	is4addr = vap->iv_opmode == IEEE80211_M_WDS ||
-	    ((vap->iv_flags_ext & IEEE80211_FEXT_4ADDR) &&
-	     !IEEE80211_ADDR_EQ(eh.ether_shost, vap->iv_myaddr));
-	if (is4addr)
-		hdrsize += IEEE80211_ADDR_LEN;
+#ifdef IEEE80211_SUPPORT_MESH
+	if (vap->iv_opmode == IEEE80211_M_MBSS) {
+		/*
+		 * Mesh data frames are encapsulated according to the
+		 * rules of Section 11B.8.5 (p.139 of D3.0 spec).
+		 * o Group Addressed data (aka multicast) originating
+		 *   at the local sta are sent w/ 3-address format and
+		 *   address extension mode 00
+		 * o Individually Addressed data (aka unicast) originating
+		 *   at the local sta are sent w/ 4-address format and
+		 *   address extension mode 00
+		 * o Group Addressed data forwarded from a non-mesh sta are
+		 *   sent w/ 3-address format and address extension mode 01
+		 * o Individually Address data from another sta are sent
+		 *   w/ 4-address format and address extension mode 10
+		 */
+		is4addr = 0;		/* NB: don't use, disable */
+		meshhdrsize = sizeof(struct ieee80211_meshcntl);
+		/* XXX defines for AE modes */
+		/* XXX not right, need to check if from non-mesh-sta */
+		if (IEEE80211_ADDR_EQ(eh.ether_shost, vap->iv_myaddr)) {
+			if (!IEEE80211_IS_MULTICAST(eh.ether_dhost)) {
+				hdrsize += IEEE80211_ADDR_LEN;
+				meshae = 0;
+			} else
+				meshae = 4;		/* NB: pseudo */
+		} else if (IEEE80211_IS_MULTICAST(eh.ether_dhost)) {
+			meshae = 1;
+			meshhdrsize += 2*IEEE80211_ADDR_LEN;
+		} else {
+			meshae = 2;
+			meshhdrsize += 3*IEEE80211_ADDR_LEN;
+		}
+	} else {
+#endif
+		/*
+		 * 4-address frames need to be generated for:
+		 * o packets sent through a WDS vap (IEEE80211_M_WDS)
+		 * o packets sent through a vap marked for relaying
+		 *   (e.g. a station operating with dynamic WDS)
+		 */
+		is4addr = vap->iv_opmode == IEEE80211_M_WDS ||
+		    ((vap->iv_flags_ext & IEEE80211_FEXT_4ADDR) &&
+		     !IEEE80211_ADDR_EQ(eh.ether_shost, vap->iv_myaddr));
+		if (is4addr)
+			hdrsize += IEEE80211_ADDR_LEN;
+		meshhdrsize = meshae = 0;
+#ifdef IEEE80211_SUPPORT_MESH
+	}
+#endif
 	/*
 	 * Honor driver DATAPAD requirement.
 	 */
@@ -1013,7 +1111,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		/*
 		 * Normal frame.
 		 */
-		m = ieee80211_mbuf_adjust(vap, hdrspace, key, m);
+		m = ieee80211_mbuf_adjust(vap, hdrspace + meshhdrsize, key, m);
 		if (m == NULL) {
 			/* NB: ieee80211_mbuf_adjust handles msgs+statistics */
 			goto bad;
@@ -1032,14 +1130,14 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		/*
 		 * Aggregated frame.
 		 */
-		m = ieee80211_ff_encap(vap, m, hdrspace, key);
+		m = ieee80211_ff_encap(vap, m, hdrspace + meshhdrsize, key);
 		if (m == NULL)
 #endif
 			goto bad;
 	}
 	datalen = m->m_pkthdr.len;		/* NB: w/o 802.11 header */
 
-	M_PREPEND(m, hdrspace, M_DONTWAIT);
+	M_PREPEND(m, hdrspace + meshhdrsize, M_DONTWAIT);
 	if (m == NULL) {
 		vap->iv_stats.is_tx_nobuf++;
 		goto bad;
@@ -1047,6 +1145,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	wh = mtod(m, struct ieee80211_frame *);
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_DATA;
 	*(uint16_t *)wh->i_dur = 0;
+	qos = NULL;	/* NB: quiet compiler */
 	if (is4addr) {
 		wh->i_fc[1] = IEEE80211_FC1_DIR_DSTODS;
 		IEEE80211_ADDR_COPY(wh->i_addr1, ni->ni_macaddr);
@@ -1077,19 +1176,73 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		IEEE80211_ADDR_COPY(wh->i_addr2, ni->ni_bssid);
 		IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_shost);
 		break;
-	case IEEE80211_M_MONITOR:
+#ifdef IEEE80211_SUPPORT_MESH
+	case IEEE80211_M_MBSS:
+		/* NB: offset by hdrspace to deal with DATAPAD */
+		mc = (struct ieee80211_meshcntl_ae11 *)
+		     (mtod(m, uint8_t *) + hdrspace);
+		switch (meshae) {
+		case 0:			/* ucast, no proxy */
+			wh->i_fc[1] = IEEE80211_FC1_DIR_DSTODS;
+			IEEE80211_ADDR_COPY(wh->i_addr1, ni->ni_macaddr);
+			IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
+			IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_dhost);
+			IEEE80211_ADDR_COPY(WH4(wh)->i_addr4, eh.ether_shost);
+			mc->mc_flags = 0;
+			qos = ((struct ieee80211_qosframe_addr4 *) wh)->i_qos;
+			break;
+		case 4:			/* mcast, no proxy */
+			wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
+			IEEE80211_ADDR_COPY(wh->i_addr1, eh.ether_dhost);
+			IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
+			IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_shost);
+			mc->mc_flags = 0;		/* NB: AE is really 0 */
+			qos = ((struct ieee80211_qosframe *) wh)->i_qos;
+			break;
+		case 1:			/* mcast, proxy */
+			wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
+			IEEE80211_ADDR_COPY(wh->i_addr1, eh.ether_dhost);
+			IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
+			/* XXX not right, need MeshSA */
+			IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_shost);
+			mc->mc_flags = 1;
+			IEEE80211_ADDR_COPY(mc->mc_addr4, eh.ether_shost);
+			qos = ((struct ieee80211_qosframe *) wh)->i_qos;
+			break;
+		case 2:			/* ucast, proxy */
+			wh->i_fc[1] = IEEE80211_FC1_DIR_DSTODS;
+			IEEE80211_ADDR_COPY(wh->i_addr1, ni->ni_macaddr);
+			IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
+			/* XXX not right, need MeshDA+MeshSA */
+			IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_dhost);
+			IEEE80211_ADDR_COPY(WH4(wh)->i_addr4, eh.ether_shost);
+			mc->mc_flags = 2;
+			IEEE80211_ADDR_COPY(mc->mc_addr5, eh.ether_shost);
+			IEEE80211_ADDR_COPY(mc->mc_addr6, eh.ether_shost);
+			qos = ((struct ieee80211_qosframe_addr4 *) wh)->i_qos;
+			break;
+		default:
+			KASSERT(0, ("meshae %d", meshae));
+			break;
+		}
+		mc->mc_ttl = ms->ms_ttl;
+		ms->ms_seq++;
+		LE_WRITE_4(mc->mc_seq, ms->ms_seq);
+		break;
+#endif
 	case IEEE80211_M_WDS:		/* NB: is4addr should always be true */
+	default:
 		goto bad;
 	}
 	if (m->m_flags & M_MORE_DATA)
 		wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
 	if (addqos) {
-		uint8_t *qos;
 		int ac, tid;
 
 		if (is4addr) {
 			qos = ((struct ieee80211_qosframe_addr4 *) wh)->i_qos;
-		} else
+		/* NB: mesh case handled earlier */
+		} else if (vap->iv_opmode != IEEE80211_M_MBSS)
 			qos = ((struct ieee80211_qosframe *) wh)->i_qos;
 		ac = M_WME_GETAC(m);
 		/* map from access class/queue to 11e header priorty value */
@@ -1124,6 +1277,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 		M_SEQNO_SET(m, seqno);
 	}
+
 
 	/* check if xmit fragmentation is required */
 	txfrag = (m->m_pkthdr.len > vap->iv_fragthreshold &&
@@ -1271,7 +1425,7 @@ bad:
 /*
  * Add a supported rates element id to a frame.
  */
-static uint8_t *
+uint8_t *
 ieee80211_add_rates(uint8_t *frm, const struct ieee80211_rateset *rs)
 {
 	int nrates;
@@ -1288,7 +1442,7 @@ ieee80211_add_rates(uint8_t *frm, const struct ieee80211_rateset *rs)
 /*
  * Add an extended supported rates element id to a frame.
  */
-static uint8_t *
+uint8_t *
 ieee80211_add_xrates(uint8_t *frm, const struct ieee80211_rateset *rs)
 {
 	/*
@@ -1343,10 +1497,9 @@ ieee80211_add_erp(uint8_t *frm, struct ieee80211com *ic)
 static uint8_t *
 ieee80211_add_cfparms(uint8_t *frm, struct ieee80211com *ic)
 {
-#define	ADDSHORT(frm, v) do {			\
-	frm[0] = (v) & 0xff;			\
-	frm[1] = (v) >> 8;			\
-	frm += 2;				\
+#define	ADDSHORT(frm, v) do {	\
+	LE_WRITE_2(frm, v);	\
+	frm += 2;		\
 } while (0)
 	*frm++ = IEEE80211_ELEMID_CFPARMS;
 	*frm++ = 6;
@@ -1399,10 +1552,9 @@ static uint8_t *
 ieee80211_add_wme_param(uint8_t *frm, struct ieee80211_wme_state *wme)
 {
 #define	SM(_v, _f)	(((_v) << _f##_S) & _f)
-#define	ADDSHORT(frm, v) do {			\
-	frm[0] = (v) & 0xff;			\
-	frm[1] = (v) >> 8;			\
-	frm += 2;				\
+#define	ADDSHORT(frm, v) do {	\
+	LE_WRITE_2(frm, v);	\
+	frm += 2;		\
 } while (0)
 	/* NB: this works 'cuz a param has an info at the front */
 	static const struct ieee80211_wme_info param = {
@@ -1649,8 +1801,8 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 /*
  * Calculate capability information for mgt frames.
  */
-static uint16_t
-getcapinfo(struct ieee80211vap *vap, struct ieee80211_channel *chan)
+uint16_t
+ieee80211_getcapinfo(struct ieee80211vap *vap, struct ieee80211_channel *chan)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	uint16_t capinfo;
@@ -1945,7 +2097,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		if (m == NULL)
 			senderr(ENOMEM, is_tx_nobuf);
 
-		capinfo = getcapinfo(vap, bss->ni_chan);
+		capinfo = ieee80211_getcapinfo(vap, bss->ni_chan);
 		*(uint16_t *)frm = htole16(capinfo);
 		frm += 2;
 
@@ -2060,6 +2212,8 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	 *	[tlv] Vendor OUI HT information (optional)
 	 *	[tlv] Atheros capabilities
 	 *	[tlv] AppIE's (optional)
+	 *	[tlv] Mesh ID (MBSS)
+	 *	[tlv] Mesh Conf (MBSS)
 	 */
 	m = ieee80211_getmgtframe(&frm,
 		 ic->ic_headroom + sizeof(struct ieee80211_frame),
@@ -2084,6 +2238,10 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	       + sizeof(struct ieee80211_ath_ie)
 #endif
+#ifdef IEEE80211_SUPPORT_MESH
+	       + 2 + IEEE80211_MESHID_LEN
+	       + sizeof(struct ieee80211_meshconf_ie)
+#endif
 	       + (vap->iv_appie_proberesp != NULL ?
 			vap->iv_appie_proberesp->ie_len : 0)
 	);
@@ -2096,7 +2254,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	frm += 8;
 	*(uint16_t *)frm = htole16(bss->ni_intval);
 	frm += 2;
-	capinfo = getcapinfo(vap, bss->ni_chan);
+	capinfo = ieee80211_getcapinfo(vap, bss->ni_chan);
 	*(uint16_t *)frm = htole16(capinfo);
 	frm += 2;
 
@@ -2173,6 +2331,12 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 #endif
 	if (vap->iv_appie_proberesp != NULL)
 		frm = add_appie(frm, vap->iv_appie_proberesp);
+#ifdef IEEE80211_SUPPORT_MESH
+	if (vap->iv_opmode == IEEE80211_M_MBSS) {
+		frm = ieee80211_add_meshid(frm, vap);
+		frm = ieee80211_add_meshconf(frm, vap);
+	}
+#endif
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 
 	return m;
@@ -2365,6 +2529,8 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	 *	[tlv] Vendor OUI HT information (optional)
 	 *	[tlv] Atheros capabilities (optional)
 	 *	[tlv] TDMA parameters (optional)
+	 *	[tlv] Mesh ID (MBSS)
+	 *	[tlv] Mesh Conf (MBSS)
 	 *	[tlv] application data (optional)
 	 */
 
@@ -2374,7 +2540,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	frm += 8;
 	*(uint16_t *)frm = htole16(ni->ni_intval);
 	frm += 2;
-	capinfo = getcapinfo(vap, ni->ni_chan);
+	capinfo = ieee80211_getcapinfo(vap, ni->ni_chan);
 	bo->bo_caps = (uint16_t *)frm;
 	*(uint16_t *)frm = htole16(capinfo);
 	frm += 2;
@@ -2401,7 +2567,9 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		*frm++ = 2;
 		*frm++ = 0; *frm++ = 0;		/* TODO: ATIM window */
 		bo->bo_tim_len = 0;
-	} else if (vap->iv_opmode == IEEE80211_M_HOSTAP) {
+	} else if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+	    vap->iv_opmode == IEEE80211_M_MBSS) {
+		/* TIM IE is the same for Mesh and Hostap */
 		struct ieee80211_tim_ie *tie = (struct ieee80211_tim_ie *) frm;
 
 		tie->tim_ie = IEEE80211_ELEMID_TIM;
@@ -2471,6 +2639,12 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		bo->bo_appie_len = vap->iv_appie_beacon->ie_len;
 		frm = add_appie(frm, vap->iv_appie_beacon);
 	}
+#ifdef IEEE80211_SUPPORT_MESH
+	if (vap->iv_opmode == IEEE80211_M_MBSS) {
+		frm = ieee80211_add_meshid(frm, vap);
+		frm = ieee80211_add_meshconf(frm, vap);
+	}
+#endif
 	bo->bo_tim_trailer_len = frm - bo->bo_tim_trailer;
 	bo->bo_csa_trailer_len = frm - bo->bo_csa;
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
@@ -2515,6 +2689,8 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 	 *	[tlv] WPA parameters
 	 *	[tlv] WME parameters
 	 *	[tlv] TDMA parameters (optional)
+	 *	[tlv] Mesh ID (MBSS)
+	 *	[tlv] Mesh Conf (MBSS)
 	 *	[tlv] application data (optional)
 	 * NB: we allocate the max space required for the TIM bitmap.
 	 * XXX how big is this?
@@ -2546,6 +2722,10 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 		 + (vap->iv_caps & IEEE80211_C_TDMA ?	/* TDMA */
 			sizeof(struct ieee80211_tdma_param) : 0)
 #endif
+#ifdef IEEE80211_SUPPORT_MESH
+		 + 2 + ni->ni_meshidlen
+		 + sizeof(struct ieee80211_meshconf_ie)
+#endif
 		 + IEEE80211_MAX_APPIE
 		 ;
 	m = ieee80211_getmgtframe(&frm,
@@ -2567,7 +2747,13 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 	*(uint16_t *)wh->i_dur = 0;
 	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
-	IEEE80211_ADDR_COPY(wh->i_addr3, ni->ni_bssid);
+#ifdef IEEE80211_SUPPORT_MESH
+	if (vap->iv_opmode == IEEE80211_M_MBSS) {
+		static const uint8_t zerobssid[IEEE80211_ADDR_LEN];
+		IEEE80211_ADDR_COPY(wh->i_addr3, zerobssid);
+	} else
+#endif
+		IEEE80211_ADDR_COPY(wh->i_addr3, ni->ni_bssid);
 	*(uint16_t *)wh->i_seq = 0;
 
 	return m;
@@ -2616,7 +2802,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 	}
 
 	/* XXX faster to recalculate entirely or just changes? */
-	capinfo = getcapinfo(vap, ni->ni_chan);
+	capinfo = ieee80211_getcapinfo(vap, ni->ni_chan);
 	*bo->bo_caps = htole16(capinfo);
 
 	if (vap->iv_flags & IEEE80211_F_WME) {
@@ -2672,7 +2858,8 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 		ieee80211_tdma_update_beacon(vap, bo);
 	}
 #endif
-	if (vap->iv_opmode == IEEE80211_M_HOSTAP) {	/* NB: no IBSS support*/
+	if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+	    vap->iv_opmode == IEEE80211_M_MBSS) {	/* NB: no IBSS support*/
 		struct ieee80211_tim_ie *tie =
 			(struct ieee80211_tim_ie *) bo->bo_tim;
 		if (isset(bo->bo_flags, IEEE80211_BEACON_TIM)) {

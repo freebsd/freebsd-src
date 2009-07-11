@@ -35,7 +35,7 @@
  * Each ieee80211com instance has a single timer that fires every
  * IEEE80211_INACT_WAIT seconds to handle "inactivity processing".
  * This is used to do node inactivity processing when operating
- * as an AP or in adhoc mode.  For inactivity processing each node
+ * as an AP, adhoc or mesh mode.  For inactivity processing each node
  * has a timeout set in it's ni_inact field that is decremented
  * on each timeout and the node is reclaimed when the counter goes
  * to zero.  We use different inactivity timeout values depending
@@ -56,9 +56,9 @@
 /* threshold for aging overlapping non-ERP bss */
 #define	IEEE80211_NONERP_PRESENT_AGE	msecs_to_ticks(60*1000)
 
-#define	IEEE80211_NODE_HASHSIZE	32
+#define	IEEE80211_NODE_HASHSIZE	32		/* NB: hash size must be pow2 */
 /* simple hash is enough for variation of macaddr */
-#define	IEEE80211_NODE_HASH(addr)	\
+#define	IEEE80211_NODE_HASH(ic, addr)	\
 	(((const uint8_t *)(addr))[IEEE80211_ADDR_LEN - 1] % \
 		IEEE80211_NODE_HASHSIZE)
 
@@ -81,11 +81,26 @@ struct ieee80211_ies {
 	uint8_t	*htcap_ie;	/* captured HTCAP ie */
 	uint8_t	*htinfo_ie;	/* captured HTINFO ie */
 	uint8_t	*tdma_ie;	/* captured TDMA ie */
+	uint8_t *meshid_ie;	/* captured MESH ID ie */
 	uint8_t	*spare[4];
 	/* NB: these must be the last members of this structure */
 	uint8_t	*data;		/* frame data > 802.11 header */
 	int	len;		/* data size in bytes */
 };
+
+/*
+ * 802.11s (Mesh) Peer Link FSM state.
+ */
+enum ieee80211_mesh_mlstate {
+	IEEE80211_NODE_MESH_IDLE	= 0,
+	IEEE80211_NODE_MESH_OPENSNT	= 1,	/* open frame sent */
+	IEEE80211_NODE_MESH_OPENRCV	= 2,	/* open frame received */
+	IEEE80211_NODE_MESH_CONFIRMRCV	= 3,	/* confirm frame received */
+	IEEE80211_NODE_MESH_ESTABLISHED	= 4,	/* link established */
+	IEEE80211_NODE_MESH_HOLDING	= 5,	/* link closing */
+};
+#define	IEEE80211_MESH_MLSTATE_BITS \
+	"\20\1IDLE\2OPENSNT\2OPENRCV\3CONFIRMRCV\4ESTABLISHED\5HOLDING"
 
 /*
  * Node specific information.  Note that drivers are expected
@@ -172,6 +187,16 @@ struct ieee80211_node {
 	uint16_t		ni_timoff;	/* byte offset to TIM ie */
 	uint8_t			ni_dtim_period;	/* DTIM period */
 	uint8_t			ni_dtim_count;	/* DTIM count for last bcn */
+
+	/* 11s state */
+	uint8_t			ni_meshidlen;
+	uint8_t			ni_meshid[IEEE80211_MESHID_LEN];
+	enum ieee80211_mesh_mlstate ni_mlstate;	/* peering management state */
+	uint16_t		ni_mllid;	/* link local ID */
+	uint16_t		ni_mlpid;	/* link peer ID */
+	struct callout		ni_mltimer;	/* link mesh timer */
+	uint8_t			ni_mlrcnt;	/* link mesh retry counter */
+	uint8_t			ni_mltval;	/* link mesh timer value */
 
 	/* 11n state */
 	uint16_t		ni_htcap;	/* HT capabilities */

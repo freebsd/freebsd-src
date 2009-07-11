@@ -81,6 +81,7 @@
 #include <net80211/ieee80211_freebsd.h>
 #include <net80211/ieee80211_superg.h>
 #include <net80211/ieee80211_tdma.h>
+#include <net80211/ieee80211_mesh.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -162,6 +163,7 @@ static void print_channels(int, const struct ieee80211req_chaninfo *,
     int allchans, int verbose);
 static void regdomain_makechannels(struct ieee80211_regdomain_req *,
     const struct ieee80211_devcaps_req *);
+static const char *mesh_linkstate_string(uint8_t state);
 
 static struct ieee80211req_chaninfo *chaninfo;
 static struct ieee80211_regdomain regdomain;
@@ -573,6 +575,20 @@ set80211ssid(const char *val, int d, int s, const struct afswtch *rafp)
 
 	set80211(s, IEEE80211_IOC_SSID, ssid, len, data);
 }
+
+static void
+set80211meshid(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	int		len;
+	u_int8_t	data[IEEE80211_NWID_LEN];
+
+	memset(data, 0, sizeof(data));
+	len = sizeof(data);
+	if (get_string(val, NULL, data, &len) == NULL)
+		exit(1);
+
+	set80211(s, IEEE80211_IOC_MESH_ID, 0, len, data);
+}	
 
 static void
 set80211stationname(const char *val, int d, int s, const struct afswtch *rafp)
@@ -1262,6 +1278,66 @@ DECL_CMD_FUNC(set80211maccmd, val, d)
 }
 
 static void
+set80211meshrtmac(int s, int req, const char *val)
+{
+	char *temp;
+	struct sockaddr_dl sdl;
+
+	temp = malloc(strlen(val) + 2); /* ':' and '\0' */
+	if (temp == NULL)
+		errx(1, "malloc failed");
+	temp[0] = ':';
+	strcpy(temp + 1, val);
+	sdl.sdl_len = sizeof(sdl);
+	link_addr(temp, &sdl);
+	free(temp);
+	if (sdl.sdl_alen != IEEE80211_ADDR_LEN)
+		errx(1, "malformed link-level address");
+	set80211(s, IEEE80211_IOC_MESH_RTCMD, req,
+	    IEEE80211_ADDR_LEN, LLADDR(&sdl));
+}
+
+static
+DECL_CMD_FUNC(set80211addmeshrt, val, d)
+{
+	set80211meshrtmac(s, IEEE80211_MESH_RTCMD_ADD, val);
+}
+
+static
+DECL_CMD_FUNC(set80211delmeshrt, val, d)
+{
+	set80211meshrtmac(s, IEEE80211_MESH_RTCMD_DELETE, val);
+}
+
+static
+DECL_CMD_FUNC(set80211meshrtcmd, val, d)
+{
+	set80211(s, IEEE80211_IOC_MESH_RTCMD, d, 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211hwmprootmode, val, d)
+{
+	int mode;
+
+	if (strcasecmp(val, "normal") == 0)
+		mode = IEEE80211_HWMP_ROOTMODE_NORMAL;
+	else if (strcasecmp(val, "proactive") == 0)
+		mode = IEEE80211_HWMP_ROOTMODE_PROACTIVE;
+	else if (strcasecmp(val, "rann") == 0)
+		mode = IEEE80211_HWMP_ROOTMODE_RANN;
+	else
+		mode = IEEE80211_HWMP_ROOTMODE_DISABLED;
+	set80211(s, IEEE80211_IOC_HWMP_ROOTMODE, mode, 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211hwmpmaxhops, val, d)
+{
+	set80211(s, IEEE80211_IOC_HWMP_MAXHOPS, atoi(val), 0, NULL);
+}
+
+static void
 set80211pureg(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	set80211(s, IEEE80211_IOC_PUREG, d, 0, NULL);
@@ -1769,6 +1845,42 @@ static
 DECL_CMD_FUNC(set80211tdmabintval, val, d)
 {
 	set80211(s, IEEE80211_IOC_TDMA_BINTERVAL, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211meshttl, val, d)
+{
+	set80211(s, IEEE80211_IOC_MESH_TTL, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211meshforward, val, d)
+{
+	set80211(s, IEEE80211_IOC_MESH_FWRD, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211meshpeering, val, d)
+{
+	set80211(s, IEEE80211_IOC_MESH_AP, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211meshmetric, val, d)
+{
+	char v[12];
+	
+	memcpy(v, val, sizeof(v));
+	set80211(s, IEEE80211_IOC_MESH_PR_METRIC, 0, 0, v);
+}
+
+static
+DECL_CMD_FUNC(set80211meshpath, val, d)
+{
+	char v[12];
+	
+	memcpy(v, val, sizeof(v));
+	set80211(s, IEEE80211_IOC_MESH_PR_PATH, 0, 0, v);
 }
 
 static int
@@ -2498,6 +2610,45 @@ printathie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 	}
 }
 
+
+static void
+printmeshconf(const char *tag, const uint8_t *ie, size_t ielen, int maxlen)
+{
+#define MATCHOUI(field, oui, string)					\
+do {									\
+	if (memcmp(field, oui, 4) == 0)					\
+		printf("%s", string);					\
+} while (0)
+
+	printf("%s", tag);
+	if (verbose) {
+		const struct ieee80211_meshconf_ie *mconf =
+			(const struct ieee80211_meshconf_ie *)ie;
+		const uint8_t null[4] = IEEE80211_MESHCONF_NULL;
+		const uint8_t hwmp[4] = IEEE80211_MESHCONF_HWMP;
+		const uint8_t airtime[4] = IEEE80211_MESHCONF_AIRTIME;
+		const uint8_t ccsig[4] = IEEE80211_MESHCONF_CCSIG;
+		const uint8_t sae[4] = IEEE80211_MESHCONF_SAE;
+		const uint8_t neighoff[4] = IEEE80211_MESHCONF_SAE;
+		printf("<v%d PATH:", mconf->conf_ver);
+		MATCHOUI(mconf->conf_pselid, hwmp, "HWMP");
+		printf(" LINK:");
+		MATCHOUI(mconf->conf_pmetid, airtime, "AIRTIME");
+		printf(" CONGESTION:");
+		MATCHOUI(mconf->conf_ccid, ccsig, "SIG");
+		MATCHOUI(mconf->conf_ccid, null, "NULL");
+		printf(" SYNC:");
+		MATCHOUI(mconf->conf_syncid, neighoff, "NEIGHOFF");
+		MATCHOUI(mconf->conf_syncid, null, "NULL");
+		printf(" AUTH:");
+		MATCHOUI(mconf->conf_authid, sae, "SAE");
+		MATCHOUI(mconf->conf_authid, null, "NULL");
+		printf(" FORM:0x%x CAPS:0x%x>", mconf->conf_form,
+		    mconf->conf_cap);
+	}
+#undef MATCHOUI
+}
+
 static const char *
 wpa_cipher(const u_int8_t *sel)
 {
@@ -2968,6 +3119,13 @@ printies(const u_int8_t *vp, int ielen, int maxcols)
 			if (verbose)
 				printhtinfo(" HTINFO", vp, 2+vp[1], maxcols);
 			break;
+		case IEEE80211_ELEMID_MESHID:
+			if (verbose)
+				printssid(" MESHID", vp, 2+vp[1], maxcols);
+			break;
+		case IEEE80211_ELEMID_MESHCONF:
+			printmeshconf(" MESHCONF", vp, 2+vp[1], maxcols);
+			break;
 		default:
 			if (verbose)
 				printie(iename(vp[0]), vp, 2+vp[1], maxcols);
@@ -2996,7 +3154,7 @@ list_scan(int s)
 	uint8_t buf[24*1024];
 	char ssid[IEEE80211_NWID_LEN+1];
 	const uint8_t *cp;
-	int len, ssidmax;
+	int len, ssidmax, idlen;
 
 	if (get80211len(s, IEEE80211_IOC_SCAN_RESULTS, buf, sizeof(buf), &len) < 0)
 		errx(1, "unable to get scan results");
@@ -3005,9 +3163,9 @@ list_scan(int s)
 
 	getchaninfo(s);
 
-	ssidmax = verbose ? IEEE80211_NWID_LEN : 14;
+	ssidmax = verbose ? IEEE80211_NWID_LEN - 1 : 14;
 	printf("%-*.*s  %-17.17s  %4s %4s  %-7s  %3s %4s\n"
-		, ssidmax, ssidmax, "SSID"
+		, ssidmax, ssidmax, "SSID/MESH ID"
 		, "BSSID"
 		, "CHAN"
 		, "RATE"
@@ -3018,13 +3176,20 @@ list_scan(int s)
 	cp = buf;
 	do {
 		const struct ieee80211req_scan_result *sr;
-		const uint8_t *vp;
+		const uint8_t *vp, *idp;
 
 		sr = (const struct ieee80211req_scan_result *) cp;
 		vp = cp + sr->isr_ie_off;
+		if (sr->isr_meshid_len) {
+			idp = vp + sr->isr_ssid_len;
+			idlen = sr->isr_meshid_len;
+		} else {
+			idp = vp;
+			idlen = sr->isr_ssid_len;
+		}
 		printf("%-*.*s  %s  %3d  %3dM %3d:%-3d  %3d %-4.4s"
 			, ssidmax
-			  , copy_essid(ssid, ssidmax, vp, sr->isr_ssid_len)
+			  , copy_essid(ssid, ssidmax, idp, idlen)
 			  , ssid
 			, ether_ntoa((const struct ether_addr *) sr->isr_bssid)
 			, ieee80211_mhz2ieee(sr->isr_freq, sr->isr_flags)
@@ -3033,7 +3198,8 @@ list_scan(int s)
 			, sr->isr_intval
 			, getcaps(sr->isr_capinfo)
 		);
-		printies(vp + sr->isr_ssid_len, sr->isr_ie_len, 24);
+		printies(vp + sr->isr_ssid_len + sr->isr_meshid_len,
+		    sr->isr_ie_len, 24);
 		printf("\n");
 		cp += sr->isr_len, len -= sr->isr_len;
 	} while (len >= sizeof(struct ieee80211req_scan_result));
@@ -3151,18 +3317,32 @@ list_stations(int s)
 
 	getchaninfo(s);
 
-	printf("%-17.17s %4s %4s %4s %4s %4s %6s %6s %4s %-7s\n"
-		, "ADDR"
-		, "AID"
-		, "CHAN"
-		, "RATE"
-		, "RSSI"
-		, "IDLE"
-		, "TXSEQ"
-		, "RXSEQ"
-		, "CAPS"
-		, "FLAG"
-	);
+	if (opmode == IEEE80211_M_MBSS)
+		printf("%-17.17s %4s %5s %5s %7s %4s %4s %4s %6s %6s\n"
+			, "ADDR"
+			, "CHAN"
+			, "LOCAL"
+			, "PEER"
+			, "STATE"
+			, "RATE"
+			, "RSSI"
+			, "IDLE"
+			, "TXSEQ"
+			, "RXSEQ"
+		);
+	else 
+		printf("%-17.17s %4s %4s %4s %4s %4s %6s %6s %4s %-7s\n"
+			, "ADDR"
+			, "AID"
+			, "CHAN"
+			, "RATE"
+			, "RSSI"
+			, "IDLE"
+			, "TXSEQ"
+			, "RXSEQ"
+			, "CAPS"
+			, "FLAG"
+		);
 	cp = (const uint8_t *) u.req.info;
 	do {
 		const struct ieee80211req_sta_info *si;
@@ -3170,23 +3350,63 @@ list_stations(int s)
 		si = (const struct ieee80211req_sta_info *) cp;
 		if (si->isi_len < sizeof(*si))
 			break;
-		printf("%s %4u %4d %3dM %3.1f %4d %6d %6d %-4.4s %-7.7s"
-			, ether_ntoa((const struct ether_addr*) si->isi_macaddr)
-			, IEEE80211_AID(si->isi_associd)
-			, ieee80211_mhz2ieee(si->isi_freq, si->isi_flags)
-			, si->isi_txmbps/2
-			, si->isi_rssi/2.
-			, si->isi_inact
-			, gettxseq(si)
-			, getrxseq(si)
-			, getcaps(si->isi_capinfo)
-			, getflags(si->isi_state)
-		);
+		if (opmode == IEEE80211_M_MBSS)
+			printf("%s %4d %5x %5x %7.7s %3dM %4.1f %4d %6d %6d"
+				, ether_ntoa((const struct ether_addr*)
+				    si->isi_macaddr)
+				, ieee80211_mhz2ieee(si->isi_freq,
+				    si->isi_flags)
+				, si->isi_localid
+				, si->isi_peerid
+				, mesh_linkstate_string(si->isi_peerstate)
+				, si->isi_txmbps/2
+				, si->isi_rssi/2.
+				, si->isi_inact
+				, gettxseq(si)
+				, getrxseq(si)
+			);
+		else 
+			printf("%s %4u %4d %3dM %4.1f %4d %6d %6d %-4.4s %-7.7s"
+				, ether_ntoa((const struct ether_addr*)
+				    si->isi_macaddr)
+				, IEEE80211_AID(si->isi_associd)
+				, ieee80211_mhz2ieee(si->isi_freq,
+				    si->isi_flags)
+				, si->isi_txmbps/2
+				, si->isi_rssi/2.
+				, si->isi_inact
+				, gettxseq(si)
+				, getrxseq(si)
+				, getcaps(si->isi_capinfo)
+				, getflags(si->isi_state)
+			);
 		printies(cp + si->isi_ie_off, si->isi_ie_len, 24);
 		printmimo(&si->isi_mimo);
 		printf("\n");
 		cp += si->isi_len, len -= si->isi_len;
 	} while (len >= sizeof(struct ieee80211req_sta_info));
+}
+
+static const char *
+mesh_linkstate_string(uint8_t state)
+{
+#define	N(a)	(sizeof(a) / sizeof(a[0]))
+	static const char *state_names[] = {
+	    [0] = "IDLE",
+	    [1] = "OPEN-TX",
+	    [2] = "OPEN-RX",
+	    [3] = "CONF-RX",
+	    [4] = "ESTAB",
+	    [5] = "HOLDING",
+	};
+
+	if (state >= N(state_names)) {
+		static char buf[10];
+		snprintf(buf, sizeof(buf), "#%u", state);
+		return buf;
+	} else
+		return state_names[state];
+#undef N
 }
 
 static const char *
@@ -3409,9 +3629,9 @@ list_keys(int s)
 }
 
 #define	IEEE80211_C_BITS \
-	"\20\1STA\7FF\10TURBOP\11IBSS\12PMGT" \
+	"\20\1STA\002803ENCAP\7FF\10TURBOP\11IBSS\12PMGT" \
 	"\13HOSTAP\14AHDEMO\15SWRETRY\16TXPMGT\17SHSLOT\20SHPREAMBLE" \
-	"\21MONITOR\22DFS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
+	"\21MONITOR\22DFS\23MBSS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
 	"\37TXFRAG\40TDMA"
 
 static void
@@ -3729,6 +3949,40 @@ list_regdomain(int s, int channelsalso)
 		print_regdomain(&regdomain, verbose);
 }
 
+static void
+list_mesh(int s)
+{
+	int i;
+	struct ieee80211req ireq;
+	struct ieee80211req_mesh_route routes[128];
+
+	(void) memset(&ireq, 0, sizeof(ireq));
+	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
+	ireq.i_type = IEEE80211_IOC_MESH_RTCMD;
+	ireq.i_val = IEEE80211_MESH_RTCMD_LIST;
+	ireq.i_data = &routes;
+	ireq.i_len = sizeof(routes);
+	if (ioctl(s, SIOCG80211, &ireq) < 0)
+	 	err(1, "unable to get the Mesh routing table");
+
+	printf("%-17.17s %-17.17s %4s %4s %4s\n"
+		, "DEST"
+		, "NEXT HOP"
+		, "HOPS"
+		, "METRIC"
+		, "LIFETIME");
+
+	for (i = 0; i < ireq.i_len / sizeof(*routes); i++) {
+		printf("%s ",
+		    ether_ntoa((const struct ether_addr *)routes[i].imr_dest));
+		printf("%s %4u   %4d   %6d\n",
+			ether_ntoa((const struct ether_addr *)
+			    routes[i].imr_nexthop),
+			routes[i].imr_nhops, routes[i].imr_metric,
+			routes[i].imr_lifetime);
+	}
+}
+
 static
 DECL_CMD_FUNC(set80211list, arg, d)
 {
@@ -3762,6 +4016,8 @@ DECL_CMD_FUNC(set80211list, arg, d)
 		list_regdomain(s, 1);
 	else if (iseq(arg, "countries"))
 		list_countries();
+	else if (iseq(arg, "mesh"))
+		list_mesh(s);
 	else
 		errx(1, "Don't know how to list %s for %s", arg, name);
 	LINE_BREAK();
@@ -3787,6 +4043,8 @@ get80211opmode(int s)
 			return IEEE80211_M_HOSTAP;
 		if (ifmr.ifm_current & IFM_IEEE80211_MONITOR)
 			return IEEE80211_M_MONITOR;
+		if (ifmr.ifm_current & IFM_IEEE80211_MBSS)
+			return IEEE80211_M_MBSS;
 	}
 	return IEEE80211_M_STA;
 }
@@ -3911,13 +4169,13 @@ printrate(const char *tag, int v, int defrate, int defmcs)
 }
 
 static int
-getssid(int s, int ix, void *data, size_t len, int *plen)
+getid(int s, int ix, void *data, size_t len, int *plen, int mesh)
 {
 	struct ieee80211req ireq;
 
 	(void) memset(&ireq, 0, sizeof(ireq));
 	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
-	ireq.i_type = IEEE80211_IOC_SSID;
+	ireq.i_type = (!mesh) ? IEEE80211_IOC_SSID : IEEE80211_IOC_MESH_ID;
 	ireq.i_val = ix;
 	ireq.i_data = data;
 	ireq.i_len = len;
@@ -3938,7 +4196,7 @@ ieee80211_status(int s)
 	const struct ieee80211_roamparam *rp;
 	const struct ieee80211_txparam *tp;
 
-	if (getssid(s, -1, data, sizeof(data), &len) < 0) {
+	if (getid(s, -1, data, sizeof(data), &len, 0) < 0) {
 		/* If we can't get the SSID, this isn't an 802.11 device. */
 		return;
 	}
@@ -3953,19 +4211,25 @@ ieee80211_status(int s)
 	gothtconf = 0;
 	gotregdomain = 0;
 
-	if (get80211val(s, IEEE80211_IOC_NUMSSIDS, &num) < 0)
-		num = 0;
-	printf("\tssid ");
-	if (num > 1) {
-		for (i = 0; i < num; i++) {
-			if (getssid(s, i, data, sizeof(data), &len) >= 0 && len > 0) {
-				printf(" %d:", i + 1);
-				print_string(data, len);
-			}
-		}
-	} else
+	printf("\t");
+	if (opmode == IEEE80211_M_MBSS) {
+		printf("meshid ");
+		getid(s, 0, data, sizeof(data), &len, 1);
 		print_string(data, len);
-
+	} else {
+		if (get80211val(s, IEEE80211_IOC_NUMSSIDS, &num) < 0)
+			num = 0;
+		printf("ssid ");
+		if (num > 1) {
+			for (i = 0; i < num; i++) {
+				if (getid(s, i, data, sizeof(data), &len, 0) >= 0 && len > 0) {
+					printf(" %d:", i + 1);
+					print_string(data, len);
+				}
+			}
+		} else
+			print_string(data, len);
+	}
 	c = getcurchan(s);
 	if (c->ic_freq != IEEE80211_CHAN_ANY) {
 		char buf[14];
@@ -4515,6 +4779,57 @@ end:
 		LINE_BREAK();
 		list_wme(s);
 	}
+
+	if (opmode == IEEE80211_M_MBSS) {
+		if (get80211val(s, IEEE80211_IOC_MESH_TTL, &val) != -1) {
+			LINE_CHECK("meshttl %u", val);
+		}
+		if (get80211val(s, IEEE80211_IOC_MESH_AP, &val) != -1) {
+			if (val)
+				LINE_CHECK("meshpeering");
+			else
+				LINE_CHECK("-meshpeering");
+		}
+		if (get80211val(s, IEEE80211_IOC_MESH_FWRD, &val) != -1) {
+			if (val)
+				LINE_CHECK("meshforward");
+			else
+				LINE_CHECK("-meshforward");
+		}
+		if (get80211len(s, IEEE80211_IOC_MESH_PR_METRIC, data, 12,
+		    &len) != -1) {
+			data[len] = '\0';
+			LINE_CHECK("meshmetric %s", data);
+		}
+		if (get80211len(s, IEEE80211_IOC_MESH_PR_PATH, data, 12,
+		    &len) != -1) {
+			data[len] = '\0';
+			LINE_CHECK("meshpath %s", data);
+		}
+		if (get80211val(s, IEEE80211_IOC_HWMP_ROOTMODE, &val) != -1) {
+			switch (val) {
+			case IEEE80211_HWMP_ROOTMODE_DISABLED:
+				LINE_CHECK("hwmprootmode DISABLED");
+				break;
+			case IEEE80211_HWMP_ROOTMODE_NORMAL:
+				LINE_CHECK("hwmprootmode NORMAL");
+				break;
+			case IEEE80211_HWMP_ROOTMODE_PROACTIVE:
+				LINE_CHECK("hwmprootmode PROACTIVE");
+				break;
+			case IEEE80211_HWMP_ROOTMODE_RANN:
+				LINE_CHECK("hwmprootmode RANN");
+				break;
+			default:
+				LINE_CHECK("hwmprootmode UNKNOWN(%d)", val);
+				break;
+			}
+		}
+		if (get80211val(s, IEEE80211_IOC_HWMP_MAXHOPS, &val) != -1) {
+			LINE_CHECK("hwmpmaxhops %u", val);
+		}
+	}
+
 	LINE_BREAK();
 }
 
@@ -4731,7 +5046,9 @@ DECL_CMD_FUNC(set80211clone_wlanmode, arg, d)
 	else if (iseq(arg, "tdma")) {
 		params.icp_opmode = IEEE80211_M_AHDEMO;
 		params.icp_flags |= IEEE80211_CLONE_TDMA;
-	} else
+	} else if (iseq(arg, "mesh") || iseq(arg, "mp")) /* mesh point */
+		params.icp_opmode = IEEE80211_M_MBSS;
+	else
 		errx(1, "Don't know to create %s for %s", arg, name);
 #undef iseq
 }
@@ -4767,6 +5084,7 @@ set80211clone_wdslegacy(const char *val, int d, int s, const struct afswtch *raf
 static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG("ssid",		set80211ssid),
 	DEF_CMD_ARG("nwid",		set80211ssid),
+	DEF_CMD_ARG("meshid",		set80211meshid),
 	DEF_CMD_ARG("stationname",	set80211stationname),
 	DEF_CMD_ARG("station",		set80211stationname),	/* BSD/OS */
 	DEF_CMD_ARG("channel",		set80211channel),
@@ -4907,6 +5225,19 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG("tdmaslotcnt",	set80211tdmaslotcnt),
 	DEF_CMD_ARG("tdmaslotlen",	set80211tdmaslotlen),
 	DEF_CMD_ARG("tdmabintval",	set80211tdmabintval),
+
+	DEF_CMD_ARG("meshttl",		set80211meshttl),
+	DEF_CMD("meshforward",	1,	set80211meshforward),
+	DEF_CMD("-meshforward",	0,	set80211meshforward),
+	DEF_CMD("meshpeering",	1,	set80211meshpeering),
+	DEF_CMD("-meshpeering",	0,	set80211meshpeering),
+	DEF_CMD_ARG("meshmetric",	set80211meshmetric),
+	DEF_CMD_ARG("meshpath",		set80211meshpath),
+	DEF_CMD("meshrt:flush",	IEEE80211_MESH_RTCMD_FLUSH,	set80211meshrtcmd),
+	DEF_CMD_ARG("meshrt:add",	set80211addmeshrt),
+	DEF_CMD_ARG("meshrt:del",	set80211delmeshrt),
+	DEF_CMD_ARG("hwmprootmode",	set80211hwmprootmode),
+	DEF_CMD_ARG("hwmpmaxhops",	set80211hwmpmaxhops),
 
 	/* vap cloning support */
 	DEF_CLONE_CMD_ARG("wlanaddr",	set80211clone_wlanaddr),
