@@ -235,6 +235,7 @@ struct ath_softc {
 				sc_outdoor  : 1,/* outdoor operation */
 				sc_dturbo   : 1,/* dynamic turbo in use */
 				sc_hasbmask : 1,/* bssid mask support */
+				sc_hasbmatch: 1,/* bssid match disable support*/
 				sc_hastsfadd: 1,/* tsf adjust support */
 				sc_beacons  : 1,/* beacons running */
 				sc_swbmiss  : 1,/* sta mode using sw bmiss */

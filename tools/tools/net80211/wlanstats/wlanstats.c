@@ -322,7 +322,27 @@ static const struct fmt wlanstats[] = {
 	{ 4,  "ht_downgrade",	"ht_downgrade",	"HT station downgraded to legacy operation" },
 #define	S_HT_ASSOC_NORATE	AFTER(S_HT_ASSOC_DOWNGRADE)
 	{ 4,  "ht_norate",	"ht_norate",	"HT station rejected because of HT rate set" },
-#define	S_INPUT			AFTER(S_HT_ASSOC_NORATE)
+#define	S_MESH_WRONGMESH	AFTER(S_HT_ASSOC_NORATE)
+	{ 4,  "mesh_wrong",	"mesh_wrong",	"frame discarded because sender not a mesh sta" },
+#define	S_MESH_NOLINK		AFTER(S_MESH_WRONGMESH)
+	{ 4,  "mesh_nolink",	"mesh_nolink",	"frame discarded because link not established" },
+#define	S_MESH_FWD_TTL		AFTER(S_MESH_NOLINK)
+	{ 4,  "mesh_fwd_ttl",	"mesh_fwd_ttl",	"frame not forwarded because TTL zero" },
+#define	S_MESH_FWD_NOBUF	AFTER(S_MESH_FWD_TTL)
+	{ 4,  "mesh_fwd_nobuf",	"mesh_fwd_nobuf",	"frame not forwarded because mbuf could not be allocated" },
+#define	S_MESH_FWD_TOOSHORT	AFTER(S_MESH_FWD_NOBUF)
+	{ 4,  "mesh_fwd_tooshort",	"mesh_fwd_tooshort",	"frame not forwarded because too short to have 802.11 header" },
+#define	S_MESH_FWD_DISABLED	AFTER(S_MESH_FWD_TOOSHORT)
+	{ 4,  "mesh_fwd_disabled",	"mesh_fwd_disabled",	"frame not forwarded because administratively disabled" },
+#define	S_MESH_FWD_NOPATH	AFTER(S_MESH_FWD_DISABLED)
+	{ 4,  "mesh_fwd_nopath",	"mesh_fwd_nopath",	"frame not forwarded because no path found to destination" },
+#define	S_HWMP_WRONGSEQ		AFTER(S_MESH_FWD_NOPATH)
+	{ 4,  "hwmp_wrongseq",	"hwmp_wrongseq",	"frame discarded because mesh sequence number is invalid" },
+#define	S_HWMP_ROOTREQS		AFTER(S_HWMP_WRONGSEQ)
+	{ 4,  "hwmp_rootreqs",	"hwmp_rootreqs",	"root PREQ frames sent" },
+#define	S_HWMP_ROOTANN		AFTER(S_HWMP_ROOTREQS)
+	{ 4,  "hwmp_rootann",	"hwmp_rootann",	"root RANN frames received" },
+#define	S_INPUT			AFTER(S_HWMP_ROOTANN)
 	{ 8,	"input",	"input",	"total data frames received" },
 #define	S_RX_UCAST		AFTER(S_INPUT)
 	{ 8,	"rx_ucast",	"rx_ucast",	"unicast data frames received" },
@@ -766,6 +786,16 @@ wlan_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_HT_ASSOC_NOHTCAP:STAT(ht_assoc_nohtcap);
 	case S_HT_ASSOC_DOWNGRADE:STAT(ht_assoc_downgrade);
 	case S_HT_ASSOC_NORATE:	STAT(ht_assoc_norate);
+	case S_MESH_WRONGMESH:	STAT(mesh_wrongmesh);
+	case S_MESH_NOLINK:	STAT(mesh_nolink);
+	case S_MESH_FWD_TTL:	STAT(mesh_fwd_ttl);
+	case S_MESH_FWD_NOBUF:	STAT(mesh_fwd_nobuf);
+	case S_MESH_FWD_TOOSHORT: STAT(mesh_fwd_tooshort);
+	case S_MESH_FWD_DISABLED: STAT(mesh_fwd_disabled);
+	case S_MESH_FWD_NOPATH:	STAT(mesh_fwd_nopath);
+	case S_HWMP_WRONGSEQ:	STAT(hwmp_wrongseq);
+	case S_HWMP_ROOTREQS:	STAT(hwmp_rootreqs);
+	case S_HWMP_ROOTANN:	STAT(hwmp_rootrann);
 	case S_INPUT:		NSTAT(rx_data);
 	case S_OUTPUT:		NSTAT(tx_data);
 	case S_RX_UCAST:	NSTAT(rx_ucast);
@@ -910,6 +940,16 @@ wlan_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_HT_ASSOC_NOHTCAP:STAT(ht_assoc_nohtcap);
 	case S_HT_ASSOC_DOWNGRADE:STAT(ht_assoc_downgrade);
 	case S_HT_ASSOC_NORATE:	STAT(ht_assoc_norate);
+	case S_MESH_WRONGMESH:	STAT(mesh_wrongmesh);
+	case S_MESH_NOLINK:	STAT(mesh_nolink);
+	case S_MESH_FWD_TTL:	STAT(mesh_fwd_ttl);
+	case S_MESH_FWD_NOBUF:	STAT(mesh_fwd_nobuf);
+	case S_MESH_FWD_TOOSHORT: STAT(mesh_fwd_tooshort);
+	case S_MESH_FWD_DISABLED: STAT(mesh_fwd_disabled);
+	case S_MESH_FWD_NOPATH:	STAT(mesh_fwd_nopath);
+	case S_HWMP_WRONGSEQ:	STAT(hwmp_wrongseq);
+	case S_HWMP_ROOTREQS:	STAT(hwmp_rootreqs);
+	case S_HWMP_ROOTANN:	STAT(hwmp_rootrann);
 	case S_INPUT:		NSTAT(rx_data);
 	case S_OUTPUT:		NSTAT(tx_data);
 	case S_RX_UCAST:	NSTAT(rx_ucast);

@@ -578,6 +578,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_MONITOR		/* monitor mode */
 		| IEEE80211_C_AHDEMO		/* adhoc demo mode */
 		| IEEE80211_C_WDS		/* 4-address traffic works */
+		| IEEE80211_C_MBSS		/* mesh point link mode */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
@@ -655,6 +656,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if (ath_hal_hasbursting(ah))
 		ic->ic_caps |= IEEE80211_C_BURST;
 	sc->sc_hasbmask = ath_hal_hasbssidmask(ah);
+	sc->sc_hasbmatch = ath_hal_hasbssidmatch(ah);
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
@@ -918,6 +920,7 @@ ath_vap_create(struct ieee80211com *ic,
 		}
 		break;
 	case IEEE80211_M_HOSTAP:
+	case IEEE80211_M_MBSS:
 		needbeacon = 1;
 		break;
 	case IEEE80211_M_WDS:
@@ -936,7 +939,6 @@ ath_vap_create(struct ieee80211com *ic,
 			ic_opmode = IEEE80211_M_HOSTAP;
 		else
 			ic_opmode = ic->ic_opmode;
-		break;
 	default:
 		device_printf(sc->sc_dev, "unknown opmode %d\n", opmode);
 		goto bad;
@@ -950,7 +952,7 @@ ath_vap_create(struct ieee80211com *ic,
 	}
 
 	/* STA, AHDEMO? */
-	if (opmode == IEEE80211_M_HOSTAP) {
+	if (opmode == IEEE80211_M_HOSTAP || opmode == IEEE80211_M_MBSS) {
 		assign_address(sc, mac, flags & IEEE80211_CLONE_BSSID);
 		ath_hal_setbssidmask(sc->sc_ah, sc->sc_hwbssidmask);
 	}
@@ -1042,6 +1044,7 @@ ath_vap_create(struct ieee80211com *ic,
 		/* fall thru... */
 #endif
 	case IEEE80211_M_HOSTAP:
+	case IEEE80211_M_MBSS:
 		sc->sc_opmode = HAL_M_HOSTAP;
 		break;
 	case IEEE80211_M_MONITOR:
@@ -1129,7 +1132,8 @@ ath_vap_delete(struct ieee80211vap *vap)
 		sc->sc_nstavaps--;
 		if (sc->sc_nstavaps == 0 && sc->sc_swbmiss)
 			sc->sc_swbmiss = 0;
-	} else if (vap->iv_opmode == IEEE80211_M_HOSTAP) {
+	} else if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+	    vap->iv_opmode == IEEE80211_M_MBSS) {
 		reclaim_address(sc, vap->iv_myaddr);
 		ath_hal_setbssidmask(ah, sc->sc_hwbssidmask);
 	}
@@ -2330,7 +2334,7 @@ ath_key_update_end(struct ieee80211vap *vap)
  *   NB: older hal's add rx filter bits out of sight and we need to
  *	 blindly preserve them
  * o probe request frames are accepted only when operating in
- *   hostap, adhoc, or monitor modes
+ *   hostap, adhoc, mesh, or monitor modes
  * o enable promiscuous mode
  *   - when in monitor mode
  *   - if interface marked PROMISC (assumes bridge setting is filtered)
@@ -2343,6 +2347,7 @@ ath_key_update_end(struct ieee80211vap *vap)
  *   - when doing s/w beacon miss (e.g. for ap+sta)
  *   - when operating in ap mode in 11g to detect overlapping bss that
  *     require protection
+ *   - when operating in mesh mode to detect neighbors
  * o accept control frames:
  *   - when in monitor mode
  * XXX BAR frames for 11n
@@ -2375,6 +2380,13 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	    IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_BEACON;
+	if (ic->ic_opmode == IEEE80211_M_MBSS) {
+		rfilt |= HAL_RX_FILTER_BEACON;
+		if (sc->sc_hasbmatch)
+			rfilt |= HAL_RX_FILTER_BSSID;
+		else
+			rfilt |= HAL_RX_FILTER_PROM;
+	}
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
@@ -2500,7 +2512,8 @@ ath_updateslot(struct ifnet *ifp)
 	 * immediately.  For other operation we defer the change
 	 * until beacon updates have propagated to the stations.
 	 */
-	if (ic->ic_opmode == IEEE80211_M_HOSTAP)
+	if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
+	    ic->ic_opmode == IEEE80211_M_MBSS)
 		sc->sc_updateslot = UPDATE;
 	else
 		ath_setslottime(sc);
@@ -2535,7 +2548,8 @@ ath_beaconq_config(struct ath_softc *sc)
 	HAL_TXQ_INFO qi;
 
 	ath_hal_gettxqueueprops(ah, sc->sc_bhalq, &qi);
-	if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
+	if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
+	    ic->ic_opmode == IEEE80211_M_MBSS) {
 		/*
 		 * Always burst out beacon and CAB traffic.
 		 */
@@ -3087,9 +3101,10 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	/* extract tstamp from last beacon and convert to TU */
 	nexttbtt = TSF_TO_TU(LE_READ_4(ni->ni_tstamp.data + 4),
 			     LE_READ_4(ni->ni_tstamp.data));
-	if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
+	if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
+	    ic->ic_opmode == IEEE80211_M_MBSS) {
 		/*
-		 * For multi-bss ap support beacons are either staggered
+		 * For multi-bss ap/mesh support beacons are either staggered
 		 * evenly over N slots or burst together.  For the former
 		 * arrange for the SWBA to be delivered for each slot.
 		 * Slots that are not occupied will generate nothing.
@@ -3230,10 +3245,11 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 				} while (nexttbtt < tsftu);
 			}
 			ath_beaconq_config(sc);
-		} else if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
+		} else if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
+		    ic->ic_opmode == IEEE80211_M_MBSS) {
 			/*
-			 * In AP mode we enable the beacon timers and
-			 * SWBA interrupts to prepare beacon frames.
+			 * In AP/mesh mode we enable the beacon timers
+			 * and SWBA interrupts to prepare beacon frames.
 			 */
 			intval |= HAL_BEACON_ENA;
 			sc->sc_imask |= HAL_INT_SWBA;	/* beacon prepare */
@@ -5602,6 +5618,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 #endif
 		case IEEE80211_M_HOSTAP:
 		case IEEE80211_M_IBSS:
+		case IEEE80211_M_MBSS:
 			/*
 			 * Allocate and setup the beacon frame.
 			 *
