@@ -104,7 +104,7 @@ static void
 g_label_orphan(struct g_consumer *cp)
 {
 
-	G_LABEL_DEBUG(0, "Label %s removed.",
+	G_LABEL_DEBUG(1, "Label %s removed.",
 	    LIST_FIRST(&cp->geom->provider)->name);
 	g_slice_orphan(cp);
 }
@@ -113,7 +113,7 @@ static void
 g_label_spoiled(struct g_consumer *cp)
 {
 
-	G_LABEL_DEBUG(0, "Label %s removed.",
+	G_LABEL_DEBUG(1, "Label %s removed.",
 	    LIST_FIRST(&cp->geom->provider)->name);
 	g_slice_spoiled(cp);
 }
@@ -181,7 +181,7 @@ g_label_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	g_access(cp, -1, 0, 0);
 	g_slice_config(gp, 0, G_SLICE_CONFIG_SET, (off_t)0, mediasize,
 	    pp->sectorsize, name);
-	G_LABEL_DEBUG(0, "Label for provider %s is %s.", pp->name, name);
+	G_LABEL_DEBUG(1, "Label for provider %s is %s.", pp->name, name);
 	return (gp);
 }
 
@@ -203,7 +203,7 @@ g_label_destroy(struct g_geom *gp, boolean_t force)
 			return (EBUSY);
 		}
 	} else {
-		G_LABEL_DEBUG(0, "Label %s removed.",
+		G_LABEL_DEBUG(1, "Label %s removed.",
 		    LIST_FIRST(&gp->provider)->name);
 	}
 	g_slice_spoiled(LIST_FIRST(&gp->consumer));
