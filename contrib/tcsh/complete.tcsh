@@ -1,5 +1,5 @@
 #
-# $tcsh: complete.tcsh,v 1.47 2006/03/02 18:46:44 christos Exp $
+# $tcsh: complete.tcsh,v 1.51 2007/10/01 21:51:59 christos Exp $
 # example file using the new completion code
 #
 # Debian GNU/Linux
@@ -38,18 +38,18 @@ endif
 if ($?_complete) then
     set noglob
     if ( ! $?hosts ) set hosts
-    foreach f ($HOME/.hosts /usr/local/etc/csh.hosts $HOME/.rhosts /etc/hosts.equiv)
-        if ( -r $f ) then
-	    set hosts = ($hosts `grep -v "+" $f | grep -E -v "^#" | tr -s " " "	" | cut -f 1`)
+    foreach f ("$HOME/.hosts" /usr/local/etc/csh.hosts "$HOME/.rhosts" /etc/hosts.equiv)
+        if ( -r "$f" ) then
+	    set hosts = ($hosts `grep -v "+" "$f" | grep -E -v "^#" | tr -s " " "	" | cut -f 1`)
 	endif
     end
-    if ( -r $HOME/.netrc ) then
-	set f=`awk '/machine/ { print $2 }' < $HOME/.netrc` >& /dev/null
+    if ( -r "$HOME/.netrc" ) then
+	set f=`awk '/machine/ { print $2 }' < "$HOME/.netrc"` >& /dev/null
 	set hosts=($hosts $f)
     endif
-    if ( -r $HOME/.ssh/known_hosts ) then
-	set f=`cat $HOME/.ssh/known_hosts | cut -f 1 -d \ ` >& /dev/null
-	set f=`cat $HOME/.ssh/known_hosts | cut -f 1 -d \ | sed -e 's/,/ /g'` >& /dev/null
+    if ( -r "$HOME/.ssh/known_hosts" ) then
+	set f=`cat "$HOME/.ssh/known_hosts" | cut -f 1 -d \ ` >& /dev/null
+	set f=`cat "$HOME/.ssh/known_hosts" | cut -f 1 -d \ | sed -e 's/,/ /g'` >& /dev/null
 	set hosts=($hosts $f)
     endif
     unset f
@@ -224,7 +224,7 @@ if ($?_complete) then
 
     # these should be merged with the MH completion hacks below - jgotts
     complete {refile,sprev,snext,scan,pick,rmm,inc,folder,show} \
-		c@+@F:$HOME/Mail/@
+		"c@+@F:$HOME/Mail/@"
 
     # these and interrupt handling from Jaap Vermeulen <jaap@sequent.com>
     complete {rexec,rxexec,rxterm,rmterm} \
@@ -286,7 +286,7 @@ if ($?_complete) then
     complete setenv	'p/1/e/' 'c/*:/f/'
 
     # these and method of setting hosts from Kimmo Suominen <kim@tac.nyc.ny.us>
-    if ( -f $HOME/.mh_profile && -x "`which folders`" ) then 
+    if ( -f "$HOME/.mh_profile" && -x "`which folders`" ) then 
 
     if ( ! $?FOLDERS ) setenv FOLDERS "`folders -fast -recurse`"
     if ( ! $?MHA )     setenv MHA     "`ali | sed -e '/^ /d' -e 's/:.*//'`"
@@ -505,6 +505,19 @@ if ($?_complete) then
 			logout rdiff release remove rtag status tag unedit \
 			update watch watchers)/' 'n/-a/(edit unedit commit \
 			all none)/' 'n/watch/(on off add remove)/'
+    complete svn 	'C@file:///@`'"${HOME}/etc/tcsh/complete.d/svn"'`@@' \
+			'n@ls@(file:/// svn+ssh:// svn://)@@' \
+			'n@help@(add blame cat checkout \
+			cleanup commit copy delete export help \
+			import info list ls lock log merge mkdir \
+			move propdel propedit propget proplist \
+			propset resolved revert status switch unlock \
+			update)@' 'p@1@(add blame cat checkout \
+			cleanup commit copy delete export help \
+			import info list ls lock log merge mkdir \
+			move propdel propedit propget proplist \
+			propset resolved revert status switch unlock \
+			update)@'
     complete cxx	'p/*/f:*.{c++,cxx,c,cc,C,cpp}/'
     complete detex	'p/*/f:*.tex/'
     complete edquota    'n/*/u/'
@@ -591,14 +604,14 @@ if ($?_complete) then
 			flush-logs flush-status flush-tables flush-privileges \
 			kill password ping processlist reload refresh \
 			shutdown status variables version)/'
-    complete mutt	c@-f=@F:${HOME}/Mail/@ \
+    complete mutt	"c@-f=@F:${HOME}/Mail/@" \
 			n/-a/f/ \
 			n/-F/f/ n/-H/f/ \
 			n/-s/x:'<subject line>'/ \
 			n/-e/x:'<command>'/ \
-			n@-b@'`cat ${HOME}/.muttrc-alias | awk '"'"'{print $2 }'"'"\`@ \
-			n@-c@'`cat ${HOME}/.muttrc-alias | awk '"'"'{print $2 }'"'"\`@ \
-			n@*@'`cat ${HOME}/.muttrc-alias | awk '"'"'{print $2 }'"'"\`@
+			n@-b@'`cat "${HOME}/.muttrc-alias" | awk '"'"'{print $2 }'"'"\`@ \
+			n@-c@'`cat "${HOME}/.muttrc-alias" | awk '"'"'{print $2 }'"'"\`@ \
+			n@*@'`cat "${HOME}/.muttrc-alias" | awk '"'"'{print $2 }'"'"\`@
     complete ndc	'n/*/(status dumpdb reload stats trace notrace \
 			querylog start stop restart )/'
     if ($?traditional_complete) then
@@ -711,14 +724,15 @@ if ($?_complete) then
     complete unsetenv	n/*/e/
 
     set _maildir = /var/mail
-    if (-r $HOME/.mailrc) then
+    if (-r "$HOME/.mailrc") then
         complete mail	c/-/"(e i f n s u v)"/ c/*@/\$hosts/ \
-			c@+@F:$HOME/Mail@ C@[./\$~]@f@ n/-s/x:'<subject>'/ \
+			"c@+@F:$HOME/Mail@" C@[./\$~]@f@ n/-s/x:'<subject>'/ \
 			n@-u@T:$_maildir@ n/-f/f/ \
-			n@*@'`sed -n s/alias//p $HOME/.mailrc | tr -s " " "	" | cut -f 2`'@
+			n@*@'`sed -n s/alias//p "$HOME/.mailrc" | \
+			tr -s " " "	" | cut -f 2`'@
     else
         complete mail	c/-/"(e i f n s u v)"/ c/*@/\$hosts/ \
-			c@+@F:$HOME/Mail@ C@[./\$~]@f@ n/-s/x:'<subject>'/ \
+			"c@+@F:$HOME/Mail@" C@[./\$~]@f@ n/-s/x:'<subject>'/ \
 			n@-u@T:$_maildir@ n/-f/f/ n/*/u/
     endif
     unset _maildir
@@ -1029,23 +1043,41 @@ n@public@'`[ -r /usr/man/manp ]&& \ls -1 /usr/man/manp | sed s%\\.p.\*\$%%`'@ \
 			N/{-C,--directory}/'`\ls $:-1`'/ \
 			n/-[0-7]/"(l m h)"/
 
-    # Linux filesystems
-    complete  mount	c/-/"(a f F h l n o r s t U v V w)"/ n/-[hV]/n/ \
-    			n/-o/x:'<options>'/ n/-t/x:'<vfstype>'/ \
-    			n/-L/x:'<label>'/ n/-U/x:'<uuid>'/ \
-    			n@*@'`grep -v "^#" /etc/fstab | tr -s " " "	 " | cut -f 2`'@
-    complete umount	c/-/"(a h n r t v V)"/ n/-t/x:'<vfstype>'/ \
-    			n/*/'`mount | cut -d " " -f 3`'/
-    # Solaris filesystems
-    #complete  mount	c/-/"(a F m o O p r v V)"/ n/-p/n/ n/-v/n/ \
-    #			n/-o/x:'<FSType_options>'/ \
-    #			n@-F@'`\ls -1 /usr/lib/fs`'@ \
-    #			n@*@'`grep -v "^#" /etc/vfstab | tr -s " " "	 " | cut -f 3`'@
-    #complete umount	c/-/"(a o V)"/ n/-o/x:'<FSType_options>'/ \
-    #			n/*/'`mount | cut -d " " -f 1`'/
-    #complete  mountall	c/-/"(F l r)"/ n@-F@'`\ls -1 /usr/lib/fs`'@
-    #complete umountall	c/-/"(F h k l r s)"/ n@-F@'`\ls -1 /usr/lib/fs`'@ \
-    #			n/-h/'`df -k | cut -s -d ":" -f 1 | sort -u`'/
+    switch ( "$OSTYPE" )
+    case "linux":
+      # Linux filesystems
+      complete  mount	c/-/"(a f F h l n o r s t U v V w)"/ n/-[hV]/n/ \
+			n/-o/x:'<options>'/ n/-t/x:'<vfstype>'/ \
+			n/-L/x:'<label>'/ n/-U/x:'<uuid>'/ \
+			n@*@'`grep -v "^#" /etc/fstab | tr -s " " "	 " | cut -f 2`'@
+      complete umount	c/-/"(a h n r t v V)"/ n/-t/x:'<vfstype>'/ \
+			  n/*/'`mount | cut -d " " -f 3`'/
+      breaksw
+    case "sunos*":
+    case "solaris":
+      # Solaris filesystems
+      complete  mount	c/-/"(a F m o O p r v V)"/ n/-p/n/ n/-v/n/ \
+      			n/-o/x:'<FSType_options>'/ \
+      			n@-F@'`\ls -1 /usr/lib/fs`'@ \
+      			n@*@'`grep -v "^#" /etc/vfstab | tr -s " " "	 " | cut -f 3`'@
+      complete umount	c/-/"(a o V)"/ n/-o/x:'<FSType_options>'/ \
+      			n/*/'`mount | cut -d " " -f 1`'/
+      complete  mountall	c/-/"(F l r)"/ n@-F@'`\ls -1 /usr/lib/fs`'@
+      complete umountall	c/-/"(F h k l r s)"/ n@-F@'`\ls -1 /usr/lib/fs`'@ \
+      			n/-h/'`df -k | cut -s -d ":" -f 1 | sort -u`'/
+      breaksw
+    case "cygwin":
+      # Cygwin mounts
+      complete  mount	c/-/"(b c f h m o p s t u v x E X)"/ n/-[hmpv]/n/ \
+      			n/-c/x:'/'/ \
+			n/-o/"(user system binary text exec notexec cygexec nosuid managed)"/ \
+      			n@*@'`mount -p | tail -1 | cut -d " " -f 1 | xargs ls -1 | awk '"'"'{print $1":/"; } END{print "//";}'"'"'`'@
+      complete umount	c/-/"(A c h s S u U v)"/ n/-[AhSUv]/n/ \
+      			n@*@'`mount | grep -v noumount | cut -d " " -f 3`'@
+      breaksw
+    default:
+      breaksw
+    endsw
 
     # these deal with NIS (formerly YP); if it's not running you don't need 'em
     if (-X domainname) then
