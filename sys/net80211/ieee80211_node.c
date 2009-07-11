@@ -50,8 +50,14 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_tdma.h>
 #endif
 #include <net80211/ieee80211_wds.h>
+#include <net80211/ieee80211_mesh.h>
 
 #include <net/bpf.h>
+
+/*
+ * IEEE80211_NODE_HASHSIZE must be a power of 2.
+ */
+CTASSERT((IEEE80211_NODE_HASHSIZE & (IEEE80211_NODE_HASHSIZE-1)) == 0);
 
 /*
  * Association id's are managed with a bit vector.
@@ -322,7 +328,8 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 	struct ieee80211_node *ni;
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-		"%s: creating ibss on channel %u\n", __func__,
+		"%s: creating %s on channel %u\n", __func__,
+		ieee80211_opmode_name[vap->iv_opmode],
 		ieee80211_chan2ieee(ic, chan));
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, vap->iv_myaddr);
@@ -360,6 +367,11 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 		if ((vap->iv_caps & IEEE80211_C_TDMA) == 0)
 #endif
 			memset(ni->ni_bssid, 0, IEEE80211_ADDR_LEN);
+#ifdef IEEE80211_SUPPORT_MESH
+	} else if (vap->iv_opmode == IEEE80211_M_MBSS) {
+		ni->ni_meshidlen = vap->iv_mesh->ms_idlen;
+		memcpy(ni->ni_meshid, vap->iv_mesh->ms_id, ni->ni_meshidlen);
+#endif
 	}
 	/* 
 	 * Fix the channel and related attributes.
@@ -609,6 +621,7 @@ gethtadjustflags(struct ieee80211com *ic)
 		case IEEE80211_M_AHDEMO:
 		case IEEE80211_M_HOSTAP:
 		case IEEE80211_M_IBSS:
+		case IEEE80211_M_MBSS:
 			flags |= ieee80211_htchanflags(vap->iv_bss->ni_chan);
 			break;
 		default:
@@ -784,6 +797,10 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 			ieee80211_parse_htcap(ni, ni->ni_ies.htcap_ie);
 		if (ni->ni_ies.htinfo_ie != NULL)
 			ieee80211_parse_htinfo(ni, ni->ni_ies.htinfo_ie);
+#ifdef IEEE80211_SUPPORT_MESH
+		if (ni->ni_ies.meshid_ie != NULL)
+			ieee80211_parse_meshid(ni, ni->ni_ies.meshid_ie);
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 		if (ni->ni_ies.tdma_ie != NULL)
 			ieee80211_parse_tdma(ni, ni->ni_ies.tdma_ie);
@@ -914,6 +931,11 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 		case IEEE80211_ELEMID_HTCAP:
 			ies->htcap_ie = ie;
 			break;
+#ifdef IEEE80211_SUPPORT_MESH
+		case IEEE80211_ELEMID_MESHID:
+			ies->meshid_ie = ie;
+			break;
+#endif
 		}
 		ielen -= 2 + ie[1];
 		ie += 2 + ie[1];
@@ -950,6 +972,13 @@ node_cleanup(struct ieee80211_node *ni)
 #ifdef IEEE80211_SUPPORT_SUPERG
 	else if (ni->ni_ath_flags & IEEE80211_NODE_ATH)
 		ieee80211_ff_node_cleanup(ni);
+#endif
+#ifdef IEEE80211_SUPPORT_MESH
+	/*
+	 * Cleanup any mesh-related state.
+	 */
+	if (vap->iv_opmode == IEEE80211_M_MBSS)
+		ieee80211_mesh_node_cleanup(ni);
 #endif
 	/*
 	 * Clear any staging queue entries.
@@ -1078,7 +1107,7 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 		ether_sprintf(macaddr), nt->nt_name);
 
 	IEEE80211_ADDR_COPY(ni->ni_macaddr, macaddr);
-	hash = IEEE80211_NODE_HASH(macaddr);
+	hash = IEEE80211_NODE_HASH(ic, macaddr);
 	ieee80211_node_initref(ni);		/* mark referenced */
 	ni->ni_chan = IEEE80211_CHAN_ANYC;
 	ni->ni_authmode = IEEE80211_AUTH_OPEN;
@@ -1090,7 +1119,10 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	ni->ni_inact = ni->ni_inact_reload;
 	ni->ni_ath_defkeyix = 0x7fff;
 	ieee80211_psq_init(&ni->ni_psq, "unknown");
-
+#ifdef IEEE80211_SUPPORT_MESH
+	if (vap->iv_opmode == IEEE80211_M_MBSS)
+		ieee80211_mesh_node_init(vap, ni);
+#endif
 	IEEE80211_NODE_LOCK(nt);
 	TAILQ_INSERT_TAIL(&nt->nt_node, ni, ni_list);
 	LIST_INSERT_HEAD(&nt->nt_hash[hash], ni, ni_hash);
@@ -1242,7 +1274,7 @@ ieee80211_find_node_locked(struct ieee80211_node_table *nt,
 
 	IEEE80211_NODE_LOCK_ASSERT(nt);
 
-	hash = IEEE80211_NODE_HASH(macaddr);
+	hash = IEEE80211_NODE_HASH(nt->nt_ic, macaddr);
 	LIST_FOREACH(ni, &nt->nt_hash[hash], ni_hash) {
 		if (IEEE80211_ADDR_EQ(ni->ni_macaddr, macaddr)) {
 			ieee80211_ref_node(ni);	/* mark referenced */
@@ -1292,7 +1324,7 @@ ieee80211_find_vap_node_locked(struct ieee80211_node_table *nt,
 
 	IEEE80211_NODE_LOCK_ASSERT(nt);
 
-	hash = IEEE80211_NODE_HASH(macaddr);
+	hash = IEEE80211_NODE_HASH(nt->nt_ic, macaddr);
 	LIST_FOREACH(ni, &nt->nt_hash[hash], ni_hash) {
 		if (ni->ni_vap == vap &&
 		    IEEE80211_ADDR_EQ(ni->ni_macaddr, macaddr)) {
@@ -1391,7 +1423,10 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 	ni->ni_fhindex = sp->fhindex;
 	ni->ni_erp = sp->erp;
 	ni->ni_timoff = sp->timoff;
-
+#ifdef IEEE80211_SUPPORT_MESH
+	if (ni->ni_vap->iv_opmode == IEEE80211_M_MBSS)
+		ieee80211_mesh_init_neighbor(ni, wh, sp);
+#endif
 	if (ieee80211_ies_init(&ni->ni_ies, sp->ies, sp->ies_len)) {
 		ieee80211_ies_expand(&ni->ni_ies);
 		if (ni->ni_ies.wme_ie != NULL)
@@ -2525,6 +2560,27 @@ get_adhoc_rssi(void *arg, struct ieee80211_node *ni)
 	}
 }
 
+#ifdef IEEE80211_SUPPORT_MESH
+static void
+get_mesh_rssi(void *arg, struct ieee80211_node *ni)
+{
+	struct rssiinfo *info = arg;
+	struct ieee80211vap *vap = ni->ni_vap;
+	int8_t rssi;
+
+	if (info->vap != vap)
+		return;
+	/* only neighbors that peered successfully */
+	if (ni->ni_mlstate != IEEE80211_NODE_MESH_ESTABLISHED)
+		return;
+	rssi = vap->iv_ic->ic_node_getrssi(ni);
+	if (rssi != 0) {
+		info->rssi_samples++;
+		info->rssi_total += rssi;
+	}
+}
+#endif /* IEEE80211_SUPPORT_MESH */
+
 int8_t
 ieee80211_getrssi(struct ieee80211vap *vap)
 {
@@ -2543,6 +2599,11 @@ ieee80211_getrssi(struct ieee80211vap *vap)
 	case IEEE80211_M_HOSTAP:	/* average of all associated stations */
 		ieee80211_iterate_nodes(&ic->ic_sta, get_hostap_rssi, &info);
 		break;
+#ifdef IEEE80211_SUPPORT_MESH
+	case IEEE80211_M_MBSS:		/* average of all mesh neighbors */
+		ieee80211_iterate_nodes(&ic->ic_sta, get_mesh_rssi, &info);
+		break;
+#endif
 	case IEEE80211_M_MONITOR:	/* XXX */
 	case IEEE80211_M_STA:		/* use stats from associated ap */
 	default:

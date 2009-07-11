@@ -71,6 +71,9 @@ int	ieee80211_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);
 int	ieee80211_output(struct ifnet *, struct mbuf *,
                struct sockaddr *, struct route *ro);
+void	ieee80211_send_setup(struct ieee80211_node *, struct mbuf *, int, int,
+        const uint8_t [IEEE80211_ADDR_LEN], const uint8_t [IEEE80211_ADDR_LEN],
+        const uint8_t [IEEE80211_ADDR_LEN]);
 void	ieee80211_start(struct ifnet *);
 int	ieee80211_send_nulldata(struct ieee80211_node *);
 int	ieee80211_classify(struct ieee80211_node *, struct mbuf *m);
@@ -101,6 +104,11 @@ struct mbuf *ieee80211_alloc_rts(struct ieee80211com *ic,
 		const uint8_t [IEEE80211_ADDR_LEN], uint16_t);
 struct mbuf *ieee80211_alloc_cts(struct ieee80211com *,
 		const uint8_t [IEEE80211_ADDR_LEN], uint16_t);
+
+uint8_t *ieee80211_add_rates(uint8_t *, const struct ieee80211_rateset *);
+uint8_t *ieee80211_add_xrates(uint8_t *, const struct ieee80211_rateset *);
+uint16_t ieee80211_getcapinfo(struct ieee80211vap *,
+		struct ieee80211_channel *);
 
 void	ieee80211_reset_erp(struct ieee80211com *);
 void	ieee80211_set_shortslottime(struct ieee80211com *, int onoff);

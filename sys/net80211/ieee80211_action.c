@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_action.h>
+#include <net80211/ieee80211_mesh.h>
 
 static int
 send_inval(struct ieee80211_node *ni, int cat, int act, void *sa)
@@ -62,8 +63,6 @@ static ieee80211_send_action_func *ht_send_action[8] = {
 	send_inval, send_inval, send_inval, send_inval,
 	send_inval, send_inval, send_inval, send_inval,
 };
-/* NB: temporary until 802.11s support is added */
-#ifdef IEEE80211_ACTION_CAT_MESHPEERING
 static ieee80211_send_action_func *meshpl_send_action[8] = {
 	send_inval, send_inval, send_inval, send_inval,
 	send_inval, send_inval, send_inval, send_inval,
@@ -75,7 +74,6 @@ static ieee80211_send_action_func *hwmp_send_action[8] = {
 	send_inval, send_inval, send_inval, send_inval,
 	send_inval, send_inval, send_inval, send_inval,
 };
-#endif
 static ieee80211_send_action_func *vendor_send_action[8] = {
 	send_inval, send_inval, send_inval, send_inval,
 	send_inval, send_inval, send_inval, send_inval,
@@ -96,7 +94,6 @@ ieee80211_send_action_register(int cat, int act, ieee80211_send_action_func *f)
 			break;
 		ht_send_action[act] = f;
 		return 0;
-#ifdef IEEE80211_ACTION_CAT_MESHPEERING
 	case IEEE80211_ACTION_CAT_MESHPEERING:
 		if (act >= N(meshpl_send_action))
 			break;
@@ -112,7 +109,6 @@ ieee80211_send_action_register(int cat, int act, ieee80211_send_action_func *f)
 			break;
 		hwmp_send_action[act] = f;
 		return 0;
-#endif
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (act >= N(vendor_send_action))
 			break;
@@ -144,7 +140,6 @@ ieee80211_send_action(struct ieee80211_node *ni, int cat, int act, void *sa)
 		if (act < N(ht_send_action))
 			f = ht_send_action[act];
 		break;
-#ifdef IEEE80211_ACTION_CAT_MESHPEERING
 	case IEEE80211_ACTION_CAT_MESHPEERING:
 		if (act < N(meshpl_send_action))
 			f = meshpl_send_action[act];
@@ -157,7 +152,6 @@ ieee80211_send_action(struct ieee80211_node *ni, int cat, int act, void *sa)
 		if (act < N(hwmp_send_action))
 			f = hwmp_send_action[act];
 		break;
-#endif
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (act < N(vendor_send_action))
 			f = vendor_send_action[act];
@@ -182,7 +176,6 @@ static ieee80211_recv_action_func *ht_recv_action[8] = {
 	recv_inval, recv_inval, recv_inval, recv_inval,
 	recv_inval, recv_inval, recv_inval, recv_inval,
 };
-#ifdef IEEE80211_ACTION_CAT_MESHPEERING
 static ieee80211_recv_action_func *meshpl_recv_action[8] = {
 	recv_inval, recv_inval, recv_inval, recv_inval,
 	recv_inval, recv_inval, recv_inval, recv_inval,
@@ -194,7 +187,6 @@ static ieee80211_recv_action_func *hwmp_recv_action[8] = {
 	recv_inval, recv_inval, recv_inval, recv_inval,
 	recv_inval, recv_inval, recv_inval, recv_inval,
 };
-#endif
 static ieee80211_recv_action_func *vendor_recv_action[8] = {
 	recv_inval, recv_inval, recv_inval, recv_inval,
 	recv_inval, recv_inval, recv_inval, recv_inval,
@@ -215,7 +207,6 @@ ieee80211_recv_action_register(int cat, int act, ieee80211_recv_action_func *f)
 			break;
 		ht_recv_action[act] = f;
 		return 0;
-#ifdef IEEE80211_ACTION_CAT_MESHPEERING
 	case IEEE80211_ACTION_CAT_MESHPEERING:
 		if (act >= N(meshpl_recv_action))
 			break;
@@ -231,7 +222,6 @@ ieee80211_recv_action_register(int cat, int act, ieee80211_recv_action_func *f)
 			break;
 		hwmp_recv_action[act] = f;
 		return 0;
-#endif
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (act >= N(vendor_recv_action))
 			break;
@@ -267,7 +257,6 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 		if (ia->ia_action < N(ht_recv_action))
 			f = ht_recv_action[ia->ia_action];
 		break;
-#ifdef IEEE80211_ACTION_CAT_MESHPEERING
 	case IEEE80211_ACTION_CAT_MESHPEERING:
 		if (ia->ia_action < N(meshpl_recv_action))
 			f = meshpl_recv_action[ia->ia_action];
@@ -280,7 +269,6 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 		if (ia->ia_action < N(hwmp_recv_action))
 			f = hwmp_recv_action[ia->ia_action];
 		break;
-#endif
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (ia->ia_action < N(vendor_recv_action))
 			f = vendor_recv_action[ia->ia_action];
