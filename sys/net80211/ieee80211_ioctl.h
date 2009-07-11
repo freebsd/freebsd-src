@@ -223,6 +223,19 @@ struct ieee80211_stats {
 	uint32_t	is_tx_ctl;		/* tx ctrl frames */
 	uint32_t	is_ampdu_rexmt;		/* A-MPDU frames rexmt ok */
 	uint32_t	is_ampdu_rexmt_fail;	/* A-MPDU frames rexmt fail */
+
+	uint32_t	is_mesh_wrongmesh;	/* dropped 'cuz not mesh sta*/
+	uint32_t	is_mesh_nolink;		/* dropped 'cuz link not estab*/
+	uint32_t	is_mesh_fwd_ttl;	/* mesh not fwd'd 'cuz ttl 0 */
+	uint32_t	is_mesh_fwd_nobuf;	/* mesh not fwd'd 'cuz no mbuf*/
+	uint32_t	is_mesh_fwd_tooshort;	/* mesh not fwd'd 'cuz no hdr */
+	uint32_t	is_mesh_fwd_disabled;	/* mesh not fwd'd 'cuz disabled */
+	uint32_t	is_mesh_fwd_nopath;	/* mesh not fwd'd 'cuz path unknown */
+
+	uint32_t	is_hwmp_wrongseq;	/* wrong hwmp seq no. */
+	uint32_t	is_hwmp_rootreqs;	/* root PREQs sent */
+	uint32_t	is_hwmp_rootrann;	/* root RANNs sent */
+
 	uint32_t	is_spare[16];
 };
 
@@ -305,6 +318,27 @@ struct ieee80211req_maclist {
 } __packed;
 
 /*
+ * Mesh Routing Table Operations.
+ */
+enum {
+	IEEE80211_MESH_RTCMD_LIST   = 0, /* list HWMP routing table */
+	IEEE80211_MESH_RTCMD_FLUSH  = 1, /* flush HWMP routing table */
+	IEEE80211_MESH_RTCMD_ADD    = 2, /* add entry to the table */
+	IEEE80211_MESH_RTCMD_DELETE = 3, /* delete an entry from the table */
+};
+
+/*
+ * HWMP root modes
+ */
+enum {
+	IEEE80211_HWMP_ROOTMODE_DISABLED	= 0, 	/* disabled */
+	IEEE80211_HWMP_ROOTMODE_NORMAL		= 1,	/* normal PREPs */
+	IEEE80211_HWMP_ROOTMODE_PROACTIVE	= 2,	/* proactive PREPS */
+	IEEE80211_HWMP_ROOTMODE_RANN		= 3,	/* use RANN elemid */
+};
+
+
+/*
  * Set the active channel list by IEEE channel #: each channel
  * to be marked active is set in a bit vector.  Note this list is
  * intersected with the available channel list in calculating
@@ -384,6 +418,10 @@ struct ieee80211req_sta_info {
 	uint16_t	isi_pad;
 	uint32_t	isi_jointime;		/* time of assoc/join */
 	struct ieee80211_mimo_info isi_mimo;	/* MIMO info for 11n sta's */
+	/* 11s info */
+	uint16_t	isi_peerid;
+	uint16_t	isi_localid;
+	uint8_t		isi_peerstate;
 	/* XXX frag state? */
 	/* variable length IE data */
 };
@@ -637,6 +675,22 @@ struct ieee80211req {
 #define	IEEE80211_IOC_GREENFIELD	112	/* Greenfield (on, off) */
 #define	IEEE80211_IOC_STBC		113	/* STBC Tx/RX (on, off) */
 
+#define	IEEE80211_IOC_MESH_ID		170	/* mesh identifier */
+#define	IEEE80211_IOC_MESH_AP		171	/* accepting peerings */
+#define	IEEE80211_IOC_MESH_FWRD		172	/* forward frames */
+#define	IEEE80211_IOC_MESH_PROTO	173	/* mesh protocols */
+#define	IEEE80211_IOC_MESH_TTL		174	/* mesh TTL */
+#define	IEEE80211_IOC_MESH_RTCMD	175	/* mesh routing table commands*/
+#define	IEEE80211_IOC_MESH_PR_METRIC	176	/* mesh metric protocol */
+#define	IEEE80211_IOC_MESH_PR_PATH	177	/* mesh path protocol */
+#define	IEEE80211_IOC_MESH_PR_SIG	178	/* mesh sig protocol */
+#define	IEEE80211_IOC_MESH_PR_CC	179	/* mesh congestion protocol */
+#define	IEEE80211_IOC_MESH_PR_AUTH	180	/* mesh auth protocol */
+
+#define	IEEE80211_IOC_HWMP_ROOTMODE	190	/* HWMP root mode */
+#define	IEEE80211_IOC_HWMP_MAXHOPS	191	/* number of hops before drop */
+#define	IEEE80211_IOC_HWMP_TTL		192	/* HWMP TTL */
+
 #define	IEEE80211_IOC_TDMA_SLOT		201	/* TDMA: assigned slot */
 #define	IEEE80211_IOC_TDMA_SLOTCNT	202	/* TDMA: slots in bss */
 #define	IEEE80211_IOC_TDMA_SLOTLEN	203	/* TDMA: slot length (usecs) */
@@ -724,7 +778,9 @@ struct ieee80211req_scan_result {
 	uint8_t		isr_nrates;
 	uint8_t		isr_rates[IEEE80211_RATE_MAXSIZE];
 	uint8_t		isr_ssid_len;		/* SSID length */
-	/* variable length SSID followed by IE data */
+	uint8_t		isr_meshid_len;		/* MESH ID length */
+	/* variable length SSID, followed by variable length MESH ID,
+	  followed by IE data */
 };
 
 /*

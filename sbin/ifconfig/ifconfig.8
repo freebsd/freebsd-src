@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2009
+.Dd July 8, 2009
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -623,6 +623,7 @@ is one of
 .Cm hostap ),
 .Cm wds ,
 .Cm tdma ,
+.Cm mesh ,
 and
 .Cm monitor .
 The operating mode of a cloned interface cannot be changed.
@@ -1195,6 +1196,9 @@ indicates the address is denied access,
 .Ql *
 indicates the address is present but the current policy open
 (so the ACL is not consulted).
+.It Cm list mesh
+Displays the mesh routing table, used for forwarding packets on a mesh
+network.
 .It Cm list regdomain
 Display the current regulatory settings including the available channels
 and transmit power caps.
@@ -1278,6 +1282,8 @@ When operating as an access point display the stations that are
 currently associated.
 When operating in ad-hoc mode display stations identified as
 neighbors in the IBSS.
+When operating in mesh mode display stations identified as
+neighbors in the MBSS.
 When operating in station mode display the access point.
 Capabilities advertised by the stations are described under
 the
@@ -1811,6 +1817,85 @@ Note that this feature requires the
 program be configured to do the right thing
 as it handles the RADIUS processing
 (and marks stations as authorized).
+.El
+.Pp
+The following parameters are related to a wireless interface operating in mesh
+mode:
+.Bl -tag -width indent
+.It Cm meshid Ar meshid
+Set the desired Mesh Identifier.
+The Mesh ID is a string up to 32 characters in length.
+A mesh interface must have a Mesh Identifier specified
+to reach an operational state.
+.It Cm meshttl Ar ttl
+Set the desired ``time to live'' for mesh forwarded packets;
+this is the number of hops a packet may be forwarded before
+it is discarded.
+The default setting for
+.Cm meshttl
+is 31.
+.It Cm meshpeering
+Enable or disable peering with neighbor mesh stations.
+Stations must peer before any data packets can be exchanged.
+By default
+.Cm meshpeering
+is enabled.
+.It Cm meshforward
+Enable or disable forwarding packets by a mesh interface.
+By default
+.Cm meshforward
+is enabled.
+.It Cm meshmetric Ar protocol
+Set the specified
+.Ar protocol
+as the link metric protocol used on a mesh network.
+The default protocol is called
+.Ar AIRTIME .
+The mesh interface will restart after changing this setting.
+.It Cm meshpath Ar protocol
+Set the specified
+.Ar protocol
+as the path selection protocol used on a mesh network.
+The only available protocol at the moment is called
+.Ar HWMP
+(Hybrid Wireless Mesh Protocol).
+The mesh interface will restart after changing this setting.
+.It Cm hwmprootmode Ar mode
+Stations on a mesh network can operate as ``root nodes.''
+Root nodes try to find paths to all mesh nodes and advertise themselves
+regularly.
+When there is a root mesh node on a network, other mesh nodes can setup
+paths between themselves faster because they can use the root node
+to find the destination.
+This path may not be the best, but on-demand
+routing will eventually find the best path.
+The following modes are recognized:
+.Pp
+.Bl -tag -width ".Cm PROACTIVE" -compact
+.It Cm DISABLED
+Disable root mode.
+.It Cm NORMAL
+Send broadcast path requests every two seconds.
+Nodes on the mesh without a path to this root mesh station with try to
+discover a path to us.
+.It Cm PROACTIVE
+Send broadcast path requests every two seconds and every node must reply with
+with a path reply even if it already has a path to this root mesh station,
+.It Cm RANN
+Send broadcast root annoucement (RANN) frames.
+Nodes on the mesh without a path to this root mesh station with try to
+discover a path to us.
+.El
+By default
+.Cm hwmprootmode 
+is set to
+.Ar DISABLED .
+.It Cm hwmpmaxhops Ar cnt
+Set the maximum number of hops allowed in an HMWP path to
+.Ar cnt .
+The default setting for
+.Cm hwmpmaxhops
+is 31.
 .El
 .Pp
 The following parameters are for compatibility with other systems:

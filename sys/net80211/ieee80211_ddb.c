@@ -50,6 +50,9 @@ __FBSDID("$FreeBSD$");
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <net80211/ieee80211_tdma.h>
 #endif
+#ifdef IEEE80211_SUPPORT_MESH
+#include <net80211/ieee80211_mesh.h>
+#endif
 
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
@@ -75,7 +78,11 @@ static void _db_show_roamparams(const char *tag, const void *arg,
 	const struct ieee80211_roamparam *rp);
 static void _db_show_txparams(const char *tag, const void *arg,
 	const struct ieee80211_txparam *tp);
+static void _db_show_ageq(const char *tag, const struct ieee80211_ageq *q);
 static void _db_show_stats(const struct ieee80211_stats *);
+#ifdef IEEE80211_SUPPORT_MESH
+static void _db_show_mesh(const struct ieee80211_mesh_state *);
+#endif
 
 DB_SHOW_COMMAND(sta, db_show_sta)
 {
@@ -177,6 +184,20 @@ DB_SHOW_ALL_COMMAND(vaps, db_show_all_vaps)
 			}
 	}
 }
+
+#ifdef IEEE80211_SUPPORT_MESH
+DB_SHOW_ALL_COMMAND(mesh, db_show_mesh)
+{
+	const struct ieee80211_mesh_state *ms;
+
+	if (!have_addr) {
+		db_printf("usage: show mesh <addr>\n");
+		return;
+	}
+	ms = (const struct ieee80211_mesh_state *) addr;
+	_db_show_mesh(ms);
+}
+#endif /* IEEE80211_SUPPORT_MESH */
 
 static void
 _db_show_txampdu(const char *sep, int ix, const struct ieee80211_tx_ampdu *tap)
@@ -283,7 +304,12 @@ _db_show_sta(const struct ieee80211_node *ni)
 
 	db_printf("\tinact %u inact_reload %u txrate %u\n",
 		ni->ni_inact, ni->ni_inact_reload, ni->ni_txrate);
-	/* XXX wdsq */
+#ifdef IEEE80211_SUPPORT_MESH
+	_db_show_ssid("\tmeshid ", 0, ni->ni_meshidlen, ni->ni_meshid);
+	db_printf(" mlstate %b mllid 0x%x mlpid 0x%x mlrcnt %u mltval %u\n",
+	    ni->ni_mlstate, IEEE80211_MESH_MLSTATE_BITS,
+	    ni->ni_mllid, ni->ni_mlpid, ni->ni_mlrcnt, ni->ni_mltval);
+#endif
 }
 
 #ifdef IEEE80211_SUPPORT_TDMA
@@ -563,10 +589,13 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf("\n");
 
 	db_printf("\tmax_keyix %d", ic->ic_max_keyix);
+	db_printf(" hash_key 0x%x", ic->ic_hash_key);
 	db_printf(" wme %p", &ic->ic_wme);
 	if (!showsta)
 		db_printf(" sta %p", &ic->ic_sta);
 	db_printf("\n");
+	db_printf("\tstageq@%p:\n", &ic->ic_stageq);
+	_db_show_ageq("\t", &ic->ic_stageq);
 	if (showsta)
 		_db_show_node_table("\t", &ic->ic_sta);
 
@@ -643,16 +672,16 @@ _db_show_node_table(const char *tag, const struct ieee80211_node_table *nt)
 	int i;
 
 	db_printf("%s%s@%p:\n", tag, nt->nt_name, nt);
-	db_printf("%s  nodelock %p", tag, &nt->nt_nodelock);
+	db_printf("%s nodelock %p", tag, &nt->nt_nodelock);
 	db_printf(" inact_init %d", nt->nt_inact_init);
 	db_printf(" scanlock %p", &nt->nt_scanlock);
 	db_printf(" scangen %u\n", nt->nt_scangen);
-	db_printf("%s  keyixmax %d keyixmap %p\n",
+	db_printf("%s keyixmax %d keyixmap %p\n",
 	    tag, nt->nt_keyixmax, nt->nt_keyixmap);
 	for (i = 0; i < nt->nt_keyixmax; i++) {
 		const struct ieee80211_node *ni = nt->nt_keyixmap[i];
 		if (ni != NULL)
-			db_printf("%s  [%3u] %p %s\n", tag, i, ni,
+			db_printf("%s [%3u] %p %s\n", tag, i, ni,
 			    ether_sprintf(ni->ni_macaddr));
 	}
 }
@@ -810,7 +839,43 @@ _db_show_txparams(const char *tag, const void *arg,
 }
 
 static void
+_db_show_ageq(const char *tag, const struct ieee80211_ageq *q)
+{
+	const struct mbuf *m;
+
+	db_printf("%s lock %p len %d maxlen %d drops %d head %p tail %p\n",
+	    tag, &q->aq_lock, q->aq_len, q->aq_maxlen, q->aq_drops,
+	    q->aq_head, q->aq_tail);
+	for (m = q->aq_head; m != NULL; m = m->m_nextpkt)
+		db_printf("%s %p (len %d, %b)\n", tag, m, m->m_len,
+		    /* XXX could be either TX or RX but is mostly TX */
+		    m->m_flags, IEEE80211_MBUF_TX_FLAG_BITS);
+}
+
+static void
 _db_show_stats(const struct ieee80211_stats *is)
 {
 }
+
+#ifdef IEEE80211_SUPPORT_MESH
+static void
+_db_show_mesh(const struct ieee80211_mesh_state *ms)
+{
+	struct ieee80211_mesh_route *rt;
+	int i;
+
+	_db_show_ssid(" meshid ", 0, ms->ms_idlen, ms->ms_id);
+	db_printf("nextseq %u ttl %u flags 0x%x\n", ms->ms_seq,
+	    ms->ms_ttl, ms->ms_flags);
+	db_printf("routing table:\n");
+	i = 0;
+	TAILQ_FOREACH(rt, &ms->ms_routes, rt_next) {
+		db_printf("entry %d:\tdest: %6D nexthop: %6D metric: %u", i,
+		    rt->rt_dest, ":", rt->rt_nexthop, ":", rt->rt_metric);
+		db_printf("\tlifetime: %u lastseq: %u priv: %p\n",
+		    rt->rt_lifetime, rt->rt_lastmseq, rt->rt_priv);
+		i++;
+	}
+}
+#endif /* IEEE80211_SUPPORT_MESH */
 #endif /* DDB */
