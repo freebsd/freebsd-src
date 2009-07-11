@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.file.c,v 3.35 2006/08/23 15:03:14 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.file.c,v 3.36 2007/07/05 14:13:06 christos Exp $ */
 /*
  * sh.file.c: File completion for csh. This file is not used in tcsh.
  */
@@ -33,7 +33,7 @@
 #include "sh.h"
 #include "ed.h"
 
-RCSID("$tcsh: sh.file.c,v 3.35 2006/08/23 15:03:14 christos Exp $")
+RCSID("$tcsh: sh.file.c,v 3.36 2007/07/05 14:13:06 christos Exp $")
 
 #if defined(FILEC) && defined(TIOCSTI)
 
@@ -234,7 +234,11 @@ pushback(const Char *string)
     (void) ioctl(SHOUT, TCSETAW, (ioctl_t) &tty);
 # endif /* POSIX */
     tty_normal = tty;
-    tty.c_lflag &= ~(ECHOKE | ECHO | ECHOE | ECHOK | ECHONL | ECHOPRT | ECHOCTL);
+    tty.c_lflag &= ~(ECHOKE | ECHO | ECHOE | ECHOK | ECHONL |
+#ifndef __QNXNTO__
+	ECHOPRT |
+#endif
+	ECHOCTL);
 # ifdef POSIX
     (void) xtcsetattr(SHOUT, TCSANOW, &tty);
 # else
@@ -390,7 +394,9 @@ retype(void)
     (void) ioctl(SHOUT, TCGETA, (ioctl_t) &tty);
 # endif /* POSIX */
 
+#ifndef __QNXNTO__
     tty.c_lflag |= PENDIN;
+#endif
 
 # ifdef POSIX
     (void) xtcsetattr(SHOUT, TCSANOW, &tty);
