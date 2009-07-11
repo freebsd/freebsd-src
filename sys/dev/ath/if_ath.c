@@ -939,6 +939,7 @@ ath_vap_create(struct ieee80211com *ic,
 			ic_opmode = IEEE80211_M_HOSTAP;
 		else
 			ic_opmode = ic->ic_opmode;
+		break;
 	default:
 		device_printf(sc->sc_dev, "unknown opmode %d\n", opmode);
 		goto bad;
