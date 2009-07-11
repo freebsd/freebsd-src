@@ -987,7 +987,16 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 			    (rt->rt_gateway->sa_len != gateway->sa_len ||
 				memcmp(rt->rt_gateway, gateway, gateway->sa_len)))
 				error = ESRCH;
-			goto done;
+			else {
+				/*
+				 * remove from tree before returning it
+				 * to the caller
+				 */
+				rn = rnh->rnh_deladdr(dst, netmask, rnh);
+				KASSERT(rt == RNTORT(rn), ("radix node disappeared"));
+				goto gwdelete;
+			}
+			
 		}
 		/*
 		 * use the normal delete code to remove
@@ -1005,6 +1014,7 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 	 */
 	if ((req == RTM_DELETE) && !rt_mpath_deldup(rto, rt))
 		panic ("rtrequest1: rt_mpath_deldup");
+gwdelete:
 	RT_LOCK(rt);
 	RT_ADDREF(rt);
 	if (req == RTM_DELETE) {
