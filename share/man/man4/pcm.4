@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2009
+.Dd July 11, 2009
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -141,6 +141,30 @@ To define default values for the different mixer channels,
 set the channel to the preferred value using hints, e.g.:
 .Va hint.pcm.0.line Ns = Ns Qq Li 0 .
 This will mute the input channel per default.
+.Ss Multichannel Audio
+Multichannel audio, popularly referred to as
+.Dq surround sound
+is supported and enabled by default.
+The FreeBSD multichannel matrix processor supports up to 18 interleaved
+channels, but the limit is currently set to 8 channels (known as 7.1).
+The internal matrix mapping can handle reduction, expansion or
+re-routing of channels.
+This provides a base interface for related multichannel
+.Fn ioctl
+support.
+Works with or without
+.Tn VCHANs .
+Most bridge device drivers are still missing multichannel matrixing support
+, but in most cases this should be trivial to implement.
+Use the
+.Va dev.pcm.%d.[play|rec].vchanformat
+.Xr sysctl(8)
+to adjust the number of channels used.
+The current multichannel interleaved structure and arrangement was
+implemented by inspecting various popular UNIX applications.
+There were no single standard, so much care has been taken to try
+to satisfy each possible scenario, despite the fact that each
+application has its own conflicting standard.
 .Ss EQ
 The Parametric Software Equlizer (EQ) enables the use of
 .Dq tone
@@ -407,6 +431,32 @@ Format for
 mixing.
 All playback paths will be converted to this format before the mixing
 process begins.
+By default only 2 channels are enabled.
+Available options include:
+.Bl -tag -width 2n
+.It s16le:1.0
+Mono
+.It s16le:2.0
+Stereo, 2 channels, (left, right).
+.It s16le:2.1
+3 channels (left, right,  LFE).
+.It s16le:3.0
+3 channels (left, right, rear center).
+.It s16le:4.0
+Quadraphonic, 4 channels (front/rear left and right).
+.It s16le:4.1
+5 channels (4.0 + LFE).
+.It s16le:5.0
+5 channels (4.0 + center).
+.It s16le:5.1
+6 channels (4.0 + center + LFE).
+.It s16le:6.0
+6 channels (4.0 + front/rear center).
+.It s16le:6.1
+7 channels (6.0 + LFE).
+.It s16le:7.1
+8 channels (4.0 + center + LFE + left and right side).
+.El
 .It Va dev.pcm.%d.[play|rec].vchanmode
 .Tn VCHAN
 format/rate selection.
