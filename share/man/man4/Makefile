@@ -131,7 +131,6 @@ MAN=	aac.4 \
 	icmp6.4 \
 	ida.4 \
 	idt.4 \
-	ieee80211.4 \
 	ifmib.4 \
 	igb.4 \
 	igmp.4 \
@@ -216,6 +215,7 @@ MAN=	aac.4 \
 	ncr.4 \
 	ncv.4 \
 	${_ndis.4} \
+	net80211.4 \
 	netgraph.4 \
 	netintro.4 \
 	${_nfe.4} \
