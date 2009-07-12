@@ -32,13 +32,13 @@
 #include <machine/atomic.h>
 #include <machine/pte.h>
 
-/* Cache control options. */
-#define	VM_CACHE_WRITE_BACK		((vm_cache_mode_t)PTE_MA_WB)
-#define	VM_CACHE_UNCACHEABLE		((vm_cache_mode_t)PTE_MA_UC)
-#define	VM_CACHE_UNCACHEABLE_EXPORTED	((vm_cache_mode_t)PTE_MA_UCE)
-#define	VM_CACHE_WRITE_COMBINING	((vm_cache_mode_t)PTE_MA_WC)
-#define	VM_CACHE_NATPAGE		((vm_cache_mode_t)PTE_MA_NATPAGE)
+/* Memory attributes. */
+#define	VM_MEMATTR_WRITE_BACK		((vm_memattr_t)PTE_MA_WB)
+#define	VM_MEMATTR_UNCACHEABLE		((vm_memattr_t)PTE_MA_UC)
+#define	VM_MEMATTR_UNCACHEABLE_EXPORTED	((vm_memattr_t)PTE_MA_UCE)
+#define	VM_MEMATTR_WRITE_COMBINING	((vm_memattr_t)PTE_MA_WC)
+#define	VM_MEMATTR_NATPAGE		((vm_memattr_t)PTE_MA_NATPAGE)
 
-#define	VM_CACHE_DEFAULT		VM_CACHE_WRITE_BACK
+#define	VM_MEMATTR_DEFAULT		VM_MEMATTR_WRITE_BACK
 
 #endif /* !_MACHINE_VM_H_ */

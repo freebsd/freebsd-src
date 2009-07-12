@@ -605,6 +605,7 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
+	m->md.pat_mode = PAT_WRITE_BACK;
 }
 
 #if defined(PAE) && !defined(XEN)
@@ -615,7 +616,7 @@ pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
 	return ((void *)kmem_alloc_contig(kernel_map, bytes, wait, 0x0ULL,
-	    0xffffffffULL, 1, 0, VM_CACHE_DEFAULT));
+	    0xffffffffULL, 1, 0, VM_MEMATTR_DEFAULT));
 }
 #endif
 
