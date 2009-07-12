@@ -1109,12 +1109,15 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	 */
 
 	KASSERT(m != NULL, ("vm_page_alloc: missing page"));
-	KASSERT(m->queue == PQ_NONE, ("vm_page_alloc: page %p has unexpected queue %d",
-	    m, m->queue));
+	KASSERT(m->queue == PQ_NONE,
+	    ("vm_page_alloc: page %p has unexpected queue %d", m, m->queue));
 	KASSERT(m->wire_count == 0, ("vm_page_alloc: page %p is wired", m));
 	KASSERT(m->hold_count == 0, ("vm_page_alloc: page %p is held", m));
 	KASSERT(m->busy == 0, ("vm_page_alloc: page %p is busy", m));
 	KASSERT(m->dirty == 0, ("vm_page_alloc: page %p is dirty", m));
+	KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
+	    ("vm_page_alloc: page %p has unexpected memattr %d", m,
+	    pmap_page_get_memattr(m)));
 	if ((m->flags & PG_CACHED) != 0) {
 		KASSERT(m->valid != 0,
 		    ("vm_page_alloc: cached page %p is invalid", m));
@@ -1157,9 +1160,11 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	m->act_count = 0;
 	mtx_unlock(&vm_page_queue_free_mtx);
 
-	if ((req & VM_ALLOC_NOOBJ) == 0)
+	if (object != NULL) {
+		if (object->memattr != VM_MEMATTR_DEFAULT)
+			pmap_page_set_memattr(m, object->memattr);
 		vm_page_insert(m, object, pindex);
-	else
+	} else
 		m->pindex = pindex;
 
 	/*
@@ -1415,6 +1420,16 @@ vm_page_free_toq(vm_page_t m)
 		m->flags &= ~PG_ZERO;
 		vm_page_enqueue(PQ_HOLD, m);
 	} else {
+		/*
+		 * Restore the default memory attribute to the page.
+		 */
+		if (pmap_page_get_memattr(m) != VM_MEMATTR_DEFAULT)
+			pmap_page_set_memattr(m, VM_MEMATTR_DEFAULT);
+
+		/*
+		 * Insert the page into the physical memory allocator's
+		 * cache/free page queues.
+		 */
 		mtx_lock(&vm_page_queue_free_mtx);
 		m->flags |= PG_FREE;
 		cnt.v_free_count++;
@@ -1662,6 +1677,12 @@ vm_page_cache(vm_page_t m)
 	TAILQ_REMOVE(&object->memq, m, listq);
 	object->resident_page_count--;
 	object->generation++;
+
+	/*
+	 * Restore the default memory attribute to the page.
+	 */
+	if (pmap_page_get_memattr(m) != VM_MEMATTR_DEFAULT)
+		pmap_page_set_memattr(m, VM_MEMATTR_DEFAULT);
 
 	/*
 	 * Insert the page into the object's collection of cached pages

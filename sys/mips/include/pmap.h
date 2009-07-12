@@ -155,7 +155,9 @@ extern vm_paddr_t mips_wired_tlb_physmem_start;
 extern vm_paddr_t mips_wired_tlb_physmem_end;
 extern u_int need_wired_tlb_page_pool;
 
+#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
+#define	pmap_page_set_memattr(m, ma)	(void)0
 
 void pmap_bootstrap(void);
 void *pmap_mapdev(vm_offset_t, vm_size_t);
