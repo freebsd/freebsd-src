@@ -1194,6 +1194,25 @@ in6_purgeaddr(struct ifaddr *ifa)
 		ifa_ref(ifa0);
 	IF_ADDR_UNLOCK(ifp);
 
+	if (!(ia->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+		struct rt_addrinfo info;
+		struct sockaddr_dl null_sdl;
+
+		bzero(&null_sdl, sizeof(null_sdl));
+		null_sdl.sdl_len = sizeof(null_sdl);
+		null_sdl.sdl_family = AF_LINK;
+		null_sdl.sdl_type = V_loif->if_type;
+		null_sdl.sdl_index = V_loif->if_index;
+		bzero(&info, sizeof(info));
+		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
+		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+		error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
+
+		if (error != 0)
+			log(LOG_INFO, "in6_purgeaddr: deletion failed\n");
+	}
+
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
 
@@ -1753,6 +1772,33 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		if (error != 0)
 			return (error);
 		ia->ia_flags |= IFA_ROUTE;
+	}
+
+	/*
+	 * add a loopback route to self
+	 */
+	if (!(ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+		struct rt_addrinfo info;
+		struct rtentry *rt = NULL;
+		static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+
+		bzero(&info, sizeof(info));
+		info.rti_ifp = V_loif;
+		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
+		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+		error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
+
+		if (error == 0 && rt != NULL) {
+			RT_LOCK(rt);
+			((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
+				rt->rt_ifp->if_type;
+			((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
+				rt->rt_ifp->if_index;
+			RT_REMREF(rt);
+			RT_UNLOCK(rt);
+		} else if (error != 0)
+			log(LOG_INFO, "in6_ifinit: insertion failed\n");
 	}
 
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
