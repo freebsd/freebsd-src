@@ -1156,6 +1156,22 @@ Set the age (in seconds) that results from a scan operation will be
 considered valid.
 When scan results are no longer valid and they are needed (e.g. to roam) the
 system will initiate a scan operation to replenish the scan cache.
+.It Dv IEEE80211_IOC_SCAN_REQ
+Request a scan operation using the parameters pointed to by
+.Va i_val .
+The underlying device must be running or
+.Er ENXIO
+will be returned.
+Values for
+.Va sr_duration ,
+.Va sr_mindwell ,
+and
+.Va sr_maxdwell
+shorter than 1 clock tick are rounded up to a tick.
+If more SSID's are supplied than the system is capable of handling
+the extra ones are silently ignored.
+If a scan operation is already in progress the request will be
+(silently) ignored.
 .It Dv IEEE80211_IOC_SCAN_CANCEL
 Cancel any pending/active scan operation.
 .It Dv IEEE80211_IOC_SHORTGI
