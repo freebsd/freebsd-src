@@ -1256,7 +1256,7 @@ tr_transferred:
 		for (n = 0; n != nframes; n++) {
 
 			offset1 = offset0;
-			pc = usbd_xfer_get_frame(xfer, n);
+			pc = usbd_xfer_get_frame(xfer, 0);
 			len = usbd_xfer_frame_len(xfer, n);
 
 			while (len > 0) {
