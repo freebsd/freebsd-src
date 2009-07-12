@@ -72,6 +72,9 @@ struct sackhole {
 struct sackhint {
 	struct sackhole	*nexthole;
 	int		sack_bytes_rexmit;
+
+	int		ispare;		/* explicit pad for 64bit alignment */
+	uint64_t	_pad[2];	/* 1 sacked_bytes, 1 TBD */
 };
 
 struct tcptemp {
@@ -99,6 +102,7 @@ do {								\
  */
 struct tcpcb {
 	struct	tsegqe_head t_segq;	/* segment reassembly queue */
+	void	*t_pspare[2];		/* new reassembly queue */
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
 
@@ -190,10 +194,13 @@ struct tcpcb {
 	int	t_rttlow;		/* smallest observerved RTT */
 	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */
-	void	*t_pspare[3];		/* toe usrreqs / toepcb * / congestion algo / 1 general use */
 	struct toe_usrreqs *t_tu;	/* offload operations vector */
 	void	*t_toe;			/* TOE pcb pointer */
 	int	t_bytes_acked;		/* # bytes acked during current RTT */
+
+	int	t_ispare;		/* explicit pad for 64bit alignment */
+	void	*t_pspare2[6];		/* 2 CC / 4 TBD */
+	uint64_t _pad[12];		/* 7 UTO, 5 TBD (1-2 CC/RTT?) */
 };
 
 /*
@@ -460,6 +467,8 @@ struct	tcpstat {
 	u_long	tcps_ecn_ect1;		/* ECN Capable Transport */
 	u_long	tcps_ecn_shs;		/* ECN successful handshakes */
 	u_long	tcps_ecn_rcwnd;		/* # times ECN reduced the cwnd */
+
+	u_long	_pad[12];		/* 6 UTO, 6 TBD */
 };
 
 #ifdef _KERNEL

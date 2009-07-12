@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090712:
+	Padding has been added to struct tcpcb, sackhint and tcpstat in
+	<netinet/tcp_var.h> to facilitate future MFCs and bug fixes whilst
+	maintainig the ABI. However, this change breaks the ABI, so bump
+	__FreeBSD_version to 800102. User space tools that rely on the size of
+	any of these structs (e.g. sockstat) need to be recompiled.
+
 20090630:
 	The NFS_LEGACYRPC option has been removed along with the old
 	kernel RPC implementation that this option selected. Kernel
