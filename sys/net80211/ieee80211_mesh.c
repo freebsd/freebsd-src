@@ -66,9 +66,8 @@ static int	mesh_select_proto_path(struct ieee80211vap *, const char *);
 static int	mesh_select_proto_metric(struct ieee80211vap *, const char *);
 static void	mesh_vattach(struct ieee80211vap *);
 static int	mesh_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-static __inline void
-		mesh_linkchange(struct ieee80211_node *,
-			    enum ieee80211_mesh_mlstate);
+static void	mesh_linkchange(struct ieee80211_node *,
+		    enum ieee80211_mesh_mlstate);
 static void	mesh_checkid(void *, struct ieee80211_node *);
 static uint32_t	mesh_generateid(struct ieee80211vap *);
 static int	mesh_checkpseq(struct ieee80211vap *,
@@ -2029,7 +2028,7 @@ mesh_peer_timeout_cb(void *arg)
 	}
 }
 
-static __inline int
+static int
 mesh_verify_meshpeerver(struct ieee80211vap *vap, const uint8_t *ie)
 {
 	static const uint8_t peer[4] = IEEE80211_MESHPEERVER_PEER;
@@ -2042,7 +2041,7 @@ mesh_verify_meshpeerver(struct ieee80211vap *vap, const uint8_t *ie)
 	return memcmp(meshpeerver->peerver_proto, peer, 4);
 }
 
-static __inline int
+static int
 mesh_verify_meshid(struct ieee80211vap *vap, const uint8_t *ie)
 {
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
