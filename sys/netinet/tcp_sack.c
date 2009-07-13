@@ -273,7 +273,7 @@ tcp_sackhole_alloc(struct tcpcb *tp, tcp_seq start, tcp_seq end)
 	hole->rxmit = start;
 
 	tp->snd_numholes++;
-	V_tcp_sack_globalholes++;
+	atomic_add_int(&V_tcp_sack_globalholes, 1);
 
 	return hole;
 }
@@ -289,7 +289,7 @@ tcp_sackhole_free(struct tcpcb *tp, struct sackhole *hole)
 	uma_zfree(V_sack_hole_zone, hole);
 
 	tp->snd_numholes--;
-	V_tcp_sack_globalholes--;
+	atomic_subtract_int(&V_tcp_sack_globalholes, 1);
 
 	KASSERT(tp->snd_numholes >= 0, ("tp->snd_numholes >= 0"));
 	KASSERT(V_tcp_sack_globalholes >= 0, ("tcp_sack_globalholes >= 0"));
