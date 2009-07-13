@@ -142,7 +142,7 @@ struct ciss_request
 				 / sizeof(struct ciss_sg_entry))
 
 /* XXX Prep for increasing max i/o */
-#define CISS_MAX_SG_ELEMENTS   33
+#define CISS_MAX_SG_ELEMENTS   17
 
 /*
  * Per-logical-drive data.
