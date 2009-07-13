@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090709: msgctl.3 msgget.3 msgrcv.3 msgsnd.3 manual pages moved
+OLD_FILES+=usr/share/man/man3/msgctl.3.gz
+OLD_FILES+=usr/share/man/man3/msgget.3.gz
+OLD_FILES+=usr/share/man/man3/msgrcv.3.gz
+OLD_FILES+=usr/share/man/man3/msgsnd.3.gz
 # 20090630: old kernel RPC implementation removal
 OLD_FILES+=usr/include/nfs/rpcv2.h
 # 20090624: update usbdi(9)
