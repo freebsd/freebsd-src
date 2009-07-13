@@ -83,11 +83,11 @@ static periph_init_t probe_periph_init;
 
 static struct periph_driver probe_driver =
 {
-	probe_periph_init, "probe",
+	probe_periph_init, "aprobe",
 	TAILQ_HEAD_INITIALIZER(probe_driver.units)
 };
 
-PERIPHDRIVER_DECLARE(probe, probe_driver);
+PERIPHDRIVER_DECLARE(aprobe, probe_driver);
 
 typedef enum {
 	PROBE_RESET,
@@ -1311,7 +1311,7 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 		request_ccb->crcn.flags = flags;
 	}
 
-	if ((old_periph = cam_periph_find(path, "probe")) != NULL) {
+	if ((old_periph = cam_periph_find(path, "aprobe")) != NULL) {
 		probe_softc *softc;
 
 		softc = (probe_softc *)old_periph->softc;
@@ -1319,7 +1319,7 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 				  periph_links.tqe);
 	} else {
 		status = cam_periph_alloc(proberegister, NULL, probecleanup,
-					  probestart, "probe",
+					  probestart, "aprobe",
 					  CAM_PERIPH_BIO,
 					  request_ccb->ccb_h.path, NULL, 0,
 					  request_ccb);
