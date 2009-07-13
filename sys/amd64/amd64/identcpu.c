@@ -102,6 +102,7 @@ static struct {
 } cpu_vendors[] = {
 	{ INTEL_VENDOR_ID,	CPU_VENDOR_INTEL },	/* GenuineIntel */
 	{ AMD_VENDOR_ID,	CPU_VENDOR_AMD },	/* AuthenticAMD */
+	{ CENTAUR_VENDOR_ID,	CPU_VENDOR_CENTAUR },	/* CentaurHauls */
 };
 
 void
@@ -366,6 +367,12 @@ printcpuinfo(void)
 				    AMD64_CPU_MODEL(cpu_id) >= 0xe) ||
 				    (AMD64_CPU_FAMILY(cpu_id) == 0xf &&
 				    AMD64_CPU_MODEL(cpu_id) >= 0x3))
+					tsc_is_invariant = 1;
+				break;
+			case CPU_VENDOR_CENTAUR:
+				if (AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
+				    AMD64_CPU_MODEL(cpu_id) >= 0xf &&
+				    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 					tsc_is_invariant = 1;
 				break;
 			}

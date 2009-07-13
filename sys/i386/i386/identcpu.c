@@ -603,6 +603,9 @@ printcpuinfo(void)
 		case 0x6d0:
 			strcpy(cpu_model, "VIA C7 Esther");
 			break;
+		case 0x6f0:
+			strcpy(cpu_model, "VIA Nano");
+			break;
 		default:
 			strcpy(cpu_model, "VIA/IDT Unknown");
 		}
@@ -853,6 +856,9 @@ printcpuinfo(void)
 				);
 			}
 
+			if (cpu_vendor_id == CPU_VENDOR_CENTAUR)
+				print_via_padlock_info();
+
 			if ((cpu_feature & CPUID_HTT) &&
 			    cpu_vendor_id == CPU_VENDOR_AMD)
 				cpu_feature &= ~CPUID_HTT;
@@ -870,6 +876,12 @@ printcpuinfo(void)
 				break;
 			case CPU_VENDOR_INTEL:
 				if (amd_pminfo & AMDPM_TSC_INVARIANT)
+					tsc_is_invariant = 1;
+				break;
+			case CPU_VENDOR_CENTAUR:
+				if (I386_CPU_FAMILY(cpu_id) == 0x6 &&
+				    I386_CPU_MODEL(cpu_id) >= 0xf &&
+				    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 					tsc_is_invariant = 1;
 				break;
 			}
@@ -906,8 +918,6 @@ printcpuinfo(void)
 			printf("\n  CPU cache: write-through mode");
 #endif
 	}
-	if (cpu_vendor_id == CPU_VENDOR_CENTAUR)
-		print_via_padlock_info();
 
 	/* Avoid ugly blank lines: only print newline when we have to. */
 	if (*cpu_vendor || cpu_id)
@@ -1559,6 +1569,7 @@ print_via_padlock_info(void)
 			return;
 	case 0x6a0:
 	case 0x6d0:
+	case 0x6f0:
 		break;
 	default:
 		return;
