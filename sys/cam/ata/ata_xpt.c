@@ -1204,7 +1204,7 @@ ata_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				    scan_info->request_ccb->ccb_h.path, 1);
 				cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 				cts.type = CTS_TYPE_CURRENT_SETTINGS;
-				cts.xport_specific.sata.pm_present = 1;
+				cts.xport_specific.sata.pm_present = 0;
 				cts.xport_specific.sata.valid = CTS_SATA_VALID_PM;
 				xpt_action((union ccb *)&cts);
 			}
