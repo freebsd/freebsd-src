@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 11, 2009
+.Dd July 13, 2009
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -146,13 +146,14 @@ Multichannel audio, popularly referred to as
 .Dq surround sound
 is supported and enabled by default.
 The FreeBSD multichannel matrix processor supports up to 18 interleaved
-channels, but the limit is currently set to 8 channels (known as 7.1).
+channels, but the limit is currently set to 8 channels (as commonly used
+for 7.1 surround sound).
 The internal matrix mapping can handle reduction, expansion or
 re-routing of channels.
 This provides a base interface for related multichannel
 .Fn ioctl
 support.
-Works with or without
+Multichannel audio works both with and without
 .Tn VCHANs .
 Most bridge device drivers are still missing multichannel matrixing support
 , but in most cases this should be trivial to implement.
@@ -437,9 +438,9 @@ Available options include:
 .It s16le:1.0
 Mono
 .It s16le:2.0
-Stereo, 2 channels, (left, right).
+Stereo, 2 channels (left, right).
 .It s16le:2.1
-3 channels (left, right,  LFE).
+3 channels (left, right, LFE).
 .It s16le:3.0
 3 channels (left, right, rear center).
 .It s16le:4.0
