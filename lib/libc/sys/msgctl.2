@@ -31,8 +31,8 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd April 3, 2008
-.Dt MSGCTL 3
+.Dd July 9, 2009
+.Dt MSGCTL 2
 .Os
 .Sh NAME
 .Nm msgctl
@@ -144,9 +144,9 @@ values in the data structure associated with the queue can do this.
 .El
 .Pp
 The permission to read from or write to a message queue (see
-.Xr msgsnd 3
+.Xr msgsnd 2
 and
-.Xr msgrcv 3 )
+.Xr msgrcv 2 )
 is determined by the
 .Va msg_perm.mode
 field in the same way as is
@@ -202,9 +202,9 @@ argument
 specifies an invalid address.
 .El
 .Sh SEE ALSO
-.Xr msgget 3 ,
-.Xr msgrcv 3 ,
-.Xr msgsnd 3
+.Xr msgget 2 ,
+.Xr msgrcv 2 ,
+.Xr msgsnd 2
 .Sh HISTORY
 Message queues appeared in the first release of
 .At V .

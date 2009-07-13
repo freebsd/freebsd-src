@@ -31,8 +31,8 @@
 .\" $FreeBSD$
 .\"
 .\"/
-.Dd August 17, 1995
-.Dt MSGGET 3
+.Dd July 9, 2009
+.Dt MSGGET 2
 .Os
 .Sh NAME
 .Nm msgget
@@ -67,7 +67,7 @@ bit is set in
 If a new message queue is created, the data structure associated with it (the
 .Va msqid_ds
 structure, see
-.Xr msgctl 3 )
+.Xr msgctl 2 )
 is initialized as follows:
 .Bl -bullet
 .It
@@ -133,9 +133,9 @@ and no message queue associated with
 was found.
 .El
 .Sh SEE ALSO
-.Xr msgctl 3 ,
-.Xr msgrcv 3 ,
-.Xr msgsnd 3
+.Xr msgctl 2 ,
+.Xr msgrcv 2 ,
+.Xr msgsnd 2
 .Sh HISTORY
 Message queues appeared in the first release of
 .At V .
