@@ -42,6 +42,12 @@ struct  filestat {
 	mode_t	mode;
 	u_long	size;
 	dev_t	rdev;
+	int	vtype;
+	int	type;
+	char	*mntdir;
+	int	flags;
+	int	fflags;
+	int	fd;
 };
 
 extern int vflg;

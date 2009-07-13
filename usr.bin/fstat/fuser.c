@@ -148,7 +148,7 @@ struct {
 	
 /* Filesystem-specific handlers */
 #define FSTYPE(fst) {#fst, fst##_filestat}
-struct {
+static struct {
 	const char	*tag;
 	int		(*handler)(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
 } fstypes[] = {
