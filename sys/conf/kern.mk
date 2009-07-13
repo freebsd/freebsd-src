@@ -90,7 +90,7 @@ INLINE_LIMIT?=	15000
 # disable MIPS DSP ASE Instruction set.
 #
 .if ${MACHINE_ARCH} == "mips"
-CFLAGS+=	-msoft-float -mno-dsp
+CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
 .endif
 
