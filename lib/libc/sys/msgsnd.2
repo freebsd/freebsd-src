@@ -31,8 +31,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2006
-.Dt MSGSND 3
+.Dd July 9, 2009
+.Dt MSGSND 2
 .Os
 .Sh NAME
 .Nm msgsnd
@@ -63,7 +63,7 @@ consist of the following members:
 .Pp
 .Va mtype
 is an integer greater than 0 that can be used for selecting messages (see
-.Xr msgrcv 3 ) ,
+.Xr msgrcv 2 ) ,
 .Va mtext
 is an array of
 .Fa msgsz
@@ -78,7 +78,7 @@ If the number of bytes already on the message queue plus
 is bigger than the maximum number of bytes on the message queue
 .Pf ( Va msg_qbytes ,
 see
-.Xr msgctl 3 ) ,
+.Xr msgctl 2 ) ,
 or the number of messages on all queues system-wide is already equal to
 the system limit,
 .Fa msgflg
