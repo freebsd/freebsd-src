@@ -205,6 +205,7 @@ kern/link_elf_obj.c		standard
 pci/agp_amd64.c			optional	agp
 pci/agp_i810.c			optional	agp
 pci/agp_intel.c			optional	agp
+pci/agp_via.c			optional	agp
 #
 # IA32 binary support
 #

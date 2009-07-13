@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
+#include <machine/specialreg.h>
 #include <dev/pci/pcivar.h>
 
 /* Fields in address for Intel MSI messages. */
@@ -212,9 +213,18 @@ msi_init(void)
 {
 
 	/* Check if we have a supported CPU. */
-	if (!(cpu_vendor_id == CPU_VENDOR_INTEL ||
-	    cpu_vendor_id == CPU_VENDOR_AMD))
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_INTEL:
+	case CPU_VENDOR_AMD:
+		break;
+	case CPU_VENDOR_CENTAUR:
+		if (I386_CPU_FAMILY(cpu_id) == 0x6 &&
+		    I386_CPU_MODEL(cpu_id) >= 0xf)
+			break;
+		/* FALLTHROUGH */
+	default:
 		return;
+	}
 
 	msi_enabled = 1;
 	intr_register_pic(&msi_pic);
