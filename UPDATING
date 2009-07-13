@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090713:
+	The TOE interface to the TCP syncache has been modified to remove struct
+	tcpopt (<netinet/tcp_var.h>) from the ABI of the network stack.  The
+	cxgb driver is the only TOE consumer affected by this change, and needs
+	to be recompiled along with the kernel. As this change breaks the ABI,
+	bump __FreeBSD_version to 800103.
+
 20090712:
 	Padding has been added to struct tcpcb, sackhint and tcpstat in
 	<netinet/tcp_var.h> to facilitate future MFCs and bug fixes whilst

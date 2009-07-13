@@ -943,14 +943,20 @@ failed:
 }
 
 int
-tcp_offload_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
+tcp_offload_syncache_expand(struct in_conninfo *inc, struct toeopt *toeo,
     struct tcphdr *th, struct socket **lsop, struct mbuf *m)
 {
 	INIT_VNET_INET(curvnet);
+	struct tcpopt to;
 	int rc;
+
+	bzero(&to, sizeof(struct tcpopt));
+	to.to_mss = toeo->to_mss;
+	to.to_wscale = toeo->to_wscale;
+	to.to_flags = toeo->to_flags;
 	
 	INP_INFO_WLOCK(&V_tcbinfo);
-	rc = syncache_expand(inc, to, th, lsop, m);
+	rc = syncache_expand(inc, &to, th, lsop, m);
 	INP_INFO_WUNLOCK(&V_tcbinfo);
 
 	return (rc);
@@ -1437,15 +1443,22 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 }
 
 void
-tcp_offload_syncache_add(struct in_conninfo *inc, struct tcpopt *to,
+tcp_offload_syncache_add(struct in_conninfo *inc, struct toeopt *toeo,
     struct tcphdr *th, struct inpcb *inp, struct socket **lsop,
     struct toe_usrreqs *tu, void *toepcb)
 {
 	INIT_VNET_INET(curvnet);
+	struct tcpopt to;
+
+	bzero(&to, sizeof(struct tcpopt));
+	to.to_mss = toeo->to_mss;
+	to.to_wscale = toeo->to_wscale;
+	to.to_flags = toeo->to_flags;
 
 	INP_INFO_WLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
-	_syncache_add(inc, to, th, inp, lsop, NULL, tu, toepcb);
+
+	_syncache_add(inc, &to, th, inp, lsop, NULL, tu, toepcb);
 }
 
 /*
