@@ -347,8 +347,11 @@ wakeup(void *ident)
 	sleepq_lock(ident);
 	wakeup_swapper = sleepq_broadcast(ident, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(ident);
-	if (wakeup_swapper)
+	if (wakeup_swapper) {
+		KASSERT(ident != &proc0,
+		    ("wakeup and wakeup_swapper and proc0"));
 		kick_proc0();
+	}
 }
 
 /*
