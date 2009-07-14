@@ -337,6 +337,7 @@ FBSD_1.0 {
 };
 
 FBSD_1.1 {
+	closefrom;
 	cpuset;
 	cpuset_getid;
 	cpuset_setid;
@@ -458,6 +459,8 @@ FBSDprivate_1.0 {
 	__sys_clock_settime;
 	_close;
 	__sys_close;
+	_closefrom;
+	__sys_closefrom;
 	_connect;
 	__sys_connect;
 	_cpuset;

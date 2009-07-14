@@ -854,3 +854,24 @@
 				    uint32_t idlo, uint32_t idhi, \
 				    size_t cpusetsize, \
 				    const cpuset_t *mask); }
+489	AUE_NULL	UNIMPL	faccessat
+490	AUE_NULL	UNIMPL	fchmodat
+491	AUE_NULL	UNIMPL	fchownat
+492	AUE_NULL	UNIMPL	freebsd32_fexecve
+493	AUE_NULL	UNIMPL	freebsd32_fstatat
+494	AUE_NULL	UNIMPL	freebsd32_futimesat
+495	AUE_NULL	UNIMPL	linkat
+496	AUE_NULL	UNIMPL	mkdirat
+497	AUE_NULL	UNIMPL	mkfifoat
+498	AUE_NULL	UNIMPL	mknodat
+499	AUE_NULL	UNIMPL	openat
+500	AUE_NULL	UNIMPL	readlinkat
+501	AUE_NULL	UNIMPL	renameat
+502	AUE_NULL	UNIMPL	symlinkat
+503	AUE_NULL	UNIMPL	unlinkat
+504	AUE_NULL	UNIMPL	posix_openpt
+505	AUE_NULL	UNIMPL	gssd_syscall
+506	AUE_NULL	UNIMPL	freebsd32_jail_get
+507	AUE_NULL	UNIMPL	freebsd32_jail_set
+508	AUE_NULL	UNIMPL	jail_remove
+509	AUE_CLOSEFROM	NOPROTO	{ int closefrom(int lowfd); }
