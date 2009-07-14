@@ -504,6 +504,22 @@ thread_unlink(struct thread *td)
 	/* Must  NOT clear links to proc! */
 }
 
+static int
+calc_remaining(struct proc *p, int mode)
+{
+	int remaining;
+
+	if (mode == SINGLE_EXIT)
+		remaining = p->p_numthreads;
+	else if (mode == SINGLE_BOUNDARY)
+		remaining = p->p_numthreads - p->p_boundary_count;
+	else if (mode == SINGLE_NO_EXIT)
+		remaining = p->p_numthreads - p->p_suspcount;
+	else
+		panic("calc_remaining: wrong mode %d", mode);
+	return (remaining);
+}
+
 /*
  * Enforce single-threading.
  *
@@ -551,12 +567,7 @@ thread_single(int mode)
 	p->p_flag |= P_STOPPED_SINGLE;
 	PROC_SLOCK(p);
 	p->p_singlethread = td;
-	if (mode == SINGLE_EXIT)
-		remaining = p->p_numthreads;
-	else if (mode == SINGLE_BOUNDARY)
-		remaining = p->p_numthreads - p->p_boundary_count;
-	else
-		remaining = p->p_numthreads - p->p_suspcount;
+	remaining = calc_remaining(p, mode);
 	while (remaining != 1) {
 		if (P_SHOULDSTOP(p) != P_STOPPED_SINGLE)
 			goto stopme;
@@ -611,12 +622,7 @@ thread_single(int mode)
 		}
 		if (wakeup_swapper)
 			kick_proc0();
-		if (mode == SINGLE_EXIT)
-			remaining = p->p_numthreads;
-		else if (mode == SINGLE_BOUNDARY)
-			remaining = p->p_numthreads - p->p_boundary_count;
-		else
-			remaining = p->p_numthreads - p->p_suspcount;
+		remaining = calc_remaining(p, mode);
 
 		/*
 		 * Maybe we suspended some threads.. was it enough?
@@ -630,12 +636,7 @@ stopme:
 		 * In the mean time we suspend as well.
 		 */
 		thread_suspend_switch(td);
-		if (mode == SINGLE_EXIT)
-			remaining = p->p_numthreads;
-		else if (mode == SINGLE_BOUNDARY)
-			remaining = p->p_numthreads - p->p_boundary_count;
-		else
-			remaining = p->p_numthreads - p->p_suspcount;
+		remaining = calc_remaining(p, mode);
 	}
 	if (mode == SINGLE_EXIT) {
 		/*
