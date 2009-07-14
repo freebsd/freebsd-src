@@ -5,7 +5,7 @@
 
 PORTNAME=      jbuild
 PORTDIRNAME=	${PORTNAME}
-PORTVERSION=   12
+PORTVERSION=   13
 CATEGORIES=    devel
 
 MAINTAINER=    rodrigc@FreeBSD.org

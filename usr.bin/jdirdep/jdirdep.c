@@ -708,12 +708,6 @@ do_dirdep(const char *srctop, const char *curdir, const char *srcrel, const char
 		/* Whack the trailing newline. */
 		bufr[strlen(bufr) - 1] = '\0';
 
-		if (bufr[0] != '#' && strstr(bufr, "<bsd.dirdep.mk>") != NULL) {
-			f_dirdep = 0;
-			f_rewrite = 0;
-			break;
-		}
-
 		if (bufr[0] != '#' && strstr(bufr, "<bsd.subdir.mk>") != NULL) {
 			f_dirdep = 0;
 			f_rewrite = 0;
