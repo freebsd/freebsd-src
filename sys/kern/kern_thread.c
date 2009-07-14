@@ -598,18 +598,17 @@ thread_single(int mode)
 						wakeup_swapper |=
 						    sleepq_abort(td2, ERESTART);
 					break;
+				case SINGLE_NO_EXIT:
+					if (TD_IS_SUSPENDED(td2) &&
+					    !(td2->td_flags & TDF_BOUNDARY))
+						wakeup_swapper |=
+						    thread_unsuspend_one(td2);
+					if (TD_ON_SLEEPQ(td2) &&
+					    (td2->td_flags & TDF_SINTR))
+						wakeup_swapper |=
+						    sleepq_abort(td2, ERESTART);
+					break;
 				default:
-					if (TD_IS_SUSPENDED(td2)) {
-						thread_unlock(td2);
-						continue;
-					}
-					/*
-					 * maybe other inhibited states too?
-					 */
-					if ((td2->td_flags & TDF_SINTR) &&
-					    (td2->td_inhibitors &
-					    (TDI_SLEEPING | TDI_SWAPPED)))
-						thread_suspend_one(td2);
 					break;
 				}
 			}
