@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090714:
+	Due to changes in the implementation of virtual network stack
+	support, all network-related kernel modules must be recompiled.
+	As this change breaks the ABI, bump __FreeBSD_version to 800104.
+
 20090713:
 	The TOE interface to the TCP syncache has been modified to remove struct
 	tcpopt (<netinet/tcp_var.h>) from the ABI of the network stack.  The

@@ -108,25 +108,26 @@ static int	vnet_loif_iattach(const void *);
 static int	vnet_loif_idetach(const void *);
 #endif
 
-#ifdef VIMAGE_GLOBALS
-struct ifnet *loif;			/* Used externally */
-#endif
+VNET_DEFINE(struct ifnet *, loif);	/* Used externally */
 
 #ifdef VIMAGE
+static VNET_DEFINE(struct ifc_simple_data *, lo_cloner_data);
+static VNET_DEFINE(struct if_clone *, lo_cloner);
+#define	V_lo_cloner_data	VNET_GET(lo_cloner_data)
+#define	V_lo_cloner		VNET_GET(lo_cloner)
+
 MALLOC_DEFINE(M_LO_CLONER, "lo_cloner", "lo_cloner");
 #endif
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 static const vnet_modinfo_t vnet_loif_modinfo = {
 	.vmi_id		= VNET_MOD_LOIF,
 	.vmi_dependson	= VNET_MOD_IF_CLONE,
 	.vmi_name	= "loif",
 	.vmi_iattach	= vnet_loif_iattach,
-#ifdef VIMAGE
 	.vmi_idetach	= vnet_loif_idetach
-#endif
 };
-#endif /* !VIMAGE_GLOBALS */
+#endif
 
 IFC_SIMPLE_DECLARE(lo, 1);
 
@@ -147,7 +148,6 @@ lo_clone_destroy(struct ifnet *ifp)
 static int
 lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
 	ifp = if_alloc(IFT_LOOP);
@@ -173,10 +173,7 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 static int
 vnet_loif_iattach(const void *unused __unused)
 {
-	INIT_VNET_NET(curvnet);
 
-	V_loif = NULL;
-	
 #ifdef VIMAGE
 	V_lo_cloner = malloc(sizeof(*V_lo_cloner), M_LO_CLONER,
 	    M_WAITOK | M_ZERO);
@@ -196,7 +193,6 @@ vnet_loif_iattach(const void *unused __unused)
 static int
 vnet_loif_idetach(const void *unused __unused)
 {
-	INIT_VNET_NET(curvnet);
 
 	if_clone_detach(V_lo_cloner);
 	free(V_lo_cloner, M_LO_CLONER);
@@ -213,7 +209,7 @@ loop_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 		vnet_mod_register(&vnet_loif_modinfo);
 #else
 		vnet_loif_iattach(NULL);
@@ -309,7 +305,6 @@ looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 int
 if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 {
-	INIT_VNET_NET(ifp->if_vnet);
 	int isr;
 
 	M_ASSERTPKTHDR(m);

@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
-#include <netinet6/vinet6.h>
 
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
@@ -91,10 +90,11 @@ static void nd6_dad_ns_output(struct dadq *, struct ifaddr *);
 static void nd6_dad_ns_input(struct ifaddr *);
 static void nd6_dad_na_input(struct ifaddr *);
 
-#ifdef VIMAGE_GLOBALS
-int dad_ignore_ns;
-int dad_maxtry;
-#endif
+VNET_DEFINE(int, dad_ignore_ns);
+VNET_DEFINE(int, dad_maxtry);
+
+#define	V_dad_ignore_ns			VNET_GET(dad_ignore_ns)
+#define	V_dad_maxtry			VNET_GET(dad_maxtry)
 
 /*
  * Input a Neighbor Solicitation Message.
@@ -105,7 +105,6 @@ int dad_maxtry;
 void
 nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct nd_neighbor_solicit *nd_ns;
@@ -389,7 +388,6 @@ void
 nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6, 
     const struct in6_addr *taddr6, struct llentry *ln, int dad)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct mbuf *m;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_solicit *nd_ns;
@@ -600,7 +598,6 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 void
 nd6_na_input(struct mbuf *m, int off, int icmp6len)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct nd_neighbor_advert *nd_na;
@@ -929,7 +926,6 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
     const struct in6_addr *taddr6, u_long flags, int tlladdr,
     struct sockaddr *sdl0)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct mbuf *m;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
@@ -1128,15 +1124,15 @@ struct dadq {
 	struct vnet *dad_vnet;
 };
 
-#ifdef VIMAGE_GLOBALS
-static TAILQ_HEAD(, dadq) dadq;
-int dad_init;
-#endif
+static VNET_DEFINE(TAILQ_HEAD(, dadq), dadq);
+#define	V_dadq				VNET_GET(dadq)
+
+VNET_DEFINE(int, dad_init);
+#define	V_dad_init			VNET_GET(dad_init)
 
 static struct dadq *
 nd6_dad_find(struct ifaddr *ifa)
 {
-	INIT_VNET_INET6(curvnet);
 	struct dadq *dp;
 
 	for (dp = V_dadq.tqh_first; dp; dp = dp->dad_list.tqe_next) {
@@ -1167,7 +1163,6 @@ nd6_dad_stoptimer(struct dadq *dp)
 void
 nd6_dad_start(struct ifaddr *ifa, int delay)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -1253,7 +1248,6 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 void
 nd6_dad_stop(struct ifaddr *ifa)
 {
-	INIT_VNET_INET6(curvnet);
 	struct dadq *dp;
 
 	if (!V_dad_init)
@@ -1276,7 +1270,6 @@ static void
 nd6_dad_timer(struct dadq *dp)
 {
 	CURVNET_SET(dp->dad_vnet);
-	INIT_VNET_INET6(curvnet);
 	int s;
 	struct ifaddr *ifa = dp->dad_ifa;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
@@ -1377,7 +1370,6 @@ done:
 void
 nd6_dad_duplicated(struct ifaddr *ifa)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct ifnet *ifp;
 	struct dadq *dp;
@@ -1467,7 +1459,6 @@ nd6_dad_ns_output(struct dadq *dp, struct ifaddr *ifa)
 static void
 nd6_dad_ns_input(struct ifaddr *ifa)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 	struct ifnet *ifp;
 	const struct in6_addr *taddr6;

@@ -65,10 +65,9 @@
 #ifdef _KERNEL
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet6_tcp6);
-#endif
 
-#ifdef VIMAGE_GLOBALS
-extern	int tcp_v6mssdflt;	/* XXX */
+VNET_DECLARE(int, tcp_v6mssdflt);	/* XXX */
+#define	V_tcp_v6mssdflt			VNET_GET(tcp_v6mssdflt)
 #endif
 
 struct	ip6_hdr;

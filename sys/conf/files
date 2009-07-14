@@ -1989,7 +1989,7 @@ kern/kern_time.c		standard
 kern/kern_timeout.c		standard
 kern/kern_umtx.c		standard
 kern/kern_uuid.c		standard
-kern/kern_vimage.c		standard
+kern/kern_vimage.c		optional vimage
 kern/kern_xxx.c			standard
 kern/link_elf.c			standard
 kern/linker_if.m		standard
@@ -2231,6 +2231,7 @@ net/route.c			standard
 net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | sppp | \
 					 netgraph_sppp
+net/vnet.c			optional vimage
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
 					 ddb_ctf

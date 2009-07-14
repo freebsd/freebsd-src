@@ -97,7 +97,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #include <netinet/tcp_var.h>
-#include <netinet/vinet.h>
 
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/in6_pcb.h>
@@ -106,7 +105,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
-#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -115,16 +113,22 @@ __FBSDID("$FreeBSD$");
 
 extern struct domain inet6domain;
 
-#ifdef VIMAGE_GLOBALS
-extern struct inpcbinfo ripcbinfo;
-extern struct inpcbhead ripcb;
-extern int icmp6errppslim;
-extern int icmp6_nodeinfo;
+VNET_DECLARE(struct inpcbinfo, ripcbinfo);
+VNET_DECLARE(struct inpcbhead, ripcb);
+VNET_DECLARE(int, icmp6errppslim);
+VNET_DECLARE(int, icmp6_nodeinfo);
 
-struct icmp6stat icmp6stat;
-static int icmp6errpps_count;
-static struct timeval icmp6errppslim_last;
-#endif
+#define	V_ripcbinfo			VNET_GET(ripcbinfo)
+#define	V_ripcb				VNET_GET(ripcb)
+#define	V_icmp6errppslim		VNET_GET(icmp6errppslim)
+#define	V_icmp6_nodeinfo		VNET_GET(icmp6_nodeinfo)
+
+VNET_DEFINE(struct icmp6stat, icmp6stat);
+static VNET_DEFINE(int, icmp6errpps_count);
+static VNET_DEFINE(struct timeval, icmp6errppslim_last);
+
+#define	V_icmp6errpps_count	VNET_GET(icmp6errpps_count)
+#define	V_icmp6errppslim_last	VNET_GET(icmp6errppslim_last)
 
 static void icmp6_errcount(struct icmp6errstat *, int, int);
 static int icmp6_rip6_input(struct mbuf **, int);
@@ -144,7 +148,6 @@ static int icmp6_notify_error(struct mbuf **, int, int, int);
 void
 icmp6_init(void)
 {
-	INIT_VNET_INET6(curvnet);
 
 	V_icmp6errpps_count = 0;
 }
@@ -213,7 +216,6 @@ void
 icmp6_error2(struct mbuf *m, int type, int code, int param,
     struct ifnet *ifp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 
 	if (ifp == NULL)
@@ -245,7 +247,6 @@ icmp6_error2(struct mbuf *m, int type, int code, int param,
 void
 icmp6_error(struct mbuf *m, int type, int code, int param)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *oip6, *nip6;
 	struct icmp6_hdr *icmp6;
 	u_int preplen;
@@ -400,7 +401,6 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 int
 icmp6_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp, *n;
 	struct ifnet *ifp;
 	struct ip6_hdr *ip6, *nip6;
@@ -884,7 +884,6 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 static int
 icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct icmp6_hdr *icmp6;
 	struct ip6_hdr *eip6;
@@ -1116,7 +1115,6 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 void
 icmp6_mtudisc_update(struct ip6ctlparam *ip6cp, int validated)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_addr *dst = ip6cp->ip6c_finaldst;
 	struct icmp6_hdr *icmp6 = ip6cp->ip6c_icmp6;
 	struct mbuf *m = ip6cp->ip6c_m;	/* will be necessary for scope issue */
@@ -1181,7 +1179,6 @@ icmp6_mtudisc_update(struct ip6ctlparam *ip6cp, int validated)
 static struct mbuf *
 ni6_input(struct mbuf *m, int off)
 {
-	INIT_VNET_INET6(curvnet);
 	struct icmp6_nodeinfo *ni6, *nni6;
 	struct mbuf *n = NULL;
 	struct prison *pr;
@@ -1673,8 +1670,6 @@ static int
 ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
     struct in6_addr *subj)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp;
 	struct in6_ifaddr *ifa6;
 	struct ifaddr *ifa;
@@ -1768,8 +1763,6 @@ static int
 ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
     struct ifnet *ifp0, int resid)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp = ifp0 ? ifp0 : TAILQ_FIRST(&V_ifnet);
 	struct in6_ifaddr *ifa6;
 	struct ifaddr *ifa;
@@ -1911,8 +1904,6 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 static int
 icmp6_rip6_input(struct mbuf **mp, int off)
 {
-	INIT_VNET_INET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct inpcb *in6p;
@@ -2073,7 +2064,6 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 void
 icmp6_reflect(struct mbuf *m, size_t off)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 	struct icmp6_hdr *icmp6;
 	struct in6_ifaddr *ia = NULL;
@@ -2265,7 +2255,6 @@ icmp6_redirect_diag(struct in6_addr *src6, struct in6_addr *dst6,
 void
 icmp6_redirect_input(struct mbuf *m, int off)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct nd_redirect *nd_rd;
@@ -2473,7 +2462,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 void
 icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp;	/* my outgoing interface */
 	struct in6_addr *ifp_ll6;
 	struct in6_addr *router_ll6;
@@ -2843,7 +2831,6 @@ static int
 icmp6_ratelimit(const struct in6_addr *dst, const int type,
     const int code)
 {
-	INIT_VNET_INET6(curvnet);
 	int ret;
 
 	ret = 0;	/* okay to send */

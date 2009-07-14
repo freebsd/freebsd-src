@@ -58,11 +58,6 @@ struct pfkeystat {
 	u_quad_t sockerr;		/* # of socket related errors */
 };
 
-struct key_cb {
-	int key_count;
-	int any_count;
-};
-
 #define KEY_SENDUP_ONE		0
 #define KEY_SENDUP_ALL		1
 #define KEY_SENDUP_REGISTERED	2
@@ -74,7 +69,8 @@ struct keycb {
 	int kp_registered;	/* registered socket */
 };
 
-extern struct pfkeystat pfkeystat;
+VNET_DECLARE(struct pfkeystat, pfkeystat);
+#define	V_pfkeystat		VNET_GET(pfkeystat)
 
 extern int key_output(struct mbuf *m, struct socket *so);
 extern int key_usrreq __P((struct socket *,

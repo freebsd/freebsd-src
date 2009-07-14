@@ -212,11 +212,10 @@ NETGRAPH_INIT(iface, &typestruct);
 static vnet_attach_fn ng_iface_iattach;
 static vnet_detach_fn ng_iface_idetach;
 
-#ifdef VIMAGE_GLOBALS
-static struct unrhdr	*ng_iface_unit;
-#endif
+static VNET_DEFINE(struct unrhdr *, ng_iface_unit);
+#define	V_ng_iface_unit			VNET_GET(ng_iface_unit)
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 static vnet_modinfo_t vnet_ng_iface_modinfo = {
 	.vmi_id		= VNET_MOD_NG_IFACE,
 	.vmi_name	= "ng_iface",
@@ -542,7 +541,6 @@ ng_iface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 static int
 ng_iface_constructor(node_p node)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	struct ifnet *ifp;
 	priv_p priv;
 
@@ -806,7 +804,6 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 static int
 ng_iface_shutdown(node_p node)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/*
@@ -852,14 +849,14 @@ ng_iface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 		vnet_mod_register(&vnet_ng_iface_modinfo);
 #else
 		ng_iface_iattach(NULL);
 #endif
 		break;
 	case MOD_UNLOAD:
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 		vnet_mod_deregister(&vnet_ng_iface_modinfo);
 #else
 		ng_iface_idetach(NULL);
@@ -874,7 +871,6 @@ ng_iface_mod_event(module_t mod, int event, void *data)
 
 static int ng_iface_iattach(const void *unused)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 
 	V_ng_iface_unit = new_unrhdr(0, 0xffff, NULL);
 
@@ -883,7 +879,6 @@ static int ng_iface_iattach(const void *unused)
 
 static int ng_iface_idetach(const void *unused)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 
 	delete_unrhdr(V_ng_iface_unit);
 

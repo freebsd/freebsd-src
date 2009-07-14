@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
-#include <netinet/vinet.h>
 
 int	tcp_keepinit;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINIT, keepinit, CTLTYPE_INT|CTLFLAG_RW,
@@ -131,7 +130,6 @@ tcp_slowtimo(void)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_INET(vnet_iter);
 		tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
 		INP_INFO_WLOCK(&V_tcbinfo);
 		(void) tcp_tw_2msl_scan(0);
@@ -163,7 +161,6 @@ tcp_timer_delack(void *xtp)
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
 	CURVNET_SET(tp->t_vnet);
-	INIT_VNET_INET(tp->t_vnet);
 
 	INP_INFO_RLOCK(&V_tcbinfo);
 	inp = tp->t_inpcb;
@@ -203,7 +200,6 @@ tcp_timer_2msl(void *xtp)
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
 	CURVNET_SET(tp->t_vnet);
-	INIT_VNET_INET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
@@ -279,7 +275,6 @@ tcp_timer_keep(void *xtp)
 	struct tcptemp *t_template;
 	struct inpcb *inp;
 	CURVNET_SET(tp->t_vnet);
-	INIT_VNET_INET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
@@ -375,7 +370,6 @@ tcp_timer_persist(void *xtp)
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
 	CURVNET_SET(tp->t_vnet);
-	INIT_VNET_INET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
@@ -445,7 +439,6 @@ tcp_timer_rexmt(void * xtp)
 {
 	struct tcpcb *tp = xtp;
 	CURVNET_SET(tp->t_vnet);
-	INIT_VNET_INET(tp->t_vnet);
 	int rexmt;
 	int headlocked;
 	struct inpcb *inp;

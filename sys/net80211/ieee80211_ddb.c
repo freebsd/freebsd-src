@@ -165,7 +165,6 @@ DB_SHOW_ALL_COMMAND(vaps, db_show_all_vaps)
 		}
 
 	VNET_FOREACH(vnet_iter) {
-		INIT_VNET_NET(vnet_iter);
 		TAILQ_FOREACH(ifp, &V_ifnet, if_list)
 			if (ifp->if_type == IFT_IEEE80211) {
 				const struct ieee80211com *ic = ifp->if_l2com;

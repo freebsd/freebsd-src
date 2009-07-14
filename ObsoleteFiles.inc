@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090713: vimage container structs removed.
+OLD_FILES+=usr/include/netinet/vinet.h
+OLD_FILES+=usr/include/netinet6/vinet6.h
+OLD_FILES+=usr/include/netipsec/vipsec.h
 # 20090709: msgctl.3 msgget.3 msgrcv.3 msgsnd.3 manual pages moved
 OLD_FILES+=usr/share/man/man3/msgctl.3.gz
 OLD_FILES+=usr/share/man/man3/msgget.3.gz

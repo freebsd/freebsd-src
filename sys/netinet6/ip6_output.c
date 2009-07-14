@@ -96,7 +96,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
-#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -107,7 +106,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/ip6protosw.h>
 #include <netinet6/scope6_var.h>
-#include <netinet6/vinet6.h>
 
 extern int in6_mcast_loop;
 
@@ -191,8 +189,6 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
     struct route_in6 *ro, int flags, struct ip6_moptions *im6o,
     struct ifnet **ifpp, struct inpcb *inp)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6, *mhip6;
 	struct ifnet *ifp, *origifp;
 	struct mbuf *m = m0;
@@ -2420,8 +2416,6 @@ static int
 ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
     struct ucred *cred, int sticky, int cmsg, int uproto)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	int minmtupolicy, preftemp;
 	int error;
 

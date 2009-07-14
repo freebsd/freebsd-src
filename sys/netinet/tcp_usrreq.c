@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif
 #include <netinet/tcp_offload.h>
-#include <netinet/vinet.h>
 
 /*
  * TCP protocol interface to socket abstraction.
@@ -157,9 +156,6 @@ static void
 tcp_detach(struct socket *so, struct inpcb *inp)
 {
 	struct tcpcb *tp;
-#ifdef INVARIANTS
-	INIT_VNET_INET(so->so_vnet);
-#endif
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
@@ -221,7 +217,6 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 static void
 tcp_usr_detach(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -240,7 +235,6 @@ tcp_usr_detach(struct socket *so)
 static int
 tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -281,7 +275,6 @@ out:
 static int
 tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -340,7 +333,6 @@ out:
 static int
 tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -378,7 +370,6 @@ out:
 static int
 tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -426,7 +417,6 @@ out:
 static int
 tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -469,7 +459,6 @@ out:
 static int
 tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -547,7 +536,6 @@ out:
 static int
 tcp_usr_disconnect(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	int error = 0;
@@ -579,7 +567,6 @@ out:
 static int
 tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 {
-	INIT_VNET_INET(so->so_vnet);
 	int error = 0;
 	struct inpcb *inp = NULL;
 	struct tcpcb *tp = NULL;
@@ -677,7 +664,6 @@ out:
 static int
 tcp_usr_shutdown(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -745,7 +731,6 @@ static int
 tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
     struct sockaddr *nam, struct mbuf *control, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	int error = 0;
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
@@ -901,7 +886,6 @@ out:
 static void
 tcp_usr_abort(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	TCPDEBUG0;
@@ -940,7 +924,6 @@ tcp_usr_abort(struct socket *so)
 static void
 tcp_usr_close(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct tcpcb *tp = NULL;
 	TCPDEBUG0;
@@ -1079,7 +1062,6 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
-	INIT_VNET_INET(so->so_vnet);
 	struct in_addr laddr;
 	u_short lport;
 	int error;
@@ -1135,7 +1117,6 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 {
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
-	INIT_VNET_INET(so->so_vnet);
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	struct in6_addr addr6;
 	int error;
@@ -1257,7 +1238,6 @@ tcp_fill_info(struct tcpcb *tp, struct tcp_info *ti)
 int
 tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 {
-	INIT_VNET_INET(so->so_vnet);
 	int	error, opt, optval;
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
@@ -1445,7 +1425,6 @@ SYSCTL_ULONG(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
 static int
 tcp_attach(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct tcpcb *tp;
 	struct inpcb *inp;
 	int error;
@@ -1498,9 +1477,6 @@ tcp_disconnect(struct tcpcb *tp)
 {
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so = inp->inp_socket;
-#ifdef INVARIANTS
-	INIT_VNET_INET(so->so_vnet);
-#endif
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
@@ -1539,9 +1515,6 @@ tcp_disconnect(struct tcpcb *tp)
 static void
 tcp_usrclosed(struct tcpcb *tp)
 {
-#ifdef INVARIANTS
-	INIT_VNET_INET(tp->t_inpcb->inp_vnet);
-#endif
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tp->t_inpcb);

@@ -61,10 +61,6 @@ struct vi_req {
 
 #ifdef _KERNEL
 
-#if defined(VIMAGE) && defined(VIMAGE_GLOBALS)
-#error "You cannot have both option VIMAGE and option VIMAGE_GLOBALS!"
-#endif
-
 #ifdef INVARIANTS
 #define	VNET_DEBUG
 #endif
@@ -80,14 +76,7 @@ struct thread;
 typedef int vnet_attach_fn(const void *);
 typedef int vnet_detach_fn(const void *);
 
-#ifndef VIMAGE_GLOBALS
-
-struct vnet_symmap {
-	char	*name;
-	size_t	 offset;
-	size_t	 size;
-};
-typedef struct vnet_symmap vnet_symmap_t;
+#ifdef VIMAGE
 
 struct vnet_modinfo {
 	u_int				 vmi_id;
@@ -95,8 +84,6 @@ struct vnet_modinfo {
 	char				*vmi_name;
 	vnet_attach_fn			*vmi_iattach;
 	vnet_detach_fn			*vmi_idetach;
-	size_t				 vmi_size;
-	struct vnet_symmap		*vmi_symmap;
 };
 typedef struct vnet_modinfo vnet_modinfo_t;
 
@@ -134,7 +121,7 @@ struct vnet_modlink {
 #define	VNET_MOD_AH		25
 #define	VNET_MOD_IPCOMP	 	26	
 #define	VNET_MOD_GIF		27
-#define	VNET_MOD_ARP		28
+	/*	 		28 */
 #define	VNET_MOD_FLOWTABLE	29
 #define	VNET_MOD_LOIF		30
 #define	VNET_MOD_DOMAIN		31
@@ -146,20 +133,6 @@ struct vnet_modlink {
 #define	V_NET			1
 #define	V_PROCG			2
 
-/* Name mappings for minor module IDs in vimage sysctl virtualization. */
-#define	V_MOD_vnet_net		VNET_MOD_NET
-#define	V_MOD_vnet_netgraph	VNET_MOD_NETGRAPH
-#define	V_MOD_vnet_inet		VNET_MOD_INET
-#define	V_MOD_vnet_inet6	VNET_MOD_INET6
-#define	V_MOD_vnet_ipfw		VNET_MOD_IPFW
-#define	V_MOD_vnet_pf		VNET_MOD_PF
-#define	V_MOD_vnet_gif		VNET_MOD_GIF
-#define	V_MOD_vnet_ipsec	VNET_MOD_IPSEC
-#define	V_MOD_vnet_rtable	VNET_MOD_RTABLE
- 
-#define	V_MOD_vprocg		0	/* no minor module ids like in vnet */
-
-int	vi_symlookup(struct kld_sym_lookup *, char *);
 int	vi_td_ioctl(u_long, struct vi_req *, struct thread *);
 int	vi_if_move(struct thread *, struct ifnet *, char *, int,
 	    struct vi_req *);
@@ -171,34 +144,10 @@ void	vnet_mod_deregister(const struct vnet_modinfo *);
 void	vnet_mod_deregister_multi(const struct vnet_modinfo *, void *, char *);
 struct vnet *vnet_alloc(void);
 void	vnet_destroy(struct vnet *);
+void	vnet_foreach(void (*vnet_foreach_fn)(struct vnet *, void *),
+	    void *arg);
 
-#endif /* !VIMAGE_GLOBALS */
-
-#ifdef VIMAGE_GLOBALS
-#define	VSYM(base, sym) (sym)
-#else /* !VIMAGE_GLOBALS */
-#ifdef VIMAGE
-#define	VSYM(base, sym) ((base)->_ ## sym)
-#else /* !VIMAGE */
-#define	VSYM(base, sym) (base ## _0._ ## sym)
 #endif /* VIMAGE */
-#endif /* VIMAGE_GLOBALS */
-
-#ifndef VIMAGE_GLOBALS
-#ifdef VIMAGE
-/*
- * Casted NULL hack is needed for harvesting sizeofs() of fields inside
- * struct vnet_* containers at compile time.
- */
-#define	VNET_SYMMAP(mod, name)						\
-	{ #name, offsetof(struct vnet_ ## mod, _ ## name),		\
-	sizeof(((struct vnet_ ## mod *) NULL)->_ ## name) }
-#else /* !VIMAGE */
-#define	VNET_SYMMAP(mod, name)						\
-	{ #name, (size_t) &(vnet_ ## mod ## _0._ ## name),		\
-	sizeof(vnet_ ## mod ## _0._ ## name) }
-#endif /* VIMAGE */
-#define	VNET_SYMMAP_END		{ NULL, 0 }
 
 struct vimage {
 	LIST_ENTRY(vimage)	 vi_le;		/* all vimage list */
@@ -213,11 +162,12 @@ struct vimage {
 };
 
 struct vnet {
-	void			*mod_data[VNET_MOD_MAX];
 	LIST_ENTRY(vnet)	 vnet_le;	/* all vnets list */
 	u_int			 vnet_magic_n;
 	u_int			 ifcnt;
 	u_int			 sockcnt;
+	void			*vnet_data_mem;
+	uintptr_t		 vnet_data_base;
 };
 
 struct vprocg {
@@ -232,7 +182,6 @@ extern struct vimage_list_head vimage_head;
 #else /* !VIMAGE */
 extern struct vprocg vprocg_0;
 #endif /* VIMAGE */
-#endif /* !VIMAGE_GLOBALS */
  
 #define	curvnet curthread->td_vnet
 
@@ -289,22 +238,6 @@ extern struct vprocg vprocg_0;
 #endif /* !VIMAGE */
 
 #ifdef VIMAGE
-#ifdef VNET_DEBUG
-#define	INIT_FROM_VNET(vnet, modindex, modtype, sym)			\
-	if (vnet == NULL || vnet != curvnet)				\
-		panic("in %s:%d %s()\n vnet=%p curvnet=%p",		\
-		    __FILE__, __LINE__, __FUNCTION__,			\
-		    vnet, curvnet);					\
-	modtype *sym = (vnet)->mod_data[modindex];
-#else /* !VNET_DEBUG */
-#define	INIT_FROM_VNET(vnet, modindex, modtype, sym)			\
-	modtype *sym = (vnet)->mod_data[modindex];
-#endif /* !VNET_DEBUG */
-#else /* !VIMAGE */
-#define	INIT_FROM_VNET(vnet, modindex, modtype, sym)
-#endif /* VIMAGE */
-
-#ifdef VIMAGE
 LIST_HEAD(vnet_list_head, vnet);
 extern struct vnet_list_head vnet_head;
 extern struct vnet *vnet0;
@@ -347,136 +280,13 @@ extern struct vprocg_list_head vprocg_head;
 #define	TD_TO_VNET(td)		NULL
 #define	P_TO_VIMAGE(p)		NULL
 #define	P_TO_VNET(p)		NULL
-#ifdef VIMAGE_GLOBALS
-#define	TD_TO_VPROCG(td)	NULL
-#define	P_TO_VPROCG(p)		NULL
-#else /* !VIMAGE_GLOBALS */
 #define	TD_TO_VPROCG(td)	&vprocg_0
 #define	P_TO_VPROCG(p)		&vprocg_0
-#endif /* VIMAGE_GLOBALS */
 #endif /* VIMAGE */
 
 /* Non-VIMAGE null-macros */
 #define	VNET_LIST_RLOCK()
 #define	VNET_LIST_RUNLOCK()
-
-/* XXX those defines bellow should probably go into vprocg.h and vcpu.h */
-#define	VPROCG(sym)		VSYM(vprocg, sym)
-
-/*
- * Size-guards for the vimage structures.
- * If you need to update the values you MUST increment __FreeBSD_version.
- * See description further down to see how to get the new values.
- */
-#ifdef __amd64__
-#define	SIZEOF_vnet_net		156
-#define	SIZEOF_vnet_inet	4424
-#define	SIZEOF_vnet_inet6	8808
-#define	SIZEOF_vnet_ipsec	31160
-#endif
-#ifdef __arm__
-#define	SIZEOF_vnet_net		72
-#define	SIZEOF_vnet_inet	2616
-#define	SIZEOF_vnet_inet6	8524
-#define	SIZEOF_vnet_ipsec	1
-#endif
-#ifdef __i386__ /* incl. pc98 */
-#define	SIZEOF_vnet_net		72
-#define	SIZEOF_vnet_inet	2612
-#define	SIZEOF_vnet_inet6	8512
-#define	SIZEOF_vnet_ipsec	31024
-#endif
-#ifdef __ia64__
-#define	SIZEOF_vnet_net		156
-#define	SIZEOF_vnet_inet	4424
-#define	SIZEOF_vnet_inet6	8808
-#define	SIZEOF_vnet_ipsec	31160
-#endif
-#ifdef __mips__
-#define	SIZEOF_vnet_net		72
-#define	SIZEOF_vnet_inet	2648
-#define	SIZEOF_vnet_inet6	8544
-#define	SIZEOF_vnet_ipsec	1
-#endif
-#ifdef __powerpc__
-#define	SIZEOF_vnet_net		72
-#define	SIZEOF_vnet_inet	2640
-#define	SIZEOF_vnet_inet6	8520
-#define	SIZEOF_vnet_ipsec	31048
-#endif
-#ifdef __sparc64__ /* incl. sun4v */
-#define	SIZEOF_vnet_net		156
-#define	SIZEOF_vnet_inet	4424
-#define	SIZEOF_vnet_inet6	8808
-#define	SIZEOF_vnet_ipsec	31160
-#endif
-
-#ifndef	SIZEOF_vnet_net
-#error "SIZEOF_vnet_net no defined for this architecture."
-#endif
-#ifndef	SIZEOF_vnet_inet
-#error "SIZEOF_vnet_inet no defined for this architecture."
-#endif
-#ifndef	SIZEOF_vnet_inet6
-#error "SIZEOF_vnet_inet6 no defined for this architecture."
-#endif
-#ifndef	SIZEOF_vnet_ipsec
-#error "SIZEOF_vnet_ipsec no defined for this architecture."
-#endif
-
-/*
- * x must be a positive integer constant (expected value),
- * y must be compile-time evaluated to a positive integer,
- * e.g. CTASSERT_EQUAL(FOO_EXPECTED_SIZE, sizeof (struct foo));
- * One needs to compile with -Wuninitialized and thus at least -O
- * for this to trigger and -Werror if it should be fatal.
- */
-#define	CTASSERT_EQUAL(x, y)						\
-	static int __attribute__((__used__))				\
-	    __attribute__((__section__(".debug_ctassert_equal")))	\
-	__CONCAT(__ctassert_equal_at_line_, __LINE__)(void);		\
-									\
-	static int __attribute__((__used__))				\
-	    __attribute__((__section__(".debug_ctassert_equal")))	\
-	__CONCAT(__ctassert_equal_at_line_, __LINE__)(void)		\
-	{								\
-		int __CONCAT(__CONCAT(__expected_, x),			\
-		    _but_got)[(y) + (x)];				\
-		__CONCAT(__CONCAT(__expected_, x), _but_got)[(x)] = 1;	\
-		return (__CONCAT(__CONCAT(__expected_, x),		\
-		    _but_got)[(y)]);					\
-	}								\
-	struct __hack
-
-/*
- * x shall be the expected value (SIZEOF_vnet_* from above)
- * and y shall be the real size (sizeof(struct vnet_*)).
- * If you run into the CTASSERT() you want to compile a universe
- * with COPTFLAGS+="-O -Wuninitialized -DVIMAGE_CHECK_SIZES".
- * This should give you the errors for the proper values defined above.
- * Make sure to re-run universe with the proper values afterwards -
- * -DMAKE_JUST_KERNELS should be enough.
- * 
- * Note: 
- * CTASSERT() takes precedence in the current FreeBSD world thus the
- * CTASSERT_EQUAL() will not neccessarily trigger if one uses both.
- * But as CTASSERT_EQUAL() needs special compile time options, we
- * want the default case to be backed by CTASSERT().
- */
-#if 0
-#ifndef VIMAGE_CTASSERT
-#ifdef VIMAGE_CHECK_SIZES
-#define	VIMAGE_CTASSERT(x, y)						\
-	CTASSERT_EQUAL(x, y)
-#else
-#define	VIMAGE_CTASSERT(x, y)						\
-	CTASSERT_EQUAL(x, y);						\
-	CTASSERT(x == 0 || x == y)
-#endif
-#endif
-#else
-#define	VIMAGE_CTASSERT(x, y)		struct __hack
-#endif
 
 #endif /* _KERNEL */
 

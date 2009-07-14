@@ -55,9 +55,9 @@ struct rawcb {
 #define	RAWRCVQ		8192
 
 #ifdef _KERNEL
-#ifdef VIMAGE_GLOBALS
-extern LIST_HEAD(rawcb_list_head, rawcb) rawcb_list;
-#endif
+VNET_DECLARE(LIST_HEAD(rawcb_list_head, rawcb), rawcb_list);
+#define	V_rawcb_list	VNET_GET(rawcb_list)
+
 extern struct mtx rawcb_mtx;
 
 /*
