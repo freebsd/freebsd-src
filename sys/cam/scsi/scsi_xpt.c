@@ -1468,14 +1468,14 @@ typedef struct {
 
 /*
  * To start a scan, request_ccb is an XPT_SCAN_BUS ccb.
- * As the scan progresses, xpt_scan_bus is used as the
+ * As the scan progresses, scsi_scan_bus is used as the
  * callback on completion function.
  */
 static void
 scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 {
 	CAM_DEBUG(request_ccb->ccb_h.path, CAM_DEBUG_TRACE,
-		  ("xpt_scan_bus\n"));
+		  ("scsi_scan_bus\n"));
 	switch (request_ccb->ccb_h.func_code) {
 	case XPT_SCAN_BUS:
 	{
@@ -1553,7 +1553,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 						 request_ccb->ccb_h.path_id,
 						 i, 0);
 			if (status != CAM_REQ_CMP) {
-				printf("xpt_scan_bus: xpt_create_path failed"
+				printf("scsi_scan_bus: xpt_create_path failed"
 				       " with status %#x, bus scan halted\n",
 				       status);
 				free(scan_info, M_CAMXPT);
@@ -1693,7 +1693,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			    scan_info->request_ccb->ccb_h.path_id,
 			    scan_info->counter, 0);
 			if (status != CAM_REQ_CMP) {
-				printf("xpt_scan_bus: xpt_create_path failed"
+				printf("scsi_scan_bus: xpt_create_path failed"
 				    " with status %#x, bus scan halted\n",
 			       	    status);
 				xpt_free_ccb(request_ccb);
@@ -1715,7 +1715,7 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			status = xpt_create_path(&path, xpt_periph,
 						 path_id, target_id, lun_id);
 			if (status != CAM_REQ_CMP) {
-				printf("xpt_scan_bus: xpt_create_path failed "
+				printf("scsi_scan_bus: xpt_create_path failed "
 				       "with status %#x, halting LUN scan\n",
 			 	       status);
 				goto hop_again;
@@ -1746,7 +1746,7 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	struct cam_periph *old_periph;
 
 	CAM_DEBUG(request_ccb->ccb_h.path, CAM_DEBUG_TRACE,
-		  ("xpt_scan_lun\n"));
+		  ("scsi_scan_lun\n"));
 
 	xpt_setup_ccb(&cpi.ccb_h, path, /*priority*/1);
 	cpi.ccb_h.func_code = XPT_PATH_INQ;
@@ -1775,13 +1775,13 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	if (request_ccb == NULL) {
 		request_ccb = malloc(sizeof(union ccb), M_CAMXPT, M_NOWAIT);
 		if (request_ccb == NULL) {
-			xpt_print(path, "xpt_scan_lun: can't allocate CCB, "
+			xpt_print(path, "scsi_scan_lun: can't allocate CCB, "
 			    "can't continue\n");
 			return;
 		}
 		new_path = malloc(sizeof(*new_path), M_CAMXPT, M_NOWAIT);
 		if (new_path == NULL) {
-			xpt_print(path, "xpt_scan_lun: can't allocate path, "
+			xpt_print(path, "scsi_scan_lun: can't allocate path, "
 			    "can't continue\n");
 			free(request_ccb, M_CAMXPT);
 			return;
@@ -1792,7 +1792,7 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 					  path->device->lun_id);
 
 		if (status != CAM_REQ_CMP) {
-			xpt_print(path, "xpt_scan_lun: can't compile path, "
+			xpt_print(path, "scsi_scan_lun: can't compile path, "
 			    "can't continue\n");
 			free(request_ccb, M_CAMXPT);
 			free(new_path, M_CAMXPT);
@@ -1818,7 +1818,7 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 					  request_ccb);
 
 		if (status != CAM_REQ_CMP) {
-			xpt_print(path, "xpt_scan_lun: cam_alloc_periph "
+			xpt_print(path, "scsi_scan_lun: cam_alloc_periph "
 			    "returned an error, can't continue probe\n");
 			request_ccb->ccb_h.status = status;
 			xpt_done(request_ccb);
