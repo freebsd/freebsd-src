@@ -3585,7 +3585,7 @@ syncache_expand_establish_req(struct cpl_pass_establish *req, struct socket **so
 {
 
 	struct in_conninfo inc;
-	struct toeopt to;
+	struct toeopt toeo;
 	struct tcphdr th;
 	int mss, wsf, sack, ts;
 	struct mbuf *m = NULL;
