@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2008
+.Dd July 14, 2009
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -306,7 +306,7 @@ resides out of the valid address space for a user process.
 The
 .Fa len
 argument
-was negative.
+was equal to zero.
 .It Bq Er EINVAL
 .Dv MAP_ANON
 was specified and the
