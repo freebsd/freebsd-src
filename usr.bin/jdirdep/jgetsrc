@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# XX: work around ssh X11 forwarding errors
+unset DISPLAY
+
 dirs=$*
 
 ROOTDIR=`pwd`
@@ -24,7 +27,7 @@ if [ ! -d shared -a ! -h shared ]; then
 fi
 
 #JSVN=svn://localhost/EPBG/u/jbirrell/build
-JSVN=svn+ssh://localhost/c/cvs2svn/svn/repos/junos-2008/branches/jbuild
+JSVN=svn+ssh://danai-29.juniper.net/c/cvs2svn/svn/repos/junos-2008/branches/jbuild
 
 rm -f $SVNLOG $MORELOG
 touch $SVNLOG $MORELOG
