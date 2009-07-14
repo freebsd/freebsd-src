@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/vinet.h>
 
-/* function prototypes */
 int cubic_mod_init(void);
 int cubic_cb_init(struct tcpcb *tp);
 void cubic_cb_destroy(struct tcpcb *tp);
@@ -75,15 +74,15 @@ void cubic_conn_init(struct tcpcb *tp);
 void cubic_record_rtt(struct tcpcb *tp);
 
 struct cubic {
-	/* cwnd at the most recent congestion event */
+	/* cwnd at the most recent congestion event. */
 	u_long max_cwnd;
-	/* cwnd at the previous congestion event */
+	/* cwnd at the previous congestion event. */
 	u_long prev_max_cwnd;
-	/* time of last congestion event in ticks */
+	/* Time of last congestion event in ticks. */
 	u_long t_last_cong;
-	/* minimum observed rtt in ticks */
+	/* Minimum observed rtt in ticks. */
 	u_long min_rtt_ticks;
-	/* number of congestion events */
+	/* Number of congestion events. */
 	u_long num_cong_events;
 };
 
@@ -91,7 +90,6 @@ MALLOC_DECLARE(M_CUBIC);
 MALLOC_DEFINE(M_CUBIC, "cubic data",
     "Per connection data required for the CUBIC congestion algorithm");
 
-/* function pointers for various hooks into the TCP stack */
 struct cc_algo cubic_cc_algo = {
 	.name = "cubic",
 	.mod_init = cubic_mod_init,
@@ -125,9 +123,7 @@ cubic_conn_init(struct tcpcb *tp)
 }
 
 /*
- * Initialise CUBIC on the specified TCP control block. Creates a
- * new struct for CUBIC specific data and sticks a pointer to it
- * in the control block
+ * Initialise CUBIC on the specified TCP control block.
  */
 int
 cubic_cb_init(struct tcpcb *tp)
@@ -137,9 +133,9 @@ cubic_cb_init(struct tcpcb *tp)
 	cubic_data = malloc(sizeof(struct cubic), M_CUBIC, M_NOWAIT);
 	
 	if (cubic_data == NULL)
-		return 1;
+		return (ENOMEM);
 	
-	/* init some key cubic values with sensible defaults */
+	/* Init some key variables with sensible defaults. */
 	cubic_data->t_last_cong = ticks;
 	cubic_data->min_rtt_ticks = TCPTV_SRTTBASE;
 	cubic_data->max_cwnd = 0;
@@ -147,8 +143,8 @@ cubic_cb_init(struct tcpcb *tp)
 	cubic_data->num_cong_events = 0;
 	
 	CC_DATA(tp) = cubic_data;
-	
-	return 0;
+
+	return (0);
 }
 
 /*
@@ -163,7 +159,7 @@ cubic_cb_destroy(struct tcpcb *tp)
 }
 
 /*
- * Perform any necesary tasks before we enter fast recovery
+ * Perform any necesary tasks before we enter fast recovery.
  */
 void
 cubic_pre_fr(struct tcpcb *tp, struct tcphdr *th)
@@ -175,12 +171,10 @@ cubic_pre_fr(struct tcpcb *tp, struct tcphdr *th)
 	cubic_ssthresh_update(tp);
 
 	/*
-	 * record the current cwnd at the point of congestion so it can be used
-	 * as the basis for resetting cwnd after exiting fr
+	 * Record the current cwnd at the point of congestion so it can be used
+	 * as the basis for resetting cwnd after exiting FR.
 	 */
 	cubic_data->max_cwnd = tp->snd_cwnd;
-
-	printf("congestion event started (max_cwnd: %ld)\n", cubic_data->max_cwnd);
 }
 
 /*
@@ -191,15 +185,11 @@ cubic_post_fr(struct tcpcb *tp, struct tcphdr *th)
 {
 	struct cubic *cubic_data = CC_DATA(tp);
 
-	/*
-	 * grab the current time and record it so we know when the most recent
-	 * congestion event was
-	 */
+	/* Record the current time as the most recent congestion event. */
 	cubic_data->t_last_cong = ticks;
 
-	/* fast convergence heuristic */
+	/* Fast convergence heuristic. */
 	if (cubic_data->max_cwnd < cubic_data->prev_max_cwnd) {
-		printf("fast convergence heuristic kicked in! (max_cwnd: %d\t prev_max_cwnd: %d\n", (int)cubic_data->max_cwnd, (int)cubic_data->prev_max_cwnd);
 		cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
 		cubic_data->max_cwnd = (cubic_data->max_cwnd * CUBIC_FC_FACTOR)
 		    >> CUBIC_SHIFT;
@@ -208,20 +198,16 @@ cubic_post_fr(struct tcpcb *tp, struct tcphdr *th)
 		cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
 
 	/*
-	 * if inflight data is less than ssthresh, set cwnd conservatively
+	 * If inflight data is less than ssthresh, set cwnd conservatively
 	 * to avoid a burst of data, as suggested in the NewReno RFC.
 	 * Otherwise, use the CUBIC method.
 	 */
 	if (th && SEQ_GT(th->th_ack + tp->snd_ssthresh, tp->snd_max))
 		tp->snd_cwnd = tp->snd_max - th->th_ack + tp->t_maxseg;
-	else {
-		/* update cwnd based on beta and adjusted max_cwnd */
+	else
+		/* Update cwnd based on beta and adjusted max_cwnd. */
 		tp->snd_cwnd = max(1,((CUBIC_BETA * cubic_data->max_cwnd)
 		    >> CUBIC_SHIFT));
-		printf("cubic_post_fr - cwnd: %ld\tmax_cwnd: %ld\n", tp->snd_cwnd, cubic_data->max_cwnd);
-	}
-
-	printf("congestion event over\n");
 }
 
 void
@@ -230,12 +216,12 @@ cubic_record_rtt(struct tcpcb *tp)
 	struct cubic *cubic_data = CC_DATA(tp);
 	int t_srtt_ticks = tp->t_srtt / TCP_RTT_SCALE;
 
-	/* XXX: Should there be some hysteresis for minrtt? */
+	/* XXXLS: Should there be some hysteresis for minrtt? */
 
 	/*
-	 * record the current SRTT as our minrtt if it's the smallest we've
+	 * Record the current SRTT as our minrtt if it's the smallest we've
 	 * seen or minrtt is currently equal to its initialised value.
-	 * Ignore srtt until a min number of samples have been taken
+	 * Ignore srtt until a min number of samples have been taken.
 	 */
 	if ((t_srtt_ticks < cubic_data->min_rtt_ticks ||
 	    cubic_data->min_rtt_ticks == TCPTV_SRTTBASE) &&
@@ -251,8 +237,6 @@ cubic_ack_received(struct tcpcb *tp, struct tcphdr *th)
 {
 	struct cubic *cubic_data = CC_DATA(tp);
 	u_long w_newreno, w_cubic_next, ticks_since_cong;
-	static u_long last_print_ticks = 0;
-	int print = 0;
 
 	cubic_record_rtt(tp);
 
@@ -261,73 +245,46 @@ cubic_ack_received(struct tcpcb *tp, struct tcphdr *th)
 			(cubic_data->min_rtt_ticks == TCPTV_SRTTBASE))
                 newreno_cc_algo.ack_received(tp, th);
 	else {
-		/* num ticks since last congestion */
+		/* Ticks since last congestion. */
 		ticks_since_cong = ticks - cubic_data->t_last_cong;
 
-		if ((ticks - last_print_ticks) >= (cubic_data->min_rtt_ticks / 2)) {
-			
-			print = 1;
-			last_print_ticks = ticks;
-		}
-
-		if (print)
-			printf("rtt_ticks: %ld\tticks_since_cong: %ld\n", cubic_data->min_rtt_ticks, ticks_since_cong);
-	
 		w_newreno = reno_cwnd(	ticks_since_cong,
 					cubic_data->min_rtt_ticks,
 					cubic_data->max_cwnd,
 					tp->t_maxseg
 		);
 
-		if (print)
-			printf("reno_cwnd(%ld,%ld,%ld,%d): %ld\n", ticks_since_cong, cubic_data->min_rtt_ticks, cubic_data->max_cwnd, tp->t_maxseg, w_newreno);
-
-		//w_cubic = cubic_cwnd(ticks_since_cong, cubic_data->max_cwnd, tp->t_maxseg);
-		//printf("cubic_cwnd(%ld,%ld,%d): %ld (w_cubic)\n", ticks_since_cong, cubic_data->max_cwnd, tp->t_maxseg, w_cubic);
-
 		w_cubic_next = cubic_cwnd(	ticks_since_cong +
-						    cubic_data->min_rtt_ticks,
+						cubic_data->min_rtt_ticks,
 						cubic_data->max_cwnd,
 						tp->t_maxseg
 		);
-
-		if (print)
-			printf("cubic_cwnd(%ld,%ld,%d): %ld (w_cubic_next)\n", ticks_since_cong + cubic_data->min_rtt_ticks, cubic_data->max_cwnd, tp->t_maxseg, w_cubic_next);
-
-		if (print)
-			printf("pre\tmax_cwnd: %ld\tsnd_cwnd: %ld\tw_newreno: %ld\tw_cubic_next: %ld\n", cubic_data->max_cwnd, tp->snd_cwnd, w_newreno, w_cubic_next);
-
 		
-		if (w_cubic_next < w_newreno) {
-			/* we are in TCP-friendly region, follow reno cwnd growth */
+		if (w_cubic_next < w_newreno)
+			/* TCP-friendly region, follow reno cwnd growth. */
 			tp->snd_cwnd = w_newreno;
 
-		} else if (tp->snd_cwnd < w_cubic_next) {
-			/* else we are in the concave or convex growth regions */
-			if (print)
-				printf("incr: %lu\n", (w_cubic_next * tp->t_maxseg) / tp->snd_cwnd);
-			//tp->snd_cwnd += max(1, (w_cubic_next - w_cubic) / tp->snd_cwnd);
-			//printf("incr: %d\n", max(1, (w_cubic_next - tp->snd_cwnd) / tp->t_maxseg));
-			/* XXX: Test under what conditions the following will truncate */
-			tp->snd_cwnd += (u_long)(((uint64_t)(w_cubic_next * tp->t_maxseg)) / tp->snd_cwnd);
-		}
+		else if (tp->snd_cwnd < w_cubic_next)
+			/* Concave or convex region, follow CUBIC cwnd growth.
+			 * XXXLS: Test under what conditions
+			 * the following will truncate.
+			 */
+			tp->snd_cwnd += (u_long)(((uint64_t)(w_cubic_next
+			    * tp->t_maxseg)) / tp->snd_cwnd);
 
 		/*
-		 * if we're not in slow start and we're probing for a new cwnd limit
+		 * If we're not in slow start and we're probing for a new cwnd limit
 		 * at the start of a connection (happens when hostcache has a relevant entry),
-		 * keep updating our current estimate of the max_cwnd
+		 * keep updating our current estimate of the max_cwnd.
 		 */
-		if (cubic_data->num_cong_events == 0 &&
-		    cubic_data->max_cwnd < tp->snd_cwnd)
+		if (cubic_data->num_cong_events == 0
+		    && cubic_data->max_cwnd < tp->snd_cwnd)
 			cubic_data->max_cwnd = tp->snd_cwnd;
-
-		if (print)
-			printf("post\tmax_cwnd: %ld\tsnd_cwnd: %ld\n\n", cubic_data->max_cwnd, tp->snd_cwnd);
 	}
 }
 
 /*
- * Reset the cwnd after a retransmission timeout
+ * Reset the cwnd after a retransmission timeout.
  */
 void
 cubic_after_timeout(struct tcpcb *tp)
@@ -337,7 +294,7 @@ cubic_after_timeout(struct tcpcb *tp)
 	cubic_ssthresh_update(tp);
 
 	/*
-	 * grab the current time and record it so we know when the most recent
+	 * Grab the current time and record it so we know when the most recent
 	 * congestion event was. Only record it when the timeout has fired more
 	 * than once, as there is a reasonable chance the first one is a false alarm
 	 * and may not indicate congestion.
@@ -355,7 +312,7 @@ void
 cubic_ssthresh_update(struct tcpcb *tp)
 {
 	/*
-	 * on the first congestion event, set ssthresh to cwnd * 0.5, on
+	 * On the first congestion event, set ssthresh to cwnd * 0.5, on
 	 * subsequent congestion events, set it to cwnd * beta.
 	 */
 	if (tp->snd_ssthresh == (TCP_MAXWIN << TCP_MAX_WINSHIFT))
