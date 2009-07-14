@@ -3,9 +3,11 @@
 # $FreeBSD$
 #
 
+.include ${.CURDIR}/../jbuild_version
+
 PORTNAME=      jbuild
-PORTDIRNAME=	${PORTNAME}
-PORTVERSION=   13
+PORTDIRNAME=   ${PORTNAME}
+PORTVERSION=   ${JBUILD_VERSION}
 CATEGORIES=    devel
 
 MAINTAINER=    rodrigc@FreeBSD.org

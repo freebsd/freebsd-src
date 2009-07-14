@@ -1126,6 +1126,9 @@ main(int argc, char **argv)
 #ifdef MAKE_VERSION
 	Var_SetGlobal("MAKE_VERSION", MAKE_VERSION);
 #endif
+#ifdef JBUILD_VERSION
+	Var_SetGlobal("JBUILD_VERSION", JBUILD_VERSION);
+#endif
 	Var_SetGlobal(".newline", "\n");	/* handy for :@ loops */
 	{
 		char tmp[64];

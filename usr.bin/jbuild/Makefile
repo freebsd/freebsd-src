@@ -30,6 +30,7 @@ CFLAGS += -I${.CURDIR}/filemon
 .endif
 
 .include "${.CURDIR}/../jdirdep/Makefile.common"
+.include "${.CURDIR}/jbuild_version"
 
 # Make object files which depend on preprocessor symbols defined in
 # the Makefile which are not compilation options but rather configuration

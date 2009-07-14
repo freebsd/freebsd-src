@@ -40,5 +40,6 @@ CFLAGS += -I${.CURDIR}/filemon
 CFLAGS += -DMAKE_IS_BUILD -DJBUILD
 
 .include "${BSDSRCTOP}/usr.bin/jdirdep/Buildfile.common"
+.include "${.CURDIR}/jbuild_version"
 
 .include <bsd.prog.mk>
