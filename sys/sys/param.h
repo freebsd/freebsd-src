@@ -187,6 +187,7 @@
 #define	PRIMASK	0x0ff
 #define	PCATCH	0x100		/* OR'd with pri for tsleep to check signals */
 #define	PDROP	0x200	/* OR'd with pri to stop re-entry of interlock mutex */
+#define	PBDRY	0x400	/* for PCATCH stop is done on the user boundary */
 
 #define	NZERO	0		/* default "nice" */
 
