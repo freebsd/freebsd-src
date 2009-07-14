@@ -1127,7 +1127,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if (error == 0)
 			newvp = NFSTOV(np);
 		vfs_unbusy(mp);
-		vn_lock(dvp, ltype | LK_RETRY);
+		if (newvp != dvp)
+			vn_lock(dvp, ltype | LK_RETRY);
 		if (dvp->v_iflag & VI_DOOMED) {
 			if (error == 0) {
 				if (newvp == dvp)
