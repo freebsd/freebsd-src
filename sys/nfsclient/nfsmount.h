@@ -107,6 +107,8 @@ struct	nfsmount {
 #define NFS_TPRINTF_DELAY               30
 #endif
 
+#define	NFS_PCATCH	(PCATCH | PBDRY)
+
 #endif
 
 #endif
