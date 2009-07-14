@@ -1407,7 +1407,6 @@ ng_atm_mod_event(module_t mod, int event, void *data)
 		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET_QUIET(vnet_iter);
-			INIT_VNET_NET(vnet_iter);
 			TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 				if (ifp->if_type == IFT_ATM)
 					ng_atm_attach(ifp);
@@ -1431,7 +1430,6 @@ ng_atm_mod_event(module_t mod, int event, void *data)
 		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET_QUIET(vnet_iter);
-			INIT_VNET_NET(vnet_iter);
 			TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 				if (ifp->if_type == IFT_ATM)
 					ng_atm_detach(ifp);

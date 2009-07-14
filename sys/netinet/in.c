@@ -59,8 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
-#include <netinet/vinet.h>
 #include <netinet/igmp_var.h>
+#include <netinet/udp.h>
+#include <netinet/udp_var.h>
 
 static int in_mask2len(struct in_addr *);
 static void in_len2mask(struct in_addr *, int);
@@ -74,17 +75,19 @@ static int	in_ifinit(struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int);
 static void	in_purgemaddrs(struct ifnet *);
 
-#ifdef VIMAGE_GLOBALS
-static int subnetsarelocal;
-static int sameprefixcarponly;
-extern struct inpcbinfo ripcbinfo;
-#endif
+static VNET_DEFINE(int, subnetsarelocal);
+static VNET_DEFINE(int, sameprefixcarponly);
+VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, subnets_are_local,
-	CTLFLAG_RW, subnetsarelocal, 0,
+#define	V_subnetsarelocal		VNET_GET(subnetsarelocal)
+#define	V_sameprefixcarponly		VNET_GET(sameprefixcarponly)
+#define	V_ripcbinfo			VNET_GET(ripcbinfo)
+
+SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW,
+	&VNET_NAME(subnetsarelocal), 0,
 	"Treat all subnets as directly connected");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, same_prefix_carp_only,
-	CTLFLAG_RW, sameprefixcarponly, 0,
+SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, same_prefix_carp_only, CTLFLAG_RW,
+	&VNET_NAME(sameprefixcarponly), 0,
 	"Refuse to create same prefixes on different interfaces");
 
 /*
@@ -96,7 +99,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, same_prefix_carp_only,
 int
 in_localaddr(struct in_addr in)
 {
-	INIT_VNET_INET(curvnet);
 	register u_long i = ntohl(in.s_addr);
 	register struct in_ifaddr *ia;
 
@@ -127,7 +129,6 @@ in_localaddr(struct in_addr in)
 int
 in_localip(struct in_addr in)
 {
-	INIT_VNET_INET(curvnet);
 	struct in_ifaddr *ia;
 
 	IN_IFADDR_RLOCK();
@@ -225,7 +226,6 @@ int
 in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
     struct thread *td)
 {
-	INIT_VNET_INET(curvnet); /* both so and ifp can be NULL here! */
 	register struct ifreq *ifr = (struct ifreq *)data;
 	register struct in_ifaddr *ia, *iap;
 	register struct ifaddr *ifa;
@@ -816,8 +816,6 @@ static int
 in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
     int scrub)
 {
-	INIT_VNET_NET(ifp->if_vnet);
-	INIT_VNET_INET(ifp->if_vnet);
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	struct sockaddr_in oldaddr;
 	struct rtentry *rt = NULL;
@@ -952,7 +950,6 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 static int
 in_addprefix(struct in_ifaddr *target, int flags)
 {
-	INIT_VNET_INET(curvnet);
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
 	int error;
@@ -1020,8 +1017,6 @@ extern void arp_ifscrub(struct ifnet *ifp, uint32_t addr);
 static int
 in_scrubprefix(struct in_ifaddr *target)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET(curvnet);
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p;
 	int error;
@@ -1166,7 +1161,6 @@ in_broadcast(struct in_addr in, struct ifnet *ifp)
 void
 in_ifdetach(struct ifnet *ifp)
 {
-	INIT_VNET_INET(ifp->if_vnet);
 
 	in_pcbpurgeif0(&V_ripcbinfo, ifp);
 	in_pcbpurgeif0(&V_udbinfo, ifp);

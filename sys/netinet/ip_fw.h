@@ -651,12 +651,14 @@ void ipfw_destroy(void);
 void ipfw_nat_destroy(void);
 #endif
 
-#ifdef VIMAGE_GLOBALS
-extern int fw_one_pass;
-extern int fw_enable;
+VNET_DECLARE(int, fw_one_pass);
+VNET_DECLARE(int, fw_enable);
+#define	V_fw_one_pass		VNET_GET(fw_one_pass)
+#define	V_fw_enable		VNET_GET(fw_enable)
+
 #ifdef INET6
-extern int fw6_enable;
-#endif
+VNET_DECLARE(int, fw6_enable);
+#define	V_fw6_enable		VNET_GET(fw6_enable)
 #endif
 
 struct ip_fw_chain {
@@ -692,83 +694,8 @@ typedef int ipfw_nat_t(struct ip_fw_args *, struct cfg_nat *, struct mbuf *);
 typedef int ipfw_nat_cfg_t(struct sockopt *);
 #endif
 
-struct eventhandler_entry;
-/*
- * Stack virtualization support.
- */
-struct vnet_ipfw {
-	int			_fw_enable;
-	int			_fw6_enable;
-	u_int32_t		_set_disable;
-	int			_fw_deny_unknown_exthdrs;
-	int			_fw_verbose;
-	int			_verbose_limit;
-	int			_autoinc_step;
-	ipfw_dyn_rule **	_ipfw_dyn_v;
-	uma_zone_t 		_ipfw_dyn_rule_zone;
-	struct ip_fw_chain	_layer3_chain;
-	u_int32_t		_dyn_buckets;
-	u_int32_t		_curr_dyn_buckets;
-	u_int32_t		_dyn_ack_lifetime;
-	u_int32_t		_dyn_syn_lifetime;
-	u_int32_t		_dyn_fin_lifetime;
-	u_int32_t		_dyn_rst_lifetime;
-	u_int32_t		_dyn_udp_lifetime;
-	u_int32_t		_dyn_short_lifetime;
-	u_int32_t		_dyn_keepalive_interval;
-	u_int32_t		_dyn_keepalive_period;
-	u_int32_t		_dyn_keepalive;
-	u_int32_t		_static_count;
-	u_int32_t		_static_len;
-	u_int32_t		_dyn_count;
-	u_int32_t		_dyn_max;
-	u_int64_t		_norule_counter;
-	struct callout		_ipfw_timeout;
-	struct eventhandler_entry *_ifaddr_event_tag;
-};
-
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-extern struct vnet_ipfw vnet_ipfw_0;
-#endif
-#endif
-
-/*
- * Symbol translation macros
- */
-#define	INIT_VNET_IPFW(vnet) \
-	INIT_FROM_VNET(vnet, VNET_MOD_IPFW, struct vnet_ipfw, vnet_ipfw)
- 
-#define	VNET_IPFW(sym)		VSYM(vnet_ipfw, sym)
- 
-#define	V_fw_enable		VNET_IPFW(fw_enable)
-#define	V_fw6_enable		VNET_IPFW(fw6_enable)
-#define	V_set_disable		VNET_IPFW(set_disable)
-#define	V_fw_deny_unknown_exthdrs VNET_IPFW(fw_deny_unknown_exthdrs)
-#define	V_fw_verbose		VNET_IPFW(fw_verbose)
-#define	V_verbose_limit		VNET_IPFW(verbose_limit)
-#define	V_autoinc_step		VNET_IPFW(autoinc_step)
-#define	V_ipfw_dyn_v		VNET_IPFW(ipfw_dyn_v)
-#define	V_ipfw_dyn_rule_zone	VNET_IPFW(ipfw_dyn_rule_zone)
-#define	V_layer3_chain		VNET_IPFW(layer3_chain)
-#define	V_dyn_buckets		VNET_IPFW(dyn_buckets)
-#define	V_curr_dyn_buckets	VNET_IPFW(curr_dyn_buckets)
-#define	V_dyn_ack_lifetime	VNET_IPFW(dyn_ack_lifetime)
-#define	V_dyn_syn_lifetime	VNET_IPFW(dyn_syn_lifetime)
-#define	V_dyn_fin_lifetime	VNET_IPFW(dyn_fin_lifetime)
-#define	V_dyn_rst_lifetime	VNET_IPFW(dyn_rst_lifetime)
-#define	V_dyn_udp_lifetime	VNET_IPFW(dyn_udp_lifetime)
-#define	V_dyn_short_lifetime	VNET_IPFW(dyn_short_lifetime)
-#define	V_dyn_keepalive_interval VNET_IPFW(dyn_keepalive_interval)
-#define	V_dyn_keepalive_period	VNET_IPFW(dyn_keepalive_period)
-#define	V_dyn_keepalive		VNET_IPFW(dyn_keepalive)
-#define	V_static_count		VNET_IPFW(static_count)
-#define	V_static_len		VNET_IPFW(static_len)
-#define	V_dyn_count		VNET_IPFW(dyn_count)
-#define	V_dyn_max		VNET_IPFW(dyn_max)
-#define	V_norule_counter	VNET_IPFW(norule_counter)
-#define	V_ipfw_timeout		VNET_IPFW(ipfw_timeout)
-#define	V_ifaddr_event_tag	VNET_IPFW(ifaddr_event_tag)
+VNET_DECLARE(struct ip_fw_chain, layer3_chain);
+#define	V_layer3_chain		VNET_GET(layer3_chain)
 
 #endif /* _KERNEL */
 #endif /* _IPFW2_H */

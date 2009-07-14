@@ -94,8 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet6/mld6.h>
 #include <netinet6/mld6_var.h>
-#include <netinet/vinet.h>
-#include <netinet6/vinet6.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -207,13 +205,17 @@ MALLOC_DEFINE(M_MLD, "mld", "mld state");
 /*
  * VIMAGE-wide globals.
  */
-#ifdef VIMAGE_GLOBALS
-struct timeval			 mld_gsrdelay;
-LIST_HEAD(, mld_ifinfo)		 mli_head;
-int				 interface_timers_running6;
-int				 state_change_timers_running6;
-int				 current_state_timers_running6;
-#endif /* VIMAGE_GLOBALS */
+static VNET_DEFINE(struct timeval, mld_gsrdelay) = {10, 0};
+static VNET_DEFINE(LIST_HEAD(, mld_ifinfo), mli_head);
+static VNET_DEFINE(int, interface_timers_running6);
+static VNET_DEFINE(int, state_change_timers_running6);
+static VNET_DEFINE(int, current_state_timers_running6);
+
+#define	V_mld_gsrdelay			VNET_GET(mld_gsrdelay)
+#define	V_mli_head			VNET_GET(mli_head)
+#define	V_interface_timers_running6	VNET_GET(interface_timers_running6)
+#define	V_state_change_timers_running6	VNET_GET(state_change_timers_running6)
+#define	V_current_state_timers_running6	VNET_GET(current_state_timers_running6)
 
 SYSCTL_DECL(_net_inet6);	/* Note: Not in any common header. */
 
@@ -223,9 +225,9 @@ SYSCTL_NODE(_net_inet6, OID_AUTO, mld, CTLFLAG_RW, 0,
 /*
  * Virtualized sysctls.
  */
-SYSCTL_V_PROC(V_NET, vnet_inet6, _net_inet6_mld, OID_AUTO, gsrdelay,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, mld_gsrdelay.tv_sec, 0,
-    sysctl_mld_gsr, "I",
+SYSCTL_VNET_PROC(_net_inet6_mld, OID_AUTO, gsrdelay,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &VNET_NAME(mld_gsrdelay.tv_sec), 0, sysctl_mld_gsr, "I",
     "Rate limit for MLDv2 Group-and-Source queries in seconds");
 
 /*
@@ -308,7 +310,6 @@ mld_restore_context(struct mbuf *m)
 static int
 sysctl_mld_gsr(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET6(curvnet);
 	int error;
 	int i;
 
@@ -349,8 +350,6 @@ out_locked:
 static int
 sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	int			*name;
 	int			 error;
 	u_int			 namelen;
@@ -479,7 +478,6 @@ mld_domifattach(struct ifnet *ifp)
 static struct mld_ifinfo *
 mli_alloc_locked(/*const*/ struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct mld_ifinfo *mli;
 
 	MLD_LOCK_ASSERT();
@@ -582,7 +580,6 @@ mld_domifdetach(struct ifnet *ifp)
 static void
 mli_delete_locked(const struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct mld_ifinfo *mli, *tmli;
 
 	CTR3(KTR_MLD, "%s: freeing mld_ifinfo for ifp %p(%s)",
@@ -747,7 +744,6 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 static void
 mld_v1_update_group(struct in6_multi *inm, const int timer)
 {
-	INIT_VNET_INET6(curvnet);
 #ifdef KTR
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
@@ -801,7 +797,6 @@ static int
 mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
     struct mbuf *m, const int off, const int icmp6len)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mld_ifinfo	*mli;
 	struct mldv2_query	*mld;
 	struct in6_multi	*inm;
@@ -980,7 +975,6 @@ static int
 mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifinfo *mli,
     int timer, struct mbuf *m0, const int off)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mldv2_query	*mld;
 	int			 retval;
 	uint16_t		 nsrc;
@@ -1252,7 +1246,6 @@ mld_input(struct mbuf *m, int off, int icmp6len)
 	CTR3(KTR_MLD, "%s: called w/mbuf (%p,%d)", __func__, m, off);
 
 	ifp = m->m_pkthdr.rcvif;
-	INIT_VNET_INET6(ifp->if_vnet);
 
 	ip6 = mtod(m, struct ip6_hdr *);
 
@@ -1330,7 +1323,6 @@ mld_fasttimo(void)
 static void
 mld_fasttimo_vnet(void)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifqueue		 scq;	/* State-change packets */
 	struct ifqueue		 qrq;	/* Query response packets */
 	struct ifnet		*ifp;
@@ -1458,7 +1450,6 @@ out_locked:
 static void
 mld_v1_process_group_timer(struct in6_multi *inm, const int version)
 {
-	INIT_VNET_INET6(curvnet);
 	int report_timer_expired;
 
 	IN6_MULTI_LOCK_ASSERT();
@@ -1505,7 +1496,6 @@ mld_v2_process_group_timers(struct mld_ifinfo *mli,
     struct ifqueue *qrq, struct ifqueue *scq,
     struct in6_multi *inm, const int uri_fasthz)
 {
-	INIT_VNET_INET6(curvnet);
 	int query_response_timer_expired;
 	int state_change_retransmit_timer_expired;
 #ifdef KTR
@@ -1654,7 +1644,6 @@ mld_set_version(struct mld_ifinfo *mli, const int version)
 static void
 mld_v2_cancel_link_timers(struct mld_ifinfo *mli)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
 	struct in6_multi		*inm;
@@ -1747,7 +1736,6 @@ mld_slowtimo(void)
 static void
 mld_slowtimo_vnet(void)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mld_ifinfo *mli;
 
 	MLD_LOCK();
@@ -1951,7 +1939,6 @@ static int
 mld_initial_join(struct in6_multi *inm, struct mld_ifinfo *mli,
     const int delay)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet		*ifp;
 	struct ifqueue		*ifq;
 	int			 error, retval, syncstates;
@@ -2100,7 +2087,6 @@ mld_initial_join(struct in6_multi *inm, struct mld_ifinfo *mli,
 static int
 mld_handle_state_change(struct in6_multi *inm, struct mld_ifinfo *mli)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet		*ifp;
 	int			 retval;
 #ifdef KTR
@@ -2164,7 +2150,6 @@ mld_handle_state_change(struct in6_multi *inm, struct mld_ifinfo *mli)
 static void
 mld_final_leave(struct in6_multi *inm, struct mld_ifinfo *mli)
 {
-	INIT_VNET_INET6(curvnet);
 	int syncstates;
 #ifdef KTR
 	char ip6tbuf[INET6_ADDRSTRLEN];
@@ -2947,7 +2932,6 @@ mld_v2_merge_state_changes(struct in6_multi *inm, struct ifqueue *ifscq)
 static void
 mld_v2_dispatch_general_query(struct mld_ifinfo *mli)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifmultiaddr	*ifma, *tifma;
 	struct ifnet		*ifp;
 	struct in6_multi	*inm;
@@ -3036,8 +3020,6 @@ mld_dispatch_packet(struct mbuf *m)
 	 * indexes to guard against interface detach, they are
 	 * unique to each VIMAGE and must be retrieved.
 	 */
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	ifindex = mld_restore_context(m);
 
 	/*
@@ -3247,21 +3229,10 @@ mld_sysuninit(void)
 static int
 vnet_mld_iattach(const void *unused __unused)
 {
-	INIT_VNET_INET6(curvnet);
 
 	CTR1(KTR_MLD, "%s: initializing", __func__);
 
 	LIST_INIT(&V_mli_head);
-
-	V_current_state_timers_running6 = 0;
-	V_interface_timers_running6 = 0;
-	V_state_change_timers_running6 = 0;
-
-	/*
-	 * Initialize sysctls to default values.
-	 */
-	V_mld_gsrdelay.tv_sec = 10;
-	V_mld_gsrdelay.tv_usec = 0;
 
 	return (0);
 }
@@ -3269,9 +3240,6 @@ vnet_mld_iattach(const void *unused __unused)
 static int
 vnet_mld_idetach(const void *unused __unused)
 {
-#ifdef INVARIANTS
-	INIT_VNET_INET6(curvnet);
-#endif
 
 	CTR1(KTR_MLD, "%s: tearing down", __func__);
 
@@ -3281,7 +3249,7 @@ vnet_mld_idetach(const void *unused __unused)
 	return (0);
 }
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 static vnet_modinfo_t vnet_mld_modinfo = {
 	.vmi_id		= VNET_MOD_MLD,
 	.vmi_name	= "mld",
@@ -3298,14 +3266,14 @@ mld_modevent(module_t mod, int type, void *unused __unused)
     switch (type) {
     case MOD_LOAD:
 	mld_sysinit();
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 	vnet_mod_register(&vnet_mld_modinfo);
 #else
 	vnet_mld_iattach(NULL);
 #endif
 	break;
     case MOD_UNLOAD:
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 	vnet_mod_deregister(&vnet_mld_modinfo);
 #else
 	vnet_mld_idetach(NULL);

@@ -69,10 +69,8 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_IPFW);
 
-#ifdef VIMAGE_GLOBALS
-extern struct ip_fw_chain layer3_chain;
-static eventhandler_tag ifaddr_event_tag;
-#endif
+static VNET_DEFINE(eventhandler_tag, ifaddr_event_tag);
+#define	V_ifaddr_event_tag	VNET_GET(ifaddr_event_tag)
 
 extern ipfw_nat_t *ipfw_nat_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
@@ -83,7 +81,6 @@ extern ipfw_nat_cfg_t *ipfw_nat_get_log_ptr;
 static void 
 ifaddr_change(void *arg __unused, struct ifnet *ifp)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct cfg_nat *ptr;
 	struct ifaddr *ifa;
 
@@ -111,7 +108,6 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 static void
 flush_nat_ptrs(const int i)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct ip_fw *rule;
 
 	IPFW_WLOCK_ASSERT(&V_layer3_chain);
@@ -411,7 +407,6 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 static int 
 ipfw_nat_cfg(struct sockopt *sopt)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct cfg_nat *ptr, *ser_n;
 	char *buf;
 
@@ -482,7 +477,6 @@ ipfw_nat_cfg(struct sockopt *sopt)
 static int
 ipfw_nat_del(struct sockopt *sopt)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct cfg_nat *ptr;
 	int i;
 		
@@ -505,7 +499,6 @@ ipfw_nat_del(struct sockopt *sopt)
 static int
 ipfw_nat_get_cfg(struct sockopt *sopt)
 {	
-	INIT_VNET_IPFW(curvnet);
 	uint8_t *data;
 	struct cfg_nat *n;
 	struct cfg_redir *r;
@@ -560,7 +553,6 @@ nospace:
 static int
 ipfw_nat_get_log(struct sockopt *sopt)
 {
-	INIT_VNET_IPFW(curvnet);
 	uint8_t *data;
 	struct cfg_nat *ptr;
 	int i, size, cnt, sof;
@@ -595,7 +587,6 @@ ipfw_nat_get_log(struct sockopt *sopt)
 static void
 ipfw_nat_init(void)
 {
-	INIT_VNET_IPFW(curvnet);
 
 	IPFW_WLOCK(&V_layer3_chain);
 	/* init ipfw hooks */
@@ -612,7 +603,6 @@ ipfw_nat_init(void)
 static void
 ipfw_nat_destroy(void)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct ip_fw *rule;
 	struct cfg_nat *ptr, *ptr_temp;
 	

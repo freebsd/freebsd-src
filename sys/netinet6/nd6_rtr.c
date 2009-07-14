@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
 #include <netinet6/scope6_var.h>
-#include <netinet6/vinet6.h>
 
 static int rtpref(struct nd_defrouter *);
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
@@ -88,18 +87,18 @@ static void in6_init_address_ltimes __P((struct nd_prefix *,
 
 static int rt6_deleteroute(struct radix_node *, void *);
 
-#ifdef VIMAGE_GLOBALS
-extern int nd6_recalc_reachtm_interval;
+VNET_DECLARE(int, nd6_recalc_reachtm_interval);
+#define	V_nd6_recalc_reachtm_interval	VNET_GET(nd6_recalc_reachtm_interval)
 
-static struct ifnet *nd6_defifp;
-int nd6_defifindex;
+static VNET_DEFINE(struct ifnet *, nd6_defifp);
+#define	V_nd6_defifp			VNET_GET(nd6_defifp)
 
-int ip6_use_tempaddr;
-int ip6_desync_factor;
-u_int32_t ip6_temp_preferred_lifetime;
-u_int32_t ip6_temp_valid_lifetime;
-int ip6_temp_regen_advance;
-#endif
+VNET_DEFINE(int, nd6_defifindex);
+VNET_DEFINE(int, ip6_use_tempaddr);
+VNET_DEFINE(int, ip6_desync_factor);
+VNET_DEFINE(u_int32_t, ip6_temp_preferred_lifetime);
+VNET_DEFINE(u_int32_t, ip6_temp_valid_lifetime);
+VNET_DEFINE(int, ip6_temp_regen_advance);
 
 /* RTPREF_MEDIUM has to be 0! */
 #define RTPREF_HIGH	1
@@ -118,7 +117,6 @@ int ip6_temp_regen_advance;
 void
 nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct nd_router_solicit *nd_rs;
@@ -203,7 +201,6 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 void
 nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct nd_ifinfo *ndi = ND_IFINFO(ifp);
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
@@ -491,7 +488,6 @@ defrouter_addreq(struct nd_defrouter *new)
 struct nd_defrouter *
 defrouter_lookup(struct in6_addr *addr, struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct nd_defrouter *dr;
 
 	for (dr = TAILQ_FIRST(&V_nd_defrouter); dr;
@@ -540,7 +536,6 @@ defrouter_delreq(struct nd_defrouter *dr)
 void
 defrouter_reset(void)
 {
-	INIT_VNET_INET6(curvnet);
 	struct nd_defrouter *dr;
 
 	for (dr = TAILQ_FIRST(&V_nd_defrouter); dr;
@@ -556,7 +551,6 @@ defrouter_reset(void)
 void
 defrtrlist_del(struct nd_defrouter *dr)
 {
-	INIT_VNET_INET6(curvnet);
 	struct nd_defrouter *deldr = NULL;
 	struct nd_prefix *pr;
 
@@ -618,7 +612,6 @@ defrtrlist_del(struct nd_defrouter *dr)
 void
 defrouter_select(void)
 {
-	INIT_VNET_INET6(curvnet);
 	int s = splnet();
 	struct nd_defrouter *dr, *selected_dr = NULL, *installed_dr = NULL;
 	struct llentry *ln = NULL;
@@ -743,7 +736,6 @@ rtpref(struct nd_defrouter *dr)
 static struct nd_defrouter *
 defrtrlist_update(struct nd_defrouter *new)
 {
-	INIT_VNET_INET6(curvnet);
 	struct nd_defrouter *dr, *n;
 	int s = splnet();
 
@@ -865,7 +857,6 @@ pfxrtr_del(struct nd_pfxrouter *pfr)
 struct nd_prefix *
 nd6_prefix_lookup(struct nd_prefixctl *key)
 {
-	INIT_VNET_INET6(curvnet);
 	struct nd_prefix *search;
 
 	for (search = V_nd_prefix.lh_first;
@@ -885,7 +876,6 @@ int
 nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
     struct nd_prefix **newp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct nd_prefix *new = NULL;
 	int error = 0;
 	int i, s;
@@ -944,7 +934,6 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 void
 prelist_remove(struct nd_prefix *pr)
 {
-	INIT_VNET_INET6(curvnet);
 	struct nd_pfxrouter *pfr, *next;
 	int e, s;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -997,7 +986,6 @@ static int
 prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
     struct mbuf *m, int mcast)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia6 = NULL, *ia6_match = NULL;
 	struct ifaddr *ifa;
 	struct ifnet *ifp = new->ndpr_ifp;
@@ -1374,7 +1362,6 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 void
 pfxlist_onlink_check()
 {
-	INIT_VNET_INET6(curvnet);
 	struct nd_prefix *pr;
 	struct in6_ifaddr *ifa;
 	struct nd_defrouter *dr;
@@ -1556,7 +1543,6 @@ pfxlist_onlink_check()
 int
 nd6_prefix_onlink(struct nd_prefix *pr)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifaddr *ifa;
 	struct ifnet *ifp = pr->ndpr_ifp;
 	struct sockaddr_in6 mask6;
@@ -1682,7 +1668,6 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 int
 nd6_prefix_offlink(struct nd_prefix *pr)
 {
-	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	struct ifnet *ifp = pr->ndpr_ifp;
 	struct nd_prefix *opr;
@@ -1774,7 +1759,6 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 static struct in6_ifaddr *
 in6_ifadd(struct nd_prefixctl *pr, int mcast)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp = pr->ndpr_ifp;
 	struct ifaddr *ifa;
 	struct in6_aliasreq ifra;
@@ -1912,7 +1896,6 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 int
 in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp = ia0->ia_ifa.ifa_ifp;
 	struct in6_ifaddr *newia, *ia;
 	struct in6_aliasreq ifra;
@@ -2141,8 +2124,6 @@ rt6_deleteroute(struct radix_node *rn, void *arg)
 int
 nd6_setdefaultiface(int ifindex)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	int error = 0;
 
 	if (ifindex < 0 || V_if_index < ifindex)

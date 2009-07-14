@@ -41,6 +41,7 @@
 
 #ifdef _KERNEL
 #include <sys/rwlock.h>
+#include <net/vnet.h>
 #endif
 
 #define	in6pcb		inpcb	/* for KAME src sync over BSD*'s */
@@ -450,21 +451,34 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_CHECK_SOCKAF(so, af)	(INP_SOCKAF(so) == af)
 
 #ifdef _KERNEL
-#ifdef VIMAGE_GLOBALS
-extern int	ipport_reservedhigh;
-extern int	ipport_reservedlow;
-extern int	ipport_lowfirstauto;
-extern int	ipport_lowlastauto;
-extern int	ipport_firstauto;
-extern int	ipport_lastauto;
-extern int	ipport_hifirstauto;
-extern int	ipport_hilastauto;
-extern int	ipport_randomized;
-extern int	ipport_randomcps;
-extern int	ipport_randomtime;
-extern int	ipport_stoprandom;
-extern int	ipport_tcpallocs;
-#endif
+VNET_DECLARE(int, ipport_reservedhigh);
+VNET_DECLARE(int, ipport_reservedlow);
+VNET_DECLARE(int, ipport_lowfirstauto);
+VNET_DECLARE(int, ipport_lowlastauto);
+VNET_DECLARE(int, ipport_firstauto);
+VNET_DECLARE(int, ipport_lastauto);
+VNET_DECLARE(int, ipport_hifirstauto);
+VNET_DECLARE(int, ipport_hilastauto);
+VNET_DECLARE(int, ipport_randomized);
+VNET_DECLARE(int, ipport_randomcps);
+VNET_DECLARE(int, ipport_randomtime);
+VNET_DECLARE(int, ipport_stoprandom);
+VNET_DECLARE(int, ipport_tcpallocs);
+
+#define	V_ipport_reservedhigh	VNET_GET(ipport_reservedhigh)
+#define	V_ipport_reservedlow	VNET_GET(ipport_reservedlow)
+#define	V_ipport_lowfirstauto	VNET_GET(ipport_lowfirstauto)
+#define	V_ipport_lowlastauto	VNET_GET(ipport_lowlastauto)
+#define	V_ipport_firstauto	VNET_GET(ipport_firstauto)
+#define	V_ipport_lastauto	VNET_GET(ipport_lastauto)
+#define	V_ipport_hifirstauto	VNET_GET(ipport_hifirstauto)
+#define	V_ipport_hilastauto	VNET_GET(ipport_hilastauto)
+#define	V_ipport_randomized	VNET_GET(ipport_randomized)
+#define	V_ipport_randomcps	VNET_GET(ipport_randomcps)
+#define	V_ipport_randomtime	VNET_GET(ipport_randomtime)
+#define	V_ipport_stoprandom	VNET_GET(ipport_stoprandom)
+#define	V_ipport_tcpallocs	VNET_GET(ipport_tcpallocs)
+
 extern struct callout ipport_tick_callout;
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);

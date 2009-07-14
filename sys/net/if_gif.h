@@ -119,34 +119,8 @@ int gif_set_tunnel(struct ifnet *, struct sockaddr *, struct sockaddr *);
 void gif_delete_tunnel(struct ifnet *);
 int gif_encapcheck(const struct mbuf *, int, int, void *);
 
-/*
- * Virtualization support
- */
-
-struct vnet_gif {
-	LIST_HEAD(, gif_softc)	_gif_softc_list;
-	int			_max_gif_nesting;
-	int			_parallel_tunnels;
-	int			_ip_gif_ttl;
-	int			_ip6_gif_hlim;
-};
-
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-extern struct vnet_gif vnet_gif_0;
-#endif
-#endif
-
-#define	INIT_VNET_GIF(vnet) \
-	INIT_FROM_VNET(vnet, VNET_MOD_GIF, struct vnet_gif, vnet_gif)
-
-#define	VNET_GIF(sym)	VSYM(vnet_gif, sym)
-
-#define	V_gif_softc_list	VNET_GIF(gif_softc_list)
-#define	V_max_gif_nesting	VNET_GIF(max_gif_nesting)
-#define	V_parallel_tunnels	VNET_GIF(parallel_tunnels)
-#define	V_ip_gif_ttl		VNET_GIF(ip_gif_ttl)
-#define	V_ip6_gif_hlim		VNET_GIF(ip6_gif_hlim)
+VNET_DECLARE(int, ip_gif_ttl);
+#define	V_ip_gif_ttl		VNET_GET(ip_gif_ttl)
 
 #endif /* _KERNEL */
 

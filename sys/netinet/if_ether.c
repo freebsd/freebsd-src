@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <net/if_llatbl.h>
 #include <netinet/if_ether.h>
-#include <netinet/vinet.h>
 
 #include <net/if_arc.h>
 #include <net/iso88025.h>
@@ -83,28 +82,33 @@ SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 
 /* timer values */
-#ifdef VIMAGE_GLOBALS
-static int	arpt_keep; /* once resolved, good for 20 more minutes */
-static int	arp_maxtries;
-int	useloopback; /* use loopback interface for local traffic */
-static int	arp_proxyall;
-#endif
+static VNET_DEFINE(int, arpt_keep) = (20*60);	/* once resolved, good for 20
+						 * minutes */
+static VNET_DEFINE(int, arp_maxtries) = 5;
+static VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
+						 * local traffic */
+static VNET_DEFINE(int, arp_proxyall);
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, max_age,
-    CTLFLAG_RW, arpt_keep, 0, "ARP entry lifetime in seconds");
+#define	V_arpt_keep		VNET_GET(arpt_keep)
+#define	V_arp_maxtries		VNET_GET(arp_maxtries)
+#define	V_useloopback		VNET_GET(useloopback)
+#define	V_arp_proxyall		VNET_GET(arp_proxyall)
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, maxtries,
-	CTLFLAG_RW, arp_maxtries, 0,
+SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW,
+	&VNET_NAME(arpt_keep), 0,
+	"ARP entry lifetime in seconds");
+
+SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxtries, CTLFLAG_RW,
+	&VNET_NAME(arp_maxtries), 0,
 	"ARP resolution attempts before returning error");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, useloopback,
-	CTLFLAG_RW, useloopback, 0,
+SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, useloopback, CTLFLAG_RW,
+	&VNET_NAME(useloopback), 0,
 	"Use the loopback interface for local traffic");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, proxyall,
-	CTLFLAG_RW, arp_proxyall, 0,
+SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
+	&VNET_NAME(arp_proxyall), 0,
 	"Enable proxy ARP for all suitable requests");
 
 static void	arp_init(void);
-static int	arp_iattach(const void *);
 void		arprequest(struct ifnet *,
 			struct in_addr *, struct in_addr *, u_char *);
 static void	arpintr(struct mbuf *);
@@ -119,15 +123,6 @@ static const struct netisr_handler arp_nh = {
 	.nh_proto = NETISR_ARP,
 	.nh_policy = NETISR_POLICY_SOURCE,
 };
-
-#ifndef VIMAGE_GLOBALS
-static const vnet_modinfo_t vnet_arp_modinfo = {
-	.vmi_id		= VNET_MOD_ARP,
-	.vmi_name	= "arp",
-	.vmi_dependson	= VNET_MOD_INET,
-	.vmi_iattach	= arp_iattach
-};
-#endif /* !VIMAGE_GLOBALS */
 
 #ifdef AF_INET
 void arp_ifscrub(struct ifnet *ifp, uint32_t addr);
@@ -263,7 +258,6 @@ int
 arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
-	INIT_VNET_INET(ifp->if_vnet);
 	struct llentry *la = 0;
 	u_int flags = 0;
 	int error, renew;
@@ -482,7 +476,6 @@ in_arpinput(struct mbuf *m)
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = 0;
-	INIT_VNET_INET(ifp->if_vnet);
 
 	if (ifp->if_bridge)
 		bridged = 1;
@@ -825,28 +818,9 @@ arp_ifinit2(struct ifnet *ifp, struct ifaddr *ifa, u_char *enaddr)
 	ifa->ifa_rtrequest = NULL;
 }
 
-static int
-arp_iattach(const void *unused __unused)
-{
-	INIT_VNET_INET(curvnet);
-
-	V_arpt_keep = (20*60); /* once resolved, good for 20 more minutes */
-	V_arp_maxtries = 5;
-	V_useloopback = 1; /* use loopback interface for local traffic */
-	V_arp_proxyall = 0;
-
-	return (0);
-}
-
 static void
 arp_init(void)
 {
-
-#ifndef VIMAGE_GLOBALS
-	vnet_mod_register(&vnet_arp_modinfo);
-#else
-	arp_iattach(NULL);
-#endif
 
 	netisr_register(&arp_nh);
 }

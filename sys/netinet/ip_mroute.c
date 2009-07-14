@@ -111,7 +111,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/pim.h>
 #include <netinet/pim_var.h>
 #include <netinet/udp.h>
-#include <netinet/vinet.h>
 
 #include <machine/in_cksum.h>
 
@@ -379,7 +378,6 @@ mfc_find(struct in_addr *o, struct in_addr *g)
 static int
 X_ip_mrouter_set(struct socket *so, struct sockopt *sopt)
 {
-    INIT_VNET_INET(curvnet);
     int	error, optval;
     vifi_t	vifi;
     struct	vifctl vifc;
@@ -602,7 +600,6 @@ ip_mrouter_reset(void)
 static void
 if_detached_event(void *arg __unused, struct ifnet *ifp)
 {
-    INIT_VNET_INET(curvnet);
     vifi_t vifi;
     int i;
 
@@ -651,7 +648,6 @@ if_detached_event(void *arg __unused, struct ifnet *ifp)
 static int
 ip_mrouter_init(struct socket *so, int version)
 {
-    INIT_VNET_INET(curvnet);
 
     CTR3(KTR_IPMF, "%s: so_type %d, pr_protocol %d", __func__,
         so->so_type, so->so_proto->pr_protocol);
@@ -699,7 +695,6 @@ ip_mrouter_init(struct socket *so, int version)
 static int
 X_ip_mrouter_done(void)
 {
-    INIT_VNET_INET(curvnet);
     vifi_t vifi;
     int i;
     struct ifnet *ifp;
@@ -1220,7 +1215,6 @@ static int
 X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
     struct ip_moptions *imo)
 {
-    INIT_VNET_INET(curvnet);
     struct mfc *rt;
     int error;
     vifi_t vifi;
@@ -1475,7 +1469,6 @@ expire_upcalls(void *unused)
 static int
 ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 {
-    INIT_VNET_INET(curvnet);
     struct ip  *ip = mtod(m, struct ip *);
     vifi_t vifi;
     int plen = ip->ip_len;
@@ -1709,7 +1702,6 @@ X_ip_rsvp_force_done(struct socket *so __unused)
 static void
 X_rsvp_input(struct mbuf *m, int off __unused)
 {
-	INIT_VNET_INET(curvnet);
 
 	if (!V_rsvp_on)
 		m_freem(m);
@@ -2044,7 +2036,6 @@ bw_meter_prepare_upcall(struct bw_meter *x, struct timeval *nowp)
 static void
 bw_upcalls_send(void)
 {
-    INIT_VNET_INET(curvnet);
     struct mbuf *m;
     int len = bw_upcalls_n * sizeof(bw_upcalls[0]);
     struct sockaddr_in k_igmpsrc = { sizeof k_igmpsrc, AF_INET };
@@ -2401,7 +2392,6 @@ static int
 pim_register_send_upcall(struct ip *ip, struct vif *vifp,
     struct mbuf *mb_copy, struct mfc *rt)
 {
-    INIT_VNET_INET(curvnet);
     struct mbuf *mb_first;
     int len = ntohs(ip->ip_len);
     struct igmpmsg *im;
@@ -2454,7 +2444,6 @@ static int
 pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
     struct mfc *rt)
 {
-    INIT_VNET_INET(curvnet);
     struct mbuf *mb_first;
     struct ip *ip_outer;
     struct pim_encap_pimhdr *pimhdr;
@@ -2795,7 +2784,6 @@ SYSCTL_NODE(_net_inet_ip, OID_AUTO, mfctable, CTLFLAG_RD, sysctl_mfctable,
 static int
 ip_mroute_modevent(module_t mod, int type, void *unused)
 {
-    INIT_VNET_INET(curvnet);
 
     switch (type) {
     case MOD_LOAD:

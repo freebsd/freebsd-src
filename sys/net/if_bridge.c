@@ -116,11 +116,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-#include <netinet/vinet.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/vinet6.h>
 #endif
 #if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
@@ -3042,7 +3040,6 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	}
 
 	if (ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
-		INIT_VNET_INET(curvnet);
 		struct dn_pkt_tag *dn_tag;
 
 		error = -1;
@@ -3236,7 +3233,6 @@ bad:
 static int
 bridge_ip_checkbasic(struct mbuf **mp)
 {
-	INIT_VNET_INET(curvnet);
 	struct mbuf *m = *mp;
 	struct ip *ip;
 	int len, hlen;
@@ -3332,7 +3328,6 @@ bad:
 static int
 bridge_ip6_checkbasic(struct mbuf **mp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6;
 
@@ -3387,7 +3382,6 @@ static int
 bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
     int snap, struct llc *llc)
 {
-	INIT_VNET_INET(curvnet);
 	struct mbuf *m0;
 	struct ip *ip;
 	int error = -1;

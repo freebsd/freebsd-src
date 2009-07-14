@@ -129,6 +129,8 @@ struct	ipstat {
 
 #ifdef _KERNEL
 
+#include <net/vnet.h>
+
 #define	IPSTAT_ADD(name, val)	V_ipstat.name += (val)
 #define	IPSTAT_SUB(name, val)	V_ipstat.name -= (val)
 #define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
@@ -158,19 +160,27 @@ struct inpcb;
 struct route;
 struct sockopt;
 
-#ifdef VIMAGE_GLOBALS
-extern struct	ipstat	ipstat;
-extern u_short	ip_id;			/* ip packet ctr, for ids */
-extern int	ip_do_randomid;
-extern int	ip_defttl;		/* default IP ttl */
-extern int	ipforwarding;		/* ip forwarding */
+VNET_DECLARE(struct ipstat, ipstat);
+VNET_DECLARE(u_short, ip_id);			/* ip packet ctr, for ids */
+VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
+VNET_DECLARE(int, ipforwarding);		/* ip forwarding */
 #ifdef IPSTEALTH
-extern int	ipstealth;		/* stealth forwarding */
+VNET_DECLARE(int, ipstealth);			/* stealth forwarding */
 #endif
-extern int rsvp_on;
-extern struct socket *ip_rsvpd;		/* reservation protocol daemon */
-extern struct socket *ip_mrouter;	/* multicast routing daemon */
-#endif /* VIMAGE_GLOBALS */
+VNET_DECLARE(int, rsvp_on);
+VNET_DECLARE(struct socket *, ip_rsvpd);	/* reservation protocol daemon*/
+VNET_DECLARE(struct socket *, ip_mrouter);	/* multicast routing daemon */
+
+#define	V_ipstat		VNET_GET(ipstat)
+#define	V_ip_id			VNET_GET(ip_id)
+#define	V_ip_defttl		VNET_GET(ip_defttl)
+#define	V_ipforwarding		VNET_GET(ipforwarding)
+#ifdef IPSTEALTH
+#define	V_ipstealth		VNET_GET(ipstealth)
+#endif
+#define	V_rsvp_on		VNET_GET(rsvp_on)
+#define	V_ip_rsvpd		VNET_GET(ip_rsvpd)
+#define	V_ip_mrouter		VNET_GET(ip_mrouter)
 
 extern u_char	ip_protox[];
 extern int	(*legal_vif_num)(int);
@@ -231,6 +241,12 @@ extern int	(*ip_fw_ctl_ptr)(struct sockopt *);
 extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
 extern int	(*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa);
 extern void	(*ip_dn_ruledel_ptr)(void *);		/* in ip_fw2.c */
+
+VNET_DECLARE(int, ip_do_randomid);
+#define	V_ip_do_randomid	VNET_GET(ip_do_randomid)
+#define	ip_newid()	((V_ip_do_randomid != 0) ? ip_randomid() : \
+			    htons(V_ip_id++))
+
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IP_VAR_H_ */

@@ -53,7 +53,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
 #include <netinet/in_pcb.h>
-#include <netinet/vinet.h>
+#include <netinet/ip_var.h>
+#include <netinet/udp.h>
+#include <netinet/udp_var.h>
 
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -64,14 +66,15 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/mld6_var.h>
 #include <netinet6/scope6_var.h>
-#include <netinet6/vinet6.h>
 
-#ifdef VIMAGE_GLOBALS
-unsigned long in6_maxmtu;
-int ip6_auto_linklocal;
-struct callout in6_tmpaddrtimer_ch;
-extern struct inpcbinfo ripcbinfo;
-#endif
+VNET_DEFINE(unsigned long, in6_maxmtu);
+VNET_DEFINE(int, ip6_auto_linklocal);
+VNET_DEFINE(struct callout, in6_tmpaddrtimer_ch);
+
+#define	V_in6_tmpaddrtimer_ch		VNET_GET(in6_tmpaddrtimer_ch)
+
+VNET_DECLARE(struct inpcbinfo, ripcbinfo);
+#define	V_ripcbinfo			VNET_GET(ripcbinfo)
 
 static int get_rand_ifid(struct ifnet *, struct in6_addr *);
 static int generate_tmp_ifid(u_int8_t *, const u_int8_t *, u_int8_t *);
@@ -142,7 +145,6 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 static int
 generate_tmp_ifid(u_int8_t *seed0, const u_int8_t *seed1, u_int8_t *ret)
 {
-	INIT_VNET_INET6(curvnet);
 	MD5_CTX ctxt;
 	u_int8_t seed[16], digest[16], nullbuf[8];
 	u_int32_t val32;
@@ -379,8 +381,6 @@ static int
 get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
     struct in6_addr *in6)
 {
-	INIT_VNET_NET(ifp0->if_vnet);
-	INIT_VNET_INET6(ifp0->if_vnet);
 	struct ifnet *ifp;
 
 	/* first, try to get it from the interface itself */
@@ -444,7 +444,6 @@ success:
 static int
 in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 	struct in6_aliasreq ifra;
 	struct nd_prefixctl pr0;
@@ -562,7 +561,6 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 static int
 in6_ifattach_loopback(struct ifnet *ifp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_aliasreq ifra;
 	int error;
 
@@ -694,7 +692,6 @@ in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
 void
 in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct in6_ifaddr *ia;
 	struct in6_addr in6;
 
@@ -782,8 +779,6 @@ statinit:
 void
 in6_ifdetach(struct ifnet *ifp)
 {
-	INIT_VNET_INET(ifp->if_vnet);
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct in6_ifaddr *ia;
 	struct ifaddr *ifa, *next;
 	struct radix_node_head *rnh;
@@ -908,8 +903,6 @@ void
 in6_tmpaddrtimer(void *arg)
 {
 	CURVNET_SET((struct vnet *) arg);
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	struct nd_ifinfo *ndi;
 	u_int8_t nullbuf[8];
 	struct ifnet *ifp;

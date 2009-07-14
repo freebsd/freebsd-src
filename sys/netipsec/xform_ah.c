@@ -49,6 +49,7 @@
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -73,17 +74,6 @@
 
 #include <opencrypto/cryptodev.h>
 
-static int ah_iattach(const void *);
-
-#ifndef VIMAGE_GLOBALS
-static const vnet_modinfo_t vnet_ah_modinfo = {
-	.vmi_id		= VNET_MOD_AH,
-	.vmi_name	= "ipsec_ah",
-	.vmi_dependson	= VNET_MOD_IPSEC,
-	.vmi_iattach	= ah_iattach
-};
-#endif /* !VIMAGE_GLOBALS */
-
 /*
  * Return header size in bytes.  The old protocol did not support
  * the replay counter; the new protocol always includes the counter.
@@ -99,19 +89,17 @@ static const vnet_modinfo_t vnet_ah_modinfo = {
 #define	AUTHSIZE(sav) \
 	((sav->flags & SADB_X_EXT_OLD) ? 16 : AH_HMAC_HASHLEN)
 
-#ifdef VIMAGE_GLOBALS
-int	ah_enable;
-int	ah_cleartos;
-struct	ahstat ahstat;
-#endif
+VNET_DEFINE(int, ah_enable) = 1;	/* control flow of packets with AH */
+VNET_DEFINE(int, ah_cleartos) = 1;	/* clear ip_tos when doing AH calc */
+VNET_DEFINE(struct ahstat, ahstat);
 
 SYSCTL_DECL(_net_inet_ah);
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ah, OID_AUTO,
-	ah_enable,	CTLFLAG_RW,	ah_enable,	0, "");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ah, OID_AUTO,
-	ah_cleartos,	CTLFLAG_RW,	ah_cleartos,	0, "");
-SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ah, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	ahstat,	ahstat, "");
+SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
+	ah_enable,	CTLFLAG_RW,	&VNET_NAME(ah_enable),	0, "");
+SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
+	ah_cleartos,	CTLFLAG_RW,	&VNET_NAME(ah_cleartos), 0, "");
+SYSCTL_VNET_STRUCT(_net_inet_ah, IPSECCTL_STATS,
+	stats,		CTLFLAG_RD,	&VNET_NAME(ahstat), ahstat, "");
 
 static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
 
@@ -173,7 +161,6 @@ ah_hdrsiz(struct secasvar *sav)
 int
 ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct auth_hash *thash;
 	int keylen;
 
@@ -228,7 +215,6 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 static int
 ah_init(struct secasvar *sav, struct xformsw *xsp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct cryptoini cria;
 	int error;
 
@@ -263,7 +249,6 @@ ah_zeroize(struct secasvar *sav)
 static int
 ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *m = *m0;
 	unsigned char *ptr;
 	int off, count;
@@ -568,7 +553,6 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 static int
 ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct auth_hash *ahx;
 	struct tdb_ident *tdbi;
 	struct tdb_crypto *tc;
@@ -738,7 +722,6 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 ah_input_cb(struct cryptop *crp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int rplen, error, skip, protoff;
 	unsigned char calc[AH_ALEN_MAX];
 	struct mbuf *m;
@@ -901,7 +884,6 @@ ah_output(
 	int skip,
 	int protoff)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *sav;
 	struct auth_hash *ahx;
 	struct cryptodesc *crda;
@@ -1128,7 +1110,6 @@ bad:
 static int
 ah_output_cb(struct cryptop *crp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int skip, protoff, error;
 	struct tdb_crypto *tc;
 	struct ipsecrequest *isr;
@@ -1232,21 +1213,6 @@ ah_attach(void)
 {
 
 	xform_register(&ah_xformsw);
-#ifndef VIMAGE_GLOBALS
-	vnet_mod_register(&vnet_ah_modinfo);
-#else
-	ah_iattach(NULL);
-#endif
 }
 
-static int
-ah_iattach(const void *unused __unused)
-{
-	INIT_VNET_IPSEC(curvnet);
-
-	V_ah_enable = 1;	/* control flow of packets with AH */
-	V_ah_cleartos = 1;	/* clear ip_tos when doing AH calc */
-
-	return (0);
-}
 SYSINIT(ah_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ah_attach, NULL);

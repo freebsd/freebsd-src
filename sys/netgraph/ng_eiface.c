@@ -116,11 +116,10 @@ NETGRAPH_INIT(eiface, &typestruct);
 static vnet_attach_fn ng_eiface_iattach;
 static vnet_detach_fn ng_eiface_idetach;
 
-#ifdef VIMAGE_GLOBALS
-static struct unrhdr	*ng_eiface_unit;
-#endif
+static VNET_DEFINE(struct unrhdr *, ng_eiface_unit);
+#define	V_ng_eiface_unit		VNET_GET(ng_eiface_unit)
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 static vnet_modinfo_t vnet_ng_eiface_modinfo = {
 	.vmi_id		= VNET_MOD_NG_EIFACE,
 	.vmi_name	= "ng_eiface",
@@ -351,7 +350,6 @@ ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 static int
 ng_eiface_constructor(node_p node)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	struct ifnet *ifp;
 	priv_p priv;
 	u_char eaddr[6] = {0,0,0,0,0,0};
@@ -563,7 +561,6 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 static int
 ng_eiface_rmnode(node_p node)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ifnet *const ifp = priv->ifp;
 
@@ -604,14 +601,14 @@ ng_eiface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 		vnet_mod_register(&vnet_ng_eiface_modinfo);
 #else
 		ng_eiface_iattach(NULL);
 #endif
 		break;
 	case MOD_UNLOAD:
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 		vnet_mod_deregister(&vnet_ng_eiface_modinfo);
 #else
 		ng_eiface_idetach(NULL);
@@ -626,7 +623,6 @@ ng_eiface_mod_event(module_t mod, int event, void *data)
 
 static int ng_eiface_iattach(const void *unused)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 
 	V_ng_eiface_unit = new_unrhdr(0, 0xffff, NULL);
 
@@ -635,7 +631,6 @@ static int ng_eiface_iattach(const void *unused)
 
 static int ng_eiface_idetach(const void *unused)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 
 	delete_unrhdr(V_ng_eiface_unit);
 

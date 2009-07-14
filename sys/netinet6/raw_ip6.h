@@ -48,9 +48,8 @@ struct rip6stat {
 };
 
 #ifdef _KERNEL
-#ifdef VIMAGE_GLOBALS
-extern struct rip6stat rip6stat;
-#endif
+VNET_DECLARE(struct rip6stat, rip6stat);
+#define	V_rip6stat			VNET_GET(rip6stat)
 #endif
 
 #endif

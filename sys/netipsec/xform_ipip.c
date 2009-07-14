@@ -68,7 +68,6 @@
 #ifdef MROUTING
 #include <netinet/ip_mroute.h>
 #endif
-#include <netinet/vinet.h>
 
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
@@ -92,31 +91,27 @@
  * We can control the acceptance of IP4 packets by altering the sysctl
  * net.inet.ipip.allow value.  Zero means drop them, all else is acceptance.
  */
-#ifdef VIMAGE_GLOBALS
-int	ipip_allow;
-struct	ipipstat ipipstat;
-#endif
+VNET_DEFINE(int, ipip_allow) = 0;
+VNET_DEFINE(struct ipipstat, ipipstat);
 
 SYSCTL_DECL(_net_inet_ipip);
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipip, OID_AUTO,
-	ipip_allow,	CTLFLAG_RW,	ipip_allow,	0, "");
-SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipip, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	ipipstat,	ipipstat, "");
+SYSCTL_VNET_INT(_net_inet_ipip, OID_AUTO,
+	ipip_allow,	CTLFLAG_RW,	&VNET_NAME(ipip_allow),	0, "");
+SYSCTL_VNET_STRUCT(_net_inet_ipip, IPSECCTL_STATS,
+	stats,		CTLFLAG_RD,	&VNET_NAME(ipipstat),	ipipstat, "");
 
 /* XXX IPCOMP */
 #define	M_IPSEC	(M_AUTHIPHDR|M_AUTHIPDGM|M_DECRYPTED)
 
 static void _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp);
-static int ipe4_iattach(const void *);
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 static const vnet_modinfo_t vnet_ipip_modinfo = {
 	.vmi_id		= VNET_MOD_IPIP,
 	.vmi_name	= "ipsec_ipip",
 	.vmi_dependson	= VNET_MOD_IPSEC,
-	.vmi_iattach	= ipe4_iattach
 };
-#endif /* !VIMAGE_GLOBALS */
+#endif
 
 #ifdef INET6
 /*
@@ -169,8 +164,6 @@ ip4_input(struct mbuf *m, int off)
 static void
 _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_IPSEC(curvnet);
 #ifdef INET
 	register struct sockaddr_in *sin;
 #endif
@@ -424,10 +417,6 @@ ipip_output(
 	int protoff
 )
 {
-	INIT_VNET_IPSEC(curvnet);
-#ifdef INET
-	INIT_VNET_INET(curvnet);
-#endif /* INET */
 	struct secasvar *sav;
 	u_int8_t tp, otos;
 	struct secasindex *saidx;
@@ -708,15 +697,6 @@ ipe4_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 	return ((m->m_flags & M_IPSEC) != 0 ? 1 : 0);
 }
 
-static int
-ipe4_iattach(const void *unused __unused)
-{
-	INIT_VNET_IPSEC(curvnet);
-
-	V_ipip_allow = 0;
-	return (0);
-}
-
 static void
 ipe4_attach(void)
 {
@@ -730,10 +710,8 @@ ipe4_attach(void)
 	(void) encap_attach_func(AF_INET6, -1,
 		ipe4_encapcheck, (struct protosw *)&ipe6_protosw, NULL);
 #endif
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 	vnet_mod_register(&vnet_ipip_modinfo);
-#else
-	ipe4_iattach(NULL);
 #endif
 }
 SYSINIT(ipe4_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipe4_attach, NULL);

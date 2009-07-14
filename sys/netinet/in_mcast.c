@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/igmp_var.h>
-#include <netinet/vinet.h>
 
 #ifndef KTR_IGMPV3
 #define KTR_IGMPV3 KTR_INET
@@ -83,10 +82,6 @@ static MALLOC_DEFINE(M_IPMADDR, "in_multi", "IPv4 multicast group");
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "IPv4 multicast options");
 static MALLOC_DEFINE(M_IPMSOURCE, "ip_msource",
     "IPv4 multicast IGMP-layer source filter");
-
-#ifdef VIMAGE_GLOBALS
-struct in_multihead in_multihead;	/* XXX now unused; retain for ABI */
-#endif
 
 /*
  * Locking:
@@ -1295,8 +1290,6 @@ in_delmulti(struct in_multi *inm)
 static int
 inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET(curvnet);
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -1560,7 +1553,6 @@ inp_freemoptions(struct ip_moptions *imo)
 static int
 inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
 	struct __msfilterreq	 msfr;
 	sockunion_t		*gsa;
 	struct ifnet		*ifp;
@@ -1678,7 +1670,6 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 int
 inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip_mreqn		 mreqn;
 	struct ip_moptions	*imo;
 	struct ifnet		*ifp;
@@ -1809,7 +1800,6 @@ static struct ifnet *
 inp_lookup_mcast_ifp(const struct inpcb *inp,
     const struct sockaddr_in *gsin, const struct in_addr ina)
 {
-	INIT_VNET_INET(curvnet);
 	struct ifnet *ifp;
 
 	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
@@ -1856,7 +1846,6 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 static int
 inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -2097,8 +2086,6 @@ out_inp_locked:
 static int
 inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET(curvnet);
 	struct group_source_req		 gsr;
 	struct ip_mreq_source		 mreqs;
 	sockunion_t			*gsa, *ssa;
@@ -2308,8 +2295,6 @@ out_inp_locked:
 static int
 inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET(curvnet);
 	struct in_addr		 addr;
 	struct ip_mreqn		 mreqn;
 	struct ifnet		*ifp;
@@ -2376,7 +2361,6 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 static int
 inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 {
-	INIT_VNET_NET(curvnet);
 	struct __msfilterreq	 msfr;
 	sockunion_t		*gsa;
 	struct ifnet		*ifp;
@@ -2699,7 +2683,6 @@ inp_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 static int
 sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_NET(curvnet);
 	struct in_addr			 src, group;
 	struct ifnet			*ifp;
 	struct ifmultiaddr		*ifma;

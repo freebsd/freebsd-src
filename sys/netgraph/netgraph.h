@@ -1218,36 +1218,4 @@ typedef void *meta_p;
 		    ("%s: negative td_ng_outbound", __func__));		\
 	} while (0)
 
-/* Virtualization macros */
-#define	INIT_VNET_NETGRAPH(vnet) \
-	INIT_FROM_VNET(vnet, VNET_MOD_NETGRAPH, \
-	    struct vnet_netgraph, vnet_netgraph)
-
-#define	VNET_NETGRAPH(sym)	VSYM(vnet_netgraph, sym)
-
-struct vnet_netgraph {
-	LIST_HEAD(, ng_node)	 _ng_ID_hash[NG_ID_HASH_SIZE];
-	LIST_HEAD(, ng_node)	 _ng_name_hash[NG_NAME_HASH_SIZE];
-	LIST_HEAD(, ng_node)	 _ng_nodelist;
-	ng_ID_t			 _nextID;
-	struct unrhdr		*_ng_iface_unit;
-	struct unrhdr		*_ng_eiface_unit;
-	struct unrhdr		*_ng_wormhole_unit;
-};
-
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-extern struct vnet_netgraph vnet_netgraph_0;
-#endif
-#endif
-
-/* Symbol translation macros */
-#define	V_nextID		VNET_NETGRAPH(nextID)
-#define	V_ng_ID_hash		VNET_NETGRAPH(ng_ID_hash)
-#define	V_ng_eiface_unit	VNET_NETGRAPH(ng_eiface_unit)
-#define	V_ng_iface_unit		VNET_NETGRAPH(ng_iface_unit)
-#define	V_ng_name_hash		VNET_NETGRAPH(ng_name_hash)
-#define	V_ng_nodelist		VNET_NETGRAPH(ng_nodelist)
-#define	V_ng_wormhole_unit	VNET_NETGRAPH(ng_wormhole_unit)
-
 #endif /* _NETGRAPH_NETGRAPH_H_ */

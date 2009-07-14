@@ -71,8 +71,11 @@ struct ahstat {
 };
 
 #ifdef _KERNEL
-extern	int ah_enable;
-extern	int ah_cleartos;
-extern	struct ahstat ahstat;
+VNET_DECLARE(int, ah_enable);
+#define	V_ah_enable		VNET_GET(ah_enable)
+VNET_DECLARE(int, ah_cleartos);
+#define	V_ah_cleartos		VNET_GET(ah_cleartos)
+VNET_DECLARE(struct ahstat, ahstat);
+#define	V_ahstat		VNET_GET(ahstat)
 #endif /* _KERNEL */
 #endif /*_NETIPSEC_AH_VAR_H_*/
