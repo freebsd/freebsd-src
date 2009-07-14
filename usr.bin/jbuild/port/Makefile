@@ -3,7 +3,7 @@
 # $FreeBSD$
 #
 
-.include ${.CURDIR}/../jbuild_version
+.include "${.CURDIR}/../jbuild_version"
 
 PORTNAME=      jbuild
 PORTDIRNAME=   ${PORTNAME}
