@@ -41,13 +41,18 @@
 #include <netipsec/keydb.h>
 
 #ifdef _KERNEL
-extern struct ipsecstat ipsec6stat;
-extern int ip6_esp_trans_deflev;
-extern int ip6_esp_net_deflev;
-extern int ip6_ah_trans_deflev;
-extern int ip6_ah_net_deflev;
-extern int ip6_ipsec_ecn;
-extern int ip6_ipsec6_filtertunnel;
+VNET_DECLARE(struct ipsecstat, ipsec6stat);
+#define	V_ipsec6stat		VNET_GET(ipsec6stat)
+VNET_DECLARE(int, ip6_esp_trans_deflev);
+#define	V_ip6_esp_trans_deflev	VNET_GET(ip6_esp_trans_deflev)
+VNET_DECLARE(int, ip6_esp_net_deflev);
+#define	V_ip6_esp_net_deflev	VNET_GET(ip6_esp_net_deflev)
+VNET_DECLARE(int, ip6_ah_trans_deflev);
+#define	V_ip6_ah_trans_deflev	VNET_GET(ip6_ah_trans_deflev)
+VNET_DECLARE(int, ip6_ah_net_deflev);
+#define	V_ip6_ah_net_deflev	VNET_GET(ip6_ah_net_deflev)
+VNET_DECLARE(int, ip6_ipsec_ecn);
+#define	V_ip6_ipsec_ecn		VNET_GET(ip6_ipsec_ecn)
 
 struct inpcb;
 

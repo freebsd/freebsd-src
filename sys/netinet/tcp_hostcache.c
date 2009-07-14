@@ -94,7 +94,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_hostcache.h>
-#include <netinet/vinet.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -107,10 +106,11 @@ __FBSDID("$FreeBSD$");
 #define TCP_HOSTCACHE_EXPIRE		60*60	/* one hour */
 #define TCP_HOSTCACHE_PRUNE		5*60	/* every 5 minutes */
 
-#ifdef VIMAGE_GLOBALS
-static struct tcp_hostcache tcp_hostcache;
-static struct callout tcp_hc_callout;
-#endif
+static VNET_DEFINE(struct tcp_hostcache, tcp_hostcache);
+static VNET_DEFINE(struct callout, tcp_hc_callout);
+
+#define	V_tcp_hostcache		VNET_GET(tcp_hostcache)
+#define	V_tcp_hc_callout	VNET_GET(tcp_hc_callout)
 
 static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
 static struct hc_metrics *tcp_hc_insert(struct in_conninfo *);
@@ -120,31 +120,32 @@ static void tcp_hc_purge(void *);
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0,
     "TCP Host cache");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, cachelimit,
-    CTLFLAG_RDTUN, tcp_hostcache.cache_limit, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,
+    &VNET_NAME(tcp_hostcache.cache_limit), 0,
     "Overall entry limit for hostcache");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, hashsize,
-    CTLFLAG_RDTUN, tcp_hostcache.hashsize, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, hashsize, CTLFLAG_RDTUN,
+    &VNET_NAME(tcp_hostcache.hashsize), 0,
     "Size of TCP hostcache hashtable");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, bucketlimit,
-    CTLFLAG_RDTUN, tcp_hostcache.bucket_limit, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, bucketlimit,
+    CTLFLAG_RDTUN, &VNET_NAME(tcp_hostcache.bucket_limit), 0,
     "Per-bucket hash limit for hostcache");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, count,
-    CTLFLAG_RD, tcp_hostcache.cache_count, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, count, CTLFLAG_RD,
+     &VNET_NAME(tcp_hostcache.cache_count), 0,
     "Current number of entries in hostcache");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, expire,
-    CTLFLAG_RW, tcp_hostcache.expire, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, expire, CTLFLAG_RW,
+    &VNET_NAME(tcp_hostcache.expire), 0,
     "Expire time of TCP hostcache entries");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, prune,
-     CTLFLAG_RW, tcp_hostcache.prune, 0, "Time between purge runs");
+SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, prune, CTLFLAG_RW,
+    &VNET_NAME(tcp_hostcache.prune), 0,
+    "Time between purge runs");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, purge,
-    CTLFLAG_RW, tcp_hostcache.purgeall, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_hostcache, OID_AUTO, purge, CTLFLAG_RW,
+    &VNET_NAME(tcp_hostcache.purgeall), 0,
     "Expire all entires on next purge run");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, list,
@@ -172,7 +173,6 @@ static MALLOC_DEFINE(M_HOSTCACHE, "hostcache", "TCP hostcache");
 void
 tcp_hc_init(void)
 {
-	INIT_VNET_INET(curvnet);
 	int i;
 
 	/*
@@ -235,7 +235,6 @@ tcp_hc_init(void)
 void
 tcp_hc_destroy(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	/* XXX TODO walk the hashtable and free all entries  */
 
@@ -252,7 +251,6 @@ tcp_hc_destroy(void)
 static struct hc_metrics *
 tcp_hc_lookup(struct in_conninfo *inc)
 {
-	INIT_VNET_INET(curvnet);
 	int hash;
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry;
@@ -308,7 +306,6 @@ tcp_hc_lookup(struct in_conninfo *inc)
 static struct hc_metrics *
 tcp_hc_insert(struct in_conninfo *inc)
 {
-	INIT_VNET_INET(curvnet);
 	int hash;
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry;
@@ -399,7 +396,6 @@ tcp_hc_insert(struct in_conninfo *inc)
 void
 tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 {
-	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry;
 
 	/*
@@ -440,7 +436,6 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 u_long
 tcp_hc_getmtu(struct in_conninfo *inc)
 {
-	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry;
 	u_long mtu;
 
@@ -463,7 +458,6 @@ tcp_hc_getmtu(struct in_conninfo *inc)
 void
 tcp_hc_updatemtu(struct in_conninfo *inc, u_long mtu)
 {
-	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry;
 
 	/*
@@ -503,7 +497,6 @@ tcp_hc_updatemtu(struct in_conninfo *inc, u_long mtu)
 void
 tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 {
-	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry;
 
 	hc_entry = tcp_hc_lookup(inc);
@@ -584,7 +577,6 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 static int
 sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
 	int bufsize;
 	int linesize = 128;
 	char *p, *buf;
@@ -648,7 +640,6 @@ static void
 tcp_hc_purge(void *arg)
 {
 	CURVNET_SET((struct vnet *) arg);
-	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry, *hc_next;
 	int all = 0;
 	int i;

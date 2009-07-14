@@ -67,8 +67,8 @@ SYSCTL_DECL(_net_link_generic);
 SYSCTL_NODE(_net_link_generic, IFMIB_SYSTEM, system, CTLFLAG_RW, 0,
 	    "Variables global to all interfaces");
 
-SYSCTL_V_INT(V_NET, vnet_net, _net_link_generic_system, IFMIB_IFCOUNT,
-	     ifcount, CTLFLAG_RD, if_index, 0,
+SYSCTL_VNET_INT(_net_link_generic_system, IFMIB_IFCOUNT, ifcount, CTLFLAG_RD,
+	    &VNET_NAME(if_index), 0,
 	     "Number of configured interfaces");
 
 static int

@@ -49,6 +49,7 @@
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -76,30 +77,21 @@
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
 
-#ifdef VIMAGE_GLOBALS
-struct	espstat espstat;
-static	int esp_max_ivlen;		/* max iv length over all algorithms */
-int	esp_enable;
-#endif
+VNET_DEFINE(int, esp_enable) = 1;
+VNET_DEFINE(struct espstat, espstat);
 
 SYSCTL_DECL(_net_inet_esp);
-SYSCTL_V_INT(V_NET, vnet_ipsec,_net_inet_esp, OID_AUTO,
-	esp_enable,	CTLFLAG_RW,	esp_enable,	0, "");
-SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_esp, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	espstat,	espstat, "");
+SYSCTL_VNET_INT(_net_inet_esp, OID_AUTO,
+	esp_enable,	CTLFLAG_RW,	&VNET_NAME(esp_enable),	0, "");
+SYSCTL_VNET_STRUCT(_net_inet_esp, IPSECCTL_STATS,
+	stats,		CTLFLAG_RD,	&VNET_NAME(espstat),	espstat, "");
+
+/* max iv length over all algorithms */
+static VNET_DEFINE(int, esp_max_ivlen) = 0;
+#define	V_esp_max_ivlen	VNET_GET(esp_max_ivlen)
 
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
-static int esp_iattach(const void *);
-
-#ifndef VIMAGE_GLOBALS
-static const vnet_modinfo_t vnet_esp_modinfo = {
-	.vmi_id		= VNET_MOD_ESP,
-	.vmi_name	= "ipsec_esp",
-	.vmi_dependson	= VNET_MOD_IPSEC,
-	.vmi_iattach	= esp_iattach
-};
-#endif /* !VIMAGE_GLOBALS */
 
 /*
  * NB: this is public for use by the PF_KEY support.
@@ -134,7 +126,6 @@ esp_algorithm_lookup(int alg)
 size_t
 esp_hdrsiz(struct secasvar *sav)
 {
-	INIT_VNET_IPSEC(curvnet);
 	size_t size;
 
 	if (sav != NULL) {
@@ -169,7 +160,6 @@ esp_hdrsiz(struct secasvar *sav)
 static int
 esp_init(struct secasvar *sav, struct xformsw *xsp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct enc_xform *txform;
 	struct cryptoini cria, crie;
 	int keylen;
@@ -280,7 +270,6 @@ esp_zeroize(struct secasvar *sav)
 static int
 esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct auth_hash *esph;
 	struct enc_xform *espx;
 	struct tdb_ident *tdbi;
@@ -463,7 +452,6 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 esp_input_cb(struct cryptop *crp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	u_int8_t lastthree[3], aalg[AH_HMAC_HASHLEN];
 	int hlen, skip, protoff, error;
 	struct mbuf *m;
@@ -667,7 +655,6 @@ esp_output(
 	int protoff
 )
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct enc_xform *espx;
 	struct auth_hash *esph;
 	int hlen, rlen, plen, padding, blks, alen, i, roff;
@@ -898,7 +885,6 @@ bad:
 static int
 esp_output_cb(struct cryptop *crp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct tdb_crypto *tc;
 	struct ipsecrequest *isr;
 	struct secasvar *sav;
@@ -1000,26 +986,9 @@ static struct xformsw esp_xformsw = {
 static void
 esp_attach(void)
 {
-
-	xform_register(&esp_xformsw);
-#ifndef VIMAGE_GLOBALS
-	vnet_mod_register(&vnet_esp_modinfo);
-#else
-	esp_iattach(NULL);
-#endif
-}
-
-static int
-esp_iattach(const void *unused __unused)
-{
-	INIT_VNET_IPSEC(curvnet);
-
 #define	MAXIV(xform)					\
 	if (xform.blocksize > V_esp_max_ivlen)		\
 		V_esp_max_ivlen = xform.blocksize	\
-
-	V_esp_enable = 1;
-	V_esp_max_ivlen = 0;
 
 	MAXIV(enc_xform_des);		/* SADB_EALG_DESCBC */
 	MAXIV(enc_xform_3des);		/* SADB_EALG_3DESCBC */
@@ -1029,8 +998,8 @@ esp_iattach(const void *unused __unused)
 	MAXIV(enc_xform_skipjack);	/* SADB_X_EALG_SKIPJACK */
 	MAXIV(enc_xform_null);		/* SADB_EALG_NULL */
 	MAXIV(enc_xform_camellia);	/* SADB_X_EALG_CAMELLIACBC */
-#undef MAXIV
 
-	return (0);
+	xform_register(&esp_xformsw);
+#undef MAXIV
 }
 SYSINIT(esp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, esp_attach, NULL);

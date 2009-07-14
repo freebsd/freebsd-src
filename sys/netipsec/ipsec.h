@@ -332,25 +332,40 @@ struct ipsec_history {
 	u_int32_t ih_spi;
 };
 
-extern int ipsec_debug;
-#ifdef REGRESSION
-extern int ipsec_replay;
-extern int ipsec_integrity;
-#endif
+VNET_DECLARE(int, ipsec_debug);
+#define	V_ipsec_debug		VNET_GET(ipsec_debug)
+VNET_DECLARE(struct ipsecstat, ipsec4stat);
+#define	V_ipsec4stat		VNET_GET(ipsec4stat)
+VNET_DECLARE(int, ip4_ah_offsetmask);
+#define	V_ip4_ah_offsetmask	VNET_GET(ip4_ah_offsetmask)
+VNET_DECLARE(int, ip4_ipsec_dfbit);
+#define	V_ip4_ipsec_dfbit	VNET_GET(ip4_ipsec_dfbit)
+VNET_DECLARE(int, ip4_esp_trans_deflev);
+#define	V_ip4_esp_trans_deflev	VNET_GET(ip4_esp_trans_deflev)
+VNET_DECLARE(int, ip4_esp_net_deflev);
+#define	V_ip4_esp_net_deflev	VNET_GET(ip4_esp_net_deflev)
+VNET_DECLARE(int, ip4_ah_trans_deflev);
+#define	V_ip4_ah_trans_deflev	VNET_GET(ip4_ah_trans_deflev)
+VNET_DECLARE(int, ip4_ah_net_deflev);
+#define	V_ip4_ah_net_deflev	VNET_GET(ip4_ah_net_deflev)
+VNET_DECLARE(struct secpolicy, ip4_def_policy);
+#define	V_ip4_def_policy	VNET_GET(ip4_def_policy)
+VNET_DECLARE(int, ip4_ipsec_ecn);
+#define	V_ip4_ipsec_ecn		VNET_GET(ip4_ipsec_ecn)
+VNET_DECLARE(int, ip4_esp_randpad);
+#define	V_ip4_esp_randpad	VNET_GET(ip4_esp_randpad)
 
-extern struct ipsecstat ipsec4stat;
-extern struct secpolicy ip4_def_policy;
-extern int ip4_esp_trans_deflev;
-extern int ip4_esp_net_deflev;
-extern int ip4_ah_trans_deflev;
-extern int ip4_ah_net_deflev;
+VNET_DECLARE(int, crypto_support);
+#define	V_crypto_support	VNET_GET(crypto_support)
+
 extern int ip4_ah_cleartos;
-extern int ip4_ah_offsetmask;
-extern int ip4_ipsec_dfbit;
-extern int ip4_ipsec_ecn;
-extern int ip4_ipsec_filtertunnel;
-extern int ip4_esp_randpad;
-extern int crypto_support;
+
+#ifdef REGRESSION
+VNET_DECLARE(int, ipsec_replay);
+#define	V_ipsec_replay		VNET_GET(ipsec_replay)
+VNET_DECLARE(int, ipsec_integrity);
+#define	V_ipsec_integrity	VNET_GET(ipsec_integrity)
+#endif
 
 #define ipseclog(x)	do { if (V_ipsec_debug) log x; } while (0)
 /* for openbsd compatibility */
@@ -360,7 +375,6 @@ extern	struct ipsecrequest *ipsec_newisr(void);
 extern	void ipsec_delisr(struct ipsecrequest *);
 
 struct tdb_ident;
-extern void ipsec_init(void);
 extern struct secpolicy *ipsec_getpolicy __P((struct tdb_ident*, u_int));
 struct inpcb;
 extern struct secpolicy *ipsec4_checkpolicy __P((struct mbuf *, u_int, u_int,
@@ -434,8 +448,6 @@ extern char *ipsec_dump_policy __P((caddr_t, char *));
 
 extern const char *ipsec_strerror __P((void));
 
-#else
-#include <netipsec/vipsec.h>
 #endif /* ! KERNEL */
 
 #endif /* _NETIPSEC_IPSEC_H_ */

@@ -56,7 +56,8 @@
 #define KEYDEBUG(lev,arg) \
 	do { if ((V_key_debug_level & (lev)) == (lev)) { arg; } } while (0)
 
-extern u_int32_t key_debug_level;
+VNET_DECLARE(u_int32_t, key_debug_level);
+#define	V_key_debug_level	VNET_GET(key_debug_level)
 #endif /*_KERNEL*/
 
 struct sadb_msg;

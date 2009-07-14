@@ -49,6 +49,8 @@
 #include <netinet/ip_var.h>
 
 #include <net/route.h>
+#include <net/vnet.h>
+
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
 
@@ -67,29 +69,25 @@
 #include <opencrypto/deflate.h>
 #include <opencrypto/xform.h>
 
-#ifdef VIMAGE_GLOBALS
-int	ipcomp_enable;
-struct	ipcompstat ipcompstat;
-#endif
+VNET_DEFINE(int, ipcomp_enable) = 0;
+VNET_DEFINE(struct ipcompstat, ipcompstat);
 
 SYSCTL_DECL(_net_inet_ipcomp);
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipcomp, OID_AUTO,
-	ipcomp_enable,	CTLFLAG_RW,	ipcomp_enable,	0, "");
-SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipcomp, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	ipcompstat,	ipcompstat, "");
+SYSCTL_VNET_INT(_net_inet_ipcomp, OID_AUTO,
+	ipcomp_enable,	CTLFLAG_RW,	&VNET_NAME(ipcomp_enable),	0, "");
+SYSCTL_VNET_STRUCT(_net_inet_ipcomp, IPSECCTL_STATS,
+	stats,		CTLFLAG_RD,	&VNET_NAME(ipcompstat),	ipcompstat, "");
 
 static int ipcomp_input_cb(struct cryptop *crp);
 static int ipcomp_output_cb(struct cryptop *crp);
-static int ipcomp_iattach(const void *);
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 static const vnet_modinfo_t vnet_ipcomp_modinfo = {
 	.vmi_id		= VNET_MOD_IPCOMP,
 	.vmi_name	= "ipsec_ipcomp",
 	.vmi_dependson	= VNET_MOD_IPSEC,
-	.vmi_iattach	= ipcomp_iattach
 };
-#endif /* !VIMAGE_GLOBALS */
+#endif
 
 struct comp_algo *
 ipcomp_algorithm_lookup(int alg)
@@ -109,7 +107,6 @@ ipcomp_algorithm_lookup(int alg)
 static int
 ipcomp_init(struct secasvar *sav, struct xformsw *xsp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct comp_algo *tcomp;
 	struct cryptoini cric;
 
@@ -150,7 +147,6 @@ ipcomp_zeroize(struct secasvar *sav)
 static int
 ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct tdb_crypto *tc;
 	struct cryptodesc *crdc;
 	struct cryptop *crp;
@@ -221,7 +217,6 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 ipcomp_input_cb(struct cryptop *crp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct cryptodesc *crd;
 	struct tdb_crypto *tc;
 	int skip, protoff;
@@ -342,7 +337,6 @@ ipcomp_output(
 	int protoff
 )
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *sav;
 	struct comp_algo *ipcompx;
 	int error, ralen, hlen, maxpacketsize, roff;
@@ -501,7 +495,6 @@ bad:
 static int
 ipcomp_output_cb(struct cryptop *crp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct tdb_crypto *tc;
 	struct ipsecrequest *isr;
 	struct secasvar *sav;
@@ -611,19 +604,9 @@ ipcomp_attach(void)
 {
 
 	xform_register(&ipcomp_xformsw);
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 	vnet_mod_register(&vnet_ipcomp_modinfo);
-#else
-	ipcomp_iattach(NULL);
 #endif
 }
 
-static int
-ipcomp_iattach(const void *unused __unused)
-{
-	INIT_VNET_IPSEC(curvnet);
-
-	V_ipcomp_enable = 0;
-	return (0);
-}
 SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipcomp_attach, NULL);

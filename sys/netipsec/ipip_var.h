@@ -59,9 +59,9 @@ struct ipipstat
 };
 
 #ifdef _KERNEL
-extern	int ipip_allow;
-#ifdef VIMAGE_GLOBALS
-extern	struct ipipstat ipipstat;
-#endif
+VNET_DECLARE(int, ipip_allow);
+#define	V_ipip_allow		VNET_GET(ipip_allow)
+VNET_DECLARE(struct ipipstat, ipipstat);
+#define	V_ipipstat		VNET_GET(ipipstat)
 #endif /* _KERNEL */
 #endif /* _NETINET_IPIP_H_ */

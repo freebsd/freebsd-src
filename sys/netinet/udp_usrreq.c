@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -96,9 +95,7 @@ __FBSDID("$FreeBSD$");
  * Per RFC 768, August, 1980.
  */
 
-#ifdef VIMAGE_GLOBALS
-int	udp_blackhole;
-#endif
+VNET_DEFINE(int, udp_blackhole);
 
 /*
  * BSD 4.2 defaulted the udp checksum to be off.  Turning off udp checksums
@@ -114,8 +111,8 @@ int	udp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &udp_log_in_vain, 0, "Log all incoming UDP packets");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_udp, OID_AUTO, blackhole,
-    CTLFLAG_RW, udp_blackhole, 0,
+SYSCTL_VNET_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW,
+    &VNET_NAME(udp_blackhole), 0,
     "Do not send port unreachables for refused connects");
 
 u_long	udp_sendspace = 9216;		/* really max datagram size */
@@ -134,19 +131,19 @@ u_long	udp_recvspace = 40 * (1024 +
 SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &udp_recvspace, 0, "Maximum space for incoming UDP datagrams");
 
-#ifdef VIMAGE_GLOBALS
-struct inpcbhead	udb;		/* from udp_var.h */
-struct inpcbinfo	udbinfo;
-static uma_zone_t	udpcb_zone;
-struct udpstat		udpstat;	/* from udp_var.h */
-#endif
+VNET_DEFINE(struct inpcbhead, udb);		/* from udp_var.h */
+VNET_DEFINE(struct inpcbinfo, udbinfo);
+static VNET_DEFINE(uma_zone_t, udpcb_zone);
+VNET_DEFINE(struct udpstat, udpstat);		/* from udp_var.h */
+
+#define	V_udpcb_zone			VNET_GET(udpcb_zone)
 
 #ifndef UDBHASHSIZE
 #define	UDBHASHSIZE	128
 #endif
 
-SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_udp, UDPCTL_STATS, stats,
-    CTLFLAG_RW, udpstat, udpstat,
+SYSCTL_VNET_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW,
+    &VNET_NAME(udpstat), udpstat,
     "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
 static void	udp_detach(struct socket *so);
@@ -164,7 +161,6 @@ static struct mbuf *udp4_espdecap(struct inpcb *, struct mbuf *, int);
 static void
 udp_zone_change(void *tag)
 {
-	INIT_VNET_INET(curvnet);
 
 	uma_zone_set_max(V_udbinfo.ipi_zone, maxsockets);
 	uma_zone_set_max(V_udpcb_zone, maxsockets);
@@ -183,7 +179,6 @@ udp_inpcb_init(void *mem, int size, int flags)
 void
 udp_init(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	V_udp_blackhole = 0;
 
@@ -212,7 +207,6 @@ udp_init(void)
 int
 udp_newudpcb(struct inpcb *inp)
 {
-	INIT_VNET_INET(curvnet);
 	struct udpcb *up;
 
 	up = uma_zalloc(V_udpcb_zone, M_NOWAIT | M_ZERO);
@@ -225,7 +219,6 @@ udp_newudpcb(struct inpcb *inp)
 void
 udp_discardcb(struct udpcb *up)
 {
-	INIT_VNET_INET(curvnet);
 
 	uma_zfree(V_udpcb_zone, up);
 }
@@ -234,7 +227,6 @@ udp_discardcb(struct udpcb *up)
 void
 udp_destroy(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	hashdestroy(V_udbinfo.ipi_hashbase, M_PCB,
 	    V_udbinfo.ipi_hashmask);
@@ -274,7 +266,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 #ifdef IPSEC
 	/* Check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
-		INIT_VNET_IPSEC(curvnet);
 		m_freem(n);
 		V_ipsec4stat.in_polvio++;
 		return;
@@ -321,7 +312,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_rcv);
 	if (sbappendaddr_locked(&so->so_rcv, append_sa, n, opts) == 0) {
-		INIT_VNET_INET(so->so_vnet);
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		m_freem(n);
 		if (opts)
@@ -334,7 +324,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 void
 udp_input(struct mbuf *m, int off)
 {
-	INIT_VNET_INET(curvnet);
 	int iphlen = off;
 	struct ip *ip;
 	struct udphdr *uh;
@@ -668,7 +657,6 @@ udp_notify(struct inpcb *inp, int errno)
 void
 udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip *ip = vip;
 	struct udphdr *uh;
 	struct in_addr faddr;
@@ -715,7 +703,6 @@ udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 static int
 udp_pcblist(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
 	int error, i, n;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
@@ -814,7 +801,6 @@ SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
 static int
 udp_getcred(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
 	struct xucred xuc;
 	struct sockaddr_in addrs[2];
 	struct inpcb *inp;
@@ -949,7 +935,6 @@ static int
 udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *td)
 {
-	INIT_VNET_INET(inp->inp_vnet);
 	struct udpiphdr *ui;
 	int len = m->m_pkthdr.len;
 	struct in_addr faddr, laddr;
@@ -1270,7 +1255,6 @@ release:
 static struct mbuf *
 udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 {
-	INIT_VNET_IPSEC(curvnet);
 	size_t minlen, payload, skip, iphlen;
 	caddr_t data;
 	struct udpcb *up;
@@ -1397,7 +1381,6 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 static void
 udp_abort(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -1416,7 +1399,6 @@ udp_abort(struct socket *so)
 static int
 udp_attach(struct socket *so, int proto, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -1480,7 +1462,6 @@ udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
 static int
 udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -1497,7 +1478,6 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static void
 udp_close(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -1516,7 +1496,6 @@ udp_close(struct socket *so)
 static int
 udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 	struct sockaddr_in *sin;
@@ -1548,7 +1527,6 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 static void
 udp_detach(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct udpcb *up;
 
@@ -1570,7 +1548,6 @@ udp_detach(struct socket *so)
 static int
 udp_disconnect(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);

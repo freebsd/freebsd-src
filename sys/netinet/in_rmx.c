@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
-#include <netinet/vinet.h>
 
 extern int	in_inithead(void **head, int off);
 #ifdef VIMAGE
@@ -132,22 +131,24 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	return rn;
 }
 
-#ifdef VIMAGE_GLOBALS
-static int rtq_reallyold;
-static int rtq_minreallyold;
-static int rtq_toomany;
-#endif
+static VNET_DEFINE(int, rtq_reallyold);
+static VNET_DEFINE(int, rtq_minreallyold);
+static VNET_DEFINE(int, rtq_toomany);
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_RTEXPIRE, rtexpire,
-    CTLFLAG_RW, rtq_reallyold, 0,
+#define	V_rtq_reallyold		VNET_GET(rtq_reallyold)
+#define	V_rtq_minreallyold	VNET_GET(rtq_minreallyold)
+#define	V_rtq_toomany		VNET_GET(rtq_toomany)
+
+SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
+    &VNET_NAME(rtq_reallyold), 0,
     "Default expiration time on dynamically learned routes");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_RTMINEXPIRE,
-    rtminexpire, CTLFLAG_RW, rtq_minreallyold, 0,
+SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire, CTLFLAG_RW,
+    &VNET_NAME(rtq_minreallyold), 0,
     "Minimum time to attempt to hold onto dynamically learned routes");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_RTMAXCACHE,
-    rtmaxcache, CTLFLAG_RW, rtq_toomany, 0,
+SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
+    &VNET_NAME(rtq_toomany), 0,
     "Upper limit on dynamically learned routes");
 
 /*
@@ -157,7 +158,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_RTMAXCACHE,
 static void
 in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 {
-	INIT_VNET_INET(curvnet);
 	struct rtentry *rt = (struct rtentry *)rn;
 
 	RT_LOCK_ASSERT(rt);
@@ -200,7 +200,6 @@ struct rtqk_arg {
 static int
 in_rtqkill(struct radix_node *rn, void *rock)
 {
-	INIT_VNET_INET(curvnet);
 	struct rtqk_arg *ap = rock;
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
@@ -240,10 +239,11 @@ in_rtqkill(struct radix_node *rn, void *rock)
 }
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-#ifdef VIMAGE_GLOBALS
-static int rtq_timeout;
-static struct callout rtq_timer;
-#endif
+static VNET_DEFINE(int, rtq_timeout);
+static VNET_DEFINE(struct callout, rtq_timer);
+
+#define	V_rtq_timeout		VNET_GET(rtq_timeout)
+#define	V_rtq_timer		VNET_GET(rtq_timer)
 
 static void in_rtqtimo_one(void *rock);
 
@@ -251,7 +251,6 @@ static void
 in_rtqtimo(void *rock)
 {
 	CURVNET_SET((struct vnet *) rock);
-	INIT_VNET_INET(curvnet);
 	int fibnum;
 	void *newrock;
 	struct timeval atv;
@@ -270,7 +269,6 @@ in_rtqtimo(void *rock)
 static void
 in_rtqtimo_one(void *rock)
 {
-	INIT_VNET_INET(curvnet);
 	struct radix_node_head *rnh = rock;
 	struct rtqk_arg arg;
 	static time_t last_adjusted_timeout = 0;
@@ -348,7 +346,6 @@ static int _in_rt_was_here;
 int
 in_inithead(void **head, int off)
 {
-	INIT_VNET_INET(curvnet);
 	struct radix_node_head *rnh;
 
 	/* XXX MRT
@@ -386,7 +383,6 @@ in_inithead(void **head, int off)
 int
 in_detachhead(void **head, int off)
 {
-	INIT_VNET_INET(curvnet);
 
 	callout_drain(&V_rtq_timer);
 	return (1);

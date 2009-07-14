@@ -716,10 +716,11 @@ do { \
 		} \
 } while (/*CONSTCOND*/ 0)
 
-#ifdef VIMAGE_GLOBALS
-extern int	icmp6_rediraccept;	/* accept/process redirects */
-extern int	icmp6_redirtimeout;	/* cache time for redirect routes */
-#endif
+VNET_DECLARE(int, icmp6_rediraccept);	/* accept/process redirects */
+VNET_DECLARE(int, icmp6_redirtimeout);	/* cache time for redirect routes */
+
+#define	V_icmp6_rediraccept	VNET_GET(icmp6_rediraccept)
+#define	V_icmp6_redirtimeout	VNET_GET(icmp6_redirtimeout)
 
 #define ICMP6_NODEINFO_FQDNOK		0x1
 #define ICMP6_NODEINFO_NODEADDROK	0x2

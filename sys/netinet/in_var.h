@@ -102,11 +102,14 @@ extern	u_char	inetctlerrmap[];
  */
 TAILQ_HEAD(in_ifaddrhead, in_ifaddr);
 LIST_HEAD(in_ifaddrhashhead, in_ifaddr);
-#ifdef VIMAGE_GLOBALS
-extern	struct in_ifaddrhashhead *in_ifaddrhashtbl;
-extern	struct in_ifaddrhead in_ifaddrhead;
-extern	u_long in_ifaddrhmask;			/* mask for hash table */
-#endif
+
+VNET_DECLARE(struct in_ifaddrhashhead *, in_ifaddrhashtbl);
+VNET_DECLARE(struct in_ifaddrhead, in_ifaddrhead);
+VNET_DECLARE(u_long, in_ifaddrhmask);		/* mask for hash table */
+
+#define	V_in_ifaddrhashtbl	VNET_GET(in_ifaddrhashtbl)
+#define	V_in_ifaddrhead		VNET_GET(in_ifaddrhead)
+#define	V_in_ifaddrhmask	VNET_GET(in_ifaddrhmask)
 
 #define INADDR_NHASH_LOG2       9
 #define INADDR_NHASH		(1 << INADDR_NHASH_LOG2)
@@ -343,11 +346,6 @@ ims_get_mode(const struct in_multi *inm, const struct ip_msource *ims,
 SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_raw);
-#endif
-
-LIST_HEAD(in_multihead, in_multi);	/* XXX unused */
-#ifdef VIMAGE_GLOBALS
-extern struct in_multihead in_multihead;
 #endif
 
 /*

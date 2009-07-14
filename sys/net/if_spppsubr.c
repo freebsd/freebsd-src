@@ -56,7 +56,6 @@
 #ifdef INET
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <netinet/vinet.h>
 #endif
 
 #ifdef INET6
@@ -4937,7 +4936,6 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 static void
 sppp_set_ip_addr(struct sppp *sp, u_long src)
 {
-	INIT_VNET_INET(curvnet);
 	STDDCL;
 	struct ifaddr *ifa;
 	struct sockaddr_in *si;

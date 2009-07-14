@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_options.h>
 #include <netinet/ip_icmp.h>
 #include <machine/in_cksum.h>
-#include <netinet/vinet.h>
 
 #include <sys/socketvar.h>
 
@@ -98,7 +97,6 @@ static void	save_rte(struct mbuf *m, u_char *, struct in_addr);
 int
 ip_dooptions(struct mbuf *m, int pass)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip *ip = mtod(m, struct ip *);
 	u_char *cp;
 	struct in_ifaddr *ia;

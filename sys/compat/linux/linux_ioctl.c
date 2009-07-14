@@ -2059,7 +2059,6 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 int
 linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 {
-	INIT_VNET_NET(ifp->if_vnet);
 	struct ifnet *ifscan;
 	int ethno;
 
@@ -2093,7 +2092,6 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 static struct ifnet *
 ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 {
-	INIT_VNET_NET(TD_TO_VNET(td));
 	struct ifnet *ifp;
 	int len, unit;
 	char *ep;
@@ -2134,7 +2132,6 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 static int
 linux_ifconf(struct thread *td, struct ifconf *uifc)
 {
-	INIT_VNET_NET(TD_TO_VNET(td));
 #ifdef COMPAT_LINUX32
 	struct l_ifconf ifc;
 #else

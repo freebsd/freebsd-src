@@ -57,6 +57,7 @@
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -97,30 +98,25 @@
 
 #include <opencrypto/cryptodev.h>
 
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-struct vnet_ipsec vnet_ipsec_0;
+#ifdef IPSEC_DEBUG
+VNET_DEFINE(int, ipsec_debug) = 1;
+#else
+VNET_DEFINE(int, ipsec_debug) = 0;
 #endif
-#endif
-
-static int ipsec_iattach(const void *);
-#ifdef VIMAGE
-static int ipsec_idetach(const void *);
-#endif
-
-#ifdef VIMAGE_GLOBALS
 /* NB: name changed so netstat doesn't use it. */
-struct ipsecstat ipsec4stat;
-struct secpolicy ip4_def_policy;
-int ipsec_debug;
-int ip4_ah_offsetmask;
-int ip4_ipsec_dfbit;
-int ip4_esp_trans_deflev;
-int ip4_esp_net_deflev;
-int ip4_ah_trans_deflev;
-int ip4_ah_net_deflev;
-int ip4_ipsec_ecn;
-int ip4_esp_randpad;
+VNET_DEFINE(struct ipsecstat, ipsec4stat);
+VNET_DEFINE(int, ip4_ah_offsetmask) = 0;	/* maybe IP_DF? */
+/* DF bit on encap. 0: clear 1: set 2: copy */
+VNET_DEFINE(int, ip4_ipsec_dfbit) = 0;
+VNET_DEFINE(int, ip4_esp_trans_deflev) = IPSEC_LEVEL_USE;
+VNET_DEFINE(int, ip4_esp_net_deflev) = IPSEC_LEVEL_USE;
+VNET_DEFINE(int, ip4_ah_trans_deflev) = IPSEC_LEVEL_USE;
+VNET_DEFINE(int, ip4_ah_net_deflev) = IPSEC_LEVEL_USE;
+VNET_DEFINE(struct secpolicy, ip4_def_policy);
+/* ECN ignore(-1)/forbidden(0)/allowed(1) */
+VNET_DEFINE(int, ip4_ipsec_ecn) = 0;
+VNET_DEFINE(int, ip4_esp_randpad) = -1;
+
 /*
  * Crypto support requirements:
  *
@@ -128,80 +124,74 @@ int ip4_esp_randpad;
  * -1	require software support
  *  0	take anything
  */
-int	crypto_support;
-#endif /* VIMAGE_GLOBALS */
+VNET_DEFINE(int, crypto_support) = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
 
 SYSCTL_DECL(_net_inet_ipsec);
 
 /* net.inet.ipsec */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, IPSECCTL_DEF_POLICY,
-	def_policy, CTLFLAG_RW, ip4_def_policy.policy,  0,
+SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEF_POLICY, def_policy,
+	CTLFLAG_RW, &VNET_NAME(ip4_def_policy).policy, 0,
 	"IPsec default policy.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, IPSECCTL_DEF_ESP_TRANSLEV,
-	esp_trans_deflev, CTLFLAG_RW, ip4_esp_trans_deflev,	0,
+SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
+	CTLFLAG_RW, &VNET_NAME(ip4_esp_trans_deflev), 0,
 	"Default ESP transport mode level");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, IPSECCTL_DEF_ESP_NETLEV,
-	esp_net_deflev, CTLFLAG_RW, ip4_esp_net_deflev,	0,
+SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_NETLEV, esp_net_deflev,
+	CTLFLAG_RW, &VNET_NAME(ip4_esp_net_deflev), 0,
 	"Default ESP tunnel mode level.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, IPSECCTL_DEF_AH_TRANSLEV,
-	ah_trans_deflev, CTLFLAG_RW, ip4_ah_trans_deflev,	0,
+SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEF_AH_TRANSLEV, ah_trans_deflev,
+	CTLFLAG_RW, &VNET_NAME(ip4_ah_trans_deflev), 0,
 	"AH transfer mode default level.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, IPSECCTL_DEF_AH_NETLEV,
-	ah_net_deflev, CTLFLAG_RW, ip4_ah_net_deflev,	0,
+SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEF_AH_NETLEV, ah_net_deflev,
+	CTLFLAG_RW, &VNET_NAME(ip4_ah_net_deflev), 0,
 	"AH tunnel mode default level.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, IPSECCTL_AH_CLEARTOS,
-	ah_cleartos, CTLFLAG_RW,	ah_cleartos,	0,
+SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_AH_CLEARTOS, ah_cleartos,
+	CTLFLAG_RW, &VNET_NAME(ah_cleartos), 0,
 	"If set clear type-of-service field when doing AH computation.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, IPSECCTL_AH_OFFSETMASK,
-	ah_offsetmask, CTLFLAG_RW,	ip4_ah_offsetmask,	0,
+SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_AH_OFFSETMASK, ah_offsetmask,
+	CTLFLAG_RW, &VNET_NAME(ip4_ah_offsetmask), 0,
 	"If not set clear offset field mask when doing AH computation.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, IPSECCTL_DFBIT,
-	dfbit, CTLFLAG_RW,	ip4_ipsec_dfbit,	0,
+SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DFBIT, dfbit,
+	CTLFLAG_RW, &VNET_NAME(ip4_ipsec_dfbit), 0,
 	"Do not fragment bit on encap.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, IPSECCTL_ECN,
-	ecn, CTLFLAG_RW,	ip4_ipsec_ecn,	0,
+SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_ECN, ecn,
+	CTLFLAG_RW, &VNET_NAME(ip4_ipsec_ecn), 0,
 	"Explicit Congestion Notification handling.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, IPSECCTL_DEBUG,
-	debug, CTLFLAG_RW,	ipsec_debug,	0,
+SYSCTL_VNET_INT(_net_inet_ipsec, IPSECCTL_DEBUG, debug,
+	CTLFLAG_RW, &VNET_NAME(ipsec_debug), 0,
 	"Enable IPsec debugging output when set.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
-	crypto_support,	CTLFLAG_RW,	crypto_support,0,
+SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, crypto_support,
+	CTLFLAG_RW, &VNET_NAME(crypto_support), 0,
 	"Crypto driver selection.");
-SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
-	ipsecstats,	CTLFLAG_RD,	ipsec4stat, ipsecstat,	
+SYSCTL_VNET_STRUCT(_net_inet_ipsec, OID_AUTO, ipsecstats,
+	CTLFLAG_RD, &VNET_NAME(ipsec4stat), ipsecstat,	
 	"IPsec IPv4 statistics.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
-	filtertunnel, CTLFLAG_RW, ip4_ipsec_filtertunnel,  0,
-	"If set filter packets from an IPsec tunnel.");
 
 #ifdef REGRESSION
-#ifdef VIMAGE_GLOBALS
-int ipsec_replay;
-int ipsec_integrity;
-#endif
 /*
  * When set to 1, IPsec will send packets with the same sequence number.
  * This allows to verify if the other side has proper replay attacks detection.
  */
-SYSCTL_V_INT(V_NET, vnet_ipsec,_net_inet_ipsec, OID_AUTO, test_replay,
-	CTLFLAG_RW, ipsec_replay, 0, "Emulate replay attack");
+VNET_DEFINE(int, ipsec_replay) = 0;
+SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, test_replay,
+	CTLFLAG_RW, &VNET_NAME(ipsec_replay), 0,
+	"Emulate replay attack");
 /*
  * When set 1, IPsec will send packets with corrupted HMAC.
  * This allows to verify if the other side properly detects modified packets.
  */
-SYSCTL_V_INT(V_NET, vnet_ipsec,_net_inet_ipsec, OID_AUTO, test_integrity,
-	CTLFLAG_RW, ipsec_integrity, 0, "Emulate man-in-the-middle attack");
+VNET_DEFINE(int, ipsec_integrity) = 0;
+SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, test_integrity,
+	CTLFLAG_RW, &VNET_NAME(ipsec_integrity), 0,
+	"Emulate man-in-the-middle attack");
 #endif
 
 #ifdef INET6 
-#ifdef VIMAGE_GLOBALS
-struct ipsecstat ipsec6stat;
-int ip6_esp_trans_deflev;
-int ip6_esp_net_deflev;
-int ip6_ah_trans_deflev;
-int ip6_ah_net_deflev;
-int ip6_ipsec_ecn;
-#endif
+VNET_DEFINE(struct ipsecstat, ipsec6stat);
+VNET_DEFINE(int, ip6_esp_trans_deflev) = IPSEC_LEVEL_USE;
+VNET_DEFINE(int, ip6_esp_net_deflev) = IPSEC_LEVEL_USE;
+VNET_DEFINE(int, ip6_ah_trans_deflev) = IPSEC_LEVEL_USE;
+VNET_DEFINE(int, ip6_ah_net_deflev) = IPSEC_LEVEL_USE;
+VNET_DEFINE(int, ip6_ipsec_ecn) = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
 
 SYSCTL_DECL(_net_inet6_ipsec6);
 
@@ -210,33 +200,30 @@ SYSCTL_DECL(_net_inet6_ipsec6);
 SYSCTL_OID(_net_inet6_ipsec6, IPSECCTL_STATS, stats, CTLFLAG_RD,
     0, 0, compat_ipsecstats_sysctl, "S", "IPsec IPv6 statistics.");
 #endif /* COMPAT_KAME */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_DEF_POLICY,
-	def_policy, CTLFLAG_RW,	ip4_def_policy.policy,	0,
+SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEF_POLICY, def_policy, CTLFLAG_RW,
+	&VNET_NAME(ip4_def_policy).policy, 0,
 	"IPsec default policy.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_DEF_ESP_TRANSLEV, 
-	esp_trans_deflev, CTLFLAG_RW, ip6_esp_trans_deflev,	0,
+SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_TRANSLEV, 
+	esp_trans_deflev, CTLFLAG_RW, &VNET_NAME(ip6_esp_trans_deflev),	0,
 	"Default ESP transport mode level.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_DEF_ESP_NETLEV, 
-	esp_net_deflev, CTLFLAG_RW, ip6_esp_net_deflev,	0,
+SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_NETLEV, 
+	esp_net_deflev, CTLFLAG_RW, &VNET_NAME(ip6_esp_net_deflev),	0,
 	"Default ESP tunnel mode level.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_DEF_AH_TRANSLEV, 
-	ah_trans_deflev, CTLFLAG_RW, ip6_ah_trans_deflev,	0,
+SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEF_AH_TRANSLEV, 
+	ah_trans_deflev, CTLFLAG_RW, &VNET_NAME(ip6_ah_trans_deflev),	0,
 	"AH transfer mode default level.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_DEF_AH_NETLEV, 
-	ah_net_deflev, CTLFLAG_RW, ip6_ah_net_deflev,	0,
+SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEF_AH_NETLEV, 
+	ah_net_deflev, CTLFLAG_RW, &VNET_NAME(ip6_ah_net_deflev),	0,
 	"AH tunnel mode default level.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_ECN,
-	ecn, CTLFLAG_RW, ip6_ipsec_ecn,	0,
+SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_ECN,
+	ecn, CTLFLAG_RW, &VNET_NAME(ip6_ipsec_ecn),	0,
 	"Explicit Congestion Notification handling.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_DEBUG,
-	debug, CTLFLAG_RW,	ipsec_debug,	0,
+SYSCTL_VNET_INT(_net_inet6_ipsec6, IPSECCTL_DEBUG, debug, CTLFLAG_RW,
+	&VNET_NAME(ipsec_debug), 0,
 	"Enable IPsec debugging output when set.");
-SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet6_ipsec6, IPSECCTL_STATS,
-	ipsecstats, CTLFLAG_RD, ipsec6stat, ipsecstat,
+SYSCTL_VNET_STRUCT(_net_inet6_ipsec6, IPSECCTL_STATS,
+	ipsecstats, CTLFLAG_RD, &VNET_NAME(ipsec6stat), ipsecstat,
 	"IPsec IPv6 statistics.");
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet6_ipsec6, OID_AUTO,
-	filtertunnel, CTLFLAG_RW, ip6_ipsec6_filtertunnel,  0,
-	"If set filter packets from an IPsec tunnel.");
 #endif /* INET6 */
 
 static int ipsec_setspidx_inpcb __P((struct mbuf *, struct inpcb *));
@@ -253,64 +240,15 @@ static void vshiftl __P((unsigned char *, int, int));
 
 MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
 
-#ifndef VIMAGE_GLOBALS
+static int ipsec_iattach(const void *);
+#ifdef VIMAGE
 static const vnet_modinfo_t vnet_ipsec_modinfo = {
 	.vmi_id		= VNET_MOD_IPSEC,
 	.vmi_name	= "ipsec",
-	.vmi_size	= sizeof(struct vnet_ipsec),
 	.vmi_dependson	= VNET_MOD_INET,	/* XXX revisit - INET6 ? */
 	.vmi_iattach	= ipsec_iattach,
-#ifdef VIMAGE
-	.vmi_idetach	= ipsec_idetach
-#endif
 };
-#endif /* !VIMAGE_GLOBALS */
-
-void
-ipsec_init(void)
-{
-	INIT_VNET_IPSEC(curvnet);
-
-#ifdef IPSEC_DEBUG
-	V_ipsec_debug = 1;
-#else
-	V_ipsec_debug = 0;
 #endif
-
-	V_ip4_ah_offsetmask = 0;	/* maybe IP_DF? */
-	V_ip4_ipsec_dfbit = 0;	/* DF bit on encap. 0: clear 1: set 2: copy */
-	V_ip4_esp_trans_deflev = IPSEC_LEVEL_USE;
-	V_ip4_esp_net_deflev = IPSEC_LEVEL_USE;
-	V_ip4_ah_trans_deflev = IPSEC_LEVEL_USE;
-	V_ip4_ah_net_deflev = IPSEC_LEVEL_USE;
-	V_ip4_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
-	V_ip4_esp_randpad = -1;
-#ifdef IPSEC_FILTERTUNNEL
-	V_ip4_ipsec_filtertunnel = 1;
-#else
-	V_ip4_ipsec_filtertunnel = 0;
-#endif
-
-	V_crypto_support = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
-
-#ifdef REGRESSION
-	V_ipsec_replay = 0;
-	V_ipsec_integrity = 0;
-#endif
-
-#ifdef INET6 
-	V_ip6_esp_trans_deflev = IPSEC_LEVEL_USE;
-	V_ip6_esp_net_deflev = IPSEC_LEVEL_USE;
-	V_ip6_ah_trans_deflev = IPSEC_LEVEL_USE;
-	V_ip6_ah_net_deflev = IPSEC_LEVEL_USE;
-	V_ip6_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
-#ifdef IPSEC_FILTERTUNNEL
-	V_ip6_ipsec6_filtertunnel = 1;
-#else
-	V_ip6_ipsec6_filtertunnel = 0;
-#endif
-#endif
-}
 
 /*
  * Return a held reference to the default SP.
@@ -318,7 +256,6 @@ ipsec_init(void)
 static struct secpolicy *
 key_allocsp_default(const char* where, int tag)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
 
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
@@ -384,7 +321,6 @@ ipsec_getpolicy(struct tdb_ident *tdbi, u_int dir)
 static struct secpolicy *
 ipsec_getpolicybysock(struct mbuf *m, u_int dir, struct inpcb *inp, int *error)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct inpcbpolicy *pcbsp;
 	struct secpolicy *currsp = NULL;	/* Policy on socket. */
 	struct secpolicy *sp;
@@ -482,7 +418,6 @@ ipsec_getpolicybysock(struct mbuf *m, u_int dir, struct inpcb *inp, int *error)
 struct secpolicy *
 ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int flag, int *error)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicyindex spidx;
 	struct secpolicy *sp;
 
@@ -515,7 +450,6 @@ struct secpolicy *
 ipsec4_checkpolicy(struct mbuf *m, u_int dir, u_int flag, int *error,
     struct inpcb *inp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
 
 	*error = 0;
@@ -587,7 +521,6 @@ ipsec_setspidx_inpcb(struct mbuf *m, struct inpcb *inp)
 static int
 ipsec_setspidx(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct ip *ip = NULL;
 	struct ip ipbuf;
 	u_int v;
@@ -778,7 +711,6 @@ ipsec4_setspidx_ipaddr(struct mbuf *m, struct secpolicyindex *spidx)
 static void
 ipsec6_get_ulp(struct mbuf *m, struct secpolicyindex *spidx, int needport)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int off, nxt;
 	struct tcphdr th;
 	struct udphdr uh;
@@ -891,7 +823,6 @@ ipsec_delpcbpolicy(struct inpcbpolicy *p)
 int
 ipsec_init_policy(struct socket *so, struct inpcbpolicy **pcb_sp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct inpcbpolicy *new;
 
 	/* Sanity check. */
@@ -1030,7 +961,6 @@ static int
 ipsec_set_policy_internal(struct secpolicy **pcb_sp, int optname,
     caddr_t request, size_t len, struct ucred *cred)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_x_policy *xpl;
 	struct secpolicy *newsp = NULL;
 	int error;
@@ -1079,7 +1009,6 @@ int
 ipsec_set_policy(struct inpcb *inp, int optname, caddr_t request,
     size_t len, struct ucred *cred)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_x_policy *xpl;
 	struct secpolicy **pcb_sp;
 
@@ -1111,7 +1040,6 @@ int
 ipsec_get_policy(struct inpcb *inp, caddr_t request, size_t len,
     struct mbuf **mp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_x_policy *xpl;
 	struct secpolicy *pcb_sp;
 
@@ -1182,7 +1110,6 @@ ipsec_delete_pcbpolicy(struct inpcb *inp)
 u_int
 ipsec_get_reqlevel(struct ipsecrequest *isr)
 {
-	INIT_VNET_IPSEC(curvnet);
 	u_int level = 0;
 	u_int esp_trans_deflev, esp_net_deflev;
 	u_int ah_trans_deflev, ah_net_deflev;
@@ -1287,7 +1214,6 @@ ipsec_get_reqlevel(struct ipsecrequest *isr)
 int
 ipsec_in_reject(struct secpolicy *sp, struct mbuf *m)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct ipsecrequest *isr;
 	int need_auth;
 
@@ -1390,7 +1316,6 @@ ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
 int
 ipsec4_in_reject(struct mbuf *m, struct inpcb *inp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int result;
 
 	result = ipsec46_in_reject(m, inp);
@@ -1409,7 +1334,6 @@ ipsec4_in_reject(struct mbuf *m, struct inpcb *inp)
 int
 ipsec6_in_reject(struct mbuf *m, struct inpcb *inp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int result;
 
 	result = ipsec46_in_reject(m, inp);
@@ -1428,7 +1352,6 @@ ipsec6_in_reject(struct mbuf *m, struct inpcb *inp)
 static size_t
 ipsec_hdrsiz_internal(struct secpolicy *sp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct ipsecrequest *isr;
 	size_t size;
 
@@ -1491,7 +1414,6 @@ ipsec_hdrsiz_internal(struct secpolicy *sp)
 size_t
 ipsec_hdrsiz(struct mbuf *m, u_int dir, struct inpcb *inp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
 	int error;
 	size_t size;
@@ -1591,7 +1513,6 @@ ipsec_chkreplay(u_int32_t seq, struct secasvar *sav)
 int
 ipsec_updatereplay(u_int32_t seq, struct secasvar *sav)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secreplay *replay;
 	u_int32_t diff;
 	int fr;
@@ -1791,10 +1712,10 @@ ipsec_dumpmbuf(struct mbuf *m)
 }
 
 static void
-ipsec_attach(void)
+ipsec_attach(const void *unused __unused)
 {
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 	vnet_mod_register(&vnet_ipsec_modinfo);
 #else
 	ipsec_iattach(NULL);
@@ -1804,7 +1725,6 @@ ipsec_attach(void)
 static int
 ipsec_iattach(const void *unused __unused)
 {
-	INIT_VNET_IPSEC(curvnet);
 
 	SECPOLICY_LOCK_INIT(&V_ip4_def_policy);
 	V_ip4_def_policy.refcnt = 1;			/* NB: disallow free. */
@@ -1812,16 +1732,6 @@ ipsec_iattach(const void *unused __unused)
 	return (0);
 }
 
-#ifdef VIMAGE
-static int
-ipsec_idetach(const void *unused __unused)
-{
-
-	/* XXX revisit this! */
-
-	return (0);
-}
-#endif
 SYSINIT(ipsec, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, ipsec_attach, NULL);
 
 

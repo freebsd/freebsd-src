@@ -68,6 +68,7 @@
 #include <machine/cpu.h>
 
 #include <net/netisr.h>
+#include <net/vnet.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -75,16 +76,9 @@
 
 MODULE_VERSION(netgraph, NG_ABI_VERSION);
 
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-struct vnet_netgraph vnet_netgraph_0;
-#endif
-#endif
-
 /* Mutex to protect topology events. */
 static struct mtx	ng_topo_mtx;
 
-static vnet_attach_fn vnet_netgraph_iattach;
 #ifdef VIMAGE
 static vnet_detach_fn vnet_netgraph_idetach;
 #endif
@@ -182,9 +176,9 @@ static struct mtx	ng_typelist_mtx;
 
 /* Hash related definitions */
 /* XXX Don't need to initialise them because it's a LIST */
-#ifdef VIMAGE_GLOBALS
-static LIST_HEAD(, ng_node) ng_ID_hash[NG_ID_HASH_SIZE];
-#endif
+static VNET_DEFINE(LIST_HEAD(, ng_node), ng_ID_hash[NG_ID_HASH_SIZE]);
+#define	V_ng_ID_hash			VNET_GET(ng_ID_hash)
+
 static struct mtx	ng_idhash_mtx;
 /* Method to find a node.. used twice so do it here */
 #define NG_IDHASH_FN(ID) ((ID) % (NG_ID_HASH_SIZE))
@@ -200,9 +194,9 @@ static struct mtx	ng_idhash_mtx;
 		}							\
 	} while (0)
 
-#ifdef VIMAGE_GLOBALS
-static LIST_HEAD(, ng_node) ng_name_hash[NG_NAME_HASH_SIZE];
-#endif
+static VNET_DEFINE(LIST_HEAD(, ng_node), ng_name_hash[NG_NAME_HASH_SIZE]);
+#define	V_ng_name_hash			VNET_GET(ng_name_hash)
+
 static struct mtx	ng_namehash_mtx;
 #define NG_NAMEHASH(NAME, HASH)				\
 	do {						\
@@ -370,9 +364,8 @@ ng_alloc_node(void)
 #define TRAP_ERROR()
 #endif
 
-#ifdef VIMAGE_GLOBALS
-static	ng_ID_t nextID;
-#endif
+static VNET_DEFINE(ng_ID_t, nextID) = 1;
+#define	V_nextID			VNET_GET(nextID)
 
 #ifdef INVARIANTS
 #define CHECK_DATA_MBUF(m)	do {					\
@@ -634,7 +627,6 @@ ng_make_node(const char *typename, node_p *nodepp)
 int
 ng_make_node_common(struct ng_type *type, node_p *nodepp)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	node_p node;
 
 	/* Require the node type to have been already installed */
@@ -819,7 +811,6 @@ ng_unref_node(node_p node)
 static node_p
 ng_ID2noderef(ng_ID_t ID)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	node_p node;
 	mtx_lock(&ng_idhash_mtx);
 	NG_IDHASH_FIND(ID, node);
@@ -845,7 +836,6 @@ ng_node2ID(node_p node)
 int
 ng_name_node(node_p node, const char *name)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	int i, hash;
 	node_p node2;
 
@@ -896,7 +886,6 @@ ng_name_node(node_p node, const char *name)
 node_p
 ng_name2noderef(node_p here, const char *name)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	node_p node;
 	ng_ID_t temp;
 	int	hash;
@@ -2457,7 +2446,6 @@ ng_apply_item(node_p node, item_p item, int rw)
 static int
 ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	int error = 0;
 	struct ng_mesg *msg;
 	struct ng_mesg *resp = NULL;
@@ -3080,37 +3068,24 @@ ng_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 static const vnet_modinfo_t vnet_netgraph_modinfo = {
 	.vmi_id		= VNET_MOD_NETGRAPH,
 	.vmi_name	= "netgraph",
-	.vmi_size	= sizeof(struct vnet_netgraph),
 	.vmi_dependson	= VNET_MOD_LOIF,
-	.vmi_iattach	= vnet_netgraph_iattach,
-#ifdef VIMAGE
 	.vmi_idetach	= vnet_netgraph_idetach
-#endif
 };
 #endif
-
-static int
-vnet_netgraph_iattach(const void *unused __unused)
-{
-	INIT_VNET_NETGRAPH(curvnet);
-
-	V_nextID = 1;
-
-	return (0);
-}
 
 #ifdef VIMAGE 
 static int
 vnet_netgraph_idetach(const void *unused __unused)
 {
-	INIT_VNET_NETGRAPH(curvnet);
+#if 0
 	node_p node, last_killed = NULL;
 
-	while ((node = LIST_FIRST(&V_ng_nodelist)) != NULL) {
+	/* XXXRW: utterly bogus. */
+	while ((node = LIST_FIRST(&V_ng_allnodes)) != NULL) {
 		if (node == last_killed) {
 			/* This should never happen */
 			node->nd_flags |= NGF_REALLY_DIE;
@@ -3118,13 +3093,14 @@ vnet_netgraph_idetach(const void *unused __unused)
 			    node->nd_name);
 			ng_rmnode(node, NULL, NULL, 0);
 			/* This must never happen */
-			if (node == LIST_FIRST(&V_ng_nodelist))
+			if (node == LIST_FIRST(&V_ng_allnodes))
 				panic("netgraph node %s won't die",
 				    node->nd_name);
 		}
 		ng_rmnode(node, NULL, NULL, 0);
 		last_killed = node;
 	}
+#endif
 
 	return (0);
 }
@@ -3144,10 +3120,8 @@ ngb_mod_event(module_t mod, int event, void *data)
 	switch (event) {
 	case MOD_LOAD:
 		/* Initialize everything. */
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 		vnet_mod_register(&vnet_netgraph_modinfo);
-#else
-		vnet_netgraph_iattach(NULL);
 #endif
 		NG_WORKLIST_LOCK_INIT();
 		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL,

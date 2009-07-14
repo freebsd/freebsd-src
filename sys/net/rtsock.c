@@ -1238,7 +1238,6 @@ rt_ifannouncemsg(struct ifnet *ifp, int what)
 static void
 rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 {
-	INIT_VNET_NET(curvnet);
 	struct m_tag *tag;
 
 	/*
@@ -1317,7 +1316,6 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 static int
 sysctl_iflist(int af, struct walkarg *w)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct rt_addrinfo info;
@@ -1378,7 +1376,6 @@ done:
 static int
 sysctl_ifmalist(int af, struct walkarg *w)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	struct	rt_addrinfo info;

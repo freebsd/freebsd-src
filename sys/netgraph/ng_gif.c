@@ -565,7 +565,6 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET_QUIET(vnet_iter); /* XXX revisit quiet */
-			INIT_VNET_NET(curvnet);
 			TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 				if (ifp->if_type == IFT_GIF)
 					ng_gif_attach(ifp);

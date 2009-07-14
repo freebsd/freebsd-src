@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -56,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
 #include <netinet/ip_ipsec.h>
-#include <netinet/vinet.h>
 #ifdef SCTP
 #include <netinet/sctp_crc32.h>
 #endif
@@ -71,9 +71,19 @@ __FBSDID("$FreeBSD$");
 
 extern	struct protosw inetsw[];
 
-#ifdef VIMAGE_GLOBALS
-int ip4_ipsec_filtertunnel;
+#ifdef IPSEC
+#ifdef IPSEC_FILTERTUNNEL
+static VNET_DEFINE(int, ip4_ipsec_filtertunnel) = 1;
+#else
+static VNET_DEFINE(int, ip4_ipsec_filtertunnel) = 0;
 #endif
+#define	V_ip4_ipsec_filtertunnel VNET_GET(ip4_ipsec_filtertunnel)
+
+SYSCTL_DECL(_net_inet_ipsec);
+SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, filtertunnel,
+	CTLFLAG_RW, &VNET_NAME(ip4_ipsec_filtertunnel), 0,
+	"If set filter packets from an IPsec tunnel.");
+#endif /* IPSEC */
 
 /*
  * Check if we have to jump over firewall processing for this packet.
@@ -84,7 +94,6 @@ int
 ip_ipsec_filtertunnel(struct mbuf *m)
 {
 #if defined(IPSEC)
-	INIT_VNET_IPSEC(curvnet);
 
 	/*
 	 * Bypass packet filtering for packets from a tunnel.
@@ -106,8 +115,6 @@ int
 ip_ipsec_fwd(struct mbuf *m)
 {
 #ifdef IPSEC
-	INIT_VNET_INET(curvnet);
-	INIT_VNET_IPSEC(curvnet);
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
@@ -153,9 +160,8 @@ ip_ipsec_fwd(struct mbuf *m)
 int
 ip_ipsec_input(struct mbuf *m)
 {
-	struct ip *ip = mtod(m, struct ip *);
 #ifdef IPSEC
-	INIT_VNET_IPSEC(curvnet);
+	struct ip *ip = mtod(m, struct ip *);
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;

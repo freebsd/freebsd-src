@@ -53,8 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
-#ifndef VIMAGE_GLOBALS
-
 MALLOC_DEFINE(M_VIMAGE, "vimage", "vimage resource container");
 MALLOC_DEFINE(M_VNET, "vnet", "network stack control block");
 MALLOC_DEFINE(M_VPROCG, "vprocg", "process group control block");
@@ -65,13 +63,11 @@ static void vnet_mod_complete_registration(struct vnet_modlink *);
 static int vnet_mod_constructor(struct vnet_modlink *);
 static int vnet_mod_destructor(struct vnet_modlink *);
 
-#ifdef VIMAGE
 static struct vimage *vi_alloc(struct vimage *, char *);
 static int vi_destroy(struct vimage *);
 static struct vimage *vimage_get_next(struct vimage *, struct vimage *, int);
 static void vimage_relative_name(struct vimage *, struct vimage *,
     char *, int);
-#endif
 
 #define	VNET_LIST_WLOCK()						\
 	mtx_lock(&vnet_list_refc_mtx);					\
@@ -81,17 +77,11 @@ static void vimage_relative_name(struct vimage *, struct vimage *,
 #define	VNET_LIST_WUNLOCK()						\
 	mtx_unlock(&vnet_list_refc_mtx);
 
-#ifdef VIMAGE
 struct vimage_list_head vimage_head;
 struct vnet_list_head vnet_head;
 struct vprocg_list_head vprocg_head;
-#else
-#ifndef VIMAGE_GLOBALS
 struct vprocg vprocg_0;
-#endif
-#endif
 
-#ifdef VIMAGE
 struct cv vnet_list_condvar;
 struct mtx vnet_list_refc_mtx;
 int vnet_list_refc = 0;
@@ -100,9 +90,7 @@ static u_int last_vi_id = 0;
 static u_int last_vprocg_id = 0;
 
 struct vnet *vnet0;
-#endif
 
-#ifdef VIMAGE
 
 /*
  * Move an ifnet to or from another vnet, specified by the jail id.  If a
@@ -396,8 +384,6 @@ vimage_get_next(struct vimage *top, struct vimage *where, int recurse)
 	return (NULL);
 }
 
-#endif /* VIMAGE */ /* User interface block */
-
 
 /*
  * Kernel interfaces and handlers.
@@ -540,23 +526,9 @@ vnet_mod_constructor(struct vnet_modlink *vml)
 	if (vml->vml_iarg)
 		printf("/%s", vml->vml_iname);
 	printf(": ");
-#ifdef VIMAGE
-	if (vmi->vmi_size)
-		printf("malloc(%zu); ", vmi->vmi_size);
-#endif
 	if (vmi->vmi_iattach != NULL)
 		printf("iattach()");
 	printf("\n");
-#endif
-
-#ifdef VIMAGE
-	if (vmi->vmi_size) {
-		void *mem = malloc(vmi->vmi_size, M_VNET,
-		    M_NOWAIT | M_ZERO);
-		if (mem == NULL) /* XXX should return error, not panic. */
-			panic("malloc for %s\n", vmi->vmi_name);
-		curvnet->mod_data[vmi->vmi_id] = mem;
-	}
 #endif
 
 	if (vmi->vmi_iattach != NULL)
@@ -577,63 +549,15 @@ vnet_mod_destructor(struct vnet_modlink *vml)
 	printf(": ");
 	if (vmi->vmi_idetach != NULL)
 		printf("idetach(); ");
-#ifdef VIMAGE
-	if (vmi->vmi_size)
-		printf("free()");
-#endif
 	printf("\n");
 #endif
 
 	if (vmi->vmi_idetach)
 		vmi->vmi_idetach(vml->vml_iarg);
 
-#ifdef VIMAGE
-	if (vmi->vmi_size) {
-		if (curvnet->mod_data[vmi->vmi_id] == NULL)
-			panic("vi_destroy: %s\n", vmi->vmi_name);
-		free(curvnet->mod_data[vmi->vmi_id], M_VNET);
-		curvnet->mod_data[vmi->vmi_id] = NULL;
-	}
-#endif
-
 	return (0);
 }
 
-/*
- * vi_symlookup() attempts to resolve name to address queries for
- * variables which have been moved from global namespace to virtualization
- * container structures, but are still directly accessed from legacy
- * userspace processes via kldsym(2) and kmem(4) interfaces.
- */
-int
-vi_symlookup(struct kld_sym_lookup *lookup, char *symstr)
-{
-	struct vnet_modlink *vml;
-	struct vnet_symmap *mapentry;
-
-	TAILQ_FOREACH(vml, &vnet_modlink_head, vml_mod_le) {
-		if (vml->vml_modinfo->vmi_symmap == NULL)
-			continue;
-		for (mapentry = vml->vml_modinfo->vmi_symmap;
-		    mapentry->name != NULL; mapentry++) {
-			if (strcmp(symstr, mapentry->name) == 0) {
-#ifdef VIMAGE
-				lookup->symvalue =
-				    (u_long) curvnet->mod_data[
-				    vml->vml_modinfo->vmi_id];
-				lookup->symvalue += mapentry->offset;
-#else
-				lookup->symvalue = (u_long) mapentry->offset;
-#endif
-				lookup->symsize = mapentry->size;
-				return (0);
-			}
-		}
-	}
-	return (ENOENT);
-}
-
-#ifdef VIMAGE
 struct vnet *
 vnet_alloc(void)
 {
@@ -642,6 +566,7 @@ vnet_alloc(void)
 
 	vnet = malloc(sizeof(struct vnet), M_VNET, M_WAITOK | M_ZERO);
 	vnet->vnet_magic_n = VNET_MAGIC_N;
+	vnet_data_init(vnet);
 
 	/* Initialize / attach vnet module instances. */
 	CURVNET_SET_QUIET(vnet);
@@ -669,7 +594,6 @@ vnet_destroy(struct vnet *vnet)
 	VNET_LIST_WUNLOCK();
 
 	CURVNET_SET_QUIET(vnet);
-	INIT_VNET_NET(vnet);
 
 	/* Return all inherited interfaces to their parent vnets. */
 	TAILQ_FOREACH_SAFE(ifp, &V_ifnet, if_link, nifp) {
@@ -685,8 +609,20 @@ vnet_destroy(struct vnet *vnet)
 	CURVNET_RESTORE();
 
 	/* Hopefully, we are OK to free the vnet container itself. */
+	vnet_data_destroy(vnet);
 	vnet->vnet_magic_n = 0xdeadbeef;
 	free(vnet, M_VNET);
+}
+
+void
+vnet_foreach(void (*vnet_foreach_fn)(struct vnet *, void *), void *arg)
+{
+	struct vnet *vnet;
+
+	VNET_LIST_RLOCK();
+	LIST_FOREACH(vnet, &vnet_head, vnet_le)
+		vnet_foreach_fn(vnet, arg);
+	VNET_LIST_RUNLOCK();
 }
 
 static struct vimage *
@@ -757,7 +693,6 @@ vi_destroy(struct vimage *vip)
 
 	return (0);
 }
-#endif /* VIMAGE */
 
 static void
 vi_init(void *unused)
@@ -766,7 +701,6 @@ vi_init(void *unused)
 	TAILQ_INIT(&vnet_modlink_head);
 	TAILQ_INIT(&vnet_modpending_head);
 
-#ifdef VIMAGE
 	LIST_INIT(&vimage_head);
 	LIST_INIT(&vprocg_head);
 	LIST_INIT(&vnet_head);
@@ -783,7 +717,6 @@ vi_init(void *unused)
 	 * curvnet recursions.
 	 */
 	curvnet = prison0.pr_vnet = vnet0 = LIST_FIRST(&vnet_head);
-#endif
 }
 
 static void
@@ -791,9 +724,7 @@ vi_init_done(void *unused)
 {
 	struct vnet_modlink *vml_iter;
 
-#ifdef VIMAGE
 	curvnet = NULL;
-#endif
 
 	if (TAILQ_EMPTY(&vnet_modpending_head))
 		return;
@@ -809,45 +740,21 @@ vi_init_done(void *unused)
 
 SYSINIT(vimage, SI_SUB_VIMAGE, SI_ORDER_FIRST, vi_init, NULL);
 SYSINIT(vimage_done, SI_SUB_VIMAGE_DONE, SI_ORDER_FIRST, vi_init_done, NULL);
-#endif /* !VIMAGE_GLOBALS */
 
-#ifdef VIMAGE
 #ifdef DDB
-static void
-db_vnet_ptr(void *arg)
-{
-
-	if (arg)
-		db_printf(" %p", arg);
-	else
-#if SIZE_MAX == UINT32_MAX /* 32-bit arch */
-		db_printf("          0");
-#else /* 64-bit arch, most probaly... */
-		db_printf("                  0");
-#endif
-}
-
 DB_SHOW_COMMAND(vnets, db_show_vnets)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
 #if SIZE_MAX == UINT32_MAX /* 32-bit arch */
 	db_printf("      vnet ifs socks");
-	db_printf("        net       inet      inet6      ipsec   netgraph\n");
 #else /* 64-bit arch, most probaly... */
 	db_printf("              vnet ifs socks");
-	db_printf("                net               inet              inet6              ipsec           netgraph\n");
 #endif
 	VNET_FOREACH(vnet_iter) {
 		db_printf("%p %3d %5d",
 		    vnet_iter, vnet_iter->ifcnt, vnet_iter->sockcnt);
-		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_NET]);
-		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_INET]);
-		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_INET6]);
-		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_IPSEC]);
-		db_vnet_ptr(vnet_iter->mod_data[VNET_MOD_NETGRAPH]);
 		db_printf("\n");
 	}
 }
 #endif
-#endif /* VIMAGE */

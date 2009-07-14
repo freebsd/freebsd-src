@@ -103,7 +103,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_pcb.h>
-#include <netinet6/vinet6.h>
 
 /*
  * Definitions of some costant IP6 addresses.
@@ -181,7 +180,6 @@ int
 in6_control(struct socket *so, u_long cmd, caddr_t data,
     struct ifnet *ifp, struct thread *td)
 {
-	INIT_VNET_INET6(curvnet);
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
 	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
@@ -682,7 +680,6 @@ int
 in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
     struct in6_ifaddr *ia, int flags)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	int error = 0, hostIsNew = 0, plen = -1;
 	struct sockaddr_in6 dst6;
 	struct in6_addrlifetime *lt;
@@ -1388,7 +1385,6 @@ cleanup:
 static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	int	s = splnet();
 
 	IF_ADDR_LOCK(ifp);
@@ -1964,7 +1960,6 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 int
 in6_localaddr(struct in6_addr *in6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
 	if (IN6_IS_ADDR_LOOPBACK(in6) || IN6_IS_ADDR_LINKLOCAL(in6))
@@ -1986,7 +1981,6 @@ in6_localaddr(struct in6_addr *in6)
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK();
@@ -2083,7 +2077,6 @@ in6_prefixlen2mask(struct in6_addr *maskp, int len)
 struct in6_ifaddr *
 in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 {
-	INIT_VNET_INET6(curvnet);
 	int dst_scope =	in6_addrscope(dst), blen = -1, tlen;
 	struct ifaddr *ifa;
 	struct in6_ifaddr *besta = 0;
@@ -2244,8 +2237,6 @@ in6if_do_dad(struct ifnet *ifp)
 void
 in6_setmaxmtu(void)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	unsigned long maxmtu = 0;
 	struct ifnet *ifp;
 

@@ -291,42 +291,72 @@ struct ip6aux {
 #define IP6_HDR_ALIGNED_P(ip)	((((intptr_t) (ip)) & 3) == 0)
 #endif
 
-#ifdef VIMAGE_GLOBALS
-extern struct	ip6stat ip6stat;	/* statistics */
-extern int	ip6_defhlim;		/* default hop limit */
-extern int	ip6_defmcasthlim;	/* default multicast hop limit */
-extern int	ip6_forwarding;		/* act as router? */
-extern int	ip6_gif_hlim;		/* Hop limit for gif encap packet */
-extern int	ip6_use_deprecated;	/* allow deprecated addr as source */
-extern int	ip6_rr_prune;		/* router renumbering prefix
+VNET_DECLARE(struct ip6stat, ip6stat);	/* statistics */
+VNET_DECLARE(int, ip6_defhlim);		/* default hop limit */
+VNET_DECLARE(int, ip6_defmcasthlim);	/* default multicast hop limit */
+VNET_DECLARE(int, ip6_forwarding);	/* act as router? */
+VNET_DECLARE(int, ip6_gif_hlim);	/* Hop limit for gif encap packet */
+VNET_DECLARE(int, ip6_use_deprecated);	/* allow deprecated addr as source */
+VNET_DECLARE(int, ip6_rr_prune);	/* router renumbering prefix
 					 * walk list every 5 sec.    */
-extern int	ip6_mcast_pmtu;		/* enable pMTU discovery for multicast? */
-extern int	ip6_v6only;
-extern struct socket *ip6_mrouter;	/* multicast routing daemon */
-extern int	ip6_sendredirects;	/* send IP redirects when forwarding? */
-extern int	ip6_maxfragpackets; /* Maximum packets in reassembly queue */
-extern int	ip6_maxfrags;	/* Maximum fragments in reassembly queue */
-extern int	ip6_accept_rtadv;	/* Acts as a host not a router */
-extern int	ip6_keepfaith;		/* Firewall Aided Internet Translator */
-extern int	ip6_log_interval;
-extern time_t	ip6_log_time;
-extern int	ip6_hdrnestlimit; /* upper limit of # of extension headers */
-extern int	ip6_dad_count;		/* DupAddrDetectionTransmits */
+VNET_DECLARE(int, ip6_mcast_pmtu);	/* enable pMTU discovery for multicast? */
+VNET_DECLARE(int, ip6_v6only);
+VNET_DECLARE(struct socket *, ip6_mrouter);	/* multicast routing daemon */
+VNET_DECLARE(int, ip6_sendredirects);	/* send IP redirects when forwarding? */
+VNET_DECLARE(int, ip6_maxfragpackets);	/* Maximum packets in reassembly
+					 * queue */
+VNET_DECLARE(int, ip6_maxfrags);	/* Maximum fragments in reassembly
+					 * queue */
+VNET_DECLARE(int, ip6_accept_rtadv);	/* Acts as a host not a router */
+VNET_DECLARE(int, ip6_keepfaith);	/* Firewall Aided Internet Translator */
+VNET_DECLARE(int, ip6_log_interval);
+VNET_DECLARE(time_t, ip6_log_time);
+VNET_DECLARE(int, ip6_hdrnestlimit);	/* upper limit of # of extension
+					 * headers */
+VNET_DECLARE(int, ip6_dad_count);	/* DupAddrDetectionTransmits */
 
-extern int	ip6_auto_flowlabel;
-extern int	ip6_auto_linklocal;
+VNET_DECLARE(int, ip6_auto_flowlabel);
+VNET_DECLARE(int, ip6_auto_linklocal);
 
-extern int	ip6_use_tempaddr; /* whether to use temporary addresses. */
-extern int	ip6_prefer_tempaddr; /* whether to prefer temporary addresses
-					in the source address selection */
+VNET_DECLARE(int, ip6_use_tempaddr);	/* Whether to use temporary addresses */
+VNET_DECLARE(int, ip6_prefer_tempaddr);	/* Whether to prefer temporary
+					 * addresses in the source address
+					 * selection */
 
 #ifdef IPSTEALTH
-extern int	ip6stealth;
+VNET_DECLARE(int, ip6stealth);
 #endif
 
-extern int	ip6_use_defzone; /* whether to use the default scope zone
-				    when unspecified */
-#endif /* VIMAGE_GLOBALS */
+VNET_DECLARE(int, ip6_use_defzone);	/* Whether to use the default scope
+					 * zone when unspecified */
+
+#define	V_ip6stat			VNET_GET(ip6stat)
+#define	V_ip6_defhlim			VNET_GET(ip6_defhlim)
+#define	V_ip6_defmcasthlim		VNET_GET(ip6_defmcasthlim)
+#define	V_ip6_forwarding		VNET_GET(ip6_forwarding)
+#define	V_ip6_gif_hlim			VNET_GET(ip6_gif_hlim)
+#define	V_ip6_use_deprecated		VNET_GET(ip6_use_deprecated)
+#define	V_ip6_rr_prune			VNET_GET(ip6_rr_prune)
+#define	V_ip6_mcast_pmtu		VNET_GET(ip6_mcast_pmtu)
+#define	V_ip6_v6only			VNET_GET(ip6_v6only)
+#define	V_ip6_mrouter			VNET_GET(ip6_mrouter)
+#define	V_ip6_sendredirects		VNET_GET(ip6_sendredirects)
+#define	V_ip6_maxfragpackets		VNET_GET(ip6_maxfragpackets)
+#define	V_ip6_maxfrags			VNET_GET(ip6_maxfrags)
+#define	V_ip6_accept_rtadv		VNET_GET(ip6_accept_rtadv)
+#define	V_ip6_keepfaith			VNET_GET(ip6_keepfaith)
+#define	V_ip6_log_interval		VNET_GET(ip6_log_interval)
+#define	V_ip6_log_time			VNET_GET(ip6_log_time)
+#define	V_ip6_hdrnestlimit		VNET_GET(ip6_hdrnestlimit)
+#define	V_ip6_dad_count			VNET_GET(ip6_dad_count)
+#define	V_ip6_auto_flowlabel		VNET_GET(ip6_auto_flowlabel)
+#define	V_ip6_auto_linklocal		VNET_GET(ip6_auto_linklocal)
+#define	V_ip6_use_tempaddr		VNET_GET(ip6_use_tempaddr)
+#define	V_ip6_prefer_tempaddr		VNET_GET(ip6_prefer_tempaddr)
+#ifdef IPSTEALTH
+#define	V_ip6stealth			VNET_GET(ip6stealth)
+#endif
+#define	V_ip6_use_defzone		VNET_GET(ip6_use_defzone)
 
 extern	struct pfil_head inet6_pfil_hook;	/* packet filter hooks */
 

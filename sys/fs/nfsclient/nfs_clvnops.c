@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfs_lock.h>
 
 #include <net/if.h>
-#include <netinet/vinet.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 
@@ -1401,7 +1400,6 @@ again:
 
 	CURVNET_SET(P_TO_VNET(&proc0));
 #ifdef INET
-	INIT_VNET_INET(curvnet);
 	IN_IFADDR_RLOCK();
 	if (!TAILQ_EMPTY(&V_in_ifaddrhead))
 		cverf.lval[0] = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr.s_addr;
