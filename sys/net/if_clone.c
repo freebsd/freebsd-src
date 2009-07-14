@@ -58,10 +58,11 @@ static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len,
 static int	vnet_clone_iattach(const void *);
 
 static struct mtx	if_cloners_mtx;
-#ifdef VIMAGE_GLOBALS
-static int		if_cloners_count;
-LIST_HEAD(, if_clone)	if_cloners;
-#endif
+static VNET_DEFINE(int, if_cloners_count);
+VNET_DEFINE(LIST_HEAD(, if_clone), if_cloners);
+
+#define	V_if_cloners_count	VNET_GET(if_cloners_count)
+#define	V_if_cloners		VNET_GET(if_cloners)
 
 #define IF_CLONERS_LOCK_INIT()		\
     mtx_init(&if_cloners_mtx, "if_cloners lock", NULL, MTX_DEF)
@@ -115,17 +116,16 @@ LIST_HEAD(, if_clone)	if_cloners;
 
 static MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 static const vnet_modinfo_t vnet_clone_modinfo = {
 	.vmi_id		= VNET_MOD_IF_CLONE,
 	.vmi_name	= "if_clone",
 	.vmi_iattach	= vnet_clone_iattach
 };
-#endif /* !VIMAGE_GLOBALS */
+#endif
 
 static int vnet_clone_iattach(const void *unused __unused)
 {
-	INIT_VNET_NET(curvnet);
 
 	LIST_INIT(&V_if_cloners);
 	return (0);
@@ -136,7 +136,7 @@ if_clone_init(void)
 {
 
 	IF_CLONERS_LOCK_INIT();
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 	vnet_mod_register(&vnet_clone_modinfo);
 #else
 	vnet_clone_iattach(NULL);
@@ -149,7 +149,6 @@ if_clone_init(void)
 int
 if_clone_create(char *name, size_t len, caddr_t params)
 {
-	INIT_VNET_NET(curvnet);
 	struct if_clone *ifc;
 
 	/* Try to find an applicable cloner for this request */
@@ -162,7 +161,6 @@ if_clone_create(char *name, size_t len, caddr_t params)
 #ifdef VIMAGE
 	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
 		CURVNET_SET_QUIET(vnet0);
-		INIT_VNET_NET(vnet0);
 		LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
 			if (ifc->ifc_match(ifc, name))
 				break;
@@ -213,7 +211,6 @@ if_clone_createif(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 int
 if_clone_destroy(const char *name)
 {
-	INIT_VNET_NET(curvnet);
 	struct if_clone *ifc;
 	struct ifnet *ifp;
 
@@ -231,7 +228,6 @@ if_clone_destroy(const char *name)
 #ifdef VIMAGE
 	if (ifc == NULL && !IS_DEFAULT_VNET(curvnet)) {
 		CURVNET_SET_QUIET(vnet0);
-		INIT_VNET_NET(vnet0);
 		LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
 			if (ifc->ifc_match(ifc, name))
 				break;
@@ -289,7 +285,6 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 void
 if_clone_attach(struct if_clone *ifc)
 {
-	INIT_VNET_NET(curvnet);
 	int len, maxclone;
 
 	/*
@@ -322,7 +317,6 @@ if_clone_attach(struct if_clone *ifc)
 void
 if_clone_detach(struct if_clone *ifc)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifc_simple_data *ifcs = ifc->ifc_data;
 
 	IF_CLONERS_LOCK();
@@ -362,7 +356,6 @@ if_clone_free(struct if_clone *ifc)
 int
 if_clone_list(struct if_clonereq *ifcr)
 {
-	INIT_VNET_NET(curvnet);
 	char *buf, *dst, *outbuf = NULL;
 	struct if_clone *ifc;
 	int buf_count, count, err = 0;

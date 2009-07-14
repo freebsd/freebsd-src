@@ -213,6 +213,8 @@ boolean_t	db_stop_at_pc(boolean_t *is_breakpoint);
 void		db_trace_self(void);
 int		db_trace_thread(struct thread *, int);
 int		db_value_of_name(const char *name, db_expr_t *valuep);
+int		db_value_of_name_pcpu(const char *name, db_expr_t *valuep);
+int		db_value_of_name_vnet(const char *name, db_expr_t *valuep);
 int		db_write_bytes(vm_offset_t addr, size_t size, char *data);
 void		db_command_register(struct command_table *, struct command *);
 void		db_command_unregister(struct command_table *, struct command *);

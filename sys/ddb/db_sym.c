@@ -32,10 +32,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/smp.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
+
+#include <net/vnet.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
+#include <ddb/db_variables.h>
 
 #include <opt_ddb.h>
 
@@ -55,6 +60,117 @@ static c_db_sym_t	db_lookup( const char *symstr);
 static char		*db_qualify(c_db_sym_t sym, char *symtabname);
 static boolean_t	db_symbol_is_ambiguous(c_db_sym_t sym);
 static boolean_t	db_line_at_pc(c_db_sym_t, char **, int *, db_expr_t);
+
+static int db_cpu = -1;
+
+#ifdef VIMAGE
+extern uintptr_t	*__start_set_vnet;
+extern uintptr_t	*__stop_set_vnet;
+
+#define	VNET_START	(uintptr_t)&__start_set_vnet
+#define	VNET_STOP	(uintptr_t)&__stop_set_vnet
+
+static void *db_vnet = NULL;
+#endif
+
+/*
+ * Validate the CPU number used to interpret per-CPU variables so we can
+ * avoid later confusion if an invalid CPU is requested.
+ */
+int
+db_var_db_cpu(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+
+	switch (op) {
+	case DB_VAR_GET:
+		*valuep = db_cpu;
+		return (1);
+
+	case DB_VAR_SET:
+		if (*(int *)valuep < -1 && *(int *)valuep > mp_maxid) {
+			db_printf("Invalid value: %d", *(int*)valuep);
+			return (0);
+		}
+		db_cpu = *(int *)valuep;
+		return (1);
+
+	default:
+		db_printf("db_var_db_cpu: unknown operation\n");
+		return (0);
+	}
+}
+
+/*
+ * Read-only variable reporting the current CPU, which is what we use when
+ * db_cpu is set to -1.
+ */
+int
+db_var_curcpu(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+
+	switch (op) {
+	case DB_VAR_GET:
+		*valuep = curcpu;
+		return (1);
+
+	case DB_VAR_SET:
+		db_printf("Read-only variable.\n");
+		return (0);
+
+	default:
+		db_printf("db_var_curcpu: unknown operation\n");
+		return (0);
+	}
+}
+
+#ifdef VIMAGE
+/*
+ * Validate the virtual network pointer used to interpret per-vnet global
+ * variable expansion.  Right now we don't do much here, really we should
+ * walk the global vnet list to check it's an OK pointer.
+ */
+int
+db_var_db_vnet(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+
+	switch (op) {
+	case DB_VAR_GET:
+		*valuep = (db_expr_t)db_vnet;
+		return (1);
+
+	case DB_VAR_SET:
+		db_vnet = *(void **)valuep;
+		return (1);
+
+	default:
+		db_printf("db_var_db_vnet: unknown operation\n");
+		return (0);
+	}
+}
+
+/*
+ * Read-only variable reporting the current vnet, which is what we use when
+ * db_vnet is set to NULL.
+ */
+int
+db_var_curvnet(struct db_variable *vp, db_expr_t *valuep, int op)
+{
+
+	switch (op) {
+	case DB_VAR_GET:
+		*valuep = (db_expr_t)curvnet;
+		return (1);
+
+	case DB_VAR_SET:
+		db_printf("Read-only variable.\n");
+		return (0);
+
+	default:
+		db_printf("db_var_curcpu: unknown operation\n");
+		return (0);
+	}
+}
+#endif
 
 /*
  * Add symbol table, with given name, to list of symbol tables.
@@ -125,6 +241,59 @@ db_value_of_name(name, valuep)
 	return (TRUE);
 }
 
+boolean_t
+db_value_of_name_pcpu(name, valuep)
+	const char	*name;
+	db_expr_t	*valuep;
+{
+	static char     tmp[256];
+	db_expr_t	value;
+	c_db_sym_t	sym;
+	int		cpu;
+
+	if (db_cpu != -1)
+		cpu = db_cpu;
+	else
+		cpu = curcpu;
+	snprintf(tmp, sizeof(tmp), "pcpu_entry_%s", name);
+	sym = db_lookup(tmp);
+	if (sym == C_DB_SYM_NULL)
+		return (FALSE);
+	db_symbol_values(sym, &name, &value);
+	if (value < DPCPU_START || value >= DPCPU_STOP)
+		return (FALSE);
+	*valuep = (db_expr_t)((uintptr_t)value + dpcpu_off[cpu]);
+	return (TRUE);
+}
+
+boolean_t
+db_value_of_name_vnet(name, valuep)
+	const char	*name;
+	db_expr_t	*valuep;
+{
+#ifdef VIMAGE
+	static char     tmp[256];
+	db_expr_t	value;
+	c_db_sym_t	sym;
+	struct vnet	*vnet;
+
+	if (db_vnet != NULL)
+		vnet = db_vnet;
+	else
+		vnet = curvnet;
+	snprintf(tmp, sizeof(tmp), "vnet_entry_%s", name);
+	sym = db_lookup(tmp);
+	if (sym == C_DB_SYM_NULL)
+		return (FALSE);
+	db_symbol_values(sym, &name, &value);
+	if (value < VNET_START || value >= VNET_STOP)
+		return (FALSE);
+	*valuep = (db_expr_t)((uintptr_t)value + vnet->vnet_data_base);
+	return (TRUE);
+#else
+	return (FALSE);
+#endif
+}
 
 /*
  * Lookup a symbol.

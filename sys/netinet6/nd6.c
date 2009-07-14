@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
-#include <netinet6/vinet6.h>
 
 #include <sys/limits.h>
 
@@ -83,32 +82,32 @@ __FBSDID("$FreeBSD$");
 
 #define SIN6(s) ((struct sockaddr_in6 *)s)
 
-#ifdef VIMAGE_GLOBALS
-int nd6_prune;
-int nd6_delay;
-int nd6_umaxtries;
-int nd6_mmaxtries;
-int nd6_useloopback;
-int nd6_gctimer;
+VNET_DEFINE(int, nd6_prune);
+VNET_DEFINE(int, nd6_delay);
+VNET_DEFINE(int, nd6_umaxtries);
+VNET_DEFINE(int, nd6_mmaxtries);
+VNET_DEFINE(int, nd6_useloopback);
+VNET_DEFINE(int, nd6_gctimer);
 
 /* preventing too many loops in ND option parsing */
-int nd6_maxndopt;
+static VNET_DEFINE(int, nd6_maxndopt);
+VNET_DEFINE(int, nd6_maxnudhint);
+static VNET_DEFINE(int, nd6_maxqueuelen);
+#define	V_nd6_maxndopt			VNET_GET(nd6_maxndopt)
+#define	V_nd6_maxqueuelen		VNET_GET(nd6_maxqueuelen)
 
-int nd6_maxnudhint;
-int nd6_maxqueuelen;
-
-int nd6_debug;
+VNET_DEFINE(int, nd6_debug);
 
 /* for debugging? */
 #if 0
 static int nd6_inuse, nd6_allocated;
 #endif
 
-struct nd_drhead nd_defrouter;
-struct nd_prhead nd_prefix;
+VNET_DEFINE(struct nd_drhead, nd_defrouter);
+VNET_DEFINE(struct nd_prhead, nd_prefix);
 
-int nd6_recalc_reachtm_interval;
-#endif /* VIMAGE_GLOBALS */
+VNET_DEFINE(int, nd6_recalc_reachtm_interval);
+#define	V_nd6_recalc_reachtm_interval	VNET_GET(nd6_recalc_reachtm_interval)
 
 static struct sockaddr_in6 all1_sa;
 
@@ -121,18 +120,19 @@ static struct llentry *nd6_free(struct llentry *, int);
 static void nd6_llinfo_timer(void *);
 static void clear_llinfo_pqueue(struct llentry *);
 
-#ifdef VIMAGE_GLOBALS
-struct callout nd6_slowtimo_ch;
-struct callout nd6_timer_ch;
-extern struct callout in6_tmpaddrtimer_ch;
-extern int dad_ignore_ns;
-extern int dad_maxtry;
-#endif
+static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
+#define	V_nd6_slowtimo_ch		VNET_GET(nd6_slowtimo_ch)
+
+VNET_DEFINE(struct callout, nd6_timer_ch);
+
+VNET_DECLARE(int, dad_ignore_ns);
+VNET_DECLARE(int, dad_maxtry);
+#define	V_dad_ignore_ns			VNET_GET(dad_ignore_ns)
+#define	V_dad_maxtry			VNET_GET(dad_maxtry)
 
 void
 nd6_init(void)
 {
-	INIT_VNET_INET6(curvnet);
 	int i;
 
 	V_nd6_prune	= 1;	/* walk list every 1 seconds */
@@ -193,7 +193,6 @@ nd6_init(void)
 void
 nd6_destroy()
 {
-	INIT_VNET_INET6(curvnet);
 
 	callout_drain(&V_nd6_slowtimo_ch);
 	callout_drain(&V_nd6_timer_ch);
@@ -249,7 +248,6 @@ nd6_setmtu(struct ifnet *ifp)
 void
 nd6_setmtu0(struct ifnet *ifp, struct nd_ifinfo *ndi)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	u_int32_t omaxmtu;
 
 	omaxmtu = ndi->maxmtu;
@@ -358,7 +356,6 @@ nd6_option(union nd_opts *ndopts)
 int
 nd6_options(union nd_opts *ndopts)
 {
-	INIT_VNET_INET6(curvnet);
 	struct nd_opt_hdr *nd_opt;
 	int i = 0;
 
@@ -492,7 +489,6 @@ nd6_llinfo_timer(void *arg)
 		panic("ln ifp == NULL");
 
 	CURVNET_SET(ifp->if_vnet);
-	INIT_VNET_INET6(curvnet);
 
 	if (ln->ln_ntick > 0) {
 		if (ln->ln_ntick > INT_MAX) {
@@ -595,7 +591,6 @@ void
 nd6_timer(void *arg)
 {
 	CURVNET_SET((struct vnet *) arg);
-	INIT_VNET_INET6(curvnet);
 	int s;
 	struct nd_defrouter *dr;
 	struct nd_prefix *pr;
@@ -794,7 +789,6 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 void
 nd6_purge(struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct nd_defrouter *dr, *ndr;
 	struct nd_prefix *pr, *npr;
 
@@ -908,7 +902,6 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 static int
 nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct nd_prefix *pr;
 	struct ifaddr *dstaddr;
 
@@ -1017,7 +1010,6 @@ nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 static struct llentry *
 nd6_free(struct llentry *ln, int gc)
 {
-	INIT_VNET_INET6(curvnet);
         struct llentry *next;
 	struct nd_defrouter *dr;
 	struct ifnet *ifp=NULL;
@@ -1124,7 +1116,6 @@ nd6_free(struct llentry *ln, int gc)
 void
 nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 {
-	INIT_VNET_INET6(curvnet);
 	struct llentry *ln;
 	struct ifnet *ifp;
 
@@ -1165,7 +1156,6 @@ done:
 int
 nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	struct in6_drlist *drl = (struct in6_drlist *)data;
 	struct in6_oprlist *oprl = (struct in6_oprlist *)data;
 	struct in6_ndireq *ndi = (struct in6_ndireq *)data;
@@ -1406,7 +1396,6 @@ struct llentry *
 nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
     int lladdrlen, int type, int code)
 {
-	INIT_VNET_INET6(curvnet);
 	struct llentry *ln = NULL;
 	int is_newentry;
 	int do_update;
@@ -1669,8 +1658,6 @@ static void
 nd6_slowtimo(void *arg)
 {
 	CURVNET_SET((struct vnet *) arg);
-	INIT_VNET_NET((struct vnet *) arg);
-	INIT_VNET_INET6((struct vnet *) arg);
 	struct nd_ifinfo *nd6if;
 	struct ifnet *ifp;
 
@@ -1720,7 +1707,6 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
     struct sockaddr_in6 *dst, struct rtentry *rt0, struct llentry *lle,
 	struct mbuf **chain)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = m0;
 	struct llentry *ln = lle;
 	int error = 0;
@@ -2105,13 +2091,12 @@ SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_DRLIST, nd6_drlist,
 	CTLFLAG_RD, nd6_sysctl_drlist, "");
 SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_PRLIST, nd6_prlist,
 	CTLFLAG_RD, nd6_sysctl_prlist, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ND6_MAXQLEN,
-	nd6_maxqueuelen, CTLFLAG_RW, nd6_maxqueuelen, 1, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXQLEN, nd6_maxqueuelen,
+	CTLFLAG_RW, &VNET_NAME(nd6_maxqueuelen), 1, "");
 
 static int
 nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET6(curvnet);
 	int error;
 	char buf[1024] __aligned(4);
 	struct in6_defrouter *d, *de;
@@ -2152,7 +2137,6 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 static int
 nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET6(curvnet);
 	int error;
 	char buf[1024] __aligned(4);
 	struct in6_prefix *p, *pe;

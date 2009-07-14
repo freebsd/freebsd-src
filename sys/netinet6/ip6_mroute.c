@@ -113,7 +113,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/icmp6.h>
-#include <netinet/vinet.h>
 #include <netinet/ip_encap.h>
 
 #include <netinet/ip6.h>
@@ -124,7 +123,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6protosw.h>
 #include <netinet6/pim6.h>
 #include <netinet6/pim6_var.h>
-#include <netinet6/vinet6.h>
 
 static MALLOC_DEFINE(M_MRTABLE6, "mf6c", "multicast forwarding cache entry");
 
@@ -156,9 +154,8 @@ static const struct ip6protosw in6_pim_protosw = {
 };
 static int pim6_encapcheck(const struct mbuf *, int, int, void *);
 
-#ifdef VIMAGE_GLOBALS
-static int ip6_mrouter_ver;
-#endif
+static VNET_DEFINE(int, ip6_mrouter_ver);
+#define	V_ip6_mrouter_ver	VNET_GET(ip6_mrouter_ver)
 
 SYSCTL_DECL(_net_inet6);
 SYSCTL_DECL(_net_inet6_ip6);
@@ -216,9 +213,8 @@ static struct mtx mif6_mtx;
 #define	MIF6_LOCK_DESTROY()	mtx_destroy(&mif6_mtx)
 
 #ifdef MRT6DEBUG
-#ifdef VIMAGE_GLOBALS
-static u_int mrt6debug;		/* debug level */
-#endif
+static VNET_DEFINE(u_int, mrt6debug);		/* debug level */
+#define	V_mrt6debug		VNET_GET(mrt6debug)
 #define DEBUG_MFC	0x02
 #define DEBUG_FORWARD	0x04
 #define DEBUG_EXPIRE	0x08
@@ -261,9 +257,8 @@ SYSCTL_STRUCT(_net_inet6_pim, PIM6CTL_STATS, stats, CTLFLAG_RD,
     &pim6stat, pim6stat,
     "PIM Statistics (struct pim6stat, netinet6/pim_var.h)");
 
-#ifdef VIMAGE_GLOBALS
-static int pim6;
-#endif
+static VNET_DEFINE(int, pim6);
+#define	V_pim6		VNET_GET(pim6)
 
 /*
  * Hash function for a source, group entry
@@ -347,9 +342,7 @@ int X_mrt6_ioctl(u_long, caddr_t);
 static void
 pim6_init(void)
 {
-	INIT_VNET_INET6(curvnet);
 
-	V_ip6_mrouter_ver = 0;
 #ifdef MRT6DEBUG
 	V_mrt6debug = 0;	/* debug level */
 #endif
@@ -361,7 +354,6 @@ pim6_init(void)
 int
 X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 {
-	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	int optval;
 	struct mif6ctl mifc;
@@ -430,7 +422,6 @@ X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 int
 X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt)
 {
-	INIT_VNET_INET6(curvnet);
 	int error = 0;
 
 	if (so != V_ip6_mrouter)
@@ -528,7 +519,6 @@ get_mif6_cnt(struct sioc_mif_req6 *req)
 static int
 set_pim6(int *i)
 {
-	INIT_VNET_INET6(curvnet);
 	if ((*i != 1) && (*i != 0))
 		return (EINVAL);
 
@@ -543,7 +533,6 @@ set_pim6(int *i)
 static int
 ip6_mrouter_init(struct socket *so, int v, int cmd)
 {
-	INIT_VNET_INET6(curvnet);
 
 	V_ip6_mrouter_ver = 0;
 
@@ -598,7 +587,6 @@ ip6_mrouter_init(struct socket *so, int v, int cmd)
 int
 X_ip6_mrouter_done(void)
 {
-	INIT_VNET_INET6(curvnet);
 	mifi_t mifi;
 	int i;
 	struct mf6c *rt;
@@ -683,7 +671,6 @@ static struct sockaddr_in6 sin6 = { sizeof(sin6), AF_INET6 };
 static int
 add_m6if(struct mif6ctl *mifcp)
 {
-	INIT_VNET_NET(curvnet);
 	struct mif6 *mifp;
 	struct ifnet *ifp;
 	int error;
@@ -1100,7 +1087,6 @@ socket_send(struct socket *s, struct mbuf *mm, struct sockaddr_in6 *src)
 int
 X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mf6c *rt;
 	struct mif6 *mifp;
 	struct mbuf *mm;
@@ -1425,7 +1411,6 @@ expire_upcalls(void *unused)
 static int
 ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	mifi_t mifi, iif;
 	struct mif6 *mifp;
@@ -1604,7 +1589,6 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 static void
 phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *mb_copy;
 	struct ifnet *ifp = mifp->m6_ifp;
 	int error = 0;
@@ -1714,7 +1698,6 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 static int
 register_send(struct ip6_hdr *ip6, struct mif6 *mif, struct mbuf *m)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *mm;
 	int i, len = m->m_pkthdr.len;
 	static struct sockaddr_in6 sin6 = { sizeof(sin6), AF_INET6 };
@@ -1805,7 +1788,6 @@ pim6_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 int
 pim6_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_INET6(curvnet);
 	struct pim *pim; /* pointer to a pim struct */
 	struct ip6_hdr *ip6;
 	int pimlen;
@@ -2036,7 +2018,6 @@ pim6_input(struct mbuf **mp, int *offp, int proto)
 static int
 ip6_mroute_modevent(module_t mod, int type, void *unused)
 {
-	INIT_VNET_INET6(curvnet);
 
 	switch (type) {
 	case MOD_LOAD:

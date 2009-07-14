@@ -74,7 +74,7 @@
 
 static vnet_attach_fn ng_ether_iattach;
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 static vnet_modinfo_t vnet_ng_ether_modinfo = {
 	.vmi_id		= VNET_MOD_NG_ETHER,
 	.vmi_name	= "ng_ether",
@@ -783,7 +783,7 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		ng_ether_input_orphan_p = ng_ether_input_orphan;
 		ng_ether_link_state_p = ng_ether_link_state;
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 		vnet_mod_register(&vnet_ng_ether_modinfo);
 #else
 		error = ng_ether_iattach(NULL);
@@ -800,7 +800,7 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		 * is MOD_UNLOAD, so there's no need to detach any nodes.
 		 */
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 		vnet_mod_deregister(&vnet_ng_ether_modinfo);
 #endif
 
@@ -823,7 +823,6 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 
 static int ng_ether_iattach(const void *unused)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
 	/* Create nodes for any already-existing Ethernet interfaces. */

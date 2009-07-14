@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif
 #include <netinet6/ip6protosw.h>
-#include <netinet/vinet.h>
 
 #include <machine/in_cksum.h>
 
@@ -101,11 +100,12 @@ static int	maxtcptw;
  * queue pointers in each tcptw structure, are protected using the global
  * tcbinfo lock, which must be held over queue iteration and modification.
  */
-#ifdef VIMAGE_GLOBALS
-static uma_zone_t tcptw_zone;
-static TAILQ_HEAD(, tcptw)	twq_2msl;
-int	nolocaltimewait;
-#endif
+static VNET_DEFINE(uma_zone_t, tcptw_zone);
+static VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
+VNET_DEFINE(int, nolocaltimewait);
+
+#define	V_tcptw_zone			VNET_GET(tcptw_zone)
+#define	V_twq_2msl			VNET_GET(twq_2msl)
 
 static void	tcp_tw_2msl_reset(struct tcptw *, int);
 static void	tcp_tw_2msl_stop(struct tcptw *);
@@ -113,7 +113,6 @@ static void	tcp_tw_2msl_stop(struct tcptw *);
 static int
 tcptw_auto_size(void)
 {
-	INIT_VNET_INET(curvnet);
 	int halfrange;
 
 	/*
@@ -131,7 +130,6 @@ tcptw_auto_size(void)
 static int
 sysctl_maxtcptw(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
 	int error, new;
 
 	if (maxtcptw == 0)
@@ -151,14 +149,13 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, nolocaltimewait,
-    CTLFLAG_RW, nolocaltimewait, 0,
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_RW,
+    &VNET_NAME(nolocaltimewait), 0,
     "Do not create compressed TCP TIME_WAIT entries for local connections");
 
 void
 tcp_tw_zone_change(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	if (maxtcptw == 0)
 		uma_zone_set_max(V_tcptw_zone, tcptw_auto_size());
@@ -167,7 +164,6 @@ tcp_tw_zone_change(void)
 void
 tcp_tw_init(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	V_tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
@@ -183,7 +179,6 @@ tcp_tw_init(void)
 void
 tcp_tw_destroy(void)
 {
-	INIT_VNET_INET(curvnet);
 	struct tcptw *tw;
 
 	INP_INFO_WLOCK(&V_tcbinfo);
@@ -201,7 +196,6 @@ tcp_tw_destroy(void)
 void
 tcp_twstart(struct tcpcb *tp)
 {
-	INIT_VNET_INET(tp->t_vnet);
 	struct tcptw *tw;
 	struct inpcb *inp = tp->t_inpcb;
 	int acknow;
@@ -317,7 +311,6 @@ tcp_twstart(struct tcpcb *tp)
 int
 tcp_twrecycleable(struct tcptw *tw)
 {
-	INIT_VNET_INET(curvnet);
 	tcp_seq new_iss = tw->iss;
 	tcp_seq new_irs = tw->irs;
 
@@ -340,9 +333,6 @@ int
 tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
     struct mbuf *m, int tlen)
 {
-#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-	INIT_VNET_INET(curvnet);
-#endif
 	struct tcptw *tw;
 	int thflags;
 	tcp_seq seq;
@@ -434,7 +424,6 @@ drop:
 void
 tcp_twclose(struct tcptw *tw, int reuse)
 {
-	INIT_VNET_INET(curvnet);
 	struct socket *so;
 	struct inpcb *inp;
 
@@ -496,7 +485,6 @@ tcp_twclose(struct tcptw *tw, int reuse)
 int
 tcp_twrespond(struct tcptw *tw, int flags)
 {
-	INIT_VNET_INET(curvnet);
 	struct inpcb *inp = tw->tw_inpcb;
 	struct tcphdr *th;
 	struct mbuf *m;
@@ -590,7 +578,6 @@ tcp_twrespond(struct tcptw *tw, int flags)
 static void
 tcp_tw_2msl_reset(struct tcptw *tw, int rearm)
 {
-	INIT_VNET_INET(curvnet);
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tw->tw_inpcb);
@@ -603,7 +590,6 @@ tcp_tw_2msl_reset(struct tcptw *tw, int rearm)
 static void
 tcp_tw_2msl_stop(struct tcptw *tw)
 {
-	INIT_VNET_INET(curvnet);
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	TAILQ_REMOVE(&V_twq_2msl, tw, tw_2msl);
@@ -612,7 +598,6 @@ tcp_tw_2msl_stop(struct tcptw *tw)
 struct tcptw *
 tcp_tw_2msl_scan(int reuse)
 {
-	INIT_VNET_INET(curvnet);
 	struct tcptw *tw;
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);

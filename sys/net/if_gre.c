@@ -80,7 +80,6 @@
 #include <netinet/ip_gre.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
-#include <netinet/vinet.h>
 #else
 #error "Huh? if_gre without inet?"
 #endif
@@ -243,9 +242,6 @@ static int
 gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	   struct route *ro)
 {
-#ifdef INET6
-	INIT_VNET_INET(ifp->if_vnet);
-#endif
 	int error = 0;
 	struct gre_softc *sc = ifp->if_softc;
 	struct greip *gh;

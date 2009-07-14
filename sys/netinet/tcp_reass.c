@@ -73,52 +73,49 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
-#include <netinet/vinet.h>
 
-#ifdef VIMAGE_GLOBALS
-static int tcp_reass_maxseg;
-int tcp_reass_qsize;
-static int tcp_reass_maxqlen;
-static int tcp_reass_overflows;
-#endif
+static VNET_DEFINE(int, tcp_reass_maxseg);
+VNET_DEFINE(int, tcp_reass_qsize);
+static VNET_DEFINE(int, tcp_reass_maxqlen);
+static VNET_DEFINE(int, tcp_reass_overflows);
+
+#define	V_tcp_reass_maxseg		VNET_GET(tcp_reass_maxseg)
+#define	V_tcp_reass_maxqlen		VNET_GET(tcp_reass_maxqlen)
+#define	V_tcp_reass_overflows		VNET_GET(tcp_reass_overflows)
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_reass, OID_AUTO, maxsegments,
-    CTLFLAG_RDTUN, tcp_reass_maxseg, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
+    &VNET_NAME(tcp_reass_maxseg), 0,
     "Global maximum number of TCP Segments in Reassembly Queue");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_reass, OID_AUTO, cursegments,
-    CTLFLAG_RD, tcp_reass_qsize, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
+    &VNET_NAME(tcp_reass_qsize), 0,
     "Global number of TCP Segments currently in Reassembly Queue");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_reass, OID_AUTO, maxqlen,
-    CTLFLAG_RW, tcp_reass_maxqlen, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxqlen, CTLFLAG_RW,
+    &VNET_NAME(tcp_reass_maxqlen), 0,
     "Maximum number of TCP Segments per individual Reassembly Queue");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_reass, OID_AUTO, overflows,
-    CTLFLAG_RD, tcp_reass_overflows, 0,
+SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
+    &VNET_NAME(tcp_reass_overflows), 0,
     "Global number of TCP Segment Reassembly Queue Overflows");
 
 /* Initialize TCP reassembly queue */
 static void
 tcp_reass_zone_change(void *tag)
 {
-	INIT_VNET_INET(curvnet);
 
 	V_tcp_reass_maxseg = nmbclusters / 16;
 	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
 }
 
-#ifdef VIMAGE_GLOBALS
-uma_zone_t	tcp_reass_zone;
-#endif
+VNET_DEFINE(uma_zone_t, tcp_reass_zone);
 
 void
 tcp_reass_init(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	V_tcp_reass_maxseg = 0;
 	V_tcp_reass_qsize = 0;
@@ -138,7 +135,6 @@ tcp_reass_init(void)
 int
 tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 {
-	INIT_VNET_INET(curvnet);
 	struct tseg_qent *q;
 	struct tseg_qent *p = NULL;
 	struct tseg_qent *nq;

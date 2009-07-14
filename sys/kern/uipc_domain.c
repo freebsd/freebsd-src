@@ -106,14 +106,12 @@ struct pr_usrreqs nousrreqs = {
 	.pru_sopoll =		pru_sopoll_notsupp,
 };
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 vnet_modinfo_t vnet_domain_modinfo = {
 	.vmi_id		= VNET_MOD_DOMAIN,
 	.vmi_name	= "domain",
 	.vmi_iattach	= net_init_domain,
-#ifdef VIMAGE
 	.vmi_idetach	= net_detach_domain,
-#endif
 };
 #endif
 
@@ -249,7 +247,7 @@ net_add_domain(void *data)
 		    "domainfinalize()\n", dp->dom_name);
 #endif
 	mtx_unlock(&dom_mtx);
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 	vnet_mod_register_multi(&vnet_domain_modinfo, dp, dp->dom_name);
 #else
 	net_init_domain(dp);

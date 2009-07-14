@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -55,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet/in_systm.h>	/* for ECN definitions */
 #include <netinet/ip.h>		/* for ECN definitions */
-#include <netinet6/vinet6.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -76,11 +76,13 @@ static struct mtx ip6qlock;
 /*
  * These fields all protected by ip6qlock.
  */
-#ifdef VIMAGE_GLOBALS
-static u_int frag6_nfragpackets;
-static u_int frag6_nfrags;
-static struct	ip6q ip6q;	/* ip6 reassemble queue */
-#endif
+static VNET_DEFINE(u_int, frag6_nfragpackets);
+static VNET_DEFINE(u_int, frag6_nfrags);
+static VNET_DEFINE(struct ip6q, ip6q);	/* ip6 reassemble queue */
+
+#define	V_frag6_nfragpackets		VNET_GET(frag6_nfragpackets)
+#define	V_frag6_nfrags			VNET_GET(frag6_nfrags)
+#define	V_ip6q				VNET_GET(ip6q)
 
 #define	IP6Q_LOCK_INIT()	mtx_init(&ip6qlock, "ip6qlock", NULL, MTX_DEF);
 #define	IP6Q_LOCK()		mtx_lock(&ip6qlock)
@@ -96,7 +98,6 @@ static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 static void
 frag6_change(void *tag)
 {
-	INIT_VNET_INET6(curvnet);
 
 	V_ip6_maxfragpackets = nmbclusters / 4;
 	V_ip6_maxfrags = nmbclusters / 4;
@@ -105,7 +106,6 @@ frag6_change(void *tag)
 void
 frag6_init(void)
 {
-	INIT_VNET_INET6(curvnet);
 
 	V_ip6q.ip6q_next = V_ip6q.ip6q_prev = &V_ip6q;
 	V_ip6_maxfragpackets = nmbclusters / 4;
@@ -154,7 +154,6 @@ frag6_init(void)
 int
 frag6_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp, *t;
 	struct ip6_hdr *ip6;
 	struct ip6_frag *ip6f;
@@ -619,7 +618,6 @@ insert:
 void
 frag6_freef(struct ip6q *q6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6asfrag *af6, *down6;
 
 	IP6Q_LOCK_ASSERT();
@@ -726,7 +724,6 @@ frag6_slowtimo(void)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_INET6(vnet_iter);
 		q6 = V_ip6q.ip6q_next;
 		if (q6)
 			while (q6 != &V_ip6q) {
@@ -768,7 +765,6 @@ frag6_drain(void)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_INET6(vnet_iter);
 		while (V_ip6q.ip6q_next != &V_ip6q) {
 			V_ip6stat.ip6s_fragdropped++;
 			/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */

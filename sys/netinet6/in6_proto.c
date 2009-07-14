@@ -130,7 +130,6 @@ __FBSDID("$FreeBSD$");
 #endif /* IPSEC */
 
 #include <netinet6/ip6protosw.h>
-#include <netinet6/vinet6.h>
 
 /*
  * TCP/IP protocol family: IP6, ICMP6, UDP, TCP.
@@ -381,26 +380,25 @@ DOMAIN_SET(inet6);
 /*
  * Internet configuration info
  */
-#ifdef VIMAGE_GLOBALS
-int	ip6_forwarding;
-int	ip6_sendredirects;
-int	ip6_defhlim;
-int	ip6_defmcasthlim;
-int	ip6_accept_rtadv;
-int	ip6_maxfragpackets;
-int	ip6_maxfrags;
-int	ip6_log_interval;
-int	ip6_hdrnestlimit;
-int	ip6_dad_count;
-int	ip6_auto_flowlabel;
-int	ip6_use_deprecated;
-int	ip6_rr_prune;
-int	ip6_mcast_pmtu;
-int	ip6_v6only;
-int	ip6_keepfaith;
-time_t	ip6_log_time;
-int	ip6stealth;
-int	nd6_onlink_ns_rfc4861;
+VNET_DEFINE(int, ip6_forwarding);
+VNET_DEFINE(int, ip6_sendredirects);
+VNET_DEFINE(int, ip6_defhlim);
+VNET_DEFINE(int, ip6_defmcasthlim);
+VNET_DEFINE(int, ip6_accept_rtadv);
+VNET_DEFINE(int, ip6_maxfragpackets);
+VNET_DEFINE(int, ip6_maxfrags);
+VNET_DEFINE(int, ip6_log_interval);
+VNET_DEFINE(int, ip6_hdrnestlimit);
+VNET_DEFINE(int, ip6_dad_count);
+VNET_DEFINE(int, ip6_auto_flowlabel);
+VNET_DEFINE(int, ip6_use_deprecated);
+VNET_DEFINE(int, ip6_rr_prune);
+VNET_DEFINE(int, ip6_mcast_pmtu);
+VNET_DEFINE(int, ip6_v6only);
+VNET_DEFINE(int, ip6_keepfaith);
+VNET_DEFINE(time_t, ip6_log_time);
+VNET_DEFINE(int, ip6stealth);
+VNET_DEFINE(int, nd6_onlink_ns_rfc4861);
 
 /* icmp6 */
 /*
@@ -408,27 +406,26 @@ int	nd6_onlink_ns_rfc4861;
  * XXX: what if we don't define INET? Should we define pmtu6_expire
  * or so? (jinmei@kame.net 19990310)
  */
-int pmtu_expire;
-int pmtu_probe;
+VNET_DEFINE(int, pmtu_expire);
+VNET_DEFINE(int, pmtu_probe);
 
 /* raw IP6 parameters */
 /*
  * Nominal space allocated to a raw ip socket.
  */
-u_long	rip6_sendspace;
-u_long	rip6_recvspace;
+VNET_DEFINE(u_long, rip6_sendspace);
+VNET_DEFINE(u_long, rip6_recvspace);
 
 /* ICMPV6 parameters */
-int	icmp6_rediraccept;
-int	icmp6_redirtimeout;
-int	icmp6errppslim;
+VNET_DEFINE(int, icmp6_rediraccept);
+VNET_DEFINE(int, icmp6_redirtimeout);
+VNET_DEFINE(int, icmp6errppslim);
 /* control how to respond to NI queries */
-int	icmp6_nodeinfo;
+VNET_DEFINE(int, icmp6_nodeinfo);
 
 /* UDP on IP6 parameters */
-int	udp6_sendspace;
-int	udp6_recvspace;
-#endif /* VIMAGE_GLOBALS */
+VNET_DEFINE(int, udp6_sendspace);
+VNET_DEFINE(int, udp6_recvspace);
 
 /*
  * sysctl related items.
@@ -452,11 +449,14 @@ SYSCTL_NODE(_net_inet6,	IPPROTO_ESP,	ipsec6,	CTLFLAG_RW, 0,	"IPSEC6");
 static int
 sysctl_ip6_temppltime(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	int old;
 
-	SYSCTL_RESOLVE_V_ARG1();
+#ifdef VIMAGE
+	if (arg1 != NULL)
+		arg1 = (void *)(TD_TO_VNET(req->td)->vnet_data_base +
+		    (uintptr_t)arg1);
+#endif
 
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)
@@ -474,11 +474,14 @@ sysctl_ip6_temppltime(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	int old;
 
-	SYSCTL_RESOLVE_V_ARG1();
+#ifdef VIMAGE
+	if (arg1 != NULL)
+		arg1 = (void *)(TD_TO_VNET(req->td)->vnet_data_base +
+		    (uintptr_t)arg1);
+#endif
 
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)
@@ -492,89 +495,89 @@ sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_FORWARDING,
-	forwarding, CTLFLAG_RW,		ip6_forwarding,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_SENDREDIRECTS,
-	redirect, CTLFLAG_RW,		ip6_sendredirects,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_DEFHLIM,
-	hlim, CTLFLAG_RW,		ip6_defhlim,	0, "");
-SYSCTL_V_STRUCT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_STATS, stats,
-	CTLFLAG_RD, ip6stat, ip6stat, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_MAXFRAGPACKETS,
-	maxfragpackets, CTLFLAG_RW,	ip6_maxfragpackets,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_ACCEPT_RTADV,
-	accept_rtadv, CTLFLAG_RW,	ip6_accept_rtadv,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_KEEPFAITH,
-	keepfaith, CTLFLAG_RW,		ip6_keepfaith,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_LOG_INTERVAL,
-	log_interval, CTLFLAG_RW,	ip6_log_interval,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_HDRNESTLIMIT,
-	hdrnestlimit, CTLFLAG_RW,	ip6_hdrnestlimit,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_DAD_COUNT,
-	dad_count, CTLFLAG_RW,	ip6_dad_count,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_AUTO_FLOWLABEL,
-	auto_flowlabel, CTLFLAG_RW,	ip6_auto_flowlabel,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_DEFMCASTHLIM,
-	defmcasthlim, CTLFLAG_RW,	ip6_defmcasthlim,	0, "");
-SYSCTL_STRING(_net_inet6_ip6, IPV6CTL_KAME_VERSION,
-	kame_version, CTLFLAG_RD,	__KAME_VERSION,		0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_USE_DEPRECATED,
-	use_deprecated, CTLFLAG_RW,	ip6_use_deprecated,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RR_PRUNE,
-	rr_prune, CTLFLAG_RW,	ip6_rr_prune,			0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_USETEMPADDR,
-	use_tempaddr, CTLFLAG_RW, ip6_use_tempaddr,		0, "");
-SYSCTL_V_OID(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_TEMPPLTIME, temppltime,
-	CTLTYPE_INT|CTLFLAG_RW, ip6_temp_preferred_lifetime, 0,
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_FORWARDING, forwarding, CTLFLAG_RW,
+	&VNET_NAME(ip6_forwarding), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_SENDREDIRECTS, redirect, CTLFLAG_RW,
+	&VNET_NAME(ip6_sendredirects), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_DEFHLIM, hlim, CTLFLAG_RW,
+	&VNET_NAME(ip6_defhlim), 0, "");
+SYSCTL_VNET_STRUCT(_net_inet6_ip6, IPV6CTL_STATS, stats, CTLFLAG_RD,
+	&VNET_NAME(ip6stat), ip6stat, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGPACKETS, maxfragpackets,
+	CTLFLAG_RW, &VNET_NAME(ip6_maxfragpackets), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_ACCEPT_RTADV, accept_rtadv,
+	CTLFLAG_RW, &VNET_NAME(ip6_accept_rtadv), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
+	&VNET_NAME(ip6_keepfaith), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_LOG_INTERVAL, log_interval,
+	CTLFLAG_RW, &VNET_NAME(ip6_log_interval), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_HDRNESTLIMIT, hdrnestlimit,
+	CTLFLAG_RW, &VNET_NAME(ip6_hdrnestlimit), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_DAD_COUNT, dad_count, CTLFLAG_RW,
+	&VNET_NAME(ip6_dad_count), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_AUTO_FLOWLABEL, auto_flowlabel,
+	CTLFLAG_RW, &VNET_NAME(ip6_auto_flowlabel), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_DEFMCASTHLIM, defmcasthlim,
+	CTLFLAG_RW, &VNET_NAME(ip6_defmcasthlim), 0, "");
+SYSCTL_STRING(_net_inet6_ip6, IPV6CTL_KAME_VERSION, kame_version,
+	CTLFLAG_RD, __KAME_VERSION, 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_USE_DEPRECATED, use_deprecated,
+	CTLFLAG_RW, &VNET_NAME(ip6_use_deprecated), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RR_PRUNE, rr_prune, CTLFLAG_RW,
+	&VNET_NAME(ip6_rr_prune), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_USETEMPADDR, use_tempaddr,
+	CTLFLAG_RW, &VNET_NAME(ip6_use_tempaddr), 0, "");
+SYSCTL_VNET_PROC(_net_inet6_ip6, IPV6CTL_TEMPPLTIME, temppltime,
+	CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(ip6_temp_preferred_lifetime), 0,
    	sysctl_ip6_temppltime, "I", "");
-SYSCTL_V_OID(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_TEMPVLTIME, tempvltime,
-	CTLTYPE_INT|CTLFLAG_RW, ip6_temp_valid_lifetime, 0,
+SYSCTL_VNET_PROC(_net_inet6_ip6, IPV6CTL_TEMPVLTIME, tempvltime,
+	CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(ip6_temp_valid_lifetime), 0,
    	sysctl_ip6_tempvltime, "I", "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_V6ONLY,
-	v6only,	CTLFLAG_RW,	ip6_v6only,			0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_AUTO_LINKLOCAL,
-	auto_linklocal, CTLFLAG_RW, ip6_auto_linklocal,	0, "");
-SYSCTL_V_STRUCT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RIP6STATS,
-	rip6stats, CTLFLAG_RD, rip6stat, rip6stat, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_PREFER_TEMPADDR,
-	prefer_tempaddr, CTLFLAG_RW, ip6_prefer_tempaddr, 0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_USE_DEFAULTZONE,
-	use_defaultzone, CTLFLAG_RW, ip6_use_defzone, 0,"");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_MAXFRAGS,
-	maxfrags, CTLFLAG_RW, ip6_maxfrags, 0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_MCAST_PMTU,
-	mcast_pmtu, CTLFLAG_RW, ip6_mcast_pmtu, 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_V6ONLY, v6only,	CTLFLAG_RW,
+	&VNET_NAME(ip6_v6only), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_AUTO_LINKLOCAL, auto_linklocal,
+	CTLFLAG_RW, &VNET_NAME(ip6_auto_linklocal), 0, "");
+SYSCTL_VNET_STRUCT(_net_inet6_ip6, IPV6CTL_RIP6STATS, rip6stats, CTLFLAG_RD,
+	&VNET_NAME(rip6stat), rip6stat, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_PREFER_TEMPADDR, prefer_tempaddr,
+	CTLFLAG_RW, &VNET_NAME(ip6_prefer_tempaddr), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_USE_DEFAULTZONE, use_defaultzone,
+	CTLFLAG_RW, &VNET_NAME(ip6_use_defzone), 0,"");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGS, maxfrags, CTLFLAG_RW,
+	&VNET_NAME(ip6_maxfrags), 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_MCAST_PMTU, mcast_pmtu, CTLFLAG_RW,
+	&VNET_NAME(ip6_mcast_pmtu), 0, "");
 #ifdef IPSTEALTH
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_STEALTH,
-	stealth, CTLFLAG_RW, ip6stealth, 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_STEALTH, stealth, CTLFLAG_RW,
+	&VNET_NAME(ip6stealth), 0, "");
 #endif
 
 /* net.inet6.icmp6 */
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT,
-	rediraccept, CTLFLAG_RW,	icmp6_rediraccept,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_REDIRTIMEOUT,
-	redirtimeout, CTLFLAG_RW,	icmp6_redirtimeout,	0, "");
-SYSCTL_V_STRUCT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_STATS,
-	stats, CTLFLAG_RD, icmp6stat, icmp6stat, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ND6_PRUNE,
-	nd6_prune, CTLFLAG_RW,		nd6_prune,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ND6_DELAY,
-	nd6_delay, CTLFLAG_RW,		nd6_delay,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ND6_UMAXTRIES,
-	nd6_umaxtries, CTLFLAG_RW,	nd6_umaxtries,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ND6_MMAXTRIES,
-	nd6_mmaxtries, CTLFLAG_RW,	nd6_mmaxtries,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ND6_USELOOPBACK,
-	nd6_useloopback, CTLFLAG_RW,	nd6_useloopback, 0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_NODEINFO,
-	nodeinfo, CTLFLAG_RW,	icmp6_nodeinfo,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ERRPPSLIMIT,
-	errppslimit, CTLFLAG_RW,	icmp6errppslim,	0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ND6_MAXNUDHINT,
-	nd6_maxnudhint, CTLFLAG_RW,	nd6_maxnudhint, 0, "");
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ND6_DEBUG,
-	nd6_debug, CTLFLAG_RW,	nd6_debug,		0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRACCEPT, rediraccept,
+	CTLFLAG_RW, &VNET_NAME(icmp6_rediraccept), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_REDIRTIMEOUT, redirtimeout,
+	CTLFLAG_RW, &VNET_NAME(icmp6_redirtimeout), 0, "");
+SYSCTL_VNET_STRUCT(_net_inet6_icmp6, ICMPV6CTL_STATS, stats, CTLFLAG_RD,
+	&VNET_NAME(icmp6stat), icmp6stat, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_PRUNE, nd6_prune, CTLFLAG_RW,
+	&VNET_NAME(nd6_prune), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_DELAY, nd6_delay, CTLFLAG_RW,
+	&VNET_NAME(nd6_delay), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_UMAXTRIES, nd6_umaxtries,
+	CTLFLAG_RW, &VNET_NAME(nd6_umaxtries), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MMAXTRIES, nd6_mmaxtries,
+	CTLFLAG_RW, &VNET_NAME(nd6_mmaxtries), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_USELOOPBACK, nd6_useloopback,
+	CTLFLAG_RW, &VNET_NAME(nd6_useloopback), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO, nodeinfo, CTLFLAG_RW,
+	&VNET_NAME(icmp6_nodeinfo), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ERRPPSLIMIT, errppslimit,
+	CTLFLAG_RW, &VNET_NAME(icmp6errppslim), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXNUDHINT, nd6_maxnudhint,
+	CTLFLAG_RW, &VNET_NAME(nd6_maxnudhint), 0, "");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_DEBUG, nd6_debug, CTLFLAG_RW,
+	&VNET_NAME(nd6_debug), 0, "");
 
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ND6_ONLINKNSRFC4861,
-	nd6_onlink_ns_rfc4861, CTLFLAG_RW, nd6_onlink_ns_rfc4861, 0,
-	"Accept 'on-link' nd6 NS in compliance with RFC 4861.");
+SYSCTL_VNET_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_ONLINKNSRFC4861,
+	nd6_onlink_ns_rfc4861, CTLFLAG_RW, &VNET_NAME(nd6_onlink_ns_rfc4861),
+	0, "Accept 'on-link' nd6 NS in compliance with RFC 4861.");

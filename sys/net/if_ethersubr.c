@@ -73,7 +73,7 @@
 #include <netinet/if_ether.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
-#include <netinet/vinet.h>
+#include <netinet/ip_var.h>
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
@@ -148,9 +148,8 @@ MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 #if defined(INET) || defined(INET6)
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared);
-#ifdef VIMAGE_GLOBALS
-static int ether_ipfw;
-#endif
+static VNET_DEFINE(int, ether_ipfw);
+#define	V_ether_ipfw	VNET_GET(ether_ipfw)
 #endif
 
 
@@ -434,7 +433,6 @@ int
 ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
 #if defined(INET) || defined(INET6)
-	INIT_VNET_NET(ifp->if_vnet);
 
 	if (ip_fw_chk_ptr && V_ether_ipfw != 0) {
 		if (ether_ipfw_chk(&m, ifp, 0) == 0) {
@@ -463,7 +461,6 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
 {
-	INIT_VNET_INET(dst->if_vnet);
 	struct ether_header *eh;
 	struct ether_header save_eh;
 	struct mbuf *m;
@@ -774,7 +771,6 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	KASSERT(ifp != NULL, ("%s: NULL interface pointer", __func__));
 
 #if defined(INET) || defined(INET6)
-	INIT_VNET_NET(ifp->if_vnet);
 	/*
 	 * Allow dummynet and/or ipfw to claim the frame.
 	 * Do not do this for PROMISC frames in case we are re-entered.
@@ -994,8 +990,8 @@ ether_ifdetach(struct ifnet *ifp)
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
 #if defined(INET) || defined(INET6)
-SYSCTL_V_INT(V_NET, vnet_net, _net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
-	     ether_ipfw, 0, "Pass ether pkts through firewall");
+SYSCTL_VNET_INT(_net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
+	     &VNET_NAME(ether_ipfw), 0, "Pass ether pkts through firewall");
 #endif
 
 #if 0

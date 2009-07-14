@@ -63,7 +63,6 @@
 
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
-#include <netinet/vinet.h>
 
 #include <vm/uma.h>
 
@@ -88,68 +87,29 @@ SYSCTL_INT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
     &rt_add_addr_allfibs, 0, "");
 TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
-#ifdef VIMAGE_GLOBALS
-struct radix_node_head	*rt_tables;
-static uma_zone_t	rtzone;		/* Routing table UMA zone. */
-int			rttrash;	/* routes not in table but not freed */
-struct rtstat		rtstat;
-#endif
+VNET_DEFINE(struct radix_node_head *, rt_tables);
+static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
+VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
+VNET_DEFINE(struct rtstat, rtstat);
 
-#ifndef VIMAGE_GLOBALS
-struct vnet_rtable {
-	struct radix_node_head *_rt_tables;
-	uma_zone_t		_rtzone;
-	int			_rttrash;
-	struct rtstat		_rtstat;
-};
-
-/* Size guard. See sys/vimage.h. */
-VIMAGE_CTASSERT(SIZEOF_vnet_rtable, sizeof(struct vnet_rtable));
-
-#ifndef VIMAGE
-static struct vnet_rtable vnet_rtable_0;
-#endif
-#endif
- 
-/*
- * Symbol translation macros
- */
-#define	INIT_VNET_RTABLE(vnet) \
-	INIT_FROM_VNET(vnet, VNET_MOD_RTABLE, struct vnet_rtable, vnet_rtable)
-
-#define	VNET_RTABLE(sym)	VSYM(vnet_rtable, sym)
-
-#define	V_rt_tables		VNET_RTABLE(rt_tables)
-#define	V_rtstat		VNET_RTABLE(rtstat)
-#define	V_rttrash		VNET_RTABLE(rttrash)
-#define	V_rtzone		VNET_RTABLE(rtzone)
+#define	V_rt_tables	VNET_GET(rt_tables)
+#define	V_rtzone	VNET_GET(rtzone)
+#define	V_rttrash	VNET_GET(rttrash)
+#define	V_rtstat	VNET_GET(rtstat)
 
 static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);
 static int vnet_route_iattach(const void *);
 #ifdef VIMAGE
 static int vnet_route_idetach(const void *);
-#endif
-
-#ifndef VIMAGE_GLOBALS
-static struct vnet_symmap vnet_rtable_symmap[] = {
-	VNET_SYMMAP(rtable, rt_tables),
-	VNET_SYMMAP(rtable, rtstat),
-	VNET_SYMMAP(rtable, rttrash),
-	VNET_SYMMAP_END
-};
 
 static const vnet_modinfo_t vnet_rtable_modinfo = {
 	.vmi_id		= VNET_MOD_RTABLE,
 	.vmi_name	= "rtable",
-	.vmi_size	= sizeof(struct vnet_rtable),
-	.vmi_symmap	= vnet_rtable_symmap,
 	.vmi_iattach	= vnet_route_iattach,
-#ifdef VIMAGE
 	.vmi_idetach	= vnet_route_idetach
-#endif
 };
-#endif /* !VIMAGE_GLOBALS */
+#endif
 
 /* compare two sockaddr structures */
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
@@ -192,7 +152,6 @@ SYSCTL_PROC(_net, OID_AUTO, my_fibnum, CTLTYPE_INT|CTLFLAG_RD,
 static __inline struct radix_node_head **
 rt_tables_get_rnh_ptr(int table, int fam)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct radix_node_head **rnh;
 
 	KASSERT(table >= 0 && table < rt_numfibs, ("%s: table out of bounds.",
@@ -226,7 +185,7 @@ route_init(void)
 		rt_numfibs = 1;
 	rn_init();	/* initialize all zeroes, all ones, mask table */
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 	vnet_mod_register(&vnet_rtable_modinfo);
 #else
 	vnet_route_iattach(NULL);
@@ -236,7 +195,6 @@ route_init(void)
 static int
 vnet_route_iattach(const void *unused __unused)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct domain *dom;
 	struct radix_node_head **rnh;
 	int table;
@@ -382,7 +340,6 @@ struct rtentry *
 rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		    u_int fibnum)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct radix_node_head *rnh;
 	struct rtentry *rt;
 	struct radix_node *rn;
@@ -452,7 +409,6 @@ done:
 void
 rtfree(struct rtentry *rt)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct radix_node_head *rnh;
 
 	KASSERT(rt != NULL,("%s: NULL rt", __func__));
@@ -551,7 +507,6 @@ rtredirect_fib(struct sockaddr *dst,
 	struct sockaddr *src,
 	u_int fibnum)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct rtentry *rt, *rt0 = NULL;
 	int error = 0;
 	short *stat = NULL;
@@ -880,7 +835,6 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 int
 rtexpunge(struct rtentry *rt)
 {
-	INIT_VNET_RTABLE(curvnet);
 	struct radix_node *rn;
 	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
@@ -1018,8 +972,6 @@ gwdelete:
 	RT_LOCK(rt);
 	RT_ADDREF(rt);
 	if (req == RTM_DELETE) {
-		INIT_VNET_RTABLE(curvnet);
-
 		rt->rt_flags &= ~RTF_UP;
 		/*
 		 * One more rtentry floating around that is not
@@ -1027,7 +979,6 @@ gwdelete:
 		 * when RTFREE(rt) is eventually called.
 		 */
 		V_rttrash++;
-		
 	}
 	
 nondelete:
@@ -1054,7 +1005,6 @@ int
 rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
-	INIT_VNET_RTABLE(curvnet);
 	int error = 0, needlock = 0;
 	register struct rtentry *rt;
 	register struct radix_node *rn;

@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/elf.h>
 
+#include <net/vnet.h>
+
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
@@ -346,6 +348,21 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				    ef->progtab[pb].size);
 				dpcpu_copy(dpcpu, shdr[i].sh_size);
 				ef->progtab[pb].addr = dpcpu;
+#ifdef VIMAGE
+			} else if (ef->progtab[pb].name != NULL &&
+			    !strcmp(ef->progtab[pb].name, "set_vnet")) {
+				void *vnet_data;
+
+				vnet_data = vnet_data_alloc(shdr[i].sh_size);
+				if (vnet_data == NULL) {
+					error = ENOSPC;
+					goto out;
+				}
+				memcpy(vnet_data, ef->progtab[pb].addr,
+				    ef->progtab[pb].size);
+				vnet_data_copy(vnet_data, shdr[i].sh_size);
+				ef->progtab[pb].addr = vnet_data;
+#endif
 			}
 
 			/* Update all symbol values with the offset. */
@@ -737,6 +754,12 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			    !strcmp(ef->progtab[pb].name, "set_pcpu"))
 				ef->progtab[pb].addr =
 				    dpcpu_alloc(shdr[i].sh_size);
+#ifdef VIMAGE
+			else if (ef->progtab[pb].name != NULL &&
+			    !strcmp(ef->progtab[pb].name, "set_vnet"))
+				ef->progtab[pb].addr =
+				    vnet_data_alloc(shdr[i].sh_size);
+#endif
 			else
 				ef->progtab[pb].addr =
 				    (void *)(uintptr_t)mapbase;
@@ -758,10 +781,21 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 					error = EINVAL;
 					goto out;
 				}
-				/* Initialize the per-cpu area. */
-				if (ef->progtab[pb].addr != (void *)mapbase)
+				/* Initialize the per-cpu or vnet area. */
+				if (ef->progtab[pb].addr != (void *)mapbase &&
+				    !strcmp(ef->progtab[pb].name, "set_pcpu"))
 					dpcpu_copy(ef->progtab[pb].addr,
 					    shdr[i].sh_size);
+#ifdef VIMAGE
+				else if (ef->progtab[pb].addr !=
+				    (void *)mapbase &&
+				    !strcmp(ef->progtab[pb].name, "set_vnet"))
+					vnet_data_copy(ef->progtab[pb].addr,
+					    shdr[i].sh_size);
+#endif
+				else
+					panic("link_elf_load_file: unexpected "
+					    "progbits type");
 			} else
 				bzero(ef->progtab[pb].addr, shdr[i].sh_size);
 
@@ -877,6 +911,11 @@ link_elf_unload_file(linker_file_t file)
 			if (!strcmp(ef->progtab[i].name, "set_pcpu"))
 				dpcpu_free(ef->progtab[i].addr,
 				    ef->progtab[i].size);
+#ifdef VIMAGE
+			else if (!strcmp(ef->progtab[i].name, "set_vnet"))
+				vnet_data_free(ef->progtab[i].addr,
+				    ef->progtab[i].size);
+#endif
 		}
 	}
 	if (ef->preloaded) {

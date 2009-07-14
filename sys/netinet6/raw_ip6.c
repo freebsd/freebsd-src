@@ -90,7 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_pcb.h>
-#include <netinet/vinet.h>
 
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
@@ -101,7 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/raw_ip6.h>
 #include <netinet6/scope6_var.h>
-#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -117,11 +115,12 @@ __FBSDID("$FreeBSD$");
  * Raw interface to IP6 protocol.
  */
 
-#ifdef VIMAGE_GLOBALS
-extern struct	inpcbhead ripcb;
-extern struct	inpcbinfo ripcbinfo;
-struct rip6stat rip6stat;
-#endif
+VNET_DECLARE(struct inpcbhead, ripcb);
+VNET_DECLARE(struct inpcbinfo, ripcbinfo);
+#define	V_ripcb				VNET_GET(ripcb)
+#define	V_ripcbinfo			VNET_GET(ripcbinfo)
+
+VNET_DEFINE(struct rip6stat, rip6stat);
 
 extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
@@ -134,9 +133,7 @@ extern u_long	rip_recvspace;
 /*
  * The socket used to communicate with the multicast routing daemon.
  */
-#ifdef VIMAGE_GLOBALS
-struct socket *ip6_mrouter;
-#endif
+VNET_DEFINE(struct socket *, ip6_mrouter);
 
 /*
  * The various mrouter functions.
@@ -154,11 +151,6 @@ int (*mrt6_ioctl)(u_long, caddr_t);
 int
 rip6_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_INET(curvnet);
-	INIT_VNET_INET6(curvnet);
-#ifdef IPSEC
-	INIT_VNET_IPSEC(curvnet);
-#endif
 	struct ifnet *ifp;
 	struct mbuf *m = *mp;
 	register struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
@@ -320,7 +312,6 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 void
 rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 	int off = 0;
@@ -376,7 +367,6 @@ rip6_output(m, va_alist)
 	va_dcl
 #endif
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *control;
 	struct socket *so;
 	struct sockaddr_in6 *dstsock;
@@ -609,7 +599,6 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 static int
 rip6_attach(struct socket *so, int proto, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct icmp6_filter *filter;
 	int error;
@@ -648,8 +637,6 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 static void
 rip6_detach(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
-	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -707,9 +694,6 @@ rip6_disconnect(struct socket *so)
 static int
 rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_NET(so->so_vnet);
-	INIT_VNET_INET(so->so_vnet);
-	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct ifaddr *ifa = NULL;
@@ -750,9 +734,6 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_NET(so->so_vnet);
-	INIT_VNET_INET(so->so_vnet);
-	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct in6_addr in6a;

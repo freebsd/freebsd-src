@@ -95,22 +95,21 @@
 static struct mtx gif_mtx;
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-struct vnet_gif vnet_gif_0;
-#endif
-#endif
+static VNET_DEFINE(LIST_HEAD(, gif_softc), gif_softc_list);
+static VNET_DEFINE(int, max_gif_nesting);
+static VNET_DEFINE(int, parallel_tunnels);
 
-#ifdef VIMAGE_GLOBALS
-static LIST_HEAD(, gif_softc) gif_softc_list;
-static int max_gif_nesting;
-static int parallel_tunnels;
+#define	V_gif_softc_list	VNET_GET(gif_softc_list)
+#define	V_max_gif_nesting	VNET_GET(max_gif_nesting)
+#define	V_parallel_tunnels	VNET_GET(parallel_tunnels)
+
 #ifdef INET
-int ip_gif_ttl;
+VNET_DEFINE(int, ip_gif_ttl);
+#define	V_ip_gif_ttl		VNET_GET(ip_gif_ttl)
 #endif
 #ifdef INET6
-int ip6_gif_hlim;
-#endif
+VNET_DEFINE(int, ip6_gif_hlim);
+#define	V_ip6_gif_hlim		VNET_GET(ip6_gif_hlim)
 #endif
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
@@ -123,11 +122,10 @@ static int	gif_clone_create(struct if_clone *, int, caddr_t);
 static void	gif_clone_destroy(struct ifnet *);
 static int	vnet_gif_iattach(const void *);
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 static const vnet_modinfo_t vnet_gif_modinfo = {
 	.vmi_id		= VNET_MOD_GIF,
 	.vmi_name	= "gif",
-	.vmi_size	= sizeof(struct vnet_gif),
 	.vmi_dependson	= VNET_MOD_NET,
 	.vmi_iattach	= vnet_gif_iattach
 };
@@ -151,13 +149,13 @@ SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
  */
 #define MAX_GIF_NEST 1
 #endif
-SYSCTL_V_INT(V_NET, vnet_gif, _net_link_gif, OID_AUTO, max_nesting,
-    CTLFLAG_RW, max_gif_nesting, 0, "Max nested tunnels");
+SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_RW,
+    &VNET_NAME(max_gif_nesting), 0, "Max nested tunnels");
 
 #ifdef INET6
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_V_INT(V_NET, vnet_gif, _net_inet6_ip6, IPV6CTL_GIF_HLIM,
-    gifhlim, CTLFLAG_RW, ip6_gif_hlim, 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_RW,
+    &VNET_NAME(ip6_gif_hlim), 0, "");
 #endif
 
 /*
@@ -165,8 +163,8 @@ SYSCTL_V_INT(V_NET, vnet_gif, _net_inet6_ip6, IPV6CTL_GIF_HLIM,
  * pair of addresses.  Some applications require this functionality so
  * we allow control over this check here.
  */
-SYSCTL_V_INT(V_NET, vnet_gif, _net_link_gif, OID_AUTO, parallel_tunnels,
-    CTLFLAG_RW, parallel_tunnels, 0, "Allow parallel tunnels?");
+SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
+    &VNET_NAME(parallel_tunnels), 0, "Allow parallel tunnels?");
 
 /* copy from src/sys/net/if_ethersubr.c */
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
@@ -182,7 +180,6 @@ gif_clone_create(ifc, unit, params)
 	int unit;
 	caddr_t params;
 {
-	INIT_VNET_GIF(curvnet);
 	struct gif_softc *sc;
 
 	sc = malloc(sizeof(struct gif_softc), M_GIF, M_WAITOK | M_ZERO);
@@ -265,7 +262,6 @@ gif_clone_destroy(ifp)
 static int
 vnet_gif_iattach(const void *unused __unused)
 {
-	INIT_VNET_GIF(curvnet);
 
 	LIST_INIT(&V_gif_softc_list);
 	V_max_gif_nesting = MAX_GIF_NEST;
@@ -295,7 +291,7 @@ gifmodevent(mod, type, data)
 	case MOD_LOAD:
 		mtx_init(&gif_mtx, "gif_mtx", NULL, MTX_DEF);
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 		vnet_mod_register(&vnet_gif_modinfo);
 #else
 		vnet_gif_iattach(NULL);
@@ -419,7 +415,6 @@ gif_output(ifp, m, dst, ro)
 	struct sockaddr *dst;
 	struct route *ro;
 {
-	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;
 	struct m_tag *mtag;
 	int error = 0;
@@ -944,7 +939,6 @@ gif_set_tunnel(ifp, src, dst)
 	struct sockaddr *src;
 	struct sockaddr *dst;
 {
-	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;
 	struct gif_softc *sc2;
 	struct sockaddr *osrc, *odst, *sa;

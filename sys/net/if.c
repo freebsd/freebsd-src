@@ -84,7 +84,6 @@
 #endif
 #ifdef INET
 #include <netinet/if_ether.h>
-#include <netinet/vinet.h>
 #endif
 #if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
@@ -93,12 +92,6 @@
 #endif
 
 #include <security/mac/mac_framework.h>
-
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-struct vnet_net vnet_net_0;
-#endif
-#endif
 
 struct ifindex_entry {
 	struct  ifnet *ife_ifnet;
@@ -162,37 +155,30 @@ static int	vnet_net_iattach(const void *);
 static int	vnet_net_idetach(const void *);
 #endif
 
-#ifdef VIMAGE_GLOBALS
-struct	ifnethead ifnet;	/* depend on static init XXX */
-struct	ifgrouphead ifg_head;
-int	if_index;
-static	int if_indexlim;
+VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
+VNET_DEFINE(struct ifgrouphead, ifg_head);
+VNET_DEFINE(int, if_index);
+static VNET_DEFINE(int, if_indexlim) = 8;
+
 /* Table of ifnet by index.  Locked with ifnet_lock. */
-static struct ifindex_entry *ifindex_table;
-#endif
+static VNET_DEFINE(struct ifindex_entry *, ifindex_table);
+
+#define	V_if_indexlim		VNET_GET(if_indexlim)
+#define	V_ifindex_table		VNET_GET(ifindex_table)
 
 int	ifqmaxlen = IFQ_MAXLEN;
 struct rwlock ifnet_lock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 
-#ifndef VIMAGE_GLOBALS
-static struct vnet_symmap vnet_net_symmap[] = {
-	VNET_SYMMAP(net, ifnet),
-	VNET_SYMMAP_END
-};
-
+#ifdef VIMAGE
 static const vnet_modinfo_t vnet_net_modinfo = {
 	.vmi_id		= VNET_MOD_NET,
 	.vmi_name	= "net",
-	.vmi_size	= sizeof(struct vnet_net),
-	.vmi_symmap	= vnet_net_symmap,
 	.vmi_iattach	= vnet_net_iattach,
-#ifdef VIMAGE
 	.vmi_idetach	= vnet_net_idetach
-#endif
 };
-#endif /* !VIMAGE_GLOBALS */
+#endif
 
 /*
  * System initialization
@@ -207,7 +193,6 @@ MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 struct ifnet *
 ifnet_byindex_locked(u_short idx)
 {
-	INIT_VNET_NET(curvnet);
 
 	if (idx > V_if_index)
 		return (NULL);
@@ -244,7 +229,6 @@ ifnet_byindex_ref(u_short idx)
 static void
 ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 {
-	INIT_VNET_NET(curvnet);
 
 	IFNET_WLOCK_ASSERT();
 
@@ -276,7 +260,7 @@ static void
 if_init(void *dummy __unused)
 {
 
-#ifndef VIMAGE_GLOBALS
+#ifdef VIMAGE
 	vnet_mod_register(&vnet_net_modinfo);
 #else
 	vnet_net_iattach(NULL);
@@ -289,11 +273,6 @@ if_init(void *dummy __unused)
 static int
 vnet_net_iattach(const void *unused __unused)
 {
-	INIT_VNET_NET(curvnet);
-
-	V_if_index = 0;
-	V_ifindex_table = NULL;
-	V_if_indexlim = 8;
 
 	TAILQ_INIT(&V_ifnet);
 	TAILQ_INIT(&V_ifg_head);
@@ -306,7 +285,6 @@ vnet_net_iattach(const void *unused __unused)
 static int
 vnet_net_idetach(const void *unused __unused)
 {
-	INIT_VNET_NET(curvnet);
 
 	VNET_ASSERT(TAILQ_EMPTY(&V_ifnet));
 	VNET_ASSERT(TAILQ_EMPTY(&V_ifg_head));
@@ -320,7 +298,6 @@ vnet_net_idetach(const void *unused __unused)
 void
 if_grow(void)
 {
-	INIT_VNET_NET(curvnet);
 	u_int n;
 	struct ifindex_entry *e;
 
@@ -354,7 +331,6 @@ if_check(void *dummy __unused)
 struct ifnet *
 if_alloc(u_char type)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
@@ -418,7 +394,6 @@ if_alloc(u_char type)
 static void
 if_free_internal(struct ifnet *ifp)
 {
-	INIT_VNET_NET(curvnet);		/* ifp->if_vnet is already NULL here */
 
 	KASSERT((ifp->if_flags & IFF_DYING),
 	    ("if_free_internal: interface not dying"));
@@ -544,7 +519,6 @@ if_attach(struct ifnet *ifp)
 static void
 if_attach_internal(struct ifnet *ifp, int vmove)
 {
-	INIT_VNET_NET(curvnet);
 	unsigned socksize, ifasize;
 	int namelen, masklen;
 	struct sockaddr_dl *sdl;
@@ -649,7 +623,6 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 static void
 if_attachdomain(void *dummy)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	int s;
 
@@ -769,7 +742,6 @@ if_detach(struct ifnet *ifp)
 static void
 if_detach_internal(struct ifnet *ifp, int vmove)
 {
-	INIT_VNET_NET(ifp->if_vnet);
 	struct ifaddr *ifa;
 	struct radix_node_head	*rnh;
 	int i, j;
@@ -904,25 +876,17 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	/*
 	 * Unlink the ifnet from ifindex_table[] in current vnet,
 	 * and shrink the if_index for that vnet if possible.
-	 * do / while construct below is needed to confine the scope
-	 * of INIT_VNET_NET().
 	 */
-	{
-		INIT_VNET_NET(curvnet);
-
-		IFNET_WLOCK();
-		ifnet_setbyindex(ifp->if_index, NULL);
-		while (V_if_index > 0 && \
-		    ifnet_byindex_locked(V_if_index) == NULL)
-			V_if_index--;
-		IFNET_WUNLOCK();
-	};
+	IFNET_WLOCK();
+	ifnet_setbyindex(ifp->if_index, NULL);
+	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
+		V_if_index--;
+	IFNET_WUNLOCK();
 
 	/*
 	 * Switch to the context of the target vnet.
 	 */
 	CURVNET_SET_QUIET(new_vnet);
-	INIT_VNET_NET(new_vnet);
 
 	/*
 	 * Try to find an empty slot below if_index.  If we fail, take 
@@ -956,7 +920,6 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 int
 if_addgroup(struct ifnet *ifp, const char *groupname)
 {
-	INIT_VNET_NET(ifp->if_vnet);
 	struct ifg_list		*ifgl;
 	struct ifg_group	*ifg = NULL;
 	struct ifg_member	*ifgm;
@@ -1026,7 +989,6 @@ if_addgroup(struct ifnet *ifp, const char *groupname)
 int
 if_delgroup(struct ifnet *ifp, const char *groupname)
 {
-	INIT_VNET_NET(ifp->if_vnet);
 	struct ifg_list		*ifgl;
 	struct ifg_member	*ifgm;
 
@@ -1072,7 +1034,6 @@ if_delgroup(struct ifnet *ifp, const char *groupname)
 static void
 if_delgroups(struct ifnet *ifp)
 {
-	INIT_VNET_NET(ifp->if_vnet);
 	struct ifg_list		*ifgl;
 	struct ifg_member	*ifgm;
 	char groupname[IFNAMSIZ];
@@ -1164,7 +1125,6 @@ if_getgroup(struct ifgroupreq *data, struct ifnet *ifp)
 static int
 if_getgroupmembers(struct ifgroupreq *data)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifgroupreq	*ifgr = data;
 	struct ifg_group	*ifg;
 	struct ifg_member	*ifgm;
@@ -1336,7 +1296,6 @@ ifa_free(struct ifaddr *ifa)
 static struct ifaddr *
 ifa_ifwithaddr_internal(struct sockaddr *addr, int getref)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
@@ -1392,7 +1351,6 @@ ifa_ifwithaddr_check(struct sockaddr *addr)
 struct ifaddr *
 ifa_ifwithbroadaddr(struct sockaddr *addr)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
@@ -1426,7 +1384,6 @@ done:
 struct ifaddr *
 ifa_ifwithdstaddr(struct sockaddr *addr)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
@@ -1460,7 +1417,6 @@ done:
 struct ifaddr *
 ifa_ifwithnet(struct sockaddr *addr)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct ifaddr *ifa_maybe = NULL;
@@ -1841,7 +1797,6 @@ if_slowtimo(void *arg)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_NET(vnet_iter);
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			if (ifp->if_timer == 0 || --ifp->if_timer)
 				continue;
@@ -1863,7 +1818,6 @@ if_slowtimo(void *arg)
 struct ifnet *
 ifunit_ref(const char *name)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
 	IFNET_RLOCK();
@@ -1881,7 +1835,6 @@ ifunit_ref(const char *name)
 struct ifnet *
 ifunit(const char *name)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
 	IFNET_RLOCK();
@@ -2478,7 +2431,6 @@ ifpromisc(struct ifnet *ifp, int pswitch)
 static int
 ifconf(u_long cmd, caddr_t data)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifconf *ifc = (struct ifconf *)data;
 #ifdef __amd64__
 	struct ifconf32 *ifc32 = (struct ifconf32 *)data;
@@ -2837,7 +2789,6 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	int lastref;
 #ifdef INVARIANTS
 	struct ifnet *oifp;
-	INIT_VNET_NET(ifp->if_vnet);
 
 	IFNET_RLOCK();
 	TAILQ_FOREACH(oifp, &V_ifnet, if_link)
@@ -2878,9 +2829,6 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 void
 if_delmulti_ifma(struct ifmultiaddr *ifma)
 {
-#ifdef DIAGNOSTIC
-	INIT_VNET_NET(curvnet);
-#endif
 	struct ifnet *ifp;
 	int lastref;
 
