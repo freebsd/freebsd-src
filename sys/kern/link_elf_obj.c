@@ -793,9 +793,6 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 					vnet_data_copy(ef->progtab[pb].addr,
 					    shdr[i].sh_size);
 #endif
-				else
-					panic("link_elf_load_file: unexpected "
-					    "progbits type");
 			} else
 				bzero(ef->progtab[pb].addr, shdr[i].sh_size);
 
