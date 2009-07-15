@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20090329_0131"
+#define HDA_DRV_TEST_REV	"20090624_0136"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -108,12 +108,6 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define hdac_unlock(sc)		snd_mtxunlock((sc)->lock)
 #define hdac_lockassert(sc)	snd_mtxassert((sc)->lock)
 #define hdac_lockowned(sc)	mtx_owned((sc)->lock)
-
-#undef HDAC_MSI_ENABLED
-#if __FreeBSD_version >= 700026 ||					\
-    (__FreeBSD_version < 700000 && __FreeBSD_version >= 602106)
-#define HDAC_MSI_ENABLED	1
-#endif
 
 #define HDA_FLAG_MATCH(fl, v)	(((fl) & (v)) == (v))
 #define HDA_DEV_MATCH(fl, v)	((fl) == (v) || \
@@ -267,6 +261,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ASUS_A7T_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x13c2)
 #define ASUS_W2J_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1971)
 #define ASUS_M5200_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1993)
+#define ASUS_P5PL2_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x817f)
 #define ASUS_P1AH2_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81cb)
 #define ASUS_M2NPVMX_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81cb)
 #define ASUS_M2V_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81e7)
@@ -474,53 +469,57 @@ static uint32_t hdac_fmt[] = {
 
 static struct pcmchan_caps hdac_caps = {48000, 48000, hdac_fmt, 0};
 
+#define HDAC_NO_MSI	1
+#define HDAC_NO_64BIT	2
+
 static const struct {
 	uint32_t	model;
 	char		*desc;
+	char		flags;
 } hdac_devices[] = {
-	{ HDA_INTEL_82801F,  "Intel 82801F" },
-	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB" },
-	{ HDA_INTEL_82801G,  "Intel 82801G" },
-	{ HDA_INTEL_82801H,  "Intel 82801H" },
-	{ HDA_INTEL_82801I,  "Intel 82801I" },
-	{ HDA_INTEL_82801J,  "Intel 82801J" },
-	{ HDA_INTEL_PCH,     "Intel PCH" },
-	{ HDA_INTEL_SCH,     "Intel SCH" },
-	{ HDA_NVIDIA_MCP51,  "NVidia MCP51" },
-	{ HDA_NVIDIA_MCP55,  "NVidia MCP55" },
-	{ HDA_NVIDIA_MCP61_1, "NVidia MCP61" },
-	{ HDA_NVIDIA_MCP61_2, "NVidia MCP61" },
-	{ HDA_NVIDIA_MCP65_1, "NVidia MCP65" },
-	{ HDA_NVIDIA_MCP65_2, "NVidia MCP65" },
-	{ HDA_NVIDIA_MCP67_1, "NVidia MCP67" },
-	{ HDA_NVIDIA_MCP67_2, "NVidia MCP67" },
-	{ HDA_NVIDIA_MCP73_1, "NVidia MCP73" },
-	{ HDA_NVIDIA_MCP73_2, "NVidia MCP73" },
-	{ HDA_NVIDIA_MCP78_1, "NVidia MCP78" },
-	{ HDA_NVIDIA_MCP78_2, "NVidia MCP78" },
-	{ HDA_NVIDIA_MCP78_3, "NVidia MCP78" },
-	{ HDA_NVIDIA_MCP78_4, "NVidia MCP78" },
-	{ HDA_NVIDIA_MCP79_1, "NVidia MCP79" },
-	{ HDA_NVIDIA_MCP79_2, "NVidia MCP79" },
-	{ HDA_NVIDIA_MCP79_3, "NVidia MCP79" },
-	{ HDA_NVIDIA_MCP79_4, "NVidia MCP79" },
-	{ HDA_ATI_SB450,     "ATI SB450"     },
-	{ HDA_ATI_SB600,     "ATI SB600"     },
-	{ HDA_ATI_RS600,     "ATI RS600"     },
-	{ HDA_ATI_RS690,     "ATI RS690"     },
-	{ HDA_ATI_RS780,     "ATI RS780"     },
-	{ HDA_ATI_R600,      "ATI R600"      },
-	{ HDA_ATI_RV610,     "ATI RV610"     },
-	{ HDA_ATI_RV620,     "ATI RV620"     },
-	{ HDA_ATI_RV630,     "ATI RV630"     },
-	{ HDA_ATI_RV635,     "ATI RV635"     },
-	{ HDA_ATI_RV710,     "ATI RV710"     },
-	{ HDA_ATI_RV730,     "ATI RV730"     },
-	{ HDA_ATI_RV740,     "ATI RV740"     },
-	{ HDA_ATI_RV770,     "ATI RV770"     },
-	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A" },
-	{ HDA_SIS_966,       "SiS 966" },
-	{ HDA_ULI_M5461,     "ULI M5461" },
+	{ HDA_INTEL_82801F,  "Intel 82801F",	0 },
+	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB",	0 },
+	{ HDA_INTEL_82801G,  "Intel 82801G",	0 },
+	{ HDA_INTEL_82801H,  "Intel 82801H",	0 },
+	{ HDA_INTEL_82801I,  "Intel 82801I",	0 },
+	{ HDA_INTEL_82801J,  "Intel 82801J",	0 },
+	{ HDA_INTEL_PCH,     "Intel PCH",	0 },
+	{ HDA_INTEL_SCH,     "Intel SCH",	0 },
+	{ HDA_NVIDIA_MCP51,  "NVidia MCP51",	HDAC_NO_MSI },
+	{ HDA_NVIDIA_MCP55,  "NVidia MCP55",	HDAC_NO_MSI },
+	{ HDA_NVIDIA_MCP61_1, "NVidia MCP61",	0 },
+	{ HDA_NVIDIA_MCP61_2, "NVidia MCP61",	0 },
+	{ HDA_NVIDIA_MCP65_1, "NVidia MCP65",	0 },
+	{ HDA_NVIDIA_MCP65_2, "NVidia MCP65",	0 },
+	{ HDA_NVIDIA_MCP67_1, "NVidia MCP67",	0 },
+	{ HDA_NVIDIA_MCP67_2, "NVidia MCP67",	0 },
+	{ HDA_NVIDIA_MCP73_1, "NVidia MCP73",	0 },
+	{ HDA_NVIDIA_MCP73_2, "NVidia MCP73",	0 },
+	{ HDA_NVIDIA_MCP78_1, "NVidia MCP78",	HDAC_NO_64BIT },
+	{ HDA_NVIDIA_MCP78_2, "NVidia MCP78",	HDAC_NO_64BIT },
+	{ HDA_NVIDIA_MCP78_3, "NVidia MCP78",	HDAC_NO_64BIT },
+	{ HDA_NVIDIA_MCP78_4, "NVidia MCP78",	HDAC_NO_64BIT },
+	{ HDA_NVIDIA_MCP79_1, "NVidia MCP79",	0 },
+	{ HDA_NVIDIA_MCP79_2, "NVidia MCP79",	0 },
+	{ HDA_NVIDIA_MCP79_3, "NVidia MCP79",	0 },
+	{ HDA_NVIDIA_MCP79_4, "NVidia MCP79",	0 },
+	{ HDA_ATI_SB450,     "ATI SB450",	0 },
+	{ HDA_ATI_SB600,     "ATI SB600",	0 },
+	{ HDA_ATI_RS600,     "ATI RS600",	0 },
+	{ HDA_ATI_RS690,     "ATI RS690",	0 },
+	{ HDA_ATI_RS780,     "ATI RS780",	0 },
+	{ HDA_ATI_R600,      "ATI R600",	0 },
+	{ HDA_ATI_RV610,     "ATI RV610",	0 },
+	{ HDA_ATI_RV620,     "ATI RV620",	0 },
+	{ HDA_ATI_RV630,     "ATI RV630",	0 },
+	{ HDA_ATI_RV635,     "ATI RV635",	0 },
+	{ HDA_ATI_RV710,     "ATI RV710",	0 },
+	{ HDA_ATI_RV730,     "ATI RV730",	0 },
+	{ HDA_ATI_RV740,     "ATI RV740",	0 },
+	{ HDA_ATI_RV770,     "ATI RV770",	0 },
+	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A",0 },
+	{ HDA_SIS_966,       "SiS 966",		0 },
+	{ HDA_ULI_M5461,     "ULI M5461",	0 },
 	/* Unknown */
 	{ HDA_INTEL_ALL,  "Intel (Unknown)"  },
 	{ HDA_NVIDIA_ALL, "NVidia (Unknown)" },
@@ -1593,20 +1592,19 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 {
 	bus_size_t roundsz;
 	int result;
-	int lowaddr;
 
 	roundsz = roundup2(size, HDAC_DMA_ALIGNMENT);
-	lowaddr = (sc->support_64bit) ? BUS_SPACE_MAXADDR :
-	    BUS_SPACE_MAXADDR_32BIT;
 	bzero(dma, sizeof(*dma));
 
 	/*
 	 * Create a DMA tag
 	 */
-	result = bus_dma_tag_create(NULL,	/* parent */
+	result = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),		/* parent */
 	    HDAC_DMA_ALIGNMENT,			/* alignment */
 	    0,					/* boundary */
-	    lowaddr,				/* lowaddr */
+	    (sc->support_64bit) ? BUS_SPACE_MAXADDR :
+		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */
 	    NULL,				/* filtfunc */
 	    NULL,				/* fistfuncarg */
@@ -1751,13 +1749,11 @@ hdac_irq_alloc(struct hdac_softc *sc)
 	irq = &sc->irq;
 	irq->irq_rid = 0x0;
 
-#ifdef HDAC_MSI_ENABLED
 	if ((sc->flags & HDAC_F_MSI) &&
 	    (result = pci_msi_count(sc->dev)) == 1 &&
 	    pci_alloc_msi(sc->dev, &result) == 0)
 		irq->irq_rid = 0x1;
 	else
-#endif
 		sc->flags &= ~HDAC_F_MSI;
 
 	irq->irq_res = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ,
@@ -1800,10 +1796,8 @@ hdac_irq_free(struct hdac_softc *sc)
 	if (irq->irq_res != NULL)
 		bus_release_resource(sc->dev, SYS_RES_IRQ, irq->irq_rid,
 		    irq->irq_res);
-#ifdef HDAC_MSI_ENABLED
-	if ((sc->flags & HDAC_F_MSI) && irq->irq_rid == 0x1)
+	if (irq->irq_rid == 0x1)
 		pci_release_msi(sc->dev);
-#endif
 	irq->irq_handle = NULL;
 	irq->irq_res = NULL;
 	irq->irq_rid = 0x0;
@@ -2432,13 +2426,20 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 	/* New patches */
 	if (id == HDA_CODEC_AD1986A &&
 	    (sc->pci_subvendor == ASUS_M2NPVMX_SUBVENDOR ||
-	    sc->pci_subvendor == ASUS_A8NVMCSM_SUBVENDOR)) {
+	    sc->pci_subvendor == ASUS_A8NVMCSM_SUBVENDOR ||
+	    sc->pci_subvendor == ASUS_P5PL2_SUBVENDOR)) {
 		switch (nid) {
-		case 28: /* 5.1 out => 2.0 out + 2 inputs */
+		case 26: /* Headphones with redirection */
+			patch = "as=1 seq=15";
+			break;
+		case 28: /* 5.1 out => 2.0 out + 1 input */
 			patch = "device=Line-in as=8 seq=1";
 			break;
-		case 29:
-			patch = "device=Mic as=8 seq=2";
+		case 29: /* Can't use this as input, as the only available mic
+			  * preamplifier is busy by front panel mic (nid 31).
+			  * If you want to use this rear connector as mic input,
+			  * you have to disable the front panel one. */
+			patch = "as=0";
 			break;
 		case 31: /* Lot of inputs configured with as=15 and unusable */
 			patch = "as=8 seq=3";
@@ -3990,11 +3991,31 @@ hdac_attach(device_t dev)
 {
 	struct hdac_softc *sc;
 	int result;
-	int i;
+	int i, devid = -1;
+	uint32_t model;
+	uint16_t class, subclass;
 	uint16_t vendor;
 	uint8_t v;
 
 	device_printf(dev, "HDA Driver Revision: %s\n", HDA_DRV_TEST_REV);
+
+	model = (uint32_t)pci_get_device(dev) << 16;
+	model |= (uint32_t)pci_get_vendor(dev) & 0x0000ffff;
+	class = pci_get_class(dev);
+	subclass = pci_get_subclass(dev);
+
+	for (i = 0; i < HDAC_DEVICES_LEN; i++) {
+		if (hdac_devices[i].model == model) {
+			devid = i;
+			break;
+		}
+		if (HDA_DEV_MATCH(hdac_devices[i].model, model) &&
+		    class == PCIC_MULTIMEDIA &&
+		    subclass == PCIS_MULTIMEDIA_HDA) {
+			devid = i;
+			break;
+		}
+	}
 
 	sc = device_get_softc(dev);
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), HDAC_MTX_NAME);
@@ -4022,29 +4043,6 @@ hdac_attach(device_t dev)
 	else
 		sc->polling = 0;
 
-	result = bus_dma_tag_create(NULL,	/* parent */
-	    HDAC_DMA_ALIGNMENT,			/* alignment */
-	    0,					/* boundary */
-	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
-	    BUS_SPACE_MAXADDR,			/* highaddr */
-	    NULL,				/* filtfunc */
-	    NULL,				/* fistfuncarg */
-	    HDA_BUFSZ_MAX, 			/* maxsize */
-	    1,					/* nsegments */
-	    HDA_BUFSZ_MAX, 			/* maxsegsz */
-	    0,					/* flags */
-	    NULL,				/* lockfunc */
-	    NULL,				/* lockfuncarg */
-	    &sc->chan_dmat);			/* dmat */
-	if (result != 0) {
-		device_printf(dev, "%s: bus_dma_tag_create failed (%x)\n",
-		     __func__, result);
-		snd_mtxfree(sc->lock);
-		free(sc, M_DEVBUF);
-		return (ENXIO);
-	}
-
-
 	sc->hdabus = NULL;
 	for (i = 0; i < HDAC_CODEC_MAX; i++)
 		sc->codecs[i] = NULL;
@@ -4061,14 +4059,17 @@ hdac_attach(device_t dev)
 		);
 	}
 
-#ifdef HDAC_MSI_ENABLED
-	if (resource_int_value(device_get_name(dev),
-	    device_get_unit(dev), "msi", &i) == 0 && i != 0 &&
-	    pci_msi_count(dev) == 1)
-		sc->flags |= HDAC_F_MSI;
-	else
-#endif
+	if (devid >= 0 && (hdac_devices[devid].flags & HDAC_NO_MSI))
 		sc->flags &= ~HDAC_F_MSI;
+	else
+		sc->flags |= HDAC_F_MSI;
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "msi", &i) == 0) {
+		if (i == 0)
+			sc->flags &= ~HDAC_F_MSI;
+		else
+			sc->flags |= HDAC_F_MSI;
+	}
 
 #if defined(__i386__) || defined(__amd64__)
 	sc->flags |= HDAC_F_DMA_NOCACHE;
@@ -4138,6 +4139,9 @@ hdac_attach(device_t dev)
 	if (result != 0)
 		goto hdac_attach_fail;
 
+	if (devid >= 0 && (hdac_devices[devid].flags & HDAC_NO_64BIT))
+		sc->support_64bit = 0;
+
 	/* Allocate CORB and RIRB dma memory */
 	result = hdac_dma_alloc(sc, &sc->corb_dma,
 	    sc->corb_size * sizeof(uint32_t));
@@ -4147,6 +4151,28 @@ hdac_attach(device_t dev)
 	    sc->rirb_size * sizeof(struct hdac_rirb));
 	if (result != 0)
 		goto hdac_attach_fail;
+
+	result = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->dev),		/* parent */
+	    HDAC_DMA_ALIGNMENT,			/* alignment */
+	    0,					/* boundary */
+	    (sc->support_64bit) ? BUS_SPACE_MAXADDR :
+		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL,				/* filtfunc */
+	    NULL,				/* fistfuncarg */
+	    HDA_BUFSZ_MAX, 			/* maxsize */
+	    1,					/* nsegments */
+	    HDA_BUFSZ_MAX, 			/* maxsegsz */
+	    0,					/* flags */
+	    NULL,				/* lockfunc */
+	    NULL,				/* lockfuncarg */
+	    &sc->chan_dmat);			/* dmat */
+	if (result != 0) {
+		device_printf(dev, "%s: bus_dma_tag_create failed (%x)\n",
+		     __func__, result);
+		goto hdac_attach_fail;
+	}
 
 	/* Quiesce everything */
 	HDA_BOOTHVERBOSE(
@@ -4633,6 +4659,7 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 	}
 
 	switch (id) {
+#if 0
 	case HDA_CODEC_ALC883:
 		/*
 		 * nid: 24/25 = External (jack) or Internal (fixed) Mic.
@@ -4662,6 +4689,7 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		 * nid: 26 = Line-in, leave it alone.
 		 */
 		break;
+#endif
 	case HDA_CODEC_AD1983:
 		/*
 		 * This codec has several possible usages, but none
@@ -4715,6 +4743,35 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		w = hdac_widget_get(devinfo, 15);
 		if (w != NULL)
 			w->connsenable[3] = 0;
+		/* There is only one mic preamplifier, use it effectively. */
+		w = hdac_widget_get(devinfo, 31);
+		if (w != NULL) {
+			if ((w->wclass.pin.config &
+			    HDA_CONFIG_DEFAULTCONF_DEVICE_MASK) ==
+			    HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN) {
+				w = hdac_widget_get(devinfo, 16);
+				if (w != NULL)
+				    w->connsenable[2] = 0;
+			} else {
+				w = hdac_widget_get(devinfo, 15);
+				if (w != NULL)
+				    w->connsenable[0] = 0;
+			}
+		}
+		w = hdac_widget_get(devinfo, 32);
+		if (w != NULL) {
+			if ((w->wclass.pin.config &
+			    HDA_CONFIG_DEFAULTCONF_DEVICE_MASK) ==
+			    HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN) {
+				w = hdac_widget_get(devinfo, 16);
+				if (w != NULL)
+				    w->connsenable[0] = 0;
+			} else {
+				w = hdac_widget_get(devinfo, 15);
+				if (w != NULL)
+				    w->connsenable[1] = 0;
+			}
+		}
 
 		if (subvendor == ASUS_A8X_SUBVENDOR) {
 			/*
