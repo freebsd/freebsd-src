@@ -78,26 +78,41 @@ static struct {
 };
 #define NVFTYPES (sizeof(vt2fst) / sizeof(*vt2fst))
 
-char *getmnton(kvm_t *kd, struct mount *m);
-void
-socktrans(kvm_t *kd, struct socket *sock, int fd, int flags, struct filestat *fst);
+static struct {
+	int flag;
+	int fst_flag;
+} fstflags[] = {
+	{ FREAD, PS_FST_FFLAG_READ },
+	{ FWRITE, PS_FST_FFLAG_WRITE },
+	{ O_NONBLOCK, PS_FST_FFLAG_NONBLOCK },
+	{ O_APPEND, PS_FST_FFLAG_APPEND },
+	{ O_SHLOCK, PS_FST_FFLAG_SHLOCK },
+	{ O_EXLOCK, PS_FST_FFLAG_EXLOCK },
+	{ O_ASYNC, PS_FST_FFLAG_ASYNC },
+	{ O_SYNC, PS_FST_FFLAG_SYNC },
+	{ O_NOFOLLOW, PS_FST_FFLAG_NOFOLLOW },
+	{ O_CREAT, PS_FST_FFLAG_CREAT },
+	{ O_TRUNC, PS_FST_FFLAG_TRUNC },
+	{ O_EXCL, PS_FST_FFLAG_EXCL }
+};
+#define NFSTFLAGS	(sizeof(fstflags) / sizeof(*fstflags))
+
+char	*getmnton(kvm_t *kd, struct mount *m);
+void	socktrans(kvm_t *kd, struct socket *sock, int fd, int flags,
+    struct filestat *fst);
 int	procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
-int
-procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
+int	procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
     char *errbuf);
-int
-procstat_get_pipe_info_sysctl(struct filestat *fst, struct pipestat *pipe,
-    char *errbuf);
-int
-procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
+int	procstat_get_pipe_info_sysctl(struct filestat *fst,
     struct pipestat *pipe, char *errbuf);
-int
-procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
+int	procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct pipestat *pipe, char *errbuf);
+int	procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
     char *errbuf);
-int
-procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
+int	procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
     struct ptsstat *pts, char *errbuf);
+static int	to_filestat_flags(int flags);
 
 
 /*
@@ -378,13 +393,26 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp)
 			continue;
 		}
 		entry = filestat_new_entry(data, type, i,
-		    PS_FST_FFLAG_READ);
+		    to_filestat_flags(file.f_flag));
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	free(ofiles);
 exit:
 	return (head);
+}
+
+static int
+to_filestat_flags(int flags)
+{
+	int fst_flags;
+	unsigned int i;
+
+	fst_flags = 0;
+	for (i = 0; i < NFSTFLAGS; i++)
+		if (flags & fstflags[i].flag)
+			fst_flags |= fstflags[i].fst_flag;
+	return (fst_flags);
 }
 
 struct filestat_list *
