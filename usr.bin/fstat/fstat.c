@@ -147,6 +147,8 @@ static void
 print_pts_info(struct procstat *procstat, struct filestat *fst);
 static void
 print_vnode_info(struct procstat *procstat, struct filestat *fst);
+static void
+print_access_flags(int flags);
 
 int
 do_fstat(int argc, char **argv)
@@ -268,22 +270,22 @@ fstat1(int what, int arg)
 static void
 dofiles(struct procstat *procstat, struct kinfo_proc *kp)
 {
-	struct filestat *fst;
-	unsigned int count;
-	const char *cmd, *uname;
+	struct filestat_list *head;
+	const char *cmd;
+	const char *uname;
 	int pid;
-	unsigned int i;
+	struct filestat *fst;
 
 	uname = user_from_uid(kp->ki_uid, 0);
 	pid = kp->ki_pid;
 	cmd = kp->ki_comm;
 
-	fst = procstat_getfiles(procstat, kp, &count);
-	if (fst == NULL)
+	head = procstat_getfiles(procstat, kp);
+	if (head == NULL)
 		return;
 
-	for (i = 0; i < count; i++)
-		print_file_info(procstat, &fst[i], uname, cmd, pid);
+	STAILQ_FOREACH(fst, head, next)
+		print_file_info(procstat, fst, uname, cmd, pid);
 }
 
 
@@ -291,45 +293,38 @@ static void
 print_file_info(struct procstat *procstat, struct filestat *fst,
     const char *uname, const char *cmd, int pid)
 {
-	const char *badtype, *filename;
+	const char *filename;
+	struct vnstat vn;
+	int error;
+	int fsmatch = 0;
+	DEVS *d;
 
-	badtype = NULL;
 	filename = NULL;
-	if (fst->type == PS_FST_TYPE_VNODE || fst->type == PS_FST_TYPE_FIFO) {
-		if (fst->flags & PS_FST_FLAG_ERROR)
-			badtype = "error";
-		else if (fst->flags == PS_FST_FLAG_UNKNOWNFS)
-			badtype = "unknown";
-		else if (fst->vtype == PS_FST_VTYPE_VNON)
-			badtype = "none";
-		else if (fst->vtype == PS_FST_VTYPE_VBAD)
-			badtype = "bad";
+	if (checkfile != 0) {
+		if (fst->fs_type != PS_FST_TYPE_VNODE &&
+		    fst->fs_type == PS_FST_TYPE_FIFO)
+			return;
+		error = procstat_get_vnode_info(procstat, fst, &vn, NULL);
+		if (error != 0)
+			return;
 
-		if (checkfile) {
-			int fsmatch = 0;
-			DEVS *d;
-
-			if (badtype)
-				return;
-			for (d = devs; d != NULL; d = d->next)
-				if (d->fsid == fst->fsid) {
-					fsmatch = 1;
-					if (d->ino == fst->fileid) {
-						filename = d->name;
-						break;
-					}
+		for (d = devs; d != NULL; d = d->next)
+			if (d->fsid == vn.vn_fsid) {
+				fsmatch = 1;
+				if (d->ino == vn.vn_fileid) {
+					filename = d->name;
+					break;
 				}
-			if (fsmatch == 0 || (filename == NULL && fsflg == 0))
-				return;
-		}
-	} else if (checkfile != 0)
-		return;
+			}
+		if (fsmatch == 0 || (filename == NULL && fsflg == 0))
+			return;
+	}
 
 	/*
 	 * Print entry prefix.
 	 */
 	printf("%-8.8s %-10s %5d", uname, cmd, pid);
-	switch(fst->fd) {
+	switch(fst->fs_fd) {
 	case PS_FST_FD_TEXT:
 		printf(" text");
 		break;
@@ -349,18 +344,14 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 		printf(" jail");
 		break;
 	default:
-		printf(" %4d", fst->fd);
+		printf(" %4d", fst->fs_fd);
 		break;
-	}
-	if (badtype) {
-		(void)printf(" -         -  %10s    -\n", badtype);
-		return;
 	}
 
 	/*
 	 * Print type-specific data.
 	 */
-	switch (fst->type) {
+	switch (fst->fs_type) {
 	case PS_FST_TYPE_FIFO:
 	case PS_FST_TYPE_VNODE:
 		print_vnode_info(procstat, fst);
@@ -377,7 +368,7 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 	default:	
 		dprintf(stderr,
 		    "unknown file type %d for file %d of pid %d\n",
-		    fst->type, fst->fd, pid);
+		    fst->fs_type, fst->fs_fd, pid);
 	}
 	if (filename && !fsflg)
 		printf("  %s", filename);
@@ -392,60 +383,101 @@ print_socket_info(struct procstat *procstat __unused, struct filestat *fst __unu
 }
 
 static void
-print_pipe_info(struct procstat *procstat __unused, struct filestat *fst __unused)
+print_pipe_info(struct procstat *procstat, struct filestat *fst)
 {
+	struct pipestat pipe;
+	char errbuf[_POSIX2_LINE_MAX];
+	int error;
 
-	printf(" not implemented\n");
-}
-
-static void
-print_pts_info(struct procstat *procstat __unused, struct filestat *fst __unused)
-{
-
-	printf(" not implemented\n");
-}
-
-static void
-print_vnode_info(struct procstat *procstat __unused, struct filestat *fst)
-{
-	char mode[15];
-	char rw[3];
-
-	if (nflg)
-		(void)printf(" %2d,%-2d", major(fst->fsid), minor(fst->fsid));
-	else if (fst->mntdir != NULL)
-		(void)printf(" %-8s", fst->mntdir);
-	if (nflg)
-		(void)sprintf(mode, "%o", fst->mode);
-	else {
-		strmode(fst->mode, mode);
+	error = procstat_get_pipe_info(procstat, fst, &pipe, errbuf);
+	if (error != 0) {
+		printf("* error");
+		return;
 	}
-	(void)printf(" %6ld %10s", fst->fileid, mode);
-	switch (fst->vtype) {
-	case PS_FST_VTYPE_VBLK:
-	case PS_FST_VTYPE_VCHR: {
-		char *name;
+	printf("* pipe %8lx <-> %8lx", (u_long)pipe.addr, (u_long)pipe.peer);
+	printf(" %6zd", pipe.buffer_cnt);
+	print_access_flags(fst->fs_fflags);
+}
 
-#if 0
-		name = procstat_devname(procstat, fst->rdev,
-		    fst->vtype = PS_FST_VTYPE_VBLK ? S_IFBLK : S_IFCHR);
-#else
+static void
+print_pts_info(struct procstat *procstat, struct filestat *fst)
+{
+	struct ptsstat pts;
+	char errbuf[_POSIX2_LINE_MAX];
+	int error;
+
+	error = procstat_get_pts_info(procstat, fst, &pts, errbuf);
+	if (error != 0) {
+		printf("* error");
+		return;
+	}
+	printf("* pseudo-terminal master ");
+	if (nflg) {
+		printf("%10d,%-2d", major(pts.dev), minor(pts.dev));
+	} /* else {
+		printf("%10s", pts.name);
+	} */
+	print_access_flags(fst->fs_fflags);
+}
+
+static void
+print_vnode_info(struct procstat *procstat, struct filestat *fst)
+{
+	struct vnstat vn;
+	char *name;
+	const char *badtype;
+	char errbuf[_POSIX2_LINE_MAX];
+	char mode[15];
+	int error;
+
+	badtype = NULL;
+	error = procstat_get_vnode_info(procstat, fst, &vn, errbuf);
+	if (error != 0)
+		badtype = errbuf;
+	else if (vn.vn_type == PS_FST_VTYPE_VBAD)
+		badtype = "bad";
+	else if (vn.vn_type == PS_FST_VTYPE_VNON)
+		badtype = "none";
+	if (badtype != NULL)
+		printf(" -         -  %10s    -", badtype);
+
+	if (nflg)
+		printf(" %2d,%-2d", major(vn.vn_fsid), minor(vn.vn_fsid));
+	else if (vn.mntdir != NULL)
+		(void)printf(" %-8s", vn.mntdir);
+
+	/*
+	 * Print access mode.
+	 */
+	if (nflg)
+		(void)snprintf(mode, sizeof(mode), "%o", vn.vn_mode);
+	else {
+		strmode(vn.vn_mode, mode);
+	}
+	(void)printf(" %6ld %10s", vn.vn_fileid, mode);
+
+	if (vn.vn_type == PS_FST_VTYPE_VBLK || vn.vn_type == PS_FST_VTYPE_VCHR) {
 		name = NULL;
-#endif
+//		name = fst->vnode.dev.name;
 		if (nflg || !name)
-			printf("  %2d,%-2d", major(fst->rdev), minor(fst->rdev));
+			printf("  %2d,%-2d", major(vn.vn_dev), minor(vn.vn_dev));
 		else {
 			printf(" %6s", name);
 		}
-		break;
-	}
-	default:
-		printf(" %6lu", fst->size);
-	}
+	} else
+		printf(" %6lu", vn.vn_size);
+	print_access_flags(fst->fs_fflags);
+}
+
+static void
+print_access_flags(int flags)
+{
+	char rw[3];
+
 	rw[0] = '\0';
-	if (fst->fflags & PS_FST_FFLAG_READ)
+	if (flags & PS_FST_FFLAG_READ)
 		strcat(rw, "r");
-	if (fst->fflags & PS_FST_FFLAG_WRITE)
+	if (flags & PS_FST_FFLAG_WRITE)
 		strcat(rw, "w");
 	printf(" %2s", rw);
 }

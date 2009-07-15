@@ -36,19 +36,70 @@
 #ifndef	__COMMON_H__
 #define	__COMMON_H__
 
+#if 0
 struct  filestat {
-	long	fsid;
-	long	fileid;
-	mode_t	mode;
-	u_long	size;
-	dev_t	rdev;
-	int	vtype;
+	union {
+		struct {
+			long	fsid;
+			long	fileid;
+			mode_t	mode;
+			u_long	size;
+			dev_t rdev;
+			dev_t dev;
+			int	vtype;
+			char	*mntdir;
+		} vnode;
+//		struct pipe pipe;
+		dev_t ttydev;
+		struct {
+			int type;
+			char *domain_name;
+			int dom_family;
+			int proto;
+			caddr_t so_pcb;
+			caddr_t tcpcb;
+			caddr_t conntcb;
+			caddr_t sockaddr;
+//			struct socket sock;
+		} socket;
+	};
 	int	type;
-	char	*mntdir;
 	int	flags;
 	int	fflags;
 	int	fd;
 };
+#endif
+
+struct filestat {
+	int	fs_type;	/* Descriptor type. */
+	int	fs_flags;	/* filestat specific flags. */
+	int	fs_fflags;	/* Descriptor access flags. */
+	int	fs_fd;		/* File descriptor number. */
+	void	*fs_typedep;	/* Type dependent data. */
+	STAILQ_ENTRY(filestat)	next;
+};
+
+struct vnstat {
+	dev_t	vn_dev;
+	int	vn_type;
+	long	vn_fsid;
+	long	vn_fileid;
+	mode_t	vn_mode;
+	u_long	vn_size;
+	char	*mntdir;
+};
+
+struct ptsstat {
+	dev_t	dev;
+};
+
+struct pipestat {
+	caddr_t	addr;
+	caddr_t	peer;
+	size_t	buffer_cnt;
+};
+
+STAILQ_HEAD(filestat_list, filestat);
 
 extern int vflg;
 
@@ -61,13 +112,13 @@ int	kvm_read_all(kvm_t *kd, unsigned long addr, void *buf,
 /*
  * Filesystems specific access routines.
  */
-int	devfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
-int	isofs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
-int	msdosfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
-int	nfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
-int	ufs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
+int	devfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
+int	isofs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
+int	msdosfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
+int	nfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
+int	ufs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
 #ifdef ZFS
-int	zfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp);
+int	zfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
 void	*getvnodedata(struct vnode *vp);
 struct mount	*getvnodemount(struct vnode *vp);
 #endif

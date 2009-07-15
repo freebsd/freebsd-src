@@ -129,86 +129,66 @@ kdevtoname(kvm_t *kd, struct cdev *dev)
 }
 
 int
-ufs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
+ufs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 {
 	struct inode inode;
 
 	if (!kvm_read_all(kd, (unsigned long)VTOI(vp), &inode, sizeof(inode))) {
-		dprintf(stderr, "can't read inode at %p\n", (void *)VTOI(vp));
-		return 0;
+		warnx("can't read inode at %p", (void *)VTOI(vp));
+		return (1);
 	}
 	/*
 	 * The st_dev from stat(2) is a dev_t. These kernel structures
 	 * contain cdev pointers. We need to convert to dev_t to make
 	 * comparisons
 	 */
-	fsp->fsid = dev2udev(kd, inode.i_dev);
-	fsp->fileid = (long)inode.i_number;
-	fsp->mode = (mode_t)inode.i_mode;
-	fsp->size = (u_long)inode.i_size;
-#if should_be_but_is_hard
-	/* XXX - need to load i_ump and i_din[12] from kernel memory */
-	if (inode.i_ump->um_fstype == UFS1)
-		fsp->rdev = inode.i_din1->di_rdev;
-	else
-		fsp->rdev = inode.i_din2->di_rdev;
-#else
-	fsp->rdev = 0;
-#endif
-
-	return 1;
+	vn->vn_fsid = dev2udev(kd, inode.i_dev);
+	vn->vn_fileid = (long)inode.i_number;
+	vn->vn_mode = (mode_t)inode.i_mode;
+	vn->vn_size = (u_long)inode.i_size;
+	return (0);
 }
 
 int
-devfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
+devfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 {
 	struct devfs_dirent devfs_dirent;
 	struct mount mount;
-	struct vnode vnode;
 
 	if (!kvm_read_all(kd, (unsigned long)vp->v_data, &devfs_dirent,
 	    sizeof(devfs_dirent))) {
-		dprintf(stderr, "can't read devfs_dirent at %p\n",
+		warnx("can't read devfs_dirent at %p",
 		    (void *)vp->v_data);
-		return 0;
+		return (1);
 	}
 	if (!kvm_read_all(kd, (unsigned long)vp->v_mount, &mount,
 	    sizeof(mount))) {
-		dprintf(stderr, "can't read mount at %p\n",
+		warnx("can't read mount at %p",
 		    (void *)vp->v_mount);
-		return 0;
+		return (1);
 	}
-	if (!kvm_read_all(kd, (unsigned long)devfs_dirent.de_vnode, &vnode,
-	    sizeof(vnode))) {
-		dprintf(stderr, "can't read vnode at %p\n",
-		    (void *)devfs_dirent.de_vnode);
-		return 0;
-	}
-	fsp->fsid = (long)mount.mnt_stat.f_fsid.val[0];
-	fsp->fileid = devfs_dirent.de_inode;
-	fsp->mode = (devfs_dirent.de_mode & ~S_IFMT) | S_IFCHR;
-	fsp->size = 0;
-	fsp->rdev = dev2udev(kd, vnode.v_rdev);
-
-	return 1;
+	vn->vn_fsid = (long)mount.mnt_stat.f_fsid.val[0];
+	vn->vn_fileid = devfs_dirent.de_inode;
+	vn->vn_mode = (devfs_dirent.de_mode & ~S_IFMT) | S_IFCHR;
+	vn->vn_size = 0;
+	return (0);
 }
 
 int
-nfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
+nfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 {
 	struct nfsnode nfsnode;
 	mode_t mode;
 
 	if (!kvm_read_all(kd, (unsigned long)VTONFS(vp), &nfsnode,
 	    sizeof(nfsnode))) {
-		dprintf(stderr, "can't read nfsnode at %p\n",
+		warnx("can't read nfsnode at %p",
 		    (void *)VTONFS(vp));
-		return 0;
+		return (1);
 	}
-	fsp->fsid = nfsnode.n_vattr.va_fsid;
-	fsp->fileid = nfsnode.n_vattr.va_fileid;
-	fsp->size = nfsnode.n_size;
-	fsp->rdev = nfsnode.n_vattr.va_rdev;
+	vn->vn_fsid = nfsnode.n_vattr.va_fsid;
+	vn->vn_fileid = nfsnode.n_vattr.va_fileid;
+	vn->vn_size = nfsnode.n_size;
 	mode = (mode_t)nfsnode.n_vattr.va_mode;
 	switch (vp->v_type) {
 	case VREG:
@@ -232,14 +212,11 @@ nfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
 	case VFIFO:
 		mode |= S_IFIFO;
 		break;
-	case VNON:
-	case VBAD:
-	case VMARKER:
-		return 0;
+	default:
+		break;
 	};
-	fsp->mode = mode;
-
-	return 1;
+	vn->vn_mode = mode;
+	return (0);
 }
 
 /*

@@ -73,7 +73,7 @@ struct dosmount {
 };
 
 int
-msdosfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
+msdosfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 {
 	struct denode denode;
 	static struct dosmount *mounts;
@@ -83,8 +83,8 @@ msdosfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
 
 	if (!kvm_read_all(kd, (unsigned long)VTODE(vp), &denode,
 	    sizeof(denode))) {
-		dprintf(stderr, "can't read denode at %p\n", (void *)VTODE(vp));
-		return 0;
+		warnx("can't read denode at %p", (void *)VTODE(vp));
+		return (1);
 	}
 
 	/*
@@ -96,31 +96,30 @@ msdosfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
 			break;
 
 	if (!mnt) {
-		if ((mnt = malloc(sizeof(struct dosmount))) == NULL)
-			err(1, NULL);
+		if ((mnt = malloc(sizeof(struct dosmount))) == NULL) {
+			warn("malloc()");
+			return (1);
+		}
 		if (!kvm_read_all(kd, (unsigned long)denode.de_pmp,
 		    &mnt->data, sizeof(mnt->data))) {
 			free(mnt);
-			dprintf(stderr,
-			    "can't read mount info at %p\n",
+			    warnx("can't read mount info at %p",
 			    (void *)denode.de_pmp);
-			return 0;
+			return (1);
 		}
 		mnt->next = mounts;
 		mounts = mnt;
 		mnt->kptr = denode.de_pmp;
 	}
 
-	fsp->fsid = dev2udev(kd, mnt->data.pm_dev);
-	fsp->mode = 0555;
-	fsp->mode |= denode.de_Attributes & ATTR_READONLY ? 0 : 0222;
-	fsp->mode &= mnt->data.pm_mask;
+	vn->vn_fsid = dev2udev(kd, mnt->data.pm_dev);
+	vn->vn_mode = 0555;
+	vn->vn_mode |= denode.de_Attributes & ATTR_READONLY ? 0 : 0222;
+	vn->vn_mode &= mnt->data.pm_mask;
 
 	/* Distinguish directories and files. No "special" files in FAT. */
-	fsp->mode |= denode.de_Attributes & ATTR_DIRECTORY ? S_IFDIR : S_IFREG;
-
-	fsp->size = denode.de_FileSize;
-	fsp->rdev = 0;
+	vn->vn_mode |= denode.de_Attributes & ATTR_DIRECTORY ? S_IFDIR : S_IFREG;
+	vn->vn_size = denode.de_FileSize;
 
 	/*
 	 * XXX -
@@ -146,6 +145,6 @@ msdosfs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
 		fileid += denode.de_diroffset / sizeof(struct direntry);
 	}
 
-	fsp->fileid = fileid;
-	return 1;
+	vn->vn_fileid = fileid;
+	return (0);
 }

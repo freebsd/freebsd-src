@@ -37,8 +37,16 @@ void	procstat_close(struct procstat *procstat);
 struct procstat	*procstat_open(const char *nlistf, const char *memf);
 struct kinfo_proc	*procstat_getprocs(struct procstat *procstat,
     int what, int arg, unsigned int *count);
-struct filestat	*procstat_getfiles(struct procstat *procstat,
-    struct kinfo_proc *kp, unsigned int *cnt);
-struct filestat	*procstat_getfiles_sysctl(struct kinfo_proc *kp, unsigned int *cnt);
-struct filestat	*procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, unsigned int *cnt);
+struct filestat_list	*procstat_getfiles(struct procstat *procstat,
+    struct kinfo_proc *kp);
+struct filestat_list	*procstat_getfiles_sysctl(struct kinfo_proc *kp);
+struct filestat_list	*procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp);
 int	vtrans_kvm(kvm_t *kd, struct vnode *vp, int fd, int flags, struct filestat *fst);
+char *procstat_kdevtoname(struct procstat *procstat, struct cdev *cdev);
+dev_t procstat_dev2udev(struct procstat *procstat, struct cdev *cdev);
+int	procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
+    struct vnstat *vn, char *errbuf);
+int	procstat_get_pts_info(struct procstat *procstat, struct filestat *fst,
+    struct ptsstat *pts, char *errbuf);
+int	procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
+    struct pipestat *pipe, char *errbuf);

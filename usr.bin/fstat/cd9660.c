@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/mount.h>
 
+#include <err.h>
+
 #include <isofs/cd9660/cd9660_node.h>
 #define _KERNEL
 #include <isofs/cd9660/iso.h>
@@ -60,28 +62,26 @@ __FBSDID("$FreeBSD$");
 #include "common.h"
 
 int
-isofs_filestat(kvm_t *kd, struct vnode *vp, struct filestat *fsp)
+isofs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 {
 	struct iso_node isonode;
 	struct iso_mnt mnt;
 
 	if (!kvm_read_all(kd, (unsigned long)VTOI(vp), &isonode,
 	    sizeof(isonode))) {
-		dprintf(stderr, "can't read iso_node at %p\n",
+		warnx("can't read iso_node at %p",
 		    (void *)VTOI(vp));
-		return (0);
+		return (1);
 	}
 	if (!kvm_read_all(kd, (unsigned long)isonode.i_mnt, &mnt,
 	    sizeof(mnt))) {
-		dprintf(stderr, "can't read iso_mnt at %p\n",
+		warnx("can't read iso_mnt at %p",
 		    (void *)VTOI(vp));
-		return (0);
+		return (1);
 	}
-	fsp->fsid = dev2udev(kd, mnt.im_dev);
-	fsp->mode = (mode_t)isonode.inode.iso_mode;
-	fsp->rdev = isonode.inode.iso_rdev;
-
-	fsp->fileid = (long)isonode.i_number;
-	fsp->size = (u_long)isonode.i_size;
-	return (1);
+	vn->vn_fsid = dev2udev(kd, mnt.im_dev);
+	vn->vn_mode = (mode_t)isonode.inode.iso_mode;
+	vn->vn_fileid = (long)isonode.i_number;
+	vn->vn_size = (u_long)isonode.i_size;
+	return (0);
 }

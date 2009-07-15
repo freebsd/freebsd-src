@@ -79,6 +79,26 @@ static struct {
 #define NVFTYPES (sizeof(vt2fst) / sizeof(*vt2fst))
 
 char *getmnton(kvm_t *kd, struct mount *m);
+void
+socktrans(kvm_t *kd, struct socket *sock, int fd, int flags, struct filestat *fst);
+int	procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct vnstat *vn, char *errbuf);
+int
+procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
+    char *errbuf);
+int
+procstat_get_pipe_info_sysctl(struct filestat *fst, struct pipestat *pipe,
+    char *errbuf);
+int
+procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct pipestat *pipe, char *errbuf);
+int
+procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
+    char *errbuf);
+int
+procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct ptsstat *pts, char *errbuf);
+
 
 /*
  * Filesystem specific handlers.
@@ -87,7 +107,7 @@ char *getmnton(kvm_t *kd, struct mount *m);
 struct {
         const char      *tag;
         int             (*handler)(kvm_t *kd, struct vnode *vp,
-            struct filestat *fsp);
+            struct vnstat *vn);
 } fstypes[] = {
         FSTYPE(ufs),
         FSTYPE(devfs),
@@ -211,31 +231,50 @@ fail:
 	return (NULL);
 }
 
-struct filestat *
-procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp,
-    unsigned int *cnt)
+struct filestat_list *
+procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp)
 {
 	
 	if (procstat->type == PROCSTAT_SYSCTL)
-		return (procstat_getfiles_sysctl(kp, cnt));
+		return (procstat_getfiles_sysctl(kp));
 	else if (procstat->type == PROCSTAT_KVM)
-		 return (procstat_getfiles_kvm(procstat->kd, kp, cnt));
+		 return (procstat_getfiles_kvm(procstat->kd, kp));
 	else
 		return (NULL);
 }
 
-struct filestat *
-procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, unsigned int *cnt)
+static struct filestat *
+filestat_new_entry(struct vnode *vp, int type, int fd, int fflags)
+{
+	struct filestat *entry;
+
+	entry = calloc(1, sizeof(*entry));
+	if (entry == NULL) {
+		warn("malloc()");
+		return (NULL);
+	}
+	entry->fs_typedep = vp;
+	entry->fs_fflags = fflags;
+	entry->fs_fd = fd;
+	entry->fs_type = type;
+	return (entry);
+}
+
+struct filestat_list *
+procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp)
 {
 	int i;
 	struct file file;
 	struct filedesc filed;
-	unsigned int nfiles, count, f;
+	unsigned int nfiles;
 	struct file **ofiles;
-	struct filestat *fst;
+	struct filestat *entry;
+	struct filestat_list *head;
+	int type;
+	void *data;
 
 	assert(kd);
-	assert(cnt);
+
 	if (kp->ki_fd == NULL)
 		return (NULL);
 	if (!kvm_read_all(kd, (unsigned long)kp->ki_fd, &filed,
@@ -243,31 +282,50 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, unsigned int *cnt)
 		warnx("can't read filedesc at %p\n", (void *)kp->ki_fd);
 		return (NULL);
 	}
-	count = 5;	/* Allocate additional space for special files. */
-	if (filed.fd_lastfile >= 0)
-		count += filed.fd_lastfile + 1;
-	fst = malloc(count * sizeof(*fst));
-	if (fst == NULL) {
-		warn("malloc(%zd)", count * sizeof(*fst));
+
+	/*
+	 * Allocate list head.
+	 */
+	head = malloc(sizeof(*head));
+	if (head == NULL)
 		return (NULL);
-	}
+	STAILQ_INIT(head);
 
 	/* root directory vnode, if one. */
-	f = 0;
-	if (filed.fd_rdir)
-		vtrans_kvm(kd, filed.fd_rdir, PS_FST_FD_RDIR, PS_FST_FFLAG_READ, &fst[f++]);
+	if (filed.fd_rdir) {
+		entry = filestat_new_entry(filed.fd_rdir, PS_FST_TYPE_VNODE, PS_FST_FD_RDIR,
+		    PS_FST_FFLAG_READ);
+		if (entry != NULL)
+			STAILQ_INSERT_TAIL(head, entry, next);
+	}
 	/* current working directory vnode. */
-	if (filed.fd_cdir)
-		vtrans_kvm(kd, filed.fd_cdir, PS_FST_FD_CDIR, PS_FST_FFLAG_READ, &fst[f++]);
+	if (filed.fd_cdir) {
+		entry = filestat_new_entry(filed.fd_cdir, PS_FST_TYPE_VNODE, PS_FST_FD_CDIR,
+		    PS_FST_FFLAG_READ);
+		if (entry != NULL)
+			STAILQ_INSERT_TAIL(head, entry, next);
+	}
 	/* jail root, if any. */
-	if (filed.fd_jdir)
-		vtrans_kvm(kd, filed.fd_jdir, PS_FST_FD_JAIL, PS_FST_FFLAG_READ, &fst[f++]);
+	if (filed.fd_jdir) {
+		entry = filestat_new_entry(filed.fd_jdir, PS_FST_TYPE_VNODE, PS_FST_FD_JAIL,
+		    PS_FST_FFLAG_READ);
+		if (entry != NULL)
+			STAILQ_INSERT_TAIL(head, entry, next);
+	}
 	/* ktrace vnode, if one */
-	if (kp->ki_tracep)
-		vtrans_kvm(kd, kp->ki_tracep, PS_FST_FD_TRACE, PS_FST_FFLAG_READ | PS_FST_FFLAG_WRITE, &fst[f++]);
+	if (kp->ki_tracep) {
+		entry = filestat_new_entry(kp->ki_tracep, PS_FST_TYPE_VNODE, PS_FST_FD_TRACE,
+		    PS_FST_FFLAG_READ | PS_FST_FFLAG_WRITE);
+		if (entry != NULL)
+			STAILQ_INSERT_TAIL(head, entry, next);
+	}
 	/* text vnode, if one */
-	if (kp->ki_textvp)
-		vtrans_kvm(kd, kp->ki_textvp, PS_FST_FD_TEXT, PS_FST_FFLAG_READ, &fst[f++]);
+	if (kp->ki_textvp) {
+		entry = filestat_new_entry(kp->ki_textvp, PS_FST_TYPE_VNODE, PS_FST_FD_TEXT,
+		    PS_FST_FFLAG_READ);
+		if (entry != NULL)
+			STAILQ_INSERT_TAIL(head, entry, next);
+	}
 
 	nfiles = filed.fd_lastfile + 1;
 	ofiles = malloc(nfiles * sizeof(struct file *));
@@ -293,122 +351,45 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, unsigned int *cnt)
 		}
 		switch (file.f_type) {
 		case DTYPE_VNODE:
-			vtrans_kvm(kd, file.f_vnode, i, file.f_flag, &fst[f++]);
+			type = PS_FST_TYPE_VNODE;
+			data = file.f_vnode;
 			break;
-/*
 		case DTYPE_SOCKET:
-			socktrans(file.f_data, i, &fst[f++]);
+			type = PS_FST_TYPE_SOCKET;
+			data = file.f_data;
 			break;
 		case DTYPE_PIPE:
-			pipetrans(file.f_data, i, file.f_flag, &fst[f++]);
+			type = PS_FST_TYPE_PIPE;
+			data = file.f_data;
 			break;
 		case DTYPE_FIFO:
-			vtrans(file.f_vnode, i, file.f_flag, &fst[f++]);
+			type = PS_FST_TYPE_FIFO;
+			data = file.f_vnode;
 			break;
+#ifdef DTYPE_PTS
 		case DTYPE_PTS:
-			ptstrans(file.f_data, i, file.f_flag, &fst[f++]);
+			type = PS_FST_TYPE_PTS;
+			data = file.f_data;
 			break;
-*/
+#endif
 		default:
-			dprintf(stderr,
-			    "unknown file type %d for file %d\n",
+			warnx("unknown file type %d for file %d\n",
 			    file.f_type, i);
+			continue;
 		}
+		entry = filestat_new_entry(data, type, i,
+		    PS_FST_FFLAG_READ);
+		if (entry != NULL)
+			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	free(ofiles);
 exit:
-	*cnt = f;
-	return (fst);
+	return (head);
 }
 
-struct filestat *
-procstat_getfiles_sysctl(struct kinfo_proc *kp __unused, unsigned int *cnt __unused)
+struct filestat_list *
+procstat_getfiles_sysctl(struct kinfo_proc *kp __unused)
 {
-#if 0
-	int i;
-	struct file file;
-	struct filedesc filed;
-	unsigned int nfiles, count, f;
-	struct file **ofiles;
-	struct filestat *fst;
-
-	assert(kp);
-	assert(cnt);
-
-	/*
-	 * XXX: special files (TEXTVP, KTRACEVP...)
-	 */
-
-	/*
-	 * Open files.
-	 */
-	freep = kinfo_getfile(kp->ki_pid, &count);
-	if (freep == NULL) {
-		warn("kinfo_getfile()");
-		return (NULL);
-	}
-	if (count == 0)
-		return (NULL);
-
-	fst = malloc(count * sizeof(*fst));
-	if (fst == NULL) {
-		warn("malloc(%zd)", count * sizeof(*fst));
-		return (NULL);
-	}
-	f = 0;
-	for (i = 0; i < count; i++) {
-		kif = &freep[i];
-		switch (kif->kf_type) {
-		case KF_TYPE_VNODE:
-			if (kif->kf_fd == KF_FD_TYPE_CWD) {
-				fd_type = CDIR;
-				flags = FST_READ;
-			} else if (kif->kf_fd == KF_FD_TYPE_ROOT) {
-				fd_type = RDIR;
-				flags = FST_READ;
-			} else if (kif->kf_fd == KF_FD_TYPE_JAIL) {
-				fd_type = JDIR;
-				flags = FST_READ;
-			} else {
-				fd_type = i;
-				flags = kif->kf_flags;
-			}
-			/* Only do this if the attributes are valid. */
-			if (kif->kf_status & KF_ATTR_VALID)
-				vtrans_sysctl(kif, fd_type, flags, &fst[f++]);
-			break;
-#if 0
-		case KF_TYPE_PIPE:
-			if (checkfile == 0)
-				pipetrans_sysctl(kif, i, kif->kf_flags, &fst[f++]);
-			break;
-		case KF_TYPE_SOCKET:
-			if (checkfile == 0)
-				socktrans_sysctl(file.f_data, i);
-			break;
-		case KF_TYPE_PIPE:
-			if (checkfile == 0)
-				pipetrans_sysctl(file.f_data, i, file.f_flag, &fst[f++]);
-			break;
-		case KF_TYPE_FIFO:
-			if (checkfile == 0)
-				vtrans_sysctl(file.f_vnode, i, file.f_flag, &fst[f++]);
-			break;
-		case KF_TYPE_PTS:
-			if (checkfile == 0)
-				ptstrans_sysctl(file.f_data, i, file.f_flag, &fst[f++]);
-			break;
-#endif
-		default:
-			dprintf(stderr,
-			    "unknown file type %d for file %d\n",
-			    file.f_type, i);
-		}
-	}
-	free(freep);
-	*cnt = f;
-	return (fst);
-#endif
 	return (NULL);
 }
 
@@ -425,56 +406,6 @@ vntype2psfsttype(int type)
 		}
 	}
 	return (fst_type);
-}
-
-int
-vtrans_kvm(kvm_t *kd, struct vnode *vp, int fd, int flags, struct filestat *fst)
-{
-	char tagstr[12];
-	int error;
-	int found;
-	struct vnode vn;
-	unsigned int i;
-
-	assert(vp);
-	assert(fst);
-	error = kvm_read_all(kd, (unsigned long)vp, &vn, sizeof(struct vnode));
-	if (error == 0) {
-		warnx("can't read vnode at %p\n", (void *)vp);
-		return (1);
-	}
-	bzero(fst, sizeof(*fst));
-	fst->vtype = vntype2psfsttype(vn.v_type);
-	fst->type = PS_FST_TYPE_VNODE;
-	fst->fd = fd;
-	fst->fflags = flags;
-	if (vn.v_type == VNON || vn.v_type == VBAD)
-		return (0);
-
-	error = kvm_read_all(kd, (unsigned long)vn.v_tag, tagstr, sizeof(tagstr));
-	if (error == 0) {
-		dprintf(stderr, "can't read v_tag at %p\n", (void *)vp);
-		return (1);
-	}
-	tagstr[sizeof(tagstr) - 1] = '\0';
-
-	/*
-	 * Find appropriate handler.
-	 */
-	for (i = 0, found = 0; i < NTYPES; i++)
-		if (!strcmp(fstypes[i].tag, tagstr)) {
-			if (fstypes[i].handler(kd, &vn, fst) == 0) {
-				fst->flags |= PS_FST_FLAG_ERROR;
-				return (0);
-			}
-			break;
-		}
-	if (i == NTYPES) {
-		fst->flags |= PS_FST_FLAG_UNKNOWNFS;
-		return (0);
-	}
-	fst->mntdir = getmnton(kd, vn.v_mount);
-	return (0);
 }
 
 char *
@@ -503,4 +434,322 @@ getmnton(kvm_t *kd, struct mount *m)
 	mt->next = mhead;
 	mhead = mt;
 	return (mt->mntonname);
+}
+
+void
+socktrans(kvm_t *kd __unused, struct socket *sock __unused, int fd __unused, int flags __unused, struct filestat *fst __unused)
+{
+
+#if 0
+	static const char *stypename[] = {
+		"unused",	/* 0 */
+		"stream", 	/* 1 */
+		"dgram",	/* 2 */
+		"raw",		/* 3 */
+		"rdm",		/* 4 */
+		"seqpak"	/* 5 */
+	};
+#define	STYPEMAX 5
+	struct socket	so;
+	struct protosw	proto;
+	struct domain	dom;
+	struct inpcb	inpcb;
+	struct unpcb	unpcb;
+	int len;
+	char dname[32];
+
+	bzero(fst, sizeof(*fst));
+
+	/* fill in socket */
+	if (!kvm_read_all(kd, (unsigned long)sock, &so,
+	    sizeof(struct socket))) {
+		warnx("can't read sock at %p\n", (void *)sock);
+		goto bad;
+	}
+	/* fill in protosw entry */
+	if (!kvm_read_all(kd, (unsigned long)so.so_proto, &proto,
+	    sizeof(struct protosw))) {
+		dprintf(stderr, "can't read protosw at %p",
+		    (void *)so.so_proto);
+		goto bad;
+	}
+	/* fill in domain */
+	if (!kvm_read_all(kd, (unsigned long)proto.pr_domain, &dom,
+	    sizeof(struct domain))) {
+		dprintf(stderr, "can't read domain at %p\n",
+		    (void *)proto.pr_domain);
+		goto bad;
+	}
+	if ((len = kvm_read(kd, (unsigned long)dom.dom_name, dname,
+	    sizeof(dname) - 1)) < 0) {
+		dprintf(stderr, "can't read domain name at %p\n",
+		    (void *)dom.dom_name);
+		dname[0] = '\0';
+	}
+	else
+		dname[len] = '\0';
+
+	fst->sock_type = so.so_type;
+	fst->sock_dname = strdup(dname)
+	fst->sock_protocol = proto.pr_protocol;
+	fst->sock = sock;
+	fst->fflags = flags;
+
+	/*
+	 * protocol specific formatting
+	 *
+	 * Try to find interesting things to print.  For tcp, the interesting
+	 * thing is the address of the tcpcb, for udp and others, just the
+	 * inpcb (socket pcb).  For unix domain, its the address of the socket
+	 * pcb and the address of the connected pcb (if connected).  Otherwise
+	 * just print the protocol number and address of the socket itself.
+	 * The idea is not to duplicate netstat, but to make available enough
+	 * information for further analysis.
+	 */
+	switch(dom.dom_family) {
+	case AF_INET:
+	case AF_INET6:
+		getinetproto(proto.pr_protocol);
+		if (proto.pr_protocol == IPPROTO_TCP ) {
+			if (so.so_pcb) {
+				if (kvm_read(kd, (u_long)so.so_pcb,
+				    (char *)&inpcb, sizeof(struct inpcb))
+				    != sizeof(struct inpcb)) {
+					dprintf(stderr,
+					    "can't read inpcb at %p\n",
+					    (void *)so.so_pcb);
+					goto bad;
+				}
+				printf(" %lx", (u_long)inpcb.inp_ppcb);
+			}
+		}
+		else if (so.so_pcb)
+			printf(" %lx", (u_long)so.so_pcb);
+		break;
+	case AF_UNIX:
+		/* print address of pcb and connected pcb */
+		if (so.so_pcb) {
+			printf(" %lx", (u_long)so.so_pcb);
+			if (kvm_read(kd, (u_long)so.so_pcb, (char *)&unpcb,
+			    sizeof(struct unpcb)) != sizeof(struct unpcb)){
+				dprintf(stderr, "can't read unpcb at %p\n",
+				    (void *)so.so_pcb);
+				goto bad;
+			}
+			if (unpcb.unp_conn) {
+				char shoconn[4], *cp;
+
+				cp = shoconn;
+				if (!(so.so_rcv.sb_state & SBS_CANTRCVMORE))
+					*cp++ = '<';
+				*cp++ = '-';
+				if (!(so.so_snd.sb_state & SBS_CANTSENDMORE))
+					*cp++ = '>';
+				*cp = '\0';
+				printf(" %s %lx", shoconn,
+				    (u_long)unpcb.unp_conn);
+			}
+		}
+		break;
+	default:
+		/* print protocol number and socket address */
+		printf(" %d %lx", proto.pr_protocol, (u_long)sock);
+	}
+	printf("\n");
+	return;
+bad:
+	fst->flags |= PS_FST_FLAG_ERROR;
+#endif
+}
+
+int
+procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
+    struct pipestat *pipe, char *errbuf)
+{
+
+	assert(pipe);
+	if (procstat->type == PROCSTAT_KVM) {
+		return (procstat_get_pipe_info_kvm(procstat->kd, fst, pipe,
+		    errbuf));
+	} else if (procstat->type == PROCSTAT_SYSCTL) {
+		return (procstat_get_pipe_info_sysctl(fst, pipe, errbuf));
+	} else {
+		warnx("unknow access method: %d", procstat->type);
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		return (1);
+	}
+}
+int
+procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct pipestat *pipe, char *errbuf)
+{
+	struct pipe pi;
+	void *pipep;
+
+	assert(kd);
+	assert(pipe);
+	assert(fst);
+	bzero(pipe, sizeof(*pipe));
+	pipep = fst->fs_typedep;
+	if (pipep == NULL)
+		goto fail;
+	if (!kvm_read_all(kd, (unsigned long)pipep, &pi, sizeof(struct pipe))) {
+		warnx("can't read pipe at %p", (void *)pipep);
+		goto fail;
+	}
+	pipe->addr = (caddr_t)pipep;
+	pipe->peer = (caddr_t)pi.pipe_peer;
+	pipe->buffer_cnt = pi.pipe_buffer.cnt;
+	return (0);
+
+fail:
+	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	return (1);
+}
+
+int
+procstat_get_pipe_info_sysctl(struct filestat *fst, struct pipestat *pipe,
+    char *errbuf)
+{
+
+	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
+	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	return (1);
+}
+
+int
+procstat_get_pts_info(struct procstat *procstat, struct filestat *fst,
+    struct ptsstat *pts, char *errbuf)
+{
+
+	assert(pts);
+	if (procstat->type == PROCSTAT_KVM) {
+		return (procstat_get_pts_info_kvm(procstat->kd, fst, pts,
+		    errbuf));
+	} else if (procstat->type == PROCSTAT_SYSCTL) {
+		return (procstat_get_pts_info_sysctl(fst, pts, errbuf));
+	} else {
+		warnx("unknow access method: %d", procstat->type);
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		return (1);
+	}
+}
+int
+procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct ptsstat *pts, char *errbuf)
+{
+	struct tty tty;
+	void *ttyp;
+
+	assert(kd);
+	assert(pts);
+	assert(fst);
+	bzero(pts, sizeof(*pts));
+	ttyp = fst->fs_typedep;
+	if (ttyp == NULL)
+		goto fail;
+	if (!kvm_read_all(kd, (unsigned long)ttyp, &tty, sizeof(struct tty))) {
+		warnx("can't read tty at %p", (void *)ttyp);
+		goto fail;
+	}
+	pts->dev = dev2udev(kd, tty.t_dev);
+	return (0);
+
+fail:
+	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	return (1);
+}
+
+int
+procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
+    char *errbuf)
+{
+
+	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
+	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	return (1);
+}
+
+int
+procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
+    struct vnstat *vn, char *errbuf)
+{
+
+	assert(vn);
+	if (procstat->type == PROCSTAT_KVM) {
+		return (procstat_get_vnode_info_kvm(procstat->kd, fst, vn,
+		    errbuf));
+	} else if (procstat->type == PROCSTAT_SYSCTL) {
+		return (procstat_get_vnode_info_sysctl(fst, vn, errbuf));
+	} else {
+		warnx("unknow access method: %d", procstat->type);
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		return (1);
+	}
+}
+
+int
+procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct vnstat *vn, char *errbuf)
+{
+	char tagstr[12];
+	int error;
+	int found;
+	struct vnode vnode;
+	void *vp;
+	unsigned int i;
+
+	assert(kd);
+	assert(vn);
+	assert(fst);
+	vp = fst->fs_typedep;
+	if (vp == NULL)
+		goto fail;
+	error = kvm_read_all(kd, (unsigned long)vp, &vnode, sizeof(vnode));
+	if (error == 0) {
+		warnx("can't read vnode at %p\n", (void *)vp);
+		goto fail;
+	}
+	bzero(vn, sizeof(*vn));
+	vn->vn_type = vntype2psfsttype(vnode.v_type);
+	if (vnode.v_type == VNON || vnode.v_type == VBAD)
+		return (0);
+	error = kvm_read_all(kd, (unsigned long)vnode.v_tag, tagstr, sizeof(tagstr));
+	if (error == 0) {
+		warnx("can't read v_tag at %p\n", (void *)vp);
+		goto fail;
+	}
+	tagstr[sizeof(tagstr) - 1] = '\0';
+
+	/*
+	 * Find appropriate handler.
+	 */
+	for (i = 0, found = 0; i < NTYPES; i++)
+		if (!strcmp(fstypes[i].tag, tagstr)) {
+			if (fstypes[i].handler(kd, &vnode, vn) != 0) {
+				goto fail;
+			}
+			break;
+		}
+	if (i == NTYPES) {
+		snprintf(errbuf, _POSIX2_LINE_MAX, "?(%s)", tagstr);
+		return (1);
+	}
+	vn->mntdir = getmnton(kd, vnode.v_mount);
+	vn->vn_dev = dev2udev(kd, vnode.v_rdev);
+	return (0);
+
+fail:
+	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	return (1);
+}
+
+int
+procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
+    char *errbuf)
+{
+
+	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
+	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	return (1);
 }

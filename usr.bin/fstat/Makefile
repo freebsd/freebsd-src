@@ -4,11 +4,11 @@
 .include <bsd.own.mk>
 
 PROG=	fstat
-SRCS=	cd9660.c common.c fstat.c main.c msdosfs.c fuser.c libprocstat.c
+SRCS=	common.c fstat.c main.c libprocstat.c cd9660.c msdosfs.c
 LINKS=	${BINDIR}/fstat ${BINDIR}/fuser
 DPADD=	${LIBKVM}
 LDADD=	-lkvm -lutil
-WARNS?=	6
+WARNS?=	3
 
 MAN1=	fuser.1 fstat.1
 
