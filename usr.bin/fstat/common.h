@@ -36,40 +36,6 @@
 #ifndef	__COMMON_H__
 #define	__COMMON_H__
 
-#if 0
-struct  filestat {
-	union {
-		struct {
-			long	fsid;
-			long	fileid;
-			mode_t	mode;
-			u_long	size;
-			dev_t rdev;
-			dev_t dev;
-			int	vtype;
-			char	*mntdir;
-		} vnode;
-//		struct pipe pipe;
-		dev_t ttydev;
-		struct {
-			int type;
-			char *domain_name;
-			int dom_family;
-			int proto;
-			caddr_t so_pcb;
-			caddr_t tcpcb;
-			caddr_t conntcb;
-			caddr_t sockaddr;
-//			struct socket sock;
-		} socket;
-	};
-	int	type;
-	int	flags;
-	int	fflags;
-	int	fd;
-};
-#endif
-
 struct filestat {
 	int	fs_type;	/* Descriptor type. */
 	int	fs_flags;	/* filestat specific flags. */
@@ -97,6 +63,19 @@ struct pipestat {
 	caddr_t	addr;
 	caddr_t	peer;
 	size_t	buffer_cnt;
+};
+
+struct sockstat {
+	int	type;
+	int	proto;
+	int	dom_family;
+	caddr_t	so_addr;
+	caddr_t	so_pcb;
+	caddr_t	inp_ppcb;
+	caddr_t	unp_conn;
+	int	so_snd_sb_state;
+	int	so_rcv_sb_state;
+	char	dname[32];
 };
 
 STAILQ_HEAD(filestat_list, filestat);

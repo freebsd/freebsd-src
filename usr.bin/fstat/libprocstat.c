@@ -112,6 +112,10 @@ int	procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
     char *errbuf);
 int	procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
     struct ptsstat *pts, char *errbuf);
+int	procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
+    char *errbuf);
+int	procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct sockstat *sock, char *errbuf);
 static int	to_filestat_flags(int flags);
 
 
@@ -464,132 +468,6 @@ getmnton(kvm_t *kd, struct mount *m)
 	return (mt->mntonname);
 }
 
-void
-socktrans(kvm_t *kd __unused, struct socket *sock __unused, int fd __unused, int flags __unused, struct filestat *fst __unused)
-{
-
-#if 0
-	static const char *stypename[] = {
-		"unused",	/* 0 */
-		"stream", 	/* 1 */
-		"dgram",	/* 2 */
-		"raw",		/* 3 */
-		"rdm",		/* 4 */
-		"seqpak"	/* 5 */
-	};
-#define	STYPEMAX 5
-	struct socket	so;
-	struct protosw	proto;
-	struct domain	dom;
-	struct inpcb	inpcb;
-	struct unpcb	unpcb;
-	int len;
-	char dname[32];
-
-	bzero(fst, sizeof(*fst));
-
-	/* fill in socket */
-	if (!kvm_read_all(kd, (unsigned long)sock, &so,
-	    sizeof(struct socket))) {
-		warnx("can't read sock at %p\n", (void *)sock);
-		goto bad;
-	}
-	/* fill in protosw entry */
-	if (!kvm_read_all(kd, (unsigned long)so.so_proto, &proto,
-	    sizeof(struct protosw))) {
-		dprintf(stderr, "can't read protosw at %p",
-		    (void *)so.so_proto);
-		goto bad;
-	}
-	/* fill in domain */
-	if (!kvm_read_all(kd, (unsigned long)proto.pr_domain, &dom,
-	    sizeof(struct domain))) {
-		dprintf(stderr, "can't read domain at %p\n",
-		    (void *)proto.pr_domain);
-		goto bad;
-	}
-	if ((len = kvm_read(kd, (unsigned long)dom.dom_name, dname,
-	    sizeof(dname) - 1)) < 0) {
-		dprintf(stderr, "can't read domain name at %p\n",
-		    (void *)dom.dom_name);
-		dname[0] = '\0';
-	}
-	else
-		dname[len] = '\0';
-
-	fst->sock_type = so.so_type;
-	fst->sock_dname = strdup(dname)
-	fst->sock_protocol = proto.pr_protocol;
-	fst->sock = sock;
-	fst->fflags = flags;
-
-	/*
-	 * protocol specific formatting
-	 *
-	 * Try to find interesting things to print.  For tcp, the interesting
-	 * thing is the address of the tcpcb, for udp and others, just the
-	 * inpcb (socket pcb).  For unix domain, its the address of the socket
-	 * pcb and the address of the connected pcb (if connected).  Otherwise
-	 * just print the protocol number and address of the socket itself.
-	 * The idea is not to duplicate netstat, but to make available enough
-	 * information for further analysis.
-	 */
-	switch(dom.dom_family) {
-	case AF_INET:
-	case AF_INET6:
-		getinetproto(proto.pr_protocol);
-		if (proto.pr_protocol == IPPROTO_TCP ) {
-			if (so.so_pcb) {
-				if (kvm_read(kd, (u_long)so.so_pcb,
-				    (char *)&inpcb, sizeof(struct inpcb))
-				    != sizeof(struct inpcb)) {
-					dprintf(stderr,
-					    "can't read inpcb at %p\n",
-					    (void *)so.so_pcb);
-					goto bad;
-				}
-				printf(" %lx", (u_long)inpcb.inp_ppcb);
-			}
-		}
-		else if (so.so_pcb)
-			printf(" %lx", (u_long)so.so_pcb);
-		break;
-	case AF_UNIX:
-		/* print address of pcb and connected pcb */
-		if (so.so_pcb) {
-			printf(" %lx", (u_long)so.so_pcb);
-			if (kvm_read(kd, (u_long)so.so_pcb, (char *)&unpcb,
-			    sizeof(struct unpcb)) != sizeof(struct unpcb)){
-				dprintf(stderr, "can't read unpcb at %p\n",
-				    (void *)so.so_pcb);
-				goto bad;
-			}
-			if (unpcb.unp_conn) {
-				char shoconn[4], *cp;
-
-				cp = shoconn;
-				if (!(so.so_rcv.sb_state & SBS_CANTRCVMORE))
-					*cp++ = '<';
-				*cp++ = '-';
-				if (!(so.so_snd.sb_state & SBS_CANTSENDMORE))
-					*cp++ = '>';
-				*cp = '\0';
-				printf(" %s %lx", shoconn,
-				    (u_long)unpcb.unp_conn);
-			}
-		}
-		break;
-	default:
-		/* print protocol number and socket address */
-		printf(" %d %lx", proto.pr_protocol, (u_long)sock);
-	}
-	printf("\n");
-	return;
-bad:
-	fst->flags |= PS_FST_FLAG_ERROR;
-#endif
-}
-
 int
 procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
     struct pipestat *pipe, char *errbuf)
@@ -774,6 +652,130 @@ fail:
 
 int
 procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
+    char *errbuf)
+{
+
+	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
+	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	return (1);
+}
+
+int
+procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
+    struct sockstat *sock, char *errbuf)
+{
+
+	assert(sock);
+	if (procstat->type == PROCSTAT_KVM) {
+		return (procstat_get_socket_info_kvm(procstat->kd, fst, sock,
+		    errbuf));
+	} else if (procstat->type == PROCSTAT_SYSCTL) {
+		return (procstat_get_socket_info_sysctl(fst, sock, errbuf));
+	} else {
+		warnx("unknow access method: %d", procstat->type);
+		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+		return (1);
+	}
+}
+int
+procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct sockstat *sock, char *errbuf)
+{
+	struct socket s;
+	struct protosw proto;
+	struct domain dom;
+	struct inpcb inpcb;
+	struct unpcb unpcb;
+	ssize_t len;
+	void *so;
+
+	assert(kd);
+	assert(sock);
+	assert(fst);
+	bzero(sock, sizeof(*sock));
+	so = fst->fs_typedep;
+	if (so == NULL)
+		goto fail;
+	sock->so_addr = (caddr_t)so;
+	/* fill in socket */
+	if (!kvm_read_all(kd, (unsigned long)so, &s,
+	    sizeof(struct socket))) {
+		warnx("can't read sock at %p", (void *)so);
+		goto fail;
+	}
+	/* fill in protosw entry */
+	if (!kvm_read_all(kd, (unsigned long)s.so_proto, &proto,
+	    sizeof(struct protosw))) {
+		warnx("can't read protosw at %p", (void *)s.so_proto);
+		goto fail;
+	}
+	/* fill in domain */
+	if (!kvm_read_all(kd, (unsigned long)proto.pr_domain, &dom,
+	    sizeof(struct domain))) {
+		warnx("can't read domain at %p",
+		    (void *)proto.pr_domain);
+		goto fail;
+	}
+	if ((len = kvm_read(kd, (unsigned long)dom.dom_name, sock->dname,
+	    sizeof(sock->dname) - 1)) < 0) {
+		warnx("can't read domain name at %p", (void *)dom.dom_name);
+		sock->dname[0] = '\0';
+	}
+	else
+		sock->dname[len] = '\0';
+	
+	/*
+	 * Fill in known data.
+	 */
+	sock->type = s.so_type;
+	sock->proto = proto.pr_protocol;
+	sock->dom_family = dom.dom_family;
+	sock->so_pcb = s.so_pcb;
+
+	/*
+	 * Protocol specific data.
+	 */
+	switch(dom.dom_family) {
+	case AF_INET:
+	case AF_INET6:
+		if (proto.pr_protocol == IPPROTO_TCP ) {
+			if (s.so_pcb) {
+				if (kvm_read(kd, (u_long)s.so_pcb,
+				    (char *)&inpcb, sizeof(struct inpcb))
+				    != sizeof(struct inpcb)) {
+					warnx("can't read inpcb at %p\n",
+					    (void *)s.so_pcb);
+				} else
+					sock->inp_ppcb =
+					    (caddr_t)inpcb.inp_ppcb;
+			}
+		}
+		break;
+	case AF_UNIX:
+		if (s.so_pcb) {
+			if (kvm_read(kd, (u_long)s.so_pcb, (char *)&unpcb,
+			    sizeof(struct unpcb)) != sizeof(struct unpcb)){
+				warnx("can't read unpcb at %p\n",
+				    (void *)s.so_pcb);
+			} else if (unpcb.unp_conn) {
+				sock->so_rcv_sb_state = s.so_rcv.sb_state;
+				sock->so_snd_sb_state = s.so_snd.sb_state;
+				sock->unp_conn = (caddr_t)unpcb.unp_conn;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	return (0);
+
+fail:
+	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
+	return (1);
+}
+
+int
+procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
     char *errbuf)
 {
 

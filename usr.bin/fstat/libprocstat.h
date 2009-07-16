@@ -60,3 +60,5 @@ int	procstat_get_pts_info(struct procstat *procstat, struct filestat *fst,
     struct ptsstat *pts, char *errbuf);
 int	procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
     struct pipestat *pipe, char *errbuf);
+int	procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
+    struct sockstat *sock, char *errbuf);

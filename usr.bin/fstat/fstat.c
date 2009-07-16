@@ -376,10 +376,83 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 }
 
 static void
-print_socket_info(struct procstat *procstat __unused, struct filestat *fst __unused)
+print_socket_info(struct procstat *procstat, struct filestat *fst)
 {
+	static const char *stypename[] = {
+		"unused",	/* 0 */
+		"stream",	/* 1 */
+		"dgram",	/* 2 */
+		"raw",		/* 3 */
+		"rdm",		/* 4 */
+		"seqpak"	/* 5 */
+	};
+#define STYPEMAX 5
+	struct sockstat sock;
+	char errbuf[_POSIX2_LINE_MAX];
+	static int isopen;
+	struct protoent *pe;
+	int error;
 
-	printf(" not implemented\n");
+	error = procstat_get_socket_info(procstat, fst, &sock, errbuf);
+	if (error != 0) {
+		printf("* error");
+		return;
+	}
+	if (sock.type > STYPEMAX)
+		printf("* %s ?%d", sock.dname, sock.type);
+	else
+		printf("* %s %s", sock.dname, stypename[sock.type]);
+
+	/*
+	 * protocol specific formatting
+	 *
+	 * Try to find interesting things to print.  For tcp, the interesting
+	 * thing is the address of the tcpcb, for udp and others, just the
+	 * inpcb (socket pcb).  For unix domain, its the address of the socket
+	 * pcb and the address of the connected pcb (if connected).  Otherwise
+	 * just print the protocol number and address of the socket itself.
+	 * The idea is not to duplicate netstat, but to make available enough
+	 * information for further analysis.
+	 */
+	switch (sock.dom_family) {
+	case AF_INET:
+	case AF_INET6:
+		if (!isopen)
+			setprotoent(++isopen);
+		if ((pe = getprotobynumber(sock.proto)) != NULL)
+			printf(" %s", pe->p_name);
+		else
+			printf(" %d", sock.proto);
+		if (sock.proto == IPPROTO_TCP ) {
+			if (sock.inp_ppcb != 0)
+				printf(" %lx", (u_long)sock.inp_ppcb);
+		}
+		else if (sock.so_pcb != 0)
+			printf(" %lx", (u_long)sock.so_pcb);
+		break;
+	case AF_UNIX:
+		/* print address of pcb and connected pcb */
+		if (sock.so_pcb != 0) {
+			printf(" %lx", (u_long)sock.so_pcb);
+			if (sock.unp_conn) {
+				char shoconn[4], *cp;
+
+				cp = shoconn;
+				if (!(sock.so_rcv_sb_state & SBS_CANTRCVMORE))
+					*cp++ = '<';
+				*cp++ = '-';
+				if (!(sock.so_snd_sb_state & SBS_CANTSENDMORE))
+					*cp++ = '>';
+				*cp = '\0';
+				printf(" %s %lx", shoconn,
+				    (u_long)sock.unp_conn);
+                        }
+		}
+		break;
+	default:
+		/* print protocol number and socket address */
+		printf(" %d %lx", sock.proto, (u_long)sock.so_addr);
+	}
 }
 
 static void
