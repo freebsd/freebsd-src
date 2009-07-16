@@ -39,7 +39,7 @@ $FreeBSD$
 
 struct flowtable;
 VNET_DECLARE(struct flowtable *, ip_ft);
-#define	V_ip_ft			VNET_GET(ip_ft)
+#define	V_ip_ft			VNET(ip_ft)
 
 struct flowtable *flowtable_alloc(int nentry, int flags);
 

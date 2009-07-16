@@ -331,18 +331,18 @@ VNET_DECLARE(int, nd6_debug);
 VNET_DECLARE(int, nd6_onlink_ns_rfc4861);
 VNET_DECLARE(struct callout, nd6_timer_ch);
 
-#define	V_nd6_prune			VNET_GET(nd6_prune)
-#define	V_nd6_delay			VNET_GET(nd6_delay)
-#define	V_nd6_umaxtries			VNET_GET(nd6_umaxtries)
-#define	V_nd6_mmaxtries			VNET_GET(nd6_mmaxtries)
-#define	V_nd6_useloopback		VNET_GET(nd6_useloopback)
-#define	V_nd6_maxnudhint		VNET_GET(nd6_maxnudhint)
-#define	V_nd6_gctimer			VNET_GET(nd6_gctimer)
-#define	V_nd_defrouter			VNET_GET(nd_defrouter)
-#define	V_nd_prefix			VNET_GET(nd_prefix)
-#define	V_nd6_debug			VNET_GET(nd6_debug)
-#define	V_nd6_onlink_ns_rfc4861		VNET_GET(nd6_onlink_ns_rfc4861)
-#define	V_nd6_timer_ch			VNET_GET(nd6_timer_ch)
+#define	V_nd6_prune			VNET(nd6_prune)
+#define	V_nd6_delay			VNET(nd6_delay)
+#define	V_nd6_umaxtries			VNET(nd6_umaxtries)
+#define	V_nd6_mmaxtries			VNET(nd6_mmaxtries)
+#define	V_nd6_useloopback		VNET(nd6_useloopback)
+#define	V_nd6_maxnudhint		VNET(nd6_maxnudhint)
+#define	V_nd6_gctimer			VNET(nd6_gctimer)
+#define	V_nd_defrouter			VNET(nd_defrouter)
+#define	V_nd_prefix			VNET(nd_prefix)
+#define	V_nd6_debug			VNET(nd6_debug)
+#define	V_nd6_onlink_ns_rfc4861		VNET(nd6_onlink_ns_rfc4861)
+#define	V_nd6_timer_ch			VNET(nd6_timer_ch)
 
 /* nd6_rtr.c */
 VNET_DECLARE(int, nd6_defifindex);
@@ -351,11 +351,11 @@ VNET_DECLARE(u_int32_t, ip6_temp_preferred_lifetime); /* seconds */
 VNET_DECLARE(u_int32_t, ip6_temp_valid_lifetime); /* seconds */
 VNET_DECLARE(int, ip6_temp_regen_advance); /* seconds */
 
-#define	V_nd6_defifindex		VNET_GET(nd6_defifindex)
-#define	V_ip6_desync_factor		VNET_GET(ip6_desync_factor)
-#define	V_ip6_temp_preferred_lifetime	VNET_GET(ip6_temp_preferred_lifetime)
-#define	V_ip6_temp_valid_lifetime	VNET_GET(ip6_temp_valid_lifetime)
-#define	V_ip6_temp_regen_advance	VNET_GET(ip6_temp_regen_advance)
+#define	V_nd6_defifindex		VNET(nd6_defifindex)
+#define	V_ip6_desync_factor		VNET(ip6_desync_factor)
+#define	V_ip6_temp_preferred_lifetime	VNET(ip6_temp_preferred_lifetime)
+#define	V_ip6_temp_valid_lifetime	VNET(ip6_temp_valid_lifetime)
+#define	V_ip6_temp_regen_advance	VNET(ip6_temp_regen_advance)
 
 #define nd6log(x)	do { if (V_nd6_debug) log x; } while (/*CONSTCOND*/ 0)
 

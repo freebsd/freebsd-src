@@ -168,10 +168,10 @@ static VNET_DEFINE(uint32_t, flow_hashjitter);
 static VNET_DEFINE(uma_zone_t, flow_ipv4_zone);
 static VNET_DEFINE(uma_zone_t, flow_ipv6_zone);
 
-#define	V_flow_list_head	VNET_GET(flow_list_head)
-#define	V_flow_hashjitter	VNET_GET(flow_hashjitter)
-#define	V_flow_ipv4_zone	VNET_GET(flow_ipv4_zone)
-#define	V_flow_ipv6_zone	VNET_GET(flow_ipv6_zone)
+#define	V_flow_list_head	VNET(flow_list_head)
+#define	V_flow_hashjitter	VNET(flow_hashjitter)
+#define	V_flow_ipv4_zone	VNET(flow_ipv4_zone)
+#define	V_flow_ipv6_zone	VNET(flow_ipv6_zone)
 
 static int	flowtable_iattach(const void *);
 #ifdef VIMAGE
@@ -217,19 +217,19 @@ static VNET_DEFINE(int, flowtable_fin_wait_expire) = FIN_WAIT_IDLE;
 static VNET_DEFINE(int, flowtable_tcp_expire) = TCP_IDLE;
 static VNET_DEFINE(int, flowtable_nmbflows) = 4096;
 
-#define	V_flowtable_enable		VNET_GET(flowtable_enable)
-#define	V_flowtable_hits		VNET_GET(flowtable_hits)
-#define	V_flowtable_lookups		VNET_GET(flowtable_lookups)
-#define	V_flowtable_misses		VNET_GET(flowtable_misses)
-#define	V_flowtable_frees		VNET_GET(flowtable_frees)
-#define	V_flowtable_free_checks		VNET_GET(flowtable_free_checks)
-#define	V_flowtable_max_depth		VNET_GET(flowtable_max_depth)
-#define	V_flowtable_collisions		VNET_GET(flowtable_collisions)
-#define	V_flowtable_syn_expire		VNET_GET(flowtable_syn_expire)
-#define	V_flowtable_udp_expire		VNET_GET(flowtable_udp_expire)
-#define	V_flowtable_fin_wait_expire	VNET_GET(flowtable_fin_wait_expire)
-#define	V_flowtable_tcp_expire		VNET_GET(flowtable_tcp_expire)
-#define	V_flowtable_nmbflows		VNET_GET(flowtable_nmbflows)
+#define	V_flowtable_enable		VNET(flowtable_enable)
+#define	V_flowtable_hits		VNET(flowtable_hits)
+#define	V_flowtable_lookups		VNET(flowtable_lookups)
+#define	V_flowtable_misses		VNET(flowtable_misses)
+#define	V_flowtable_frees		VNET(flowtable_frees)
+#define	V_flowtable_free_checks		VNET(flowtable_free_checks)
+#define	V_flowtable_max_depth		VNET(flowtable_max_depth)
+#define	V_flowtable_collisions		VNET(flowtable_collisions)
+#define	V_flowtable_syn_expire		VNET(flowtable_syn_expire)
+#define	V_flowtable_udp_expire		VNET(flowtable_udp_expire)
+#define	V_flowtable_fin_wait_expire	VNET(flowtable_fin_wait_expire)
+#define	V_flowtable_tcp_expire		VNET(flowtable_tcp_expire)
+#define	V_flowtable_nmbflows		VNET(flowtable_nmbflows)
 
 SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL, "flowtable");
 SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, enable, CTLFLAG_RW,

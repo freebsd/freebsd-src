@@ -171,16 +171,16 @@ VNET_DECLARE(int, rsvp_on);
 VNET_DECLARE(struct socket *, ip_rsvpd);	/* reservation protocol daemon*/
 VNET_DECLARE(struct socket *, ip_mrouter);	/* multicast routing daemon */
 
-#define	V_ipstat		VNET_GET(ipstat)
-#define	V_ip_id			VNET_GET(ip_id)
-#define	V_ip_defttl		VNET_GET(ip_defttl)
-#define	V_ipforwarding		VNET_GET(ipforwarding)
+#define	V_ipstat		VNET(ipstat)
+#define	V_ip_id			VNET(ip_id)
+#define	V_ip_defttl		VNET(ip_defttl)
+#define	V_ipforwarding		VNET(ipforwarding)
 #ifdef IPSTEALTH
-#define	V_ipstealth		VNET_GET(ipstealth)
+#define	V_ipstealth		VNET(ipstealth)
 #endif
-#define	V_rsvp_on		VNET_GET(rsvp_on)
-#define	V_ip_rsvpd		VNET_GET(ip_rsvpd)
-#define	V_ip_mrouter		VNET_GET(ip_mrouter)
+#define	V_rsvp_on		VNET(rsvp_on)
+#define	V_ip_rsvpd		VNET(ip_rsvpd)
+#define	V_ip_mrouter		VNET(ip_mrouter)
 
 extern u_char	ip_protox[];
 extern int	(*legal_vif_num)(int);
@@ -243,7 +243,7 @@ extern int	(*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa);
 extern void	(*ip_dn_ruledel_ptr)(void *);		/* in ip_fw2.c */
 
 VNET_DECLARE(int, ip_do_randomid);
-#define	V_ip_do_randomid	VNET_GET(ip_do_randomid)
+#define	V_ip_do_randomid	VNET(ip_do_randomid)
 #define	ip_newid()	((V_ip_do_randomid != 0) ? ip_randomid() : \
 			    htons(V_ip_id++))
 

@@ -85,7 +85,7 @@ static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 1;
 #else
 static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 0;
 #endif
-#define	V_ip6_ipsec6_filtertunnel	VNET_GET(ip6_ipsec6_filtertunnel)
+#define	V_ip6_ipsec6_filtertunnel	VNET(ip6_ipsec6_filtertunnel)
 
 SYSCTL_DECL(_net_inet6_ipsec6);
 SYSCTL_VNET_INT(_net_inet6_ipsec6, OID_AUTO,

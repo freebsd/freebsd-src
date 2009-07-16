@@ -126,7 +126,7 @@ static struct sx addrsel_sxlock;
 static VNET_DEFINE(struct in6_addrpolicy, defaultaddrpolicy);
 VNET_DEFINE(int, ip6_prefer_tempaddr);
 
-#define	V_defaultaddrpolicy		VNET_GET(defaultaddrpolicy)
+#define	V_defaultaddrpolicy		VNET(defaultaddrpolicy)
 
 static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
@@ -1028,7 +1028,7 @@ struct addrsel_policyent {
 TAILQ_HEAD(addrsel_policyhead, addrsel_policyent);
 
 static VNET_DEFINE(struct addrsel_policyhead, addrsel_policytab);
-#define	V_addrsel_policytab		VNET_GET(addrsel_policytab)
+#define	V_addrsel_policytab		VNET(addrsel_policytab)
 
 static void
 init_policy_queue(void)

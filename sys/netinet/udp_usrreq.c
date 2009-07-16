@@ -136,7 +136,7 @@ VNET_DEFINE(struct inpcbinfo, udbinfo);
 static VNET_DEFINE(uma_zone_t, udpcb_zone);
 VNET_DEFINE(struct udpstat, udpstat);		/* from udp_var.h */
 
-#define	V_udpcb_zone			VNET_GET(udpcb_zone)
+#define	V_udpcb_zone			VNET(udpcb_zone)
 
 #ifndef UDBHASHSIZE
 #define	UDBHASHSIZE	128

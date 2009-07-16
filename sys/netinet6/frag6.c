@@ -80,9 +80,9 @@ static VNET_DEFINE(u_int, frag6_nfragpackets);
 static VNET_DEFINE(u_int, frag6_nfrags);
 static VNET_DEFINE(struct ip6q, ip6q);	/* ip6 reassemble queue */
 
-#define	V_frag6_nfragpackets		VNET_GET(frag6_nfragpackets)
-#define	V_frag6_nfrags			VNET_GET(frag6_nfrags)
-#define	V_ip6q				VNET_GET(ip6q)
+#define	V_frag6_nfragpackets		VNET(frag6_nfragpackets)
+#define	V_frag6_nfrags			VNET(frag6_nfrags)
+#define	V_ip6q				VNET(ip6q)
 
 #define	IP6Q_LOCK_INIT()	mtx_init(&ip6qlock, "ip6qlock", NULL, MTX_DEF);
 #define	IP6Q_LOCK()		mtx_lock(&ip6qlock)

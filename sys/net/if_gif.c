@@ -99,17 +99,17 @@ static VNET_DEFINE(LIST_HEAD(, gif_softc), gif_softc_list);
 static VNET_DEFINE(int, max_gif_nesting);
 static VNET_DEFINE(int, parallel_tunnels);
 
-#define	V_gif_softc_list	VNET_GET(gif_softc_list)
-#define	V_max_gif_nesting	VNET_GET(max_gif_nesting)
-#define	V_parallel_tunnels	VNET_GET(parallel_tunnels)
+#define	V_gif_softc_list	VNET(gif_softc_list)
+#define	V_max_gif_nesting	VNET(max_gif_nesting)
+#define	V_parallel_tunnels	VNET(parallel_tunnels)
 
 #ifdef INET
 VNET_DEFINE(int, ip_gif_ttl);
-#define	V_ip_gif_ttl		VNET_GET(ip_gif_ttl)
+#define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 #endif
 #ifdef INET6
 VNET_DEFINE(int, ip6_gif_hlim);
-#define	V_ip6_gif_hlim		VNET_GET(ip6_gif_hlim)
+#define	V_ip6_gif_hlim		VNET(ip6_gif_hlim)
 #endif
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);

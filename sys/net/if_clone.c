@@ -61,8 +61,8 @@ static struct mtx	if_cloners_mtx;
 static VNET_DEFINE(int, if_cloners_count);
 VNET_DEFINE(LIST_HEAD(, if_clone), if_cloners);
 
-#define	V_if_cloners_count	VNET_GET(if_cloners_count)
-#define	V_if_cloners		VNET_GET(if_cloners)
+#define	V_if_cloners_count	VNET(if_cloners_count)
+#define	V_if_cloners		VNET(if_cloners)
 
 #define IF_CLONERS_LOCK_INIT()		\
     mtx_init(&if_cloners_mtx, "if_cloners lock", NULL, MTX_DEF)

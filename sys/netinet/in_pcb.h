@@ -465,19 +465,19 @@ VNET_DECLARE(int, ipport_randomtime);
 VNET_DECLARE(int, ipport_stoprandom);
 VNET_DECLARE(int, ipport_tcpallocs);
 
-#define	V_ipport_reservedhigh	VNET_GET(ipport_reservedhigh)
-#define	V_ipport_reservedlow	VNET_GET(ipport_reservedlow)
-#define	V_ipport_lowfirstauto	VNET_GET(ipport_lowfirstauto)
-#define	V_ipport_lowlastauto	VNET_GET(ipport_lowlastauto)
-#define	V_ipport_firstauto	VNET_GET(ipport_firstauto)
-#define	V_ipport_lastauto	VNET_GET(ipport_lastauto)
-#define	V_ipport_hifirstauto	VNET_GET(ipport_hifirstauto)
-#define	V_ipport_hilastauto	VNET_GET(ipport_hilastauto)
-#define	V_ipport_randomized	VNET_GET(ipport_randomized)
-#define	V_ipport_randomcps	VNET_GET(ipport_randomcps)
-#define	V_ipport_randomtime	VNET_GET(ipport_randomtime)
-#define	V_ipport_stoprandom	VNET_GET(ipport_stoprandom)
-#define	V_ipport_tcpallocs	VNET_GET(ipport_tcpallocs)
+#define	V_ipport_reservedhigh	VNET(ipport_reservedhigh)
+#define	V_ipport_reservedlow	VNET(ipport_reservedlow)
+#define	V_ipport_lowfirstauto	VNET(ipport_lowfirstauto)
+#define	V_ipport_lowlastauto	VNET(ipport_lowlastauto)
+#define	V_ipport_firstauto	VNET(ipport_firstauto)
+#define	V_ipport_lastauto	VNET(ipport_lastauto)
+#define	V_ipport_hifirstauto	VNET(ipport_hifirstauto)
+#define	V_ipport_hilastauto	VNET(ipport_hilastauto)
+#define	V_ipport_randomized	VNET(ipport_randomized)
+#define	V_ipport_randomcps	VNET(ipport_randomcps)
+#define	V_ipport_randomtime	VNET(ipport_randomtime)
+#define	V_ipport_stoprandom	VNET(ipport_stoprandom)
+#define	V_ipport_tcpallocs	VNET(ipport_tcpallocs)
 
 extern struct callout ipport_tick_callout;
 

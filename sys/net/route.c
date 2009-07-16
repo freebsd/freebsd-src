@@ -92,10 +92,10 @@ static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 VNET_DEFINE(struct rtstat, rtstat);
 
-#define	V_rt_tables	VNET_GET(rt_tables)
-#define	V_rtzone	VNET_GET(rtzone)
-#define	V_rttrash	VNET_GET(rttrash)
-#define	V_rtstat	VNET_GET(rtstat)
+#define	V_rt_tables	VNET(rt_tables)
+#define	V_rtzone	VNET(rtzone)
+#define	V_rttrash	VNET(rttrash)
+#define	V_rtstat	VNET(rtstat)
 
 static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);

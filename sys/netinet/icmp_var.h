@@ -81,7 +81,7 @@ struct	icmpstat {
 SYSCTL_DECL(_net_inet_icmp);
 
 VNET_DECLARE(struct icmpstat, icmpstat);	/* icmp statistics. */
-#define	V_icmpstat	VNET_GET(icmpstat)
+#define	V_icmpstat	VNET(icmpstat)
 
 extern int badport_bandlim(int);
 #define BANDLIM_UNLIMITED -1

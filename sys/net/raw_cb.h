@@ -56,7 +56,7 @@ struct rawcb {
 
 #ifdef _KERNEL
 VNET_DECLARE(LIST_HEAD(rawcb_list_head, rawcb), rawcb_list);
-#define	V_rawcb_list	VNET_GET(rawcb_list)
+#define	V_rawcb_list	VNET(rawcb_list)
 
 extern struct mtx rawcb_mtx;
 

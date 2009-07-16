@@ -72,7 +72,7 @@ struct key_cb {
 	int any_count;
 };
 static VNET_DEFINE(struct key_cb, key_cb);
-#define	V_key_cb		VNET_GET(key_cb)
+#define	V_key_cb		VNET(key_cb)
 
 static struct sockaddr key_src = { 2, PF_KEY, };
 
