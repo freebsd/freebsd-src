@@ -36,55 +36,24 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/stat.h>
-#include <sys/vnode.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/domain.h>
-#include <sys/protosw.h>
-#include <sys/un.h>
-#include <sys/unpcb.h>
 #include <sys/sysctl.h>
-#include <sys/tty.h>
-#include <sys/filedesc.h>
 #include <sys/queue.h>
-#define	_WANT_FILE
-#include <sys/file.h>
-#include <sys/conf.h>
-#define	_KERNEL
-#include <sys/mount.h>
-#include <sys/pipe.h>
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-#include <fs/devfs/devfs.h>
-#include <fs/devfs/devfs_int.h>
-#undef _KERNEL
-#include <nfs/nfsproto.h>
-#include <nfsclient/nfs.h>
-#include <nfsclient/nfsnode.h>
-
 
 #include <vm/vm.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 
-#include <net/route.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/in_pcb.h>
 
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
-#include <fcntl.h>
 #include <kvm.h>
-#include <libutil.h>
 #include <limits.h>
-#include <paths.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -114,37 +83,30 @@ typedef struct devs {
 DEVS *devs;
 char *memf, *nlistf;
 
-static void fstat1(int what, int arg);
-static void dofiles(struct procstat *procstat, struct kinfo_proc *p);
-void dofiles_kinfo(struct kinfo_proc *kp);
-void dommap(struct kinfo_proc *kp);
-void vtrans(struct vnode *vp, int i, int flag, const char *uname, const char *cmd, int pid);
-char *getmnton(struct mount *m);
-void pipetrans(struct pipe *pi, int i, int flag, const char *uname, const char *cmd, int pid);
-void socktrans(struct socket *sock, int i, const char *uname, const char *cmd, int pid);
-void ptstrans(struct tty *tp, int i, int flag, const char *uname, const char *cmd, int pid);
-void getinetproto(int number);
-int  getfname(const char *filename);
-void usage(void);
-void vtrans_kinfo(struct kinfo_file *, int i, int flag, const char *uname, const char *cmd, int pid);
-static void print_file_info(struct procstat *procstat, struct filestat *fst, const char *uname, const char *cmd, int pid);
-
-static void
-print_socket_info(struct procstat *procstat, struct filestat *fst);
-static void
-print_pipe_info(struct procstat *procstat, struct filestat *fst);
-static void
-print_pts_info(struct procstat *procstat, struct filestat *fst);
-static void
-print_vnode_info(struct procstat *procstat, struct filestat *fst);
-static void
-print_access_flags(int flags);
+static int	getfname(const char *filename);
+static void	dofiles(struct procstat *procstat, struct kinfo_proc *p);
+static void	dommap(struct procstat *procstat, struct kinfo_proc *p);
+static void	print_access_flags(int flags);
+static void	print_file_info(struct procstat *procstat,
+    struct filestat *fst, const char *uname, const char *cmd, int pid);
+static void	print_pipe_info(struct procstat *procstat,
+    struct filestat *fst);
+static void	print_pts_info(struct procstat *procstat,
+    struct filestat *fst);
+static void	print_socket_info(struct procstat *procstat,
+    struct filestat *fst);
+static void	print_vnode_info(struct procstat *procstat,
+    struct filestat *fst);
+static void	usage(void) __dead2;
 
 int
 do_fstat(int argc, char **argv)
 {
+	struct kinfo_proc *p;
 	struct passwd *passwd;
+	struct procstat *procstat;
 	int arg, ch, what;
+	int cnt, i;
 
 	arg = 0;
 	what = KERN_PROC_PROC;
@@ -208,18 +170,6 @@ do_fstat(int argc, char **argv)
 		checkfile = 1;
 	}
 
-		fstat1(what, arg);
-	exit(0);
-}
-
-static void
-fstat1(int what, int arg)
-{
-	struct kinfo_proc *p;
-	struct procstat *procstat;
-	int cnt;
-	int i;
-
 	procstat = procstat_open(nlistf, memf);
 	if (procstat == NULL)
 		errx(1, "procstat_open()");
@@ -248,13 +198,19 @@ fstat1(int what, int arg)
 		if (p[i].ki_stat == SZOMB)
 			continue;
 		dofiles(procstat, &p[i]);
-/*
 		if (mflg)
 			dommap(procstat, &p[i]);
-*/
 	}
 	free(p);
 	procstat_close(procstat);
+	return (0);
+}
+
+static void
+dommap(struct procstat *procstat __unused, struct kinfo_proc *kp __unused)
+{
+	
+	fprintf(stderr, "Not implemented\n");
 }
 
 static void
@@ -449,17 +405,17 @@ print_socket_info(struct procstat *procstat, struct filestat *fst)
 static void
 print_pipe_info(struct procstat *procstat, struct filestat *fst)
 {
-	struct pipestat pipe;
+	struct pipestat ps;
 	char errbuf[_POSIX2_LINE_MAX];
 	int error;
 
-	error = procstat_get_pipe_info(procstat, fst, &pipe, errbuf);
+	error = procstat_get_pipe_info(procstat, fst, &ps, errbuf);
 	if (error != 0) {
 		printf("* error");
 		return;
 	}
-	printf("* pipe %8lx <-> %8lx", (u_long)pipe.addr, (u_long)pipe.peer);
-	printf(" %6zd", pipe.buffer_cnt);
+	printf("* pipe %8lx <-> %8lx", (u_long)ps.addr, (u_long)ps.peer);
+	printf(" %6zd", ps.buffer_cnt);
 	print_access_flags(fst->fs_fflags);
 }
 
@@ -566,7 +522,7 @@ getfname(const char *filename)
 	return (1);
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr,

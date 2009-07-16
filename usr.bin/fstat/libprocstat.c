@@ -455,15 +455,15 @@ procstat_getfiles_sysctl(struct kinfo_proc *kp __unused)
 
 int
 procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
-    struct pipestat *pipe, char *errbuf)
+    struct pipestat *ps, char *errbuf)
 {
 
-	assert(pipe);
+	assert(ps);
 	if (procstat->type == PROCSTAT_KVM) {
-		return (procstat_get_pipe_info_kvm(procstat->kd, fst, pipe,
+		return (procstat_get_pipe_info_kvm(procstat->kd, fst, ps,
 		    errbuf));
 	} else if (procstat->type == PROCSTAT_SYSCTL) {
-		return (procstat_get_pipe_info_sysctl(fst, pipe, errbuf));
+		return (procstat_get_pipe_info_sysctl(fst, ps, errbuf));
 	} else {
 		warnx("unknow access method: %d", procstat->type);
 		snprintf(errbuf, _POSIX2_LINE_MAX, "error");
@@ -473,15 +473,15 @@ procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
 
 static int
 procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
-    struct pipestat *pipe, char *errbuf)
+    struct pipestat *ps, char *errbuf)
 {
 	struct pipe pi;
 	void *pipep;
 
 	assert(kd);
-	assert(pipe);
+	assert(ps);
 	assert(fst);
-	bzero(pipe, sizeof(*pipe));
+	bzero(ps, sizeof(*ps));
 	pipep = fst->fs_typedep;
 	if (pipep == NULL)
 		goto fail;
@@ -489,9 +489,9 @@ procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
 		warnx("can't read pipe at %p", (void *)pipep);
 		goto fail;
 	}
-	pipe->addr = (caddr_t)pipep;
-	pipe->peer = (caddr_t)pi.pipe_peer;
-	pipe->buffer_cnt = pi.pipe_buffer.cnt;
+	ps->addr = (caddr_t)pipep;
+	ps->peer = (caddr_t)pi.pipe_peer;
+	ps->buffer_cnt = pi.pipe_buffer.cnt;
 	return (0);
 
 fail:
@@ -500,7 +500,7 @@ fail:
 }
 
 static int
-procstat_get_pipe_info_sysctl(struct filestat *fst, struct pipestat *pipe,
+procstat_get_pipe_info_sysctl(struct filestat *fst, struct pipestat *ps,
     char *errbuf)
 {
 
