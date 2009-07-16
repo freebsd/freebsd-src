@@ -511,8 +511,10 @@ print_vnode_info(struct procstat *procstat, struct filestat *fst)
 		badtype = "bad";
 	else if (vn.vn_type == PS_FST_VTYPE_VNON)
 		badtype = "none";
-	if (badtype != NULL)
+	if (badtype != NULL) {
 		printf(" -         -  %10s    -", badtype);
+		return;
+	}
 
 	if (nflg)
 		printf(" %2d,%-2d", major(vn.vn_fsid), minor(vn.vn_fsid));
