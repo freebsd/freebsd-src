@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009 Stanislav Sedov <stas@FreeBSD.org>
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -35,23 +36,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/stat.h>
 #include <sys/vnode.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/domain.h>
-#include <sys/protosw.h>
-#include <sys/un.h>
-#include <sys/unpcb.h>
-#include <sys/sysctl.h>
-#include <sys/tty.h>
-#include <sys/filedesc.h>
-#include <sys/queue.h>
-#define	_WANT_FILE
-#include <sys/file.h>
 #include <sys/conf.h>
 #define	_KERNEL
 #include <sys/pipe.h>
@@ -65,48 +52,13 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
 
-
-#include <vm/vm.h>
-#include <vm/vm_map.h>
-#include <vm/vm_object.h>
-
-#include <net/route.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/in_pcb.h>
-
 #include <assert.h>
-#include <ctype.h>
 #include <err.h>
-#include <fcntl.h>
 #include <kvm.h>
-#include <limits.h>
-#include <nlist.h>
-#include <paths.h>
-#include <pwd.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include <unistd.h>
-#include <netdb.h>
 
-#include "common.h"
-
-int vflg = 0;
-
-void
-dprintf(FILE *file, const char *fmt, ...) {
-	va_list ap;
-
-	if (vflg != 0) {
-		va_start(ap, fmt);
-		vfprintf(file, fmt, ap);
-		va_end(ap);
-	}
-}
+#include "common_kvm.h"
 
 int
 kvm_read_all(kvm_t *kd, unsigned long addr, void *buf, size_t nbytes)
@@ -236,8 +188,8 @@ dev2udev(kvm_t *kd, struct cdev *dev)
 	    sizeof(priv))) {
 		return ((dev_t)priv.cdp_inode);
 	} else {
-		dprintf(stderr, "can't convert cdev *%p to a dev_t\n", dev);
-		return -1;
+		warnx("can't convert cdev *%p to a dev_t\n", dev);
+		return (-1);
 	}
 }
 

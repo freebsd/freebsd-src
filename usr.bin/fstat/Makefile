@@ -4,7 +4,7 @@
 .include <bsd.own.mk>
 
 PROG=	fstat
-SRCS=	common.c fstat.c main.c libprocstat.c cd9660.c msdosfs.c
+SRCS=	cd9660.c common_kvm.c fstat.c libprocstat.c main.c msdosfs.c
 LINKS=	${BINDIR}/fstat ${BINDIR}/fuser
 DPADD=	${LIBKVM}
 LDADD=	-lkvm -lutil

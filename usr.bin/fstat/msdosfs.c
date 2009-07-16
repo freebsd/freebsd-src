@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
  */
 #define VTODE(vp) ((struct denode *)(vp)->v_data)
 
-#include "common.h"
+#include "common_kvm.h"
 
 struct dosmount {
 	struct dosmount *next;

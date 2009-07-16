@@ -50,8 +50,7 @@
 #include <stdlib.h>
 
 #define ZFS
-#undef dprintf
-#include "common.h"
+#include "common_kvm.h"
 
 /* 
  * Offset calculations that are used to get data from znode without having the

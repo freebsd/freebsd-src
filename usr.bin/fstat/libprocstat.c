@@ -1,3 +1,37 @@
+/*-
+ * Copyright (c) 2009 Stanislav Sedov <stas@FreeBSD.org>
+ * Copyright (c) 1988, 1993
+ *      The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by the University of
+ *      California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -32,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
 
-
 #include <vm/vm.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
@@ -59,9 +92,12 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <netdb.h>
 
-#include "common.h"
+#include "common_kvm.h"
 #include "libprocstat.h"
 
+/*
+ * Vnode-to-filestat types translation table.
+ */
 static struct {
         int     vtype; 
         int     fst_vtype;
@@ -78,6 +114,9 @@ static struct {
 };
 #define NVFTYPES (sizeof(vt2fst) / sizeof(*vt2fst))
 
+/*
+ * Descriptor-to-filestat flags translation table.
+ */
 static struct {
 	int flag;
 	int fst_flag;
@@ -96,28 +135,6 @@ static struct {
 	{ O_EXCL, PS_FST_FFLAG_EXCL }
 };
 #define NFSTFLAGS	(sizeof(fstflags) / sizeof(*fstflags))
-
-char	*getmnton(kvm_t *kd, struct mount *m);
-void	socktrans(kvm_t *kd, struct socket *sock, int fd, int flags,
-    struct filestat *fst);
-int	procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
-    struct vnstat *vn, char *errbuf);
-int	procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
-    char *errbuf);
-int	procstat_get_pipe_info_sysctl(struct filestat *fst,
-    struct pipestat *pipe, char *errbuf);
-int	procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
-    struct pipestat *pipe, char *errbuf);
-int	procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
-    char *errbuf);
-int	procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
-    struct ptsstat *pts, char *errbuf);
-int	procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
-    char *errbuf);
-int	procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
-    struct sockstat *sock, char *errbuf);
-static int	to_filestat_flags(int flags);
-
 
 /*
  * Filesystem specific handlers.
@@ -145,8 +162,32 @@ struct {
 };
 #define NTYPES  (sizeof(fstypes) / sizeof(*fstypes))
 
-#define	PROCSTAT_KVM 1
-#define	PROCSTAT_SYSCTL 2
+#define	PROCSTAT_KVM	1
+#define	PROCSTAT_SYSCTL	2
+
+static char	*getmnton(kvm_t *kd, struct mount *m);
+static struct filestat_list	*procstat_getfiles_kvm(kvm_t *kd,
+    struct kinfo_proc *kp);
+static struct filestat_list	*procstat_getfiles_sysctl(
+    struct kinfo_proc *kp);
+static int	procstat_get_pipe_info_sysctl(struct filestat *fst,
+    struct pipestat *pipe, char *errbuf);
+static int	procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct pipestat *pipe, char *errbuf);
+static int	procstat_get_pts_info_sysctl(struct filestat *fst,
+    struct ptsstat *pts, char *errbuf);
+static int	procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct ptsstat *pts, char *errbuf);
+static int	procstat_get_socket_info_sysctl(struct filestat *fst,
+    struct sockstat *sock, char *errbuf);
+static int	procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct sockstat *sock, char *errbuf);
+static int	to_filestat_flags(int flags);
+static int	procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
+    struct vnstat *vn, char *errbuf);
+static int	procstat_get_vnode_info_sysctl(struct filestat *fst,
+    struct vnstat *vn, char *errbuf);
+static int	vntype2psfsttype(int type);
 
 void
 procstat_close(struct procstat *procstat)
@@ -279,7 +320,7 @@ filestat_new_entry(struct vnode *vp, int type, int fd, int fflags)
 	return (entry);
 }
 
-struct filestat_list *
+static struct filestat_list *
 procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp)
 {
 	int i;
@@ -406,66 +447,10 @@ exit:
 	return (head);
 }
 
-static int
-to_filestat_flags(int flags)
-{
-	int fst_flags;
-	unsigned int i;
-
-	fst_flags = 0;
-	for (i = 0; i < NFSTFLAGS; i++)
-		if (flags & fstflags[i].flag)
-			fst_flags |= fstflags[i].fst_flag;
-	return (fst_flags);
-}
-
-struct filestat_list *
+static struct filestat_list *
 procstat_getfiles_sysctl(struct kinfo_proc *kp __unused)
 {
 	return (NULL);
-}
-
-static int
-vntype2psfsttype(int type)
-{
-	unsigned int i, fst_type;
-
-	fst_type = PS_FST_VTYPE_UNKNOWN;
-	for (i = 0; i < NVFTYPES; i++) {
-		if (type == vt2fst[i].vtype) {
-			fst_type = vt2fst[i].fst_vtype;
-			break;
-		}
-	}
-	return (fst_type);
-}
-
-char *
-getmnton(kvm_t *kd, struct mount *m)
-{
-	static struct mount mnt;
-	static struct mtab {
-		struct mtab *next;
-		struct mount *m;
-		char mntonname[MNAMELEN + 1];
-	} *mhead = NULL;
-	struct mtab *mt;
-
-	for (mt = mhead; mt != NULL; mt = mt->next)
-		if (m == mt->m)
-			return (mt->mntonname);
-	if (!kvm_read_all(kd, (unsigned long)m, &mnt, sizeof(struct mount))) {
-		warnx("can't read mount table at %p", (void *)m);
-		return (NULL);
-	}
-	if ((mt = malloc(sizeof (struct mtab))) == NULL)
-		err(1, NULL);
-	mt->m = m;
-	bcopy(&mnt.mnt_stat.f_mntonname[0], &mt->mntonname[0], MNAMELEN);
-	mnt.mnt_stat.f_mntonname[MNAMELEN] = '\0';
-	mt->next = mhead;
-	mhead = mt;
-	return (mt->mntonname);
 }
 
 int
@@ -485,7 +470,8 @@ procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,
 		return (1);
 	}
 }
-int
+
+static int
 procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
     struct pipestat *pipe, char *errbuf)
 {
@@ -513,7 +499,7 @@ fail:
 	return (1);
 }
 
-int
+static int
 procstat_get_pipe_info_sysctl(struct filestat *fst, struct pipestat *pipe,
     char *errbuf)
 {
@@ -540,7 +526,8 @@ procstat_get_pts_info(struct procstat *procstat, struct filestat *fst,
 		return (1);
 	}
 }
-int
+
+static int
 procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
     struct ptsstat *pts, char *errbuf)
 {
@@ -567,7 +554,7 @@ fail:
 	return (1);
 }
 
-int
+static int
 procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
     char *errbuf)
 {
@@ -595,7 +582,7 @@ procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
 	}
 }
 
-int
+static int
 procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
     struct vnstat *vn, char *errbuf)
 {
@@ -647,6 +634,8 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 	    vnode.v_rdev != NULL){
 		vn->vn_dev = dev2udev(kd, vnode.v_rdev);
 		(void)kdevtoname(kd, vnode.v_rdev, vn->vn_devname);
+	} else {
+		vn->vn_dev = -1;
 	}
 	return (0);
 
@@ -655,7 +644,7 @@ fail:
 	return (1);
 }
 
-int
+static int
 procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
     char *errbuf)
 {
@@ -682,7 +671,8 @@ procstat_get_socket_info(struct procstat *procstat, struct filestat *fst,
 		return (1);
 	}
 }
-int
+
+static int
 procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
     struct sockstat *sock, char *errbuf)
 {
@@ -779,7 +769,7 @@ fail:
 	return (1);
 }
 
-int
+static int
 procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
     char *errbuf)
 {
@@ -787,4 +777,60 @@ procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
 	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
 	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
 	return (1);
+}
+
+static int
+to_filestat_flags(int flags)
+{
+	int fst_flags;
+	unsigned int i;
+
+	fst_flags = 0;
+	for (i = 0; i < NFSTFLAGS; i++)
+		if (flags & fstflags[i].flag)
+			fst_flags |= fstflags[i].fst_flag;
+	return (fst_flags);
+}
+
+static int
+vntype2psfsttype(int type)
+{
+	unsigned int i, fst_type;
+
+	fst_type = PS_FST_VTYPE_UNKNOWN;
+	for (i = 0; i < NVFTYPES; i++) {
+		if (type == vt2fst[i].vtype) {
+			fst_type = vt2fst[i].fst_vtype;
+			break;
+		}
+	}
+	return (fst_type);
+}
+
+static char *
+getmnton(kvm_t *kd, struct mount *m)
+{
+	static struct mount mnt;
+	static struct mtab {
+		struct mtab *next;
+		struct mount *m;
+		char mntonname[MNAMELEN + 1];
+	} *mhead = NULL;
+	struct mtab *mt;
+
+	for (mt = mhead; mt != NULL; mt = mt->next)
+		if (m == mt->m)
+			return (mt->mntonname);
+	if (!kvm_read_all(kd, (unsigned long)m, &mnt, sizeof(struct mount))) {
+		warnx("can't read mount table at %p", (void *)m);
+		return (NULL);
+	}
+	if ((mt = malloc(sizeof (struct mtab))) == NULL)
+		err(1, NULL);
+	mt->m = m;
+	bcopy(&mnt.mnt_stat.f_mntonname[0], &mt->mntonname[0], MNAMELEN);
+	mnt.mnt_stat.f_mntonname[MNAMELEN] = '\0';
+	mt->next = mhead;
+	mhead = mt;
+	return (mt->mntonname);
 }

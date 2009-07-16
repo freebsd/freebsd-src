@@ -32,8 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-int	do_fstat(int argc, char *argv[]);
-int	do_fuser(int argc, char *argv[]);
+#include "functions.h"
 
 int
 main(int argc, char *argv[])

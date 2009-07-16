@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1988, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2009 Stanislav Sedov <stas@FreeBSD.org>
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,13 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -33,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef	__COMMON_H__
-#define	__COMMON_H__
+#ifndef	__COMMON_KVM_H__
+#define	__COMMON_KVM_H__
 
 struct filestat {
 	int	fs_type;	/* Descriptor type. */
@@ -82,10 +75,7 @@ struct sockstat {
 
 STAILQ_HEAD(filestat_list, filestat);
 
-extern int vflg;
-
 dev_t	dev2udev(kvm_t *kd, struct cdev *dev);
-void	dprintf(FILE *file, const char *fmt, ...);
 int	kdevtoname(kvm_t *kd, struct cdev *dev, char *);
 int	kvm_read_all(kvm_t *kd, unsigned long addr, void *buf,
     size_t nbytes);
@@ -104,4 +94,4 @@ void	*getvnodedata(struct vnode *vp);
 struct mount	*getvnodemount(struct vnode *vp);
 #endif
 
-#endif /* __COMMON_H__ */
+#endif	/* __COMMON_KVM_H__ */

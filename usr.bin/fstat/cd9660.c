@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include <stdio.h>
 
-#include "common.h"
+#include "common_kvm.h"
 
 int
 isofs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)

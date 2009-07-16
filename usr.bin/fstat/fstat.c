@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2009 Stanislav Sedov <stas@FreeBSD.org>
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -31,17 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char copyright[] =
-"@(#) Copyright (c) 1988, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)fstat.c	8.3 (Berkeley) 5/2/95";
-#endif
-#endif /* not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -103,7 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <netdb.h>
 
-#include "common.h"
+#include "common_kvm.h"
 #include "functions.h"
 #include "libprocstat.h"
 
@@ -113,6 +103,7 @@ int 	fsflg,	/* show files on same filesystem as file(s) argument */
 int 	checkfile; /* true if restricting to particular files or filesystems */
 int	nflg;	/* (numerical) display f.s. and rdev as dev_t */
 int	mflg;	/* include memory-mapped files */
+int	vflg;	/* be verbose */
 
 typedef struct devs {
 	struct devs	*next;
@@ -366,9 +357,10 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 		print_pts_info(procstat, fst);
 		break;
 	default:	
-		dprintf(stderr,
-		    "unknown file type %d for file %d of pid %d\n",
-		    fst->fs_type, fst->fs_fd, pid);
+		if (vflg)
+			fprintf(stderr,
+			    "unknown file type %d for file %d of pid %d\n",
+			    fst->fs_type, fst->fs_fd, pid);
 	}
 	if (filename && !fsflg)
 		printf("  %s", filename);
