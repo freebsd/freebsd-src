@@ -139,16 +139,16 @@ VNET_DECLARE(int, icmp6_nodeinfo);
 VNET_DECLARE(int, udp6_sendspace);
 VNET_DECLARE(int, udp6_recvspace);
 
-#define	V_in6_tmpaddrtimer_ch		VNET_GET(in6_tmpaddrtimer_ch)
-#define	V_dad_init			VNET_GET(dad_init)
-#define	V_pmtu_expire			VNET_GET(pmtu_expire)
-#define	V_pmtu_probe			VNET_GET(pmtu_probe)
-#define	V_rip6_sendspace		VNET_GET(rip6_sendspace)
-#define	V_rip6_recvspace		VNET_GET(rip6_recvspace)
-#define	V_icmp6errppslim		VNET_GET(icmp6errppslim)
-#define	V_icmp6_nodeinfo		VNET_GET(icmp6_nodeinfo)
-#define	V_udp6_sendspace		VNET_GET(udp6_sendspace)
-#define	V_udp6_recvspace		VNET_GET(udp6_recvspace)
+#define	V_in6_tmpaddrtimer_ch		VNET(in6_tmpaddrtimer_ch)
+#define	V_dad_init			VNET(dad_init)
+#define	V_pmtu_expire			VNET(pmtu_expire)
+#define	V_pmtu_probe			VNET(pmtu_probe)
+#define	V_rip6_sendspace		VNET(rip6_sendspace)
+#define	V_rip6_recvspace		VNET(rip6_recvspace)
+#define	V_icmp6errppslim		VNET(icmp6errppslim)
+#define	V_icmp6_nodeinfo		VNET(icmp6_nodeinfo)
+#define	V_udp6_sendspace		VNET(udp6_sendspace)
+#define	V_udp6_recvspace		VNET(udp6_recvspace)
 
 struct rwlock in6_ifaddr_lock;
 RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");

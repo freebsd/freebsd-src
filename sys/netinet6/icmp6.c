@@ -118,17 +118,17 @@ VNET_DECLARE(struct inpcbhead, ripcb);
 VNET_DECLARE(int, icmp6errppslim);
 VNET_DECLARE(int, icmp6_nodeinfo);
 
-#define	V_ripcbinfo			VNET_GET(ripcbinfo)
-#define	V_ripcb				VNET_GET(ripcb)
-#define	V_icmp6errppslim		VNET_GET(icmp6errppslim)
-#define	V_icmp6_nodeinfo		VNET_GET(icmp6_nodeinfo)
+#define	V_ripcbinfo			VNET(ripcbinfo)
+#define	V_ripcb				VNET(ripcb)
+#define	V_icmp6errppslim		VNET(icmp6errppslim)
+#define	V_icmp6_nodeinfo		VNET(icmp6_nodeinfo)
 
 VNET_DEFINE(struct icmp6stat, icmp6stat);
 static VNET_DEFINE(int, icmp6errpps_count);
 static VNET_DEFINE(struct timeval, icmp6errppslim_last);
 
-#define	V_icmp6errpps_count	VNET_GET(icmp6errpps_count)
-#define	V_icmp6errppslim_last	VNET_GET(icmp6errppslim_last)
+#define	V_icmp6errpps_count	VNET(icmp6errpps_count)
+#define	V_icmp6errppslim_last	VNET(icmp6errppslim_last)
 
 static void icmp6_errcount(struct icmp6errstat *, int, int);
 static int icmp6_rip6_input(struct mbuf **, int);

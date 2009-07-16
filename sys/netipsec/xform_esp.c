@@ -88,7 +88,7 @@ SYSCTL_VNET_STRUCT(_net_inet_esp, IPSECCTL_STATS,
 
 /* max iv length over all algorithms */
 static VNET_DEFINE(int, esp_max_ivlen) = 0;
-#define	V_esp_max_ivlen	VNET_GET(esp_max_ivlen)
+#define	V_esp_max_ivlen	VNET(esp_max_ivlen)
 
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);

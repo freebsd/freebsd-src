@@ -117,7 +117,7 @@ static vnet_attach_fn ng_eiface_iattach;
 static vnet_detach_fn ng_eiface_idetach;
 
 static VNET_DEFINE(struct unrhdr *, ng_eiface_unit);
-#define	V_ng_eiface_unit		VNET_GET(ng_eiface_unit)
+#define	V_ng_eiface_unit		VNET(ng_eiface_unit)
 
 #ifdef VIMAGE
 static vnet_modinfo_t vnet_ng_eiface_modinfo = {

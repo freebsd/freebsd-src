@@ -163,8 +163,8 @@ static VNET_DEFINE(int, if_indexlim) = 8;
 /* Table of ifnet by index.  Locked with ifnet_lock. */
 static VNET_DEFINE(struct ifindex_entry *, ifindex_table);
 
-#define	V_if_indexlim		VNET_GET(if_indexlim)
-#define	V_ifindex_table		VNET_GET(ifindex_table)
+#define	V_if_indexlim		VNET(if_indexlim)
+#define	V_ifindex_table		VNET(ifindex_table)
 
 int	ifqmaxlen = IFQ_MAXLEN;
 struct rwlock ifnet_lock;

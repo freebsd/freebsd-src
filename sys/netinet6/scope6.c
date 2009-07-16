@@ -65,7 +65,7 @@ static struct mtx scope6_lock;
 static VNET_DEFINE(struct scope6_id, sid_default);
 VNET_DEFINE(int, ip6_use_defzone);
 
-#define	V_sid_default			VNET_GET(sid_default)
+#define	V_sid_default			VNET(sid_default)
 
 #define SID(ifp) \
 	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->scope6_id)

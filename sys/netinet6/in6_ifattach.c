@@ -71,10 +71,10 @@ VNET_DEFINE(unsigned long, in6_maxmtu);
 VNET_DEFINE(int, ip6_auto_linklocal);
 VNET_DEFINE(struct callout, in6_tmpaddrtimer_ch);
 
-#define	V_in6_tmpaddrtimer_ch		VNET_GET(in6_tmpaddrtimer_ch)
+#define	V_in6_tmpaddrtimer_ch		VNET(in6_tmpaddrtimer_ch)
 
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
-#define	V_ripcbinfo			VNET_GET(ripcbinfo)
+#define	V_ripcbinfo			VNET(ripcbinfo)
 
 static int get_rand_ifid(struct ifnet *, struct in6_addr *);
 static int generate_tmp_ifid(u_int8_t *, const u_int8_t *, u_int8_t *);

@@ -89,16 +89,16 @@ static VNET_DEFINE(int, icmp_rfi);
 static VNET_DEFINE(int, icmp_quotelen);
 static VNET_DEFINE(int, icmpbmcastecho);
 
-#define	V_icmpmaskrepl			VNET_GET(icmpmaskrepl)
-#define	V_icmpmaskfake			VNET_GET(icmpmaskfake)
-#define	V_drop_redirect			VNET_GET(drop_redirect)
-#define	V_log_redirect			VNET_GET(log_redirect)
-#define	V_icmplim			VNET_GET(icmplim)
-#define	V_icmplim_output		VNET_GET(icmplim_output)
-#define	V_reply_src			VNET_GET(reply_src)
-#define	V_icmp_rfi			VNET_GET(icmp_rfi)
-#define	V_icmp_quotelen			VNET_GET(icmp_quotelen)
-#define	V_icmpbmcastecho		VNET_GET(icmpbmcastecho)
+#define	V_icmpmaskrepl			VNET(icmpmaskrepl)
+#define	V_icmpmaskfake			VNET(icmpmaskfake)
+#define	V_drop_redirect			VNET(drop_redirect)
+#define	V_log_redirect			VNET(log_redirect)
+#define	V_icmplim			VNET(icmplim)
+#define	V_icmplim_output		VNET(icmplim_output)
+#define	V_reply_src			VNET(reply_src)
+#define	V_icmp_rfi			VNET(icmp_rfi)
+#define	V_icmp_quotelen			VNET(icmp_quotelen)
+#define	V_icmpbmcastecho		VNET(icmpbmcastecho)
 
 SYSCTL_VNET_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RW,
 	&VNET_NAME(icmpstat), icmpstat, "");

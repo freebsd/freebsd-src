@@ -104,8 +104,8 @@ static VNET_DEFINE(uma_zone_t, tcptw_zone);
 static VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
 VNET_DEFINE(int, nolocaltimewait);
 
-#define	V_tcptw_zone			VNET_GET(tcptw_zone)
-#define	V_twq_2msl			VNET_GET(twq_2msl)
+#define	V_tcptw_zone			VNET(tcptw_zone)
+#define	V_twq_2msl			VNET(twq_2msl)
 
 static void	tcp_tw_2msl_reset(struct tcptw *, int);
 static void	tcp_tw_2msl_stop(struct tcptw *);

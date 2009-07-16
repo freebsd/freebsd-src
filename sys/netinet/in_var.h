@@ -107,9 +107,9 @@ VNET_DECLARE(struct in_ifaddrhashhead *, in_ifaddrhashtbl);
 VNET_DECLARE(struct in_ifaddrhead, in_ifaddrhead);
 VNET_DECLARE(u_long, in_ifaddrhmask);		/* mask for hash table */
 
-#define	V_in_ifaddrhashtbl	VNET_GET(in_ifaddrhashtbl)
-#define	V_in_ifaddrhead		VNET_GET(in_ifaddrhead)
-#define	V_in_ifaddrhmask	VNET_GET(in_ifaddrhmask)
+#define	V_in_ifaddrhashtbl	VNET(in_ifaddrhashtbl)
+#define	V_in_ifaddrhead		VNET(in_ifaddrhead)
+#define	V_in_ifaddrhmask	VNET(in_ifaddrhmask)
 
 #define INADDR_NHASH_LOG2       9
 #define INADDR_NHASH		(1 << INADDR_NHASH_LOG2)

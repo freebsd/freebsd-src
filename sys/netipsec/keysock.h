@@ -70,7 +70,7 @@ struct keycb {
 };
 
 VNET_DECLARE(struct pfkeystat, pfkeystat);
-#define	V_pfkeystat		VNET_GET(pfkeystat)
+#define	V_pfkeystat		VNET(pfkeystat)
 
 extern int key_output(struct mbuf *m, struct socket *so);
 extern int key_usrreq __P((struct socket *,
