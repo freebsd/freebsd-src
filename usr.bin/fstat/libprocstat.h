@@ -126,7 +126,7 @@ STAILQ_HEAD(filestat_list, filestat);
 
 void	procstat_close(struct procstat *procstat);
 struct filestat_list	*procstat_getfiles(struct procstat *procstat,
-    struct kinfo_proc *kp);
+    struct kinfo_proc *kp, int mmapped);
 struct kinfo_proc	*procstat_getprocs(struct procstat *procstat,
     int what, int arg, unsigned int *count);
 int	procstat_get_pipe_info(struct procstat *procstat, struct filestat *fst,

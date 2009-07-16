@@ -167,9 +167,9 @@ struct {
 
 static char	*getmnton(kvm_t *kd, struct mount *m);
 static struct filestat_list	*procstat_getfiles_kvm(kvm_t *kd,
-    struct kinfo_proc *kp);
+    struct kinfo_proc *kp, int mmapped);
 static struct filestat_list	*procstat_getfiles_sysctl(
-    struct kinfo_proc *kp);
+    struct kinfo_proc *kp, int mmapped);
 static int	procstat_get_pipe_info_sysctl(struct filestat *fst,
     struct pipestat *pipe, char *errbuf);
 static int	procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
@@ -292,13 +292,13 @@ fail:
 }
 
 struct filestat_list *
-procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp)
+procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 {
 	
 	if (procstat->type == PROCSTAT_SYSCTL)
-		return (procstat_getfiles_sysctl(kp));
+		return (procstat_getfiles_sysctl(kp, mmapped));
 	else if (procstat->type == PROCSTAT_KVM)
-		 return (procstat_getfiles_kvm(procstat->kd, kp));
+		 return (procstat_getfiles_kvm(procstat->kd, kp, mmapped));
 	else
 		return (NULL);
 }
@@ -321,7 +321,7 @@ filestat_new_entry(struct vnode *vp, int type, int fd, int fflags)
 }
 
 static struct filestat_list *
-procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp)
+procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, int mmapped)
 {
 	int i;
 	struct file file;
@@ -332,6 +332,13 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp)
 	struct filestat_list *head;
 	int type;
 	void *data;
+	vm_map_t map;
+	struct vmspace vmspace;
+	struct vm_map_entry vmentry;
+	vm_map_entry_t entryp;
+	struct vm_object object;
+	vm_object_t objp;
+	int prot, fflags;
 
 	assert(kd);
 
@@ -339,7 +346,7 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp)
 		return (NULL);
 	if (!kvm_read_all(kd, (unsigned long)kp->ki_fd, &filed,
 	    sizeof(filed))) {
-		warnx("can't read filedesc at %p\n", (void *)kp->ki_fd);
+		warnx("can't read filedesc at %p", (void *)kp->ki_fd);
 		return (NULL);
 	}
 
@@ -391,21 +398,21 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp)
 	ofiles = malloc(nfiles * sizeof(struct file *));
 	if (ofiles == NULL) {
 		warn("malloc(%zd)", nfiles * sizeof(struct file *));
-		goto exit;
+		goto do_mmapped;
 	}
 	if (!kvm_read_all(kd, (unsigned long)filed.fd_ofiles, ofiles,
 	    nfiles * sizeof(struct file *))) {
-		warn("cannot read file structures at %p\n",
+		warnx("cannot read file structures at %p",
 		    (void *)filed.fd_ofiles);
 		free(ofiles);
-		goto exit;
+		goto do_mmapped;
 	}
 	for (i = 0; i <= filed.fd_lastfile; i++) {
 		if (ofiles[i] == NULL)
 			continue;
 		if (!kvm_read_all(kd, (unsigned long)ofiles[i], &file,
 		    sizeof(struct file))) {
-			warn("can't read file %d at %p\n", i,
+			warnx("can't read file %d at %p", i,
 			    (void *)ofiles[i]);
 			continue;
 		}
@@ -433,7 +440,7 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp)
 			break;
 #endif
 		default:
-			warnx("unknown file type %d for file %d\n",
+			warnx("unknown file type %d for file %d",
 			    file.f_type, i);
 			continue;
 		}
@@ -443,12 +450,69 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	free(ofiles);
+
+do_mmapped:
+
+	/*
+	 * Process mmapped files if requested.
+	 */
+	if (mmapped) {
+		if (!kvm_read_all(kd, (unsigned long)kp->ki_vmspace, &vmspace,
+		    sizeof(vmspace))) {
+			warnx("can't read vmspace at %p",
+			    (void *)kp->ki_vmspace);
+			goto exit;
+		}
+		map = &vmspace.vm_map;
+
+		for (entryp = map->header.next;
+		    entryp != &kp->ki_vmspace->vm_map.header;
+		    entryp = vmentry.next) {
+			if (!kvm_read_all(kd, (unsigned long)entryp, &vmentry,
+			    sizeof(vmentry))) {
+				warnx("can't read vm_map_entry at %p",
+				    (void *)entryp);
+				continue;
+			}
+			if (vmentry.eflags & MAP_ENTRY_IS_SUB_MAP)
+				continue;
+			if ((objp = vmentry.object.vm_object) == NULL)
+				continue;
+			for (; objp; objp = object.backing_object) {
+				if (!kvm_read_all(kd, (unsigned long)objp,
+				    &object, sizeof(object))) {
+					warnx("can't read vm_object at %p",
+					    (void *)objp);
+					break;
+				}
+			}
+
+			/* We want only vnode objects. */
+			if (object.type != OBJT_VNODE)
+				continue;
+
+			prot = vmentry.protection;
+			fflags = 0;
+			if (prot & VM_PROT_READ)
+				fflags = PS_FST_FFLAG_READ;
+			if (prot & VM_PROT_WRITE)
+				fflags |= PS_FST_FFLAG_WRITE;
+
+			/*
+			 * Create filestat entry.
+			 */
+			entry = filestat_new_entry(object.handle,
+			    PS_FST_TYPE_VNODE, PS_FST_FD_MMAP, fflags);
+			if (entry != NULL)
+				STAILQ_INSERT_TAIL(head, entry, next);
+		}
+	}
 exit:
 	return (head);
 }
 
 static struct filestat_list *
-procstat_getfiles_sysctl(struct kinfo_proc *kp __unused)
+procstat_getfiles_sysctl(struct kinfo_proc *kp __unused, int mmapped)
 {
 	return (NULL);
 }
@@ -601,7 +665,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		goto fail;
 	error = kvm_read_all(kd, (unsigned long)vp, &vnode, sizeof(vnode));
 	if (error == 0) {
-		warnx("can't read vnode at %p\n", (void *)vp);
+		warnx("can't read vnode at %p", (void *)vp);
 		goto fail;
 	}
 	bzero(vn, sizeof(*vn));
@@ -610,7 +674,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		return (0);
 	error = kvm_read_all(kd, (unsigned long)vnode.v_tag, tagstr, sizeof(tagstr));
 	if (error == 0) {
-		warnx("can't read v_tag at %p\n", (void *)vp);
+		warnx("can't read v_tag at %p", (void *)vp);
 		goto fail;
 	}
 	tagstr[sizeof(tagstr) - 1] = '\0';
@@ -738,7 +802,7 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 				if (kvm_read(kd, (u_long)s.so_pcb,
 				    (char *)&inpcb, sizeof(struct inpcb))
 				    != sizeof(struct inpcb)) {
-					warnx("can't read inpcb at %p\n",
+					warnx("can't read inpcb at %p",
 					    (void *)s.so_pcb);
 				} else
 					sock->inp_ppcb =
@@ -750,7 +814,7 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 		if (s.so_pcb) {
 			if (kvm_read(kd, (u_long)s.so_pcb, (char *)&unpcb,
 			    sizeof(struct unpcb)) != sizeof(struct unpcb)){
-				warnx("can't read unpcb at %p\n",
+				warnx("can't read unpcb at %p",
 				    (void *)s.so_pcb);
 			} else if (unpcb.unp_conn) {
 				sock->so_rcv_sb_state = s.so_rcv.sb_state;

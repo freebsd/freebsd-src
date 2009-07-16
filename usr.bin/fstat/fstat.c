@@ -43,10 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/queue.h>
 
-#include <vm/vm.h>
-#include <vm/vm_map.h>
-#include <vm/vm_object.h>
-
 #include <netinet/in.h>
 
 #include <assert.h>
@@ -85,7 +81,6 @@ char *memf, *nlistf;
 
 static int	getfname(const char *filename);
 static void	dofiles(struct procstat *procstat, struct kinfo_proc *p);
-static void	dommap(struct procstat *procstat, struct kinfo_proc *p);
 static void	print_access_flags(int flags);
 static void	print_file_info(struct procstat *procstat,
     struct filestat *fst, const char *uname, const char *cmd, int pid);
@@ -198,19 +193,10 @@ do_fstat(int argc, char **argv)
 		if (p[i].ki_stat == SZOMB)
 			continue;
 		dofiles(procstat, &p[i]);
-		if (mflg)
-			dommap(procstat, &p[i]);
 	}
 	free(p);
 	procstat_close(procstat);
 	return (0);
-}
-
-static void
-dommap(struct procstat *procstat __unused, struct kinfo_proc *kp __unused)
-{
-	
-	fprintf(stderr, "Not implemented\n");
 }
 
 static void
@@ -226,10 +212,9 @@ dofiles(struct procstat *procstat, struct kinfo_proc *kp)
 	pid = kp->ki_pid;
 	cmd = kp->ki_comm;
 
-	head = procstat_getfiles(procstat, kp);
+	head = procstat_getfiles(procstat, kp, mflg);
 	if (head == NULL)
 		return;
-
 	STAILQ_FOREACH(fst, head, next)
 		print_file_info(procstat, fst, uname, cmd, pid);
 }
