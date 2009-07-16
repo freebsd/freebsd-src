@@ -29,52 +29,6 @@
 #ifndef	__COMMON_KVM_H__
 #define	__COMMON_KVM_H__
 
-struct filestat {
-	int	fs_type;	/* Descriptor type. */
-	int	fs_flags;	/* filestat specific flags. */
-	int	fs_fflags;	/* Descriptor access flags. */
-	int	fs_fd;		/* File descriptor number. */
-	void	*fs_typedep;	/* Type dependent data. */
-	STAILQ_ENTRY(filestat)	next;
-};
-
-struct vnstat {
-	dev_t	vn_dev;
-	char	vn_devname[SPECNAMELEN + 1];
-	int	vn_type;
-	long	vn_fsid;
-	long	vn_fileid;
-	mode_t	vn_mode;
-	u_long	vn_size;
-	char	*mntdir;
-};
-
-struct ptsstat {
-	dev_t	dev;
-	char	devname[SPECNAMELEN + 1];
-};
-
-struct pipestat {
-	caddr_t	addr;
-	caddr_t	peer;
-	size_t	buffer_cnt;
-};
-
-struct sockstat {
-	int	type;
-	int	proto;
-	int	dom_family;
-	caddr_t	so_addr;
-	caddr_t	so_pcb;
-	caddr_t	inp_ppcb;
-	caddr_t	unp_conn;
-	int	so_snd_sb_state;
-	int	so_rcv_sb_state;
-	char	dname[32];
-};
-
-STAILQ_HEAD(filestat_list, filestat);
-
 dev_t	dev2udev(kvm_t *kd, struct cdev *dev);
 int	kdevtoname(kvm_t *kd, struct cdev *dev, char *);
 int	kvm_read_all(kvm_t *kd, unsigned long addr, void *buf,

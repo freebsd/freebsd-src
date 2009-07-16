@@ -92,8 +92,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <netdb.h>
 
-#include "common_kvm.h"
 #include "libprocstat.h"
+#include "common_kvm.h"
 
 /*
  * Vnode-to-filestat types translation table.

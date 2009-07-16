@@ -50,6 +50,7 @@
 #include <stdlib.h>
 
 #define ZFS
+#include "libprocstat.h"
 #include "common_kvm.h"
 
 /* 

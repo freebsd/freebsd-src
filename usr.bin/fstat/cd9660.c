@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <kvm.h>
 #include <stdio.h>
 
+#include "libprocstat.h"
 #include "common_kvm.h"
 
 int

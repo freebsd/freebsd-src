@@ -93,7 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <netdb.h>
 
-#include "common_kvm.h"
 #include "functions.h"
 #include "libprocstat.h"
 
