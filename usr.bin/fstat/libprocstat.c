@@ -558,10 +558,8 @@ procstat_get_pts_info_kvm(kvm_t *kd, struct filestat *fst,
 		warnx("can't read tty at %p", (void *)ttyp);
 		goto fail;
 	}
-	if (tty.t_dev != NULL) {
-		pts->dev = dev2udev(kd, tty.t_dev);
-		(void)kdevtoname(kd, tty.t_dev, pts->devname);
-	}
+	pts->dev = dev2udev(kd, tty.t_dev);
+	(void)kdevtoname(kd, tty.t_dev, pts->devname);
 	return (0);
 
 fail:
@@ -645,7 +643,8 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		return (1);
 	}
 	vn->mntdir = getmnton(kd, vnode.v_mount);
-	if (vnode.v_rdev != NULL) {
+	if ((vnode.v_type == VBLK || vnode.v_type == VCHR) &&
+	    vnode.v_rdev != NULL){
 		vn->vn_dev = dev2udev(kd, vnode.v_rdev);
 		(void)kdevtoname(kd, vnode.v_rdev, vn->vn_devname);
 	}
