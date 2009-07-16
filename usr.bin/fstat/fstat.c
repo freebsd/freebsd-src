@@ -485,11 +485,11 @@ print_pts_info(struct procstat *procstat, struct filestat *fst)
 		return;
 	}
 	printf("* pseudo-terminal master ");
-	if (nflg) {
+	if (nflg || !*pts.devname) {
 		printf("%10d,%-2d", major(pts.dev), minor(pts.dev));
-	} /* else {
-		printf("%10s", pts.name);
-	} */
+	} else {
+		printf("%10s", pts.devname);
+	}
 	print_access_flags(fst->fs_fflags);
 }
 
@@ -497,7 +497,6 @@ static void
 print_vnode_info(struct procstat *procstat, struct filestat *fst)
 {
 	struct vnstat vn;
-	char *name;
 	const char *badtype;
 	char errbuf[_POSIX2_LINE_MAX];
 	char mode[15];
@@ -532,12 +531,10 @@ print_vnode_info(struct procstat *procstat, struct filestat *fst)
 	(void)printf(" %6ld %10s", vn.vn_fileid, mode);
 
 	if (vn.vn_type == PS_FST_VTYPE_VBLK || vn.vn_type == PS_FST_VTYPE_VCHR) {
-		name = NULL;
-//		name = fst->vnode.dev.name;
-		if (nflg || !name)
+		if (nflg || !*vn.vn_devname)
 			printf("  %2d,%-2d", major(vn.vn_dev), minor(vn.vn_dev));
 		else {
-			printf(" %6s", name);
+			printf(" %6s", vn.vn_devname);
 		}
 	} else
 		printf(" %6lu", vn.vn_size);

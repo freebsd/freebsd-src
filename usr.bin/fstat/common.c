@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
@@ -118,14 +119,16 @@ kvm_read_all(kvm_t *kd, unsigned long addr, void *buf, size_t nbytes)
 	return (error == (ssize_t)(nbytes));
 }
 
-char *
-kdevtoname(kvm_t *kd, struct cdev *dev)
+int
+kdevtoname(kvm_t *kd, struct cdev *dev, char *buf)
 {
 	struct cdev si;
 
+	assert(buf);
 	if (!kvm_read_all(kd, (unsigned long)dev, &si, sizeof(si)))
-		return (NULL);
-	return (strdup(si.__si_namebuf));
+		return (1);
+	strlcpy(buf, si.__si_namebuf, SPECNAMELEN + 1);
+	return (0);
 }
 
 int
@@ -228,6 +231,7 @@ dev2udev(kvm_t *kd, struct cdev *dev)
 {
 	struct cdev_priv priv;
 
+	assert(kd);
 	if (kvm_read_all(kd, (unsigned long)cdev2priv(dev), &priv,
 	    sizeof(priv))) {
 		return ((dev_t)priv.cdp_inode);

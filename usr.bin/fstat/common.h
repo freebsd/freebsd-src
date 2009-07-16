@@ -47,6 +47,7 @@ struct filestat {
 
 struct vnstat {
 	dev_t	vn_dev;
+	char	vn_devname[SPECNAMELEN + 1];
 	int	vn_type;
 	long	vn_fsid;
 	long	vn_fileid;
@@ -57,6 +58,7 @@ struct vnstat {
 
 struct ptsstat {
 	dev_t	dev;
+	char	devname[SPECNAMELEN + 1];
 };
 
 struct pipestat {
@@ -84,7 +86,7 @@ extern int vflg;
 
 dev_t	dev2udev(kvm_t *kd, struct cdev *dev);
 void	dprintf(FILE *file, const char *fmt, ...);
-char	*kdevtoname(kvm_t *kd, struct cdev *dev);
+int	kdevtoname(kvm_t *kd, struct cdev *dev, char *);
 int	kvm_read_all(kvm_t *kd, unsigned long addr, void *buf,
     size_t nbytes);
 
