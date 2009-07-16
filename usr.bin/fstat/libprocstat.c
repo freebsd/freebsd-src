@@ -360,36 +360,36 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, int mmapped)
 
 	/* root directory vnode, if one. */
 	if (filed.fd_rdir) {
-		entry = filestat_new_entry(filed.fd_rdir, PS_FST_TYPE_VNODE, PS_FST_FD_RDIR,
-		    PS_FST_FFLAG_READ);
+		entry = filestat_new_entry(filed.fd_rdir, PS_FST_TYPE_VNODE,
+		    PS_FST_FD_RDIR, PS_FST_FFLAG_READ);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	/* current working directory vnode. */
 	if (filed.fd_cdir) {
-		entry = filestat_new_entry(filed.fd_cdir, PS_FST_TYPE_VNODE, PS_FST_FD_CDIR,
-		    PS_FST_FFLAG_READ);
+		entry = filestat_new_entry(filed.fd_cdir, PS_FST_TYPE_VNODE,
+		    PS_FST_FD_CDIR, PS_FST_FFLAG_READ);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	/* jail root, if any. */
 	if (filed.fd_jdir) {
-		entry = filestat_new_entry(filed.fd_jdir, PS_FST_TYPE_VNODE, PS_FST_FD_JAIL,
-		    PS_FST_FFLAG_READ);
+		entry = filestat_new_entry(filed.fd_jdir, PS_FST_TYPE_VNODE,
+		    PS_FST_FD_JAIL, PS_FST_FFLAG_READ);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	/* ktrace vnode, if one */
 	if (kp->ki_tracep) {
-		entry = filestat_new_entry(kp->ki_tracep, PS_FST_TYPE_VNODE, PS_FST_FD_TRACE,
-		    PS_FST_FFLAG_READ | PS_FST_FFLAG_WRITE);
+		entry = filestat_new_entry(kp->ki_tracep, PS_FST_TYPE_VNODE,
+		    PS_FST_FD_TRACE, PS_FST_FFLAG_READ | PS_FST_FFLAG_WRITE);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 	/* text vnode, if one */
 	if (kp->ki_textvp) {
-		entry = filestat_new_entry(kp->ki_textvp, PS_FST_TYPE_VNODE, PS_FST_FD_TEXT,
-		    PS_FST_FFLAG_READ);
+		entry = filestat_new_entry(kp->ki_textvp, PS_FST_TYPE_VNODE,
+		    PS_FST_FD_TEXT, PS_FST_FFLAG_READ);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
@@ -440,8 +440,6 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, int mmapped)
 			break;
 #endif
 		default:
-			warnx("unknown file type %d for file %d",
-			    file.f_type, i);
 			continue;
 		}
 		entry = filestat_new_entry(data, type, i,
@@ -672,7 +670,8 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 	vn->vn_type = vntype2psfsttype(vnode.v_type);
 	if (vnode.v_type == VNON || vnode.v_type == VBAD)
 		return (0);
-	error = kvm_read_all(kd, (unsigned long)vnode.v_tag, tagstr, sizeof(tagstr));
+	error = kvm_read_all(kd, (unsigned long)vnode.v_tag, tagstr,
+	    sizeof(tagstr));
 	if (error == 0) {
 		warnx("can't read v_tag at %p", (void *)vp);
 		goto fail;
