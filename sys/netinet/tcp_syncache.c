@@ -103,9 +103,9 @@ static VNET_DEFINE(int, tcp_syncookies);
 static VNET_DEFINE(int, tcp_syncookiesonly);
 VNET_DEFINE(int, tcp_sc_rst_sock_fail);
 
-#define	V_tcp_syncache			VNET_GET(tcp_syncache)
-#define	V_tcp_syncookies		VNET_GET(tcp_syncookies)
-#define	V_tcp_syncookiesonly		VNET_GET(tcp_syncookiesonly)
+#define	V_tcp_syncache			VNET(tcp_syncache)
+#define	V_tcp_syncookies		VNET(tcp_syncookies)
+#define	V_tcp_syncookiesonly		VNET(tcp_syncookiesonly)
 
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,
     &VNET_NAME(tcp_syncookies), 0,

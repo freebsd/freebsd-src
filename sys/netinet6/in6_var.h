@@ -490,9 +490,9 @@ VNET_DECLARE(struct in6_ifaddrhead, in6_ifaddrhead);
 VNET_DECLARE(struct icmp6stat, icmp6stat);
 VNET_DECLARE(unsigned long, in6_maxmtu);
 
-#define	V_in6_ifaddrhead		VNET_GET(in6_ifaddrhead)
-#define	V_icmp6stat			VNET_GET(icmp6stat)
-#define	V_in6_maxmtu			VNET_GET(in6_maxmtu)
+#define	V_in6_ifaddrhead		VNET(in6_ifaddrhead)
+#define	V_icmp6stat			VNET(icmp6stat)
+#define	V_in6_maxmtu			VNET(in6_maxmtu)
 
 extern struct rwlock in6_ifaddr_lock;
 #define	IN6_IFADDR_LOCK_ASSERT(	)	rw_assert(&in6_ifaddr_lock, RA_LOCKED)

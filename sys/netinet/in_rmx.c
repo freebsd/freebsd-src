@@ -135,9 +135,9 @@ static VNET_DEFINE(int, rtq_reallyold);
 static VNET_DEFINE(int, rtq_minreallyold);
 static VNET_DEFINE(int, rtq_toomany);
 
-#define	V_rtq_reallyold		VNET_GET(rtq_reallyold)
-#define	V_rtq_minreallyold	VNET_GET(rtq_minreallyold)
-#define	V_rtq_toomany		VNET_GET(rtq_toomany)
+#define	V_rtq_reallyold		VNET(rtq_reallyold)
+#define	V_rtq_minreallyold	VNET(rtq_minreallyold)
+#define	V_rtq_toomany		VNET(rtq_toomany)
 
 SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
     &VNET_NAME(rtq_reallyold), 0,
@@ -242,8 +242,8 @@ in_rtqkill(struct radix_node *rn, void *rock)
 static VNET_DEFINE(int, rtq_timeout);
 static VNET_DEFINE(struct callout, rtq_timer);
 
-#define	V_rtq_timeout		VNET_GET(rtq_timeout)
-#define	V_rtq_timer		VNET_GET(rtq_timer)
+#define	V_rtq_timeout		VNET(rtq_timeout)
+#define	V_rtq_timer		VNET(rtq_timer)
 
 static void in_rtqtimo_one(void *rock);
 

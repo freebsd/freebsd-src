@@ -785,10 +785,10 @@ VNET_DECLARE(struct ifgrouphead, ifg_head);
 VNET_DECLARE(int, if_index);
 VNET_DECLARE(struct ifnet *, loif);	/* first loopback interface */
 
-#define	V_ifnet		VNET_GET(ifnet)
-#define	V_ifg_head	VNET_GET(ifg_head)
-#define	V_if_index	VNET_GET(if_index)
-#define	V_loif		VNET_GET(loif)
+#define	V_ifnet		VNET(ifnet)
+#define	V_ifg_head	VNET(ifg_head)
+#define	V_if_index	VNET(if_index)
+#define	V_loif		VNET(loif)
 
 extern	int ifqmaxlen;
 

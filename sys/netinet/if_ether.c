@@ -89,10 +89,10 @@ static VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
 						 * local traffic */
 static VNET_DEFINE(int, arp_proxyall);
 
-#define	V_arpt_keep		VNET_GET(arpt_keep)
-#define	V_arp_maxtries		VNET_GET(arp_maxtries)
-#define	V_useloopback		VNET_GET(useloopback)
-#define	V_arp_proxyall		VNET_GET(arp_proxyall)
+#define	V_arpt_keep		VNET(arpt_keep)
+#define	V_arp_maxtries		VNET(arp_maxtries)
+#define	V_useloopback		VNET(useloopback)
+#define	V_arp_proxyall		VNET(arp_proxyall)
 
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW,
 	&VNET_NAME(arpt_keep), 0,

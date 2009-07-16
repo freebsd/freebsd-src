@@ -113,8 +113,8 @@ VNET_DEFINE(struct ifnet *, loif);	/* Used externally */
 #ifdef VIMAGE
 static VNET_DEFINE(struct ifc_simple_data *, lo_cloner_data);
 static VNET_DEFINE(struct if_clone *, lo_cloner);
-#define	V_lo_cloner_data	VNET_GET(lo_cloner_data)
-#define	V_lo_cloner		VNET_GET(lo_cloner)
+#define	V_lo_cloner_data	VNET(lo_cloner_data)
+#define	V_lo_cloner		VNET(lo_cloner)
 
 MALLOC_DEFINE(M_LO_CLONER, "lo_cloner", "lo_cloner");
 #endif

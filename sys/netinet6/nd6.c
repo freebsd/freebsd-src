@@ -93,8 +93,8 @@ VNET_DEFINE(int, nd6_gctimer);
 static VNET_DEFINE(int, nd6_maxndopt);
 VNET_DEFINE(int, nd6_maxnudhint);
 static VNET_DEFINE(int, nd6_maxqueuelen);
-#define	V_nd6_maxndopt			VNET_GET(nd6_maxndopt)
-#define	V_nd6_maxqueuelen		VNET_GET(nd6_maxqueuelen)
+#define	V_nd6_maxndopt			VNET(nd6_maxndopt)
+#define	V_nd6_maxqueuelen		VNET(nd6_maxqueuelen)
 
 VNET_DEFINE(int, nd6_debug);
 
@@ -107,7 +107,7 @@ VNET_DEFINE(struct nd_drhead, nd_defrouter);
 VNET_DEFINE(struct nd_prhead, nd_prefix);
 
 VNET_DEFINE(int, nd6_recalc_reachtm_interval);
-#define	V_nd6_recalc_reachtm_interval	VNET_GET(nd6_recalc_reachtm_interval)
+#define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
 
 static struct sockaddr_in6 all1_sa;
 
@@ -121,14 +121,14 @@ static void nd6_llinfo_timer(void *);
 static void clear_llinfo_pqueue(struct llentry *);
 
 static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
-#define	V_nd6_slowtimo_ch		VNET_GET(nd6_slowtimo_ch)
+#define	V_nd6_slowtimo_ch		VNET(nd6_slowtimo_ch)
 
 VNET_DEFINE(struct callout, nd6_timer_ch);
 
 VNET_DECLARE(int, dad_ignore_ns);
 VNET_DECLARE(int, dad_maxtry);
-#define	V_dad_ignore_ns			VNET_GET(dad_ignore_ns)
-#define	V_dad_maxtry			VNET_GET(dad_maxtry)
+#define	V_dad_ignore_ns			VNET(dad_ignore_ns)
+#define	V_dad_maxtry			VNET(dad_maxtry)
 
 void
 nd6_init(void)

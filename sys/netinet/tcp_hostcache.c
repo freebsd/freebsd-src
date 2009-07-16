@@ -109,8 +109,8 @@ __FBSDID("$FreeBSD$");
 static VNET_DEFINE(struct tcp_hostcache, tcp_hostcache);
 static VNET_DEFINE(struct callout, tcp_hc_callout);
 
-#define	V_tcp_hostcache		VNET_GET(tcp_hostcache)
-#define	V_tcp_hc_callout	VNET_GET(tcp_hc_callout)
+#define	V_tcp_hostcache		VNET(tcp_hostcache)
+#define	V_tcp_hc_callout	VNET(tcp_hc_callout)
 
 static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
 static struct hc_metrics *tcp_hc_insert(struct in_conninfo *);

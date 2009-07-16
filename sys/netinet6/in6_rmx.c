@@ -209,9 +209,9 @@ static VNET_DEFINE(int, rtq_reallyold6);
 static VNET_DEFINE(int, rtq_minreallyold6);
 static VNET_DEFINE(int, rtq_toomany6);
 
-#define	V_rtq_reallyold6		VNET_GET(rtq_reallyold6)
-#define	V_rtq_minreallyold6		VNET_GET(rtq_minreallyold6)
-#define	V_rtq_toomany6			VNET_GET(rtq_toomany6)
+#define	V_rtq_reallyold6		VNET(rtq_reallyold6)
+#define	V_rtq_minreallyold6		VNET(rtq_minreallyold6)
+#define	V_rtq_toomany6			VNET(rtq_toomany6)
 
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
     &VNET_NAME(rtq_reallyold6) , 0, "");
@@ -281,8 +281,8 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 static VNET_DEFINE(int, rtq_timeout6);
 static VNET_DEFINE(struct callout, rtq_timer6);
 
-#define	V_rtq_timeout6			VNET_GET(rtq_timeout6)
-#define	V_rtq_timer6			VNET_GET(rtq_timer6)
+#define	V_rtq_timeout6			VNET(rtq_timeout6)
+#define	V_rtq_timer6			VNET(rtq_timer6)
 
 static void
 in6_rtqtimo(void *rock)
@@ -349,7 +349,7 @@ struct mtuex_arg {
 };
 
 static VNET_DEFINE(struct callout, rtq_mtutimer);
-#define	V_rtq_mtutimer			VNET_GET(rtq_mtutimer)
+#define	V_rtq_mtutimer			VNET(rtq_mtutimer)
 
 static int
 in6_mtuexpire(struct radix_node *rn, void *rock)

@@ -177,7 +177,7 @@ static struct mtx	ng_typelist_mtx;
 /* Hash related definitions */
 /* XXX Don't need to initialise them because it's a LIST */
 static VNET_DEFINE(LIST_HEAD(, ng_node), ng_ID_hash[NG_ID_HASH_SIZE]);
-#define	V_ng_ID_hash			VNET_GET(ng_ID_hash)
+#define	V_ng_ID_hash			VNET(ng_ID_hash)
 
 static struct mtx	ng_idhash_mtx;
 /* Method to find a node.. used twice so do it here */
@@ -195,7 +195,7 @@ static struct mtx	ng_idhash_mtx;
 	} while (0)
 
 static VNET_DEFINE(LIST_HEAD(, ng_node), ng_name_hash[NG_NAME_HASH_SIZE]);
-#define	V_ng_name_hash			VNET_GET(ng_name_hash)
+#define	V_ng_name_hash			VNET(ng_name_hash)
 
 static struct mtx	ng_namehash_mtx;
 #define NG_NAMEHASH(NAME, HASH)				\
@@ -365,7 +365,7 @@ ng_alloc_node(void)
 #endif
 
 static VNET_DEFINE(ng_ID_t, nextID) = 1;
-#define	V_nextID			VNET_GET(nextID)
+#define	V_nextID			VNET(nextID)
 
 #ifdef INVARIANTS
 #define CHECK_DATA_MBUF(m)	do {					\

@@ -126,13 +126,13 @@ static VNET_DEFINE(int, tcp_inflight_min);
 static VNET_DEFINE(int, tcp_inflight_max);
 static VNET_DEFINE(int, tcp_inflight_stab);
 
-#define	V_icmp_may_rst			VNET_GET(icmp_may_rst)
-#define	V_tcp_isn_reseed_interval	VNET_GET(tcp_isn_reseed_interval)
-#define	V_tcp_inflight_enable		VNET_GET(tcp_inflight_enable)
-#define	V_tcp_inflight_rttthresh	VNET_GET(tcp_inflight_rttthresh)
-#define	V_tcp_inflight_min		VNET_GET(tcp_inflight_min)
-#define	V_tcp_inflight_max		VNET_GET(tcp_inflight_max)
-#define	V_tcp_inflight_stab		VNET_GET(tcp_inflight_stab)
+#define	V_icmp_may_rst			VNET(icmp_may_rst)
+#define	V_tcp_isn_reseed_interval	VNET(tcp_isn_reseed_interval)
+#define	V_tcp_inflight_enable		VNET(tcp_inflight_enable)
+#define	V_tcp_inflight_rttthresh	VNET(tcp_inflight_rttthresh)
+#define	V_tcp_inflight_min		VNET(tcp_inflight_min)
+#define	V_tcp_inflight_max		VNET(tcp_inflight_max)
+#define	V_tcp_inflight_stab		VNET(tcp_inflight_stab)
 
 static int
 sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
@@ -252,7 +252,7 @@ SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, stab, CTLFLAG_RW,
     "Inflight Algorithm Stabilization 20 = 2 packets");
 
 VNET_DEFINE(uma_zone_t, sack_hole_zone);
-#define	V_sack_hole_zone		VNET_GET(sack_hole_zone)
+#define	V_sack_hole_zone		VNET(sack_hole_zone)
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static void	tcp_isn_tick(void *);
@@ -279,7 +279,7 @@ struct tcpcb_mem {
 };
 
 static VNET_DEFINE(uma_zone_t, tcpcb_zone);
-#define	V_tcpcb_zone			VNET_GET(tcpcb_zone)
+#define	V_tcpcb_zone			VNET(tcpcb_zone)
 
 MALLOC_DEFINE(M_TCPLOG, "tcplog", "TCP address and flags print buffers");
 struct callout isn_callout;
@@ -1514,10 +1514,10 @@ static VNET_DEFINE(int, isn_last_reseed);
 static VNET_DEFINE(u_int32_t, isn_offset);
 static VNET_DEFINE(u_int32_t, isn_offset_old);
 
-#define	V_isn_secret			VNET_GET(isn_secret)
-#define	V_isn_last_reseed		VNET_GET(isn_last_reseed)
-#define	V_isn_offset			VNET_GET(isn_offset)
-#define	V_isn_offset_old		VNET_GET(isn_offset_old)
+#define	V_isn_secret			VNET(isn_secret)
+#define	V_isn_last_reseed		VNET(isn_last_reseed)
+#define	V_isn_offset			VNET(isn_offset)
+#define	V_isn_offset_old		VNET(isn_offset_old)
 
 tcp_seq
 tcp_new_isn(struct tcpcb *tp)

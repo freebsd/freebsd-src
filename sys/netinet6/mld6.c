@@ -211,11 +211,11 @@ static VNET_DEFINE(int, interface_timers_running6);
 static VNET_DEFINE(int, state_change_timers_running6);
 static VNET_DEFINE(int, current_state_timers_running6);
 
-#define	V_mld_gsrdelay			VNET_GET(mld_gsrdelay)
-#define	V_mli_head			VNET_GET(mli_head)
-#define	V_interface_timers_running6	VNET_GET(interface_timers_running6)
-#define	V_state_change_timers_running6	VNET_GET(state_change_timers_running6)
-#define	V_current_state_timers_running6	VNET_GET(current_state_timers_running6)
+#define	V_mld_gsrdelay			VNET(mld_gsrdelay)
+#define	V_mli_head			VNET(mli_head)
+#define	V_interface_timers_running6	VNET(interface_timers_running6)
+#define	V_state_change_timers_running6	VNET(state_change_timers_running6)
+#define	V_current_state_timers_running6	VNET(current_state_timers_running6)
 
 SYSCTL_DECL(_net_inet6);	/* Note: Not in any common header. */
 

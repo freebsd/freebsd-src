@@ -653,12 +653,12 @@ void ipfw_nat_destroy(void);
 
 VNET_DECLARE(int, fw_one_pass);
 VNET_DECLARE(int, fw_enable);
-#define	V_fw_one_pass		VNET_GET(fw_one_pass)
-#define	V_fw_enable		VNET_GET(fw_enable)
+#define	V_fw_one_pass		VNET(fw_one_pass)
+#define	V_fw_enable		VNET(fw_enable)
 
 #ifdef INET6
 VNET_DECLARE(int, fw6_enable);
-#define	V_fw6_enable		VNET_GET(fw6_enable)
+#define	V_fw6_enable		VNET(fw6_enable)
 #endif
 
 struct ip_fw_chain {
@@ -695,7 +695,7 @@ typedef int ipfw_nat_cfg_t(struct sockopt *);
 #endif
 
 VNET_DECLARE(struct ip_fw_chain, layer3_chain);
-#define	V_layer3_chain		VNET_GET(layer3_chain)
+#define	V_layer3_chain		VNET(layer3_chain)
 
 #endif /* _KERNEL */
 #endif /* _IPFW2_H */

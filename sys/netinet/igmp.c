@@ -219,17 +219,17 @@ static VNET_DEFINE(int, current_state_timers_running);	/* IGMPv1/v2 host
 							 * report; IGMPv3 g/sg
 							 * query response */
 
-#define	V_interface_timers_running	VNET_GET(interface_timers_running)
-#define	V_state_change_timers_running	VNET_GET(state_change_timers_running)
-#define	V_current_state_timers_running	VNET_GET(current_state_timers_running)
+#define	V_interface_timers_running	VNET(interface_timers_running)
+#define	V_state_change_timers_running	VNET(state_change_timers_running)
+#define	V_current_state_timers_running	VNET(current_state_timers_running)
 
 static VNET_DEFINE(LIST_HEAD(, igmp_ifinfo), igi_head);
 static VNET_DEFINE(struct igmpstat, igmpstat);
 static VNET_DEFINE(struct timeval, igmp_gsrdelay) = {10, 0};
 
-#define	V_igi_head			VNET_GET(igi_head)
-#define	V_igmpstat			VNET_GET(igmpstat)
-#define	V_igmp_gsrdelay			VNET_GET(igmp_gsrdelay)
+#define	V_igi_head			VNET(igi_head)
+#define	V_igmpstat			VNET(igmpstat)
+#define	V_igmp_gsrdelay			VNET(igmp_gsrdelay)
 
 static VNET_DEFINE(int, igmp_recvifkludge) = 1;
 static VNET_DEFINE(int, igmp_sendra) = 1;
@@ -239,13 +239,13 @@ static VNET_DEFINE(int, igmp_v2enable) = 1;
 static VNET_DEFINE(int, igmp_legacysupp);
 static VNET_DEFINE(int, igmp_default_version) = IGMP_VERSION_3;
 
-#define	V_igmp_recvifkludge		VNET_GET(igmp_recvifkludge)
-#define	V_igmp_sendra			VNET_GET(igmp_sendra)
-#define	V_igmp_sendlocal		VNET_GET(igmp_sendlocal)
-#define	V_igmp_v1enable			VNET_GET(igmp_v1enable)
-#define	V_igmp_v2enable			VNET_GET(igmp_v2enable)
-#define	V_igmp_legacysupp		VNET_GET(igmp_legacysupp)
-#define	V_igmp_default_version		VNET_GET(igmp_default_version)
+#define	V_igmp_recvifkludge		VNET(igmp_recvifkludge)
+#define	V_igmp_sendra			VNET(igmp_sendra)
+#define	V_igmp_sendlocal		VNET(igmp_sendlocal)
+#define	V_igmp_v1enable			VNET(igmp_v1enable)
+#define	V_igmp_v2enable			VNET(igmp_v2enable)
+#define	V_igmp_legacysupp		VNET(igmp_legacysupp)
+#define	V_igmp_default_version		VNET(igmp_default_version)
 
 /*
  * Virtualized sysctls.

@@ -119,8 +119,8 @@ __FBSDID("$FreeBSD$");
 static VNET_DEFINE(struct inpcbhead, divcb);
 static VNET_DEFINE(struct inpcbinfo, divcbinfo);
 
-#define	V_divcb				VNET_GET(divcb)
-#define	V_divcbinfo			VNET_GET(divcbinfo)
+#define	V_divcb				VNET(divcb)
+#define	V_divcbinfo			VNET(divcbinfo)
 
 static u_long	div_sendspace = DIVSNDQ;	/* XXX sysctl ? */
 static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */

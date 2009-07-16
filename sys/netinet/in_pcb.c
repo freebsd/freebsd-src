@@ -110,7 +110,7 @@ VNET_DEFINE(int, ipport_stoprandom);		/* toggled by ipport_tick */
 VNET_DEFINE(int, ipport_tcpallocs);
 static VNET_DEFINE(int, ipport_tcplastcount);
 
-#define	V_ipport_tcplastcount		VNET_GET(ipport_tcplastcount)
+#define	V_ipport_tcplastcount		VNET(ipport_tcplastcount)
 
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
