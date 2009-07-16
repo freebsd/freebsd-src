@@ -77,7 +77,7 @@ static VNET_DEFINE(int, ip4_ipsec_filtertunnel) = 1;
 #else
 static VNET_DEFINE(int, ip4_ipsec_filtertunnel) = 0;
 #endif
-#define	V_ip4_ipsec_filtertunnel VNET_GET(ip4_ipsec_filtertunnel)
+#define	V_ip4_ipsec_filtertunnel VNET(ip4_ipsec_filtertunnel)
 
 SYSCTL_DECL(_net_inet_ipsec);
 SYSCTL_VNET_INT(_net_inet_ipsec, OID_AUTO, filtertunnel,

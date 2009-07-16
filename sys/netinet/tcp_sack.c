@@ -128,11 +128,11 @@ VNET_DEFINE(int, tcp_sack_maxholes);
 VNET_DEFINE(int, tcp_sack_globalmaxholes);
 VNET_DEFINE(int, tcp_sack_globalholes);
 
-#define	V_sack_hole_zone		VNET_GET(sack_hole_zone)
-#define	V_tcp_do_sack			VNET_GET(tcp_do_sack)
-#define	V_tcp_sack_maxholes		VNET_GET(tcp_sack_maxholes)
-#define	V_tcp_sack_globalmaxholes	VNET_GET(tcp_sack_globalmaxholes)
-#define	V_tcp_sack_globalholes		VNET_GET(tcp_sack_globalholes)
+#define	V_sack_hole_zone		VNET(sack_hole_zone)
+#define	V_tcp_do_sack			VNET(tcp_do_sack)
+#define	V_tcp_sack_maxholes		VNET(tcp_sack_maxholes)
+#define	V_tcp_sack_globalmaxholes	VNET(tcp_sack_globalmaxholes)
+#define	V_tcp_sack_globalholes		VNET(tcp_sack_globalholes)
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW, 0, "TCP SACK");
 SYSCTL_VNET_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_RW,

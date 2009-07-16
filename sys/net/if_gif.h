@@ -120,7 +120,7 @@ void gif_delete_tunnel(struct ifnet *);
 int gif_encapcheck(const struct mbuf *, int, int, void *);
 
 VNET_DECLARE(int, ip_gif_ttl);
-#define	V_ip_gif_ttl		VNET_GET(ip_gif_ttl)
+#define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 
 #endif /* _KERNEL */
 

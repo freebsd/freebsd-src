@@ -95,10 +95,10 @@ static VNET_DEFINE(int, ip_checkinterface);
 static VNET_DEFINE(int, ip_keepfaith);
 static VNET_DEFINE(int, ip_sendsourcequench);
 
-#define	V_ipsendredirects	VNET_GET(ipsendredirects)
-#define	V_ip_checkinterface	VNET_GET(ip_checkinterface)
-#define	V_ip_keepfaith		VNET_GET(ip_keepfaith)
-#define	V_ip_sendsourcequench	VNET_GET(ip_sendsourcequench)
+#define	V_ipsendredirects	VNET(ipsendredirects)
+#define	V_ip_checkinterface	VNET(ip_checkinterface)
+#define	V_ip_keepfaith		VNET(ip_keepfaith)
+#define	V_ip_sendsourcequench	VNET(ip_sendsourcequench)
 
 VNET_DEFINE(int, ip_defttl) = IPDEFTTL;
 VNET_DEFINE(int, ip_do_randomid);
@@ -113,17 +113,17 @@ static VNET_DEFINE(int, ip_rsvp_on);
 VNET_DEFINE(struct socket *, ip_rsvpd);
 VNET_DEFINE(int, rsvp_on);
 
-#define	V_ip_rsvp_on		VNET_GET(ip_rsvp_on)
+#define	V_ip_rsvp_on		VNET(ip_rsvp_on)
 
 static VNET_DEFINE(TAILQ_HEAD(ipqhead, ipq), ipq[IPREASS_NHASH]);
 static VNET_DEFINE(int, maxnipq);  /* Administrative limit on # reass queues. */
 static VNET_DEFINE(int, maxfragsperpacket);
 static VNET_DEFINE(int, nipq);			/* Total # of reass queues */
 
-#define	V_ipq			VNET_GET(ipq)
-#define	V_maxnipq		VNET_GET(maxnipq)
-#define	V_maxfragsperpacket	VNET_GET(maxfragsperpacket)
-#define	V_nipq			VNET_GET(nipq)
+#define	V_ipq			VNET(ipq)
+#define	V_maxnipq		VNET(maxnipq)
+#define	V_maxfragsperpacket	VNET(maxfragsperpacket)
+#define	V_nipq			VNET(nipq)
 
 VNET_DEFINE(int, ipstealth);
 
@@ -189,7 +189,7 @@ SYSCTL_VNET_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
     "IP statistics (struct ipstat, netinet/ip_var.h)");
 
 static VNET_DEFINE(uma_zone_t, ipq_zone);
-#define	V_ipq_zone		VNET_GET(ipq_zone)
+#define	V_ipq_zone		VNET(ipq_zone)
 
 static struct mtx ipqlock;
 
@@ -225,7 +225,7 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
 #ifdef FLOWTABLE
 static VNET_DEFINE(int, ip_output_flowtable_size) = 2048;
 VNET_DEFINE(struct flowtable *, ip_ft);
-#define	V_ip_output_flowtable_size	VNET_GET(ip_output_flowtable_size)
+#define	V_ip_output_flowtable_size	VNET(ip_output_flowtable_size)
 
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
     &VNET_NAME(ip_output_flowtable_size), 2048,

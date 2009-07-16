@@ -53,19 +53,16 @@ __asm__(".previous");
 #define	_VNET_PTR(b, n)		(__typeof(VNET_NAME(n))*)		\
 				    ((b) + (uintptr_t)&VNET_NAME(n))
 
-#define	_VNET_GET(b, n)		(*_VNET_PTR(b, n))
-#define	_VNET_SET(b, n, v)	(*_VNET_PTR(b, n) = v)
+#define	_VNET(b, n)		(*_VNET_PTR(b, n))
 
 /*
  * Virtualized global variable accessor macros.
  */
 #define	VNET_VNET_PTR(vnet, n)		_VNET_PTR((vnet)->vnet_data_base, n)
-#define	VNET_VNET_GET(vnet, n)		(*VNET_VNET_PTR((vnet), n))
-#define	VNET_VNET_SET(vnet, n, v)	((*VNET_VNET_PTR((vnet), n)) = v)
+#define	VNET_VNET(vnet, n)		(*VNET_VNET_PTR((vnet), n))
 
 #define	VNET_PTR(n)		VNET_VNET_PTR(curvnet, n)
-#define	VNET_GET(n)		VNET_VNET_GET(curvnet, n)
-#define	VNET_SET(n, v)		VNET_VNET_SET(curvnet, n, v)
+#define	VNET(n)			VNET_VNET(curvnet, n)
 
 /*
  * Sysctl variants for vnet-virtualized global variables.  Include
@@ -143,12 +140,10 @@ void	 vnet_data_destroy(struct vnet *vnet);
  * Virtualized global variable accessor macros.
  */
 #define	VNET_VNET_PTR(vnet, n)		(&(n))
-#define	VNET_VNET_GET(vnet, n)		(n)
-#define	VNET_VNET_SET(vnet, n, v)	((n) = (v))
+#define	VNET_VNET(vnet, n)		(n)
 
 #define	VNET_PTR(n)		(&(n))
-#define	VNET_GET(n)		(n)
-#define	VNET_SET(n, v)		((n) = (v))
+#define	VNET(n)			(n)
 
 #endif /* VIMAGE */
 

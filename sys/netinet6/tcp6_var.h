@@ -67,7 +67,7 @@
 SYSCTL_DECL(_net_inet6_tcp6);
 
 VNET_DECLARE(int, tcp_v6mssdflt);	/* XXX */
-#define	V_tcp_v6mssdflt			VNET_GET(tcp_v6mssdflt)
+#define	V_tcp_v6mssdflt			VNET(tcp_v6mssdflt)
 #endif
 
 struct	ip6_hdr;

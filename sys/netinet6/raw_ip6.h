@@ -49,7 +49,7 @@ struct rip6stat {
 
 #ifdef _KERNEL
 VNET_DECLARE(struct rip6stat, rip6stat);
-#define	V_rip6stat			VNET_GET(rip6stat)
+#define	V_rip6stat			VNET(rip6stat)
 #endif
 
 #endif

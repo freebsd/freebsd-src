@@ -79,9 +79,9 @@ static VNET_DEFINE(int, subnetsarelocal);
 static VNET_DEFINE(int, sameprefixcarponly);
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 
-#define	V_subnetsarelocal		VNET_GET(subnetsarelocal)
-#define	V_sameprefixcarponly		VNET_GET(sameprefixcarponly)
-#define	V_ripcbinfo			VNET_GET(ripcbinfo)
+#define	V_subnetsarelocal		VNET(subnetsarelocal)
+#define	V_sameprefixcarponly		VNET(sameprefixcarponly)
+#define	V_ripcbinfo			VNET(ripcbinfo)
 
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW,
 	&VNET_NAME(subnetsarelocal), 0,

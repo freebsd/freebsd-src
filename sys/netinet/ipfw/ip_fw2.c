@@ -116,10 +116,10 @@ static VNET_DEFINE(int, fw_verbose);
 static VNET_DEFINE(struct callout, ipfw_timeout);
 static VNET_DEFINE(int, verbose_limit);
 
-#define	V_set_disable			VNET_GET(set_disable)
-#define	V_fw_verbose			VNET_GET(fw_verbose)
-#define	V_ipfw_timeout			VNET_GET(ipfw_timeout)
-#define	V_verbose_limit			VNET_GET(verbose_limit)
+#define	V_set_disable			VNET(set_disable)
+#define	V_fw_verbose			VNET(fw_verbose)
+#define	V_ipfw_timeout			VNET(ipfw_timeout)
+#define	V_verbose_limit			VNET(verbose_limit)
 
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
 static int default_to_accept = 1;
@@ -151,7 +151,7 @@ struct table_entry {
 };
 
 static VNET_DEFINE(int, autoinc_step);
-#define	V_autoinc_step			VNET_GET(autoinc_step)
+#define	V_autoinc_step			VNET(autoinc_step)
 
 extern int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
@@ -220,9 +220,9 @@ static VNET_DEFINE(ipfw_dyn_rule **, ipfw_dyn_v);
 static VNET_DEFINE(u_int32_t, dyn_buckets);
 static VNET_DEFINE(u_int32_t, curr_dyn_buckets);
 
-#define	V_ipfw_dyn_v			VNET_GET(ipfw_dyn_v)
-#define	V_dyn_buckets			VNET_GET(dyn_buckets)
-#define	V_curr_dyn_buckets		VNET_GET(curr_dyn_buckets)
+#define	V_ipfw_dyn_v			VNET(ipfw_dyn_v)
+#define	V_dyn_buckets			VNET(dyn_buckets)
+#define	V_curr_dyn_buckets		VNET(curr_dyn_buckets)
 
 static struct mtx ipfw_dyn_mtx;		/* mutex guarding dynamic rules */
 #define	IPFW_DYN_LOCK_INIT() \
@@ -242,12 +242,12 @@ static VNET_DEFINE(u_int32_t, dyn_rst_lifetime);
 static VNET_DEFINE(u_int32_t, dyn_udp_lifetime);
 static VNET_DEFINE(u_int32_t, dyn_short_lifetime);
 
-#define	V_dyn_ack_lifetime		VNET_GET(dyn_ack_lifetime)
-#define	V_dyn_syn_lifetime		VNET_GET(dyn_syn_lifetime)
-#define	V_dyn_fin_lifetime		VNET_GET(dyn_fin_lifetime)
-#define	V_dyn_rst_lifetime		VNET_GET(dyn_rst_lifetime)
-#define	V_dyn_udp_lifetime		VNET_GET(dyn_udp_lifetime)
-#define	V_dyn_short_lifetime		VNET_GET(dyn_short_lifetime)
+#define	V_dyn_ack_lifetime		VNET(dyn_ack_lifetime)
+#define	V_dyn_syn_lifetime		VNET(dyn_syn_lifetime)
+#define	V_dyn_fin_lifetime		VNET(dyn_fin_lifetime)
+#define	V_dyn_rst_lifetime		VNET(dyn_rst_lifetime)
+#define	V_dyn_udp_lifetime		VNET(dyn_udp_lifetime)
+#define	V_dyn_short_lifetime		VNET(dyn_short_lifetime)
 
 /*
  * Keepalives are sent if dyn_keepalive is set. They are sent every
@@ -261,19 +261,19 @@ static VNET_DEFINE(u_int32_t, dyn_keepalive_interval);
 static VNET_DEFINE(u_int32_t, dyn_keepalive_period);
 static VNET_DEFINE(u_int32_t, dyn_keepalive);
 
-#define	V_dyn_keepalive_interval	VNET_GET(dyn_keepalive_interval)
-#define	V_dyn_keepalive_period		VNET_GET(dyn_keepalive_period)
-#define	V_dyn_keepalive			VNET_GET(dyn_keepalive)
+#define	V_dyn_keepalive_interval	VNET(dyn_keepalive_interval)
+#define	V_dyn_keepalive_period		VNET(dyn_keepalive_period)
+#define	V_dyn_keepalive			VNET(dyn_keepalive)
 
 static VNET_DEFINE(u_int32_t, static_count);	/* # of static rules */
 static VNET_DEFINE(u_int32_t, static_len);	/* bytes of static rules */
 static VNET_DEFINE(u_int32_t, dyn_count);	/* # of dynamic rules */
 static VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
 
-#define	V_static_count			VNET_GET(static_count)
-#define	V_static_len			VNET_GET(static_len)
-#define	V_dyn_count			VNET_GET(dyn_count)
-#define	V_dyn_max			VNET_GET(dyn_max)
+#define	V_static_count			VNET(static_count)
+#define	V_static_len			VNET(static_len)
+#define	V_dyn_count			VNET(dyn_count)
+#define	V_dyn_max			VNET(dyn_max)
 
 #ifdef SYSCTL_NODE
 SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
@@ -323,7 +323,7 @@ static struct sysctl_oid *ip6_fw_sysctl_tree;
 #endif /* INET6 */
 
 static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
-#define	V_fw_deny_unknown_exthdrs	VNET_GET(fw_deny_unknown_exthdrs)
+#define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
 
 /*
  * L3HDR maps an ipv4 pointer into a layer3 header pointer of type T
@@ -780,7 +780,7 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 
 /* counter for ipfw_log(NULL...) */
 static VNET_DEFINE(u_int64_t, norule_counter);
-#define	V_norule_counter		VNET_GET(norule_counter)
+#define	V_norule_counter		VNET(norule_counter)
 
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 #define SNP(buf) buf, sizeof(buf)

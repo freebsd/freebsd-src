@@ -77,8 +77,8 @@ __FBSDID("$FreeBSD$");
 VNET_DEFINE(struct inpcbhead, ripcb);
 VNET_DEFINE(struct inpcbinfo, ripcbinfo);
 
-#define	V_ripcb			VNET_GET(ripcb)
-#define	V_ripcbinfo		VNET_GET(ripcbinfo)
+#define	V_ripcb			VNET(ripcb)
+#define	V_ripcbinfo		VNET(ripcbinfo)
 
 /*
  * Control and data hooks for ipfw and dummynet.

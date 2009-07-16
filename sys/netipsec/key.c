@@ -115,35 +115,35 @@
 
 VNET_DEFINE(u_int32_t, key_debug_level) = 0;
 static VNET_DEFINE(u_int, key_spi_trycnt) = 1000;
-#define	V_key_spi_trycnt	VNET_GET(key_spi_trycnt)
+#define	V_key_spi_trycnt	VNET(key_spi_trycnt)
 static VNET_DEFINE(u_int32_t, key_spi_minval) = 0x100;
-#define	V_key_spi_minval	VNET_GET(key_spi_minval)
+#define	V_key_spi_minval	VNET(key_spi_minval)
 static VNET_DEFINE(u_int32_t, key_spi_maxval) = 0x0fffffff;	/* XXX */
-#define	V_key_spi_maxval	VNET_GET(key_spi_maxval)
+#define	V_key_spi_maxval	VNET(key_spi_maxval)
 static VNET_DEFINE(u_int32_t, policy_id) = 0;
-#define	V_policy_id		VNET_GET(policy_id)
+#define	V_policy_id		VNET(policy_id)
 /*interval to initialize randseed,1(m)*/
 static VNET_DEFINE(u_int, key_int_random) = 60;
-#define	V_key_int_random	VNET_GET(key_int_random)
+#define	V_key_int_random	VNET(key_int_random)
 /* interval to expire acquiring, 30(s)*/
 static VNET_DEFINE(u_int, key_larval_lifetime) = 30;
-#define	V_key_larval_lifetime	VNET_GET(key_larval_lifetime)
+#define	V_key_larval_lifetime	VNET(key_larval_lifetime)
 /* counter for blocking SADB_ACQUIRE.*/
 static VNET_DEFINE(int, key_blockacq_count) = 10;
-#define	V_key_blockacq_count	VNET_GET(key_blockacq_count)
+#define	V_key_blockacq_count	VNET(key_blockacq_count)
 /* lifetime for blocking SADB_ACQUIRE.*/
 static VNET_DEFINE(int, key_blockacq_lifetime) = 20;
-#define	V_key_blockacq_lifetime	VNET_GET(key_blockacq_lifetime)
+#define	V_key_blockacq_lifetime	VNET(key_blockacq_lifetime)
 /* preferred old sa rather than new sa.*/
 static VNET_DEFINE(int, key_preferred_oldsa) = 1;
-#define	V_key_preferred_oldsa	VNET_GET(key_preferred_oldsa)
+#define	V_key_preferred_oldsa	VNET(key_preferred_oldsa)
 
 static VNET_DEFINE(u_int32_t, acq_seq) = 0;
-#define	V_acq_seq		VNET_GET(acq_seq)
+#define	V_acq_seq		VNET(acq_seq)
 
 								/* SPD */
 static VNET_DEFINE(LIST_HEAD(_sptree, secpolicy), sptree[IPSEC_DIR_MAX]);
-#define	V_sptree		VNET_GET(sptree)
+#define	V_sptree		VNET(sptree)
 static struct mtx sptree_lock;
 #define	SPTREE_LOCK_INIT() \
 	mtx_init(&sptree_lock, "sptree", \
@@ -154,7 +154,7 @@ static struct mtx sptree_lock;
 #define	SPTREE_LOCK_ASSERT()	mtx_assert(&sptree_lock, MA_OWNED)
 
 static VNET_DEFINE(LIST_HEAD(_sahtree, secashead), sahtree);	/* SAD */
-#define	V_sahtree		VNET_GET(sahtree)
+#define	V_sahtree		VNET(sahtree)
 static struct mtx sahtree_lock;
 #define	SAHTREE_LOCK_INIT() \
 	mtx_init(&sahtree_lock, "sahtree", \
@@ -166,7 +166,7 @@ static struct mtx sahtree_lock;
 
 							/* registed list */
 static VNET_DEFINE(LIST_HEAD(_regtree, secreg), regtree[SADB_SATYPE_MAX + 1]);
-#define	V_regtree		VNET_GET(regtree)
+#define	V_regtree		VNET(regtree)
 static struct mtx regtree_lock;
 #define	REGTREE_LOCK_INIT() \
 	mtx_init(&regtree_lock, "regtree", "fast ipsec regtree", MTX_DEF)
@@ -176,7 +176,7 @@ static struct mtx regtree_lock;
 #define	REGTREE_LOCK_ASSERT()	mtx_assert(&regtree_lock, MA_OWNED)
 
 static VNET_DEFINE(LIST_HEAD(_acqtree, secacq), acqtree); /* acquiring list */
-#define	V_acqtree		VNET_GET(acqtree)
+#define	V_acqtree		VNET(acqtree)
 static struct mtx acq_lock;
 #define	ACQ_LOCK_INIT() \
 	mtx_init(&acq_lock, "acqtree", "fast ipsec acquire list", MTX_DEF)
@@ -187,7 +187,7 @@ static struct mtx acq_lock;
 
 							/* SP acquiring list */
 static VNET_DEFINE(LIST_HEAD(_spacqtree, secspacq), spacqtree);
-#define	V_spacqtree		VNET_GET(spacqtree)
+#define	V_spacqtree		VNET(spacqtree)
 static struct mtx spacq_lock;
 #define	SPACQ_LOCK_INIT() \
 	mtx_init(&spacq_lock, "spacqtree", \
@@ -271,11 +271,11 @@ static const int maxsize[] = {
 };
 
 static VNET_DEFINE(int, ipsec_esp_keymin) = 256;
-#define	V_ipsec_esp_keymin	VNET_GET(ipsec_esp_keymin)
+#define	V_ipsec_esp_keymin	VNET(ipsec_esp_keymin)
 static VNET_DEFINE(int, ipsec_esp_auth) = 0;
-#define	V_ipsec_esp_auth	VNET_GET(ipsec_esp_auth)
+#define	V_ipsec_esp_auth	VNET(ipsec_esp_auth)
 static VNET_DEFINE(int, ipsec_ah_keymin) = 128;
-#define	V_ipsec_ah_keymin	VNET_GET(ipsec_ah_keymin)
+#define	V_ipsec_ah_keymin	VNET(ipsec_ah_keymin)
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_key);

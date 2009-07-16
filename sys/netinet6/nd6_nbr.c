@@ -93,8 +93,8 @@ static void nd6_dad_na_input(struct ifaddr *);
 VNET_DEFINE(int, dad_ignore_ns);
 VNET_DEFINE(int, dad_maxtry);
 
-#define	V_dad_ignore_ns			VNET_GET(dad_ignore_ns)
-#define	V_dad_maxtry			VNET_GET(dad_maxtry)
+#define	V_dad_ignore_ns			VNET(dad_ignore_ns)
+#define	V_dad_maxtry			VNET(dad_maxtry)
 
 /*
  * Input a Neighbor Solicitation Message.
@@ -1125,10 +1125,10 @@ struct dadq {
 };
 
 static VNET_DEFINE(TAILQ_HEAD(, dadq), dadq);
-#define	V_dadq				VNET_GET(dadq)
+#define	V_dadq				VNET(dadq)
 
 VNET_DEFINE(int, dad_init);
-#define	V_dad_init			VNET_GET(dad_init)
+#define	V_dad_init			VNET(dad_init)
 
 static struct dadq *
 nd6_dad_find(struct ifaddr *ifa)

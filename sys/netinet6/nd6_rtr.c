@@ -88,10 +88,10 @@ static void in6_init_address_ltimes __P((struct nd_prefix *,
 static int rt6_deleteroute(struct radix_node *, void *);
 
 VNET_DECLARE(int, nd6_recalc_reachtm_interval);
-#define	V_nd6_recalc_reachtm_interval	VNET_GET(nd6_recalc_reachtm_interval)
+#define	V_nd6_recalc_reachtm_interval	VNET(nd6_recalc_reachtm_interval)
 
 static VNET_DEFINE(struct ifnet *, nd6_defifp);
-#define	V_nd6_defifp			VNET_GET(nd6_defifp)
+#define	V_nd6_defifp			VNET(nd6_defifp)
 
 VNET_DEFINE(int, nd6_defifindex);
 VNET_DEFINE(int, ip6_use_tempaddr);
