@@ -642,7 +642,8 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		return (1);
 	}
 	vn->mntdir = getmnton(kd, vnode.v_mount);
-	vn->vn_dev = dev2udev(kd, vnode.v_rdev);
+	if (vnode.v_rdev != NULL)
+		vn->vn_dev = dev2udev(kd, vnode.v_rdev);
 	return (0);
 
 fail:
