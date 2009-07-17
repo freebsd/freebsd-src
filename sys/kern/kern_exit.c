@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
-#include <sys/vimage.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -687,7 +686,6 @@ static void
 proc_reap(struct thread *td, struct proc *p, int *status, int options,
     struct rusage *rusage)
 {
-	INIT_VPROCG(P_TO_VPROCG(p));
 	struct proc *q, *t;
 
 	sx_assert(&proctree_lock, SA_XLOCKED);
@@ -791,9 +789,6 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	uma_zfree(proc_zone, p);
 	sx_xlock(&allproc_lock);
 	nprocs--;
-#ifdef VIMAGE
-	vprocg->nprocs--;
-#endif
 	sx_xunlock(&allproc_lock);
 }
 
