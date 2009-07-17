@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#39 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#40 $
 # $FreeBSD$
 #
 # The mapping between event identifiers and values is also hard-coded in
@@ -556,6 +556,7 @@
 43193:AUE_PWRITE:pwrite(2):no
 43194:AUE_FSCTL:fsctl():fm
 43195:AUE_FFSCTL:ffsctl():fm
+43196:AUE_LPATHCONF:lpathconf(2):fa
 #
 # Solaris userspace events.
 #
