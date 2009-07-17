@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2007
+.Dd August 20, 2008
 .Dt ICHWD 4
 .Os
 .Sh NAME
@@ -50,12 +50,29 @@ The
 .Nm
 driver provides
 .Xr watchdog 4
-support for the watchdog interrupt timer present in
-the Intel ICH motherboard chipsets.
+support for the watchdog interrupt timer present on
+all Intel ICH motherboard chipsets.
+.Pp
+The ICH WDT counts down in ticks of approximately 0.6 seconds; the
+exact value depends on hardware quality and environmental factors.
+Supported watchdog intervals range from 2 to 63 ticks.
+.Pp
+Note that on some ICH-based systems, the WDT may be present but
+disabled, either in hardware or by the BIOS.
+The
+.Nm
+driver attempts to detect this condition and will refuse to attach if
+it believes the WDT is disabled.
 .Sh SEE ALSO
 .Xr watchdog 4 ,
 .Xr watchdog 8 ,
-.Xr watchdogd 8
+.Xr watchdogd 8,
+.Xr watchdog 9
+.Rs
+.%T Using the Intel ICH Family Watchdog Timer (WDT)
+.%R Intel Application Note AP-725
+.%O Document Number 292273-001
+.Re
 .Sh HISTORY
 The
 .Nm
@@ -65,8 +82,9 @@ driver first appeared in
 .An -nosplit
 The
 .Nm
-driver was originally written by
-.An Wm. Daryl Hawkins
-of Texas A&M University.
+driver was written by
+.An Wm. Daryl Hawkins Aq dhawkins@tamu.edu
+of Texas A&M University and
+.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
 This manual page was written by
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
