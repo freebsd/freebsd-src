@@ -48,6 +48,7 @@
 #define	RTLD_LOCAL	0	/* Opposite of RTLD_GLOBAL, and the default. */
 #define	RTLD_TRACE	0x200	/* Trace loaded objects and exit. */
 #define	RTLD_NODELETE	0x01000	/* Do not remove members. */
+#define	RTLD_NOLOAD	0x02000	/* Do not load if not already loaded. */
 
 /*
  * Request arguments for dlinfo().
