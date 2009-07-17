@@ -275,7 +275,6 @@ adaclose(struct disk *dp)
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE) {
 
 		ccb = cam_periph_getccb(periph, /*priority*/1);
-		ccb->ccb_h.ccb_state = ADA_CCB_DUMP;
 		cam_fill_ataio(&ccb->ataio,
 				    1,
 				    adadone,
@@ -289,7 +288,9 @@ adaclose(struct disk *dp)
 			ata_48bit_cmd(&ccb->ataio, ATA_FLUSHCACHE48, 0, 0, 0);
 		else
 			ata_48bit_cmd(&ccb->ataio, ATA_FLUSHCACHE, 0, 0, 0);
-		xpt_polled_action(ccb);
+		cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
+		    /*sense_flags*/SF_RETRY_UA,
+		    softc->disk->d_devstat);
 
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 			xpt_print(periph->path, "Synchronize cache failed\n");
