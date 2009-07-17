@@ -236,7 +236,7 @@ dwarf_op_num(uint8_t pointer_size, uint8_t *p, int len)
 		case DW_OP_plus_uconst:
 		case DW_OP_regx:
 		case DW_OP_piece:
-			uval = dwarf_decode_sleb128(&p);
+			uval = dwarf_decode_uleb128(&p);
 			break;
 
 		/* Operations with a signed LEB128 operand. */
@@ -458,7 +458,7 @@ dwarf_loc_fill(Dwarf_Locdesc *lbuf, uint8_t pointer_size, uint8_t *p, int len)
 		case DW_OP_plus_uconst:
 		case DW_OP_regx:
 		case DW_OP_piece:
-			operand1 = dwarf_decode_sleb128(&p);
+			operand1 = dwarf_decode_uleb128(&p);
 			break;
 
 		/* Operations with a signed LEB128 operand. */
