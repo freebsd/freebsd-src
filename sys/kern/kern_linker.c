@@ -992,12 +992,6 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	if ((error = priv_check(td, PRIV_KLD_LOAD)) != 0)
 		return (error);
 
-#ifdef VIMAGE
-	/* Only the default vimage is permitted to kldload modules. */
-	if (!IS_DEFAULT_VIMAGE(TD_TO_VIMAGE(td)))
-		return (EPERM);
-#endif
-
 	/*
 	 * It is possible that kldloaded module will attach a new ifnet,
 	 * so vnet context must be set when this ocurs.
@@ -1068,12 +1062,6 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 
 	if ((error = priv_check(td, PRIV_KLD_UNLOAD)) != 0)
 		return (error);
-
-#ifdef VIMAGE
-	/* Only the default vimage is permitted to kldunload modules. */
-	if (!IS_DEFAULT_VIMAGE(TD_TO_VIMAGE(td)))
-		return (EPERM);
-#endif
 
 	CURVNET_SET(TD_TO_VNET(td));
 	KLD_LOCK();
