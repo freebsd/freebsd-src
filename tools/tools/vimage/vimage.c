@@ -27,122 +27,120 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <sys/jail.h>
 #include <sys/socket.h>
-#include <sys/vimage.h>
+
+#include <net/if.h>
 
 #include <errno.h>
+#include <jail.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-void
-vi_print(struct vi_req *vi_req)
-{
+#define	VI_CREATE		0x00000001
+#define	VI_DESTROY		0x00000002
+#define	VI_SWITCHTO		0x00000008
+#define	VI_IFACE		0x00000010
+#define	VI_GET			0x00000100
+#define	VI_GETNEXT		0x00000200
 
-	printf("\"%s\":\n", vi_req->vi_name);
-	printf("    %d sockets, %d ifnets, %d processes\n",
-	    vi_req->vi_sock_count, vi_req->vi_if_count, vi_req->vi_proc_count);
-}
+static int getjail(char *name, int lastjid, int *vnet);
 
 int
 main(int argc, char **argv)
 {
 	int s;
 	char *shell;
-	int cmd = VI_SWITCHTO;
-	struct vi_req vi_req;
+	int cmd;
+	int jid, vnet;
+	struct ifreq ifreq;
+	char name[MAXHOSTNAMELEN];
 
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s == -1)
-		goto abort;
+	switch (argc) {
 
-	bzero(&vi_req, sizeof(vi_req));
-	strcpy(vi_req.vi_name, ".");	/* . = this vimage. */
+	case 1:
+		cmd = 0;
+		break;
 
-	if (argc == 1)
-		cmd = VI_GET;
+	case 2:
+		if (strcmp(argv[1], "-l") == 0)
+			cmd = VI_GETNEXT;
+		else if (strcmp(argv[1], "-lr") == 0)
+			cmd = VI_GETNEXT;
+		else {
+			strcpy(name, argv[1]);
+			cmd = VI_SWITCHTO;
+		}
+		break;
 
-	if (argc == 2 && strcmp(argv[1], "-l") == 0)
-		cmd = VI_GETNEXT;
-
-	if (argc == 2 && strcmp(argv[1], "-lr") == 0)
-		cmd = VI_GETNEXT_RECURSE;
-
-	if (argc == 3) {
-		strcpy(vi_req.vi_name, argv[2]);
+	case 3:
+		strcpy(name, argv[2]);
 		if (strcmp(argv[1], "-l") == 0)
 			cmd = VI_GET;
 		if (strcmp(argv[1], "-c") == 0)
 			cmd = VI_CREATE;
 		if (strcmp(argv[1], "-d") == 0)
 			cmd = VI_DESTROY;
-	}
+		break;
 
-	if (argc >= 3) {
-		strcpy(vi_req.vi_name, argv[2]);
+	default:
+		strcpy(name, argv[2]);
 		if (strcmp(argv[1], "-c") == 0)
 			cmd = VI_CREATE;
 		if (strcmp(argv[1], "-i") == 0)
 			cmd = VI_IFACE;
 	}
 
-	vi_req.vi_api_cookie = VI_API_COOKIE;
-	vi_req.vi_req_action = cmd;
 	switch (cmd) {
 
 	case VI_GET:
-		if (ioctl(s, SIOCGPVIMAGE, (caddr_t)&vi_req) < 0)
+		jid = getjail(name, -1, &vnet);
+		if (jid < 0)
 			goto abort;
-		if (argc == 1)
-			printf("%s\n", vi_req.vi_name);
-		else
-			vi_print(&vi_req);
+		printf("%d: %s%s\n", jid, name, vnet ? "" : " (no vnet)");
 		exit(0);
 
 	case VI_GETNEXT:
-	case VI_GETNEXT_RECURSE:
-		vi_req.vi_req_action = VI_GET;
-		if (ioctl(s, SIOCGPVIMAGE, (caddr_t)&vi_req) < 0)
-			goto abort;
-		vi_print(&vi_req);
-		vi_req.vi_req_action = VI_GETNEXT_RECURSE;
-		while (ioctl(s, SIOCGPVIMAGE, (caddr_t)&vi_req) == 0) {
-			vi_print(&vi_req);
-			vi_req.vi_req_action = cmd;
-		}
+		jid = 0;
+		while ((jid = getjail(name, jid, &vnet)) > 0)
+			printf("%d: %s%s\n", jid, name,
+			    vnet ? "" : " (no vnet)");
 		exit(0);
 
 	case VI_IFACE:
-		strncpy(vi_req.vi_if_xname, argv[3],
-				sizeof(vi_req.vi_if_xname));
-		if (ioctl(s, SIOCSIFVIMAGE, (caddr_t)&vi_req) < 0)
+		s = socket(AF_INET, SOCK_DGRAM, 0);
+		if (s == -1)
 			goto abort;
-		printf("%s@%s\n", vi_req.vi_if_xname, vi_req.vi_name);
+		jid = jail_getid(name);
+		if (jid < 0)
+			goto abort;
+		ifreq.ifr_jid = jid;
+		strncpy(ifreq.ifr_name, argv[3], sizeof(ifreq.ifr_name));
+		if (ioctl(s, SIOCSIFVNET, (caddr_t)&ifreq) < 0)
+			goto abort;
+		printf("%s@%s\n", ifreq.ifr_name, name);
 		exit(0);
 
 	case VI_CREATE:
-		if (ioctl(s, SIOCSPVIMAGE, (caddr_t)&vi_req) < 0)
+		if (jail_setv(JAIL_CREATE, "name", name, "vnet", NULL,
+		    "host", NULL, "persist", NULL, NULL) < 0)
 			goto abort;
 		exit(0);
 
 	case VI_SWITCHTO:
-		strcpy(vi_req.vi_name, argv[1]);
-		if (ioctl(s, SIOCSPVIMAGE, (caddr_t)&vi_req) < 0)
+		jid = jail_getid(name);
+		if (jid < 0)
 			goto abort;
-
-		vi_req.vi_req_action = VI_GET;
-		strcpy(vi_req.vi_name, ".");
-		if (ioctl(s, SIOCGPVIMAGE, (caddr_t)&vi_req) < 0) {
-			printf("XXX this should have not happened!\n");
+		if (jail_attach(jid) < 0)
 			goto abort;
-		}
-		close(s);
 
 		if (argc == 2) {
-			printf("Switched to vimage %s\n", argv[1]);
+			printf("Switched to jail %s\n", argv[1]);
 			if ((shell = getenv("SHELL")) == NULL)
 				execlp("/bin/sh", argv[0], NULL);
 			else
@@ -152,7 +150,10 @@ main(int argc, char **argv)
 		break;
 
 	case VI_DESTROY:
-		if (ioctl(s, SIOCSPVIMAGE, (caddr_t)&vi_req) < 0)
+		jid = jail_getid(name);
+		if (jid < 0)
+			goto abort;
+		if (jail_remove(jid) < 0)
 			goto abort;
 		exit(0);
 
@@ -163,6 +164,35 @@ main(int argc, char **argv)
 	}
 
 abort:
-	perror("Error");
+	if (jail_errmsg[0])
+		fprintf(stderr, "Error: %s\n", jail_errmsg);
+	else
+		perror("Error");
 	exit(1);
+}
+
+static int
+getjail(char *name, int lastjid, int *vnet)
+{
+	struct jailparam params[3];
+	int jid;
+
+	if (lastjid < 0) {
+		jid = jail_getid(name);
+		if (jid < 0)
+			return (jid);
+		jailparam_init(&params[0], "jid");
+		jailparam_import_raw(&params[0], &jid, sizeof jid);
+	} else {
+		jailparam_init(&params[0], "lastjid");
+		jailparam_import_raw(&params[0], &lastjid, sizeof lastjid);
+	}
+	jailparam_init(&params[1], "name");
+	jailparam_import_raw(&params[1], name, MAXHOSTNAMELEN);
+	name[0] = 0;
+	jailparam_init(&params[2], "vnet");
+	jailparam_import_raw(&params[2], vnet, sizeof(*vnet));
+	jid = jailparam_get(params, 3, 0);
+	jailparam_free(params, 3);
+	return (jid);
 }

@@ -36,42 +36,14 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 
-/* Interim userspace API. */
-struct vi_req {
-	int	vi_api_cookie;		/* Catch API mismatch. */
-	int	vi_req_action;		/* What to do with this request? */
-	u_short	vi_proc_count;		/* Current number of processes. */
-	int	vi_if_count;		/* Current number of ifnets. */
-	int	vi_sock_count;
-	char	vi_name[MAXPATHLEN];
-	char	vi_if_xname[MAXPATHLEN]; /* XXX should be IFNAMSIZ */
-};
-
-#define	VI_CREATE		0x00000001
-#define	VI_DESTROY		0x00000002
-#define	VI_SWITCHTO		0x00000008
-#define	VI_IFACE		0x00000010
-#define	VI_GET			0x00000100
-#define	VI_GETNEXT		0x00000200
-#define	VI_GETNEXT_RECURSE	0x00000300
-
-#define	VI_API_VERSION		1		/* Bump on struct changes. */
-
-#define	VI_API_COOKIE		((sizeof(struct vi_req) << 16) | VI_API_VERSION)
-
 #ifdef _KERNEL
 
 #ifdef INVARIANTS
 #define	VNET_DEBUG
 #endif
 
-struct vimage;
-struct vprocg;
 struct vnet;
-struct vi_req;
 struct ifnet;
-struct kld_sym_lookup;
-struct thread;
 
 typedef int vnet_attach_fn(const void *);
 typedef int vnet_detach_fn(const void *);
@@ -128,16 +100,7 @@ struct vnet_modlink {
 #define	VNET_MOD_DYNAMIC_START	32
 #define	VNET_MOD_MAX		64
 
-/* Major module IDs for vimage sysctl virtualization. */
-#define	V_GLOBAL		0	/* global variable - no indirection */
-#define	V_NET			1
-#define	V_PROCG			2
-
-int	vi_td_ioctl(u_long, struct vi_req *, struct thread *);
-int	vi_if_move(struct thread *, struct ifnet *, char *, int,
-	    struct vi_req *);
-int	vi_child_of(struct vimage *, struct vimage *);
-struct vimage *vimage_by_name(struct vimage *, char *);
+int	vi_if_move(struct thread *, struct ifnet *, char *, int);
 void	vnet_mod_register(const struct vnet_modinfo *);
 void	vnet_mod_register_multi(const struct vnet_modinfo *, void *, char *);
 void	vnet_mod_deregister(const struct vnet_modinfo *);
@@ -149,18 +112,6 @@ void	vnet_foreach(void (*vnet_foreach_fn)(struct vnet *, void *),
 
 #endif /* VIMAGE */
 
-struct vimage {
-	LIST_ENTRY(vimage)	 vi_le;		/* all vimage list */
-	LIST_ENTRY(vimage)	 vi_sibling;	/* vimages with same parent */
-	LIST_HEAD(, vimage)	 vi_child_head;	/* direct offspring list */
-	struct vimage		*vi_parent;	/* ptr to parent vimage */
-	u_int			 vi_id;		/* ID num */
-	volatile u_int		 vi_ucredrefc;	/* # of ucreds pointing to us */
-	char			 vi_name[MAXHOSTNAMELEN];
-	struct vnet		*v_net;
-	struct vprocg		*v_procg;
-};
-
 struct vnet {
 	LIST_ENTRY(vnet)	 vnet_le;	/* all vnets list */
 	u_int			 vnet_magic_n;
@@ -170,19 +121,6 @@ struct vnet {
 	uintptr_t		 vnet_data_base;
 };
 
-struct vprocg {
-	LIST_ENTRY(vprocg)	 vprocg_le;
-	u_int			 vprocg_id;	/* ID num */
-	u_int			 nprocs;
-};
-
-#ifdef VIMAGE
-LIST_HEAD(vimage_list_head, vimage);
-extern struct vimage_list_head vimage_head;
-#else /* !VIMAGE */
-extern struct vprocg vprocg_0;
-#endif /* VIMAGE */
- 
 #define	curvnet curthread->td_vnet
 
 #define	VNET_MAGIC_N 0x3e0d8f29
@@ -249,39 +187,19 @@ extern struct vnet *vnet0;
 #endif
 
 #ifdef VIMAGE
-LIST_HEAD(vprocg_list_head, vprocg);
-extern struct vprocg_list_head vprocg_head;
-#define	INIT_VPROCG(arg)	struct vprocg *vprocg = (arg);
-#else
-#define	INIT_VPROCG(arg)
-#endif
-
-#ifdef VIMAGE
-#define	IS_DEFAULT_VIMAGE(arg)	((arg)->vi_id == 0)
 #define	IS_DEFAULT_VNET(arg)	((arg) == vnet0)
 #else
-#define	IS_DEFAULT_VIMAGE(arg)	1
 #define	IS_DEFAULT_VNET(arg)	1
 #endif
 
 #ifdef VIMAGE
-#define	CRED_TO_VNET(cr)						\
-	(IS_DEFAULT_VIMAGE((cr)->cr_vimage) ? (cr)->cr_prison->pr_vnet	\
-	    : (cr)->cr_vimage->v_net)
-#define	TD_TO_VIMAGE(td)	(td)->td_ucred->cr_vimage
+#define	CRED_TO_VNET(cr)	(cr)->cr_prison->pr_vnet
 #define	TD_TO_VNET(td)		CRED_TO_VNET((td)->td_ucred)
-#define	TD_TO_VPROCG(td)	(td)->td_ucred->cr_vimage->v_procg
-#define	P_TO_VIMAGE(p)		(p)->p_ucred->cr_vimage
 #define	P_TO_VNET(p)		CRED_TO_VNET((p)->p_ucred)
-#define	P_TO_VPROCG(p)		(p)->p_ucred->cr_vimage->v_procg
 #else /* !VIMAGE */
 #define	CRED_TO_VNET(cr)	NULL
-#define	TD_TO_VIMAGE(td)	NULL
 #define	TD_TO_VNET(td)		NULL
-#define	P_TO_VIMAGE(p)		NULL
 #define	P_TO_VNET(p)		NULL
-#define	TD_TO_VPROCG(td)	&vprocg_0
-#define	P_TO_VPROCG(p)		&vprocg_0
 #endif /* VIMAGE */
 
 /* Non-VIMAGE null-macros */

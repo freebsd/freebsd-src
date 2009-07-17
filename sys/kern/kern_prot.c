@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -1762,11 +1761,7 @@ p_canwait(struct thread *td, struct proc *p)
 
 	KASSERT(td == curthread, ("%s: td not curthread", __func__));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if (
-#ifdef VIMAGE /* XXX temporary until struct vimage goes away */
-	    !vi_child_of(TD_TO_VIMAGE(td), P_TO_VIMAGE(p)) &&
-#endif
-	    (error = prison_check(td->td_ucred, p->p_ucred)))
+	if ((error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
 #ifdef MAC
 	if ((error = mac_proc_check_wait(td->td_ucred, p)))
@@ -1836,11 +1831,6 @@ crfree(struct ucred *cr)
 		 */
 		if (cr->cr_prison != NULL)
 			prison_free(cr->cr_prison);
-#ifdef VIMAGE
-	/* XXX TODO: find out why and when cr_vimage can be NULL here! */
-	if (cr->cr_vimage != NULL)
-		refcount_release(&cr->cr_vimage->vi_ucredrefc);
-#endif
 #ifdef AUDIT
 		audit_cred_destroy(cr);
 #endif
@@ -1877,10 +1867,6 @@ crcopy(struct ucred *dest, struct ucred *src)
 	uihold(dest->cr_uidinfo);
 	uihold(dest->cr_ruidinfo);
 	prison_hold(dest->cr_prison);
-#ifdef VIMAGE
-	KASSERT(src->cr_vimage != NULL, ("cr_vimage == NULL"));
-	refcount_acquire(&dest->cr_vimage->vi_ucredrefc);
-#endif
 #ifdef AUDIT
 	audit_cred_copy(src, dest);
 #endif
