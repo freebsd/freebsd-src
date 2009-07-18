@@ -4420,7 +4420,9 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 		pa += PAGE_SIZE;
 	}
 	pmap_invalidate_range(kernel_pmap, va, tmpva);
-	pmap_invalidate_cache();
+	/* If "Self Snoop" is supported, do nothing. */
+	if (!(cpu_feature & CPUID_SS))
+		pmap_invalidate_cache();
 	return ((void *)(va + offset));
 }
 
@@ -4467,7 +4469,9 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 * Flush CPU caches to make sure any data isn't cached that shouldn't
 	 * be, etc.
 	 */    
-	pmap_invalidate_cache();
+	/* If "Self Snoop" is supported, do nothing. */
+	if (!(cpu_feature & CPUID_SS))
+		pmap_invalidate_cache();
 }
 
 int
@@ -4526,7 +4530,9 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	 * be, etc.
 	 */    
 	pmap_invalidate_range(kernel_pmap, base, tmpva);
-	pmap_invalidate_cache();
+	/* If "Self Snoop" is supported, do nothing. */
+	if (!(cpu_feature & CPUID_SS))
+		pmap_invalidate_cache();
 	return (0);
 }
 
