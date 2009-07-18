@@ -143,13 +143,13 @@ portupgrade.
 
 	The important thing to note is that the 82575 adapters
 	were supported in the em driver in 7.0, but now needed
-	to be moved into igb, so if you have the effected cards
+	to be moved into igb, so if you have the affected cards
 	be sure and make any script changes to follow the name
 	change.
 
-	There are only 3 PCI ID's effected in this change:
+	There are only 3 PCI ID's affected in this change:
 		0x10A7, 0x10A9, and 0x10D6 
-	So you can know ahead of time if they will be effected,
+	So you can know ahead of time if they will be affected,
 	these will now be supported in the igb driver. That
 	driver will also support the new 82576 followon.
 
@@ -161,7 +161,7 @@ portupgrade.
 
 20080724:
 	I have MFC'd in code to support multiple routing tables.
-	see the man pages setfib(1) and setfib(2).
+	See the man pages setfib(1) and setfib(2).
 	This is a backwards compatible version,
 	but to make use of it you need to compile your kernel
 	with options ROUTETABLES=2 (or more up to 16).
