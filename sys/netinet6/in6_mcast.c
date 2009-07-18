@@ -2160,14 +2160,24 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		if (error)
 			return (EADDRNOTAVAIL);
 		/*
+		 * Some badly behaved applications don't pass an ifindex
+		 * or a scope ID, which is an API violation. In this case,
+		 * perform a lookup as per a v6 join.
+		 *
 		 * XXX For now, stomp on zone ID for the corner case.
 		 * This is not the 'KAME way', but we need to see the ifp
 		 * directly until such time as this implementation is
 		 * refactored, assuming the scope IDs are the way to go.
 		 */
 		ifindex = ntohs(gsa->sin6.sin6_addr.s6_addr16[1]);
-		KASSERT(ifindex != 0, ("%s: bad zone ID", __func__));
-		ifp = ifnet_byindex(ifindex);
+		if (ifindex == 0) {
+			CTR2(KTR_MLD, "%s: warning: no ifindex, looking up "
+			    "ifp for group %s.", __func__,
+			    ip6_sprintf(ip6tbuf, &gsa->sin6.sin6_addr));
+			ifp = in6p_lookup_mcast_ifp(inp, &gsa->sin6);
+		} else {
+			ifp = ifnet_byindex(ifindex);
+		}
 		if (ifp == NULL)
 			return (EADDRNOTAVAIL);
 	}
