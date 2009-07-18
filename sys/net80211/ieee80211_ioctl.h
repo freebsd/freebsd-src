@@ -235,8 +235,9 @@ struct ieee80211_stats {
 	uint32_t	is_hwmp_wrongseq;	/* wrong hwmp seq no. */
 	uint32_t	is_hwmp_rootreqs;	/* root PREQs sent */
 	uint32_t	is_hwmp_rootrann;	/* root RANNs sent */
+	uint32_t	is_rx_badalign;		/* dropped 'cuz misaligned */
 
-	uint32_t	is_spare[16];
+	uint32_t	is_spare[15];
 };
 
 /*

@@ -285,53 +285,9 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 	}
 #ifdef ALIGNED_POINTER
 	if (!ALIGNED_POINTER(mtod(m, caddr_t) + sizeof(*eh), uint32_t)) {
-		struct mbuf *n, *n0, **np;
-		caddr_t newdata;
-		int off, pktlen;
-
-		n0 = NULL;
-		np = &n0;
-		off = 0;
-		pktlen = m->m_pkthdr.len;
-		while (pktlen > off) {
-			if (n0 == NULL) {
-				MGETHDR(n, M_DONTWAIT, MT_DATA);
-				if (n == NULL) {
-					m_freem(m);
-					return NULL;
-				}
-				M_MOVE_PKTHDR(n, m);
-				n->m_len = MHLEN;
-			} else {
-				MGET(n, M_DONTWAIT, MT_DATA);
-				if (n == NULL) {
-					m_freem(m);
-					m_freem(n0);
-					return NULL;
-				}
-				n->m_len = MLEN;
-			}
-			if (pktlen - off >= MINCLSIZE) {
-				MCLGET(n, M_DONTWAIT);
-				if (n->m_flags & M_EXT)
-					n->m_len = n->m_ext.ext_size;
-			}
-			if (n0 == NULL) {
-				newdata =
-				    (caddr_t)ALIGN(n->m_data + sizeof(*eh)) -
-				    sizeof(*eh);
-				n->m_len -= newdata - n->m_data;
-				n->m_data = newdata;
-			}
-			if (n->m_len > pktlen - off)
-				n->m_len = pktlen - off;
-			m_copydata(m, off, n->m_len, mtod(n, caddr_t));
-			off += n->m_len;
-			*np = n;
-			np = &n->m_next;
-		}
-		m_freem(m);
-		m = n0;
+		m = ieee80211_realign(vap, m, sizeof(*eh));
+		if (m == NULL)
+			return NULL;
 	}
 #endif /* ALIGNED_POINTER */
 	if (llc != NULL) {
