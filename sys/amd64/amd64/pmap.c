@@ -752,21 +752,6 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 	/* The PAT bit is different for PTE's and PDE's. */
 	pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
 
-	/* If we don't support PAT, map extended modes to older ones. */
-	if (!(cpu_feature & CPUID_PAT)) {
-		switch (mode) {
-		case PAT_UNCACHEABLE:
-		case PAT_WRITE_THROUGH:
-		case PAT_WRITE_BACK:
-			break;
-		case PAT_UNCACHED:
-		case PAT_WRITE_COMBINING:
-		case PAT_WRITE_PROTECTED:
-			mode = PAT_UNCACHEABLE;
-			break;
-		}
-	}
-
 	/* Map the caching mode to a PAT index. */
 	switch (mode) {
 	case PAT_UNCACHEABLE:
@@ -4295,7 +4280,9 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 		pa += PAGE_SIZE;
 	}
 	pmap_invalidate_range(kernel_pmap, va, tmpva);
-	pmap_invalidate_cache();
+	/* If "Self Snoop" is supported, do nothing. */
+	if (!(cpu_feature & CPUID_SS))
+		pmap_invalidate_cache();
 	return ((void *)(va + offset));
 }
 
@@ -4634,7 +4621,9 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	 */
 	if (changed) {
 		pmap_invalidate_range(kernel_pmap, base, tmpva);
-		pmap_invalidate_cache();
+		/* If "Self Snoop" is supported, do nothing. */
+		if (!(cpu_feature & CPUID_SS))
+			pmap_invalidate_cache();
 	}
 	return (error);
 }
