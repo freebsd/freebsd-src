@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_input.h>
 
 SYSCTL_NODE(_net, OID_AUTO, wlan, CTLFLAG_RD, 0, "IEEE 80211 parameters");
 
@@ -406,6 +407,43 @@ ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen)
 		*frm = m->m_data;
 	}
 	return m;
+}
+
+/*
+ * Re-align the payload in the mbuf.  This is mainly used (right now)
+ * to handle IP header alignment requirements on certain architectures.
+ */
+struct mbuf *
+ieee80211_realign(struct ieee80211vap *vap, struct mbuf *m, size_t align)
+{
+	int pktlen, space;
+	struct mbuf *n;
+
+	pktlen = m->m_pkthdr.len;
+	space = pktlen + align;
+	if (space < MINCLSIZE)
+		n = m_gethdr(M_DONTWAIT, MT_DATA);
+	else {
+		n = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+		    space <= MCLBYTES ?     MCLBYTES :
+#if MJUMPAGESIZE != MCLBYTES
+		    space <= MJUMPAGESIZE ? MJUMPAGESIZE :
+#endif
+		    space <= MJUM9BYTES ?   MJUM9BYTES : MJUM16BYTES);
+	}
+	if (__predict_true(n != NULL)) {
+		m_move_pkthdr(n, m);
+		n->m_data = (caddr_t)(ALIGN(n->m_data + align) - align);
+		m_copydata(m, 0, pktlen, mtod(n, caddr_t));
+		n->m_len = pktlen;
+	} else {
+		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
+		    mtod(m, const struct ieee80211_frame *), NULL,
+		    "%s", "no mbuf to realign");
+		vap->iv_stats.is_rx_badalign++;
+	}
+	m_freem(m);
+	return n;
 }
 
 int
