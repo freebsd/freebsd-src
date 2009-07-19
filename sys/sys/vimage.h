@@ -44,8 +44,8 @@
 struct vnet {
 	LIST_ENTRY(vnet)	 vnet_le;	/* all vnets list */
 	u_int			 vnet_magic_n;
-	u_int			 ifcnt;
-	u_int			 sockcnt;
+	u_int			 vnet_ifcnt;
+	u_int			 vnet_sockcnt;
 	void			*vnet_data_mem;
 	uintptr_t		 vnet_data_base;
 };

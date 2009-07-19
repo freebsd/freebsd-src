@@ -333,7 +333,8 @@ vnet_destroy(struct vnet *vnet)
 	struct ifnet *ifp, *nifp;
 	struct vnet_modlink *vml;
 
-	KASSERT(vnet->sockcnt == 0, ("%s: vnet still has sockets", __func__));
+	KASSERT(vnet->vnet_sockcnt == 0,
+	    ("%s: vnet still has sockets", __func__));
 
 	VNET_LIST_WLOCK();
 	LIST_REMOVE(vnet, vnet_le);
@@ -426,14 +427,13 @@ DB_SHOW_COMMAND(vnets, db_show_vnets)
 	VNET_ITERATOR_DECL(vnet_iter);
 
 #if SIZE_MAX == UINT32_MAX /* 32-bit arch */
-	db_printf("      vnet ifs socks");
+	db_printf("      vnet ifs socks\n");
 #else /* 64-bit arch, most probaly... */
-	db_printf("              vnet ifs socks");
+	db_printf("              vnet ifs socks\n");
 #endif
 	VNET_FOREACH(vnet_iter) {
-		db_printf("%p %3d %5d",
-		    vnet_iter, vnet_iter->ifcnt, vnet_iter->sockcnt);
-		db_printf("\n");
+		db_printf("%p %3d %5d\n", vnet_iter, vnet_iter->vnet_ifcnt,
+		    vnet_iter->vnet_sockcnt);
 	}
 }
 #endif
