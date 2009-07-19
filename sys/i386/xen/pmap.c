@@ -3921,6 +3921,25 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	kmem_free(kernel_map, base, size);
 }
 
+/*
+ * Sets the memory attribute for the specified page.
+ */
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+
+	m->md.pat_mode = ma;
+
+	/*
+	 * If "m" is a normal page, flush it from the cache.
+	 */    
+	if ((m->flags & PG_FICTITIOUS) == 0) {
+		/* If "Self Snoop" is supported, do nothing. */
+		if (!(cpu_feature & CPUID_SS))
+			pmap_invalidate_cache();
+	}
+}
+
 int
 pmap_change_attr(va, size, mode)
 	vm_offset_t va;

@@ -4381,9 +4381,12 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	m->md.pat_mode = ma;
 
 	/*
-	 * Update the direct mapping and flush the cache.
+	 * If "m" is a normal page, update its direct mapping.  This update
+	 * can be relied upon to perform any cache operations that are
+	 * required for data coherence.
 	 */
-	if (pmap_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
+	if ((m->flags & PG_FICTITIOUS) == 0 &&
+	    pmap_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
 	    m->md.pat_mode))
 		panic("memory attribute change on the direct map failed");
 }
