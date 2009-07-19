@@ -38,6 +38,9 @@
 
 #ifdef _KERNEL
 
+#include <sys/lock.h>
+#include <sys/sx.h>
+
 #ifdef INVARIANTS
 #define	VNET_DEBUG
 #endif
@@ -176,17 +179,42 @@ struct vnet {
 #endif /* !VIMAGE */
 
 #ifdef VIMAGE
+/*
+ * Global linked list of all virtual network stacks, along with read locks to
+ * access it.  If a caller may sleep while accessing the list, it must use
+ * the sleepable lock macros.
+ */
 LIST_HEAD(vnet_list_head, vnet);
 extern struct vnet_list_head vnet_head;
-extern struct vnet *vnet0;
-#define	VNET_ITERATOR_DECL(arg) struct vnet *arg;
-#define	VNET_FOREACH(arg) LIST_FOREACH(arg, &vnet_head, vnet_le)
-#else
+extern struct rwlock vnet_rwlock;
+extern struct sx vnet_sxlock;
+
+#define	VNET_LIST_RLOCK()		sx_slock(&vnet_sxlock)
+#define	VNET_LIST_RLOCK_NOSLEEP()	rw_rlock(&vnet_rwlock)
+#define	VNET_LIST_RUNLOCK()		sx_sunlock(&vnet_sxlock)
+#define	VNET_LIST_RUNLOCK_NOSLEEP()	rw_runlock(&vnet_rwlock)
+
+/*
+ * Iteration macros to walk the global list of virtual network stacks.
+ */
+#define	VNET_ITERATOR_DECL(arg) struct vnet *arg
+#define	VNET_FOREACH(arg)	LIST_FOREACH((arg), &vnet_head, vnet_le)
+
+#else /* !VIMAGE */
+/*
+ * No-op macros for the !VIMAGE case.
+ */
+#define	VNET_LIST_RLOCK()
+#define	VNET_LIST_RLOCK_NOSLEEP()
+#define	VNET_LIST_RUNLOCK()
+#define	VNET_LIST_RUNLOCK_NOSLEEP()
 #define	VNET_ITERATOR_DECL(arg)
 #define	VNET_FOREACH(arg)
-#endif
+
+#endif /* VIMAGE */
 
 #ifdef VIMAGE
+extern struct vnet *vnet0;
 #define	IS_DEFAULT_VNET(arg)	((arg) == vnet0)
 #else
 #define	IS_DEFAULT_VNET(arg)	1
@@ -201,10 +229,6 @@ extern struct vnet *vnet0;
 #define	TD_TO_VNET(td)		NULL
 #define	P_TO_VNET(p)		NULL
 #endif /* VIMAGE */
-
-/* Non-VIMAGE null-macros */
-#define	VNET_LIST_RLOCK()
-#define	VNET_LIST_RUNLOCK()
 
 #endif /* _KERNEL */
 

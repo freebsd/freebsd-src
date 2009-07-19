@@ -940,7 +940,7 @@ tcp_drain(void)
 	if (!do_tcpdrain)
 		return;
 
-	VNET_LIST_RLOCK();
+	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		struct inpcb *inpb;
@@ -976,7 +976,7 @@ tcp_drain(void)
 		INP_INFO_RUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 /*
@@ -1576,7 +1576,7 @@ tcp_isn_tick(void *xtp)
 	VNET_ITERATOR_DECL(vnet_iter);
 	u_int32_t projected_offset;
 
-	VNET_LIST_RLOCK();
+	VNET_LIST_RLOCK_NOSLEEP();
 	ISN_LOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter); /* XXX appease INVARIANTS */
@@ -1590,7 +1590,7 @@ tcp_isn_tick(void *xtp)
 		CURVNET_RESTORE();
 	}
 	ISN_UNLOCK();
-	VNET_LIST_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 	callout_reset(&isn_callout, hz/100, tcp_isn_tick, NULL);
 }
 
