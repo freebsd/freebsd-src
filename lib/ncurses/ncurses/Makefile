@@ -7,7 +7,7 @@ SHLIBDIR?=	/lib
 .include "${.CURDIR}/../config.mk"
 
 LIB=		ncurses${LIB_SUFFIX}
-SHLIB_MAJOR=	7
+SHLIB_MAJOR=	8
 
 NO_LINT=
 

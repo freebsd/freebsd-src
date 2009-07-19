@@ -6,7 +6,7 @@ SUBDIR=		engines
 .include <bsd.own.mk>
 
 LIB=		crypto
-SHLIB_MAJOR=	5
+SHLIB_MAJOR=	6
 
 NO_LINT=
 
