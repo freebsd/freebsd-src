@@ -1570,7 +1570,7 @@ ipport_tick(void *xtp)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
-	VNET_LIST_RLOCK();
+	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);	/* XXX appease INVARIANTS here */
 		if (V_ipport_tcpallocs <=
@@ -1582,7 +1582,7 @@ ipport_tick(void *xtp)
 		V_ipport_tcplastcount = V_ipport_tcpallocs;
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 	callout_reset(&ipport_tick_callout, hz, ipport_tick, NULL);
 }
 

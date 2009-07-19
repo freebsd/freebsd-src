@@ -319,7 +319,7 @@ in_rtqdrain(void)
 	struct rtqk_arg arg;
 	int 	fibnum;
 
-	VNET_LIST_RLOCK();
+	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 
@@ -336,7 +336,7 @@ in_rtqdrain(void)
 		}
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 static int _in_rt_was_here;

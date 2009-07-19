@@ -4537,7 +4537,7 @@ key_timehandler(void)
 	VNET_ITERATOR_DECL(vnet_iter);
 	time_t now = time_second;
 
-	VNET_LIST_RLOCK();
+	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		key_flush_spd(now);
@@ -4546,7 +4546,7 @@ key_timehandler(void)
 		key_flush_spacq(now);
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 
 #ifndef IPSEC_DEBUG2
 	/* do exchange to tick time !! */

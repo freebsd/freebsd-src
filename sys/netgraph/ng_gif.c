@@ -561,8 +561,8 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 		ng_gif_input_orphan_p = ng_gif_input_orphan;
 
 		/* Create nodes for any already-existing gif interfaces */
+		VNET_LIST_RLOCK_NOSLEEP();
 		IFNET_RLOCK();
-		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET_QUIET(vnet_iter); /* XXX revisit quiet */
 			TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
@@ -571,8 +571,8 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 			}
 			CURVNET_RESTORE();
 		}
-		VNET_LIST_RUNLOCK();
 		IFNET_RUNLOCK();
+		VNET_LIST_RUNLOCK_NOSLEEP();
 		break;
 
 	case MOD_UNLOAD:
