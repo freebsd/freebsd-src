@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090719:
+	Bump the shared library version numbers for all libraries that
+	do not use symbol versioning as part of the 8.0-RELEASE cycle.
+	Bump __FreeBSD_version to 800105.
+
 20090714:
 	Due to changes in the implementation of virtual network stack
 	support, all network-related kernel modules must be recompiled.
