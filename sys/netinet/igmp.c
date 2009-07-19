@@ -1616,13 +1616,13 @@ igmp_fasttimo(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
-	VNET_LIST_RLOCK();
+	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		igmp_fasttimo_vnet();
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 /*
@@ -2159,13 +2159,13 @@ igmp_slowtimo(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
-	VNET_LIST_RLOCK();
+	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		igmp_slowtimo_vnet();
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 /*

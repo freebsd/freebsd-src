@@ -1793,8 +1793,8 @@ if_slowtimo(void *arg)
 	struct ifnet *ifp;
 	int s = splimp();
 
+	VNET_LIST_RLOCK_NOSLEEP();
 	IFNET_RLOCK();
-	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
@@ -1805,8 +1805,8 @@ if_slowtimo(void *arg)
 		}
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
 	IFNET_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 	splx(s);
 	timeout(if_slowtimo, (void *)0, hz / IFNET_SLOWHZ);
 }

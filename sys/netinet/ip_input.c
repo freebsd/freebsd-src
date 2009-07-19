@@ -1193,8 +1193,8 @@ ip_slowtimo(void)
 	struct ipq *fp;
 	int i;
 
+	VNET_LIST_RLOCK_NOSLEEP();
 	IPQ_LOCK();
-	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		for (i = 0; i < IPREASS_NHASH; i++) {
@@ -1228,8 +1228,8 @@ ip_slowtimo(void)
 		}
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
 	IPQ_UNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 /*
@@ -1241,8 +1241,8 @@ ip_drain(void)
 	VNET_ITERATOR_DECL(vnet_iter);
 	int     i;
 
+	VNET_LIST_RLOCK_NOSLEEP();
 	IPQ_LOCK();
-	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		for (i = 0; i < IPREASS_NHASH; i++) {
@@ -1254,8 +1254,8 @@ ip_drain(void)
 		}
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
 	IPQ_UNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 	in_rtqdrain();
 }
 

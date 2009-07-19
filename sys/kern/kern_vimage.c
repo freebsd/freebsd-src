@@ -58,22 +58,21 @@ static void vnet_mod_complete_registration(struct vnet_modlink *);
 static int vnet_mod_constructor(struct vnet_modlink *);
 static int vnet_mod_destructor(struct vnet_modlink *);
 
-#define	VNET_LIST_WLOCK()						\
-	mtx_lock(&vnet_list_refc_mtx);					\
-	while (vnet_list_refc != 0)					\
-		cv_wait(&vnet_list_condvar, &vnet_list_refc_mtx);
+struct rwlock		vnet_rwlock;
+struct sx		vnet_sxlock;
 
-#define	VNET_LIST_WUNLOCK()						\
-	mtx_unlock(&vnet_list_refc_mtx);
+#define	VNET_LIST_WLOCK() do {						\
+	sx_xlock(&vnet_sxlock);						\
+	rw_wlock(&vnet_rwlock);						\
+} while (0)
+
+#define	VNET_LIST_WUNLOCK() do {					\
+	rw_wunlock(&vnet_rwlock);					\
+	sx_xunlock(&vnet_sxlock);					\
+} while (0)
 
 struct vnet_list_head vnet_head;
-
-struct cv vnet_list_condvar;
-struct mtx vnet_list_refc_mtx;
-int vnet_list_refc = 0;
-
 struct vnet *vnet0;
-
 
 /*
  * Move an ifnet to or from another vnet, specified by the jail id.
@@ -373,16 +372,22 @@ vnet_foreach(void (*vnet_foreach_fn)(struct vnet *, void *), void *arg)
 }
 
 static void
-vi_init(void *unused)
+vnet_init_prelink(void *arg)
+{
+
+	rw_init(&vnet_rwlock, "vnet_rwlock");
+	sx_init(&vnet_sxlock, "vnet_sxlock");
+	LIST_INIT(&vnet_head);
+}
+SYSINIT(vnet_init_prelink, SI_SUB_VNET_PRELINK, SI_ORDER_FIRST,
+    vnet_init_prelink, NULL);
+
+static void
+vnet0_init(void *arg)
 {
 
 	TAILQ_INIT(&vnet_modlink_head);
 	TAILQ_INIT(&vnet_modpending_head);
-
-	LIST_INIT(&vnet_head);
-
-	mtx_init(&vnet_list_refc_mtx, "vnet_list_refc_mtx", NULL, MTX_DEF);
-	cv_init(&vnet_list_condvar, "vnet_list_condvar");
 
 	/*
 	 * We MUST clear curvnet in vi_init_done() before going SMP,
@@ -391,9 +396,10 @@ vi_init(void *unused)
 	 */
 	curvnet = prison0.pr_vnet = vnet0 = vnet_alloc();
 }
+SYSINIT(vnet0_init, SI_SUB_VNET, SI_ORDER_FIRST, vnet0_init, NULL);
 
 static void
-vi_init_done(void *unused)
+vnet_init_done(void *unused)
 {
 	struct vnet_modlink *vml_iter;
 
@@ -411,8 +417,8 @@ vi_init_done(void *unused)
 	panic("going nowhere without my vnet modules!");
 }
 
-SYSINIT(vimage, SI_SUB_VIMAGE, SI_ORDER_FIRST, vi_init, NULL);
-SYSINIT(vimage_done, SI_SUB_VIMAGE_DONE, SI_ORDER_FIRST, vi_init_done, NULL);
+SYSINIT(vnet_init_done, SI_SUB_VNET_DONE, SI_ORDER_FIRST, vnet_init_done,
+    NULL);
 
 #ifdef DDB
 DB_SHOW_COMMAND(vnets, db_show_vnets)

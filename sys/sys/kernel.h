@@ -106,13 +106,14 @@ enum sysinit_sub_id {
 	SI_SUB_MTX_POOL_DYNAMIC	= 0x1AC0000,	/* dynamic mutex pool */
 	SI_SUB_LOCK		= 0x1B00000,	/* various locks */
 	SI_SUB_EVENTHANDLER	= 0x1C00000,	/* eventhandler init */
+	SI_SUB_VNET_PRELINK	= 0x1E00000,	/* vnet init before modules */
 	SI_SUB_KLD		= 0x2000000,	/* KLD and module setup */
 	SI_SUB_CPU		= 0x2100000,	/* CPU resource(s)*/
 	SI_SUB_KDTRACE		= 0x2140000,	/* Kernel dtrace hooks */
 	SI_SUB_MAC		= 0x2180000,	/* TrustedBSD MAC subsystem */
 	SI_SUB_MAC_POLICY	= 0x21C0000,	/* TrustedBSD MAC policies */
 	SI_SUB_MAC_LATE		= 0x21D0000,	/* TrustedBSD MAC subsystem */
-	SI_SUB_VIMAGE		= 0x21E0000,	/* vimage infrastructure */
+	SI_SUB_VNET		= 0x21E0000,	/* vnet 0 */
 	SI_SUB_INTRINSIC	= 0x2200000,	/* proc 0*/
 	SI_SUB_VM_CONF		= 0x2300000,	/* config VM, set limits*/
 	SI_SUB_DDB_SERVICES	= 0x2380000,	/* capture, scripting, etc. */
@@ -158,7 +159,7 @@ enum sysinit_sub_id {
 	SI_SUB_SWAP		= 0xc000000,	/* swap */
 	SI_SUB_INTRINSIC_POST	= 0xd000000,	/* proc 0 cleanup*/
 	SI_SUB_SYSCALLS		= 0xd800000,	/* register system calls */
-	SI_SUB_VIMAGE_DONE	= 0xdc00000,	/* vnet registration complete */
+	SI_SUB_VNET_DONE	= 0xdc00000,	/* vnet registration complete */
 	SI_SUB_KTHREAD_INIT	= 0xe000000,	/* init process*/
 	SI_SUB_KTHREAD_PAGE	= 0xe400000,	/* pageout daemon*/
 	SI_SUB_KTHREAD_VM	= 0xe800000,	/* vm daemon*/

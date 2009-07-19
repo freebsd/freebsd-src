@@ -127,7 +127,7 @@ tcp_slowtimo(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
-	VNET_LIST_RLOCK();
+	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
@@ -136,7 +136,7 @@ tcp_slowtimo(void)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 int	tcp_syn_backoff[TCP_MAXRXTSHIFT + 1] =
