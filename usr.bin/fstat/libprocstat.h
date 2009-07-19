@@ -55,12 +55,12 @@
 /*
  * Special descriptor numbers.
  */
-#define	PS_FST_FD_RDIR		-1
-#define	PS_FST_FD_CDIR		-2
-#define	PS_FST_FD_JAIL		-3
-#define	PS_FST_FD_TRACE		-4
-#define	PS_FST_FD_TEXT		-5
-#define	PS_FST_FD_MMAP		-6
+#define	PS_FST_UFLAG_RDIR	0x0001
+#define	PS_FST_UFLAG_CDIR	0x0002
+#define	PS_FST_UFLAG_JAIL	0x0004
+#define	PS_FST_UFLAG_TRACE	0x0008
+#define	PS_FST_UFLAG_TEXT	0x0010
+#define	PS_FST_UFLAG_MMAP	0x0020
 
 /*
  * Descriptor flags.
@@ -77,6 +77,8 @@
 #define	PS_FST_FFLAG_CREAT	0x0200
 #define	PS_FST_FFLAG_TRUNC	0x0400
 #define	PS_FST_FFLAG_EXCL	0x0800
+#define	PS_FST_FFLAG_DIRECT	0x1000
+#define	PS_FST_FFLAG_EXEC	0x2000
 
 struct procstat {
         int     type;
@@ -86,6 +88,7 @@ struct filestat {
 	int	fs_type;	/* Descriptor type. */
 	int	fs_flags;	/* filestat specific flags. */
 	int	fs_fflags;	/* Descriptor access flags. */
+	int	fs_uflags;	/* How this file is used. */
 	int	fs_fd;		/* File descriptor number. */
 	void	*fs_typedep;	/* Type dependent data. */
 	STAILQ_ENTRY(filestat)	next;
@@ -121,6 +124,8 @@ struct sockstat {
 	int	so_rcv_sb_state;
 	char	dname[32];
 };
+
+/* XXX: sort structs. */
 
 STAILQ_HEAD(filestat_list, filestat);
 

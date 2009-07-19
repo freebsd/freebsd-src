@@ -33,8 +33,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl cfkmu
-.Op Fl C Ar core
-.Op Fl K Ar kernel
+.Op Fl M Ar core
+.Op Fl N Ar system
 .Op Fl s Ar signal
 .Op Ar
 .Sh DESCRIPTION
@@ -66,12 +66,13 @@ Send signal to reported processes
 Report on mmapped files too.
 .It Fl u
 Write the user name, associated with each process, to stdout.
-.It Fl C
-Use given kernel core file instead of default
+.It Fl M
+Extract values associated with the name list from the specified core
+instead of the default
 .Pa /dev/kmem .
-.It Fl K
-Use specified kernel image instead of the default one,
-which is the image the system has booted from.
+.It Fl N
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
 .It Fl s
 Use given signal name instead of default SIGKILL.
 .El

@@ -255,29 +255,20 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 	 * Print entry prefix.
 	 */
 	printf("%-8.8s %-10s %5d", uname, cmd, pid);
-	switch(fst->fs_fd) {
-	case PS_FST_FD_TEXT:
+	if (fst->fs_uflags & PS_FST_UFLAG_TEXT)
 		printf(" text");
-		break;
-	case PS_FST_FD_CDIR:
+	else if (fst->fs_uflags & PS_FST_UFLAG_CDIR)
 		printf("   wd");
-		break;
-	case PS_FST_FD_RDIR:
+	else if (fst->fs_uflags & PS_FST_UFLAG_RDIR)
 		printf(" root");
-		break;
-	case PS_FST_FD_TRACE:
+	else if (fst->fs_uflags & PS_FST_UFLAG_TRACE)
 		printf("   tr");
-		break;
-	case PS_FST_FD_MMAP:
+	else if (fst->fs_uflags & PS_FST_UFLAG_MMAP)
 		printf(" mmap");
-		break;
-	case PS_FST_FD_JAIL:
+	else if (fst->fs_uflags & PS_FST_UFLAG_JAIL)
 		printf(" jail");
-		break;
-	default:
+	else
 		printf(" %4d", fst->fs_fd);
-		break;
-	}
 
 	/*
 	 * Print type-specific data.

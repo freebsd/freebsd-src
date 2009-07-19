@@ -43,10 +43,7 @@ main(int argc, char *argv[])
 	if (p == NULL)
 		err(1, "basename(%s)", argv[0]);
 	if (!strcmp(p, "fuser"))
-#if 0
 		return (do_fuser(argc, argv));
-#endif
-		return (0);
 	else
 		return (do_fstat(argc, argv));
 }
