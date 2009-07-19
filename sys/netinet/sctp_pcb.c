@@ -2504,7 +2504,9 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	/* Pull the tcb from the old association */
 	LIST_REMOVE(stcb, sctp_tcbhash);
 	LIST_REMOVE(stcb, sctp_tcblist);
-
+	if (stcb->asoc.in_asocid_hash) {
+		LIST_REMOVE(stcb, sctp_tcbasocidhash);
+	}
 	/* Now insert the new_inp into the TCP connected hash */
 	head = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR((lport),
 	    SCTP_BASE_INFO(hashtcpmark))];
@@ -2520,7 +2522,12 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	 * only have one connection? Probably not :> so lets get rid of it
 	 * and not suck up any kernel memory in that.
 	 */
-
+	if (stcb->asoc.in_asocid_hash) {
+	    struct sctpasochead *lhd;
+	    lhd = &new_inp->sctp_asocidhash[SCTP_PCBHASH_ASOC(stcb->asoc.assoc_id,
+		     new_inp->hashasocidmark)];
+	    LIST_INSERT_HEAD(lhd, stcb, sctp_tcbasocidhash);
+	}
 	/* Ok. Let's restart timer. */
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 		sctp_timer_start(SCTP_TIMER_TYPE_PATHMTURAISE, new_inp,
