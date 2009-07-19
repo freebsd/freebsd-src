@@ -6087,7 +6087,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 		ph = (struct sctp_paramhdr *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
 		ph->param_type = htons(SCTP_HAS_NAT_SUPPORT);
 		ph->param_length = htons(sizeof(struct sctp_paramhdr));
-		SCTP_BUF_LEN(m) += sizeof(sizeof(struct sctp_paramhdr));
+		SCTP_BUF_LEN(m) += sizeof(struct sctp_paramhdr);
 	}
 	/* add authentication parameters */
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable)) {
@@ -7198,7 +7198,7 @@ do_a_abort:
 		ph = (struct sctp_paramhdr *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
 		ph->param_type = htons(SCTP_HAS_NAT_SUPPORT);
 		ph->param_length = htons(sizeof(struct sctp_paramhdr));
-		SCTP_BUF_LEN(m) += sizeof(sizeof(struct sctp_paramhdr));
+		SCTP_BUF_LEN(m) += sizeof(struct sctp_paramhdr);
 	}
 	/* And now tell the peer we do all the extensions */
 	pr_supported = (struct sctp_supported_chunk_types_param *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
