@@ -305,7 +305,8 @@ dev_pager_haspage(object, pindex, before, after)
 
 /*
  * Create a fictitious page with the specified physical address and memory
- * attribute.
+ * attribute.  The memory attribute is the only the machine-dependent aspect
+ * of a fictitious page that must be initialized.
  */
 static vm_page_t
 dev_pager_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
@@ -317,11 +318,9 @@ dev_pager_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
 	/* Fictitious pages don't use "segind". */
 	m->flags = PG_FICTITIOUS;
 	/* Fictitious pages don't use "order" or "pool". */
-	pmap_page_init(m);
 	m->oflags = VPO_BUSY;
 	m->wire_count = 1;
-	if (memattr != VM_MEMATTR_DEFAULT)
-		pmap_page_set_memattr(m, memattr);
+	pmap_page_set_memattr(m, memattr);
 	return (m);
 }
 
@@ -334,9 +333,6 @@ dev_pager_putfake(vm_page_t m)
 
 	if (!(m->flags & PG_FICTITIOUS))
 		panic("dev_pager_putfake: bad page");
-	/* Restore the default memory attribute to "phys_addr". */
-	if (pmap_page_get_memattr(m) != VM_MEMATTR_DEFAULT)
-		pmap_page_set_memattr(m, VM_MEMATTR_DEFAULT);
 	uma_zfree(fakepg_zone, m);
 }
 
@@ -350,10 +346,6 @@ dev_pager_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr)
 
 	if (!(m->flags & PG_FICTITIOUS))
 		panic("dev_pager_updatefake: bad page");
-	/* Restore the default memory attribute before changing "phys_addr". */
-	if (pmap_page_get_memattr(m) != VM_MEMATTR_DEFAULT)
-		pmap_page_set_memattr(m, VM_MEMATTR_DEFAULT);
 	m->phys_addr = paddr;
-	if (memattr != VM_MEMATTR_DEFAULT)
-		pmap_page_set_memattr(m, memattr);
+	pmap_page_set_memattr(m, memattr);
 }
