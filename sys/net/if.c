@@ -593,7 +593,7 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
 #ifdef VIMAGE
-	curvnet->ifcnt++;
+	curvnet->vnet_ifcnt++;
 #endif
 	IFNET_WUNLOCK();
 
@@ -758,7 +758,7 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		}
 #ifdef VIMAGE
 	if (found)
-		curvnet->ifcnt--;
+		curvnet->vnet_ifcnt--;
 #endif
 	IFNET_WUNLOCK();
 	if (!found) {
