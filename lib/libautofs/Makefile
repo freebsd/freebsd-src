@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 LIB=	autofs
-SHLIB_MAJOR= 2
+SHLIB_MAJOR= 3
 WARNS?=	4
 
 SRCS=	libautofs.c
