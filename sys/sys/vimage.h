@@ -33,13 +33,31 @@
 #ifndef	_SYS_VIMAGE_H_
 #define	_SYS_VIMAGE_H_
 
-#include <sys/proc.h>
+/*
+ * struct vnet describes a virtualized network stack, and is primarily a
+ * pointer to storage for virtualized global variables.  Expose to userspace
+ * as required for libkvm.
+ */
+#if defined(_KERNEL) || defined(_WANT_VNET)
 #include <sys/queue.h>
+
+struct vnet {
+	LIST_ENTRY(vnet)	 vnet_le;	/* all vnets list */
+	u_int			 vnet_magic_n;
+	u_int			 ifcnt;
+	u_int			 sockcnt;
+	void			*vnet_data_mem;
+	uintptr_t		 vnet_data_base;
+};
+
+#define	VNET_MAGIC_N 0x3e0d8f29
+#endif
 
 #ifdef _KERNEL
 
 #include <sys/lock.h>
 #include <sys/sx.h>
+#include <sys/proc.h>
 
 #ifdef INVARIANTS
 #define	VNET_DEBUG
@@ -115,18 +133,7 @@ void	vnet_foreach(void (*vnet_foreach_fn)(struct vnet *, void *),
 
 #endif /* VIMAGE */
 
-struct vnet {
-	LIST_ENTRY(vnet)	 vnet_le;	/* all vnets list */
-	u_int			 vnet_magic_n;
-	u_int			 ifcnt;
-	u_int			 sockcnt;
-	void			*vnet_data_mem;
-	uintptr_t		 vnet_data_base;
-};
-
 #define	curvnet curthread->td_vnet
-
-#define	VNET_MAGIC_N 0x3e0d8f29
 
 #ifdef VIMAGE
 #ifdef VNET_DEBUG
