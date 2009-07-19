@@ -720,8 +720,8 @@ frag6_slowtimo(void)
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct ip6q *q6;
 
+	VNET_LIST_RLOCK_NOSLEEP();
 	IP6Q_LOCK();
-	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		q6 = V_ip6q.ip6q_next;
@@ -748,8 +748,8 @@ frag6_slowtimo(void)
 		}
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
 	IP6Q_UNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 /*
@@ -760,9 +760,11 @@ frag6_drain(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
-	if (IP6Q_TRYLOCK() == 0)
+	VNET_LIST_RLOCK_NOSLEEP();
+	if (IP6Q_TRYLOCK() == 0) {
+		VNET_LIST_RUNLOCK_NOSLEEP();
 		return;
-	VNET_LIST_RLOCK();
+	}
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		while (V_ip6q.ip6q_next != &V_ip6q) {
@@ -772,6 +774,6 @@ frag6_drain(void)
 		}
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
 	IP6Q_UNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
