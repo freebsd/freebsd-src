@@ -4466,12 +4466,13 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	m->md.pat_mode = ma;
 
 	/*
-	 * Flush CPU caches to make sure any data isn't cached that shouldn't
-	 * be, etc.
+	 * If "m" is a normal page, flush it from the cache.
 	 */    
-	/* If "Self Snoop" is supported, do nothing. */
-	if (!(cpu_feature & CPUID_SS))
-		pmap_invalidate_cache();
+	if ((m->flags & PG_FICTITIOUS) == 0) {
+		/* If "Self Snoop" is supported, do nothing. */
+		if (!(cpu_feature & CPUID_SS))
+			pmap_invalidate_cache();
+	}
 }
 
 int
