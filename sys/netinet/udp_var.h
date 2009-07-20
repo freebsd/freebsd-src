@@ -119,12 +119,16 @@ SYSCTL_DECL(_net_inet_udp);
 
 extern struct pr_usrreqs	udp_usrreqs;
 
-#ifdef VIMAGE_GLOBALS
-extern struct inpcbhead		udb;
-extern struct inpcbinfo		udbinfo;
-extern struct udpstat		udpstat;
-extern int			udp_blackhole;
-#endif
+VNET_DECLARE(struct inpcbhead, udb);
+VNET_DECLARE(struct inpcbinfo, udbinfo);
+VNET_DECLARE(struct udpstat, udpstat);
+VNET_DECLARE(int, udp_blackhole);
+
+#define	V_udb			VNET(udb)
+#define	V_udbinfo		VNET(udbinfo)
+#define	V_udpstat		VNET(udpstat)
+#define	V_udp_blackhole		VNET(udp_blackhole)
+
 extern u_long			udp_sendspace;
 extern u_long			udp_recvspace;
 extern int			udp_log_in_vain;

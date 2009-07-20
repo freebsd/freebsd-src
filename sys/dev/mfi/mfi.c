@@ -230,7 +230,7 @@ mfi_issue_cmd_ppc(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt)
 static int
 mfi_transition_firmware(struct mfi_softc *sc)
 {
-	int32_t fw_state, cur_state;
+	uint32_t fw_state, cur_state;
 	int max_wait, i;
 
 	fw_state = sc->mfi_read_fw_status(sc)& MFI_FWSTATE_MASK;
@@ -341,7 +341,7 @@ mfi_attach(struct mfi_softc *sc)
 	status = sc->mfi_read_fw_status(sc);
 	sc->mfi_max_fw_cmds = status & MFI_FWSTATE_MAXCMD_MASK;
 	max_fw_sge = (status & MFI_FWSTATE_MAXSGL_MASK) >> 16;
-	sc->mfi_max_sge = min(max_fw_sge, ((MAXPHYS / PAGE_SIZE) + 1));
+	sc->mfi_max_sge = min(max_fw_sge, ((MFI_MAXPHYS / PAGE_SIZE) + 1));
 
 	/*
 	 * Create the dma tag for data buffers.  Used both for block I/O

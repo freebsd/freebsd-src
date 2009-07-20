@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -489,7 +488,7 @@ setuid(struct thread *td, struct setuid_args *uap)
 	int error;
 
 	uid = uap->uid;
-	AUDIT_ARG(uid, uid);
+	AUDIT_ARG_UID(uid);
 	newcred = crget();
 	uip = uifind(uid);
 	PROC_LOCK(p);
@@ -600,7 +599,7 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	int error;
 
 	euid = uap->euid;
-	AUDIT_ARG(euid, euid);
+	AUDIT_ARG_EUID(euid);
 	newcred = crget();
 	euip = uifind(euid);
 	PROC_LOCK(p);
@@ -623,7 +622,6 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	/*
 	 * Everything's okay, do it.
 	 */
-	crcopy(newcred, oldcred);
 	if (oldcred->cr_uid != euid) {
 		change_euid(newcred, euip);
 		setsugid(p);
@@ -656,7 +654,7 @@ setgid(struct thread *td, struct setgid_args *uap)
 	int error;
 
 	gid = uap->gid;
-	AUDIT_ARG(gid, gid);
+	AUDIT_ARG_GID(gid);
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = crcopysafe(p, newcred);
@@ -754,7 +752,7 @@ setegid(struct thread *td, struct setegid_args *uap)
 	int error;
 
 	egid = uap->egid;
-	AUDIT_ARG(egid, egid);
+	AUDIT_ARG_EGID(egid);
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = crcopysafe(p, newcred);
@@ -819,7 +817,7 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 
 	if (ngrp > NGROUPS)
 		return (EINVAL);
-	AUDIT_ARG(groupset, groups, ngrp);
+	AUDIT_ARG_GROUPSET(groups, ngrp);
 	newcred = crget();
 	crextend(newcred, ngrp);
 	PROC_LOCK(p);
@@ -876,8 +874,8 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 
 	euid = uap->euid;
 	ruid = uap->ruid;
-	AUDIT_ARG(euid, euid);
-	AUDIT_ARG(ruid, ruid);
+	AUDIT_ARG_EUID(euid);
+	AUDIT_ARG_RUID(ruid);
 	newcred = crget();
 	euip = uifind(euid);
 	ruip = uifind(ruid);
@@ -942,8 +940,8 @@ setregid(register struct thread *td, struct setregid_args *uap)
 
 	egid = uap->egid;
 	rgid = uap->rgid;
-	AUDIT_ARG(egid, egid);
-	AUDIT_ARG(rgid, rgid);
+	AUDIT_ARG_EGID(egid);
+	AUDIT_ARG_RGID(rgid);
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = crcopysafe(p, newcred);
@@ -1009,9 +1007,9 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	euid = uap->euid;
 	ruid = uap->ruid;
 	suid = uap->suid;
-	AUDIT_ARG(euid, euid);
-	AUDIT_ARG(ruid, ruid);
-	AUDIT_ARG(suid, suid);
+	AUDIT_ARG_EUID(euid);
+	AUDIT_ARG_RUID(ruid);
+	AUDIT_ARG_SUID(suid);
 	newcred = crget();
 	euip = uifind(euid);
 	ruip = uifind(ruid);
@@ -1087,9 +1085,9 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	egid = uap->egid;
 	rgid = uap->rgid;
 	sgid = uap->sgid;
-	AUDIT_ARG(egid, egid);
-	AUDIT_ARG(rgid, rgid);
-	AUDIT_ARG(sgid, sgid);
+	AUDIT_ARG_EGID(egid);
+	AUDIT_ARG_RGID(rgid);
+	AUDIT_ARG_SGID(sgid);
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = crcopysafe(p, newcred);
@@ -1763,11 +1761,7 @@ p_canwait(struct thread *td, struct proc *p)
 
 	KASSERT(td == curthread, ("%s: td not curthread", __func__));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if (
-#ifdef VIMAGE /* XXX temporary until struct vimage goes away */
-	    !vi_child_of(TD_TO_VIMAGE(td), P_TO_VIMAGE(p)) &&
-#endif
-	    (error = prison_check(td->td_ucred, p->p_ucred)))
+	if ((error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
 #ifdef MAC
 	if ((error = mac_proc_check_wait(td->td_ucred, p)))
@@ -1837,11 +1831,6 @@ crfree(struct ucred *cr)
 		 */
 		if (cr->cr_prison != NULL)
 			prison_free(cr->cr_prison);
-#ifdef VIMAGE
-	/* XXX TODO: find out why and when cr_vimage can be NULL here! */
-	if (cr->cr_vimage != NULL)
-		refcount_release(&cr->cr_vimage->vi_ucredrefc);
-#endif
 #ifdef AUDIT
 		audit_cred_destroy(cr);
 #endif
@@ -1878,10 +1867,6 @@ crcopy(struct ucred *dest, struct ucred *src)
 	uihold(dest->cr_uidinfo);
 	uihold(dest->cr_ruidinfo);
 	prison_hold(dest->cr_prison);
-#ifdef VIMAGE
-	KASSERT(src->cr_vimage != NULL, ("cr_vimage == NULL"));
-	refcount_acquire(&dest->cr_vimage->vi_ucredrefc);
-#endif
 #ifdef AUDIT
 	audit_cred_copy(src, dest);
 #endif

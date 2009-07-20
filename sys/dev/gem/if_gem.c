@@ -403,15 +403,14 @@ gem_detach(struct gem_softc *sc)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
+	ether_ifdetach(ifp);
 	GEM_LOCK(sc);
-	sc->sc_flags |= GEM_DYING;
 	gem_stop(ifp, 1);
 	GEM_UNLOCK(sc);
 	callout_drain(&sc->sc_tick_ch);
 #ifdef GEM_RINT_TIMEOUT
 	callout_drain(&sc->sc_rx_ch);
 #endif
-	ether_ifdetach(ifp);
 	if_free(ifp);
 	device_delete_child(sc->sc_dev, sc->sc_miibus);
 
@@ -2107,11 +2106,6 @@ gem_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		GEM_LOCK(sc);
-		if ((sc->sc_flags & GEM_DYING) != 0) {
-			error = EINVAL;
-			GEM_UNLOCK(sc);
-			break;
-		}
 		if ((ifp->if_flags & IFF_UP) != 0) {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
 			    ((ifp->if_flags ^ sc->sc_ifflags) &
@@ -2207,7 +2201,7 @@ gem_setladrf(struct gem_softc *sc)
 	/* Clear the hash table. */
 	memset(hash, 0, sizeof(hash));
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
 		if (inm->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -2220,7 +2214,7 @@ gem_setladrf(struct gem_softc *sc)
 		/* Set the corresponding bit in the filter. */
 		hash[crc >> 4] |= 1 << (15 - (crc & 15));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	v |= GEM_MAC_RX_HASH_FILTER;
 

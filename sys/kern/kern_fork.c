@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/signalvar.h>
-#include <sys/vimage.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -146,7 +145,7 @@ rfork(td, uap)
 	if ((uap->flags & RFKERNELONLY) != 0)
 		return (EINVAL);
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 	error = fork1(td, uap->flags, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
@@ -363,9 +362,6 @@ norfproc_fail:
 	 * are hard-limits as to the number of processes that can run.
 	 */
 	nprocs++;
-#ifdef VIMAGE
-	P_TO_VPROCG(p1)->nprocs++;
-#endif
 
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs
@@ -452,7 +448,7 @@ again:
 	thread_lock(td);
 	sched_fork(td, td2);
 	thread_unlock(td);
-	AUDIT_ARG(pid, p2->p_pid);
+	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
 

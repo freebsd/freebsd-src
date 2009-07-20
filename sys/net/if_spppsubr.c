@@ -56,7 +56,6 @@
 #ifdef INET
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <netinet/vinet.h>
 #endif
 
 #ifdef INET6
@@ -4905,7 +4904,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
 	si = 0;
-	IF_ADDR_LOCK(ifp);
+	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			si = (struct sockaddr_in *)ifa->ifa_addr;
@@ -4924,7 +4923,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 		if (si && si->sin_addr.s_addr)
 			ddst = si->sin_addr.s_addr;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_addr_runlock(ifp);
 
 	if (dst) *dst = ntohl(ddst);
 	if (src) *src = ntohl(ssrc);
@@ -4937,7 +4936,6 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 static void
 sppp_set_ip_addr(struct sppp *sp, u_long src)
 {
-	INIT_VNET_INET(curvnet);
 	STDDCL;
 	struct ifaddr *ifa;
 	struct sockaddr_in *si;
@@ -4948,7 +4946,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
 	si = 0;
-	IF_ADDR_LOCK(ifp);
+	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			si = (struct sockaddr_in *)ifa->ifa_addr;
@@ -4958,7 +4956,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 			}
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_addr_runlock(ifp);
 
 	if (ifa != NULL) {
 		int error;
@@ -4973,8 +4971,10 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 		/* set new address */
 		si->sin_addr.s_addr = htonl(src);
 		ia = ifatoia(ifa);
+		IN_IFADDR_WLOCK();
 		LIST_REMOVE(ia, ia_hash);
 		LIST_INSERT_HEAD(INADDR_HASH(si->sin_addr.s_addr), ia, ia_hash);
+		IN_IFADDR_WUNLOCK();
 
 		/* add new route */
 		error = rtinit(ifa, (int)RTM_ADD, RTF_HOST);
@@ -5008,7 +5008,7 @@ sppp_get_ip6_addrs(struct sppp *sp, struct in6_addr *src, struct in6_addr *dst,
 	 * aliases don't make any sense on a p2p link anyway.
 	 */
 	si = NULL;
-	IF_ADDR_LOCK(ifp);
+	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET6) {
 			si = (struct sockaddr_in6 *)ifa->ifa_addr;
@@ -5034,7 +5034,7 @@ sppp_get_ip6_addrs(struct sppp *sp, struct in6_addr *src, struct in6_addr *dst,
 		bcopy(&ddst, dst, sizeof(*dst));
 	if (src)
 		bcopy(&ssrc, src, sizeof(*src));
-	IF_ADDR_UNLOCK(ifp);
+	if_addr_runlock(ifp);
 }
 
 #ifdef IPV6CP_MYIFID_DYN
@@ -5063,7 +5063,7 @@ sppp_set_ip6_addr(struct sppp *sp, const struct in6_addr *src)
 	 */
 
 	sin6 = NULL;
-	IF_ADDR_LOCK(ifp);
+	if_addr_rlock(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family == AF_INET6) {
 			sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
@@ -5073,7 +5073,7 @@ sppp_set_ip6_addr(struct sppp *sp, const struct in6_addr *src)
 			}
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_addr_runlock(ifp);
 
 	if (ifa != NULL) {
 		int error;

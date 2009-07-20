@@ -95,14 +95,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/ip6.h>
 #include <netinet/ip_var.h>
-#include <netinet/vinet.h>
 
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
-#include <netinet6/vinet6.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -112,8 +110,6 @@ int
 in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
     struct ucred *cred)
 {
-	INIT_VNET_INET6(inp->inp_vnet);
-	INIT_VNET_INET(inp->inp_vnet);
 	struct socket *so = inp->inp_socket;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)NULL;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
@@ -123,7 +119,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	if (!V_in6_ifaddr) /* XXX broken! */
+	if (TAILQ_EMPTY(&V_in6_ifaddrhead))	/* XXX broken! */
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
@@ -291,7 +287,6 @@ int
 in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
     struct in6_addr *plocal_addr6)
 {
-	INIT_VNET_INET6(inp->inp_vnet);
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	int error = 0;
 	struct ifnet *ifp = NULL;
@@ -313,7 +308,7 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
 		return(error);
 
-	if (V_in6_ifaddr) {
+	if (!TAILQ_EMPTY(&V_in6_ifaddrhead)) {
 		/*
 		 * If the destination address is UNSPECIFIED addr,
 		 * use the loopback addr, e.g ::1.

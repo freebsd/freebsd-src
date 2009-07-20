@@ -211,6 +211,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8101E, RL_8169, "8101E"},
 	{ RL_HWREV_8102E, RL_8169, "8102E"},
 	{ RL_HWREV_8102EL, RL_8169, "8102EL"},
+	{ RL_HWREV_8102EL_SPIN1, RL_8169, "8102EL"},
 	{ RL_HWREV_8168_SPIN2, RL_8169, "8168"},
 	{ RL_HWREV_8168_SPIN3, RL_8169, "8168"},
 	{ RL_HWREV_8168C, RL_8169, "8168C/8111C"},
@@ -640,7 +641,7 @@ re_set_rxmode(struct rl_softc *sc)
 		goto done;
 	}
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -651,7 +652,7 @@ re_set_rxmode(struct rl_softc *sc)
 		else
 			hashes[1] |= (1 << (h - 32));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (hashes[0] != 0 || hashes[1] != 0) {
 		/*
@@ -1260,6 +1261,7 @@ re_attach(device_t dev)
 		break;
 	case RL_HWREV_8102E:
 	case RL_HWREV_8102EL:
+	case RL_HWREV_8102EL_SPIN1:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_PHYWAKE |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
 		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD;

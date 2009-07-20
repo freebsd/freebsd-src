@@ -43,6 +43,7 @@ options 	NFSLOCKD
 options 	PROCFS
 options 	PSEUDOFS
 options 	SCHED_4BSD
+options		SMP
 options 	SYSVMSG
 options 	SYSVSEM
 options 	SYSVSHM

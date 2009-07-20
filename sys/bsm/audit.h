@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit.h#9
+ * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit.h#10
  * $FreeBSD$
  */
 
@@ -173,6 +173,7 @@ typedef	pid_t		au_asid_t;
 typedef	u_int16_t	au_event_t;
 typedef	u_int16_t	au_emod_t;
 typedef	u_int32_t	au_class_t;
+typedef	u_int64_t	au_asflgs_t __attribute__ ((aligned (8)));
 
 struct au_tid {
 	dev_t		port;
@@ -206,7 +207,7 @@ struct auditinfo_addr {
 	au_mask_t	ai_mask;	/* Audit masks. */
 	au_tid_addr_t	ai_termid;	/* Terminal ID. */
 	au_asid_t	ai_asid;	/* Audit session ID. */
-	u_int64_t	ai_flags;	/* Audit session flags. */
+	au_asflgs_t	ai_flags;	/* Audit session flags. */
 };
 typedef	struct auditinfo_addr	auditinfo_addr_t;
 
@@ -225,7 +226,7 @@ struct auditpinfo_addr {
 	au_mask_t	ap_mask;	/* Audit masks. */
 	au_tid_addr_t	ap_termid;	/* Terminal ID. */
 	au_asid_t	ap_asid;	/* Audit session ID. */
-	u_int64_t	ap_flags;	/* Audit session flags. */
+	au_asflgs_t	ap_flags;	/* Audit session flags. */
 };
 typedef	struct auditpinfo_addr	auditpinfo_addr_t;
 

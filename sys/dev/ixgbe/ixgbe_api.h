@@ -162,5 +162,8 @@ s32 ixgbe_write_i2c_eeprom(struct ixgbe_hw *hw, u8 byte_offset, u8 eeprom_data);
 s32 ixgbe_get_san_mac_addr(struct ixgbe_hw *hw, u8 *san_mac_addr);
 s32 ixgbe_set_san_mac_addr(struct ixgbe_hw *hw, u8 *san_mac_addr);
 s32 ixgbe_get_device_caps(struct ixgbe_hw *hw, u16 *device_caps);
+s32 ixgbe_acquire_swfw_semaphore(struct ixgbe_hw *hw, u16 mask);
+void ixgbe_release_swfw_semaphore(struct ixgbe_hw *hw, u16 mask);
+
 
 #endif /* _IXGBE_API_H_ */

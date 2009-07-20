@@ -1256,7 +1256,7 @@ tr_transferred:
 		for (n = 0; n != nframes; n++) {
 
 			offset1 = offset0;
-			pc = usbd_xfer_get_frame(xfer, n);
+			pc = usbd_xfer_get_frame(xfer, 0);
 			len = usbd_xfer_frame_len(xfer, n);
 
 			while (len > 0) {
@@ -3671,24 +3671,24 @@ umidi_open(struct usb_fifo *fifo, int fflags)
 		if (usb_fifo_alloc_buffer(fifo, 4, (1024 / 4))) {
 			return (ENOMEM);
 		}
-		mtx_lock(&Giant);
+		mtx_lock(&chan->mtx);
 		chan->read_open_refcount++;
 		sub->read_open = 1;
-		mtx_unlock(&Giant);
+		mtx_unlock(&chan->mtx);
 	}
 	if (fflags & FWRITE) {
 		if (usb_fifo_alloc_buffer(fifo, 32, (1024 / 32))) {
 			return (ENOMEM);
 		}
 		/* clear stall first */
-		mtx_lock(&Giant);
+		mtx_lock(&chan->mtx);
 		chan->flags |= UMIDI_FLAG_WRITE_STALL;
 		chan->write_open_refcount++;
 		sub->write_open = 1;
 
 		/* reset */
 		sub->state = UMIDI_ST_UNKNOWN;
-		mtx_unlock(&Giant);
+		mtx_unlock(&chan->mtx);
 	}
 	return (0);			/* success */
 }

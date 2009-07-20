@@ -75,8 +75,10 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
-struct shmid_ds {
-	struct ipc_perm shm_perm;	/* operation permission structure */
+#if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
+struct shmid_ds_old {
+	struct ipc_perm_old shm_perm;	/* operation permission structure */
 	int             shm_segsz;	/* size of segment in bytes */
 	pid_t           shm_lpid;   /* process ID of last shared memory op */
 	pid_t           shm_cpid;	/* process ID of creator */
@@ -86,8 +88,21 @@ struct shmid_ds {
 	time_t          shm_ctime;	/* time of last change by shmctl() */
 	void           *shm_internal;   /* sysv stupidity */
 };
+#endif
+
+struct shmid_ds {
+	struct ipc_perm shm_perm;	/* operation permission structure */
+	size_t          shm_segsz;	/* size of segment in bytes */
+	pid_t           shm_lpid;   /* process ID of last shared memory op */
+	pid_t           shm_cpid;	/* process ID of creator */
+	int		shm_nattch;	/* number of current attaches */
+	time_t          shm_atime;	/* time of last shmat() */
+	time_t          shm_dtime;	/* time of last shmdt() */
+	time_t          shm_ctime;	/* time of last change by shmctl() */
+};
 
 #ifdef _KERNEL
+#include <vm/vm.h>
 
 /*
  * System 5 style catch-all structure for shared memory constants that
@@ -107,8 +122,8 @@ struct shminfo {
  */
 struct shmid_kernel {
 	struct shmid_ds u;
+	vm_object_t object;
 	struct label *label;	/* MAC label */
-	size_t shm_bsegsz;
 };
 
 extern struct shminfo	shminfo;

@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
-#include <netinet6/vinet6.h>
 
 #include <netinet/in_pcb.h>
 
@@ -92,7 +91,6 @@ __FBSDID("$FreeBSD$");
 void
 ip6_forward(struct mbuf *m, int srcrt)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct sockaddr_in6 *dst = NULL;
 	struct rtentry *rt = NULL;
@@ -103,7 +101,6 @@ ip6_forward(struct mbuf *m, int srcrt)
 	u_int32_t inzone, outzone;
 	struct in6_addr src_in6, dst_in6;
 #ifdef IPSEC
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp = NULL;
 	int ipsecrt = 0;
 #endif

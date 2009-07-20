@@ -103,7 +103,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_pcb.h>
-#include <netinet6/vinet6.h>
 
 /*
  * Definitions of some costant IP6 addresses.
@@ -181,7 +180,6 @@ int
 in6_control(struct socket *so, u_long cmd, caddr_t data,
     struct ifnet *ifp, struct thread *td)
 {
-	INIT_VNET_INET6(curvnet);
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
 	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
@@ -682,9 +680,7 @@ int
 in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
     struct in6_ifaddr *ia, int flags)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	int error = 0, hostIsNew = 0, plen = -1;
-	struct in6_ifaddr *oia;
 	struct sockaddr_in6 dst6;
 	struct in6_addrlifetime *lt;
 	struct in6_multi_mship *imm;
@@ -826,19 +822,16 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			ia->ia_ifa.ifa_dstaddr = NULL;
 		}
 		ia->ia_ifa.ifa_netmask = (struct sockaddr *)&ia->ia_prefixmask;
-
 		ia->ia_ifp = ifp;
-		if ((oia = V_in6_ifaddr) != NULL) {
-			for ( ; oia->ia_next; oia = oia->ia_next)
-				continue;
-			oia->ia_next = ia;
-		} else
-			V_in6_ifaddr = ia;
-
 		ifa_ref(&ia->ia_ifa);			/* if_addrhead */
 		IF_ADDR_LOCK(ifp);
 		TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 		IF_ADDR_UNLOCK(ifp);
+
+		ifa_ref(&ia->ia_ifa);			/* in6_ifaddrhead */
+		IN6_IFADDR_WLOCK();
+		TAILQ_INSERT_TAIL(&V_in6_ifaddrhead, ia, ia_link);
+		IN6_IFADDR_WUNLOCK();
 	}
 
 	/* update timestamp */
@@ -974,8 +967,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			    "%s on %s (errno=%d)\n",
 			    ip6_sprintf(ip6buf, &llsol), if_name(ifp),
 			    error));
-			in6_purgeaddr((struct ifaddr *)ia);
-			return (error);
+			goto cleanup;
 		}
 		LIST_INSERT_HEAD(&ia->ia6_memberships,
 		    imm, i6mm_chain);
@@ -1154,8 +1146,8 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 * anyway.
 	 */
 	if (hostIsNew) {
-		ifa_free(&ia->ia_ifa);
 		in6_unlink_ifa(ia, ifp);
+		ifa_free(&ia->ia_ifa);
 	}
 	return (error);
 
@@ -1198,6 +1190,25 @@ in6_purgeaddr(struct ifaddr *ifa)
 	if (ifa0 != NULL)
 		ifa_ref(ifa0);
 	IF_ADDR_UNLOCK(ifp);
+
+	if (!(ia->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+		struct rt_addrinfo info;
+		struct sockaddr_dl null_sdl;
+
+		bzero(&null_sdl, sizeof(null_sdl));
+		null_sdl.sdl_len = sizeof(null_sdl);
+		null_sdl.sdl_family = AF_LINK;
+		null_sdl.sdl_type = V_loif->if_type;
+		null_sdl.sdl_index = V_loif->if_index;
+		bzero(&info, sizeof(info));
+		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
+		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+		error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
+
+		if (error != 0)
+			log(LOG_INFO, "in6_purgeaddr: deletion failed\n");
+	}
 
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
@@ -1374,8 +1385,6 @@ cleanup:
 static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
-	struct in6_ifaddr *oia;
 	int	s = splnet();
 
 	IF_ADDR_LOCK(ifp);
@@ -1383,31 +1392,26 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	IF_ADDR_UNLOCK(ifp);
 	ifa_free(&ia->ia_ifa);			/* if_addrhead */
 
-	oia = ia;
-	if (oia == (ia = V_in6_ifaddr))
-		V_in6_ifaddr = ia->ia_next;
-	else {
-		while (ia->ia_next && (ia->ia_next != oia))
-			ia = ia->ia_next;
-		if (ia->ia_next)
-			ia->ia_next = oia->ia_next;
-		else {
-			/* search failed */
-			printf("Couldn't unlink in6_ifaddr from in6_ifaddr\n");
-		}
-	}
+	/*
+	 * Defer the release of what might be the last reference to the
+	 * in6_ifaddr so that it can't be freed before the remainder of the
+	 * cleanup.
+	 */
+	IN6_IFADDR_WLOCK();
+	TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
+	IN6_IFADDR_WUNLOCK();
 
 	/*
 	 * Release the reference to the base prefix.  There should be a
 	 * positive reference.
 	 */
-	if (oia->ia6_ndpr == NULL) {
+	if (ia->ia6_ndpr == NULL) {
 		nd6log((LOG_NOTICE,
 		    "in6_unlink_ifa: autoconf'ed address "
-		    "%p has no prefix\n", oia));
+		    "%p has no prefix\n", ia));
 	} else {
-		oia->ia6_ndpr->ndpr_refcnt--;
-		oia->ia6_ndpr = NULL;
+		ia->ia6_ndpr->ndpr_refcnt--;
+		ia->ia6_ndpr = NULL;
 	}
 
 	/*
@@ -1415,16 +1419,10 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	 * pfxlist_onlink_check() since the release might affect the status of
 	 * other (detached) addresses.
 	 */
-	if ((oia->ia6_flags & IN6_IFF_AUTOCONF)) {
+	if ((ia->ia6_flags & IN6_IFF_AUTOCONF)) {
 		pfxlist_onlink_check();
 	}
-
-	/*
-	 * release another refcnt for the link from in6_ifaddr.
-	 * Note that we should decrement the refcnt at least once for all *BSD.
-	 */
-	ifa_free(&oia->ia_ifa);
-
+	ifa_free(&ia->ia_ifa);			/* in6_ifaddrhead */
 	splx(s);
 }
 
@@ -1772,6 +1770,33 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		ia->ia_flags |= IFA_ROUTE;
 	}
 
+	/*
+	 * add a loopback route to self
+	 */
+	if (!(ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+		struct rt_addrinfo info;
+		struct rtentry *rt = NULL;
+		static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+
+		bzero(&info, sizeof(info));
+		info.rti_ifp = V_loif;
+		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
+		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+		error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
+
+		if (error == 0 && rt != NULL) {
+			RT_LOCK(rt);
+			((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
+				rt->rt_ifp->if_type;
+			((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
+				rt->rt_ifp->if_index;
+			RT_REMREF(rt);
+			RT_UNLOCK(rt);
+		} else if (error != 0)
+			log(LOG_INFO, "in6_ifinit: insertion failed\n");
+	}
+
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
 	if (newhost) {
 		struct llentry *ln;
@@ -1935,18 +1960,20 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 int
 in6_localaddr(struct in6_addr *in6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
 	if (IN6_IS_ADDR_LOOPBACK(in6) || IN6_IS_ADDR_LINKLOCAL(in6))
 		return 1;
 
-	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
+	IN6_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (IN6_ARE_MASKED_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr,
 		    &ia->ia_prefixmask.sin6_addr)) {
+			IN6_IFADDR_RUNLOCK();
 			return 1;
 		}
 	}
+	IN6_IFADDR_RUNLOCK();
 
 	return (0);
 }
@@ -1954,17 +1981,20 @@ in6_localaddr(struct in6_addr *in6)
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
-	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
+	IN6_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
 				       &sa6->sin6_addr) &&
-		    (ia->ia6_flags & IN6_IFF_DEPRECATED) != 0)
+		    (ia->ia6_flags & IN6_IFF_DEPRECATED) != 0) {
+			IN6_IFADDR_RUNLOCK();
 			return (1); /* true */
+		}
 
 		/* XXX: do we still have to go thru the rest of the list? */
 	}
+	IN6_IFADDR_RUNLOCK();
 
 	return (0);		/* false */
 }
@@ -2047,7 +2077,6 @@ in6_prefixlen2mask(struct in6_addr *maskp, int len)
 struct in6_ifaddr *
 in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 {
-	INIT_VNET_INET6(curvnet);
 	int dst_scope =	in6_addrscope(dst), blen = -1, tlen;
 	struct ifaddr *ifa;
 	struct in6_ifaddr *besta = 0;
@@ -2098,7 +2127,9 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		IF_ADDR_UNLOCK(ifp);
 		return (besta);
 	}
+	IF_ADDR_UNLOCK(ifp);
 
+	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -2116,10 +2147,10 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 
 		if (ifa != NULL)
 			ifa_ref(ifa);
-		IF_ADDR_UNLOCK(ifp);
+		IN6_IFADDR_RUNLOCK();
 		return (struct in6_ifaddr *)ifa;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IN6_IFADDR_RUNLOCK();
 
 	/* use the last-resort values, that are, deprecated addresses */
 	if (dep[0])
@@ -2206,8 +2237,6 @@ in6if_do_dad(struct ifnet *ifp)
 void
 in6_setmaxmtu(void)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	unsigned long maxmtu = 0;
 	struct ifnet *ifp;
 

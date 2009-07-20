@@ -1937,9 +1937,14 @@ lf_iteratelocks_vnode(struct vnode *vp, lf_iterator *fn, void *arg)
 	 * make sure it doesn't go away before we are finished.
 	 */
 	STAILQ_INIT(&locks);
+	VI_LOCK(vp);
 	ls = vp->v_lockf;
-	if (!ls)
+	if (!ls) {
+		VI_UNLOCK(vp);
 		return (0);
+	}
+	ls->ls_threads++;
+	VI_UNLOCK(vp);
 
 	sx_xlock(&ls->ls_lock);
 	LIST_FOREACH(lf, &ls->ls_active, lf_link) {
@@ -1960,6 +1965,10 @@ lf_iteratelocks_vnode(struct vnode *vp, lf_iterator *fn, void *arg)
 		STAILQ_INSERT_TAIL(&locks, ldesc, link);
 	}
 	sx_xunlock(&ls->ls_lock);
+	VI_LOCK(vp);
+	ls->ls_threads--;
+	wakeup(ls);
+	VI_UNLOCK(vp);
 
 	/*
 	 * Call the iterator function for each lock in turn. If the

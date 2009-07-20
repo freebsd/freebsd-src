@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bio.h>
-#include <sys/disk.h>
 #include <sys/diskmbr.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -92,7 +91,6 @@ static g_taste_t g_part_taste;
 
 static g_access_t g_part_access;
 static g_dumpconf_t g_part_dumpconf;
-static g_ioctl_t g_part_ioctl;
 static g_orphan_t g_part_orphan;
 static g_spoiled_t g_part_spoiled;
 static g_start_t g_part_start;
@@ -109,7 +107,6 @@ static struct g_class g_part_class = {
 	/* Geom methods. */
 	.access = g_part_access,
 	.dumpconf = g_part_dumpconf,
-	.ioctl = g_part_ioctl,
 	.orphan = g_part_orphan,
 	.spoiled = g_part_spoiled,
 	.start = g_part_start,
@@ -1609,31 +1606,6 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    table->gpt_heads);
 		G_PART_DUMPCONF(table, NULL, sb, indent);
 	}
-}
-
-static int
-g_part_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag,
-    struct thread *td)
-{
-	struct g_geom *gp;
-	struct g_part_table *table;
-	struct g_part_entry *entry;
-	int error;
-
-	gp = pp->geom;
-	table = gp->softc;
-	entry = pp->private;
-
-	switch (cmd) {
-	case DIOCGPROVIDERALIAS:
-		error = G_PART_DEVALIAS(table, entry, data, MAXPATHLEN);
-		break;
-	default:
-		error = ENOTTY;
-		break;
-	}
-
-	return (error);
 }
 
 static void

@@ -31,7 +31,6 @@ FBSD_1.0 {
 	__mac_set_file;
 	__mac_set_link;
 	__mac_set_proc;
-	__semctl;
 	__setugid;
 	__syscall;
 	__sysctl;
@@ -184,7 +183,6 @@ FBSD_1.0 {
 	modstat;
 	mount;
 	mprotect;
-	msgctl;
 	msgget;
 	msgrcv;
 	msgsnd;
@@ -267,7 +265,6 @@ FBSD_1.0 {
 	shm_open;
 	shm_unlink;
 	shmat;
-	shmctl;
 	shmdt;
 	shmget;
 	shmsys;
@@ -285,7 +282,6 @@ FBSD_1.0 {
 	socket;
 	socketpair;
 	__stack_chk_fail;
-	__stack_chk_fail_local;
 	__stack_chk_guard;
 	stat;
 	statfs;
@@ -332,6 +328,7 @@ FBSD_1.0 {
 };
 
 FBSD_1.1 {
+	__semctl;
 	closefrom;
 	cpuset;
 	cpuset_getid;
@@ -348,13 +345,16 @@ FBSD_1.1 {
 	jail_set;
 	jail_remove;
 	linkat;
+	lpathconf;
 	mkdirat;
 	mkfifoat;
 	mknodat;
+	msgctl;
 	openat;
 	readlinkat;
 	renameat;
 	setfib;
+	shmctl;
 	symlinkat;
 	unlinkat;
 };

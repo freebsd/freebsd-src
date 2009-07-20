@@ -117,7 +117,7 @@ struct	in6_ifaddr {
 	struct	sockaddr_in6 ia_dstaddr; /* space for destination addr */
 	struct	sockaddr_in6 ia_prefixmask; /* prefix mask */
 	u_int32_t ia_plen;		/* prefix length */
-	struct	in6_ifaddr *ia_next;	/* next in6 list of IP6 addresses */
+	TAILQ_ENTRY(in6_ifaddr)	ia_link;	/* list of IPv6 addresses */
 	int	ia6_flags;
 
 	struct in6_addrlifetime ia6_lifetime;
@@ -132,6 +132,9 @@ struct	in6_ifaddr {
 	/* multicast addresses joined from the kernel */
 	LIST_HEAD(, in6_multi_mship) ia6_memberships;
 };
+
+/* List of in6_ifaddr's. */
+TAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
 
 /* control structure to manage address selection policy */
 struct in6_addrpolicy {
@@ -483,13 +486,23 @@ struct	in6_rrenumreq {
 #endif
 
 #ifdef _KERNEL
-#ifdef VIMAGE_GLOBALS
-extern struct in6_ifaddr *in6_ifaddr;
+VNET_DECLARE(struct in6_ifaddrhead, in6_ifaddrhead);
+VNET_DECLARE(struct icmp6stat, icmp6stat);
+VNET_DECLARE(unsigned long, in6_maxmtu);
 
-extern struct icmp6stat icmp6stat;
+#define	V_in6_ifaddrhead		VNET(in6_ifaddrhead)
+#define	V_icmp6stat			VNET(icmp6stat)
+#define	V_in6_maxmtu			VNET(in6_maxmtu)
 
-extern unsigned long in6_maxmtu;
-#endif /* VIMAGE_GLOBALS */
+extern struct rwlock in6_ifaddr_lock;
+#define	IN6_IFADDR_LOCK_ASSERT(	)	rw_assert(&in6_ifaddr_lock, RA_LOCKED)
+#define	IN6_IFADDR_RLOCK()		rw_rlock(&in6_ifaddr_lock)
+#define	IN6_IFADDR_RLOCK_ASSERT()	rw_assert(&in6_ifaddr_lock, RA_RLOCKED)
+#define	IN6_IFADDR_RUNLOCK()		rw_runlock(&in6_ifaddr_lock)
+#define	IN6_IFADDR_WLOCK()		rw_wlock(&in6_ifaddr_lock)
+#define	IN6_IFADDR_WLOCK_ASSERT()	rw_assert(&in6_ifaddr_lock, RA_WLOCKED)
+#define	IN6_IFADDR_WUNLOCK()		rw_wunlock(&in6_ifaddr_lock)
+
 #define in6_ifstat_inc(ifp, tag) \
 do {								\
 	if (ifp)						\

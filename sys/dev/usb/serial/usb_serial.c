@@ -151,6 +151,8 @@ MODULE_VERSION(ucom, 1);
 #define	UCOM_SUB_UNIT_MAX 0x100		/* exclusive */
 
 static uint8_t ucom_bitmap[(UCOM_UNIT_MAX + 7) / 8];
+static struct mtx ucom_bitmap_mtx;
+MTX_SYSINIT(ucom_bitmap_mtx, &ucom_bitmap_mtx, "ucom bitmap", MTX_DEF);
 
 static uint8_t
 ucom_units_alloc(uint32_t sub_units, uint32_t *p_root_unit)
@@ -161,7 +163,7 @@ ucom_units_alloc(uint32_t sub_units, uint32_t *p_root_unit)
 	uint32_t max = UCOM_UNIT_MAX - (UCOM_UNIT_MAX % sub_units);
 	uint8_t error = 1;
 
-	mtx_lock(&Giant);
+	mtx_lock(&ucom_bitmap_mtx);
 
 	for (n = 0; n < max; n += sub_units) {
 
@@ -192,7 +194,7 @@ ucom_units_alloc(uint32_t sub_units, uint32_t *p_root_unit)
 skip:		;
 	}
 
-	mtx_unlock(&Giant);
+	mtx_unlock(&ucom_bitmap_mtx);
 
 	/*
 	 * Always set the variable pointed to by "p_root_unit" so that
@@ -208,14 +210,14 @@ ucom_units_free(uint32_t root_unit, uint32_t sub_units)
 {
 	uint32_t x;
 
-	mtx_lock(&Giant);
+	mtx_lock(&ucom_bitmap_mtx);
 
 	while (sub_units--) {
 		x = root_unit + sub_units;
 		ucom_bitmap[x / 8] &= ~(1 << (x % 8));
 	}
 
-	mtx_unlock(&Giant);
+	mtx_unlock(&ucom_bitmap_mtx);
 }
 
 /*

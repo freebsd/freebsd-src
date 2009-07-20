@@ -102,17 +102,30 @@ extern	u_char	inetctlerrmap[];
  */
 TAILQ_HEAD(in_ifaddrhead, in_ifaddr);
 LIST_HEAD(in_ifaddrhashhead, in_ifaddr);
-#ifdef VIMAGE_GLOBALS
-extern	struct in_ifaddrhashhead *in_ifaddrhashtbl;
-extern	struct in_ifaddrhead in_ifaddrhead;
-extern	u_long in_ifaddrhmask;			/* mask for hash table */
-#endif
+
+VNET_DECLARE(struct in_ifaddrhashhead *, in_ifaddrhashtbl);
+VNET_DECLARE(struct in_ifaddrhead, in_ifaddrhead);
+VNET_DECLARE(u_long, in_ifaddrhmask);		/* mask for hash table */
+
+#define	V_in_ifaddrhashtbl	VNET(in_ifaddrhashtbl)
+#define	V_in_ifaddrhead		VNET(in_ifaddrhead)
+#define	V_in_ifaddrhmask	VNET(in_ifaddrhmask)
 
 #define INADDR_NHASH_LOG2       9
 #define INADDR_NHASH		(1 << INADDR_NHASH_LOG2)
 #define INADDR_HASHVAL(x)	fnv_32_buf((&(x)), sizeof(x), FNV1_32_INIT)
 #define INADDR_HASH(x) \
 	(&V_in_ifaddrhashtbl[INADDR_HASHVAL(x) & V_in_ifaddrhmask])
+
+extern	struct rwlock in_ifaddr_lock;
+
+#define	IN_IFADDR_LOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_LOCKED)
+#define	IN_IFADDR_RLOCK()	rw_rlock(&in_ifaddr_lock)
+#define	IN_IFADDR_RLOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_RLOCKED)
+#define	IN_IFADDR_RUNLOCK()	rw_runlock(&in_ifaddr_lock)
+#define	IN_IFADDR_WLOCK()	rw_wlock(&in_ifaddr_lock)
+#define	IN_IFADDR_WLOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_WLOCKED)
+#define	IN_IFADDR_WUNLOCK()	rw_wunlock(&in_ifaddr_lock)
 
 /*
  * Macro for finding the internet address structure (in_ifaddr)
@@ -333,11 +346,6 @@ ims_get_mode(const struct in_multi *inm, const struct ip_msource *ims,
 SYSCTL_DECL(_net_inet);
 SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_raw);
-#endif
-
-LIST_HEAD(in_multihead, in_multi);	/* XXX unused */
-#ifdef VIMAGE_GLOBALS
-extern struct in_multihead in_multihead;
 #endif
 
 /*

@@ -125,7 +125,7 @@ ata_marvell_probe(device_t dev)
 	ctlr->chipinit = ata_marvell_pata_chipinit;
 	break;
     }
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -220,11 +220,11 @@ ata_marvell_edma_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    u_int64_t work = ch->dma.work_bus;
+    u_int64_t work;
     int i;
 
     ata_marvell_edma_dmainit(dev);
-
+    work = ch->dma.work_bus;
     /* clear work area */
     bzero(ch->dma.work, 1024+256);
 

@@ -409,8 +409,7 @@ ptsdev_poll(struct file *fp, int events, struct ucred *active_cred,
 	if (psc->pts_flags & PTS_FINISHED) {
 		/* Slave device is not opened. */
 		tty_unlock(tp);
-		return (events &
-		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
+		return ((events & (POLLIN|POLLRDNORM)) | POLLHUP);
 	}
 
 	if (events & (POLLIN|POLLRDNORM)) {

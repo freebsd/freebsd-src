@@ -472,6 +472,7 @@ int
 ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 {
     struct ata_device *atadev = device_get_softc(dev);
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_ioc_request *ioc_request = (struct ata_ioc_request *)data;
     struct ata_params *params = (struct ata_params *)data;
     int *mode = (int *)data;
@@ -481,6 +482,10 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 
     switch (cmd) {
     case IOCATAREQUEST:
+	if (ioc_request->count >
+	    (ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS)) {
+		return (EFBIG);
+	}
 	if (!(buf = malloc(ioc_request->count, M_ATA, M_NOWAIT))) {
 	    return ENOMEM;
 	}

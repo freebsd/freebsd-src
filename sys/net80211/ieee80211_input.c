@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_MESH
+#include <net80211/ieee80211_mesh.h>
+#endif
 
 #include <net/bpf.h>
 
@@ -230,7 +233,16 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 struct mbuf *
 ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 {
-	struct ieee80211_qosframe_addr4 wh;	/* Max size address frames */
+#ifdef IEEE80211_SUPPORT_MESH
+	union {
+		struct ieee80211_qosframe_addr4 wh4;
+		uint8_t b[sizeof(struct ieee80211_qosframe_addr4) +
+			  sizeof(struct ieee80211_meshcntl_ae11)];
+	} whu;
+#define	wh	whu.wh4
+#else
+	struct ieee80211_qosframe_addr4 wh;
+#endif
 	struct ether_header *eh;
 	struct llc *llc;
 
@@ -273,53 +285,9 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 	}
 #ifdef ALIGNED_POINTER
 	if (!ALIGNED_POINTER(mtod(m, caddr_t) + sizeof(*eh), uint32_t)) {
-		struct mbuf *n, *n0, **np;
-		caddr_t newdata;
-		int off, pktlen;
-
-		n0 = NULL;
-		np = &n0;
-		off = 0;
-		pktlen = m->m_pkthdr.len;
-		while (pktlen > off) {
-			if (n0 == NULL) {
-				MGETHDR(n, M_DONTWAIT, MT_DATA);
-				if (n == NULL) {
-					m_freem(m);
-					return NULL;
-				}
-				M_MOVE_PKTHDR(n, m);
-				n->m_len = MHLEN;
-			} else {
-				MGET(n, M_DONTWAIT, MT_DATA);
-				if (n == NULL) {
-					m_freem(m);
-					m_freem(n0);
-					return NULL;
-				}
-				n->m_len = MLEN;
-			}
-			if (pktlen - off >= MINCLSIZE) {
-				MCLGET(n, M_DONTWAIT);
-				if (n->m_flags & M_EXT)
-					n->m_len = n->m_ext.ext_size;
-			}
-			if (n0 == NULL) {
-				newdata =
-				    (caddr_t)ALIGN(n->m_data + sizeof(*eh)) -
-				    sizeof(*eh);
-				n->m_len -= newdata - n->m_data;
-				n->m_data = newdata;
-			}
-			if (n->m_len > pktlen - off)
-				n->m_len = pktlen - off;
-			m_copydata(m, off, n->m_len, mtod(n, caddr_t));
-			off += n->m_len;
-			*np = n;
-			np = &n->m_next;
-		}
-		m_freem(m);
-		m = n0;
+		m = ieee80211_realign(vap, m, sizeof(*eh));
+		if (m == NULL)
+			return NULL;
 	}
 #endif /* ALIGNED_POINTER */
 	if (llc != NULL) {
@@ -327,6 +295,7 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 		eh->ether_type = htons(m->m_pkthdr.len - sizeof(*eh));
 	}
 	return m;
+#undef	wh
 }
 
 /*
@@ -484,6 +453,8 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	 *	[tlv] HT capabilities
 	 *	[tlv] HT information
 	 *	[tlv] Atheros capabilities
+	 *	[tlv] Mesh ID
+	 *	[tlv] Mesh Configuration
 	 */
 	IEEE80211_VERIFY_LENGTH(efrm - frm, 12,
 	    return (scan->status = IEEE80211_BPARSE_BADIELEN));
@@ -559,6 +530,14 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		case IEEE80211_ELEMID_HTINFO:
 			scan->htinfo = frm;
 			break;
+#ifdef IEEE80211_SUPPORT_TDMA
+		case IEEE80211_ELEMID_MESHID:
+			scan->meshid = frm;
+			break;
+		case IEEE80211_ELEMID_MESHCONF:
+			scan->meshconf = frm;
+			break;
+#endif
 		case IEEE80211_ELEMID_VENDOR:
 			if (iswpaoui(frm))
 				scan->wpa = frm;

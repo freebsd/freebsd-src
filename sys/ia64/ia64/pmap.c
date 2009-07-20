@@ -1733,6 +1733,9 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pmap_pte_prot(pmap, pte,
 		    prot & (VM_PROT_READ | VM_PROT_EXECUTE));
 		pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m), FALSE, managed);
+
+		if (prot & VM_PROT_EXECUTE)
+			ia64_sync_icache(va, PAGE_SIZE);
 	}
 }
 

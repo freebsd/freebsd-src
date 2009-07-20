@@ -222,6 +222,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->size = size;
 	object->generation = 1;
 	object->ref_count = 1;
+	object->memattr = VM_MEMATTR_DEFAULT;
 	object->flags = 0;
 	object->uip = NULL;
 	object->charge = 0;
@@ -288,6 +289,36 @@ vm_object_clear_flag(vm_object_t object, u_short bits)
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	object->flags &= ~bits;
+}
+
+/*
+ *	Sets the default memory attribute for the specified object.  Pages
+ *	that are allocated to this object are by default assigned this memory
+ *	attribute.
+ *
+ *	Presently, this function must be called before any pages are allocated
+ *	to the object.  In the future, this requirement may be relaxed for
+ *	"default" and "swap" objects.
+ */
+int
+vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr)
+{
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	switch (object->type) {
+	case OBJT_DEFAULT:
+	case OBJT_DEVICE:
+	case OBJT_PHYS:
+	case OBJT_SWAP:
+	case OBJT_VNODE:
+		if (!TAILQ_EMPTY(&object->memq))
+			return (KERN_FAILURE);
+		break;
+	case OBJT_DEAD:
+		return (KERN_INVALID_ARGUMENT);
+	}
+	object->memattr = memattr;
+	return (KERN_SUCCESS);
 }
 
 void
@@ -1782,25 +1813,11 @@ vm_object_collapse(vm_object_t object)
 			 * and no object references within it, all that is
 			 * necessary is to dispose of it.
 			 */
-			if (backing_object->uip != NULL) {
-				swap_release_by_uid(backing_object->charge,
-				    backing_object->uip);
-				backing_object->charge = 0;
-				uifree(backing_object->uip);
-				backing_object->uip = NULL;
-			}
-			KASSERT(backing_object->ref_count == 1, ("backing_object %p was somehow re-referenced during collapse!", backing_object));
+			KASSERT(backing_object->ref_count == 1, (
+"backing_object %p was somehow re-referenced during collapse!",
+			    backing_object));
 			VM_OBJECT_UNLOCK(backing_object);
-
-			mtx_lock(&vm_object_list_mtx);
-			TAILQ_REMOVE(
-			    &vm_object_list, 
-			    backing_object,
-			    object_list
-			);
-			mtx_unlock(&vm_object_list_mtx);
-
-			uma_zfree(obj_zone, backing_object);
+			vm_object_destroy(backing_object);
 
 			object_collapses++;
 		} else {

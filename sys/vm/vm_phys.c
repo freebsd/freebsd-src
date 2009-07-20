@@ -698,6 +698,9 @@ done:
 		    ("vm_phys_alloc_contig: page %p is busy", m));
 		KASSERT(m->dirty == 0,
 		    ("vm_phys_alloc_contig: page %p is dirty", m));
+		KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
+		    ("vm_phys_alloc_contig: page %p has unexpected memattr %d",
+		    m, pmap_page_get_memattr(m)));
 		if ((m->flags & PG_CACHED) != 0) {
 			m->valid = 0;
 			m_object = m->object;

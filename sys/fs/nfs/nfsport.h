@@ -95,7 +95,6 @@
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
-#include <netinet/vinet.h>
 #include <machine/in_cksum.h>
 #include <crypto/des/des.h>
 #include <sys/md5.h>

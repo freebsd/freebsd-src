@@ -247,7 +247,6 @@ FBSD_1.0 {
 	sem_timedwait;
 	sem_post;
 	sem_getvalue;
-	semctl;
 	setdomainname;
 	sethostname;
 	longjmperror;
@@ -362,6 +361,7 @@ FBSD_1.1 {
 	posix_spawnattr_setsigdefault;
 	posix_spawnattr_setsigmask;
 	posix_spawnp;
+	semctl;
 	tcgetsid;
 	tcsetsid;
 };

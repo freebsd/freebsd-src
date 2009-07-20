@@ -60,6 +60,7 @@
 #include <net/pfil.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -74,7 +75,6 @@
 #include <netinet/in_pcb.h>
 #ifdef INET6
 #include <netinet/icmp6.h>
-#include <netinet6/vinet6.h>
 #endif
 
 #include <netipsec/ipsec.h>
@@ -116,7 +116,6 @@ static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
 static int
 ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 {
-	INIT_VNET_IPSEC(curvnet);
 	union sockaddr_union dst_address;
 	struct secasvar *sav;
 	u_int32_t spi;
@@ -295,7 +294,6 @@ int
 ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 			int skip, int protoff, struct m_tag *mt)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int prot, af, sproto;
 	struct ip *ip;
 	struct m_tag *mtag;
@@ -518,7 +516,6 @@ ipsec4_common_ctlinput(int cmd, struct sockaddr *sa, void *v, int proto)
 int
 ipsec6_common_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int l = 0;
 	int protoff;
 	struct ip6_ext ip6e;
@@ -569,8 +566,6 @@ int
 ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int protoff,
     struct m_tag *mt)
 {
-	INIT_VNET_INET6(curvnet);
-	INIT_VNET_IPSEC(curvnet);
 	int prot, af, sproto;
 	struct ip6_hdr *ip6;
 	struct m_tag *mtag;

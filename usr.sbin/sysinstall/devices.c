@@ -65,6 +65,8 @@ static int numDevs;
 	DEVICE_ENTRY(DEVICE_TYPE_NETWORK, name, descr, 0)
 #define	SERIAL(name, descr, max)					\
 	DEVICE_ENTRY(DEVICE_TYPE_NETWORK, name, descr, max)
+#define	USB(name, descr, max)						\
+	DEVICE_ENTRY(DEVICE_TYPE_USB, name, descr, max)
 
 static struct _devname {
     DeviceType type;
@@ -89,6 +91,7 @@ static struct _devname {
     DISK("mfid%d",	"LSI MegaRAID SAS array",		4),
     FLOPPY("fd%d",	"floppy drive unit A",			4),
     SERIAL("cuad%d",	"%s on device %s (COM%d)",		16),
+    USB("da%da",	"USB Mass Storage Device",		16),
     NETWORK("ae",	"Attansic/Atheros L2 Fast Ethernet"),
     NETWORK("age",	"Attansic/Atheros L1 Gigabit Ethernet"),
     NETWORK("alc",	"Atheros AR8131/AR8132 PCIe Ethernet"),
@@ -389,6 +392,22 @@ skipif:
 				   mediaShutdownFloppy, NULL);
 		    if (isDebug())
 			msgDebug("Found a floppy device for %s\n", try);
+		}
+		break;
+
+	    case DEVICE_TYPE_USB:
+		fd = deviceTry(device_names[i], try, j);
+		if (fd >= 0) {
+			char n[BUFSIZ];
+
+			close(fd);
+			snprintf(n, sizeof(n), device_names[i].name, j);
+			deviceRegister(strdup(n), device_names[i].description,
+			    strdup(try), DEVICE_TYPE_USB, TRUE, mediaInitUSB,
+			    mediaGetUSB, mediaShutdownUSB, NULL);
+
+			if (isDebug())
+				msgDebug("Found a USB disk for %s\n", try);
 		}
 		break;
 

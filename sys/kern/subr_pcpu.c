@@ -264,9 +264,8 @@ pcpu_find(u_int cpuid)
 int
 sysctl_dpcpu_quad(SYSCTL_HANDLER_ARGS)
 {
-	int64_t count;
-#ifdef SMP
 	uintptr_t dpcpu;
+	int64_t count;
 	int i;
 
 	count = 0;
@@ -276,18 +275,31 @@ sysctl_dpcpu_quad(SYSCTL_HANDLER_ARGS)
 			continue;
 		count += *(int64_t *)(dpcpu + (uintptr_t)arg1);
 	}
-#else
-	count = *(int64_t *)(dpcpu_off[0] + (uintptr_t)arg1);
-#endif
+	return (SYSCTL_OUT(req, &count, sizeof(count)));
+}
+
+int
+sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS)
+{
+	uintptr_t dpcpu;
+	long count;
+	int i;
+
+	count = 0;
+	for (i = 0; i < mp_ncpus; ++i) {
+		dpcpu = dpcpu_off[i];
+		if (dpcpu == 0)
+			continue;
+		count += *(long *)(dpcpu + (uintptr_t)arg1);
+	}
 	return (SYSCTL_OUT(req, &count, sizeof(count)));
 }
 
 int
 sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS)
 {
-	int count;
-#ifdef SMP
 	uintptr_t dpcpu;
+	int count;
 	int i;
 
 	count = 0;
@@ -297,9 +309,6 @@ sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS)
 			continue;
 		count += *(int *)(dpcpu + (uintptr_t)arg1);
 	}
-#else
-	count = *(int *)(dpcpu_off[0] + (uintptr_t)arg1);
-#endif
 	return (SYSCTL_OUT(req, &count, sizeof(count)));
 }
 

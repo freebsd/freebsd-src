@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/if_ether.h>
 #include <machine/in_cksum.h>
-#include <netinet/vinet.h>
 #endif
 
 #ifdef INET6
@@ -83,7 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
-#include <netinet6/vinet6.h>
 #endif
 
 #include <crypto/sha1.h>
@@ -920,7 +918,6 @@ carp_send_ad_locked(struct carp_softc *sc)
 	ch.carp_cksum = 0;
 
 #ifdef INET
-	INIT_VNET_INET(curvnet);
 	if (sc->sc_ia) {
 		struct ip *ip;
 
@@ -1476,7 +1473,6 @@ carp_multicast6_cleanup(struct carp_softc *sc)
 static int
 carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 {
-	INIT_VNET_INET(curvnet);
 	struct ifnet *ifp;
 	struct carp_if *cif;
 	struct in_ifaddr *ia, *ia_if;
@@ -1500,6 +1496,7 @@ carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 
 	/* we have to do it by hands to check we won't match on us */
 	ia_if = NULL; own = 0;
+	IN_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		/* and, yeah, we need a multicast-capable iface too */
 		if (ia->ia_ifp != SC2IFP(sc) &&
@@ -1513,20 +1510,30 @@ carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 		}
 	}
 
-	if (!ia_if)
+	if (!ia_if) {
+		IN_IFADDR_RUNLOCK();
 		return (EADDRNOTAVAIL);
+	}
 
 	ia = ia_if;
+	ifa_ref(&ia->ia_ifa);
+	IN_IFADDR_RUNLOCK();
+
 	ifp = ia->ia_ifp;
 
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0 ||
-	    (imo->imo_multicast_ifp && imo->imo_multicast_ifp != ifp))
+	    (imo->imo_multicast_ifp && imo->imo_multicast_ifp != ifp)) {
+		ifa_free(&ia->ia_ifa);
 		return (EADDRNOTAVAIL);
+	}
 
 	if (imo->imo_num_memberships == 0) {
 		addr.s_addr = htonl(INADDR_CARP_GROUP);
-		if ((imo->imo_membership[0] = in_addmulti(&addr, ifp)) == NULL)
+		if ((imo->imo_membership[0] = in_addmulti(&addr, ifp)) ==
+		    NULL) {
+			ifa_free(&ia->ia_ifa);
 			return (ENOBUFS);
+		}
 		imo->imo_num_memberships++;
 		imo->imo_multicast_ifp = ifp;
 		imo->imo_multicast_ttl = CARP_DFLTTL;
@@ -1601,11 +1608,13 @@ carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 	carp_setrun(sc, 0);
 
 	CARP_UNLOCK(cif);
+	ifa_free(&ia->ia_ifa);	/* XXXRW: should hold reference for softc. */
 
 	return (0);
 
 cleanup:
 	in_delmulti(imo->imo_membership[--imo->imo_num_memberships]);
+	ifa_free(&ia->ia_ifa);
 	return (error);
 }
 
@@ -1642,7 +1651,6 @@ carp_del_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 static int
 carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp;
 	struct carp_if *cif;
 	struct in6_ifaddr *ia, *ia_if;
@@ -1667,7 +1675,8 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 
 	/* we have to do it by hands to check we won't match on us */
 	ia_if = NULL; own = 0;
-	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
+	IN6_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		int i;
 
 		for (i = 0; i < 4; i++) {
@@ -1689,14 +1698,20 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		}
 	}
 
-	if (!ia_if)
+	if (!ia_if) {
+		IN6_IFADDR_RUNLOCK();
 		return (EADDRNOTAVAIL);
+	}
 	ia = ia_if;
+	ifa_ref(&ia->ia_ifa);
+	IN6_IFADDR_RUNLOCK();
 	ifp = ia->ia_ifp;
 
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0 ||
-	    (im6o->im6o_multicast_ifp && im6o->im6o_multicast_ifp != ifp))
+	    (im6o->im6o_multicast_ifp && im6o->im6o_multicast_ifp != ifp)) {
+		ifa_free(&ia->ia_ifa);
 		return (EADDRNOTAVAIL);
+	}
 
 	if (!sc->sc_naddrs6) {
 		struct in6_multi *in6m;
@@ -1798,12 +1813,14 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 	carp_setrun(sc, 0);
 
 	CARP_UNLOCK(cif);
+	ifa_free(&ia->ia_ifa);	/* XXXRW: should hold reference for softc. */
 
 	return (0);
 
 cleanup:
 	if (!sc->sc_naddrs6)
 		carp_multicast6_cleanup(sc);
+	ifa_free(&ia->ia_ifa);
 	return (error);
 }
 

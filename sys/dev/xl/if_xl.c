@@ -724,10 +724,10 @@ xl_setmulti(struct xl_softc *sc)
 		return;
 	}
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		mcnt++;
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (mcnt)
 		rxfilt |= XL_RXFILTER_ALLMULTI;
@@ -766,7 +766,7 @@ xl_setmulti_hash(struct xl_softc *sc)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH|i);
 
 	/* now program new ones */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -788,7 +788,7 @@ xl_setmulti_hash(struct xl_softc *sc)
 		    h | XL_CMD_RX_SET_HASH | XL_HASH_SET);
 		mcnt++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (mcnt)
 		rxfilt |= XL_RXFILTER_MULTIHASH;
@@ -2471,12 +2471,12 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 		status = XL_TXSTAT_RND_DEFEAT;
 
 #ifndef XL905B_TXCSUM_BROKEN
-		if (m_head->m_pkthdr.csum_flags) {
-			if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+		if ((*m_head)->m_pkthdr.csum_flags) {
+			if ((*m_head)->m_pkthdr.csum_flags & CSUM_IP)
 				status |= XL_TXSTAT_IPCKSUM;
-			if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+			if ((*m_head)->m_pkthdr.csum_flags & CSUM_TCP)
 				status |= XL_TXSTAT_TCPCKSUM;
-			if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
+			if ((*m_head)->m_pkthdr.csum_flags & CSUM_UDP)
 				status |= XL_TXSTAT_UDPCKSUM;
 		}
 #endif

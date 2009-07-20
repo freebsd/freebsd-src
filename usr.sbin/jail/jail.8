@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2009
+.Dd July 8, 2009
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -619,7 +619,7 @@ script from within the jail.
 ifconfig ed0 inet alias 192.0.2.100/32
 mount -t procfs proc /data/jail/192.0.2.100/proc
 jail path=/data/jail/192.0.2.100 host.hostname=testhostname \\
-	ip4=addr.192.0.2.100 command=/bin/sh /etc/rc
+	ip4.addr=192.0.2.100 command=/bin/sh /etc/rc
 .Ed
 .Pp
 A few warnings will be produced, because most

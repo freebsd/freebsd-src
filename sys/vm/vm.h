@@ -61,6 +61,14 @@
 #ifndef VM_H
 #define VM_H
 
+#include <machine/vm.h>
+
+/*
+ * The exact set of memory attributes is machine dependent.  However, every
+ * machine is required to define VM_MEMATTR_DEFAULT.
+ */
+typedef	char vm_memattr_t;	/* memory attribute codes */
+
 typedef char vm_inherit_t;	/* inheritance codes */
 
 #define	VM_INHERIT_SHARE	((vm_inherit_t) 0)

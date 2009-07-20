@@ -6,7 +6,6 @@ FILES=	README \
 	atrun \
 	cron \
 	ftpd \
-	gdm \
 	imap \
 	kde \
 	login \

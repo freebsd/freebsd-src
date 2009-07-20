@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=	athpoke
+LINKS=	${BINDIR}/${PROG} ${BINDIR}/athpeek
 
 .PATH.c: ${.CURDIR}/../common
 

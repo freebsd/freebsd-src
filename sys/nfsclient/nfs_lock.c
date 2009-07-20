@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>

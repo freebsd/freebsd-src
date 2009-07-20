@@ -62,17 +62,14 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_fw.h>
 #include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
-#include <netinet/vinet.h>
 
 #include <netgraph/ng_ipfw.h>
 
 #include <machine/in_cksum.h>
 
-#ifdef VIMAGE_GLOBALS
-int fw_enable = 1;
+VNET_DEFINE(int, fw_enable) = 1;
 #ifdef INET6
-int fw6_enable = 1;
-#endif
+VNET_DEFINE(int, fw6_enable) = 1;
 #endif
 
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
@@ -92,7 +89,6 @@ int
 ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip_fw_args args;
 	struct ng_ipfw_tag *ng_tag;
 	struct m_tag *dn_tag;
@@ -226,7 +222,6 @@ int
 ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip_fw_args args;
 	struct ng_ipfw_tag *ng_tag;
 	struct m_tag *dn_tag;
@@ -520,7 +515,6 @@ ipfw6_unhook(void)
 int
 ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_IPFW(curvnet);
 	int enable = *(int *)arg1;
 	int error;
 

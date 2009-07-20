@@ -69,6 +69,13 @@ __FBSDID("$FreeBSD$");
 #define SIZCOL	62		/* start of Size column in normal */
 
 /*
+ * isprint() takes a parameter of 'int', but expect values in the range
+ * of unsigned char.  Define a wrapper which takes a value of type 'char',
+ * whether signed or unsigned, and ensure it ends up in the right range.
+ */
+#define	isprintch(Anychar) isprint((u_char)(Anychar))
+
+/*
  * Stuff for handling job specifications
  */
 extern uid_t	uid, euid;
@@ -86,6 +93,7 @@ static const char  *head0 = "Rank   Owner      Job  Files";
 static const char  *head1 = "Total Size\n";
 
 static void	alarmhandler(int _signo);
+static void	filtered_write(char *_obuffer, int _wlen, FILE *_wstream);
 static void	warn(const struct printer *_pp);
 
 /*
@@ -254,8 +262,101 @@ displayq(struct printer *pp, int format)
 		if (write(fd, line, i) != i)
 			fatal(pp, "Lost connection");
 		while ((i = read(fd, line, sizeof(line))) > 0)
-			(void) fwrite(line, 1, i, stdout);
+			filtered_write(line, i, stdout);
+		filtered_write(NULL, -1, stdout);
 		(void) close(fd);
+	}
+}
+
+/*
+ * The lpq-info read from remote hosts may contain unprintable characters,
+ * or carriage-returns instead of line-feeds.  Clean those up before echoing
+ * the lpq-info line(s) to stdout.  The info may also be missing any kind of
+ * end-of-line character.  This also turns CRLF and LFCR into a plain LF.
+ *
+ * This routine may be called multiple times to process a single set of
+ * information, and after a set is finished this routine must be called
+ * one extra time with NULL specified as the buffer address.
+ */
+static void
+filtered_write(char *wbuffer, int wlen, FILE *wstream)
+{
+	static char lastchar, savedchar;
+	char *chkptr, *dest_end, *dest_ch, *nxtptr, *w_end;
+	int destlen;
+	char destbuf[BUFSIZ];
+
+	if (wbuffer == NULL) {
+		if (savedchar != '\0') {
+			if (savedchar == '\r')
+				savedchar = '\n';
+			fputc(savedchar, wstream);
+			lastchar = savedchar;
+			savedchar = '\0';
+		}
+		if (lastchar != '\0' && lastchar != '\n')
+			fputc('\n', wstream);
+		lastchar = '\0';
+		return;
+	}
+
+	dest_ch = &destbuf[0];
+	dest_end = dest_ch + sizeof(destbuf);
+	chkptr = wbuffer;
+	w_end = wbuffer + wlen;
+	lastchar = '\0';
+	if (savedchar != '\0') {
+		chkptr = &savedchar;
+		nxtptr = wbuffer;
+	} else
+		nxtptr = chkptr + 1;
+
+	while (chkptr < w_end) {
+		if (nxtptr < w_end) {
+			if ((*chkptr == '\r' && *nxtptr == '\n') ||
+			    (*chkptr == '\n' && *nxtptr == '\r')) {
+				*dest_ch++ = '\n';
+				/* want to skip past that second character */
+				nxtptr++;
+				goto check_next;
+			}
+		} else {
+			/* This is the last byte in the buffer given on this
+			 * call, so check if it could be the first-byte of a
+			 * significant two-byte sequence.  If it is, then
+			 * don't write it out now, but save for checking in
+			 * the next call.
+			 */
+			savedchar = '\0';
+			if (*chkptr == '\r' || *chkptr == '\n') {
+				savedchar = *chkptr;
+				break;
+			}
+		}
+		if (*chkptr == '\r')
+			*dest_ch++ = '\n';
+#if 0		/* XXX - don't translate unprintable characters (yet) */
+		else if (*chkptr != '\t' && *chkptr != '\n' &&
+		    !isprintch(*chkptr))
+			*dest_ch++ = '?';
+#endif
+		else
+			*dest_ch++ = *chkptr;
+
+check_next:
+		chkptr = nxtptr;
+		nxtptr = chkptr + 1;
+		if (dest_ch >= dest_end) {
+			destlen = dest_ch - &destbuf[0];
+			fwrite(destbuf, 1, destlen, wstream);
+			lastchar = destbuf[destlen - 1];
+			dest_ch = &destbuf[0];
+		}
+	}
+	destlen = dest_ch - &destbuf[0];
+	if (destlen > 0) {
+		fwrite(destbuf, 1, destlen, wstream);
+		lastchar = destbuf[destlen - 1];
 	}
 }
 

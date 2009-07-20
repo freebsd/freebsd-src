@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsserver/nfs.h>
 #include <nfs/xdr_subs.h>
@@ -127,10 +126,9 @@ nfsm_mbuftouio(struct mbuf **mrep, struct uio *uiop, int siz, caddr_t *dpos)
 				(mbufcp, uiocp, xfer);
 			else
 #endif
-			if (uiop->uio_segflg == UIO_SYSSPACE) {
+			if (uiop->uio_segflg == UIO_SYSSPACE)
 				bcopy(mbufcp, uiocp, xfer);
-				cpu_flush_dcache(uiocp, xfer);
-			} else
+			else
 				copyout(mbufcp, uiocp, xfer);
 			left -= xfer;
 			len -= xfer;

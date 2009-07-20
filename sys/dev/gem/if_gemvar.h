@@ -141,11 +141,10 @@ struct gem_softc {
 
 	u_int		sc_flags;
 #define	GEM_INITED	(1 << 0)	/* reset persistent regs init'ed */
-#define	GEM_DYING	(1 << 1)	/* detach initiated */
-#define	GEM_LINK	(1 << 2)	/* link is up */
-#define	GEM_PCI		(1 << 3)	/* PCI busses are little-endian */
-#define	GEM_PCI66	(1 << 4)	/* PCI bus runs at 66MHz */
-#define	GEM_SERDES	(1 << 5)	/* use the SERDES */
+#define	GEM_LINK	(1 << 1)	/* link is up */
+#define	GEM_PCI		(1 << 2)	/* PCI busses are little-endian */
+#define	GEM_PCI66	(1 << 3)	/* PCI bus runs at 66MHz */
+#define	GEM_SERDES	(1 << 4)	/* use the SERDES */
 
 	/*
 	 * ring buffer DMA stuff

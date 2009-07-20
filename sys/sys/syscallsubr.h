@@ -145,7 +145,7 @@ int	kern_open(struct thread *td, char *path, enum uio_seg pathseg,
 int	kern_openat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int flags, int mode);
 int	kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg,
-	    int name);
+	    int name, u_long flags);
 int	kern_pipe(struct thread *td, int fildes[2]);
 int	kern_preadv(struct thread *td, int fd, struct uio *auio, off_t offset);
 int	kern_ptrace(struct thread *td, int req, pid_t pid, void *addr,

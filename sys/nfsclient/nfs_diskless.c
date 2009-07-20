@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsdiskless.h>
@@ -150,7 +149,6 @@ nfs_parse_options(const char *envopts, struct nfs_args *nd)
 void
 nfs_setup_diskless(void)
 {
-	INIT_VNET_NET(curvnet);
 	struct nfs_diskless *nd = &nfs_diskless;
 	struct ifnet *ifp;
 	struct ifaddr *ifa;

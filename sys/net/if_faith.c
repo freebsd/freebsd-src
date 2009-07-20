@@ -77,7 +77,6 @@
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/vinet6.h>
 #endif
 
 #define FAITHNAME	"faith"
@@ -328,7 +327,6 @@ static int
 faithprefix(in6)
 	struct in6_addr *in6;
 {
-	INIT_VNET_INET6(curvnet);
 	struct rtentry *rt;
 	struct sockaddr_in6 sin6;
 	int ret;

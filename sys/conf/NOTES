@@ -301,6 +301,9 @@ options 	COMPAT_43
 # Old tty interface.
 options 	COMPAT_43TTY
 
+# Note that as a general rule, COMPAT_FREEBSD<n> depends on
+# COMPAT_FREEBSD<n+1>, COMPAT_FREEBSD<n+2>, etc.
+
 # Enable FreeBSD4 compatibility syscalls
 options 	COMPAT_FREEBSD4
 
@@ -735,6 +738,8 @@ device		vlan
 device		wlan
 options 	IEEE80211_DEBUG		#enable debugging msgs
 options 	IEEE80211_AMPDU_AGE	#age frames in AMPDU reorder q's
+options 	IEEE80211_SUPPORT_MESH	#enable 802.11s D3.0 support
+options 	IEEE80211_SUPPORT_TDMA	#enable TDMA support
 
 #  The `wlan_wep', `wlan_tkip', and `wlan_ccmp' devices provide
 #  support for WEP, TKIP, and AES-CCMP crypto protocols optionally

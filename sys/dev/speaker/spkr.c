@@ -439,7 +439,7 @@ spkrwrite(dev, uio, ioflag)
 	int ioflag;
 {
 #ifdef DEBUG
-	printf("spkrwrite: entering with dev = %s, count = %d\n",
+	printf("spkrwrite: entering with dev = %s, count = %zd\n",
 		devtoname(dev), uio->uio_resid);
 #endif /* DEBUG */
 

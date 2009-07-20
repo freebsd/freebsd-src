@@ -64,6 +64,7 @@ static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.50 2007/09/20 12
 #endif
 #if __FreeBSD_version >= 800044
 # include <sys/vimage.h>
+# include <netinet/tcp_var.h>
 #else
 #define V_path_mtu_discovery path_mtu_discovery
 #define V_ipforwarding ipforwarding
@@ -92,9 +93,6 @@ static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.50 2007/09/20 12
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
-#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800056)
-# include <netinet/vinet.h>
-#endif
 #ifndef _KERNEL
 # include "netinet/ipf.h"
 #endif
@@ -213,7 +211,6 @@ char *s;
 
 int ipfattach()
 {
-	INIT_VNET_INET(curvnet);
 #ifdef USE_SPL
 	int s;
 #endif
@@ -265,7 +262,6 @@ int ipfattach()
  */
 int ipfdetach()
 {
-	INIT_VNET_INET(curvnet);
 #ifdef USE_SPL
 	int s;
 #endif
@@ -654,7 +650,6 @@ static int fr_send_ip(fin, m, mpp)
 fr_info_t *fin;
 mb_t *m, **mpp;
 {
-	INIT_VNET_INET(curvnet);
 	fr_info_t fnew;
 	ip_t *ip, *oip;
 	int hlen;

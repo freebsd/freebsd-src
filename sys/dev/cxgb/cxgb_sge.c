@@ -1152,17 +1152,18 @@ busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
 {
 	struct mbuf *m0;
 	int err, pktlen, pass = 0;
+	bus_dma_tag_t tag = txq->entry_tag;
 
 retry:
 	err = 0;
 	m0 = *m;
 	pktlen = m0->m_pkthdr.len;
 #if defined(__i386__) || defined(__amd64__)
-	if (busdma_map_sg_collapse(txq, txsd->map, m, segs, nsegs) == 0) {
+	if (busdma_map_sg_collapse(tag, txsd->map, m, segs, nsegs) == 0) {
 		goto done;
 	} else
 #endif
-		err = bus_dmamap_load_mbuf_sg(txq->entry_tag, txsd->map, m0, segs, nsegs, 0);
+		err = bus_dmamap_load_mbuf_sg(tag, txsd->map, m0, segs, nsegs, 0);
 
 	if (err == 0) {
 		goto done;
@@ -1189,7 +1190,7 @@ retry:
 	}
 done:
 #if !defined(__i386__) && !defined(__amd64__)
-	bus_dmamap_sync(txq->entry_tag, txsd->map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(tag, txsd->map, BUS_DMASYNC_PREWRITE);
 #endif	
 	txsd->flags |= TX_SW_DESC_MAPPED;
 
@@ -1412,11 +1413,12 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		tso_info = V_LSO_MSS(m0->m_pkthdr.tso_segsz);
 #endif
 	if (m0->m_nextpkt != NULL) {
-		busdma_map_sg_vec(txq, txsd->map, m0, segs, &nsegs);
+		busdma_map_sg_vec(txq->entry_tag, txsd->map, m0, segs, &nsegs);
 		ndesc = 1;
 		mlen = 0;
 	} else {
- 		if ((err = busdma_map_sg_collapse(txq, txsd->map, &m0, segs, &nsegs))) {
+		if ((err = busdma_map_sg_collapse(txq->entry_tag, txsd->map,
+		    &m0, segs, &nsegs))) {
 			if (cxgb_debug)
 				printf("failed ... err=%d\n", err);
 			return (err);
@@ -2863,15 +2865,14 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		if ((sopeop == RSPQ_SOP_EOP) ||
 		    (sopeop == RSPQ_SOP))
 			flags |= M_PKTHDR;
+		m_init(m, fl->zone, fl->buf_size, M_NOWAIT, MT_DATA, flags);
 		if (fl->zone == zone_pack) {
-			m_init(m, zone_pack, MCLBYTES, M_NOWAIT, MT_DATA, flags);
 			/*
 			 * restore clobbered data pointer
 			 */
 			m->m_data = m->m_ext.ext_buf;
 		} else {
 			m_cljset(m, cl, fl->type);
-			m->m_flags = flags;
 		}
 		m->m_len = len;
 	}		
