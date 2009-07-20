@@ -426,10 +426,15 @@ arm_remap_nocache(void *addr, vm_size_t size)
 		vm_offset_t tomap = arm_nocache_startaddr + i * PAGE_SIZE;
 		void *ret = (void *)tomap;
 		vm_paddr_t physaddr = vtophys((vm_offset_t)addr);
+		vm_offset_t vaddr = (vm_offset_t) addr;
 		
+		vaddr = vaddr & ~PAGE_MASK;
 		for (; tomap < (vm_offset_t)ret + size; tomap += PAGE_SIZE,
-		    physaddr += PAGE_SIZE, i++) {
+		    vaddr += PAGE_SIZE, physaddr += PAGE_SIZE, i++) {
+			cpu_idcache_wbinv_range(vaddr, PAGE_SIZE);
+			cpu_l2cache_wbinv_range(vaddr, PAGE_SIZE);
 			pmap_kenter_nocache(tomap, physaddr);
+			cpu_tlb_flushID_SE(vaddr);
 			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i % 
 			    BITS_PER_INT);
 		}
