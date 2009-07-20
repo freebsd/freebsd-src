@@ -235,9 +235,13 @@ struct ieee80211_stats {
 	uint32_t	is_hwmp_wrongseq;	/* wrong hwmp seq no. */
 	uint32_t	is_hwmp_rootreqs;	/* root PREQs sent */
 	uint32_t	is_hwmp_rootrann;	/* root RANNs sent */
-	uint32_t	is_rx_badalign;		/* dropped 'cuz misaligned */
 
-	uint32_t	is_spare[15];
+	uint32_t	is_mesh_badae;		/* dropped 'cuz invalid AE */
+	uint32_t	is_mesh_rtaddfailed;	/* route add failed */
+	uint32_t	is_mesh_notproxy;	/* dropped 'cuz not proxying */
+	uint32_t	is_rx_badalign;		/* dropped 'cuz misaligned */
+	
+	uint32_t	is_spare[12];
 };
 
 /*
@@ -326,6 +330,16 @@ enum {
 	IEEE80211_MESH_RTCMD_FLUSH  = 1, /* flush HWMP routing table */
 	IEEE80211_MESH_RTCMD_ADD    = 2, /* add entry to the table */
 	IEEE80211_MESH_RTCMD_DELETE = 3, /* delete an entry from the table */
+};
+
+struct ieee80211req_mesh_route {
+	uint8_t		imr_dest[IEEE80211_ADDR_LEN];
+	uint8_t		imr_nexthop[IEEE80211_ADDR_LEN];
+	uint16_t	imr_nhops;
+	uint16_t	imr_pad;
+	uint32_t	imr_metric;
+	uint32_t	imr_lifetime;
+	uint32_t	imr_lastmseq;
 };
 
 /*

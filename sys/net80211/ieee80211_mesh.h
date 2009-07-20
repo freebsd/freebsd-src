@@ -359,8 +359,8 @@ struct ieee80211_meshcntl_ae10 {
 	uint8_t		mc_flags;	/* Address Extension 10 */
 	uint8_t		mc_ttl;		/* TTL */
 	uint8_t		mc_seq[4];	/* Sequence No. */
+	uint8_t		mc_addr4[IEEE80211_ADDR_LEN];
 	uint8_t		mc_addr5[IEEE80211_ADDR_LEN];
-	uint8_t		mc_addr6[IEEE80211_ADDR_LEN];
 } __packed;
 
 struct ieee80211_meshcntl_ae11 {
@@ -372,22 +372,18 @@ struct ieee80211_meshcntl_ae11 {
 	uint8_t		mc_addr6[IEEE80211_ADDR_LEN];
 } __packed;
 
-struct ieee80211req_mesh_route {
-	uint8_t			imr_dest[IEEE80211_ADDR_LEN];
-	uint8_t			imr_nexthop[IEEE80211_ADDR_LEN];
-	uint32_t		imr_metric;
-	uint16_t		imr_nhops;
-	uint32_t		imr_lifetime;
-};
-
 #ifdef _KERNEL
 MALLOC_DECLARE(M_80211_MESH_RT);
 struct ieee80211_mesh_route {
 	TAILQ_ENTRY(ieee80211_mesh_route)	rt_next;
+	struct timeval		rt_crtime;	/* creation time */
 	uint8_t			rt_dest[IEEE80211_ADDR_LEN];
 	uint8_t			rt_nexthop[IEEE80211_ADDR_LEN];
 	uint32_t		rt_metric;	/* path metric */
 	uint16_t		rt_nhops;	/* number of hops */
+	uint16_t		rt_flags;
+#define	IEEE80211_MESHRT_FLAGS_VALID	0x01	/* patch discovery complete */
+#define	IEEE80211_MESHRT_FLAGS_PROXY	0x02	/* proxy entry */
 	uint32_t		rt_lifetime;
 	uint32_t		rt_lastmseq;	/* last seq# seen dest */
 	void			*rt_priv;	/* private data */
@@ -411,8 +407,9 @@ struct ieee80211_mesh_proto_path {
 	void		(*mpp_vdetach)(struct ieee80211vap *);
 	int		(*mpp_newstate)(struct ieee80211vap *,
 			    enum ieee80211_state, int);
-	size_t		mpp_privlen;	/* size required in the routing table
+	const size_t	mpp_privlen;	/* size required in the routing table
 					   for private data */
+	const struct timeval mpp_inact;	/* inact. timeout for invalid routes */
 };
 
 /*
@@ -454,6 +451,7 @@ struct ieee80211_mesh_state {
 #define IEEE80211_MESHFLAGS_FWD		0x04	/* forward packets */
 	uint8_t				ms_flags;
 	struct mtx			ms_rt_lock;
+	struct callout			ms_cleantimer;
 	TAILQ_HEAD(, ieee80211_mesh_route)  ms_routes;
 	struct ieee80211_mesh_proto_metric *ms_pmetric;
 	struct ieee80211_mesh_proto_path   *ms_ppath;
@@ -470,6 +468,8 @@ struct ieee80211_mesh_route *
 void		ieee80211_mesh_rt_del(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN]);
 void		ieee80211_mesh_rt_flush(struct ieee80211vap *);
+void		ieee80211_mesh_proxy_check(struct ieee80211vap *,
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 
 int		ieee80211_mesh_register_proto_path(const
 		    struct ieee80211_mesh_proto_path *);
@@ -493,8 +493,26 @@ void		ieee80211_mesh_init_neighbor(struct ieee80211_node *,
 		   const struct ieee80211_frame *,
 		   const struct ieee80211_scanparams *);
 
+/*
+ * Return non-zero if proxy operation is enabled.
+ */
+static __inline int
+ieee80211_mesh_isproxyena(struct ieee80211vap *vap)
+{
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	return (ms->ms_flags &
+	    (IEEE80211_MESHFLAGS_AP | IEEE80211_MESHFLAGS_PORTAL)) != 0;
+}
+
+/*
+ * Process an outbound frame: if a path is known to the
+ * destination then return a reference to the next hop
+ * for immediate transmission.  Otherwise initiate path
+ * discovery and, if possible queue the packet to be
+ * sent when path discovery completes.
+ */
 static __inline struct ieee80211_node *
-ieee80211_mesh_discover(struct ieee80211vap *vap,                                                     
+ieee80211_mesh_discover(struct ieee80211vap *vap,
     const uint8_t dest[IEEE80211_ADDR_LEN], struct mbuf *m)
 {
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
