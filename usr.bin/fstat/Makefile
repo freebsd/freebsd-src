@@ -8,7 +8,7 @@ SRCS=	cd9660.c common_kvm.c fstat.c fuser.c libprocstat.c main.c msdosfs.c
 LINKS=	${BINDIR}/fstat ${BINDIR}/fuser
 DPADD=	${LIBKVM}
 LDADD=	-lkvm -lutil
-WARNS?=	3
+WARNS?=	6
 
 MAN1=	fuser.1 fstat.1
 

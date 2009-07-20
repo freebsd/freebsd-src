@@ -95,24 +95,45 @@ __FBSDID("$FreeBSD$");
 #include "libprocstat.h"
 #include "common_kvm.h"
 
+int     statfs(const char *, struct statfs *);	/* XXX */
+
 /*
  * Vnode-to-filestat types translation table.
  */
 static struct {
-        int     vtype; 
-        int     fst_vtype;
+	int	vtype; 
+	int	fst_vtype;
 } vt2fst[] = {
-        { VNON, PS_FST_VTYPE_VNON },
-        { VREG, PS_FST_VTYPE_VREG },
-        { VDIR, PS_FST_VTYPE_VDIR },
-        { VBLK, PS_FST_VTYPE_VBLK },
-        { VCHR, PS_FST_VTYPE_VCHR },
-        { VLNK, PS_FST_VTYPE_VLNK },
-        { VSOCK, PS_FST_VTYPE_VSOCK },
-        { VFIFO, PS_FST_VTYPE_VFIFO },
-        { VBAD, PS_FST_VTYPE_VBAD }
+	{ VNON, PS_FST_VTYPE_VNON },
+	{ VREG, PS_FST_VTYPE_VREG },
+	{ VDIR, PS_FST_VTYPE_VDIR },
+	{ VBLK, PS_FST_VTYPE_VBLK },
+	{ VCHR, PS_FST_VTYPE_VCHR },
+	{ VLNK, PS_FST_VTYPE_VLNK },
+	{ VSOCK, PS_FST_VTYPE_VSOCK },
+	{ VFIFO, PS_FST_VTYPE_VFIFO },
+	{ VBAD, PS_FST_VTYPE_VBAD }
 };
-#define NVFTYPES (sizeof(vt2fst) / sizeof(*vt2fst))
+#define	NVFTYPES	(sizeof(vt2fst) / sizeof(*vt2fst))
+
+/*
+ * kinfo tof ilestat vnode types translation table.
+ */
+static struct {
+	int	kf_vtype; 
+	int	fst_vtype;
+} kfvtypes2fst[] = {
+	{ KF_VTYPE_VNON, PS_FST_VTYPE_VNON },
+	{ KF_VTYPE_VREG, PS_FST_VTYPE_VREG },
+	{ KF_VTYPE_VDIR, PS_FST_VTYPE_VDIR },
+	{ KF_VTYPE_VBLK, PS_FST_VTYPE_VBLK },
+	{ KF_VTYPE_VCHR, PS_FST_VTYPE_VCHR },
+	{ KF_VTYPE_VLNK, PS_FST_VTYPE_VLNK },
+	{ KF_VTYPE_VSOCK, PS_FST_VTYPE_VSOCK },
+	{ KF_VTYPE_VFIFO, PS_FST_VTYPE_VFIFO },
+	{ KF_VTYPE_VBAD, PS_FST_VTYPE_VBAD }
+};
+#define	NKFVTYPES	(sizeof(kfvtypes2fst) / sizeof(*kfvtypes2fst))
 
 /*
  * Descriptor-to-filestat flags translation table.
@@ -137,6 +158,47 @@ static struct {
 	{ O_EXEC, PS_FST_FFLAG_EXEC }
 };
 #define NFSTFLAGS	(sizeof(fstflags) / sizeof(*fstflags))
+
+/*
+ * kinfo types to filestat translation table.
+ */
+static struct {
+	int kf_type;
+	int fst_type;
+} kftypes2fst[] = {
+	{ KF_TYPE_NONE, PS_FST_TYPE_NONE },
+	{ KF_TYPE_VNODE, PS_FST_TYPE_VNODE },
+	{ KF_TYPE_SOCKET, PS_FST_TYPE_SOCKET },
+	{ KF_TYPE_PIPE, PS_FST_TYPE_PIPE },
+	{ KF_TYPE_FIFO, PS_FST_TYPE_FIFO },
+	{ KF_TYPE_KQUEUE, PS_FST_TYPE_KQUEUE },
+	{ KF_TYPE_CRYPTO, PS_FST_TYPE_CRYPTO },
+	{ KF_TYPE_MQUEUE, PS_FST_TYPE_MQUEUE },
+	{ KF_TYPE_SHM, PS_FST_TYPE_SHM },
+	{ KF_TYPE_SEM, PS_FST_TYPE_SEM },
+	{ KF_TYPE_PTS, PS_FST_TYPE_PTS },
+	{ KF_TYPE_UNKNOWN, PS_FST_TYPE_UNKNOWN }
+};
+#define NKFTYPES	(sizeof(kftypes2fst) / sizeof(*kftypes2fst))
+
+/*
+ * kinfo flags to filestat translation table.
+ */
+static struct {
+	int kf_flag;
+	int fst_flag;
+} kfflags2fst[] = {
+	{ KF_FLAG_READ, PS_FST_FFLAG_READ },
+	{ KF_FLAG_WRITE, PS_FST_FFLAG_WRITE },
+	{ KF_FLAG_NONBLOCK, PS_FST_FFLAG_NONBLOCK },
+	{ KF_FLAG_APPEND, PS_FST_FFLAG_APPEND },
+	{ KF_FLAG_HASLOCK, PS_FST_FFLAG_SHLOCK },	/* XXX: which lock? */
+	{ KF_FLAG_ASYNC, PS_FST_FFLAG_ASYNC },
+	{ KF_FLAG_FSYNC, PS_FST_FFLAG_SYNC },
+	{ KF_FLAG_DIRECT, PS_FST_FFLAG_DIRECT },
+	/* XXX: other types? */
+};
+#define NKFFLAGS	(sizeof(kfflags2fst) / sizeof(*kfflags2fst))
 
 /*
  * Filesystem specific handlers.
@@ -306,7 +368,7 @@ procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 }
 
 static struct filestat *
-filestat_new_entry(struct vnode *vp, int type, int fd, int fflags, int uflags)
+filestat_new_entry(void *typedep, int type, int fd, int fflags, int uflags)
 {
 	struct filestat *entry;
 
@@ -315,7 +377,7 @@ filestat_new_entry(struct vnode *vp, int type, int fd, int fflags, int uflags)
 		warn("malloc()");
 		return (NULL);
 	}
-	entry->fs_typedep = vp;
+	entry->fs_typedep = typedep;
 	entry->fs_fflags = fflags;
 	entry->fs_uflags = uflags;
 	entry->fs_fd = fd;
@@ -512,10 +574,95 @@ exit:
 	return (head);
 }
 
-static struct filestat_list *
-procstat_getfiles_sysctl(struct kinfo_proc *kp __unused, int mmapped)
+static int
+kinfo_type2fst(int kftype)
 {
-	return (NULL);
+	unsigned int i;
+
+	for (i = 0; i < NKFTYPES; i++)
+		if (kftypes2fst[i].kf_type == kftype)
+			break;
+	if (i == NKFTYPES)
+		return (PS_FST_TYPE_UNKNOWN);
+	return (kftypes2fst[i].fst_type);
+}
+
+static int
+kinfo_fflags2fst(int kfflags)
+{
+	unsigned int i;
+	int flags;
+
+	flags = 0;
+	for (i = 0; i < NKFFLAGS; i++)
+		if ((kfflags & kfflags2fst[i].kf_flag) != 0)
+			flags |= kfflags2fst[i].fst_flag;
+	return (flags);
+}
+
+static int
+kinfo_uflags2fst(int fd)
+{
+	switch (fd) {
+	case KF_FD_TYPE_CWD:
+		return (PS_FST_UFLAG_CDIR);
+	case KF_FD_TYPE_ROOT:
+		return (PS_FST_UFLAG_RDIR);
+	case KF_FD_TYPE_JAIL:
+		return (PS_FST_UFLAG_JAIL);
+#if 0
+	case KF_FD_TYPE_TRACE:
+		return (PS_FST_UFLAG_TRACE);
+	case KF_FD_TYPE_TEXT:
+		return (PS_FST_UFLAG_TEXT);
+#endif
+	}
+	return (0);
+}
+
+static struct filestat_list *
+procstat_getfiles_sysctl(struct kinfo_proc *kp, int mmapped __unused)
+{
+	struct kinfo_file *kif, *files;
+	struct filestat_list *head;
+	int fd, fflags, uflags, type;
+	struct filestat *entry;
+	int cnt, i;
+
+	assert(kp);
+
+	if (kp->ki_fd == NULL)
+		return (NULL);
+
+	files = kinfo_getfile(kp->ki_pid, &cnt);
+	if (files == NULL) {
+		warn("kinfo_getfile()");
+		return (NULL);
+	}
+
+	/*
+	 * Allocate list head.
+	 */
+	head = malloc(sizeof(*head));
+	if (head == NULL)
+		return (NULL);
+	STAILQ_INIT(head);
+	for (i = 0; i < cnt; i++) {
+		kif = &files[i];
+
+		type = kinfo_type2fst(kif->kf_type);
+		fd = kif->kf_fd >= 0 ? kif->kf_fd : -1;
+		fflags = kinfo_fflags2fst(kif->kf_flags);
+		uflags = kinfo_uflags2fst(kif->kf_fd);
+
+		/*
+		 * Create filestat entry.
+		 */
+		entry = filestat_new_entry(kif, type, fd, fflags, uflags);
+		if (entry != NULL)
+			STAILQ_INSERT_TAIL(head, entry, next);
+	}
+	return (head);
 }
 
 int
@@ -565,8 +712,8 @@ fail:
 }
 
 static int
-procstat_get_pipe_info_sysctl(struct filestat *fst, struct pipestat *ps,
-    char *errbuf)
+procstat_get_pipe_info_sysctl(struct filestat *fst __unused, struct pipestat *ps __unused,
+    char *errbuf __unused)
 {
 
 	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
@@ -620,8 +767,8 @@ fail:
 }
 
 static int
-procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
-    char *errbuf)
+procstat_get_pts_info_sysctl(struct filestat *fst __unused, struct ptsstat *pts __unused,
+    char *errbuf __unused)
 {
 
 	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
@@ -711,13 +858,56 @@ fail:
 }
 
 static int
-procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
-    char *errbuf)
+kinfo_vtype2fst(int kfvtype)
 {
+	unsigned int i;
 
-	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
-	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
-	return (1);
+	for (i = 0; i < NKFVTYPES; i++)
+		if (kfvtypes2fst[i].kf_vtype == kfvtype)
+			break;
+	if (i == NKFVTYPES)
+		return (PS_FST_VTYPE_UNKNOWN);
+	return (kfvtypes2fst[i].fst_vtype);
+}
+
+static int
+procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
+    char *errbuf __unused)
+{
+	struct kinfo_file *kif;
+	struct statfs stbuf;
+	char *name;
+
+	assert(fst);
+	assert(vn);
+	kif = fst->fs_typedep;
+	if (kif == NULL)
+		return (1);
+	bzero(vn, sizeof(*vn));
+	vn->vn_type = kinfo_vtype2fst(kif->kf_vnode_type);
+	if (vn->vn_type == PS_FST_VTYPE_VNON ||
+	    vn->vn_type == PS_FST_VTYPE_VBAD ||
+	    (kif->kf_status & KF_ATTR_VALID) == 0)
+		return (0);
+	if (kif->kf_path && *kif->kf_path) {
+		statfs(kif->kf_path, &stbuf);
+		vn->mntdir = strdup(stbuf.f_mntonname);
+	}
+	vn->vn_dev = kif->kf_file_rdev;
+	if (kif->kf_vnode_type == KF_VTYPE_VBLK) {
+		name = devname(vn->vn_dev, S_IFBLK);
+		if (name != NULL)
+			strlcpy(vn->vn_devname, name, sizeof(vn->vn_devname));
+	} else if (kif->kf_vnode_type == KF_VTYPE_VCHR) {
+		name = devname(vn->vn_dev, S_IFCHR);
+		if (name != NULL)
+			strlcpy(vn->vn_devname, name, sizeof(vn->vn_devname));
+	}
+	vn->vn_fsid = kif->kf_file_fsid;
+	vn->vn_fileid = kif->kf_file_fileid;
+	vn->vn_size = kif->kf_file_size;
+	vn->vn_mode = kif->kf_file_mode;
+	return (0);
 }
 
 int
@@ -836,8 +1026,8 @@ fail:
 }
 
 static int
-procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
-    char *errbuf)
+procstat_get_socket_info_sysctl(struct filestat *fst __unused, struct sockstat *sock __unused,
+    char *errbuf __unused)
 {
 
 	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
