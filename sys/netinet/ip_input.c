@@ -284,6 +284,8 @@ ip_init(void)
 	struct protosw *pr;
 	int i;
 
+	V_ip_id = time_second & 0xffff;
+
 	TAILQ_INIT(&V_in_ifaddrhead);
 	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);
 
@@ -342,7 +344,6 @@ ip_init(void)
 		NULL, EVENTHANDLER_PRI_ANY);
 
 	/* Initialize various other remaining things. */
-	V_ip_id = time_second & 0xffff;
 	IPQ_LOCK_INIT();
 	netisr_register(&ip_nh);
 }
