@@ -180,7 +180,6 @@ static int	flowtable_idetach(const void *);
 static const vnet_modinfo_t flowtable_modinfo = {
 	.vmi_id		= VNET_MOD_FLOWTABLE,
 	.vmi_name	= "flowtable",
-	.vmi_dependson	= VNET_MOD_INET,
 	.vmi_iattach    = flowtable_iattach,
 	.vmi_idetach    = flowtable_idetach
 };
