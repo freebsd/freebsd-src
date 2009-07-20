@@ -224,7 +224,10 @@ static VNET_DEFINE(int, current_state_timers_running);	/* IGMPv1/v2 host
 #define	V_current_state_timers_running	VNET(current_state_timers_running)
 
 static VNET_DEFINE(LIST_HEAD(, igmp_ifinfo), igi_head);
-static VNET_DEFINE(struct igmpstat, igmpstat);
+static VNET_DEFINE(struct igmpstat, igmpstat) = {
+	.igps_version = IGPS_VERSION_3,
+	.igps_len = sizeof(struct igmpstat),
+};
 static VNET_DEFINE(struct timeval, igmp_gsrdelay) = {10, 0};
 
 #define	V_igi_head			VNET(igi_head)
@@ -3615,12 +3618,6 @@ vnet_igmp_iattach(const void *unused __unused)
 
 	LIST_INIT(&V_igi_head);
 
-	/*
-	 * Initialize sysctls to default values.
-	 */
-	V_igmpstat.igps_version = IGPS_VERSION_3;
-	V_igmpstat.igps_len = sizeof(struct igmpstat);
-
 	return (0);
 }
 
@@ -3640,7 +3637,6 @@ vnet_igmp_idetach(const void *unused __unused)
 static vnet_modinfo_t vnet_igmp_modinfo = {
 	.vmi_id		= VNET_MOD_IGMP,
 	.vmi_name	= "igmp",
-	.vmi_dependson	= VNET_MOD_INET,
 	.vmi_iattach	= vnet_igmp_iattach,
 	.vmi_idetach	= vnet_igmp_idetach
 };
