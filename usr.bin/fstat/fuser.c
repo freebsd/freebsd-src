@@ -209,7 +209,7 @@ do_fuser(int argc, char *argv[])
 			} else {
 				sig = str2sig(optarg);
 				if (sig < 0)
-					errx(EX_USAGE, "illegal signal name: " \
+					errx(EX_USAGE, "illegal signal name: "
 					    "%s", optarg);
 			}
 			break;
