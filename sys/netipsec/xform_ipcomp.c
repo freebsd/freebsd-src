@@ -81,14 +81,6 @@ SYSCTL_VNET_STRUCT(_net_inet_ipcomp, IPSECCTL_STATS,
 static int ipcomp_input_cb(struct cryptop *crp);
 static int ipcomp_output_cb(struct cryptop *crp);
 
-#ifdef VIMAGE
-static const vnet_modinfo_t vnet_ipcomp_modinfo = {
-	.vmi_id		= VNET_MOD_IPCOMP,
-	.vmi_name	= "ipsec_ipcomp",
-	.vmi_dependson	= VNET_MOD_IPSEC,
-};
-#endif
-
 struct comp_algo *
 ipcomp_algorithm_lookup(int alg)
 {
@@ -604,9 +596,6 @@ ipcomp_attach(void)
 {
 
 	xform_register(&ipcomp_xformsw);
-#ifdef VIMAGE
-	vnet_mod_register(&vnet_ipcomp_modinfo);
-#endif
 }
 
 SYSINIT(ipcomp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ipcomp_attach, NULL);

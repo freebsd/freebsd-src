@@ -3253,7 +3253,6 @@ vnet_mld_idetach(const void *unused __unused)
 static vnet_modinfo_t vnet_mld_modinfo = {
 	.vmi_id		= VNET_MOD_MLD,
 	.vmi_name	= "mld",
-	.vmi_dependson	= VNET_MOD_INET6,
 	.vmi_iattach	= vnet_mld_iattach,
 	.vmi_idetach	= vnet_mld_idetach
 };
