@@ -2984,6 +2984,7 @@ pmap_kremove(vm_offset_t va)
 			pmap_free_pv_entry(pve); 
 		PMAP_UNLOCK(pmap_kernel());
 		vm_page_unlock_queues();
+		va = va & ~PAGE_MASK;
 		cpu_dcache_wbinv_range(va, PAGE_SIZE);
 		cpu_l2cache_wbinv_range(va, PAGE_SIZE);
 		cpu_tlb_flushD_SE(va);
