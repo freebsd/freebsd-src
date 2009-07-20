@@ -236,24 +236,6 @@ VNET_DEFINE(int, fw_one_pass) = 1;
 
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
-#ifdef VIMAGE
-/* XXX only has to stay for .vmi_dependson elsewhere. */
-static void vnet_inet_register(void);
- 
-static const vnet_modinfo_t vnet_inet_modinfo = {
-	.vmi_id		= VNET_MOD_INET,
-	.vmi_name	= "inet",
-};
- 
-static void vnet_inet_register()
-{
-  
-	vnet_mod_register(&vnet_inet_modinfo);
-}
- 
-SYSINIT(inet, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, vnet_inet_register, 0);
-#endif
-
 static int
 sysctl_netinet_intr_queue_maxlen(SYSCTL_HANDLER_ARGS)
 {
@@ -301,8 +283,6 @@ ip_init(void)
 {
 	struct protosw *pr;
 	int i;
-
-	V_ip_id = time_second & 0xffff;
 
 	TAILQ_INIT(&V_in_ifaddrhead);
 	V_in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &V_in_ifaddrhmask);
@@ -362,6 +342,7 @@ ip_init(void)
 		NULL, EVENTHANDLER_PRI_ANY);
 
 	/* Initialize various other remaining things. */
+	V_ip_id = time_second & 0xffff;
 	IPQ_LOCK_INIT();
 	netisr_register(&ip_nh);
 }

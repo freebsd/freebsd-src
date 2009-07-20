@@ -245,7 +245,6 @@ static int ipsec_iattach(const void *);
 static const vnet_modinfo_t vnet_ipsec_modinfo = {
 	.vmi_id		= VNET_MOD_IPSEC,
 	.vmi_name	= "ipsec",
-	.vmi_dependson	= VNET_MOD_INET,	/* XXX revisit - INET6 ? */
 	.vmi_iattach	= ipsec_iattach,
 };
 #endif
