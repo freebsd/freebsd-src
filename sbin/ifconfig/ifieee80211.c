@@ -3965,21 +3965,23 @@ list_mesh(int s)
 	if (ioctl(s, SIOCG80211, &ireq) < 0)
 	 	err(1, "unable to get the Mesh routing table");
 
-	printf("%-17.17s %-17.17s %4s %4s %4s\n"
+	printf("%-17.17s %-17.17s %4s %4s %4s %6s\n"
 		, "DEST"
 		, "NEXT HOP"
 		, "HOPS"
 		, "METRIC"
-		, "LIFETIME");
+		, "LIFETIME"
+		, "MSEQ");
 
 	for (i = 0; i < ireq.i_len / sizeof(*routes); i++) {
 		printf("%s ",
 		    ether_ntoa((const struct ether_addr *)routes[i].imr_dest));
-		printf("%s %4u   %4d   %6d\n",
+		printf("%s %4u   %4u   %6u %6u\n",
 			ether_ntoa((const struct ether_addr *)
 			    routes[i].imr_nexthop),
 			routes[i].imr_nhops, routes[i].imr_metric,
-			routes[i].imr_lifetime);
+			routes[i].imr_lifetime,
+			routes[i].imr_lastmseq);
 	}
 }
 

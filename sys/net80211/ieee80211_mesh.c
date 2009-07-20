@@ -62,10 +62,12 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_input.h>
 #include <net80211/ieee80211_mesh.h>
 
+static void	mesh_rt_flush_invalid(struct ieee80211vap *);
 static int	mesh_select_proto_path(struct ieee80211vap *, const char *);
 static int	mesh_select_proto_metric(struct ieee80211vap *, const char *);
 static void	mesh_vattach(struct ieee80211vap *);
 static int	mesh_newstate(struct ieee80211vap *, enum ieee80211_state, int);
+static void	mesh_rt_cleanup_cb(void *);
 static void	mesh_linkchange(struct ieee80211_node *,
 		    enum ieee80211_mesh_mlstate);
 static void	mesh_checkid(void *, struct ieee80211_node *);
@@ -138,6 +140,7 @@ static struct ieee80211_mesh_proto_path		mesh_proto_paths[4];
 static struct ieee80211_mesh_proto_metric	mesh_proto_metrics[4];
 
 #define	MESH_RT_LOCK(ms)	mtx_lock(&(ms)->ms_rt_lock)
+#define	MESH_RT_LOCK_ASSERT(ms)	mtx_assert(&(ms)->ms_rt_lock, MA_OWNED)
 #define	MESH_RT_UNLOCK(ms)	mtx_unlock(&(ms)->ms_rt_lock)
 
 MALLOC_DEFINE(M_80211_MESH_RT, "80211mesh", "802.11s routing table");
@@ -145,6 +148,44 @@ MALLOC_DEFINE(M_80211_MESH_RT, "80211mesh", "802.11s routing table");
 /*
  * Helper functions to manipulate the Mesh routing table.
  */
+
+static struct ieee80211_mesh_route *
+mesh_rt_find_locked(struct ieee80211_mesh_state *ms,
+    const uint8_t dest[IEEE80211_ADDR_LEN])
+{
+	struct ieee80211_mesh_route *rt;
+
+	MESH_RT_LOCK_ASSERT(ms);
+
+	TAILQ_FOREACH(rt, &ms->ms_routes, rt_next) {
+		if (IEEE80211_ADDR_EQ(dest, rt->rt_dest))
+			return rt;
+	}
+	return NULL;
+}
+
+static struct ieee80211_mesh_route *
+mesh_rt_add_locked(struct ieee80211_mesh_state *ms,
+    const uint8_t dest[IEEE80211_ADDR_LEN])
+{
+	struct ieee80211_mesh_route *rt;
+
+	KASSERT(!IEEE80211_ADDR_EQ(broadcastaddr, dest),
+	    ("%s: adding broadcast to the routing table", __func__));
+
+	MESH_RT_LOCK_ASSERT(ms);
+
+	rt = malloc(ALIGN(sizeof(struct ieee80211_mesh_route)) +
+	    ms->ms_ppath->mpp_privlen, M_80211_MESH_RT, M_NOWAIT | M_ZERO);
+	if (rt != NULL) {
+		IEEE80211_ADDR_COPY(rt->rt_dest, dest);
+		rt->rt_priv = (void *)ALIGN(&rt[1]);
+		getmicrouptime(&rt->rt_crtime);
+		TAILQ_INSERT_TAIL(&ms->ms_routes, rt, rt_next);
+	}
+	return rt;
+}
+
 struct ieee80211_mesh_route *
 ieee80211_mesh_rt_find(struct ieee80211vap *vap,
     const uint8_t dest[IEEE80211_ADDR_LEN])
@@ -153,14 +194,9 @@ ieee80211_mesh_rt_find(struct ieee80211vap *vap,
 	struct ieee80211_mesh_route *rt;
 
 	MESH_RT_LOCK(ms);
-	TAILQ_FOREACH(rt, &ms->ms_routes, rt_next) {
-		if (IEEE80211_ADDR_EQ(dest, rt->rt_dest)) {
-			MESH_RT_UNLOCK(ms);
-			return rt;
-		}
-	}
+	rt = mesh_rt_find_locked(ms, dest);
 	MESH_RT_UNLOCK(ms);
-	return NULL;
+	return rt;
 }
 
 struct ieee80211_mesh_route *
@@ -174,18 +210,63 @@ ieee80211_mesh_rt_add(struct ieee80211vap *vap,
 	    ("%s: duplicate entry in the routing table", __func__));
 	KASSERT(!IEEE80211_ADDR_EQ(vap->iv_myaddr, dest),
 	    ("%s: adding self to the routing table", __func__));
-	KASSERT(!IEEE80211_ADDR_EQ(broadcastaddr, dest),
-	    ("%s: adding broadcast to the routing table", __func__));
 
-	rt = malloc(sizeof(struct ieee80211_mesh_route), M_80211_MESH_RT,
-	    M_NOWAIT | M_ZERO);
-	IEEE80211_ADDR_COPY(rt->rt_dest, dest);
-	rt->rt_priv = malloc(ms->ms_ppath->mpp_privlen, M_80211_MESH_RT,
-	    M_NOWAIT | M_ZERO);
 	MESH_RT_LOCK(ms);
-	TAILQ_INSERT_TAIL(&ms->ms_routes, rt, rt_next);
+	rt = mesh_rt_add_locked(ms, dest);
 	MESH_RT_UNLOCK(ms);
 	return rt;
+}
+
+/*
+ * Add a proxy route (as needed) for the specified destination.
+ */
+void
+ieee80211_mesh_proxy_check(struct ieee80211vap *vap,
+    const uint8_t dest[IEEE80211_ADDR_LEN])
+{
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_mesh_route *rt;
+
+	MESH_RT_LOCK(ms);
+	rt = mesh_rt_find_locked(ms, dest);
+	if (rt == NULL) {
+		rt = mesh_rt_add_locked(ms, dest);
+		if (rt == NULL) {
+			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, dest,
+			    "%s", "unable to add proxy entry");
+			vap->iv_stats.is_mesh_rtaddfailed++;
+		} else {
+			IEEE80211_ADDR_COPY(rt->rt_nexthop, vap->iv_myaddr);
+			rt->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID
+				     |  IEEE80211_MESHRT_FLAGS_PROXY;
+		}
+	/* XXX assert PROXY? */
+	} else if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0) {
+		struct ieee80211com *ic = vap->iv_ic;
+		/*
+		 * Fix existing entry created by received frames from
+		 * stations that have some memory of dest.  We also
+		 * flush any frames held on the staging queue; delivering
+		 * them is too much trouble right now.
+		 */
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, dest,
+		    "%s", "fix proxy entry");
+		IEEE80211_ADDR_COPY(rt->rt_nexthop, vap->iv_myaddr);
+		rt->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID
+			     |  IEEE80211_MESHRT_FLAGS_PROXY;
+		/* XXX belongs in hwmp */
+		ieee80211_ageq_drain_node(&ic->ic_stageq,
+		   (void *)(uintptr_t) ieee80211_mac_hash(ic, dest));
+		/* XXX stat? */
+	}
+	MESH_RT_UNLOCK(ms);
+}
+
+static __inline void
+mesh_rt_del(struct ieee80211_mesh_state *ms, struct ieee80211_mesh_route *rt)
+{
+	TAILQ_REMOVE(&ms->ms_routes, rt, rt_next);
+	free(rt, M_80211_MESH_RT);
 }
 
 void
@@ -198,9 +279,7 @@ ieee80211_mesh_rt_del(struct ieee80211vap *vap,
 	MESH_RT_LOCK(ms);
 	TAILQ_FOREACH_SAFE(rt, &ms->ms_routes, rt_next, next) {
 		if (IEEE80211_ADDR_EQ(rt->rt_dest, dest)) {
-			TAILQ_REMOVE(&ms->ms_routes, rt, rt_next);
-			free(rt->rt_priv, M_80211_MESH_RT);
-			free(rt, M_80211_MESH_RT);
+			mesh_rt_del(ms, rt);
 			MESH_RT_UNLOCK(ms);
 			return;
 		}
@@ -217,10 +296,32 @@ ieee80211_mesh_rt_flush(struct ieee80211vap *vap)
 	if (ms == NULL)
 		return;
 	MESH_RT_LOCK(ms);
+	TAILQ_FOREACH_SAFE(rt, &ms->ms_routes, rt_next, next)
+		mesh_rt_del(ms, rt);
+	MESH_RT_UNLOCK(ms);
+}
+
+/*
+ * Flush expired routing entries, i.e. those in invalid state for
+ * some time.
+ */
+static void
+mesh_rt_flush_invalid(struct ieee80211vap *vap)
+{
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_mesh_route *rt, *next;
+	struct timeval tv, delta;
+
+	if (ms == NULL)
+		return;
+	getmicrouptime(&tv);
+	MESH_RT_LOCK(ms);
 	TAILQ_FOREACH_SAFE(rt, &ms->ms_routes, rt_next, next) {
-		TAILQ_REMOVE(&ms->ms_routes, rt, rt_next);
-		free(rt->rt_priv, M_80211_MESH_RT);
-		free(rt, M_80211_MESH_RT);
+		delta = tv;
+		timevalsub(&delta, &rt->rt_crtime);
+		if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0 &&
+		    timevalcmp(&delta, &ms->ms_ppath->mpp_inact, >=))
+			mesh_rt_del(ms, rt);
 	}
 	MESH_RT_UNLOCK(ms);
 }
@@ -381,7 +482,7 @@ mesh_vdetach_peers(void *arg, struct ieee80211_node *ni)
 		    IEEE80211_ACTION_MESHPEERING_CLOSE,
 		    args);
 	}
-	callout_stop(&ni->ni_mltimer);
+	callout_drain(&ni->ni_mltimer);
 	/* XXX belongs in hwmp */
 	ieee80211_ageq_drain_node(&ic->ic_stageq,
 	   (void *)(uintptr_t) ieee80211_mac_hash(ic, ni->ni_macaddr));
@@ -392,6 +493,7 @@ mesh_vdetach(struct ieee80211vap *vap)
 {
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 
+	callout_drain(&ms->ms_cleantimer);
 	ieee80211_iterate_nodes(&vap->iv_ic->ic_sta, mesh_vdetach_peers,
 	    NULL);
 	ieee80211_mesh_rt_flush(vap);
@@ -413,7 +515,7 @@ mesh_vattach(struct ieee80211vap *vap)
 	    M_NOWAIT | M_ZERO);
 	if (ms == NULL) {
 		printf("%s: couldn't alloc MBSS state\n", __func__);
-	return;
+		return;
 	}
 	vap->iv_mesh = ms;
 	ms->ms_seq = 0;
@@ -421,6 +523,7 @@ mesh_vattach(struct ieee80211vap *vap)
 	ms->ms_ttl = IEEE80211_MESH_DEFAULT_TTL;
 	TAILQ_INIT(&ms->ms_routes);
 	mtx_init(&ms->ms_rt_lock, "MBSS", "802.11s routing table", MTX_DEF);
+	callout_init(&ms->ms_cleantimer, CALLOUT_MPSAFE);
 	mesh_select_proto_metric(vap, "AIRTIME");
 	KASSERT(ms->ms_pmetric, ("ms_pmetric == NULL"));
 	mesh_select_proto_path(vap, "HWMP");
@@ -449,9 +552,8 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	if (ostate != IEEE80211_S_SCAN)
 		ieee80211_cancel_scan(vap);	/* background scan */
 	ni = vap->iv_bss;			/* NB: no reference held */
-	/* Flush the routing table */
-	if (nstate != IEEE80211_S_INIT && ostate == IEEE80211_S_INIT)
-		ieee80211_mesh_rt_flush(vap);
+	if (nstate != IEEE80211_S_RUN && ostate == IEEE80211_S_RUN)
+		callout_drain(&ms->ms_cleantimer);
 	switch (nstate) {
 	case IEEE80211_S_INIT:
 		switch (ostate) {
@@ -471,6 +573,7 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (ostate != IEEE80211_S_INIT) {
 			/* NB: optimize INIT -> INIT case */
 			ieee80211_reset_bss(vap);
+			ieee80211_mesh_rt_flush(vap);
 		}
 		break;
 	case IEEE80211_S_SCAN:
@@ -573,16 +676,32 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			break;
 		}
 		ieee80211_node_authorize(vap->iv_bss);
+		callout_reset(&ms->ms_cleantimer,
+		    msecs_to_ticks(ms->ms_ppath->mpp_inact.tv_sec * 1000 +
+		        ms->ms_ppath->mpp_inact.tv_usec / 1000),
+                    mesh_rt_cleanup_cb, vap);
 		break;
 	default:
 		break;
 	}
-
 	/* NB: ostate not nstate */
 	ms->ms_ppath->mpp_newstate(vap, ostate, arg);
-
 	return 0;
 }
+
+static void
+mesh_rt_cleanup_cb(void *arg)
+{
+	struct ieee80211vap *vap = arg;
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+
+	mesh_rt_flush_invalid(vap);
+	callout_reset(&ms->ms_cleantimer,
+	    msecs_to_ticks(ms->ms_ppath->mpp_inact.tv_sec * 1000 +
+	        ms->ms_ppath->mpp_inact.tv_usec / 1000),
+	    mesh_rt_cleanup_cb, vap);
+}
+
 
 /*
  * Helper function to note the Mesh Peer Link FSM change.
@@ -617,8 +736,16 @@ mesh_linkchange(struct ieee80211_node *ni, enum ieee80211_mesh_mlstate state)
 		ms->ms_neighbors--;
 	}
 	ni->ni_mlstate = state;
-	if (state == IEEE80211_NODE_MESH_HOLDING)
+	switch (state) {
+	case IEEE80211_NODE_MESH_HOLDING:
 		ms->ms_ppath->mpp_peerdown(ni);
+		break;
+	case IEEE80211_NODE_MESH_ESTABLISHED:
+		ieee80211_mesh_discover(vap, ni->ni_macaddr, NULL);
+		break;
+	default:
+		break;
+	}
 }
 
 /*
@@ -660,8 +787,11 @@ mesh_checkpseq(struct ieee80211vap *vap,
 
 	rt = ieee80211_mesh_rt_find(vap, source);
 	if (rt == NULL) {
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, source,
+		    "add mcast route, mesh seqno %d", seq);
 		rt = ieee80211_mesh_rt_add(vap, source);
-		rt->rt_lastmseq = seq;
+		if (rt != NULL)
+			rt->rt_lastmseq = seq;
 		return 0;
 	}
 	if (IEEE80211_MESH_SEQ_GEQ(rt->rt_lastmseq, seq)) {
@@ -684,6 +814,13 @@ mesh_find_txnode(struct ieee80211vap *vap,
 	rt = ieee80211_mesh_rt_find(vap, dest);
 	if (rt == NULL)
 		return NULL;
+	if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0 ||
+	    (rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY)) {
+		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, dest,
+		    "%s: !valid or proxy, flags 0x%x", __func__, rt->rt_flags);
+		/* XXX stat */
+		return NULL;
+	}
 	return ieee80211_find_txnode(vap, rt->rt_nexthop);
 }
 
@@ -757,11 +894,6 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 		}
 		IEEE80211_ADDR_COPY(whcopy->i_addr1, ni->ni_macaddr);
 	}
-	IEEE80211_NOTE(vap, IEEE80211_MSG_MESH, ni,
-	    "fwd %s frame from %s ttl %d",
-	    IEEE80211_IS_MULTICAST(wh->i_addr1) ?  "mcast" : "ucast",
-	    ether_sprintf(wh->i_addr3), mccopy->mc_ttl);
-
 	KASSERT(mccopy->mc_ttl > 0, ("%s called with wrong ttl", __func__));
 	mccopy->mc_ttl--;
 
@@ -779,6 +911,117 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 	}
 }
 
+static struct mbuf *
+mesh_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen, int meshdrlen)
+{
+#define	WHDIR(wh) ((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK)
+	uint8_t b[sizeof(struct ieee80211_qosframe_addr4) +
+		  sizeof(struct ieee80211_meshcntl_ae11)];
+	const struct ieee80211_qosframe_addr4 *wh;
+	const struct ieee80211_meshcntl_ae10 *mc;
+	struct ether_header *eh;
+	struct llc *llc;
+	int ae;
+
+	if (m->m_len < hdrlen + sizeof(*llc) &&
+	    (m = m_pullup(m, hdrlen + sizeof(*llc))) == NULL) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ANY,
+		    "discard data frame: %s", "m_pullup failed");
+		vap->iv_stats.is_rx_tooshort++;
+		return NULL;
+	}
+	memcpy(b, mtod(m, caddr_t), hdrlen);
+	wh = (const struct ieee80211_qosframe_addr4 *)&b[0];
+	mc = (const struct ieee80211_meshcntl_ae10 *)&b[hdrlen - meshdrlen];
+	KASSERT(WHDIR(wh) == IEEE80211_FC1_DIR_FROMDS ||
+		WHDIR(wh) == IEEE80211_FC1_DIR_DSTODS,
+	    ("bogus dir, fc 0x%x:0x%x", wh->i_fc[0], wh->i_fc[1]));
+
+	llc = (struct llc *)(mtod(m, caddr_t) + hdrlen);
+	if (llc->llc_dsap == LLC_SNAP_LSAP && llc->llc_ssap == LLC_SNAP_LSAP &&
+	    llc->llc_control == LLC_UI && llc->llc_snap.org_code[0] == 0 &&
+	    llc->llc_snap.org_code[1] == 0 && llc->llc_snap.org_code[2] == 0 &&
+	    /* NB: preserve AppleTalk frames that have a native SNAP hdr */
+	    !(llc->llc_snap.ether_type == htons(ETHERTYPE_AARP) ||
+	      llc->llc_snap.ether_type == htons(ETHERTYPE_IPX))) {
+		m_adj(m, hdrlen + sizeof(struct llc) - sizeof(*eh));
+		llc = NULL;
+	} else {
+		m_adj(m, hdrlen - sizeof(*eh));
+	}
+	eh = mtod(m, struct ether_header *);
+	ae = mc->mc_flags & 3;
+	if (WHDIR(wh) == IEEE80211_FC1_DIR_FROMDS) {
+		IEEE80211_ADDR_COPY(eh->ether_dhost, wh->i_addr1);
+		if (ae == 0) {
+			IEEE80211_ADDR_COPY(eh->ether_shost, wh->i_addr3);
+		} else if (ae == 1) {
+			IEEE80211_ADDR_COPY(eh->ether_shost, mc->mc_addr4);
+		} else {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
+			    (const struct ieee80211_frame *)wh, NULL,
+			    "bad AE %d", ae);
+			vap->iv_stats.is_mesh_badae++;
+			m_freem(m);
+			return NULL;
+		}
+	} else {
+		if (ae == 0) {
+			IEEE80211_ADDR_COPY(eh->ether_dhost, wh->i_addr3);
+			IEEE80211_ADDR_COPY(eh->ether_shost, wh->i_addr4);
+		} else if (ae == 2) {
+			IEEE80211_ADDR_COPY(eh->ether_dhost, mc->mc_addr4);
+			IEEE80211_ADDR_COPY(eh->ether_shost, mc->mc_addr5);
+		} else {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
+			    (const struct ieee80211_frame *)wh, NULL,
+			    "bad AE %d", ae);
+			vap->iv_stats.is_mesh_badae++;
+			m_freem(m);
+			return NULL;
+		}
+	}
+#ifdef ALIGNED_POINTER
+	if (!ALIGNED_POINTER(mtod(m, caddr_t) + sizeof(*eh), uint32_t)) {
+		m = ieee80211_realign(vap, m, sizeof(*eh));
+		if (m == NULL)
+			return NULL;
+	}
+#endif /* ALIGNED_POINTER */
+	if (llc != NULL) {
+		eh = mtod(m, struct ether_header *);
+		eh->ether_type = htons(m->m_pkthdr.len - sizeof(*eh));
+	}
+	return m;
+#undef WDIR
+}
+
+/*
+ * Return non-zero if the unicast mesh data frame should be processed
+ * locally.  Frames that are not proxy'd have our address, otherwise
+ * we need to consult the routing table to look for a proxy entry.
+ */
+static __inline int
+mesh_isucastforme(struct ieee80211vap *vap, const struct ieee80211_frame *wh,
+    const struct ieee80211_meshcntl *mc)
+{
+	int ae = mc->mc_flags & 3;
+
+	KASSERT((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS,
+	    ("bad dir 0x%x:0x%x", wh->i_fc[0], wh->i_fc[1]));
+	KASSERT(ae == 0 || ae == 2, ("bad AE %d", ae));
+	if (ae == 2) {				/* ucast w/ proxy */
+		const struct ieee80211_meshcntl_ae10 *mc10 =
+		    (const struct ieee80211_meshcntl_ae10 *) mc;
+		struct ieee80211_mesh_route *rt =
+		    ieee80211_mesh_rt_find(vap, mc10->mc_addr4);
+		/* check for proxy route to ourself */
+		return (rt != NULL &&
+		    (rt->rt_flags & IEEE80211_MESHRT_FLAGS_PROXY));
+	} else					/* ucast w/o proxy */
+		return IEEE80211_ADDR_EQ(wh->i_addr3, vap->iv_myaddr);
+}
+
 static int
 mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 {
@@ -789,7 +1032,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 	struct ifnet *ifp = vap->iv_ifp;
 	struct ieee80211_frame *wh;
 	const struct ieee80211_meshcntl *mc;
-	int hdrspace, need_tap;
+	int hdrspace, meshdrlen, need_tap;
 	uint8_t dir, type, subtype, qos;
 	uint32_t seq;
 	uint8_t *addr;
@@ -904,13 +1147,14 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		}
 		/*
 		 * Now calculate the full extent of the headers. Note
-		 * ieee80211_decap will pull up anything we didn't get
+		 * mesh_decap will pull up anything we didn't get
 		 * above when it strips the 802.11 headers.
 		 */
 		mc = (const struct ieee80211_meshcntl *)
 		    (mtod(m, const uint8_t *) + hdrspace);
-		hdrspace += sizeof(struct ieee80211_meshcntl) +
+		meshdrlen = sizeof(struct ieee80211_meshcntl) +
 		    (mc->mc_flags & 3) * IEEE80211_ADDR_LEN;
+		hdrspace += meshdrlen;
 		seq = LE_READ_4(mc->mc_seq);
 		if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 			addr = wh->i_addr3;
@@ -935,7 +1179,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		 * for the rules.  XXX tap fwd'd packets not for us?
 		 */
 		if (dir == IEEE80211_FC1_DIR_FROMDS ||
-		    !IEEE80211_ADDR_EQ(wh->i_addr3, vap->iv_myaddr)) {
+		    !mesh_isucastforme(vap, wh, mc)) {
 			mesh_forward(vap, m, mc);
 			if (dir == IEEE80211_FC1_DIR_DSTODS)
 				goto out;
@@ -970,7 +1214,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		/*
 		 * Finally, strip the 802.11 header.
 		 */
-		m = ieee80211_decap(vap, m, hdrspace);
+		m = mesh_decap(vap, m, hdrspace, meshdrlen);
 		if (m == NULL) {
 			/* XXX mask bit to check for both */
 			/* don't count Null data frames as errors */
@@ -987,13 +1231,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			m = ieee80211_decap_amsdu(ni, m);
 			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-		} else {
-#ifdef IEEE80211_SUPPORT_SUPERG
-			m = ieee80211_decap_fastframe(vap, ni, m);
-			if (m == NULL)
-				return IEEE80211_FC0_TYPE_DATA;
-#endif
-		}		
+		}
 		ieee80211_deliver_data(vap, ni, m);
 		return type;
 	case IEEE80211_FC0_TYPE_MGT:
@@ -1967,7 +2205,7 @@ mesh_peer_timeout_backoff(struct ieee80211_node *ni)
 static __inline void
 mesh_peer_timeout_stop(struct ieee80211_node *ni)
 {
-	callout_stop(&ni->ni_mltimer);
+	callout_drain(&ni->ni_mltimer);
 }
 
 /*
@@ -2401,6 +2639,7 @@ mesh_ioctl_get80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 				return ENOMEM;
 			}
 			ireq->i_len = len;
+			/* XXX M_WAIT? */
 			p = malloc(len, M_TEMP, M_NOWAIT | M_ZERO);
 			if (p == NULL)
 				return ENOMEM;
@@ -2418,6 +2657,7 @@ mesh_ioctl_get80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 				imr->imr_metric = rt->rt_metric;
 				imr->imr_nhops = rt->rt_nhops;
 				imr->imr_lifetime = rt->rt_lifetime;
+				imr->imr_lastmseq = rt->rt_lastmseq;
 				off += sizeof(*imr);
 			}
 			MESH_RT_UNLOCK(ms);
@@ -2475,17 +2715,19 @@ mesh_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 		if (ireq->i_val != 0 || ireq->i_len > IEEE80211_MESHID_LEN)
 			return EINVAL;
 		error = copyin(ireq->i_data, tmpmeshid, ireq->i_len);
-		if (error)
+		if (error != 0)
 			break;
 		memset(ms->ms_id, 0, IEEE80211_NWID_LEN);
 		ms->ms_idlen = ireq->i_len;
 		memcpy(ms->ms_id, tmpmeshid, ireq->i_len);
+		error = ENETRESET;
 		break;
 	case IEEE80211_IOC_MESH_AP:
 		if (ireq->i_val)
 			ms->ms_flags |= IEEE80211_MESHFLAGS_AP;
 		else
 			ms->ms_flags &= ~IEEE80211_MESHFLAGS_AP;
+		error = ENETRESET;
 		break;
 	case IEEE80211_IOC_MESH_FWRD:
 		if (ireq->i_val)
@@ -2509,7 +2751,7 @@ mesh_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 				return EINVAL;
 			error = copyin(ireq->i_data, &tmpaddr,
 			    IEEE80211_ADDR_LEN);
-			if (!error)
+			if (error == 0)
 				ieee80211_mesh_discover(vap, tmpaddr, NULL);
 			break;
 		case IEEE80211_MESH_RTCMD_DELETE:
@@ -2521,13 +2763,19 @@ mesh_ioctl_set80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 		break;
 	case IEEE80211_IOC_MESH_PR_METRIC:
 		error = copyin(ireq->i_data, tmpproto, sizeof(tmpproto));
-		if (!error)
-			return mesh_select_proto_metric(vap, tmpproto);
+		if (error == 0) {
+			error = mesh_select_proto_metric(vap, tmpproto);
+			if (error == 0)
+				error = ENETRESET;
+		}
 		break;
 	case IEEE80211_IOC_MESH_PR_PATH:
 		error = copyin(ireq->i_data, tmpproto, sizeof(tmpproto));
-		if (!error)
-			return mesh_select_proto_path(vap, tmpproto);
+		if (error == 0) {
+			error = mesh_select_proto_path(vap, tmpproto);
+			if (error == 0)
+				error = ENETRESET;
+		}
 		break;
 	default:
 		return ENOSYS;
