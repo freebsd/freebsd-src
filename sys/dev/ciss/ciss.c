@@ -2687,7 +2687,7 @@ ciss_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
     if (cr->cr_flags & CISS_REQ_DATAOUT)
 	bus_dmamap_sync(sc->ciss_buffer_dmat, cr->cr_datamap, BUS_DMASYNC_PREWRITE);
 
-    if (nseg == 1)
+    if (nseg == 0)
 	cr->cr_sg_tag = CISS_SG_NONE;
     else if (nseg == 1)
 	cr->cr_sg_tag = CISS_SG_1;
