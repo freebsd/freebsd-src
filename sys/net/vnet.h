@@ -37,19 +37,26 @@
 #ifndef _NET_VNET_H_
 #define	_NET_VNET_H_
 
+#if defined(_KERNEL) || defined(_WANT_VNET)
+
+#define	VNET_SETNAME		"set_vnet"
+#define	VNET_SYMPREFIX		"vnet_entry_"
+
+#endif
+
 #ifdef _KERNEL
 #ifdef VIMAGE
 
 #if defined(__arm__)
-__asm__(".section set_vnet, \"aw\", %progbits");
+__asm__(".section " VNET_SETNAME ", \"aw\", %progbits");
 #else
-__asm__(".section set_vnet, \"aw\", @progbits");
+__asm__(".section " VNET_SETNAME ", \"aw\", @progbits");
 #endif
 __asm__(".previous");
 
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
-#define	VNET_DEFINE(t, n)	t VNET_NAME(n) __section("set_vnet") __used
+#define	VNET_DEFINE(t, n)	t VNET_NAME(n) __section(VNET_SETNAME) __used
 #define	_VNET_PTR(b, n)		(__typeof(VNET_NAME(n))*)		\
 				    ((b) + (uintptr_t)&VNET_NAME(n))
 
