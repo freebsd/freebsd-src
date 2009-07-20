@@ -350,7 +350,7 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				ef->progtab[pb].addr = dpcpu;
 #ifdef VIMAGE
 			} else if (ef->progtab[pb].name != NULL &&
-			    !strcmp(ef->progtab[pb].name, "set_vnet")) {
+			    !strcmp(ef->progtab[pb].name, VNET_SETNAME)) {
 				void *vnet_data;
 
 				vnet_data = vnet_data_alloc(shdr[i].sh_size);
@@ -756,7 +756,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 				    dpcpu_alloc(shdr[i].sh_size);
 #ifdef VIMAGE
 			else if (ef->progtab[pb].name != NULL &&
-			    !strcmp(ef->progtab[pb].name, "set_vnet"))
+			    !strcmp(ef->progtab[pb].name, VNET_SETNAME))
 				ef->progtab[pb].addr =
 				    vnet_data_alloc(shdr[i].sh_size);
 #endif
@@ -789,7 +789,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 #ifdef VIMAGE
 				else if (ef->progtab[pb].addr !=
 				    (void *)mapbase &&
-				    !strcmp(ef->progtab[pb].name, "set_vnet"))
+				    !strcmp(ef->progtab[pb].name, VNET_SETNAME))
 					vnet_data_copy(ef->progtab[pb].addr,
 					    shdr[i].sh_size);
 #endif
@@ -909,7 +909,7 @@ link_elf_unload_file(linker_file_t file)
 				dpcpu_free(ef->progtab[i].addr,
 				    ef->progtab[i].size);
 #ifdef VIMAGE
-			else if (!strcmp(ef->progtab[i].name, "set_vnet"))
+			else if (!strcmp(ef->progtab[i].name, VNET_SETNAME))
 				vnet_data_free(ef->progtab[i].addr,
 				    ef->progtab[i].size);
 #endif
