@@ -101,6 +101,11 @@ int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
 #define	SYSCTL_VNET_UINT(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_UINT|CTLFLAG_MPSAFE|(access), \
 	    ptr, val, vnet_sysctl_handle_uint, "IU", descr)
+#define	VNET_SYSCTL_ARG(req, arg1) do {					\
+	if (arg1 != NULL)						\
+		arg1 = (void *)(TD_TO_VNET((req)->td)->vnet_data_base +	\
+		    (uintptr_t)(arg1));					\
+} while (0)
 #endif /* SYSCTL_OID */
 
 /*
@@ -141,6 +146,7 @@ void	 vnet_data_destroy(struct vnet *vnet);
 	SYSCTL_STRUCT(parent, nbr, name, access, ptr, type, descr)
 #define	SYSCTL_VNET_UINT(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_UINT(parent, nbr, name, access, ptr, val, descr)
+#define	VNET_SYSCTL_ARG(req, arg1)
 #endif /* SYSCTL_OID */
 
 /*
