@@ -1023,6 +1023,8 @@ ath_vap_create(struct ieee80211com *ic,
 		sc->sc_nvaps++;
 		if (opmode == IEEE80211_M_STA)
 			sc->sc_nstavaps++;
+		if (opmode == IEEE80211_M_MBSS)
+			sc->sc_nmeshvaps++;
 	}
 	switch (ic_opmode) {
 	case IEEE80211_M_IBSS:
@@ -1137,6 +1139,8 @@ ath_vap_delete(struct ieee80211vap *vap)
 	    vap->iv_opmode == IEEE80211_M_MBSS) {
 		reclaim_address(sc, vap->iv_myaddr);
 		ath_hal_setbssidmask(ah, sc->sc_hwbssidmask);
+		if (vap->iv_opmode == IEEE80211_M_MBSS)
+			sc->sc_nmeshvaps--;
 	}
 	if (vap->iv_opmode != IEEE80211_M_WDS)
 		sc->sc_nvaps--;
@@ -2381,7 +2385,7 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	    IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_BEACON;
-	if (ic->ic_opmode == IEEE80211_M_MBSS) {
+	if (sc->sc_nmeshvaps) {
 		rfilt |= HAL_RX_FILTER_BEACON;
 		if (sc->sc_hasbmatch)
 			rfilt |= HAL_RX_FILTER_BSSID;
