@@ -178,6 +178,14 @@ SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
    "Default TCP Maximum Segment Size for IPv6");
 #endif
 
+static int
+vnet_sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
+{
+
+	VNET_SYSCTL_ARG(req, arg1);
+	return (sysctl_msec_to_ticks(oidp, arg1, arg2, req));
+}
+
 /*
  * Minimum MSS we accept and use. This prevents DoS attacks where
  * we are forced to a ridiculous low MSS like 20 and send hundreds
@@ -236,7 +244,7 @@ SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, debug, CTLFLAG_RW,
 
 SYSCTL_VNET_PROC(_net_inet_tcp_inflight, OID_AUTO, rttthresh,
     CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(tcp_inflight_rttthresh), 0,
-    sysctl_msec_to_ticks, "I",
+    vnet_sysctl_msec_to_ticks, "I",
     "RTT threshold below which inflight will deactivate itself");
 
 SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, min, CTLFLAG_RW,
