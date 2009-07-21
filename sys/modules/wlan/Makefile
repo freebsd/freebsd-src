@@ -25,7 +25,7 @@ opt_ipx.h:
 	echo "#define IPX 1" > ${.TARGET}
 # override to get ddb support?
 opt_ddb.h:
-	echo "#define DDB 0" > ${.TARGET}
+	:> ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>
