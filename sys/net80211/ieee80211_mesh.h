@@ -376,7 +376,7 @@ struct ieee80211_meshcntl_ae11 {
 MALLOC_DECLARE(M_80211_MESH_RT);
 struct ieee80211_mesh_route {
 	TAILQ_ENTRY(ieee80211_mesh_route)	rt_next;
-	struct timeval		rt_crtime;	/* creation time */
+	int			rt_crtime;	/* creation time */
 	uint8_t			rt_dest[IEEE80211_ADDR_LEN];
 	uint8_t			rt_nexthop[IEEE80211_ADDR_LEN];
 	uint32_t		rt_metric;	/* path metric */
@@ -409,7 +409,8 @@ struct ieee80211_mesh_proto_path {
 			    enum ieee80211_state, int);
 	const size_t	mpp_privlen;	/* size required in the routing table
 					   for private data */
-	const struct timeval mpp_inact;	/* inact. timeout for invalid routes */
+	int		mpp_inact;	/* inact. timeout for invalid routes
+					   (ticks) */
 };
 
 /*

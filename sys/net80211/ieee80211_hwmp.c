@@ -116,24 +116,8 @@ static struct ieee80211_node *
 		    const uint8_t [IEEE80211_ADDR_LEN], struct mbuf *);
 static void	hwmp_peerdown(struct ieee80211_node *);
 
-static int	ieee80211_hwmp_targetonly = 0;
-static int	ieee80211_hwmp_replyforward = 1;
-static const int ieee80211_hwmp_maxprepretries = 3;
-static const struct timeval ieee80211_hwmp_maxhopstime = { 0, 500000 };
-static const struct timeval ieee80211_hwmp_preqminint = { 0, 100000 };
-static const struct timeval ieee80211_hwmp_perrminint = { 0, 100000 };
-static const struct timeval ieee80211_hwmp_roottimeout = { 5, 0 };
-static const struct timeval ieee80211_hwmp_pathtimeout = { 5, 0 };
-static const struct timeval ieee80211_hwmp_pathtoroottimeout = { 5, 0 };
-static const struct timeval ieee80211_hwmp_rootint = { 2, 0 };
-static const struct timeval ieee80211_hwmp_rannint = { 1, 0 };
-static const struct timeval ieee80211_hwmp_pathmaintenanceint = { 2, 0 };
-static const struct timeval ieee80211_hwmp_confirmint = { 2, 0 };
-
-#define	timeval2msecs(tv)	(tv.tv_sec * 1000 + tv.tv_usec / 1000)
-
-#define	HWMP_ROOTMODEINT msecs_to_ticks(timeval2msecs(ieee80211_hwmp_rootint))
-#define	HWMP_RANNMODEINT msecs_to_ticks(timeval2msecs(ieee80211_hwmp_rannint))
+static struct timeval ieee80211_hwmp_preqminint = { 0, 100000 };
+static struct timeval ieee80211_hwmp_perrminint = { 0, 100000 };
 
 /* unalligned little endian access */
 #define LE_WRITE_2(p, v) do {				\
@@ -176,10 +160,28 @@ struct ieee80211_hwmp_state {
 
 SYSCTL_NODE(_net_wlan, OID_AUTO, hwmp, CTLFLAG_RD, 0,
     "IEEE 802.11s HWMP parameters");
+static int	ieee80211_hwmp_targetonly = 0;
 SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, targetonly, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_hwmp_targetonly, 0, "Set TO bit on generated PREQs");
+static int	ieee80211_hwmp_replyforward = 1;
 SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, replyforward, CTLTYPE_INT | CTLFLAG_RW,
     &ieee80211_hwmp_replyforward, 0, "Set RF bit on generated PREQs");
+static int	ieee80211_hwmp_pathtimeout = -1;
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, pathlifetime, CTLTYPE_INT | CTLFLAG_RW,
+    &ieee80211_hwmp_pathtimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "path entry lifetime (ms)");
+static int	ieee80211_hwmp_roottimeout = -1;
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, roottimeout, CTLTYPE_INT | CTLFLAG_RW,
+    &ieee80211_hwmp_roottimeout, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "root PREQ timeout (ms)");
+static int	ieee80211_hwmp_rootint = -1;
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rootint, CTLTYPE_INT | CTLFLAG_RW,
+    &ieee80211_hwmp_rootint, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "root interval (ms)");
+static int	ieee80211_hwmp_rannint = -1;
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rannint, CTLTYPE_INT | CTLFLAG_RW,
+    &ieee80211_hwmp_rannint, 0, ieee80211_sysctl_msecs_ticks, "I",
+    "root announcement interval (ms)");
 
 #define	IEEE80211_HWMP_DEFAULT_MAXHOPS	31
 
@@ -188,7 +190,7 @@ static	ieee80211_recv_action_func hwmp_recv_action_meshpath_prep;
 static	ieee80211_recv_action_func hwmp_recv_action_meshpath_perr;
 static	ieee80211_recv_action_func hwmp_recv_action_meshpath_rann;
 
-static const struct ieee80211_mesh_proto_path mesh_proto_hwmp = {
+static struct ieee80211_mesh_proto_path mesh_proto_hwmp = {
 	.mpp_descr	= "HWMP",
 	.mpp_ie		= IEEE80211_MESHCONF_HWMP,
 	.mpp_discover	= hwmp_discover,
@@ -197,14 +199,20 @@ static const struct ieee80211_mesh_proto_path mesh_proto_hwmp = {
 	.mpp_vdetach	= hwmp_vdetach,
 	.mpp_newstate	= hwmp_newstate,
 	.mpp_privlen	= sizeof(struct ieee80211_hwmp_route),
-	/* ieee80211_hwmp_pathtimeout */
-	.mpp_inact	= { 5, 0 },
 };
+SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, inact, CTLTYPE_INT | CTLFLAG_RW,
+	&mesh_proto_hwmp.mpp_inact, 0, ieee80211_sysctl_msecs_ticks, "I",
+	"mesh route inactivity timeout (ms)");
 
 
 static void
 ieee80211_hwmp_init(void)
 {
+	ieee80211_hwmp_pathtimeout = msecs_to_ticks(5*1000);
+	ieee80211_hwmp_roottimeout = msecs_to_ticks(5*1000);
+	ieee80211_hwmp_rootint = msecs_to_ticks(2*1000);
+	ieee80211_hwmp_rannint = msecs_to_ticks(1*1000);
+
 	/*
 	 * Register action frame handlers.
 	 */
@@ -216,6 +224,9 @@ ieee80211_hwmp_init(void)
 	    IEEE80211_ACTION_MESHPATH_ERR, hwmp_recv_action_meshpath_perr);
 	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHPATH,
 	    IEEE80211_ACTION_MESHPATH_RANN, hwmp_recv_action_meshpath_rann);
+
+	/* NB: default is 5 secs per spec */
+	mesh_proto_hwmp.mpp_inact = msecs_to_ticks(5*1000);
 
 	/*
 	 * Register HWMP.
@@ -617,11 +628,11 @@ hwmp_rootmode_setup(struct ieee80211vap *vap)
 		break;
 	case IEEE80211_HWMP_ROOTMODE_NORMAL:
 	case IEEE80211_HWMP_ROOTMODE_PROACTIVE:
-		callout_reset(&hs->hs_roottimer, HWMP_ROOTMODEINT,
+		callout_reset(&hs->hs_roottimer, ieee80211_hwmp_rootint,
 		    hwmp_rootmode_cb, vap);
 		break;
 	case IEEE80211_HWMP_ROOTMODE_RANN:
-		callout_reset(&hs->hs_roottimer, HWMP_RANNMODEINT,
+		callout_reset(&hs->hs_roottimer, ieee80211_hwmp_rannint,
 		    hwmp_rootmode_rann_cb, vap);
 		break;
 	}
@@ -654,7 +665,7 @@ hwmp_rootmode_cb(void *arg)
 	preq.preq_id = ++hs->hs_preqid;
 	IEEE80211_ADDR_COPY(preq.preq_origaddr, vap->iv_myaddr);
 	preq.preq_origseq = ++hs->hs_seq;
-	preq.preq_lifetime = timeval2msecs(ieee80211_hwmp_roottimeout);
+	preq.preq_lifetime = ticks_to_msecs(ieee80211_hwmp_roottimeout);
 	preq.preq_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
 	preq.preq_tcount = 1;
 	IEEE80211_ADDR_COPY(PREQ_TADDR(0), broadcastaddr);
@@ -1297,7 +1308,7 @@ hwmp_discover(struct ieee80211vap *vap,
 			}
 			rt->rt_metric = IEEE80211_MESHLMETRIC_INITIALVAL;
 			rt->rt_lifetime =
-			    timeval2msecs(ieee80211_hwmp_pathtimeout);
+			    ticks_to_msecs(ieee80211_hwmp_pathtimeout);
 			/* XXX check preq retries */
 			sendpreq = 1;
 			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP, dest,
