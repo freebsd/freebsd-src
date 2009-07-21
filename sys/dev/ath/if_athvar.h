@@ -203,6 +203,7 @@ struct ath_softc {
 	int			sc_debug;
 	int			sc_nvaps;	/* # vaps */
 	int			sc_nstavaps;	/* # station vaps */
+	int			sc_nmeshvaps;	/* # mbss vaps */
 	u_int8_t		sc_hwbssidmask[IEEE80211_ADDR_LEN];
 	u_int8_t		sc_nbssid0;	/* # vap's using base mac */
 	uint32_t		sc_bssidmask;	/* bssid mask */
