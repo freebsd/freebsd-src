@@ -948,11 +948,6 @@ sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
 {
 	int error, s, tt;
 
-#ifdef VIMAGE
-	if (arg1 != NULL)
-		arg1 = (void *)(TD_TO_VNET(req->td)->vnet_data_base +
-		    (uintptr_t)arg1);
-#endif
 	tt = *(int *)arg1;
 	s = (int)((int64_t)tt * 1000 / hz);
 
