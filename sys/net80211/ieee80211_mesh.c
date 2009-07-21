@@ -180,7 +180,7 @@ mesh_rt_add_locked(struct ieee80211_mesh_state *ms,
 	if (rt != NULL) {
 		IEEE80211_ADDR_COPY(rt->rt_dest, dest);
 		rt->rt_priv = (void *)ALIGN(&rt[1]);
-		getmicrouptime(&rt->rt_crtime);
+		rt->rt_crtime = ticks;
 		TAILQ_INSERT_TAIL(&ms->ms_routes, rt, rt_next);
 	}
 	return rt;
@@ -310,17 +310,13 @@ mesh_rt_flush_invalid(struct ieee80211vap *vap)
 {
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211_mesh_route *rt, *next;
-	struct timeval tv, delta;
 
 	if (ms == NULL)
 		return;
-	getmicrouptime(&tv);
 	MESH_RT_LOCK(ms);
 	TAILQ_FOREACH_SAFE(rt, &ms->ms_routes, rt_next, next) {
-		delta = tv;
-		timevalsub(&delta, &rt->rt_crtime);
 		if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID) == 0 &&
-		    timevalcmp(&delta, &ms->ms_ppath->mpp_inact, >=))
+		    ticks - rt->rt_crtime >= ms->ms_ppath->mpp_inact)
 			mesh_rt_del(ms, rt);
 	}
 	MESH_RT_UNLOCK(ms);
@@ -676,9 +672,7 @@ mesh_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			break;
 		}
 		ieee80211_node_authorize(vap->iv_bss);
-		callout_reset(&ms->ms_cleantimer,
-		    msecs_to_ticks(ms->ms_ppath->mpp_inact.tv_sec * 1000 +
-		        ms->ms_ppath->mpp_inact.tv_usec / 1000),
+		callout_reset(&ms->ms_cleantimer, ms->ms_ppath->mpp_inact,
                     mesh_rt_cleanup_cb, vap);
 		break;
 	default:
@@ -696,9 +690,7 @@ mesh_rt_cleanup_cb(void *arg)
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 
 	mesh_rt_flush_invalid(vap);
-	callout_reset(&ms->ms_cleantimer,
-	    msecs_to_ticks(ms->ms_ppath->mpp_inact.tv_sec * 1000 +
-	        ms->ms_ppath->mpp_inact.tv_usec / 1000),
+	callout_reset(&ms->ms_cleantimer, ms->ms_ppath->mpp_inact,
 	    mesh_rt_cleanup_cb, vap);
 }
 
