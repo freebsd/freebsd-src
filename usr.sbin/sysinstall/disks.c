@@ -205,7 +205,7 @@ static void
 print_command_summary(void)
 {
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
-    mvprintw(16, 0, "A = Use Entire Disk   G = set Drive Geometry   C = Create Slice   F = `DD' mode");
+    mvprintw(16, 0, "A = Use Entire Disk   G = set Drive Geometry   C = Create Slice");
     mvprintw(17, 0, "D = Delete Slice      Z = Toggle Size Units    S = Set Bootable   | = Wizard m.");
     mvprintw(18, 0, "T = Change Type       U = Undo All Changes     Q = Finish");
     if (!RunningAsInit)
@@ -423,24 +423,10 @@ diskPartition(Device *dev)
 	    break;
 
 	case 'A':
-	case 'F':	/* Undocumented magic Dangerously Dedicated mode */
 #if !defined(__i386__) && !defined(__amd64__)
 	    rv = 1;
 #else	    /* The rest is only relevant on x86 */
-	    cp = variable_get(VAR_DEDICATE_DISK);
-	    if (cp && !strcasecmp(cp, "always"))
-		rv = 1;
-	    else if (toupper(key) == 'A')
-		rv = 0;
-	    else {
-		rv = msgYesNo("Do you want to do this with a true partition entry\n"
-			      "so as to remain cooperative with any future possible\n"
-			      "operating systems on the drive(s)?\n"
-			      "(See also the section about ``dangerously dedicated''\n"
-			      "disks in the FreeBSD FAQ.)");
-		if (rv == -1)
-		    rv = 0;
-	    }
+	    rv = 0;
 #endif
 	    All_FreeBSD(d, rv);
 	    variable_set2(DISK_PARTITIONED, "yes", 0);
