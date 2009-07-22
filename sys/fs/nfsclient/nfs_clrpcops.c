@@ -753,7 +753,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp,
 	nfsattrbit_t attrbits;
 	u_int8_t *cp = NULL, *cp2, addr[INET6_ADDRSTRLEN + 9];
 	u_short port;
-	int error, isinet6, callblen;
+	int error, isinet6 = 0, callblen;
 	nfsquad_t confirm;
 	u_int32_t lease;
 	static u_int32_t rev = 0;
