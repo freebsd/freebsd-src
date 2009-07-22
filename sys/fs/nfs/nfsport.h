@@ -911,6 +911,13 @@ struct nfsreq {
 #define	NFSVNO_DELEGOK(v)	(1)
 #endif
 
+/*
+ * Define this as the flags argument for msleep() when catching signals
+ * while holding a resource that other threads would block for, such as
+ * a vnode lock.
+ */
+#define	NFS_PCATCH	(PCATCH | PBDRY)
+
 #endif	/* _KERNEL */
 
 #endif	/* _NFSPORT_NFS_H */
