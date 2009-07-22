@@ -65,6 +65,7 @@ char	cpu_vendor[20];		/* CPU Origin code */
 u_int	cpu_vendor_id;		/* CPU vendor ID */
 u_int	cpu_fxsr;		/* SSE enabled */
 u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
+u_int	cpu_clflush_line_size = 32;
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
 	&via_feature_rng, 0, "VIA C3/C7 RNG feature available in CPU");
@@ -156,4 +157,12 @@ initializecpu(void)
 	    AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
 	    AMD64_CPU_MODEL(cpu_id) >= 0xf)
 		init_via();
+
+	/*
+	 * CPUID with %eax = 1, %ebx returns
+	 * Bits 15-8: CLFLUSH line size
+	 * 	(Value * 8 = cache line size in bytes)
+	 */
+	if ((cpu_feature & CPUID_CLFSH) != 0)
+		cpu_clflush_line_size = ((cpu_procinfo >> 8) & 0xff) * 8;
 }
