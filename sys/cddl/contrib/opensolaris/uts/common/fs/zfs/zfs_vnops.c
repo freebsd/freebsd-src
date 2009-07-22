@@ -4722,6 +4722,9 @@ vop_listextattr {
 
 	ZFS_ENTER(zfsvfs);
 
+	if (sizep != NULL)
+		*sizep = 0;
+
 	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
 	    LOOKUP_XATTR);
 	if (error != 0) {
@@ -4751,9 +4754,6 @@ vop_listextattr {
 	auio.uio_td = td;
 	auio.uio_rw = UIO_READ;
 	auio.uio_offset = 0;
-
-	if (sizep != NULL)
-		*sizep = 0;
 
 	do {
 		u_char nlen;
