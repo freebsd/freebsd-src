@@ -317,8 +317,8 @@ tcp_sackhole_insert(struct tcpcb *tp, tcp_seq start, tcp_seq end,
 		TAILQ_INSERT_TAIL(&tp->snd_holes, hole, scblink);
 
 	/* Update SACK hint. */
-	if (tp->sackhint.nexthole == NULL)
-		tp->sackhint.nexthole = hole;
+	if (tp->sack_nexthole == NULL)
+		tp->sack_nexthole = hole;
 
 	return hole;
 }
@@ -331,8 +331,8 @@ tcp_sackhole_remove(struct tcpcb *tp, struct sackhole *hole)
 {
 
 	/* Update SACK hint. */
-	if (tp->sackhint.nexthole == hole)
-		tp->sackhint.nexthole = TAILQ_NEXT(hole, scblink);
+	if (tp->sack_nexthole == hole)
+		tp->sack_nexthole = TAILQ_NEXT(hole, scblink);
 
 	/* Remove this SACK hole. */
 	TAILQ_REMOVE(&tp->snd_holes, hole, scblink);
@@ -482,9 +482,9 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 			cur = TAILQ_PREV(cur, sackhole_head, scblink);
 			continue;
 		}
-		tp->sackhint.sack_bytes_rexmit -= (cur->rxmit - cur->start);
-		KASSERT(tp->sackhint.sack_bytes_rexmit >= 0,
-		    ("sackhint bytes rtx >= 0"));
+		tp->sack_bytes_rexmit -= (cur->rxmit - cur->start);
+		KASSERT(tp->sack_bytes_rexmit >= 0,
+		    ("sack bytes rtx >= 0"));
 		if (SEQ_LEQ(sblkp->start, cur->start)) {
 			/* Data acks at least the beginning of hole. */
 			if (SEQ_GEQ(sblkp->end, cur->end)) {
@@ -519,7 +519,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 				if (temp != NULL) {
 					if (SEQ_GT(cur->rxmit, temp->rxmit)) {
 						temp->rxmit = cur->rxmit;
-						tp->sackhint.sack_bytes_rexmit
+						tp->sack_bytes_rexmit
 						    += (temp->rxmit
 						    - temp->start);
 					}
@@ -529,7 +529,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 				}
 			}
 		}
-		tp->sackhint.sack_bytes_rexmit += (cur->rxmit - cur->start);
+		tp->sack_bytes_rexmit += (cur->rxmit - cur->start);
 		/*
 		 * Testing sblkp->start against cur->start tells us whether
 		 * we're done with the sack block or the sack hole.
@@ -553,11 +553,11 @@ tcp_free_sackholes(struct tcpcb *tp)
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	while ((q = TAILQ_FIRST(&tp->snd_holes)) != NULL)
 		tcp_sackhole_remove(tp, q);
-	tp->sackhint.sack_bytes_rexmit = 0;
+	tp->sack_bytes_rexmit = 0;
 
 	KASSERT(tp->snd_numholes == 0, ("tp->snd_numholes == 0"));
-	KASSERT(tp->sackhint.nexthole == NULL,
-		("tp->sackhint.nexthole == NULL"));
+	KASSERT(tp->sack_nexthole == NULL,
+		("tp->sack_nexthole == NULL"));
 }
 
 /*
@@ -579,7 +579,7 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	/* Send one or 2 segments based on how much new data was acked. */
 	if (((th->th_ack - tp->snd_una) / tp->t_maxseg) > 2)
 		num_segs = 2;
-	tp->snd_cwnd = (tp->sackhint.sack_bytes_rexmit +
+	tp->snd_cwnd = (tp->sack_bytes_rexmit +
 	    (tp->snd_nxt - tp->sack_newdata) + num_segs * tp->t_maxseg);
 	if (tp->snd_cwnd > tp->snd_ssthresh)
 		tp->snd_cwnd = tp->snd_ssthresh;
@@ -636,13 +636,13 @@ tcp_sack_output(struct tcpcb *tp, int *sack_bytes_rexmt)
 	struct sackhole *hole = NULL;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
-	*sack_bytes_rexmt = tp->sackhint.sack_bytes_rexmit;
-	hole = tp->sackhint.nexthole;
+	*sack_bytes_rexmt = tp->sack_bytes_rexmit;
+	hole = tp->sack_nexthole;
 	if (hole == NULL || SEQ_LT(hole->rxmit, hole->end))
 		goto out;
 	while ((hole = TAILQ_NEXT(hole, scblink)) != NULL) {
 		if (SEQ_LT(hole->rxmit, hole->end)) {
-			tp->sackhint.nexthole = hole;
+			tp->sack_nexthole = hole;
 			break;
 		}
 	}

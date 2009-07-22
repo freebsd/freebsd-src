@@ -953,7 +953,7 @@ send:
 	} else {
 		th->th_seq = htonl(p->rxmit);
 		p->rxmit += len;
-		tp->sackhint.sack_bytes_rexmit += len;
+		tp->sack_bytes_rexmit += len;
 	}
 	th->th_ack = htonl(tp->rcv_nxt);
 	if (optlen) {
@@ -1209,9 +1209,9 @@ timer:
 		    (error != EPERM)) {
 			if (sack_rxmit) {
 				p->rxmit -= len;
-				tp->sackhint.sack_bytes_rexmit -= len;
-				KASSERT(tp->sackhint.sack_bytes_rexmit >= 0,
-				    ("sackhint bytes rtx >= 0"));
+				tp->sack_bytes_rexmit -= len;
+				KASSERT(tp->sack_bytes_rexmit >= 0,
+				    ("sack bytes rtx >= 0"));
 			} else
 				tp->snd_nxt -= len;
 		}

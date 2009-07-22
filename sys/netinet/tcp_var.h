@@ -71,14 +71,6 @@ struct sackhole {
 	TAILQ_ENTRY(sackhole) scblink;	/* scoreboard linkage */
 };
 
-struct sackhint {
-	struct sackhole	*nexthole;
-	int		sack_bytes_rexmit;
-
-	int		ispare;		/* explicit pad for 64bit alignment */
-	uint64_t	_pad[2];	/* 1 sacked_bytes, 1 TBD */
-};
-
 struct tcptemp {
 	u_char	tt_ipgen[40]; /* the size must be of max ip header, now IPv6 */
 	struct	tcphdr tt_t;
@@ -192,7 +184,8 @@ struct tcpcb {
 	struct sackblk sackblks[MAX_SACK_BLKS]; /* seq nos. of sack blocks */
 	tcp_seq sack_newdata;		/* New data xmitted in this recovery
 					   episode starts at this seq number */
-	struct sackhint	sackhint;	/* SACK scoreboard hint */
+	struct sackhole	*sack_nexthole;	/* next hole to rexmt */
+	int	sack_bytes_rexmit;	/* # bytes rexmt this RTT */
 	int	t_rttlow;		/* smallest observerved RTT */
 	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */

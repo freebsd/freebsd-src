@@ -1853,7 +1853,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 	db_printf("snd_fack: 0x%08x   rcv_numsacks: %d   sack_newdata: "
 	    "0x%08x\n", tp->snd_fack, tp->rcv_numsacks, tp->sack_newdata);
 
-	/* Skip sackblks, sackhint. */
+	/* Skip sackblks. */
 
 	db_print_indent(indent);
 	db_printf("t_rttlow: %d   rfbuf_ts: %u   rfbuf_cnt: %d\n",
