@@ -2472,7 +2472,7 @@ tryagain:
 			clearok = 1;
 			LIST_FOREACH(owp, &dp->nfsdl_owner, nfsow_list) {
 			    op = LIST_FIRST(&owp->nfsow_open);
-			    if (op != NULL && op->nfso_opencnt > 0) {
+			    if (op != NULL) {
 				clearok = 0;
 				break;
 			    }
