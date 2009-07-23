@@ -233,7 +233,7 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 	filename = NULL;
 	if (checkfile != 0) {
 		if (fst->fs_type != PS_FST_TYPE_VNODE &&
-		    fst->fs_type == PS_FST_TYPE_FIFO)
+		    fst->fs_type != PS_FST_TYPE_FIFO)
 			return;
 		error = procstat_get_vnode_info(procstat, fst, &vn, NULL);
 		if (error != 0)
