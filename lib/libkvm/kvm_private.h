@@ -62,6 +62,12 @@ struct __kvm {
 	 */
 	struct vmstate *vmst;
 	int	rawdump;	/* raw dump format */
+
+	int		vnet_initialized;	/* vnet fields set up */
+	uintptr_t	vnet_start;	/* start of kernel's vnet region */
+	uintptr_t	vnet_stop;	/* stop of kernel's vnet region */
+	uintptr_t	vnet_current;	/* vnet we're working with */
+	uintptr_t	vnet_base;	/* vnet base of current vnet */
 };
 
 /*
@@ -74,10 +80,14 @@ void	 _kvm_freevtop(kvm_t *);
 int	 _kvm_initvtop(kvm_t *);
 int	 _kvm_kvatop(kvm_t *, u_long, off_t *);
 void	*_kvm_malloc(kvm_t *kd, size_t);
+int	 _kvm_nlist(kvm_t *, struct nlist *, int);
 void	*_kvm_realloc(kvm_t *kd, void *, size_t);
 void	 _kvm_syserr (kvm_t *kd, const char *program, const char *fmt, ...)
 	    __printflike(3, 4);
 int	 _kvm_uvatop(kvm_t *, const struct proc *, u_long, u_long *);
+int	 _kvm_vnet_selectpid(kvm_t *, pid_t);
+int	 _kvm_vnet_initialized(kvm_t *, int);
+uintptr_t _kvm_vnet_validaddr(kvm_t *, uintptr_t);
 
 #if defined(__amd64__) || defined(__i386__) || defined(__arm__)
 void	 _kvm_minidump_freevtop(kvm_t *);
