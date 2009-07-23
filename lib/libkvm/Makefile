@@ -10,7 +10,7 @@ CFLAGS+=-DSUN4V
 .endif
 
 SRCS=	kvm.c kvm_${MACHINE_ARCH}.c kvm_cptime.c kvm_file.c kvm_getloadavg.c \
-	kvm_getswapinfo.c kvm_pcpu.c kvm_proc.c
+	kvm_getswapinfo.c kvm_pcpu.c kvm_proc.c kvm_vnet.c
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "arm"
 SRCS+=	kvm_minidump_${MACHINE_ARCH}.c
 .endif

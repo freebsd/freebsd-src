@@ -41,12 +41,17 @@ static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+
+#define	_WANT_VNET
+
 #include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/linker.h>
+
+#include <net/vnet.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -62,6 +67,7 @@ static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 
 #include "kvm_private.h"
@@ -299,34 +305,154 @@ kvm_close(kd)
 	return (0);
 }
 
+/*
+ * Walk the list of unresolved symbols, generate a new list and prefix the
+ * symbol names, try again, and merge back what we could resolve.
+ */
+static int
+kvm_fdnlist_prefix(kvm_t *kd, struct nlist *nl, int missing, const char *prefix,
+    uintptr_t (*validate_fn)(kvm_t *, uintptr_t))
+{
+	struct nlist *n, *np, *p;
+	char *cp, *ce;
+	size_t len;
+	int unresolved;
+
+	/*
+	 * Calculate the space we need to malloc for nlist and names.
+	 * We are going to store the name twice for later lookups: once
+	 * with the prefix and once the unmodified name delmited by \0.
+	 */
+	len = 0;
+	unresolved = 0;
+	for (p = nl; p->n_name && p->n_name[0]; ++p) {
+		if (p->n_type != N_UNDF)
+			continue;
+		len += sizeof(struct nlist) + strlen(prefix) +
+		    2 * (strlen(p->n_name) + 1);
+		unresolved++;
+	}
+	if (unresolved == 0)
+		return (unresolved);
+	/* Add space for the terminating nlist entry. */
+	len += sizeof(struct nlist);
+	unresolved++;
+
+	/* Alloc one chunk for (nlist, [names]) and setup pointers. */
+	n = np = malloc(len);
+	bzero(n, len);
+	if (n == NULL)
+		return (missing);
+	cp = ce = (char *)np;
+	cp += unresolved * sizeof(struct nlist);
+	ce += len;
+
+	/* Generate shortened nlist with special prefix. */
+	unresolved = 0;
+	for (p = nl; p->n_name && p->n_name[0]; ++p) {
+		if (p->n_type != N_UNDF)
+			continue;
+		bcopy(p, np, sizeof(struct nlist));
+		/* Save the new\0orig. name so we can later match it again. */
+		len = snprintf(cp, ce - cp, "%s%s%c%s", prefix,
+		    (prefix[0] != '\0' && p->n_name[0] == '_') ?
+			(p->n_name + 1) : p->n_name, '\0', p->n_name);
+		if (len >= ce - cp)
+			continue;
+		np->n_name = cp;
+		cp += len + 1;
+		np++;
+		unresolved++;
+	}
+
+	/* Do lookup on the reduced list. */
+	np = n;
+	unresolved = __fdnlist(kd->nlfd, np);
+
+	/* Check if we could resolve further symbols and update the list. */
+	if (unresolved >= 0 && unresolved < missing) {
+		/* Find the first freshly resolved entry. */
+		for (; np->n_name && np->n_name[0]; np++)
+			if (np->n_type != N_UNDF)
+				break;
+		/*
+		 * The lists are both in the same order,
+		 * so we can walk them in parallel.
+		 */
+		for (p = nl; np->n_name && np->n_name[0] &&
+		    p->n_name && p->n_name[0]; ++p) {
+			if (p->n_type != N_UNDF)
+				continue;
+			/* Skip expanded name and compare to orig. one. */
+			cp = np->n_name + strlen(np->n_name) + 1;
+			if (strcmp(cp, p->n_name))
+				continue;
+			/* Update nlist with new, translated results. */
+			p->n_type = np->n_type;
+			p->n_other = np->n_other;
+			p->n_desc = np->n_desc;
+			if (validate_fn)
+				p->n_value = (*validate_fn)(kd, np->n_value);
+			else
+				p->n_value = np->n_value;
+			missing--;
+			/* Find next freshly resolved entry. */
+			for (np++; np->n_name && np->n_name[0]; np++)
+				if (np->n_type != N_UNDF)
+					break;
+		}
+	}
+	/* We could assert missing = unresolved here. */
+
+	free(n);
+	return (unresolved);
+}
+
 int
-kvm_nlist(kd, nl)
-	kvm_t *kd;
-	struct nlist *nl;
+_kvm_nlist(kvm_t *kd, struct nlist *nl, int initialize)
 {
 	struct nlist *p;
 	int nvalid;
 	struct kld_sym_lookup lookup;
 	int error;
-
+	char *prefix = "", symname[1024]; /* XXX-BZ symbol name length limit? */
 	/*
 	 * If we can't use the kld symbol lookup, revert to the
 	 * slow library call.
 	 */
-	if (!ISALIVE(kd))
-		return (__fdnlist(kd->nlfd, nl));
+	if (!ISALIVE(kd)) {
+		error = __fdnlist(kd->nlfd, nl);
+		if (error <= 0)			/* Hard error or success. */
+			return (error);
+
+		if (_kvm_vnet_initialized(kd, initialize))
+			error = kvm_fdnlist_prefix(kd, nl, error,
+			    VNET_SYMPREFIX, _kvm_vnet_validaddr);
+
+		return (error);
+	}
 
 	/*
 	 * We can use the kld lookup syscall.  Go through each nlist entry
 	 * and look it up with a kldsym(2) syscall.
 	 */
 	nvalid = 0;
+again:
 	for (p = nl; p->n_name && p->n_name[0]; ++p) {
+		if (p->n_type != N_UNDF)
+			continue;
+
 		lookup.version = sizeof(lookup);
-		lookup.symname = p->n_name;
 		lookup.symvalue = 0;
 		lookup.symsize = 0;
 
+		error = snprintf(symname, sizeof(symname), "%s%s", prefix,
+		    (prefix[0] != '\0' && p->n_name[0] == '_') ?
+			(p->n_name + 1) : p->n_name);
+		if (error >= sizeof(symname))
+			continue;
+
+		lookup.symname = symname;
 		if (lookup.symname[0] == '_')
 			lookup.symname++;
 
@@ -334,11 +460,28 @@ kvm_nlist(kd, nl)
 			p->n_type = N_TEXT;
 			p->n_other = 0;
 			p->n_desc = 0;
-			p->n_value = lookup.symvalue;
+			if (_kvm_vnet_initialized(kd, initialize) &&
+			    !strcmp(prefix, VNET_SYMPREFIX))
+				p->n_value =
+				    _kvm_vnet_validaddr(kd, lookup.symvalue);
+			else
+				p->n_value = lookup.symvalue;
 			++nvalid;
 			/* lookup.symsize */
 		}
 	}
+
+	/*
+	 * Check the number of entries that weren't found. If they exist,
+	 * try again with a prefix for virtualized symbol names.
+	 */
+	error = ((p - nl) - nvalid);
+	if (error && _kvm_vnet_initialized(kd, initialize) &&
+	    strcmp(prefix, VNET_SYMPREFIX)) {
+		prefix = VNET_SYMPREFIX;
+		goto again;
+	}
+
 	/*
 	 * Return the number of entries that weren't found. If they exist,
 	 * also fill internal error buffer.
@@ -347,6 +490,19 @@ kvm_nlist(kd, nl)
 	if (error)
 		_kvm_syserr(kd, kd->program, "kvm_nlist");
 	return (error);
+}
+
+int
+kvm_nlist(kd, nl)
+	kvm_t *kd;
+	struct nlist *nl;
+{
+
+	/*
+	 * If called via the public interface, permit intialization of
+	 * further virtualized modules on demand.
+	 */
+	return (_kvm_nlist(kd, nl, 1));
 }
 
 ssize_t
