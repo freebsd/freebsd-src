@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/route.h> 
 #include <net/flowtable.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -172,18 +173,6 @@ static VNET_DEFINE(uma_zone_t, flow_ipv6_zone);
 #define	V_flow_hashjitter	VNET(flow_hashjitter)
 #define	V_flow_ipv4_zone	VNET(flow_ipv4_zone)
 #define	V_flow_ipv6_zone	VNET(flow_ipv6_zone)
-
-static int	flowtable_iattach(const void *);
-#ifdef VIMAGE
-static int	flowtable_idetach(const void *);
-
-static const vnet_modinfo_t flowtable_modinfo = {
-	.vmi_id		= VNET_MOD_FLOWTABLE,
-	.vmi_name	= "flowtable",
-	.vmi_iattach    = flowtable_iattach,
-	.vmi_idetach    = flowtable_idetach
-};
-#endif
 
 /*
  * TODO:
@@ -802,18 +791,7 @@ flowtable_alloc(int nentry, int flags)
 }
 
 static void
-flowtable_setup(void *arg)
-{
-
-#ifdef VIMAGE
-	vnet_mod_register(&flowtable_modinfo);
-#else
-	flowtable_iattach(NULL);
-#endif
-}
-
-static int
-flowtable_iattach(const void *unused __unused)
+flowtable_init(const void *unused __unused)
 {
 
 	V_flow_ipv4_zone = uma_zcreate("ip4flow", sizeof(struct flentry_v4),
@@ -822,21 +800,23 @@ flowtable_iattach(const void *unused __unused)
 	    NULL, NULL, NULL, NULL, 64, UMA_ZONE_MAXBUCKET);	
 	uma_zone_set_max(V_flow_ipv4_zone, V_flowtable_nmbflows);
 	uma_zone_set_max(V_flow_ipv6_zone, V_flowtable_nmbflows);
-	return (0);
 }
 
+VNET_SYSINIT(flowtable_init, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY,
+    flowtable_init, NULL);
+
 #ifdef VIMAGE
-static int
-flowtable_idetach(const void *unused __unused)
+static void
+flowtable_uninit(const void *unused __unused)
 {
 
 	uma_zdestroy(V_flow_ipv4_zone);
 	uma_zdestroy(V_flow_ipv6_zone);
-	return (0);
 }
-#endif
 
-SYSINIT(flowtable_setup, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, flowtable_setup, NULL);
+VNET_SYSUNINIT(flowtable_uninit, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY,
+    flowtable_uninit, NULL);
+#endif
 
 /*
  * The rest of the code is devoted to garbage collection of expired entries.

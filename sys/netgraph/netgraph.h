@@ -1113,7 +1113,7 @@ MODULE_DEPEND(ng_##typename, netgraph,	NG_ABI_VERSION,			\
 					NG_ABI_VERSION)
 
 #define NETGRAPH_INIT(tn, tp)						\
-	NETGRAPH_INIT_ORDERED(tn, tp, SI_SUB_PSEUDO, SI_ORDER_ANY)
+	NETGRAPH_INIT_ORDERED(tn, tp, SI_SUB_PSEUDO, SI_ORDER_MIDDLE)
 
 /* Special malloc() type for netgraph structs and ctrl messages */
 /* Only these two types should be visible to nodes */

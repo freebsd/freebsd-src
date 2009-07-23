@@ -63,69 +63,11 @@ struct vnet {
 #define	VNET_DEBUG
 #endif
 
-struct vnet;
-struct ifnet;
-
-typedef int vnet_attach_fn(const void *);
-typedef int vnet_detach_fn(const void *);
-
 #ifdef VIMAGE
 
-struct vnet_modinfo {
-	u_int				 vmi_id;
-	u_int				 vmi_dependson;
-	char				*vmi_name;
-	vnet_attach_fn			*vmi_iattach;
-	vnet_detach_fn			*vmi_idetach;
-};
-typedef struct vnet_modinfo vnet_modinfo_t;
-
-struct vnet_modlink {
-	TAILQ_ENTRY(vnet_modlink)	 vml_mod_le;
-	const struct vnet_modinfo	*vml_modinfo;
-	const void			*vml_iarg;
-	const char			*vml_iname;
-};
-
-/* Stateful modules. */
-#define	VNET_MOD_NET		 0	/* MUST be 0 - implicit dependency */
-#define	VNET_MOD_NETGRAPH	 1
-#define	VNET_MOD_INET		 2
-#define	VNET_MOD_INET6		 3
-#define	VNET_MOD_IPSEC		 4
-#define	VNET_MOD_IPFW		 5
-#define	VNET_MOD_DUMMYNET	 6
-#define	VNET_MOD_PF		 7
-#define	VNET_MOD_ALTQ		 8
-#define	VNET_MOD_IPX		 9
-#define	VNET_MOD_ATALK		10
-#define	VNET_MOD_ACCF_HTTP	11
-#define	VNET_MOD_IGMP		12
-#define	VNET_MOD_MLD		13
-#define	VNET_MOD_RTABLE		14
-
-/* Stateless modules. */
-#define	VNET_MOD_IF_CLONE	19
-#define	VNET_MOD_NG_ETHER	20
-#define	VNET_MOD_NG_IFACE	21
-#define	VNET_MOD_NG_EIFACE	22
-#define	VNET_MOD_ESP		23
-#define	VNET_MOD_IPIP		24
-#define	VNET_MOD_AH		25
-#define	VNET_MOD_IPCOMP	 	26	
-#define	VNET_MOD_GIF		27
-	/*	 		28 */
-#define	VNET_MOD_FLOWTABLE	29
-#define	VNET_MOD_LOIF		30
-#define	VNET_MOD_DOMAIN		31
-#define	VNET_MOD_DYNAMIC_START	32
-#define	VNET_MOD_MAX		64
-
+struct vnet;
+struct ifnet;
 int	vi_if_move(struct thread *, struct ifnet *, char *, int);
-void	vnet_mod_register(const struct vnet_modinfo *);
-void	vnet_mod_register_multi(const struct vnet_modinfo *, void *, char *);
-void	vnet_mod_deregister(const struct vnet_modinfo *);
-void	vnet_mod_deregister_multi(const struct vnet_modinfo *, void *, char *);
 struct vnet *vnet_alloc(void);
 void	vnet_destroy(struct vnet *);
 void	vnet_foreach(void (*vnet_foreach_fn)(struct vnet *, void *),

@@ -126,6 +126,16 @@ MALLOC_DEFINE(M_VNET_DATA, "vnet_data", "VNET data");
  */
 static VNET_DEFINE(char, modspace[VNET_MODMIN]);
 
+/*
+ * Global lists of subsystem constructor and destructors for vnets.
+ * They are registered via VNET_SYSINIT() and VNET_SYSUNINIT().  The
+ * lists are protected by the vnet_sxlock global lock.
+ */
+static TAILQ_HEAD(vnet_sysinit_head, vnet_sysinit) vnet_constructors =
+	TAILQ_HEAD_INITIALIZER(vnet_constructors);
+static TAILQ_HEAD(vnet_sysuninit_head, vnet_sysinit) vnet_destructors =
+	TAILQ_HEAD_INITIALIZER(vnet_destructors);
+
 struct vnet_data_free {
 	uintptr_t	vnd_start;
 	int		vnd_len;
@@ -338,4 +348,136 @@ vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS)
 	if (arg1 != NULL)
 		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
 	return (sysctl_handle_int(oidp, arg1, arg2, req));
+}
+
+/*
+ * Support for special SYSINIT handlers registered via VNET_SYSINIT()
+ * and VNET_SYSUNINIT().
+ */
+void
+vnet_register_sysinit(void *arg)
+{
+	struct vnet_sysinit *vs, *vs2;	
+	struct vnet *vnet;
+
+	vs = arg;
+	KASSERT(vs->subsystem > SI_SUB_VNET, ("vnet sysinit too early"));
+
+	/* Add the constructor to the global list of vnet constructors. */
+	sx_xlock(&vnet_sxlock);
+	TAILQ_FOREACH(vs2, &vnet_constructors, link) {
+		if (vs2->subsystem > vs->subsystem)
+			break;
+		if (vs2->subsystem == vs->subsystem && vs2->order > vs->order)
+			break;
+	}
+	if (vs2 != NULL)
+		TAILQ_INSERT_BEFORE(vs2, vs, link);
+	else
+		TAILQ_INSERT_TAIL(&vnet_constructors, vs, link);
+
+	/*
+	 * Invoke the constructor on all the existing vnets when it is
+	 * registered.
+	 */
+	VNET_FOREACH(vnet) {
+		CURVNET_SET_QUIET(vnet);
+		vs->func(vs->arg);
+		CURVNET_RESTORE();
+	}
+	sx_xunlock(&vnet_sxlock);
+}
+
+void
+vnet_deregister_sysinit(void *arg)
+{
+	struct vnet_sysinit *vs;
+
+	vs = arg;
+
+	/* Remove the constructor from the global list of vnet constructors. */
+	sx_xlock(&vnet_sxlock);
+	TAILQ_REMOVE(&vnet_constructors, vs, link);
+	sx_xunlock(&vnet_sxlock);
+}
+
+void
+vnet_register_sysuninit(void *arg)
+{
+	struct vnet_sysinit *vs, *vs2;
+
+	vs = arg;
+
+	/* Add the destructor to the global list of vnet destructors. */
+	sx_xlock(&vnet_sxlock);
+	TAILQ_FOREACH(vs2, &vnet_destructors, link) {
+		if (vs2->subsystem > vs->subsystem)
+			break;
+		if (vs2->subsystem == vs->subsystem && vs2->order > vs->order)
+			break;
+	}
+	if (vs2 != NULL)
+		TAILQ_INSERT_BEFORE(vs2, vs, link);
+	else
+		TAILQ_INSERT_TAIL(&vnet_destructors, vs, link);
+	sx_xunlock(&vnet_sxlock);
+}
+
+void
+vnet_deregister_sysuninit(void *arg)
+{
+	struct vnet_sysinit *vs;
+	struct vnet *vnet;
+
+	vs = arg;
+
+	/*
+	 * Invoke the destructor on all the existing vnets when it is
+	 * deregistered.
+	 */
+	sx_xlock(&vnet_sxlock);
+	VNET_FOREACH(vnet) {
+		CURVNET_SET_QUIET(vnet);
+		vs->func(vs->arg);
+		CURVNET_RESTORE();
+	}
+
+	/* Remove the destructor from the global list of vnet destructors. */
+	TAILQ_REMOVE(&vnet_destructors, vs, link);
+	sx_xunlock(&vnet_sxlock);
+}
+
+/*
+ * Invoke all registered vnet constructors on the current vnet.  Used
+ * during vnet construction.  The caller is responsible for ensuring
+ * the new vnet is the current vnet and that the vnet_sxlock lock is
+ * locked.
+ */
+void
+vnet_sysinit(void)
+{
+	struct vnet_sysinit *vs;
+
+	sx_assert(&vnet_sxlock, SA_LOCKED);
+	TAILQ_FOREACH(vs, &vnet_constructors, link) {
+		vs->func(vs->arg);
+	}
+}
+
+/*
+ * Invoke all registered vnet destructors on the current vnet.  Used
+ * during vnet destruction.  The caller is responsible for ensuring
+ * the dying vnet is the current vnet and that the vnet_sxlock lock is
+ * locked.
+ */
+void
+vnet_sysuninit(void)
+{
+	struct vnet_sysinit *vs;
+
+	sx_assert(&vnet_sxlock, SA_LOCKED);
+	TAILQ_FOREACH_REVERSE(vs, &vnet_destructors, vnet_sysuninit_head,
+	    link) {
+		vs->func(vs->arg);
+	}
 }

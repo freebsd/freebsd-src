@@ -150,11 +150,6 @@ static void	if_detach_internal(struct ifnet *, int);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
-static int	vnet_net_iattach(const void *);
-#ifdef VIMAGE
-static int	vnet_net_idetach(const void *);
-#endif
-
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
 VNET_DEFINE(int, if_index);
@@ -171,19 +166,9 @@ struct rwlock ifnet_lock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 
-#ifdef VIMAGE
-static const vnet_modinfo_t vnet_net_modinfo = {
-	.vmi_id		= VNET_MOD_NET,
-	.vmi_name	= "net",
-	.vmi_iattach	= vnet_net_iattach,
-	.vmi_idetach	= vnet_net_idetach
-};
-#endif
-
 /*
  * System initialization
  */
-SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_FIRST, if_init, NULL);
 SYSINIT(interface_check, SI_SUB_PROTO_IF, SI_ORDER_FIRST, if_check, NULL);
 
 MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
@@ -255,44 +240,41 @@ ifaddr_byindex(u_short idx)
  * parameters.
  */
 
-/* ARGSUSED*/
 static void
-if_init(void *dummy __unused)
-{
-
-#ifdef VIMAGE
-	vnet_mod_register(&vnet_net_modinfo);
-#else
-	vnet_net_iattach(NULL);
-#endif
-
-	IFNET_LOCK_INIT();
-	if_clone_init();
-}
-
-static int
-vnet_net_iattach(const void *unused __unused)
+vnet_if_init(const void *unused __unused)
 {
 
 	TAILQ_INIT(&V_ifnet);
 	TAILQ_INIT(&V_ifg_head);
 	if_grow();				/* create initial table */
-
-	return (0);
+	vnet_if_clone_init();
 }
+VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_FIRST, vnet_if_init,
+    NULL);
+
+/* ARGSUSED*/
+static void
+if_init(void *dummy __unused)
+{
+
+	IFNET_LOCK_INIT();
+	if_clone_init();
+}
+SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_SECOND, if_init, NULL);
+
 
 #ifdef VIMAGE
-static int
-vnet_net_idetach(const void *unused __unused)
+static void
+vnet_if_uninit(const void *unused __unused)
 {
 
 	VNET_ASSERT(TAILQ_EMPTY(&V_ifnet));
 	VNET_ASSERT(TAILQ_EMPTY(&V_ifg_head));
 
 	free((caddr_t)V_ifindex_table, M_IFNET);
-
-	return (0);
 }
+VNET_SYSUNINIT(vnet_if_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
+    vnet_if_uninit, NULL);
 #endif
 
 void
