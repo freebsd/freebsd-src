@@ -989,7 +989,7 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 	switch(dom.dom_family) {
 	case AF_INET:
 	case AF_INET6:
-		if (proto.pr_protocol == IPPROTO_TCP ) {
+		if (proto.pr_protocol == IPPROTO_TCP) {
 			if (s.so_pcb) {
 				if (kvm_read(kd, (u_long)s.so_pcb,
 				    (char *)&inpcb, sizeof(struct inpcb))
