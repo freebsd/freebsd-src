@@ -96,19 +96,15 @@ static struct mtx gif_mtx;
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 
 static VNET_DEFINE(LIST_HEAD(, gif_softc), gif_softc_list);
-static VNET_DEFINE(int, max_gif_nesting);
-static VNET_DEFINE(int, parallel_tunnels);
 
 #define	V_gif_softc_list	VNET(gif_softc_list)
-#define	V_max_gif_nesting	VNET(max_gif_nesting)
-#define	V_parallel_tunnels	VNET(parallel_tunnels)
 
 #ifdef INET
-VNET_DEFINE(int, ip_gif_ttl);
+VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
 #define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 #endif
 #ifdef INET6
-VNET_DEFINE(int, ip6_gif_hlim);
+VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
 #define	V_ip6_gif_hlim		VNET(ip6_gif_hlim)
 #endif
 
@@ -120,16 +116,6 @@ void	(*ng_gif_detach_p)(struct ifnet *ifp);
 static void	gif_start(struct ifnet *);
 static int	gif_clone_create(struct if_clone *, int, caddr_t);
 static void	gif_clone_destroy(struct ifnet *);
-static int	vnet_gif_iattach(const void *);
-
-#ifdef VIMAGE
-static const vnet_modinfo_t vnet_gif_modinfo = {
-	.vmi_id		= VNET_MOD_GIF,
-	.vmi_name	= "gif",
-	.vmi_dependson	= VNET_MOD_NET,
-	.vmi_iattach	= vnet_gif_iattach
-};
-#endif
 
 IFC_SIMPLE_DECLARE(gif, 0);
 
@@ -149,6 +135,10 @@ SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
  */
 #define MAX_GIF_NEST 1
 #endif
+
+static VNET_DEFINE(int, max_gif_nesting) = MAX_GIF_NEST;
+#define	V_max_gif_nesting	VNET(max_gif_nesting)
+
 SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_RW,
     &VNET_NAME(max_gif_nesting), 0, "Max nested tunnels");
 
@@ -163,6 +153,13 @@ SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_RW,
  * pair of addresses.  Some applications require this functionality so
  * we allow control over this check here.
  */
+#ifdef XBONEHACK
+static VNET_DEFINE(int, parallel_tunnels) = 1;
+#else
+static VNET_DEFINE(int, parallel_tunnels) = 0;
+#endif
+#define	V_parallel_tunnels	VNET(parallel_tunnels)
+
 SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
     &VNET_NAME(parallel_tunnels), 0, "Allow parallel tunnels?");
 
@@ -259,26 +256,14 @@ gif_clone_destroy(ifp)
 	free(sc, M_GIF);
 }
 
-static int
-vnet_gif_iattach(const void *unused __unused)
+static void
+vnet_gif_init(const void *unused __unused)
 {
 
 	LIST_INIT(&V_gif_softc_list);
-	V_max_gif_nesting = MAX_GIF_NEST;
-#ifdef XBONEHACK
-	V_parallel_tunnels = 1;
-#else
-	V_parallel_tunnels = 0;
-#endif
-#ifdef INET
-	V_ip_gif_ttl = GIF_TTL;
-#endif
-#ifdef INET6
-	V_ip6_gif_hlim = GIF_HLIM;
-#endif
-  
-	return (0);
 }
+VNET_SYSINIT(vnet_gif_init, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, vnet_gif_init,
+    NULL);
 
 static int
 gifmodevent(mod, type, data)
@@ -290,20 +275,11 @@ gifmodevent(mod, type, data)
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&gif_mtx, "gif_mtx", NULL, MTX_DEF);
-
-#ifdef VIMAGE
-		vnet_mod_register(&vnet_gif_modinfo);
-#else
-		vnet_gif_iattach(NULL);
-#endif
 		if_clone_attach(&gif_cloner);
-
 		break;
+
 	case MOD_UNLOAD:
 		if_clone_detach(&gif_cloner);
-#ifdef VIMAGE
-		vnet_mod_deregister(&vnet_gif_modinfo);
-#endif
 		mtx_destroy(&gif_mtx);
 		break;
 	default:

@@ -76,6 +76,7 @@
 #include <net/bpf.h>
 #include <net/netisr.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 
@@ -209,21 +210,8 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(iface, &typestruct);
 
-static vnet_attach_fn ng_iface_iattach;
-static vnet_detach_fn ng_iface_idetach;
-
 static VNET_DEFINE(struct unrhdr *, ng_iface_unit);
 #define	V_ng_iface_unit			VNET(ng_iface_unit)
-
-#ifdef VIMAGE
-static vnet_modinfo_t vnet_ng_iface_modinfo = {
-	.vmi_id		= VNET_MOD_NG_IFACE,
-	.vmi_name	= "ng_iface",
-	.vmi_dependson	= VNET_MOD_NETGRAPH,
-	.vmi_iattach	= ng_iface_iattach,
-	.vmi_idetach	= ng_iface_idetach
-};
-#endif
 
 /************************************************************************
 			HELPER STUFF
@@ -849,18 +837,7 @@ ng_iface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-#ifdef VIMAGE
-		vnet_mod_register(&vnet_ng_iface_modinfo);
-#else
-		ng_iface_iattach(NULL);
-#endif
-		break;
 	case MOD_UNLOAD:
-#ifdef VIMAGE
-		vnet_mod_deregister(&vnet_ng_iface_modinfo);
-#else
-		ng_iface_idetach(NULL);
-#endif
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -869,18 +846,20 @@ ng_iface_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
-static int ng_iface_iattach(const void *unused)
+static void
+vnet_ng_iface_init(const void *unused)
 {
 
 	V_ng_iface_unit = new_unrhdr(0, 0xffff, NULL);
-
-	return (0);
 }
+VNET_SYSINIT(vnet_ng_iface_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
+    vnet_ng_iface_init, NULL);
 
-static int ng_iface_idetach(const void *unused)
+static void
+vnet_ng_iface_uninit(const void *unused)
 {
 
 	delete_unrhdr(V_ng_iface_unit);
-
-	return (0);
 }
+VNET_SYSUNINIT(vnet_ng_iface_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
+    vnet_ng_iface_uninit, NULL);

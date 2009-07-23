@@ -99,17 +99,6 @@ VNET_DEFINE(struct rtstat, rtstat);
 
 static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);
-static int vnet_route_iattach(const void *);
-#ifdef VIMAGE
-static int vnet_route_idetach(const void *);
-
-static const vnet_modinfo_t vnet_rtable_modinfo = {
-	.vmi_id		= VNET_MOD_RTABLE,
-	.vmi_name	= "rtable",
-	.vmi_iattach	= vnet_route_iattach,
-	.vmi_idetach	= vnet_route_idetach
-};
-#endif
 
 /* compare two sockaddr structures */
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
@@ -174,6 +163,10 @@ rt_tables_get_rnh(int table, int fam)
 	return (*rt_tables_get_rnh_ptr(table, fam));
 }
 
+/*
+ * route initialization must occur before ip6_init2(), which happenas at
+ * SI_ORDER_MIDDLE.
+ */
 static void
 route_init(void)
 {
@@ -184,16 +177,11 @@ route_init(void)
 	if (rt_numfibs == 0)
 		rt_numfibs = 1;
 	rn_init();	/* initialize all zeroes, all ones, mask table */
-
-#ifdef VIMAGE
-	vnet_mod_register(&vnet_rtable_modinfo);
-#else
-	vnet_route_iattach(NULL);
-#endif
 }
+SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);
 
-static int
-vnet_route_iattach(const void *unused __unused)
+static void
+vnet_route_init(const void *unused __unused)
 {
 	struct domain *dom;
 	struct radix_node_head **rnh;
@@ -229,13 +217,13 @@ vnet_route_iattach(const void *unused __unused)
 			}
 		}
 	}
-
-	return (0);
 }
+VNET_SYSINIT(vnet_route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
+    vnet_route_init, 0);
 
 #ifdef VIMAGE
-static int
-vnet_route_idetach(const void *unused __unused)
+static void
+vnet_route_uninit(const void *unused __unused)
 {
 	int table;
 	int fam;
@@ -259,8 +247,9 @@ vnet_route_idetach(const void *unused __unused)
 			}
 		}
 	}
-	return (0);
 }
+VNET_SYSUNINIT(vnet_route_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD,
+    vnet_route_uninit, 0);
 #endif
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1510,6 +1499,3 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 		fib = -1;
 	return (rtinit1(ifa, cmd, flags, fib));
 }
-
-/* This must be before ip6_init2(), which is now SI_ORDER_MIDDLE */
-SYSINIT(route, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, 0);

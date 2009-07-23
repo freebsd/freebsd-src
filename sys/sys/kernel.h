@@ -147,6 +147,7 @@ enum sysinit_sub_id {
 	SI_SUB_EXEC		= 0x7400000,	/* execve() handlers */
 	SI_SUB_PROTO_BEGIN	= 0x8000000,	/* XXX: set splimp (kludge)*/
 	SI_SUB_PROTO_IF		= 0x8400000,	/* interfaces*/
+	SI_SUB_PROTO_DOMAININIT	= 0x8600000,	/* domain registration system */
 	SI_SUB_PROTO_DOMAIN	= 0x8800000,	/* domains (address families?)*/
 	SI_SUB_PROTO_IFATTACHDOMAIN	= 0x8800001,	/* domain dependent data init*/
 	SI_SUB_PROTO_END	= 0x8ffffff,	/* XXX: set splx (kludge)*/
@@ -178,6 +179,7 @@ enum sysinit_elem_order {
 	SI_ORDER_FIRST		= 0x0000000,	/* first*/
 	SI_ORDER_SECOND		= 0x0000001,	/* second*/
 	SI_ORDER_THIRD		= 0x0000002,	/* third*/
+	SI_ORDER_FOURTH		= 0x0000003,	/* fourth*/
 	SI_ORDER_MIDDLE		= 0x1000000,	/* somewhere in the middle */
 	SI_ORDER_ANY		= 0xfffffff	/* last*/
 };

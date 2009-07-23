@@ -114,7 +114,6 @@ static char *	igmp_rec_type_to_str(const int);
 #endif
 static void	igmp_set_version(struct igmp_ifinfo *, const int);
 static void	igmp_slowtimo_vnet(void);
-static void	igmp_sysinit(void);
 static int	igmp_v1v2_queue_report(struct in_multi *, const int);
 static void	igmp_v1v2_process_group_timer(struct in_multi *, const int);
 static void	igmp_v1v2_process_querier_timers(struct igmp_ifinfo *);
@@ -136,9 +135,6 @@ static void	igmp_v3_suppress_group_record(struct in_multi *);
 static int	sysctl_igmp_default_version(SYSCTL_HANDLER_ARGS);
 static int	sysctl_igmp_gsr(SYSCTL_HANDLER_ARGS);
 static int	sysctl_igmp_ifinfo(SYSCTL_HANDLER_ARGS);
-
-static vnet_attach_fn	vnet_igmp_iattach;
-static vnet_detach_fn	vnet_igmp_idetach;
 
 static const struct netisr_handler igmp_nh = {
 	.nh_name = "igmp",
@@ -3580,7 +3576,7 @@ igmp_rec_type_to_str(const int type)
 #endif
 
 static void
-igmp_sysinit(void)
+igmp_init(void *unused __unused)
 {
 
 	CTR1(KTR_IGMPV3, "%s: initializing", __func__);
@@ -3591,9 +3587,10 @@ igmp_sysinit(void)
 
 	netisr_register(&igmp_nh);
 }
+SYSINIT(igmp_init, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, igmp_init, NULL);
 
 static void
-igmp_sysuninit(void)
+igmp_uninit(void *unused __unused)
 {
 
 	CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
@@ -3605,42 +3602,30 @@ igmp_sysuninit(void)
 
 	IGMP_LOCK_DESTROY();
 }
+SYSUNINIT(igmp_uninit, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, igmp_uninit, NULL);
 
-/*
- * Initialize an IGMPv3 instance.
- * VIMAGE: Assumes curvnet set by caller and called per vimage.
- */
-static int
-vnet_igmp_iattach(const void *unused __unused)
+static void
+vnet_igmp_init(const void *unused __unused)
 {
 
 	CTR1(KTR_IGMPV3, "%s: initializing", __func__);
 
 	LIST_INIT(&V_igi_head);
-
-	return (0);
 }
+VNET_SYSINIT(vnet_igmp_init, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_igmp_init,
+    NULL);
 
-static int
-vnet_igmp_idetach(const void *unused __unused)
+static void
+vnet_igmp_uninit(const void *unused __unused)
 {
 
 	CTR1(KTR_IGMPV3, "%s: tearing down", __func__);
 
 	KASSERT(LIST_EMPTY(&V_igi_head),
 	    ("%s: igi list not empty; ifnets not detached?", __func__));
-
-	return (0);
 }
-
-#ifdef VIMAGE
-static vnet_modinfo_t vnet_igmp_modinfo = {
-	.vmi_id		= VNET_MOD_IGMP,
-	.vmi_name	= "igmp",
-	.vmi_iattach	= vnet_igmp_iattach,
-	.vmi_idetach	= vnet_igmp_idetach
-};
-#endif
+VNET_SYSUNINIT(vnet_igmp_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
+    vnet_igmp_uninit, NULL);
 
 static int
 igmp_modevent(module_t mod, int type, void *unused __unused)
@@ -3648,20 +3633,7 @@ igmp_modevent(module_t mod, int type, void *unused __unused)
 
     switch (type) {
     case MOD_LOAD:
-	igmp_sysinit();
-#ifdef VIMAGE
-	vnet_mod_register(&vnet_igmp_modinfo);
-#else
-	vnet_igmp_iattach(NULL);
-#endif
-	break;
     case MOD_UNLOAD:
-#ifdef VIMAGE
-	vnet_mod_deregister(&vnet_igmp_modinfo);
-#else
-	vnet_igmp_idetach(NULL);
-#endif
-	igmp_sysuninit();
 	break;
     default:
 	return (EOPNOTSUPP);

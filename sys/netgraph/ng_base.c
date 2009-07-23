@@ -79,10 +79,6 @@ MODULE_VERSION(netgraph, NG_ABI_VERSION);
 /* Mutex to protect topology events. */
 static struct mtx	ng_topo_mtx;
 
-#ifdef VIMAGE
-static vnet_detach_fn vnet_netgraph_idetach;
-#endif
-
 #ifdef	NETGRAPH_DEBUG
 static struct mtx	ng_nodelist_mtx; /* protects global node/hook lists */
 static struct mtx	ngq_mtx;	/* protects the queue item list */
@@ -3068,18 +3064,9 @@ ng_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
-#ifdef VIMAGE
-static const vnet_modinfo_t vnet_netgraph_modinfo = {
-	.vmi_id		= VNET_MOD_NETGRAPH,
-	.vmi_name	= "netgraph",
-	.vmi_dependson	= VNET_MOD_LOIF,
-	.vmi_idetach	= vnet_netgraph_idetach
-};
-#endif
-
 #ifdef VIMAGE 
-static int
-vnet_netgraph_idetach(const void *unused __unused)
+static void
+vnet_netgraph_uninit(const void *unused __unused)
 {
 #if 0
 	node_p node, last_killed = NULL;
@@ -3101,9 +3088,9 @@ vnet_netgraph_idetach(const void *unused __unused)
 		last_killed = node;
 	}
 #endif
-
-	return (0);
 }
+VNET_SYSUNINIT(vnet_netgraph_uninit, SI_SUB_NETGRAPH, SI_ORDER_ANY,
+    vnet_netgraph_uninit, NULL);
 #endif /* VIMAGE */
 
 /*
@@ -3120,9 +3107,6 @@ ngb_mod_event(module_t mod, int event, void *data)
 	switch (event) {
 	case MOD_LOAD:
 		/* Initialize everything. */
-#ifdef VIMAGE
-		vnet_mod_register(&vnet_netgraph_modinfo);
-#endif
 		NG_WORKLIST_LOCK_INIT();
 		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL,
 		    MTX_DEF);
