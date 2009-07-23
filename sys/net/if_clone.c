@@ -55,7 +55,6 @@
 static void	if_clone_free(struct if_clone *ifc);
 static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len,
 		    caddr_t params);
-static int	vnet_clone_iattach(const void *);
 
 static struct mtx	if_cloners_mtx;
 static VNET_DEFINE(int, if_cloners_count);
@@ -116,19 +115,11 @@ VNET_DEFINE(LIST_HEAD(, if_clone), if_cloners);
 
 static MALLOC_DEFINE(M_CLONE, "clone", "interface cloning framework");
 
-#ifdef VIMAGE
-static const vnet_modinfo_t vnet_clone_modinfo = {
-	.vmi_id		= VNET_MOD_IF_CLONE,
-	.vmi_name	= "if_clone",
-	.vmi_iattach	= vnet_clone_iattach
-};
-#endif
-
-static int vnet_clone_iattach(const void *unused __unused)
+void
+vnet_if_clone_init(void)
 {
 
 	LIST_INIT(&V_if_cloners);
-	return (0);
 }
 
 void
@@ -136,11 +127,6 @@ if_clone_init(void)
 {
 
 	IF_CLONERS_LOCK_INIT();
-#ifdef VIMAGE
-	vnet_mod_register(&vnet_clone_modinfo);
-#else
-	vnet_clone_iattach(NULL);
-#endif
 }
 
 /*

@@ -46,6 +46,43 @@
 
 #ifdef _KERNEL
 #ifdef VIMAGE
+#include <sys/kernel.h>
+
+/*
+ * SYSINIT/SYSUNINIT variants that provide per-vnet constructors and
+ * destructors.
+ */
+struct vnet_sysinit {
+	enum sysinit_sub_id	subsystem;
+	enum sysinit_elem_order	order;
+	sysinit_cfunc_t		func;
+	const void		*arg;
+	TAILQ_ENTRY(vnet_sysinit) link;
+};
+
+#define	VNET_SYSINIT(ident, subsystem, order, func, arg)		\
+	static struct vnet_sysinit ident ## _vnet_init = {		\
+		subsystem,						\
+		order,							\
+		(sysinit_cfunc_t)(sysinit_nfunc_t)func,			\
+		(arg)							\
+	};								\
+	SYSINIT(vnet_init_ ## ident, subsystem, order,			\
+	    vnet_register_sysinit, &ident ## _vnet_init);		\
+	SYSUNINIT(vnet_init_ ## ident, subsystem, order,		\
+	    vnet_deregister_sysinit, &ident ## _vnet_init)
+
+#define	VNET_SYSUNINIT(ident, subsystem, order, func, arg)		\
+	static struct vnet_sysinit ident ## _vnet_uninit = {		\
+		subsystem,						\
+		order,							\
+		(sysinit_cfunc_t)(sysinit_nfunc_t)func,			\
+		(arg)							\
+	};								\
+	SYSINIT(vnet_uninit_ ## ident, subsystem, order,		\
+	    vnet_register_sysuninit, &ident ## _vnet_uninit);		\
+	SYSUNINIT(vnet_uninit_ ## ident, subsystem, order,		\
+	    vnet_deregister_sysuninit, &ident ## _vnet_uninit)
 
 #if defined(__arm__)
 __asm__(".section " VNET_SETNAME ", \"aw\", %progbits");
@@ -121,6 +158,16 @@ void	 vnet_data_free(void *start_arg, int size);
 struct vnet;
 void	 vnet_data_init(struct vnet *vnet);
 void	 vnet_data_destroy(struct vnet *vnet);
+void	 vnet_sysinit(void);
+void	 vnet_sysuninit(void);
+
+/*
+ * Interfaces for managing per-vnet constructors and destructors.
+ */
+void	vnet_register_sysinit(void *arg);
+void	vnet_register_sysuninit(void *arg);
+void	vnet_deregister_sysinit(void *arg);
+void	vnet_deregister_sysuninit(void *arg);
 
 #else /* !VIMAGE */
 
@@ -132,6 +179,10 @@ void	 vnet_data_destroy(struct vnet *vnet);
 #define	VNET_DECLARE(t, n)	extern t n
 #define	VNET_DEFINE(t, n)	t n
 #define	_VNET_PTR(b, n)		&VNET_NAME(n)
+#define	VNET_SYSINIT(ident, subsystem, order, func, arg)		\
+	SYSINIT(ident, subsystem, order, func, arg)
+#define	VNET_SYSUNINIT(ident, subsystem, order, func, arg)		\
+	SYSUNINIT(ident, subsystem, order, func, arg)
 
 #ifdef SYSCTL_OID
 #define	SYSCTL_VNET_INT(parent, nbr, name, access, ptr, val, descr)	\

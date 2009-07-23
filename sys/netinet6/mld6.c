@@ -117,8 +117,6 @@ static char *	mld_rec_type_to_str(const int);
 #endif
 static void	mld_set_version(struct mld_ifinfo *, const int);
 static void	mld_slowtimo_vnet(void);
-static void	mld_sysinit(void);
-static void	mld_sysuninit(void);
 static int	mld_v1_input_query(struct ifnet *, const struct ip6_hdr *,
 		    /*const*/ struct mld_hdr *);
 static int	mld_v1_input_report(struct ifnet *, const struct ip6_hdr *,
@@ -146,9 +144,6 @@ static int	mld_v2_process_group_query(struct in6_multi *,
 		    struct mld_ifinfo *mli, int, struct mbuf *, const int);
 static int	sysctl_mld_gsr(SYSCTL_HANDLER_ARGS);
 static int	sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS);
-
-static vnet_attach_fn	vnet_mld_iattach;
-static vnet_detach_fn	vnet_mld_idetach;
 
 /*
  * Normative references: RFC 2710, RFC 3590, RFC 3810.
@@ -3201,7 +3196,7 @@ mld_rec_type_to_str(const int type)
 #endif
 
 static void
-mld_sysinit(void)
+mld_init(void *unused __unused)
 {
 
 	CTR1(KTR_MLD, "%s: initializing", __func__);
@@ -3213,50 +3208,39 @@ mld_sysinit(void)
 	mld_po.ip6po_prefer_tempaddr = IP6PO_TEMPADDR_NOTPREFER;
 	mld_po.ip6po_flags = IP6PO_DONTFRAG;
 }
+SYSINIT(mld_init, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, mld_init, NULL);
 
 static void
-mld_sysuninit(void)
+mld_uninit(void *unused __unused)
 {
 
 	CTR1(KTR_MLD, "%s: tearing down", __func__);
 	MLD_LOCK_DESTROY();
 }
+SYSUNINIT(mld_uninit, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, mld_uninit, NULL);
 
-/*
- * Initialize an MLDv2 instance.
- * VIMAGE: Assumes curvnet set by caller and called per vimage.
- */
-static int
-vnet_mld_iattach(const void *unused __unused)
+static void
+vnet_mld_init(const void *unused __unused)
 {
 
 	CTR1(KTR_MLD, "%s: initializing", __func__);
 
 	LIST_INIT(&V_mli_head);
-
-	return (0);
 }
+VNET_SYSINIT(vnet_mld_init, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_mld_init,
+    NULL);
 
-static int
-vnet_mld_idetach(const void *unused __unused)
+static void
+vnet_mld_uninit(const void *unused __unused)
 {
 
 	CTR1(KTR_MLD, "%s: tearing down", __func__);
 
 	KASSERT(LIST_EMPTY(&V_mli_head),
 	    ("%s: mli list not empty; ifnets not detached?", __func__));
-
-	return (0);
 }
-
-#ifdef VIMAGE
-static vnet_modinfo_t vnet_mld_modinfo = {
-	.vmi_id		= VNET_MOD_MLD,
-	.vmi_name	= "mld",
-	.vmi_iattach	= vnet_mld_iattach,
-	.vmi_idetach	= vnet_mld_idetach
-};
-#endif
+VNET_SYSUNINIT(vnet_mld_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY, vnet_mld_uninit,
+    NULL);
 
 static int
 mld_modevent(module_t mod, int type, void *unused __unused)
@@ -3264,20 +3248,7 @@ mld_modevent(module_t mod, int type, void *unused __unused)
 
     switch (type) {
     case MOD_LOAD:
-	mld_sysinit();
-#ifdef VIMAGE
-	vnet_mod_register(&vnet_mld_modinfo);
-#else
-	vnet_mld_iattach(NULL);
-#endif
-	break;
     case MOD_UNLOAD:
-#ifdef VIMAGE
-	vnet_mod_deregister(&vnet_mld_modinfo);
-#else
-	vnet_mld_idetach(NULL);
-#endif
-	mld_sysuninit();
 	break;
     default:
 	return (EOPNOTSUPP);

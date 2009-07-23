@@ -375,7 +375,7 @@ struct domain inet6domain = {
 	.dom_ifdetach =		in6_domifdetach
 };
 
-DOMAIN_SET(inet6);
+VNET_DOMAIN_SET(inet6);
 
 /*
  * Internet configuration info
