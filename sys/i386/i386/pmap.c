@@ -4482,6 +4482,7 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	pt_entry_t *pte;
 	u_int opte, npte;
 	pd_entry_t *pde;
+	boolean_t changed;
 
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
@@ -4505,6 +4506,8 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 			return (EINVAL);
 	}
 
+	changed = FALSE;
+
 	/*
 	 * Ok, all the pages exist and are 4k, so run through them updating
 	 * their cache mode.
@@ -4522,6 +4525,8 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 			npte |= pmap_cache_bits(mode, 0);
 		} while (npte != opte &&
 		    !atomic_cmpset_int((u_int *)pte, opte, npte));
+		if (npte != opte)
+			changed = TRUE;
 		tmpva += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
@@ -4530,10 +4535,12 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	 * Flush CPU caches to make sure any data isn't cached that shouldn't
 	 * be, etc.
 	 */    
-	pmap_invalidate_range(kernel_pmap, base, tmpva);
-	/* If "Self Snoop" is supported, do nothing. */
-	if (!(cpu_feature & CPUID_SS))
-		pmap_invalidate_cache();
+	if (changed) {
+		pmap_invalidate_range(kernel_pmap, base, tmpva);
+		/* If "Self Snoop" is supported, do nothing. */
+		if (!(cpu_feature & CPUID_SS))
+			pmap_invalidate_cache();
+	}
 	return (0);
 }
 
