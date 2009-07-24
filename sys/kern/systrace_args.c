@@ -2016,11 +2016,6 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 6;
 		break;
 	}
-	/* lkmressys */
-	case 370: {
-		*n_args = 0;
-		break;
-	}
 	/* extattr_set_fd */
 	case 371: {
 		struct extattr_set_fd_args *p = params;
@@ -2057,14 +2052,6 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		struct __setugid_args *p = params;
 		iarg[0] = p->flag; /* int */
 		*n_args = 1;
-		break;
-	}
-	/* nfsclnt */
-	case 375: {
-		struct nfsclnt_args *p = params;
-		iarg[0] = p->flag; /* int */
-		uarg[1] = (intptr_t) p->argp; /* caddr_t */
-		*n_args = 2;
 		break;
 	}
 	/* eaccess */
@@ -6188,9 +6175,6 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* lkmressys */
-	case 370:
-		break;
 	/* extattr_set_fd */
 	case 371:
 		switch(ndx) {
@@ -6256,19 +6240,6 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* nfsclnt */
-	case 375:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "caddr_t";
 			break;
 		default:
 			break;
