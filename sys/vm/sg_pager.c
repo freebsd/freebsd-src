@@ -193,19 +193,15 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	    ("backing page for SG is fake"));
 
 	/* Construct a new fake page. */
-	printf("SG: getting fake page for paddr %lx\n", paddr);
 	page = sg_pager_getfake(paddr, memattr);
 	VM_OBJECT_LOCK(object);
 	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, pageq);
 
 	/* Free the original pages and insert this fake page into the object. */
 	vm_page_lock_queues();
-	for (i = 0; i < count; i++) {
-		printf("SG: freeing VM page %p\n", m[i]);
+	for (i = 0; i < count; i++)
 		vm_page_free(m[i]);
-	}
 	vm_page_unlock_queues();
-	printf("SG: Inserting new fake page\n");
 	vm_page_insert(page, object, offset);
 	m[reqpage] = page;
 
