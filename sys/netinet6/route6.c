@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 
 #include <netinet/icmp6.h>
-#include <netinet6/vinet6.h>
 
 /*
  * proto - is unused
@@ -60,7 +59,6 @@ __FBSDID("$FreeBSD$");
 int
 route6_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 	struct mbuf *m = *mp;
 	struct ip6_rthdr *rh;

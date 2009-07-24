@@ -97,6 +97,7 @@ END(cpu_throw)
 ENTRY(cpu_switch)
 	/* Switch to new thread.  First, save context. */
 	movq	TD_PCB(%rdi),%r8
+	movb	$1,PCB_FULL_IRET(%r8)
 
 	movq	(%rsp),%rax			/* Hardware registers */
 	movq	%r15,PCB_R15(%r8)

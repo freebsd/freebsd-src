@@ -605,6 +605,7 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
+	m->md.pat_mode = PAT_WRITE_BACK;
 }
 
 #if defined(PAE) && !defined(XEN)
@@ -615,7 +616,7 @@ pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
 	return ((void *)kmem_alloc_contig(kernel_map, bytes, wait, 0x0ULL,
-	    0xffffffffULL, 1, 0, VM_CACHE_DEFAULT));
+	    0xffffffffULL, 1, 0, VM_MEMATTR_DEFAULT));
 }
 #endif
 
@@ -3092,7 +3093,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 	vm_page_t p;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT(object->type == OBJT_DEVICE,
+	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 	if (pseflag && 
 	    ((addr & (NBPDR - 1)) == 0) && ((size & (NBPDR - 1)) == 0)) {
@@ -3918,6 +3919,25 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	pmap_invalidate_range(kernel_pmap, va, tmpva);
 	critical_exit();
 	kmem_free(kernel_map, base, size);
+}
+
+/*
+ * Sets the memory attribute for the specified page.
+ */
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+
+	m->md.pat_mode = ma;
+
+	/*
+	 * If "m" is a normal page, flush it from the cache.
+	 */    
+	if ((m->flags & PG_FICTITIOUS) == 0) {
+		/* If "Self Snoop" is supported, do nothing. */
+		if (!(cpu_feature & CPUID_SS))
+			pmap_invalidate_cache();
+	}
 }
 
 int

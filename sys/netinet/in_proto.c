@@ -383,7 +383,7 @@ struct domain inetdomain = {
 	.dom_ifdetach =		in_domifdetach
 };
 
-DOMAIN_SET(inet);
+VNET_DOMAIN_SET(inet);
 
 SYSCTL_NODE(_net,      PF_INET,		inet,	CTLFLAG_RW, 0,
 	"Internet Family");

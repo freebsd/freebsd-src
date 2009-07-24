@@ -14,6 +14,7 @@ SUBDIR=	${_3dfx} \
 	${_agp} \
 	aha \
 	${_ahb} \
+	ahci \
 	${_aic} \
 	aic7xxx \
 	aio \
@@ -241,6 +242,7 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	sf \
+	siis \
 	sis \
 	sk \
 	${_smbfs} \

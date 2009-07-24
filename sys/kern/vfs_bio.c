@@ -1330,7 +1330,8 @@ brelse(struct buf *bp)
 				m = bp->b_pages[i];
 			}
 			if ((bp->b_flags & B_NOCACHE) ||
-			    (bp->b_ioflags & BIO_ERROR)) {
+			    (bp->b_ioflags & BIO_ERROR &&
+			     bp->b_iocmd == BIO_READ)) {
 				int poffset = foff & PAGE_MASK;
 				int presid = resid > (PAGE_SIZE - poffset) ?
 					(PAGE_SIZE - poffset) : resid;

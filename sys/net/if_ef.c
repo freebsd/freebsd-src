@@ -493,7 +493,6 @@ ef_load(void)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_NET(vnet_iter);
 		IFNET_RLOCK();
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			if (ifp->if_type != IFT_ETHER) continue;

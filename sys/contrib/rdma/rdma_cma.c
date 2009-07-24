@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
-#include <netinet/vinet.h>
 
 #include <contrib/rdma/rdma_cm.h>
 #include <contrib/rdma/ib_cache.h>
@@ -1950,7 +1949,6 @@ err1:
 
 static int cma_alloc_any_port(struct kvl *ps, struct rdma_id_private *id_priv)
 {
-	INIT_VNET_INET(curvnet);
 	struct rdma_bind_list *bind_list;
 	int port, ret;
 
@@ -1995,7 +1993,6 @@ err1:
 
 static int cma_use_port(struct kvl *ps, struct rdma_id_private *id_priv)
 {
-	INIT_VNET_INET(curvnet);
 	struct rdma_id_private *cur_id;
 	struct sockaddr_in *sin, *cur_sin;
 	struct rdma_bind_list *bind_list;
@@ -2915,7 +2912,6 @@ static void cma_remove_one(struct ib_device *device)
 
 static int cma_init(void)
 {
-	INIT_VNET_INET(curvnet);
 	int ret;
 
 	LIST_INIT(&listen_any_list);

@@ -1733,6 +1733,9 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 		pmap_pte_prot(pmap, pte,
 		    prot & (VM_PROT_READ | VM_PROT_EXECUTE));
 		pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m), FALSE, managed);
+
+		if (prot & VM_PROT_EXECUTE)
+			ia64_sync_icache(va, PAGE_SIZE);
 	}
 }
 
@@ -1748,7 +1751,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 {
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT(object->type == OBJT_DEVICE,
+	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 }
 

@@ -211,7 +211,6 @@ ieee80211_ageq_remove(struct ieee80211_ageq *aq,
 		/*
 		 * Remove from forward list; tail pointer is harder.
 		 */
-		*prev = m->m_nextpkt;
 		if (aq->aq_tail == m) {
 			KASSERT(m->m_nextpkt == NULL, ("not last"));
 			if (aq->aq_head == m) {		/* list empty */
@@ -223,6 +222,8 @@ ieee80211_ageq_remove(struct ieee80211_ageq *aq,
 				    offsetof(struct mbuf, m_nextpkt));
 			}
 		}
+		*prev = m->m_nextpkt;
+
 		/* add to private list for return */
 		*phead = m;
 		phead = &m->m_nextpkt;

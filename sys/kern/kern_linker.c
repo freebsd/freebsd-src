@@ -992,12 +992,6 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	if ((error = priv_check(td, PRIV_KLD_LOAD)) != 0)
 		return (error);
 
-#ifdef VIMAGE
-	/* Only the default vimage is permitted to kldload modules. */
-	if (!IS_DEFAULT_VIMAGE(TD_TO_VIMAGE(td)))
-		return (EPERM);
-#endif
-
 	/*
 	 * It is possible that kldloaded module will attach a new ifnet,
 	 * so vnet context must be set when this ocurs.
@@ -1068,12 +1062,6 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 
 	if ((error = priv_check(td, PRIV_KLD_UNLOAD)) != 0)
 		return (error);
-
-#ifdef VIMAGE
-	/* Only the default vimage is permitted to kldunload modules. */
-	if (!IS_DEFAULT_VIMAGE(TD_TO_VIMAGE(td)))
-		return (EPERM);
-#endif
 
 	CURVNET_SET(TD_TO_VNET(td));
 	KLD_LOCK();
@@ -1334,23 +1322,8 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 				break;
 			}
 		}
-#ifndef VIMAGE_GLOBALS
-		/*
-		 * If the symbol is not found in global namespace,
-		 * try to look it up in the current vimage namespace.
-		 */
-		if (lf == NULL) {
-			CURVNET_SET(TD_TO_VNET(td));
-			error = vi_symlookup(&lookup, symstr);
-			CURVNET_RESTORE();
-			if (error == 0)
-				error = copyout(&lookup, uap->data,
-						sizeof(lookup));
-		}
-#else
 		if (lf == NULL)
 			error = ENOENT;
-#endif
 	}
 	KLD_UNLOCK();
 out:
@@ -2106,8 +2079,8 @@ linker_load_dependencies(linker_file_t lf)
 		}
 		error = linker_load_module(NULL, modname, lf, verinfo, NULL);
 		if (error) {
-			printf("KLD %s: depends on %s - not available\n",
-			    lf->filename, modname);
+			printf("KLD %s: depends on %s - not available or"
+			    " version mismatch\n", lf->filename, modname);
 			break;
 		}
 	}

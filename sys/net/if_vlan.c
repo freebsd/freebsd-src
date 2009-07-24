@@ -576,7 +576,6 @@ MODULE_VERSION(if_vlan, 3);
 static struct ifnet *
 vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 {
-	INIT_VNET_NET(curvnet);
 	const char *cp;
 	struct ifnet *ifp;
 	int t = 0;

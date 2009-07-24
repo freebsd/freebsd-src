@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfs_lock.h>
 
 #include <net/if.h>
-#include <netinet/vinet.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 
@@ -1111,9 +1110,11 @@ nfs_lookup(struct vop_lookup_args *ap)
 		ltype = VOP_ISLOCKED(dvp);
 		error = vfs_busy(mp, MBF_NOWAIT);
 		if (error != 0) {
+			vfs_ref(mp);
 			VOP_UNLOCK(dvp, 0);
 			error = vfs_busy(mp, 0);
 			vn_lock(dvp, ltype | LK_RETRY);
+			vfs_rel(mp);
 			if (error == 0 && (dvp->v_iflag & VI_DOOMED)) {
 				vfs_unbusy(mp);
 				error = ENOENT;
@@ -1126,7 +1127,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if (error == 0)
 			newvp = NFSTOV(np);
 		vfs_unbusy(mp);
-		vn_lock(dvp, ltype | LK_RETRY);
+		if (newvp != dvp)
+			vn_lock(dvp, ltype | LK_RETRY);
 		if (dvp->v_iflag & VI_DOOMED) {
 			if (error == 0) {
 				if (newvp == dvp)
@@ -1399,7 +1401,6 @@ again:
 
 	CURVNET_SET(P_TO_VNET(&proc0));
 #ifdef INET
-	INIT_VNET_INET(curvnet);
 	IN_IFADDR_RLOCK();
 	if (!TAILQ_EMPTY(&V_in_ifaddrhead))
 		cverf.lval[0] = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr.s_addr;
@@ -2447,7 +2448,7 @@ ncl_flush(struct vnode *vp, int waitfor, struct ucred *cred, struct thread *td,
 	int bvecsize = 0, bveccount;
 
 	if (nmp->nm_flag & NFSMNT_INT)
-		slpflag = PCATCH;
+		slpflag = NFS_PCATCH;
 	if (!commit)
 		passone = 0;
 	bo = &vp->v_bufobj;
@@ -2645,7 +2646,7 @@ loop:
 				error = EINTR;
 				goto done;
 			}
-			if (slpflag == PCATCH) {
+			if (slpflag & PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
 			}
@@ -2683,7 +2684,7 @@ loop:
 			    error = newnfs_sigintr(nmp, td);
 			    if (error)
 				goto done;
-			    if (slpflag == PCATCH) {
+			    if (slpflag & PCATCH) {
 				slpflag = 0;
 				slptimeo = 2 * hz;
 			    }

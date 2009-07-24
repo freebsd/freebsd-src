@@ -2865,15 +2865,14 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 		if ((sopeop == RSPQ_SOP_EOP) ||
 		    (sopeop == RSPQ_SOP))
 			flags |= M_PKTHDR;
+		m_init(m, fl->zone, fl->buf_size, M_NOWAIT, MT_DATA, flags);
 		if (fl->zone == zone_pack) {
-			m_init(m, zone_pack, MCLBYTES, M_NOWAIT, MT_DATA, flags);
 			/*
 			 * restore clobbered data pointer
 			 */
 			m->m_data = m->m_ext.ext_buf;
 		} else {
 			m_cljset(m, cl, fl->type);
-			m->m_flags = flags;
 		}
 		m->m_len = len;
 	}		
