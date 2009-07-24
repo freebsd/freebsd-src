@@ -202,7 +202,7 @@ lookup_jail(int jid, char *jailname)
 	lcap = login_getpwclass(pwd);					\
 	if (lcap == NULL)						\
 		err(1, "getpwclass: %s", username);			\
-	ngroups = NGROUPS;						\
+	ngroups = ngroups_max;						\
 	if (getgrouplist(username, pwd->pw_gid, groups, &ngroups) != 0)	\
 		err(1, "getgrouplist: %s", username);			\
 } while (0)
@@ -213,13 +213,18 @@ main(int argc, char *argv[])
 	int jid;
 	login_cap_t *lcap = NULL;
 	struct passwd *pwd = NULL;
-	gid_t groups[NGROUPS];
+	gid_t *groups = NULL;
 	int ch, ngroups, uflag, Uflag;
+	long ngroups_max;
 	char *jailname, *username;
 
 	ch = uflag = Uflag = 0;
 	jailname = username = NULL;
 	jid = -1;
+
+	ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
+	if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL)
+		err(1, "malloc");
 
 	while ((ch = getopt(argc, argv, "i:n:u:U:")) != -1) {
 		switch (ch) {
