@@ -5,15 +5,17 @@
 ; System call name/number master file.
 ; Processed to created init_sysent.c, syscalls.c and syscall.h.
 
-; Columns: number audit type nargs name alt{name,tag,rtyp}/comments
+; Columns: number audit type name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
 ;	audit	the audit event associated with the system call
 ;		A value of AUE_NULL means no auditing, but it also means that
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, UNIMPL, COMPAT, CPT_NOA, LIBCOMPAT,
-;		NODEF, NOARGS, NOPROTO, NOIMPL, NOSTD, COMPAT4
+;	type	one of STD, OBSOL, UNIMPL, COMPAT, COMPAT4, COMPAT6,
+;		LIBCOMPAT, NODEF, NOARGS, NOPROTO, NOSTD
+;		The COMPAT* options may be combined with one or more NO*
+;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
@@ -25,15 +27,16 @@
 ;	STD	always included
 ;	COMPAT	included on COMPAT #ifdef
 ;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
+;	COMPAT6	included on COMPAT6 #ifdef (FreeBSD 6 compat)
 ;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
-;		compiled in; sysent entry will be filled with lkmsys
+;		compiled in; sysent entry will be filled with lkmressys
 ;		so the SYSCALL_MODULE macro works
 ;	NOARGS	same as STD except do not create structure in sys/sysproto.h
 ;	NODEF	same as STD except only have the entry in the syscall table
-;		added.  Meaning - do do not create structure or function
+;		added.  Meaning - do not create structure or function
 ;		prototype in sys/sysproto.h
 ;	NOPROTO	same as STD except do not create structure or
 ;		function prototype in sys/sysproto.h.  Does add a
@@ -388,16 +391,16 @@
 ;
 ; The following are reserved for loadable syscalls
 ;
-210	AUE_NULL	UNIMPL
-211	AUE_NULL	UNIMPL
-212	AUE_NULL	UNIMPL
-213	AUE_NULL	UNIMPL
-214	AUE_NULL	UNIMPL
-215	AUE_NULL	UNIMPL
-216	AUE_NULL	UNIMPL
-217	AUE_NULL	UNIMPL
-218	AUE_NULL	UNIMPL
-219	AUE_NULL	UNIMPL
+210	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
+211	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
+212	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
+213	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
+214	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
+215	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
+216	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
+217	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
+218	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
+219	AUE_NULL	NODEF	lkmnosys lkmnosys nosys_args int
 
 ;
 ; The following were introduced with NetBSD/4.4Lite-2
@@ -652,7 +655,7 @@
 367	AUE_NULL	UNIMPL	__cap_get_file
 368	AUE_NULL	UNIMPL	__cap_set_fd
 369	AUE_NULL	UNIMPL	__cap_set_file
-370	AUE_NULL	UNIMPL	lkmressys
+370	AUE_NULL	UNIMPL	nosys
 371	AUE_EXTATTR_SET_FD	NOPROTO	{ int extattr_set_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
