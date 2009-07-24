@@ -2911,10 +2911,9 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 		{ FHASLOCK , KF_FLAG_HASLOCK }
 	};
 #define	NFFLAGS	(sizeof(fflags_table) / sizeof(*fflags_table))
-	int error;
-	int vfslocked;
 	struct vnode *vp;
-	int i;
+	int error, vfslocked;
+	unsigned int i;
 
 	bzero(kif, sizeof(*kif));
 	switch (type) {
@@ -2965,17 +2964,15 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 static int
 sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 {
-	struct kinfo_file *kif;
-	struct filedesc *fdp;
-	int error, i, *name;
 	struct file *fp;
+	struct filedesc *fdp;
+	struct kinfo_file *kif;
 	struct proc *p;
 	size_t oldidx;
-	void *data;
-	int type;
-	int refcnt;
 	int64_t offset;
-	int fflags;
+	void *data;
+	int error, i, *name;
+	int type, refcnt, fflags;
 
 	name = (int *)arg1;
 	if ((p = pfind((pid_t)name[0])) == NULL)
@@ -3146,11 +3143,11 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 		{ VFIFO, },
 		{ VBAD,  },
 	};
-	char *fullpath, *freepath;
-	struct vattr va;
 #define	NVTYPES	(sizeof(vtypes_table) / sizeof(*vtypes_table))
-	unsigned int i;
+	struct vattr va;
+	char *fullpath, *freepath;
 	int error;
+	unsigned int i;
 
 	if (vp == NULL)
 		return (1);
@@ -3199,7 +3196,6 @@ fill_socket_info(struct socket *so, struct kinfo_file *kif)
 
 	if (so == NULL)
 		return (1);
-
 	kif->kf_sock_domain = so->so_proto->pr_domain->dom_family;
 	kif->kf_sock_type = so->so_type;
 	kif->kf_sock_protocol = so->so_proto->pr_protocol;
