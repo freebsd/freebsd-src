@@ -124,6 +124,15 @@ struct vm_object {
 		} devp;
 
 		/*
+		 * SG pager
+		 *
+		 *	sgp_pglist - list of allocated pages
+		 */
+		struct {
+			TAILQ_HEAD(, vm_page) sgp_pglist;
+		} sgp;
+
+		/*
 		 * Swap pager
 		 *
 		 *	swp_bcount - number of swap 'swblock' metablocks, each
