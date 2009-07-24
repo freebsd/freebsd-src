@@ -1826,6 +1826,43 @@ repeat:
 }
 #endif
 
+/*
+ * This sysctl allows a process to retrieve the full list of groups from
+ * itself or another process.
+ */
+static int
+sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
+{
+	pid_t *pidp = (pid_t *)arg1;
+	unsigned int arglen = arg2;
+	struct proc *p;
+	struct ucred *cred;
+	int error;
+
+	if (arglen != 1)
+		return (EINVAL);
+	if (*pidp == -1) {	/* -1 means this process */
+		p = req->td->td_proc;
+	} else {
+		p = pfind(*pidp);
+		if (p == NULL)
+			return (ESRCH);
+		if ((error = p_cansee(curthread, p)) != 0) {
+			PROC_UNLOCK(p);
+			return (error);
+		}
+	}
+
+	cred = crhold(p->p_ucred);
+	if (*pidp != -1)
+		PROC_UNLOCK(p);
+
+	error = SYSCTL_OUT(req, cred->cr_groups,
+	    cred->cr_ngroups * sizeof(gid_t));
+	crfree(cred);
+	return (error);
+}
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
@@ -1910,3 +1947,6 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_VMMAP, vmmap, CTLFLAG_RD |
 static SYSCTL_NODE(_kern_proc, KERN_PROC_KSTACK, kstack, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_kstack, "Process kernel stacks");
 #endif
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_GROUPS, groups, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_groups, "Process groups");
