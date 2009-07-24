@@ -2961,7 +2961,8 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
 		}
 	}
 #if __FreeBSD_version >= 800000
-	buf_ring_free(txr->br, M_DEVBUF);
+	if (txr->br != NULL)
+		buf_ring_free(txr->br, M_DEVBUF);
 #endif
 	if (txr->tx_buffers != NULL) {
 		free(txr->tx_buffers, M_DEVBUF);
@@ -4128,6 +4129,9 @@ ixgbe_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 	struct adapter	*adapter = ifp->if_softc;
 	u16		index, bit;
 
+	if (ifp->if_init !=  ixgbe_init)   /* Not our event */
+		return;
+
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
 		return;
 
@@ -4149,6 +4153,9 @@ ixgbe_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u16		index, bit;
+
+	if (ifp->if_init !=  ixgbe_init)
+		return;
 
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
 		return;
