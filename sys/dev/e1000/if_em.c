@@ -919,9 +919,6 @@ em_detach(device_t dev)
 	bus_generic_detach(dev);
 	if_free(ifp);
 
-#if __FreeBSD_version >= 800000
-	drbr_free(adapter->br, M_DEVBUF);
-#endif
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 
@@ -3644,7 +3641,8 @@ em_free_transmit_structures(struct adapter *adapter)
 		adapter->txtag = NULL;
 	}
 #if __FreeBSD_version >= 800000
-        buf_ring_free(adapter->br, M_DEVBUF);
+	if (adapter->br != NULL)
+        	buf_ring_free(adapter->br, M_DEVBUF);
 #endif
 }
 
@@ -4720,7 +4718,10 @@ em_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, bit;
 
-	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
+	if (ifp->if_init !=  em_init)   /* Not our event */
+		return;
+
+	if ((vtag == 0) || (vtag > 4095))       /* Invalid ID */
                 return;
 
 	index = (vtag >> 5) & 0x7F;
@@ -4740,6 +4741,9 @@ em_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, bit;
+
+	if (ifp->if_init !=  em_init)
+		return;
 
 	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
                 return;
