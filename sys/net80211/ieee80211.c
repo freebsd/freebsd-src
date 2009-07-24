@@ -637,7 +637,8 @@ ieee80211_syncifflag_locked(struct ieee80211com *ic, int flag)
 			 * drivers don't need to special-case it
 			 */
 			if (flag == IFF_PROMISC &&
-			    vap->iv_opmode == IEEE80211_M_HOSTAP)
+			    !(vap->iv_opmode == IEEE80211_M_MONITOR ||
+			      vap->iv_opmode == IEEE80211_M_AHDEMO))
 				continue;
 			bit = 1;
 			break;
