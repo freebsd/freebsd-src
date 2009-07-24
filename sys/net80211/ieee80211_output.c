@@ -382,10 +382,22 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 {
 #define senderr(e) do { error = (e); goto bad;} while (0)
 	struct ieee80211_node *ni = NULL;
-	struct ieee80211vap *vap = ifp->if_softc;
+	struct ieee80211vap *vap;
 	struct ieee80211_frame *wh;
 	int error;
 
+	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+		/*
+		 * Short-circuit requests if the vap is marked OACTIVE
+		 * as this can happen because a packet came down through
+		 * ieee80211_start before the vap entered RUN state in
+		 * which case it's ok to just drop the frame.  This
+		 * should not be necessary but callers of if_output don't
+		 * check OACTIVE.
+		 */
+		senderr(ENETDOWN);
+	}
+	vap = ifp->if_softc;
 	/*
 	 * Hand to the 802.3 code if not tagged as
 	 * a raw 802.11 frame.
