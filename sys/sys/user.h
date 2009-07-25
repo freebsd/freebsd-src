@@ -317,7 +317,7 @@ struct kinfo_ofile {
 };
 
 #if defined(__amd64__) || defined(__i386__)
-#define	KINFO_FILE_SIZE	1496
+#define	KINFO_FILE_SIZE	1392
 #endif
 
 struct kinfo_file {
@@ -326,29 +326,53 @@ struct kinfo_file {
 	int		kf_fd;			/* Array index. */
 	int		kf_ref_count;		/* Reference count. */
 	int		kf_flags;		/* Flags. */
-	int		kf_vnode_type;		/* Vnode type. */
+	int		kf_pad0;		/* Round to 64 bit alignment. */
 	int64_t		kf_offset;		/* Seek location. */
-	char		kf_sock_domname[32];	/* Address domain name. */
+	int		kf_vnode_type;		/* Vnode type. */
 	int		kf_sock_domain;		/* Socket domain. */
-	int		kf_sock_protocol;	/* Socket protocol. */
 	int		kf_sock_type;		/* Socket type. */
-	uint16_t	kf_sock_snd_sb_state;	/* Send buffer state. */
-	uint16_t	kf_sock_rcv_sb_state;	/* Receive buffer state. */
-	uint64_t	kf_sock_pcb;		/* Address of so_pcb. */
-	uint64_t	kf_sock_inpcb;		/* Address of inp_ppcb. */
-	uint64_t	kf_sock_unpconn;	/* Address of unp_conn. */
+	int		kf_sock_protocol;	/* Socket protocol. */
 	struct sockaddr_storage kf_sa_local;	/* Socket address. */
 	struct sockaddr_storage	kf_sa_peer;	/* Peer address. */
-	dev_t		kf_file_fsid;		/* Vnode filesystem id. */
-	dev_t		kf_file_rdev;		/* File device. */
-	uint64_t 	kf_file_fileid;		/* Global file id. */
-	off_t		kf_file_size;		/* File size. */
-	mode_t		kf_file_mode;		/* File mode. */
+	union {
+		struct {
+			/* Send buffer state. */
+			uint16_t	kf_sock_snd_sb_state;
+			/* Receive buffer state. */
+			uint16_t	kf_sock_rcv_sb_state;
+			/* Address of so_pcb. */
+			uint64_t	kf_sock_pcb;
+			/* Address of inp_ppcb. */
+			uint64_t	kf_sock_inpcb;
+			/* Address of unp_conn. */
+			uint64_t	kf_sock_unpconn;
+			/* Round to 64-bit alignment. */
+			int		kf_sock_pad;
+		} sock;
+		struct {
+			/* Vnode filesystem id. */
+			dev_t		kf_file_fsid;
+			/* File device. */
+			dev_t		kf_file_rdev;
+			/* Global file id. */
+			uint64_t	kf_file_fileid;
+			/* File size. */
+			off_t		kf_file_size;
+			/* File mode. */
+			mode_t		kf_file_mode;
+		} file;
+		struct {
+			uint32_t	pipe_buffer_cnt;
+			uint64_t	pipe_addr;
+			uint64_t	pipe_peer;
+		} pipe;
+		struct {
+			dev_t		pts_dev;
+		} pts;
+	} kf_un;
 	uint16_t	kf_status;		/* Status flags. */
-	uint32_t	pipe_buffer_cnt;
-	uint64_t	pipe_addr;
-	uint64_t	pipe_peer;
-	int		_kf_ispare[16];		/* Space for more stuff. */
+	uint16_t	kf_pad1;		/* Round to 32 bit alignment. */
+	int		_kf_ispare[7];		/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char		kf_path[PATH_MAX];	/* Path to file, if any. */
 };

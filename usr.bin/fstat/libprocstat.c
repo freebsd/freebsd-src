@@ -610,12 +610,10 @@ kinfo_uflags2fst(int fd)
 		return (PS_FST_UFLAG_RDIR);
 	case KF_FD_TYPE_JAIL:
 		return (PS_FST_UFLAG_JAIL);
-#if 0
 	case KF_FD_TYPE_TRACE:
 		return (PS_FST_UFLAG_TRACE);
 	case KF_FD_TYPE_TEXT:
 		return (PS_FST_UFLAG_TEXT);
-#endif
 	}
 	return (0);
 }
@@ -701,8 +699,8 @@ procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
 		warnx("can't read pipe at %p", (void *)pipep);
 		goto fail;
 	}
-	ps->addr = (caddr_t)pipep;
-	ps->peer = (caddr_t)pi.pipe_peer;
+	ps->addr = (uintptr_t)pipep;
+	ps->peer = (uintptr_t)pi.pipe_peer;
 	ps->buffer_cnt = pi.pipe_buffer.cnt;
 	return (0);
 
@@ -712,13 +710,21 @@ fail:
 }
 
 static int
-procstat_get_pipe_info_sysctl(struct filestat *fst __unused, struct pipestat *ps __unused,
+procstat_get_pipe_info_sysctl(struct filestat *fst, struct pipestat *ps,
     char *errbuf __unused)
 {
+	struct kinfo_file *kif;
 
-	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
-	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
-	return (1);
+	assert(ps);
+	assert(fst);
+	bzero(ps, sizeof(*ps));
+	kif = fst->fs_typedep;
+	if (kif == NULL)
+		return (1);
+	ps->addr = kif->kf_un.pipe.pipe_addr;
+	ps->peer = kif->kf_un.pipe.pipe_peer;
+	ps->buffer_cnt = kif->kf_un.pipe.pipe_buffer_cnt;
+	return (0);
 }
 
 int
@@ -767,13 +773,20 @@ fail:
 }
 
 static int
-procstat_get_pts_info_sysctl(struct filestat *fst __unused, struct ptsstat *pts __unused,
+procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
     char *errbuf __unused)
 {
+	struct kinfo_file *kif;
 
-	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
-	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
-	return (1);
+	assert(pts);
+	assert(fst);
+	bzero(pts, sizeof(*pts));
+	kif = fst->fs_typedep;
+	if (kif == NULL)
+		return (0);
+	pts->dev = kif->kf_un.pts.pts_dev;
+	strlcpy(pts->devname, kif->kf_path, sizeof(pts->devname));
+	return (0);
 }
 
 int
@@ -893,7 +906,7 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 		statfs(kif->kf_path, &stbuf);
 		vn->mntdir = strdup(stbuf.f_mntonname);
 	}
-	vn->vn_dev = kif->kf_file_rdev;
+	vn->vn_dev = kif->kf_un.file.kf_file_rdev;
 	if (kif->kf_vnode_type == KF_VTYPE_VBLK) {
 		name = devname(vn->vn_dev, S_IFBLK);
 		if (name != NULL)
@@ -903,10 +916,10 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 		if (name != NULL)
 			strlcpy(vn->vn_devname, name, sizeof(vn->vn_devname));
 	}
-	vn->vn_fsid = kif->kf_file_fsid;
-	vn->vn_fileid = kif->kf_file_fileid;
-	vn->vn_size = kif->kf_file_size;
-	vn->vn_mode = kif->kf_file_mode;
+	vn->vn_fsid = kif->kf_un.file.kf_file_fsid;
+	vn->vn_fileid = kif->kf_un.file.kf_file_fileid;
+	vn->vn_size = kif->kf_un.file.kf_file_size;
+	vn->vn_mode = kif->kf_un.file.kf_file_mode;
 	return (0);
 }
 
@@ -947,7 +960,7 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 	so = fst->fs_typedep;
 	if (so == NULL)
 		goto fail;
-	sock->so_addr = (caddr_t)so;
+	sock->so_addr = (uintptr_t)so;
 	/* fill in socket */
 	if (!kvm_read_all(kd, (unsigned long)so, &s,
 	    sizeof(struct socket))) {
@@ -981,7 +994,7 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 	sock->type = s.so_type;
 	sock->proto = proto.pr_protocol;
 	sock->dom_family = dom.dom_family;
-	sock->so_pcb = s.so_pcb;
+	sock->so_pcb = (uintptr_t)s.so_pcb;
 
 	/*
 	 * Protocol specific data.
@@ -998,7 +1011,7 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 					    (void *)s.so_pcb);
 				} else
 					sock->inp_ppcb =
-					    (caddr_t)inpcb.inp_ppcb;
+					    (uintptr_t)inpcb.inp_ppcb;
 			}
 		}
 		break;
@@ -1011,7 +1024,7 @@ procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
 			} else if (unpcb.unp_conn) {
 				sock->so_rcv_sb_state = s.so_rcv.sb_state;
 				sock->so_snd_sb_state = s.so_snd.sb_state;
-				sock->unp_conn = (caddr_t)unpcb.unp_conn;
+				sock->unp_conn = (uintptr_t)unpcb.unp_conn;
 			}
 		}
 		break;
@@ -1026,13 +1039,50 @@ fail:
 }
 
 static int
-procstat_get_socket_info_sysctl(struct filestat *fst __unused, struct sockstat *sock __unused,
+procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
     char *errbuf __unused)
 {
+	struct kinfo_file *kif;
 
-	warnx("not implemented: %s:%d", __FUNCTION__, __LINE__);
-	snprintf(errbuf, _POSIX2_LINE_MAX, "error");
-	return (1);
+	assert(sock);
+	assert(fst);
+	bzero(sock, sizeof(*sock));
+	kif = fst->fs_typedep;
+	if (kif == NULL)
+		return (0);
+
+	/*
+	 * Fill in known data.
+	 */
+	sock->type = kif->kf_sock_type;
+	sock->proto = kif->kf_sock_protocol;
+	sock->dom_family = kif->kf_sock_domain;
+	sock->so_pcb = kif->kf_un.sock.kf_sock_pcb;
+	strlcpy(sock->dname, kif->kf_path, sizeof(sock->dname));
+
+	/*
+	 * Protocol specific data.
+	 */
+	switch(sock->dom_family) {
+	case AF_INET:
+	case AF_INET6:
+		if (sock->proto == IPPROTO_TCP)
+			sock->inp_ppcb = kif->kf_un.sock.kf_sock_inpcb;
+		break;
+	case AF_UNIX:
+		if (kif->kf_un.sock.kf_sock_unpconn != 0) {
+				sock->so_rcv_sb_state =
+				    kif->kf_un.sock.kf_sock_rcv_sb_state;
+				sock->so_snd_sb_state =
+				    kif->kf_un.sock.kf_sock_snd_sb_state;
+				sock->unp_conn =
+				    kif->kf_un.sock.kf_sock_unpconn;
+		}
+		break;
+	default:
+		break;
+	}
+	return (0);
 }
 
 static int

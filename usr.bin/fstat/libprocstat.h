@@ -115,21 +115,21 @@ struct ptsstat {
 	char	devname[SPECNAMELEN + 1];
 };
 struct pipestat {
-	caddr_t	addr;
-	caddr_t	peer;
-	size_t	buffer_cnt;
+	uint64_t	addr;
+	uint64_t	peer;
+	size_t		buffer_cnt;
 };
 struct sockstat {
-	int	type;
-	int	proto;
-	int	dom_family;
-	caddr_t	so_addr;
-	caddr_t	so_pcb;
-	caddr_t	inp_ppcb;
-	caddr_t	unp_conn;
-	int	so_snd_sb_state;
-	int	so_rcv_sb_state;
-	char	dname[32];
+	int		type;
+	int		proto;
+	int		dom_family;
+	uint64_t	so_addr;
+	uint64_t	so_pcb;
+	uint64_t	inp_ppcb;
+	uint64_t	unp_conn;
+	int		so_snd_sb_state;
+	int		so_rcv_sb_state;
+	char		dname[32];
 };
 
 /* XXX: sort structs. */

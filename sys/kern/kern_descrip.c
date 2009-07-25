@@ -2968,6 +2968,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	struct filedesc *fdp;
 	struct kinfo_file *kif;
 	struct proc *p;
+	struct vnode *tracevp, *textvp;
 	size_t oldidx;
 	int64_t offset;
 	void *data;
@@ -2981,27 +2982,23 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		PROC_UNLOCK(p);
 		return (error);
 	}
-	fdp = fdhold(p);
-	kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK);
 	/* ktrace vnode */
-	if (p->p_tracevp != NULL) {
-		vref(p->p_tracevp);
-		data = p->p_tracevp;
-		PROC_UNLOCK(p);
-		export_fd_for_sysctl(data, KF_TYPE_VNODE, KF_FD_TYPE_TRACE,
-		    FREAD | FWRITE, -1, -1, kif, req);
-		PROC_LOCK(p);
-	}
+	tracevp = p->p_tracevp;
+	if (tracevp != NULL)
+		vref(tracevp);
 	/* text vnode */
-	if (p->p_textvp != NULL) {
-		vref(p->p_textvp);
-		data = p->p_textvp;
-		PROC_UNLOCK(p);
-		export_fd_for_sysctl(data, KF_TYPE_VNODE, KF_FD_TYPE_TEXT,
-		    FREAD, -1, -1, kif, req);
-		PROC_LOCK(p);
-	}
+	textvp = p->p_textvp;
+	if (textvp != NULL)
+		vref(textvp);
+	fdp = fdhold(p);
 	PROC_UNLOCK(p);
+	kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK);
+	if (tracevp != NULL)
+		export_fd_for_sysctl(tracevp, KF_TYPE_VNODE, KF_FD_TYPE_TRACE,
+		    FREAD | FWRITE, -1, -1, kif, req);
+	if (textvp != NULL)
+		export_fd_for_sysctl(textvp, KF_TYPE_VNODE, KF_FD_TYPE_TEXT,
+		    FREAD, -1, -1, kif, req);
 	if (fdp == NULL)
 		goto fail;
 	FILEDESC_SLOCK(fdp);
@@ -3133,20 +3130,20 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 		int	vtype;
 		int	kf_vtype;
 	} vtypes_table[] = {
-		{ VNON,  },
-		{ VREG,  },
-		{ VDIR,  },
-		{ VBLK,  },
-		{ VCHR,  },
-		{ VLNK,  },
-		{ VSOCK,  },
-		{ VFIFO, },
-		{ VBAD,  },
+		{ VNON, KF_VTYPE_VNON },
+		{ VREG, KF_VTYPE_VREG },
+		{ VDIR, KF_VTYPE_VDIR },
+		{ VBLK, KF_VTYPE_VBLK },
+		{ VCHR, KF_VTYPE_VCHR },
+		{ VLNK, KF_VTYPE_VLNK },
+		{ VSOCK, KF_VTYPE_VSOCK },
+		{ VFIFO, KF_VTYPE_VFIFO },
+		{ VBAD, KF_VTYPE_VBAD }
 	};
 #define	NVTYPES	(sizeof(vtypes_table) / sizeof(*vtypes_table))
 	struct vattr va;
 	char *fullpath, *freepath;
-	int error;
+	int error, vfslocked;
 	unsigned int i;
 
 	if (vp == NULL)
@@ -3158,7 +3155,6 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 	for (i = 0; i < NVTYPES; i++)
 		if (vtypes_table[i].vtype == vp->v_type)
 			break;
-
 	if (i < NVTYPES)
 		kif->kf_vnode_type = vtypes_table[i].kf_vtype;
 	else
@@ -3175,14 +3171,18 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 	/*
 	 * Retrieve vnode attributes.
 	 */
-	error = VOP_GETATTR(vp, &va, NULL);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
+	VOP_UNLOCK(vp, 0);
+	VFS_UNLOCK_GIANT(vfslocked);
 	if (error != 0)
 		return (error);
-	kif->kf_file_fsid = va.va_fsid;
-	kif->kf_file_fileid = va.va_fileid;
-	kif->kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
-	kif->kf_file_size = va.va_size;
-	kif->kf_file_rdev = va.va_rdev;
+	kif->kf_un.file.kf_file_fsid = va.va_fsid;
+	kif->kf_un.file.kf_file_fileid = va.va_fileid;
+	kif->kf_un.file.kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
+	kif->kf_un.file.kf_file_size = va.va_size;
+	kif->kf_un.file.kf_file_rdev = va.va_rdev;
 	return (0);
 }
 
@@ -3199,14 +3199,15 @@ fill_socket_info(struct socket *so, struct kinfo_file *kif)
 	kif->kf_sock_domain = so->so_proto->pr_domain->dom_family;
 	kif->kf_sock_type = so->so_type;
 	kif->kf_sock_protocol = so->so_proto->pr_protocol;
-	kif->kf_sock_pcb = (uint64_t)so->so_pcb;
+	kif->kf_un.sock.kf_sock_pcb = (uintptr_t)so->so_pcb;
 	switch(kif->kf_sock_domain) {
 	case AF_INET:
 	case AF_INET6:
 		if (kif->kf_sock_protocol == IPPROTO_TCP) {
 			if (so->so_pcb != NULL) {
 				inpcb = (struct inpcb *)(so->so_pcb);
-				kif->kf_sock_inpcb = (uint64_t)inpcb->inp_ppcb;
+				kif->kf_un.sock.kf_sock_inpcb =
+				    (uintptr_t)inpcb->inp_ppcb;
 			}
 		}
 		break;
@@ -3214,11 +3215,11 @@ fill_socket_info(struct socket *so, struct kinfo_file *kif)
 		if (so->so_pcb != NULL) {
 			unpcb = (struct unpcb *)(so->so_pcb);
 			if (unpcb->unp_conn) {
-				kif->kf_sock_unpconn =
-				    (uint64_t)unpcb->unp_conn;
-				kif->kf_sock_rcv_sb_state =
+				kif->kf_un.sock.kf_sock_unpconn =
+				    (uintptr_t)unpcb->unp_conn;
+				kif->kf_un.sock.kf_sock_rcv_sb_state =
 				    so->so_rcv.sb_state;
-				kif->kf_sock_snd_sb_state =
+				kif->kf_un.sock.kf_sock_snd_sb_state =
 				    so->so_snd.sb_state;
 			}
 		}
@@ -3234,8 +3235,8 @@ fill_socket_info(struct socket *so, struct kinfo_file *kif)
 		bcopy(sa, &kif->kf_sa_peer, sa->sa_len);
 		free(sa, M_SONAME);
 	}
-	strncpy(kif->kf_sock_domname, so->so_proto->pr_domain->dom_name,
-	    sizeof(kif->kf_sock_domname));
+	strncpy(kif->kf_path, so->so_proto->pr_domain->dom_name,
+	    sizeof(kif->kf_path));
 	return (0);
 }
 
@@ -3245,6 +3246,7 @@ fill_pts_info(struct tty *tp, struct kinfo_file *kif)
 
 	if (tp == NULL)
 		return (1);
+	kif->kf_un.pts.pts_dev = tty_udev(tp);
 	strlcpy(kif->kf_path, tty_devname(tp), sizeof(kif->kf_path));
 	return (0);
 }
@@ -3255,9 +3257,9 @@ fill_pipe_info(struct pipe *pi, struct kinfo_file *kif)
 
 	if (pi == NULL)
 		return (1);
-	kif->pipe_addr = (uint64_t)pi;
-	kif->pipe_peer = (uint64_t)pi->pipe_peer;
-	kif->pipe_buffer_cnt = pi->pipe_buffer.cnt;
+	kif->kf_un.pipe.pipe_addr = (uintptr_t)pi;
+	kif->kf_un.pipe.pipe_peer = (uintptr_t)pi->pipe_peer;
+	kif->kf_un.pipe.pipe_buffer_cnt = pi->pipe_buffer.cnt;
 	return (0);
 }
 
