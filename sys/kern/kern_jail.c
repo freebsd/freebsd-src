@@ -120,29 +120,26 @@ static int prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6);
  */
 static char *pr_flag_names[] = {
 	[0] = "persist",
-	"host",
-#ifdef INET
-	"ip4",
-#endif
-#ifdef INET6
-	[3] = "ip6",
-#endif
-#ifdef VIMAGE
-	[4] = "vnet",
-#endif
 };
 
 static char *pr_flag_nonames[] = {
 	[0] = "nopersist",
-	"nohost",
+};
+
+struct jailsys_flags {
+	const char	*name;
+	unsigned	 disable;
+	unsigned	 new;
+} pr_flag_jailsys[] = {
+	{ "host", 0, PR_HOST },
+#ifdef VIMAGE
+	{ "vnet", 0, PR_VNET },
+#endif
 #ifdef INET
-	"noip4",
+	{ "ip4", PR_IP4_USER | PR_IP4_DISABLE, PR_IP4_USER },
 #endif
 #ifdef INET6
-	[3] = "noip6",
-#endif
-#ifdef VIMAGE
-	[4] = "novnet",
+	{ "ip6", PR_IP6_USER | PR_IP6_DISABLE, PR_IP6_USER },
 #endif
 };
 
@@ -478,7 +475,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	unsigned long hid;
 	size_t namelen, onamelen;
 	int created, cuflags, descend, enforce, error, errmsg_len, errmsg_pos;
-	int gotchildmax, gotenforce, gothid, gotslevel, fi, jid, len, level;
+	int gotchildmax, gotenforce, gothid, gotslevel;
+	int fi, jid, jsys, len, level;
 	int childmax, slevel, vfslocked;
 #if defined(INET) || defined(INET6)
 	int ii, ij;
@@ -569,6 +567,34 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		vfs_flagopt(opts, pr_flag_nonames[fi], &ch_flags, 1 << fi);
 	}
 	ch_flags |= pr_flags;
+	for (fi = 0; fi < sizeof(pr_flag_jailsys) / sizeof(pr_flag_jailsys[0]);
+	    fi++) {
+		error = vfs_copyopt(opts, pr_flag_jailsys[fi].name, &jsys,
+		    sizeof(jsys));
+		if (error == ENOENT)
+			continue;
+		if (error != 0)
+			goto done_free;
+		switch (jsys) {
+		case JAIL_SYS_DISABLE:
+			if (!pr_flag_jailsys[fi].disable) {
+				error = EINVAL;
+				goto done_free;
+			}
+			pr_flags |= pr_flag_jailsys[fi].disable;
+			break;
+		case JAIL_SYS_NEW:
+			pr_flags |= pr_flag_jailsys[fi].new;
+			break;
+		case JAIL_SYS_INHERIT:
+			break;
+		default:
+			error = EINVAL;
+			goto done_free;
+		}
+		ch_flags |=
+		    pr_flag_jailsys[fi].new | pr_flag_jailsys[fi].disable;
+	}
 	if ((flags & (JAIL_CREATE | JAIL_UPDATE | JAIL_ATTACH)) == JAIL_CREATE
 	    && !(pr_flags & PR_PERSIST)) {
 		error = EINVAL;
@@ -684,16 +710,18 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET
 	error = vfs_getopt(opts, "ip4.addr", &op, &ip4s);
 	if (error == ENOENT)
-		ip4s = -1;
+		ip4s = (pr_flags & PR_IP4_DISABLE) ? 0 : -1;
 	else if (error != 0)
 		goto done_free;
 	else if (ip4s & (sizeof(*ip4) - 1)) {
 		error = EINVAL;
 		goto done_free;
 	} else {
-		ch_flags |= PR_IP4_USER;
-		pr_flags |= PR_IP4_USER;
-		if (ip4s > 0) {
+		ch_flags |= PR_IP4_USER | PR_IP4_DISABLE;
+		if (ip4s == 0)
+			pr_flags |= PR_IP4_USER | PR_IP4_DISABLE;
+		else {
+			pr_flags = (pr_flags & ~PR_IP4_DISABLE) | PR_IP4_USER;
 			ip4s /= sizeof(*ip4);
 			if (ip4s > jail_max_af_ips) {
 				error = EINVAL;
@@ -745,16 +773,18 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	error = vfs_getopt(opts, "ip6.addr", &op, &ip6s);
 	if (error == ENOENT)
-		ip6s = -1;
+		ip6s = (pr_flags & PR_IP6_DISABLE) ? 0 : -1;
 	else if (error != 0)
 		goto done_free;
 	else if (ip6s & (sizeof(*ip6) - 1)) {
 		error = EINVAL;
 		goto done_free;
 	} else {
-		ch_flags |= PR_IP6_USER;
-		pr_flags |= PR_IP6_USER;
-		if (ip6s > 0) {
+		ch_flags |= PR_IP6_USER | PR_IP6_DISABLE;
+		if (ip6s == 0)
+			pr_flags |= PR_IP6_USER | PR_IP6_DISABLE;
+		else {
+			pr_flags = (pr_flags & ~PR_IP6_DISABLE) | PR_IP6_USER;
 			ip6s /= sizeof(*ip6);
 			if (ip6s > jail_max_af_ips) {
 				error = EINVAL;
@@ -1968,6 +1998,19 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		if (error != 0 && error != ENOENT)
 			goto done_deref;
 	}
+	for (fi = 0; fi < sizeof(pr_flag_jailsys) / sizeof(pr_flag_jailsys[0]);
+	    fi++) {
+		i = pr->pr_flags &
+		    (pr_flag_jailsys[fi].disable | pr_flag_jailsys[fi].new);
+		i = pr_flag_jailsys[fi].disable &&
+		      (i == pr_flag_jailsys[fi].disable) ? JAIL_SYS_DISABLE
+		    : (i == pr_flag_jailsys[fi].new) ? JAIL_SYS_NEW
+		    : JAIL_SYS_INHERIT;
+		error =
+		    vfs_setopt(opts, pr_flag_jailsys[fi].name, &i, sizeof(i));
+		if (error != 0 && error != ENOENT)
+			goto done_deref;
+	}
 	for (fi = 0; fi < sizeof(pr_allow_names) / sizeof(pr_allow_names[0]);
 	    fi++) {
 		if (pr_allow_names[fi] == NULL)
@@ -2614,6 +2657,7 @@ prison_restrict_ip4(struct prison *pr, struct in_addr *newip4)
 			}
 		}
 		if (pr->pr_ip4s == 0) {
+			pr->pr_flags |= PR_IP4_DISABLE;
 			free(pr->pr_ip4, M_PRISON);
 			pr->pr_ip4 = NULL;
 		}
@@ -2918,6 +2962,7 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 			}
 		}
 		if (pr->pr_ip6s == 0) {
+			pr->pr_flags |= PR_IP6_DISABLE;
 			free(pr->pr_ip6, M_PRISON);
 			pr->pr_ip6 = NULL;
 		}
@@ -4035,7 +4080,7 @@ SYSCTL_JAIL_PARAM(, persist, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail persistence");
 #ifdef VIMAGE
 SYSCTL_JAIL_PARAM(, vnet, CTLTYPE_INT | CTLFLAG_RDTUN,
-    "B", "Virtual network stack");
+    "E,jailsys", "Virtual network stack");
 #endif
 SYSCTL_JAIL_PARAM(, dying, CTLTYPE_INT | CTLFLAG_RD,
     "B", "Jail is in the process of shutting down");
@@ -4046,9 +4091,7 @@ SYSCTL_JAIL_PARAM(_children, cur, CTLTYPE_INT | CTLFLAG_RD,
 SYSCTL_JAIL_PARAM(_children, max, CTLTYPE_INT | CTLFLAG_RW,
     "I", "Maximum number of child jails");
 
-SYSCTL_JAIL_PARAM_NODE(host, "Jail host info");
-SYSCTL_JAIL_PARAM(, nohost, CTLTYPE_INT | CTLFLAG_RW,
-    "BN", "Jail w/ no host info");
+SYSCTL_JAIL_PARAM_SYS_NODE(host, CTLFLAG_RW, "Jail host info");
 SYSCTL_JAIL_PARAM_STRING(_host, hostname, CTLFLAG_RW, MAXHOSTNAMELEN,
     "Jail hostname");
 SYSCTL_JAIL_PARAM_STRING(_host, domainname, CTLFLAG_RW, MAXHOSTNAMELEN,
@@ -4062,16 +4105,12 @@ SYSCTL_JAIL_PARAM_NODE(cpuset, "Jail cpuset");
 SYSCTL_JAIL_PARAM(_cpuset, id, CTLTYPE_INT | CTLFLAG_RD, "I", "Jail cpuset ID");
 
 #ifdef INET
-SYSCTL_JAIL_PARAM_NODE(ip4, "Jail IPv4 address virtualization");
-SYSCTL_JAIL_PARAM(, noip4, CTLTYPE_INT | CTLFLAG_RW,
-    "BN", "Jail w/ no IP address virtualization");
+SYSCTL_JAIL_PARAM_SYS_NODE(ip4, CTLFLAG_RW, "Jail IPv4 address virtualization");
 SYSCTL_JAIL_PARAM_STRUCT(_ip4, addr, CTLFLAG_RW, sizeof(struct in_addr),
     "S,in_addr,a", "Jail IPv4 addresses");
 #endif
 #ifdef INET6
-SYSCTL_JAIL_PARAM_NODE(ip6, "Jail IPv6 address virtualization");
-SYSCTL_JAIL_PARAM(, noip6, CTLTYPE_INT | CTLFLAG_RW,
-    "BN", "Jail w/ no IP address virtualization");
+SYSCTL_JAIL_PARAM_SYS_NODE(ip6, CTLFLAG_RW, "Jail IPv6 address virtualization");
 SYSCTL_JAIL_PARAM_STRUCT(_ip6, addr, CTLFLAG_RW, sizeof(struct in6_addr),
     "S,in6_addr,a", "Jail IPv6 addresses");
 #endif
@@ -4102,6 +4141,7 @@ db_show_prison(struct prison *pr)
 #if defined(INET) || defined(INET6)
 	int ii;
 #endif
+	unsigned jsf;
 #ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
 #endif
@@ -4128,6 +4168,16 @@ db_show_prison(struct prison *pr)
 	    fi++)
 		if (pr_flag_names[fi] != NULL && (pr->pr_flags & (1 << fi)))
 			db_printf(" %s", pr_flag_names[fi]);
+	for (fi = 0; fi < sizeof(pr_flag_jailsys) / sizeof(pr_flag_jailsys[0]);
+	    fi++) {
+		jsf = pr->pr_flags &
+		    (pr_flag_jailsys[fi].disable | pr_flag_jailsys[fi].new);
+		db_printf(" %-16s= %s\n", pr_flag_jailsys[fi].name,
+		    pr_flag_jailsys[fi].disable && 
+		      (jsf == pr_flag_jailsys[fi].disable) ? "disable"
+		    : (jsf == pr_flag_jailsys[fi].new) ? "new"
+		    : "inherit");
+	}
 	db_printf(" allow           = %x", pr->pr_allow);
 	for (fi = 0; fi < sizeof(pr_allow_names) / sizeof(pr_allow_names[0]);
 	    fi++)
