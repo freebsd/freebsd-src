@@ -243,7 +243,7 @@ do_fuser(int argc, char *argv[])
 	procstat = procstat_open(kernimg, mcore);
 	if (procstat == NULL)
 		errx(1, "procstat_open()");
-	p = procstat_getprocs(procstat, KERN_PROC_ALL, 0, &cnt);
+	p = procstat_getprocs(procstat, KERN_PROC_PROC, 0, &cnt);
 	if (p == NULL)
 		 errx(1, "procstat_getprocs()");
 
