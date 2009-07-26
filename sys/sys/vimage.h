@@ -67,7 +67,6 @@ struct vnet {
 
 struct vnet;
 struct ifnet;
-int	vi_if_move(struct thread *, struct ifnet *, char *, int);
 struct vnet *vnet_alloc(void);
 void	vnet_destroy(struct vnet *);
 void	vnet_foreach(void (*vnet_foreach_fn)(struct vnet *, void *),
