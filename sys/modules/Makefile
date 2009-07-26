@@ -109,6 +109,7 @@ SUBDIR=	${_3dfx} \
 	if_disc \
 	if_edsc \
 	if_ef \
+	if_epair \
 	if_faith \
 	if_gif \
 	if_gre \

@@ -784,6 +784,10 @@ device		bpf
 #  included for testing and benchmarking purposes.
 device		disc
 
+# The `epair' device implements a virtual back-to-back connected Ethernet
+# like interface pair.
+device		epair
+
 #  The `edsc' device implements a minimal Ethernet interface,
 #  which discards all packets sent and receives none.
 device		edsc
