@@ -734,12 +734,10 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 #ifdef ZFS
 		FSTYPE(zfs),
 #endif
-/*
 		FSTYPE(ntfs),
 		FSTYPE(nwfs), 
 		FSTYPE(smbfs),
 		FSTYPE(udf), 
-*/
 	};
 #define	NTYPES	(sizeof(fstypes) / sizeof(*fstypes))
 	struct vnode vnode;
