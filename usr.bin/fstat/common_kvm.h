@@ -42,10 +42,8 @@ int	isofs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
 int	msdosfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
 int	nfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
 int	ufs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
-#ifdef ZFS
 int	zfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn);
 void	*getvnodedata(struct vnode *vp);
 struct mount	*getvnodemount(struct vnode *vp);
-#endif
 
 #endif	/* __COMMON_KVM_H__ */

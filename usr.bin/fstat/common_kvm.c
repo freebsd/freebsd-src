@@ -111,16 +111,16 @@ devfs_filestat(kvm_t *kd, struct vnode *vp, struct vnstat *vn)
 	struct devfs_dirent devfs_dirent;
 	struct mount mount;
 
-	if (!kvm_read_all(kd, (unsigned long)vp->v_data, &devfs_dirent,
+	if (!kvm_read_all(kd, (unsigned long)getvnodedata(vp), &devfs_dirent,
 	    sizeof(devfs_dirent))) {
 		warnx("can't read devfs_dirent at %p",
 		    (void *)vp->v_data);
 		return (1);
 	}
-	if (!kvm_read_all(kd, (unsigned long)vp->v_mount, &mount,
+	if (!kvm_read_all(kd, (unsigned long)getvnodemount(vp), &mount,
 	    sizeof(mount))) {
 		warnx("can't read mount at %p",
-		    (void *)vp->v_mount);
+		    (void *)getvnodemount(vp));
 		return (1);
 	}
 	vn->vn_fsid = (long)mount.mnt_stat.f_fsid.val[0];
@@ -194,7 +194,6 @@ dev2udev(kvm_t *kd, struct cdev *dev)
 	}
 }
 
-#ifdef ZFS
 void *
 getvnodedata(struct vnode *vp)
 {
@@ -206,4 +205,3 @@ getvnodemount(struct vnode *vp)
 {
 	return (vp->v_mount);
 }
-#endif

@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
  * VTODE is defined in denode.h only if _KERNEL is defined, but that leads to
  * header explosion
  */
-#define VTODE(vp) ((struct denode *)(vp)->v_data)
+#define VTODE(vp) ((struct denode *)getvnodedata(vp))
 
 #include "libprocstat.h"
 #include "common_kvm.h"
