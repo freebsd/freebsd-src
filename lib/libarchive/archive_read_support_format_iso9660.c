@@ -1175,12 +1175,12 @@ static void
 parse_rockridge_SL1(struct file_info *file, const unsigned char *data,
     int data_length)
 {
-	int component_continues = 1;
+	const char *separator = "";
 
-	if (!file->symlink_continues)
+	if (!file->symlink_continues || file->symlink.length < 1)
 		archive_string_empty(&file->symlink);
-	else
-		archive_strcat(&file->symlink, "/");
+	else if (file->symlink.s[file->symlink.length - 1] != '/')
+		separator = "/";
 	file->symlink_continues = 0;
 
 	/*
@@ -1217,9 +1217,8 @@ parse_rockridge_SL1(struct file_info *file, const unsigned char *data,
 		unsigned char nlen = *data++;
 		data_length -= 2;
 
-		if (!component_continues)
-			archive_strcat(&file->symlink, "/");
-		component_continues = 0;
+		archive_strcat(&file->symlink, separator);
+		separator = "/";
 
 		switch(flag) {
 		case 0: /* Usual case, this is text. */
@@ -1233,7 +1232,7 @@ parse_rockridge_SL1(struct file_info *file, const unsigned char *data,
 				return;
 			archive_strncat(&file->symlink,
 			    (const char *)data, nlen);
-			component_continues = 1;
+			separator = "";
 			break;
 		case 0x02: /* Current dir. */
 			archive_strcat(&file->symlink, ".");
@@ -1244,6 +1243,7 @@ parse_rockridge_SL1(struct file_info *file, const unsigned char *data,
 		case 0x08: /* Root of filesystem. */
 			archive_string_empty(&file->symlink);
 			archive_strcat(&file->symlink, "/");
+			separator = "";
 			break;
 		case 0x10: /* Undefined (historically "volume root" */
 			archive_string_empty(&file->symlink);
