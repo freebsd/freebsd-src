@@ -166,9 +166,9 @@ do_fuser(int argc, char *argv[])
 	struct kinfo_proc *p;
 	struct procstat *procstat;
 	struct reqfile *reqfiles;
+	char *ep, *nlistf, *memf;
 	int ch, cnt, sig;
 	unsigned int i, nfiles;
-	char *ep, *nlistf, *memf;
 
 	sig = SIGKILL;	/* Default to kill. */
 	nlistf = NULL;
@@ -288,10 +288,10 @@ static void
 dofiles(struct procstat *procstat, struct kinfo_proc *kp,
     struct reqfile *reqfiles, size_t nfiles)
 {
+	struct vnstat vn;
 	struct consumer *cons;
 	struct filestat *fst;
 	struct filestat_list *head;
-	struct vnstat vn;
 	int error, match;
 	unsigned int i;
 	

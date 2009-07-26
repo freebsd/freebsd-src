@@ -209,11 +209,11 @@ do_fstat(int argc, char **argv)
 static void
 dofiles(struct procstat *procstat, struct kinfo_proc *kp)
 {
-	struct filestat_list *head;
 	const char *cmd;
 	const char *uname;
-	int pid;
 	struct filestat *fst;
+	struct filestat_list *head;
+	int pid;
 
 	uname = user_from_uid(kp->ki_uid, 0);
 	pid = kp->ki_pid;
@@ -231,11 +231,10 @@ static void
 print_file_info(struct procstat *procstat, struct filestat *fst,
     const char *uname, const char *cmd, int pid)
 {
-	const char *filename;
 	struct vnstat vn;
-	int error;
-	int fsmatch = 0;
 	DEVS *d;
+	const char *filename;
+	int error, fsmatch = 0;
 
 	filename = NULL;
 	if (checkfile != 0) {
@@ -318,10 +317,10 @@ print_socket_info(struct procstat *procstat, struct filestat *fst)
 	};
 #define STYPEMAX 5
 	struct sockstat sock;
-	char errbuf[_POSIX2_LINE_MAX];
-	static int isopen;
 	struct protoent *pe;
+	char errbuf[_POSIX2_LINE_MAX];
 	int error;
+	static int isopen;
 
 	error = procstat_get_socket_info(procstat, fst, &sock, errbuf);
 	if (error != 0) {
@@ -427,9 +426,9 @@ static void
 print_vnode_info(struct procstat *procstat, struct filestat *fst)
 {
 	struct vnstat vn;
-	const char *badtype;
 	char errbuf[_POSIX2_LINE_MAX];
 	char mode[15];
+	const char *badtype;
 	int error;
 
 	badtype = NULL;

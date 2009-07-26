@@ -136,9 +136,9 @@ procstat_close(struct procstat *procstat)
 struct procstat *
 procstat_open(const char *nlistf, const char *memf)
 {
+	struct procstat *procstat;
 	kvm_t *kd;
 	char buf[_POSIX2_LINE_MAX];
-	struct procstat *procstat;
 
 	procstat = calloc(1, sizeof(*procstat));
 	if (procstat == NULL) {
@@ -259,25 +259,23 @@ filestat_new_entry(void *typedep, int type, int fd, int fflags, int uflags)
 static struct filestat_list *
 procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, int mmapped)
 {
-	int i;
 	struct file file;
 	struct filedesc filed;
-	unsigned int nfiles;
+	struct vm_map_entry vmentry;
+	struct vm_object object;
+	struct vmspace vmspace;
+	vm_map_entry_t entryp;
+	vm_map_t map;
+	vm_object_t objp;
 	struct file **ofiles;
 	struct filestat *entry;
 	struct filestat_list *head;
-	int type;
 	void *data;
-	vm_map_t map;
-	struct vmspace vmspace;
-	struct vm_map_entry vmentry;
-	vm_map_entry_t entryp;
-	struct vm_object object;
-	vm_object_t objp;
-	int prot, fflags;
+	int i, fflags;
+	int prot, type;
+	unsigned int nfiles;
 
 	assert(kd);
-
 	if (kp->ki_fd == NULL)
 		return (NULL);
 	if (!kvm_read_all(kd, (unsigned long)kp->ki_fd, &filed,
@@ -513,6 +511,7 @@ kinfo_fflags2fst(int kfflags)
 static int
 kinfo_uflags2fst(int fd)
 {
+
 	switch (fd) {
 	case KF_FD_TYPE_CWD:
 		return (PS_FST_UFLAG_CDIR);
@@ -533,12 +532,11 @@ procstat_getfiles_sysctl(struct kinfo_proc *kp, int mmapped __unused)
 {
 	struct kinfo_file *kif, *files;
 	struct filestat_list *head;
-	int fd, fflags, uflags, type;
 	struct filestat *entry;
-	int cnt, i;
+	int cnt, fd, fflags;
+	int i, type, uflags;
 
 	assert(kp);
-
 	if (kp->ki_fd == NULL)
 		return (NULL);
 
@@ -837,8 +835,8 @@ static int
 procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
     char *errbuf __unused)
 {
-	struct kinfo_file *kif;
 	struct statfs stbuf;
+	struct kinfo_file *kif;
 	char *name;
 
 	assert(fst);
@@ -895,10 +893,10 @@ static int
 procstat_get_socket_info_kvm(kvm_t *kd, struct filestat *fst,
     struct sockstat *sock, char *errbuf)
 {
-	struct socket s;
-	struct protosw proto;
 	struct domain dom;
 	struct inpcb inpcb;
+	struct protosw proto;
+	struct socket s;
 	struct unpcb unpcb;
 	ssize_t len;
 	void *so;
