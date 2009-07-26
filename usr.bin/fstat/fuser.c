@@ -168,11 +168,11 @@ do_fuser(int argc, char *argv[])
 	struct reqfile *reqfiles;
 	int ch, cnt, sig;
 	unsigned int i, nfiles;
-	char *ep, *kernimg, *mcore;
+	char *ep, *nlistf, *memf;
 
 	sig = SIGKILL;	/* Default to kill. */
-	kernimg = NULL;
-	mcore = NULL;
+	nlistf = NULL;
+	memf = NULL;
 	while ((ch = getopt(argc, argv, "M:N:cfhkms:u")) != -1)
 		switch(ch) {
 		case 'f':
@@ -186,10 +186,10 @@ do_fuser(int argc, char *argv[])
 			flags |= CFLAG;
 			break;
 		case 'N':
-			kernimg = optarg;
+			nlistf = optarg;
 			break;
 		case 'M':
-			mcore = optarg;
+			memf = optarg;
 			break;
 		case 'u':
 			flags |= UFLAG;
@@ -240,12 +240,19 @@ do_fuser(int argc, char *argv[])
 	if (nfiles == 0)
 		errx(EX_IOERR, "files not accessible");
 
-	procstat = procstat_open(kernimg, mcore);
+	/*
+	 * Discard setgid privileges if not the running kernel so that bad
+	 * guys can't print interesting stuff from kernel memory.
+	 */
+	if (nlistf != NULL || memf != NULL)
+		setgid(getgid());
+	procstat = procstat_open(nlistf, memf);
 	if (procstat == NULL)
 		errx(1, "procstat_open()");
 	p = procstat_getprocs(procstat, KERN_PROC_PROC, 0, &cnt);
 	if (p == NULL)
 		 errx(1, "procstat_getprocs()");
+	setgid(getgid());
 
 	/*
 	 * Walk through process table and look for matching files.

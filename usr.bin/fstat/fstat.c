@@ -165,12 +165,19 @@ do_fstat(int argc, char **argv)
 		checkfile = 1;
 	}
 
+	/*
+	 * Discard setgid privileges if not the running kernel so that bad
+	 * guys can't print interesting stuff from kernel memory.
+	 */
+	if (nlistf != NULL || memf != NULL)
+		setgid(getgid());
 	procstat = procstat_open(nlistf, memf);
 	if (procstat == NULL)
 		errx(1, "procstat_open()");
 	p = procstat_getprocs(procstat, what, arg, &cnt);
 	if (p == NULL)
 		errx(1, "procstat_getprocs()");
+	setgid(getgid());
 
 	/*
 	 * Print header.
