@@ -514,6 +514,34 @@ label:
 			}
 			}
 			break;
+
+		case 'z':
+			{
+			int sign = 1;
+
+			if (*buf != '+') {
+				if (*buf == '-')
+					sign = -1;
+				else
+					return 0;
+			}
+
+			buf++;
+			i = 0;
+			for (len = 4; len > 0; len--) {
+				if (isdigit((int)*buf)) {
+					i *= 10;
+					i += *buf - '0';
+					buf++;
+				} else
+					return 0;
+			}
+
+			tm->tm_hour -= sign * (i / 100);
+			tm->tm_min  -= sign * (i % 100);
+			*GMTp = 1;
+			}
+			break;
 		}
 	}
 	return (char *)buf;
