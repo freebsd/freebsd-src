@@ -68,61 +68,6 @@ struct sx		vnet_sxlock;
 struct vnet_list_head vnet_head;
 struct vnet *vnet0;
 
-/*
- * Move an ifnet to or from another vnet, specified by the jail id.
- */
-int
-vi_if_move(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
-{
-	struct ifnet *t_ifp;
-	struct prison *pr;
-	struct vnet *new_vnet;
-	int error;
-
-	sx_slock(&allprison_lock);
-	pr = prison_find_child(td->td_ucred->cr_prison, jid);
-	sx_sunlock(&allprison_lock);
-	if (pr == NULL)
-		return (ENXIO);
-	prison_hold_locked(pr);
-	mtx_unlock(&pr->pr_mtx);
-	if (ifp != NULL) {
-		/* SIOCSIFVNET */
-		new_vnet = pr->pr_vnet;
-	} else {
-		/* SIOCSIFRVNET */
-		new_vnet = TD_TO_VNET(td);
-		CURVNET_SET(pr->pr_vnet);
-		ifp = ifunit(ifname);
-		CURVNET_RESTORE();
-		if (ifp == NULL) {
-			prison_free(pr);
-			return (ENXIO);
-		}
-	}
-
-	error = 0;
-	if (new_vnet != ifp->if_vnet) {
-		/*
-		 * Check for naming clashes in target vnet.  Not locked so races
-		 * are possible.
-		 */
-		CURVNET_SET_QUIET(new_vnet);
-		t_ifp = ifunit(ifname);
-		CURVNET_RESTORE();
-		if (t_ifp != NULL)
-			error = EEXIST;
-		else {
-			/* Detach from curvnet and attach to new_vnet. */
-			if_vmove(ifp, new_vnet);
-
-			/* Report the new if_xname back to the userland */
-			sprintf(ifname, "%s", ifp->if_xname);
-		}
-	}
-	prison_free(pr);
-	return (error);
-}
 
 struct vnet *
 vnet_alloc(void)
