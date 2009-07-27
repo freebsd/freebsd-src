@@ -469,6 +469,8 @@ struct ieee80211_mesh_route *
 void		ieee80211_mesh_rt_del(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN]);
 void		ieee80211_mesh_rt_flush(struct ieee80211vap *);
+void		ieee80211_mesh_rt_flush_peer(struct ieee80211vap *,
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 void		ieee80211_mesh_proxy_check(struct ieee80211vap *,
 		    const uint8_t [IEEE80211_ADDR_LEN]);
 
