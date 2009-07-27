@@ -81,17 +81,17 @@ __FBSDID("$FreeBSD$");
 SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 
+VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
+					 * local traffic */
+
 /* timer values */
 static VNET_DEFINE(int, arpt_keep) = (20*60);	/* once resolved, good for 20
 						 * minutes */
 static VNET_DEFINE(int, arp_maxtries) = 5;
-static VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
-						 * local traffic */
 static VNET_DEFINE(int, arp_proxyall);
 
 #define	V_arpt_keep		VNET(arpt_keep)
 #define	V_arp_maxtries		VNET(arp_maxtries)
-#define	V_useloopback		VNET(useloopback)
 #define	V_arp_proxyall		VNET(arp_proxyall)
 
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW,
