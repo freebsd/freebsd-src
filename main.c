@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2008  Mark Nudelman
+ * Copyright (C) 1984-2009  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -118,6 +118,7 @@ main(argc, argv)
 	init_line();
 	init_cmdhist();
 	init_option();
+	init_search();
 
 	/*
 	 * If the name of the executable program is "more",

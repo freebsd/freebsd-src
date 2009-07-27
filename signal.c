@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2008  Mark Nudelman
+ * Copyright (C) 1984-2009  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -244,6 +244,7 @@ psignals()
 		{
 			wscroll = (sc_height + 1) / 2;
 			calc_jump_sline();
+			calc_shift_count();
 			screen_trashed = 1;
 		}
 	}
