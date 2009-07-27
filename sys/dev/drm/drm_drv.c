@@ -273,11 +273,14 @@ int drm_detach(device_t kdev)
 
 	drm_unload(dev);
 
-	bus_release_resource(dev->device, SYS_RES_IRQ, dev->irqrid, dev->irqr);
+	if (dev->irqr) {
+		bus_release_resource(dev->device, SYS_RES_IRQ, dev->irqrid,
+		    dev->irqr);
 
-	if (dev->msi_enabled) {
-		pci_release_msi(dev->device);
-		DRM_INFO("MSI released\n");
+		if (dev->msi_enabled) {
+			pci_release_msi(dev->device);
+			DRM_INFO("MSI released\n");
+		}
 	}
 
 	return 0;
