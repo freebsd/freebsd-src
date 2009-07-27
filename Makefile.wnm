@@ -23,12 +23,13 @@ LIBS = user32.lib
 .c.obj:
 	$(CC) $(CFLAGS) $<
 
-OBJ =   main.obj screen.obj brac.obj ch.obj charset.obj cmdbuf.obj command.obj \
-	decode.obj edit.obj filename.obj forwback.obj help.obj ifile.obj \
-	input.obj jump.obj line.obj linenum.obj lsystem.obj \
-	mark.obj optfunc.obj option.obj opttbl.obj os.obj output.obj \
-	position.obj prompt.obj search.obj signal.obj tags.obj \
-	ttyin.obj version.obj regexp.obj
+OBJ = \
+	main.obj screen.obj brac.obj ch.obj charset.obj cmdbuf.obj \
+	command.obj cvt.obj decode.obj edit.obj filename.obj forwback.obj \
+	help.obj ifile.obj input.obj jump.obj line.obj linenum.obj \
+	lsystem.obj mark.obj optfunc.obj option.obj opttbl.obj os.obj \
+	output.obj pattern.obj position.obj prompt.obj search.obj signal.obj \
+	tags.obj ttyin.obj version.obj regexp.obj
 
 all: less.exe lesskey.exe
 
