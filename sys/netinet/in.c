@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_llatbl.h>
 #include <net/if_types.h>
@@ -918,7 +919,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	/*
 	 * add a loopback route to self
 	 */
-	if (!(ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+	if (V_useloopback && !(ifp->if_flags & IFF_LOOPBACK)) {
 		bzero(&info, sizeof(info));
 		info.rti_ifp = V_loif;
 		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
@@ -1027,8 +1028,18 @@ in_scrubprefix(struct in_ifaddr *target)
 	if ((target->ia_flags & IFA_ROUTE) == 0)
 		return (0);
 
+	/*
+	 * Remove the loopback route to the interface address.
+	 * The "useloopback" setting is not consulted because if the
+	 * user configures an interface address, turns off this
+	 * setting, and then tries to delete that interface address,
+	 * checking the current setting of "useloopback" would leave
+	 * that interface address loopback route untouched, which
+	 * would be wrong. Therefore the interface address loopback route
+	 * deletion is unconditional.
+	 */
 	if ((target->ia_addr.sin_addr.s_addr != INADDR_ANY) &&
-	    !(target->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT))) {
+	    !(target->ia_ifp->if_flags & IFF_LOOPBACK)) {
 		bzero(&null_sdl, sizeof(null_sdl));
 		null_sdl.sdl_len = sizeof(null_sdl);
 		null_sdl.sdl_family = AF_LINK;
