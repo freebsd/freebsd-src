@@ -240,8 +240,9 @@ struct ieee80211_stats {
 	uint32_t	is_mesh_rtaddfailed;	/* route add failed */
 	uint32_t	is_mesh_notproxy;	/* dropped 'cuz not proxying */
 	uint32_t	is_rx_badalign;		/* dropped 'cuz misaligned */
+	uint32_t	is_hwmp_proxy;		/* PREP for proxy route */
 	
-	uint32_t	is_spare[12];
+	uint32_t	is_spare[11];
 };
 
 /*
@@ -333,10 +334,13 @@ enum {
 };
 
 struct ieee80211req_mesh_route {
+	uint8_t		imr_flags;
+#define	IEEE80211_MESHRT_FLAGS_VALID	0x01
+#define	IEEE80211_MESHRT_FLAGS_PROXY	0x02
 	uint8_t		imr_dest[IEEE80211_ADDR_LEN];
 	uint8_t		imr_nexthop[IEEE80211_ADDR_LEN];
 	uint16_t	imr_nhops;
-	uint16_t	imr_pad;
+	uint8_t		imr_pad;
 	uint32_t	imr_metric;
 	uint32_t	imr_lifetime;
 	uint32_t	imr_lastmseq;
