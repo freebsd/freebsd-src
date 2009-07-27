@@ -5923,7 +5923,13 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 		chk = TAILQ_FIRST(&asoc->reasmqueue);
 		while (chk) {
 			at = TAILQ_NEXT(chk, sctp_next);
-			if (chk->rec.data.stream_number != stream) {
+			/*
+			 * Do not toss it if on a different stream or marked
+			 * for unordered delivery in which case the stream
+			 * sequence number has no meaning.
+			 */
+			if ((chk->rec.data.stream_number != stream) ||
+			    ((chk->rec.data.rcv_flags & SCTP_DATA_UNORDERED) == SCTP_DATA_UNORDERED)) {
 				chk = at;
 				continue;
 			}
