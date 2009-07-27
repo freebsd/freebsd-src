@@ -3952,9 +3952,9 @@ list_regdomain(int s, int channelsalso)
 static void
 list_mesh(int s)
 {
-	int i;
 	struct ieee80211req ireq;
 	struct ieee80211req_mesh_route routes[128];
+	struct ieee80211req_mesh_route *rt;
 
 	(void) memset(&ireq, 0, sizeof(ireq));
 	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
@@ -3965,23 +3965,26 @@ list_mesh(int s)
 	if (ioctl(s, SIOCG80211, &ireq) < 0)
 	 	err(1, "unable to get the Mesh routing table");
 
-	printf("%-17.17s %-17.17s %4s %4s %4s %6s\n"
+	printf("%-17.17s %-17.17s %4s %4s %4s %6s %s\n"
 		, "DEST"
 		, "NEXT HOP"
 		, "HOPS"
 		, "METRIC"
 		, "LIFETIME"
-		, "MSEQ");
+		, "MSEQ"
+		, "FLAGS");
 
-	for (i = 0; i < ireq.i_len / sizeof(*routes); i++) {
+	for (rt = &routes[0]; rt - &routes[0] < ireq.i_len / sizeof(*rt); rt++){
 		printf("%s ",
-		    ether_ntoa((const struct ether_addr *)routes[i].imr_dest));
-		printf("%s %4u   %4u   %6u %6u\n",
-			ether_ntoa((const struct ether_addr *)
-			    routes[i].imr_nexthop),
-			routes[i].imr_nhops, routes[i].imr_metric,
-			routes[i].imr_lifetime,
-			routes[i].imr_lastmseq);
+		    ether_ntoa((const struct ether_addr *)rt->imr_dest));
+		printf("%s %4u   %4u   %6u %6u    %c%c\n",
+			ether_ntoa((const struct ether_addr *)rt->imr_nexthop),
+			rt->imr_nhops, rt->imr_metric, rt->imr_lifetime,
+			rt->imr_lastmseq,
+			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_VALID) ?
+			    'V' : '!',
+			(rt->imr_flags & IEEE80211_MESHRT_FLAGS_PROXY) ?
+			    'P' : ' ');
 	}
 }
 

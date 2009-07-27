@@ -236,6 +236,8 @@ ieee80211_mesh_proxy_check(struct ieee80211vap *vap,
 			    "%s", "unable to add proxy entry");
 			vap->iv_stats.is_mesh_rtaddfailed++;
 		} else {
+			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, dest,
+			    "%s", "add proxy entry");
 			IEEE80211_ADDR_COPY(rt->rt_nexthop, vap->iv_myaddr);
 			rt->rt_flags |= IEEE80211_MESHRT_FLAGS_VALID
 				     |  IEEE80211_MESHRT_FLAGS_PROXY;
@@ -298,6 +300,21 @@ ieee80211_mesh_rt_flush(struct ieee80211vap *vap)
 	MESH_RT_LOCK(ms);
 	TAILQ_FOREACH_SAFE(rt, &ms->ms_routes, rt_next, next)
 		mesh_rt_del(ms, rt);
+	MESH_RT_UNLOCK(ms);
+}
+
+void
+ieee80211_mesh_rt_flush_peer(struct ieee80211vap *vap,
+    const uint8_t peer[IEEE80211_ADDR_LEN])
+{
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
+	struct ieee80211_mesh_route *rt, *next;
+
+	MESH_RT_LOCK(ms);
+	TAILQ_FOREACH_SAFE(rt, &ms->ms_routes, rt_next, next) {
+		if (IEEE80211_ADDR_EQ(rt->rt_nexthop, peer))
+			mesh_rt_del(ms, rt);
+	}
 	MESH_RT_UNLOCK(ms);
 }
 
@@ -770,6 +787,7 @@ mesh_generateid(struct ieee80211vap *vap)
 /*
  * Verifies if we already received this packet by checking its
  * sequence number.
+ * Returns 0 if the frame is to be accepted, 1 otherwise.
  */
 static int
 mesh_checkpseq(struct ieee80211vap *vap,
@@ -779,11 +797,16 @@ mesh_checkpseq(struct ieee80211vap *vap,
 
 	rt = ieee80211_mesh_rt_find(vap, source);
 	if (rt == NULL) {
+		rt = ieee80211_mesh_rt_add(vap, source);
+		if (rt == NULL) {
+			IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, source,
+			    "%s", "add mcast route failed");
+			vap->iv_stats.is_mesh_rtaddfailed++;
+			return 1;
+		}
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_MESH, source,
 		    "add mcast route, mesh seqno %d", seq);
-		rt = ieee80211_mesh_rt_add(vap, source);
-		if (rt != NULL)
-			rt->rt_lastmseq = seq;
+		rt->rt_lastmseq = seq;
 		return 0;
 	}
 	if (IEEE80211_MESH_SEQ_GEQ(rt->rt_lastmseq, seq)) {
@@ -1159,9 +1182,6 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			goto out;
 		}
 		if (mesh_checkpseq(vap, addr, seq) != 0) {
-			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_MESH,
-			    addr, "data", "duplicate mesh seqno %u ttl %u",
-			    seq, mc->mc_ttl);
 			vap->iv_stats.is_rx_dup++;
 			goto out;
 		}
@@ -2642,6 +2662,7 @@ mesh_ioctl_get80211(struct ieee80211vap *vap, struct ieee80211req *ireq)
 					break;
 				imr = (struct ieee80211req_mesh_route *)
 				    (p + off);
+				imr->imr_flags = rt->rt_flags;
 				IEEE80211_ADDR_COPY(imr->imr_dest,
 				    rt->rt_dest);
 				IEEE80211_ADDR_COPY(imr->imr_nexthop,
