@@ -163,7 +163,8 @@ void	 audit_arg_auid(uid_t auid);
 void	 audit_arg_auditinfo(struct auditinfo *au_info);
 void	 audit_arg_auditinfo_addr(struct auditinfo_addr *au_info);
 void	 audit_arg_upath(struct thread *td, char *upath, u_int64_t flags);
-void	 audit_arg_vnode(struct vnode *vp, u_int64_t flags);
+void	 audit_arg_vnode1(struct vnode *vp);
+void	 audit_arg_vnode2(struct vnode *vp);
 void	 audit_arg_text(char *text);
 void	 audit_arg_cmd(int cmd);
 void	 audit_arg_svipc_cmd(int cmd);
@@ -341,9 +342,14 @@ void	 audit_thread_free(struct thread *td);
 		audit_arg_value((value));				\
 } while (0)
 
-#define	AUDIT_ARG_VNODE(vp, flags) do {					\
+#define	AUDIT_ARG_VNODE1(vp) do {					\
 	if (AUDITING_TD(curthread))					\
-		audit_arg_vnode((vp), (flags));				\
+		audit_arg_vnode1((vp));					\
+} while (0)
+
+#define	AUDIT_ARG_VNODE2(vp) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_vnode2((vp));					\
 } while (0)
 
 #define	AUDIT_SYSCALL_ENTER(code, td)	do {				\
@@ -402,7 +408,8 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_UID(uid)
 #define	AUDIT_ARG_UPATH(td, upath, flags)
 #define	AUDIT_ARG_VALUE(value)
-#define	AUDIT_ARG_VNODE(vp, flags)
+#define	AUDIT_ARG_VNODE1(vp)
+#define	AUDIT_ARG_VNODE2(vp)
 
 #define	AUDIT_SYSCALL_ENTER(code, td)
 #define	AUDIT_SYSCALL_EXIT(error, td)

@@ -574,9 +574,9 @@ dirloop:
 		ndp->ni_vp = dp;
 
 		if (cnp->cn_flags & AUDITVNODE1)
-			AUDIT_ARG_VNODE(dp, ARG_VNODE1);
+			AUDIT_ARG_VNODE1(dp);
 		else if (cnp->cn_flags & AUDITVNODE2)
-			AUDIT_ARG_VNODE(dp, ARG_VNODE2);
+			AUDIT_ARG_VNODE2(dp);
 
 		if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
 			VOP_UNLOCK(dp, 0);
@@ -859,9 +859,9 @@ nextname:
 		VOP_UNLOCK(ndp->ni_dvp, 0);
 
 	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG_VNODE(dp, ARG_VNODE1);
+		AUDIT_ARG_VNODE1(dp);
 	else if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG_VNODE(dp, ARG_VNODE2);
+		AUDIT_ARG_VNODE2(dp);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0);
