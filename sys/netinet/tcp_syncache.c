@@ -642,8 +642,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #endif
 
 	inp = sotoinpcb(so);
-	inp->inp_inc.inc_fibnum = sc->sc_inc.inc_fibnum;
-	so->so_fibnum = sc->sc_inc.inc_fibnum;
+	inp->inp_inc.inc_fibnum = so->so_fibnum;
 	INP_WLOCK(inp);
 
 	/* Insert new socket into PCB hash list. */
@@ -1128,8 +1127,6 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	sc->sc_cred = cred;
 	cred = NULL;
 	sc->sc_ipopts = ipopts;
-	/* XXX-BZ this fib assignment is just useless. */
-	sc->sc_inc.inc_fibnum = inp->inp_inc.inc_fibnum;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 #ifdef INET6
 	if (!(inc->inc_flags & INC_ISIPV6))
@@ -1403,6 +1400,7 @@ syncache_respond(struct syncache *sc)
 	} else
 		optlen = 0;
 
+	M_SETFIB(m, sc->sc_inc.inc_fibnum);
 #ifdef INET6
 	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		th->th_sum = 0;
