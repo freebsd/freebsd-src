@@ -758,6 +758,7 @@ findpcb:
 		}
 		inc.inc_fport = th->th_sport;
 		inc.inc_lport = th->th_dport;
+		inc.inc_fibnum = so->so_fibnum;
 
 		/*
 		 * Check for an existing connection attempt in syncache if
