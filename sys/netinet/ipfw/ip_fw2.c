@@ -4767,10 +4767,10 @@ vnet_ipfw_uninit(const void *unused)
 	return 0;
 }
 
-VNET_SYSINIT(vnet_ipfw_init, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_ipfw_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 255,
     vnet_ipfw_init, NULL);
 
-VNET_SYSUNINIT(vnet_ipfw_uninit, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_ipfw_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 255,
     vnet_ipfw_uninit, NULL);
 
  
