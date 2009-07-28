@@ -203,8 +203,13 @@ namei(struct nameidata *ndp)
 		if (ndp->ni_startdir != NULL) {
 			dp = ndp->ni_startdir;
 			error = 0;
-		} else if (ndp->ni_dirfd != AT_FDCWD)
+		} else if (ndp->ni_dirfd != AT_FDCWD) {
+			if (cnp->cn_flags & AUDITVNODE1)
+				AUDIT_ARG_ATFD1(ndp->ni_dirfd);
+			if (cnp->cn_flags & AUDITVNODE2)
+				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
 			error = fgetvp(td, ndp->ni_dirfd, &dp);
+		}
 		if (error != 0 || dp != NULL) {
 			FILEDESC_SUNLOCK(fdp);
 			if (error == 0 && dp->v_type != VDIR) {

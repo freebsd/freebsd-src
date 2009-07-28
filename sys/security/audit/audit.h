@@ -114,6 +114,8 @@ extern int	audit_suspended;
 #define	ARG_IOVECSTR		0x0000800000000000ULL
 #define	ARG_ARGV		0x0001000000000000ULL
 #define	ARG_ENVV		0x0002000000000000ULL
+#define	ARG_ATFD1		0x0004000000000000ULL
+#define	ARG_ATFD2		0x0008000000000000ULL
 #define	ARG_NONE		0x0000000000000000ULL
 #define	ARG_ALL			0xFFFFFFFFFFFFFFFFULL
 
@@ -132,6 +134,8 @@ union auditon_udata;
 void	 audit_arg_addr(void * addr);
 void	 audit_arg_exit(int status, int retval);
 void	 audit_arg_len(int len);
+void	 audit_arg_atfd1(int atfd);
+void	 audit_arg_atfd2(int atfd);
 void	 audit_arg_fd(int fd);
 void	 audit_arg_fflags(int fflags);
 void	 audit_arg_gid(gid_t gid);
@@ -195,6 +199,16 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_ARGV(argv, argc, length) do {				\
 	if (AUDITING_TD(curthread))					\
 		audit_arg_argv((argv), (argc), (length));		\
+} while (0)
+
+#define	AUDIT_ARG_ATFD1(atfd) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_atfd1((atfd));				\
+} while (0)
+
+#define	AUDIT_ARG_ATFD2(atfd) do {					\
+	if (AUDITING_TD(curthread))					\
+		audit_arg_atfd2((atfd));				\
 } while (0)
 
 #define	AUDIT_ARG_AUDITON(udata) do {					\
@@ -360,6 +374,8 @@ void	 audit_thread_free(struct thread *td);
 
 #define	AUDIT_ARG_ADDR(addr)
 #define	AUDIT_ARG_ARGV(argv, argc, length)
+#define	AUDIT_ARG_ATFD1(atfd)
+#define	AUDIT_ARG_ATFD2(atfd)
 #define	AUDIT_ARG_AUDITON(udata)
 #define	AUDIT_ARG_CMD(cmd)
 #define	AUDIT_ARG_DEV(dev)

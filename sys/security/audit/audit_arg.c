@@ -101,6 +101,32 @@ audit_arg_len(int len)
 }
 
 void
+audit_arg_atfd1(int atfd)
+{
+	struct kaudit_record *ar;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_atfd1 = atfd;
+	ARG_SET_VALID(ar, ARG_ATFD1);
+}
+
+void
+audit_arg_atfd2(int atfd)
+{
+	struct kaudit_record *ar;
+
+	ar = currecord();
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_atfd2 = atfd;
+	ARG_SET_VALID(ar, ARG_ATFD2);
+}
+
+void
 audit_arg_fd(int fd)
 {
 	struct kaudit_record *ar;
