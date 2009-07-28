@@ -3123,8 +3123,8 @@ fail:
 	return (error);
 }
 
-static int
-fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
+int
+vntype_to_kinfo(int vtype)
 {
 	struct {
 		int	vtype;
@@ -3141,25 +3141,30 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 		{ VBAD, KF_VTYPE_VBAD }
 	};
 #define	NVTYPES	(sizeof(vtypes_table) / sizeof(*vtypes_table))
-	struct vattr va;
-	char *fullpath, *freepath;
-	int error, vfslocked;
 	unsigned int i;
-
-	if (vp == NULL)
-		return (1);
 
 	/*
 	 * Perform vtype translation.
 	 */
 	for (i = 0; i < NVTYPES; i++)
-		if (vtypes_table[i].vtype == vp->v_type)
+		if (vtypes_table[i].vtype == vtype)
 			break;
 	if (i < NVTYPES)
-		kif->kf_vnode_type = vtypes_table[i].kf_vtype;
-	else
-		kif->kf_vnode_type = KF_VTYPE_UNKNOWN;
+		return (vtypes_table[i].kf_vtype);
 
+	return (KF_VTYPE_UNKNOWN);
+}
+
+static int
+fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
+{
+	struct vattr va;
+	char *fullpath, *freepath;
+	int error, vfslocked;
+
+	if (vp == NULL)
+		return (1);
+	kif->kf_vnode_type = vntype_to_kinfo(vp->v_type);
 	freepath = NULL;
 	fullpath = "-";
 	error = vn_fullpath(curthread, vp, &fullpath, &freepath);

@@ -528,9 +528,10 @@ kinfo_uflags2fst(int fd)
 }
 
 static struct filestat_list *
-procstat_getfiles_sysctl(struct kinfo_proc *kp, int mmapped __unused)
+procstat_getfiles_sysctl(struct kinfo_proc *kp, int mmapped)
 {
 	struct kinfo_file *kif, *files;
+	struct kinfo_vmentry *kve, *vmentries;
 	struct filestat_list *head;
 	struct filestat *entry;
 	int cnt, fd, fflags;
@@ -568,6 +569,26 @@ procstat_getfiles_sysctl(struct kinfo_proc *kp, int mmapped __unused)
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
+	if (mmapped != 0) {
+		vmentries = kinfo_getvmmap(kp->ki_pid, &cnt);
+		if (vmentries == NULL || cnt == 0)
+			goto fail;
+		for (i = 0; i < cnt; i++) {
+			kve = &vmentries[i];
+			if (kve->kve_type != KVME_TYPE_VNODE)
+				continue;
+			fflags = 0;
+			if (kve->kve_protection & KVME_PROT_READ)
+				fflags = PS_FST_FFLAG_READ;
+			if (kve->kve_protection & KVME_PROT_WRITE)
+				fflags |= PS_FST_FFLAG_WRITE;
+			entry = filestat_new_entry(kve, PS_FST_TYPE_VNODE, -1,
+			    fflags, PS_FST_UFLAG_MMAP);
+			if (entry != NULL)
+				STAILQ_INSERT_TAIL(head, entry, next);
+		}
+	}
+fail:
 	return (head);
 }
 
@@ -835,37 +856,66 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 {
 	struct statfs stbuf;
 	struct kinfo_file *kif;
-	char *name;
+	struct kinfo_vmentry *kve;
+	int vntype;
+	dev_t rdev;
+	off_t size;
+	mode_t mode;
+	int status;
+	uint64_t fileid;
+	uint32_t fsid;
+	char *name, *path;
 
 	assert(fst);
 	assert(vn);
-	kif = fst->fs_typedep;
-	if (kif == NULL)
-		return (1);
 	bzero(vn, sizeof(*vn));
-	vn->vn_type = kinfo_vtype2fst(kif->kf_vnode_type);
-	if (vn->vn_type == PS_FST_VTYPE_VNON ||
-	    vn->vn_type == PS_FST_VTYPE_VBAD ||
-	    (kif->kf_status & KF_ATTR_VALID) == 0)
+	if (fst->fs_typedep == NULL)
+		return (1);
+	if (fst->fs_uflags & PS_FST_UFLAG_MMAP) {
+		kve = fst->fs_typedep;
+		fileid = kve->kve_vn_fileid;
+		fsid = kve->kve_vn_fsid;
+		mode = kve->kve_vn_mode;
+		path = kve->kve_path;
+		rdev = kve->kve_vn_rdev;
+		size = kve->kve_vn_size;
+		vntype = kinfo_vtype2fst(kve->kve_vn_type);
+		status = kve->kve_status;
+	} else {
+		kif = fst->fs_typedep;
+		fileid = kif->kf_un.file.kf_file_fileid;
+		fsid = kif->kf_un.file.kf_file_fsid;
+		mode = kif->kf_un.file.kf_file_mode;
+		path = kif->kf_path;
+		rdev = kif->kf_un.file.kf_file_rdev;
+		size = kif->kf_un.file.kf_file_size;
+		vntype = kinfo_vtype2fst(kif->kf_vnode_type);
+		status = kif->kf_status;
+	}
+	vn->vn_type = vntype;
+	if (vntype == PS_FST_VTYPE_VNON || vntype == PS_FST_VTYPE_VBAD ||
+	    (status & KF_ATTR_VALID) == 0)
 		return (0);
-	if (kif->kf_path && *kif->kf_path) {
-		statfs(kif->kf_path, &stbuf);
+	if (path && *path) {
+		statfs(path, &stbuf);
 		vn->mntdir = strdup(stbuf.f_mntonname);
 	}
-	vn->vn_dev = kif->kf_un.file.kf_file_rdev;
-	if (kif->kf_vnode_type == KF_VTYPE_VBLK) {
-		name = devname(vn->vn_dev, S_IFBLK);
+	vn->vn_dev =rdev;
+	if (vntype == KF_VTYPE_VBLK) {
+		name = devname(rdev, S_IFBLK);
 		if (name != NULL)
-			strlcpy(vn->vn_devname, name, sizeof(vn->vn_devname));
-	} else if (kif->kf_vnode_type == KF_VTYPE_VCHR) {
+			strlcpy(vn->vn_devname, name,
+			    sizeof(vn->vn_devname));
+	} else if (vntype == KF_VTYPE_VCHR) {
 		name = devname(vn->vn_dev, S_IFCHR);
 		if (name != NULL)
-			strlcpy(vn->vn_devname, name, sizeof(vn->vn_devname));
+			strlcpy(vn->vn_devname, name,
+			    sizeof(vn->vn_devname));
 	}
-	vn->vn_fsid = kif->kf_un.file.kf_file_fsid;
-	vn->vn_fileid = kif->kf_un.file.kf_file_fileid;
-	vn->vn_size = kif->kf_un.file.kf_file_size;
-	vn->vn_mode = kif->kf_un.file.kf_file_mode;
+	vn->vn_fsid = fsid;
+	vn->vn_fileid = fileid;
+	vn->vn_size = size;
+	vn->vn_mode = mode;
 	return (0);
 }
 

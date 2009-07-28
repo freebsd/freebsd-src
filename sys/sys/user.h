@@ -434,16 +434,21 @@ struct kinfo_vmentry {
 	uint64_t kve_start;			/* Starting address. */
 	uint64_t kve_end;			/* Finishing address. */
 	uint64_t kve_offset;			/* Mapping offset in object */
-	uint64_t kve_fileid;			/* inode number if vnode */
-	uint32_t kve_fsid;			/* dev_t of vnode location */
+	uint64_t kve_vn_fileid;			/* inode number if vnode */
+	uint32_t kve_vn_fsid;			/* dev_t of vnode location */
 	int	 kve_flags;			/* Flags on map entry. */
 	int	 kve_resident;			/* Number of resident pages. */
 	int	 kve_private_resident;		/* Number of private pages. */
 	int	 kve_protection;		/* Protection bitmask. */
 	int	 kve_ref_count;			/* VM obj ref count. */
 	int	 kve_shadow_count;		/* VM obj shadow count. */
+	int	 kve_vn_type;			/* Vnode type. */
+	off_t 	 kve_vn_size;			/* File size. */
+	dev_t	 kve_vn_rdev;			/* Device id if device. */
+	mode_t	 kve_vn_mode;			/* File mode. */
+	uint16_t kve_status;			/* Status flags. */
 	int	 _kve_pad0;			/* 64bit align next field */
-	int	 _kve_ispare[16];		/* Space for more stuff. */
+	int	 _kve_ispare[11];		/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char	 kve_path[PATH_MAX];		/* Path to VM obj, if any. */
 };
@@ -469,5 +474,9 @@ struct kinfo_kstack {
 	char	 kkst_trace[KKST_MAXLEN];	/* String representing stack. */
 	int	 _kkst_ispare[16];		/* Space for more stuff. */
 };
+
+#ifdef _KERNEL
+int	vntype_to_kinfo(int vtype);
+#endif /* !_KERNEL */
 
 #endif
