@@ -419,7 +419,7 @@ interpret:
 			goto exec_fail;
 		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
-		AUDIT_ARG_VNODE(binvp, ARG_VNODE1);
+		AUDIT_ARG_VNODE1(binvp);
 		imgp->vp = binvp;
 	}
 
