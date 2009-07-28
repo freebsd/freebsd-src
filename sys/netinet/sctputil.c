@@ -2839,7 +2839,8 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	control->spec_flags = M_NOTIFICATION;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, so_locked);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD,
+	    so_locked);
 	if (event == SCTP_COMM_LOST) {
 		/* Wake up any sleeper */
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -2935,7 +2936,9 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD,
+	    SCTP_SO_NOT_LOCKED);
 }
 
 
@@ -3016,7 +3019,9 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 	control->spec_flags = M_NOTIFICATION;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, so_locked);
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD,
+	    so_locked);
 }
 
 
@@ -3090,7 +3095,7 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 	control->spec_flags = M_NOTIFICATION;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, so_locked);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
 
@@ -3137,7 +3142,7 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb,
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 }
 
 /* This always must be called with the read-queue LOCKED in the INP */
@@ -3277,7 +3282,7 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 }
 
 static void
@@ -3324,7 +3329,7 @@ sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
-	    &stcb->sctp_socket->so_rcv, 1, so_locked);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
 
@@ -3380,7 +3385,7 @@ sctp_notify_stream_reset_add(struct sctp_tcb *stcb, int number_entries, int flag
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 }
 
 
@@ -3446,7 +3451,7 @@ sctp_notify_stream_reset(struct sctp_tcb *stcb,
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 }
 
 
@@ -4301,6 +4306,7 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
     struct sctp_queued_to_read *control,
     struct sockbuf *sb,
     int end,
+    int inp_read_lock_held,
     int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -4321,7 +4327,8 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 #endif
 		return;
 	}
-	SCTP_INP_READ_LOCK(inp);
+	if (inp_read_lock_held == 0)
+		SCTP_INP_READ_LOCK(inp);
 	if (!(control->spec_flags & M_NOTIFICATION)) {
 		atomic_add_int(&inp->total_recvs, 1);
 		if (!control->do_not_ref_stcb) {
@@ -4362,14 +4369,16 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 		control->tail_mbuf = prev;
 	} else {
 		/* Everything got collapsed out?? */
-		SCTP_INP_READ_UNLOCK(inp);
+		if (inp_read_lock_held == 0)
+			SCTP_INP_READ_UNLOCK(inp);
 		return;
 	}
 	if (end) {
 		control->end_added = 1;
 	}
 	TAILQ_INSERT_TAIL(&inp->read_queue, control, next);
-	SCTP_INP_READ_UNLOCK(inp);
+	if (inp_read_lock_held == 0)
+		SCTP_INP_READ_UNLOCK(inp);
 	if (inp && inp->sctp_socket) {
 		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
 			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);

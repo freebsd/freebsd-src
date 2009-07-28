@@ -388,7 +388,8 @@ abandon:
 			else
 				end = 0;
 			sctp_add_to_readq(stcb->sctp_ep,
-			    stcb, control, &stcb->sctp_socket->so_rcv, end, SCTP_SO_NOT_LOCKED);
+			    stcb, control, &stcb->sctp_socket->so_rcv, end,
+			    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 			cntDel++;
 		} else {
 			if (chk->rec.data.rcv_flags & SCTP_DATA_LAST_FRAG)
@@ -516,7 +517,8 @@ abandon:
 						nr_tsn = ctl->sinfo_tsn;
 						sctp_add_to_readq(stcb->sctp_ep, stcb,
 						    ctl,
-						    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+						    &stcb->sctp_socket->so_rcv, 1,
+						    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 						/*
 						 * EY -now something is
 						 * delivered, calculate
@@ -685,8 +687,8 @@ protocol_error:
 		nr_tsn = control->sinfo_tsn;
 		sctp_add_to_readq(stcb->sctp_ep, stcb,
 		    control,
-		    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
-
+		    &stcb->sctp_socket->so_rcv, 1,
+		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 		/*
 		 * EY this is the chunk that should be tagged nr gapped
 		 * calculate the gap and such then tag this TSN nr
@@ -739,7 +741,9 @@ protocol_error:
 				nr_tsn = control->sinfo_tsn;
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    control,
-				    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+				    &stcb->sctp_socket->so_rcv, 1,
+				    SCTP_READ_LOCK_NOT_HELD,
+				    SCTP_SO_NOT_LOCKED);
 				/*
 				 * EY this is the chunk that should be
 				 * tagged nr gapped calculate the gap and
@@ -1910,7 +1914,9 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		if (control == NULL) {
 			goto failed_express_del;
 		}
-		sctp_add_to_readq(stcb->sctp_ep, stcb, control, &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+		sctp_add_to_readq(stcb->sctp_ep, stcb,
+		    control, &stcb->sctp_socket->so_rcv,
+		    1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 
 		/*
 		 * EY here I should check if this delivered tsn is
@@ -2248,7 +2254,7 @@ failed_pdapi_express_del:
 			/* queue directly into socket buffer */
 			sctp_add_to_readq(stcb->sctp_ep, stcb,
 			    control,
-			    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+			    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 
 			/*
 			 * EY It is added to the read queue in prev if block
@@ -5722,7 +5728,7 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 				nr_tsn = ctl->sinfo_tsn;
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    ctl,
-				    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+				    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_HELD, SCTP_SO_NOT_LOCKED);
 				/*
 				 * EY this is the chunk that should be
 				 * tagged nr gapped calculate the gap and
@@ -5823,7 +5829,7 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 				nr_tsn = ctl->sinfo_tsn;
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    ctl,
-				    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+				    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_HELD, SCTP_SO_NOT_LOCKED);
 				/*
 				 * EY this is the chunk that should be
 				 * tagged nr gapped calculate the gap and
