@@ -240,6 +240,9 @@ struct audit_record {
 #define	ARG_SET_VALID(kar, arg) do {					\
 	(kar)->k_ar.ar_valid_arg |= (arg);				\
 } while (0)
+#define	ARG_CLEAR_VALID(kar, arg) do {					\
+	(kar)->k_ar.ar_valid_arg &= ~(arg);				\
+} while (0)
 
 /*
  * In-kernel version of audit record; the basic record plus queue meta-data.
