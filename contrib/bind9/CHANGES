@@ -1,3 +1,8 @@
+	--- 9.4.3-P3 released ---
+
+2640.	[security]	A specially crafted update packet will cause named
+			to exit. [RT #20000]
+
 	--- 9.4.3-P2 released ---
 
 2579.	[bug]		DNSSEC lookaside validation failed to handle unknown
