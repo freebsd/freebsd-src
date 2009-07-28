@@ -196,6 +196,8 @@ struct audit_record {
 	gid_t			ar_arg_gid;
 	struct groupset		ar_arg_groups;
 	int			ar_arg_fd;
+	int			ar_arg_atfd1;
+	int			ar_arg_atfd2;
 	int			ar_arg_fflags;
 	mode_t			ar_arg_mode;
 	int			ar_arg_dev;
@@ -323,6 +325,7 @@ void		 au_evclassmap_insert(au_event_t event, au_class_t class);
 au_class_t	 au_event_class(au_event_t event);
 au_event_t	 audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg);
 au_event_t	 audit_flags_and_error_to_openevent(int oflags, int error);
+au_event_t	 audit_flags_and_error_to_openatevent(int oflags, int error);
 au_event_t	 audit_msgctl_to_event(int cmd);
 au_event_t	 audit_semctl_to_event(int cmr);
 void		 audit_canon_path(struct thread *td, char *path, char *cpath);
