@@ -28,10 +28,14 @@
  */
 
 /*
- * This is the virtual network stack memory allocator, which provides support
- * for virtualized global variables via a special linker set, set_vnet.  When
- * "options VIMAGE" isn't defined, virtualized global variables are compiled
- * as normal globals.
+ * This header file defines two sets of interfaces supporting virtualized
+ * network stacks: a virtual network stack memory allocator, which provides
+ * support for virtualized global variables via a special linker set,
+ * set_vnet, and virtualized sysinits/sysuninits, which allow constructors
+ * and destructors to be run for each network stack subsystem as virtual
+ * instances are created and destroyed.  If VIMAGE isn't compiled into the
+ * kernel, virtualized global variables compile to normal global variables,
+ * and virtualized sysinits to regular sysinits.
  */
 
 #ifndef _NET_VNET_H_
