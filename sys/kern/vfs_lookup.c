@@ -164,9 +164,9 @@ namei(struct nameidata *ndp)
 
 	/* If we are auditing the kernel pathname, save the user pathname. */
 	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG_UPATH(td, cnp->cn_pnbuf, ARG_UPATH1);
+		AUDIT_ARG_UPATH1(td, cnp->cn_pnbuf);
 	if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG_UPATH(td, cnp->cn_pnbuf, ARG_UPATH2);
+		AUDIT_ARG_UPATH2(td, cnp->cn_pnbuf);
 
 	/*
 	 * Don't allow empty pathnames.
