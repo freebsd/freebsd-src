@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#define	DEFAULT_HOSTUUID	"00000000-0000-0000-0000-000000000000"
+
 MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
 
 /* prison0 describes what is "real" about the system. */
@@ -81,7 +83,7 @@ struct prison prison0 = {
 	.pr_path	= "/",
 	.pr_securelevel	= -1,
 	.pr_childmax	= JAIL_MAX,
-	.pr_hostuuid	= "00000000-0000-0000-0000-000000000000",
+	.pr_hostuuid	= DEFAULT_HOSTUUID,
 	.pr_children	= LIST_HEAD_INITIALIZER(&prison0.pr_children),
 	.pr_flags	= PR_HOST,
 	.pr_allow	= PR_ALLOW_ALL,
@@ -1128,40 +1130,18 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		/* Set some default values, and inherit some from the parent. */
 		if (name == NULL)
 			name = "";
-		if (host != NULL || domain != NULL || uuid != NULL || gothid) {
-			if (host == NULL)
-				host = ppr->pr_hostname;
-			if (domain == NULL)
-				domain = ppr->pr_domainname;
-			if (uuid == NULL)
-				uuid = ppr->pr_hostuuid;
-			if (!gothid)
-				hid = ppr->pr_hostid;
-		}
 		if (path == NULL) {
 			path = "/";
 			root = mypr->pr_root;
 			vref(root);
 		}
+		strlcpy(pr->pr_hostuuid, DEFAULT_HOSTUUID, HOSTUUIDLEN);
+		pr->pr_flags |= PR_HOST;
 #ifdef INET
-		pr->pr_flags |= ppr->pr_flags & PR_IP4;
-		pr->pr_ip4s = ppr->pr_ip4s;
-		if (ppr->pr_ip4 != NULL) {
-			pr->pr_ip4 = malloc(pr->pr_ip4s *
-			    sizeof(struct in_addr), M_PRISON, M_WAITOK);
-			bcopy(ppr->pr_ip4, pr->pr_ip4,
-			    pr->pr_ip4s * sizeof(*pr->pr_ip4));
-		}
+		pr->pr_flags |= PR_IP4 | PR_IP4_USER | PR_IP4_DISABLE;
 #endif
 #ifdef INET6
-		pr->pr_flags |= ppr->pr_flags & PR_IP6;
-		pr->pr_ip6s = ppr->pr_ip6s;
-		if (ppr->pr_ip6 != NULL) {
-			pr->pr_ip6 = malloc(pr->pr_ip6s *
-			    sizeof(struct in6_addr), M_PRISON, M_WAITOK);
-			bcopy(ppr->pr_ip6, pr->pr_ip6,
-			    pr->pr_ip6s * sizeof(*pr->pr_ip6));
-		}
+		pr->pr_flags |= PR_IP6 | PR_IP6_USER | PR_IP6_DISABLE;
 #endif
 		pr->pr_securelevel = ppr->pr_securelevel;
 		pr->pr_allow = JAIL_DEFAULT_ALLOW & ppr->pr_allow;
