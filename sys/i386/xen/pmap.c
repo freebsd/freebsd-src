@@ -121,6 +121,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sf_buf.h>
 #include <sys/sx.h>
 #include <sys/vmmeter.h>
 #include <sys/sched.h>
@@ -759,7 +760,7 @@ pmap_init(void)
  * Determine the appropriate bits to set in a PTE or PDE for a specified
  * caching mode.
  */
-static int
+int
 pmap_cache_bits(int mode, boolean_t is_pde)
 {
 	int pat_flag, pat_index, cache_bits;
@@ -987,6 +988,40 @@ pmap_invalidate_cache(void)
 	wbinvd();
 }
 #endif /* !SMP */
+
+void
+pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
+{
+
+	KASSERT((sva & PAGE_MASK) == 0,
+	    ("pmap_invalidate_cache_range: sva not page-aligned"));
+	KASSERT((eva & PAGE_MASK) == 0,
+	    ("pmap_invalidate_cache_range: eva not page-aligned"));
+
+	if (cpu_feature & CPUID_SS)
+		; /* If "Self Snoop" is supported, do nothing. */
+	else if (cpu_feature & CPUID_CLFSH) {
+
+		/*
+		 * Otherwise, do per-cache line flush.  Use the mfence
+		 * instruction to insure that previous stores are
+		 * included in the write-back.  The processor
+		 * propagates flush to other processors in the cache
+		 * coherence domain.
+		 */
+		mfence();
+		for (; eva < sva; eva += cpu_clflush_line_size)
+			clflush(eva);
+		mfence();
+	} else {
+
+		/*
+		 * No targeted cache flush methods are supported by CPU,
+		 * globally invalidate cache as a last resort.
+		 */
+		pmap_invalidate_cache();
+	}
+}
 
 /*
  * Are we current address space or kernel?  N.B. We return FALSE when
@@ -3865,7 +3900,8 @@ pmap_clear_reference(vm_page_t m)
 void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 {
-	vm_offset_t va, tmpva, offset;
+	vm_offset_t va, offset;
+	vm_size_t tmpsize;
 
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
@@ -3878,14 +3914,10 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
-	for (tmpva = va; size > 0; ) {
-		pmap_kenter_attr(tmpva, pa, mode);
-		size -= PAGE_SIZE;
-		tmpva += PAGE_SIZE;
-		pa += PAGE_SIZE;
-	}
-	pmap_invalidate_range(kernel_pmap, va, tmpva);
-	pmap_invalidate_cache();
+	for (tmpsize = 0; tmpsize < size; tmpsize += PAGE_SIZE)
+		pmap_kenter_attr(va + tmpsize, pa + tmpsize, mode);
+	pmap_invalidate_range(kernel_pmap, va, va + tmpsize);
+	pmap_invalidate_cache_range(va, va + size);
 	return ((void *)(va + offset));
 }
 
@@ -3927,16 +3959,49 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 void
 pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
+	struct sysmaps *sysmaps;
+	vm_offset_t sva, eva;
 
 	m->md.pat_mode = ma;
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		return;
 
 	/*
 	 * If "m" is a normal page, flush it from the cache.
+	 * See pmap_invalidate_cache_range().
+	 *
+	 * First, try to find an existing mapping of the page by sf
+	 * buffer. sf_buf_invalidate_cache() modifies mapping and
+	 * flushes the cache.
 	 */    
-	if ((m->flags & PG_FICTITIOUS) == 0) {
-		/* If "Self Snoop" is supported, do nothing. */
-		if (!(cpu_feature & CPUID_SS))
-			pmap_invalidate_cache();
+	if (sf_buf_invalidate_cache(m))
+		return;
+
+	/*
+	 * If page is not mapped by sf buffer, but CPU does not
+	 * support self snoop, map the page transient and do
+	 * invalidation. In the worst case, whole cache is flushed by
+	 * pmap_invalidate_cache_range().
+	 */
+	if ((cpu_feature & (CPUID_SS|CPUID_CLFSH)) == CPUID_CLFSH) {
+		sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
+		mtx_lock(&sysmaps->lock);
+		if (*sysmaps->CMAP2)
+			panic("pmap_page_set_memattr: CMAP2 busy");
+		sched_pin();
+		PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW |
+		    xpmap_ptom(VM_PAGE_TO_PHYS(m)) | PG_A | PG_M |
+		    pmap_cache_bits(m->md.pat_mode, 0));
+		invlcaddr(sysmaps->CADDR2);
+		sva = (vm_offset_t)sysmaps->CADDR2;
+		eva = sva + PAGE_SIZE;
+	} else
+		sva = eva = 0; /* gcc */
+	pmap_invalidate_cache_range(sva, eva);
+	if (sva != 0) {
+		PT_SET_MA(sysmaps->CADDR2, 0);
+		sched_unpin();
+		mtx_unlock(&sysmaps->lock);
 	}
 }
 
@@ -3950,6 +4015,7 @@ pmap_change_attr(va, size, mode)
 	pt_entry_t *pte;
 	u_int opte, npte;
 	pd_entry_t *pde;
+	boolean_t changed;
 
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
@@ -3971,6 +4037,8 @@ pmap_change_attr(va, size, mode)
 			return (EINVAL);
 	}
 
+	changed = FALSE;
+
 	/*
 	 * Ok, all the pages exist and are 4k, so run through them updating
 	 * their cache mode.
@@ -3988,6 +4056,8 @@ pmap_change_attr(va, size, mode)
 			npte |= pmap_cache_bits(mode, 0);
 			PT_SET_VA_MA(pte, npte, TRUE);
 		} while (npte != opte && (*pte != npte));
+		if (npte != opte)
+			changed = TRUE;
 		tmpva += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
@@ -3996,8 +4066,10 @@ pmap_change_attr(va, size, mode)
 	 * Flush CPU caches to make sure any data isn't cached that shouldn't
 	 * be, etc.
 	 */
-	pmap_invalidate_range(kernel_pmap, base, tmpva);
-	pmap_invalidate_cache();
+	if (changed) {
+		pmap_invalidate_range(kernel_pmap, base, tmpva);
+		pmap_invalidate_cache_range(base, tmpva);
+	}
 	return (0);
 }
 
