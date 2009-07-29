@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090729:	p6	FreeBSD-SA-09:12.bind
+	Fix BIND named(8) dynamic update message remote DoS.
+
 20090610:	p5	FreeBSD-SA-09:09.pipe, FreeBSD-SA-09:10.ipv6,
 			FreeBSD-SA-09:11.ntpd
 	Prevent integer overflow in direct pipe write code from circumventing
