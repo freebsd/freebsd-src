@@ -463,8 +463,7 @@ audit_arg_sockaddr(struct thread *td, struct sockaddr *sa)
 		break;
 
 	case AF_UNIX:
-		audit_arg_upath(td, ((struct sockaddr_un *)sa)->sun_path,
-		    ARG_UPATH1);
+		audit_arg_upath1(td, ((struct sockaddr_un *)sa)->sun_path);
 		ARG_SET_VALID(ar, ARG_SADDRUNIX);
 		break;
 	/* XXXAUDIT: default:? */
@@ -709,38 +708,40 @@ audit_arg_file(struct proc *p, struct file *fp)
  * record stored on the user thread.  This function will allocate the memory
  * to store the path info if not already available.  This memory will be
  * freed when the audit record is freed.
- *
- * XXXAUDIT: Possibly assert that the memory isn't already allocated?
  */
+static void
+audit_arg_upath(struct thread *td, char *upath, char **pathp)
+{
+
+	if (*pathp == NULL)
+		*pathp = malloc(MAXPATHLEN, M_AUDITPATH, M_WAITOK);
+	audit_canon_path(td, upath, *pathp);
+}
+
 void
-audit_arg_upath(struct thread *td, char *upath, u_int64_t flag)
+audit_arg_upath1(struct thread *td, char *upath)
 {
 	struct kaudit_record *ar;
-	char **pathp;
-
-	KASSERT(td != NULL, ("audit_arg_upath: td == NULL"));
-	KASSERT(upath != NULL, ("audit_arg_upath: upath == NULL"));
 
 	ar = currecord();
 	if (ar == NULL)
 		return;
 
-	KASSERT((flag == ARG_UPATH1) || (flag == ARG_UPATH2),
-	    ("audit_arg_upath: flag %llu", (unsigned long long)flag));
-	KASSERT((flag != ARG_UPATH1) || (flag != ARG_UPATH2),
-	    ("audit_arg_upath: flag %llu", (unsigned long long)flag));
+	audit_arg_upath(td, upath, &ar->k_ar.ar_arg_upath1);
+	ARG_SET_VALID(ar, ARG_UPATH1);
+}
 
-	if (flag == ARG_UPATH1)
-		pathp = &ar->k_ar.ar_arg_upath1;
-	else
-		pathp = &ar->k_ar.ar_arg_upath2;
+void
+audit_arg_upath2(struct thread *td, char *upath)
+{
+	struct kaudit_record *ar;
 
-	if (*pathp == NULL)
-		*pathp = malloc(MAXPATHLEN, M_AUDITPATH, M_WAITOK);
+	ar = currecord();
+	if (ar == NULL)
+		return;
 
-	audit_canon_path(td, upath, *pathp);
-
-	ARG_SET_VALID(ar, flag);
+	audit_arg_upath(td, upath, &ar->k_ar.ar_arg_upath2);
+	ARG_SET_VALID(ar, ARG_UPATH2);
 }
 
 /*
