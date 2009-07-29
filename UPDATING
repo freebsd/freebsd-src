@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090729:	p3	FreeBSD-SA-09:12.bind
+	Fix BIND named(8) dynamic update message remote DoS.
+
 20090624:	p2	FreeBSD-EN-09:02.bce, FreeBSD-EN-09:03.fxp,
 			FreeBSD-EN-09:04.fork
 	Fix packet length calculation in bce(4). [EN-09:02]
