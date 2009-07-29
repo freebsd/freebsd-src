@@ -650,9 +650,9 @@ procstat_get_pipe_info_sysctl(struct filestat *fst, struct pipestat *ps,
 	kif = fst->fs_typedep;
 	if (kif == NULL)
 		return (1);
-	ps->addr = kif->kf_un.pipe.pipe_addr;
-	ps->peer = kif->kf_un.pipe.pipe_peer;
-	ps->buffer_cnt = kif->kf_un.pipe.pipe_buffer_cnt;
+	ps->addr = kif->kf_un.kf_pipe.kf_pipe_addr;
+	ps->peer = kif->kf_un.kf_pipe.kf_pipe_peer;
+	ps->buffer_cnt = kif->kf_un.kf_pipe.kf_pipe_buffer_cnt;
 	return (0);
 }
 
@@ -713,7 +713,7 @@ procstat_get_pts_info_sysctl(struct filestat *fst, struct ptsstat *pts,
 	kif = fst->fs_typedep;
 	if (kif == NULL)
 		return (0);
-	pts->dev = kif->kf_un.pts.pts_dev;
+	pts->dev = kif->kf_un.kf_pts.kf_pts_dev;
 	strlcpy(pts->devname, kif->kf_path, sizeof(pts->devname));
 	return (0);
 }
@@ -883,12 +883,12 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 		status = kve->kve_status;
 	} else {
 		kif = fst->fs_typedep;
-		fileid = kif->kf_un.file.kf_file_fileid;
-		fsid = kif->kf_un.file.kf_file_fsid;
-		mode = kif->kf_un.file.kf_file_mode;
+		fileid = kif->kf_un.kf_file.kf_file_fileid;
+		fsid = kif->kf_un.kf_file.kf_file_fsid;
+		mode = kif->kf_un.kf_file.kf_file_mode;
 		path = kif->kf_path;
-		rdev = kif->kf_un.file.kf_file_rdev;
-		size = kif->kf_un.file.kf_file_size;
+		rdev = kif->kf_un.kf_file.kf_file_rdev;
+		size = kif->kf_un.kf_file.kf_file_size;
 		vntype = kinfo_vtype2fst(kif->kf_vnode_type);
 		status = kif->kf_status;
 	}
@@ -1053,7 +1053,7 @@ procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
 	sock->type = kif->kf_sock_type;
 	sock->proto = kif->kf_sock_protocol;
 	sock->dom_family = kif->kf_sock_domain;
-	sock->so_pcb = kif->kf_un.sock.kf_sock_pcb;
+	sock->so_pcb = kif->kf_un.kf_sock.kf_sock_pcb;
 	strlcpy(sock->dname, kif->kf_path, sizeof(sock->dname));
 
 	/*
@@ -1063,16 +1063,16 @@ procstat_get_socket_info_sysctl(struct filestat *fst, struct sockstat *sock,
 	case AF_INET:
 	case AF_INET6:
 		if (sock->proto == IPPROTO_TCP)
-			sock->inp_ppcb = kif->kf_un.sock.kf_sock_inpcb;
+			sock->inp_ppcb = kif->kf_un.kf_sock.kf_sock_inpcb;
 		break;
 	case AF_UNIX:
-		if (kif->kf_un.sock.kf_sock_unpconn != 0) {
+		if (kif->kf_un.kf_sock.kf_sock_unpconn != 0) {
 				sock->so_rcv_sb_state =
-				    kif->kf_un.sock.kf_sock_rcv_sb_state;
+				    kif->kf_un.kf_sock.kf_sock_rcv_sb_state;
 				sock->so_snd_sb_state =
-				    kif->kf_un.sock.kf_sock_snd_sb_state;
+				    kif->kf_un.kf_sock.kf_sock_snd_sb_state;
 				sock->unp_conn =
-				    kif->kf_un.sock.kf_sock_unpconn;
+				    kif->kf_un.kf_sock.kf_sock_unpconn;
 		}
 		break;
 	default:

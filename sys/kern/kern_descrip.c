@@ -3183,11 +3183,11 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error != 0)
 		return (error);
-	kif->kf_un.file.kf_file_fsid = va.va_fsid;
-	kif->kf_un.file.kf_file_fileid = va.va_fileid;
-	kif->kf_un.file.kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
-	kif->kf_un.file.kf_file_size = va.va_size;
-	kif->kf_un.file.kf_file_rdev = va.va_rdev;
+	kif->kf_un.kf_file.kf_file_fsid = va.va_fsid;
+	kif->kf_un.kf_file.kf_file_fileid = va.va_fileid;
+	kif->kf_un.kf_file.kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
+	kif->kf_un.kf_file.kf_file_size = va.va_size;
+	kif->kf_un.kf_file.kf_file_rdev = va.va_rdev;
 	return (0);
 }
 
@@ -3204,14 +3204,14 @@ fill_socket_info(struct socket *so, struct kinfo_file *kif)
 	kif->kf_sock_domain = so->so_proto->pr_domain->dom_family;
 	kif->kf_sock_type = so->so_type;
 	kif->kf_sock_protocol = so->so_proto->pr_protocol;
-	kif->kf_un.sock.kf_sock_pcb = (uintptr_t)so->so_pcb;
+	kif->kf_un.kf_sock.kf_sock_pcb = (uintptr_t)so->so_pcb;
 	switch(kif->kf_sock_domain) {
 	case AF_INET:
 	case AF_INET6:
 		if (kif->kf_sock_protocol == IPPROTO_TCP) {
 			if (so->so_pcb != NULL) {
 				inpcb = (struct inpcb *)(so->so_pcb);
-				kif->kf_un.sock.kf_sock_inpcb =
+				kif->kf_un.kf_sock.kf_sock_inpcb =
 				    (uintptr_t)inpcb->inp_ppcb;
 			}
 		}
@@ -3220,11 +3220,11 @@ fill_socket_info(struct socket *so, struct kinfo_file *kif)
 		if (so->so_pcb != NULL) {
 			unpcb = (struct unpcb *)(so->so_pcb);
 			if (unpcb->unp_conn) {
-				kif->kf_un.sock.kf_sock_unpconn =
+				kif->kf_un.kf_sock.kf_sock_unpconn =
 				    (uintptr_t)unpcb->unp_conn;
-				kif->kf_un.sock.kf_sock_rcv_sb_state =
+				kif->kf_un.kf_sock.kf_sock_rcv_sb_state =
 				    so->so_rcv.sb_state;
-				kif->kf_un.sock.kf_sock_snd_sb_state =
+				kif->kf_un.kf_sock.kf_sock_snd_sb_state =
 				    so->so_snd.sb_state;
 			}
 		}
@@ -3251,7 +3251,7 @@ fill_pts_info(struct tty *tp, struct kinfo_file *kif)
 
 	if (tp == NULL)
 		return (1);
-	kif->kf_un.pts.pts_dev = tty_udev(tp);
+	kif->kf_un.kf_pts.kf_pts_dev = tty_udev(tp);
 	strlcpy(kif->kf_path, tty_devname(tp), sizeof(kif->kf_path));
 	return (0);
 }
@@ -3262,9 +3262,9 @@ fill_pipe_info(struct pipe *pi, struct kinfo_file *kif)
 
 	if (pi == NULL)
 		return (1);
-	kif->kf_un.pipe.pipe_addr = (uintptr_t)pi;
-	kif->kf_un.pipe.pipe_peer = (uintptr_t)pi->pipe_peer;
-	kif->kf_un.pipe.pipe_buffer_cnt = pi->pipe_buffer.cnt;
+	kif->kf_un.kf_pipe.kf_pipe_addr = (uintptr_t)pi;
+	kif->kf_un.kf_pipe.kf_pipe_peer = (uintptr_t)pi->pipe_peer;
+	kif->kf_un.kf_pipe.kf_pipe_buffer_cnt = pi->pipe_buffer.cnt;
 	return (0);
 }
 

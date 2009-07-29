@@ -336,39 +336,46 @@ struct kinfo_file {
 	struct sockaddr_storage	kf_sa_peer;	/* Peer address. */
 	union {
 		struct {
-			/* Send buffer state. */
-			uint16_t	kf_sock_snd_sb_state;
-			/* Receive buffer state. */
-			uint16_t	kf_sock_rcv_sb_state;
 			/* Address of so_pcb. */
 			uint64_t	kf_sock_pcb;
 			/* Address of inp_ppcb. */
 			uint64_t	kf_sock_inpcb;
 			/* Address of unp_conn. */
 			uint64_t	kf_sock_unpconn;
-			/* Round to 64-bit alignment. */
-			int		kf_sock_pad;
-		} sock;
+			/* Send buffer state. */
+			uint16_t	kf_sock_snd_sb_state;
+			/* Receive buffer state. */
+			uint16_t	kf_sock_rcv_sb_state;
+			/* Round to 64 bit alignment. */
+			uint32_t	kf_sock_pad0;
+		} kf_sock;
 		struct {
-			/* Vnode filesystem id. */
-			dev_t		kf_file_fsid;
-			/* File device. */
-			dev_t		kf_file_rdev;
 			/* Global file id. */
 			uint64_t	kf_file_fileid;
 			/* File size. */
 			off_t		kf_file_size;
+			/* Vnode filesystem id. */
+			dev_t		kf_file_fsid;
+			/* File device. */
+			dev_t		kf_file_rdev;
 			/* File mode. */
 			mode_t		kf_file_mode;
-		} file;
+			/* Round to 64 bit alignment. */
+			uint16_t	kf_file_pad0;
+			uint32_t	kf_file_pad1;
+		} kf_file;
 		struct {
-			uint32_t	pipe_buffer_cnt;
-			uint64_t	pipe_addr;
-			uint64_t	pipe_peer;
-		} pipe;
+			uint64_t	kf_pipe_addr;
+			uint64_t	kf_pipe_peer;
+			uint32_t	kf_pipe_buffer_cnt;
+			/* Round to 64 bit alignment. */
+			uint32_t	kf_pipe_pad0[3];
+		} kf_pipe;
 		struct {
-			dev_t		pts_dev;
-		} pts;
+			dev_t		kf_pts_dev;
+			/* Round to 64 bit alignment. */
+			uint32_t	kf_pts_pad0[7];
+		} kf_pts;
 	} kf_un;
 	uint16_t	kf_status;		/* Status flags. */
 	uint16_t	kf_pad1;		/* Round to 32 bit alignment. */
