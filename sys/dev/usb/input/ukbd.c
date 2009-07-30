@@ -299,6 +299,28 @@ ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 	}
 }
 
+static void
+ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
+{
+	DPRINTFN(2, "polling\n");
+
+	while (sc->sc_inputs == 0) {
+
+		usbd_transfer_poll(sc->sc_xfer, UKBD_N_TRANSFER);
+
+		DELAY(1000);	/* delay 1 ms */
+
+		sc->sc_time_ms++;
+
+		/* support repetition of keys: */
+
+		ukbd_interrupt(sc);
+
+		if (!wait)
+			break;
+	}
+}
+
 static int32_t
 ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 {
@@ -311,24 +333,7 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 		usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 	}
 	if (sc->sc_flags & UKBD_FLAG_POLLING) {
-		DPRINTFN(2, "polling\n");
-
-		while (sc->sc_inputs == 0) {
-
-			usbd_transfer_poll(sc->sc_xfer, UKBD_N_TRANSFER);
-
-			DELAY(1000);	/* delay 1 ms */
-
-			sc->sc_time_ms++;
-
-			/* support repetition of keys: */
-
-			ukbd_interrupt(sc);
-
-			if (!wait) {
-				break;
-			}
-		}
+		ukbd_do_poll(sc, wait);
 	}
 	if (sc->sc_inputs == 0) {
 		c = -1;
@@ -706,7 +711,15 @@ ukbd_probe(device_t dev)
 	if (error)
 		return (ENXIO);
 
+	/* 
+	 * NOTE: we currently don't support USB mouse and USB keyboard
+	 * on the same USB endpoint.
+	 */
 	if (hid_is_collection(d_ptr, d_len,
+	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE))) {
+		/* most likely a mouse */
+		error = ENXIO;
+	} else if (hid_is_collection(d_ptr, d_len,
 	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_KEYBOARD))) {
 		if (usb_test_quirk(uaa, UQ_KBD_IGNORE))
 			error = ENXIO;
@@ -983,6 +996,14 @@ ukbd_lock(keyboard_t *kbd, int lock)
 static int
 ukbd_enable(keyboard_t *kbd)
 {
+	if (!mtx_owned(&Giant)) {
+		/* XXX cludge */
+		int retval;
+		mtx_lock(&Giant);
+		retval = ukbd_enable(kbd);
+		mtx_unlock(&Giant);
+		return (retval);
+	}
 	mtx_assert(&Giant, MA_OWNED);
 	KBD_ACTIVATE(kbd);
 	return (0);
@@ -992,6 +1013,14 @@ ukbd_enable(keyboard_t *kbd)
 static int
 ukbd_disable(keyboard_t *kbd)
 {
+	if (!mtx_owned(&Giant)) {
+		/* XXX cludge */
+		int retval;
+		mtx_lock(&Giant);
+		retval = ukbd_disable(kbd);
+		mtx_unlock(&Giant);
+		return (retval);
+	}
 	mtx_assert(&Giant, MA_OWNED);
 	KBD_DEACTIVATE(kbd);
 	return (0);
@@ -1003,14 +1032,26 @@ ukbd_check(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
-	if (!mtx_owned(&Giant)) {
-		return (0);		/* XXX */
+	if (!KBD_IS_ACTIVE(kbd))
+		return (0);
+
+	if (sc->sc_flags & UKBD_FLAG_POLLING) {
+		if (!mtx_owned(&Giant)) {
+			/* XXX cludge */
+			int retval;
+			mtx_lock(&Giant);
+			retval = ukbd_check(kbd);
+			mtx_unlock(&Giant);
+			return (retval);
+		}
+		ukbd_do_poll(sc, 0);
+	} else {
+		/* XXX the keyboard layer requires Giant */
+		if (!mtx_owned(&Giant))
+			return (0);
 	}
 	mtx_assert(&Giant, MA_OWNED);
 
-	if (!KBD_IS_ACTIVE(kbd)) {
-		return (0);
-	}
 #ifdef UKBD_EMULATE_ATSCANCODE
 	if (sc->sc_buffered_char[0]) {
 		return (1);
@@ -1028,14 +1069,25 @@ ukbd_check_char(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
-	if (!mtx_owned(&Giant)) {
-		return (0);		/* XXX */
+	if (!KBD_IS_ACTIVE(kbd))
+		return (0);
+
+	if (sc->sc_flags & UKBD_FLAG_POLLING) {
+		if (!mtx_owned(&Giant)) {
+			/* XXX cludge */
+			int retval;
+			mtx_lock(&Giant);
+			retval = ukbd_check_char(kbd);
+			mtx_unlock(&Giant);
+			return (retval);
+		}
+	} else {
+		/* XXX the keyboard layer requires Giant */
+		if (!mtx_owned(&Giant))
+			return (0);
 	}
 	mtx_assert(&Giant, MA_OWNED);
 
-	if (!KBD_IS_ACTIVE(kbd)) {
-		return (0);
-	}
 	if ((sc->sc_composed_char > 0) &&
 	    (!(sc->sc_flags & UKBD_FLAG_COMPOSE))) {
 		return (1);
@@ -1056,9 +1108,22 @@ ukbd_read(keyboard_t *kbd, int wait)
 	uint32_t scancode;
 
 #endif
+	if (!KBD_IS_ACTIVE(kbd))
+		return (-1);
 
-	if (!mtx_owned(&Giant)) {
-		return -1;		/* XXX */
+	if (sc->sc_flags & UKBD_FLAG_POLLING) {
+		if (!mtx_owned(&Giant)) {
+			/* XXX cludge */
+			int retval;
+			mtx_lock(&Giant);
+			retval = ukbd_read(kbd, wait);
+			mtx_unlock(&Giant);
+			return (retval);
+		}
+	} else {
+		/* XXX the keyboard layer requires Giant */
+		if (!mtx_owned(&Giant))
+			return (-1);
 	}
 	mtx_assert(&Giant, MA_OWNED);
 
@@ -1077,9 +1142,9 @@ ukbd_read(keyboard_t *kbd, int wait)
 
 	/* XXX */
 	usbcode = ukbd_get_key(sc, (wait == FALSE) ? 0 : 1);
-	if (!KBD_IS_ACTIVE(kbd) || (usbcode == -1)) {
-		return -1;
-	}
+	if (!KBD_IS_ACTIVE(kbd) || (usbcode == -1))
+		return (-1);
+
 	++(kbd->kb_count);
 
 #ifdef UKBD_EMULATE_ATSCANCODE
@@ -1107,8 +1172,23 @@ ukbd_read_char(keyboard_t *kbd, int wait)
 	uint32_t scancode;
 
 #endif
-	if (!mtx_owned(&Giant)) {
-		return (NOKEY);		/* XXX */
+
+	if (!KBD_IS_ACTIVE(kbd))
+		return (NOKEY);
+
+	if (sc->sc_flags & UKBD_FLAG_POLLING) {
+		if (!mtx_owned(&Giant)) {
+			/* XXX cludge */
+			int retval;
+			mtx_lock(&Giant);
+			retval = ukbd_read_char(kbd, wait);
+			mtx_unlock(&Giant);
+			return (retval);
+		}
+	} else {
+		/* XXX the keyboard layer requires Giant */
+		if (!mtx_owned(&Giant))
+			return (NOKEY);
 	}
 	mtx_assert(&Giant, MA_OWNED);
 
@@ -1485,7 +1565,12 @@ ukbd_poll(keyboard_t *kbd, int on)
 	struct ukbd_softc *sc = kbd->kb_data;
 
 	if (!mtx_owned(&Giant)) {
-		return (0);		/* XXX */
+		/* XXX cludge */
+		int retval;
+		mtx_lock(&Giant);
+		retval = ukbd_poll(kbd, on);
+		mtx_unlock(&Giant);
+		return (retval);
 	}
 	mtx_assert(&Giant, MA_OWNED);
 
