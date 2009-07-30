@@ -572,8 +572,9 @@ carp_input(struct mbuf *m, int hlen)
 	if (m->m_pkthdr.len < iplen + sizeof(*ch)) {
 		CARPSTATS_INC(carps_badlen);
 		CARP_LOG("carp_input: received len %zd < "
-		    "sizeof(struct carp_header)\n",
-		    m->m_len - sizeof(struct ip));
+		    "sizeof(struct carp_header) on %s\n",
+		    m->m_len - sizeof(struct ip),
+		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
 		return;
 	}
