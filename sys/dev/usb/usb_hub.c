@@ -1020,12 +1020,14 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		snprintf(buf, buflen, "vendor=0x%04x product=0x%04x "
 		    "devclass=0x%02x devsubclass=0x%02x "
 		    "sernum=\"%s\" "
+		    "release=0x%04x "
 		    "intclass=0x%02x intsubclass=0x%02x",
 		    UGETW(res.udev->ddesc.idVendor),
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
 		    res.udev->ddesc.bDeviceSubClass,
 		    res.udev->serial,
+		    UGETW(res.udev->ddesc.bcdDevice),
 		    iface->idesc->bInterfaceClass,
 		    iface->idesc->bInterfaceSubClass);
 	} else {
