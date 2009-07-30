@@ -1229,8 +1229,25 @@ MipsEmulateBranch(struct trapframe *framePtr, int instPC, int fpcCSR,
 
 
 #if defined(DDB) || defined(DEBUG)
-#define	MIPS_JR_RA	0x03e00008	/* instruction code for jr ra */
+/*
+ * A function using a stack frame has the following instruction as the first
+ * one: addiu sp,sp,-<frame_size>
+ *
+ * We make use of this to detect starting address of a function. This works
+ * better than using 'j ra' instruction to signify end of the previous
+ * function (for e.g. functions like boot() or panic() do not actually
+ * emit a 'j ra' instruction).
+ *
+ * XXX the abi does not require that the addiu instruction be the first one.
+ */
+#define	MIPS_START_OF_FUNCTION(ins)	(((ins) & 0xffff8000) == 0x27bd8000)
 
+/*
+ * MIPS ABI 3.0 requires that all functions return using the 'j ra' instruction
+ *
+ * XXX gcc doesn't do this true for functions with __noreturn__ attribute.
+ */
+#define	MIPS_END_OF_FUNCTION(ins)	((ins) == 0x03e00008)
 /* forward */
 char *fn_name(unsigned addr);
 
@@ -1326,9 +1343,21 @@ loop:
 	 */
 	if (!subr) {
 		va = pc - sizeof(int);
-		while ((instr = kdbpeek((int *)va)) != MIPS_JR_RA)
-			va -= sizeof(int);
-		va += 2 * sizeof(int);	/* skip back over branch & delay slot */
+		while (1) {
+			instr = kdbpeek((int *)va);
+
+			if (MIPS_START_OF_FUNCTION(instr))
+				break;
+
+			if (MIPS_END_OF_FUNCTION(instr)) {
+				/* skip over branch-delay slot instruction */
+				va += 2 * sizeof(int);
+				break;
+			}
+
+ 			va -= sizeof(int);
+		}
+
 		/* skip over nulls which might separate .o files */
 		while ((instr = kdbpeek((int *)va)) == 0)
 			va += sizeof(int);
