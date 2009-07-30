@@ -123,9 +123,11 @@ SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
 #define DMAMAP_LINEAR		0x1
 #define DMAMAP_MBUF		0x2
 #define DMAMAP_UIO		0x4
-#define DMAMAP_ALLOCATED	0x10
 #define DMAMAP_TYPE_MASK	(DMAMAP_LINEAR|DMAMAP_MBUF|DMAMAP_UIO)
 #define DMAMAP_COHERENT		0x8
+#define DMAMAP_ALLOCATED	0x10
+#define DMAMAP_MALLOCUSED	0x20
+
 struct bus_dmamap {
 	struct bp_list	bpages;
 	int		pagesneeded;
@@ -514,6 +516,10 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		}
 		bz->map_count++;
 	}
+
+	if (flags & BUS_DMA_COHERENT)
+	    newmap->flags |= DMAMAP_COHERENT;
+
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->flags, error);
 
@@ -570,12 +576,16 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	dmat->map_count++;
 	*mapp = newmap;
 	newmap->dmat = dmat;
+
+	if (flags & BUS_DMA_COHERENT)
+	    newmap->flags |= DMAMAP_COHERENT;
 	
         if (dmat->maxsize <= PAGE_SIZE &&
 	   (dmat->alignment < dmat->maxsize) &&
 	   !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr) && 
 	   !(flags & BUS_DMA_COHERENT)) {
                 *vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
+		newmap->flags |= DMAMAP_MALLOCUSED;
         } else {
                 /*
                  * XXX Use Contigmalloc until it is merged into this facility
@@ -639,13 +649,12 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 		    ("Trying to freeing the wrong DMA buffer"));
 		vaddr = map->origbuffer;
 	}
-        if (dmat->maxsize <= PAGE_SIZE &&
-	   dmat->alignment < dmat->maxsize &&
-	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr))
+
+        if (map->flags & DMAMAP_MALLOCUSED)
 		free(vaddr, M_DEVBUF);
-        else {
+        else
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
-	}
+
 	dmat->map_count--;
 	_busdma_free_dmamap(map);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
