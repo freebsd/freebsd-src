@@ -287,6 +287,13 @@ struct user {
 #define	KF_FLAG_NONBLOCK	0x00000020
 #define	KF_FLAG_DIRECT		0x00000040
 #define	KF_FLAG_HASLOCK		0x00000080
+#define	KF_FLAG_SHLOCK		0x00000100
+#define	KF_FLAG_EXLOCK		0x00000200
+#define	KF_FLAG_NOFOLLOW	0x00000400
+#define	KF_FLAG_CREAT		0x00000800
+#define	KF_FLAG_TRUNC		0x00001000
+#define	KF_FLAG_EXCL		0x00002000
+#define	KF_FLAG_EXEC		0x00004000
 
 /*
  * Old format.  Has variable hidden padding due to alignment.

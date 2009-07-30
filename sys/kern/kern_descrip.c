@@ -2902,13 +2902,20 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 		int	kf_fflag;
 	} fflags_table[] = {
 		{ FREAD, KF_FLAG_READ },
-		{ FWRITE , KF_FLAG_WRITE },
-		{ FAPPEND , KF_FLAG_APPEND },
-		{ FASYNC , KF_FLAG_ASYNC },
-		{ FFSYNC , KF_FLAG_FSYNC },
-		{ FNONBLOCK , KF_FLAG_NONBLOCK },
-		{ O_DIRECT , KF_FLAG_DIRECT },
-		{ FHASLOCK , KF_FLAG_HASLOCK }
+		{ FWRITE, KF_FLAG_WRITE },
+		{ FAPPEND, KF_FLAG_APPEND },
+		{ FASYNC, KF_FLAG_ASYNC },
+		{ FFSYNC, KF_FLAG_FSYNC },
+		{ FNONBLOCK, KF_FLAG_NONBLOCK },
+		{ O_DIRECT, KF_FLAG_DIRECT },
+		{ FHASLOCK, KF_FLAG_HASLOCK },
+		{ O_SHLOCK, KF_FLAG_SHLOCK },
+		{ O_EXLOCK, KF_FLAG_EXLOCK },
+		{ O_NOFOLLOW, KF_FLAG_NOFOLLOW },
+		{ O_CREAT, KF_FLAG_CREAT },
+		{ O_TRUNC, KF_FLAG_TRUNC },
+		{ O_EXCL, KF_FLAG_EXCL },
+		{ O_EXEC, KF_FLAG_EXEC }
 	};
 #define	NFFLAGS	(sizeof(fflags_table) / sizeof(*fflags_table))
 	struct vnode *vp;

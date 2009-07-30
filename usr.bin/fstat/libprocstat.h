@@ -86,6 +86,7 @@
 #define	PS_FST_FFLAG_EXCL	0x0800
 #define	PS_FST_FFLAG_DIRECT	0x1000
 #define	PS_FST_FFLAG_EXEC	0x2000
+#define	PS_FST_FFLAG_HASLOCK	0x4000
 
 struct procstat {
         int     type;
