@@ -156,7 +156,6 @@ addfile(const char *path, struct reqfile *reqfile)
 	reqfile->name = path;
 	STAILQ_INIT(&reqfile->consumers);
 	return (0);	
-/* XXX: devs? */
 }
 
 int
@@ -279,8 +278,9 @@ do_fuser(int argc, char *argv[])
 		}
 		(void)fprintf(stderr, "\n");
 	}
+	procstat_freeprocs(procstat, p);
 	procstat_close(procstat);
-	/* XXX: free resoucres .*/
+	free(reqfiles);
 	return (0);
 }
 
@@ -350,7 +350,7 @@ dofiles(struct procstat *procstat, struct kinfo_proc *kp,
 			STAILQ_INSERT_TAIL(&reqfiles[i].consumers, cons, next);
 		}
 	}
-	/* XXX: free head */
+	procstat_freefiles(procstat, head);
 }
 
 /*

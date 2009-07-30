@@ -138,6 +138,9 @@ struct sockstat {
 STAILQ_HEAD(filestat_list, filestat);
 
 void	procstat_close(struct procstat *procstat);
+void	procstat_freeprocs(struct procstat *procstat, struct kinfo_proc *p);
+void	procstat_freefiles(struct procstat *procstat,
+    struct filestat_list *head);
 struct filestat_list	*procstat_getfiles(struct procstat *procstat,
     struct kinfo_proc *kp, int mmapped);
 struct kinfo_proc	*procstat_getprocs(struct procstat *procstat,

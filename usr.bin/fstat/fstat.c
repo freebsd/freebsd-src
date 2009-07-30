@@ -202,6 +202,7 @@ do_fstat(int argc, char **argv)
 		dofiles(procstat, &p[i]);
 	}
 	free(p);
+	procstat_freeprocs(procstat, p);
 	procstat_close(procstat);
 	return (0);
 }
@@ -224,6 +225,7 @@ dofiles(struct procstat *procstat, struct kinfo_proc *kp)
 		return;
 	STAILQ_FOREACH(fst, head, next)
 		print_file_info(procstat, fst, uname, cmd, pid);
+	procstat_freefiles(procstat, head);
 }
 
 

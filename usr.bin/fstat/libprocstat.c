@@ -226,6 +226,14 @@ fail:
 	return (NULL);
 }
 
+void
+procstat_freeprocs(struct procstat *procstat __unused, struct kinfo_proc *p)
+{
+
+	if (p != NULL)
+		free(p);
+}
+
 struct filestat_list *
 procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 {
@@ -236,6 +244,20 @@ procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 		 return (procstat_getfiles_kvm(procstat->kd, kp, mmapped));
 	else
 		return (NULL);
+}
+
+void
+procstat_freefiles(struct procstat *procstat, struct filestat_list *head)
+{
+	struct filestat *fst, *tmp;
+
+	STAILQ_FOREACH_SAFE(fst, head, next, tmp) {
+		if (procstat->type == PROCSTAT_SYSCTL &&
+		    fst->fs_typedep != NULL)
+			free(fst->fs_typedep);
+		free(fst);
+	}
+	free(head);
 }
 
 static struct filestat *
