@@ -248,6 +248,7 @@ main(int argc, char *argv[])
 	if (argc < 2)
 		usage();
 	if (strlen(argv[0]) > 0) {
+		errno = 0;
 		jid = (int)strtol(argv[0], NULL, 10);
 		if (errno)
 			err(1, "Unable to parse jail ID.");
