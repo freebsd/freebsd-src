@@ -200,6 +200,15 @@ uhci_pci_match(device_t self)
 	case 0x265b8086:
 		return ("Intel 82801FB/FR/FW/FRW (ICH6) USB controller USB-D");
 
+	case 0x27c88086:
+		return ("Intel 82801G (ICH7) USB controller USB-A");
+	case 0x27c98086:
+		return ("Intel 82801G (ICH7) USB controller USB-B");
+	case 0x27ca8086:
+		return ("Intel 82801G (ICH7) USB controller USB-C");
+	case 0x27cb8086:
+		return ("Intel 82801G (ICH7) USB controller USB-D");
+
 	case 0x28308086:
 		return ("Intel 82801H (ICH8) USB controller USB-A");
 	case 0x28318086:
