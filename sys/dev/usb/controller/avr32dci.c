@@ -2081,4 +2081,5 @@ struct usb_bus_methods avr32dci_bus_methods =
 	.set_stall = &avr32dci_set_stall,
 	.clear_stall = &avr32dci_clear_stall,
 	.roothub_exec = &avr32dci_roothub_exec,
+	.xfer_poll = &avr32dci_do_poll,
 };
