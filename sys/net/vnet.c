@@ -43,11 +43,20 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 /*-
- * This is the virtual network stack allocator, which provides storage for
- * virtualized global variables.  These variables are defined/declared using
- * the VNET_DEFINE()/VNET_DECLARE() macros, which place them in the
- * 'set_vnet' linker set.  The details of the implementation are somewhat
- * subtle, but allow the majority of most network subsystems to maintain
+ * This file implements core functions for virtual network stacks:
+ *
+ * - Virtual network stack memory allocator, which virtualized global
+ *   variables in the network stack
+ *
+ * - Virtualized SYSINIT's/SYSUNINIT's, which allow network stack subsystems
+ *   to register startup/shutdown events to be run for each virtual network
+ *   stack instance.
+ *
+ * The virtual network stack allocator provides storage for virtualized
+ * global variables.  These variables are defined/declared using the
+ * VNET_DEFINE()/VNET_DECLARE() macros, which place them in the 'set_vnet'
+ * linker set.  The details of the implementation are somewhat subtle, but
+ * allow the majority of most network subsystems to maintain
  * virtualization-agnostic.
  *
  * The virtual network stack allocator handles variables in the base kernel

@@ -27,66 +27,36 @@
  * $FreeBSD$
  */
 
-/*
- * This header file defines two sets of interfaces supporting virtualized
- * network stacks: a virtual network stack memory allocator, which provides
- * support for virtualized global variables via a special linker set,
- * set_vnet, and virtualized sysinits/sysuninits, which allow constructors
- * and destructors to be run for each network stack subsystem as virtual
- * instances are created and destroyed.  If VIMAGE isn't compiled into the
- * kernel, virtualized global variables compile to normal global variables,
- * and virtualized sysinits to regular sysinits.
+/*-
+ * This header file defines several sets of interfaces supporting virtualized
+ * network stacks:
+ *
+ * - A virtual network stack memory allocator, which provides support for
+ *   virtualized global variables via a special linker set, set_vnet.
+ *
+ * - Virtualized sysinits/sysuninits, which allow constructors and
+ *   destructors to be run for each network stack subsystem as virtual
+ *   instances are created and destroyed.
+ *
+ * If VIMAGE isn't compiled into the kernel, virtualized global variables
+ * compile to normal global variables, and virtualized sysinits to regular
+ * sysinits.
  */
 
 #ifndef _NET_VNET_H_
 #define	_NET_VNET_H_
 
+/*
+ * Virtual network stack memory allocator, which allows global variables to
+ * be automatically instantiated for each network stack instance.
+ */
 #if defined(_KERNEL) || defined(_WANT_VNET)
-
 #define	VNET_SETNAME		"set_vnet"
 #define	VNET_SYMPREFIX		"vnet_entry_"
-
 #endif
 
 #ifdef _KERNEL
 #ifdef VIMAGE
-#include <sys/kernel.h>
-
-/*
- * SYSINIT/SYSUNINIT variants that provide per-vnet constructors and
- * destructors.
- */
-struct vnet_sysinit {
-	enum sysinit_sub_id	subsystem;
-	enum sysinit_elem_order	order;
-	sysinit_cfunc_t		func;
-	const void		*arg;
-	TAILQ_ENTRY(vnet_sysinit) link;
-};
-
-#define	VNET_SYSINIT(ident, subsystem, order, func, arg)		\
-	static struct vnet_sysinit ident ## _vnet_init = {		\
-		subsystem,						\
-		order,							\
-		(sysinit_cfunc_t)(sysinit_nfunc_t)func,			\
-		(arg)							\
-	};								\
-	SYSINIT(vnet_init_ ## ident, subsystem, order,			\
-	    vnet_register_sysinit, &ident ## _vnet_init);		\
-	SYSUNINIT(vnet_init_ ## ident, subsystem, order,		\
-	    vnet_deregister_sysinit, &ident ## _vnet_init)
-
-#define	VNET_SYSUNINIT(ident, subsystem, order, func, arg)		\
-	static struct vnet_sysinit ident ## _vnet_uninit = {		\
-		subsystem,						\
-		order,							\
-		(sysinit_cfunc_t)(sysinit_nfunc_t)func,			\
-		(arg)							\
-	};								\
-	SYSINIT(vnet_uninit_ ## ident, subsystem, order,		\
-	    vnet_register_sysuninit, &ident ## _vnet_uninit);		\
-	SYSUNINIT(vnet_uninit_ ## ident, subsystem, order,		\
-	    vnet_deregister_sysuninit, &ident ## _vnet_uninit)
 
 #if defined(__arm__)
 __asm__(".section " VNET_SETNAME ", \"aw\", %progbits");
@@ -111,6 +81,20 @@ __asm__(".previous");
 
 #define	VNET_PTR(n)		VNET_VNET_PTR(curvnet, n)
 #define	VNET(n)			VNET_VNET(curvnet, n)
+
+/*
+ * Virtual network stack allocator interfaces from the kernel linker.
+ */
+void	*vnet_data_alloc(int size);
+void	 vnet_data_copy(void *start, int size);
+void	 vnet_data_free(void *start_arg, int size);
+
+/*
+ * Virtual network stack allocator interfaces for vnet setup/teardown.
+ */
+struct vnet;
+void	 vnet_data_init(struct vnet *vnet);
+void	 vnet_data_destroy(struct vnet *vnet);
 
 /*
  * Sysctl variants for vnet-virtualized global variables.  Include
@@ -150,18 +134,51 @@ int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
 #endif /* SYSCTL_OID */
 
 /*
- * Interfaces from the kernel linker.
+ * Virtual sysinit mechanism, allowing network stack components to declare
+ * startup and shutdown methods to be run when virtual network stack
+ * instances are created and destroyed.
  */
-void	*vnet_data_alloc(int size);
-void	 vnet_data_copy(void *start, int size);
-void	 vnet_data_free(void *start_arg, int size);
+#include <sys/kernel.h>
 
 /*
- * Interfaces for vnet setup/teardown.
+ * SYSINIT/SYSUNINIT variants that provide per-vnet constructors and
+ * destructors.
  */
-struct vnet;
-void	 vnet_data_init(struct vnet *vnet);
-void	 vnet_data_destroy(struct vnet *vnet);
+struct vnet_sysinit {
+	enum sysinit_sub_id	subsystem;
+	enum sysinit_elem_order	order;
+	sysinit_cfunc_t		func;
+	const void		*arg;
+	TAILQ_ENTRY(vnet_sysinit) link;
+};
+
+#define	VNET_SYSINIT(ident, subsystem, order, func, arg)		\
+	static struct vnet_sysinit ident ## _vnet_init = {		\
+		subsystem,						\
+		order,							\
+		(sysinit_cfunc_t)(sysinit_nfunc_t)func,			\
+		(arg)							\
+	};								\
+	SYSINIT(vnet_init_ ## ident, subsystem, order,			\
+	    vnet_register_sysinit, &ident ## _vnet_init);		\
+	SYSUNINIT(vnet_init_ ## ident, subsystem, order,		\
+	    vnet_deregister_sysinit, &ident ## _vnet_init)
+
+#define	VNET_SYSUNINIT(ident, subsystem, order, func, arg)		\
+	static struct vnet_sysinit ident ## _vnet_uninit = {		\
+		subsystem,						\
+		order,							\
+		(sysinit_cfunc_t)(sysinit_nfunc_t)func,			\
+		(arg)							\
+	};								\
+	SYSINIT(vnet_uninit_ ## ident, subsystem, order,		\
+	    vnet_register_sysuninit, &ident ## _vnet_uninit);		\
+	SYSUNINIT(vnet_uninit_ ## ident, subsystem, order,		\
+	    vnet_deregister_sysuninit, &ident ## _vnet_uninit)
+
+/*
+ * Run per-vnet sysinits or sysuninits during vnet creation/destruction.
+ */
 void	 vnet_sysinit(void);
 void	 vnet_sysuninit(void);
 
@@ -183,11 +200,20 @@ void	vnet_deregister_sysuninit(void *arg);
 #define	VNET_DECLARE(t, n)	extern t n
 #define	VNET_DEFINE(t, n)	t n
 #define	_VNET_PTR(b, n)		&VNET_NAME(n)
-#define	VNET_SYSINIT(ident, subsystem, order, func, arg)		\
-	SYSINIT(ident, subsystem, order, func, arg)
-#define	VNET_SYSUNINIT(ident, subsystem, order, func, arg)		\
-	SYSUNINIT(ident, subsystem, order, func, arg)
 
+/*
+ * Virtualized global variable accessor macros.
+ */
+#define	VNET_VNET_PTR(vnet, n)		(&(n))
+#define	VNET_VNET(vnet, n)		(n)
+
+#define	VNET_PTR(n)		(&(n))
+#define	VNET(n)			(n)
+
+/*
+ * When VIMAGE isn't compiled into the kernel, virtaulized SYSCTLs simply
+ * become normal SYSCTLs.
+ */
 #ifdef SYSCTL_OID
 #define	SYSCTL_VNET_INT(parent, nbr, name, access, ptr, val, descr)	\
 	SYSCTL_INT(parent, nbr, name, access, ptr, val, descr)
@@ -205,16 +231,15 @@ void	vnet_deregister_sysuninit(void *arg);
 #endif /* SYSCTL_OID */
 
 /*
- * Virtualized global variable accessor macros.
+ * When VIMAGE isn't compiled into the kernel, VNET_SYSINIT/VNET_SYSUNINIT
+ * map into normal sysinits, which have the same ordering properties.
  */
-#define	VNET_VNET_PTR(vnet, n)		(&(n))
-#define	VNET_VNET(vnet, n)		(n)
-
-#define	VNET_PTR(n)		(&(n))
-#define	VNET(n)			(n)
+#define	VNET_SYSINIT(ident, subsystem, order, func, arg)		\
+	SYSINIT(ident, subsystem, order, func, arg)
+#define	VNET_SYSUNINIT(ident, subsystem, order, func, arg)		\
+	SYSUNINIT(ident, subsystem, order, func, arg)
 
 #endif /* VIMAGE */
-
 #endif /* _KERNEL */
 
 #endif /* !_NET_VNET_H_ */
