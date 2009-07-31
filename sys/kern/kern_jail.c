@@ -165,9 +165,10 @@ static char *pr_allow_nonames[] = {
 	"allow.nosocket_af",
 };
 
-#define	JAIL_DEFAULT_ALLOW	PR_ALLOW_SET_HOSTNAME
+#define	JAIL_DEFAULT_ALLOW		PR_ALLOW_SET_HOSTNAME
+#define	JAIL_DEFAULT_ENFORCE_STATFS	2
 static unsigned jail_default_allow = JAIL_DEFAULT_ALLOW;
-static int jail_default_enforce_statfs = 2;
+static int jail_default_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
 #if defined(INET) || defined(INET6)
 static unsigned jail_max_af_ips = 255;
 #endif
@@ -1181,7 +1182,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 		pr->pr_securelevel = ppr->pr_securelevel;
 		pr->pr_allow = JAIL_DEFAULT_ALLOW & ppr->pr_allow;
-		pr->pr_enforce_statfs = ppr->pr_enforce_statfs;
+		pr->pr_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
 
 		LIST_INIT(&pr->pr_children);
 		mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF | MTX_DUPOK);
