@@ -3000,7 +3000,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	/* Controlling tty. */
 	cttyvp = NULL;
 	if (p->p_pgrp != NULL && p->p_pgrp->pg_session != NULL) {
-		cttyvp = p->p_pgrp->pg_session.s_ttyvp;
+		cttyvp = p->p_pgrp->pg_session->s_ttyvp;
 		vref(cttyvp);
 	}
 	fdp = fdhold(p);
@@ -3201,7 +3201,7 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 		return (error);
 	kif->kf_un.kf_file.kf_file_fsid = va.va_fsid;
 	kif->kf_un.kf_file.kf_file_fileid = va.va_fileid;
-	kif->kf_un.kf_file.kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
+	kif->kf_un.kf_file.kf_file_mode = va.va_mode;
 	kif->kf_un.kf_file.kf_file_size = va.va_size;
 	kif->kf_un.kf_file.kf_file_rdev = va.va_rdev;
 	return (0);
