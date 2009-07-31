@@ -50,6 +50,16 @@ struct kevent_copyops;
 struct sendfile_args;
 struct thr_param;
 
+/*
+ * ABI shims for the old SYSV IPC ABI.  The kern_*() version of these
+ * symbols are used by older kernel modules using the old ABI.  To make
+ * this transparent use the macros below to rename the functions to
+ * kern_new_*().
+ */
+#define	kern_msgctl		kern_new_msgctl
+#define	kern_semctl		kern_new_semctl
+#define	kern_shmctl		kern_new_shmctl
+
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
 int	kern_accept(struct thread *td, int s, struct sockaddr **name,

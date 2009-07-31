@@ -91,12 +91,6 @@ static int semundo_adjust(struct thread *td, struct sem_undo **supptr,
     int semid, int semseq, int semnum, int adjval);
 static void semundo_clear(int semid, int semnum);
 
-/* XXX casting to (sy_call_t *) is bogus, as usual. */
-static sy_call_t *semcalls[] = {
-	(sy_call_t *)__semctl, (sy_call_t *)semget,
-	(sy_call_t *)semop
-};
-
 static struct mtx	sem_mtx;	/* semaphore global lock */
 static struct mtx sem_undo_mtx;
 static int	semtot = 0;
@@ -318,40 +312,12 @@ static moduledata_t sysvsem_mod = {
 	NULL
 };
 
-SYSCALL_MODULE_HELPER(semsys);
 SYSCALL_MODULE_HELPER(__semctl);
 SYSCALL_MODULE_HELPER(semget);
 SYSCALL_MODULE_HELPER(semop);
 
-DECLARE_MODULE(sysvsem, sysvsem_mod,
-	SI_SUB_SYSV_SEM, SI_ORDER_FIRST);
+DECLARE_MODULE(sysvsem, sysvsem_mod, SI_SUB_SYSV_SEM, SI_ORDER_FIRST);
 MODULE_VERSION(sysvsem, 1);
-
-/*
- * Entry point for all SEM calls.
- */
-int
-semsys(td, uap)
-	struct thread *td;
-	/* XXX actually varargs. */
-	struct semsys_args /* {
-		int	which;
-		int	a2;
-		int	a3;
-		int	a4;
-		int	a5;
-	} */ *uap;
-{
-	int error;
-
-	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
-		return (ENOSYS);
-	if (uap->which < 0 ||
-	    uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
-		return (EINVAL);
-	error = (*semcalls[uap->which])(td, &uap->a2);
-	return (error);
-}
 
 /*
  * Allocate a new sem_undo structure for a process
@@ -1347,3 +1313,179 @@ sysctl_sema(SYSCTL_HANDLER_ARGS)
 	return (SYSCTL_OUT(req, sema,
 	    sizeof(struct semid_kernel) * seminfo.semmni));
 }
+
+SYSCALL_MODULE_HELPER(semsys);
+SYSCALL_MODULE_HELPER(freebsd7___semctl);
+
+/* XXX casting to (sy_call_t *) is bogus, as usual. */
+static sy_call_t *semcalls[] = {
+	(sy_call_t *)freebsd7___semctl, (sy_call_t *)semget,
+	(sy_call_t *)semop
+};
+
+/*
+ * Entry point for all SEM calls.
+ */
+int
+semsys(td, uap)
+	struct thread *td;
+	/* XXX actually varargs. */
+	struct semsys_args /* {
+		int	which;
+		int	a2;
+		int	a3;
+		int	a4;
+		int	a5;
+	} */ *uap;
+{
+	int error;
+
+	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
+		return (ENOSYS);
+	if (uap->which < 0 ||
+	    uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
+		return (EINVAL);
+	error = (*semcalls[uap->which])(td, &uap->a2);
+	return (error);
+}
+
+#define CP(src, dst, fld)	do { (dst).fld = (src).fld; } while (0)
+
+#ifndef _SYS_SYSPROTO_H_
+struct freebsd7___semctl_args {
+	int	semid;
+	int	semnum;
+	int	cmd;
+	union	semun_old *arg;
+};
+#endif
+int
+freebsd7___semctl(struct thread *td, struct freebsd7___semctl_args *uap)
+{
+	struct semid_ds_old dsold;
+	struct semid_ds dsbuf;
+	union semun_old arg;
+	union semun semun;
+	register_t rval;
+	int error;
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_SET:
+	case IPC_STAT:
+	case GETALL:
+	case SETVAL:
+	case SETALL:
+		error = copyin(uap->arg, &arg, sizeof(arg));
+		if (error)
+			return (error);
+		break;
+	}
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		semun.buf = &dsbuf;
+		break;
+	case IPC_SET:
+		error = copyin(arg.buf, &dsold, sizeof(dsold));
+		if (error)
+			return (error);
+		ipcperm_old2new(&dsold.sem_perm, &dsbuf.sem_perm);
+		CP(dsold, dsbuf, sem_base);
+		CP(dsold, dsbuf, sem_nsems);
+		CP(dsold, dsbuf, sem_otime);
+		CP(dsold, dsbuf, sem_ctime);
+		semun.buf = &dsbuf;
+		break;
+	case GETALL:
+	case SETALL:
+		semun.array = arg.array;
+		break;
+	case SETVAL:
+		semun.val = arg.val;
+		break;		
+	}
+
+	error = kern_semctl(td, uap->semid, uap->semnum, uap->cmd, &semun,
+	    &rval);
+	if (error)
+		return (error);
+
+	switch (uap->cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		bzero(&dsold, sizeof(dsold));
+		ipcperm_new2old(&dsbuf.sem_perm, &dsold.sem_perm);
+		CP(dsbuf, dsold, sem_base);
+		CP(dsbuf, dsold, sem_nsems);
+		CP(dsbuf, dsold, sem_otime);
+		CP(dsbuf, dsold, sem_ctime);
+		error = copyout(&dsold, arg.buf, sizeof(dsold));
+		break;
+	}
+
+	if (error == 0)
+		td->td_retval[0] = rval;
+	return (error);
+}
+
+/* ABI compat shim for older kernel modules. */
+#undef kern_semctl
+
+int	kern_semctl(struct thread *td, int semid, int semnum, int cmd,
+	    union semun_old *arg, register_t *rval);
+
+int
+kern_semctl(struct thread *td, int semid, int semnum, int cmd,
+    union semun_old *arg, register_t *rval)
+{
+	struct semid_ds_old *dsold;
+	struct semid_ds dsbuf;
+	union semun semun;
+	int error;
+
+	switch (cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		semun.buf = &dsbuf;
+		break;
+	case IPC_SET:
+		dsold = arg->buf;
+		ipcperm_old2new(&dsold->sem_perm, &dsbuf.sem_perm);
+		CP(*dsold, dsbuf, sem_base);
+		CP(*dsold, dsbuf, sem_nsems);
+		CP(*dsold, dsbuf, sem_otime);
+		CP(*dsold, dsbuf, sem_ctime);
+		semun.buf = &dsbuf;
+		break;
+	case GETALL:
+	case SETALL:
+		semun.array = arg->array;
+		break;
+	case SETVAL:
+		semun.val = arg->val;
+		break;		
+	}
+
+	error = kern_new_semctl(td, semid, semnum, cmd, &semun, rval);
+	if (error)
+		return (error);
+
+	switch (cmd) {
+	case SEM_STAT:
+	case IPC_STAT:
+		dsold = arg->buf;
+		bzero(dsold, sizeof(*dsold));
+		ipcperm_new2old(&dsbuf.sem_perm, &dsold->sem_perm);
+		CP(dsbuf, *dsold, sem_base);
+		CP(dsbuf, *dsold, sem_nsems);
+		CP(dsbuf, *dsold, sem_otime);
+		CP(dsbuf, *dsold, sem_ctime);
+		break;
+	}
+
+	return (error);
+}
+
+#undef CP

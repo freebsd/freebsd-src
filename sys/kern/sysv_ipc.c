@@ -147,3 +147,30 @@ ipcperm(struct thread *td, struct ipc_perm *perm, int acc_mode)
 	else
 		return (EACCES);
 }
+
+void
+ipcperm_old2new(struct ipc_perm_old *old, struct ipc_perm *new)
+{
+
+	new->cuid = old->cuid;
+	new->cgid = old->cgid;
+	new->uid = old->uid;
+	new->gid = old->gid;
+	new->mode = old->mode;
+	new->seq = old->seq;
+	new->key = old->key;
+}
+
+void
+ipcperm_new2old(struct ipc_perm *new, struct ipc_perm_old *old)
+{
+
+	/* XXX: How to handle ID's > USHORT_MAX? */
+	old->cuid = new->cuid;
+	old->cgid = new->cgid;
+	old->uid = new->uid;
+	old->gid = new->gid;
+	old->mode = new->mode;
+	old->seq = new->seq;
+	old->key = new->key;
+}

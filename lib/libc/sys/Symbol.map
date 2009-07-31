@@ -31,7 +31,6 @@ FBSD_1.0 {
 	__mac_set_file;
 	__mac_set_link;
 	__mac_set_proc;
-	__semctl;
 	__setugid;
 	__syscall;
 	__sysctl;
@@ -190,7 +189,6 @@ FBSD_1.0 {
 	modstat;
 	mount;
 	mprotect;
-	msgctl;
 	msgget;
 	msgrcv;
 	msgsnd;
@@ -271,7 +269,6 @@ FBSD_1.0 {
 	settimeofday;
 	setuid;
 	shmat;
-	shmctl;
 	shmdt;
 	shmget;
 	shmsys;
@@ -336,13 +333,16 @@ FBSD_1.0 {
 };
 
 FBSD_1.1 {
+	__semctl;
 	closefrom;
 	cpuset;
 	cpuset_getid;
 	cpuset_setid;
 	cpuset_getaffinity;
 	cpuset_setaffinity;
+	msgctl;
 	setfib;
+	shmctl;
 };
 
 FBSDprivate_1.0 {
