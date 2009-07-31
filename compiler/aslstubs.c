@@ -119,6 +119,7 @@
 #include "actables.h"
 #include "acevents.h"
 #include "acinterp.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslstubs")
@@ -134,6 +135,12 @@ AeLocalGetRootPointer (
     void)
 {
     return 0;
+}
+
+void
+AcpiNsExecModuleCodeList (
+    void)
+{
 }
 
 ACPI_STATUS

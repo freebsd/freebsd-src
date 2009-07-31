@@ -1,4 +1,76 @@
 ----------------------------------------
+30 July 2009. Summary of changes for version 20090730:
+
+This release is available at www.acpica.org/downloads
+
+The ACPI 4.0 implementation for ACPICA is complete with this release.
+
+1) ACPI CA Core Subsystem:
+
+ACPI 4.0: Added header file support for all new and changed ACPI tables. 
+Completely new tables are: IBFT, IVRS, MSCT, and WAET. Tables that are new 
+for ACPI 4.0, but have previously been supported in ACPICA are: CPEP, BERT, 
+EINJ, ERST, and HEST. Other newly supported tables are: UEFI and WDAT. There 
+have been some ACPI 4.0 changes to other existing tables. Split the large 
+actbl1.h header into the existing actbl2.h header. ACPICA BZ 774.
+
+ACPI 4.0: Implemented predefined name validation for all new names. There are 
+31 new names in ACPI 4.0. The predefined validation module was split into two 
+files. The new file is namespace/nsrepair.c. ACPICA BZ 770.
+
+Implemented support for so-called "module-level executable code". This is 
+executable AML code that exists outside of any control method and is intended 
+to be executed at table load time. Although illegal since ACPI 2.0, this type 
+of code still exists and is apparently still being created. Blocks of this 
+code are now detected and executed as intended. Currently, the code blocks 
+must exist under either an If, Else, or While construct; these are the 
+typical cases seen in the field. ACPICA BZ 762. Lin Ming.
+
+Implemented an automatic dynamic repair for predefined names that return 
+nested Package objects. This applies to predefined names that are defined to 
+return a variable-length Package of sub-packages. If the number of sub-
+packages is one, BIOS code is occasionally seen that creates a simple single 
+package with no sub-packages. This code attempts to fix the problem by 
+wrapping a new package object around the existing package. These methods can 
+be repaired: _ALR, _CSD, _HPX, _MLS, _PRT, _PSS, _TRT, and _TSS. ACPICA BZ 
+790.
+
+Fixed a regression introduced in 20090625 for the AcpiGetDevices interface. 
+The _HID/_CID matching was broken and no longer matched IDs correctly. ACPICA 
+BZ 793.
+
+Fixed a problem with AcpiReset where the reset would silently fail if the 
+register was one of the protected I/O ports. AcpiReset now bypasses the port 
+validation mechanism. This may eventually be driven into the AcpiRead/Write 
+interfaces.
+
+Fixed a regression related to the recent update of the AcpiRead/Write 
+interfaces. A sleep/suspend could fail if the optional PM2 Control register 
+does not exist during an attempt to write the Bus Master Arbitration bit. 
+(However, some hosts already delete the code that writes this bit, and the 
+code may in fact be obsolete at this date.) ACPICA BZ 799.
+
+Fixed a problem where AcpiTerminate could fault if inadvertently called twice 
+in succession. ACPICA BZ 795.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  84.7K Code, 17.8K Data, 102.5K Total
+    Debug Version:     160.5K Code, 50.6K Data, 211.1K Total
+  Current Release:
+    Non-Debug Version:  85.5K Code, 18.0K Data, 103.5K Total
+    Debug Version:     161.6K Code, 50.9K Data, 212.5K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+ACPI 4.0: Implemented disassembler support for all new ACPI tables and 
+changes to existing tables. ACPICA BZ 775.
+
+----------------------------------------
 25 June 2009. Summary of changes for version 20090625:
 
 This release is available at www.acpica.org/downloads

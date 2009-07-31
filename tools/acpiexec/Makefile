@@ -89,6 +89,7 @@ SRCS=	aetables.c aehandlers.c aeexec.c aemain.c \
 	../../namespace/nsobject.c \
 	../../namespace/nsparse.c \
 	../../namespace/nspredef.c \
+	../../namespace/nsrepair.c \
 	../../namespace/nssearch.c \
 	../../namespace/nsutils.c \
 	../../namespace/nswalk.c \

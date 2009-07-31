@@ -157,9 +157,23 @@ AcpiReset (
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
-    /* Write the reset value to the reset register */
+    if (ResetReg->SpaceId == ACPI_ADR_SPACE_SYSTEM_IO)
+    {
+        /*
+         * For I/O space, write directly to the OSL. This bypasses the port
+         * validation mechanism, which may block a valid write to the reset
+         * register.
+         */
+        Status = AcpiOsWritePort ((ACPI_IO_ADDRESS) ResetReg->Address,
+                    AcpiGbl_FADT.ResetValue, ResetReg->BitWidth);
+    }
+    else
+    {
+        /* Write the reset value to the reset register */
 
-    Status = AcpiHwWrite (AcpiGbl_FADT.ResetValue, ResetReg);
+        Status = AcpiHwWrite (AcpiGbl_FADT.ResetValue, ResetReg);
+    }
+
     return_ACPI_STATUS (Status);
 }
 

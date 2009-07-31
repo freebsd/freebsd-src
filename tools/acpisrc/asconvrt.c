@@ -730,8 +730,10 @@ AsBracesOnSameLine (
                  * 1) There is a conditional compile on the line (starts with '#')
                  * 2) Previous line ends with an '=' (Start of initializer block)
                  * 3) Previous line ends with a comma (part of an init list)
+                 * 4) Previous line ends with a backslash (part of a macro)
                  */
                 if ((StartOfThisLine[1] != '#') &&
+                    (*Beginning != '\\') &&
                     (*Beginning != '/') &&
                     (*Beginning != '{') &&
                     (*Beginning != '=') &&

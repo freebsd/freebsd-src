@@ -356,6 +356,8 @@ ACPI_EXTERN BOOLEAN                     AcpiGbl_DisplayFinalMemStats;
 ACPI_EXTERN ACPI_NAMESPACE_NODE         AcpiGbl_RootNodeStruct;
 ACPI_EXTERN ACPI_NAMESPACE_NODE        *AcpiGbl_RootNode;
 ACPI_EXTERN ACPI_NAMESPACE_NODE        *AcpiGbl_FadtGpeDevice;
+ACPI_EXTERN ACPI_OPERAND_OBJECT        *AcpiGbl_ModuleCodeList;
+
 
 extern const UINT8                      AcpiGbl_NsProperties [ACPI_NUM_NS_TYPES];
 extern const ACPI_PREDEFINED_NAMES      AcpiGbl_PreDefinedNames [NUM_PREDEFINED_NAMES];
