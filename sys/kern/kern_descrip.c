@@ -2901,21 +2901,21 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 		int	fflag;
 		int	kf_fflag;
 	} fflags_table[] = {
-		{ FREAD, KF_FLAG_READ },
-		{ FWRITE, KF_FLAG_WRITE },
 		{ FAPPEND, KF_FLAG_APPEND },
 		{ FASYNC, KF_FLAG_ASYNC },
 		{ FFSYNC, KF_FLAG_FSYNC },
-		{ FNONBLOCK, KF_FLAG_NONBLOCK },
-		{ O_DIRECT, KF_FLAG_DIRECT },
 		{ FHASLOCK, KF_FLAG_HASLOCK },
-		{ O_SHLOCK, KF_FLAG_SHLOCK },
+		{ FNONBLOCK, KF_FLAG_NONBLOCK },
+		{ FREAD, KF_FLAG_READ },
+		{ FWRITE, KF_FLAG_WRITE },
+		{ O_CREAT, KF_FLAG_CREAT },
+		{ O_DIRECT, KF_FLAG_DIRECT },
+		{ O_EXCL, KF_FLAG_EXCL },
+		{ O_EXEC, KF_FLAG_EXEC },
 		{ O_EXLOCK, KF_FLAG_EXLOCK },
 		{ O_NOFOLLOW, KF_FLAG_NOFOLLOW },
-		{ O_CREAT, KF_FLAG_CREAT },
-		{ O_TRUNC, KF_FLAG_TRUNC },
-		{ O_EXCL, KF_FLAG_EXCL },
-		{ O_EXEC, KF_FLAG_EXEC }
+		{ O_SHLOCK, KF_FLAG_SHLOCK },
+		{ O_TRUNC, KF_FLAG_TRUNC }
 	};
 #define	NFFLAGS	(sizeof(fflags_table) / sizeof(*fflags_table))
 	struct vnode *vp;
@@ -3146,15 +3146,15 @@ vntype_to_kinfo(int vtype)
 		int	vtype;
 		int	kf_vtype;
 	} vtypes_table[] = {
-		{ VNON, KF_VTYPE_VNON },
-		{ VREG, KF_VTYPE_VREG },
-		{ VDIR, KF_VTYPE_VDIR },
+		{ VBAD, KF_VTYPE_VBAD },
 		{ VBLK, KF_VTYPE_VBLK },
 		{ VCHR, KF_VTYPE_VCHR },
-		{ VLNK, KF_VTYPE_VLNK },
-		{ VSOCK, KF_VTYPE_VSOCK },
+		{ VDIR, KF_VTYPE_VDIR },
 		{ VFIFO, KF_VTYPE_VFIFO },
-		{ VBAD, KF_VTYPE_VBAD }
+		{ VLNK, KF_VTYPE_VLNK },
+		{ VNON, KF_VTYPE_VNON },
+		{ VREG, KF_VTYPE_VREG },
+		{ VSOCK, KF_VTYPE_VSOCK }
 	};
 #define	NVTYPES	(sizeof(vtypes_table) / sizeof(*vtypes_table))
 	unsigned int i;

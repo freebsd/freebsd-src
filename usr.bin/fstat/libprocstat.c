@@ -518,17 +518,17 @@ kinfo_type2fst(int kftype)
 		int	kf_type;
 		int	fst_type;
 	} kftypes2fst[] = {
-		{ KF_TYPE_NONE, PS_FST_TYPE_NONE },
-		{ KF_TYPE_VNODE, PS_FST_TYPE_VNODE },
-		{ KF_TYPE_SOCKET, PS_FST_TYPE_SOCKET },
-		{ KF_TYPE_PIPE, PS_FST_TYPE_PIPE },
+		{ KF_TYPE_CRYPTO, PS_FST_TYPE_CRYPTO },
 		{ KF_TYPE_FIFO, PS_FST_TYPE_FIFO },
 		{ KF_TYPE_KQUEUE, PS_FST_TYPE_KQUEUE },
-		{ KF_TYPE_CRYPTO, PS_FST_TYPE_CRYPTO },
 		{ KF_TYPE_MQUEUE, PS_FST_TYPE_MQUEUE },
-		{ KF_TYPE_SHM, PS_FST_TYPE_SHM },
-		{ KF_TYPE_SEM, PS_FST_TYPE_SEM },
+		{ KF_TYPE_NONE, PS_FST_TYPE_NONE },
+		{ KF_TYPE_PIPE, PS_FST_TYPE_PIPE },
 		{ KF_TYPE_PTS, PS_FST_TYPE_PTS },
+		{ KF_TYPE_SEM, PS_FST_TYPE_SEM },
+		{ KF_TYPE_SHM, PS_FST_TYPE_SHM },
+		{ KF_TYPE_SOCKET, PS_FST_TYPE_SOCKET },
+		{ KF_TYPE_VNODE, PS_FST_TYPE_VNODE },
 		{ KF_TYPE_UNKNOWN, PS_FST_TYPE_UNKNOWN }
 	};
 #define NKFTYPES	(sizeof(kftypes2fst) / sizeof(*kftypes2fst))
@@ -552,21 +552,21 @@ kinfo_fflags2fst(int kfflags)
 		int	kf_flag;
 		int	fst_flag;
 	} kfflags2fst[] = {
-		{ KF_FLAG_READ, PS_FST_FFLAG_READ },
-		{ KF_FLAG_WRITE, PS_FST_FFLAG_WRITE },
-		{ KF_FLAG_NONBLOCK, PS_FST_FFLAG_NONBLOCK },
 		{ KF_FLAG_APPEND, PS_FST_FFLAG_APPEND },
-		{ KF_FLAG_HASLOCK, PS_FST_FFLAG_HASLOCK },
 		{ KF_FLAG_ASYNC, PS_FST_FFLAG_ASYNC },
-		{ KF_FLAG_FSYNC, PS_FST_FFLAG_SYNC },
-		{ KF_FLAG_DIRECT, PS_FST_FFLAG_DIRECT },
-		{ KF_FLAG_SHLOCK, PS_FST_FFLAG_SHLOCK },
-		{ KF_FLAG_EXLOCK, PS_FST_FFLAG_EXLOCK },
-		{ KF_FLAG_NOFOLLOW, PS_FST_FFLAG_NOFOLLOW },
 		{ KF_FLAG_CREAT, PS_FST_FFLAG_CREAT },
-		{ KF_FLAG_TRUNC, PS_FST_FFLAG_TRUNC },
+		{ KF_FLAG_DIRECT, PS_FST_FFLAG_DIRECT },
 		{ KF_FLAG_EXCL, PS_FST_FFLAG_EXCL },
-		{ KF_FLAG_EXEC, PS_FST_FFLAG_EXEC }
+		{ KF_FLAG_EXEC, PS_FST_FFLAG_EXEC },
+		{ KF_FLAG_EXLOCK, PS_FST_FFLAG_EXLOCK },
+		{ KF_FLAG_FSYNC, PS_FST_FFLAG_SYNC },
+		{ KF_FLAG_HASLOCK, PS_FST_FFLAG_HASLOCK },
+		{ KF_FLAG_NOFOLLOW, PS_FST_FFLAG_NOFOLLOW },
+		{ KF_FLAG_NONBLOCK, PS_FST_FFLAG_NONBLOCK },
+		{ KF_FLAG_READ, PS_FST_FFLAG_READ },
+		{ KF_FLAG_SHLOCK, PS_FST_FFLAG_SHLOCK },
+		{ KF_FLAG_TRUNC, PS_FST_FFLAG_TRUNC },
+		{ KF_FLAG_WRITE, PS_FST_FFLAG_WRITE }
 	};
 #define NKFFLAGS	(sizeof(kfflags2fst) / sizeof(*kfflags2fst))
 	unsigned int i;
@@ -820,18 +820,18 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		int		(*handler)(kvm_t *kd, struct vnode *vp,
 		    struct vnstat *vn);
 	} fstypes[] = {
-		FSTYPE(ufs),
 		FSTYPE(devfs),
-		FSTYPE(nfs),
-		FSTYPE(msdosfs),
 		FSTYPE(isofs),
-#ifdef ZFS
-		FSTYPE(zfs),
-#endif
+		FSTYPE(msdosfs),
+		FSTYPE(nfs),
 		FSTYPE(ntfs),
 		FSTYPE(nwfs), 
 		FSTYPE(smbfs),
 		FSTYPE(udf), 
+		FSTYPE(ufs),
+#ifdef ZFS
+		FSTYPE(zfs),
+#endif
 	};
 #define	NTYPES	(sizeof(fstypes) / sizeof(*fstypes))
 	struct vnode vnode;
@@ -902,15 +902,15 @@ kinfo_vtype2fst(int kfvtype)
 		int	kf_vtype; 
 		int	fst_vtype;
 	} kfvtypes2fst[] = {
-		{ KF_VTYPE_VNON, PS_FST_VTYPE_VNON },
-		{ KF_VTYPE_VREG, PS_FST_VTYPE_VREG },
-		{ KF_VTYPE_VDIR, PS_FST_VTYPE_VDIR },
+		{ KF_VTYPE_VBAD, PS_FST_VTYPE_VBAD },
 		{ KF_VTYPE_VBLK, PS_FST_VTYPE_VBLK },
 		{ KF_VTYPE_VCHR, PS_FST_VTYPE_VCHR },
-		{ KF_VTYPE_VLNK, PS_FST_VTYPE_VLNK },
-		{ KF_VTYPE_VSOCK, PS_FST_VTYPE_VSOCK },
+		{ KF_VTYPE_VDIR, PS_FST_VTYPE_VDIR },
 		{ KF_VTYPE_VFIFO, PS_FST_VTYPE_VFIFO },
-		{ KF_VTYPE_VBAD, PS_FST_VTYPE_VBAD }
+		{ KF_VTYPE_VLNK, PS_FST_VTYPE_VLNK },
+		{ KF_VTYPE_VNON, PS_FST_VTYPE_VNON },
+		{ KF_VTYPE_VREG, PS_FST_VTYPE_VREG },
+		{ KF_VTYPE_VSOCK, PS_FST_VTYPE_VSOCK }
 	};
 #define	NKFVTYPES	(sizeof(kfvtypes2fst) / sizeof(*kfvtypes2fst))
 	unsigned int i;
@@ -1166,18 +1166,18 @@ to_filestat_flags(int flags)
 	} fstflags[] = {
 		{ FREAD, PS_FST_FFLAG_READ },
 		{ FWRITE, PS_FST_FFLAG_WRITE },
-		{ O_NONBLOCK, PS_FST_FFLAG_NONBLOCK },
 		{ O_APPEND, PS_FST_FFLAG_APPEND },
-		{ O_SHLOCK, PS_FST_FFLAG_SHLOCK },
-		{ O_EXLOCK, PS_FST_FFLAG_EXLOCK },
 		{ O_ASYNC, PS_FST_FFLAG_ASYNC },
-		{ O_SYNC, PS_FST_FFLAG_SYNC },
-		{ O_NOFOLLOW, PS_FST_FFLAG_NOFOLLOW },
 		{ O_CREAT, PS_FST_FFLAG_CREAT },
-		{ O_TRUNC, PS_FST_FFLAG_TRUNC },
-		{ O_EXCL, PS_FST_FFLAG_EXCL },
 		{ O_DIRECT, PS_FST_FFLAG_DIRECT },
-		{ O_EXEC, PS_FST_FFLAG_EXEC }
+		{ O_EXCL, PS_FST_FFLAG_EXCL },
+		{ O_EXEC, PS_FST_FFLAG_EXEC },
+		{ O_EXLOCK, PS_FST_FFLAG_EXLOCK },
+		{ O_NOFOLLOW, PS_FST_FFLAG_NOFOLLOW },
+		{ O_NONBLOCK, PS_FST_FFLAG_NONBLOCK },
+		{ O_SHLOCK, PS_FST_FFLAG_SHLOCK },
+		{ O_SYNC, PS_FST_FFLAG_SYNC },
+		{ O_TRUNC, PS_FST_FFLAG_TRUNC }
 	};
 #define NFSTFLAGS	(sizeof(fstflags) / sizeof(*fstflags))
 	int fst_flags;
@@ -1200,15 +1200,15 @@ vntype2psfsttype(int type)
 		int	vtype; 
 		int	fst_vtype;
 	} vt2fst[] = {
-		{ VNON, PS_FST_VTYPE_VNON },
-		{ VREG, PS_FST_VTYPE_VREG },
-		{ VDIR, PS_FST_VTYPE_VDIR },
+		{ VBAD, PS_FST_VTYPE_VBAD },
 		{ VBLK, PS_FST_VTYPE_VBLK },
 		{ VCHR, PS_FST_VTYPE_VCHR },
-		{ VLNK, PS_FST_VTYPE_VLNK },
-		{ VSOCK, PS_FST_VTYPE_VSOCK },
+		{ VDIR, PS_FST_VTYPE_VDIR },
 		{ VFIFO, PS_FST_VTYPE_VFIFO },
-		{ VBAD, PS_FST_VTYPE_VBAD }
+		{ VLNK, PS_FST_VTYPE_VLNK },
+		{ VNON, PS_FST_VTYPE_VNON },
+		{ VREG, PS_FST_VTYPE_VREG },
+		{ VSOCK, PS_FST_VTYPE_VSOCK }
 	};
 #define	NVFTYPES	(sizeof(vt2fst) / sizeof(*vt2fst))
 	unsigned int i, fst_type;
