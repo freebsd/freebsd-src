@@ -231,10 +231,11 @@ main(int argc, char **argv)
 		set_param("host.hostname", argv[1]);
 		if (hflag)
 			add_ip_addrinfo(0, argv[1]);
+		if (argv[2][0] != '\0')
 #ifdef INET6
-		add_ip_addr46(argv[2]);
+			add_ip_addr46(argv[2]);
 #else
-		add_ip_addr(&ip4_addr, argv[2]);
+			add_ip_addr(&ip4_addr, argv[2]);
 #endif
 		cmdarg = 3;
 		/* Emulate the defaults from security.jail.* sysctls */
@@ -374,11 +375,6 @@ add_ip_addr46(char *value)
 {
 	char *p, *np;
 
-	if (!value[0]) {
-		add_ip_addr(&ip4_addr, value);
-		add_ip_addr(&ip6_addr, value);
-		return;
-	}
 	for (p = value;; p = np + 1)
 	{
 		np = strchr(p, ',');
@@ -396,10 +392,13 @@ add_ip_addrinfo(int ai_flags, char *value)
 {
 	struct addrinfo hints, *ai0, *ai;
 	struct in_addr addr4;
-	int error;
+	size_t size;
+	int error, ip4ok;
+	int mib[4];
 	char avalue4[INET_ADDRSTRLEN];
 #ifdef INET6
 	struct in6_addr addr6;
+	int ip6ok;
 	char avalue6[INET6_ADDRSTRLEN];
 #endif
 
@@ -415,11 +414,34 @@ add_ip_addrinfo(int ai_flags, char *value)
 	error = getaddrinfo(value, NULL, &hints, &ai0);
 	if (error != 0)
 		errx(1, "hostname %s: %s", value, gai_strerror(error));
+
+	/*
+	 * Silently ignore unsupported address families from DNS lookups.
+	 * But if this is a numeric address, let the kernel give the error.
+	 */
+	if (ai_flags & AI_NUMERICHOST)
+		ip4ok =
+#ifdef INET6
+		    ip6ok =
+#endif
+		    1;
+	else {
+		size = 4;
+		ip4ok = (sysctlnametomib("security.jail.param.ip4", mib,
+		    &size) == 0);
+#ifdef INET6
+		size = 4;
+		ip6ok = (sysctlnametomib("security.jail.param.ip6", mib,
+		    &size) == 0);
+#endif
+	}
 	
 	/* Convert the addresses to ASCII so set_param can convert them back. */
 	for (ai = ai0; ai; ai = ai->ai_next)
 		switch (ai->ai_family) {
 		case AF_INET:
+			if (!ip4ok)
+				break;
 			memcpy(&addr4, &((struct sockaddr_in *)
 			    (void *)ai->ai_addr)->sin_addr, sizeof(addr4));
 			if (inet_ntop(AF_INET, &addr4, avalue4,
@@ -429,6 +451,8 @@ add_ip_addrinfo(int ai_flags, char *value)
 			break;
 #ifdef INET6
 		case AF_INET6:
+			if (!ip6ok)
+				break;
 			memcpy(&addr6, &((struct sockaddr_in6 *)
 			    (void *)ai->ai_addr)->sin6_addr, sizeof(addr6));
 			if (inet_ntop(AF_INET6, &addr6, avalue6,
