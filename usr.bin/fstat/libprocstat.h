@@ -103,38 +103,36 @@ struct filestat {
 	STAILQ_ENTRY(filestat)	next;
 };
 struct vnstat {
-	dev_t	vn_dev;
-	char	vn_devname[SPECNAMELEN + 1];
-	int	vn_type;
-	long	vn_fsid;
-	long	vn_fileid;
-	mode_t	vn_mode;
-	u_long	vn_size;
-	char	*mntdir;
+	uint64_t	vn_fileid;
+	uint64_t	vn_size;
+	char		*vn_mntdir;
+	uint32_t	vn_dev;
+	uint32_t	vn_fsid;
+	int		vn_type;
+	uint16_t	vn_mode;
+	char		vn_devname[SPECNAMELEN + 1];
 };
 struct ptsstat {
-	dev_t	dev;
-	char	devname[SPECNAMELEN + 1];
+	uint32_t	dev;
+	char		devname[SPECNAMELEN + 1];
 };
 struct pipestat {
+	size_t		buffer_cnt;
 	uint64_t	addr;
 	uint64_t	peer;
-	size_t		buffer_cnt;
 };
 struct sockstat {
-	int		type;
-	int		proto;
-	int		dom_family;
+	uint64_t	inp_ppcb;
 	uint64_t	so_addr;
 	uint64_t	so_pcb;
-	uint64_t	inp_ppcb;
 	uint64_t	unp_conn;
-	int		so_snd_sb_state;
+	int		dom_family;
+	int		proto;
 	int		so_rcv_sb_state;
+	int		so_snd_sb_state;
+	int		type;
 	char		dname[32];
 };
-
-/* XXX: sort structs. */
 
 STAILQ_HEAD(filestat_list, filestat);
 

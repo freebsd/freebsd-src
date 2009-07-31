@@ -91,8 +91,8 @@ struct consumer {
 	STAILQ_ENTRY(consumer)	next;
 };
 struct reqfile {
-	long		fsid;
-	long		fileid;
+	uint32_t	fsid;
+	uint64_t	fileid;
 	const char	*name;
 	STAILQ_HEAD(, consumer) consumers;
 };

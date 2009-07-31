@@ -250,7 +250,7 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 		for (d = devs; d != NULL; d = d->next)
 			if (d->fsid == vn.vn_fsid) {
 				fsmatch = 1;
-				if (d->ino == vn.vn_fileid) {
+				if ((unsigned)d->ino == vn.vn_fileid) {
 					filename = d->name;
 					break;
 				}
@@ -448,8 +448,8 @@ print_vnode_info(struct procstat *procstat, struct filestat *fst)
 
 	if (nflg)
 		printf(" %2d,%-2d", major(vn.vn_fsid), minor(vn.vn_fsid));
-	else if (vn.mntdir != NULL)
-		(void)printf(" %-8s", vn.mntdir);
+	else if (vn.vn_mntdir != NULL)
+		(void)printf(" %-8s", vn.vn_mntdir);
 
 	/*
 	 * Print access mode.

@@ -361,13 +361,13 @@ struct kinfo_file {
 			/* Global file id. */
 			uint64_t	kf_file_fileid;
 			/* File size. */
-			off_t		kf_file_size;
+			uint64_t	kf_file_size;
 			/* Vnode filesystem id. */
-			dev_t		kf_file_fsid;
+			uint32_t	kf_file_fsid;
 			/* File device. */
-			dev_t		kf_file_rdev;
+			uint32_t	kf_file_rdev;
 			/* File mode. */
-			mode_t		kf_file_mode;
+			uint16_t	kf_file_mode;
 			/* Round to 64 bit alignment. */
 			uint16_t	kf_file_pad0;
 			uint32_t	kf_file_pad1;
@@ -380,7 +380,7 @@ struct kinfo_file {
 			uint32_t	kf_pipe_pad0[3];
 		} kf_pipe;
 		struct {
-			dev_t		kf_pts_dev;
+			uint32_t	kf_pts_dev;
 			/* Round to 64 bit alignment. */
 			uint32_t	kf_pts_pad0[7];
 		} kf_pts;
@@ -458,12 +458,11 @@ struct kinfo_vmentry {
 	int	 kve_ref_count;			/* VM obj ref count. */
 	int	 kve_shadow_count;		/* VM obj shadow count. */
 	int	 kve_vn_type;			/* Vnode type. */
-	off_t 	 kve_vn_size;			/* File size. */
-	dev_t	 kve_vn_rdev;			/* Device id if device. */
-	mode_t	 kve_vn_mode;			/* File mode. */
+	uint64_t kve_vn_size;			/* File size. */
+	uint32_t kve_vn_rdev;			/* Device id if device. */
+	uint16_t kve_vn_mode;			/* File mode. */
 	uint16_t kve_status;			/* Status flags. */
-	int	 _kve_pad0;			/* 64bit align next field */
-	int	 _kve_ispare[11];		/* Space for more stuff. */
+	int	 _kve_ispare[12];		/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char	 kve_path[PATH_MAX];		/* Path to VM obj, if any. */
 };

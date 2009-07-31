@@ -877,7 +877,7 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		snprintf(errbuf, _POSIX2_LINE_MAX, "?(%s)", tagstr);
 		return (1);
 	}
-	vn->mntdir = getmnton(kd, vnode.v_mount);
+	vn->vn_mntdir = getmnton(kd, vnode.v_mount);
 	if ((vnode.v_type == VBLK || vnode.v_type == VCHR) &&
 	    vnode.v_rdev != NULL){
 		vn->vn_dev = dev2udev(kd, vnode.v_rdev);
@@ -930,14 +930,14 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 	struct statfs stbuf;
 	struct kinfo_file *kif;
 	struct kinfo_vmentry *kve;
-	int vntype;
-	dev_t rdev;
-	off_t size;
-	mode_t mode;
-	int status;
 	uint64_t fileid;
-	uint32_t fsid;
+	uint64_t size;
 	char *name, *path;
+	uint32_t fsid;
+	uint16_t mode;
+	uint32_t rdev;
+	int vntype;
+	int status;
 
 	assert(fst);
 	assert(vn);
@@ -971,7 +971,7 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 		return (0);
 	if (path && *path) {
 		statfs(path, &stbuf);
-		vn->mntdir = strdup(stbuf.f_mntonname);
+		vn->vn_mntdir = strdup(stbuf.f_mntonname);
 	}
 	vn->vn_dev =rdev;
 	if (vntype == KF_VTYPE_VBLK) {
