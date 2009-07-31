@@ -1627,6 +1627,7 @@ dev/usb/net/usb_ethernet.c \
 #
 dev/usb/wlan/if_rum.c		optional rum
 dev/usb/wlan/if_uath.c		optional uath
+dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
 dev/usb/wlan/if_urtw.c		optional urtw
 dev/usb/wlan/if_zyd.c		optional zyd
