@@ -9,8 +9,6 @@ SRCS=	cd9660.c common_kvm.c fstat.c fuser.c libprocstat.c main.c \
 LINKS=	${BINDIR}/fstat ${BINDIR}/fuser
 DPADD=	${LIBKVM}
 LDADD=	-lkvm -lutil
-BINGRP=	kmem
-BINMODE=2555
 WARNS?=	6
 
 MAN1=	fuser.1 fstat.1

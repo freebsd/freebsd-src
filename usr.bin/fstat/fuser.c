@@ -239,19 +239,12 @@ do_fuser(int argc, char *argv[])
 	if (nfiles == 0)
 		errx(EX_IOERR, "files not accessible");
 
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (nlistf != NULL || memf != NULL)
-		setgid(getgid());
 	procstat = procstat_open(nlistf, memf);
 	if (procstat == NULL)
 		errx(1, "procstat_open()");
 	p = procstat_getprocs(procstat, KERN_PROC_PROC, 0, &cnt);
 	if (p == NULL)
 		 errx(1, "procstat_getprocs()");
-	setgid(getgid());
 
 	/*
 	 * Walk through process table and look for matching files.

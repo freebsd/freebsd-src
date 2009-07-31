@@ -191,7 +191,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 		name[2] = what;
 		name[3] = arg;
 		error = sysctl(name, 4, NULL, &len, NULL, 0);
-		if (error < 0) {
+		if (error < 0 && errno != EPERM) {
 			warn("sysctl(kern.proc)");
 			goto fail;
 		}
@@ -205,7 +205,7 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 			goto fail;
 		}
 		error = sysctl(name, 4, p, &len, NULL, 0);
-		if (error < 0) {
+		if (error < 0 && errno != EPERM) {
 			warn("sysctl(kern.proc)");
 			goto fail;
 		}
