@@ -2975,7 +2975,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	struct filedesc *fdp;
 	struct kinfo_file *kif;
 	struct proc *p;
-	struct vnode *tracevp, *textvp;
+	struct vnode *cttyvp, *textvp, *tracevp;
 	size_t oldidx;
 	int64_t offset;
 	void *data;
@@ -2997,6 +2997,12 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	textvp = p->p_textvp;
 	if (textvp != NULL)
 		vref(textvp);
+	/* Controlling tty. */
+	cttyvp = NULL;
+	if (p->p_pgrp != NULL && p->p_pgrp->pg_session != NULL) {
+		cttyvp = p->p_pgrp->pg_session.s_ttyvp;
+		vref(cttyvp);
+	}
 	fdp = fdhold(p);
 	PROC_UNLOCK(p);
 	kif = malloc(sizeof(*kif), M_TEMP, M_WAITOK);
@@ -3006,6 +3012,9 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	if (textvp != NULL)
 		export_fd_for_sysctl(textvp, KF_TYPE_VNODE, KF_FD_TYPE_TEXT,
 		    FREAD, -1, -1, kif, req);
+	if (cttyvp != NULL)
+		export_fd_for_sysctl(cttyvp, KF_TYPE_VNODE, KF_FD_TYPE_CTTY,
+		    FREAD | FWRITE, -1, -1, kif, req);
 	if (fdp == NULL)
 		goto fail;
 	FILEDESC_SLOCK(fdp);

@@ -77,7 +77,8 @@ struct {
 	{PS_FST_UFLAG_JAIL,	'j'},
 	{PS_FST_UFLAG_TRACE,	't'},
 	{PS_FST_UFLAG_TEXT,	'x'},
-	{PS_FST_UFLAG_MMAP,	'm'}
+	{PS_FST_UFLAG_MMAP,	'm'},
+	{PS_FST_UFLAG_CTTY,	'y'}
 };
 #define	NUFLAGS	(sizeof(uflags) / sizeof(*uflags))
 
@@ -135,7 +136,6 @@ printflags(struct consumer *cons)
 	for (i = 0; i < NFFLAGS; i++)
 		if ((cons->flags & fflags[i].flag) != 0)
 			fputc(fflags[i].ch, stderr);
-	/* XXX: add controlling tty support. */
 }
 
 /*

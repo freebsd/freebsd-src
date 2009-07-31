@@ -278,6 +278,41 @@ filestat_new_entry(void *typedep, int type, int fd, int fflags, int uflags)
 	return (entry);
 }
 
+static struct vnode *
+getctty(kvm_t *kd, struct kinfo_proc *kp)
+{
+	struct pgrp pgrp;
+	struct proc proc;
+	struct session sess;
+	int error;
+                        
+	assert(kp);
+	error = kvm_read_all(kd, (unsigned long)kp->ki_paddr, &proc,
+	    sizeof(proc));
+	if (error == 0) {
+		warnx("can't read proc struct at %p for pid %d",
+		    kp->ki_paddr, kp->ki_pid);
+		return (NULL);
+	}
+	if (proc.p_pgrp == NULL)
+		return (NULL);
+	error = kvm_read_all(kd, (unsigned long)proc.p_pgrp, &pgrp,
+	    sizeof(pgrp));
+	if (error == 0) {
+		warnx("can't read pgrp struct at %p for pid %d",
+		    proc.p_pgrp, kp->ki_pid);
+		return (NULL);
+	}
+	error = kvm_read_all(kd, (unsigned long)pgrp.pg_session, &sess,
+	    sizeof(sess));
+	if (error == 0) {
+		warnx("can't read session struct at %p for pid %d",
+		    pgrp.pg_session, kp->ki_pid);
+		return (NULL);
+	}
+	return (sess.s_ttyvp);
+}
+
 static struct filestat_list *
 procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, int mmapped)
 {
@@ -286,6 +321,7 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, int mmapped)
 	struct vm_map_entry vmentry;
 	struct vm_object object;
 	struct vmspace vmspace;
+	struct vnode *vp;
 	vm_map_entry_t entryp;
 	vm_map_t map;
 	vm_object_t objp;
@@ -346,6 +382,13 @@ procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, int mmapped)
 	if (kp->ki_textvp) {
 		entry = filestat_new_entry(kp->ki_textvp, PS_FST_TYPE_VNODE, -1,
 		    PS_FST_FFLAG_READ, PS_FST_UFLAG_TEXT);
+		if (entry != NULL)
+			STAILQ_INSERT_TAIL(head, entry, next);
+	}
+	/* Controlling terminal. */
+	if ((vp = getctty(kd, kp)) != NULL) {
+		entry = filestat_new_entry(vp, PS_FST_TYPE_VNODE, -1,
+		    PS_FST_FFLAG_READ | PS_FST_FFLAG_WRITE, PS_FST_UFLAG_CTTY);
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
@@ -541,16 +584,18 @@ kinfo_uflags2fst(int fd)
 {
 
 	switch (fd) {
+	case KF_FD_TYPE_CTTY:
+		return (PS_FST_UFLAG_CTTY);
 	case KF_FD_TYPE_CWD:
 		return (PS_FST_UFLAG_CDIR);
-	case KF_FD_TYPE_ROOT:
-		return (PS_FST_UFLAG_RDIR);
 	case KF_FD_TYPE_JAIL:
 		return (PS_FST_UFLAG_JAIL);
-	case KF_FD_TYPE_TRACE:
-		return (PS_FST_UFLAG_TRACE);
 	case KF_FD_TYPE_TEXT:
 		return (PS_FST_UFLAG_TEXT);
+	case KF_FD_TYPE_TRACE:
+		return (PS_FST_UFLAG_TRACE);
+	case KF_FD_TYPE_ROOT:
+		return (PS_FST_UFLAG_RDIR);
 	}
 	return (0);
 }

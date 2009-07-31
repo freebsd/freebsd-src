@@ -278,6 +278,7 @@ struct user {
 #define	KF_FD_TYPE_JAIL	-3	/* Jail directory */
 #define	KF_FD_TYPE_TRACE	-4	/* ptrace vnode */
 #define	KF_FD_TYPE_TEXT	-5	/* Text vnode */
+#define	KF_FD_TYPE_CTTY	-6	/* Controlling terminal */
 
 #define	KF_FLAG_READ		0x00000001
 #define	KF_FLAG_WRITE		0x00000002
