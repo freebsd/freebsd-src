@@ -387,7 +387,7 @@ static ACPI_RESOURCE_TAG        *AcpiGbl_ResourceTags [] =
 
 static UINT32                   AcpiGbl_NextResourceId = 0;
 static UINT8                    AcpiGbl_NextPrefix = 0;
-static UINT8                    AcpiGbl_Prefix[ACPI_NUM_RES_PREFIX] =
+static char                     AcpiGbl_Prefix[ACPI_NUM_RES_PREFIX] =
                                     {'Y','Z','J','K','X'};
 
 

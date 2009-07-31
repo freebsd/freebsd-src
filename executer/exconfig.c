@@ -196,7 +196,14 @@ AcpiExAddTable (
     {
         AcpiUtRemoveReference (ObjDesc);
         *DdbHandle = NULL;
+        return_ACPI_STATUS (Status);
     }
+
+    /* Execute any module-level code that was found in the table */
+
+    AcpiExExitInterpreter ();
+    AcpiNsExecModuleCodeList ();
+    AcpiExEnterInterpreter ();
 
     return_ACPI_STATUS (Status);
 }

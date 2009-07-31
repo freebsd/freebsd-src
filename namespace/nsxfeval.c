@@ -662,7 +662,7 @@ AcpiNsGetDeviceCallback (
     ACPI_DEVICE_ID_LIST     *Cid;
     UINT32                  i;
     BOOLEAN                 Found;
-    int                     Match;
+    int                     NoMatch;
 
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
@@ -716,10 +716,10 @@ AcpiNsGetDeviceCallback (
             return (AE_CTRL_DEPTH);
         }
 
-        Match = ACPI_STRCMP (Hid->String, Info->Hid);
+        NoMatch = ACPI_STRCMP (Hid->String, Info->Hid);
         ACPI_FREE (Hid);
 
-        if (!Match)
+        if (NoMatch)
         {
             /*
              * HID does not match, attempt match within the
