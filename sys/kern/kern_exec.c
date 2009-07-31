@@ -673,8 +673,8 @@ interpret:
 		 * allocate memory, so temporarily drop the process lock.
 		 */
 		PROC_UNLOCK(p);
-		setugidsafety(td);
 		VOP_UNLOCK(imgp->vp, 0);
+		setugidsafety(td);
 		error = fdcheckstd(td);
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0)
