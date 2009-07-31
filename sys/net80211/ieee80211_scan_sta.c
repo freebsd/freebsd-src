@@ -1018,8 +1018,8 @@ match_bss(struct ieee80211vap *vap,
 		else if (ms->ms_idlen != 0 &&
 		    match_id(se->se_meshid, ms->ms_id, ms->ms_idlen))
 			fail |= MATCH_MESHID;
-	} else {
 #endif
+	} else {
 		if ((se->se_capinfo & IEEE80211_CAPINFO_ESS) == 0)
 			fail |= MATCH_CAPINFO;
 		/*
