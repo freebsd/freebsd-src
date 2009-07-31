@@ -257,7 +257,6 @@ FBSD_1.0 {
 	sem_timedwait;
 	sem_post;
 	sem_getvalue;
-	semctl;
 	setdomainname;
 	sethostname;
 	longjmperror;
@@ -339,6 +338,7 @@ FBSD_1.0 {
 FBSD_1.1 {
 	fdopendir;
 	feature_present;
+	semctl;
 };
 
 FBSDprivate_1.0 {

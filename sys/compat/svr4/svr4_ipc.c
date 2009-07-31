@@ -169,13 +169,12 @@ bsd_to_svr4_semid_ds(bds, sds)
 	const struct semid_ds *bds;
 	struct svr4_semid_ds *sds;
 {
+	bzero(sds, sizeof(*sds));
 	bsd_to_svr4_ipc_perm(&bds->sem_perm, &sds->sem_perm);
 	sds->sem_base = (struct svr4_sem *) bds->sem_base;
 	sds->sem_nsems = bds->sem_nsems;
 	sds->sem_otime = bds->sem_otime;
-	sds->sem_pad1 = bds->sem_pad1;
 	sds->sem_ctime = bds->sem_ctime;
-	sds->sem_pad2 = bds->sem_pad2;
 }
 
 static void
@@ -187,9 +186,7 @@ svr4_to_bsd_semid_ds(sds, bds)
 	bds->sem_base = (struct sem *) bds->sem_base;
 	bds->sem_nsems = sds->sem_nsems;
 	bds->sem_otime = sds->sem_otime;
-	bds->sem_pad1 = sds->sem_pad1;
 	bds->sem_ctime = sds->sem_ctime;
-	bds->sem_pad2 = sds->sem_pad2;
 }
 
 struct svr4_sys_semctl_args {
@@ -350,6 +347,7 @@ bsd_to_svr4_msqid_ds(bds, sds)
 	const struct msqid_ds *bds;
 	struct svr4_msqid_ds *sds;
 {
+	bzero(sds, sizeof(*sds));
 	bsd_to_svr4_ipc_perm(&bds->msg_perm, &sds->msg_perm);
 	sds->msg_first = (struct svr4_msg *) bds->msg_first;
 	sds->msg_last = (struct svr4_msg *) bds->msg_last;
@@ -359,18 +357,8 @@ bsd_to_svr4_msqid_ds(bds, sds)
 	sds->msg_lspid = bds->msg_lspid;
 	sds->msg_lrpid = bds->msg_lrpid;
 	sds->msg_stime = bds->msg_stime;
-	sds->msg_pad1 = bds->msg_pad1;
 	sds->msg_rtime = bds->msg_rtime;
-	sds->msg_pad2 = bds->msg_pad2;
 	sds->msg_ctime = bds->msg_ctime;
-	sds->msg_pad3 = bds->msg_pad3;
-
-	/* use the padding for the rest of the fields */
-	{
-		const short *pad = (const short *) bds->msg_pad4;
-		sds->msg_cv = pad[0];
-		sds->msg_qnum_cv = pad[1];
-	}
 }
 
 static void
@@ -387,18 +375,8 @@ svr4_to_bsd_msqid_ds(sds, bds)
 	bds->msg_lspid = sds->msg_lspid;
 	bds->msg_lrpid = sds->msg_lrpid;
 	bds->msg_stime = sds->msg_stime;
-	bds->msg_pad1 = sds->msg_pad1;
 	bds->msg_rtime = sds->msg_rtime;
-	bds->msg_pad2 = sds->msg_pad2;
 	bds->msg_ctime = sds->msg_ctime;
-	bds->msg_pad3 = sds->msg_pad3;
-
-	/* use the padding for the rest of the fields */
-	{
-		short *pad = (short *) bds->msg_pad4;
-		pad[0] = sds->msg_cv;
-		pad[1] = sds->msg_qnum_cv;
-	}
 }
 
 struct svr4_sys_msgsnd_args {
@@ -543,20 +521,18 @@ bsd_to_svr4_shmid_ds(bds, sds)
 	const struct shmid_ds *bds;
 	struct svr4_shmid_ds *sds;
 {
+	bzero(sds, sizeof(*sds));
 	bsd_to_svr4_ipc_perm(&bds->shm_perm, &sds->shm_perm);
 	sds->shm_segsz = bds->shm_segsz;
 	sds->shm_lkcnt = 0;
 	sds->shm_lpid = bds->shm_lpid;
 	sds->shm_cpid = bds->shm_cpid;
-	sds->shm_amp = bds->shm_internal;
+	sds->shm_amp = 0;
 	sds->shm_nattch = bds->shm_nattch;
 	sds->shm_cnattch = 0;
 	sds->shm_atime = bds->shm_atime;
-	sds->shm_pad1 = 0;
 	sds->shm_dtime = bds->shm_dtime;
-	sds->shm_pad2 = 0;
 	sds->shm_ctime = bds->shm_ctime;
-	sds->shm_pad3 = 0;
 }
 
 static void
@@ -568,7 +544,6 @@ svr4_to_bsd_shmid_ds(sds, bds)
 	bds->shm_segsz = sds->shm_segsz;
 	bds->shm_lpid = sds->shm_lpid;
 	bds->shm_cpid = sds->shm_cpid;
-	bds->shm_internal = sds->shm_amp;
 	bds->shm_nattch = sds->shm_nattch;
 	bds->shm_atime = sds->shm_atime;
 	bds->shm_dtime = sds->shm_dtime;

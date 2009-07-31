@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090731:
+	The ABI of various structures related to the SYSV IPC API have
+	been changed.  Bump __FreeBSD_version to 702105.
+
 20090606:
 	The components of PmcTools have been upgraded. Please
 	update world and the kernel.
