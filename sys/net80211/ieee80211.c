@@ -638,7 +638,8 @@ ieee80211_syncifflag_locked(struct ieee80211com *ic, int flag)
 			 */
 			if (flag == IFF_PROMISC &&
 			    !(vap->iv_opmode == IEEE80211_M_MONITOR ||
-			      vap->iv_opmode == IEEE80211_M_AHDEMO))
+			      (vap->iv_opmode == IEEE80211_M_AHDEMO &&
+			       (vap->iv_caps & IEEE80211_C_TDMA) == 0)))
 				continue;
 			bit = 1;
 			break;
