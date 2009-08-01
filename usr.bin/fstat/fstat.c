@@ -229,13 +229,14 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 	DEVS *d;
 	const char *filename;
 	int error, fsmatch = 0;
+	char errbuf[_POSIX2_LINE_MAX];
 
 	filename = NULL;
 	if (checkfile != 0) {
 		if (fst->fs_type != PS_FST_TYPE_VNODE &&
 		    fst->fs_type != PS_FST_TYPE_FIFO)
 			return;
-		error = procstat_get_vnode_info(procstat, fst, &vn, NULL);
+		error = procstat_get_vnode_info(procstat, fst, &vn, errbuf);
 		if (error != 0)
 			return;
 

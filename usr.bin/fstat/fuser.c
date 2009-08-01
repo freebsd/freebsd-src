@@ -288,6 +288,7 @@ dofiles(struct procstat *procstat, struct kinfo_proc *kp,
 	struct filestat_list *head;
 	int error, match;
 	unsigned int i;
+	char errbuf[_POSIX2_LINE_MAX];
 	
 	head = procstat_getfiles(procstat, kp, flags & MFLAG);
 	if (head == NULL)
@@ -295,7 +296,7 @@ dofiles(struct procstat *procstat, struct kinfo_proc *kp,
 	STAILQ_FOREACH(fst, head, next) {
 		if (fst->fs_type != PS_FST_TYPE_VNODE)
 			continue;
-		error = procstat_get_vnode_info(procstat, fst, &vn, NULL);
+		error = procstat_get_vnode_info(procstat, fst, &vn, errbuf);
 		if (error != 0)
 			continue;
 		for (i = 0; i < nfiles; i++) {
