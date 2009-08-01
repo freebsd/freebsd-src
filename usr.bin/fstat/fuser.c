@@ -155,7 +155,7 @@ addfile(const char *path, struct reqfile *reqfile)
 	reqfile->fsid = sb.st_dev;
 	reqfile->name = path;
 	STAILQ_INIT(&reqfile->consumers);
-	return (0);	
+	return (0);
 }
 
 int
