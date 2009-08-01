@@ -217,13 +217,6 @@ void	 vnet_data_copy(void *start, int size);
 void	 vnet_data_free(void *start_arg, int size);
 
 /*
- * Virtual network stack allocator interfaces for vnet setup/teardown.
- */
-struct vnet;
-void	 vnet_data_init(struct vnet *vnet);
-void	 vnet_data_destroy(struct vnet *vnet);
-
-/*
  * Sysctl variants for vnet-virtualized global variables.  Include
  * <sys/sysctl.h> to expose these definitions.
  *
