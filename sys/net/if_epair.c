@@ -38,7 +38,7 @@
 /*
  * Things to re-think once we have more experience:
  * - ifp->if_reassign function once we can test with vimage. Depending on
- *   how if_vomve() is going to be improved.
+ *   how if_vmove() is going to be improved.
  * - Real random etheraddrs that are checked to be uniquish; we would need
  *   to re-do them in case we move the interface between network stacks
  *   in a private if_reassign function.
@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
-#include <sys/vimage.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -70,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
+#include <net/vnet.h>
 
 #define	EPAIRNAME	"epair"
 

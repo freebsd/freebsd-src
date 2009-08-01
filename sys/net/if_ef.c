@@ -39,7 +39,6 @@
 #include <sys/syslog.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/vimage.h>
 
 #include <net/ethernet.h>
 #include <net/if_llc.h>

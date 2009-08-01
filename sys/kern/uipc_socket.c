@@ -129,7 +129,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/jail.h>
-#include <sys/vimage.h>
+
+#include <net/vnet.h>
 
 #include <security/mac/mac_framework.h>
 

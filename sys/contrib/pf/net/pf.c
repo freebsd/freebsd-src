@@ -91,7 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
-#include <sys/vimage.h>
 #else
 #include <sys/rwlock.h>
 #endif
