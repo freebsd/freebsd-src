@@ -296,6 +296,10 @@ static void
 vnet0_init(void *arg)
 {
 
+	/* Warn people before take off - in case we crash early. */
+	printf("WARNING: VIMAGE (virtualized network stack) is a highly "
+	    "experimental feature.\n");
+
 	/*
 	 * We MUST clear curvnet in vi_init_done() before going SMP,
 	 * otherwise CURVNET_SET() macros would scream about unnecessary
