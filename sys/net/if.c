@@ -59,7 +59,6 @@
 #include <sys/taskqueue.h>
 #include <sys/domain.h>
 #include <sys/jail.h>
-#include <sys/vimage.h>
 #include <machine/stdarg.h>
 #include <vm/uma.h>
 

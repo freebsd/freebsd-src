@@ -54,9 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/device.h>
 #endif
 #include <sys/time.h>
-#ifdef __FreeBSD__
-#include <sys/vimage.h>
-#endif
 
 #include <net/if.h>
 #include <net/if_types.h>

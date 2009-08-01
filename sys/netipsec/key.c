@@ -56,7 +56,6 @@
 #include <sys/queue.h>
 #include <sys/refcount.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>

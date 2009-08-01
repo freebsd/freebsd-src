@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>

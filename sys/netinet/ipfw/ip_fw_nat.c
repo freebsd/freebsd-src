@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/ucred.h>
-#include <sys/vimage.h>
 
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>

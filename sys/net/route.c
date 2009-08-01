@@ -51,11 +51,11 @@
 #include <sys/proc.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>

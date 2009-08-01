@@ -1,4 +1,12 @@
 /*-
+ * Copyright (c) 2006-2009 University of Zagreb
+ * Copyright (c) 2006-2009 FreeBSD Foundation
+ * All rights reserved.
+ *
+ * This software was developed by the University of Zagreb and the
+ * FreeBSD Foundation under sponsorship by the Stichting NLnet and the
+ * FreeBSD Foundation.
+ *
  * Copyright (c) 2009 Jeffrey Roberson <jeff@freebsd.org>
  * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
@@ -31,6 +39,9 @@
  * This header file defines several sets of interfaces supporting virtualized
  * network stacks:
  *
+ * - Definition of 'struct vnet' and functions and macros to allocate/free/
+ *   manipulate it.
+ *
  * - A virtual network stack memory allocator, which provides support for
  *   virtualized global variables via a special linker set, set_vnet.
  *
@@ -47,17 +58,133 @@
 #define	_NET_VNET_H_
 
 /*
- * Virtual network stack memory allocator, which allows global variables to
- * be automatically instantiated for each network stack instance.
+ * struct vnet describes a virtualized network stack, and is primarily a
+ * pointer to storage for virtualized global variables.  Expose to userspace
+ * as required for libkvm.
  */
 #if defined(_KERNEL) || defined(_WANT_VNET)
+#include <sys/queue.h>
+
+struct vnet {
+	LIST_ENTRY(vnet)	 vnet_le;	/* all vnets list */
+	u_int			 vnet_magic_n;
+	u_int			 vnet_ifcnt;
+	u_int			 vnet_sockcnt;
+	void			*vnet_data_mem;
+	uintptr_t		 vnet_data_base;
+};
+#define	VNET_MAGIC_N	0x3e0d8f29
+
+/*
+ * These two virtual network stack allocator definitions are also required
+ * for libkvm so that it can evaluate virtualized global variables.
+ */
 #define	VNET_SETNAME		"set_vnet"
 #define	VNET_SYMPREFIX		"vnet_entry_"
 #endif
 
 #ifdef _KERNEL
-#ifdef VIMAGE
 
+#ifdef VIMAGE
+#include <sys/lock.h>
+#include <sys/proc.h>			/* for struct thread */
+#include <sys/rwlock.h>
+#include <sys/sx.h>
+
+/*
+ * Functions to allocate and destroy virtual network stacks.
+ */
+struct vnet *vnet_alloc(void);
+void	vnet_destroy(struct vnet *vnet);
+
+/*
+ * The current virtual network stack -- we may wish to move this to struct
+ * pcpu in the future.
+ */
+#define	curvnet	curthread->td_vnet
+
+/*
+ * Various macros -- get and set the current network stack, but also
+ * assertions.
+ */
+#ifdef INVARIANTS
+#define	VNET_DEBUG
+#endif
+#ifdef VNET_DEBUG
+#define	VNET_ASSERT(condition)						\
+	if (!(condition)) {						\
+		printf("VNET_ASSERT @ %s:%d %s():\n",			\
+			__FILE__, __LINE__, __FUNCTION__);		\
+		panic(#condition);					\
+	}
+
+#define	CURVNET_SET_QUIET(arg)						\
+	VNET_ASSERT((arg)->vnet_magic_n == VNET_MAGIC_N);		\
+	struct vnet *saved_vnet = curvnet;				\
+	const char *saved_vnet_lpush = curthread->td_vnet_lpush;	\
+	curvnet = arg;							\
+	curthread->td_vnet_lpush = __FUNCTION__;
+ 
+#define	CURVNET_SET_VERBOSE(arg)					\
+	CURVNET_SET_QUIET(arg)						\
+	if (saved_vnet)							\
+		printf("CURVNET_SET(%p) in %s() on cpu %d, prev %p in %s()\n", \
+		       curvnet,	curthread->td_vnet_lpush, curcpu,	\
+		       saved_vnet, saved_vnet_lpush);
+
+#define	CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
+ 
+#define	CURVNET_RESTORE()						\
+	VNET_ASSERT(saved_vnet == NULL ||				\
+		    saved_vnet->vnet_magic_n == VNET_MAGIC_N);		\
+	curvnet = saved_vnet;						\
+	curthread->td_vnet_lpush = saved_vnet_lpush;
+#else /* !VNET_DEBUG */
+#define	VNET_ASSERT(condition)
+
+#define	CURVNET_SET(arg)						\
+	struct vnet *saved_vnet = curvnet;				\
+	curvnet = arg;	
+ 
+#define	CURVNET_SET_VERBOSE(arg)	CURVNET_SET(arg)
+#define	CURVNET_SET_QUIET(arg)		CURVNET_SET(arg)
+ 
+#define	CURVNET_RESTORE()						\
+	curvnet = saved_vnet;
+#endif /* VNET_DEBUG */
+
+extern struct vnet *vnet0;
+#define	IS_DEFAULT_VNET(arg)	((arg) == vnet0)
+
+#define	CRED_TO_VNET(cr)	(cr)->cr_prison->pr_vnet
+#define	TD_TO_VNET(td)		CRED_TO_VNET((td)->td_ucred)
+#define	P_TO_VNET(p)		CRED_TO_VNET((p)->p_ucred)
+
+/*
+ * Global linked list of all virtual network stacks, along with read locks to
+ * access it.  If a caller may sleep while accessing the list, it must use
+ * the sleepable lock macros.
+ */
+LIST_HEAD(vnet_list_head, vnet);
+extern struct vnet_list_head vnet_head;
+extern struct rwlock vnet_rwlock;
+extern struct sx vnet_sxlock;
+
+#define	VNET_LIST_RLOCK()		sx_slock(&vnet_sxlock)
+#define	VNET_LIST_RLOCK_NOSLEEP()	rw_rlock(&vnet_rwlock)
+#define	VNET_LIST_RUNLOCK()		sx_sunlock(&vnet_sxlock)
+#define	VNET_LIST_RUNLOCK_NOSLEEP()	rw_runlock(&vnet_rwlock)
+
+/*
+ * Iteration macros to walk the global list of virtual network stacks.
+ */
+#define	VNET_ITERATOR_DECL(arg)	struct vnet *arg
+#define	VNET_FOREACH(arg)	LIST_FOREACH((arg), &vnet_head, vnet_le)
+
+/*
+ * Virtual network stack memory allocator, which allows global variables to
+ * be automatically instantiated for each network stack instance.
+ */
 #if defined(__arm__)
 __asm__(".section " VNET_SETNAME ", \"aw\", %progbits");
 #else
@@ -191,6 +318,28 @@ void	vnet_deregister_sysinit(void *arg);
 void	vnet_deregister_sysuninit(void *arg);
 
 #else /* !VIMAGE */
+
+/*
+ * Various virtual network stack macros compile to no-ops without VIMAGE.
+ */
+#define	curvnet			NULL
+
+#define	VNET_ASSERT(condition)
+#define	CURVNET_SET(arg)
+#define	CURVNET_SET_QUIET(arg)
+#define	CURVNET_RESTORE()
+
+#define	VNET_LIST_RLOCK()
+#define	VNET_LIST_RLOCK_NOSLEEP()
+#define	VNET_LIST_RUNLOCK()
+#define	VNET_LIST_RUNLOCK_NOSLEEP()
+#define	VNET_ITERATOR_DECL(arg)
+#define	VNET_FOREACH(arg)
+
+#define	IS_DEFAULT_VNET(arg)	1
+#define	CRED_TO_VNET(cr)	NULL
+#define	TD_TO_VNET(td)		NULL
+#define	P_TO_VNET(p)		NULL
 
 /*
  * Versions of the VNET macros that compile to normal global variables and

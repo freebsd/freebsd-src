@@ -42,7 +42,6 @@
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/pfil.h>

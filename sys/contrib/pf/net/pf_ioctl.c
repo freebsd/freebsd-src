@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 #else
 #include <sys/timeout.h>
 #include <sys/pool.h>

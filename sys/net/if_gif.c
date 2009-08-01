@@ -49,7 +49,6 @@
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/conf.h>
-#include <sys/vimage.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -58,6 +57,7 @@
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/bpf.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
