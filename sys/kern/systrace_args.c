@@ -1215,13 +1215,13 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* __semctl */
+	/* freebsd7___semctl */
 	case 220: {
-		struct __semctl_args *p = params;
+		struct freebsd7___semctl_args *p = params;
 		iarg[0] = p->semid; /* int */
 		iarg[1] = p->semnum; /* int */
 		iarg[2] = p->cmd; /* int */
-		uarg[3] = (intptr_t) p->arg; /* union semun * */
+		uarg[3] = (intptr_t) p->arg; /* union semun_old * */
 		*n_args = 4;
 		break;
 	}
@@ -1243,12 +1243,12 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* msgctl */
+	/* freebsd7_msgctl */
 	case 224: {
-		struct msgctl_args *p = params;
+		struct freebsd7_msgctl_args *p = params;
 		iarg[0] = p->msqid; /* int */
 		iarg[1] = p->cmd; /* int */
-		uarg[2] = (intptr_t) p->buf; /* struct msqid_ds * */
+		uarg[2] = (intptr_t) p->buf; /* struct msqid_ds_old * */
 		*n_args = 3;
 		break;
 	}
@@ -1290,12 +1290,12 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* shmctl */
+	/* freebsd7_shmctl */
 	case 229: {
-		struct shmctl_args *p = params;
+		struct freebsd7_shmctl_args *p = params;
 		iarg[0] = p->shmid; /* int */
 		iarg[1] = p->cmd; /* int */
-		uarg[2] = (intptr_t) p->buf; /* struct shmid_ds * */
+		uarg[2] = (intptr_t) p->buf; /* struct shmid_ds_old * */
 		*n_args = 3;
 		break;
 	}
@@ -2928,6 +2928,34 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		struct closefrom_args *p = params;
 		iarg[0] = p->lowfd; /* int */
 		*n_args = 1;
+		break;
+	}
+	/* __semctl */
+	case 510: {
+		struct __semctl_args *p = params;
+		iarg[0] = p->semid; /* int */
+		iarg[1] = p->semnum; /* int */
+		iarg[2] = p->cmd; /* int */
+		uarg[3] = (intptr_t) p->arg; /* union semun * */
+		*n_args = 4;
+		break;
+	}
+	/* msgctl */
+	case 511: {
+		struct msgctl_args *p = params;
+		iarg[0] = p->msqid; /* int */
+		iarg[1] = p->cmd; /* int */
+		uarg[2] = (intptr_t) p->buf; /* struct msqid_ds * */
+		*n_args = 3;
+		break;
+	}
+	/* shmctl */
+	case 512: {
+		struct shmctl_args *p = params;
+		iarg[0] = p->shmid; /* int */
+		iarg[1] = p->cmd; /* int */
+		uarg[2] = (intptr_t) p->buf; /* struct shmid_ds * */
+		*n_args = 3;
 		break;
 	}
 	default:
@@ -4855,7 +4883,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* lkmnosys */
 	case 219:
 		break;
-	/* __semctl */
+	/* freebsd7___semctl */
 	case 220:
 		switch(ndx) {
 		case 0:
@@ -4868,7 +4896,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 3:
-			p = "union semun *";
+			p = "union semun_old *";
 			break;
 		default:
 			break;
@@ -4906,7 +4934,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* msgctl */
+	/* freebsd7_msgctl */
 	case 224:
 		switch(ndx) {
 		case 0:
@@ -4916,7 +4944,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "struct msqid_ds *";
+			p = "struct msqid_ds_old *";
 			break;
 		default:
 			break;
@@ -4992,7 +5020,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* shmctl */
+	/* freebsd7_shmctl */
 	case 229:
 		switch(ndx) {
 		case 0:
@@ -5002,7 +5030,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 2:
-			p = "struct shmid_ds *";
+			p = "struct shmid_ds_old *";
 			break;
 		default:
 			break;
@@ -7734,6 +7762,57 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* __semctl */
+	case 510:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "union semun *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* msgctl */
+	case 511:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "struct msqid_ds *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* shmctl */
+	case 512:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "struct shmid_ds *";
 			break;
 		default:
 			break;
