@@ -69,6 +69,7 @@ struct filemon {
 };
 
 static TAILQ_HEAD(, filemon) filemons_inuse = TAILQ_HEAD_INITIALIZER(filemons_inuse);
+static TAILQ_HEAD(, filemon) filemons_free = TAILQ_HEAD_INITIALIZER(filemons_free);
 static int n_readers = 0;
 static struct mtx access_mtx;
 static struct cv access_cv;
@@ -122,22 +123,32 @@ filemon_dtr(void *data)
 	struct filemon *filemon = data;
 
 	if (filemon != NULL) {
+		struct file *fp = filemon->fp;
+
 		/* Get exclusive write access. */
 		filemon_lock_write();
 
 		/* Remove from the in-use list. */
 		TAILQ_REMOVE(&filemons_inuse, filemon, link);
 
+		filemon->fp = NULL;
+		filemon->pid = -1;
+
+		/* Add to the free list. */
+		TAILQ_INSERT_TAIL(&filemons_free, filemon, link);
+
 		/* Give up write access. */
 		filemon_unlock_write();
 
-		if (filemon->fp != NULL)
-			fdrop(filemon->fp, curthread);
+		if (fp != NULL)
+			fdrop(fp, curthread);
 
+#ifdef DOODAD
 		mtx_destroy(&filemon->mtx);
 		cv_destroy(&filemon->cv);
 
 		free(filemon, M_FILEMON);
+#endif
 	}
 }
 
@@ -181,13 +192,25 @@ filemon_open(struct cdev *dev, int oflags __unused, int devtype __unused,
 {
 	struct filemon *filemon;
 
-	filemon = malloc(sizeof(struct filemon), M_FILEMON, M_WAITOK | M_ZERO);
+	/* Get exclusive write access. */
+	filemon_lock_write();
+
+	if ((filemon = TAILQ_FIRST(&filemons_free)) != NULL)
+		TAILQ_REMOVE(&filemons_free, filemon, link);
+
+	/* Give up write access. */
+	filemon_unlock_write();
+
+	if (filemon == NULL) {
+		filemon = malloc(sizeof(struct filemon), M_FILEMON, M_WAITOK | M_ZERO);
+
+		filemon->fp = NULL;
+
+		mtx_init(&filemon->mtx, "filemon", "filemon", MTX_DEF);
+		cv_init(&filemon->cv, "filemon");
+	}
 
 	filemon->pid = curproc->p_pid;
-	filemon->fp = NULL;
-
-	mtx_init(&filemon->mtx, "filemon", "filemon", MTX_DEF);
-	cv_init(&filemon->cv, "filemon");
 
 #if __FreeBSD_version < 701000
 	dev->si_drv1 = filemon;
