@@ -3001,7 +3001,8 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	cttyvp = NULL;
 	if (p->p_pgrp != NULL && p->p_pgrp->pg_session != NULL) {
 		cttyvp = p->p_pgrp->pg_session->s_ttyvp;
-		vref(cttyvp);
+		if (cttyvp != NULL)
+			vref(cttyvp);
 	}
 	fdp = fdhold(p);
 	PROC_UNLOCK(p);
