@@ -63,7 +63,6 @@ static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.50 2007/09/20 12
 # include <sys/select.h>
 #endif
 #if __FreeBSD_version >= 800044
-# include <sys/vimage.h>
 # include <netinet/tcp_var.h>
 #else
 #define V_path_mtu_discovery path_mtu_discovery

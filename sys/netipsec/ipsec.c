@@ -53,7 +53,6 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>

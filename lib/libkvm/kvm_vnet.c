@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/proc.h>
 #include <sys/types.h>
-#include <sys/vimage.h>
 
 #include <net/vnet.h>
 

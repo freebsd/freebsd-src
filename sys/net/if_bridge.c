@@ -101,7 +101,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
-#include <sys/vimage.h>
 
 #include <net/bpf.h>
 #include <net/if.h>

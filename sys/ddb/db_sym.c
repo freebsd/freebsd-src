@@ -32,9 +32,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/pcpu.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <net/vnet.h>
 
