@@ -62,9 +62,9 @@ __FBSDID("$FreeBSD$");
 /*-
  * This file implements core functions for virtual network stacks:
  *
- * - Core virtual network stack management functions.
+ * - Virtual network stack management functions.
  *
- * - Virtual network stack memory allocator, which virtualized global
+ * - Virtual network stack memory allocator, which virtualizes global
  *   variables in the network stack
  *
  * - Virtualized SYSINIT's/SYSUNINIT's, which allow network stack subsystems
@@ -78,7 +78,7 @@ MALLOC_DEFINE(M_VNET, "vnet", "network stack control block");
  * The virtual network stack list has two read-write locks, one sleepable and
  * the other not, so that the list can be stablized and walked in a variety
  * of network stack contexts.  Both must be acquired exclusively to modify
- * the list.
+ * the list, but a read lock of either lock is sufficient to walk the list.
  */
 struct rwlock		vnet_rwlock;
 struct sx		vnet_sxlock;
@@ -181,9 +181,9 @@ MALLOC_DEFINE(M_VNET_DATA, "vnet_data", "VNET data");
 static VNET_DEFINE(char, modspace[VNET_MODMIN]);
 
 /*
- * Global lists of subsystem constructor and destructors for vnets.
- * They are registered via VNET_SYSINIT() and VNET_SYSUNINIT().  The
- * lists are protected by the vnet_sxlock global lock.
+ * Global lists of subsystem constructor and destructors for vnets.  They are
+ * registered via VNET_SYSINIT() and VNET_SYSUNINIT().  The lists are
+ * protected by the vnet_sxlock global lock.
  */
 static TAILQ_HEAD(vnet_sysinit_head, vnet_sysinit) vnet_constructors =
 	TAILQ_HEAD_INITIALIZER(vnet_constructors);
@@ -387,15 +387,16 @@ vnet_data_free(void *start_arg, int size)
 		if (df->vnd_start > end)
 			break;
 		/*
-		 * If we expand at the end of an entry we may have to
-		 * merge it with the one following it as well.
+		 * If we expand at the end of an entry we may have to merge
+		 * it with the one following it as well.
 		 */
 		if (df->vnd_start + df->vnd_len == start) {
 			df->vnd_len += size;
 			dn = TAILQ_NEXT(df, vnd_link);
 			if (df->vnd_start + df->vnd_len == dn->vnd_start) {
 				df->vnd_len += dn->vnd_len;
-				TAILQ_REMOVE(&vnet_data_free_head, dn, vnd_link);
+				TAILQ_REMOVE(&vnet_data_free_head, dn,
+				    vnd_link);
 				free(dn, M_VNET_DATA_FREE);
 			}
 			sx_xunlock(&vnet_data_free_lock);
@@ -573,10 +574,9 @@ vnet_deregister_sysuninit(void *arg)
 }
 
 /*
- * Invoke all registered vnet constructors on the current vnet.  Used
- * during vnet construction.  The caller is responsible for ensuring
- * the new vnet is the current vnet and that the vnet_sxlock lock is
- * locked.
+ * Invoke all registered vnet constructors on the current vnet.  Used during
+ * vnet construction.  The caller is responsible for ensuring the new vnet is
+ * the current vnet and that the vnet_sxlock lock is locked.
  */
 void
 vnet_sysinit(void)
@@ -590,10 +590,9 @@ vnet_sysinit(void)
 }
 
 /*
- * Invoke all registered vnet destructors on the current vnet.  Used
- * during vnet destruction.  The caller is responsible for ensuring
- * the dying vnet is the current vnet and that the vnet_sxlock lock is
- * locked.
+ * Invoke all registered vnet destructors on the current vnet.  Used during
+ * vnet destruction.  The caller is responsible for ensuring the dying vnet
+ * is the current vnet and that the vnet_sxlock lock is locked.
  */
 void
 vnet_sysuninit(void)
