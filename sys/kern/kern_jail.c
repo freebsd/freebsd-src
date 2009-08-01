@@ -58,9 +58,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
-#include <sys/vimage.h>
+
 #include <net/if.h>
+#include <net/vnet.h>
+
 #include <netinet/in.h>
+
 #ifdef DDB
 #include <ddb/ddb.h>
 #ifdef INET6

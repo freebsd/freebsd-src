@@ -69,10 +69,10 @@
 #include <sys/syslog.h>
 #include <sys/socket.h>
 #include <sys/ctype.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/ethernet.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>

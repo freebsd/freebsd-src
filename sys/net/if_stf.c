@@ -92,7 +92,6 @@
 #include <machine/cpu.h>
 
 #include <sys/malloc.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
@@ -100,6 +99,7 @@
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/if_stf.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

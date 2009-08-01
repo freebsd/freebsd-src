@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
-#include <sys/vimage.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif

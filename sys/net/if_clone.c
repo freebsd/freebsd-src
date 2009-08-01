@@ -39,7 +39,6 @@
 #include <sys/systm.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
