@@ -987,13 +987,13 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 		statfs(path, &stbuf);
 		vn->vn_mntdir = strdup(stbuf.f_mntonname);
 	}
-	vn->vn_dev =rdev;
-	if (vntype == KF_VTYPE_VBLK) {
+	vn->vn_dev = rdev;
+	if (vntype == PS_FST_VTYPE_VBLK) {
 		name = devname(rdev, S_IFBLK);
 		if (name != NULL)
 			strlcpy(vn->vn_devname, name,
 			    sizeof(vn->vn_devname));
-	} else if (vntype == KF_VTYPE_VCHR) {
+	} else if (vntype == PS_FST_VTYPE_VCHR) {
 		name = devname(vn->vn_dev, S_IFCHR);
 		if (name != NULL)
 			strlcpy(vn->vn_devname, name,
