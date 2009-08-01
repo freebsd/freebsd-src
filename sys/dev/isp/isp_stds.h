@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- *  Copyright (c) 1997-2007 by Matthew Jacob
+ *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  * 
  *  Redistribution and use in source and binary forms, with or without
@@ -24,6 +24,7 @@
  *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  *  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *  SUCH DAMAGE.
+ * 
  */
 /*
  * Structures that derive directly from public standards.
@@ -43,7 +44,7 @@ typedef struct {
 	uint8_t		cs_ctl;
 	uint8_t		s_id[3];
 	uint8_t		type;
-	uint8_t		f_ctl;
+	uint8_t		f_ctl[3];
 	uint8_t		seq_id;
 	uint8_t		df_ctl;
 	uint16_t	seq_cnt;
@@ -137,8 +138,18 @@ typedef struct {
 } rft_id_t;
 
 /*
+ * FCP Response IU Bits of interest
+ * Source: NCITS T10, Project 1144D, Revision 08 (aka FCP2r08)
+ */
+#define	FCP_CONF_REQ			0x10
+#define	FCP_RESID_UNDERFLOW		0x08
+#define	FCP_RESID_OVERFLOW		0x04
+#define	FCP_SNSLEN_VALID		0x02
+#define	FCP_RSPLEN_VALID		0x01
+
+/*
  * FCP Response Code Definitions
- * Source: NCITS T10, Project 1144D, Revision 07a (aka FCP2r07a)
+ * Source: NCITS T10, Project 1144D, Revision 08 (aka FCP2r08)
  */
 #define	FCP_RSPNS_CODE_OFFSET		3
 
@@ -176,7 +187,10 @@ typedef struct {
 #define	ABTX			0x06
 #define	PRLI			0x20
 #define	PRLO			0x21
+#define	SCN			0x22
 #define	TPRLO			0x24
+#define	PDISC			0x50
+#define	ADISC			0x52
 #define	RNC			0x53
 
 /*
