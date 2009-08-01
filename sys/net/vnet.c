@@ -261,17 +261,6 @@ vnet_destroy(struct vnet *vnet)
 	free(vnet, M_VNET);
 }
 
-static void
-vnet_foreach(void (*vnet_foreach_fn)(struct vnet *, void *), void *arg)
-{
-	struct vnet *vnet;
-
-	VNET_LIST_RLOCK();
-	LIST_FOREACH(vnet, &vnet_head, vnet_le)
-		vnet_foreach_fn(vnet, arg);
-	VNET_LIST_RUNLOCK();
-}
-
 /*
  * Boot time initialization and allocation of virtual network stacks.
  */
@@ -443,20 +432,6 @@ vnet_data_free(void *start_arg, int size)
 	sx_xunlock(&vnet_data_free_lock);
 }
 
-struct vnet_data_copy_fn_arg {
-	void	*start;
-	int	 size;
-};
-
-static void
-vnet_data_copy_fn(struct vnet *vnet, void *arg)
-{
-	struct vnet_data_copy_fn_arg *varg = arg;
-
-	memcpy((void *)((uintptr_t)vnet->vnet_data_base +
-	    (uintptr_t)varg->start), varg->start, varg->size);
-}
-
 /*
  * When a new virtualized global variable has been allocated, propagate its
  * initial value to each already-allocated virtual network stack instance.
@@ -464,11 +439,13 @@ vnet_data_copy_fn(struct vnet *vnet, void *arg)
 void
 vnet_data_copy(void *start, int size)
 {
-	struct vnet_data_copy_fn_arg varg;
+	struct vnet *vnet;
 
-	varg.start = start;
-	varg.size = size;
-	vnet_foreach(vnet_data_copy_fn, &varg);
+	VNET_LIST_RLOCK();
+	LIST_FOREACH(vnet, &vnet_head, vnet_le)
+		memcpy((void *)((uintptr_t)vnet->vnet_data_base +
+		    (uintptr_t)start), start, size);
+	VNET_LIST_RUNLOCK();
 }
 
 /*
