@@ -3193,6 +3193,8 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 	/*
 	 * Retrieve vnode attributes.
 	 */
+	va.va_fsid = VNOVAL;
+	va.va_rdev = NODEV;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
@@ -3200,7 +3202,11 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error != 0)
 		return (error);
-	kif->kf_un.kf_file.kf_file_fsid = va.va_fsid;
+	if (va.va_fsid != VNOVAL)
+		kif->kf_un.kf_file.kf_file_fsid = va.va_fsid;
+	else
+		kif->kf_un.kf_file.kf_file_fsid =
+		    vp->v_mount->mnt_stat.f_fsid.val[0];
 	kif->kf_un.kf_file.kf_file_fileid = va.va_fileid;
 	kif->kf_un.kf_file.kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
 	kif->kf_un.kf_file.kf_file_size = va.va_size;
