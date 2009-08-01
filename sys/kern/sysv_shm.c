@@ -911,7 +911,7 @@ oshmctl(struct thread *td, struct oshmctl_args *uap)
 		if (error)
 			goto done2;
 #ifdef MAC
-		error = mac_sysvshm_check_shmctl(td->td_ucred, shmseg, uap->cmd);
+		error = mac_check_sysv_shmctl(td->td_ucred, shmseg, uap->cmd);
 		if (error != 0)
 			goto done2;
 #endif
