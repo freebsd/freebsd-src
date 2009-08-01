@@ -162,7 +162,7 @@ int
 do_fuser(int argc, char *argv[])
 {
 	struct consumer *consumer;
-	struct kinfo_proc *p;
+	struct kinfo_proc *p, *procs;
 	struct procstat *procstat;
 	struct reqfile *reqfiles;
 	char *ep, *nlistf, *memf;
@@ -242,13 +242,14 @@ do_fuser(int argc, char *argv[])
 	procstat = procstat_open(nlistf, memf);
 	if (procstat == NULL)
 		errx(1, "procstat_open()");
-	p = procstat_getprocs(procstat, KERN_PROC_PROC, 0, &cnt);
-	if (p == NULL)
+	procs = procstat_getprocs(procstat, KERN_PROC_PROC, 0, &cnt);
+	if (procs == NULL)
 		 errx(1, "procstat_getprocs()");
 
 	/*
 	 * Walk through process table and look for matching files.
 	 */
+	p = procs;
 	while(cnt--)
 		if (p->ki_stat != SZOMB)
 			dofiles(procstat, p++, reqfiles, nfiles);
@@ -271,7 +272,7 @@ do_fuser(int argc, char *argv[])
 		}
 		(void)fprintf(stderr, "\n");
 	}
-	procstat_freeprocs(procstat, p);
+	procstat_freeprocs(procstat, procs);
 	procstat_close(procstat);
 	free(reqfiles);
 	return (0);

@@ -90,8 +90,10 @@
 #define	PS_FST_FFLAG_HASLOCK	0x4000
 
 struct procstat {
-        int     type;
-        kvm_t   *kd;
+	int	type;
+	kvm_t	*kd;
+	void	*vmentries;
+	void	*files;
 };
 struct filestat {
 	int	fs_type;	/* Descriptor type. */

@@ -71,8 +71,8 @@ int	vflg;	/* be verbose */
 
 typedef struct devs {
 	struct devs	*next;
-	long		fsid;
-	long		ino;
+	uint32_t	fsid;
+	uint64_t	ino;
 	const char	*name;
 } DEVS;
 
@@ -194,7 +194,6 @@ do_fstat(int argc, char **argv)
 			continue;
 		dofiles(procstat, &p[i]);
 	}
-	free(p);
 	procstat_freeprocs(procstat, p);
 	procstat_close(procstat);
 	return (0);
@@ -452,7 +451,7 @@ print_vnode_info(struct procstat *procstat, struct filestat *fst)
 	else {
 		strmode(vn.vn_mode, mode);
 	}
-	(void)printf(" %6ld %10s", vn.vn_fileid, mode);
+	(void)printf(" %6lld %10s", vn.vn_fileid, mode);
 
 	if (vn.vn_type == PS_FST_VTYPE_VBLK || vn.vn_type == PS_FST_VTYPE_VCHR) {
 		if (nflg || !*vn.vn_devname)
@@ -461,7 +460,7 @@ print_vnode_info(struct procstat *procstat, struct filestat *fst)
 			printf(" %6s", vn.vn_devname);
 		}
 	} else
-		printf(" %6lu", vn.vn_size);
+		printf(" %6llu", vn.vn_size);
 	print_access_flags(fst->fs_fflags);
 }
 

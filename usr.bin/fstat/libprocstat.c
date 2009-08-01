@@ -101,10 +101,10 @@ int     statfs(const char *, struct statfs *);	/* XXX */
 #define	PROCSTAT_SYSCTL	2
 
 static char	*getmnton(kvm_t *kd, struct mount *m);
-static struct filestat_list	*procstat_getfiles_kvm(kvm_t *kd,
-    struct kinfo_proc *kp, int mmapped);
+static struct filestat_list	*procstat_getfiles_kvm(
+    struct procstat *procstat, struct kinfo_proc *kp, int mmapped);
 static struct filestat_list	*procstat_getfiles_sysctl(
-    struct kinfo_proc *kp, int mmapped);
+    struct procstat *procstat, struct kinfo_proc *kp, int mmapped);
 static int	procstat_get_pipe_info_sysctl(struct filestat *fst,
     struct pipestat *pipe, char *errbuf);
 static int	procstat_get_pipe_info_kvm(kvm_t *kd, struct filestat *fst,
@@ -239,9 +239,9 @@ procstat_getfiles(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 {
 	
 	if (procstat->type == PROCSTAT_SYSCTL)
-		return (procstat_getfiles_sysctl(kp, mmapped));
+		return (procstat_getfiles_sysctl(procstat, kp, mmapped));
 	else if (procstat->type == PROCSTAT_KVM)
-		 return (procstat_getfiles_kvm(procstat->kd, kp, mmapped));
+		 return (procstat_getfiles_kvm(procstat, kp, mmapped));
 	else
 		return (NULL);
 }
@@ -251,13 +251,13 @@ procstat_freefiles(struct procstat *procstat, struct filestat_list *head)
 {
 	struct filestat *fst, *tmp;
 
-	STAILQ_FOREACH_SAFE(fst, head, next, tmp) {
-		if (procstat->type == PROCSTAT_SYSCTL &&
-		    fst->fs_typedep != NULL)
-			free(fst->fs_typedep);
+	STAILQ_FOREACH_SAFE(fst, head, next, tmp)
 		free(fst);
-	}
 	free(head);
+	if (procstat->vmentries != NULL)
+		free (procstat->vmentries);
+	if (procstat->files != NULL)
+		free (procstat->files);
 }
 
 static struct filestat *
@@ -314,26 +314,30 @@ getctty(kvm_t *kd, struct kinfo_proc *kp)
 }
 
 static struct filestat_list *
-procstat_getfiles_kvm(kvm_t *kd, struct kinfo_proc *kp, int mmapped)
+procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 {
 	struct file file;
 	struct filedesc filed;
 	struct vm_map_entry vmentry;
 	struct vm_object object;
 	struct vmspace vmspace;
-	struct vnode *vp;
 	vm_map_entry_t entryp;
 	vm_map_t map;
 	vm_object_t objp;
+	struct vnode *vp;
 	struct file **ofiles;
 	struct filestat *entry;
 	struct filestat_list *head;
+	kvm_t *kd;
 	void *data;
 	int i, fflags;
 	int prot, type;
 	unsigned int nfiles;
 
-	assert(kd);
+	assert(procstat);
+	kd = procstat->kd;
+	if (kd == NULL)
+		return (NULL);
 	if (kp->ki_fd == NULL)
 		return (NULL);
 	if (!kvm_read_all(kd, (unsigned long)kp->ki_fd, &filed,
@@ -601,7 +605,7 @@ kinfo_uflags2fst(int fd)
 }
 
 static struct filestat_list *
-procstat_getfiles_sysctl(struct kinfo_proc *kp, int mmapped)
+procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp, int mmapped)
 {
 	struct kinfo_file *kif, *files;
 	struct kinfo_vmentry *kve, *vmentries;
@@ -619,6 +623,7 @@ procstat_getfiles_sysctl(struct kinfo_proc *kp, int mmapped)
 		warn("kinfo_getfile()");
 		return (NULL);
 	}
+	procstat->files = files;
 
 	/*
 	 * Allocate list head.
@@ -644,6 +649,7 @@ procstat_getfiles_sysctl(struct kinfo_proc *kp, int mmapped)
 	}
 	if (mmapped != 0) {
 		vmentries = kinfo_getvmmap(kp->ki_pid, &cnt);
+		procstat->vmentries = vmentries;
 		if (vmentries == NULL || cnt == 0)
 			goto fail;
 		for (i = 0; i < cnt; i++) {
