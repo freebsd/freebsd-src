@@ -211,7 +211,20 @@ vnet_alloc(void)
 
 	vnet = malloc(sizeof(struct vnet), M_VNET, M_WAITOK | M_ZERO);
 	vnet->vnet_magic_n = VNET_MAGIC_N;
-	vnet_data_init(vnet);
+
+	/*
+	 * Allocate storage for virtualized global variables and copy in
+	 * initial values form our 'master' copy.
+	 */
+	vnet->vnet_data_mem = malloc(VNET_SIZE, M_VNET_DATA, M_WAITOK);
+	memcpy(vnet->vnet_data_mem, (void *)VNET_START, VNET_BYTES);
+
+	/*
+	 * All use of vnet-specific data will immediately subtract VNET_START
+	 * from the base memory pointer, so pre-calculate that now to avoid
+	 * it on each use.
+	 */
+	vnet->vnet_data_base = (uintptr_t)vnet->vnet_data_mem - VNET_START;
 
 	/* Initialize / attach vnet module instances. */
 	CURVNET_SET_QUIET(vnet);
@@ -255,8 +268,12 @@ vnet_destroy(struct vnet *vnet)
 
 	CURVNET_RESTORE();
 
-	/* Hopefully, we are OK to free the vnet container itself. */
-	vnet_data_destroy(vnet);
+	/*
+	 * Release storage for the virtual network stack instance.
+	 */
+	free(vnet->vnet_data_mem, M_VNET_DATA);
+	vnet->vnet_data_mem = NULL;
+	vnet->vnet_data_base = 0;
 	vnet->vnet_magic_n = 0xdeadbeef;
 	free(vnet, M_VNET);
 }
@@ -297,37 +314,6 @@ vnet_init_done(void *unused)
 
 SYSINIT(vnet_init_done, SI_SUB_VNET_DONE, SI_ORDER_FIRST, vnet_init_done,
     NULL);
-
-/*
- * Allocate storage for virtualized global variables in a new virtual network
- * stack instance, and copy in initial values from our 'master' copy.
- */
-void
-vnet_data_init(struct vnet *vnet)
-{
-
-	vnet->vnet_data_mem = malloc(VNET_SIZE, M_VNET_DATA, M_WAITOK);
-	memcpy(vnet->vnet_data_mem, (void *)VNET_START, VNET_BYTES);
-
-	/*
-	 * All use of vnet-specific data will immediately subtract VNET_START
-	 * from the base memory pointer, so pre-calculate that now to avoid
-	 * it on each use.
-	 */
-	vnet->vnet_data_base = (uintptr_t)vnet->vnet_data_mem - VNET_START;
-}
-
-/*
- * Release storage for a virtual network stack instance.
- */
-void
-vnet_data_destroy(struct vnet *vnet)
-{
-
-	free(vnet->vnet_data_mem, M_VNET_DATA);
-	vnet->vnet_data_mem = NULL;
-	vnet->vnet_data_base = 0;
-}
 
 /*
  * Once on boot, initialize the modspace freelist to entirely cover modspace.
