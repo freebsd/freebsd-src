@@ -232,6 +232,7 @@ procstat_freeprocs(struct procstat *procstat __unused, struct kinfo_proc *p)
 
 	if (p != NULL)
 		free(p);
+	p = NULL;
 }
 
 struct filestat_list *
@@ -254,10 +255,14 @@ procstat_freefiles(struct procstat *procstat, struct filestat_list *head)
 	STAILQ_FOREACH_SAFE(fst, head, next, tmp)
 		free(fst);
 	free(head);
-	if (procstat->vmentries != NULL)
+	if (procstat->vmentries != NULL) {
 		free (procstat->vmentries);
-	if (procstat->files != NULL)
+		procstat->vmentries = NULL;
+	}
+	if (procstat->files != NULL) {
 		free (procstat->files);
+		procstat->files = NULL;
+	}
 }
 
 static struct filestat *
@@ -931,7 +936,7 @@ kinfo_vtype2fst(int kfvtype)
 
 static int
 procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
-    char *errbuf __unused)
+    char *errbuf)
 {
 	struct statfs stbuf;
 	struct kinfo_file *kif;
@@ -972,9 +977,12 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 		status = kif->kf_status;
 	}
 	vn->vn_type = vntype;
-	if (vntype == PS_FST_VTYPE_VNON || vntype == PS_FST_VTYPE_VBAD ||
-	    (status & KF_ATTR_VALID) == 0)
+	if (vntype == PS_FST_VTYPE_VNON || vntype == PS_FST_VTYPE_VBAD)
 		return (0);
+	if ((status & KF_ATTR_VALID) == 0) {
+		snprintf(errbuf, _POSIX2_LINE_MAX, "? (no info available)");
+		return (1);
+	}
 	if (path && *path) {
 		statfs(path, &stbuf);
 		vn->vn_mntdir = strdup(stbuf.f_mntonname);

@@ -267,6 +267,8 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 		printf(" mmap");
 	else if (fst->fs_uflags & PS_FST_UFLAG_JAIL)
 		printf(" jail");
+	else if (fst->fs_uflags & PS_FST_UFLAG_CTTY)
+		printf(" ctty");
 	else
 		printf(" %4d", fst->fs_fd);
 
