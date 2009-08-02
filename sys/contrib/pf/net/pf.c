@@ -6141,7 +6141,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (r->rt == PF_FASTROUTE) {
 		in_rtalloc(ro, 0);
 		if (ro->ro_rt == 0) {
-			IPSTAT_INC(ips_noroute);
+			KMOD_IPSTAT_INC(ips_noroute);
 			goto bad;
 		}
 
@@ -6272,16 +6272,16 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		if ((ifp->if_capabilities & IFCAP_CSUM_IPv4) &&
 		    ifp->if_bridge == NULL) {
 			m0->m_pkthdr.csum_flags |= M_IPV4_CSUM_OUT;
-			IPSTAT_INC(ips_outhwcsum);
+			KMOD_IPSTAT_INC(ips_outhwcsum);
 		} else {
 			ip->ip_sum = 0;
 			ip->ip_sum = in_cksum(m0, ip->ip_hl << 2);
 		}
 		/* Update relevant hardware checksum stats for TCP/UDP */
 		if (m0->m_pkthdr.csum_flags & M_TCPV4_CSUM_OUT)
-			TCPSTAT_INC(tcpstat.tcps_outhwcsum);
+			KMOD_TCPSTAT_INC(tcps_outhwcsum);
 		else if (m0->m_pkthdr.csum_flags & M_UDPV4_CSUM_OUT)
-			UDPSTAT_INC(udps_outhwcsum);
+			KMOD_UDPSTAT_INC(udps_outhwcsum);
 		error = (*ifp->if_output)(ifp, m0, sintosa(dst), NULL);
 		goto done;
 	}
@@ -6291,7 +6291,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	 * Must be able to put at least 8 bytes per fragment.
 	 */
 	if (ip->ip_off & htons(IP_DF)) {
-		IPSTAT_INC(ips_cantfrag);
+		KMOD_IPSTAT_INC(ips_cantfrag);
 		if (r->rt != PF_DUPTO) {
 #ifdef __FreeBSD__
 			/* icmp_error() expects host byte ordering */
@@ -6348,7 +6348,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	}
 
 	if (error == 0)
-		IPSTAT_INC(ips_fragmented);
+		KMOD_IPSTAT_INC(ips_fragmented);
 
 done:
 	if (r->rt != PF_DUPTO)
@@ -6622,23 +6622,23 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 		switch (p) {
 		case IPPROTO_TCP:
 		    {
-			TCPSTAT_INC(tcps_rcvbadsum);
+			KMOD_TCPSTAT_INC(tcps_rcvbadsum);
 			break;
 		    }
 		case IPPROTO_UDP:
 		    {
-			UDPSTAT_INC(udps_badsum);
+			KMOD_UDPSTAT_INC(udps_badsum);
 			break;
 		    }
 		case IPPROTO_ICMP:
 		    {
-			ICMPSTAT_INC(icps_checksum);
+			KMOD_ICMPSTAT_INC(icps_checksum);
 			break;
 		    }
 #ifdef INET6
 		case IPPROTO_ICMPV6:
 		    {
-			ICMP6STAT_INC(icp6s_checksum);
+			KMOD_ICMP6STAT_INC(icp6s_checksum);
 			break;
 		    }
 #endif /* INET6 */
@@ -6725,17 +6725,17 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p,
 		m->m_pkthdr.csum_flags |= flag_bad;
 		switch (p) {
 		case IPPROTO_TCP:
-			TCPSTAT_INC(tcps_rcvbadsum);
+			KMOD_TCPSTAT_INC(tcps_rcvbadsum);
 			break;
 		case IPPROTO_UDP:
-			UDPSTAT_INC(udps_badsum);
+			KMOD_UDPSTAT_INC(udps_badsum);
 			break;
 		case IPPROTO_ICMP:
-			ICMPSTAT_INC(icps_checksum);
+			KMOD_ICMPSTAT_INC(icps_checksum);
 			break;
 #ifdef INET6
 		case IPPROTO_ICMPV6:
-			ICMP6STAT_INC(icp6s_checksum);
+			KMOD_ICMP6STAT_INC(icp6s_checksum);
 			break;
 #endif /* INET6 */
 		}

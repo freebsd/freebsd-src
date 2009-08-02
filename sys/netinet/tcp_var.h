@@ -474,8 +474,19 @@ struct	tcpstat {
 };
 
 #ifdef _KERNEL
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
 #define	TCPSTAT_ADD(name, val)	V_tcpstat.name += (val)
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_tcpstat_inc(int statnum);
+#define	KMOD_TCPSTAT_INC(name)						\
+	kmod_tcpstat_inc(offsetof(struct tcpstat, name) / sizeof(u_long))
 #endif
 
 /*

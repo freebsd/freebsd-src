@@ -281,14 +281,14 @@ in_gif_input(struct mbuf *m, int off)
 	sc = (struct gif_softc *)encap_getarg(m);
 	if (sc == NULL) {
 		m_freem(m);
-		IPSTAT_INC(ips_nogif);
+		KMOD_IPSTAT_INC(ips_nogif);
 		return;
 	}
 
 	gifp = GIF2IFP(sc);
 	if (gifp == NULL || (gifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
-		IPSTAT_INC(ips_nogif);
+		KMOD_IPSTAT_INC(ips_nogif);
 		return;
 	}
 
@@ -348,7 +348,7 @@ in_gif_input(struct mbuf *m, int off)
  		break;	
 
 	default:
-		IPSTAT_INC(ips_nogif);
+		KMOD_IPSTAT_INC(ips_nogif);
 		m_freem(m);
 		return;
 	}
