@@ -1040,9 +1040,14 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 	 * Performance optimisation: We try to check for IOCTL's that
 	 * don't need the USB reference first. Then we grab the USB
 	 * reference if we need it!
+	 * Note that some ioctl_post handlers would need to run with the
+	 * newbus lock held.  It cannot be acquired later because it can
+	 * introduce a LOR, so acquire it here.
 	 */
+	newbus_xlock();
 	err = usb_ref_device(cpd, &refs, 0 /* no uref */ );
 	if (err) {
+		newbus_xunlock();
 		return (ENXIO);
 	}
 	fflags = cpd->fflags;
@@ -1076,6 +1081,7 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 	}
 done:
 	usb_unref_device(cpd, &refs);
+	newbus_xunlock();
 	return (err);
 }
 

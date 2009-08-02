@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -190,6 +191,54 @@ void print_devclass_list(void);
 #define print_devclass_list_short()	/* nop */
 #define print_devclass_list()		/* nop */
 #endif
+
+/*
+ * Newbus locking facilities.
+ */
+static struct sx newbus_lock;
+
+#define	NBL_LOCK_INIT()		sx_init(&newbus_lock, "newbus")
+#define	NBL_LOCK_DESTROY()	sx_destroy(&newbus_lock)
+#define	NBL_XLOCK()		sx_xlock(&newbus_lock)
+#define	NBL_SLOCK()		sx_slock(&newbus_lock)
+#define	NBL_XUNLOCK()		sx_xunlock(&newbus_lock)
+#define	NBL_SUNLOCK()		sx_sunlock(&newbus_lock)
+#ifdef INVARIANTS
+#define	NBL_ASSERT(what) do {						\
+	if (cold == 0)							\
+		sx_assert(&newbus_lock, (what));			\
+} while (0)
+#else
+#define	NBL_ASSERT(what)
+#endif
+
+void
+newbus_xlock()
+{
+
+	NBL_XLOCK();
+}
+
+void
+newbus_slock()
+{
+
+	NBL_SLOCK();
+}
+
+void
+newbus_xunlock()
+{
+
+	NBL_XUNLOCK();
+}
+
+void
+newbus_sunlock()
+{
+
+	NBL_SUNLOCK();
+}
 
 /*
  * dev sysctl tree
@@ -364,7 +413,6 @@ static d_poll_t		devpoll;
 
 static struct cdevsw dev_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	devopen,
 	.d_close =	devclose,
 	.d_read =	devread,
@@ -1061,6 +1109,7 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 	int i;
 	int error;
 
+	NBL_ASSERT(SA_XLOCKED);
 	PDEBUG(("%s from devclass %s", driver->name, DEVCLANAME(busclass)));
 
 	if (!dc)
@@ -1759,6 +1808,7 @@ device_delete_child(device_t dev, device_t child)
 	int error;
 	device_t grandchild;
 
+	NBL_ASSERT(SA_XLOCKED);
 	PDEBUG(("%s from %s", DEVICENAME(child), DEVICENAME(dev)));
 
 	/* remove children first */
@@ -1857,7 +1907,7 @@ device_probe_child(device_t dev, device_t child)
 	int result, pri = 0;
 	int hasclass = (child->devclass != NULL);
 
-	GIANT_REQUIRED;
+	NBL_ASSERT(SA_XLOCKED);
 
 	dc = dev->devclass;
 	if (!dc)
@@ -2508,7 +2558,7 @@ device_probe(device_t dev)
 {
 	int error;
 
-	GIANT_REQUIRED;
+	NBL_ASSERT(SA_XLOCKED);
 
 	if (dev->state >= DS_ALIVE && (dev->flags & DF_REBID) == 0)
 		return (-1);
@@ -2542,7 +2592,7 @@ device_probe_and_attach(device_t dev)
 {
 	int error;
 
-	GIANT_REQUIRED;
+	NBL_ASSERT(SA_XLOCKED);
 
 	error = device_probe(dev);
 	if (error == -1)
@@ -2575,6 +2625,8 @@ int
 device_attach(device_t dev)
 {
 	int error;
+
+	NBL_ASSERT(SA_XLOCKED);
 
 	device_sysctl_init(dev);
 	if (!device_is_quiet(dev))
@@ -2617,7 +2669,7 @@ device_detach(device_t dev)
 {
 	int error;
 
-	GIANT_REQUIRED;
+	NBL_ASSERT(SA_XLOCKED);
 
 	PDEBUG(("%s", DEVICENAME(dev)));
 	if (dev->state == DS_BUSY)
@@ -2661,6 +2713,8 @@ int
 device_quiesce(device_t dev)
 {
 
+	NBL_ASSERT(SA_XLOCKED);
+
 	PDEBUG(("%s", DEVICENAME(dev)));
 	if (dev->state == DS_BUSY)
 		return (EBUSY);
@@ -2681,6 +2735,7 @@ device_quiesce(device_t dev)
 int
 device_shutdown(device_t dev)
 {
+
 	if (dev->state < DS_ATTACHED)
 		return (0);
 	return (DEVICE_SHUTDOWN(dev));
@@ -3096,6 +3151,8 @@ bus_generic_attach(device_t dev)
 {
 	device_t child;
 
+	NBL_ASSERT(SA_XLOCKED);
+
 	TAILQ_FOREACH(child, &dev->children, link) {
 		device_probe_and_attach(child);
 	}
@@ -3115,6 +3172,8 @@ bus_generic_detach(device_t dev)
 {
 	device_t child;
 	int error;
+
+	NBL_ASSERT(SA_XLOCKED);
 
 	if (dev->state != DS_ATTACHED)
 		return (EBUSY);
@@ -3996,6 +4055,7 @@ root_bus_module_handler(module_t mod, int what, void* arg)
 	switch (what) {
 	case MOD_LOAD:
 		TAILQ_INIT(&bus_data_devices);
+		NBL_LOCK_INIT();
 		kobj_class_compile((kobj_class_t) &root_driver);
 		root_bus = make_device(NULL, "root", 0);
 		root_bus->desc = "System root bus";
@@ -4055,14 +4115,28 @@ driver_module_handler(module_t mod, int what, void *arg)
 	kobj_class_t driver;
 	int error, pass;
 
-	dmd = (struct driver_module_data *)arg;
-	bus_devclass = devclass_find_internal(dmd->dmd_busname, NULL, TRUE);
 	error = 0;
+	dmd = (struct driver_module_data *)arg;
 
-	switch (what) {
+	/*
+	 * If MOD_SHUTDOWN is passed, return immediately in order to
+	 * avoid unnecessary locking and a LOR with the modules sx lock.
+	 */
+	if (what == MOD_SHUTDOWN)
+		return (EOPNOTSUPP);
+	NBL_XLOCK();
+	bus_devclass = devclass_find_internal(dmd->dmd_busname, NULL, TRUE);
+	if (bus_devclass == NULL) {
+		NBL_XUNLOCK();
+		return (ENOMEM);
+	}
+
+		switch (what) {
 	case MOD_LOAD:
 		if (dmd->dmd_chainevh)
 			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);
+		if (error != 0)
+			break;
 
 		pass = dmd->dmd_pass;
 		driver = dmd->dmd_driver;
@@ -4115,6 +4189,7 @@ driver_module_handler(module_t mod, int what, void *arg)
 		error = EOPNOTSUPP;
 		break;
 	}
+	NBL_XUNLOCK();
 
 	return (error);
 }
