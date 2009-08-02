@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([OpenBSM], [1.1p1], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
-AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#53 $])
+AC_INIT([OpenBSM], [1.1p2], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
+AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#54 $])
 AC_CONFIG_SRCDIR([bin/auditreduce/auditreduce.c])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_HEADER([config/config.h])
