@@ -3244,12 +3244,12 @@ bridge_ip_checkbasic(struct mbuf **mp)
 		if ((m = m_copyup(m, sizeof(struct ip),
 			(max_linkhdr + 3) & ~3)) == NULL) {
 			/* XXXJRT new stat, please */
-			IPSTAT_INC(ips_toosmall);
+			KMOD_IPSTAT_INC(ips_toosmall);
 			goto bad;
 		}
 	} else if (__predict_false(m->m_len < sizeof (struct ip))) {
 		if ((m = m_pullup(m, sizeof (struct ip))) == NULL) {
-			IPSTAT_INC(ips_toosmall);
+			KMOD_IPSTAT_INC(ips_toosmall);
 			goto bad;
 		}
 	}
@@ -3257,17 +3257,17 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	if (ip == NULL) goto bad;
 
 	if (ip->ip_v != IPVERSION) {
-		IPSTAT_INC(ips_badvers);
+		KMOD_IPSTAT_INC(ips_badvers);
 		goto bad;
 	}
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) { /* minimum header length */
-		IPSTAT_INC(ips_badhlen);
+		KMOD_IPSTAT_INC(ips_badhlen);
 		goto bad;
 	}
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == 0) {
-			IPSTAT_INC(ips_badhlen);
+			KMOD_IPSTAT_INC(ips_badhlen);
 			goto bad;
 		}
 		ip = mtod(m, struct ip *);
@@ -3284,7 +3284,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 		}
 	}
 	if (sum) {
-		IPSTAT_INC(ips_badsum);
+		KMOD_IPSTAT_INC(ips_badsum);
 		goto bad;
 	}
 
@@ -3295,7 +3295,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	 * Check for additional length bogosity
 	 */
 	if (len < hlen) {
-		IPSTAT_INC(ips_badlen);
+		KMOD_IPSTAT_INC(ips_badlen);
 		goto bad;
 	}
 
@@ -3305,7 +3305,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	 * Drop packet if shorter than we expect.
 	 */
 	if (m->m_pkthdr.len < len) {
-		IPSTAT_INC(ips_tooshort);
+		KMOD_IPSTAT_INC(ips_tooshort);
 		goto bad;
 	}
 
@@ -3418,7 +3418,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
 	}
 
 	if (error == 0)
-		IPSTAT_INC(ips_fragmented);
+		KMOD_IPSTAT_INC(ips_fragmented);
 
 	return (error);
 

@@ -235,6 +235,27 @@ VNET_DEFINE(int, fw_one_pass) = 1;
 
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
+/*
+ * Kernel module interface for updating ipstat.  The argument is an index
+ * into ipstat treated as an array of u_long.  While this encodes the general
+ * layout of ipstat into the caller, it doesn't encode its location, so that
+ * future changes to add, for example, per-CPU stats support won't cause
+ * binary compatibility problems for kernel modules.
+ */
+void
+kmod_ipstat_inc(int statnum)
+{
+
+	(*((u_long *)&V_ipstat + statnum))++;
+}
+
+void
+kmod_ipstat_dec(int statnum)
+{
+
+	(*((u_long *)&V_ipstat + statnum))--;
+}
+
 static int
 sysctl_netinet_intr_queue_maxlen(SYSCTL_HANDLER_ARGS)
 {

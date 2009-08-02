@@ -3821,7 +3821,7 @@ socket_act_establish(struct socket *so, struct mbuf *m)
 #endif
 
 	toep->tp_state = tp->t_state;
-	TCPSTAT_INC(tcps_connects);
+	KMOD_TCPSTAT_INC(tcps_connects);
 				
 }
 
