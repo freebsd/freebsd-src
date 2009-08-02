@@ -936,6 +936,8 @@ acpi_tz_thread(void *arg)
     sc = NULL;
 
     for (;;) {
+	newbus_slock();
+
 	/* If the number of devices has changed, re-evaluate. */
 	if (devclass_get_count(acpi_tz_devclass) != devcount) {
 	    if (devs != NULL) {
@@ -948,6 +950,7 @@ acpi_tz_thread(void *arg)
 	    for (i = 0; i < devcount; i++)
 		sc[i] = device_get_softc(devs[i]);
 	}
+	newbus_sunlock();
 
 	/* Check for temperature events and act on them. */
 	for (i = 0; i < devcount; i++) {
