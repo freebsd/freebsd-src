@@ -164,13 +164,13 @@
 #define PACKAGE_NAME "OpenBSM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "OpenBSM 1.1p1"
+#define PACKAGE_STRING "OpenBSM 1.1p2"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "openbsm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.1p1"
+#define PACKAGE_VERSION "1.1p2"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -191,7 +191,7 @@
 #define USE_NATIVE_INCLUDES /**/
 
 /* Version number of package */
-#define VERSION "1.1p1"
+#define VERSION "1.1p2"
 
 /* Use extended API on platforms that require it */
 #define _GNU_SOURCE /**/
