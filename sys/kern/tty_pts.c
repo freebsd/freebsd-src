@@ -204,8 +204,10 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		error = uiomove(ib, iblen, uio);
 
 		tty_lock(tp);
-		if (error != 0)
+		if (error != 0) {
+			iblen = 0;
 			goto done;
+		}
 
 		/*
 		 * When possible, avoid the slow path. rint_bypass()
@@ -260,6 +262,12 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 done:	ttydisc_rint_done(tp);
 	tty_unlock(tp);
+
+	/*
+	 * Don't account for the part of the buffer that we couldn't
+	 * pass to the TTY.
+	 */
+	uio->uio_resid += iblen;
 	return (error);
 }
 
