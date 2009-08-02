@@ -3185,10 +3185,11 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 	freepath = NULL;
 	fullpath = "-";
 	error = vn_fullpath(curthread, vp, &fullpath, &freepath);
-	if (error != 0)
-		return (error);
-	strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
-	free(freepath, M_TEMP);
+	if (error == 0) {
+		strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
+	}
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
 
 	/*
 	 * Retrieve vnode attributes.

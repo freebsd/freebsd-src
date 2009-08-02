@@ -986,7 +986,8 @@ procstat_get_vnode_info_sysctl(struct filestat *fst, struct vnstat *vn,
 	if (path && *path) {
 		statfs(path, &stbuf);
 		vn->vn_mntdir = strdup(stbuf.f_mntonname);
-	}
+	} else
+		vn->vn_mntdir = strdup("-");
 	vn->vn_dev = rdev;
 	if (vntype == PS_FST_VTYPE_VBLK) {
 		name = devname(rdev, S_IFBLK);
