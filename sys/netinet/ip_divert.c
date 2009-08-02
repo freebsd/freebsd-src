@@ -186,7 +186,7 @@ void
 div_input(struct mbuf *m, int off)
 {
 
-	IPSTAT_INC(ips_noproto);
+	KMOD_IPSTAT_INC(ips_noproto);
 	m_freem(m);
 }
 
@@ -310,8 +310,8 @@ divert_packet(struct mbuf *m, int incoming)
 	INP_INFO_RUNLOCK(&V_divcbinfo);
 	if (sa == NULL) {
 		m_freem(m);
-		IPSTAT_INC(ips_noproto);
-		IPSTAT_DEC(ips_delivered);
+		KMOD_IPSTAT_INC(ips_noproto);
+		KMOD_IPSTAT_DEC(ips_delivered);
         }
 }
 
@@ -396,7 +396,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 			ip->ip_off = ntohs(ip->ip_off);
 
 			/* Send packet to output processing */
-			IPSTAT_INC(ips_rawout);			/* XXX */
+			KMOD_IPSTAT_INC(ips_rawout);		/* XXX */
 
 #ifdef MAC
 			mac_inpcb_create_mbuf(inp, m);
@@ -567,7 +567,7 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	/* Packet must have a header (but that's about it) */
 	if (m->m_len < sizeof (struct ip) &&
 	    (m = m_pullup(m, sizeof (struct ip))) == 0) {
-		IPSTAT_INC(ips_toosmall);
+		KMOD_IPSTAT_INC(ips_toosmall);
 		m_freem(m);
 		return EINVAL;
 	}

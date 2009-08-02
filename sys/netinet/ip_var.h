@@ -131,10 +131,24 @@ struct	ipstat {
 
 #include <net/vnet.h>
 
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
 #define	IPSTAT_ADD(name, val)	V_ipstat.name += (val)
 #define	IPSTAT_SUB(name, val)	V_ipstat.name -= (val)
 #define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
 #define	IPSTAT_DEC(name)	IPSTAT_SUB(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_ipstat_inc(int statnum);
+#define	KMOD_IPSTAT_INC(name)						\
+	kmod_ipstat_inc(offsetof(struct ipstat, name) / sizeof(u_long))
+void	kmod_ipstat_dec(int statnum);
+#define	KMOD_IPSTAT_DEC(name)						\
+	kmod_ipstat_dec(offsetof(struct ipstat, name) / sizeof(u_long))
 
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
