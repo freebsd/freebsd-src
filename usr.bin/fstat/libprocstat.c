@@ -624,7 +624,7 @@ procstat_getfiles_sysctl(struct procstat *procstat, struct kinfo_proc *kp, int m
 		return (NULL);
 
 	files = kinfo_getfile(kp->ki_pid, &cnt);
-	if (files == NULL) {
+	if (files == NULL && errno != EPERM) {
 		warn("kinfo_getfile()");
 		return (NULL);
 	}
