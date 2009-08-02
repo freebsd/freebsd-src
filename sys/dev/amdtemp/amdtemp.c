@@ -269,6 +269,7 @@ amdtemp_intrhook(void *arg)
 	/*
 	 * dev.cpu.N.temperature.
 	 */
+	newbus_xlock();
 	nexus = device_find_child(root_bus, "nexus", 0);
 	acpi = device_find_child(nexus, "acpi", 0);
 
@@ -285,6 +286,7 @@ amdtemp_intrhook(void *arg)
 			    "Max of sensor 0 / 1");
 		}
 	}
+	newbus_xunlock();
 	config_intrhook_disestablish(&sc->sc_ich);
 }
 

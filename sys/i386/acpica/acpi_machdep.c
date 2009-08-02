@@ -164,6 +164,7 @@ acpi_capm_get_info(apm_info_t aip)
 	else
 		aip->ai_acline = acline;	/* on/off */
 
+	newbus_slock();
 	if (acpi_battery_get_battinfo(NULL, &batt) != 0) {
 		aip->ai_batt_stat = APM_UNKNOWN;
 		aip->ai_batt_life = APM_UNKNOWN;
@@ -175,6 +176,7 @@ acpi_capm_get_info(apm_info_t aip)
 		aip->ai_batt_time = (batt.min == -1) ? -1 : batt.min * 60;
 		aip->ai_batteries = acpi_battery_get_units();
 	}
+	newbus_sunlock();
 
 	return (0);
 }
@@ -190,6 +192,7 @@ acpi_capm_get_pwstatus(apm_pwstatus_t app)
 	    (app->ap_device < PMDV_BATT0 || app->ap_device > PMDV_BATT_ALL))
 		return (1);
 
+	newbus_slock();
 	if (app->ap_device == PMDV_ALLDEV)
 		error = acpi_battery_get_battinfo(NULL, &batt);
 	else {
@@ -200,6 +203,7 @@ acpi_capm_get_pwstatus(apm_pwstatus_t app)
 		else
 			error = ENXIO;
 	}
+	newbus_sunlock();
 	if (error)
 		return (1);
 
@@ -283,7 +287,9 @@ apmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 	struct	acpi_softc *acpi_sc;
 	struct 	apm_clone_data *clone;
 
+	newbus_slock();
 	acpi_sc = devclass_get_softc(devclass_find("acpi"), 0);
+	newbus_sunlock();
 	clone = apm_create_clone(dev, acpi_sc);
 	dev->si_drv1 = clone;
 
