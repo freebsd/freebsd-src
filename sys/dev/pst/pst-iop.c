@@ -152,7 +152,9 @@ iop_attach(void *arg)
 	    break;
 
 	case I2O_CLASS_RANDOM_BLOCK_STORAGE:
+	    newbus_xlock();
 	    pst_add_raid(sc, &sc->lct[i]);
+	    newbus_xunlock();
 	    break;
 	}
     }

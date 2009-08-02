@@ -113,6 +113,7 @@ adb_bus_enumerate(void *xdev)
 	uint8_t i, next_free;
 	uint16_t r3;
 
+	newbus_xlock();
 	sc->sc_dev = dev;
 	sc->parent = device_get_parent(dev);
 
@@ -187,6 +188,7 @@ adb_bus_enumerate(void *xdev)
 	}
 
 	bus_generic_attach(dev);
+	newbus_xunlock();
 
 	config_intrhook_disestablish(&sc->enum_hook);
 }
