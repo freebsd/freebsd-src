@@ -28,7 +28,7 @@
 
 # PROVIDE: nisdomain
 # REQUIRE: SERVERS rpcbind
-# BEFORE:  ypbind ypserv ypxfrd
+# BEFORE:  ypset ypbind ypserv ypxfrd
 
 . /etc/rc.subr
 

@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: amd
-# REQUIRE: rpcbind ypbind nfsclient cleanvar ldconfig
+# REQUIRE: rpcbind ypset nfsclient cleanvar ldconfig
 # BEFORE: DAEMON
 # KEYWORD: nojail
 
