@@ -18,7 +18,7 @@
 
 . /etc/rc.subr
 
-name=nscd
+name="nscd"
 rcvar=`set_rcvar`
 
 command=/usr/sbin/nscd
