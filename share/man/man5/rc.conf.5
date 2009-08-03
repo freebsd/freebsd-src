@@ -1526,6 +1526,12 @@ Path to
 .Xr named 8
 (default
 .Pa /usr/sbin/named ) .
+.It Va named_conf
+.Pq Vt str
+Path to
+.Xr named 8
+configuration file, (default
+.Pa /etc/namedb/named.conf ) .
 .It Va named_flags
 .Pq Vt str
 If
@@ -1571,6 +1577,26 @@ daemon's PID file
 into the
 .Xr chroot 8
 environment.
+.It Va named_wait
+.Pq Vt bool
+Set to have
+.Pa /etc/rc.d/named
+loop until working name service is established.
+.It Va named_wait_host
+.Pq Vt str
+Name of host to lookup for the named_wait option.
+(Default localhost)
+.It Va named_auto_forward
+.Pq Vt bool
+Set to enable automatic creation of a forwarder
+configuration file derived from
+.Pa /etc/resolv.conf .
+.It Va named_auto_forward_only
+.Pq Vt bool
+Set to change the default forwarder configuration from
+.Dq forward first
+to
+.Dq forward only .
 .It Va kerberos5_server_enable
 .Pq Vt bool
 Set to
