@@ -22,6 +22,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090803:
+	RELENG_8 branched.
+
 20090719:
 	Bump the shared library version numbers for all libraries that
 	do not use symbol versioning as part of the 8.0-RELEASE cycle.
