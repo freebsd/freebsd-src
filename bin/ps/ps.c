@@ -1331,7 +1331,7 @@ check_procfs(void)
 static void
 usage(void)
 {
-#define	SINGLE_OPTS	"[-aCce" OPT_LAZY_f "HhjlmrSTuvwXxZ]"
+#define	SINGLE_OPTS	"[-aCcde" OPT_LAZY_f "HhjlmrSTuvwXxZ]"
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
 	    "usage: ps " SINGLE_OPTS " [-O fmt | -o fmt] [-G gid[,gid...]]",
