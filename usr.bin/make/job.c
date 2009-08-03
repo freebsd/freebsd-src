@@ -1993,6 +1993,10 @@ JobStart(GNode *gn, int flags, Job *previous)
 		job = previous;
 	} else {
 		job = emalloc(sizeof(Job));
+#ifdef MAKE_IS_BUILD
+		job->mon_fname[0] = '\0'; 
+		job->meta_fname[0] = '\0';
+#endif
 		flags |= JOB_FIRST;
 	}
 
