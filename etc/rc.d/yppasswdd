@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: yppasswdd
-# REQUIRE: ypserv ypbind
+# REQUIRE: ypserv ypset
 # BEFORE:  LOGIN
 
 . /etc/rc.subr
