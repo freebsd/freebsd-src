@@ -631,7 +631,7 @@ BUS_DEBUG		opt_bus.h
 
 # options for USB support
 USB_DEBUG		opt_usb.h
-USBVERBOSE		opt_usb.h
+USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
 UKBD_DFLT_KEYMAP	opt_ukbd.h
@@ -804,6 +804,7 @@ INTR_FILTER
 IEEE80211_DEBUG		opt_wlan.h
 IEEE80211_DEBUG_REFCNT	opt_wlan.h
 IEEE80211_AMPDU_AGE	opt_wlan.h
+IEEE80211_SUPPORT_MESH	opt_wlan.h
 IEEE80211_SUPPORT_SUPERG	opt_wlan.h
 IEEE80211_SUPPORT_TDMA	opt_wlan.h
 
@@ -822,7 +823,6 @@ TDMA_TXRATE_11NG_DEFAULT	opt_tdma.h
 
 # Virtualize the network stack
 VIMAGE			opt_global.h
-VIMAGE_GLOBALS		opt_global.h
 
 # Common Flash Interface (CFI) options
 CFI_SUPPORT_STRATAFLASH	opt_cfi.h

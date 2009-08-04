@@ -287,3 +287,4 @@ ata_nvidia_setmode(device_t dev, int mode)
 }
 
 ATA_DECLARE_DRIVER(ata_nvidia);
+MODULE_DEPEND(ata_nvidia, ata_ahci, 1, 1, 1);

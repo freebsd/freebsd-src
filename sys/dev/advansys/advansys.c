@@ -1345,7 +1345,7 @@ adv_attach(adv)
 			/* highaddr	*/ BUS_SPACE_MAXADDR,
 			/* filter	*/ NULL,
 			/* filterarg	*/ NULL,
-			/* maxsize	*/ MAXPHYS,
+			/* maxsize	*/ ADV_MAXPHYS,
 			/* nsegments	*/ max_sg,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ BUS_DMA_ALLOCNOW,

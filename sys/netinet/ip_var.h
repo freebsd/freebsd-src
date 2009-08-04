@@ -129,10 +129,26 @@ struct	ipstat {
 
 #ifdef _KERNEL
 
+#include <net/vnet.h>
+
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
 #define	IPSTAT_ADD(name, val)	V_ipstat.name += (val)
 #define	IPSTAT_SUB(name, val)	V_ipstat.name -= (val)
 #define	IPSTAT_INC(name)	IPSTAT_ADD(name, 1)
 #define	IPSTAT_DEC(name)	IPSTAT_SUB(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_ipstat_inc(int statnum);
+#define	KMOD_IPSTAT_INC(name)						\
+	kmod_ipstat_inc(offsetof(struct ipstat, name) / sizeof(u_long))
+void	kmod_ipstat_dec(int statnum);
+#define	KMOD_IPSTAT_DEC(name)						\
+	kmod_ipstat_dec(offsetof(struct ipstat, name) / sizeof(u_long))
 
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
@@ -158,19 +174,27 @@ struct inpcb;
 struct route;
 struct sockopt;
 
-#ifdef VIMAGE_GLOBALS
-extern struct	ipstat	ipstat;
-extern u_short	ip_id;			/* ip packet ctr, for ids */
-extern int	ip_do_randomid;
-extern int	ip_defttl;		/* default IP ttl */
-extern int	ipforwarding;		/* ip forwarding */
+VNET_DECLARE(struct ipstat, ipstat);
+VNET_DECLARE(u_short, ip_id);			/* ip packet ctr, for ids */
+VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
+VNET_DECLARE(int, ipforwarding);		/* ip forwarding */
 #ifdef IPSTEALTH
-extern int	ipstealth;		/* stealth forwarding */
+VNET_DECLARE(int, ipstealth);			/* stealth forwarding */
 #endif
-extern int rsvp_on;
-extern struct socket *ip_rsvpd;		/* reservation protocol daemon */
-extern struct socket *ip_mrouter;	/* multicast routing daemon */
-#endif /* VIMAGE_GLOBALS */
+VNET_DECLARE(int, rsvp_on);
+VNET_DECLARE(struct socket *, ip_rsvpd);	/* reservation protocol daemon*/
+VNET_DECLARE(struct socket *, ip_mrouter);	/* multicast routing daemon */
+
+#define	V_ipstat		VNET(ipstat)
+#define	V_ip_id			VNET(ip_id)
+#define	V_ip_defttl		VNET(ip_defttl)
+#define	V_ipforwarding		VNET(ipforwarding)
+#ifdef IPSTEALTH
+#define	V_ipstealth		VNET(ipstealth)
+#endif
+#define	V_rsvp_on		VNET(rsvp_on)
+#define	V_ip_rsvpd		VNET(ip_rsvpd)
+#define	V_ip_mrouter		VNET(ip_mrouter)
 
 extern u_char	ip_protox[];
 extern int	(*legal_vif_num)(int);
@@ -231,6 +255,12 @@ extern int	(*ip_fw_ctl_ptr)(struct sockopt *);
 extern int	(*ip_dn_ctl_ptr)(struct sockopt *);
 extern int	(*ip_dn_io_ptr)(struct mbuf **m, int dir, struct ip_fw_args *fwa);
 extern void	(*ip_dn_ruledel_ptr)(void *);		/* in ip_fw2.c */
+
+VNET_DECLARE(int, ip_do_randomid);
+#define	V_ip_do_randomid	VNET(ip_do_randomid)
+#define	ip_newid()	((V_ip_do_randomid != 0) ? ip_randomid() : \
+			    htons(V_ip_id++))
+
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IP_VAR_H_ */

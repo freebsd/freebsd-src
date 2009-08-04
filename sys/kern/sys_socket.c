@@ -48,10 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/ucred.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <security/mac/mac_framework.h>
 

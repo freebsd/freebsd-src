@@ -35,14 +35,20 @@
 
 #include <netinet/tcp.h>
 
-struct vnet;
+#ifdef _KERNEL
+#include <net/vnet.h>
 
 /*
  * Kernel variables for tcp.
  */
-#ifdef VIMAGE_GLOBALS
-extern int	tcp_do_rfc1323;
-#endif
+VNET_DECLARE(int, tcp_do_rfc1323);
+VNET_DECLARE(int, tcp_reass_qsize);
+VNET_DECLARE(struct uma_zone *, tcp_reass_zone);
+#define	V_tcp_do_rfc1323	VNET(tcp_do_rfc1323)
+#define	V_tcp_reass_qsize	VNET(tcp_reass_qsize)
+#define	V_tcp_reass_zone	VNET(tcp_reass_zone)
+
+#endif /* _KERNEL */
 
 /* TCP segment queue entry */
 struct tseg_qent {
@@ -52,10 +58,6 @@ struct tseg_qent {
 	struct	mbuf	*tqe_m;		/* mbuf contains packet */
 };
 LIST_HEAD(tsegqe_head, tseg_qent);
-#ifdef VIMAGE_GLOBALS
-extern int	tcp_reass_qsize;
-#endif
-extern struct uma_zone *tcp_reass_zone;
 
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
@@ -72,6 +74,9 @@ struct sackhole {
 struct sackhint {
 	struct sackhole	*nexthole;
 	int		sack_bytes_rexmit;
+
+	int		ispare;		/* explicit pad for 64bit alignment */
+	uint64_t	_pad[2];	/* 1 sacked_bytes, 1 TBD */
 };
 
 struct tcptemp {
@@ -99,6 +104,7 @@ do {								\
  */
 struct tcpcb {
 	struct	tsegqe_head t_segq;	/* segment reassembly queue */
+	void	*t_pspare[2];		/* new reassembly queue */
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
 
@@ -190,10 +196,13 @@ struct tcpcb {
 	int	t_rttlow;		/* smallest observerved RTT */
 	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */
-	void	*t_pspare[3];		/* toe usrreqs / toepcb * / congestion algo / 1 general use */
 	struct toe_usrreqs *t_tu;	/* offload operations vector */
 	void	*t_toe;			/* TOE pcb pointer */
 	int	t_bytes_acked;		/* # bytes acked during current RTT */
+
+	int	t_ispare;		/* explicit pad for 64bit alignment */
+	void	*t_pspare2[6];		/* 2 CC / 4 TBD */
+	uint64_t _pad[12];		/* 7 UTO, 5 TBD (1-2 CC/RTT?) */
 };
 
 /*
@@ -260,7 +269,7 @@ struct tcpcb {
  * options in tcp_addoptions.
  */
 struct tcpopt {
-	u_long		to_flags;	/* which options are present */
+	u_int64_t	to_flags;	/* which options are present */
 #define	TOF_MSS		0x0001		/* maximum segment size */
 #define	TOF_SCALE	0x0002		/* window scaling */
 #define	TOF_SACKPERM	0x0004		/* SACK permitted */
@@ -270,11 +279,11 @@ struct tcpopt {
 #define	TOF_MAXOPT	0x0100
 	u_int32_t	to_tsval;	/* new timestamp */
 	u_int32_t	to_tsecr;	/* reflected timestamp */
+	u_char		*to_sacks;	/* pointer to the first SACK blocks */
+	u_char		*to_signature;	/* pointer to the TCP-MD5 signature */
 	u_int16_t	to_mss;		/* maximum segment size */
 	u_int8_t	to_wscale;	/* window scaling */
 	u_int8_t	to_nsacks;	/* number of SACK blocks */
-	u_char		*to_sacks;	/* pointer to the first SACK blocks */
-	u_char		*to_signature;	/* pointer to the TCP-MD5 signature */
 };
 
 /*
@@ -460,11 +469,24 @@ struct	tcpstat {
 	u_long	tcps_ecn_ect1;		/* ECN Capable Transport */
 	u_long	tcps_ecn_shs;		/* ECN successful handshakes */
 	u_long	tcps_ecn_rcwnd;		/* # times ECN reduced the cwnd */
+
+	u_long	_pad[12];		/* 6 UTO, 6 TBD */
 };
 
 #ifdef _KERNEL
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
 #define	TCPSTAT_ADD(name, val)	V_tcpstat.name += (val)
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_tcpstat_inc(int statnum);
+#define	KMOD_TCPSTAT_INC(name)						\
+	kmod_tcpstat_inc(offsetof(struct tcpstat, name) / sizeof(u_long))
 #endif
 
 /*
@@ -529,44 +551,79 @@ MALLOC_DECLARE(M_TCPLOG);
 
 extern	int tcp_log_in_vain;
 
-#ifdef VIMAGE_GLOBALS
-extern	struct inpcbhead tcb;		/* head of queue of active tcpcb's */
-extern	struct inpcbinfo tcbinfo;
-extern	struct tcpstat tcpstat;	/* tcp statistics */
-extern	int tcp_mssdflt;	/* XXX */
-extern	int tcp_minmss;
-extern	int tcp_delack_enabled;
-extern	int tcp_do_newreno;
-extern	int path_mtu_discovery;
-extern	int ss_fltsz;
-extern	int ss_fltsz_local;
+VNET_DECLARE(struct inpcbhead, tcb);		/* queue of active tcpcb's */
+VNET_DECLARE(struct inpcbinfo, tcbinfo);
+VNET_DECLARE(struct tcpstat, tcpstat);		/* tcp statistics */
+VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
+VNET_DECLARE(int, tcp_minmss);
+VNET_DECLARE(int, tcp_delack_enabled);
+VNET_DECLARE(int, tcp_do_newreno);
+VNET_DECLARE(int, path_mtu_discovery);
+VNET_DECLARE(int, ss_fltsz);
+VNET_DECLARE(int, ss_fltsz_local);
 
-extern	int blackhole;
-extern	int drop_synfin;
-extern	int tcp_do_rfc3042;
-extern	int tcp_do_rfc3390;
-extern	int tcp_insecure_rst;
-extern	int tcp_do_autorcvbuf;
-extern	int tcp_autorcvbuf_inc;
-extern	int tcp_autorcvbuf_max;
-extern	int tcp_do_rfc3465;
-extern	int tcp_abc_l_var;
+#define	V_tcb			VNET(tcb)
+#define	V_tcbinfo		VNET(tcbinfo)
+#define	V_tcpstat		VNET(tcpstat)
+#define	V_tcp_mssdflt		VNET(tcp_mssdflt)
+#define	V_tcp_minmss		VNET(tcp_minmss)
+#define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
+#define	V_tcp_do_newreno	VNET(tcp_do_newreno)
+#define	V_path_mtu_discovery	VNET(path_mtu_discovery)
+#define	V_ss_fltsz		VNET(ss_fltsz)
+#define	V_ss_fltsz_local	VNET(ss_fltsz_local)
 
-extern	int tcp_do_tso;
-extern	int tcp_do_autosndbuf;
-extern	int tcp_autosndbuf_inc;
-extern	int tcp_autosndbuf_max;
+VNET_DECLARE(int, blackhole);
+VNET_DECLARE(int, drop_synfin);
+VNET_DECLARE(int, tcp_do_rfc3042);
+VNET_DECLARE(int, tcp_do_rfc3390);
+VNET_DECLARE(int, tcp_insecure_rst);
+VNET_DECLARE(int, tcp_do_autorcvbuf);
+VNET_DECLARE(int, tcp_autorcvbuf_inc);
+VNET_DECLARE(int, tcp_autorcvbuf_max);
+VNET_DECLARE(int, tcp_do_rfc3465);
+VNET_DECLARE(int, tcp_abc_l_var);
 
-extern	int nolocaltimewait;
+#define	V_blackhole		VNET(blackhole)
+#define	V_drop_synfin		VNET(drop_synfin)
+#define	V_tcp_do_rfc3042	VNET(tcp_do_rfc3042)
+#define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
+#define	V_tcp_insecure_rst	VNET(tcp_insecure_rst)
+#define	V_tcp_do_autorcvbuf	VNET(tcp_do_autorcvbuf)
+#define	V_tcp_autorcvbuf_inc	VNET(tcp_autorcvbuf_inc)
+#define	V_tcp_autorcvbuf_max	VNET(tcp_autorcvbuf_max)
+#define	V_tcp_do_rfc3465	VNET(tcp_do_rfc3465)
+#define	V_tcp_abc_l_var		VNET(tcp_abc_l_var)
 
-extern	int tcp_do_sack;		/* SACK enabled/disabled */
-extern	int tcp_sack_maxholes;
-extern	int tcp_sack_globalmaxholes;
-extern	int tcp_sack_globalholes;
-extern	int tcp_sc_rst_sock_fail;	/* RST on sock alloc failure */
-extern	int tcp_do_ecn;			/* TCP ECN enabled/disabled */
-extern	int tcp_ecn_maxretries;
-#endif /* VIMAGE_GLOBALS */
+VNET_DECLARE(int, tcp_do_tso);
+VNET_DECLARE(int, tcp_do_autosndbuf);
+VNET_DECLARE(int, tcp_autosndbuf_inc);
+VNET_DECLARE(int, tcp_autosndbuf_max);
+
+#define	V_tcp_do_tso		VNET(tcp_do_tso)
+#define	V_tcp_do_autosndbuf	VNET(tcp_do_autosndbuf)
+#define	V_tcp_autosndbuf_inc	VNET(tcp_autosndbuf_inc)
+#define	V_tcp_autosndbuf_max	VNET(tcp_autosndbuf_max)
+
+VNET_DECLARE(int, nolocaltimewait);
+
+#define	V_nolocaltimewait	VNET(nolocaltimewait)
+
+VNET_DECLARE(int, tcp_do_sack);			/* SACK enabled/disabled */
+VNET_DECLARE(int, tcp_sack_maxholes);
+VNET_DECLARE(int, tcp_sack_globalmaxholes);
+VNET_DECLARE(int, tcp_sack_globalholes);
+VNET_DECLARE(int, tcp_sc_rst_sock_fail);	/* RST on sock alloc failure */
+VNET_DECLARE(int, tcp_do_ecn);			/* TCP ECN enabled/disabled */
+VNET_DECLARE(int, tcp_ecn_maxretries);
+
+#define	V_tcp_do_sack		VNET(tcp_do_sack)
+#define	V_tcp_sack_maxholes	VNET(tcp_sack_maxholes)
+#define	V_tcp_sack_globalmaxholes	VNET(tcp_sack_globalmaxholes)
+#define	V_tcp_sack_globalholes	VNET(tcp_sack_globalholes)
+#define	V_tcp_sc_rst_sock_fail	VNET(tcp_sc_rst_sock_fail)
+#define	V_tcp_do_ecn		VNET(tcp_do_ecn)
+#define	V_tcp_ecn_maxretries	VNET(tcp_ecn_maxretries)
 
 int	 tcp_addoptions(struct tcpopt *, u_char *);
 struct tcpcb *

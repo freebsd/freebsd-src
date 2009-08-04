@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socket.h>
 #include <sys/vnode.h>
-#include <sys/vimage.h>
 
 #include <machine/stdarg.h>
 
@@ -65,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/if_ether.h>
 #include <machine/in_cksum.h>
-#include <netinet/vinet.h>
 #endif
 
 #ifdef INET6
@@ -83,7 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
-#include <netinet6/vinet6.h>
 #endif
 
 #include <crypto/sha1.h>
@@ -574,8 +572,9 @@ carp_input(struct mbuf *m, int hlen)
 	if (m->m_pkthdr.len < iplen + sizeof(*ch)) {
 		CARPSTATS_INC(carps_badlen);
 		CARP_LOG("carp_input: received len %zd < "
-		    "sizeof(struct carp_header)\n",
-		    m->m_len - sizeof(struct ip));
+		    "sizeof(struct carp_header) on %s\n",
+		    m->m_len - sizeof(struct ip),
+		    m->m_pkthdr.rcvif->if_xname);
 		m_freem(m);
 		return;
 	}
@@ -920,7 +919,6 @@ carp_send_ad_locked(struct carp_softc *sc)
 	ch.carp_cksum = 0;
 
 #ifdef INET
-	INIT_VNET_INET(curvnet);
 	if (sc->sc_ia) {
 		struct ip *ip;
 
@@ -1476,7 +1474,6 @@ carp_multicast6_cleanup(struct carp_softc *sc)
 static int
 carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 {
-	INIT_VNET_INET(curvnet);
 	struct ifnet *ifp;
 	struct carp_if *cif;
 	struct in_ifaddr *ia, *ia_if;
@@ -1655,7 +1652,6 @@ carp_del_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 static int
 carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp;
 	struct carp_if *cif;
 	struct in6_ifaddr *ia, *ia_if;

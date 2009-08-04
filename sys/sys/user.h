@@ -85,7 +85,7 @@
  */
 #define	KI_NSPARE_INT	9
 #define	KI_NSPARE_LONG	12
-#define	KI_NSPARE_PTR	6
+#define	KI_NSPARE_PTR	7
 
 #ifdef __amd64__
 #define	KINFO_PROC_SIZE	1088
@@ -121,7 +121,14 @@
 #define	OCOMMLEN	16		/* size of returned thread name */
 #define	COMMLEN		19		/* size of returned ki_comm name */
 #define	KI_EMULNAMELEN	16		/* size of returned ki_emul */
+#define KI_NGROUPS	16		/* number of groups in ki_groups */
 #define	LOGNAMELEN	17		/* size of returned ki_login */
+
+/*
+ * Steal a bit from ki_cr_flags (cr_flags is never used) to indicate
+ * that the cred had more than KI_NGROUPS groups.
+ */
+#define KI_CRF_GRP_OVERFLOW	0x80000000
 
 struct kinfo_proc {
 	int	ki_structsize;		/* size of this structure */
@@ -154,7 +161,7 @@ struct kinfo_proc {
 	gid_t	ki_svgid;		/* Saved effective group id */
 	short	ki_ngroups;		/* number of groups */
 	short	ki_spare_short2;	/* unused (just here for alignment) */
-	uint32_t __was_ki_groups[16];	/* unused; left for bin compat */
+	gid_t 	ki_groups[KI_NGROUPS];	/* groups */
 	vm_size_t ki_size;		/* virtual size */
 	segsz_t ki_rssize;		/* current resident set size in pages */
 	segsz_t ki_swrss;		/* resident set size before last swap */
@@ -204,7 +211,6 @@ struct kinfo_proc {
 	struct	pcb *ki_pcb;		/* kernel virtual addr of pcb */
 	void	*ki_kstack;		/* kernel virtual addr of stack */
 	void	*ki_udata;		/* User convenience pointer */
-	gid_t	*ki_groups;		/* groups */
 	/*
 	 * When adding new variables, take space for pointers from the
 	 * front of ki_spareptrs, and longs from the end of ki_sparelongs.
@@ -344,6 +350,7 @@ struct kinfo_file {
 #define	KVME_TYPE_DEVICE	4
 #define	KVME_TYPE_PHYS		5
 #define	KVME_TYPE_DEAD		6
+#define	KVME_TYPE_SG		7
 #define	KVME_TYPE_UNKNOWN	255
 
 #define	KVME_PROT_READ		0x00000001

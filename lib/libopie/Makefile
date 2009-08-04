@@ -4,7 +4,7 @@
 #
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 DIST_DIR=	${OPIE_DIST}/${.CURDIR:T}
-SHLIB_MAJOR=    5
+SHLIB_MAJOR=    6
 
 KEYFILE?=	\"/etc/opiekeys\"
 

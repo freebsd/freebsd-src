@@ -110,9 +110,13 @@ cam/cam_periph.c		optional scbus
 cam/cam_queue.c			optional scbus
 cam/cam_sim.c			optional scbus
 cam/cam_xpt.c			optional scbus
+cam/ata/ata_all.c		optional scbus
+cam/ata/ata_xpt.c		optional scbus
+cam/scsi/scsi_xpt.c		optional scbus
 cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
 cam/scsi/scsi_ch.c		optional ch
+cam/ata/ata_da.c		optional da
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
 cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
@@ -459,6 +463,7 @@ dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
 dev/aha/aha_mca.c		optional aha mca
 dev/ahb/ahb.c			optional ahb eisa
+dev/ahci/ahci.c			optional ahci pci
 dev/aic/aic.c			optional aic
 dev/aic/aic_pccard.c		optional aic pccard
 dev/aic7xxx/ahc_eisa.c		optional ahc eisa
@@ -498,7 +503,8 @@ dev/ata/ata-cbus.c		optional ata pc98 | atapc98
 dev/ata/ata-isa.c		optional ata isa | ataisa
 dev/ata/ata-pci.c		optional ata pci | atapci
 dev/ata/chipsets/ata-ahci.c	optional ata pci | ataahci | ataacerlabs | \
-					 ataati | ataintel | atajmicron | atavia
+					 ataati | ataintel | atajmicron | \
+					 atavia | atanvidia
 dev/ata/chipsets/ata-acard.c	optional ata pci | ataacard
 dev/ata/chipsets/ata-acerlabs.c	optional ata pci | ataacerlabs
 dev/ata/chipsets/ata-adaptec.c	optional ata pci | ataadaptec
@@ -1386,6 +1392,7 @@ dev/si/si3_t225.c		optional si
 dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
+dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci inet
 dev/smbus/smb.c			optional smb
@@ -1621,7 +1628,9 @@ dev/usb/net/usb_ethernet.c \
 #
 dev/usb/wlan/if_rum.c		optional rum
 dev/usb/wlan/if_uath.c		optional uath
+dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
+dev/usb/wlan/if_urtw.c		optional urtw
 dev/usb/wlan/if_zyd.c		optional zyd
 #
 # USB serial and parallel port drivers
@@ -1984,7 +1993,6 @@ kern/kern_time.c		standard
 kern/kern_timeout.c		standard
 kern/kern_umtx.c		standard
 kern/kern_uuid.c		standard
-kern/kern_vimage.c		standard
 kern/kern_xxx.c			standard
 kern/link_elf.c			standard
 kern/linker_if.m		standard
@@ -2195,6 +2203,7 @@ net/if_disc.c			optional disc
 net/if_edsc.c			optional edsc
 net/if_ef.c			optional ef
 net/if_enc.c			optional enc ipsec inet | enc ipsec inet6
+net/if_epair.c			optional epair
 net/if_ethersubr.c		optional ether \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 net/if_faith.c			optional faith
@@ -2226,12 +2235,16 @@ net/route.c			standard
 net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | sppp | \
 					 netgraph_sppp
+net/vnet.c			optional vimage
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
 					 ddb_ctf
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
+net80211/ieee80211_action.c	optional wlan
+net80211/ieee80211_ageq.c	optional wlan
 net80211/ieee80211_adhoc.c	optional wlan
+net80211/ieee80211_ageq.c	optional wlan
 net80211/ieee80211_amrr.c	optional wlan wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan
 net80211/ieee80211_crypto_ccmp.c optional wlan wlan_ccmp
@@ -2243,8 +2256,10 @@ net80211/ieee80211_dfs.c	optional wlan
 net80211/ieee80211_freebsd.c	optional wlan
 net80211/ieee80211_hostap.c	optional wlan
 net80211/ieee80211_ht.c		optional wlan
+net80211/ieee80211_hwmp.c	optional wlan ieee80211_support_mesh
 net80211/ieee80211_input.c	optional wlan
 net80211/ieee80211_ioctl.c	optional wlan
+net80211/ieee80211_mesh.c	optional wlan ieee80211_support_mesh
 net80211/ieee80211_monitor.c	optional wlan
 net80211/ieee80211_node.c	optional wlan
 net80211/ieee80211_output.c	optional wlan
@@ -2624,6 +2639,7 @@ vm/default_pager.c		standard
 vm/device_pager.c		standard
 vm/phys_pager.c			standard
 vm/redzone.c			optional DEBUG_REDZONE
+vm/sg_pager.c			standard
 vm/swap_pager.c			standard
 vm/uma_core.c			standard
 vm/uma_dbg.c			standard

@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/ttycom.h>
 #include <sys/uio.h>
-#include <sys/vimage.h>
 
 #include <sys/event.h>
 #include <sys/file.h>
@@ -73,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net/bpf_zerocopy.h>
 #include <net/bpfdesc.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>

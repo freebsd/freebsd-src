@@ -35,6 +35,7 @@
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
+#include "opt_inet.h"
 #endif
 
 #include <sys/param.h>
@@ -599,9 +600,9 @@ igb_attach(device_t dev)
 
 	/* Register for VLAN events */
 	adapter->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
-	     igb_register_vlan, 0, EVENTHANDLER_PRI_FIRST);
+	     igb_register_vlan, adapter, EVENTHANDLER_PRI_FIRST);
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
-	     igb_unregister_vlan, 0, EVENTHANDLER_PRI_FIRST);
+	     igb_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST);
 
 	/* Tell the stack that the interface is not active */
 	adapter->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -3067,7 +3068,8 @@ igb_free_transmit_buffers(struct tx_ring *txr)
 		}
 	}
 #if __FreeBSD_version >= 800000
-	buf_ring_free(txr->br, M_DEVBUF);
+	if (txr->br != NULL)
+		buf_ring_free(txr->br, M_DEVBUF);
 #endif
 	if (txr->tx_buffers != NULL) {
 		free(txr->tx_buffers, M_DEVBUF);
@@ -4303,10 +4305,13 @@ igb_rx_checksum(u32 staterr, struct mbuf *mp, bool sctp)
  * config EVENT
  */
 static void
-igb_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
+igb_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, bit;
+
+	if (ifp->if_softc !=  arg)   /* Not our event */
+		return;
 
 	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
                 return;
@@ -4324,10 +4329,13 @@ igb_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
  * unconfig EVENT
  */
 static void
-igb_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
+igb_unregister_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, bit;
+
+	if (ifp->if_softc !=  arg)
+		return;
 
 	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
                 return;

@@ -67,9 +67,7 @@ __fread(void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
 	size_t total;
 
 	/*
-	 * The ANSI standard requires a return value of 0 for a count
-	 * or a size of 0.  Peculiarily, it imposes no such requirements
-	 * on fwrite; it only requires fread to be broken.
+	 * ANSI and SUSv2 require a return value of 0 if size or count are 0.
 	 */
 	if ((resid = count * size) == 0)
 		return (0);

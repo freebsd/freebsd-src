@@ -53,12 +53,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 #include <sys/ucred.h>
-#include <sys/vimage.h>
 
 #include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
-#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -98,19 +97,21 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#ifdef VIMAGE_GLOBALS
-static struct tcp_syncache tcp_syncache;
-static int tcp_syncookies;
-static int tcp_syncookiesonly;
-int tcp_sc_rst_sock_fail;
-#endif
+static VNET_DEFINE(struct tcp_syncache, tcp_syncache);
+static VNET_DEFINE(int, tcp_syncookies);
+static VNET_DEFINE(int, tcp_syncookiesonly);
+VNET_DEFINE(int, tcp_sc_rst_sock_fail);
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, syncookies,
-    CTLFLAG_RW, tcp_syncookies, 0,
+#define	V_tcp_syncache			VNET(tcp_syncache)
+#define	V_tcp_syncookies		VNET(tcp_syncookies)
+#define	V_tcp_syncookiesonly		VNET(tcp_syncookiesonly)
+
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,
+    &VNET_NAME(tcp_syncookies), 0,
     "Use TCP SYN cookies if the syncache overflows");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, syncookies_only,
-    CTLFLAG_RW, tcp_syncookiesonly, 0,
+SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_RW,
+    &VNET_NAME(tcp_syncookiesonly), 0,
     "Use only TCP SYN cookies");
 
 #ifdef TCP_OFFLOAD_DISABLE
@@ -149,29 +150,29 @@ static struct syncache
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, syncache, CTLFLAG_RW, 0, "TCP SYN cache");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
-    bucketlimit, CTLFLAG_RDTUN,
-    tcp_syncache.bucket_limit, 0, "Per-bucket hash limit for syncache");
+SYSCTL_VNET_INT(_net_inet_tcp_syncache, OID_AUTO, bucketlimit, CTLFLAG_RDTUN,
+    &VNET_NAME(tcp_syncache.bucket_limit), 0,
+    "Per-bucket hash limit for syncache");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
-    cachelimit, CTLFLAG_RDTUN,
-    tcp_syncache.cache_limit, 0, "Overall entry limit for syncache");
+SYSCTL_VNET_INT(_net_inet_tcp_syncache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,
+    &VNET_NAME(tcp_syncache.cache_limit), 0,
+    "Overall entry limit for syncache");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
-    count, CTLFLAG_RD,
-    tcp_syncache.cache_count, 0, "Current number of entries in syncache");
+SYSCTL_VNET_INT(_net_inet_tcp_syncache, OID_AUTO, count, CTLFLAG_RD,
+    &VNET_NAME(tcp_syncache.cache_count), 0,
+    "Current number of entries in syncache");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
-    hashsize, CTLFLAG_RDTUN,
-    tcp_syncache.hashsize, 0, "Size of TCP syncache hashtable");
+SYSCTL_VNET_INT(_net_inet_tcp_syncache, OID_AUTO, hashsize, CTLFLAG_RDTUN,
+    &VNET_NAME(tcp_syncache.hashsize), 0,
+    "Size of TCP syncache hashtable");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
-    rexmtlimit, CTLFLAG_RW,
-    tcp_syncache.rexmt_limit, 0, "Limit on SYN/ACK retransmissions");
+SYSCTL_VNET_INT(_net_inet_tcp_syncache, OID_AUTO, rexmtlimit, CTLFLAG_RW,
+    &VNET_NAME(tcp_syncache.rexmt_limit), 0,
+    "Limit on SYN/ACK retransmissions");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
-     rst_on_sock_fail, CTLFLAG_RW,
-     tcp_sc_rst_sock_fail, 0, "Send reset on socket allocation failure");
+SYSCTL_VNET_INT(_net_inet_tcp_syncache, OID_AUTO, rst_on_sock_fail,
+    CTLFLAG_RW, &VNET_NAME(tcp_sc_rst_sock_fail), 0,
+    "Send reset on socket allocation failure");
 
 static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
 
@@ -206,7 +207,6 @@ static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
 static void
 syncache_free(struct syncache *sc)
 {
-	INIT_VNET_INET(curvnet);
 
 	if (sc->sc_ipopts)
 		(void) m_free(sc->sc_ipopts);
@@ -222,7 +222,6 @@ syncache_free(struct syncache *sc)
 void
 syncache_init(void)
 {
-	INIT_VNET_INET(curvnet);
 	int i;
 
 	V_tcp_syncookies = 1;
@@ -279,7 +278,6 @@ syncache_init(void)
 void
 syncache_destroy(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	/* XXX walk the cache, free remaining objects, stop timers */
 
@@ -295,7 +293,6 @@ syncache_destroy(void)
 static void
 syncache_insert(struct syncache *sc, struct syncache_head *sch)
 {
-	INIT_VNET_INET(sch->sch_vnet);
 	struct syncache *sc2;
 
 	SCH_LOCK(sch);
@@ -334,7 +331,6 @@ syncache_insert(struct syncache *sc, struct syncache_head *sch)
 static void
 syncache_drop(struct syncache *sc, struct syncache_head *sch)
 {
-	INIT_VNET_INET(sch->sch_vnet);
 
 	SCH_LOCK_ASSERT(sch);
 
@@ -380,7 +376,6 @@ syncache_timer(void *xsch)
 	char *s;
 
 	CURVNET_SET(sch->sch_vnet);
-	INIT_VNET_INET(sch->sch_vnet);
 
 	/* NB: syncache_head has already been locked by the callout. */
 	SCH_LOCK_ASSERT(sch);
@@ -440,7 +435,6 @@ syncache_timer(void *xsch)
 struct syncache *
 syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 {
-	INIT_VNET_INET(curvnet);
 	struct syncache *sc;
 	struct syncache_head *sch;
 
@@ -488,7 +482,6 @@ syncache_lookup(struct in_conninfo *inc, struct syncache_head **schp)
 void
 syncache_chkrst(struct in_conninfo *inc, struct tcphdr *th)
 {
-	INIT_VNET_INET(curvnet);
 	struct syncache *sc;
 	struct syncache_head *sch;
 	char *s = NULL;
@@ -563,7 +556,6 @@ done:
 void
 syncache_badack(struct in_conninfo *inc)
 {
-	INIT_VNET_INET(curvnet);
 	struct syncache *sc;
 	struct syncache_head *sch;
 
@@ -579,7 +571,6 @@ syncache_badack(struct in_conninfo *inc)
 void
 syncache_unreach(struct in_conninfo *inc, struct tcphdr *th)
 {
-	INIT_VNET_INET(curvnet);
 	struct syncache *sc;
 	struct syncache_head *sch;
 
@@ -616,7 +607,6 @@ done:
 static struct socket *
 syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 {
-	INIT_VNET_INET(lso->so_vnet);
 	struct inpcb *inp = NULL;
 	struct socket *so;
 	struct tcpcb *tp;
@@ -651,8 +641,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #endif
 
 	inp = sotoinpcb(so);
-	inp->inp_inc.inc_fibnum = sc->sc_inc.inc_fibnum;
-	so->so_fibnum = sc->sc_inc.inc_fibnum;
+	inp->inp_inc.inc_fibnum = so->so_fibnum;
 	INP_WLOCK(inp);
 
 	/* Insert new socket into PCB hash list. */
@@ -827,7 +816,6 @@ int
 syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
     struct socket **lsop, struct mbuf *m)
 {
-	INIT_VNET_INET(curvnet);
 	struct syncache *sc;
 	struct syncache_head *sch;
 	struct syncache scs;
@@ -943,14 +931,19 @@ failed:
 }
 
 int
-tcp_offload_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
+tcp_offload_syncache_expand(struct in_conninfo *inc, struct toeopt *toeo,
     struct tcphdr *th, struct socket **lsop, struct mbuf *m)
 {
-	INIT_VNET_INET(curvnet);
+	struct tcpopt to;
 	int rc;
+
+	bzero(&to, sizeof(struct tcpopt));
+	to.to_mss = toeo->to_mss;
+	to.to_wscale = toeo->to_wscale;
+	to.to_flags = toeo->to_flags;
 	
 	INP_INFO_WLOCK(&V_tcbinfo);
-	rc = syncache_expand(inc, to, th, lsop, m);
+	rc = syncache_expand(inc, &to, th, lsop, m);
 	INP_INFO_WUNLOCK(&V_tcbinfo);
 
 	return (rc);
@@ -974,7 +967,6 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
     struct inpcb *inp, struct socket **lsop, struct mbuf *m,
     struct toe_usrreqs *tu, void *toepcb)
 {
-	INIT_VNET_INET(inp->inp_vnet);
 	struct tcpcb *tp;
 	struct socket *so;
 	struct syncache *sc = NULL;
@@ -1134,8 +1126,6 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	sc->sc_cred = cred;
 	cred = NULL;
 	sc->sc_ipopts = ipopts;
-	/* XXX-BZ this fib assignment is just useless. */
-	sc->sc_inc.inc_fibnum = inp->inp_inc.inc_fibnum;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 #ifdef INET6
 	if (!(inc->inc_flags & INC_ISIPV6))
@@ -1271,7 +1261,6 @@ done:
 static int
 syncache_respond(struct syncache *sc)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip *ip = NULL;
 	struct mbuf *m;
 	struct tcphdr *th;
@@ -1410,6 +1399,7 @@ syncache_respond(struct syncache *sc)
 	} else
 		optlen = 0;
 
+	M_SETFIB(m, sc->sc_inc.inc_fibnum);
 #ifdef INET6
 	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
 		th->th_sum = 0;
@@ -1437,15 +1427,21 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 }
 
 void
-tcp_offload_syncache_add(struct in_conninfo *inc, struct tcpopt *to,
+tcp_offload_syncache_add(struct in_conninfo *inc, struct toeopt *toeo,
     struct tcphdr *th, struct inpcb *inp, struct socket **lsop,
     struct toe_usrreqs *tu, void *toepcb)
 {
-	INIT_VNET_INET(curvnet);
+	struct tcpopt to;
+
+	bzero(&to, sizeof(struct tcpopt));
+	to.to_mss = toeo->to_mss;
+	to.to_wscale = toeo->to_wscale;
+	to.to_flags = toeo->to_flags;
 
 	INP_INFO_WLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
-	_syncache_add(inc, to, th, inp, lsop, NULL, tu, toepcb);
+
+	_syncache_add(inc, &to, th, inp, lsop, NULL, tu, toepcb);
 }
 
 /*
@@ -1530,7 +1526,6 @@ static void
 syncookie_generate(struct syncache_head *sch, struct syncache *sc,
     u_int32_t *flowlabel)
 {
-	INIT_VNET_INET(curvnet);
 	MD5_CTX ctx;
 	u_int32_t md5_buffer[MD5_DIGEST_LENGTH / sizeof(u_int32_t)];
 	u_int32_t data;
@@ -1605,7 +1600,6 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
     struct syncache *sc, struct tcpopt *to, struct tcphdr *th,
     struct socket *so)
 {
-	INIT_VNET_INET(curvnet);
 	MD5_CTX ctx;
 	u_int32_t md5_buffer[MD5_DIGEST_LENGTH / sizeof(u_int32_t)];
 	u_int32_t data = 0;
@@ -1713,7 +1707,6 @@ syncookie_lookup(struct in_conninfo *inc, struct syncache_head *sch,
 int
 syncache_pcbcount(void)
 {
-	INIT_VNET_INET(curvnet);
 	struct syncache_head *sch;
 	int count, i;
 
@@ -1737,7 +1730,6 @@ syncache_pcbcount(void)
 int
 syncache_pcblist(struct sysctl_req *req, int max_pcbs, int *pcbs_exported)
 {
-	INIT_VNET_INET(curvnet);
 	struct xtcpcb xt;
 	struct syncache *sc;
 	struct syncache_head *sch;

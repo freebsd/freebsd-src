@@ -490,7 +490,7 @@ static const struct {
 	{ HDA_INTEL_PCH,     "Intel PCH",	0 },
 	{ HDA_INTEL_SCH,     "Intel SCH",	0 },
 	{ HDA_NVIDIA_MCP51,  "NVidia MCP51",	HDAC_NO_MSI },
-	{ HDA_NVIDIA_MCP55,  "NVidia MCP55",	0 },
+	{ HDA_NVIDIA_MCP55,  "NVidia MCP55",	HDAC_NO_MSI },
 	{ HDA_NVIDIA_MCP61_1, "NVidia MCP61",	0 },
 	{ HDA_NVIDIA_MCP61_2, "NVidia MCP61",	0 },
 	{ HDA_NVIDIA_MCP65_1, "NVidia MCP65",	0 },
@@ -7435,6 +7435,7 @@ hdac_attach2(void *arg)
 		    quirks_on, quirks_off);
 	);
 
+	newbus_xlock();
 	hdac_lock(sc);
 
 	/* Remove ourselves from the config hooks */
@@ -7674,6 +7675,7 @@ hdac_attach2(void *arg)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
 	    "pindump", CTLTYPE_INT | CTLFLAG_RW, sc->dev, sizeof(sc->dev),
 	    sysctl_hdac_pindump, "I", "Dump pin states/data");
+	newbus_xunlock();
 }
 
 /****************************************************************************

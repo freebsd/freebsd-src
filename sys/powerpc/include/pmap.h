@@ -113,7 +113,9 @@ struct	md_page {
 	struct	pvo_head mdpg_pvoh;
 };
 
+#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!LIST_EMPTY(&(m)->md.mdpg_pvoh))
+#define	pmap_page_set_memattr(m, ma)	(void)0
 
 #else
 
@@ -143,7 +145,9 @@ struct md_page {
 	TAILQ_HEAD(, pv_entry) pv_list;
 };
 
+#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
+#define	pmap_page_set_memattr(m, ma)	(void)0
 
 #endif /* AIM */
 

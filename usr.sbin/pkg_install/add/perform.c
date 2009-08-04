@@ -278,6 +278,7 @@ pkg_do(char *pkg)
 	    warnx("-f specified; proceeding anyway");
     }
 
+#if ENSURE_THAT_ALL_REQUIREMENTS_ARE_MET
     /*
      * Before attempting to do the slave mode bit, ensure that we've
      * downloaded & processed everything we need.
@@ -313,6 +314,7 @@ pkg_do(char *pkg)
 	    }
 	}
     }
+#endif
 
     /* Now check the packing list for dependencies */
     for (p = Plist.head; p ; p = p->next) {
