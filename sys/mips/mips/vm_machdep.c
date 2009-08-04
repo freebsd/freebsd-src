@@ -334,14 +334,14 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
     stack_t *stack)
 {
 	struct trapframe *tf;
-	u_int32_t sp;
+	register_t sp;
 
 	/*
 	* At the point where a function is called, sp must be 8
 	* byte aligned[for compatibility with 64-bit CPUs]
 	* in ``See MIPS Run'' by D. Sweetman, p. 269
 	* align stack */
-	sp = ((uint32_t)(stack->ss_sp + stack->ss_size) & ~0x7) -
+	sp = ((register_t)(stack->ss_sp + stack->ss_size) & ~0x7) -
 	    STAND_FRAME_SIZE;
 
 	/*
