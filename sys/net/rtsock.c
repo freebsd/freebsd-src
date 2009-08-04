@@ -35,9 +35,9 @@
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/domain.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -50,7 +50,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -1238,7 +1237,6 @@ rt_ifannouncemsg(struct ifnet *ifp, int what)
 static void
 rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 {
-	INIT_VNET_NET(curvnet);
 	struct m_tag *tag;
 
 	/*
@@ -1317,7 +1315,6 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 static int
 sysctl_iflist(int af, struct walkarg *w)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct rt_addrinfo info;
@@ -1378,7 +1375,6 @@ done:
 static int
 sysctl_ifmalist(int af, struct walkarg *w)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	struct	rt_addrinfo info;
@@ -1528,4 +1524,4 @@ static struct domain routedomain = {
 	.dom_protoswNPROTOSW =	&routesw[sizeof(routesw)/sizeof(routesw[0])]
 };
 
-DOMAIN_SET(route);
+VNET_DOMAIN_SET(route);

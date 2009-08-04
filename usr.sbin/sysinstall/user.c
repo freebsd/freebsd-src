@@ -45,10 +45,10 @@
 
 /* XXX should they be moved out to sysinstall.h? */
 #define GNAME_FIELD_LEN 32
-#define GID_FIELD_LEN 10
+#define GID_FIELD_LEN 11
 #define GMEMB_FIELD_LEN 64
 
-#define UID_FIELD_LEN 10
+#define UID_FIELD_LEN 11
 #define UGROUP_FIELD_LEN GNAME_FIELD_LEN
 #define GECOS_FIELD_LEN 64
 #define UMEMB_FIELD_LEN GMEMB_FIELD_LEN
@@ -169,7 +169,7 @@ static int
 verifyGroupSettings(void)
 {
     char tmp[256], *cp;
-    long lgid;
+    unsigned long lgid;
 
     if (strlen(gname) == 0) {
 	feepout("The group name field must not be empty!");
@@ -181,9 +181,9 @@ verifyGroupSettings(void)
 	return 0;
     }
     if (strlen(gid) > 0) {
-	lgid = strtol(gid, &cp, 10);
-	if (lgid < 0 || lgid >= 65536 || (*cp != '\0' && !isspace(*cp))) {
-	    feepout("The GID must be a number between 1 and 65535.");
+	lgid = strtoul(gid, &cp, 10);
+	if (lgid == 0 || lgid > GID_MAX || (*cp != '\0' && !isspace(*cp))) {
+	    feepout("The GID must be a number between 1 and 4294967295.");
 	    return 0;
 	}
     }
@@ -406,7 +406,7 @@ static int
 verifyUserSettings(WINDOW *ds_win)
 {
     char tmp[256], *cp;
-    long luid;
+    unsigned long luid;
     WINDOW *save;
     int rv;
 
@@ -420,9 +420,9 @@ verifyUserSettings(WINDOW *ds_win)
 	return 0;
     }
     if (strlen(uid) > 0) {
-	luid = strtol(uid, &cp, 10);
-	if (luid < 0 || luid >= 65536 || (*cp != '\0' && !isspace(*cp))) {
-	    feepout("The UID must be a number between 1 and 65535.");
+	luid = strtoul(uid, &cp, 10);
+	if (luid == 0 || luid > UID_MAX || (*cp != '\0' && !isspace(*cp))) {
+	    feepout("The UID must be a number between 1 and 4294967295.");
 	    return 0;
 	}
     }

@@ -164,7 +164,7 @@ ar5212GetRxFilter(struct ath_hal *ah)
 	if (phybits & (AR_PHY_ERR_OFDM_TIMING|AR_PHY_ERR_CCK_TIMING))
 		bits |= HAL_RX_FILTER_PHYERR;
 	if (AH_PRIVATE(ah)->ah_caps.halBssidMatchSupport &&
-	    (OS_REG_READ(ah, AR_MISC_MODE) & AR_MISC_MODE_BSSID_MATCH_FORCE))
+	    (AH5212(ah)->ah_miscMode & AR_MISC_MODE_BSSID_MATCH_FORCE))
 		bits |= HAL_RX_FILTER_BSSID;
 	return bits;
 }
@@ -175,6 +175,7 @@ ar5212GetRxFilter(struct ath_hal *ah)
 void
 ar5212SetRxFilter(struct ath_hal *ah, uint32_t bits)
 {
+	struct ath_hal_5212 *ahp = AH5212(ah);
 	uint32_t phybits;
 
 	OS_REG_WRITE(ah, AR_RX_FILTER,
@@ -194,12 +195,11 @@ ar5212SetRxFilter(struct ath_hal *ah, uint32_t bits)
 			OS_REG_READ(ah, AR_RXCFG) &~ AR_RXCFG_ZLFDMA);
 	}
 	if (AH_PRIVATE(ah)->ah_caps.halBssidMatchSupport) {
-		uint32_t miscbits = OS_REG_READ(ah, AR_MISC_MODE);
 		if (bits & HAL_RX_FILTER_BSSID)
-			miscbits |= AR_MISC_MODE_BSSID_MATCH_FORCE;
+			ahp->ah_miscMode |= AR_MISC_MODE_BSSID_MATCH_FORCE;
 		else
-			miscbits &= ~AR_MISC_MODE_BSSID_MATCH_FORCE;
-		OS_REG_WRITE(ah, AR_MISC_MODE, miscbits);
+			ahp->ah_miscMode &= ~AR_MISC_MODE_BSSID_MATCH_FORCE;
+		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
 	}
 }
 

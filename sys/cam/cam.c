@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/libkern.h>
+#include <cam/cam_queue.h>
 #include <cam/cam_xpt.h>
 #endif
 
@@ -81,6 +82,7 @@ const struct cam_status_entry cam_status_table[] = {
 	{ CAM_UNREC_HBA_ERROR,	 "Unrecoverable Host Bus Adapter Error"	     },
 	{ CAM_REQ_TOO_BIG,	 "The request was too large for this host"   },
 	{ CAM_REQUEUE_REQ,	 "Unconditionally Re-queue Request",	     },
+	{ CAM_ATA_STATUS_ERROR,	 "ATA Status Error"			     },
 	{ CAM_IDE,		 "Initiator Detected Error Message Received" },
 	{ CAM_RESRC_UNAVAIL,	 "Resource Unavailable"			     },
 	{ CAM_UNACKED_EVENT,	 "Unacknowledged Event by Host"		     },

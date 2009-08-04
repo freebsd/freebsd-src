@@ -78,7 +78,11 @@ extern "C" {
 /*
  * Is ID ephemeral?
  */
+#ifdef TODO
 #define	IS_EPHEMERAL(x)		(x > MAXUID)
+#else
+#define	IS_EPHEMERAL(x)		(0)
+#endif
 
 /*
  * Should we use FUIDs?

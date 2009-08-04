@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2008
+.Dd July 8, 2009
 .Os
 .Dt RAL 4
 .Sh NAME
@@ -72,12 +72,15 @@ supports
 .Cm station ,
 .Cm adhoc ,
 .Cm hostap ,
+.Cm mesh ,
 .Cm wds ,
 and
 .Cm monitor
 mode operation.
 Only one
 .Cm hostap
+or
+.Cm mesh
 virtual interface may be configured at a time.
 Any number of 
 .Cm wds

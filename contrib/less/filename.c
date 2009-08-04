@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2008  Mark Nudelman
+ * Copyright (C) 1984-2009  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -843,16 +843,16 @@ open_altfile(filename, pf, pfd)
 #else
 		lessopen++;
 		returnfd = 1;
-		if (*lessopen == '-') {
-			/*
-			 * Lessopen preprocessor will accept "-" as a filename.
-			 */
-			lessopen++;
-		} else {
-			if (strcmp(filename, "-") == 0)
-				return (NULL);
-		}
 #endif
+	}
+	if (*lessopen == '-') {
+		/*
+		 * Lessopen preprocessor will accept "-" as a filename.
+		 */
+		lessopen++;
+	} else {
+		if (strcmp(filename, "-") == 0)
+			return (NULL);
 	}
 
 	len = strlen(lessopen) + strlen(filename) + 2;

@@ -64,13 +64,13 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -80,7 +80,6 @@
 #include <netinet/ip_gre.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
-#include <netinet/vinet.h>
 #else
 #error "Huh? if_gre without inet?"
 #endif
@@ -243,9 +242,6 @@ static int
 gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	   struct route *ro)
 {
-#ifdef INET6
-	INIT_VNET_INET(ifp->if_vnet);
-#endif
 	int error = 0;
 	struct gre_softc *sc = ifp->if_softc;
 	struct greip *gh;

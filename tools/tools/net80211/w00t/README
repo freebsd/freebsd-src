@@ -4,7 +4,7 @@ This is a collection of tools that use raw 802.11 packet injection.
 None of the tools configure the interface, so be sure to run something
 like:
 
-ifconfig ath0 channel 7 mediaopt monitor promisc up
+ifconfig wlan create wlandev ath0 wlanmode ahdemo channel 7 promisc up
 
 beforehand.  The following tools are found here:
 

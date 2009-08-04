@@ -575,7 +575,7 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 	if (cpio->uid_override >= 0)
 		st.st_uid = cpio->uid_override;
 	if (cpio->gid_override >= 0)
-		st.st_gid = cpio->uid_override;
+		st.st_gid = cpio->gid_override;
 	archive_entry_copy_stat(entry, &st);
 
 #if !defined(_WIN32) || defined(__CYGWIN__)

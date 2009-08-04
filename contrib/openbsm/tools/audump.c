@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006 Robert N. M. Watson
+ * Copyright (c) 2005-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/tools/audump.c#8 $
+ * $P4: //depot/projects/trustedbsd/openbsm/tools/audump.c#9 $
  */
 
 #include <bsm/libbsm.h>
@@ -165,16 +165,16 @@ printf_classmask(au_class_t classmask)
 
 	first = 1;
 	for (i = 0; i < 32; i++) {
-		if (classmask & (2 << i)) {
+		if (classmask & (1 << i)) {
 			if (first)
 				first = 0;
 			else
 				printf(",");
-			c = getauclassnum(2 << i);
+			c = getauclassnum(1 << i);
 			if (c != NULL)
 				printf("%s", c->ac_name);
 			else
-				printf("0x%x", 2 << i);
+				printf("0x%x", 1 << i);
 		}
 	}
 }

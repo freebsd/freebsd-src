@@ -141,6 +141,7 @@ ASSYM(PCB_DR3, offsetof(struct pcb, pcb_dr3));
 ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
 ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
 ASSYM(PCB_TSSP, offsetof(struct pcb, pcb_tssp));
+ASSYM(PCB_FULL_IRET, offsetof(struct pcb, pcb_full_iret));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_32BIT, PCB_32BIT);
 ASSYM(PCB_GS32BIT, PCB_GS32BIT);

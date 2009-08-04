@@ -12,6 +12,18 @@
 
 ======================================================================
 
+	Major changes between "less" versions 429 and 436
+
+* Don't pass "-" to non-pipe LESSOPEN unless it starts with "-".
+
+* Allow a fraction as the argument to the -# (--shift) option.
+
+* Fix highlight bug when underlined/overstruck text matches at end of line.
+
+* Fix non-regex searches with ctrl-R.
+
+======================================================================
+
 	Major changes between "less" versions 424 and 429
 
 * LESSOPEN pipe will now be used on standard input, if the LESSOPEN

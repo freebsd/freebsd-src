@@ -54,9 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/eventhandler.h>
 
-#if __FreeBSD_version >= 800044
-#include <sys/vimage.h>
-#else
+#if __FreeBSD_version < 800044
 #define V_ifnet ifnet
 #endif
 
@@ -240,7 +238,6 @@ iwch_init_module(void)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter); /* XXX CURVNET_SET_QUIET() ? */
-		INIT_VNET_NET(vnet_iter);
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 			(void)ifaddr_event_handler(NULL, ifp);
 		CURVNET_RESTORE();

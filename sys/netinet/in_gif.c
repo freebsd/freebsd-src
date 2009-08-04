@@ -46,10 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/protosw.h>
 #include <sys/malloc.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip_encap.h>
 #include <netinet/ip_ecn.h>
-#include <netinet/vinet.h>
 
 #ifdef INET6
 #include <netinet/ip6.h>
@@ -86,16 +85,12 @@ struct protosw in_gif_protosw = {
 	.pr_usrreqs =		&rip_usrreqs
 };
 
-#ifdef VIMAGE_GLOBALS
-extern int ip_gif_ttl;
-#endif
-SYSCTL_V_INT(V_NET, vnet_gif, _net_inet_ip, IPCTL_GIF_TTL, gifttl,
-	CTLFLAG_RW, ip_gif_ttl,	0, "");
+SYSCTL_VNET_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_RW,
+	&VNET_NAME(ip_gif_ttl), 0, "");
 
 int
 in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
 {
-	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;
 	struct sockaddr_in *dst = (struct sockaddr_in *)&sc->gif_ro.ro_dst;
 	struct sockaddr_in *sin_src = (struct sockaddr_in *)sc->gif_psrc;
@@ -273,7 +268,6 @@ in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
 void
 in_gif_input(struct mbuf *m, int off)
 {
-	INIT_VNET_INET(curvnet);
 	struct ifnet *gifp = NULL;
 	struct gif_softc *sc;
 	struct ip *ip;
@@ -287,14 +281,14 @@ in_gif_input(struct mbuf *m, int off)
 	sc = (struct gif_softc *)encap_getarg(m);
 	if (sc == NULL) {
 		m_freem(m);
-		IPSTAT_INC(ips_nogif);
+		KMOD_IPSTAT_INC(ips_nogif);
 		return;
 	}
 
 	gifp = GIF2IFP(sc);
 	if (gifp == NULL || (gifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
-		IPSTAT_INC(ips_nogif);
+		KMOD_IPSTAT_INC(ips_nogif);
 		return;
 	}
 
@@ -354,7 +348,7 @@ in_gif_input(struct mbuf *m, int off)
  		break;	
 
 	default:
-		IPSTAT_INC(ips_nogif);
+		KMOD_IPSTAT_INC(ips_nogif);
 		m_freem(m);
 		return;
 	}
@@ -368,7 +362,6 @@ in_gif_input(struct mbuf *m, int off)
 static int
 gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 {
-	INIT_VNET_INET(curvnet);
 	struct sockaddr_in *src, *dst;
 	struct in_ifaddr *ia4;
 

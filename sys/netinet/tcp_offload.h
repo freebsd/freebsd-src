@@ -184,6 +184,19 @@ struct toe_usrreqs {
 	void (*tu_syncache_event)(int event, void *toep);
 };
 
+/*
+ * Proxy for struct tcpopt between TOE drivers and TCP functions.
+ */
+struct toeopt {
+	u_int64_t	to_flags;	/* see tcpopt in tcp_var.h */
+	u_int16_t	to_mss;		/* maximum segment size */
+	u_int8_t	to_wscale;	/* window scaling */
+
+	u_int8_t	_pad1;		/* explicit pad for 64bit alignment */
+	u_int32_t	_pad2;		/* explicit pad for 64bit alignment */
+	u_int64_t	_pad3[4];	/* TBD */
+};
+
 #define	TOE_SC_ENTRY_PRESENT		1	/* 4-tuple already present */
 #define	TOE_SC_DROP			2	/* connection was timed out */
 

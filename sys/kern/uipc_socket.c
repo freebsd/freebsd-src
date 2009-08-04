@@ -129,7 +129,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/jail.h>
-#include <sys/vimage.h>
+
+#include <net/vnet.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -285,7 +286,7 @@ soalloc(struct vnet *vnet)
 	so->so_gencnt = ++so_gencnt;
 	++numopensockets;
 #ifdef VIMAGE
-	++vnet->sockcnt;	/* Locked with so_global_mtx. */
+	vnet->vnet_sockcnt++;
 	so->so_vnet = vnet;
 #endif
 	mtx_unlock(&so_global_mtx);
@@ -308,7 +309,7 @@ sodealloc(struct socket *so)
 	so->so_gencnt = ++so_gencnt;
 	--numopensockets;	/* Could be below, but faster here. */
 #ifdef VIMAGE
-	--so->so_vnet->sockcnt;
+	so->so_vnet->vnet_sockcnt--;
 #endif
 	mtx_unlock(&so_global_mtx);
 	if (so->so_rcv.sb_hiwat)
@@ -438,6 +439,7 @@ sonewconn(struct socket *head, int connstatus)
 	so->so_options = head->so_options &~ SO_ACCEPTCONN;
 	so->so_linger = head->so_linger;
 	so->so_state = head->so_state | SS_NOFDREF;
+	so->so_fibnum = head->so_fibnum;
 	so->so_proto = head->so_proto;
 	so->so_cred = crhold(head->so_cred);
 #ifdef MAC
@@ -2885,13 +2887,8 @@ sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
 	SOCKBUF_LOCK(&so->so_snd);
 	SOCKBUF_LOCK(&so->so_rcv);
 	if (events & (POLLIN | POLLRDNORM))
-		if (soreadable(so))
+		if (soreadabledata(so))
 			revents |= events & (POLLIN | POLLRDNORM);
-
-	if (events & POLLINIGNEOF)
-		if (so->so_rcv.sb_cc >= so->so_rcv.sb_lowat ||
-		    !TAILQ_EMPTY(&so->so_comp) || so->so_error)
-			revents |= POLLINIGNEOF;
 
 	if (events & (POLLOUT | POLLWRNORM))
 		if (sowriteable(so))
@@ -2901,10 +2898,16 @@ sopoll_generic(struct socket *so, int events, struct ucred *active_cred,
 		if (so->so_oobmark || (so->so_rcv.sb_state & SBS_RCVATMARK))
 			revents |= events & (POLLPRI | POLLRDBAND);
 
+	if ((events & POLLINIGNEOF) == 0) {
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
+			revents |= events & (POLLIN | POLLRDNORM);
+			if (so->so_snd.sb_state & SBS_CANTSENDMORE)
+				revents |= POLLHUP;
+		}
+	}
+
 	if (revents == 0) {
-		if (events &
-		    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM |
-		     POLLRDBAND)) {
+		if (events & (POLLIN | POLLPRI | POLLRDNORM | POLLRDBAND)) {
 			selrecord(td, &so->so_rcv.sb_sel);
 			so->so_rcv.sb_flags |= SB_SEL;
 		}

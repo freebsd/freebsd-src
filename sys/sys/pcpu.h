@@ -183,6 +183,7 @@ extern struct cpuhead cpuhead;
 #ifndef curthread
 #define	curthread	PCPU_GET(curthread)
 #endif
+#define	curvidata	PCPU_GET(vidata)
 
 /*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for

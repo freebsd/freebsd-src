@@ -80,14 +80,20 @@
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
  * data types (int, long, ...).	  The result is u_int and must be cast to
- * any desired pointer type. XXX u_int isn't big enough to hod a pointer.
+ * any desired pointer type.
  */
 #define	_ALIGNBYTES	7
-#define	_ALIGN(p)	(((uintptr_t)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
-#define	ALIGNED_POINTER(p, t)	((((uintptr_t)(p)) & (sizeof (t) - 1)) == 0)
+#define	_ALIGN(p)	(((u_int)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
+/*
+ * ALIGNED_POINTER is a boolean macro that checks whether an address
+ * is valid to fetch data elements of type t from on this architecture.
+ * This does not reflect the optimal alignment, just the possibility
+ * (within reasonable limits). 
+ */
+#define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof (t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
@@ -146,13 +152,12 @@
 /*
  * Conversion macros
  */
-#define	mips_round_page(x)	((((uintptr_t)(x)) + NBPG - 1) & ~(NBPG-1))
-#define	mips_trunc_page(x)	((uintptr_t)(x) & ~(NBPG-1))
-#define	mips_btop(x)		((uintptr_t)(x) >> PGSHIFT)
-#define	mips_ptob(x)		((uintptr_t)(x) << PGSHIFT)
+#define	mips_round_page(x)	((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
+#define	mips_trunc_page(x)	((unsigned)(x) & ~(NBPG-1))
+#define	mips_btop(x)		((unsigned)(x) >> PGSHIFT)
+#define	mips_ptob(x)		((unsigned)(x) << PGSHIFT)
 #define	round_page		mips_round_page
 #define	trunc_page		mips_trunc_page
-/* XXXimp: Is unsigned long the right cast type here? PA can be > 32bits */
 #define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
 #define	ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
 

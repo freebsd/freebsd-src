@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2009
+.Dd July 13, 2009
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -141,6 +141,40 @@ To define default values for the different mixer channels,
 set the channel to the preferred value using hints, e.g.:
 .Va hint.pcm.0.line Ns = Ns Qq Li 0 .
 This will mute the input channel per default.
+.Ss Multichannel Audio
+Multichannel audio, popularly referred to as
+.Dq surround sound
+is supported and enabled by default.
+The FreeBSD multichannel matrix processor supports up to 18 interleaved
+channels, but the limit is currently set to 8 channels (as commonly used
+for 7.1 surround sound).
+The internal matrix mapping can handle reduction, expansion or
+re-routing of channels.
+This provides a base interface for related multichannel
+.Fn ioctl
+support.
+Multichannel audio works both with and without
+.Tn VCHANs .
+Most bridge device drivers are still missing multichannel matrixing support
+, but in most cases this should be trivial to implement.
+Use the
+.Va dev.pcm.%d.[play|rec].vchanformat
+.Xr sysctl(8)
+to adjust the number of channels used.
+The current multichannel interleaved structure and arrangement was
+implemented by inspecting various popular UNIX applications.
+There were no single standard, so much care has been taken to try
+to satisfy each possible scenario, despite the fact that each
+application has its own conflicting standard.
+.Ss EQ
+The Parametric Software Equlizer (EQ) enables the use of
+.Dq tone
+controls (bass and treble).
+Commonly used for ear-candy or frequency compensation due to the vast
+difference in hardware quality.
+EQ is disabled by default, but can be enabled with the
+.Va hint.pcm. Ns Ao Ar X Ac Ns Va .eq
+tunable.
 .Ss VCHANs
 Each device can optionally support more playback and recording channels
 than physical hardware provides by using
@@ -151,20 +185,72 @@ or
 options can be configured via the
 .Xr sysctl 8
 interface but can only be manipulated while the device is inactive.
+.Ss VPC
+FreeBSD supports independent and individual volume controls for each active
+application, without touching the master
+.Nm
+volume.
+This is sometimes referred to as Volume Per Channel (VPC).
+The
+.Tn VPC
+feature is enabled by default.
+.Ss Loader Tunables
+The following loader tunables are used to set driver configuration at the
+.Xr loader 8
+prompt before booting the kernel, or they can be stored in
+.Pa /boot/loader.conf
+in order to automatically set them before booting the kernel.
+It is also possible to use
+.Xr kenv 1
+to change these tunables before loading the
+.Nm
+driver.
+The following tunables can not be changed during runtime using
+.Xr sysctl 8 .
+.Bl -tag -width indent
+.It Va hint.pcm. Ns Ao Ar X Ac Ns Va .eq
+Set to 1 or 0 to explicitly enable (1) or disable (0) the equalizer.
+Requires a driver reload if changed.
+Enabling this will make bass and treble controls appear in mixer applications.
+This tunable is undefined by default.
+Equalizing is disabled by default.
+.It Va hint.pcm. Ns Ao Ar X Ac Ns Va .vpc
+Set to 1 or 0 to explicitly enable (1) or disable (0) the
+.Tn VPC
+feature.
+This tunable is undefined by default.
+.Tn VPC
+is however enabled by default.
+.El
 .Ss Runtime Configuration
 There are a number of
 .Xr sysctl 8
-variables available.
+variables available which can be modified during runtime.
+These values can also be stored in
+.Pa /etc/sysctl.conf
+in order to automatically set them during the boot process.
 .Va hw.snd.*
-tunables are global settings and
+are global settings and
 .Va dev.pcm.*
 are device specific.
-.Bl -tag -width ".Va hw.snd.report_soft_formats" -offset indent
+.Bl -tag -width indent
 .It Va hw.snd.compat_linux_mmap
-Enable to allow PROT_EXEC page mappings.
-All Linux applications using sound and
+Linux
 .Xr mmap 2
-require this.
+compability.
+The following values are supported (default is 0):
+.Bl -tag -width 2n
+.It -1
+Force disabling/denying PROT_EXEC
+.Xr mmap 2
+requests.
+.It 0
+Auto detect proc/ABI type, allow
+.Xr mmap 2
+for Linux applications, and deny for everything else.
+.It 1
+Always allow PROT_EXEC page mappings.
+.El
 .It Va hw.snd.default_auto
 Enable to automatically assign default sound unit to the most recent
 attached device.
@@ -188,19 +274,15 @@ rates.
 Maximum allowable sample rate.
 .It Va hw.snd.feeder_rate_min
 Minimum allowable sample rate.
-.It Va hw.snd.feeder_rate_round
-Sample rate rounding threshold, to avoid large prime division at the
-cost of accuracy.
-All requested sample rates will be rounded to the nearest threshold value.
-Possible values range between 0 (disabled) and 500.
-Default is 25.
-.It Va hw.snd.feeder_polyphase_max
+.It Va hw.snd.feeder_rate_polyphase_max
 Adjust to set the maximum number of allowed polyphase entries during the
 process of building resampling filters.
+Disabling polyphase resampling has the benefit of reducing memory usage, at
+the expense of slower and lower quality conversion.
 Only applicable when the SINC interpolator is used.
 Default value is 183040.
 Set to 0 to disable polyphase resampling.
-.It Va hw.snd.feeder_quality
+.It Va hw.snd.feeder_rate_quality
 Sample rate converter quality.
 Default value is 1, linear interpolation.
 Available options include:
@@ -228,6 +310,12 @@ taps and 90% bandwidth as quality values.
 Continuation of the bandlimited SINC inteprolator, with 100dB stopband, 164
 taps and 97% bandwidth as quality values.
 .El
+.It Va hw.snd.feeder_rate_round
+Sample rate rounding threshold, to avoid large prime division at the
+cost of accuracy.
+All requested sample rates will be rounded to the nearest threshold value.
+Possible values range between 0 (disabled) and 500.
+Default is 25.
 .It Va hw.snd.latency
 Configure the buffering latency.
 Only affects applications that do not explicitly request
@@ -299,7 +387,9 @@ This means that any changes to the volume will be lost.
 Enabling this will preserve the volume, at the cost of possible confusion
 when applications tries to re-open the same device.
 .It Va hw.snd.vpc_mixer_bypass
-The recommended way to use the vpc feature is to teach applications to use
+The recommended way to use the
+.Tn VPC
+feature is to teach applications to use
 the correct
 .Fn ioctl :
 .Dv SNDCTL_DSP_GETPLAYVOL, SNDCTL_DSP_SETPLAYVOL,
@@ -342,6 +432,32 @@ Format for
 mixing.
 All playback paths will be converted to this format before the mixing
 process begins.
+By default only 2 channels are enabled.
+Available options include:
+.Bl -tag -width 2n
+.It s16le:1.0
+Mono
+.It s16le:2.0
+Stereo, 2 channels (left, right).
+.It s16le:2.1
+3 channels (left, right, LFE).
+.It s16le:3.0
+3 channels (left, right, rear center).
+.It s16le:4.0
+Quadraphonic, 4 channels (front/rear left and right).
+.It s16le:4.1
+5 channels (4.0 + LFE).
+.It s16le:5.0
+5 channels (4.0 + center).
+.It s16le:5.1
+6 channels (4.0 + center + LFE).
+.It s16le:6.0
+6 channels (4.0 + front/rear center).
+.It s16le:6.1
+7 channels (6.0 + LFE).
+.It s16le:7.1
+8 channels (4.0 + center + LFE + left and right side).
+.El
 .It Va dev.pcm.%d.[play|rec].vchanmode
 .Tn VCHAN
 format/rate selection.

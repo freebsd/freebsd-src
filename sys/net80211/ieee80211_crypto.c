@@ -244,11 +244,13 @@ static const char *cipher_modnames[IEEE80211_CIPHER_MAX] = {
 	[IEEE80211_CIPHER_NONE]	   = "wlan_none",
 };
 
+/* NB: there must be no overlap between user-supplied and device-owned flags */
+CTASSERT((IEEE80211_KEY_COMMON & IEEE80211_KEY_DEVICE) == 0);
+
 /*
  * Establish a relationship between the specified key and cipher
  * and, if necessary, allocate a hardware index from the driver.
- * Note that when a fixed key index is required it must be specified
- * and we blindly assign it w/o consulting the driver (XXX).
+ * Note that when a fixed key index is required it must be specified.
  *
  * This must be the first call applied to a key; all the other key
  * routines assume wk_cipher is setup.
@@ -309,6 +311,8 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 
 	oflags = key->wk_flags;
 	flags &= IEEE80211_KEY_COMMON;
+	/* NB: preserve device attributes */
+	flags |= (oflags & IEEE80211_KEY_DEVICE);
 	/*
 	 * If the hardware does not support the cipher then
 	 * fallback to a host-based implementation.
@@ -359,10 +363,6 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 		key->wk_cipher = cip;		/* XXX refcnt? */
 		key->wk_private = keyctx;
 	}
-	/*
-	 * Commit to requested usage so driver can see the flags.
-	 */
-	key->wk_flags = flags;
 
 	/*
 	 * Ask the driver for a key index if we don't have one.

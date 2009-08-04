@@ -48,13 +48,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_llatbl.h>
 #include <net/if_var.h>
 #include <net/route.h> 
 #include <net/flowtable.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/sctp.h>
-#include <netinet/vinet.h>
 
 #include <libkern/jenkins.h>
 
@@ -164,29 +163,15 @@ struct flowtable {
 };
 
 static struct proc *flowcleanerproc;
-#ifdef VIMAGE_GLOBALS
-static struct flowtable *flow_list_head;
-static uint32_t flow_hashjitter;
-static uma_zone_t flow_ipv4_zone;
-static uma_zone_t flow_ipv6_zone;
-#endif
+static VNET_DEFINE(struct flowtable *, flow_list_head);
+static VNET_DEFINE(uint32_t, flow_hashjitter);
+static VNET_DEFINE(uma_zone_t, flow_ipv4_zone);
+static VNET_DEFINE(uma_zone_t, flow_ipv6_zone);
 
-static int	flowtable_iattach(const void *);
-#ifdef VIMAGE
-static int	flowtable_idetach(const void *);
-#endif
-
-#ifndef VIMAGE_GLOBALS
-static const vnet_modinfo_t flowtable_modinfo = {
-	.vmi_id		= VNET_MOD_FLOWTABLE,
-	.vmi_name	= "flowtable",
-	.vmi_dependson	= VNET_MOD_INET,
-	.vmi_iattach    = flowtable_iattach,
-#ifdef VIMAGE
-	.vmi_idetach    = flowtable_idetach
-#endif
-};
-#endif /* !VIMAGE_GLOBALS */
+#define	V_flow_list_head	VNET(flow_list_head)
+#define	V_flow_hashjitter	VNET(flow_hashjitter)
+#define	V_flow_ipv4_zone	VNET(flow_ipv4_zone)
+#define	V_flow_ipv6_zone	VNET(flow_ipv6_zone)
 
 /*
  * TODO:
@@ -205,54 +190,67 @@ static const vnet_modinfo_t flowtable_modinfo = {
  * - support explicit connection state (currently only ad-hoc for DSR)
  * - idetach() cleanup for options VIMAGE builds.
  */
-#ifdef VIMAGE_GLOBALS
-int	flowtable_enable;
-static int flowtable_hits;
-static int flowtable_lookups;
-static int flowtable_misses;
-static int flowtable_frees;
-static int flowtable_free_checks;
-static int flowtable_max_depth;
-static int flowtable_collisions;
-static int flowtable_syn_expire;
-static int flowtable_udp_expire;
-static int flowtable_fin_wait_expire;
-static int flowtable_tcp_expire;
-static int flowtable_nmbflows;
-#endif
+VNET_DEFINE(int, flowtable_enable) = 1;
+static VNET_DEFINE(int, flowtable_hits);
+static VNET_DEFINE(int, flowtable_lookups);
+static VNET_DEFINE(int, flowtable_misses);
+static VNET_DEFINE(int, flowtable_frees);
+static VNET_DEFINE(int, flowtable_free_checks);
+static VNET_DEFINE(int, flowtable_max_depth);
+static VNET_DEFINE(int, flowtable_collisions);
+static VNET_DEFINE(int, flowtable_syn_expire) = SYN_IDLE;
+static VNET_DEFINE(int, flowtable_udp_expire) = UDP_IDLE;
+static VNET_DEFINE(int, flowtable_fin_wait_expire) = FIN_WAIT_IDLE;
+static VNET_DEFINE(int, flowtable_tcp_expire) = TCP_IDLE;
+static VNET_DEFINE(int, flowtable_nmbflows) = 4096;
+
+#define	V_flowtable_enable		VNET(flowtable_enable)
+#define	V_flowtable_hits		VNET(flowtable_hits)
+#define	V_flowtable_lookups		VNET(flowtable_lookups)
+#define	V_flowtable_misses		VNET(flowtable_misses)
+#define	V_flowtable_frees		VNET(flowtable_frees)
+#define	V_flowtable_free_checks		VNET(flowtable_free_checks)
+#define	V_flowtable_max_depth		VNET(flowtable_max_depth)
+#define	V_flowtable_collisions		VNET(flowtable_collisions)
+#define	V_flowtable_syn_expire		VNET(flowtable_syn_expire)
+#define	V_flowtable_udp_expire		VNET(flowtable_udp_expire)
+#define	V_flowtable_fin_wait_expire	VNET(flowtable_fin_wait_expire)
+#define	V_flowtable_tcp_expire		VNET(flowtable_tcp_expire)
+#define	V_flowtable_nmbflows		VNET(flowtable_nmbflows)
+
 SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL, "flowtable");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, enable,
-    CTLFLAG_RW, flowtable_enable, 0, "enable flowtable caching.");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, hits,
-    CTLFLAG_RD, flowtable_hits, 0, "# flowtable hits.");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, lookups,
-    CTLFLAG_RD, flowtable_lookups, 0, "# flowtable lookups.");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, misses,
-    CTLFLAG_RD, flowtable_misses, 0, "#flowtable misses.");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, frees,
-    CTLFLAG_RD, flowtable_frees, 0, "#flows freed.");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, free_checks,
-    CTLFLAG_RD, flowtable_free_checks, 0, "#flows free checks.");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, max_depth,
-    CTLFLAG_RD, flowtable_max_depth, 0, "max collision list length.");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, collisions,
-    CTLFLAG_RD, flowtable_collisions, 0, "#flowtable collisions.");
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, enable, CTLFLAG_RW,
+    &VNET_NAME(flowtable_enable), 0, "enable flowtable caching.");
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, hits, CTLFLAG_RD,
+    &VNET_NAME(flowtable_hits), 0, "# flowtable hits.");
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, lookups, CTLFLAG_RD,
+    &VNET_NAME(flowtable_lookups), 0, "# flowtable lookups.");
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, misses, CTLFLAG_RD,
+    &VNET_NAME(flowtable_misses), 0, "#flowtable misses.");
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, frees, CTLFLAG_RD,
+    &VNET_NAME(flowtable_frees), 0, "#flows freed.");
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, free_checks, CTLFLAG_RD,
+    &VNET_NAME(flowtable_free_checks), 0, "#flows free checks.");
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, max_depth, CTLFLAG_RD,
+    &VNET_NAME(flowtable_max_depth), 0, "max collision list length.");
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, collisions, CTLFLAG_RD,
+    &VNET_NAME(flowtable_collisions), 0, "#flowtable collisions.");
 
 /*
  * XXX This does not end up updating timeouts at runtime
  * and only reflects the value for the last table added :-/
  */
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, syn_expire,
-    CTLFLAG_RW, flowtable_syn_expire, 0,
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, syn_expire, CTLFLAG_RW,
+    &VNET_NAME(flowtable_syn_expire), 0,
     "seconds after which to remove syn allocated flow.");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, udp_expire,
-    CTLFLAG_RW, flowtable_udp_expire, 0,
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, udp_expire, CTLFLAG_RW,
+    &VNET_NAME(flowtable_udp_expire), 0,
     "seconds after which to remove flow allocated to UDP.");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, fin_wait_expire,
-    CTLFLAG_RW, flowtable_fin_wait_expire, 0,
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, fin_wait_expire, CTLFLAG_RW,
+    &VNET_NAME(flowtable_fin_wait_expire), 0,
     "seconds after which to remove a flow in FIN_WAIT.");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, tcp_expire,
-    CTLFLAG_RW, flowtable_tcp_expire, 0,
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, tcp_expire, CTLFLAG_RW,
+    &VNET_NAME(flowtable_tcp_expire), 0,
     "seconds after which to remove flow allocated to a TCP connection.");
 
 
@@ -266,7 +264,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, tcp_expire,
 static int
 sysctl_nmbflows(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(curvnet);
 	int error, newnmbflows;
 
 	newnmbflows = V_flowtable_nmbflows;
@@ -283,8 +280,8 @@ sysctl_nmbflows(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
-SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_flowtable, OID_AUTO, nmbflows,
-    CTLTYPE_INT|CTLFLAG_RW, flowtable_nmbflows, 0, sysctl_nmbflows, "IU",
+SYSCTL_VNET_PROC(_net_inet_flowtable, OID_AUTO, nmbflows,
+    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_nmbflows, "IU",
     "Maximum number of flows allowed");
 
 #ifndef RADIX_MPATH
@@ -338,7 +335,6 @@ static uint32_t
 ipv4_flow_lookup_hash_internal(struct mbuf *m, struct route *ro,
     uint32_t *key, uint16_t *flags, uint8_t *protop)
 {
-	INIT_VNET_INET(curvnet);
 	uint16_t sport = 0, dport = 0;
 	struct ip *ip = NULL;
 	uint8_t proto = 0;
@@ -505,7 +501,6 @@ static int
 flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
     uint8_t proto, struct route *ro, uint16_t flags)
 {
-	INIT_VNET_INET(curvnet);
 	struct flentry *fle, *fletail, *newfle, **flep;
 	int depth;
 	uma_zone_t flezone;
@@ -596,7 +591,6 @@ flowtable_key_equal(struct flentry *fle, uint32_t *key)
 int
 flowtable_lookup(struct flowtable *ft, struct mbuf *m, struct route *ro)
 {
-	INIT_VNET_INET(curvnet);
 	uint32_t key[9], hash;
 	struct flentry *fle;
 	uint16_t flags;
@@ -718,7 +712,6 @@ uncached:
 struct flowtable *
 flowtable_alloc(int nentry, int flags)
 {
-	INIT_VNET_INET(curvnet);
 	struct flowtable *ft, *fttail;
 	int i;
 
@@ -797,34 +790,8 @@ flowtable_alloc(int nentry, int flags)
 }
 
 static void
-flowtable_setup(void *arg)
+flowtable_init(const void *unused __unused)
 {
-
-#ifndef VIMAGE_GLOBALS
-	vnet_mod_register(&flowtable_modinfo);
-#else
-	flowtable_iattach(NULL);
-#endif
-}
-
-static int
-flowtable_iattach(const void *unused __unused)
-{
-	INIT_VNET_INET(curvnet);
-
-	V_flowtable_enable = 1;
-	V_flowtable_hits = 0;
-	V_flowtable_lookups = 0;
-	V_flowtable_misses = 0;
-	V_flowtable_frees = 0;
-	V_flowtable_free_checks = 0;
-	V_flowtable_max_depth = 0;
-	V_flowtable_collisions = 0;
-	V_flowtable_syn_expire = SYN_IDLE;
-	V_flowtable_udp_expire = UDP_IDLE;
-	V_flowtable_fin_wait_expire = FIN_WAIT_IDLE;
-	V_flowtable_tcp_expire = TCP_IDLE;
-	V_flowtable_nmbflows = 4096;
 
 	V_flow_ipv4_zone = uma_zcreate("ip4flow", sizeof(struct flentry_v4),
 	    NULL, NULL, NULL, NULL, 64, UMA_ZONE_MAXBUCKET);
@@ -832,22 +799,23 @@ flowtable_iattach(const void *unused __unused)
 	    NULL, NULL, NULL, NULL, 64, UMA_ZONE_MAXBUCKET);	
 	uma_zone_set_max(V_flow_ipv4_zone, V_flowtable_nmbflows);
 	uma_zone_set_max(V_flow_ipv6_zone, V_flowtable_nmbflows);
-	return (0);
 }
 
+VNET_SYSINIT(flowtable_init, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY,
+    flowtable_init, NULL);
+
 #ifdef VIMAGE
-static int
-flowtable_idetach(const void *unused __unused)
+static void
+flowtable_uninit(const void *unused __unused)
 {
-	INIT_VNET_INET(curvnet);
 
 	uma_zdestroy(V_flow_ipv4_zone);
 	uma_zdestroy(V_flow_ipv6_zone);
-	return (0);
 }
-#endif
 
-SYSINIT(flowtable_setup, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, flowtable_setup, NULL);
+VNET_SYSUNINIT(flowtable_uninit, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY,
+    flowtable_uninit, NULL);
+#endif
 
 /*
  * The rest of the code is devoted to garbage collection of expired entries.
@@ -858,7 +826,6 @@ SYSINIT(flowtable_setup, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, flowtable_setup, NUL
 static void
 fle_free(struct flentry *fle)
 {
-	INIT_VNET_INET(curvnet);
 	struct rtentry *rt;
 	struct llentry *lle;
 
@@ -873,7 +840,6 @@ fle_free(struct flentry *fle)
 static void
 flowtable_free_stale(struct flowtable *ft)
 {
-	INIT_VNET_INET(curvnet);
 	int curbit = 0, count;
 	struct flentry *fle,  **flehead, *fleprev;
 	struct flentry *flefreehead, *flefreetail, *fletmp;
@@ -961,7 +927,6 @@ flowtable_free_stale(struct flowtable *ft)
 static void
 flowtable_clean_vnet(void)
 {
-	INIT_VNET_INET(curvnet);
 	struct flowtable *ft;
 	int i;
 

@@ -1060,6 +1060,8 @@ ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 
 	ret = ttyinq_write(&tp->t_inq, buf, len, 0);
 	ttyinq_canonicalize(&tp->t_inq);
+	if (ret < len)
+		tty_hiwat_in_block(tp);
 
 	return (ret);
 }

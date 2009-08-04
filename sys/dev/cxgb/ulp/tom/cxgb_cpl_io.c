@@ -48,9 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/priv.h>
 
-#if __FreeBSD_version >= 800044
-#include <sys/vimage.h>
-#else
+#if __FreeBSD_version < 800044
 #define V_tcp_do_autosndbuf tcp_do_autosndbuf
 #define V_tcp_autosndbuf_max tcp_autosndbuf_max
 #define V_tcp_do_rfc1323 tcp_do_rfc1323
@@ -78,9 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_timer.h>
-#if __FreeBSD_version >= 800056
-#include <netinet/vinet.h>
-#endif
 #include <net/route.h>
 
 #include <t3cdev.h>
@@ -274,7 +269,6 @@ mk_tid_release(struct mbuf *m, const struct toepcb *toep, unsigned int tid)
 static inline void
 make_tx_data_wr(struct socket *so, struct mbuf *m, int len, struct mbuf *tail)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct tcpcb *tp = so_sototcpcb(so);
 	struct toepcb *toep = tp->t_toe;
 	struct tx_data_wr *req;
@@ -1219,7 +1213,6 @@ install_offload_ops(struct socket *so)
 static __inline int
 select_rcv_wscale(int space, struct vnet *vnet)
 {
-	INIT_VNET_INET(vnet);
 	int wscale = 0;
 
 	if (space > MAX_RCV_WND)
@@ -1237,7 +1230,6 @@ select_rcv_wscale(int space, struct vnet *vnet)
 static unsigned long
 select_rcv_wnd(struct toedev *dev, struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct tom_data *d = TOM_DATA(dev);
 	unsigned int wnd;
 	unsigned int max_rcv_wnd;
@@ -3249,13 +3241,13 @@ static void
 syncache_add_accept_req(struct cpl_pass_accept_req *req, struct socket *lso, struct toepcb *toep)
 {
 	struct in_conninfo inc;
-	struct tcpopt to;
+	struct toeopt toeo;
 	struct tcphdr th;
 	struct inpcb *inp;
 	int mss, wsf, sack, ts;
 	uint32_t rcv_isn = ntohl(req->rcv_isn);
 	
-	bzero(&to, sizeof(struct tcpopt));
+	bzero(&toeo, sizeof(struct toeopt));
 	inp = so_sotoinpcb(lso);
 	
 	/*
@@ -3281,10 +3273,11 @@ syncache_add_accept_req(struct cpl_pass_accept_req *req, struct socket *lso, str
 	wsf = req->tcp_options.wsf;
 	ts = req->tcp_options.tstamp;
 	sack = req->tcp_options.sack;
-	to.to_mss = mss;
-	to.to_wscale = wsf;
-	to.to_flags = (mss ? TOF_MSS : 0) | (wsf ? TOF_SCALE : 0) | (ts ? TOF_TS : 0) | (sack ? TOF_SACKPERM : 0);
-	tcp_offload_syncache_add(&inc, &to, &th, inp, &lso, &cxgb_toe_usrreqs, toep);
+	toeo.to_mss = mss;
+	toeo.to_wscale = wsf;
+	toeo.to_flags = (mss ? TOF_MSS : 0) | (wsf ? TOF_SCALE : 0) | (ts ? TOF_TS : 0) | (sack ? TOF_SACKPERM : 0);
+	tcp_offload_syncache_add(&inc, &toeo, &th, inp, &lso, &cxgb_toe_usrreqs,
+toep);
 }
 
 
@@ -3584,7 +3577,7 @@ syncache_expand_establish_req(struct cpl_pass_establish *req, struct socket **so
 {
 
 	struct in_conninfo inc;
-	struct tcpopt to;
+	struct toeopt toeo;
 	struct tcphdr th;
 	int mss, wsf, sack, ts;
 	struct mbuf *m = NULL;
@@ -3597,7 +3590,7 @@ syncache_expand_establish_req(struct cpl_pass_establish *req, struct socket **so
 	
 	opt = ntohs(req->tcp_opt);
 	
-	bzero(&to, sizeof(struct tcpopt));
+	bzero(&toeo, sizeof(struct toeopt));
 	
 	/*
 	 * Fill out information for entering us into the syncache
@@ -3617,15 +3610,15 @@ syncache_expand_establish_req(struct cpl_pass_establish *req, struct socket **so
 	ts   = G_TCPOPT_TSTAMP(opt);
 	sack = G_TCPOPT_SACK(opt);
 	
-	to.to_mss = mss;
-	to.to_wscale =  G_TCPOPT_SND_WSCALE(opt);
-	to.to_flags = (mss ? TOF_MSS : 0) | (wsf ? TOF_SCALE : 0) | (ts ? TOF_TS : 0) | (sack ? TOF_SACKPERM : 0);
+	toeo.to_mss = mss;
+	toeo.to_wscale =  G_TCPOPT_SND_WSCALE(opt);
+	toeo.to_flags = (mss ? TOF_MSS : 0) | (wsf ? TOF_SCALE : 0) | (ts ? TOF_TS : 0) | (sack ? TOF_SACKPERM : 0);
 
 	DPRINTF("syncache expand of %d:%d %d:%d mss:%d wsf:%d ts:%d sack:%d\n",
 	    ntohl(req->local_ip), ntohs(req->local_port),
 	    ntohl(req->peer_ip), ntohs(req->peer_port),
 	    mss, wsf, ts, sack);
-	return tcp_offload_syncache_expand(&inc, &to, &th, so, m);
+	return tcp_offload_syncache_expand(&inc, &toeo, &th, so, m);
 }
 
 
@@ -3779,7 +3772,6 @@ fixup_and_send_ofo(struct toepcb *toep)
 static void
 socket_act_establish(struct socket *so, struct mbuf *m)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct cpl_act_establish *req = cplhdr(m);
 	u32 rcv_isn = ntohl(req->rcv_isn);	/* real RCV_ISN + 1 */
 	struct tcpcb *tp = so_sototcpcb(so);
@@ -3829,7 +3821,7 @@ socket_act_establish(struct socket *so, struct mbuf *m)
 #endif
 
 	toep->tp_state = tp->t_state;
-	TCPSTAT_INC(tcps_connects);
+	KMOD_TCPSTAT_INC(tcps_connects);
 				
 }
 
