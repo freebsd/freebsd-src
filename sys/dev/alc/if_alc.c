@@ -1501,6 +1501,21 @@ alc_dma_free(struct alc_softc *sc)
 		bus_dma_tag_destroy(sc->alc_cdata.alc_tx_ring_tag);
 		sc->alc_cdata.alc_tx_ring_tag = NULL;
 	}
+	/* Rx ring. */
+	if (sc->alc_cdata.alc_rx_ring_tag != NULL) {
+		if (sc->alc_cdata.alc_rx_ring_map != NULL)
+			bus_dmamap_unload(sc->alc_cdata.alc_rx_ring_tag,
+			    sc->alc_cdata.alc_rx_ring_map);
+		if (sc->alc_cdata.alc_rx_ring_map != NULL &&
+		    sc->alc_rdata.alc_rx_ring != NULL)
+			bus_dmamem_free(sc->alc_cdata.alc_rx_ring_tag,
+			    sc->alc_rdata.alc_rx_ring,
+			    sc->alc_cdata.alc_rx_ring_map);
+		sc->alc_rdata.alc_rx_ring = NULL;
+		sc->alc_cdata.alc_rx_ring_map = NULL;
+		bus_dma_tag_destroy(sc->alc_cdata.alc_rx_ring_tag);
+		sc->alc_cdata.alc_rx_ring_tag = NULL;
+	}
 	/* Rx return ring. */
 	if (sc->alc_cdata.alc_rr_ring_tag != NULL) {
 		if (sc->alc_cdata.alc_rr_ring_map != NULL)

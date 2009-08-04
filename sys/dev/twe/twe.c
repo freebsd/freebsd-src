@@ -294,8 +294,10 @@ twe_init(struct twe_softc *sc)
     /*
      * Scan for drives
      */
+    newbus_xlock();
     for (i = 0; i < TWE_MAX_UNITS; i++)
 	twe_add_unit(sc, i);
+    newbus_xunlock();
 
     /*
      * Initialise connection with controller.
@@ -621,11 +623,15 @@ twe_ioctl(struct twe_softc *sc, int ioctlcmd, void *addr)
 	break;
 
     case TWEIO_ADD_UNIT:
+	newbus_xlock();
 	error = twe_add_unit(sc, td->td_unit);
+	newbus_xunlock();
 	break;
 
     case TWEIO_DEL_UNIT:
+	newbus_xlock();
 	error = twe_del_unit(sc, td->td_unit);
+	newbus_xunlock();
 	break;
 
 	/* XXX implement ATA PASSTHROUGH */

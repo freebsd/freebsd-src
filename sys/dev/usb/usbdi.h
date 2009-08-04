@@ -531,5 +531,8 @@ void	usb_fifo_reset(struct usb_fifo *f);
 void	usb_fifo_wakeup(struct usb_fifo *f);
 void	usb_fifo_get_data_error(struct usb_fifo *fifo);
 void	*usb_fifo_softc(struct usb_fifo *fifo);
+void	usb_fifo_set_close_zlp(struct usb_fifo *, uint8_t);
+void	usb_fifo_set_write_defrag(struct usb_fifo *, uint8_t);
+void	usb_fifo_free(struct usb_fifo *f);
 #endif /* _KERNEL */
 #endif /* _USB_USBDI_H_ */

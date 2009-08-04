@@ -2853,15 +2853,99 @@ usbd_clear_stall_callback(struct usb_xfer *xfer1,
 	return (1);			/* Clear Stall Finished */
 }
 
+/*------------------------------------------------------------------------*
+ *	usbd_transfer_poll
+ *
+ * The following function gets called from the USB keyboard driver and
+ * UMASS when the system has paniced.
+ *
+ * NOTE: It is currently not possible to resume normal operation on
+ * the USB controller which has been polled, due to clearing of the
+ * "up_dsleep" and "up_msleep" flags.
+ *------------------------------------------------------------------------*/
 void
 usbd_transfer_poll(struct usb_xfer **ppxfer, uint16_t max)
 {
-	static uint8_t once = 0;
-	/* polling is currently not supported */
-	if (!once) {
-		once = 1;
-		printf("usbd_transfer_poll: USB polling is "
-		    "not supported!\n");
+	struct usb_xfer *xfer;
+	struct usb_xfer_root *xroot;
+	struct usb_device *udev;
+	struct usb_proc_msg *pm;
+	uint16_t n;
+	uint16_t drop_bus;
+	uint16_t drop_xfer;
+
+	for (n = 0; n != max; n++) {
+		/* Extra checks to avoid panic */
+		xfer = ppxfer[n];
+		if (xfer == NULL)
+			continue;	/* no USB transfer */
+		xroot = xfer->xroot;
+		if (xroot == NULL)
+			continue;	/* no USB root */
+		udev = xroot->udev;
+		if (udev == NULL)
+			continue;	/* no USB device */
+		if (udev->bus == NULL)
+			continue;	/* no BUS structure */
+		if (udev->bus->methods == NULL)
+			continue;	/* no BUS methods */
+		if (udev->bus->methods->xfer_poll == NULL)
+			continue;	/* no poll method */
+
+		/* make sure that the BUS mutex is not locked */
+		drop_bus = 0;
+		while (mtx_owned(&xroot->udev->bus->bus_mtx)) {
+			mtx_unlock(&xroot->udev->bus->bus_mtx);
+			drop_bus++;
+		}
+
+		/* make sure that the transfer mutex is not locked */
+		drop_xfer = 0;
+		while (mtx_owned(xroot->xfer_mtx)) {
+			mtx_unlock(xroot->xfer_mtx);
+			drop_xfer++;
+		}
+
+		/* Make sure cv_signal() and cv_broadcast() is not called */
+		udev->bus->control_xfer_proc.up_dsleep = 0;
+		udev->bus->control_xfer_proc.up_msleep = 0;
+		udev->bus->explore_proc.up_dsleep = 0;
+		udev->bus->explore_proc.up_msleep = 0;
+		udev->bus->giant_callback_proc.up_dsleep = 0;
+		udev->bus->giant_callback_proc.up_msleep = 0;
+		udev->bus->non_giant_callback_proc.up_dsleep = 0;
+		udev->bus->non_giant_callback_proc.up_msleep = 0;
+
+		/* poll USB hardware */
+		(udev->bus->methods->xfer_poll) (udev->bus);
+
+		USB_BUS_LOCK(xroot->bus);
+
+		/* check for clear stall */
+		if (udev->default_xfer[1] != NULL) {
+
+			/* poll clear stall start */
+			pm = &udev->cs_msg[0].hdr;
+			(pm->pm_callback) (pm);
+			/* poll clear stall done thread */
+			pm = &udev->default_xfer[1]->
+			    xroot->done_m[0].hdr;
+			(pm->pm_callback) (pm);
+		}
+
+		/* poll done thread */
+		pm = &xroot->done_m[0].hdr;
+		(pm->pm_callback) (pm);
+
+		USB_BUS_UNLOCK(xroot->bus);
+
+		/* restore transfer mutex */
+		while (drop_xfer--)
+			mtx_lock(xroot->xfer_mtx);
+
+		/* restore BUS mutex */
+		while (drop_bus--)
+			mtx_lock(&xroot->udev->bus->bus_mtx);
 	}
 }
 

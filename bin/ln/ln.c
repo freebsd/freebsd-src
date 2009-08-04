@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,12 +57,11 @@ int	fflag;				/* Unlink existing files. */
 int	Fflag;				/* Remove empty directories also. */
 int	hflag;				/* Check new name for symlink first. */
 int	iflag;				/* Interactive mode. */
+int	Pflag;				/* Create hard links to symlinks. */
 int	sflag;				/* Symbolic, not hard, link. */
 int	vflag;				/* Verbose output. */
 int	wflag;				/* Warn if symlink target does not
 					 * exist, and -f is not enabled. */
-					/* System link call. */
-int (*linkf)(const char *, const char *);
 char	linkch;
 
 int	linkit(const char *, const char *, int);
@@ -90,14 +90,19 @@ main(int argc, char *argv[])
 		argv += optind;
 		if (argc != 2)
 			usage();
-		linkf = link;
 		exit(linkit(argv[0], argv[1], 0));
 	}
 
-	while ((ch = getopt(argc, argv, "Ffhinsvw")) != -1)
+	while ((ch = getopt(argc, argv, "FLPfhinsvw")) != -1)
 		switch (ch) {
 		case 'F':
 			Fflag = 1;
+			break;
+		case 'L':
+			Pflag = 0;
+			break;
+		case 'P':
+			Pflag = 1;
 			break;
 		case 'f':
 			fflag = 1;
@@ -129,7 +134,6 @@ main(int argc, char *argv[])
 	argv += optind;
 	argc -= optind;
 
-	linkf = sflag ? symlink : link;
 	linkch = sflag ? '-' : '=';
 	if (sflag == 0)
 		Fflag = 0;
@@ -179,7 +183,7 @@ linkit(const char *source, const char *target, int isdir)
 
 	if (!sflag) {
 		/* If source doesn't exist, quit now. */
-		if (stat(source, &sb)) {
+		if ((Pflag ? lstat : stat)(source, &sb)) {
 			warn("%s", source);
 			return (1);
 		}
@@ -276,7 +280,9 @@ linkit(const char *source, const char *target, int isdir)
 	}
 
 	/* Attempt the link. */
-	if ((*linkf)(source, target)) {
+	if (sflag ? symlink(source, target) :
+	    linkat(AT_FDCWD, source, AT_FDCWD, target,
+	    Pflag ? 0 : AT_SYMLINK_FOLLOW)) {
 		warn("%s", target);
 		return (1);
 	}
@@ -289,8 +295,8 @@ void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: ln [-s [-F]] [-f | -i] [-hnv] source_file [target_file]",
-	    "       ln [-s [-F]] [-f | -i] [-hnv] source_file ... target_dir",
+	    "usage: ln [-s [-F] | -L | -P] [-f | -i] [-hnv] source_file [target_file]",
+	    "       ln [-s [-F] | -L | -P] [-f | -i] [-hnv] source_file ... target_dir",
 	    "       link source_file target_file");
 	exit(1);
 }

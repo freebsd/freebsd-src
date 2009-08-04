@@ -423,6 +423,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
+	td->td_pcb->pcb_full_iret = 1;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -545,6 +546,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
+	td->td_pcb->pcb_full_iret = 1;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -645,6 +647,7 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	regs->tf_rflags = eflags;
 	regs->tf_rsp    = frame.sf_sc.sc_esp_at_signal;
 	regs->tf_ss     = frame.sf_sc.sc_ss;
+	td->td_pcb->pcb_full_iret = 1;
 
 	return (EJUSTRETURN);
 }
@@ -746,6 +749,7 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	regs->tf_rflags = eflags;
 	regs->tf_rsp    = context->sc_esp_at_signal;
 	regs->tf_ss     = context->sc_ss;
+	td->td_pcb->pcb_full_iret = 1;
 
 	/*
 	 * call sigaltstack & ignore results..
@@ -864,6 +868,7 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	regs->tf_flags = TF_HASSEGS;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = ps_strings;
+	td->td_pcb->pcb_full_iret = 1;
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
 	fpstate_drop(td);
 

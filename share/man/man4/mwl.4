@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd June 9, 2009
+.Dd July 8, 2009
 .Dt MWL 4
 .Os
 .Sh NAME
@@ -64,7 +64,7 @@ module to work.
 Normally this module is loaded on demand by the driver but it may
 also be compiled into the kernel.
 .Pp
-Supported features include 802.11n, power management, BSS,
+Supported features include 802.11n, power management, BSS, MBSS,
 and host-based access point operation modes.
 All host/device interaction is via DMA.
 .Pp
@@ -83,6 +83,7 @@ AES-CCM, TKIP, and Michael cryptographic operations.
 The driver supports
 .Cm station ,
 .Cm hostap ,
+.Cm mesh ,
 and
 .Cm wds
 mode operation.
@@ -137,6 +138,12 @@ Create an 802.11g host-based access point:
 ifconfig wlan0 create wlandev mwl0 wlanmode hostap
 ifconfig wlan0 inet 192.168.0.10 netmask 0xffffff00 ssid my_ap \e
 	mode 11g
+.Ed
+.Pp
+Create an 802.11a mesh station:
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev mwl0 wlanmode mesh
+ifconfig wlan0 meshid my_mesh mode 11a inet 192.168.0.10/24
 .Ed
 .Pp
 Create two virtual 802.11a host-based access points, one with

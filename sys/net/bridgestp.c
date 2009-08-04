@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/taskqueue.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -2006,7 +2005,6 @@ bstp_same_bridgeid(uint64_t id1, uint64_t id2)
 void
 bstp_reinit(struct bstp_state *bs)
 {
-	INIT_VNET_NET(curvnet);
 	struct bstp_port *bp;
 	struct ifnet *ifp, *mif;
 	u_char *e_addr;

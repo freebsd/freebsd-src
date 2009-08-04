@@ -100,7 +100,7 @@ SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");
 static int	coredump(struct thread *);
 static char	*expand_name(const char *, uid_t, pid_t);
 static int	killpg1(struct thread *td, int sig, int pgid, int all);
-static int	issignal(struct thread *p);
+static int	issignal(struct thread *td, int stop_allowed);
 static int	sigprop(int sig);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
 static void	sig_suspend_threads(struct thread *, struct proc *, int);
@@ -558,12 +558,14 @@ sigqueue_delete_stopmask_proc(struct proc *p)
  * action, the process stops in issignal().
  */
 int
-cursig(struct thread *td)
+cursig(struct thread *td, int stop_allowed)
 {
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	KASSERT(stop_allowed == SIG_STOP_ALLOWED ||
+	    stop_allowed == SIG_STOP_NOT_ALLOWED, ("cursig: stop_allowed"));
 	mtx_assert(&td->td_proc->p_sigacts->ps_mtx, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_NOTOWNED);
-	return (SIGPENDING(td) ? issignal(td) : 0);
+	return (SIGPENDING(td) ? issignal(td, stop_allowed) : 0);
 }
 
 /*
@@ -1191,7 +1193,7 @@ restart:
 		SIG_CANTMASK(td->td_sigmask);
 		SIGDELSET(td->td_sigmask, i);
 		mtx_lock(&ps->ps_mtx);
-		sig = cursig(td);
+		sig = cursig(td, SIG_STOP_ALLOWED);
 		mtx_unlock(&ps->ps_mtx);
 		if (sig)
 			goto out;
@@ -2310,18 +2312,28 @@ static void
 sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 {
 	struct thread *td2;
+	int wakeup_swapper;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
+	wakeup_swapper = 0;
 	FOREACH_THREAD_IN_PROC(p, td2) {
 		thread_lock(td2);
 		td2->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
 		if ((TD_IS_SLEEPING(td2) || TD_IS_SWAPPED(td2)) &&
-		    (td2->td_flags & TDF_SINTR) &&
-		    !TD_IS_SUSPENDED(td2)) {
-			thread_suspend_one(td2);
-		} else {
+		    (td2->td_flags & TDF_SINTR)) {
+			if (td2->td_flags & TDF_SBDRY) {
+				if (TD_IS_SUSPENDED(td2))
+					wakeup_swapper |=
+					    thread_unsuspend_one(td2);
+				if (TD_ON_SLEEPQ(td2))
+					wakeup_swapper |=
+					    sleepq_abort(td2, ERESTART);
+			} else if (!TD_IS_SUSPENDED(td2)) {
+				thread_suspend_one(td2);
+			}
+		} else if (!TD_IS_SUSPENDED(td2)) {
 			if (sending || td != td2)
 				td2->td_flags |= TDF_ASTPENDING;
 #ifdef SMP
@@ -2331,6 +2343,8 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 		}
 		thread_unlock(td2);
 	}
+	if (wakeup_swapper)
+		kick_proc0();
 }
 
 int
@@ -2387,8 +2401,7 @@ stopme:
  *		postsig(sig);
  */
 static int
-issignal(td)
-	struct thread *td;
+issignal(struct thread *td, int stop_allowed)
 {
 	struct proc *p;
 	struct sigacts *ps;
@@ -2506,6 +2519,10 @@ issignal(td)
 		    		    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
 					break;	/* == ignore */
+
+				/* Ignore, but do not drop the stop signal. */
+				if (stop_allowed != SIG_STOP_ALLOWED)
+					return (sig);
 				mtx_unlock(&ps->ps_mtx);
 				WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 				    &p->p_mtx.lock_object, "Catching SIGSTOP");

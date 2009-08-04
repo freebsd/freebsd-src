@@ -275,9 +275,14 @@ void set_chan(int c) {
 void setup_if(char *dev) {
         struct ifreq ifr;
         unsigned int flags;
-        struct ifmediareq ifmr;
-        int *mwords;
-        
+
+        // set chan
+        memset(&chaninfo.ireq, 0, sizeof(chaninfo.ireq));
+        strcpy(chaninfo.ireq.i_name, dev);
+        chaninfo.ireq.i_type = IEEE80211_IOC_CHANNEL;
+
+        set_chan(1);
+
         // set iface up and promisc
         memset(&ifr, 0, sizeof(ifr));
         strcpy(ifr.ifr_name, dev);
@@ -293,39 +298,6 @@ void setup_if(char *dev) {
         ifr.ifr_flagshigh = flags >> 16;
         if (ioctl(ioctl_s, SIOCSIFFLAGS, &ifr) == -1)
                 die(1, "ioctl(SIOCSIFFLAGS)");
-
-        // set monitor mode
-        memset(&ifmr, 0, sizeof(ifmr));
-        strcpy(ifmr.ifm_name, dev);
-        if (ioctl(ioctl_s, SIOCGIFMEDIA, &ifmr) == -1)
-                die(1, "ioctl(SIOCGIFMEDIA)");
-
-        if (ifmr.ifm_count == 0) 
-                die(0, "0 media thinggies...\n");
-
-        mwords = (int *)malloc(ifmr.ifm_count * sizeof(int));
-        if (!mwords)
-                die(1, "malloc()");
-
-        ifmr.ifm_ulist = mwords;
-
-        if (ioctl(ioctl_s, SIOCGIFMEDIA, &ifmr) == -1)
-                die(1, "ioctl(SIOCGIFMEDIA)");
-        
-	free(mwords);
-
-        memset(&ifr, 0, sizeof(ifr));
-        strcpy(ifr.ifr_name, dev);
-        ifr.ifr_media = ifmr.ifm_current | IFM_IEEE80211_MONITOR;
-        if (ioctl(ioctl_s, SIOCSIFMEDIA, &ifr) == -1)
-                die(1, "ioctl(SIOCSIFMEDIA)");
-
-        // set chan
-        memset(&chaninfo.ireq, 0, sizeof(chaninfo.ireq));
-        strcpy(chaninfo.ireq.i_name, dev);
-        chaninfo.ireq.i_type = IEEE80211_IOC_CHANNEL;
-
-        set_chan(1);
 }
 
 void open_bpf(char *dev, int dlt) {

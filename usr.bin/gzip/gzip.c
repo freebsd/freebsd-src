@@ -150,6 +150,8 @@ static suffixes_t suffixes[] = {
 };
 #define NUM_SUFFIXES (sizeof suffixes / sizeof suffixes[0])
 
+#define SUFFIX_MAXLEN	30
+
 static	const char	gzip_version[] = "FreeBSD gzip 20090621";
 
 #ifndef SMALL
@@ -372,6 +374,8 @@ main(int argc, char **argv)
 		case 'S':
 			len = strlen(optarg);
 			if (len != 0) {
+				if (len > SUFFIX_MAXLEN)
+					errx(1, "incorrect suffix: '%s': too long", optarg);
 				suffixes[0].zipped = optarg;
 				suffixes[0].ziplen = len;
 			} else {
@@ -1236,7 +1240,7 @@ file_compress(char *file, char *outfile, size_t outsize)
 		/* Add (usually) .gz to filename */
 		if ((size_t)snprintf(outfile, outsize, "%s%s",
 					file, suffixes[0].zipped) >= outsize)
-			memcpy(outfile - suffixes[0].ziplen - 1,
+			memcpy(outfile + outsize - suffixes[0].ziplen - 1,
 				suffixes[0].zipped, suffixes[0].ziplen + 1);
 
 #ifndef SMALL

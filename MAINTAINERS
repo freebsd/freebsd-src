@@ -111,7 +111,7 @@ truss		alfred	Will be happy to review code, but not mandatory.
 rpc		alfred	Pre-commit review requested.
 xfs		kan@FreeBSD.org,rodrigc@FreeBSD.org,cattelan@xfs.org
 			Pre-commit review preferred.
-pkg_install	krion	Pre-commit review or approval from portmgr@ requested.
+pkg_install	portmgr	Pre-commit review or approval from portmgr@ requested.
 linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.
@@ -123,7 +123,6 @@ lib/libsdp		emax	Pre-commit review preferred.
 usr.bin/bluetooth	emax	Pre-commit review preferred.
 usr.sbin/bluetooth	emax	Pre-commit review preferred.
 gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
-BSD.{local,x11*}.dist	portmgr	Pre-commit review requested, since these files interface with ports.
 ncurses		rafan	Heads-up appreciated, try not to break it.
 
 Following are the entries from the Makefiles, and a few other sources.

@@ -675,8 +675,6 @@ acpi_suspend(device_t dev)
     device_t child, *devlist;
     int error, i, numdevs, pstate;
 
-    GIANT_REQUIRED;
-
     /* First give child devices a chance to suspend. */
     error = bus_generic_suspend(dev);
     if (error)
@@ -719,8 +717,6 @@ acpi_resume(device_t dev)
     int i, numdevs, error;
     device_t child, *devlist;
 
-    GIANT_REQUIRED;
-
     /*
      * Put all devices in D0 before resuming them.  Call _S0D on each one
      * since some systems expect this.
@@ -744,8 +740,6 @@ acpi_resume(device_t dev)
 static int
 acpi_shutdown(device_t dev)
 {
-
-    GIANT_REQUIRED;
 
     /* Allow children to shutdown first. */
     bus_generic_shutdown(dev);
@@ -2534,11 +2528,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     thread_unlock(curthread);
 #endif
 
-    /*
-     * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
-     * drivers need this.
-     */
-    mtx_lock(&Giant);
+    newbus_xlock();
 
     slp_state = ACPI_SS_NONE;
 
@@ -2611,7 +2601,7 @@ backout:
     if (slp_state >= ACPI_SS_SLEPT)
 	acpi_enable_fixed_events(sc);
 
-    mtx_unlock(&Giant);
+    newbus_xunlock();
 
 #ifdef SMP
     thread_lock(curthread);

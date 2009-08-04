@@ -78,6 +78,27 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	return (uart_getenv(devtype, di, class));
 }
 #else
+static int
+ofw_get_uart_console(phandle_t opts, phandle_t *result, const char *inputdev,
+    const char *outputdev)
+{
+	char buf[64];
+	phandle_t input;
+
+	if (OF_getprop(opts, inputdev, buf, sizeof(buf)) == -1)
+		return (ENXIO);
+	input = OF_finddevice(buf);
+	if (input == -1)
+		return (ENXIO);
+	if (OF_getprop(opts, outputdev, buf, sizeof(buf)) == -1)
+		return (ENXIO);
+	if (OF_finddevice(buf) != input)
+		return (ENXIO);
+
+	*result = input;
+	return (0);
+}
+
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
@@ -94,15 +115,17 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		return (ENXIO);
 	switch (devtype) {
 	case UART_DEV_CONSOLE:
-		if (OF_getprop(opts, "input-device", buf, sizeof(buf)) == -1)
-			return (ENXIO);
-		input = OF_finddevice(buf);
-		if (input == -1)
-			return (ENXIO);
-		if (OF_getprop(opts, "output-device", buf, sizeof(buf)) == -1)
-			return (ENXIO);
-		if (OF_finddevice(buf) != input)
-			return (ENXIO);
+		if (ofw_get_uart_console(opts, &input, "input-device",
+		    "output-device")) {
+			/*
+			 * At least some G5 Xserves require that we
+			 * probe input-device-1 as well
+			 */
+	
+			if (ofw_get_uart_console(opts, &input, "input-device-1",
+			    "output-device-1"))
+				return (ENXIO);
+		}
 		break;
 	case UART_DEV_DBGPORT:
 		if (!getenv_string("hw.uart.dbgport", buf, sizeof(buf)))

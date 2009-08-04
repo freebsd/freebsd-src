@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -96,7 +95,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
-#include <netinet/vinet.h>
 #endif /* INET */
 #include <netinet/ip6.h>
 #include <netinet6/in6_var.h>
@@ -106,7 +104,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/nd6.h>
-#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -127,28 +124,30 @@ static struct netisr_handler ip6_nh = {
 	.nh_policy = NETISR_POLICY_FLOW,
 };
 
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-struct vnet_inet6 vnet_inet6_0;
-#endif
-#endif
+VNET_DEFINE(struct in6_ifaddrhead, in6_ifaddrhead);
+VNET_DEFINE(struct ip6stat, ip6stat);
 
-#ifdef VIMAGE_GLOBALS
-struct in6_ifaddrhead in6_ifaddrhead;
-struct ip6stat ip6stat;
+VNET_DECLARE(struct callout, in6_tmpaddrtimer_ch);
+VNET_DECLARE(int, dad_init);
+VNET_DECLARE(int, pmtu_expire);
+VNET_DECLARE(int, pmtu_probe);
+VNET_DECLARE(u_long, rip6_sendspace);
+VNET_DECLARE(u_long, rip6_recvspace);
+VNET_DECLARE(int, icmp6errppslim);
+VNET_DECLARE(int, icmp6_nodeinfo);
+VNET_DECLARE(int, udp6_sendspace);
+VNET_DECLARE(int, udp6_recvspace);
 
-extern struct callout in6_tmpaddrtimer_ch;
-
-extern int dad_init;
-extern int pmtu_expire;
-extern int pmtu_probe;
-extern u_long rip6_sendspace;
-extern u_long rip6_recvspace;
-extern int icmp6errppslim;
-extern int icmp6_nodeinfo;
-extern int udp6_sendspace;
-extern int udp6_recvspace;
-#endif
+#define	V_in6_tmpaddrtimer_ch		VNET(in6_tmpaddrtimer_ch)
+#define	V_dad_init			VNET(dad_init)
+#define	V_pmtu_expire			VNET(pmtu_expire)
+#define	V_pmtu_probe			VNET(pmtu_probe)
+#define	V_rip6_sendspace		VNET(rip6_sendspace)
+#define	V_rip6_recvspace		VNET(rip6_recvspace)
+#define	V_icmp6errppslim		VNET(icmp6errppslim)
+#define	V_icmp6_nodeinfo		VNET(icmp6_nodeinfo)
+#define	V_udp6_sendspace		VNET(udp6_sendspace)
+#define	V_udp6_recvspace		VNET(udp6_recvspace)
 
 struct rwlock in6_ifaddr_lock;
 RW_SYSINIT(in6_ifaddr_lock, &in6_ifaddr_lock, "in6_ifaddr_lock");
@@ -162,26 +161,6 @@ static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
 #endif
 
-#ifndef VIMAGE_GLOBALS
-static void vnet_inet6_register(void);
- 
-static const vnet_modinfo_t vnet_inet6_modinfo = {
-	.vmi_id		= VNET_MOD_INET6,
-	.vmi_name	= "inet6",
-	.vmi_size	= sizeof(struct vnet_inet6),
-	.vmi_dependson	= VNET_MOD_INET	/* XXX revisit - TCP/UDP needs this? */
-};
- 
-static void
-vnet_inet6_register(void)
-{
-
-	vnet_mod_register(&vnet_inet6_modinfo);
-}
- 
-SYSINIT(inet6, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, vnet_inet6_register, 0);
-#endif
-
 /*
  * IP6 initialization: fill in IP6 protocol switch table.
  * All protocols not implemented in kernel go to raw IP6 protocol handler.
@@ -189,7 +168,6 @@ SYSINIT(inet6, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, vnet_inet6_register, 0);
 void
 ip6_init(void)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6protosw *pr;
 	int i;
 
@@ -311,7 +289,6 @@ ip6_init(void)
 void
 ip6_destroy()
 {
-	INIT_VNET_INET6(curvnet);
 
 	nd6_destroy();
 	callout_drain(&V_in6_tmpaddrtimer_ch);
@@ -321,7 +298,6 @@ ip6_destroy()
 static int
 ip6_init2_vnet(const void *unused __unused)
 {
-	INIT_VNET_INET6(curvnet);
 
 	/* nd6_timer_init */
 	callout_init(&V_nd6_timer_ch, 0);
@@ -351,8 +327,6 @@ SYSINIT(netinet6init2, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ip6_init2, NULL);
 void
 ip6_input(struct mbuf *m)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 	int off = sizeof(struct ip6_hdr), nest;
 	u_int32_t plen;
@@ -967,7 +941,6 @@ static int
 ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
     struct mbuf **mp, int *offp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	int off = *offp, hbhlen;
 	struct ip6_hbh *hbh;
@@ -1023,7 +996,6 @@ int
 ip6_process_hopopts(struct mbuf *m, u_int8_t *opthead, int hbhlen,
     u_int32_t *rtalertp, u_int32_t *plenp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 	int optlen = 0;
 	u_int8_t *opt = opthead;
@@ -1156,7 +1128,6 @@ ip6_process_hopopts(struct mbuf *m, u_int8_t *opthead, int hbhlen,
 int
 ip6_unknown_opt(u_int8_t *optp, struct mbuf *m, int off)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 
 	switch (IP6OPT_TYPE(*optp)) {

@@ -101,7 +101,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
-#include <sys/vimage.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -116,11 +115,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-#include <netinet/vinet.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/vinet6.h>
 #endif
 #if defined(INET) || defined(INET6)
 #ifdef DEV_CARP
@@ -3042,7 +3039,6 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	}
 
 	if (ip_fw_chk_ptr && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
-		INIT_VNET_INET(curvnet);
 		struct dn_pkt_tag *dn_tag;
 
 		error = -1;
@@ -3236,7 +3232,6 @@ bad:
 static int
 bridge_ip_checkbasic(struct mbuf **mp)
 {
-	INIT_VNET_INET(curvnet);
 	struct mbuf *m = *mp;
 	struct ip *ip;
 	int len, hlen;
@@ -3249,12 +3244,12 @@ bridge_ip_checkbasic(struct mbuf **mp)
 		if ((m = m_copyup(m, sizeof(struct ip),
 			(max_linkhdr + 3) & ~3)) == NULL) {
 			/* XXXJRT new stat, please */
-			IPSTAT_INC(ips_toosmall);
+			KMOD_IPSTAT_INC(ips_toosmall);
 			goto bad;
 		}
 	} else if (__predict_false(m->m_len < sizeof (struct ip))) {
 		if ((m = m_pullup(m, sizeof (struct ip))) == NULL) {
-			IPSTAT_INC(ips_toosmall);
+			KMOD_IPSTAT_INC(ips_toosmall);
 			goto bad;
 		}
 	}
@@ -3262,17 +3257,17 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	if (ip == NULL) goto bad;
 
 	if (ip->ip_v != IPVERSION) {
-		IPSTAT_INC(ips_badvers);
+		KMOD_IPSTAT_INC(ips_badvers);
 		goto bad;
 	}
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) { /* minimum header length */
-		IPSTAT_INC(ips_badhlen);
+		KMOD_IPSTAT_INC(ips_badhlen);
 		goto bad;
 	}
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == 0) {
-			IPSTAT_INC(ips_badhlen);
+			KMOD_IPSTAT_INC(ips_badhlen);
 			goto bad;
 		}
 		ip = mtod(m, struct ip *);
@@ -3289,7 +3284,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 		}
 	}
 	if (sum) {
-		IPSTAT_INC(ips_badsum);
+		KMOD_IPSTAT_INC(ips_badsum);
 		goto bad;
 	}
 
@@ -3300,7 +3295,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	 * Check for additional length bogosity
 	 */
 	if (len < hlen) {
-		IPSTAT_INC(ips_badlen);
+		KMOD_IPSTAT_INC(ips_badlen);
 		goto bad;
 	}
 
@@ -3310,7 +3305,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	 * Drop packet if shorter than we expect.
 	 */
 	if (m->m_pkthdr.len < len) {
-		IPSTAT_INC(ips_tooshort);
+		KMOD_IPSTAT_INC(ips_tooshort);
 		goto bad;
 	}
 
@@ -3332,7 +3327,6 @@ bad:
 static int
 bridge_ip6_checkbasic(struct mbuf **mp)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6;
 
@@ -3387,7 +3381,6 @@ static int
 bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
     int snap, struct llc *llc)
 {
-	INIT_VNET_INET(curvnet);
 	struct mbuf *m0;
 	struct ip *ip;
 	int error = -1;
@@ -3425,7 +3418,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
 	}
 
 	if (error == 0)
-		IPSTAT_INC(ips_fragmented);
+		KMOD_IPSTAT_INC(ips_fragmented);
 
 	return (error);
 

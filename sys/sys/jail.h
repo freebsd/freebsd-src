@@ -100,6 +100,10 @@ struct xprison {
 #define	JAIL_SET_MASK	0x0f
 #define	JAIL_GET_MASK	0x08
 
+#define	JAIL_SYS_DISABLE	0
+#define	JAIL_SYS_NEW		1
+#define	JAIL_SYS_INHERIT	2
+
 #ifndef _KERNEL
 
 struct iovec;
@@ -182,16 +186,18 @@ struct prison {
 /* Flag bits set via options */
 #define	PR_PERSIST	0x00000001	/* Can exist without processes */
 #define	PR_HOST		0x00000002	/* Virtualize hostname et al */
-#define	PR_IP4_USER	0x00000004	/* Virtualize IPv4 addresses */
-#define	PR_IP6_USER	0x00000008	/* Virtualize IPv6 addresses */
+#define	PR_IP4_USER	0x00000004	/* Restrict IPv4 addresses */
+#define	PR_IP6_USER	0x00000008	/* Restrict IPv6 addresses */
 #define	PR_VNET		0x00000010	/* Virtual network stack */
+#define	PR_IP4_DISABLE	0x00000020	/* Disable IPv4 */
+#define	PR_IP6_DISABLE	0x00000040	/* Disable IPv6 */
 
 /* Internal flag bits */
 #define	PR_REMOVE	0x01000000	/* In process of being removed */
-#define	PR_IP4		0x02000000	/* IPv4 virtualized by this jail or */
-					/*  an ancestor			    */
-#define	PR_IP6		0x04000000	/* IPv6 virtualized by this jail or */
-					/*  an ancestor			    */
+#define	PR_IP4		0x02000000	/* IPv4 restricted or disabled */
+					/* by this jail or an ancestor */
+#define	PR_IP6		0x04000000	/* IPv6 restricted or disabled */
+					/* by this jail or an ancestor */
 
 /* Flags for pr_allow */
 #define	PR_ALLOW_SET_HOSTNAME		0x0001
@@ -315,7 +321,11 @@ SYSCTL_DECL(_security_jail_param);
 	CTLTYPE_STRUCT | CTLFLAG_MPSAFE | (access), NULL, len,		\
 	sysctl_jail_param, fmt, descr)
 #define	SYSCTL_JAIL_PARAM_NODE(module, descr)				\
-    SYSCTL_NODE(_security_jail_param, OID_AUTO, module, CTLFLAG_RW, 0, descr)
+    SYSCTL_NODE(_security_jail_param, OID_AUTO, module, 0, 0, descr)
+#define	SYSCTL_JAIL_PARAM_SYS_NODE(module, access, descr)		\
+    SYSCTL_JAIL_PARAM_NODE(module, descr);				\
+    SYSCTL_JAIL_PARAM(_##module, , CTLTYPE_INT | (access), "E,jailsys",	\
+	descr)
 
 /*
  * Kernel support functions for jail().

@@ -5,7 +5,7 @@
 #
 
 LIB=		usb
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 SHLIB_MINOR=	0
 SRCS=		libusb20.c
 SRCS+=		libusb20_desc.c

@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #    define	HZ 100
 #  endif
 #  ifndef HZ_VM
-#    define	HZ_VM 10
+#    define	HZ_VM 100
 #  endif
 #else
 #  ifndef HZ_VM

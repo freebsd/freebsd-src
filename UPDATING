@@ -22,6 +22,30 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090719:
+	Bump the shared library version numbers for all libraries that
+	do not use symbol versioning as part of the 8.0-RELEASE cycle.
+	Bump __FreeBSD_version to 800105.
+
+20090714:
+	Due to changes in the implementation of virtual network stack
+	support, all network-related kernel modules must be recompiled.
+	As this change breaks the ABI, bump __FreeBSD_version to 800104.
+
+20090713:
+	The TOE interface to the TCP syncache has been modified to remove struct
+	tcpopt (<netinet/tcp_var.h>) from the ABI of the network stack.  The
+	cxgb driver is the only TOE consumer affected by this change, and needs
+	to be recompiled along with the kernel. As this change breaks the ABI,
+	bump __FreeBSD_version to 800103.
+
+20090712:
+	Padding has been added to struct tcpcb, sackhint and tcpstat in
+	<netinet/tcp_var.h> to facilitate future MFCs and bug fixes whilst
+	maintainig the ABI. However, this change breaks the ABI, so bump
+	__FreeBSD_version to 800102. User space tools that rely on the size of
+	any of these structs (e.g. sockstat) need to be recompiled.
+
 20090630:
 	The NFS_LEGACYRPC option has been removed along with the old
 	kernel RPC implementation that this option selected. Kernel
@@ -41,9 +65,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 
 20090624:
 	The ABI of various structures related to the SYSV IPC API have
-	been changed.  As a result, the COMPAT_FREEBSD[456] kernel
-	options now all require COMPAT_FREEBSD7.  Bump __FreeBSD_version
-	to 800100.
+	been changed.  As a result, the COMPAT_FREEBSD[456] and COMPAT_43
+	kernel options now all require COMPAT_FREEBSD7.
+	Bump __FreeBSD_version to 800100.
 
 20090622:
 	Layout of struct vnet has changed as routing related variables

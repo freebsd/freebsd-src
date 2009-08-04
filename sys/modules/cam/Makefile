@@ -2,7 +2,7 @@
 
 S=	${.CURDIR}/../..
 
-.PATH: $S/cam $S/cam/scsi
+.PATH: $S/cam $S/cam/scsi $S/cam/ata
 
 KMOD=	cam
 
@@ -24,6 +24,10 @@ SRCS+=	scsi_sa.c
 SRCS+=	scsi_ses.c
 SRCS+=	scsi_sg.c
 SRCS+=	scsi_targ_bh.c scsi_target.c
+SRCS+=	scsi_xpt.c
+SRCS+=	ata_all.c
+SRCS+=	ata_xpt.c
+SRCS+=	ata_da.c
 
 EXPORT_SYMS=	YES	# XXX evaluate
 

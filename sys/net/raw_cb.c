@@ -42,7 +42,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/raw_cb.h>
@@ -58,9 +57,7 @@
  */
 
 struct mtx rawcb_mtx;
-#ifdef VIMAGE_GLOBALS
-struct rawcb_list_head rawcb_list;
-#endif
+VNET_DEFINE(struct rawcb_list_head, rawcb_list);
 
 SYSCTL_NODE(_net, OID_AUTO, raw, CTLFLAG_RW, 0, "Raw socket infrastructure");
 
@@ -79,7 +76,6 @@ SYSCTL_ULONG(_net_raw, OID_AUTO, recvspace, CTLFLAG_RW, &raw_recvspace, 0,
 int
 raw_attach(struct socket *so, int proto)
 {
-	INIT_VNET_NET(so->so_vnet);
 	struct rawcb *rp = sotorawcb(so);
 	int error;
 

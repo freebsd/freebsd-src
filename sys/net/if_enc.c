@@ -38,7 +38,6 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
@@ -47,6 +46,7 @@
 #include <net/route.h>
 #include <net/netisr.h>
 #include <net/bpf.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

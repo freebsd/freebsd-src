@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/syslog.h>
 #include <sys/callout.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -101,7 +100,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
-#include <netinet6/vinet6.h>
 
 #include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
@@ -206,22 +204,22 @@ in6_matroute(void *v_arg, struct radix_node_head *head)
 
 SYSCTL_DECL(_net_inet6_ip6);
 
-#ifdef VIMAGE_GLOBALS
-static int rtq_reallyold6;
-static int rtq_minreallyold6;
-static int rtq_toomany6;
-#endif
+static VNET_DEFINE(int, rtq_reallyold6);
+static VNET_DEFINE(int, rtq_minreallyold6);
+static VNET_DEFINE(int, rtq_toomany6);
 
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTEXPIRE,
-    rtexpire, CTLFLAG_RW, rtq_reallyold6 , 0, "");
+#define	V_rtq_reallyold6		VNET(rtq_reallyold6)
+#define	V_rtq_minreallyold6		VNET(rtq_minreallyold6)
+#define	V_rtq_toomany6			VNET(rtq_toomany6)
 
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTMINEXPIRE,
-    rtminexpire, CTLFLAG_RW, rtq_minreallyold6 , 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
+    &VNET_NAME(rtq_reallyold6) , 0, "");
 
-SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTMAXCACHE,
-    rtmaxcache, CTLFLAG_RW, rtq_toomany6 , 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTMINEXPIRE, rtminexpire, CTLFLAG_RW,
+    &VNET_NAME(rtq_minreallyold6) , 0, "");
 
-
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
+    &VNET_NAME(rtq_toomany6) , 0, "");
 
 struct rtqk_arg {
 	struct radix_node_head *rnh;
@@ -241,7 +239,6 @@ struct rtqk_arg {
 static int
 in6_rtqkill(struct radix_node *rn, void *rock)
 {
-	INIT_VNET_INET6(curvnet);
 	struct rtqk_arg *ap = rock;
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
@@ -280,16 +277,16 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 }
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-#ifdef VIMAGE_GLOBALS
-static int rtq_timeout6;
-static struct callout rtq_timer6;
-#endif
+static VNET_DEFINE(int, rtq_timeout6);
+static VNET_DEFINE(struct callout, rtq_timer6);
+
+#define	V_rtq_timeout6			VNET(rtq_timeout6)
+#define	V_rtq_timer6			VNET(rtq_timer6)
 
 static void
 in6_rtqtimo(void *rock)
 {
 	CURVNET_SET_QUIET((struct vnet *) rock);
-	INIT_VNET_INET6(curvnet);
 	struct radix_node_head *rnh;
 	struct rtqk_arg arg;
 	struct timeval atv;
@@ -349,9 +346,9 @@ struct mtuex_arg {
 	struct radix_node_head *rnh;
 	time_t nextstop;
 };
-#ifdef VIMAGE_GLOBALS
-static struct callout rtq_mtutimer;
-#endif
+
+static VNET_DEFINE(struct callout, rtq_mtutimer);
+#define	V_rtq_mtutimer			VNET(rtq_mtutimer)
 
 static int
 in6_mtuexpire(struct radix_node *rn, void *rock)
@@ -381,7 +378,6 @@ static void
 in6_mtutimo(void *rock)
 {
 	CURVNET_SET_QUIET((struct vnet *) rock);
-	INIT_VNET_INET6(curvnet);
 	struct radix_node_head *rnh;
 	struct mtuex_arg arg;
 	struct timeval atv;
@@ -418,7 +414,6 @@ in6_mtutimo(void *rock)
 int
 in6_inithead(void **head, int off)
 {
-	INIT_VNET_INET6(curvnet);
 	struct radix_node_head *rnh;
 
 	if (!rn_inithead(head, offsetof(struct sockaddr_in6, sin6_addr) << 3))
@@ -447,7 +442,6 @@ in6_inithead(void **head, int off)
 int
 in6_detachhead(void **head, int off)
 {
-	INIT_VNET_INET6(curvnet);
 
 	callout_drain(&V_rtq_timer6);
 	callout_drain(&V_rtq_mtutimer);
