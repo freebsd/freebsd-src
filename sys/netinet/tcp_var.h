@@ -186,6 +186,8 @@ struct tcpcb {
 					   episode starts at this seq number */
 	struct sackhole	*sack_nexthole;	/* next hole to rexmt */
 	int	sack_bytes_rexmit;	/* # bytes rexmt this RTT */
+	int	sack_hole_bytes;	/* # bytes not yet sacked by rcv'r 
+					   this recovery episode */
 	int	t_rttlow;		/* smallest observerved RTT */
 	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */

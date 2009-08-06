@@ -316,6 +316,8 @@ tcp_sackhole_insert(struct tcpcb *tp, tcp_seq start, tcp_seq end,
 	else
 		TAILQ_INSERT_TAIL(&tp->snd_holes, hole, scblink);
 
+	tp->sack_hole_bytes += hole->end - hole->start;
+
 	/* Update SACK hint. */
 	if (tp->sack_nexthole == NULL)
 		tp->sack_nexthole = hole;
@@ -337,8 +339,22 @@ tcp_sackhole_remove(struct tcpcb *tp, struct sackhole *hole)
 	/* Remove this SACK hole. */
 	TAILQ_REMOVE(&tp->snd_holes, hole, scblink);
 
+	tp->sack_hole_bytes -= hole->end - hole->start;
+
 	/* Free this SACK hole. */
 	tcp_sackhole_free(tp, hole);
+
+	/*
+#ifdef INVARIANTS
+	if (TAILQ_EMPTY(&tp->snd_holes))
+		KASSERT(tp->sack_hole_bytes == 0,
+			("tp->sack_hole_bytes is %d instead of 0", tp->sack_hole_bytes));
+#endif
+	*/
+	if (TAILQ_EMPTY(&tp->snd_holes) && tp->sack_hole_bytes != 0) {
+		printf("tp->sack_hole_bytes is %d instead of 0", tp->sack_hole_bytes);
+		tp->sack_hole_bytes = 0;
+	}
 }
 
 /*
@@ -499,14 +515,16 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 				 */
 				continue;
 			} else {
-				/* Move start of hole forward. */
+				/* Shrink hole: slide start of hole forward. */
+				tp->sack_hole_bytes -= sblkp->end - cur->start;
 				cur->start = sblkp->end;
 				cur->rxmit = SEQ_MAX(cur->rxmit, cur->start);
 			}
 		} else {
 			/* Data acks at least the end of hole. */
 			if (SEQ_GEQ(sblkp->end, cur->end)) {
-				/* Move end of hole backward. */
+				/* Shrink hole: slide end of hole backward. */
+				tp->sack_hole_bytes -= sblkp->start - cur->end;
 				cur->end = sblkp->start;
 				cur->rxmit = SEQ_MIN(cur->rxmit, cur->end);
 			} else {
@@ -523,6 +541,20 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 						    += (temp->rxmit
 						    - temp->start);
 					}
+					/*
+					 * Adjust tp->sack_hole_bytes specially
+					 * here because tcp_sackhole_insert
+					 * adds bytes to the tally that were
+					 * already accounted for. Undo the
+					 * addition of cur->end-sblkp->end bytes
+					 * and also adjust for number of bytes
+					 * in the sack block i.e.
+					 * sblkp->end-sblkp->start
+					 */
+					tp->sack_hole_bytes -=	cur->end -
+								sblkp->end -
+								sblkp->end +
+								sblkp->start;
 					cur->end = sblkp->start;
 					cur->rxmit = SEQ_MIN(cur->rxmit,
 					    cur->end);
