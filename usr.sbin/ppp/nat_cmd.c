@@ -173,7 +173,7 @@ nat_RedirectPort(struct cmdargs const *arg)
       return -1;
     }
 
-    while (laliasport <= haliasport) {
+    do {
       link = PacketAliasRedirectPort(localaddr, htons(llocalport),
 				     remoteaddr, htons(lremoteport),
                                      aliasaddr, htons(laliasport),
@@ -185,10 +185,9 @@ nat_RedirectPort(struct cmdargs const *arg)
         return 1;
       }
       llocalport++;
-      laliasport++;
       if (hremoteport)
         lremoteport++;
-    }
+    } while (laliasport++ < haliasport);
 
     return 0;
   }
