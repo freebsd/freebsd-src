@@ -352,7 +352,7 @@ tcp_sackhole_remove(struct tcpcb *tp, struct sackhole *hole)
 #endif
 	*/
 	if (TAILQ_EMPTY(&tp->snd_holes) && tp->sack_hole_bytes != 0) {
-		printf("tp->sack_hole_bytes is %d instead of 0", tp->sack_hole_bytes);
+		printf("conn (%p) tp->sack_hole_bytes is %d instead of 0\n", tp, tp->sack_hole_bytes);
 		tp->sack_hole_bytes = 0;
 	}
 }
@@ -524,7 +524,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 			/* Data acks at least the end of hole. */
 			if (SEQ_GEQ(sblkp->end, cur->end)) {
 				/* Shrink hole: slide end of hole backward. */
-				tp->sack_hole_bytes -= sblkp->start - cur->end;
+				tp->sack_hole_bytes -= cur->end - sblkp->start;
 				cur->end = sblkp->start;
 				cur->rxmit = SEQ_MIN(cur->rxmit, cur->end);
 			} else {
@@ -552,8 +552,6 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 					 * sblkp->end-sblkp->start
 					 */
 					tp->sack_hole_bytes -=	cur->end -
-								sblkp->end -
-								sblkp->end +
 								sblkp->start;
 					cur->end = sblkp->start;
 					cur->rxmit = SEQ_MIN(cur->rxmit,
