@@ -26,11 +26,17 @@ do-extract:
 	cp Makefile.port ${WRKSRC}/Makefile
 
 do-install:
-	( cd ${WRKSRC}/filemon; ${MAKE} install KMODDIR=/boot/modules)
-	( cd ${WRKSRC}/jbuild; ${MAKE} install BINDIR=${PREFIX}/bin )
-	( cd ${WRKSRC}/jdirdep; ${MAKE} install BINDIR=${PREFIX}/bin )
+	mkdir -p ${KMODDIR}
+	mkdir -p ${PREFIX}/bin
+	${MAKE} -C ${WRKSRC}/filemon install KMODDIR=${KMODDIR} \
+	    	BINOWN=${BINOWN} BINGRP=${BINGRP}
+	${MAKE} -C ${WRKSRC}/jbuild install BINDIR=${PREFIX}/bin \
+	    	BINOWN=${BINOWN} BINGRP=${BINGRP}
+	${MAKE} -C ${WRKSRC}/jdirdep install BINDIR=${PREFIX}/bin \
+	    	BINOWN=${BINOWN} BINGRP=${BINGRP}
 	cp ${WRKSRC}/jdirdep/jcommit ${PREFIX}/bin
 	cp ${WRKSRC}/jdirdep/jgetsrc ${PREFIX}/bin
+	mkdir -p ${MANPREFIX}/man/man1 
 	${INSTALL_MAN} ${WRKSRC}/jbuild/jbuild.1 ${MANPREFIX}/man/man1
 
 do-clean:
