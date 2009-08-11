@@ -91,10 +91,6 @@ will be read for the main list of dependency specifications.
 A different Buildfile or list of them can be supplied via the
 .Fl f
 option(s).
-Finally, if the file
-.Pa .depend
-can be found in any of the aforesaid locations, it will also be read (see
-.Xr mkdep 1 ) .
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -1309,6 +1305,11 @@ to the target's own name.
 .It Ic .END
 Any command lines attached to this target are executed after everything
 else is done.
+.It Ic .ERROR
+If
+.Nm
+executes a target which returns a non-zero status indicating failure,
+any command lines attached to this target are executed.
 .It Ic .IGNORE
 Mark each of the sources with the
 .Ic .IGNORE
@@ -1703,7 +1704,6 @@ Most of the more esoteric features of
 should probably be avoided for greater compatibility.
 .Sh SEE ALSO
 .Xr make 1 ,
-.Xr mkdep 1 ,
 .Xr make.conf 5
 .Rs
 .%T "PMake - A Tutorial"
