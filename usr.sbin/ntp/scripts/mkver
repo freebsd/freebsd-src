@@ -23,8 +23,6 @@ case "" in
  *)  ConfStr="${ConfStr}-r" ;;
 esac
 
-ConfStr="$ConfStr `LC_ALL=C date`"
-
 if [ ! -f .version ]; then
   echo 0 > .version
 fi
