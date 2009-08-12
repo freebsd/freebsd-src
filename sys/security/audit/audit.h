@@ -232,7 +232,7 @@ void	 audit_thread_free(struct thread *td);
 
 #define	AUDIT_ARG_RGID(rgid) do {					\
 	if (AUDITING_TD(curthread))					\
-		audit_arg_gid((rgid));					\
+		audit_arg_rgid((rgid));					\
 } while (0)
 
 #define	AUDIT_ARG_RUID(ruid) do {					\
