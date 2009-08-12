@@ -1750,21 +1750,12 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	 * interface that share the same destination.
 	 */
 	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
-	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128) {
-		struct sockaddr *dstaddr;
+	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128 &&
+	    ia->ia_dstaddr.sin6_family == AF_INET6) {
 		int rtflags = RTF_UP | RTF_HOST;
 
-		/* 
-		 * use the interface address if configuring an
-		 * interface address with a /128 prefix len
-		 */
-		if (ia->ia_dstaddr.sin6_family == AF_INET6)
-			dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
-		else
-			dstaddr = (struct sockaddr *)&ia->ia_addr;
-
 		error = rtrequest(RTM_ADD,
-		    (struct sockaddr *)dstaddr,
+		    (struct sockaddr *)&ia->ia_dstaddr,
 		    (struct sockaddr *)&ia->ia_addr,
 		    (struct sockaddr *)&ia->ia_prefixmask,
 		    ia->ia_flags | rtflags, NULL);
