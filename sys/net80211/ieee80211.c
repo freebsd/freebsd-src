@@ -573,10 +573,12 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 
 	/*
 	 * Flush any deferred vap tasks.
-	 * NB: must be before ether_ifdetach() and removal from ic_vaps list
 	 */
 	ieee80211_draintask(ic, &vap->iv_nstate_task);
 	ieee80211_draintask(ic, &vap->iv_swbmiss_task);
+
+	/* XXX band-aid until ifnet handles this for us */
+	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
 
 	IEEE80211_LOCK(ic);
 	KASSERT(vap->iv_state == IEEE80211_S_INIT , ("vap still running"));
