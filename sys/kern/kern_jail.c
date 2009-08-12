@@ -472,10 +472,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 	struct vfsopt *opt;
 	struct vfsoptlist *opts;
-	struct prison *pr, *deadpr, *mypr, *ppr, *tpr, *tppr;
+	struct prison *pr, *deadpr, *mypr, *ppr, *tpr;
 	struct vnode *root;
 	char *domain, *errmsg, *host, *name, *p, *path, *uuid;
 #if defined(INET) || defined(INET6)
+	struct prison *tppr;
 	void *op;
 #endif
 	unsigned long hid;
