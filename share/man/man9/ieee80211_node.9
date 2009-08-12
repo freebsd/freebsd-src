@@ -25,269 +25,227 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" $Id: ieee80211_node.9,v 1.6 2004/03/04 12:33:27 bruce Exp $
 .\"
-.Dd July 4, 2004
+.Dd August 4, 2009
 .Dt IEEE80211_NODE 9
 .Os
 .Sh NAME
-.Nm ieee80211_node_attach ,
-.Nm ieee80211_node_lateattach ,
-.Nm ieee80211_node_detach ,
-.Nm ieee80211_begin_scan ,
-.Nm ieee80211_next_scan ,
-.Nm ieee80211_create_ibss ,
-.Nm ieee80211_end_scan ,
-.Nm ieee80211_alloc_node ,
-.Nm ieee80211_dup_bss ,
-.Nm ieee80211_find_node ,
-.Nm ieee80211_lookup_node ,
-.Nm ieee80211_free_node ,
-.Nm ieee80211_free_allnodes ,
-.Nm ieee80211_timeout_nodes ,
-.Nm ieee80211_iterate_nodes
+.Nm ieee80211_node
 .Nd software 802.11 stack node management functions
 .Sh SYNOPSIS
 .In net80211/ieee80211_var.h
-.In net80211/ieee80211_proto.h
-.In net80211/ieee80211_node.h
-.Ft void
-.Fn ieee80211_node_attach "struct ifnet *ifp"
-.Ft void
-.Fn ieee80211_node_lateattach "struct ifnet *ifp"
-.Ft void
-.Fn ieee80211_node_detach "struct ifnet *ifp"
-.Ft void
-.Fn ieee80211_begin_scan "struct ifnet *ifp"
-.Ft void
-.Fn ieee80211_next_scan "struct ifnet *ifp"
-.Ft void
-.Fo ieee80211_create_ibss
-.Fa "struct ieee80211com *ic" "struct ieee80211_channel *chan"
+.\"
+.Ft struct ieee80211_node *
+.Fo ieee80211_find_rxnode
+.Fa "struct ieee80211com *"
+.Fa "const struct ieee80211_frame_min *"
 .Fc
-.Ft void
-.Fn ieee80211_end_scan "struct ifnet *ifp"
+.\"
 .Ft struct ieee80211_node *
-.Fn ieee80211_alloc_node "struct ieee80211com *ic" "u_int8_t *macaddr"
-.Ft struct ieee80211_node *
-.Fn ieee80211_dup_bss "struct ieee80211com *ic" "u_int8_t *macaddr"
-.Ft struct ieee80211_node *
-.Fn ieee80211_find_node "struct ieee80211com *ic" "u_int8_t *macaddr"
-.Ft struct ieee80211_node *
-.Fo ieee80211_lookup_node
-.Fa "struct ieee80211com *ic" "u_int8_t *macaddr"
-.Fa "struct ieee80211_channel *chan"
+.Fo ieee80211_find_rxnode_withkey
+.Fa "struct ieee80211com *"
+.Fa "const struct ieee80211_frame_min *"
+.Fa "ieee80211_keyix"
 .Fc
+.\"
+.Ft struct ieee80211_node *
+.Fn ieee80211_ref_node "struct ieee80211_node *"
+.\"
 .Ft void
-.Fn ieee80211_free_node "struct ieee80211com *ic" "struct ieee80211_node *ni"
+.Fn ieee80211_unref_node "struct ieee80211_node *"
+.\"
 .Ft void
-.Fn ieee80211_free_allnodes "struct ieee80211com *ic"
-.Ft void
-.Fn ieee80211_timeout_nodes "struct ieee80211com *ic"
+.Fn ieee80211_free_node "struct ieee80211_node *"
+.\"
 .Ft void
 .Fo ieee80211_iterate_nodes
-.Fa "struct ieee80211com *ic" "ieee80211_iter_func *f" "void *arg"
+.Fa "struct ieee80211_node_table *"
+.Fa "ieee80211_iter_func *f"
+.Fa "void *arg"
 .Fc
+.\"
+.Ft void
+.Fo ieee80211_dump_nodes
+.Fa "struct ieee80211_node_table *"
+.Fc 
+.\"
+.Ft void
+.Fo ieee80211_dump_node
+.Fa "struct ieee80211_node *"
+.Fc 
 .Sh DESCRIPTION
-These functions are used to manage node lists within the software
-802.11 stack.
-These lists are typically used for implementing host-mode AP functionality,
-or providing signal quality information about neighbouring nodes.
+The
+.Nm net80211
+layer that supports 802.11 device drivers maintains a database of
+peer stations called the
+.Dq node table 
+in the
+.Vt ic_sta
+entry of the
+.Vt ieee80211com
+structure.
+Station mode vaps create an entry for the access point
+the station is associated to.
+AP mode vaps create entries for associated stations.
+Adhoc and mesh mode vaps create entries for neighbor stations.
+WDS mode vaps create an entry for the peer station.
+Stations for all vaps reside in the same table; each node
+entry has a
+.Vt ni_vap
+field that identifies the vap that created it.
+In some instances an entry is used by multiple vaps (e.g. for
+dynamic WDS a station associated to an ap vap may also be the peer
+of a WDS vap).
 .Pp
-.\"
+Node table entries are reference counted.
+That is, there is a count of all long term references that determines
+when an entry may be reclaimed.
+References are held by every in-flight frame sent to a station to
+insure the entry is not reclaimed while the frame is queued or otherwise
+held by a driver.
+Routines that lookup a table entry return a
+.Dq held reference
+(i.e. a pointer to a table entry with the reference count incremented).
 The
-.Fn ieee80211_node_attach
-function is called from
-.Xr ieee80211_ifattach 9
-to initialize node database management callbacks for the interface
-.Fa ifp
-(specifically for memory allocation, node copying and node
-signal inspection).
-These functions may be overridden in special circumstances,
-as long as this is done after calling
-.Xr ieee80211_ifattach 9
-and prior to any other call which may allocate a node.
-.Pp
-.\"
-The
-.Fn ieee80211_node_lateattach
-function initialises the
-.Va ic_bss
-node element of the interface
-.Fa ifp
-during
-.Xr ieee80211_media_init 9 .
-This late attachment is to account for certain special cases described under
-.Fn ieee80211_node_attach .
-.Pp
-.\"
-The
-.Fn ieee80211_node_detach
-function destroys all node database state associated with the interface
-.Fa ifp ,
-and is usually called during device detach.
-.Pp
-.\"
-The
-.Fn ieee80211_begin_scan
-function initialises the node database in preparation of an active
-scan for an access point on the interface
-.Fa ifp .
-The scan begins on the next radio channel by calling
-.Fn ieee80211_next_scan
-internally.
-The actual scanning for an access point is not automated;
-the device driver itself only handles setting the radio frequency
-of the card and stepping through the channels.
-.Pp
-.\"
-The
-.Fn ieee80211_next_scan
-function is used to inform the
-.Xr ieee80211 9
-layer that the interface
-.Fa ifp
-is now scanning for an access point on the next radio channel.
-A device driver is expected to first call
-.Fn ieee80211_begin_scan ,
-to initialize the node database,
-then set the radio channel on the device;
-then, after a certain time has elapsed (200ms for example), call
-.Fn ieee80211_next_scan
-to move to the next channel.
-Typically, a callout is used to automate this process; see
-.Xr callout_init 9
-for more information on how to use callouts.
-.Pp
-.\"
-The
-.Fn ieee80211_create_ibss
-function sets up the net80211-specific portion of an interface's softc,
-.Fa ic ,
-for use in IBSS mode.
-.Pp
-.\"
-The
-.Fn ieee80211_end_scan
-function is called by
-.Fn ieee80211_next_scan
-when the state machine has peformed a full cycle of scanning on
-all available radio channels.
-Internally,
-.Fn ieee80211_end_scan
-will inspect the node cache associated with the interface
-.Fa ifp
-for suitable access points found during scanning, and associate with one,
-should the parameters of the node match those of the configuration
-requested from userland.
-.Pp
-.\"
-The
-.Fn ieee80211_alloc_node
-function allocates an instance of
-.Vt "struct ieee80211_node"
-for a node having the MAC address
-.Fa macaddr ,
-and associates it with the interface
-.Fa ic .
-If the allocation is successful, the node structure is initialised by
-.Fn ieee80211_setup_node ;
-otherwise,
-.Dv NULL
-is returned.
-.Pp
-.\"
-The
-.Fn ieee80211_dup_bss
-function is similar to
-.Fn ieee80211_alloc_node ,
-but is instead used to create a node database entry for the BSSID
-.Fa macaddr
-associated with the interface
-.Fa ic .
-If the allocation is successful, the node structure is initialised by
-.Fn ieee80211_setup_node ;
-otherwise,
-.Dv NULL
-is returned.
-.Pp
-.\"
-The
-.Fn ieee80211_find_node
-function will iterate through the node list associated with the interface
-.Fa ic ,
-searching for a node entry which matches
-.Fa macaddr .
-If the entry is found, its reference count is incremented, and
-a pointer to the node is returned; otherwise,
-.Dv NULL
-will be returned.
-.Pp
-.\"
-The
-.Fn ieee80211_lookup_node
-function is similar to
-.Fn ieee80211_find_node ,
-with an additional argument
-.Fa chan
-which is used to specify a channel for the match.
-If the entry is found, its reference count is incremented, and
-a pointer to the node is returned; otherwise,
-.Dv NULL
-will be returned.
-.Pp
-.\"
-The
-.Fn ieee80211_free_node
-function will remove the node
-.Fa ni
-from the node database entries associated with the interface
-.Fa ic ,
-and free any memory associated with the node.
-This private method can be overridden in
-.Fn ieee80211_node_attach .
-.\"
-.Pp
-The
-.Fn ieee80211_free_allnodes
-function will iterate through the node list calling
-.Fn ieee80211_free_node
-for all nodes associated with the interface
-.Fa ic .
-.Pp
-.\"
-The
-.Fn ieee80211_timeout_nodes
-checks if the inactivity timer of each node associated with the interface
-.Fa ic
-has exceeded the pre-defined constant
-.Dv IEEE80211_INACT_MAX .
-If so, then the node is freed, after sending a deauthentication message.
-.Pp
-.\"
-The
-.Fn ieee80211_iterate_nodes
-function will call the user-defined callback function
-.Fa f
-for all nodes in the node database associated with the interface
-.Fa ic .
-The callback is invoked with the with the user-supplied value
-.Fa arg
-and a pointer to the current node.
-.\"
-.Sh SEE ALSO
-.Xr ieee80211 9 ,
-.Xr ifnet 9
-.Sh HISTORY
-The
-.Nm ieee80211
-series of functions first appeared in
-.Nx 1.5 ,
-and were later ported to
-.Fx 4.6 .
-.Sh AUTHORS
-.An -nosplit
-This manual page was written by
-.An Bruce M. Simpson Aq bms@FreeBSD.org
+.Fn ieee80211_ref_node
 and
-.An Darron Broad Aq darron@kewl.org .
+.Fn ieee80211_unref_node
+calls explicitly increment/decrement the reference count of a node,
+but are rarely used.
+Instead most callers use
+.Fn ieee80211_free_node
+to release a reference and, if the count goes to zero, reclaim the
+table entry.
+.Pp
+The station table and its entries are exposed to drivers in several ways.
+Each frame transmitted to a station includes a reference to the
+associated node in the
+.Vt m_pkthdr.rcvif
+field.
+This reference must be reclaimed by the driver when transmit processing
+is done.
+For each frame received the driver must lookup the table entry to
+use in dispatching the frame 
+.Dq up the stack .
+This lookup implicitly obtains a reference to the table entry and
+the driver must reclaim the reference when frame processing is completed.
+Otherwise drivers frequently inspect the contents of the
+.Vt iv_bss
+node when handling state machine changes as important information
+is maintained in the data structure.
+.Pp
+The node table is opaque to drivers.
+Entries may be looked up using one of the pre-defined API's or the
+.Fn ieee80211_iterate_nodes
+call may be used to iterate through all entries to do per-node
+processing or implement some non-standard search mechanism.
+Note that 
+.Fn ieee80211_iterate_nodes
+is single-threaded per-device
+and the effort processing involved is fairly
+substantial so it should be used carefully.
+.Pp
+Two routines are provided to print the contents of nodes to the console
+for debugging:
+.Fn ieee80211_dump_node
+displays the contents of a single node while
+.Fn ieee80211_dump_nodes
+displays the contents of the specified node table.
+Nodes may also be displayed using
+.Xr ddb 9
+with the
+.Dq show node
+directive and the station node table can be displayed with
+.Dq show statab .
+.Sh DRIVER PRIVATE STATE
+Node data structures may be extended by the driver to include
+driver-private state.
+This is done by overriding the
+.Vt ic_node_alloc
+method used to allocate a node table entry.
+The driver method must allocate a structure that is an extension
+of the
+.Vt ieee80211_node
+structure.
+For example the
+.Xr iwi 4
+driver defines a private node structure as:
+.Bd -literal -offset indent
+struct iwi_node {
+        struct ieee80211_node   in_node;
+	int                     in_station;
+};
+.Ed
+.Pp
+and then provides a private allocation routine that does this:
+.Bd -literal -offset indent
+static struct ieee80211_node *
+iwi_node_alloc(struct ieee80211vap *vap,
+    const uint8_t mac[IEEE80211_ADDR_LEN])
+{
+        struct iwi_node *in;
+
+        in = malloc(sizeof (struct iwi_node), M_80211_NODE,
+		M_NOWAIT | M_ZERO);
+        if (in == NULL)
+                return NULL;
+        in->in_station = -1;
+        return &in->in_node;
+}
+.Ed
+.Pp
+Note that when reclaiming a node allocated by the driver the
+.Dq parent method
+must be called to ensure
+.Nm net80211
+state is reclaimed; for example:
+.Bd -literal -offset indent
+static void
+iwi_node_free(struct ieee80211_node *ni)
+{
+        struct ieee80211com *ic = ni->ni_ic;
+        struct iwi_softc *sc = ic->ic_ifp->if_softc;
+        struct iwi_node *in = (struct iwi_node *)ni;
+        
+        if (in->in_station != -1)
+                free_unr(sc->sc_unr, in->in_station);
+        sc->sc_node_free(ni);	/* invoke net80211 free handler */
+}
+.Ed
+.Pp
+Beware that care must be taken to avoid holding references that
+might cause nodes from being reclaimed.
+.Nm net80211
+will reclaim a node when the last reference is reclaimed in
+its data structures.
+However if a driver holds additional references then
+.Nm net80211
+will not recognize this and table entries will not be reclaimed.
+Such references should not be needed if the driver overrides the
+.Vt ic_node_cleanup
+and/or
+.Vt ic_node_free
+methods.
+.Sh KEY TABLE SUPPORT
+Node table lookups are typically done using a hash of the stations'
+mac address.
+When receiving frames this is sufficient to find the node table entry
+for the transmitter.
+But some devices also identify the sending station in the device
+state received with each frame and this data can be used to optimize
+lookups on receive using a companion table called the
+.Dq keytab .
+This table records a separate node table reference that can be fetched
+without any locking using the table index.
+This logic is handled with the
+.Fn ieee80211_find_rxnode_withkey
+call: if a keytab entry is found using the specified index then it is
+returned directly; otherwise a normal lookup is done and the keytab
+entry is written using the specified index.
+If the specified index is
+.Dv IEEE80211_KEYIX_NONE
+then a normal lookup is done without a table update.
+.Sh SEE ALSO
+.Xr ddb 9
+.Xr ieee80211 9 ,
+.Xr ieee80211_proto 9 ,
