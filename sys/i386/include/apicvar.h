@@ -100,11 +100,6 @@
  * smp_ipi_mtx and waits for the completion of the IPI (Only one IPI user 
  * at a time) The second group uses a single interrupt and a bitmap to avoid
  * redundant IPI interrupts.
- *
- * Right now IPI_STOP used by kdb shares the interrupt priority class with
- * the two IPI groups mentioned above. As such IPI_STOP may cause a deadlock.
- * Eventually IPI_STOP should use NMI IPIs - this would eliminate this and
- * other deadlocks caused by IPI_STOP.
  */ 
 
 /* Interrupts for local APIC LVT entries other than the timer. */
@@ -134,6 +129,7 @@
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
+#define	IPI_STOP_HARD	(APIC_IPI_INTS + 8)	/* Stop CPU with a NMI. */
 
 #else /* XEN */
 /* These are the normal i386 APIC definitions */
@@ -161,6 +157,7 @@
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
+#define	IPI_STOP_HARD	(APIC_IPI_INTS + 8)	/* Stop CPU with a NMI. */
 #endif /* XEN */
 
 /*
