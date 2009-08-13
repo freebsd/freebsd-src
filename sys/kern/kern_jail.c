@@ -88,7 +88,11 @@ struct prison prison0 = {
 	.pr_childmax	= JAIL_MAX,
 	.pr_hostuuid	= DEFAULT_HOSTUUID,
 	.pr_children	= LIST_HEAD_INITIALIZER(&prison0.pr_children),
+#ifdef VIMAGE
+	.pr_flags	= PR_HOST|PR_VNET,
+#else
 	.pr_flags	= PR_HOST,
+#endif
 	.pr_allow	= PR_ALLOW_ALL,
 };
 MTX_SYSINIT(prison0, &prison0.pr_mtx, "jail mutex", MTX_DEF);
@@ -3307,6 +3311,25 @@ getcredhostid(struct ucred *cred, unsigned long *hostid)
 	*hostid = cred->cr_prison->pr_hostid;
 	mtx_unlock(&cred->cr_prison->pr_mtx);
 }
+
+#ifdef VIMAGE
+/*
+ * Determine whether the prison represented by cred owns
+ * its vnet rather than having it inherited.
+ *
+ * Returns 1 in case the prison owns the vnet, 0 otherwise.
+ */
+int
+prison_owns_vnet(struct ucred *cred)
+{
+
+	/*
+	 * vnets cannot be added/removed after jail creation,
+	 * so no need to lock here.
+	 */
+	return (cred->cr_prison->pr_flags & PR_VNET ? 1 : 0);
+}
+#endif
 
 /*
  * Determine whether the subject represented by cred can "see"
