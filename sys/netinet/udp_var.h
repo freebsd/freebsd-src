@@ -51,6 +51,17 @@ struct udpiphdr {
 #define	ui_ulen		ui_u.uh_ulen
 #define	ui_sum		ui_u.uh_sum
 
+/*
+ * UDP control block; one per udp.
+ */
+struct udpcb {
+	void		*u_pspare;
+	u_int		u_flags;	/* Generic UDP flags. */
+};
+
+#define	intoudpcb(ip)	((struct udpcb *)(ip)->inp_ppcb)
+#define	sotoudpcb(so)	(intoudpcb(sotoinpcb(so)))
+
 struct udpstat {
 				/* input statistics: */
 	u_long	udps_ipackets;		/* total input packets */
@@ -101,6 +112,9 @@ extern u_long			udp_recvspace;
 extern struct udpstat		udpstat;
 extern int			udp_blackhole;
 extern int			udp_log_in_vain;
+
+int		 udp_newudpcb(struct inpcb *);
+void		 udp_discardcb(struct udpcb *);
 
 void		 udp_ctlinput(int, struct sockaddr *, void *);
 void		 udp_init(void);
