@@ -61,6 +61,7 @@
 
 #include <sys/param.h>
 #include <sys/errno.h>
+#include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
@@ -74,9 +75,7 @@
 #include <sys/sbuf.h>
 #include <sys/alq.h>
 #include <sys/proc.h>
-#if (__FreeBSD_version >= 800044)
 #include <sys/vimage.h>
-#endif
 
 #include <net/if.h>
 #include <net/pfil.h>
@@ -88,23 +87,12 @@
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 
-#if (__FreeBSD_version >= 800044)
-#include <netinet/vinet.h>
-#endif
-
 #ifdef SIFTR_IPV6
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
-
-#if (__FreeBSD_version >= 800044)
-#include <netinet6/vinet6.h>
-#endif
-
 #endif /* SIFTR_IPV6 */
 
 #include <machine/in_cksum.h>
-
-#include "siftr_hash.h"
 
 
 #define MODVERSION  "1.2.2"
@@ -309,15 +297,7 @@ static struct mtx siftr_pkt_mgr_mtx;
 
 
 static struct thread *siftr_pkt_manager_thr = NULL;
-#if (__FreeBSD_version < 800000)
-static struct proc *siftr_pkt_manager_proc = NULL;
-#endif
-
-#if (__FreeBSD_version >= 800044)
 #define _siftrtcbinfo &V_tcbinfo
-#else
-#define _siftrtcbinfo &tcbinfo
-#endif
 
 
 
@@ -444,11 +424,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 
 		/* Construct an IPv6 log message. */
 		sprintf(siftr_log_msg,
-#if (__FreeBSD_version >= 700000)
 			"%c,0x%08x,%zd.%06ld,%x:%x:%x:%x:%x:%x:%x:%x,%u,%x:%x:%x:%x:%x:%x:%x:%x,%u,%ld,%ld,%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u\n",
-#else
-			"%c,0x%08x,%ld.%06ld,%x:%x:%x:%x:%x:%x:%x:%x,%u,%x:%x:%x:%x:%x:%x:%x:%x,%u,%ld,%ld,%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u\n",
-#endif
 			direction[pkt_node->direction],
 			pkt_node->hash,
 			pkt_node->tval.tv_sec,
@@ -503,11 +479,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 
 		/* Construct an IPv4 log message. */
 		sprintf(siftr_log_msg,
-#if (__FreeBSD_version >= 700000)
 			"%c,0x%08x,%zd.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%ld,%ld,%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u\n",
-#else
-			"%c,0x%08x,%ld.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%ld,%ld,%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u\n",
-#endif
 			direction[pkt_node->direction],
 			pkt_node->hash,
 			pkt_node->tval.tv_sec,
@@ -632,17 +604,8 @@ siftr_pkt_manager_thread(void *arg)
 
 	mtx_unlock(&siftr_pkt_mgr_mtx);
 
-#if (__FreeBSD_version >= 800000)
 	/* calls wakeup on this thread's struct thread ptr */
 	kthread_exit();
-#else
-#if (__FreeBSD_version < 700000)
-	/* no wakeup given in 6.x so have to do it ourself */
-	wakeup(siftr_pkt_manager_proc);
-#endif
-	/* calls wakeup on this thread's struct proc ptr on 7.x */
-	kthread_exit(0);
-#endif
 }
 
 static uint32_t
@@ -768,9 +731,7 @@ siftr_chkpkt(	void *arg,
 		/* Find the corresponding inpcb for this pkt */
 
 		/* We need the tcbinfo lock */
-#if (__FreeBSD_version >= 700000)
 		INP_INFO_UNLOCK_ASSERT(_siftrtcbinfo);
-#endif
 		INP_INFO_RLOCK(_siftrtcbinfo);
 
 		if (dir == PFIL_IN)
@@ -806,11 +767,7 @@ siftr_chkpkt(	void *arg,
 
 		/* Acquire the inpcb lock */
 		INP_UNLOCK_ASSERT(inp);
-#if (__FreeBSD_version >= 701000)
 		INP_RLOCK(inp);
-#else
-		INP_LOCK(inp);
-#endif
 		INP_INFO_RUNLOCK(_siftrtcbinfo);
 
 		inp_locally_locked = 1;
@@ -838,11 +795,7 @@ siftr_chkpkt(	void *arg,
 	 * packet sent during the shutdown phase of a TCP connection),
 	 * or we're in the timewait state, bail
 	 */
-#if (INP_TIMEWAIT == 0x8)
-	if (!tp || (inp->inp_vflag & INP_TIMEWAIT)) {
-#else
 	if (!tp || (inp->inp_flags & INP_TIMEWAIT)) {
-#endif
 		if(dir == PFIL_IN)
 			siftr_num_inbound_skipped_pkts_tcb++;
 		else
@@ -873,11 +826,7 @@ siftr_chkpkt(	void *arg,
 	pkt_node->conn_state = tp->t_state;
 	pkt_node->max_seg_size = tp->t_maxseg;
 	pkt_node->smoothed_rtt = tp->t_srtt;
-#if (__FreeBSD_version >= 700000)
 	pkt_node->sack_enabled = tp->t_flags & TF_SACK_PERMIT;
-#else
-	pkt_node->sack_enabled = tp->sack_enable;
-#endif
 	pkt_node->flags = tp->t_flags;
 	pkt_node->rxt_length = tp->t_rxtcur;
 	pkt_node->snd_buf_hiwater = inp->inp_socket->so_snd.sb_hiwat;
@@ -888,11 +837,7 @@ siftr_chkpkt(	void *arg,
 
 	/* We've finished accessing the tcb so release the lock */
 	if (inp_locally_locked)
-#if (__FreeBSD_version >= 701000)
 		INP_RUNLOCK(inp);
-#else
-		INP_UNLOCK(inp);
-#endif
 
 	pkt_node->direction = dir;
 
@@ -985,11 +930,7 @@ siftr_chkpkt(	void *arg,
 
 inp_unlock:
 	if (inp_locally_locked)
-#if (__FreeBSD_version >= 701000)
 		INP_RUNLOCK(inp);
-#else
-		INP_UNLOCK(inp);
-#endif
 
 ret:
 	/* Returning 0 ensures pfil will not discard the pkt */
@@ -1091,9 +1032,7 @@ siftr_chkpkt6(	void *arg,
 		/* Find the the corresponding inpcb for this pkt */
 
 		/* We need the tcbinfo lock */
-#if (__FreeBSD_version >= 700000)
 		INP_INFO_UNLOCK_ASSERT(_siftrtcbinfo);
-#endif
 		INP_INFO_RLOCK(_siftrtcbinfo);
 
 		if (dir == PFIL_IN)
@@ -1127,11 +1066,7 @@ siftr_chkpkt6(	void *arg,
 		}
 
 		/* Acquire the inpcb lock */
-#if (__FreeBSD_version >= 701000)
 		INP_RLOCK(inp);
-#else
-		INP_LOCK(inp);
-#endif
 		INP_INFO_RUNLOCK(_siftrtcbinfo);
 		inp_locally_locked = 1;
 	}
@@ -1156,11 +1091,7 @@ siftr_chkpkt6(	void *arg,
 	 * packet sent during the shutdown phase of a TCP connection),
 	 * or we're in the timewait state, bail
 	 */
-#if (INP_TIMEWAIT == 0x8)
-	if (!tp || (inp->inp_vflag & INP_TIMEWAIT)) {
-#else
 	if (!tp || (inp->inp_flags & INP_TIMEWAIT)) {
-#endif
 		if(dir == PFIL_IN)
 			siftr_num_inbound_skipped_pkts_tcb++;
 		else
@@ -1192,11 +1123,7 @@ siftr_chkpkt6(	void *arg,
 	pkt_node->conn_state = tp->t_state;
 	pkt_node->max_seg_size = tp->t_maxseg;
 	pkt_node->smoothed_rtt = tp->t_srtt;
-#if (__FreeBSD_version >= 700000)
 	pkt_node->sack_enabled = tp->t_flags & TF_SACK_PERMIT;
-#else
-	pkt_node->sack_enabled = tp->sack_enable;
-#endif
 	pkt_node->flags = tp->t_flags;
 	pkt_node->rxt_length = tp->t_rxtcur;
 	pkt_node->snd_buf_hiwater = inp->inp_socket->so_snd.sb_hiwat;
@@ -1207,11 +1134,7 @@ siftr_chkpkt6(	void *arg,
 
 	/* We've finished accessing the tcb so release the lock */
 	if (inp_locally_locked)
-#if (__FreeBSD_version >= 701000)
 		INP_RUNLOCK(inp);
-#else
-		INP_UNLOCK(inp);
-#endif
 
 	pkt_node->direction = dir;
 
@@ -1231,11 +1154,7 @@ siftr_chkpkt6(	void *arg,
 
 inp_unlock6:
 	if (inp_locally_locked)
-#if (__FreeBSD_version >= 701000)
 		INP_RUNLOCK(inp);
-#else
-		INP_UNLOCK(inp);
-#endif
 
 ret6:
 	/* Returning 0 ensures pfil will not discard the pkt */
@@ -1363,7 +1282,6 @@ siftr_manage_ops(uint8_t action)
 
 		siftr_exit_pkt_manager_thread = 0;
 
-#if (__FreeBSD_version >= 800000)
 		ret = kthread_add(	&siftr_pkt_manager_thread,
 					NULL,
 					NULL,
@@ -1372,27 +1290,13 @@ siftr_manage_ops(uint8_t action)
 					0,
 					"siftr_pkt_manager_thr"
 		);
-#else
-		ret = kthread_create(	&siftr_pkt_manager_thread,
-					NULL,
-					&siftr_pkt_manager_proc,
-					RFNOWAIT,
-					0,
-					"siftr_pkt_manager_thr"
-		);
-		siftr_pkt_manager_thr = FIRST_THREAD_IN_PROC(siftr_pkt_manager_proc);
-#endif
 
 		siftr_pfil(HOOK);
 
 		microtime(&tval);
 
 		sbuf_printf(s,
-#if (__FreeBSD_version >= 700000)
 			"enable_time_secs=%zd\tenable_time_usecs=%06ld\tsiftrver=%s\thz=%u\ttcp_rtt_scale=%u\tsysname=%s\tsysver=%u\tipmode=%u\n",
-#else
-			"enable_time_secs=%ld\tenable_time_usecs=%06ld\tsiftrver=%s\thz=%u\ttcp_rtt_scale=%u\tsysname=%s\tsysver=%u\tipmode=%u\n",
-#endif
 			tval.tv_sec,
 			tval.tv_usec,
 			MODVERSION,
@@ -1430,22 +1334,12 @@ siftr_manage_ops(uint8_t action)
 		wakeup(&wait_for_pkt);
 
 		/* Wait for the pkt_manager thread to exit */
-#if (__FreeBSD_version >= 800000)
 		msleep(	siftr_pkt_manager_thr,
 			&siftr_pkt_mgr_mtx,
 			PWAIT,
 			"thrwait",
 			0
 		);
-#else
-		msleep(	siftr_pkt_manager_proc,
-			&siftr_pkt_mgr_mtx,
-			PWAIT,
-			"thrwait",
-			0
-		);
-		siftr_pkt_manager_proc = NULL;
-#endif
 
 		siftr_pkt_manager_thr = NULL;
 		mtx_unlock(&siftr_pkt_mgr_mtx);
@@ -1453,11 +1347,7 @@ siftr_manage_ops(uint8_t action)
 		microtime(&tval);
 	
 		sbuf_printf(s,
-#if (__FreeBSD_version >= 700000)
 			"disable_time_secs=%zd\tdisable_time_usecs=%06ld\tnum_inbound_tcp_pkts=%u\tnum_outbound_tcp_pkts=%u\ttotal_tcp_pkts=%u\tnum_inbound_skipped_pkts_malloc=%u\tnum_outbound_skipped_pkts_malloc=%u\tnum_inbound_skipped_pkts_mtx=%u\tnum_outbound_skipped_pkts_mtx=%u\tnum_inbound_skipped_pkts_tcb=%u\tnum_outbound_skipped_pkts_tcb=%u\tnum_inbound_skipped_pkts_icb=%u\tnum_outbound_skipped_pkts_icb=%u\ttotal_skipped_tcp_pkts=%u\tflow_list=",
-#else
-			"disable_time_secs=%ld\tdisable_time_usecs=%06ld\tnum_inbound_tcp_pkts=%u\tnum_outbound_tcp_pkts=%u\ttotal_tcp_pkts=%u\tnum_inbound_skipped_pkts_malloc=%u\tnum_outbound_skipped_pkts_malloc=%u\tnum_inbound_skipped_pkts_mtx=%u\tnum_outbound_skipped_pkts_mtx=%u\tnum_inbound_skipped_pkts_tcb=%u\tnum_outbound_skipped_pkts_tcb=%u\tnum_inbound_skipped_pkts_icb=%u\tnum_outbound_skipped_pkts_icb=%u\ttotal_skipped_tcp_pkts=%u\tflow_list=",
-#endif
 			tval.tv_sec,
 			tval.tv_usec,
 			siftr_num_inbound_tcp_pkts,
