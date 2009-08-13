@@ -1473,7 +1473,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		/*
 		 * take care of routing entries
 		 */
-		for (error = 0; error == 0 && i <= lim; i++)
+		for (error = 0; error == 0 && i <= lim; i++) {
 			rnh = rt_tables_get_rnh(req->td->td_proc->p_fibnum, i);
 			if (rnh != NULL) {
 				RADIX_NODE_HEAD_LOCK(rnh); 
@@ -1482,6 +1482,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 				RADIX_NODE_HEAD_UNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
+		}
 		break;
 
 	case NET_RT_IFLIST:
