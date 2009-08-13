@@ -616,10 +616,9 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 /* OHCI version */
 	reg = OREAD(sc, OHCI_VERSION);
 	mver = (reg >> 16) & 0xff;
-	device_printf(dev, "OHCI version %x.%x (ROM=%d)\n",
-			mver, reg & 0xff, (reg>>24) & 1);
 	if (mver < 1 || mver > 9) {
-		device_printf(dev, "invalid OHCI version\n");
+		device_printf(dev, "invalid OHCI version %d (reg=0x%08x)\n",
+			      mver, reg);
 		return (ENXIO);
 	}
 
@@ -632,10 +631,15 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	for (i = 0; i < 0x20; i++)
 		if ((reg & (1 << i)) == 0)
 			break;
+	if (i == 0) {
+		device_printf(dev, "0 isoc. channels");
+		return ENXIO;
+	}
 	sc->fc.nisodma = i;
-	device_printf(dev, "No. of Isochronous channels is %d.\n", i);
-	if (i == 0)
-		return (ENXIO);
+
+	device_printf(dev, "OHCI version %x.%x (ROM=%d), %d isoc. channels\n",
+			mver, reg & 0xff, (reg>>24) & 1,
+			sc->fc.nisodma);
 
 	sc->fc.arq = &sc->arrq.xferq;
 	sc->fc.ars = &sc->arrs.xferq;
@@ -1848,7 +1852,8 @@ fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 		/* Disable bus reset interrupt until sid recv. */
 		OWRITE(sc, FWOHCI_INTMASKCLR,  OHCI_INT_PHY_BUS_R);
 	
-		device_printf(fc->dev, "BUS reset\n");
+		if (bootverbose)
+			device_printf(fc->dev, "BUS reset\n");
 		OWRITE(sc, FWOHCI_INTMASKCLR,  OHCI_INT_CYC_LOST);
 		OWRITE(sc, OHCI_LNKCTLCLR, OHCI_CNTL_CYCSRC);
 
@@ -2464,7 +2469,8 @@ fwohci_ibr(struct firewire_comm *fc)
 	struct fwohci_softc *sc;
 	uint32_t fun;
 
-	device_printf(fc->dev, "Initiate bus reset\n");
+	if (bootverbose)
+		device_printf(fc->dev, "Initiate bus reset\n");
 	sc = (struct fwohci_softc *)fc;
 
 	/*
