@@ -276,7 +276,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			 * If the request is specifying phase 1, then
 			 * only look at a phase one address
 			 */
-			AT_IFADDR_RUNLOCK();
+			AT_IFADDR_RLOCK();
 			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp &&
 				    (aa->aa_flags & AFA_PHASE2) == 0)
@@ -286,7 +286,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				ifa_free(&oaa->aa_ifa);
 			if (aa != NULL && oaa != aa)
 				ifa_ref(&aa->aa_ifa);
-			AT_IFADDR_RLOCK();
+			AT_IFADDR_RUNLOCK();
 		} else {
 			struct at_ifaddr *oaa;
 
