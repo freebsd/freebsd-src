@@ -22,6 +22,7 @@ SUBDIR=	${_3dfx} \
 	${_amdtemp} \
 	alc \
 	ale \
+	alq \
 	amr \
 	${_an} \
 	${_aout} \
