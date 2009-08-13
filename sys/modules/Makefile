@@ -206,6 +206,7 @@ SUBDIR=	${_3dfx} \
 	${_nve} \
 	${_nvram} \
 	${_nwfs} \
+	ohci \
 	${_oltr} \
 	${_opensolaris} \
 	${_padlock} \
@@ -293,6 +294,7 @@ SUBDIR=	${_3dfx} \
 	ufoma \
 	uftdi \
 	ugen \
+	uhci \
 	uhid \
 	ukbd \
 	ulpt \
