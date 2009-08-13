@@ -1205,20 +1205,55 @@ uhci_intr1(uhci_softc_t *sc)
 		       device_get_nameunit(sc->sc_bus.bdev));
 	}
 	if (status & UHCI_STS_HCH) {
-		/* no acknowledge needed */
 		if (!sc->sc_dying) {
+			ack |= UHCI_STS_HCH;
 			printf("%s: host controller halted\n",
-			    device_get_nameunit(sc->sc_bus.bdev));
-#ifdef USB_DEBUG
-			uhci_dump_all(sc);
-#endif
+			       device_get_nameunit(sc->sc_bus.bdev));
 		}
-		sc->sc_dying = 1;
 	}
 
 	if (!ack)
 		return (0);	/* nothing to acknowledge */
-	UWRITE2(sc, UHCI_STS, ack); /* acknowledge the ints */
+
+	UWRITE2(sc, UHCI_STS, ack & ~UHCI_STS_HCH); /* acknowledge the ints */
+
+	if (ack & UHCI_STS_HCH) {
+		/* Restart the controller, by Manuel Bouyer */
+		sc->sc_saved_frnum = UREAD2(sc, UHCI_FRNUM);
+		sc->sc_saved_sof = UREAD1(sc, UHCI_SOF);
+
+		sc->sc_bus.use_polling++;
+		uhci_run(sc, 0); /* stop the controller */
+		UWRITE2(sc, UHCI_INTR, 0); /* disable intrs */
+
+		uhci_globalreset(sc);
+		uhci_reset(sc);
+
+		/* restore saved state */
+		UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&sc->sc_dma, 0));
+		UWRITE2(sc, UHCI_FRNUM, sc->sc_saved_frnum);
+		UWRITE1(sc, UHCI_SOF, sc->sc_saved_sof);
+
+		UWRITE2(sc, UHCI_INTR, UHCI_INTR_TOCRCIE | UHCI_INTR_RIE |
+			UHCI_INTR_IOCE | UHCI_INTR_SPIE); /* re-enable intrs */
+		UHCICMD(sc, UHCI_CMD_MAXP);
+
+		uhci_run(sc, 1); /* and start traffic again */
+		sc->sc_bus.use_polling--;
+
+		if (UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) {
+			printf("%s: host controller couldn't be restarted\n",
+			       device_get_nameunit(sc->sc_bus.bdev));
+#ifdef USB_DEBUG
+			uhci_dump_all(sc);
+#endif
+			sc->sc_dying = 1;
+			return (0);
+		}
+
+		printf("%s: host controller restarted\n",
+		       device_get_nameunit(sc->sc_bus.bdev));
+	}
 
 	sc->sc_bus.no_intrs++;
 	usb_schedsoftintr(&sc->sc_bus);
