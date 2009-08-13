@@ -1083,9 +1083,10 @@ vfs_domount(
 		vfs_event_signal(NULL, VQ_MOUNT, 0);
 		if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp, td))
 			panic("mount: lost mount");
-		mountcheckdirs(vp, newdp);
-		vput(newdp);
+		VOP_UNLOCK(newdp, 0, td);
 		VOP_UNLOCK(vp, 0, td);
+		mountcheckdirs(vp, newdp);
+		vrele(newdp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			error = vfs_allocate_syncvnode(mp);
 		vfs_unbusy(mp, td);
@@ -1468,8 +1469,10 @@ set_rootvnode(struct thread *td)
 	if (VFS_ROOT(TAILQ_FIRST(&mountlist), LK_EXCLUSIVE, &rootvnode, td))
 		panic("Cannot find root vnode");
 
+	VOP_UNLOCK(rootvnode, 0, td);
+
 	p = td->td_proc;
-	FILEDESC_SLOCK(p->p_fd);
+	FILEDESC_XLOCK(p->p_fd);
 
 	if (p->p_fd->fd_cdir != NULL)
 		vrele(p->p_fd->fd_cdir);
@@ -1481,9 +1484,7 @@ set_rootvnode(struct thread *td)
 	p->p_fd->fd_rdir = rootvnode;
 	VREF(rootvnode);
 
-	FILEDESC_SUNLOCK(p->p_fd);
-
-	VOP_UNLOCK(rootvnode, 0, td);
+	FILEDESC_XUNLOCK(p->p_fd);
 }
 
 /*
