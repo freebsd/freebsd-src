@@ -304,6 +304,56 @@ struct MCFGbody {
 	} s[1] __packed;
 } __packed;
 
+/* System Resource Affinity Table */
+struct SRAT_cpu {
+	uint8_t		proximity_domain_lo;
+	uint8_t		apic_id;
+	uint32_t	flags;
+#define	ACPI_SRAT_CPU_ENABLED		0x00000001
+	uint8_t		sapic_eid;
+	uint8_t		proximity_domain_hi[3];
+	uint32_t	reserved;
+} __packed;
+
+struct SRAT_memory {
+	uint32_t	proximity_domain;
+	uint16_t	reserved;
+	uint64_t	base_address;
+	uint64_t	length;
+	uint32_t	reserved1;
+	uint32_t	flags;
+#define	ACPI_SRAT_MEM_ENABLED		0x00000001
+#define	ACPI_SRAT_MEM_HOT_PLUGGABLE	0x00000002
+#define	ACPI_SRAT_MEM_NON_VOLATILE	0x00000002
+	uint64_t	reserved2;
+} __packed;
+
+struct SRAT_x2apic {
+	uint16_t	reserved;
+	uint32_t	proximity_domain;
+	uint32_t	apic_id;
+	uint32_t	flags;
+} __packed;
+
+struct SRATentry {
+	uint8_t		type;
+#define	ACPI_SRAT_TYPE_CPU_AFFINITY		0
+#define	ACPI_SRAT_TYPE_MEMORY_AFFINITY		1
+#define	ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY	2
+	uint8_t		len;
+	union {
+		struct SRAT_cpu cpu;
+		struct SRAT_memory mem;
+		struct SRAT_x2apic x2apic;
+	} body;
+} __packed;
+
+struct SRATbody {
+	uint32_t	table_revision;
+	uint64_t	reserved;
+	struct SRATentry body[0];
+} __packed;
+	
 /*
  * Addresses to scan on ia32 for the RSD PTR.  According to section 5.2.2
  * of the ACPI spec, we only consider two regions for the base address:
