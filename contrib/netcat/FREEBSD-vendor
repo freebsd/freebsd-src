@@ -2,6 +2,4 @@
 Project:	netcat (aka src/usr.bin/nc in OpenBSD)
 ProjectURL:	http://www.openbsd.org/
 Version:	4.4
-VendorTag:	OPENBSD
-VersionTag:	OPENBSD_4_4
 License:	BSD
