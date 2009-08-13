@@ -5280,6 +5280,10 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 			return (seed);
 		}
 		seed = iswwnn ? FCPARAM(isp, chan)->isp_wwnn_nvram : FCPARAM(isp, chan)->isp_wwpn_nvram;
+		if (seed) {
+			return (seed);
+		}
+		return (0x400000007F000009ull);
 	} else {
 		seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
 	}
