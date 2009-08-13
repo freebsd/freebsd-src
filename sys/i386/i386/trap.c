@@ -211,13 +211,11 @@ trap(struct trapframe *frame)
 	type = frame->tf_trapno;
 
 #ifdef SMP
-#ifdef STOP_NMI
 	/* Handler for NMI IPIs used for stopping CPUs. */
 	if (type == T_NMI) {
 	         if (ipi_nmi_handler() == 0)
 	                   goto out;
 	}
-#endif /* STOP_NMI */
 #endif /* SMP */
 
 #ifdef KDB

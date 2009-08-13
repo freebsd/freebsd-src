@@ -129,7 +129,12 @@ smp_handle_ipi(struct trapframe *frame)
 			break;
 
 		case IPI_STOP:
-			CTR0(KTR_SMP, "IPI_STOP");
+
+			/*
+			 * IPI_STOP_HARD is mapped to IPI_STOP so it is not
+			 * necessary to add it in the switch.
+			 */
+			CTR0(KTR_SMP, "IPI_STOP or IPI_STOP_HARD");
 			atomic_set_int(&stopped_cpus, cpumask);
 
 			while ((started_cpus & cpumask) == 0)

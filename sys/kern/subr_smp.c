@@ -233,18 +233,21 @@ forward_roundrobin(void)
  * XXX FIXME: this is not MP-safe, needs a lock to prevent multiple CPUs
  *            from executing at same time.
  */
-int
-stop_cpus(cpumask_t map)
+static int
+generic_stop_cpus(cpumask_t map, u_int type)
 {
 	int i;
+
+	KASSERT(type == IPI_STOP || type == IPI_STOP_HARD,
+	    ("%s: invalid stop type", __func__));
 
 	if (!smp_started)
 		return 0;
 
-	CTR1(KTR_SMP, "stop_cpus(%x)", map);
+	CTR2(KTR_SMP, "stop_cpus(%x) with %u type", map, type);
 
 	/* send the stop IPI to all CPUs in map */
-	ipi_selected(map, IPI_STOP);
+	ipi_selected(map, type);
 
 	i = 0;
 	while ((stopped_cpus & map) != map) {
@@ -260,6 +263,20 @@ stop_cpus(cpumask_t map)
 	}
 
 	return 1;
+}
+
+int
+stop_cpus(cpumask_t map)
+{
+
+	return (generic_stop_cpus(map, IPI_STOP));
+}
+
+int
+stop_cpus_hard(cpumask_t map)
+{
+
+	return (generic_stop_cpus(map, IPI_STOP_HARD));
 }
 
 #if defined(__amd64__)
