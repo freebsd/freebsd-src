@@ -52,7 +52,7 @@
 #endif
 #include "usbdevs.h"
 
-static int u3gdebug = 1;
+static int u3gdebug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB u3g");
 SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 	   &u3gdebug, 0, "u3g debug level");
