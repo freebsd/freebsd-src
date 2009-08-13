@@ -30,11 +30,6 @@ device		mptable			# Optional MPSPEC mptable support
 #
 options 	MP_WATCHDOG
 
-# 
-# Debugging options.
-#
-options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
-
 
 
 #####################################################################

@@ -281,7 +281,13 @@ powerpc_ipi_handler(void *arg)
 			smp_rendezvous_action();
 			break;
 		case IPI_STOP:
-			CTR1(KTR_SMP, "%s: IPI_STOP (stop)", __func__);
+
+			/*
+			 * IPI_STOP_HARD is mapped to IPI_STOP so it is not
+			 * necessary to add such case in the switch.
+			 */
+			CTR1(KTR_SMP, "%s: IPI_STOP or IPI_STOP_HARD (stop)",
+			    __func__);
 			self = PCPU_GET(cpumask);
 			savectx(PCPU_GET(curpcb));
 			atomic_set_int(&stopped_cpus, self);

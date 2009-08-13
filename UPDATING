@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090813:
+	Remove the option STOP_NMI.  The default action is now to use NMI
+	only for KDB via the newly introduced function stop_cpus_hard()
+	and maintain stop_cpus() to just use a normal IPI_STOP on ia32
+	and amd64.
+
 20090719:
 	Bump the shared library version numbers for all libraries that
 	do not use symbol versioning as part of the 8.0-RELEASE cycle.
