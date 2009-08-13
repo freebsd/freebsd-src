@@ -232,21 +232,25 @@ int	vnet_sysctl_handle_string(SYSCTL_HANDLER_ARGS);
 int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
 
 #define	SYSCTL_VNET_INT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|CTLFLAG_MPSAFE|(access), \
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_VNET|(access),		\
 	    ptr, val, vnet_sysctl_handle_int, "I", descr)
 #define	SYSCTL_VNET_PROC(parent, nbr, name, access, ptr, arg, handler,	\
 	    fmt, descr)							\
-	SYSCTL_OID(parent, nbr, name, access, ptr, arg, handler, fmt,	\
-	    descr)
+	SYSCTL_OID(parent, nbr, name, CTLFLAG_VNET|(access), ptr, arg, 	\
+	    handler, fmt, descr)
 #define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING|(access), arg,	\
-	    len, vnet_sysctl_handle_string, "A", descr)
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_STRING|CTLFLAG_VNET|(access),			\
+	    arg, len, vnet_sysctl_handle_string, "A", descr)
 #define	SYSCTL_VNET_STRUCT(parent, nbr, name, access, ptr, type, descr)	\
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|(access), ptr,	\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_OPAQUE|CTLFLAG_VNET|(access), ptr,			\
 	    sizeof(struct type), vnet_sysctl_handle_opaque, "S," #type,	\
 	    descr)
 #define	SYSCTL_VNET_UINT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_UINT|CTLFLAG_MPSAFE|(access), \
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_UINT|CTLFLAG_MPSAFE|CTLFLAG_VNET|(access),		\
 	    ptr, val, vnet_sysctl_handle_uint, "IU", descr)
 #define	VNET_SYSCTL_ARG(req, arg1) do {					\
 	if (arg1 != NULL)						\
