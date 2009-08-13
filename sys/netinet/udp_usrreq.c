@@ -138,6 +138,7 @@ SYSCTL_INT(_net_inet_udp, OID_AUTO, soreceive_dgram_enabled,
 
 struct inpcbhead	udb;		/* from udp_var.h */
 struct inpcbinfo	udbinfo;
+static uma_zone_t	udpcb_zone;
 
 #ifndef UDBHASHSIZE
 #define	UDBHASHSIZE	128
@@ -156,6 +157,7 @@ udp_zone_change(void *tag)
 {
 
 	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
+	uma_zone_set_max(udpcb_zone, maxsockets);
 }
 
 static int
@@ -179,9 +181,14 @@ udp_init(void)
 	    &udbinfo.ipi_hashmask);
 	udbinfo.ipi_porthashbase = hashinit(UDBHASHSIZE, M_PCB,
 	    &udbinfo.ipi_porthashmask);
-	udbinfo.ipi_zone = uma_zcreate("udpcb", sizeof(struct inpcb), NULL,
-	    NULL, udp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	udbinfo.ipi_zone = uma_zcreate("udp_inpcb", sizeof(struct inpcb),
+	    NULL, NULL, udp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
+
+	udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(udpcb_zone, maxsockets);
+
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
 	TUNABLE_INT_FETCH("net.inet.udp.soreceive_dgram_enabled",
@@ -192,6 +199,25 @@ udp_init(void)
 		udp6_usrreqs.pru_soreceive = soreceive_dgram;
 #endif
 	}
+}
+
+int
+udp_newudpcb(struct inpcb *inp)
+{
+	struct udpcb *up;
+
+	up = uma_zalloc(udpcb_zone, M_NOWAIT | M_ZERO);
+	if (up == NULL)
+		return (ENOBUFS);
+	inp->inp_ppcb = up;
+	return (0);
+}
+
+void
+udp_discardcb(struct udpcb *up)
+{
+
+	uma_zfree(udpcb_zone, up);
 }
 
 /*
@@ -1129,10 +1155,19 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 	}
 
 	inp = (struct inpcb *)so->so_pcb;
-	INP_INFO_WUNLOCK(&udbinfo);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_ttl = ip_defttl;
+
+	error = udp_newudpcb(inp);
+	if (error) {
+		in_pcbdetach(inp);
+		in_pcbfree(inp);
+		INP_INFO_WUNLOCK(&udbinfo);
+		return (error);
+	}
+
 	INP_WUNLOCK(inp);
+	INP_INFO_WUNLOCK(&udbinfo);
 	return (0);
 }
 
@@ -1205,6 +1240,7 @@ static void
 udp_detach(struct socket *so)
 {
 	struct inpcb *inp;
+	struct udpcb *up;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_detach: inp == NULL"));
@@ -1212,9 +1248,13 @@ udp_detach(struct socket *so)
 	    ("udp_detach: not disconnected"));
 	INP_INFO_WLOCK(&udbinfo);
 	INP_WLOCK(inp);
+	up = intoudpcb(inp);
+	KASSERT(up != NULL, ("%s: up == NULL", __func__));
+	inp->inp_ppcb = NULL;
 	in_pcbdetach(inp);
 	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
+	udp_discardcb(up);
 }
 
 static int
