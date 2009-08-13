@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2000 Robert N. M. Watson
+.\" Copyright (c) 2000, 2009 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2009
+.Dd August 7, 2009
 .Dt POSIX1E 3
 .Os
 .Sh NAME
@@ -36,99 +36,77 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/acl.h
-.\" .In sys/capability.h
 .In sys/mac.h
 .Sh DESCRIPTION
-The IEEE POSIX.1e specification never left draft form, but the interfaces
-it describes are now widely used despite inherent limitations.
-Currently, only a few of the interfaces and features are implemented in
-.Fx ,
-although efforts are underway to complete the integration at this time.
+POSIX.1e describes five security extensions to the POSIX.1 API: Access
+Control Lists (ACLs), Auditing, Capabilities, Mandatory Access Control, and
+Information Flow Labels.
+While IEEE POSIX.1e D17 specification has not been standardized, several of
+its interfaces are widely used.
 .Pp
-POSIX.1e describes five security extensions to the base POSIX.1 API:
-Access Control Lists (ACLs), Auditing, Capabilities, Mandatory Access
-Control, and Information Flow Labels.
 .Fx
-supports POSIX.1e ACL interfaces, as well as POSIX.1e-like MAC
-interfaces.
-The TrustedBSD Project has produced but not integrated an implementation
-of POSIX.1e Capabilities.
+implements POSIX.1e interface for access control lists, described in
+.Xr acl 3 ,
+and supports ACLs on the
+.Xr ffs 7
+file system; ACLs must be administratively enabled using
+.Xr tunefs 8 .
 .Pp
-POSIX.1e defines both syntax and semantics for these features, but fairly
-substantial changes are required to implement these features in the
-operating system.
+.Fx
+implements a POSIX.1e-like mandatory access control interface, described in
+.Xr mac 3 ,
+although with a number of extensions and important semantic differences.
 .Pp
-As shipped,
-.Fx 4.0
-provides API and VFS support for ACLs, but not an implementation on any
-native file system.
-.Fx 5.0
-includes support for ACLs as part of UFS1 and UFS2, as well as necessary
-VFS support for additional file systems to export ACLs as appropriate.
-Available API calls relating to ACLs are described in detail in
-.Xr acl 3 .
-.Pp
-As shipped,
-.Fx 5.0
-includes support for Mandatory Access Control as well as POSIX.1e-like
-APIs for label management.
-More information on API calls relating to MAC is available in
-.Xr mac 3 .
-.Pp
-Additional patches supporting POSIX.1e features are provided by the
-TrustedBSD project:
-.Pp
-http://www.TrustedBSD.org/
-.Sh IMPLEMENTATION NOTES
-.Fx Ns 's
-support for POSIX.1e interfaces and features is still under
-development at this time, and many of these features are considered new
-or experimental.
+.Fx
+does not implement the POSIX.1e audit, privilege (capability), or information
+flow label APIs.
+However,
+.Fx
+does implement the
+.Xr libbsm
+audit API.
 .Sh ENVIRONMENT
-POSIX.1e assigns security labels to all objects, extending the security
+POSIX.1e assigns security attributes to all objects, extending the security
 functionality described in POSIX.1.
-These additional labels provide
-fine-grained discretionary access control, fine-grained capabilities,
-and labels necessary for mandatory access control.
-POSIX.2c describes
-a set of userland utilities for manipulating these labels.
+These additional attributes store fine-grained discretionary access control
+information and mandatory access control labels; for files, they are stored
+in extended attributes, described in
+.Xr extattr 3 .
 .Pp
-Many of these services are supported by extended attributes, documented
-in
-.Xr extattr 2
+POSIX.2c describes
+a set of userland utilities for manipulating these attributes, including
+.Xr getfacl 1
 and
-.Xr extattr 9 .
-While these APIs are not documented in POSIX.1e, they are similar in
-structure.
+.Xr setfacl 1
+for access control lists, and
+.Xr getfmac 8
+and
+.Xr setfmac 8
+for mandatory access control labels.
 .Sh SEE ALSO
+.Xr getfacl 1 ,
+.Xr setfacl 1 ,
 .Xr extattr 2 ,
 .Xr acl 3 ,
+.Xr extattr 3 ,
 .Xr libbsm 3 ,
 .Xr mac 3 ,
+.Xr ffs 7 ,
+.Xr getfmac 8 ,
+.Xr setfmac 8 ,
+.Xr tunefs 8 ,
 .Xr acl 9 ,
 .Xr extattr 9 ,
 .Xr mac 9
 .Sh STANDARDS
 POSIX.1e is described in IEEE POSIX.1e draft 17.
-Discussion of the draft continues
-on the cross-platform POSIX.1e implementation
-mailing list.
-To join this list, see the
-.Fx
-POSIX.1e implementation
-page for more information.
 .Sh HISTORY
 POSIX.1e support was introduced in
 .Fx 4.0 ;
-most of the features are available as of
+most features were available as of
 .Fx 5.0 .
-Development continues.
 .Sh AUTHORS
 .An Robert N M Watson
 .An Chris D. Faulhaber
 .An Thomas Moestl
 .An Ilmar S Habibulin
-.Sh BUGS
-Many of these features are considered new or experimental in
-.Fx 5.0
-and should be deployed with appropriate caution.
