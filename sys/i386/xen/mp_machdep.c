@@ -90,8 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <xen/hypervisor.h>
 #include <xen/interface/vcpu.h>
 
-#define stop_cpus_with_nmi	0
-
 
 int	mp_naps;		/* # of Applications processors */
 int	boot_cpu_id = -1;	/* designated BSP */
