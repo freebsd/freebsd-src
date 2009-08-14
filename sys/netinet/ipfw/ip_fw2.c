@@ -2057,7 +2057,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 				dst_ip, htons(dst_port),
 				wildcard, NULL);
 		if (pcb != NULL) {
-			*uc = crhold(inp->inp_cred);
+			*uc = crhold(pcb->inp_cred);
 			*ugid_lookupp = 1;
 		}
 		INP_INFO_RUNLOCK(pi);
