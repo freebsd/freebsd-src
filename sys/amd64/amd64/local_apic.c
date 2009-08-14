@@ -123,7 +123,7 @@ static struct lvt lvts[LVT_MAX + 1] = {
 	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* LINT1: NMI */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_TIMER_INT },	/* Timer */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
-	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
+	{ 1, 1, 1, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
 };
 
@@ -305,11 +305,9 @@ lapic_setup(int boot)
 	lapic->lvt_lint0 = lvt_mode(la, LVT_LINT0, lapic->lvt_lint0);
 	lapic->lvt_lint1 = lvt_mode(la, LVT_LINT1, lapic->lvt_lint1);
 
-#ifdef	HWPMC_HOOKS
 	/* Program the PMC LVT entry if present. */
 	if (maxlvt >= LVT_PMC)
 		lapic->lvt_pcint = lvt_mode(la, LVT_PMC, lapic->lvt_pcint);
-#endif
 
 	/* Program timer LVT and setup handler. */
 	lapic->lvt_timer = lvt_mode(la, LVT_TIMER, lapic->lvt_timer);
@@ -330,6 +328,88 @@ lapic_setup(int boot)
 	/* XXX: Error and thermal LVTs */
 
 	intr_restore(eflags);
+}
+
+void
+lapic_reenable_pmc(void)
+{
+#ifdef HWPMC_HOOKS
+	uint32_t value;
+
+	value =  lapic->lvt_pcint;
+	value &= ~APIC_LVT_M;
+	lapic->lvt_pcint = value;
+#endif
+}
+
+#ifdef HWPMC_HOOKS
+static void
+lapic_update_pmc(void *dummy)
+{
+	struct lapic *la;
+
+	la = &lapics[lapic_id()];
+	lapic->lvt_pcint = lvt_mode(la, LVT_PMC, lapic->lvt_pcint);
+}
+#endif
+
+int
+lapic_enable_pmc(void)
+{
+#ifdef HWPMC_HOOKS
+	u_int32_t maxlvt;
+
+	/* Fail if the local APIC is not present. */
+	if (lapic == NULL)
+		return (0);
+
+	/* Fail if the PMC LVT is not present. */
+	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
+	if (maxlvt < LVT_PMC)
+		return (0);
+
+	lvts[LVT_PMC].lvt_masked = 0;
+
+#ifdef SMP
+	/*
+	 * If hwpmc was loaded at boot time then the APs may not be
+	 * started yet.  In that case, don't forward the request to
+	 * them as they will program the lvt when they start.
+	 */
+	if (smp_started)
+		smp_rendezvous(NULL, lapic_update_pmc, NULL, NULL);
+	else
+#endif
+		lapic_update_pmc(NULL);
+	return (1);
+#else
+	return (0);
+#endif
+}
+
+void
+lapic_disable_pmc(void)
+{
+#ifdef HWPMC_HOOKS
+	u_int32_t maxlvt;
+
+	/* Fail if the local APIC is not present. */
+	if (lapic == NULL)
+		return;
+
+	/* Fail if the PMC LVT is not present. */
+	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
+	if (maxlvt < LVT_PMC)
+		return;
+
+	lvts[LVT_PMC].lvt_masked = 1;
+
+#ifdef SMP
+	/* The APs should always be started when hwpmc is unloaded. */
+	KASSERT(mp_ncpus == 1 || smp_started, ("hwpmc unloaded too early"));
+#endif
+	smp_rendezvous(NULL, lapic_update_pmc, NULL, NULL);
+#endif
 }
 
 /*
