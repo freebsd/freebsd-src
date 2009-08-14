@@ -83,7 +83,7 @@
  * any desired pointer type.
  */
 #define	_ALIGNBYTES	7
-#define	_ALIGN(p)	(((u_int)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
+#define	_ALIGN(p)	(((unsigned long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
@@ -93,7 +93,7 @@
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits). 
  */
-#define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof (t) - 1)) == 0)
+#define	ALIGNED_POINTER(p, t)	((((unsigned long)(p)) & (sizeof (t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
