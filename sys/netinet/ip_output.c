@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 
 #include <net/if.h>
+#include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/route.h>
@@ -201,9 +202,12 @@ again:
 	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
-		if (!nortfree)
+		if (!nortfree) {
 			RTFREE(ro->ro_rt);
+			LLE_FREE(ro->ro_lle);
+		}
 		ro->ro_rt = (struct rtentry *)NULL;
+		ro->ro_lle = (struct llentry *)NULL;
 	}
 #ifdef IPFIREWALL_FORWARD
 	if (ro->ro_rt == NULL && fwd_tag == NULL) {
