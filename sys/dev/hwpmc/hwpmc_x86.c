@@ -39,25 +39,14 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
-#include <machine/apicreg.h>
+#include <machine/intr_machdep.h>
+#include <machine/apicvar.h>
 #include <machine/pmc_mdep.h>
 #include <machine/md_var.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-
-extern volatile lapic_t *lapic;
-
-void
-pmc_x86_lapic_enable_pmc_interrupt(void)
-{
-	uint32_t value;
-
-	value =  lapic->lvt_pcint;
-	value &= ~APIC_LVT_M;
-	lapic->lvt_pcint = value;
-}
 
 /*
  * Attempt to walk a user call stack using a too-simple algorithm.
@@ -252,16 +241,15 @@ pmc_md_initialize()
 	struct pmc_mdep *md;
 
 	/* determine the CPU kind */
-	md = NULL;
 	if (cpu_vendor_id == CPU_VENDOR_AMD)
 		md = pmc_amd_initialize();
 	else if (cpu_vendor_id == CPU_VENDOR_INTEL)
 		md = pmc_intel_initialize();
 	else
-		KASSERT(0, ("[x86,%d] Unknown vendor", __LINE__));
+		return (NULL);
 
 	/* disallow sampling if we do not have an LAPIC */
-	if (md != NULL && lapic == NULL)
+	if (!lapic_enable_pmc())
 		for (i = 1; i < md->pmd_nclass; i++)
 			md->pmd_classdep[i].pcd_caps &= ~PMC_CAP_INTERRUPT;
 
@@ -271,6 +259,8 @@ pmc_md_initialize()
 void
 pmc_md_finalize(struct pmc_mdep *md)
 {
+
+	lapic_disable_pmc();
 	if (cpu_vendor_id == CPU_VENDOR_AMD)
 		pmc_amd_finalize(md);
 	else if (cpu_vendor_id == CPU_VENDOR_INTEL)
