@@ -120,7 +120,7 @@ main(int argc, char *argv[])
 	int aflag = 0;	/* do it for all entries */
 
 	while ((ch = getopt(argc, argv, "andfsSi:")) != -1)
-		switch((char)ch) {
+		switch(ch) {
 		case 'a':
 			aflag = 1;
 			break;
