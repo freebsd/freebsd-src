@@ -205,6 +205,8 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 
 	MPASS((opts & ~(SX_QUIET | SX_RECURSE | SX_NOWITNESS | SX_DUPOK |
 	    SX_NOPROFILE | SX_NOADAPTIVE)) == 0);
+	ASSERT_ATOMIC_LOAD(sx->sx_lock, ("%s: sx_lock not aligned for %s: %p",
+	    __func__, description, &sx->sx_lock));
 
 	flags = LO_SLEEPABLE | LO_UPGRADABLE;
 	if (opts & SX_DUPOK)
