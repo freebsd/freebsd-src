@@ -80,6 +80,7 @@ static struct _devname {
     CDROM("acd%d",	"ATAPI/IDE CDROM",			4),
     DISK("da%d",	"SCSI disk device",			16),
     DISK("ad%d",	"ATA/IDE disk device",			16),
+    DISK("ada%d",	"SATA disk device",			16),
     DISK("ar%d",	"ATA/IDE RAID device",			16),
     DISK("afd%d",	"ATAPI/IDE floppy device",		4),
     DISK("mlxd%d",	"Mylex RAID disk",			4),
