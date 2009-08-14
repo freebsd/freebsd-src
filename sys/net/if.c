@@ -920,7 +920,7 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 
 	/* Make sure the named iface does not exists in the dst. prison/vnet. */
 	/* XXX Lock interfaces to avoid races. */
-	CURVNET_SET(pr->pr_vnet);
+	CURVNET_SET_QUIET(pr->pr_vnet);
 	difp = ifunit(ifname);
 	CURVNET_RESTORE();
 	if (difp != NULL) {
