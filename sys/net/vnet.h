@@ -107,9 +107,6 @@ void	vnet_destroy(struct vnet *vnet);
  * Various macros -- get and set the current network stack, but also
  * assertions.
  */
-#ifdef INVARIANTS
-#define	VNET_DEBUG
-#endif
 #ifdef VNET_DEBUG
 #define	VNET_ASSERT(condition)						\
 	if (!(condition)) {						\
