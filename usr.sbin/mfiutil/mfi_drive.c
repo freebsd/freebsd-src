@@ -75,8 +75,9 @@ int
 mfi_lookup_drive(int fd, char *drive, uint16_t *device_id)
 {
 	struct mfi_pd_list *list;
-	long val;
 	uint8_t encl, slot;
+	long val;
+	u_int i;
 	char *cp;
 
 	/* Look for a raw device id first. */
@@ -117,15 +118,15 @@ mfi_lookup_drive(int fd, char *drive, uint16_t *device_id)
 			return (errno);
 		}
 
-		for (val = 0; val < list->count; val++) {
-			if (list->addr[val].scsi_dev_type != 0)
+		for (i = 0; i < list->count; i++) {
+			if (list->addr[i].scsi_dev_type != 0)
 				continue;
 
 			if (((encl == 0xff &&
-			    list->addr[val].encl_device_id == 0xffff) ||
-			    list->addr[val].encl_index == encl) &&
-			    list->addr[val].slot_number == slot) {
-				*device_id = list->addr[val].device_id;
+			    list->addr[i].encl_device_id == 0xffff) ||
+			    list->addr[i].encl_index == encl) &&
+			    list->addr[i].slot_number == slot) {
+				*device_id = list->addr[i].device_id;
 				free(list);
 				return (0);
 			}
