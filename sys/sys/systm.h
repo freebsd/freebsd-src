@@ -89,6 +89,10 @@ extern int maxusers;		/* system tune hint */
 #define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
 #endif
 
+#define	ASSERT_ATOMIC_LOAD(var,msg)					\
+	KASSERT(sizeof(var) <= sizeof(uintptr_t) &&			\
+	    ALIGN(&(var)) == (uintptr_t)&(var), msg)
+
 /*
  * XXX the hints declarations are even more misplaced than most declarations
  * in this file, since they are needed in one file (per arch) and only used
