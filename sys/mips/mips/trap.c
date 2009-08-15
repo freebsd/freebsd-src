@@ -98,7 +98,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef TRAP_DEBUG
 int trap_debug = 1;
-
 #endif
 
 extern unsigned onfault_table[];
@@ -251,7 +250,7 @@ extern void MipsSwitchFPState(struct thread *, struct trapframe *);
 extern void MipsFPTrap(u_int, u_int, u_int);
 
 u_int trap(struct trapframe *);
-u_int MipsEmulateBranch(struct trapframe *, int, int, u_int);
+u_int MipsEmulateBranch(struct trapframe *, uintptr_t, int, uintptr_t);
 
 #define	KERNLAND(x) ((int)(x) < 0)
 #define	DELAYBRANCH(x) ((int)(x) < 0)
@@ -260,7 +259,6 @@ u_int MipsEmulateBranch(struct trapframe *, int, int, u_int);
  * kdbpeekD(addr) - skip one word starting at 'addr', then read the second word
  */
 #define	kdbpeekD(addr)	kdbpeek(((int *)(addr)) + 1)
-int rrs_debug = 0;
 
 /*
  * MIPS load/store access type
@@ -305,8 +303,7 @@ extern char *syscallnames[];
  * p->p_addr->u_pcb.pcb_onfault is set, otherwise, return old pc.
  */
 u_int
-trap(trapframe)
-	struct trapframe *trapframe;
+trap(struct trapframe *trapframe)
 {
 	int type, usermode;
 	int i = 0;
@@ -848,7 +845,7 @@ dofault:
 
 	case T_BREAK + T_USER:
 		{
-			unsigned int va, instr;
+			uintptr_t va, instr;
 
 			/* compute address of break instruction */
 			va = trapframe->pc;
@@ -881,13 +878,13 @@ dofault:
 	case T_IWATCH + T_USER:
 	case T_DWATCH + T_USER:
 		{
-			unsigned int va;
+			uintptr_t va;
 
 			/* compute address of trapped instruction */
 			va = trapframe->pc;
 			if (DELAYBRANCH(trapframe->cause))
 				va += sizeof(int);
-			printf("watch exception @ 0x%x\n", va);
+			printf("watch exception @ %p\n", (void *)va);
 			i = SIGTRAP;
 			addr = va;
 			break;
@@ -895,7 +892,7 @@ dofault:
 
 	case T_TRAP + T_USER:
 		{
-			unsigned int va, instr;
+			uintptr_t va, instr;
 			struct trapframe *locr0 = td->td_frame;
 
 			/* compute address of trap instruction */
@@ -1090,26 +1087,26 @@ trapDump(char *msg)
  * Return the resulting PC as if the branch was executed.
  */
 u_int
-MipsEmulateBranch(struct trapframe *framePtr, int instPC, int fpcCSR,
-    u_int instptr)
+MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
+    uintptr_t instptr)
 {
 	InstFmt inst;
 	register_t *regsPtr = (register_t *) framePtr;
-	unsigned retAddr = 0;
+	uintptr_t retAddr = 0;
 	int condition;
 
 #define	GetBranchDest(InstPtr, inst) \
-	((unsigned)InstPtr + 4 + ((short)inst.IType.imm << 2))
+	(InstPtr + 4 + ((short)inst.IType.imm << 2))
 
 
 	if (instptr) {
 		if (instptr < MIPS_KSEG0_START)
-			inst.word = fuword((void *)instptr);
+			inst.word = fuword32((void *)instptr);
 		else
 			inst = *(InstFmt *) instptr;
 	} else {
 		if ((vm_offset_t)instPC < MIPS_KSEG0_START)
-			inst.word = fuword((void *)instPC);
+			inst.word = fuword32((void *)instPC);
 		else
 			inst = *(InstFmt *) instPC;
 	}
@@ -1249,7 +1246,7 @@ MipsEmulateBranch(struct trapframe *framePtr, int instPC, int fpcCSR,
  */
 #define	MIPS_END_OF_FUNCTION(ins)	((ins) == 0x03e00008)
 /* forward */
-char *fn_name(unsigned addr);
+static char *fn_name(uintptr_t addr);
 
 /*
  * Print a stack backtrace.
@@ -1264,7 +1261,7 @@ void
 stacktrace_subr(struct trapframe *regs, int (*printfn) (const char *,...))
 {
 	InstFmt i;
-	unsigned a0, a1, a2, a3, pc, sp, fp, ra, va, subr;
+	uintptr_t a0, a1, a2, a3, pc, sp, fp, ra, va, subr;
 	unsigned instr, mask;
 	unsigned int frames = 0;
 	int more, stksize;
@@ -1291,6 +1288,7 @@ loop:
 		goto finish;	/* XXX */
 	}
 	/* check for bad SP: could foul up next frame */
+	/*XXX MIPS64 bad: this hard-coded SP is lame */
 	if (sp & 3 || sp < 0x80000000) {
 		(*printfn) ("SP 0x%x: not in kernel\n", sp);
 		ra = 0;
@@ -1300,7 +1298,7 @@ loop:
 #define Between(x, y, z) \
 		( ((x) <= (y)) && ((y) < (z)) )
 #define pcBetween(a,b) \
-		Between((unsigned)a, pc, (unsigned)b)
+		Between((uintptr_t)a, pc, (uintptr_t)b)
 
 	/*
 	 * Check for current PC in  exception handler code that don't have a
@@ -1308,30 +1306,31 @@ loop:
 	 * on relative ordering of functions in exception.S, swtch.S.
 	 */
 	if (pcBetween(MipsKernGenException, MipsUserGenException))
-		subr = (unsigned)MipsKernGenException;
+		subr = (uintptr_t)MipsKernGenException;
 	else if (pcBetween(MipsUserGenException, MipsKernIntr))
-		subr = (unsigned)MipsUserGenException;
+		subr = (uintptr_t)MipsUserGenException;
 	else if (pcBetween(MipsKernIntr, MipsUserIntr))
-		subr = (unsigned)MipsKernIntr;
+		subr = (uintptr_t)MipsKernIntr;
 	else if (pcBetween(MipsUserIntr, MipsTLBInvalidException))
-		subr = (unsigned)MipsUserIntr;
+		subr = (uintptr_t)MipsUserIntr;
 	else if (pcBetween(MipsTLBInvalidException,
 	    MipsKernTLBInvalidException))
-		subr = (unsigned)MipsTLBInvalidException;
+		subr = (uintptr_t)MipsTLBInvalidException;
 	else if (pcBetween(MipsKernTLBInvalidException,
 	    MipsUserTLBInvalidException))
-		subr = (unsigned)MipsKernTLBInvalidException;
+		subr = (uintptr_t)MipsKernTLBInvalidException;
 	else if (pcBetween(MipsUserTLBInvalidException, MipsTLBMissException))
-		subr = (unsigned)MipsUserTLBInvalidException;
+		subr = (uintptr_t)MipsUserTLBInvalidException;
 	else if (pcBetween(cpu_switch, MipsSwitchFPState))
-		subr = (unsigned)cpu_switch;
+		subr = (uintptr_t)cpu_switch;
 	else if (pcBetween(_locore, _locoreEnd)) {
-		subr = (unsigned)_locore;
+		subr = (uintptr_t)_locore;
 		ra = 0;
 		goto done;
 	}
 	/* check for bad PC */
-	if (pc & 3 || pc < (unsigned)0x80000000 || pc >= (unsigned)edata) {
+	/*XXX MIPS64 bad: These hard coded constants are lame */
+	if (pc & 3 || pc < (uintptr_t)0x80000000 || pc >= (uintptr_t)edata) {
 		(*printfn) ("PC 0x%x: not in kernel\n", pc);
 		ra = 0;
 		goto done;
@@ -1535,8 +1534,8 @@ static struct {
 /*
  * Map a function address to a string name, if known; or a hex string.
  */
-char *
-fn_name(unsigned addr)
+static char *
+fn_name(uintptr_t addr)
 {
 	static char buf[17];
 	int i = 0;
@@ -1557,7 +1556,7 @@ fn_name(unsigned addr)
 	for (i = 0; names[i].name; i++)
 		if (names[i].addr == (void *)addr)
 			return (names[i].name);
-	sprintf(buf, "%x", addr);
+	sprintf(buf, "%jx", (uintmax_t)addr);
 	return (buf);
 }
 
