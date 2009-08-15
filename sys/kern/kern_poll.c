@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>			/* for NETISR_POLL		*/
 #include <net/vnet.h>
 
-static int poll_switch(SYSCTL_HANDLER_ARGS);
-
 void hardclock_device_poll(void);	/* hook from hardclock		*/
 
 static struct mtx	poll_mtx;
@@ -229,10 +227,6 @@ SYSCTL_INT(_kern_polling, OID_AUTO, residual_burst, CTLFLAG_RD,
 static uint32_t poll_handlers; /* next free entry in pr[]. */
 SYSCTL_UINT(_kern_polling, OID_AUTO, handlers, CTLFLAG_RD,
 	&poll_handlers, 0, "Number of registered poll handlers");
-
-static int polling = 0;
-SYSCTL_PROC(_kern_polling, OID_AUTO, enable, CTLTYPE_UINT | CTLFLAG_RW,
-	0, sizeof(int), poll_switch, "I", "Switch polling for all interfaces");
 
 static uint32_t phase;
 SYSCTL_UINT(_kern_polling, OID_AUTO, phase, CTLFLAG_RD,
@@ -535,49 +529,6 @@ ether_poll_deregister(struct ifnet *ifp)
 		pr[i].ifp = pr[poll_handlers].ifp;
 	}
 	mtx_unlock(&poll_mtx);
-	return (0);
-}
-
-/*
- * Legacy interface for turning polling on all interfaces at one time.
- */
-static int
-poll_switch(SYSCTL_HANDLER_ARGS)
-{
-	struct ifnet *ifp;
-	int error;
-	int val = polling;
-
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr )
-		return (error);
-
-	if (val == polling)
-		return (0);
-
-	if (val < 0 || val > 1)
-		return (EINVAL);
-
-	polling = val;
-
-	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (ifp->if_capabilities & IFCAP_POLLING) {
-			struct ifreq ifr;
-
-			if (val == 1)
-				ifr.ifr_reqcap =
-				    ifp->if_capenable | IFCAP_POLLING;
-			else
-				ifr.ifr_reqcap =
-				    ifp->if_capenable & ~IFCAP_POLLING;
-			(void) (*ifp->if_ioctl)(ifp, SIOCSIFCAP, (caddr_t)&ifr);
-		}
-	}
-	IFNET_RUNLOCK();
-
-	log(LOG_ERR, "kern.polling.enable is deprecated. Use ifconfig(8)");
-
 	return (0);
 }
 
