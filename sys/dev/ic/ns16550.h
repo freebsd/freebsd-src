@@ -52,6 +52,7 @@
 #define	REG_IIR		com_iir
 #define	IIR_IMASK	0xf
 #define	IIR_RXTOUT	0xc
+#define	IIR_BUSY	0x7
 #define	IIR_RLS		0x6
 #define	IIR_RXRDY	0x4
 #define	IIR_TXRDY	0x2
@@ -180,6 +181,10 @@
 #define	com_xon2	5	/* XON 2 character (R/W) */
 #define	com_xoff1	6	/* XOFF 1 character (R/W) */
 #define	com_xoff2	7	/* XOFF 2 character (R/W) */
+
+#define com_usr		39	/* Octeon 16750/16550 Uart Status Reg */
+#define REG_USR		com_usr
+#define USR_TXFIFO_NOTFULL 2    /* Uart TX FIFO Not full */
 
 /* 16950 register #1.  Access enabled by ACR[7].  Also requires !LCR[7]. */
 #define	com_asr		1	/* additional status register (R[0-7]/W[0-1]) */
