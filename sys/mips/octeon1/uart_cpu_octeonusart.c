@@ -50,6 +50,9 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/octeon1/octeonreg.h>
 
+bus_space_tag_t uart_bus_space_io;
+bus_space_tag_t uart_bus_space_mem;
+
 extern struct uart_class uart_oct16550_class;
 extern struct uart_ops octeon_usart_ops;
 extern struct bus_space octeon_bs_tag;
@@ -80,5 +83,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	di->bas.bsh = OCTEON_UART0ADR;
 	uart_getenv(devtype, di, class);
+
+	uart_bus_space_io = NULL;
+	uart_bus_space_mem = mips_bus_space_generic;
 	return (0);
 }
