@@ -63,20 +63,18 @@ int	obio_attach(device_t);
  * A bit tricky and hackish. Since we need OBIO to rely
  * on PCI we make it pseudo-pci device. But there should 
  * be only one such device, so we use this static flag 
- * to prevent false positives on every realPCI device probe. 
+ * to prevent false positives on every real PCI device probe.
  */
 static int have_one = 0;
 
 int
 obio_probe(device_t dev)
 {
-	if(!have_one)
-	{
+	if (!have_one) {
 		have_one = 1;
 		return 0;
 	}
-	else
-		return (ENXIO);
+	return (ENXIO);
 }
 
 int

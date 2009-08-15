@@ -60,22 +60,19 @@ int	obio_probe(device_t);
 int	obio_attach(device_t);
 
 /*
- * We need only one obio.
- * Any other device hanging off of it, shouldn't cause multiple of
- * these to be found.
+ * We need only one obio.  Any other device hanging off of it,
+ * shouldn't cause multiple of these to be found.
  */
 static int have_one = 0;
 
 int
 obio_probe(device_t dev)
 {
-	if(!have_one)
-	{
+	if (!have_one) {
 		have_one = 1;
 		return 0;
 	}
-	else
-		return (ENXIO);
+	return (ENXIO);
 }
 
 int
@@ -83,7 +80,7 @@ obio_attach(device_t dev)
 {
 	struct obio_softc *sc = device_get_softc(dev);
 
-	sc->oba_st = MIPS_BUS_SPACE_IO;
+	sc->oba_st = mips_bus_space_generic;
 	sc->oba_addr = OCTEON_UART0ADR;
 	sc->oba_size = 0x10000;
 	sc->oba_rman.rm_type = RMAN_ARRAY;
