@@ -118,6 +118,7 @@ volatile int smp_tlb_wait;
 typedef void call_data_func_t(uintptr_t , uintptr_t);
 
 static u_int logical_cpus;
+static volatile cpumask_t ipi_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
 static struct mtx ap_boot_mtx;
@@ -1109,6 +1110,14 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 		ipi = IPI_BITMAP_VECTOR;
 	} 
 
+	/*
+	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
+	 * of help in order to understand what is the source.
+	 * Set the mask of receiving CPUs for this purpose.
+	 */
+	if (ipi == IPI_STOP_HARD)
+		atomic_set_int(&ipi_nmi_pending, cpus);
+
 	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
 	while ((cpu = ffs(cpus)) != 0) {
 		cpu--;
@@ -1140,8 +1149,37 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 void
 ipi_all_but_self(u_int ipi)
 {
+
+	/*
+	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
+	 * of help in order to understand what is the source.
+	 * Set the mask of receiving CPUs for this purpose.
+	 */
+	if (ipi == IPI_STOP_HARD)
+		atomic_set_int(&ipi_nmi_pending, PCPU_GET(other_cpus));
+
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	ipi_selected(PCPU_GET(other_cpus), ipi);
+}
+
+int
+ipi_nmi_handler()
+{
+	cpumask_t cpumask;
+
+	/*
+	 * As long as there is not a simple way to know about a NMI's
+	 * source, if the bitmask for the current CPU is present in
+	 * the global pending bitword an IPI_STOP_HARD has been issued
+	 * and should be handled.
+	 */
+	cpumask = PCPU_GET(cpumask);
+	if ((ipi_nmi_pending & cpumask) == 0)
+		return (1);
+
+	atomic_clear_int(&ipi_nmi_pending, cpumask);
+	cpustop_handler();
+	return (0);
 }
 
 /*
