@@ -1721,6 +1721,7 @@ envy24chan_trigger(kobj_t obj, void *data, int go)
 	struct sc_info *sc = ch->parent;
 	u_int32_t ptr;
 	int slot;
+	int error = 0;
 #if 0
 	int i;
 
@@ -1742,8 +1743,10 @@ envy24chan_trigger(kobj_t obj, void *data, int go)
 			sc->caps[0].minspeed = sc->caps[0].maxspeed = sc->speed;
 			sc->caps[1].minspeed = sc->caps[1].maxspeed = sc->speed;
 		}
-		else if (ch->speed != 0 && ch->speed != sc->speed)
-			return -1;
+		else if (ch->speed != 0 && ch->speed != sc->speed) {
+			error = -1;
+			goto fail;
+		}
 		if (ch->speed == 0)
 			ch->channel->speed = sc->speed;
 		/* start or enable channel */
@@ -1773,16 +1776,20 @@ envy24chan_trigger(kobj_t obj, void *data, int go)
 #if(0)
 		device_printf(sc->dev, "envy24chan_trigger(): emldmawr\n");
 #endif
-		if (ch->run != 1)
-			return -1;
+		if (ch->run != 1) {
+			error = -1;
+			goto fail;
+		}
 		ch->emldma(ch);
 		break;
 	case PCMTRIG_EMLDMARD:
 #if(0)
 		device_printf(sc->dev, "envy24chan_trigger(): emldmard\n");
 #endif
-		if (ch->run != 1)
-			return -1;
+		if (ch->run != 1) {
+			error = -1;
+			goto fail;
+		}
 		ch->emldma(ch);
 		break;
 	case PCMTRIG_ABORT:
@@ -1814,9 +1821,9 @@ envy24chan_trigger(kobj_t obj, void *data, int go)
 		}
 		break;
 	}
+fail:
 	snd_mtxunlock(sc->lock);
-
-	return 0;
+	return (error);
 }
 
 static int
