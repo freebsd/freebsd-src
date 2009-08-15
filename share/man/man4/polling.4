@@ -87,6 +87,16 @@ feature.
 It is turned on and off with help of
 .Xr ifconfig 8
 command.
+.Pp
+The historic
+.Va kern.polling.enable ,
+which enabled polling for all interfaces, can be replaced with the following
+code:
+.Bd -literal
+for i in `ifconfig -l` ;
+  do ifconfig $i polling; # use -polling to disable
+done
+.Ed
 .Ss MIB Variables
 The operation of
 .Nm
@@ -155,15 +165,6 @@ Default is 20.
 .It Va kern.polling.handlers
 How many active devices have registered for
 .Nm .
-.Pp
-.It Va kern.polling.enable
-Legacy MIB, that was used to enable or disable polling globally.
-Currently if set to 1,
-.Nm
-is enabled on all capable interfaces.
-If set to 0,
-.Nm
-is disabled on all interfaces.
 .Pp
 .It Va kern.polling.short_ticks
 .It Va kern.polling.lost_polls
