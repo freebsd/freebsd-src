@@ -72,13 +72,11 @@ static int have_one = 0;
 int
 obio_probe(device_t dev)
 {
-	if(!have_one)
-	{
+	if (!have_one) {
 		have_one = 1;
 		return 0;
 	}
-	else
-		return (ENXIO);
+	return (ENXIO);
 }
 
 int
