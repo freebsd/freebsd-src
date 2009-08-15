@@ -104,6 +104,7 @@ SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "Machine model");
 
 int cold = 1;
 long realmem = 0;
+long Maxmem = 0;
 int cpu_clock = MIPS_DEFAULT_HZ;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
     &cpu_clock, 0, "CPU instruction clock rate");
@@ -170,11 +171,13 @@ cpu_startup(void *dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			int size1 = phys_avail[indx + 1] - phys_avail[indx];
+			uintptr_t size1 = phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08x - 0x%08x, %u bytes (%u pages)\n",
-			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
-			    size1 / PAGE_SIZE);
+			printf("0x%08llx - 0x%08llx, %llu bytes (%llu pages)\n",
+			    (unsigned long long)phys_avail[indx],
+			    (unsigned long long)phys_avail[indx + 1] - 1,
+			    (unsigned long long)size1,
+			    (unsigned long long)size1 / PAGE_SIZE);
 		}
 	}
 
@@ -255,10 +258,7 @@ mips_proc0_init(void)
 	proc_linkup(&proc0, &thread0);
 	thread0.td_kstack = kstack0;
 	thread0.td_kstack_pages = KSTACK_PAGES - 1;
-	if (thread0.td_kstack & (1 << PAGE_SHIFT))
-		thread0.td_md.md_realstack = thread0.td_kstack + PAGE_SIZE;
-	else
-		thread0.td_md.md_realstack = thread0.td_kstack;
+	thread0.td_md.md_realstack = roundup2(thread0.td_kstack, PAGE_SIZE * 2);
 	/* Initialize pcpu info of cpu-zero */
 #ifdef SMP
 	pcpu_init(&__pcpu[0], 0, sizeof(struct pcpu));
