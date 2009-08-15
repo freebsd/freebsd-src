@@ -900,7 +900,7 @@ sctp_deliver_reasm_check(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
 	struct sctp_tmit_chunk *chk;
 	uint16_t nxt_todel;
-	uint32_t tsize;
+	uint32_t tsize, pd_point;
 
 doit_again:
 	chk = TAILQ_FIRST(&asoc->reasmqueue);
@@ -920,8 +920,13 @@ doit_again:
 			 * Yep the first one is here and its ok to deliver
 			 * but should we?
 			 */
-			if ((sctp_is_all_msg_on_reasm(asoc, &tsize) ||
-			    (tsize >= stcb->sctp_ep->partial_delivery_point))) {
+			if (stcb->sctp_socket) {
+				pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket) >> SCTP_PARTIAL_DELIVERY_SHIFT,
+				    stcb->sctp_ep->partial_delivery_point);
+			} else {
+				pd_point = stcb->sctp_ep->partial_delivery_point;
+			}
+			if (sctp_is_all_msg_on_reasm(asoc, &tsize) || (tsize >= pd_point)) {
 
 				/*
 				 * Yes, we setup to start reception, by
@@ -2824,7 +2829,7 @@ void
 sctp_service_queues(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
 	struct sctp_tmit_chunk *chk;
-	uint32_t tsize;
+	uint32_t tsize, pd_point;
 	uint16_t nxt_todel;
 
 	if (asoc->fragmented_delivery_inprogress) {
@@ -2860,8 +2865,13 @@ doit_again:
 		 * be here or 1/4 the socket buffer max or nothing on the
 		 * delivery queue and something can be delivered.
 		 */
-		if ((sctp_is_all_msg_on_reasm(asoc, &tsize) ||
-		    (tsize >= stcb->sctp_ep->partial_delivery_point))) {
+		if (stcb->sctp_socket) {
+			pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket) >> SCTP_PARTIAL_DELIVERY_SHIFT,
+			    stcb->sctp_ep->partial_delivery_point);
+		} else {
+			pd_point = stcb->sctp_ep->partial_delivery_point;
+		}
+		if (sctp_is_all_msg_on_reasm(asoc, &tsize) || (tsize >= pd_point)) {
 			asoc->fragmented_delivery_inprogress = 1;
 			asoc->tsn_last_delivered = chk->rec.data.TSN_seq - 1;
 			asoc->str_of_pdapi = chk->rec.data.stream_number;
@@ -5192,7 +5202,7 @@ skip_segments:
 			/* sa_ignore NO_NULL_CHK */
 			sctp_free_bufspace(stcb, asoc, tp1, 1);
 			sctp_m_freem(tp1->data);
-			if (PR_SCTP_BUF_ENABLED(tp1->flags)) {
+			if (asoc->peer_supports_prsctp && PR_SCTP_BUF_ENABLED(tp1->flags)) {
 				asoc->sent_queue_cnt_removeable--;
 			}
 		}
@@ -6289,10 +6299,11 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 					ctl->pdapi_aborted = 1;
 					sv = stcb->asoc.control_pdapi;
 					stcb->asoc.control_pdapi = ctl;
-					sctp_notify_partial_delivery_indication(stcb,
+					sctp_ulp_notify(SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION,
+					    stcb,
 					    SCTP_PARTIAL_DELIVERY_ABORTED,
-					    SCTP_HOLDS_LOCK,
-					    str_seq);
+					    (void *)&str_seq,
+					    SCTP_SO_NOT_LOCKED);
 					stcb->asoc.control_pdapi = sv;
 					break;
 				} else if ((ctl->sinfo_stream == stseq->stream) &&
@@ -7786,7 +7797,7 @@ skip_segments:
 			/* sa_ignore NO_NULL_CHK */
 			sctp_free_bufspace(stcb, asoc, tp1, 1);
 			sctp_m_freem(tp1->data);
-			if (PR_SCTP_BUF_ENABLED(tp1->flags)) {
+			if (asoc->peer_supports_prsctp && PR_SCTP_BUF_ENABLED(tp1->flags)) {
 				asoc->sent_queue_cnt_removeable--;
 			}
 		}
