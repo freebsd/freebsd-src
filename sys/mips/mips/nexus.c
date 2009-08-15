@@ -77,6 +77,7 @@ struct nexus_device {
 
 static struct rman irq_rman;
 static struct rman mem_rman;
+static struct rman port_rman;
 
 static struct resource *
 		nexus_alloc_resource(device_t, device_t, int, int *, u_long,
@@ -160,6 +161,21 @@ nexus_probe(device_t dev)
 		panic("%s: mem_rman", __func__);
 	}
 
+	/*
+	 * MIPS has no concept of the x86 I/O address space but some cpus
+	 * provide a memory mapped window to access the PCI I/O BARs.
+	 */
+	port_rman.rm_start = 0;
+#ifdef PCI_IOSPACE_SIZE
+	port_rman.rm_end = PCI_IOSPACE_SIZE - 1;
+#endif
+	port_rman.rm_type = RMAN_ARRAY;
+	port_rman.rm_descr = "I/O ports";
+	if (rman_init(&port_rman) != 0 ||
+	    rman_manage_region(&port_rman, 0, port_rman.rm_end) != 0)
+		panic("%s: port_rman", __func__);
+
+
 	return (0);
 }
 
@@ -225,6 +241,7 @@ nexus_print_all_resources(device_t dev)
 
 	retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY, "%#lx");
 	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
+	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
 
 	return (retval);
 }
@@ -345,6 +362,9 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_MEMORY:
 		rm = &mem_rman;
 		break;
+	case SYS_RES_IOPORT:
+		rm = &port_rman;
+		break;
 	default:
 		printf("%s: unknown resource type %d\n", __func__, type);
 		return (0);
@@ -374,9 +394,6 @@ static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-#ifdef TARGET_OCTEON
-	uint64_t temp;
-#endif		
 	/*
 	 * If this is a memory resource, track the direct mapping
 	 * in the uncached MIPS KSEG1 segment.
@@ -394,13 +411,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 
 		rman_set_virtual(r, vaddr);
 		rman_set_bustag(r, mips_bus_space_generic);
-#ifdef TARGET_OCTEON
-		temp = 0x0000000000000000;
-		temp |= (uint32_t)vaddr;
-		rman_set_bushandle(r, (bus_space_handle_t)temp);
-#else		
 		rman_set_bushandle(r, (bus_space_handle_t)vaddr);
-#endif		
 	}
 
 	return (rman_activate_resource(r));
@@ -481,6 +492,12 @@ static int
 nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 			  struct resource *r)
 {
+	vm_offset_t va;
+	
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		va = (vm_offset_t)rman_get_virtual(r);
+		pmap_unmapdev(va, rman_get_size(r));
+	}
 
 	return (rman_deactivate_resource(r));
 }
