@@ -29,19 +29,56 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/imgact.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
+#include <sys/bus.h>
+#include <sys/cpu.h>
+#include <sys/cons.h>
+#include <sys/exec.h>
+#include <sys/ucontext.h>
+#include <sys/proc.h>
+#include <sys/kdb.h>
+#include <sys/ptrace.h>
+#include <sys/reboot.h>
+#include <sys/signalvar.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <sys/user.h>
+
+#include <vm/vm.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+
+#include <machine/atomic.h>
+#include <machine/cache.h>
+#include <machine/clock.h>
+#include <machine/cpu.h>
 #include <machine/cpuregs.h>
 #include <machine/cpufunc.h>
 #include <mips/octeon1/octeon_pcmap_regs.h>
 #include <mips/octeon1/octeonreg.h>
-#include <machine/atomic.h>
+#include <machine/hwfunc.h>
+#include <machine/intr_machdep.h>
+#include <machine/locore.h>
+#include <machine/md_var.h>
 #include <machine/pcpu.h>
+#include <machine/pte.h>
+#include <machine/trap.h>
+#include <machine/vmparam.h>
 
 #if defined(__mips_n64) 
-      #define MAX_APP_DESC_ADDR     0xffffffffafffffff
+#define MAX_APP_DESC_ADDR     0xffffffffafffffff
 #else
-      #define MAX_APP_DESC_ADDR     0xafffffff
+#define MAX_APP_DESC_ADDR     0xafffffff
 #endif
+
+extern int	*edata;
+extern int	*end;
 
 
 /*
@@ -625,16 +662,79 @@ void ciu_enable_interrupts (int core_num, int intx, int enx, uint64_t set_these_
 	octeon_set_interrupts(cpu_status_bits);
 }
 
-
-extern void mips_platform_init(void);
-
-void mips_platform_init (void)
+void
+platform_start(__register_t a0, __register_t a1,
+    __register_t a2 __unused, __register_t a3 __unused)
 {
+	uint64_t platform_counter_freq;
+	vm_offset_t kernend;
+	int argc = a0;
+	char **argv = (char **)a1;
+	int i, mem;
+
+	/* clear the BSS and SBSS segments */
+	kernend = round_page((vm_offset_t)&end);
+	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
+
         octeon_ciu_reset();
     	octeon_uart_write_string(0, "\nPlatform Starting");
+
+/* From here on down likely is bogus */
+	/*
+	 * Looking for mem=XXM argument
+	 */
+	mem = 0; /* Just something to start with */
+	for (i=0; i < argc; i++) {
+		if (strncmp(argv[i], "mem=", 4) == 0) {
+			mem = strtol(argv[i] + 4, NULL, 0);
+			break;
+		}
+	}
+
+	bootverbose = 1;
+	if (mem > 0)
+		realmem = btoc(mem << 20);
+	else
+		realmem = btoc(32 << 20);
+
+	for (i = 0; i < 10; i++) {
+		phys_avail[i] = 0;
+	}
+
+	/* phys_avail regions are in bytes */
+	phys_avail[0] = MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
+	phys_avail[1] = ctob(realmem);
+
+	physmem = realmem;
+
+	/* 
+	 * ns8250 uart code uses DELAY so ticker should be inititalized 
+	 * before cninit. And tick_init_params refers to hz, so * init_param1 
+	 * should be called first.
+	 */
+	init_param1();
+	/* TODO: parse argc,argv */
+	platform_counter_freq = 330000000UL; /* XXX: from idt */
+	mips_timer_init_params(platform_counter_freq, 1);
+	cninit();
+	/* Panic here, after cninit */ 
+	if (mem == 0)
+		panic("No mem=XX parameter in arguments");
+
+	printf("cmd line: ");
+	for (i=0; i < argc; i++)
+		printf("%s ", argv[i]);
+	printf("\n");
+
+	init_param2(physmem);
+	mips_cpu_init();
+	pmap_bootstrap();
+	mips_proc0_init();
+	mutex_init();
+#ifdef DDB
+	kdb_init();
+#endif
 }
-
-
 
 /*
  ****************************************************************************************
