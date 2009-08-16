@@ -4131,7 +4131,7 @@ driver_module_handler(module_t mod, int what, void *arg)
 		return (ENOMEM);
 	}
 
-		switch (what) {
+	switch (what) {
 	case MOD_LOAD:
 		if (dmd->dmd_chainevh)
 			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);
