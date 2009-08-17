@@ -94,6 +94,7 @@ SUBDIR=	${_ac} \
 	manctl \
 	memcontrol \
 	mergemaster \
+	mfiutil \
 	mixer \
 	${_mld6query} \
 	mlxcontrol \
