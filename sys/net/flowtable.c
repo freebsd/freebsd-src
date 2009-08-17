@@ -203,6 +203,7 @@ static VNET_DEFINE(int, flowtable_udp_expire) = UDP_IDLE;
 static VNET_DEFINE(int, flowtable_fin_wait_expire) = FIN_WAIT_IDLE;
 static VNET_DEFINE(int, flowtable_tcp_expire) = TCP_IDLE;
 static VNET_DEFINE(int, flowtable_nmbflows) = 4096;
+static VNET_DEFINE(int, flowtable_ready) = 0;
 
 #define	V_flowtable_enable		VNET(flowtable_enable)
 #define	V_flowtable_hits		VNET(flowtable_hits)
@@ -217,6 +218,7 @@ static VNET_DEFINE(int, flowtable_nmbflows) = 4096;
 #define	V_flowtable_fin_wait_expire	VNET(flowtable_fin_wait_expire)
 #define	V_flowtable_tcp_expire		VNET(flowtable_tcp_expire)
 #define	V_flowtable_nmbflows		VNET(flowtable_nmbflows)
+#define	V_flowtable_ready		VNET(flowtable_ready)
 
 SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL, "flowtable");
 SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, enable, CTLFLAG_RW,
@@ -345,7 +347,7 @@ ipv4_flow_lookup_hash_internal(struct mbuf *m, struct route *ro,
 	struct udphdr *uh;
 	struct sctphdr *sh;
 
-	if (V_flowtable_enable == 0)
+	if ((V_flowtable_enable == 0) || (V_flowtable_ready == 0))
 		return (0);
 
 	key[1] = key[0] = 0;
@@ -799,6 +801,7 @@ flowtable_init(const void *unused __unused)
 	    NULL, NULL, NULL, NULL, 64, UMA_ZONE_MAXBUCKET);	
 	uma_zone_set_max(V_flow_ipv4_zone, V_flowtable_nmbflows);
 	uma_zone_set_max(V_flow_ipv6_zone, V_flowtable_nmbflows);
+	V_flowtable_ready = 1;
 }
 
 VNET_SYSINIT(flowtable_init, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY,
