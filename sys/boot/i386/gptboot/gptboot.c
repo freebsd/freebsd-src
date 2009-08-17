@@ -466,16 +466,13 @@ parse(void)
 		dsk.type = i;
 		arg += 3;
 		dsk.unit = *arg - '0';
-		if (arg[1] != ',' || dsk.unit > 9)
+		if (arg[1] != 'p' || dsk.unit > 9)
 		    return -1;
 		arg += 2;
-		dsk.part = -1;
-		if (arg[1] == ',') {
-		    dsk.part = *arg - '0';
-		    if (dsk.part < 1 || dsk.part > 9)
-			return -1;
-		    arg += 2;
-		}
+		dsk.part = *arg - '0';
+		if (dsk.part < 1 || dsk.part > 9)
+		    return -1;
+		arg++;
 		if (arg[0] != ')')
 		    return -1;
 		arg++;
