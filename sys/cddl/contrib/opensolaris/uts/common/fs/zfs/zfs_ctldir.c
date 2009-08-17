@@ -1195,6 +1195,48 @@ zfsctl_snapshot_lookup(ap)
 	return (error);
 }
 
+static int
+zfsctl_snapshot_vptocnp(struct vop_vptocnp_args *ap)
+{
+	zfsvfs_t *zfsvfs = ap->a_vp->v_vfsp->vfs_data;
+	vnode_t *dvp, *vp;
+	zfsctl_snapdir_t *sdp;
+	zfs_snapentry_t *sep;
+	int error;
+
+	ASSERT(zfsvfs->z_ctldir != NULL);
+	error = zfsctl_root_lookup(zfsvfs->z_ctldir, "snapshot", &dvp,
+	    NULL, 0, NULL, kcred, NULL, NULL, NULL);
+	if (error != 0)
+		return (error);
+	sdp = dvp->v_data;
+
+	mutex_enter(&sdp->sd_lock);
+	sep = avl_first(&sdp->sd_snaps);
+	while (sep != NULL) {
+		vp = sep->se_root;
+		if (vp == ap->a_vp)
+			break;
+		sep = AVL_NEXT(&sdp->sd_snaps, sep);
+	}
+	if (sep == NULL) {
+		mutex_exit(&sdp->sd_lock);
+		error = ENOENT;
+	} else {
+		size_t len;
+
+		len = strlen(sep->se_name);
+		*ap->a_buflen -= len;
+		bcopy(sep->se_name, ap->a_buf + *ap->a_buflen, len);
+		mutex_exit(&sdp->sd_lock);
+		vhold(dvp);
+		*ap->a_vpp = dvp;
+	}
+	VN_RELE(dvp);
+
+	return (error);
+}
+
 /*
  * These VP's should never see the light of day.  They should always
  * be covered.
@@ -1206,6 +1248,7 @@ static struct vop_vector zfsctl_ops_snapshot = {
 	.vop_reclaim =	zfsctl_common_reclaim,
 	.vop_getattr =	zfsctl_snapshot_getattr,
 	.vop_fid =	zfsctl_snapshot_fid,
+	.vop_vptocnp =	zfsctl_snapshot_vptocnp,
 };
 
 int
