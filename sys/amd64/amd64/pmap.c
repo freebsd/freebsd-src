@@ -2261,6 +2261,8 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 			    " in pmap %p", va, pmap);
 			return (FALSE);
 		}
+		if (va < VM_MAXUSER_ADDRESS)
+			pmap->pm_stats.resident_count++;
 	}
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(mptepa);
