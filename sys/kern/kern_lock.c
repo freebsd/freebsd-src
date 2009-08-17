@@ -334,6 +334,9 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 	int iflags;
 
 	MPASS((flags & ~LK_INIT_MASK) == 0);
+	ASSERT_ATOMIC_LOAD_PTR(lk->lk_lock,
+            ("%s: lockmgr not aligned for %s: %p", __func__, wmesg,
+            &lk->lk_lock));
 
 	iflags = LO_SLEEPABLE | LO_UPGRADABLE;
 	if (flags & LK_CANRECURSE)
