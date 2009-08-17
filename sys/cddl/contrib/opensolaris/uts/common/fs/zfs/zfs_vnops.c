@@ -4529,9 +4529,9 @@ vop_getextattr {
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0) {
+		ZFS_EXIT(zfsvfs);
 		if (error == ENOENT)
 			error = ENOATTR;
-		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
 
@@ -4597,9 +4597,9 @@ vop_deleteextattr {
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0) {
+		ZFS_EXIT(zfsvfs);
 		if (error == ENOENT)
 			error = ENOATTR;
-		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
 	error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
@@ -4712,7 +4712,7 @@ vop_listextattr {
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VREAD);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	error = zfs_create_attrname(ap->a_attrnamespace, "", attrprefix,
@@ -4729,13 +4729,13 @@ vop_listextattr {
 	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
 	    LOOKUP_XATTR);
 	if (error != 0) {
+		ZFS_EXIT(zfsvfs);
 		/*
 		 * ENOATTR means that the EA directory does not yet exist,
 		 * i.e. there are no extended attributes there.
 		 */
 		if (error == ENOATTR)
 			error = 0;
-		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
 
@@ -4825,10 +4825,10 @@ zfs_freebsd_getacl(ap)
 		return (error);
 
 	error = acl_from_aces(ap->a_aclp, vsecattr.vsa_aclentp, vsecattr.vsa_aclcnt);
-        if (vsecattr.vsa_aclentp != NULL)
-                kmem_free(vsecattr.vsa_aclentp, vsecattr.vsa_aclentsz);
+	if (vsecattr.vsa_aclentp != NULL)
+		kmem_free(vsecattr.vsa_aclentp, vsecattr.vsa_aclentsz);
 
-        return (error);
+	return (error);
 }
 
 int
