@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 17, 2008
+.Dd August 16, 2009
 .Dt MFIUTIL 1
 .Os
 .Sh NAME
@@ -161,9 +161,6 @@ on the volume may be specified by the corresponding
 device,
 such as
 .Em mfid0 .
-Note that this second method only works on OS versions
-.Dv 6.2-YAHOO-20070510
-and later.
 .Pp
 Drives may be specified in two forms.
 First,
@@ -562,13 +559,8 @@ patrol read starting in 5 minutes:
 .Pp
 .Sh SEE ALSO
 .Xr mfi 4
-.Sh BUGS
-On 64-bit OS versions
-.Dv 6.2-YAHOO-20070514
-and earlier,
-the 
-.Xr mfi 4
-driver does not properly report firmware errors to 32-bit versions of
-.Nm .
-As a result,
-some commands may fail even though they do not report any errors.
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 8.0 .
