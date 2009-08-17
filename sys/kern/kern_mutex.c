@@ -783,8 +783,9 @@ mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 
 	MPASS((opts & ~(MTX_SPIN | MTX_QUIET | MTX_RECURSE |
 		MTX_NOWITNESS | MTX_DUPOK | MTX_NOPROFILE)) == 0);
-	ASSERT_ATOMIC_LOAD(m->mtx_lock, ("%s: mtx_lock not aligned for %s: %p",
-	    __func__, name, &m->mtx_lock));
+	ASSERT_ATOMIC_LOAD_PTR(m->mtx_lock,
+	    ("%s: mtx_lock not aligned for %s: %p", __func__, name,
+	    &m->mtx_lock));
 
 #ifdef MUTEX_DEBUG
 	/* Diagnostic and error correction */
