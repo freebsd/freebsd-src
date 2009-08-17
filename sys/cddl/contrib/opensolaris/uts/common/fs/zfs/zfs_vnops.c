@@ -4350,7 +4350,6 @@ zfs_freebsd_reclaim(ap)
 {
 	vnode_t	*vp = ap->a_vp;
 	znode_t	*zp = VTOZ(vp);
-	zfsvfs_t *zfsvfs;
 
 	ASSERT(zp != NULL);
 
@@ -4360,13 +4359,18 @@ zfs_freebsd_reclaim(ap)
 	vnode_destroy_vobject(vp);
 
 	mutex_enter(&zp->z_lock);
-	ASSERT(zp->z_phys);
+	ASSERT(zp->z_phys != NULL);
 	ZTOV(zp) = NULL;
-	if (!zp->z_unlinked) {
+	mutex_exit(&zp->z_lock);
+
+	if (zp->z_unlinked)
+		;	/* Do nothing. */
+	else if (zp->z_dbuf == NULL)
+		zfs_znode_free(zp);
+	else /* if (!zp->z_unlinked && zp->z_dbuf != NULL) */ {
+		zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 		int locked;
 
-		zfsvfs = zp->z_zfsvfs;
-		mutex_exit(&zp->z_lock);
 		locked = MUTEX_HELD(ZFS_OBJ_MUTEX(zfsvfs, zp->z_id)) ? 2 :
 		    ZFS_OBJ_HOLD_TRYENTER(zfsvfs, zp->z_id);
 		if (locked == 0) {
@@ -4382,8 +4386,6 @@ zfs_freebsd_reclaim(ap)
 				ZFS_OBJ_HOLD_EXIT(zfsvfs, zp->z_id);
 			zfs_znode_free(zp);
 		}
-	} else {
-		mutex_exit(&zp->z_lock);
 	}
 	VI_LOCK(vp);
 	vp->v_data = NULL;
