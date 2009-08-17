@@ -390,6 +390,35 @@ of the CVS tree
 .It Va SEPARATE_LIVEFS
 Store the live file system on its own CD-ROM image rather than placing it on
 the first disc.
+.It Va SVNCMDARGS
+Additional arguments for svn
+.Ic checkout
+and
+.Ic switch
+commands.
+.It Va SVNROOT
+The location of the FreeBSD SVN source repository.
+If this variable is set,
+then the source tree will be extracted using Subversion rather than
+CVS.
+.It Va SVNBRANCH
+The branch to check out from a SVN source repository.
+It is specified as a path such as
+.Pa head
+or
+.Pa stable/7 .
+If this variable is not set,
+then the branch that corresponds to the current value of
+.Va RELEASETAG
+will be used.
+If neither
+.Va SVNBRANCH
+nor
+.Va RELEASETAG
+are set,
+then the
+.Pa head
+branch will be used.
 .It Va TARGET_ARCH
 The target machine processor architecture.
 This is analogous to the
