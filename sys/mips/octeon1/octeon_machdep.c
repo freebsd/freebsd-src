@@ -85,10 +85,10 @@ extern int	*end;
  * Perform a board-level soft-reset.
  * Note that this is not emulated by gxemul.
  */
-void octeon_reset (void)
+void
+platform_reset(void)
 {
-    void (*reset_func)(void) =  (void (*)(void) )0x1fc00000;
-    reset_func();
+	((void(*)(void))0x1fc00000)();	/* Jump to this hex address */
 }
 
 
