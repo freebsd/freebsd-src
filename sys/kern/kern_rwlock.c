@@ -174,8 +174,9 @@ rw_init_flags(struct rwlock *rw, const char *name, int opts)
 
 	MPASS((opts & ~(RW_DUPOK | RW_NOPROFILE | RW_NOWITNESS | RW_QUIET |
 	    RW_RECURSE)) == 0);
-	ASSERT_ATOMIC_LOAD(rw->rw_lock, ("%s: rw_lock not aligned for %s: %p",
-	    __func__, name, &rw->rw_lock));
+	ASSERT_ATOMIC_LOAD_PTR(rw->rw_lock,
+	    ("%s: rw_lock not aligned for %s: %p", __func__, name,
+	    &rw->rw_lock));
 
 	flags = LO_UPGRADABLE;
 	if (opts & RW_DUPOK)
