@@ -917,7 +917,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	for (zp = list_head(&zfsvfs->z_all_znodes); zp != NULL;
 	    zp = list_next(&zfsvfs->z_all_znodes, zp))
 		if (zp->z_dbuf) {
-			ASSERT(ZTOV(zp)->v_count > 0);
+			ASSERT(ZTOV(zp)->v_count >= 0);
 			zfs_znode_dmu_fini(zp);
 		}
 	mutex_exit(&zfsvfs->z_znodes_lock);
