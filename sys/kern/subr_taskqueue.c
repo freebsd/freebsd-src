@@ -401,6 +401,13 @@ taskqueue_thread_loop(void *arg)
 	TQ_LOCK(tq);
 	while ((tq->tq_flags & TQ_FLAGS_ACTIVE) != 0) {
 		taskqueue_run(tq);
+		/*
+		 * Because taskqueue_run() can drop tq_mutex, we need to
+		 * check if the TQ_FLAGS_ACTIVE flag wasn't removed in the
+		 * meantime, which means we missed a wakeup.
+		 */
+		if ((tq->tq_flags & TQ_FLAGS_ACTIVE) == 0)
+			break;
 		TQ_SLEEP(tq, tq, &tq->tq_mutex, 0, "-", 0);
 	}
 
