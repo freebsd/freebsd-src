@@ -3709,12 +3709,11 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 		 * The fs has been unmounted, or we did a
 		 * suspend/resume and this file no longer exists.
 		 */
-		mutex_enter(&zp->z_lock);
 		VI_LOCK(vp);
 		vp->v_count = 0; /* count arrives as 1 */
-		mutex_exit(&zp->z_lock);
+		VI_UNLOCK(vp);
+		vrecycle(vp, curthread);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
-		zfs_znode_free(zp);
 		return;
 	}
 
