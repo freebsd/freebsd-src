@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2008
+.Dd August 16, 2009
 .Dt MPTUTIL 8
 .Os
 .Sh NAME
@@ -349,8 +349,6 @@ as a global hot spare:
 .Sh SEE ALSO
 .Xr mpt 4
 .Sh BUGS
-Deleting volumes usually provokes a kernel crash in OS versions older than
-.Dv 6.3-YAHOO-20080722 .
 .Pp
 The handling of spare drives appears to be unreliable.
 The
@@ -381,3 +379,8 @@ configurations may not work reliably.
 .Pp
 Drive configuration commands result in an excessive flood of messages on the
 console.
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 8.0 .
