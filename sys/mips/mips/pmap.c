@@ -314,6 +314,8 @@ again:
 		}
 	}
 
+	Maxmem = atop(phys_avail[i - 1]);
+
 	if (bootverbose) {
 		printf("Physical memory chunk(s):\n");
 		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
@@ -325,6 +327,7 @@ again:
 			    (uintmax_t) phys_avail[i + 1] - 1,
 			    (uintmax_t) size, (uintmax_t) size / PAGE_SIZE);
 		}
+		printf("Maxmem is 0x%0lx\n", ptoa(Maxmem));
 	}
 	/*
 	 * Steal the message buffer from the beginning of memory.
@@ -398,21 +401,15 @@ again:
 	for (i = 0, pte = pgtab; i < (nkpt * NPTEPG); i++, pte++)
 		*pte = PTE_G;
 
-	printf("Va=0x%x Ve=%x\n", virtual_avail, virtual_end);
 	/*
 	 * The segment table contains the KVA of the pages in the second
 	 * level page table.
 	 */
-	printf("init kernel_segmap va >> = %d nkpt:%d\n",
-	    (virtual_avail >> SEGSHIFT),
-	    nkpt);
 	for (i = 0, j = (virtual_avail >> SEGSHIFT); i < nkpt; i++, j++)
 		kernel_segmap[j] = (pd_entry_t)(pgtab + (i * NPTEPG));
 
 	for (i = 0; phys_avail[i + 2]; i += 2)
 		continue;
-	printf("avail_start:0x%x avail_end:0x%x\n",
-	    phys_avail[0], phys_avail[i + 1]);
 
 	/*
 	 * The kernel's pmap is statically allocated so we don't have to use
@@ -1793,8 +1790,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
 	if (pte == NULL) {
-		panic("pmap_enter: invalid page directory, pdir=%p, va=0x%x\n",
-		    (void *)pmap->pm_segtab, va);
+		panic("pmap_enter: invalid page directory, pdir=%p, va=%p\n",
+		    (void *)pmap->pm_segtab, (void *)va);
 	}
 	pa = VM_PAGE_TO_PHYS(m);
 	om = NULL;
@@ -1855,7 +1852,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 			mpte->wire_count--;
 			KASSERT(mpte->wire_count > 0,
 			    ("pmap_enter: missing reference to page table page,"
-			    " va: 0x%x", va));
+			    " va: %p", (void *)va));
 		}
 	} else
 		pmap->pm_stats.resident_count++;
@@ -1917,7 +1914,7 @@ validate:
 			if (origpte & PTE_M) {
 				KASSERT((origpte & PTE_RW),
 				    ("pmap_enter: modified page not writable:"
-				    " va: 0x%x, pte: 0x%lx", va, origpte));
+				    " va: %p, pte: 0x%lx", (void *)va, origpte));
 				if (page_is_managed(opa))
 					vm_page_dirty(om);
 			}
@@ -2254,7 +2251,7 @@ pmap_zero_page(vm_page_t m)
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
 
-		va = MIPS_PHYS_TO_UNCACHED(phys);
+		va = MIPS_PHYS_TO_CACHED(phys);
 
 		bzero((caddr_t)va, PAGE_SIZE);
 		mips_dcache_wbinv_range(va, PAGE_SIZE);
@@ -2310,7 +2307,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_UNCACHED(phys);
+		va = MIPS_PHYS_TO_CACHED(phys);
 		bzero((char *)(caddr_t)va + off, size);
 		mips_dcache_wbinv_range(va + off, size);
 	} else {
@@ -2349,7 +2346,7 @@ pmap_zero_page_idle(vm_page_t m)
 	} else
 #endif
 	if (phys < MIPS_KSEG0_LARGEST_PHYS) {
-		va = MIPS_PHYS_TO_UNCACHED(phys);
+		va = MIPS_PHYS_TO_CACHED(phys);
 		bzero((caddr_t)va, PAGE_SIZE);
 		mips_dcache_wbinv_range(va, PAGE_SIZE);
 	} else {
@@ -2835,11 +2832,12 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 		return (void *)MIPS_PHYS_TO_KSEG1(pa);
 	else {
 		offset = pa & PAGE_MASK;
-		size = roundup(size, PAGE_SIZE);
+		size = roundup(size + offset, PAGE_SIZE);
         
 		va = kmem_alloc_nofault(kernel_map, size);
 		if (!va)
 			panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
+		pa = trunc_page(pa);
 		for (tmpva = va; size > 0;) {
 			pmap_kenter(tmpva, pa);
 			size -= PAGE_SIZE;
@@ -2854,6 +2852,18 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
+	vm_offset_t base, offset, tmpva;
+
+	/* If the address is within KSEG1 then there is nothing to do */
+	if (va >= MIPS_KSEG1_START && va <= MIPS_KSEG1_END)
+		return;
+
+	base = trunc_page(va);
+	offset = va & PAGE_MASK;
+	size = roundup(size + offset, PAGE_SIZE);
+	for (tmpva = base; tmpva < base + size; tmpva += PAGE_SIZE)
+		pmap_kremove(tmpva);
+	kmem_free(kernel_map, base, size);
 }
 
 /*
@@ -2990,7 +3000,7 @@ pmap_pid_dump(int pid)
 				pde = &pmap->pm_segtab[i];
 				if (pde && pmap_pde_v(pde)) {
 					for (j = 0; j < 1024; j++) {
-						unsigned va = base +
+						vm_offset_t va = base +
 						(j << PAGE_SHIFT);
 
 						pte = pmap_pte(pmap, va);
@@ -3000,8 +3010,9 @@ pmap_pid_dump(int pid)
 
 							pa = mips_tlbpfn_to_paddr(*pte);
 							m = PHYS_TO_VM_PAGE(pa);
-							printf("va: 0x%x, pt: 0x%x, h: %d, w: %d, f: 0x%x",
-							    va, pa,
+							printf("va: %p, pt: %p, h: %d, w: %d, f: 0x%x",
+							    (void *)va,
+							    (void *)pa,
 							    m->hold_count,
 							    m->wire_count,
 							    m->flags);
