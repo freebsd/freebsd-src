@@ -460,8 +460,10 @@ ALEAF(fuibyte)
 	sw	zero, U_PCB_ONFAULT(v1)
 END(fubyte)
 
-LEAF(suword)
-XLEAF(suword32)
+LEAF(suword32)
+#ifndef __mips_n64
+XLEAF(suword)
+#endif
 	blt	a0, zero, fswberr	# make sure address is in user space
 	li	v0, FSWBERR
 	GET_CPU_PCPU(v1)
@@ -471,44 +473,36 @@ XLEAF(suword32)
 	sw	zero, U_PCB_ONFAULT(v1)
 	j	ra
 	move	v0, zero
-END(suword)
+END(suword32)
 
-/*
- * XXXMIPS: ATM it's the same as casuword32, but MIPS64 will require
- * own implementation
- * casuword(9)
- * <v0>u_long casuword(<a0>u_long *p, <a1>u_long oldval, <a2>u_long newval)
- */
-ENTRY(casuword)
+#ifdef __mips_n64
+LEAF(suword64)
+XLEAF(suword)
 	blt	a0, zero, fswberr	# make sure address is in user space
 	li	v0, FSWBERR
 	GET_CPU_PCPU(v1)
 	lw	v1, PC_CURPCB(v1)
 	sw	v0, U_PCB_ONFAULT(v1)
-1:
-	move	t0, a2
-	ll	v0, 0(a0)
-	bne	a1, v0, 2f
-	nop
-	sc	t0, 0(a0)		# store word
-	beqz	t0, 1b
-	nop
-	j	3f
-	nop
-2:
-	li	v0, -1
-3:
+	sd	a1, 0(a0)		# store word
 	sw	zero, U_PCB_ONFAULT(v1)
-	jr	ra
-	nop
-END(casuword)
+	j	ra
+	move	v0, zero
+END(suword64)
+#endif
 
+/*
+ * casuword(9)
+ * <v0>u_long casuword(<a0>u_long *p, <a1>u_long oldval, <a2>u_long newval)
+ */
 /*
  * casuword32(9)
  * <v0>uint32_t casuword(<a0>uint32_t *p, <a1>uint32_t oldval, 
  *							<a2>uint32_t newval)
  */
-ENTRY(casuword32)
+LEAF(casuword32)
+#ifndef __mips_n64
+XLEAF(casuword)
+#endif
 	blt	a0, zero, fswberr	# make sure address is in user space
 	li	v0, FSWBERR
 	GET_CPU_PCPU(v1)
@@ -531,6 +525,33 @@ ENTRY(casuword32)
 	jr	ra
 	nop
 END(casuword32)
+
+#ifdef __mips_n64
+LEAF(casuword64)
+XLEAF(casuword)
+	blt	a0, zero, fswberr	# make sure address is in user space
+	li	v0, FSWBERR
+	GET_CPU_PCPU(v1)
+	lw	v1, PC_CURPCB(v1)
+	sw	v0, U_PCB_ONFAULT(v1)
+1:
+	move	t0, a2
+	lld	v0, 0(a0)
+	bne	a1, v0, 2f
+	nop
+	scd	t0, 0(a0)		# store double word
+	beqz	t0, 1b
+	nop
+	j	3f
+	nop
+2:
+	li	v0, -1
+3:
+	sw	zero, U_PCB_ONFAULT(v1)
+	jr	ra
+	nop
+END(casuword64)
+#endif
 
 #if 0
 	/* unused in FreeBSD */
