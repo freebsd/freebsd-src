@@ -472,3 +472,23 @@ taskqueue_fast_run(void *dummy)
 TASKQUEUE_FAST_DEFINE(fast, taskqueue_fast_enqueue, NULL,
 	swi_add(NULL, "Fast task queue", taskqueue_fast_run, NULL,
 	SWI_TQ_FAST, INTR_MPSAFE, &taskqueue_fast_ih));
+
+int
+taskqueue_member(struct taskqueue *queue, struct thread *td)
+{
+	int i, j, ret = 0;
+
+	TQ_LOCK(queue);
+	for (i = 0, j = 0; ; i++) {
+		if (queue->tq_threads[i] == NULL)
+			continue;
+		if (queue->tq_threads[i] == td) {
+			ret = 1;
+			break;
+		}
+		if (++j >= queue->tq_tcount)
+			break;
+	}
+	TQ_UNLOCK(queue);
+	return (ret);
+}
