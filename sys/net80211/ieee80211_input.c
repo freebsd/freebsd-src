@@ -524,7 +524,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		case IEEE80211_ELEMID_HTINFO:
 			scan->htinfo = frm;
 			break;
-#ifdef IEEE80211_SUPPORT_TDMA
+#ifdef IEEE80211_SUPPORT_MESH
 		case IEEE80211_ELEMID_MESHID:
 			scan->meshid = frm;
 			break;
