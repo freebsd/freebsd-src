@@ -48,7 +48,6 @@ struct thread;
  */
 typedef void (*taskqueue_enqueue_fn)(void *context);
 
-struct proc;
 struct taskqueue *taskqueue_create(const char *name, int mflags,
 				    taskqueue_enqueue_fn enqueue,
 				    void *context);
@@ -56,7 +55,6 @@ int	taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 				const char *name, ...) __printflike(4, 5);
 int	taskqueue_enqueue(struct taskqueue *queue, struct task *task);
 void	taskqueue_drain(struct taskqueue *queue, struct task *task);
-struct taskqueue *taskqueue_find(const char *name);
 void	taskqueue_free(struct taskqueue *queue);
 void	taskqueue_run(struct taskqueue *queue);
 void	taskqueue_block(struct taskqueue *queue);
