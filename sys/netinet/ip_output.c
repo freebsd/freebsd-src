@@ -157,7 +157,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		 * longer than that long for the stability of ro_rt.  The
 		 * flow ID assignment must have happened before this point.
 		 */
-		if (flowtable_lookup(V_ip_ft, m, ro) == 0)
+		if (flowtable_lookup(V_ip_ft, m, ro, M_GETFIB(m)) == 0)
 			nortfree = 1;
 #endif
 	}
