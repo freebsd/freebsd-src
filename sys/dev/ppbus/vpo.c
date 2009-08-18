@@ -427,6 +427,8 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "Iomega", HBA_IDLEN);
 		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
 		cpi->unit_number = sim->unit_number;
+		cpi->transport = XPORT_PPB;
+		cpi->transport_version = 0;
 
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);

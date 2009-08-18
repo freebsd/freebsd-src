@@ -3803,6 +3803,8 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 		case XPORT_SAS:
 		case XPORT_FC:
 		case XPORT_USB:
+		case XPORT_ISCSI:
+		case XPORT_PPB:
 			new_bus->xport = scsi_get_xport();
 			break;
 		case XPORT_ATA:
