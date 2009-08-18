@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2009
+.Dd August 18, 2009
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -59,8 +59,6 @@ struct task {
 .Fn taskqueue_create_fast "const char *name" "int mflags" "taskqueue_enqueue_fn enqueue" "void *context"
 .Ft void
 .Fn taskqueue_free "struct taskqueue *queue"
-.Ft struct taskqueue *
-.Fn taskqueue_find "const char *name"
 .Ft int
 .Fn taskqueue_enqueue "struct taskqueue *queue" "struct task *task"
 .Ft int
@@ -115,15 +113,9 @@ should be used in place of
 .Pp
 The function
 .Fn taskqueue_free
-should be used to remove the queue from the global list of queues
-and free the memory used by the queue.
+should be used to free the memory used by the queue.
 Any tasks that are on the queue will be executed at this time after
 which the thread servicing the queue will be signaled that it should exit.
-.Pp
-The system maintains a list of all queues which can be searched using
-.Fn taskqueue_find .
-The first queue whose name matches is returned, otherwise
-.Dv NULL .
 .Pp
 To add a task to the list of tasks queued on a taskqueue, call
 .Fn taskqueue_enqueue
