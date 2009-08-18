@@ -1,4 +1,4 @@
-/*	$OpenBSD: poll.c,v 1.2 2002/06/25 15:50:15 mickey Exp $	*/
+/*	$OpenBSD: poll.c,v 1.13 2006/11/26 15:24:34 brad Exp $	*/
 
 /*
  * Copyright 2000-2003 Niels Provos <provos@citi.umich.edu>
@@ -89,7 +89,7 @@ poll_init(struct event_base *base)
 	struct pollop *pollop;
 
 	/* Disable poll when this environment variable is set */
-	if (getenv("EVENT_NOPOLL"))
+	if (!issetugid() && getenv("EVENT_NOPOLL"))
 		return (NULL);
 
 	if (!(pollop = calloc(1, sizeof(struct pollop))))
@@ -179,6 +179,7 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	for (i = 0; i < nfds; i++) {
 		int what = pop->event_set[i].revents;
 		struct event *r_ev = NULL, *w_ev = NULL;
+
 		if (!what)
 			continue;
 
@@ -356,7 +357,7 @@ poll_del(void *arg, struct event *ev)
 
 	--pop->nfds;
 	if (i != pop->nfds) {
-		/* 
+		/*
 		 * Shift the last pollfd down into the now-unoccupied
 		 * position.
 		 */

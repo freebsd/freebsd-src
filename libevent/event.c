@@ -1,3 +1,5 @@
+/*	$OpenBSD: event.c,v 1.18 2008/05/02 06:09:11 brad Exp $	*/
+
 /*
  * Copyright (c) 2000-2004 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -38,7 +40,7 @@
 #include <sys/tree.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else 
+#else
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
@@ -180,7 +182,7 @@ RB_PROTOTYPE(event_tree, event, ev_timeout_node, compare);
 RB_GENERATE(event_tree, event, ev_timeout_node, compare);
 
 
-void *
+struct event_base *
 event_init(void)
 {
 	int i;
@@ -194,13 +196,13 @@ event_init(void)
 
 	detect_monotonic();
 	gettime(&base->event_tv);
-	
+
 	RB_INIT(&base->timetree);
 	TAILQ_INIT(&base->eventqueue);
 	TAILQ_INIT(&base->sig.signalqueue);
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
-	
+
 	base->evbase = NULL;
 	for (i = 0; eventops[i] && !base->evbase; i++) {
 		base->evsel = eventops[i];
@@ -321,7 +323,7 @@ event_process_active(struct event_base *base)
 
 	for (ev = TAILQ_FIRST(activeq); ev; ev = TAILQ_FIRST(activeq)) {
 		event_queue_remove(base, ev, EVLIST_ACTIVE);
-		
+
 		/* Allows deletes to work */
 		ncalls = ev->ev_ncalls;
 		ev->ev_pncalls = &ncalls;
@@ -430,7 +432,7 @@ event_base_loop(struct event_base *base, int flags)
 			 */
 			timerclear(&tv);
 		}
-		
+
 		/* If we have no events, we just exit */
 		if (!event_haveevents(base)) {
 			event_debug(("%s: no events registered.", __func__));
@@ -438,7 +440,6 @@ event_base_loop(struct event_base *base, int flags)
 		}
 
 		res = evsel->dispatch(base, evbase, tv_p);
-
 
 		if (res == -1)
 			return (-1);
@@ -652,7 +653,7 @@ event_add(struct event *ev, struct timeval *tv)
 				/* Abort loop */
 				*ev->ev_pncalls = 0;
 			}
-			
+
 			event_queue_remove(base, ev, EVLIST_ACTIVE);
 		}
 
@@ -913,10 +914,10 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 const char *
 event_get_version(void)
 {
-	return (VERSION);
+	return (LIBEVENT_VERSION);
 }
 
-/* 
+/*
  * No thread-safe interface needed - the information should be the same
  * for all threads.
  */

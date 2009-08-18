@@ -1,4 +1,4 @@
-/*	$OpenBSD: parse.y,v 1.549 2008/07/03 16:09:34 deraadt Exp $	*/
+/*	$OpenBSD: parse.y,v 1.554 2008/10/17 12:59:53 henning Exp $	*/
 
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -153,7 +153,8 @@ enum	{ PF_STATE_OPT_MAX, PF_STATE_OPT_NOSYNC, PF_STATE_OPT_SRCTRACK,
 	    PF_STATE_OPT_MAX_SRC_STATES, PF_STATE_OPT_MAX_SRC_CONN,
 	    PF_STATE_OPT_MAX_SRC_CONN_RATE, PF_STATE_OPT_MAX_SRC_NODES,
 	    PF_STATE_OPT_OVERLOAD, PF_STATE_OPT_STATELOCK,
-	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_SLOPPY };
+	    PF_STATE_OPT_TIMEOUT, PF_STATE_OPT_SLOPPY, 
+	    PF_STATE_OPT_PFLOW };
 
 enum	{ PF_SRCTRACK_NONE, PF_SRCTRACK, PF_SRCTRACK_GLOBAL, PF_SRCTRACK_RULE };
 
@@ -293,7 +294,8 @@ struct pool_opts {
 } pool_opts;
 
 
-struct node_hfsc_opts	hfsc_opts;
+struct node_hfsc_opts	 hfsc_opts;
+struct node_state_opt	*keep_state_defaults = NULL;
 
 int		 disallow_table(struct node_host *, const char *);
 int		 disallow_urpf_failed(struct node_host *, const char *);
@@ -442,8 +444,8 @@ int	parseport(char *, struct range *r, int);
 %token	QUEUE PRIORITY QLIMIT RTABLE
 %token	LOAD RULESET_OPTIMIZATION
 %token	STICKYADDRESS MAXSRCSTATES MAXSRCNODES SOURCETRACK GLOBAL RULE
-%token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY
-%token	TAGGED TAG IFBOUND FLOATING STATEPOLICY ROUTE SETTOS
+%token	MAXSRCCONN MAXSRCCONNRATE OVERLOAD FLUSH SLOPPY PFLOW
+%token	TAGGED TAG IFBOUND FLOATING STATEPOLICY STATEDEFAULTS ROUTE SETTOS
 %token	DIVERTTO DIVERTREPLY
 %token	<v.string>		STRING
 %token	<v.number>		NUMBER
@@ -552,7 +554,7 @@ optimizer	: string	{
 			else if (!strcmp($1, "profile"))
 				$$ = PF_OPTIMIZE_BASIC | PF_OPTIMIZE_PROFILE;
 			else {
-				yyerror("unknown ruleset-optimization %s", $$);
+				yyerror("unknown ruleset-optimization %s", $1);
 				YYERROR;
 			}
 		}
@@ -669,6 +671,13 @@ option		: SET OPTIMIZATION STRING		{
 				yyerror("error setting skip interface(s)");
 				YYERROR;
 			}
+		}
+		| SET STATEDEFAULTS state_opt_list {
+			if (keep_state_defaults != NULL) {
+				yyerror("cannot redefine state-defaults");
+				YYERROR;
+			}
+			keep_state_defaults = $3;
 		}
 		;
 
@@ -1245,6 +1254,7 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 					r.action = PF_DROP;
 					r.direction = PF_IN;
 					r.log = $2.log;
+					r.logif = $2.logif;
 					r.quick = $2.quick;
 					r.af = $4;
 					if (rule_label(&r, $5.label))
@@ -1265,7 +1275,7 @@ antispoof	: ANTISPOOF logquick antispoof_ifspc af antispoof_opts {
 		}
 		;
 
-antispoof_ifspc	: FOR antispoof_if		{ $$ = $2; }
+antispoof_ifspc	: FOR antispoof_if			{ $$ = $2; }
 		| FOR '{' optnl antispoof_iflst '}'	{ $$ = $4; }
 		;
 
@@ -1277,8 +1287,8 @@ antispoof_iflst	: antispoof_if optnl			{ $$ = $1; }
 		}
 		;
 
-antispoof_if  : if_item				{ $$ = $1; }
-		| '(' if_item ')'		{
+antispoof_if	: if_item				{ $$ = $1; }
+		| '(' if_item ')'			{
 			$2->dynamic = 1;
 			$$ = $2;
 		}
@@ -1831,6 +1841,7 @@ pfrule		: action dir logquick interface route af proto fromto
 			int			 srctrack = 0;
 			int			 statelock = 0;
 			int			 adaptive = 0;
+			int			 defaults = 0;
 
 			if (check_rulestate(PFCTL_STATE_FILTER))
 				YYERROR;
@@ -1913,13 +1924,16 @@ pfrule		: action dir logquick interface route af proto fromto
 
 			r.tos = $9.tos;
 			r.keep_state = $9.keep.action;
+			o = $9.keep.options;
 
 			/* 'keep state' by default on pass rules. */
 			if (!r.keep_state && !r.action &&
-			    !($9.marker & FOM_KEEP))
+			    !($9.marker & FOM_KEEP)) {
 				r.keep_state = PF_STATE_NORMAL;
+				o = keep_state_defaults;
+				defaults = 1;
+			}
 
-			o = $9.keep.options;
 			while (o) {
 				struct node_state_opt	*p = o;
 
@@ -2060,6 +2074,15 @@ pfrule		: action dir logquick interface route af proto fromto
 					}
 					r.rule_flag |= PFRULE_STATESLOPPY;
 					break;
+				case PF_STATE_OPT_PFLOW:
+					if (r.rule_flag & PFRULE_PFLOW) {
+						yyerror("state pflow "
+						    "option: multiple "
+						    "definitions");
+						YYERROR;
+					}
+					r.rule_flag |= PFRULE_PFLOW;
+					break;
 				case PF_STATE_OPT_TIMEOUT:
 					if (o->data.timeout.number ==
 					    PFTM_ADAPTIVE_START ||
@@ -2077,7 +2100,8 @@ pfrule		: action dir logquick interface route af proto fromto
 					    o->data.timeout.seconds;
 				}
 				o = o->next;
-				free(p);
+				if (!defaults)
+					free(p);
 			}
 
 			/* 'flags S/SA' by default on stateful rules */
@@ -3537,6 +3561,14 @@ state_opt_item	: MAXIMUM NUMBER		{
 			if ($$ == NULL)
 				err(1, "state_opt_item: calloc");
 			$$->type = PF_STATE_OPT_SLOPPY;
+			$$->next = NULL;
+			$$->tail = $$;
+		}
+		| PFLOW {
+			$$ = calloc(1, sizeof(struct node_state_opt));
+			if ($$ == NULL)
+				err(1, "state_opt_item: calloc");
+			$$->type = PF_STATE_OPT_PFLOW;
 			$$->next = NULL;
 			$$->tail = $$;
 		}
@@ -5255,6 +5287,7 @@ lookup(char *s)
 		{ "out",		OUT},
 		{ "overload",		OVERLOAD},
 		{ "pass",		PASS},
+		{ "pflow",		PFLOW},
 		{ "port",		PORT},
 		{ "priority",		PRIORITY},
 		{ "priq",		PRIQ},
@@ -5289,6 +5322,7 @@ lookup(char *s)
 		{ "source-hash",	SOURCEHASH},
 		{ "source-track",	SOURCETRACK},
 		{ "state",		STATE},
+		{ "state-defaults",	STATEDEFAULTS},
 		{ "state-policy",	STATEPOLICY},
 		{ "static-port",	STATICPORT},
 		{ "sticky-address",	STICKYADDRESS},
@@ -5397,11 +5431,13 @@ findeol(void)
 	int	c;
 
 	parsebuf = NULL;
-	pushback_index = 0;
 
 	/* skip to either EOF or the first real EOL */
 	while (1) {
-		c = lgetc(0);
+		if (pushback_index)
+			c = pushback_buffer[--pushback_index];
+		else
+			c = lgetc(0);
 		if (c == '\n') {
 			file->lineno++;
 			break;

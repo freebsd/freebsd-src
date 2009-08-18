@@ -934,6 +934,12 @@ print_rule(struct pf_rule *r, const char *anchor_call, int verbose)
 			printf("sloppy");
 			opts = 0;
 		}
+		if (r->rule_flag & PFRULE_PFLOW) {
+			if (!opts)
+				printf(", ");
+			printf("pflow");
+			opts = 0;
+		}
 		for (i = 0; i < PFTM_MAX; ++i)
 			if (r->timeout[i]) {
 				int j;

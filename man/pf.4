@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pf.4,v 1.60 2007/12/02 12:08:04 pascoe Exp $
+.\"	$OpenBSD: pf.4,v 1.61 2008/09/04 13:50:37 jmc Exp $
 .\"
 .\" Copyright (C) 2001, Kjell Wooding.  All rights reserved.
 .\"
@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: May 31 2007 $
+.Dd $Mdocdate: September 4 2008 $
 .Dt PF 4
 .Os
 .Sh NAME
@@ -1050,12 +1050,14 @@ internal interface description.
 The filtering process is the same as for
 .Dv DIOCIGETIFACES .
 .Bd -literal
-#define PFI_IFLAG_SKIP		0x0100	/* skip filtering on interface */
+#define PFI_IFLAG_SKIP	0x0100	/* skip filtering on interface */
 .Ed
 .It Dv DIOCCLRIFFLAG Fa "struct pfioc_iface *io"
 Works as
 .Dv DIOCSETIFFLAG
 above but clears the flags.
+.It Dv DIOCKILLSRCNODES Fa "struct pfioc_iface *io"
+Explicitly remove source tracking nodes.
 .El
 .Sh FILES
 .Bl -tag -width /dev/pf -compact
@@ -1133,6 +1135,7 @@ main(int argc, char *argv[])
 .Xr ioctl 2 ,
 .Xr bridge 4 ,
 .Xr pflog 4 ,
+.Xr pflow 4 ,
 .Xr pfsync 4 ,
 .Xr pfctl 8 ,
 .Xr altq 9

@@ -1,3 +1,5 @@
+/*	$OpenBSD: buffer.c,v 1.14 2007/03/19 15:12:49 millert Exp $	*/
+
 /*
  * Copyright (c) 2002, 2003 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -62,7 +64,7 @@ struct evbuffer *
 evbuffer_new(void)
 {
 	struct evbuffer *buffer;
-	
+
 	buffer = calloc(1, sizeof(struct evbuffer));
 
 	return (buffer);
@@ -76,7 +78,7 @@ evbuffer_free(struct evbuffer *buffer)
 	free(buffer);
 }
 
-/* 
+/*
  * This is a destructive add.  The data from one buffer moves into
  * the other buffer.
  */
@@ -104,16 +106,16 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		SWAP(outbuf, inbuf);
 		SWAP(inbuf, &tmp);
 
-		/* 
+		/*
 		 * Optimization comes with a price; we need to notify the
 		 * buffer if necessary of the changes. oldoff is the amount
-		 * of data that we transfered from inbuf to outbuf
+		 * of data that we transferred from inbuf to outbuf
 		 */
 		if (inbuf->off != oldoff && inbuf->cb != NULL)
 			(*inbuf->cb)(inbuf, oldoff, inbuf->off, inbuf->cbarg);
 		if (oldoff && outbuf->cb != NULL)
 			(*outbuf->cb)(outbuf, 0, oldoff, outbuf->cbarg);
-		
+
 		return (0);
 	}
 
@@ -196,7 +198,7 @@ evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen)
 
 	memcpy(data, buf->buffer, nread);
 	evbuffer_drain(buf, nread);
-	
+
 	return (nread);
 }
 
@@ -371,7 +373,7 @@ evbuffer_read(struct evbuffer *buf, int fd, int howmuch)
 		if (n < EVBUFFER_MAX_READ)
 			n = EVBUFFER_MAX_READ;
 	}
-#endif	
+#endif
 	if (howmuch < 0 || howmuch > n)
 		howmuch = n;
 

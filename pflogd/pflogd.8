@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: May 31 2007 $
+.Dd $Mdocdate: January 14 2008 $
 .Dt PFLOGD 8
 .Os
 .Sh NAME
@@ -93,6 +93,13 @@ If a new file cannot be created, logging is suspended until a
 .Dv SIGHUP
 or a
 .Dv SIGALRM
+is received.
+.Pp
+.Nm
+will also log the pcap statistics for the
+.Xr pflog 4
+interface to syslog when a
+.Dv SIGUSR1
 is received.
 .Pp
 The options are as follows:

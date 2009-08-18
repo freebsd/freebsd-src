@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pfsync.4,v 1.27 2008/06/03 19:51:02 jmc Exp $
+.\"	$OpenBSD: pfsync.4,v 1.26 2007/09/20 20:50:07 mpf Exp $
 .\"
 .\" Copyright (c) 2002 Michael Shalayeff
 .\" Copyright (c) 2003-2004 Ryan McBride
@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm pfsync
-.Nd packet filter state table logging interface
+.Nd packet filter state table sychronisation interface
 .Sh SYNOPSIS
 .Cd "pseudo-device pfsync"
 .Sh DESCRIPTION
@@ -45,18 +45,18 @@ on the
 interface.
 If configured with a physical synchronisation interface,
 .Nm
-will also send state changes out on that interface using IP multicast,
+will also send state changes out on that interface,
 and insert state changes received on that interface from other systems
 into the state table.
 .Pp
 By default, all local changes to the state table are exposed via
 .Nm .
-However, state changes from packets received by
+State changes from packets received by
 .Nm
 over the network are not rebroadcast.
-States created by a rule marked with the
+Updates to states created by a rule marked with the
 .Ar no-sync
-keyword are omitted from the
+keyword are ignored by the
 .Nm
 interface (see
 .Xr pf.conf 5
@@ -64,33 +64,19 @@ for details).
 .Pp
 The
 .Nm
-interface will attempt to collapse multiple updates of the same
-state into one message where possible.
-The maximum number of times this can be done before the update is sent out
-is controlled by the
+interface will attempt to collapse multiple state updates into a single
+packet where possible.
+The maximum number of times a single state can be updated before a
+.Nm
+packet will be sent out is controlled by the
 .Ar maxupd
 parameter to ifconfig
 (see
 .Xr ifconfig 8
 and the example below for more details).
-.Pp
-Each packet retrieved on this interface has a header associated
-with it of length
-.Dv PFSYNC_HDRLEN .
-The header indicates the version of the protocol, address family,
-action taken on the following states, and the number of state
-table entries attached in this packet.
-This structure is defined in
-.Aq Pa net/if_pfsync.h
-as:
-.Bd -literal -offset indent
-struct pfsync_header {
-	u_int8_t version;
-	u_int8_t af;
-	u_int8_t action;
-	u_int8_t count;
-};
-.Ed
+The sending out of a
+.Nm
+packet will be delayed by a maximum of one second.
 .Sh NETWORK SYNCHRONISATION
 States can be synchronised between two or more firewalls using this
 interface, by specifying a synchronisation interface using
@@ -102,14 +88,15 @@ interface:
 .Ed
 .Pp
 By default, state change messages are sent out on the synchronisation
-interface using IP multicast packets.
-The protocol is IP protocol 240, PFSYNC, and the multicast group
-used is 224.0.0.240.
-When a peer address is specified using the
+interface using IP multicast packets to the 244.0.0.240 group address.
+An alternative destination address for
+.Nm
+packets can be specified using the
 .Ic syncpeer
-keyword, the peer address is used as a destination for the pfsync traffic,
-and the traffic can then be protected using
-.Xr ipsec 4 .
+keyword.
+This can be used in combination with
+.Xr ipsec 4
+to protect the synchronisation traffic.
 In such a configuration, the syncdev should be set to the
 .Xr enc 4
 interface, as this is where the traffic arrives when it is decapsulated,
@@ -125,27 +112,15 @@ Either run the pfsync protocol on a trusted network \- ideally a network
 dedicated to pfsync messages such as a crossover cable between two firewalls,
 or specify a peer address and protect the traffic with
 .Xr ipsec 4 .
-.Pp
-There is a one-to-one correspondence between packets seen by
-.Xr bpf 4
-on the
-.Nm
-interface, and packets sent out on the synchronisation interface, i.e.\&
-a packet with 4 state deletion messages on
-.Nm
-means that the same 4 deletions were sent out on the synchronisation
-interface.
-However, the actual packet contents may differ as the messages
-sent over the network are "compressed" where possible, containing
-only the necessary information.
 .Sh EXAMPLES
 .Nm
 and
 .Xr carp 4
 can be used together to provide automatic failover of a pair of firewalls
 configured in parallel.
-One firewall handles all traffic \- if it dies or
-is shut down, the second firewall takes over automatically.
+One firewall will handle all traffic until it dies, is shut down, or is
+manually demoted, at which point the second firewall will take over
+automatically.
 .Pp
 Both firewalls in this example have three
 .Xr sis 4
@@ -203,8 +178,8 @@ pass quick on { sis2 } proto pfsync keep state (no-sync)
 pass on { sis0 sis1 } proto carp keep state (no-sync)
 .Ed
 .Pp
-If it is preferable that one firewall handle the traffic,
-the
+It is preferable that one firewall handle the forwarding of all the traffic,
+therefore the
 .Ar advskew
 on the backup firewall's
 .Xr carp 4
@@ -243,3 +218,11 @@ The
 .Nm
 device first appeared in
 .Ox 3.3 .
+.Pp
+The
+.Nm
+protocol and kernel implementation were significantly modified between
+.Ox 4.4
+and
+.Ox 4.5 .
+The two protocols are incompatible and will not interoperate.

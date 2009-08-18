@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: February 14 2008 $
+.Dd $Mdocdate: March 18 2008 $
 .Dt AUTHPF 8
 .Os
 .Sh NAME
@@ -202,6 +202,9 @@ It is also possible to configure
 to only allow specific users access.
 This is done by listing their login names, one per line, in
 .Pa /etc/authpf/authpf.allow .
+A group of users can also be indicated by prepending "%" to the group name,
+and all members of a login class can be indicated by prepending "@" to the
+login class name.
 If "*" is found on a line, then all usernames match.
 If
 .Nm
@@ -314,7 +317,8 @@ They have a
 wireless network which they would like to protect from unauthorized use.
 To accomplish this, they create the file
 .Pa /etc/authpf/authpf.allow
-which lists their login ids, one per line.
+which lists their login ids, group prepended with "%", or login class
+prepended with "@", one per line.
 At this point, even if eve could authenticate to
 .Xr sshd 8 ,
 she would not be allowed to use the gateway.

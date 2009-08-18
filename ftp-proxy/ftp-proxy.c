@@ -1,4 +1,4 @@
-/*	$OpenBSD: ftp-proxy.c,v 1.19 2008/06/13 07:25:26 claudio Exp $ */
+/*	$OpenBSD: ftp-proxy.c,v 1.18 2008/04/22 02:22:22 joel Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>

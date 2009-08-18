@@ -1,4 +1,4 @@
-/*	$OpenBSD: filter.c,v 1.8 2008/06/13 07:25:26 claudio Exp $ */
+/*	$OpenBSD: filter.c,v 1.7 2008/02/26 18:52:53 henning Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>

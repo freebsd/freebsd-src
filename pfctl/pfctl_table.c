@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_table.c,v 1.68 2008/06/21 10:34:08 mcbride Exp $ */
+/*	$OpenBSD: pfctl_table.c,v 1.67 2008/06/10 20:55:02 mcbride Exp $ */
 
 /*
  * Copyright (c) 2002 Cedric Berger

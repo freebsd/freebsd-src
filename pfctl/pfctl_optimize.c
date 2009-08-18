@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_optimize.c,v 1.18 2008/05/07 06:23:30 markus Exp $ */
+/*	$OpenBSD: pfctl_optimize.c,v 1.17 2008/05/06 03:45:21 mpf Exp $ */
 
 /*
  * Copyright (c) 2004 Mike Frantzen <frantzen@openbsd.org>

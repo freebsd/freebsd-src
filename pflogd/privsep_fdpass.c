@@ -1,4 +1,4 @@
-/*	$OpenBSD: privsep_fdpass.c,v 1.5 2008/03/24 16:11:08 deraadt Exp $	*/
+/*	$OpenBSD: privsep_fdpass.c,v 1.4 2008/03/15 16:19:02 deraadt Exp $	*/
 
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>

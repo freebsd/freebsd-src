@@ -1,3 +1,5 @@
+/*	$OpenBSD: evsignal.h,v 1.2 2004/04/28 06:53:12 brad Exp $	*/
+
 /*
  * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.

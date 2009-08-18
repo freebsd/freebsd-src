@@ -1,3 +1,5 @@
+/*	$OpenBSD: event-internal.h,v 1.4 2007/03/19 15:12:49 millert Exp $	*/
+
 /*
  * Copyright (c) 2000-2004 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.

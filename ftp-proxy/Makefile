@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.3 2006/11/26 11:31:13 deraadt Exp $
+#	$OpenBSD: Makefile,v 1.2 2005/06/07 14:12:07 camield Exp $
 
 PROG=	ftp-proxy
 SRCS=	ftp-proxy.c filter.c

@@ -1,4 +1,4 @@
-/*	$OpenBSD: filter.c,v 1.2 2007/06/23 15:51:21 jcs Exp $ */
+/*	$OpenBSD: filter.c,v 1.1 2005/12/28 19:07:07 jcs Exp $ */
 
 /*
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>

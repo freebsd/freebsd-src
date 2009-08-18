@@ -1,4 +1,4 @@
-/*	$OpenBSD: authpf.c,v 1.107 2008/02/14 01:49:17 mcbride Exp $	*/
+/*	$OpenBSD: authpf.c,v 1.111 2009/01/10 17:17:32 todd Exp $	*/
 
 /*
  * Copyright (C) 1998 - 2007 Bob Beck (beck@openbsd.org).
@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <login_cap.h>
 #include <pwd.h>
+#include <grp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,7 +44,7 @@
 
 static int	read_config(FILE *);
 static void	print_message(char *);
-static int	allowed_luser(char *);
+static int	allowed_luser(struct passwd *);
 static int	check_luser(char *, char *);
 static int	remove_stale_rulesets(void);
 static int	recursive_ruleset_purge(char *, char *);
@@ -58,6 +59,7 @@ char	tablename[PF_TABLE_NAME_SIZE] = "authpf_users";
 int	user_ip = 1;	/* controls whether $user_ip is set */
 
 FILE	*pidfp;
+int	pidfd = -1;
 char	 luser[MAXLOGNAME];	/* username */
 char	 ipsrc[256];		/* ip as a string */
 char	 pidfile[MAXPATHLEN];	/* we save pid in this file. */
@@ -78,7 +80,7 @@ extern char *__progname;	/* program name */
 int
 main(int argc, char *argv[])
 {
-	int		 lockcnt = 0, n, pidfd;
+	int		 lockcnt = 0, n;
 	FILE		*config;
 	struct in6_addr	 ina;
 	struct passwd	*pw;
@@ -93,7 +95,7 @@ main(int argc, char *argv[])
 
 	config = fopen(PATH_CONFFILE, "r");
 	if (config == NULL) {
-		syslog(LOG_ERR, "can not open %s (%m)", PATH_CONFFILE);
+		syslog(LOG_ERR, "cannot open %s (%m)", PATH_CONFFILE);
 		exit(1);
 	}
 
@@ -186,6 +188,14 @@ main(int argc, char *argv[])
 		goto die;
 	}
 
+	signal(SIGTERM, need_death);
+	signal(SIGINT, need_death);
+	signal(SIGALRM, need_death);
+	signal(SIGPIPE, need_death);
+	signal(SIGHUP, need_death);
+	signal(SIGQUIT, need_death);
+	signal(SIGTSTP, need_death);
+
 	/*
 	 * If someone else is already using this ip, then this person
 	 * wants to switch users - so kill the old process and exit
@@ -239,15 +249,17 @@ main(int argc, char *argv[])
 		}
 
 		/*
-		 * we try to kill the previous process and acquire the lock
+		 * We try to kill the previous process and acquire the lock
 		 * for 10 seconds, trying once a second. if we can't after
-		 * 10 attempts we log an error and give up
+		 * 10 attempts we log an error and give up.
 		 */
-		if (++lockcnt > 10) {
-			syslog(LOG_ERR, "cannot kill previous authpf (pid %d)",
-			    otherpid);
+		if (want_death || ++lockcnt > 10) {
+			if (!want_death)
+				syslog(LOG_ERR, "cannot kill previous authpf (pid %d)",
+				    otherpid);
 			fclose(pidfp);
 			pidfp = NULL;
+			pidfd = -1;
 			goto dogdeath;
 		}
 		sleep(1);
@@ -258,6 +270,7 @@ main(int argc, char *argv[])
 		 */
 		fclose(pidfp);
 		pidfp = NULL;
+		pidfd = -1;
 	} while (1);
 	
 	/* whack the group list */
@@ -275,7 +288,7 @@ main(int argc, char *argv[])
 	}
 	openlog("authpf", LOG_PID | LOG_NDELAY, LOG_DAEMON);
 
-	if (!check_luser(PATH_BAN_DIR, luser) || !allowed_luser(luser)) {
+	if (!check_luser(PATH_BAN_DIR, luser) || !allowed_luser(pw)) {
 		syslog(LOG_INFO, "user %s prohibited", luser);
 		do_death(0);
 	}
@@ -306,13 +319,6 @@ main(int argc, char *argv[])
 		do_death(0);
 	}
 
-	signal(SIGTERM, need_death);
-	signal(SIGINT, need_death);
-	signal(SIGALRM, need_death);
-	signal(SIGPIPE, need_death);
-	signal(SIGHUP, need_death);
-	signal(SIGQUIT, need_death);
-	signal(SIGTSTP, need_death);
 	while (1) {
 		printf("\r\nHello %s. ", luser);
 		printf("You are authenticated from host \"%s\"\r\n", ipsrc);
@@ -434,6 +440,7 @@ print_message(char *filename)
  * allowed_luser checks to see if user "luser" is allowed to
  * use this gateway by virtue of being listed in an allowed
  * users file, namely /etc/authpf/authpf.allow .
+ * Users may be listed by <username>, %<group>, or @<login_class>.
  *
  * If /etc/authpf/authpf.allow does not exist, then we assume that
  * all users who are allowed in by sshd(8) are permitted to
@@ -442,7 +449,7 @@ print_message(char *filename)
  * the session terminates in the same manner as being banned.
  */
 static int
-allowed_luser(char *luser)
+allowed_luser(struct passwd *pw)
 {
 	char	*buf, *lbuf;
 	int	 matched;
@@ -474,8 +481,14 @@ allowed_luser(char *luser)
 		 * "public" gateway, such as it is, so let
 		 * everyone use it.
 		 */
+		int gl_init = 0, ngroups = NGROUPS + 1;
+		gid_t groups[NGROUPS + 1];
+
 		lbuf = NULL;
+		matched = 0;
+
 		while ((buf = fgetln(f, &len))) {
+			
 			if (buf[len - 1] == '\n')
 				buf[len - 1] = '\0';
 			else {
@@ -486,7 +499,40 @@ allowed_luser(char *luser)
 				buf = lbuf;
 			}
 
-			matched = strcmp(luser, buf) == 0 || strcmp("*", buf) == 0;
+			if (buf[0] == '@') {
+				/* check login class */
+				if (strcmp(pw->pw_class, buf + 1) == 0)
+					matched++;
+			} else if (buf[0] == '%') {
+				/* check group membership */
+				int cnt; 
+				struct group *group;
+
+				if ((group = getgrnam(buf + 1)) == NULL) {
+					syslog(LOG_ERR,
+					    "invalid group '%s' in %s (%s)",
+					    buf + 1, PATH_ALLOWFILE,
+				 	    strerror(errno));
+					return (0);
+				}
+
+				if (!gl_init) {
+					(void) getgrouplist(pw->pw_name,
+					    pw->pw_gid, groups, &ngroups);
+					gl_init++;
+				}
+			
+				for ( cnt = 0; cnt < ngroups; cnt++) {
+					if (group->gr_gid == groups[cnt]) {
+						matched++;
+						break;
+					}
+				}
+			} else {
+				/* check username and wildcard */
+				matched = strcmp(pw->pw_name, buf) == 0 ||
+				    strcmp("*", buf) == 0;
+			}
 
 			if (lbuf != NULL) {
 				free(lbuf);
@@ -494,10 +540,10 @@ allowed_luser(char *luser)
 			}
 
 			if (matched)
-				return (1); /* matched an allowed username */
+				return (1); /* matched an allowed user/group */
 		}
 		syslog(LOG_INFO, "denied access to %s: not listed in %s",
-		    luser, PATH_ALLOWFILE);
+		    pw->pw_name, PATH_ALLOWFILE);
 
 		/* reuse buf */
 		buf = "\n\nSorry, you are not allowed to use this facility!\n";
@@ -878,7 +924,7 @@ do_death(int active)
 			authpf_kill_states();
 		}
 	}
-	if (pidfile[0] && (pidfp != NULL))
+	if (pidfile[0] && pidfd != -1)
 		if (unlink(pidfile) == -1)
 			syslog(LOG_ERR, "cannot unlink %s (%m)", pidfile);
 	exit(ret);

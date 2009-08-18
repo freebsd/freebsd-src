@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl.h,v 1.43 2008/05/29 01:00:53 mcbride Exp $ */
+/*	$OpenBSD: pfctl.h,v 1.42 2007/12/05 12:01:47 chl Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier

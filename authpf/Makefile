@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.13 2008/02/14 01:49:17 mcbride Exp $
+#	$OpenBSD: Makefile,v 1.12 2004/04/25 19:24:52 deraadt Exp $
 
 PROG=	authpf
 MAN=	authpf.8

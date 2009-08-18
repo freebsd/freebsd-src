@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.7 2006/11/26 11:31:08 deraadt Exp $
+#	$OpenBSD: Makefile,v 1.6 2003/11/20 23:23:09 avsm Exp $
 
 CFLAGS+=-Wall -Wmissing-prototypes -Wshadow
 LDADD+= -lpcap -lutil

@@ -1,4 +1,4 @@
-/*	$OpenBSD: select.c,v 1.2 2002/06/25 15:50:15 mickey Exp $	*/
+/*	$OpenBSD: signal.c,v 1.11 2007/03/19 15:12:49 millert Exp $	*/
 
 /*
  * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
@@ -85,7 +85,7 @@ evsignal_cb(int fd, short what, void *arg)
 void
 evsignal_init(struct event_base *base)
 {
-	/* 
+	/*
 	 * Our signal handler is going to write to one end of the socket
 	 * pair to wake up our event loop.  The event loop then scans for
 	 * signals that got delivered.

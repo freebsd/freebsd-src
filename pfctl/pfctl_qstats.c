@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_qstats.c,v 1.31 2007/10/15 02:16:35 deraadt Exp $ */
+/*	$OpenBSD: pfctl_qstats.c,v 1.30 2004/04/27 21:47:32 kjc Exp $ */
 
 /*
  * Copyright (c) Henning Brauer <henning@openbsd.org>

@@ -1,4 +1,4 @@
-/* $OpenBSD: tftp-proxy.c,v 1.6 2008/04/13 00:22:17 djm Exp $
+/* $OpenBSD: tftp-proxy.c,v 1.5 2008/03/24 16:11:00 deraadt Exp $
  *
  * Copyright (c) 2005 DLS Internet Services
  * Copyright (c) 2004, 2005 Camiel Dobbelaar, <cd@sentia.nl>

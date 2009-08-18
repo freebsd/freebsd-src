@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_altq.c,v 1.94 2008/07/25 17:43:44 martynas Exp $	*/
+/*	$OpenBSD: pfctl_altq.c,v 1.93 2007/10/15 02:16:35 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2002

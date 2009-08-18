@@ -1,4 +1,4 @@
-/*	$OpenBSD: kqueue.c,v 1.5 2002/07/10 14:41:31 art Exp $	*/
+/*	$OpenBSD: kqueue.c,v 1.23 2007/09/02 15:19:18 deraadt Exp $	*/
 
 /*
  * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
@@ -97,14 +97,14 @@ kq_init(struct event_base *base)
 	struct kqop *kqueueop;
 
 	/* Disable kqueue when this environment variable is set */
-	if (getenv("EVENT_NOKQUEUE"))
+	if (!issetugid() && getenv("EVENT_NOKQUEUE"))
 		return (NULL);
 
 	if (!(kqueueop = calloc(1, sizeof(struct kqop))))
 		return (NULL);
 
 	/* Initalize the kernel queue */
-	
+
 	if ((kq = kqueue()) == -1) {
 		event_warn("kqueue");
 		free (kqueueop);
@@ -114,12 +114,12 @@ kq_init(struct event_base *base)
 	kqueueop->kq = kq;
 
 	/* Initalize fields */
-	kqueueop->changes = malloc(NEVENT * sizeof(struct kevent));
+	kqueueop->changes = calloc(NEVENT, sizeof(struct kevent));
 	if (kqueueop->changes == NULL) {
 		free (kqueueop);
 		return (NULL);
 	}
-	kqueueop->events = malloc(NEVENT * sizeof(struct kevent));
+	kqueueop->events = calloc(NEVENT, sizeof(struct kevent));
 	if (kqueueop->events == NULL) {
 		free (kqueueop->changes);
 		free (kqueueop);
@@ -131,7 +131,7 @@ kq_init(struct event_base *base)
 	kqueueop->changes[0].ident = -1;
 	kqueueop->changes[0].filter = EVFILT_READ;
 	kqueueop->changes[0].flags = EV_ADD;
-	/* 
+	/*
 	 * If kqueue works, then kevent will succeed, and it will
 	 * stick an error in events[0].  If kqueue is broken, then
 	 * kevent will fail.
@@ -195,7 +195,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 	memcpy(&kqop->changes[kqop->nchanges++], kev, sizeof(struct kevent));
 
 	event_debug(("%s: fd %d %s%s",
-		 __func__, kev->ident, 
+		 __func__, kev->ident,
 		 kev->filter == EVFILT_READ ? "EVFILT_READ" : "EVFILT_WRITE",
 		 kev->flags == EV_DELETE ? " (del)" : ""));
 
@@ -241,7 +241,7 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		int which = 0;
 
 		if (events[i].flags & EV_ERROR) {
-			/* 
+			/*
 			 * Error messages that can happen, when a delete fails.
 			 *   EBADF happens when the file discriptor has been
 			 *   closed,
@@ -301,7 +301,7 @@ kq_add(void *arg, struct event *ev)
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
 		kev.udata = PTR_TO_UDATA(ev);
-		
+
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
@@ -324,7 +324,7 @@ kq_add(void *arg, struct event *ev)
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
 		kev.udata = PTR_TO_UDATA(ev);
-		
+
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
@@ -339,7 +339,7 @@ kq_add(void *arg, struct event *ev)
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
 		kev.udata = PTR_TO_UDATA(ev);
-		
+
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
@@ -365,7 +365,7 @@ kq_del(void *arg, struct event *ev)
 		kev.ident = nsignal;
 		kev.filter = EVFILT_SIGNAL;
 		kev.flags = EV_DELETE;
-		
+
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
@@ -381,7 +381,7 @@ kq_del(void *arg, struct event *ev)
 		kev.ident = ev->ev_fd;
 		kev.filter = EVFILT_READ;
 		kev.flags = EV_DELETE;
-		
+
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
@@ -393,7 +393,7 @@ kq_del(void *arg, struct event *ev)
 		kev.ident = ev->ev_fd;
 		kev.filter = EVFILT_WRITE;
 		kev.flags = EV_DELETE;
-		
+
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 

@@ -1,4 +1,4 @@
-/*	$OpenBSD: pflogd.h,v 1.3 2006/01/15 16:38:04 canacar Exp $ */
+/*	$OpenBSD: pflogd.h,v 1.2 2004/01/15 20:15:14 canacar Exp $ */
 
 /*
  * Copyright (c) 2003 Can Erkin Acar
