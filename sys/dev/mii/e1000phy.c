@@ -240,13 +240,11 @@ e1000phy_reset(struct mii_softc *sc)
 
 		if (esc->mii_model == MII_MODEL_MARVELL_E1116 ||
 		    esc->mii_model == MII_MODEL_MARVELL_E1149) {
-			page = PHY_READ(sc, E1000_EADR);
-			/* Select page 2, MAC specific control register. */
 			PHY_WRITE(sc, E1000_EADR, 2);
 			reg = PHY_READ(sc, E1000_SCR);
 			reg |= E1000_SCR_RGMII_POWER_UP;
 			PHY_WRITE(sc, E1000_SCR, reg);
-			PHY_WRITE(sc, E1000_EADR, page);
+			PHY_WRITE(sc, E1000_EADR, 0);
 		}
 	}
 
