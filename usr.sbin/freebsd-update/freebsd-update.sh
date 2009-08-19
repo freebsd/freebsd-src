@@ -88,7 +88,7 @@ EOF
 CONFIGOPTIONS="KEYPRINT WORKDIR SERVERNAME MAILTO ALLOWADD ALLOWDELETE
     KEEPMODIFIEDMETADATA COMPONENTS IGNOREPATHS UPDATEIFUNMODIFIED
     BASEDIR VERBOSELEVEL TARGETRELEASE STRICTCOMPONENTS MERGECHANGES
-    IDSIGNOREPATHS"
+    IDSIGNOREPATHS BACKUPKERNEL BACKUPKERNELDIR BACKUPKERNELSYMBOLFILES"
 
 # Set all the configuration options to "".
 nullconfig () {
@@ -308,6 +308,70 @@ config_VerboseLevel () {
 	fi
 }
 
+config_BackupKernel () {
+	if [ -z ${BACKUPKERNEL} ]; then
+		case $1 in
+		[Yy][Ee][Ss])
+			BACKUPKERNEL=yes
+			;;
+		[Nn][Oo])
+			BACKUPKERNEL=no
+			;;
+		*)
+			return 1
+			;;
+		esac
+	else
+		return 1
+	fi
+}
+
+config_BackupKernelDir () {
+	if [ -z ${BACKUPKERNELDIR} ]; then
+		if [ -z "$1" ]; then
+			echo "BackupKernelDir set to empty dir"
+			return 1
+		fi
+
+		# We check for some paths which would be extremely odd
+		# to use, but which could cause a lot of problems if
+		# used.
+		case $1 in
+		/|/bin|/boot|/etc|/lib|/libexec|/sbin|/usr|/var)
+			echo "BackupKernelDir set to invalid path $1"
+			return 1
+			;;
+		/*)
+			BACKUPKERNELDIR=$1
+			;;
+		*)
+			echo "BackupKernelDir ($1) is not an absolute path"
+			return 1
+			;;
+		esac
+	else
+		return 1
+	fi
+}
+
+config_BackupKernelSymbolFiles () {
+	if [ -z ${BACKUPKERNELSYMBOLFILES} ]; then
+		case $1 in
+		[Yy][Ee][Ss])
+			BACKUPKERNELSYMBOLFILES=yes
+			;;
+		[Nn][Oo])
+			BACKUPKERNELSYMBOLFILES=no
+			;;
+		*)
+			return 1
+			;;
+		esac
+	else
+		return 1
+	fi
+}
+
 # Handle one line of configuration
 configline () {
 	if [ $# -eq 0 ]; then
@@ -461,6 +525,9 @@ default_params () {
 	config_BaseDir /
 	config_VerboseLevel stats
 	config_StrictComponents no
+	config_BackupKernel yes
+	config_BackupKernelDir /boot/kernel.old
+	config_BackupKernelSymbolFiles no
 
 	# Merge these defaults into the earlier-configured settings
 	mergeconfig
@@ -663,6 +730,14 @@ install_check_params () {
 	    ! [ -f ${BDHASH}-install/INDEX-NEW ]; then
 		echo "Update manifest is corrupt -- this should never happen."
 		echo "Re-run '$0 fetch'."
+		exit 1
+	fi
+
+	# Figure out what directory contains the running kernel
+	BOOTFILE=`sysctl -n kern.bootfile`
+	KERNELDIR=${BOOTFILE%/kernel}
+	if ! [ -d ${KERNELDIR} ]; then
+		echo "Cannot identify running kernel"
 		exit 1
 	fi
 }
@@ -2494,6 +2569,88 @@ install_unschg () {
 	rm filelist
 }
 
+# Decide which directory name to use for kernel backups.
+backup_kernel_finddir () {
+	CNT=0
+	while true ; do
+		# Pathname does not exist, so it is OK use that name
+		# for backup directory.
+		if [ ! -e $BACKUPKERNELDIR ]; then
+			return 0
+		fi
+
+		# If directory do exist, we only use if it has our
+		# marker file.
+		if [ -d $BACKUPKERNELDIR -a \
+			-e $BACKUPKERNELDIR/.freebsd-update ]; then
+			return 0
+		fi
+
+		# We could not use current directory name, so add counter to
+		# the end and try again.
+		CNT=$((CNT + 1))
+		if [ $CNT -gt 9 ]; then
+			echo "Could not find valid backup dir ($BACKUPKERNELDIR)"
+			exit 1
+		fi
+		BACKUPKERNELDIR="`echo $BACKUPKERNELDIR | sed -Ee 's/[0-9]\$//'`"
+		BACKUPKERNELDIR="${BACKUPKERNELDIR}${CNT}"
+	done
+}
+
+# Backup the current kernel using hardlinks, if not disabled by user.
+# Since we delete all files in the directory used for previous backups
+# we create a marker file called ".freebsd-update" in the directory so
+# we can determine on the next run that the directory was created by
+# freebsd-update and we then do not accidentally remove user files in
+# the unlikely case that the user has created a directory with a
+# conflicting name.
+backup_kernel () {
+	# Only make kernel backup is so configured.
+	if [ $BACKUPKERNEL != yes ]; then
+		return 0
+	fi
+
+	# Decide which directory name to use for kernel backups.
+	backup_kernel_finddir
+
+	# Remove old kernel backup files.  If $BACKUPKERNELDIR was
+	# "not ours", backup_kernel_finddir would have exited, so
+	# deleting the directory content is as safe as we can make it.
+	if [ -d $BACKUPKERNELDIR ]; then
+		rm -f $BACKUPKERNELDIR/*
+	fi
+
+	# Create directory for backup if it doesn't exist.
+	mkdir -p $BACKUPKERNELDIR
+
+	# Mark the directory as having been created by freebsd-update.
+	touch $BACKUPKERNELDIR/.freebsd-update
+	if [ $? -ne 0 ]; then
+		echo "Could not create kernel backup directory"
+		exit 1
+	fi
+
+	# Disable pathname expansion to be sure *.symbols is not
+	# expanded.
+	set -f
+
+	# Use find to ignore symbol files, unless disabled by user.
+	if [ $BACKUPKERNELSYMBOLFILES = yes ]; then
+		FINDFILTER=""
+	else
+		FINDFILTER=-"a ! -name *.symbols"
+	fi
+
+	# Backup all the kernel files using hardlinks.
+	find $KERNELDIR -type f $FINDFILTER | \
+		sed -Ee "s,($KERNELDIR)/?(.*),\1/\2 ${BACKUPKERNELDIR}/\2," | \
+		xargs -n 2 cp -pl
+
+	# Re-enable patchname expansion.
+	set +f
+}
+
 # Install new files
 install_from_index () {
 	# First pass: Do everything apart from setting file flags.  We
@@ -2574,6 +2731,9 @@ install_files () {
 	if ! [ -f $1/kerneldone ]; then
 		grep -E '^/boot/' $1/INDEX-OLD > INDEX-OLD
 		grep -E '^/boot/' $1/INDEX-NEW > INDEX-NEW
+
+		# Backup current kernel before installing a new one
+		backup_kernel || return 1
 
 		# Install new files
 		install_from_index INDEX-NEW || return 1
