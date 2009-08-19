@@ -199,6 +199,7 @@ static uint32_t		flowclean_cycles;
  * - idetach() cleanup for options VIMAGE builds.
  */
 VNET_DEFINE(int, flowtable_enable) = 1;
+static VNET_DEFINE(int, flowtable_debug);
 static VNET_DEFINE(int, flowtable_hits);
 static VNET_DEFINE(int, flowtable_lookups);
 static VNET_DEFINE(int, flowtable_misses);
@@ -214,6 +215,7 @@ static VNET_DEFINE(int, flowtable_nmbflows) = 4096;
 static VNET_DEFINE(int, flowtable_ready) = 0;
 
 #define	V_flowtable_enable		VNET(flowtable_enable)
+#define	V_flowtable_debug		VNET(flowtable_debug)
 #define	V_flowtable_hits		VNET(flowtable_hits)
 #define	V_flowtable_lookups		VNET(flowtable_lookups)
 #define	V_flowtable_misses		VNET(flowtable_misses)
@@ -229,6 +231,8 @@ static VNET_DEFINE(int, flowtable_ready) = 0;
 #define	V_flowtable_ready		VNET(flowtable_ready)
 
 SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL, "flowtable");
+SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, debug, CTLFLAG_RW,
+    &VNET_NAME(flowtable_debug), 0, "print debug info.");
 SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, enable, CTLFLAG_RW,
     &VNET_NAME(flowtable_enable), 0, "enable flowtable caching.");
 SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, hits, CTLFLAG_RD,
@@ -902,7 +906,7 @@ flowtable_free_stale(struct flowtable *ft)
 		V_flowtable_frees++;
 		fle_free(fle);
 	}
-	if (bootverbose && count)
+	if (V_flowtable_debug && count)
 		log(LOG_DEBUG, "freed %d flow entries\n", count);
 }
 
@@ -954,7 +958,7 @@ flowtable_cleaner(void)
 
 		flowclean_cycles++;
 		/*
-		 * The 20 second interval between cleaning checks
+		 * The 10 second interval between cleaning checks
 		 * is arbitrary
 		 */
 		mtx_lock(&flowclean_lock);
