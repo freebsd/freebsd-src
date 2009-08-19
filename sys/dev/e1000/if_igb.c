@@ -952,7 +952,8 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				igb_init_locked(adapter);
 				IGB_CORE_UNLOCK(adapter);
 			}
-			arp_ifinit(ifp, ifa);
+			if (!(ifp->if_flags & IFF_NOARP))
+				arp_ifinit(ifp, ifa);
 		} else
 #endif
 			error = ether_ioctl(ifp, command, data);
