@@ -4667,8 +4667,10 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 			stcb->asoc.peers_rwnd += tp1->send_size;
 			stcb->asoc.peers_rwnd += SCTP_BASE_SYSCTL(sctp_peer_chunk_oh);
 			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, so_locked);
-			sctp_m_freem(tp1->data);
-			tp1->data = NULL;
+			if (tp1->data) {
+				sctp_m_freem(tp1->data);
+				tp1->data = NULL;
+			}
 			do_wakeup_routine = 1;
 			if (PR_SCTP_BUF_ENABLED(tp1->flags)) {
 				stcb->asoc.sent_queue_cnt_removeable--;
@@ -4715,12 +4717,14 @@ next_on_sent:
 			 */
 			chk = tp1;
 			ret_sz += tp1->book_size;
-			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, so_locked);
 			sctp_free_bufspace(stcb, &stcb->asoc, tp1, 1);
-			sctp_m_freem(tp1->data);
+			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, so_locked);
+			if (tp1->data) {
+				sctp_m_freem(tp1->data);
+				tp1->data = NULL;
+			}
 			/* No flight involved here book the size to 0 */
 			tp1->book_size = 0;
-			tp1->data = NULL;
 			if (tp1->rec.data.rcv_flags & SCTP_DATA_LAST_FRAG) {
 				foundeom = 1;
 			}
