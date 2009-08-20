@@ -117,7 +117,7 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 		goto bad;
 	}
 
-	fsp->fsid = (long)mount.mnt_stat.f_fsid.val[0];
+	fsp->fsid = (long)(uint32_t)mount.mnt_stat.f_fsid.val[0];
 	fsp->fileid = *zid;
 	/*
 	 * XXX: Shows up wrong in output, but UFS has this error too. Could
