@@ -70,7 +70,7 @@
 .Ft struct sglist *
 .Fn sglist_clone "struct sglist *sg" "int mflags"
 .Ft int
-.Fn sglist_consume_uio "struct sglist *sg" "struct uio *uio" "int resid"
+.Fn sglist_consume_uio "struct sglist *sg" "struct uio *uio" "size_t resid"
 .Ft int
 .Fn sglist_count "void *buf" "size_t len"
 .Ft void
