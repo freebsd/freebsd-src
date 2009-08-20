@@ -745,7 +745,7 @@ ukbd_attach(device_t dev)
 	uint16_t n;
 	uint16_t hid_len;
 
-	mtx_lock(&Giant);
+	mtx_assert(&Giant, MA_OWNED);
 
 	kbd_init_struct(kbd, UKBD_DRIVER_NAME, KB_OTHER, unit, 0, 0, 0);
 
@@ -854,6 +854,9 @@ ukbd_attach(device_t dev)
 	if (bootverbose) {
 		genkbd_diag(kbd, bootverbose);
 	}
+	/* lock keyboard mutex */
+
+	mtx_lock(&Giant);
 
 	/* start the keyboard */
 
@@ -876,7 +879,7 @@ ukbd_detach(device_t dev)
 	struct ukbd_softc *sc = device_get_softc(dev);
 	int error;
 
-	mtx_lock(&Giant);
+	mtx_assert(&Giant, MA_OWNED);
 
 	DPRINTF("\n");
 
@@ -913,8 +916,6 @@ ukbd_detach(device_t dev)
 
 	usb_callout_drain(&sc->sc_callout);
 
-	mtx_unlock(&Giant);
-
 	DPRINTF("%s: disconnected\n",
 	    device_get_nameunit(dev));
 
@@ -926,9 +927,9 @@ ukbd_resume(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
 
-	mtx_lock(&Giant);
+	mtx_assert(&Giant, MA_OWNED);
+
 	ukbd_clear_state(&sc->sc_kbd);
-	mtx_unlock(&Giant);
 
 	return (0);
 }

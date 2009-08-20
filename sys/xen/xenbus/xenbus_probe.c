@@ -348,9 +348,7 @@ xenbus_devices_changed(struct xenbus_watch *watch,
 	if (p)
 		*p = 0;
 
-	newbus_xlock();
 	xenbus_add_device(dev, bus, type, id);
-	newbus_xunlock();
 	taskqueue_enqueue(taskqueue_thread, &sc->xs_probechildren);
 out:
 	free(node, M_DEVBUF);
@@ -363,9 +361,7 @@ xenbus_attach_deferred(void *arg)
 	struct xenbus_softc *sc = device_get_softc(dev);
 	int error;
 	
-	newbus_xlock();
 	error = xenbus_enumerate_bus(dev, "device");
-	newbus_xunlock();
 	if (error)
 		return;
 	xenbus_probe_children(dev);
