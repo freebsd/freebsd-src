@@ -143,7 +143,9 @@ usb_attach(device_t dev)
 	}
 
 	if (usb_post_init_called) {
+		mtx_lock(&Giant);
 		usb_attach_sub(dev, bus);
+		mtx_unlock(&Giant);
 		usb_needs_explore(bus, 1);
 	}
 	return (0);			/* return success */
@@ -226,13 +228,20 @@ usb_bus_explore(struct usb_proc_msg *pm)
 		}
 		USB_BUS_UNLOCK(bus);
 
+		mtx_lock(&Giant);
+
 		/*
 		 * First update the USB power state!
 		 */
 		usb_bus_powerd(bus);
-
-		 /* Explore the Root USB HUB. */
+		/*
+		 * Explore the Root USB HUB. This call can sleep,
+		 * exiting Giant, which is actually Giant.
+		 */
 		(udev->hub->explore) (udev);
+
+		mtx_unlock(&Giant);
+
 		USB_BUS_LOCK(bus);
 	}
 	if (bus->bus_roothold != NULL) {
@@ -260,7 +269,7 @@ usb_bus_detach(struct usb_proc_msg *pm)
 	device_set_softc(dev, NULL);
 	USB_BUS_UNLOCK(bus);
 
-	newbus_xlock();
+	mtx_lock(&Giant);
 
 	/* detach children first */
 	bus_generic_detach(dev);
@@ -272,7 +281,7 @@ usb_bus_detach(struct usb_proc_msg *pm)
 	usb_free_device(udev,
 	    USB_UNCFG_FLAG_FREE_EP0);
 
-	newbus_xunlock();
+	mtx_unlock(&Giant);
 	USB_BUS_LOCK(bus);
 	/* clear bdev variable last */
 	bus->bdev = NULL;
@@ -341,7 +350,7 @@ usb_bus_attach(struct usb_proc_msg *pm)
 	}
 
 	USB_BUS_UNLOCK(bus);
-	newbus_xlock();
+	mtx_lock(&Giant);		/* XXX not required by USB */
 
 	/* default power_mask value */
 	bus->hw_power_state =
@@ -374,7 +383,7 @@ usb_bus_attach(struct usb_proc_msg *pm)
 		err = USB_ERR_NOMEM;
 	}
 
-	newbus_xunlock();
+	mtx_unlock(&Giant);
 	USB_BUS_LOCK(bus);
 
 	if (err) {
@@ -463,7 +472,7 @@ usb_post_init(void *arg)
 	int max;
 	int n;
 
-	newbus_xlock();
+	mtx_lock(&Giant);
 
 	usb_devclass_ptr = devclass_find("usbus");
 
@@ -474,8 +483,11 @@ usb_post_init(void *arg)
 			dev = devclass_get_device(dc, n);
 			if (dev && device_is_attached(dev)) {
 				bus = device_get_ivars(dev);
-				if (bus)
+				if (bus) {
+					mtx_lock(&Giant);
 					usb_attach_sub(dev, bus);
+					mtx_unlock(&Giant);
+				}
 			}
 		}
 	} else {
@@ -487,7 +499,7 @@ usb_post_init(void *arg)
 
 	usb_needs_explore_all();
 
-	newbus_xunlock();
+	mtx_unlock(&Giant);
 }
 
 SYSINIT(usb_post_init, SI_SUB_KICK_SCHEDULER, SI_ORDER_ANY, usb_post_init, NULL);

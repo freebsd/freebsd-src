@@ -1156,7 +1156,7 @@ vbd_add_dev(struct xenbus_device *xdev)
 	devclass_t dc;
 	int err = 0;
 
-	newbus_xlock();
+	mtx_lock(&Giant);
 
 	/* We will add a vbd device as a child of nexus0 (for now) */
 	if (!(dc = devclass_find("nexus")) ||
@@ -1183,7 +1183,7 @@ vbd_add_dev(struct xenbus_device *xdev)
 
  done:
 
-	newbus_xunlock();
+	mtx_unlock(&Giant);
 
 	return err;
 }
