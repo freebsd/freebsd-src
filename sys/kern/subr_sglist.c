@@ -315,7 +315,7 @@ sglist_append_uio(struct sglist *sg, struct uio *uio)
  * segments, then only the amount that fits is appended.
  */
 int
-sglist_consume_uio(struct sglist *sg, struct uio *uio, int resid)
+sglist_consume_uio(struct sglist *sg, struct uio *uio, size_t resid)
 {
 	struct iovec *iov;
 	size_t done;
