@@ -329,7 +329,6 @@ acpi_battery_find_dev(u_int logical_unit)
 
     dev = NULL;
     found_unit = 0;
-    newbus_slock();
     batt_dc = devclass_find("battery");
     maxunit = devclass_get_maxunit(batt_dc);
     for (i = 0; i < maxunit; i++) {
@@ -341,7 +340,6 @@ acpi_battery_find_dev(u_int logical_unit)
 	found_unit++;
 	dev = NULL;
     }
-    newbus_sunlock();
 
     return (dev);
 }
@@ -371,17 +369,13 @@ acpi_battery_ioctl(u_long cmd, caddr_t addr, void *arg)
      */
     switch (cmd) {
     case ACPIIO_BATT_GET_UNITS:
-	newbus_slock();
 	*(int *)addr = acpi_battery_get_units();
-	newbus_sunlock();
 	error = 0;
 	break;
     case ACPIIO_BATT_GET_BATTINFO:
 	if (dev != NULL || unit == ACPI_BATTERY_ALL_UNITS) {
 	    bzero(&ioctl_arg->battinfo, sizeof(ioctl_arg->battinfo));
-	    newbus_slock();
 	    error = acpi_battery_get_battinfo(dev, &ioctl_arg->battinfo);
-	    newbus_sunlock();
 	}
 	break;
     case ACPIIO_BATT_GET_BIF:
@@ -422,11 +416,6 @@ acpi_battery_sysctl(SYSCTL_HANDLER_ARGS)
 {
     int val, error;
 
-    /*
-     * Tolerate a race here because newbus lock can't be acquired before
-     * acpi_battery_get_battinfo() as it can create a LOR with the sysctl
-     * lock.
-     */
     acpi_battery_get_battinfo(NULL, &acpi_battery_battinfo);
     val = *(u_int *)oidp->oid_arg1;
     error = sysctl_handle_int(oidp, &val, 0, req);
@@ -438,10 +427,6 @@ acpi_battery_units_sysctl(SYSCTL_HANDLER_ARGS)
 {
     int count, error;
 
-    /*
-     * Tolerate a race here in order to avoid a LOR between sysctl lock
-     * and newbus lock.
-     */
     count = acpi_battery_get_units();
     error = sysctl_handle_int(oidp, &count, 0, req);
     return (error);

@@ -152,7 +152,7 @@ usb_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 	 * attach:
 	 */
 	USB_XFER_UNLOCK(xfer);
-	newbus_xlock();
+	mtx_lock(&Giant);		/* XXX */
 	sx_xlock(udev->default_sx + 1);
 
 	if (conf_no == USB_UNCONFIG_NO) {
@@ -176,8 +176,8 @@ usb_handle_set_config(struct usb_xfer *xfer, uint8_t conf_no)
 		goto done;
 	}
 done:
+	mtx_unlock(&Giant);		/* XXX */
 	sx_unlock(udev->default_sx + 1);
-	newbus_xunlock();
 	USB_XFER_LOCK(xfer);
 	return (err);
 }
@@ -236,7 +236,7 @@ usb_handle_iface_request(struct usb_xfer *xfer,
 	 * attach:
 	 */
 	USB_XFER_UNLOCK(xfer);
-	newbus_xlock();
+	mtx_lock(&Giant);		/* XXX */
 	sx_xlock(udev->default_sx + 1);
 
 	error = ENXIO;
@@ -353,20 +353,20 @@ tr_repeat:
 		goto tr_stalled;
 	}
 tr_valid:
+	mtx_unlock(&Giant);
 	sx_unlock(udev->default_sx + 1);
-	newbus_xunlock();
 	USB_XFER_LOCK(xfer);
 	return (0);
 
 tr_short:
+	mtx_unlock(&Giant);
 	sx_unlock(udev->default_sx + 1);
-	newbus_xunlock();
 	USB_XFER_LOCK(xfer);
 	return (USB_ERR_SHORT_XFER);
 
 tr_stalled:
+	mtx_unlock(&Giant);
 	sx_unlock(udev->default_sx + 1);
-	newbus_xunlock();
 	USB_XFER_LOCK(xfer);
 	return (USB_ERR_STALLED);
 }

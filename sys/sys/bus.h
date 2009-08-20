@@ -478,14 +478,6 @@ int	resource_set_string(const char *name, int unit, const char *resname,
 int	bus_data_generation_check(int generation);
 void	bus_data_generation_update(void);
 
-/*
- * Exported locking facilities.
- */
-void	 newbus_xlock(void);
-void	 newbus_slock(void);
-void	 newbus_xunlock(void);
-void	 newbus_sunlock(void);
-
 /**
  * Some convenience defines for probe routines to return.  These are just
  * suggested values, and there's nothing magical about them.
