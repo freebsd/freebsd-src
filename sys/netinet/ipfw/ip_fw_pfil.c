@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/route.h>
 #include <net/pfil.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -441,7 +442,7 @@ nodivert:
 	return 1;
 }
 
-static int
+int
 ipfw_hook(void)
 {
 	struct pfil_head *pfh_inet;
@@ -458,7 +459,7 @@ ipfw_hook(void)
 	return 0;
 }
 
-static int
+int
 ipfw_unhook(void)
 {
 	struct pfil_head *pfh_inet;
@@ -476,7 +477,7 @@ ipfw_unhook(void)
 }
 
 #ifdef INET6
-static int
+int
 ipfw6_hook(void)
 {
 	struct pfil_head *pfh_inet6;
@@ -493,7 +494,7 @@ ipfw6_hook(void)
 	return 0;
 }
 
-static int
+int
 ipfw6_unhook(void)
 {
 	struct pfil_head *pfh_inet6;
@@ -517,6 +518,10 @@ ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 	int enable = *(int *)arg1;
 	int error;
 
+#ifdef VIMAGE /* Since enabling is global, only let base do it. */
+	if (! IS_DEFAULT_VNET(curvnet))
+		return (EPERM);
+#endif
 	error = sysctl_handle_int(oidp, &enable, 0, req);
 	if (error)
 		return (error);
@@ -549,50 +554,3 @@ ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-ipfw_modevent(module_t mod, int type, void *unused)
-{
-	int err = 0;
-
-	switch (type) {
-	case MOD_LOAD:
-		if ((err = ipfw_init()) != 0) {
-			printf("ipfw_init() error\n");
-			break;
-		}
-		if ((err = ipfw_hook()) != 0) {
-			printf("ipfw_hook() error\n");
-			break;
-		}
-#ifdef INET6
-		if ((err = ipfw6_hook()) != 0) {
-			printf("ipfw_hook() error\n");
-			break;
-		}
-#endif
-		break;
-
-	case MOD_UNLOAD:
-		if ((err = ipfw_unhook()) > 0)
-			break;
-#ifdef INET6
-		if ((err = ipfw6_unhook()) > 0)
-			break;
-#endif
-		ipfw_destroy();
-		break;
-
-	default:
-		return EOPNOTSUPP;
-		break;
-	}
-	return err;
-}
-
-static moduledata_t ipfwmod = {
-	"ipfw",
-	ipfw_modevent,
-	0
-};
-DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 256);
-MODULE_VERSION(ipfw, 2);
