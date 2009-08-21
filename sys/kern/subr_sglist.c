@@ -48,6 +48,32 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_SGLIST, "sglist", "scatter/gather lists");
 
 /*
+ * Convenience macros to save the state of an sglist so it can be restored
+ * if an append attempt fails.  Since sglist's only grow we only need to
+ * save the current count of segments and the length of the ending segment.
+ * Earlier segments will not be changed by an append, and the only change
+ * that can occur to the ending segment is that it can be extended.
+ */
+struct sgsave {
+	u_short sg_nseg;
+	size_t ss_len;
+};
+
+#define	SGLIST_SAVE(sg, sgsave) do {					\
+	(sgsave).sg_nseg = (sg)->sg_nseg;				\
+	if ((sgsave).sg_nseg > 0)					\
+		(sgsave).ss_len = (sg)->sg_segs[(sgsave).sg_nseg - 1].ss_len; \
+	else								\
+		(sgsave).ss_len = 0;					\
+} while (0)
+
+#define	SGLIST_RESTORE(sg, sgsave) do {					\
+	(sg)->sg_nseg = (sgsave).sg_nseg;				\
+	if ((sgsave).sg_nseg > 0)					\
+		(sg)->sg_segs[(sgsave).sg_nseg - 1].ss_len = (sgsave).ss_len; \
+} while (0)
+
+/*
  * Append a single (paddr, len) to a sglist.  sg is the list and ss is
  * the current segment in the list.  If we run out of segments then
  * EFBIG will be returned.
@@ -62,10 +88,8 @@ _sglist_append_range(struct sglist *sg, struct sglist_seg **ssp,
 	if (ss->ss_paddr + ss->ss_len == paddr)
 		ss->ss_len += len;
 	else {
-		if (sg->sg_nseg == sg->sg_maxseg) {
-			sg->sg_nseg = 0;
+		if (sg->sg_nseg == sg->sg_maxseg)
 			return (EFBIG);
-		}
 		ss++;
 		ss->ss_paddr = paddr;
 		ss->ss_len = len;
@@ -107,26 +131,33 @@ _sglist_append_buf(struct sglist *sg, void *buf, size_t len, pmap_t pmap,
 		ss->ss_paddr = paddr;
 		ss->ss_len = seglen;
 		sg->sg_nseg = 1;
-		error = 0;
 	} else {
 		ss = &sg->sg_segs[sg->sg_nseg - 1];
 		error = _sglist_append_range(sg, &ss, paddr, seglen);
+		if (error)
+			return (error);
 	}
+	vaddr += seglen;
+	len -= seglen;
+	if (donep)
+		*donep += seglen;
 
-	while (error == 0 && len > seglen) {
-		vaddr += seglen;
-		len -= seglen;
-		if (donep)
-			*donep += seglen;
+	while (len > 0) {
 		seglen = MIN(len, PAGE_SIZE);
 		if (pmap != NULL)
 			paddr = pmap_extract(pmap, vaddr);
 		else
 			paddr = pmap_kextract(vaddr);
 		error = _sglist_append_range(sg, &ss, paddr, seglen);
+		if (error)
+			return (error);
+		vaddr += seglen;
+		len -= seglen;
+		if (donep)
+			*donep += seglen;
 	}
 
-	return (error);
+	return (0);
 }
 
 /*
@@ -195,10 +226,16 @@ sglist_free(struct sglist *sg)
 int
 sglist_append(struct sglist *sg, void *buf, size_t len)
 {
+	struct sgsave save;
+	int error;
 
 	if (sg->sg_maxseg == 0)
 		return (EINVAL);
-	return (_sglist_append_buf(sg, buf, len, NULL, NULL));
+	SGLIST_SAVE(sg, save);
+	error = _sglist_append_buf(sg, buf, len, NULL, NULL);
+	if (error)
+		SGLIST_RESTORE(sg, save);
+	return (error);
 }
 
 /*
@@ -209,6 +246,8 @@ int
 sglist_append_phys(struct sglist *sg, vm_paddr_t paddr, size_t len)
 {
 	struct sglist_seg *ss;
+	struct sgsave save;
+	int error;
 
 	if (sg->sg_maxseg == 0)
 		return (EINVAL);
@@ -222,7 +261,11 @@ sglist_append_phys(struct sglist *sg, vm_paddr_t paddr, size_t len)
 		return (0);
 	}
 	ss = &sg->sg_segs[sg->sg_nseg - 1];
-	return (_sglist_append_range(sg, &ss, paddr, len));
+	SGLIST_SAVE(sg, save);
+	error = _sglist_append_range(sg, &ss, paddr, len);
+	if (error)
+		SGLIST_RESTORE(sg, save);
+	return (error);
 }
 
 /*
@@ -233,6 +276,7 @@ sglist_append_phys(struct sglist *sg, vm_paddr_t paddr, size_t len)
 int
 sglist_append_mbuf(struct sglist *sg, struct mbuf *m0)
 {
+	struct sgsave save;
 	struct mbuf *m;
 	int error;
 
@@ -240,11 +284,14 @@ sglist_append_mbuf(struct sglist *sg, struct mbuf *m0)
 		return (EINVAL);
 
 	error = 0;
+	SGLIST_SAVE(sg, save);
 	for (m = m0; m != NULL; m = m->m_next) {
 		if (m->m_len > 0) {
 			error = sglist_append(sg, m->m_data, m->m_len);
-			if (error)
+			if (error) {
+				SGLIST_RESTORE(sg, save);
 				return (error);
+			}
 		}
 	}
 	return (0);
@@ -258,11 +305,17 @@ sglist_append_mbuf(struct sglist *sg, struct mbuf *m0)
 int
 sglist_append_user(struct sglist *sg, void *buf, size_t len, struct thread *td)
 {
+	struct sgsave save;
+	int error;
 
 	if (sg->sg_maxseg == 0)
 		return (EINVAL);
-	return (_sglist_append_buf(sg, buf, len,
-	    vmspace_pmap(td->td_proc->p_vmspace), NULL));
+	SGLIST_SAVE(sg, save);
+	error = _sglist_append_buf(sg, buf, len,
+	    vmspace_pmap(td->td_proc->p_vmspace), NULL);
+	if (error)
+		SGLIST_RESTORE(sg, save);
+	return (error);
 }
 
 /*
@@ -274,6 +327,7 @@ int
 sglist_append_uio(struct sglist *sg, struct uio *uio)
 {
 	struct iovec *iov;
+	struct sgsave save;
 	size_t resid, minlen;
 	pmap_t pmap;
 	int error, i;
@@ -292,6 +346,7 @@ sglist_append_uio(struct sglist *sg, struct uio *uio)
 		pmap = NULL;
 
 	error = 0;
+	SGLIST_SAVE(sg, save);
 	for (i = 0; i < uio->uio_iovcnt && resid != 0; i++) {
 		/*
 		 * Now at the first iovec to load.  Load each iovec
@@ -301,8 +356,10 @@ sglist_append_uio(struct sglist *sg, struct uio *uio)
 		if (minlen > 0) {
 			error = _sglist_append_buf(sg, iov[i].iov_base, minlen,
 			    pmap, NULL);
-			if (error)
+			if (error) {
+				SGLIST_RESTORE(sg, save);
 				return (error);
+			}
 			resid -= minlen;
 		}
 	}
@@ -397,6 +454,7 @@ sglist_clone(struct sglist *sg, int mflags)
 	new = sglist_alloc(sg->sg_maxseg, mflags);
 	if (new == NULL)
 		return (NULL);
+	new->sg_nseg = sg->sg_nseg;
 	bcopy(sg->sg_segs, new->sg_segs, sizeof(struct sglist_seg) *
 	    sg->sg_nseg);
 	return (new);
