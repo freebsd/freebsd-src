@@ -102,6 +102,8 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #endif
 
+static VNET_DEFINE(int, ipfw_vnet_ready) = 0;
+#define	V_ipfw_vnet_ready	VNET(ipfw_vnet_ready)
 /*
  * set_disable contains one bit per set value (0..31).
  * If the bit is set, all rules with the corresponding set
@@ -2237,7 +2239,7 @@ ipfw_chk(struct ip_fw_args *args)
 	/* end of ipv6 variables */
 	int is_ipv4 = 0;
 
-	if (m->m_flags & M_SKIP_FIREWALL)
+	if (m->m_flags & M_SKIP_FIREWALL || (! V_ipfw_vnet_ready))
 		return (IP_FW_PASS);	/* accept */
 
 	dst_ip.s_addr = 0;		/* make sure it is initialized */
@@ -4579,12 +4581,10 @@ done:
 	CURVNET_RESTORE();
 }
 
-
-
 /****************
  * Stuff that must be initialised only on boot or module load
  */
-int
+static int
 ipfw_init(void)
 {
 	int error = 0;
@@ -4623,9 +4623,11 @@ ipfw_init(void)
 		default_to_accept ? "accept" : "deny");
 
 	/*
-	 * Note: V_xxx variables can be accessed here but the iattach()
-     	 * may not have been called yet for the VIMGE case.
-	 * Tuneables will have been processed.
+	 * Note: V_xxx variables can be accessed here but the vnet specific
+	 * initializer may not have been called yet for the VIMAGE case.
+	 * Tuneables will have been processed. We will print out values for
+	 * the default vnet. 
+	 * XXX This should all be rationalized AFTER 8.0
 	 */
 	if (V_fw_verbose == 0)
 		printf("disabled\n");
@@ -4636,6 +4638,20 @@ ipfw_init(void)
 		    V_verbose_limit);
 
 	/*
+	 * Hook us up to pfil.
+	 * Eventually pfil will be per vnet.
+	 */
+	if ((error = ipfw_hook()) != 0) {
+		printf("ipfw_hook() error\n");
+		return (error);
+	}
+#ifdef INET6
+	if ((error = ipfw6_hook()) != 0) {
+		printf("ipfw6_hook() error\n");
+		return (error);
+	}
+#endif
+	/*
 	 * Other things that are only done the first time.
 	 * (now that we a re cuaranteed of success).
 	 */
@@ -4645,8 +4661,8 @@ ipfw_init(void)
 }
 
 /****************
- * Stuff that must be initialised for every instance
- * (including the forst of course).
+ * Stuff that must be initialized for every instance
+ * (including the first of course).
  */
 static int
 vnet_ipfw_init(const void *unused)
@@ -4726,17 +4742,17 @@ vnet_ipfw_init(const void *unused)
 #endif
 
 	/* First set up some values that are compile time options */
+	V_ipfw_vnet_ready = 1;		/* Open for business */
 	return (0);
 }
 
 /**********************
  * Called for the removal of the last instance only on module unload.
  */
-void
+static void
 ipfw_destroy(void)
 {
-	ip_fw_chk_ptr = NULL;
-	ip_fw_ctl_ptr = NULL;
+
 	uma_zdestroy(ipfw_dyn_rule_zone);
 	IPFW_DYN_LOCK_DESTROY();
 	printf("IP firewall unloaded\n");
@@ -4750,7 +4766,9 @@ vnet_ipfw_uninit(const void *unused)
 {
 	struct ip_fw *reap;
 
+	V_ipfw_vnet_ready = 0; /* tell new callers to go away */
 	callout_drain(&V_ipfw_timeout);
+	/* We wait on the wlock here until the last user leaves */
 	IPFW_WLOCK(&V_layer3_chain);
 	flush_tables(&V_layer3_chain);
 	V_layer3_chain.reap = NULL;
@@ -4766,10 +4784,86 @@ vnet_ipfw_uninit(const void *unused)
 	return 0;
 }
 
-VNET_SYSINIT(vnet_ipfw_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 255,
-    vnet_ipfw_init, NULL);
+/*
+ * Module event handler.
+ * In general we have the choice of handling most of these events by the
+ * event handler or by the (VNET_)SYS(UN)INIT handlers. I have chosen to
+ * use the SYSINIT handlers as they are more capable of expressing the
+ * flow of control during module and vnet operations, so this is just
+ * a skeleton. Note there is no SYSINIT equivalent of the module
+ * SHUTDOWN handler, but we don't have anything to do in that case anyhow.
+ */
+static int
+ipfw_modevent(module_t mod, int type, void *unused)
+{
+	int err = 0;
 
-VNET_SYSUNINIT(vnet_ipfw_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 255,
-    vnet_ipfw_uninit, NULL);
+	switch (type) {
+	case MOD_LOAD:
+		/* Called once at module load or
+	 	 * system boot if compiled in. */
+		break;
+	case MOD_UNLOAD:
+		break;
+	case MOD_QUIESCE:
+		/* Yes, the unhooks can return errors, we can safely ignore
+		 * them. Eventually these will be done per jail as they
+		 * shut down. We will wait on each vnet's l3 lock as existing
+		 * callers go away.
+		 */
+		ipfw_unhook();
+#ifdef INET6
+		ipfw6_unhook();
+#endif
+		/* layer2 and other entrypoints still come in this way. */
+		ip_fw_chk_ptr = NULL;
+		ip_fw_ctl_ptr = NULL;
+		/* Called during unload. */
+		break;
+	case MOD_SHUTDOWN:
+		/* Called during system shutdown. */
+		break;
+	default:
+		err = EOPNOTSUPP;
+		break;
+	}
+	return err;
+}
+
+static moduledata_t ipfwmod = {
+	"ipfw",
+	ipfw_modevent,
+	0
+};
+
+/* Define startup order. */
+#define	IPFW_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	IPFW_MODEVENT_ORDER	(SI_ORDER_ANY - 255) /* On boot slot in here. */
+#define	IPFW_MODULE_ORDER	(IPFW_MODEVENT_ORDER + 1) /* A little later. */
+#define	IPFW_VNET_ORDER		(IPFW_MODEVENT_ORDER + 2) /* Later still. */
+
+DECLARE_MODULE(ipfw, ipfwmod, IPFW_SI_SUB_FIREWALL, IPFW_MODEVENT_ORDER);
+MODULE_VERSION(ipfw, 2);
+/* should declare some dependencies here */
+
+/*
+ * Starting up. Done in order after ipfwmod() has been called.
+ * VNET_SYSINIT is also called for each existing vnet and each new vnet.
+ */
+SYSINIT(ipfw_init, IPFW_SI_SUB_FIREWALL, IPFW_MODULE_ORDER,
+	    ipfw_init, NULL);
+VNET_SYSINIT(vnet_ipfw_init, IPFW_SI_SUB_FIREWALL, IPFW_VNET_ORDER,
+	    vnet_ipfw_init, NULL);
+ 
+/*
+ * Closing up shop. These are done in REVERSE ORDER, but still
+ * after ipfwmod() has been called. Not called on reboot.
+ * VNET_SYSUNINIT is also called for each exiting vnet as it exits.
+ * or when the module is unloaded.
+ */
+SYSUNINIT(ipfw_destroy, IPFW_SI_SUB_FIREWALL, IPFW_MODULE_ORDER,
+	    ipfw_destroy, NULL);
+VNET_SYSUNINIT(vnet_ipfw_uninit, IPFW_SI_SUB_FIREWALL, IPFW_VNET_ORDER,
+	    vnet_ipfw_uninit, NULL);
 
  
