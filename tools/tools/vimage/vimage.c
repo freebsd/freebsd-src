@@ -252,7 +252,7 @@ main(int argc, char **argv)
 		exit(0);
 
 	case VI_CREATE:
-		if ((jid = jail_setv(JAIL_CREATE,
+		if (jail_setv(JAIL_CREATE,
 		    "name", argv[0],
 		    "vnet", NULL,
 		    "host", NULL,
@@ -260,9 +260,7 @@ main(int argc, char **argv)
 		    "allow.raw_sockets", "true",
 		    "allow.socket_af", "true",
 		    "allow.mount", "true",
-		    NULL)) >= 0)
-				break;
-		if (jid < 0)
+		    NULL) < 0)
 			break;
 		if (argc == 1)
 			exit(0);
