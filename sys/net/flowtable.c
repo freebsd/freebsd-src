@@ -999,6 +999,7 @@ flowtable_init_vnet(const void *unused __unused)
 	    NULL, NULL, NULL, NULL, 64, UMA_ZONE_MAXBUCKET);	
 	uma_zone_set_max(V_flow_ipv4_zone, V_flowtable_nmbflows);
 	uma_zone_set_max(V_flow_ipv6_zone, V_flowtable_nmbflows);
+	V_flowtable_ready = 1;
 }
 VNET_SYSINIT(flowtable_init_vnet, SI_SUB_KTHREAD_INIT, SI_ORDER_MIDDLE,
     flowtable_init_vnet, NULL);
@@ -1011,7 +1012,6 @@ flowtable_init(const void *unused __unused)
 	mtx_init(&flowclean_lock, "flowclean lock", NULL, MTX_DEF);
 	EVENTHANDLER_REGISTER(ifnet_departure_event, flowtable_flush, NULL,
 	    EVENTHANDLER_PRI_ANY);
-	V_flowtable_ready = 1;
 }
 SYSINIT(flowtable_init, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY,
     flowtable_init, NULL);
@@ -1022,6 +1022,7 @@ static void
 flowtable_uninit(const void *unused __unused)
 {
 
+	V_flowtable_ready = 0;
 	uma_zdestroy(V_flow_ipv4_zone);
 	uma_zdestroy(V_flow_ipv6_zone);
 }
