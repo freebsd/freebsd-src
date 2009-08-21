@@ -191,6 +191,8 @@ Specifically, the
 family of routines can be used to append the physical address ranges described
 by an object to the end of a scatter/gather list.
 All of these routines return 0 on success or an error on failure.
+If a request to append an address range to a scatter/gather list fails,
+the scatter/gather list will remain unchanged.
 .Pp
 The
 .Nm sglist_append
@@ -445,6 +447,7 @@ There are not enough available segments in the scatter/gather list
 to append the physical address ranges from
 .Fa second .
 .El
+.Pp
 The
 .Nm sglist_slice
 function returns the following errors on failure:
@@ -470,6 +473,7 @@ list in
 .Fa *slice
 to describe the requested physical address ranges.
 .El
+.Pp
 The
 .Nm sglist_split
 function returns the following errors on failure:
