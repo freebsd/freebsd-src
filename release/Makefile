@@ -24,16 +24,16 @@
 # Set these, release builder!
 #
 # Fixed version:
-#BUILDNAME=8.0-CURRENT
+#BUILDNAME=9.0-CURRENT
 #
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
-BASE = 8.0
+BASE = 9.0
 BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 #CHROOTDIR=/junk/release
 # If this is a -stable snapshot, then set
-#RELEASETAG=RELENG_7
+#RELEASETAG=RELENG_8
 #
 # To test a release with a source tree containing patches and
 # other work. This tree will get copied instead of getting the
@@ -72,7 +72,7 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 # Subversion branch to build for src.  If this is not set then it is
 # automatically computed from RELEASETAG.
-#SVNBRANCH=stable/7
+#SVNBRANCH=stable/8
 #
 # Non-zero if ${RELEASETAG} is in the form "RELENG_ver_RELEASE"; we
 # are building an official release.  Otherwise, we are building for
