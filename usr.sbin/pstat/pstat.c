@@ -479,6 +479,7 @@ getfiles(char **abuf, size_t *alen)
  */
 
 #define CONVERT(v)	((int64_t)(v) * pagesize / blocksize)
+#define CONVERT_BLOCKS(v)	((int64_t)(v) * pagesize)
 static struct kvm_swap swtot;
 static int nswdev;
 
@@ -511,10 +512,10 @@ print_swap_line(const char *devname, intmax_t nblks, intmax_t bused,
 	printf("%-15s %*jd ", devname, hlen, CONVERT(nblks));
 	if (humanflag) {
 		humanize_number(usedbuf, sizeof(usedbuf),
-		    CONVERT(blocksize * bused), "",
+		    CONVERT_BLOCKS(bused), "",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 		humanize_number(availbuf, sizeof(availbuf),
-		    CONVERT(blocksize * bavail), "",
+		    CONVERT_BLOCKS(bavail), "",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 		printf("%8s %8s %5.0f%%\n", usedbuf, availbuf, bpercent);
 	} else {
