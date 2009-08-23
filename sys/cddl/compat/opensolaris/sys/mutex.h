@@ -32,9 +32,9 @@
 #ifdef _KERNEL
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/lock.h>
 #include_next <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sx.h>
 
 typedef enum {
