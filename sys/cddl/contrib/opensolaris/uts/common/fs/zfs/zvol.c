@@ -402,6 +402,10 @@ zvol_worker(void *arg)
 	zvol_state_t *zv;
 	struct bio *bp;
 
+	thread_lock(curthread);
+	sched_prio(curthread, PRIBIO);
+	thread_unlock(curthread);
+
 	zv = arg;
 	for (;;) {
 		mtx_lock(&zv->zv_queue_mtx);
