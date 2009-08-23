@@ -102,9 +102,11 @@ __FBSDID("$FreeBSD$");
  * 1.27- Add support for IGP GART
  * 1.28- Add support for VBL on CRTC2
  * 1.29- R500 3D cmd buffer support
+ * 1.30- Add support for occlusion queries
+ * 1.31- Add support for num Z pipes from GET_PARAM
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		29
+#define DRIVER_MINOR		31
 #define DRIVER_PATCHLEVEL	0
 
 /*
@@ -368,6 +370,7 @@ typedef struct drm_radeon_private {
 	unsigned long fb_aper_offset;
 
 	int num_gb_pipes;
+	int num_z_pipes;
 	int track_flush;
 	drm_local_map_t *mmio;
 
@@ -758,6 +761,7 @@ extern int r600_cs_init(struct drm_device *dev);
 
 /* pipe config regs */
 #define R400_GB_PIPE_SELECT             0x402c
+#define RV530_GB_PIPE_SELECT2           0x4124
 #define R500_DYN_SCLK_PWMEM_PIPE        0x000d /* PLL */
 #define R300_GB_TILE_CONFIG             0x4018
 #       define R300_ENABLE_TILING       (1 << 0)
