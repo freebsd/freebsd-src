@@ -215,25 +215,12 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		 */
 		MPASS(iblen > 0);
 		do {
-			if (ttydisc_can_bypass(tp)) {
-				/* Store data at once. */
-				rintlen = ttydisc_rint_bypass(tp,
-				    ibstart, iblen);
-				ibstart += rintlen;
-				iblen -= rintlen;
-
-				if (iblen == 0) {
-					/* All data written. */
-					break;
-				}
-			} else {
-				error = ttydisc_rint(tp, *ibstart, 0);
-				if (error == 0) {
-					/* Character stored successfully. */
-					ibstart++;
-					iblen--;
-					continue;
-				}
+			rintlen = ttydisc_rint_simple(tp, ibstart, iblen);
+			ibstart += rintlen;
+			iblen -= rintlen;
+			if (iblen == 0) {
+				/* All data written. */
+				break;
 			}
 
 			/* Maybe the device isn't used anyway. */
