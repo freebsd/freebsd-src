@@ -497,6 +497,8 @@ typedef struct {
 #define DRM_RADEON_SURF_ALLOC 0x1a
 #define DRM_RADEON_SURF_FREE  0x1b
 
+#define DRM_RADEON_CS         0x26
+
 #define DRM_IOCTL_RADEON_CP_INIT    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_INIT, drm_radeon_init_t)
 #define DRM_IOCTL_RADEON_CP_START   DRM_IO(  DRM_COMMAND_BASE + DRM_RADEON_CP_START)
 #define DRM_IOCTL_RADEON_CP_STOP    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_STOP, drm_radeon_cp_stop_t)
@@ -524,6 +526,7 @@ typedef struct {
 #define DRM_IOCTL_RADEON_SETPARAM   DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_SETPARAM, drm_radeon_setparam_t)
 #define DRM_IOCTL_RADEON_SURF_ALLOC DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_SURF_ALLOC, drm_radeon_surface_alloc_t)
 #define DRM_IOCTL_RADEON_SURF_FREE  DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_SURF_FREE, drm_radeon_surface_free_t)
+#define DRM_IOCTL_RADEON_CS DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_CS, struct drm_radeon_cs)
 
 typedef struct drm_radeon_init {
 	enum {
@@ -754,5 +757,24 @@ typedef struct drm_radeon_surface_free {
 
 #define	DRM_RADEON_VBLANK_CRTC1		1
 #define	DRM_RADEON_VBLANK_CRTC2		2
+
+/* New interface which obsolete all previous interface.
+ */
+#define RADEON_CHUNK_ID_RELOCS 0x01
+#define RADEON_CHUNK_ID_IB     0x02
+#define RADEON_CHUNK_ID_OLD 0xff
+
+struct drm_radeon_cs_chunk {
+	uint32_t chunk_id;
+	uint32_t length_dw;
+	uint64_t chunk_data;
+};
+
+struct drm_radeon_cs {
+	uint32_t        num_chunks;
+	uint32_t        cs_id;
+	uint64_t        chunks; /* this points to uint64_t * which point to
+				   cs chunks */
+};
 
 #endif
