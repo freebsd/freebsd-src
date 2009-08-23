@@ -30,14 +30,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_tty.h"
-
 /* Add compatibility bits for FreeBSD. */
 #define PTS_COMPAT
-#ifdef DEV_PTY
 /* Add /dev/ptyXX compat bits. */
 #define PTS_EXTERNAL
-#endif /* DEV_PTY */
 /* Add bits to make Linux binaries work. */
 #define PTS_LINUX
 
