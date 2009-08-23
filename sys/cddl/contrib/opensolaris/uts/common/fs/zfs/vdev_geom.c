@@ -194,6 +194,10 @@ vdev_geom_worker(void *arg)
 	zio_t *zio;
 	struct bio *bp;
 
+	thread_lock(curthread);
+	sched_prio(curthread, PRIBIO);
+	thread_unlock(curthread);
+
 	ctx = arg;
 	for (;;) {
 		mtx_lock(&ctx->gc_queue_mtx);
