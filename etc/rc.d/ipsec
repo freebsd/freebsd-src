@@ -41,9 +41,9 @@ ipsec_stop()
 {
 	echo "Clearing ipsec manual keys/policies."
 
-	# still not 100% sure if we would like to do this.
-	# it is very questionable to do this during shutdown session, since
-	# it can hang any of remaining IPv4/v6 session.
+	# Still not 100% sure if we would like to do this.
+	# It is very questionable to do this during shutdown session
+	# since it can hang any of the remaining IPv4/v6 sessions.
 	#
 	${ipsec_program} -F
 	${ipsec_program} -FP
