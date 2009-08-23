@@ -154,14 +154,26 @@ VNET_DEFINE(struct ifgrouphead, ifg_head);
 VNET_DEFINE(int, if_index);
 static VNET_DEFINE(int, if_indexlim) = 8;
 
-/* Table of ifnet by index.  Locked with ifnet_lock. */
+/* Table of ifnet by index. */
 static VNET_DEFINE(struct ifindex_entry *, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
 
 int	ifqmaxlen = IFQ_MAXLEN;
-struct rwlock ifnet_lock;
+
+/*
+ * The global network interface list (V_ifnet) and related state (such as
+ * if_index, if_indexlim, and ifindex_table) are protected by an sxlock and
+ * an rwlock.  Either may be acquired shared to stablize the list, but both
+ * must be acquired writable to modify the list.  This model allows us to
+ * both stablize the interface list during interrupt thread processing, but
+ * also to stablize it over long-running ioctls, without introducing priority
+ * inversions and deadlocks.
+ */
+struct rwlock ifnet_rwlock;
+struct sx ifnet_sxlock;
+
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 
@@ -188,9 +200,9 @@ ifnet_byindex(u_short idx)
 {
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	ifp = ifnet_byindex_locked(idx);
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifp);
 }
 
@@ -199,19 +211,19 @@ ifnet_byindex_ref(u_short idx)
 {
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	ifp = ifnet_byindex_locked(idx);
 	if (ifp == NULL || (ifp->if_flags & IFF_DYING)) {
-		IFNET_RUNLOCK();
+		IFNET_RUNLOCK_NOSLEEP();
 		return (NULL);
 	}
 	if_ref(ifp);
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifp);
 }
 
 static void
-ifnet_setbyindex(u_short idx, struct ifnet *ifp)
+ifnet_setbyindex_locked(u_short idx, struct ifnet *ifp)
 {
 
 	IFNET_WLOCK_ASSERT();
@@ -219,16 +231,25 @@ ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 	V_ifindex_table[idx].ife_ifnet = ifp;
 }
 
+static void
+ifnet_setbyindex(u_short idx, struct ifnet *ifp)
+{
+
+	IFNET_WLOCK();
+	ifnet_setbyindex_locked(idx, ifp);
+	IFNET_WUNLOCK();
+}
+
 struct ifaddr *
 ifaddr_byindex(u_short idx)
 {
 	struct ifaddr *ifa;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	ifa = ifnet_byindex_locked(idx)->if_addr;
 	if (ifa != NULL)
 		ifa_ref(ifa);
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifa);
 }
 
@@ -361,9 +382,7 @@ if_alloc(u_char type)
 	ifq_init(&ifp->if_snd, ifp);
 
 	refcount_init(&ifp->if_refcount, 1);	/* Index reference. */
-	IFNET_WLOCK();
 	ifnet_setbyindex(ifp->if_index, ifp);
-	IFNET_WUNLOCK();
 	return (ifp);
 }
 
@@ -383,7 +402,7 @@ if_free_internal(struct ifnet *ifp)
 	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
 	    ("%s: freeing unallocated ifnet", ifp->if_xname));
 
-	ifnet_setbyindex(ifp->if_index, NULL);
+	ifnet_setbyindex_locked(ifp->if_index, NULL);
 	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
 		V_if_index--;
 	IFNET_WUNLOCK();
@@ -855,11 +874,14 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	if_detach_internal(ifp, 1);
 
 	/*
-	 * Unlink the ifnet from ifindex_table[] in current vnet,
-	 * and shrink the if_index for that vnet if possible.
+	 * Unlink the ifnet from ifindex_table[] in current vnet, and shrink
+	 * the if_index for that vnet if possible.
+	 *
+	 * NOTE: IFNET_WLOCK/IFNET_WUNLOCK() are assumed to be unvirtualized,
+	 * or we'd lock on one vnet and unlock on another.
 	 */
 	IFNET_WLOCK();
-	ifnet_setbyindex(ifp->if_index, NULL);
+	ifnet_setbyindex_locked(ifp->if_index, NULL);
 	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
 		V_if_index--;
 	IFNET_WUNLOCK();
@@ -886,7 +908,7 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 		V_if_index = ifp->if_index;
 	if (V_if_index >= V_if_indexlim)
 		if_grow();
-	ifnet_setbyindex(ifp->if_index, ifp);
+	ifnet_setbyindex_locked(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
 
 	if_attach_internal(ifp, 1);
@@ -1368,7 +1390,7 @@ ifa_ifwithaddr_internal(struct sockaddr *addr, int getref)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1395,7 +1417,7 @@ ifa_ifwithaddr_internal(struct sockaddr *addr, int getref)
 	}
 	ifa = NULL;
 done:
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifa);
 }
 
@@ -1423,7 +1445,7 @@ ifa_ifwithbroadaddr(struct sockaddr *addr)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1442,7 +1464,7 @@ ifa_ifwithbroadaddr(struct sockaddr *addr)
 	}
 	ifa = NULL;
 done:
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifa);
 }
 
@@ -1456,7 +1478,7 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
 			continue;
@@ -1475,7 +1497,7 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 	}
 	ifa = NULL;
 done:
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifa);
 }
 
@@ -1508,7 +1530,7 @@ ifa_ifwithnet(struct sockaddr *addr)
 	 * we find one, as we release the IF_ADDR_LOCK() that kept it stable
 	 * when we move onto the next interface.
 	 */
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1584,7 +1606,7 @@ next:				continue;
 	ifa = ifa_maybe;
 	ifa_maybe = NULL;
 done:
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	if (ifa_maybe != NULL)
 		ifa_free(ifa_maybe);
 	return (ifa);
@@ -1863,7 +1885,7 @@ if_slowtimo(void *arg)
 	int s = splimp();
 
 	VNET_LIST_RLOCK_NOSLEEP();
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
@@ -1874,7 +1896,7 @@ if_slowtimo(void *arg)
 		}
 		CURVNET_RESTORE();
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	VNET_LIST_RUNLOCK_NOSLEEP();
 	splx(s);
 	timeout(if_slowtimo, (void *)0, hz / IFNET_SLOWHZ);
@@ -1889,7 +1911,7 @@ ifunit_ref(const char *name)
 {
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0 &&
 		    !(ifp->if_flags & IFF_DYING))
@@ -1897,7 +1919,7 @@ ifunit_ref(const char *name)
 	}
 	if (ifp != NULL)
 		if_ref(ifp);
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifp);
 }
 
@@ -1906,12 +1928,12 @@ ifunit(const char *name)
 {
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0)
 			break;
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	return (ifp);
 }
 
@@ -2521,7 +2543,7 @@ again:
 	max_len = 0;
 	valid_len = 0;
 
-	IFNET_RLOCK();		/* could sleep XXX */
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		int addrs;
 
@@ -2846,13 +2868,13 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 #ifdef INVARIANTS
 	struct ifnet *oifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(oifp, &V_ifnet, if_link)
 		if (ifp == oifp)
 			break;
 	if (ifp != oifp)
 		ifp = NULL;
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 
 	KASSERT(ifp != NULL, ("%s: ifnet went away", __func__));
 #endif
@@ -2895,7 +2917,7 @@ if_delmulti_ifma(struct ifmultiaddr *ifma)
 	} else {
 		struct ifnet *oifp;
 
-		IFNET_RLOCK();
+		IFNET_RLOCK_NOSLEEP();
 		TAILQ_FOREACH(oifp, &V_ifnet, if_link)
 			if (ifp == oifp)
 				break;
@@ -2903,7 +2925,7 @@ if_delmulti_ifma(struct ifmultiaddr *ifma)
 			printf("%s: ifnet %p disappeared\n", __func__, ifp);
 			ifp = NULL;
 		}
-		IFNET_RUNLOCK();
+		IFNET_RUNLOCK_NOSLEEP();
 	}
 #endif
 	/*
