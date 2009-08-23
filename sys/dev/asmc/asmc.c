@@ -419,7 +419,8 @@ asmc_attach(device_t dev)
 
 		SYSCTL_ADD_PROC(sysctlctx,
 		    SYSCTL_CHILDREN(sc->sc_light_tree),
-		    OID_AUTO, "control", CTLTYPE_INT | CTLFLAG_RW,
+		    OID_AUTO, "control",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
 		    dev, 0, model->smc_light_control, "I",
 		    "Keyboard backlight brightness control");
 	}
