@@ -99,6 +99,9 @@ struct usb_bus_methods {
 	void    (*set_stall) (struct usb_device *udev, struct usb_xfer *xfer, struct usb_endpoint *ep, uint8_t *did_stall);
 	void    (*clear_stall) (struct usb_device *udev, struct usb_endpoint *ep);
 
+	/* Optional transfer polling support */
+
+	void	(*xfer_poll) (struct usb_bus *);
 };
 
 /*

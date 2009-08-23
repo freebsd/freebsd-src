@@ -60,7 +60,8 @@ inthand_t
 void	cpu_add(u_int apic_id, char boot_cpu);
 void	cpustop_handler(void);
 void	init_secondary(void);
-void	ipi_selected(u_int cpus, u_int ipi);
+int	ipi_nmi_handler(void);
+void	ipi_selected(cpumask_t cpus, u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 #ifndef XEN
 void 	ipi_bitmap_handler(struct trapframe frame);
@@ -76,9 +77,6 @@ void	smp_masked_invlpg_range(cpumask_t mask, vm_offset_t startva,
 void	smp_invltlb(void);
 void	smp_masked_invltlb(cpumask_t mask);
 
-#ifdef STOP_NMI
-int	ipi_nmi_handler(void);
-#endif
 #ifdef XEN
 void ipi_to_irq_init(void);
 

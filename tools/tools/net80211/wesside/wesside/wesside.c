@@ -384,6 +384,15 @@ void setup_if(char *dev) {
 		exit(1);
 	}
 
+	// set chan
+	memset(&chaninfo.ireq, 0, sizeof(chaninfo.ireq));
+	strcpy(chaninfo.ireq.i_name, dev);
+	chaninfo.ireq.i_type = IEEE80211_IOC_CHANNEL;
+	
+	chaninfo.chan = 0;
+	chaninfo.s = s;
+	set_chan(1);
+
 	// set iface up and promisc
 	memset(&ifr, 0, sizeof(ifr));
 	strcpy(ifr.ifr_name, dev);
@@ -403,49 +412,6 @@ void setup_if(char *dev) {
 		perror("ioctl(SIOCSIFFLAGS)");
 		exit(1);
 	}
-
-	// set monitor mode
-	memset(&ifmr, 0, sizeof(ifmr));
-	strcpy(ifmr.ifm_name, dev);
-	if (ioctl(s, SIOCGIFMEDIA, &ifmr) == -1) {
-		perror("ioctl(SIOCGIFMEDIA)");
-		exit(1);
-	}
-
-	if (ifmr.ifm_count == 0) {
-		time_print("0 media thinggies...\n");
-		exit(1);
-	}
-
-	mwords = (int *)malloc(ifmr.ifm_count * sizeof(int));
-	if (!mwords) {
-		perror("malloc()");
-		exit(1);
-	}
-	ifmr.ifm_ulist = mwords;
-	
-	if (ioctl(s, SIOCGIFMEDIA, &ifmr) == -1) {
-		perror("ioctl(SIOCGIFMEDIA)");
-		exit(1);
-	}
-	free(mwords);
-
-	memset(&ifr, 0, sizeof(ifr));
-	strcpy(ifr.ifr_name, dev);
-	ifr.ifr_media = ifmr.ifm_current | IFM_IEEE80211_MONITOR;
-	if (ioctl(s, SIOCSIFMEDIA, &ifr) == -1) {
-		perror("ioctl(SIOCSIFMEDIA)");
-		exit(1);
-	}
-
-	// set chan
-	memset(&chaninfo.ireq, 0, sizeof(chaninfo.ireq));
-	strcpy(chaninfo.ireq.i_name, dev);
-	chaninfo.ireq.i_type = IEEE80211_IOC_CHANNEL;
-	
-	chaninfo.chan = 0;
-	chaninfo.s = s;
-	set_chan(1);
 
 	printf("done\n");
 }

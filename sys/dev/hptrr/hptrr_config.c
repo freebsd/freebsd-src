@@ -65,7 +65,7 @@ int init_config(void)
 
 char driver_name[] = "hptrr";
 char driver_name_long[] = "RocketRAID 17xx/2xxx SATA controller driver";
-char driver_ver[] = "v1.2 (" __DATE__ " " __TIME__ ")";
+char driver_ver[] = "v1.2";
 int  osm_max_targets = 0xff;
 
 

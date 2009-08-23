@@ -2292,6 +2292,8 @@ ndis_setstate_80211(sc)
 	ifp = sc->ifp;
 	ic = ifp->if_l2com;
 	vap = TAILQ_FIRST(&ic->ic_vaps);
+	if (vap == NULL)
+		return;
 
 	if (!NDIS_INITIALIZED(sc)) {
 		DPRINTF(("%s: NDIS not initialized\n", __func__));

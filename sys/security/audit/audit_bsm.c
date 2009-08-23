@@ -183,6 +183,20 @@ kau_free(struct au_record *rec)
  * XXXAUDIT: These macros assume that 'kar', 'ar', 'rec', and 'tok' in the
  * caller are OK with this.
  */
+#define	ATFD1_TOKENS(argnum) do {					\
+	if (ARG_IS_VALID(kar, ARG_ATFD1)) {				\
+		tok = au_to_arg32(argnum, "at fd 1", ar->ar_arg_atfd1);	\
+		kau_write(rec, tok);					\
+	}								\
+} while (0)
+
+#define	ATFD2_TOKENS(argnum) do {					\
+	if (ARG_IS_VALID(kar, ARG_ATFD2)) {				\
+		tok = au_to_arg32(argnum, "at fd 2", ar->ar_arg_atfd2);	\
+		kau_write(rec, tok);					\
+	}								\
+} while (0)
+
 #define	UPATH1_TOKENS do {						\
 	if (ARG_IS_VALID(kar, ARG_UPATH1)) {				\
 		tok = au_to_path(ar->ar_arg_upath1);			\
@@ -198,6 +212,10 @@ kau_free(struct au_record *rec)
 } while (0)
 
 #define	VNODE1_TOKENS do {						\
+	if (ARG_IS_VALID(kar, ARG_ATFD)) {				\
+		tok = au_to_arg32(1, "at fd", ar->ar_arg_atfd);		\
+		kau_write(rec, tok);					\
+	}								\
 	if (ARG_IS_VALID(kar, ARG_VNODE1)) {				\
 		tok = au_to_attr32(&ar->ar_arg_vnode1);			\
 		kau_write(rec, tok);					\
@@ -715,6 +733,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 
 	case AUE_CHDIR:
 	case AUE_CHROOT:
+	case AUE_FSTATAT:
+	case AUE_FUTIMESAT:
 	case AUE_GETATTRLIST:
 	case AUE_JAIL:
 	case AUE_LUTIMES:
@@ -733,7 +753,9 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_TRUNCATE:
 	case AUE_UNDELETE:
 	case AUE_UNLINK:
+	case AUE_UNLINKAT:
 	case AUE_UTIMES:
+		ATFD1_TOKENS(1);
 		UPATH1_VNODE1_TOKENS;
 		break;
 
@@ -771,6 +793,16 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		UPATH1_VNODE1_TOKENS;
 		break;
 
+	case AUE_FCHMODAT:
+		ATFD1_TOKENS(1);
+		if (ARG_IS_VALID(kar, ARG_MODE)) {
+			tok = au_to_arg32(3, "new file mode",
+			    ar->ar_arg_mode);
+			kau_write(rec, tok);
+		}
+		UPATH1_VNODE1_TOKENS;
+		break;
+
 	case AUE_CHOWN:
 	case AUE_LCHOWN:
 		if (ARG_IS_VALID(kar, ARG_UID)) {
@@ -779,6 +811,19 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		if (ARG_IS_VALID(kar, ARG_GID)) {
 			tok = au_to_arg32(3, "new file gid", ar->ar_arg_gid);
+			kau_write(rec, tok);
+		}
+		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_FCHOWNAT:
+		ATFD1_TOKENS(1);
+		if (ARG_IS_VALID(kar, ARG_UID)) {
+			tok = au_to_arg32(3, "new file uid", ar->ar_arg_uid);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_GID)) {
+			tok = au_to_arg32(4, "new file gid", ar->ar_arg_gid);
 			kau_write(rec, tok);
 		}
 		UPATH1_VNODE1_TOKENS;
@@ -991,8 +1036,12 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_LINK:
+	case AUE_LINKAT:
 	case AUE_RENAME:
+	case AUE_RENAMEAT:
+		ATFD1_TOKENS(1);
 		UPATH1_VNODE1_TOKENS;
+		ATFD2_TOKENS(3);
 		UPATH2_TOKENS;
 		break;
 
@@ -1133,6 +1182,32 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			tok = au_to_arg32(2, "flags", ar->ar_arg_fflags);
 			kau_write(rec, tok);
 		}
+		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_OPENAT_RC:
+	case AUE_OPENAT_RTC:
+	case AUE_OPENAT_RWC:
+	case AUE_OPENAT_RWTC:
+	case AUE_OPENAT_WC:
+	case AUE_OPENAT_WTC:
+		if (ARG_IS_VALID(kar, ARG_MODE)) {
+			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
+			kau_write(rec, tok);
+		}
+		/* FALLTHROUGH */
+
+	case AUE_OPENAT_R:
+	case AUE_OPENAT_RT:
+	case AUE_OPENAT_RW:
+	case AUE_OPENAT_RWT:
+	case AUE_OPENAT_W:
+	case AUE_OPENAT_WT:
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
+			tok = au_to_arg32(2, "flags", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		ATFD1_TOKENS(1);
 		UPATH1_VNODE1_TOKENS;
 		break;
 

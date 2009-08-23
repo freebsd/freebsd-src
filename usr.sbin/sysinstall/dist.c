@@ -143,7 +143,7 @@ static Distribution DocDistTable[] = {
     DTE_PACKAGE("Hungarian Documentation",		&DocDists, DOC_HU,	"hu-freebsd-doc"),
     DTE_PACKAGE("Italian Documentation",		&DocDists, DOC_IT,	"it-freebsd-doc"),
     DTE_PACKAGE("Japanese Documentation",		&DocDists, DOC_JA,	"ja-freebsd-doc"),
-    DTE_PACKAGE("Mongolian Documentation",		&DocDists, DOC_MN,	"mn-freebsd-doc-mn"),
+    DTE_PACKAGE("Mongolian Documentation",		&DocDists, DOC_MN,	"mn-freebsd-doc"),
     DTE_PACKAGE("Dutch Documentation",			&DocDists, DOC_NL,	"nl-freebsd-doc"),
     DTE_PACKAGE("Polish Documentation",			&DocDists, DOC_PL,	"pl-freebsd-doc"),
     DTE_PACKAGE("Portuguese Documentation",		&DocDists, DOC_PT,	"pt-freebsd-doc"),

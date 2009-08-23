@@ -180,37 +180,43 @@ map_object(int fd, const char *path, const struct stat *sb)
 	    return NULL;
 	}
 
-	/* Clear any BSS in the last page of the segment. */
-	clear_vaddr = segs[i]->p_vaddr + segs[i]->p_filesz;
-	clear_addr = mapbase + (clear_vaddr - base_vaddr);
-	clear_page = mapbase + (trunc_page(clear_vaddr) - base_vaddr);
-	if ((nclear = data_vlimit - clear_vaddr) > 0) {
-	    /* Make sure the end of the segment is writable */
-	    if ((data_prot & PROT_WRITE) == 0 &&
-		-1 ==  mprotect(clear_page, PAGE_SIZE, data_prot|PROT_WRITE)) {
+	/* Do BSS setup */
+	if (segs[i]->p_filesz != segs[i]->p_memsz) {
+
+	    /* Clear any BSS in the last page of the segment. */
+	    clear_vaddr = segs[i]->p_vaddr + segs[i]->p_filesz;
+	    clear_addr = mapbase + (clear_vaddr - base_vaddr);
+	    clear_page = mapbase + (trunc_page(clear_vaddr) - base_vaddr);
+
+	    if ((nclear = data_vlimit - clear_vaddr) > 0) {
+		/* Make sure the end of the segment is writable */
+		if ((data_prot & PROT_WRITE) == 0 && -1 ==
+		     mprotect(clear_page, PAGE_SIZE, data_prot|PROT_WRITE)) {
 			_rtld_error("%s: mprotect failed: %s", path,
 			    strerror(errno));
 			return NULL;
+		}
+
+		memset(clear_addr, 0, nclear);
+
+		/* Reset the data protection back */
+		if ((data_prot & PROT_WRITE) == 0)
+		    mprotect(clear_page, PAGE_SIZE, data_prot);
 	    }
 
-	    memset(clear_addr, 0, nclear);
-
-	    /* Reset the data protection back */
-	    if ((data_prot & PROT_WRITE) == 0)
-		 mprotect(clear_page, PAGE_SIZE, data_prot);
-	}
-
-	/* Overlay the BSS segment onto the proper region. */
-	bss_vaddr = data_vlimit;
-	bss_vlimit = round_page(segs[i]->p_vaddr + segs[i]->p_memsz);
-	bss_addr = mapbase +  (bss_vaddr - base_vaddr);
-	if (bss_vlimit > bss_vaddr) {	/* There is something to do */
-	    if (mprotect(bss_addr, bss_vlimit - bss_vaddr, data_prot) == -1) {
+	    /* Overlay the BSS segment onto the proper region. */
+	    bss_vaddr = data_vlimit;
+	    bss_vlimit = round_page(segs[i]->p_vaddr + segs[i]->p_memsz);
+	    bss_addr = mapbase +  (bss_vaddr - base_vaddr);
+	    if (bss_vlimit > bss_vaddr) {	/* There is something to do */
+		if (mprotect(bss_addr, bss_vlimit - bss_vaddr, data_prot) == -1) {
 		    _rtld_error("%s: mprotect of bss failed: %s", path,
 			strerror(errno));
-		return NULL;
+		    return NULL;
+		}
 	    }
 	}
+
 	if (phdr_vaddr == 0 && data_offset <= hdr->e_phoff &&
 	  (data_vlimit - data_vaddr + data_offset) >=
 	  (hdr->e_phoff + hdr->e_phnum * sizeof (Elf_Phdr))) {

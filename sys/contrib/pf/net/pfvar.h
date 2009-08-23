@@ -1593,8 +1593,13 @@ extern struct pool		 pf_state_pl, pf_altq_pl, pf_pooladdr_pl;
 extern struct pool		 pf_state_scrub_pl;
 #endif
 extern void			 pf_purge_thread(void *);
+#ifdef __FreeBSD__
+extern int			 pf_purge_expired_src_nodes(int);
+extern int			 pf_purge_expired_states(u_int32_t, int);
+#else
 extern void			 pf_purge_expired_src_nodes(int);
 extern void			 pf_purge_expired_states(u_int32_t);
+#endif
 extern void			 pf_unlink_state(struct pf_state *);
 extern void			 pf_free_state(struct pf_state *);
 extern int			 pf_insert_state(struct pfi_kif *,
@@ -1854,13 +1859,5 @@ void	pf_osfp_initialize(void);
 int	pf_osfp_match(struct pf_osfp_enlist *, pf_osfp_t);
 struct pf_os_fingerprint *
 	pf_osfp_validate(void);
-
-/*
- * Symbol translation macros
- */
-#define	INIT_VNET_PF(vnet) \
-	INIT_FROM_VNET(vnet, VNET_MOD_PF, struct vnet_pf, vnet_pf)
-
-#define	VNET_PF(sym)	VSYM(vnet_pf, sym)
 
 #endif /* _NET_PFVAR_H_ */

@@ -254,7 +254,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 		}
 	}
 #if _BYTE_ORDER == _BIG_ENDIAN
-	if (reg >= 0x4000 && reg < 0x5000)
+	if (OS_REG_UNSWAPPED(reg))
 		bus_space_write_4(tag, h, reg, val);
 	else
 #endif
@@ -269,7 +269,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	u_int32_t val;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
-	if (reg >= 0x4000 && reg < 0x5000)
+	if (OS_REG_UNSWAPPED(reg))
 		val = bus_space_read_4(tag, h, reg);
 	else
 #endif
@@ -320,7 +320,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	bus_space_handle_t h = ah->ah_sh;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
-	if (reg >= 0x4000 && reg < 0x5000)
+	if (OS_REG_UNSWAPPED(reg))
 		bus_space_write_4(tag, h, reg, val);
 	else
 #endif
@@ -335,7 +335,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	u_int32_t val;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
-	if (reg >= 0x4000 && reg < 0x5000)
+	if (OS_REG_UNSWAPPED(reg))
 		val = bus_space_read_4(tag, h, reg);
 	else
 #endif

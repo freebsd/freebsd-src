@@ -97,7 +97,7 @@ CFLAGS+=-DINET6
 CFLAGS+=-DHAVE_NET_PFVAR_H
 .endif
 
-SHLIB_MAJOR=6
+SHLIB_MAJOR=7
 
 #
 # Magic to grab sources out of src/contrib

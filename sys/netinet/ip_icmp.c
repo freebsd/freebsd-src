@@ -42,11 +42,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/icmp_var.h>
-#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -77,61 +76,75 @@ __FBSDID("$FreeBSD$");
  * host table maintenance routines.
  */
 
-#ifdef VIMAGE_GLOBALS
-struct icmpstat	icmpstat;
-static int	icmpmaskrepl;
-static u_int	icmpmaskfake;
-static int	drop_redirect;
-static int	log_redirect;
-static int	icmplim;
-static int	icmplim_output;
-static char	reply_src[IFNAMSIZ];
-static int	icmp_rfi;
-static int	icmp_quotelen;
-static int	icmpbmcastecho;
-#endif
+VNET_DEFINE(struct icmpstat, icmpstat);
+static VNET_DEFINE(int, icmpmaskrepl);
+static VNET_DEFINE(u_int, icmpmaskfake);
+static VNET_DEFINE(int, drop_redirect);
+static VNET_DEFINE(int, log_redirect);
+static VNET_DEFINE(int, icmplim);
+static VNET_DEFINE(int, icmplim_output);
+static VNET_DEFINE(char, reply_src[IFNAMSIZ]);
+static VNET_DEFINE(int, icmp_rfi);
+static VNET_DEFINE(int, icmp_quotelen);
+static VNET_DEFINE(int, icmpbmcastecho);
 
-SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_icmp, ICMPCTL_STATS, stats,
-	CTLFLAG_RW, icmpstat, icmpstat, "");
+#define	V_icmpmaskrepl			VNET(icmpmaskrepl)
+#define	V_icmpmaskfake			VNET(icmpmaskfake)
+#define	V_drop_redirect			VNET(drop_redirect)
+#define	V_log_redirect			VNET(log_redirect)
+#define	V_icmplim			VNET(icmplim)
+#define	V_icmplim_output		VNET(icmplim_output)
+#define	V_reply_src			VNET(reply_src)
+#define	V_icmp_rfi			VNET(icmp_rfi)
+#define	V_icmp_quotelen			VNET(icmp_quotelen)
+#define	V_icmpbmcastecho		VNET(icmpbmcastecho)
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, ICMPCTL_MASKREPL, maskrepl,
-	CTLFLAG_RW, icmpmaskrepl, 0,
+SYSCTL_VNET_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RW,
+	&VNET_NAME(icmpstat), icmpstat, "");
+
+SYSCTL_VNET_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_RW,
+	&VNET_NAME(icmpmaskrepl), 0,
 	"Reply to ICMP Address Mask Request packets.");
 
-SYSCTL_V_UINT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_RW,
-	icmpmaskfake, 0, "Fake reply to ICMP Address Mask Request packets.");
+SYSCTL_VNET_UINT(_net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_RW,
+	&VNET_NAME(icmpmaskfake), 0,
+	"Fake reply to ICMP Address Mask Request packets.");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, drop_redirect,
-	CTLFLAG_RW, drop_redirect, 0, "Ignore ICMP redirects");
+SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_RW,
+	&VNET_NAME(drop_redirect), 0,
+	"Ignore ICMP redirects");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, log_redirect,
-	CTLFLAG_RW, log_redirect, 0, "Log ICMP redirects to the console");
+SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, log_redirect, CTLFLAG_RW,
+	&VNET_NAME(log_redirect), 0,
+	"Log ICMP redirects to the console");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, ICMPCTL_ICMPLIM, icmplim,
-	CTLFLAG_RW, icmplim, 0, "Maximum number of ICMP responses per second");
+SYSCTL_VNET_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RW,
+	&VNET_NAME(icmplim), 0,
+	"Maximum number of ICMP responses per second");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, icmplim_output,
-	CTLFLAG_RW, icmplim_output, 0,
+SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
+	&VNET_NAME(icmplim_output), 0,
 	"Enable rate limiting of ICMP responses");
 
-SYSCTL_V_STRING(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, reply_src,
-	CTLFLAG_RW, reply_src, IFNAMSIZ,
+SYSCTL_VNET_STRING(_net_inet_icmp, OID_AUTO, reply_src, CTLFLAG_RW,
+	&VNET_NAME(reply_src), IFNAMSIZ,
 	"icmp reply source for non-local packets.");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, reply_from_interface,
-	CTLFLAG_RW, icmp_rfi, 0, "ICMP reply from incoming interface for "
-	"non-local packets");
+SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, reply_from_interface, CTLFLAG_RW,
+	&VNET_NAME(icmp_rfi), 0,
+	"ICMP reply from incoming interface for non-local packets");
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, quotelen, CTLFLAG_RW,
-	icmp_quotelen, 0, "Number of bytes from original packet to "
-	"quote in ICMP reply");
+SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, quotelen, CTLFLAG_RW,
+	&VNET_NAME(icmp_quotelen), 0,
+	"Number of bytes from original packet to quote in ICMP reply");
 
 /*
  * ICMP broadcast echo sysctl
  */
 
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, bmcastecho,
-	CTLFLAG_RW, icmpbmcastecho, 0, "");
+SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW,
+	&VNET_NAME(icmpbmcastecho), 0,
+	"");
 
 
 #ifdef ICMPPRINTFS
@@ -146,7 +159,6 @@ extern	struct protosw inetsw[];
 void
 icmp_init(void)
 {
-	INIT_VNET_INET(curvnet);
 
 	V_icmpmaskrepl = 0;
 	V_icmpmaskfake = 0;
@@ -160,13 +172,26 @@ icmp_init(void)
 }
 
 /*
+ * Kernel module interface for updating icmpstat.  The argument is an index
+ * into icmpstat treated as an array of u_long.  While this encodes the
+ * general layout of icmpstat into the caller, it doesn't encode its
+ * location, so that future changes to add, for example, per-CPU stats
+ * support won't cause binary compatibility problems for kernel modules.
+ */
+void
+kmod_icmpstat_inc(int statnum)
+{
+
+	(*((u_long *)&V_icmpstat + statnum))++;
+}
+
+/*
  * Generate an error packet of type error
  * in response to bad packet ip.
  */
 void
 icmp_error(struct mbuf *n, int type, int code, uint32_t dest, int mtu)
 {
-	INIT_VNET_INET(curvnet);
 	register struct ip *oip = mtod(n, struct ip *), *nip;
 	register unsigned oiphlen = oip->ip_hl << 2;
 	register struct icmp *icp;
@@ -315,7 +340,6 @@ freeit:
 void
 icmp_input(struct mbuf *m, int off)
 {
-	INIT_VNET_INET(curvnet);
 	struct icmp *icp;
 	struct in_ifaddr *ia;
 	struct ip *ip = mtod(m, struct ip *);
@@ -649,7 +673,6 @@ freeit:
 static void
 icmp_reflect(struct mbuf *m)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip *ip = mtod(m, struct ip *);
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
@@ -941,7 +964,6 @@ ip_next_mtu(int mtu, int dir)
 int
 badport_bandlim(int which)
 {
-	INIT_VNET_INET(curvnet);
 
 #define	N(a)	(sizeof (a) / sizeof (a[0]))
 	static struct rate {

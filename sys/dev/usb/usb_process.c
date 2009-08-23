@@ -63,10 +63,12 @@
 #endif
 
 #if (__FreeBSD_version >= 800000)
+static struct proc *usbproc;
 #define	USB_THREAD_CREATE(f, s, p, ...) \
-		kproc_create((f), (s), (p), RFHIGHPID, 0, __VA_ARGS__)
-#define	USB_THREAD_SUSPEND(p)   kproc_suspend(p,0)
-#define	USB_THREAD_EXIT(err)	kproc_exit(err)
+		kproc_kthread_add((f), (s), &usbproc, (p), RFHIGHPID, \
+		    0, "usb", __VA_ARGS__)
+#define	USB_THREAD_SUSPEND(p)   kthread_suspend(p,0)
+#define	USB_THREAD_EXIT(err)	kthread_exit()
 #else
 #define	USB_THREAD_CREATE(f, s, p, ...) \
 		kthread_create((f), (s), (p), RFHIGHPID, 0, __VA_ARGS__)
@@ -207,8 +209,8 @@ usb_proc_create(struct usb_process *up, struct mtx *p_mtx,
 
 	TAILQ_INIT(&up->up_qhead);
 
-	cv_init(&up->up_cv, "wmsg");
-	cv_init(&up->up_drain, "dmsg");
+	cv_init(&up->up_cv, "-");
+	cv_init(&up->up_drain, "usbdrain");
 
 	if (USB_THREAD_CREATE(&usb_process, up,
 	    &up->up_ptr, pmesg)) {

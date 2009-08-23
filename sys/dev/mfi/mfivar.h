@@ -379,6 +379,7 @@ mfi_print_sense(struct mfi_softc *sc, void *sense)
 MALLOC_DECLARE(M_MFIBUF);
 
 #define MFI_CMD_TIMEOUT 30
+#define MFI_MAXPHYS (128 * 1024)
 
 #ifdef MFI_DEBUG
 extern void mfi_print_cmd(struct mfi_command *cm);

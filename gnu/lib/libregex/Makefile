@@ -3,7 +3,7 @@
 SUBDIR=		doc
 
 LIB=		gnuregex
-SHLIB_MAJOR=	4
+SHLIB_MAJOR=	5
 
 SRCS=		gnuregex.c
 INCSGROUPS=	INCS WRINCS PXINCS

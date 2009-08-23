@@ -52,7 +52,7 @@ that may have scrolled off the screen.  To use scroll-back, press the
 Down keys to move through the saved text.  To leave scroll-back mode,
 press the Scroll Lock key again.  This feature is most useful for
 reading back through your boot messages (go ahead, try it now!) though
-it's also useful when dealing with sub-shells or other "wizard modes"
+it's also useful when dealing with sub-shells or other "expert modes"
 that don't use menus and tend to scroll their output off the top of
 the screen.
 

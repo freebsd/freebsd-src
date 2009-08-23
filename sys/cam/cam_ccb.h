@@ -40,6 +40,7 @@
 #endif
 #include <cam/cam_debug.h>
 #include <cam/scsi/scsi_all.h>
+#include <cam/ata/ata_all.h>
 
 
 /* General allocation length definitions for CCB structures */
@@ -169,7 +170,18 @@ typedef enum {
 				 * a device give the sector size and
 				 * volume size.
 				 */
+	XPT_ATA_IO		= 0x18 | XPT_FC_DEV_QUEUED,
+				/* Execute the requested ATA I/O operation */
 
+	XPT_GET_SIM_KNOB	= 0x18,
+				/*
+				 * Get SIM specific knob values.
+				 */
+
+	XPT_SET_SIM_KNOB	= 0x19,
+				/*
+				 * Set SIM specific knob values.
+				 */
 /* HBA engine commands 0x20->0x2F */
 	XPT_ENG_INQ		= 0x20 | XPT_FC_XPT_ONLY,
 				/* HBA engine feature inquiry */
@@ -186,8 +198,12 @@ typedef enum {
 	XPT_CONT_TARGET_IO	= 0x33 | XPT_FC_DEV_QUEUED,
 				/* Continue Host Target I/O Connection */
 	XPT_IMMED_NOTIFY	= 0x34 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
-				/* Notify Host Target driver of event */
+				/* Notify Host Target driver of event (obsolete) */
 	XPT_NOTIFY_ACK		= 0x35,
+				/* Acknowledgement of event (obsolete) */
+	XPT_IMMEDIATE_NOTIFY	= 0x36 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
+				/* Notify Host Target driver of event */
+	XPT_NOTIFY_ACKNOWLEDGE	= 0x37 | XPT_FC_QUEUED | XPT_FC_USER_CCB,
 				/* Acknowledgement of event */
 
 /* Vendor Unique codes: 0x80->0x8F */
@@ -213,6 +229,7 @@ typedef enum {
 	PROTO_SCSI,	/* Small Computer System Interface */
 	PROTO_ATA,	/* AT Attachment */
 	PROTO_ATAPI,	/* AT Attachment Packetized Interface */
+	PROTO_SATAPM,	/* SATA Port Multiplier */
 } cam_proto;
 
 typedef enum {
@@ -225,6 +242,8 @@ typedef enum {
 	XPORT_PPB,	/* Parallel Port Bus */
 	XPORT_ATA,	/* AT Attachment */
 	XPORT_SAS,	/* Serial Attached SCSI */
+	XPORT_SATA,	/* Serial AT Attachment */
+	XPORT_ISCSI,	/* iSCSI */
 } cam_xport;
 
 #define PROTO_VERSION_UNKNOWN (UINT_MAX - 1)
@@ -284,7 +303,9 @@ struct ccb_hdr {
 /* Get Device Information CCB */
 struct ccb_getdev {
 	struct	  ccb_hdr ccb_h;
+	cam_proto protocol;
 	struct scsi_inquiry_data inq_data;
+	struct ata_params ident_data;
 	u_int8_t  serial_num[252];
 	u_int8_t  reserved;
 	u_int8_t  serial_num_len;
@@ -412,7 +433,9 @@ struct device_match_result {
 	path_id_t			path_id;
 	target_id_t			target_id;
 	lun_id_t			target_lun;
+	cam_proto			protocol;
 	struct scsi_inquiry_data	inq_data;
+	struct ata_params		ident_data;
 	dev_result_flags		flags;
 };
 
@@ -495,6 +518,7 @@ typedef enum {
 	PI_WIDE_16	= 0x20, /* Supports 16 bit wide SCSI */
 	PI_SDTR_ABLE	= 0x10,	/* Supports SDTR message */
 	PI_LINKED_CDB	= 0x08, /* Supports linked CDBs */
+	PI_SATAPM	= 0x04,	/* Supports SATA PM */
 	PI_TAG_ABLE	= 0x02,	/* Supports tag queue messages */
 	PI_SOFT_RST	= 0x01	/* Supports soft reset alternative */
 } pi_inqflag;
@@ -521,12 +545,14 @@ typedef enum {
 struct ccb_pathinq_settings_spi {
 	u_int8_t ppr_options;
 };
+
 struct ccb_pathinq_settings_fc {
 	u_int64_t wwnn;		/* world wide node name */
 	u_int64_t wwpn;		/* world wide port name */
 	u_int32_t port;		/* 24 bit port id, if known */
 	u_int32_t bitrate;	/* Mbps */
 };
+
 struct ccb_pathinq_settings_sas {
 	u_int32_t bitrate;	/* Mbps */
 };
@@ -562,6 +588,7 @@ struct ccb_pathinq {
 		struct ccb_pathinq_settings_sas sas;
 		char ccb_pathinq_settings_opaque[PATHINQ_SETTINGS_SIZE];
 	} xport_specific;
+	u_int		maxio;		/* Max supported I/O size, in bytes. */
 };
 
 /* Path Statistics CCB */
@@ -617,6 +644,28 @@ struct ccb_scsiio {
 	u_int	   init_id;		/* initiator id of who selected */
 };
 
+/*
+ * ATA I/O Request CCB used for the XPT_ATA_IO function code.
+ */
+struct ccb_ataio {
+	struct	   ccb_hdr ccb_h;
+	union	   ccb *next_ccb;	/* Ptr for next CCB for action */
+	struct ata_cmd	cmd;		/* ATA command register set */
+	struct ata_res	res;		/* ATA result register set */
+	u_int8_t   *data_ptr;		/* Ptr to the data buf/SG list */
+	u_int32_t  dxfer_len;		/* Data transfer length */
+	u_int32_t  resid;		/* Transfer residual length: 2's comp */
+	u_int8_t   tag_action;		/* What to do for tag queueing */
+	/*
+	 * The tag action should be either the define below (to send a
+	 * non-tagged transaction) or one of the defined scsi tag messages
+	 * from scsi_message.h.
+	 */
+#define		CAM_TAG_ACTION_NONE	0x00
+	u_int	   tag_id;		/* tag id from initator (target mode) */
+	u_int	   init_id;		/* initiator id of who selected */
+};
+
 struct ccb_accept_tio {
 	struct	   ccb_hdr ccb_h;
 	cdb_t	   cdb_io;		/* Union for CDB bytes/pointer */
@@ -645,6 +694,7 @@ struct ccb_relsim {
  * Definitions for the asynchronous callback CCB fields.
  */
 typedef enum {
+	AC_CONTRACT		= 0x1000,/* A contractual callback */
 	AC_GETDEV_CHANGED	= 0x800,/* Getdev info might have changed */
 	AC_INQ_CHANGED		= 0x400,/* Inquiry info might have changed */
 	AC_TRANSFER_NEG		= 0x200,/* New transfer settings in effect */
@@ -660,6 +710,26 @@ typedef enum {
 
 typedef void ac_callback_t (void *softc, u_int32_t code,
 			    struct cam_path *path, void *args);
+
+/*
+ * Generic Asynchronous callbacks.
+ *
+ * Generic arguments passed bac which are then interpreted between a per-system
+ * contract number.
+ */
+#define	AC_CONTRACT_DATA_MAX (128 - sizeof (u_int64_t))
+struct ac_contract {
+	u_int64_t	contract_number;
+	u_int8_t	contract_data[AC_CONTRACT_DATA_MAX];
+};
+
+#define	AC_CONTRACT_DEV_CHG	1
+struct ac_device_changed {
+	u_int64_t	wwpn;
+	u_int32_t	port;
+	target_id_t	target;
+	u_int8_t	arrived;
+};
 
 /* Set Asynchronous Callback CCB */
 struct ccb_setasync {
@@ -746,6 +816,13 @@ struct ccb_trans_settings_sas {
 	u_int32_t 	bitrate;	/* Mbps */
 };
 
+struct ccb_trans_settings_sata {
+	u_int     	valid;		/* Which fields to honor */
+#define	CTS_SATA_VALID_SPEED		0x01
+#define	CTS_SATA_VALID_PM		0x02
+	u_int32_t 	bitrate;	/* Mbps */
+	u_int 		pm_present;	/* PM is present (XPT->SIM) */
+};
 
 /* Get/Set transfer rate/width/disconnection/tag queueing settings */
 struct ccb_trans_settings {
@@ -764,6 +841,7 @@ struct ccb_trans_settings {
 		struct ccb_trans_settings_spi spi;
 		struct ccb_trans_settings_fc fc;
 		struct ccb_trans_settings_sas sas;
+		struct ccb_trans_settings_sata sata;
 	} xport_specific;
 };
 
@@ -779,6 +857,50 @@ struct ccb_calc_geometry {
 	u_int32_t cylinders;		
 	u_int8_t  heads;
 	u_int8_t  secs_per_track;
+};
+
+/*
+ * Set or get SIM (and transport) specific knobs
+ */
+
+#define	KNOB_VALID_ADDRESS	0x1
+#define	KNOB_VALID_ROLE		0x2
+
+
+#define	KNOB_ROLE_NONE		0x0
+#define	KNOB_ROLE_INITIATOR	0x1
+#define	KNOB_ROLE_TARGET	0x2
+#define	KNOB_ROLE_BOTH		0x3
+
+struct ccb_sim_knob_settings_spi {
+	u_int		valid;
+	u_int		initiator_id;
+	u_int		role;
+};
+
+struct ccb_sim_knob_settings_fc {
+	u_int		valid;
+	u_int64_t	wwnn;		/* world wide node name */
+	u_int64_t 	wwpn;		/* world wide port name */
+	u_int		role;
+};
+
+struct ccb_sim_knob_settings_sas {
+	u_int		valid;
+	u_int64_t	wwnn;		/* world wide node name */
+	u_int		role;
+};
+#define	KNOB_SETTINGS_SIZE	128
+
+struct ccb_sim_knob {
+	struct	  ccb_hdr ccb_h;
+	union {
+		u_int  valid;	/* Which fields to honor */
+		struct ccb_sim_knob_settings_spi spi;
+		struct ccb_sim_knob_settings_fc fc;
+		struct ccb_sim_knob_settings_sas sas;
+		char pad[KNOB_SETTINGS_SIZE];
+	} xport_specific;
 };
 
 /*
@@ -806,6 +928,7 @@ struct ccb_en_lun {
 	u_int8_t  enable;
 };
 
+/* old, barely used immediate notify, binary compatibility */
 struct ccb_immed_notify {
 	struct	  ccb_hdr ccb_h;
 	struct    scsi_sense_data sense_data;
@@ -818,6 +941,22 @@ struct ccb_notify_ack {
 	struct	  ccb_hdr ccb_h;
 	u_int16_t seq_id;		/* Sequence identifier */
 	u_int8_t  event;		/* Event flags */
+};
+
+struct ccb_immediate_notify {
+	struct    ccb_hdr ccb_h;
+	u_int     tag_id;		/* Tag for immediate notify */
+	u_int     seq_id;		/* Tag for target of notify */
+	u_int     initiator_id;		/* Initiator Identifier */
+	u_int     arg;			/* Function specific */
+};
+
+struct ccb_notify_acknowledge {
+	struct    ccb_hdr ccb_h;
+	u_int     tag_id;		/* Tag for immediate notify */
+	u_int     seq_id;		/* Tar for target of notify */
+	u_int     initiator_id;		/* Initiator Identifier */
+	u_int     arg;			/* Function specific */
 };
 
 /* HBA engine structures. */
@@ -894,6 +1033,7 @@ union ccb {
 	struct	ccb_dev_match		cdm;
 	struct	ccb_trans_settings	cts;
 	struct	ccb_calc_geometry	ccg;	
+	struct	ccb_sim_knob		knob;	
 	struct	ccb_abort		cab;
 	struct	ccb_resetbus		crb;
 	struct	ccb_resetdev		crd;
@@ -903,10 +1043,13 @@ union ccb {
 	struct	ccb_en_lun		cel;
 	struct	ccb_immed_notify	cin;
 	struct	ccb_notify_ack		cna;
+	struct	ccb_immediate_notify	cin1;
+	struct	ccb_notify_acknowledge	cna2;
 	struct	ccb_eng_inq		cei;
 	struct	ccb_eng_exec		cee;
 	struct 	ccb_rescan		crcn;
 	struct  ccb_debug		cdbg;
+	struct	ccb_ataio		ataio;
 };
 
 __BEGIN_DECLS
@@ -924,7 +1067,14 @@ cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
 	      u_int32_t flags, u_int tag_action, u_int tag_id,
 	      u_int init_id, u_int scsi_status, u_int8_t *data_ptr,
 	      u_int32_t dxfer_len, u_int32_t timeout);
-	
+
+static __inline void
+cam_fill_ataio(struct ccb_ataio *ataio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int32_t flags, u_int tag_action,
+	      u_int8_t *data_ptr, u_int32_t dxfer_len,
+	      u_int32_t timeout);
+
 static __inline void
 cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 	      void (*cbfcnp)(struct cam_periph *, union ccb *),
@@ -963,6 +1113,23 @@ cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
 	csio->tag_action = tag_action;
 	csio->tag_id = tag_id;
 	csio->init_id = init_id;
+}
+
+static __inline void
+cam_fill_ataio(struct ccb_ataio *ataio, u_int32_t retries,
+	      void (*cbfcnp)(struct cam_periph *, union ccb *),
+	      u_int32_t flags, u_int tag_action,
+	      u_int8_t *data_ptr, u_int32_t dxfer_len,
+	      u_int32_t timeout)
+{
+	ataio->ccb_h.func_code = XPT_ATA_IO;
+	ataio->ccb_h.flags = flags;
+	ataio->ccb_h.retry_count = retries;
+	ataio->ccb_h.cbfcnp = cbfcnp;
+	ataio->ccb_h.timeout = timeout;
+	ataio->data_ptr = data_ptr;
+	ataio->dxfer_len = dxfer_len;
+	ataio->tag_action = tag_action;
 }
 
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);

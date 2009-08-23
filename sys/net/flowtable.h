@@ -38,9 +38,8 @@ $FreeBSD$
 #define	FL_PCPU		(1<<1)	/* pcpu cache */
 
 struct flowtable;
-#ifdef VIMAGE_GLOBALS
-extern struct flowtable *ip_ft;
-#endif
+VNET_DECLARE(struct flowtable *, ip_ft);
+#define	V_ip_ft			VNET(ip_ft)
 
 struct flowtable *flowtable_alloc(int nentry, int flags);
 
@@ -50,7 +49,7 @@ struct flowtable *flowtable_alloc(int nentry, int flags);
  *
  */
 int flowtable_lookup(struct flowtable *ft, struct mbuf *m,
-    struct route *ro);
+    struct route *ro, uint32_t fibnum);
 
 #endif /* _KERNEL */
 #endif

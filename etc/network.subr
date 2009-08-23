@@ -816,6 +816,17 @@ hexprint()
 	echo ${str}
 }
 
+is_wired_interface()
+{
+	local media
+
+	case `ifconfig $1 2>/dev/null` in
+	*media:?Ethernet*) media=Ethernet ;;
+	esac
+
+	test "$media" = "Ethernet"
+}
+
 # Setup the interfaces for IPv6
 network6_interface_setup()
 {
@@ -858,13 +869,18 @@ network6_interface_setup()
 			ifconfig $i inet6 ${ipv6_ifconfig} alias
 		fi
 
+		# Wireless NIC cards are virtualized through the wlan interface
+		if ! is_wired_interface ${i}; then
+			case "${i}" in
+			wlan*)	rtsol_available=yes ;;
+			*)	rtsol_available=no ;;
+			esac
+		fi
+
 		if [ ${rtsol_available} = yes -a ${rtsol_interface} = yes ]
 		then
 			case ${i} in
 			lo0|gif[0-9]*|stf[0-9]*|faith[0-9]*|lp[0-9]*|sl[0-9]*|tun[0-9]*|pflog[0-9]*|pfsync[0-9]*)
-				;;
-			# Wireless NIC cards are virtualized through the wlan interface
-			an[0-9]*|ath[0-9]*|ipw[0-9]*|iwi[0-9]*|iwn[0-9]*|ral[0-9]*|wi[0-9]*|wl[0-9]*|wpi[0-9]*)
 				;;
 			*)
 				rtsol_interfaces="${rtsol_interfaces} ${i}"

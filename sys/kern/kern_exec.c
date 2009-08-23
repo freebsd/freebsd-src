@@ -419,7 +419,7 @@ interpret:
 			goto exec_fail;
 		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
-		AUDIT_ARG_VNODE(binvp, ARG_VNODE1);
+		AUDIT_ARG_VNODE1(binvp);
 		imgp->vp = binvp;
 	}
 
@@ -673,8 +673,8 @@ interpret:
 		 * allocate memory, so temporarily drop the process lock.
 		 */
 		PROC_UNLOCK(p);
-		setugidsafety(td);
 		VOP_UNLOCK(imgp->vp, 0);
+		setugidsafety(td);
 		error = fdcheckstd(td);
 		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 		if (error != 0)

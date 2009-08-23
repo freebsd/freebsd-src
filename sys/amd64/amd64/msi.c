@@ -230,6 +230,8 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 
 	msi->msi_cpu = apic_id;
 	msi->msi_vector = vector;
+	if (msi->msi_intsrc.is_handlers > 0)
+		apic_enable_vector(msi->msi_cpu, msi->msi_vector);
 	if (bootverbose)
 		printf("msi: Assigning %s IRQ %d to local APIC %u vector %u\n",
 		    msi->msi_msix ? "MSI-X" : "MSI", msi->msi_irq,
@@ -238,6 +240,8 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 		sib = (struct msi_intsrc *)intr_lookup_source(msi->msi_irqs[i]);
 		sib->msi_cpu = apic_id;
 		sib->msi_vector = vector + i;
+		if (sib->msi_intsrc.is_handlers > 0)
+			apic_enable_vector(sib->msi_cpu, sib->msi_vector);
 		if (bootverbose)
 			printf(
 		    "msi: Assigning MSI IRQ %d to local APIC %u vector %u\n",
@@ -249,9 +253,15 @@ msi_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	 * Free the old vector after the new one is established.  This is done
 	 * to prevent races where we could miss an interrupt.
 	 */
+	if (msi->msi_intsrc.is_handlers > 0)
+		apic_disable_vector(old_id, old_vector);
 	apic_free_vector(old_id, old_vector, msi->msi_irq);
-	for (i = 1; i < msi->msi_count; i++)
+	for (i = 1; i < msi->msi_count; i++) {
+		sib = (struct msi_intsrc *)intr_lookup_source(msi->msi_irqs[i]);
+		if (sib->msi_intsrc.is_handlers > 0)
+			apic_disable_vector(old_id, old_vector + i);
 		apic_free_vector(old_id, old_vector + i, msi->msi_irqs[i]);
+	}
 	return (0);
 }
 

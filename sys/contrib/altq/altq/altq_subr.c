@@ -47,9 +47,6 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
-#ifdef __FreeBSD__
-#include <sys/vimage.h>
-#endif
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -469,7 +466,6 @@ tbr_timeout(arg)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_NET(vnet_iter);
 #endif
 		for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
 		    ifp = TAILQ_NEXT(ifp, if_list)) {

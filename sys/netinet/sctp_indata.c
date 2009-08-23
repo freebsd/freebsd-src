@@ -388,7 +388,8 @@ abandon:
 			else
 				end = 0;
 			sctp_add_to_readq(stcb->sctp_ep,
-			    stcb, control, &stcb->sctp_socket->so_rcv, end, SCTP_SO_NOT_LOCKED);
+			    stcb, control, &stcb->sctp_socket->so_rcv, end,
+			    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 			cntDel++;
 		} else {
 			if (chk->rec.data.rcv_flags & SCTP_DATA_LAST_FRAG)
@@ -516,7 +517,8 @@ abandon:
 						nr_tsn = ctl->sinfo_tsn;
 						sctp_add_to_readq(stcb->sctp_ep, stcb,
 						    ctl,
-						    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+						    &stcb->sctp_socket->so_rcv, 1,
+						    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 						/*
 						 * EY -now something is
 						 * delivered, calculate
@@ -685,8 +687,8 @@ protocol_error:
 		nr_tsn = control->sinfo_tsn;
 		sctp_add_to_readq(stcb->sctp_ep, stcb,
 		    control,
-		    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
-
+		    &stcb->sctp_socket->so_rcv, 1,
+		    SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 		/*
 		 * EY this is the chunk that should be tagged nr gapped
 		 * calculate the gap and such then tag this TSN nr
@@ -739,7 +741,9 @@ protocol_error:
 				nr_tsn = control->sinfo_tsn;
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    control,
-				    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+				    &stcb->sctp_socket->so_rcv, 1,
+				    SCTP_READ_LOCK_NOT_HELD,
+				    SCTP_SO_NOT_LOCKED);
 				/*
 				 * EY this is the chunk that should be
 				 * tagged nr gapped calculate the gap and
@@ -896,7 +900,7 @@ sctp_deliver_reasm_check(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
 	struct sctp_tmit_chunk *chk;
 	uint16_t nxt_todel;
-	uint32_t tsize;
+	uint32_t tsize, pd_point;
 
 doit_again:
 	chk = TAILQ_FIRST(&asoc->reasmqueue);
@@ -916,8 +920,13 @@ doit_again:
 			 * Yep the first one is here and its ok to deliver
 			 * but should we?
 			 */
-			if ((sctp_is_all_msg_on_reasm(asoc, &tsize) ||
-			    (tsize >= stcb->sctp_ep->partial_delivery_point))) {
+			if (stcb->sctp_socket) {
+				pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket) >> SCTP_PARTIAL_DELIVERY_SHIFT,
+				    stcb->sctp_ep->partial_delivery_point);
+			} else {
+				pd_point = stcb->sctp_ep->partial_delivery_point;
+			}
+			if (sctp_is_all_msg_on_reasm(asoc, &tsize) || (tsize >= pd_point)) {
 
 				/*
 				 * Yes, we setup to start reception, by
@@ -1910,7 +1919,9 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		if (control == NULL) {
 			goto failed_express_del;
 		}
-		sctp_add_to_readq(stcb->sctp_ep, stcb, control, &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+		sctp_add_to_readq(stcb->sctp_ep, stcb,
+		    control, &stcb->sctp_socket->so_rcv,
+		    1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 
 		/*
 		 * EY here I should check if this delivered tsn is
@@ -2248,7 +2259,7 @@ failed_pdapi_express_del:
 			/* queue directly into socket buffer */
 			sctp_add_to_readq(stcb->sctp_ep, stcb,
 			    control,
-			    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+			    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 
 			/*
 			 * EY It is added to the read queue in prev if block
@@ -2818,7 +2829,7 @@ void
 sctp_service_queues(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
 	struct sctp_tmit_chunk *chk;
-	uint32_t tsize;
+	uint32_t tsize, pd_point;
 	uint16_t nxt_todel;
 
 	if (asoc->fragmented_delivery_inprogress) {
@@ -2854,8 +2865,13 @@ doit_again:
 		 * be here or 1/4 the socket buffer max or nothing on the
 		 * delivery queue and something can be delivered.
 		 */
-		if ((sctp_is_all_msg_on_reasm(asoc, &tsize) ||
-		    (tsize >= stcb->sctp_ep->partial_delivery_point))) {
+		if (stcb->sctp_socket) {
+			pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket) >> SCTP_PARTIAL_DELIVERY_SHIFT,
+			    stcb->sctp_ep->partial_delivery_point);
+		} else {
+			pd_point = stcb->sctp_ep->partial_delivery_point;
+		}
+		if (sctp_is_all_msg_on_reasm(asoc, &tsize) || (tsize >= pd_point)) {
 			asoc->fragmented_delivery_inprogress = 1;
 			asoc->tsn_last_delivered = chk->rec.data.TSN_seq - 1;
 			asoc->str_of_pdapi = chk->rec.data.stream_number;
@@ -5186,7 +5202,7 @@ skip_segments:
 			/* sa_ignore NO_NULL_CHK */
 			sctp_free_bufspace(stcb, asoc, tp1, 1);
 			sctp_m_freem(tp1->data);
-			if (PR_SCTP_BUF_ENABLED(tp1->flags)) {
+			if (asoc->peer_supports_prsctp && PR_SCTP_BUF_ENABLED(tp1->flags)) {
 				asoc->sent_queue_cnt_removeable--;
 			}
 		}
@@ -5722,7 +5738,7 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 				nr_tsn = ctl->sinfo_tsn;
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    ctl,
-				    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+				    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_HELD, SCTP_SO_NOT_LOCKED);
 				/*
 				 * EY this is the chunk that should be
 				 * tagged nr gapped calculate the gap and
@@ -5823,7 +5839,7 @@ sctp_kick_prsctp_reorder_queue(struct sctp_tcb *stcb,
 				nr_tsn = ctl->sinfo_tsn;
 				sctp_add_to_readq(stcb->sctp_ep, stcb,
 				    ctl,
-				    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+				    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_HELD, SCTP_SO_NOT_LOCKED);
 				/*
 				 * EY this is the chunk that should be
 				 * tagged nr gapped calculate the gap and
@@ -5923,7 +5939,13 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 		chk = TAILQ_FIRST(&asoc->reasmqueue);
 		while (chk) {
 			at = TAILQ_NEXT(chk, sctp_next);
-			if (chk->rec.data.stream_number != stream) {
+			/*
+			 * Do not toss it if on a different stream or marked
+			 * for unordered delivery in which case the stream
+			 * sequence number has no meaning.
+			 */
+			if ((chk->rec.data.stream_number != stream) ||
+			    ((chk->rec.data.rcv_flags & SCTP_DATA_UNORDERED) == SCTP_DATA_UNORDERED)) {
 				chk = at;
 				continue;
 			}
@@ -6277,10 +6299,11 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 					ctl->pdapi_aborted = 1;
 					sv = stcb->asoc.control_pdapi;
 					stcb->asoc.control_pdapi = ctl;
-					sctp_notify_partial_delivery_indication(stcb,
+					sctp_ulp_notify(SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION,
+					    stcb,
 					    SCTP_PARTIAL_DELIVERY_ABORTED,
-					    SCTP_HOLDS_LOCK,
-					    str_seq);
+					    (void *)&str_seq,
+					    SCTP_SO_NOT_LOCKED);
 					stcb->asoc.control_pdapi = sv;
 					break;
 				} else if ((ctl->sinfo_stream == stseq->stream) &&
@@ -7774,7 +7797,7 @@ skip_segments:
 			/* sa_ignore NO_NULL_CHK */
 			sctp_free_bufspace(stcb, asoc, tp1, 1);
 			sctp_m_freem(tp1->data);
-			if (PR_SCTP_BUF_ENABLED(tp1->flags)) {
+			if (asoc->peer_supports_prsctp && PR_SCTP_BUF_ENABLED(tp1->flags)) {
 				asoc->sent_queue_cnt_removeable--;
 			}
 		}

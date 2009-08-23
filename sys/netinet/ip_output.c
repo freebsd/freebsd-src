@@ -51,9 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/ucred.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/route.h>
@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
-#include <netinet/vinet.h>
 #ifdef SCTP
 #include <netinet/sctp.h>
 #include <netinet/sctp_crc32.h>
@@ -91,9 +90,7 @@ __FBSDID("$FreeBSD$");
 				  (ntohl(a.s_addr)>>8)&0xFF,\
 				  (ntohl(a.s_addr))&0xFF, y);
 
-#ifdef VIMAGE_GLOBALS
-u_short ip_id;
-#endif
+VNET_DEFINE(u_short, ip_id);
 
 #ifdef MBUF_STRESS_TEST
 int mbuf_frag_size = 0;
@@ -120,8 +117,6 @@ int
 ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
     struct ip_moptions *imo, struct inpcb *inp)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET(curvnet);
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
@@ -162,7 +157,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		 * longer than that long for the stability of ro_rt.  The
 		 * flow ID assignment must have happened before this point.
 		 */
-		if (flowtable_lookup(V_ip_ft, m, ro) == 0)
+		if (flowtable_lookup(V_ip_ft, m, ro, M_GETFIB(m)) == 0)
 			nortfree = 1;
 #endif
 	}
@@ -207,9 +202,12 @@ again:
 	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
-		if (!nortfree)
+		if (!nortfree) {
 			RTFREE(ro->ro_rt);
+			LLE_FREE(ro->ro_lle);
+		}
 		ro->ro_rt = (struct rtentry *)NULL;
+		ro->ro_lle = (struct llentry *)NULL;
 	}
 #ifdef IPFIREWALL_FORWARD
 	if (ro->ro_rt == NULL && fwd_tag == NULL) {
@@ -689,7 +687,6 @@ int
 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
     u_long if_hwassist_flags, int sw_csum)
 {
-	INIT_VNET_INET(curvnet);
 	int error = 0;
 	int hlen = ip->ip_hl << 2;
 	int len = (mtu - hlen) & ~7;	/* size of payload in each fragment */

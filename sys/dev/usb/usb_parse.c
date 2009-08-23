@@ -215,20 +215,29 @@ usbd_get_no_descriptors(struct usb_config_descriptor *cd, uint8_t type)
  *	usbd_get_no_alts
  *
  * Return value:
- *   Number of alternate settings for the given interface descriptor pointer.
+ *   Number of alternate settings for the given interface descriptor
+ *   pointer. If the USB descriptor is corrupt, the returned value can
+ *   be greater than the actual number of alternate settings.
  *------------------------------------------------------------------------*/
 uint8_t
 usbd_get_no_alts(struct usb_config_descriptor *cd,
     struct usb_interface_descriptor *id)
 {
 	struct usb_descriptor *desc;
-	uint8_t n = 0;
+	uint8_t n;
 	uint8_t ifaceno;
+
+	/* Reset interface count */
+
+	n = 0;
+
+	/* Get the interface number */
 
 	ifaceno = id->bInterfaceNumber;
 
-	desc = (struct usb_descriptor *)id;
+	/* Iterate all the USB descriptors */
 
+	desc = NULL;
 	while ((desc = usb_desc_foreach(cd, desc))) {
 		if ((desc->bDescriptorType == UDESC_INTERFACE) &&
 		    (desc->bLength >= sizeof(*id))) {
@@ -237,8 +246,7 @@ usbd_get_no_alts(struct usb_config_descriptor *cd,
 				n++;
 				if (n == 0xFF)
 					break;		/* crazy */
-			} else
-				break;			/* end */
+			}
 		}
 	}
 	return (n);

@@ -92,7 +92,6 @@
 #include <machine/cpu.h>
 
 #include <sys/malloc.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
@@ -100,13 +99,13 @@
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/if_stf.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_var.h>
-#include <netinet/vinet.h>
 
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -378,7 +377,6 @@ static struct in6_ifaddr *
 stf_getsrcifa6(ifp)
 	struct ifnet *ifp;
 {
-	INIT_VNET_INET(ifp->if_vnet);
 	struct ifaddr *ia;
 	struct in_ifaddr *ia4;
 	struct sockaddr_in6 *sin6;
@@ -596,7 +594,6 @@ stf_checkaddr4(sc, in, inifp)
 	struct in_addr *in;
 	struct ifnet *inifp;	/* incoming interface */
 {
-	INIT_VNET_INET(curvnet);
 	struct in_ifaddr *ia4;
 
 	/*

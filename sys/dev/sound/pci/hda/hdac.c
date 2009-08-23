@@ -490,7 +490,7 @@ static const struct {
 	{ HDA_INTEL_PCH,     "Intel PCH",	0 },
 	{ HDA_INTEL_SCH,     "Intel SCH",	0 },
 	{ HDA_NVIDIA_MCP51,  "NVidia MCP51",	HDAC_NO_MSI },
-	{ HDA_NVIDIA_MCP55,  "NVidia MCP55",	0 },
+	{ HDA_NVIDIA_MCP55,  "NVidia MCP55",	HDAC_NO_MSI },
 	{ HDA_NVIDIA_MCP61_1, "NVidia MCP61",	0 },
 	{ HDA_NVIDIA_MCP61_2, "NVidia MCP61",	0 },
 	{ HDA_NVIDIA_MCP65_1, "NVidia MCP65",	0 },

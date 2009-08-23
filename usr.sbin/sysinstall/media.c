@@ -262,7 +262,8 @@ mediaSetUSB(dialogMenuItem *self)
 		mediaDevice = devs[0];
 	if (mediaDevice)
 		mediaDevice->private = NULL;
-	msgConfirm("Using USB device: %s", mediaDevice->name);
+	if (!variable_get(VAR_NONINTERACTIVE))
+		msgConfirm("Using USB device: %s", mediaDevice->name);
 	return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE);
 }
 

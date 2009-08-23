@@ -32,10 +32,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/systm.h>
 
+#include <machine/intr_machdep.h>
+#include <machine/apicvar.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
@@ -1771,7 +1774,7 @@ core_intr(int cpu, struct trapframe *tf)
 	}
 
 	if (found_interrupt)
-		pmc_x86_lapic_enable_pmc_interrupt();
+		lapic_reenable_pmc();
 
 	atomic_add_int(found_interrupt ? &pmc_stats.pm_intr_processed :
 	    &pmc_stats.pm_intr_ignored, 1);
@@ -1895,7 +1898,7 @@ core2_intr(int cpu, struct trapframe *tf)
 	    (uintmax_t) rdmsr(IA_GLOBAL_OVF_CTRL));
 
 	if (found_interrupt)
-		pmc_x86_lapic_enable_pmc_interrupt();
+		lapic_reenable_pmc();
 
 	atomic_add_int(found_interrupt ? &pmc_stats.pm_intr_processed :
 	    &pmc_stats.pm_intr_ignored, 1);

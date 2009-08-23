@@ -69,7 +69,6 @@ options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
@@ -258,6 +257,7 @@ device		xe		# Xircom pccard Ethernet
 device		wlan		# 802.11 support
 options 	IEEE80211_DEBUG	# enable debug msgs
 options 	IEEE80211_AMPDU_AGE # age frames in AMPDU reorder q's
+options 	IEEE80211_SUPPORT_MESH	# enable 802.11s D3.0 support
 device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support

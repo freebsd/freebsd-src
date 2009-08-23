@@ -115,15 +115,16 @@ extern devclass_t ahc_devclass;
  * The number of dma segments supported.  The sequencer can handle any number
  * of physically contiguous S/G entrys.  To reduce the driver's memory
  * consumption, we limit the number supported to be sufficient to handle
- * the largest mapping supported by the kernel, MAXPHYS.  Assuming the
- * transfer is as fragmented as possible and unaligned, this turns out to
+ * the largest mapping supported by the the legacy kernel MAXPHYS setting of
+ * 128K.  This can be increased once some testing is done.  Assuming the
  * be the number of paged sized transfers in MAXPHYS plus an extra element
  * to handle any unaligned residual.  The sequencer fetches SG elements
  * in cacheline sized chucks, so make the number per-transaction an even
  * multiple of 16 which should align us on even the largest of cacheline
  * boundaries. 
  */
-#define AHC_NSEG (roundup(btoc(MAXPHYS) + 1, 16))
+#define AHC_MAXPHYS (128 * 1024)
+#define AHC_NSEG (roundup(btoc(AHC_MAXPHYS) + 1, 16))
 
 /* This driver supports target mode */
 #define AHC_TARGET_MODE 1

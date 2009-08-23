@@ -93,9 +93,11 @@ MLINKS+=acl_create_entry.3 acl_create_entry_np.3\
 	acl_get.3 acl_get_file.3		\
 	acl_get.3 acl_get_fd.3			\
 	acl_get.3 acl_get_fd_np.3		\
+	acl_get.3 acl_get_link_np.3		\
 	acl_set.3 acl_set_file.3		\
 	acl_set.3 acl_set_fd.3			\
 	acl_set.3 acl_set_fd_np.3		\
+	acl_set.3 acl_set_link_np.3		\
 	acl_to_text.3 acl_to_text_np.3		\
 	acl_valid.3 acl_valid_file_np.3		\
 	acl_valid.3 acl_valid_fd_np.3		\
@@ -104,14 +106,16 @@ MLINKS+=acl_create_entry.3 acl_create_entry_np.3\
 	mac_get.3 mac_get_fd.3			\
 	mac_get.3 mac_get_file.3		\
 	mac_get.3 mac_get_link.3		\
+	mac_get.3 mac_get_peer.3		\
 	mac_get.3 mac_get_pid.3			\
 	mac_get.3 mac_get_proc.3		\
 	mac_prepare.3 mac_prepare_file_label.3	\
 	mac_prepare.3 mac_prepare_ifnet_label.3	\
 	mac_prepare.3 mac_prepare_process_label.3	\
-	mac_set.3 mac_set_link.3		\
+	mac_prepare.3 mac_prepare_type.3	\
 	mac_set.3 mac_set_fd.3			\
 	mac_set.3 mac_set_file.3		\
+	mac_set.3 mac_set_link.3		\
 	mac_set.3 mac_set_proc.3		\
 	mac_text.3 mac_from_text.3		\
 	mac_text.3 mac_to_text.3

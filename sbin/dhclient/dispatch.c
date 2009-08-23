@@ -144,7 +144,7 @@ reinitialize_interfaces(void)
 void
 dispatch(void)
 {
-	int count, i, to_msec, nfds = 0;
+	int count, live_interfaces, i, to_msec, nfds = 0;
 	struct protocol *l;
 	struct pollfd *fds;
 	time_t howlong;
@@ -188,18 +188,20 @@ another:
 			to_msec = -1;
 
 		/* Set up the descriptors to be polled. */
+		live_interfaces = 0;
 		for (i = 0, l = protocols; l; l = l->next) {
 			struct interface_info *ip = l->local;
 
-			if (ip && (l->handler != got_one || !ip->dead)) {
-				fds[i].fd = l->fd;
-				fds[i].events = POLLIN;
-				fds[i].revents = 0;
-				i++;
-			}
+			if (ip == NULL || ip->dead)
+				continue;
+			fds[i].fd = l->fd;
+			fds[i].events = POLLIN;
+			fds[i].revents = 0;
+			i++;
+			if (l->handler == got_one)
+				live_interfaces++;
 		}
-
-		if (i == 0)
+		if (live_interfaces == 0)
 			error("No live interfaces to poll on - exiting.");
 
 		/* Wait for a packet or a timeout... XXX */

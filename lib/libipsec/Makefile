@@ -32,7 +32,7 @@ SHLIBDIR?= /lib
 .include <bsd.own.mk>
 
 LIB=	ipsec
-SHLIB_MAJOR= 3
+SHLIB_MAJOR= 4
 CFLAGS+=-I. -I${.CURDIR}
 CFLAGS+=-DIPSEC_DEBUG -DIPSEC
 .if ${MK_INET6_SUPPORT} != "no"

@@ -781,8 +781,6 @@ moea64_bridge_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernele
 
 	while (moea64_pteg_count < physmem)
 		moea64_pteg_count <<= 1;
-
-	moea64_pteg_count >>= 1;
 #endif /* PTEGCOUNT */
 
 	size = moea64_pteg_count * sizeof(struct lpteg);

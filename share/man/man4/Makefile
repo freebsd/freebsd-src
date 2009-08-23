@@ -23,6 +23,7 @@ MAN=	aac.4 \
 	aha.4 \
 	ahb.4 \
 	ahc.4 \
+	ahci.4 \
 	ahd.4 \
 	aio.4 \
 	alc.4 \
@@ -93,6 +94,7 @@ MAN=	aac.4 \
 	em.4 \
 	en.4 \
 	enc.4 \
+	epair.4 \
 	esp.4 \
 	et.4 \
 	exca.4 \
@@ -130,7 +132,6 @@ MAN=	aac.4 \
 	icmp6.4 \
 	ida.4 \
 	idt.4 \
-	ieee80211.4 \
 	ifmib.4 \
 	igb.4 \
 	igmp.4 \
@@ -215,6 +216,7 @@ MAN=	aac.4 \
 	ncr.4 \
 	ncv.4 \
 	${_ndis.4} \
+	net80211.4 \
 	netgraph.4 \
 	netintro.4 \
 	${_nfe.4} \
@@ -331,6 +333,7 @@ MAN=	aac.4 \
 	sf.4 \
 	si.4 \
 	sio.4 \
+	siis.4 \
 	sis.4 \
 	sk.4 \
 	smb.4 \
@@ -488,6 +491,7 @@ MLINKS+=ef.4 if_ef.4
 MLINKS+=em.4 if_em.4
 MLINKS+=en.4 if_en.4
 MLINKS+=enc.4 if_enc.4
+MLINKS+=epair.4 if_epair.4
 MLINKS+=et.4 if_et.4
 MLINKS+=faith.4 if_faith.4
 MLINKS+=fatm.4 if_fatm.4

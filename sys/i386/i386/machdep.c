@@ -257,7 +257,12 @@ cpu_startup(dummy)
 	 */
 	sysenv = getenv("smbios.system.product");
 	if (sysenv != NULL) {
-		if (strncmp(sysenv, "MacBook", 7) == 0) {
+		if (strncmp(sysenv, "MacBook1,1", 10) == 0 ||
+		    strncmp(sysenv, "MacBook3,1", 10) == 0 ||
+		    strncmp(sysenv, "MacBookPro1,1", 13) == 0 ||
+		    strncmp(sysenv, "MacBookPro1,2", 13) == 0 ||
+		    strncmp(sysenv, "MacBookPro3,1", 13) == 0 ||
+		    strncmp(sysenv, "Macmini1,1", 10) == 0) {
 			if (bootverbose)
 				printf("Disabling LEGACY_USB_EN bit on "
 				    "Intel ICH.\n");
@@ -275,19 +280,21 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
+	realmem = Maxmem;
+
+	/*
+	 * Display physical memory if SMBIOS reports reasonable amount.
+	 */
+	memsize = 0;
 	sysenv = getenv("smbios.memory.enabled");
 	if (sysenv != NULL) {
-		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10);
+		memsize = (uintmax_t)strtoul(sysenv, (char **)NULL, 10) << 10;
 		freeenv(sysenv);
-	} else
-		memsize = 0;
-	if (memsize > 0)
-		printf("real memory  = %ju (%ju MB)\n", memsize << 10,
-		    memsize >> 10);
-	else
-		printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
-		    ptoa((uintmax_t)Maxmem) / 1048576);
-	realmem = Maxmem;
+	}
+	if (memsize < ptoa((uintmax_t)cnt.v_free_count))
+		memsize = ptoa((uintmax_t)Maxmem);
+	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
+
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */

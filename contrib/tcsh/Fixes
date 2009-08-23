@@ -1,3 +1,74 @@
+ 21. V6.17.00 - 20090710
+ 20. Fix dataroot autoconf issue.
+ 19. Fix directory stuff for unit tests.
+ 18. Fix small bug in history in loops.
+ 17. Provide newer config.{guess,sub}
+ 16. Fix gcc 4 warnings.
+ 15. Fix memory trashing bug introduced in 10.
+ 14. V6.16.01 - 20090624
+ 13. add missing sigemptyset in goodbye()
+ 12. add rlimit swapsize from FreeBSD.
+ 11. restore behavior where a[n-] never prints an error.
+ 10. always save the whole command, not just the first 80 chars of it.
+  9. fix short2str/short2qstr length adjustment in wide chars
+     (Vitezslav Crhonek)
+  8. set histfile=/tmp/history.temp; set savehist=(100 merge);
+     alias precmd history -S. After that justpr is not restored and commands
+     don't execute. (Andriy Gapon)
+  7. Fix "as" $ modifier from corrupting memory.
+     set t=demfonsftraftionf; echo $t:as/f//
+  6. Make $% work with environment variable (Ron Johnston)
+  5. Dragonfly script support (Matthias Schmidt, m65)
+  4. Add autoexpand=onlyhistory (Don Estabrook, m66)
+  3. Add history in loops (Laurence Darby, m48)
+  2. Add missing colorls "rs" variable (Shlomi Fish, m70)
+  1. Fix pts detection issue (Ruslan Ermilov)
+
+ 33. V6.16.00 - 20080930
+ 32. longjmp clobbered variable fixes.
+ 31. __GNX__ addition
+ 30. Windows fork fixes
+ 28. V6.15.02 - 20080830
+ 27. Fix an eval free'ing botch (Per Hedeland)
+ 26. /bin/echo "`" coredumped because stderror() calls longjmp corrupting
+     the stack (Mark Davies). We should vet the code for all stderror()
+     calls that cleanup local stack variables.
+ 25. foo > ${undef} caused coredumps because of vfork() child corrupting
+     the state of the parent stack. 
+ 24. $x[A-B] did not complain for A out of range. (Cai Xianchao)
+ 23. rename setp -> tcsh_setp to avoid conflict with mach (Javier Vasquez)
+ 22. Fix degree handling by defining __XPG4_CHAR_CLASS__ for solaris
+     (Mike Sullivan)
+ 21. Change 'od' to 'od -c' in tests so that they work on big endian machines.
+     (Martin Kraemer)
+ 20. Add environment variable COMMAND_LINE to be available in completions
+     (Marcin Konarski)
+ 19. V6.15.01 - 20070928
+ 18. Evaluate expressions in the proper order (Li Zefan), controlled by
+     compat_expr.
+ 17. Don't need to flush() if we are silent. Prevents recursive error issue.
+     (joshua stein)
+ 16. Don't execute the jobcmd if the output is not a tty (Charles Ross)
+ 15. Quote the history in the examples (Johann 'Myrkraverk' Oskarsson)
+ 14. Mismatch clarification patch (Per Hedeland)
+ 13. Fix 'repeat n cmd &' abort() (Mike Sullivan)
+ 12. Fix octal parsing (Li Zefan)
+ 11. Fix pty detection for autologout setting (Kris Kennaway, Giorgos Keramidas)
+ 10. kill `foo` got stuck because sigchld was disabled too soon (Mark Peek)
+  9. Avoid null pointer dereference in proc cwd (Kurt Miller)
+  8. eval "foreach a b c" exits (Anthony Menasse)
+  7. Quoting was broken in substitutions (Joe Wells)
+  6. QNX patches via pkgsrc
+  5. cd - twice from a directory that contained a glob pattern,
+     expands the glob twice (Mark Santcroos)
+  4. MidnightBsd support (Lucas Holt)
+  3. Fix history substitution core-dump with no history entries
+  2. Merge two character tables that are the same (Martin Kraemer)
+  1. On ancient 7 bit locales, punctuation characters are used to
+     denote special characters such as umlaut, adiaresis, etc.
+     These characters return true for isalpha/isalnum. Ignore them
+     because they break parsing (Martin Kraemer)
+
  74. V6.15.00 - 20070303
  73. fix extension eating windows code (christos)
  72. fix loop in %R history expansion (christos)

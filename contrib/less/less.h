@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2008  Mark Nudelman
+ * Copyright (C) 1984-2009  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -488,6 +488,12 @@ struct textlist
 #define	ch_zero()	((POSITION)0)
 
 #define	FAKE_HELPFILE	"@/\\less/\\help/\\file/\\@"
+
+/* Flags for cvt_text */
+#define	CVT_TO_LC	01	/* Convert upper-case to lower-case */
+#define	CVT_BS		02	/* Do backspace processing */
+#define	CVT_CRLF	04	/* Remove CR after LF */
+#define	CVT_ANSI	010	/* Remove ANSI escape sequences */
 
 #include "funcs.h"
 

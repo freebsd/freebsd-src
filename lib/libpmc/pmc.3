@@ -187,7 +187,7 @@ enumeration.
 Supported PMC kinds include:
 .Bl -tag -width "Li PMC_CLASS_IAF" -compact
 .It Li PMC_CLASS_IAF
-Fixed function hardwre counters presents in CPUs conforming to the
+Fixed function hardware counters presents in CPUs conforming to the
 .Tn Intel
 performance measurement architecture version 2 and later.
 .It Li PMC_CLASS_IAP
@@ -423,7 +423,7 @@ The PMCs would then be started using function
 .Fn pmc_start .
 .It
 Once started, the values of counting PMCs may be read using function
-.Fn pmc_start .
+.Fn pmc_read .
 For PMCs that write events to the log file, this logged data would be
 read and parsed using the
 .Xr pmclog 3

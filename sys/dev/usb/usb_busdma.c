@@ -359,7 +359,8 @@ usb_dma_tag_create(struct usb_dma_tag *udt,
 	if (bus_dma_tag_create
 	    ( /* parent    */ udt->tag_parent->tag,
 	     /* alignment */ align,
-	     /* boundary  */ USB_PAGE_SIZE,
+	     /* boundary  */ (align == 1) ?
+	    USB_PAGE_SIZE : 0,
 	     /* lowaddr   */ (2ULL << (udt->tag_parent->dma_bits - 1)) - 1,
 	     /* highaddr  */ BUS_SPACE_MAXADDR,
 	     /* filter    */ NULL,
@@ -678,8 +679,8 @@ usb_pc_cpu_invalidate(struct usb_page_cache *pc)
 		/* nothing has been loaded into this page cache! */
 		return;
 	}
-	bus_dmamap_sync(pc->tag, pc->map,
-	    BUS_DMASYNC_POSTWRITE | BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(pc->tag, pc->map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(pc->tag, pc->map, BUS_DMASYNC_PREREAD);
 }
 
 /*------------------------------------------------------------------------*
@@ -692,8 +693,7 @@ usb_pc_cpu_flush(struct usb_page_cache *pc)
 		/* nothing has been loaded into this page cache! */
 		return;
 	}
-	bus_dmamap_sync(pc->tag, pc->map,
-	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(pc->tag, pc->map, BUS_DMASYNC_PREWRITE);
 }
 
 /*------------------------------------------------------------------------*

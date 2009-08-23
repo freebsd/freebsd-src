@@ -57,6 +57,7 @@ typedef struct dsl_pool {
 	struct dsl_dir *dp_mos_dir;
 	struct dsl_dataset *dp_origin_snap;
 	uint64_t dp_root_dir_obj;
+	struct taskq *dp_vnrele_taskq;
 
 	/* No lock needed - sync context only */
 	blkptr_t dp_meta_rootbp;
@@ -118,6 +119,8 @@ int dsl_pool_scrub_cancel(dsl_pool_t *dp);
 int dsl_pool_scrub_clean(dsl_pool_t *dp);
 void dsl_pool_scrub_sync(dsl_pool_t *dp, dmu_tx_t *tx);
 void dsl_pool_scrub_restart(dsl_pool_t *dp);
+
+taskq_t *dsl_pool_vnrele_taskq(dsl_pool_t *dp);
 
 #ifdef	__cplusplus
 }

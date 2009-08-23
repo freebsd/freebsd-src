@@ -7,7 +7,7 @@ SRCDIR=	${.CURDIR}/../../../contrib/libf2c
 .PATH: ${SRCDIR} ${SRCDIR}/libU77 ${SRCDIR}/libF77 ${SRCDIR}/libI77
 
 LIB=		g2c
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 
 # Traditional FORTRAN Library members defined in libF77
 

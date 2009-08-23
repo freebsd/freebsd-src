@@ -252,6 +252,19 @@ main(int argc, char *argv[])
 				ifconfig(argc, argv, 1, NULL);
 				exit(0);
 			}
+			/*
+			 * NOTE:  We have to special-case the `-vnet' command
+			 * right here as we would otherwise fail when trying
+			 * to find the interface as it lives in another vnet.
+			 */
+			if (argc > 0 && (strcmp(argv[0], "-vnet") == 0)) {
+				iflen = strlcpy(name, ifname, sizeof(name));
+				if (iflen >= sizeof(name))
+					errx(1, "%s: interface name too long",
+					    ifname);
+				ifconfig(argc, argv, 0, NULL);
+				exit(0);
+			}
 			errx(1, "interface %s does not exist", ifname);
 		}
 	}
@@ -636,10 +649,10 @@ setifvnet(const char *jname, int dummy __unused, int s,
 	struct ifreq my_ifr;
 
 	memcpy(&my_ifr, &ifr, sizeof(my_ifr));
-	ifr.ifr_jid = jail_getid(jname);
-	if (ifr.ifr_jid < 0)
+	my_ifr.ifr_jid = jail_getid(jname);
+	if (my_ifr.ifr_jid < 0)
 		errx(1, "%s", jail_errmsg);
-	if (ioctl(s, SIOCSIFVNET, &ifr) < 0)
+	if (ioctl(s, SIOCSIFVNET, &my_ifr) < 0)
 		err(1, "SIOCSIFVNET");
 }
 
@@ -650,11 +663,11 @@ setifrvnet(const char *jname, int dummy __unused, int s,
 	struct ifreq my_ifr;
 
 	memcpy(&my_ifr, &ifr, sizeof(my_ifr));
-	ifr.ifr_jid = jail_getid(jname);
-	if (ifr.ifr_jid < 0)
+	my_ifr.ifr_jid = jail_getid(jname);
+	if (my_ifr.ifr_jid < 0)
 		errx(1, "%s", jail_errmsg);
-	if (ioctl(s, SIOCSIFRVNET, &ifr) < 0)
-		err(1, "SIOCSIFRVNET");
+	if (ioctl(s, SIOCSIFRVNET, &my_ifr) < 0)
+		err(1, "SIOCSIFRVNET(%d, %s)", my_ifr.ifr_jid, my_ifr.ifr_name);
 }
 
 static void
