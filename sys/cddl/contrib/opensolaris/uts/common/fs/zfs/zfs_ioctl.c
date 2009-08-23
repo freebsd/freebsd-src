@@ -3057,6 +3057,7 @@ zfsdev_fini(void)
 }
 
 static struct root_hold_token *zfs_root_token;
+struct proc *zfsproc;
 
 uint_t zfs_fsyncer_key;
 extern uint_t rrw_tsd_key;
