@@ -52,6 +52,7 @@ void	ttydisc_optimize(struct tty *tp);
 void	ttydisc_modem(struct tty *tp, int open);
 #define ttydisc_can_bypass(tp) ((tp)->t_flags & TF_BYPASS)
 int	ttydisc_rint(struct tty *tp, char c, int flags);
+size_t	ttydisc_rint_simple(struct tty *tp, const void *buf, size_t len);
 size_t	ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len);
 void	ttydisc_rint_done(struct tty *tp);
 size_t	ttydisc_rint_poll(struct tty *tp);
