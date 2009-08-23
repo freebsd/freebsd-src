@@ -4653,7 +4653,7 @@ ipfw_init(void)
 #endif
 	/*
 	 * Other things that are only done the first time.
-	 * (now that we a re cuaranteed of success).
+	 * (now that we a re guaranteed of success).
 	 */
 	ip_fw_ctl_ptr = ipfw_ctl;
 	ip_fw_chk_ptr = ipfw_chk;
