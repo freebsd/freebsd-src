@@ -2061,22 +2061,20 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 	struct ifnet *ifscan;
 	int ethno;
 
+	IFNET_RLOCK_ASSERT();
+
 	/* Short-circuit non ethernet interfaces */
 	if (!IFP_IS_ETH(ifp))
 		return (strlcpy(buffer, ifp->if_xname, buflen));
 
 	/* Determine the (relative) unit number for ethernet interfaces */
 	ethno = 0;
-	IFNET_RLOCK();
 	TAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
-		if (ifscan == ifp) {
-			IFNET_RUNLOCK();
+		if (ifscan == ifp)
 			return (snprintf(buffer, buflen, "eth%d", ethno));
-		}
 		if (IFP_IS_ETH(ifscan))
 			ethno++;
 	}
-	IFNET_RUNLOCK();
 
 	return (0);
 }
@@ -2177,7 +2175,7 @@ again:
 	valid_len = 0;
 
 	/* Return all AF_INET addresses of all interfaces */
-	IFNET_RLOCK();		/* could sleep XXX */
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		int addrs = 0;
 
