@@ -845,8 +845,10 @@ dev/drm/r128_irq.c		optional r128drm
 dev/drm/r128_state.c		optional r128drm \
 	compile-with "${NORMAL_C} -finline-limit=13500"
 dev/drm/r300_cmdbuf.c		optional radeondrm
+dev/drm/r600_blit.c		optional radeondrm
 dev/drm/r600_cp.c		optional radeondrm
 dev/drm/radeon_cp.c		optional radeondrm
+dev/drm/radeon_cs.c		optional radeondrm
 dev/drm/radeon_drv.c		optional radeondrm
 dev/drm/radeon_irq.c		optional radeondrm
 dev/drm/radeon_mem.c		optional radeondrm
