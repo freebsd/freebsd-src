@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -117,11 +118,24 @@ pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
 	    NULL, UID_ROOT, GID_WHEEL, 0666, "%s", name);
 }
 
-static void
-pty_init(void *unused)
+static int
+pty_modevent(module_t mod, int type, void *data)
 {
 
-	EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
+        switch(type) {
+        case MOD_LOAD: 
+		EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
+		break;
+	case MOD_SHUTDOWN:
+		break;
+	case MOD_UNLOAD:
+		/* XXX: No unloading support yet. */
+		return (EBUSY);
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	return (0);
 }
 
-SYSINIT(pty, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, pty_init, NULL);
+DEV_MODULE(pty, pty_modevent, NULL);
