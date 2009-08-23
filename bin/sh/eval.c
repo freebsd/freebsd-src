@@ -785,6 +785,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		INTOFF;
 		savelocalvars = localvars;
 		localvars = NULL;
+		reffunc(cmdentry.u.func);
 		INTON;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
@@ -794,6 +795,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				freeparam(&shellparam);
 				shellparam = saveparam;
 			}
+			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
 			handler = savehandler;
@@ -805,11 +807,12 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		funcnest++;
 		exitstatus = oexitstatus;
 		if (flags & EV_TESTED)
-			evaltree(cmdentry.u.func, EV_TESTED);
+			evaltree(&cmdentry.u.func->n, EV_TESTED);
 		else
-			evaltree(cmdentry.u.func, 0);
+			evaltree(&cmdentry.u.func->n, 0);
 		funcnest--;
 		INTOFF;
+		unreffunc(cmdentry.u.func);
 		poplocalvars();
 		localvars = savelocalvars;
 		freeparam(&shellparam);

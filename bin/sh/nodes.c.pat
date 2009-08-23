@@ -35,6 +35,7 @@
 
 #include <sys/param.h>
 #include <stdlib.h>
+#include <stddef.h>
 /*
  * Routine for dealing with parsed shell commands.
  */
@@ -65,17 +66,22 @@ STATIC char *nodesavestr(char *);
  * Make a copy of a parse tree.
  */
 
-union node *
+struct funcdef *
 copyfunc(union node *n)
 {
+	struct funcdef *fn;
+
 	if (n == NULL)
 		return NULL;
-	funcblocksize = 0;
+	funcblocksize = offsetof(struct funcdef, n);
 	funcstringsize = 0;
 	calcsize(n);
-	funcblock = ckmalloc(funcblocksize + funcstringsize);
-	funcstring = (char *)funcblock + funcblocksize;
-	return copynode(n);
+	fn = ckmalloc(funcblocksize + funcstringsize);
+	fn->refcount = 1;
+	funcblock = (char *)fn + offsetof(struct funcdef, n);
+	funcstring = (char *)fn + funcblocksize;
+	copynode(n);
+	return fn;
 }
 
 
@@ -144,14 +150,25 @@ nodesavestr(char *s)
 }
 
 
+void
+reffunc(struct funcdef *fn)
+{
+	fn->refcount++;
+}
+
 
 /*
- * Free a parse tree.
+ * Decrement the reference count of a function definition, freeing it
+ * if it falls to 0.
  */
 
 void
-freefunc(union node *n)
+unreffunc(struct funcdef *fn)
 {
-	if (n)
-		ckfree(n);
+	if (fn) {
+		fn->refcount--;
+		if (fn->refcount > 0)
+			return;
+		ckfree(fn);
+	}
 }
