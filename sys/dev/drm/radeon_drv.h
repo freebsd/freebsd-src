@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20080528"
+#define DRIVER_DATE		"20080613"
 
 /* Interface history:
  *
@@ -236,6 +236,46 @@ struct radeon_virt_surface {
 #define PCIGART_FILE_PRIV	((void *) -1L)
 };
 
+struct drm_radeon_kernel_chunk {
+	uint32_t chunk_id;
+	uint32_t length_dw;
+	uint32_t __user *chunk_data;
+	uint32_t *kdata;
+};
+
+struct drm_radeon_cs_parser {
+	struct drm_device *dev;
+	struct drm_file *file_priv;
+	uint32_t num_chunks;
+	struct drm_radeon_kernel_chunk *chunks;
+	int ib_index;
+	int reloc_index;
+	uint32_t card_offset;
+	void *ib;
+};
+
+/* command submission struct */
+struct drm_radeon_cs_priv {
+	struct mtx cs_mutex;
+	uint32_t id_wcnt;
+	uint32_t id_scnt;
+	uint32_t id_last_wcnt;
+	uint32_t id_last_scnt;
+
+	int (*parse)(struct drm_radeon_cs_parser *parser);
+	void (*id_emit)(struct drm_radeon_cs_parser *parser, uint32_t *id);
+	uint32_t (*id_last_get)(struct drm_device *dev);
+	/* this ib handling callback are for hidding memory manager drm
+	 * from memory manager less drm, free have to emit ib discard
+	 * sequence into the ring */
+	int (*ib_get)(struct drm_radeon_cs_parser *parser);
+	uint32_t (*ib_get_ptr)(struct drm_device *dev, void *ib);
+	void (*ib_free)(struct drm_radeon_cs_parser *parser, int error);
+	/* do a relocation either MM or non-MM */
+	int (*relocate)(struct drm_radeon_cs_parser *parser,
+			uint32_t *reloc, uint64_t *offset);
+};
+
 #define RADEON_FLUSH_EMITED	(1 << 0)
 #define RADEON_PURGE_EMITED	(1 << 1)
 
@@ -349,6 +389,12 @@ typedef struct drm_radeon_private {
 	int r700_sc_prim_fifo_size;
 	int r700_sc_hiz_tile_fifo_size;
 	int r700_sc_earlyz_tile_fifo_fize;
+	/* r6xx/r7xx drm blit vertex buffer */
+	struct drm_buf *blit_vb;
+
+	/* CS */
+	struct drm_radeon_cs_priv cs;
+	struct drm_buf *cs_buf;
 
 } drm_radeon_private_t;
 
@@ -379,10 +425,10 @@ extern void radeon_set_ring_head(drm_radeon_private_t *dev_priv, u32 val);
 static __inline__ int radeon_check_offset(drm_radeon_private_t *dev_priv,
 					  u64 off)
 {
-	u32 fb_start = dev_priv->fb_location;
-	u32 fb_end = fb_start + dev_priv->fb_size - 1;
-	u32 gart_start = dev_priv->gart_vm_start;
-	u32 gart_end = gart_start + dev_priv->gart_size - 1;
+	u64 fb_start = dev_priv->fb_location;
+	u64 fb_end = fb_start + dev_priv->fb_size - 1;
+	u64 gart_start = dev_priv->gart_vm_start;
+	u64 gart_end = gart_start + dev_priv->gart_size - 1;
 
 	return ((off >= fb_start && off <= fb_end) ||
 		(off >= gart_start && off <= gart_end));
@@ -476,6 +522,33 @@ extern int r600_cp_dispatch_indirect(struct drm_device *dev,
 				     struct drm_buf *buf, int start, int end);
 extern int r600_page_table_init(struct drm_device *dev);
 extern void r600_page_table_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info *gart_info);
+extern void r600_cp_dispatch_swap(struct drm_device * dev);
+extern int r600_cp_dispatch_texture(struct drm_device * dev,
+				    struct drm_file *file_priv,
+				    drm_radeon_texture_t * tex,
+				    drm_radeon_tex_image_t * image);
+
+/* r600_blit.c */
+extern int
+r600_prepare_blit_copy(struct drm_device *dev);
+extern void
+r600_done_blit_copy(struct drm_device *dev);
+extern void
+r600_blit_copy(struct drm_device *dev,
+	       uint64_t src_gpu_addr, uint64_t dst_gpu_addr,
+	       int size_bytes);
+extern void
+r600_blit_swap(struct drm_device *dev,
+	       uint64_t src_gpu_addr, uint64_t dst_gpu_addr,
+	       int sx, int sy, int dx, int dy,
+	       int w, int h, int src_pitch, int dst_pitch, int cpp);
+
+/* radeon_state.c */
+extern void radeon_cp_discard_buffer(struct drm_device * dev, struct drm_buf * buf);
+
+/* radeon_cs.c */
+extern int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *fpriv);
+extern int r600_cs_init(struct drm_device *dev);
 
 /* Flags for stats.boxes
  */
@@ -1827,26 +1900,38 @@ do {									\
  */
 
 #define RADEON_WAIT_UNTIL_2D_IDLE() do {				\
-	OUT_RING( CP_PACKET0( RADEON_WAIT_UNTIL, 0 ) );			\
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)        \
+		OUT_RING( CP_PACKET0( R600_WAIT_UNTIL, 0 ) );           \
+	else                                                            \
+		OUT_RING( CP_PACKET0( RADEON_WAIT_UNTIL, 0 ) );         \
 	OUT_RING( (RADEON_WAIT_2D_IDLECLEAN |				\
 		   RADEON_WAIT_HOST_IDLECLEAN) );			\
 } while (0)
 
 #define RADEON_WAIT_UNTIL_3D_IDLE() do {				\
-	OUT_RING( CP_PACKET0( RADEON_WAIT_UNTIL, 0 ) );			\
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)        \
+		OUT_RING( CP_PACKET0( R600_WAIT_UNTIL, 0 ) );           \
+	else                                                            \
+		OUT_RING( CP_PACKET0( RADEON_WAIT_UNTIL, 0 ) );         \
 	OUT_RING( (RADEON_WAIT_3D_IDLECLEAN |				\
 		   RADEON_WAIT_HOST_IDLECLEAN) );			\
 } while (0)
 
 #define RADEON_WAIT_UNTIL_IDLE() do {					\
-	OUT_RING( CP_PACKET0( RADEON_WAIT_UNTIL, 0 ) );			\
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)        \
+		OUT_RING( CP_PACKET0( R600_WAIT_UNTIL, 0 ) );           \
+	else                                                            \
+		OUT_RING( CP_PACKET0( RADEON_WAIT_UNTIL, 0 ) );         \
 	OUT_RING( (RADEON_WAIT_2D_IDLECLEAN |				\
 		   RADEON_WAIT_3D_IDLECLEAN |				\
 		   RADEON_WAIT_HOST_IDLECLEAN) );			\
 } while (0)
 
 #define RADEON_WAIT_UNTIL_PAGE_FLIPPED() do {				\
-	OUT_RING( CP_PACKET0( RADEON_WAIT_UNTIL, 0 ) );			\
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)        \
+		OUT_RING( CP_PACKET0( R600_WAIT_UNTIL, 0 ) );           \
+	else                                                            \
+		OUT_RING( CP_PACKET0( RADEON_WAIT_UNTIL, 0 ) );         \
 	OUT_RING( RADEON_WAIT_CRTC_PFLIP );				\
 } while (0)
 
@@ -1961,14 +2046,17 @@ do {								\
 
 #define RING_LOCALS	int write, _nr, _align_nr; unsigned int mask; u32 *ring;
 
+#define RADEON_RING_ALIGN 16
+
 #define BEGIN_RING( n ) do {						\
 	if ( RADEON_VERBOSE ) {						\
 		DRM_INFO( "BEGIN_RING( %d )\n", (n));			\
 	}								\
-	_align_nr = (n + 0xf) & ~0xf;					\
-	if (dev_priv->ring.space <= (_align_nr * sizeof(u32))) {	\
-                COMMIT_RING();						\
-		radeon_wait_ring( dev_priv, _align_nr * sizeof(u32));	\
+	_align_nr = RADEON_RING_ALIGN - ((dev_priv->ring.tail + n) & (RADEON_RING_ALIGN - 1)); \
+	_align_nr += n;							\
+	if ( dev_priv->ring.space <= (_align_nr) * sizeof(u32) ) {	\
+		COMMIT_RING();						\
+		radeon_wait_ring( dev_priv, (_align_nr) * sizeof(u32) ); \
 	}								\
 	_nr = n; dev_priv->ring.space -= (n) * sizeof(u32);		\
 	ring = dev_priv->ring.start;					\
