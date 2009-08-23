@@ -13,12 +13,17 @@
 # A PARTICULAR PURPOSE.
 # $FreeBSD$
 
+TRACEROUTE_DISTDIR?= ${.CURDIR}/../../contrib/traceroute
+.PATH: ${TRACEROUTE_DISTDIR}
+
 PROG=	traceroute6
 MAN=	traceroute6.8
+SRCS=	as.c traceroute6.c
 BINOWN=	root
 BINMODE= 4555
 
 CFLAGS+= -DIPSEC -DUSE_RFC2292BIS -DHAVE_POLL
+CFLAGS+= -I${.CURDIR} -I${TRACEROUTE_DISTDIR} -I.
 
 DPADD=	${LIBIPSEC}
 LDADD=	-lipsec
