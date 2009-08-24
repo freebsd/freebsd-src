@@ -589,6 +589,21 @@ if_attach_internal(struct ifnet *ifp, int vmove)
 		/* Reliably crash if used uninitialized. */
 		ifp->if_broadcastaddr = NULL;
 	}
+#ifdef VIMAGE
+	else {
+		/*
+		 * Update the interface index in the link layer address
+		 * of the interface.
+		 */
+		for (ifa = ifp->if_addr; ifa != NULL;
+		    ifa = TAILQ_NEXT(ifa, ifa_link)) {
+			if (ifa->ifa_addr->sa_family == AF_LINK) {
+				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+				sdl->sdl_index = ifp->if_index;
+			}
+		}
+	}
+#endif
 
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
