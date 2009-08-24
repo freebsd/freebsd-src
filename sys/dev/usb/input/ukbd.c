@@ -96,10 +96,14 @@ __FBSDID("$FreeBSD$");
 
 #if USB_DEBUG
 static int ukbd_debug = 0;
+static int ukbd_no_leds = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB ukbd");
 SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RW,
     &ukbd_debug, 0, "Debug level");
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, no_leds, CTLFLAG_RW,
+    &ukbd_no_leds, 0, "Disables setting of keyboard leds");
+
 #endif
 
 #define	UPROTO_BOOT_KEYBOARD 1
@@ -165,6 +169,7 @@ struct ukbd_softc {
 #define	UKBD_FLAG_APPLE_EJECT	0x0040
 #define	UKBD_FLAG_APPLE_FN	0x0080
 #define	UKBD_FLAG_APPLE_SWAP	0x0100
+#define	UKBD_FLAG_TIMER_RUNNING	0x0200
 
 	int32_t	sc_mode;		/* input mode (K_XLATE,K_RAW,K_CODE) */
 	int32_t	sc_state;		/* shift/lock key state */
@@ -279,6 +284,25 @@ static device_attach_t ukbd_attach;
 static device_detach_t ukbd_detach;
 static device_resume_t ukbd_resume;
 
+static uint8_t
+ukbd_any_key_pressed(struct ukbd_softc *sc)
+{
+	uint8_t i;
+	uint8_t j;
+
+	for (j = i = 0; i < UKBD_NKEYCODE; i++)
+		j |= sc->sc_odata.keycode[i];
+
+	return (j ? 1 : 0);
+}
+
+static void
+ukbd_start_timer(struct ukbd_softc *sc)
+{
+	sc->sc_flags |= UKBD_FLAG_TIMER_RUNNING;
+	usb_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
+}
+
 static void
 ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 {
@@ -308,11 +332,15 @@ ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
 
 		usbd_transfer_poll(sc->sc_xfer, UKBD_N_TRANSFER);
 
-		DELAY(1000);	/* delay 1 ms */
+		/* Delay-optimised support for repetition of keys */
 
-		sc->sc_time_ms++;
+		if (ukbd_any_key_pressed(sc)) {
+			/* a key is pressed - need timekeeping */
+			DELAY(1000);
 
-		/* support repetition of keys: */
+			/* 1 millisecond has passed */
+			sc->sc_time_ms += 1;
+		}
 
 		ukbd_interrupt(sc);
 
@@ -470,7 +498,11 @@ ukbd_timeout(void *arg)
 	}
 	ukbd_interrupt(sc);
 
-	usb_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
+	if (ukbd_any_key_pressed(sc)) {
+		ukbd_start_timer(sc);
+	} else {
+		sc->sc_flags &= ~UKBD_FLAG_TIMER_RUNNING;
+	}
 }
 
 static uint8_t
@@ -582,6 +614,12 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			}
 
 			ukbd_interrupt(sc);
+
+			if (!(sc->sc_flags & UKBD_FLAG_TIMER_RUNNING)) {
+				if (ukbd_any_key_pressed(sc)) {
+					ukbd_start_timer(sc);
+				}
+			}
 		}
 	case USB_ST_SETUP:
 tr_setup:
@@ -612,6 +650,11 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_page_cache *pc;
 	uint8_t buf[2];
 	struct ukbd_softc *sc = usbd_xfer_softc(xfer);
+
+#if USB_DEBUG
+	if (ukbd_no_leds)
+		return;
+#endif
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -647,11 +690,11 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 			usbd_xfer_set_frames(xfer, 2);
 			usbd_transfer_submit(xfer);
 		}
-		return;
+		break;
 
 	default:			/* Error */
 		DPRINTFN(0, "error=%s\n", usbd_errstr(error));
-		return;
+		break;
 	}
 }
 
@@ -745,8 +788,6 @@ ukbd_attach(device_t dev)
 	uint16_t n;
 	uint16_t hid_len;
 
-	mtx_assert(&Giant, MA_OWNED);
-
 	kbd_init_struct(kbd, UKBD_DRIVER_NAME, KB_OTHER, unit, 0, 0, 0);
 
 	kbd->kb_data = (void *)sc;
@@ -831,7 +872,7 @@ ukbd_attach(device_t dev)
 	}
 
 	/* ignore if SETIDLE fails, hence it is not crucial */
-	err = usbd_req_set_idle(sc->sc_udev, &Giant, sc->sc_iface_index, 0, 0);
+	err = usbd_req_set_idle(sc->sc_udev, NULL, sc->sc_iface_index, 0, 0);
 
 	ukbd_ioctl(kbd, KDSETLED, (caddr_t)&sc->sc_state);
 
@@ -862,9 +903,6 @@ ukbd_attach(device_t dev)
 
 	usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 
-	/* start the timer */
-
-	ukbd_timeout(sc);
 	mtx_unlock(&Giant);
 	return (0);			/* success */
 
@@ -878,8 +916,6 @@ ukbd_detach(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
 	int error;
-
-	mtx_assert(&Giant, MA_OWNED);
 
 	DPRINTF("\n");
 
@@ -927,8 +963,6 @@ ukbd_resume(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
 
-	mtx_assert(&Giant, MA_OWNED);
-
 	ukbd_clear_state(&sc->sc_kbd);
 
 	return (0);
@@ -945,7 +979,6 @@ ukbd_configure(int flags)
 static int
 ukbd__probe(int unit, void *arg, int flags)
 {
-	mtx_assert(&Giant, MA_OWNED);
 	return (ENXIO);
 }
 
@@ -953,7 +986,6 @@ ukbd__probe(int unit, void *arg, int flags)
 static int
 ukbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 {
-	mtx_assert(&Giant, MA_OWNED);
 	return (ENXIO);
 }
 
@@ -961,7 +993,6 @@ ukbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 static int
 ukbd_test_if(keyboard_t *kbd)
 {
-	mtx_assert(&Giant, MA_OWNED);
 	return (0);
 }
 
@@ -969,7 +1000,6 @@ ukbd_test_if(keyboard_t *kbd)
 static int
 ukbd_term(keyboard_t *kbd)
 {
-	mtx_assert(&Giant, MA_OWNED);
 	return (ENXIO);
 }
 
@@ -977,7 +1007,6 @@ ukbd_term(keyboard_t *kbd)
 static int
 ukbd_intr(keyboard_t *kbd, void *arg)
 {
-	mtx_assert(&Giant, MA_OWNED);
 	return (0);
 }
 
@@ -985,7 +1014,6 @@ ukbd_intr(keyboard_t *kbd, void *arg)
 static int
 ukbd_lock(keyboard_t *kbd, int lock)
 {
-	mtx_assert(&Giant, MA_OWNED);
 	return (1);
 }
 
@@ -1004,7 +1032,6 @@ ukbd_enable(keyboard_t *kbd)
 		mtx_unlock(&Giant);
 		return (retval);
 	}
-	mtx_assert(&Giant, MA_OWNED);
 	KBD_ACTIVATE(kbd);
 	return (0);
 }
@@ -1021,7 +1048,6 @@ ukbd_disable(keyboard_t *kbd)
 		mtx_unlock(&Giant);
 		return (retval);
 	}
-	mtx_assert(&Giant, MA_OWNED);
 	KBD_DEACTIVATE(kbd);
 	return (0);
 }
@@ -1050,7 +1076,6 @@ ukbd_check(keyboard_t *kbd)
 		if (!mtx_owned(&Giant))
 			return (0);
 	}
-	mtx_assert(&Giant, MA_OWNED);
 
 #ifdef UKBD_EMULATE_ATSCANCODE
 	if (sc->sc_buffered_char[0]) {
@@ -1086,7 +1111,6 @@ ukbd_check_char(keyboard_t *kbd)
 		if (!mtx_owned(&Giant))
 			return (0);
 	}
-	mtx_assert(&Giant, MA_OWNED);
 
 	if ((sc->sc_composed_char > 0) &&
 	    (!(sc->sc_flags & UKBD_FLAG_COMPOSE))) {
@@ -1125,7 +1149,6 @@ ukbd_read(keyboard_t *kbd, int wait)
 		if (!mtx_owned(&Giant))
 			return (-1);
 	}
-	mtx_assert(&Giant, MA_OWNED);
 
 #ifdef UKBD_EMULATE_ATSCANCODE
 	if (sc->sc_buffered_char[0]) {
@@ -1190,7 +1213,6 @@ ukbd_read_char(keyboard_t *kbd, int wait)
 		if (!mtx_owned(&Giant))
 			return (NOKEY);
 	}
-	mtx_assert(&Giant, MA_OWNED);
 
 next_code:
 
@@ -1393,7 +1415,6 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		 */
 		return (EINVAL);
 	}
-	mtx_assert(&Giant, MA_OWNED);
 
 	switch (cmd) {
 	case KDGKBMODE:		/* get keyboard mode */
@@ -1527,7 +1548,6 @@ ukbd_clear_state(keyboard_t *kbd)
 	if (!mtx_owned(&Giant)) {
 		return;			/* XXX */
 	}
-	mtx_assert(&Giant, MA_OWNED);
 
 	sc->sc_flags &= ~(UKBD_FLAG_COMPOSE | UKBD_FLAG_POLLING);
 	sc->sc_state &= LOCK_MASK;	/* preserve locking key state */
@@ -1547,7 +1567,6 @@ ukbd_clear_state(keyboard_t *kbd)
 static int
 ukbd_get_state(keyboard_t *kbd, void *buf, size_t len)
 {
-	mtx_assert(&Giant, MA_OWNED);
 	return (len == 0) ? 1 : -1;
 }
 
@@ -1555,7 +1574,6 @@ ukbd_get_state(keyboard_t *kbd, void *buf, size_t len)
 static int
 ukbd_set_state(keyboard_t *kbd, void *buf, size_t len)
 {
-	mtx_assert(&Giant, MA_OWNED);
 	return (EINVAL);
 }
 
@@ -1572,7 +1590,6 @@ ukbd_poll(keyboard_t *kbd, int on)
 		mtx_unlock(&Giant);
 		return (retval);
 	}
-	mtx_assert(&Giant, MA_OWNED);
 
 	if (on) {
 		sc->sc_flags |= UKBD_FLAG_POLLING;
