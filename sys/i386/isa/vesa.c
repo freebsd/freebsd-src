@@ -1074,6 +1074,11 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		(info.vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
 	vesa_adp->va_crtc_addr =
 		(vesa_adp->va_flags & V_ADP_COLOR) ? COLOR_CRTC : MONO_CRTC;
+
+	vesa_adp->va_window = BIOS_PADDRTOVADDR(info.vi_window);
+	vesa_adp->va_window_size = info.vi_window_size;
+	vesa_adp->va_window_gran = info.vi_window_gran;
+
 	if (info.vi_flags & V_INFO_LINEAR) {
 #if VESA_DEBUG > 1
 		printf("VESA: setting up LFB\n");
@@ -1083,33 +1088,31 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 					vesa_adp_info->v_memsize*64*1024);
 		vesa_adp->va_buffer_size = info.vi_buffer_size;
 		vesa_adp->va_window = vesa_adp->va_buffer;
-		vesa_adp->va_window_size = info.vi_buffer_size/info.vi_planes;
-		vesa_adp->va_window_gran = info.vi_buffer_size/info.vi_planes;
 	} else {
 		vesa_adp->va_buffer = 0;
-		vesa_adp->va_buffer_size = info.vi_buffer_size;
-		vesa_adp->va_window = BIOS_PADDRTOVADDR(info.vi_window);
-		vesa_adp->va_window_size = info.vi_window_size;
-		vesa_adp->va_window_gran = info.vi_window_gran;
+		vesa_adp->va_buffer_size = 0;
 	}
+#if VESA_DEBUG > 1
+	printf("VESA: buffer %x, buffer_size %d, window %x, window_size %d\n",
+			vesa_adp->va_buffer,
+			vesa_adp->va_buffer_size,
+			vesa_adp->va_window,
+			vesa_adp->va_window_size);
+#endif
 	vesa_adp->va_window_orig = 0;
 	len = vesa_bios_get_line_length();
-	if (len > 0) {
-		vesa_adp->va_line_width = len;
-	} else if (info.vi_flags & V_INFO_GRAPHICS) {
-		switch (info.vi_depth/info.vi_planes) {
-		case 1:
-			vesa_adp->va_line_width = info.vi_width/8;
-			break;
-		case 2:
-			vesa_adp->va_line_width = info.vi_width/4;
-			break;
+	if (info.vi_flags & V_INFO_GRAPHICS) {
+		switch (info.vi_depth) {
 		case 4:
-			vesa_adp->va_line_width = info.vi_width/2;
+			vesa_adp->va_line_width = info.vi_width;
 			break;
 		case 8:
-		default: /* shouldn't happen */
-			vesa_adp->va_line_width = info.vi_width;
+		case 15:
+		case 16:
+		case 24:
+		case 32:
+		default:
+			vesa_adp->va_line_width = info.vi_width * (info.vi_depth / 8);
 			break;
 		case 15:
 		case 16:
@@ -1126,8 +1129,8 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	vesa_adp->va_disp_start.x = 0;
 	vesa_adp->va_disp_start.y = 0;
 #if VESA_DEBUG > 0
-	printf("vesa_set_mode(): vi_width:%d, len:%d, line_width:%d\n",
-	       info.vi_width, len, vesa_adp->va_line_width);
+	printf("vesa_set_mode(): vi_width:%d, len:%d, line_width:%d vi_mem_model:%d\n",
+	       info.vi_width, len, vesa_adp->va_line_width, info.vi_mem_model);
 #endif
 	bcopy(&info, &vesa_adp->va_info, sizeof(vesa_adp->va_info));
 
