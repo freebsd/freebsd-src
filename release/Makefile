@@ -646,6 +646,7 @@ release.2:
 	cd ${.CURDIR}/.. && ${CROSSMAKE} distrib-dirs DESTDIR=${RD}/trees/base
 	cd ${.CURDIR}/.. && ${CROSSMAKE} ${WORLD_FLAGS} distributeworld \
 	    DISTDIR=${RD}/trees
+	sh ${.CURDIR}/scripts/mm-mtree.sh -F "${CROSSENV}" -D "${RD}/trees/base"
 	touch ${.TARGET}
 
 # Make and install the generic kernel(s).
