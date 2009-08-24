@@ -484,7 +484,7 @@ aue_miibus_writereg(device_t dev, int phy, int reg, int data)
 	}
 
 	if (i == AUE_TIMEOUT)
-		device_printf(sc->sc_ue.ue_dev, "MII read timed out\n");
+		device_printf(sc->sc_ue.ue_dev, "MII write timed out\n");
 
 	if (!locked)
 		AUE_UNLOCK(sc);
@@ -603,11 +603,14 @@ aue_reset(struct aue_softc *sc)
 	 * to set the GPIO pins high so that the PHY(s) will
 	 * be enabled.
 	 *
-	 * Note: We force all of the GPIO pins low first, *then*
-	 * enable the ones we want.
+	 * NOTE: We used to force all of the GPIO pins low first and then
+	 * enable the ones we want. This has been changed to better
+	 * match the ADMtek's reference design to avoid setting the
+	 * power-down configuration line of the PHY at the same time
+	 * it is reset.
 	 */
-	aue_csr_write_1(sc, AUE_GPIO0, AUE_GPIO_OUT0|AUE_GPIO_SEL0);
-	aue_csr_write_1(sc, AUE_GPIO0, AUE_GPIO_OUT0|AUE_GPIO_SEL0|AUE_GPIO_SEL1);
+	aue_csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1);
+	aue_csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1|AUE_GPIO_OUT0);
 
 	if (sc->sc_flags & AUE_FLAG_LSYS) {
 		/* Grrr. LinkSys has to be different from everyone else. */
