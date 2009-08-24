@@ -484,6 +484,8 @@ typedef struct usb_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 #define	UISUBCLASS_RF			0x01
 #define	UIPROTO_BLUETOOTH		0x01
 
+#define	UICLASS_IAD		0xEF	/* Interface Association Descriptor */
+
 #define	UICLASS_APPL_SPEC	0xfe
 #define	UISUBCLASS_FIRMWARE_DOWNLOAD	1
 #define	UISUBCLASS_IRDA			2
