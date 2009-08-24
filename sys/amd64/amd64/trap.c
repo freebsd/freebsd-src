@@ -409,7 +409,9 @@ trap(struct trapframe *frame)
 					 * This check also covers the images
 					 * without the ABI-tag ELF note.
 					 */
-					if (p->p_osrel >= 700004) {
+					if (SV_CURPROC_ABI() ==
+					    SV_ABI_FREEBSD &&
+					    p->p_osrel >= 700004) {
 						i = SIGSEGV;
 						ucode = SEGV_ACCERR;
 					} else {
