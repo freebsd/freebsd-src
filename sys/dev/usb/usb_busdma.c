@@ -679,6 +679,12 @@ usb_pc_cpu_invalidate(struct usb_page_cache *pc)
 		/* nothing has been loaded into this page cache! */
 		return;
 	}
+
+	/*
+	 * TODO: We currently do XXX_POSTREAD and XXX_PREREAD at the
+	 * same time, but in the future we should try to isolate the
+	 * different cases to optimise the code. --HPS
+	 */
 	bus_dmamap_sync(pc->tag, pc->map, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_sync(pc->tag, pc->map, BUS_DMASYNC_PREREAD);
 }
