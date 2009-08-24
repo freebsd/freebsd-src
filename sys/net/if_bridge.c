@@ -171,6 +171,11 @@ __FBSDID("$FreeBSD$");
 #define	BRIDGE_IFCAPS_MASK		(IFCAP_TOE|IFCAP_TSO|IFCAP_TXCSUM)
 
 /*
+ * List of capabilities to strip
+ */
+#define	BRIDGE_IFCAPS_STRIP		IFCAP_LRO
+
+/*
  * Bridge interface list entry.
  */
 struct bridge_iflist {
@@ -802,16 +807,10 @@ bridge_mutecaps(struct bridge_softc *sc)
 
 	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		enabled = bif->bif_ifp->if_capenable;
+		enabled &= ~BRIDGE_IFCAPS_STRIP;
 		/* strip off mask bits and enable them again if allowed */
 		enabled &= ~BRIDGE_IFCAPS_MASK;
 		enabled |= mask;
-		/*
-		 * Receive offload can only be enabled if all members also
-		 * support send offload.
-		 */
-		if ((enabled & IFCAP_TSO) == 0)
-			enabled &= ~IFCAP_LRO;
-
 		bridge_set_ifcap(sc, bif, enabled);
 	}
 
