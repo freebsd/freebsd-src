@@ -75,5 +75,6 @@ void	usb_proc_drain(struct usb_process *up);
 void	usb_proc_mwait(struct usb_process *up, void *pm0, void *pm1);
 void	usb_proc_free(struct usb_process *up);
 void   *usb_proc_msignal(struct usb_process *up, void *pm0, void *pm1);
+void	usb_proc_rewakeup(struct usb_process *up);
 
 #endif					/* _USB_PROCESS_H_ */
