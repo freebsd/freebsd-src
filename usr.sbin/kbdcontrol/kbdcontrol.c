@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #define PASTE		0xa3		/* paste from cut-paste buffer */
 #endif
 
+#define	SPECIAL		0x80000000
+
 char ctrl_names[32][4] = {
 	"nul", "soh", "stx", "etx", "eot", "enq", "ack", "bel",
 	"bs ", "ht ", "nl ", "vt ", "ff ", "cr ", "so ", "si ",
@@ -180,77 +182,77 @@ get_entry(void)
 {
 	switch ((token = yylex())) {
 	case TNOP:
-		return NOP | 0x100;
+		return NOP | SPECIAL;
 	case TLSH:
-		return LSH | 0x100;
+		return LSH | SPECIAL;
 	case TRSH:
-		return RSH | 0x100;
+		return RSH | SPECIAL;
 	case TCLK:
-		return CLK | 0x100;
+		return CLK | SPECIAL;
 	case TNLK:
-		return NLK | 0x100;
+		return NLK | SPECIAL;
 	case TSLK:
-		return SLK | 0x100;
+		return SLK | SPECIAL;
 	case TBTAB:
-		return BTAB | 0x100;
+		return BTAB | SPECIAL;
 	case TLALT:
-		return LALT | 0x100;
+		return LALT | SPECIAL;
 	case TLCTR:
-		return LCTR | 0x100;
+		return LCTR | SPECIAL;
 	case TNEXT:
-		return NEXT | 0x100;
+		return NEXT | SPECIAL;
 	case TPREV:
-		return PREV | 0x100;
+		return PREV | SPECIAL;
 	case TRCTR:
-		return RCTR | 0x100;
+		return RCTR | SPECIAL;
 	case TRALT:
-		return RALT | 0x100;
+		return RALT | SPECIAL;
 	case TALK:
-		return ALK | 0x100;
+		return ALK | SPECIAL;
 	case TASH:
-		return ASH | 0x100;
+		return ASH | SPECIAL;
 	case TMETA:
-		return META | 0x100;
+		return META | SPECIAL;
 	case TRBT:
-		return RBT | 0x100;
+		return RBT | SPECIAL;
 	case TDBG:
-		return DBG | 0x100;
+		return DBG | SPECIAL;
 	case TSUSP:
-		return SUSP | 0x100;
+		return SUSP | SPECIAL;
 	case TSPSC:
-		return SPSC | 0x100;
+		return SPSC | SPECIAL;
 	case TPANIC:
-		return PNC | 0x100;
+		return PNC | SPECIAL;
 	case TLSHA:
-		return LSHA | 0x100;
+		return LSHA | SPECIAL;
 	case TRSHA:
-		return RSHA | 0x100;
+		return RSHA | SPECIAL;
 	case TLCTRA:
-		return LCTRA | 0x100;
+		return LCTRA | SPECIAL;
 	case TRCTRA:
-		return RCTRA | 0x100;
+		return RCTRA | SPECIAL;
 	case TLALTA:
-		return LALTA | 0x100;
+		return LALTA | SPECIAL;
 	case TRALTA:
-		return RALTA | 0x100;
+		return RALTA | SPECIAL;
 	case THALT:
-		return HALT | 0x100;
+		return HALT | SPECIAL;
 	case TPDWN:
-		return PDWN | 0x100;
+		return PDWN | SPECIAL;
 	case TPASTE:
-		return PASTE | 0x100;
+		return PASTE | SPECIAL;
 	case TACC:
 		if (ACC(number) > L_ACC)
 			return -1;
-		return ACC(number) | 0x100;
+		return ACC(number) | SPECIAL;
 	case TFUNC:
 		if (F(number) > L_FN)
 			return -1;
-		return F(number) | 0x100;
+		return F(number) | SPECIAL;
 	case TSCRN:
 		if (S(number) > L_SCR)
 			return -1;
-		return S(number) | 0x100;
+		return S(number) | SPECIAL;
 	case TLET:
 		return (unsigned char)letter;
 	case TNUM:
@@ -310,9 +312,9 @@ get_key_definition_line(keymap_t *map)
 	for (i=0; i<NUM_STATES; i++) {
 		if ((def = get_entry()) == -1)
 			return -1;
-		if (def & 0x100)
+		if (def & SPECIAL)
 			map->key[scancode].spcl |= (0x80 >> i);
-		map->key[scancode].map[i] = def & 0xFF;
+		map->key[scancode].map[i] = def & ~SPECIAL;
 	}
 	/* get lock state key def */
 	if ((token = yylex()) != TFLAG)
@@ -386,101 +388,101 @@ get_accent_definition_line(accentmap_t *map)
 void
 print_entry(FILE *fp, int value)
 {
-	int val = value & 0xFF;
+	int val = value & ~SPECIAL;
 
 	switch (value) {
-	case NOP | 0x100:
+	case NOP | SPECIAL:
 		fprintf(fp, " nop   ");
 		break;
-	case LSH | 0x100:
+	case LSH | SPECIAL:
 		fprintf(fp, " lshift");
 		break;
-	case RSH | 0x100:
+	case RSH | SPECIAL:
 		fprintf(fp, " rshift");
 		break;
-	case CLK | 0x100:
+	case CLK | SPECIAL:
 		fprintf(fp, " clock ");
 		break;
-	case NLK | 0x100:
+	case NLK | SPECIAL:
 		fprintf(fp, " nlock ");
 		break;
-	case SLK | 0x100:
+	case SLK | SPECIAL:
 		fprintf(fp, " slock ");
 		break;
-	case BTAB | 0x100:
+	case BTAB | SPECIAL:
 		fprintf(fp, " btab  ");
 		break;
-	case LALT | 0x100:
+	case LALT | SPECIAL:
 		fprintf(fp, " lalt  ");
 		break;
-	case LCTR | 0x100:
+	case LCTR | SPECIAL:
 		fprintf(fp, " lctrl ");
 		break;
-	case NEXT | 0x100:
+	case NEXT | SPECIAL:
 		fprintf(fp, " nscr  ");
 		break;
-	case PREV | 0x100:
+	case PREV | SPECIAL:
 		fprintf(fp, " pscr  ");
 		break;
-	case RCTR | 0x100:
+	case RCTR | SPECIAL:
 		fprintf(fp, " rctrl ");
 		break;
-	case RALT | 0x100:
+	case RALT | SPECIAL:
 		fprintf(fp, " ralt  ");
 		break;
-	case ALK | 0x100:
+	case ALK | SPECIAL:
 		fprintf(fp, " alock ");
 		break;
-	case ASH | 0x100:
+	case ASH | SPECIAL:
 		fprintf(fp, " ashift");
 		break;
-	case META | 0x100:
+	case META | SPECIAL:
 		fprintf(fp, " meta  ");
 		break;
-	case RBT | 0x100:
+	case RBT | SPECIAL:
 		fprintf(fp, " boot  ");
 		break;
-	case DBG | 0x100:
+	case DBG | SPECIAL:
 		fprintf(fp, " debug ");
 		break;
-	case SUSP | 0x100:
+	case SUSP | SPECIAL:
 		fprintf(fp, " susp  ");
 		break;
-	case SPSC | 0x100:
+	case SPSC | SPECIAL:
 		fprintf(fp, " saver ");
 		break;
-	case PNC | 0x100:
+	case PNC | SPECIAL:
 		fprintf(fp, " panic ");
 		break;
-	case LSHA | 0x100:
+	case LSHA | SPECIAL:
 		fprintf(fp, " lshifta");
 		break;
-	case RSHA | 0x100:
+	case RSHA | SPECIAL:
 		fprintf(fp, " rshifta");
 		break;
-	case LCTRA | 0x100:
+	case LCTRA | SPECIAL:
 		fprintf(fp, " lctrla");
 		break;
-	case RCTRA | 0x100:
+	case RCTRA | SPECIAL:
 		fprintf(fp, " rctrla");
 		break;
-	case LALTA | 0x100:
+	case LALTA | SPECIAL:
 		fprintf(fp, " lalta ");
 		break;
-	case RALTA | 0x100:
+	case RALTA | SPECIAL:
 		fprintf(fp, " ralta ");
 		break;
-	case HALT | 0x100:
+	case HALT | SPECIAL:
 		fprintf(fp, " halt  ");
 		break;
-	case PDWN | 0x100:
+	case PDWN | SPECIAL:
 		fprintf(fp, " pdwn  ");
 		break;
-	case PASTE | 0x100:
+	case PASTE | SPECIAL:
 		fprintf(fp, " paste ");
 		break;
 	default:
-		if (value & 0x100) {
+		if (value & SPECIAL) {
 		 	if (val >= F_FN && val <= L_FN)
 				fprintf(fp, " fkey%02d", val - F_FN + 1);
 		 	else if (val >= F_SCR && val <= L_SCR)
@@ -521,7 +523,7 @@ print_key_definition_line(FILE *fp, int scancode, struct keyent_t *key)
 	/* print key definitions */
 	for (i=0; i<NUM_STATES; i++) {
 		if (key->spcl & (0x80 >> i))
-			print_entry(fp, key->map[i] | 0x100);
+			print_entry(fp, key->map[i] | SPECIAL);
 		else
 			print_entry(fp, key->map[i]);
 	}
@@ -587,8 +589,8 @@ print_accent_definition_line(FILE *fp, int accent, struct acc_t *key)
 void
 dump_entry(int value)
 {
-	if (value & 0x100) {
-		value &= 0x00ff;
+	if (value & SPECIAL) {
+		value &= ~SPECIAL;
 		switch (value) {
 		case NOP:
 			printf("  NOP, ");
@@ -719,7 +721,7 @@ dump_key_definition(char *name, keymap_t *keymap)
 		printf("/*%02x*/{{", i);
 		for (j = 0; j < NUM_STATES; j++) {
 			if (keymap->key[i].spcl & (0x80 >> j))
-				dump_entry(keymap->key[i].map[j] | 0x100);
+				dump_entry(keymap->key[i].map[j] | SPECIAL);
 			else
 				dump_entry(keymap->key[i].map[j]);
 		}
