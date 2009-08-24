@@ -46,7 +46,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "1.8.8";
+char ixgbe_driver_version[] = "1.8.9";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -244,6 +244,15 @@ TUNABLE_INT("hw.ixgbe.flow_control", &ixgbe_flow_control);
  */
 static int ixgbe_enable_msix = 1;
 TUNABLE_INT("hw.ixgbe.enable_msix", &ixgbe_enable_msix);
+
+/*
+ * Header split has seemed to be beneficial in
+ * all circumstances tested, so its on by default
+ * however this variable will allow it to be disabled
+ * for some debug purposes.
+ */
+static bool ixgbe_header_split = TRUE;
+TUNABLE_INT("hw.ixgbe.hdr_split", &ixgbe_header_split);
 
 /*
  * Number of Queues, should normally
@@ -454,7 +463,6 @@ ixgbe_attach(device_t dev)
 	*/
 	if (nmbclusters > 0 ) {
 		int s;
-		/* Calculate the total RX mbuf needs */
 		s = (ixgbe_rxd * adapter->num_queues) * ixgbe_total_ports;
 		if (s > nmbclusters) {
 			device_printf(dev, "RX Descriptors exceed "
@@ -1459,8 +1467,7 @@ ixgbe_msix_link(void *arg)
                 	device_printf(adapter->dev, "\nCRITICAL: ECC ERROR!! "
 			    "Please Reboot!!\n");
 			IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_ECC);
-		}
-		if (reg_eicr & IXGBE_EICR_GPI_SDP1) {
+		} else if (reg_eicr & IXGBE_EICR_GPI_SDP1) {
                 	/* Clear the interrupt */
                 	IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP1);
 			taskqueue_enqueue(adapter->tq, &adapter->msf_task);
@@ -1883,7 +1890,11 @@ ixgbe_set_multi(struct adapter *adapter)
 	
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_FCTRL, fctrl);
 
+#if __FreeBSD_version < 800000
+	IF_ADDR_LOCK(ifp);
+#else
 	if_maddr_rlock(ifp);
+#endif
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1892,7 +1903,11 @@ ixgbe_set_multi(struct adapter *adapter)
 		    IXGBE_ETH_LENGTH_OF_ADDRESS);
 		mcnt++;
 	}
+#if __FreeBSD_version < 800000
+	IF_ADDR_UNLOCK(ifp);
+#else
 	if_maddr_runlock(ifp);
+#endif
 
 	update_ptr = mta;
 	ixgbe_update_mc_addr_list(&adapter->hw,
@@ -3534,7 +3549,10 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	rxr->next_to_check = 0;
 	rxr->last_cleaned = 0;
 	rxr->lro_enabled = FALSE;
-	rxr->hdr_split = FALSE;
+
+	/* Use header split if configured */
+	if (ixgbe_header_split)
+		rxr->hdr_split = TRUE;
 
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -3553,7 +3571,6 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		}
 		INIT_DEBUGOUT("RX LRO Initialized\n");
 		rxr->lro_enabled = TRUE;
-		rxr->hdr_split = TRUE;
 		lro->ifp = adapter->ifp;
 	}
 
@@ -4457,24 +4474,42 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	struct ifnet   *ifp = adapter->ifp;;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32  missed_rx = 0, bprc, lxon, lxoff, total;
+	u64  total_missed_rx = 0;
 
 	adapter->stats.crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
 
 	for (int i = 0; i < 8; i++) {
-		int mp;
-		mp = IXGBE_READ_REG(hw, IXGBE_MPC(i));
-		missed_rx += mp;
-        	adapter->stats.mpc[i] += mp;
-		adapter->stats.rnbc[i] += IXGBE_READ_REG(hw, IXGBE_RNBC(i));
+		/* missed_rx tallies misses for the gprc workaround */
+		missed_rx += IXGBE_READ_REG(hw, IXGBE_MPC(i));
+        	adapter->stats.mpc[i] += missed_rx;
+		/* Running comprehensive total for stats display */
+		total_missed_rx += adapter->stats.mpc[i];
+		if (hw->mac.type == ixgbe_mac_82598EB)
+			adapter->stats.rnbc[i] +=
+			    IXGBE_READ_REG(hw, IXGBE_RNBC(i));
 	}
 
 	/* Hardware workaround, gprc counts missed packets */
 	adapter->stats.gprc += IXGBE_READ_REG(hw, IXGBE_GPRC);
 	adapter->stats.gprc -= missed_rx;
 
-	adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCH);
-	adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
-	adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORH);
+	if (hw->mac.type == ixgbe_mac_82599EB) {
+		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCL);
+		IXGBE_READ_REG(hw, IXGBE_GORCH); /* clears register */
+		adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCL);
+		IXGBE_READ_REG(hw, IXGBE_GOTCH); /* clears register */
+		adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORL);
+		IXGBE_READ_REG(hw, IXGBE_TORH); /* clears register */
+		adapter->stats.lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXCNT);
+		adapter->stats.lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
+	} else {
+		adapter->stats.lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXC);
+		adapter->stats.lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
+		/* 82598 only has a counter in the high register */
+		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCH);
+		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
+		adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORH);
+	}
 
 	/*
 	 * Workaround: mprc hardware is incorrectly counting
@@ -4493,9 +4528,6 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	adapter->stats.prc1023 += IXGBE_READ_REG(hw, IXGBE_PRC1023);
 	adapter->stats.prc1522 += IXGBE_READ_REG(hw, IXGBE_PRC1522);
 	adapter->stats.rlec += IXGBE_READ_REG(hw, IXGBE_RLEC);
-
-	adapter->stats.lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXCNT);
-	adapter->stats.lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
 
 	lxon = IXGBE_READ_REG(hw, IXGBE_LXONTXC);
 	adapter->stats.lxontxc += lxon;
@@ -4532,7 +4564,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	ifp->if_collisions = 0;
 
 	/* Rx Errors */
-	ifp->if_ierrors = missed_rx + adapter->stats.crcerrs +
+	ifp->if_ierrors = total_missed_rx + adapter->stats.crcerrs +
 		adapter->stats.rlec;
 }
 
