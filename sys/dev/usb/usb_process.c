@@ -448,3 +448,29 @@ usb_proc_drain(struct usb_process *up)
 	}
 	mtx_unlock(up->up_mtx);
 }
+
+/*------------------------------------------------------------------------*
+ *	usb_proc_rewakeup
+ *
+ * This function is called to re-wakeup the the given USB
+ * process. This usually happens after that the USB system has been in
+ * polling mode, like during a panic. This function must be called
+ * having "up->up_mtx" locked.
+ *------------------------------------------------------------------------*/
+void
+usb_proc_rewakeup(struct usb_process *up)
+{
+	/* check if not initialised */
+	if (up->up_mtx == NULL)
+		return;
+	/* check if gone */
+	if (up->up_gone)
+		return;
+
+	mtx_assert(up->up_mtx, MA_OWNED);
+
+	if (up->up_msleep == 0) {
+		/* re-wakeup */
+		cv_signal(&up->up_cv);
+	}
+}
