@@ -921,7 +921,7 @@ doit_again:
 			 * but should we?
 			 */
 			if (stcb->sctp_socket) {
-				pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket) >> SCTP_PARTIAL_DELIVERY_SHIFT,
+				pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket),
 				    stcb->sctp_ep->partial_delivery_point);
 			} else {
 				pd_point = stcb->sctp_ep->partial_delivery_point;
@@ -2867,11 +2867,11 @@ doit_again:
 
 		/*
 		 * Before we start though either all of the message should
-		 * be here or 1/4 the socket buffer max or nothing on the
+		 * be here or the socket buffer max or nothing on the
 		 * delivery queue and something can be delivered.
 		 */
 		if (stcb->sctp_socket) {
-			pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket) >> SCTP_PARTIAL_DELIVERY_SHIFT,
+			pd_point = min(SCTP_SB_LIMIT_RCV(stcb->sctp_socket),
 			    stcb->sctp_ep->partial_delivery_point);
 		} else {
 			pd_point = stcb->sctp_ep->partial_delivery_point;
