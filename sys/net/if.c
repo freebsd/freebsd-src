@@ -124,6 +124,7 @@ static void	if_attachdomain1(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_init(void *);
+static void	if_grow(void);
 static void	if_check(void *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
@@ -297,7 +298,7 @@ VNET_SYSUNINIT(vnet_if_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
     vnet_if_uninit, NULL);
 #endif
 
-void
+static void
 if_grow(void)
 {
 	u_int n;
