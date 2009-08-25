@@ -193,6 +193,9 @@ fifo_open(ap)
 			goto fail2;
 		fip->fi_writesock = wso;
 		error = soconnect2(wso, rso);
+		/* Close the direction we do not use, so we can get POLLHUP. */
+		if (error == 0)
+			error = soshutdown(rso, SHUT_WR);
 		if (error) {
 			(void)soclose(wso);
 fail2:
