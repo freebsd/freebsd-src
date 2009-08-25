@@ -69,7 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#define	MV_PHY_ADDR_BASE	8
+#ifndef MII_ADDR_BASE
+#define MII_ADDR_BASE 8
+#endif
 
 #include <dev/mge/if_mgevar.h>
 #include <arm/mv/mvreg.h>
@@ -1264,14 +1266,15 @@ mge_miibus_readreg(device_t dev, int phy, int reg)
 
 	/*
 	 * We assume static PHY address <=> device unit mapping:
-	 * PHY Address = MV_PHY_ADDR_BASE + devce unit.
+	 * PHY Address = MII_ADDR_BASE + devce unit.
 	 * This is true for most Marvell boards.
 	 * 
 	 * Code below grants proper PHY detection on each device
 	 * unit.
 	 */
 
-	if ((MV_PHY_ADDR_BASE + device_get_unit(dev)) != phy)
+	
+	if ((MII_ADDR_BASE + device_get_unit(dev)) != phy)
 		return (0);
 
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
@@ -1292,7 +1295,7 @@ mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
 	uint32_t retries;
 
-	if ((MV_PHY_ADDR_BASE + device_get_unit(dev)) != phy)
+	if ((MII_ADDR_BASE + device_get_unit(dev)) != phy)
 		return (0);
 
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
