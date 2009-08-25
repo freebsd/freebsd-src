@@ -2495,7 +2495,7 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 	} ndpc;
 	int i, error;
 
-	IFNET_RLOCK_ASSERT();
+	LLTABLE_LOCK_ASSERT();
 
 	error = 0;
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
