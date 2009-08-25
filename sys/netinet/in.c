@@ -1407,7 +1407,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 	} arpc;
 	int error, i;
 
-	IFNET_RLOCK_ASSERT();
+	LLTABLE_LOCK_ASSERT();
 
 	error = 0;
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
