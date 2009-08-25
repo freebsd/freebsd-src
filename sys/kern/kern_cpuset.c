@@ -357,6 +357,15 @@ cpuset_modify(struct cpuset *set, cpuset_t *mask)
 	if (error)
 		return (error);
 	/*
+	 * In case we are called from within the jail
+	 * we do not allow modifying the dedicated root
+	 * cpuset of the jail but may still allow to
+	 * change child sets.
+	 */
+	if (jailed(curthread->td_ucred) &&
+	    set->cs_flags & CPU_SET_ROOT)
+		return (EPERM);
+	/*
 	 * Verify that we have access to this set of
 	 * cpus.
 	 */
