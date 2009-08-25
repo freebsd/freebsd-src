@@ -398,10 +398,10 @@ gif_validate4(ip, sc, ifp)
 			    (u_int32_t)ntohl(sin.sin_addr.s_addr));
 #endif
 			if (rt)
-				rtfree(rt);
+				RTFREE_LOCKED(rt);
 			return 0;
 		}
-		rtfree(rt);
+		RTFREE_LOCKED(rt);
 	}
 
 	return 32 * 2;
