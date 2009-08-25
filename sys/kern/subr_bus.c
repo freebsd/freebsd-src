@@ -350,11 +350,18 @@ device_sysctl_fini(device_t dev)
  * tested since 3.4 or 2.2.8!
  */
 
+/* Deprecated way to adjust queue length */
 static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
-static int devctl_disable = 0;
-TUNABLE_INT("hw.bus.devctl_disable", &devctl_disable);
+/* XXX Need to support old-style tunable hw.bus.devctl_disable" */
 SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_disable, "I", "devctl disable");
+    0, sysctl_devctl_disable, "I", "devctl disable -- deprecated");
+
+#define DEVCTL_DEFAULT_QUEUE_LEN 1000
+static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
+static int devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
+TUNABLE_INT("hw.bus.devctl_queue", &devctl_queue_length);
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW, NULL,
+    0, sysctl_devctl_queue, "I", "devctl queue length");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
@@ -385,6 +392,7 @@ static struct dev_softc
 {
 	int	inuse;
 	int	nonblock;
+	int	queued;
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo sel;
@@ -423,7 +431,7 @@ devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	mtx_lock(&devsoftc.mtx);
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
-
+	devsoftc.async_proc = NULL;
 	return (0);
 }
 
@@ -458,6 +466,7 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 	n1 = TAILQ_FIRST(&devsoftc.devq);
 	TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+	devsoftc.queued--;
 	mtx_unlock(&devsoftc.mtx);
 	rv = uiomove(n1->dei_data, strlen(n1->dei_data), uio);
 	free(n1->dei_data, M_BUS);
@@ -531,21 +540,33 @@ devctl_process_running(void)
 void
 devctl_queue_data(char *data)
 {
-	struct dev_event_info *n1 = NULL;
+	struct dev_event_info *n1 = NULL, *n2 = NULL;
 	struct proc *p;
 
-	/*
-	 * Do not allow empty strings to be queued, as they
-	 * cause devd to exit prematurely.
-	 */
 	if (strlen(data) == 0)
+		return;
+	if (devctl_queue_length == 0)
 		return;
 	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
 	if (n1 == NULL)
 		return;
 	n1->dei_data = data;
 	mtx_lock(&devsoftc.mtx);
+	if (devctl_queue_length == 0) {
+		free(n1->dei_data, M_BUS);
+		free(n1, M_BUS);
+		return;
+	}
+	/* Leave at least one spot in the queue... */
+	while (devsoftc.queued > devctl_queue_length - 1) {
+		n2 = TAILQ_FIRST(&devsoftc.devq);
+		TAILQ_REMOVE(&devsoftc.devq, n2, dei_link);
+		free(n2->dei_data, M_BUS);
+		free(n2, M_BUS);
+		devsoftc.queued--;
+	}
 	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
+	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
@@ -614,7 +635,7 @@ devaddq(const char *type, const char *what, device_t dev)
 	char *pnp = NULL;
 	const char *parstr;
 
-	if (devctl_disable)
+	if (!devctl_queue_length)/* Rare race, but lost races safely discard */
 		return;
 	data = malloc(1024, M_BUS, M_NOWAIT);
 	if (data == NULL)
@@ -731,12 +752,11 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 	struct dev_event_info *n1;
 	int dis, error;
 
-	dis = devctl_disable;
+	dis = devctl_queue_length == 0;
 	error = sysctl_handle_int(oidp, &dis, 0, req);
 	if (error || !req->newptr)
 		return (error);
 	mtx_lock(&devsoftc.mtx);
-	devctl_disable = dis;
 	if (dis) {
 		while (!TAILQ_EMPTY(&devsoftc.devq)) {
 			n1 = TAILQ_FIRST(&devsoftc.devq);
@@ -744,6 +764,35 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 			free(n1->dei_data, M_BUS);
 			free(n1, M_BUS);
 		}
+		devsoftc.queued = 0;
+		devctl_queue_length = 0;
+	} else {
+		devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
+	}
+	mtx_unlock(&devsoftc.mtx);
+	return (0);
+}
+
+static int
+sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
+{
+	struct dev_event_info *n1;
+	int q, error;
+
+	q = devctl_queue_length;
+	error = sysctl_handle_int(oidp, &q, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (q < 0)
+		return (EINVAL);
+	mtx_lock(&devsoftc.mtx);
+	devctl_queue_length = q;
+	while (devsoftc.queued > devctl_queue_length) {
+		n1 = TAILQ_FIRST(&devsoftc.devq);
+		TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+		free(n1->dei_data, M_BUS);
+		free(n1, M_BUS);
+		devsoftc.queued--;
 	}
 	mtx_unlock(&devsoftc.mtx);
 	return (0);
@@ -886,7 +935,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 	if (create && !dc) {
 		PDEBUG(("creating %s", classname));
 		dc = malloc(sizeof(struct devclass) + strlen(classname) + 1,
-		    M_BUS, M_NOWAIT|M_ZERO);
+		    M_BUS, M_NOWAIT | M_ZERO);
 		if (!dc)
 			return (NULL);
 		dc->parent = NULL;
