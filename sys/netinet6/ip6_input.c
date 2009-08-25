@@ -120,12 +120,6 @@ struct in6_ifaddr *in6_ifaddr;
 
 extern struct callout in6_tmpaddrtimer_ch;
 
-int ip6_forward_srcrt;			/* XXX */
-int ip6_sourcecheck;			/* XXX */
-int ip6_sourcecheck_interval;		/* XXX */
-
-int ip6_ours_check_algorithm;
-
 struct pfil_head inet6_pfil_hook;
 
 struct ip6stat ip6stat;
