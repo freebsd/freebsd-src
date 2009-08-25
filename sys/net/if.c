@@ -223,6 +223,37 @@ ifnet_byindex_ref(u_short idx)
 	return (ifp);
 }
 
+/*
+ * Allocate an ifindex array entry; return 0 on success or an error on
+ * failure.
+ */
+static int
+ifindex_alloc(u_short *idxp)
+{
+	u_short idx;
+
+	IFNET_WLOCK_ASSERT();
+
+	/*
+	 * Try to find an empty slot below if_index.  If we fail, take the
+	 * next slot.
+	 */
+	for (idx = 1; idx <= V_if_index; idx++) {
+		if (ifnet_byindex_locked(idx) == NULL)
+			break;
+	}
+
+	/* Catch if_index overflow. */
+	if (idx < 1)
+		return (ENOSPC);
+	if (idx > V_if_index)
+		V_if_index = idx;
+	if (V_if_index >= V_if_indexlim)
+		if_grow();
+	*idxp = idx;
+	return (0);
+}
+
 static void
 ifnet_setbyindex_locked(u_short idx, struct ifnet *ifp)
 {
@@ -335,32 +366,19 @@ struct ifnet *
 if_alloc(u_char type)
 {
 	struct ifnet *ifp;
+	u_short idx;
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
-
-	/*
-	 * Try to find an empty slot below if_index.  If we fail, take
-	 * the next slot.
-	 *
-	 * XXX: should be locked!
-	 */
-	for (ifp->if_index = 1; ifp->if_index <= V_if_index; ifp->if_index++) {
-		if (ifnet_byindex(ifp->if_index) == NULL)
-			break;
-	}
-	/* Catch if_index overflow. */
-	if (ifp->if_index < 1) {
+	IFNET_WLOCK();
+	if (ifindex_alloc(&idx) != 0) {
+		IFNET_WUNLOCK();
 		free(ifp, M_IFNET);
 		return (NULL);
 	}
-	if (ifp->if_index > V_if_index)
-		V_if_index = ifp->if_index;
-	if (V_if_index >= V_if_indexlim)
-		if_grow();
-
+	IFNET_WUNLOCK();
+	ifp->if_index = idx;
 	ifp->if_type = type;
 	ifp->if_alloctype = type;
-
 	if (if_com_alloc[type] != NULL) {
 		ifp->if_l2com = if_com_alloc[type](type, ifp);
 		if (ifp->if_l2com == NULL) {
@@ -882,6 +900,7 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
+	u_short idx;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
@@ -907,23 +926,12 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 */
 	CURVNET_SET_QUIET(new_vnet);
 
-	/*
-	 * Try to find an empty slot below if_index.  If we fail, take 
-	 * the next slot.
-	 */
 	IFNET_WLOCK();
-	for (ifp->if_index = 1; ifp->if_index <= V_if_index; ifp->if_index++) {
-		if (ifnet_byindex_locked(ifp->if_index) == NULL)
-			break;
-	}
-	/* Catch if_index overflow. */
-	if (ifp->if_index < 1)
+	if (ifindex_alloc(&idx) != 0) {
+		IFNET_WUNLOCK();
 		panic("if_index overflow");
-
-	if (ifp->if_index > V_if_index)
-		V_if_index = ifp->if_index;
-	if (V_if_index >= V_if_indexlim)
-		if_grow();
+	}
+	ifp->if_index = idx;
 	ifnet_setbyindex_locked(ifp->if_index, ifp);
 	IFNET_WUNLOCK();
 
