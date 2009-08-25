@@ -1114,14 +1114,6 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		default:
 			vesa_adp->va_line_width = info.vi_width * (info.vi_depth / 8);
 			break;
-		case 15:
-		case 16:
-			vesa_adp->va_line_width = info.vi_width*2;
-			break;
-		case 24:
-		case 32:
-			vesa_adp->va_line_width = info.vi_width*4;
-			break;
 		}
 	} else {
 		vesa_adp->va_line_width = info.vi_width;
