@@ -64,6 +64,7 @@
 
 #if (__FreeBSD_version >= 800000)
 static struct proc *usbproc;
+static int usb_pcount;
 #define	USB_THREAD_CREATE(f, s, p, ...) \
 		kproc_kthread_add((f), (s), &usbproc, (p), RFHIGHPID, \
 		    0, "usb", __VA_ARGS__)
@@ -183,6 +184,11 @@ usb_process(void *arg)
 	up->up_ptr = NULL;
 	cv_signal(&up->up_cv);
 	mtx_unlock(up->up_mtx);
+#if (__FreeBSD_version >= 800000)
+	/* Clear the proc pointer if this is the last thread. */
+	if (--usb_pcount == 0)
+		usbproc = NULL;
+#endif
 
 	USB_THREAD_EXIT(0);
 }
@@ -218,6 +224,9 @@ usb_proc_create(struct usb_process *up, struct mtx *p_mtx,
 		up->up_ptr = NULL;
 		goto error;
 	}
+#if (__FreeBSD_version >= 800000)
+	usb_pcount++;
+#endif
 	return (0);
 
 error:
