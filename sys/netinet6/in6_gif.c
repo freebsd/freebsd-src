@@ -392,10 +392,10 @@ gif_validate6(ip6, sc, ifp)
 			    ip6_sprintf(&sin6.sin6_addr));
 #endif
 			if (rt)
-				rtfree(rt);
+				RTFREE_LOCKED(rt);
 			return 0;
 		}
-		rtfree(rt);
+		RTFREE_LOCKED(rt);
 	}
 
 	return 128 * 2;

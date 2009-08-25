@@ -239,7 +239,7 @@ nd6_ns_input(m, off, icmp6len)
 		need_proxy = (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
 		    rt->rt_gateway->sa_family == AF_LINK);
 		if (rt)
-			rtfree(rt);
+			RTFREE_LOCKED(rt);
 		if (need_proxy) {
 			/*
 			 * proxy NDP for single entry
