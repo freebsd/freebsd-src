@@ -87,29 +87,25 @@ touch version
 v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 
-for dir in /bin /usr/bin /usr/local/bin; do
-	if [ -x "${dir}/svnversion" ]; then
-		svnversion=${dir}/svnversion
-		SRCDIR=${d##*obj}
-		if [ -n "$MACHINE" ]; then
-			SRCDIR=${SRCDIR##/$MACHINE}
+case "$d" in
+*/sys/*)
+	for dir in /bin /usr/bin /usr/local/bin; do
+		if [ -x "${dir}/svnversion" ]; then
+			svnversion=${dir}/svnversion
+			SRCDIR=${d##*obj}
+			if [ -n "$MACHINE" ]; then
+				SRCDIR=${SRCDIR##/$MACHINE}
+			fi
+			SRCDIR=${SRCDIR%%/sys/*}
+			break
 		fi
-		SRCDIR=${SRCDIR%%/sys/*}
-		break
-	fi
-done
+	done
 
-if [ -n "$svnversion" -a -d "${SRCDIR}/.svn" ] ; then
-	# If we are called from the kernel build, limit
-	# the scope of svnversion to sys/ .
-	if [ -e "${SRCDIR}/sys/conf/newvers.sh" ] ; then
-		svn=" r`cd $SRCDIR/sys && $svnversion`"
-	else
-		svn=" r`cd $SRCDIR && $svnversion`"
+	if [ -n "$svnversion" -a -d "${SRCDIR}/sys/.svn" ] ; then
+		svn=" r`cd ${SRCDIR}/sys && $svnversion`"
 	fi
-else
-	svn=""
-fi
+	;;
+esac
 
 cat << EOF > vers.c
 $COPYRIGHT
