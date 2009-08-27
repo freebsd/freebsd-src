@@ -1014,14 +1014,27 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 	    continue;
 
 	/*
-	 * Check for matching resources.  We must have at least one,
-	 * and all resources specified have to match.
+	 * Check for matching resources.  We must have at least one match.
+	 * Since I/O and memory resources cannot be shared, if we get a
+	 * match on either of those, ignore any mismatches in IRQs or DRQs.
 	 *
 	 * XXX: We may want to revisit this to be more lenient and wire
 	 * as long as it gets one match.
 	 */
 	matches = 0;
 	if (resource_long_value(name, unit, "port", &value) == 0) {
+	    /*
+	     * Floppy drive controllers are notorious for having a
+	     * wide variety of resources not all of which include the
+	     * first port that is specified by the hint (typically
+	     * 0x3f0) (see the comment above fdc_isa_alloc_resources()
+	     * in fdc_isa.c).  However, they do all seem to include
+	     * port + 2 (e.g. 0x3f2) so for a floppy device, look for
+	     * 'value + 2' in the port resources instead of the hint
+	     * value.
+	     */
+	    if (strcmp(name, "fdc") == 0)
+		value += 2;
 	    if (acpi_match_resource_hint(child, SYS_RES_IOPORT, value))
 		matches++;
 	    else
@@ -1033,6 +1046,8 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 	    else
 		continue;
 	}
+	if (matches > 0)
+	    goto matched;
 	if (resource_long_value(name, unit, "irq", &value) == 0) {
 	    if (acpi_match_resource_hint(child, SYS_RES_IRQ, value))
 		matches++;
@@ -1046,6 +1061,7 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 		continue;
 	}
 
+    matched:
 	if (matches > 0) {
 	    /* We have a winner! */
 	    *unitp = unit;
