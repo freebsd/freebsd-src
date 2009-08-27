@@ -86,6 +86,9 @@ static int __elfN(load_section)(struct vmspace *vmspace, vm_object_t object,
     vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
     vm_prot_t prot, size_t pagesize);
 static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
+static boolean_t __elfN(freebsd_trans_osrel)(const Elf_Note *note,
+    int32_t *osrel);
+static boolean_t kfreebsd_trans_osrel(const Elf_Note *note, int32_t *osrel);
 static boolean_t __elfN(check_note)(struct image_params *imgp,
     Elf_Brandnote *checknote, int32_t *osrel);
 
@@ -116,8 +119,55 @@ Elf_Brandnote __elfN(freebsd_brandnote) = {
 	.hdr.n_descsz	= sizeof(int32_t),
 	.hdr.n_type	= 1,
 	.vendor		= FREEBSD_ABI_VENDOR,
-	.flags		= BN_CAN_FETCH_OSREL
+	.flags		= BN_TRANSLATE_OSREL,
+	.trans_osrel	= __elfN(freebsd_trans_osrel)
 };
+
+static boolean_t
+__elfN(freebsd_trans_osrel)(const Elf_Note *note, int32_t *osrel)
+{
+	uintptr_t p;
+
+	p = (uintptr_t)(note + 1);
+	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+	*osrel = *(const int32_t *)(p);
+
+	return (TRUE);
+}
+
+static const char GNU_ABI_VENDOR[] = "GNU";
+static int GNU_KFREEBSD_ABI_DESC = 3;
+
+Elf_Brandnote __elfN(kfreebsd_brandnote) = {
+	.hdr.n_namesz	= sizeof(GNU_ABI_VENDOR),
+	.hdr.n_descsz	= 16,	/* XXX at least 16 */
+	.hdr.n_type	= 1,
+	.vendor		= GNU_ABI_VENDOR,
+	.flags		= BN_TRANSLATE_OSREL,
+	.trans_osrel	= kfreebsd_trans_osrel
+};
+
+static boolean_t
+kfreebsd_trans_osrel(const Elf_Note *note, int32_t *osrel)
+{
+	const Elf32_Word *desc;
+	uintptr_t p;
+
+	p = (uintptr_t)(note + 1);
+	p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+
+	desc = (const Elf32_Word *)p;
+	if (desc[0] != GNU_KFREEBSD_ABI_DESC)
+		return (FALSE);
+
+	/*
+	 * Debian GNU/kFreeBSD embed the earliest compatible kernel version
+	 * (__FreeBSD_version: <major><two digit minor>Rxx) in the LSB way.
+	 */
+	*osrel = desc[1] * 100000 + desc[2] * 1000 + desc[3];
+
+	return (TRUE);
+}
 
 int
 __elfN(insert_brand_entry)(Elf_Brandinfo *entry)
@@ -1371,11 +1421,9 @@ __elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
 		 * Fetch the osreldate for binary
 		 * from the ELF OSABI-note if necessary.
 		 */
-		if ((checknote->flags & BN_CAN_FETCH_OSREL) != 0 &&
-		    osrel != NULL)
-			*osrel = *(const int32_t *) (note_name +
-			    roundup2(checknote->hdr.n_namesz,
-			    sizeof(Elf32_Addr)));
+		if ((checknote->flags & BN_TRANSLATE_OSREL) != 0 &&
+		    checknote->trans_osrel != NULL)
+			return (checknote->trans_osrel(note, osrel));
 		return (TRUE);
 
 nextnote:
