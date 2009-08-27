@@ -879,8 +879,8 @@ network6_interface_setup()
 		# Wireless NIC cards are virtualized through the wlan interface
 		if ! is_wired_interface ${i}; then
 			case "${i}" in
-			wlan*)	rtsol_available=yes ;;
-			*)	rtsol_available=no ;;
+			wlan*)	rtsol_interface=yes ;;
+			*)	rtsol_interface=no ;;
 			esac
 		fi
 
