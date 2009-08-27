@@ -123,6 +123,9 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 systrace_probe_func_t	systrace_probe_func;
 #endif
 
+/* Defined in i386/i386/elf_machdep.c. */
+extern struct sysentvec elf32_freebsd_sysvec;
+
 extern void trap(struct trapframe *frame);
 extern void syscall(struct trapframe *frame);
 
@@ -423,7 +426,9 @@ trap(struct trapframe *frame)
 					 * This check also covers the images
 					 * without the ABI-tag ELF note.
 					 */
-					if (p->p_osrel >= 700004) {
+					if (curproc->p_sysent ==
+					    &elf32_freebsd_sysvec &&
+					    p->p_osrel >= 700004) {
 						i = SIGSEGV;
 						ucode = SEGV_ACCERR;
 					} else {
