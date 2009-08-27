@@ -1163,10 +1163,10 @@ iso.1:
 .endif
 
 #
-# --==## Documentation Project files such as the Handbook and FAQ ##==--
+# --==## Documentation Project tools required to build the release notes ##==--
 #
 doc.1:
-	@echo "Making docs..."
+	@echo "Making docproj tools..."
 	@for i in ${DOCPORTS}; do \
 	    cd /usr/ports/$$i && \
 	    env -i FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \
