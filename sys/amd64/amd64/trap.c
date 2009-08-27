@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_clock.h"
+#include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
@@ -113,6 +114,13 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
  * implementation opaque. 
  */
 systrace_probe_func_t	systrace_probe_func;
+#endif
+
+/* Defined in amd64/amd64/elf_machdep.c. */
+extern struct sysentvec elf64_freebsd_sysvec;
+#ifdef COMPAT_IA32
+/* Defined in compat/ia32/ia32_sysvec.c. */
+extern struct sysentvec ia32_freebsd_sysvec;
 #endif
 
 extern void trap(struct trapframe *frame);
@@ -359,7 +367,13 @@ trap(struct trapframe *frame)
 					 * This check also covers the images
 					 * without the ABI-tag ELF note.
 					 */
-					if (p->p_osrel >= 700004) {
+					if ((curproc->p_sysent ==
+					    &elf64_freebsd_sysvec
+#ifdef COMPAT_IA32
+					    || curproc->p_sysent ==
+					    &ia32_freebsd_sysvec
+#endif
+					    ) && p->p_osrel >= 700004) {
 						i = SIGSEGV;
 						ucode = SEGV_ACCERR;
 					} else {
