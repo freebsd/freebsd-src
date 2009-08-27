@@ -108,6 +108,22 @@ SYSINIT(oelf32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&freebsd_brand_oinfo);
 
+static Elf32_Brandinfo kfreebsd_brand_info = {
+	.brand		= ELFOSABI_FREEBSD,
+	.machine	= EM_386,
+	.compat_3_brand	= "FreeBSD",
+	.emul_path	= NULL,
+	.interp_path	= "/lib/ld.so.1",
+	.sysvec		= &elf32_freebsd_sysvec,
+	.interp_newpath	= NULL,
+	.brand_note	= &elf32_kfreebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
+};
+
+SYSINIT(kelf32, SI_SUB_EXEC, SI_ORDER_ANY,
+	(sysinit_cfunc_t) elf32_insert_brand_entry,
+	&kfreebsd_brand_info);
+
 
 void
 elf32_dump_thread(struct thread *td __unused, void *dst __unused,

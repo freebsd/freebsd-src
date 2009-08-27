@@ -58,7 +58,10 @@ typedef struct {
 	Elf_Note	hdr;
 	const char *	vendor;
 	int		flags;
-#define	BN_CAN_FETCH_OSREL	0x0001
+	boolean_t	(*trans_osrel)(const Elf_Note *, int32_t *);
+#define	BN_CAN_FETCH_OSREL	0x0001	/* Deprecated. */
+#define	BN_TRANSLATE_OSREL	0x0002	/* Use trans_osrel fetch osrel after */
+					/* checking ABI contraint if needed. */
 } Elf_Brandnote;
 
 typedef struct {
@@ -91,6 +94,7 @@ void	__elfN(dump_thread)(struct thread *, void *, size_t *);
 
 extern int __elfN(fallback_brand);
 extern Elf_Brandnote __elfN(freebsd_brandnote);
+extern Elf_Brandnote __elfN(kfreebsd_brandnote);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_IMGACT_ELF_H_ */
