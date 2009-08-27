@@ -39,6 +39,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <err.h>
+#include <errno.h>
 
 typedef struct {
 	HAL_REVS revs;
@@ -64,6 +66,7 @@ main(int argc, char *argv[])
 {
 	struct ath_diag atd;
 	const char *ifname;
+	char *eptr;
 	int c, s;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -102,7 +105,13 @@ main(int argc, char *argv[])
 		if (cp != NULL)
 			*cp++ = '\0';
 		dr = reglookup(argv[0]);
-		reg = (dr != NULL) ? dr->addr : (uint32_t) strtoul(argv[0], NULL, 0);
+		if (dr == NULL) {
+			errno = 0;
+			reg = (uint32_t) strtoul(argv[0], &eptr, 0);
+			if (argv[0] == eptr || eptr[0] != '\0')
+				errx(1, "invalid register \"%s\"", argv[0]);
+		} else
+			reg = dr->addr;
 		if (cp != NULL)
 			regwrite(s, &atd, reg, (uint32_t) strtoul(cp, NULL, 0));
 		printf("%s = %08x\n", argv[0], regread(s, &atd, reg));
