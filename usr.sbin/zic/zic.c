@@ -3,7 +3,7 @@
 ** 2006-07-17 by Arthur David Olson.
 */
 
-static const char	elsieid[] = "@(#)zic.c	8.19";
+static const char	elsieid[] = "@(#)zic.c	8.20";
 
 #ifndef lint
 static const char rcsid[] =
@@ -1892,7 +1892,7 @@ const int			zonecount;
 		if (stdrp != NULL && stdrp->r_hiyear == 2037)
 			return;
 	}
-	if (stdrp == NULL && zp->z_nrules != 0)
+	if (stdrp == NULL && (zp->z_nrules != 0 || zp->z_stdoff != 0))
 		return;
 	abbrvar = (stdrp == NULL) ? "" : stdrp->r_abbrvar;
 	doabbr(result, zp->z_format, abbrvar, FALSE, TRUE);
