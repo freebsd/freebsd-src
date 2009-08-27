@@ -204,6 +204,7 @@ _rw_try_wlock(struct rwlock *rw, const char *file, int line)
 
 	if (rw_wlocked(rw) && (rw->lock_object.lo_flags & RW_RECURSE) != 0) {
 		rw->rw_recurse++;
+		atomic_set_ptr(&rw->rw_lock, RW_LOCK_RECURSED);
 		rval = 1;
 	} else
 		rval = atomic_cmpset_acq_ptr(&rw->rw_lock, RW_UNLOCKED,
