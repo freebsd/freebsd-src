@@ -295,10 +295,6 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 	}
 
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
-	if (sc == NULL) {
-		goto fail;
-	}
-
 	gp->softc = sc;
 	gp->start = g_multipath_start;
 	gp->orphan = g_multipath_orphan;
