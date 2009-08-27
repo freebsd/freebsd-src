@@ -2453,7 +2453,7 @@ prison_deref(struct prison *pr, int flags)
 		ppr = pr->pr_parent;
 		for (tpr = ppr; tpr != NULL; tpr = tpr->pr_parent)
 			tpr->pr_childcount--;
-		sx_downgrade(&allprison_lock);
+		sx_xunlock(&allprison_lock);
 
 #ifdef VIMAGE
 		if (pr->pr_vnet != ppr->pr_vnet)
@@ -2479,7 +2479,7 @@ prison_deref(struct prison *pr, int flags)
 		/* Removing a prison frees a reference on its parent. */
 		pr = ppr;
 		mtx_lock(&pr->pr_mtx);
-		flags = PD_DEREF | PD_LIST_SLOCKED;
+		flags = PD_DEREF;
 	}
 }
 
