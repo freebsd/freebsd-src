@@ -200,14 +200,14 @@ lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask)
 {
 	struct lltable *llt;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	SLIST_FOREACH(llt, &lltables, llt_link) {
 		if (llt->llt_af != af)
 			continue;
 
 		llt->llt_prefix_free(llt, prefix, mask);
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 }
 
 
@@ -300,13 +300,13 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	}
 
 	/* XXX linked list may be too expensive */
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	SLIST_FOREACH(llt, &lltables, llt_link) {
 		if (llt->llt_af == dst->sa_family &&
 		    llt->llt_ifp == ifp)
 			break;
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	KASSERT(llt != NULL, ("Yep, ugly hacks are bad\n"));
 
 	if (flags && LLE_CREATE)
