@@ -692,6 +692,12 @@ uncached:
 		struct rtentry *rt = ro->ro_rt;
 		struct ifnet *ifp = rt->rt_ifp;
 
+		if (ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) {
+			RTFREE(rt);
+			ro->ro_rt = NULL;
+			return (ENOENT);
+		}
+
 		if (rt->rt_flags & RTF_GATEWAY)
 			l3addr = rt->rt_gateway;
 		else
