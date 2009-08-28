@@ -1085,6 +1085,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	    "bytes    packets errs drop fifo frame compressed",
 	    "bytes    packets errs drop fifo frame compressed");
 
+	CURVNET_SET(TD_TO_VNET(curthread));
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		linux_ifname(ifp, ifname, sizeof ifname);
@@ -1095,6 +1096,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 		    0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL);
 	}
 	IFNET_RUNLOCK();
+	CURVNET_RESTORE();
 
 	return (0);
 }
