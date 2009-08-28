@@ -41,6 +41,13 @@ struct rt_addrinfo;
 struct llentry;
 LIST_HEAD(llentries, llentry);
 
+extern struct rwlock lltable_rwlock;
+#define	LLTABLE_RLOCK()		rw_rlock(&lltable_rwlock)
+#define	LLTABLE_RUNLOCK()	rw_runlock(&lltable_rwlock)
+#define	LLTABLE_WLOCK()		rw_wlock(&lltable_rwlock)
+#define	LLTABLE_WUNLOCK()	rw_wunlock(&lltable_rwlock)
+#define	LLTABLE_LOCK_ASSERT()	rw_assert(&lltable_rwlock, RA_LOCKED)
+
 /*
  * Code referencing llentry must at least hold
  * a shared lock
