@@ -2456,7 +2456,7 @@ prison_deref(struct prison *pr, int flags)
 		sx_downgrade(&allprison_lock);
 
 #ifdef VIMAGE
-		if (pr->pr_flags & PR_VNET)
+		if (pr->pr_vnet != ppr->pr_vnet)
 			vnet_destroy(pr->pr_vnet);
 #endif
 		if (pr->pr_root != NULL) {
