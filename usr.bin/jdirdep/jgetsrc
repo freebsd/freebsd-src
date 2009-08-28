@@ -219,5 +219,5 @@ rm -f $MORELOG
 if [ "x$moredirs" != x ]
 then
 	echo "Need to check out additional directories due to source dependencies..."
-	exec $0 $moredirs
+	exec $0 -B "${BACKING_TREE}" $moredirs
 fi
