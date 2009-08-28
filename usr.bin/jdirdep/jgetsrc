@@ -1,12 +1,110 @@
 #!/bin/sh
+## NAME:
+##       jgetsrc - do a subset checkout, using jbuild dependencies
+##
+## SYNOPSIS:
+##       jgetsrc [options] [<dir1>] [<dir2>] .....
+##
+## DESCRIPTION:
+##
+##        Do a subset checkout.  For a given set of directories [<dir1>], etc.
+##        checkout those directories.  In each directory, look in Buildfile.dep,
+##        and checkout the directories listed in
+##        SRCDIRDEP.  For directories listed in DIRDEP, refer to them
+##        in a backing stage tree specified with -B.  Create a "shared" symlink
+##        to the shared stage tree.
+##
+## OPTIONS:
+##
+##        -h
+##        --help
+##           This manual page is emitted.
+##
+##        -B "path"
+##            Specify "path" to backing stage tree for subset checkout.
+##            If a tree exists:
+##               /usr/mytree/obj
+##               /usr/mytree/obj/stage
+##               /usr/mytree/src
+##           
+##            then use -B /usr/mytree 
+##
+##
 
-# XX: work around ssh X11 forwarding errors
+ShowHelp()
+{
+    grep ^## $0 | sed -e 's/^##//' | ${PAGER}
+    exit 0
+}
+
+
+# Here is a trick to make sure that ssh-agent is running before
+# we start doing a bunch of svn operations over ssh.
+
+# Try to list identities in ssh-agent
+ssh-add -l > /dev/null 2>&1
+ret=$?
+if [ $ret -eq 2 ]
+then
+	# Couldn't open a connection to ssh-agent,
+	# so let's start one, and re-execute this script under ssh-agent.
+	exec ssh-agent $0 "$@"
+elif [ $ret -eq 1 ]
+then
+	# Couldn't find passphrase in ssh-agent, so let's
+	# prompt user for to add passphrase to ssh-agent
+	ssh-add
+	if [ $? -ne 0 ]
+	then
+		# If user does not have a valid ssh key in $HOME/.ssh,
+		# then ssh-add will fail, but not print any error messages to stdout.
+		echo "ERROR: ssh-add FAILED.  You may see password prompt"
+		echo "multiple times, and possibly time out or fail."
+		echo "Please set up ssh-agent properly to avoid this:"
+		echo ""
+
+		exit 1
+	fi
+fi
+
+PAGER=${PAGER:-more}
+# Work around X11 forwarding errors
 unset DISPLAY
+
+# parse flags
+while getopts "B:h" my_opt
+do
+	case $my_opt in
+	B) BACKING_TREE=$OPTARG ;;
+	h) ShowHelp ;;
+	[?]) echo "Bad Option"; ShowHelp ;;
+	esac
+done
+shift $(($OPTIND-1))
+
+if [ "$1" = "--help" ]
+then
+	ShowHelp
+	exit 0
+fi
+
+if [ -z "${BACKING_TREE}" ]
+then
+	echo "Specify backing tree with -B"
+	echo "See --help" 
+	exit 1
+fi
+
+if [ ! -d "${BACKING_TREE}"/obj/stage  ]
+then
+	echo "${BACKING_TREE} does not point to a directory with a valid obj/stage tree"
+	echo "See --help"
+	exit 1
+fi
 
 dirs=$*
 
 ROOTDIR=`pwd`
-DAILY=/c/jbirrell/daily/obj
 
 testdir=$ROOTDIR
 while [ $testdir != "/" ]; do
@@ -23,10 +121,10 @@ MORELOG=$ROOTDIR/more.log
 cd $ROOTDIR
 
 if [ ! -d shared -a ! -h shared ]; then
-	ln -s $DAILY shared
+	echo "Creating link ${BACKING_TREE}/obj -> shared"
+	ln -s ${BACKING_TREE}/obj shared
 fi
 
-#JSVN=svn://localhost/EPBG/u/jbirrell/build
 JSVN=svn+ssh://danai-29.juniper.net/c/cvs2svn/svn/repos/junos-2008/branches/jbuild
 
 rm -f $SVNLOG $MORELOG
