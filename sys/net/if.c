@@ -175,6 +175,13 @@ int	ifqmaxlen = IFQ_MAXLEN;
 struct rwlock ifnet_rwlock;
 struct sx ifnet_sxlock;
 
+/*
+ * The allocation of network interfaces is a rather non-atomic affair; we
+ * need to select an index before we are ready to expose the interface for
+ * use, so will use this pointer value to indicate reservation.
+ */
+#define	IFNET_HOLD	(void *)(uintptr_t)(-1)
+
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 
@@ -192,6 +199,8 @@ ifnet_byindex_locked(u_short idx)
 {
 
 	if (idx > V_if_index)
+		return (NULL);
+	if (V_ifindex_table[idx].ife_ifnet == IFNET_HOLD)
 		return (NULL);
 	return (V_ifindex_table[idx].ife_ifnet);
 }
@@ -228,18 +237,18 @@ ifnet_byindex_ref(u_short idx)
  * failure.
  */
 static int
-ifindex_alloc(u_short *idxp)
+ifindex_alloc_locked(u_short *idxp)
 {
 	u_short idx;
 
 	IFNET_WLOCK_ASSERT();
 
 	/*
-	 * Try to find an empty slot below if_index.  If we fail, take the
+	 * Try to find an empty slot below V_if_index.  If we fail, take the
 	 * next slot.
 	 */
 	for (idx = 1; idx <= V_if_index; idx++) {
-		if (ifnet_byindex_locked(idx) == NULL)
+		if (V_ifindex_table[idx].ife_ifnet == NULL)
 			break;
 	}
 
@@ -252,6 +261,27 @@ ifindex_alloc(u_short *idxp)
 		if_grow();
 	*idxp = idx;
 	return (0);
+}
+
+static void
+ifindex_free_locked(u_short idx)
+{
+
+	IFNET_WLOCK_ASSERT();
+
+	V_ifindex_table[idx].ife_ifnet = NULL;
+	while (V_if_index > 0 &&
+	    V_ifindex_table[V_if_index].ife_ifnet == NULL)
+		V_if_index--;
+}
+
+static void
+ifindex_free(u_short idx)
+{
+
+	IFNET_WLOCK();
+	ifindex_free_locked(idx);
+	IFNET_WUNLOCK();
 }
 
 static void
@@ -370,11 +400,12 @@ if_alloc(u_char type)
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
 	IFNET_WLOCK();
-	if (ifindex_alloc(&idx) != 0) {
+	if (ifindex_alloc_locked(&idx) != 0) {
 		IFNET_WUNLOCK();
 		free(ifp, M_IFNET);
 		return (NULL);
 	}
+	ifnet_setbyindex_locked(idx, IFNET_HOLD);
 	IFNET_WUNLOCK();
 	ifp->if_index = idx;
 	ifp->if_type = type;
@@ -383,6 +414,7 @@ if_alloc(u_char type)
 		ifp->if_l2com = if_com_alloc[type](type, ifp);
 		if (ifp->if_l2com == NULL) {
 			free(ifp, M_IFNET);
+			ifindex_free(idx);
 			return (NULL);
 		}
 	}
@@ -421,9 +453,7 @@ if_free_internal(struct ifnet *ifp)
 	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
 	    ("%s: freeing unallocated ifnet", ifp->if_xname));
 
-	ifnet_setbyindex_locked(ifp->if_index, NULL);
-	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
-		V_if_index--;
+	ifindex_free_locked(ifp->if_index);
 	IFNET_WUNLOCK();
 
 	if (if_com_free[ifp->if_alloctype] != NULL)
@@ -916,18 +946,14 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	 * or we'd lock on one vnet and unlock on another.
 	 */
 	IFNET_WLOCK();
-	ifnet_setbyindex_locked(ifp->if_index, NULL);
-	while (V_if_index > 0 && ifnet_byindex_locked(V_if_index) == NULL)
-		V_if_index--;
-	IFNET_WUNLOCK();
+	ifindex_free_locked(ifp->if_index);
 
 	/*
 	 * Switch to the context of the target vnet.
 	 */
 	CURVNET_SET_QUIET(new_vnet);
 
-	IFNET_WLOCK();
-	if (ifindex_alloc(&idx) != 0) {
+	if (ifindex_alloc_locked(&idx) != 0) {
 		IFNET_WUNLOCK();
 		panic("if_index overflow");
 	}
