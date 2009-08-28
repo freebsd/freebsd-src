@@ -225,6 +225,7 @@ SUBDIR=	${_3dfx} \
 	procfs \
 	pseudofs \
 	${_pst} \
+	pty  \
 	puc \
 	ral \
 	ralfw \
