@@ -63,12 +63,6 @@
 
 #include <machine/vm.h>
 
-/*
- * The exact set of memory attributes is machine dependent.  However, every
- * machine is required to define VM_MEMATTR_DEFAULT.
- */
-typedef	char vm_memattr_t;	/* memory attribute codes */
-
 typedef char vm_inherit_t;	/* inheritance codes */
 
 #define	VM_INHERIT_SHARE	((vm_inherit_t) 0)
@@ -113,6 +107,12 @@ typedef struct vm_object *vm_object_t;
  * genassym).
  */
 typedef int boolean_t;
+
+/*
+ * The exact set of memory attributes is machine dependent.  However, every
+ * machine is required to define VM_MEMATTR_DEFAULT.
+ */
+typedef	char vm_memattr_t;	/* memory attribute codes */
 
 /*
  * This is defined in <sys/types.h> for the kernel so that vnode_if.h
