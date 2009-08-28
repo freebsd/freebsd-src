@@ -61,6 +61,10 @@ STATIC struct nodelist *copynodelist(struct nodelist *);
 STATIC char *nodesavestr(char *);
 
 
+struct funcdef {
+	unsigned int refcount;
+	union node n;
+};
 
 /*
  * Make a copy of a parse tree.
@@ -84,6 +88,12 @@ copyfunc(union node *n)
 	return fn;
 }
 
+
+union node *
+getfuncnode(struct funcdef *fn)
+{
+	return fn == NULL ? NULL : &fn->n;
+}
 
 
 STATIC void
@@ -153,7 +163,8 @@ nodesavestr(char *s)
 void
 reffunc(struct funcdef *fn)
 {
-	fn->refcount++;
+	if (fn)
+		fn->refcount++;
 }
 
 
