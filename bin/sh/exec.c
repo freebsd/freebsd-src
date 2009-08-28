@@ -286,7 +286,7 @@ printentry(struct tblentry *cmdp, int verbose)
 		out1fmt("function %s", cmdp->cmdname);
 		if (verbose) {
 			INTOFF;
-			name = commandtext(&cmdp->param.func->n);
+			name = commandtext(getfuncnode(cmdp->param.func));
 			out1c(' ');
 			out1str(name);
 			ckfree(name);
