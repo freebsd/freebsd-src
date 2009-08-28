@@ -175,15 +175,16 @@ clnt_reconnect_connect(CLIENT *cl)
 	rc->rc_connecting = TRUE;
 	mtx_unlock(&rc->rc_lock);
 
+	oldcred = td->td_ucred;
+	td->td_ucred = rc->rc_ucred;
 	so = __rpc_nconf2socket(rc->rc_nconf);
 	if (!so) {
 		stat = rpc_createerr.cf_stat = RPC_TLIERROR;
 		rpc_createerr.cf_error.re_errno = 0;
+		td->td_ucred = oldcred;
 		goto out;
 	}
 
-	oldcred = td->td_ucred;
-	td->td_ucred = rc->rc_ucred;
 	if (rc->rc_privport)
 		bindresvport(so, NULL);
 
