@@ -202,10 +202,8 @@ again:
 	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
-		if (!nortfree) {
+		if (!nortfree)
 			RTFREE(ro->ro_rt);
-			LLE_FREE(ro->ro_lle);
-		}
 		ro->ro_rt = (struct rtentry *)NULL;
 		ro->ro_lle = (struct llentry *)NULL;
 	}
