@@ -1,0 +1,11 @@
+# $FreeBSD$
+
+f() { }
+f
+hash -v f >/dev/null
+f() { { }; }
+f
+hash -v f >/dev/null
+f() { { } }
+f
+hash -v f >/dev/null

@@ -807,9 +807,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		funcnest++;
 		exitstatus = oexitstatus;
 		if (flags & EV_TESTED)
-			evaltree(&cmdentry.u.func->n, EV_TESTED);
+			evaltree(getfuncnode(cmdentry.u.func), EV_TESTED);
 		else
-			evaltree(&cmdentry.u.func->n, 0);
+			evaltree(getfuncnode(cmdentry.u.func), 0);
 		funcnest--;
 		INTOFF;
 		unreffunc(cmdentry.u.func);
