@@ -203,6 +203,14 @@ proc_dtor(void *mem, int size, void *arg)
 #endif
 		/* Free all OSD associated to this thread. */
 		osd_thread_exit(td);
+
+		/* Dispose of an alternate kstack, if it exists.
+		 * XXX What if there are more than one thread in the proc?
+		 *     The first thread in the proc is special and not
+		 *     freed, so you gotta do this here.
+		 */
+		if (((p->p_flag & P_KTHREAD) != 0) && (td->td_altkstack != 0))
+			vm_thread_dispose_altkstack(td);
 	}
 	EVENTHANDLER_INVOKE(process_dtor, p);
 	if (p->p_ksi != NULL)
@@ -759,6 +767,8 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		FOREACH_THREAD_IN_PROC(p, td0) {
 			if (!TD_IS_SWAPPED(td0))
 				kp->ki_rssize += td0->td_kstack_pages;
+			if (td0->td_altkstack_obj != NULL)
+				kp->ki_rssize += td0->td_altkstack_pages;
 		}
 		kp->ki_swrss = vm->vm_swrss;
 		kp->ki_tsize = vm->vm_tsize;
