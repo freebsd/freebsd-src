@@ -643,6 +643,13 @@ list_net_interfaces()
 			    "AUTO are deprecated"
 		fi
 		_tmplist="${network_interfaces} ${cloned_interfaces}"
+
+		# lo0 is effectively mandatory, so help prevent foot-shooting
+		#
+		case "$_tmplist" in
+		lo0|'lo0 '*|*' lo0'|*' lo0 '*) ;; # This is fine, do nothing
+		*)	_tmplist="lo0 ${_tmplist}" ;;
+		esac
 		;;
 	esac
 
