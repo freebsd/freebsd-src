@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysctl.h>
 
-#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/unistd.h>
@@ -309,20 +308,6 @@ vm_imgact_unmap_page(struct sf_buf *sf)
 	vm_page_unlock_queues();
 }
 
-struct kstack_cache_entry {
-	vm_object_t ksobj;
-	struct kstack_cache_entry *next_ks_entry;
-};
-
-static struct kstack_cache_entry *kstack_cache;
-static int kstack_cache_size = 128;
-static int kstacks;
-static struct mtx kstack_cache_mtx;
-SYSCTL_INT(_vm, OID_AUTO, kstack_cache_size, CTLFLAG_RW, &kstack_cache_size, 0,
-    "");
-SYSCTL_INT(_vm, OID_AUTO, kstacks, CTLFLAG_RD, &kstacks, 0,
-    "");
-
 #ifndef KSTACK_MAX_PAGES
 #define KSTACK_MAX_PAGES 32
 #endif
@@ -338,7 +323,6 @@ vm_thread_new(struct thread *td, int pages)
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m, ma[KSTACK_MAX_PAGES];
-	struct kstack_cache_entry *ks_ce;
 	int i;
 
 	/* Bounds check */
@@ -346,22 +330,6 @@ vm_thread_new(struct thread *td, int pages)
 		pages = KSTACK_PAGES;
 	else if (pages > KSTACK_MAX_PAGES)
 		pages = KSTACK_MAX_PAGES;
-
-	if (pages == KSTACK_PAGES) {
-		mtx_lock(&kstack_cache_mtx);
-		if (kstack_cache != NULL) {
-			ks_ce = kstack_cache;
-			kstack_cache = ks_ce->next_ks_entry;
-			mtx_unlock(&kstack_cache_mtx);
-
-			td->td_kstack_obj = ks_ce->ksobj;
-			td->td_kstack = (vm_offset_t)ks_ce;
-			td->td_kstack_pages = KSTACK_PAGES;
-			return (1);
-		}
-		mtx_unlock(&kstack_cache_mtx);
-	}
-
 	/*
 	 * Allocate an object for the kstack.
 	 */
@@ -377,8 +345,7 @@ vm_thread_new(struct thread *td, int pages)
 		vm_object_deallocate(ksobj);
 		return (0);
 	}
-
-	atomic_add_int(&kstacks, 1);
+	
 	if (KSTACK_GUARD_PAGES != 0) {
 		pmap_qremove(ks, KSTACK_GUARD_PAGES);
 		ks += KSTACK_GUARD_PAGES * PAGE_SIZE;
@@ -409,13 +376,20 @@ vm_thread_new(struct thread *td, int pages)
 	return (1);
 }
 
-static void
-vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
+/*
+ * Dispose of a thread's kernel stack.
+ */
+void
+vm_thread_dispose(struct thread *td)
 {
+	vm_object_t ksobj;
+	vm_offset_t ks;
 	vm_page_t m;
-	int i;
+	int i, pages;
 
-	atomic_add_int(&kstacks, -1);
+	pages = td->td_kstack_pages;
+	ksobj = td->td_kstack_obj;
+	ks = td->td_kstack;
 	pmap_qremove(ks, pages);
 	VM_OBJECT_LOCK(ksobj);
 	for (i = 0; i < pages; i++) {
@@ -431,65 +405,8 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 	vm_object_deallocate(ksobj);
 	kmem_free(kernel_map, ks - (KSTACK_GUARD_PAGES * PAGE_SIZE),
 	    (pages + KSTACK_GUARD_PAGES) * PAGE_SIZE);
-}
-
-/*
- * Dispose of a thread's kernel stack.
- */
-void
-vm_thread_dispose(struct thread *td)
-{
-	vm_object_t ksobj;
-	vm_offset_t ks;
-	struct kstack_cache_entry *ks_ce;
-	int pages;
-
-	pages = td->td_kstack_pages;
-	ksobj = td->td_kstack_obj;
-	ks = td->td_kstack;
-	if (pages == KSTACK_PAGES && kstacks <= kstack_cache_size) {
-		ks_ce = (struct kstack_cache_entry *)ks;
-		ks_ce->ksobj = ksobj;
-		mtx_lock(&kstack_cache_mtx);
-		ks_ce->next_ks_entry = ks_ce;
-		kstack_cache = ks_ce;
-		mtx_unlock(&kstack_cache_mtx);
-		return;
-	}
-	vm_thread_stack_dispose(ksobj, ks, pages);
 	td->td_kstack = 0;
-	td->td_kstack_pages = 0;
 }
-
-static void
-vm_thread_stack_lowmem(void *nulll)
-{
-	struct kstack_cache_entry *ks_ce, *ks_ce1;
-
-	mtx_lock(&kstack_cache_mtx);
-	ks_ce = kstack_cache;
-	kstack_cache = NULL;
-	mtx_unlock(&kstack_cache_mtx);
-
-	while (ks_ce != NULL) {
-		ks_ce1 = ks_ce;
-		ks_ce = ks_ce->next_ks_entry;
-
-		vm_thread_stack_dispose(ks_ce1->ksobj, (vm_offset_t)ks_ce1,
-		    KSTACK_PAGES);
-	}
-}
-
-static void
-kstack_cache_init(void *nulll)
-{
-
-	EVENTHANDLER_REGISTER(vm_lowmem, vm_thread_stack_lowmem, NULL,
-	    EVENTHANDLER_PRI_ANY);
-}
-
-MTX_SYSINIT(kstack_cache, &kstack_cache_mtx, "kstkch", MTX_DEF);
-SYSINIT(vm_kstacks, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY, kstack_cache_init, NULL);
 
 /*
  * Allow a thread's kernel stack to be paged out.
@@ -548,6 +465,37 @@ vm_thread_swapin(struct thread *td)
 	VM_OBJECT_UNLOCK(ksobj);
 	pmap_qenter(td->td_kstack, ma, pages);
 	cpu_thread_swapin(td);
+}
+
+/*
+ * Set up a variable-sized alternate kstack.
+ */
+int
+vm_thread_new_altkstack(struct thread *td, int pages)
+{
+
+	td->td_altkstack = td->td_kstack;
+	td->td_altkstack_obj = td->td_kstack_obj;
+	td->td_altkstack_pages = td->td_kstack_pages;
+
+	return (vm_thread_new(td, pages));
+}
+
+/*
+ * Restore the original kstack.
+ */
+void
+vm_thread_dispose_altkstack(struct thread *td)
+{
+
+	vm_thread_dispose(td);
+
+	td->td_kstack = td->td_altkstack;
+	td->td_kstack_obj = td->td_altkstack_obj;
+	td->td_kstack_pages = td->td_altkstack_pages;
+	td->td_altkstack = 0;
+	td->td_altkstack_obj = NULL;
+	td->td_altkstack_pages = 0;
 }
 
 /*
