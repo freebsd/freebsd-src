@@ -292,7 +292,7 @@ norfproc_fail:
 	} else {
 		if (td2->td_kstack == 0 || td2->td_kstack_pages != pages) {
 			if (td2->td_kstack != 0)
-				vm_thread_dispose(td);
+				vm_thread_dispose(td2);
 			if (!thread_alloc_stack(td2, pages)) {
 				error = ENOMEM;
 				goto fail1;
