@@ -206,6 +206,7 @@ static void cts_print(struct cam_device *device,
 		      struct ccb_trans_settings *cts);
 static void cpi_print(struct ccb_pathinq *cpi);
 static int get_cpi(struct cam_device *device, struct ccb_pathinq *cpi);
+static int get_cgd(struct cam_device *device, struct ccb_getdev *cgd);
 static int get_print_cts(struct cam_device *device, int user_settings,
 			 int quiet, struct ccb_trans_settings *cts);
 static int ratecontrol(struct cam_device *device, int retry_count,
@@ -1015,17 +1016,18 @@ atacapprint(struct ata_params *parm)
 				((u_int64_t)parm->lba_size48_4 << 48);
 
 	printf("\n");
-	printf("Protocol              ");
+	printf("protocol              ");
+	printf("ATA/ATAPI-%d", ata_version(parm->version_major));
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
 		if (parm->satacapabilities & ATA_SATA_GEN2)
-			printf("SATA revision 2.x\n");
+			printf(" SATA 2.x\n");
 		else if (parm->satacapabilities & ATA_SATA_GEN1)
-			printf("SATA revision 1.x\n");
+			printf(" SATA 1.x\n");
 		else
-			printf("Unknown SATA revision\n");
+			printf(" SATA x.x\n");
 	}
 	else
-		printf("ATA/ATAPI revision %d\n", ata_version(parm->version_major));
+		printf("\n");
 	printf("device model          %.40s\n", parm->model);
 	printf("serial number         %.20s\n", parm->serial);
 	printf("firmware revision     %.8s\n", parm->revision);
@@ -1038,22 +1040,74 @@ atacapprint(struct ata_params *parm)
 	    (parm->support.command2 & ATA_SUPPORT_CFA))
 		printf("CFA supported\n");
 
-	printf("lba%ssupported         ",
+	printf("LBA%ssupported         ",
 		parm->capabilities1 & ATA_SUPPORT_LBA ? " " : " not ");
 	if (lbasize)
 		printf("%d sectors\n", lbasize);
 	else
 		printf("\n");
 
-	printf("lba48%ssupported       ",
+	printf("LBA48%ssupported       ",
 		parm->support.command2 & ATA_SUPPORT_ADDRESS48 ? " " : " not ");
 	if (lbasize48)
 		printf("%ju sectors\n", (uintmax_t)lbasize48);
 	else
 		printf("\n");
 
-	printf("dma%ssupported\n",
+	printf("PIO supported         PIO");
+	if (parm->atavalid & ATA_FLAG_64_70) {
+		if (parm->apiomodes & 0x02)
+			printf("4");
+		else if (parm->apiomodes & 0x01)
+			printf("3");
+	} else if (parm->mwdmamodes & 0x04)
+		printf("4");
+	else if (parm->mwdmamodes & 0x02)
+		printf("3");
+	else if (parm->mwdmamodes & 0x01)
+		printf("2");
+	else if ((parm->retired_piomode & ATA_RETIRED_PIO_MASK) == 0x200)
+		printf("2");
+	else if ((parm->retired_piomode & ATA_RETIRED_PIO_MASK) == 0x100)
+		printf("1");
+	else
+		printf("0");
+	printf("\n");
+
+	printf("DMA%ssupported         ",
 		parm->capabilities1 & ATA_SUPPORT_DMA ? " " : " not ");
+	if (parm->capabilities1 & ATA_SUPPORT_DMA) {
+		if (parm->mwdmamodes & 0xff) {
+			printf("WDMA");
+			if (parm->mwdmamodes & 0x04)
+				printf("2");
+			else if (parm->mwdmamodes & 0x02)
+				printf("1");
+			else if (parm->mwdmamodes & 0x01)
+				printf("0");
+			printf(" ");
+		}
+		if ((parm->atavalid & ATA_FLAG_88) &&
+		    (parm->udmamodes & 0xff)) {
+			printf("UDMA");
+			if (parm->udmamodes & 0x40)
+				printf("6");
+			else if (parm->udmamodes & 0x20)
+				printf("5");
+			else if (parm->udmamodes & 0x10)
+				printf("4");
+			else if (parm->udmamodes & 0x08)
+				printf("3");
+			else if (parm->udmamodes & 0x04)
+				printf("2");
+			else if (parm->udmamodes & 0x02)
+				printf("1");
+			else if (parm->udmamodes & 0x01)
+				printf("0");
+			printf(" ");
+		}
+	}
+	printf("\n");
 
 	printf("overlap%ssupported\n",
 		parm->capabilities1 & ATA_SUPPORT_OVERLAP ? " " : " not ");
@@ -1070,10 +1124,10 @@ atacapprint(struct ata_params *parm)
 		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");
 
 	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
-		printf("Native Command Queuing (NCQ)   %s	%s"
+		printf("Native Command Queuing (NCQ)   %s	"
 			"	%d/0x%02X\n",
 			parm->satacapabilities & ATA_SUPPORT_NCQ ?
-				"yes" : "no", " -",
+				"yes" : "no",
 			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
 				ATA_QUEUE_LEN(parm->queue) : 0,
 			(parm->satacapabilities & ATA_SUPPORT_NCQ) ?
@@ -1121,9 +1175,14 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 {
 	union ccb *ccb;
 	struct ata_params *ident_buf;
+	struct ccb_getdev cgd;
 	u_int i, error = 0;
 	int16_t *ptr;
-	
+
+	if (get_cgd(device, &cgd) != 0) {
+		warnx("couldn't get CGD");
+		return(1);
+	}
 	ccb = cam_getccb(device);
 
 	if (ccb == NULL) {
@@ -1152,10 +1211,10 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 		      /*data_ptr*/(u_int8_t *)ptr,
 		      /*dxfer_len*/sizeof(struct ata_params),
 		      timeout ? timeout : 30 * 1000);
-//	if (periph->path->device->protocol == PROTO_ATA)
+	if (cgd.protocol == PROTO_ATA)
 		ata_36bit_cmd(&ccb->ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
-//	else
-//		ata_36bit_cmd(&ccb->ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
+	else
+		ata_36bit_cmd(&ccb->ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
 
 	/* Disable freezing the device queue */
 	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
@@ -2588,46 +2647,71 @@ get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
 	int retval = 0;
 
 	ccb = cam_getccb(device);
-
 	if (ccb == NULL) {
 		warnx("get_cpi: couldn't allocate CCB");
 		return(1);
 	}
-
 	bzero(&(&ccb->ccb_h)[1],
 	      sizeof(struct ccb_pathinq) - sizeof(struct ccb_hdr));
-
 	ccb->ccb_h.func_code = XPT_PATH_INQ;
-
 	if (cam_send_ccb(device, ccb) < 0) {
 		warn("get_cpi: error sending Path Inquiry CCB");
-
 		if (arglist & CAM_ARG_VERBOSE)
 			cam_error_print(device, ccb, CAM_ESF_ALL,
 					CAM_EPF_ALL, stderr);
-
 		retval = 1;
-
 		goto get_cpi_bailout;
 	}
-
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-
 		if (arglist & CAM_ARG_VERBOSE)
 			cam_error_print(device, ccb, CAM_ESF_ALL,
 					CAM_EPF_ALL, stderr);
-
 		retval = 1;
-
 		goto get_cpi_bailout;
 	}
-
 	bcopy(&ccb->cpi, cpi, sizeof(struct ccb_pathinq));
 
 get_cpi_bailout:
-
 	cam_freeccb(ccb);
+	return(retval);
+}
 
+/*
+ * Get a get device CCB for the specified device.  
+ */
+static int
+get_cgd(struct cam_device *device, struct ccb_getdev *cgd)
+{
+	union ccb *ccb;
+	int retval = 0;
+
+	ccb = cam_getccb(device);
+	if (ccb == NULL) {
+		warnx("get_cgd: couldn't allocate CCB");
+		return(1);
+	}
+	bzero(&(&ccb->ccb_h)[1],
+	      sizeof(struct ccb_pathinq) - sizeof(struct ccb_hdr));
+	ccb->ccb_h.func_code = XPT_GDEV_TYPE;
+	if (cam_send_ccb(device, ccb) < 0) {
+		warn("get_cgd: error sending Path Inquiry CCB");
+		if (arglist & CAM_ARG_VERBOSE)
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		retval = 1;
+		goto get_cgd_bailout;
+	}
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (arglist & CAM_ARG_VERBOSE)
+			cam_error_print(device, ccb, CAM_ESF_ALL,
+					CAM_EPF_ALL, stderr);
+		retval = 1;
+		goto get_cgd_bailout;
+	}
+	bcopy(&ccb->cgd, cgd, sizeof(struct ccb_getdev));
+
+get_cgd_bailout:
+	cam_freeccb(ccb);
 	return(retval);
 }
 
@@ -2673,6 +2757,9 @@ cpi_print(struct ccb_pathinq *cpi)
 		case PI_SOFT_RST:
 			str = "soft reset alternative";
 			break;
+		case PI_SATAPM:
+			str = "SATA Port Multiplier";
+			break;
 		default:
 			str = "unknown PI bit set";
 			break;
@@ -2701,6 +2788,12 @@ cpi_print(struct ccb_pathinq *cpi)
 		case PIM_NOBUSRESET:
 			str = "user has disabled initial BUS RESET or"
 			      " controller is in target/mixed mode";
+			break;
+		case PIM_NO_6_BYTE:
+			str = "do not send 6-byte commands";
+			break;
+		case PIM_SEQSCAN:
+			str = "scan bus sequentially";
 			break;
 		default:
 			str = "unknown PIM bit set";
