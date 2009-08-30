@@ -238,8 +238,10 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	/* Look for an ".note.ABI-tag" ELF section */
 	for (i = 0; i < MAX_BRANDS; i++) {
 		bi = elf_brand_list[i];
-		if (bi != NULL && hdr->e_machine == bi->machine &&
-		    (bi->flags & BI_BRAND_NOTE) != 0) {
+		if (bi == NULL)
+			continue;
+		if (hdr->e_machine == bi->machine && (bi->flags &
+		    (BI_BRAND_NOTE|BI_BRAND_NOTE_MANDATORY)) != 0) {
 			ret = __elfN(check_note)(imgp, bi->brand_note, osrel);
 			if (ret)
 				return (bi);
@@ -249,7 +251,9 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	/* If the executable has a brand, search for it in the brand list. */
 	for (i = 0; i < MAX_BRANDS; i++) {
 		bi = elf_brand_list[i];
-		if (bi != NULL && hdr->e_machine == bi->machine &&
+		if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY)
+			continue;
+		if (hdr->e_machine == bi->machine &&
 		    (hdr->e_ident[EI_OSABI] == bi->brand ||
 		    strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
 		    bi->compat_3_brand, strlen(bi->compat_3_brand)) == 0))
@@ -260,7 +264,9 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	if (interp != NULL) {
 		for (i = 0; i < MAX_BRANDS; i++) {
 			bi = elf_brand_list[i];
-			if (bi != NULL && hdr->e_machine == bi->machine &&
+			if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY)
+				continue;
+			if (hdr->e_machine == bi->machine &&
 			    strcmp(interp, bi->interp_path) == 0)
 				return (bi);
 		}
@@ -269,7 +275,9 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 	/* Lacking a recognized interpreter, try the default brand */
 	for (i = 0; i < MAX_BRANDS; i++) {
 		bi = elf_brand_list[i];
-		if (bi != NULL && hdr->e_machine == bi->machine &&
+		if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY)
+			continue;
+		if (hdr->e_machine == bi->machine &&
 		    __elfN(fallback_brand) == bi->brand)
 			return (bi);
 	}

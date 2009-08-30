@@ -118,7 +118,7 @@ static Elf64_Brandinfo kfreebsd_brand_info = {
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_newpath	= NULL,
 	.brand_note	= &elf64_kfreebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE_MANDATORY
 };
 
 SYSINIT(kelf64, SI_SUB_EXEC, SI_ORDER_ANY,
