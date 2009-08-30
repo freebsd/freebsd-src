@@ -1072,7 +1072,7 @@ ahci_begin_transaction(device_t dev, union ccb *ccb)
 	while (ch->slot[tag].state != AHCI_SLOT_EMPTY) {
 		if (++tag >= ch->numslots)
 			tag = 0;
-		KASSERT(tag != ch->lastslot, "ahci: ALL SLOTS BUSY!");
+		KASSERT(tag != ch->lastslot, ("ahci: ALL SLOTS BUSY!"));
 	}
 	ch->lastslot = tag;
 	/* Occupy chosen slot. */
