@@ -729,7 +729,9 @@ zfs_mount(vfs_t *vfsp)
 
 			vattr.va_mask = AT_UID;
 
+			vn_lock(mvp, LK_SHARED | LK_RETRY);
 			if (error = VOP_GETATTR(mvp, &vattr, cr)) {
+				VOP_UNLOCK(mvp, 0);
 				goto out;
 			}
 
@@ -741,12 +743,15 @@ zfs_mount(vfs_t *vfsp)
 			}
 #else
 			if (error = secpolicy_vnode_owner(mvp, cr, vattr.va_uid)) {
+				VOP_UNLOCK(mvp, 0);
 				goto out;
 			}
 
 			if (error = VOP_ACCESS(mvp, VWRITE, cr, td)) {
+				VOP_UNLOCK(mvp, 0);
 				goto out;
 			}
+			VOP_UNLOCK(mvp, 0);
 #endif
 
 			secpolicy_fs_mount_clearopts(cr, vfsp);
