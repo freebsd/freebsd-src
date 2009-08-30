@@ -1212,9 +1212,9 @@ ataidentify(struct cam_device *device, int retry_count, int timeout)
 		      /*dxfer_len*/sizeof(struct ata_params),
 		      timeout ? timeout : 30 * 1000);
 	if (cgd.protocol == PROTO_ATA)
-		ata_36bit_cmd(&ccb->ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
+		ata_28bit_cmd(&ccb->ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
 	else
-		ata_36bit_cmd(&ccb->ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
+		ata_28bit_cmd(&ccb->ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
 
 	/* Disable freezing the device queue */
 	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
