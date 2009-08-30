@@ -628,8 +628,27 @@ passin:
 	    &rt6_key(rin6.ro_rt)->sin6_addr)
 #endif
 	    rin6.ro_rt->rt_ifp->if_type == IFT_LOOP) {
-		struct in6_ifaddr *ia6 =
-			(struct in6_ifaddr *)rin6.ro_rt->rt_ifa;
+		int free_ia6 = 0;
+		struct in6_ifaddr *ia6;
+
+		/*
+		 * found the loopback route to the interface address
+		 */
+		if (rin6.ro_rt->rt_gateway->sa_family == AF_LINK) {
+			struct sockaddr_in6 dest6;
+
+			bzero(&dest6, sizeof(dest6));
+			dest6.sin6_family = AF_INET6;
+			dest6.sin6_len = sizeof(dest6);
+			dest6.sin6_addr = ip6->ip6_dst;
+			ia6 = (struct in6_ifaddr *)
+			    ifa_ifwithaddr((struct sockaddr *)&dest6);
+			if (ia6 == NULL)
+				goto bad;
+			free_ia6 = 1;
+		}
+		else
+			ia6 = (struct in6_ifaddr *)rin6.ro_rt->rt_ifa;
 
 		/*
 		 * record address information into m_tag.
@@ -647,6 +666,8 @@ passin:
 			/* Count the packet in the ip address stats */
 			ia6->ia_ifa.if_ipackets++;
 			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
+			if (ia6 != NULL && free_ia6 != 0)
+				ifa_free(&ia6->ia_ifa);
 			goto hbhcheck;
 		} else {
 			char ip6bufs[INET6_ADDRSTRLEN];
@@ -657,6 +678,8 @@ passin:
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
 
+			if (ia6 != NULL && free_ia6 != 0)
+				ifa_free(&ia6->ia_ifa);
 			goto bad;
 		}
 	}
