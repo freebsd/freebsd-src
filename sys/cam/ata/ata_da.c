@@ -287,7 +287,7 @@ adaclose(struct disk *dp)
 		if (softc->flags & ADA_FLAG_CAN_48BIT)
 			ata_48bit_cmd(&ccb->ataio, ATA_FLUSHCACHE48, 0, 0, 0);
 		else
-			ata_36bit_cmd(&ccb->ataio, ATA_FLUSHCACHE, 0, 0, 0);
+			ata_28bit_cmd(&ccb->ataio, ATA_FLUSHCACHE, 0, 0, 0);
 		cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
 		    /*sense_flags*/SF_RETRY_UA,
 		    softc->disk->d_devstat);
@@ -411,7 +411,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 			ata_48bit_cmd(&ccb.ataio, ATA_WRITE_DMA48,
 			    0, lba, count);
 		} else {
-			ata_36bit_cmd(&ccb.ataio, ATA_WRITE_DMA,
+			ata_28bit_cmd(&ccb.ataio, ATA_WRITE_DMA,
 			    0, lba, count);
 		}
 		xpt_polled_action(&ccb);
@@ -441,7 +441,7 @@ adadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 		if (softc->flags & ADA_FLAG_CAN_48BIT)
 			ata_48bit_cmd(&ccb.ataio, ATA_FLUSHCACHE48, 0, 0, 0);
 		else
-			ata_36bit_cmd(&ccb.ataio, ATA_FLUSHCACHE, 0, 0, 0);
+			ata_28bit_cmd(&ccb.ataio, ATA_FLUSHCACHE, 0, 0, 0);
 		xpt_polled_action(&ccb);
 
 		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
@@ -856,10 +856,10 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 					}
 				} else {
 					if (bp->bio_cmd == BIO_READ) {
-						ata_36bit_cmd(ataio, ATA_READ_DMA,
+						ata_28bit_cmd(ataio, ATA_READ_DMA,
 						    0, lba, count);
 					} else {
-						ata_36bit_cmd(ataio, ATA_WRITE_DMA,
+						ata_28bit_cmd(ataio, ATA_WRITE_DMA,
 						    0, lba, count);
 					}
 				}
@@ -878,7 +878,7 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 				if (softc->flags & ADA_FLAG_CAN_48BIT)
 					ata_48bit_cmd(ataio, ATA_FLUSHCACHE48, 0, 0, 0);
 				else
-					ata_36bit_cmd(ataio, ATA_FLUSHCACHE, 0, 0, 0);
+					ata_28bit_cmd(ataio, ATA_FLUSHCACHE, 0, 0, 0);
 				break;
 			}
 			start_ccb->ccb_h.ccb_state = ADA_CCB_BUFFER_IO;
@@ -1126,7 +1126,7 @@ adashutdown(void * arg, int howto)
 		if (softc->flags & ADA_FLAG_CAN_48BIT)
 			ata_48bit_cmd(&ccb.ataio, ATA_FLUSHCACHE48, 0, 0, 0);
 		else
-			ata_36bit_cmd(&ccb.ataio, ATA_FLUSHCACHE, 0, 0, 0);
+			ata_28bit_cmd(&ccb.ataio, ATA_FLUSHCACHE, 0, 0, 0);
 		xpt_polled_action(&ccb);
 
 		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
