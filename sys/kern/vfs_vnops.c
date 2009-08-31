@@ -999,7 +999,8 @@ vn_start_write(vp, mpp, flags)
 		goto unlock;
 	mp->mnt_writeopcount++;
 unlock:
-	MNT_REL(mp);
+	if (error != 0)
+		MNT_REL(mp);
 	MNT_IUNLOCK(mp);
 	return (error);
 }
@@ -1049,7 +1050,6 @@ vn_start_secondary_write(vp, mpp, flags)
 	if ((mp->mnt_kern_flag & (MNTK_SUSPENDED | MNTK_SUSPEND2)) == 0) {
 		mp->mnt_secondary_writes++;
 		mp->mnt_secondary_accwrites++;
-		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
 		return (0);
 	}
@@ -1081,6 +1081,7 @@ vn_finished_write(mp)
 	if (mp == NULL)
 		return;
 	MNT_ILOCK(mp);
+	MNT_REL(mp);
 	mp->mnt_writeopcount--;
 	if (mp->mnt_writeopcount < 0)
 		panic("vn_finished_write: neg cnt");
@@ -1103,6 +1104,7 @@ vn_finished_secondary_write(mp)
 	if (mp == NULL)
 		return;
 	MNT_ILOCK(mp);
+	MNT_REL(mp);
 	mp->mnt_secondary_writes--;
 	if (mp->mnt_secondary_writes < 0)
 		panic("vn_finished_secondary_write: neg cnt");
