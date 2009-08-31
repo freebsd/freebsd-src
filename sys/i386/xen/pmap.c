@@ -328,22 +328,6 @@ CTASSERT(KERNBASE % (1 << 24) == 0);
 
 
 
-static __inline void
-pagezero(void *page)
-{
-#if defined(I686_CPU)
-	if (cpu_class == CPUCLASS_686) {
-#if defined(CPU_ENABLE_SSE)
-		if (cpu_feature & CPUID_SSE2)
-			sse2_pagezero(page);
-		else
-#endif
-			i686_pagezero(page);
-	} else
-#endif
-		bzero(page, PAGE_SIZE);
-}
-
 void 
 pd_set(struct pmap *pmap, int ptepindex, vm_paddr_t val, int type)
 {
@@ -3342,6 +3326,22 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
 }	
+
+static __inline void
+pagezero(void *page)
+{
+#if defined(I686_CPU)
+	if (cpu_class == CPUCLASS_686) {
+#if defined(CPU_ENABLE_SSE)
+		if (cpu_feature & CPUID_SSE2)
+			sse2_pagezero(page);
+		else
+#endif
+			i686_pagezero(page);
+	} else
+#endif
+		bzero(page, PAGE_SIZE);
+}
 
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping 
