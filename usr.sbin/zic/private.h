@@ -4,7 +4,7 @@
 
 /*
 ** This file is in the public domain, so clarified as of
-** 1996-06-05 by Arthur David Olson (arthur_david_olson@nih.gov).
+** 1996-06-05 by Arthur David Olson.
 */
 
 /*
@@ -30,9 +30,11 @@
 
 #ifndef lint
 #ifndef NOID
-static const char	privatehid[] = "@(#)private.h	7.53";
+static const char	privatehid[] = "@(#)private.h	8.6";
 #endif /* !defined NOID */
 #endif /* !defined lint */
+
+#define GRANDPARENTED	"Local time zone must be set--see zic manual page"
 
 /*
 ** Defaults for preprocessor symbols.
@@ -42,10 +44,6 @@ static const char	privatehid[] = "@(#)private.h	7.53";
 #ifndef HAVE_GETTEXT
 #define HAVE_GETTEXT		0
 #endif /* !defined HAVE_GETTEXT */
-
-#ifndef HAVE_STRERROR
-#define HAVE_STRERROR		1
-#endif /* !defined HAVE_STRERROR */
 
 #ifndef HAVE_SYMLINK
 #define HAVE_SYMLINK		1
@@ -71,47 +69,94 @@ static const char	privatehid[] = "@(#)private.h	7.53";
 #include "stdio.h"
 #include "errno.h"
 #include "string.h"
-#include "limits.h"	/* for CHAR_BIT */
+#include "limits.h"	/* for CHAR_BIT et al. */
 #include "time.h"
 #include "stdlib.h"
 
-#if HAVE_GETTEXT - 0
+#if HAVE_GETTEXT
 #include "libintl.h"
-#endif /* HAVE_GETTEXT - 0 */
+#endif /* HAVE_GETTEXT */
 
-#if HAVE_SYS_WAIT_H - 0
+#if HAVE_SYS_WAIT_H
 #include <sys/wait.h>	/* for WIFEXITED and WEXITSTATUS */
-#endif /* HAVE_SYS_WAIT_H - 0 */
+#endif /* HAVE_SYS_WAIT_H */
 
-#if HAVE_UNISTD_H - 0
-#include "unistd.h"	/* for F_OK and R_OK */
-#endif /* HAVE_UNISTD_H - 0 */
+#if HAVE_UNISTD_H
+#include "unistd.h"	/* for F_OK and R_OK, and other POSIX goodness */
+#endif /* HAVE_UNISTD_H */
 
-#if !(HAVE_UNISTD_H - 0)
 #ifndef F_OK
 #define F_OK	0
 #endif /* !defined F_OK */
 #ifndef R_OK
 #define R_OK	4
 #endif /* !defined R_OK */
-#endif /* !(HAVE_UNISTD_H - 0) */
 
-/* Unlike <ctype.h>'s isdigit, this also works if c < 0 | c > UCHAR_MAX.  */
+/* Unlike <ctype.h>'s isdigit, this also works if c < 0 | c > UCHAR_MAX. */
 #define is_digit(c) ((unsigned)(c) - '0' <= 9)
 
-#define P(x) x
+/*
+** Define HAVE_STDINT_H's default value here, rather than at the
+** start, since __GLIBC__'s value depends on previously-included
+** files.
+** (glibc 2.1 and later have stdint.h, even with pre-C99 compilers.)
+*/
+#ifndef HAVE_STDINT_H
+#define HAVE_STDINT_H \
+       (199901 <= __STDC_VERSION__ || \
+       2 < (__GLIBC__ + (0 < __GLIBC_MINOR__)))
+#endif /* !defined HAVE_STDINT_H */
+
+#if HAVE_STDINT_H
+#include "stdint.h"
+#endif /* !HAVE_STDINT_H */
+
+#ifndef INT_FAST64_MAX
+/* Pre-C99 GCC compilers define __LONG_LONG_MAX__ instead of LLONG_MAX.  */
+#if defined LLONG_MAX || defined __LONG_LONG_MAX__
+typedef long long      int_fast64_t;
+#else /* ! (defined LLONG_MAX || defined __LONG_LONG_MAX__) */
+#if (LONG_MAX >> 31) < 0xffffffff
+Please use a compiler that supports a 64-bit integer type (or wider);
+you may need to compile with "-DHAVE_STDINT_H".
+#endif /* (LONG_MAX >> 31) < 0xffffffff */
+typedef long           int_fast64_t;
+#endif /* ! (defined LLONG_MAX || defined __LONG_LONG_MAX__) */
+#endif /* !defined INT_FAST64_MAX */
+
+#ifndef INT32_MAX
+#define INT32_MAX 0x7fffffff
+#endif /* !defined INT32_MAX */
+#ifndef INT32_MIN
+#define INT32_MIN (-1 - INT32_MAX)
+#endif /* !defined INT32_MIN */
+
+/*
+** Workarounds for compilers/systems.
+ */
+
+/* 
+** Some time.h implementations don't declare asctime_r.
+** Others might define it as a macro.
+** Fix the former without affecting the latter.
+ */
+#ifndef asctime_r
+extern char *  asctime_r(struct tm const *, char *);
+#endif
+
+
 
 /*
 ** Private function declarations.
 */
-char *	icalloc P((int nelem, int elsize));
-char *	icatalloc P((char * old, const char * new));
-char *	icpyalloc P((const char * string));
-char *	imalloc P((int n));
-void *	irealloc P((void * pointer, int size));
-void	icfree P((char * pointer));
-void	ifree P((char * pointer));
-char *	scheck P((const char *string, const char *format));
+char *		icalloc (int nelem, int elsize);
+char *		icatalloc (char * old, const char * new);
+char *		icpyalloc (const char * string);
+char *		imalloc (int n);
+void *		irealloc (void * pointer, int size);
+void		icfree (char * pointer);
+void		ifree (char * pointer);
+const char *	scheck (const char *string, const char *format);
 
 /*
 ** Finally, some convenience items.
@@ -133,6 +178,15 @@ char *	scheck P((const char *string, const char *format));
 #define TYPE_SIGNED(type) (((type) -1) < 0)
 #endif /* !defined TYPE_SIGNED */
 
+/*
+** Since the definition of TYPE_INTEGRAL contains floating point numbers,
+** it cannot be used in preprocessor directives.
+*/
+
+#ifndef TYPE_INTEGRAL
+#define TYPE_INTEGRAL(type) (((type) 0.5) != 0.5)
+#endif /* !defined TYPE_INTEGRAL */
+
 #ifndef INT_STRLEN_MAXIMUM
 /*
 ** 302 / 1000 is log10(2.0) rounded up.
@@ -141,7 +195,8 @@ char *	scheck P((const char *string, const char *format));
 ** add one more for a minus sign if the type is signed.
 */
 #define INT_STRLEN_MAXIMUM(type) \
-    ((TYPE_BIT(type) - TYPE_SIGNED(type)) * 302 / 1000 + 1 + TYPE_SIGNED(type))
+	((TYPE_BIT(type) - TYPE_SIGNED(type)) * 302 / 1000 + \
+	1 + TYPE_SIGNED(type))
 #endif /* !defined INT_STRLEN_MAXIMUM */
 
 /*
@@ -175,11 +230,11 @@ char *	scheck P((const char *string, const char *format));
 */
 
 #ifndef _
-#if HAVE_GETTEXT - 0
+#if HAVE_GETTEXT
 #define _(msgid) gettext(msgid)
-#else /* !(HAVE_GETTEXT - 0) */
+#else /* !HAVE_GETTEXT */
 #define _(msgid) msgid
-#endif /* !(HAVE_GETTEXT - 0) */
+#endif /* !HAVE_GETTEXT */
 #endif /* !defined _ */
 
 #ifndef TZ_DOMAIN
@@ -189,5 +244,29 @@ char *	scheck P((const char *string, const char *format));
 /*
 ** UNIX was a registered trademark of The Open Group in 2003.
 */
+
+#ifndef YEARSPERREPEAT
+#define YEARSPERREPEAT		400	/* years before a Gregorian repeat */
+#endif /* !defined YEARSPERREPEAT */
+
+/*
+** The Gregorian year averages 365.2425 days, which is 31556952 seconds.
+*/
+
+#ifndef AVGSECSPERYEAR
+#define AVGSECSPERYEAR		31556952L
+#endif /* !defined AVGSECSPERYEAR */
+
+#ifndef SECSPERREPEAT
+#define SECSPERREPEAT		((int_fast64_t) YEARSPERREPEAT * (int_fast64_t) AVGSECSPERYEAR)
+#endif /* !defined SECSPERREPEAT */
+
+#ifndef SECSPERREPEAT_BITS
+#define SECSPERREPEAT_BITS	34	/* ceil(log2(SECSPERREPEAT)) */
+#endif /* !defined SECSPERREPEAT_BITS */
+
+  /*
+  ** UNIX was a registered trademark of The Open Group in 2003.
+  */
 
 #endif /* !defined PRIVATE_H */
