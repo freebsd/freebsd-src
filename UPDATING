@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20090831:
+	The newly imported zic(8) produces a new format in the
+	output. Please run tzsetup(8) to install the newly created
+	data to /etc/localtime.
+
 20090731:
 	The ABI of various structures related to the SYSV IPC API have
 	been changed.  Bump __FreeBSD_version to 702105.
