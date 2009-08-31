@@ -972,6 +972,9 @@ void
 pf_purge_thread(void *v)
 {
 	int nloops = 0, s;
+#ifdef __FreeBSD__
+	int locked;
+#endif
 
 	for (;;) {
 		tsleep(pf_purge_thread, PWAIT, "pftm", 1 * hz);
@@ -979,14 +982,19 @@ pf_purge_thread(void *v)
 #ifdef __FreeBSD__
 		sx_slock(&pf_consistency_lock);
 		PF_LOCK();
+		locked = 0;
 
 		if (pf_end_threads) {
-			pf_purge_expired_states(pf_status.states);
+			PF_UNLOCK();
+			sx_sunlock(&pf_consistency_lock);
+			sx_xlock(&pf_consistency_lock);
+			PF_LOCK();
+			pf_purge_expired_states(pf_status.states, 1);
 			pf_purge_expired_fragments();
-			pf_purge_expired_src_nodes(0);
+			pf_purge_expired_src_nodes(1);
 			pf_end_threads++;
 
-			sx_sunlock(&pf_consistency_lock);
+			sx_xunlock(&pf_consistency_lock);
 			PF_UNLOCK();
 			wakeup(pf_purge_thread);
 			kthread_exit(0);
@@ -995,20 +1003,44 @@ pf_purge_thread(void *v)
 		s = splsoftnet();
 
 		/* process a fraction of the state table every second */
+#ifdef __FreeBSD__
+		if(!pf_purge_expired_states(1 + (pf_status.states
+		    / pf_default_rule.timeout[PFTM_INTERVAL]), 0)) {
+			PF_UNLOCK();
+			sx_sunlock(&pf_consistency_lock);
+			sx_xlock(&pf_consistency_lock);
+			PF_LOCK();
+			locked = 1;
+
+			pf_purge_expired_states(1 + (pf_status.states
+			    / pf_default_rule.timeout[PFTM_INTERVAL]), 1);
+		}
+#else
 		pf_purge_expired_states(1 + (pf_status.states
 		    / pf_default_rule.timeout[PFTM_INTERVAL]));
+#endif
 
 		/* purge other expired types every PFTM_INTERVAL seconds */
 		if (++nloops >= pf_default_rule.timeout[PFTM_INTERVAL]) {
 			pf_purge_expired_fragments();
-			pf_purge_expired_src_nodes(0);
+			if (!pf_purge_expired_src_nodes(locked)) {
+				PF_UNLOCK();
+				sx_sunlock(&pf_consistency_lock);
+				sx_xlock(&pf_consistency_lock);
+				PF_LOCK();
+				locked = 1;
+				pf_purge_expired_src_nodes(1);
+			}
 			nloops = 0;
 		}
 
 		splx(s);
 #ifdef __FreeBSD__
 		PF_UNLOCK();
-		sx_sunlock(&pf_consistency_lock);
+		if (locked)
+			sx_xunlock(&pf_consistency_lock);
+		else
+			sx_sunlock(&pf_consistency_lock);
 #endif
 	}
 }
@@ -1057,8 +1089,13 @@ pf_state_expires(const struct pf_state *state)
 	return (state->expire + timeout);
 }
 
+#ifdef __FreeBSD__
+int
+pf_purge_expired_src_nodes(int waslocked)
+#else
 void
 pf_purge_expired_src_nodes(int waslocked)
+#endif
 {
 	 struct pf_src_node		*cur, *next;
 	 int				 locked = waslocked;
@@ -1069,12 +1106,8 @@ pf_purge_expired_src_nodes(int waslocked)
 		 if (cur->states <= 0 && cur->expire <= time_second) {
 			 if (! locked) {
 #ifdef __FreeBSD__
-				 if (!sx_try_upgrade(&pf_consistency_lock)) {
-					 PF_UNLOCK();
-					 sx_sunlock(&pf_consistency_lock);
-					 sx_xlock(&pf_consistency_lock);
-					 PF_LOCK();
-				 }
+				 if (!sx_try_upgrade(&pf_consistency_lock))
+				 	return (0);
 #else
 				 rw_enter_write(&pf_consistency_lock);
 #endif
@@ -1100,6 +1133,10 @@ pf_purge_expired_src_nodes(int waslocked)
 		sx_downgrade(&pf_consistency_lock);
 #else
 		rw_exit_write(&pf_consistency_lock);
+#endif
+
+#ifdef __FreeBSD__
+	return (1);
 #endif
 }
 
@@ -1203,12 +1240,21 @@ pf_free_state(struct pf_state *cur)
 	pf_status.states--;
 }
 
+#ifdef __FreeBSD__
+int
+pf_purge_expired_states(u_int32_t maxcheck, int waslocked)
+#else
 void
 pf_purge_expired_states(u_int32_t maxcheck)
+#endif
 {
 	static struct pf_state	*cur = NULL;
 	struct pf_state		*next;
+#ifdef __FreeBSD__
+	int 			 locked = waslocked;
+#else
 	int 			 locked = 0;
+#endif
 
 	while (maxcheck--) {
 		/* wrap to start of list when we hit the end */
@@ -1225,12 +1271,8 @@ pf_purge_expired_states(u_int32_t maxcheck)
 			/* free unlinked state */
 			if (! locked) {
 #ifdef __FreeBSD__
-				 if (!sx_try_upgrade(&pf_consistency_lock)) {
-					 PF_UNLOCK();
-					 sx_sunlock(&pf_consistency_lock);
-					 sx_xlock(&pf_consistency_lock);
-					 PF_LOCK();
-				 }
+				 if (!sx_try_upgrade(&pf_consistency_lock))
+				 	return (0);
 #else
 				rw_enter_write(&pf_consistency_lock);
 #endif
@@ -1242,12 +1284,8 @@ pf_purge_expired_states(u_int32_t maxcheck)
 			pf_unlink_state(cur);
 			if (! locked) {
 #ifdef __FreeBSD__
-				 if (!sx_try_upgrade(&pf_consistency_lock)) {
-					 PF_UNLOCK();
-					 sx_sunlock(&pf_consistency_lock);
-					 sx_xlock(&pf_consistency_lock);
-					 PF_LOCK();
-				 }
+				 if (!sx_try_upgrade(&pf_consistency_lock))
+				 	return (0);
 #else
 				rw_enter_write(&pf_consistency_lock);
 #endif
@@ -1258,10 +1296,13 @@ pf_purge_expired_states(u_int32_t maxcheck)
 		cur = next;
 	}
 
-	if (locked)
 #ifdef __FreeBSD__
+	if (!waslocked && locked)
 		sx_downgrade(&pf_consistency_lock);
+
+	return (1);
 #else
+	if (locked)
 		rw_exit_write(&pf_consistency_lock);
 #endif
 }
