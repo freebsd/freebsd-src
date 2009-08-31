@@ -536,7 +536,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				hostIsNew = 0;
 		}
 		if (ifra->ifra_mask.sin_len) {
-			in_ifscrub(ifp, ia);
 			ia->ia_sockmask = ifra->ifra_mask;
 			ia->ia_sockmask.sin_family = AF_INET;
 			ia->ia_subnetmask =
@@ -545,7 +544,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		}
 		if ((ifp->if_flags & IFF_POINTOPOINT) &&
 		    (ifra->ifra_dstaddr.sin_family == AF_INET)) {
-			in_ifscrub(ifp, ia);
 			ia->ia_dstaddr = ifra->ifra_dstaddr;
 			maskIsNew  = 1; /* We lie; but the effect's the same */
 		}
@@ -991,6 +989,40 @@ in_addprefix(struct in_ifaddr *target, int flags)
 				IN_IFADDR_RUNLOCK();
 				return (EEXIST);
 			} else {
+				struct route pfx_ro;
+				struct sockaddr_in *pfx_addr;
+				struct rtentry msg_rt;
+
+				/* QL: XXX
+				 * This is a bit questionable because there is no
+				 * additional route entry added for an address alias.
+				 * Therefore this route report is inaccurate. Perhaps
+				 * it's better to supply a empty rtentry as how it
+				 * is done in in_scrubprefix().
+				 */
+				bzero(&pfx_ro, sizeof(pfx_ro));
+				pfx_addr = (struct sockaddr_in *)(&pfx_ro.ro_dst);
+				pfx_addr->sin_len = sizeof(*pfx_addr);
+				pfx_addr->sin_family = AF_INET;
+				pfx_addr->sin_addr = prefix;
+				rtalloc_ign_fib(&pfx_ro, 0, 0);
+				if (pfx_ro.ro_rt != NULL) {
+					msg_rt = *pfx_ro.ro_rt;
+					/* QL: XXX
+					 * Point the gateway to the given interface
+					 * address as if a new prefix route entry has 
+					 * been added through the new address alias. 
+					 * All other parts of the rtentry is accurate, 
+					 * e.g., rt_key, rt_mask, rt_ifp etc.
+					 */
+					msg_rt.rt_gateway = 
+						(struct sockaddr *)&ia->ia_addr;
+					rt_newaddrmsg(RTM_ADD, 
+						      (struct ifaddr *)target,
+						      0, &msg_rt);
+					RTFREE(pfx_ro.ro_rt);
+				}
+
 				IN_IFADDR_RUNLOCK();
 				return (0);
 			}
@@ -1024,9 +1056,6 @@ in_scrubprefix(struct in_ifaddr *target)
 	struct rt_addrinfo info;
 	struct sockaddr_dl null_sdl;
 
-	if ((target->ia_flags & IFA_ROUTE) == 0)
-		return (0);
-
 	/*
 	 * Remove the loopback route to the interface address.
 	 * The "useloopback" setting is not consulted because if the
@@ -1052,6 +1081,20 @@ in_scrubprefix(struct in_ifaddr *target)
 
 		if (error != 0)
 			log(LOG_INFO, "in_scrubprefix: deletion failed\n");
+	}
+
+	if ((target->ia_flags & IFA_ROUTE) == 0) {
+		struct rtentry rt;
+
+		/* QL: XXX
+		 * Report a blank rtentry when a route has not been
+		 * installed for the given interface address.
+		 */
+		bzero(&rt, sizeof(rt));
+		rt_newaddrmsg(RTM_DELETE, 
+			      (struct ifaddr *)target,
+			      0, &rt);
+		return (0);
 	}
 
 	if (rtinitflags(target))
