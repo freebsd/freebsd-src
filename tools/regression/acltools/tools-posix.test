@@ -387,3 +387,19 @@ $ ls -l fff | cut -d' ' -f1
 
 $ rm fff
 
+# Test if we deal properly with device files.
+$ mknod bbb b 1 1
+$ setfacl -m u:42:r,g:43:w bbb
+> setfacl: acl_get_file() failed: Operation not supported
+$ ls -l bbb | cut -d' ' -f1
+> brw-r--r--
+
+$ rm bbb
+
+$ mknod ccc c 1 1
+$ setfacl -m u:42:r,g:43:w ccc
+> setfacl: acl_get_file() failed: Operation not supported
+$ ls -l ccc | cut -d' ' -f1
+> crw-r--r--
+
+$ rm ccc
