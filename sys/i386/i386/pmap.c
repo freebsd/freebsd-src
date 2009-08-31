@@ -4635,7 +4635,8 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	if (base < VM_MIN_KERNEL_ADDRESS)
 		return (EINVAL);
 
-	cache_bits_pde = cache_bits_pte = -1;
+	cache_bits_pde = pmap_cache_bits(mode, 1);
+	cache_bits_pte = pmap_cache_bits(mode, 0);
 	changed = FALSE;
 
 	/*
@@ -4656,8 +4657,6 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 			 * demote this page.  Just increment tmpva to
 			 * the next 2/4MB page frame.
 			 */
-			if (cache_bits_pde < 0)
-				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pde & PG_PDE_CACHE) == cache_bits_pde) {
 				tmpva = trunc_4mpage(tmpva) + NBPDR;
 				continue;
@@ -4688,8 +4687,6 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	}
 	PMAP_UNLOCK(kernel_pmap);
 
-	changed = FALSE;
-
 	/*
 	 * Ok, all the pages exist, so run through them updating their
 	 * cache mode if required.
@@ -4697,22 +4694,16 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	for (tmpva = base; tmpva < base + size; ) {
 		pde = pmap_pde(kernel_pmap, tmpva);
 		if (*pde & PG_PS) {
-			if (cache_bits_pde < 0)
-				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pde & PG_PDE_CACHE) != cache_bits_pde) {
 				pmap_pde_attr(pde, cache_bits_pde);
-				if (!changed)
-					changed = TRUE;
+				changed = TRUE;
 			}
 			tmpva = trunc_4mpage(tmpva) + NBPDR;
 		} else {
-			if (cache_bits_pte < 0)
-				cache_bits_pte = pmap_cache_bits(mode, 0);
 			pte = vtopte(tmpva);
 			if ((*pte & PG_PTE_CACHE) != cache_bits_pte) {
 				pmap_pte_attr(pte, cache_bits_pte);
-				if (!changed)
-					changed = TRUE;
+				changed = TRUE;
 			}
 			tmpva += PAGE_SIZE;
 		}
