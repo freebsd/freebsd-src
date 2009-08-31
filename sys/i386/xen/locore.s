@@ -148,7 +148,9 @@ IdlePDPT:	.long	0		/* phys addr of kernel PDPT */
 	.globl	KPTphys
 #endif
 KPTphys:	.long	0		/* phys addr of kernel page tables */
+#ifdef SMP
 	.globl	gdtset
+#endif
 gdtset:		.long	0		/* GDT is valid */	
 
 	.globl	proc0kstack
