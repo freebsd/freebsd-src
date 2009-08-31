@@ -527,7 +527,7 @@ route_output(struct mbuf *m, struct socket *so)
 
 		bzero(&gw_ro, sizeof(gw_ro));
 		gw_ro.ro_dst = *info.rti_info[RTAX_GATEWAY];
-		rtalloc_ign(&gw_ro, 0);
+		rtalloc_ign_fib(&gw_ro, 0, so->so_fibnum);
 		/* 
 		 * A host route through the loopback interface is 
 		 * installed for each interface adddress. In pre 8.0
