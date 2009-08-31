@@ -1593,8 +1593,13 @@ extern struct pool		 pf_state_pl, pf_altq_pl, pf_pooladdr_pl;
 extern struct pool		 pf_state_scrub_pl;
 #endif
 extern void			 pf_purge_thread(void *);
+#ifdef __FreeBSD__
+extern int			 pf_purge_expired_src_nodes(int);
+extern int			 pf_purge_expired_states(u_int32_t, int);
+#else
 extern void			 pf_purge_expired_src_nodes(int);
 extern void			 pf_purge_expired_states(u_int32_t);
+#endif
 extern void			 pf_unlink_state(struct pf_state *);
 extern void			 pf_free_state(struct pf_state *);
 extern int			 pf_insert_state(struct pfi_kif *,
