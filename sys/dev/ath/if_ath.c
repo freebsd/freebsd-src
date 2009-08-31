@@ -1236,7 +1236,16 @@ ath_resume(struct ath_softc *sc)
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
-			ieee80211_beacon_miss(ic);
+			/*
+			 * Program the beacon registers using the last rx'd
+			 * beacon frame and enable sync on the next beacon
+			 * we see.  This should handle the case where we
+			 * wakeup and find the same AP and also the case where
+			 * we wakeup and need to roam.  For the latter we
+			 * should get bmiss events that trigger a roam.
+			 */
+			ath_beacon_config(sc, NULL);
+			sc->sc_syncbeacon = 1;
 		} else
 			ieee80211_resume_all(ic);
 	}
