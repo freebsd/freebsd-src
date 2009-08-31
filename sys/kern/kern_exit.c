@@ -131,7 +131,12 @@ exit1(struct thread *td, int rv)
 	mtx_assert(&Giant, MA_NOTOWNED);
 
 	p = td->td_proc;
-	if (p == initproc) {
+	/*
+	 * XXX in case we're rebooting we just let init die in order to
+	 * work around an unsolved stack overflow seen very late during
+	 * shutdown on sparc64 when the gmirror worker process exists.
+	 */ 
+	if (p == initproc && rebooting == 0) {
 		printf("init died (signal %d, exit %d)\n",
 		    WTERMSIG(rv), WEXITSTATUS(rv));
 		panic("Going nowhere without my init!");
