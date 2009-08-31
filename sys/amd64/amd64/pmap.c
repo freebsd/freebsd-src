@@ -4476,7 +4476,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	if (base < DMAP_MIN_ADDRESS)
 		return (EINVAL);
 
-	cache_bits_pde = cache_bits_pte = -1;
+	cache_bits_pde = pmap_cache_bits(mode, 1);
+	cache_bits_pte = pmap_cache_bits(mode, 0);
 	changed = FALSE;
 
 	/*
@@ -4493,8 +4494,6 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			 * memory type, then we need not demote this page. Just
 			 * increment tmpva to the next 1GB page frame.
 			 */
-			if (cache_bits_pde < 0)
-				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pdpe & PG_PDE_CACHE) == cache_bits_pde) {
 				tmpva = trunc_1gpage(tmpva) + NBPDP;
 				continue;
@@ -4522,8 +4521,6 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			 * memory type, then we need not demote this page. Just
 			 * increment tmpva to the next 2MB page frame.
 			 */
-			if (cache_bits_pde < 0)
-				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pde & PG_PDE_CACHE) == cache_bits_pde) {
 				tmpva = trunc_2mpage(tmpva) + NBPDR;
 				continue;
@@ -4557,12 +4554,9 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	for (tmpva = base; tmpva < base + size; ) {
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
 		if (*pdpe & PG_PS) {
-			if (cache_bits_pde < 0)
-				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pdpe & PG_PDE_CACHE) != cache_bits_pde) {
 				pmap_pde_attr(pdpe, cache_bits_pde);
-				if (!changed)
-					changed = TRUE;
+				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
 				if (pa_start == pa_end) {
@@ -4588,12 +4582,9 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		}
 		pde = pmap_pdpe_to_pde(pdpe, tmpva);
 		if (*pde & PG_PS) {
-			if (cache_bits_pde < 0)
-				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pde & PG_PDE_CACHE) != cache_bits_pde) {
 				pmap_pde_attr(pde, cache_bits_pde);
-				if (!changed)
-					changed = TRUE;
+				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
 				if (pa_start == pa_end) {
@@ -4616,13 +4607,10 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			}
 			tmpva = trunc_2mpage(tmpva) + NBPDR;
 		} else {
-			if (cache_bits_pte < 0)
-				cache_bits_pte = pmap_cache_bits(mode, 0);
 			pte = pmap_pde_to_pte(pde, tmpva);
 			if ((*pte & PG_PTE_CACHE) != cache_bits_pte) {
 				pmap_pte_attr(pte, cache_bits_pte);
-				if (!changed)
-					changed = TRUE;
+				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
 				if (pa_start == pa_end) {
