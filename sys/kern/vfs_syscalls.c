@@ -3134,8 +3134,7 @@ getutimes(usrtvp, tvpseg, tsp)
 	int error;
 
 	if (usrtvp == NULL) {
-		microtime(&tv[0]);
-		TIMEVAL_TO_TIMESPEC(&tv[0], &tsp[0]);
+		vfs_timestamp(&tsp[0]);
 		tsp[1] = tsp[0];
 	} else {
 		if (tvpseg == UIO_SYSSPACE) {
