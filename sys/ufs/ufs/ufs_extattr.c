@@ -93,8 +93,10 @@ static int	ufs_extattr_set(struct vnode *vp, int attrnamespace,
 		    struct thread *td);
 static int	ufs_extattr_rm(struct vnode *vp, int attrnamespace,
 		    const char *name, struct ucred *cred, struct thread *td);
+#ifdef UFS_EXTATTR_AUTOSTART
 static int	ufs_extattr_autostart_locked(struct mount *mp,
 		    struct thread *td);
+#endif
 static int	ufs_extattr_start_locked(struct ufsmount *ump,
 		    struct thread *td);
 
