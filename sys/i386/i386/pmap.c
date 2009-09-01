@@ -967,8 +967,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 		 * coherence domain.
 		 */
 		mfence();
-		for (; eva < sva; eva += cpu_clflush_line_size)
-			clflush(eva);
+		for (; sva < eva; sva += cpu_clflush_line_size)
+			clflush(sva);
 		mfence();
 	} else {
 
