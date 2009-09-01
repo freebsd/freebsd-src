@@ -77,9 +77,8 @@ $ getfacl -h lll
 > mask::rwx
 > other::r-x
 
-# XXX: Why doesn't ls(1) print '+' for symbolic links with ACL set?
 $ ls -l lll | cut -d' ' -f1
-> lrwxrwxr-x
+> lrwxrwxr-x+
 
 # Check whether the original file is left untouched.
 $ ls -l xxx | cut -d' ' -f1
