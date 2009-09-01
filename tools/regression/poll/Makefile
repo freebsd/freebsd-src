@@ -3,14 +3,15 @@
 # Nothing yet works with gmake for the path to the sources.
 .PATH: ..
 
-PROG=	pipepoll pipeselect
+PROG=	pipepoll pipeselect sockpoll
 CFLAGS+= -Werror -Wall
 
 all: ${PROG}
 pipepoll: pipepoll.c
 pipeselect: pipeselect.c
+sockpoll: sockpoll.c
 
-pipepoll pipeselect:
+pipepoll pipeselect sockpoll:
 	${CC} ${CFLAGS} ${LDFLAGS} -o $@ $@.c
 
 test: all
