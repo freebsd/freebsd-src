@@ -999,7 +999,7 @@ vn_start_write(vp, mpp, flags)
 		goto unlock;
 	mp->mnt_writeopcount++;
 unlock:
-	if (error != 0)
+	if (error != 0 || (flags & V_XSLEEP) != 0)
 		MNT_REL(mp);
 	MNT_IUNLOCK(mp);
 	return (error);
