@@ -4171,7 +4171,6 @@ pmap_activate(struct thread *td)
 	td->td_pcb->pcb_cr3 = cr3;
 	PT_UPDATES_FLUSH();
 	load_cr3(cr3);
-		
 	PCPU_SET(curpmap, pmap);
 	critical_exit();
 }
