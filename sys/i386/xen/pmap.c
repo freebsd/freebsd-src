@@ -311,6 +311,7 @@ static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 static boolean_t pmap_is_prefaultable_locked(pmap_t pmap, vm_offset_t addr);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 
+static __inline void pagezero(void *page);
 
 #if defined(PAE) && !defined(XEN)
 static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
