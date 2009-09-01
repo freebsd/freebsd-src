@@ -357,9 +357,9 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		      /*dxfer_len*/sizeof(struct ata_params),
 		      30 * 1000);
 		if (periph->path->device->protocol == PROTO_ATA)
-			ata_36bit_cmd(ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
+			ata_28bit_cmd(ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
 		else
-			ata_36bit_cmd(ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
+			ata_28bit_cmd(ataio, ATA_ATAPI_IDENTIFY, 0, 0, 0);
 		break;
 	}
 	case PROBE_SETMODE:
@@ -375,7 +375,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		      /*data_ptr*/NULL,
 		      /*dxfer_len*/0,
 		      30 * 1000);
-		ata_36bit_cmd(ataio, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
+		ata_28bit_cmd(ataio, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
 		    ata_max_mode(ident_buf, ATA_UDMA6, ATA_UDMA6));
 		break;
 	}
