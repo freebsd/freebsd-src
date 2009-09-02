@@ -180,7 +180,7 @@ static Elf32_Brandinfo kia32_brand_info = {
 	.interp_path	= "/lib/ld.so.1",
 	.sysvec		= &ia32_freebsd_sysvec,
 	.brand_note	= &elf32_kfreebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE_MANDATORY
 };
 
 SYSINIT(kia32, SI_SUB_EXEC, SI_ORDER_ANY,
