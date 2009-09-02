@@ -467,7 +467,10 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			/*
 			 * If the owner is running on another CPU, spin until
 			 * the owner stops running or the state of the lock
-			 * changes.
+			 * changes.  We need a double-state handle here
+			 * because for a failed acquisition the lock can be
+			 * either held in exclusive mode or shared mode
+			 * (for the writer starvation avoidance technique).
 			 */
 			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
 			    LK_HOLDER(x) != LK_KERNPROC) {
@@ -491,8 +494,10 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				while (LK_HOLDER(lk->lk_lock) ==
 				    (uintptr_t)owner && TD_IS_RUNNING(owner))
 					cpu_spinwait();
+				GIANT_RESTORE();
+				continue;
 			} else if (LK_CAN_ADAPT(lk, flags) &&
-			    (x & LK_SHARE) !=0 && LK_SHARERS(x) &&
+			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
 			    spintries < alk_retries) {
 				if (flags & LK_INTERLOCK) {
 					class->lc_unlock(ilk);
@@ -511,6 +516,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 						break;
 					cpu_spinwait();
 				}
+				GIANT_RESTORE();
 				if (i != alk_loops)
 					continue;
 			}
@@ -704,6 +710,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				while (LK_HOLDER(lk->lk_lock) ==
 				    (uintptr_t)owner && TD_IS_RUNNING(owner))
 					cpu_spinwait();
+				GIANT_RESTORE();
+				continue;
 			} else if (LK_CAN_ADAPT(lk, flags) &&
 			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
 			    spintries < alk_retries) {
@@ -727,6 +735,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 						break;
 					cpu_spinwait();
 				}
+				GIANT_RESTORE();
 				if (i != alk_loops)
 					continue;
 			}
