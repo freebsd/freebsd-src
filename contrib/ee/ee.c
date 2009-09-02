@@ -726,7 +726,7 @@ int character;			/* new character			*/
 	}
 	*point = character;	/* insert new character			*/
 	wclrtoeol(text_win);
-	if (((character >= 0) && (character < ' ')) || (character >= 127)) /* check for TAB character*/
+	if (!isprint((unsigned char)character)) /* check for TAB character*/
 	{
 		scr_pos = scr_horz += out_char(text_win, character, scr_horz);
 		point++;
@@ -734,7 +734,7 @@ int character;			/* new character			*/
 	}
 	else
 	{
-		waddch(text_win, character);
+		waddch(text_win, (unsigned char)character);
 		scr_pos = ++scr_horz;
 		point++;
 		position ++;
@@ -969,17 +969,17 @@ int column;
 		}
 		else
 		{
-			waddch(window, (char)character );
+			waddch(window, (unsigned char)character );
 			return(1);
 		}
 	}
 	else
 	{
-		waddch(window, (char)character);
+		waddch(window, (unsigned char)character);
 		return(1);
 	}
 	for (i2 = 0; (string[i2] != '\0') && (((column+i2+1)-horiz_offset) < last_col); i2++)
-		waddch(window, string[i2]);
+		waddch(window, (unsigned char)string[i2]);
 	return(strlen(string));
 }
 
@@ -1044,7 +1044,7 @@ int length;	/* length (in bytes) of line			*/
 	wclrtoeol(text_win);
 	while ((posit < length) && (column <= last_col))
 	{
-		if ((*temp < 32) || (*temp >= 127))
+		if (!isprint(*temp))
 		{
 			column += len_char(*temp, abs_column);
 			abs_column += out_char(text_win, *temp, abs_column);
@@ -1923,13 +1923,13 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 			}
 			*nam_str = in;
 			g_pos++;
-			if (((in < ' ') || (in > 126)) && (g_horz < (last_col - 1)))
+			if (!isprint((unsigned char)in) && (g_horz < (last_col - 1)))
 				g_horz += out_char(com_win, in, g_horz);
 			else
 			{
 				g_horz++;
 				if (g_horz < (last_col - 1))
-					waddch(com_win, in);
+					waddch(com_win, (unsigned char)in);
 			}
 			nam_str++;
 		}
@@ -5085,8 +5085,8 @@ strings_init()
 {
 	int counter;
 
-#ifndef NO_CATGETS
 	setlocale(LC_ALL, "");
+#ifndef NO_CATGETS
 	catalog = catopen("ee", NL_CAT_LOCALE);
 #endif /* NO_CATGETS */
 
