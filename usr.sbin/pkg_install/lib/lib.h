@@ -102,10 +102,10 @@
 #define PKG_PREFIX_VNAME	"PKG_PREFIX"
 
 /*
- * Version of the package tools - increase only when some
- * functionality used by bsd.port.mk is changed, added or removed
+ * Version of the package tools - increase whenever you make a change
+ * in the code that is not cosmetic only.
  */
-#define PKG_INSTALL_VERSION	20090519
+#define PKG_INSTALL_VERSION	20090902
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
 #define main(argc, argv)	real_main(argc, argv)
