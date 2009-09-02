@@ -41,7 +41,6 @@ static char sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -63,7 +62,7 @@ main(int argc, char *argv[])
 	FTS *ftsp;
 	FTSENT *p;
 	mode_t *set;
-	int Hflag, Lflag, Rflag, ch, fflag, fts_options, hflag, rval, error;
+	int Hflag, Lflag, Rflag, ch, error, fflag, fts_options, hflag, rval;
 	int vflag;
 	char *mode;
 	mode_t newmode;
@@ -170,7 +169,6 @@ done:	argv += optind;
 			 */
 			if (!hflag)
 				continue;
-			/* else */
 			/* FALLTHROUGH */
 		default:
 			break;
@@ -188,9 +186,11 @@ done:	argv += optind;
 			error = lchmod(p->fts_accpath, newmode);
 		else
 			error = chmod(p->fts_accpath, newmode);
-		if (error && !fflag) {
-			warn("%s", p->fts_path);
-			rval = 1;
+		if (error) {
+			if (!fflag) {
+				warn("%s", p->fts_path);
+				rval = 1;
+			}
 		} else {
 			if (vflag) {
 				(void)printf("%s", p->fts_path);
@@ -201,7 +201,6 @@ done:	argv += optind;
 					strmode(p->fts_statp->st_mode, m1);
 					strmode((p->fts_statp->st_mode &
 					    S_IFMT) | newmode, m2);
-
 					(void)printf(": 0%o [%s] -> 0%o [%s]",
 					    p->fts_statp->st_mode, m1,
 					    (p->fts_statp->st_mode & S_IFMT) |
@@ -209,12 +208,10 @@ done:	argv += optind;
 				}
 				(void)printf("\n");
 			}
-
 		}
 	}
 	if (errno)
 		err(1, "fts_read");
-	free(set);
 	exit(rval);
 }
 
