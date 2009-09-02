@@ -83,6 +83,7 @@ char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.102 $";
 #include <errno.h>
 #include <string.h>
 #include <pwd.h>
+#include <locale.h>
 
 #ifdef HAS_SYS_WAIT
 #include <sys/wait.h>
@@ -100,9 +101,7 @@ char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.102 $";
 #include <unistd.h>
 #endif
 
-
 #ifndef NO_CATGETS
-#include <locale.h>
 #include <nl_types.h>
 
 nl_catd catalog;
