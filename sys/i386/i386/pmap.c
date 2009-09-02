@@ -528,9 +528,9 @@ pmap_init_pat(void)
 
 	if (pat_works) {
 		/*
-		 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
+		 * Leave the indices 0-3 at the default of WB, WT, UC-, and UC.
 		 * Program 4 and 5 as WP and WC.
-		 * Leave 6 and 7 as UC and UC-.
+		 * Leave 6 and 7 as UC- and UC.
 		 */
 		pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
 		pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
