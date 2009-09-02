@@ -217,7 +217,7 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 		 * We need to grab the sx-lock before grabbing the
 		 * FIFO refs to avoid deadlock at detach!
 		 */
-		sx_xlock(cpd->udev->default_sx + 1);
+		usbd_enum_lock(cpd->udev);
 
 		mtx_lock(&usb_ref_lock);
 
@@ -275,14 +275,12 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 	}
 	mtx_unlock(&usb_ref_lock);
 
-	if (crd->is_uref) {
-		mtx_lock(&Giant);	/* XXX */
-	}
 	return (0);
 
 error:
 	if (crd->is_uref) {
-		sx_unlock(cpd->udev->default_sx + 1);
+		usbd_enum_unlock(cpd->udev);
+
 		if (--(cpd->udev->refcount) == 0) {
 			cv_signal(cpd->udev->default_cv + 1);
 		}
@@ -334,10 +332,9 @@ usb_unref_device(struct usb_cdev_privdata *cpd,
 
 	DPRINTFN(2, "cpd=%p is_uref=%d\n", cpd, crd->is_uref);
 
-	if (crd->is_uref) {
-		mtx_unlock(&Giant);	/* XXX */
-		sx_unlock(cpd->udev->default_sx + 1);
-	}
+	if (crd->is_uref)
+		usbd_enum_unlock(cpd->udev);
+
 	mtx_lock(&usb_ref_lock);
 	if (crd->is_read) {
 		if (--(crd->rxfifo->refcount) == 0) {
@@ -1042,9 +1039,9 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 	 * reference if we need it!
 	 */
 	err = usb_ref_device(cpd, &refs, 0 /* no uref */ );
-	if (err) {
+	if (err)
 		return (ENXIO);
-	}
+
 	fflags = cpd->fflags;
 
 	f = NULL;			/* set default value */
