@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090902: BSD.{x11,x11-4}.dist are dead and BSD.local.dist lives in ports/
+OLD_FILES+=etc/mtree/BSD.local.dist
+OLD_FILES+=etc/mtree/BSD.x11.dist
+OLD_FILES+=etc/mtree/BSD.x11-4.dist
 # 20090801: vimage.h removed in favour of vnet.h
 OLD_FILES+=usr/include/sys/vimage.h
 # 20090719: library version bump for 8.0
