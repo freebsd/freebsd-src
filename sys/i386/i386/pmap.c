@@ -212,7 +212,7 @@ pt_entry_t pg_nx;
 static uma_zone_t pdptzone;
 #endif
 
-static int pat_works;			/* Is page attribute table sane? */
+static int pat_works = 0;		/* Is page attribute table sane? */
 
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
@@ -478,40 +478,69 @@ void
 pmap_init_pat(void)
 {
 	uint64_t pat_msr;
+	char *sysenv;
+	static int pat_tested = 0;
 
 	/* Bail if this CPU doesn't implement PAT. */
 	if (!(cpu_feature & CPUID_PAT))
 		return;
 
-	if (cpu_vendor_id != CPU_VENDOR_INTEL ||
-	    (I386_CPU_FAMILY(cpu_id) == 6 && I386_CPU_MODEL(cpu_id) >= 0xe)) {
+	/*
+	 * Due to some Intel errata, we can only safely use the lower 4
+	 * PAT entries.
+	 *
+	 *   Intel Pentium III Processor Specification Update
+	 * Errata E.27 (Upper Four PAT Entries Not Usable With Mode B
+	 * or Mode C Paging)
+	 *
+	 *   Intel Pentium IV  Processor Specification Update
+	 * Errata N46 (PAT Index MSB May Be Calculated Incorrectly)
+	 *
+	 * Some Apple Macs based on nVidia chipsets cannot enter ACPI mode
+	 * via SMI# when we use upper 4 PAT entries for unknown reason.
+	 */
+	if (!pat_tested) {
+		if (cpu_vendor_id != CPU_VENDOR_INTEL ||
+		    (I386_CPU_FAMILY(cpu_id) == 6 &&
+		    I386_CPU_MODEL(cpu_id) >= 0xe)) {
+			pat_works = 1;
+			sysenv = getenv("smbios.system.product");
+			if (sysenv != NULL) {
+				if (strncmp(sysenv, "MacBook5,1", 10) == 0 ||
+				    strncmp(sysenv, "MacBookPro5,5", 13) == 0 ||
+				    strncmp(sysenv, "Macmini3,1", 10) == 0)
+					pat_works = 0;
+				freeenv(sysenv);
+			}
+		}
+		pat_tested = 1;
+	}
+
+	/* Initialize default PAT entries. */
+	pat_msr = PAT_VALUE(0, PAT_WRITE_BACK) |
+	    PAT_VALUE(1, PAT_WRITE_THROUGH) |
+	    PAT_VALUE(2, PAT_UNCACHED) |
+	    PAT_VALUE(3, PAT_UNCACHEABLE) |
+	    PAT_VALUE(4, PAT_WRITE_BACK) |
+	    PAT_VALUE(5, PAT_WRITE_THROUGH) |
+	    PAT_VALUE(6, PAT_UNCACHED) |
+	    PAT_VALUE(7, PAT_UNCACHEABLE);
+
+	if (pat_works) {
 		/*
 		 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
 		 * Program 4 and 5 as WP and WC.
 		 * Leave 6 and 7 as UC and UC-.
 		 */
-		pat_msr = rdmsr(MSR_PAT);
 		pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
 		pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
 		    PAT_VALUE(5, PAT_WRITE_COMBINING);
-		pat_works = 1;
 	} else {
 		/*
-		 * Due to some Intel errata, we can only safely use the lower 4
-		 * PAT entries.  Thus, just replace PAT Index 2 with WC instead
-		 * of UC-.
-		 *
-		 *   Intel Pentium III Processor Specification Update
-		 * Errata E.27 (Upper Four PAT Entries Not Usable With Mode B
-		 * or Mode C Paging)
-		 *
-		 *   Intel Pentium IV  Processor Specification Update
-		 * Errata N46 (PAT Index MSB May Be Calculated Incorrectly)
+		 * Just replace PAT Index 2 with WC instead of UC-.
 		 */
-		pat_msr = rdmsr(MSR_PAT);
 		pat_msr &= ~PAT_MASK(2);
 		pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
-		pat_works = 0;
 	}
 	wrmsr(MSR_PAT, pat_msr);
 }
