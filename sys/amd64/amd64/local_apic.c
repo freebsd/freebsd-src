@@ -990,18 +990,21 @@ apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 	 * we don't lose an interrupt delivery race.
 	 */
 	td = curthread;
-	thread_lock(td);
-	if (sched_is_bound(td))
-		panic("apic_free_vector: Thread already bound.\n");
-	sched_bind(td, apic_cpuid(apic_id));
-	thread_unlock(td);
+	if (!rebooting) {
+		thread_lock(td);
+		if (sched_is_bound(td))
+			panic("apic_free_vector: Thread already bound.\n");
+		sched_bind(td, apic_cpuid(apic_id));
+		thread_unlock(td);
+	}
 	mtx_lock_spin(&icu_lock);
 	lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] = -1;
 	mtx_unlock_spin(&icu_lock);
-	thread_lock(td);
-	sched_unbind(td);
-	thread_unlock(td);
-
+	if (!rebooting) {
+		thread_lock(td);
+		sched_unbind(td);
+		thread_unlock(td);
+	}
 }
 
 /* Map an IDT vector (APIC) to an IRQ (interrupt source). */
