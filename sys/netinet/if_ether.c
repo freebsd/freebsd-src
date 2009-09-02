@@ -462,11 +462,11 @@ in_arpinput(struct mbuf *m)
 	struct rtentry *rt;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
+	struct mbuf *hold;
 	struct sockaddr sa;
 	struct in_addr isaddr, itaddr, myaddr;
 	u_int8_t *enaddr = NULL;
 	int op, flags;
-	struct mbuf *m0;
 	int req_len;
 	int bridged = 0, is_bridge = 0;
 #ifdef DEV_CARP
@@ -631,11 +631,13 @@ match:
 				    la->lle_tbl->llt_ifp->if_xname,
 				    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
 				    ifp->if_xname);
+			LLE_WUNLOCK(la);
 			goto reply;
 		}
 		if ((la->la_flags & LLE_VALID) &&
 		    bcmp(ar_sha(ah), &la->ll_addr, ifp->if_addrlen)) {
 			if (la->la_flags & LLE_STATIC) {
+				LLE_WUNLOCK(la);
 				log(LOG_ERR,
 				    "arp: %*D attempts to modify permanent "
 				    "entry for %s on %s\n",
@@ -655,6 +657,7 @@ match:
 		}
 		    
 		if (ifp->if_addrlen != ah->ar_hln) {
+			LLE_WUNLOCK(la);
 			log(LOG_WARNING,
 			    "arp from %*D: addr len: new %d, i/f %d (ignored)",
 			    ifp->if_addrlen, (u_char *) ar_sha(ah), ":",
@@ -671,15 +674,14 @@ match:
 		}
 		la->la_asked = 0;
 		la->la_preempt = V_arp_maxtries;
-		if (la->la_hold != NULL) {
-			m0 = la->la_hold;
-			la->la_hold = 0;
+		hold = la->la_hold;
+		if (hold != NULL) {
+			la->la_hold = NULL;
 			memcpy(&sa, L3_ADDR(la), sizeof(sa));
-			LLE_WUNLOCK(la);
-			
-			(*ifp->if_output)(ifp, m0, &sa, NULL);
-			return;
 		}
+		LLE_WUNLOCK(la);
+		if (hold != NULL)
+			(*ifp->if_output)(ifp, hold, &sa, NULL);
 	}
 reply:
 	if (op != ARPOP_REQUEST)
@@ -750,8 +752,6 @@ reply:
 #endif
 	}
 
-	if (la != NULL)
-		LLE_WUNLOCK(la);
 	if (itaddr.s_addr == myaddr.s_addr &&
 	    IN_LINKLOCAL(ntohl(itaddr.s_addr))) {
 		/* RFC 3927 link-local IPv4; always reply by broadcast. */
@@ -777,8 +777,6 @@ reply:
 	return;
 
 drop:
-	if (la != NULL)
-		LLE_WUNLOCK(la);
 	m_freem(m);
 }
 #endif
