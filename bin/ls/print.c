@@ -623,15 +623,19 @@ aclmode(char *buf, const FTSENT *p)
 	    S_ISWHT(p->fts_statp->st_mode))
 		return;
 
+	if (previous_dev == p->fts_statp->st_dev && supports_acls == 0)
+		return;
+
+	if (p->fts_level == FTS_ROOTLEVEL)
+		snprintf(name, sizeof(name), "%s", p->fts_name);
+	else
+		snprintf(name, sizeof(name), "%s/%s",
+		    p->fts_parent->fts_accpath, p->fts_name);
+
 	if (previous_dev != p->fts_statp->st_dev) {
 		previous_dev = p->fts_statp->st_dev;
 		supports_acls = 0;
 
-		if (p->fts_level == FTS_ROOTLEVEL)
-			snprintf(name, sizeof(name), "%s", p->fts_name);
-		else
-			snprintf(name, sizeof(name), "%s/%s",
-			    p->fts_parent->fts_accpath, p->fts_name);
 		ret = lpathconf(name, _PC_ACL_NFS4);
 		if (ret > 0) {
 			type = ACL_TYPE_NFS4;
