@@ -477,7 +477,7 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct arge_softc * sc = device_get_softc(dev);
 	int i, result;
-	uint32_t addr = 0x1000 | (phy << MAC_MII_PHY_ADDR_SHIFT) 
+	uint32_t addr = (phy << MAC_MII_PHY_ADDR_SHIFT) 
 	    | (reg & MAC_MII_REG_MASK);
 
 	if (phy != sc->arge_phy_num)
@@ -511,8 +511,8 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct arge_softc * sc = device_get_softc(dev);
 	int i;
-	uint32_t addr = 0x1000 
-	    | (phy << MAC_MII_PHY_ADDR_SHIFT) | (reg & MAC_MII_REG_MASK);
+	uint32_t addr = 
+	    (phy << MAC_MII_PHY_ADDR_SHIFT) | (reg & MAC_MII_REG_MASK);
 
 	dprintf("%s: phy=%d, reg=%02x, value=%04x\n", __func__, 
 	    phy, reg, data);
