@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/syscons/syscons.h>
 
-#include <dev/syscons/teken/teken.h>
+#include <teken/teken.h>
 
 static void scteken_revattr(unsigned char, teken_attr_t *);
 static unsigned int scteken_attr(const teken_attr_t *);
