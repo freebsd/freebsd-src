@@ -48,6 +48,7 @@ device		pci
 
 # Wireless NIC cards
 options		IEEE80211_DEBUG
+options		IEEE80211_SUPPORT_MESH
 options		IEEE80211_SUPPORT_TDMA
 device		wlan            # 802.11 support
 device		wlan_wep        # 802.11 WEP support
@@ -56,9 +57,8 @@ device		wlan_tkip       # 802.11 TKIP support
 
 device		ath             # Atheros pci/cardbus NIC's
 options 	ATH_DEBUG
-option		AH_SUPPORT_AR5416
 device		ath_hal
-device		ath_ar5212      # Atheros HAL (Hardware Access Layer)
+option		AH_SUPPORT_AR5416
 device		ath_rate_sample
 
 device		mii
@@ -83,3 +83,4 @@ device		ether
 device		md
 device		bpf
 device		random
+device		if_bridge
