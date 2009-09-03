@@ -121,6 +121,8 @@ printchar(const teken_pos_t *p)
 		attr |= A_UNDERLINE;
 	if (px->a.ta_format & TF_BLINK)
 		attr |= A_BLINK;
+	if (px->a.ta_format & TF_REVERSE)
+		attr |= A_REVERSE;
 
 	bkgdset(attr | COLOR_PAIR(px->a.ta_fgcolor + 8 * px->a.ta_bgcolor));
 	mvaddstr(p->tp_row, p->tp_col, str);

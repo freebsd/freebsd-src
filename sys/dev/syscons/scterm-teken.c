@@ -300,12 +300,20 @@ static unsigned int
 scteken_attr(const teken_attr_t *a)
 {
 	unsigned int attr = 0;
+	teken_color_t fg, bg;
 
+	if (a->ta_format & TF_REVERSE) {
+		fg = a->ta_bgcolor;
+		bg = a->ta_fgcolor;
+	} else {
+		fg = a->ta_fgcolor;
+		bg = a->ta_bgcolor;
+	}
 	if (a->ta_format & TF_BOLD)
-		attr |= fgcolors_bold[a->ta_fgcolor];
+		attr |= fgcolors_bold[fg];
 	else
-		attr |= fgcolors_normal[a->ta_fgcolor];
-	attr |= bgcolors[a->ta_bgcolor];
+		attr |= fgcolors_normal[fg];
+	attr |= bgcolors[bg];
 
 #ifdef FG_UNDERLINE
 	if (a->ta_format & TF_UNDERLINE)
