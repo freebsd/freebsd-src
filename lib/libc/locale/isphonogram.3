@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2004
+.Dd September 3, 2009
 .Dt ISPHONOGRAM 3
 .Os
 .Sh NAME
@@ -41,6 +41,15 @@
 The
 .Fn isphonogram
 function tests for a phonographic character.
+.Pp
+.Em NOTE :
+if the value passed to the
+.Fn isphonogram
+function is a
+.Vt signed char ,
+as is usually the case, it must be cast to an
+.Vt unsigned char
+to avoid sign-extension errors.
 .Sh RETURN VALUES
 The
 .Fn isphonogram
