@@ -28,7 +28,7 @@
 .\"     @(#)ctype.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2004
+.Dd September 3, 2009
 .Dt CTYPE 3
 .Os
 .Sh NAME
@@ -111,6 +111,13 @@ They are available as macros, defined in the include file
 .In ctype.h ,
 or as true functions in the C library.
 See the specific manual pages for more information.
+.Pp
+.Em NOTE :
+if the value passed to one of these functions is a
+.Vt signed char ,
+as is usually the case, it must be cast to an
+.Vt unsigned char
+to avoid sign-extension errors.
 .Sh SEE ALSO
 .Xr digittoint 3 ,
 .Xr isalnum 3 ,

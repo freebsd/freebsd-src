@@ -28,7 +28,7 @@
 .\"	@(#)digittoint.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 6, 2001
+.Dd September 3, 2009
 .Dt DIGITTOINT 3
 .Os
 .Sh NAME
@@ -46,6 +46,15 @@ The
 function converts a numeric character to its corresponding integer value.
 The character can be any decimal digit or hexadecimal digit.
 With hexadecimal characters, the case of the values does not matter.
+.Pp
+.Em NOTE :
+if the value passed to the
+.Fn digittoint
+function is a
+.Vt signed char ,
+as is usually the case, it must be cast to an
+.Vt unsigned char
+to avoid sign-extension errors.
 .Sh RETURN VALUES
 The
 .Fn digittoint
