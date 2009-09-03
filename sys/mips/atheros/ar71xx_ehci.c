@@ -190,12 +190,7 @@ ar71xx_ehci_attach(device_t self)
 	 * which means port speed must be read from the Port Status
 	 * register following a port enable.
 	 */
-	sc->sc_flags |= EHCI_SCFLG_TT
-		     | EHCI_SCFLG_SETMODE
-		     | EHCI_SCFLG_BIGEDESC
-		     | EHCI_SCFLG_BIGEMMIO
-		     | EHCI_SCFLG_NORESTERM
-		     ;
+	sc->sc_flags = EHCI_SCFLG_SETMODE;
 	(void) ehci_reset(sc);
 
 	err = ehci_init(sc);
