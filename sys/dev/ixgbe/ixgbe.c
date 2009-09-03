@@ -4507,7 +4507,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		adapter->stats.lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
 		/* 82598 only has a counter in the high register */
 		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCH);
-		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
+		adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCH);
 		adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORH);
 	}
 
