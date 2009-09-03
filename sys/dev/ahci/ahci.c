@@ -1942,6 +1942,9 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cpi->maxio = MAXPHYS;
+		/* ATI SB600 can't handle 256 sectors with FPDMA (NCQ). */
+		if (pci_get_devid(device_get_parent(dev)) == 0x43801002)
+			cpi->maxio = min(cpi->maxio, 255 * 512);
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
