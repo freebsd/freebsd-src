@@ -91,8 +91,8 @@ pccarddevs.h			standard				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
 teken_state.h		optional sc					   \
-	dependency	"$S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences" \
-	compile-with	"${AWK} -f $S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences > teken_state.h" \
+	dependency	"$S/teken/gensequences $S/teken/sequences" \
+	compile-with	"${AWK} -f $S/teken/gensequences $S/teken/sequences > teken_state.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"teken_state.h"
 usbdevs.h			optional usb				   \
@@ -2616,6 +2616,7 @@ security/mac_portacl/mac_portacl.c optional mac_portacl
 security/mac_seeotheruids/mac_seeotheruids.c optional mac_seeotheruids
 security/mac_stub/mac_stub.c	optional mac_stub
 security/mac_test/mac_test.c	optional mac_test
+teken/teken.c			optional sc
 ufs/ffs/ffs_alloc.c		optional ffs
 ufs/ffs/ffs_balloc.c		optional ffs
 ufs/ffs/ffs_inode.c		optional ffs
