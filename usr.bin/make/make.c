@@ -336,6 +336,13 @@ Make_OODate(GNode *gn)
 							break;
 
 						/*
+						 * Ignore etc files because they tend to change when
+						 * dist'ed from a central server.
+						 */
+						if (strncmp(p, "/etc/", 5) == 0)
+							break;
+
+						/*
 						 * The rest of the record is the
 						 * file name.
 						 * Check if it's not an absolute

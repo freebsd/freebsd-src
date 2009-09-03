@@ -116,7 +116,6 @@ static char	**save_argv;	/* saved argv */
 static char	*save_makeflags;/* saved MAKEFLAGS */
 #ifdef MAKE_IS_BUILD
 static char	*save_mklvl;	/* saved __MKLVL__ */
-static char	*save_path;	/* saved PATH */
 static char	*clean_environ[2];
 static char	*default_machine = NULL;
 #endif
@@ -978,7 +977,6 @@ main(int argc, char **argv)
 
 #ifdef MAKE_IS_BUILD
 	save_mklvl = getenv(MKLVL_ENVVAR);
-	save_path = getenv("PATH");
 #endif
 
 	/*
@@ -1088,7 +1086,7 @@ main(int argc, char **argv)
 	environ = clean_environ;
 
 	/* Put the user's PATH into the new environent. */
-	setenv("PATH", save_path, 1);
+	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin", 1);
 #endif
 
 	check_make_level();

@@ -112,6 +112,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/wait.h>
 #include <ctype.h>
+#ifdef MAKE_IS_BUILD
+#include <dirent.h>
+#endif
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -416,6 +419,121 @@ static GNode	    *ENDNode;
 #ifdef MAKE_IS_BUILD
 static int n_meta_created = 0; /* Number of meta data files created. */
 
+static void
+meta_orphan_files(const char *objroot, size_t objrootlen, const char *mname)
+{
+	FILE *fp;
+	char *bufr;
+	char *p;
+	int f = 0;
+	int tgt = 0;
+	size_t s_bufr = 128 * 1024;
+
+	if ((fp = fopen(mname, "r")) == NULL)
+		return;
+
+	if ((bufr = malloc(s_bufr)) == NULL)
+		err(1, "Cannot allocate memory for a read buffer");
+
+	while (fgets(bufr, s_bufr, fp) != NULL) {
+		/* Whack the trailing newline. */
+		bufr[strlen(bufr) - 1] = '\0';
+
+		/* Find the start of the build monitor section. */
+		if (strncmp(bufr, "-- buildmon", 11) == 0) {
+			if (tgt == 0)
+				break;
+
+			f = 1;
+			continue;
+		}
+
+		/* Check if parsing the build monitor section. */
+		if (f) {
+			if (strncmp(bufr, "W ", 2) != 0)
+				continue;
+
+			/* Delimit the record type. */
+			p = bufr;
+			strsep(&p, " ");
+
+			/* Skip the pid. */
+			if (strsep(&p, " ") == NULL)
+				break;
+
+			if (*p == '/' && strncmp(p, objroot, objrootlen) != 0)
+				break;
+
+			fprintf(stderr,"Deleting generated file: %s\n", p);
+			unlink(p);
+
+		/* Check if this is the target record. */
+		} else if (strncmp(bufr, "TGT ", 4) == 0) {
+			/* Lookup the target by name to see if it is still defined. */
+			if (Targ_FindNode(bufr + 4, TARG_NOCREATE) != NULL)
+				break;
+
+			/*
+			 * The target wasn't found, so we need to try to clean up files
+			 * that were created when it last existed.
+			 */
+			tgt = 1;
+
+			fprintf(stderr,"Target %s no longer exists. Trying to clean up...\n", bufr + 4);
+		}
+	}
+
+	free(bufr);
+
+	fclose(fp);
+
+	/*
+	 * If the target has been deleted, try to delete the meta data file,
+	 * but don't get too stressed out if there is an error deleting it.
+	 */
+	if (tgt)
+		unlink(mname);
+}
+
+static void
+meta_orphans(void)
+{
+	DIR *d;
+	char *paths[2];
+	char thisdir[2] = { '.', '\0' };
+	const char *objroot;
+	size_t len;
+	size_t objrootlen;
+	struct dirent *de;
+
+	/* XXX Need a better way to do this. */
+	if (strcmp(getenv("__MKLVL__"), "2") != 0)
+		return;
+
+	if ((objroot = Var_Value(".OBJROOT", VAR_GLOBAL)) == NULL)
+		return;
+
+	objrootlen = strlen(objroot);
+
+	paths[0] = thisdir;
+	paths[1] = NULL;
+
+	if ((d = opendir(".")) == NULL)
+		err(1, NULL);
+
+	while ((de = readdir(d)) != NULL) {
+		if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
+			continue;
+
+		len = strlen(de->d_name);
+
+		if (len > 5 && strcmp(de->d_name + len - 5, ".meta") == 0)
+			meta_orphan_files(objroot, objrootlen, de->d_name);
+	}
+
+	closedir(d);
+}
+
 void
 meta_exit(void)
 {
@@ -467,8 +585,8 @@ meta_exit(void)
 		srctop = Var_Value(".SRCTOP", VAR_GLOBAL);
 		curdir = Var_Value(".CURDIR", VAR_GLOBAL);
 		srcrel = Var_Value(".SRCREL", VAR_GLOBAL);
-		objroot = Var_Value(".OBJROOT", VAR_GLOBAL);
 		objdir = Var_Value(".OBJDIR", VAR_GLOBAL);
+		objroot = Var_Value(".OBJROOT", VAR_GLOBAL);
 		filedep_name = Var_Value(".FILEDEP_NAME", VAR_GLOBAL);
 		meta_created = Var_Value(".META_CREATED", VAR_GLOBAL);
 
@@ -680,6 +798,7 @@ meta_create(GNode *gn, char *p_mname, size_t mnamelen)
 		fprintf(fp, "CMD %s\n", Buf_Peel(Var_Subst(Lst_Datum(ln), gn, FALSE)));
 
 	fprintf(fp, "CWD %s\n", getcwd(bufr, sizeof(bufr)));
+	fprintf(fp, "TGT %s\n", tname);
 
 	for (ptr = environ; *ptr != NULL; ptr++)
 		fprintf(fp, "ENV %s\n", *ptr);
@@ -2839,6 +2958,11 @@ Job_Init(int maxproc)
 	}
 #endif
 
+#ifdef MAKE_IS_BUILD
+	/* Clean up any orphaned files we can find. */
+	meta_orphans();
+#endif
+
 	begin = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 
 	if (begin != NULL) {
@@ -3866,6 +3990,12 @@ Compat_Run(Lst *targs)
 
 	Compat_InstallSignalHandlers();
 	ENDNode = Targ_FindNode(".END", TARG_CREATE);
+
+#ifdef MAKE_IS_BUILD
+	/* Clean up any orphaned files we can find. */
+	meta_orphans();
+#endif
+
 	/*
 	 * If the user has defined a .BEGIN target, execute the commands
 	 * attached to it.
