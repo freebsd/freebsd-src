@@ -553,6 +553,8 @@
             ..
             la_LN.ISO8859-1
             ..
+            la_LN.ISO8859-13
+            ..
             la_LN.ISO8859-15
             ..
             la_LN.ISO8859-2
@@ -566,6 +568,10 @@
             lt_LT.ISO8859-4
             ..
             lt_LT.UTF-8
+            ..
+            lv_LV.ISO8859-13
+            ..
+            lv_LV.UTF-8
             ..
             mn_MN.UTF-8
             ..
@@ -1077,6 +1083,8 @@
             ..
             la_LN.ISO8859-1
             ..
+            la_LN.ISO8859-13
+            ..
             la_LN.ISO8859-15
             ..
             la_LN.ISO8859-2
@@ -1090,6 +1098,10 @@
             lt_LT.ISO8859-4
             ..
             lt_LT.UTF-8
+            ..
+            lv_LV.ISO8859-13
+            ..
+            lv_LV.UTF-8
             ..
             mn_MN.UTF-8
             ..
