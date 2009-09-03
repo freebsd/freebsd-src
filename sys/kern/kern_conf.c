@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <fs/devfs/devfs_int.h>
+#include <vm/vm.h>
 
 static MALLOC_DEFINE(M_DEVT, "cdev", "cdev storage");
 
@@ -276,6 +277,7 @@ dead_strategy(struct bio *bp)
 
 #define dead_dump	(dumper_t *)enxio
 #define dead_kqfilter	(d_kqfilter_t *)enxio
+#define dead_mmap_single (d_mmap_single_t *)enodev
 
 static struct cdevsw dead_cdevsw = {
 	.d_version =	D_VERSION,
@@ -290,7 +292,8 @@ static struct cdevsw dead_cdevsw = {
 	.d_strategy =	dead_strategy,
 	.d_name =	"dead",
 	.d_dump =	dead_dump,
-	.d_kqfilter =	dead_kqfilter
+	.d_kqfilter =	dead_kqfilter,
+	.d_mmap_single = dead_mmap_single
 };
 
 /* Default methods if driver does not specify method */
@@ -302,6 +305,7 @@ static struct cdevsw dead_cdevsw = {
 #define no_ioctl	(d_ioctl_t *)enodev
 #define no_mmap		(d_mmap_t *)enodev
 #define no_kqfilter	(d_kqfilter_t *)enodev
+#define no_mmap_single	(d_mmap_single_t *)enodev
 
 static void
 no_strategy(struct bio *bp)
@@ -481,6 +485,23 @@ giant_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 	return (retval);
 }
 
+static int
+giant_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
+    vm_object_t *object, int nprot)
+{
+	struct cdevsw *dsw;
+	int retval;
+
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
+	mtx_lock(&Giant);
+	retval = dsw->d_gianttrick->d_mmap_single(dev, offset, size, object,
+	    nprot);
+	mtx_unlock(&Giant);
+	dev_relthread(dev);
+	return (retval);
+}
 
 /*
  * struct cdev * and u_dev_t primitives
@@ -616,7 +637,8 @@ prep_cdevsw(struct cdevsw *devsw)
 		return;
 	}
 
-	if (devsw->d_version != D_VERSION_01) {
+	if (devsw->d_version != D_VERSION_01 &&
+	    devsw->d_version != D_VERSION_02) {
 		printf(
 		    "WARNING: Device driver \"%s\" has wrong version %s\n",
 		    devsw->d_name == NULL ? "???" : devsw->d_name,
@@ -632,6 +654,8 @@ prep_cdevsw(struct cdevsw *devsw)
 		devsw->d_dump = dead_dump;
 		devsw->d_kqfilter = dead_kqfilter;
 	}
+	if (devsw->d_version == D_VERSION_01)
+		devsw->d_mmap_single = NULL;
 	
 	if (devsw->d_flags & D_TTY) {
 		if (devsw->d_ioctl == NULL)	devsw->d_ioctl = ttyioctl;
@@ -668,6 +692,7 @@ prep_cdevsw(struct cdevsw *devsw)
 	FIXUP(d_mmap,		no_mmap,	giant_mmap);
 	FIXUP(d_strategy,	no_strategy,	giant_strategy);
 	FIXUP(d_kqfilter,	no_kqfilter,	giant_kqfilter);
+	FIXUP(d_mmap_single,	no_mmap_single,	giant_mmap_single);
 
 	if (devsw->d_dump == NULL)	devsw->d_dump = no_dump;
 
