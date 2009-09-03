@@ -70,9 +70,6 @@ static FILE *df;
 #define	teken_scs_switch(t, g)
 #endif /* TEKEN_XTERM && TEKEN_UTF8 */
 
-/* Private flags for teken_format_t. */
-#define	TF_REVERSE	0x08
-
 /* Private flags for t_stateflags. */
 #define	TS_FIRSTDIGIT	0x01	/* First numeric digit in escape sequence. */
 #define	TS_INSERT	0x02	/* Insert mode. */
@@ -114,18 +111,9 @@ static inline void
 teken_funcs_putchar(teken_t *t, const teken_pos_t *p, teken_char_t c,
     const teken_attr_t *a)
 {
-	teken_attr_t ta;
 
 	teken_assert(p->tp_row < t->t_winsize.tp_row);
 	teken_assert(p->tp_col < t->t_winsize.tp_col);
-
-	/* Apply inversion. */
-	if (a->ta_format & TF_REVERSE) {
-		ta.ta_format = a->ta_format;
-		ta.ta_fgcolor = a->ta_bgcolor;
-		ta.ta_bgcolor = a->ta_fgcolor;
-		a = &ta;
-	}
 
 	t->t_funcs->tf_putchar(t->t_softc, p, c, a);
 }
@@ -134,20 +122,11 @@ static inline void
 teken_funcs_fill(teken_t *t, const teken_rect_t *r,
     const teken_char_t c, const teken_attr_t *a)
 {
-	teken_attr_t ta;
 
 	teken_assert(r->tr_end.tp_row > r->tr_begin.tp_row);
 	teken_assert(r->tr_end.tp_row <= t->t_winsize.tp_row);
 	teken_assert(r->tr_end.tp_col > r->tr_begin.tp_col);
 	teken_assert(r->tr_end.tp_col <= t->t_winsize.tp_col);
-
-	/* Apply inversion. */
-	if (a->ta_format & TF_REVERSE) {
-		ta.ta_format = a->ta_format;
-		ta.ta_fgcolor = a->ta_bgcolor;
-		ta.ta_bgcolor = a->ta_fgcolor;
-		a = &ta;
-	}
 
 	t->t_funcs->tf_fill(t->t_softc, r, c, a);
 }

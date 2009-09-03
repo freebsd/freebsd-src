@@ -54,6 +54,7 @@ typedef unsigned char teken_format_t;
 #define	TF_BOLD		0x01
 #define	TF_UNDERLINE	0x02
 #define	TF_BLINK	0x04
+#define	TF_REVERSE	0x08
 typedef unsigned char teken_color_t;
 #define	TC_BLACK	0
 #define	TC_RED		1
