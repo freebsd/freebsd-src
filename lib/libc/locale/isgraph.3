@@ -32,7 +32,7 @@
 .\"     @(#)isgraph.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2005
+.Dd September 3, 2009
 .Dt ISGRAPH 3
 .Os
 .Sh NAME
@@ -80,6 +80,15 @@ In the ASCII character set, this includes the following characters
 .It "\&166\ ``v'' \t167\ ``w'' \t170\ ``x'' \t171\ ``y'' \t172\ ``z''"
 .It "\&173\ ``{'' \t174\ ``|'' \t175\ ``}'' \t176\ ``~''"
 .El
+.Pp
+.Em NOTE :
+if the value passed to the
+.Fn isgraph
+function is a
+.Vt signed char ,
+as is usually the case, it must be cast to an
+.Vt unsigned char
+to avoid sign-extension errors.
 .Sh RETURN VALUES
 The
 .Fn isgraph

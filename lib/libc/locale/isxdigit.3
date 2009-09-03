@@ -32,7 +32,7 @@
 .\"     @(#)isxdigit.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2005
+.Dd September 3, 2009
 .Dt ISXDIGIT 3
 .Os
 .Sh NAME
@@ -71,6 +71,15 @@ The value of the argument must be representable as an
 .Vt "unsigned char"
 or the value of
 .Dv EOF .
+.Pp
+.Em NOTE :
+if the value passed to the
+.Fn isxdigit
+function is a
+.Vt signed char ,
+as is usually the case, it must be cast to an
+.Vt unsigned char
+to avoid sign-extension errors.
 .Sh RETURN VALUES
 The
 .Fn isxdigit

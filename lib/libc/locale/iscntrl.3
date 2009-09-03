@@ -32,7 +32,7 @@
 .\"     @(#)iscntrl.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2005
+.Dd September 3, 2009
 .Dt ISCNTRL 3
 .Os
 .Sh NAME
@@ -65,6 +65,15 @@ In the ASCII character set, this includes the following characters
 .It "\&031\ EM \t032\ SUB \t033\ ESC \t034\ FS \t035\ GS"
 .It "\&036\ RS \t037\ US \t177\ DEL"
 .El
+.Pp
+.Em NOTE :
+if the value passed to the
+.Fn iscntrl
+function is a
+.Vt signed char ,
+as is usually the case, it must be cast to an
+.Vt unsigned char
+to avoid sign-extension errors.
 .Sh RETURN VALUES
 The
 .Fn iscntrl
