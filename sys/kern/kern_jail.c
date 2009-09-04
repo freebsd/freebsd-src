@@ -478,7 +478,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	struct vfsoptlist *opts;
 	struct prison *pr, *deadpr, *mypr, *ppr, *tpr;
 	struct vnode *root;
-	char *domain, *errmsg, *host, *name, *p, *path, *uuid;
+	char *domain, *errmsg, *host, *name, *namelc, *p, *path, *uuid;
 #if defined(INET) || defined(INET6)
 	struct prison *tppr;
 	void *op;
@@ -907,6 +907,13 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		goto done_unlock_list;
 	}
 	pr = NULL;
+	namelc = NULL;
+	if (cuflags == JAIL_CREATE && jid == 0 && name != NULL) {
+		namelc = strrchr(name, '.');
+		jid = strtoul(namelc != NULL ? namelc + 1 : name, &p, 10);
+		if (*p != '\0')
+			jid = 0;
+	}
 	if (jid != 0) {
 		/*
 		 * See if a requested jid already exists.  There is an
@@ -973,17 +980,19 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	 * because that is the jail being updated).
 	 */
 	if (name != NULL) {
-		p = strrchr(name, '.');
-		if (p != NULL) {
+		namelc = strrchr(name, '.');
+		if (namelc == NULL)
+			namelc = name;
+		else {
 			/*
 			 * This is a hierarchical name.  Split it into the
 			 * parent and child names, and make sure the parent
 			 * exists or matches an already found jail.
 			 */
-			*p = '\0';
+			*namelc = '\0';
 			if (pr != NULL) {
-				if (strncmp(name, ppr->pr_name, p - name) ||
-				    ppr->pr_name[p - name] != '\0') {
+				if (strncmp(name, ppr->pr_name, namelc - name)
+				    || ppr->pr_name[namelc - name] != '\0') {
 					mtx_unlock(&pr->pr_mtx);
 					error = EINVAL;
 					vfs_opterror(opts,
@@ -1000,7 +1009,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				}
 				mtx_unlock(&ppr->pr_mtx);
 			}
-			name = p + 1;
+			name = ++namelc;
 		}
 		if (name[0] != '\0') {
 			namelen =
@@ -1412,9 +1421,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		/* Give a default name of the jid. */
 		if (name[0] == '\0')
 			snprintf(name = numbuf, sizeof(numbuf), "%d", jid);
-		else if (strtoul(name, &p, 10) != jid && *p == '\0') {
+		else if (*namelc == '0' || (strtoul(namelc, &p, 10) != jid &&
+		    *p == '\0')) {
 			error = EINVAL;
-			vfs_opterror(opts, "name cannot be numeric");
+			vfs_opterror(opts,
+			    "name cannot be numeric (unless it is the jid)");
 			goto done_deref_locked;
 		}
 		/*
