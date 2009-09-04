@@ -1738,6 +1738,10 @@ mwl_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
 		 * WEP keys when the sta reaches AUTH state.
 		 */
 		macaddr = vap->iv_bss->ni_bssid;
+		if ((k->wk_flags & IEEE80211_KEY_GROUP) == 0) {
+			/* XXX plumb to local sta db too for static key wep */
+			mwl_hal_keyset(hvap, &hk, vap->iv_myaddr);
+		}
 	} else if (vap->iv_opmode == IEEE80211_M_WDS &&
 	    vap->iv_state != IEEE80211_S_RUN) {
 		/*
