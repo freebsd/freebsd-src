@@ -29,10 +29,6 @@
  * Skeleton of this file was based on respective code for ARM
  * code written by Olivier Houchard.
  */
-/*
- * XXXMIPS: This file is hacked from arm/... . XXXMIPS here means this file is
- * experimental and was written for MIPS32 port.
- */
 #include "opt_uart.h"
 
 #include <sys/cdefs.h>
