@@ -690,24 +690,34 @@ done:
 		KASSERT(m->queue == PQ_NONE,
 		    ("vm_phys_alloc_contig: page %p has unexpected queue %d",
 		    m, m->queue));
+		KASSERT(m->wire_count == 0,
+		    ("vm_phys_alloc_contig: page %p is wired", m));
+		KASSERT(m->hold_count == 0,
+		    ("vm_phys_alloc_contig: page %p is held", m));
+		KASSERT(m->busy == 0,
+		    ("vm_phys_alloc_contig: page %p is busy", m));
+		KASSERT(m->dirty == 0,
+		    ("vm_phys_alloc_contig: page %p is dirty", m));
+		KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
+		    ("vm_phys_alloc_contig: page %p has unexpected memattr %d",
+		    m, pmap_page_get_memattr(m)));
 		m_object = m->object;
-		if ((m->flags & PG_CACHED) != 0)
+		if ((m->flags & PG_CACHED) != 0) {
+			m->valid = 0;
 			vm_page_cache_remove(m);
-		else {
+		} else {
 			KASSERT(VM_PAGE_IS_FREE(m),
 			    ("vm_phys_alloc_contig: page %p is not free", m));
+			KASSERT(m->valid == 0,
+			    ("vm_phys_alloc_contig: free page %p is valid", m));
 			cnt.v_free_count--;
 		}
-		m->valid = VM_PAGE_BITS_ALL;
 		if (m->flags & PG_ZERO)
 			vm_page_zero_count--;
 		/* Don't clear the PG_ZERO flag; we'll need it later. */
 		m->flags = PG_UNMANAGED | (m->flags & PG_ZERO);
 		m->oflags = 0;
-		KASSERT(m->dirty == 0,
-		    ("vm_phys_alloc_contig: page %p was dirty", m));
-		m->wire_count = 0;
-		m->busy = 0;
+		/* Unmanaged pages don't use "act_count". */
 		if (m_object != NULL &&
 		    m_object->type == OBJT_VNODE &&
 		    m_object->cache == NULL) {

@@ -106,7 +106,9 @@ typedef struct pv_entry {
 	TAILQ_ENTRY(pv_entry) pv_plist;
 } *pv_entry_t;
 
+#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define pmap_page_is_mapped(m)  (!TAILQ_EMPTY(&(m)->md.pv_list))
+#define	pmap_page_set_memattr(m, ma)	(void)0
 
 void	pmap_bootstrap(vm_offset_t ekva);
 vm_paddr_t pmap_kextract(vm_offset_t va);

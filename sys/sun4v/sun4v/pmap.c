@@ -1298,7 +1298,7 @@ pmap_alloc_zeroed_contig_pages(int npages, uint64_t alignment)
 	while (m == NULL) {	
 		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 			m = vm_phys_alloc_contig(npages, phys_avail[i], 
-						 phys_avail[i + 1], alignment, (1UL<<34));
+			    phys_avail[i + 1], alignment, (1UL<<34));
 			if (m)
 				goto found;
 		}

@@ -72,7 +72,9 @@ struct	md_page {
 extern	struct pmap kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
 
+#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!LIST_EMPTY(&(m)->md.mdpg_pvoh))
+#define	pmap_page_set_memattr(m, ma)	(void)0
 
 #ifdef _KERNEL
 

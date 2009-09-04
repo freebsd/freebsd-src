@@ -93,6 +93,7 @@ struct vm_object {
 	int ref_count;			/* How many refs?? */
 	int shadow_count;		/* how many objects that this is a shadow for */
 	objtype_t type;			/* type of pager */
+	vm_memattr_t memattr;		/* default memory attribute for pages */
 	u_short flags;			/* see below */
 	u_short pg_color;		/* (c) color of first page in obj */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
@@ -211,6 +212,7 @@ void vm_object_page_remove (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
 boolean_t vm_object_populate(vm_object_t, vm_pindex_t, vm_pindex_t);
 void vm_object_reference (vm_object_t);
 void vm_object_reference_locked(vm_object_t);
+int  vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr);
 void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
 void vm_object_split(vm_map_entry_t);
 void vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
