@@ -72,10 +72,7 @@ char *version = "@(#) ee, version "  EE_VERSION  " $Revision: 1.102 $";
 #include <curses.h>
 #endif
 
-#ifdef HAS_CTYPE
 #include <ctype.h>
-#endif
-
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -1973,7 +1970,7 @@ int sensitive;
 		}
 		else
 		{
-			if (toupper(*strng1) != toupper(*strng2))
+			if (toupper((unsigned char)*strng1) != toupper((unsigned char)*strng2))
 				equal = FALSE;
 		}
 		strng1++;
@@ -2445,7 +2442,7 @@ int noverify;
 	if ((text_changes) && (!noverify))
 	{
 		ans = get_string(changes_made_prompt, TRUE);
-		if (toupper(*ans) == toupper(*yes_char))
+		if (toupper((unsigned char)*ans) == toupper((unsigned char)*yes_char))
 			text_changes = FALSE;
 		else
 			return(0);
@@ -2522,7 +2519,7 @@ int warn_if_exists;
 		if ((temp_fp = fopen(file_name, "r")))
 		{
 			tmp_point = get_string(file_exists_prompt, TRUE);
-			if (toupper(*tmp_point) == toupper(*yes_char))
+			if (toupper((unsigned char)*tmp_point) == toupper((unsigned char)*yes_char))
 				write_flag = TRUE;
 			else 
 				write_flag = FALSE;
@@ -3437,14 +3434,13 @@ struct menu_entries menu_list[];
 		if (input == -1)
 			exit(0);
 
-		if (((tolower(input) >= 'a') && (tolower(input) <= 'z')) || 
-		    ((input >= '0') && (input <= '9')))
+		if (isascii(input) && isalnum(input))
 		{
-			if ((tolower(input) >= 'a') && (tolower(input) <= 'z'))
+			if (isalpha(input))
 			{
 				temp = 1 + tolower(input) - 'a';
 			}
-			else if ((input >= '0') && (input <= '9'))
+			else if (isdigit(input))
 			{
 				temp = (2 + 'z' - 'a') + (input - '0');
 			}
