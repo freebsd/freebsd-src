@@ -28,7 +28,7 @@
 .\"     @(#)isascii.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2009
+.Dd October 6, 2002
 .Dt ISASCII 3
 .Os
 .Sh NAME
@@ -47,15 +47,6 @@ function tests for an
 .Tn ASCII
 character, which is any character
 between 0 and octal 0177 inclusive.
-.Pp
-.Em NOTE :
-if the value passed to the
-.Fn isascii
-function is a
-.Vt signed char ,
-as is usually the case, it must be cast to an
-.Vt unsigned char
-to avoid sign-extension errors.
 .Sh SEE ALSO
 .Xr ctype 3 ,
 .Xr iswascii 3 ,
