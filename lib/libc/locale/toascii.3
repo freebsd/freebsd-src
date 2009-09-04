@@ -28,7 +28,7 @@
 .\"	@(#)toascii.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2009
+.Dd June 4, 1993
 .Dt TOASCII 3
 .Os
 .Sh NAME
@@ -45,15 +45,6 @@ The
 .Fn toascii
 function strips all but the low 7 bits from a letter,
 including parity or other marker bits.
-.Pp
-.Em NOTE :
-if the value passed to the
-.Fn toascii
-function is a
-.Vt signed char ,
-as is usually the case, it must be cast to an
-.Vt unsigned char
-to avoid sign-extension errors.
 .Sh RETURN VALUES
 The
 .Fn toascii

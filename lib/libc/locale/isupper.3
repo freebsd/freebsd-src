@@ -32,7 +32,7 @@
 .\"     @(#)isupper.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 3, 2009
+.Dd July 17, 2005
 .Dt ISUPPER 3
 .Os
 .Sh NAME
@@ -64,15 +64,6 @@ In the ASCII character set, this includes the following characters
 .It "\&125\ ``U'' \t126\ ``V'' \t127\ ``W'' \t130\ ``X'' \t131\ ``Y''"
 .It "\&132\ ``Z''"
 .El
-.Pp
-.Em NOTE :
-if the value passed to the
-.Fn isupper
-function is a
-.Vt signed char ,
-as is usually the case, it must be cast to an
-.Vt unsigned char
-to avoid sign-extension errors.
 .Sh RETURN VALUES
 The
 .Fn isupper
