@@ -136,8 +136,8 @@ ad_attach(device_t dev)
     if ((atadev->param.support.command2 & ATA_SUPPORT_CFA) ||
 	atadev->param.config == ATA_PROTO_CFA)
 	adp->disk->d_flags = DISKFLAG_CANDELETE;
-    snprintf(adp->disk->d_ident, sizeof(adp->disk->d_ident), "ad:%s",
-	atadev->param.serial);
+    strlcpy(adp->disk->d_ident, atadev->param.serial,
+	sizeof(adp->disk->d_ident));
     disk_create(adp->disk, DISK_VERSION);
     device_add_child(dev, "subdisk", device_get_unit(dev));
     ad_firmware_geom_adjust(dev, adp->disk);
