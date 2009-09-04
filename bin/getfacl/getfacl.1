@@ -30,7 +30,7 @@
 .\" Developed by the TrustedBSD Project.
 .\" Support for POSIX.1e access control lists.
 .\"
-.Dd March 13, 2006
+.Dd September 04, 2009
 .Dt GETFACL 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Nd get ACL information
 .Sh SYNOPSIS
 .Nm
-.Op Fl dhq
+.Op Fl dhinqv
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -61,13 +61,25 @@ The operation applies to the default ACL of a directory instead of the
 access ACL.
 An error is generated if a default ACL cannot be associated with
 .Ar file .
+This option is not valid for NFSv4 ACLs.
 .It Fl h
 If the target of the operation is a symbolic link, return the ACL from
 the symbolic link itself rather than following the link.
+.It Fl i
+For NFSv4 ACLs, append numerical ID at the end of each entry containing
+user or group name.
+Ignored for POSIX.1e ACLs.
+.It Fl n
+Display user and group IDs numerically rather than converting to
+a user or group name.
+Ignored for POSIX.1e ACLs.
 .It Fl q
 Do not write commented information about file name and ownership.
 This is
 useful when dealing with filenames with unprintable characters.
+.It Fl v
+For NFSv4 ACLs, display access mask and flags in a verbose form.
+Ignored for POSIX.1e ACLs.
 .El
 .Pp
 The following operand is available:
