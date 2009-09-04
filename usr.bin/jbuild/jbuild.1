@@ -574,50 +574,12 @@ to the canonical path given by
 .Xr getcwd 3 .
 .It Va .OBJDIR
 A path to the directory where the targets are built.
-At startup,
-.Nm
-searches for an alternate directory to place target files.
-It will attempt to change into this special directory
-and will search this directory for makefiles
-not found in the current directory.
-The following directories are tried in order:
-.Pp
-.Bl -enum -compact
-.It
-${MAKEOBJDIRPREFIX}/`pwd`
-.It
-${MAKEOBJDIR}
-.It
-obj.${MACHINE}
-.It
-obj
-.It
-/usr/obj/`pwd`
-.El
-.Pp
-The first directory that
-.Nm
-successfully changes into is used.
-If either
-.Ev MAKEOBJDIRPREFIX
-or
-.Ev MAKEOBJDIR
-is set in the environment but
-.Nm
-is unable to change into the corresponding directory,
-then the current directory is used
-without checking the remainder of the list.
-If they are undefined and
-.Nm
-is unable to change into any of the remaining three directories,
-then the current directory is used.
-Note, that
-.Ev MAKEOBJDIRPREFIX
-and
-.Ev MAKEOBJDIR
-must be environment variables and should not be set on
-.Nm Ns 's
-command line.
+This path is set to
+.Va ${.SRCTOP}/../obj/${MACHINE}/${.SRCREL} .
+Each machine-specific object directory uses the name set by
+the
+.Va MACHINE
+variable.
 .Pp
 The
 .Nm
@@ -625,6 +587,29 @@ utility sets
 .Va .OBJDIR
 to the canonical path given by
 .Xr getcwd 3 .
+.It Va .OBJROOT
+A path set to the value of
+.Va ${.SRCTOP}/../obj .
+.It Va .SRCTOP
+When
+.Nm
+is invoked, the current directory is determined by
+.Xr getcwd 3 .
+From the current directory,
+.Nm
+walks up the directory hierarchy.  When
+.Pa bld/sys.mk
+is found,
+.Nm
+sets
+.Va .SRCTOP
+to the value of the current directory and stops. 
+.It Va .SRCREL
+A path set to the value of 
+.Va .CURDIR
+with
+.Va .SRCTOP
+stripped off.
 .It Va .MAKEFILE_LIST
 As
 .Nm
@@ -1651,10 +1636,18 @@ The
 utility uses the following environment variables, if they exist:
 .Ev MACHINE ,
 .Ev MAKE ,
-.Ev MAKEFLAGS ,
-.Ev MAKEOBJDIR ,
 and
-.Ev MAKEOBJDIRPREFIX .
+.Ev MAKEFLAGS .
+.Pp
+When
+.Nm
+is invoked, the
+.Ev PATH
+in the environment is ignored, and
+is instead set to "/bin:/sbin:/usr/bin:/usr/sbin".  This
+.Ev PATH
+is then used by all processes spawned by
+.Nm .
 .Sh FILES
 .Bl -tag -width /usr/share/doc/psd/12.make -compact
 .It Pa .depend
@@ -1667,14 +1660,10 @@ list of dependencies
 object directory
 .It Pa sys.mk
 system makefile
-.It Pa /usr/share/mk
+.It Pa ${.SRCTOP}/bld
 default system makefile directory
 .It Pa /usr/share/doc/psd/12.make
 PMake tutorial
-.It Pa /usr/obj
-default
-.Ev MAKEOBJDIRPREFIX
-directory.
 .It Pa /etc/make.conf
 default path to
 .Xr make.conf 5
@@ -1721,10 +1710,6 @@ in
 .Fx 7.1 .
 .
 .Sh BUGS
-The determination of
-.Va .OBJDIR
-is contorted to the point of absurdity.
-.Pp
 In the presence of several
 .Ic .MAIN
 special targets,
