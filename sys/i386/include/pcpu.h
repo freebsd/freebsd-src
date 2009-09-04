@@ -152,7 +152,7 @@ extern struct pcpu *pcpup;
 #define	__PCPU_GET(name) __extension__ ({				\
 	__pcpu_type(name) __res;					\
 	struct __s {							\
-		u_char	__b[MIN(sizeof(__pcpu_type(name)), 4)];		\
+		u_char	__b[MIN(sizeof(__res), 4)];		\
 	} __s;								\
 									\
 	if (sizeof(__res) == 1 || sizeof(__res) == 2 ||			\
@@ -174,7 +174,7 @@ extern struct pcpu *pcpup;
 #define	__PCPU_ADD(name, val) do {					\
 	__pcpu_type(name) __val;					\
 	struct __s {							\
-		u_char	__b[MIN(sizeof(__pcpu_type(name)), 4)];		\
+		u_char	__b[MIN(sizeof(__val), 4)];		\
 	} __s;								\
 									\
 	__val = (val);							\
@@ -214,10 +214,10 @@ extern struct pcpu *pcpup;
 /*
  * Sets the value of the per-cpu variable name to value val.
  */
-#define	__PCPU_SET(name, val) {						\
+#define	__PCPU_SET(name, val) do {					\
 	__pcpu_type(name) __val;					\
 	struct __s {							\
-		u_char	__b[MIN(sizeof(__pcpu_type(name)), 4)];		\
+		u_char	__b[MIN(sizeof(__val), 4)];			\
 	} __s;								\
 									\
 	__val = (val);							\
@@ -230,7 +230,7 @@ extern struct pcpu *pcpup;
 	} else {							\
 		*__PCPU_PTR(name) = __val;				\
 	}								\
-}
+} while (0)
 
 #define	PCPU_GET(member)	__PCPU_GET(pc_ ## member)
 #define	PCPU_ADD(member, val)	__PCPU_ADD(pc_ ## member, val)
