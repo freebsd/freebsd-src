@@ -371,38 +371,48 @@ c_mXXdepth(OPTION *option, char ***argvp)
 int
 f_acl(PLAN *plan __unused, FTSENT *entry)
 {
-	int match, entries;
-	acl_entry_t ae;
 	acl_t facl;
+	acl_type_t acl_type;
+	int acl_supported = 0, ret, trivial;
 
 	if (S_ISLNK(entry->fts_statp->st_mode))
 		return 0;
-	if ((match = pathconf(entry->fts_accpath, _PC_ACL_EXTENDED)) <= 0) {
-		if (match < 0 && errno != EINVAL)
-			warn("%s", entry->fts_accpath);
-	else
-		return 0;
-	}
-	match = 0;
-	if ((facl = acl_get_file(entry->fts_accpath,ACL_TYPE_ACCESS)) != NULL) {
-		if (acl_get_entry(facl, ACL_FIRST_ENTRY, &ae) == 1) {
-			/*
-			 * POSIX.1e requires that ACLs of type ACL_TYPE_ACCESS
-			 * must have at least three entries (owner, group,
-			 * other).
-			 */
-			entries = 1;
-			while (acl_get_entry(facl, ACL_NEXT_ENTRY, &ae) == 1) {
-				if (++entries > 3) {
-					match = 1;
-					break;
-				}
-			}
-		}
-		acl_free(facl);
-	} else
+	ret = pathconf(entry->fts_accpath, _PC_ACL_NFS4);
+	if (ret > 0) {
+		acl_supported = 1;
+		acl_type = ACL_TYPE_NFS4;
+	} else if (ret < 0 && errno != EINVAL) {
 		warn("%s", entry->fts_accpath);
-	return match;
+		return (0);
+	}
+	if (acl_supported == 0) {
+		ret = pathconf(entry->fts_accpath, _PC_ACL_EXTENDED);
+		if (ret > 0) {
+			acl_supported = 1;
+			acl_type = ACL_TYPE_ACCESS;
+		} else if (ret < 0 && errno != EINVAL) {
+			warn("%s", entry->fts_accpath);
+			return (0);
+		}
+	}
+	if (acl_supported == 0)
+		return (0);
+
+	facl = acl_get_file(entry->fts_accpath, acl_type);
+	if (facl == NULL) {
+		warn("%s", entry->fts_accpath);
+		return (0);
+	}
+	ret = acl_is_trivial_np(facl, &trivial);
+	acl_free(facl);
+	if (ret) {
+		warn("%s", entry->fts_accpath);
+		acl_free(facl);
+		return (0);
+	}
+	if (trivial)
+		return (0);
+	return (1);
 }
 
 PLAN *
