@@ -288,11 +288,15 @@ AcpiNsCheckPredefinedNames (
     }
 
     /*
-     * We have a return value, but if one wasn't expected, just exit, this is
+     * 1) We have a return value, but if one wasn't expected, just exit, this is
      * not a problem. For example, if the "Implicit Return" feature is
      * enabled, methods will always return a value.
+     *
+     * 2) If the return value can be of any type, then we cannot perform any
+     * validation, exit.
      */
-    if (!Predefined->Info.ExpectedBtypes)
+    if ((!Predefined->Info.ExpectedBtypes) ||
+        (Predefined->Info.ExpectedBtypes == ACPI_RTYPE_ALL))
     {
         goto Cleanup;
     }

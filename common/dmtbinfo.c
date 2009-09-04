@@ -178,6 +178,7 @@
 #define ACPI_HEST8_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_AER_BRIDGE,f)
 #define ACPI_HEST9_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_GENERIC,f)
 #define ACPI_HESTN_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_NOTIFY,f)
+#define ACPI_HESTB_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_HEST_IA_ERROR_BANK,f)
 #define ACPI_IVRSH_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_IVRS_HEADER,f)
 #define ACPI_IVRS0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_IVRS_HARDWARE,f)
 #define ACPI_IVRS1_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_IVRS_MEMORY,f)
@@ -901,6 +902,25 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoHestNotify[] =
     {ACPI_DMT_UINT32,   ACPI_HESTN_OFFSET (PollingThresholdWindow), "Polling Threshold Window"},
     {ACPI_DMT_UINT32,   ACPI_HESTN_OFFSET (ErrorThresholdValue),    "Error Threshold Value"},
     {ACPI_DMT_UINT32,   ACPI_HESTN_OFFSET (ErrorThresholdWindow),   "Error Threshold Window"},
+    {ACPI_DMT_EXIT,     0,                                          NULL}
+};
+
+
+/*
+ * IA32 Error Bank(s) - Follows the ACPI_HEST_IA_MACHINE_CHECK and
+ * ACPI_HEST_IA_CORRECTED structures.
+ */
+ACPI_DMTABLE_INFO           AcpiDmTableInfoHestBank[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_HESTB_OFFSET (BankNumber),             "Bank Number"},
+    {ACPI_DMT_UINT8,    ACPI_HESTB_OFFSET (ClearStatusOnInit),      "Clear Status On Init"},
+    {ACPI_DMT_UINT8,    ACPI_HESTB_OFFSET (StatusFormat),           "Status Format"},
+    {ACPI_DMT_UINT8,    ACPI_HESTB_OFFSET (Reserved),               "Reserved"},
+    {ACPI_DMT_UINT32,   ACPI_HESTB_OFFSET (ControlRegister),        "Control Register"},
+    {ACPI_DMT_UINT64,   ACPI_HESTB_OFFSET (ControlData),            "Control Data"},
+    {ACPI_DMT_UINT32,   ACPI_HESTB_OFFSET (StatusRegister),         "Status Register"},
+    {ACPI_DMT_UINT32,   ACPI_HESTB_OFFSET (AddressRegister),        "Address Register"},
+    {ACPI_DMT_UINT32,   ACPI_HESTB_OFFSET (MiscRegister),           "Misc Register"},
     {ACPI_DMT_EXIT,     0,                                          NULL}
 };
 

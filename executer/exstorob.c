@@ -150,6 +150,13 @@ AcpiExStoreBufferToBuffer (
     ACPI_FUNCTION_TRACE_PTR (ExStoreBufferToBuffer, SourceDesc);
 
 
+    /* If Source and Target are the same, just return */
+
+    if (SourceDesc == TargetDesc)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
     /* We know that SourceDesc is a buffer by now */
 
     Buffer = ACPI_CAST_PTR (UINT8, SourceDesc->Buffer.Pointer);
@@ -247,6 +254,13 @@ AcpiExStoreStringToString (
 
     ACPI_FUNCTION_TRACE_PTR (ExStoreStringToString, SourceDesc);
 
+
+    /* If Source and Target are the same, just return */
+
+    if (SourceDesc == TargetDesc)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
 
     /* We know that SourceDesc is a string by now */
 

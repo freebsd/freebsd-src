@@ -490,7 +490,6 @@ AeHardwareInterfaces (
     UINT32                  Value;
 
 
-
     Status = AcpiWriteBitRegister (ACPI_BITREG_WAKE_STATUS, 1);
     Status = AcpiWriteBitRegister (ACPI_BITREG_GLOBAL_LOCK_ENABLE, 1);
     Status = AcpiWriteBitRegister (ACPI_BITREG_SLEEP_ENABLE, 1);

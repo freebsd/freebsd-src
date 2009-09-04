@@ -594,7 +594,7 @@ AcpiPsGetArguments (
                 if (WalkState->PassNumber == ACPI_IMODE_LOAD_PASS1)
                 {
                     AcpiPsLinkModuleCode (AmlOpStart,
-                        WalkState->ParserState.PkgEnd - AmlOpStart,
+                        (UINT32) (WalkState->ParserState.PkgEnd - AmlOpStart),
                         WalkState->OwnerId);
                 }
 
@@ -625,8 +625,9 @@ AcpiPsGetArguments (
                             "Detected an unsupported executable opcode "
                             "at module-level: [0x%.4X] at table offset 0x%.4X",
                             Op->Common.AmlOpcode,
-                            (AmlOpStart - WalkState->ParserState.AmlStart) +
-                                sizeof (ACPI_TABLE_HEADER)));
+                            (UINT32) (ACPI_PTR_DIFF (AmlOpStart,
+                                WalkState->ParserState.AmlStart) +
+                                sizeof (ACPI_TABLE_HEADER))));
                     }
                 }
                 break;
