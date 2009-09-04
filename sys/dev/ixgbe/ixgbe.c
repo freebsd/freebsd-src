@@ -759,7 +759,8 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
         struct mbuf     *next;
         int             err = 0;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
+	    (!adapter->link_active)) {
 		err = drbr_enqueue(ifp, txr->br, m);
 		return (err);
 	}
