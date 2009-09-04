@@ -1,4 +1,77 @@
 ----------------------------------------
+03 September 2009. Summary of changes for version 20090903:
+
+This release is available at www.acpica.org/downloads
+
+1) ACPI CA Core Subsystem:
+
+For Windows Vista compatibility, added the automatic execution of an _INI 
+method located at the namespace root (\_INI). This method is executed at 
+table load time. This support is in addition to the automatic execution of 
+\_SB._INI. Lin Ming.
+
+Fixed a possible memory leak in the interpreter for AML package objects if 
+the package initializer list is longer than the defined size of the package. 
+This apparently can only happen if the BIOS changes the package size on the 
+fly (seen in a _PSS object), as ASL compilers do not allow this. The 
+interpreter will truncate the package to the defined size (and issue an error 
+message), but previously could leave the extra objects undeleted if they were 
+pre-created during the argument processing (such is the case if the package 
+consists of a number of sub-packages as in the _PSS.) ACPICA BZ 805.
+
+Fixed a problem seen when a Buffer or String is stored to itself via ASL. 
+This has been reported in the field. Previously, ACPICA would zero out the 
+buffer/string. Now, the operation is treated as a noop. Provides Windows 
+compatibility. ACPICA BZ 803. Lin Ming.
+
+Removed an extraneous error message for ASL constructs of the form 
+Store(LocalX,LocalX) when LocalX is uninitialized. These curious statements 
+are seen in many BIOSs and are once again treated as NOOPs and no error is 
+emitted when they are encountered. ACPICA BZ 785.
+
+Fixed an extraneous warning message if a _DSM reserved method returns a 
+Package object. _DSM can return any type of object, so validation on the 
+return type cannot be performed. ACPICA BZ 802.
+
+Example Code and Data Size: These are the sizes for the OS-independent 
+acpica.lib produced by the Microsoft Visual C++ 6.0 32-bit compiler. The 
+debug version of the code includes the debug output trace mechanism and has a 
+much larger code and data size.
+
+  Previous Release:
+    Non-Debug Version:  85.5K Code, 18.0K Data, 103.5K Total
+    Debug Version:     161.6K Code, 50.9K Data, 212.5K Total
+  Current Release:
+    Non-Debug Version:  85.6K Code, 18.0K Data, 103.6K Total
+    Debug Version:     161.7K Code, 50.9K Data, 212.6K Total
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Fixed a problem with the use of the Alias operator and Resource 
+Templates. The correct alias is now constructed and no error is emitted. 
+ACPICA BZ 738.
+
+iASL: Implemented the -I option to specify additional search directories for 
+include files. Allows multiple additional search paths for include files. 
+Directories are searched in the order specified on the command line (after 
+the local directory is searched.) ACPICA BZ 800.
+
+iASL: Fixed a problem where the full pathname for include files was not 
+emitted for warnings/errors. This caused the IDE support to not work 
+properly. ACPICA BZ 765.
+
+iASL: Implemented the -@ option to specify a Windows-style response file 
+containing additional command line options. ACPICA BZ 801.
+
+AcpiExec: Added support to load multiple AML files simultaneously (such as a 
+DSDT and multiple SSDTs). Also added support for wildcards within the AML 
+pathname. These features allow all machine tables to be easily loaded and 
+debugged together. ACPICA BZ 804.
+
+Disassembler: Added missing support for disassembly of HEST table Error Bank 
+subtables. 
+
+----------------------------------------
 30 July 2009. Summary of changes for version 20090730:
 
 This release is available at www.acpica.org/downloads

@@ -747,6 +747,8 @@ AcpiDmDumpHest (
     UINT32                  Offset = sizeof (ACPI_TABLE_HEST);
     ACPI_DMTABLE_INFO       *InfoTable;
     UINT32                  SubTableLength;
+    UINT32                  BankCount;
+    ACPI_HEST_IA_ERROR_BANK *BankTable;
 
 
     /* Main table */
@@ -762,16 +764,21 @@ AcpiDmDumpHest (
     SubTable = ACPI_ADD_PTR (ACPI_HEST_HEADER, Table, Offset);
     while (Offset < Table->Length)
     {
+        BankCount = 0;
         switch (SubTable->Type)
         {
         case ACPI_HEST_TYPE_IA32_CHECK:
             InfoTable = AcpiDmTableInfoHest0;
             SubTableLength = sizeof (ACPI_HEST_IA_MACHINE_CHECK);
+            BankCount = (ACPI_CAST_PTR (ACPI_HEST_IA_MACHINE_CHECK,
+                            SubTable))->NumHardwareBanks;
             break;
 
         case ACPI_HEST_TYPE_IA32_CORRECTED_CHECK:
             InfoTable = AcpiDmTableInfoHest1;
             SubTableLength = sizeof (ACPI_HEST_IA_CORRECTED);
+            BankCount = (ACPI_CAST_PTR (ACPI_HEST_IA_CORRECTED,
+                            SubTable))->NumHardwareBanks;
             break;
 
         case ACPI_HEST_TYPE_IA32_NMI:
@@ -814,9 +821,34 @@ AcpiDmDumpHest (
             return;
         }
 
-        /* Point to next sub-table (each subtable is of fixed length) */
+        /* Point to end of current subtable (each subtable above is of fixed length) */
 
         Offset += SubTableLength;
+
+        /* If there are any (fixed-length) Error Banks from above, dump them now */
+
+        if (BankCount)
+        {
+            BankTable = ACPI_ADD_PTR (ACPI_HEST_IA_ERROR_BANK, SubTable, SubTableLength);
+            SubTableLength += BankCount * sizeof (ACPI_HEST_IA_ERROR_BANK);
+
+            while (BankCount)
+            {
+                AcpiOsPrintf ("\n");
+                Status = AcpiDmDumpTable (Length, Offset, BankTable,
+                            sizeof (ACPI_HEST_IA_ERROR_BANK), AcpiDmTableInfoHestBank);
+                if (ACPI_FAILURE (Status))
+                {
+                    return;
+                }
+                Offset += sizeof (ACPI_HEST_IA_ERROR_BANK);
+                BankTable++;
+                BankCount--;
+            }
+        }
+
+        /* Point to next sub-table */
+
         SubTable = ACPI_ADD_PTR (ACPI_HEST_HEADER, SubTable, SubTableLength);
     }
 }

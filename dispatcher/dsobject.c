@@ -570,15 +570,28 @@ AcpiDsBuildInternalPackageObj (
     {
         /*
          * NumElements was exhausted, but there are remaining elements in the
-         * PackageList.
+         * PackageList. Truncate the package to NumElements.
          *
          * Note: technically, this is an error, from ACPI spec: "It is an error
          * for NumElements to be less than the number of elements in the
-         * PackageList". However, for now, we just print an error message and
-         * no exception is returned.
+         * PackageList". However, we just print an error message and
+         * no exception is returned. This provides Windows compatibility. Some
+         * BIOSs will alter the NumElements on the fly, creating this type
+         * of ill-formed package object.
          */
         while (Arg)
         {
+            /*
+             * We must delete any package elements that were created earlier
+             * and are not going to be used because of the package truncation.
+             */
+            if (Arg->Common.Node)
+            {
+                AcpiUtRemoveReference (
+                    ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, Arg->Common.Node));
+                Arg->Common.Node = NULL;
+            }
+
             /* Find out how many elements there really are */
 
             i++;
@@ -586,7 +599,7 @@ AcpiDsBuildInternalPackageObj (
         }
 
         ACPI_ERROR ((AE_INFO,
-            "Package List length (%X) larger than NumElements count (%X), truncated\n",
+            "Package List length (0x%X) larger than NumElements count (0x%X), truncated\n",
             i, ElementCount));
     }
     else if (i < ElementCount)
@@ -596,7 +609,7 @@ AcpiDsBuildInternalPackageObj (
          * Note: this is not an error, the package is padded out with NULLs.
          */
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-            "Package List length (%X) smaller than NumElements count (%X), padded with null elements\n",
+            "Package List length (0x%X) smaller than NumElements count (0x%X), padded with null elements\n",
             i, ElementCount));
     }
 

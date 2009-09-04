@@ -255,6 +255,14 @@ typedef enum
 #define ASL_NUM_FILES           (ASL_MAX_FILE_TYPE + 1)
 
 
+typedef struct asl_include_dir
+{
+    char                        *Dir;
+    struct asl_include_dir      *Next;
+
+} ASL_INCLUDE_DIR;
+
+
 /* An entry in the exception list, one for each error/warning */
 
 typedef struct asl_error_msg

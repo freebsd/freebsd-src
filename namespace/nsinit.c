@@ -264,6 +264,22 @@ AcpiNsInitializeDevices (
         goto ErrorExit;
     }
 
+    /*
+     * Execute the "global" _INI method that may appear at the root. This
+     * support is provided for Windows compatibility (Vista+) and is not
+     * part of the ACPI specification.
+     */
+    Info.EvaluateInfo->PrefixNode = AcpiGbl_RootNode;
+    Info.EvaluateInfo->Pathname = METHOD_NAME__INI;
+    Info.EvaluateInfo->Parameters = NULL;
+    Info.EvaluateInfo->Flags = ACPI_IGNORE_RETURN_VALUE;
+
+    Status = AcpiNsEvaluate (Info.EvaluateInfo);
+    if (ACPI_SUCCESS (Status))
+    {
+        Info.Num_INI++;
+    }
+
     /* Walk namespace to execute all _INIs on present devices */
 
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
