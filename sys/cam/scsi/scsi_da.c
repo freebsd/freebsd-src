@@ -554,6 +554,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	{
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Netac", "OnlyDisk*",
 		 "2000"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Sony Cyber-Shot DSC cameras
+		 * PR: usb/137035
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE | DA_Q_NO_PREVENT
 	}
 };
 
