@@ -618,6 +618,7 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
+	m->md.pat_mode = PAT_WRITE_BACK;
 }
 
 /*
@@ -748,21 +749,6 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 	/* The PAT bit is different for PTE's and PDE's. */
 	pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
 
-	/* If we don't support PAT, map extended modes to older ones. */
-	if (!(cpu_feature & CPUID_PAT)) {
-		switch (mode) {
-		case PAT_UNCACHEABLE:
-		case PAT_WRITE_THROUGH:
-		case PAT_WRITE_BACK:
-			break;
-		case PAT_UNCACHED:
-		case PAT_WRITE_COMBINING:
-		case PAT_WRITE_PROTECTED:
-			mode = PAT_UNCACHEABLE;
-			break;
-		}
-	}
-	
 	/* Map the caching mode to a PAT index. */
 	switch (mode) {
 #ifdef PAT_WORKS
@@ -1134,7 +1120,8 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 	endpte = pte + count;
 	while (pte < endpte) {
 		oldpte |= *pte;
-		pte_store(pte, VM_PAGE_TO_PHYS(*ma) | PG_G | PG_RW | PG_V);
+		pte_store(pte, VM_PAGE_TO_PHYS(*ma) | PG_G |
+		    pmap_cache_bits((*ma)->md.pat_mode, 0) | PG_RW | PG_V);
 		pte++;
 		ma++;
 	}
@@ -3046,7 +3033,7 @@ validate:
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
-	newpte = (pt_entry_t)(pa | PG_V);
+	newpte = (pt_entry_t)(pa | pmap_cache_bits(m->md.pat_mode, 0) | PG_V);
 	if ((prot & VM_PROT_WRITE) != 0) {
 		newpte |= PG_RW;
 		vm_page_flag_set(m, PG_WRITEABLE);
@@ -3131,7 +3118,8 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 		    " in pmap %p", va, pmap);
 		return (FALSE);
 	}
-	newpde = VM_PAGE_TO_PHYS(m) | PG_PS | PG_V;
+	newpde = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 1) |
+	    PG_PS | PG_V;
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
 		newpde |= PG_MANAGED;
 
@@ -3318,7 +3306,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	pmap->pm_stats.resident_count++;
 
-	pa = VM_PAGE_TO_PHYS(m);
+	pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 0);
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		pa |= pg_nx;
 
@@ -3359,6 +3347,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 	pd_entry_t *pde;
 	vm_paddr_t pa, ptepa;
 	vm_page_t p, pdpg;
+	int pat_mode;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->type == OBJT_DEVICE,
@@ -3369,6 +3358,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		p = vm_page_lookup(object, pindex);
 		KASSERT(p->valid == VM_PAGE_BITS_ALL,
 		    ("pmap_object_init_pt: invalid page %p", p));
+		pat_mode = p->md.pat_mode;
 
 		/*
 		 * Abort the mapping if the first page is not physically
@@ -3380,21 +3370,28 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 
 		/*
 		 * Skip the first page.  Abort the mapping if the rest of
-		 * the pages are not physically contiguous.
+		 * the pages are not physically contiguous or have differing
+		 * memory attributes.
 		 */
 		p = TAILQ_NEXT(p, listq);
 		for (pa = ptepa + PAGE_SIZE; pa < ptepa + size;
 		    pa += PAGE_SIZE) {
 			KASSERT(p->valid == VM_PAGE_BITS_ALL,
 			    ("pmap_object_init_pt: invalid page %p", p));
-			if (pa != VM_PAGE_TO_PHYS(p))
+			if (pa != VM_PAGE_TO_PHYS(p) ||
+			    pat_mode != p->md.pat_mode)
 				return;
 			p = TAILQ_NEXT(p, listq);
 		}
 
-		/* Map using 2MB pages. */
+		/*
+		 * Map using 2MB pages.  Since "ptepa" is 2M aligned and
+		 * "size" is a multiple of 2M, adding the PAT setting to "pa"
+		 * will not affect the termination of this loop.
+		 */ 
 		PMAP_LOCK(pmap);
-		for (pa = ptepa; pa < ptepa + size; pa += NBPDR) {
+		for (pa = ptepa | pmap_cache_bits(pat_mode, 1); pa < ptepa +
+		    size; pa += NBPDR) {
 			pdpg = pmap_allocpde(pmap, addr, M_NOWAIT);
 			if (pdpg == NULL) {
 				/*
@@ -4302,6 +4299,26 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 		pmap_kremove(tmpva);
 	pmap_invalidate_range(kernel_pmap, va, tmpva);
 	kmem_free(kernel_map, base, size);
+}
+
+/*
+ * Sets the memory attribute for the specified page.
+ */
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+
+	m->md.pat_mode = ma;
+
+	/*
+	 * If "m" is a normal page, update its direct mapping.  This update
+	 * can be relied upon to perform any cache operations that are
+	 * required for data coherence.
+	 */
+	if ((m->flags & PG_FICTITIOUS) == 0 &&
+	    pmap_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
+	    m->md.pat_mode))
+		panic("memory attribute change on the direct map failed");
 }
 
 /*

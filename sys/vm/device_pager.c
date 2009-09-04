@@ -70,9 +70,9 @@ static struct mtx dev_pager_mtx;
 
 static uma_zone_t fakepg_zone;
 
-static vm_page_t dev_pager_getfake(vm_paddr_t);
+static vm_page_t dev_pager_getfake(vm_paddr_t, vm_memattr_t);
 static void dev_pager_putfake(vm_page_t);
-static void dev_pager_updatefake(vm_page_t, vm_paddr_t);
+static void dev_pager_updatefake(vm_page_t, vm_paddr_t, vm_memattr_t);
 
 struct pagerops devicepagerops = {
 	.pgo_init =	dev_pager_init,
@@ -194,7 +194,7 @@ dev_pager_dealloc(object)
 	/*
 	 * Free up our fake pages.
 	 */
-	while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist)) != 0) {
+	while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist)) != NULL) {
 		TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, pageq);
 		dev_pager_putfake(m);
 	}
@@ -209,7 +209,8 @@ dev_pager_getpages(object, m, count, reqpage)
 {
 	vm_pindex_t offset;
 	vm_paddr_t paddr;
-	vm_page_t page;
+	vm_page_t m_paddr, page;
+	vm_memattr_t memattr;
 	struct cdev *dev;
 	int i, ret;
 	int prot;
@@ -219,7 +220,9 @@ dev_pager_getpages(object, m, count, reqpage)
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	dev = object->handle;
-	offset = m[reqpage]->pindex;
+	page = m[reqpage];
+	offset = page->pindex;
+	memattr = object->memattr;
 	VM_OBJECT_UNLOCK(object);
 	csw = dev_refthread(dev);
 	if (csw == NULL)
@@ -233,14 +236,20 @@ dev_pager_getpages(object, m, count, reqpage)
 	KASSERT(ret == 0, ("dev_pager_getpage: map function returns error"));
 	td->td_fpop = fpop;
 	dev_relthread(dev);
-
-	if ((m[reqpage]->flags & PG_FICTITIOUS) != 0) {
+	/* If "paddr" is a real page, perform a sanity check on "memattr". */
+	if ((m_paddr = vm_phys_paddr_to_vm_page(paddr)) != NULL &&
+	    pmap_page_get_memattr(m_paddr) != memattr) {
+		memattr = pmap_page_get_memattr(m_paddr);
+		printf(
+	    "WARNING: A device driver has set \"memattr\" inconsistently.\n");
+	}
+	if ((page->flags & PG_FICTITIOUS) != 0) {
 		/*
 		 * If the passed in reqpage page is a fake page, update it with
 		 * the new physical address.
 		 */
 		VM_OBJECT_LOCK(object);
-		dev_pager_updatefake(m[reqpage], paddr);
+		dev_pager_updatefake(page, paddr, memattr);
 		if (count > 1) {
 			vm_page_lock_queues();
 			for (i = 0; i < count; i++) {
@@ -254,7 +263,7 @@ dev_pager_getpages(object, m, count, reqpage)
 		 * Replace the passed in reqpage page with our own fake page and
 		 * free up the all of the original pages.
 		 */
-		page = dev_pager_getfake(paddr);
+		page = dev_pager_getfake(paddr, memattr);
 		VM_OBJECT_LOCK(object);
 		TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist, page, pageq);
 		vm_page_lock_queues();
@@ -264,7 +273,7 @@ dev_pager_getpages(object, m, count, reqpage)
 		vm_page_insert(page, object, offset);
 		m[reqpage] = page;
 	}
-
+	page->valid = VM_PAGE_BITS_ALL;
 	return (VM_PAGER_OK);
 }
 
@@ -294,48 +303,48 @@ dev_pager_haspage(object, pindex, before, after)
 }
 
 /*
- * Instantiate a fictitious page.  Unlike physical memory pages, only
- * the machine-independent fields must be initialized.
+ * Create a fictitious page with the specified physical address and memory
+ * attribute.  The memory attribute is the only the machine-dependent aspect
+ * of a fictitious page that must be initialized.
  */
 static vm_page_t
-dev_pager_getfake(paddr)
-	vm_paddr_t paddr;
+dev_pager_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
 {
 	vm_page_t m;
 
-	m = uma_zalloc(fakepg_zone, M_WAITOK);
-
-	m->flags = PG_FICTITIOUS;
-	m->oflags = VPO_BUSY;
-	m->valid = VM_PAGE_BITS_ALL;
-	m->dirty = 0;
-	m->busy = 0;
-	m->queue = PQ_NONE;
-	m->object = NULL;
-
-	m->wire_count = 1;
-	m->hold_count = 0;
+	m = uma_zalloc(fakepg_zone, M_WAITOK | M_ZERO);
 	m->phys_addr = paddr;
-
+	/* Fictitious pages don't use "segind". */
+	m->flags = PG_FICTITIOUS;
+	/* Fictitious pages don't use "order" or "pool". */
+	m->oflags = VPO_BUSY;
+	m->wire_count = 1;
+	pmap_page_set_memattr(m, memattr);
 	return (m);
 }
 
+/*
+ * Release a fictitious page.
+ */
 static void
-dev_pager_putfake(m)
-	vm_page_t m;
+dev_pager_putfake(vm_page_t m)
 {
+
 	if (!(m->flags & PG_FICTITIOUS))
 		panic("dev_pager_putfake: bad page");
 	uma_zfree(fakepg_zone, m);
 }
 
+/*
+ * Update the given fictitious page to the specified physical address and
+ * memory attribute.
+ */
 static void
-dev_pager_updatefake(m, paddr)
-	vm_page_t m;
-	vm_paddr_t paddr;
+dev_pager_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr)
 {
+
 	if (!(m->flags & PG_FICTITIOUS))
 		panic("dev_pager_updatefake: bad page");
 	m->phys_addr = paddr;
-	m->valid = VM_PAGE_BITS_ALL;
+	pmap_page_set_memattr(m, memattr);
 }
