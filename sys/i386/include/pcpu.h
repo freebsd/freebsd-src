@@ -152,7 +152,7 @@ extern struct pcpu *pcpup;
 #define	__PCPU_GET(name) __extension__ ({				\
 	__pcpu_type(name) __res;					\
 	struct __s {							\
-		u_char	__b[MIN(sizeof(__res), 4)];		\
+		u_char	__b[MIN(sizeof(__res), 4)];			\
 	} __s;								\
 									\
 	if (sizeof(__res) == 1 || sizeof(__res) == 2 ||			\
@@ -174,7 +174,7 @@ extern struct pcpu *pcpup;
 #define	__PCPU_ADD(name, val) do {					\
 	__pcpu_type(name) __val;					\
 	struct __s {							\
-		u_char	__b[MIN(sizeof(__val), 4)];		\
+		u_char	__b[MIN(sizeof(__val), 4)];			\
 	} __s;								\
 									\
 	__val = (val);							\
