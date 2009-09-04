@@ -28,10 +28,6 @@
  * code written by Olivier Houchard.
  */
 
-/*
- * XXXMIPS: This file is hacked from arm/... . XXXMIPS here means this file is
- * experimental and was written for MIPS32 port.
- */
 #include "opt_uart.h"
 
 #include <sys/cdefs.h>
@@ -53,9 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-/*
- * XXXMIPS:
- */
 #include <mips/malta/maltareg.h>
 
 #include "uart_if.h"
