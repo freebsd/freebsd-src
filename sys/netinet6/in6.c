@@ -1192,9 +1192,10 @@ in6_purgeaddr(struct ifaddr *ifa)
 
 	/*
 	 * Remove the loopback route to the interface address.
-	 * The check for the current setting of "nd6_useloopback" is not needed.
+	 * The check for the current setting of "nd6_useloopback" 
+	 * is not needed.
 	 */
-	if (!(ia->ia_ifp->if_flags & IFF_LOOPBACK)) {
+	{
 		struct rt_addrinfo info;
 		struct sockaddr_dl null_sdl;
 
@@ -1767,7 +1768,9 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	/*
 	 * add a loopback route to self
 	 */
-	if (V_nd6_useloopback && !(ifp->if_flags & IFF_LOOPBACK)) {
+	if (!(ia->ia_flags & IFA_ROUTE)
+	    && (V_nd6_useloopback
+		|| (ifp->if_flags & IFF_LOOPBACK))) {
 		struct rt_addrinfo info;
 		struct rtentry *rt = NULL;
 		static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
@@ -1788,7 +1791,7 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 			RT_REMREF(rt);
 			RT_UNLOCK(rt);
 		} else if (error != 0)
-			log(LOG_INFO, "in6_ifinit: insertion failed\n");
+			log(LOG_INFO, "in6_ifinit: error = %d, insertion failed\n", error);
 	}
 
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
