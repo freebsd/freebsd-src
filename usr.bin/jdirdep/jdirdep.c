@@ -1025,7 +1025,10 @@ do_dirdep(const char *srctop, const char *curdir, const char *srcrel, const char
 			err(1, "Could not delete '%s/%s", curdir, MAKEFILED);
 
 #ifdef JDIRDEP
-		snprintf(cmd, sizeof(cmd), "jbuild gendirdep");
+		const char *p_jbuild;
+		if ((p_jbuild = getenv("JBUILD")) == NULL)
+			p_jbuild = "jbuild";
+		snprintf(cmd, sizeof(cmd), "%s gendirdep", p_jbuild);
 #else
 		snprintf(cmd, sizeof(cmd), "build gendirdep");
 #endif
