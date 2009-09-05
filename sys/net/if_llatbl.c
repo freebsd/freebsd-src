@@ -263,6 +263,15 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		    __func__, dl->sdl_index);
 		return EINVAL;
 	}
+	if (ifp->if_flags & IFF_LOOPBACK) {
+		struct ifaddr *ia;
+		ia = ifa_ifwithaddr(dst);
+		if (ia != NULL) {
+			ifp = ia->ifa_ifp;
+			ifa_free(ia);
+		} else 
+			return EINVAL;
+	}
 
 	switch (rtm->rtm_type) {
 	case RTM_ADD:
