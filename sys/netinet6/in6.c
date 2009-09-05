@@ -1201,8 +1201,8 @@ in6_purgeaddr(struct ifaddr *ifa)
 		bzero(&null_sdl, sizeof(null_sdl));
 		null_sdl.sdl_len = sizeof(null_sdl);
 		null_sdl.sdl_family = AF_LINK;
-		null_sdl.sdl_type = V_loif->if_type;
-		null_sdl.sdl_index = V_loif->if_index;
+		null_sdl.sdl_type = ia->ia_ifp->if_type;
+		null_sdl.sdl_index = ia->ia_ifp->if_index;
 		bzero(&info, sizeof(info));
 		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
 		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
@@ -1782,9 +1782,9 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		if (error == 0 && rt != NULL) {
 			RT_LOCK(rt);
 			((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-				rt->rt_ifp->if_type;
+				ifp->if_type;
 			((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-				rt->rt_ifp->if_index;
+				ifp->if_index;
 			RT_REMREF(rt);
 			RT_UNLOCK(rt);
 		} else if (error != 0)
@@ -2494,6 +2494,9 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 		struct sockaddr_dl	sdl;
 	} ndpc;
 	int i, error;
+
+	if (ifp->if_flags & IFF_LOOPBACK)
+		return 0;
 
 	LLTABLE_LOCK_ASSERT();
 
