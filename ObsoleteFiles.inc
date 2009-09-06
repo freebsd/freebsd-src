@@ -803,8 +803,6 @@ OLD_FILES+=rescue/bsdlabel
 OLD_FILES+=rescue/fdisk
 OLD_FILES+=rescue/gpt
 .endif
-# 20071026: kthread(9)/kproc(9) API changes
-OLD_FILES+=usr/share/man/man9/kthread_create.9.gz
 # 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
