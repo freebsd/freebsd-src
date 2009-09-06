@@ -120,7 +120,7 @@ struct camcontrol_opts {
 };
 
 #ifndef MINIMALISTIC
-static const char scsicmd_opts[] = "c:i:o:";
+static const char scsicmd_opts[] = "a:c:i:o:r";
 static const char readdefect_opts[] = "f:GP";
 static const char negotiate_opts[] = "acD:O:qR:T:UW:";
 #endif
@@ -2078,12 +2078,15 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	u_int32_t flags = CAM_DIR_NONE;
 	u_int8_t *data_ptr = NULL;
 	u_int8_t cdb[20];
+	u_int8_t atacmd[12];
 	struct get_hook hook;
 	int c, data_bytes = 0;
 	int cdb_len = 0;
-	char *datastr = NULL, *tstr;
+	int atacmd_len = 0;
+	int need_res = 0;
+	char *datastr = NULL, *tstr, *resstr = NULL;
 	int error = 0;
-	int fd_data = 0;
+	int fd_data = 0, fd_res = 0;
 	int retval;
 
 	ccb = cam_getccb(device);
@@ -2094,10 +2097,32 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	}
 
 	bzero(&(&ccb->ccb_h)[1],
-	      sizeof(struct ccb_scsiio) - sizeof(struct ccb_hdr));
+	      sizeof(union ccb) - sizeof(struct ccb_hdr));
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
+		case 'a':
+			tstr = optarg;
+			while (isspace(*tstr) && (*tstr != '\0'))
+				tstr++;
+			hook.argc = argc - optind;
+			hook.argv = argv + optind;
+			hook.got = 0;
+			atacmd_len = buff_encode_visit(atacmd, sizeof(atacmd), tstr,
+						    iget, &hook);
+			/*
+			 * Increment optind by the number of arguments the
+			 * encoding routine processed.  After each call to
+			 * getopt(3), optind points to the argument that
+			 * getopt should process _next_.  In this case,
+			 * that means it points to the first command string
+			 * argument, if there is one.  Once we increment
+			 * this, it should point to either the next command
+			 * line argument, or it should be past the end of
+			 * the list.
+			 */
+			optind += hook.got;
+			break;
 		case 'c':
 			tstr = optarg;
 			while (isspace(*tstr) && (*tstr != '\0'))
@@ -2194,6 +2219,16 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 						  iget, &hook);
 			optind += hook.got;
 			break;
+		case 'r':
+			need_res = 1;
+			hook.argc = argc - optind;
+			hook.argv = argv + optind;
+			hook.got = 0;
+			resstr = cget(&hook, NULL);
+			if ((resstr != NULL) && (resstr[0] == '-'))
+				fd_res = 1;
+			optind += hook.got;
+			break;
 		default:
 			break;
 		}
@@ -2226,50 +2261,51 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	/* Disable freezing the device queue */
 	flags |= CAM_DEV_QFRZDIS;
 
-	/*
-	 * This is taken from the SCSI-3 draft spec.
-	 * (T10/1157D revision 0.3)
-	 * The top 3 bits of an opcode are the group code.  The next 5 bits
-	 * are the command code.
-	 * Group 0:  six byte commands
-	 * Group 1:  ten byte commands
-	 * Group 2:  ten byte commands
-	 * Group 3:  reserved
-	 * Group 4:  sixteen byte commands
-	 * Group 5:  twelve byte commands
-	 * Group 6:  vendor specific
-	 * Group 7:  vendor specific
-	 */
-	switch((cdb[0] >> 5) & 0x7) {
-		case 0:
-			cdb_len = 6;
-			break;
-		case 1:
-		case 2:
-			cdb_len = 10;
-			break;
-		case 3:
-		case 6:
-		case 7:
-		        /* computed by buff_encode_visit */
-			break;
-		case 4:
-			cdb_len = 16;
-			break;
-		case 5:
-			cdb_len = 12;
-			break;
-	}
+	if (cdb_len) {
+		/*
+		 * This is taken from the SCSI-3 draft spec.
+		 * (T10/1157D revision 0.3)
+		 * The top 3 bits of an opcode are the group code.
+		 * The next 5 bits are the command code.
+		 * Group 0:  six byte commands
+		 * Group 1:  ten byte commands
+		 * Group 2:  ten byte commands
+		 * Group 3:  reserved
+		 * Group 4:  sixteen byte commands
+		 * Group 5:  twelve byte commands
+		 * Group 6:  vendor specific
+		 * Group 7:  vendor specific
+		 */
+		switch((cdb[0] >> 5) & 0x7) {
+			case 0:
+				cdb_len = 6;
+				break;
+			case 1:
+			case 2:
+				cdb_len = 10;
+				break;
+			case 3:
+			case 6:
+			case 7:
+			        /* computed by buff_encode_visit */
+				break;
+			case 4:
+				cdb_len = 16;
+				break;
+			case 5:
+				cdb_len = 12;
+				break;
+		}
 
-	/*
-	 * We should probably use csio_build_visit or something like that
-	 * here, but it's easier to encode arguments as you go.  The
-	 * alternative would be skipping the CDB argument and then encoding
-	 * it here, since we've got the data buffer argument by now.
-	 */
-	bcopy(cdb, &ccb->csio.cdb_io.cdb_bytes, cdb_len);
+		/*
+		 * We should probably use csio_build_visit or something like that
+		 * here, but it's easier to encode arguments as you go.  The
+		 * alternative would be skipping the CDB argument and then encoding
+		 * it here, since we've got the data buffer argument by now.
+		 */
+		bcopy(cdb, &ccb->csio.cdb_io.cdb_bytes, cdb_len);
 
-	cam_fill_csio(&ccb->csio,
+		cam_fill_csio(&ccb->csio,
 		      /*retries*/ retry_count,
 		      /*cbfcnp*/ NULL,
 		      /*flags*/ flags,
@@ -2279,6 +2315,21 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		      /*sense_len*/ SSD_FULL_SIZE,
 		      /*cdb_len*/ cdb_len,
 		      /*timeout*/ timeout ? timeout : 5000);
+	} else {
+		atacmd_len = 12;
+		bcopy(atacmd, &ccb->ataio.cmd.command, atacmd_len);
+		if (need_res)
+			ccb->ataio.cmd.flags |= CAM_ATAIO_NEEDRESULT;
+
+		cam_fill_ataio(&ccb->ataio,
+		      /*retries*/ retry_count,
+		      /*cbfcnp*/ NULL,
+		      /*flags*/ flags,
+		      /*tag_action*/ 0,
+		      /*data_ptr*/ data_ptr,
+		      /*dxfer_len*/ data_bytes,
+		      /*timeout*/ timeout ? timeout : 5000);
+	}
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
@@ -2296,6 +2347,28 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		goto scsicmd_bailout;
 	}
 
+	if (atacmd_len && need_res) {
+		if (fd_res == 0) {
+			buff_decode_visit(&ccb->ataio.res.status, 11, resstr,
+					  arg_put, NULL);
+			fprintf(stdout, "\n");
+		} else {
+			fprintf(stdout,
+			    "%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+			    ccb->ataio.res.status,
+			    ccb->ataio.res.error,
+			    ccb->ataio.res.lba_low,
+			    ccb->ataio.res.lba_mid,
+			    ccb->ataio.res.lba_high,
+			    ccb->ataio.res.device,
+			    ccb->ataio.res.lba_low_exp,
+			    ccb->ataio.res.lba_mid_exp,
+			    ccb->ataio.res.lba_high_exp,
+			    ccb->ataio.res.sector_count,
+			    ccb->ataio.res.sector_count_exp);
+			fflush(stdout);
+		}
+	}
 
 	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
 	 && (arglist & CAM_ARG_CMD_IN)
@@ -4029,8 +4102,9 @@ usage(int verbose)
 "        camcontrol defects    [dev_id][generic args] <-f format> [-P][-G]\n"
 "        camcontrol modepage   [dev_id][generic args] <-m page | -l>\n"
 "                              [-P pagectl][-e | -b][-d]\n"
-"        camcontrol cmd        [dev_id][generic args] <-c cmd [args]>\n"
-"                              [-i len fmt|-o len fmt [args]]\n"
+"        camcontrol cmd        [dev_id][generic args]\n"
+"                              <-a cmd [args] | -c cmd [args]>\n"
+"                              [-i len fmt|-o len fmt [args]] [-r fmt]\n"
 "        camcontrol debug      [-I][-P][-T][-S][-X][-c]\n"
 "                              <all|bus[:target[:lun]]|off>\n"
 "        camcontrol tags       [dev_id][generic args] [-N tags] [-q] [-v]\n"
