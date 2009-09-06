@@ -918,15 +918,14 @@ key_allocsa_policy(const struct secasindex *saidx)
 				state_valid = saorder_state_valid_prefer_new;
 				arraysize = N(saorder_state_valid_prefer_new);
 			}
-			SAHTREE_UNLOCK();
-			goto found;
+			break;
 		}
 	}
 	SAHTREE_UNLOCK();
 
-	return NULL;
+	if (sah == NULL)
+		return NULL;
 
-    found:
 	/* search valid state */
 	for (stateidx = 0; stateidx < arraysize; stateidx++) {
 		sav = key_do_allocsa_policy(sah, state_valid[stateidx]);
