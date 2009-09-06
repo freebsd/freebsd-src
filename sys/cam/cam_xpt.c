@@ -4605,7 +4605,7 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 					      CAM_TARGET_WILDCARD,
 					      CAM_LUN_WILDCARD)) !=CAM_REQ_CMP){
 			printf("xptconfigfunc: xpt_create_path failed with "
-			       "status %#x for bus %d\n", status, bus->path_id);
+			       "status %#x for scbus%d\n", status, bus->path_id);
 			printf("xptconfigfunc: halting bus configuration\n");
 			xpt_free_ccb(work_ccb);
 			busses_to_config--;
@@ -4616,7 +4616,7 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 		work_ccb->ccb_h.func_code = XPT_PATH_INQ;
 		xpt_action(work_ccb);
 		if (work_ccb->ccb_h.status != CAM_REQ_CMP) {
-			printf("xptconfigfunc: CPI failed on bus %d "
+			printf("xptconfigfunc: CPI failed on scbus%d "
 			       "with status %d\n", bus->path_id,
 			       work_ccb->ccb_h.status);
 			xpt_finishconfig(xpt_periph, work_ccb);
