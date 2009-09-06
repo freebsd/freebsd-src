@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
  * the pts(4) driver. We just call into pts(4) to create the actual PTY.
  * To make sure we don't use the same PTY multiple times, we abuse
  * si_drv1 inside the cdev to mark whether the PTY is in use.
+ *
+ * It also implements a /dev/ptmx device node, which is useful for Linux
+ * binary emulation.
  */
 
 static unsigned int pty_warningcnt = 1;
@@ -119,12 +122,27 @@ pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
 }
 
 static int
+ptmx_fdopen(struct cdev *dev __unused, int fflags, struct thread *td,
+    struct file *fp)
+{
+
+	return (pts_alloc(fflags & (FREAD|FWRITE), td, fp));
+}
+
+static struct cdevsw ptmx_cdevsw = {
+	.d_version	= D_VERSION,
+	.d_fdopen	= ptmx_fdopen,
+	.d_name		= "ptmx",
+};
+
+static int
 pty_modevent(module_t mod, int type, void *data)
 {
 
         switch(type) {
         case MOD_LOAD: 
 		EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
+		make_dev(&ptmx_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "ptmx");
 		break;
 	case MOD_SHUTDOWN:
 		break;
