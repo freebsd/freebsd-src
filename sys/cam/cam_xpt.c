@@ -1033,11 +1033,12 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	 * To ensure that this is printed in one piece,
 	 * mask out CAM interrupts.
 	 */
-	printf("%s%d at %s%d bus %d target %d lun %d\n",
+	printf("%s%d at %s%d bus %d scbus%d target %d lun %d\n",
 	       periph->periph_name, periph->unit_number,
 	       path->bus->sim->sim_name,
 	       path->bus->sim->unit_number,
 	       path->bus->sim->bus_id,
+	       path->bus->path_id,
 	       path->target->target_id,
 	       path->device->lun_id);
 	printf("%s%d: ", periph->periph_name, periph->unit_number);
