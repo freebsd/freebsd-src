@@ -906,8 +906,8 @@ key_allocsa_policy(const struct secasindex *saidx)
 	u_int stateidx, arraysize;
 	const u_int *state_valid;
 
-	state_valid = NULL;	/* silent gcc */
-	arraysize = 0;		/* silent gcc */
+	state_valid = NULL;	/* silence gcc */
+	arraysize = 0;		/* silence gcc */
 
 	SAHTREE_LOCK();
 	LIST_FOREACH(sah, &V_sahtree, chain) {
