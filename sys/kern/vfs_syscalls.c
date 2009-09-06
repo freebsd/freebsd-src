@@ -4439,12 +4439,15 @@ fhopen(td, uap)
 			goto bad;
 	}
 	if (fmode & O_TRUNC) {
+		vfs_ref(mp);
 		VOP_UNLOCK(vp, 0);				/* XXX */
 		if ((error = vn_start_write(NULL, &mp, V_WAIT | PCATCH)) != 0) {
 			vrele(vp);
+			vfs_rel(mp);
 			goto out;
 		}
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);	/* XXX */
+		vfs_rel(mp);
 #ifdef MAC
 		/*
 		 * We don't yet have fp->f_cred, so use td->td_ucred, which
@@ -4516,7 +4519,6 @@ fhopen(td, uap)
 
 	VOP_UNLOCK(vp, 0);
 	fdrop(fp, td);
-	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	td->td_retval[0] = indx;
 	return (0);
