@@ -382,8 +382,7 @@ vm_phys_paddr_to_vm_page(vm_paddr_t pa)
 		if (pa >= seg->start && pa < seg->end)
 			return (&seg->first_page[atop(pa - seg->start)]);
 	}
-	panic("vm_phys_paddr_to_vm_page: paddr %#jx is not in any segment",
-	    (uintmax_t)pa);
+	return (NULL);
 }
 
 /*
