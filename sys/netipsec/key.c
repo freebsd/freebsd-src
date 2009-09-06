@@ -906,6 +906,9 @@ key_allocsa_policy(const struct secasindex *saidx)
 	u_int stateidx, arraysize;
 	const u_int *state_valid;
 
+	state_valid = NULL;	/* silent gcc */
+	arraysize = 0;		/* silent gcc */
+
 	SAHTREE_LOCK();
 	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
@@ -922,7 +925,6 @@ key_allocsa_policy(const struct secasindex *saidx)
 		}
 	}
 	SAHTREE_UNLOCK();
-
 	if (sah == NULL)
 		return NULL;
 
