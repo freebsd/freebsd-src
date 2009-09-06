@@ -202,6 +202,7 @@ void	tty_info(struct tty *tp);
 void	ttyconsdev_select(const char *name);
 
 /* Pseudo-terminal hooks. */
+int	pts_alloc(int fflags, struct thread *td, struct file *fp);
 int	pts_alloc_external(int fd, struct thread *td, struct file *fp,
     struct cdev *dev, const char *name);
 
