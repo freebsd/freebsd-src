@@ -302,7 +302,7 @@ Internet protocols.
 .It Er 48 EADDRINUSE Em "Address already in use" .
 Only one usage of each address is normally permitted.
 .Pp
-.It Er 49 EADDRNOTAVAIL Em "Cannot assign requested address" .
+.It Er 49 EADDRNOTAVAIL Em "Can't assign requested address" .
 Normally results from an attempt to create a socket with an
 address not on this machine.
 .It Er 50 ENETDOWN Em "Network is down" .
@@ -335,7 +335,7 @@ when already connected.
 An request to send or receive data was disallowed because
 the socket was not connected and (when sending on a datagram socket)
 no address was supplied.
-.It Er 58 ESHUTDOWN Em "Cannot send after socket shutdown" .
+.It Er 58 ESHUTDOWN Em "Can't send after socket shutdown" .
 A request to send data was disallowed because the socket
 had already been shut down with a previous
 .Xr shutdown 2
