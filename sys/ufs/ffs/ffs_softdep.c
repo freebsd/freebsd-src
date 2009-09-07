@@ -668,6 +668,8 @@ static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
 static int req_clear_remove;	/* syncer process flush some freeblks */
 #define FLUSH_REMOVE		2
 #define FLUSH_REMOVE_WAIT	3
+static long num_freeblkdep;	/* number of freeblks workitems allocated */
+
 /*
  * runtime statistics
  */
@@ -2195,6 +2197,9 @@ softdep_setup_freeblocks(ip, length, flags)
 	freeblks->fb_uid = ip->i_uid;
 	freeblks->fb_previousinum = ip->i_number;
 	freeblks->fb_devvp = ip->i_devvp;
+	ACQUIRE_LOCK(&lk);
+	num_freeblkdep++;
+	FREE_LOCK(&lk);
 	extblocks = 0;
 	if (fs->fs_magic == FS_UFS2_MAGIC)
 		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
@@ -2784,6 +2789,7 @@ handle_workitem_freeblocks(freeblks, flags)
 
 	ACQUIRE_LOCK(&lk);
 	WORKITEM_FREE(freeblks, D_FREEBLKS);
+	num_freeblkdep--;
 	FREE_LOCK(&lk);
 }
 
@@ -5708,7 +5714,8 @@ softdep_slowdown(vp)
 	max_softdeps_hard = max_softdeps * 11 / 10;
 	if (num_dirrem < max_softdeps_hard / 2 &&
 	    num_inodedep < max_softdeps_hard &&
-	    VFSTOUFS(vp->v_mount)->um_numindirdeps < maxindirdeps) {
+	    VFSTOUFS(vp->v_mount)->um_numindirdeps < maxindirdeps &&
+	    num_freeblkdep < max_softdeps_hard) {
 		FREE_LOCK(&lk);
   		return (0);
 	}
