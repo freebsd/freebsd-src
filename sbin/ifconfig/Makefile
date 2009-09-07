@@ -25,6 +25,7 @@ SRCS+=	ifmedia.c		# SIOC[GS]IFMEDIA support
 SRCS+=	ifvlan.c		# SIOC[GS]ETVLAN support
 SRCS+=	ifieee80211.c		# SIOC[GS]IEEE80211 support
 SRCS+=	ifgre.c			# GRE keys etc
+SRCS+=	ifgif.c			# GIF reversed header workaround
 
 SRCS+=	ifcarp.c		# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
