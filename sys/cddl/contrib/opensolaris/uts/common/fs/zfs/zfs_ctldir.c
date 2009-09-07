@@ -669,9 +669,12 @@ zfsctl_snapdir_remove(vnode_t *dvp, char *name, vnode_t *cwd, cred_t *cr,
 	if (sep) {
 		avl_remove(&sdp->sd_snaps, sep);
 		err = zfsctl_unmount_snap(sep, MS_FORCE, cr);
-		if (err)
-			avl_add(&sdp->sd_snaps, sep);
-		else
+		if (err) {
+			avl_index_t where;
+
+			if (avl_find(&sdp->sd_snaps, sep, &where) == NULL)
+				avl_insert(&sdp->sd_snaps, sep, where);
+		} else
 			err = dmu_objset_destroy(snapname);
 	} else {
 		err = ENOENT;
@@ -1344,6 +1347,8 @@ zfsctl_umount_snapshots(vfs_t *vfsp, int fflags, cred_t *cr)
 		if (vn_ismntpt(sep->se_root)) {
 			error = zfsctl_unmount_snap(sep, fflags, cr);
 			if (error) {
+				avl_index_t where;
+
 				/*
 				 * Before reinserting snapshot to the tree,
 				 * check if it was actually removed. For example
@@ -1351,8 +1356,8 @@ zfsctl_umount_snapshots(vfs_t *vfsp, int fflags, cred_t *cr)
 				 * have an error here, but there will be no need
 				 * to reinsert snapshot.
 				 */
-				if (avl_find(&sdp->sd_snaps, sep, NULL) == NULL)
-					avl_add(&sdp->sd_snaps, sep);
+				if (avl_find(&sdp->sd_snaps, sep, &where) == NULL)
+					avl_insert(&sdp->sd_snaps, sep, where);
 				break;
 			}
 		}
