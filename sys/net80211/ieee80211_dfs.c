@@ -235,7 +235,7 @@ dfs_timeout(void *arg)
 	}
 	if (oldest != now) {
 		/* arrange to process next channel up for a status change */
-		callout_schedule(&dfs->nol_timer, oldest + NOL_TIMEOUT);
+		callout_schedule(&dfs->nol_timer, oldest + NOL_TIMEOUT - now);
 	}
 }
 
