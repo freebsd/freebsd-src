@@ -1419,6 +1419,7 @@ dsl_dataset_drain_refs(dsl_dataset_t *ds, void *tag)
 {
 	struct refsarg arg;
 
+	bzero(&arg, sizeof(arg));
 	mutex_init(&arg.lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&arg.cv, NULL, CV_DEFAULT, NULL);
 	arg.gone = FALSE;
