@@ -51,38 +51,22 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
-static void	gif_status(int);
+#define	GIFBITS	"\020\1ACCEPT_REV_ETHIP_VER\5SEND_REV_ETHIP_VER"
 
-static struct {
-	const char	*label;
-	u_int		mask;
-} gif_opts[] = {
-	{ "ACCEPT_REV_ETHIP_VER",	GIF_ACCEPT_REVETHIP	},
-	{ "SEND_REV_ETHIP_VER",		GIF_SEND_REVETHIP	},
-};
+static void	gif_status(int);
 
 static void
 gif_status(int s)
 {
 	int opts;
-	int nopts = 0;
-	size_t i;
 
 	ifr.ifr_data = (caddr_t)&opts;
 	if (ioctl(s, GIFGOPTS, &ifr) == -1)
 		return;
 	if (opts == 0)
 		return;
-
-	printf("\toptions=%d<", opts);
-	for (i=0; i < sizeof(gif_opts)/sizeof(gif_opts[0]); i++) {
-		if (opts & gif_opts[i].mask) {
-			if (nopts++)
-				printf(",");
-			printf("%s", gif_opts[i].label);
-		}
-	}
-	printf(">\n");
+	printb("\toptions", opts, GIFBITS);
+	putchar('\n');
 }
 
 static void
