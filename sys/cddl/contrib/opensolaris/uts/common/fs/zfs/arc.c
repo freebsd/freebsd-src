@@ -3567,7 +3567,7 @@ arc_init(void)
 	if ((((uint64_t)physmem * PAGESIZE) < (1ULL << 32)) &&
 	    prefetch_tunable_set == 0) {
 		printf("ZFS NOTICE: Prefetch is disabled by default if less "
-		    "than 4 GB of RAM is present;\n"
+		    "than 4GB of RAM is present;\n"
 		    "            to enable, add \"vfs.zfs.prefetch_disable=0\" "
 		    "to /boot/loader.conf.\n");
 		zfs_prefetch_disable=1;
