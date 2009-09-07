@@ -193,6 +193,7 @@ retry:
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	error = insmntque(*vpp, mp);
 	if (error != 0) {
+		free(pvd, M_PFSVNCACHE);
 		*vpp = NULLVP;
 		return (error);
 	}
