@@ -100,6 +100,7 @@ int	 rawcpu;		/* -C */
 int	 sumrusage;		/* -S */
 int	 termwidth;		/* Width of the screen (0 == infinity). */
 int	 totwidth;		/* Calculated-width of requested variables. */
+int	 showthreads;		/* will threads be shown? */
 
 struct velisthead varlist = STAILQ_HEAD_INITIALIZER(varlist);
 
@@ -178,7 +179,7 @@ main(int argc, char *argv[])
 	char *cols;
 	int all, ch, elem, flag, _fmt, i, lineno;
 	int descendancy, nentries, nkept, nselectors;
-	int prtheader, showthreads, wflag, what, xkeep, xkeep_implied;
+	int prtheader, wflag, what, xkeep, xkeep_implied;
 	char errbuf[_POSIX2_LINE_MAX];
 
 	(void) setlocale(LC_ALL, "");
