@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2006
+.Dd August 7, 2009
 .Dt IPS 4
 .Os
 .Sh NAME
@@ -95,6 +95,8 @@ ServeRAID 7t/7k/7M
 .Pp
 Newer ServeRAID controllers are supported by the
 .Xr aac 4
+or
+.Xr mfi 4
 driver.
 .Sh DIAGNOSTICS
 Several error codes may be shown when the card initializes the
@@ -185,6 +187,7 @@ driver does not use the
 subsystem.
 .Sh SEE ALSO
 .Xr aac 4 ,
+.Xr mfi 4 ,
 .Xr ch 4 ,
 .Xr da 4 ,
 .Xr sysctl 8
