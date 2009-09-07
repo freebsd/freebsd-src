@@ -246,11 +246,13 @@ pfs_vncache_free(struct vnode *vp)
 	KASSERT(pvd != NULL, ("pfs_vncache_free(): no vnode data\n"));
 	if (pvd->pvd_next)
 		pvd->pvd_next->pvd_prev = pvd->pvd_prev;
-	if (pvd->pvd_prev)
+	if (pvd->pvd_prev) {
 		pvd->pvd_prev->pvd_next = pvd->pvd_next;
-	else if (pfs_vncache == pvd)
+		--pfs_vncache_entries;
+	} else if (pfs_vncache == pvd) {
 		pfs_vncache = pvd->pvd_next;
-	--pfs_vncache_entries;
+		--pfs_vncache_entries;
+	}
 	mtx_unlock(&pfs_vncache_mutex);
 
 	free(pvd, M_PFSVNCACHE);
