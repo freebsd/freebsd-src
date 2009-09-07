@@ -71,6 +71,8 @@ gif_status(int s)
 	ifr.ifr_data = (caddr_t)&opts;
 	if (ioctl(s, GIFGOPTS, &ifr) == -1)
 		return;
+	if (opts == 0)
+		return;
 
 	printf("\toptions=%d<", opts);
 	for (i=0; i < sizeof(gif_opts)/sizeof(gif_opts[0]); i++) {
