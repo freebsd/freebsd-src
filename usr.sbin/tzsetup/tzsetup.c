@@ -648,10 +648,13 @@ main(int argc, char **argv)
 	dialog_utc = dialog_noyes;
 #endif
 
-	while ((c = getopt(argc, argv, "n")) != -1) {
+	while ((c = getopt(argc, argv, "ns")) != -1) {
 		switch(c) {
 		case 'n':
 			reallydoit = 0;
+			break;
+		case 's':
+			dialog_utc = NULL;
 			break;
 
 		default:
@@ -671,22 +674,25 @@ main(int argc, char **argv)
 	make_menus();
 
 	init_dialog();
-	if (!dialog_utc("Select local or UTC (Greenwich Mean Time) clock",
-			"Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
-			"or you don't know, please choose NO here!", 7, 72)) {
-		if (reallydoit)
-			unlink(_PATH_WALL_CMOS_CLOCK);
-	} else {
-		if (reallydoit) {
-			fd = open(_PATH_WALL_CMOS_CLOCK,
-				  O_WRONLY|O_CREAT|O_TRUNC,
-				  S_IRUSR|S_IRGRP|S_IROTH);
-			if (fd < 0)
-				err(1, "create %s", _PATH_WALL_CMOS_CLOCK);
-			close(fd);
+	if (dialog_utc != NULL) {
+		if (!dialog_utc("Select local or UTC (Greenwich Mean Time) clock",
+		    "Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
+		    "or you don't know, please choose NO here!", 7, 72)) {
+			if (reallydoit)
+				unlink(_PATH_WALL_CMOS_CLOCK);
+		} else {
+			if (reallydoit) {
+				fd = open(_PATH_WALL_CMOS_CLOCK,
+				    O_WRONLY|O_CREAT|O_TRUNC,
+				    S_IRUSR|S_IRGRP|S_IROTH);
+				if (fd < 0)
+					err(1, "create %s",
+					    _PATH_WALL_CMOS_CLOCK);
+				close(fd);
+			}
 		}
+		dialog_clear_norefresh();
 	}
-	dialog_clear_norefresh();
 	if (optind == argc - 1) {
 		char *msg;
 		asprintf(&msg, "\nUse the default `%s' zone?", argv[optind]);
