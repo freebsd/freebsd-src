@@ -37,6 +37,7 @@
 #include <sys/sched.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/unistd.h>
 #include <sys/debug.h>
 
 #ifdef _KERNEL
@@ -74,11 +75,12 @@ thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 	ASSERT(state == TS_RUN);
 	ASSERT(pp == &p0);
 
-	error = kproc_kthread_add(proc, arg, &zfsproc, &td, 0,
+	error = kproc_kthread_add(proc, arg, &zfsproc, &td, RFSTOPPED,
 	    stksize / PAGE_SIZE, "zfskern", "solthread %p", proc);
 	if (error == 0) {
 		thread_lock(td);
 		sched_prio(td, pri);
+		sched_add(td, SRQ_BORING);
 		thread_unlock(td);
 	}
 	return (td);
