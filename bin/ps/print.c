@@ -186,6 +186,7 @@ command(KINFO *k, VARENT *ve)
 void
 ucomm(KINFO *k, VARENT *ve)
 {
+	char tmpbuff[COMMLEN + OCOMMLEN + 2];
 	VAR *v;
 
 	v = ve->var;
@@ -193,8 +194,15 @@ ucomm(KINFO *k, VARENT *ve)
 		if (k->ki_d.prefix)
 			(void)printf("%s", k->ki_d.prefix);
 		(void)printf("%s", k->ki_p->ki_comm);
-	} else
-		(void)printf("%-*s", v->width, k->ki_p->ki_comm);
+	} else {
+		bzero(tmpbuff, sizeof(tmpbuff));
+		if (showthreads && k->ki_p->ki_numthreads > 1)
+			sprintf(tmpbuff, "%s/%s", k->ki_p->ki_comm,
+			    k->ki_p->ki_ocomm);
+		else
+			sprintf(tmpbuff, "%s", k->ki_p->ki_comm);
+		(void)printf("%-*s", v->width, tmpbuff);
+	}
 }
 
 void
@@ -819,6 +827,20 @@ out:
 	} else
 		(void)printf("%-*s", v->width, "  -");
 	return;
+}
+
+int
+s_comm(KINFO *k)
+{
+	char tmpbuff[COMMLEN + OCOMMLEN + 2];
+
+	bzero(tmpbuff, sizeof(tmpbuff));
+	if (showthreads && k->ki_p->ki_numthreads > 1)
+		sprintf(tmpbuff, "%s/%s", k->ki_p->ki_comm,
+		    k->ki_p->ki_ocomm);
+	else
+		sprintf(tmpbuff, "%s", k->ki_p->ki_comm);
+	return (strlen(tmpbuff));
 }
 
 int
