@@ -96,6 +96,17 @@ extern int maxusers;		/* system tune hint */
 #endif
 
 /*
+ * Assert that a pointer can be loaded from memory atomically.
+ *
+ * This assertion enforces stronger alignment than necessary.  For example,
+ * on some architectures, atomicity for unaligned loads will depend on
+ * whether or not the load spans multiple cache lines.
+ */
+#define	ASSERT_ATOMIC_LOAD_PTR(var, msg)				\
+	KASSERT(sizeof(var) == sizeof(void *) &&			\
+	    ((uintptr_t)&(var) & (sizeof(void *) - 1)) == 0, msg)
+
+/*
  * XXX the hints declarations are even more misplaced than most declarations
  * in this file, since they are needed in one file (per arch) and only used
  * in two files.
