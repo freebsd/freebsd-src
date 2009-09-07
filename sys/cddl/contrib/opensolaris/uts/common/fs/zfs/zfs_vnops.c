@@ -3834,7 +3834,15 @@ zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
 #endif
 
 	case _PC_ACL_EXTENDED:
-		*valp = 0;	/* TODO */
+		*valp = 0;
+		return (0);
+
+	case _PC_ACL_NFS4:
+		*valp = 1;
+		return (0);
+
+	case _PC_ACL_PATH_MAX:
+		*valp = ACL_MAX_ENTRIES;
 		return (0);
 
 	case _PC_MIN_HOLE_SIZE:
@@ -4425,6 +4433,26 @@ zfs_freebsd_pathconf(ap)
 	return (error);
 }
 
+static int
+zfs_freebsd_fifo_pathconf(ap)
+	struct vop_pathconf_args /* {
+		struct vnode *a_vp;
+		int a_name;
+		register_t *a_retval;
+	} */ *ap;
+{
+
+	switch (ap->a_name) {
+	case _PC_ACL_EXTENDED:
+	case _PC_ACL_NFS4:
+	case _PC_ACL_PATH_MAX:
+	case _PC_MAC_PRESENT:
+		return (zfs_freebsd_pathconf(ap));
+	default:
+		return (fifo_specops.vop_pathconf(ap));
+	}
+}
+
 /*
  * FreeBSD's extended attributes namespace defines file name prefix for ZFS'
  * extended attribute name:
@@ -4854,7 +4882,7 @@ zfs_freebsd_setacl(ap)
 		return (EINVAL);
 
 	/*
-	 * With NFS4 ACLs, chmod(2) may need to add additional entries,
+	 * With NFSv4 ACLs, chmod(2) may need to add additional entries,
 	 * splitting every entry into two and appending "canonical six"
 	 * entries at the end.  Don't allow for setting an ACL that would
 	 * cause chmod(2) to run out of ACL entries.
@@ -4928,11 +4956,9 @@ struct vop_vector zfs_vnodeops = {
 	.vop_deleteextattr =	zfs_deleteextattr,
 	.vop_setextattr =	zfs_setextattr,
 	.vop_listextattr =	zfs_listextattr,
-#ifdef notyet
 	.vop_getacl =		zfs_freebsd_getacl,
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
-#endif
 };
 
 struct vop_vector zfs_fifoops = {
@@ -4945,10 +4971,9 @@ struct vop_vector zfs_fifoops = {
 	.vop_reclaim =		zfs_freebsd_reclaim,
 	.vop_setattr =		zfs_freebsd_setattr,
 	.vop_write =		VOP_PANIC,
+	.vop_pathconf = 	zfs_freebsd_fifo_pathconf,
 	.vop_fid =		zfs_freebsd_fid,
-#ifdef notyet
 	.vop_getacl =		zfs_freebsd_getacl,
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
-#endif
 };
