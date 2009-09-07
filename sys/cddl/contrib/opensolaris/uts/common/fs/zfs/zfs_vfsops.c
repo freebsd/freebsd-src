@@ -719,7 +719,10 @@ zfs_mount(vfs_t *vfsp)
 	error = secpolicy_fs_mount(cr, mvp, vfsp);
 	if (error) {
 		error = dsl_deleg_access(osname, ZFS_DELEG_PERM_MOUNT, cr);
-		if (error == 0) {
+		if (error != 0)
+			goto out;
+
+		if (!(vfsp->vfs_flag & MS_REMOUNT)) {
 			vattr_t		vattr;
 
 			/*
@@ -753,11 +756,9 @@ zfs_mount(vfs_t *vfsp)
 			}
 			VOP_UNLOCK(mvp, 0);
 #endif
-
-			secpolicy_fs_mount_clearopts(cr, vfsp);
-		} else {
-			goto out;
 		}
+
+		secpolicy_fs_mount_clearopts(cr, vfsp);
 	}
 
 	/*
