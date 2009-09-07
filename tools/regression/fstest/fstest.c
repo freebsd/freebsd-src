@@ -45,6 +45,9 @@
 #define	stat64	stat
 #define	lstat64	lstat
 #endif
+#ifdef HAS_FREEBSD_ACL
+#include <sys/acl.h>
+#endif
 
 #ifndef ALLPERMS
 #define	ALLPERMS	(S_ISUID|S_ISGID|S_ISVTX|S_IRWXU|S_IRWXG|S_IRWXO)
@@ -75,7 +78,12 @@ enum action {
 	ACTION_TRUNCATE,
 	ACTION_STAT,
 	ACTION_LSTAT,
-	ACTION_PATHCONF
+	ACTION_PATHCONF,
+#ifdef HAS_FREEBSD_ACL
+	ACTION_PREPENDACL,
+	ACTION_READACL,
+#endif
+	ACTION_WRITE,
 };
 
 #define	TYPE_NONE	0x0000
@@ -118,6 +126,11 @@ static struct syscall_desc syscalls[] = {
 	{ "stat", ACTION_STAT, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "lstat", ACTION_LSTAT, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "pathconf", ACTION_PATHCONF, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#ifdef HAS_FREEBSD_ACL
+	{ "prependacl", ACTION_PREPENDACL, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+	{ "readacl", ACTION_READACL, { TYPE_STRING, TYPE_NONE } },
+#endif
+	{ "write", ACTION_WRITE, { TYPE_STRING, TYPE_NONE } },
 	{ NULL, -1, { TYPE_NONE } }
 };
 
@@ -397,6 +410,11 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		char *str;
 		long long num;
 	} args[MAX_ARGS];
+#ifdef HAS_FREEBSD_ACL
+	int entry_id = ACL_FIRST_ENTRY;
+	acl_t acl, newacl;
+	acl_entry_t entry, newentry;
+#endif
 
 	/*
 	 * Verify correctness of the arguments.
@@ -540,6 +558,48 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		rval = -1;
 		break;
 	    }
+#ifdef HAS_FREEBSD_ACL
+	case ACTION_PREPENDACL:
+		rval = -1;
+
+		acl = acl_get_file(STR(0), ACL_TYPE_NFS4);
+		if (acl == NULL)
+			break;
+
+		newacl = acl_from_text(STR(1));
+		if (acl == NULL)
+			break;
+
+		while (acl_get_entry(newacl, entry_id, &newentry) == 1) {
+			entry_id = ACL_NEXT_ENTRY;
+
+			if (acl_create_entry_np(&acl, &entry, 0))
+				break;
+
+			if (acl_copy_entry(entry, newentry))
+				break;
+		}
+
+		rval = acl_set_file(STR(0), ACL_TYPE_NFS4, acl);
+		break;
+
+	case ACTION_READACL:
+		acl = acl_get_file(STR(0), ACL_TYPE_NFS4);
+		if (acl == NULL)
+			rval = -1;
+		else
+			rval = 0;
+		break;
+#endif
+
+	case ACTION_WRITE:
+		rval = open(STR(0), O_WRONLY);
+		if (rval < 0)
+			break;
+
+		rval = write(rval, "x", 1);
+		break;
+
 	default:
 		fprintf(stderr, "unsupported syscall\n");
 		exit(1);
