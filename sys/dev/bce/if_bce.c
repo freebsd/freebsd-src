@@ -608,17 +608,17 @@ bce_print_adapter_info(struct bce_softc *sc)
 #endif
     if (sc->bce_flags & BCE_USING_MSI_FLAG) {
         if (i > 0) printf("|");
-		printf("MSI"); i++;
+	printf("MSI"); i++;
     }
 
     if (sc->bce_flags & BCE_USING_MSIX_FLAG) {
         if (i > 0) printf("|");
-		printf("MSI-X "); i++;
+	printf("MSI-X "); i++;
     }
 
     if (sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG) {
         if (i > 0) printf("|");
-		printf("2.5G"); i++;
+	printf("2.5G"); i++;
     }
 
     if (sc->bce_flags & BCE_MFW_ENABLE_FLAG) {
@@ -628,7 +628,7 @@ bce_print_adapter_info(struct bce_softc *sc)
         printf(")\n");
     }
 
-	DBEXIT(BCE_VERBOSE_LOAD);
+    DBEXIT(BCE_VERBOSE_LOAD);
 }
 
 

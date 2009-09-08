@@ -407,7 +407,7 @@ ata_raid_strategy(struct bio *bp)
 	    if (rdp->status & AR_S_REBUILDING)
 		blk = ((lba / rdp->interleave) * rdp->width) * rdp->interleave +
 		      (rdp->interleave * (drv % rdp->width)) +
-		      lba % rdp->interleave;;
+		      lba % rdp->interleave;
 
 	    if (bp->bio_cmd == BIO_READ) {
 		int src_online =
@@ -1138,6 +1138,7 @@ ata_raid_create(struct ata_ioc_raid_config *config)
 	rdp->type == AR_T_RAID5) {
 	int bit = 0;
 
+	/* XXX: Flexelint not happy */
 	while (config->interleave >>= 1)
 	    bit++;
 	rdp->interleave = 1 << bit;
