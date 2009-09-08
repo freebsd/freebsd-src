@@ -39,6 +39,9 @@
  * $FreeBSD$
  */
 
+#ifndef _AMD64_INCLUDE_PARAM_H_
+#define	_AMD64_INCLUDE_PARAM_H_
+
 /*
  * Machine dependent constants for AMD64.
  */
@@ -59,9 +62,6 @@
 
 #define __HAVE_ACPI
 #define __PCI_REROUTE_INTERRUPT
-
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
 
 #ifndef MACHINE
 #define	MACHINE		"amd64"
@@ -150,5 +150,5 @@
 
 #define	pgtok(x)	((unsigned long)(x) * (PAGE_SIZE / 1024)) 
 
-#endif /* !_MACHINE_PARAM_H_ */
 #endif /* !_NO_NAMESPACE_POLLUTION */
+#endif /* !_AMD64_INCLUDE_PARAM_H_ */
