@@ -29,6 +29,9 @@ hint.arge.0.at="nexus0"
 hint.arge.0.maddr=0x19000000
 hint.arge.0.msize=0x1000
 hint.arge.0.irq=2
+# Uncomment this hint for RS (not PRO)
+# hint.arge.0.phy=20
+
 # hint.arge.1.at="nexus0"
 # hint.arge.1.maddr=0x1A000000
 # hint.arge.1.msize=0x1000
