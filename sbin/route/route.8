@@ -279,7 +279,6 @@ when sending to destinations matched by the routes.
 These flags may be set (or sometimes cleared)
 by indicating the following corresponding modifiers:
 .Bd -literal
--cloning   RTF_CLONING    - generates a new route on use
 -xresolve  RTF_XRESOLVE   - emit mesg on use (for external lookup)
 -iface    ~RTF_GATEWAY    - destination is directly reachable
 -static    RTF_STATIC     - manually added route
@@ -288,7 +287,6 @@ by indicating the following corresponding modifiers:
 -blackhole RTF_BLACKHOLE  - silently discard pkts (during updates)
 -proto1    RTF_PROTO1     - set protocol specific routing flag #1
 -proto2    RTF_PROTO2     - set protocol specific routing flag #2
--llinfo    RTF_LLINFO     - validly translates proto addr to link addr
 .Ed
 .Pp
 The optional modifiers
@@ -325,25 +323,6 @@ same address), the
 or
 .Fl ifa
 modifiers may be used to determine the interface or interface address.
-.Pp
-The optional
-.Fl proxy
-modifier specifies that the
-.Dv RTF_LLINFO
-routing table entry is the
-.Dq published (proxy-only)
-.Tn ARP
-entry, as reported by
-.Xr arp 8 .
-.Pp
-The optional
-.Fl genmask
-modifier specifies that a cloning mask is present.
-This specifies the mask applied when determining if a child route
-should be created.
-It is only applicable to network routes with the
-.Dv RTF_CLONING
-flag set.
 .Pp
 All symbolic names specified for a
 .Ar destination

@@ -1415,6 +1415,9 @@ pfxlist_onlink_check()
 			if (pr->ndpr_raf_onlink == 0)
 				continue;
 
+			if (pr->ndpr_raf_auto == 0)
+				continue;
+
 			if ((pr->ndpr_stateflags & NDPRF_DETACHED) == 0 &&
 			    find_pfxlist_reachable_router(pr) == NULL)
 				pr->ndpr_stateflags |= NDPRF_DETACHED;
@@ -1429,6 +1432,9 @@ pfxlist_onlink_check()
 				continue;
 
 			if (pr->ndpr_raf_onlink == 0)
+				continue;
+
+			if (pr->ndpr_raf_auto == 0)
 				continue;
 
 			if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0)
@@ -1452,6 +1458,9 @@ pfxlist_onlink_check()
 			continue;
 
 		if (pr->ndpr_raf_onlink == 0)
+			continue;
+
+		if (pr->ndpr_raf_auto == 0)
 			continue;
 
 		if ((pr->ndpr_stateflags & NDPRF_DETACHED) != 0 &&

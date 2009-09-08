@@ -32,10 +32,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/systm.h>
 
+#include <machine/intr_machdep.h>
+#include <machine/apicvar.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
@@ -1179,6 +1182,29 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(DBH_01H, 0xDB, 0x01, IAP_F_FM | IAP_F_I7),
     IAPDESCR(E4H_01H, 0xE4, 0x01, IAP_F_FM | IAP_F_I7),
     IAPDESCR(E5H_01H, 0xE5, 0x01, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(E6H_01H, 0xE6, 0x01, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(E6H_02H, 0xE6, 0x02, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(E8H_01H, 0xE8, 0x01, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(E8H_02H, 0xE8, 0x02, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(E8H_03H, 0xE8, 0x03, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F0H_01H, 0xF0, 0x01, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F0H_02H, 0xF0, 0x02, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F0H_04H, 0xF0, 0x04, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F0H_08H, 0xF0, 0x08, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F0H_10H, 0xF0, 0x10, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F0H_20H, 0xF0, 0x20, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F0H_40H, 0xF0, 0x40, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F0H_80H, 0xF0, 0x80, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F1H_02H, 0xF1, 0x02, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F1H_04H, 0xF1, 0x04, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F1H_07H, 0xF1, 0x07, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F2H_01H, 0xF2, 0x01, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F2H_02H, 0xF2, 0x02, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F2H_04H, 0xF2, 0x04, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F2H_08H, 0xF2, 0x08, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F2H_0FH, 0xF2, 0x0F, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F3H_01H, 0xF3, 0x01, IAP_F_FM | IAP_F_I7),
+    IAPDESCR(F3H_02H, 0xF3, 0x02, IAP_F_FM | IAP_F_I7),
     IAPDESCR(F3H_04H, 0xF3, 0x04, IAP_F_FM | IAP_F_I7),
     IAPDESCR(F3H_08H, 0xF3, 0x08, IAP_F_FM | IAP_F_I7),
     IAPDESCR(F3H_10H, 0xF3, 0x10, IAP_F_FM | IAP_F_I7),
@@ -1771,7 +1797,7 @@ core_intr(int cpu, struct trapframe *tf)
 	}
 
 	if (found_interrupt)
-		pmc_x86_lapic_enable_pmc_interrupt();
+		lapic_reenable_pmc();
 
 	atomic_add_int(found_interrupt ? &pmc_stats.pm_intr_processed :
 	    &pmc_stats.pm_intr_ignored, 1);
@@ -1895,7 +1921,7 @@ core2_intr(int cpu, struct trapframe *tf)
 	    (uintmax_t) rdmsr(IA_GLOBAL_OVF_CTRL));
 
 	if (found_interrupt)
-		pmc_x86_lapic_enable_pmc_interrupt();
+		lapic_reenable_pmc();
 
 	atomic_add_int(found_interrupt ? &pmc_stats.pm_intr_processed :
 	    &pmc_stats.pm_intr_ignored, 1);

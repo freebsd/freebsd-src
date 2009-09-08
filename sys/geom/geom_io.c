@@ -567,7 +567,7 @@ g_io_schedule_down(struct thread *tp __unused)
 		if (bp == NULL) {
 			CTR0(KTR_GEOM, "g_down going to sleep");
 			msleep(&g_wait_down, &g_bio_run_down.bio_queue_lock,
-			    PRIBIO | PDROP, "-", hz/10);
+			    PRIBIO | PDROP, "-", 0);
 			continue;
 		}
 		CTR0(KTR_GEOM, "g_down has work to do");
@@ -672,7 +672,7 @@ g_io_schedule_up(struct thread *tp __unused)
 		}
 		CTR0(KTR_GEOM, "g_up going to sleep");
 		msleep(&g_wait_up, &g_bio_run_up.bio_queue_lock,
-		    PRIBIO | PDROP, "-", hz/10);
+		    PRIBIO | PDROP, "-", 0);
 	}
 }
 

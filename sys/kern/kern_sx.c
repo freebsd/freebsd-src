@@ -205,6 +205,9 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 
 	MPASS((opts & ~(SX_QUIET | SX_RECURSE | SX_NOWITNESS | SX_DUPOK |
 	    SX_NOPROFILE | SX_NOADAPTIVE)) == 0);
+	ASSERT_ATOMIC_LOAD_PTR(sx->sx_lock,
+	    ("%s: sx_lock not aligned for %s: %p", __func__, description,
+	    &sx->sx_lock));
 
 	flags = LO_SLEEPABLE | LO_UPGRADABLE;
 	if (opts & SX_DUPOK)
@@ -528,13 +531,13 @@ _sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts, const char *file,
 					continue;
 				}
 			} else if (SX_SHARERS(x) && spintries < asx_retries) {
+				GIANT_SAVE();
 				spintries++;
 				for (i = 0; i < asx_loops; i++) {
 					if (LOCK_LOG_TEST(&sx->lock_object, 0))
 						CTR4(KTR_LOCK,
 				    "%s: shared spinning on %p with %u and %u",
 						    __func__, sx, spintries, i);
-					GIANT_SAVE();
 					x = sx->sx_lock;
 					if ((x & SX_LOCK_SHARED) == 0 ||
 					    SX_SHARERS(x) == 0)

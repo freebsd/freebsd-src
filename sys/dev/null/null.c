@@ -49,9 +49,6 @@ static d_write_t null_write;
 static d_ioctl_t null_ioctl;
 static d_read_t zero_read;
 
-#define NULL_MINOR	2
-#define ZERO_MINOR	12
-
 static struct cdevsw null_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_read =	(d_read_t *)nullop,
@@ -115,10 +112,10 @@ null_modevent(module_t mod __unused, int type, void *data __unused)
 		if (bootverbose)
 			printf("null: <null device, zero device>\n");
 		zbuf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK | M_ZERO);
-		null_dev = make_dev(&null_cdevsw, NULL_MINOR, UID_ROOT,
-			GID_WHEEL, 0666, "null");
-		zero_dev = make_dev(&zero_cdevsw, ZERO_MINOR, UID_ROOT,
-			GID_WHEEL, 0666, "zero");
+		null_dev = make_dev(&null_cdevsw, 0, UID_ROOT, GID_WHEEL,
+			0666, "null");
+		zero_dev = make_dev(&zero_cdevsw, 0, UID_ROOT, GID_WHEEL,
+			0666, "zero");
 		break;
 
 	case MOD_UNLOAD:

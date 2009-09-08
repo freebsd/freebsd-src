@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/bio.h>
 #include <sys/conf.h>
+#include <sys/ctype.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
@@ -400,39 +401,25 @@ g_disk_destroy(void *ptr, int flag)
 }
 
 /*
- * We only allow [a-zA-Z0-9-_@#%.:] characters, the rest is converted to 'x<HH>'.
+ * We only allow printable characters in disk ident,
+ * the rest is converted to 'x<HH>'.
  */
 static void
 g_disk_ident_adjust(char *ident, size_t size)
 {
-	char newid[DISK_IDENT_SIZE], tmp[4];
-	size_t len;
-	char *p;
+	char *p, tmp[4], newid[DISK_IDENT_SIZE];
 
-	bzero(newid, sizeof(newid));
-	len = 0;
-	for (p = ident; *p != '\0' && len < sizeof(newid) - 1; p++) {
-		switch (*p) {
-		default:
-			if ((*p < 'a' || *p > 'z') &&
-			    (*p < 'A' || *p > 'Z') &&
-			    (*p < '0' || *p > '9')) {
-				snprintf(tmp, sizeof(tmp), "x%02hhx", *p);
-				strlcat(newid, tmp, sizeof(newid));
-				len += 3;
-				break;
-			}
-			/* FALLTHROUGH */
-		case '-':
-		case '_':
-		case '@':
-		case '#':
-		case '%':
-		case '.':
-		case ':':
-			newid[len++] = *p;
-			break;
+	newid[0] = '\0';
+	for (p = ident; *p != '\0'; p++) {
+		if (isprint(*p)) {
+			tmp[0] = *p;
+			tmp[1] = '\0';
+		} else {
+			snprintf(tmp, sizeof(tmp), "x%02hhx",
+			    *(unsigned char *)p);
 		}
+		if (strlcat(newid, tmp, sizeof(newid)) >= sizeof(newid))
+			break;
 	}
 	bzero(ident, size);
 	strlcpy(ident, newid, size);

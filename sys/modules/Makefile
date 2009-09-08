@@ -40,6 +40,7 @@ SUBDIR=	${_3dfx} \
 	${_bktr} \
 	${_bm} \
 	bridgestp \
+	bwi \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -225,6 +226,7 @@ SUBDIR=	${_3dfx} \
 	procfs \
 	pseudofs \
 	${_pst} \
+	pty  \
 	puc \
 	ral \
 	ralfw \

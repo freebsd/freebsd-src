@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 
+#include <net/vnet.h>
+
 #include <rpc/rpc.h>
 
 #include <rpc/rpc_com.h>
@@ -101,8 +103,10 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	struct sockaddr* sa;
 	int error;
 
+	CURVNET_SET(so->so_vnet);
 	if (!__rpc_socket2sockinfo(so, &si)) {
 		printf(svc_dg_str, svc_dg_err1);
+		CURVNET_RESTORE();
 		return (NULL);
 	}
 	/*
@@ -112,6 +116,7 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	recvsize = __rpc_get_t_size(si.si_af, si.si_proto, (int)recvsize);
 	if ((sendsize == 0) || (recvsize == 0)) {
 		printf(svc_dg_str, svc_dg_err2);
+		CURVNET_RESTORE();
 		return (NULL);
 	}
 
@@ -124,6 +129,7 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	xprt->xp_ops = &svc_dg_ops;
 
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	CURVNET_RESTORE();
 	if (error)
 		goto freedata;
 

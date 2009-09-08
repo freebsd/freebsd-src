@@ -924,6 +924,7 @@ zfs_get_done(dmu_buf_t *db, void *vzgd)
 	zgd_t *zgd = (zgd_t *)vzgd;
 	rl_t *rl = zgd->zgd_rl;
 	vnode_t *vp = ZTOV(rl->r_zp);
+	objset_t *os = rl->r_zp->z_zfsvfs->z_os;
 	int vfslocked;
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_vfsp);
@@ -933,7 +934,7 @@ zfs_get_done(dmu_buf_t *db, void *vzgd)
 	 * Release the vnode asynchronously as we currently have the
 	 * txg stopped from syncing.
 	 */
-	VN_RELE_ASYNC(vp, NULL);
+	VN_RELE_ASYNC(vp, dsl_pool_vnrele_taskq(dmu_objset_pool(os)));
 	zil_add_block(zgd->zgd_zilog, zgd->zgd_bp);
 	kmem_free(zgd, sizeof (zgd_t));
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -968,8 +969,8 @@ zfs_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 		 * Release the vnode asynchronously as we currently have the
 		 * txg stopped from syncing.
 		 */
-		VN_RELE_ASYNC(ZTOV(zp), NULL);
-
+		VN_RELE_ASYNC(ZTOV(zp),
+		    dsl_pool_vnrele_taskq(dmu_objset_pool(os)));
 		return (ENOENT);
 	}
 
@@ -1045,7 +1046,7 @@ out:
 	 * Release the vnode asynchronously as we currently have the
 	 * txg stopped from syncing.
 	 */
-	VN_RELE_ASYNC(ZTOV(zp), NULL);
+	VN_RELE_ASYNC(ZTOV(zp), dsl_pool_vnrele_taskq(dmu_objset_pool(os)));
 	return (error);
 }
 
@@ -3709,12 +3710,11 @@ zfs_inactive(vnode_t *vp, cred_t *cr, caller_context_t *ct)
 		 * The fs has been unmounted, or we did a
 		 * suspend/resume and this file no longer exists.
 		 */
-		mutex_enter(&zp->z_lock);
 		VI_LOCK(vp);
 		vp->v_count = 0; /* count arrives as 1 */
-		mutex_exit(&zp->z_lock);
+		VI_UNLOCK(vp);
+		vrecycle(vp, curthread);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
-		zfs_znode_free(zp);
 		return;
 	}
 
@@ -3834,7 +3834,15 @@ zfs_pathconf(vnode_t *vp, int cmd, ulong_t *valp, cred_t *cr,
 #endif
 
 	case _PC_ACL_EXTENDED:
-		*valp = 0;	/* TODO */
+		*valp = 0;
+		return (0);
+
+	case _PC_ACL_NFS4:
+		*valp = 1;
+		return (0);
+
+	case _PC_ACL_PATH_MAX:
+		*valp = ACL_MAX_ENTRIES;
 		return (0);
 
 	case _PC_MIN_HOLE_SIZE:
@@ -4351,7 +4359,6 @@ zfs_freebsd_reclaim(ap)
 {
 	vnode_t	*vp = ap->a_vp;
 	znode_t	*zp = VTOZ(vp);
-	zfsvfs_t *zfsvfs;
 
 	ASSERT(zp != NULL);
 
@@ -4361,13 +4368,18 @@ zfs_freebsd_reclaim(ap)
 	vnode_destroy_vobject(vp);
 
 	mutex_enter(&zp->z_lock);
-	ASSERT(zp->z_phys);
+	ASSERT(zp->z_phys != NULL);
 	ZTOV(zp) = NULL;
-	if (!zp->z_unlinked) {
+	mutex_exit(&zp->z_lock);
+
+	if (zp->z_unlinked)
+		;	/* Do nothing. */
+	else if (zp->z_dbuf == NULL)
+		zfs_znode_free(zp);
+	else /* if (!zp->z_unlinked && zp->z_dbuf != NULL) */ {
+		zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 		int locked;
 
-		zfsvfs = zp->z_zfsvfs;
-		mutex_exit(&zp->z_lock);
 		locked = MUTEX_HELD(ZFS_OBJ_MUTEX(zfsvfs, zp->z_id)) ? 2 :
 		    ZFS_OBJ_HOLD_TRYENTER(zfsvfs, zp->z_id);
 		if (locked == 0) {
@@ -4383,8 +4395,6 @@ zfs_freebsd_reclaim(ap)
 				ZFS_OBJ_HOLD_EXIT(zfsvfs, zp->z_id);
 			zfs_znode_free(zp);
 		}
-	} else {
-		mutex_exit(&zp->z_lock);
 	}
 	VI_LOCK(vp);
 	vp->v_data = NULL;
@@ -4421,6 +4431,26 @@ zfs_freebsd_pathconf(ap)
 	else if (error == EOPNOTSUPP)
 		error = vop_stdpathconf(ap);
 	return (error);
+}
+
+static int
+zfs_freebsd_fifo_pathconf(ap)
+	struct vop_pathconf_args /* {
+		struct vnode *a_vp;
+		int a_name;
+		register_t *a_retval;
+	} */ *ap;
+{
+
+	switch (ap->a_name) {
+	case _PC_ACL_EXTENDED:
+	case _PC_ACL_NFS4:
+	case _PC_ACL_PATH_MAX:
+	case _PC_MAC_PRESENT:
+		return (zfs_freebsd_pathconf(ap));
+	default:
+		return (fifo_specops.vop_pathconf(ap));
+	}
 }
 
 /*
@@ -4528,9 +4558,9 @@ vop_getextattr {
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0) {
+		ZFS_EXIT(zfsvfs);
 		if (error == ENOENT)
 			error = ENOATTR;
-		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
 
@@ -4596,9 +4626,9 @@ vop_deleteextattr {
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0) {
+		ZFS_EXIT(zfsvfs);
 		if (error == ENOENT)
 			error = ENOATTR;
-		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
 	error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
@@ -4711,7 +4741,7 @@ vop_listextattr {
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VREAD);
-	if (error)
+	if (error != 0)
 		return (error);
 
 	error = zfs_create_attrname(ap->a_attrnamespace, "", attrprefix,
@@ -4728,13 +4758,13 @@ vop_listextattr {
 	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
 	    LOOKUP_XATTR);
 	if (error != 0) {
+		ZFS_EXIT(zfsvfs);
 		/*
 		 * ENOATTR means that the EA directory does not yet exist,
 		 * i.e. there are no extended attributes there.
 		 */
 		if (error == ENOATTR)
 			error = 0;
-		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
 
@@ -4824,10 +4854,10 @@ zfs_freebsd_getacl(ap)
 		return (error);
 
 	error = acl_from_aces(ap->a_aclp, vsecattr.vsa_aclentp, vsecattr.vsa_aclcnt);
-        if (vsecattr.vsa_aclentp != NULL)
-                kmem_free(vsecattr.vsa_aclentp, vsecattr.vsa_aclentsz);
+	if (vsecattr.vsa_aclentp != NULL)
+		kmem_free(vsecattr.vsa_aclentp, vsecattr.vsa_aclentsz);
 
-        return (error);
+	return (error);
 }
 
 int
@@ -4852,7 +4882,7 @@ zfs_freebsd_setacl(ap)
 		return (EINVAL);
 
 	/*
-	 * With NFS4 ACLs, chmod(2) may need to add additional entries,
+	 * With NFSv4 ACLs, chmod(2) may need to add additional entries,
 	 * splitting every entry into two and appending "canonical six"
 	 * entries at the end.  Don't allow for setting an ACL that would
 	 * cause chmod(2) to run out of ACL entries.
@@ -4926,11 +4956,9 @@ struct vop_vector zfs_vnodeops = {
 	.vop_deleteextattr =	zfs_deleteextattr,
 	.vop_setextattr =	zfs_setextattr,
 	.vop_listextattr =	zfs_listextattr,
-#ifdef notyet
 	.vop_getacl =		zfs_freebsd_getacl,
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
-#endif
 };
 
 struct vop_vector zfs_fifoops = {
@@ -4943,10 +4971,9 @@ struct vop_vector zfs_fifoops = {
 	.vop_reclaim =		zfs_freebsd_reclaim,
 	.vop_setattr =		zfs_freebsd_setattr,
 	.vop_write =		VOP_PANIC,
+	.vop_pathconf = 	zfs_freebsd_fifo_pathconf,
 	.vop_fid =		zfs_freebsd_fid,
-#ifdef notyet
 	.vop_getacl =		zfs_freebsd_getacl,
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
-#endif
 };

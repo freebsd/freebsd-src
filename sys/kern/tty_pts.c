@@ -30,14 +30,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_tty.h"
-
 /* Add compatibility bits for FreeBSD. */
 #define PTS_COMPAT
-#ifdef DEV_PTY
-/* Add /dev/ptyXX compat bits. */
+/* Add pty(4) compat bits. */
 #define PTS_EXTERNAL
-#endif /* DEV_PTY */
 /* Add bits to make Linux binaries work. */
 #define PTS_LINUX
 
@@ -215,25 +211,12 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		 */
 		MPASS(iblen > 0);
 		do {
-			if (ttydisc_can_bypass(tp)) {
-				/* Store data at once. */
-				rintlen = ttydisc_rint_bypass(tp,
-				    ibstart, iblen);
-				ibstart += rintlen;
-				iblen -= rintlen;
-
-				if (iblen == 0) {
-					/* All data written. */
-					break;
-				}
-			} else {
-				error = ttydisc_rint(tp, *ibstart, 0);
-				if (error == 0) {
-					/* Character stored successfully. */
-					ibstart++;
-					iblen--;
-					continue;
-				}
+			rintlen = ttydisc_rint_simple(tp, ibstart, iblen);
+			ibstart += rintlen;
+			iblen -= rintlen;
+			if (iblen == 0) {
+				/* All data written. */
+				break;
 			}
 
 			/* Maybe the device isn't used anyway. */
@@ -711,7 +694,10 @@ static struct ttydevsw pts_class = {
 	.tsw_free	= ptsdrv_free,
 };
 
-static int
+#ifndef PTS_EXTERNAL
+static
+#endif /* !PTS_EXTERNAL */
+int
 pts_alloc(int fflags, struct thread *td, struct file *fp)
 {
 	int unit, ok;
@@ -832,29 +818,11 @@ posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	return (0);
 }
 
-#if defined(PTS_COMPAT) || defined(PTS_LINUX)
-static int
-ptmx_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
-{
-
-	return (pts_alloc(fflags & (FREAD|FWRITE), td, fp));
-}
-
-static struct cdevsw ptmx_cdevsw = {
-	.d_version	= D_VERSION,
-	.d_fdopen	= ptmx_fdopen,
-	.d_name		= "ptmx",
-};
-#endif /* PTS_COMPAT || PTS_LINUX */
-
 static void
 pts_init(void *unused)
 {
 
 	pts_pool = new_unrhdr(0, INT_MAX, NULL);
-#if defined(PTS_COMPAT) || defined(PTS_LINUX)
-	make_dev(&ptmx_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "ptmx");
-#endif /* PTS_COMPAT || PTS_LINUX */
 }
 
 SYSINIT(pts, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, pts_init, NULL);

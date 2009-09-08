@@ -496,6 +496,7 @@ cryptodev_op(
 		goto bail;
 	}
 
+again:
 	/*
 	 * Let the dispatch run unlocked, then, interlock against the
 	 * callback before checking if the operation completed and going
@@ -511,6 +512,12 @@ cryptodev_op(
 
 	if (error != 0)
 		goto bail;
+
+	if (crp->crp_etype == EAGAIN) {
+		crp->crp_etype = 0;
+		crp->crp_flags &= ~CRYPTO_F_DONE;
+		goto again;
+	}
 
 	if (crp->crp_etype != 0) {
 		error = crp->crp_etype;
@@ -545,16 +552,10 @@ cryptodev_cb(void *op)
 {
 	struct cryptop *crp = (struct cryptop *) op;
 	struct csession *cse = (struct csession *)crp->crp_opaque;
-	int error;
 
-	error = crp->crp_etype;
-	if (error == EAGAIN)
-		error = crypto_dispatch(crp);
 	mtx_lock(&cse->lock);
-	if (error != 0 || (crp->crp_flags & CRYPTO_F_DONE)) {
-		cse->error = error;
-		wakeup_one(crp);
-	}
+	cse->error = crp->crp_etype;
+	wakeup_one(crp);
 	mtx_unlock(&cse->lock);
 	return (0);
 }

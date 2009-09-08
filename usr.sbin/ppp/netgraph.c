@@ -235,7 +235,6 @@ ng_Read(struct physical *p, void *v, size_t n)
 {
   char hook[NG_HOOKSIZ];
 
-log_Printf(LogDEBUG, "ng_Read\n");
   switch (p->dl->state) {
     case DATALINK_DIAL:
     case DATALINK_LOGIN:
@@ -282,17 +281,18 @@ static void
 ng_device2iov(struct device *d, struct iovec *iov, int *niov,
               int maxiov __unused, int *auxfd, int *nauxfd)
 {
-  struct ngdevice *dev = device2ng(d);
+  struct ngdevice *dev;
   int sz = physical_MaxDeviceSize();
 
-  iov[*niov].iov_base = realloc(d, sz);
-  if (iov[*niov].iov_base == NULL) {
+  iov[*niov].iov_base = d = realloc(d, sz);
+  if (d == NULL) {
     log_Printf(LogALERT, "Failed to allocate memory: %d\n", sz);
     AbortProgram(EX_OSERR);
   }
   iov[*niov].iov_len = sz;
   (*niov)++;
 
+  dev = device2ng(d);
   *auxfd = dev->cs;
   (*nauxfd)++;
 }

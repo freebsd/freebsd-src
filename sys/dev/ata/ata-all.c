@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 static  d_ioctl_t       ata_ioctl;
 static struct cdevsw ata_cdevsw = {
 	.d_version =    D_VERSION,
+	.d_flags =      D_NEEDGIANT, /* we need this as newbus isn't mpsafe */
 	.d_ioctl =      ata_ioctl,
 	.d_name =       "ata",
 };
@@ -203,9 +204,7 @@ ata_conn_event(void *context, int dummy)
 {
     device_t dev = (device_t)context;
 
-    newbus_xlock();
     ata_reinit(dev);
-    newbus_xunlock();
 }
 
 int
@@ -247,6 +246,7 @@ ata_reinit(device_t dev)
 
     /* reinit the children and delete any that fails */
     if (!device_get_children(dev, &children, &nchildren)) {
+	mtx_lock(&Giant);       /* newbus suckage it needs Giant */
 	for (i = 0; i < nchildren; i++) {
 	    /* did any children go missing ? */
 	    if (children[i] && device_is_attached(children[i]) &&
@@ -269,6 +269,7 @@ ata_reinit(device_t dev)
 	    }
 	}
 	free(children, M_TEMP);
+	mtx_unlock(&Giant);     /* newbus suckage dealt with, release Giant */
     }
 
     /* if we still have a good request put it on the queue again */
@@ -394,7 +395,6 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
     int *value = (int *)data;
     int i, nchildren, error = ENOTTY;
 
-    newbus_xlock();
     switch (cmd) {
     case IOCATAGMAXCHANNEL:
 	/* In case we have channel 0..n this will return n+1. */
@@ -405,40 +405,32 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
     case IOCATAREINIT:
 	if (*value >= devclass_get_maxunit(ata_devclass) ||
 	    !(device = devclass_get_device(ata_devclass, *value)) ||
-	    !device_is_attached(device)) {
-            newbus_xunlock();
+	    !device_is_attached(device))
 	    return ENXIO;
-	}
 	error = ata_reinit(device);
 	break;
 
     case IOCATAATTACH:
 	if (*value >= devclass_get_maxunit(ata_devclass) ||
 	    !(device = devclass_get_device(ata_devclass, *value)) ||
-	    !device_is_attached(device)) {
-            newbus_xunlock();
+	    !device_is_attached(device))
 	    return ENXIO;
-	}
 	error = DEVICE_ATTACH(device);
 	break;
 
     case IOCATADETACH:
 	if (*value >= devclass_get_maxunit(ata_devclass) ||
 	    !(device = devclass_get_device(ata_devclass, *value)) ||
-	    !device_is_attached(device)) {
-            newbus_xunlock();
+	    !device_is_attached(device))
 	    return ENXIO;
-	}
 	error = DEVICE_DETACH(device);
 	break;
 
     case IOCATADEVICES:
 	if (devices->channel >= devclass_get_maxunit(ata_devclass) ||
 	    !(device = devclass_get_device(ata_devclass, devices->channel)) ||
-	    !device_is_attached(device)) {
-            newbus_xunlock();
+	    !device_is_attached(device))
 	    return ENXIO;
-	}
 	bzero(devices->name[0], 32);
 	bzero(&devices->params[0], sizeof(struct ata_params));
 	bzero(devices->name[1], 32);
@@ -473,7 +465,6 @@ ata_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	if (ata_raid_ioctl_func)
 	    error = ata_raid_ioctl_func(cmd, data);
     }
-    newbus_xunlock();
     return error;
 }
 
@@ -581,7 +572,7 @@ ata_boot_attach(void)
     struct ata_channel *ch;
     int ctlr;
 
-    newbus_xlock();
+    mtx_lock(&Giant);       /* newbus suckage it needs Giant */
 
     /* kick of probe and attach on all channels */
     for (ctlr = 0; ctlr < devclass_get_maxunit(ata_devclass); ctlr++) {
@@ -596,7 +587,8 @@ ata_boot_attach(void)
 	free(ata_delayed_attach, M_TEMP);
 	ata_delayed_attach = NULL;
     }
-    newbus_xunlock();
+
+    mtx_unlock(&Giant);     /* newbus suckage dealt with, release Giant */
 }
 
 
@@ -725,6 +717,7 @@ ata_identify(device_t dev)
     if (bootverbose)
 	device_printf(dev, "Identifying devices: %08x\n", ch->devices);
 
+    mtx_lock(&Giant);
     /* Skip existing devices. */
     if (!device_get_children(dev, &children, &nchildren)) {
 	for (i = 0; i < nchildren; i++) {
@@ -736,8 +729,10 @@ ata_identify(device_t dev)
     /* Create new devices. */
     if (bootverbose)
 	device_printf(dev, "New devices: %08x\n", n);
-    if (n == 0)
+    if (n == 0) {
+	mtx_unlock(&Giant);
 	return (0);
+    }
     for (i = 0; i < ATA_PM; ++i) {
 	if (n & (((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << i))) {
 	    int unit = -1;
@@ -780,6 +775,7 @@ ata_identify(device_t dev)
     }
     bus_generic_probe(dev);
     bus_generic_attach(dev);
+    mtx_unlock(&Giant);
     return 0;
 }
 

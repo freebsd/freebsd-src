@@ -85,6 +85,7 @@ struct	vnet;
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
 #include <sys/rwlock.h>		/* XXX */
+#include <sys/sx.h>		/* XXX */
 #include <sys/event.h>		/* XXX */
 #include <sys/_task.h>
 
@@ -235,7 +236,6 @@ typedef void if_init_f_t(void *);
 #define	if_iqdrops	if_data.ifi_iqdrops
 #define	if_noproto	if_data.ifi_noproto
 #define	if_lastchange	if_data.ifi_lastchange
-#define if_rawoutput(if, m, sa) if_output(if, m, sa, (struct rtentry *)NULL)
 
 /* for compatibility with other BSDs */
 #define	if_addrlist	if_addrhead
@@ -755,14 +755,39 @@ struct ifmultiaddr {
 
 #ifdef _KERNEL
 
-extern	struct rwlock ifnet_lock;
-#define	IFNET_LOCK_INIT() \
-   rw_init_flags(&ifnet_lock, "ifnet",  RW_RECURSE)
-#define	IFNET_WLOCK()		rw_wlock(&ifnet_lock)
-#define	IFNET_WUNLOCK()		rw_wunlock(&ifnet_lock)
-#define	IFNET_WLOCK_ASSERT()	rw_assert(&ifnet_lock, RA_LOCKED)
-#define	IFNET_RLOCK()		rw_rlock(&ifnet_lock)
-#define	IFNET_RUNLOCK()		rw_runlock(&ifnet_lock)	
+extern	struct rwlock ifnet_rwlock;
+extern	struct sx ifnet_sxlock;
+
+#define	IFNET_LOCK_INIT() do {						\
+	rw_init_flags(&ifnet_rwlock, "ifnet_rw",  RW_RECURSE);		\
+	sx_init_flags(&ifnet_sxlock, "ifnet_sx",  SX_RECURSE);		\
+} while(0)
+
+#define	IFNET_WLOCK() do {						\
+	sx_xlock(&ifnet_sxlock);					\
+	rw_wlock(&ifnet_rwlock);					\
+} while (0)
+
+#define	IFNET_WUNLOCK() do {						\
+	rw_wunlock(&ifnet_rwlock);					\
+	sx_xunlock(&ifnet_sxlock);					\
+} while (0)
+
+/*
+ * To assert the ifnet lock, you must know not only whether it's for read or
+ * write, but also whether it was acquired with sleep support or not.
+ */
+#define	IFNET_RLOCK_ASSERT()		sx_assert(&ifnet_sxlock, SA_SLOCKED)
+#define	IFNET_RLOCK_NOSLEEP_ASSERT()	rw_assert(&ifnet_rwlock, RA_RLOCKED)
+#define	IFNET_WLOCK_ASSERT() do {					\
+	sx_assert(&ifnet_sxlock, SA_XLOCKED);				\
+	rw_assert(&ifnet_rwlock, RA_WLOCKED);				\
+} while (0)
+
+#define	IFNET_RLOCK()		sx_slock(&ifnet_sxlock)
+#define	IFNET_RLOCK_NOSLEEP()	rw_rlock(&ifnet_rwlock)
+#define	IFNET_RUNLOCK()		sx_sunlock(&ifnet_sxlock)
+#define	IFNET_RUNLOCK_NOSLEEP()	rw_runlock(&ifnet_rwlock)
 
 /*
  * Look up an ifnet given its index; the _ref variant also acquires a
@@ -801,7 +826,6 @@ int	if_allmulti(struct ifnet *, int);
 struct	ifnet* if_alloc(u_char);
 void	if_attach(struct ifnet *);
 void	if_dead(struct ifnet *);
-void	if_grow(void);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_delmulti_ifma(struct ifmultiaddr *);
 void	if_detach(struct ifnet *);

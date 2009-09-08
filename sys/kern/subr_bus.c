@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
-#include <sys/sx.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -191,54 +190,6 @@ void print_devclass_list(void);
 #define print_devclass_list_short()	/* nop */
 #define print_devclass_list()		/* nop */
 #endif
-
-/*
- * Newbus locking facilities.
- */
-static struct sx newbus_lock;
-
-#define	NBL_LOCK_INIT()		sx_init(&newbus_lock, "newbus")
-#define	NBL_LOCK_DESTROY()	sx_destroy(&newbus_lock)
-#define	NBL_XLOCK()		sx_xlock(&newbus_lock)
-#define	NBL_SLOCK()		sx_slock(&newbus_lock)
-#define	NBL_XUNLOCK()		sx_xunlock(&newbus_lock)
-#define	NBL_SUNLOCK()		sx_sunlock(&newbus_lock)
-#ifdef INVARIANTS
-#define	NBL_ASSERT(what) do {						\
-	if (cold == 0)							\
-		sx_assert(&newbus_lock, (what));			\
-} while (0)
-#else
-#define	NBL_ASSERT(what)
-#endif
-
-void
-newbus_xlock()
-{
-
-	NBL_XLOCK();
-}
-
-void
-newbus_slock()
-{
-
-	NBL_SLOCK();
-}
-
-void
-newbus_xunlock()
-{
-
-	NBL_XUNLOCK();
-}
-
-void
-newbus_sunlock()
-{
-
-	NBL_SUNLOCK();
-}
 
 /*
  * dev sysctl tree
@@ -399,11 +350,18 @@ device_sysctl_fini(device_t dev)
  * tested since 3.4 or 2.2.8!
  */
 
+/* Deprecated way to adjust queue length */
 static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
-static int devctl_disable = 0;
-TUNABLE_INT("hw.bus.devctl_disable", &devctl_disable);
+/* XXX Need to support old-style tunable hw.bus.devctl_disable" */
 SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_disable, "I", "devctl disable");
+    0, sysctl_devctl_disable, "I", "devctl disable -- deprecated");
+
+#define DEVCTL_DEFAULT_QUEUE_LEN 1000
+static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
+static int devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
+TUNABLE_INT("hw.bus.devctl_queue", &devctl_queue_length);
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW, NULL,
+    0, sysctl_devctl_queue, "I", "devctl queue length");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
@@ -413,6 +371,7 @@ static d_poll_t		devpoll;
 
 static struct cdevsw dev_cdevsw = {
 	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
 	.d_open =	devopen,
 	.d_close =	devclose,
 	.d_read =	devread,
@@ -433,6 +392,7 @@ static struct dev_softc
 {
 	int	inuse;
 	int	nonblock;
+	int	queued;
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo sel;
@@ -471,7 +431,7 @@ devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	mtx_lock(&devsoftc.mtx);
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
-
+	devsoftc.async_proc = NULL;
 	return (0);
 }
 
@@ -506,6 +466,7 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 	n1 = TAILQ_FIRST(&devsoftc.devq);
 	TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+	devsoftc.queued--;
 	mtx_unlock(&devsoftc.mtx);
 	rv = uiomove(n1->dei_data, strlen(n1->dei_data), uio);
 	free(n1->dei_data, M_BUS);
@@ -579,21 +540,33 @@ devctl_process_running(void)
 void
 devctl_queue_data(char *data)
 {
-	struct dev_event_info *n1 = NULL;
+	struct dev_event_info *n1 = NULL, *n2 = NULL;
 	struct proc *p;
 
-	/*
-	 * Do not allow empty strings to be queued, as they
-	 * cause devd to exit prematurely.
-	 */
 	if (strlen(data) == 0)
+		return;
+	if (devctl_queue_length == 0)
 		return;
 	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
 	if (n1 == NULL)
 		return;
 	n1->dei_data = data;
 	mtx_lock(&devsoftc.mtx);
+	if (devctl_queue_length == 0) {
+		free(n1->dei_data, M_BUS);
+		free(n1, M_BUS);
+		return;
+	}
+	/* Leave at least one spot in the queue... */
+	while (devsoftc.queued > devctl_queue_length - 1) {
+		n2 = TAILQ_FIRST(&devsoftc.devq);
+		TAILQ_REMOVE(&devsoftc.devq, n2, dei_link);
+		free(n2->dei_data, M_BUS);
+		free(n2, M_BUS);
+		devsoftc.queued--;
+	}
 	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
+	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
@@ -662,7 +635,7 @@ devaddq(const char *type, const char *what, device_t dev)
 	char *pnp = NULL;
 	const char *parstr;
 
-	if (devctl_disable)
+	if (!devctl_queue_length)/* Rare race, but lost races safely discard */
 		return;
 	data = malloc(1024, M_BUS, M_NOWAIT);
 	if (data == NULL)
@@ -779,12 +752,11 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 	struct dev_event_info *n1;
 	int dis, error;
 
-	dis = devctl_disable;
+	dis = devctl_queue_length == 0;
 	error = sysctl_handle_int(oidp, &dis, 0, req);
 	if (error || !req->newptr)
 		return (error);
 	mtx_lock(&devsoftc.mtx);
-	devctl_disable = dis;
 	if (dis) {
 		while (!TAILQ_EMPTY(&devsoftc.devq)) {
 			n1 = TAILQ_FIRST(&devsoftc.devq);
@@ -792,6 +764,35 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 			free(n1->dei_data, M_BUS);
 			free(n1, M_BUS);
 		}
+		devsoftc.queued = 0;
+		devctl_queue_length = 0;
+	} else {
+		devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
+	}
+	mtx_unlock(&devsoftc.mtx);
+	return (0);
+}
+
+static int
+sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
+{
+	struct dev_event_info *n1;
+	int q, error;
+
+	q = devctl_queue_length;
+	error = sysctl_handle_int(oidp, &q, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (q < 0)
+		return (EINVAL);
+	mtx_lock(&devsoftc.mtx);
+	devctl_queue_length = q;
+	while (devsoftc.queued > devctl_queue_length) {
+		n1 = TAILQ_FIRST(&devsoftc.devq);
+		TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+		free(n1->dei_data, M_BUS);
+		free(n1, M_BUS);
+		devsoftc.queued--;
 	}
 	mtx_unlock(&devsoftc.mtx);
 	return (0);
@@ -934,7 +935,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 	if (create && !dc) {
 		PDEBUG(("creating %s", classname));
 		dc = malloc(sizeof(struct devclass) + strlen(classname) + 1,
-		    M_BUS, M_NOWAIT|M_ZERO);
+		    M_BUS, M_NOWAIT | M_ZERO);
 		if (!dc)
 			return (NULL);
 		dc->parent = NULL;
@@ -1109,7 +1110,6 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 	int i;
 	int error;
 
-	NBL_ASSERT(SA_XLOCKED);
 	PDEBUG(("%s from devclass %s", driver->name, DEVCLANAME(busclass)));
 
 	if (!dc)
@@ -1808,7 +1808,6 @@ device_delete_child(device_t dev, device_t child)
 	int error;
 	device_t grandchild;
 
-	NBL_ASSERT(SA_XLOCKED);
 	PDEBUG(("%s from %s", DEVICENAME(child), DEVICENAME(dev)));
 
 	/* remove children first */
@@ -1907,7 +1906,7 @@ device_probe_child(device_t dev, device_t child)
 	int result, pri = 0;
 	int hasclass = (child->devclass != NULL);
 
-	NBL_ASSERT(SA_XLOCKED);
+	GIANT_REQUIRED;
 
 	dc = dev->devclass;
 	if (!dc)
@@ -2558,7 +2557,7 @@ device_probe(device_t dev)
 {
 	int error;
 
-	NBL_ASSERT(SA_XLOCKED);
+	GIANT_REQUIRED;
 
 	if (dev->state >= DS_ALIVE && (dev->flags & DF_REBID) == 0)
 		return (-1);
@@ -2592,7 +2591,7 @@ device_probe_and_attach(device_t dev)
 {
 	int error;
 
-	NBL_ASSERT(SA_XLOCKED);
+	GIANT_REQUIRED;
 
 	error = device_probe(dev);
 	if (error == -1)
@@ -2626,12 +2625,16 @@ device_attach(device_t dev)
 {
 	int error;
 
-	NBL_ASSERT(SA_XLOCKED);
-
+	if (dev->state >= DS_ATTACHING)
+		return (0);
 	device_sysctl_init(dev);
 	if (!device_is_quiet(dev))
 		device_print_child(dev->parent, dev);
+	dev->state = DS_ATTACHING;
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
+		KASSERT(dev->state == DS_ATTACHING,
+		    ("%s: %p device state must not been changing", __func__,
+		    dev));
 		printf("device_attach: %s%d attach returned %d\n",
 		    dev->driver->name, dev->unit, error);
 		/* Unset the class; set in device_probe_child */
@@ -2642,6 +2645,8 @@ device_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 		return (error);
 	}
+	KASSERT(dev->state == DS_ATTACHING,
+	    ("%s: %p device state must not been changing", __func__, dev));
 	device_sysctl_update(dev);
 	dev->state = DS_ATTACHED;
 	devadded(dev);
@@ -2669,7 +2674,7 @@ device_detach(device_t dev)
 {
 	int error;
 
-	NBL_ASSERT(SA_XLOCKED);
+	GIANT_REQUIRED;
 
 	PDEBUG(("%s", DEVICENAME(dev)));
 	if (dev->state == DS_BUSY)
@@ -2677,8 +2682,16 @@ device_detach(device_t dev)
 	if (dev->state != DS_ATTACHED)
 		return (0);
 
-	if ((error = DEVICE_DETACH(dev)) != 0)
+	dev->state = DS_DETACHING;
+	if ((error = DEVICE_DETACH(dev)) != 0) {
+		KASSERT(dev->state == DS_DETACHING,
+		    ("%s: %p device state must not been changing", __func__,
+		    dev));
+		dev->state = DS_ATTACHED;
 		return (error);
+	}
+	KASSERT(dev->state == DS_DETACHING,
+	    ("%s: %p device state must not been changing", __func__, dev));
 	devremoved(dev);
 	if (!device_is_quiet(dev))
 		device_printf(dev, "detached\n");
@@ -2713,8 +2726,6 @@ int
 device_quiesce(device_t dev)
 {
 
-	NBL_ASSERT(SA_XLOCKED);
-
 	PDEBUG(("%s", DEVICENAME(dev)));
 	if (dev->state == DS_BUSY)
 		return (EBUSY);
@@ -2735,8 +2746,7 @@ device_quiesce(device_t dev)
 int
 device_shutdown(device_t dev)
 {
-
-	if (dev->state < DS_ATTACHED)
+	if (dev->state < DS_ATTACHED || dev->state == DS_DETACHING)
 		return (0);
 	return (DEVICE_SHUTDOWN(dev));
 }
@@ -3151,8 +3161,6 @@ bus_generic_attach(device_t dev)
 {
 	device_t child;
 
-	NBL_ASSERT(SA_XLOCKED);
-
 	TAILQ_FOREACH(child, &dev->children, link) {
 		device_probe_and_attach(child);
 	}
@@ -3172,8 +3180,6 @@ bus_generic_detach(device_t dev)
 {
 	device_t child;
 	int error;
-
-	NBL_ASSERT(SA_XLOCKED);
 
 	if (dev->state != DS_ATTACHED)
 		return (EBUSY);
@@ -4055,7 +4061,6 @@ root_bus_module_handler(module_t mod, int what, void* arg)
 	switch (what) {
 	case MOD_LOAD:
 		TAILQ_INIT(&bus_data_devices);
-		NBL_LOCK_INIT();
 		kobj_class_compile((kobj_class_t) &root_driver);
 		root_bus = make_device(NULL, "root", 0);
 		root_bus->desc = "System root bus";
@@ -4115,28 +4120,14 @@ driver_module_handler(module_t mod, int what, void *arg)
 	kobj_class_t driver;
 	int error, pass;
 
-	error = 0;
 	dmd = (struct driver_module_data *)arg;
-
-	/*
-	 * If MOD_SHUTDOWN is passed, return immediately in order to
-	 * avoid unnecessary locking and a LOR with the modules sx lock.
-	 */
-	if (what == MOD_SHUTDOWN)
-		return (EOPNOTSUPP);
-	NBL_XLOCK();
 	bus_devclass = devclass_find_internal(dmd->dmd_busname, NULL, TRUE);
-	if (bus_devclass == NULL) {
-		NBL_XUNLOCK();
-		return (ENOMEM);
-	}
+	error = 0;
 
-		switch (what) {
+	switch (what) {
 	case MOD_LOAD:
 		if (dmd->dmd_chainevh)
 			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);
-		if (error != 0)
-			break;
 
 		pass = dmd->dmd_pass;
 		driver = dmd->dmd_driver;
@@ -4189,7 +4180,6 @@ driver_module_handler(module_t mod, int what, void *arg)
 		error = EOPNOTSUPP;
 		break;
 	}
-	NBL_XUNLOCK();
 
 	return (error);
 }

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/namei.h>
@@ -1552,6 +1553,7 @@ again:
 			*tl = txdr_unsigned(NFSV3CREATE_EXCLUSIVE);
 			tl = nfsm_build(u_int32_t *, NFSX_V3CREATEVERF);
 #ifdef INET
+			CURVNET_SET(CRED_TO_VNET(cnp->cn_cred));
 			IN_IFADDR_RLOCK();
 			if (!TAILQ_EMPTY(&V_in_ifaddrhead))
 				*tl++ = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr.s_addr;
@@ -1560,6 +1562,7 @@ again:
 				*tl++ = create_verf;
 #ifdef INET
 			IN_IFADDR_RUNLOCK();
+			CURVNET_RESTORE();
 #endif
 			*tl = ++create_verf;
 		} else {

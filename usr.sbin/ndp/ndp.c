@@ -116,7 +116,7 @@
 
 #define NEXTADDR(w, s) \
 	if (rtm->rtm_addrs & (w)) { \
-		bcopy((char *)&s, cp, sizeof(s)); cp += sizeof(s);}
+		bcopy((char *)&s, cp, sizeof(s)); cp += SA_SIZE(&s);}
 
 
 static pid_t pid;

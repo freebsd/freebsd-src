@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+
+#include <net/vnet.h>
+
 #include <netinet/tcp.h>
 
 #include <rpc/rpc.h>
@@ -217,8 +220,11 @@ clnt_vc_create(
 		}
 	}
 
-	if (!__rpc_socket2sockinfo(so, &si))
+	CURVNET_SET(so->so_vnet);
+	if (!__rpc_socket2sockinfo(so, &si)) {
+		CURVNET_RESTORE();
 		goto err;
+	}
 
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		bzero(&sopt, sizeof(sopt));
@@ -239,6 +245,7 @@ clnt_vc_create(
 		sopt.sopt_valsize = sizeof(one);
 		sosetopt(so, &sopt);
 	}
+	CURVNET_RESTORE();
 
 	ct->ct_closeit = FALSE;
 

@@ -91,6 +91,9 @@ dsl_pool_open_impl(spa_t *spa, uint64_t txg)
 	mutex_init(&dp->dp_lock, NULL, MUTEX_DEFAULT, NULL);
 	mutex_init(&dp->dp_scrub_cancel_lock, NULL, MUTEX_DEFAULT, NULL);
 
+	dp->dp_vnrele_taskq = taskq_create("zfs_vn_rele_taskq", 1, minclsyspri,
+	    1, 4, 0);
+
 	return (dp);
 }
 
@@ -228,6 +231,7 @@ dsl_pool_close(dsl_pool_t *dp)
 	rw_destroy(&dp->dp_config_rwlock);
 	mutex_destroy(&dp->dp_lock);
 	mutex_destroy(&dp->dp_scrub_cancel_lock);
+	taskq_destroy(dp->dp_vnrele_taskq);
 	kmem_free(dp, sizeof (dsl_pool_t));
 }
 
@@ -610,4 +614,10 @@ dsl_pool_create_origin(dsl_pool_t *dp, dmu_tx_t *tx)
 	    dp, &dp->dp_origin_snap));
 	dsl_dataset_rele(ds, FTAG);
 	rw_exit(&dp->dp_config_rwlock);
+}
+
+taskq_t *
+dsl_pool_vnrele_taskq(dsl_pool_t *dp)
+{
+	return (dp->dp_vnrele_taskq);
 }

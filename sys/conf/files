@@ -91,8 +91,8 @@ pccarddevs.h			standard				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
 teken_state.h		optional sc					   \
-	dependency	"$S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences" \
-	compile-with	"${AWK} -f $S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences > teken_state.h" \
+	dependency	"$S/teken/gensequences $S/teken/sequences" \
+	compile-with	"${AWK} -f $S/teken/gensequences $S/teken/sequences > teken_state.h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"teken_state.h"
 usbdevs.h			optional usb				   \
@@ -845,8 +845,10 @@ dev/drm/r128_irq.c		optional r128drm
 dev/drm/r128_state.c		optional r128drm \
 	compile-with "${NORMAL_C} -finline-limit=13500"
 dev/drm/r300_cmdbuf.c		optional radeondrm
+dev/drm/r600_blit.c		optional radeondrm
 dev/drm/r600_cp.c		optional radeondrm
 dev/drm/radeon_cp.c		optional radeondrm
+dev/drm/radeon_cs.c		optional radeondrm
 dev/drm/radeon_drv.c		optional radeondrm
 dev/drm/radeon_irq.c		optional radeondrm
 dev/drm/radeon_mem.c		optional radeondrm
@@ -1296,6 +1298,7 @@ dev/ppc/ppc_puc.c		optional ppc puc
 dev/pst/pst-iop.c		optional pst
 dev/pst/pst-pci.c		optional pst pci
 dev/pst/pst-raid.c		optional pst
+dev/pty/pty.c			optional pty
 dev/puc/puc.c			optional puc
 dev/puc/puc_cfg.c		optional puc
 dev/puc/puc_pccard.c		optional puc pccard
@@ -2058,7 +2061,6 @@ kern/tty_info.c			standard
 kern/tty_inq.c			standard
 kern/tty_outq.c			standard
 kern/tty_pts.c			standard
-kern/tty_pty.c			optional pty
 kern/tty_tty.c			standard
 kern/tty_ttydisc.c		standard
 kern/uipc_accf.c		optional inet
@@ -2615,6 +2617,7 @@ security/mac_portacl/mac_portacl.c optional mac_portacl
 security/mac_seeotheruids/mac_seeotheruids.c optional mac_seeotheruids
 security/mac_stub/mac_stub.c	optional mac_stub
 security/mac_test/mac_test.c	optional mac_test
+teken/teken.c			optional sc
 ufs/ffs/ffs_alloc.c		optional ffs
 ufs/ffs/ffs_balloc.c		optional ffs
 ufs/ffs/ffs_inode.c		optional ffs

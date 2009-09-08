@@ -1,13 +1,19 @@
 # $FreeBSD$
 #
 # make release [BUILDNAME=somename] CHROOTDIR=/some/dir CVSROOT=/cvs/dir \
-#     [RELEASETAG=tag]
+#     [RELEASETAG=tag] [SVNROOT=svn://svn.freebsd.org/base] \
+#     [SVNBRANCH=some/branch]
 #
 # Where "/some/dir" is the pathname of a directory on a some filesystem with
 # at least 1000MB of free space, "somename" is what you want the release to
 # call itself, "/cvs/dir" is where our source repo resides and, optionally,
 # which CVS "tag" name should be used when checking out the sources to build
 # the release (default is HEAD).
+#
+# Please note the support for building from SVN is preliminary and there
+# are still questions about things like how to handle updates of
+# /usr/src on production systems (csup(1) replacement).  It is a work
+# in progress and may change as the other issues get worked out.
 #
 # Please note: the md(4) driver must be present in the kernel
 # (either by being compiled in or available as a kld(4) module),
@@ -18,16 +24,16 @@
 # Set these, release builder!
 #
 # Fixed version:
-#BUILDNAME=8.0-CURRENT
+#BUILDNAME=9.0-CURRENT
 #
 # Automatic SNAP versioning:
 DATE != date +%Y%m%d
-BASE = 8.0
+BASE = 9.0
 BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 #CHROOTDIR=/junk/release
 # If this is a -stable snapshot, then set
-#RELEASETAG=RELENG_7
+#RELEASETAG=RELENG_8
 #
 # To test a release with a source tree containing patches and
 # other work. This tree will get copied instead of getting the
@@ -49,11 +55,24 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 # To add other options to the CVS command, set
 #CVSARGS="-lfq"
 #
-# To prefix the cvs command
+# To prefix the CVS command
 #CVSPREFIX="/usr/bin/time"
 #
 # Where the CVS repository is
 #CVSROOT="/home/ncvs"
+#
+# To add other options to the Subversion subcommands (co,up), set
+#SVNCMDARGS="-r '{ 01/01/2002 00:00:00 UTC }'"
+#
+# To prefix the Subversion command
+#SVNPREFIX="/usr/bin/time"
+#
+# Where the Subversion repository is
+#SVNROOT=svn://svn.freebsd.org/base
+#
+# Subversion branch to build for src.  If this is not set then it is
+# automatically computed from RELEASETAG.
+#SVNBRANCH=stable/8
 #
 # Non-zero if ${RELEASETAG} is in the form "RELENG_ver_RELEASE"; we
 # are building an official release.  Otherwise, we are building for
@@ -65,6 +84,16 @@ ISRELEASE!=	expr "${RELEASETAG}" : '^RELENG_.*_RELEASE$$' || true
 AUXRELEASETAG!=	echo ${RELEASETAG} | sed -e 's/^RELENG_/RELEASE_/' -e 's/_RELEASE$$//'
 DOCRELEASETAG?=		${AUXRELEASETAG}
 PORTSRELEASETAG?=	${AUXRELEASETAG}
+.endif
+.endif
+
+# Determine the Subversion source branch that corresponds to the requested
+# RELEASETAG.
+.if !defined(SVNBRANCH)
+.if defined(RELEASETAG)
+SVNBRANCH!=	echo "${RELEASETAG}" | awk -f ${.CURDIR}/svnbranch.awk
+.else
+SVNBRANCH=	head
 .endif
 .endif
 
@@ -341,8 +370,17 @@ CVS_PORTSARGS+=	-r ${PORTSRELEASETAG}
 WORLDDIR?=	${.CURDIR}/..
 
 release rerelease:
-.if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
-	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
+.if !defined(CHROOTDIR) || !defined(BUILDNAME)
+	@echo "To make a release you must set CHROOTDIR and BUILDNAME" && false
+.endif
+.if !defined(NOPORTSATALL) && !defined(EXTPORTSDIR) && !defined(CVSROOT)
+	@echo "Building ports requires CVSROOT or EXTPORTSDIR" && false
+.endif
+.if !defined(NODOC) && !defined(EXTDOCDIR) && !defined(CVSROOT)
+	@echo "Building docs requires CVSROOT or EXTDOCDIR" && false
+.endif
+.if !defined(EXTSRCDIR) && !defined(CVSROOT) && !defined(SVNROOT)
+	@echo "The source tree requires SVNROOT, CVSROOT, or EXTSRCDIR" && false
 .endif
 .if defined(NOPORTSATALL) && !defined(NODOC)
 	@echo "Ports are required for building the release docs.  Either set NODOC or"
@@ -387,6 +425,10 @@ release rerelease:
 .if defined(EXTSRCDIR)
 	cd ${CHROOTDIR}/usr && \
 	    cp -R -H ${EXTSRCDIR} src
+.elif defined(SVNROOT)
+	cd ${CHROOTDIR}/usr && \
+	    ${SVNPREFIX} svn co ${SVNCMDARGS} ${SVNROOT}/${SVNBRANCH} \
+	    ${RELEASESRCMODULE} 
 .else
 	cd ${CHROOTDIR}/usr && \
 	    ${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} \
@@ -432,7 +474,10 @@ release rerelease:
 .endif
 .if make(rerelease)
 .if !defined(RELEASENOUPDATE) && !defined(EXTSRCDIR)
-.if !defined(RELEASETAG)
+.if defined(SVNROOT)
+	cd ${CHROOTDIR}/usr/src && ${SVNPREFIX} svn switch ${SVNCMDARGS} \
+	    ${SVNROOT}/${SVNBRANCH}
+.elif !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr/src && ${CVSPREFIX} cvs -R ${CVSARGS} -q \
 	    update ${CVSCMDARGS} -P -d -A
 .else
@@ -601,6 +646,7 @@ release.2:
 	cd ${.CURDIR}/.. && ${CROSSMAKE} distrib-dirs DESTDIR=${RD}/trees/base
 	cd ${.CURDIR}/.. && ${CROSSMAKE} ${WORLD_FLAGS} distributeworld \
 	    DISTDIR=${RD}/trees
+	sh ${.CURDIR}/scripts/mm-mtree.sh -F "${CROSSENV}" -D "${RD}/trees/base"
 	touch ${.TARGET}
 
 # Make and install the generic kernel(s).
@@ -651,7 +697,7 @@ release.5:
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
 		(find ${OTHER_DISTS} -path '*/var/empty' | xargs chflags noschg; \
-		find ${OTHER_DISTS} -depth -type d -empty -print | xargs rmdir)
+		find ${OTHER_DISTS} -depth -type d -empty -delete)
 	touch ${.TARGET}
 
 #
@@ -1117,10 +1163,10 @@ iso.1:
 .endif
 
 #
-# --==## Documentation Project files such as the Handbook and FAQ ##==--
+# --==## Documentation Project tools required to build the release notes ##==--
 #
 doc.1:
-	@echo "Making docs..."
+	@echo "Making docproj tools..."
 	@for i in ${DOCPORTS}; do \
 	    cd /usr/ports/$$i && \
 	    env -i FTP_PASSIVE_MODE=$${FTP_PASSIVE_MODE:-no} PATH=$${PATH} \

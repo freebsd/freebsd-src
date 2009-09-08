@@ -25,89 +25,92 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" $Id: ieee80211_input.9,v 1.6 2004/03/04 12:33:27 bruce Exp $
 .\"
-.Dd March 2, 2004
+.Dd August 4, 2009
 .Dt IEEE80211_INPUT 9
 .Os
 .Sh NAME
-.Nm ieee80211_input , ieee80211_decap , ieee80211_recv_mgmt
+.Nm ieee80211_input
 .Nd software 802.11 stack input functions
 .Sh SYNOPSIS
 .In net80211/ieee80211_var.h
-.In net80211/ieee80211_proto.h
 .Ft void
 .Fo ieee80211_input
-.Fa "struct ifnet *ifp" "struct mbuf *m" "struct ieee80211_node *ni"
-.Fa "int rssi" "u_int32_t rstamp"
+.Fa "struct ieee80211_node *"
+.Fa "struct mbuf *"
+.Fa "int rssi"
+.Fa "int noise"
 .Fc
-.Ft struct mbuf *
-.Fn ieee80211_decap "struct ifnet *ifp" "struct mbuf *m"
 .Ft void
-.Fo ieee80211_recv_mgmt
-.Fa "struct ieee80211com *ic" "struct mbuf *m0" "struct ieee80211_node *ni"
-.Fa "int subtype" "int rssi" "u_int32_t rstamp"
+.Fo ieee80211_input_all
+.Fa "struct ieee80211com *"
+.Fa "struct mbuf *"
+.Fa "int rssi"
+.Fa "int noise"
 .Fc
 .Sh DESCRIPTION
-These
-functions process received 802.11 frames.
-.Pp
-.\"
 The
+.Nm net80211
+layer that supports 802.11 device drivers requires that
+receive processing be single-threaded.
+Typically this is done using a dedicated driver
+.Xr taskqueue 9
+thread.
 .Fn ieee80211_input
-function takes an mbuf chain
-.Fa m
-containing a complete 802.11 frame from the driver
-.Fa ifp
-and passes it to the software 802.11 stack for input processing.
-The
-.Fa ni
-argument specifies an instance of
-.Vt struct ieee80211_node
-(which may be driver-specific) representing the node from which the
-frame was received.
-The arguments
-.Fa rssi
 and
-.Fa stamp
-are typically derived from on-card data structures; they are used for
-recording the signal strength and time received of the frame respectively.
+.Fn ieee80211_input_all
+process received 802.11 frames and are designed
+for use in that context; e.g. no driver locks may be held.
 .Pp
-.\"
-The
-.Fn ieee80211_decap
-function performs decapsulation of the 802.11 frame in the mbuf chain
-.Fa m
-received by the device
-.Fa ifp ,
-taking the form of the 802.11 address fields into account;
-the structure of 802.11 addresses vary according to the intended
-source and destination of the frame.
-It is typically called from within
-.Fn ieee80211_input .
+The frame passed up in the
+.Vt mbuf
+must have the 802.11 protocol header at the front; all device-specific
+information and/or PLCP must be removed.
+Any CRC must be stripped from the end of the frame.
+The 802.11 protocol header should be 32-bit aligned for
+optimal performance but receive processing does not require it.
+If the frame holds a payload and that is not aligned to a 32-bit
+boundary then the payload will be re-aligned so that it is suitable
+for processing by protocols such as
+.Xr ip 4 .
 .Pp
-.\"
+If a device (such as
+.Xr ath 4 )
+inserts padding after the 802.11 header to align
+the payload to a 32-bit boundary the
+.Dv IEEE80211_C_DATAPAD
+capability must be set.
+Otherwise header and payload are assumed contiguous in the mbuf chain.
+.Pp
+If a received frame must pass
+through the A-MPDU receive reorder buffer then the mbuf
+must be marked with the
+.Dv M_AMPDU
+flag.
+Note that for the moment this is required of all frames received from
+a station and TID where a Block ACK stream is active, not just A-MPDU
+aggregates.
+It is sufficient to check for
+.Dv IEEE80211_NODE_HT
+in the
+.Vt ni_flags
+of the station's node table entry, any frames that do not require reorder
+processing will be dispatched with only minimal overhead.
+.Pp
 The
-.Fn ieee80211_recv_mgmt
-performs input processing for 802.11 management frames.
-It is typically called from within
-.Fn ieee80211_input .
-.\"
+.Vt rssi
+parameter is the Receive Signal Strength Indication of the frame
+measured in 0.5dBm units relative to the noise floor.
+The
+.Vt noise
+parameter is the best approximation of the noise floor in
+dBm units at the time the frame was received.
+RSSI and noise are used by the
+.Nm net80211
+layer to make scanning and roaming decisions in station mode
+and to do auto channel selection for hostap and similar modes.
+Otherwise the values are made available to user applications
+(with the rssi presented as a filtered average over the last ten values 
+and the noise floor the last reported value).
 .Sh SEE ALSO
-.Xr ieee80211 9 ,
-.Xr ifnet 9
-.Sh HISTORY
-The
-.Nm ieee80211
-series of functions first appeared in
-.Nx 1.5 ,
-and were later ported to
-.Fx 4.6 .
-.Sh AUTHORS
-.An -nosplit
-This manual page was written by
-.An Bruce M. Simpson Aq bms@FreeBSD.org
-and
-.An Darron Broad Aq darron@kewl.org .
-.Sh BUGS
-There is no netisr queue specifically for the software 802.11 stack yet.
+.Xr ieee80211 9 .

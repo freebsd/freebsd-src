@@ -124,6 +124,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usb_device.h>
 #include "usbdevs.h"
 
 #include <cam/cam.h>
@@ -411,6 +412,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 	{USB_VENDOR_AIPTEK2, USB_PRODUCT_AIPTEK2_SUNPLUS_TECH, RID_WILDCARD,
 		UMASS_PROTO_DEFAULT,
 		NO_SYNCHRONIZE_CACHE
+	},
+	{USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_SDCR_6335, RID_WILDCARD,
+		UMASS_PROTO_DEFAULT,
+		NO_TEST_UNIT_READY | NO_SYNCHRONIZE_CACHE
 	},
 	{USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_AU6390, RID_WILDCARD,
 		UMASS_PROTO_DEFAULT,
@@ -733,6 +738,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 		UMASS_PROTO_UFI,
 		NO_QUIRKS
 	},
+	{ USB_VENDOR_PHILIPS, USB_PRODUCT_PHILIPS_SPE3030CC, RID_WILDCARD,
+		UMASS_PROTO_DEFAULT,
+		NO_SYNCHRONIZE_CACHE
+	},
 	{USB_VENDOR_PLEXTOR, USB_PRODUCT_PLEXTOR_40_12_40U, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		NO_TEST_UNIT_READY
@@ -893,6 +902,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 		UMASS_PROTO_UFI | UMASS_PROTO_CBI,
 		NO_QUIRKS
 	},
+	{USB_VENDOR_TECLAST, USB_PRODUCT_TECLAST_TLC300, RID_WILDCARD,
+		UMASS_PROTO_DEFAULT,
+		NO_TEST_UNIT_READY | NO_SYNCHRONIZE_CACHE
+	},
 	{USB_VENDOR_TREK, USB_PRODUCT_TREK_MEMKEY, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 		NO_INQUIRY
@@ -963,6 +976,10 @@ static const struct umass_devdescr umass_devdescr[] = {
 	},
 	{USB_VENDOR_ACTIONS, USB_PRODUCT_ACTIONS_MP4, RID_WILDCARD,
 		UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+		NO_SYNCHRONIZE_CACHE
+	},
+	{USB_VENDOR_ASUS, USB_PRODUCT_ASUS_GMSC, RID_WILDCARD,
+		UMASS_PROTO_DEFAULT,
 		NO_SYNCHRONIZE_CACHE
 	},
 	{VID_EOT, PID_EOT, RID_EOT, 0, 0}
@@ -2962,6 +2979,28 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 				if (sc->sc_transfer.cmd_data[0] == INQUIRY) {
 
 					/*
+					 * Umass devices don't generally report their serial numbers
+					 * in the usual SCSI way.  Emulate it here.
+					 */
+					if ((sc->sc_transfer.cmd_data[1] & SI_EVPD) &&
+					    sc->sc_transfer.cmd_data[2] == SVPD_UNIT_SERIAL_NUMBER &&
+					    sc->sc_udev != NULL &&
+					    sc->sc_udev->serial != NULL &&
+					    sc->sc_udev->serial[0] != '\0') {
+						struct scsi_vpd_unit_serial_number *vpd_serial;
+
+						vpd_serial = (struct scsi_vpd_unit_serial_number *)ccb->csio.data_ptr;
+						vpd_serial->length = strlen(sc->sc_udev->serial);
+						if (vpd_serial->length > sizeof(vpd_serial->serial_num))
+							vpd_serial->length = sizeof(vpd_serial->serial_num);
+						memcpy(vpd_serial->serial_num, sc->sc_udev->serial, vpd_serial->length);
+						ccb->csio.scsi_status = SCSI_STATUS_OK;
+						ccb->ccb_h.status = CAM_REQ_CMP;
+						xpt_done(ccb);
+						goto done;
+					}
+
+					/*
 					 * Handle EVPD inquiry for broken devices first
 					 * NO_INQUIRY also implies NO_INQUIRY_EVPD
 					 */
@@ -3176,6 +3215,29 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 			rcap = (void *)(ccb->csio.data_ptr);
 			maxsector = scsi_4btoul(rcap->addr) - 1;
 			scsi_ulto4b(maxsector, rcap->addr);
+		}
+		/*
+		 * We have to add SVPD_UNIT_SERIAL_NUMBER to the list
+		 * of pages supported by the device - otherwise, CAM
+		 * will never ask us for the serial number if the
+		 * device cannot handle that by itself.
+		 */
+		if (ccb->ccb_h.func_code == XPT_SCSI_IO &&
+		    sc->sc_transfer.cmd_data[0] == INQUIRY &&
+		    (sc->sc_transfer.cmd_data[1] & SI_EVPD) &&
+		    sc->sc_transfer.cmd_data[2] == SVPD_SUPPORTED_PAGE_LIST &&
+		    sc->sc_udev != NULL &&
+		    sc->sc_udev->serial != NULL &&
+		    sc->sc_udev->serial[0] != '\0') {
+			struct ccb_scsiio *csio;
+			struct scsi_vpd_supported_page_list *page_list;
+
+			csio = &ccb->csio;
+			page_list = (struct scsi_vpd_supported_page_list *)csio->data_ptr;
+			if (page_list->length + 1 < SVPD_SUPPORTED_PAGES_SIZE) {
+				page_list->list[page_list->length] = SVPD_UNIT_SERIAL_NUMBER;
+				page_list->length++;
+			}
 		}
 		xpt_done(ccb);
 		break;

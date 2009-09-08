@@ -278,18 +278,38 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 		unsigned int newcnt;
 		struct sctp_stream_out *outs;
 		struct sctp_stream_queue_pending *sp;
+		struct sctp_tmit_chunk *chk, *chk_next;
 
-		/* cut back on number of streams */
+		/* abandon the upper streams */
 		newcnt = ntohs(init->num_inbound_streams);
-		/* This if is probably not needed but I am cautious */
+		if (!TAILQ_EMPTY(&asoc->send_queue)) {
+			chk = TAILQ_FIRST(&asoc->send_queue);
+			while (chk) {
+				chk_next = TAILQ_NEXT(chk, sctp_next);
+				if (chk->rec.data.stream_number >= newcnt) {
+					TAILQ_REMOVE(&asoc->send_queue, chk, sctp_next);
+					asoc->send_queue_cnt--;
+					if (chk->data != NULL) {
+						sctp_free_bufspace(stcb, asoc, chk, 1);
+						sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
+						    SCTP_NOTIFY_DATAGRAM_UNSENT, chk, SCTP_SO_NOT_LOCKED);
+						if (chk->data) {
+							sctp_m_freem(chk->data);
+							chk->data = NULL;
+						}
+					}
+					sctp_free_a_chunk(stcb, chk);
+					/* sa_ignore FREED_MEMORY */
+				}
+				chk = chk_next;
+			}
+		}
 		if (asoc->strmout) {
-			/* First make sure no data chunks are trapped */
 			for (i = newcnt; i < asoc->pre_open_streams; i++) {
 				outs = &asoc->strmout[i];
 				sp = TAILQ_FIRST(&outs->outqueue);
 				while (sp) {
-					TAILQ_REMOVE(&outs->outqueue, sp,
-					    next);
+					TAILQ_REMOVE(&outs->outqueue, sp, next);
 					asoc->stream_queue_cnt--;
 					sctp_ulp_notify(SCTP_NOTIFY_SPECIAL_SP_FAIL,
 					    stcb, SCTP_NOTIFY_DATAGRAM_UNSENT,
@@ -301,16 +321,13 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 					sctp_free_remote_addr(sp->net);
 					sp->net = NULL;
 					/* Free the chunk */
-					SCTP_PRINTF("sp:%p tcb:%p weird free case\n",
-					    sp, stcb);
-
 					sctp_free_a_strmoq(stcb, sp);
 					/* sa_ignore FREED_MEMORY */
 					sp = TAILQ_FIRST(&outs->outqueue);
 				}
 			}
 		}
-		/* cut back the count and abandon the upper streams */
+		/* cut back the count */
 		asoc->pre_open_streams = newcnt;
 	}
 	SCTP_TCB_SEND_UNLOCK(stcb);
