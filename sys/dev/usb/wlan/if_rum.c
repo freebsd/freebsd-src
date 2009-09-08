@@ -42,12 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/rman.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -1489,7 +1486,7 @@ rum_rf_write(struct rum_softc *sc, uint8_t reg, uint32_t val)
 		return;
 	}
 
-	tmp = RT2573_RF_BUSY | RT2573_RF_20BIT | (val & 0xfffff) << 2 |
+	tmp = RT2573_RF_BUSY | RT2573_RF_20BIT | ((val & 0xfffff) << 2) |
 	    (reg & 3);
 	rum_write(sc, RT2573_PHY_CSR4, tmp);
 

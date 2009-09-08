@@ -312,6 +312,7 @@ lock_lockmgr(struct lock_object *lock, int how)
 	panic("lockmgr locks do not support sleep interlocking");
 }
 
+/* XXX: flexelint retval */
 static int
 unlock_lockmgr(struct lock_object *lock)
 {

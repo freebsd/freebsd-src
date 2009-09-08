@@ -153,7 +153,7 @@ ata_marvell_pata_ch_attach(device_t dev)
 	return ENXIO;
  
     /* dont use 32 bit PIO transfers */
-	ch->flags |= ATA_USE_16BIT;
+    ch->flags |= ATA_USE_16BIT;
 
     return 0;
 }

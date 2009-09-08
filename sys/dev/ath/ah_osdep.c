@@ -107,6 +107,7 @@ ath_hal_malloc(size_t size)
 	return malloc(size, M_ATH_HAL, M_NOWAIT | M_ZERO);
 }
 
+/* XXX: FlexeLint return in void function ? */
 void
 ath_hal_free(void* p)
 {

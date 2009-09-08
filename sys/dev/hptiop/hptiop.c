@@ -432,6 +432,7 @@ srb_complete:
 					sg_list), (u_int8_t *)&ccb->csio.sense_data, 
 					MIN(dxfer, sizeof(ccb->csio.sense_data)));
 			} else {
+				/* XXX: Flexelint arg2 is 16 bytes, arg3 is 32 */
 				memcpy(&ccb->csio.sense_data, &req->sg_list, 
 					MIN(dxfer, sizeof(ccb->csio.sense_data)));
 			}
@@ -575,6 +576,7 @@ static void hptiop_request_callback_mv(struct hpt_iop_hba * hba,
 			ccb->ccb_h.status = CAM_BUSY;
 			break;
 		case IOP_RESULT_CHECK_CONDITION:
+			/* XXX: FlexeLint: arg2=16b arg3=32 */
 			memcpy(&ccb->csio.sense_data, &req->sg_list, 
 				MIN(req->dataxfer_length, sizeof(ccb->csio.sense_data)));
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
