@@ -30,26 +30,14 @@
  * $FreeBSD$
  */
 
+#ifndef _SUN4V_INCLUDE_PARAM_H_
+#define	_SUN4V_INCLUDE_PARAM_H_
+
 /*
  * Machine dependent constants for sparc64.
  */
 
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is unsigned int
- * and must be cast to any desired pointer type.
- */
-#ifndef _ALIGNBYTES
-#define _ALIGNBYTES	0xf
-#endif
-#ifndef _ALIGN
-#define _ALIGN(p)	(((u_long)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
-#endif
-
-#ifndef _NO_NAMESPACE_POLLUTION
-
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
+#include <machine/_align.h>
 
 #ifndef MACHINE
 #define MACHINE		"sun4v"
@@ -147,7 +135,4 @@
 #define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
 #endif /* LOCORE */
 
-
-
-#endif /* !_MACHINE_PARAM_H_ */
-#endif /* !_NO_NAMESPACE_POLLUTION */
+#endif /* !_SUN4V_INCLUDE_PARAM_H_ */

@@ -39,8 +39,10 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
+#ifndef _MIPS_INCLUDE_PARAM_H_
+#define	_MIPS_INCLUDE_PARAM_H_
+
+#include <machine/_align.h>
 
 #include <sys/cdefs.h>
 #ifdef _KERNEL
@@ -82,8 +84,6 @@
  * data types (int, long, ...).	  The result is u_int and must be cast to
  * any desired pointer type.
  */
-#define	_ALIGNBYTES	7
-#define	_ALIGN(p)	(((u_int)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
@@ -167,4 +167,4 @@
 #define	DELAY(n)	{ register int N = (n); while (--N > 0); }
 #endif /* !_KERNEL */
 
-#endif /* !_MACHINE_PARAM_H_ */
+#endif /* !_MIPS_INCLUDE_PARAM_H_ */
