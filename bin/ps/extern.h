@@ -39,7 +39,7 @@ extern fixpt_t ccpu;
 extern int cflag, eval, fscale, nlistread, rawcpu;
 extern unsigned long mempages;
 extern time_t now;
-extern int sumrusage, termwidth, totwidth;
+extern int showthreads, sumrusage, termwidth, totwidth;
 extern STAILQ_HEAD(velisthead, varent) varlist;
 
 __BEGIN_DECLS
@@ -71,6 +71,7 @@ void	 priorityr(KINFO *, VARENT *);
 void	 rgroupname(KINFO *, VARENT *);
 void	 runame(KINFO *, VARENT *);
 void	 rvar(KINFO *, VARENT *);
+int	 s_comm(KINFO *);
 int	 s_label(KINFO *);
 int	 s_rgroupname(KINFO *);
 int	 s_runame(KINFO *);
