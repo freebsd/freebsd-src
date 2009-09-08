@@ -111,7 +111,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assertEqualString("hardlink", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
 	assertEqualString("file", archive_entry_hardlink(ae));
-	assertEqualInt(12345684, archive_entry_size(ae));
+	assert(!archive_entry_size_is_set(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(86401, archive_entry_atime(ae));
 	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
