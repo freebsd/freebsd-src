@@ -58,7 +58,7 @@ pr_attime(time_t *started, time_t *now)
 	static wchar_t buf[256];
 	struct tm tp, tm;
 	time_t diff;
-	wchar_t *fmt;
+	const wchar_t *fmt;
 	int len, width, offset = 0;
 
 	tp = *localtime(started);
