@@ -39,73 +39,15 @@
  *	@(#)param.h	8.1 (Berkeley) 6/10/93
  */
 
-#ifndef _IA64_INCLUDE_PARAM_H_
-#define	_IA64_INCLUDE_PARAM_H_
+#ifndef _IA64_INCLUDE__ALIGN_H_
+#define	_IA64_INCLUDE__ALIGN_H_
 
 /*
- * Machine dependent constants for the IA64.
+ * Round p (pointer or byte index) up to a correctly-aligned value for all
+ * data types (int, long, ...).   The result is u_long and must be cast to
+ * any desired pointer type.
  */
+#define	_ALIGNBYTES		15
+#define	_ALIGN(p)		(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
 
-#include <machine/_align.h>
-
-#define __HAVE_ACPI
-#define __PCI_REROUTE_INTERRUPT
-
-#ifndef MACHINE
-#define	MACHINE		"ia64"
-#endif
-#ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"ia64"
-#endif
-
-#if defined(SMP) || defined(KLD_MODULE)
-#define	MAXCPU		4
-#else
-#define MAXCPU		1
-#endif
-
-#define	ALIGNBYTES		_ALIGNBYTES
-#define	ALIGN(p)		_ALIGN(p)
-/*
- * ALIGNED_POINTER is a boolean macro that checks whether an address
- * is valid to fetch data elements of type t from on this architecture.
- * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits). 
- */
-#define	ALIGNED_POINTER(p,t)	((((u_long)(p)) & (sizeof(t)-1)) == 0)
-
-/*
- * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
- * architecture.  It should be used with appropriate caution.
- */
-#define	CACHE_LINE_SHIFT	7
-#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
-
-#ifndef LOG2_PAGE_SIZE
-#define	LOG2_PAGE_SIZE		13		/* 8K pages by default. */
-#endif
-#define	PAGE_SHIFT	(LOG2_PAGE_SIZE)
-#define	PAGE_SIZE	(1<<(LOG2_PAGE_SIZE))
-#define PAGE_MASK	(PAGE_SIZE-1)
-#define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
-
-#ifndef	KSTACK_PAGES
-#define	KSTACK_PAGES	4		/* pages of kernel stack */
-#endif
-#define	KSTACK_GUARD_PAGES 0		/* pages of kstack guard; 0 disables */
-
-/*
- * Mach derived conversion macros
- */
-#define	round_page(x)	((((unsigned long)(x)) + PAGE_MASK) & ~(PAGE_MASK))
-#define	trunc_page(x)	((unsigned long)(x) & ~(PAGE_MASK))
-
-#define atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
-#define ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
-
-#define	ia64_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
-#define	ia64_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
-
-#define pgtok(x)                ((x) * (PAGE_SIZE / 1024)) 
-
-#endif	/* !_IA64_INCLUDE_PARAM_H_ */
+#endif /* !_IA64_INCLUDE__ALIGN_H_ */

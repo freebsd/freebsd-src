@@ -38,29 +38,17 @@
  * $FreeBSD$
  */
 
+#ifndef _POWERPC_INCLUDE_PARAM_H_
+#define	_POWERPC_INCLUDE_PARAM_H_
+
 /*
  * Machine dependent constants for PowerPC (32-bit only currently)
  */
 
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is unsigned int
- * and must be cast to any desired pointer type.
- */
-#ifndef _ALIGNBYTES
-#define	_ALIGNBYTES	(sizeof(int) - 1)
-#endif
-#ifndef _ALIGN
-#define	_ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
-#endif
-
-#ifndef _NO_NAMESPACE_POLLUTION
+#include <machine/_align.h>
 
 /* Needed to display interrupts on OFW PCI */
 #define __PCI_REROUTE_INTERRUPT
-
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
 
 #ifndef MACHINE
 #define	MACHINE		"powerpc"
@@ -120,5 +108,4 @@
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 
-#endif /* !_MACHINE_PARAM_H_ */
-#endif /* !_NO_NAMESPACE_POLLUTION */
+#endif /* !_POWERPC_INCLUDE_PARAM_H_ */

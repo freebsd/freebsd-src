@@ -39,26 +39,16 @@
  * $FreeBSD$
  */
 
+
 #ifndef _AMD64_INCLUDE_PARAM_H_
 #define	_AMD64_INCLUDE_PARAM_H_
+
+#include <machine/_align.h>
 
 /*
  * Machine dependent constants for AMD64.
  */
 
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is u_long and
- * must be cast to any desired pointer type.
- */
-#ifndef _ALIGNBYTES
-#define	_ALIGNBYTES	(sizeof(long) - 1)
-#endif
-#ifndef _ALIGN
-#define	_ALIGN(p)	(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
-#endif
-
-#ifndef _NO_NAMESPACE_POLLUTION
 
 #define __HAVE_ACPI
 #define __PCI_REROUTE_INTERRUPT
@@ -150,5 +140,4 @@
 
 #define	pgtok(x)	((unsigned long)(x) * (PAGE_SIZE / 1024)) 
 
-#endif /* !_NO_NAMESPACE_POLLUTION */
 #endif /* !_AMD64_INCLUDE_PARAM_H_ */
