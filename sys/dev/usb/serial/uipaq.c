@@ -1103,6 +1103,10 @@ uipaq_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != UIPAQ_IFACE_INDEX) {
 		return (ENXIO);
 	}
+	if (uaa->info.bInterfaceClass == UICLASS_IAD) {
+		DPRINTF("IAD detected - not UIPAQ serial device\n");
+		return (ENXIO);
+	}
 	return (usbd_lookup_id_by_uaa(uipaq_devs, sizeof(uipaq_devs), uaa));
 }
 

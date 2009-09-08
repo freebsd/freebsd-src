@@ -571,9 +571,13 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	if (file->symlink.s != NULL)
 		archive_entry_copy_symlink(entry, file->symlink.s);
 
-	/* If this entry points to the same data as the previous
-	 * entry, convert this into a hardlink to that entry.
-	 * But don't bother for zero-length files. */
+	/* Note: If the input isn't seekable, we can't rewind to
+	 * return the same body again, so if the next entry refers to
+	 * the same data, we have to return it as a hardlink to the
+	 * original entry. */
+	/* TODO: We have enough information here to compute an
+	 * accurate value for nlinks.  We should do so and ignore
+	 * nlinks from the RR extensions. */
 	if (file->offset == iso9660->previous_offset
 	    && file->size == iso9660->previous_size
 	    && file->size > 0) {
@@ -586,8 +590,21 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 		return (ARCHIVE_OK);
 	}
 
-	/* If the offset is before our current position, we can't
-	 * seek backwards to extract it, so issue a warning. */
+	/* Except for the hardlink case above, if the offset of the
+	 * next entry is before our current position, we can't seek
+	 * backwards to extract it, so issue a warning.  Note that
+	 * this can only happen if this entry was added to the heap
+	 * after we passed this offset, that is, only if the directory
+	 * mentioning this entry is later than the body of the entry.
+	 * Such layouts are very unusual; most ISO9660 writers lay out
+	 * and record all directory information first, then store
+	 * all file bodies. */
+	/* TODO: Someday, libarchive's I/O core will support optional
+	 * seeking.  When that day comes, this code should attempt to
+	 * seek and only return the error if the seek fails.  That
+	 * will give us support for whacky ISO images that require
+	 * seeking while retaining the ability to read almost all ISO
+	 * images in a streaming fashion. */
 	if (file->offset < iso9660->current_position) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Ignoring out-of-order file @%x (%s) %jd < %jd",
@@ -628,7 +645,7 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 				struct file_info *child;
 
 				/* N.B.: these special directory identifiers
-				 * are 8 bit "values" even on a 
+				 * are 8 bit "values" even on a
 				 * Joliet CD with UCS-2 (16bit) encoding.
 				 */
 

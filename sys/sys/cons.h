@@ -45,10 +45,9 @@ typedef	void	cn_probe_t(struct consdev *);
 typedef	void	cn_init_t(struct consdev *);
 typedef	void	cn_term_t(struct consdev *);
 typedef	int	cn_getc_t(struct consdev *);
-typedef	int	cn_checkc_t(struct consdev *);
 typedef	void	cn_putc_t(struct consdev *, int);
 
-struct consdev {
+struct consdev_ops {
 	cn_probe_t	*cn_probe;
 				/* probe hardware and fill in consdev info */
 	cn_init_t	*cn_init;
@@ -57,10 +56,13 @@ struct consdev {
 				/* turn off as console */
 	cn_getc_t	*cn_getc;
 				/* kernel getchar interface */
-	cn_checkc_t	*cn_checkc;
-				/* kernel "return char if available" interface */
 	cn_putc_t	*cn_putc;
 				/* kernel putchar interface */
+};
+
+struct consdev {
+	const struct consdev_ops *cn_ops;
+				/* console device operations. */
 	short	cn_pri;		/* pecking order; the higher the better */
 	void	*cn_arg;	/* drivers method argument */
 	int	cn_flags;	/* capabilities of this console */
@@ -83,21 +85,22 @@ struct consdev {
 extern	struct msgbuf consmsgbuf; /* Message buffer for constty. */
 extern	struct tty *constty;	/* Temporary virtual console. */
 
-#define CONS_DRIVER(name, probe, init, term, getc, checkc, putc, dbctl)	\
-	static struct consdev name##_consdev = {			\
-		probe, init, term, getc, checkc, putc			\
+#define	CONSOLE_DEVICE(name, ops, arg)					\
+	static struct consdev name = {					\
+		.cn_ops = &ops,						\
+		.cn_arg = (arg),					\
 	};								\
-	DATA_SET(cons_set, name##_consdev)
+	DATA_SET(cons_set, name)
 
-#define CONSOLE_DRIVER(name)						\
-	static struct consdev name##_consdev = {			\
+#define	CONSOLE_DRIVER(name)						\
+	static const struct consdev_ops name##_consdev_ops = {		\
 		.cn_probe = name##_cnprobe,				\
 		.cn_init = name##_cninit,				\
 		.cn_term = name##_cnterm,				\
 		.cn_getc = name##_cngetc,				\
 		.cn_putc = name##_cnputc,				\
 	};								\
-	DATA_SET(cons_set, name##_consdev)
+	CONSOLE_DEVICE(name##_consdev, name##_consdev_ops, NULL)
 
 /* Other kernel entry points. */
 void	cninit(void);

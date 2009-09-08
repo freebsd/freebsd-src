@@ -672,7 +672,6 @@ ISAPNP			opt_isa.h
 DEV_BPF			opt_bpf.h
 DEV_MCA			opt_mca.h
 DEV_CARP		opt_carp.h
-DEV_PTY			opt_tty.h
 DEV_SPLASH		opt_splash.h
 
 # EISA support
@@ -821,8 +820,9 @@ TDMA_TXRATE_QUARTER_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11NA_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11NG_DEFAULT	opt_tdma.h
 
-# Virtualize the network stack
+# Network stack virtualization options
 VIMAGE			opt_global.h
+VNET_DEBUG		opt_global.h
 
 # Common Flash Interface (CFI) options
 CFI_SUPPORT_STRATAFLASH	opt_cfi.h

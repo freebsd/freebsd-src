@@ -107,9 +107,6 @@ void	vnet_destroy(struct vnet *vnet);
  * Various macros -- get and set the current network stack, but also
  * assertions.
  */
-#ifdef INVARIANTS
-#define	VNET_DEBUG
-#endif
 #ifdef VNET_DEBUG
 #define	VNET_ASSERT(condition)						\
 	if (!(condition)) {						\
@@ -185,12 +182,14 @@ extern struct sx vnet_sxlock;
  * Virtual network stack memory allocator, which allows global variables to
  * be automatically instantiated for each network stack instance.
  */
+__asm__(
 #if defined(__arm__)
-__asm__(".section " VNET_SETNAME ", \"aw\", %progbits");
+	".section " VNET_SETNAME ", \"aw\", %progbits\n"
 #else
-__asm__(".section " VNET_SETNAME ", \"aw\", @progbits");
+	".section " VNET_SETNAME ", \"aw\", @progbits\n"
 #endif
-__asm__(".previous");
+	"\t.p2align " __XSTRING(CACHE_LINE_SHIFT) "\n"
+	"\t.previous");
 
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
@@ -230,21 +229,25 @@ int	vnet_sysctl_handle_string(SYSCTL_HANDLER_ARGS);
 int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
 
 #define	SYSCTL_VNET_INT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|CTLFLAG_MPSAFE|(access), \
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_VNET|(access),		\
 	    ptr, val, vnet_sysctl_handle_int, "I", descr)
 #define	SYSCTL_VNET_PROC(parent, nbr, name, access, ptr, arg, handler,	\
 	    fmt, descr)							\
-	SYSCTL_OID(parent, nbr, name, access, ptr, arg, handler, fmt,	\
-	    descr)
+	SYSCTL_OID(parent, nbr, name, CTLFLAG_VNET|(access), ptr, arg, 	\
+	    handler, fmt, descr)
 #define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING|(access), arg,	\
-	    len, vnet_sysctl_handle_string, "A", descr)
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_STRING|CTLFLAG_VNET|(access),			\
+	    arg, len, vnet_sysctl_handle_string, "A", descr)
 #define	SYSCTL_VNET_STRUCT(parent, nbr, name, access, ptr, type, descr)	\
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|(access), ptr,	\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_OPAQUE|CTLFLAG_VNET|(access), ptr,			\
 	    sizeof(struct type), vnet_sysctl_handle_opaque, "S," #type,	\
 	    descr)
 #define	SYSCTL_VNET_UINT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_OID(parent, nbr, name, CTLTYPE_UINT|CTLFLAG_MPSAFE|(access), \
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_UINT|CTLFLAG_MPSAFE|CTLFLAG_VNET|(access),		\
 	    ptr, val, vnet_sysctl_handle_uint, "IU", descr)
 #define	VNET_SYSCTL_ARG(req, arg1) do {					\
 	if (arg1 != NULL)						\

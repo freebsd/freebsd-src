@@ -148,6 +148,8 @@ MALLOC_DECLARE(DRM_MEM_CTXBITMAP);
 MALLOC_DECLARE(DRM_MEM_SGLISTS);
 MALLOC_DECLARE(DRM_MEM_DRAWABLE);
 
+SYSCTL_DECL(_hw_drm);
+
 #define DRM_MAX_CTXBITMAP (PAGE_SIZE * 8)
 
 				/* Internal types and structures */
@@ -416,7 +418,6 @@ struct drm_file {
 	struct drm_device *dev;
 	int		  authenticated;
 	int		  master;
-	int		  minor;
 	pid_t		  pid;
 	uid_t		  uid;
 	drm_magic_t	  magic;

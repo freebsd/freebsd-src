@@ -14,6 +14,15 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090904: remove lukemftpd
+OLD_FILES+=usr/libexec/lukemftpd
+OLD_FILES+=usr/share/man/man5/ftpd.conf.5.gz
+OLD_FILES+=usr/share/man/man5/ftpusers.5.gz
+OLD_FILES+=usr/share/man/man8/lukemftpd.8.gz
+# 20090902: BSD.{x11,x11-4}.dist are dead and BSD.local.dist lives in ports/
+OLD_FILES+=etc/mtree/BSD.local.dist
+OLD_FILES+=etc/mtree/BSD.x11.dist
+OLD_FILES+=etc/mtree/BSD.x11-4.dist
 # 20090801: vimage.h removed in favour of vnet.h
 OLD_FILES+=usr/include/sys/vimage.h
 # 20090719: library version bump for 8.0
@@ -803,8 +812,6 @@ OLD_FILES+=rescue/bsdlabel
 OLD_FILES+=rescue/fdisk
 OLD_FILES+=rescue/gpt
 .endif
-# 20071026: kthread(9)/kproc(9) API changes
-OLD_FILES+=usr/share/man/man9/kthread_create.9.gz
 # 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd

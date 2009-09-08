@@ -48,7 +48,6 @@ dev/sound/macio/tumbler.c	optional	snd_ai2s iicbus powermac
 dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
-dev/syscons/teken/teken.c	optional sc
 dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_ocp.c		optional	tsec mpc85xx
 dev/uart/uart_bus_ocp.c		optional	uart mpc85xx

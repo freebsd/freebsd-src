@@ -97,6 +97,8 @@ static int zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp);
 static int zfs_statfs(vfs_t *vfsp, struct statfs *statp);
 static int zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp);
 static int zfs_sync(vfs_t *vfsp, int waitfor);
+static int zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
+    struct ucred **credanonp, int *numsecflavors, int **secflavors);
 static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp);
 static void zfs_objset_close(zfsvfs_t *zfsvfs);
 static void zfs_freevfs(vfs_t *vfsp);
@@ -108,6 +110,7 @@ static struct vfsops zfs_vfsops = {
 	.vfs_statfs =		zfs_statfs,
 	.vfs_vget =		zfs_vget,
 	.vfs_sync =		zfs_sync,
+	.vfs_checkexp =		zfs_checkexp,
 	.vfs_fhtovp =		zfs_fhtovp,
 };
 
@@ -335,6 +338,13 @@ zfs_register_callbacks(vfs_t *vfsp)
 	zfsvfs = vfsp->vfs_data;
 	ASSERT(zfsvfs);
 	os = zfsvfs->z_os;
+
+	/*
+	 * This function can be called for a snapshot when we update snapshot's
+	 * mount point, which isn't really supported.
+	 */
+	if (dmu_objset_is_snapshot(os))
+		return (EOPNOTSUPP);
 
 	/*
 	 * The act of registering our callbacks will destroy any mount
@@ -719,7 +729,10 @@ zfs_mount(vfs_t *vfsp)
 	error = secpolicy_fs_mount(cr, mvp, vfsp);
 	if (error) {
 		error = dsl_deleg_access(osname, ZFS_DELEG_PERM_MOUNT, cr);
-		if (error == 0) {
+		if (error != 0)
+			goto out;
+
+		if (!(vfsp->vfs_flag & MS_REMOUNT)) {
 			vattr_t		vattr;
 
 			/*
@@ -729,7 +742,9 @@ zfs_mount(vfs_t *vfsp)
 
 			vattr.va_mask = AT_UID;
 
+			vn_lock(mvp, LK_SHARED | LK_RETRY);
 			if (error = VOP_GETATTR(mvp, &vattr, cr)) {
+				VOP_UNLOCK(mvp, 0);
 				goto out;
 			}
 
@@ -741,18 +756,19 @@ zfs_mount(vfs_t *vfsp)
 			}
 #else
 			if (error = secpolicy_vnode_owner(mvp, cr, vattr.va_uid)) {
+				VOP_UNLOCK(mvp, 0);
 				goto out;
 			}
 
 			if (error = VOP_ACCESS(mvp, VWRITE, cr, td)) {
+				VOP_UNLOCK(mvp, 0);
 				goto out;
 			}
+			VOP_UNLOCK(mvp, 0);
 #endif
-
-			secpolicy_fs_mount_clearopts(cr, vfsp);
-		} else {
-			goto out;
 		}
+
+		secpolicy_fs_mount_clearopts(cr, vfsp);
 	}
 
 	/*
@@ -917,7 +933,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	for (zp = list_head(&zfsvfs->z_all_znodes); zp != NULL;
 	    zp = list_next(&zfsvfs->z_all_znodes, zp))
 		if (zp->z_dbuf) {
-			ASSERT(ZTOV(zp)->v_count > 0);
+			ASSERT(ZTOV(zp)->v_count >= 0);
 			zfs_znode_dmu_fini(zp);
 		}
 	mutex_exit(&zfsvfs->z_znodes_lock);
@@ -1103,6 +1119,26 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 }
 
 static int
+zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
+    struct ucred **credanonp, int *numsecflavors, int **secflavors)
+{
+	zfsvfs_t *zfsvfs = vfsp->vfs_data;
+
+	/*
+	 * If this is regular file system vfsp is the same as
+	 * zfsvfs->z_parent->z_vfs, but if it is snapshot,
+	 * zfsvfs->z_parent->z_vfs represents parent file system
+	 * which we have to use here, because only this file system
+	 * has mnt_export configured.
+	 */
+	vfsp = zfsvfs->z_parent->z_vfs;
+
+	return (vfs_stdcheckexp(zfsvfs->z_parent->z_vfs, nam, extflagsp,
+	    credanonp, numsecflavors, secflavors));
+}
+
+
+static int
 zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 {
 	zfsvfs_t	*zfsvfs = vfsp->vfs_data;
@@ -1117,6 +1153,11 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 
 	ZFS_ENTER(zfsvfs);
 
+	/*
+	 * On FreeBSD we are already called with snapshot's mount point
+	 * and not the mount point of its parent.
+	 */
+#ifndef __FreeBSD__
 	if (fidp->fid_len == LONG_FID_LEN) {
 		zfid_long_t	*zlfid = (zfid_long_t *)fidp;
 		uint64_t	objsetid = 0;
@@ -1135,6 +1176,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 			return (EINVAL);
 		ZFS_ENTER(zfsvfs);
 	}
+#endif
 
 	if (fidp->fid_len == SHORT_FID_LEN || fidp->fid_len == LONG_FID_LEN) {
 		zfid_short_t	*zfid = (zfid_short_t *)fidp;
@@ -1160,9 +1202,8 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 		} else {
 			VN_HOLD(*vpp);
 		}
-		ZFS_EXIT(zfsvfs);
-		/* XXX: LK_RETRY? */
 		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		ZFS_EXIT(zfsvfs);
 		return (0);
 	}
 
@@ -1184,7 +1225,6 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 	}
 
 	*vpp = ZTOV(zp);
-	/* XXX: LK_RETRY? */
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	vnode_create_vobject(*vpp, zp->z_phys->zp_size, curthread);
 	ZFS_EXIT(zfsvfs);

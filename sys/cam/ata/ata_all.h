@@ -83,7 +83,7 @@ struct ata_res {
 int	ata_version(int ver);
 void	ata_print_ident(struct ata_params *ident_data);
 
-void	ata_36bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
+void	ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
     uint32_t lba, uint8_t sector_count);
 void	ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
     uint64_t lba, uint16_t sector_count);

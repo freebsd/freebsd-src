@@ -35,7 +35,7 @@
  * Maximum number of parallel commands to accept,
  * 1024 for Fibre Channel (SPI is 16).
  */
-#define MAX_INITIATORS		1024
+#define MAX_INITIATORS		8
 #define	SECTOR_SIZE		512
 #define MAX_EVENTS		(MAX_INITIATORS + 5)
 				/* kqueue for AIO, signals */

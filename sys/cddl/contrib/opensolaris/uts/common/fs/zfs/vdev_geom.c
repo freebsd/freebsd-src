@@ -194,6 +194,10 @@ vdev_geom_worker(void *arg)
 	zio_t *zio;
 	struct bio *bp;
 
+	thread_lock(curthread);
+	sched_prio(curthread, PRIBIO);
+	thread_unlock(curthread);
+
 	ctx = arg;
 	for (;;) {
 		mtx_lock(&ctx->gc_queue_mtx);
@@ -203,7 +207,7 @@ vdev_geom_worker(void *arg)
 				ctx->gc_state = 2;
 				wakeup_one(&ctx->gc_state);
 				mtx_unlock(&ctx->gc_queue_mtx);
-				kproc_exit(0);
+				kthread_exit();
 			}
 			msleep(&ctx->gc_queue, &ctx->gc_queue_mtx,
 			    PRIBIO | PDROP, "vgeom:io", 0);
@@ -530,8 +534,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	vd->vdev_tsd = ctx;
 	pp = cp->provider;
 
-	kproc_create(vdev_geom_worker, ctx, NULL, 0, 0, "vdev:worker %s",
-	    pp->name);
+	kproc_kthread_add(vdev_geom_worker, ctx, &zfsproc, NULL, 0, 0,
+	    "zfskern", "vdev %s", pp->name);
 
 	/*
 	 * Determine the actual size of the device.

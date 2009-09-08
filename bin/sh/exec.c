@@ -286,7 +286,7 @@ printentry(struct tblentry *cmdp, int verbose)
 		out1fmt("function %s", cmdp->cmdname);
 		if (verbose) {
 			INTOFF;
-			name = commandtext(cmdp->param.func);
+			name = commandtext(getfuncnode(cmdp->param.func));
 			out1c(' ');
 			out1str(name);
 			ckfree(name);
@@ -583,7 +583,7 @@ deletefuncs(void)
 		while ((cmdp = *pp) != NULL) {
 			if (cmdp->cmdtype == CMDFUNCTION) {
 				*pp = cmdp->next;
-				freefunc(cmdp->param.func);
+				unreffunc(cmdp->param.func);
 				ckfree(cmdp);
 			} else {
 				pp = &cmdp->next;
@@ -670,7 +670,7 @@ addcmdentry(char *name, struct cmdentry *entry)
 	INTOFF;
 	cmdp = cmdlookup(name, 1);
 	if (cmdp->cmdtype == CMDFUNCTION) {
-		freefunc(cmdp->param.func);
+		unreffunc(cmdp->param.func);
 	}
 	cmdp->cmdtype = entry->cmdtype;
 	cmdp->param = entry->u;
@@ -705,7 +705,7 @@ unsetfunc(char *name)
 	struct tblentry *cmdp;
 
 	if ((cmdp = cmdlookup(name, 0)) != NULL && cmdp->cmdtype == CMDFUNCTION) {
-		freefunc(cmdp->param.func);
+		unreffunc(cmdp->param.func);
 		delete_cmd_entry();
 		return (0);
 	}

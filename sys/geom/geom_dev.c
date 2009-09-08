@@ -371,14 +371,14 @@ g_dev_strategy(struct bio *bp)
 	cp = dev->si_drv2;
 	KASSERT(cp->acr || cp->acw,
 	    ("Consumer with zero access count in g_dev_strategy"));
-
+#ifdef INVARIANTS
 	if ((bp->bio_offset % cp->provider->sectorsize) != 0 ||
 	    (bp->bio_bcount % cp->provider->sectorsize) != 0) {
 		bp->bio_resid = bp->bio_bcount;
 		biofinish(bp, NULL, EINVAL);
 		return;
 	}
-
+#endif
 	for (;;) {
 		/*
 		 * XXX: This is not an ideal solution, but I belive it to

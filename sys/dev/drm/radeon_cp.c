@@ -408,6 +408,15 @@ static void radeon_init_pipes(drm_radeon_private_t *dev_priv)
 {
 	uint32_t gb_tile_config, gb_pipe_sel = 0;
 
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV530) {
+		uint32_t z_pipe_sel = RADEON_READ(RV530_GB_PIPE_SELECT2);
+		if ((z_pipe_sel & 3) == 3)
+			dev_priv->num_z_pipes = 2;
+		else
+			dev_priv->num_z_pipes = 1;
+	} else
+		dev_priv->num_z_pipes = 1;
+
 	/* RS4xx/RS6xx/R4xx/R5xx */
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R420) {
 		gb_pipe_sel = RADEON_READ(R400_GB_PIPE_SELECT);
@@ -2060,6 +2069,8 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	else
 		dev_priv->flags |= RADEON_IS_PCI;
 
+	mtx_init(&dev_priv->cs.cs_mutex, "cs_mtx", NULL, MTX_DEF);
+
 	ret = drm_addmap(dev, drm_get_resource_start(dev, 2),
 			 drm_get_resource_len(dev, 2), _DRM_REGISTERS,
 			 _DRM_READ_ONLY | _DRM_DRIVER, &dev_priv->mmio);
@@ -2112,6 +2123,8 @@ int radeon_driver_unload(struct drm_device *dev)
 
 	drm_rmmap(dev, dev_priv->mmio);
 
+	mtx_destroy(&dev_priv->cs.cs_mutex);
+
 	drm_free(dev_priv, sizeof(*dev_priv), DRM_MEM_DRIVER);
 
 	dev->dev_private = NULL;
@@ -2126,9 +2139,9 @@ void radeon_commit_ring(drm_radeon_private_t *dev_priv)
 
 	/* check if the ring is padded out to 16-dword alignment */
 
-	tail_aligned = dev_priv->ring.tail & 0xf;
+	tail_aligned = dev_priv->ring.tail & (RADEON_RING_ALIGN - 1);
 	if (tail_aligned) {
-		int num_p2 = 16 - tail_aligned;
+		int num_p2 = RADEON_RING_ALIGN - tail_aligned;
 
 		ring = dev_priv->ring.start;
 		/* pad with some CP_PACKET2 */

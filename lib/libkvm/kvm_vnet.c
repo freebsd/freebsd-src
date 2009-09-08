@@ -195,7 +195,7 @@ _kvm_vnet_selectpid(kvm_t *kd, pid_t pid)
 	kd->vnet_start = nl[NLIST_START_VNET].n_value;
 	kd->vnet_stop = nl[NLIST_STOP_VNET].n_value;
 	kd->vnet_current = (uintptr_t)prison.pr_vnet;
-	kd->vnet_base = (uintptr_t)vnet.vnet_data_mem - kd->vnet_start;
+	kd->vnet_base = vnet.vnet_data_base;
 	return (0);
 }
 

@@ -211,6 +211,25 @@ there_is_another_patch(void)
 	return TRUE;
 }
 
+static char *
+p4_savestr(char *str)
+{
+	char *t, *h;
+
+	/* Leading whitespace. */
+	while (isspace((unsigned char)*str))
+		str++;
+
+	/* Remove the file revision number. */
+	for (t = str, h = NULL; *t != '\0' && !isspace((unsigned char)*t); t++)
+		if (*t == '#')
+			h = t;
+	if (h != NULL)
+		*h = '\0';
+
+	return savestr(str);
+}
+
 /*
  * Determine what kind of diff is in the remaining part of the patch file.
  */
@@ -298,6 +317,11 @@ intuit_diff_type(void)
 				free(revision);
 				revision = Nullch;
 			}
+		} else if (strnEQ(s, "==== ", 5)) {
+			/* Perforce-style diffs. */
+			if ((t = strstr(s + 5, " - ")) != NULL)
+				newtmp = p4_savestr(t + 3);
+			oldtmp = p4_savestr(s + 5);
 		}
 		if ((!diff_type || diff_type == ED_DIFF) &&
 		    first_command_line >= 0L &&

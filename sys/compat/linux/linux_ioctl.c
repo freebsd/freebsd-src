@@ -2061,22 +2061,20 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 	struct ifnet *ifscan;
 	int ethno;
 
+	IFNET_RLOCK_ASSERT();
+
 	/* Short-circuit non ethernet interfaces */
 	if (!IFP_IS_ETH(ifp))
 		return (strlcpy(buffer, ifp->if_xname, buflen));
 
 	/* Determine the (relative) unit number for ethernet interfaces */
 	ethno = 0;
-	IFNET_RLOCK();
 	TAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
-		if (ifscan == ifp) {
-			IFNET_RUNLOCK();
+		if (ifscan == ifp)
 			return (snprintf(buffer, buflen, "eth%d", ethno));
-		}
 		if (IFP_IS_ETH(ifscan))
 			ethno++;
 	}
-	IFNET_RUNLOCK();
 
 	return (0);
 }
@@ -2106,6 +2104,7 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 		return (NULL);
 	index = 0;
 	is_eth = (len == 3 && !strncmp(lxname, "eth", len)) ? 1 : 0;
+	CURVNET_SET(TD_TO_VNET(td));
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		/*
@@ -2119,6 +2118,7 @@ ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 			break;
 	}
 	IFNET_RUNLOCK();
+	CURVNET_RESTORE();
 	if (ifp != NULL)
 		strlcpy(bsdname, ifp->if_xname, IFNAMSIZ);
 	return (ifp);
@@ -2148,6 +2148,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 
 	max_len = MAXPHYS - 1;
 
+	CURVNET_SET(TD_TO_VNET(td));
 	/* handle the 'request buffer size' case */
 	if (ifc.ifc_buf == PTROUT(NULL)) {
 		ifc.ifc_len = 0;
@@ -2159,11 +2160,14 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 			}
 		}
 		error = copyout(&ifc, uifc, sizeof(ifc));
+		CURVNET_RESTORE();
 		return (error);
 	}
 
-	if (ifc.ifc_len <= 0)
+	if (ifc.ifc_len <= 0) {
+		CURVNET_RESTORE();
 		return (EINVAL);
+	}
 
 again:
 	/* Keep track of eth interfaces */
@@ -2177,7 +2181,7 @@ again:
 	valid_len = 0;
 
 	/* Return all AF_INET addresses of all interfaces */
-	IFNET_RLOCK();		/* could sleep XXX */
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		int addrs = 0;
 
@@ -2225,6 +2229,7 @@ again:
 	memcpy(PTRIN(ifc.ifc_buf), sbuf_data(sb), ifc.ifc_len);
 	error = copyout(&ifc, uifc, sizeof(ifc));
 	sbuf_delete(sb);
+	CURVNET_RESTORE();
 
 	return (error);
 }

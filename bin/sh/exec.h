@@ -46,11 +46,12 @@ enum {
 	TYPECMD_TYPE		/* type */
 };
 
+union node;
 struct cmdentry {
 	int cmdtype;
 	union param {
 		int index;
-		union node *func;
+		struct funcdef *func;
 	} u;
 	int special;
 };

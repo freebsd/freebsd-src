@@ -178,6 +178,8 @@ static vm_paddr_t dmaplimit;
 vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 pt_entry_t pg_nx;
 
+static int pat_works = 0;		/* Is page attribute table sane? */
+
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 static int pg_ps_enabled = 1;
@@ -590,20 +592,56 @@ void
 pmap_init_pat(void)
 {
 	uint64_t pat_msr;
+	char *sysenv;
+	static int pat_tested = 0;
 
 	/* Bail if this CPU doesn't implement PAT. */
 	if (!(cpu_feature & CPUID_PAT))
 		panic("no PAT??");
 
 	/*
-	 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
-	 * Program 4 and 5 as WP and WC.
-	 * Leave 6 and 7 as UC and UC-.
+	 * Some Apple Macs based on nVidia chipsets cannot enter ACPI mode
+	 * via SMI# when we use upper 4 PAT entries for unknown reason.
 	 */
-	pat_msr = rdmsr(MSR_PAT);
-	pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
-	pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
-	    PAT_VALUE(5, PAT_WRITE_COMBINING);
+	if (!pat_tested) {
+		pat_works = 1;
+		sysenv = getenv("smbios.system.product");
+		if (sysenv != NULL) {
+			if (strncmp(sysenv, "MacBook5,1", 10) == 0 ||
+			    strncmp(sysenv, "MacBookPro5,5", 13) == 0 ||
+			    strncmp(sysenv, "Macmini3,1", 10) == 0)
+				pat_works = 0;
+			freeenv(sysenv);
+		}
+		pat_tested = 1;
+	}
+
+	/* Initialize default PAT entries. */
+	pat_msr = PAT_VALUE(0, PAT_WRITE_BACK) |
+	    PAT_VALUE(1, PAT_WRITE_THROUGH) |
+	    PAT_VALUE(2, PAT_UNCACHED) |
+	    PAT_VALUE(3, PAT_UNCACHEABLE) |
+	    PAT_VALUE(4, PAT_WRITE_BACK) |
+	    PAT_VALUE(5, PAT_WRITE_THROUGH) |
+	    PAT_VALUE(6, PAT_UNCACHED) |
+	    PAT_VALUE(7, PAT_UNCACHEABLE);
+
+	if (pat_works) {
+		/*
+		 * Leave the indices 0-3 at the default of WB, WT, UC-, and UC.
+		 * Program 4 and 5 as WP and WC.
+		 * Leave 6 and 7 as UC- and UC.
+		 */
+		pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
+		pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
+		    PAT_VALUE(5, PAT_WRITE_COMBINING);
+	} else {
+		/*
+		 * Just replace PAT Index 2 with WC instead of UC-.
+		 */
+		pat_msr &= ~PAT_MASK(2);
+		pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
+	}
 	wrmsr(MSR_PAT, pat_msr);
 }
 
@@ -754,27 +792,48 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 	pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
 
 	/* Map the caching mode to a PAT index. */
-	switch (mode) {
-	case PAT_UNCACHEABLE:
-		pat_index = 3;
-		break;
-	case PAT_WRITE_THROUGH:
-		pat_index = 1;
-		break;
-	case PAT_WRITE_BACK:
-		pat_index = 0;
-		break;
-	case PAT_UNCACHED:
-		pat_index = 2;
-		break;
-	case PAT_WRITE_COMBINING:
-		pat_index = 5;
-		break;
-	case PAT_WRITE_PROTECTED:
-		pat_index = 4;
-		break;
-	default:
-		panic("Unknown caching mode %d\n", mode);
+	if (pat_works) {
+		switch (mode) {
+		case PAT_UNCACHEABLE:
+			pat_index = 3;
+			break;
+		case PAT_WRITE_THROUGH:
+			pat_index = 1;
+			break;
+		case PAT_WRITE_BACK:
+			pat_index = 0;
+			break;
+		case PAT_UNCACHED:
+			pat_index = 2;
+			break;
+		case PAT_WRITE_COMBINING:
+			pat_index = 5;
+			break;
+		case PAT_WRITE_PROTECTED:
+			pat_index = 4;
+			break;
+		default:
+			panic("Unknown caching mode %d\n", mode);
+		}
+	} else {
+		switch (mode) {
+		case PAT_UNCACHED:
+		case PAT_UNCACHEABLE:
+		case PAT_WRITE_PROTECTED:
+			pat_index = 3;
+			break;
+		case PAT_WRITE_THROUGH:
+			pat_index = 1;
+			break;
+		case PAT_WRITE_BACK:
+			pat_index = 0;
+			break;
+		case PAT_WRITE_COMBINING:
+			pat_index = 2;
+			break;
+		default:
+			panic("Unknown caching mode %d\n", mode);
+		}
 	}
 
 	/* Map the 3-bit index value into the PAT, PCD, and PWT bits. */
@@ -943,8 +1002,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 		 * coherence domain.
 		 */
 		mfence();
-		for (; eva < sva; eva += cpu_clflush_line_size)
-			clflush(eva);
+		for (; sva < eva; sva += cpu_clflush_line_size)
+			clflush(sva);
 		mfence();
 	} else {
 
@@ -2261,6 +2320,8 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 			    " in pmap %p", va, pmap);
 			return (FALSE);
 		}
+		if (va < VM_MAXUSER_ADDRESS)
+			pmap->pm_stats.resident_count++;
 	}
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(mptepa);
@@ -4474,7 +4535,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	if (base < DMAP_MIN_ADDRESS)
 		return (EINVAL);
 
-	cache_bits_pde = cache_bits_pte = -1;
+	cache_bits_pde = pmap_cache_bits(mode, 1);
+	cache_bits_pte = pmap_cache_bits(mode, 0);
 	changed = FALSE;
 
 	/*
@@ -4491,8 +4553,6 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			 * memory type, then we need not demote this page. Just
 			 * increment tmpva to the next 1GB page frame.
 			 */
-			if (cache_bits_pde < 0)
-				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pdpe & PG_PDE_CACHE) == cache_bits_pde) {
 				tmpva = trunc_1gpage(tmpva) + NBPDP;
 				continue;
@@ -4520,8 +4580,6 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			 * memory type, then we need not demote this page. Just
 			 * increment tmpva to the next 2MB page frame.
 			 */
-			if (cache_bits_pde < 0)
-				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pde & PG_PDE_CACHE) == cache_bits_pde) {
 				tmpva = trunc_2mpage(tmpva) + NBPDR;
 				continue;
@@ -4555,12 +4613,9 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	for (tmpva = base; tmpva < base + size; ) {
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
 		if (*pdpe & PG_PS) {
-			if (cache_bits_pde < 0)
-				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pdpe & PG_PDE_CACHE) != cache_bits_pde) {
 				pmap_pde_attr(pdpe, cache_bits_pde);
-				if (!changed)
-					changed = TRUE;
+				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
 				if (pa_start == pa_end) {
@@ -4586,12 +4641,9 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		}
 		pde = pmap_pdpe_to_pde(pdpe, tmpva);
 		if (*pde & PG_PS) {
-			if (cache_bits_pde < 0)
-				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pde & PG_PDE_CACHE) != cache_bits_pde) {
 				pmap_pde_attr(pde, cache_bits_pde);
-				if (!changed)
-					changed = TRUE;
+				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
 				if (pa_start == pa_end) {
@@ -4614,13 +4666,10 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			}
 			tmpva = trunc_2mpage(tmpva) + NBPDR;
 		} else {
-			if (cache_bits_pte < 0)
-				cache_bits_pte = pmap_cache_bits(mode, 0);
 			pte = pmap_pde_to_pte(pde, tmpva);
 			if ((*pte & PG_PTE_CACHE) != cache_bits_pte) {
 				pmap_pte_attr(pte, cache_bits_pte);
-				if (!changed)
-					changed = TRUE;
+				changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
 				if (pa_start == pa_end) {

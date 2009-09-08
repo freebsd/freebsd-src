@@ -711,7 +711,7 @@ hash_seq(const DB *dbp, DBT *key, DBT *data, u_int32_t flag)
 		hashp->cndx = 1;
 		hashp->cpage = NULL;
 	}
- next_bucket:
+next_bucket:
 	for (bp = NULL; !bp || !bp[0]; ) {
 		if (!(bufp = hashp->cpage)) {
 			for (bucket = hashp->cbucket;
@@ -732,7 +732,7 @@ hash_seq(const DB *dbp, DBT *key, DBT *data, u_int32_t flag)
 			}
 		} else {
 			bp = (u_int16_t *)hashp->cpage->page;
-			if (flag == R_NEXT) {
+			if (flag == R_NEXT || flag == 0) {
 				hashp->cndx += 2;
 				if (hashp->cndx > bp[0]) {
 					hashp->cpage = NULL;

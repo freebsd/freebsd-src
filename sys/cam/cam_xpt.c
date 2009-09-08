@@ -1033,11 +1033,12 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	 * To ensure that this is printed in one piece,
 	 * mask out CAM interrupts.
 	 */
-	printf("%s%d at %s%d bus %d target %d lun %d\n",
+	printf("%s%d at %s%d bus %d scbus%d target %d lun %d\n",
 	       periph->periph_name, periph->unit_number,
 	       path->bus->sim->sim_name,
 	       path->bus->sim->unit_number,
 	       path->bus->sim->bus_id,
+	       path->bus->path_id,
 	       path->target->target_id,
 	       path->device->lun_id);
 	printf("%s%d: ", periph->periph_name, periph->unit_number);
@@ -2471,7 +2472,7 @@ xpt_action_default(union ccb *start_ccb)
 		path = start_ccb->ccb_h.path;
 
 		cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb);
-		if (path->device->qfrozen_cnt == 0)
+		if (path->device->ccbq.queue.qfrozen_cnt == 0)
 			runq = xpt_schedule_dev_sendq(path->bus, path->device);
 		else
 			runq = 0;
@@ -2930,7 +2931,7 @@ xpt_action_default(union ccb *start_ccb)
 			xpt_release_devq(crs->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
-		start_ccb->crs.qfrozen_cnt = dev->qfrozen_cnt;
+		start_ccb->crs.qfrozen_cnt = dev->ccbq.queue.qfrozen_cnt;
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -3226,7 +3227,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 		 * If the device has been "frozen", don't attempt
 		 * to run it.
 		 */
-		if (device->qfrozen_cnt > 0) {
+		if (device->ccbq.queue.qfrozen_cnt > 0) {
 			continue;
 		}
 
@@ -3249,7 +3250,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 				 * the device queue until we have a slot
 				 * available.
 				 */
-				device->qfrozen_cnt++;
+				device->ccbq.queue.qfrozen_cnt++;
 				STAILQ_INSERT_TAIL(&xsoftc.highpowerq,
 						   &work_ccb->ccb_h,
 						   xpt_links.stqe);
@@ -3281,7 +3282,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 			 * The client wants to freeze the queue
 			 * after this CCB is sent.
 			 */
-			device->qfrozen_cnt++;
+			device->ccbq.queue.qfrozen_cnt++;
 		}
 
 		/* In Target mode, the peripheral driver knows best... */
@@ -3803,6 +3804,8 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 		case XPORT_SAS:
 		case XPORT_FC:
 		case XPORT_USB:
+		case XPORT_ISCSI:
+		case XPORT_PPB:
 			new_bus->xport = scsi_get_xport();
 			break;
 		case XPORT_ATA:
@@ -4028,7 +4031,7 @@ xpt_freeze_devq(struct cam_path *path, u_int count)
 
 	mtx_assert(path->bus->sim->mtx, MA_OWNED);
 
-	path->device->qfrozen_cnt += count;
+	path->device->ccbq.queue.qfrozen_cnt += count;
 
 	/*
 	 * Mark the last CCB in the queue as needing
@@ -4046,7 +4049,7 @@ xpt_freeze_devq(struct cam_path *path, u_int count)
 	ccbh = TAILQ_LAST(&path->device->ccbq.active_ccbs, ccb_hdr_tailq);
 	if (ccbh && ccbh->status == CAM_REQ_INPROG)
 		ccbh->status = CAM_REQUEUE_REQ;
-	return (path->device->qfrozen_cnt);
+	return (path->device->ccbq.queue.qfrozen_cnt);
 }
 
 u_int32_t
@@ -4090,11 +4093,12 @@ xpt_release_devq_device(struct cam_ed *dev, u_int count, int run_queue)
 	int	rundevq;
 
 	rundevq = 0;
-	if (dev->qfrozen_cnt > 0) {
+	if (dev->ccbq.queue.qfrozen_cnt > 0) {
 
-		count = (count > dev->qfrozen_cnt) ? dev->qfrozen_cnt : count;
-		dev->qfrozen_cnt -= count;
-		if (dev->qfrozen_cnt == 0) {
+		count = (count > dev->ccbq.queue.qfrozen_cnt) ?
+		    dev->ccbq.queue.qfrozen_cnt : count;
+		dev->ccbq.queue.qfrozen_cnt -= count;
+		if (dev->ccbq.queue.qfrozen_cnt == 0) {
 
 			/*
 			 * No longer need to wait for a successful
@@ -4196,12 +4200,12 @@ xpt_done(union ccb *done_ccb)
 				mtx_lock(&cam_simq_lock);
 				TAILQ_INSERT_TAIL(&cam_simq, sim,
 						  links);
-				sim->flags |= CAM_SIM_ON_DONEQ;
 				mtx_unlock(&cam_simq_lock);
+				sim->flags |= CAM_SIM_ON_DONEQ;
+				if ((done_ccb->ccb_h.path->periph->flags &
+				    CAM_PERIPH_POLLED) == 0)
+					swi_sched(cambio_ih, 0);
 			}
-			if ((done_ccb->ccb_h.path->periph->flags &
-			    CAM_PERIPH_POLLED) == 0)
-				swi_sched(cambio_ih, 0);
 			break;
 		default:
 			panic("unknown periph type %d",
@@ -4399,15 +4403,11 @@ xpt_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 		SLIST_INIT(&device->periphs);
 		device->generation = 0;
 		device->owner = NULL;
-		device->qfrozen_cnt = 0;
 		device->flags = CAM_DEV_UNCONFIGURED;
 		device->tag_delay_count = 0;
 		device->tag_saved_openings = 0;
 		device->refcount = 1;
-		if (bus->sim->flags & CAM_SIM_MPSAFE)
-			callout_init_mtx(&device->callout, bus->sim->mtx, 0);
-		else
-			callout_init_mtx(&device->callout, &Giant, 0);
+		callout_init_mtx(&device->callout, bus->sim->mtx, 0);
 
 		/*
 		 * Hold a reference to our parent target so it
@@ -4602,7 +4602,7 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 					      CAM_TARGET_WILDCARD,
 					      CAM_LUN_WILDCARD)) !=CAM_REQ_CMP){
 			printf("xptconfigfunc: xpt_create_path failed with "
-			       "status %#x for bus %d\n", status, bus->path_id);
+			       "status %#x for scbus%d\n", status, bus->path_id);
 			printf("xptconfigfunc: halting bus configuration\n");
 			xpt_free_ccb(work_ccb);
 			busses_to_config--;
@@ -4613,7 +4613,7 @@ xptconfigfunc(struct cam_eb *bus, void *arg)
 		work_ccb->ccb_h.func_code = XPT_PATH_INQ;
 		xpt_action(work_ccb);
 		if (work_ccb->ccb_h.status != CAM_REQ_CMP) {
-			printf("xptconfigfunc: CPI failed on bus %d "
+			printf("xptconfigfunc: CPI failed on scbus%d "
 			       "with status %d\n", bus->path_id,
 			       work_ccb->ccb_h.status);
 			xpt_finishconfig(xpt_periph, work_ccb);
@@ -4887,16 +4887,20 @@ camisr(void *dummy)
 
 	mtx_lock(&cam_simq_lock);
 	TAILQ_INIT(&queue);
-	TAILQ_CONCAT(&queue, &cam_simq, links);
-	mtx_unlock(&cam_simq_lock);
+	while (!TAILQ_EMPTY(&cam_simq)) {
+		TAILQ_CONCAT(&queue, &cam_simq, links);
+		mtx_unlock(&cam_simq_lock);
 
-	while ((sim = TAILQ_FIRST(&queue)) != NULL) {
-		TAILQ_REMOVE(&queue, sim, links);
-		CAM_SIM_LOCK(sim);
-		sim->flags &= ~CAM_SIM_ON_DONEQ;
-		camisr_runqueue(&sim->sim_doneq);
-		CAM_SIM_UNLOCK(sim);
+		while ((sim = TAILQ_FIRST(&queue)) != NULL) {
+			TAILQ_REMOVE(&queue, sim, links);
+			CAM_SIM_LOCK(sim);
+			sim->flags &= ~CAM_SIM_ON_DONEQ;
+			camisr_runqueue(&sim->sim_doneq);
+			CAM_SIM_UNLOCK(sim);
+		}
+		mtx_lock(&cam_simq_lock);
 	}
+	mtx_unlock(&cam_simq_lock);
 }
 
 static void
@@ -4967,7 +4971,7 @@ camisr_runqueue(void *V_queue)
 				xpt_start_tags(ccb_h->path);
 
 			if ((dev->ccbq.queue.entries > 0)
-			 && (dev->qfrozen_cnt == 0)
+			 && (dev->ccbq.queue.qfrozen_cnt == 0)
 			 && (device_is_send_queued(dev) == 0)) {
 				runq = xpt_schedule_dev_sendq(ccb_h->path->bus,
 							      dev);

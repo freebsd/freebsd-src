@@ -282,6 +282,8 @@ xdrmbuf_inline(XDR *xdrs, u_int len)
 	size_t available;
 	char *p;
 
+	if (!m)
+		return (0);
 	if (xdrs->x_op == XDR_ENCODE) {
 		available = M_TRAILINGSPACE(m) + (m->m_len - xdrs->x_handy);
 	} else {
