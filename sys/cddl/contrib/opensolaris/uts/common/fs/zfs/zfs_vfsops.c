@@ -1173,9 +1173,8 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 		} else {
 			VN_HOLD(*vpp);
 		}
-		ZFS_EXIT(zfsvfs);
-		/* XXX: LK_RETRY? */
 		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		ZFS_EXIT(zfsvfs);
 		return (0);
 	}
 
@@ -1197,7 +1196,6 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 	}
 
 	*vpp = ZTOV(zp);
-	/* XXX: LK_RETRY? */
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	vnode_create_vobject(*vpp, zp->z_phys->zp_size, curthread);
 	ZFS_EXIT(zfsvfs);
