@@ -127,7 +127,6 @@ ata_ali_chipinit(device_t dev)
 		    RF_ACTIVE);
 		if (res->bars[i] == NULL) {
 			device_printf(dev, "Failed to allocate BAR %d\n", i);
-			/* XXX: Flexelint: Reuse of for loop variable 'i' at 'line 124' could cause chaos */
 			for (i--; i >=0; i--)
 				bus_release_resource(dev, SYS_RES_IOPORT,
 				    PCIR_BAR(i), res->bars[i]);

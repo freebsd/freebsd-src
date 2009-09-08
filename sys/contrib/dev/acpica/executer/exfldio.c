@@ -992,7 +992,6 @@ AcpiExInsertIntoField (
 
     /* Get initial Datum from the input buffer */
 
-    /* XXX: Flexelint sees arg 9 for bufferlen 8 */
     ACPI_MEMCPY (&RawDatum, Buffer,
         ACPI_MIN(ObjDesc->CommonField.AccessByteWidth,
             BufferLength - BufferOffset));
