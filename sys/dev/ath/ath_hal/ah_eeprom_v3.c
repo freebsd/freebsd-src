@@ -1753,8 +1753,6 @@ legacyEepromGetSpurChan(struct ath_hal *ah, int ix, HAL_BOOL is2GHz)
 /*
  * Reclaim any EEPROM-related storage.
  */
-
-/* XXX: FlexeLint: return in void function */
 static void
 legacyEepromDetach(struct ath_hal *ah)
 {

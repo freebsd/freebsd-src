@@ -133,28 +133,28 @@ struct lock_class lock_class_mtx_spin = {
 struct mtx blocked_lock;
 struct mtx Giant;
 
-static void
+void
 assert_mtx(struct lock_object *lock, int what)
 {
 
 	mtx_assert((struct mtx *)lock, what);
 }
 
-static void
+void
 lock_mtx(struct lock_object *lock, int how)
 {
 
 	mtx_lock((struct mtx *)lock);
 }
 
-static void
+void
 lock_spin(struct lock_object *lock, int how)
 {
 
 	panic("spin locks can only use msleep_spin");
 }
 
-static int
+int
 unlock_mtx(struct lock_object *lock)
 {
 	struct mtx *m;
@@ -165,8 +165,7 @@ unlock_mtx(struct lock_object *lock)
 	return (0);
 }
 
-/* XXX: FlexeLint retval */
-static int
+int
 unlock_spin(struct lock_object *lock)
 {
 

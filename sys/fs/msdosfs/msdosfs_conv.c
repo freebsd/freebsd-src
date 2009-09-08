@@ -266,7 +266,6 @@ dos2unixfn(dn, un, lower, pmp)
 		*un++ = c;
 		thislong++;
 	}
-	/* XXX: FlexeLint: Not kosher, dn is an array, not a pointer */
 	dn += i;
 
 	/*
