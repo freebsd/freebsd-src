@@ -337,6 +337,13 @@ zfs_register_callbacks(vfs_t *vfsp)
 	os = zfsvfs->z_os;
 
 	/*
+	 * This function can be called for a snapshot when we update snapshot's
+	 * mount point, which isn't really supported.
+	 */
+	if (dmu_objset_is_snapshot(os))
+		return (EOPNOTSUPP);
+
+	/*
 	 * The act of registering our callbacks will destroy any mount
 	 * options we may have.  In order to enable temporary overrides
 	 * of mount options, we stash away the current values and
