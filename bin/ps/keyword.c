@@ -79,8 +79,8 @@ static VAR var[] = {
 		CHAR, NULL, 0},
 	{"blocked", "", "sigmask", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"caught", "", "sigcatch", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
-	{"comm", "COMMAND", NULL, LJUST, ucomm, NULL, MAXCOMLEN, 0, CHAR,
-		NULL, 0},
+	{"comm", "COMMAND", NULL, LJUST|DSIZ, ucomm, s_comm,
+		COMMLEN + OCOMMLEN + 1, 0, CHAR, NULL, 0},
 	{"command", "COMMAND", NULL, COMM|LJUST|USER, command, NULL, 16, 0,
 		CHAR, NULL, 0},
 	{"cpu", "CPU", NULL, 0, kvar, NULL, 3, KOFF(ki_estcpu), UINT, "d",
@@ -135,12 +135,13 @@ static VAR var[] = {
 		LONG, "ld", 0},
 	{"nvcsw", "NVCSW", NULL, USER, rvar, NULL, 5, ROFF(ru_nvcsw),
 		LONG, "ld", 0},
-	{"nwchan", "NWCHAN", NULL, LJUST, nwchan, NULL, 8, 0, CHAR, NULL, 0},
+	{"nwchan", "NWCHAN", NULL, LJUST, nwchan, NULL, sizeof(void *) * 2, 0,
+		CHAR, NULL, 0},
 	{"oublk", "OUBLK", NULL, USER, rvar, NULL, 4, ROFF(ru_oublock),
 		LONG, "ld", 0},
 	{"oublock", "", "oublk", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
-	{"paddr", "PADDR", NULL, 0, kvar, NULL, 8, KOFF(ki_paddr), KPTR,
-		"lx", 0},
+	{"paddr", "PADDR", NULL, 0, kvar, NULL, sizeof(void *) * 2,
+		KOFF(ki_paddr), KPTR, "lx", 0},
 	{"pagein", "PAGEIN", NULL, USER, pagein, NULL, 6, 0, CHAR, NULL, 0},
 	{"pcpu", "", "%cpu", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"pending", "", "sig", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
@@ -194,13 +195,13 @@ static VAR var[] = {
 	{"tsiz", "TSIZ", NULL, 0, kvar, NULL, 4, KOFF(ki_tsize), PGTOK, "ld", 0},
 	{"tt", "TT ", NULL, 0, tname, NULL, 4, 0, CHAR, NULL, 0},
 	{"tty", "TTY", NULL, LJUST, longtname, NULL, 8, 0, CHAR, NULL, 0},
-	{"ucomm", "UCOMM", NULL, LJUST, ucomm, NULL, MAXCOMLEN, 0, CHAR, NULL,
-		0},
+	{"ucomm", "UCOMM", NULL, LJUST|DSIZ, ucomm, s_comm,
+		COMMLEN + OCOMMLEN + 1, 0, CHAR, NULL, 0},
 	{"uid", "UID", NULL, 0, kvar, NULL, UIDLEN, KOFF(ki_uid), UINT,
 		UIDFMT, 0},
 	{"upr", "UPR", NULL, 0, upr, NULL, 3, 0, CHAR, NULL, 0},
-	{"uprocp", "UPROCP", NULL, 0, kvar, NULL, 8, KOFF(ki_paddr), KPTR,
-		"lx", 0},
+	{"uprocp", "UPROCP", NULL, 0, kvar, NULL, sizeof(void *) * 2,
+		KOFF(ki_paddr), KPTR, "lx", 0},
 	{"user", "USER", NULL, LJUST|DSIZ, uname, s_uname, USERLEN, 0, CHAR,
 		NULL, 0},
 	{"usrpri", "", "upr", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
@@ -324,6 +325,8 @@ findvar(char *p, int user, char **header)
 			 */
 			rflen = strlen(v->alias) + strlen(hp) + 2;
 			realfmt = malloc(rflen);
+			if (realfmt == NULL)
+				errx(1, "malloc failed");
 			snprintf(realfmt, rflen, "%s=%s", v->alias, hp);
 			parsefmt(realfmt, user);
 		}
