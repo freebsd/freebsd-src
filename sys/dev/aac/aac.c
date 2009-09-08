@@ -3556,7 +3556,7 @@ aac_supported_features(struct aac_softc *sc, caddr_t uptr)
 	 * associated with the feature in the data field or perform whatever
 	 * action needed indicates in the data field.
 	 */
-	if (f.feat.fValue == 0) {
+	 if (f.feat.fValue == 0) {
 		f.feat.fBits.largeLBA =
 		    (sc->flags & AAC_FLAGS_LBA_64BIT) ? 1 : 0;
 		/* TODO: In the future, add other features state here as well */

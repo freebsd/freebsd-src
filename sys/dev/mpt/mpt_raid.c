@@ -562,7 +562,6 @@ mpt_raid_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 		break;
 	}
 	action_result = REQ_TO_RAID_ACTION_RESULT(req);
-	/* XXX: FlexeLint: ActionData is only 4 bytes */
 	memcpy(&action_result->action_data, &reply->ActionData,
 	    sizeof(action_result->action_data));
 	action_result->action_status = le16toh(reply->ActionStatus);

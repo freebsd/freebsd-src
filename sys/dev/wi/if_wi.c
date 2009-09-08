@@ -1673,7 +1673,6 @@ wi_read_nicid(struct wi_softc *sc)
 		memset(ident, 0, sizeof(ident));
 		len = sizeof(ident);
 		/* value should be the format like "V2.00-11" */
-		/* XXX: Flexelint: ident is local, p is arg */
 		if (wi_read_rid(sc, WI_RID_SYMBOL_IDENTITY, ident, &len) == 0 &&
 		    *(p = (char *)ident) >= 'A' &&
 		    p[2] == '.' && p[5] == '-' && p[8] == '\0') {

@@ -844,7 +844,6 @@ out:
 		err = copyout(ptr, crom_buf->ptr, len);
 		if (fwdev == NULL)
 			/* myself */
-			/* XXX: Flexelint no sure about modified pointer */
 			free(ptr, M_FW);
 		break;
 	default:

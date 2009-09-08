@@ -666,7 +666,6 @@ rescan:
 						sc->tx_underrun++;
 #endif
 					} else {
-						/* XXX: FlexeLint doesn't like ; */
 						if (status & TXS_JABBER);
 						else
 							++ifp->if_collisions;
