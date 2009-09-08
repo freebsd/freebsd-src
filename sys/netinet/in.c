@@ -1418,6 +1418,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 			LLE_WLOCK(lle);
 			lle->la_flags = LLE_DELETED;
+			EVENTHANDLER_INVOKE(arp_update_event, lle);
 			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTICS
 			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	
