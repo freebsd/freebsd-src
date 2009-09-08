@@ -1641,6 +1641,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	while (redo_ip6) {
 		ip6s = pr->pr_ip6s;
+		/* XXX: FlexeLint claims mem leak */
 		ip6 = malloc(ip6s * sizeof(*ip6), M_PRISON, M_WAITOK);
 		mtx_lock(&pr->pr_mtx);
 		redo_ip6 = 0;

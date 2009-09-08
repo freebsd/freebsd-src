@@ -1662,6 +1662,7 @@ ae_stop_rxmac(ae_softc_t *sc)
 	/*
 	 * Wait for IDLE state.
 	 */
+	/* XXX: Flexelint  "<" test with -- */
 	for (i = 0; i < AE_IDLE_TIMEOUT; i--) {
 		val = AE_READ_4(sc, AE_IDLE_REG);
 		if ((val & (AE_IDLE_RXMAC | AE_IDLE_DMAWRITE)) == 0)
@@ -1698,6 +1699,7 @@ ae_stop_txmac(ae_softc_t *sc)
 	/*
 	 * Wait for IDLE state.
 	 */
+	/* XXX: Flexelint  "<" test with -- */
 	for (i = 0; i < AE_IDLE_TIMEOUT; i--) {
 		val = AE_READ_4(sc, AE_IDLE_REG);
 		if ((val & (AE_IDLE_TXMAC | AE_IDLE_DMAREAD)) == 0)
