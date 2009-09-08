@@ -1203,7 +1203,6 @@ gdt_internal_cache_cmd(struct gdt_softc *gdt,union ccb *ccb)
                 bzero( ccb->csio.data_ptr+copylen,
                        ccb->csio.dxfer_len - copylen );
             page=((struct scsi_mode_sense_6 *)ccb->csio.cdb_io.cdb_bytes)->page;
-	    /* XXX: FlexeLint: why ?? */
             switch (page) {
               default:
                 GDT_DPRINTF(GDT_D_MISC, ("MODE_SENSE_6: page 0x%x\n", page));

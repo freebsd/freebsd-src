@@ -527,7 +527,7 @@ amr_rescan_drives(struct cdev *dev)
 		sc->amr_drive[i].al_disk)) != 0)
 		goto shutdown_out;
 
-	    sc->amr_drive[i].al_disk = 0;
+	     sc->amr_drive[i].al_disk = 0;
 	}
     }
 

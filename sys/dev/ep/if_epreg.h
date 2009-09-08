@@ -315,11 +315,7 @@
 				 S_TX_AVAIL|S_RX_COMPLETE|S_RX_EARLY)
 #define S_COMMAND_IN_PROGRESS	(u_short) (0x1000)
 
-#define EP_BUSY_WAIT(sc) 							\
-	do {									\
-		while (CSR_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS)	\
-			continue;						\
-	} while (0)
+#define EP_BUSY_WAIT(sc) while (CSR_READ_2(sc, EP_STATUS) & S_COMMAND_IN_PROGRESS)
 
 /* Address Config. Register.
  * Window 0/Port 06
