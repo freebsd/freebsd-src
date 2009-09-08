@@ -134,12 +134,10 @@ static void
 g_vfs_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
-	struct bufobj *bo;
 
 	g_topology_assert();
 
 	gp = cp->geom;
-	bo = gp->softc;
 	g_trace(G_T_TOPOLOGY, "g_vfs_orphan(%p(%s))", cp, gp->name);
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
