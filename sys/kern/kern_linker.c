@@ -1875,6 +1875,7 @@ linker_search_kld(const char *name)
 		return (linker_strdup(name));
 
 	/* traverse the linker path */
+	/* XXX: FlexeLint: this is not safe, ep will count past NUL */
 	len = strlen(name);
 	for (ep = linker_path; *ep; ep++) {
 		cp = ep;

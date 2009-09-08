@@ -566,6 +566,7 @@ ath_hal_getregdump(struct ath_hal *ah, const HAL_REGRANGE *regs,
 	uint32_t *dp = dstbuf;
 	int i;
 
+	/* XXX: FlexeLint: ">" test with ++ */
 	for (i = 0; space >= 2*sizeof(uint32_t); i++) {
 		u_int r = regs[i].start;
 		u_int e = regs[i].end;
