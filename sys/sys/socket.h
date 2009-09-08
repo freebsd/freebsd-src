@@ -36,9 +36,7 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 #include <sys/_iovec.h>
-#define _NO_NAMESPACE_POLLUTION
-#include <machine/param.h>
-#undef _NO_NAMESPACE_POLLUTION
+#include <machine/_align.h>
 
 /*
  * Definitions related to sockets: types, address families, options.

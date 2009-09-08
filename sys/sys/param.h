@@ -112,8 +112,6 @@
 #include <sys/limits.h>
 #endif
 
-#ifndef _NO_NAMESPACE_POLLUTION
-
 #ifndef DEV_BSHIFT
 #define	DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
 #endif
@@ -181,8 +179,6 @@
 #define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
 	((off_t)(db) << DEV_BSHIFT)
 #endif
-
-#endif /* _NO_NAMESPACE_POLLUTION */
 
 #define	PRIMASK	0x0ff
 #define	PCATCH	0x100		/* OR'd with pri for tsleep to check signals */
