@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd January 24, 1996
+.Dd September 08, 2009
 .Dt TZSETUP 8
 .Os
 .Sh NAME
@@ -31,7 +31,7 @@
 .Nd set local timezone
 .Sh SYNOPSIS
 .Nm
-.Op Fl n
+.Op Fl ns
 .Op Ar default
 .Sh DESCRIPTION
 The
@@ -51,6 +51,9 @@ The following option is available:
 .Bl -tag -offset indent -width Fl
 .It Fl n
 Do not create or copy files.
+.It Fl s
+Skip the initial question about adjusting the clock if not set to
+.Tn UTC .
 .El
 .Pp
 It is possible to short-circuit the menu system by specifying a
