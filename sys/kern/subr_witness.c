@@ -469,8 +469,8 @@ static struct witness_lock_order_data *w_lofree = NULL;
 static struct witness_lock_order_hash w_lohash;
 static int w_max_used_index = 0;
 static unsigned int w_generation = 0;
-static const char *w_notrunning = "Witness not running\n";
-static const char *w_stillcold = "Witness is still cold\n";
+static const char w_notrunning[] = "Witness not running\n";
+static const char w_stillcold[] = "Witness is still cold\n";
 
 
 static struct witness_order_list_entry order_lists[] = {

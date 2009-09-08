@@ -1192,17 +1192,18 @@ in6_purgeaddr(struct ifaddr *ifa)
 
 	/*
 	 * Remove the loopback route to the interface address.
-	 * The check for the current setting of "nd6_useloopback" is not needed.
+	 * The check for the current setting of "nd6_useloopback" 
+	 * is not needed.
 	 */
-	if (!(ia->ia_ifp->if_flags & IFF_LOOPBACK)) {
+	{
 		struct rt_addrinfo info;
 		struct sockaddr_dl null_sdl;
 
 		bzero(&null_sdl, sizeof(null_sdl));
 		null_sdl.sdl_len = sizeof(null_sdl);
 		null_sdl.sdl_family = AF_LINK;
-		null_sdl.sdl_type = V_loif->if_type;
-		null_sdl.sdl_index = V_loif->if_index;
+		null_sdl.sdl_type = ia->ia_ifp->if_type;
+		null_sdl.sdl_index = ia->ia_ifp->if_index;
 		bzero(&info, sizeof(info));
 		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
 		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
@@ -1750,21 +1751,12 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	 * interface that share the same destination.
 	 */
 	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
-	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128) {
-		struct sockaddr *dstaddr;
+	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128 &&
+	    ia->ia_dstaddr.sin6_family == AF_INET6) {
 		int rtflags = RTF_UP | RTF_HOST;
 
-		/* 
-		 * use the interface address if configuring an
-		 * interface address with a /128 prefix len
-		 */
-		if (ia->ia_dstaddr.sin6_family == AF_INET6)
-			dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
-		else
-			dstaddr = (struct sockaddr *)&ia->ia_addr;
-
 		error = rtrequest(RTM_ADD,
-		    (struct sockaddr *)dstaddr,
+		    (struct sockaddr *)&ia->ia_dstaddr,
 		    (struct sockaddr *)&ia->ia_addr,
 		    (struct sockaddr *)&ia->ia_prefixmask,
 		    ia->ia_flags | rtflags, NULL);
@@ -1776,7 +1768,9 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	/*
 	 * add a loopback route to self
 	 */
-	if (V_nd6_useloopback && !(ifp->if_flags & IFF_LOOPBACK)) {
+	if (!(ia->ia_flags & IFA_ROUTE)
+	    && (V_nd6_useloopback
+		|| (ifp->if_flags & IFF_LOOPBACK))) {
 		struct rt_addrinfo info;
 		struct rtentry *rt = NULL;
 		static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
@@ -1791,13 +1785,13 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		if (error == 0 && rt != NULL) {
 			RT_LOCK(rt);
 			((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-				rt->rt_ifp->if_type;
+				ifp->if_type;
 			((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-				rt->rt_ifp->if_index;
+				ifp->if_index;
 			RT_REMREF(rt);
 			RT_UNLOCK(rt);
 		} else if (error != 0)
-			log(LOG_INFO, "in6_ifinit: insertion failed\n");
+			log(LOG_INFO, "in6_ifinit: error = %d, insertion failed\n", error);
 	}
 
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
@@ -2243,7 +2237,7 @@ in6_setmaxmtu(void)
 	unsigned long maxmtu = 0;
 	struct ifnet *ifp;
 
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
 	    ifp = TAILQ_NEXT(ifp, if_list)) {
 		/* this function can be called during ifnet initialization */
@@ -2253,7 +2247,7 @@ in6_setmaxmtu(void)
 		    IN6_LINKMTU(ifp) > maxmtu)
 			maxmtu = IN6_LINKMTU(ifp);
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 	if (maxmtu)	     /* update only when maxmtu is positive */
 		V_in6_maxmtu = maxmtu;
 }
@@ -2504,12 +2498,10 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 	} ndpc;
 	int i, error;
 
-	/* XXXXX
-	 * current IFNET_RLOCK() is mapped to IFNET_WLOCK()
-	 * so it is okay to use this ASSERT, change it when
-	 * IFNET lock is finalized
-	 */
-	IFNET_WLOCK_ASSERT();
+	if (ifp->if_flags & IFF_LOOPBACK)
+		return 0;
+
+	LLTABLE_LOCK_ASSERT();
 
 	error = 0;
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {

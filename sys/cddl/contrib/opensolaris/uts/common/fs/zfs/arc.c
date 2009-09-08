@@ -3557,15 +3557,19 @@ arc_init(void)
 	
 #ifdef __i386__
 	if (prefetch_tunable_set == 0) {
-		printf("ZFS NOTICE: prefetch is disabled by default on i386"
-		    " - add enable to tunable to change.\n" );
+		printf("ZFS NOTICE: Prefetch is disabled by default on i386 "
+		    "-- to enable,\n");
+		printf("            add \"vfs.zfs.prefetch_disable=0\" "
+		    "to /boot/loader.conf.\n");
 		zfs_prefetch_disable=1;
 	}
 #else	
 	if ((((uint64_t)physmem * PAGESIZE) < (1ULL << 32)) &&
 	    prefetch_tunable_set == 0) {
-		printf("ZFS NOTICE: system has less than 4GB and prefetch enable is not set"
-		    "... disabling.\n");
+		printf("ZFS NOTICE: Prefetch is disabled by default if less "
+		    "than 4GB of RAM is present;\n"
+		    "            to enable, add \"vfs.zfs.prefetch_disable=0\" "
+		    "to /boot/loader.conf.\n");
 		zfs_prefetch_disable=1;
 	}
 #endif	

@@ -1228,6 +1228,13 @@ pollscan(td, fds, nfd)
 				selfdalloc(td, fds);
 				fds->revents = fo_poll(fp, fds->events,
 				    td->td_ucred, td);
+				/*
+				 * POSIX requires POLLOUT to be never
+				 * set simultaneously with POLLHUP.
+				 */
+				if ((fds->revents & POLLHUP) != 0)
+					fds->revents &= ~POLLOUT;
+
 				if (fds->revents != 0)
 					n++;
 			}

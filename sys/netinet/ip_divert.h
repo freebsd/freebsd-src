@@ -83,7 +83,6 @@ divert_find_info(struct mbuf *m)
 typedef	void ip_divert_packet_t(struct mbuf *m, int incoming);
 extern	ip_divert_packet_t *ip_divert_ptr;
 
-extern	void div_init(void);
 extern	void div_input(struct mbuf *, int);
 extern	void div_ctlinput(int, struct sockaddr *, void *);
 #endif /* _NETINET_IP_DIVERT_H_ */

@@ -176,7 +176,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	}
 
 	/* Initialize our td */
-	newtd = thread_alloc();
+	newtd = thread_alloc(0);
 	if (newtd == NULL)
 		return (ENOMEM);
 

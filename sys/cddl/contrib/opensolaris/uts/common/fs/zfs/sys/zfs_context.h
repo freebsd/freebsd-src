@@ -49,6 +49,7 @@ extern "C" {
 #include <sys/conf.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/kcondvar.h>
 #include <sys/random.h>
 #include <sys/byteorder.h>
 #include <sys/systm.h>

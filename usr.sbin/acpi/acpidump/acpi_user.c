@@ -94,40 +94,43 @@ acpi_user_find_mapping(vm_offset_t pa, size_t size)
 	return (map);
 }
 
-static struct ACPIrsdp *
+static ACPI_TABLE_RSDP *
 acpi_get_rsdp(u_long addr)
 {
-	struct ACPIrsdp rsdp;
+	ACPI_TABLE_RSDP rsdp;
 	size_t len;
 
 	/* Read in the table signature and check it. */
 	pread(acpi_mem_fd, &rsdp, 8, addr);
-	if (memcmp(rsdp.signature, "RSD PTR ", 8))
+	if (memcmp(rsdp.Signature, "RSD PTR ", 8))
 		return (NULL);
 
 	/* Read the entire table. */
 	pread(acpi_mem_fd, &rsdp, sizeof(rsdp), addr);
 
-	/* Run the checksum only over the version 1 header. */
-	if (acpi_checksum(&rsdp, 20))
+	/* Check the standard checksum. */
+	if (acpi_checksum(&rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0)
+		return (NULL);
+
+	/* Check extended checksum if table version >= 2. */
+	if (rsdp.Revision >= 2 &&
+	    acpi_checksum(&rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0)
 		return (NULL);
 
 	/* If the revision is 0, assume a version 1 length. */
-	if (rsdp.revision == 0)
-		len = 20;
+	if (rsdp.Revision == 0)
+		len = ACPI_RSDP_REV0_SIZE;
 	else
-		len = rsdp.length;
-
-	/* XXX Should handle ACPI 2.0 RSDP extended checksum here. */
+		len = rsdp.Length;
 
 	return (acpi_map_physical(addr, len));
 }
 
-static struct ACPIrsdp *
+static ACPI_TABLE_RSDP *
 acpi_scan_rsd_ptr(void)
 {
 #if defined(__amd64__) || defined(__i386__)
-	struct ACPIrsdp *rsdp;
+	ACPI_TABLE_RSDP *rsdp;
 	u_long		addr, end;
 
 	/*
@@ -137,15 +140,15 @@ acpi_scan_rsd_ptr(void)
 	 * 1. EBDA (1 KB area addressed by the 16 bit pointer at 0x40E
 	 * 2. High memory (0xE0000 - 0xFFFFF)
 	 */
-	addr = RSDP_EBDA_PTR;
+	addr = ACPI_EBDA_PTR_LOCATION;
 	pread(acpi_mem_fd, &addr, sizeof(uint16_t), addr);
 	addr <<= 4;
-	end = addr + RSDP_EBDA_SIZE;
+	end = addr + ACPI_EBDA_WINDOW_SIZE;
 	for (; addr < end; addr += 16)
 		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
 			return (rsdp);
-	addr = RSDP_HI_START;
-	end = addr + RSDP_HI_SIZE;
+	addr = ACPI_HI_RSDP_WINDOW_BASE;
+	end = addr + ACPI_HI_RSDP_WINDOW_SIZE;
 	for (; addr < end; addr += 16)
 		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
 			return (rsdp);
@@ -156,10 +159,10 @@ acpi_scan_rsd_ptr(void)
 /*
  * Public interfaces
  */
-struct ACPIrsdp *
+ACPI_TABLE_RSDP *
 acpi_find_rsd_ptr(void)
 {
-	struct ACPIrsdp *rsdp;
+	ACPI_TABLE_RSDP *rsdp;
 	char		buf[20];
 	u_long		addr;
 	size_t		len;
@@ -191,10 +194,10 @@ acpi_map_physical(vm_offset_t pa, size_t size)
 	return (map->va + (pa - map->pa));
 }
 
-struct ACPIsdt *
+ACPI_TABLE_HEADER *
 dsdt_load_file(char *infile)
 {
-	struct ACPIsdt	*sdt;
+	ACPI_TABLE_HEADER *sdt;
 	uint8_t		*dp;
 	struct stat	 sb;
 
@@ -210,8 +213,9 @@ dsdt_load_file(char *infile)
 	if (dp == NULL)
 		errx(1, "mmap %s", infile);
 
-	sdt = (struct ACPIsdt *)dp;
-	if (strncmp(dp, "DSDT", 4) != 0 || acpi_checksum(sdt, sdt->len) != 0)
+	sdt = (ACPI_TABLE_HEADER *)dp;
+	if (strncmp(dp, ACPI_SIG_DSDT, 4) != 0 ||
+	    acpi_checksum(sdt, sdt->Length) != 0)
 		return (NULL);
 
 	return (sdt);

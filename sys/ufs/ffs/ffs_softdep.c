@@ -663,6 +663,8 @@ static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
 static int req_clear_remove;	/* syncer process flush some freeblks */
 #define FLUSH_REMOVE		2
 #define FLUSH_REMOVE_WAIT	3
+static long num_freeblkdep;	/* number of freeblks workitems allocated */
+
 /*
  * runtime statistics
  */
@@ -2223,6 +2225,9 @@ softdep_setup_freeblocks(ip, length, flags)
 	freeblks->fb_uid = ip->i_uid;
 	freeblks->fb_previousinum = ip->i_number;
 	freeblks->fb_devvp = ip->i_devvp;
+	ACQUIRE_LOCK(&lk);
+	num_freeblkdep++;
+	FREE_LOCK(&lk);
 	extblocks = 0;
 	if (fs->fs_magic == FS_UFS2_MAGIC)
 		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
@@ -2815,6 +2820,7 @@ handle_workitem_freeblocks(freeblks, flags)
 
 	ACQUIRE_LOCK(&lk);
 	WORKITEM_FREE(freeblks, D_FREEBLKS);
+	num_freeblkdep--;
 	FREE_LOCK(&lk);
 }
 
@@ -5768,7 +5774,8 @@ softdep_slowdown(vp)
 	max_softdeps_hard = max_softdeps * 11 / 10;
 	if (num_dirrem < max_softdeps_hard / 2 &&
 	    num_inodedep < max_softdeps_hard &&
-	    VFSTOUFS(vp->v_mount)->um_numindirdeps < maxindirdeps) {
+	    VFSTOUFS(vp->v_mount)->um_numindirdeps < maxindirdeps &&
+	    num_freeblkdep < max_softdeps_hard) {
 		FREE_LOCK(&lk);
   		return (0);
 	}
@@ -5970,12 +5977,19 @@ clear_remove(td)
 			if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
 				continue;
 			FREE_LOCK(&lk);
-			if ((error = ffs_vgetf(mp, ino, LK_EXCLUSIVE, &vp,
-			     FFSV_FORCEINSMQ))) {
+
+			/*
+			 * Let unmount clear deps
+			 */
+			error = vfs_busy(mp, MBF_NOWAIT);
+			if (error != 0)
+				goto finish_write;
+			error = ffs_vgetf(mp, ino, LK_EXCLUSIVE, &vp,
+			     FFSV_FORCEINSMQ);
+			vfs_unbusy(mp);
+			if (error != 0) {
 				softdep_error("clear_remove: vget", error);
-				vn_finished_write(mp);
-				ACQUIRE_LOCK(&lk);
-				return;
+				goto finish_write;
 			}
 			if ((error = ffs_syncvnode(vp, MNT_NOWAIT)))
 				softdep_error("clear_remove: fsync", error);
@@ -5984,6 +5998,7 @@ clear_remove(td)
 			drain_output(vp);
 			BO_UNLOCK(bo);
 			vput(vp);
+		finish_write:
 			vn_finished_write(mp);
 			ACQUIRE_LOCK(&lk);
 			return;
@@ -6043,13 +6058,21 @@ clear_inodedeps(td)
 		if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
 			continue;
 		FREE_LOCK(&lk);
-		if ((error = ffs_vgetf(mp, ino, LK_EXCLUSIVE, &vp,
-		    FFSV_FORCEINSMQ)) != 0) {
-			softdep_error("clear_inodedeps: vget", error);
+		error = vfs_busy(mp, MBF_NOWAIT); /* Let unmount clear deps */
+		if (error != 0) {
 			vn_finished_write(mp);
 			ACQUIRE_LOCK(&lk);
 			return;
 		}
+		if ((error = ffs_vgetf(mp, ino, LK_EXCLUSIVE, &vp,
+		    FFSV_FORCEINSMQ)) != 0) {
+			softdep_error("clear_inodedeps: vget", error);
+			vfs_unbusy(mp);
+			vn_finished_write(mp);
+			ACQUIRE_LOCK(&lk);
+			return;
+		}
+		vfs_unbusy(mp);
 		if (ino == lastino) {
 			if ((error = ffs_syncvnode(vp, MNT_WAIT)))
 				softdep_error("clear_inodedeps: fsync1", error);

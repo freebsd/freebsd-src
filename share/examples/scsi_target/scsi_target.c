@@ -226,7 +226,7 @@ main(int argc, char *argv[])
 	/* Open backing store for IO */
 	file_fd = open(file_name, O_RDWR);
 	if (file_fd < 0)
-		err(1, "open backing store file");
+		errx(EX_NOINPUT, "open backing store file");
 
 	/* Check backing store size or use the size user gave us */
 	if (user_size == 0) {
@@ -291,7 +291,9 @@ main(int argc, char *argv[])
 	} while (targ_fd < 0 && errno == EBUSY);
 
 	if (targ_fd < 0)
-    	    err(1, "Tried to open %d devices, none available", unit);
+    	    errx(1, "Tried to open %d devices, none available", unit);
+	else
+	    warnx("opened /dev/targ%d", unit);
 
 	/* The first three are handled by kevent() later */
 	signal(SIGHUP, SIG_IGN);
@@ -318,6 +320,7 @@ main(int argc, char *argv[])
 	/* Set up inquiry data according to what SIM supports */
 	if (get_sim_flags(&sim_flags) != CAM_REQ_CMP)
 		errx(1, "get_sim_flags");
+
 	if (tcmd_init(req_flags, sim_flags) != 0)
 		errx(1, "Initializing tcmd subsystem failed");
 
@@ -327,6 +330,7 @@ main(int argc, char *argv[])
 
 	if (debug)
 		warnx("main loop beginning");
+
 	request_loop();
 
 	exit(0);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2009 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -98,11 +98,21 @@ usage_command(struct g_command *cmd, const char *prefix)
 	struct g_option *opt;
 	unsigned i;
 
-	fprintf(stderr, "%s %s %s", prefix, comm, cmd->gc_name);
 	if (cmd->gc_usage != NULL) {
-		fprintf(stderr, " %s\n", cmd->gc_usage);
+		char *pos, *ptr, *sptr;
+
+		sptr = ptr = strdup(cmd->gc_usage);
+		while ((pos = strsep(&ptr, "\n")) != NULL) {
+			if (*pos == '\0')
+				continue;
+			fprintf(stderr, "%s %s %s %s\n", prefix, comm,
+			    cmd->gc_name, pos);
+		}
+		free(sptr);
 		return;
 	}
+
+	fprintf(stderr, "%s %s %s", prefix, comm, cmd->gc_name);
 	if ((cmd->gc_flags & G_FLAG_VERBOSE) != 0)
 		fprintf(stderr, " [-v]");
 	for (i = 0; ; i++) {

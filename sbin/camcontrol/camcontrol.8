@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2009
+.Dd September 4, 2009
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -120,10 +120,12 @@
 .Ic cmd
 .Op device id
 .Op generic args
+.Aq Fl a Ar cmd Op args
 .Aq Fl c Ar cmd Op args
 .Op Fl i Ar len Ar fmt
 .Bk -words
 .Op Fl o Ar len Ar fmt Op args
+.Op Fl r Ar fmt
 .Ek
 .Nm
 .Ic debug
@@ -486,12 +488,14 @@ Saved values
 .El
 .El
 .It Ic cmd
-Allows the user to send an arbitrary SCSI CDB to any device.
+Allows the user to send an arbitrary ATA or SCSI CDB to any device.
 The
 .Ic cmd
 function requires the
 .Fl c
-argument to specify the CDB.
+argument to specify SCSI CDB or the
+.Fl a
+argument to specify ATA Command Block registers values.
 Other arguments are optional, depending on
 the command type.
 The command and data specification syntax is documented
@@ -503,9 +507,13 @@ SCSI device in question, you MUST specify either
 or
 .Fl o .
 .Bl -tag -width 17n
+.It Fl a Ar cmd Op args
+This specifies the content of 12 ATA Command Block registers (command,
+features, lba_low, lba_mid, lba_high, device, lba_low_exp, lba_mid_exp.
+lba_high_exp, features_exp, sector_count, sector_count_exp).
 .It Fl c Ar cmd Op args
 This specifies the SCSI CDB.
-CDBs may be 6, 10, 12 or 16 bytes.
+SCSI CDBs may be 6, 10, 12 or 16 bytes.
 .It Fl i Ar len Ar fmt
 This specifies the amount of data to read, and how it should be displayed.
 If the format is
@@ -519,6 +527,13 @@ If the format is
 .Sq - ,
 .Ar len
 bytes of data will be read from standard input and written to the device.
+.It Fl r Ar fmt
+This specifies that 11 result ATA Command Block registers should be displayed
+(status, error, lba_low, lba_mid, lba_high, device, lba_low_exp, lba_mid_exp,
+lba_high_exp, sector_count, sector_count_exp), and how.
+If the format is
+.Sq - ,
+11 result registers will be written to standard output in hex.
 .El
 .It Ic debug
 Turn on CAM debugging printfs in the kernel.

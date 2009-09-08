@@ -45,20 +45,33 @@ vfs_setmntopt(vfs_t *vfsp, const char *name, const char *arg,
 {
 	struct vfsopt *opt;
 	size_t namesize;
+	int locked;
+
+	if (!(locked = mtx_owned(MNT_MTX(vfsp))))
+		MNT_ILOCK(vfsp);
 
 	if (vfsp->mnt_opt == NULL) {
-		vfsp->mnt_opt = malloc(sizeof(*vfsp->mnt_opt), M_MOUNT, M_WAITOK);
-		TAILQ_INIT(vfsp->mnt_opt);
+		void *opts;
+
+		MNT_IUNLOCK(vfsp);
+		opts = malloc(sizeof(*vfsp->mnt_opt), M_MOUNT, M_WAITOK);
+		MNT_ILOCK(vfsp);
+		if (vfsp->mnt_opt == NULL) {
+			vfsp->mnt_opt = opts;
+			TAILQ_INIT(vfsp->mnt_opt);
+		} else {
+			free(opts, M_MOUNT);
+		}
 	}
 
-	opt = malloc(sizeof(*opt), M_MOUNT, M_WAITOK);
+	MNT_IUNLOCK(vfsp);
 
+	opt = malloc(sizeof(*opt), M_MOUNT, M_WAITOK);
 	namesize = strlen(name) + 1;
 	opt->name = malloc(namesize, M_MOUNT, M_WAITOK);
 	strlcpy(opt->name, name, namesize);
 	opt->pos = -1;
 	opt->seen = 1;
-
 	if (arg == NULL) {
 		opt->value = NULL;
 		opt->len = 0;
@@ -67,16 +80,23 @@ vfs_setmntopt(vfs_t *vfsp, const char *name, const char *arg,
 		opt->value = malloc(opt->len, M_MOUNT, M_WAITOK);
 		bcopy(arg, opt->value, opt->len);
 	}
-	/* TODO: Locking. */
+
+	MNT_ILOCK(vfsp);
 	TAILQ_INSERT_TAIL(vfsp->mnt_opt, opt, link);
+	if (!locked)
+		MNT_IUNLOCK(vfsp);
 }
 
 void
 vfs_clearmntopt(vfs_t *vfsp, const char *name)
 {
+	int locked;
 
-	/* TODO: Locking. */
+	if (!(locked = mtx_owned(MNT_MTX(vfsp))))
+		MNT_ILOCK(vfsp);
 	vfs_deleteopt(vfsp->mnt_opt, name);
+	if (!locked)
+		MNT_IUNLOCK(vfsp);
 }
 
 int

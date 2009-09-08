@@ -153,7 +153,22 @@ static int zvol_dump_init(zvol_state_t *zv, boolean_t resize);
 static void
 zvol_size_changed(zvol_state_t *zv, major_t maj)
 {
+	struct g_provider *pp;
 
+	g_topology_assert();
+
+	pp = zv->zv_provider;
+	if (pp == NULL)
+		return;
+	if (zv->zv_volsize == pp->mediasize)
+		return;
+	/*
+	 * Changing provider size is not really supported by GEOM, but it
+	 * should be safe when provider is closed.
+	 */
+	if (zv->zv_total_opens > 0)
+		return;
+	pp->mediasize = zv->zv_volsize;
 }
 
 int
@@ -263,6 +278,7 @@ zvol_access(struct g_provider *pp, int acr, int acw, int ace)
 	}
 
 	zv->zv_total_opens += acr + acw + ace;
+	zvol_size_changed(zv, 0);
 
 	mutex_exit(&zvol_state_lock);
 
@@ -402,6 +418,10 @@ zvol_worker(void *arg)
 	zvol_state_t *zv;
 	struct bio *bp;
 
+	thread_lock(curthread);
+	sched_prio(curthread, PRIBIO);
+	thread_unlock(curthread);
+
 	zv = arg;
 	for (;;) {
 		mtx_lock(&zv->zv_queue_mtx);
@@ -411,7 +431,7 @@ zvol_worker(void *arg)
 				zv->zv_state = 2;
 				wakeup(&zv->zv_state);
 				mtx_unlock(&zv->zv_queue_mtx);
-				kproc_exit(0);
+				kthread_exit();
 			}
 			msleep(&zv->zv_queue, &zv->zv_queue_mtx, PRIBIO | PDROP,
 			    "zvol:io", 0);
@@ -824,7 +844,8 @@ zvol_create_minor(const char *name, major_t maj)
 	bioq_init(&zv->zv_queue);
 	mtx_init(&zv->zv_queue_mtx, "zvol", NULL, MTX_DEF);
 	zv->zv_state = 0;
-	kproc_create(zvol_worker, zv, NULL, 0, 0, "zvol:worker %s", pp->name);
+	kproc_kthread_add(zvol_worker, zv, &zfsproc, NULL, 0, 0, "zfskern",
+	    "zvol %s", pp->name + strlen(ZVOL_DEV_DIR) + 1);
 
 	zvol_minors++;
 end:
@@ -1067,11 +1088,6 @@ zvol_set_volblocksize(const char *name, uint64_t volblocksize)
 		if (error == ENOTSUP)
 			error = EBUSY;
 		dmu_tx_commit(tx);
-		/* XXX: Not supported. */
-#if 0
-		if (error == 0)
-			zv->zv_provider->sectorsize = zc->zc_volblocksize;
-#endif
 	}
 end:
 	mutex_exit(&zvol_state_lock);

@@ -1045,6 +1045,22 @@ print:
 }
 
 size_t
+ttydisc_rint_simple(struct tty *tp, const void *buf, size_t len)
+{
+	const char *cbuf;
+
+	if (ttydisc_can_bypass(tp))
+		return (ttydisc_rint_bypass(tp, buf, len));
+
+	for (cbuf = buf; len-- > 0; cbuf++) {
+		if (ttydisc_rint(tp, *cbuf, 0) != 0)
+			break;
+	}
+
+	return (cbuf - (const char *)buf);
+}
+
+size_t
 ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 {
 	size_t ret;

@@ -391,6 +391,10 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
 	    (info.vi_depth != 15) && (info.vi_depth != 16) &&
 	    (info.vi_depth != 24) && (info.vi_depth != 32))
 	    return ENODEV;
+    } else if (info.vi_mem_model == V_INFO_MM_PACKED) {
+	if (!(info.vi_flags & V_INFO_LINEAR) &&
+	    (info.vi_depth != 8))
+	    return ENODEV;
     } else
 	return ENODEV;
 

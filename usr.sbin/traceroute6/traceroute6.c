@@ -282,6 +282,8 @@ static const char rcsid[] =
 #include <netipsec/ipsec.h>
 #endif
 
+#include "as.h"
+
 #define DUMMY_PORT 10010
 
 #define	MAXPACKET	65535	/* max ip packet size */
@@ -359,6 +361,9 @@ int waittime = 5;		/* time to wait for response (in seconds) */
 int nflag;			/* print addresses numerically */
 int useproto = IPPROTO_UDP;	/* protocol to use to send packet */
 int lflag;			/* print both numerical address & hostname */
+int as_path;			/* print as numbers for each hop */
+char *as_server = NULL;
+void *asn;
 
 int
 main(argc, argv)
@@ -411,8 +416,15 @@ main(argc, argv)
 
 	seq = 0;
 
-	while ((ch = getopt(argc, argv, "df:g:Ilm:nNp:q:rs:Uvw:")) != -1)
+	while ((ch = getopt(argc, argv, "aA:df:g:Ilm:nNp:q:rs:Uvw:")) != -1)
 		switch (ch) {
+		case 'a':
+			as_path = 1;
+			break;
+		case 'A':
+			as_path = 1;
+			as_server = optarg;
+			break;
 		case 'd':
 			options |= SO_DEBUG;
 			break;
@@ -867,6 +879,17 @@ main(argc, argv)
 		srcport = ntohs(Src.sin6_port);
 	}
 
+	if (as_path) {
+		asn = as_setup(as_server);
+		if (asn == NULL) {
+			fprintf(stderr,
+			    "traceroute6: as_setup failed, AS# lookups"
+			    " disabled\n");
+			(void)fflush(stderr);
+			as_path = 0;
+		}
+	}
+
 	/*
 	 * Message to users
 	 */
@@ -948,6 +971,8 @@ main(argc, argv)
 			exit(0);
 		}
 	}
+	if (as_path)
+		as_shutdown(asn);
 
 	exit(0);
 }
@@ -1361,6 +1386,8 @@ print(mhdr, cc)
 	if (getnameinfo((struct sockaddr *)from, from->sin6_len,
 	    hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST) != 0)
 		strlcpy(hbuf, "invalid", sizeof(hbuf));
+	if (as_path)
+		printf(" [AS%u]", as_lookup(asn, hbuf, AF_INET6));
 	if (nflag)
 		printf(" %s", hbuf);
 	else if (lflag)

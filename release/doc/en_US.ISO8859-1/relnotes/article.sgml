@@ -411,6 +411,9 @@
     <para>&man.top.1; now supports a <option>-P</option> flag to
       provide per-CPU usage statistics.</para>
 
+    <para>&man.zdump.8; is now working properly on 64 bit architectures.
+      </para>
+
     <para>&man.traceroute.8; now has the ability to print the AS
       number for each hop with the new <option>-a</option> switch; a
       new <option>-A</option> option allows selecting a particular
@@ -468,8 +471,15 @@
       8.14.1 to 8.14.3.</para>
 
     <para role="merged">The timezone database has been updated from
-      the <application>tzdata2008b</application> release to
-      the <application>tzdata2008h</application> release.</para>
+      the <application>tzdata2008h</application> release to
+      the <application>tzdata2009j</application> release.</para>
+
+    <para>The stdtime part of libc, &man.zdump.8 and &man.zic.8
+      have been updated from the <application>tzcode2004a</application>
+      release to the <application>tzcode2009h</application> release.
+      If you have upgraded from source or via the &man.freebsd-update.8,
+      then please run &man.tzsetup.8 to install a new /etc/localtime.
+      </para>
 
     <para><application>WPA Supplicant</application> has been
       updated from 0.5.8 to 0.5.10.</para>

@@ -54,9 +54,9 @@ usage(const char *progname)
 int
 main(int argc, char *argv[])
 {
+	ACPI_TABLE_HEADER *rsdt, *sdt;
 	char	c, *progname;
 	char	*dsdt_input_file, *dsdt_output_file;
-	struct	ACPIsdt *rsdt, *sdt;
 
 	dsdt_input_file = dsdt_output_file = NULL;
 	progname = argv[0];
@@ -117,8 +117,8 @@ main(int argc, char *argv[])
 
 	/* Translate RSDT to DSDT pointer */
 	if (dsdt_input_file == NULL) {
-		sdt = sdt_from_rsdt(rsdt, "FACP", NULL);
-		sdt = dsdt_from_fadt((struct FADTbody *)sdt->body);
+		sdt = sdt_from_rsdt(rsdt, ACPI_SIG_FADT, NULL);
+		sdt = dsdt_from_fadt((ACPI_TABLE_FADT *)sdt);
 	} else {
 		sdt = rsdt;
 		rsdt = NULL;

@@ -63,55 +63,42 @@ struct aslookup {
 };
 
 void *
-as_setup(server)
-	char *server;
+as_setup(char *server)
 {
 	struct aslookup *asn;
-	struct hostent *he = NULL;
-	struct servent *se;
-	struct sockaddr_in in;
+	struct addrinfo hints, *res0, *res;
 	FILE *f;
-	int s;
+	int s, error;
 
+	if (server == NULL)
+		server = getenv("RA_SERVER");
 	if (server == NULL)
 		server = DEFAULT_AS_SERVER;
 
-	(void)memset(&in, 0, sizeof(in));
-	in.sin_family = AF_INET;
-	in.sin_len = sizeof(in);
-	if ((se = getservbyname("whois", "tcp")) == NULL) {
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	error = getaddrinfo(server, "whois", &hints, &res0);
+	if (error == EAI_SERVICE) {
 		warnx("warning: whois/tcp service not found");
-		in.sin_port = ntohs(43);
-	} else
-		in.sin_port = se->s_port;
-
-	if (inet_aton(server, &in.sin_addr) == 0 && 
-	    ((he = gethostbyname(server)) == NULL ||
-	    he->h_addr == NULL)) {
-		warnx("%s: %s", server, hstrerror(h_errno));
+		error = getaddrinfo(server, "43", &hints, &res0);
+	}
+	if (error != 0) {
+		warnx("%s: %s", server, gai_strerror(error));
 		return (NULL);
 	}
 
-	if ((s = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
-		warn("socket");
-		return (NULL);
+	for (res = res0; res; res = res->ai_next) {
+		s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		if (s < 0)
+			continue;
+		if (connect(s, res->ai_addr, res->ai_addrlen) >= 0)
+			break;
+		close(s);
+		s = -1;
 	}
-
-	do {
-		if (he != NULL) {
-			memcpy(&in.sin_addr, he->h_addr, he->h_length);
-			he->h_addr_list++;
-		}
-		if (connect(s, (struct sockaddr *)&in, sizeof(in)) == 0)
-			break;
-		if (he == NULL || he->h_addr == NULL) {
-			close(s);
-			s = -1;
-			break;
-		}
-	} while (1);
-
-	if (s == -1) {
+	freeaddrinfo(res0);
+	if (s < 0) {
 		warn("connect");
 		return (NULL);
 	}
@@ -137,23 +124,23 @@ as_setup(server)
 	return (asn);
 }
 
-int
-as_lookup(_asn, addr)
-	void *_asn;
-	struct in_addr *addr;
+unsigned int
+as_lookup(void *_asn, char *addr, sa_family_t family)
 {
 	struct aslookup *asn = _asn;
 	char buf[1024];
-	int as, rc, dlen;
+	unsigned int as;
+	int rc, dlen, plen;
 
-	as = rc = dlen = 0;
-	(void)fprintf(asn->as_f, "!r%s/32,l\n", inet_ntoa(*addr));
+	as = 0;
+	rc = dlen = 0;
+	plen = (family == AF_INET6) ? 128 : 32;
+	(void)fprintf(asn->as_f, "!r%s/%d,l\n", addr, plen);
 	(void)fflush(asn->as_f);
 
 #ifdef AS_DEBUG_FILE
 	if (asn->as_debug) {
-		(void)fprintf(asn->as_debug, ">> !r%s/32,l\n",
-		     inet_ntoa(*addr));
+		(void)fprintf(asn->as_debug, ">> !r%s/%d,l\n", addr, plen);
 		(void)fflush(asn->as_debug);
 	}
 #endif /* AS_DEBUG_FILE */
@@ -182,7 +169,7 @@ as_lookup(_asn, addr)
 				}
 #endif /* AS_DEBUG_FILE */
 				break;
-			    case 'C':	
+			    case 'C':
 			    case 'D':
 			    case 'E':
 			    case 'F':
@@ -209,7 +196,7 @@ as_lookup(_asn, addr)
 
 		/* origin line is the interesting bit */
 		if (as == 0 && strncasecmp(buf, "origin:", 7) == 0) {
-			sscanf(buf + 7, " AS%d", &as);
+			sscanf(buf + 7, " AS%u", &as);
 #ifdef AS_DEBUG_FILE
 			if (asn->as_debug) {
 				(void)fprintf(asn->as_debug, "as: %d\n", as);
@@ -223,8 +210,7 @@ as_lookup(_asn, addr)
 }
 
 void
-as_shutdown(_asn)
-	void *_asn;
+as_shutdown(void *_asn)
 {
 	struct aslookup *asn = _asn;
 
