@@ -119,9 +119,6 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
-	if (td2->td_altkstack)
-		pmap_use_minicache(td2->td_altkstack, td2->td_altkstack_pages *
-		    PAGE_SIZE);
 #endif
 #endif
 	td2->td_pcb = pcb2;
