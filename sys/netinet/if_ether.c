@@ -684,6 +684,8 @@ match:
 		(void)memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
 		la->la_flags |= LLE_VALID;
 
+		EVENTHANDLER_INVOKE(arp_update_event, la);
+
 		if (!(la->la_flags & LLE_STATIC)) {
 			la->la_expire = time_uptime + V_arpt_keep;
 			callout_reset(&la->la_timer, hz * V_arpt_keep,
