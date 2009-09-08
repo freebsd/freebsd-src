@@ -107,14 +107,12 @@ joliettest(int withrr)
 		assertEqualInt(2, archive_entry_gid(ae));
 	}
 
-	/* A hardlink to the regular file. */
+	/* A regular file with two names ("hardlink" gets returned
+	 * first, so it's not marked as a hardlink). */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("hardlink", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
-	if (withrr) {
-		assertEqualString("long-joliet-file-name.textfile",
-		    archive_entry_hardlink(ae));
-	}
+	assert(archive_entry_hardlink(ae) == NULL);
 	assertEqualInt(6, archive_entry_size(ae));
 	assertEqualInt(0, archive_read_data_block(a, &p, &size, &offset));
 	assertEqualInt(6, (int)size);
@@ -123,20 +121,27 @@ joliettest(int withrr)
 	if (withrr) {
 		assertEqualInt(86401, archive_entry_mtime(ae));
 		assertEqualInt(86401, archive_entry_atime(ae));
-		assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
+		/* TODO: Actually, libarchive should be able to
+		 * compute nlinks correctly even without RR
+		 * extensions. See comments in libarchive source. */
+		assertEqualInt(2, archive_entry_nlink(ae));
 		assertEqualInt(1, archive_entry_uid(ae));
 		assertEqualInt(2, archive_entry_gid(ae));
 	}
 
-	/* A regular file. */
+	/* Second name for the same regular file (this happens to be
+	 * returned second, so does get marked as a hardlink). */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
-	assertEqualString("long-joliet-file-name.textfile", archive_entry_pathname(ae));
+	assertEqualString("long-joliet-file-name.textfile",
+	    archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
-	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualString("hardlink", archive_entry_hardlink(ae));
+	assert(!archive_entry_size_is_set(ae));
 	if (withrr) {
 		assertEqualInt(86401, archive_entry_mtime(ae));
 		assertEqualInt(86401, archive_entry_atime(ae));
-		assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
+		/* TODO: See above. */
+		assertEqualInt(2, archive_entry_nlink(ae));
 		assertEqualInt(1, archive_entry_uid(ae));
 		assertEqualInt(2, archive_entry_gid(ae));
 	}
@@ -153,7 +158,7 @@ joliettest(int withrr)
 	assertEqualInt(172802, archive_entry_mtime(ae));
 	assertEqualInt(172802, archive_entry_atime(ae));
 	if (withrr) {
-		assertEqualInt(1, archive_entry_stat(ae)->st_nlink);
+		assertEqualInt(1, archive_entry_nlink(ae));
 		assertEqualInt(1, archive_entry_uid(ae));
 		assertEqualInt(2, archive_entry_gid(ae));
 	}
