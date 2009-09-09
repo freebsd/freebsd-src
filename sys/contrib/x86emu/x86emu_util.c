@@ -1,5 +1,6 @@
 /*	$OpenBSD: x86emu_util.c,v 1.5 2009/06/18 14:19:21 pirofti Exp $	*/
 /*	$NetBSD: x86emu_util.c,v 1.2 2007/12/04 17:32:22 joerg Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  *
@@ -35,8 +36,8 @@
 #include <sys/param.h>
 #include <sys/endian.h>
 
-#include <dev/x86emu/x86emu.h>
-#include <dev/x86emu/x86emu_regs.h>
+#include <contrib/x86emu/x86emu.h>
+#include <contrib/x86emu/x86emu_regs.h>
 
 
 
@@ -82,9 +83,9 @@ rdw(struct x86emu *emu, uint32_t addr)
 		    ((*(a + 1) << 8) & 0xff00);
 		return r;
 	} else
-		return letoh32(*(u_int32_t *)(emu->mem_base + addr));
+		return le32toh(*(u_int32_t *)(emu->mem_base + addr));
 #else
-	return letoh16(*(u_int16_t *)(emu->mem_base + addr));
+	return le16toh(*(u_int16_t *)(emu->mem_base + addr));
 #endif
 }
 
@@ -113,9 +114,9 @@ rdl(struct x86emu *emu, uint32_t addr)
 		    ((*(a + 3) << 24) & 0xff000000);
 		return r;
 	} else
-		return letoh32(*(u_int32_t *)(emu->mem_base + addr));
+		return le32toh(*(u_int32_t *)(emu->mem_base + addr));
 #else
-	return letoh32(*(u_int32_t *)(emu->mem_base + addr));
+	return le32toh(*(u_int32_t *)(emu->mem_base + addr));
 #endif
 }
 
