@@ -1686,7 +1686,7 @@ out:
 	if (dirp) {
 		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
 		diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
-		vput(drip);
+		vput(dirp);
 	}
 ereply:
 	nfsm_reply(NFSX_SRVFH(1) + NFSX_POSTOPATTR(1) + NFSX_WCCDATA(1));
