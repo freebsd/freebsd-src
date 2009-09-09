@@ -27,7 +27,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/asm.h>
 #include <sys/param.h>
 
+#ifdef __mips_n64
+#include <sys/elf64.h>
+#else
 #include <sys/elf32.h>
+#endif
 #include <sys/inflate.h>
 #include <machine/elf.h>
 #include <machine/cpufunc.h>
@@ -89,12 +93,21 @@ bzero(void *addr, size_t count)
 void *
 load_kernel(void * kstart)
 {
+#ifdef __mips_n64
+	Elf64_Ehdr *eh;
+	Elf64_Phdr phdr[64] /* XXX */;
+#else
 	Elf32_Ehdr *eh;
 	Elf32_Phdr phdr[64] /* XXX */;
+#endif
 	int i;
 	void *entry_point;
 	
+#ifdef __mips_n64
+	eh = (Elf64_Ehdr *)kstart;
+#else
 	eh = (Elf32_Ehdr *)kstart;
+#endif
 	entry_point = (void*)eh->e_entry;
 	memcpy(phdr, (void *)(kstart + eh->e_phoff ),
 	    eh->e_phnum * sizeof(phdr[0]));
