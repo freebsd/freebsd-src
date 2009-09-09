@@ -98,7 +98,7 @@ ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 	echo "j t0" >>tmphack.S
 	echo "END(_start)" >>tmphack.S
 	echo "#define KERNNAME \"${KERNEL_KO}.tmp\""  >opt_kernname.h 
-	${CC} -O -nostdlib -I. -I$S ${EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
+	${CC} -O -nostdlib -I. -I$S ${HACK_EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
 		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader tmphack.S \
 		$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
 		-o ${KERNEL_KO}.tramp.noheader 
