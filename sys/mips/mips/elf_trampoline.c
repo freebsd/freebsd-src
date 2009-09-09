@@ -26,6 +26,7 @@
 __FBSDID("$FreeBSD$");
 #include <machine/asm.h>
 #include <sys/param.h>
+
 #include <sys/elf32.h>
 #include <sys/inflate.h>
 #include <machine/elf.h>
@@ -43,7 +44,7 @@ extern char kernel_start[];
 extern char kernel_end[];
 
 static __inline void *
-memcpy(void *dst, const void *src, int len)
+memcpy(void *dst, const void *src, size_t len)
 {
 	const char *s = src;
     	char *d = dst;
@@ -64,7 +65,7 @@ memcpy(void *dst, const void *src, int len)
 }
 
 static __inline void
-bzero(void *addr, int count)
+bzero(void *addr, size_t count)
 {
 	char *tmp = (char *)addr;
 
