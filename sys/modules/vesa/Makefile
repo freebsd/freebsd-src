@@ -1,8 +1,12 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../dev/syscons ${.CURDIR}/../../i386/isa
-
 KMOD=	vesa
-SRCS=	vesa.c scvesactl.c opt_vga.h opt_vesa.h
+SRCS=	opt_vga.h opt_vesa.h
+
+.PATH:	${.CURDIR}/../../dev/fb
+SRCS+=	vesa.c
+
+.PATH:	${.CURDIR}/../../dev/syscons
+SRCS+=	scvesactl.c
 
 .include <bsd.kmod.mk>

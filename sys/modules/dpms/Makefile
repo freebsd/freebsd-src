@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../i386/isa
-
 KMOD=	dpms
-SRCS=	dpms.c
-SRCS+=	bus_if.h device_if.h
+SRCS=	bus_if.h device_if.h
+
+.PATH:	${.CURDIR}/../../dev/dpms
+SRCS+=	dpms.c
 
 .include <bsd.kmod.mk>
