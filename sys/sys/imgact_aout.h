@@ -119,7 +119,7 @@ struct exec {
      uint32_t	a_trsize;	/* text relocation size */
      uint32_t	a_drsize;	/* data relocation size */
 };
-#define a_magic a_midmag /* XXX Hack to work with current kern_execve.c */
+#define a_magic a_midmag /* XXX Hack to work with imgact_{aout,gzip}.c */
 
 /* a_magic */
 #define	OMAGIC		0407	/* old impure format */
