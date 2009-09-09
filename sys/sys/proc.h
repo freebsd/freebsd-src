@@ -267,9 +267,9 @@ struct thread {
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
 	vm_offset_t	td_kstack;	/* (a) Kernel VA of kstack. */
 	int		td_kstack_pages; /* (a) Size of the kstack. */
-	void		*td_space1;
-	vm_offset_t	td_space2;
-	int		td_space3;
+	void		*td_unused1;
+	vm_offset_t	td_unused2;
+	int		td_unused3;
 	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
