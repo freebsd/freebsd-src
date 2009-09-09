@@ -1,5 +1,6 @@
 /*	$OpenBSD: x86emu.c,v 1.4 2009/06/18 14:19:21 pirofti Exp $	*/
 /*	$NetBSD: x86emu.c,v 1.7 2009/02/03 19:26:29 joerg Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  *
@@ -32,8 +33,12 @@
  *
  */
 
-#include <dev/x86emu/x86emu.h>
-#include <dev/x86emu/x86emu_regs.h>
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+
+#include <contrib/x86emu/x86emu.h>
+#include <contrib/x86emu/x86emu_regs.h>
 
 static void 	x86emu_intr_raise (struct x86emu *, uint8_t type);
 
@@ -45,7 +50,7 @@ static uint8_t	fetch_byte_imm (struct x86emu *);
 static uint16_t	fetch_word_imm (struct x86emu *);
 static uint32_t	fetch_long_imm (struct x86emu *);
 static uint8_t	fetch_data_byte (struct x86emu *, uint32_t offset);
-static uint8_t	fetch_byte (struct x86emu *, uint segment, uint32_t offset);
+static uint8_t	fetch_byte (struct x86emu *, u_int segment, uint32_t offset);
 static uint16_t	fetch_data_word (struct x86emu *, uint32_t offset);
 static uint16_t	fetch_word (struct x86emu *, uint32_t segment, uint32_t offset);
 static uint32_t	fetch_data_long (struct x86emu *, uint32_t offset);
@@ -227,13 +232,8 @@ x86emu_exec(struct x86emu *emu)
 {
 	emu->x86.intr = 0;
 
-#ifdef _KERNEL
-	if (setjmp(&emu->exec_state))
-		return;
-#else
 	if (setjmp(emu->exec_state))
 		return;
-#endif
 
 	for (;;) {
 		if (emu->x86.intr) {
@@ -282,11 +282,7 @@ x86emu_exec_intr(struct x86emu *emu, uint8_t intr)
 void 
 x86emu_halt_sys(struct x86emu *emu)
 {
-#ifdef _KERNEL
-	longjmp(&emu->exec_state);
-#else
 	longjmp(emu->exec_state, 1);
-#endif
 }
 
 /*
@@ -8339,3 +8335,32 @@ pop_long(struct x86emu *emu)
 	emu->x86.R_SP += 4;
 	return res;
 }
+
+static int
+x86emu_modevent(module_t mod __unused, int type, void *data __unused)
+{
+	int err = 0;
+
+	switch (type) {
+	case MOD_LOAD:
+		break;
+
+	case MOD_UNLOAD:
+		break;
+
+	default:
+		err = ENOTSUP;
+		break;
+
+	}
+	return (err);
+}
+
+static moduledata_t x86emu_mod = {
+	"x86emu",
+	x86emu_modevent,
+	NULL,
+};
+
+DECLARE_MODULE(x86emu, x86emu_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
+MODULE_VERSION(x86emu, 1);

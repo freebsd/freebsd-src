@@ -2826,4 +2826,6 @@ dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenpci/evtchn.c         optional xenpci
 dev/xen/xenpci/machine_reboot.c optional xenpci
+contrib/x86emu/x86emu.c		optional x86emu
+contrib/x86emu/x86emu_util.c	optional x86emu
 

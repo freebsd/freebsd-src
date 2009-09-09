@@ -1,5 +1,6 @@
 /*	$NetBSD: x86emu.h,v 1.1 2007/12/01 20:14:10 joerg Exp $	*/
 /*	$OpenBSD: x86emu.h,v 1.3 2009/06/06 03:45:05 matthieu Exp $ */
+/*	$FreeBSD$	*/
 
 /****************************************************************************
 *
@@ -40,6 +41,7 @@
 
 #ifdef _KERNEL
 #include <sys/systm.h>
+#include <machine/setjmp.h>
 #else
 #include <setjmp.h>
 #endif
@@ -140,11 +142,7 @@ struct x86emu {
 	void        		*sys_private;
 	struct x86emu_regs	x86;
 
-#ifdef _KERNEL
-	label_t		exec_state;
-#else
 	jmp_buf		exec_state;
-#endif
 
 	uint64_t	cur_cycles;
 
@@ -179,7 +177,7 @@ void	x86emu_init_default(struct x86emu *);
 void 	x86emu_exec(struct x86emu *);
 void	x86emu_exec_call(struct x86emu *, uint16_t, uint16_t);
 void	x86emu_exec_intr(struct x86emu *, uint8_t);
-void 	x86emu_halt_sys(struct x86emu *) __dead;
+void 	x86emu_halt_sys(struct x86emu *) __dead2;
 
 __END_DECLS
 
