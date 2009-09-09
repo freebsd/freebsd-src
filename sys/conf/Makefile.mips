@@ -90,11 +90,11 @@ ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 	# Generate .S file that setups stack and jumps to trampoline
 	echo "#include <machine/asm.h>" >tmphack.S
 	echo "ENTRY(_start)" >>tmphack.S
-	echo "la t0, kernel_end" >>tmphack.S
+	echo "PTR_LA t0, kernel_end" >>tmphack.S
 	echo "move sp, t0" >>tmphack.S
 	echo "add sp, 0x2000" >>tmphack.S
 	echo "and sp, ~0x7" >>tmphack.S
-	echo "la t0, _startC" >>tmphack.S
+	echo "PTR_LA t0, _startC" >>tmphack.S
 	echo "j t0" >>tmphack.S
 	echo "END(_start)" >>tmphack.S
 	echo "#define KERNNAME \"${KERNEL_KO}.tmp\""  >opt_kernname.h 
