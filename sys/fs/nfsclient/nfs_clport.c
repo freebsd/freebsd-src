@@ -232,7 +232,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	 */
 	VN_LOCK_AREC(vp);
 	VN_LOCK_ASHARE(vp);
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	error = insmntque(vp, mntp);
 	if (error != 0) {
 		*npp = NULL;
