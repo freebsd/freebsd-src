@@ -28,8 +28,9 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-SYSTEM_LD:= ${SYSTEM_LD:$S/conf/ldscript.$M=ldscript.$M}
-SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
+LDSCRIPT_NAME?=ldscript.$M
+SYSTEM_LD:= ${SYSTEM_LD:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
+SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
 
 # XXX: Such sweeping assumptions...
 MACHINE=mips
@@ -84,8 +85,8 @@ ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 	$S/$M/$M/inckern.S 
 	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
 	-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
-	sed s/${KERNLOADADDR}/${TRAMPLOADADDR}/ ldscript.$M | \
-		sed s/" + SIZEOF_HEADERS"//  > ldscript.$M.tramp.noheader
+	sed s/${KERNLOADADDR}/${TRAMPLOADADDR}/ ${LDSCRIPT_NAME} | \
+		sed s/" + SIZEOF_HEADERS"//  > ${LDSCRIPT_NAME}.tramp.noheader
 	# Generate .S file that setups stack and jumps to trampoline
 	echo "#include <machine/asm.h>" >tmphack.S
 	echo "ENTRY(_start)" >>tmphack.S
@@ -98,7 +99,7 @@ ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 	echo "END(_start)" >>tmphack.S
 	echo "#define KERNNAME \"${KERNEL_KO}.tmp\""  >opt_kernname.h 
 	${CC} -O -nostdlib -I. -I$S ${EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
-		-T -Xlinker ldscript.$M.tramp.noheader tmphack.S \
+		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader tmphack.S \
 		$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
 		-o ${KERNEL_KO}.tramp.noheader 
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
@@ -116,12 +117,12 @@ ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 
 %CLEAN
 
-CLEAN+=	ldscript.$M ldscript.$M.tramp.noheader \
+CLEAN+=	${LDSCRIPT_NAME} ${LDSCRIPT_NAME}.tramp.noheader \
 	${KERNEL_KO}.tramp.noheader ${KERNEL_KO}.tramp.bin
 
-ldscript.$M: $S/conf/ldscript.$M
-	cat $S/conf/ldscript.$M|sed s/KERNLOADADDR/${KERNLOADADDR}/g \
-		> ldscript.$M
+${LDSCRIPT_NAME}: $S/conf/${LDSCRIPT_NAME}
+	cat $S/conf/${LDSCRIPT_NAME}|sed s/KERNLOADADDR/${KERNLOADADDR}/g \
+		> ${LDSCRIPT_NAME}
 %RULES
 
 .include "$S/conf/kern.post.mk"
