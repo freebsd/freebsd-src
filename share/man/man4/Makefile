@@ -85,6 +85,7 @@ MAN=	aac.4 \
 	digi.4 \
 	disc.4 \
 	divert.4 \
+	${_dpms.4} \
 	dpt.4 \
 	dummynet.4 \
 	ed.4 \
@@ -611,6 +612,7 @@ _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
+_dpms.4=	dpms.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
