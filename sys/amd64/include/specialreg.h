@@ -168,10 +168,10 @@
 #define	CPUID_FAMILY		0x00000f00
 #define	CPUID_EXT_MODEL		0x000f0000
 #define	CPUID_EXT_FAMILY	0x0ff00000
-#define	AMD64_CPU_MODEL(id) \
+#define	CPUID_TO_MODEL(id) \
     ((((id) & CPUID_MODEL) >> 4) | \
     (((id) & CPUID_EXT_MODEL) >> 12))
-#define	AMD64_CPU_FAMILY(id) \
+#define	CPUID_TO_FAMILY(id) \
     ((((id) & CPUID_FAMILY) >> 8) + \
     (((id) & CPUID_EXT_FAMILY) >> 20))
 
