@@ -472,7 +472,7 @@
 
     <para role="merged">The timezone database has been updated from
       the <application>tzdata2008h</application> release to
-      the <application>tzdata2009j</application> release.</para>
+      the <application>tzdata2009m</application> release.</para>
 
     <para>The stdtime part of libc, &man.zdump.8 and &man.zic.8
       have been updated from the <application>tzcode2004a</application>
