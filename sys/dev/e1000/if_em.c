@@ -1034,9 +1034,10 @@ em_mq_start_locked(struct ifnet *ifp, struct mbuf *m)
 		return (error);
 	} else if (drbr_empty(ifp, adapter->br) &&
 	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
-		if (em_xmit(adapter, &m)) {
-			if (m && (error = drbr_enqueue(ifp, adapter->br, m)) != 0)
-				return (error);
+		if (error = em_xmit(adapter, &m)) {
+			if (m != NULL)
+				error = drbr_enqueue(ifp, adapter->br, m);
+			return (error);
 		} else {
 			/*
 			 * We've bypassed the buf ring so we need to update
@@ -1063,8 +1064,12 @@ process:
                 next = drbr_dequeue(ifp, adapter->br);
                 if (next == NULL)
                         break;
-                if (em_xmit(adapter, &next))
+                if (error = em_xmit(adapter, &next)) {
+			if (next != NULL)
+				error = drbr_enqueue(ifp, adapter->br, next);
                         break;
+		}
+		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
                 ETHER_BPF_MTAP(ifp, next);
                 /* Set the watchdog */
                 adapter->watchdog_timer = EM_TX_TIMEOUT;
@@ -1073,7 +1078,7 @@ process:
         if (adapter->num_tx_desc_avail <= EM_TX_OP_THRESHOLD)
                 ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
-	return (0);
+	return (error);
 }
 
 /*
