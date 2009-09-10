@@ -581,6 +581,10 @@ panic(const char *fmt, ...)
 
 /*
  * Support for poweroff delay.
+ *
+ * Please note that setting this delay too short might power off your machine
+ * before the write cache on your hard disk has been flushed, leading to
+ * soft-updates inconsistencies.
  */
 #ifndef POWEROFF_DELAY
 # define POWEROFF_DELAY 5000
