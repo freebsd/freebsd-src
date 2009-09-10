@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2006
+.Dd August 17, 2009
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -332,6 +332,10 @@ patch file.
 A script that will be run in the
 .Xr chroot 8
 environment immediately after any local patches are applied.
+.It Va MAKE_DVD
+If defined, build a bootable ISO DVD image in the CD-ROM
+stage directory.
+This option may not be available for all architectures.
 .It Va MAKE_ISOS
 If defined, bootable ISO CD-ROM images will be created from the
 contents of the CD-ROM stage directory.
@@ -390,6 +394,35 @@ of the CVS tree
 .It Va SEPARATE_LIVEFS
 Store the live file system on its own CD-ROM image rather than placing it on
 the first disc.
+.It Va SVNCMDARGS
+Additional arguments for svn
+.Ic checkout
+and
+.Ic switch
+commands.
+.It Va SVNROOT
+The location of the FreeBSD SVN source repository.
+If this variable is set,
+then the source tree will be extracted using Subversion rather than
+CVS.
+.It Va SVNBRANCH
+The branch to check out from a SVN source repository.
+It is specified as a path such as
+.Pa head
+or
+.Pa stable/7 .
+If this variable is not set,
+then the branch that corresponds to the current value of
+.Va RELEASETAG
+will be used.
+If neither
+.Va SVNBRANCH
+nor
+.Va RELEASETAG
+are set,
+then the
+.Pa head
+branch will be used.
 .It Va TARGET_ARCH
 The target machine processor architecture.
 This is analogous to the
@@ -474,6 +507,7 @@ make release CHROOTDIR=/local3/release BUILDNAME=6.0-CURRENT \\
 .Xr install 1 ,
 .Xr make 1 ,
 .Xr patch 1 ,
+.Xr svn 1 Pq Pa ports/devel/subversion-freebsd ,
 .Xr uname 1 ,
 .Xr md 4 ,
 .Xr make.conf 5 ,
@@ -511,7 +545,7 @@ effort was spent getting
 into a shape where it could at least automate most of the tediousness
 of building a release in a sterile environment.
 .Pp
-With its almost 1000 revisions spread over multiple branches, the
+At near 1000 revisions spread over multiple branches, the
 .Xr cvs 1
 log of
 .Pa src/release/Makefile
