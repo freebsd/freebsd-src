@@ -501,8 +501,8 @@ pmap_init_pat(void)
 	 */
 	if (!pat_tested) {
 		if (cpu_vendor_id != CPU_VENDOR_INTEL ||
-		    (I386_CPU_FAMILY(cpu_id) == 6 &&
-		    I386_CPU_MODEL(cpu_id) >= 0xe)) {
+		    (CPUID_TO_FAMILY(cpu_id) == 6 &&
+		    CPUID_TO_MODEL(cpu_id) >= 0xe)) {
 			pat_works = 1;
 			sysenv = getenv("smbios.system.product");
 			if (sysenv != NULL) {
