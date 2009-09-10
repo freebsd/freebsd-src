@@ -1034,7 +1034,7 @@ em_mq_start_locked(struct ifnet *ifp, struct mbuf *m)
 		return (error);
 	} else if (drbr_empty(ifp, adapter->br) &&
 	    (adapter->num_tx_desc_avail > EM_TX_OP_THRESHOLD)) {
-		if (error = em_xmit(adapter, &m)) {
+		if ((error = em_xmit(adapter, &m)) != 0) {
 			if (m != NULL)
 				error = drbr_enqueue(ifp, adapter->br, m);
 			return (error);
@@ -1064,7 +1064,7 @@ process:
                 next = drbr_dequeue(ifp, adapter->br);
                 if (next == NULL)
                         break;
-                if (error = em_xmit(adapter, &next)) {
+                if ((error = em_xmit(adapter, &next)) != 0) {
 			if (next != NULL)
 				error = drbr_enqueue(ifp, adapter->br, next);
                         break;
