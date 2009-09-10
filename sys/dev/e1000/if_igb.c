@@ -854,9 +854,10 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 
 	/* If nothing queued go right to xmit */
 	if (drbr_empty(ifp, txr->br)) {
-		if (igb_xmit(txr, &m)) {
-			if (m && (err = drbr_enqueue(ifp, txr->br, m)) != 0)
-                                return (err);
+		if (err = igb_xmit(txr, &m)) {
+			if (m != NULL)
+				err = drbr_enqueue(ifp, txr->br, m);
+			return (err);
 		} else {
 			/* Success, update stats */
 			drbr_stats_update(ifp, m->m_pkthdr.len, m->m_flags);
@@ -880,8 +881,12 @@ process:
 		next = drbr_dequeue(ifp, txr->br);
 		if (next == NULL)
 			break;
-		if (igb_xmit(txr, &next))
+		if (err = igb_xmit(txr, &next)) {
+			if (next != NULL)
+				err = drbr_enqueue(ifp, txr->br, next);
 			break;
+		}
+		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
 		ETHER_BPF_MTAP(ifp, next);
 		/* Set the watchdog */
 		txr->watchdog_timer = IGB_TX_TIMEOUT;
@@ -1531,8 +1536,11 @@ igb_update_aim(struct rx_ring *rxr)
 	if (olditr != newitr) {
 		/* Change interrupt rate */
 		rxr->eitr_setting = newitr;
-		E1000_WRITE_REG(&adapter->hw, E1000_EITR(rxr->me),
-		    newitr | (newitr << 16));
+		if (adapter->hw.mac.type == e1000_82575)
+			newitr |= newitr << 16;
+		else
+			newitr |= 0x8000000;
+		E1000_WRITE_REG(&adapter->hw, E1000_EITR(rxr->me), newitr);
 	}
 
 	rxr->bytes = 0;
