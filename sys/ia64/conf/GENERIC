@@ -30,15 +30,12 @@ options 	CD9660		# ISO 9660 Filesystem
 options 	COMPAT_43TTY	# BSD 4.3 TTY compat (sgtty)
 options 	COMPAT_FREEBSD6	# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7	# Compatible with FreeBSD7
-options 	DDB		# Support DDB
 options 	FFS		# Berkeley Fast Filesystem
-options 	GDB		# Support remote GDB
 options 	GEOM_LABEL	# Provides labelization
 options 	INET		# InterNETworking
 options 	INET6		# IPv6 communications protocols
 options 	INVARIANTS	# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT # required by INVARIANTS
-options 	KDB		# Enable kernel debugger support
 options 	KTRACE		# ktrace(1) syscall trace support
 options 	MAC			# TrustedBSD MAC Framework
 options 	MD_ROOT		# MD usable as root device
@@ -62,8 +59,6 @@ options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	UFS_ACL		# Support for access control lists
 options 	UFS_DIRHASH	# Hash-based directory lookup scheme
 options 	UFS_GJOURNAL	# Enable gjournal-based UFS journaling
-options 	WITNESS		# Enable checks to detect deadlocks and cycles
-options 	WITNESS_SKIPSPIN # Don't run witness on spinlocks for speed
 options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 
