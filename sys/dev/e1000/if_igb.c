@@ -854,7 +854,7 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 
 	/* If nothing queued go right to xmit */
 	if (drbr_empty(ifp, txr->br)) {
-		if (err = igb_xmit(txr, &m)) {
+		if ((err = igb_xmit(txr, &m)) != 0) {
 			if (m != NULL)
 				err = drbr_enqueue(ifp, txr->br, m);
 			return (err);
@@ -881,7 +881,7 @@ process:
 		next = drbr_dequeue(ifp, txr->br);
 		if (next == NULL)
 			break;
-		if (err = igb_xmit(txr, &next)) {
+		if ((err = igb_xmit(txr, &next)) != 0) {
 			if (next != NULL)
 				err = drbr_enqueue(ifp, txr->br, next);
 			break;
