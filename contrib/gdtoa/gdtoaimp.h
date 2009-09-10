@@ -479,7 +479,7 @@ extern pthread_mutex_t __gdtoa_locks[2];
 		_pthread_mutex_unlock(&__gdtoa_locks[n]);	\
 } while(0)
 
-#define Kmax 15
+#define Kmax 9
 
  struct
 Bigint {
