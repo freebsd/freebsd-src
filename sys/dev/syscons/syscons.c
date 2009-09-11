@@ -352,6 +352,7 @@ sc_attach_unit(int unit, int flags)
 #endif
     int vc;
     struct cdev *dev;
+    u_int16_t vmode;
 
     flags &= ~SC_KERNEL_CONSOLE;
 
@@ -372,16 +373,20 @@ sc_attach_unit(int unit, int flags)
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
 
+    vmode = (flags >> 16) & 0x1fff;
+    if (vmode < M_VESA_BASE || vmode > M_VESA_MODE_MAX)
+	vmode = M_VESA_FULL_800;
+
 #ifdef SC_PIXEL_MODE
-    if ((sc->config & SC_VESA800X600)
-	&& (vidd_get_info(sc->adp, M_VESA_800x600, &info) == 0)) {
+    if ((sc->config & SC_VESAMODE)
+	&& (vidd_get_info(sc->adp, vmode, &info) == 0)) {
 #ifdef DEV_SPLASH
 	if (sc->flags & SC_SPLASH_SCRN)
 	    splash_term(sc->adp);
 #endif
-	sc_set_graphics_mode(scp, NULL, M_VESA_800x600);
-	sc_set_pixel_mode(scp, NULL, COL, ROW, 16, 8);
-	sc->initial_mode = M_VESA_800x600;
+	sc_set_graphics_mode(scp, NULL, vmode);
+	sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
+	sc->initial_mode = vmode;
 #ifdef DEV_SPLASH
 	/* put up the splash again! */
 	if (sc->flags & SC_SPLASH_SCRN)
@@ -517,7 +522,7 @@ sctty_open(struct tty *tp)
     if (scp == NULL) {
 	scp = SC_STAT(tp) = alloc_scp(sc, SC_VTY(tp));
 	if (ISGRAPHSC(scp))
-	    sc_set_pixel_mode(scp, NULL, COL, ROW, 16, 8);
+	    sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
     }
     if (!tp->t_winsize.ws_col && !tp->t_winsize.ws_row) {
 	tp->t_winsize.ws_col = scp->xsize;
@@ -2995,6 +3000,8 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	scp->ysize = info.vi_height;
 	scp->xpixel = scp->xsize*info.vi_cwidth;
 	scp->ypixel = scp->ysize*info.vi_cheight;
+    }
+
 	scp->font_size = info.vi_cheight;
 	scp->font_width = info.vi_cwidth;
 	if (info.vi_cheight < 14) {
@@ -3016,7 +3023,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	    scp->font = NULL;
 #endif
 	}
-    }
+
     sc_vtb_init(&scp->vtb, VTB_MEMORY, 0, 0, NULL, FALSE);
 #ifndef __sparc64__
     sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, 0, 0, NULL, FALSE);
