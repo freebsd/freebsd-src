@@ -119,7 +119,7 @@
 #include <contrib/dev/acpica/include/actables.h>
 #include <contrib/dev/acpica/include/acevents.h>
 #include <contrib/dev/acpica/include/acinterp.h>
-#include "acnamesp.h"
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslstubs")

@@ -115,10 +115,10 @@
 
 #define __NSREPAIR_C__
 
-#include "acpi.h"
-#include "accommon.h"
-#include "acnamesp.h"
-#include "acpredef.h"
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acpredef.h>
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsrepair")
