@@ -1337,6 +1337,7 @@ LkNamespaceLocateBegin (
                 break;
 
             case REGION_SMBUS:
+            case REGION_IPMI:
 
                 if ((UINT8) Op->Asl.Parent->Asl.Value.Integer != AML_FIELD_ACCESS_BUFFER)
                 {
