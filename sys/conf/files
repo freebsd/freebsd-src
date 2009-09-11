@@ -220,6 +220,7 @@ contrib/dev/acpica/namespace/nsnames.c	optional acpi
 contrib/dev/acpica/namespace/nsobject.c	optional acpi
 contrib/dev/acpica/namespace/nsparse.c	optional acpi
 contrib/dev/acpica/namespace/nspredef.c	optional acpi
+contrib/dev/acpica/namespace/nsrepair.c	optional acpi
 contrib/dev/acpica/namespace/nssearch.c	optional acpi
 contrib/dev/acpica/namespace/nsutils.c	optional acpi
 contrib/dev/acpica/namespace/nswalk.c	optional acpi
@@ -260,6 +261,7 @@ contrib/dev/acpica/utilities/utdebug.c	optional acpi
 contrib/dev/acpica/utilities/utdelete.c	optional acpi
 contrib/dev/acpica/utilities/uteval.c	optional acpi
 contrib/dev/acpica/utilities/utglobal.c	optional acpi
+contrib/dev/acpica/utilities/utids.c	optional acpi
 contrib/dev/acpica/utilities/utinit.c	optional acpi
 contrib/dev/acpica/utilities/utlock.c	optional acpi
 contrib/dev/acpica/utilities/utmath.c	optional acpi
