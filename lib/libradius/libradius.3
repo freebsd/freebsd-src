@@ -1,4 +1,5 @@
 .\" Copyright 1998 Juniper Networks, Inc.
+.\" Copyright 2009 Alexander Motin <mav@FreeBSD.org>.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,12 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2004
+.Dd August 5, 2009
 .Dt LIBRADIUS 3
 .Os
 .Sh NAME
 .Nm libradius
-.Nd RADIUS client library
+.Nd RADIUS client/server library
 .Sh SYNOPSIS
 .In radlib.h
 .Ft "struct rad_handle *"
@@ -46,6 +47,8 @@
 .Fn rad_continue_send_request "struct rad_handle *h" "int selected" "int *fd" "struct timeval *tv"
 .Ft int
 .Fn rad_create_request "struct rad_handle *h" "int code"
+.Ft int
+.Fn rad_create_response "struct rad_handle *h" "int code"
 .Ft "struct in_addr"
 .Fn rad_cvt_addr "const void *data"
 .Ft u_int32_t
@@ -79,7 +82,13 @@
 .Ft ssize_t
 .Fn rad_request_authenticator "struct rad_handle *h" "char *buf" "size_t len"
 .Ft int
+.Fn rad_receive_request "struct rad_handle *h"
+.Ft int
 .Fn rad_send_request "struct rad_handle *h"
+.Ft int
+.Fn rad_send_response "struct rad_handle *h"
+.Ft "struct rad_handle *"
+.Fn rad_server_open "int fd"
 .Ft "const char *"
 .Fn rad_server_secret "struct rad_handle *h"
 .Ft u_char *
@@ -91,16 +100,17 @@
 .Sh DESCRIPTION
 The
 .Nm
-library implements the client side of the Remote Authentication Dial
-In User Service (RADIUS).
+library implements the Remote Authentication Dial In User Service (RADIUS).
 RADIUS, defined in RFCs 2865 and 2866,
 allows clients to perform authentication and accounting by means of
 network requests to remote servers.
 .Ss Initialization
 To use the library, an application must first call
 .Fn rad_auth_open
-or
+,
 .Fn rad_acct_open
+or
+.Fn rad_server_open
 to obtain a
 .Vt "struct rad_handle *" ,
 which provides the context for subsequent operations.
@@ -108,8 +118,10 @@ The former function is used for RADIUS authentication and the
 latter is used for RADIUS accounting.
 Calls to
 .Fn rad_auth_open
-and
+,
 .Fn rad_acct_open
+and
+.Fn rad_server_open
 always succeed unless insufficient virtual memory is available.
 If
 the necessary memory cannot be allocated, the functions return
@@ -451,6 +463,25 @@ subsequent library calls using the same handle.
 .Ss Cleanup
 To free the resources used by the RADIUS library, call
 .Fn rad_close .
+.Ss Server operation
+Server mode operates much alike to client mode, except packet send and receieve
+steps are swapped. To operate as server you should obtain server context with
+.Fn rad_server_open
+function, passing opened and bound UDP socket file descriptor as argument.
+You should define allowed clients and their secrets using
+.Fn rad_add_server
+function. port, timeout and max_tries arguments are ignored in server mode.
+You should call
+.Fn rad_receive_request
+function to receive request from client. If you do not want to block on socket
+read, you are free to use any poll(), select() or non-blocking sockets for
+the socket.
+Received request can be parsed with same parsing functions as for client.
+To respond to the request you should call
+.Fn rad_create_response
+and fill response content with same packet writing functions as for client.
+When packet is ready, it should be sent with
+.Fn rad_send_response
 .Sh RETURN VALUES
 The following functions return a non-negative value on success.
 If
@@ -465,6 +496,8 @@ which can be retrieved using
 .Fn rad_config
 .It
 .Fn rad_create_request
+.It
+.Fn rad_create_response
 .It
 .Fn rad_get_attr
 .It
@@ -483,6 +516,8 @@ which can be retrieved using
 .Fn rad_continue_send_request
 .It
 .Fn rad_send_request
+.It
+.Fn rad_send_response
 .El
 .Pp
 The following functions return a
@@ -498,6 +533,8 @@ without recording an error message.
 .Fn rad_acct_open
 .It
 .Fn rad_auth_open
+.It
+.Fn rad_server_open
 .It
 .Fn rad_cvt_string
 .El
@@ -553,3 +590,5 @@ subsequently added the ability to perform RADIUS
 accounting.
 Later additions and changes by
 .An Michael Bretterklieber .
+Server mode support was added by
+.An Alexander Motin .
