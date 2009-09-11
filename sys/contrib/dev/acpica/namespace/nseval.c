@@ -126,6 +126,13 @@
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nseval")
 
+/* Local prototypes */
+
+static void
+AcpiNsExecModuleCode (
+    ACPI_OPERAND_OBJECT     *MethodObj,
+    ACPI_EVALUATE_INFO      *Info);
+
 
 /*******************************************************************************
  *
@@ -358,5 +365,147 @@ AcpiNsEvaluate (
      * just return
      */
     return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsExecModuleCodeList
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None. Exceptions during method execution are ignored, since
+ *              we cannot abort a table load.
+ *
+ * DESCRIPTION: Execute all elements of the global module-level code list.
+ *              Each element is executed as a single control method.
+ *
+ ******************************************************************************/
+
+void
+AcpiNsExecModuleCodeList (
+    void)
+{
+    ACPI_OPERAND_OBJECT     *Prev;
+    ACPI_OPERAND_OBJECT     *Next;
+    ACPI_EVALUATE_INFO      *Info;
+    UINT32                  MethodCount = 0;
+
+
+    ACPI_FUNCTION_TRACE (NsExecModuleCodeList);
+
+
+    /* Exit now if the list is empty */
+
+    Next = AcpiGbl_ModuleCodeList;
+    if (!Next)
+    {
+        return_VOID;
+    }
+
+    /* Allocate the evaluation information block */
+
+    Info = ACPI_ALLOCATE (sizeof (ACPI_EVALUATE_INFO));
+    if (!Info)
+    {
+        return_VOID;
+    }
+
+    /* Walk the list, executing each "method" */
+
+    while (Next)
+    {
+        Prev = Next;
+        Next = Next->Method.Mutex;
+
+        /* Clear the link field and execute the method */
+
+        Prev->Method.Mutex = NULL;
+        AcpiNsExecModuleCode (Prev, Info);
+        MethodCount++;
+
+        /* Delete the (temporary) method object */
+
+        AcpiUtRemoveReference (Prev);
+    }
+
+    ACPI_INFO ((AE_INFO,
+        "Executed %u blocks of module-level executable AML code",
+        MethodCount));
+
+    ACPI_FREE (Info);
+    AcpiGbl_ModuleCodeList = NULL;
+    return_VOID;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsExecModuleCode
+ *
+ * PARAMETERS:  MethodObj           - Object container for the module-level code
+ *              Info                - Info block for method evaluation
+ *
+ * RETURN:      None. Exceptions during method execution are ignored, since
+ *              we cannot abort a table load.
+ *
+ * DESCRIPTION: Execute a control method containing a block of module-level
+ *              executable AML code. The control method is temporarily
+ *              installed to the root node, then evaluated.
+ *
+ ******************************************************************************/
+
+static void
+AcpiNsExecModuleCode (
+    ACPI_OPERAND_OBJECT     *MethodObj,
+    ACPI_EVALUATE_INFO      *Info)
+{
+    ACPI_OPERAND_OBJECT     *RootObj;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (NsExecModuleCode);
+
+
+    /* Initialize the evaluation information block */
+
+    ACPI_MEMSET (Info, 0, sizeof (ACPI_EVALUATE_INFO));
+    Info->PrefixNode = AcpiGbl_RootNode;
+
+    /*
+     * Get the currently attached root object. Add a reference, because the
+     * ref count will be decreased when the method object is installed to
+     * the root node.
+     */
+    RootObj = AcpiNsGetAttachedObject (AcpiGbl_RootNode);
+    AcpiUtAddReference (RootObj);
+
+    /* Install the method (module-level code) in the root node */
+
+    Status = AcpiNsAttachObject (AcpiGbl_RootNode, MethodObj,
+                ACPI_TYPE_METHOD);
+    if (ACPI_FAILURE (Status))
+    {
+        goto Exit;
+    }
+
+    /* Execute the root node as a control method */
+
+    Status = AcpiNsEvaluate (Info);
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "Executed module-level code at %p\n",
+        MethodObj->Method.AmlStart));
+
+    /* Detach the temporary method object */
+
+    AcpiNsDetachObject (AcpiGbl_RootNode);
+
+    /* Restore the original root object */
+
+    Status = AcpiNsAttachObject (AcpiGbl_RootNode, RootObj, ACPI_TYPE_DEVICE);
+
+Exit:
+    AcpiUtRemoveReference (RootObj);
+    return_VOID;
 }
 

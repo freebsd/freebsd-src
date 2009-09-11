@@ -696,13 +696,13 @@ AcpiExReleaseGlobalLock (
 
 void
 AcpiExEisaIdToString (
-    UINT32                  NumericId,
-    char                    *OutString);
+    char                    *Dest,
+    ACPI_INTEGER            CompressedId);
 
 void
-AcpiExUnsignedIntegerToString (
-    ACPI_INTEGER            Value,
-    char                    *OutString);
+AcpiExIntegerToString (
+    char                    *Dest,
+    ACPI_INTEGER            Value);
 
 
 /*
