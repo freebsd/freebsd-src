@@ -1899,6 +1899,9 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			ssa->sin.sin_addr = mreqs.imr_sourceaddr;
 		}
 
+		if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
+			return (EINVAL);
+
 		ifp = inp_lookup_mcast_ifp(inp, &gsa->sin,
 		    mreqs.imr_interface);
 		CTR3(KTR_IGMPV3, "%s: imr_interface = %s, ifp = %p",
@@ -1936,6 +1939,9 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			ssa->sin.sin_port = 0;
 		}
 
+		if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
+			return (EINVAL);
+
 		if (gsr.gsr_interface == 0 || V_if_index < gsr.gsr_interface)
 			return (EADDRNOTAVAIL);
 		ifp = ifnet_byindex(gsr.gsr_interface);
@@ -1947,9 +1953,6 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		return (EOPNOTSUPP);
 		break;
 	}
-
-	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
-		return (EINVAL);
 
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
 		return (EADDRNOTAVAIL);
