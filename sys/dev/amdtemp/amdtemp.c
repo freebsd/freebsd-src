@@ -422,7 +422,7 @@ amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 	switch (sensor) {
 	case SENSOR1_CORE0:
 		sel |= AMDTEMP_TTSR_SELSENSOR;
-		/* FALLTROUGH */
+		/* FALLTHROUGH */
 	case SENSOR0_CORE0:
 	case CORE0:
 		if (sc->sc_swap)
@@ -430,7 +430,7 @@ amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 		break;
 	case SENSOR1_CORE1:
 		sel |= AMDTEMP_TTSR_SELSENSOR;
-		/* FALLTROUGH */
+		/* FALLTHROUGH */
 	case SENSOR0_CORE1:
 	case CORE1:
 		if (!sc->sc_swap)
