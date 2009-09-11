@@ -672,20 +672,6 @@ AcpiDsLoad2BeginOp (
               (WalkState->Opcode != AML_INT_NAMEPATH_OP)) ||
             (!(WalkState->OpInfo->Flags & AML_NAMED)))
         {
-#ifdef ACPI_ENABLE_MODULE_LEVEL_CODE
-            if ((WalkState->OpInfo->Class == AML_CLASS_EXECUTE) ||
-                (WalkState->OpInfo->Class == AML_CLASS_CONTROL))
-            {
-                ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-                    "Begin/EXEC: %s (fl %8.8X)\n", WalkState->OpInfo->Name,
-                    WalkState->OpInfo->Flags));
-
-                /* Executing a type1 or type2 opcode outside of a method */
-
-                Status = AcpiDsExecBeginOp (WalkState, OutOp);
-                return_ACPI_STATUS (Status);
-            }
-#endif
             return_ACPI_STATUS (AE_OK);
         }
 
@@ -862,7 +848,12 @@ AcpiDsLoad2BeginOp (
         {
             /* Execution mode, node cannot already exist, node is temporary */
 
-            Flags |= (ACPI_NS_ERROR_IF_FOUND | ACPI_NS_TEMPORARY);
+            Flags |= ACPI_NS_ERROR_IF_FOUND;
+
+            if (!(WalkState->ParseFlags & ACPI_PARSE_MODULE_LEVEL))
+            {
+                Flags |= ACPI_NS_TEMPORARY;
+            }
         }
 
         /* Add new entry or lookup existing entry */
@@ -952,24 +943,6 @@ AcpiDsLoad2EndOp (
 
     if (!(WalkState->OpInfo->Flags & AML_NSOBJECT))
     {
-#ifndef ACPI_NO_METHOD_EXECUTION
-#ifdef ACPI_ENABLE_MODULE_LEVEL_CODE
-        /* No namespace object. Executable opcode? */
-
-        if ((WalkState->OpInfo->Class == AML_CLASS_EXECUTE) ||
-            (WalkState->OpInfo->Class == AML_CLASS_CONTROL))
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-                "End/EXEC:   %s (fl %8.8X)\n", WalkState->OpInfo->Name,
-                WalkState->OpInfo->Flags));
-
-            /* Executing a type1 or type2 opcode outside of a method */
-
-            Status = AcpiDsExecEndOp (WalkState);
-            return_ACPI_STATUS (Status);
-        }
-#endif
-#endif
         return_ACPI_STATUS (AE_OK);
     }
 

@@ -176,7 +176,6 @@ AcpiDbExecuteMethod (
     ACPI_OBJECT_LIST        ParamObjects;
     ACPI_OBJECT             Params[ACPI_METHOD_NUM_ARGS];
     ACPI_HANDLE             Handle;
-    ACPI_BUFFER             Buffer;
     UINT32                  i;
     ACPI_DEVICE_INFO        *ObjInfo;
 
@@ -196,8 +195,7 @@ AcpiDbExecuteMethod (
 
     /* Get the object info for number of method parameters */
 
-    Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
-    Status = AcpiGetObjectInfo (Handle, &Buffer);
+    Status = AcpiGetObjectInfo (Handle, &ObjInfo);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -206,7 +204,6 @@ AcpiDbExecuteMethod (
     ParamObjects.Pointer = NULL;
     ParamObjects.Count   = 0;
 
-    ObjInfo = Buffer.Pointer;
     if (ObjInfo->Type == ACPI_TYPE_METHOD)
     {
         /* Are there arguments to the method? */
@@ -256,7 +253,7 @@ AcpiDbExecuteMethod (
         }
     }
 
-    ACPI_FREE (Buffer.Pointer);
+    ACPI_FREE (ObjInfo);
 
     /* Prepare for a return object of arbitrary size */
 

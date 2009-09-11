@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Module Name: acparser.h - AML Parser subcomponent prototypes and defines
+ * Module Name: nsrepair - Repair for objects returned by predefined methods
  *
  *****************************************************************************/
 
@@ -113,291 +113,179 @@
  *
  *****************************************************************************/
 
+#define __NSREPAIR_C__
 
-#ifndef __ACPARSER_H__
-#define __ACPARSER_H__
+#include "acpi.h"
+#include "accommon.h"
+#include "acnamesp.h"
+#include "acpredef.h"
+
+#define _COMPONENT          ACPI_NAMESPACE
+        ACPI_MODULE_NAME    ("nsrepair")
 
 
-#define OP_HAS_RETURN_VALUE             1
-
-/* Variable number of arguments. This field must be 32 bits */
-
-#define ACPI_VAR_ARGS                   ACPI_UINT32_MAX
-
-
-#define ACPI_PARSE_DELETE_TREE          0x0001
-#define ACPI_PARSE_NO_TREE_DELETE       0x0000
-#define ACPI_PARSE_TREE_MASK            0x0001
-
-#define ACPI_PARSE_LOAD_PASS1           0x0010
-#define ACPI_PARSE_LOAD_PASS2           0x0020
-#define ACPI_PARSE_EXECUTE              0x0030
-#define ACPI_PARSE_MODE_MASK            0x0030
-
-#define ACPI_PARSE_DEFERRED_OP          0x0100
-#define ACPI_PARSE_DISASSEMBLE          0x0200
-
-#define ACPI_PARSE_MODULE_LEVEL         0x0400
-
-/******************************************************************************
+/*******************************************************************************
  *
- * Parser interfaces
+ * FUNCTION:    AcpiNsRepairObject
  *
- *****************************************************************************/
-
-
-/*
- * psxface - Parser external interfaces
- */
-ACPI_STATUS
-AcpiPsExecuteMethod (
-    ACPI_EVALUATE_INFO      *Info);
-
-
-/*
- * psargs - Parse AML opcode arguments
- */
-UINT8 *
-AcpiPsGetNextPackageEnd (
-    ACPI_PARSE_STATE        *ParserState);
-
-char *
-AcpiPsGetNextNamestring (
-    ACPI_PARSE_STATE        *ParserState);
-
-void
-AcpiPsGetNextSimpleArg (
-    ACPI_PARSE_STATE        *ParserState,
-    UINT32                  ArgType,
-    ACPI_PARSE_OBJECT       *Arg);
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              ExpectedBtypes      - Object types expected
+ *              PackageIndex        - Index of object within parent package (if
+ *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
+ *                                    otherwise)
+ *              ReturnObjectPtr     - Pointer to the object returned from the
+ *                                    evaluation of a method or object
+ *
+ * RETURN:      Status. AE_OK if repair was successful.
+ *
+ * DESCRIPTION: Attempt to repair/convert a return object of a type that was
+ *              not expected.
+ *
+ ******************************************************************************/
 
 ACPI_STATUS
-AcpiPsGetNextNamepath (
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_PARSE_STATE        *ParserState,
-    ACPI_PARSE_OBJECT       *Arg,
-    BOOLEAN                 MethodCall);
+AcpiNsRepairObject (
+    ACPI_PREDEFINED_DATA    *Data,
+    UINT32                  ExpectedBtypes,
+    UINT32                  PackageIndex,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr)
+{
+    ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
+    ACPI_OPERAND_OBJECT     *NewObject;
+    ACPI_SIZE               Length;
+
+
+    switch (ReturnObject->Common.Type)
+    {
+    case ACPI_TYPE_BUFFER:
+
+        /* Does the method/object legally return a string? */
+
+        if (!(ExpectedBtypes & ACPI_RTYPE_STRING))
+        {
+            return (AE_AML_OPERAND_TYPE);
+        }
+
+        /*
+         * Have a Buffer, expected a String, convert. Use a ToString
+         * conversion, no transform performed on the buffer data. The best
+         * example of this is the _BIF method, where the string data from
+         * the battery is often (incorrectly) returned as buffer object(s).
+         */
+        Length = 0;
+        while ((Length < ReturnObject->Buffer.Length) &&
+                (ReturnObject->Buffer.Pointer[Length]))
+        {
+            Length++;
+        }
+
+        /* Allocate a new string object */
+
+        NewObject = AcpiUtCreateStringObject (Length);
+        if (!NewObject)
+        {
+            return (AE_NO_MEMORY);
+        }
+
+        /*
+         * Copy the raw buffer data with no transform. String is already NULL
+         * terminated at Length+1.
+         */
+        ACPI_MEMCPY (NewObject->String.Pointer,
+            ReturnObject->Buffer.Pointer, Length);
+
+        /*
+         * If the original object is a package element, we need to:
+         * 1. Set the reference count of the new object to match the
+         *    reference count of the old object.
+         * 2. Decrement the reference count of the original object.
+         */
+        if (PackageIndex != ACPI_NOT_PACKAGE_ELEMENT)
+        {
+            NewObject->Common.ReferenceCount =
+                ReturnObject->Common.ReferenceCount;
+
+            if (ReturnObject->Common.ReferenceCount > 1)
+            {
+                ReturnObject->Common.ReferenceCount--;
+            }
+
+            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+                "Converted Buffer to expected String at index %u",
+                PackageIndex));
+        }
+        else
+        {
+            ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+                "Converted Buffer to expected String"));
+        }
+
+        /* Delete old object, install the new return object */
+
+        AcpiUtRemoveReference (ReturnObject);
+        *ReturnObjectPtr = NewObject;
+        Data->Flags |= ACPI_OBJECT_REPAIRED;
+        return (AE_OK);
+
+    default:
+        break;
+    }
+
+    return (AE_AML_OPERAND_TYPE);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsRepairPackageList
+ *
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              ObjDescPtr          - Pointer to the object to repair. The new
+ *                                    package object is returned here,
+ *                                    overwriting the old object.
+ *
+ * RETURN:      Status, new object in *ObjDescPtr
+ *
+ * DESCRIPTION: Repair a common problem with objects that are defined to return
+ *              a variable-length Package of Packages. If the variable-length
+ *              is one, some BIOS code mistakenly simply declares a single
+ *              Package instead of a Package with one sub-Package. This
+ *              function attempts to repair this error by wrapping a Package
+ *              object around the original Package, creating the correct
+ *              Package with one sub-Package.
+ *
+ *              Names that can be repaired in this manner include:
+ *              _ALR, _CSD, _HPX, _MLS, _PRT, _PSS, _TRT, TSS
+ *
+ ******************************************************************************/
 
 ACPI_STATUS
-AcpiPsGetNextArg (
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_PARSE_STATE        *ParserState,
-    UINT32                  ArgType,
-    ACPI_PARSE_OBJECT       **ReturnArg);
+AcpiNsRepairPackageList (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_OPERAND_OBJECT     **ObjDescPtr)
+{
+    ACPI_OPERAND_OBJECT     *PkgObjDesc;
 
 
-/*
- * psfind
- */
-ACPI_PARSE_OBJECT *
-AcpiPsFindName (
-    ACPI_PARSE_OBJECT       *Scope,
-    UINT32                  Name,
-    UINT32                  Opcode);
+    /*
+     * Create the new outer package and populate it. The new package will
+     * have a single element, the lone subpackage.
+     */
+    PkgObjDesc = AcpiUtCreatePackageObject (1);
+    if (!PkgObjDesc)
+    {
+        return (AE_NO_MEMORY);
+    }
 
-ACPI_PARSE_OBJECT*
-AcpiPsGetParent (
-    ACPI_PARSE_OBJECT       *Op);
+    PkgObjDesc->Package.Elements[0] = *ObjDescPtr;
 
+    /* Return the new object in the object pointer */
 
-/*
- * psopcode - AML Opcode information
- */
-const ACPI_OPCODE_INFO *
-AcpiPsGetOpcodeInfo (
-    UINT16                  Opcode);
+    *ObjDescPtr = PkgObjDesc;
+    Data->Flags |= ACPI_OBJECT_REPAIRED;
 
-char *
-AcpiPsGetOpcodeName (
-    UINT16                  Opcode);
+    ACPI_WARN_PREDEFINED ((AE_INFO, Data->Pathname, Data->NodeFlags,
+        "Incorrectly formed Package, attempting repair"));
 
-UINT8
-AcpiPsGetArgumentCount (
-    UINT32                  OpType);
-
-
-/*
- * psparse - top level parsing routines
- */
-ACPI_STATUS
-AcpiPsParseAml (
-    ACPI_WALK_STATE         *WalkState);
-
-UINT32
-AcpiPsGetOpcodeSize (
-    UINT32                  Opcode);
-
-UINT16
-AcpiPsPeekOpcode (
-    ACPI_PARSE_STATE        *state);
-
-ACPI_STATUS
-AcpiPsCompleteThisOp (
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_PARSE_OBJECT       *Op);
-
-ACPI_STATUS
-AcpiPsNextParseState (
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_PARSE_OBJECT       *Op,
-    ACPI_STATUS             CallbackStatus);
-
-
-/*
- * psloop - main parse loop
- */
-ACPI_STATUS
-AcpiPsParseLoop (
-    ACPI_WALK_STATE         *WalkState);
-
-
-/*
- * psscope - Scope stack management routines
- */
-ACPI_STATUS
-AcpiPsInitScope (
-    ACPI_PARSE_STATE        *ParserState,
-    ACPI_PARSE_OBJECT       *Root);
-
-ACPI_PARSE_OBJECT *
-AcpiPsGetParentScope (
-    ACPI_PARSE_STATE        *state);
-
-BOOLEAN
-AcpiPsHasCompletedScope (
-    ACPI_PARSE_STATE        *ParserState);
-
-void
-AcpiPsPopScope (
-    ACPI_PARSE_STATE        *ParserState,
-    ACPI_PARSE_OBJECT       **Op,
-    UINT32                  *ArgList,
-    UINT32                  *ArgCount);
-
-ACPI_STATUS
-AcpiPsPushScope (
-    ACPI_PARSE_STATE        *ParserState,
-    ACPI_PARSE_OBJECT       *Op,
-    UINT32                  RemainingArgs,
-    UINT32                  ArgCount);
-
-void
-AcpiPsCleanupScope (
-    ACPI_PARSE_STATE        *state);
-
-
-/*
- * pstree - parse tree manipulation routines
- */
-void
-AcpiPsAppendArg(
-    ACPI_PARSE_OBJECT       *op,
-    ACPI_PARSE_OBJECT       *arg);
-
-ACPI_PARSE_OBJECT*
-AcpiPsFind (
-    ACPI_PARSE_OBJECT       *Scope,
-    char                    *Path,
-    UINT16                  Opcode,
-    UINT32                  Create);
-
-ACPI_PARSE_OBJECT *
-AcpiPsGetArg(
-    ACPI_PARSE_OBJECT       *op,
-    UINT32                   argn);
-
-ACPI_PARSE_OBJECT *
-AcpiPsGetDepthNext (
-    ACPI_PARSE_OBJECT       *Origin,
-    ACPI_PARSE_OBJECT       *Op);
-
-
-/*
- * pswalk - parse tree walk routines
- */
-ACPI_STATUS
-AcpiPsWalkParsedAml (
-    ACPI_PARSE_OBJECT       *StartOp,
-    ACPI_PARSE_OBJECT       *EndOp,
-    ACPI_OPERAND_OBJECT     *MthDesc,
-    ACPI_NAMESPACE_NODE     *StartNode,
-    ACPI_OPERAND_OBJECT     **Params,
-    ACPI_OPERAND_OBJECT     **CallerReturnDesc,
-    ACPI_OWNER_ID           OwnerId,
-    ACPI_PARSE_DOWNWARDS    DescendingCallback,
-    ACPI_PARSE_UPWARDS      AscendingCallback);
-
-ACPI_STATUS
-AcpiPsGetNextWalkOp (
-    ACPI_WALK_STATE         *WalkState,
-    ACPI_PARSE_OBJECT       *Op,
-    ACPI_PARSE_UPWARDS      AscendingCallback);
-
-ACPI_STATUS
-AcpiPsDeleteCompletedOp (
-    ACPI_WALK_STATE         *WalkState);
-
-void
-AcpiPsDeleteParseTree (
-    ACPI_PARSE_OBJECT       *root);
-
-
-/*
- * psutils - parser utilities
- */
-ACPI_PARSE_OBJECT *
-AcpiPsCreateScopeOp (
-    void);
-
-void
-AcpiPsInitOp (
-    ACPI_PARSE_OBJECT       *op,
-    UINT16                  opcode);
-
-ACPI_PARSE_OBJECT *
-AcpiPsAllocOp (
-    UINT16                  opcode);
-
-void
-AcpiPsFreeOp (
-    ACPI_PARSE_OBJECT       *Op);
-
-BOOLEAN
-AcpiPsIsLeadingChar (
-    UINT32                  c);
-
-BOOLEAN
-AcpiPsIsPrefixChar (
-    UINT32                  c);
-
-UINT32
-AcpiPsGetName(
-    ACPI_PARSE_OBJECT       *op);
-
-void
-AcpiPsSetName(
-    ACPI_PARSE_OBJECT       *op,
-    UINT32                  name);
-
-
-/*
- * psdump - display parser tree
- */
-UINT32
-AcpiPsSprintPath (
-    char                    *BufferStart,
-    UINT32                  BufferSize,
-    ACPI_PARSE_OBJECT       *Op);
-
-UINT32
-AcpiPsSprintOp (
-    char                    *BufferStart,
-    UINT32                  BufferSize,
-    ACPI_PARSE_OBJECT       *Op);
-
-void
-AcpiPsShow (
-    ACPI_PARSE_OBJECT       *op);
-
-
-#endif /* __ACPARSER_H__ */
+    return (AE_OK);
+}
