@@ -4480,9 +4480,11 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	adapter->stats.crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
 
 	for (int i = 0; i < 8; i++) {
+		u32 mp;
+		mp = IXGBE_READ_REG(hw, IXGBE_MPC(i));
 		/* missed_rx tallies misses for the gprc workaround */
-		missed_rx += IXGBE_READ_REG(hw, IXGBE_MPC(i));
-        	adapter->stats.mpc[i] += missed_rx;
+		missed_rx += mp;
+        	adapter->stats.mpc[i] += mp;
 		/* Running comprehensive total for stats display */
 		total_missed_rx += adapter->stats.mpc[i];
 		if (hw->mac.type == ixgbe_mac_82598EB)
