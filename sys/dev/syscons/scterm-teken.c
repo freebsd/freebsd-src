@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
+#include "opt_teken.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -128,6 +129,9 @@ scteken_init(scr_stat *scp, void **softc, int code)
 #ifndef TEKEN_UTF8
 		teken_set_8bit(&ts->ts_teken);
 #endif /* !TEKEN_UTF8 */
+#ifndef TEKEN_XTERM
+		teken_set_cons25(&ts->ts_teken);
+#endif /* !TEKEN_XTERM */
 
 		tp.tp_row = scp->ysize;
 		tp.tp_col = scp->xsize;
