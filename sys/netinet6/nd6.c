@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/in6_ifattach.h>
 #include <netinet/icmp6.h>
 
 #include <sys/limits.h>
@@ -212,12 +213,16 @@ nd6_ifattach(struct ifnet *ifp)
 	nd->basereachable = REACHABLE_TIME;
 	nd->reachable = ND_COMPUTE_RTIME(nd->basereachable);
 	nd->retrans = RETRANS_TIMER;
-	/*
-	 * Note that the default value of ip6_accept_rtadv is 0, which means
-	 * we won't accept RAs by default even if we set ND6_IFF_ACCEPT_RTADV
-	 * here.
-	 */
-	nd->flags = (ND6_IFF_PERFORMNUD | ND6_IFF_ACCEPT_RTADV);
+
+	nd->flags = ND6_IFF_PERFORMNUD;
+
+	/* A loopback interface always has ND6_IFF_AUTO_LINKLOCAL. */
+	if (V_ip6_auto_linklocal || (ifp->if_flags & IFF_LOOPBACK))
+		nd->flags |= ND6_IFF_AUTO_LINKLOCAL;
+
+	/* A loopback interface does not need to accept RTADV. */
+	if (V_ip6_accept_rtadv && !(ifp->if_flags & IFF_LOOPBACK))
+		nd->flags |= ND6_IFF_ACCEPT_RTADV;
 
 	/* XXX: we cannot call nd6_setmtu since ifp is not fully initialized */
 	nd6_setmtu0(ifp, nd);
@@ -843,13 +848,9 @@ nd6_purge(struct ifnet *ifp)
 	if (V_nd6_defifindex == ifp->if_index)
 		nd6_setdefaultiface(0);
 
-	if (!V_ip6_forwarding && V_ip6_accept_rtadv) { /* XXX: too restrictive? */
-		/* refresh default router list
-		 *
-		 * 
-		 */
+	if (!V_ip6_forwarding && ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
+		/* Refresh default router list. */
 		defrouter_select();
-
 	}
 
 	/* XXXXX
@@ -1296,6 +1297,69 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			ND_IFINFO(ifp)->chlim = ND.chlim;
 		/* FALLTHROUGH */
 	case SIOCSIFINFO_FLAGS:
+	{
+		struct ifaddr *ifa;
+		struct in6_ifaddr *ia;
+
+		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
+		    !(ND.flags & ND6_IFF_IFDISABLED)) {
+			/* ifdisabled 1->0 transision */
+
+			/*
+			 * If the interface is marked as ND6_IFF_IFDISABLED and
+			 * has an link-local address with IN6_IFF_DUPLICATED,
+			 * do not clear ND6_IFF_IFDISABLED.
+			 * See RFC 4862, Section 5.4.5.
+			 */
+			int duplicated_linklocal = 0;
+
+			IF_ADDR_LOCK(ifp);
+			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+				if (ifa->ifa_addr->sa_family != AF_INET6)
+					continue;
+				ia = (struct in6_ifaddr *)ifa;
+				if ((ia->ia6_flags & IN6_IFF_DUPLICATED) &&
+				    IN6_IS_ADDR_LINKLOCAL(&ia->ia_addr.sin6_addr)) {
+					duplicated_linklocal = 1;
+					break;
+				}
+			}
+			IF_ADDR_UNLOCK(ifp);
+
+			if (duplicated_linklocal) {
+				ND.flags |= ND6_IFF_IFDISABLED;
+				log(LOG_ERR, "Cannot enable an interface"
+				    " with a link-local address marked"
+				    " duplicate.\n");
+			} else {
+				ND_IFINFO(ifp)->flags &= ~ND6_IFF_IFDISABLED;
+				in6_if_up(ifp);
+			}
+		} else if (!(ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
+			    (ND.flags & ND6_IFF_IFDISABLED)) {
+			/* ifdisabled 0->1 transision */
+			/* Mark all IPv6 address as tentative. */
+
+			ND_IFINFO(ifp)->flags |= ND6_IFF_IFDISABLED;
+			IF_ADDR_LOCK(ifp);
+			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+				if (ifa->ifa_addr->sa_family != AF_INET6)
+					continue;
+				ia = (struct in6_ifaddr *)ifa;
+				ia->ia6_flags |= IN6_IFF_TENTATIVE;
+			}
+			IF_ADDR_UNLOCK(ifp);
+		}
+
+		if (!(ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) &&
+		    (ND.flags & ND6_IFF_AUTO_LINKLOCAL)) {
+			/* auto_linklocal 0->1 transision */
+
+			/* If no link-local address on ifp, configure */
+			ND_IFINFO(ifp)->flags |= ND6_IFF_AUTO_LINKLOCAL;
+			in6_ifattach(ifp, NULL);
+		}
+	}
 		ND_IFINFO(ifp)->flags = ND.flags;
 		break;
 #undef ND
@@ -1633,7 +1697,8 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * for those are not autoconfigured hosts, we explicitly avoid such
 	 * cases for safety.
 	 */
-	if (do_update && router && !V_ip6_forwarding && V_ip6_accept_rtadv) {
+	if (do_update && router && !V_ip6_forwarding &&
+	    ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
 		/*
 		 * guaranteed recursion
 		 */

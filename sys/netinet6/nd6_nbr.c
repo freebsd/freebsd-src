@@ -1198,6 +1198,8 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	if (!(ifa->ifa_ifp->if_flags & IFF_UP)) {
 		return;
 	}
+	if (ND_IFINFO(ifa->ifa_ifp)->flags & ND6_IFF_IFDISABLED)
+		return;
 	if (nd6_dad_find(ifa) != NULL) {
 		/* DAD already in progress */
 		return;
@@ -1402,7 +1404,7 @@ nd6_dad_duplicated(struct ifaddr *ifa)
 	 * identifier based on the hardware address which is supposed to be
 	 * uniquely assigned (e.g., EUI-64 for an Ethernet interface), IP
 	 * operation on the interface SHOULD be disabled.
-	 * [rfc2462bis-03 Section 5.4.5]
+	 * [RFC 4862, Section 5.4.5]
 	 */
 	if (IN6_IS_ADDR_LINKLOCAL(&ia->ia_addr.sin6_addr)) {
 		struct in6_addr in6;
