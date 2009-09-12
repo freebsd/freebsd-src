@@ -890,8 +890,16 @@ again:
 		if (zp->z_unlinked) {
 			err = ENOENT;
 		} else {
-			if (ZTOV(zp) != NULL)
-				VN_HOLD(ZTOV(zp));
+			if ((vp = ZTOV(zp)) != NULL) {
+				VI_LOCK(vp);
+				if ((vp->v_iflag & VI_DOOMED) != 0) {
+					VI_UNLOCK(vp);
+					vp = NULL;
+				} else
+					VI_UNLOCK(vp);
+			}
+			if (vp != NULL)
+				VN_HOLD(vp);
 			else {
 				if (first) {
 					ZFS_LOG(1, "dying znode detected (zp=%p)", zp);
