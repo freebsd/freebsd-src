@@ -1982,15 +1982,18 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			}
 		} else {
 			/*
-			 * MCAST_JOIN_GROUP on an existing inclusive
-			 * membership is an error; if you want to change
-			 * filter mode, you must use the userland API
-			 * setsourcefilter().
+			 * MCAST_JOIN_GROUP alone, on any existing membership,
+			 * is rejected, to stop the same inpcb tying up
+			 * multiple refs to the in_multi.
+			 * On an existing inclusive membership, this is also
+			 * an error; if you want to change filter mode,
+			 * you must use the userland API setsourcefilter().
+			 * XXX We don't reject this for imf in UNDEFINED
+			 * state at t1, because allocation of a filter
+			 * is atomic with allocation of a membership.
 			 */
-			if (imf->imf_st[1] == MCAST_INCLUDE) {
-				error = EINVAL;
-				goto out_inp_locked;
-			}
+			error = EINVAL;
+			goto out_inp_locked;
 		}
 	}
 
@@ -2025,6 +2028,9 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	 * membership of the group. The in_multi may not have
 	 * been allocated yet if this is a new membership, however,
 	 * the in_mfilter slot will be allocated and must be initialized.
+	 *
+	 * Note: Grafting of exclusive mode filters doesn't happen
+	 * in this path.
 	 */
 	if (ssa->ss.ss_family != AF_UNSPEC) {
 		/* Membership starts in IN mode */
