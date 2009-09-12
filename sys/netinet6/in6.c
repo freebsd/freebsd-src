@@ -917,6 +917,10 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	if (hostIsNew && in6if_do_dad(ifp))
 		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 
+	/* DAD should be performed after ND6_IFF_IFDISABLED is cleared. */
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
+		ia->ia6_flags |= IN6_IFF_TENTATIVE;
+
 	/*
 	 * We are done if we have simply modified an existing address.
 	 */
@@ -954,7 +958,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			 * being configured.  It also means delaying
 			 * transmission of the corresponding MLD report to
 			 * avoid report collision.
-			 * [draft-ietf-ipv6-rfc2462bis-02.txt]
+			 * [RFC 4861, Section 6.3.7]
 			 */
 			delay = arc4random() %
 			    (MAX_RTR_SOLICITATION_DELAY * hz);
@@ -2195,6 +2199,9 @@ int
 in6if_do_dad(struct ifnet *ifp)
 {
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0)
+		return (0);
+
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
 		return (0);
 
 	switch (ifp->if_type) {
