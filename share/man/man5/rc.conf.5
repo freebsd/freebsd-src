@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2009
+.Dd September 2, 2009
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -344,11 +344,6 @@ If
 .Xr dhclient 8
 is used to set the hostname via DHCP,
 this variable should be set to an empty string.
-.It Va ipv6_enable
-.Pq Vt bool
-Enable support for IPv6 networking.
-Note that this requires that the kernel has been compiled with
-.Cd "options INET6" .
 .It Va nisdomainname
 .Pq Vt str
 The NIS domain name of this host, or
@@ -1251,28 +1246,45 @@ This is the IPv6 equivalent of
 Instead of setting the ifconfig variables as
 .Va ifconfig_ Ns Aq Ar interface
 they should be set as
-.Va ipv6_ifconfig_ Ns Aq Ar interface .
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6.
 Aliases should be set as
-.Va ipv6_ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n .
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n .
 .Va ipv6_prefix_ Ns Aq Ar interface
 does something.
-Interfaces that do not have a
-.Va ipv6_ifconfig_ Ns Aq Ar interface
-setting will be auto configured by
+Interfaces that have a
+.Fl accept_rtadv
+flag in
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+setting will be automatically configured by
 .Xr rtsol 8
 if the
 .Va ipv6_gateway_enable
 is set to
 .Dq Li NO .
-Note that the IPv6 networking code does not support the
-.Pa /etc/start_if. Ns Aq Ar interface
-files.
 .It Va ipv6_default_interface
 .Pq Vt str
 If not set to
 .Dq Li NO ,
 this is the default output interface for scoped addresses.
 Now this works only for IPv6 link local multicast addresses.
+.It Va ip6addrctl_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+install default address selection policy table
+.Pq RFC 3484 .
+If a file
+.Pa /etc/ip6addrctl.conf
+is found the
+.Xr ip6addrctl 8
+reads and installs it.
+If not, a pre-defined policy table will be installed.
+There are two pre-defined ones; IPv4-preferred and IPv6-preferred.
+If set
+.Va ipv6_prefer
+variable to
+.Dq Li YES
+the IPv6-preferred one is used. Default is IPv4-preferred.
 .It Va cloned_interfaces
 .Pq Vt str
 Set to the list of clonable network interfaces to create on this host.
@@ -2300,48 +2312,48 @@ between interfaces.
 .Pq Vt bool
 The IPv6 equivalent of
 .Va gateway_enable .
-.It Va router_enable
+.It Va routed_enable
 .Pq Vt bool
 If set to
 .Dq Li YES ,
 run a routing daemon of some sort, based on the
 settings of
-.Va router
+.Va routed_program
 and
-.Va router_flags .
-.It Va ipv6_router_enable
+.Va routed_flags .
+.It Va route6d_enable
 .Pq Vt bool
 The IPv6 equivalent of
-.Va router_enable .
+.Va routed_enable .
 If set to
 .Dq Li YES ,
 run a routing daemon of some sort, based on the
 settings of
-.Va ipv6_router
+.Va route6d_program
 and
-.Va ipv6_router_flags .
-.It Va router
+.Va route6d_flags .
+.It Va routed_program
 .Pq Vt str
 If
-.Va router_enable
+.Va routed_enable
 is set to
 .Dq Li YES ,
 this is the name of the routing daemon to use.
-.It Va ipv6_router
+.It Va route6d_program
 .Pq Vt str
 The IPv6 equivalent of
-.Va router .
-.It Va router_flags
+.Va routed_program .
+.It Va routed_flags
 .Pq Vt str
 If
-.Va router_enable
+.Va routed_enable
 is set to
 .Dq Li YES ,
 these are the flags to pass to the routing daemon.
-.It Va ipv6_router_flags
+.It Va route6d_flags
 .Pq Vt str
 The IPv6 equivalent of
-.Va router_flags .
+.Va routed_flags .
 .It Va mrouted_enable
 .Pq Vt bool
 If set to
