@@ -111,8 +111,12 @@ static struct thread *sigtd(struct proc *p, int sig, int prop);
 static void	sigqueue_start(void);
 
 static uma_zone_t	ksiginfo_zone = NULL;
-struct filterops sig_filtops =
-	{ 0, filt_sigattach, filt_sigdetach, filt_signal };
+struct filterops sig_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_sigattach,
+	.f_detach = filt_sigdetach,
+	.f_event = filt_signal,
+};
 
 int	kern_logsigexit = 1;
 SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, 

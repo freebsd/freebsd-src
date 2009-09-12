@@ -4002,8 +4002,12 @@ static int	filt_fsattach(struct knote *kn);
 static void	filt_fsdetach(struct knote *kn);
 static int	filt_fsevent(struct knote *kn, long hint);
 
-struct filterops fs_filtops =
-	{ 0, filt_fsattach, filt_fsdetach, filt_fsevent };
+struct filterops fs_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_fsattach,
+	.f_detach = filt_fsdetach,
+	.f_event = filt_fsevent
+};
 
 static int
 filt_fsattach(struct knote *kn)
@@ -4076,12 +4080,21 @@ static int	filt_vfsread(struct knote *kn, long hint);
 static int	filt_vfswrite(struct knote *kn, long hint);
 static int	filt_vfsvnode(struct knote *kn, long hint);
 static void	filt_vfsdetach(struct knote *kn);
-static struct filterops vfsread_filtops =
-	{ 1, NULL, filt_vfsdetach, filt_vfsread };
-static struct filterops vfswrite_filtops =
-	{ 1, NULL, filt_vfsdetach, filt_vfswrite };
-static struct filterops vfsvnode_filtops =
-	{ 1, NULL, filt_vfsdetach, filt_vfsvnode };
+static struct filterops vfsread_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_vfsdetach,
+	.f_event = filt_vfsread
+};
+static struct filterops vfswrite_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_vfsdetach,
+	.f_event = filt_vfswrite
+};
+static struct filterops vfsvnode_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_vfsdetach,
+	.f_event = filt_vfsvnode
+};
 
 static void
 vfs_knllock(void *arg)
