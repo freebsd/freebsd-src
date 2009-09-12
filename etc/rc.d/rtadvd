@@ -40,10 +40,25 @@ rtadvd_precmd()
 	# get a list of interfaces and enable it on them
 	#
 	case ${rtadvd_interfaces} in
-	'')
+	[Aa][Uu][Tt][Oo]|'')
 		for i in `ifconfig -l` ; do
 			case $i in
-			lo0|gif[0-9]*|stf[0-9]*|faith[0-9]*|lp[0-9]*|sl[0-9]*|tun[0-9]*)
+			lo0|\
+			stf[0-9]*|\
+			faith[0-9]*|\
+			lp[0-9]*|\
+			sl[0-9]*|\
+			pflog[0-9]*|\
+			pfsync[0-9]*|\
+			an[0-9]*|\
+			ath[0-9]*|\
+			ipw[0-9]*|\
+			iwi[0-9]*|\
+			iwn[0-9]*|\
+			ral[0-9]*|\
+			wi[0-9]*|\
+			wl[0-9]*|\
+			wpi[0-9]*)
 				continue
 				;;
 			*)
