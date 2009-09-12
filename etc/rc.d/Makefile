@@ -4,13 +4,13 @@
 
 FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	abi accounting addswap adjkerntz amd \
-	apm apmd archdep atm1 atm2 atm3 auditd auto_linklocal \
+	apm apmd archdep atm1 atm2 atm3 auditd \
 	bgfsck bluetooth bootparams bridge bsnmpd bthidd \
 	ccd cleanvar cleartmp cron \
 	ddb defaultroute devd devfs dhclient \
 	dmesg dumpon \
 	encswap \
-	fsck ftp-proxy ftpd \
+	faith fsck ftp-proxy ftpd \
 	gbde geli geli2 gssd \
 	hcsecd \
 	hostapd hostid hostid_save hostname \
@@ -23,7 +23,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	mixer motd mountcritlocal mountcritremote mountlate \
 	mdconfig mdconfig2 mountd moused mroute6d mrouted msgs \
 	named natd netif netoptions \
-	network_ipv6 newsyslog nfsclient nfscbd nfsd \
+	newsyslog nfsclient nfscbd nfsd \
 	nfsserver nfsuserd nisdomain nsswitch ntpd ntpdate \
 	othermta \
 	pf pflog pfsync \
@@ -32,7 +32,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	random rarpd resolv rfcomm_pppd_server root \
 	route6d routed routing rpcbind rtadvd rwho \
 	savecore sdpd securelevel sendmail \
-	serial sppp statd static_arp swap1 \
+	serial sppp statd static_arp stf swap1 \
 	syscons sysctl syslogd \
 	timed tmp \
 	ugidfw \

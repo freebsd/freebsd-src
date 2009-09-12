@@ -6,7 +6,7 @@
 #
 
 # PROVIDE: defaultroute
-# REQUIRE: devd netif network_ipv6
+# REQUIRE: devd netif
 # KEYWORD: nojail
 
 . /etc/rc.subr
@@ -18,7 +18,7 @@ stop_cmd=":"
 
 defaultroute_start()
 {
-	local output carrier nocarrier
+	local output carrier nocarrier nl
 
 	# Return without waiting if we don't have dhcp interfaces or
 	# if none of the dhcp interfaces is plugged in.
@@ -41,6 +41,7 @@ defaultroute_start()
 		if [ -n "${defif}" ]; then
 			if [ ${delay} -ne ${defaultroute_delay} ]; then
 				echo -n "($defif)"
+				nl=1
 			fi
 			break
 		fi
@@ -49,11 +50,12 @@ defaultroute_start()
 		else
 			echo -n .
 		fi
+		nl=1
 		sleep 1
-		delay=`expr $delay - 1`
+		delay=$(($delay - 1))
 	done
 
-	echo
+	[ -n "$nl" ] && echo
 }
 
 load_rc_config $name
