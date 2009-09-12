@@ -49,26 +49,17 @@ static FILE *df;
 #endif /* __FreeBSD__ && _KERNEL */
 
 #include "teken.h"
-
-#ifdef TEKEN_UTF8
 #include "teken_wcwidth.h"
-#else /* !TEKEN_UTF8 */
-#ifdef TEKEN_XTERM
-#define	teken_wcwidth(c)	((c <= 0x1B) ? -1 : 1)
-#else /* !TEKEN_XTERM */
-#define	teken_wcwidth(c)	(1)
-#endif /* TEKEN_XTERM */
-#endif /* TEKEN_UTF8 */
 
-#if defined(TEKEN_XTERM) && defined(TEKEN_UTF8)
+#ifdef TEKEN_XTERM
 #include "teken_scs.h"
-#else /* !(TEKEN_XTERM && TEKEN_UTF8) */
+#else /* !TEKEN_XTERM */
 #define	teken_scs_process(t, c)	(c)
 #define	teken_scs_restore(t)
 #define	teken_scs_save(t)
 #define	teken_scs_set(t, g, ts)
 #define	teken_scs_switch(t, g)
-#endif /* TEKEN_XTERM && TEKEN_UTF8 */
+#endif /* TEKEN_XTERM */
 
 /* Private flags for t_stateflags. */
 #define	TS_FIRSTDIGIT	0x01	/* First numeric digit in escape sequence. */
@@ -187,9 +178,7 @@ teken_init(teken_t *t, const teken_funcs_t *tf, void *softc)
 	t->t_defattr.ta_bgcolor = TC_BLACK;
 	teken_subr_do_reset(t);
 
-#ifdef TEKEN_UTF8
 	t->t_utf8_left = 0;
-#endif /* TEKEN_UTF8 */
 
 	teken_set_winsize(t, &tp);
 }
@@ -214,14 +203,14 @@ teken_input_char(teken_t *t, teken_char_t c)
 	case '\x0C':
 		teken_subr_newpage(t);
 		break;
-#if defined(TEKEN_XTERM) && defined(TEKEN_UTF8)
+#ifdef TEKEN_XTERM
 	case '\x0E':
 		teken_scs_switch(t, 1);
 		break;
 	case '\x0F':
 		teken_scs_switch(t, 0);
 		break;
-#endif /* TEKEN_XTERM && TEKEN_UTF8 */
+#endif /* TEKEN_XTERM */
 	case '\r':
 		teken_subr_carriage_return(t);
 		break;
@@ -253,11 +242,13 @@ static void
 teken_input_byte(teken_t *t, unsigned char c)
 {
 
-#ifdef TEKEN_UTF8
 	/*
 	 * UTF-8 handling.
 	 */
-	if ((c & 0x80) == 0x00) {
+	 if (t->t_utf8_left == -1) {
+	 	/* UTF-8 disabled. */
+		teken_input_char(t, c);
+	} else if ((c & 0x80) == 0x00) {
 		/* One-byte sequence. */
 		t->t_utf8_left = 0;
 		teken_input_char(t, c);
@@ -283,9 +274,6 @@ teken_input_byte(teken_t *t, unsigned char c)
 			teken_input_char(t, t->t_utf8_partial);
 		}
 	}
-#else /* !TEKEN_UTF8 */
-	teken_input_char(t, c);
-#endif /* TEKEN_UTF8 */
 }
 
 void
@@ -342,6 +330,13 @@ teken_set_winsize(teken_t *t, const teken_pos_t *p)
 
 	t->t_winsize = *p;
 	teken_subr_do_reset(t);
+}
+
+void
+teken_set_8bit(teken_t *t)
+{
+
+	t->t_utf8_left = -1;
 }
 
 /*

@@ -786,13 +786,20 @@ static void
 teken_subr_regular_character(teken_t *t, teken_char_t c)
 {
 	int width;
-	
-	c = teken_scs_process(t, c);
 
-	/* XXX: Don't process zero-width characters yet. */
-	width = teken_wcwidth(c);
-	if (width <= 0)
-		return;
+	if (t->t_utf8_left == -1) {
+#ifdef TEKEN_XTERM
+		if (c <= 0x1B)
+			return;
+#endif /* TEKEN_XTERM */
+		width = 1;
+	} else {
+		c = teken_scs_process(t, c);
+		width = teken_wcwidth(c);
+		/* XXX: Don't process zero-width characters yet. */
+		if (width <= 0)
+			return;
+	}
 
 #ifdef TEKEN_XTERM
 	if (t->t_cursor.tp_col == t->t_winsize.tp_col - 1 &&
