@@ -34,14 +34,7 @@
  *
  * This library converts an UTF-8 stream of bytes to terminal drawing
  * commands.
- *
- * Configuration switches:
- * - TEKEN_XTERM: Enable xterm-style emulation, instead of cons25.
  */
-
-#if defined(__FreeBSD__) && defined(_KERNEL)
-#include "opt_teken.h"
-#endif /* __FreeBSD__ && _KERNEL */
 
 typedef uint32_t teken_char_t;
 typedef unsigned short teken_unit_t;
@@ -116,9 +109,7 @@ typedef struct {
 	tf_respond_t	*tf_respond;
 } teken_funcs_t;
 
-#ifdef TEKEN_XTERM
 typedef teken_char_t teken_scs_t(teken_char_t);
-#endif /* TEKEN_XTERM */
 
 /*
  * Terminal state.
@@ -151,14 +142,12 @@ struct __teken {
 #define	T_NUMCOL	160
 	unsigned int	 t_tabstops[T_NUMCOL / (sizeof(unsigned int) * 8)];
 
-	int		 t_utf8_left;
+	unsigned int	 t_utf8_left;
 	teken_char_t	 t_utf8_partial;
 
-#ifdef TEKEN_XTERM
 	unsigned int	 t_curscs;
 	teken_scs_t	*t_saved_curscs;
 	teken_scs_t	*t_scs[2];
-#endif /* TEKEN_XTERM */
 };
 
 /* Initialize teken structure. */
@@ -168,8 +157,11 @@ void	teken_init(teken_t *, const teken_funcs_t *, void *);
 void	teken_input(teken_t *, const void *, size_t);
 
 /* Get/set teken attributes. */
+const teken_pos_t *teken_get_cursor(teken_t *);
 const teken_attr_t *teken_get_curattr(teken_t *);
 const teken_attr_t *teken_get_defattr(teken_t *);
+void	teken_get_defattr_cons25(teken_t *, int *, int *);
+const teken_pos_t *teken_get_winsize(teken_t *);
 void	teken_set_cursor(teken_t *, const teken_pos_t *);
 void	teken_set_curattr(teken_t *, const teken_attr_t *);
 void	teken_set_defattr(teken_t *, const teken_attr_t *);
@@ -177,5 +169,6 @@ void	teken_set_winsize(teken_t *, const teken_pos_t *);
 
 /* Legacy features. */
 void	teken_set_8bit(teken_t *);
+void	teken_set_cons25(teken_t *);
 
 #endif /* !_TEKEN_H_ */

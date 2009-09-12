@@ -59,6 +59,18 @@ teken_subr_cons25_set_adapter_foreground(teken_t *t, unsigned int c)
 	}
 }
 
+static const teken_color_t cons25_revcolors[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+
+void
+teken_get_defattr_cons25(teken_t *t, int *fg, int *bg)
+{
+
+	*fg = cons25_revcolors[t->t_defattr.ta_fgcolor];
+	if (t->t_defattr.ta_format & TF_BOLD)
+		*fg += 8;
+	*bg = cons25_revcolors[t->t_defattr.ta_bgcolor];
+}
+
 static void
 teken_subr_cons25_switch_virtual_terminal(teken_t *t, unsigned int vt)
 {
