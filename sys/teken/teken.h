@@ -36,7 +36,6 @@
  * commands.
  *
  * Configuration switches:
- * - TEKEN_UTF8: Enable/disable UTF-8 handling.
  * - TEKEN_XTERM: Enable xterm-style emulation, instead of cons25.
  */
 
@@ -44,11 +43,7 @@
 #include "opt_teken.h"
 #endif /* __FreeBSD__ && _KERNEL */
 
-#ifdef TEKEN_UTF8
 typedef uint32_t teken_char_t;
-#else /* !TEKEN_UTF8 */
-typedef unsigned char teken_char_t;
-#endif /* TEKEN_UTF8 */
 typedef unsigned short teken_unit_t;
 typedef unsigned char teken_format_t;
 #define	TF_BOLD		0x01
@@ -121,9 +116,9 @@ typedef struct {
 	tf_respond_t	*tf_respond;
 } teken_funcs_t;
 
-#if defined(TEKEN_XTERM) && defined(TEKEN_UTF8)
+#ifdef TEKEN_XTERM
 typedef teken_char_t teken_scs_t(teken_char_t);
-#endif /* TEKEN_XTERM && TEKEN_UTF8 */
+#endif /* TEKEN_XTERM */
 
 /*
  * Terminal state.
@@ -156,16 +151,14 @@ struct __teken {
 #define	T_NUMCOL	160
 	unsigned int	 t_tabstops[T_NUMCOL / (sizeof(unsigned int) * 8)];
 
-#ifdef TEKEN_UTF8
-	unsigned int	 t_utf8_left;
+	int		 t_utf8_left;
 	teken_char_t	 t_utf8_partial;
-#endif /* TEKEN_UTF8 */
 
-#if defined(TEKEN_XTERM) && defined(TEKEN_UTF8)
+#ifdef TEKEN_XTERM
 	unsigned int	 t_curscs;
 	teken_scs_t	*t_saved_curscs;
 	teken_scs_t	*t_scs[2];
-#endif /* TEKEN_XTERM && TEKEN_UTF8 */
+#endif /* TEKEN_XTERM */
 };
 
 /* Initialize teken structure. */
@@ -181,5 +174,8 @@ void	teken_set_cursor(teken_t *, const teken_pos_t *);
 void	teken_set_curattr(teken_t *, const teken_attr_t *);
 void	teken_set_defattr(teken_t *, const teken_attr_t *);
 void	teken_set_winsize(teken_t *, const teken_pos_t *);
+
+/* Legacy features. */
+void	teken_set_8bit(teken_t *);
 
 #endif /* !_TEKEN_H_ */
