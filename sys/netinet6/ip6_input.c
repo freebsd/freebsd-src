@@ -175,7 +175,7 @@ ip6_init(void)
 #ifdef IP6_AUTO_LINKLOCAL
 	V_ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
 #else
-	V_ip6_auto_linklocal = 1;	/* enable by default */
+	V_ip6_auto_linklocal = 1;	/* enabled by default */
 #endif
 	TUNABLE_INT_FETCH("net.inet6.ip6.auto_linklocal",
 	    &V_ip6_auto_linklocal);
@@ -196,7 +196,7 @@ ip6_init(void)
 	V_ip6_sendredirects = IPV6_SENDREDIRECTS;
 	V_ip6_defhlim = IPV6_DEFHLIM;
 	V_ip6_defmcasthlim = IPV6_DEFAULT_MULTICAST_HOPS;
-	V_ip6_accept_rtadv = 0;	 /* "IPV6FORWARDING ? 0 : 1" is dangerous */
+	V_ip6_accept_rtadv = 0;
 	V_ip6_log_interval = 5;
 	V_ip6_hdrnestlimit = 15; /* How many header options will we process? */
 	V_ip6_dad_count = 1;	 /* DupAddrDetectionTransmits */
