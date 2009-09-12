@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2009
+.Dd September 11, 2009
 .Dt SYSCONS 4
 .Os
 .Sh NAME
@@ -61,6 +61,7 @@
 In
 .Pa /boot/device.hints :
 .Cd hint.sc.0.at="isa"
+.Cd hint.sc.0.vesa_mode=0x103
 .Sh DESCRIPTION
 The
 .Nm
@@ -427,8 +428,11 @@ or else at the loader prompt (see
 .\"This option suppresses the bell, whether audible or visual,
 .\"if it is rung in a background virtual terminal.
 .It 0x0080 (VESAMODE)
-This option puts the video card in the VESA mode specified by higher
-16 bits of the flags during kernel initialization.
+This option puts the video card in the VESA mode specified by
+.Pa /boot/device.hints
+variable
+.Va vesa_mode
+during kernel initialization.
 Note that in order for this flag to work, the kernel must be
 compiled with the
 .Dv SC_PIXEL_MODE
