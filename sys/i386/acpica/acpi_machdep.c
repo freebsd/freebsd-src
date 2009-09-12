@@ -80,8 +80,11 @@ static d_poll_t		apmpoll;
 static d_kqfilter_t	apmkqfilter;
 static void		apmreadfiltdetach(struct knote *kn);
 static int		apmreadfilt(struct knote *kn, long hint);
-static struct filterops	apm_readfiltops =
-	{ 1, NULL, apmreadfiltdetach, apmreadfilt };
+static struct filterops	apm_readfiltops = {
+	.f_isfd = 1,
+	.f_detach = apmreadfiltdetach,
+	.f_event = apmreadfilt,
+};
 
 static struct cdevsw apm_cdevsw = {
 	.d_version =	D_VERSION,

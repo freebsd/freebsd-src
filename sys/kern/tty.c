@@ -635,10 +635,16 @@ tty_kqops_write_event(struct knote *kn, long hint)
 	}
 }
 
-static struct filterops tty_kqops_read =
-    { 1, NULL, tty_kqops_read_detach, tty_kqops_read_event };
-static struct filterops tty_kqops_write =
-    { 1, NULL, tty_kqops_write_detach, tty_kqops_write_event };
+static struct filterops tty_kqops_read = {
+	.f_isfd = 1,
+	.f_detach = tty_kqops_read_detach,
+	.f_event = tty_kqops_read_event,
+};
+static struct filterops tty_kqops_write = {
+	.f_isfd = 1,
+	.f_detach = tty_kqops_write_detach,
+	.f_event = tty_kqops_write_event,
+};
 
 static int
 ttydev_kqfilter(struct cdev *dev, struct knote *kn)
