@@ -202,22 +202,22 @@ static void
 teken_subr_backspace(teken_t *t)
 {
 
-#ifdef TEKEN_XTERM
-	if (t->t_cursor.tp_col == 0)
-		return;
-
-	t->t_cursor.tp_col--;
-	t->t_stateflags &= ~TS_WRAPPED;
-#else /* !TEKEN_XTERM */
-	if (t->t_cursor.tp_col == 0) {
-		if (t->t_cursor.tp_row == t->t_originreg.ts_begin)
-			return;
-		t->t_cursor.tp_row--;
-		t->t_cursor.tp_col = t->t_winsize.tp_col - 1;
+	if (t->t_stateflags & TS_CONS25) {
+		if (t->t_cursor.tp_col == 0) {
+			if (t->t_cursor.tp_row == t->t_originreg.ts_begin)
+				return;
+			t->t_cursor.tp_row--;
+			t->t_cursor.tp_col = t->t_winsize.tp_col - 1;
+		} else {
+			t->t_cursor.tp_col--;
+		}
 	} else {
+		if (t->t_cursor.tp_col == 0)
+			return;
+
 		t->t_cursor.tp_col--;
+		t->t_stateflags &= ~TS_WRAPPED;
 	}
-#endif /* TEKEN_XTERM */
 
 	teken_funcs_cursor(t);
 }
@@ -588,21 +588,21 @@ teken_subr_horizontal_position_absolute(teken_t *t, unsigned int col)
 static void
 teken_subr_horizontal_tab(teken_t *t)
 {
-#ifdef TEKEN_XTERM
-	teken_rect_t tr;
 
-	tr.tr_begin = t->t_cursor;
-	teken_subr_cursor_forward_tabulation(t, 1);
-	tr.tr_end.tp_row = tr.tr_begin.tp_row + 1;
-	tr.tr_end.tp_col = t->t_cursor.tp_col;
+	if (t->t_stateflags & TS_CONS25) {
+		teken_subr_cursor_forward_tabulation(t, 1);
+	} else {
+		teken_rect_t tr;
 
-	/* Blank region that we skipped. */
-	if (tr.tr_end.tp_col > tr.tr_begin.tp_col)
-		teken_funcs_fill(t, &tr, BLANK, &t->t_curattr);
-#else /* !TEKEN_XTERM */
+		tr.tr_begin = t->t_cursor;
+		teken_subr_cursor_forward_tabulation(t, 1);
+		tr.tr_end.tp_row = tr.tr_begin.tp_row + 1;
+		tr.tr_end.tp_col = t->t_cursor.tp_col;
 
-	teken_subr_cursor_forward_tabulation(t, 1);
-#endif /* TEKEN_XTERM */
+		/* Blank region that we skipped. */
+		if (tr.tr_end.tp_col > tr.tr_begin.tp_col)
+			teken_funcs_fill(t, &tr, BLANK, &t->t_curattr);
+	}
 }
 
 static void
@@ -710,19 +710,19 @@ teken_subr_newline(teken_t *t)
 static void
 teken_subr_newpage(teken_t *t)
 {
-#ifdef TEKEN_XTERM
 
-	teken_subr_newline(t);
-#else /* !TEKEN_XTERM */
-	teken_rect_t tr;
+	if (t->t_stateflags & TS_CONS25) {
+		teken_rect_t tr;
 
-	tr.tr_begin.tp_row = tr.tr_begin.tp_col = 0;
-	tr.tr_end = t->t_winsize;
-	teken_funcs_fill(t, &tr, BLANK, &t->t_curattr);
+		tr.tr_begin.tp_row = tr.tr_begin.tp_col = 0;
+		tr.tr_end = t->t_winsize;
+		teken_funcs_fill(t, &tr, BLANK, &t->t_curattr);
 
-	t->t_cursor.tp_row = t->t_cursor.tp_col = 0;
-	teken_funcs_cursor(t);
-#endif /* TEKEN_XTERM */
+		t->t_cursor.tp_row = t->t_cursor.tp_col = 0;
+		teken_funcs_cursor(t);
+	} else {
+		teken_subr_newline(t);
+	}
 }
 
 static void
@@ -779,6 +779,20 @@ teken_subr_do_putchar(teken_t *t, const teken_pos_t *tp, teken_char_t c,
 		teken_funcs_copy(t, &ctr, &ctp);
 	}
 
+	if (width == 2 && tp->tp_col + 1 < t->t_winsize.tp_col) {
+		teken_pos_t tp2;
+
+		/*
+		 * Store a space behind double width characters before
+		 * actually printing them. This prevents artifacts when
+		 * the consumer doesn't render it using double width
+		 * glyphs.
+		 */
+		tp2.tp_row = tp->tp_row;
+		tp2.tp_col = tp->tp_col + 1;
+		teken_funcs_putchar(t, &tp2, BLANK, &t->t_curattr);
+	}
+
 	teken_funcs_putchar(t, tp, c, &t->t_curattr);
 }
 
@@ -787,11 +801,9 @@ teken_subr_regular_character(teken_t *t, teken_char_t c)
 {
 	int width;
 
-	if (t->t_utf8_left == -1) {
-#ifdef TEKEN_XTERM
-		if (c <= 0x1B)
+	if (t->t_stateflags & TS_8BIT) {
+		if (!(t->t_stateflags & TS_CONS25) && c <= 0x1B)
 			return;
-#endif /* TEKEN_XTERM */
 		width = 1;
 	} else {
 		c = teken_scs_process(t, c);
@@ -801,8 +813,23 @@ teken_subr_regular_character(teken_t *t, teken_char_t c)
 			return;
 	}
 
-#ifdef TEKEN_XTERM
-	if (t->t_cursor.tp_col == t->t_winsize.tp_col - 1 &&
+	if (t->t_stateflags & TS_CONS25) {
+		teken_subr_do_putchar(t, &t->t_cursor, c, width);
+		t->t_cursor.tp_col += width;
+
+		if (t->t_cursor.tp_col >= t->t_winsize.tp_col) {
+			if (t->t_cursor.tp_row == t->t_scrollreg.ts_end - 1) {
+				/* Perform scrolling. */
+				teken_subr_do_scroll(t, 1);
+			} else {
+				/* No scrolling needed. */
+				if (t->t_cursor.tp_row <
+				    t->t_winsize.tp_row - 1)
+					t->t_cursor.tp_row++;
+			}
+			t->t_cursor.tp_col = 0;
+		}
+	} else if (t->t_cursor.tp_col == t->t_winsize.tp_col - 1 &&
 	    (t->t_stateflags & (TS_WRAPPED|TS_AUTOWRAP)) ==
 	    (TS_WRAPPED|TS_AUTOWRAP)) {
 		teken_pos_t tp;
@@ -846,22 +873,6 @@ teken_subr_regular_character(teken_t *t, teken_char_t c)
 			t->t_stateflags &= ~TS_WRAPPED;
 		}
 	}
-#else /* !TEKEN_XTERM */
-	teken_subr_do_putchar(t, &t->t_cursor, c, width);
-	t->t_cursor.tp_col += width;
-
-	if (t->t_cursor.tp_col >= t->t_winsize.tp_col) {
-		if (t->t_cursor.tp_row == t->t_scrollreg.ts_end - 1) {
-			/* Perform scrolling. */
-			teken_subr_do_scroll(t, 1);
-		} else {
-			/* No scrolling needed. */
-			if (t->t_cursor.tp_row < t->t_winsize.tp_row - 1)
-				t->t_cursor.tp_row++;
-		}
-		t->t_cursor.tp_col = 0;
-	}
-#endif /* TEKEN_XTERM */
 
 	teken_funcs_cursor(t);
 }
@@ -937,7 +948,8 @@ teken_subr_do_reset(teken_t *t)
 	t->t_scrollreg.ts_begin = 0;
 	t->t_scrollreg.ts_end = t->t_winsize.tp_row;
 	t->t_originreg = t->t_scrollreg;
-	t->t_stateflags = TS_AUTOWRAP;
+	t->t_stateflags &= TS_8BIT|TS_CONS25;
+	t->t_stateflags |= TS_AUTOWRAP;
 
 	teken_scs_set(t, 0, teken_scs_us_ascii);
 	teken_scs_set(t, 1, teken_scs_us_ascii);
