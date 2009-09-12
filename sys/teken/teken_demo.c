@@ -95,7 +95,6 @@ printchar(const teken_pos_t *p)
  	px = &buffer[p->tp_col][p->tp_row];
 
 	/* Convert Unicode to UTF-8. */
-#ifdef TEKEN_UTF8
 	if (px->c < 0x80) {
 		str[0] = px->c;
 	} else if (px->c < 0x800) {
@@ -111,9 +110,6 @@ printchar(const teken_pos_t *p)
 		str[2] = 0x80 | ((px->c >> 6) & 0x3f);
 		str[3] = 0x80 | (px->c & 0x3f);
 	}
-#else /* !TEKEN_UTF8 */
-	str[0] = px->c;
-#endif /* TEKEN_UTF8 */
 
 	if (px->a.ta_format & TF_BOLD)
 		attr |= A_BOLD;
@@ -294,9 +290,7 @@ main(int argc __unused, char *argv[] __unused)
 	};
 	int i, j;
 
-#ifdef TEKEN_UTF8
 	setlocale(LC_CTYPE, "UTF-8");
-#endif /* TEKEN_UTF8 */
 
 	tp.tp_row = ws.ws_row = NROWS;
 	tp.tp_col = ws.ws_col = NCOLS;
@@ -311,9 +305,7 @@ main(int argc __unused, char *argv[] __unused)
 #else /* !TEKEN_XTERM */
 		setenv("TERM", "cons25", 1);
 #endif /* TEKEN_XTERM */
-#ifdef TEKEN_UTF8
 		setenv("LC_CTYPE", "UTF-8", 0);
-#endif /* TEKEN_UTF8 */
 		execlp("zsh", "-zsh", NULL);
 		execlp("bash", "-bash", NULL);
 		execlp("sh", "-sh", NULL);

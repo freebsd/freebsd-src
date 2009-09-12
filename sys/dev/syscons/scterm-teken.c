@@ -125,6 +125,9 @@ scteken_init(scr_stat *scp, void **softc, int code)
 		/* FALLTHROUGH */
 	case SC_TE_WARM_INIT:
 		teken_init(&ts->ts_teken, &scteken_funcs, scp);
+#ifndef TEKEN_UTF8
+		teken_set_8bit(&ts->ts_teken);
+#endif /* !TEKEN_UTF8 */
 
 		tp.tp_row = scp->ysize;
 		tp.tp_col = scp->xsize;
