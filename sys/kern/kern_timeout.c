@@ -244,7 +244,7 @@ callout_tick(void)
 	need_softclock = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	for (; (cc->cc_softticks - ticks) < 0; cc->cc_softticks++) {
+	for (; (cc->cc_softticks - ticks) <= 0; cc->cc_softticks++) {
 		bucket = cc->cc_softticks & callwheelmask;
 		if (!TAILQ_EMPTY(&cc->cc_callwheel[bucket])) {
 			need_softclock = 1;
@@ -323,7 +323,7 @@ softclock(void *arg)
 	steps = 0;
 	cc = (struct callout_cpu *)arg;
 	CC_LOCK(cc);
-	while (cc->cc_softticks != ticks) {
+	while (cc->cc_softticks - 1 != ticks) {
 		/*
 		 * cc_softticks may be modified by hard clock, so cache
 		 * it while we work on a given bucket.
