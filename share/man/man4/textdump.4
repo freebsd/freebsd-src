@@ -138,7 +138,7 @@ invoke panic in order to force a kernel dump to be written out followed by a
 reboot:
 .Bd -literal -offset indent
 script kdb.enter.panic=textdump set; capture on; show allpcpu; bt;
-  ps; alltrace; show alllock; call doadump; reset
+  ps; alltrace; show alllocks; call doadump; reset
 .Ed
 .Pp
 In the following example, the script
