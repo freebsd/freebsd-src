@@ -31,8 +31,8 @@
 #
 
 # ifn_start ifn
-# Bring up and configure an interface.  If some configuration is applied
-# print the interface configuration.
+#	Bring up and configure an interface.  If some configuration is
+#	applied print the interface configuration.
 #
 ifn_start()
 {
@@ -53,8 +53,8 @@ ifn_start()
 }
 
 # ifn_stop ifn
-# Shutdown and de-configure an interface.  If action is taken print the
-# interface name.
+#	Shutdown and de-configure an interface.  If action is taken
+#	print the interface name.
 #
 ifn_stop()
 {
@@ -176,11 +176,11 @@ ifconfig_down()
 }
 
 # get_if_var if var [default]
-#       Return the value of the pseudo-hash corresponding to $if where
-#       $var is a string containg the sub-string "IF" which will be
-#       replaced with $if after the characters defined in _punct are
-#       replaced with '_'. If the variable is unset, replace it with
-#       $default if given.
+#	Return the value of the pseudo-hash corresponding to $if where
+#	$var is a string containg the sub-string "IF" which will be
+#	replaced with $if after the characters defined in _punct are
+#	replaced with '_'. If the variable is unset, replace it with
+#	$default if given.
 get_if_var()
 {
 	local _if _punct _var _default prefix suffix
@@ -463,7 +463,7 @@ ifexists()
 }
 
 # ipv4_up if
-#  add IPv4 addresses to the interface $if 
+#	add IPv4 addresses to the interface $if 
 ipv4_up()
 {
 	local _if _ret
@@ -500,7 +500,7 @@ ipv6_up()
 }
 
 # ipv4_down if
-#  remove IPv4 addresses from the interface $if
+#	remove IPv4 addresses from the interface $if
 ipv4_down()
 {
 	local _if _ifs _ret inetList oldifs _inet
@@ -568,10 +568,10 @@ ipv6_down()
 }
 
 # ipv4_addrs_common if action
-#   Evaluate the ifconfig_if_ipv4 arguments for interface $if
-#   and use $action to add or remove IPv4 addresses from $if.
+#	Evaluate the ifconfig_if_ipv4 arguments for interface $if and
+#	use $action to add or remove IPv4 addresses from $if.
 ipv4_addrs_common()
-{  
+{
 	local _ret _if _action _cidr _cidr_addr
 	local _ipaddr _netmask _range _ipnet _iplow _iphigh _ipcount 
 	_ret=1
@@ -652,7 +652,7 @@ ifalias_ipv4_up()
 			break
 			;;
 		esac
-			alias=$((${alias} + 1))
+		alias=$((${alias} + 1))
 	done
 
 	return $_ret
@@ -701,7 +701,7 @@ ifalias_ipv6_up()
 	return $_ret
 }
 
-#ifalias_down if af
+# ifalias_down if af
 #	Remove aliases for network interface $if.
 #	It returns 0 if at least one alias was removed or
 #	1 if there were none.
@@ -723,7 +723,7 @@ ifalias_down()
 	return $_ret
 }
 
-#ifalias_ipv4_down if
+# ifalias_ipv4_down if
 #	Helper function for ifalias_down().  Handles IPv4.
 #
 ifalias_ipv4_down()
@@ -743,13 +743,13 @@ ifalias_ipv4_down()
 			break
 			;;
 		esac
-			alias=$((${alias} + 1))
+		alias=$((${alias} + 1))
 	done
 
 	return $_ret
 }
 
-#ifalias_ipv6_down if
+# ifalias_ipv6_down if
 #	Helper function for ifalias_down().  Handles IPv6.
 #
 ifalias_ipv6_down()
@@ -869,7 +869,8 @@ ifscript_down()
 	fi
 }
 
-# Create cloneable interfaces.
+# clone_up
+#	Create cloneable interfaces.
 #
 clone_up()
 {
@@ -888,8 +889,9 @@ clone_up()
 	debug "Cloned: ${_list}"
 }
 
-# Destroy cloned interfaces. Destroyed interfaces are echoed
-# to standard output.
+# clone_down
+#	Destroy cloned interfaces. Destroyed interfaces are echoed to
+#	standard output.
 #
 clone_down()
 {
@@ -907,8 +909,9 @@ clone_down()
 	debug "Destroyed clones: ${_list}"
 }
 
-# Create and configure child interfaces.
-# Return 0 if child interfaces are created.
+# childif_create
+#	Create and configure child interfaces.  Return 0 if child
+#	interfaces are created.
 #
 childif_create()
 {
@@ -943,7 +946,8 @@ childif_create()
 	return ${cfg}
 }
 
-# Destroy child interfaces.
+# childif_destroy
+#	Destroy child interfaces.
 #
 childif_destroy()
 {
@@ -958,16 +962,22 @@ childif_destroy()
 	return ${cfg}
 }
 
-# Create netgraph nodes.
+# ng_mkpeer
+#	Create netgraph nodes.
 #
-ng_mkpeer() {
+ng_mkpeer()
+{
 	ngctl -f - 2> /dev/null <<EOF
 mkpeer $*
 msg dummy nodeinfo
 EOF
 }
 
-ng_create_one() {
+# ng_create_one
+#	Create netgraph nodes.
+#
+ng_create_one()
+{
 	local t
 
 	ng_mkpeer $* | while read line; do
@@ -979,7 +989,10 @@ ng_create_one() {
 	done
 }
 
-gif_up() {
+# gif_up
+#	Create gif(4) tunnel interfaces.
+gif_up()
+{
 	local i peers
 
 	for i in ${gif_interfaces}; do
@@ -1003,8 +1016,8 @@ gif_up() {
 }
 
 # ng_fec_create ifn
-# Configure Fast EtherChannel for interface $ifn. Returns 0 if FEC
-# arguments were found and configured; returns !0 otherwise.
+#	Configure Fast EtherChannel for interface $ifn. Returns 0 if
+#	FEC arguments were found and configured; returns !0 otherwise.
 ng_fec_create()
 {
 	 local req_iface iface bogus
@@ -1029,7 +1042,10 @@ ng_fec_create()
 	 done
 }
 
-fec_up() {
+# fec_up
+#	Create Fast EtherChannel interfaces.
+fec_up()
+{
 	local i j
 
 	for i in ${fec_interfaces}; do
@@ -1047,10 +1063,9 @@ fec_up() {
 	done
 }
 
-#
 # ipx_up ifn
-# Configure any IPX addresses for interface $ifn. Returns 0 if IPX
-# arguments were found and configured; returns 1 otherwise.
+#	Configure any IPX addresses for interface $ifn. Returns 0 if
+#	IPX arguments were found and configured; returns 1 otherwise.
 #
 ipx_up()
 {
@@ -1119,8 +1134,8 @@ ifnet_rename()
 #	List all network interfaces. The type of interface returned
 #	can be controlled by the type argument. The type
 #	argument can be any of the following:
-#		nodhcp - all interfaces, excluding DHCP configured interfaces
-#		dhcp   - list only DHCP configured interfaces
+#		nodhcp	- all interfaces, excluding DHCP configured interfaces
+#		dhcp	- list only DHCP configured interfaces
 #		noautoconf	- all interfaces, excluding IPv6 Stateless
 #				  Address Autoconf configured interfaces
 #		autoconf	- list only IPv6 Stateless Address Autoconf
@@ -1172,15 +1187,15 @@ list_net_interfaces()
 			if ! dhcpif $_if && \
 			   [ -n "`_ifconfig_getargs $_if`" ]; then
 				_list="${_list# } ${_if}"
-	fi
+			fi
 		done
 		;;
 	dhcp)
-	for _if in ${_tmplist} ; do
-		if dhcpif $_if; then
+		for _if in ${_tmplist} ; do
+			if dhcpif $_if; then
 				_list="${_list# } ${_if}"
-		fi
-	done
+			fi
+		done
 		;;
 	noautoconf)
 		for _if in ${_tmplist} ; do
@@ -1230,6 +1245,8 @@ get_default_if()
 	echo $defif
 }
 
+# hexdigit arg
+#	Echo decimal number $arg (single digit) in hexadecimal format.
 hexdigit()
 {
 	if [ $1 -lt 10 ]; then
@@ -1246,6 +1263,8 @@ hexdigit()
 	fi
 }
 
+# hexprint arg
+#	Echo decimal number $arg (multiple digits) in hexadecimal format.
 hexprint()
 {
 	local val str dig
@@ -1275,6 +1294,9 @@ is_wired_interface()
 	test "$media" = "Ethernet"
 }
 
+# network6_getladdr if [flag]
+#	Echo link-local address from $if if any.
+#	If flag is defined, tentative ones will be excluded.
 network6_getladdr()
 {
 	local proto addr rest
