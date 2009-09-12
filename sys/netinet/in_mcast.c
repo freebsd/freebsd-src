@@ -1857,6 +1857,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 
 	ifp = NULL;
 	imf = NULL;
+	lims = NULL;
 	error = 0;
 	is_new = 0;
 
@@ -1974,9 +1975,25 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 				error = EINVAL;
 				goto out_inp_locked;
 			}
-			/* Throw out duplicates. */
+			/*
+			 * Throw out duplicates.
+			 *
+			 * XXX FIXME: This makes a naive assumption that
+			 * even if entries exist for *ssa in this imf,
+			 * they will be rejected as dupes, even if they
+			 * are not valid in the current mode (in-mode).
+			 *
+			 * in_msource is transactioned just as for anything
+			 * else in SSM -- but note naive use of inm_graft()
+			 * below for allocating new filter entries.
+			 *
+			 * This is only an issue if someone mixes the
+			 * full-state SSM API with the delta-based API,
+			 * which is discouraged in the relevant RFCs.
+			 */
 			lims = imo_match_source(imo, idx, &ssa->sa);
-			if (lims != NULL) {
+			if (lims != NULL /*&&
+			    lims->imsl_st[1] == MCAST_INCLUDE*/) {
 				error = EADDRNOTAVAIL;
 				goto out_inp_locked;
 			}
@@ -2031,6 +2048,8 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	 *
 	 * Note: Grafting of exclusive mode filters doesn't happen
 	 * in this path.
+	 * XXX: Should check for non-NULL lims (node exists but may
+	 * not be in-mode) for interop with full-state API.
 	 */
 	if (ssa->ss.ss_family != AF_UNSPEC) {
 		/* Membership starts in IN mode */
