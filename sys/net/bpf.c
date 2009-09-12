@@ -148,8 +148,11 @@ static struct cdevsw bpf_cdevsw = {
 	.d_kqfilter =	bpfkqfilter,
 };
 
-static struct filterops bpfread_filtops =
-	{ 1, NULL, filt_bpfdetach, filt_bpfread };
+static struct filterops bpfread_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_bpfdetach,
+	.f_event = filt_bpfread,
+};
 
 /*
  * Wrapper functions for various buffering methods.  If the set of buffer

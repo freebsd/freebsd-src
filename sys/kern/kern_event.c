@@ -142,15 +142,28 @@ static int	filt_timerattach(struct knote *kn);
 static void	filt_timerdetach(struct knote *kn);
 static int	filt_timer(struct knote *kn, long hint);
 
-static struct filterops file_filtops =
-	{ 1, filt_fileattach, NULL, NULL };
-static struct filterops kqread_filtops =
-	{ 1, NULL, filt_kqdetach, filt_kqueue };
+static struct filterops file_filtops = {
+	.f_isfd = 1,
+	.f_attach = filt_fileattach,
+};
+static struct filterops kqread_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_kqdetach,
+	.f_event = filt_kqueue,
+};
 /* XXX - move to kern_proc.c?  */
-static struct filterops proc_filtops =
-	{ 0, filt_procattach, filt_procdetach, filt_proc };
-static struct filterops timer_filtops =
-	{ 0, filt_timerattach, filt_timerdetach, filt_timer };
+static struct filterops proc_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_procattach,
+	.f_detach = filt_procdetach,
+	.f_event = filt_proc,
+};
+static struct filterops timer_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_timerattach,
+	.f_detach = filt_timerdetach,
+	.f_event = filt_timer,
+};
 
 static uma_zone_t	knote_zone;
 static int 		kq_ncallouts = 0;
@@ -228,8 +241,10 @@ filt_nullattach(struct knote *kn)
 	return (ENXIO);
 };
 
-struct filterops null_filtops =
-	{ 0, filt_nullattach, NULL, NULL };
+struct filterops null_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_nullattach,
+};
 
 /* XXX - make SYSINIT to add these, and move into respective modules. */
 extern struct filterops sig_filtops;
