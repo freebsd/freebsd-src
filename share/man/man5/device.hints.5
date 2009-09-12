@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2001
+.Dd September 11, 2009
 .Dt DEVICE.HINTS 5
 .Os
 .Sh NAME
@@ -112,7 +112,8 @@ to disable the device.
 .El
 .Pp
 A device driver may require one or more hint lines with these keywords,
-and may accept other keywords not listed here.
+and may accept other keywords not listed here, through
+.Xr resource_int_value 9 .
 Consult individual device drivers' manual pages for available
 keywords and their possible values.
 .\" .Sh CONTROL VARIABLES
@@ -160,7 +161,8 @@ hint.acpi.0.disabled="1"
 .Sh SEE ALSO
 .Xr kenv 1 ,
 .Xr loader.conf 5 ,
-.Xr loader 8
+.Xr loader 8,
+.Xr resource_int_value 9 .
 .Sh HISTORY
 The
 .Nm
