@@ -341,10 +341,7 @@ teken_set_winsize(teken_t *t, const teken_pos_t *p)
 {
 
 	t->t_winsize = *p;
-	/* XXX: bounds checking with cursor/etc! */
-	t->t_scrollreg.ts_begin = 0;
-	t->t_scrollreg.ts_end = t->t_winsize.tp_row;
-	t->t_originreg = t->t_scrollreg;
+	teken_subr_do_reset(t);
 }
 
 /*
