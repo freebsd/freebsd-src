@@ -927,6 +927,9 @@ teken_subr_do_reset(teken_t *t)
 
 	t->t_curattr = t->t_defattr;
 	t->t_cursor.tp_row = t->t_cursor.tp_col = 0;
+	t->t_scrollreg.ts_begin = 0;
+	t->t_scrollreg.ts_end = t->t_winsize.tp_row;
+	t->t_originreg = t->t_scrollreg;
 	t->t_stateflags = TS_AUTOWRAP;
 
 	teken_scs_set(t, 0, teken_scs_us_ascii);
