@@ -2189,6 +2189,9 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
 
+	if (ifp == NULL)
+		return (EADDRNOTAVAIL);
+
 	/*
 	 * Find the membership in the membership array.
 	 */
