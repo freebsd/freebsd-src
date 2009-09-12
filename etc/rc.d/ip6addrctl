@@ -4,8 +4,8 @@
 #
 
 # PROVIDE: ip6addrctl
-# REQUIRE: FILESYSTEMS netif
-# BEFORE: network_ipv6
+# REQUIRE: FILESYSTEMS
+# BEFORE: netif
 # KEYWORD: nojail
 
 . /etc/rc.subr
@@ -52,7 +52,7 @@ ip6addrctl_start()
 			ip6addrctl install /etc/ip6addrctl.conf
 			checkyesno ip6addrctl_verbose && ip6addrctl
 		else
-			if checkyesno ipv6_enable; then
+			if checkyesno ipv6_prefer; then
 				ip6addrctl_prefer_ipv6
 			else
 				ip6addrctl_prefer_ipv4

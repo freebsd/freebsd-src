@@ -41,6 +41,8 @@ clonedown_cmd="clone_down"
 extra_commands="cloneup clonedown"
 cmdifn=
 
+set_rcvar_obsolete ipv6_enable
+
 network_start()
 {
 	# Set the list of interfaces to work on.

@@ -21,17 +21,79 @@ options_cmd="options_start"
 
 routing_start()
 {
-	static_start
-	options_start
+	static_start "$@"
+	options_start "$@"
 }
 
 routing_stop()
 {
+	static_stop "$@"
 	route -n flush
+	for i in ${ipv6_network_interfaces}; do
+		ifconfig $i inet6 -defaultif
+	done
 }
 
 static_start()
 {
+	local _af
+	_af=$1
+
+	case ${_af} in
+	inet)
+		do_static inet add
+		;;
+	inet6)
+		do_static inet6 add
+		;;
+	atm)
+		do_static atm add
+		;;
+	*)
+		do_static inet add
+		do_static inet6 add
+		do_static atm add
+		;;
+	esac
+}
+
+static_stop()
+{
+	local _af
+	_af=$1
+
+	case ${_af} in
+	inet)
+		do_static inet delete
+		;;
+	inet6)
+		do_static inet6 delete
+		;;
+	atm)
+		do_static atm delete
+		;;
+	*)
+		do_static inet delete
+		do_static inet6 delete
+		do_static atm delete
+		;;
+	esac
+}
+
+do_static()
+{
+	local _af _action
+	_af=$1
+	_action=$2
+
+	eval $1_static $2
+}
+
+inet_static()
+{
+	local _action
+	_action=$1
+
 	case ${defaultrouter} in
 	[Nn][Oo] | '')
 		;;
@@ -41,20 +103,130 @@ static_start()
 		;;
 	esac
 
-	# Setup static routes. This should be done before router discovery.
-	#
 	if [ -n "${static_routes}" ]; then
 		for i in ${static_routes}; do
-			eval route_args=\$route_${i}
-			route add ${route_args}
+			route_args=`get_if_var $i route_IF`
+			route ${_action} ${route_args}
 		done
 	fi
-	# Now ATM static routes
-	#
+}
+
+inet6_static()
+{
+	local _action i
+	_action=$1
+
+	# disallow "internal" addresses to appear on the wire
+	route ${_action} -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
+	route ${_action} -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
+
+	case ${ipv6_defaultrouter} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		ipv6_static_routes="default ${ipv6_static_routes}"
+		ipv6_route_default="default ${ipv6_defaultrouter}"
+		;;
+	esac
+
+	if [ -n "${ipv6_static_routes}" ]; then
+		for i in ${ipv6_static_routes}; do
+			ipv6_route_args=`get_if_var $i ipv6_route_IF`
+			route ${_action} -inet6 ${route_args}
+		done
+	fi
+
+	# Fixup $ipv6_network_interfaces
+	case ${ipv6_network_interfaces} in
+	[Nn][Oo][Nn][Ee])
+		ipv6_network_interfaces=''
+		;;
+	esac
+
+	if checkyesno ipv6_gateway_enable; then
+		for i in ${ipv6_network_interfaces}; do
+
+			laddr=`network6_getladdr $i exclude_tentative`
+			case ${laddr} in
+			'')
+				;;
+			*)
+				ipv6_working_interfaces="$i \
+				    ${ipv6_working_interfaces}"
+				;;
+			esac
+		done
+		ipv6_network_interfaces=${ipv6_working_interfaces}
+	fi
+
+	# Install the "default interface" to kernel, which will be used
+	# as the default route when there's no router.
+	case "${ipv6_default_interface}" in
+	[Nn][Oo] | [Nn][Oo][Nn][Ee])
+		ipv6_default_interface=""
+		;;
+	[Aa][Uu][Tt][Oo] | "")
+		for i in ${ipv6_network_interfaces}; do
+			case $i in
+			lo0|faith[0-9]*)
+				continue
+				;;
+			esac
+			laddr=`network6_getladdr $i exclude_tentative`
+			case ${laddr} in
+			'')
+				;;
+			*)
+				ipv6_default_interface=$i
+				break
+				;;
+			esac
+		done
+		;;
+	esac
+
+	# Disallow unicast packets without outgoing scope identifiers,
+	# or route such packets to a "default" interface, if it is specified.
+	route ${_action} -inet6 fe80:: -prefixlen 10 ::1 -reject
+
+	case ${ipv6_default_interface} in
+	'')
+		route ${_action} -inet6 ff02:: -prefixlen 16 ::1 -reject
+		;;
+	*)
+		laddr=`network6_getladdr ${ipv6_default_interface}`
+		route ${_action} -inet6 ff02:: ${laddr} -prefixlen 16 -interface
+
+		# Disable installing the default interface with the
+		# case net.inet6.ip6.forwarding=0 and
+		# the interface with no ND6_IFF_ACCEPT_RTADV
+		# to avoid conflict between the default router list and
+		# the manual configured default route.
+		if ! checkyesno ipv6_gateway_enable; then
+			ifconfig ${ipv6_default_interface} nd6 | \
+			while read proto options
+			do
+				case "${proto}:${options}" in
+				nd6:*ACCEPT_RTADV*)
+					ifconfig ${ipv6_default_interface} inet6 defaultif
+					break
+				;;
+				esac
+			done
+		fi
+		;;
+	esac
+}
+
+atm_static()
+{
+	local _action i
+	_action=$1
+
 	if [ -n "${natm_static_routes}" ]; then
 		for i in ${natm_static_routes}; do
-			eval route_args=\$route_${i}
-			atmconfig natm add ${route_args}
+			route_args=`get_if_var $i route_IF`
+			atmconfig natm ${_action} ${route_args}
 		done
 	fi
 }
@@ -70,72 +242,62 @@ ropts_init()
 
 options_start()
 {
-	case ${icmp_bmcastecho} in
-	[Yy][Ee][Ss])
+	if checkyesno icmp_bmcastecho; then
 		ropts_init
 		echo -n ' broadcast ping responses=YES'
 		sysctl net.inet.icmp.bmcastecho=1 >/dev/null
-		;;
-	esac
+	fi
 
-	case ${icmp_drop_redirect} in
-	[Yy][Ee][Ss])
+	if checkyesno icmp_drop_redirect; then
 		ropts_init
 		echo -n ' ignore ICMP redirect=YES'
 		sysctl net.inet.icmp.drop_redirect=1 >/dev/null
-		;;
-	esac
+	fi
 
-	case ${icmp_log_redirect} in
-	[Yy][Ee][Ss])
+	if checkyesno icmp_log_redirect; then
 		ropts_init
 		echo -n ' log ICMP redirect=YES'
 		sysctl net.inet.icmp.log_redirect=1 >/dev/null
-		;;
-	esac
+	fi
 
-	case ${gateway_enable} in
-	[Yy][Ee][Ss])
+	if checkyesno gateway_enable; then
 		ropts_init
-		echo -n ' IP gateway=YES'
+		echo -n ' IPv4 gateway=YES'
 		sysctl net.inet.ip.forwarding=1 >/dev/null
-		;;
-	esac
+	fi
 
-	case ${forward_sourceroute} in
-	[Yy][Ee][Ss])
+	if checkyesno ipv6_gateway_enable; then
+		ropts_init
+		echo -n ' IPv6 gateway=YES'
+		sysctl net.inet6.ip6.forwarding=1 >/dev/null
+	fi
+
+	if checkyesno forward_sourceroute; then
 		ropts_init
 		echo -n ' do source routing=YES'
 		sysctl net.inet.ip.sourceroute=1 >/dev/null
-		;;
-	esac
+	fi
 
-	case ${accept_sourceroute} in
-	[Yy][Ee][Ss])
+	if checkyesno accept_sourceroute; then
 		ropts_init
 		echo -n ' accept source routing=YES'
 		sysctl net.inet.ip.accept_sourceroute=1 >/dev/null
-		;;
-	esac
+	fi
 
-	case ${ipxgateway_enable} in
-	[Yy][Ee][Ss])
+	if checkyesno ipxgateway_enable; then
 		ropts_init
 		echo -n ' IPX gateway=YES'
 		sysctl net.ipx.ipx.ipxforwarding=1 >/dev/null
-		;;
-	esac
+	fi
 
-	case ${arpproxy_all} in
-	[Yy][Ee][Ss])
+	if checkyesno arpproxy_all; then
 		ropts_init
 		echo -n ' ARP proxyall=YES'
 		sysctl net.link.ether.inet.proxyall=1 >/dev/null
-		;;
-	esac
+	fi
 
 	 [ -n "${_ropts_initdone}" ] && echo '.'
 }
 
 load_rc_config $name
-run_rc_command "$1"
+run_rc_command "$@"
