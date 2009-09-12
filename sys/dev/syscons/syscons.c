@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/consio.h>
@@ -352,7 +353,7 @@ sc_attach_unit(int unit, int flags)
 #endif
     int vc;
     struct cdev *dev;
-    u_int16_t vmode;
+    unsigned int vmode = 0;
 
     flags &= ~SC_KERNEL_CONSOLE;
 
@@ -373,7 +374,7 @@ sc_attach_unit(int unit, int flags)
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
 
-    vmode = (flags >> 16) & 0x1fff;
+    (void)resource_int_value("sc", unit, "vesa_mode", &vmode);
     if (vmode < M_VESA_BASE || vmode > M_VESA_MODE_MAX)
 	vmode = M_VESA_FULL_800;
 
