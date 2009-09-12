@@ -151,12 +151,21 @@ static void	filt_sowdetach(struct knote *kn);
 static int	filt_sowrite(struct knote *kn, long hint);
 static int	filt_solisten(struct knote *kn, long hint);
 
-static struct filterops solisten_filtops =
-	{ 1, NULL, filt_sordetach, filt_solisten };
-static struct filterops soread_filtops =
-	{ 1, NULL, filt_sordetach, filt_soread };
-static struct filterops sowrite_filtops =
-	{ 1, NULL, filt_sowdetach, filt_sowrite };
+static struct filterops solisten_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_sordetach,
+	.f_event = filt_solisten,
+};
+static struct filterops soread_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_sordetach,
+	.f_event = filt_soread,
+};
+static struct filterops sowrite_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_sowdetach,
+	.f_event = filt_sowrite,
+};
 
 uma_zone_t socket_zone;
 so_gen_t	so_gencnt;	/* generation count for sockets */

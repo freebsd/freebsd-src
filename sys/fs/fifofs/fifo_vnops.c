@@ -100,12 +100,21 @@ static int	filt_fifowrite(struct knote *kn, long hint);
 static void	filt_fifodetach_notsup(struct knote *kn);
 static int	filt_fifo_notsup(struct knote *kn, long hint);
 
-static struct filterops fiforead_filtops =
-	{ 1, NULL, filt_fifordetach, filt_fiforead };
-static struct filterops fifowrite_filtops =
-	{ 1, NULL, filt_fifowdetach, filt_fifowrite };
-static struct filterops fifo_notsup_filtops =
-	{ 1, NULL, filt_fifodetach_notsup, filt_fifo_notsup };
+static struct filterops fiforead_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_fifordetach,
+	.f_event = filt_fiforead,
+};
+static struct filterops fifowrite_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_fifowdetach,
+	.f_event = filt_fifowrite,
+};
+static struct filterops fifo_notsup_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_fifodetach_notsup,
+	.f_event = filt_fifo_notsup,
+};
 
 struct vop_vector fifo_specops = {
 	.vop_default =		&default_vnodeops,

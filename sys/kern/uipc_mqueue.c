@@ -256,10 +256,16 @@ static void	filt_mqdetach(struct knote *kn);
 static int	filt_mqread(struct knote *kn, long hint);
 static int	filt_mqwrite(struct knote *kn, long hint);
 
-struct filterops mq_rfiltops =
-	{ 1, NULL, filt_mqdetach, filt_mqread };
-struct filterops mq_wfiltops =
-	{ 1, NULL, filt_mqdetach, filt_mqwrite };
+struct filterops mq_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_mqdetach,
+	.f_event = filt_mqread,
+};
+struct filterops mq_wfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_mqdetach,
+	.f_event = filt_mqwrite,
+};
 
 /*
  * Initialize fileno bitmap
