@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2009
+.Dd September 2, 2009
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -596,6 +596,48 @@ This may be used to enable an interface after an
 It happens automatically when setting the first address on an interface.
 If the interface was reset when previously marked down,
 the hardware will be re-initialized.
+.El
+.Pp
+The following parameters are for ICMPv6 Neightbor Discovery Protocol:
+.Bl -tag -width indent
+.It Cm accept_rtadv
+Set a flag to enable accepting ICMPv6 Router Advertisement messages.
+.It Cm -accept_rtadv
+Clear a flag
+.Cm accept_rtadv .
+.It Cm auto_linklocal
+Set a flag to perform automatic link-local address configuration when
+the interface becomes avalilable.
+.It Cm -auto_linklocal
+Clear a flag
+.Cm auto_linklocal .
+.It Cm defaultif
+Set the specified interface as the default route when there is no
+default router.
+.It Cm -defaultif
+Clear a flag
+.Cm defaultif .
+.It Cm ifdisabled
+Set a flag to disable all of IPv6 network communications on the
+specified interface.
+.It Cm -ifdisabled
+Clear a flag
+.Cm ifdisabled .
+When this flag is cleared and 
+.Cm auto_linklocal
+flag is enabled, automatic configuration of a link-local address is
+performed.
+.It Cm nud
+Set a flag to enable Neighbor Unreachability Detection.
+.It Cm -nud
+Clear a flag
+.Cm nud .
+.It Cm prefer_source
+Set a flag to prefer addesses on the interface as candidates of the
+source address for outgoing packets.
+.It Cm -prefer_source
+Clear a flag
+.Cm prefer_source .
 .El
 .Pp
 The following parameters are specific to cloning
@@ -2421,6 +2463,9 @@ from the interface
 .Li ed0 :
 .Dl # ifconfig ed0 inet 192.0.2.45 -alias
 .Pp
+Enable IPv6 functionality of the interface:
+.Dl # ifconfig em0 inet6 -ifdisabled
+.Pp
 Add the IPv6 address
 .Li 2001:DB8:DBDB::123/48
 to the interface
@@ -2475,12 +2520,13 @@ utility appeared in
 Basic IPv6 node operation requires a link-local address on each
 interface configured for IPv6.
 Normally, such an address is automatically configured by the
-kernel on each interface added to the system; this behaviour may
-be disabled by setting the sysctl MIB variable
-.Va net.inet6.ip6.auto_linklocal
-to 0.
+kernel on each interface added to the system or enabled; this behavior may
+be disabled by setting per-interface flag
+.Cm -auto_linklocal .
+The default value of this flag is 1 and can be disabled by using the sysctl
+MIB variable
+.Va net.inet6.ip6.auto_linklocal .
 .Pp
-If you delete such an address using
-.Nm ,
-the kernel may act very odd.
-Do this at your own risk.
+Do not configure IPv6 addresses with no link-local address by using
+.Nm .
+It can result in unexpected behaviors of the kernel.
