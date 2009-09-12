@@ -50,27 +50,16 @@ static FILE *df;
 
 #include "teken.h"
 #include "teken_wcwidth.h"
-
-#ifdef TEKEN_XTERM
 #include "teken_scs.h"
-#else /* !TEKEN_XTERM */
-#define	teken_scs_process(t, c)	(c)
-#define	teken_scs_restore(t)
-#define	teken_scs_save(t)
-#define	teken_scs_set(t, g, ts)
-#define	teken_scs_switch(t, g)
-#endif /* TEKEN_XTERM */
 
 /* Private flags for t_stateflags. */
 #define	TS_FIRSTDIGIT	0x01	/* First numeric digit in escape sequence. */
 #define	TS_INSERT	0x02	/* Insert mode. */
 #define	TS_AUTOWRAP	0x04	/* Autowrap. */
 #define	TS_ORIGIN	0x08	/* Origin mode. */
-#ifdef TEKEN_XTERM
 #define	TS_WRAPPED	0x10	/* Next character should be printed on col 0. */
-#else /* !TEKEN_XTERM */
-#define	TS_WRAPPED	0x00	/* Simple line wrapping. */
-#endif /* TEKEN_XTERM */
+#define	TS_8BIT		0x20	/* UTF-8 disabled. */
+#define	TS_CONS25	0x40	/* cons25 emulation. */
 
 /* Character that blanks a cell. */
 #define	BLANK	' '
@@ -172,13 +161,13 @@ teken_init(teken_t *t, const teken_funcs_t *tf, void *softc)
 	t->t_softc = softc;
 
 	t->t_nextstate = teken_state_init;
+	t->t_stateflags = 0;
+	t->t_utf8_left = 0;
 
 	t->t_defattr.ta_format = 0;
 	t->t_defattr.ta_fgcolor = TC_WHITE;
 	t->t_defattr.ta_bgcolor = TC_BLACK;
 	teken_subr_do_reset(t);
-
-	t->t_utf8_left = 0;
 
 	teken_set_winsize(t, &tp);
 }
@@ -203,14 +192,18 @@ teken_input_char(teken_t *t, teken_char_t c)
 	case '\x0C':
 		teken_subr_newpage(t);
 		break;
-#ifdef TEKEN_XTERM
 	case '\x0E':
-		teken_scs_switch(t, 1);
+		if (t->t_stateflags & TS_CONS25)
+			t->t_nextstate(t, c);
+		else
+			teken_scs_switch(t, 1);
 		break;
 	case '\x0F':
-		teken_scs_switch(t, 0);
+		if (t->t_stateflags & TS_CONS25)
+			t->t_nextstate(t, c);
+		else
+			teken_scs_switch(t, 0);
 		break;
-#endif /* TEKEN_XTERM */
 	case '\r':
 		teken_subr_carriage_return(t);
 		break;
@@ -245,10 +238,7 @@ teken_input_byte(teken_t *t, unsigned char c)
 	/*
 	 * UTF-8 handling.
 	 */
-	if (t->t_utf8_left == -1) {
-		/* UTF-8 disabled. */
-		teken_input_char(t, c);
-	} else if ((c & 0x80) == 0x00) {
+	if ((c & 0x80) == 0x00 || t->t_stateflags & TS_8BIT) {
 		/* One-byte sequence. */
 		t->t_utf8_left = 0;
 		teken_input_char(t, c);
@@ -283,6 +273,13 @@ teken_input(teken_t *t, const void *buf, size_t len)
 
 	while (len-- > 0)
 		teken_input_byte(t, *c++);
+}
+
+const teken_pos_t *
+teken_get_cursor(teken_t *t)
+{
+
+	return (&t->t_cursor);
 }
 
 void
@@ -324,6 +321,13 @@ teken_set_defattr(teken_t *t, const teken_attr_t *a)
 	t->t_curattr = t->t_saved_curattr = t->t_defattr = *a;
 }
 
+const teken_pos_t *
+teken_get_winsize(teken_t *t)
+{
+
+	return (&t->t_winsize);
+}
+
 void
 teken_set_winsize(teken_t *t, const teken_pos_t *p)
 {
@@ -336,7 +340,14 @@ void
 teken_set_8bit(teken_t *t)
 {
 
-	t->t_utf8_left = -1;
+	t->t_stateflags |= TS_8BIT;
+}
+
+void
+teken_set_cons25(teken_t *t)
+{
+
+	t->t_stateflags |= TS_CONS25;
 }
 
 /*
