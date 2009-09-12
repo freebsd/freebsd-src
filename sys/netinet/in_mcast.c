@@ -2278,9 +2278,11 @@ out_imf_rollback:
 	imf_reap(imf);
 
 	if (is_final) {
-		/* Remove the gap in the membership array. */
-		for (++idx; idx < imo->imo_num_memberships; ++idx)
+		/* Remove the gap in the membership and filter array. */
+		for (++idx; idx < imo->imo_num_memberships; ++idx) {
 			imo->imo_membership[idx-1] = imo->imo_membership[idx];
+			imo->imo_mfilters[idx-1] = imo->imo_mfilters[idx];
+		}
 		imo->imo_num_memberships--;
 	}
 
