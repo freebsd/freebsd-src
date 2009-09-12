@@ -245,8 +245,8 @@ teken_input_byte(teken_t *t, unsigned char c)
 	/*
 	 * UTF-8 handling.
 	 */
-	 if (t->t_utf8_left == -1) {
-	 	/* UTF-8 disabled. */
+	if (t->t_utf8_left == -1) {
+		/* UTF-8 disabled. */
 		teken_input_char(t, c);
 	} else if ((c & 0x80) == 0x00) {
 		/* One-byte sequence. */
