@@ -132,7 +132,7 @@ inet6_static()
 	if [ -n "${ipv6_static_routes}" ]; then
 		for i in ${ipv6_static_routes}; do
 			ipv6_route_args=`get_if_var $i ipv6_route_IF`
-			route ${_action} -inet6 ${route_args}
+			route ${_action} -inet6 ${ipv6_route_args}
 		done
 	fi
 
