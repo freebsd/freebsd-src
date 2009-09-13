@@ -40,6 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
+#if 1
+#include <sparc64/pci/ofw_pci.h>
+#endif
+
 #define	JBUSPPM_NREG	2
 
 #define	JBUSPPM_DEVID	0
@@ -150,7 +154,7 @@ jbusppm_attach(device_t dev)
 			for (j = 0; j < nchildren; j++) {
 				if (ofw_bus_get_type(children[j]) != NULL &&
 				    strcmp(ofw_bus_get_type(children[j]),
-				    "pci") == 0 &&
+				    OFW_TYPE_PCI) == 0 &&
 				    ofw_bus_get_compat(children[j]) != NULL &&
 				    strcmp(ofw_bus_get_compat(children[j]),
 				    "pci108e,a801") == 0 &&
