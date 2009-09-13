@@ -1182,11 +1182,10 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 	ZFS_ENTER(zfsvfs);
 
 	/*
-	 * On FreeBSD we are already called with snapshot's mount point
-	 * and not the mount point of its parent.
+	 * On FreeBSD we can get snapshot's mount point or its parent file
+	 * system mount point depending if snapshot is already mounted or not.
 	 */
-#ifndef __FreeBSD__
-	if (fidp->fid_len == LONG_FID_LEN) {
+	if (zfsvfs->z_parent == zfsvfs && fidp->fid_len == LONG_FID_LEN) {
 		zfid_long_t	*zlfid = (zfid_long_t *)fidp;
 		uint64_t	objsetid = 0;
 		uint64_t	setgen = 0;
@@ -1204,7 +1203,6 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 			return (EINVAL);
 		ZFS_ENTER(zfsvfs);
 	}
-#endif
 
 	if (fidp->fid_len == SHORT_FID_LEN || fidp->fid_len == LONG_FID_LEN) {
 		zfid_short_t	*zfid = (zfid_short_t *)fidp;
