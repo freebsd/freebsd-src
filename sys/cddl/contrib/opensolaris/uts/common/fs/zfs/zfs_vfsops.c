@@ -1149,6 +1149,8 @@ zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
 	    credanonp, numsecflavors, secflavors));
 }
 
+CTASSERT(SHORT_FID_LEN <= sizeof(struct fid));
+CTASSERT(LONG_FID_LEN <= sizeof(struct fid));
 
 static int
 zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
