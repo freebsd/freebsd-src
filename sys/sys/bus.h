@@ -52,11 +52,8 @@ struct u_businfo {
 typedef enum device_state {
 	DS_NOTPRESENT,			/**< @brief not probed or probe failed */
 	DS_ALIVE,			/**< @brief probe succeeded */
-	DS_ATTACHING,			/**< @brief attaching is in progress */
 	DS_ATTACHED,			/**< @brief attach method called */
-	DS_BUSY,			/**< @brief device is open */
-	DS_DETACHING			/**< @brief detaching is in progress */
-
+	DS_BUSY				/**< @brief device is open */
 } device_state_t;
 
 /**
