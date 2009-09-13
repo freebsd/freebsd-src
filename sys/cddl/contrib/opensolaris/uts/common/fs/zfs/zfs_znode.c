@@ -110,7 +110,7 @@ znode_evict_error(dmu_buf_t *dbuf, void *user_ptr)
 		mutex_exit(&zp->z_lock);
 		zfs_znode_free(zp);
 	} else if (vp->v_count == 0) {
-		ZTOV(zp) = NULL;
+		zp->z_vnode = NULL;
 		vhold(vp);
 		mutex_exit(&zp->z_lock);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
@@ -1533,7 +1533,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	ZTOV(rootzp)->v_data = NULL;
 	ZTOV(rootzp)->v_count = 0;
 	ZTOV(rootzp)->v_holdcnt = 0;
-	ZTOV(rootzp) = NULL;
+	rootzp->z_vnode = NULL;
 	VOP_UNLOCK(vp, 0);
 	vdestroy(vp);
 	dmu_buf_rele(rootzp->z_dbuf, NULL);

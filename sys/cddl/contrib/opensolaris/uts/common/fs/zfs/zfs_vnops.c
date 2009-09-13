@@ -4382,7 +4382,7 @@ zfs_freebsd_reclaim(ap)
 
 	mutex_enter(&zp->z_lock);
 	ASSERT(zp->z_phys != NULL);
-	ZTOV(zp) = NULL;
+	zp->z_vnode = NULL;
 	mutex_exit(&zp->z_lock);
 
 	if (zp->z_unlinked)

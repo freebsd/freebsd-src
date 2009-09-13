@@ -231,8 +231,27 @@ typedef struct znode {
 /*
  * Convert between znode pointers and vnode pointers
  */
+#ifdef DEBUG
+static __inline vnode_t *
+ZTOV(znode_t *zp)
+{
+	vnode_t *vp = zp->z_vnode;
+
+	ASSERT(vp == NULL || vp->v_data == NULL || vp->v_data == zp);
+	return (vp);
+}
+static __inline znode_t *
+VTOZ(vnode_t *vp)
+{
+	znode_t *zp = (znode_t *)vp->v_data;
+
+	ASSERT(zp == NULL || zp->z_vnode == NULL || zp->z_vnode == vp);
+	return (zp);
+}
+#else
 #define	ZTOV(ZP)	((ZP)->z_vnode)
 #define	VTOZ(VP)	((znode_t *)(VP)->v_data)
+#endif
 
 /*
  * ZFS_ENTER() is called on entry to each ZFS vnode and vfs operation.
