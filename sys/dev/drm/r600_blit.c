@@ -1734,6 +1734,8 @@ r600_blit_copy(struct drm_device *dev,
 
 			if (!src_x && !dst_x) {
 				h = (cur_size / max_bytes);
+				if (h > 8192)
+					h = 8192;
 				if (h == 0)
 					h = 1;
 				else
@@ -1805,8 +1807,8 @@ r600_blit_copy(struct drm_device *dev,
 			vb += 12;
 			dev_priv->blit_vb->used += 12 * 4;
 
-			src_gpu_addr += cur_size;
-			dst_gpu_addr += cur_size;
+			src_gpu_addr += cur_size * h;
+			dst_gpu_addr += cur_size * h;
 			size_bytes -= cur_size * h;
 		}
 	} else {
@@ -1822,6 +1824,8 @@ r600_blit_copy(struct drm_device *dev,
 
 			if (!src_x && !dst_x) {
 				h = (cur_size / max_bytes);
+				if (h > 8192)
+					h = 8192;
 				if (h == 0)
 					h = 1;
 				else
@@ -1894,8 +1898,8 @@ r600_blit_copy(struct drm_device *dev,
 			vb += 12;
 			dev_priv->blit_vb->used += 12 * 4;
 
-			src_gpu_addr += cur_size;
-			dst_gpu_addr += cur_size;
+			src_gpu_addr += cur_size * h;
+			dst_gpu_addr += cur_size * h;
 			size_bytes -= cur_size * h;
 		}
 	}
