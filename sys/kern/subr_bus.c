@@ -2625,16 +2625,10 @@ device_attach(device_t dev)
 {
 	int error;
 
-	if (dev->state >= DS_ATTACHING)
-		return (0);
 	device_sysctl_init(dev);
 	if (!device_is_quiet(dev))
 		device_print_child(dev->parent, dev);
-	dev->state = DS_ATTACHING;
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
-		KASSERT(dev->state == DS_ATTACHING,
-		    ("%s: %p device state must not been changing", __func__,
-		    dev));
 		printf("device_attach: %s%d attach returned %d\n",
 		    dev->driver->name, dev->unit, error);
 		/* Unset the class; set in device_probe_child */
@@ -2645,8 +2639,6 @@ device_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 		return (error);
 	}
-	KASSERT(dev->state == DS_ATTACHING,
-	    ("%s: %p device state must not been changing", __func__, dev));
 	device_sysctl_update(dev);
 	dev->state = DS_ATTACHED;
 	devadded(dev);
@@ -2682,16 +2674,8 @@ device_detach(device_t dev)
 	if (dev->state != DS_ATTACHED)
 		return (0);
 
-	dev->state = DS_DETACHING;
-	if ((error = DEVICE_DETACH(dev)) != 0) {
-		KASSERT(dev->state == DS_DETACHING,
-		    ("%s: %p device state must not been changing", __func__,
-		    dev));
-		dev->state = DS_ATTACHED;
+	if ((error = DEVICE_DETACH(dev)) != 0)
 		return (error);
-	}
-	KASSERT(dev->state == DS_DETACHING,
-	    ("%s: %p device state must not been changing", __func__, dev));
 	devremoved(dev);
 	if (!device_is_quiet(dev))
 		device_printf(dev, "detached\n");
@@ -2746,7 +2730,7 @@ device_quiesce(device_t dev)
 int
 device_shutdown(device_t dev)
 {
-	if (dev->state < DS_ATTACHED || dev->state == DS_DETACHING)
+	if (dev->state < DS_ATTACHED)
 		return (0);
 	return (DEVICE_SHUTDOWN(dev));
 }
