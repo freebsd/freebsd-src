@@ -824,7 +824,7 @@ out:
 		type[5] = 0;
 		if (maxlen > sizeof(v)) {	
 			device_printf(dev, "WARNING: cropping maxlen "
-			    "from %d to %lud\n", maxlen, sizeof(v));
+			    "from %u to %u\n", maxlen, sizeof(v));
 			maxlen = sizeof(v);
 		}
 		for (i = 0; i < sizeof(v); i++) {
