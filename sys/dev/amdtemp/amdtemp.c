@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -58,10 +59,14 @@ typedef enum {
 
 struct amdtemp_softc {
 	device_t	sc_dev;
-	uint32_t	sc_mask;
 	int		sc_ncores;
 	int		sc_ntemps;
-	int		sc_swap;
+	int		sc_flags;
+#define	AMDTEMP_FLAG_DO_QUIRK	0x01	/* DiodeOffset may be incorrect. */
+#define	AMDTEMP_FLAG_DO_ZERO	0x02	/* DiodeOffset starts from 0C. */
+#define	AMDTEMP_FLAG_DO_SIGN	0x04	/* DiodeOffsetSignBit is present. */
+#define	AMDTEMP_FLAG_CS_SWAP	0x08	/* ThermSenseCoreSel is inverted. */
+#define	AMDTEMP_FLAG_CT_10BIT	0x10	/* CurTmp is 10-bit wide. */
 	int32_t		(*sc_gettemp)(device_t, amdsensor_t);
 	struct sysctl_oid *sc_sysctl_cpu[MAXCPU];
 	struct intr_config_hook sc_ich;
@@ -168,30 +173,22 @@ amdtemp_identify(driver_t *driver, device_t parent)
 static int
 amdtemp_probe(device_t dev)
 {
-	uint32_t cpuid, family, model, temp;
+	uint32_t family, model;
 
 	if (resource_disabled("amdtemp", 0))
 		return (ENXIO);
 
-	cpuid = pci_read_config(dev, AMDTEMP_CPUID, 4);
-	family = CPUID_TO_FAMILY(cpuid);
-	model = CPUID_TO_MODEL(cpuid);
+	family = CPUID_TO_FAMILY(cpu_id);
+	model = CPUID_TO_MODEL(cpu_id);
 
 	switch (family) {
 	case 0x0f:
-		if ((model == 0x04 && (cpuid & CPUID_STEPPING) == 0) ||
-		    (model == 0x05 && (cpuid & CPUID_STEPPING) <= 1))
+		if ((model == 0x04 && (cpu_id & CPUID_STEPPING) == 0) ||
+		    (model == 0x05 && (cpu_id & CPUID_STEPPING) <= 1))
 			return (ENXIO);
 		break;
 	case 0x10:
 	case 0x11:
-		/*
-		 * DiodeOffset must be non-zero if thermal diode is supported.
-		 */
-		temp = pci_read_config(dev, AMDTEMP_THERMTP_STAT, 4);
-		temp = (temp >> 8) & 0x7f;
-		if (temp == 0)
-			return (ENXIO);
 		break;
 	default:
 		return (ENXIO);
@@ -207,32 +204,66 @@ amdtemp_attach(device_t dev)
 	struct amdtemp_softc *sc = device_get_softc(dev);
 	struct sysctl_ctx_list *sysctlctx;
 	struct sysctl_oid *sysctlnode;
+	uint32_t regs[4];
 	uint32_t cpuid, family, model;
 
-	cpuid = pci_read_config(dev, AMDTEMP_CPUID, 4);
-	family = CPUID_TO_FAMILY(cpuid);
-	model = CPUID_TO_MODEL(cpuid);
+	/*
+	 * Errata #154: Incorect Diode Offset
+	 */
+	if (cpu_id == 0x20f32) {
+		do_cpuid(0x80000001, regs);
+		if ((regs[1] & 0xfff) == 0x2c)
+			sc->sc_flags |= AMDTEMP_FLAG_DO_QUIRK;
+	}
+
+	/*
+	 * CPUID Register is available from Revision F.
+	 */
+	family = CPUID_TO_FAMILY(cpu_id);
+	model = CPUID_TO_MODEL(cpu_id);
+	if (family != 0x0f || model >= 0x40) {
+		cpuid = pci_read_config(dev, AMDTEMP_CPUID, 4);
+		family = CPUID_TO_FAMILY(cpuid);
+		model = CPUID_TO_MODEL(cpuid);
+	}
 
 	switch (family) {
 	case 0x0f:
 		/*
-		 * Thermaltrip Status Register - CurTmp
+		 * Thermaltrip Status Register
+		 *
+		 * - DiodeOffsetSignBit
+		 *
+		 * Revision D & E:	bit 24
+		 * Other:		N/A
+		 *
+		 * - ThermSenseCoreSel
+		 *
+		 * Revision F & G:	0 - Core1, 1 - Core0
+		 * Other:		0 - Core0, 1 - Core1
+		 *
+		 * - CurTmp
 		 *
 		 * Revision G:		bits 23-14
-		 * Earlier:		bits 23-16
-		 */
-		if (model >= 0x60 && model != 0xc1)
-			sc->sc_mask = 0x3ff << 14;
-		else
-			sc->sc_mask = 0xff << 16;
-
-		/*
-		 * Thermaltrip Status Register - ThermSenseCoreSel
+		 * Other:		bits 23-16
 		 *
-		 * Revision F:		0 - Core1, 1 - Core0
-		 * Earlier:		0 - Core0, 1 - Core1
+		 * XXX According to the BKDG, CurTmp, ThermSenseSel and
+		 * ThermSenseCoreSel bits were introduced in Revision F
+		 * but CurTmp seems working fine as early as Revision C.
+		 * However, it is not clear whether ThermSenseSel and/or
+		 * ThermSenseCoreSel work in undocumented cases as well.
+		 * In fact, the Linux driver suggests it may not work but
+		 * we just assume it does until we find otherwise.
 		 */
-		sc->sc_swap = (model >= 0x40);
+		if (model < 0x40) {
+			sc->sc_flags |= AMDTEMP_FLAG_DO_ZERO;
+			if (model >= 0x10)
+				sc->sc_flags |= AMDTEMP_FLAG_DO_SIGN;
+		} else {
+			sc->sc_flags |= AMDTEMP_FLAG_CS_SWAP;
+			if (model >= 0x60 && model != 0xc1)
+				sc->sc_flags |= AMDTEMP_FLAG_CT_10BIT;
+		}
 
 		/*
 		 * There are two sensors per core.
@@ -243,11 +274,6 @@ amdtemp_attach(device_t dev)
 		break;
 	case 0x10:
 	case 0x11:
-		/*
-		 * Reported Temperature Control Register - Curtmp
-		 */
-		sc->sc_mask = 0x3ff << 21;
-
 		/*
 		 * There is only one sensor per package.
 		 */
@@ -413,7 +439,7 @@ static int32_t
 amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 {
 	struct amdtemp_softc *sc = device_get_softc(dev);
-	uint32_t temp;
+	uint32_t mask, temp;
 	int32_t diode_offset, offset;
 	uint8_t cfg, sel;
 
@@ -425,7 +451,7 @@ amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 		/* FALLTHROUGH */
 	case SENSOR0_CORE0:
 	case CORE0:
-		if (sc->sc_swap)
+		if ((sc->sc_flags & AMDTEMP_FLAG_CS_SWAP) != 0)
 			sel |= AMDTEMP_TTSR_SELCORE;
 		break;
 	case SENSOR1_CORE1:
@@ -433,7 +459,7 @@ amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 		/* FALLTHROUGH */
 	case SENSOR0_CORE1:
 	case CORE1:
-		if (!sc->sc_swap)
+		if ((sc->sc_flags & AMDTEMP_FLAG_CS_SWAP) == 0)
 			sel |= AMDTEMP_TTSR_SELCORE;
 		break;
 	}
@@ -447,10 +473,19 @@ amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 	/* Adjust offset if DiodeOffset is set and valid. */
 	temp = pci_read_config(dev, AMDTEMP_THERMTP_STAT, 4);
 	diode_offset = (temp >> 8) & 0x3f;
-	if (diode_offset != 0)
+	if ((sc->sc_flags & AMDTEMP_FLAG_DO_ZERO) != 0) {
+		if ((sc->sc_flags & AMDTEMP_FLAG_DO_SIGN) != 0 &&
+		    ((temp >> 24) & 0x1) != 0)
+			diode_offset *= -1;
+		if ((sc->sc_flags & AMDTEMP_FLAG_DO_QUIRK) != 0 &&
+		    ((temp >> 25) & 0xf) <= 2)
+			diode_offset += 10;
+		offset += diode_offset * 10;
+	} else if (diode_offset != 0)
 		offset += (diode_offset - 11) * 10;
 
-	temp = ((temp & sc->sc_mask) >> 14) * 5 / 2 + offset;
+	mask = (sc->sc_flags & AMDTEMP_FLAG_CT_10BIT) != 0 ? 0x3ff : 0x3fc;
+	temp = ((temp >> 14) & mask) * 5 / 2 + offset;
 
 	return (temp);
 }
@@ -458,7 +493,6 @@ amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 static int32_t
 amdtemp_gettemp(device_t dev, amdsensor_t sensor)
 {
-	struct amdtemp_softc *sc = device_get_softc(dev);
 	uint32_t temp;
 	int32_t diode_offset, offset;
 
@@ -472,7 +506,7 @@ amdtemp_gettemp(device_t dev, amdsensor_t sensor)
 		offset += (diode_offset - 11) * 10;
 
 	temp = pci_read_config(dev, AMDTEMP_REPTMP_CTRL, 4);
-	temp = ((temp & sc->sc_mask) >> 21) * 5 / 4 + offset;
+	temp = ((temp >> 21) & 0x7ff) * 5 / 4 + offset;
 
 	return (temp);
 }
