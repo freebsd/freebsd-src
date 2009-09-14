@@ -177,7 +177,7 @@ vga_mmap(struct cdev *dev, vga_softc_t *sc, vm_offset_t offset, vm_offset_t *pad
 #endif
 
 /* architecture dependent option */
-#ifndef __i386__
+#if !defined(__i386__) && !defined(__amd64__)
 #define VGA_NO_BIOS		1
 #endif
 
