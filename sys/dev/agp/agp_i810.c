@@ -667,14 +667,12 @@ agp_i810_attach(device_t dev)
 		gatt->ag_physical = pgtblctl & ~1;
 	}
 
-	if (bootverbose) {
-		device_printf(dev, "aperture size is %dM",
-		    sc->initial_aperture / 1024 / 1024);
-		if (sc->stolen > 0)
-			printf(", detected %dk stolen memory\n", sc->stolen * 4);
-		else
-			printf("\n");
-	}
+	device_printf(dev, "aperture size is %dM",
+	    sc->initial_aperture / 1024 / 1024);
+	if (sc->stolen > 0)
+		printf(", detected %dk stolen memory\n", sc->stolen * 4);
+	else
+		printf("\n");
 
 	if (0)
 		agp_i810_dump_regs(dev);
