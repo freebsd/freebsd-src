@@ -95,8 +95,12 @@ ppp_poststart()
 {
 	# Re-Sync ipfilter and pf so they pick up any new network interfaces
 	#
-	/etc/rc.d/ipfilter quietresync
-	/etc/rc.d/pf quietresync
+	if [ -f /etc/rc.d/ipfilter ]; then
+		/etc/rc.d/ipfilter quietresync
+	fi
+	if [ -f /etc/rc.d/pf ]; then
+		/etc/rc.d/pf quietresync
+	fi
 }
 
 ppp_stop_profile() {
