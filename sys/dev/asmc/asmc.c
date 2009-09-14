@@ -86,6 +86,10 @@ static void 	asmc_sms_handler(void *arg);
 #endif
 static void 	asmc_sms_printintr(device_t dev, uint8_t);
 static void 	asmc_sms_task(void *arg, int pending);
+#ifdef DEBUG
+void		asmc_dumpall(device_t);
+static int	asmc_key_dump(device_t, int);
+#endif
 
 /*
  * Model functions.
@@ -532,6 +536,17 @@ asmc_detach(device_t dev)
 	return (0);
 }
 
+#ifdef DEBUG
+void asmc_dumpall(device_t dev)
+{
+	int i;
+
+	/* XXX magic number */
+	for (i=0; i < 0x100; i++)
+		asmc_key_dump(dev, i);
+}
+#endif
+
 static int
 asmc_init(device_t dev)
 {
@@ -584,13 +599,17 @@ asmc_init(device_t dev)
 	asmc_key_write(dev, ASMC_KEY_SMS_FLAG, buf, 1);
 	DELAY(100);
 
+	sc->sc_sms_intr_works = 0;
+	
 	/*
-	 * Wait up to 5 seconds for SMS initialization.
+	 * Retry SMS initialization 1000 times
+	 * (takes approx. 2 seconds in worst case)
 	 */
-	for (i = 0; i < 10000; i++) {
+	for (i = 0; i < 1000; i++) {
 		if (asmc_key_read(dev, ASMC_KEY_SMS, buf, 2) == 0 && 
-		    (buf[0] != 0x00 || buf[1] != 0x00)) {
+		    (buf[0] == ASMC_SMS_INIT1 && buf[1] == ASMC_SMS_INIT2)) {
 			error = 0;
+			sc->sc_sms_intr_works = 1;
 			goto out;
 		}
 		buf[0] = ASMC_SMS_INIT1;
@@ -619,6 +638,10 @@ nosms:
 		asmc_key_read(dev, ASMC_NKEYS, buf, 4);
 		device_printf(dev, "number of keys: %d\n", buf[3]);
 	}	      
+
+#ifdef DEBUG
+	asmc_dumpall(dev);
+#endif
 
 	return (error);
 }
@@ -728,6 +751,99 @@ out:
 
 	return (error);
 }
+
+#ifdef DEBUG
+static int
+asmc_key_dump(device_t dev, int number)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+	char key[5] = { 0 };
+	char type[7] = { 0 };
+	uint8_t index[4];
+	uint8_t v[32];
+	uint8_t maxlen;
+	int i, error = 1, try = 0;
+
+	mtx_lock_spin(&sc->sc_mtx);
+
+	index[0] = (number >> 24) & 0xff;
+	index[1] = (number >> 16) & 0xff;
+	index[2] = (number >> 8) & 0xff;
+	index[3] = (number) & 0xff;
+
+begin:
+	if (asmc_command(dev, 0x12))
+		goto out;
+
+	for (i = 0; i < 4; i++) {
+		ASMC_DATAPORT_WRITE(sc, index[i]);
+		if (asmc_wait(dev, 0x04))
+			goto out;
+	}
+
+	ASMC_DATAPORT_WRITE(sc, 4);
+
+	for (i = 0; i < 4; i++) {
+		if (asmc_wait(dev, 0x05))
+			goto out;
+		key[i] = ASMC_DATAPORT_READ(sc);
+	}
+
+	/* get type */
+	if (asmc_command(dev, 0x13))
+		goto out;
+
+	for (i = 0; i < 4; i++) {
+		ASMC_DATAPORT_WRITE(sc, key[i]);
+		if (asmc_wait(dev, 0x04))
+			goto out;
+	}
+
+	ASMC_DATAPORT_WRITE(sc, 6);
+
+	for (i = 0; i < 6; i++) {
+		if (asmc_wait(dev, 0x05))
+			goto out;
+		type[i] = ASMC_DATAPORT_READ(sc);
+	}
+
+	error = 0;
+out:
+	if (error) {
+		if (++try < 10) goto begin;
+		device_printf(dev,"%s for key %s failed %d times, giving up\n",
+			__func__, key, try);
+		mtx_unlock_spin(&sc->sc_mtx);
+	}
+	else {
+		char buf[1024];
+		char buf2[8];
+		mtx_unlock_spin(&sc->sc_mtx);
+		maxlen = type[0];
+		type[0] = ' ';
+		type[5] = 0;
+		if (maxlen > sizeof(v)) {	
+			device_printf(dev, "WARNING: cropping maxlen "
+			    "from %d to %lud\n", maxlen, sizeof(v));
+			maxlen = sizeof(v);
+		}
+		for (i = 0; i < sizeof(v); i++) {
+			v[i] = 0;
+		}
+		asmc_key_read(dev, key, v, maxlen);
+		snprintf(buf, sizeof(buf), "key %d is: %s, type %s "
+		    "(len %d), data", number, key, type, maxlen);
+		for (i = 0; i < maxlen; i++) {
+			snprintf(buf2, sizeof(buf), " %02x", v[i]);
+			strlcat(buf, buf2, sizeof(buf));
+		}
+		strlcat(buf, " \n", sizeof(buf));
+		device_printf(dev, buf);
+	}
+
+	return (error);
+}
+#endif
 
 static int
 asmc_key_write(device_t dev, const char *key, uint8_t *buf, uint8_t len)
@@ -945,6 +1061,8 @@ asmc_sms_intrfast(void *arg)
 	uint8_t type;
 	device_t dev = (device_t) arg;
 	struct asmc_softc *sc = device_get_softc(dev);
+	if (!sc->sc_sms_intr_works)
+		return (FILTER_HANDLED);
 
 	mtx_lock_spin(&sc->sc_mtx);
 	type = ASMC_INTPORT_READ(sc);
