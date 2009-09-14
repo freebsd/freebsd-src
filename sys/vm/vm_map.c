@@ -1478,7 +1478,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
 	VM_OBJECT_LOCK(object);
-	if (object->type == OBJT_DEVICE) {
+	if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
 		pmap_object_init_pt(map->pmap, addr, object, pindex, size);
 		goto unlock_return;
 	}
@@ -1954,7 +1954,8 @@ done:
 				 */
 				vm_fault_unwire(map, entry->start, entry->end,
 				    entry->object.vm_object != NULL &&
-				    entry->object.vm_object->type == OBJT_DEVICE);
+				    (entry->object.vm_object->type == OBJT_DEVICE ||
+				    entry->object.vm_object->type == OBJT_SG));
 			}
 		}
 		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
@@ -2073,7 +2074,8 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			saved_start = entry->start;
 			saved_end = entry->end;
 			fictitious = entry->object.vm_object != NULL &&
-			    entry->object.vm_object->type == OBJT_DEVICE;
+			    (entry->object.vm_object->type == OBJT_DEVICE ||
+			    entry->object.vm_object->type == OBJT_SG);
 			/*
 			 * Release the map lock, relying on the in-transition
 			 * mark.
@@ -2169,7 +2171,8 @@ done:
 				 */
 				vm_fault_unwire(map, entry->start, entry->end,
 				    entry->object.vm_object != NULL &&
-				    entry->object.vm_object->type == OBJT_DEVICE);
+				    (entry->object.vm_object->type == OBJT_DEVICE ||
+				    entry->object.vm_object->type == OBJT_SG));
 			}
 		}
 	next_entry_done:
@@ -2294,7 +2297,8 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_fault_unwire(map, entry->start, entry->end,
 	    entry->object.vm_object != NULL &&
-	    entry->object.vm_object->type == OBJT_DEVICE);
+	    (entry->object.vm_object->type == OBJT_DEVICE ||
+	    entry->object.vm_object->type == OBJT_SG));
 	entry->wired_count = 0;
 }
 

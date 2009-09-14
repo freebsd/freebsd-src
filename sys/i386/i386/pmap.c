@@ -3474,7 +3474,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 	int pat_mode;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT(object->type == OBJT_DEVICE,
+	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 	if (pseflag && 
 	    (addr & (NBPDR - 1)) == 0 && (size & (NBPDR - 1)) == 0) {
@@ -4712,7 +4712,8 @@ vm_offset_t
 pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size)
 {
 
-	if ((obj == NULL) || (size < NBPDR) || (obj->type != OBJT_DEVICE)) {
+	if ((obj == NULL) || (size < NBPDR) ||
+	    (obj->type != OBJT_DEVICE && obj->type != OBJT_SG)) {
 		return addr;
 	}
 

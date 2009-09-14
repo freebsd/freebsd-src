@@ -306,6 +306,7 @@ vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr)
 	case OBJT_DEFAULT:
 	case OBJT_DEVICE:
 	case OBJT_PHYS:
+	case OBJT_SG:
 	case OBJT_SWAP:
 	case OBJT_VNODE:
 		if (!TAILQ_EMPTY(&object->memq))

@@ -177,6 +177,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 				type = "swap";
 				vp = NULL;
 				break;
+			case OBJT_SG:
 			case OBJT_DEVICE:
 				type = "device";
 				vp = NULL;

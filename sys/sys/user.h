@@ -334,6 +334,7 @@ struct kinfo_file {
 #define	KVME_TYPE_DEVICE	4
 #define	KVME_TYPE_PHYS		5
 #define	KVME_TYPE_DEAD		6
+#define	KVME_TYPE_SG		7
 #define	KVME_TYPE_UNKNOWN	255
 
 #define	KVME_PROT_READ		0x00000001
