@@ -158,6 +158,8 @@ Print debugging information about suffix-transformation rules.
 Print debugging information about target list maintenance.
 .It Ar v
 Print debugging information about variable assignment.
+.It Ar w
+Print debugging information about metadata reasons why a target is out of date.
 .El
 .It Fl E Ar variable
 Specify a variable whose environment value (if any) will override
@@ -572,6 +574,14 @@ utility sets
 .Va .CURDIR
 to the canonical path given by
 .Xr getcwd 3 .
+.It Va .ERRORCWD
+A path to the Buildfile that was building when the error occurred.
+.It Va .ERRORSEE
+A path to the metadata file containing the commands which resulted in the error.
+.It Va .ERRORTGT
+The name of the
+.Va .TARGET
+that was being built when the error occurred.
 .It Va .OBJDIR
 A path to the directory where the targets are built.
 This path is set to
