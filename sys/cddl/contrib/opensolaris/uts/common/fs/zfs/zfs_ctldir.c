@@ -880,17 +880,9 @@ domount:
 	mountpoint = kmem_alloc(mountpoint_len, KM_SLEEP);
 	(void) snprintf(mountpoint, mountpoint_len, "%s/.zfs/snapshot/%s",
 	    dvp->v_vfsp->mnt_stat.f_mntonname, nm);
-	err = domount(curthread, *vpp, "zfs", mountpoint, snapname, 0);
+	err = mount_snapshot(curthread, vpp, "zfs", mountpoint, snapname, 0);
 	kmem_free(mountpoint, mountpoint_len);
 	if (err == 0) {
-		vnode_t *mvp;
-
-		ASSERT((*vpp)->v_mountedhere != NULL);
-		err = VFS_ROOT((*vpp)->v_mountedhere, LK_EXCLUSIVE, &mvp);
-		ASSERT(err == 0);
-		VN_RELE(*vpp);
-		*vpp = mvp;
-
 		/*
 		 * Fix up the root vnode mounted on .zfs/snapshot/<snapname>.
 		 *
@@ -902,14 +894,6 @@ domount:
 		VTOZ(*vpp)->z_zfsvfs->z_parent = zfsvfs;
 	}
 	mutex_exit(&sdp->sd_lock);
-	/*
-	 * If we had an error, drop our hold on the vnode and
-	 * zfsctl_snapshot_inactive() will clean up.
-	 */
-	if (err) {
-		VN_RELE(*vpp);
-		*vpp = NULL;
-	}
 	ZFS_EXIT(zfsvfs);
 	return (err);
 }
