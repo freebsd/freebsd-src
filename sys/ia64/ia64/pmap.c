@@ -1737,7 +1737,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 {
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT(object->type == OBJT_DEVICE,
+	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 }
 

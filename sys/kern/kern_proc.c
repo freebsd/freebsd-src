@@ -1488,6 +1488,9 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 			case OBJT_DEAD:
 				kve->kve_type = KVME_TYPE_DEAD;
 				break;
+			case OBJT_SG:
+				kve->kve_type = KVME_TYPE_SG;
+				break;
 			default:
 				kve->kve_type = KVME_TYPE_UNKNOWN;
 				break;
@@ -1658,6 +1661,9 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 				break;
 			case OBJT_DEAD:
 				kve->kve_type = KVME_TYPE_DEAD;
+				break;
+			case OBJT_SG:
+				kve->kve_type = KVME_TYPE_SG;
 				break;
 			default:
 				kve->kve_type = KVME_TYPE_UNKNOWN;

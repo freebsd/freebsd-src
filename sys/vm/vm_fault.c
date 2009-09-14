@@ -485,7 +485,8 @@ readrest:
 			    (fs.first_object == fs.object ||
 			     (is_first_object_locked = VM_OBJECT_TRYLOCK(fs.first_object))) &&
 			    fs.first_object->type != OBJT_DEVICE &&
-			    fs.first_object->type != OBJT_PHYS) {
+			    fs.first_object->type != OBJT_PHYS &&
+			    fs.first_object->type != OBJT_SG) {
 				vm_pindex_t firstpindex, tmppindex;
 
 				if (fs.first_pindex < 2 * VM_FAULT_READ)

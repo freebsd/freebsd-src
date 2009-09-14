@@ -211,7 +211,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		 * synchronization should not impair the accuracy of
 		 * the reported statistics. 
 		 */
-		if (object->type == OBJT_DEVICE) {
+		if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
 			/*
 			 * Devices, like /dev/mem, will badly skew our totals.
 			 */

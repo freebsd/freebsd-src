@@ -516,7 +516,9 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 	int actcount, rcount, remove_mode;
 
 	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
-	if (first_object->type == OBJT_DEVICE || first_object->type == OBJT_PHYS)
+	if (first_object->type == OBJT_DEVICE ||
+	    first_object->type == OBJT_SG ||
+	    first_object->type == OBJT_PHYS)
 		return;
 	for (object = first_object;; object = backing_object) {
 		if (pmap_resident_count(pmap) <= desired)

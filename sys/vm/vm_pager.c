@@ -160,7 +160,8 @@ struct pagerops *pagertab[] = {
 	&vnodepagerops,		/* OBJT_VNODE */
 	&devicepagerops,	/* OBJT_DEVICE */
 	&physpagerops,		/* OBJT_PHYS */
-	&deadpagerops		/* OBJT_DEAD */
+	&deadpagerops,		/* OBJT_DEAD */
+	&sgpagerops		/* OBJT_SG */
 };
 
 static const int npagers = sizeof(pagertab) / sizeof(pagertab[0]);

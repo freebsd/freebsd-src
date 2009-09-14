@@ -1149,7 +1149,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	if (object != NULL) {
 		/* Ignore device objects; the pager sets "memattr" for them. */
 		if (object->memattr != VM_MEMATTR_DEFAULT &&
-		    object->type != OBJT_DEVICE)
+		    object->type != OBJT_DEVICE && object->type != OBJT_SG)
 			pmap_page_set_memattr(m, object->memattr);
 		vm_page_insert(m, object, pindex);
 	} else
