@@ -71,6 +71,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <err.h>
 #include <errno.h>
+#ifdef MAKE_IS_BUILD
+#include <libgen.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -163,11 +166,26 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: make [-BPQSXeiknpqrstv] [-C directory] [-D variable]\n"
+#ifdef MAKE_IS_BUILD
+	    "\n%s MAKE_VERSION: %s, JBUILD_VERSION: %s\n\n"
+#endif
+	    "usage: "
+#ifdef MAKE_IS_BUILD
+	    "%s"
+#else
+	    "make"
+#endif
+	    " [-BPQSXeiknpqrstv] [-C directory] [-D variable]\n"
 	    "\t[-b directory]\n"
 	    "\t[-d flags] [-E variable] [-f makefile] [-I directory]\n"
 	    "\t[-j max_jobs] [-m directory] [-V variable]\n"
-	    "\t[variable=value] [target ...]\n");
+	    "\t[variable=value] [target ...]\n"
+#ifdef MAKE_IS_BUILD
+	    "\n\t[--help] [Display more help and exit.]\n"
+	    , save_argv[0], MAKE_VERSION, JBUILD_VERSION, save_argv[0]);
+#else
+	    );
+#endif
 	exit(2);
 }
 
@@ -387,6 +405,15 @@ rearg:
 		if ((optind < argc) && strcmp(argv[optind], "--") == 0) {
 			found_dd = TRUE;
 		}
+#ifdef MAKE_IS_BUILD
+		if((optind < argc) && (strcmp(argv[optind], "--help") == 0)) {
+			char man_cmd[255];
+			snprintf(man_cmd, sizeof(man_cmd), "man %s",
+			    basename(save_argv[0]));
+			system(man_cmd);
+			exit(2);
+		}
+#endif
 		if ((c = getopt(argc, argv, OPTFLAGS)) == -1) {
 			break;
 		}
