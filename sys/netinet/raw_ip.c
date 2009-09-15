@@ -715,6 +715,7 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		err = rtinit(&ia->ia_ifa, RTM_ADD, flags);
 		if (err == 0)
 			ia->ia_flags |= IFA_ROUTE;
+		err = ifa_add_loopback_route((struct ifaddr *)ia, sa);
 		ifa_free(&ia->ia_ifa);
 		break;
 	}

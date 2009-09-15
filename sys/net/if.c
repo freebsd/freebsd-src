@@ -1414,6 +1414,59 @@ ifa_free(struct ifaddr *ifa)
 	}
 }
 
+int
+ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
+{
+	int error = 0;
+	struct rtentry *rt = NULL;
+	struct rt_addrinfo info;
+	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+
+	bzero(&info, sizeof(info));
+	info.rti_ifp = V_loif;
+	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
+	info.rti_info[RTAX_DST] = ia;
+	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+	error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
+
+	if (error == 0 && rt != NULL) {
+		RT_LOCK(rt);
+		((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
+			rt->rt_ifp->if_type;
+		((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
+			rt->rt_ifp->if_index;
+		RT_REMREF(rt);
+		RT_UNLOCK(rt);
+	} else if (error != 0)
+		log(LOG_INFO, "ifa_add_loopback_route: insertion failed\n");
+
+	return (error);
+}
+
+int
+ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
+{
+	int error = 0;
+	struct rt_addrinfo info;
+	struct sockaddr_dl null_sdl;
+
+	bzero(&null_sdl, sizeof(null_sdl));
+	null_sdl.sdl_len = sizeof(null_sdl);
+	null_sdl.sdl_family = AF_LINK;
+	null_sdl.sdl_type = ifa->ifa_ifp->if_type;
+	null_sdl.sdl_index = ifa->ifa_ifp->if_index;
+	bzero(&info, sizeof(info));
+	info.rti_flags = ifa->ifa_flags | RTF_HOST | RTF_STATIC;
+	info.rti_info[RTAX_DST] = ia;
+	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+	error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
+
+	if (error != 0)
+		log(LOG_INFO, "ifa_del_loopback_route: deletion failed\n");
+
+	return (error);
+}
+
 /*
  * XXX: Because sockaddr_dl has deeper structure than the sockaddr
  * structs used to represent other address families, it is necessary
