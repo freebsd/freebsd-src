@@ -536,6 +536,16 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				hostIsNew = 0;
 		}
 		if (ifra->ifra_mask.sin_len) {
+			/* 
+			 * QL: XXX
+			 * Need to scrub the prefix here in case
+			 * the issued command is SIOCAIFADDR with
+			 * the same address, but with a different
+			 * prefix length. And if the prefix length
+			 * is the same as before, then the call is 
+			 * un-necessarily executed here.
+			 */
+			in_ifscrub(ifp, ia);
 			ia->ia_sockmask = ifra->ifra_mask;
 			ia->ia_sockmask.sin_family = AF_INET;
 			ia->ia_subnetmask =
@@ -544,6 +554,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		}
 		if ((ifp->if_flags & IFF_POINTOPOINT) &&
 		    (ifra->ifra_dstaddr.sin_family == AF_INET)) {
+			in_ifscrub(ifp, ia);
 			ia->ia_dstaddr = ifra->ifra_dstaddr;
 			maskIsNew  = 1; /* We lie; but the effect's the same */
 		}
