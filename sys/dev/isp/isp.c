@@ -2771,21 +2771,15 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 	/*
 	 * Make sure we're okay for doing this right now.
 	 */
-	if (fcp->isp_loopstate != LOOP_PDB_RCVD &&
-	    fcp->isp_loopstate != LOOP_FSCAN_DONE &&
-	    fcp->isp_loopstate != LOOP_LSCAN_DONE) {
-		isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: bad loopstate %d",
-		    fcp->isp_loopstate);
+	if (fcp->isp_loopstate != LOOP_PDB_RCVD && fcp->isp_loopstate != LOOP_FSCAN_DONE && fcp->isp_loopstate != LOOP_LSCAN_DONE) {
+		isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: bad loopstate %d", fcp->isp_loopstate);
 		return (-1);
 	}
 
-	if (fcp->isp_topo == TOPO_FL_PORT ||
-	    fcp->isp_topo == TOPO_NL_PORT ||
-	    fcp->isp_topo == TOPO_N_PORT) {
+	if (fcp->isp_topo == TOPO_FL_PORT || fcp->isp_topo == TOPO_NL_PORT || fcp->isp_topo == TOPO_N_PORT) {
 		if (fcp->isp_loopstate < LOOP_LSCAN_DONE) {
 			if (isp_scan_loop(isp, chan) != 0) {
-				isp_prt(isp, ISP_LOGWARN,
-				    "isp_pdb_sync: isp_scan_loop failed");
+				isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: isp_scan_loop failed");
 				return (-1);
 			}
 		}
@@ -2794,15 +2788,13 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 	if (fcp->isp_topo == TOPO_F_PORT || fcp->isp_topo == TOPO_FL_PORT) {
 		if (fcp->isp_loopstate < LOOP_FSCAN_DONE) {
 			if (isp_scan_fabric(isp, chan) != 0) {
-				isp_prt(isp, ISP_LOGWARN,
-				    "isp_pdb_sync: isp_scan_fabric failed");
+				isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: isp_scan_fabric failed");
 				return (-1);
 			}
 		}
 	}
 
-	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0,
-	    "Chan %d Synchronizing PDBs", chan);
+	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Synchronizing PDBs", chan);
 
 	fcp->isp_loopstate = LOOP_SYNCING_PDB;
 
@@ -2831,11 +2823,7 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 			lp->state = FC_PORTDB_STATE_NIL;
 			isp_async(isp, ISPASYNC_DEV_GONE, chan, lp);
 			if (lp->autologin == 0) {
-				(void) isp_plogx(isp, chan, lp->handle,
-				    lp->portid,
-				    PLOGX_FLG_CMD_LOGO |
-				    PLOGX_FLG_IMPLICIT |
-				    PLOGX_FLG_FREE_NPHDL, 0);
+				(void) isp_plogx(isp, chan, lp->handle, lp->portid, PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT | PLOGX_FLG_FREE_NPHDL, 0);
 			} else {
 				lp->autologin = 0;
 			}
@@ -3081,8 +3069,7 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 		for (i = 0; i < MAX_FC_TARG; i++) {
 			lp = &fcp->portdb[i];
 
-			if (lp->state == FC_PORTDB_STATE_NIL ||
-			    lp->target_mode) {
+			if (lp->state == FC_PORTDB_STATE_NIL || lp->target_mode) {
 				continue;
 			}
 			if (lp->node_wwn != tmp.node_wwn) {
@@ -3600,8 +3587,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
 			lp = &fcp->portdb[dbidx];
 
-			if (lp->state != FC_PORTDB_STATE_PROBATIONAL ||
-			    lp->target_mode) {
+			if (lp->state != FC_PORTDB_STATE_PROBATIONAL || lp->target_mode) {
 				continue;
 			}
 			if (lp->portid == portid) {
@@ -3838,8 +3824,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			if (fcp->portdb[dbidx].target_mode) {
 				continue;
 			}
-			if (fcp->portdb[dbidx].node_wwn == wwnn &&
-			    fcp->portdb[dbidx].port_wwn == wwpn) {
+			if (fcp->portdb[dbidx].node_wwn == wwnn && fcp->portdb[dbidx].port_wwn == wwpn) {
 				break;
 			}
 		}
