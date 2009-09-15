@@ -3021,8 +3021,10 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	if (error == 0)
 		error = zfs_ioc_vec[vec].zvec_func(zc);
 
-	if (zfs_ioc_vec[vec].zvec_his_log == B_TRUE)
-		zfs_log_history(zc);
+	if (error == 0) {
+		if (zfs_ioc_vec[vec].zvec_his_log == B_TRUE)
+			zfs_log_history(zc);
+	}
 
 	return (error);
 }
@@ -3057,6 +3059,7 @@ zfsdev_fini(void)
 }
 
 static struct root_hold_token *zfs_root_token;
+struct proc *zfsproc;
 
 uint_t zfs_fsyncer_key;
 extern uint_t rrw_tsd_key;

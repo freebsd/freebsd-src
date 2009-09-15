@@ -1322,6 +1322,14 @@ dump_label(const char *dev)
 		exit(1);
 	}
 
+	if (S_ISCHR(statbuf.st_mode)) {
+		if (ioctl(fd, DIOCGMEDIASIZE, &statbuf.st_size) == -1) {
+			(void) printf("failed to get size of '%s': %s\n", dev,
+			    strerror(errno));
+			exit(1);
+		}
+	}
+
 	psize = statbuf.st_size;
 	psize = P2ALIGN(psize, (uint64_t)sizeof (vdev_label_t));
 

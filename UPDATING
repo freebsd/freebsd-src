@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090915:
+	ZFS snapshots are now mounted with MNT_IGNORE flag. Use -v option for
+	mount(8) and -a option for df(1) to see them.
+
 20090813:
 	Remove the option STOP_NMI.  The default action is now to use NMI
 	only for KDB via the newly introduced function stop_cpus_hard()
