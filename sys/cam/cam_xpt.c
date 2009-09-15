@@ -5240,6 +5240,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			}
 			work_ccb = xpt_alloc_ccb_nowait();
 			if (work_ccb == NULL) {
+				xpt_free_ccb((union ccb *)scan_info->cpi);
 				free(scan_info, M_CAMXPT);
 				xpt_free_path(path);
 				request_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
@@ -5360,6 +5361,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 			}
 
 			if ((scan_info->cpi->hba_misc & PIM_SEQSCAN) == 0) {
+				xpt_free_ccb(request_ccb);
 				break;
 			}
 			status = xpt_create_path(&path, xpt_periph,
@@ -5828,8 +5830,11 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 
 		serial_buf = NULL;
 		device = periph->path->device;
-		device->serial_num = NULL;
-		device->serial_num_len = 0;
+		if (device->serial_num != NULL) {
+			free(device->serial_num, M_CAMXPT);
+			device->serial_num = NULL;
+			device->serial_num_len = 0;
+		}
 
 		serial_buf = (struct scsi_vpd_unit_serial_number *)
 			malloc(sizeof(*serial_buf), M_CAMXPT, M_NOWAIT|M_ZERO);
@@ -6168,7 +6173,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 
 		if (page_list != NULL)
-			free(page_list, M_DEVBUF);
+			free(page_list, M_CAMXPT);
 
 		if (serialnum_supported) {
 			xpt_release_ccb(done_ccb);
