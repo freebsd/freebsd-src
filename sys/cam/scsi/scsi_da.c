@@ -1266,6 +1266,8 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_flags = 0;
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	strlcpy(softc->disk->d_ident, cgd->serial_num,
+	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
 
