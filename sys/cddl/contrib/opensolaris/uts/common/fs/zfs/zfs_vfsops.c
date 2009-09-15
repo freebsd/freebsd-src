@@ -994,11 +994,6 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	cred_t *cr = curthread->td_ucred;
 	int ret;
 
-	if (fflag & MS_FORCE) {
-		/* TODO: Force unmount is not well implemented yet, so deny it. */
-		ZFS_LOG(0, "Force unmount is experimental - report any problems.");
-	}
-
 	ret = secpolicy_fs_unmount(cr, vfsp);
 	if (ret) {
 		ret = dsl_deleg_access((char *)refstr_value(vfsp->vfs_resource),
