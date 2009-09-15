@@ -1870,6 +1870,7 @@ release:
 /*
  * Optimized version of soreceive() for stream (TCP) sockets.
  */
+#ifdef TCP_SORECEIVE_STREAM
 int
 soreceive_stream(struct socket *so, struct sockaddr **psa, struct uio *uio,
     struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
@@ -2062,6 +2063,7 @@ out:
 	sbunlock(sb);
 	return (error);
 }
+#endif /* TCP_SORECEIVE_STREAM */
 
 /*
  * Optimized version of soreceive() for simple datagram cases from userspace.
