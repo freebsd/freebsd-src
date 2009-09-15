@@ -50,10 +50,10 @@ struct u_businfo {
  * @brief State of the device.
  */
 typedef enum device_state {
-	DS_NOTPRESENT,			/**< @brief not probed or probe failed */
-	DS_ALIVE,			/**< @brief probe succeeded */
-	DS_ATTACHED,			/**< @brief attach method called */
-	DS_BUSY				/**< @brief device is open */
+	DS_NOTPRESENT = 10,		/**< @brief not probed or probe failed */
+	DS_ALIVE = 20,			/**< @brief probe succeeded */
+	DS_ATTACHED = 30,		/**< @brief attach method called */
+	DS_BUSY = 40			/**< @brief device is open */
 } device_state_t;
 
 /**
