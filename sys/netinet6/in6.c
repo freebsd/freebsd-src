@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/if_dl.h>
@@ -1199,24 +1200,8 @@ in6_purgeaddr(struct ifaddr *ifa)
 	 * The check for the current setting of "nd6_useloopback" 
 	 * is not needed.
 	 */
-	{
-		struct rt_addrinfo info;
-		struct sockaddr_dl null_sdl;
-
-		bzero(&null_sdl, sizeof(null_sdl));
-		null_sdl.sdl_len = sizeof(null_sdl);
-		null_sdl.sdl_family = AF_LINK;
-		null_sdl.sdl_type = ia->ia_ifp->if_type;
-		null_sdl.sdl_index = ia->ia_ifp->if_index;
-		bzero(&info, sizeof(info));
-		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
-		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
-		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-		error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
-
-		if (error != 0)
-			log(LOG_INFO, "in6_purgeaddr: deletion failed\n");
-	}
+	error = ifa_del_loopback_route((struct ifaddr *)ia,
+			       (struct sockaddr *)&ia->ia_addr);
 
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
@@ -1775,27 +1760,8 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	if (!(ia->ia_flags & IFA_ROUTE)
 	    && (V_nd6_useloopback
 		|| (ifp->if_flags & IFF_LOOPBACK))) {
-		struct rt_addrinfo info;
-		struct rtentry *rt = NULL;
-		static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
-
-		bzero(&info, sizeof(info));
-		info.rti_ifp = V_loif;
-		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
-		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
-		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-		error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
-
-		if (error == 0 && rt != NULL) {
-			RT_LOCK(rt);
-			((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-				ifp->if_type;
-			((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-				ifp->if_index;
-			RT_REMREF(rt);
-			RT_UNLOCK(rt);
-		} else if (error != 0)
-			log(LOG_INFO, "in6_ifinit: error = %d, insertion failed\n", error);
+		error = ifa_add_loopback_route((struct ifaddr *)ia,
+				       (struct sockaddr *)&ia->ia_addr);
 	}
 
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
