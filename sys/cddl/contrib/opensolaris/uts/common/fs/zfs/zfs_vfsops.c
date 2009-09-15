@@ -97,6 +97,8 @@ static int zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp);
 static int zfs_statfs(vfs_t *vfsp, struct statfs *statp);
 static int zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp);
 static int zfs_sync(vfs_t *vfsp, int waitfor);
+static int zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
+    struct ucred **credanonp, int *numsecflavors, int **secflavors);
 static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp);
 static void zfs_objset_close(zfsvfs_t *zfsvfs);
 static void zfs_freevfs(vfs_t *vfsp);
@@ -108,6 +110,7 @@ static struct vfsops zfs_vfsops = {
 	.vfs_statfs =		zfs_statfs,
 	.vfs_vget =		zfs_vget,
 	.vfs_sync =		zfs_sync,
+	.vfs_checkexp =		zfs_checkexp,
 	.vfs_fhtovp =		zfs_fhtovp,
 };
 
@@ -335,6 +338,13 @@ zfs_register_callbacks(vfs_t *vfsp)
 	zfsvfs = vfsp->vfs_data;
 	ASSERT(zfsvfs);
 	os = zfsvfs->z_os;
+
+	/*
+	 * This function can be called for a snapshot when we update snapshot's
+	 * mount point, which isn't really supported.
+	 */
+	if (dmu_objset_is_snapshot(os))
+		return (EOPNOTSUPP);
 
 	/*
 	 * The act of registering our callbacks will destroy any mount
@@ -719,7 +729,10 @@ zfs_mount(vfs_t *vfsp)
 	error = secpolicy_fs_mount(cr, mvp, vfsp);
 	if (error) {
 		error = dsl_deleg_access(osname, ZFS_DELEG_PERM_MOUNT, cr);
-		if (error == 0) {
+		if (error != 0)
+			goto out;
+
+		if (!(vfsp->vfs_flag & MS_REMOUNT)) {
 			vattr_t		vattr;
 
 			/*
@@ -729,7 +742,9 @@ zfs_mount(vfs_t *vfsp)
 
 			vattr.va_mask = AT_UID;
 
+			vn_lock(mvp, LK_SHARED | LK_RETRY);
 			if (error = VOP_GETATTR(mvp, &vattr, cr)) {
+				VOP_UNLOCK(mvp, 0);
 				goto out;
 			}
 
@@ -741,18 +756,19 @@ zfs_mount(vfs_t *vfsp)
 			}
 #else
 			if (error = secpolicy_vnode_owner(mvp, cr, vattr.va_uid)) {
+				VOP_UNLOCK(mvp, 0);
 				goto out;
 			}
 
 			if (error = VOP_ACCESS(mvp, VWRITE, cr, td)) {
+				VOP_UNLOCK(mvp, 0);
 				goto out;
 			}
+			VOP_UNLOCK(mvp, 0);
 #endif
-
-			secpolicy_fs_mount_clearopts(cr, vfsp);
-		} else {
-			goto out;
 		}
+
+		secpolicy_fs_mount_clearopts(cr, vfsp);
 	}
 
 	/*
@@ -931,6 +947,18 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		zfsvfs->z_unmounted = B_TRUE;
 		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+
+#ifdef __FreeBSD__
+		/*
+		 * Some znodes might not be fully reclaimed, wait for them.
+		 */
+		mutex_enter(&zfsvfs->z_znodes_lock);
+		while (list_head(&zfsvfs->z_all_znodes) != NULL) {
+			msleep(zfsvfs, &zfsvfs->z_znodes_lock, 0,
+			    "zteardown", 0);
+		}
+		mutex_exit(&zfsvfs->z_znodes_lock);
+#endif
 	}
 
 	/*
@@ -1086,6 +1114,20 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 	znode_t		*zp;
 	int 		err;
 
+	/*
+	 * XXXPJD: zfs_zget() can't operate on virtual entires like .zfs/ or
+	 * .zfs/snapshot/ directories, so for now just return EOPNOTSUPP.
+	 * This will make NFS to fall back to using READDIR instead of
+	 * READDIRPLUS.
+	 * Also snapshots are stored in AVL tree, but based on their names,
+	 * not inode numbers, so it will be very inefficient to iterate
+	 * over all snapshots to find the right one.
+	 * Note that OpenSolaris READDIRPLUS implementation does LOOKUP on
+	 * d_name, and not VGET on d_fileno as we do.
+	 */
+	if (ino == ZFSCTL_INO_ROOT || ino == ZFSCTL_INO_SNAPDIR)
+		return (EOPNOTSUPP);
+
 	ZFS_ENTER(zfsvfs);
 	err = zfs_zget(zfsvfs, ino, &zp);
 	if (err == 0 && zp->z_unlinked) {
@@ -1103,6 +1145,28 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 }
 
 static int
+zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
+    struct ucred **credanonp, int *numsecflavors, int **secflavors)
+{
+	zfsvfs_t *zfsvfs = vfsp->vfs_data;
+
+	/*
+	 * If this is regular file system vfsp is the same as
+	 * zfsvfs->z_parent->z_vfs, but if it is snapshot,
+	 * zfsvfs->z_parent->z_vfs represents parent file system
+	 * which we have to use here, because only this file system
+	 * has mnt_export configured.
+	 */
+	vfsp = zfsvfs->z_parent->z_vfs;
+
+	return (vfs_stdcheckexp(zfsvfs->z_parent->z_vfs, nam, extflagsp,
+	    credanonp, numsecflavors, secflavors));
+}
+
+CTASSERT(SHORT_FID_LEN <= sizeof(struct fid));
+CTASSERT(LONG_FID_LEN <= sizeof(struct fid));
+
+static int
 zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 {
 	zfsvfs_t	*zfsvfs = vfsp->vfs_data;
@@ -1117,7 +1181,11 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 
 	ZFS_ENTER(zfsvfs);
 
-	if (fidp->fid_len == LONG_FID_LEN) {
+	/*
+	 * On FreeBSD we can get snapshot's mount point or its parent file
+	 * system mount point depending if snapshot is already mounted or not.
+	 */
+	if (zfsvfs->z_parent == zfsvfs && fidp->fid_len == LONG_FID_LEN) {
 		zfid_long_t	*zlfid = (zfid_long_t *)fidp;
 		uint64_t	objsetid = 0;
 		uint64_t	setgen = 0;
@@ -1160,9 +1228,8 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 		} else {
 			VN_HOLD(*vpp);
 		}
-		ZFS_EXIT(zfsvfs);
-		/* XXX: LK_RETRY? */
 		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		ZFS_EXIT(zfsvfs);
 		return (0);
 	}
 
@@ -1184,7 +1251,6 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 	}
 
 	*vpp = ZTOV(zp);
-	/* XXX: LK_RETRY? */
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	vnode_create_vobject(*vpp, zp->z_phys->zp_size, curthread);
 	ZFS_EXIT(zfsvfs);

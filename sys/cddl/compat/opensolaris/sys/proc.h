@@ -34,13 +34,17 @@
 #include_next <sys/proc.h>
 #include <sys/stdint.h>
 #include <sys/smp.h>
+#include <sys/sched.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/unistd.h>
 #include <sys/debug.h>
 
 #ifdef _KERNEL
 
 #define	CPU		curcpu
-#define	minclsyspri	0
-#define	maxclsyspri	0
+#define	minclsyspri	PRIBIO
+#define	maxclsyspri	PVM
 #define	max_ncpus	mp_ncpus
 #define	boot_max_ncpus	mp_ncpus
 
@@ -54,11 +58,13 @@ typedef	struct thread	kthread_t;
 typedef struct thread	*kthread_id_t;
 typedef struct proc	proc_t;
 
+extern struct proc *zfsproc;
+
 static __inline kthread_t *
 thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
     size_t len, proc_t *pp, int state, pri_t pri)
 {
-	proc_t *p;
+	kthread_t *td = NULL;
 	int error;
 
 	/*
@@ -67,13 +73,20 @@ thread_create(caddr_t stk, size_t stksize, void (*proc)(void *), void *arg,
 	ASSERT(stk == NULL);
 	ASSERT(len == 0);
 	ASSERT(state == TS_RUN);
+	ASSERT(pp == &p0);
 
-	error = kproc_create(proc, arg, &p, 0, stksize / PAGE_SIZE,
-	    "solthread %p", proc);
-	return (error == 0 ? FIRST_THREAD_IN_PROC(p) : NULL);
+	error = kproc_kthread_add(proc, arg, &zfsproc, &td, RFSTOPPED,
+	    stksize / PAGE_SIZE, "zfskern", "solthread %p", proc);
+	if (error == 0) {
+		thread_lock(td);
+		sched_prio(td, pri);
+		sched_add(td, SRQ_BORING);
+		thread_unlock(td);
+	}
+	return (td);
 }
 
-#define	thread_exit()	kproc_exit(0)
+#define	thread_exit()	kthread_exit()
 
 #endif	/* _KERNEL */
 

@@ -669,9 +669,12 @@ zfsctl_snapdir_remove(vnode_t *dvp, char *name, vnode_t *cwd, cred_t *cr,
 	if (sep) {
 		avl_remove(&sdp->sd_snaps, sep);
 		err = zfsctl_unmount_snap(sep, MS_FORCE, cr);
-		if (err)
-			avl_add(&sdp->sd_snaps, sep);
-		else
+		if (err) {
+			avl_index_t where;
+
+			if (avl_find(&sdp->sd_snaps, sep, &where) == NULL)
+				avl_insert(&sdp->sd_snaps, sep, where);
+		} else
 			err = dmu_objset_destroy(snapname);
 	} else {
 		err = ENOENT;
@@ -877,20 +880,20 @@ domount:
 	mountpoint = kmem_alloc(mountpoint_len, KM_SLEEP);
 	(void) snprintf(mountpoint, mountpoint_len, "%s/.zfs/snapshot/%s",
 	    dvp->v_vfsp->mnt_stat.f_mntonname, nm);
-	err = domount(curthread, *vpp, "zfs", mountpoint, snapname, 0);
+	err = mount_snapshot(curthread, vpp, "zfs", mountpoint, snapname, 0);
 	kmem_free(mountpoint, mountpoint_len);
-	/* FreeBSD: This line was moved from below to avoid a lock recursion. */
-	if (err == 0)
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
-	mutex_exit(&sdp->sd_lock);
-	/*
-	 * If we had an error, drop our hold on the vnode and
-	 * zfsctl_snapshot_inactive() will clean up.
-	 */
-	if (err) {
-		VN_RELE(*vpp);
-		*vpp = NULL;
+	if (err == 0) {
+		/*
+		 * Fix up the root vnode mounted on .zfs/snapshot/<snapname>.
+		 *
+		 * This is where we lie about our v_vfsp in order to
+		 * make .zfs/snapshot/<snapname> accessible over NFS
+		 * without requiring manual mounts of <snapname>.
+		 */
+		ASSERT(VTOZ(*vpp)->z_zfsvfs != zfsvfs);
+		VTOZ(*vpp)->z_zfsvfs->z_parent = zfsvfs;
 	}
+	mutex_exit(&sdp->sd_lock);
 	ZFS_EXIT(zfsvfs);
 	return (err);
 }
@@ -1344,7 +1347,17 @@ zfsctl_umount_snapshots(vfs_t *vfsp, int fflags, cred_t *cr)
 		if (vn_ismntpt(sep->se_root)) {
 			error = zfsctl_unmount_snap(sep, fflags, cr);
 			if (error) {
-				avl_add(&sdp->sd_snaps, sep);
+				avl_index_t where;
+
+				/*
+				 * Before reinserting snapshot to the tree,
+				 * check if it was actually removed. For example
+				 * when snapshot mount point is busy, we will
+				 * have an error here, but there will be no need
+				 * to reinsert snapshot.
+				 */
+				if (avl_find(&sdp->sd_snaps, sep, &where) == NULL)
+					avl_insert(&sdp->sd_snaps, sep, where);
 				break;
 			}
 		}
