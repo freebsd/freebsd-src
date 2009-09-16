@@ -201,6 +201,11 @@ Disable the event so
 .Fn kevent
 will not return it.
 The filter itself is not disabled.
+.It EV_DISPATCH
+Disable the event source immediately after delivery of an event.
+See 
+.Dv EV_DISABLE
+above.
 .It EV_DELETE
 Removes the event from the kqueue.
 Events which are attached to
