@@ -1925,18 +1925,8 @@ key_spdadd(so, m, mhp)
 		return key_senderror(so, m, EINVAL);
 	}
 #if 1
-	if (newsp->req && newsp->req->saidx.src.sa.sa_family) {
-		struct sockaddr *sa;
-		sa = (struct sockaddr *)(src0 + 1);
-		if (sa->sa_family != newsp->req->saidx.src.sa.sa_family) {
-			_key_delsp(newsp);
-			return key_senderror(so, m, EINVAL);
-		}
-	}
-	if (newsp->req && newsp->req->saidx.dst.sa.sa_family) {
-		struct sockaddr *sa;
-		sa = (struct sockaddr *)(dst0 + 1);
-		if (sa->sa_family != newsp->req->saidx.dst.sa.sa_family) {
+	if (newsp->req && newsp->req->saidx.src.sa.sa_family && newsp->req->saidx.dst.sa.sa_family) {
+		if (newsp->req->saidx.src.sa.sa_family != newsp->req->saidx.dst.sa.sa_family) {
 			_key_delsp(newsp);
 			return key_senderror(so, m, EINVAL);
 		}
