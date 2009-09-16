@@ -142,6 +142,10 @@ static void	filt_timerexpire(void *knx);
 static int	filt_timerattach(struct knote *kn);
 static void	filt_timerdetach(struct knote *kn);
 static int	filt_timer(struct knote *kn, long hint);
+static int	filt_userattach(struct knote *kn);
+static void	filt_userdetach(struct knote *kn);
+static int	filt_user(struct knote *kn, long hint);
+static void	filt_usertouch(struct knote *kn, struct kevent *kev, long type);
 
 static struct filterops file_filtops = {
 	.f_isfd = 1,
@@ -164,6 +168,12 @@ static struct filterops timer_filtops = {
 	.f_attach = filt_timerattach,
 	.f_detach = filt_timerdetach,
 	.f_event = filt_timer,
+};
+static struct filterops user_filtops = {
+	.f_attach = filt_userattach,
+	.f_detach = filt_userdetach,
+	.f_event = filt_user,
+	.f_touch = filt_usertouch,
 };
 
 static uma_zone_t	knote_zone;
@@ -271,6 +281,7 @@ static struct {
 	{ &file_filtops },			/* EVFILT_NETDEV */
 	{ &fs_filtops },			/* EVFILT_FS */
 	{ &null_filtops },			/* EVFILT_LIO */
+	{ &user_filtops },			/* EVFILT_USER */
 };
 
 /*
@@ -571,6 +582,94 @@ filt_timer(struct knote *kn, long hint)
 {
 
 	return (kn->kn_data != 0);
+}
+
+static int
+filt_userattach(struct knote *kn)
+{
+
+	/* 
+	 * EVFILT_USER knotes are not attached to anything in the kernel.
+	 */ 
+	kn->kn_hook = NULL;
+	if (kn->kn_fflags & NOTE_TRIGGER)
+		kn->kn_hookid = 1;
+	else
+		kn->kn_hookid = 0;
+	return (0);
+}
+
+static void
+filt_userdetach(__unused struct knote *kn)
+{
+
+	/*
+	 * EVFILT_USER knotes are not attached to anything in the kernel.
+	 */
+}
+
+static int
+filt_user(struct knote *kn, __unused long hint)
+{
+
+	return (kn->kn_hookid);
+}
+
+static void
+filt_usertouch(struct knote *kn, struct kevent *kev, long type)
+{
+	int ffctrl;
+
+	switch (type) {
+	case EVENT_REGISTER:
+		if (kev->fflags & NOTE_TRIGGER)
+			kn->kn_hookid = 1;
+
+		ffctrl = kev->fflags & NOTE_FFCTRLMASK;
+		kev->fflags &= NOTE_FFLAGSMASK;
+		switch (ffctrl) {
+		case NOTE_FFNOP:
+			break;
+
+		case NOTE_FFAND:
+			kn->kn_sfflags &= kev->fflags;
+			break;
+
+		case NOTE_FFOR:
+			kn->kn_sfflags |= kev->fflags;
+			break;
+
+		case NOTE_FFCOPY:
+			kn->kn_sfflags = kev->fflags;
+			break;
+
+		default:
+			/* XXX Return error? */
+			break;
+		}
+		kn->kn_sdata = kev->data;
+		if (kev->flags & EV_CLEAR) {
+			kn->kn_hookid = 0;
+			kn->kn_data = 0;
+			kn->kn_fflags = 0;
+		}
+		break;
+
+        case EVENT_PROCESS:
+		*kev = kn->kn_kevent;
+		kev->fflags = kn->kn_sfflags;
+		kev->data = kn->kn_sdata;
+		if (kn->kn_flags & EV_CLEAR) {
+			kn->kn_hookid = 0;
+			kn->kn_data = 0;
+			kn->kn_fflags = 0;
+		}
+		break;
+
+	default:
+		panic("filt_usertouch() - invalid type (%ld)", type);
+		break;
+	}
 }
 
 int
