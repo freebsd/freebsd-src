@@ -1445,15 +1445,17 @@ start:
 				*kevp = kn->kn_kevent;
 			KQ_LOCK(kq);
 			KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
-			if (kn->kn_flags & EV_CLEAR) {
+			if (kn->kn_flags & (EV_CLEAR |  EV_DISPATCH)) {
 				/* 
 				 * Manually clear knotes who weren't 
 				 * 'touch'ed.
 				 */
-				if (touch == 0) {
+				if (touch == 0 && kn->kn_flags & EV_CLEAR) {
 					kn->kn_data = 0;
 					kn->kn_fflags = 0;
 				}
+				if (kn->kn_flags & EV_DISPATCH)
+					kn->kn_status |= KN_DISABLED;
 				kn->kn_status &= ~(KN_QUEUED | KN_ACTIVE);
 				kq->kq_count--;
 			} else
