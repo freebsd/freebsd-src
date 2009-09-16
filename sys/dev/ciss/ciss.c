@@ -736,11 +736,16 @@ setup:
 	ciss_printf(sc, "PERFORMANT Transport\n");
 	if ((ciss_force_interrupt != 1) && (ciss_setup_msix(sc) == 0)) {
 	    intr = ciss_perf_msi_intr;
-	    sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_MSI;
 	} else {
 	    intr = ciss_perf_intr;
-	    sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_OPQ;
 	}
+	/* XXX The docs say that the 0x01 bit is only for SAS controllers.
+	 * Unfortunately, there is no good way to know if this is a SAS
+	 * controller.  Hopefully enabling this bit universally will work OK.
+	 * It seems to work fine for SA6i controllers.
+	 */
+        sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_OPQ | CISS_TL_PERF_INTR_MSI;
+
     } else {
 	ciss_printf(sc, "SIMPLE Transport\n");
 	/* MSIX doesn't seem to work in SIMPLE mode, only enable if it forced */
@@ -834,7 +839,10 @@ ciss_setup_msix(struct ciss_softc *sc)
 	return (EINVAL);
 
     val = pci_msix_count(sc->ciss_dev);
-    if ((val != CISS_MSI_COUNT) || (pci_alloc_msix(sc->ciss_dev, &val) != 0))
+    if (val < CISS_MSI_COUNT)
+	return (EINVAL);
+    val = MIN(val, CISS_MSI_COUNT);
+    if (pci_alloc_msix(sc->ciss_dev, &val) != 0)
 	return (EINVAL);
 
     sc->ciss_msi = val;
