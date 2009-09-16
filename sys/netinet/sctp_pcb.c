@@ -3926,12 +3926,20 @@ sctp_aloc_a_assoc_id(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	struct sctpasochead *head;
 	struct sctp_tcb *lstcb;
 
+	SCTP_INP_WLOCK(inp);
 try_again:
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 		/* TSNH */
+		SCTP_INP_WUNLOCK(inp);
 		return (0);
 	}
-	SCTP_INP_WLOCK(inp);
+	/*
+	 * We don't allow assoc id to be 0, this is needed otherwise if the
+	 * id were to wrap we would have issues with some socket options.
+	 */
+	if (inp->sctp_associd_counter == 0) {
+		inp->sctp_associd_counter++;
+	}
 	id = inp->sctp_associd_counter;
 	inp->sctp_associd_counter++;
 	lstcb = sctp_findasoc_ep_asocid_locked(inp, (sctp_assoc_t) id, 0);
