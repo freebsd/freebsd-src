@@ -41,7 +41,8 @@
 #define EVFILT_NETDEV		(-8)	/* network devices */
 #define EVFILT_FS		(-9)	/* filesystem events */
 #define EVFILT_LIO		(-10)	/* attached to lio requests */
-#define EVFILT_SYSCOUNT		10
+#define EVFILT_USER		(-11)	/* User events */
+#define EVFILT_SYSCOUNT		11
 
 #define EV_SET(kevp_, a, b, c, d, e, f) do {	\
 	struct kevent *kevp = (kevp_);		\
@@ -78,6 +79,25 @@ struct kevent {
 /* returned values */
 #define EV_EOF		0x8000		/* EOF detected */
 #define EV_ERROR	0x4000		/* error, data contains errno */
+
+ /*
+  * data/hint flags/masks for EVFILT_USER, shared with userspace
+  *
+  * On input, the top two bits of fflags specifies how the lower twenty four
+  * bits should be applied to the stored value of fflags.
+  *
+  * On output, the top two bits will always be set to NOTE_FFNOP and the
+  * remaining twenty four bits will contain the stored fflags value.
+  */
+#define NOTE_FFNOP	0x00000000		/* ignore input fflags */
+#define NOTE_FFAND	0x40000000		/* AND fflags */
+#define NOTE_FFOR	0x80000000		/* OR fflags */
+#define NOTE_FFCOPY	0xc0000000		/* copy fflags */
+#define NOTE_FFCTRLMASK	0xc0000000		/* masks for operations */
+#define NOTE_FFLAGSMASK	0x00ffffff
+
+#define NOTE_TRIGGER	0x01000000		/* Cause the event to be
+						   triggered for output. */
 
 /*
  * data/hint flags for EVFILT_{READ|WRITE}, shared with userspace
