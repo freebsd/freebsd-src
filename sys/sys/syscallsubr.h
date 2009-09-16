@@ -170,7 +170,7 @@ int	kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 int	kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 	    union semun *arg, register_t *rval);
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
-	    fd_set *fd_ex, struct timeval *tvp);
+	    fd_set *fd_ex, struct timeval *tvp, int abi_nfdbits);
 int	kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	    struct uio *hdr_uio, struct uio *trl_uio, int compat);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,

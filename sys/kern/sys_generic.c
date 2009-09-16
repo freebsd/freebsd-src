@@ -774,12 +774,13 @@ select(td, uap)
 	} else
 		tvp = NULL;
 
-	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp));
+	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
+	    NFDBITS));
 }
 
 int
 kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
-    fd_set *fd_ex, struct timeval *tvp)
+    fd_set *fd_ex, struct timeval *tvp, int abi_nfdbits)
 {
 	struct filedesc *fdp;
 	/*
@@ -792,7 +793,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
 	struct timeval atv, rtv, ttv;
 	int error, timo;
-	u_int nbufbytes, ncpbytes, nfdbits;
+	u_int nbufbytes, ncpbytes, ncpubytes, nfdbits;
 
 	if (nd < 0)
 		return (EINVAL);
@@ -806,6 +807,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	 */
 	nfdbits = roundup(nd, NFDBITS);
 	ncpbytes = nfdbits / NBBY;
+	ncpubytes = roundup(nd, abi_nfdbits) / NBBY;
 	nbufbytes = 0;
 	if (fd_in != NULL)
 		nbufbytes += 2 * ncpbytes;
@@ -832,9 +834,11 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			ibits[x] = sbp + nbufbytes / 2 / sizeof *sbp;	\
 			obits[x] = sbp;					\
 			sbp += ncpbytes / sizeof *sbp;			\
-			error = copyin(name, ibits[x], ncpbytes);	\
+			error = copyin(name, ibits[x], ncpubytes);	\
 			if (error != 0)					\
 				goto done;				\
+			bzero((char *)ibits[x] + ncpubytes,		\
+			    ncpbytes - ncpubytes);			\
 		}							\
 	} while (0)
 	getbits(fd_in, 0);
@@ -888,7 +892,7 @@ done:
 	if (error == EWOULDBLOCK)
 		error = 0;
 #define	putbits(name, x) \
-	if (name && (error2 = copyout(obits[x], name, ncpbytes))) \
+	if (name && (error2 = copyout(obits[x], name, ncpubytes))) \
 		error = error2;
 	if (error == 0) {
 		int error2;
