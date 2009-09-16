@@ -1075,7 +1075,7 @@ step(struct re_guts *g,
 						OP(s = g->strip[pc+look]) != O_CH;
 						look += OPND(s))
 					assert(OP(s) == OOR2);
-				FWD(aft, aft, look);
+				FWD(aft, aft, look + 1);
 			}
 			break;
 		case OOR2:		/* propagate OCH_'s marking */
