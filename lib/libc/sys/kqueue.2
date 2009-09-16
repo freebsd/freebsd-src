@@ -211,6 +211,15 @@ Removes the event from the kqueue.
 Events which are attached to
 file descriptors are automatically deleted on the last close of
 the descriptor.
+.It EV_RECEIPT
+This flag is useful for making bulk changes to a kqueue without draining
+any pending events.
+When passed as input, it forces
+.Dv EV_ERROR
+to always be returned.
+When a filter is successfully added the 
+.Va data
+field will be zero.
 .It EV_ONESHOT
 Causes the event to return only the first occurrence of the filter
 being triggered.
