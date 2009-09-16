@@ -2567,15 +2567,16 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
     /*
      * Allocate an in-kernel databuffer if required, copy in user data.
      */
+    mtx_unlock(&sc->ciss_mtx);
     cr->cr_length = ioc->buf_size;
     if (ioc->buf_size > 0) {
 	if ((cr->cr_data = malloc(ioc->buf_size, CISS_MALLOC_CLASS, M_NOWAIT)) == NULL) {
 	    error = ENOMEM;
-	    goto out;
+	    goto out_unlocked;
 	}
 	if ((error = copyin(ioc->buf, cr->cr_data, ioc->buf_size))) {
 	    debug(0, "copyin: bad data buffer %p/%d", ioc->buf, ioc->buf_size);
-	    goto out;
+	    goto out_unlocked;
 	}
     }
 
@@ -2586,6 +2587,7 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
     bcopy(&ioc->Request, &cc->cdb, sizeof(cc->cdb));
 
     /* XXX anything else to populate here? */
+    mtx_lock(&sc->ciss_mtx);
 
     /*
      * Run the command.
@@ -2606,14 +2608,18 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
      * Copy the results back to the user.
      */
     bcopy(ce, &ioc->error_info, sizeof(*ce));
+    mtx_unlock(&sc->ciss_mtx);
     if ((ioc->buf_size > 0) &&
 	(error = copyout(cr->cr_data, ioc->buf, ioc->buf_size))) {
 	debug(0, "copyout: bad data buffer %p/%d", ioc->buf, ioc->buf_size);
-	goto out;
+	goto out_unlocked;
     }
 
     /* done OK */
     error = 0;
+
+out_unlocked:
+    mtx_lock(&sc->ciss_mtx);
 
 out:
     if ((cr != NULL) && (cr->cr_data != NULL))
