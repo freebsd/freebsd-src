@@ -832,7 +832,7 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 				continue;
 			kevp->flags &= ~EV_SYSFLAGS;
 			error = kqueue_register(kq, kevp, td, 1);
-			if (error) {
+			if (error || (kevp->flags & EV_RECEIPT)) {
 				if (nevents != 0) {
 					kevp->flags = EV_ERROR;
 					kevp->data = error;
