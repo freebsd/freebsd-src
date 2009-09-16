@@ -1151,8 +1151,11 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 			else if (inp->inp_flags & INP_TIMEWAIT) {
 				bzero((char *) &xt.xt_tp, sizeof xt.xt_tp);
 				xt.xt_tp.t_state = TCPS_TIME_WAIT;
-			} else
+			} else {
 				bcopy(inp_ppcb, &xt.xt_tp, sizeof xt.xt_tp);
+				if (xt.xt_tp.t_timers)
+					tcp_timer_to_xtimer(&xt.xt_tp, xt.xt_tp.t_timers, &xt.xt_timer);
+			}
 			if (inp->inp_socket != NULL)
 				sotoxsocket(inp->inp_socket, &xt.xt_socket);
 			else {
