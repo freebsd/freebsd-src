@@ -247,6 +247,8 @@ matcher(struct re_guts *g,
 	if (g->moffset > -1)
 		start = ((dp - g->moffset) < start) ? start : dp - g->moffset;
 
+	SP("mloop", m->st, *start);
+
 	/* this loop does only one repetition except for backrefs */
 	for (;;) {
 		endp = fast(m, start, stop, gf, gl);
@@ -787,6 +789,7 @@ fast(	struct match *m,
 
 	CLEAR(st);
 	SET1(st, startst);
+	SP("fast", st, *p);
 	st = step(m->g, startst, stopst, st, NOTHING, st);
 	ASSIGN(fresh, st);
 	SP("start", st, *p);
