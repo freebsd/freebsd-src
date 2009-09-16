@@ -2,7 +2,7 @@
 
 include	"../mv/std.mv"
 include "../mv/kirkwood/std.kirkwood"
-files	"../mv/kirkwood/files.db88f6xxx"
-
+files	"../mv/kirkwood/files.sheevaplug"
 
 options		PHYSMEM_SIZE=0x20000000
+options		MII_ADDR_BASE=0

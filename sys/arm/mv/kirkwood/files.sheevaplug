@@ -1,4 +1,4 @@
 # $FreeBSD$
 
 include "arm/mv/kirkwood/files.kirkwood"
-arm/mv/kirkwood/db88f6xxx.c	standard
+arm/mv/kirkwood/sheevaplug.c	standard
