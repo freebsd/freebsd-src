@@ -103,6 +103,8 @@ struct ciss_request
     void			*cr_data;	/* data buffer */
     u_int32_t			cr_length;	/* data length */
     bus_dmamap_t		cr_datamap;	/* DMA map for data */
+    struct ciss_command		*cr_cc;
+    uint32_t			cr_ccphys;
     int				cr_tag;
     int				cr_flags;
 #define CISS_REQ_MAPPED		(1<<0)		/* data mapped */
@@ -131,18 +133,16 @@ struct ciss_request
  * scatter-gather list, and we also want to avoid having commands
  * cross page boundaries.
  *
- * Note that 512 bytes yields 28 scatter/gather entries, or the
- * ability to map (26 * PAGE_SIZE) + 2 bytes of data.  On x86, this is
- * 104kB.  256 bytes would only yield 12 entries, giving a mere 40kB,
- * too small.
+ * The size of the ciss_command is 52 bytes.  65 s/g elements are reserved
+ * to allow a max i/o size of 256k.  This gives a total command size of
+ * 1120 bytes, including the 32 byte alignment padding.  Modern controllers
+ * seem to saturate nicely at this value.
  */
 
-#define CISS_COMMAND_ALLOC_SIZE		512	/* XXX tune to get sensible s/g list length */
-#define CISS_COMMAND_SG_LENGTH	((CISS_COMMAND_ALLOC_SIZE - sizeof(struct ciss_command)) \
-				 / sizeof(struct ciss_sg_entry))
-
-/* XXX Prep for increasing max i/o */
-#define CISS_MAX_SG_ELEMENTS   17
+#define CISS_MAX_SG_ELEMENTS	65
+#define CISS_COMMAND_ALIGN	32
+#define CISS_COMMAND_SG_LENGTH	(sizeof(struct ciss_sg_entry) * CISS_MAX_SG_ELEMENTS)
+#define CISS_COMMAND_ALLOC_SIZE		(roundup2(sizeof(struct ciss_command) + CISS_COMMAND_SG_LENGTH, CISS_COMMAND_ALIGN))
 
 /*
  * Per-logical-drive data.
@@ -258,20 +258,6 @@ struct ciss_softc
 
     struct ciss_qstat		ciss_qstat[CISSQ_COUNT];	/* queue statistics */
 };
-
-/*
- * Given a request tag, find the corresponding command in virtual or
- * physical space.
- *
- * The arithmetic here is due to the allocation of ciss_command structures
- * inside CISS_COMMAND_ALLOC_SIZE blocks.  See the comment at the definition
- * of CISS_COMMAND_ALLOC_SIZE above.
- */
-#define CISS_FIND_COMMAND(cr)							\
-	(struct ciss_command *)((u_int8_t *)(cr)->cr_sc->ciss_command +		\
-				((cr)->cr_tag * CISS_COMMAND_ALLOC_SIZE))
-#define CISS_FIND_COMMANDPHYS(cr)	((cr)->cr_sc->ciss_command_phys + \
-					 ((cr)->cr_tag * CISS_COMMAND_ALLOC_SIZE))
 
 /************************************************************************
  * Debugging/diagnostic output.
