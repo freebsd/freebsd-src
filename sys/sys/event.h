@@ -154,11 +154,22 @@ MALLOC_DECLARE(M_KQUEUE);
  */
 #define NOTE_SIGNAL	0x08000000
 
+/*
+ * Hint values for the optional f_touch event filter.  If f_touch is not set 
+ * to NULL and f_isfd is zero the f_touch filter will be called with the type
+ * argument set to EVENT_REGISTER during a kevent() system call.  It is also
+ * called under the same conditions with the type argument set to EVENT_PROCESS
+ * when the event has been triggered.
+ */
+#define EVENT_REGISTER	1
+#define EVENT_PROCESS	2
+
 struct filterops {
 	int	f_isfd;		/* true if ident == filedescriptor */
 	int	(*f_attach)(struct knote *kn);
 	void	(*f_detach)(struct knote *kn);
 	int	(*f_event)(struct knote *kn, long hint);
+	void	(*f_touch)(struct knote *kn, struct kevent *kev, long type);
 };
 
 /*
@@ -193,6 +204,7 @@ struct knote {
 	} kn_ptr;
 	struct			filterops *kn_fop;
 	void			*kn_hook;
+	int			kn_hookid;
 
 #define kn_id		kn_kevent.ident
 #define kn_filter	kn_kevent.filter
