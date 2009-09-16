@@ -313,6 +313,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 	struct inpcb *inp;
 	struct xinpgen *xig, *oxig;
 	struct xsocket *so;
+	struct xtcp_timer *timer;
 
 	istcp = 0;
 	switch (proto) {
@@ -347,6 +348,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 	     xig->xig_len > sizeof(struct xinpgen);
 	     xig = (struct xinpgen *)((char *)xig + xig->xig_len)) {
 		if (istcp) {
+			timer = &((struct xtcpcb *)xig)->xt_timer;
 			tp = &((struct xtcpcb *)xig)->xt_tp;
 			inp = &((struct xtcpcb *)xig)->xt_inp;
 			so = &((struct xtcpcb *)xig)->xt_socket;
@@ -414,14 +416,17 @@ protopr(u_long off, const char *name, int af1, int proto)
 				       "%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s",
 				       "Proto", "Recv-Q", "Send-Q",
 				       "Local Address", "Foreign Address");
-				if (xflag)
-					printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %s\n",
+				if (xflag) {
+					printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s ",
 					       	"R-MBUF", "S-MBUF", "R-CLUS", 
 						"S-CLUS", "R-HIWA", "S-HIWA", 
 						"R-LOWA", "S-LOWA", "R-BCNT", 
-						"S-BCNT", "R-BMAX", "S-BMAX",
-					       "(state)");
-				else
+						"S-BCNT", "R-BMAX", "S-BMAX");
+					printf("%7.7s %7.7s %7.7s %7.7s %7.7s %7.7s %s\n",
+						"rexmt", "persist", "keep",
+						"2msl", "delack", "rcvtime",
+                                               "(state)");
+				} else
 					printf("(state)\n");
 			}
 			first = 0;
@@ -516,7 +521,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 				       so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
 				       so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
 				       so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
-			else
+			else {
 				printf("%6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u ",
 				       so->so_rcv.sb_mcnt, so->so_snd.sb_mcnt,
 				       so->so_rcv.sb_ccnt, so->so_snd.sb_ccnt,
@@ -524,6 +529,14 @@ protopr(u_long off, const char *name, int af1, int proto)
 				       so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
 				       so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
 				       so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
+				printf("%4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d ",
+					timer->tt_rexmt / 1000, (timer->tt_rexmt % 1000) / 10,
+					timer->tt_persist / 1000, (timer->tt_persist % 1000) / 10,
+					timer->tt_keep / 1000, (timer->tt_keep % 1000) / 10,
+					timer->tt_2msl / 1000, (timer->tt_2msl % 1000) / 10,
+					timer->tt_delack / 1000, (timer->tt_delack % 1000) / 10,
+					timer->t_rcvtime / 1000, (timer->t_rcvtime % 1000) / 10);
+			}
 		}
 		if (istcp && !Lflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
