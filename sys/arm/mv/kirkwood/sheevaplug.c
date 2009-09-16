@@ -1,8 +1,7 @@
 /*-
  * Copyright (C) 2008 MARVELL INTERNATIONAL LTD.
+ * Copyright (C) 2009 Semihalf
  * All rights reserved.
- *
- * Developed by Semihalf.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,20 +51,24 @@ __FBSDID("$FreeBSD$");
 /*
  * Virtual address space layout:
  * -----------------------------
- * 0x0000_0000 - 0xbfff_ffff	: user process
- *
- * 0xc040_0000 - virtual_avail	: kernel reserved (text, data, page tables
- *				: structures, ARM stacks etc.)
- * virtual_avail - 0xefff_ffff	: KVA (virtual_avail is typically < 0xc0a0_0000)
- * 0xf000_0000 - 0xf0ff_ffff	: no-cache allocation area (16MB)
- * 0xf100_0000 - 0xf10f_ffff	: SoC integrated devices registers range (1MB)
- * 0xf110_0000 - 0xf11f_ffff	: PCI-Express I/O space (1MB)
- * 0xf120_0000 - 0xf12f_ffff	: unused (1MB)
- * 0xf130_0000 - 0xf52f_ffff	: PCI-Express memory space (64MB)
- * 0xf930_0000 - 0xfffe_ffff	: unused (~172MB)
- * 0xffff_0000 - 0xffff_0fff	: 'high' vectors page (4KB)
- * 0xffff_1000 - 0xffff_1fff	: ARM_TP_ADDRESS/RAS page (4KB)
- * 0xffff_2000 - 0xffff_ffff	: unused (~55KB)
+ * 0x0000_0000 - 0x7FFF_FFFF	: User Process (2 GB)
+ * 0x8000_0000 - 0xBBFF_FFFF	: Unused (960 MB)
+ * 0xBC00_0000 - 0xBDFF_FFFF	: Device Bus: CS1 (32 MB)
+ * 0xBE00_0000 - 0xBECF_FFFF	: Unused (13 MB)
+ * 0xBED0_0000 - 0xBEDF_FFFF	: Device Bus: CS2 (1 MB)
+ * 0xBEE0_0000 - 0xBEEF_FFFF	: Device Bus: CS0 (1 MB)
+ * 0xBEF0_0000 - 0xBEFF_FFFF	: Device Bus: BOOT (1 MB)
+ * 0xBF00_0000 - 0xBFFF_FFFF	: Unused (16 MB)
+ * 0xC000_0000 - virtual_avail	: Kernel Reserved (text, data, page tables,
+ * 				: stack etc.)
+ * virtual-avail - 0xEFFF_FFFF	: KVA (virtual_avail is typically < 0xc0a0_0000)
+ * 0xF000_0000 - 0xF0FF_FFFF	: No-Cache allocation area (16 MB)
+ * 0xF100_0000 - 0xF10F_FFFF	: SoC Integrated devices registers range (1 MB)
+ * 0xF110_0000 - 0xF11F_FFFF	: CESA SRAM (1 MB)
+ * 0xF120_0000 - 0xFFFE_FFFF	: Unused (237 MB + 960 kB)
+ * 0xFFFF_0000 - 0xFFFF_0FFF	: 'High' vectors page (4 kB)
+ * 0xFFFF_1000 - 0xFFFF_1FFF	: ARM_TP_ADDRESS/RAS page (4 kB)
+ * 0xFFFF_2000 - 0xFFFF_FFFF	: Unused (56 kB)
  */
 
 /* Static device mappings. */
@@ -81,17 +84,10 @@ const struct pmap_devmap pmap_devmap[] = {
 		VM_PROT_READ | VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
-	{ /* PCIE I/O */
-		MV_PCIE_IO_BASE,
-		MV_PCIE_IO_PHYS_BASE,
-		MV_PCIE_IO_SIZE,
-		VM_PROT_READ | VM_PROT_WRITE,
-		PTE_NOCACHE,
-	},
-	{ /* PCIE Memory */
-		MV_PCIE_MEM_BASE,
-		MV_PCIE_MEM_PHYS_BASE,
-		MV_PCIE_MEM_SIZE,
+	{ /* CESA SRAM */
+		MV_CESA_SRAM_BASE,
+		MV_CESA_SRAM_PHYS_BASE,
+		MV_CESA_SRAM_SIZE,
 		VM_PROT_READ | VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
@@ -107,7 +103,7 @@ platform_mpp_init(void)
 {
 
 	/*
-	 * MPP configuration for DB-88F6281-BP and DB-88F6281-BP-A
+	 * MPP configuration for Sheeva Plug
 	 *
 	 * MPP[0]:  NF_IO[2]
 	 * MPP[1]:  NF_IO[3]
@@ -116,9 +112,8 @@ platform_mpp_init(void)
 	 * MPP[4]:  NF_IO[6]
 	 * MPP[5]:  NF_IO[7]
 	 * MPP[6]:  SYSRST_OUTn
-	 * MPP[7]:  SPI_SCn
-	 * MPP[8]:  TW_SDA
-	 * MPP[9]:  TW_SCK
+	 * MPP[8]:  UA0_RTS
+	 * MPP[9]:  UA0_CTS
 	 * MPP[10]: UA0_TXD
 	 * MPP[11]: UA0_RXD
 	 * MPP[12]: SD_CLK
@@ -129,15 +124,15 @@ platform_mpp_init(void)
 	 * MPP[17]: SD_D[3]
 	 * MPP[18]: NF_IO[0]
 	 * MPP[19]: NF_IO[1]
-	 * MPP[20]: SATA1_AC
-	 * MPP[21]: SATA0_AC
+	 * MPP[29]: TSMP[9]
 	 *
 	 * Others:  GPIO
 	 */
-	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL0, 0x21111111);
-	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL1, 0x11113311);
-	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL2, 0x00551111);
-	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL3, 0x00000000);
+
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL0, 0x01111111);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL1, 0x11113322);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL2, 0x00001111);
+	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL3, 0x00100000);
 	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL4, 0x00000000);
 	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL5, 0x00000000);
 	bus_space_write_4(obio_tag, MV_MPP_BASE, MPP_CONTROL6, 0x00000000);
