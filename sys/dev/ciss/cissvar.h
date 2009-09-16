@@ -176,7 +176,7 @@ struct ciss_pdrive
 
 #define CISS_PHYSICAL_SHIFT	5
 #define CISS_PHYSICAL_BASE	(1 << CISS_PHYSICAL_SHIFT)
-#define CISS_MAX_PHYSTGT	15
+#define CISS_MAX_PHYSTGT	256
 
 #define CISS_IS_PHYSICAL(bus)	(bus >= CISS_PHYSICAL_BASE)
 #define CISS_CAM_TO_PBUS(bus)	(bus - CISS_PHYSICAL_BASE)
