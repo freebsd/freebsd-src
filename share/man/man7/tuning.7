@@ -51,7 +51,9 @@ I usually create, in order, a 128M root, 1G swap, 128M
 and use any remaining space for
 .Pa /home .
 .Pp
-You should typically size your swap space to approximately 2x main memory.
+You should typically size your swap space to approximately 2x main memory
+for systems with less than 2GB of RAM, or approximately 1x main memory
+if you have more.
 If you do not have a lot of RAM, though, you will generally want a lot
 more swap.
 It is not recommended that you configure any less than
@@ -400,6 +402,35 @@ There are several hundred sysctls in the system, including many that appear
 to be candidates for tuning but actually are not.
 In this document we will only cover the ones that have the greatest effect
 on the system.
+.Pp
+The
+.Va vm.overcommit
+sysctl defines the overcommit behaviour of the vm subsystem.
+The virtual memory system always does accounting of the swap space
+reservation, both total for system and per-user. Corresponding values
+are available through sysctl
+.Va vm.swap_total,
+that gives the total bytes available for swapping, and
+.Va vm.swap_reserved,
+that gives number of bytes that may be needed to back all currently
+allocated anonymous memory.
+.Pp
+Setting bit 0 of the
+.Va vm.overcommit
+sysctl causes the virtual memory system to return failure
+to the process when allocation of memory causes vm.swap_reserved
+to exceed vm.swap_total.
+Bit 1 of the sysctl enforces RLIMIT_SWAP limit
+(see
+.Xr getrlimit 2 ).
+Root is exempt from this limit.
+Bit 2 allows to count most of the physical
+memory as allocatable, except wired and free reserved pages
+(accounted by
+.Va vm.stats.vm.v_free_target
+and
+.Va vm.stats.vm.v_wire_count
+sysctls, respectively).
 .Pp
 The
 .Va kern.ipc.maxpipekva

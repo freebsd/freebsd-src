@@ -46,6 +46,7 @@
 #include <sys/socket.h>
 
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netipsec/key_var.h>
 #include <netipsec/key_debug.h>

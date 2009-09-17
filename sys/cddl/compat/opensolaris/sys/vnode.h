@@ -181,7 +181,7 @@ vn_openat(char *pnamep, enum uio_seg seg, int filemode, int createmode,
 		vref(startvp);
 	NDINIT_ATVP(&nd, operation, MPSAFE, UIO_SYSSPACE, pnamep, startvp, td);
 	filemode |= O_NOFOLLOW;
-	error = vn_open_cred(&nd, &filemode, createmode, td->td_ucred, NULL);
+	error = vn_open_cred(&nd, &filemode, createmode, 0, td->td_ucred, NULL);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == 0) {
 		/* We just unlock so we hold a reference. */
@@ -217,7 +217,6 @@ zfs_vn_rdwr(enum uio_rw rw, vnode_t *vp, caddr_t base, ssize_t len,
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (rw == UIO_WRITE) {
 		ioflag = IO_SYNC;
-		VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	} else {
 		ioflag = IO_DIRECT;
 	}

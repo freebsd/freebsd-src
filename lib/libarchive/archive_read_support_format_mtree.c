@@ -148,8 +148,8 @@ archive_read_support_format_mtree(struct archive *_a)
 	memset(mtree, 0, sizeof(*mtree));
 	mtree->fd = -1;
 
-	r = __archive_read_register_format(a, mtree,
-	    mtree_bid, read_header, read_data, skip, cleanup);
+	r = __archive_read_register_format(a, mtree, "mtree",
+	    mtree_bid, NULL, read_header, read_data, skip, cleanup);
 
 	if (r != ARCHIVE_OK)
 		free(mtree);
@@ -404,10 +404,13 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 		len = readline(a, mtree, &p, 256);
 		if (len == 0) {
 			mtree->this_entry = mtree->entries;
+			free_options(global);
 			return (ARCHIVE_OK);
 		}
-		if (len < 0)
+		if (len < 0) {
+			free_options(global);
 			return (len);
+		}
 		/* Leading whitespace is never significant, ignore it. */
 		while (*p == ' ' || *p == '\t') {
 			++p;
@@ -432,13 +435,16 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 		} else
 			break;
 
-		if (r != ARCHIVE_OK)
+		if (r != ARCHIVE_OK) {
+			free_options(global);
 			return r;
+		}
 	}
 
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 	    "Can't parse line %ju", counter);
-	return ARCHIVE_FATAL;
+	free_options(global);
+	return (ARCHIVE_FATAL);
 }
 
 /*
@@ -672,6 +678,15 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 #elif HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
 			archive_entry_set_mtime(entry, st->st_mtime,
 			    st->st_mtim.tv_nsec);
+#elif HAVE_STRUCT_STAT_ST_MTIME_N
+			archive_entry_set_mtime(entry, st->st_mtime,
+			    st->st_mtime_n);
+#elif HAVE_STRUCT_STAT_ST_UMTIME
+			archive_entry_set_mtime(entry, st->st_mtime,
+			    st->st_umtime*1000);
+#elif HAVE_STRUCT_STAT_ST_MTIME_USEC
+			archive_entry_set_mtime(entry, st->st_mtime,
+			    st->st_mtime_usec*1000);
 #else
 			archive_entry_set_mtime(entry, st->st_mtime, 0);
 #endif
@@ -882,8 +897,17 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			break;
 		}
 		if (strcmp(key, "time") == 0) {
+			time_t m;
+			long ns;
+
 			*parsed_kws |= MTREE_HAS_MTIME;
-			archive_entry_set_mtime(entry, mtree_atol10(&val), 0);
+			m = (time_t)mtree_atol10(&val);
+			if (*val == '.') {
+				++val;
+				ns = (long)mtree_atol10(&val);
+			} else
+				ns = 0;
+			archive_entry_set_mtime(entry, m, ns);
 			break;
 		}
 		if (strcmp(key, "type") == 0) {
@@ -966,8 +990,8 @@ read_data(struct archive_read *a, const void **buff, size_t *size, off_t *offset
 		if (mtree->buff == NULL) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory");
+			return (ARCHIVE_FATAL);
 		}
-		return (ARCHIVE_FATAL);
 	}
 
 	*buff = mtree->buff;
@@ -1216,6 +1240,7 @@ readline(struct archive_read *a, struct mtree *mtree, char **start, ssize_t limi
 {
 	ssize_t bytes_read;
 	ssize_t total_size = 0;
+	ssize_t find_off = 0;
 	const void *t;
 	const char *s;
 	void *p;
@@ -1253,9 +1278,7 @@ readline(struct archive_read *a, struct mtree *mtree, char **start, ssize_t limi
 		/* Null terminate. */
 		mtree->line.s[total_size] = '\0';
 		/* If we found an unescaped '\n', clean up and return. */
-		if (p == NULL)
-			continue;
-		for (u = mtree->line.s; *u; ++u) {
+		for (u = mtree->line.s + find_off; *u; ++u) {
 			if (u[0] == '\n') {
 				*start = mtree->line.s;
 				return total_size;
@@ -1276,8 +1299,12 @@ readline(struct archive_read *a, struct mtree *mtree, char **start, ssize_t limi
 				memmove(u, u + 1,
 				    total_size - (u - mtree->line.s) + 1);
 				--total_size;
-				continue;    
+				++u;
+				break;
 			}
+			if (u[1] == '\0')
+				break;
 		}
+		find_off = u - mtree->line.s;
 	}
 }

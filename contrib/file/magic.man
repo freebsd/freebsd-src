@@ -1,4 +1,4 @@
-.\" $File: magic.man,v 1.57 2008/08/30 09:50:20 christos Exp $
+.\" $File: magic.man,v 1.59 2008/11/06 23:22:53 christos Exp $
 .Dd August 30, 2008
 .Dt MAGIC __FSECTION__
 .Os
@@ -84,6 +84,8 @@ local time rather than UTC.
 .It Dv qldate
 An eight-byte value interpreted as a UNIX-style date, but interpreted as
 local time rather than UTC.
+.It Dv beid3
+A 32-bit ID3 length in big-endian byte order.
 .It Dv beshort
 A two-byte value in big-endian byte order.
 .It Dv belong
@@ -110,6 +112,8 @@ interpreted as a UNIX-style date, but interpreted as local time rather
 than UTC.
 .It Dv bestring16
 A two-byte unicode (UCS16) string in big-endian byte order.
+.It Dv leid3
+A 32-bit ID3 length in little-endian byte order.
 .It Dv leshort
 A two-byte value in little-endian byte order.
 .It Dv lelong
@@ -145,6 +149,8 @@ interpreted as a UNIX date.
 A four-byte value in middle-endian (PDP-11) byte order,
 interpreted as a UNIX-style date, but interpreted as local time rather
 than UTC.
+.It Dv indirect
+Starting at the given offset, consult the magic database again.
 .It Dv regex
 A regular expression match in extended POSIX regular expression syntax
 (like egrep). Regular expressions can take exponential time to
@@ -290,6 +296,11 @@ added before it: multiple matches are normally separated by a single
 space.
 .El
 .Pp
+An APPLE 4+4 character APPLE creator and type can be specified as:
+.Bd -literal -offset indent 
+!:apple	CREATYPE
+.Ed
+.Pp
 A MIME type is given on a separate line, which must be the next
 non-blank or comment line after the magic line that identifies the
 file type, and has the following format:
@@ -361,12 +372,12 @@ the file.
 The value at that offset is read, and is used again as an offset
 in the file.
 Indirect offsets are of the form:
-.Em (( x [.[bslBSL]][+\-][ y ]) .
+.Em (( x [.[bislBISL]][+\-][ y ]) .
 The value of
 .Em x
 is used as an offset in the file.
-A byte, short or long is read at that offset depending on the
-.Em [bslBSLm]
+A byte, id3 length, short or long is read at that offset depending on the
+.Em [bislBISLm]
 type specifier.
 The capitalized types interpret the number as a big endian
 value, whereas the small letter versions interpret the number as a little

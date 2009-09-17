@@ -21,7 +21,7 @@ INCS=	dwarf.h libdwarf.h
 
 CFLAGS+=	-I. -I${.CURDIR}
 
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 
 WARNS?=	6
 

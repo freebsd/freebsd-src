@@ -33,26 +33,30 @@
  */
 #if defined(HAVE_CONFIG_H)
 /* Most POSIX platforms use the 'configure' script to build config.h */
-#include "../../config.h"
+#include "config.h"
 #elif defined(__FreeBSD__)
 /* Building as part of FreeBSD system requires a pre-built config.h. */
-#include "../config_freebsd.h"
-#elif defined(_WIN32)
+#include "config_freebsd.h"
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 /* Win32 can't run the 'configure' script. */
-#include "../config_windows.h"
+#include "config_windows.h"
 #else
 /* Warn if the library hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #include <dirent.h>
+#else
+#include <direct.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(__CYGWIN__)
 #include <unistd.h>
 #endif
 #include <wchar.h>
@@ -65,7 +69,23 @@
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
+/* Some non-FreeBSD platforms such as newlib-derived ones like 
+ * cygwin, have __FBSDID, so this definition must be guarded.
+ */
+#ifndef __FBSDID
 #define	__FBSDID(a)     /* null */
+#endif
+#endif
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define snprintf	sprintf_s
+#define LOCALE_DE	"deu"
+#else
+#define LOCALE_DE	"de_DE.UTF-8"
+#endif
+
+#ifndef O_BINARY
+#define	O_BINARY 0
 #endif
 
 /*
@@ -127,7 +147,7 @@ int test_assert_equal_file(const char *, const char *, ...);
 int test_assert_equal_int(const char *, int, int, const char *, int, const char *, void *);
 int test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);
 int test_assert_equal_wstring(const char *, int, const wchar_t *v1, const char *, const wchar_t *v2, const char *, void *);
-int test_assert_equal_mem(const char *, int, const char *, const char *, const char *, const char *, size_t, const char *, void *);
+int test_assert_equal_mem(const char *, int, const void *, const char *, const void *, const char *, size_t, const char *, void *);
 int test_assert_file_contents(const void *, int, const char *, ...);
 int test_assert_file_exists(const char *, ...);
 int test_assert_file_not_exists(const char *, ...);
@@ -142,6 +162,9 @@ char *slurpfile(size_t *, const char *fmt, ...);
 /* Extracts named reference file to the current directory. */
 void extract_reference_file(const char *);
 
+/* Get external gzip program name */
+const char *external_gzip_program(int un);
+
 /*
  * Special interfaces for libarchive test harness.
  */
@@ -151,6 +174,8 @@ void extract_reference_file(const char *);
 
 /* Special customized read-from-memory interface. */
 int read_open_memory(struct archive *, void *, size_t, size_t);
+/* "2" version exercises a slightly different set of libarchive APIs. */
+int read_open_memory2(struct archive *, void *, size_t, size_t);
 
 /*
  * ARCHIVE_VERSION_STAMP first appeared in 1.9 and libarchive 2.2.4.

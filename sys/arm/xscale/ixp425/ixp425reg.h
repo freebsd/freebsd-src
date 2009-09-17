@@ -88,22 +88,27 @@
  *           SDRAM/DDR Memory Controller
  * F020 0000 --------------------------- IXP425_MCU_VBASE
  *
- * F001 7000 EHCI USB 2 (IXP435)
- * F001 6000 EHCI USB 1 (IXP435)
- * F020 6000 ---------------------------
+ * F001 F000 RS485 (Cambria)		 CAMBRIA_RS485_VBASE
+ * F001 E000 GPS (Cambria)		 CAMBRIA_GPS_VBASE
+ * F001 D000 EHCI USB 2 (IXP435)	 IXP435_USB2_VBASE
+ * F001 C000 EHCI USB 1 (IXP435)	 IXP435_USB1_VBASE
  *           Queue manager
- * F001 2000 --------------------------- IXP425_QMGR_VBASE
+ * F001 8000 --------------------------- IXP425_QMGR_VBASE
  *           PCI Configuration and Status
- * F001 1000 --------------------------- IXP425_PCI_VBASE
+ * F001 7000 --------------------------- IXP425_PCI_VBASE
+ *
+ *	     (NB: gap for future addition of EXP CS5-7)
+ * F001 4000 Expansion Bus Chip Select 4
+ * F001 3000 Expansion Bus Chip Select 3
+ * F001 2000 Expansion Bus Chip Select 2
+ * F001 1000 Expansion Bus Chip Select 1
  *           Expansion Bus Configuration
  * F001 0000 --------------------------- IXP425_EXP_VBASE
- * F000 F000 Expansion Bus Chip Select 4
- * F000 E000 Expansion Bus Chip Select 3
- * F000 D000 Expansion Bus Chip Select 2
- * F000 C000 Expansion Bus Chip Select 1
+ *
+ * F000 C000 MAC-A (IXP435)
  * F000 B000 USB (option on IXP425)
  * F000 A000 MAC-B (IXP425) | MAC-C (IXP435)
- * F000 9000 MAC-A
+ * F000 9000 MAC-A (IXP425)
  * F000 8000 NPE-C
  * F000 7000 NPE-B (IXP425)
  * F000 6000 NPE-A
@@ -125,8 +130,7 @@
 #define	IXP425_IO_HWBASE	0xc8000000UL
 #define	IXP425_IO_SIZE		0x00010000UL
 
-/* Offset */
-
+/* Physical/Virtual addresss offsets */
 #define	IXP425_UART0_OFFSET	0x00000000UL
 #define	IXP425_UART1_OFFSET	0x00001000UL
 #define	IXP425_PMC_OFFSET	0x00002000UL
@@ -139,6 +143,7 @@
 #define	IXP425_MAC_B_OFFSET	0x00009000UL	/* Ethernet MAC on NPE-B */
 #define	IXP425_MAC_C_OFFSET	0x0000a000UL	/* Ethernet MAC on NPE-C */
 #define	IXP425_USB_OFFSET	0x0000b000UL
+
 #define	IXP435_MAC_A_OFFSET	0x0000c000UL	/* Ethernet MAC on NPE-A */
 
 #define	IXP425_REG_SIZE		0x1000
@@ -322,9 +327,8 @@
  * Expansion Bus Configuration Space.
  */
 #define	IXP425_EXP_HWBASE	0xc4000000UL
-#define	IXP425_EXP_VBASE	(IXP425_IO_VBASE + IXP425_IO_SIZE)
-						/* 0xf0010000 */
-#define	IXP425_EXP_SIZE		IXP425_REG_SIZE	/* 0x1000 */
+#define	IXP425_EXP_VBASE	0xf0010000UL
+#define	IXP425_EXP_SIZE		0x1000
 
 /* offset */
 #define	EXP_TIMING_CS0_OFFSET		0x0000
@@ -436,9 +440,8 @@
  * PCI
  */
 #define IXP425_PCI_HWBASE	0xc0000000
-#define IXP425_PCI_VBASE	(IXP425_EXP_VBASE + IXP425_EXP_SIZE)
-							/* 0xf0011000 */
-#define	IXP425_PCI_SIZE		IXP425_REG_SIZE		/* 0x1000 */
+#define	IXP425_PCI_VBASE	0xf0017000UL
+#define	IXP425_PCI_SIZE		0x1000
 
 #define	IXP425_AHB_OFFSET	0x00000000UL	/* AHB bus */
 
@@ -612,7 +615,7 @@
  * Queue Manager
  */
 #define	IXP425_QMGR_HWBASE	0x60000000UL
-#define IXP425_QMGR_VBASE	(IXP425_PCI_VBASE + IXP425_PCI_SIZE)
+#define IXP425_QMGR_VBASE	0xf0018000UL
 #define IXP425_QMGR_SIZE	0x4000
 
 /*
@@ -650,24 +653,30 @@
 
 #define	IXP425_EXP_BUS_CSx_HWBASE(i) \
 	(IXP425_EXP_BUS_HWBASE + (i)*IXP425_EXP_BUS_SIZE)
+#define	IXP425_EXP_BUS_CSx_SIZE		0x1000
 #define	IXP425_EXP_BUS_CSx_VBASE(i) \
-	(IXP425_MAC_B_VBASE + (i)*IXP425_MAC_B_SIZE)
+	(0xF0011000UL + (((i)-1)*IXP425_EXP_BUS_CSx_SIZE))
 
+/* NB: CS0 is special; it maps flash */
 #define	IXP425_EXP_BUS_CS0_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(0)
 #define IXP425_EXP_BUS_CS0_VBASE	0xFD000000UL
+#ifndef IXP4XX_FLASH_SIZE
 #define IXP425_EXP_BUS_CS0_SIZE		0x01000000	/* NB: 16M */
+#else
+#define IXP425_EXP_BUS_CS0_SIZE		IXP4XX_FLASH_SIZE
+#endif
 #define	IXP425_EXP_BUS_CS1_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(1)
 #define IXP425_EXP_BUS_CS1_VBASE	IXP425_EXP_BUS_CSx_VBASE(1)
-#define IXP425_EXP_BUS_CS1_SIZE		0x1000
+#define IXP425_EXP_BUS_CS1_SIZE		IXP425_EXP_BUS_CSx_SIZE
 #define	IXP425_EXP_BUS_CS2_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(2)
 #define IXP425_EXP_BUS_CS2_VBASE	IXP425_EXP_BUS_CSx_VBASE(2)
-#define IXP425_EXP_BUS_CS2_SIZE		0x1000
+#define IXP425_EXP_BUS_CS2_SIZE		IXP425_EXP_BUS_CSx_SIZE
 #define	IXP425_EXP_BUS_CS3_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(3)
 #define IXP425_EXP_BUS_CS3_VBASE	IXP425_EXP_BUS_CSx_VBASE(3)
-#define IXP425_EXP_BUS_CS3_SIZE		0x1000
+#define IXP425_EXP_BUS_CS3_SIZE		IXP425_EXP_BUS_CSx_SIZE
 #define	IXP425_EXP_BUS_CS4_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(4)
 #define IXP425_EXP_BUS_CS4_VBASE	IXP425_EXP_BUS_CSx_VBASE(4)
-#define IXP425_EXP_BUS_CS4_SIZE		0x1000
+#define IXP425_EXP_BUS_CS4_SIZE		IXP425_EXP_BUS_CSx_SIZE
 
 /* NB: not mapped (yet) */
 #define	IXP425_EXP_BUS_CS5_HWBASE	IXP425_EXP_BUS_CSx_HWBASE(5)
@@ -677,23 +686,27 @@
 /*
  * IXP435/Gateworks Cambria
  */
+#define IXP435_USB1_HWBASE	0xCD000000UL	/* USB host controller 1 */
+#define IXP435_USB1_VBASE	0xF001C000UL
+#define IXP435_USB1_SIZE	0x1000		/* NB: only uses 0x300 */
+
+#define IXP435_USB2_HWBASE	0xCE000000UL	/* USB host controller 2 */
+#define IXP435_USB2_VBASE	0xF001D000UL
+#define IXP435_USB2_SIZE	0x1000		/* NB: only uses 0x300 */
+
 #define	CAMBRIA_GPS_HWBASE	0x53FC0000UL	/* optional GPS Serial Port */
-#define	CAMBRIA_GPS_SIZE	0x40000
+#define	CAMBRIA_GPS_VBASE	0xF001E000UL
+#define	CAMBRIA_GPS_SIZE	0x1000
 #define	CAMBRIA_RS485_HWBASE	0x53F80000UL	/* optional RS485 Serial Port */
-#define	CAMBRIA_RS485_SIZE	0x40000
+#define	CAMBRIA_RS485_VBASE	0xF001F000UL
+#define	CAMBRIA_RS485_SIZE	0x1000
+
+/* NB: these are mapped on the fly, so no fixed virtual addresses */
 #define	CAMBRIA_OCTAL_LED_HWBASE 0x53F40000UL	/* Octal Status LED Latch */
 #define	CAMBRIA_OCTAL_LED_SIZE	0x1000
 #define	CAMBRIA_CFSEL1_HWBASE	0x53E40000UL	/* Compact Flash Socket Sel 0 */
 #define	CAMBRIA_CFSEL1_SIZE	0x40000
 #define	CAMBRIA_CFSEL0_HWBASE	0x53E00000UL	/* Compact Flash Socket Sel 1 */
 #define	CAMBRIA_CFSEL0_SIZE	0x40000
-
-#define IXP435_USB1_HWBASE	0xcd000000UL	/* USB host controller 1 */
-#define IXP435_USB1_VBASE	(IXP425_QMGR_VBASE + IXP425_QMGR_SIZE)
-#define IXP435_USB1_SIZE	0x1000		/* NB: only uses 0x300 */
-
-#define IXP435_USB2_HWBASE	0xce000000UL	/* USB host controller 2 */
-#define IXP435_USB2_VBASE	(IXP435_USB1_VBASE + IXP435_USB1_SIZE)
-#define IXP435_USB2_SIZE	0x1000		/* NB: only uses 0x300 */
 
 #endif /* _IXP425REG_H_ */

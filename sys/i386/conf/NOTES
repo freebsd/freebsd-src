@@ -49,7 +49,6 @@ options 	MP_WATCHDOG
 
 # Debugging options.
 #
-options		STOP_NMI		# Stop CPUS using NMI instead of IPI
 options 	COUNT_XINVLTLB_HITS	# Counters for TLB events
 options 	COUNT_IPIS		# Per-CPU IPI interrupt counters
 
@@ -225,7 +224,7 @@ options 	PERFMON
 # include both in your kernel; you will not get any video output. Ordinary
 # PC's do not suffer from this.
 #
-options		XBOX
+options 	XBOX
 device		xboxfb
 
 
@@ -253,7 +252,7 @@ options 	DEVICE_POLLING
 
 # BPF_JITTER adds support for BPF just-in-time compiler.
 
-options		BPF_JITTER
+options 	BPF_JITTER
 
 
 #####################################################################
@@ -348,13 +347,13 @@ device		pci
 device		agp
 
 # AGP debugging.
-options		AGP_DEBUG
+options 	AGP_DEBUG
 
 
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
 
-# To include support for VGA VESA video modes
+# To include support for VGA VESA video modes (depends on X86EMU)
 options 	VESA
 
 # Turn on extra debugging checks and output for VESA support.
@@ -465,14 +464,14 @@ device		tdfx_linux		# Enable Linuxulator support
 # Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
 # defined when it is built).
 #
-# ACPI_NO_SEMAPHORES makes the AcpiOs*Semaphore routines a no-op.
-#
 # Note that building ACPI into the kernel is deprecated; the module is
 # normally loaded automatically by the loader.
 
 device		acpi
 options 	ACPI_DEBUG
-#!options 	ACPI_NO_SEMAPHORES
+
+# ACPI WMI Mapping driver
+device		acpi_wmi
 
 # ACPI Asus Desktop Extras. (voltage, temp, fan)
 device		acpi_aiboost
@@ -483,8 +482,11 @@ device		acpi_asus
 # ACPI Fujitsu Extras (Buttons)
 device		acpi_fujitsu
 
+# ACPI extras driver for HP laptops
+device		acpi_hp
+
 # ACPI extras driver for IBM laptops
-device         acpi_ibm
+device		acpi_ibm
 
 # ACPI Panasonic Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_panasonic
@@ -528,8 +530,6 @@ hint.mse.0.irq="5"
 # Network interfaces:
 #
 
-# ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
-#       (requires sppp)
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
@@ -554,17 +554,11 @@ hint.mse.0.irq="5"
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
-# sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl:   Lucent Wavelan (ISA card only).
 # wpi:	Intel 3945ABG Wireless LAN controller
 
 # Order for ISA/EISA devices is important here
 
-device		ar
-hint.ar.0.at="isa"
-hint.ar.0.port="0x300"
-hint.ar.0.irq="10"
-hint.ar.0.maddr="0xd0000"
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# pci/cardbus chip support
 #device		ath_ar5210	# AR5210 chips
@@ -577,7 +571,7 @@ device		ath_hal		# pci/cardbus chip support
 #device		ath_rf5112
 #device		ath_rf5413
 #device		ath_ar5416	# AR5416 chips
-options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		ce
 device		cp
@@ -619,11 +613,6 @@ hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
 hint.sbni.0.irq="0xefdead"
 hint.sbni.0.flags="0"
-device		sr
-hint.sr.0.at="isa"
-hint.sr.0.port="0x300"
-hint.sr.0.irq="5"
-hint.sr.0.maddr="0xd0000"
 device		wl
 hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
@@ -859,7 +848,7 @@ options 	LINPROCFS
 
 #Enable the linux-like sys filesystem support (requires COMPAT_LINUX
 # and PSEUDOFS)
-options		LINSYSFS
+options 	LINSYSFS
 
 #
 # SysVR4 ABI emulation
@@ -934,4 +923,4 @@ options 	VM_KMEM_SIZE_SCALE
 
 # asr old ioctls support, needed by raidutils
 
-options		ASR_COMPAT
+options 	ASR_COMPAT

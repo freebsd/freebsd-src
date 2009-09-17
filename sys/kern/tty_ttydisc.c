@@ -48,11 +48,11 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Statistics. */
-static long tty_nin = 0;
-SYSCTL_LONG(_kern, OID_AUTO, tty_nin, CTLFLAG_RD,
+static unsigned long tty_nin = 0;
+SYSCTL_ULONG(_kern, OID_AUTO, tty_nin, CTLFLAG_RD,
 	&tty_nin, 0, "Total amount of bytes received");
-static long tty_nout = 0;
-SYSCTL_LONG(_kern, OID_AUTO, tty_nout, CTLFLAG_RD,
+static unsigned long tty_nout = 0;
+SYSCTL_ULONG(_kern, OID_AUTO, tty_nout, CTLFLAG_RD,
 	&tty_nout, 0, "Total amount of bytes transmitted");
 
 /* termios comparison macro's. */
@@ -560,12 +560,15 @@ ttydisc_optimize(struct tty *tp)
 {
 	tty_lock_assert(tp, MA_OWNED);
 
-	if ((!CMP_FLAG(i, ICRNL|IGNCR|IMAXBEL|INLCR|ISTRIP|IXON) &&
+	if (ttyhook_hashook(tp, rint_bypass)) {
+		tp->t_flags |= TF_BYPASS;
+	} else if (ttyhook_hashook(tp, rint)) {
+		tp->t_flags &= ~TF_BYPASS;
+	} else if (!CMP_FLAG(i, ICRNL|IGNCR|IMAXBEL|INLCR|ISTRIP|IXON) &&
 	    (!CMP_FLAG(i, BRKINT) || CMP_FLAG(i, IGNBRK)) &&
 	    (!CMP_FLAG(i, PARMRK) ||
 	        CMP_FLAG(i, IGNPAR|IGNBRK) == (IGNPAR|IGNBRK)) &&
-	    !CMP_FLAG(l, ECHO|ICANON|IEXTEN|ISIG|PENDIN)) ||
-	    ttyhook_hashook(tp, rint_bypass)) {
+	    !CMP_FLAG(l, ECHO|ICANON|IEXTEN|ISIG|PENDIN)) {
 		tp->t_flags |= TF_BYPASS;
 	} else {
 		tp->t_flags &= ~TF_BYPASS;
@@ -1042,6 +1045,22 @@ print:
 }
 
 size_t
+ttydisc_rint_simple(struct tty *tp, const void *buf, size_t len)
+{
+	const char *cbuf;
+
+	if (ttydisc_can_bypass(tp))
+		return (ttydisc_rint_bypass(tp, buf, len));
+
+	for (cbuf = buf; len-- > 0; cbuf++) {
+		if (ttydisc_rint(tp, *cbuf, 0) != 0)
+			break;
+	}
+
+	return (cbuf - (const char *)buf);
+}
+
+size_t
 ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 {
 	size_t ret;
@@ -1057,6 +1076,8 @@ ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 
 	ret = ttyinq_write(&tp->t_inq, buf, len, 0);
 	ttyinq_canonicalize(&tp->t_inq);
+	if (ret < len)
+		tty_hiwat_in_block(tp);
 
 	return (ret);
 }

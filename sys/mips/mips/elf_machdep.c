@@ -86,7 +86,8 @@ static Elf32_Brandinfo freebsd_brand_info = {
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf32_freebsd_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= 0
+	.brand_note	= &elf32_freebsd_brandnote,
+	.flags		= BI_BRAND_NOTE
 };
 
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_ANY,
@@ -133,7 +134,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	if (local) {
 #if 0 /* TBD  */
 		if (rtype == R_386_RELATIVE) {	/* A + B */
-			addr = relocbase + addend;
+			addr = elf_relocaddr(lf, relocbase + addend);
 			if (*where != addr)
 				*where = addr;
 		}

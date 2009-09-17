@@ -24,28 +24,48 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_lookup.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
 
 /*------------------------------------------------------------------------*
- *	usb2_lookup_id_by_info
+ *	usbd_lookup_id_by_info
  *
- * This functions takes an array of "struct usb2_device_id" and tries
- * to match the entries with the information in "struct usb2_lookup_info".
+ * This functions takes an array of "struct usb_device_id" and tries
+ * to match the entries with the information in "struct usbd_lookup_info".
  *
  * NOTE: The "sizeof_id" parameter must be a multiple of the
- * usb2_device_id structure size. Else the behaviour of this function
+ * usb_device_id structure size. Else the behaviour of this function
  * is undefined.
  *
  * Return values:
  * NULL: No match found.
  * Else: Pointer to matching entry.
  *------------------------------------------------------------------------*/
-const struct usb2_device_id *
-usb2_lookup_id_by_info(const struct usb2_device_id *id, uint32_t sizeof_id,
-    const struct usb2_lookup_info *info)
+const struct usb_device_id *
+usbd_lookup_id_by_info(const struct usb_device_id *id, usb_size_t sizeof_id,
+    const struct usbd_lookup_info *info)
 {
-	const struct usb2_device_id *id_end;
+	const struct usb_device_id *id_end;
 
 	if (id == NULL) {
 		goto done;
@@ -114,17 +134,17 @@ done:
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_lookup_id_by_uaa - factored out code
+ *	usbd_lookup_id_by_uaa - factored out code
  *
  * Return values:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
 int
-usb2_lookup_id_by_uaa(const struct usb2_device_id *id, uint32_t sizeof_id,
-    struct usb2_attach_arg *uaa)
+usbd_lookup_id_by_uaa(const struct usb_device_id *id, usb_size_t sizeof_id,
+    struct usb_attach_arg *uaa)
 {
-	id = usb2_lookup_id_by_info(id, sizeof_id, &uaa->info);
+	id = usbd_lookup_id_by_info(id, sizeof_id, &uaa->info);
 	if (id) {
 		/* copy driver info */
 		uaa->driver_info = id->driver_info;

@@ -767,6 +767,11 @@ skipshuffle:
 	mmu_fault_status_area = pmap_bootstrap_alloc(MMFSA_SIZE*MAXCPU);
 
 	/*
+	 * Allocate and map the dynamic per-CPU area for the BSP.
+	 */
+	dpcpu0 = (void *)TLB_PHYS_TO_DIRECT(pmap_bootstrap_alloc(DPCPU_SIZE));
+
+	/*
 	 * Allocate and map the message buffer.
 	 */
 	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE);
@@ -1292,7 +1297,7 @@ pmap_alloc_zeroed_contig_pages(int npages, uint64_t alignment)
 	while (m == NULL) {	
 		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 			m = vm_phys_alloc_contig(npages, phys_avail[i], 
-						 phys_avail[i + 1], alignment, (1UL<<34));
+			    phys_avail[i + 1], alignment, (1UL<<34));
 			if (m)
 				goto found;
 		}

@@ -2663,7 +2663,7 @@ static const char *pmc_op_to_name[] = {
 static int
 pmc_syscall_handler(struct thread *td, void *syscall_args)
 {
-	int error, is_sx_downgraded, op;
+	int error, is_sx_downgraded, is_sx_locked, op;
 	struct pmc_syscall_args *c;
 	void *arg;
 
@@ -2672,6 +2672,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 	DROP_GIANT();
 
 	is_sx_downgraded = 0;
+	is_sx_locked = 1;
 
 	c = (struct pmc_syscall_args *) syscall_args;
 
@@ -2720,9 +2721,11 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		 * a log file configured, flush its buffers and
 		 * de-configure it.
 		 */
-		if (cl.pm_logfd >= 0)
+		if (cl.pm_logfd >= 0) {
+			sx_xunlock(&pmc_sx);
+			is_sx_locked = 0;
 			error = pmclog_configure_log(md, po, cl.pm_logfd);
-		else if (po->po_flags & PMC_PO_OWNS_LOGFILE) {
+		} else if (po->po_flags & PMC_PO_OWNS_LOGFILE) {
 			pmclog_process_closelog(po);
 			error = pmclog_flush(po);
 			if (error == 0) {
@@ -3772,10 +3775,12 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		break;
 	}
 
-	if (is_sx_downgraded)
-		sx_sunlock(&pmc_sx);
-	else
-		sx_xunlock(&pmc_sx);
+	if (is_sx_locked != 0) {
+		if (is_sx_downgraded)
+			sx_sunlock(&pmc_sx);
+		else
+			sx_xunlock(&pmc_sx);
+	}
 
 	if (error)
 		atomic_add_int(&pmc_stats.pm_syscall_errors, 1);

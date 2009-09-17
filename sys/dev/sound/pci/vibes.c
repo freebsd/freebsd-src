@@ -22,11 +22,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
+ */
+
+/*
  * This card has the annoying habit of "clicking" when attached and
  * detached, haven't been able to remedy this with any combination of
  * muting.
  */
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pci/vibes.h>
@@ -97,10 +103,10 @@ struct sc_info {
 };
 
 static u_int32_t sc_fmt[] = {
-	AFMT_U8,
-	AFMT_U8 | AFMT_STEREO,
-	AFMT_S16_LE,
-	AFMT_S16_LE | AFMT_STEREO,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 
@@ -197,7 +203,7 @@ svchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 		return NULL;
 	}
 	ch->buffer = b;
-	ch->fmt = AFMT_U8;
+	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->spd = DSP_DEFAULT_SPEED;
 	ch->dma_active = ch->dma_was_active = 0;
 
@@ -210,7 +216,7 @@ svchan_getcaps(kobj_t obj, void *data)
         return &sc_caps;
 }
 
-static int
+static u_int32_t
 svchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
@@ -229,12 +235,12 @@ svchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	struct sc_chinfo *ch = data;
 	/* NB Just note format here as setting format register
 	 * generates noise if dma channel is inactive. */
-	ch->fmt  = (format & AFMT_STEREO) ? SV_AFMT_STEREO : SV_AFMT_MONO;
+	ch->fmt  = (AFMT_CHANNEL(format) > 1) ? SV_AFMT_STEREO : SV_AFMT_MONO;
 	ch->fmt |= (format & AFMT_16BIT) ? SV_AFMT_S16 : SV_AFMT_U8;
 	return 0;
 }
 
-static int
+static u_int32_t
 svchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_chinfo *ch = data;
@@ -347,7 +353,7 @@ svrchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 svrchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo	*ch = data;
@@ -368,7 +374,7 @@ static kobj_method_t svrchan_methods[] = {
         KOBJMETHOD(channel_trigger,             svrchan_trigger),
         KOBJMETHOD(channel_getptr,              svrchan_getptr),
         KOBJMETHOD(channel_getcaps,             svchan_getcaps),
-        { 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(svrchan);
 
@@ -424,7 +430,7 @@ svpchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 svpchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo	*ch = data;
@@ -445,7 +451,7 @@ static kobj_method_t svpchan_methods[] = {
         KOBJMETHOD(channel_trigger,             svpchan_trigger),
         KOBJMETHOD(channel_getptr,              svpchan_getptr),
         KOBJMETHOD(channel_getcaps,             svchan_getcaps),
-        { 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(svpchan);
 
@@ -536,7 +542,7 @@ sv_mix_set(struct snd_mixer *m, u_int32_t dev, u_int32_t left, u_int32_t right)
 	return sv_gain(sc, dev, left, right);
 }
 
-static int
+static u_int32_t
 sv_mix_setrecsrc(struct snd_mixer *m, u_int32_t mask)
 {
 	struct sc_info	*sc = mix_getdevinfo(m);
@@ -557,7 +563,7 @@ static kobj_method_t sv_mixer_methods[] = {
         KOBJMETHOD(mixer_init,		sv_mix_init),
         KOBJMETHOD(mixer_set,		sv_mix_set),
         KOBJMETHOD(mixer_setrecsrc,	sv_mix_setrecsrc),
-        { 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(sv_mixer);
 

@@ -138,8 +138,8 @@ static vm_reserv_t vm_reserv_array;
  * The partially-populated reservation queue
  *
  * This queue enables the fast recovery of an unused cached or free small page
- * from a partially-populated reservation.  The head of this queue is either
- * the least-recently-populated or most-recently-depopulated reservation.
+ * from a partially-populated reservation.  The reservation at the head of
+ * this queue is the least-recently-changed, partially-populated reservation.
  *
  * Access to this queue is synchronized by the free page queue lock.
  */
@@ -209,7 +209,7 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 /*
  * Reduces the given reservation's population count.  If the population count
  * becomes zero, the reservation is destroyed.  Additionally, moves the
- * reservation to the head of the partially-populated reservations queue if the
+ * reservation to the tail of the partially-populated reservations queue if the
  * population count is non-zero.
  *
  * The free page queue lock must be held.
@@ -235,7 +235,7 @@ vm_reserv_depopulate(vm_reserv_t rv)
 		vm_reserv_freed++;
 	} else {
 		rv->inpartpopq = TRUE;
-		TAILQ_INSERT_HEAD(&vm_rvq_partpop, rv, partpopq);
+		TAILQ_INSERT_TAIL(&vm_rvq_partpop, rv, partpopq);
 	}
 }
 

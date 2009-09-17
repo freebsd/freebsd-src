@@ -43,11 +43,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 static struct cdev	*snp_dev;
+static MALLOC_DEFINE(M_SNP, "snp", "tty snoop device");
+
 /* XXX: should be mtx, but TTY can be locked by Giant. */
+#if 0
+static struct mtx	snp_register_lock;
+MTX_SYSINIT(snp_register_lock, &snp_register_lock,
+    "tty snoop registration", MTX_DEF);
+#define	SNP_LOCK()	mtx_lock(&snp_register_lock)
+#define	SNP_UNLOCK()	mtx_unlock(&snp_register_lock)
+#else
 static struct sx	snp_register_lock;
 SX_SYSINIT(snp_register_lock, &snp_register_lock,
     "tty snoop registration");
-static MALLOC_DEFINE(M_SNP, "snp", "tty snoop device");
+#define	SNP_LOCK()	sx_xlock(&snp_register_lock)
+#define	SNP_UNLOCK()	sx_xunlock(&snp_register_lock)
+#endif
 
 /*
  * There is no need to have a big input buffer. In most typical setups,
@@ -181,7 +192,7 @@ snp_write(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct snp_softc *ss;
 	struct tty *tp;
-	int error, len, i;
+	int error, len;
 	char in[SNP_INPUT_BUFSIZE];
 
 	error = devfs_get_cdevpriv((void **)&ss);
@@ -212,14 +223,9 @@ snp_write(struct cdev *dev, struct uio *uio, int flag)
 		 * because we shouldn't bail out when we're running
 		 * close to the watermarks.
 		 */
-		if (ttydisc_can_bypass(tp)) {
-			ttydisc_rint_bypass(tp, in, len);
-		} else {
-			for (i = 0; i < len; i++)
-				ttydisc_rint(tp, in[i], 0);
-		}
-
+		ttydisc_rint_simple(tp, in, len);
 		ttydisc_rint_done(tp);
+
 		tty_unlock(tp);
 	}
 
@@ -241,14 +247,14 @@ snp_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 	switch (cmd) {
 	case SNPSTTY:
 		/* Bind TTY to snoop instance. */
-		sx_xlock(&snp_register_lock);
+		SNP_LOCK();
 		if (ss->snp_tty != NULL) {
-			sx_xunlock(&snp_register_lock);
+			SNP_UNLOCK();
 			return (EBUSY);
 		}
-		error = ttyhook_register(&ss->snp_tty, td->td_proc, *(int *)data,
-		    &snp_hook, ss);
-		sx_xunlock(&snp_register_lock);
+		error = ttyhook_register(&ss->snp_tty, td->td_proc,
+		    *(int *)data, &snp_hook, ss);
+		SNP_UNLOCK();
 		if (error != 0)
 			return (error);
 

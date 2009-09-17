@@ -1041,7 +1041,7 @@ zil_clean(zilog_t *zilog)
 	if ((itx != NULL) &&
 	    (itx->itx_lr.lrc_txg <= spa_last_synced_txg(zilog->zl_spa))) {
 		(void) taskq_dispatch(zilog->zl_clean_taskq,
-		    (void (*)(void *))zil_itx_clean, zilog, TQ_NOSLEEP);
+		    (task_func_t *)zil_itx_clean, zilog, TQ_SLEEP);
 	}
 	mutex_exit(&zilog->zl_lock);
 }

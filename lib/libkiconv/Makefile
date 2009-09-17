@@ -2,10 +2,10 @@
 
 LIB=		kiconv
 SHLIBDIR?=	/lib
-SRCS=		xlat16_iconv.c xlat16_sysctl.c
+SRCS=		kiconv_sysctl.c xlat16_iconv.c xlat16_sysctl.c
 SRCS+=		quirks.c
 
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 
 MAN=		kiconv.3
 

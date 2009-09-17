@@ -33,7 +33,7 @@ ifconfig $BRIDGE addm \$DEV
 ifconfig \$DEV up
 EOF
 chmod +x $WDSUP
-$WLANWDS -v -p $WIRELESS -s $WDSUP &
+$WLANWDS -v -s $WDSUP &
 
 ifconfig $BRIDGE addm $WLAN_AP addm $WIRED up
 ifconfig $WIRED up

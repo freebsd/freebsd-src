@@ -31,7 +31,7 @@
 # $FreeBSD$
 
 TYPE="FreeBSD"
-REVISION="8.0"
+REVISION="9.0"
 BRANCH="CURRENT"
 if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
@@ -87,23 +87,25 @@ touch version
 v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 
-for dir in /bin /usr/bin /usr/local/bin; do
-	if [ -x "${dir}/svnversion" ]; then
-		svnversion=${dir}/svnversion
-		SRCDIR=${d##*obj}
-		if [ -n "$MACHINE" ]; then
-			SRCDIR=${SRCDIR##/$MACHINE}
+case "$d" in
+*/sys/*)
+	for dir in /bin /usr/bin /usr/local/bin; do
+		if [ -x "${dir}/svnversion" ]; then
+			svnversion=${dir}/svnversion
+			SRCDIR=${d##*obj}
+			if [ -n "$MACHINE" ]; then
+				SRCDIR=${SRCDIR##/$MACHINE}
+			fi
+			SRCDIR=${SRCDIR%%/sys/*}
+			break
 		fi
-		SRCDIR=${SRCDIR%%/sys/*}
-		break
-	fi
-done
+	done
 
-if [ -n "$svnversion" -a -d "${SRCDIR}/.svn" ] ; then
-	svn=" r`cd $SRCDIR && $svnversion`"
-else
-	svn=""
-fi
+	if [ -n "$svnversion" -a -d "${SRCDIR}/sys/.svn" ] ; then
+		svn=" r`cd ${SRCDIR}/sys && $svnversion`"
+	fi
+	;;
+esac
 
 cat << EOF > vers.c
 $COPYRIGHT

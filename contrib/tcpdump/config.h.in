@@ -187,8 +187,14 @@
 /* Define to 1 if you have the <openssl/evp.h> header file. */
 #undef HAVE_OPENSSL_EVP_H
 
+/* Define to 1 if you have the <pcap/bluetooth.h> header file. */
+#undef HAVE_PCAP_BLUETOOTH_H
+
 /* Define to 1 if you have the `pcap_breakloop' function. */
 #undef HAVE_PCAP_BREAKLOOP
+
+/* Define to 1 if you have the `pcap_create' function. */
+#undef HAVE_PCAP_CREATE
 
 /* Define to 1 if you have the `pcap_dump_flush' function. */
 #undef HAVE_PCAP_DUMP_FLUSH

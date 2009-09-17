@@ -1759,7 +1759,7 @@ legacyEepromDetach(struct ath_hal *ah)
 	HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
 
         if (ee->ee_version >= AR_EEPROM_VER4_0 && ee->ee_eepMap == 1)
-		return freeEepromRawPowerCalInfo5112(ah, ee);
+		freeEepromRawPowerCalInfo5112(ah, ee);
 	ath_hal_free(ee);
 	AH_PRIVATE(ah)->ah_eeprom = AH_NULL;
 }

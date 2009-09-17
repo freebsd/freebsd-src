@@ -46,6 +46,10 @@ $FreeBSD$
 #define MXGE_VIRT_JUMBOS 0
 #endif
 
+#if (__FreeBSD_version > 800082)
+#define IFNET_BUF_RING 1
+#endif
+
 #ifndef VLAN_CAPABILITIES
 #define VLAN_CAPABILITIES(ifp)
 #define mxge_vlans_active(sc) (sc)->ifp->if_nvlans
@@ -120,12 +124,18 @@ typedef struct
 	int cl_size;
 	int alloc_fail;
 	int mask;			/* number of rx slots -1 */
+	int mlen;
 } mxge_rx_ring_t;
 
 typedef struct
 {
 	struct mtx mtx;
+#ifdef IFNET_BUF_RING
+	struct buf_ring *br;
+#endif
 	volatile mcp_kreq_ether_send_t *lanai;	/* lanai ptr for sendq	*/
+	volatile uint32_t *send_go;		/* doorbell for sendq */
+	volatile uint32_t *send_stop;		/* doorbell for sendq */
 	mcp_kreq_ether_send_t *req_list;	/* host shadow of sendq */
 	char *req_bytes;
 	bus_dma_segment_t *seg_list;
@@ -136,6 +146,9 @@ typedef struct
 	int done;			/* transmits completed	*/
 	int pkt_done;			/* packets completed */
 	int max_desc;			/* max descriptors per xmit */
+	int queue_active;		/* fw currently polling this queue*/
+	int activate;
+	int deactivate;
 	int stall;			/* #times hw queue exhausted */
 	int wake;			/* #times irq re-enabled xmit */
 	int watchdog_req;		/* cache of req */
@@ -182,6 +195,11 @@ struct mxge_slice_state {
 	mcp_irq_data_t *fw_stats;
 	volatile uint32_t *irq_claim;
 	u_long ipackets;
+	u_long opackets;
+	u_long obytes;
+	u_long omcasts;
+	u_long oerrors;
+	int if_drv_flags;
 	struct lro_head lro_active;
 	struct lro_head lro_free;
 	int lro_queued;
@@ -248,6 +266,7 @@ struct mxge_softc {
 	int need_media_probe;
 	int num_slices;
 	int rx_ring_size;
+	int dying;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
 	struct sysctl_oid *slice_sysctl_tree;

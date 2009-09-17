@@ -70,18 +70,18 @@ ata_pci_probe(device_t dev)
 
     /* is this a storage class device ? */
     if (pci_get_class(dev) != PCIC_STORAGE)
-	return ENXIO;
+	return (ENXIO);
 
     /* is this an IDE/ATA type device ? */
     if (pci_get_subclass(dev) != PCIS_STORAGE_IDE)
-	return ENXIO;
+	return (ENXIO);
     
     sprintf(buffer, "%s ATA controller", ata_pcivendor2str(dev));
     device_set_desc_copy(dev, buffer);
     ctlr->chipinit = ata_generic_chipinit;
 
     /* we are a low priority handler */
-    return -100;
+    return (BUS_PROBE_GENERIC);
 }
 
 int
@@ -556,6 +556,9 @@ ata_pcichannel_attach(device_t dev)
 
     ch->unit = (intptr_t)device_get_ivars(dev);
 
+    resource_int_value(device_get_name(dev),
+	device_get_unit(dev), "pm_level", &ch->pm_level);
+
     if ((error = ctlr->ch_attach(dev)))
 	return error;
 
@@ -581,6 +584,41 @@ ata_pcichannel_detach(device_t dev)
 
     return (0);
 }
+static int
+ata_pcichannel_suspend(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    int error;
+
+    if (!ch->attached)
+	return (0);
+
+    if ((error = ata_suspend(dev)))
+	return (error);
+
+    if (ctlr->ch_suspend != NULL && (error = ctlr->ch_suspend(dev)))
+	return (error);
+
+    return (0);
+}
+
+static int
+ata_pcichannel_resume(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    int error;
+
+    if (!ch->attached)
+	return (0);
+
+    if (ctlr->ch_resume != NULL && (error = ctlr->ch_resume(dev)))
+	return (error);
+
+    return ata_resume(dev);
+}
+
 
 static int
 ata_pcichannel_locking(device_t dev, int mode)
@@ -629,8 +667,8 @@ static device_method_t ata_pcichannel_methods[] = {
     DEVMETHOD(device_attach,    ata_pcichannel_attach),
     DEVMETHOD(device_detach,    ata_pcichannel_detach),
     DEVMETHOD(device_shutdown,  bus_generic_shutdown),
-    DEVMETHOD(device_suspend,   ata_suspend),
-    DEVMETHOD(device_resume,    ata_resume),
+    DEVMETHOD(device_suspend,   ata_pcichannel_suspend),
+    DEVMETHOD(device_resume,    ata_pcichannel_resume),
 
     /* ATA methods */
     DEVMETHOD(ata_setmode,      ata_pcichannel_setmode),
@@ -724,38 +762,42 @@ ata_set_desc(device_t dev)
 struct ata_chip_id *
 ata_match_chip(device_t dev, struct ata_chip_id *index)
 {
+    uint32_t devid;
+    uint8_t revid;
+
+    devid = pci_get_devid(dev);
+    revid = pci_get_revid(dev);
     while (index->chipid != 0) {
-	if (pci_get_devid(dev) == index->chipid &&
-	    pci_get_revid(dev) >= index->chiprev)
-	    return index;
+	if (devid == index->chipid && revid >= index->chiprev)
+	    return (index);
 	index++;
     }
-    return NULL;
+    return (NULL);
 }
 
 struct ata_chip_id *
 ata_find_chip(device_t dev, struct ata_chip_id *index, int slot)
 {
+    struct ata_chip_id *idx;
     device_t *children;
     int nchildren, i;
+    uint8_t s;
 
     if (device_get_children(device_get_parent(dev), &children, &nchildren))
-	return 0;
+	return (NULL);
 
-    while (index->chipid != 0) {
-	for (i = 0; i < nchildren; i++) {
-	    if (((slot >= 0 && pci_get_slot(children[i]) == slot) || 
-		 (slot < 0 && pci_get_slot(children[i]) <= -slot)) &&
-		pci_get_devid(children[i]) == index->chipid &&
-		pci_get_revid(children[i]) >= index->chiprev) {
+    for (i = 0; i < nchildren; i++) {
+	s = pci_get_slot(children[i]);
+	if ((slot >= 0 && s == slot) || (slot < 0 && s <= -slot)) {
+	    idx = ata_match_chip(children[i], index);
+	    if (idx != NULL) {
 		free(children, M_TEMP);
-		return index;
+		return (idx);
 	    }
 	}
-	index++;
     }
     free(children, M_TEMP);
-    return NULL;
+    return (NULL);
 }
 
 void

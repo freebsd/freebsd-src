@@ -34,17 +34,27 @@ __FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_write_disk_failures)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000 || (defined(_WIN32) && !defined(__CYGWIN__))
 	skipping("archive_write_disk interface");
 #else
 	struct archive_entry *ae;
 	struct archive *a;
+	int fd;
 
 	/* Force the umask to something predictable. */
 	umask(UMASK);
 
 	/* A directory that we can't write to. */
 	assertEqualInt(0, mkdir("dir", 0555));
+
+	/* Can we? */
+	fd = open("dir/testfile", O_WRONLY | O_CREAT, 0777);
+	if (fd >= 0) {
+	  /* Apparently, we can, so the test below won't work. */
+	  close(fd);
+	  skipping("Can't test writing to non-writable directory");
+	  return;
+	}
 
 	/* Try to extract a regular file into the directory above. */
 	assert((ae = archive_entry_new()) != NULL);

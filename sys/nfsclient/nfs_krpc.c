@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_inet6.h"
+#include "opt_kdtrace.h"
 #include "opt_kgssapi.h"
 
 #include <sys/param.h>
@@ -59,9 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <rpc/rpc.h>
-#include <rpc/rpcclnt.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfs/xdr_subs.h>
@@ -69,9 +68,24 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
 
-#include <nfs4client/nfs4.h>
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
 
-#ifndef NFS_LEGACYRPC
+dtrace_nfsclient_nfs23_start_probe_func_t
+    dtrace_nfsclient_nfs23_start_probe;
+
+dtrace_nfsclient_nfs23_done_probe_func_t
+    dtrace_nfsclient_nfs23_done_probe;
+
+/*
+ * Registered probes by RPC type.
+ */
+uint32_t	nfsclient_nfs2_start_probes[NFS_NPROCS];
+uint32_t	nfsclient_nfs2_done_probes[NFS_NPROCS];
+
+uint32_t	nfsclient_nfs3_start_probes[NFS_NPROCS];
+uint32_t	nfsclient_nfs3_done_probes[NFS_NPROCS];
+#endif
 
 static int	nfs_realign_test;
 static int	nfs_realign_count;
@@ -169,7 +183,7 @@ nfs_init_rtt(struct nfsmount *nmp)
  * We do not free the sockaddr if error.
  */
 int
-nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
+nfs_connect(struct nfsmount *nmp)
 {
 	int rcvreserve, sndreserve;
 	int pktscale;
@@ -390,6 +404,65 @@ nfs_feedback(int type, int proc, void *arg)
 }
 
 /*
+ *	nfs_realign:
+ *
+ *	Check for badly aligned mbuf data and realign by copying the unaligned
+ *	portion of the data into a new mbuf chain and freeing the portions
+ *	of the old chain that were replaced.
+ *
+ *	We cannot simply realign the data within the existing mbuf chain
+ *	because the underlying buffers may contain other rpc commands and
+ *	we cannot afford to overwrite them.
+ *
+ *	We would prefer to avoid this situation entirely.  The situation does
+ *	not occur with NFS/UDP and is supposed to only occassionally occur
+ *	with TCP.  Use vfs.nfs.realign_count and realign_test to check this.
+ *
+ */
+static int
+nfs_realign(struct mbuf **pm, int hsiz)
+{
+	struct mbuf *m, *n;
+	int off, space;
+
+	++nfs_realign_test;
+	while ((m = *pm) != NULL) {
+		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
+			/*
+			 * NB: we can't depend on m_pkthdr.len to help us
+			 * decide what to do here.  May not be worth doing
+			 * the m_length calculation as m_copyback will
+			 * expand the mbuf chain below as needed.
+			 */
+			space = m_length(m, NULL);
+			if (space >= MINCLSIZE) {
+				/* NB: m_copyback handles space > MCLBYTES */
+				n = m_getcl(M_DONTWAIT, MT_DATA, 0);
+			} else
+				n = m_get(M_DONTWAIT, MT_DATA);
+			if (n == NULL)
+				return (ENOMEM);
+			/*
+			 * Align the remainder of the mbuf chain.
+			 */
+			n->m_len = 0;
+			off = 0;
+			while (m != NULL) {
+				m_copyback(n, off, m->m_len, mtod(m, caddr_t));
+				off += m->m_len;
+				m = m->m_next;
+			}
+			m_freem(*pm);
+			*pm = n;
+			++nfs_realign_count;
+			break;
+		}
+		pm = &m->m_next;
+	}
+	return (0);
+}
+
+/*
  * nfs_request - goes something like this
  *	- fill in request struct
  *	- links it into list
@@ -425,8 +498,6 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 		return (ESTALE);
 	}
 	nmp = VFSTONFS(vp->v_mount);
-	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-		return nfs4_request(vp, mreq, procnum, td, cred, mrp, mdp, dposp);
 	bzero(&nf, sizeof(struct nfs_feedback_arg));
 	nf.nf_mount = nmp;
 	nf.nf_td = td;
@@ -440,7 +511,7 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 	 * and let clnt_reconnect_create handle reconnects.
 	 */
 	if (!nmp->nm_client)
-		nfs_connect(nmp, NULL);
+		nfs_connect(nmp);
 
 	auth = nfs_getauth(nmp, cred);
 	if (!auth) {
@@ -468,6 +539,24 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 		ext.rc_timers = NULL;
 	}
 
+#ifdef KDTRACE_HOOKS
+	if (dtrace_nfsclient_nfs23_start_probe != NULL) {
+		uint32_t probe_id;
+		int probe_procnum;
+
+		if (nmp->nm_flag & NFSMNT_NFSV3) {
+			probe_id = nfsclient_nfs3_start_probes[procnum];
+			probe_procnum = procnum;
+		} else {
+			probe_id = nfsclient_nfs2_start_probes[procnum];
+			probe_procnum = nfsv2_procid[procnum];
+		}
+		if (probe_id != 0)
+			(dtrace_nfsclient_nfs23_start_probe)(probe_id, vp,
+			    mreq, cred, probe_procnum);
+	}
+#endif
+
 	nfsstats.rpcrequests++;
 tryagain:
 	timo.tv_sec = nmp->nm_timeo / NFS_HZ;
@@ -492,15 +581,25 @@ tryagain:
 	} else {
 		error = EACCES;
 	}
-	md = mrep;
-	if (error) {
-		m_freem(mreq);
+	if (error)
+		goto nfsmout;
+
+	KASSERT(mrep != NULL, ("mrep shouldn't be NULL if no error\n"));
+
+	/*
+	 * Search for any mbufs that are not a multiple of 4 bytes long
+	 * or with m_data not longword aligned.
+	 * These could cause pointer alignment problems, so copy them to
+	 * well aligned mbufs.
+	 */
+	error = nfs_realign(&mrep, 2 * NFSX_UNSIGNED);
+	if (error == ENOMEM) {
+		m_freem(mrep);
 		AUTH_DESTROY(auth);
 		return (error);
 	}
 
-	KASSERT(mrep != NULL, ("mrep shouldn't be NULL if no error\n"));
-
+	md = mrep;
 	dpos = mtod(mrep, caddr_t);
 	tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 	if (*tl != 0) {
@@ -521,7 +620,7 @@ tryagain:
 		 * cache, just in case.
 		 */
 		if (error == ESTALE)
-			cache_purge(vp);
+			nfs_purgecache(vp);
 		/*
 		 * Skip wcc data on NFS errors for now. NetApp filers
 		 * return corrupt postop attrs in the wcc data for NFS
@@ -535,11 +634,27 @@ tryagain:
 			error |= NFSERR_RETERR;
 		} else
 			m_freem(mrep);
-		m_freem(mreq);
-		AUTH_DESTROY(auth);
-		return (error);
+		goto nfsmout;
 	}
 
+#ifdef KDTRACE_HOOKS
+	if (dtrace_nfsclient_nfs23_done_probe != NULL) {
+		uint32_t probe_id;
+		int probe_procnum;
+
+		if (nmp->nm_flag & NFSMNT_NFSV3) {
+			probe_id = nfsclient_nfs3_done_probes[procnum];
+			probe_procnum = procnum;
+		} else {
+			probe_id = nfsclient_nfs2_done_probes[procnum];
+			probe_procnum = (nmp->nm_flag & NFSMNT_NFSV3) ?
+			    procnum : nfsv2_procid[procnum];
+		}
+		if (probe_id != 0)
+			(dtrace_nfsclient_nfs23_done_probe)(probe_id, vp,
+			    mreq, cred, probe_procnum, 0);
+	}
+#endif
 	m_freem(mreq);
 	*mrp = mrep;
 	*mdp = md;
@@ -548,6 +663,24 @@ tryagain:
 	return (0);
 
 nfsmout:
+#ifdef KDTRACE_HOOKS
+	if (dtrace_nfsclient_nfs23_done_probe != NULL) {
+		uint32_t probe_id;
+		int probe_procnum;
+
+		if (nmp->nm_flag & NFSMNT_NFSV3) {
+			probe_id = nfsclient_nfs3_done_probes[procnum];
+			probe_procnum = procnum;
+		} else {
+			probe_id = nfsclient_nfs2_done_probes[procnum];
+			probe_procnum = (nmp->nm_flag & NFSMNT_NFSV3) ?
+			    procnum : nfsv2_procid[procnum];
+		}
+		if (probe_id != 0)
+			(dtrace_nfsclient_nfs23_done_probe)(probe_id, vp,
+			    mreq, cred, probe_procnum, error);
+	}
+#endif
 	m_freem(mreq);
 	if (auth)
 		AUTH_DESTROY(auth);
@@ -666,13 +799,11 @@ nfs_msleep(struct thread *td, void *ident, struct mtx *mtx, int priority, char *
  * This is used for NFSMNT_INT mounts.
  */
 int
-nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
+nfs_sigintr(struct nfsmount *nmp, struct thread *td)
 {
 	struct proc *p;
 	sigset_t tmpset;
 	
-	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-		return nfs4_sigintr(nmp, rep, td);
 	/* Terminate all requests while attempting a forced unmount. */
 	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
 		return (EIO);
@@ -765,5 +896,3 @@ nfs_up(struct nfsmount *nmp, struct thread *td, const char *msg,
 	} else
 		mtx_unlock(&nmp->nm_mtx);
 }
-
-#endif /* !NFS_LEGACYRPC */

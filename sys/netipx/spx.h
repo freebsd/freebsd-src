@@ -91,8 +91,9 @@ struct spx {
 	struct spxhdr 	si_s;
 } __packed;
 struct spx_q {
-	struct spx_q	*si_next;
-	struct spx_q	*si_prev;
+	struct mbuf		*sq_msi;
+	struct spx		*sq_si;
+	LIST_ENTRY(spx_q)	 sq_entry;
 };
 #define SI(x)	((struct spx *)x)
 #define si_sum	si_i.ipx_sum
@@ -114,7 +115,7 @@ struct spx_q {
  * SPX control block, one per connection
  */
 struct spxpcb {
-	struct	spx_q	s_q;		/* queue for out-of-order receipt */
+	LIST_HEAD(, spx_q)	s_q;	/* queue for out-of-order receipt */
 	struct	ipxpcb	*s_ipxpcb;	/* backpointer to internet pcb */
 	u_char	s_state;
 	u_char	s_flags;
@@ -129,7 +130,7 @@ struct spxpcb {
 	u_short s_mtu;			/* Max packet size for this stream */
 /* use sequence fields in headers to store sequence numbers for this
    connection */
-	struct	ipx	*s_ipx;
+	struct	ipx	s_ipx;
 	struct	spxhdr	s_shdr;		/* prototype header to transmit */
 #define s_cc s_shdr.spx_cc		/* connection control (for EM bit) */
 #define s_dt s_shdr.spx_dt		/* datastream type */
@@ -138,7 +139,7 @@ struct spxpcb {
 #define s_seq s_shdr.spx_seq		/* sequence number */
 #define s_ack s_shdr.spx_ack		/* acknowledge number */
 #define s_alo s_shdr.spx_alo		/* allocation number */
-#define s_dport s_ipx->ipx_dna.x_port	/* where we are sending */
+#define s_dport s_ipx.ipx_dna.x_port	/* where we are sending */
 	struct spxhdr s_rhdr;		/* last received header (in effect!)*/
 	u_short s_rack;			/* their acknowledge number */
 	u_short s_ralo;			/* their allocation number */

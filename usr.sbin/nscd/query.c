@@ -29,15 +29,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/event.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/event.h>
+
 #include <assert.h>
 #include <errno.h>
 #include <nsswitch.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 #include "config.h"
 #include "debug.h"
 #include "query.h"
@@ -332,11 +335,11 @@ on_write_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		write_request->entry = (char *)calloc(1,
+		write_request->entry = calloc(1,
 			write_request->entry_length + 1);
 		assert(write_request->entry != NULL);
 
-		write_request->cache_key = (char *)calloc(1,
+		write_request->cache_key = calloc(1,
 			write_request->cache_key_size +
 			qstate->eid_str_length);
 		assert(write_request->cache_key != NULL);
@@ -344,7 +347,7 @@ on_write_request_read1(struct query_state *qstate)
 			qstate->eid_str_length);
 
 		if (write_request->data_size != 0) {
-			write_request->data = (char *)calloc(1,
+			write_request->data = calloc(1,
 				write_request->data_size);
 			assert(write_request->data != NULL);
 		}
@@ -376,7 +379,7 @@ on_write_request_read2(struct query_state *qstate)
 		result += qstate->read_func(qstate, write_request->data,
 			write_request->data_size);
 
-	if (result != qstate->kevent_watermark) {
+	if (result != (ssize_t)qstate->kevent_watermark) {
 		TRACE_OUT(on_write_request_read2);
 		return (-1);
 	}
@@ -434,7 +437,7 @@ on_write_request_process(struct query_state *qstate)
 
 	configuration_lock_rdlock(s_configuration);
 	c_entry = find_cache_entry(s_cache,
-    		qstate->config_entry->positive_cache_params.entry_name);
+		qstate->config_entry->positive_cache_params.cep.entry_name);
 	configuration_unlock(s_configuration);
 	if (c_entry != NULL) {
 		configuration_lock_entry(qstate->config_entry, CELT_POSITIVE);
@@ -515,7 +518,7 @@ on_negative_write_request_process(struct query_state *qstate)
 
 	configuration_lock_rdlock(s_configuration);
 	c_entry = find_cache_entry(s_cache,
-    		qstate->config_entry->negative_cache_params.entry_name);
+		qstate->config_entry->negative_cache_params.cep.entry_name);
 	configuration_unlock(s_configuration);
 	if (c_entry != NULL) {
 		configuration_lock_entry(qstate->config_entry, CELT_NEGATIVE);
@@ -605,11 +608,11 @@ on_read_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		read_request->entry = (char *)calloc(1,
+		read_request->entry = calloc(1,
 			read_request->entry_length + 1);
 		assert(read_request->entry != NULL);
 
-		read_request->cache_key = (char *)calloc(1,
+		read_request->cache_key = calloc(1,
 			read_request->cache_key_size +
 			qstate->eid_str_length);
 		assert(read_request->cache_key != NULL);
@@ -640,7 +643,7 @@ on_read_request_read2(struct query_state *qstate)
 		read_request->cache_key + qstate->eid_str_length,
 		read_request->cache_key_size);
 
-	if (result != qstate->kevent_watermark) {
+	if (result != (ssize_t)qstate->kevent_watermark) {
 		TRACE_OUT(on_read_request_read2);
 		return (-1);
 	}
@@ -707,9 +710,9 @@ on_read_request_process(struct query_state *qstate)
 
 	configuration_lock_rdlock(s_configuration);
 	c_entry = find_cache_entry(s_cache,
-    		qstate->config_entry->positive_cache_params.entry_name);
+		qstate->config_entry->positive_cache_params.cep.entry_name);
 	neg_c_entry = find_cache_entry(s_cache,
-		qstate->config_entry->negative_cache_params.entry_name);
+		qstate->config_entry->negative_cache_params.cep.entry_name);
 	configuration_unlock(s_configuration);
 	if ((c_entry != NULL) && (neg_c_entry != NULL)) {
 		configuration_lock_entry(qstate->config_entry, CELT_POSITIVE);
@@ -720,8 +723,8 @@ on_read_request_process(struct query_state *qstate)
 	    		&read_response->data_size);
 
 		if (read_response->error_code == -2) {
-			read_response->data = (char *)malloc(
-		    		read_response->data_size);
+			read_response->data = malloc(
+				read_response->data_size);
 			assert(read_response != NULL);
 			read_response->error_code = cache_read(c_entry,
 				read_request->cache_key,
@@ -836,7 +839,7 @@ on_read_response_write1(struct query_state *qstate)
 	if (read_response->error_code == 0) {
 		result += qstate->write_func(qstate, &read_response->data_size,
 			sizeof(size_t));
-		if (result != qstate->kevent_watermark) {
+		if (result != (ssize_t)qstate->kevent_watermark) {
 			TRACE_OUT(on_read_response_write1);
 			return (-1);
 		}
@@ -844,7 +847,7 @@ on_read_response_write1(struct query_state *qstate)
 		qstate->kevent_watermark = read_response->data_size;
 		qstate->process_func = on_read_response_write2;
 	} else {
-		if (result != qstate->kevent_watermark) {
+		if (result != (ssize_t)qstate->kevent_watermark) {
 			TRACE_OUT(on_read_response_write1);
 			return (-1);
 		}
@@ -868,7 +871,7 @@ on_read_response_write2(struct query_state *qstate)
 	if (read_response->data_size > 0) {
 		result = qstate->write_func(qstate, read_response->data,
 			read_response->data_size);
-		if (result != qstate->kevent_watermark) {
+		if (result != (ssize_t)qstate->kevent_watermark) {
 			TRACE_OUT(on_read_response_write2);
 			return (-1);
 		}
@@ -927,7 +930,7 @@ on_transform_request_read1(struct query_state *qstate)
 				return (-1);
 			}
 
-			transform_request->entry = (char *)calloc(1,
+			transform_request->entry = calloc(1,
 				transform_request->entry_length + 1);
 			assert(transform_request->entry != NULL);
 
@@ -954,7 +957,7 @@ on_transform_request_read2(struct query_state *qstate)
 	result = qstate->read_func(qstate, transform_request->entry,
 		transform_request->entry_length);
 
-	if (result != qstate->kevent_watermark) {
+	if (result != (ssize_t)qstate->kevent_watermark) {
 		TRACE_OUT(on_transform_request_read2);
 		return (-1);
 	}
@@ -1100,23 +1103,26 @@ check_query_eids(struct query_state *qstate)
 ssize_t
 query_io_buffer_read(struct query_state *qstate, void *buf, size_t nbytes)
 {
+	size_t remaining;
 	ssize_t	result;
 
 	TRACE_IN(query_io_buffer_read);
 	if ((qstate->io_buffer_size == 0) || (qstate->io_buffer == NULL))
 		return (-1);
 
-	if (nbytes < qstate->io_buffer + qstate->io_buffer_size -
-			qstate->io_buffer_p)
+	assert(qstate->io_buffer_p <=
+		qstate->io_buffer + qstate->io_buffer_size);
+	remaining = qstate->io_buffer + qstate->io_buffer_size -
+		qstate->io_buffer_p;
+	if (nbytes < remaining)
 		result = nbytes;
 	else
-		result = qstate->io_buffer + qstate->io_buffer_size -
-			qstate->io_buffer_p;
+		result = remaining;
 
 	memcpy(buf, qstate->io_buffer_p, result);
 	qstate->io_buffer_p += result;
 
-	if (qstate->io_buffer_p == qstate->io_buffer + qstate->io_buffer_size) {
+	if (remaining == 0) {
 		free(qstate->io_buffer);
 		qstate->io_buffer = NULL;
 
@@ -1136,23 +1142,26 @@ ssize_t
 query_io_buffer_write(struct query_state *qstate, const void *buf,
 	size_t nbytes)
 {
+	size_t remaining;
 	ssize_t	result;
 
 	TRACE_IN(query_io_buffer_write);
 	if ((qstate->io_buffer_size == 0) || (qstate->io_buffer == NULL))
 		return (-1);
 
-	if (nbytes < qstate->io_buffer + qstate->io_buffer_size -
-			qstate->io_buffer_p)
+	assert(qstate->io_buffer_p <=
+		qstate->io_buffer + qstate->io_buffer_size);
+	remaining = qstate->io_buffer + qstate->io_buffer_size -
+		qstate->io_buffer_p;
+	if (nbytes < remaining)
 		result = nbytes;
 	else
-		result = qstate->io_buffer + qstate->io_buffer_size -
-		qstate->io_buffer_p;
+		result = remaining;
 
 	memcpy(qstate->io_buffer_p, buf, result);
 	qstate->io_buffer_p += result;
 
-	if (qstate->io_buffer_p == qstate->io_buffer + qstate->io_buffer_size) {
+	if (remaining == 0) {
 		qstate->use_alternate_io = 1;
 		qstate->io_buffer_p = qstate->io_buffer;
 
@@ -1179,7 +1188,7 @@ query_socket_read(struct query_state *qstate, void *buf, size_t nbytes)
 	}
 
 	result = read(qstate->sockfd, buf, nbytes);
-	if ((result == -1) || (result < nbytes))
+	if (result < 0 || (size_t)result < nbytes)
 		qstate->socket_failed = 1;
 
 	TRACE_OUT(query_socket_read);
@@ -1201,7 +1210,7 @@ query_socket_write(struct query_state *qstate, const void *buf, size_t nbytes)
 	}
 
 	result = write(qstate->sockfd, buf, nbytes);
-	if ((result == -1) || (result < nbytes))
+	if (result < 0 || (size_t)result < nbytes)
 		qstate->socket_failed = 1;
 
 	TRACE_OUT(query_socket_write);
@@ -1217,7 +1226,7 @@ init_query_state(int sockfd, size_t kevent_watermark, uid_t euid, gid_t egid)
 	struct query_state	*retval;
 
 	TRACE_IN(init_query_state);
-	retval = (struct query_state *)calloc(1, sizeof(struct query_state));
+	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->sockfd = sockfd;

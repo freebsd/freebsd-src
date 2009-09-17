@@ -81,6 +81,10 @@
 #define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
 #define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
 
+/* Page level cache control fields used to determine the PAT type */
+#define PG_PDE_CACHE	(PG_PDE_PAT | PG_NC_PWT | PG_NC_PCD)
+#define PG_PTE_CACHE	(PG_PTE_PAT | PG_NC_PWT | PG_NC_PCD)
+
 /*
  * Promotion to a 2 or 4MB (PDE) page mapping requires that the corresponding
  * 4KB (PTE) page mappings have identical settings for the following fields:
@@ -174,8 +178,7 @@ typedef uint32_t pt_entry_t;
 #endif
 
 /*
- * Address of current and alternate address space page table maps
- * and directories.
+ * Address of current address space page table maps and directories.
  */
 #ifdef _KERNEL
 extern pt_entry_t PTmap[];
@@ -186,9 +189,7 @@ extern pd_entry_t PTDpde[];
 extern pdpt_entry_t *IdlePDPT;
 #endif
 extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
-#endif
 
-#ifdef _KERNEL
 /*
  * virtual address to page table entry and
  * to physical address.
@@ -363,15 +364,8 @@ pte_load(pt_entry_t *ptep)
 static __inline pt_entry_t
 pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
 {
-	pt_entry_t r;
-
-	__asm __volatile(
-	    "xchgl %0,%1"
-	    : "=m" (*ptep),
-	      "=r" (r)
-	    : "1" (pte),
-	      "m" (*ptep));
-	return (r);
+	__asm volatile("xchgl %0, %1" : "+m" (*ptep), "+r" (pte));
+	return (pte);
 }
 
 #define	pte_load_clear(pte)	atomic_readandclear_int(pte)
@@ -399,6 +393,7 @@ struct	pv_chunk;
 
 struct md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
+	int			pat_mode;
 };
 
 struct pmap {
@@ -458,14 +453,6 @@ struct pv_chunk {
 
 #ifdef	_KERNEL
 
-#define NPPROVMTRR		8
-#define PPRO_VMTRRphysBase0	0x200
-#define PPRO_VMTRRphysMask0	0x201
-struct ppro_vmtrr {
-	u_int64_t base, mask;
-};
-extern struct ppro_vmtrr PPro_vmtrr[NPPROVMTRR];
-
 extern caddr_t	CADDR1;
 extern pt_entry_t *CMAP1;
 extern vm_paddr_t phys_avail[];
@@ -476,9 +463,11 @@ extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
+#define	pmap_page_get_memattr(m)	((vm_memattr_t)(m)->md.pat_mode)
 #define	pmap_unmapbios(va, sz)	pmap_unmapdev((va), (sz))
 
 void	pmap_bootstrap(vm_paddr_t);
+int	pmap_cache_bits(int mode, boolean_t is_pde);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_init_pat(void);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
@@ -488,6 +477,7 @@ void	*pmap_mapbios(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev(vm_paddr_t, vm_size_t);
 void	*pmap_mapdev_attr(vm_paddr_t, vm_size_t, int);
 boolean_t pmap_page_is_mapped(vm_page_t m);
+void	pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t) __pure2;
 void	pmap_set_pg(void);
@@ -495,6 +485,7 @@ void	pmap_invalidate_page(pmap_t, vm_offset_t);
 void	pmap_invalidate_range(pmap_t, vm_offset_t, vm_offset_t);
 void	pmap_invalidate_all(pmap_t);
 void	pmap_invalidate_cache(void);
+void	pmap_invalidate_cache_range(vm_offset_t, vm_offset_t);
 
 #endif /* _KERNEL */
 

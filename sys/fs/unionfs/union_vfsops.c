@@ -70,12 +70,13 @@ static struct vfsops unionfs_vfsops;
  * Mount unionfs layer.
  */
 static int
-unionfs_domount(struct mount *mp, struct thread *td)
+unionfs_domount(struct mount *mp)
 {
 	int		error;
 	struct vnode   *lowerrootvp;
 	struct vnode   *upperrootvp;
 	struct unionfs_mount *ump;
+	struct thread *td;
 	char           *target;
 	char           *tmp;
 	char           *ep;
@@ -103,6 +104,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	copymode = UNIONFS_TRANSPARENT;	/* default */
 	whitemode = UNIONFS_WHITE_ALWAYS;
 	ndp = &nd;
+	td = curthread;
 
 	if (mp->mnt_flag & MNT_ROOTFS) {
 		vfs_mount_error(mp, "Cannot union mount root filesystem");
@@ -343,7 +345,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
  * Free reference to unionfs layer
  */
 static int
-unionfs_unmount(struct mount *mp, int mntflags, struct thread *td)
+unionfs_unmount(struct mount *mp, int mntflags)
 {
 	struct unionfs_mount *ump;
 	int		error;
@@ -360,7 +362,7 @@ unionfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 		flags |= FORCECLOSE;
 
 	/* vflush (no need to call vrele) */
-	for (freeing = 0; (error = vflush(mp, 1, flags, td)) != 0;) {
+	for (freeing = 0; (error = vflush(mp, 1, flags, curthread)) != 0;) {
 		num = mp->mnt_nvnodelistsize;
 		if (num == freeing)
 			break;
@@ -377,7 +379,7 @@ unionfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 }
 
 static int
-unionfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+unionfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct unionfs_mount *ump;
 	struct vnode   *vp;
@@ -398,8 +400,7 @@ unionfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 }
 
 static int
-unionfs_quotactl(struct mount *mp, int cmd, uid_t uid, void *arg,
-    struct thread *td)
+unionfs_quotactl(struct mount *mp, int cmd, uid_t uid, void *arg)
 {
 	struct unionfs_mount *ump;
 
@@ -408,11 +409,11 @@ unionfs_quotactl(struct mount *mp, int cmd, uid_t uid, void *arg,
 	/*
 	 * Writing is always performed to upper vnode.
 	 */
-	return (VFS_QUOTACTL(ump->um_uppervp->v_mount, cmd, uid, arg, td));
+	return (VFS_QUOTACTL(ump->um_uppervp->v_mount, cmd, uid, arg));
 }
 
 static int
-unionfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+unionfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct unionfs_mount *ump;
 	int		error;
@@ -426,7 +427,7 @@ unionfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 
 	bzero(&mstat, sizeof(mstat));
 
-	error = VFS_STATFS(ump->um_lowervp->v_mount, &mstat, td);
+	error = VFS_STATFS(ump->um_lowervp->v_mount, &mstat);
 	if (error)
 		return (error);
 
@@ -436,7 +437,7 @@ unionfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 
 	lbsize = mstat.f_bsize;
 
-	error = VFS_STATFS(ump->um_uppervp->v_mount, &mstat, td);
+	error = VFS_STATFS(ump->um_uppervp->v_mount, &mstat);
 	if (error)
 		return (error);
 
@@ -461,7 +462,7 @@ unionfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 }
 
 static int
-unionfs_sync(struct mount *mp, int waitfor, struct thread *td)
+unionfs_sync(struct mount *mp, int waitfor)
 {
 	/* nothing to do */
 	return (0);
@@ -488,7 +489,7 @@ unionfs_checkexp(struct mount *mp, struct sockaddr *nam, int *extflagsp,
 
 static int
 unionfs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
-    int namespace, const char *attrname, struct thread *td)
+    int namespace, const char *attrname)
 {
 	struct unionfs_mount *ump;
 	struct unionfs_node *unp;
@@ -498,10 +499,10 @@ unionfs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 
 	if (unp->un_uppervp != NULLVP) {
 		return (VFS_EXTATTRCTL(ump->um_uppervp->v_mount, cmd,
-		    unp->un_uppervp, namespace, attrname, td));
+		    unp->un_uppervp, namespace, attrname));
 	} else {
 		return (VFS_EXTATTRCTL(ump->um_lowervp->v_mount, cmd,
-		    unp->un_lowervp, namespace, attrname, td));
+		    unp->un_lowervp, namespace, attrname));
 	}
 }
 

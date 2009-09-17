@@ -37,11 +37,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
+#include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -50,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_offload.h>
 #include <netinet/toedev.h>
-#include <netinet/vinet.h>
 
 uint32_t toedev_registration_count;
 
@@ -108,7 +108,6 @@ fail:
 void
 tcp_offload_twstart(struct tcpcb *tp)
 {
-	INIT_VNET_INET(curvnet);
 
 	INP_INFO_WLOCK(&V_tcbinfo);
 	INP_WLOCK(tp->t_inpcb);
@@ -119,8 +118,7 @@ tcp_offload_twstart(struct tcpcb *tp)
 struct tcpcb *
 tcp_offload_close(struct tcpcb *tp)
 {
-	INIT_VNET_INET(curvnet);
-	
+
 	INP_INFO_WLOCK(&V_tcbinfo);
 	INP_WLOCK(tp->t_inpcb);
 	tp = tcp_close(tp);
@@ -134,8 +132,7 @@ tcp_offload_close(struct tcpcb *tp)
 struct tcpcb *
 tcp_offload_drop(struct tcpcb *tp, int error)
 {
-	INIT_VNET_INET(curvnet);
-	
+
 	INP_INFO_WLOCK(&V_tcbinfo);
 	INP_WLOCK(tp->t_inpcb);
 	tp = tcp_drop(tp, error);

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2009
+.Dd May 27, 2009
 .Dt IFMCSTAT 8
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Op Fl i Ar interface
 .Op Fl f Ar address-family
 .Op Fl v
+.Op Fl K
 .Op Fl M Ar core
 .Op Fl N Ar system
 .\"
@@ -66,6 +67,13 @@ specifies that link-layer memberships should be printed;
 they are suppressed by default.
 It may not be specified for
 .Fl f Ar link .
+Source lists for each group will also be printed.
+.Pp
+If specified twice, and
+.Xr kvm 3
+is in use, the control plane timers for each interface
+and the source list counters for each group
+will also be printed.
 .El
 .Pp
 The following options are only available if
@@ -73,6 +81,10 @@ The following options are only available if
 has been built with support for
 .Xr kvm 3 :
 .Bl -tag -width Fl
+.It Fl K
+attempts to use
+.Xr kvm 3
+to retrieve the multicast group information.
 .It Fl M Ar core
 extracts values associated with the name list from the specified core,
 instead of the default
@@ -82,6 +94,11 @@ extracts the name list from the specified kernel instead of the
 default, which is the kernel image the system has booted from.
 .El
 .Sh IMPLEMENTATION NOTES
+.Nm
+will always print the embedded scope IDs of IPv6 multicast group
+memberships.
+This is because memberships are always scoped to an interface.
+.Pp
 When run with the
 .Fl v
 option,
@@ -106,10 +123,7 @@ support, the information displayed by
 is more limited.
 This support is recommended for debugging purposes.
 It requires super-user privilege if used to inspect a running kernel.
-.Xr kvm 3
-will be used by default if
-.Nm
-is run with super-user privileges.
+.Pp
 .Sh SEE ALSO
 .Xr getifaddrs 3 ,
 .Xr getifmaddrs 3 ,

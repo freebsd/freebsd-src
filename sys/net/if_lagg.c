@@ -93,7 +93,7 @@ static void	lagg_linkstate(struct lagg_softc *);
 static void	lagg_port_state(struct ifnet *, int);
 static int	lagg_port_ioctl(struct ifnet *, u_long, caddr_t);
 static int	lagg_port_output(struct ifnet *, struct mbuf *,
-		    struct sockaddr *, struct rtentry *);
+		    struct sockaddr *, struct route *);
 static void	lagg_port_ifdetach(void *arg __unused, struct ifnet *);
 static int	lagg_port_checkstacking(struct lagg_softc *);
 static void	lagg_port2req(struct lagg_port *, struct lagg_reqport *);
@@ -676,7 +676,7 @@ fallback:
 
 static int
 lagg_port_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct rtentry *rt0)
+	struct sockaddr *dst, struct route *ro)
 {
 	struct lagg_port *lp = ifp->if_lagg;
 	struct ether_header *eh;
@@ -696,7 +696,7 @@ lagg_port_output(struct ifnet *ifp, struct mbuf *m,
 	 */
 	switch (ntohs(type)) {
 		case ETHERTYPE_PAE:	/* EAPOL PAE/802.1x */
-			return ((*lp->lp_output)(ifp, m, dst, rt0));
+			return ((*lp->lp_output)(ifp, m, dst, ro));
 	}
 
 	/* drop any other frames */
@@ -1604,7 +1604,10 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_port *lp = NULL;
 	uint32_t p = 0;
 
-	p = lagg_hashmbuf(m, lb->lb_key);
+	if (m->m_flags & M_FLOWID)
+		p = m->m_pkthdr.flowid;
+	else
+		p = lagg_hashmbuf(m, lb->lb_key);
 	p %= sc->sc_count;
 	lp = lb->lb_ports[p];
 

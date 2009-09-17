@@ -45,4 +45,23 @@ struct udphdr {
 	u_short	uh_sum;			/* udp checksum */
 };
 
+/* 
+ * User-settable options (used with setsockopt).
+ */
+#define	UDP_ENCAP			0x01
+
+
+/*
+ * UDP Encapsulation of IPsec Packets options.
+ */
+/* Encapsulation types. */
+#define	UDP_ENCAP_ESPINUDP_NON_IKE 	1 /* draft-ietf-ipsec-nat-t-ike-00/01 */
+#define	UDP_ENCAP_ESPINUDP		2 /* draft-ietf-ipsec-udp-encaps-02+ */
+
+/* Default ESP in UDP encapsulation port. */
+#define	UDP_ENCAP_ESPINUDP_PORT		500
+
+/* Maximum UDP fragment size for ESP over UDP. */
+#define	UDP_ENCAP_ESPINUDP_MAXFRAGLEN	552
+
 #endif

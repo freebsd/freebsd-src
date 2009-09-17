@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/fnv_hash.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 #include <nlist.h>
 #include <kvm.h>

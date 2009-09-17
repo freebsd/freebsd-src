@@ -87,7 +87,8 @@ static Elf32_Brandinfo freebsd_brand_info = {
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf32_freebsd_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &elf32_freebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_ANY,
@@ -102,7 +103,8 @@ static Elf32_Brandinfo freebsd_brand_oinfo = {
 	.interp_path	= "/usr/libexec/ld-elf.so.1",
 	.sysvec		= &elf32_freebsd_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &elf32_freebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
 SYSINIT(oelf32, SI_SUB_EXEC, SI_ORDER_ANY,
@@ -192,7 +194,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	case R_PPC_RELATIVE: /* word32 B + A */
-       		*where = relocbase + addend;
+       		*where = elf_relocaddr(lf, relocbase + addend);
 	       	break;
 
 	default:

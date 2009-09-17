@@ -36,18 +36,23 @@
  * platform macros.
  */
 
+#include <sys/stat.h>
 #include <sys/types.h>  /* Linux requires this for off_t */
-#if !defined(__WATCOMC__) && !defined(_MSC_VER)
-/* Header unavailable on Watcom C or MS Visual C++. */
+#if !defined(__WATCOMC__) && !defined(_MSC_VER) && !defined(__INTERIX)
+/* Header unavailable on Watcom C or MS Visual C++ or SFU. */
 #include <inttypes.h> /* int64_t, etc. */
 #endif
 #include <stdio.h> /* For FILE * */
 
 /* Get appropriate definitions of standard POSIX-style types. */
 /* These should match the types used in 'struct stat' */
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #define	__LA_INT64_T	__int64
-#define	__LA_SSIZE_T	long
+# if	defined(_WIN64)
+#  define	__LA_SSIZE_T	__int64
+# else
+#  define	__LA_SSIZE_T	long
+# endif
 #define	__LA_UID_T	unsigned int
 #define	__LA_GID_T	unsigned int
 #else
@@ -63,7 +68,7 @@
  * .lib.  The default here assumes you're building a DLL.  Only
  * libarchive source should ever define __LIBARCHIVE_BUILD.
  */
-#if ((defined __WIN32__) || (defined _WIN32)) && (!defined LIBARCHIVE_STATIC)
+#if ((defined __WIN32__) || (defined _WIN32) || defined(__CYGWIN__)) && (!defined LIBARCHIVE_STATIC)
 # ifdef __LIBARCHIVE_BUILD
 #  ifdef __GNUC__
 #   define __LA_DECL	__attribute__((dllexport)) extern
@@ -113,13 +118,13 @@ extern "C" {
  *             (ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
  * #endif
  */
-#define	ARCHIVE_VERSION_NUMBER 2005903
+#define	ARCHIVE_VERSION_NUMBER 2007000
 __LA_DECL int		archive_version_number(void);
 
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 2.5.903a"
+#define	ARCHIVE_VERSION_STRING "libarchive 2.7.0"
 __LA_DECL const char *	archive_version_string(void);
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -226,6 +231,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_COMPRESSION_COMPRESS	3
 #define	ARCHIVE_COMPRESSION_PROGRAM	4
 #define	ARCHIVE_COMPRESSION_LZMA	5
+#define	ARCHIVE_COMPRESSION_XZ		6
 
 /*
  * Codes returned by archive_format.
@@ -266,6 +272,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_AR_GNU			(ARCHIVE_FORMAT_AR | 1)
 #define	ARCHIVE_FORMAT_AR_BSD			(ARCHIVE_FORMAT_AR | 2)
 #define	ARCHIVE_FORMAT_MTREE			0x80000
+#define	ARCHIVE_FORMAT_RAW			0x90000
 
 /*-
  * Basic outline for reading an archive:
@@ -292,9 +299,15 @@ __LA_DECL int		 archive_read_support_compression_all(struct archive *);
 __LA_DECL int		 archive_read_support_compression_bzip2(struct archive *);
 __LA_DECL int		 archive_read_support_compression_compress(struct archive *);
 __LA_DECL int		 archive_read_support_compression_gzip(struct archive *);
+__LA_DECL int		 archive_read_support_compression_lzma(struct archive *);
 __LA_DECL int		 archive_read_support_compression_none(struct archive *);
 __LA_DECL int		 archive_read_support_compression_program(struct archive *,
 		     const char *command);
+__LA_DECL int		 archive_read_support_compression_program_signature
+				(struct archive *, const char *,
+				    const void * /* match */, size_t);
+
+__LA_DECL int		 archive_read_support_compression_xz(struct archive *);
 
 __LA_DECL int		 archive_read_support_format_all(struct archive *);
 __LA_DECL int		 archive_read_support_format_ar(struct archive *);
@@ -303,6 +316,7 @@ __LA_DECL int		 archive_read_support_format_empty(struct archive *);
 __LA_DECL int		 archive_read_support_format_gnutar(struct archive *);
 __LA_DECL int		 archive_read_support_format_iso9660(struct archive *);
 __LA_DECL int		 archive_read_support_format_mtree(struct archive *);
+__LA_DECL int		 archive_read_support_format_raw(struct archive *);
 __LA_DECL int		 archive_read_support_format_tar(struct archive *);
 __LA_DECL int		 archive_read_support_format_zip(struct archive *);
 
@@ -343,6 +357,10 @@ __LA_DECL int		 archive_read_open_FILE(struct archive *, FILE *_file);
 __LA_DECL int		 archive_read_next_header(struct archive *,
 		     struct archive_entry **);
 
+/* Parses and returns next entry header using the archive_entry passed in */
+__LA_DECL int		 archive_read_next_header2(struct archive *,
+		     struct archive_entry *);
+
 /*
  * Retrieve the byte offset in UNCOMPRESSED data where last-read
  * header started.
@@ -378,6 +396,19 @@ __LA_DECL int		 archive_read_data_skip(struct archive *);
 __LA_DECL int		 archive_read_data_into_buffer(struct archive *,
 			    void *buffer, __LA_SSIZE_T len);
 __LA_DECL int		 archive_read_data_into_fd(struct archive *, int fd);
+
+/*
+ * Set read options.
+ */
+/* Apply option string to the format only. */
+__LA_DECL int		archive_read_set_format_options(struct archive *_a,
+			    const char *s);
+/* Apply option string to the filter only. */
+__LA_DECL int		archive_read_set_filter_options(struct archive *_a,
+			    const char *s);
+/* Apply option string to both the format and the filter. */
+__LA_DECL int		archive_read_set_options(struct archive *_a,
+			    const char *s);
 
 /*-
  * Convenience function to recreate the current entry (whose header
@@ -477,9 +508,11 @@ __LA_DECL int		 archive_write_set_skip_file(struct archive *, dev_t, ino_t);
 __LA_DECL int		 archive_write_set_compression_bzip2(struct archive *);
 __LA_DECL int		 archive_write_set_compression_compress(struct archive *);
 __LA_DECL int		 archive_write_set_compression_gzip(struct archive *);
+__LA_DECL int		 archive_write_set_compression_lzma(struct archive *);
 __LA_DECL int		 archive_write_set_compression_none(struct archive *);
 __LA_DECL int		 archive_write_set_compression_program(struct archive *,
 		     const char *cmd);
+__LA_DECL int		 archive_write_set_compression_xz(struct archive *);
 /* A convenience function to set the format based on the code or name. */
 __LA_DECL int		 archive_write_set_format(struct archive *, int format_code);
 __LA_DECL int		 archive_write_set_format_by_name(struct archive *,
@@ -547,11 +580,27 @@ __LA_DECL void		 archive_write_finish(struct archive *);
 __LA_DECL int		 archive_write_finish(struct archive *);
 #endif
 
+/*
+ * Set write options.
+ */
+/* Apply option string to the format only. */
+__LA_DECL int		archive_write_set_format_options(struct archive *_a,
+			    const char *s);
+/* Apply option string to the compressor only. */
+__LA_DECL int		archive_write_set_compressor_options(struct archive *_a,
+			    const char *s);
+/* Apply option string to both the format and the compressor. */
+__LA_DECL int		archive_write_set_options(struct archive *_a,
+			    const char *s);
+
+
 /*-
+ * ARCHIVE_WRITE_DISK API
+ *
  * To create objects on disk:
  *   1) Ask archive_write_disk_new for a new archive_write_disk object.
- *   2) Set any global properties.  In particular, you should set
- *      the compression and format to use.
+ *   2) Set any global properties.  In particular, you probably
+ *      want to set the options.
  *   3) For each entry:
  *      - construct an appropriate struct archive_entry structure
  *      - archive_write_header to create the file/dir/etc on disk
@@ -565,7 +614,8 @@ __LA_DECL struct archive	*archive_write_disk_new(void);
 /* This file will not be overwritten. */
 __LA_DECL int		 archive_write_disk_set_skip_file(struct archive *,
 		     dev_t, ino_t);
-/* Set flags to control how the next item gets created. */
+/* Set flags to control how the next item gets created.
+ * This accepts a bitmask of ARCHIVE_EXTRACT_XXX flags defined above. */
 __LA_DECL int		 archive_write_disk_set_options(struct archive *,
 		     int flags);
 /*
@@ -601,6 +651,40 @@ __LA_DECL int	 archive_write_disk_set_user_lookup(struct archive *,
 			    void (* /* cleanup */)(void *));
 
 /*
+ * ARCHIVE_READ_DISK API
+ *
+ * This is still evolving and somewhat experimental.
+ */
+__LA_DECL struct archive *archive_read_disk_new(void);
+/* The names for symlink modes here correspond to an old BSD
+ * command-line argument convention: -L, -P, -H */
+/* Follow all symlinks. */
+__LA_DECL int archive_read_disk_set_symlink_logical(struct archive *);
+/* Follow no symlinks. */
+__LA_DECL int archive_read_disk_set_symlink_physical(struct archive *);
+/* Follow symlink initially, then not. */
+__LA_DECL int archive_read_disk_set_symlink_hybrid(struct archive *);
+/* TODO: Handle Linux stat32/stat64 ugliness. <sigh> */
+__LA_DECL int archive_read_disk_entry_from_file(struct archive *,
+    struct archive_entry *, int /* fd */, const struct stat *);
+/* Look up gname for gid or uname for uid. */
+/* Default implementations are very, very stupid. */
+__LA_DECL const char *archive_read_disk_gname(struct archive *, __LA_GID_T);
+__LA_DECL const char *archive_read_disk_uname(struct archive *, __LA_UID_T);
+/* "Standard" implementation uses getpwuid_r, getgrgid_r and caches the
+ * results for performance. */
+__LA_DECL int	archive_read_disk_set_standard_lookup(struct archive *);
+/* You can install your own lookups if you like. */
+__LA_DECL int	archive_read_disk_set_gname_lookup(struct archive *,
+    void * /* private_data */,
+    const char *(* /* lookup_fn */)(void *, __LA_GID_T),
+    void (* /* cleanup_fn */)(void *));
+__LA_DECL int	archive_read_disk_set_uname_lookup(struct archive *,
+    void * /* private_data */,
+    const char *(* /* lookup_fn */)(void *, __LA_UID_T),
+    void (* /* cleanup_fn */)(void *));
+
+/*
  * Accessor functions to read/set various information in
  * the struct archive object:
  */
@@ -625,11 +709,14 @@ __LA_DECL void		 archive_copy_error(struct archive *dest,
 }
 #endif
 
-/* This is meaningless outside of this header. */
+/* These are meaningless outside of this header. */
 #undef __LA_DECL
 #undef __LA_GID_T
-#undef __LA_INT64_T
-#undef __LA_SSIZE_T
 #undef __LA_UID_T
+
+/* These need to remain defined because they're used in the
+ * callback type definitions.  XXX Fix this.  This is ugly. XXX */
+/* #undef __LA_INT64_T */
+/* #undef __LA_SSIZE_T */
 
 #endif /* !ARCHIVE_H_INCLUDED */

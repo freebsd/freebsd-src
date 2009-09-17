@@ -57,7 +57,6 @@ dev/sound/sbus/cs4231.c		optional	snd_audiocs ebus | \
 dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
-dev/syscons/teken/teken.c	optional sc
 dev/uart/uart_cpu_sparc64.c	optional	uart
 dev/uart/uart_kbd_sun.c		optional	uart sc
 kern/syscalls.c			optional	ktr
@@ -65,6 +64,7 @@ libkern/ffs.c			standard
 libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
+libkern/memmove.c		standard
 sparc64/central/central.c	optional	central
 sparc64/ebus/ebus.c		optional	ebus
 sparc64/fhc/clkbrd.c		optional	fhc

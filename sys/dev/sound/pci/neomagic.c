@@ -26,6 +26,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pci/neomagic.h>
@@ -113,10 +117,10 @@ static int samplerates[9] = {
 /* -------------------------------------------------------------------- */
 
 static u_int32_t nm_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps nm_caps = {4000, 48000, nm_fmt, 0};
@@ -277,7 +281,7 @@ static kobj_method_t nm_ac97_methods[] = {
     	KOBJMETHOD(ac97_init,		nm_initcd),
     	KOBJMETHOD(ac97_read,		nm_rdcd),
     	KOBJMETHOD(ac97_write,		nm_wrcd),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(nm_ac97);
 
@@ -334,7 +338,7 @@ nm_setch(struct sc_chinfo *ch)
 	x <<= 4;
 	x &= NM_RATE_MASK;
 	if (ch->fmt & AFMT_16BIT) x |= NM_RATE_BITS_16;
-	if (ch->fmt & AFMT_STEREO) x |= NM_RATE_STEREO;
+	if (AFMT_CHANNEL(ch->fmt) > 1) x |= NM_RATE_STEREO;
 
 	base = (ch->dir == PCMDIR_PLAY)? NM_PLAYBACK_REG_OFFSET : NM_RECORD_REG_OFFSET;
 	nm_wr(sc, base + NM_RATE_REG_OFFSET, x, 1);
@@ -380,7 +384,7 @@ nmchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return nm_setch(ch);
 }
 
-static int
+static u_int32_t
 nmchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_chinfo *ch = data;
@@ -389,7 +393,7 @@ nmchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return nm_setch(ch)? 0 : ch->spd;
 }
 
-static int
+static u_int32_t
 nmchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
@@ -410,7 +414,7 @@ nmchan_trigger(kobj_t obj, void *data, int go)
 		return 0;
 
 	ssz = (ch->fmt & AFMT_16BIT)? 2 : 1;
-	if (ch->fmt & AFMT_STEREO)
+	if (AFMT_CHANNEL(ch->fmt) > 1)
 		ssz <<= 1;
 
 	if (ch->dir == PCMDIR_PLAY) {
@@ -447,7 +451,7 @@ nmchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 nmchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
@@ -474,7 +478,7 @@ static kobj_method_t nmchan_methods[] = {
     	KOBJMETHOD(channel_trigger,		nmchan_trigger),
     	KOBJMETHOD(channel_getptr,		nmchan_getptr),
     	KOBJMETHOD(channel_getcaps,		nmchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(nmchan);
 

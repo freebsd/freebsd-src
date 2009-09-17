@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 uint32_t PUBSYM(lib_version) = G_LIB_VERSION;
 uint32_t PUBSYM(version) = 0;
 
+static char autofill[] = "*";
 static char optional[] = "";
 static char flags[] = "C";
 
@@ -68,10 +69,10 @@ static void gpart_show(struct gctl_req *, unsigned int);
 
 struct g_command PUBSYM(class_commands)[] = {
 	{ "add", 0, gpart_issue, {
-		{ 'b', "start", NULL, G_TYPE_STRING },
-		{ 's', "size", NULL, G_TYPE_STRING },
+		{ 'b', "start", autofill, G_TYPE_ASCLBA },
+		{ 's', "size", autofill, G_TYPE_ASCLBA },
 		{ 't', "type", NULL, G_TYPE_STRING },
-		{ 'i', index_param, optional, G_TYPE_STRING },
+		{ 'i', index_param, optional, G_TYPE_ASCNUM },
 		{ 'l', "label", optional, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
@@ -80,7 +81,7 @@ struct g_command PUBSYM(class_commands)[] = {
 	{ "bootcode", 0, gpart_bootcode, {
 		{ 'b', bootcode_param, optional, G_TYPE_STRING },
 		{ 'p', partcode_param, optional, G_TYPE_STRING },
-		{ 'i', index_param, optional, G_TYPE_STRING },
+		{ 'i', index_param, optional, G_TYPE_ASCNUM },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
@@ -88,13 +89,13 @@ struct g_command PUBSYM(class_commands)[] = {
 	{ "commit", 0, gpart_issue, G_NULL_OPTS, "geom", NULL },
 	{ "create", 0, gpart_issue, {
 		{ 's', "scheme", NULL, G_TYPE_STRING },
-		{ 'n', "entries", optional, G_TYPE_STRING },
+		{ 'n', "entries", optional, G_TYPE_ASCNUM },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "provider", NULL
 	},
 	{ "delete", 0, gpart_issue, {
-		{ 'i', index_param, NULL, G_TYPE_STRING },
+		{ 'i', index_param, NULL, G_TYPE_ASCNUM },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
@@ -104,7 +105,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL },
 	{ "modify", 0, gpart_issue, {
-		{ 'i', index_param, NULL, G_TYPE_STRING },
+		{ 'i', index_param, NULL, G_TYPE_ASCNUM },
 		{ 'l', "label", optional, G_TYPE_STRING },
 		{ 't', "type", optional, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
@@ -113,7 +114,7 @@ struct g_command PUBSYM(class_commands)[] = {
 	},
 	{ "set", 0, gpart_issue, {
 		{ 'a', "attrib", NULL, G_TYPE_STRING },
-		{ 'i', index_param, NULL, G_TYPE_STRING },
+		{ 'i', index_param, NULL, G_TYPE_ASCNUM },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
@@ -127,7 +128,7 @@ struct g_command PUBSYM(class_commands)[] = {
 	{ "undo", 0, gpart_issue, G_NULL_OPTS, "geom", NULL },
 	{ "unset", 0, gpart_issue, {
 		{ 'a', "attrib", NULL, G_TYPE_STRING },
-		{ 'i', index_param, NULL, G_TYPE_STRING },
+		{ 'i', index_param, NULL, G_TYPE_ASCNUM },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
@@ -238,6 +239,131 @@ fmtattrib(struct gprovider *pp)
 	if (idx > 0)
 		snprintf(buf + idx, sizeof(buf) - idx, "] ");
 	return (buf);
+}
+
+static int
+gpart_autofill(struct gctl_req *req)
+{
+	struct gmesh mesh;
+	struct gclass *cp;
+	struct ggeom *gp;
+	struct gprovider *pp;
+	unsigned long long first, last;
+	unsigned long long size, start;
+	unsigned long long lba, len, grade;
+	const char *s;
+	char *val;
+	int error, has_size, has_start;
+
+	s = gctl_get_ascii(req, "verb");
+	if (strcmp(s, "add") != 0)
+		return (0);
+
+	s = gctl_get_ascii(req, "size");
+	has_size = (*s == '*') ? 0 : 1;
+	size = (has_size) ? (unsigned long long)atoll(s) : 0ULL;
+
+	s = gctl_get_ascii(req, "start");
+	has_start = (*s == '*') ? 0 : 1;
+	start = (has_start) ? (unsigned long long)atoll(s) : ~0ULL;
+
+	/* No autofill necessary. */
+	if (has_size && has_start)
+		return (0);
+
+	error = geom_gettree(&mesh);
+	if (error)
+		return (error);
+	s = gctl_get_ascii(req, "class");
+	if (s == NULL)
+		abort();
+	cp = find_class(&mesh, s);
+	if (cp == NULL)
+		errx(EXIT_FAILURE, "Class %s not found.", s);
+	s = gctl_get_ascii(req, "geom");
+	if (s == NULL)
+		abort();
+	gp = find_geom(cp, s);
+	if (gp == NULL)
+		errx(EXIT_FAILURE, "No such geom: %s.", s);
+	first = atoll(find_geomcfg(gp, "first"));
+	last = atoll(find_geomcfg(gp, "last"));
+	grade = ~0ULL;
+	while ((pp = find_provider(gp, first)) != NULL) {
+		s = find_provcfg(pp, "start");
+		if (s == NULL) {
+			s = find_provcfg(pp, "offset");
+			lba = atoll(s) / pp->lg_sectorsize;
+		} else
+			lba = atoll(s);
+
+		if (first < lba) {
+			/* Free space [first, lba> */
+			len = lba - first;
+			if (has_size) {
+				if (len >= size && len - size < grade) {
+					start = first;
+					grade = len - size;
+				}
+			} else if (has_start) {
+				if (start >= first && start < lba) {
+					size = lba - start;
+					grade = start - first;
+				}
+			} else {
+				if (grade == ~0ULL || len > size) {
+					start = first;
+					size = len;
+					grade = 0;
+				}
+			}
+		}
+
+		s = find_provcfg(pp, "end");
+		if (s == NULL) {
+			s = find_provcfg(pp, "length");
+			first = lba + atoll(s) / pp->lg_sectorsize;
+		} else
+			first = atoll(s) + 1;
+	}
+	if (first <= last) {
+		/* Free space [first-last] */
+		len = last - first + 1;
+		if (has_size) {
+			if (len >= size && len - size < grade) {
+				start = first;
+				grade = len - size;
+			}
+		} else if (has_start) {
+			if (start >= first && start <= last) {
+				size = last - start + 1;
+				grade = start - first;
+			}
+		} else {
+			if (grade == ~0ULL || len > size) {
+				start = first;
+				size = len;
+				grade = 0;
+			}
+		}
+	}
+
+	if (grade == ~0ULL)
+		return (ENOSPC);
+
+	if (!has_size) {
+		asprintf(&val, "%llu", size);
+		if (val == NULL)
+			return (ENOMEM);
+		gctl_change_param(req, "size", -1, val);
+	}
+	if (!has_start) {
+		asprintf(&val, "%llu", start);
+		if (val == NULL)
+			return (ENOMEM);
+		gctl_change_param(req, "start", -1, val);
+	}
+	return (0);
 }
 
 static void
@@ -420,6 +546,8 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 		errx(EXIT_FAILURE, "Class %s not found.", s);
 	}
 	s = gctl_get_ascii(req, "geom");
+	if (s == NULL)
+		abort();
 	gp = find_geom(classp, s);
 	if (gp == NULL)
 		errx(EXIT_FAILURE, "No such geom: %s.", s);
@@ -530,6 +658,14 @@ gpart_issue(struct gctl_req *req, unsigned int fl __unused)
 	char *errmsg;
 	const char *errstr;
 	int error, status;
+
+	/* autofill parameters (if applicable). */
+	error = gpart_autofill(req);
+	if (error) {
+		warnc(error, "autofill");
+		status = EXIT_FAILURE;
+		goto done;
+	}
 
 	bzero(buf, sizeof(buf));
 	gctl_rw_param(req, "output", sizeof(buf), buf);

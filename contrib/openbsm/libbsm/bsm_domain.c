@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE. 
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_domain.c#2 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_domain.c#3 $
  */
 
 #include <sys/types.h>
@@ -317,13 +317,6 @@ static const struct bsm_domain bsm_domains[] = {
 	{ BSM_PF_BLUETOOTH,
 #ifdef PF_BLUETOOTH
 	PF_BLUETOOTH
-#else
-	PF_NO_LOCAL_MAPPING
-#endif
-	},
-	{ BSM_PF_IEEE80211,
-#ifdef PF_IEEE80211
-	PF_IEEE80211
 #else
 	PF_NO_LOCAL_MAPPING
 #endif

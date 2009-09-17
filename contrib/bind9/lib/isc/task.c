@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task.c,v 1.91.18.6 2006/01/04 23:50:23 marka Exp $ */
+/* $Id: task.c,v 1.107 2008/03/27 23:46:57 tbox Exp $ */
 
 /*! \file
  * \author Principal Author: Bob Halley
@@ -38,12 +38,11 @@
 #include <isc/task.h>
 #include <isc/thread.h>
 #include <isc/util.h>
+#include <isc/xml.h>
 
 #ifndef ISC_PLATFORM_USETHREADS
 #include "task_p.h"
 #endif /* ISC_PLATFORM_USETHREADS */
-
-#define ISC_TASK_NAMES 1
 
 #ifdef ISC_TASK_TRACE
 #define XTRACE(m)		fprintf(stderr, "task %p thread %lu: %s\n", \
@@ -67,6 +66,12 @@ typedef enum {
 	task_state_done
 } task_state_t;
 
+#ifdef HAVE_LIBXML2
+static const char *statenames[] = {
+	"idle", "ready", "running", "done",
+};
+#endif
+
 #define TASK_MAGIC			ISC_MAGIC('T', 'A', 'S', 'K')
 #define VALID_TASK(t)			ISC_MAGIC_VALID(t, TASK_MAGIC)
 
@@ -83,10 +88,8 @@ struct isc_task {
 	unsigned int			quantum;
 	unsigned int			flags;
 	isc_stdtime_t			now;
-#ifdef ISC_TASK_NAMES
 	char				name[16];
 	void *				tag;
-#endif
 	/* Locked by task manager lock. */
 	LINK(isc_task_t)		link;
 	LINK(isc_task_t)		ready_link;
@@ -196,10 +199,8 @@ isc_task_create(isc_taskmgr_t *manager, unsigned int quantum,
 	task->quantum = quantum;
 	task->flags = 0;
 	task->now = 0;
-#ifdef ISC_TASK_NAMES
 	memset(task->name, 0, sizeof(task->name));
 	task->tag = NULL;
-#endif
 	INIT_LINK(task, link);
 	INIT_LINK(task, ready_link);
 
@@ -694,17 +695,11 @@ isc_task_setname(isc_task_t *task, const char *name, void *tag) {
 
 	REQUIRE(VALID_TASK(task));
 
-#ifdef ISC_TASK_NAMES
 	LOCK(&task->lock);
 	memset(task->name, 0, sizeof(task->name));
 	strncpy(task->name, name, sizeof(task->name) - 1);
 	task->tag = tag;
 	UNLOCK(&task->lock);
-#else
-	UNUSED(name);
-	UNUSED(tag);
-#endif
-
 }
 
 const char *
@@ -806,9 +801,9 @@ dispatch(isc_taskmgr_t *manager) {
 		 * task lock.
 		 */
 		while ((EMPTY(manager->ready_tasks) ||
-		        manager->exclusive_requested) &&
-		  	!FINISHED(manager)) 
-	  	{
+			manager->exclusive_requested) &&
+			!FINISHED(manager))
+		{
 			XTHREADTRACE(isc_msgcat_get(isc_msgcat,
 						    ISC_MSGSET_GENERAL,
 						    ISC_MSG_WAIT, "wait"));
@@ -1021,7 +1016,7 @@ manager_free(isc_taskmgr_t *manager) {
 	isc_mem_t *mctx;
 
 #ifdef ISC_PLATFORM_USETHREADS
-	(void)isc_condition_destroy(&manager->exclusive_granted);	
+	(void)isc_condition_destroy(&manager->exclusive_granted);
 	(void)isc_condition_destroy(&manager->work_available);
 	isc_mem_free(manager->mctx, manager->threads);
 #endif /* ISC_PLATFORM_USETHREADS */
@@ -1263,19 +1258,19 @@ isc__taskmgr_dispatch(void) {
 
 isc_result_t
 isc_task_beginexclusive(isc_task_t *task) {
-#ifdef ISC_PLATFORM_USETHREADS	
+#ifdef ISC_PLATFORM_USETHREADS
 	isc_taskmgr_t *manager = task->manager;
 	REQUIRE(task->state == task_state_running);
 	LOCK(&manager->lock);
 	if (manager->exclusive_requested) {
-		UNLOCK(&manager->lock);			
+		UNLOCK(&manager->lock);
 		return (ISC_R_LOCKBUSY);
 	}
 	manager->exclusive_requested = ISC_TRUE;
 	while (manager->tasks_running > 1) {
 		WAIT(&manager->exclusive_granted, &manager->lock);
 	}
-	UNLOCK(&manager->lock);	
+	UNLOCK(&manager->lock);
 #else
 	UNUSED(task);
 #endif
@@ -1284,7 +1279,7 @@ isc_task_beginexclusive(isc_task_t *task) {
 
 void
 isc_task_endexclusive(isc_task_t *task) {
-#ifdef ISC_PLATFORM_USETHREADS	
+#ifdef ISC_PLATFORM_USETHREADS
 	isc_taskmgr_t *manager = task->manager;
 	REQUIRE(task->state == task_state_running);
 	LOCK(&manager->lock);
@@ -1296,3 +1291,86 @@ isc_task_endexclusive(isc_task_t *task) {
 	UNUSED(task);
 #endif
 }
+
+#ifdef HAVE_LIBXML2
+
+void
+isc_taskmgr_renderxml(isc_taskmgr_t *mgr, xmlTextWriterPtr writer)
+{
+	isc_task_t *task;
+
+	LOCK(&mgr->lock);
+
+	/*
+	 * Write out the thread-model, and some details about each depending
+	 * on which type is enabled.
+	 */
+	xmlTextWriterStartElement(writer, ISC_XMLCHAR "thread-model");
+#ifdef ISC_PLATFORM_USETHREADS
+	xmlTextWriterStartElement(writer, ISC_XMLCHAR "type");
+	xmlTextWriterWriteString(writer, ISC_XMLCHAR "threaded");
+	xmlTextWriterEndElement(writer); /* type */
+
+	xmlTextWriterStartElement(writer, ISC_XMLCHAR "worker-threads");
+	xmlTextWriterWriteFormatString(writer, "%d", mgr->workers);
+	xmlTextWriterEndElement(writer); /* worker-threads */
+#else /* ISC_PLATFORM_USETHREADS */
+	xmlTextWriterStartElement(writer, ISC_XMLCHAR "type");
+	xmlTextWriterWriteString(writer, ISC_XMLCHAR "non-threaded");
+	xmlTextWriterEndElement(writer); /* type */
+
+	xmlTextWriterStartElement(writer, ISC_XMLCHAR "references");
+	xmlTextWriterWriteFormatString(writer, "%d", mgr->refs);
+	xmlTextWriterEndElement(writer); /* references */
+#endif /* ISC_PLATFORM_USETHREADS */
+
+	xmlTextWriterStartElement(writer, ISC_XMLCHAR "default-quantum");
+	xmlTextWriterWriteFormatString(writer, "%d", mgr->default_quantum);
+	xmlTextWriterEndElement(writer); /* default-quantum */
+
+	xmlTextWriterStartElement(writer, ISC_XMLCHAR "tasks-running");
+	xmlTextWriterWriteFormatString(writer, "%d", mgr->tasks_running);
+	xmlTextWriterEndElement(writer); /* tasks-running */
+
+	xmlTextWriterEndElement(writer); /* thread-model */
+
+	xmlTextWriterStartElement(writer, ISC_XMLCHAR "tasks");
+	task = ISC_LIST_HEAD(mgr->tasks);
+	while (task != NULL) {
+		LOCK(&task->lock);
+		xmlTextWriterStartElement(writer, ISC_XMLCHAR "task");
+
+		if (task->name[0] != 0) {
+			xmlTextWriterStartElement(writer, ISC_XMLCHAR "name");
+			xmlTextWriterWriteFormatString(writer, "%s",
+						       task->name);
+			xmlTextWriterEndElement(writer); /* name */
+		}
+
+		xmlTextWriterStartElement(writer, ISC_XMLCHAR "references");
+		xmlTextWriterWriteFormatString(writer, "%d", task->references);
+		xmlTextWriterEndElement(writer); /* references */
+
+		xmlTextWriterStartElement(writer, ISC_XMLCHAR "id");
+		xmlTextWriterWriteFormatString(writer, "%p", task);
+		xmlTextWriterEndElement(writer); /* id */
+
+		xmlTextWriterStartElement(writer, ISC_XMLCHAR "state");
+		xmlTextWriterWriteFormatString(writer, "%s",
+					       statenames[task->state]);
+		xmlTextWriterEndElement(writer); /* state */
+
+		xmlTextWriterStartElement(writer, ISC_XMLCHAR "quantum");
+		xmlTextWriterWriteFormatString(writer, "%d", task->quantum);
+		xmlTextWriterEndElement(writer); /* quantum */
+
+		xmlTextWriterEndElement(writer);
+
+		UNLOCK(&task->lock);
+		task = ISC_LIST_NEXT(task, link);
+	}
+	xmlTextWriterEndElement(writer); /* tasks */
+
+	UNLOCK(&mgr->lock);
+}
+#endif /* HAVE_LIBXML2 */

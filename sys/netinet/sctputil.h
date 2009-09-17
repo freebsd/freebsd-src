@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 
 #if defined(_KERNEL) || defined(__Userspace__)
 
+#define SCTP_READ_LOCK_HELD 1
+#define SCTP_READ_LOCK_NOT_HELD 0
 
 #ifdef SCTP_ASOCLOG_OF_TSNS
 void sctp_print_out_track_log(struct sctp_tcb *stcb);
@@ -103,6 +105,7 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
     struct sctp_queued_to_read *control,
     struct sockbuf *sb,
     int end,
+    int inpread_locked,
     int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -231,13 +234,9 @@ int sctp_cmpaddr(struct sockaddr *, struct sockaddr *);
 void sctp_print_address(struct sockaddr *);
 void sctp_print_address_pkt(struct ip *, struct sctphdr *);
 
-void
-sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb,
-    uint32_t error, int no_lock, uint32_t strseq);
-
 int
 sctp_release_pr_sctp_chunk(struct sctp_tcb *, struct sctp_tmit_chunk *,
-    int, struct sctpchunk_listhead *, int
+    int, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -287,7 +286,6 @@ do { \
 #define sctp_free_spbufspace(stcb, asoc, sp)  \
 do { \
  	if (sp->data != NULL) { \
-                atomic_subtract_int(&(asoc)->chunks_on_out_queue, 1); \
 		if ((asoc)->total_output_queue_size >= sp->length) { \
 			atomic_subtract_int(&(asoc)->total_output_queue_size, sp->length); \
 		} else { \

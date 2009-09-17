@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Lukas Ertl
+ * Copyright (c) 2007 Lukas Ertl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,416 +29,136 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bio.h>
-#include <sys/conf.h>
-#include <sys/kernel.h>
-#include <sys/kthread.h>
-#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/module.h>
-#include <sys/mutex.h>
 #include <sys/systm.h>
 
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
 
-static void gv_vol_completed_request(struct gv_volume *, struct bio *);
-static void gv_vol_normal_request(struct gv_volume *, struct bio *);
+void
+gv_volume_flush(struct gv_volume *v)
+{
+	struct gv_softc *sc;
+	struct bio *bp;
 
-static void
-gv_volume_orphan(struct g_consumer *cp)
+	KASSERT(v != NULL, ("NULL v"));
+	sc = v->vinumconf;
+	KASSERT(sc != NULL, ("NULL sc"));
+
+	bp = bioq_takefirst(v->wqueue);
+	while (bp != NULL) {
+		gv_volume_start(sc, bp);
+		bp = bioq_takefirst(v->wqueue);
+	}
+}
+
+void
+gv_volume_start(struct gv_softc *sc, struct bio *bp)
 {
 	struct g_geom *gp;
 	struct gv_volume *v;
-	int error;
+	struct gv_plex *p, *lp;
+	int numwrites;
 
-	g_topology_assert();
-	gp = cp->geom;
-	g_trace(G_T_TOPOLOGY, "gv_volume_orphan(%s)", gp->name);
-	if (cp->acr != 0 || cp->acw != 0 || cp->ace != 0)
-		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
-	error = cp->provider->error;
-	if (error == 0)
-		error = ENXIO;
-	g_detach(cp);
-	g_destroy_consumer(cp);	
-	if (!LIST_EMPTY(&gp->consumer))
-		return;
-	v = gp->softc;
-	if (v != NULL) {
-		gv_kill_vol_thread(v);
-		v->geom = NULL;
-	}
-	gp->softc = NULL;
-	g_wither_geom(gp, error);
-}
-
-/* We end up here after the requests to our plexes are done. */
-static void
-gv_volume_done(struct bio *bp)
-{
-	struct gv_volume *v;
-
-	v = bp->bio_from->geom->softc;
-	bp->bio_cflags |= GV_BIO_DONE;
-	mtx_lock(&v->bqueue_mtx);
-	bioq_insert_tail(v->bqueue, bp);
-	wakeup(v);
-	mtx_unlock(&v->bqueue_mtx);
-}
-
-static void
-gv_volume_start(struct bio *bp)
-{
-	struct gv_volume *v;
-
-	switch(bp->bio_cmd) {
-	case BIO_READ:
-	case BIO_WRITE:
-	case BIO_DELETE:
-		break;
-	case BIO_GETATTR:
-	default:
-		g_io_deliver(bp, EOPNOTSUPP);
-		return;
-	}
-
-	v = bp->bio_to->geom->softc;
-	if (v->state != GV_VOL_UP) {
+	gp = sc->geom;
+	v = bp->bio_to->private;
+	if (v == NULL || v->state != GV_VOL_UP) {
 		g_io_deliver(bp, ENXIO);
 		return;
 	}
 
-	mtx_lock(&v->bqueue_mtx);
-	bioq_disksort(v->bqueue, bp);
-	wakeup(v);
-	mtx_unlock(&v->bqueue_mtx);
-}
-
-static void
-gv_vol_worker(void *arg)
-{
-	struct bio *bp;
-	struct gv_volume *v;
-
-	v = arg;
-	KASSERT(v != NULL, ("NULL v"));
-	mtx_lock(&v->bqueue_mtx);
-	for (;;) {
-		/* We were signaled to exit. */
-		if (v->flags & GV_VOL_THREAD_DIE)
-			break;
-
-		/* Take the first BIO from our queue. */
-		bp = bioq_takefirst(v->bqueue);
-		if (bp == NULL) {
-			msleep(v, &v->bqueue_mtx, PRIBIO, "-", hz/10);
-			continue;
-		}
-		mtx_unlock(&v->bqueue_mtx);
-
-		if (bp->bio_cflags & GV_BIO_DONE)
-			gv_vol_completed_request(v, bp);
-		else
-			gv_vol_normal_request(v, bp);
-
-		mtx_lock(&v->bqueue_mtx);
-	}
-	mtx_unlock(&v->bqueue_mtx);
-	v->flags |= GV_VOL_THREAD_DEAD;
-	wakeup(v);
-
-	kproc_exit(ENXIO);
-}
-
-static void
-gv_vol_completed_request(struct gv_volume *v, struct bio *bp)
-{
-	struct bio *pbp;
-	struct g_geom *gp;
-	struct g_consumer *cp, *cp2;
-
-	pbp = bp->bio_parent;
-
-	if (pbp->bio_error == 0)
-		pbp->bio_error = bp->bio_error;
-
-	switch (pbp->bio_cmd) {
-	case BIO_READ:
-		if (bp->bio_error == 0)
-			break;
-
-		if (pbp->bio_cflags & GV_BIO_RETRY)
-			break;
-
-		/* Check if we have another plex left. */
-		cp = bp->bio_from;
-		gp = cp->geom;
-		cp2 = LIST_NEXT(cp, consumer);
-		if (cp2 == NULL)
-			break;
-
-		if (LIST_NEXT(cp2, consumer) == NULL)
-			pbp->bio_cflags |= GV_BIO_RETRY;
-
-		g_destroy_bio(bp);
-		pbp->bio_children--;
-		mtx_lock(&v->bqueue_mtx);
-		bioq_disksort(v->bqueue, pbp);
-		mtx_unlock(&v->bqueue_mtx);
-		return;
-
-	case BIO_WRITE:
-	case BIO_DELETE:
-		/* Remember if this write request succeeded. */
-		if (bp->bio_error == 0)
-			pbp->bio_cflags |= GV_BIO_SUCCEED;
-		break;
-	}
-
-	/* When the original request is finished, we deliver it. */
-	pbp->bio_inbed++;
-	if (pbp->bio_inbed == pbp->bio_children) {
-		if (pbp->bio_cflags & GV_BIO_SUCCEED)
-			pbp->bio_error = 0;
-		pbp->bio_completed = bp->bio_length;
-		g_io_deliver(pbp, pbp->bio_error);
-	}
-
-	g_destroy_bio(bp);
-}
-
-static void
-gv_vol_normal_request(struct gv_volume *v, struct bio *bp)
-{
-	struct bio_queue_head queue;
-	struct g_geom *gp;
-	struct gv_plex *p, *lp;
-	struct bio *cbp;
-
-	gp = v->geom;
-
 	switch (bp->bio_cmd) {
 	case BIO_READ:
-		cbp = g_clone_bio(bp);
-		if (cbp == NULL) {
-			g_io_deliver(bp, ENOMEM);
-			return;
-		}
-		cbp->bio_done = gv_volume_done;
 		/*
-		 * Try to find a good plex where we can send the request to.
-		 * The plex either has to be up, or it's a degraded RAID5 plex.
+		 * Try to find a good plex where we can send the request to,
+		 * round-robin-style.  The plex either has to be up, or it's a
+		 * degraded RAID5 plex. Check if we have delayed requests. Put
+		 * this request on the delayed queue if so. This makes sure that
+		 * we don't read old values.
 		 */
+		if (bioq_first(v->wqueue) != NULL) {
+			bioq_insert_tail(v->wqueue, bp);
+			break;
+		}
 		lp = v->last_read_plex;
 		if (lp == NULL)
 			lp = LIST_FIRST(&v->plexes);
 		p = LIST_NEXT(lp, in_volume);
+		if (p == NULL)
+			p = LIST_FIRST(&v->plexes);
 		do {
-			if (p == NULL)
-				p = LIST_FIRST(&v->plexes);
+			if (p == NULL) {
+				p = lp;
+				break;
+			}
 			if ((p->state > GV_PLEX_DEGRADED) ||
 			    (p->state >= GV_PLEX_DEGRADED &&
 			    p->org == GV_PLEX_RAID5))
 				break;
 			p = LIST_NEXT(p, in_volume);
+			if (p == NULL)
+				p = LIST_FIRST(&v->plexes);
 		} while (p != lp);
 
-		if (p == NULL ||
+		if ((p == NULL) ||
 		    (p->org == GV_PLEX_RAID5 && p->state < GV_PLEX_DEGRADED) ||
 		    (p->org != GV_PLEX_RAID5 && p->state <= GV_PLEX_DEGRADED)) {
-			g_destroy_bio(cbp);
-			bp->bio_children--;
 			g_io_deliver(bp, ENXIO);
 			return;
 		}
-		g_io_request(cbp, p->consumer);
 		v->last_read_plex = p;
 
+		/* Hand it down to the plex logic. */
+		gv_plex_start(p, bp);
 		break;
 
 	case BIO_WRITE:
 	case BIO_DELETE:
-		bioq_init(&queue);
+		/* Delay write-requests if any plex is synchronizing. */
+		LIST_FOREACH(p, &v->plexes, in_volume) {
+			if (p->flags & GV_PLEX_SYNCING) {
+				bioq_insert_tail(v->wqueue, bp);
+				return;
+			}
+		}
+
+		numwrites = 0;
+		/* Give the BIO to each plex of this volume. */
 		LIST_FOREACH(p, &v->plexes, in_volume) {
 			if (p->state < GV_PLEX_DEGRADED)
 				continue;
-			cbp = g_clone_bio(bp);
-			if (cbp == NULL) {
-				for (cbp = bioq_first(&queue); cbp != NULL;
-				    cbp = bioq_first(&queue)) {
-					bioq_remove(&queue, cbp);
-					g_destroy_bio(cbp);
-				}
-				if (bp->bio_error == 0)
-					bp->bio_error = ENOMEM;
-				g_io_deliver(bp, bp->bio_error);
-				return;
-			}
-			bioq_insert_tail(&queue, cbp);
-			cbp->bio_done = gv_volume_done;
-			cbp->bio_caller1 = p->consumer;
+			gv_plex_start(p, bp);
+			numwrites++;
 		}
-		/* Fire off all sub-requests. */
-		for (cbp = bioq_first(&queue); cbp != NULL;
-		     cbp = bioq_first(&queue)) {
-			bioq_remove(&queue, cbp);
-			g_io_request(cbp, cbp->bio_caller1);
-		}
+		if (numwrites == 0)
+			g_io_deliver(bp, ENXIO);
 		break;
 	}
 }
 
-static int
-gv_volume_access(struct g_provider *pp, int dr, int dw, int de)
+void
+gv_bio_done(struct gv_softc *sc, struct bio *bp)
 {
-	struct g_geom *gp;
-	struct g_consumer *cp, *cp2;
-	int error;
-
-	gp = pp->geom;
-
-	error = ENXIO;
-	LIST_FOREACH(cp, &gp->consumer, consumer) {
-		error = g_access(cp, dr, dw, de);
-		if (error) {
-			LIST_FOREACH(cp2, &gp->consumer, consumer) {
-				if (cp == cp2)
-					break;
-				g_access(cp2, -dr, -dw, -de);
-			}
-			return (error);
-		}
-	}
-	return (error);
-}
-
-static struct g_geom *
-gv_volume_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
-{
-	struct g_geom *gp;
-	struct g_provider *pp2;
-	struct g_consumer *cp, *ocp;
-	struct gv_softc *sc;
 	struct gv_volume *v;
 	struct gv_plex *p;
-	int error, first;
+	struct gv_sd *s;
 
-	g_trace(G_T_TOPOLOGY, "gv_volume_taste(%s, %s)", mp->name, pp->name);
-	g_topology_assert();
+	s = bp->bio_caller1;
+	KASSERT(s != NULL, ("gv_bio_done: NULL s"));
+	p = s->plex_sc;
+	KASSERT(p != NULL, ("gv_bio_done: NULL p"));
+	v = p->vol_sc;
+	KASSERT(v != NULL, ("gv_bio_done: NULL v"));
 
-	/* First, find the VINUM class and its associated geom. */
-	gp = find_vinum_geom();
-	if (gp == NULL)
-		return (NULL);
-
-	sc = gp->softc;
-	KASSERT(sc != NULL, ("gv_volume_taste: NULL sc"));
-
-	gp = pp->geom;
-
-	/* We only want to attach to plexes. */
-	if (strcmp(gp->class->name, "VINUMPLEX"))
-		return (NULL);
-
-	first = 0;
-	p = gp->softc;
-
-	/* Let's see if the volume this plex wants is already configured. */
-	v = gv_find_vol(sc, p->volume);
-	if (v == NULL)
-		return (NULL);
-	if (v->geom == NULL) {
-		gp = g_new_geomf(mp, "%s", p->volume);
-		gp->start = gv_volume_start;
-		gp->orphan = gv_volume_orphan;
-		gp->access = gv_volume_access;
-		gp->softc = v;
-		first++;
-	} else
-		gp = v->geom;
-
-	/* Create bio queue, queue mutex, and worker thread, if necessary. */
-	if (v->bqueue == NULL) {
-		v->bqueue = g_malloc(sizeof(struct bio_queue_head),
-		    M_WAITOK | M_ZERO);
-		bioq_init(v->bqueue);
+	switch (p->org) {
+	case GV_PLEX_CONCAT:
+	case GV_PLEX_STRIPED:
+		gv_plex_normal_done(p, bp);
+		break;
+	case GV_PLEX_RAID5:
+		gv_plex_raid5_done(p, bp);
+		break;
 	}
-	if (mtx_initialized(&v->bqueue_mtx) == 0)
-		mtx_init(&v->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
-
-	if (!(v->flags & GV_VOL_THREAD_ACTIVE)) {
-		kproc_create(gv_vol_worker, v, NULL, 0, 0, "gv_v %s",
-		    v->name);
-		v->flags |= GV_VOL_THREAD_ACTIVE;
-	}
-
-	/*
-	 * Create a new consumer and attach it to the plex geom.  Since this
-	 * volume might already have a plex attached, we need to adjust the
-	 * access counts of the new consumer.
-	 */
-	ocp = LIST_FIRST(&gp->consumer);
-	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
-	if ((ocp != NULL) && (ocp->acr > 0 || ocp->acw > 0 || ocp->ace > 0)) {
-		error = g_access(cp, ocp->acr, ocp->acw, ocp->ace);
-		if (error) {
-			G_VINUM_DEBUG(0, "failed g_access %s -> %s; "
-			    "errno %d", v->name, p->name, error);
-			g_detach(cp);
-			g_destroy_consumer(cp);
-			if (first)
-				g_destroy_geom(gp);
-			return (NULL);
-		}
-	}
-
-	p->consumer = cp;
-
-	if (p->vol_sc != v) {
-		p->vol_sc = v;
-		v->plexcount++;
-		LIST_INSERT_HEAD(&v->plexes, p, in_volume);
-	}
-
-	/* We need to setup a new VINUMVOLUME geom. */
-	if (first) {
-		pp2 = g_new_providerf(gp, "gvinum/%s", v->name);
-		pp2->mediasize = pp->mediasize;
-		pp2->sectorsize = pp->sectorsize;
-		g_error_provider(pp2, 0);
-		v->size = pp2->mediasize;
-		v->geom = gp;
-		return (gp);
-	}
-
-	return (NULL);
 }
-
-static int
-gv_volume_destroy_geom(struct gctl_req *req, struct g_class *mp,
-    struct g_geom *gp)
-{
-	struct gv_volume *v;
-
-	g_trace(G_T_TOPOLOGY, "gv_volume_destroy_geom: %s", gp->name);
-	g_topology_assert();
-
-	v = gp->softc;
-	gv_kill_vol_thread(v);
-	g_wither_geom(gp, ENXIO);
-	return (0);
-}
-
-#define	VINUMVOLUME_CLASS_NAME "VINUMVOLUME"
-
-static struct g_class g_vinum_volume_class = {
-	.name = VINUMVOLUME_CLASS_NAME,
-	.version = G_VERSION,
-	.taste = gv_volume_taste,
-	.destroy_geom = gv_volume_destroy_geom,
-};
-
-DECLARE_GEOM_CLASS(g_vinum_volume_class, g_vinum_volume);

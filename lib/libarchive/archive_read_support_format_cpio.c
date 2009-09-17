@@ -150,7 +150,9 @@ archive_read_support_format_cpio(struct archive *_a)
 
 	r = __archive_read_register_format(a,
 	    cpio,
+	    "cpio",
 	    archive_read_format_cpio_bid,
+	    NULL,
 	    archive_read_format_cpio_read_header,
 	    archive_read_format_cpio_read_data,
 	    NULL,
@@ -255,6 +257,11 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 		cpio->entry_bytes_remaining = 0;
 	}
 
+	/* XXX TODO: If the full mode is 0160200, then this is a Solaris
+	 * ACL description for the following entry.  Read this body
+	 * and parse it as a Solaris-style ACL, then read the next
+	 * header.  XXX */
+
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
 	if (namelength == 11 && strcmp((const char *)h, "TRAILER!!!") == 0) {
 	    /* TODO: Store file location of start of block. */
@@ -329,7 +336,8 @@ find_newc_header(struct archive_read *a)
 {
 	const void *h;
 	const char *p, *q;
-	size_t skip, bytes, skipped = 0;
+	size_t skip, skipped = 0;
+	ssize_t bytes;
 
 	for (;;) {
 		h = __archive_read_ahead(a, sizeof(struct cpio_newc_header), &bytes);
@@ -463,7 +471,8 @@ find_odc_header(struct archive_read *a)
 {
 	const void *h;
 	const char *p, *q;
-	size_t skip, bytes, skipped = 0;
+	size_t skip, skipped = 0;
+	ssize_t bytes;
 
 	for (;;) {
 		h = __archive_read_ahead(a, sizeof(struct cpio_odc_header), &bytes);
@@ -665,7 +674,7 @@ le4(const unsigned char *p)
 static int
 be4(const unsigned char *p)
 {
-	return (p[0] + (p[1]<<8) + (p[2]<<16) + (p[3]<<24));
+	return ((p[0]<<24) + (p[1]<<16) + (p[2]<<8) + (p[3]));
 }
 
 /*

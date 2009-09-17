@@ -36,6 +36,7 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/ucred.h>
 #include <fs/portalfs/portal.h>
 
 /*

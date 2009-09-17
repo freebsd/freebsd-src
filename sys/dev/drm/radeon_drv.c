@@ -80,31 +80,31 @@ static void radeon_configure(struct drm_device *dev)
 }
 
 static int
-radeon_probe(device_t dev)
+radeon_probe(device_t kdev)
 {
-	return drm_probe(dev, radeon_pciidlist);
+	return drm_probe(kdev, radeon_pciidlist);
 }
 
 static int
-radeon_attach(device_t nbdev)
+radeon_attach(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 
 	dev->driver = malloc(sizeof(struct drm_driver_info), DRM_MEM_DRIVER,
 	    M_WAITOK | M_ZERO);
 
 	radeon_configure(dev);
 
-	return drm_attach(nbdev, radeon_pciidlist);
+	return drm_attach(kdev, radeon_pciidlist);
 }
 
 static int
-radeon_detach(device_t nbdev)
+radeon_detach(device_t kdev)
 {
-	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(kdev);
 	int ret;
 
-	ret = drm_detach(nbdev);
+	ret = drm_detach(kdev);
 
 	free(dev->driver, DRM_MEM_DRIVER);
 

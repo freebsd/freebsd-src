@@ -52,9 +52,9 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
+#include <sys/proc.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -270,7 +270,9 @@ ng_ether_output(struct ifnet *ifp, struct mbuf **mp)
 		return (0);
 
 	/* Send it out "upper" hook */
+	NG_OUTBOUND_THREAD_REF();
 	NG_SEND_DATA_ONLY(error, priv->upper, *mp);
+	NG_OUTBOUND_THREAD_UNREF();
 	return (error);
 }
 
@@ -283,6 +285,18 @@ ng_ether_attach(struct ifnet *ifp)
 {
 	priv_p priv;
 	node_p node;
+
+	/*
+	 * Do not create / attach an ether node to this ifnet if
+	 * a netgraph node with the same name already exists.
+	 * This should prevent ether nodes to become attached to
+	 * eiface nodes, which may be problematic due to naming
+	 * clashes.
+	 */
+	if ((node = ng_name2noderef(NULL, ifp->if_xname)) != NULL) {
+		NG_NODE_UNREF(node);
+		return;
+	}
 
 	/* Create node */
 	KASSERT(!IFP2NG(ifp), ("%s: node already exists?", __func__));
@@ -392,6 +406,7 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 	if (strcmp(name, NG_ETHER_HOOK_UPPER) == 0) {
 		hookptr = &priv->upper;
 		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_upper);
+		NG_HOOK_SET_TO_INBOUND(hook);
 	} else if (strcmp(name, NG_ETHER_HOOK_LOWER) == 0) {
 		hookptr = &priv->lower;
 		NG_HOOK_SET_RCVDATA(hook, ng_ether_rcv_lower);
@@ -408,7 +423,7 @@ ng_ether_newhook(node_p node, hook_p hook, const char *name)
 	/* Disable hardware checksums while 'upper' hook is connected */
 	if (hookptr == &priv->upper)
 		priv->ifp->if_hwassist = 0;
-
+	NG_HOOK_HI_STACK(hook);
 	/* OK */
 	*hookptr = hook;
 	return (0);
@@ -525,10 +540,10 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			 * lose a race while we check if the membership
 			 * already exists.
 			 */
-			IF_ADDR_LOCK(priv->ifp);
+			if_maddr_rlock(priv->ifp);
 			ifma = if_findmulti(priv->ifp,
 			    (struct sockaddr *)&sa_dl);
-			IF_ADDR_UNLOCK(priv->ifp);
+			if_maddr_runlock(priv->ifp);
 			if (ifma != NULL) {
 				error = EADDRINUSE;
 			} else {
@@ -738,7 +753,6 @@ ng_ether_disconnect(hook_p hook)
 static int
 ng_ether_mod_event(module_t mod, int event, void *data)
 {
-	struct ifnet *ifp;
 	int error = 0;
 	int s;
 
@@ -758,14 +772,6 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		ng_ether_input_orphan_p = ng_ether_input_orphan;
 		ng_ether_link_state_p = ng_ether_link_state;
 
-		/* Create nodes for any already-existing Ethernet interfaces */
-		IFNET_RLOCK();
-		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-			if (ifp->if_type == IFT_ETHER
-			    || ifp->if_type == IFT_L2VLAN)
-				ng_ether_attach(ifp);
-		}
-		IFNET_RUNLOCK();
 		break;
 
 	case MOD_UNLOAD:
@@ -795,3 +801,23 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
+static void
+vnet_ng_ether_init(const void *unused)
+{
+	struct ifnet *ifp;
+
+	/* If module load was rejected, don't attach to vnets. */
+	if (ng_ether_attach_p != ng_ether_attach)
+		return;
+
+	/* Create nodes for any already-existing Ethernet interfaces. */
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if (ifp->if_type == IFT_ETHER
+		    || ifp->if_type == IFT_L2VLAN)
+			ng_ether_attach(ifp);
+	}
+	IFNET_RUNLOCK();
+}
+VNET_SYSINIT(vnet_ng_ether_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
+    vnet_ng_ether_init, NULL);

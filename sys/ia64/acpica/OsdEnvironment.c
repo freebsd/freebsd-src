@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <machine/efi.h>
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 static struct uuid acpi_root_uuid = EFI_TABLE_ACPI20;
 

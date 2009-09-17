@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007-2008, Chelsio Inc.
+Copyright (c) 2007-2009, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -92,6 +92,8 @@ static void __attribute__((noreturn)) usage(FILE *fp)
 	    	"\tclearstats                          clear MAC statistics\n"
 		"\tcontext <type> <id>                 show an SGE context\n"
 		"\tdesc <qset> <queue> <idx> [<cnt>]   dump SGE descriptors\n"
+		"\tioqs                                dump uP IOQs\n"
+		"\tla                                  dump uP logic analyzer info\n"
 		"\tloadboot <boot image>               download boot image\n"
 		"\tloadfw <FW image>                   download firmware\n"
 		"\tmdio <phy_addr> <mmd_addr>\n"
@@ -673,7 +675,7 @@ static void show_fl_cntxt(uint32_t data[])
 	printf("queue size:   %u\n", (data[2] >> 4) & 0xffff);
 	printf("generation:   %u\n", (data[2] >> 20) & 1);
 	printf("entry size:   %u\n",
-	       ((data[2] >> 21) & 0x7ff) | (data[3] & 0x1fffff));
+	       (data[2] >> 21) | (data[3] & 0x1fffff) << 11);
 	printf("congest thr:  %u\n", (data[3] >> 21) & 0x3ff);
 	printf("GTS:          %u\n", (data[3] >> 31) & 1);
 }
@@ -958,7 +960,7 @@ static int dump_mc7(int argc, char *argv[], int start_arg,
 #endif
 
 /* Max FW size is 32K including version, +4 bytes for the checksum. */
-#define MAX_FW_IMAGE_SIZE (32768 + 4)
+#define MAX_FW_IMAGE_SIZE (64 * 1024)
 
 static int load_fw(int argc, char *argv[], int start_arg, const char *iff_name)
 {
@@ -1330,6 +1332,7 @@ static int pktsched(int argc, char *argv[], int start_arg, const char *iff_name)
 
 	return 0;
 }
+
 static int clear_stats(int argc, char *argv[], int start_arg,
 		       const char *iff_name)
 {
@@ -1339,26 +1342,77 @@ static int clear_stats(int argc, char *argv[], int start_arg,
 	return 0;
 }
 
-int main(int argc, char *argv[])
+static int get_up_la(int argc, char *argv[], int start_arg, const char *iff_name)
 {
-	int r = -1;
-	const char *iff_name;
+	struct ch_up_la la;
+	int i, idx, max_idx, entries;
 
-	progname = argv[0];
+	la.stopped = 0;
+	la.idx = -1;
+	la.bufsize = LA_BUFSIZE;
+	la.data = malloc(la.bufsize);
+	if (!la.data)
+		err(1, "uP_LA malloc");
 
-	if (argc == 2) {
-		if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
-			usage(stdout);
-		if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")) {
-			printf("%s version %s\n", PROGNAME, VERSION);
-			printf("%s\n", COPYRIGHT);
-			exit(0);
-		}
+	if (doit(iff_name, CHELSIO_GET_UP_LA, &la) < 0)
+		 err(1, "uP_LA");
+
+	if (la.stopped)
+		printf("LA is not running\n");
+
+	entries = la.bufsize / 4;
+	idx = (int)la.idx;
+	max_idx = (entries / 4) - 1;
+	for (i = 0; i < max_idx; i++) {
+		printf("%04x %08x %08x\n",
+		       la.data[idx], la.data[idx+2], la.data[idx+1]);
+		idx = (idx + 4) & (entries - 1);
 	}
 
-	if (argc < 3) usage(stderr);
+	return 0;
+}
 
-	iff_name = argv[1];
+static int get_up_ioqs(int argc, char *argv[], int start_arg, const char *iff_name)
+{
+	struct ch_up_ioqs ioqs;
+	int i, entries;
+
+	bzero(&ioqs, sizeof(ioqs));
+	ioqs.bufsize = IOQS_BUFSIZE;
+	ioqs.data = malloc(IOQS_BUFSIZE);
+	if (!ioqs.data)
+		err(1, "uP_IOQs malloc");
+
+	if (doit(iff_name, CHELSIO_GET_UP_IOQS, &ioqs) < 0)
+		 err(1, "uP_IOQs");
+
+	printf("ioq_rx_enable   : 0x%08x\n", ioqs.ioq_rx_enable);
+	printf("ioq_tx_enable   : 0x%08x\n", ioqs.ioq_tx_enable);
+	printf("ioq_rx_status   : 0x%08x\n", ioqs.ioq_rx_status);
+	printf("ioq_tx_status   : 0x%08x\n", ioqs.ioq_tx_status);
+	
+	entries = ioqs.bufsize / sizeof(struct t3_ioq_entry);
+	for (i = 0; i < entries; i++) {
+		printf("\nioq[%d].cp       : 0x%08x\n", i,
+		       ioqs.data[i].ioq_cp);
+		printf("ioq[%d].pp       : 0x%08x\n", i,
+		       ioqs.data[i].ioq_pp);
+		printf("ioq[%d].alen     : 0x%08x\n", i,
+		       ioqs.data[i].ioq_alen);
+		printf("ioq[%d].stats    : 0x%08x\n", i,
+		       ioqs.data[i].ioq_stats);
+		printf("  sop %u\n", ioqs.data[i].ioq_stats >> 16);
+		printf("  eop %u\n", ioqs.data[i].ioq_stats  & 0xFFFF);
+	}
+
+	return 0;
+}
+
+static int
+run_cmd(int argc, char *argv[], const char *iff_name)
+{
+	int r = -1;
+
 	if (!strcmp(argv[2], "reg"))
 		r = register_io(argc, argv, 3, iff_name);
 	else if (!strcmp(argv[2], "mdio"))
@@ -1397,9 +1451,93 @@ int main(int argc, char *argv[])
 		r = get_tcb2(argc, argv, 3, iff_name);
 	else if (!strcmp(argv[2], "clearstats"))
 		r = clear_stats(argc, argv, 3, iff_name);
+	else if (!strcmp(argv[2], "la"))
+		r = get_up_la(argc, argv, 3, iff_name);
+	else if (!strcmp(argv[2], "ioqs"))
+		r = get_up_ioqs(argc, argv, 3, iff_name);
 
 	if (r == -1)
 		usage(stderr);
 
-	return 0;
+	return (0);
+}
+
+static int
+run_cmd_loop(int argc, char *argv[], const char *iff_name)
+{
+	int n, i;
+	char buf[64];
+	char *args[8], *s;
+
+	args[0] = argv[0];
+	args[1] = argv[1];
+
+	/*
+	 * Fairly simplistic loop.  Displays a "> " prompt and processes any
+	 * input as a cxgbtool command.  You're supposed to enter only the part
+	 * after "cxgbtool cxgbX".  Use "quit" or "exit" to exit.  Any error in
+	 * the command will also terminate cxgbtool.
+	 */
+	for (;;) {
+		fprintf(stdout, "> ");
+		fflush(stdout);
+		n = read(STDIN_FILENO, buf, sizeof(buf));
+		if (n > sizeof(buf) - 1) {
+			fprintf(stdout, "too much input.\n");
+			return (0);
+		} else if (n <= 0)
+			return (0);
+
+		if (buf[--n] != '\n')
+			continue;
+		else
+			buf[n] = 0;
+
+		s = &buf[0];
+		for (i = 2; i < sizeof(args)/sizeof(args[0]) - 1; i++) {
+			while (s && (*s == ' ' || *s == '\t'))
+				s++;
+			if ((args[i] = strsep(&s, " \t")) == NULL)
+				break;
+		}
+		args[sizeof(args)/sizeof(args[0]) - 1] = 0;
+
+		if (!strcmp(args[2], "quit") || !strcmp(args[2], "exit"))
+			return (0);
+
+		(void) run_cmd(i, args, iff_name);
+	}
+
+	/* Can't really get here */
+	return (0);
+}
+
+int
+main(int argc, char *argv[])
+{
+	int r = -1;
+	const char *iff_name;
+
+	progname = argv[0];
+
+	if (argc == 2) {
+		if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help"))
+			usage(stdout);
+		if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--version")) {
+			printf("%s version %s\n", PROGNAME, VERSION);
+			printf("%s\n", COPYRIGHT);
+			exit(0);
+		}
+	}
+
+	if (argc < 3) usage(stderr);
+
+	iff_name = argv[1];
+
+	if (argc == 3 && !strcmp(argv[2], "stdio"))
+		r = run_cmd_loop(argc, argv, iff_name);
+	else
+		r = run_cmd(argc, argv, iff_name);
+
+	return (r);
 }

@@ -565,7 +565,6 @@ xenbus_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	return (ENOENT);
 }
 
-SYSCTL_DECL(_dev);
 SYSCTL_NODE(_dev, OID_AUTO, xen, CTLFLAG_RD, NULL, "Xen");
 SYSCTL_INT(_dev_xen, OID_AUTO, xsd_port, CTLFLAG_RD, &xen_store_evtchn, 0, "");
 SYSCTL_ULONG(_dev_xen, OID_AUTO, xsd_kva, CTLFLAG_RD, (u_long *) &xen_store, 0, "");

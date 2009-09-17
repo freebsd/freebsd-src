@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.docbook,v 1.7.18.14 2008/08/21 23:46:01 tbox Exp $ -->
+<!-- $Id: named.docbook,v 1.23 2008/11/06 05:30:24 marka Exp $ -->
 <refentry id="man.named">
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -69,6 +69,7 @@
       <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
       <arg><option>-u <replaceable class="parameter">user</replaceable></option></arg>
       <arg><option>-v</option></arg>
+      <arg><option>-V</option></arg>
       <arg><option>-x <replaceable class="parameter">cache-file</replaceable></option></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
@@ -300,6 +301,15 @@
       </varlistentry>
 
       <varlistentry>
+        <term>-V</term>
+        <listitem>
+          <para>
+            Report the version number and build options, and exit.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-x <replaceable class="parameter">cache-file</replaceable></term>
         <listitem>
           <para>
@@ -381,7 +391,7 @@
       </varlistentry>
 
       <varlistentry>
-        <term><filename>/var/run/named.pid</filename></term>
+        <term><filename>/var/run/named/named.pid</filename></term>
         <listitem>
           <para>
             The default process-id file.

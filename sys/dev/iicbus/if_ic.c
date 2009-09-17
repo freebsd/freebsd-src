@@ -103,7 +103,7 @@ static int icattach(device_t);
 
 static int icioctl(struct ifnet *, u_long, caddr_t);
 static int icoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-		struct rtentry *);
+               struct route *);
 
 static int icintr(device_t, int, char *);
 
@@ -354,7 +354,7 @@ icintr(device_t dev, int event, char *ptr)
  */
 static int
 icoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-    struct rtentry *rt)
+    struct route *ro)
 {
 	struct ic_softc *sc = ifp->if_softc;
 	device_t icdev = sc->ic_dev;

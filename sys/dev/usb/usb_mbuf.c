@@ -24,31 +24,53 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_core.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usb_dev.h>
 #include <dev/usb/usb_mbuf.h>
 
 /*------------------------------------------------------------------------*
- *      usb2_alloc_mbufs - allocate mbufs to an usbd interface queue
+ *      usb_alloc_mbufs - allocate mbufs to an usbd interface queue
  *
  * Returns:
  *   A pointer that should be passed to "free()" when the buffer(s)
  *   should be released.
  *------------------------------------------------------------------------*/
 void   *
-usb2_alloc_mbufs(struct malloc_type *type, struct usb2_ifqueue *ifq,
-    uint32_t block_size, uint16_t nblocks)
+usb_alloc_mbufs(struct malloc_type *type, struct usb_ifqueue *ifq,
+    usb_size_t block_size, uint16_t nblocks)
 {
-	struct usb2_mbuf *m_ptr;
+	struct usb_mbuf *m_ptr;
 	uint8_t *data_ptr;
 	void *free_ptr = NULL;
-	uint32_t alloc_size;
+	usb_size_t alloc_size;
 
 	/* align data */
 	block_size += ((-block_size) & (USB_HOST_ALIGN - 1));
 
 	if (nblocks && block_size) {
 
-		alloc_size = (block_size + sizeof(struct usb2_mbuf)) * nblocks;
+		alloc_size = (block_size + sizeof(struct usb_mbuf)) * nblocks;
 
 		free_ptr = malloc(alloc_size, type, M_WAITOK | M_ZERO);
 

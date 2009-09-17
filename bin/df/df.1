@@ -78,15 +78,20 @@ this overrides the
 .Ev BLOCKSIZE
 specification from the environment.
 .It Fl H
-"Human-readable" output.
+.Dq Human-readable
+output.
 Use unit suffixes: Byte, Kilobyte, Megabyte,
 Gigabyte, Terabyte and Petabyte in order to reduce the number of
 digits to four or fewer using base 10 for sizes.
 .It Fl h
-"Human-readable" output.
+.Dq Human-readable
+output.
 Use unit suffixes: Byte, Kilobyte, Megabyte,
 Gigabyte, Terabyte and Petabyte in order to reduce the number of
 digits to four or fewer using base 2 for sizes.
+Inodes statistics, if enabled with
+.Fl i ,
+are always printed in base 10.
 .It Fl i
 Include statistics on the number of free inodes.
 .It Fl k

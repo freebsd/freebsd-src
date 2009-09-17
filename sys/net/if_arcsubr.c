@@ -102,14 +102,16 @@ u_int8_t  arcbroadcastaddr = 0;
  */
 int
 arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-    struct rtentry *rt0)
+    struct route *ro)
 {
 	struct arc_header	*ah;
 	int			error;
 	u_int8_t		atype, adst;
 	int			loop_copy = 0;
 	int			isphds;
+#if defined(INET) || defined(INET6)
 	struct llentry		*lle;
+#endif
 
 	if (!((ifp->if_flags & IFF_UP) &&
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
@@ -129,7 +131,8 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		else if (ifp->if_flags & IFF_NOARP)
 			adst = ntohl(SIN(dst)->sin_addr.s_addr) & 0xFF;
 		else {
-			error = arpresolve(ifp, rt0, m, dst, &adst, &lle);
+			error = arpresolve(ifp, ro ? ro->ro_rt : NULL,
+			                   m, dst, &adst, &lle);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -236,7 +239,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	BPF_MTAP(ifp, m);
 
-	IFQ_HANDOFF(ifp, m, error);
+	error = ifp->if_transmit(ifp, m);
 
 	return (error);
 
@@ -669,7 +672,7 @@ arc_ifdetach(struct ifnet *ifp)
 }
 
 int
-arc_ioctl(struct ifnet *ifp, int command, caddr_t data)
+arc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;

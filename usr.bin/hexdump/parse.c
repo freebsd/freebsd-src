@@ -142,8 +142,7 @@ add(const char *fmt)
 				badfmt(fmt);
 		if (!(tfu->fmt = malloc(p - savep + 1)))
 			err(1, NULL);
-		(void) strncpy(tfu->fmt, savep, p - savep);
-		tfu->fmt[p - savep] = '\0';
+		(void) strlcpy(tfu->fmt, savep, p - savep + 1);
 		escape(tfu->fmt);
 		p++;
 	}

@@ -28,28 +28,39 @@
  *   We should consider adding a simple r/w device which allows
  *   attaching of PPP in a more efficient way.
  *
- * NOTE:
- *
- * - The device ID's are stored in "core/usb2_msctest.c"
  */
 
-#include "usbdevs.h"
+
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_defs.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR u3g_debug
-
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_msctest.h>
 #include <dev/usb/usb_dynamic.h>
+#include <dev/usb/usb_msctest.h>
 #include <dev/usb/usb_device.h>
 
 #include <dev/usb/serial/usb_serial.h>
@@ -57,12 +68,12 @@
 #if USB_DEBUG
 static int u3g_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB u3g");
-SYSCTL_INT(_hw_usb2_u3g, OID_AUTO, debug, CTLFLAG_RW,
-    &u3g_debug, 0, "u3g debug level");
+SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
+SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
+    &u3g_debug, 0, "Debug level");
 #endif
 
-#define	U3G_MAXPORTS		4
+#define	U3G_MAXPORTS		8
 #define	U3G_CONFIG_INDEX	0
 #define	U3G_BSIZE		2048
 
@@ -75,15 +86,10 @@ SYSCTL_INT(_hw_usb2_u3g, OID_AUTO, debug, CTLFLAG_RW,
 #define	U3GSP_HSPA		6
 #define	U3GSP_MAX		7
 
-#define	U3GFL_NONE		0x00	/* No flags */
-#define	U3GFL_HUAWEI_INIT	0x01	/* Init command required */
-#define	U3GFL_SCSI_EJECT	0x02	/* SCSI eject command required */
-#define	U3GFL_SIERRA_INIT	0x04	/* Init command required */
-
-struct u3g_speeds_s {
-	uint32_t ispeed;
-	uint32_t ospeed;
-};
+#define	U3GFL_HUAWEI_INIT	0x0001	/* Init command required */
+#define	U3GFL_SCSI_EJECT	0x0002	/* SCSI eject command required */
+#define	U3GFL_SIERRA_INIT	0x0004	/* Init command required */
+#define	U3GFL_SAEL_M460_INIT	0x0008	/* Init device */
 
 enum {
 	U3G_BULK_WR,
@@ -92,11 +98,12 @@ enum {
 };
 
 struct u3g_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom[U3G_MAXPORTS];
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom[U3G_MAXPORTS];
 
-	struct usb2_xfer *sc_xfer[U3G_MAXPORTS][U3G_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[U3G_MAXPORTS][U3G_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint8_t	sc_lsr;			/* local status register */
 	uint8_t	sc_msr;			/* U3G status register */
@@ -107,55 +114,43 @@ static device_probe_t u3g_probe;
 static device_attach_t u3g_attach;
 static device_detach_t u3g_detach;
 
-static usb2_callback_t u3g_write_callback;
-static usb2_callback_t u3g_read_callback;
+static usb_callback_t u3g_write_callback;
+static usb_callback_t u3g_read_callback;
 
-static void u3g_start_read(struct usb2_com_softc *ucom);
-static void u3g_stop_read(struct usb2_com_softc *ucom);
-static void u3g_start_write(struct usb2_com_softc *ucom);
-static void u3g_stop_write(struct usb2_com_softc *ucom);
+static void u3g_start_read(struct ucom_softc *ucom);
+static void u3g_stop_read(struct ucom_softc *ucom);
+static void u3g_start_write(struct ucom_softc *ucom);
+static void u3g_stop_write(struct ucom_softc *ucom);
 
 static int u3g_driver_loaded(struct module *mod, int what, void *arg);
 
-static const struct usb2_config u3g_config[U3G_N_TRANSFER] = {
+static const struct usb_config u3g_config[U3G_N_TRANSFER] = {
 
 	[U3G_BULK_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = U3G_BSIZE,/* bytes */
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &u3g_write_callback,
+		.bufsize = U3G_BSIZE,/* bytes */
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &u3g_write_callback,
 	},
 
 	[U3G_BULK_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = U3G_BSIZE,/* bytes */
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &u3g_read_callback,
+		.bufsize = U3G_BSIZE,/* bytes */
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &u3g_read_callback,
 	},
 };
 
-static const struct usb2_com_callback u3g_callback = {
-	.usb2_com_start_read = &u3g_start_read,
-	.usb2_com_stop_read = &u3g_stop_read,
-	.usb2_com_start_write = &u3g_start_write,
-	.usb2_com_stop_write = &u3g_stop_write,
+static const struct ucom_callback u3g_callback = {
+	.ucom_start_read = &u3g_start_read,
+	.ucom_stop_read = &u3g_stop_read,
+	.ucom_start_write = &u3g_start_write,
+	.ucom_stop_write = &u3g_stop_write,
 };
-
-#if 0
-static const struct u3g_speeds_s u3g_speeds[U3GSP_MAX] = {
-	[U3GSP_GPRS] = {64000, 64000},
-	[U3GSP_EDGE] = {384000, 64000},
-	[U3GSP_CDMA] = {384000, 64000},
-	[U3GSP_UMTS] = {384000, 64000},
-	[U3GSP_HSDPA] = {1200000, 384000},
-	[U3GSP_HSUPA] = {1200000, 384000},
-	[U3GSP_HSPA] = {7200000, 384000},
-};
-#endif
 
 static device_method_t u3g_methods[] = {
 	DEVMETHOD(device_probe, u3g_probe),
@@ -172,88 +167,84 @@ static driver_t u3g_driver = {
 	.size = sizeof(struct u3g_softc),
 };
 
-DRIVER_MODULE(u3g, ushub, u3g_driver, u3g_devclass, u3g_driver_loaded, 0);
+DRIVER_MODULE(u3g, uhub, u3g_driver, u3g_devclass, u3g_driver_loaded, 0);
 MODULE_DEPEND(u3g, ucom, 1, 1, 1);
 MODULE_DEPEND(u3g, usb, 1, 1, 1);
 
-/* Huawei specific defines */
-
-#define	U3GINFO(flag,speed) ((flag)|((speed) * 256))
-#define	U3G_GET_SPEED(uaa) (USB_GET_DRIVER_INFO(uaa) / 256)
-
-/*
- * NOTE: The entries marked with XXX should be checked for the correct
- * speed indication to set the buffer sizes.
- */
-static const struct usb2_device_id u3g_devs[] = {
+static const struct usb_device_id u3g_devs[] = {
+#define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	/* OEM: Option */
-	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3G, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},
-	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},
-	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GPLUS, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},
-	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAX36, U3GINFO(U3GSP_HSDPA, U3GFL_NONE))},
-	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAXHSUPA, U3GINFO(U3GSP_HSDPA, U3GFL_NONE))},
-	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},
+	U3G_DEV(OPTION, GT3G, 0),
+	U3G_DEV(OPTION, GT3GQUAD, 0),
+	U3G_DEV(OPTION, GT3GPLUS, 0),
+	U3G_DEV(OPTION, GTMAX36, 0),
+	U3G_DEV(OPTION, GTHSDPA, 0),
+	U3G_DEV(OPTION, GTMAXHSUPA, 0),
+	U3G_DEV(OPTION, VODAFONEMC3G, 0),
 	/* OEM: Qualcomm, Inc. */
-	{USB_VPI(USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_ZTE_STOR, U3GINFO(U3GSP_CDMA, U3GFL_SCSI_EJECT))},
-	{USB_VPI(USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM, U3GINFO(U3GSP_CDMA, U3GFL_SCSI_EJECT))},
+	U3G_DEV(QUALCOMMINC, ZTE_STOR, U3GFL_SCSI_EJECT),
+	U3G_DEV(QUALCOMMINC, CDMA_MSM, U3GFL_SCSI_EJECT),
 	/* OEM: Huawei */
-	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE, U3GINFO(U3GSP_HSDPA, U3GFL_HUAWEI_INIT))},
-	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220, U3GINFO(U3GSP_HSPA, U3GFL_HUAWEI_INIT))},
+	U3G_DEV(HUAWEI, MOBILE, U3GFL_HUAWEI_INIT),
+	U3G_DEV(HUAWEI, E180V, U3GFL_HUAWEI_INIT),
+	U3G_DEV(HUAWEI, E220, U3GFL_HUAWEI_INIT),
 	/* OEM: Novatel */
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_CDMA_MODEM, U3GINFO(U3GSP_CDMA, U3GFL_SCSI_EJECT))},
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ES620, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_MC950D, U3GINFO(U3GSP_HSUPA, U3GFL_SCSI_EJECT))},
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U720, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U727, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740, U3GINFO(U3GSP_HSDPA, U3GFL_SCSI_EJECT))},
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740_2, U3GINFO(U3GSP_HSDPA, U3GFL_SCSI_EJECT))},
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U870, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V620, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V640, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V720, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V740, U3GINFO(U3GSP_HSDPA, U3GFL_SCSI_EJECT))},
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_X950D, U3GINFO(U3GSP_HSUPA, U3GFL_SCSI_EJECT))},
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_XU870, U3GINFO(U3GSP_HSDPA, U3GFL_SCSI_EJECT))},
-	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ZEROCD, U3GINFO(U3GSP_HSUPA, U3GFL_SCSI_EJECT))},
-	{USB_VPI(USB_VENDOR_DELL, USB_PRODUCT_DELL_U740, U3GINFO(U3GSP_HSDPA, U3GFL_SCSI_EJECT))},
+	U3G_DEV(NOVATEL, CDMA_MODEM, 0),
+	U3G_DEV(NOVATEL, ES620, 0),
+	U3G_DEV(NOVATEL, MC950D, 0),
+	U3G_DEV(NOVATEL, U720, 0),
+	U3G_DEV(NOVATEL, U727, 0),
+	U3G_DEV(NOVATEL, U740, 0),
+	U3G_DEV(NOVATEL, U740_2, 0),
+	U3G_DEV(NOVATEL, U870, 0),
+	U3G_DEV(NOVATEL, V620, 0),
+	U3G_DEV(NOVATEL, V640, 0),
+	U3G_DEV(NOVATEL, V720, 0),
+	U3G_DEV(NOVATEL, V740, 0),
+	U3G_DEV(NOVATEL, X950D, 0),
+	U3G_DEV(NOVATEL, XU870, 0),
+	U3G_DEV(NOVATEL, ZEROCD, U3GFL_SCSI_EJECT),
+	U3G_DEV(DELL, U740, 0),
 	/* OEM: Merlin */
-	{USB_VPI(USB_VENDOR_MERLIN, USB_PRODUCT_MERLIN_V620, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	U3G_DEV(MERLIN, V620, 0),
 	/* OEM: Sierra Wireless: */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD580, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD595, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC595U, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC597E, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_C597, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880E, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880U, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881E, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881U, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_EM5625, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720_2, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5725, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MINI5725, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD875, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_2, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_3, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8765, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC875U, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8775_2, U3GINFO(U3GSP_HSDPA, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_HP, USB_PRODUCT_HP_HS2300, U3GINFO(U3GSP_HSDPA, U3GFL_NONE))},
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8780, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8781, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
-	{USB_VPI(USB_VENDOR_HP, USB_PRODUCT_HP_HS2300, U3GINFO(U3GSP_HSPA, U3GFL_NONE))},	/* XXX */
+	U3G_DEV(SIERRA, AIRCARD580, 0),
+	U3G_DEV(SIERRA, AIRCARD595, 0),
+	U3G_DEV(SIERRA, AC595U, 0),
+	U3G_DEV(SIERRA, AC597E, 0),
+	U3G_DEV(SIERRA, C597, 0),
+	U3G_DEV(SIERRA, AC880, 0),
+	U3G_DEV(SIERRA, AC880E, 0),
+	U3G_DEV(SIERRA, AC880U, 0),
+	U3G_DEV(SIERRA, AC881, 0),
+	U3G_DEV(SIERRA, AC881E, 0),
+	U3G_DEV(SIERRA, AC881U, 0),
+	U3G_DEV(SIERRA, AC885U, 0),
+	U3G_DEV(SIERRA, EM5625, 0),
+	U3G_DEV(SIERRA, MC5720, 0),
+	U3G_DEV(SIERRA, MC5720_2, 0),
+	U3G_DEV(SIERRA, MC5725, 0),
+	U3G_DEV(SIERRA, MINI5725, 0),
+	U3G_DEV(SIERRA, AIRCARD875, 0),
+	U3G_DEV(SIERRA, MC8755, 0),
+	U3G_DEV(SIERRA, MC8755_2, 0),
+	U3G_DEV(SIERRA, MC8755_3, 0),
+	U3G_DEV(SIERRA, MC8765, 0),
+	U3G_DEV(SIERRA, AC875U, 0),
+	U3G_DEV(SIERRA, MC8775_2, 0),
+	U3G_DEV(SIERRA, MC8780, 0),
+	U3G_DEV(SIERRA, MC8781, 0),
+	U3G_DEV(HP, HS2300, 0),
 	/* Sierra TruInstaller device ID */
-	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_TRUINSTALL, U3GINFO(U3GSP_UMTS, U3GFL_SIERRA_INIT))},
+	U3G_DEV(SIERRA, TRUINSTALL, U3GFL_SIERRA_INIT),
+	/* PRUEBA SILABS */
+	U3G_DEV(SILABS, SAEL, U3GFL_SAEL_M460_INIT),
 };
 
 static void
-u3g_sierra_init(struct usb2_device *udev)
+u3g_sierra_init(struct usb_device *udev)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTFN(0, "\n");
 
@@ -263,7 +254,7 @@ u3g_sierra_init(struct usb2_device *udev)
 	USETW(req.wIndex, UHF_PORT_CONNECTION);
 	USETW(req.wLength, 0);
 
-	if (usb2_do_request_flags(udev, NULL, &req,
+	if (usbd_do_request_flags(udev, NULL, &req,
 	    NULL, 0, NULL, USB_MS_HZ)) {
 		/* ignore any errors */
 	}
@@ -271,9 +262,9 @@ u3g_sierra_init(struct usb2_device *udev)
 }
 
 static void
-u3g_huawei_init(struct usb2_device *udev)
+u3g_huawei_init(struct usb_device *udev)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTFN(0, "\n");
 
@@ -283,18 +274,98 @@ u3g_huawei_init(struct usb2_device *udev)
 	USETW(req.wIndex, UHF_PORT_SUSPEND);
 	USETW(req.wLength, 0);
 
-	if (usb2_do_request_flags(udev, NULL, &req,
+	if (usbd_do_request_flags(udev, NULL, &req,
 	    NULL, 0, NULL, USB_MS_HZ)) {
 		/* ignore any errors */
 	}
 	return;
 }
 
+static void
+u3g_sael_m460_init(struct usb_device *udev)
+{
+	static const uint8_t setup[][24] = {
+	     { 0x41, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x13, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 
+	       0x01, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00,
+	       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	     { 0xc1, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x40, 0x02 },
+	     { 0xc1, 0x08, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00 },
+	     { 0x41, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 },
+	     { 0xc1, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 },
+	     { 0x41, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x03, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x19, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00,
+	       0x00, 0x00, 0x00, 0x00, 0x11, 0x13 },
+	     { 0x41, 0x13, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 
+	       0x09, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00,
+	       0x0a, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x12, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x03, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x19, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00,
+	       0x00, 0x00, 0x00, 0x00, 0x11, 0x13 },
+	     { 0x41, 0x13, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+	       0x09, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 
+	       0x0a, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00 },
+	     { 0x41, 0x07, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00 },
+	};
+
+	struct usb_device_request req;
+	usb_error_t err;
+	uint16_t len;
+	uint8_t buf[0x300];
+	uint8_t n;
+
+	DPRINTFN(1, "\n");
+
+	if (usbd_req_set_alt_interface_no(udev, NULL, 0, 0)) {
+		DPRINTFN(0, "Alt setting 0 failed\n");
+		return;
+	}
+
+	for (n = 0; n != (sizeof(setup)/sizeof(setup[0])); n++) {
+
+		memcpy(&req, setup[n], sizeof(req));
+
+		len = UGETW(req.wLength);
+		if (req.bmRequestType & UE_DIR_IN) {
+			if (len > sizeof(buf)) {
+				DPRINTFN(0, "too small buffer\n");
+				continue;
+			}
+			err = usbd_do_request(udev, NULL, &req, buf);
+		} else {
+			if (len > (sizeof(setup[0]) - 8)) {
+				DPRINTFN(0, "too small buffer\n");
+				continue;
+			}
+			err = usbd_do_request(udev, NULL, &req, 
+			    __DECONST(uint8_t *, &setup[n][8]));
+		}
+		if (err) {
+			DPRINTFN(1, "request %u failed\n",
+			    (unsigned int)n);
+			/*
+			 * Some of the requests will fail. Stop doing
+			 * requests when we are getting timeouts so
+			 * that we don't block the explore/attach
+			 * thread forever.
+			 */
+			if (err == USB_ERR_TIMEOUT)
+				break;
+		}
+	}
+}
+
 static int
-u3g_lookup_huawei(struct usb2_attach_arg *uaa)
+u3g_lookup_huawei(struct usb_attach_arg *uaa)
 {
 	/* Calling the lookup function will also set the driver info! */
-	return (usb2_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
+	return (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
 }
 
 /*
@@ -303,18 +374,18 @@ u3g_lookup_huawei(struct usb2_attach_arg *uaa)
  * interface.  After some command or some delay they change appearance
  * to a modem.
  */
-static usb2_error_t
-u3g_test_huawei_autoinst(struct usb2_device *udev,
-    struct usb2_attach_arg *uaa)
+static usb_error_t
+u3g_test_huawei_autoinst(struct usb_device *udev,
+    struct usb_attach_arg *uaa)
 {
-	struct usb2_interface *iface;
-	struct usb2_interface_descriptor *id;
+	struct usb_interface *iface;
+	struct usb_interface_descriptor *id;
 	uint32_t flags;
 
 	if (udev == NULL) {
 		return (USB_ERR_INVAL);
 	}
-	iface = usb2_get_iface(udev, 0);
+	iface = usbd_get_iface(udev, 0);
 	if (iface == NULL) {
 		return (USB_ERR_INVAL);
 	}
@@ -334,7 +405,7 @@ u3g_test_huawei_autoinst(struct usb2_device *udev,
 	if (flags & U3GFL_HUAWEI_INIT) {
 		u3g_huawei_init(udev);
 	} else if (flags & U3GFL_SCSI_EJECT) {
-		return (usb2_test_autoinstall(udev, 0, 1));
+		return (usb_test_autoinstall(udev, 0, 1));
 	} else if (flags & U3GFL_SIERRA_INIT) {
 		u3g_sierra_init(udev);
 	} else {
@@ -350,10 +421,10 @@ u3g_driver_loaded(struct module *mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		/* register our autoinstall handler */
-		usb2_test_huawei_autoinst_p = &u3g_test_huawei_autoinst;
+		usb_test_huawei_autoinst_p = &u3g_test_huawei_autoinst;
 		break;
 	case MOD_UNLOAD:
-		usb2_test_huawei_unload(NULL);
+		usb_test_huawei_unload(NULL);
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -364,9 +435,9 @@ u3g_driver_loaded(struct module *mod, int what, void *arg)
 static int
 u3g_probe(device_t self)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != U3G_CONFIG_INDEX) {
@@ -381,91 +452,94 @@ u3g_probe(device_t self)
 static int
 u3g_attach(device_t dev)
 {
-	struct usb2_config u3g_config_tmp[U3G_N_TRANSFER];
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_config u3g_config_tmp[U3G_N_TRANSFER];
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct u3g_softc *sc = device_get_softc(dev);
-	struct usb2_interface *iface;
-	struct usb2_interface_descriptor *id;
-	uint8_t m;
-	uint8_t n;
+	struct usb_interface *iface;
+	struct usb_interface_descriptor *id;
+	uint32_t iface_valid;
+	int error, flags, nports;
+	int ep, n;
 	uint8_t i;
-	uint8_t x;
-	int error;
 
 	DPRINTF("sc=%p\n", sc);
+
+	flags = USB_GET_DRIVER_INFO(uaa);
+
+	if (flags & U3GFL_SAEL_M460_INIT)
+		u3g_sael_m460_init(uaa->device);
 
 	/* copy in USB config */
 	for (n = 0; n != U3G_N_TRANSFER; n++) 
 		u3g_config_tmp[n] = u3g_config[n];
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
+	mtx_init(&sc->sc_mtx, "u3g", NULL, MTX_DEF);
 
 	sc->sc_udev = uaa->device;
 
-	x = 0;		/* interface index */
-	i = 0;		/* endpoint index */
-	m = 0;		/* number of ports */
+	/* Claim all interfaces on the device */
+	iface_valid = 0;
+	for (i = uaa->info.bIfaceIndex; i < USB_IFACE_MAX; i++) {
+		iface = usbd_get_iface(uaa->device, i);
+		if (iface == NULL)
+			break;
+		id = usbd_get_interface_descriptor(iface);
+		if (id == NULL || id->bInterfaceClass != UICLASS_VENDOR)
+			continue;
+		usbd_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
+		iface_valid |= (1<<i);
+	}
 
-	while (m != U3G_MAXPORTS) {
+	i = 0;		/* interface index */
+	ep = 0;		/* endpoint index */
+	nports = 0;	/* number of ports */
+	while (i < USB_IFACE_MAX) {
+		if ((iface_valid & (1<<i)) == 0) {
+			i++;
+			continue;
+		}
 
 		/* update BULK endpoint index */
-		for (n = 0; n != U3G_N_TRANSFER; n++) 
-			u3g_config_tmp[n].ep_index = i;
-
-		iface = usb2_get_iface(uaa->device, x);
-		if (iface == NULL) {
-			if (m != 0)
-				break;	/* end of interfaces */
-			DPRINTF("did not find any modem endpoints\n");
-			goto detach;
-		}
-
-		id = usb2_get_interface_descriptor(iface);
-		if ((id == NULL) || 
-		    (id->bInterfaceClass != UICLASS_VENDOR)) {
-			/* next interface */
-			x++;
-			i = 0;
-			continue;
-		}
+		for (n = 0; n < U3G_N_TRANSFER; n++)
+			u3g_config_tmp[n].ep_index = ep;
 
 		/* try to allocate a set of BULK endpoints */
-		error = usb2_transfer_setup(uaa->device, &x,
-		    sc->sc_xfer[m], u3g_config_tmp, U3G_N_TRANSFER, 
-		    &sc->sc_ucom[m], &Giant);
+		error = usbd_transfer_setup(uaa->device, &i,
+		    sc->sc_xfer[nports], u3g_config_tmp, U3G_N_TRANSFER,
+		    &sc->sc_ucom[nports], &sc->sc_mtx);
 		if (error) {
 			/* next interface */
-			x++;
-			i = 0;
+			i++;
+			ep = 0;
 			continue;
 		}
 
-		/* grab other interface, if any */
-                if (x != uaa->info.bIfaceIndex)
-                        usb2_set_parent_iface(uaa->device, x,
-                            uaa->info.bIfaceIndex);
-
 		/* set stall by default */
-		usb2_transfer_set_stall(sc->sc_xfer[m][U3G_BULK_WR]);
-		usb2_transfer_set_stall(sc->sc_xfer[m][U3G_BULK_RD]);
+		mtx_lock(&sc->sc_mtx);
+		usbd_xfer_set_stall(sc->sc_xfer[nports][U3G_BULK_WR]);
+		usbd_xfer_set_stall(sc->sc_xfer[nports][U3G_BULK_RD]);
+		mtx_unlock(&sc->sc_mtx);
 
-		m++;	/* found one port */
-		i++;	/* next endpoint index */
+		nports++;	/* found one port */
+		ep++;
+		if (nports == U3G_MAXPORTS)
+			break;
 	}
-
-	sc->sc_numports = m;
-
-	error = usb2_com_attach(&sc->sc_super_ucom, sc->sc_ucom, 
-	    sc->sc_numports, sc, &u3g_callback, &Giant);
-	if (error) {
-		DPRINTF("usb2_com_attach failed\n");
+	if (nports == 0) {
+		device_printf(dev, "no ports found\n");
 		goto detach;
 	}
-	if (sc->sc_numports != 1) {
-		/* be verbose */
-		device_printf(dev, "Found %u ports.\n",
-		    (unsigned int)sc->sc_numports);
+	sc->sc_numports = nports;
+
+	error = ucom_attach(&sc->sc_super_ucom, sc->sc_ucom,
+	    sc->sc_numports, sc, &u3g_callback, &sc->sc_mtx);
+	if (error) {
+		DPRINTF("ucom_attach failed\n");
+		goto detach;
 	}
+	if (sc->sc_numports > 1)
+		device_printf(dev, "Found %u ports.\n", sc->sc_numports);
 	return (0);
 
 detach:
@@ -482,73 +556,75 @@ u3g_detach(device_t dev)
 	DPRINTF("sc=%p\n", sc);
 
 	/* NOTE: It is not dangerous to detach more ports than attached! */
-	usb2_com_detach(&sc->sc_super_ucom, sc->sc_ucom, U3G_MAXPORTS);
+	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom, U3G_MAXPORTS);
 
 	for (m = 0; m != U3G_MAXPORTS; m++)
-		usb2_transfer_unsetup(sc->sc_xfer[m], U3G_N_TRANSFER);
+		usbd_transfer_unsetup(sc->sc_xfer[m], U3G_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
 
 static void
-u3g_start_read(struct usb2_com_softc *ucom)
+u3g_start_read(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
+	usbd_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
 	return;
 }
 
 static void
-u3g_stop_read(struct usb2_com_softc *ucom)
+u3g_stop_read(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
+	usbd_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
 	return;
 }
 
 static void
-u3g_start_write(struct usb2_com_softc *ucom)
+u3g_start_write(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
 	return;
 }
 
 static void
-u3g_stop_write(struct usb2_com_softc *ucom)
+u3g_stop_write(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
+	usbd_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
 	return;
 }
 
 static void
-u3g_write_callback(struct usb2_xfer *xfer)
+u3g_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb2_com_softc *ucom = xfer->priv_sc;
+	struct ucom_softc *ucom = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 	case USB_ST_SETUP:
 tr_setup:
-		if (usb2_com_get_data(ucom, xfer->frbuffers, 0,
-		    U3G_BSIZE, &actlen)) {
-			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (ucom_get_data(ucom, pc, 0, U3G_BSIZE, &actlen)) {
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_transfer_submit(xfer);
 		}
 		break;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* do a builtin clear-stall */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		break;
@@ -557,24 +633,29 @@ tr_setup:
 }
 
 static void
-u3g_read_callback(struct usb2_xfer *xfer)
+u3g_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb2_com_softc *ucom = xfer->priv_sc;
+	struct ucom_softc *ucom = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_com_put_data(ucom, xfer->frbuffers, 0, xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		ucom_put_data(ucom, pc, 0, actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* do a builtin clear-stall */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		break;

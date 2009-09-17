@@ -12,7 +12,8 @@
 .if defined(DESTDIR)
 MKMODULESENV+=	DESTDIR="${DESTDIR}"
 .endif
-MKMODULESENV+=	KERNBUILDDIR="${.CURDIR}"
+SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;}
+MKMODULESENV+=	KERNBUILDDIR="${.CURDIR}" SYSDIR="${SYSDIR}"
 
 .MAIN: all
 
@@ -29,7 +30,6 @@ modules-${target}:
 
 # Handle out of tree ports 
 .if !defined(NO_MODULES) && defined(PORTS_MODULES)
-SYSDIR?= ${S:C;^[^/];${.CURDIR}/&;}
 PORTSMODULESENV=SYSDIR=${SYSDIR}
 .for __target in all install reinstall clean
 ${__target}: ports-${__target}

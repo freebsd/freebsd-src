@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -74,14 +75,13 @@ __FBSDID("$FreeBSD$");
 #include <rpc/replay.h>
 
 #include <nfs/xdr_subs.h>
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsserver/nfs.h>
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
 #include <nfsserver/nfs_fha.h>
 
-#ifndef NFS_LEGACYRPC
+#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_NFSSVC, "nfss_srvsock", "Nfs server structure");
 
@@ -151,6 +151,9 @@ int32_t (*nfsrv3_procs[NFS_NPROCS])(struct nfsrv_descript *nd,
 /*
  * NFS server system calls
  */
+/*
+ * This is now called from nfssvc() in nfs/nfs_nfssvc.c.
+ */
 
 /*
  * Nfs server psuedo system call for the nfsd's
@@ -163,25 +166,14 @@ int32_t (*nfsrv3_procs[NFS_NPROCS])(struct nfsrv_descript *nd,
  *  - sockaddr with no IPv4-mapped addresses
  *  - mask for both INET and INET6 families if there is IPv4-mapped overlap
  */
-#ifndef _SYS_SYSPROTO_H_
-struct nfssvc_args {
-	int flag;
-	caddr_t argp;
-};
-#endif
 int
-nfssvc(struct thread *td, struct nfssvc_args *uap)
+nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 {
 	struct file *fp;
 	struct nfsd_addsock_args addsockarg;
 	struct nfsd_nfsd_args nfsdarg;
 	int error;
 
-	KASSERT(!mtx_owned(&Giant), ("nfssvc(): called with Giant"));
-
-	error = priv_check(td, PRIV_NFS_DAEMON);
-	if (error)
-		return (error);
 	if (uap->flag & NFSSVC_ADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&addsockarg,
 		    sizeof(addsockarg));
@@ -208,8 +200,6 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	} else {
 		error = ENXIO;
 	}
-	if (error == EINTR || error == ERESTART)
-		error = 0;
 	return (error);
 }
 
@@ -397,6 +387,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 #endif
 #endif
 			    inet_ntoa(sin->sin_addr), port);
+			m_freem(mreq);
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			return;
@@ -405,6 +396,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 
 	if (proc != nfsrv_null) {
 		if (!svc_getcred(rqst, &nd.nd_cr, &nd.nd_credflavor)) {
+			m_freem(mreq);
 			svcerr_weakauth(rqst);
 			svc_freereq(rqst);
 			return;
@@ -472,6 +464,7 @@ nfssvc_addsock(struct file *fp, struct thread *td)
 		fp->f_data = NULL;
 		svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program, NULL);
 		svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program, NULL);
+		SVC_RELEASE(xprt);
 	}
 
 	return (0);
@@ -496,7 +489,9 @@ nfssvc_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		if (error)
 			return (error);
 	} else {
-		snprintf(principal, sizeof(principal), "nfs@%s", hostname);
+		memcpy(principal, "nfs@", 4);
+		getcredhostname(td->td_ucred, principal + 4,
+		    sizeof(principal) - 4);
 	}
 #endif
 
@@ -609,5 +604,3 @@ nfsrv_init(int terminating)
 
 	NFSD_LOCK();
 }
-
-#endif /* !NFS_LEGACYRPC */

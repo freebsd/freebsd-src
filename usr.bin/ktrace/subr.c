@@ -83,6 +83,9 @@ getpoints(char *s)
 		case 'w':
 			facs |= KTRFAC_CSW;
 			break;
+		case 'y':
+			facs |= KTRFAC_SYSCTL;
+			break;
 		case '+':
 			facs |= DEF_POINTS;
 			break;

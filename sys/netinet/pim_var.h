@@ -59,6 +59,11 @@ struct pimstat {
 	u_quad_t pims_snd_registers_bytes; /* sent regs. bytes (data only)   */
 };
 
+#ifdef _KERNEL
+#define	PIMSTAT_ADD(name, val)	pimstat.name += (val)
+#define	PIMSTAT_INC(name)	PIMSTAT_ADD(name, 1)
+#endif
+
 /*
  * Names for PIM sysctl objects
  */

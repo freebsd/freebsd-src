@@ -119,9 +119,6 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
-	if (td2->td_altkstack)
-		pmap_use_minicache(td2->td_altkstack, td2->td_altkstack_pages *
-		    PAGE_SIZE);
 #endif
 #endif
 	td2->td_pcb = pcb2;
@@ -426,10 +423,15 @@ arm_remap_nocache(void *addr, vm_size_t size)
 		vm_offset_t tomap = arm_nocache_startaddr + i * PAGE_SIZE;
 		void *ret = (void *)tomap;
 		vm_paddr_t physaddr = vtophys((vm_offset_t)addr);
+		vm_offset_t vaddr = (vm_offset_t) addr;
 		
+		vaddr = vaddr & ~PAGE_MASK;
 		for (; tomap < (vm_offset_t)ret + size; tomap += PAGE_SIZE,
-		    physaddr += PAGE_SIZE, i++) {
+		    vaddr += PAGE_SIZE, physaddr += PAGE_SIZE, i++) {
+			cpu_idcache_wbinv_range(vaddr, PAGE_SIZE);
+			cpu_l2cache_wbinv_range(vaddr, PAGE_SIZE);
 			pmap_kenter_nocache(tomap, physaddr);
+			cpu_tlb_flushID_SE(vaddr);
 			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i % 
 			    BITS_PER_INT);
 		}
@@ -483,7 +485,7 @@ arm_ptovirt(vm_paddr_t pa)
 	int i;
 	vm_offset_t addr = alloc_firstaddr;
 
-	KASSERT(alloc_firstaddr != 0, ("arm_ptovirt called to early ?"));
+	KASSERT(alloc_firstaddr != 0, ("arm_ptovirt called too early ?"));
 	for (i = 0; dump_avail[i + 1]; i += 2) {
 		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
 			break;

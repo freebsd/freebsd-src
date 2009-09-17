@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1999,2000,2001 Jonathan Lemon <jlemon@FreeBSD.org>
  * Copyright 2004 John-Mark Gurney <jmg@FreeBSD.org>
+ * Copyright (c) 2009 Apple, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -141,16 +142,39 @@ static void	filt_timerexpire(void *knx);
 static int	filt_timerattach(struct knote *kn);
 static void	filt_timerdetach(struct knote *kn);
 static int	filt_timer(struct knote *kn, long hint);
+static int	filt_userattach(struct knote *kn);
+static void	filt_userdetach(struct knote *kn);
+static int	filt_user(struct knote *kn, long hint);
+static void	filt_usertouch(struct knote *kn, struct kevent *kev, long type);
 
-static struct filterops file_filtops =
-	{ 1, filt_fileattach, NULL, NULL };
-static struct filterops kqread_filtops =
-	{ 1, NULL, filt_kqdetach, filt_kqueue };
+static struct filterops file_filtops = {
+	.f_isfd = 1,
+	.f_attach = filt_fileattach,
+};
+static struct filterops kqread_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_kqdetach,
+	.f_event = filt_kqueue,
+};
 /* XXX - move to kern_proc.c?  */
-static struct filterops proc_filtops =
-	{ 0, filt_procattach, filt_procdetach, filt_proc };
-static struct filterops timer_filtops =
-	{ 0, filt_timerattach, filt_timerdetach, filt_timer };
+static struct filterops proc_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_procattach,
+	.f_detach = filt_procdetach,
+	.f_event = filt_proc,
+};
+static struct filterops timer_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_timerattach,
+	.f_detach = filt_timerdetach,
+	.f_event = filt_timer,
+};
+static struct filterops user_filtops = {
+	.f_attach = filt_userattach,
+	.f_detach = filt_userdetach,
+	.f_event = filt_user,
+	.f_touch = filt_usertouch,
+};
 
 static uma_zone_t	knote_zone;
 static int 		kq_ncallouts = 0;
@@ -208,12 +232,10 @@ SYSCTL_INT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 } while (0)
 #ifdef INVARIANTS
 #define	KNL_ASSERT_LOCKED(knl) do {					\
-	if (!knl->kl_locked((knl)->kl_lockarg))				\
-			panic("knlist not locked, but should be");	\
+	knl->kl_assert_locked((knl)->kl_lockarg);			\
 } while (0)
-#define	KNL_ASSERT_UNLOCKED(knl) do {				\
-	if (knl->kl_locked((knl)->kl_lockarg))				\
-		panic("knlist locked, but should not be");		\
+#define	KNL_ASSERT_UNLOCKED(knl) do {					\
+	knl->kl_assert_unlocked((knl)->kl_lockarg);			\
 } while (0)
 #else /* !INVARIANTS */
 #define	KNL_ASSERT_LOCKED(knl) do {} while(0)
@@ -230,8 +252,10 @@ filt_nullattach(struct knote *kn)
 	return (ENXIO);
 };
 
-struct filterops null_filtops =
-	{ 0, filt_nullattach, NULL, NULL };
+struct filterops null_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_nullattach,
+};
 
 /* XXX - make SYSINIT to add these, and move into respective modules. */
 extern struct filterops sig_filtops;
@@ -257,6 +281,7 @@ static struct {
 	{ &file_filtops },			/* EVFILT_NETDEV */
 	{ &fs_filtops },			/* EVFILT_FS */
 	{ &null_filtops },			/* EVFILT_LIO */
+	{ &user_filtops },			/* EVFILT_USER */
 };
 
 /*
@@ -559,6 +584,94 @@ filt_timer(struct knote *kn, long hint)
 	return (kn->kn_data != 0);
 }
 
+static int
+filt_userattach(struct knote *kn)
+{
+
+	/* 
+	 * EVFILT_USER knotes are not attached to anything in the kernel.
+	 */ 
+	kn->kn_hook = NULL;
+	if (kn->kn_fflags & NOTE_TRIGGER)
+		kn->kn_hookid = 1;
+	else
+		kn->kn_hookid = 0;
+	return (0);
+}
+
+static void
+filt_userdetach(__unused struct knote *kn)
+{
+
+	/*
+	 * EVFILT_USER knotes are not attached to anything in the kernel.
+	 */
+}
+
+static int
+filt_user(struct knote *kn, __unused long hint)
+{
+
+	return (kn->kn_hookid);
+}
+
+static void
+filt_usertouch(struct knote *kn, struct kevent *kev, long type)
+{
+	int ffctrl;
+
+	switch (type) {
+	case EVENT_REGISTER:
+		if (kev->fflags & NOTE_TRIGGER)
+			kn->kn_hookid = 1;
+
+		ffctrl = kev->fflags & NOTE_FFCTRLMASK;
+		kev->fflags &= NOTE_FFLAGSMASK;
+		switch (ffctrl) {
+		case NOTE_FFNOP:
+			break;
+
+		case NOTE_FFAND:
+			kn->kn_sfflags &= kev->fflags;
+			break;
+
+		case NOTE_FFOR:
+			kn->kn_sfflags |= kev->fflags;
+			break;
+
+		case NOTE_FFCOPY:
+			kn->kn_sfflags = kev->fflags;
+			break;
+
+		default:
+			/* XXX Return error? */
+			break;
+		}
+		kn->kn_sdata = kev->data;
+		if (kev->flags & EV_CLEAR) {
+			kn->kn_hookid = 0;
+			kn->kn_data = 0;
+			kn->kn_fflags = 0;
+		}
+		break;
+
+        case EVENT_PROCESS:
+		*kev = kn->kn_kevent;
+		kev->fflags = kn->kn_sfflags;
+		kev->data = kn->kn_sdata;
+		if (kn->kn_flags & EV_CLEAR) {
+			kn->kn_hookid = 0;
+			kn->kn_data = 0;
+			kn->kn_fflags = 0;
+		}
+		break;
+
+	default:
+		panic("filt_usertouch() - invalid type (%ld)", type);
+		break;
+	}
+}
+
 int
 kqueue(struct thread *td, struct kqueue_args *uap)
 {
@@ -577,7 +690,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	mtx_init(&kq->kq_lock, "kqueue", NULL, MTX_DEF|MTX_DUPOK);
 	TAILQ_INIT(&kq->kq_head);
 	kq->kq_fdp = fdp;
-	knlist_init(&kq->kq_sel.si_note, &kq->kq_lock, NULL, NULL, NULL);
+	knlist_init_mtx(&kq->kq_sel.si_note, &kq->kq_lock);
 	TASK_INIT(&kq->kq_task, 0, kqueue_task, kq);
 
 	FILEDESC_XLOCK(fdp);
@@ -719,7 +832,7 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 				continue;
 			kevp->flags &= ~EV_SYSFLAGS;
 			error = kqueue_register(kq, kevp, td, 1);
-			if (error) {
+			if (error || (kevp->flags & EV_RECEIPT)) {
 				if (nevents != 0) {
 					kevp->flags = EV_ERROR;
 					kevp->data = error;
@@ -921,17 +1034,11 @@ findkn:
 		goto findkn;
 	}
 
-	if (kn == NULL && ((kev->flags & EV_ADD) == 0)) {
-		KQ_UNLOCK(kq);
-		error = ENOENT;
-		goto done;
-	}
-
 	/*
 	 * kn now contains the matching knote, or NULL if no match
 	 */
-	if (kev->flags & EV_ADD) {
-		if (kn == NULL) {
+	if (kn == NULL) {
+		if (kev->flags & EV_ADD) {
 			kn = tkn;
 			tkn = NULL;
 			if (kn == NULL) {
@@ -970,34 +1077,16 @@ findkn:
 				goto done;
 			}
 			KN_LIST_LOCK(kn);
+			goto done_ev_add;
 		} else {
-			/*
-			 * The user may change some filter values after the
-			 * initial EV_ADD, but doing so will not reset any
-			 * filter which has already been triggered.
-			 */
-			kn->kn_status |= KN_INFLUX;
+			/* No matching knote and the EV_ADD flag is not set. */
 			KQ_UNLOCK(kq);
-			KN_LIST_LOCK(kn);
-			kn->kn_sfflags = kev->fflags;
-			kn->kn_sdata = kev->data;
-			kn->kn_kevent.udata = kev->udata;
+			error = ENOENT;
+			goto done;
 		}
-
-		/*
-		 * We can get here with kn->kn_knlist == NULL.
-		 * This can happen when the initial attach event decides that
-		 * the event is "completed" already.  i.e. filt_procattach
-		 * is called on a zombie process.  It will call filt_proc
-		 * which will remove it from the list, and NULL kn_knlist.
-		 */
-		event = kn->kn_fop->f_event(kn, 0);
-		KQ_LOCK(kq);
-		if (event)
-			KNOTE_ACTIVATE(kn, 1);
-		kn->kn_status &= ~KN_INFLUX;
-		KN_LIST_UNLOCK(kn);
-	} else if (kev->flags & EV_DELETE) {
+	}
+	
+	if (kev->flags & EV_DELETE) {
 		kn->kn_status |= KN_INFLUX;
 		KQ_UNLOCK(kq);
 		if (!(kn->kn_status & KN_DETACHED))
@@ -1005,6 +1094,37 @@ findkn:
 		knote_drop(kn, td);
 		goto done;
 	}
+
+	/*
+	 * The user may change some filter values after the initial EV_ADD,
+	 * but doing so will not reset any filter which has already been
+	 * triggered.
+	 */
+	kn->kn_status |= KN_INFLUX;
+	KQ_UNLOCK(kq);
+	KN_LIST_LOCK(kn);
+	kn->kn_kevent.udata = kev->udata;
+	if (!fops->f_isfd && fops->f_touch != NULL) {
+		fops->f_touch(kn, kev, EVENT_REGISTER);
+	} else {
+		kn->kn_sfflags = kev->fflags;
+		kn->kn_sdata = kev->data;
+	}
+
+	/*
+	 * We can get here with kn->kn_knlist == NULL.  This can happen when
+	 * the initial attach event decides that the event is "completed" 
+	 * already.  i.e. filt_procattach is called on a zombie process.  It
+	 * will call filt_proc which will remove it from the list, and NULL
+	 * kn_knlist.
+	 */
+done_ev_add:
+	event = kn->kn_fop->f_event(kn, 0);
+	KQ_LOCK(kq);
+	if (event)
+		KNOTE_ACTIVATE(kn, 1);
+	kn->kn_status &= ~KN_INFLUX;
+	KN_LIST_UNLOCK(kn);
 
 	if ((kev->flags & EV_DISABLE) &&
 	    ((kn->kn_status & KN_DISABLED) == 0)) {
@@ -1185,7 +1305,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 	struct timeval atv, rtv, ttv;
 	struct knote *kn, *marker;
 	int count, timeout, nkev, error, influx;
-	int haskqglobal;
+	int haskqglobal, touch;
 
 	count = maxevents;
 	nkev = 0;
@@ -1317,12 +1437,25 @@ start:
 				influx = 1;
 				continue;
 			}
-			*kevp = kn->kn_kevent;
+			touch = (!kn->kn_fop->f_isfd &&
+			    kn->kn_fop->f_touch != NULL);
+			if (touch)
+				kn->kn_fop->f_touch(kn, kevp, EVENT_PROCESS);
+			else
+				*kevp = kn->kn_kevent;
 			KQ_LOCK(kq);
 			KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
-			if (kn->kn_flags & EV_CLEAR) {
-				kn->kn_data = 0;
-				kn->kn_fflags = 0;
+			if (kn->kn_flags & (EV_CLEAR |  EV_DISPATCH)) {
+				/* 
+				 * Manually clear knotes who weren't 
+				 * 'touch'ed.
+				 */
+				if (touch == 0 && kn->kn_flags & EV_CLEAR) {
+					kn->kn_data = 0;
+					kn->kn_fflags = 0;
+				}
+				if (kn->kn_flags & EV_DISPATCH)
+					kn->kn_status |= KN_DISABLED;
 				kn->kn_status &= ~(KN_QUEUED | KN_ACTIVE);
 				kq->kq_count--;
 			} else
@@ -1608,17 +1741,18 @@ kqueue_wakeup(struct kqueue *kq)
  * first.
  */
 void
-knote(struct knlist *list, long hint, int islocked)
+knote(struct knlist *list, long hint, int lockflags)
 {
 	struct kqueue *kq;
 	struct knote *kn;
+	int error;
 
 	if (list == NULL)
 		return;
 
-	KNL_ASSERT_LOCK(list, islocked);
+	KNL_ASSERT_LOCK(list, lockflags & KNF_LISTLOCKED);
 
-	if (!islocked) 
+	if ((lockflags & KNF_LISTLOCKED) == 0)
 		list->kl_lock(list->kl_lockarg); 
 
 	/*
@@ -1633,17 +1767,28 @@ knote(struct knlist *list, long hint, int islocked)
 		kq = kn->kn_kq;
 		if ((kn->kn_status & KN_INFLUX) != KN_INFLUX) {
 			KQ_LOCK(kq);
-			if ((kn->kn_status & KN_INFLUX) != KN_INFLUX) {
+			if ((kn->kn_status & KN_INFLUX) == KN_INFLUX) {
+				KQ_UNLOCK(kq);
+			} else if ((lockflags & KNF_NOKQLOCK) != 0) {
+				kn->kn_status |= KN_INFLUX;
+				KQ_UNLOCK(kq);
+				error = kn->kn_fop->f_event(kn, hint);
+				KQ_LOCK(kq);
+				kn->kn_status &= ~KN_INFLUX;
+				if (error)
+					KNOTE_ACTIVATE(kn, 1);
+				KQ_UNLOCK_FLUX(kq);
+			} else {
 				kn->kn_status |= KN_HASKQLOCK;
 				if (kn->kn_fop->f_event(kn, hint))
 					KNOTE_ACTIVATE(kn, 1);
 				kn->kn_status &= ~KN_HASKQLOCK;
+				KQ_UNLOCK(kq);
 			}
-			KQ_UNLOCK(kq);
 		}
 		kq = NULL;
 	}
-	if (!islocked)
+	if ((lockflags & KNF_LISTLOCKED) == 0)
 		list->kl_unlock(list->kl_lockarg); 
 }
 
@@ -1723,7 +1868,6 @@ MTX_SYSINIT(knlist_lock, &knlist_lock, "knlist lock for lockless objects",
 	MTX_DEF);
 static void knlist_mtx_lock(void *arg);
 static void knlist_mtx_unlock(void *arg);
-static int knlist_mtx_locked(void *arg);
 
 static void
 knlist_mtx_lock(void *arg)
@@ -1737,15 +1881,22 @@ knlist_mtx_unlock(void *arg)
 	mtx_unlock((struct mtx *)arg);
 }
 
-static int
-knlist_mtx_locked(void *arg)
+static void
+knlist_mtx_assert_locked(void *arg)
 {
-	return (mtx_owned((struct mtx *)arg));
+	mtx_assert((struct mtx *)arg, MA_OWNED);
+}
+
+static void
+knlist_mtx_assert_unlocked(void *arg)
+{
+	mtx_assert((struct mtx *)arg, MA_NOTOWNED);
 }
 
 void
 knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
-    void (*kl_unlock)(void *), int (*kl_locked)(void *))
+    void (*kl_unlock)(void *),
+    void (*kl_assert_locked)(void *), void (*kl_assert_unlocked)(void *))
 {
 
 	if (lock == NULL)
@@ -1761,12 +1912,23 @@ knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
 		knl->kl_unlock = knlist_mtx_unlock;
 	else
 		knl->kl_unlock = kl_unlock;
-	if (kl_locked == NULL)
-		knl->kl_locked = knlist_mtx_locked;
+	if (kl_assert_locked == NULL)
+		knl->kl_assert_locked = knlist_mtx_assert_locked;
 	else
-		knl->kl_locked = kl_locked;
+		knl->kl_assert_locked = kl_assert_locked;
+	if (kl_assert_unlocked == NULL)
+		knl->kl_assert_unlocked = knlist_mtx_assert_unlocked;
+	else
+		knl->kl_assert_unlocked = kl_assert_unlocked;
 
 	SLIST_INIT(&knl->kl_list);
+}
+
+void
+knlist_init_mtx(struct knlist *knl, struct mtx *lock)
+{
+
+	knlist_init(knl, lock, NULL, NULL, NULL, NULL);
 }
 
 void

@@ -124,6 +124,7 @@ int cold = 1;
 long Maxmem;
 long realmem;
 
+void *dpcpu0;
 char pcpu0[PCPU_PAGES * PAGE_SIZE];
 struct trapframe frame0;
 
@@ -242,6 +243,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	char *env;
 	struct pcpu *pc;
 	vm_offset_t end;
+	vm_offset_t va;
 	caddr_t kmdp;
 	phandle_t child;
 	phandle_t root;
@@ -367,19 +369,28 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Panic if there is no metadata.  Most likely the kernel was booted
 	 * directly, instead of through loader(8).
 	 */
-	if (mdp == NULL || kmdp == NULL) {
-		printf("sparc64_init: no loader metadata.\n"
+	if (mdp == NULL || kmdp == NULL || end == 0 ||
+	    kernel_tlb_slots == 0 || kernel_tlbs == NULL) {
+		printf("sparc64_init: missing loader metadata.\n"
 		    "This probably means you are not using loader(8).\n");
 		panic("sparc64_init");
 	}
 
 	/*
-	 * Sanity check the kernel end, which is important.
+	 * Work around the broken loader behavior of not demapping no
+	 * longer used kernel TLB slots when unloading the kernel or
+	 * modules.
 	 */
-	if (end == 0) {
-		printf("sparc64_init: warning, kernel end not specified.\n"
-		    "Attempting to continue anyway.\n");
-		end = (vm_offset_t)_end;
+	for (va = KERNBASE + (kernel_tlb_slots - 1) * PAGE_SIZE_4M;
+	    va >= roundup2(end, PAGE_SIZE_4M); va -= PAGE_SIZE_4M) {
+		printf("demapping unused kernel TLB slot (va %#lx - %#lx)\n",
+		    va, va + PAGE_SIZE_4M - 1);
+		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
+		    ASI_DMMU_DEMAP, 0);
+		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
+		    ASI_IMMU_DEMAP, 0);
+		flush(KERNBASE);
+		kernel_tlb_slots--;
 	}
 
 	/*
@@ -428,7 +439,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	/*
 	 * Initialize virtual memory and calculate physmem.
 	 */
-	pmap_bootstrap(end);
+	pmap_bootstrap();
 
 	/*
 	 * Initialize tunables.
@@ -480,8 +491,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	delay_func = delay_tick;
 
 	/*
-	 * Initialize the message buffer (after setting trap table).
+	 * Initialize the dynamic per-CPU area for the BSP and the message
+	 * buffer (after setting the trap table).
 	 */
+	dpcpu_init(dpcpu0, 0);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 	mutex_init();
@@ -740,6 +753,17 @@ cpu_shutdown(void *args)
 	cpu_mp_shutdown();
 #endif
 	ofw_exit(args);
+}
+
+/*
+ * Flush the D-cache for non-DMA I/O so that the I-cache can
+ * be made coherent later.
+ */
+void
+cpu_flush_dcache(void *ptr, size_t len)
+{
+
+	/* TBD */
 }
 
 /* Get current clock frequency for the given CPU ID. */

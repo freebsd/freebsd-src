@@ -56,8 +56,12 @@ struct reg {
 	register_t	r_rdx;
 	register_t	r_rcx;
 	register_t	r_rax;
-	register_t	r_trapno;
-	register_t	r_err;
+	uint32_t	r_trapno;
+	uint16_t	r_fs;
+	uint16_t	r_gs;
+	uint32_t	r_err;
+	uint16_t	r_es;
+	uint16_t	r_ds;
 	register_t	r_rip;
 	register_t	r_cs;
 	register_t	r_rflags;

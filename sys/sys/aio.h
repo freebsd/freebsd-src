@@ -19,7 +19,6 @@
 #ifndef _SYS_AIO_H_
 #define	_SYS_AIO_H_
 
-#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/signal.h>
 
@@ -79,6 +78,8 @@ typedef struct aiocb {
 
 #ifndef _KERNEL
 
+struct timespec;
+
 __BEGIN_DECLS
 /*
  * Asynchronously read from a file
@@ -123,7 +124,9 @@ int	aio_cancel(int, struct aiocb *);
  */
 int	aio_suspend(const struct aiocb * const[], int, const struct timespec *);
 
+#ifdef __BSD_VISIBLE
 int	aio_waitcomplete(struct aiocb **, struct timespec *);
+#endif
 
 int	aio_fsync(int op, struct aiocb *aiocbp);
 __END_DECLS

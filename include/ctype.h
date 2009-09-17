@@ -65,8 +65,6 @@ int	tolower(int);
 int	toupper(int);
 
 #if __XSI_VISIBLE
-int	_tolower(int);
-int	_toupper(int);
 int	isascii(int);
 int	toascii(int);
 #endif

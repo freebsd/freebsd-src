@@ -125,6 +125,7 @@ struct icmp6_hdr {
 #define ICMP6_FQDN_REPLY		140	/* FQDN reply */
 #define ICMP6_NI_QUERY			139	/* node information request */
 #define ICMP6_NI_REPLY			140	/* node information reply */
+#define MLDV2_LISTENER_REPORT		143	/* RFC3810 listener report */
 
 /* The definitions below are experimental. TBA */
 #define MLD_MTRACE_RESP			200	/* mtrace resp (to sender) */
@@ -194,6 +195,8 @@ struct mld_hdr {
 #define mld_cksum	mld_icmp6_hdr.icmp6_cksum
 #define mld_maxdelay	mld_icmp6_hdr.icmp6_data16[0]
 #define mld_reserved	mld_icmp6_hdr.icmp6_data16[1]
+#define mld_v2_reserved	mld_icmp6_hdr.icmp6_data16[0]
+#define mld_v2_numrecs	mld_icmp6_hdr.icmp6_data16[1]
 
 /*
  * Neighbor Discovery
@@ -596,6 +599,22 @@ struct icmp6stat {
 	u_quad_t icp6s_badredirect;	/* bad redirect message */
 };
 
+#ifdef _KERNEL
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
+#define	ICMP6STAT_ADD(name, val)	V_icmp6stat.name += (val)
+#define	ICMP6STAT_INC(name)		ICMP6STAT_ADD(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_icmp6stat_inc(int statnum);
+#define	KMOD_ICMP6STAT_INC(name)					\
+	kmod_icmp6stat_inc(offsetof(struct icmp6stat, name) / sizeof(u_quad_t))
+#endif
+
 /*
  * Names for ICMP sysctl objects
  */
@@ -639,6 +658,7 @@ void	icmp6_error(struct mbuf *, int, int, int);
 void	icmp6_error2(struct mbuf *, int, int, int, struct ifnet *);
 int	icmp6_input(struct mbuf **, int *, int);
 void	icmp6_fasttimo(void);
+void	icmp6_slowtimo(void);
 void	icmp6_reflect(struct mbuf *, size_t);
 void	icmp6_prepare(struct mbuf *);
 void	icmp6_redirect_input(struct mbuf *, int);
@@ -707,10 +727,11 @@ do { \
 		} \
 } while (/*CONSTCOND*/ 0)
 
-#ifdef VIMAGE_GLOBALS
-extern int	icmp6_rediraccept;	/* accept/process redirects */
-extern int	icmp6_redirtimeout;	/* cache time for redirect routes */
-#endif
+VNET_DECLARE(int, icmp6_rediraccept);	/* accept/process redirects */
+VNET_DECLARE(int, icmp6_redirtimeout);	/* cache time for redirect routes */
+
+#define	V_icmp6_rediraccept	VNET(icmp6_rediraccept)
+#define	V_icmp6_redirtimeout	VNET(icmp6_redirtimeout)
 
 #define ICMP6_NODEINFO_FQDNOK		0x1
 #define ICMP6_NODEINFO_NODEADDROK	0x2

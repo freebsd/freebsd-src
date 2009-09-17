@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.os.h,v 3.101 2006/02/14 00:52:52 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.os.h,v 3.102 2007/07/05 14:13:06 christos Exp $ */
 /*
  * tc.os.h: Shell os dependent defines
  */
@@ -87,6 +87,13 @@
 #  include <termios.h>
 # endif /* POSIX */
 #endif /* OREO */
+
+#ifdef __QNXNTO__
+#include <sys/resource.h>
+#include <fcntl.h>
+#undef O_TEXT
+#undef O_BINARY
+#endif
 
 #ifdef convex
 # include <sys/dmon.h>

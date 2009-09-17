@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/consio.h>
@@ -95,16 +96,10 @@ static default_attr user_default = {
     SC_NORM_REV_ATTR,
 };
 
-static default_attr kernel_default = {
-    SC_KERNEL_CONS_ATTR,
-    SC_KERNEL_CONS_REV_ATTR,
-};
-
 static	int		sc_console_unit = -1;
 static	int		sc_saver_keyb_only = 1;
 static  scr_stat    	*sc_console;
 static  struct consdev	*sc_consptr;
-static	void		*kernel_console_ts;
 static	scr_stat	main_console;
 static	struct tty 	*main_devs[MAXCONS];
 
@@ -179,7 +174,6 @@ static void scshutdown(void *arg, int howto);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
-static int sccngetch(int flags);
 static void sccnupdate(scr_stat *scp);
 static scr_stat *alloc_scp(sc_softc_t *sc, int vty);
 static void init_scp(sc_softc_t *sc, int vty, scr_stat *scp);
@@ -214,7 +208,7 @@ static int save_kbd_state(scr_stat *scp);
 static int update_kbd_state(scr_stat *scp, int state, int mask);
 static int update_kbd_leds(scr_stat *scp, int which);
 static timeout_t blink_screen;
-static struct tty *sc_alloc_tty(int, const char *, ...) __printflike(2, 3);
+static struct tty *sc_alloc_tty(int, int);
 
 static cn_probe_t	sc_cnprobe;
 static cn_init_t	sc_cninit;
@@ -231,16 +225,20 @@ static	tsw_ioctl_t	sctty_ioctl;
 static	tsw_mmap_t	sctty_mmap;
 
 static struct ttydevsw sc_ttydevsw = {
-	/*
-	 * XXX: we should use the prefix, but this doesn't work for
-	 * consolectl.
-	 */
-	.tsw_flags	= TF_NOPREFIX,
 	.tsw_open	= sctty_open,
 	.tsw_close	= sctty_close,
 	.tsw_outwakeup	= sctty_outwakeup,
 	.tsw_ioctl	= sctty_ioctl,
 	.tsw_mmap	= sctty_mmap,
+};
+
+static d_ioctl_t	consolectl_ioctl;
+
+static struct cdevsw consolectl_devsw = {
+	.d_version	= D_VERSION,
+	.d_flags	= D_NEEDGIANT,
+	.d_ioctl	= consolectl_ioctl,
+	.d_name		= "consolectl",
 };
 
 int
@@ -323,31 +321,24 @@ sctty_outwakeup(struct tty *tp)
 	len = ttydisc_getc(tp, buf, sizeof buf);
 	if (len == 0)
 	    break;
-	sc_puts(scp, buf, len);
+	sc_puts(scp, buf, len, 0);
     }
 }
 
 static struct tty *
-sc_alloc_tty(int index, const char *fmt, ...)
+sc_alloc_tty(int index, int devnum)
 {
-	va_list ap;
 	struct sc_ttysoftc *stc;
 	struct tty *tp;
-	char name[11]; /* "consolectl" */
-
-	va_start(ap, fmt);
 
 	/* Allocate TTY object and softc to store unit number. */
 	stc = malloc(sizeof(struct sc_ttysoftc), M_DEVBUF, M_WAITOK);
 	stc->st_index = index;
 	stc->st_stat = NULL;
-	tp = tty_alloc(&sc_ttydevsw, stc, &Giant);
+	tp = tty_alloc_mutex(&sc_ttydevsw, stc, &Giant);
 
 	/* Create device node. */
-	va_start(ap, fmt);
-	vsnrprintf(name, sizeof name, 32, fmt, ap);
-	va_end(ap);
-	tty_makedev(tp, NULL, "%s", name);
+	tty_makedev(tp, NULL, "v%r", devnum);
 
 	return (tp);
 }
@@ -361,7 +352,8 @@ sc_attach_unit(int unit, int flags)
     video_info_t info;
 #endif
     int vc;
-    struct tty *tp;
+    struct cdev *dev;
+    unsigned int vmode = 0;
 
     flags &= ~SC_KERNEL_CONSOLE;
 
@@ -373,22 +365,8 @@ sc_attach_unit(int unit, int flags)
 	/* assert(sc_console != NULL) */
 	flags |= SC_KERNEL_CONSOLE;
 	scmeminit(NULL);
-
-	scinit(unit, flags);
-
-	if (sc_console->tsw->te_size > 0) {
-	    /* assert(sc_console->ts != NULL); */
-	    kernel_console_ts = sc_console->ts;
-	    sc_console->ts = malloc(sc_console->tsw->te_size,
-				    M_DEVBUF, M_WAITOK);
-	    bcopy(kernel_console_ts, sc_console->ts, sc_console->tsw->te_size);
-    	    (*sc_console->tsw->te_default_attr)(sc_console,
-						user_default.std_color,
-						user_default.rev_color);
-	}
-    } else {
-	scinit(unit, flags);
     }
+    scinit(unit, flags);
 
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
     sc->config = flags;
@@ -396,16 +374,20 @@ sc_attach_unit(int unit, int flags)
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
 
+    (void)resource_int_value("sc", unit, "vesa_mode", &vmode);
+    if (vmode < M_VESA_BASE || vmode > M_VESA_MODE_MAX)
+	vmode = M_VESA_FULL_800;
+
 #ifdef SC_PIXEL_MODE
-    if ((sc->config & SC_VESA800X600)
-	&& (vidd_get_info(sc->adp, M_VESA_800x600, &info) == 0)) {
+    if ((sc->config & SC_VESAMODE)
+	&& (vidd_get_info(sc->adp, vmode, &info) == 0)) {
 #ifdef DEV_SPLASH
 	if (sc->flags & SC_SPLASH_SCRN)
 	    splash_term(sc->adp);
 #endif
-	sc_set_graphics_mode(scp, NULL, M_VESA_800x600);
-	sc_set_pixel_mode(scp, NULL, COL, ROW, 16, 8);
-	sc->initial_mode = M_VESA_800x600;
+	sc_set_graphics_mode(scp, NULL, vmode);
+	sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
+	sc->initial_mode = vmode;
 #ifdef DEV_SPLASH
 	/* put up the splash again! */
 	if (sc->flags & SC_SPLASH_SCRN)
@@ -446,7 +428,7 @@ sc_attach_unit(int unit, int flags)
 
     for (vc = 0; vc < sc->vtys; vc++) {
 	if (sc->dev[vc] == NULL) {
-		sc->dev[vc] = sc_alloc_tty(vc, "ttyv%r", vc + unit * MAXCONS);
+		sc->dev[vc] = sc_alloc_tty(vc, vc + unit * MAXCONS);
 		if (vc == 0 && sc->dev == main_devs)
 			SC_STAT(sc->dev[0]) = &main_console;
 	}
@@ -457,8 +439,9 @@ sc_attach_unit(int unit, int flags)
 	 */
     }
 
-    tp = sc_alloc_tty(0, "consolectl");
-    SC_STAT(tp) = sc_console;
+    dev = make_dev(&consolectl_devsw, 0, UID_ROOT, GID_WHEEL, 0600,
+        "consolectl");
+    dev->si_drv1 = sc->dev[0];
 
     return 0;
 }
@@ -540,7 +523,7 @@ sctty_open(struct tty *tp)
     if (scp == NULL) {
 	scp = SC_STAT(tp) = alloc_scp(sc, SC_VTY(tp));
 	if (ISGRAPHSC(scp))
-	    sc_set_pixel_mode(scp, NULL, COL, ROW, 16, 8);
+	    sc_set_pixel_mode(scp, NULL, 0, 0, 16, 8);
     }
     if (!tp->t_winsize.ws_col && !tp->t_winsize.ws_row) {
 	tp->t_winsize.ws_col = scp->xsize;
@@ -1449,6 +1432,14 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     return (ENOIOCTL);
 }
 
+static int
+consolectl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+
+	return sctty_ioctl(dev->si_drv1, cmd, data, td);
+}
+
 static void
 sc_cnprobe(struct consdev *cp)
 {
@@ -1507,7 +1498,6 @@ sc_cnputc(struct consdev *cd, int c)
 {
     u_char buf[1];
     scr_stat *scp = sc_console;
-    void *save;
 #ifndef SC_NO_HISTORY
 #if 0
     struct tty *tp;
@@ -1543,12 +1533,8 @@ sc_cnputc(struct consdev *cd, int c)
     }
 #endif /* !SC_NO_HISTORY */
 
-    save = scp->ts;
-    if (kernel_console_ts != NULL)
-	scp->ts = kernel_console_ts;
     buf[0] = c;
-    sc_puts(scp, buf, 1);
-    scp->ts = save;
+    sc_puts(scp, buf, 1, 1);
 
     s = spltty();	/* block sckbdevent and scrn_timer */
     sccnupdate(scp);
@@ -1557,12 +1543,6 @@ sc_cnputc(struct consdev *cd, int c)
 
 static int
 sc_cngetc(struct consdev *cd)
-{
-    return sccngetch(SCGETC_NONBLOCK);
-}
-
-static int
-sccngetch(int flags)
 {
     static struct fkeytab fkey;
     static int fkeycp;
@@ -1604,7 +1584,7 @@ sccngetch(int flags)
     kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
 
     kbdd_poll(scp->sc->kbd, TRUE);
-    c = scgetc(scp->sc, SCGETC_CN | flags);
+    c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK);
     kbdd_poll(scp->sc->kbd, FALSE);
 
     scp->kbd_mode = cur_mode;
@@ -2492,7 +2472,7 @@ exchange_scr(sc_softc_t *sc)
 }
 
 void
-sc_puts(scr_stat *scp, u_char *buf, int len)
+sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 {
     int need_unlock = 0;
 
@@ -2507,7 +2487,7 @@ sc_puts(scr_stat *scp, u_char *buf, int len)
 		need_unlock = 1;
 		mtx_lock_spin(&scp->scr_lock);
 	}
-	(*scp->tsw->te_puts)(scp, buf, len);
+	(*scp->tsw->te_puts)(scp, buf, len, kernel);
 	if (need_unlock)
 		mtx_unlock_spin(&scp->scr_lock);
     }
@@ -2754,13 +2734,13 @@ scinit(int unit, int flags)
 	    if (sc_init_emulator(scp, SC_DFLT_TERM))
 		sc_init_emulator(scp, "*");
 	    (*scp->tsw->te_default_attr)(scp,
-					 kernel_default.std_color,
-					 kernel_default.rev_color);
+					 user_default.std_color,
+					 user_default.rev_color);
 	} else {
 	    /* assert(sc_malloc) */
 	    sc->dev = malloc(sizeof(struct tty *)*sc->vtys, M_DEVBUF,
 	        M_WAITOK|M_ZERO);
-	    sc->dev[0] = sc_alloc_tty(0, "ttyv%r", unit * MAXCONS);
+	    sc->dev[0] = sc_alloc_tty(0, unit * MAXCONS);
 	    scp = alloc_scp(sc, sc->first_vty);
 	    SC_STAT(sc->dev[0]) = scp;
 	}
@@ -3021,6 +3001,8 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	scp->ysize = info.vi_height;
 	scp->xpixel = scp->xsize*info.vi_cwidth;
 	scp->ypixel = scp->ysize*info.vi_cheight;
+    }
+
 	scp->font_size = info.vi_cheight;
 	scp->font_width = info.vi_cwidth;
 	if (info.vi_cheight < 14) {
@@ -3042,7 +3024,7 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	    scp->font = NULL;
 #endif
 	}
-    }
+
     sc_vtb_init(&scp->vtb, VTB_MEMORY, 0, 0, NULL, FALSE);
 #ifndef __sparc64__
     sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, 0, 0, NULL, FALSE);
@@ -3277,7 +3259,7 @@ next_code:
 			    sc_draw_cursor_image(scp);
 			}
 			tp = SC_DEV(sc, scp->index);
-			if (tty_opened(tp))
+			if (!kdb_active && tty_opened(tp))
 			    sctty_outwakeup(tp);
 #endif
 		    }

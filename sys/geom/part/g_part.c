@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bio.h>
-#include <sys/disk.h>
 #include <sys/diskmbr.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
@@ -48,6 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+#ifndef _PATH_DEV
+#define _PATH_DEV "/dev/"
+#endif
 
 static kobj_method_t g_part_null_methods[] = {
 	{ 0, 0 }
@@ -88,7 +91,6 @@ static g_taste_t g_part_taste;
 
 static g_access_t g_part_access;
 static g_dumpconf_t g_part_dumpconf;
-static g_ioctl_t g_part_ioctl;
 static g_orphan_t g_part_orphan;
 static g_spoiled_t g_part_spoiled;
 static g_start_t g_part_start;
@@ -105,7 +107,6 @@ static struct g_class g_part_class = {
 	/* Geom methods. */
 	.access = g_part_access,
 	.dumpconf = g_part_dumpconf,
-	.ioctl = g_part_ioctl,
 	.orphan = g_part_orphan,
 	.spoiled = g_part_spoiled,
 	.start = g_part_start,
@@ -241,9 +242,9 @@ static void
 g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
     struct g_part_entry *entry)
 {
-	char buf[32];
 	struct g_consumer *cp;
 	struct g_provider *pp;
+	struct sbuf *sb;
 	off_t offset;
 
 	cp = LIST_FIRST(&gp->consumer);
@@ -254,8 +255,11 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 		entry->gpe_offset = offset;
 
 	if (entry->gpe_pp == NULL) {
-		entry->gpe_pp = g_new_providerf(gp, "%s%s", gp->name,
-		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		sb = sbuf_new_auto();
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_finish(sb);
+		entry->gpe_pp = g_new_providerf(gp, "%s", sbuf_data(sb));
+		sbuf_delete(sb);
 		entry->gpe_pp->private = entry;		/* Close the circle. */
 	}
 	entry->gpe_pp->index = entry->gpe_index - 1;	/* index is 1-based. */
@@ -273,12 +277,17 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 }
 
 static int
-g_part_parm_geom(const char *p, struct g_geom **v)
+g_part_parm_geom(const char *rawname, struct g_geom **v)
 {
 	struct g_geom *gp;
+	const char *pname;
 
+	if (strncmp(rawname, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		pname = rawname + strlen(_PATH_DEV);
+	else
+		pname = rawname;
 	LIST_FOREACH(gp, &g_part_class.geom, geom) {
-		if (!strcmp(p, gp->name))
+		if (!strcmp(pname, gp->name))
 			break;
 	}
 	if (gp == NULL)
@@ -288,11 +297,14 @@ g_part_parm_geom(const char *p, struct g_geom **v)
 }
 
 static int
-g_part_parm_provider(const char *p, struct g_provider **v)
+g_part_parm_provider(const char *pname, struct g_provider **v)
 {
 	struct g_provider *pp;
 
-	pp = g_provider_by_name(p);
+	if (strncmp(pname, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		pp = g_provider_by_name(pname + strlen(_PATH_DEV));
+	else
+		pp = g_provider_by_name(pname);
 	if (pp == NULL)
 		return (EINVAL);
 	*v = pp;
@@ -401,7 +413,6 @@ done:
 static int
 g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 {
-	char buf[32];
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_part_entry *delent, *last, *entry;
@@ -497,8 +508,8 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		sbuf_printf(sb, "%s%s added\n", gp->name,
-		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_cat(sb, " added\n");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -761,7 +772,6 @@ fail:
 static int
 g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 {
-	char buf[32];
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_part_entry *entry;
@@ -810,8 +820,8 @@ g_part_ctl_delete(struct gctl_req *req, struct g_part_parms *gpp)
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		sbuf_printf(sb, "%s%s deleted\n", gp->name,
-		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_cat(sb, " deleted\n");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -877,7 +887,6 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 static int
 g_part_ctl_modify(struct gctl_req *req, struct g_part_parms *gpp)
 {
-	char buf[32];
 	struct g_geom *gp;
 	struct g_part_entry *entry;
 	struct g_part_table *table;
@@ -913,8 +922,8 @@ g_part_ctl_modify(struct gctl_req *req, struct g_part_parms *gpp)
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		sbuf_printf(sb, "%s%s modified\n", gp->name,
-		    G_PART_NAME(table, entry, buf, sizeof(buf)));
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_cat(sb, " modified\n");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -947,7 +956,6 @@ static int
 g_part_ctl_setunset(struct gctl_req *req, struct g_part_parms *gpp,
     unsigned int set)
 {
-	char buf[32];
 	struct g_geom *gp;
 	struct g_part_entry *entry;
 	struct g_part_table *table;
@@ -980,9 +988,9 @@ g_part_ctl_setunset(struct gctl_req *req, struct g_part_parms *gpp,
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		sbuf_printf(sb, "%s%s has %s %sset\n", gp->name,
-		    G_PART_NAME(table, entry, buf, sizeof(buf)),
-		    gpp->gpp_attrib, (set) ? "" : "un");
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_printf(sb, " has %s %sset\n", gpp->gpp_attrib,
+		    (set) ? "" : "un");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -1600,31 +1608,6 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	}
 }
 
-static int
-g_part_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag,
-    struct thread *td)
-{
-	struct g_geom *gp;
-	struct g_part_table *table;
-	struct g_part_entry *entry;
-	int error;
-
-	gp = pp->geom;
-	table = gp->softc;
-	entry = pp->private;
-
-	switch (cmd) {
-	case DIOCGPROVIDERALIAS:
-		error = G_PART_DEVALIAS(table, entry, data, MAXPATHLEN);
-		break;
-	default:
-		error = ENOTTY;
-		break;
-	}
-
-	return (error);
-}
-
 static void
 g_part_orphan(struct g_consumer *cp)
 {
@@ -1714,7 +1697,10 @@ g_part_start(struct bio *bp)
 			 * used.
 			 */
 			if (!G_PART_DUMPTO(table, entry)) {
-				g_io_deliver(bp, ENXIO);
+				g_io_deliver(bp, ENODEV);
+				printf("GEOM_PART: Partition '%s' not suitable"
+				    " for kernel dumps (wrong type?)\n",
+				    pp->name);
 				return;
 			}
 			gkd = (struct g_kerneldump *)bp->bio_data;

@@ -141,7 +141,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <machine/cpu.h>
-#include <machine/powerpc.h>
+#include <machine/platform.h>
 #include <machine/bat.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
@@ -323,6 +323,7 @@ void moea_zero_page_area(mmu_t, vm_page_t, int, int);
 void moea_zero_page_idle(mmu_t, vm_page_t);
 void moea_activate(mmu_t, struct thread *);
 void moea_deactivate(mmu_t, struct thread *);
+void moea_cpu_bootstrap(mmu_t, int);
 void moea_bootstrap(mmu_t, vm_offset_t, vm_offset_t);
 void *moea_mapdev(mmu_t, vm_offset_t, vm_size_t);
 void moea_unmapdev(mmu_t, vm_offset_t, vm_size_t);
@@ -364,6 +365,7 @@ static mmu_method_t moea_methods[] = {
 
 	/* Internal interfaces */
 	MMUMETHOD(mmu_bootstrap,       	moea_bootstrap),
+	MMUMETHOD(mmu_cpu_bootstrap,   	moea_cpu_bootstrap),
 	MMUMETHOD(mmu_mapdev,		moea_mapdev),
 	MMUMETHOD(mmu_unmapdev,		moea_unmapdev),
 	MMUMETHOD(mmu_kextract,		moea_kextract),
@@ -617,7 +619,7 @@ om_cmp(const void *a, const void *b)
 }
 
 void
-pmap_cpu_bootstrap(int ap)
+moea_cpu_bootstrap(mmu_t mmup, int ap)
 {
 	u_int sdr;
 	int i;
@@ -667,6 +669,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	int		ofw_mappings;
 	vm_size_t	size, physsz, hwphyssz;
 	vm_offset_t	pa, va, off;
+	void		*dpcpu;
 
         /*
          * Set up BAT0 to map the lowest 256 MB area
@@ -708,6 +711,9 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
 	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
 	isync();
+
+	/* set global direct map flag */
+	hw_direct_map = 1;
 
 	mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
 	CTR0(KTR_PMAP, "moea_bootstrap: physical memory");
@@ -895,7 +901,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	kernel_pmap->pm_sr[KERNEL2_SR] = KERNEL2_SEGMENT;
 	kernel_pmap->pm_active = ~0;
 
-	pmap_cpu_bootstrap(0);
+	moea_cpu_bootstrap(mmup,0);
 
 	pmap_bootstrapped++;
 
@@ -933,6 +939,20 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 		pa += PAGE_SIZE;
 		va += PAGE_SIZE;
 	}
+
+	/*
+	 * Allocate virtual address space for the dynamic percpu area.
+	 */
+	pa = moea_bootstrap_alloc(DPCPU_SIZE, PAGE_SIZE);
+	dpcpu = (void *)virtual_avail;
+	va = virtual_avail;
+	virtual_avail += DPCPU_SIZE;
+	while (va < virtual_avail) {
+		moea_kenter(mmup, va, pa);;
+		pa += PAGE_SIZE;
+		va += PAGE_SIZE;
+	}
+	dpcpu_init(dpcpu, 0);
 }
 
 /*
@@ -1081,8 +1101,11 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 
 	/* XXX change the pvo head for fake pages */
-	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS)
+	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS) {
+		pvo_flags &= ~PVO_MANAGED;
 		pvo_head = &moea_pvo_kunmanaged;
+		zone = moea_upvo_zone;
+	}
 
 	/*
 	 * If this is a managed page, and it's the first reference to the page,

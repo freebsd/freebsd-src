@@ -70,7 +70,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/filio.h>
 #include <sys/poll.h>
+#include <sys/sigio.h>
+#include <sys/signalvar.h>
 #include <sys/syslog.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -299,6 +302,7 @@ struct psm_softc {		/* Driver status information */
 	struct cdev	*bdev;
 	int		lasterr;
 	int		cmdcount;
+	struct sigio	*async;		/* Processes waiting for SIGIO */
 };
 static devclass_t psm_devclass;
 #define	PSM_SOFTC(unit)	\
@@ -1490,6 +1494,7 @@ psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 	sc->mode.level = sc->dflt_mode.level;
 	sc->mode.protocol = sc->dflt_mode.protocol;
 	sc->watchdog = FALSE;
+	sc->async = NULL;
 
 	/* flush the event queue */
 	sc->queue.count = 0;
@@ -1628,6 +1633,12 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 
 	/* remove anything left in the output buffer */
 	empty_aux_buffer(sc->kbdc, 10);
+
+	/* clean up and sigio requests */
+	if (sc->async != NULL) {
+		funsetown(&sc->async);
+		sc->async = NULL;
+	}
 
 	/* close is almost always successful */
 	sc->state &= ~PSM_OPEN;
@@ -2190,6 +2201,15 @@ psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		break;
 #endif /* MOUSE_GETHWID */
 
+	case FIONBIO:
+	case FIOASYNC:
+		break;
+	case FIOSETOWN:
+		error = fsetown(*(int *)addr, &sc->async);
+		break;
+	case FIOGETOWN:
+		*(int *) addr = fgetown(&sc->async);
+		break;
 	default:
 		return (ENOTTY);
 	}
@@ -3454,6 +3474,9 @@ next:
 		wakeup(sc);
 	}
 	selwakeuppri(&sc->rsel, PZERO);
+	if (sc->async != NULL) {
+		pgsigio(&sc->async, SIGIO, 0);
+	}
 	sc->state &= ~PSM_SOFTARMED;
 	splx(s);
 }

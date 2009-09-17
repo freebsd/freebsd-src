@@ -46,7 +46,7 @@ u_int update_seqno;
 
 /* walk the tree of routes with this for output
  */
-struct {
+static struct {
 	struct sockaddr_in to;
 	naddr	to_mask;
 	naddr	to_net;
@@ -69,11 +69,11 @@ struct {
 
 /* A buffer for what can be heard by both RIPv1 and RIPv2 listeners */
 struct ws_buf v12buf;
-union pkt_buf ripv12_buf;
+static union pkt_buf ripv12_buf;
 
 /* Another for only RIPv2 listeners */
-struct ws_buf v2buf;
-union pkt_buf rip_v2_buf;
+static struct ws_buf v2buf;
+static union pkt_buf rip_v2_buf;
 
 
 
@@ -107,6 +107,7 @@ output(enum output_type type,
 	int soc;
 	int serrno;
 
+	assert(ifp != NULL);
 	osin = *dst;
 	if (osin.sin_port == 0)
 		osin.sin_port = htons(RIP_PORT);
@@ -139,7 +140,8 @@ output(enum output_type type,
 		flags = MSG_DONTROUTE;
 		break;
 	case OUT_MULTICAST:
-		if (ifp->int_if_flags & IFF_POINTOPOINT) {
+		if ((ifp->int_if_flags & (IFF_POINTOPOINT|IFF_MULTICAST)) ==
+		    IFF_POINTOPOINT) {
 			msg = "Send pt-to-pt";
 		} else if (ifp->int_state & IS_DUP) {
 			trace_act("abort multicast output via %s"
@@ -671,6 +673,7 @@ supply(struct sockaddr_in *dst,
 	struct rt_entry *rt;
 	int def_metric;
 
+	assert(ifp != NULL);
 
 	ws.state = 0;
 	ws.gen_limit = 1024;
@@ -832,7 +835,7 @@ rip_bcast(int flash)
 		  flash ? "dynamic update" : "all routes",
 		  rtime.tv_sec + ((float)rtime.tv_usec)/1000000.0);
 
-	for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		/* Skip interfaces not doing RIP.
 		 * Do try broken interfaces to see if they have healed.
 		 */
@@ -859,7 +862,13 @@ rip_bcast(int flash)
 		} else if (ifp->int_if_flags & IFF_POINTOPOINT) {
 			/* point-to-point hardware interface */
 			dst.sin_addr.s_addr = ifp->int_dstaddr;
-			type = OUT_UNICAST;
+			if (vers == RIPv2 &&
+			    ifp->int_if_flags & IFF_MULTICAST &&
+			    !(ifp->int_state  & IS_NO_RIP_MCAST)) {
+				type = OUT_MULTICAST;
+			} else {
+				type = OUT_UNICAST;
+			}
 
 		} else if (ifp->int_state & IS_REMOTE) {
 			/* remote interface */
@@ -900,7 +909,7 @@ rip_query(void)
 
 	memset(&buf, 0, sizeof(buf));
 
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		/* Skip interfaces those already queried.
 		 * Do not ask via interfaces through which we don't
 		 * accept input.  Do not ask via interfaces that cannot

@@ -32,9 +32,16 @@
 #ifndef _MACHINE_UCONTEXT_H_
 #define	_MACHINE_UCONTEXT_H_
 
+/*
+ * mc_trapno bits. Shall be in sync with TF_XXX.
+ */
+#define	_MC_HASSEGS	0x1
+#define	_MC_HASBASES	0x2
+#define	_MC_FLAG_MASK	(_MC_HASSEGS | _MC_HASBASES)
+
 typedef struct __mcontext {
 	/*
-	 * The first 20 fields must match the definition of
+	 * The first 24 fields must match the definition of
 	 * sigcontext. So that we can support sigcontext
 	 * and ucontext_t at the same time.
 	 */
@@ -54,9 +61,13 @@ typedef struct __mcontext {
 	__register_t	mc_r13;
 	__register_t	mc_r14;
 	__register_t	mc_r15;
-	__register_t	mc_trapno;
+	__uint32_t	mc_trapno;
+	__uint16_t	mc_fs;
+	__uint16_t	mc_gs;
 	__register_t	mc_addr;
-	__register_t	mc_flags;
+	__uint32_t	mc_flags;
+	__uint16_t	mc_es;
+	__uint16_t	mc_ds;
 	__register_t	mc_err;
 	__register_t	mc_rip;
 	__register_t	mc_cs;
@@ -65,6 +76,7 @@ typedef struct __mcontext {
 	__register_t	mc_ss;
 
 	long	mc_len;			/* sizeof(mcontext_t) */
+
 #define	_MC_FPFMT_NODEV		0x10000	/* device not present or configured */
 #define	_MC_FPFMT_XMM		0x10002
 	long	mc_fpformat;
@@ -76,7 +88,11 @@ typedef struct __mcontext {
 	 * See <machine/fpu.h> for the internals of mc_fpstate[].
 	 */
 	long	mc_fpstate[64] __aligned(16);
-	long	mc_spare[8];
+
+	__register_t	mc_fsbase;
+	__register_t	mc_gsbase;
+
+	long	mc_spare[6];
 } mcontext_t;
 
 #endif /* !_MACHINE_UCONTEXT_H_ */

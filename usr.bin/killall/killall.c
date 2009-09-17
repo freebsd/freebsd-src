@@ -31,10 +31,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <jail.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +53,7 @@ static void __dead2
 usage(void)
 {
 
-	fprintf(stderr, "usage: killall [-delmsvz] [-help] [-j jid]\n");
+	fprintf(stderr, "usage: killall [-delmsvz] [-help] [-j jail]\n");
 	fprintf(stderr,
 	    "               [-u user] [-t tty] [-c cmd] [-SIGNAL] [cmd]...\n");
 	fprintf(stderr, "At least one option or argument to specify processes must be given.\n");
@@ -159,12 +161,12 @@ main(int ac, char **av)
 				}
 				jflag++;
 				if (*av == NULL)
-				    	errx(1, "must specify jid");
-				jid = strtol(*av, &ep, 10);
-				if (!*av || *ep)
-					errx(1, "illegal jid: %s", *av);
+				    	errx(1, "must specify jail");
+				jid = jail_getid(*av);
+				if (jid < 0)
+					errx(1, "%s", jail_errmsg);
 				if (jail_attach(jid) == -1)
-					err(1, "jail_attach(): %d", jid);
+					err(1, "jail_attach(%d)", jid);
 				break;
 			case 'u':
 				++*av;

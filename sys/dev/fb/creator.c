@@ -66,12 +66,13 @@ struct creator_softc {
 	struct resource		*sc_reg[FFB_NREG];
 	bus_space_tag_t		sc_bt[FFB_NREG];
 	bus_space_handle_t	sc_bh[FFB_NREG];
+	u_long			sc_reg_size;
 
-	int			sc_height;
-	int			sc_width;
+	u_int			sc_height;
+	u_int			sc_width;
 
-	int			sc_xmargin;
-	int			sc_ymargin;
+	u_int			sc_xmargin;
+	u_int			sc_ymargin;
 
 	const u_char		*sc_font;
 
@@ -82,7 +83,7 @@ struct creator_softc {
 	int			sc_fontw_cache;
 	int			sc_pmask_cache;
 
-	int			sc_flags;
+	u_int			sc_flags;
 #define	CREATOR_AFB		(1 << 0)
 #define	CREATOR_CONSOLE		(1 << 1)
 #define	CREATOR_CUREN		(1 << 2)
@@ -96,7 +97,7 @@ struct creator_softc {
 	bus_space_write_4((sc)->sc_bt[(reg)], (sc)->sc_bh[(reg)], (off), (val))
 
 #define	C(r, g, b)	((b << 16) | (g << 8) | (r))
-static const uint32_t creator_cmap[] = {
+static const uint32_t const creator_cmap[] = {
 	C(0x00, 0x00, 0x00),		/* black */
 	C(0x00, 0x00, 0xff),		/* blue */
 	C(0x00, 0xff, 0x00),		/* green */
@@ -120,7 +121,7 @@ static const struct {
 	vm_offset_t virt;
 	vm_paddr_t phys;
 	vm_size_t size;
-} creator_fb_map[] = {
+} const creator_fb_map[] = {
 	{ FFB_VIRT_SFB8R,	FFB_PHYS_SFB8R,		FFB_SIZE_SFB8R },
 	{ FFB_VIRT_SFB8G,	FFB_PHYS_SFB8G,		FFB_SIZE_SFB8G },
 	{ FFB_VIRT_SFB8B,	FFB_PHYS_SFB8B,		FFB_SIZE_SFB8B },
@@ -252,8 +253,6 @@ static video_switch_t creatorvidsw = {
 	.clear			= creator_clear,
 	.fill_rect		= creator_fill_rect,
 	.bitblt			= creator_bitblt,
-	NULL,						/* XXX brain damage */
-	NULL,						/* XXX brain damage */
 	.diag			= creator_diag,
 	.save_cursor_palette	= creator_save_cursor_palette,
 	.load_cursor_palette	= creator_load_cursor_palette,
@@ -271,7 +270,7 @@ RENDERER(creator, 0, txtrndrsw, gfb_set);
 
 RENDERER_MODULE(creator, gfb_set);
 
-static const u_char creator_mouse_pointer[64][8] __aligned(8) = {
+static const u_char const creator_mouse_pointer[64][8] __aligned(8) = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x80, 0x00, },	/* *........... */
 	{ 0xc0, 0x00, },	/* **.......... */
@@ -474,7 +473,7 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 
 	vid_init_struct(adp, CREATOR_DRIVER_NAME, -1, unit);
 
- 	if (OF_getprop(sc->sc_node, "height", &sc->sc_height,
+	if (OF_getprop(sc->sc_node, "height", &sc->sc_height,
 	    sizeof(sc->sc_height)) == -1)
 		return (ENXIO);
 	if (OF_getprop(sc->sc_node, "width", &sc->sc_width,
@@ -503,7 +502,7 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 		FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_DID);
 		if (((FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE) &
 		    FFB_DAC_CFG_DID_PNUM) >> 12) != 0x236e) {
-		    	sc->sc_flags |= CREATOR_PAC1;
+			sc->sc_flags |= CREATOR_PAC1;
 			FFB_WRITE(sc, FFB_DAC, FFB_DAC_TYPE, FFB_DAC_CFG_UCTRL);
 			if (((FFB_READ(sc, FFB_DAC, FFB_DAC_VALUE) &
 			    FFB_DAC_UCTRL_MANREV) >> 8) <= 2)
@@ -517,7 +516,7 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 	/*
 	 * Setting V_ADP_MODECHANGE serves as hack so creator_set_mode()
 	 * (which will invalidate our caches and restore our settings) is
-	 * called when the X server shuts down. Otherwise screen corruption
+	 * called when the X server shuts down.  Otherwise screen corruption
 	 * happens most of the time.
 	 */
 	adp->va_flags |= V_ADP_COLOR | V_ADP_MODECHANGE | V_ADP_BORDER |
@@ -916,8 +915,8 @@ creator_bus_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	if ((sc = (struct creator_softc *)vid_get_adapter(vid_find_adapter(
 	    CREATOR_DRIVER_NAME, 0))) != NULL && sc->sc_node == node) {
-	    	device_printf(dev, "console\n");
-	    	device_set_softc(dev, sc);
+		device_printf(dev, "console\n");
+		device_set_softc(dev, sc);
 	} else {
 		sc = device_get_softc(dev);
 		sc->sc_node = node;
@@ -930,9 +929,9 @@ creator_bus_attach(device_t dev)
 	 * and FFB_FBC register banks in creator_configure() or not so
 	 * the resources are marked as taken in the respective RMAN.
 	 * The supported cards use either 15 (Creator, Elite3D?) or 24
-	 * (Creator3D?) register banks. We make sure that we can also
+	 * (Creator3D?) register banks.  We make sure that we can also
 	 * allocate the resources for at least the FFB_DAC and FFB_FBC
-	 * banks here. We try but don't actually care whether we can
+	 * banks here.  We try but don't actually care whether we can
 	 * allocate more than these two resources and just limit the
 	 * range accessible via creator_fb_mmap() accordingly.
 	 */
@@ -953,20 +952,19 @@ creator_bus_attach(device_t dev)
 		sc->sc_bh[i] = rman_get_bushandle(sc->sc_reg[i]);
 	}
 	/*
-	 * The XFree86/Xorg sunffb(4) expects to be able to access the
+	 * The XFree86/X.Org sunffb(4) expects to be able to access the
 	 * memory spanned by the first and the last resource as one chunk
 	 * via creator_fb_mmap(), using offsets from the first resource,
 	 * even though the backing resources are actually non-continuous.
 	 * So make sure that the memory we provide is at least backed by
 	 * increasing resources.
 	 */
-	adp->va_mem_base = rman_get_start(sc->sc_reg[0]);
 	for (i = 1; i < FFB_NREG && sc->sc_reg[i] != NULL &&
 	    rman_get_start(sc->sc_reg[i]) > rman_get_start(sc->sc_reg[i - 1]);
 	    i++)
 		;
-    	adp->va_mem_size = rman_get_end(sc->sc_reg[i - 1]) -
-	    adp->va_mem_base + 1;
+	sc->sc_reg_size = rman_get_end(sc->sc_reg[i - 1]) -
+	    rman_get_start(sc->sc_reg[0]) + 1;
 
 	if (!(sc->sc_flags & CREATOR_CONSOLE)) {
 		if ((sw = vid_get_switch(CREATOR_DRIVER_NAME)) == NULL) {
@@ -977,9 +975,9 @@ creator_bus_attach(device_t dev)
 		/*
 		 * During device configuration we don't necessarily probe
 		 * the adapter which is the console first so we can't use
-		 * the device unit number for the video adapter unit. The
+		 * the device unit number for the video adapter unit.  The
 		 * worst case would be that we use the video adapter unit
-		 * 0 twice. As it doesn't really matter which unit number
+		 * 0 twice.  As it doesn't really matter which unit number
 		 * the corresponding video adapter has just use the next
 		 * unused one.
 		 */
@@ -990,7 +988,7 @@ creator_bus_attach(device_t dev)
 			sc->sc_flags |= CREATOR_AFB;
 		if ((error = sw->init(i, adp, 0)) != 0) {
 			device_printf(dev, "cannot initialize adapter\n");
-		    	goto fail;
+			goto fail;
 		}
 	}
 
@@ -1019,7 +1017,7 @@ creator_bus_attach(device_t dev)
 	for (i = 0; i < FFB_NREG && sc->sc_reg[i] != NULL; i++)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->sc_reg[i]), sc->sc_reg[i]);
- 	return (error);
+	return (error);
 }
 
 /*
@@ -1058,15 +1056,15 @@ creator_fb_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
 
 	/*
 	 * NB: This is a special implementation based on the /dev/fb
-	 * requirements of the XFree86/Xorg sunffb(4).
+	 * requirements of the XFree86/X.Org sunffb(4).
 	 */
 	sc = dev->si_drv1;
 	for (i = 0; i < CREATOR_FB_MAP_SIZE; i++) {
 		if (offset >= creator_fb_map[i].virt &&
 		    offset < creator_fb_map[i].virt + creator_fb_map[i].size) {
-		    	offset += creator_fb_map[i].phys -
+			offset += creator_fb_map[i].phys -
 			    creator_fb_map[i].virt;
-			if (offset >= sc->sc_va.va_mem_size)
+			if (offset >= sc->sc_reg_size)
 				return (EINVAL);
 			*paddr = sc->sc_bh[0] + offset;
 			return (0);

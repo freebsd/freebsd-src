@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5312_gpio.c,v 1.3 2008/11/10 04:08:04 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -35,7 +35,7 @@
  * Configure GPIO Output lines
  */
 HAL_BOOL
-ar5312GpioCfgOutput(struct ath_hal *ah, uint32_t gpio)
+ar5312GpioCfgOutput(struct ath_hal *ah, uint32_t gpio, HAL_GPIO_MUX_TYPE type)
 {
 	uint32_t gpioOffset = (AR5312_GPIO_BASE - ((uint32_t) ah->ah_sh));
 

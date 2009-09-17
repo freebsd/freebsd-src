@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: taskpool.h,v 1.9.18.2 2005/04/29 00:17:04 marka Exp $ */
+/* $Id: taskpool.h,v 1.15 2007/06/19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_TASKPOOL_H
 #define ISC_TASKPOOL_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file isc/taskpool.h
  * \brief A task pool is a mechanism for sharing a small number of tasks
  * among a large number of objects such that each object is
  * assigned a unique task, but each task may be shared by several

@@ -5,7 +5,6 @@
 
 # PROVIDE: ip6fw
 # REQUIRE: routing
-# BEFORE: network_ipv6
 # KEYWORD: nojail
 
 . /etc/rc.subr

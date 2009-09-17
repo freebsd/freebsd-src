@@ -121,7 +121,7 @@ static void     ixgb_update_stats_counters(struct adapter *);
 static void     ixgb_clean_transmit_interrupts(struct adapter *);
 static int      ixgb_allocate_receive_structures(struct adapter *);
 static int      ixgb_allocate_transmit_structures(struct adapter *);
-static void     ixgb_process_receive_interrupts(struct adapter *, int);
+static int      ixgb_process_receive_interrupts(struct adapter *, int);
 static void 
 ixgb_receive_checksum(struct adapter *,
 		      struct ixgb_rx_desc * rx_desc,
@@ -167,10 +167,10 @@ static driver_t ixgb_driver = {
 };
 
 static devclass_t ixgb_devclass;
-DRIVER_MODULE(if_ixgb, pci, ixgb_driver, ixgb_devclass, 0, 0);
+DRIVER_MODULE(ixgb, pci, ixgb_driver, ixgb_devclass, 0, 0);
 
-MODULE_DEPEND(if_ixgb, pci, 1, 1, 1);
-MODULE_DEPEND(if_ixgb, ether, 1, 1, 1);
+MODULE_DEPEND(ixgb, pci, 1, 1, 1);
+MODULE_DEPEND(ixgb, ether, 1, 1, 1);
 
 /* some defines for controlling descriptor fetches in h/w */
 #define RXDCTL_PTHRESH_DEFAULT 128	/* chip considers prefech below this */
@@ -748,11 +748,12 @@ ixgb_init(void *arg)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter *adapter = ifp->if_softc;
 	u_int32_t       reg_icr;
+	int		rx_npkts;
 
 	IXGB_LOCK_ASSERT(adapter);
 
@@ -766,22 +767,25 @@ ixgb_poll_locked(struct ifnet * ifp, enum poll_cmd cmd, int count)
 			    adapter);
 		}
 	}
-	ixgb_process_receive_interrupts(adapter, count);
+	rx_npkts = ixgb_process_receive_interrupts(adapter, count);
 	ixgb_clean_transmit_interrupts(adapter);
 
 	if (ifp->if_snd.ifq_head != NULL)
 		ixgb_start_locked(ifp);
+	return (rx_npkts);
 }
 
-static void
+static int
 ixgb_poll(struct ifnet * ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter *adapter = ifp->if_softc;
+	int rx_npkts = 0;
 
 	IXGB_LOCK(adapter);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ixgb_poll_locked(ifp, cmd, count);
+		rx_npkts = ixgb_poll_locked(ifp, cmd, count);
 	IXGB_UNLOCK(adapter);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -1086,7 +1090,7 @@ ixgb_set_multi(struct adapter * adapter)
 
 	IOCTL_DEBUGOUT("ixgb_set_multi: begin");
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 #if __FreeBSD_version < 500000
 	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 #else
@@ -1099,7 +1103,7 @@ ixgb_set_multi(struct adapter * adapter)
 		      &mta[mcnt * IXGB_ETH_LENGTH_OF_ADDRESS], IXGB_ETH_LENGTH_OF_ADDRESS);
 		mcnt++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (mcnt > MAX_NUM_MULTICAST_ADDRESSES) {
 		reg_rctl = IXGB_READ_REG(&adapter->hw, RCTL);
@@ -2065,7 +2069,7 @@ ixgb_free_receive_structures(struct adapter * adapter)
  *  count < 0.
  *
  *********************************************************************/
-static void
+static int
 ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 {
 	struct ifnet   *ifp;
@@ -2079,6 +2083,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 	int             i;
 	int             next_to_use = 0;
 	int             eop_desc;
+	int		rx_npkts = 0;
 	/* Pointer to the receive descriptor being examined. */
 	struct ixgb_rx_desc *current_desc;
 
@@ -2094,7 +2099,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 #ifdef _SV_
 		adapter->no_pkts_avail++;
 #endif
-		return;
+		return (rx_npkts);
 	}
 	while ((current_desc->status & IXGB_RX_DESC_STATUS_DD) && (count != 0)) {
 
@@ -2168,6 +2173,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 					IXGB_UNLOCK(adapter);
 					(*ifp->if_input) (ifp, adapter->fmp);
 					IXGB_LOCK(adapter);
+					rx_npkts++;
 				}
 #endif
 				adapter->fmp = NULL;
@@ -2239,7 +2245,7 @@ ixgb_process_receive_interrupts(struct adapter * adapter, int count)
 	/* Advance the IXGB's Receive Queue #0  "Tail Pointer" */
 	IXGB_WRITE_REG(&adapter->hw, RDT, next_to_use);
 
-	return;
+	return (rx_npkts);
 }
 
 /*********************************************************************

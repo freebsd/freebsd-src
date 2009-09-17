@@ -108,7 +108,6 @@ compat/svr4/svr4_syscallnames.c	optional compat_svr4
 compat/svr4/svr4_sysent.c	optional compat_svr4
 compat/svr4/svr4_sysvec.c	optional compat_svr4
 compat/svr4/svr4_termios.c	optional compat_svr4
-compat/svr4/svr4_ttold.c	optional compat_svr4
 bf_enc.o			optional crypto | ipsec	\
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
@@ -128,10 +127,8 @@ dev/agp/agp_nvidia.c		optional agp
 dev/agp/agp_sis.c		optional agp
 dev/agp/agp_via.c		optional agp
 dev/aic/aic_isa.c		optional aic isa
+dev/amdtemp/amdtemp.c		optional amdtemp
 dev/arcmsr/arcmsr.c		optional arcmsr pci
-dev/ar/if_ar.c			optional ar
-dev/ar/if_ar_isa.c		optional ar isa
-dev/ar/if_ar_pci.c		optional ar pci
 dev/asmc/asmc.c			optional asmc isa
 dev/atkbdc/atkbd.c		optional atkbd atkbdc
 dev/atkbdc/atkbd_atkbdc.c	optional atkbd atkbdc
@@ -153,12 +150,14 @@ dev/ctau/if_ct.c		optional ctau
 dev/cx/csigma.c			optional cx
 dev/cx/cxddk.c			optional cx
 dev/cx/if_cx.c			optional cx
+dev/dpms/dpms.c			optional dpms x86emu
 dev/ed/if_ed_3c503.c		optional ed isa ed_3c503
 dev/ed/if_ed_isa.c		optional ed isa
 dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/ed/if_ed_hpp.c		optional ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional ed isa ed_sic
 dev/fb/fb.c			optional fb | vga
+dev/fb/vesa.c			optional vga vesa x86emu
 dev/fb/vga.c			optional vga
 dev/fdc/fdc.c			optional fdc
 dev/fdc/fdc_acpi.c		optional fdc
@@ -198,7 +197,7 @@ dev/ipmi/ipmi_smbus.c		optional ipmi smbus
 dev/ipmi/ipmi_smbios.c		optional ipmi
 dev/ipmi/ipmi_ssif.c		optional ipmi smbus
 dev/ipmi/ipmi_pci.c		optional ipmi pci
-dev/k8temp/k8temp.c		optional k8temp
+dev/ipmi/ipmi_linux.c		optional ipmi compat_linux
 dev/kbd/kbd.c			optional atkbd | sc | ukbd | usb2_input_kbd
 dev/le/if_le_isa.c		optional le isa
 dev/mem/memutil.c		optional mem
@@ -218,15 +217,14 @@ dev/sio/sio_pccard.c		optional sio pccard
 dev/sio/sio_pci.c		optional sio pci
 dev/sio/sio_puc.c		optional sio puc
 dev/speaker/spkr.c		optional speaker
-dev/sr/if_sr_isa.c		optional sr isa
 dev/syscons/apm/apm_saver.c	optional apm_saver apm
 dev/syscons/scterm-teken.c	optional sc
-dev/syscons/scvesactl.c		optional sc vga vesa
+dev/syscons/scvesactl.c		optional sc vga vesa x86emu
 dev/syscons/scvgarndr.c		optional sc vga
 dev/syscons/scvtb.c		optional sc
-dev/syscons/teken/teken.c	optional sc
 dev/uart/uart_cpu_i386.c	optional uart
 dev/acpica/acpi_if.m		standard
+dev/acpi_support/acpi_wmi_if.m	standard
 dev/wpi/if_wpi.c		optional wpi
 i386/acpica/OsdEnvironment.c	optional acpi
 i386/acpica/acpi_machdep.c	optional acpi
@@ -245,6 +243,7 @@ i386/bios/smapi_bios.S		optional smapi
 i386/bios/smbios.c		optional smbios
 i386/bios/vpd.c			optional vpd
 i386/cpufreq/est.c		optional cpufreq
+i386/cpufreq/hwpstate.c		optional cpufreq
 i386/cpufreq/p4tcc.c		optional cpufreq
 i386/cpufreq/powernow.c		optional cpufreq
 i386/cpufreq/smist.c		optional cpufreq
@@ -281,6 +280,7 @@ i386/xen/locore.s		optional xen	no-obj
 i386/i386/longrun.c		optional cpu_enable_longrun
 i386/i386/machdep.c		standard
 i386/xen/xen_machdep.c		optional xen
+i386/i386/mca.c			standard
 i386/i386/mem.c			optional mem
 i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
@@ -329,7 +329,8 @@ i386/isa/atpic.c		optional atpic
 #i386/isa/atpic_vector.s		standard
 i386/isa/clock.c		optional native
 i386/xen/clock.c		optional xen
-i386/isa/dpms.c			optional dpms
+i386/xen/xen_clock_util.c	optional xen
+i386/xen/xen_rtc.c		optional xen
 i386/isa/elcr.c			standard
 i386/isa/elink.c		optional ep | ie
 i386/isa/isa.c			optional isa
@@ -339,7 +340,6 @@ i386/isa/npx.c			optional npx
 i386/isa/pmtimer.c		optional pmtimer
 i386/isa/prof_machdep.c		optional profiling-routine
 i386/isa/spic.c			optional spic
-i386/isa/vesa.c			optional vga vesa
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_dummy.c	optional compat_linux
 i386/linux/linux_locore.s	optional compat_linux	\
@@ -366,6 +366,7 @@ kern/imgact_gzip.c		optional gzip
 libkern/divdi3.c		standard
 libkern/ffsl.c			standard
 libkern/flsl.c			standard
+libkern/memmove.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard

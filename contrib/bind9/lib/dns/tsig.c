@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: tsig.c,v 1.117.18.14 2008/01/17 23:46:03 tbox Exp $
+ * $Id: tsig.c,v 1.136 2008/11/04 21:23:14 marka Exp $
  */
 /*! \file */
 #include <config.h>
@@ -28,10 +28,12 @@
 #include <isc/refcount.h>
 #include <isc/string.h>		/* Required for HP/UX (and others?) */
 #include <isc/util.h>
+#include <isc/time.h>
 
 #include <dns/keyvalues.h>
 #include <dns/log.h>
 #include <dns/message.h>
+#include <dns/fixedname.h>
 #include <dns/rbt.h>
 #include <dns/rdata.h>
 #include <dns/rdatalist.h>
@@ -74,7 +76,6 @@ dns_name_t *dns_tsig_hmacmd5_name = &hmacmd5;
 
 static unsigned char gsstsig_ndata[] = "\010gss-tsig";
 static unsigned char gsstsig_offsets[] = { 0, 9 };
-
 static dns_name_t gsstsig = {
 	DNS_NAME_MAGIC,
 	gsstsig_ndata, 10, 2,
@@ -83,13 +84,14 @@ static dns_name_t gsstsig = {
 	{(void *)-1, (void *)-1},
 	{NULL, NULL}
 };
-
 LIBDNS_EXTERNAL_DATA dns_name_t *dns_tsig_gssapi_name = &gsstsig;
 
-/* It's nice of Microsoft to conform to their own standard. */
+/*
+ * Since Microsoft doesn't follow its own standard, we will use this
+ * alternate name as a second guess.
+ */
 static unsigned char gsstsigms_ndata[] = "\003gss\011microsoft\003com";
 static unsigned char gsstsigms_offsets[] = { 0, 4, 14, 18 };
-
 static dns_name_t gsstsigms = {
 	DNS_NAME_MAGIC,
 	gsstsigms_ndata, 19, 4,
@@ -98,7 +100,6 @@ static dns_name_t gsstsigms = {
 	{(void *)-1, (void *)-1},
 	{NULL, NULL}
 };
-
 LIBDNS_EXTERNAL_DATA dns_name_t *dns_tsig_gssapims_name = &gsstsigms;
 
 static unsigned char hmacsha1_ndata[] = "\011hmac-sha1";
@@ -179,10 +180,16 @@ tsig_log(dns_tsigkey_t *key, int level, const char *fmt, ...)
      ISC_FORMAT_PRINTF(3, 4);
 
 static void
+cleanup_ring(dns_tsig_keyring_t *ring);
+static void
+tsigkey_free(dns_tsigkey_t *key);
+
+static void
 tsig_log(dns_tsigkey_t *key, int level, const char *fmt, ...) {
 	va_list ap;
 	char message[4096];
 	char namestr[DNS_NAME_FORMATSIZE];
+	char creatorstr[DNS_NAME_FORMATSIZE];
 
 	if (isc_log_wouldlog(dns_lctx, level) == ISC_FALSE)
 		return;
@@ -190,11 +197,22 @@ tsig_log(dns_tsigkey_t *key, int level, const char *fmt, ...) {
 		dns_name_format(&key->name, namestr, sizeof(namestr));
 	else
 		strcpy(namestr, "<null>");
+
+	if (key != NULL && key->generated)
+		dns_name_format(key->creator, creatorstr, sizeof(creatorstr));
+
 	va_start(ap, fmt);
 	vsnprintf(message, sizeof(message), fmt, ap);
 	va_end(ap);
-	isc_log_write(dns_lctx, DNS_LOGCATEGORY_DNSSEC, DNS_LOGMODULE_TSIG,
-		      level, "tsig key '%s': %s", namestr, message);
+	if (key != NULL && key->generated)
+		isc_log_write(dns_lctx,
+			      DNS_LOGCATEGORY_DNSSEC, DNS_LOGMODULE_TSIG,
+			      level, "tsig key '%s' (%s): %s",
+			      namestr, creatorstr, message);
+	else
+		isc_log_write(dns_lctx,
+			      DNS_LOGCATEGORY_DNSSEC, DNS_LOGMODULE_TSIG,
+			      level, "tsig key '%s': %s", namestr, message);
 }
 
 isc_result_t
@@ -330,6 +348,16 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 
 	if (ring != NULL) {
 		RWLOCK(&ring->lock, isc_rwlocktype_write);
+		ring->writecount++;
+
+		/*
+		 * Do on the fly cleaning.  Find some nodes we might not
+		 * want around any more.
+		 */
+		if (ring->writecount > 10) {
+			cleanup_ring(ring);
+			ring->writecount = 0;
+		}
 		ret = dns_rbt_addname(ring->keys, name, tkey);
 		if (ret != ISC_R_SUCCESS) {
 			RWUNLOCK(&ring->lock, isc_rwlocktype_write);
@@ -338,7 +366,12 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 		RWUNLOCK(&ring->lock, isc_rwlocktype_write);
 	}
 
-	if (dstkey != NULL && dst_key_size(dstkey) < 64) {
+	/*
+	 * Ignore this if it's a GSS key, since the key size is meaningless.
+	 */
+	if (dstkey != NULL && dst_key_size(dstkey) < 64 &&
+	    !dns_name_equal(algorithm, DNS_TSIG_GSSAPI_NAME) &&
+	    !dns_name_equal(algorithm, DNS_TSIG_GSSAPIMS_NAME)) {
 		char namestr[DNS_NAME_FORMATSIZE];
 		dns_name_format(name, namestr, sizeof(namestr));
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DNSSEC,
@@ -373,6 +406,66 @@ dns_tsigkey_createfromkey(dns_name_t *name, dns_name_t *algorithm,
 	isc_mem_put(mctx, tkey, sizeof(dns_tsigkey_t));
 
 	return (ret);
+}
+
+/*
+ * Find a few nodes to destroy if possible.
+ */
+static void
+cleanup_ring(dns_tsig_keyring_t *ring)
+{
+	isc_result_t result;
+	dns_rbtnodechain_t chain;
+	dns_name_t foundname;
+	dns_fixedname_t fixedorigin;
+	dns_name_t *origin;
+	isc_stdtime_t now;
+	dns_rbtnode_t *node;
+	dns_tsigkey_t *tkey;
+
+	/*
+	 * Start up a new iterator each time.
+	 */
+	isc_stdtime_get(&now);
+	dns_name_init(&foundname, NULL);
+	dns_fixedname_init(&fixedorigin);
+	origin = dns_fixedname_name(&fixedorigin);
+
+ again:
+	dns_rbtnodechain_init(&chain, ring->mctx);
+	result = dns_rbtnodechain_first(&chain, ring->keys, &foundname,
+					origin);
+	if (result != ISC_R_SUCCESS && result != DNS_R_NEWORIGIN) {
+		dns_rbtnodechain_invalidate(&chain);
+		return;
+	}
+
+	for (;;) {
+		node = NULL;
+		dns_rbtnodechain_current(&chain, &foundname, origin, &node);
+		tkey = node->data;
+		if (tkey != NULL) {
+			if (tkey->generated
+			    && isc_refcount_current(&tkey->refs) == 1
+			    && tkey->inception != tkey->expire
+			    && tkey->expire < now) {
+				tsig_log(tkey, 2, "tsig expire: deleting");
+				/* delete the key */
+				dns_rbtnodechain_invalidate(&chain);
+				(void)dns_rbt_deletename(ring->keys,
+							 &tkey->name,
+							 ISC_FALSE);
+				goto again;
+			}
+		}
+		result = dns_rbtnodechain_next(&chain, &foundname,
+					       origin);
+		if (result != ISC_R_SUCCESS && result != DNS_R_NEWORIGIN) {
+			dns_rbtnodechain_invalidate(&chain);
+			return;
+		}
+
+	}
 }
 
 isc_result_t
@@ -540,17 +633,6 @@ dns_tsigkey_setdeleted(dns_tsigkey_t *key) {
 	RWUNLOCK(&key->ring->lock, isc_rwlocktype_write);
 }
 
-static void
-buffer_putuint48(isc_buffer_t *b, isc_uint64_t val) {
-	isc_uint16_t valhi;
-	isc_uint32_t vallo;
-
-	valhi = (isc_uint16_t)(val >> 32);
-	vallo = (isc_uint32_t)(val & 0xFFFFFFFF);
-	isc_buffer_putuint16(b, valhi);
-	isc_buffer_putuint32(b, vallo);
-}
-
 isc_result_t
 dns_tsig_sign(dns_message_t *msg) {
 	dns_tsigkey_t *key;
@@ -613,7 +695,7 @@ dns_tsig_sign(dns_message_t *msg) {
 		tsig.otherlen = BADTIMELEN;
 		tsig.other = badtimedata;
 		isc_buffer_init(&otherbuf, tsig.other, tsig.otherlen);
-		buffer_putuint48(&otherbuf, tsig.timesigned);
+		isc_buffer_putuint48(&otherbuf, tsig.timesigned);
 	}
 
 	if (key->key != NULL && tsig.error != dns_tsigerror_badsig) {
@@ -641,8 +723,7 @@ dns_tsig_sign(dns_message_t *msg) {
 				goto cleanup_context;
 			isc_buffer_putuint16(&databuf, querytsig.siglen);
 			if (isc_buffer_availablelength(&databuf) <
-			    querytsig.siglen)
-			{
+			    querytsig.siglen) {
 				ret = ISC_R_NOSPACE;
 				goto cleanup_context;
 			}
@@ -700,7 +781,7 @@ dns_tsig_sign(dns_message_t *msg) {
 		isc_buffer_clear(&databuf);
 		if (tsig.error == dns_tsigerror_badtime)
 			tsig.timesigned = querytsig.timesigned;
-		buffer_putuint48(&databuf, tsig.timesigned);
+		isc_buffer_putuint48(&databuf, tsig.timesigned);
 		isc_buffer_putuint16(&databuf, tsig.fudge);
 		isc_buffer_usedregion(&databuf, &r);
 		ret = dst_context_adddata(ctx, &r);
@@ -852,6 +933,7 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 	REQUIRE(source != NULL);
 	REQUIRE(DNS_MESSAGE_VALID(msg));
 	tsigkey = dns_message_gettsigkey(msg);
+
 	REQUIRE(tsigkey == NULL || VALID_TSIG_KEY(tsigkey));
 
 	msg->verify_attempted = 1;
@@ -907,8 +989,7 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 	 */
 	if (is_response(msg) &&
 	    (!dns_name_equal(keyname, &tsigkey->name) ||
-	     !dns_name_equal(&tsig.algorithm, &querytsig.algorithm)))
-	{
+	     !dns_name_equal(&tsig.algorithm, &querytsig.algorithm))) {
 		msg->tsigstatus = dns_tsigerror_badkey;
 		tsig_log(msg->tsigkey, 2,
 			 "key name and algorithm do not match");
@@ -1084,7 +1165,7 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 			goto cleanup_context;
 
 		isc_buffer_clear(&databuf);
-		buffer_putuint48(&databuf, tsig.timesigned);
+		isc_buffer_putuint48(&databuf, tsig.timesigned);
 		isc_buffer_putuint16(&databuf, tsig.fudge);
 		isc_buffer_putuint16(&databuf, tsig.error);
 		isc_buffer_putuint16(&databuf, tsig.otherlen);
@@ -1106,15 +1187,14 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 			msg->tsigstatus = dns_tsigerror_badsig;
 			ret = DNS_R_TSIGVERIFYFAILURE;
 			tsig_log(msg->tsigkey, 2,
-				 "signature failed to verify");
+				 "signature failed to verify(1)");
 			goto cleanup_context;
 		} else if (ret != ISC_R_SUCCESS)
 			goto cleanup_context;
 
 		dst_context_destroy(&ctx);
 	} else if (tsig.error != dns_tsigerror_badsig &&
-		   tsig.error != dns_tsigerror_badkey)
-	{
+		   tsig.error != dns_tsigerror_badkey) {
 		msg->tsigstatus = dns_tsigerror_badsig;
 		tsig_log(msg->tsigkey, 2, "signature was empty");
 		return (DNS_R_TSIGVERIFYFAILURE);
@@ -1201,8 +1281,7 @@ tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg) {
 		 * Do the key name and algorithm match that of the query?
 		 */
 		if (!dns_name_equal(keyname, &tsigkey->name) ||
-		    !dns_name_equal(&tsig.algorithm, &querytsig.algorithm))
-		{
+		    !dns_name_equal(&tsig.algorithm, &querytsig.algorithm)) {
 			msg->tsigstatus = dns_tsigerror_badkey;
 			ret = DNS_R_TSIGVERIFYFAILURE;
 			tsig_log(msg->tsigkey, 2,
@@ -1221,8 +1300,7 @@ tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg) {
 			ret = DNS_R_CLOCKSKEW;
 			goto cleanup_querystruct;
 		} else if (now + msg->timeadjust <
-			   tsig.timesigned - tsig.fudge)
-		{
+			   tsig.timesigned - tsig.fudge) {
 			msg->tsigstatus = dns_tsigerror_badtime;
 			tsig_log(msg->tsigkey, 2,
 				 "signature is in the future");
@@ -1312,7 +1390,7 @@ tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg) {
 	 */
 	if (has_tsig) {
 		isc_buffer_init(&databuf, data, sizeof(data));
-		buffer_putuint48(&databuf, tsig.timesigned);
+		isc_buffer_putuint48(&databuf, tsig.timesigned);
 		isc_buffer_putuint16(&databuf, tsig.fudge);
 		isc_buffer_usedregion(&databuf, &r);
 		ret = dst_context_adddata(msg->tsigctx, &r);
@@ -1339,7 +1417,7 @@ tsig_verify_tcp(isc_buffer_t *source, dns_message_t *msg) {
 		if (ret == DST_R_VERIFYFAILURE) {
 			msg->tsigstatus = dns_tsigerror_badsig;
 			tsig_log(msg->tsigkey, 2,
-				 "signature failed to verify");
+				 "signature failed to verify(2)");
 			ret = DNS_R_TSIGVERIFYFAILURE;
 			goto cleanup_context;
 		}
@@ -1375,6 +1453,10 @@ dns_tsigkey_find(dns_tsigkey_t **tsigkey, dns_name_t *name,
 	REQUIRE(name != NULL);
 	REQUIRE(ring != NULL);
 
+	RWLOCK(&ring->lock, isc_rwlocktype_write);
+	cleanup_ring(ring);
+	RWUNLOCK(&ring->lock, isc_rwlocktype_write);
+
 	isc_stdtime_get(&now);
 	RWLOCK(&ring->lock, isc_rwlocktype_read);
 	key = NULL;
@@ -1393,7 +1475,7 @@ dns_tsigkey_find(dns_tsigkey_t **tsigkey, dns_name_t *name,
 		 */
 		RWUNLOCK(&ring->lock, isc_rwlocktype_read);
 		RWLOCK(&ring->lock, isc_rwlocktype_write);
-		(void) dns_rbt_deletename(ring->keys, name, ISC_FALSE);
+		(void)dns_rbt_deletename(ring->keys, name, ISC_FALSE);
 		RWUNLOCK(&ring->lock, isc_rwlocktype_write);
 		return (ISC_R_NOTFOUND);
 	}
@@ -1443,6 +1525,7 @@ dns_tsigkeyring_create(isc_mem_t *mctx, dns_tsig_keyring_t **ringp) {
 		return (result);
 	}
 
+	ring->writecount = 0;
 	ring->mctx = NULL;
 	isc_mem_attach(mctx, &ring->mctx);
 

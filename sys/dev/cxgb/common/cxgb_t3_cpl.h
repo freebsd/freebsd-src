@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2009 Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -237,9 +237,20 @@ struct rss_header {
 
 #ifndef CHELSIO_FW
 struct work_request_hdr {
-	__be32 wr_hi;
-	__be32 wr_lo;
+	union {
+		struct {
+			__be32 wr_hi;
+			__be32 wr_lo;
+		} ilp32;
+		struct {
+			__be64 wr_hilo;
+		} lp64;
+	} u;
 };
+
+#define	wrh_hi		u.ilp32.wr_hi
+#define	wrh_lo		u.ilp32.wr_lo
+#define	wrh_hilo	u.lp64.wr_hilo
 
 /* wr_hi fields */
 #define S_WR_SGE_CREDITS    0
@@ -272,6 +283,14 @@ struct work_request_hdr {
 #define S_WR_FLUSH	17
 #define V_WR_FLUSH(x)	((x) << S_WR_FLUSH)
 #define F_WR_FLUSH	V_WR_FLUSH(1U)
+
+#define S_WR_CHN	18
+#define V_WR_CHN(x)	((x) << S_WR_CHN)
+#define F_WR_CHN	V_WR_CHN(1U)
+
+#define S_WR_CHN_VLD	19
+#define V_WR_CHN_VLD(x)	((x) << S_WR_CHN_VLD)
+#define F_WR_CHN_VLD	V_WR_CHN_VLD(1U)
 
 #define S_WR_DATATYPE    20
 #define V_WR_DATATYPE(x) ((x) << S_WR_DATATYPE)
@@ -809,8 +828,7 @@ struct cpl_peer_close {
 };
 
 struct tx_data_wr {
-	__be32 wr_hi;
-	__be32 wr_lo;
+	WR_HDR;
 	__be32 len;
 	__be32 flags;
 	__be32 sndseq;
@@ -928,8 +946,7 @@ struct cpl_rdma_ec_status {
 };
 
 struct mngt_pktsched_wr {
-	__be32 wr_hi;
-	__be32 wr_lo;
+	WR_HDR;
 	__u8  mngt_opcode;
 	__u8  rsvd[7];
 	__u8  sched;

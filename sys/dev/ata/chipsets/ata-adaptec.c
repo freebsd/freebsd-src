@@ -75,7 +75,7 @@ ata_adaptec_probe(device_t dev)
     ata_set_desc(dev);
     ctlr->chipinit = ata_marvell_edma_chipinit;
 
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 ATA_DECLARE_DRIVER(ata_adaptec);

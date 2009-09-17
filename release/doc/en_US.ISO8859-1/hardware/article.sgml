@@ -29,6 +29,7 @@
       <year>2006</year>
       <year>2007</year>
       <year>2008</year>
+      <year>2009</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -331,17 +332,20 @@
       <para>SMP is supported on all systems with more than 1
 	processor.</para>
 
-      <para>In general, &os;/&arch.sparc64; systems must use serial
-	consoles.  While it is possible to boot or install a system
-	using the OpenFirmware console, the console device is not
-	usable.</para>
+      <para>When using the <filename>GENERIC</filename> kernel,
+	&os;/&arch.sparc64; systems not equipped with a framebuffer
+	supported by the &man.creator.4; (&sun; Creator, &sun; Creator3D
+	and &sun; Elite3D) or &man.machfb.4; (&sun; PGX and &sun; PGX64
+	as well as the ATI Mach64 chips found onboard in for example
+	&sun.blade; 100, &sun.blade; 150, &sun.ultra; 5	and &sun.ultra; 10)
+	driver must use the serial console.</para>
 
       <para>If you have a system that is not listed here, it may not
 	have been tested with &os; &release.current;.  We encourage
 	you to try it and send a note to the &a.sparc; with your
 	results, including which devices work and which do not.</para>
 
-      <para>The following systems are fully supported by &os;.</para>
+      <para>The following systems are fully supported by &os;:</para>
 
       <itemizedlist>
 	<listitem>
@@ -350,6 +354,10 @@
 
 	<listitem>
 	  <para>&sun.blade; 150</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.enterprise; 100</para>
 	</listitem>
 
 	<listitem>
@@ -409,6 +417,14 @@
 	</listitem>
 
 	<listitem>
+	  <para>&sparcengine; Ultra AX1105</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sparcengine; Ultra AXe</para>
+	</listitem>
+
+	<listitem>
 	  <para>&sparcengine; Ultra AXi</para>
 	</listitem>
 
@@ -447,11 +463,17 @@
 	<listitem>
 	  <para>&sun.ultra; 80</para>
 	</listitem>
+
+	<listitem>
+	  <para>&sun.ultra; 450</para>
+	</listitem>
       </itemizedlist>
 
       <para>The following systems are partially supported by &os;.  In
-	particular the onboard SCSI controller in sbus systems is not
-	supported.</para>
+	particular the fibre channel controllers in SBus-based systems are not
+	supported.  However, it is possible to use these with a SCSI controller
+	supported by the &man.esp.4 driver (&sun; ESP SCSI, &sun; FAS Fast-SCSI
+	and &sun; FAS366 Fast-Wide SCSI controllers).</para>
 
       <itemizedlist>
 	<listitem>
@@ -463,15 +485,54 @@
 	</listitem>
       </itemizedlist>
 
-      <para>The following systems are not supported by &os;.  This may
-	be due to lack of processor support (&ultrasparc; III), due to
-	a quirk in the system design that makes &os; unstable, or due
-	to lack of support for sufficient onboard devices to make &os;
-	generally useful.</para>
+      <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on
+	&ultrasparc; III and beyond are also supported by &os;, which includes
+	the following known working systems:</para>
 
       <itemizedlist>
 	<listitem>
-	  <para>All systems containing &ultrasparc; III processor(s).</para>
+	  <para>&sun.blade; 1000</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.blade; 1500</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.blade; 2000</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; 280R</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V210</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V440 (except for the on-board NICs)</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V880</para>
+	</listitem>
+
+	<listitem>
+	  <para>&netra; 20/&netra; T4</para>
+	</listitem>
+      </itemizedlist>
+
+      <para>The following &ultrasparc; IIIi systems are not tested but
+	believed to be also supported by &os;:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>&sun.fire; V125</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V240</para>
 	</listitem>
       </itemizedlist>
     </sect2>
@@ -695,6 +756,8 @@
 
       &hwlist.bge;
 
+      &hwlist.cas;
+
       &hwlist.cdce;
 
       <para>[&arch.amd64;, &arch.i386;] Crystal Semiconductor
@@ -837,6 +900,8 @@
 
       &hwlist.ath;
 
+      &hwlist.bwi;
+
       <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2100
 	MiniPCI network adapter (&man.ipw.4; driver)</para>
 
@@ -853,14 +918,15 @@
 
       &hwlist.ral;
 
-      <para>[&arch.i386;, &arch.pc98;] Raytheon Raylink 2.4GHz
-	wireless adapters (&man.ray.4; driver)</para>
-
       &hwlist.rum;
+
+      &hwlist.uath;
 
       &hwlist.upgt;
 
       &hwlist.ural;
+
+      &hwlist.urtw;
 
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Lucent
 	Technologies WaveLAN/IEEE 802.11b wireless network adapters
@@ -1037,9 +1103,6 @@
       <para>[&arch.amd64;, &arch.i386;] AST 4 port serial card using
 	shared IRQ</para>
 
-      <para>[&arch.i386;] ARNET serial cards (&man.ar.4;
-	driver)</para>
-
       <itemizedlist>
 	<listitem>
 	  <para>ARNET 8 port serial card using shared IRQ</para>
@@ -1204,8 +1267,6 @@
       </itemizedlist>
 
       &hwlist.rc;
-
-      &hwlist.sr;
 
       <para>[&arch.i386;, &arch.amd64;] Specialix SI/XIO/SX multiport
 	serial cards, with both the older SIHOST2.x and the
@@ -1468,8 +1529,6 @@
 
       &hwlist.umct;
 
-      &hwlist.uscanner;
-
       &hwlist.umass;
 
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Audio Devices
@@ -1626,9 +1685,6 @@
 
       <para>[&arch.pc98;] Power Management Controller of NEC PC-98
 	Note (pmc driver)</para>
-
-      <para>[&arch.sparc64;] OpenFirmware console (ofwcons
-	driver)</para>
     </sect2>
   </sect1>
 </article>

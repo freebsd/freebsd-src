@@ -136,9 +136,6 @@
 static int volatile lptflag = 1;
 #endif
 
-#define	LPTUNIT(s)	((s)&0x03)
-#define	LPTFLAGS(s)	((s)&0xfc)
-
 struct lpt_softc {
 	struct resource *res_port;
 	struct resource *res_irq;
@@ -318,6 +315,7 @@ lpt_attach(device_t dev)
 {
 	int	rid, unit;
 	struct	lpt_softc	*sc;
+	struct	cdev		*cdev;
 
 	unit = device_get_unit(dev);
 	sc = device_get_softc(dev);
@@ -360,10 +358,12 @@ lpt_attach(device_t dev)
 		device_printf(dev, "Interrupt-driven port");
 	}
 
-	/* XXX what to do about the flags in the minor number? */
-	make_dev(&lpt_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600, "lpt%d", unit);
-	make_dev(&lpt_cdevsw, unit | LP_BYPASS,
+	cdev = make_dev(&lpt_cdevsw, 0,
+			UID_ROOT, GID_WHEEL, 0600, "lpt%d", unit);
+	cdev->si_drv1 = sc;
+	cdev = make_dev(&lpt_cdevsw, LP_BYPASS,
 			UID_ROOT, GID_WHEEL, 0600, "lpctl%d", unit);
+	cdev->si_drv1 = sc;
 
 	return 0;
 }
@@ -377,11 +377,10 @@ lpt_attach(device_t dev)
 static	int
 lptopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct lpt_softc *sc;
+	struct lpt_softc *sc = dev->si_drv1;
 	int s;
 	int port;
 
-	sc = devclass_get_softc(olpt_devclass, LPTUNIT(dev2unit(dev)));
 	if (sc->sc_port == 0)
 		return (ENXIO);
 
@@ -391,7 +390,7 @@ lptopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 	} else
 		sc->sc_state |= INIT;
 
-	sc->sc_flags = LPTFLAGS(dev2unit(dev));
+	sc->sc_flags = dev2unit(dev);
 
 	/* Check for open with BYPASS flag set. */
 	if (sc->sc_flags & LP_BYPASS) {
@@ -467,9 +466,8 @@ lptout (void *arg)
 static	int
 lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct lpt_softc *sc;
+	struct lpt_softc *sc = dev->si_drv1;
 
-	sc = devclass_get_softc(olpt_devclass, LPTUNIT(dev2unit(dev)));
 	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
@@ -556,9 +554,8 @@ lptwrite(struct cdev *dev, struct uio * uio, int ioflag)
 {
 	register unsigned n;
 	int pl, err;
-	struct lpt_softc *sc;
+	struct lpt_softc *sc = dev->si_drv1;
 
-	sc = devclass_get_softc(olpt_devclass, LPTUNIT(dev2unit(dev)));
 	if(sc->sc_flags & LP_BYPASS) {
 		/* we can't do writes in bypass mode */
 		return(EPERM);
@@ -613,11 +610,8 @@ static	int
 lptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	int	error = 0;
-        struct	lpt_softc *sc;
-        u_int	unit = LPTUNIT(dev2unit(dev));
+	struct lpt_softc *sc = dev->si_drv1;
 	u_char	old_sc_irq;	/* old printer IRQ status */
-
-        sc = devclass_get_softc(olpt_devclass, unit);
 
 	switch (cmd) {
 	case LPT_IRQ :
@@ -637,8 +631,8 @@ lptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 			else
 				sc->sc_irq |= LP_ENABLE_IRQ;
 			if (old_sc_irq != sc->sc_irq )
-				log(LOG_NOTICE, "lpt%c switched to %s mode\n",
-					(char)unit+'0',
+				log(LOG_NOTICE, "%s switched to %s mode\n",
+					devtoname(dev),
 					(sc->sc_irq & LP_ENABLE_IRQ)?
 					"interrupt-driven":"polled");
 		} else /* polled port */

@@ -43,8 +43,14 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ofw/ofw_bus.h>
+
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/macio/aoa.h>
+
 #include "mixer_if.h"
 
 struct aoa_dma {
@@ -138,7 +144,7 @@ aoa_dma_delete(struct aoa_dma *dma)
 	free(dma, M_DEVBUF);
 }
 
-static int
+static u_int32_t
 aoa_chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksz)
 {
 	struct aoa_dma 		*dma = data;
@@ -186,13 +192,13 @@ aoa_chan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	DPRINTF(("aoa_chan_setformat: format = %u\n", format));
 
-	if (format != (AFMT_STEREO | AFMT_S16_BE))
+	if (format != SND_FORMAT(AFMT_S16_BE, 2, 0))
 		return (EINVAL);
 
 	return (0);
 }
 
-static int
+static u_int32_t
 aoa_chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	DPRINTF(("aoa_chan_setspeed: speed = %u\n", speed));
@@ -200,7 +206,7 @@ aoa_chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return (44100);
 }
 
-static int
+static u_int32_t
 aoa_chan_getptr(kobj_t obj, void *data)
 {
 	struct aoa_dma 	 *dma = data;
@@ -332,7 +338,7 @@ aoa_interrupt(void *xsc)
 }
 
 static u_int32_t sc_fmt[] = {
-	AFMT_S16_BE | AFMT_STEREO,
+	SND_FORMAT(AFMT_S16_BE, 2, 0),
 	0
 };
 static struct pcmchan_caps aoa_caps = {44100, 44100, sc_fmt, 0};
@@ -352,7 +358,7 @@ static kobj_method_t aoa_chan_methods[] = {
 	KOBJMETHOD(channel_trigger,	aoa_chan_trigger),
 	KOBJMETHOD(channel_getptr,	aoa_chan_getptr),
 	KOBJMETHOD(channel_getcaps,	aoa_chan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(aoa_chan);
 

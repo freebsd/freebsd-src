@@ -97,6 +97,9 @@ static int nfound, nsaved, nerr;			/* statistics */
 
 extern FILE *zopen(const char *, const char *);
 
+static sig_atomic_t got_siginfo;
+static void infohandler(int);
+
 static void
 printheader(FILE *f, const struct kerneldumpheader *h, const char *device,
     int bounds, const int status)
@@ -231,9 +234,10 @@ DoRegularFile(int fd, off_t dumpsize, char *buf, const char *device,
     const char *filename, FILE *fp)
 {
 	int he, hs, nr, nw, wl;
-	off_t dmpcnt;
+	off_t dmpcnt, origsize;
 
 	dmpcnt = 0;
+	origsize = dumpsize;
 	he = 0;
 	while (dumpsize > 0) {
 		wl = BUFFERSIZE;
@@ -304,6 +308,11 @@ DoRegularFile(int fd, off_t dumpsize, char *buf, const char *device,
 			fflush(stdout);
 		}
 		dumpsize -= wl;
+		if (got_siginfo) {
+			printf("%s %.1lf%%\n", filename, (100.0 - (100.0 *
+			    (double)dumpsize / (double)origsize)));
+			got_siginfo = 0;
+		}
 	}
 	return (0);
 }
@@ -648,6 +657,7 @@ main(int argc, char **argv)
 	nfound = nsaved = nerr = 0;
 
 	openlog("savecore", LOG_PERROR, LOG_DAEMON);
+	signal(SIGINFO, infohandler);
 
 	while ((ch = getopt(argc, argv, "Ccfkvz")) != -1)
 		switch(ch) {
@@ -718,4 +728,10 @@ main(int argc, char **argv)
 	}
 
 	return (0);
+}
+
+static void
+infohandler(int sig __unused)
+{
+	got_siginfo = 1;
 }

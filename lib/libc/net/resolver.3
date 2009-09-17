@@ -28,7 +28,7 @@
 .\"     @(#)resolver.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2006
+.Dd May 29, 2009
 .Dt RESOLVER 3
 .Os
 .Sh NAME
@@ -401,6 +401,19 @@ function properly if the programmer attempts to declare his or her own
 .Va _res
 structure in an attempt to replace the per-thread version referred to
 by that macro.
+.Pp
+The following compile-time option can be specified to change the default
+behavior of resolver routines when necessary.
+.Bl -tag -width RES_ENFORCE_RFC1034
+.It Dv RES_ENFORCE_RFC1034
+If this symbol is defined during compile-time,
+.Fn res_search
+will enforce RFC 1034 check, namely, disallow using of underscore character
+within host names.
+This is used by the standard host lookup routines like
+.Xr gethostbyname 3 .
+For compatibility reasons this option is not enabled by default.
+.El
 .Sh RETURN VALUES
 The
 .Fn res_init

@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslmain - compiler main and utilities
- *              $Revision: 1.96 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -119,9 +118,7 @@
 #define _DECLARE_GLOBALS
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/actables.h>
-#include <contrib/dev/acpica/acapps.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #ifdef _DEBUG
 #include <crtdbg.h>
@@ -129,15 +126,6 @@
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslmain")
-
-BOOLEAN                 AslToFile = TRUE;
-BOOLEAN                 DoCompile = TRUE;
-BOOLEAN                 DoSignon = TRUE;
-
-char                    hex[] =
-{
-    '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
-};
 
 /* Local prototypes */
 
@@ -157,14 +145,33 @@ static void
 AslInitialize (
     void);
 
-static void
+static int
 AslCommandLine (
     int                     argc,
     char                    **argv);
 
-#ifdef _DEBUG
-#include <crtdbg.h>
-#endif
+static int
+AslDoOptions (
+    int                     argc,
+    char                    **argv,
+    BOOLEAN                 IsResponseFile);
+
+static void
+AslMergeOptionTokens (
+    char                    *InBuffer,
+    char                    *OutBuffer);
+
+static int
+AslDoResponseFile (
+    char                    *Filename);
+
+extern int   AcpiGbl_Opterr;
+extern int   AcpiGbl_Optind;
+
+
+#define ASL_TOKEN_SEPARATORS    " \t\n"
+#define ASL_SUPPORTED_OPTIONS   "@:2b:cd^e:fgh^i^I:l^o:p:r:s:t:v:w:x:"
+
 
 /*******************************************************************************
  *
@@ -183,8 +190,13 @@ Options (
     void)
 {
 
-    printf ("General Output:\n");
-    printf ("  -p <prefix>    Specify filename prefix for all output files (including .aml)\n");
+    printf ("Global:\n");
+    printf ("  -@<file>       Specify command file\n");
+    printf ("  -I<dir>        Specify additional include directory\n");
+
+    printf ("\nGeneral Output:\n");
+    printf ("  -p<prefix>     Specify path/filename prefix for all output files\n");
+    printf ("  -va            Disable all errors and warnings (summary only)\n");
     printf ("  -vi            Less verbose errors and warnings for use with IDEs\n");
     printf ("  -vo            Enable optimization comments\n");
     printf ("  -vr            Disable remarks\n");
@@ -212,7 +224,7 @@ Options (
     printf ("  -d  [file]     Disassemble or decode binary ACPI table to file (*.dsl)\n");
     printf ("  -dc [file]     Disassemble AML and immediately compile it\n");
     printf ("                 (Obtain DSDT from current system if no input file)\n");
-    printf ("  -e  [file]     Include ACPI table for external symbol resolution\n");
+    printf ("  -e  [f1,f2]    Include ACPI table(s) for external symbol resolution\n");
     printf ("  -2             Emit ACPI 2.0 compatible ASL code\n");
     printf ("  -g             Get ACPI tables and write to files (*.dat)\n");
 
@@ -278,7 +290,7 @@ Usage (
     void)
 {
 
-    printf ("Usage:    %s [Options] [InputFile]\n\n", CompilerName);
+    printf ("Usage:    %s [Options] [Files]\n\n", CompilerName);
     Options ();
 }
 
@@ -324,39 +336,149 @@ AslInitialize (
 
 /*******************************************************************************
  *
- * FUNCTION:    AslCommandLine
+ * FUNCTION:    AslMergeOptionTokens
  *
- * PARAMETERS:  argc/argv
+ * PARAMETERS:  InBuffer            - Input containing an option string
+ *              OutBuffer           - Merged output buffer
  *
  * RETURN:      None
  *
- * DESCRIPTION: Command line processing
+ * DESCRIPTION: Remove all whitespace from an option string.
  *
  ******************************************************************************/
 
 static void
-AslCommandLine (
-    int                     argc,
-    char                    **argv)
+AslMergeOptionTokens (
+    char                    *InBuffer,
+    char                    *OutBuffer)
 {
-    BOOLEAN                 BadCommandLine = FALSE;
-    ACPI_NATIVE_INT         j;
+    char                    *Token;
 
 
-    /* Minimum command line contains at least one option or an input file */
+    *OutBuffer = 0;
 
-    if (argc < 2)
+    Token = strtok (InBuffer, ASL_TOKEN_SEPARATORS);
+    while (Token)
     {
-        AslCompilerSignon (ASL_FILE_STDOUT);
-        Usage ();
-        exit (1);
+        strcat (OutBuffer, Token);
+        Token = strtok (NULL, ASL_TOKEN_SEPARATORS);
     }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslDoResponseFile
+ *
+ * PARAMETERS:  Filename        - Name of the response file
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Open a response file and process all options within.
+ *
+ ******************************************************************************/
+
+static int
+AslDoResponseFile (
+    char                    *Filename)
+{
+    char                    *argv = StringBuffer2;
+    FILE                    *ResponseFile;
+    int                     OptStatus = 0;
+    int                     Opterr;
+    int                     Optind;
+
+
+    ResponseFile = fopen (Filename, "r");
+    if (!ResponseFile)
+    {
+        printf ("Could not open command file %s, %s\n",
+            Filename, strerror (errno));
+        return -1;
+    }
+
+    /* Must save the current GetOpt globals */
+
+    Opterr = AcpiGbl_Opterr;
+    Optind = AcpiGbl_Optind;
+
+    /*
+     * Process all lines in the response file. There must be one complete
+     * option per line
+     */
+    while (fgets (StringBuffer, ASL_MSG_BUFFER_SIZE, ResponseFile))
+    {
+        /* Compress all tokens, allowing us to use a single argv entry */
+
+        AslMergeOptionTokens (StringBuffer, StringBuffer2);
+
+        /* Process the option */
+
+        AcpiGbl_Opterr = 0;
+        AcpiGbl_Optind = 0;
+
+        OptStatus = AslDoOptions (1, &argv, TRUE);
+        if (OptStatus)
+        {
+            printf ("Invalid option in command file %s: %s\n",
+                Filename, StringBuffer);
+            break;
+        }
+    }
+
+    /* Restore the GetOpt globals */
+
+    AcpiGbl_Opterr = Opterr;
+    AcpiGbl_Optind = Optind;
+
+    fclose (ResponseFile);
+    return (OptStatus);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslDoOptions
+ *
+ * PARAMETERS:  argc/argv           - Standard argc/argv
+ *              IsResponseFile      - TRUE if executing a response file.
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Command line option processing
+ *
+ ******************************************************************************/
+
+static int
+AslDoOptions (
+    int                     argc,
+    char                    **argv,
+    BOOLEAN                 IsResponseFile)
+{
+    int                     j;
+
 
     /* Get the command line options */
 
-    while ((j = AcpiGetopt (argc, argv, "2b:cd^e:fgh^i^l^o:p:r:s:t:v:w:x:")) != EOF) switch (j)
+    while ((j = AcpiGetopt (argc, argv, ASL_SUPPORTED_OPTIONS)) != EOF) switch (j)
     {
+    case '@':   /* Begin a response file */
+
+        if (IsResponseFile)
+        {
+            printf ("Nested command files are not supported\n");
+            return -1;
+        }
+
+        if (AslDoResponseFile (AcpiGbl_Optarg))
+        {
+            return -1;
+        }
+        break;
+
+
     case '2':
+
         Gbl_Acpi2 = TRUE;
         break;
 
@@ -378,8 +500,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -b%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
 
         /* Produce debug output file */
@@ -400,7 +521,7 @@ AslCommandLine (
         switch (AcpiGbl_Optarg[0])
         {
         case '^':
-            DoCompile = FALSE;
+            Gbl_DoCompile = FALSE;
             break;
 
         case 'c':
@@ -408,8 +529,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -d%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
 
         Gbl_DisasmFlag = TRUE;
@@ -434,7 +554,7 @@ AslCommandLine (
         /* Get all ACPI tables */
 
         Gbl_GetAllTables = TRUE;
-        DoCompile = FALSE;
+        Gbl_DoCompile = FALSE;
         break;
 
 
@@ -458,9 +578,14 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -h%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
+        break;
+
+
+    case 'I': /* Add an include file search directory */
+
+        FlAddIncludeDirectory (AcpiGbl_Optarg);
         break;
 
 
@@ -484,8 +609,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -s%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -514,8 +638,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -l%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -563,8 +686,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -c%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -603,8 +725,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -s%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -625,8 +746,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -t%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -635,6 +755,12 @@ AslCommandLine (
 
         switch (AcpiGbl_Optarg[0])
         {
+        case 'a':
+            /* Disable All error/warning messages */
+
+            Gbl_NoErrors = TRUE;
+            break;
+
         case 'i':
             /* Less verbose error messages */
 
@@ -650,13 +776,12 @@ AslCommandLine (
             break;
 
         case 's':
-            DoSignon = FALSE;
+            Gbl_DoSignon = FALSE;
             break;
 
         default:
             printf ("Unknown option: -v%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -679,8 +804,7 @@ AslCommandLine (
 
         default:
             printf ("Unknown option: -w%s\n", AcpiGbl_Optarg);
-            BadCommandLine = TRUE;
-            break;
+            return (-1);
         }
         break;
 
@@ -693,15 +817,49 @@ AslCommandLine (
 
     default:
 
-        BadCommandLine = TRUE;
-        break;
+        return (-1);
     }
+
+    return (0);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslCommandLine
+ *
+ * PARAMETERS:  argc/argv
+ *
+ * RETURN:      Last argv index
+ *
+ * DESCRIPTION: Command line processing
+ *
+ ******************************************************************************/
+
+static int
+AslCommandLine (
+    int                     argc,
+    char                    **argv)
+{
+    int                     BadCommandLine = 0;
+
+
+    /* Minimum command line contains at least the command and an input file */
+
+    if (argc < 2)
+    {
+        AslCompilerSignon (ASL_FILE_STDOUT);
+        Usage ();
+        exit (1);
+    }
+
+    /* Process all command line options */
+
+    BadCommandLine = AslDoOptions (argc, argv, FALSE);
 
     /* Next parameter must be the input filename */
 
-    Gbl_Files[ASL_FILE_INPUT].Filename = argv[AcpiGbl_Optind];
-
-    if (!Gbl_Files[ASL_FILE_INPUT].Filename &&
+    if (!argv[AcpiGbl_Optind] &&
         !Gbl_DisasmFlag &&
         !Gbl_GetAllTables)
     {
@@ -709,7 +867,7 @@ AslCommandLine (
         BadCommandLine = TRUE;
     }
 
-    if (DoSignon)
+    if (Gbl_DoSignon)
     {
         AslCompilerSignon (ASL_FILE_STDOUT);
     }
@@ -723,11 +881,7 @@ AslCommandLine (
         exit (1);
     }
 
-    if ((AcpiGbl_Optind + 1) < argc)
-    {
-        printf ("Warning: extra arguments (%d) after input filename are ignored\n\n",
-            argc - AcpiGbl_Optind - 1);
-    }
+    return (AcpiGbl_Optind);
 }
 
 
@@ -739,8 +893,8 @@ AslCommandLine (
  *
  * RETURN:      Program termination code
  *
- * DESCRIPTION: C main routine for the Asl Compiler.  Handle command line
- *              options and begin the compile.
+ * DESCRIPTION: C main routine for the Asl Compiler. Handle command line
+ *              options and begin the compile for each file on the command line
  *
  ******************************************************************************/
 
@@ -750,7 +904,7 @@ main (
     char                    **argv)
 {
     ACPI_STATUS             Status;
-    char                    *Prefix;
+    int                     Index;
 
 
 #ifdef _DEBUG
@@ -761,105 +915,31 @@ main (
     /* Init and command line */
 
     AslInitialize ();
-    AslCommandLine (argc, argv);
+    Index = AslCommandLine (argc, argv);
 
-    /*
-     * If -p not specified, we will use the input filename as the
-     * output filename prefix
-     */
-    Status = FlSplitInputPathname (Gbl_Files[ASL_FILE_INPUT].Filename,
-        &Gbl_DirectoryPath, &Prefix);
-    if (ACPI_FAILURE (Status))
+    /* Options that have no additional parameters or pathnames */
+
+    if (Gbl_GetAllTables)
     {
-        return -1;
+        Status = AslDoOneFile (NULL);
+        if (ACPI_FAILURE (Status))
+        {
+            return (-1);
+        }
+        return (0);
     }
 
-    if (Gbl_UseDefaultAmlFilename)
+    /* Process each pathname/filename in the list, with possible wildcards */
+
+    while (argv[Index])
     {
-        Gbl_OutputFilenamePrefix = Prefix;
-    }
-
-    /* AML Disassembly (Optional) */
-
-    if (Gbl_DisasmFlag || Gbl_GetAllTables)
-    {
-        /* ACPI CA subsystem initialization */
-
-        Status = AdInitialize ();
+        Status = AslDoOnePathname (argv[Index]);
         if (ACPI_FAILURE (Status))
         {
-            return -1;
+            return (-1);
         }
 
-        Status = AcpiAllocateRootTable (4);
-        if (ACPI_FAILURE (Status))
-        {
-            AcpiOsPrintf ("Could not initialize ACPI Table Manager, %s\n",
-                AcpiFormatException (Status));
-            return -1;
-        }
-
-        /* This is where the disassembly happens */
-
-        AcpiGbl_DbOpt_disasm = TRUE;
-        Status = AdAmlDisassemble (AslToFile,
-                        Gbl_Files[ASL_FILE_INPUT].Filename,
-                        Gbl_OutputFilenamePrefix,
-                        &Gbl_Files[ASL_FILE_INPUT].Filename,
-                        Gbl_GetAllTables);
-        if (ACPI_FAILURE (Status))
-        {
-            return -1;
-        }
-
-        /*
-         * Gbl_Files[ASL_FILE_INPUT].Filename was replaced with the
-         * .DSL disassembly file, which can now be compiled if requested
-         */
-        if (DoCompile)
-        {
-            AcpiOsPrintf ("\nCompiling \"%s\"\n",
-                Gbl_Files[ASL_FILE_INPUT].Filename);
-        }
-    }
-
-    /*
-     * ASL Compilation (Optional)
-     */
-    if (DoCompile)
-    {
-        /*
-         * If -p not specified, we will use the input filename as the
-         * output filename prefix
-         */
-        Status = FlSplitInputPathname (Gbl_Files[ASL_FILE_INPUT].Filename,
-            &Gbl_DirectoryPath, &Prefix);
-        if (ACPI_FAILURE (Status))
-        {
-            return -1;
-        }
-
-        if (Gbl_UseDefaultAmlFilename)
-        {
-            Gbl_OutputFilenamePrefix = Prefix;
-        }
-
-        /* ACPI CA subsystem initialization (Must be re-initialized) */
-
-        Status = AcpiOsInitialize ();
-        AcpiUtInitGlobals ();
-        Status = AcpiUtMutexInitialize ();
-        if (ACPI_FAILURE (Status))
-        {
-            return -1;
-        }
-
-        Status = AcpiNsRootInitialize ();
-        if (ACPI_FAILURE (Status))
-        {
-            return -1;
-        }
-        Status = CmDoCompile ();
+        Index++;
     }
 
     return (0);

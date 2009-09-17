@@ -33,7 +33,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_kstack_pages.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -108,7 +107,7 @@ sysarch(td, uap)
 	uint32_t base;
 	struct segment_descriptor sd, *sdp;
 
-	AUDIT_ARG(cmd, uap->op);
+	AUDIT_ARG_CMD(uap->op);
 	switch (uap->op) {
 	case I386_GET_IOPERM:
 	case I386_SET_IOPERM:

@@ -32,6 +32,7 @@
 .Sh NAME
 .Nm rmlock ,
 .Nm rm_init ,
+.Nm rm_init_flags ,
 .Nm rm_destroy ,
 .Nm rm_rlock ,
 .Nm rm_wlock ,
@@ -45,7 +46,9 @@
 .In sys/lock.h
 .In sys/rmlock.h
 .Ft void
-.Fn rm_init "struct rmlock *rm" "const char *name" "int opts"
+.Fn rm_init "struct rmlock *rm" "const char *name"
+.Ft void
+.Fn rm_init_flags "struct rmlock *rm" "const char *name" "int opts"
 .Ft void
 .Fn rm_destroy "struct rmlock *rm"
 .Ft void
@@ -106,18 +109,33 @@ can recurse if the lock has been initialized with the
 option, however exclusive locks are not allowed to recurse.
 .Ss Macros and Functions
 .Bl -tag -width indent
-.It Fn rm_init "struct rmlock *rm" "const char *name" "int opts"
+.It Fn rm_init "struct rmlock *rm" "const char *name"
 Initialize structure located at
 .Fa rm
 as mostly reader lock, described by
 .Fa name .
-Optionally allowing readers to recurse by setting
-.Dv LO_RECURSABLE
-in
-.Fa opts .
 The name description is used solely for debugging purposes.
 This function must be called before any other operations
 on the lock.
+.It Fn rm_init_flags "struct rmlock *rm" "const char *name" "int opts"
+Initialize the rm lock just like the
+.Fn rm_init
+function, but specifying a set of optional flags to alter the
+behaviour of
+.Fa rm ,
+through the
+.Fa opts
+argument.
+It contains one or more of the following flags:
+.Bl -tag -width ".Dv RM_NOWITNESS"
+.It Dv RM_NOWITNESS
+Instruct
+.Xr witness 4
+to ignore this lock.
+.It Dv RM_RECURSE
+Allow threads to recursively acquire exclusive locks for
+.Fa rm .
+.El
 .It Fn rm_rlock "struct rmlock *rm" "struct rm_priotracker* tracker"
 Lock
 .Fa rm

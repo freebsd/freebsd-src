@@ -69,7 +69,7 @@ ata_cenatek_probe(device_t dev)
 
     ctlr->chipinit = ata_cenatek_chipinit;
     device_set_desc(dev, "Cenatek Rocket Drive controller");
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int

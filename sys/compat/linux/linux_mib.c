@@ -35,9 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sx.h>
 
 #include "opt_compat.h"
 
@@ -52,16 +54,20 @@ struct linux_prison {
 	char	pr_osname[LINUX_MAX_UTSNAME];
 	char	pr_osrelease[LINUX_MAX_UTSNAME];
 	int	pr_oss_version;
-	int	pr_use_linux26;	/* flag to determine whether to use 2.6 emulation */
+	int	pr_osrel;
 };
+
+static struct linux_prison lprison0 = {
+	.pr_osname =		"Linux",
+	.pr_osrelease =		"2.6.16",
+	.pr_oss_version =	0x030600,
+	.pr_osrel =		2006016
+};
+
+static unsigned linux_osd_jail_slot;
 
 SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0,
 	    "Linux mode");
-
-static struct mtx osname_lock;
-MTX_SYSINIT(linux_osname, &osname_lock, "linux osname", MTX_DEF);
-
-static char	linux_osname[LINUX_MAX_UTSNAME] = "Linux";
 
 static int
 linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
@@ -78,12 +84,9 @@ linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_compat_linux, OID_AUTO, osname,
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
 	    0, 0, linux_sysctl_osname, "A",
 	    "Linux kernel OS name");
-
-static char	linux_osrelease[LINUX_MAX_UTSNAME] = "2.6.16";
-static int	linux_use_linux26 = 1;
 
 static int
 linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
@@ -100,11 +103,9 @@ linux_sysctl_osrelease(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_compat_linux, OID_AUTO, osrelease,
-	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON,
+	    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
 	    0, 0, linux_sysctl_osrelease, "A",
 	    "Linux kernel OS release");
-
-static int	linux_oss_version = 0x030600;
 
 static int
 linux_sysctl_oss_version(SYSCTL_HANDLER_ARGS)
@@ -121,65 +122,351 @@ linux_sysctl_oss_version(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_compat_linux, OID_AUTO, oss_version,
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_PRISON | CTLFLAG_MPSAFE,
 	    0, 0, linux_sysctl_oss_version, "I",
 	    "Linux OSS version");
 
 /*
- * Returns holding the prison mutex if return non-NULL.
+ * Map the osrelease into integer
  */
-static struct prison *
-linux_get_prison(struct thread *td)
+static int
+linux_map_osrel(char *osrelease, int *osrel)
 {
-	register struct prison *pr;
-	register struct linux_prison *lpr;
+	char *sep, *eosrelease;
+	int len, v0, v1, v2, v;
 
-	KASSERT(td == curthread, ("linux_get_prison() called on !curthread"));
-	if (!jailed(td->td_ucred))
-		return (NULL);
-	pr = td->td_ucred->cr_prison;
-	mtx_lock(&pr->pr_mtx);
-	if (pr->pr_linux == NULL) {
-		/*
-		 * If we don't have a linux prison structure yet, allocate
-		 * one.  We have to handle the race where another thread
-		 * could be adding a linux prison to this process already.
-		 */
-		mtx_unlock(&pr->pr_mtx);
-		lpr = malloc(sizeof(struct linux_prison), M_PRISON,
-		    M_WAITOK | M_ZERO);
+	len = strlen(osrelease);
+	eosrelease = osrelease + len;
+	v0 = strtol(osrelease, &sep, 10);
+	if (osrelease == sep || sep + 1 >= eosrelease || *sep != '.')
+		return (EINVAL);
+	osrelease = sep + 1;
+	v1 = strtol(osrelease, &sep, 10);
+	if (osrelease == sep || sep + 1 >= eosrelease || *sep != '.')
+		return (EINVAL);
+	osrelease = sep + 1;
+	v2 = strtol(osrelease, &sep, 10);
+	if (osrelease == sep || sep != eosrelease)
+		return (EINVAL);
+
+	v = v0 * 1000000 + v1 * 1000 + v2;
+	if (v < 1000000)
+		return (EINVAL);
+
+	*osrel = v;
+	return (0);
+}
+
+/*
+ * Find a prison with Linux info.
+ * Return the Linux info and the (locked) prison.
+ */
+static struct linux_prison *
+linux_find_prison(struct prison *spr, struct prison **prp)
+{
+	struct prison *pr;
+	struct linux_prison *lpr;
+
+	if (!linux_osd_jail_slot)
+		/* In case osd_register failed. */
+		spr = &prison0;
+	for (pr = spr;; pr = pr->pr_parent) {
 		mtx_lock(&pr->pr_mtx);
-		if (pr->pr_linux == NULL)
-			pr->pr_linux = lpr;
-		else
-			free(lpr, M_PRISON);
+		lpr = (pr == &prison0)
+		    ? &lprison0
+		    : osd_jail_get(pr, linux_osd_jail_slot);
+		if (lpr != NULL)
+			break;
+		mtx_unlock(&pr->pr_mtx);
 	}
-	return (pr);
+	*prp = pr;
+	return (lpr);
+}
+
+/*
+ * Ensure a prison has its own Linux info.  If lprp is non-null, point it to
+ * the Linux info and lock the prison.
+ */
+static int
+linux_alloc_prison(struct prison *pr, struct linux_prison **lprp)
+{
+	struct prison *ppr;
+	struct linux_prison *lpr, *nlpr;
+	int error;
+
+	/* If this prison already has Linux info, return that. */
+	error = 0;
+	lpr = linux_find_prison(pr, &ppr);
+	if (ppr == pr)
+		goto done;
+	/*
+	 * Allocate a new info record.  Then check again, in case something
+	 * changed during the allocation.
+	 */
+	mtx_unlock(&ppr->pr_mtx);
+	nlpr = malloc(sizeof(struct linux_prison), M_PRISON, M_WAITOK);
+	lpr = linux_find_prison(pr, &ppr);
+	if (ppr == pr) {
+		free(nlpr, M_PRISON);
+		goto done;
+	}
+	/* Inherit the initial values from the ancestor. */
+	mtx_lock(&pr->pr_mtx);
+	error = osd_jail_set(pr, linux_osd_jail_slot, nlpr);
+	if (error == 0) {
+		bcopy(lpr, nlpr, sizeof(*lpr));
+		lpr = nlpr;
+	} else {
+		free(nlpr, M_PRISON);
+		lpr = NULL;
+	}
+	mtx_unlock(&ppr->pr_mtx);
+ done:
+	if (lprp != NULL)
+		*lprp = lpr;
+	else
+		mtx_unlock(&pr->pr_mtx);
+	return (error);
+}
+
+/*
+ * Jail OSD methods for Linux prison data.
+ */
+static int
+linux_prison_create(void *obj, void *data)
+{
+	struct prison *pr = obj;
+	struct vfsoptlist *opts = data;
+	int jsys;
+
+	if (vfs_copyopt(opts, "linux", &jsys, sizeof(jsys)) == 0 &&
+	    jsys == JAIL_SYS_INHERIT)
+		return (0);
+	/*
+	 * Inherit a prison's initial values from its parent
+	 * (different from JAIL_SYS_INHERIT which also inherits changes).
+	 */
+	return linux_alloc_prison(pr, NULL);
+}
+
+static int
+linux_prison_check(void *obj __unused, void *data)
+{
+	struct vfsoptlist *opts = data;
+	char *osname, *osrelease;
+	int error, jsys, len, osrel, oss_version;
+
+	/* Check that the parameters are correct. */
+	error = vfs_copyopt(opts, "linux", &jsys, sizeof(jsys));
+	if (error != ENOENT) {
+		if (error != 0)
+			return (error);
+		if (jsys != JAIL_SYS_NEW && jsys != JAIL_SYS_INHERIT)
+			return (EINVAL);
+	}
+	error = vfs_getopt(opts, "linux.osname", (void **)&osname, &len);
+	if (error != ENOENT) {
+		if (error != 0)
+			return (error);
+		if (len == 0 || osname[len - 1] != '\0')
+			return (EINVAL);
+		if (len > LINUX_MAX_UTSNAME) {
+			vfs_opterror(opts, "linux.osname too long");
+			return (ENAMETOOLONG);
+		}
+	}
+	error = vfs_getopt(opts, "linux.osrelease", (void **)&osrelease, &len);
+	if (error != ENOENT) {
+		if (error != 0)
+			return (error);
+		if (len == 0 || osrelease[len - 1] != '\0')
+			return (EINVAL);
+		if (len > LINUX_MAX_UTSNAME) {
+			vfs_opterror(opts, "linux.osrelease too long");
+			return (ENAMETOOLONG);
+		}
+		error = linux_map_osrel(osrelease, &osrel);
+		if (error != 0) {
+			vfs_opterror(opts, "linux.osrelease format error");
+			return (error);
+		}
+	}
+	error = vfs_copyopt(opts, "linux.oss_version", &oss_version,
+	    sizeof(oss_version));
+	return (error == ENOENT ? 0 : error);
+}
+
+static int
+linux_prison_set(void *obj, void *data)
+{
+	struct linux_prison *lpr;
+	struct prison *pr = obj;
+	struct vfsoptlist *opts = data;
+	char *osname, *osrelease;
+	int error, gotversion, jsys, len, oss_version;
+
+	/* Set the parameters, which should be correct. */
+	error = vfs_copyopt(opts, "linux", &jsys, sizeof(jsys));
+	if (error == ENOENT)
+		jsys = -1;
+	error = vfs_getopt(opts, "linux.osname", (void **)&osname, &len);
+	if (error == ENOENT)
+		osname = NULL;
+	else
+		jsys = JAIL_SYS_NEW;
+	error = vfs_getopt(opts, "linux.osrelease", (void **)&osrelease, &len);
+	if (error == ENOENT)
+		osrelease = NULL;
+	else
+		jsys = JAIL_SYS_NEW;
+	error = vfs_copyopt(opts, "linux.oss_version", &oss_version,
+	    sizeof(oss_version));
+	if (error == ENOENT)
+		gotversion = 0;
+	else {
+		gotversion = 1;
+		jsys = JAIL_SYS_NEW;
+	}
+	switch (jsys) {
+	case JAIL_SYS_INHERIT:
+		/* "linux=inherit": inherit the parent's Linux info. */
+		mtx_lock(&pr->pr_mtx);
+		osd_jail_del(pr, linux_osd_jail_slot);
+		mtx_unlock(&pr->pr_mtx);
+		break;
+	case JAIL_SYS_NEW:
+		/*
+		 * "linux=new" or "linux.*":
+		 * the prison gets its own Linux info.
+		 */
+		error = linux_alloc_prison(pr, &lpr);
+		if (error) {
+			mtx_unlock(&pr->pr_mtx);
+			return (error);
+		}
+		if (osrelease) {
+			error = linux_map_osrel(osrelease, &lpr->pr_osrel);
+			if (error) {
+				mtx_unlock(&pr->pr_mtx);
+				return (error);
+			}
+			strlcpy(lpr->pr_osrelease, osrelease,
+			    LINUX_MAX_UTSNAME);
+		}
+		if (osname)
+			strlcpy(lpr->pr_osname, osname, LINUX_MAX_UTSNAME);
+		if (gotversion)
+			lpr->pr_oss_version = oss_version;
+		mtx_unlock(&pr->pr_mtx);
+	}
+	return (0);
+}
+
+SYSCTL_JAIL_PARAM_SYS_NODE(linux, CTLFLAG_RW, "Jail Linux parameters");
+SYSCTL_JAIL_PARAM_STRING(_linux, osname, CTLFLAG_RW, LINUX_MAX_UTSNAME,
+    "Jail Linux kernel OS name");
+SYSCTL_JAIL_PARAM_STRING(_linux, osrelease, CTLFLAG_RW, LINUX_MAX_UTSNAME,
+    "Jail Linux kernel OS release");
+SYSCTL_JAIL_PARAM(_linux, oss_version, CTLTYPE_INT | CTLFLAG_RW,
+    "I", "Jail Linux OSS version");
+
+static int
+linux_prison_get(void *obj, void *data)
+{
+	struct linux_prison *lpr;
+	struct prison *ppr;
+	struct prison *pr = obj;
+	struct vfsoptlist *opts = data;
+	int error, i;
+
+	static int version0;
+
+	/* See if this prison is the one with the Linux info. */
+	lpr = linux_find_prison(pr, &ppr);
+	i = (ppr == pr) ? JAIL_SYS_NEW : JAIL_SYS_INHERIT;
+	error = vfs_setopt(opts, "linux", &i, sizeof(i));
+	if (error != 0 && error != ENOENT)
+		goto done;
+	if (i) {
+		error = vfs_setopts(opts, "linux.osname", lpr->pr_osname);
+		if (error != 0 && error != ENOENT)
+			goto done;
+		error = vfs_setopts(opts, "linux.osrelease", lpr->pr_osrelease);
+		if (error != 0 && error != ENOENT)
+			goto done;
+		error = vfs_setopt(opts, "linux.oss_version",
+		    &lpr->pr_oss_version, sizeof(lpr->pr_oss_version));
+		if (error != 0 && error != ENOENT)
+			goto done;
+	} else {
+		/*
+		 * If this prison is inheriting its Linux info, report
+		 * empty/zero parameters.
+		 */
+		error = vfs_setopts(opts, "linux.osname", "");
+		if (error != 0 && error != ENOENT)
+			goto done;
+		error = vfs_setopts(opts, "linux.osrelease", "");
+		if (error != 0 && error != ENOENT)
+			goto done;
+		error = vfs_setopt(opts, "linux.oss_version", &version0,
+		    sizeof(lpr->pr_oss_version));
+		if (error != 0 && error != ENOENT)
+			goto done;
+	}
+	error = 0;
+
+ done:
+	mtx_unlock(&ppr->pr_mtx);
+	return (error);
+}
+
+static void
+linux_prison_destructor(void *data)
+{
+
+	free(data, M_PRISON);
+}
+
+void
+linux_osd_jail_register(void)
+{
+	struct prison *pr;
+	osd_method_t methods[PR_MAXMETHOD] = {
+	    [PR_METHOD_CREATE] =	linux_prison_create,
+	    [PR_METHOD_GET] =		linux_prison_get,
+	    [PR_METHOD_SET] =		linux_prison_set,
+	    [PR_METHOD_CHECK] =		linux_prison_check
+	};
+
+	linux_osd_jail_slot =
+	    osd_jail_register(linux_prison_destructor, methods);
+	if (linux_osd_jail_slot > 0) {
+		/* Copy the system linux info to any current prisons. */
+		sx_xlock(&allprison_lock);
+		TAILQ_FOREACH(pr, &allprison, pr_list)
+			(void)linux_alloc_prison(pr, NULL);
+		sx_xunlock(&allprison_lock);
+	}
+}
+
+void
+linux_osd_jail_deregister(void)
+{
+
+	if (linux_osd_jail_slot)
+		osd_jail_deregister(linux_osd_jail_slot);
 }
 
 void
 linux_get_osname(struct thread *td, char *dst)
 {
-	register struct prison *pr;
-	register struct linux_prison *lpr;
+	struct prison *pr;
+	struct linux_prison *lpr;
 
-	pr = td->td_ucred->cr_prison;
-	if (pr != NULL) {
-		mtx_lock(&pr->pr_mtx);
-		if (pr->pr_linux != NULL) {
-			lpr = (struct linux_prison *)pr->pr_linux;
-			if (lpr->pr_osname[0]) {
-				bcopy(lpr->pr_osname, dst, LINUX_MAX_UTSNAME);
-				mtx_unlock(&pr->pr_mtx);
-				return;
-			}
-		}
-		mtx_unlock(&pr->pr_mtx);
-	}
-
-	mtx_lock(&osname_lock);
-	bcopy(linux_osname, dst, LINUX_MAX_UTSNAME);
-	mtx_unlock(&osname_lock);
+	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
+	bcopy(lpr->pr_osname, dst, LINUX_MAX_UTSNAME);
+	mtx_unlock(&pr->pr_mtx);
 }
 
 int
@@ -188,62 +475,34 @@ linux_set_osname(struct thread *td, char *osname)
 	struct prison *pr;
 	struct linux_prison *lpr;
 
-	pr = linux_get_prison(td);
-	if (pr != NULL) {
-		lpr = (struct linux_prison *)pr->pr_linux;
-		strcpy(lpr->pr_osname, osname);
-		mtx_unlock(&pr->pr_mtx);
-	} else {
-		mtx_lock(&osname_lock);
-		strcpy(linux_osname, osname);
-		mtx_unlock(&osname_lock);
-	}
-
+	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
+	strlcpy(lpr->pr_osname, osname, LINUX_MAX_UTSNAME);
+	mtx_unlock(&pr->pr_mtx);
 	return (0);
 }
 
 void
 linux_get_osrelease(struct thread *td, char *dst)
 {
-	register struct prison *pr;
+	struct prison *pr;
 	struct linux_prison *lpr;
 
-	pr = td->td_ucred->cr_prison;
-	if (pr != NULL) {
-		mtx_lock(&pr->pr_mtx);
-		if (pr->pr_linux != NULL) {
-			lpr = (struct linux_prison *)pr->pr_linux;
-			if (lpr->pr_osrelease[0]) {
-				bcopy(lpr->pr_osrelease, dst,
-				    LINUX_MAX_UTSNAME);
-				mtx_unlock(&pr->pr_mtx);
-				return;
-			}
-		}
-		mtx_unlock(&pr->pr_mtx);
-	}
-
-	mtx_lock(&osname_lock);
-	bcopy(linux_osrelease, dst, LINUX_MAX_UTSNAME);
-	mtx_unlock(&osname_lock);
+	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
+	bcopy(lpr->pr_osrelease, dst, LINUX_MAX_UTSNAME);
+	mtx_unlock(&pr->pr_mtx);
 }
 
 int
-linux_use26(struct thread *td)
+linux_kernver(struct thread *td)
 {
 	struct prison *pr;
 	struct linux_prison *lpr;
-	int use26 = linux_use_linux26;
+	int osrel;
 
-	pr = td->td_ucred->cr_prison;
-	if (pr != NULL) {
-		if (pr->pr_linux != NULL) {
-			lpr = (struct linux_prison *)pr->pr_linux;
-			use26 = lpr->pr_use_linux26;
-		}
-	}
-	
-	return (use26);
+	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
+	osrel = lpr->pr_osrel;
+	mtx_unlock(&pr->pr_mtx);
+	return (osrel);
 }
 
 int
@@ -251,50 +510,26 @@ linux_set_osrelease(struct thread *td, char *osrelease)
 {
 	struct prison *pr;
 	struct linux_prison *lpr;
-	int use26;
+	int error;
 
-	use26 = (strlen(osrelease) >= 3 && osrelease[2] == '6');
-
-	pr = linux_get_prison(td);
-	if (pr != NULL) {
-		lpr = (struct linux_prison *)pr->pr_linux;
-		strcpy(lpr->pr_osrelease, osrelease);
-		lpr->pr_use_linux26 = use26;
-		mtx_unlock(&pr->pr_mtx);
-	} else {
-		mtx_lock(&osname_lock);
-		strcpy(linux_osrelease, osrelease);
-		linux_use_linux26 = use26;
-		mtx_unlock(&osname_lock);
-	}
-
-	return (0);
+	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
+	error = linux_map_osrel(osrelease, &lpr->pr_osrel);
+	if (error == 0)
+		strlcpy(lpr->pr_osrelease, osrelease, LINUX_MAX_UTSNAME);
+	mtx_unlock(&pr->pr_mtx);
+	return (error);
 }
 
 int
 linux_get_oss_version(struct thread *td)
 {
-	register struct prison *pr;
-	register struct linux_prison *lpr;
+	struct prison *pr;
+	struct linux_prison *lpr;
 	int version;
 
-	pr = td->td_ucred->cr_prison;
-	if (pr != NULL) {
-		mtx_lock(&pr->pr_mtx);
-		if (pr->pr_linux != NULL) {
-			lpr = (struct linux_prison *)pr->pr_linux;
-			if (lpr->pr_oss_version) {
-				version = lpr->pr_oss_version;
-				mtx_unlock(&pr->pr_mtx);
-				return (version);
-			}
-		}
-		mtx_unlock(&pr->pr_mtx);
-	}
-
-	mtx_lock(&osname_lock);
-	version = linux_oss_version;
-	mtx_unlock(&osname_lock);
+	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
+	version = lpr->pr_oss_version;
+	mtx_unlock(&pr->pr_mtx);
 	return (version);
 }
 
@@ -304,21 +539,13 @@ linux_set_oss_version(struct thread *td, int oss_version)
 	struct prison *pr;
 	struct linux_prison *lpr;
 
-	pr = linux_get_prison(td);
-	if (pr != NULL) {
-		lpr = (struct linux_prison *)pr->pr_linux;
-		lpr->pr_oss_version = oss_version;
-		mtx_unlock(&pr->pr_mtx);
-	} else {
-		mtx_lock(&osname_lock);
-		linux_oss_version = oss_version;
-		mtx_unlock(&osname_lock);
-	}
-
+	lpr = linux_find_prison(td->td_ucred->cr_prison, &pr);
+	lpr->pr_oss_version = oss_version;
+	mtx_unlock(&pr->pr_mtx);
 	return (0);
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(KTR)
 
 u_char linux_debug_map[howmany(LINUX_SYS_MAXSYSCALL, sizeof(u_char))];
 
@@ -377,4 +604,4 @@ SYSCTL_PROC(_compat_linux, OID_AUTO, debug,
             0, 0, linux_sysctl_debug, "A",
             "Linux debugging control");
 
-#endif /* DEBUG */
+#endif /* DEBUG || KTR */

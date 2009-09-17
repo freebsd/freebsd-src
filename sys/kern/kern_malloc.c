@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1987, 1991, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2005-2006 Robert N. M. Watson
+ * Copyright (c) 2005-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -334,6 +334,7 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 #endif
 
 #ifdef INVARIANTS
+	KASSERT(mtp->ks_magic == M_MAGIC, ("malloc: bad malloc type magic"));
 	/*
 	 * Check that exactly one of M_WAITOK or M_NOWAIT is specified.
 	 */
@@ -419,6 +420,8 @@ free(void *addr, struct malloc_type *mtp)
 	uma_slab_t slab;
 	u_long size;
 
+	KASSERT(mtp->ks_magic == M_MAGIC, ("free: bad malloc type magic"));
+
 	/* free(NULL, ...) does nothing */
 	if (addr == NULL)
 		return;
@@ -434,8 +437,6 @@ free(void *addr, struct malloc_type *mtp)
 	redzone_check(addr);
 	addr = redzone_addr_ntor(addr);
 #endif
-
-	size = 0;
 
 	slab = vtoslab((vm_offset_t)addr & (~UMA_SLAB_MASK));
 
@@ -481,6 +482,9 @@ realloc(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 	uma_slab_t slab;
 	unsigned long alloc;
 	void *newaddr;
+
+	KASSERT(mtp->ks_magic == M_MAGIC,
+	    ("realloc: bad malloc type magic"));
 
 	/* realloc(NULL, ...) is equivalent to malloc(...) */
 	if (addr == NULL)
@@ -599,10 +603,6 @@ kmeminit(void *dummy)
 		vm_kmem_size = vm_kmem_size_max;
 
 	/* Allow final override from the kernel environment */
-#ifndef BURN_BRIDGES
-	if (TUNABLE_ULONG_FETCH("kern.vm.kmem.size", &vm_kmem_size) != 0)
-		printf("kern.vm.kmem.size is now called vm.kmem_size!\n");
-#endif
 	TUNABLE_ULONG_FETCH("vm.kmem_size", &vm_kmem_size);
 
 	/*
@@ -675,6 +675,9 @@ malloc_init(void *data)
 	KASSERT(cnt.v_page_count != 0, ("malloc_register before vm_init"));
 
 	mtp = data;
+	if (mtp->ks_magic != M_MAGIC)
+		panic("malloc_init: bad malloc type magic");
+
 	mtip = uma_zalloc(mt_zone, M_WAITOK | M_ZERO);
 	mtp->ks_handle = mtip;
 
@@ -696,16 +699,23 @@ malloc_uninit(void *data)
 	int i;
 
 	mtp = data;
+	KASSERT(mtp->ks_magic == M_MAGIC,
+	    ("malloc_uninit: bad malloc type magic"));
 	KASSERT(mtp->ks_handle != NULL, ("malloc_deregister: cookie NULL"));
+
 	mtx_lock(&malloc_mtx);
 	mtip = mtp->ks_handle;
 	mtp->ks_handle = NULL;
 	if (mtp != kmemstatistics) {
 		for (temp = kmemstatistics; temp != NULL;
 		    temp = temp->ks_next) {
-			if (temp->ks_next == mtp)
+			if (temp->ks_next == mtp) {
 				temp->ks_next = mtp->ks_next;
+				break;
+			}
 		}
+		KASSERT(temp,
+		    ("malloc_uninit: type '%s' not found", mtp->ks_shortdesc));
 	} else
 		kmemstatistics = mtp->ks_next;
 	kmemcount--;

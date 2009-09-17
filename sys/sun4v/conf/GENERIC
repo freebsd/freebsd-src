@@ -51,21 +51,21 @@ options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
-options 	COMPAT_43		# Compatible with BSD 4.3 (sgtty)
 options 	COMPAT_43TTY		# BSD 4.3 TTY compat (sgtty)
-options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
+options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
+options 	MAC			# TrustedBSD MAC Framework
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
@@ -180,71 +180,17 @@ device		faith		# IPv6-to-IPv4 relaying (translation)
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
 
-# USB core support
-device          usb2_core
-# USB controller support
-device		usb2_controller
-device		usb2_controller_ehci
-device		usb2_controller_ohci
-device		usb2_controller_uhci
-# USB mass storage support
-#device		usb2_storage
-#device		usb2_storage_mass
-# USB ethernet support, requires miibus
-#device		usb2_ethernet
-#device		usb2_ethernet_aue
-#device		usb2_ethernet_axe
-#device		usb2_ethernet_cdce
-#device		usb2_ethernet_cue
-#device		usb2_ethernet_kue
-#device		usb2_ethernet_rue
-#device		usb2_ethernet_dav
-# USB serial device support
-device		usb2_serial
-device		usb2_serial_ark
-device		usb2_serial_bsa
-device		usb2_serial_bser
-device		usb2_serial_chcom
-device		usb2_serial_cycom
-device		usb2_serial_foma
-device		usb2_serial_ftdi
-device		usb2_serial_gensa
-device		usb2_serial_ipaq
-device		usb2_serial_lpt
-device		usb2_serial_mct
-device		usb2_serial_modem
-device		usb2_serial_moscom
-device		usb2_serial_plcom
-device		usb2_serial_slcom
-device		usb2_serial_visor
-device		usb2_serial_vscom
-# USB bluetooth support
-#device		usb2_bluetooth
-#device		usb2_bluetooth_ng
-# USB input device support
-device		usb2_input
-device		usb2_input_hid
-#device		usb2_input_kbd
-device		usb2_input_ms
-# USB sound and MIDI device support
-#device		usb2_sound
-# USB scanner support
-#device		usb2_image
-#device		usb2_scanner
-
-# USB support (deprecated)
+# USB support
 #device		uhci		# UHCI PCI->USB interface
 #device		ohci		# OHCI PCI->USB interface
-#device		usb		# USB Bus (required)
+device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
-#device		ugen		# Generic
-#device		uhid		# "Human Interface Devices"
+device		uhid		# "Human Interface Devices"
 #device		ukbd		# Keyboard
-#device		ulpt		# Printer
+device		ulpt		# Printer
 #device		umass		# Disks/Mass storage - Requires scbus and da
-#device		ums		# Mouse
+device		ums		# Mouse
 #device		urio		# Diamond Rio 500 MP3 player
-#device		uscanner	# Scanners
 # USB Ethernet, requires mii
 #device		aue		# ADMtek USB Ethernet
 #device		axe		# ASIX Electronics USB Ethernet
@@ -262,7 +208,7 @@ device		usb2_input_ms
 #options 	KTR
 #options 	KTR_MASK=(KTR_TRAP)
 #options 		USB_DEBUG
-#options 		USBVERBOSE
+#options 		USB_VERBOSE
 #options 		DEBUG_LOCKS
 #options 		DEBUG_VFS_LOCKS
 

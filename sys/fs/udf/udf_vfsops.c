@@ -186,15 +186,17 @@ udf_uninit(struct vfsconf *foo)
 }
 
 static int
-udf_mount(struct mount *mp, struct thread *td)
+udf_mount(struct mount *mp)
 {
 	struct vnode *devvp;	/* vnode of the mount device */
+	struct thread *td;
 	struct udf_mnt *imp = 0;
 	struct vfsoptlist *opts;
 	char *fspec, *cs_disk, *cs_local;
 	int error, len, *udf_flags;
 	struct nameidata nd, *ndp = &nd;
 
+	td = curthread;
 	opts = mp->mnt_optnew;
 
 	/*
@@ -334,6 +336,11 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 
 	bo = &devvp->v_bufobj;
 
+	if (devvp->v_rdev->si_iosize_max != 0)
+		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
+	if (mp->mnt_iosize_max > MAXPHYS)
+		mp->mnt_iosize_max = MAXPHYS;
+
 	/* XXX: should be M_WAITOK */
 	udfmp = malloc(sizeof(struct udf_mnt), M_UDFMOUNT,
 	    M_NOWAIT | M_ZERO);
@@ -348,7 +355,8 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED;
+	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED |
+	    MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 	udfmp->im_mountp = mp;
 	udfmp->im_dev = dev;
@@ -471,7 +479,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 	 */
 	sector = le32toh(udfmp->root_icb.loc.lb_num) + udfmp->part_start;
 	size = le32toh(udfmp->root_icb.len);
-	if ((error = udf_readlblks(udfmp, sector, size, &bp)) != 0) {
+	if ((error = udf_readdevblks(udfmp, sector, size, &bp)) != 0) {
 		printf("Cannot read sector %d\n", sector);
 		goto bail;
 	}
@@ -504,7 +512,7 @@ bail:
 };
 
 static int
-udf_unmount(struct mount *mp, int mntflags, struct thread *td)
+udf_unmount(struct mount *mp, int mntflags)
 {
 	struct udf_mnt *udfmp;
 	int error, flags = 0;
@@ -514,7 +522,7 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 
-	if ((error = vflush(mp, 0, flags, td)))
+	if ((error = vflush(mp, 0, flags, curthread)))
 		return (error);
 
 	if (udfmp->im_flags & UDFMNT_KICONV && udf_iconv) {
@@ -548,7 +556,7 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 }
 
 static int
-udf_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+udf_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct udf_mnt *udfmp;
 	ino_t id;
@@ -561,7 +569,7 @@ udf_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 }
 
 static int
-udf_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+udf_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct udf_mnt *udfmp;
 
@@ -789,7 +797,7 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 		 * XXX If reading the first Sparing Table fails, should look
 		 * for another table.
 		 */
-		if ((error = udf_readlblks(udfmp, le32toh(pms->st_loc[0]),
+		if ((error = udf_readdevblks(udfmp, le32toh(pms->st_loc[0]),
 					   le32toh(pms->st_size), &bp)) != 0) {
 			if (bp != NULL)
 				brelse(bp);

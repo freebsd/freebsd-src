@@ -49,6 +49,7 @@
 #else
 #include <db.h>
 #endif
+#include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <regex.h>
@@ -62,8 +63,8 @@
 
 static DB *symtable;
 
-symbol_t *
-symbol_create(char *name)
+static symbol_t *
+symbol_create(const char *name)
 {
 	symbol_t *new_symbol;
 
@@ -163,14 +164,14 @@ symtable_close()
  * if a lookup fails.
  */
 symbol_t *
-symtable_get(char *name)
+symtable_get(const char *name)
 {
 	symbol_t *stored_ptr;
 	DBT	  key;
 	DBT	  data;
 	int	  retval;
 
-	key.data = (void *)name;
+	key.data = strdup(name);
 	key.size = strlen(name);
 
 	if ((retval = symtable->get(symtable, &key, &data, /*flags*/0)) != 0) {
@@ -190,6 +191,7 @@ symtable_get(char *name)
 				perror("Symtable put failed");
 				exit(EX_SOFTWARE);
 			}
+			free(key.data);
 			return (new_symbol);
 		} else {
 			perror("Unexpected return value from db get routine");
@@ -198,6 +200,7 @@ symtable_get(char *name)
 		}
 	}
 	memcpy(&stored_ptr, data.data, sizeof(stored_ptr));
+	free(key.data);
 	return (stored_ptr);
 }
 
@@ -321,7 +324,7 @@ symlist_merge(symlist_t *symlist_dest, symlist_t *symlist_src1,
 	SLIST_INIT(symlist_src2);
 }
 
-void
+static void
 aic_print_file_prologue(FILE *ofile)
 {
 
@@ -337,16 +340,16 @@ aic_print_file_prologue(FILE *ofile)
 		versions);
 }
 
-void
-aic_print_include(FILE *dfile, char *include_file)
+static void
+aic_print_include(FILE *dfile, char *header_file)
 {
 
 	if (dfile == NULL)
 		return;
-	fprintf(dfile, "\n#include \"%s\"\n\n", include_file);
+	fprintf(dfile, "\n#include \"%s\"\n\n", header_file);
 }
 
-void
+static void
 aic_print_reg_dump_types(FILE *ofile)
 {
 	if (ofile == NULL)
@@ -586,10 +589,9 @@ symtable_dump(FILE *ofile, FILE *dfile)
 
 	/* Output generated #defines. */
 	while (SLIST_FIRST(&registers) != NULL) {
-		symbol_node_t *curnode;
 		u_int value;
-		char *tab_str;
-		char *tab_str2;
+		const char *tab_str;
+		const char *tab_str2;
 
 		curnode = SLIST_FIRST(&registers);
 		SLIST_REMOVE_HEAD(&registers, links);
@@ -636,7 +638,6 @@ symtable_dump(FILE *ofile, FILE *dfile)
 	fprintf(ofile, "\n\n");
 
 	while (SLIST_FIRST(&constants) != NULL) {
-		symbol_node_t *curnode;
 
 		curnode = SLIST_FIRST(&constants);
 		SLIST_REMOVE_HEAD(&constants, links);
@@ -650,7 +651,6 @@ symtable_dump(FILE *ofile, FILE *dfile)
 	fprintf(ofile, "\n\n/* Downloaded Constant Definitions */\n");
 
 	for (i = 0; SLIST_FIRST(&download_constants) != NULL; i++) {
-		symbol_node_t *curnode;
 
 		curnode = SLIST_FIRST(&download_constants);
 		SLIST_REMOVE_HEAD(&download_constants, links);
@@ -664,7 +664,6 @@ symtable_dump(FILE *ofile, FILE *dfile)
 	fprintf(ofile, "\n\n/* Exported Labels */\n");
 
 	while (SLIST_FIRST(&exported_labels) != NULL) {
-		symbol_node_t *curnode;
 
 		curnode = SLIST_FIRST(&exported_labels);
 		SLIST_REMOVE_HEAD(&exported_labels, links);

@@ -331,7 +331,7 @@ vc_write(struct cdev *dev, struct uio *uiop, int flag)
 	 * Get the rest of the data.
 	 */
 	if (vmp->vm_outSize < uiop->uio_resid) {
-		myprintf(("vcwrite: more data than asked for (%d < %d)\n",
+		myprintf(("vcwrite: more data than asked for (%d < %zd)\n",
 		    vmp->vm_outSize, uiop->uio_resid));
 
 		/*

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2008 Apple Inc.
+ * Copyright (c) 2004-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#41 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#45 $
  */
 
 #ifndef _LIBBSM_H_
@@ -76,13 +76,14 @@
 #define	AUDIT_CONTROL_FILE	"/etc/security/audit_control"
 #define	AUDIT_USER_FILE		"/etc/security/audit_user"
 
-#define	DIR_CONTROL_ENTRY	"dir"
-#define	MINFREE_CONTROL_ENTRY	"minfree"
-#define	FILESZ_CONTROL_ENTRY	"filesz"
-#define	FLAGS_CONTROL_ENTRY	"flags"
-#define	NA_CONTROL_ENTRY	"naflags"
-#define	POLICY_CONTROL_ENTRY	"policy"
+#define	DIR_CONTROL_ENTRY		"dir"
+#define	MINFREE_CONTROL_ENTRY		"minfree"
+#define	FILESZ_CONTROL_ENTRY		"filesz"
+#define	FLAGS_CONTROL_ENTRY		"flags"
+#define	NA_CONTROL_ENTRY		"naflags"
+#define	POLICY_CONTROL_ENTRY		"policy"
 #define	AUDIT_HOST_CONTROL_ENTRY	"host"
+#define	EXPIRE_AFTER_CONTROL_ENTRY	"expire-after"
 
 #define	AU_CLASS_NAME_MAX	8
 #define	AU_CLASS_DESC_MAX	72
@@ -564,6 +565,12 @@ typedef struct {
 typedef struct {
 	u_int16_t	family;
 	u_int16_t	port;
+	u_int32_t	addr[4];
+} au_socketinet_ex32_t;
+
+typedef struct {
+	u_int16_t	family;
+	u_int16_t	port;
 	u_int32_t	addr;
 } au_socketinet32_t;
 
@@ -721,7 +728,7 @@ struct tokenstr {
 		au_seq_t		seq;
 		au_socket_t		socket;
 		au_socket_ex32_t	socket_ex32;
-		au_socketinet32_t	sockinet32;
+		au_socketinet_ex32_t	sockinet_ex32;
 		au_socketunix_t		sockunix;
 		au_subject32_t		subj32;
 		au_subject32ex_t	subj32_ex;
@@ -766,13 +773,14 @@ int			 getacflg(char *auditstr, int len);
 int			 getacna(char *auditstr, int len);
 int			 getacpol(char *auditstr, size_t len);
 int			 getachost(char *auditstr, size_t len);
+int			 getacexpire(int *andflg, time_t *age, size_t *size);
 int			 getauditflagsbin(char *auditstr, au_mask_t *masks);
 int			 getauditflagschar(char *auditstr, au_mask_t *masks,
 			    int verbose);
 int			 au_preselect(au_event_t event, au_mask_t *mask_p,
 			    int sorf, int flag);
-ssize_t			 au_poltostr(long policy, size_t maxsize, char *buf);
-int			 au_strtopol(const char *polstr, long *policy);
+ssize_t			 au_poltostr(int policy, size_t maxsize, char *buf);
+int			 au_strtopol(const char *polstr, int *policy);
 
 /*
  * Functions relating to querying audit event information.
@@ -829,10 +837,12 @@ void			 au_print_xml_footer(FILE *outfp);
  */
 int	 au_bsm_to_domain(u_short bsm_domain, int *local_domainp);
 int	 au_bsm_to_errno(u_char bsm_error, int *errorp);
+int	 au_bsm_to_fcntl_cmd(u_short bsm_fcntl_cmd, int *local_fcntl_cmdp);
 int	 au_bsm_to_socket_type(u_short bsm_socket_type,
 	    int *local_socket_typep);
 u_short	 au_domain_to_bsm(int local_domain);
 u_char	 au_errno_to_bsm(int local_errno);
+u_short	 au_fcntl_cmd_to_bsm(int local_fcntl_command); 
 u_short	 au_socket_type_to_bsm(int local_socket_type);
 
 const char	 *au_strerror(u_char bsm_error);
@@ -1259,6 +1269,33 @@ void audit_token_to_au32(
 	au_asid_t	*asidp,
 	au_tid_t	*tidp);
 #endif /* !__APPLE__ */
+
+/*
+ * Wrapper functions to auditon(2).
+ */
+int audit_get_car(char *path, size_t sz);
+int audit_get_class(au_evclass_map_t *evc_map, size_t sz);
+int audit_set_class(au_evclass_map_t *evc_map, size_t sz);
+int audit_get_cond(int *cond);
+int audit_set_cond(int *cond);
+int audit_get_cwd(char *path, size_t sz);
+int audit_get_fsize(au_fstat_t *fstat, size_t sz);
+int audit_set_fsize(au_fstat_t *fstat, size_t sz);
+int audit_get_kmask(au_mask_t *kmask, size_t sz);
+int audit_set_kmask(au_mask_t *kmask, size_t sz);
+int audit_get_kaudit(auditinfo_addr_t *aia, size_t sz);
+int audit_set_kaudit(auditinfo_addr_t *aia, size_t sz);
+int audit_set_pmask(auditpinfo_t *api, size_t sz);
+int audit_get_pinfo(auditpinfo_t *api, size_t sz);
+int audit_get_pinfo_addr(auditpinfo_addr_t *apia, size_t sz);
+int audit_get_policy(int *policy);
+int audit_set_policy(int *policy);
+int audit_get_qctrl(au_qctrl_t *qctrl, size_t sz);
+int audit_set_qctrl(au_qctrl_t *qctrl, size_t sz);
+int audit_get_sinfo_addr(auditinfo_addr_t *aia, size_t sz);
+int audit_get_stat(au_stat_t *stats, size_t sz);
+int audit_set_stat(au_stat_t *stats, size_t sz);
+int audit_send_trigger(int *trigger);
 
 __END_DECLS
 

@@ -148,9 +148,27 @@
 
 /* SATA AHCI v1.0 register defines */
 #define ATA_AHCI_CAP                    0x00
-#define         ATA_AHCI_NPMASK         0x1f
+#define		ATA_AHCI_CAP_NPMASK	0x0000001f
+#define		ATA_AHCI_CAP_SXS	0x00000020
+#define		ATA_AHCI_CAP_EMS	0x00000040
+#define		ATA_AHCI_CAP_CCCS	0x00000080
+#define		ATA_AHCI_CAP_NCS	0x00001F00
+#define		ATA_AHCI_CAP_NCS_SHIFT	8
+#define		ATA_AHCI_CAP_PSC	0x00002000
+#define		ATA_AHCI_CAP_SSC	0x00004000
+#define		ATA_AHCI_CAP_PMD	0x00008000
+#define		ATA_AHCI_CAP_FBSS	0x00010000
 #define		ATA_AHCI_CAP_SPM	0x00020000
-#define		ATA_AHCI_CAP_CLO	0x01000000
+#define		ATA_AHCI_CAP_SAM	0x00080000
+#define		ATA_AHCI_CAP_ISS	0x00F00000
+#define		ATA_AHCI_CAP_ISS_SHIFT	20
+#define		ATA_AHCI_CAP_SCLO	0x01000000
+#define		ATA_AHCI_CAP_SAL	0x02000000
+#define		ATA_AHCI_CAP_SALP	0x04000000
+#define		ATA_AHCI_CAP_SSS	0x08000000
+#define		ATA_AHCI_CAP_SMPS	0x10000000
+#define		ATA_AHCI_CAP_SSNTF	0x20000000
+#define		ATA_AHCI_CAP_SNCQ	0x40000000
 #define		ATA_AHCI_CAP_64BIT	0x80000000
 
 #define ATA_AHCI_GHC                    0x04
@@ -513,6 +531,7 @@ struct ata_channel {
 #define         ATA_NO_48BIT_DMA        0x08
 #define         ATA_ALWAYS_DMASTAT      0x10
 
+    int				pm_level;	/* power management level */
     int                         devices;        /* what is present */
 #define         ATA_ATA_MASTER          0x00000001
 #define         ATA_ATA_SLAVE           0x00000002
@@ -580,6 +599,7 @@ void ata_finish(struct ata_request *request);
 void ata_timeout(struct ata_request *);
 void ata_catch_inflight(device_t dev);
 void ata_fail_requests(device_t dev);
+void ata_drop_requests(device_t dev);
 char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
@@ -588,6 +608,19 @@ int ata_begin_transaction(struct ata_request *);
 int ata_end_transaction(struct ata_request *);
 void ata_generic_reset(device_t dev);
 int ata_generic_command(struct ata_request *request);
+
+/* ata-dma.c: */
+void ata_dmainit(device_t);
+void ata_dmafini(device_t dev);
+
+/* ata-sata.c: */
+void ata_sata_phy_check_events(device_t dev);
+int ata_sata_scr_read(struct ata_channel *ch, int port, int reg, uint32_t *val);
+int ata_sata_scr_write(struct ata_channel *ch, int port, int reg, uint32_t val);
+int ata_sata_phy_reset(device_t dev, int port, int quick);
+void ata_sata_setmode(device_t dev, int mode);
+int ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis);
+void ata_pm_identify(device_t dev);
 
 /* macros for alloc/free of struct ata_request */
 extern uma_zone_t ata_request_zone;

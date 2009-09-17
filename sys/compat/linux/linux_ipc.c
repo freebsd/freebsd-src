@@ -230,23 +230,26 @@ linux_to_bsd_shmid_ds(struct l_shmid_ds *lsp, struct shmid_ds *bsp)
     bsp->shm_atime = lsp->shm_atime;
     bsp->shm_dtime = lsp->shm_dtime;
     bsp->shm_ctime = lsp->shm_ctime;
-    /* this goes (yet) SOS */
-    bsp->shm_internal = PTRIN(lsp->private3);
 }
 
 static void
 bsd_to_linux_shmid_ds(struct shmid_ds *bsp, struct l_shmid_ds *lsp)
 {
     bsd_to_linux_ipc_perm(&bsp->shm_perm, &lsp->shm_perm);
-    lsp->shm_segsz = bsp->shm_segsz;
+    if (bsp->shm_segsz > INT_MAX)
+	    lsp->shm_segsz = INT_MAX;
+    else
+	    lsp->shm_segsz = bsp->shm_segsz;
     lsp->shm_lpid = bsp->shm_lpid;
     lsp->shm_cpid = bsp->shm_cpid;
-    lsp->shm_nattch = bsp->shm_nattch;
+    if (bsp->shm_nattch > SHRT_MAX)
+	    lsp->shm_nattch = SHRT_MAX;
+    else
+	    lsp->shm_nattch = bsp->shm_nattch;
     lsp->shm_atime = bsp->shm_atime;
     lsp->shm_dtime = bsp->shm_dtime;
     lsp->shm_ctime = bsp->shm_ctime;
-    /* this goes (yet) SOS */
-    lsp->private3 = PTROUT(bsp->shm_internal);
+    lsp->private3 = 0;
 }
 
 static void
@@ -424,6 +427,15 @@ linux_shmid_pushdown(l_int ver, struct l_shmid_ds *linux_shmid, caddr_t uaddr)
 {
 	struct l_shmid64_ds linux_shmid64;
 
+	/*
+	 * XXX: This is backwards and loses information in shm_nattch
+	 * and shm_segsz.  We should probably either expose the BSD
+	 * shmid structure directly and convert it to either the
+	 * non-64 or 64 variant directly or the code should always
+	 * convert to the 64 variant and then truncate values into the
+	 * non-64 variant if needed since the 64 variant has more
+	 * precision.
+	 */
 	if (ver == LINUX_IPC_64) {
 		bzero(&linux_shmid64, sizeof(linux_shmid64));
 

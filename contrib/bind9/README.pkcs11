@@ -1,0 +1,61 @@
+
+			BIND-9 PKCS#11 support
+
+Prerequisite
+
+The PKCS#11 support needs a PKCS#11 OpenSSL engine based on the Solaris one,
+released the 2007-11-21 for OpenSSL 0.9.8g, with a bug fix (call to free)
+and some improvements, including user friendly PIN management.
+
+Compilation
+
+"configure --with-pkcs11 ..."
+
+PKCS#11 Libraries
+
+Tested with Solaris one with a SCA board and with openCryptoki with the
+software token.
+
+OpenSSL Engines
+
+With PKCS#11 support the PKCS#11 engine is statically loaded but at its
+initialization it dynamically loads the PKCS#11 objects.
+Even the pre commands are therefore unused they are defined with:
+ SO_PATH:
+   define: PKCS11_SO_PATH
+   default: /usr/local/lib/engines/engine_pkcs11.so
+ MODULE_PATH:
+   define: PKCS11_MODULE_PATH
+   default: /usr/lib/libpkcs11.so
+Without PKCS#11 support, a specific OpenSSL engine can be still used
+by defining ENGINE_ID at compile time.
+
+PKCS#11 tools
+
+The contrib/pkcs11-keygen directory contains a set of experimental tools
+to handle keys stored in a Hardware Security Module at the benefit of BIND.
+
+The patch for OpenSSL 0.9.8g is in this directory. Read its README.pkcs11
+for the way to use it (these are the original notes so with the original
+path, etc. Define OPENCRYPTOKI to use it with openCryptoki.)
+
+PIN management
+
+With the just fixed PKCS#11 OpenSSL engine, the PIN should be entered
+each time it is required. With the improved engine, the PIN should be
+entered the first time it is required or can be configured in the
+OpenSSL configuration file (aka. openssl.cnf) by adding in it:
+ - at the beginning:
+	openssl_conf = openssl_def
+ - at any place these sections:
+	[ openssl_def ]
+	engines = engine_section
+	[ engine_section ]
+	pkcs11 = pkcs11_section
+	[ pkcs11_section ]
+	PIN = put__your__pin__value__here
+
+Note
+
+Some names here are registered trademarks, at least Solaris is a trademark
+of Sun Microsystems Inc...

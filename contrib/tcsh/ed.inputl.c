@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.inputl.c,v 3.66 2006/11/29 22:32:24 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.inputl.c,v 3.70 2009/06/25 21:15:37 christos Exp $ */
 /*
  * ed.inputl.c: Input line handling.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: ed.inputl.c,v 3.66 2006/11/29 22:32:24 christos Exp $")
+RCSID("$tcsh: ed.inputl.c,v 3.70 2009/06/25 21:15:37 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -45,8 +45,10 @@ RCSID("$tcsh: ed.inputl.c,v 3.66 2006/11/29 22:32:24 christos Exp $")
 extern int MapsAreInited;
 
 /* mismatched first character */
-static Char mismatch[] = 
-    {'!', '^' , '\\', '-', '%', '\0', '"', '\'', '`', '\0' };
+static Char mismatch[] = { '\\', '-', '%', '\0' };
+/* don't Strchr() for '\0', obey current history character settings */
+#define MISMATCH(c) ((c) == '\0' || (c) == HIST || (c) == HISTSUB || \
+			Strchr(mismatch, (c)))
 
 static	int	Repair		(void);
 static	int	GetNextCommand	(KEYCMD *, Char *);
@@ -89,10 +91,12 @@ Inputl(void)
     struct varent *imode = adrof(STRinputmode);
     Char   *SaveChar, *CorrChar;
     int     matchval;		/* from tenematch() */
+    int     nr_history_exp;     /* number of (attempted) history expansions */
     COMMAND fn;
     int curlen = 0;
     int newlen;
     int idx;
+    Char *autoexpand;
 
     if (!MapsAreInited)		/* double extra just in case */
 	ed_InitMaps();
@@ -260,13 +264,13 @@ Inputl(void)
 		    ch = tch;
 		    if (ch == 'y' || ch == ' ') {
 			LastChar = CorrChar;	/* Restore the corrected end */
-			xprintf(CGETS(6, 2, "yes\n"));
+			xprintf("%s", CGETS(6, 2, "yes\n"));
 		    }
 		    else {
 			Strcpy(InputBuf, Origin);
 			LastChar = SaveChar;
 			if (ch == 'e') {
-			    xprintf(CGETS(6, 3, "edit\n"));
+			    xprintf("%s", CGETS(6, 3, "edit\n"));
 			    *LastChar-- = '\0';
 			    Cursor = LastChar;
 			    printprompt(3, NULL);
@@ -277,7 +281,7 @@ Inputl(void)
 			    break;
 			}
 			else if (ch == 'a') {
-			    xprintf(CGETS(6, 4, "abort\n"));
+			    xprintf("%s", CGETS(6, 4, "abort\n"));
 		            LastChar = InputBuf;   /* Null the current line */
 			    Cursor = LastChar;
 			    printprompt(0, NULL);
@@ -285,7 +289,7 @@ Inputl(void)
 			    cleanup_until(Origin);
 			    break;
 			}
-			xprintf(CGETS(6, 5, "no\n"));
+			xprintf("%s", CGETS(6, 5, "no\n"));
 		    }
 		    flush();
 		}
@@ -305,9 +309,9 @@ Inputl(void)
                     PastBottom();
 		}
 		if (matchval == 0) {
-		    xprintf(CGETS(6, 6, "No matching command\n"));
+		    xprintf("%s", CGETS(6, 6, "No matching command\n"));
 		} else if (matchval == 2) {
-		    xprintf(CGETS(6, 7, "Ambiguous command\n"));
+		    xprintf("%s", CGETS(6, 7, "Ambiguous command\n"));
 		}
 	        if (NeedsRedraw) {
 		    ClearLines();
@@ -394,65 +398,73 @@ Inputl(void)
 	    curlen = (int) (LastChar - InputBuf);
 
 
-	    if (adrof(STRautoexpand))
-		(void) e_expand_history(0);
-	    /*
-	     * Modified by Martin Boyer (gamin@ireq-robot.hydro.qc.ca):
-	     * A separate variable now controls beeping after
-	     * completion, independently of autolisting.
-	     */
-	    expnum = (int) (Cursor - InputBuf);
-	    switch (matchval = tenematch(InputBuf, Cursor-InputBuf, fn)){
-	    case 1:
-		if (non_unique_match && matchbeep && matchbeep->vec != NULL &&
-		    (Strcmp(*(matchbeep->vec), STRnotunique) == 0))
-		    SoundBeep();
-		break;
-	    case 0:
-		if (matchbeep && matchbeep->vec != NULL) {
-		    if (Strcmp(*(matchbeep->vec), STRnomatch) == 0 ||
-			Strcmp(*(matchbeep->vec), STRambiguous) == 0 ||
-			Strcmp(*(matchbeep->vec), STRnotunique) == 0)
+	    nr_history_exp = 0;
+	    autoexpand = varval(STRautoexpand);
+	    if (autoexpand != STRNULL)
+		nr_history_exp += ExpandHistory();
+
+	    /* try normal expansion only if no history references were found */
+	    if (nr_history_exp == 0 ||
+		Strcmp(autoexpand, STRonlyhistory) != 0) {
+		/*
+		 * Modified by Martin Boyer (gamin@ireq-robot.hydro.qc.ca):
+		 * A separate variable now controls beeping after
+		 * completion, independently of autolisting.
+		 */
+		expnum = (int) (Cursor - InputBuf);
+		switch (matchval = tenematch(InputBuf, Cursor-InputBuf, fn)){
+		case 1:
+		    if (non_unique_match && matchbeep &&
+			matchbeep->vec != NULL &&
+			(Strcmp(*(matchbeep->vec), STRnotunique) == 0))
 			SoundBeep();
-		}
-		else
-		    SoundBeep();
-		break;
-	    default:
-		if (matchval < 0) {	/* Error from tenematch */
-		    curchoice = -1;
-		    SoundBeep();
+		    break;
+		case 0:
+		    if (matchbeep && matchbeep->vec != NULL) {
+			if (Strcmp(*(matchbeep->vec), STRnomatch) == 0 ||
+			    Strcmp(*(matchbeep->vec), STRambiguous) == 0 ||
+			    Strcmp(*(matchbeep->vec), STRnotunique) == 0)
+			    SoundBeep();
+		    }
+		    else
+			SoundBeep();
+		    break;
+		default:
+		    if (matchval < 0) {	/* Error from tenematch */
+			curchoice = -1;
+			SoundBeep();
+			break;
+		    }
+		    if (matchbeep && matchbeep->vec != NULL) {
+			if ((Strcmp(*(matchbeep->vec), STRambiguous) == 0 ||
+			     Strcmp(*(matchbeep->vec), STRnotunique) == 0))
+			    SoundBeep();
+		    }
+		    else
+			SoundBeep();
+		    /*
+		     * Addition by David C Lawrence <tale@pawl.rpi.edu>: If an 
+		     * attempted completion is ambiguous, list the choices.  
+		     * (PWP: this is the best feature addition to tcsh I have 
+		     * seen in many months.)
+		     */
+		    if (autol && autol->vec != NULL && 
+			(Strcmp(*(autol->vec), STRambiguous) != 0 || 
+					 expnum == Cursor - InputBuf)) {
+			if (adrof(STRhighlight) && MarkIsSet) {
+			    /* clear highlighting before showing completions */
+			    MarkIsSet = 0;
+			    ClearLines();
+			    ClearDisp();
+			    Refresh();
+			    MarkIsSet = 1;
+			}
+			PastBottom();
+			fn = (retval == CC_COMPLETE_ALL) ? LIST_ALL : LIST;
+			(void) tenematch(InputBuf, Cursor-InputBuf, fn);
+		    }
 		    break;
 		}
-		if (matchbeep && matchbeep->vec != NULL) {
-		    if ((Strcmp(*(matchbeep->vec), STRambiguous) == 0 ||
-			 Strcmp(*(matchbeep->vec), STRnotunique) == 0))
-			SoundBeep();
-		}
-		else
-		    SoundBeep();
-		/*
-		 * Addition by David C Lawrence <tale@pawl.rpi.edu>: If an 
-		 * attempted completion is ambiguous, list the choices.  
-		 * (PWP: this is the best feature addition to tcsh I have 
-		 * seen in many months.)
-		 */
-		if (autol && autol->vec != NULL && 
-		    (Strcmp(*(autol->vec), STRambiguous) != 0 || 
-				     expnum == Cursor - InputBuf)) {
-		    if (adrof(STRhighlight) && MarkIsSet) {
-			/* clear highlighting before showing completions */
-			MarkIsSet = 0;
-			ClearLines();
-			ClearDisp();
-			Refresh();
-			MarkIsSet = 1;
-		    }
-		    PastBottom();
-		    fn = (retval == CC_COMPLETE_ALL) ? LIST_ALL : LIST;
-		    (void) tenematch(InputBuf, Cursor-InputBuf, fn);
-		}
-		break;
 	    }
 	    if (NeedsRedraw) {
 		PastBottom();
@@ -845,10 +857,7 @@ SpellLine(int cmdonly)
 		Cursor--;
 	    endflag = 0;
 	}
-	/* Obey current history character settings */
-	mismatch[0] = HIST;
-	mismatch[1] = HISTSUB;
-	if (!Strchr(mismatch, *argptr) &&
+	if (!MISMATCH(*argptr) &&
 	    (!cmdonly || starting_a_command(argptr, InputBuf))) {
 #ifdef WINNT_NATIVE
 	    /*
@@ -926,7 +935,7 @@ CompleteLine(void)
 		Cursor--;
 	    endflag = 0;
 	}
-	if (!Strchr(mismatch, *argptr) && starting_a_command(argptr, InputBuf)) {
+	if (!MISMATCH(*argptr) && starting_a_command(argptr, InputBuf)) {
 	    tmatch = tenematch(InputBuf, Cursor - InputBuf, RECOGNIZE);
 	    if (tmatch <= 0) {
                 return 0;

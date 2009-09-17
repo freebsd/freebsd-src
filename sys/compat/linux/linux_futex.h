@@ -36,9 +36,12 @@
 #ifndef _LINUX_FUTEX_H
 #define _LINUX_FUTEX_H
 
+extern LIST_HEAD(futex_list, futex) futex_list;
+extern struct mtx futex_mtx;
+
 #define LINUX_FUTEX_WAIT	0
 #define LINUX_FUTEX_WAKE	1
-#define LINUX_FUTEX_FD		2
+#define LINUX_FUTEX_FD		2	/* unused */
 #define LINUX_FUTEX_REQUEUE	3
 #define LINUX_FUTEX_CMP_REQUEUE	4
 #define LINUX_FUTEX_WAKE_OP	5

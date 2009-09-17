@@ -1,7 +1,5 @@
 /* $FreeBSD$ */
 
-#include <osreldate.h>
-
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.in by autoheader.  */
 
@@ -11,20 +9,35 @@
 /* Recognize ELF core files */
 #define ELFCORE 1
 
+/* Define to 1 if you have the `asprintf' function. */
+#define HAVE_ASPRINTF 1
+
 /* */
 /* #undef HAVE_DAYLIGHT */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
+/* Define to 1 if you have the <err.h> header file. */
+#define HAVE_ERR_H 1
+
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
+
+/* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
+#define HAVE_FSEEKO 1
 
 /* Define to 1 if you have the <getopt.h> header file. */
 #define HAVE_GETOPT_H 1
 
 /* Define to 1 if you have the `getopt_long' function. */
 #define HAVE_GETOPT_LONG 1
+
+/* Define to 1 if the system has the type `int32_t'. */
+#define HAVE_INT32_T 1
+
+/* Define to 1 if the system has the type `int64_t'. */
+#define HAVE_INT64_T 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -60,9 +73,7 @@
 #define HAVE_SNPRINTF 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
-#if __FreeBSD_version >= 500019
 #define HAVE_STDINT_H 1
-#endif
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
@@ -75,6 +86,12 @@
 
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
+
+/* Define to 1 if you have the `strlcat' function. */
+#define HAVE_STRLCAT 1
+
+/* Define to 1 if you have the `strlcpy' function. */
+#define HAVE_STRLCPY 1
 
 /* Define to 1 if you have the `strndup' function. */
 #define HAVE_STRNDUP 1
@@ -91,6 +108,12 @@
 /* Define to 1 if your `struct stat' has `st_rdev'. Deprecated, use
    `HAVE_STRUCT_STAT_ST_RDEV' instead. */
 #define HAVE_ST_RDEV 1
+
+/* Define to 1 if `tm_gmtoff' is member of `struct tm'. */
+#define HAVE_STRUCT_TM_TM_GMTOFF 1
+
+/* Define to 1 if `tm_zone' is member of `struct tm'. */
+#define HAVE_STRUCT_TM_TM_ZONE 1
 
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #define HAVE_SYS_MMAN_H 1
@@ -119,6 +142,18 @@
 /* HAVE_TZNAME */
 #define HAVE_TZNAME 1
 
+/* Define to 1 if the system has the type `uint16_t'. */
+#define HAVE_UINT16_T 1
+
+/* Define to 1 if the system has the type `uint32_t'. */
+#define HAVE_UINT32_T 1
+
+/* Define to 1 if the system has the type `uint64_t'. */
+#define HAVE_UINT64_T 1
+
+/* Define to 1 if the system has the type `uint8_t'. */
+#define HAVE_UINT8_T 1
+
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
@@ -130,6 +165,9 @@
 
 /* Define to 1 if you have the <utime.h> header file. */
 #define HAVE_UTIME_H 1
+
+/* Define to 1 if you have the `vasprintf' function. */
+#define HAVE_VASPRINTF 1
 
 /* Define to 1 if you have the `vsnprintf' function. */
 #define HAVE_VSNPRINTF 1
@@ -154,6 +192,9 @@
    <sysmacros.h>. */
 /* #undef MAJOR_IN_SYSMACROS */
 
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+/* #undef NO_MINUS_C_MINUS_O */
+
 /* Name of package */
 #define PACKAGE "file"
 
@@ -170,7 +211,7 @@
 #define PACKAGE_TARNAME ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION ""
+#define PACKAGE_VERSION VERSION
 
 /* */
 #define SIZEOF_INT64_T 8
@@ -194,7 +235,7 @@
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "4.23"
+#define VERSION "5.00"
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */
@@ -211,30 +252,3 @@
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
-
-/* */
-/* #undef int32_t */
-
-/* */
-/* #undef int64_t */
-
-/* Define to a type if <wchar.h> does not define. */
-/* #undef mbstate_t */
-
-/* Define to `long int' if <sys/types.h> does not define. */
-/* #undef off_t */
-
-/* Define to `unsigned int' if <sys/types.h> does not define. */
-/* #undef size_t */
-
-/* */
-/* #undef uint16_t */
-
-/* */
-/* #undef uint32_t */
-
-/* */
-/* #undef uint64_t */
-
-/* */
-/* #undef uint8_t */

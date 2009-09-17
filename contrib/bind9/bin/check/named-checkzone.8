@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2007, 2009 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named-checkzone.8,v 1.18.18.23 2007/06/20 02:26:58 marka Exp $
+.\" $Id: named-checkzone.8,v 1.42.334.1 2009/01/23 01:53:33 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -33,7 +33,7 @@
 named\-checkzone, named\-compilezone \- zone file validity checking or converting tool
 .SH "SYNOPSIS"
 .HP 16
-\fBnamed\-checkzone\fR [\fB\-d\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-M\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-S\ \fR\fB\fImode\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {zonename} {filename}
+\fBnamed\-checkzone\fR [\fB\-d\fR] [\fB\-h\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-M\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-S\ \fR\fB\fImode\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {zonename} {filename}
 .HP 18
 \fBnamed\-compilezone\fR [\fB\-d\fR] [\fB\-j\fR] [\fB\-q\fR] [\fB\-v\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-C\ \fR\fB\fImode\fR\fR] [\fB\-f\ \fR\fB\fIformat\fR\fR] [\fB\-F\ \fR\fB\fIformat\fR\fR] [\fB\-i\ \fR\fB\fImode\fR\fR] [\fB\-k\ \fR\fB\fImode\fR\fR] [\fB\-m\ \fR\fB\fImode\fR\fR] [\fB\-n\ \fR\fB\fImode\fR\fR] [\fB\-o\ \fR\fB\fIfilename\fR\fR] [\fB\-s\ \fR\fB\fIstyle\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-w\ \fR\fB\fIdirectory\fR\fR] [\fB\-D\fR] [\fB\-W\ \fR\fB\fImode\fR\fR] {zonename} {filename}
 .SH "DESCRIPTION"
@@ -58,6 +58,11 @@ configuration file.
 Enable debugging.
 .RE
 .PP
+\-h
+.RS 4
+Print the usage summary and exit.
+.RE
+.PP
 \-q
 .RS 4
 Quiet mode \- exit code only.
@@ -77,7 +82,7 @@ When loading the zone file read the journal if it exists.
 .PP
 \-c \fIclass\fR
 .RS 4
-Specify the class of the zone. If not specified "IN" is assumed.
+Specify the class of the zone. If not specified, "IN" is assumed.
 .RE
 .PP
 \-i \fImode\fR
@@ -188,7 +193,11 @@ Specify whether NS records should be checked to see if they are addresses. Possi
 \-o \fIfilename\fR
 .RS 4
 Write zone output to
-\fIfilename\fR. This is mandatory for
+\fIfilename\fR. If
+\fIfilename\fR
+is
+\fI\-\fR
+then write to standard out. This is mandatory for
 \fBnamed\-compilezone\fR.
 .RE
 .PP
@@ -263,7 +272,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2007 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2007, 2009 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2002 Internet Software Consortium.
 .br

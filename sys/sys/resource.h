@@ -94,8 +94,9 @@ struct rusage {
 #define RLIMIT_VMEM	10		/* virtual process size (inclusive of mmap) */
 #define	RLIMIT_AS	RLIMIT_VMEM	/* standard name for RLIMIT_VMEM */
 #define	RLIMIT_NPTS	11		/* pseudo-terminals */
+#define	RLIMIT_SWAP	12		/* swap used */
 
-#define	RLIM_NLIMITS	12		/* number of resource limits */
+#define	RLIM_NLIMITS	13		/* number of resource limits */
 
 #define	RLIM_INFINITY	((rlim_t)(((uint64_t)1 << 63) - 1))
 /* XXX Missing: RLIM_SAVED_MAX, RLIM_SAVED_CUR */
@@ -119,6 +120,7 @@ static char *rlimit_ident[RLIM_NLIMITS] = {
 	"sbsize",
 	"vmem",
 	"npts",
+	"swap",
 };
 #endif
 

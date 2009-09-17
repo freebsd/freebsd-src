@@ -293,6 +293,8 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 			return (ENOMEM);
 		}
 		ngit->rule = fwa->rule;
+		ngit->rule_id = fwa->rule_id;
+		ngit->chain_id = fwa->chain_id;
 		ngit->dir = dir;
 		ngit->ifp = fwa->oif;
 		m_tag_prepend(m, &ngit->mt);

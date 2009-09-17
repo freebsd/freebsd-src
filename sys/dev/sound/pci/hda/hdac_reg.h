@@ -136,6 +136,8 @@
 	(((gcap) & HDAC_GCAP_ISS_MASK) >> HDAC_GCAP_ISS_SHIFT)
 #define HDAC_GCAP_OSS(gcap)						\
 	(((gcap) & HDAC_GCAP_OSS_MASK) >> HDAC_GCAP_OSS_SHIFT)
+#define HDAC_GCAP_NSDO(gcap)						\
+	(((gcap) & HDAC_GCAP_NSDO_MASK) >> HDAC_GCAP_NSDO_SHIFT)
 
 /* GCTL - Global Control */
 #define HDAC_GCTL_CRST			0x00000001

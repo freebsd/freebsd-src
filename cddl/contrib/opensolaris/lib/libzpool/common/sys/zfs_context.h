@@ -237,9 +237,11 @@ typedef struct kmutex {
 
 #define	mutex_init(mp, b, c, d)		zmutex_init((kmutex_t *)(mp))
 #define	mutex_destroy(mp)		zmutex_destroy((kmutex_t *)(mp))
+#define	mutex_owned(mp)			zmutex_owned((kmutex_t *)(mp))
 
 extern void zmutex_init(kmutex_t *mp);
 extern void zmutex_destroy(kmutex_t *mp);
+extern int zmutex_owned(kmutex_t *mp);
 extern void mutex_enter(kmutex_t *mp);
 extern void mutex_exit(kmutex_t *mp);
 extern int mutex_tryenter(kmutex_t *mp);
@@ -418,6 +420,7 @@ typedef struct vsecattr {
 #define	VOP_FSYNC(vp, f, cr, ct)	fsync((vp)->v_fd)
 
 #define	VN_RELE(vp)	vn_close(vp, 0, NULL, NULL)
+#define	VN_RELE_ASYNC(vp, taskq)	vn_close(vp, 0, NULL, NULL)
 
 #define	vn_lock(vp, type)
 #define	VOP_UNLOCK(vp, type)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2007  Mark Nudelman
+ * Copyright (C) 1984-2009  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -393,8 +393,10 @@ init_charset()
  */
 	public int
 binary_char(c)
-	unsigned char c;
+	LWCHAR c;
 {
+    if (utf_mode)
+		return (is_ubin_char(c));
 	c &= 0377;
 	return (chardef[c] & IS_BINARY_CHAR);
 }
@@ -404,7 +406,7 @@ binary_char(c)
  */
 	public int
 control_char(c)
-	int c;
+	LWCHAR c;
 {
 	c &= 0377;
 	return (chardef[c] & IS_CONTROL_CHAR);
@@ -416,14 +418,14 @@ control_char(c)
  */
 	public char *
 prchar(c)
-	int c;
+	LWCHAR c;
 {
 	/* {{ This buffer can be overrun if LESSBINFMT is a long string. }} */
 	static char buf[32];
 
 	c &= 0377;
 	if ((c < 128 || !utf_mode) && !control_char(c))
-		SNPRINTF1(buf, sizeof(buf), "%c", c);
+		SNPRINTF1(buf, sizeof(buf), "%c", (int) c);
 	else if (c == ESC)
 		strcpy(buf, "ESC");
 #if IS_EBCDIC_HOST
@@ -440,7 +442,7 @@ prchar(c)
 		"..V....D....TU.Z"[c]);
 #else
   	else if (c < 128 && !control_char(c ^ 0100))
-  		SNPRINTF1(buf, sizeof(buf), "^%c", c ^ 0100);
+  		SNPRINTF1(buf, sizeof(buf), "^%c", (int) (c ^ 0100));
 #endif
 	else
 		SNPRINTF1(buf, sizeof(buf), binfmt, c);
@@ -811,7 +813,11 @@ static struct wchar_range comb_table[] = {
  *	dated 2005-11-30T00:58:48Z
  */
 static struct wchar_range ubin_table[] = {
-	{  0x0000,  0x001F} /* Cc */, {  0x007F,  0x009F} /* Cc */,
+	{  0x0000,  0x0007} /* Cc */, 
+	{  0x000B,  0x000C} /* Cc */, 
+	{  0x000E,  0x001A} /* Cc */, 
+	{  0x001C,  0x001F} /* Cc */, 
+    {  0x007F,  0x009F} /* Cc */,
 #if 0
 	{  0x00AD,  0x00AD} /* Cf */,
 #endif

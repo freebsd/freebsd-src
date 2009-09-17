@@ -53,7 +53,7 @@ struct memblock {
 	struct memblock *next;
 	size_t	size;
 	void *buff;
-	off_t filebytes;
+	int64_t filebytes;
 };
 
 /*
@@ -61,17 +61,17 @@ struct memblock {
  * some accounting overhead.
  */
 struct memdata {
-	off_t filebytes;
+	int64_t filebytes;
 	void *buff;
 	struct memblock *first;
 	struct memblock *last;
 };
 
 /* The following size definitions simplify things below. */
-#define KB ((off_t)1024)
-#define MB ((off_t)1024 * KB)
-#define GB ((off_t)1024 * MB)
-#define TB ((off_t)1024 * GB)
+#define KB ((int64_t)1024)
+#define MB ((int64_t)1024 * KB)
+#define GB ((int64_t)1024 * MB)
+#define TB ((int64_t)1024 * GB)
 
 #if ARCHIVE_VERSION_NUMBER < 2000000
 static ssize_t	memory_read_skip(struct archive *, void *, size_t request);
@@ -100,7 +100,7 @@ memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 	if ((const char *)filedata <= (const char *)buff
 	    && (const char *)buff < (const char *)filedata + filedatasize) {
 		/* We don't need to store a block of file data. */
-		private->last->filebytes += size;
+		private->last->filebytes += (int64_t)size;
 	} else {
 		/* Yes, we're assuming the very first write is metadata. */
 		/* It's header or metadata, copy and save it. */
@@ -117,7 +117,7 @@ memory_write(struct archive *a, void *_private, const void *buff, size_t size)
 		}
 		block->next = NULL;
 	}
-	return (size);
+	return ((long)size);
 }
 
 static ssize_t
@@ -140,8 +140,8 @@ memory_read(struct archive *a, void *_private, const void **buff)
 		 * We're returning file bytes, simulate it by
 		 * passing blocks from the template data.
 		 */
-		if (private->filebytes > (off_t)filedatasize)
-			size = filedatasize;
+		if (private->filebytes > (int64_t)filedatasize)
+			size = (ssize_t)filedatasize;
 		else
 			size = (ssize_t)private->filebytes;
 		private->filebytes -= size;
@@ -152,7 +152,7 @@ memory_read(struct archive *a, void *_private, const void **buff)
 		 */
 		block = private->first;
 		private->first = block->next;
-		size = block->size;
+		size = (ssize_t)block->size;
 		if (block->buff != NULL) {
 			private->buff = block->buff;
 			*buff = block->buff;
@@ -202,7 +202,7 @@ memory_read_skip(struct archive *a, void *_private, off_t skip)
 DEFINE_TEST(test_tar_large)
 {
 	/* The sizes of the entries we're going to generate. */
-	static off_t tests[] = {
+	static int64_t tests[] = {
 		/* Test for 32-bit signed overflow. */
 		2 * GB - 1, 2 * GB, 2 * GB + 1,
 		/* Test for 32-bit unsigned overflow. */
@@ -218,9 +218,10 @@ DEFINE_TEST(test_tar_large)
 	struct memdata memdata;
 	struct archive_entry *ae;
 	struct archive *a;
-	off_t  filesize, writesize;
+	int64_t  filesize;
+	size_t writesize;
 
-	filedatasize = 1 * MB;
+	filedatasize = (size_t)(1 * MB);
 	filedata = malloc(filedatasize);
 	memset(filedata, 0xAA, filedatasize);
 	memset(&memdata, 0, sizeof(memdata));
@@ -236,17 +237,13 @@ DEFINE_TEST(test_tar_large)
 	/*
 	 * Write a series of large files to it.
 	 */
-	for (i = 0; tests[i] > 0; i++) {
+	for (i = 0; tests[i] != 0; i++) {
 		assert((ae = archive_entry_new()) != NULL);
 		sprintf(namebuff, "file_%d", i);
 		archive_entry_copy_pathname(ae, namebuff);
 		archive_entry_set_mode(ae, S_IFREG | 0755);
 		filesize = tests[i];
 
-		if (filesize < 0) {
-			skipping("32-bit off_t doesn't permit testing of very large files.");
-			return;
-		}
 		archive_entry_set_size(ae, filesize);
 
 		assertA(0 == archive_write_header(a, ae));
@@ -257,9 +254,10 @@ DEFINE_TEST(test_tar_large)
 		 */
 		while (filesize > 0) {
 			writesize = filedatasize;
-			if (writesize > filesize)
-				writesize = filesize;
-			assertA(writesize == archive_write_data(a, filedata, writesize));
+			if ((int64_t)writesize > filesize)
+				writesize = (size_t)filesize;
+			assertA((int)writesize
+			    == archive_write_data(a, filedata, writesize));
 			filesize -= writesize;
 		}
 	}

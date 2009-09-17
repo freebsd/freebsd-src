@@ -520,7 +520,8 @@ dab_fatal(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig 
 	printf(", pc =%08x\n\n", tf->tf_pc);
 
 #ifdef KDB
-	kdb_trap(fsr, 0, tf);
+	if (debugger_on_panic || kdb_active)
+		kdb_trap(fsr, 0, tf);
 #endif
 	panic("Fatal abort");
 	/*NOTREACHED*/
@@ -530,7 +531,7 @@ dab_fatal(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig 
  * dab_align() handles the following data aborts:
  *
  *  FAULT_ALIGN_0 - Alignment fault
- *  FAULT_ALIGN_0 - Alignment fault
+ *  FAULT_ALIGN_1 - Alignment fault
  *
  * These faults are fatal if they happen in kernel mode. Otherwise, we
  * deliver a bus error to the process.

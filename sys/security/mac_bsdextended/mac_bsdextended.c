@@ -202,8 +202,8 @@ out:
 	return (error);
 }
 
-SYSCTL_NODE(_security_mac_bsdextended, OID_AUTO, rules, CTLFLAG_RW,
-    sysctl_rule, "BSD extended MAC rules");
+SYSCTL_NODE(_security_mac_bsdextended, OID_AUTO, rules,
+    CTLFLAG_MPSAFE | CTLFLAG_RW, sysctl_rule, "BSD extended MAC rules");
 
 static void
 ugidfw_init(struct mac_policy_conf *mpc)
@@ -271,8 +271,8 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	}
 
 	if (rule->mbr_subject.mbs_flags & MBS_PRISON_DEFINED) {
-		match = (cred->cr_prison != NULL &&
-		    cred->cr_prison->pr_id == rule->mbr_subject.mbs_prison);
+		match =
+		    (cred->cr_prison->pr_id == rule->mbr_subject.mbs_prison);
 		if (rule->mbr_subject.mbs_neg & MBS_PRISON_DEFINED)
 			match = !match;
 		if (!match)
@@ -478,9 +478,9 @@ ugidfw_accmode2mbi(accmode_t accmode)
 		mbi |= MBI_WRITE;
 	if (accmode & VREAD)
 		mbi |= MBI_READ;
-	if (accmode & VADMIN)
+	if (accmode & VADMIN_PERMS)
 		mbi |= MBI_ADMIN;
-	if (accmode & VSTAT)
+	if (accmode & VSTAT_PERMS)
 		mbi |= MBI_STAT;
 	if (accmode & VAPPEND)
 		mbi |= MBI_APPEND;

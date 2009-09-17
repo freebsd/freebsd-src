@@ -110,6 +110,7 @@ static struct pci_id pci_ns8250_ids[] = {
 { 0x1415, 0x950b, 0xffff, 0, "Oxford Semiconductor OXCB950 Cardbus 16950 UART",
 	0x10, 16384000 },
 { 0x151f, 0x0000, 0xffff, 0, "TOPIC Semiconductor TP560 56k modem", 0x10 },
+{ 0x9710, 0x9835, 0x1000, 1, "NetMos NM9835 Serial Port", 0x10 },
 { 0xdeaf, 0x9051, 0xffff, 0, "Middle Digital PC Weasel Serial Port", 0x10 },
 { 0xffff, 0, 0xffff, 0, NULL, 0, 0}
 };
@@ -159,4 +160,3 @@ uart_pci_probe(device_t dev)
 }
 
 DRIVER_MODULE(uart, pci, uart_pci_driver, uart_devclass, 0, 0);
-DRIVER_MODULE(uart, cardbus, uart_pci_driver, uart_devclass, 0, 0);

@@ -148,6 +148,8 @@ struct pargs {
  *      r - p_peers lock
  *      t - thread lock
  *      x - created at fork, only changes during single threading in exec
+ *      y - created at first aio, doesn't change until exit or exec at which
+ *          point we are single-threaded and only curthread changes it
  *      z - zombie threads lock
  *
  * If the locking key specifies two identifiers (for example, p_pptr) then
@@ -222,8 +224,6 @@ struct thread {
 	u_int		td_sticks;	/* (t) Statclock hits in system mode. */
 	u_int		td_iticks;	/* (t) Statclock hits in intr mode. */
 	u_int		td_uticks;	/* (t) Statclock hits in user mode. */
-	u_int		td_uuticks;	/* (k) Statclock hits (usr), for UTS. */
-	u_int		td_usticks;	/* (k) Statclock hits (sys), for UTS. */
 	int		td_intrval;	/* (t) Return value for sleepq. */
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
@@ -235,6 +235,7 @@ struct thread {
 	char		td_name[MAXCOMLEN + 1];	/* (*) Thread name. */
 	struct file	*td_fpop;	/* (k) file referencing cdev under op */
 	int		td_dbgflags;	/* (c) Userland debugger flags */
+	int		td_ng_outbound;	/* (k) Thread entered ng from above. */
 	struct osd	td_osd;		/* (k) Object specific data. */
 #define	td_endzero td_base_pri
 
@@ -266,9 +267,6 @@ struct thread {
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
 	vm_offset_t	td_kstack;	/* (a) Kernel VA of kstack. */
 	int		td_kstack_pages; /* (a) Size of the kstack. */
-	struct vm_object *td_altkstack_obj;/* (a) Alternate kstack object. */
-	vm_offset_t	td_altkstack;	/* (a) Kernel VA of alternate kstack. */
-	int		td_altkstack_pages; /* (a) Size of alternate kstack. */
 	volatile u_int	td_critnest;	/* (k*) Critical section nest level. */
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
@@ -277,6 +275,8 @@ struct thread {
 	struct lpohead	td_lprof[2];	/* (a) lock profiling objects. */
 	struct kdtrace_thread	*td_dtrace; /* (*) DTrace-specific data. */
 	int		td_errno;	/* Error returned by last syscall. */
+	struct vnet	*td_vnet;	/* (k) Effective vnet. */
+	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -317,7 +317,7 @@ do {									\
 #define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
 #define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x00001000 /* Timeout from sleep after we were awake. */
-#define	TDF_UNUSED2000	0x00002000 /* --available-- */
+#define	TDF_SBDRY	0x00002000 /* Stop only on usermode boundary. */
 #define	TDF_UPIBLOCKED	0x00004000 /* Thread blocked on user PI mutex. */
 #define	TDF_NEEDSUSPCHK	0x00008000 /* Thread may need to suspend. */
 #define	TDF_NEEDRESCHED	0x00010000 /* Thread needs to yield. */
@@ -347,7 +347,7 @@ do {									\
 #define	TDP_OLDMASK	0x00000001 /* Need to restore mask after suspend. */
 #define	TDP_INKTR	0x00000002 /* Thread is currently in KTR code. */
 #define	TDP_INKTRACE	0x00000004 /* Thread is currently in KTRACE code. */
-#define	TDP_UNUSED8	0x00000008 /* available */
+#define	TDP_BUFNEED	0x00000008 /* Do not recurse into the buf flush */
 #define	TDP_COWINPROGRESS 0x00000010 /* Snapshot copy-on-write in progress. */
 #define	TDP_ALTSTACK	0x00000020 /* Have alternate signal stack. */
 #define	TDP_DEADLKTREAT	0x00000040 /* Lock aquisition - deadlock treatment. */
@@ -368,6 +368,7 @@ do {									\
 #define	TDP_KTHREAD	0x00200000 /* This is an official kernel thread */
 #define	TDP_CALLCHAIN	0x00400000 /* Capture thread's callchain */
 #define	TDP_IGNSUSP	0x00800000 /* Permission to ignore the MNTK_SUSPEND* */
+#define	TDP_AUDITREC	0x01000000 /* Audit record pending on thread */
 
 /*
  * Reasons that the current thread can not be run yet.
@@ -492,7 +493,7 @@ struct proc {
 	struct vnode	*p_tracevp;	/* (c + o) Trace to vnode. */
 	struct ucred	*p_tracecred;	/* (o) Credentials to trace with. */
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
-	char		p_lock;		/* (c) Proclock (prevent swap) count. */
+	u_int		p_lock;		/* (c) Proclock (prevent swap) count. */
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
 	int		p_sigparent;	/* (c) Signal to parent on exit. */
 	int		p_sig;		/* (n) For core dump/debugger XXX. */
@@ -502,7 +503,7 @@ struct proc {
 	char		p_step;		/* (c) Process is stopped. */
 	u_char		p_pfsflags;	/* (c) Procfs flags. */
 	struct nlminfo	*p_nlminfo;	/* (?) Only used by/for lockd. */
-	struct kaioinfo	*p_aioinfo;	/* (c) ASYNC I/O info. */
+	struct kaioinfo	*p_aioinfo;	/* (y) ASYNC I/O info. */
 	struct thread	*p_singlethread;/* (c + j) If single threading this is it */
 	int		p_suspcount;	/* (j) Num threads in suspended mode. */
 	struct thread	*p_xthread;	/* (c) Trap thread */
@@ -846,7 +847,8 @@ void	cpu_thread_exit(struct thread *);
 void	cpu_thread_free(struct thread *);
 void	cpu_thread_swapin(struct thread *);
 void	cpu_thread_swapout(struct thread *);
-struct	thread *thread_alloc(void);
+struct	thread *thread_alloc(int pages);
+int	thread_alloc_stack(struct thread *, int pages);
 void	thread_exit(void) __dead2;
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct proc *p);

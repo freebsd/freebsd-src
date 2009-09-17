@@ -1285,7 +1285,7 @@ diskLabel(Device *dev)
 
 #ifndef __ia64__
 	case '|':
-	    if (!msgNoYes("Are you sure you want to go into Wizard mode?\n\n"
+	    if (!msgNoYes("Are you sure you want to go into Expert mode?\n\n"
 			  "This is an entirely undocumented feature which you are not\n"
 			  "expected to understand!")) {
 		int i;
@@ -1389,7 +1389,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 #ifdef __ia64__
     AutoEfi = NULL;
     if (EfiChunk == NULL) {
-	sz = 100 * ONE_MEG;
+	sz = 400 * ONE_MEG;
 	AutoEfi = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 	    label_chunk_info[here].c, sz, efi, 0, 0);
 	if (AutoEfi == NULL) {

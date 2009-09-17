@@ -18,16 +18,18 @@ SRCS+=	af_link.c		# LLC support
 SRCS+=	af_inet.c		# IPv4 support
 SRCS+=	af_inet6.c		# IPv6 support
 SRCS+=	af_atalk.c		# AppleTalk support
+SRCS+=	af_nd6.c		# ND6 support
 
 SRCS+=	ifclone.c		# clone device support
 SRCS+=	ifmac.c			# MAC support
 SRCS+=	ifmedia.c		# SIOC[GS]IFMEDIA support
 SRCS+=	ifvlan.c		# SIOC[GS]ETVLAN support
 SRCS+=	ifgre.c			# GRE keys etc
+SRCS+=	ifgif.c			# GIF reversed header workaround
 
 SRCS+=	ifieee80211.c regdomain.c # SIOC[GS]IEEE80211 support
-DPADD+=	${LIBBSDXML} ${LIBSBUF}
-LDADD+=	-lbsdxml -lsbuf
+DPADD+=	${LIBBSDXML} ${LIBSBUF} ${LIBJAIL}
+LDADD+=	-lbsdxml -ljail -lsbuf
 
 SRCS+=	ifcarp.c		# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...

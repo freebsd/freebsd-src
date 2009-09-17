@@ -64,17 +64,19 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
+#include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/libkern.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/netisr.h>
+#include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 
@@ -121,7 +123,7 @@ typedef struct ng_iface_private *priv_p;
 static void	ng_iface_start(struct ifnet *ifp);
 static int	ng_iface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int	ng_iface_output(struct ifnet *ifp, struct mbuf *m0,
-			struct sockaddr *dst, struct rtentry *rt0);
+    			struct sockaddr *dst, struct route *ro);
 static void	ng_iface_bpftap(struct ifnet *ifp,
 			struct mbuf *m, sa_family_t family);
 static int	ng_iface_send(struct ifnet *ifp, struct mbuf *m,
@@ -208,9 +210,8 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(iface, &typestruct);
 
-#ifdef VIMAGE_GLOBALS
-static struct unrhdr	*ng_iface_unit;
-#endif
+static VNET_DEFINE(struct unrhdr *, ng_iface_unit);
+#define	V_ng_iface_unit			VNET(ng_iface_unit)
 
 /************************************************************************
 			HELPER STUFF
@@ -354,7 +355,7 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 static int
 ng_iface_output(struct ifnet *ifp, struct mbuf *m,
-		struct sockaddr *dst, struct rtentry *rt0)
+    		struct sockaddr *dst, struct route *ro)
 {
 	struct m_tag *mtag;
 	uint32_t af;
@@ -368,7 +369,8 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	/* Protect from deadly infinite recursion. */
-	while ((mtag = m_tag_locate(m, MTAG_NGIF, MTAG_NGIF_CALLED, NULL))) {
+	mtag = NULL;
+	while ((mtag = m_tag_locate(m, MTAG_NGIF, MTAG_NGIF_CALLED, mtag))) {
 		if (*(struct ifnet **)(mtag + 1) == ifp) {
 			log(LOG_NOTICE, "Loop detected on %s\n", ifp->if_xname);
 			m_freem(m);
@@ -468,9 +470,10 @@ ng_iface_send(struct ifnet *ifp, struct mbuf *m, sa_family_t sa)
 	/* Copy length before the mbuf gets invalidated. */
 	len = m->m_pkthdr.len;
 
-	/* Send packet. If hook is not connected,
-	   mbuf will get freed. */
+	/* Send packet. If hook is not connected, mbuf will get freed. */
+	NG_OUTBOUND_THREAD_REF();
 	NG_SEND_DATA_ONLY(error, *get_hook_from_iffam(priv, iffam), m);
+	NG_OUTBOUND_THREAD_UNREF();
 
 	/* Update stats. */
 	if (error == 0) {
@@ -526,7 +529,6 @@ ng_iface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 static int
 ng_iface_constructor(node_p node)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	struct ifnet *ifp;
 	priv_p priv;
 
@@ -596,6 +598,7 @@ ng_iface_newhook(node_p node, hook_p hook, const char *name)
 		return (EISCONN);
 	*hookptr = hook;
 	NG_HOOK_HI_STACK(hook);
+	NG_HOOK_SET_TO_INBOUND(hook);
 	return (0);
 }
 
@@ -667,6 +670,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			struct ifaddr *ifa;
 
 			/* Return the first configured IP address */
+			if_addr_rlock(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				struct ng_cisco_ipaddr *ips;
 
@@ -684,6 +688,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 						ifa->ifa_netmask)->sin_addr;
 				break;
 			}
+			if_addr_runlock(ifp);
 
 			/* No IP addresses on this interface? */
 			if (ifa == NULL)
@@ -787,7 +792,6 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 static int
 ng_iface_shutdown(node_p node)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/*
@@ -833,10 +837,7 @@ ng_iface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		V_ng_iface_unit = new_unrhdr(0, 0xffff, NULL);
-		break;
 	case MOD_UNLOAD:
-		delete_unrhdr(V_ng_iface_unit);
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -844,3 +845,21 @@ ng_iface_mod_event(module_t mod, int event, void *data)
 	}
 	return (error);
 }
+
+static void
+vnet_ng_iface_init(const void *unused)
+{
+
+	V_ng_iface_unit = new_unrhdr(0, 0xffff, NULL);
+}
+VNET_SYSINIT(vnet_ng_iface_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
+    vnet_ng_iface_init, NULL);
+
+static void
+vnet_ng_iface_uninit(const void *unused)
+{
+
+	delete_unrhdr(V_ng_iface_unit);
+}
+VNET_SYSUNINIT(vnet_ng_iface_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
+    vnet_ng_iface_uninit, NULL);

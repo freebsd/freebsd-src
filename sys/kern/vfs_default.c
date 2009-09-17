@@ -48,9 +48,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/fcntl.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
+#include <sys/dirent.h>
 #include <sys/poll.h>
+
+#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -63,6 +68,14 @@ __FBSDID("$FreeBSD$");
 
 static int	vop_nolookup(struct vop_lookup_args *);
 static int	vop_nostrategy(struct vop_strategy_args *);
+static int	get_next_dirent(struct vnode *vp, struct dirent **dpp,
+				char *dirbuf, int dirbuflen, off_t *off,
+				char **cpos, int *len, int *eofflag,
+				struct thread *td);
+static int	dirent_exists(struct vnode *vp, const char *dirname,
+			      struct thread *td);
+
+#define DIRENT_MINSIZE (sizeof(struct dirent) - (MAXNAMLEN+1) + 4)
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
@@ -76,6 +89,7 @@ struct vop_vector default_vnodeops = {
 	.vop_default =		NULL,
 	.vop_bypass =		VOP_EOPNOTSUPP,
 
+	.vop_accessx =		vop_stdaccessx,
 	.vop_advlock =		vop_stdadvlock,
 	.vop_advlockasync =	vop_stdadvlockasync,
 	.vop_bmap =		vop_stdbmap,
@@ -87,7 +101,6 @@ struct vop_vector default_vnodeops = {
 	.vop_ioctl =		VOP_ENOTTY,
 	.vop_kqfilter =		vop_stdkqfilter,
 	.vop_islocked =		vop_stdislocked,
-	.vop_lease =		VOP_NULL,
 	.vop_lock1 =		vop_stdlock,
 	.vop_lookup =		vop_nolookup,
 	.vop_open =		VOP_NULL,
@@ -98,7 +111,7 @@ struct vop_vector default_vnodeops = {
 	.vop_revoke =		VOP_PANIC,
 	.vop_strategy =		vop_nostrategy,
 	.vop_unlock =		vop_stdunlock,
-	.vop_vptocnp =		VOP_ENOENT,
+	.vop_vptocnp =		vop_stdvptocnp,
 	.vop_vptofh =		vop_stdvptofh,
 };
 
@@ -208,6 +221,124 @@ vop_nostrategy (struct vop_strategy_args *ap)
 	ap->a_bp->b_error = EOPNOTSUPP;
 	bufdone(ap->a_bp);
 	return (EOPNOTSUPP);
+}
+
+static int
+get_next_dirent(struct vnode *vp, struct dirent **dpp, char *dirbuf,
+		int dirbuflen, off_t *off, char **cpos, int *len,
+		int *eofflag, struct thread *td)
+{
+	int error, reclen;
+	struct uio uio;
+	struct iovec iov;
+	struct dirent *dp;
+
+	KASSERT(VOP_ISLOCKED(vp), ("vp %p is not locked", vp));
+	KASSERT(vp->v_type == VDIR, ("vp %p is not a directory", vp));
+
+	if (*len == 0) {
+		iov.iov_base = dirbuf;
+		iov.iov_len = dirbuflen;
+
+		uio.uio_iov = &iov;
+		uio.uio_iovcnt = 1;
+		uio.uio_offset = *off;
+		uio.uio_resid = dirbuflen;
+		uio.uio_segflg = UIO_SYSSPACE;
+		uio.uio_rw = UIO_READ;
+		uio.uio_td = td;
+
+		*eofflag = 0;
+
+#ifdef MAC
+		error = mac_vnode_check_readdir(td->td_ucred, vp);
+		if (error == 0)
+#endif
+			error = VOP_READDIR(vp, &uio, td->td_ucred, eofflag,
+		    		NULL, NULL);
+		if (error)
+			return (error);
+
+		*off = uio.uio_offset;
+
+		*cpos = dirbuf;
+		*len = (dirbuflen - uio.uio_resid);
+	}
+
+	dp = (struct dirent *)(*cpos);
+	reclen = dp->d_reclen;
+	*dpp = dp;
+
+	/* check for malformed directory.. */
+	if (reclen < DIRENT_MINSIZE)
+		return (EINVAL);
+
+	*cpos += reclen;
+	*len -= reclen;
+
+	return (0);
+}
+
+/*
+ * Check if a named file exists in a given directory vnode.
+ */
+static int
+dirent_exists(struct vnode *vp, const char *dirname, struct thread *td)
+{
+	char *dirbuf, *cpos;
+	int error, eofflag, dirbuflen, len, found;
+	off_t off;
+	struct dirent *dp;
+	struct vattr va;
+
+	KASSERT(VOP_ISLOCKED(vp), ("vp %p is not locked", vp));
+	KASSERT(vp->v_type == VDIR, ("vp %p is not a directory", vp));
+
+	found = 0;
+
+	error = VOP_GETATTR(vp, &va, td->td_ucred);
+	if (error)
+		return (found);
+
+	dirbuflen = DEV_BSIZE;
+	if (dirbuflen < va.va_blocksize)
+		dirbuflen = va.va_blocksize;
+	dirbuf = (char *)malloc(dirbuflen, M_TEMP, M_WAITOK);
+
+	off = 0;
+	len = 0;
+	do {
+		error = get_next_dirent(vp, &dp, dirbuf, dirbuflen, &off,
+					&cpos, &len, &eofflag, td);
+		if (error)
+			goto out;
+
+		if ((dp->d_type != DT_WHT) &&
+		    !strcmp(dp->d_name, dirname)) {
+			found = 1;
+			goto out;
+		}
+	} while (len > 0 || !eofflag);
+
+out:
+	free(dirbuf, M_TEMP);
+	return (found);
+}
+
+int
+vop_stdaccessx(struct vop_accessx_args *ap)
+{
+	int error;
+	accmode_t accmode = ap->a_accmode;
+
+	error = vfs_unixify_accmode(&accmode);
+	if (error != 0)
+		return (error);
+
+	if (accmode == 0)
+		return (0);
+
+	return (VOP_ACCESS(ap->a_vp, accmode, ap->a_cred, ap->a_td));
 }
 
 /*
@@ -354,18 +485,8 @@ vop_nopoll(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	/*
-	 * Return true for read/write.  If the user asked for something
-	 * special, return POLLNVAL, so that clients have a way of
-	 * determining reliably whether or not the extended
-	 * functionality is present without hard-coding knowledge
-	 * of specific filesystem implementations.
-	 * Stay in sync with kern_conf.c::no_poll().
-	 */
-	if (ap->a_events & ~POLLSTANDARD)
-		return (POLLNVAL);
 
-	return (ap->a_events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
+	return (poll_no_poll(ap->a_events));
 }
 
 /*
@@ -567,52 +688,172 @@ vop_stdvptofh(struct vop_vptofh_args *ap)
 	return (EOPNOTSUPP);
 }
 
+int
+vop_stdvptocnp(struct vop_vptocnp_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct vnode **dvp = ap->a_vpp;
+	struct ucred *cred = ap->a_cred;
+	char *buf = ap->a_buf;
+	int *buflen = ap->a_buflen;
+	char *dirbuf, *cpos;
+	int i, error, eofflag, dirbuflen, flags, locked, len, covered;
+	off_t off;
+	ino_t fileno;
+	struct vattr va;
+	struct nameidata nd;
+	struct thread *td;
+	struct dirent *dp;
+	struct vnode *mvp;
+
+	i = *buflen;
+	error = 0;
+	covered = 0;
+	td = curthread;
+
+	if (vp->v_type != VDIR)
+		return (ENOENT);
+
+	error = VOP_GETATTR(vp, &va, cred);
+	if (error)
+		return (error);
+
+	VREF(vp);
+	locked = VOP_ISLOCKED(vp);
+	VOP_UNLOCK(vp, 0);
+	NDINIT_ATVP(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE,
+	    "..", vp, td);
+	flags = FREAD;
+	error = vn_open_cred(&nd, &flags, 0, VN_OPEN_NOAUDIT, cred, NULL);
+	if (error) {
+		vn_lock(vp, locked | LK_RETRY);
+		return (error);
+	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+
+	mvp = *dvp = nd.ni_vp;
+
+	if (vp->v_mount != (*dvp)->v_mount &&
+	    ((*dvp)->v_vflag & VV_ROOT) &&
+	    ((*dvp)->v_mount->mnt_flag & MNT_UNION)) {
+		*dvp = (*dvp)->v_mount->mnt_vnodecovered;
+		VREF(mvp);
+		VOP_UNLOCK(mvp, 0);
+		vn_close(mvp, FREAD, cred, td);
+		VREF(*dvp);
+		vn_lock(*dvp, LK_EXCLUSIVE | LK_RETRY);
+		covered = 1;
+	}
+
+	fileno = va.va_fileid;
+
+	dirbuflen = DEV_BSIZE;
+	if (dirbuflen < va.va_blocksize)
+		dirbuflen = va.va_blocksize;
+	dirbuf = (char *)malloc(dirbuflen, M_TEMP, M_WAITOK);
+
+	if ((*dvp)->v_type != VDIR) {
+		error = ENOENT;
+		goto out;
+	}
+
+	off = 0;
+	len = 0;
+	do {
+		/* call VOP_READDIR of parent */
+		error = get_next_dirent(*dvp, &dp, dirbuf, dirbuflen, &off,
+					&cpos, &len, &eofflag, td);
+		if (error)
+			goto out;
+
+		if ((dp->d_type != DT_WHT) &&
+		    (dp->d_fileno == fileno)) {
+			if (covered) {
+				VOP_UNLOCK(*dvp, 0);
+				vn_lock(mvp, LK_EXCLUSIVE | LK_RETRY);
+				if (dirent_exists(mvp, dp->d_name, td)) {
+					error = ENOENT;
+					VOP_UNLOCK(mvp, 0);
+					vn_lock(*dvp, LK_EXCLUSIVE | LK_RETRY);
+					goto out;
+				}
+				VOP_UNLOCK(mvp, 0);
+				vn_lock(*dvp, LK_EXCLUSIVE | LK_RETRY);
+			}
+			i -= dp->d_namlen;
+
+			if (i < 0) {
+				error = ENOMEM;
+				goto out;
+			}
+			bcopy(dp->d_name, buf + i, dp->d_namlen);
+			error = 0;
+			goto out;
+		}
+	} while (len > 0 || !eofflag);
+	error = ENOENT;
+
+out:
+	free(dirbuf, M_TEMP);
+	if (!error) {
+		*buflen = i;
+		vhold(*dvp);
+	}
+	if (covered) {
+		vput(*dvp);
+		vrele(mvp);
+	} else {
+		VOP_UNLOCK(mvp, 0);
+		vn_close(mvp, FREAD, cred, td);
+	}
+	vn_lock(vp, locked | LK_RETRY);
+	return (error);
+}
+
 /*
  * vfs default ops
  * used to fill the vfs function table to get reasonable default return values.
  */
 int
-vfs_stdroot (mp, flags, vpp, td)
+vfs_stdroot (mp, flags, vpp)
 	struct mount *mp;
 	int flags;
 	struct vnode **vpp;
-	struct thread *td;
 {
 
 	return (EOPNOTSUPP);
 }
 
 int
-vfs_stdstatfs (mp, sbp, td)
+vfs_stdstatfs (mp, sbp)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct thread *td;
 {
 
 	return (EOPNOTSUPP);
 }
 
 int
-vfs_stdquotactl (mp, cmds, uid, arg, td)
+vfs_stdquotactl (mp, cmds, uid, arg)
 	struct mount *mp;
 	int cmds;
 	uid_t uid;
 	void *arg;
-	struct thread *td;
 {
 
 	return (EOPNOTSUPP);
 }
 
 int
-vfs_stdsync(mp, waitfor, td)
+vfs_stdsync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
-	struct thread *td;
 {
 	struct vnode *vp, *mvp;
+	struct thread *td;
 	int error, lockreq, allerror = 0;
 
+	td = curthread;
 	lockreq = LK_EXCLUSIVE | LK_INTERLOCK;
 	if (waitfor != MNT_WAIT)
 		lockreq |= LK_NOWAIT;
@@ -649,10 +890,9 @@ loop:
 }
 
 int
-vfs_stdnosync (mp, waitfor, td)
+vfs_stdnosync (mp, waitfor)
 	struct mount *mp;
 	int waitfor;
-	struct thread *td;
 {
 
 	return (0);
@@ -696,13 +936,12 @@ vfs_stduninit (vfsp)
 }
 
 int
-vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname, td)
+vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname)
 	struct mount *mp;
 	int cmd;
 	struct vnode *filename_vp;
 	int attrnamespace;
 	const char *attrname;
-	struct thread *td;
 {
 
 	if (filename_vp != NULL)

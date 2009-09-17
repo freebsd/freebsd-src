@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/resourcevar.h>
@@ -304,9 +305,14 @@ intr_event_bind(struct intr_event *ie, u_char cpu)
 
 	if (ie->ie_assign_cpu == NULL)
 		return (EOPNOTSUPP);
+
+	error = priv_check(curthread, PRIV_SCHED_CPUSET_INTR);
+	if (error)
+		return (error);
+
 	/*
-	 * If we have any ithreads try to set their mask first since this
-	 * can fail.
+	 * If we have any ithreads try to set their mask first to verify
+	 * permissions, etc.
 	 */
 	mtx_lock(&ie->ie_lock);
 	if (ie->ie_thread != NULL) {
@@ -323,8 +329,22 @@ intr_event_bind(struct intr_event *ie, u_char cpu)
 	} else
 		mtx_unlock(&ie->ie_lock);
 	error = ie->ie_assign_cpu(ie->ie_source, cpu);
-	if (error)
+	if (error) {
+		mtx_lock(&ie->ie_lock);
+		if (ie->ie_thread != NULL) {
+			CPU_ZERO(&mask);
+			if (ie->ie_cpu == NOCPU)
+				CPU_COPY(cpuset_root, &mask);
+			else
+				CPU_SET(cpu, &mask);
+			id = ie->ie_thread->it_thread->td_tid;
+			mtx_unlock(&ie->ie_lock);
+			(void)cpuset_setthread(id, &mask);
+		} else
+			mtx_unlock(&ie->ie_lock);
 		return (error);
+	}
+
 	mtx_lock(&ie->ie_lock);
 	ie->ie_cpu = cpu;
 	mtx_unlock(&ie->ie_lock);
@@ -373,8 +393,7 @@ intr_setaffinity(int irq, void *m)
 	ie = intr_lookup(irq);
 	if (ie == NULL)
 		return (ESRCH);
-	intr_event_bind(ie, cpu);
-	return (0);
+	return (intr_event_bind(ie, cpu));
 }
 
 int
@@ -968,6 +987,18 @@ intr_event_schedule_thread(struct intr_event *ie, struct intr_thread *it)
 #endif
 
 /*
+ * Allow interrupt event binding for software interrupt handlers -- a no-op,
+ * since interrupts are generated in software rather than being directed by
+ * a PIC.
+ */
+static int
+swi_assign_cpu(void *arg, u_char cpu)
+{
+
+	return (0);
+}
+
+/*
  * Add a software interrupt handler to a specified event.  If a given event
  * is not specified, then a new event is created.
  */
@@ -988,7 +1019,7 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 			return (EINVAL);
 	} else {
 		error = intr_event_create(&ie, NULL, IE_SOFT, 0,
-		    NULL, NULL, NULL, NULL, "swi%d:", pri);
+		    NULL, NULL, NULL, swi_assign_cpu, "swi%d:", pri);
 		if (error)
 			return (error);
 		if (eventp != NULL)

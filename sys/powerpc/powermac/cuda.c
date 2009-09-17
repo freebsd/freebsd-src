@@ -68,7 +68,7 @@ static int	cuda_detach(device_t);
 static u_int	cuda_adb_send(device_t dev, u_char command_byte, int len, 
     u_char *data, u_char poll);
 static u_int	cuda_adb_autopoll(device_t dev, uint16_t mask);
-static void	cuda_poll(device_t dev);
+static u_int	cuda_poll(device_t dev);
 static void	cuda_send_inbound(struct cuda_softc *sc);
 static void	cuda_send_outbound(struct cuda_softc *sc);
 
@@ -471,16 +471,17 @@ cuda_send_inbound(struct cuda_softc *sc)
 	mtx_unlock(&sc->sc_mutex);
 }
 
-static void
+static u_int
 cuda_poll(device_t dev)
 {
 	struct cuda_softc *sc = device_get_softc(dev);
 
 	if (sc->sc_state == CUDA_IDLE && !cuda_intr_state(sc) && 
 	    !sc->sc_waiting)
-		return;
+		return (0);
 
 	cuda_intr(dev);
+	return (0);
 }
 
 static void

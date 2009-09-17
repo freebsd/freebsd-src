@@ -65,8 +65,6 @@ __FBSDID("$FreeBSD$");
 
 /*#define PULLDOWN_DEBUG*/
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

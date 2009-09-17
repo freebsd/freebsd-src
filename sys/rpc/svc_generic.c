@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/ucred.h>
 
+#include <net/vnet.h>
+
 #include <rpc/rpc.h>
 #include <rpc/rpcb_clnt.h>
 #include <rpc/nettype.h>
@@ -120,8 +122,10 @@ svc_create(
 			/* It was not found. Now create a new one */
 			xprt = svc_tp_create(pool, dispatch, prognum, versnum,
 			    NULL, nconf);
-			if (xprt)
+			if (xprt) {
 				num++;
+				SVC_RELEASE(xprt);
+			}
 		}
 	}
 	__rpc_endconf(handle);
@@ -179,6 +183,7 @@ svc_tp_create(
 				(unsigned)prognum, (unsigned)versnum,
 				nconf->nc_netid);
 		xprt_unregister(xprt);
+		SVC_RELEASE(xprt);
 		return (NULL);
 	}
 	return (xprt);
@@ -225,11 +230,14 @@ svc_tli_create(
 		/*
 		 * It is an open socket. Get the transport info.
 		 */
+		CURVNET_SET(so->so_vnet);
 		if (!__rpc_socket2sockinfo(so, &si)) {
 			printf(
 		"svc_tli_create: could not get transport information\n");
+			CURVNET_RESTORE();
 			return (NULL);
 		}
+		CURVNET_RESTORE();
 	}
 
 	/*
@@ -256,7 +264,9 @@ svc_tli_create(
 		"svc_tli_create: could not bind to requested address\n");
 				goto freedata;
 			}
+			CURVNET_SET(so->so_vnet);
 			solisten(so, (int)bindaddr->qlen, curthread);
+			CURVNET_RESTORE();
 		}
 			
 	}

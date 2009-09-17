@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SHLIB_MAJOR=	5
+SHLIB_MAJOR=	6
 WARNS?=		6
 
 MANFILTER=	sed -e 's%@MODPATH@%${LIBDIR}/%g'		\

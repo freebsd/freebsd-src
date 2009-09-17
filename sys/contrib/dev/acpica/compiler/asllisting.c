@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: asllisting - Listing file generation
- *              $Revision: 1.63 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,9 +117,9 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/acnamesp.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslisting")
@@ -198,6 +197,12 @@ LsDoHexOutputC (
 static void
 LsDoHexOutputAsm (
     void);
+
+ACPI_STATUS
+LsTreeWriteWalk (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Level,
+    void                    *Context);
 
 
 /*******************************************************************************

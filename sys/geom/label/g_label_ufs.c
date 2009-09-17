@@ -39,12 +39,16 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/label/g_label.h>
 
-#define G_LABEL_UFS_DIR	"ufs"
+#define G_LABEL_UFS_VOLUME_DIR	"ufs"
+#define G_LABEL_UFS_ID_DIR	"ufsid"
+
+#define	G_LABEL_UFS_VOLUME	0
+#define	G_LABEL_UFS_ID		1
 
 static const int superblocks[] = SBLOCKSEARCH;
 
 static void
-g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
+g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int what)
 {
 	struct g_provider *pp;
 	int sb, superblock;
@@ -96,18 +100,50 @@ g_label_ufs_taste(struct g_consumer *cp, char *label, size_t size)
 		}
 		G_LABEL_DEBUG(1, "%s file system detected on %s.",
 		    fs->fs_magic == FS_UFS1_MAGIC ? "UFS1" : "UFS2", pp->name);
-		/* Check for volume label */
-		if (fs->fs_volname[0] == '\0') {
-			g_free(fs);
-			continue;
+		switch (what) {
+		case G_LABEL_UFS_VOLUME:
+			/* Check for volume label */
+			if (fs->fs_volname[0] == '\0') {
+				g_free(fs);
+				continue;
+			}
+			strlcpy(label, fs->fs_volname, size);
+			break;
+		case G_LABEL_UFS_ID:
+			if (fs->fs_id[0] == 0 && fs->fs_id[1] == 0) {
+				g_free(fs);
+				continue;
+			}
+			snprintf(label, size, "%08x%08x", fs->fs_id[0],
+			    fs->fs_id[1]);
+			break;
 		}
-		strlcpy(label, fs->fs_volname, size);
 		g_free(fs);
 		break;
 	}
 }
 
-const struct g_label_desc g_label_ufs = {
-	.ld_taste = g_label_ufs_taste,
-	.ld_dir = G_LABEL_UFS_DIR
+static void
+g_label_ufs_volume_taste(struct g_consumer *cp, char *label, size_t size)
+{
+
+	g_label_ufs_taste_common(cp, label, size, G_LABEL_UFS_VOLUME);
+}
+
+static void
+g_label_ufs_id_taste(struct g_consumer *cp, char *label, size_t size)
+{
+
+	g_label_ufs_taste_common(cp, label, size, G_LABEL_UFS_ID);
+}
+
+
+const struct g_label_desc g_label_ufs_volume = {
+	.ld_taste = g_label_ufs_volume_taste,
+	.ld_dir = G_LABEL_UFS_VOLUME_DIR
+};
+
+const struct g_label_desc g_label_ufs_id = {
+	.ld_taste = g_label_ufs_id_taste,
+	.ld_dir = G_LABEL_UFS_ID_DIR
 };

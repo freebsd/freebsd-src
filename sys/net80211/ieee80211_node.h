@@ -35,7 +35,7 @@
  * Each ieee80211com instance has a single timer that fires every
  * IEEE80211_INACT_WAIT seconds to handle "inactivity processing".
  * This is used to do node inactivity processing when operating
- * as an AP or in adhoc mode.  For inactivity processing each node
+ * as an AP, adhoc or mesh mode.  For inactivity processing each node
  * has a timeout set in it's ni_inact field that is decremented
  * on each timeout and the node is reclaimed when the counter goes
  * to zero.  We use different inactivity timeout values depending
@@ -56,9 +56,9 @@
 /* threshold for aging overlapping non-ERP bss */
 #define	IEEE80211_NONERP_PRESENT_AGE	msecs_to_ticks(60*1000)
 
-#define	IEEE80211_NODE_HASHSIZE	32
+#define	IEEE80211_NODE_HASHSIZE	32		/* NB: hash size must be pow2 */
 /* simple hash is enough for variation of macaddr */
-#define	IEEE80211_NODE_HASH(addr)	\
+#define	IEEE80211_NODE_HASH(ic, addr)	\
 	(((const uint8_t *)(addr))[IEEE80211_ADDR_LEN - 1] % \
 		IEEE80211_NODE_HASHSIZE)
 
@@ -69,7 +69,7 @@ struct ieee80211vap;
 /*
  * Information element ``blob''.  We use this structure
  * to capture management frame payloads that need to be
- * retained.  Information elemnts within the payload that
+ * retained.  Information elements within the payload that
  * we need to consult have references recorded.
  */
 struct ieee80211_ies {
@@ -81,10 +81,26 @@ struct ieee80211_ies {
 	uint8_t	*htcap_ie;	/* captured HTCAP ie */
 	uint8_t	*htinfo_ie;	/* captured HTINFO ie */
 	uint8_t	*tdma_ie;	/* captured TDMA ie */
+	uint8_t *meshid_ie;	/* captured MESH ID ie */
+	uint8_t	*spare[4];
 	/* NB: these must be the last members of this structure */
 	uint8_t	*data;		/* frame data > 802.11 header */
 	int	len;		/* data size in bytes */
 };
+
+/*
+ * 802.11s (Mesh) Peer Link FSM state.
+ */
+enum ieee80211_mesh_mlstate {
+	IEEE80211_NODE_MESH_IDLE	= 0,
+	IEEE80211_NODE_MESH_OPENSNT	= 1,	/* open frame sent */
+	IEEE80211_NODE_MESH_OPENRCV	= 2,	/* open frame received */
+	IEEE80211_NODE_MESH_CONFIRMRCV	= 3,	/* confirm frame received */
+	IEEE80211_NODE_MESH_ESTABLISHED	= 4,	/* link established */
+	IEEE80211_NODE_MESH_HOLDING	= 5,	/* link closing */
+};
+#define	IEEE80211_MESH_MLSTATE_BITS \
+	"\20\1IDLE\2OPENSNT\2OPENRCV\3CONFIRMRCV\4ESTABLISHED\5HOLDING"
 
 /*
  * Node specific information.  Note that drivers are expected
@@ -119,6 +135,8 @@ struct ieee80211_node {
 #define	IEEE80211_NODE_SGI20	0x008000	/* Short GI in HT20 enabled */
 #define	IEEE80211_NODE_SGI40	0x010000	/* Short GI in HT40 enabled */
 #define	IEEE80211_NODE_ASSOCID	0x020000	/* xmit requires associd */
+#define	IEEE80211_NODE_AMSDU_RX	0x040000	/* AMSDU rx enabled */
+#define	IEEE80211_NODE_AMSDU_TX	0x080000	/* AMSDU tx enabled */
 	uint16_t		ni_associd;	/* association ID */
 	uint16_t		ni_vlan;	/* vlan tag */
 	uint16_t		ni_txpower;	/* current transmit power */
@@ -137,15 +155,14 @@ struct ieee80211_node {
 	uint32_t		*ni_challenge;	/* shared-key challenge */
 	struct ieee80211_ies	ni_ies;		/* captured ie's */
 						/* tx seq per-tid */
-	uint16_t		ni_txseqs[IEEE80211_TID_SIZE];
+	ieee80211_seq		ni_txseqs[IEEE80211_TID_SIZE];
 						/* rx seq previous per-tid*/
-	uint16_t		ni_rxseqs[IEEE80211_TID_SIZE];
+	ieee80211_seq		ni_rxseqs[IEEE80211_TID_SIZE];
 	uint32_t		ni_rxfragstamp;	/* time stamp of last rx frag */
 	struct mbuf		*ni_rxfrag[3];	/* rx frag reassembly */
 	struct ieee80211_key	ni_ucastkey;	/* unicast key */
 
 	/* hardware */
-	uint32_t		ni_rstamp;	/* recv timestamp */
 	uint32_t		ni_avgrssi;	/* recv ssi state */
 	int8_t			ni_noise;	/* noise floor */
 
@@ -171,6 +188,16 @@ struct ieee80211_node {
 	uint8_t			ni_dtim_period;	/* DTIM period */
 	uint8_t			ni_dtim_count;	/* DTIM count for last bcn */
 
+	/* 11s state */
+	uint8_t			ni_meshidlen;
+	uint8_t			ni_meshid[IEEE80211_MESHID_LEN];
+	enum ieee80211_mesh_mlstate ni_mlstate;	/* peering management state */
+	uint16_t		ni_mllid;	/* link local ID */
+	uint16_t		ni_mlpid;	/* link peer ID */
+	struct callout		ni_mltimer;	/* link mesh timer */
+	uint8_t			ni_mlrcnt;	/* link mesh retry counter */
+	uint8_t			ni_mltval;	/* link mesh timer value */
+
 	/* 11n state */
 	uint16_t		ni_htcap;	/* HT capabilities */
 	uint8_t			ni_htparam;	/* HT params */
@@ -191,8 +218,7 @@ struct ieee80211_node {
 	struct ieee80211_nodestats ni_stats;	/* per-node statistics */
 
 	struct ieee80211vap	*ni_wdsvap;	/* associated WDS vap */
-	/* XXX move to vap? */
-	struct ifqueue		ni_wdsq;	/* wds pending queue */
+	uint64_t		ni_spare[4];
 };
 MALLOC_DECLARE(M_80211_NODE);
 MALLOC_DECLARE(M_80211_NODE_IE);
@@ -200,11 +226,13 @@ MALLOC_DECLARE(M_80211_NODE_IE);
 #define	IEEE80211_NODE_ATH	(IEEE80211_NODE_FF | IEEE80211_NODE_TURBOP)
 #define	IEEE80211_NODE_AMPDU \
 	(IEEE80211_NODE_AMPDU_RX | IEEE80211_NODE_AMPDU_TX)
+#define	IEEE80211_NODE_AMSDU \
+	(IEEE80211_NODE_AMSDU_RX | IEEE80211_NODE_AMSDU_TX)
 #define	IEEE80211_NODE_HT_ALL \
 	(IEEE80211_NODE_HT | IEEE80211_NODE_HTCOMPAT | \
-	 IEEE80211_NODE_AMPDU | IEEE80211_NODE_MIMO_PS | \
-	 IEEE80211_NODE_MIMO_RTS | IEEE80211_NODE_RIFS | \
-	 IEEE80211_NODE_SGI20 | IEEE80211_NODE_SGI40)
+	 IEEE80211_NODE_AMPDU | IEEE80211_NODE_AMSDU | \
+	 IEEE80211_NODE_MIMO_PS | IEEE80211_NODE_MIMO_RTS | \
+	 IEEE80211_NODE_RIFS | IEEE80211_NODE_SGI20 | IEEE80211_NODE_SGI40)
 
 #define	IEEE80211_NODE_BITS \
 	"\20\1AUTH\2QOS\3ERP\5PWR_MGT\6AREF\7HT\10HTCOMPAT\11WPS\12TSN" \
@@ -281,11 +309,14 @@ ieee80211_node_is_authorized(const struct ieee80211_node *ni)
 void	ieee80211_node_authorize(struct ieee80211_node *);
 void	ieee80211_node_unauthorize(struct ieee80211_node *);
 
+void	ieee80211_node_setuptxparms(struct ieee80211_node *);
 void	ieee80211_node_set_chan(struct ieee80211_node *,
 		struct ieee80211_channel *);
 void	ieee80211_create_ibss(struct ieee80211vap*, struct ieee80211_channel *);
 void	ieee80211_reset_bss(struct ieee80211vap *);
 void	ieee80211_sync_curchan(struct ieee80211com *);
+void	ieee80211_setupcurchan(struct ieee80211com *,
+	    struct ieee80211_channel *);
 void	ieee80211_setcurchan(struct ieee80211com *, struct ieee80211_channel *);
 int	ieee80211_ibss_merge(struct ieee80211_node *);
 struct ieee80211_scan_entry;

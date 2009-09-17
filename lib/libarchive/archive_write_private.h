@@ -77,6 +77,8 @@ struct archive_write {
 		void	 *data;
 		void	 *config;
 		int	(*init)(struct archive_write *);
+		int	(*options)(struct archive_write *,
+			    const char *key, const char *value);
 		int	(*finish)(struct archive_write *);
 		int	(*write)(struct archive_write *, const void *, size_t);
 	} compressor;
@@ -86,7 +88,10 @@ struct archive_write {
 	 * initialized by archive_write_set_format_XXX() calls.
 	 */
 	void	 *format_data;
+	const char *format_name;
 	int	(*format_init)(struct archive_write *);
+	int	(*format_options)(struct archive_write *,
+		    const char *key, const char *value);
 	int	(*format_finish)(struct archive_write *);
 	int	(*format_destroy)(struct archive_write *);
 	int	(*format_finish_entry)(struct archive_write *);

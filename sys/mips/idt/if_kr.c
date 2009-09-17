@@ -89,7 +89,7 @@ static void kr_reset(struct kr_softc *);
 static int kr_resume(device_t);
 static int kr_rx_ring_init(struct kr_softc *);
 static int kr_tx_ring_init(struct kr_softc *);
-static void kr_shutdown(device_t);
+static int kr_shutdown(device_t);
 static void kr_start(struct ifnet *);
 static void kr_start_locked(struct ifnet *);
 static void kr_stop(struct kr_softc *);
@@ -392,7 +392,7 @@ kr_resume(device_t dev)
 	return 0;
 }
 
-static void
+static int
 kr_shutdown(device_t dev)
 {
 	struct kr_softc	*sc;
@@ -402,6 +402,8 @@ kr_shutdown(device_t dev)
 	KR_LOCK(sc);
 	kr_stop(sc);
 	KR_UNLOCK(sc);
+
+	return (0);
 }
 
 static int

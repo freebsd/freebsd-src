@@ -50,7 +50,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/raw_cb.h>
@@ -67,14 +66,18 @@
 
 #include <machine/stdarg.h>
 
-#ifdef VIMAGE_GLOBALS
-static struct key_cb key_cb;
-struct pfkeystat pfkeystat;
-#endif
+struct key_cb {
+	int key_count;
+	int any_count;
+};
+static VNET_DEFINE(struct key_cb, key_cb);
+#define	V_key_cb		VNET(key_cb)
 
-static struct sockaddr key_src = { 2, PF_KEY };
+static struct sockaddr key_src = { 2, PF_KEY, };
 
 static int key_sendup0 __P((struct rawcb *, struct mbuf *, int));
+
+VNET_DEFINE(struct pfkeystat, pfkeystat);
 
 /*
  * key_output()
@@ -82,7 +85,6 @@ static int key_sendup0 __P((struct rawcb *, struct mbuf *, int));
 int
 key_output(struct mbuf *m, struct socket *so)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_msg *msg;
 	int len, error = 0;
 
@@ -136,7 +138,6 @@ key_sendup0(rp, m, promisc)
 	struct mbuf *m;
 	int promisc;
 {
-	INIT_VNET_IPSEC(curvnet);
 	int error;
 
 	if (promisc) {
@@ -181,7 +182,6 @@ key_sendup(so, msg, len, target)
 	u_int len;
 	int target;	/*target of the resulting message*/
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *m, *n, *mprev;
 	int tlen;
 
@@ -270,8 +270,6 @@ key_sendup_mbuf(so, m, target)
 	struct mbuf *m;
 	int target;
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *n;
 	struct keycb *kp;
 	int sendup;
@@ -389,7 +387,6 @@ key_abort(struct socket *so)
 static int
 key_attach(struct socket *so, int proto, struct thread *td)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct keycb *kp;
 	int error;
 
@@ -464,7 +461,6 @@ key_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 static void
 key_detach(struct socket *so)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct keycb *kp = (struct keycb *)sotorawcb(so);
 
 	KASSERT(kp != NULL, ("key_detach: kp == NULL"));
@@ -567,10 +563,8 @@ struct protosw keysw[] = {
 static void
 key_init0(void)
 {
-	INIT_VNET_IPSEC(curvnet);
 
 	bzero((caddr_t)&V_key_cb, sizeof(V_key_cb));
-	ipsec_init();
 	key_init();
 }
 
@@ -578,8 +572,11 @@ struct domain keydomain = {
 	.dom_family =		PF_KEY,
 	.dom_name =		"key",
 	.dom_init =		key_init0,
+#ifdef VIMAGE
+	.dom_destroy =		key_destroy,
+#endif
 	.dom_protosw =		keysw,
 	.dom_protoswNPROTOSW =	&keysw[sizeof(keysw)/sizeof(keysw[0])]
 };
 
-DOMAIN_SET(key);
+VNET_DOMAIN_SET(key);

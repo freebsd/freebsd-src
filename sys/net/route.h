@@ -41,12 +41,14 @@
  */
 
 /*
- * A route consists of a destination address and a reference
- * to a routing entry.  These are often held by protocols
- * in their control blocks, e.g. inpcb.
+ * A route consists of a destination address, a reference
+ * to a routing entry, and a reference to an llentry.  
+ * These are often held by protocols in their control
+ * blocks, e.g. inpcb.
  */
 struct route {
 	struct	rtentry *ro_rt;
+	struct	llentry *ro_lle;
 	struct	sockaddr ro_dst;
 };
 
@@ -58,6 +60,7 @@ struct rt_metrics_lite {
 	u_long	rmx_mtu;	/* MTU for this path */
 	u_long	rmx_expire;	/* lifetime for route, e.g. redirect */
 	u_long	rmx_pksent;	/* packets sent using this route */
+	u_long	rmx_weight;	/* absolute weight */ 
 };
 
 struct rt_metrics {
@@ -71,7 +74,8 @@ struct rt_metrics {
 	u_long	rmx_rtt;	/* estimated round trip time */
 	u_long	rmx_rttvar;	/* estimated rtt variance */
 	u_long	rmx_pksent;	/* packets sent using this route */
-	u_long	rmx_filler[4];	/* will be used for T/TCP later */
+	u_long	rmx_weight;	/* route weight */
+	u_long	rmx_filler[3];	/* will be used for T/TCP later */
 };
 
 /*
@@ -193,13 +197,15 @@ struct ortentry {
 #define	RTF_LOCAL	0x200000 	/* route represents a local address */
 #define	RTF_BROADCAST	0x400000	/* route represents a bcast address */
 #define	RTF_MULTICAST	0x800000	/* route represents a mcast address */
-					/* 0x1000000 and up unassigned */
-#define	RTF_RNH_LOCKED	 0x40000000	/* radix node head locked by caller */
+					/* 0x8000000 and up unassigned */
+#define	RTF_STICKY	 0x10000000	/* always route dst->src */
+
+#define	RTF_RNH_LOCKED	 0x40000000	/* radix node head is locked */
 
 /* Mask of RTF flags that are allowed to be modified by RTM_CHANGE. */
 #define RTF_FMASK	\
 	(RTF_PROTO1 | RTF_PROTO2 | RTF_PROTO3 | RTF_BLACKHOLE | \
-	 RTF_REJECT | RTF_STATIC)
+	 RTF_REJECT | RTF_STATIC | RTF_STICKY)
 
 /*
  * Routing statistics.
@@ -225,7 +231,6 @@ struct rt_msghdr {
 	int	rtm_seq;	/* for sender to identify action */
 	int	rtm_errno;	/* why failed */
 	int	rtm_fmask;	/* bitmask used in RTM_CHANGE message */
-#define	rtm_use	rtm_fmask	/* deprecated, use rtm_rmx->rmx_pksent */
 	u_long	rtm_inits;	/* which metrics we are initializing */
 	struct	rt_metrics rtm_rmx; /* metrics themselves */
 };
@@ -265,6 +270,7 @@ struct rt_msghdr {
 #define RTV_SSTHRESH	0x20	/* init or lock _ssthresh */
 #define RTV_RTT		0x40	/* init or lock _rtt */
 #define RTV_RTTVAR	0x80	/* init or lock _rttvar */
+#define RTV_WEIGHT	0x100	/* init or lock _weight */
 
 /*
  * Bitmask values for rtm_addrs.
@@ -367,7 +373,7 @@ struct rt_addrinfo {
 	}							\
 } while (0)
 
-extern struct radix_node_head *rt_tables[][AF_MAX+1];
+struct radix_node_head *rt_tables_get_rnh(int, int);
 
 struct ifmultiaddr;
 
@@ -429,6 +435,7 @@ int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
 #include <sys/eventhandler.h>
 typedef void (*rtevent_arp_update_fn)(void *, struct rtentry *, uint8_t *, struct sockaddr *);
 typedef void (*rtevent_redirect_fn)(void *, struct rtentry *, struct rtentry *, struct sockaddr *);
+/* route_arp_update_event is no longer generated; see arp_update_event */
 EVENTHANDLER_DECLARE(route_arp_update_event, rtevent_arp_update_fn);
 EVENTHANDLER_DECLARE(route_redirect_event, rtevent_redirect_fn);
 #endif

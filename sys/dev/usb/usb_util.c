@@ -24,10 +24,29 @@
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_defs.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_util.h>
@@ -39,15 +58,10 @@
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 
-/* function prototypes */
-#if (USB_USE_CONDVAR == 0)
-static int usb2_msleep(void *chan, struct mtx *mtx, int priority, const char *wmesg, int timo);
-
-#endif
-
 /*------------------------------------------------------------------------*
  * device_delete_all_children - delete all children of a device
  *------------------------------------------------------------------------*/
+#ifndef device_delete_all_children
 int
 device_delete_all_children(device_t dev)
 {
@@ -67,21 +81,22 @@ device_delete_all_children(device_t dev)
 	}
 	return (error);
 }
+#endif
 
 /*------------------------------------------------------------------------*
- *	device_set_usb2_desc
+ *	device_set_usb_desc
  *
  * This function can be called at probe or attach to set the USB
  * device supplied textual description for the given device.
  *------------------------------------------------------------------------*/
 void
-device_set_usb2_desc(device_t dev)
+device_set_usb_desc(device_t dev)
 {
-	struct usb2_attach_arg *uaa;
-	struct usb2_device *udev;
-	struct usb2_interface *iface;
+	struct usb_attach_arg *uaa;
+	struct usb_device *udev;
+	struct usb_interface *iface;
 	char *temp_p;
-	usb2_error_t err;
+	usb_error_t err;
 
 	if (dev == NULL) {
 		/* should not happen */
@@ -107,13 +122,13 @@ device_set_usb2_desc(device_t dev)
 
 	if (!err) {
 		/* try to get the interface string ! */
-		err = usb2_req_get_string_any
+		err = usbd_req_get_string_any
 		    (udev, NULL, temp_p,
 		    sizeof(udev->bus->scratch), iface->idesc->iInterface);
 	}
 	if (err) {
 		/* use default description */
-		usb2_devinfo(udev, temp_p,
+		usb_devinfo(udev, temp_p,
 		    sizeof(udev->bus->scratch));
 	}
 	device_set_desc_copy(dev, temp_p);
@@ -122,14 +137,14 @@ device_set_usb2_desc(device_t dev)
 }
 
 /*------------------------------------------------------------------------*
- *	 usb2_pause_mtx - factored out code
+ *	 usb_pause_mtx - factored out code
  *
  * This function will delay the code by the passed number of system
  * ticks. The passed mutex "mtx" will be dropped while waiting, if
  * "mtx" is not NULL.
  *------------------------------------------------------------------------*/
 void
-usb2_pause_mtx(struct mtx *mtx, int _ticks)
+usb_pause_mtx(struct mtx *mtx, int _ticks)
 {
 	if (mtx != NULL)
 		mtx_unlock(mtx);
@@ -158,14 +173,14 @@ usb2_pause_mtx(struct mtx *mtx, int _ticks)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_printBCD
+ *	usb_printbcd
  *
  * This function will print the version number "bcd" to the string
  * pointed to by "p" having a maximum length of "p_len" bytes
  * including the terminating zero.
  *------------------------------------------------------------------------*/
 void
-usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
+usb_printbcd(char *p, uint16_t p_len, uint16_t bcd)
 {
 	if (snprintf(p, p_len, "%x.%02x", bcd >> 8, bcd & 0xff)) {
 		/* ignore any errors */
@@ -173,13 +188,13 @@ usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_trim_spaces
+ *	usb_trim_spaces
  *
  * This function removes spaces at the beginning and the end of the string
  * pointed to by the "p" argument.
  *------------------------------------------------------------------------*/
 void
-usb2_trim_spaces(char *p)
+usb_trim_spaces(char *p)
 {
 	char *q;
 	char *e;
@@ -196,26 +211,12 @@ usb2_trim_spaces(char *p)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_get_devid
- *
- * This function returns the USB Vendor and Product ID like a 32-bit
- * unsigned integer.
- *------------------------------------------------------------------------*/
-uint32_t
-usb2_get_devid(device_t dev)
-{
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-
-	return ((uaa->info.idVendor << 16) | (uaa->info.idProduct));
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_make_str_desc - convert an ASCII string into a UNICODE string
+ *	usb_make_str_desc - convert an ASCII string into a UNICODE string
  *------------------------------------------------------------------------*/
 uint8_t
-usb2_make_str_desc(void *ptr, uint16_t max_len, const char *s)
+usb_make_str_desc(void *ptr, uint16_t max_len, const char *s)
 {
-	struct usb2_string_descriptor *p = ptr;
+	struct usb_string_descriptor *p = ptr;
 	uint8_t totlen;
 	int j;
 
@@ -246,101 +247,3 @@ usb2_make_str_desc(void *ptr, uint16_t max_len, const char *s)
 	}
 	return (totlen);
 }
-
-#if (USB_USE_CONDVAR == 0)
-
-/*------------------------------------------------------------------------*
- *	usb2_cv_init - wrapper function
- *------------------------------------------------------------------------*/
-void
-usb2_cv_init(struct cv *cv, const char *desc)
-{
-	cv_init(cv, desc);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_cv_destroy - wrapper function
- *------------------------------------------------------------------------*/
-void
-usb2_cv_destroy(struct cv *cv)
-{
-	cv_destroy(cv);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_cv_wait - wrapper function
- *------------------------------------------------------------------------*/
-void
-usb2_cv_wait(struct cv *cv, struct mtx *mtx)
-{
-	int err;
-
-	err = usb2_msleep(cv, mtx, 0, cv_wmesg(cv), 0);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_cv_wait_sig - wrapper function
- *------------------------------------------------------------------------*/
-int
-usb2_cv_wait_sig(struct cv *cv, struct mtx *mtx)
-{
-	int err;
-
-	err = usb2_msleep(cv, mtx, PCATCH, cv_wmesg(cv), 0);
-	return (err);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_cv_timedwait - wrapper function
- *------------------------------------------------------------------------*/
-int
-usb2_cv_timedwait(struct cv *cv, struct mtx *mtx, int timo)
-{
-	int err;
-
-	if (timo == 0)
-		timo = 1;		/* zero means no timeout */
-	err = usb2_msleep(cv, mtx, 0, cv_wmesg(cv), timo);
-	return (err);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_cv_signal - wrapper function
- *------------------------------------------------------------------------*/
-void
-usb2_cv_signal(struct cv *cv)
-{
-	wakeup_one(cv);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_cv_broadcast - wrapper function
- *------------------------------------------------------------------------*/
-void
-usb2_cv_broadcast(struct cv *cv)
-{
-	wakeup(cv);
-}
-
-/*------------------------------------------------------------------------*
- *	usb2_msleep - wrapper function
- *------------------------------------------------------------------------*/
-static int
-usb2_msleep(void *chan, struct mtx *mtx, int priority, const char *wmesg,
-    int timo)
-{
-	int err;
-
-	if (mtx == &Giant) {
-		err = tsleep(chan, priority, wmesg, timo);
-	} else {
-#ifdef mtx_sleep
-		err = mtx_sleep(chan, mtx, priority, wmesg, timo);
-#else
-		err = msleep(chan, mtx, priority, wmesg, timo);
-#endif
-	}
-	return (err);
-}
-
-#endif

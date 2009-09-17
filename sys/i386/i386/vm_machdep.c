@@ -424,11 +424,6 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
-#ifdef PAE
-	pcb2->pcb_cr3 = vtophys(vmspace_pmap(td->td_proc->p_vmspace)->pm_pdpt);
-#else
-	pcb2->pcb_cr3 = vtophys(vmspace_pmap(td->td_proc->p_vmspace)->pm_pdir);
-#endif
 	pcb2->pcb_edi = 0;
 	pcb2->pcb_esi = (int)fork_return;		    /* trampoline arg */
 	pcb2->pcb_ebp = 0;
@@ -439,6 +434,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_gs = rgs();
 	/*
 	 * If we didn't copy the pcb, we'd need to do the following registers:
+	 * pcb2->pcb_cr3:	cloned above.
 	 * pcb2->pcb_dr*:	cloned above.
 	 * pcb2->pcb_savefpu:	cloned above.
 	 * pcb2->pcb_flags:	cloned above.
@@ -724,6 +720,39 @@ sf_buf_init(void *arg)
 }
 
 /*
+ * Invalidate the cache lines that may belong to the page, if
+ * (possibly old) mapping of the page by sf buffer exists.  Returns
+ * TRUE when mapping was found and cache invalidated.
+ */
+boolean_t
+sf_buf_invalidate_cache(vm_page_t m)
+{
+	struct sf_head *hash_list;
+	struct sf_buf *sf;
+	boolean_t ret;
+
+	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
+	ret = FALSE;
+	mtx_lock(&sf_buf_lock);
+	LIST_FOREACH(sf, hash_list, list_entry) {
+		if (sf->m == m) {
+			/*
+			 * Use pmap_qenter to update the pte for
+			 * existing mapping, in particular, the PAT
+			 * settings are recalculated.
+			 */
+			pmap_qenter(sf->kva, &m, 1);
+			pmap_invalidate_cache_range(sf->kva, sf->kva +
+			    PAGE_SIZE);
+			ret = TRUE;
+			break;
+		}
+	}
+	mtx_unlock(&sf_buf_lock);
+	return (ret);
+}
+
+/*
  * Get an sf_buf from the freelist.  May block if none are available.
  */
 struct sf_buf *
@@ -791,9 +820,10 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	opte = *ptep;
 #ifdef XEN
        PT_SET_MA(sf->kva, xpmap_ptom(VM_PAGE_TO_PHYS(m)) | pgeflag
-	   | PG_RW | PG_V);
+	   | PG_RW | PG_V | pmap_cache_bits(m->md.pat_mode, 0));
 #else
-	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
+	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V |
+	    pmap_cache_bits(m->md.pat_mode, 0);
 #endif
 
 	/*

@@ -375,6 +375,14 @@ ENTRY(sheeva_l2cache_wbinv_all)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 
+/* This function modifies register value as follows:
+ *
+ * arg1  arg		EFFECT (bit value saved into register)
+ *    0     0           not changed
+ *    0     1           negated
+ *    1     0           cleared
+ *    1     1           set
+ */
 ENTRY(sheeva_control_ext)
 	mrc	p15, 1, r3, c15, c1, 0	/* Read the control register */
 	bic	r2, r3, r0		/* Clear bits */

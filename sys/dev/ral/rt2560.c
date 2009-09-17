@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 
 #include <net80211/ieee80211_var.h>
-#include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_regdomain.h>
 #include <net80211/ieee80211_amrr.h>
@@ -145,6 +144,7 @@ static void		rt2560_set_chan(struct rt2560_softc *,
 static void		rt2560_disable_rf_tune(struct rt2560_softc *);
 #endif
 static void		rt2560_enable_tsf_sync(struct rt2560_softc *);
+static void		rt2560_enable_tsf(struct rt2560_softc *);
 static void		rt2560_update_plcp(struct rt2560_softc *);
 static void		rt2560_update_slot(struct ifnet *);
 static void		rt2560_set_basicrates(struct rt2560_softc *);
@@ -202,6 +202,7 @@ rt2560_attach(device_t dev, int id)
 	struct ifnet *ifp;
 	int error;
 	uint8_t bands;
+	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
 
@@ -260,7 +261,7 @@ rt2560_attach(device_t dev, int id)
 	ic = ifp->if_l2com;
 
 	/* retrieve MAC address */
-	rt2560_get_macaddr(sc, ic->ic_myaddr);
+	rt2560_get_macaddr(sc, macaddr);
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -284,6 +285,7 @@ rt2560_attach(device_t dev, int id)
 		| IEEE80211_C_MONITOR		/* monitor mode */
 		| IEEE80211_C_AHDEMO		/* adhoc demo mode */
 		| IEEE80211_C_WDS		/* 4-address traffic works */
+		| IEEE80211_C_MBSS		/* mesh point link mode */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
 		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
@@ -300,7 +302,7 @@ rt2560_attach(device_t dev, int id)
 		setbit(&bands, IEEE80211_MODE_11A);
 	ieee80211_init_channels(ic, NULL, &bands);
 
-	ieee80211_ifattach(ic);
+	ieee80211_ifattach(ic, macaddr);
 	ic->ic_newassoc = rt2560_newassoc;
 	ic->ic_raw_xmit = rt2560_raw_xmit;
 	ic->ic_updateslot = rt2560_update_slot;
@@ -313,16 +315,11 @@ rt2560_attach(device_t dev, int id)
 	ic->ic_vap_create = rt2560_vap_create;
 	ic->ic_vap_delete = rt2560_vap_delete;
 
-	bpfattach(ifp, DLT_IEEE802_11_RADIO,
-	    sizeof (struct ieee80211_frame) + sizeof (sc->sc_txtap));
-
-	sc->sc_rxtap_len = sizeof sc->sc_rxtap;
-	sc->sc_rxtap.wr_ihdr.it_len = htole16(sc->sc_rxtap_len);
-	sc->sc_rxtap.wr_ihdr.it_present = htole32(RT2560_RX_RADIOTAP_PRESENT);
-
-	sc->sc_txtap_len = sizeof sc->sc_txtap;
-	sc->sc_txtap.wt_ihdr.it_len = htole16(sc->sc_txtap_len);
-	sc->sc_txtap.wt_ihdr.it_present = htole32(RT2560_TX_RADIOTAP_PRESENT);
+	ieee80211_radiotap_attach(ic,
+	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
+		RT2560_TX_RADIOTAP_PRESENT,
+	    &sc->sc_rxtap.wr_ihdr, sizeof(sc->sc_rxtap),
+		RT2560_RX_RADIOTAP_PRESENT);
 
 	/*
 	 * Add a few sysctl knobs.
@@ -364,7 +361,6 @@ rt2560_detach(void *xsc)
 	
 	rt2560_stop(sc);
 
-	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
 
 	rt2560_free_tx_ring(sc, &sc->txq);
@@ -396,6 +392,8 @@ rt2560_vap_create(struct ieee80211com *ic,
 	case IEEE80211_M_AHDEMO:
 	case IEEE80211_M_MONITOR:
 	case IEEE80211_M_HOSTAP:
+	case IEEE80211_M_MBSS:
+		/* XXXRP: TBD */
 		if (!TAILQ_EMPTY(&ic->ic_vaps)) {
 			if_printf(ifp, "only 1 vap supported\n");
 			return NULL;
@@ -816,7 +814,8 @@ rt2560_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
-		    vap->iv_opmode == IEEE80211_M_IBSS) {
+		    vap->iv_opmode == IEEE80211_M_IBSS ||
+		    vap->iv_opmode == IEEE80211_M_MBSS) {
 			m = ieee80211_beacon_alloc(ni, &rvp->ral_bo);
 			if (m == NULL) {
 				if_printf(ifp, "could not allocate beacon\n");
@@ -833,6 +832,8 @@ rt2560_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		if (vap->iv_opmode != IEEE80211_M_MONITOR)
 			rt2560_enable_tsf_sync(sc);
+		else
+			rt2560_enable_tsf(sc);
 	}
 	return error;
 }
@@ -1146,6 +1147,7 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 	struct ieee80211_node *ni;
 	struct mbuf *mnew, *m;
 	int hw, error;
+	int8_t rssi, nf;
 
 	/* retrieve last decriptor index processed by cipher engine */
 	hw = RAL_READ(sc, RT2560_SECCSR0) - sc->rxq.physaddr;
@@ -1222,7 +1224,9 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 		m->m_pkthdr.len = m->m_len =
 		    (le32toh(desc->flags) >> 16) & 0xfff;
 
-		if (bpf_peers_present(ifp->if_bpf)) {
+		rssi = RT2560_RSSI(sc, desc->rssi);
+		nf = RT2560_NOISE_FLOOR;
+		if (ieee80211_radiotap_active(ic)) {
 			struct rt2560_rx_radiotap_header *tap = &sc->sc_rxtap;
 			uint32_t tsf_lo, tsf_hi;
 
@@ -1237,9 +1241,8 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 			    (desc->flags & htole32(RT2560_RX_OFDM)) ?
 				IEEE80211_T_OFDM : IEEE80211_T_CCK);
 			tap->wr_antenna = sc->rx_ant;
-			tap->wr_antsignal = RT2560_RSSI(sc, desc->rssi);
-
-			bpf_mtap2(ifp->if_bpf, tap, sc->sc_rxtap_len, m);
+			tap->wr_antsignal = nf + rssi;
+			tap->wr_antnoise = nf;
 		}
 
 		sc->sc_flags |= RT2560_F_INPUT_RUNNING;
@@ -1248,12 +1251,10 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 		ni = ieee80211_find_rxnode(ic,
 		    (struct ieee80211_frame_min *)wh);
 		if (ni != NULL) {
-			(void) ieee80211_input(ni, m,
-			    RT2560_RSSI(sc, desc->rssi), RT2560_NOISE_FLOOR, 0);
+			(void) ieee80211_input(ni, m, rssi, nf);
 			ieee80211_free_node(ni);
 		} else
-			(void) ieee80211_input_all(ic, m,
-			    RT2560_RSSI(sc, desc->rssi), RT2560_NOISE_FLOOR, 0);
+			(void) ieee80211_input_all(ic, m, rssi, nf);
 
 		RAL_LOCK(sc);
 		sc->sc_flags &= ~RT2560_F_INPUT_RUNNING;
@@ -1346,7 +1347,8 @@ rt2560_beacon_expire(struct rt2560_softc *sc)
 	struct rt2560_tx_data *data;
 
 	if (ic->ic_opmode != IEEE80211_M_IBSS &&
-	    ic->ic_opmode != IEEE80211_M_HOSTAP)
+	    ic->ic_opmode != IEEE80211_M_HOSTAP &&
+	    ic->ic_opmode != IEEE80211_M_MBSS)
 		return;	
 
 	data = &sc->bcnq.data[sc->bcnq.next];
@@ -1476,7 +1478,7 @@ rt2560_setup_tx_desc(struct rt2560_softc *sc, struct rt2560_tx_desc *desc,
 	desc->plcp_service = 4;
 
 	len += IEEE80211_CRC_LEN;
-	if (ieee80211_rate2phytype(sc->sc_rates, rate) == IEEE80211_T_OFDM) {
+	if (ieee80211_rate2phytype(ic->ic_rt, rate) == IEEE80211_T_OFDM) {
 		desc->flags |= htole32(RT2560_TX_OFDM);
 
 		plcp_length = len & 0xfff;
@@ -1507,8 +1509,6 @@ rt2560_tx_bcn(struct rt2560_softc *sc, struct mbuf *m0,
     struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	bus_dma_segment_t segs[RT2560_MAX_SCATTER];
@@ -1529,16 +1529,14 @@ rt2560_tx_bcn(struct rt2560_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	data->m = m0;
@@ -1565,7 +1563,6 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	struct ieee80211_frame *wh;
@@ -1599,16 +1596,14 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	data->m = m0;
@@ -1621,7 +1616,7 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RT2560_TX_ACK;
 
-		dur = ieee80211_ack_duration(sc->sc_rates,
+		dur = ieee80211_ack_duration(ic->ic_rt,
 		    rate, ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		*(uint16_t *)wh->i_dur = htole16(dur);
 
@@ -1671,16 +1666,16 @@ rt2560_sendprot(struct rt2560_softc *sc,
 	wh = mtod(m, const struct ieee80211_frame *);
 	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
 
-	protrate = ieee80211_ctl_rate(sc->sc_rates, rate);
-	ackrate = ieee80211_ack_rate(sc->sc_rates, rate);
+	protrate = ieee80211_ctl_rate(ic->ic_rt, rate);
+	ackrate = ieee80211_ack_rate(ic->ic_rt, rate);
 
 	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
-	dur = ieee80211_compute_duration(sc->sc_rates, pktlen, rate, isshort)
-	    + ieee80211_ack_duration(sc->sc_rates, rate, isshort);
+	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
+	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 	flags = RT2560_TX_MORE_FRAG;
 	if (prot == IEEE80211_PROT_RTSCTS) {
 		/* NB: CTS is the same size as an ACK */
-		dur += ieee80211_ack_duration(sc->sc_rates, rate, isshort);
+		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 		flags |= RT2560_TX_ACK;
 		mprot = ieee80211_alloc_rts(ic, wh->i_addr1, wh->i_addr2, dur);
 	} else {
@@ -1724,8 +1719,8 @@ static int
 rt2560_tx_raw(struct rt2560_softc *sc, struct mbuf *m0,
     struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
 {
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	bus_dma_segment_t segs[RT2560_MAX_SCATTER];
@@ -1735,9 +1730,8 @@ rt2560_tx_raw(struct rt2560_softc *sc, struct mbuf *m0,
 	desc = &sc->prioq.desc[sc->prioq.cur];
 	data = &sc->prioq.data[sc->prioq.cur];
 
-	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
-	/* XXX validate */
-	if (rate == 0) {
+	rate = params->ibp_rate0;
+	if (!ieee80211_isratevalid(ic->ic_rt, rate)) {
 		/* XXX fall back to mcast/mgmt rate? */
 		m_freem(m0);
 		return EINVAL;
@@ -1767,16 +1761,14 @@ rt2560_tx_raw(struct rt2560_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
 		tap->wt_antenna = sc->tx_ant;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(ni->ni_vap, m0);
 	}
 
 	data->m = m0;
@@ -1808,7 +1800,6 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = sc->sc_ifp;
 	struct rt2560_tx_desc *desc;
 	struct rt2560_tx_data *data;
 	struct ieee80211_frame *wh;
@@ -1851,7 +1842,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 		if (m0->m_pkthdr.len + IEEE80211_CRC_LEN > vap->iv_rtsthreshold)
 			prot = IEEE80211_PROT_RTSCTS;
 		else if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
-		    ieee80211_rate2phytype(sc->sc_rates, rate) == IEEE80211_T_OFDM)
+		    ieee80211_rate2phytype(ic->ic_rt, rate) == IEEE80211_T_OFDM)
 			prot = ic->ic_protmode;
 		if (prot != IEEE80211_PROT_NONE) {
 			error = rt2560_sendprot(sc, m0, ni, prot, rate);
@@ -1897,14 +1888,14 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (bpf_peers_present(ifp->if_bpf)) {
+	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
 		tap->wt_antenna = sc->tx_ant;
 
-		bpf_mtap2(ifp->if_bpf, tap, sc->sc_txtap_len, m0);
+		ieee80211_radiotap_tx(vap, m0);
 	}
 
 	data->m = m0;
@@ -1921,7 +1912,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 	if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		flags |= RT2560_TX_ACK;
 
-		dur = ieee80211_ack_duration(sc->sc_rates,
+		dur = ieee80211_ack_duration(ic->ic_rt,
 		    rate, ic->ic_flags & IEEE80211_F_SHPREAMBLE);
 		*(uint16_t *)wh->i_dur = htole16(dur);
 	}
@@ -1963,15 +1954,7 @@ rt2560_start_locked(struct ifnet *ifp)
 			sc->sc_flags |= RT2560_F_DATA_OACTIVE;
 			break;
 		}
-
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		m = ieee80211_encap(ni, m);
-		if (m == NULL) {
-			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
-			continue;
-		}
-
 		if (rt2560_tx_data(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
 			ifp->if_oerrors++;
@@ -2145,8 +2128,6 @@ rt2560_set_chan(struct rt2560_softc *sc, struct ieee80211_channel *c)
 	chan = ieee80211_chan2ieee(ic, c);
 	KASSERT(chan != 0 && chan != IEEE80211_CHAN_ANY, ("chan 0x%x", chan));
 
-	sc->sc_rates = ieee80211_get_ratetable(c);
-
 	if (IEEE80211_IS_CHAN_2GHZ(c))
 		power = min(sc->txpow[chan - 1], 31);
 	else
@@ -2244,11 +2225,6 @@ rt2560_set_channel(struct ieee80211com *ic)
 
 	RAL_LOCK(sc);
 	rt2560_set_chan(sc, ic->ic_curchan);
-
-	sc->sc_txtap.wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-	sc->sc_txtap.wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
-	sc->sc_rxtap.wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
-	sc->sc_rxtap.wr_chan_flags = htole16(ic->ic_curchan->ic_flags);
 	RAL_UNLOCK(sc);
 
 }
@@ -2310,6 +2286,14 @@ rt2560_enable_tsf_sync(struct rt2560_softc *sc)
 	RAL_WRITE(sc, RT2560_CSR14, tmp);
 
 	DPRINTF(sc, "%s", "enabling TSF synchronization\n");
+}
+
+static void
+rt2560_enable_tsf(struct rt2560_softc *sc)
+{
+	RAL_WRITE(sc, RT2560_CSR14, 0);
+	RAL_WRITE(sc, RT2560_CSR14,
+	    RT2560_ENABLE_TSF_SYNC(2) | RT2560_ENABLE_TSF);
 }
 
 static void
@@ -2683,8 +2667,7 @@ rt2560_init_locked(struct rt2560_softc *sc)
 	for (i = 0; i < N(rt2560_def_mac); i++)
 		RAL_WRITE(sc, rt2560_def_mac[i].reg, rt2560_def_mac[i].val);
 
-	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
-	rt2560_set_macaddr(sc, ic->ic_myaddr);
+	rt2560_set_macaddr(sc, IF_LLADDR(ifp));
 
 	/* set basic rate set (will be updated later) */
 	RAL_WRITE(sc, RT2560_ARSP_PLCP_1, 0x153);
@@ -2712,7 +2695,8 @@ rt2560_init_locked(struct rt2560_softc *sc)
 	tmp = RT2560_DROP_PHY_ERROR | RT2560_DROP_CRC_ERROR;
 	if (ic->ic_opmode != IEEE80211_M_MONITOR) {
 		tmp |= RT2560_DROP_CTL | RT2560_DROP_VERSION_ERROR;
-		if (ic->ic_opmode != IEEE80211_M_HOSTAP)
+		if (ic->ic_opmode != IEEE80211_M_HOSTAP &&
+		    ic->ic_opmode != IEEE80211_M_MBSS)
 			tmp |= RT2560_DROP_TODS;
 		if (!(ifp->if_flags & IFF_PROMISC))
 			tmp |= RT2560_DROP_NOT_TO_ME;

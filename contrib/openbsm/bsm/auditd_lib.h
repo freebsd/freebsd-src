@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/auditd_lib.h#3 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/auditd_lib.h#4 $
  */
 
 #ifndef _BSM_AUDITD_LIB_H_
@@ -81,12 +81,14 @@
 #define	ADE_INVAL	-16	/* Invalid argument. */
 #define	ADE_GETADDR	-17	/* Error resolving address from hostname. */
 #define	ADE_ADDRFAM	-18	/* Address family not supported. */
+#define	ADE_EXPIRE	-19	/* Error expiring audit trail files. */
 
 /*
  * auditd_lib functions.
  */
 const char *auditd_strerror(int errcode);
 int auditd_set_minfree(void);
+int auditd_expire_trails(int (*warn_expired)(char *));
 int auditd_read_dirs(int (*warn_soft)(char *), int (*warn_hard)(char *));
 void auditd_close_dirs(void);
 int auditd_set_evcmap(void);

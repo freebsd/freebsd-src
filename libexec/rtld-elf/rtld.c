@@ -41,6 +41,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <sys/utsname.h>
 #include <sys/ktrace.h>
 
 #include <dlfcn.h>
@@ -104,20 +105,20 @@ static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *);
 static int load_preload_objects(void);
-static Obj_Entry *load_object(const char *, const Obj_Entry *);
+static Obj_Entry *load_object(const char *, const Obj_Entry *, int);
 static Obj_Entry *obj_from_addr(const void *);
-static void objlist_call_fini(Objlist *, int *lockstate);
-static void objlist_call_init(Objlist *, int *lockstate);
+static void objlist_call_fini(Objlist *, bool, int *);
+static void objlist_call_init(Objlist *, int *);
 static void objlist_clear(Objlist *);
 static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
 static void objlist_init(Objlist *);
 static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
-static void objlist_remove_unref(Objlist *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *);
 static int rtld_dirname(const char *, char *);
+static int rtld_dirname_abs(const char *, char *);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
 static const void **get_program_var_addr(const char *);
@@ -134,6 +135,9 @@ static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 static void ref_dag(Obj_Entry *);
+static int origin_subst_one(char **, const char *, const char *,
+  const char *, char *);
+static char *origin_subst(const char *, const char *);
 static int  rtld_verify_versions(const Objlist *);
 static int  rtld_verify_object_versions(Obj_Entry *);
 static void object_add_name(Obj_Entry *, const char *);
@@ -157,6 +161,7 @@ static char *ld_debug;		/* Environment variable for debugging */
 static char *ld_library_path;	/* Environment variable for search path */
 static char *ld_preload;	/* Environment variable for libraries to
 				   load first */
+static char *ld_elf_hints_path;	/* Environment variable for alternative hints path */
 static char *ld_tracing;	/* Called from ldd to print libs */
 static char *ld_utrace;		/* Use utrace() to log events. */
 static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
@@ -194,6 +199,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dlerror,
     (func_ptr_type) &dlopen,
     (func_ptr_type) &dlsym,
+    (func_ptr_type) &dlfunc,
     (func_ptr_type) &dlvsym,
     (func_ptr_type) &dladdr,
     (func_ptr_type) &dllockinit,
@@ -365,16 +371,22 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
         unsetenv(LD_ "LIBRARY_PATH");
         unsetenv(LD_ "LIBMAP_DISABLE");
         unsetenv(LD_ "DEBUG");
+        unsetenv(LD_ "ELF_HINTS_PATH");
     }
     ld_debug = getenv(LD_ "DEBUG");
     libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
     libmap_override = getenv(LD_ "LIBMAP");
     ld_library_path = getenv(LD_ "LIBRARY_PATH");
     ld_preload = getenv(LD_ "PRELOAD");
+    ld_elf_hints_path = getenv(LD_ "ELF_HINTS_PATH");
     dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
-	(ld_library_path != NULL) || (ld_preload != NULL);
+	(ld_library_path != NULL) || (ld_preload != NULL) ||
+	(ld_elf_hints_path != NULL);
     ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
     ld_utrace = getenv(LD_ "UTRACE");
+
+    if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
+	ld_elf_hints_path = _PATH_ELF_HINTS;
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -412,7 +424,25 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    die();
     }
 
-    obj_main->path = xstrdup(argv0);
+    if (aux_info[AT_EXECPATH] != 0) {
+	    char *kexecpath;
+	    char buf[MAXPATHLEN];
+
+	    kexecpath = aux_info[AT_EXECPATH]->a_un.a_ptr;
+	    dbg("AT_EXECPATH %p %s", kexecpath, kexecpath);
+	    if (kexecpath[0] == '/')
+		    obj_main->path = kexecpath;
+	    else if (getcwd(buf, sizeof(buf)) == NULL ||
+		     strlcat(buf, "/", sizeof(buf)) >= sizeof(buf) ||
+		     strlcat(buf, kexecpath, sizeof(buf)) >= sizeof(buf))
+		    obj_main->path = xstrdup(argv0);
+	    else
+		    obj_main->path = xstrdup(buf);
+    } else {
+	    dbg("No AT_EXECPATH");
+	    obj_main->path = xstrdup(argv0);
+    }
+    dbg("obj_main path %s", obj_main->path);
     obj_main->mainprog = true;
 
     /*
@@ -614,6 +644,83 @@ basename(const char *name)
     return p != NULL ? p + 1 : name;
 }
 
+static struct utsname uts;
+
+static int
+origin_subst_one(char **res, const char *real, const char *kw, const char *subst,
+    char *may_free)
+{
+    const char *p, *p1;
+    char *res1;
+    int subst_len;
+    int kw_len;
+
+    res1 = *res = NULL;
+    p = real;
+    subst_len = kw_len = 0;
+    for (;;) {
+	 p1 = strstr(p, kw);
+	 if (p1 != NULL) {
+	     if (subst_len == 0) {
+		 subst_len = strlen(subst);
+		 kw_len = strlen(kw);
+	     }
+	     if (*res == NULL) {
+		 *res = xmalloc(PATH_MAX);
+		 res1 = *res;
+	     }
+	     if ((res1 - *res) + subst_len + (p1 - p) >= PATH_MAX) {
+		 _rtld_error("Substitution of %s in %s cannot be performed",
+		     kw, real);
+		 if (may_free != NULL)
+		     free(may_free);
+		 free(res);
+		 return (false);
+	     }
+	     memcpy(res1, p, p1 - p);
+	     res1 += p1 - p;
+	     memcpy(res1, subst, subst_len);
+	     res1 += subst_len;
+	     p = p1 + kw_len;
+	 } else {
+	    if (*res == NULL) {
+		if (may_free != NULL)
+		    *res = may_free;
+		else
+		    *res = xstrdup(real);
+		return (true);
+	    }
+	    *res1 = '\0';
+	    if (may_free != NULL)
+		free(may_free);
+	    if (strlcat(res1, p, PATH_MAX - (res1 - *res)) >= PATH_MAX) {
+		free(res);
+		return (false);
+	    }
+	    return (true);
+	 }
+    }
+}
+
+static char *
+origin_subst(const char *real, const char *origin_path)
+{
+    char *res1, *res2, *res3, *res4;
+
+    if (uts.sysname[0] == '\0') {
+	if (uname(&uts) != 0) {
+	    _rtld_error("utsname failed: %d", errno);
+	    return (NULL);
+	}
+    }
+    if (!origin_subst_one(&res1, real, "$ORIGIN", origin_path, NULL) ||
+	!origin_subst_one(&res2, res1, "$OSNAME", uts.sysname, res1) ||
+	!origin_subst_one(&res3, res2, "$OSREL", uts.release, res2) ||
+	!origin_subst_one(&res4, res3, "$PLATFORM", uts.machine, res3))
+	    return (NULL);
+    return (res4);
+}
+
 static void
 die(void)
 {
@@ -790,11 +897,8 @@ digest_dynamic(Obj_Entry *obj, int early)
 #endif
 
 	case DT_FLAGS:
-		if (dynp->d_un.d_val & DF_ORIGIN) {
-		    obj->origin_path = xmalloc(PATH_MAX);
-		    if (rtld_dirname(obj->path, obj->origin_path) == -1)
-			die();
-		}
+		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
+		    obj->z_origin = true;
 		if (dynp->d_un.d_val & DF_SYMBOLIC)
 		    obj->symbolic = true;
 		if (dynp->d_un.d_val & DF_TEXTREL)
@@ -826,6 +930,17 @@ digest_dynamic(Obj_Entry *obj, int early)
 		break;
 #endif
 
+	case DT_FLAGS_1:
+		if ((dynp->d_un.d_val & DF_1_ORIGIN) && trust)
+		    obj->z_origin = true;
+		if (dynp->d_un.d_val & DF_1_GLOBAL)
+			/* XXX */;
+		if (dynp->d_un.d_val & DF_1_BIND_NOW)
+		    obj->bind_now = true;
+		if (dynp->d_un.d_val & DF_1_NODELETE)
+		    obj->z_nodelete = true;
+	    break;
+
 	default:
 	    if (!early) {
 		dbg("Ignoring d_tag %ld = %#lx", (long)dynp->d_tag,
@@ -844,8 +959,17 @@ digest_dynamic(Obj_Entry *obj, int early)
 	obj->pltrelsize = 0;
     }
 
-    if (dyn_rpath != NULL)
-	obj->rpath = obj->strtab + dyn_rpath->d_un.d_val;
+    if (obj->z_origin && obj->origin_path == NULL) {
+	obj->origin_path = xmalloc(PATH_MAX);
+	if (rtld_dirname_abs(obj->path, obj->origin_path) == -1)
+	    die();
+    }
+
+    if (dyn_rpath != NULL) {
+	obj->rpath = (char *)obj->strtab + dyn_rpath->d_un.d_val;
+	if (obj->z_origin)
+	    obj->rpath = origin_subst(obj->rpath, obj->origin_path);
+    }
 
     if (dyn_soname != NULL)
 	object_add_name(obj, obj->strtab + dyn_soname->d_un.d_val);
@@ -1003,7 +1127,10 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	      xname);
 	    return NULL;
 	}
-	return xstrdup(xname);
+	if (refobj != NULL && refobj->z_origin)
+	    return origin_subst(xname, refobj->origin_path);
+	else
+	    return xstrdup(xname);
     }
 
     if (libmap_disable || (refobj == NULL) ||
@@ -1122,7 +1249,7 @@ gethints(void)
 	/* Keep from trying again in case the hints file is bad. */
 	hints = "";
 
-	if ((fd = open(_PATH_ELF_HINTS, O_RDONLY)) == -1)
+	if ((fd = open(ld_elf_hints_path, O_RDONLY)) == -1)
 	    return NULL;
 	if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
 	  hdr.magic != ELFHINTS_MAGIC ||
@@ -1181,8 +1308,8 @@ init_rtld(caddr_t mapbase)
     /*
      * Conjure up an Obj_Entry structure for the dynamic linker.
      *
-     * The "path" member can't be initialized yet because string constatns
-     * cannot yet be acessed. Below we will set it correctly.
+     * The "path" member can't be initialized yet because string constants
+     * cannot yet be accessed. Below we will set it correctly.
      */
     memset(&objtmp, 0, sizeof(objtmp));
     objtmp.path = NULL;
@@ -1251,9 +1378,9 @@ initlist_add_neededs(Needed_Entry *needed, Objlist *list)
 static void
 initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
 {
-    if (obj->init_done)
+    if (obj->init_scanned || obj->init_done)
 	return;
-    obj->init_done = true;
+    obj->init_scanned = true;
 
     /* Recursively process the successor objects. */
     if (&obj->next != tail)
@@ -1268,8 +1395,10 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
 	objlist_push_tail(list, obj);
 
     /* Add the object to the global fini list in the reverse order. */
-    if (obj->fini != (Elf_Addr)NULL)
+    if (obj->fini != (Elf_Addr)NULL && !obj->on_fini_list) {
 	objlist_push_head(&list_fini, obj);
+	obj->on_fini_list = true;
+    }
 }
 
 #ifndef FPTR_TARGET
@@ -1297,15 +1426,22 @@ is_exported(const Elf_Sym *def)
 static int
 load_needed_objects(Obj_Entry *first)
 {
-    Obj_Entry *obj;
+    Obj_Entry *obj, *obj1;
 
     for (obj = first;  obj != NULL;  obj = obj->next) {
 	Needed_Entry *needed;
 
 	for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
-	    needed->obj = load_object(obj->strtab + needed->name, obj);
-	    if (needed->obj == NULL && !ld_tracing)
+	    obj1 = needed->obj = load_object(obj->strtab + needed->name, obj,
+		false);
+	    if (obj1 == NULL && !ld_tracing)
 		return -1;
+	    if (obj1 != NULL && obj1->z_nodelete && !obj1->ref_nodel) {
+		dbg("obj %s nodelete", obj1->path);
+		init_dag(obj1);
+		ref_dag(obj1);
+		obj1->ref_nodel = true;
+	    }
 	}
     }
 
@@ -1328,7 +1464,7 @@ load_preload_objects(void)
 
 	savech = p[len];
 	p[len] = '\0';
-	if (load_object(p, NULL) == NULL)
+	if (load_object(p, NULL, false) == NULL)
 	    return -1;	/* XXX - cleanup */
 	p[len] = savech;
 	p += len;
@@ -1345,7 +1481,7 @@ load_preload_objects(void)
  * on failure.
  */
 static Obj_Entry *
-load_object(const char *name, const Obj_Entry *refobj)
+load_object(const char *name, const Obj_Entry *refobj, int noload)
 {
     Obj_Entry *obj;
     int fd = -1;
@@ -1391,6 +1527,8 @@ load_object(const char *name, const Obj_Entry *refobj)
 	close(fd);
 	return obj;
     }
+    if (noload)
+	return (NULL);
 
     /* First use of this object, so we must map it in */
     obj = do_load_object(fd, name, path, &sb);
@@ -1466,9 +1604,9 @@ obj_from_addr(const void *addr)
  * non-NULL fini functions.
  */
 static void
-objlist_call_fini(Objlist *list, int *lockstate)
+objlist_call_fini(Objlist *list, bool force, int *lockstate)
 {
-    Objlist_Entry *elm;
+    Objlist_Entry *elm, *elm_tmp;
     char *saved_msg;
 
     /*
@@ -1476,17 +1614,22 @@ objlist_call_fini(Objlist *list, int *lockstate)
      * call into the dynamic linker and overwrite it.
      */
     saved_msg = errmsg_save();
-    wlock_release(rtld_bind_lock, *lockstate);
-    STAILQ_FOREACH(elm, list, link) {
-	if (elm->obj->refcount == 0) {
+    STAILQ_FOREACH_SAFE(elm, list, link, elm_tmp) {
+	if (elm->obj->refcount == 0 || force) {
 	    dbg("calling fini function for %s at %p", elm->obj->path,
 	        (void *)elm->obj->fini);
 	    LD_UTRACE(UTRACE_FINI_CALL, elm->obj, (void *)elm->obj->fini, 0, 0,
 		elm->obj->path);
+	    /* Remove object from fini list to prevent recursive invocation. */
+	    STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
+	    wlock_release(rtld_bind_lock, *lockstate);
 	    call_initfini_pointer(elm->obj, elm->obj->fini);
+	    *lockstate = wlock_acquire(rtld_bind_lock);
+	    /* No need to free anything if process is going down. */
+	    if (!force)
+	    	free(elm);
 	}
     }
-    *lockstate = wlock_acquire(rtld_bind_lock);
     errmsg_restore(saved_msg);
 }
 
@@ -1499,22 +1642,39 @@ static void
 objlist_call_init(Objlist *list, int *lockstate)
 {
     Objlist_Entry *elm;
+    Obj_Entry *obj;
     char *saved_msg;
+
+    /*
+     * Clean init_scanned flag so that objects can be rechecked and
+     * possibly initialized earlier if any of vectors called below
+     * cause the change by using dlopen.
+     */
+    for (obj = obj_list;  obj != NULL;  obj = obj->next)
+	obj->init_scanned = false;
 
     /*
      * Preserve the current error message since an init function might
      * call into the dynamic linker and overwrite it.
      */
     saved_msg = errmsg_save();
-    wlock_release(rtld_bind_lock, *lockstate);
     STAILQ_FOREACH(elm, list, link) {
+	if (elm->obj->init_done) /* Initialized early. */
+	    continue;
 	dbg("calling init function for %s at %p", elm->obj->path,
 	    (void *)elm->obj->init);
 	LD_UTRACE(UTRACE_INIT_CALL, elm->obj, (void *)elm->obj->init, 0, 0,
 	    elm->obj->path);
+	/*
+	 * Race: other thread might try to use this object before current
+	 * one completes the initilization. Not much can be done here
+	 * without better locking.
+	 */
+	elm->obj->init_done = true;
+    	wlock_release(rtld_bind_lock, *lockstate);
 	call_initfini_pointer(elm->obj, elm->obj->init);
+	*lockstate = wlock_acquire(rtld_bind_lock);
     }
-    *lockstate = wlock_acquire(rtld_bind_lock);
     errmsg_restore(saved_msg);
 }
 
@@ -1576,27 +1736,6 @@ objlist_remove(Objlist *list, Obj_Entry *obj)
 	STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
 	free(elm);
     }
-}
-
-/*
- * Remove all of the unreferenced objects from "list".
- */
-static void
-objlist_remove_unref(Objlist *list)
-{
-    Objlist newlist;
-    Objlist_Entry *elm;
-
-    STAILQ_INIT(&newlist);
-    while (!STAILQ_EMPTY(list)) {
-	elm = STAILQ_FIRST(list);
-	STAILQ_REMOVE_HEAD(list, link);
-	if (elm->obj->refcount == 0)
-	    free(elm);
-	else
-	    STAILQ_INSERT_TAIL(&newlist, elm, link);
-    }
-    *list = newlist;
 }
 
 /*
@@ -1674,15 +1813,11 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj)
 static void
 rtld_exit(void)
 {
-    Obj_Entry *obj;
     int	lockstate;
 
     lockstate = wlock_acquire(rtld_bind_lock);
     dbg("rtld_exit()");
-    /* Clear all the reference counts so the fini functions will be called. */
-    for (obj = obj_list;  obj != NULL;  obj = obj->next)
-	obj->refcount = 0;
-    objlist_call_fini(&list_fini, &lockstate);
+    objlist_call_fini(&list_fini, true, &lockstate);
     /* No need to remove the items from the list, since we are exiting. */
     if (!libmap_disable)
         lm_fini();
@@ -1802,8 +1937,7 @@ dlclose(void *handle)
 	 * The object is no longer referenced, so we must unload it.
 	 * First, call the fini functions.
 	 */
-	objlist_call_fini(&list_fini, &lockstate);
-	objlist_remove_unref(&list_fini);
+	objlist_call_fini(&list_fini, false, &lockstate);
 
 	/* Finish cleaning up the newly-unreferenced objects. */
 	GDB_STATE(RT_DELETE,&root->linkmap);
@@ -1851,12 +1985,14 @@ dlopen(const char *name, int mode)
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
     Objlist initlist;
-    int result, lockstate;
+    int result, lockstate, nodelete, noload;
 
     LD_UTRACE(UTRACE_DLOPEN_START, NULL, NULL, 0, mode, name);
     ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
     if (ld_tracing != NULL)
 	environ = (char **)*get_program_var_addr("environ");
+    nodelete = mode & RTLD_NODELETE;
+    noload = mode & RTLD_NOLOAD;
 
     objlist_init(&initlist);
 
@@ -1869,7 +2005,7 @@ dlopen(const char *name, int mode)
 	obj = obj_main;
 	obj->refcount++;
     } else {
-	obj = load_object(name, obj_main);
+	obj = load_object(name, obj_main, noload);
     }
 
     if (obj) {
@@ -1903,6 +2039,11 @@ dlopen(const char *name, int mode)
 
 	    if (ld_tracing)
 		goto trace;
+	}
+	if (obj != NULL && (nodelete || obj->z_nodelete) && !obj->ref_nodel) {
+	    dbg("obj %s nodelete", obj->path);
+	    ref_dag(obj);
+	    obj->z_nodelete = obj->ref_nodel = true;
 	}
     }
 
@@ -1990,6 +2131,16 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	    /* Search main program and all libraries loaded by it. */
 	    def = symlook_list(name, hash, &list_main, &defobj, ve, flags,
 			       &donelist);
+
+	    /*
+	     * We do not distinguish between 'main' object and global scope.
+	     * If symbol is not defined by objects loaded at startup, continue
+	     * search among dynamically loaded objects with RTLD_GLOBAL
+	     * scope.
+	     */
+	    if (def == NULL)
+		def = symlook_list(name, hash, &list_global, &defobj, ve,
+		    		    flags, &donelist);
 	} else {
 	    Needed_Entry fake;
 
@@ -2029,6 +2180,19 @@ dlsym(void *handle, const char *name)
 {
 	return do_dlsym(handle, name, __builtin_return_address(0), NULL,
 	    SYMLOOK_DLSYM);
+}
+
+dlfunc_t
+dlfunc(void *handle, const char *name)
+{
+	union {
+		void *d;
+		dlfunc_t f;
+	} rv;
+
+	rv.d = do_dlsym(handle, name, __builtin_return_address(0), NULL,
+	    SYMLOOK_DLSYM);
+	return (rv.f);
 }
 
 void *
@@ -2307,6 +2471,23 @@ rtld_dirname(const char *path, char *bname)
     strncpy(bname, path, endp - path + 1);
     bname[endp - path + 1] = '\0';
     return (0);
+}
+
+static int
+rtld_dirname_abs(const char *path, char *base)
+{
+	char base_rel[PATH_MAX];
+
+	if (rtld_dirname(path, base) == -1)
+		return (-1);
+	if (base[0] == '/')
+		return (0);
+	if (getcwd(base_rel, sizeof(base_rel)) == NULL ||
+	    strlcat(base_rel, "/", sizeof(base_rel)) >= sizeof(base_rel) ||
+	    strlcat(base_rel, base, sizeof(base_rel)) >= sizeof(base_rel))
+		return (-1);
+	strcpy(base, base_rel);
+	return (0);
 }
 
 static void

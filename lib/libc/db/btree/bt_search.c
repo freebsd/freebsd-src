@@ -61,13 +61,10 @@ static int __bt_sprev(BTREE *, PAGE *, const DBT *, int *);
  *	the bt_cur field of the tree.  A pointer to the field is returned.
  */
 EPG *
-__bt_search(t, key, exactp)
-	BTREE *t;
-	const DBT *key;
-	int *exactp;
+__bt_search(BTREE *t, const DBT *key, int *exactp)
 {
 	PAGE *h;
-	indx_t base, index, lim;
+	indx_t base, idx, lim;
 	pgno_t pg;
 	int cmp;
 
@@ -79,7 +76,7 @@ __bt_search(t, key, exactp)
 		/* Do a binary search on the current page. */
 		t->bt_cur.page = h;
 		for (base = 0, lim = NEXTINDEX(h); lim; lim >>= 1) {
-			t->bt_cur.index = index = base + (lim >> 1);
+			t->bt_cur.index = idx = base + (lim >> 1);
 			if ((cmp = __bt_cmp(t, key, &t->bt_cur)) == 0) {
 				if (h->flags & P_BLEAF) {
 					*exactp = 1;
@@ -88,7 +85,7 @@ __bt_search(t, key, exactp)
 				goto next;
 			}
 			if (cmp > 0) {
-				base = index + 1;
+				base = idx + 1;
 				--lim;
 			}
 		}
@@ -124,10 +121,10 @@ __bt_search(t, key, exactp)
 		 * be a parent page for the key.  If a split later occurs, the
 		 * inserted page will be to the right of the saved page.
 		 */
-		index = base ? base - 1 : base;
+		idx = base ? base - 1 : base;
 
-next:		BT_PUSH(t, h->pgno, index);
-		pg = GETBINTERNAL(h, index)->pgno;
+next:		BT_PUSH(t, h->pgno, idx);
+		pg = GETBINTERNAL(h, idx)->pgno;
 		mpool_put(t->bt_mp, h, 0);
 	}
 }
@@ -146,11 +143,7 @@ next:		BT_PUSH(t, h->pgno, index);
  *	If an exact match found.
  */
 static int
-__bt_snext(t, h, key, exactp)
-	BTREE *t;
-	PAGE *h;
-	const DBT *key;
-	int *exactp;
+__bt_snext(BTREE *t, PAGE *h, const DBT *key, int *exactp)
 {
 	EPG e;
 
@@ -185,11 +178,7 @@ __bt_snext(t, h, key, exactp)
  *	If an exact match found.
  */
 static int
-__bt_sprev(t, h, key, exactp)
-	BTREE *t;
-	PAGE *h;
-	const DBT *key;
-	int *exactp;
+__bt_sprev(BTREE *t, PAGE *h, const DBT *key, int *exactp)
 {
 	EPG e;
 

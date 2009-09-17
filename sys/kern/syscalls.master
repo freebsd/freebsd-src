@@ -11,8 +11,10 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, UNIMPL, COMPAT, CPT_NOA, LIBCOMPAT,
-;		NODEF, NOARGS, NOPROTO, NOIMPL, NOSTD, COMPAT4
+;	type	one of STD, OBSOL, UNIMPL, COMPAT, COMPAT4, COMPAT6,
+;		COMPAT7, LIBCOMPAT, NODEF, NOARGS, NOPROTO, NOSTD
+;		The COMPAT* options may be combined with one or more NO*
+;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
@@ -24,11 +26,13 @@
 ;	STD	always included
 ;	COMPAT	included on COMPAT #ifdef
 ;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
+;	COMPAT6	included on COMPAT6 #ifdef (FreeBSD 6 compat)
+;	COMPAT7	included on COMPAT7 #ifdef (FreeBSD 7 compat)
 ;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
-;		compiled in; sysent entry will be filled with lkmsys
+;		compiled in; sysent entry will be filled with lkmressys
 ;		so the SYSCALL_MODULE macro works
 ;	NOARGS	same as STD except do not create structure in sys/sysproto.h
 ;	NODEF	same as STD except only have the entry in the syscall table
@@ -214,7 +218,7 @@
 				    int protocol); }
 98	AUE_CONNECT	STD	{ int connect(int s, caddr_t name, \
 				    int namelen); }
-99	AUE_ACCEPT	CPT_NOA	{ int accept(int s, caddr_t name, \
+99	AUE_ACCEPT	COMPAT|NOARGS { int accept(int s, caddr_t name, \
 				    int *anamelen); } accept accept_args int
 100	AUE_GETPRIORITY	STD	{ int getpriority(int which, int who); }
 101	AUE_SEND	COMPAT	{ int send(int s, caddr_t buf, int len, \
@@ -258,7 +262,7 @@
 				    struct timezone *tzp); }
 123	AUE_FCHOWN	STD	{ int fchown(int fd, int uid, int gid); }
 124	AUE_FCHMOD	STD	{ int fchmod(int fd, int mode); }
-125	AUE_RECVFROM	CPT_NOA	{ int recvfrom(int s, caddr_t buf, \
+125	AUE_RECVFROM	COMPAT|NOARGS { int recvfrom(int s, caddr_t buf, \
 				    size_t len, int flags, caddr_t from, int \
 				    *fromlenaddr); } recvfrom recvfrom_args \
 				    int
@@ -294,7 +298,7 @@
 148	AUE_QUOTACTL	STD	{ int quotactl(char *path, int cmd, int uid, \
 				    caddr_t arg); }
 149	AUE_O_QUOTA	COMPAT	{ int quota(void); }
-150	AUE_GETSOCKNAME	CPT_NOA	{ int getsockname(int fdec, \
+150	AUE_GETSOCKNAME	COMPAT|NOARGS { int getsockname(int fdec, \
 				    caddr_t asa, int *alen); } getsockname \
 				    getsockname_args int
 
@@ -330,15 +334,12 @@
 				    struct rtprio *rtp); }
 167	AUE_NULL	UNIMPL	nosys
 168	AUE_NULL	UNIMPL	nosys
-; 169 is initialized by the SYSVSEM code if present or loaded
 169	AUE_SEMSYS	NOSTD	{ int semsys(int which, int a2, int a3, \
 				    int a4, int a5); }
 ; XXX should be	{ int semsys(int which, ...); }
-; 170 is initialized by the SYSVMSG code if present or loaded
 170	AUE_MSGSYS	NOSTD	{ int msgsys(int which, int a2, int a3, \
 				    int a4, int a5, int a6); }
 ; XXX should be	{ int msgsys(int which, ...); }
-; 171 is initialized by the SYSVSHM code if present or loaded
 171	AUE_SHMSYS	NOSTD	{ int shmsys(int which, int a2, int a3, \
 				    int a4); }
 ; XXX should be	{ int shmsys(int which, ...); }
@@ -416,15 +417,15 @@
 
 ;
 ; The following were introduced with NetBSD/4.4Lite-2
-220	AUE_SEMCTL	NOSTD	{ int __semctl(int semid, int semnum, \
-				    int cmd, union semun *arg); }
+220	AUE_SEMCTL	COMPAT7|NOSTD { int __semctl(int semid, int semnum, \
+				    int cmd, union semun_old *arg); }
 221	AUE_SEMGET	NOSTD	{ int semget(key_t key, int nsems, \
 				    int semflg); }
 222	AUE_SEMOP	NOSTD	{ int semop(int semid, struct sembuf *sops, \
 				    size_t nsops); }
 223	AUE_NULL	UNIMPL	semconfig
-224	AUE_MSGCTL	NOSTD	{ int msgctl(int msqid, int cmd, \
-				    struct msqid_ds *buf); }
+224	AUE_MSGCTL	COMPAT7|NOSTD { int msgctl(int msqid, int cmd, \
+				    struct msqid_ds_old *buf); }
 225	AUE_MSGGET	NOSTD	{ int msgget(key_t key, int msgflg); }
 226	AUE_MSGSND	NOSTD	{ int msgsnd(int msqid, const void *msgp, \
 				    size_t msgsz, int msgflg); }
@@ -432,8 +433,8 @@
 				    size_t msgsz, long msgtyp, int msgflg); }
 228	AUE_SHMAT	NOSTD	{ int shmat(int shmid, const void *shmaddr, \
 				    int shmflg); }
-229	AUE_SHMCTL	NOSTD	{ int shmctl(int shmid, int cmd, \
-				    struct shmid_ds *buf); }
+229	AUE_SHMCTL	COMPAT7|NOSTD { int shmctl(int shmid, int cmd, \
+				    struct shmid_ds_old *buf); }
 230	AUE_SHMDT	NOSTD	{ int shmdt(const void *shmaddr); }
 231	AUE_SHMGET	NOSTD	{ int shmget(key_t key, size_t size, \
 				    int shmflg); }
@@ -668,7 +669,7 @@
 				    int attrnamespace, \
 				    const char *attrname); }
 374	AUE_NULL	STD	{ int __setugid(int flag); }
-375	AUE_NULL	NOIMPL	{ int nfsclnt(int flag, caddr_t argp); }
+375	AUE_NULL	UNIMPL	nfsclnt
 376	AUE_EACCESS	STD	{ int eaccess(char *path, int flags); }
 377	AUE_NULL	UNIMPL	afs_syscall
 378	AUE_NMOUNT	STD	{ int nmount(struct iovec *iovp, \
@@ -897,5 +898,18 @@
 504	AUE_POSIX_OPENPT	STD	{ int posix_openpt(int flags); }
 ; 505 is initialised by the kgssapi code, if present.
 505	AUE_NULL	NOSTD	{ int gssd_syscall(char *path); }
+506	AUE_NULL	STD	{ int jail_get(struct iovec *iovp, \
+				    unsigned int iovcnt, int flags); }
+507	AUE_NULL	STD	{ int jail_set(struct iovec *iovp, \
+				    unsigned int iovcnt, int flags); }
+508	AUE_NULL	STD	{ int jail_remove(int jid); }
+509	AUE_CLOSEFROM	STD	{ int closefrom(int lowfd); }
+510	AUE_SEMCTL	NOSTD	{ int __semctl(int semid, int semnum, \
+				    int cmd, union semun *arg); }
+511	AUE_MSGCTL	NOSTD	{ int msgctl(int msqid, int cmd, \
+				    struct msqid_ds *buf); }
+512	AUE_SHMCTL	NOSTD	{ int shmctl(int shmid, int cmd, \
+				    struct shmid_ds *buf); }
+513	AUE_LPATHCONF	STD	{ int lpathconf(char *path, int name); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

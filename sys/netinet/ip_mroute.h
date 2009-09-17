@@ -52,7 +52,6 @@
  * bandwidth metering and signaling.
  */
 
-
 /*
  * Multicast Routing set/getsockopt commands.
  */
@@ -70,9 +69,6 @@
 #define MRT_ADD_BW_UPCALL 111	/* create bandwidth monitor */
 #define MRT_DEL_BW_UPCALL 112	/* delete bandwidth monitor */
 
-
-#define GET_TIME(t)	microtime(&t)
-
 /*
  * Types and macros for handling bitmaps with one bit per virtual interface.
  */
@@ -88,6 +84,7 @@ typedef u_short vifi_t;		/* type of a vif index */
 #define	VIFM_COPY(mfrom, mto)	((mto) = (mfrom))
 #define	VIFM_SAME(m1, m2)	((m1) == (m2))
 
+struct mfc;
 
 /*
  * Argument structure for MRT_ADD_VIF.
@@ -224,6 +221,11 @@ struct mrtstat {
     u_long	mrts_upq_sockfull;	/* upcalls dropped - socket full */
 };
 
+#ifdef _KERNEL
+#define	MRTSTAT_ADD(name, val)	mrtstat.name += (val)
+#define	MRTSTAT_INC(name)	MRTSTAT_ADD(name, 1)
+#endif
+
 /*
  * Argument structure used by mrouted to get src-grp pkt counts
  */
@@ -253,8 +255,6 @@ struct sioc_vif_req {
 struct vif {
     u_char		v_flags;	/* VIFF_ flags defined above         */
     u_char		v_threshold;	/* min ttl required to forward on vif*/
-    u_int		v_rate_limit;	/* ignored; kept for compatibility */
-    struct tbf         *v_tbf;		/* ignored; kept for compatibility */
     struct in_addr	v_lcl_addr;	/* local interface address           */
     struct in_addr	v_rmt_addr;	/* remote address (tunnels only)     */
     struct ifnet       *v_ifp;		/* pointer to interface              */
@@ -263,16 +263,14 @@ struct vif {
     u_long		v_bytes_in;	/* # bytes in on interface	     */
     u_long		v_bytes_out;	/* # bytes out on interface	     */
     struct route	v_route;	/* cached route */
-    u_int		v_rsvp_on;	/* RSVP listening on this vif */
-    struct socket      *v_rsvpd;	/* RSVP daemon socket */
 };
 
+#ifdef _KERNEL
 /*
  * The kernel's multicast forwarding cache entry structure
- * (A field for the type of service (mfc_tos) is to be added
- * at a future point)
  */
 struct mfc {
+	LIST_ENTRY(mfc)	mfc_hash;
 	struct in_addr	mfc_origin;		/* IP origin of mcasts	     */
 	struct in_addr  mfc_mcastgrp;		/* multicast group associated*/
 	vifi_t		mfc_parent;		/* incoming vif              */
@@ -282,12 +280,13 @@ struct mfc {
 	u_long		mfc_wrong_if;		/* wrong if for src-grp	     */
 	int		mfc_expire;		/* time to clean entry up    */
 	struct timeval	mfc_last_assert;	/* last time I sent an assert*/
-	struct rtdetq	*mfc_stall;		/* q of packets awaiting mfc */
-	struct mfc	*mfc_next;		/* next mfc entry            */
 	uint8_t		mfc_flags[MAXVIFS];	/* the MRT_MFC_FLAGS_* flags */
 	struct in_addr	mfc_rp;			/* the RP address	     */
 	struct bw_meter	*mfc_bw_meter;		/* list of bandwidth meters  */
+	u_long		mfc_nstall;		/* # of packets awaiting mfc */
+	TAILQ_HEAD(, rtdetq) mfc_stall;		/* q of packets awaiting mfc */
 };
+#endif /* _KERNEL */
 
 /*
  * Struct used to communicate from kernel to multicast router
@@ -307,24 +306,18 @@ struct igmpmsg {
     struct in_addr  im_src, im_dst;
 };
 
+#ifdef _KERNEL
 /*
  * Argument structure used for pkt info. while upcall is made
  */
 struct rtdetq {
+    TAILQ_ENTRY(rtdetq)	rte_link;
     struct mbuf		*m;		/* A copy of the packet		    */
     struct ifnet	*ifp;		/* Interface pkt came in on	    */
     vifi_t		xmt_vif;	/* Saved copy of imo_multicast_vif  */
-    struct rtdetq	*next;		/* Next in list of packets          */
 };
-
-#define MFCTBLSIZ	256
-#if (MFCTBLSIZ & (MFCTBLSIZ - 1)) == 0	  /* from sys:route.h */
-#define MFCHASHMOD(h)	((h) & (MFCTBLSIZ - 1))
-#else
-#define MFCHASHMOD(h)	((h) % MFCTBLSIZ)
-#endif
-
 #define MAX_UPQ	4		/* max. no of pkts in upcall Q */
+#endif /* _KERNEL */
 
 /*
  * Structure for measuring the bandwidth and sending an upcall if the
@@ -359,7 +352,7 @@ struct sockopt;
 extern int	(*ip_mrouter_set)(struct socket *, struct sockopt *);
 extern int	(*ip_mrouter_get)(struct socket *, struct sockopt *);
 extern int	(*ip_mrouter_done)(void);
-extern int	(*mrt_ioctl)(int, caddr_t, int);
+extern int	(*mrt_ioctl)(u_long, caddr_t, int);
 
 #endif /* _KERNEL */
 

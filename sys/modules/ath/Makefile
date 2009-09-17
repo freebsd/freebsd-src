@@ -38,7 +38,7 @@ KMOD=	if_ath
 SRCS=	if_ath.c if_ath_pci.c
 # NB: v3 eeprom support used by both AR5211 and AR5212; just include it
 SRCS+=	ah_osdep.c ah.c ah_regdomain.c ah_eeprom_v3.c
-SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h
+SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
 
 #
 # AR5210 support; these are first generation 11a-only devices.
@@ -95,7 +95,7 @@ SRCS+=	ar2133.c
 # NB: rate control is bound to the driver by symbol names so only pick one
 .if ${ATH_RATE} == "sample"
 .PATH:	${.CURDIR}/../../dev/ath/ath_rate/sample
-SRCS+=	sample.c opt_wlan.h
+SRCS+=	sample.c
 .elif ${ATH_RATE} == "onoe"
 .PATH:	${.CURDIR}/../../dev/ath/ath_rate/onoe
 SRCS+=	onoe.c

@@ -61,6 +61,7 @@ struct lock_class {
 	void	(*lc_assert)(struct lock_object *lock, int what);
 	void	(*lc_ddb_show)(struct lock_object *lock);
 	void	(*lc_lock)(struct lock_object *lock, int how);
+	int	(*lc_owner)(struct lock_object *lock, struct thread **owner);
 	int	(*lc_unlock)(struct lock_object *lock);
 };
 
@@ -154,16 +155,16 @@ struct lock_class {
 
 #define	LOCK_LOG_LOCK(opname, lo, flags, recurse, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
-		CTR5(KTR_LOCK, opname " (%s) %s r = %d at %s:%d",	\
+		CTR6(KTR_LOCK, opname " (%s) %s %p r = %d at %s:%d",	\
 		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name,		\
-		    (u_int)(recurse), (file), (line));			\
+		    (lo), (u_int)(recurse), (file), (line));		\
 } while (0)
 
 #define	LOCK_LOG_TRY(opname, lo, flags, result, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
-		CTR5(KTR_LOCK, "TRY_" opname " (%s) %s result=%d at %s:%d",\
+		CTR6(KTR_LOCK, "TRY_" opname " (%s) %s %p result=%d at %s:%d",\
 		    LOCK_CLASS(lo)->lc_name, (lo)->lo_name,		\
-		    (u_int)(result), (file), (line));			\
+		    (lo), (u_int)(result), (file), (line));		\
 } while (0)
 
 #define	LOCK_LOG_INIT(lo, flags) do {					\
@@ -282,21 +283,21 @@ void	witness_thread_exit(struct thread *);
 	witness_line(lock)
 
 #else	/* WITNESS */
-#define	WITNESS_INIT(lock, type)
-#define	WITNESS_DESTROY(lock)
+#define	WITNESS_INIT(lock, type)				(void)0
+#define	WITNESS_DESTROY(lock)					(void)0
 #define	WITNESS_DEFINEORDER(lock1, lock2)	0
-#define	WITNESS_CHECKORDER(lock, flags, file, line, interlock)
-#define	WITNESS_LOCK(lock, flags, file, line)
-#define	WITNESS_UPGRADE(lock, flags, file, line)
-#define	WITNESS_DOWNGRADE(lock, flags, file, line)
-#define	WITNESS_UNLOCK(lock, flags, file, line)
+#define	WITNESS_CHECKORDER(lock, flags, file, line, interlock)	(void)0
+#define	WITNESS_LOCK(lock, flags, file, line)			(void)0
+#define	WITNESS_UPGRADE(lock, flags, file, line)		(void)0
+#define	WITNESS_DOWNGRADE(lock, flags, file, line)		(void)0
+#define	WITNESS_UNLOCK(lock, flags, file, line)			(void)0
 #define	WITNESS_CHECK(flags, lock, fmt, ...)	0
-#define	WITNESS_WARN(flags, lock, fmt, ...)
-#define	WITNESS_SAVE_DECL(n)
-#define	WITNESS_SAVE(lock, n)
-#define	WITNESS_RESTORE(lock, n)
-#define	WITNESS_NORELEASE(lock)
-#define	WITNESS_RELEASEOK(lock)
+#define	WITNESS_WARN(flags, lock, fmt, ...)			(void)0
+#define	WITNESS_SAVE_DECL(n)					(void)0
+#define	WITNESS_SAVE(lock, n)					(void)0
+#define	WITNESS_RESTORE(lock, n)				(void)0
+#define	WITNESS_NORELEASE(lock)					(void)0
+#define	WITNESS_RELEASEOK(lock)					(void)0
 #define	WITNESS_FILE(lock) ("?")
 #define	WITNESS_LINE(lock) (0)
 #endif	/* WITNESS */

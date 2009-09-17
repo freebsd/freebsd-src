@@ -207,7 +207,8 @@ extern	HAL_BOOL ar5210SetRegulatoryDomain(struct ath_hal *,
 extern	u_int ar5210GetWirelessModes(struct ath_hal *ah);
 extern	void ar5210EnableRfKill(struct ath_hal *);
 extern	HAL_BOOL ar5210GpioCfgInput(struct ath_hal *, uint32_t gpio);
-extern	HAL_BOOL ar5210GpioCfgOutput(struct ath_hal *, uint32_t gpio);
+extern	HAL_BOOL ar5210GpioCfgOutput(struct ath_hal *, uint32_t gpio,
+		HAL_GPIO_MUX_TYPE);
 extern	uint32_t ar5210GpioGet(struct ath_hal *, uint32_t gpio);
 extern	HAL_BOOL ar5210GpioSet(struct ath_hal *, uint32_t gpio, uint32_t);
 extern	void ar5210Gpio0SetIntr(struct ath_hal *, u_int, uint32_t ilevel);

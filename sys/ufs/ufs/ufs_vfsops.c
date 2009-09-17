@@ -66,11 +66,10 @@ MALLOC_DEFINE(M_UFSMNT, "ufs_mount", "UFS mount structure");
  * Return the root of a filesystem.
  */
 int
-ufs_root(mp, flags, vpp, td)
+ufs_root(mp, flags, vpp)
 	struct mount *mp;
 	int flags;
 	struct vnode **vpp;
-	struct thread *td;
 {
 	struct vnode *nvp;
 	int error;
@@ -86,18 +85,19 @@ ufs_root(mp, flags, vpp, td)
  * Do operations associated with quotas
  */
 int
-ufs_quotactl(mp, cmds, id, arg, td)
+ufs_quotactl(mp, cmds, id, arg)
 	struct mount *mp;
 	int cmds;
 	uid_t id;
 	void *arg;
-	struct thread *td;
 {
 #ifndef QUOTA
 	return (EOPNOTSUPP);
 #else
+	struct thread *td;
 	int cmd, type, error;
 
+	td = curthread;
 	cmd = cmds >> SUBCMDSHIFT;
 	type = cmds & SUBCMDMASK;
 	if (id == -1) {

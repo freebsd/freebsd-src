@@ -26,13 +26,14 @@
 __FBSDID("$FreeBSD$");
 
 /*
-Execute the following to rebuild the data for this program:
+Execute the following command to rebuild the data for this program:
    tail -n +32 test_read_format_isorr_bz2.c | /bin/sh
 
 rm -rf /tmp/iso
 mkdir /tmp/iso
 mkdir /tmp/iso/dir
 echo "hello" >/tmp/iso/file
+dd if=/dev/zero bs=1 count=12345678 >>/tmp/iso/file
 ln /tmp/iso/file /tmp/iso/hardlink
 (cd /tmp/iso; ln -s file symlink)
 TZ=utc touch -afhm -t 197001020000.01 /tmp/iso /tmp/iso/file /tmp/iso/dir
@@ -51,12 +52,20 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	const void *p;
 	size_t size;
 	off_t offset;
+	int r;
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	assertEqualInt(0, archive_read_support_compression_all(a));
+	r = archive_read_support_compression_bzip2(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("bzip2 reading not fully supported on this platform");
+		assertEqualInt(0, archive_read_finish(a));
+		return;
+	}
+	assertEqualInt(0, r);
 	assertEqualInt(0, archive_read_support_format_all(a));
-	assertEqualInt(0, archive_read_open_filename(a, refname, 10240));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_read_open_filename(a, refname, 10240));
 
 	/* First entry is '.' root directory. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
@@ -70,7 +79,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assertEqualInt(0, archive_entry_uid(ae));
 	assertEqualIntA(a, ARCHIVE_EOF,
 	    archive_read_data_block(a, &p, &size, &offset));
-	assertEqualInt(size, 0);
+	assertEqualInt((int)size, 0);
 
 	/* A directory. */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
@@ -87,11 +96,10 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assertEqualInt(0, archive_read_next_header(a, &ae));
 	assertEqualString("file", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
-	assertEqualInt(6, archive_entry_size(ae));
+	assertEqualInt(12345684, archive_entry_size(ae));
 	assertEqualInt(0, archive_read_data_block(a, &p, &size, &offset));
-	assertEqualInt(6, size);
 	assertEqualInt(0, offset);
-	assertEqualInt(0, memcmp(p, "hello\n", 6));
+	assertEqualMem(p, "hello\n", 6);
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(86401, archive_entry_atime(ae));
 	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);
@@ -103,7 +111,7 @@ DEFINE_TEST(test_read_format_isorr_bz2)
 	assertEqualString("hardlink", archive_entry_pathname(ae));
 	assert(S_ISREG(archive_entry_stat(ae)->st_mode));
 	assertEqualString("file", archive_entry_hardlink(ae));
-	assertEqualInt(6, archive_entry_size(ae));
+	assert(!archive_entry_size_is_set(ae));
 	assertEqualInt(86401, archive_entry_mtime(ae));
 	assertEqualInt(86401, archive_entry_atime(ae));
 	assertEqualInt(2, archive_entry_stat(ae)->st_nlink);

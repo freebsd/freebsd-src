@@ -101,6 +101,11 @@ void
 sctp_send_heartbeat_ack(struct sctp_tcb *, struct mbuf *, int, int,
     struct sctp_nets *);
 
+void
+sctp_remove_from_wheel(struct sctp_tcb *stcb,
+    struct sctp_association *asoc,
+    struct sctp_stream_out *strq, int holds_lock);
+
 
 void sctp_send_shutdown(struct sctp_tcb *, struct sctp_nets *);
 

@@ -103,6 +103,7 @@
 #define VAR_DIST_MAIN			"distMain"
 #define VAR_DIST_SRC			"distSRC"
 #define VAR_DIST_KERNEL			"distKernel"
+#define VAR_DIST_DOC			"distDoc"
 #define VAR_DEDICATE_DISK		"dedicateDisk"
 #define VAR_DOMAINNAME			"domainname"
 #define VAR_EDITOR			"editor"
@@ -191,6 +192,7 @@
 #define VAR_HOME_SIZE			"homeSize"
 #define VAR_TERM			"TERM"
 #define VAR_CONSTERM                    "_consterm"
+#define VAR_KEEPRCCONF			"keeprcconf"
 
 #ifdef PC98
 #define DEFAULT_COUNTRY		"jp"
@@ -270,6 +272,7 @@ typedef enum {
     DEVICE_TYPE_FTP,
     DEVICE_TYPE_NETWORK,
     DEVICE_TYPE_CDROM,
+    DEVICE_TYPE_USB,
     DEVICE_TYPE_DOS,
     DEVICE_TYPE_UFS,
     DEVICE_TYPE_NFS,
@@ -412,6 +415,7 @@ extern Boolean		have_volumes;		/* Media has multiple volumes                   *
 extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
+extern unsigned int	DocDists;		/* Which Doc dists we want			*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
 extern unsigned int	KernelDists;		/* Which kernel dists we want			*/
 extern int		BootMgr;		/* Which boot manager to use 			*/
@@ -427,17 +431,20 @@ extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
 #endif
 #endif
 extern DMenu		MenuConfigure;		/* Final configuration menu			*/
+extern DMenu		MenuDocInstall;		/* Documentation Installation menu		*/
 extern DMenu		MenuDocumentation;	/* Documentation menu				*/
 extern DMenu		MenuFTPOptions;		/* FTP Installation options			*/
 extern DMenu		MenuIndex;		/* Index menu					*/
 extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
 extern DMenu		MenuKLD;		/* Prototype KLD menu				*/
+extern DMenu		MenuConfig;		/* Prototype config menu				*/
 extern DMenu		MenuMedia;		/* Media type menu				*/
 #ifdef WITH_MICE
 extern DMenu		MenuMouse;		/* Mouse type menu				*/
 #endif
 extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
+extern DMenu		MenuMediaUSB;		/* USB media menu				*/
 extern DMenu		MenuMediaDOS;		/* DOS media menu				*/
 extern DMenu		MenuMediaFloppy;	/* Floppy media menu				*/
 extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
@@ -577,8 +584,10 @@ extern int	diskGetSelectCount(Device ***devs);
 /* dispatch.c */
 extern int	dispatchCommand(char *command);
 extern int	dispatch_load_floppy(dialogMenuItem *self);
+extern int	dispatch_load_cdrom(dialogMenuItem *self);
 extern int	dispatch_load_file_int(int);
 extern int	dispatch_load_file(dialogMenuItem *self);
+extern int	dispatch_load_menu(dialogMenuItem *self);
 
 
 /* dist.c */
@@ -593,6 +602,8 @@ extern int	distSetMinimum(dialogMenuItem *self);
 extern int	distSetEverything(dialogMenuItem *self);
 extern int	distSetSrc(dialogMenuItem *self);
 extern int	distSetKernel(dialogMenuItem *self);
+extern int	distSetDoc(dialogMenuItem *self);
+extern int	distSetDocMenu(dialogMenuItem *self);
 extern int	distExtractAll(dialogMenuItem *self);
 extern int	selectKernel(void);
 
@@ -669,6 +680,7 @@ extern int	installExpress(dialogMenuItem *self);
 extern int	installStandard(dialogMenuItem *self);
 extern int	installFixitHoloShell(dialogMenuItem *self);
 extern int	installFixitCDROM(dialogMenuItem *self);
+extern int	installFixitUSB(dialogMenuItem *self);
 extern int	installFixitFloppy(dialogMenuItem *self);
 extern int	installFixupBase(dialogMenuItem *self);
 extern int	installFixupKernel(dialogMenuItem *self, int dists);
@@ -713,6 +725,7 @@ extern void	mediaClose(void);
 extern int	mediaTimeout(void);
 extern int	mediaSetCDROM(dialogMenuItem *self);
 extern int	mediaSetFloppy(dialogMenuItem *self);
+extern int	mediaSetUSB(dialogMenuItem *self);
 extern int	mediaSetDOS(dialogMenuItem *self);
 extern int	mediaSetFTP(dialogMenuItem *self);
 extern int	mediaSetFTPActive(dialogMenuItem *self);
@@ -843,6 +856,11 @@ extern void     configTtys(void);
 extern void	mediaShutdownUFS(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
 extern FILE	*mediaGetUFS(Device *dev, char *file, Boolean probe);
+
+/* usb.c */
+extern Boolean	mediaInitUSB(Device *dev);
+extern FILE	*mediaGetUSB(Device *dev, char *file, Boolean probe);
+extern void	mediaShutdownUSB(Device *dev);
 
 /* user.c */
 extern int	userAddGroup(dialogMenuItem *self);

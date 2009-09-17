@@ -33,9 +33,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ipfw.h"
-#include "opt_inet.h"
 #include "opt_ipsec.h"
-#include "opt_mac.h"
+#include "opt_route.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mpath.h"
 #include "opt_sctp.h"
@@ -52,12 +51,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/ucred.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/route.h>
+#include <net/flowtable.h>
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
-#include <netinet/vinet.h>
 #ifdef SCTP
 #include <netinet/sctp.h>
 #include <netinet/sctp_crc32.h>
@@ -91,9 +90,7 @@ __FBSDID("$FreeBSD$");
 				  (ntohl(a.s_addr)>>8)&0xFF,\
 				  (ntohl(a.s_addr))&0xFF, y);
 
-#ifdef VIMAGE_GLOBALS
-u_short ip_id;
-#endif
+VNET_DEFINE(u_short, ip_id);
 
 #ifdef MBUF_STRESS_TEST
 int mbuf_frag_size = 0;
@@ -101,16 +98,11 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 	&mbuf_frag_size, 0, "Fragment outgoing mbufs to this size");
 #endif
 
-#if defined(IP_NONLOCALBIND)
-static int ip_nonlocalok = 0;
-SYSCTL_INT(_net_inet_ip, OID_AUTO, nonlocalok,
-	CTLFLAG_RW|CTLFLAG_SECURE, &ip_nonlocalok, 0, "");
-#endif
-
 static void	ip_mloopback
 	(struct ifnet *, struct mbuf *, struct sockaddr_in *, int);
 
 
+extern int in_mcast_loop;
 extern	struct protosw inetsw[];
 
 /*
@@ -125,14 +117,13 @@ int
 ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
     struct ip_moptions *imo, struct inpcb *inp)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET(curvnet);
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
 	int hlen = sizeof (struct ip);
 	int mtu;
 	int len, error = 0;
+	int nortfree = 0;
 	struct sockaddr_in *dst = NULL;	/* keep compiler happy */
 	struct in_ifaddr *ia = NULL;
 	int isbroadcast, sw_csum;
@@ -141,16 +132,34 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag = NULL;
 #endif
+#ifdef IPSEC
+	int no_route_but_check_spd = 0;
+#endif
 	M_ASSERTPKTHDR(m);
+
+	if (inp != NULL) {
+		INP_LOCK_ASSERT(inp);
+		M_SETFIB(m, inp->inp_inc.inc_fibnum);
+		if (inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
+			m->m_pkthdr.flowid = inp->inp_flowid;
+			m->m_flags |= M_FLOWID;
+		}
+	}
 
 	if (ro == NULL) {
 		ro = &iproute;
 		bzero(ro, sizeof (*ro));
-	}
 
-	if (inp != NULL) {
-		M_SETFIB(m, inp->inp_inc.inc_fibnum);
-		INP_LOCK_ASSERT(inp);
+#ifdef FLOWTABLE
+		/*
+		 * The flow table returns route entries valid for up to 30
+		 * seconds; we rely on the remainder of ip_output() taking no
+		 * longer than that long for the stability of ro_rt.  The
+		 * flow ID assignment must have happened before this point.
+		 */
+		if (flowtable_lookup(V_ip_ft, m, ro, M_GETFIB(m)) == 0)
+			nortfree = 1;
+#endif
 	}
 
 	if (opt) {
@@ -176,7 +185,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = hlen >> 2;
 		ip->ip_id = ip_newid();
-		V_ipstat.ips_localout++;
+		IPSTAT_INC(ips_localout);
 	} else {
 		hlen = ip->ip_hl << 2;
 	}
@@ -193,8 +202,10 @@ again:
 	if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
 			  dst->sin_family != AF_INET ||
 			  dst->sin_addr.s_addr != ip->ip_dst.s_addr)) {
-		RTFREE(ro->ro_rt);
+		if (!nortfree)
+			RTFREE(ro->ro_rt);
 		ro->ro_rt = (struct rtentry *)NULL;
+		ro->ro_lle = (struct llentry *)NULL;
 	}
 #ifdef IPFIREWALL_FORWARD
 	if (ro->ro_rt == NULL && fwd_tag == NULL) {
@@ -215,7 +226,7 @@ again:
 	if (flags & IP_SENDONES) {
 		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL &&
 		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL) {
-			V_ipstat.ips_noroute++;
+			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
 		}
@@ -227,7 +238,7 @@ again:
 	} else if (flags & IP_ROUTETOIF) {
 		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
 		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst)))) == NULL) {
-			V_ipstat.ips_noroute++;
+			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
 		}
@@ -259,11 +270,21 @@ again:
 			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
 #endif
 		if (ro->ro_rt == NULL) {
-			V_ipstat.ips_noroute++;
+#ifdef IPSEC
+			/*
+			 * There is no route for this packet, but it is
+			 * possible that a matching SPD entry exists.
+			 */
+			no_route_but_check_spd = 1;
+			mtu = 0; /* Silence GCC warning. */
+			goto sendit;
+#endif
+			IPSTAT_INC(ips_noroute);
 			error = EHOSTUNREACH;
 			goto bad;
 		}
 		ia = ifatoia(ro->ro_rt->rt_ifa);
+		ifa_ref(&ia->ia_ifa);
 		ifp = ro->ro_rt->rt_ifp;
 		ro->ro_rt->rt_rmx.rmx_pksent++;
 		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
@@ -292,8 +313,6 @@ again:
 		mtu = ifp->if_mtu;
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
-		struct in_multi *inm;
-
 		m->m_flags |= M_MCAST;
 		/*
 		 * IP destination address is multicast.  Make sure "dst"
@@ -318,7 +337,7 @@ again:
 		 */
 		if ((imo == NULL) || (imo->imo_multicast_vif == -1)) {
 			if ((ifp->if_flags & IFF_MULTICAST) == 0) {
-				V_ipstat.ips_noroute++;
+				IPSTAT_INC(ips_noroute);
 				error = ENETUNREACH;
 				goto bad;
 			}
@@ -333,20 +352,17 @@ again:
 				ip->ip_src = IA_SIN(ia)->sin_addr;
 		}
 
-		IN_MULTI_LOCK();
-		IN_LOOKUP_MULTI(ip->ip_dst, ifp, inm);
-		if (inm != NULL &&
-		   (imo == NULL || imo->imo_multicast_loop)) {
-			IN_MULTI_UNLOCK();
+		if ((imo == NULL && in_mcast_loop) ||
+		    (imo && imo->imo_multicast_loop)) {
 			/*
-			 * If we belong to the destination multicast group
-			 * on the outgoing interface, and the caller did not
-			 * forbid loopback, loop back a copy.
+			 * Loop back multicast datagram if not expressly
+			 * forbidden to do so, even if we are not a member
+			 * of the group; ip_input() will filter it later,
+			 * thus deferring a hash lookup and mutex acquisition
+			 * at the expense of a cheap copy using m_copym().
 			 */
 			ip_mloopback(ifp, m, dst, hlen);
-		}
-		else {
-			IN_MULTI_UNLOCK();
+		} else {
 			/*
 			 * If we are acting as a multicast router, perform
 			 * multicast forwarding as if the packet had just
@@ -381,8 +397,9 @@ again:
 		 * back, above, but must not be transmitted on a network.
 		 * Also, multicasts addressed to the loopback interface
 		 * are not sent -- the above call to ip_mloopback() will
-		 * loop back a copy if this host actually belongs to the
-		 * destination group on the loopback interface.
+		 * loop back a copy. ip_input() will drop the copy if
+		 * this host does not belong to the destination group on
+		 * the loopback interface.
 		 */
 		if (ip->ip_ttl == 0 || ifp->if_flags & IFF_LOOPBACK) {
 			m_freem(m);
@@ -418,7 +435,7 @@ again:
 #endif /* ALTQ */
 	{
 		error = ENOBUFS;
-		V_ipstat.ips_odropped++;
+		IPSTAT_INC(ips_odropped);
 		ifp->if_snd.ifq_drops += (ip->ip_len / ifp->if_mtu + 1);
 		goto bad;
 	}
@@ -449,7 +466,7 @@ again:
 
 sendit:
 #ifdef IPSEC
-	switch(ip_ipsec_output(&m, inp, &flags, &error, &ro, &iproute, &dst, &ia, &ifp)) {
+	switch(ip_ipsec_output(&m, inp, &flags, &error, &ifp)) {
 	case 1:
 		goto bad;
 	case -1:
@@ -457,6 +474,14 @@ sendit:
 	case 0:
 	default:
 		break;	/* Continue with packet processing. */
+	}
+	/*
+	 * Check if there was a route for this packet; return error if not.
+	 */
+	if (no_route_but_check_spd) {
+		IPSTAT_INC(ips_noroute);
+		error = EHOSTUNREACH;
+		goto bad;
 	}
 	/* Update variables that are affected by ipsec4_output(). */
 	ip = mtod(m, struct ip *);
@@ -536,7 +561,7 @@ passout:
 	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
 	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
 		if ((ifp->if_flags & IFF_LOOPBACK) == 0) {
-			V_ipstat.ips_badaddr++;
+			IPSTAT_INC(ips_badaddr);
 			error = EADDRNOTAVAIL;
 			goto bad;
 		}
@@ -593,14 +618,14 @@ passout:
 		 */
 		m->m_flags &= ~(M_PROTOFLAGS);
 		error = (*ifp->if_output)(ifp, m,
-				(struct sockaddr *)dst, ro->ro_rt);
+		    		(struct sockaddr *)dst, ro);
 		goto done;
 	}
 
 	/* Balk when DF bit is set or the interface didn't support TSO. */
 	if ((ip->ip_off & IP_DF) || (m->m_pkthdr.csum_flags & CSUM_TSO)) {
 		error = EMSGSIZE;
-		V_ipstat.ips_cantfrag++;
+		IPSTAT_INC(ips_cantfrag);
 		goto bad;
 	}
 
@@ -627,18 +652,20 @@ passout:
 			m->m_flags &= ~(M_PROTOFLAGS);
 
 			error = (*ifp->if_output)(ifp, m,
-			    (struct sockaddr *)dst, ro->ro_rt);
+			    (struct sockaddr *)dst, ro);
 		} else
 			m_freem(m);
 	}
 
 	if (error == 0)
-		V_ipstat.ips_fragmented++;
+		IPSTAT_INC(ips_fragmented);
 
 done:
-	if (ro == &iproute && ro->ro_rt) {
+	if (ro == &iproute && ro->ro_rt && !nortfree) {
 		RTFREE(ro->ro_rt);
 	}
+	if (ia != NULL)
+		ifa_free(&ia->ia_ifa);
 	return (error);
 bad:
 	m_freem(m);
@@ -658,7 +685,6 @@ int
 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
     u_long if_hwassist_flags, int sw_csum)
 {
-	INIT_VNET_INET(curvnet);
 	int error = 0;
 	int hlen = ip->ip_hl << 2;
 	int len = (mtu - hlen) & ~7;	/* size of payload in each fragment */
@@ -669,7 +695,7 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	int nfrags;
 
 	if (ip->ip_off & IP_DF) {	/* Fragmentation not allowed */
-		V_ipstat.ips_cantfrag++;
+		IPSTAT_INC(ips_cantfrag);
 		return EMSGSIZE;
 	}
 
@@ -750,14 +776,14 @@ smart_frag_failure:
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
-			V_ipstat.ips_odropped++;
+			IPSTAT_INC(ips_odropped);
 			goto done;
 		}
 		m->m_flags |= (m0->m_flags & M_MCAST) | M_FRAG;
 		/*
 		 * In the first mbuf, leave room for the link header, then
 		 * copy the original IP header including options. The payload
-		 * goes into an additional mbuf chain returned by m_copy().
+		 * goes into an additional mbuf chain returned by m_copym().
 		 */
 		m->m_data += max_linkhdr;
 		mhip = mtod(m, struct ip *);
@@ -776,11 +802,11 @@ smart_frag_failure:
 		} else
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
-		m->m_next = m_copy(m0, off, len);
+		m->m_next = m_copym(m0, off, len, M_DONTWAIT);
 		if (m->m_next == NULL) {	/* copy failed */
 			m_free(m);
 			error = ENOBUFS;	/* ??? */
-			V_ipstat.ips_odropped++;
+			IPSTAT_INC(ips_odropped);
 			goto done;
 		}
 		m->m_pkthdr.len = mhlen + len;
@@ -796,7 +822,7 @@ smart_frag_failure:
 		*mnext = m;
 		mnext = &m->m_nextpkt;
 	}
-	V_ipstat.ips_ofragments += nfrags;
+	IPSTAT_ADD(ips_ofragments, nfrags);
 
 	/* set first marker for fragment chain */
 	m0->m_flags |= M_FIRSTFRAG | M_FRAG;
@@ -897,14 +923,14 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			return (error);
 		}
 
-#if defined(IP_NONLOCALBIND)
-		case IP_NONLOCALOK:
-			if (! ip_nonlocalok) {
-				error = ENOPROTOOPT;
-				break;
+		case IP_BINDANY:
+			if (sopt->sopt_td != NULL) {
+				error = priv_check(sopt->sopt_td,
+				    PRIV_NETINET_BINDANY);
+				if (error)
+					break;
 			}
 			/* FALLTHROUGH */
-#endif
 		case IP_TOS:
 		case IP_TTL:
 		case IP_MINTTL:
@@ -976,11 +1002,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			case IP_DONTFRAG:
 				OPTSET(INP_DONTFRAG);
 				break;
-#if defined(IP_NONLOCALBIND)
-			case IP_NONLOCALOK:
-				OPTSET(INP_NONLOCALOK);
+			case IP_BINDANY:
+				OPTSET(INP_BINDANY);
 				break;
-#endif
 			}
 			break;
 #undef OPTSET

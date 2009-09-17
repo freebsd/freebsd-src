@@ -65,7 +65,9 @@
 static char string_buf[MAX_STR_CONST];
 static char *string_buf_ptr;
 static int  parren_count;
-static char buf[255];
+static char msgbuf[255];
+
+extern int mmlex(void);
 %}
 
 WORD		[A-Za-z_][-A-Za-z_0-9]*
@@ -143,9 +145,9 @@ MCARG		[^(), \t]+
 				return T_SYMBOL;
 			}
 .			{ 
-				snprintf(buf, sizeof(buf), "Invalid character "
+				snprintf(msgbuf, sizeof(msgbuf), "Invalid character "
 					 "'%c'", mmtext[0]);
-				stop(buf, EX_DATAERR);
+				stop(msgbuf, EX_DATAERR);
 			}
 %%
 
@@ -153,4 +155,5 @@ int
 mmwrap()
 {
 	stop("EOF encountered in macro call", EX_DATAERR);
+	return (1);
 }

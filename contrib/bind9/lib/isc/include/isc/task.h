@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task.h,v 1.51.18.2 2005/04/29 00:17:03 marka Exp $ */
+/* $Id: task.h,v 1.61.332.2 2009/01/18 23:47:41 tbox Exp $ */
 
 #ifndef ISC_TASK_H
 #define ISC_TASK_H 1
@@ -24,9 +24,9 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file isc/task.h
  * \brief The task system provides a lightweight execution context, which is
- * basically an event queue.  
+ * basically an event queue.
 
  * When a task's event queue is non-empty, the
  * task is runnable.  A small work crew of threads, typically one per CPU,
@@ -67,7 +67,7 @@
  * Consumers of events should purge, not unsend.
  *
  * Producers of events often want to remove events when the caller indicates
- * it is no longer interested in the object, e.g. by cancelling a timer.
+ * it is no longer interested in the object, e.g. by canceling a timer.
  * Sometimes this can be done by purging, but for some event types, the
  * calls to isc_event_free() cause deadlock because the event free routine
  * wants to acquire a lock the caller is already holding.  Unsending instead
@@ -84,6 +84,7 @@
 #include <isc/lang.h>
 #include <isc/stdtime.h>
 #include <isc/types.h>
+#include <isc/xml.h>
 
 #define ISC_TASKEVENT_FIRSTEVENT	(ISC_EVENTCLASS_TASK + 0)
 #define ISC_TASKEVENT_SHUTDOWN		(ISC_EVENTCLASS_TASK + 1)
@@ -497,7 +498,7 @@ isc_task_beginexclusive(isc_task_t *task);
  * current event, and prevents any new events from executing in any of the
  * tasks sharing a task manager with 'task'.
  *
- * The exclusive access must be relinquished by calling 
+ * The exclusive access must be relinquished by calling
  * isc_task_endexclusive() before returning from the current event handler.
  *
  * Requires:
@@ -512,7 +513,7 @@ isc_task_beginexclusive(isc_task_t *task);
 void
 isc_task_endexclusive(isc_task_t *task);
 /*%<
- * Relinquish the exclusive access obtained by isc_task_beginexclusive(), 
+ * Relinquish the exclusive access obtained by isc_task_beginexclusive(),
  * allowing other tasks to execute.
  *
  * Requires:
@@ -592,7 +593,7 @@ isc_taskmgr_destroy(isc_taskmgr_t **managerp);
  *	because it would block forever waiting for the event action to
  *	complete.  An event action that wants to cause task manager shutdown
  *	should request some non-event action thread of execution to do the
- *	shutdown, e.g. by signalling a condition variable or using
+ *	shutdown, e.g. by signaling a condition variable or using
  *	isc_app_shutdown().
  *
  *\li	Task manager references are not reference counted, so the caller
@@ -610,6 +611,13 @@ isc_taskmgr_destroy(isc_taskmgr_t **managerp);
  *\li	All resources used by the task manager, and any tasks it managed,
  *	have been freed.
  */
+
+#ifdef HAVE_LIBXML2
+
+void
+isc_taskmgr_renderxml(isc_taskmgr_t *mgr, xmlTextWriterPtr writer);
+
+#endif
 
 ISC_LANG_ENDDECLS
 

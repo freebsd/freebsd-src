@@ -433,7 +433,7 @@ get_system_info(struct system_info *si)
 		static unsigned int swap_delay = 0;
 		static int swapavail = 0;
 		static int swapfree = 0;
-		static int bufspace = 0;
+		static long bufspace = 0;
 		static int nspgsin, nspgsout;
 
 		GETSYSCTL("vfs.bufspace", bufspace);

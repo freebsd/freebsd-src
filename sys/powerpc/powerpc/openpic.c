@@ -122,10 +122,12 @@ openpic_attach(device_t dev)
 	    OPENPIC_FEATURE_LAST_IRQ_SHIFT) + 1;
 
 	/*
-	 * PSIM seems to report 1 too many IRQs
+	 * PSIM seems to report 1 too many IRQs and CPUs
 	 */
-	if (sc->sc_psim)
+	if (sc->sc_psim) {
 		sc->sc_nirq--;
+		sc->sc_ncpu--;
+	}
 
 	if (bootverbose)
 		device_printf(dev,
@@ -205,6 +207,8 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 {
 	struct openpic_softc *sc;
 	u_int cpuid, vector;
+
+	CTR1(KTR_INTR, "%s: got interrupt", __func__);
 
 	cpuid = PCPU_GET(cpuid);
 	sc = device_get_softc(dev);

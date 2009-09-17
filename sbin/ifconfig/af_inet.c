@@ -52,7 +52,7 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
-static struct ifaliasreq in_addreq;
+static struct in_aliasreq in_addreq;
 static struct ifreq in_ridreq;
 
 static void
@@ -130,7 +130,7 @@ in_getaddr(const char *s, int which)
 		return;
 	if ((hp = gethostbyname(s)) != 0)
 		bcopy(hp->h_addr, (char *)&sin->sin_addr, 
-		    MIN(hp->h_length, sizeof(sin->sin_addr)));
+		    MIN((size_t)hp->h_length, sizeof(sin->sin_addr)));
 	else if ((np = getnetbyname(s)) != 0)
 		sin->sin_addr = inet_makeaddr(np->n_net, INADDR_ANY);
 	else
@@ -169,7 +169,7 @@ in_status_tunnel(int s)
 static void
 in_set_tunnel(int s, struct addrinfo *srcres, struct addrinfo *dstres)
 {
-	struct ifaliasreq addreq;
+	struct in_aliasreq addreq;
 
 	memset(&addreq, 0, sizeof(addreq));
 	strncpy(addreq.ifra_name, name, IFNAMSIZ);

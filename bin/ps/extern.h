@@ -71,6 +71,7 @@ void	 priorityr(KINFO *, VARENT *);
 void	 rgroupname(KINFO *, VARENT *);
 void	 runame(KINFO *, VARENT *);
 void	 rvar(KINFO *, VARENT *);
+int	 s_comm(KINFO *);
 int	 s_label(KINFO *);
 int	 s_rgroupname(KINFO *);
 int	 s_runame(KINFO *);

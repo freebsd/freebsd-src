@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sockaddr.h,v 1.42.18.8 2006/03/02 00:37:22 marka Exp $ */
+/* $Id: sockaddr.h,v 1.55.332.2 2009/01/18 23:47:41 tbox Exp $ */
 
 #ifndef ISC_SOCKADDR_H
 #define ISC_SOCKADDR_H 1
 
-/*! \file */
+/*! \file isc/sockaddr.h */
 
 #include <isc/lang.h>
 #include <isc/net.h>
@@ -84,6 +84,7 @@ isc_sockaddr_eqaddrprefix(const isc_sockaddr_t *a, const isc_sockaddr_t *b,
 /*%<
  * Return ISC_TRUE iff the most significant 'prefixlen' bits of the
  * socket addresses 'a' and 'b' are equal, ignoring the ports.
+ * If 'b''s scope is zero then 'a''s scope will be ignored.
  */
 
 unsigned int
@@ -209,7 +210,7 @@ isc_sockaddr_isexperimental(const isc_sockaddr_t *sa);
 isc_boolean_t
 isc_sockaddr_islinklocal(const isc_sockaddr_t *sa);
 /*%<
- * Returns ISC_TRUE if the address is a link local addresss.
+ * Returns ISC_TRUE if the address is a link local address.
  */
 
 isc_boolean_t

@@ -301,17 +301,8 @@ done:	if (follow) {
  */
 /*ARGSUSED*/
 void
-tcp_trace(act, ostate, tp, family, ip, th, req)
-	short act, ostate;
-	struct tcpcb *tp;
-#ifdef INET6
-	int family;
-#else
-	int family __unused;
-#endif
-	void *ip;
-	struct tcphdr *th;
-	int req;
+tcp_trace(short act, short ostate, struct tcpcb *tp, int family __unused,
+    void *ip, struct tcphdr *th, int req)
 {
 	tcp_seq seq, ack;
 	int flags, len, win, timer;

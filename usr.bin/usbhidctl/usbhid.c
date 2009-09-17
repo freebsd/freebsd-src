@@ -47,7 +47,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <usbhid.h>
-#include <dev/usb2/include/usb2_hid.h>
+#include <dev/usb/usbhid.h>
 
 int verbose = 0;
 int all = 0;
@@ -91,16 +91,15 @@ prbits(int bits, char **strs, int n)
 void
 usage(void)
 {
-	extern char *__progname;
 
 	fprintf(stderr,
                 "usage: %s -f device "
                 "[-l] [-n] [-r] [-t tablefile] [-v] [-x] name ...\n",
-                __progname);
+                getprogname());
 	fprintf(stderr,
                 "       %s -f device "
                 "[-l] [-n] [-r] [-t tablefile] [-v] [-x] -a\n",
-                __progname);
+                getprogname());
 	exit(1);
 }
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rootns.c,v 1.26.18.7 2008/02/05 23:46:09 tbox Exp $ */
+/* $Id: rootns.c,v 1.36 2008/09/24 02:46:22 marka Exp $ */
 
 /*! \file */
 
@@ -97,6 +97,7 @@ in_rootns(dns_rdataset_t *rootns, dns_name_t *name) {
 		if (dns_name_compare(name, &ns.name) == 0)
 			return (ISC_R_SUCCESS);
 		result = dns_rdataset_next(rootns);
+		dns_rdata_reset(&rdata);
 	}
 	if (result == ISC_R_NOMORE)
 		result = ISC_R_NOTFOUND;
@@ -158,7 +159,7 @@ check_hints(dns_db_t *db) {
 	dns_rdataset_init(&rootns);
 	(void)dns_db_find(db, dns_rootname, NULL, dns_rdatatype_ns, 0,
 			  now, NULL, name, &rootns, NULL);
-	result = dns_db_createiterator(db, ISC_FALSE, &dbiter);
+	result = dns_db_createiterator(db, 0, &dbiter);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 	result = dns_dbiterator_first(dbiter);
@@ -338,6 +339,7 @@ check_address_records(dns_view_t *view, dns_db_t *hints, dns_db_t *db,
 	    (rresult == ISC_R_SUCCESS || rresult == DNS_R_GLUE)) {
 		result = dns_rdataset_first(&rootrrset);
 		while (result == ISC_R_SUCCESS) {
+			dns_rdata_reset(&rdata);
 			dns_rdataset_current(&rootrrset, &rdata);
 			if (!inrrset(&hintrrset, &rdata))
 				report(view, name, ISC_TRUE, &rdata);
@@ -345,6 +347,7 @@ check_address_records(dns_view_t *view, dns_db_t *hints, dns_db_t *db,
 		}
 		result = dns_rdataset_first(&hintrrset);
 		while (result == ISC_R_SUCCESS) {
+			dns_rdata_reset(&rdata);
 			dns_rdataset_current(&hintrrset, &rdata);
 			if (!inrrset(&rootrrset, &rdata))
 				report(view, name, ISC_FALSE, &rdata);
@@ -355,6 +358,7 @@ check_address_records(dns_view_t *view, dns_db_t *hints, dns_db_t *db,
 	    (rresult == ISC_R_SUCCESS || rresult == DNS_R_GLUE)) {
 		result = dns_rdataset_first(&rootrrset);
 		while (result == ISC_R_SUCCESS) {
+			dns_rdata_reset(&rdata);
 			dns_rdataset_current(&rootrrset, &rdata);
 			report(view, name, ISC_TRUE, &rdata);
 			result = dns_rdataset_next(&rootrrset);
@@ -377,6 +381,7 @@ check_address_records(dns_view_t *view, dns_db_t *hints, dns_db_t *db,
 	    (rresult == ISC_R_SUCCESS || rresult == DNS_R_GLUE)) {
 		result = dns_rdataset_first(&rootrrset);
 		while (result == ISC_R_SUCCESS) {
+			dns_rdata_reset(&rdata);
 			dns_rdataset_current(&rootrrset, &rdata);
 			if (!inrrset(&hintrrset, &rdata))
 				report(view, name, ISC_TRUE, &rdata);
@@ -385,6 +390,7 @@ check_address_records(dns_view_t *view, dns_db_t *hints, dns_db_t *db,
 		}
 		result = dns_rdataset_first(&hintrrset);
 		while (result == ISC_R_SUCCESS) {
+			dns_rdata_reset(&rdata);
 			dns_rdataset_current(&hintrrset, &rdata);
 			if (!inrrset(&rootrrset, &rdata))
 				report(view, name, ISC_FALSE, &rdata);
@@ -396,6 +402,7 @@ check_address_records(dns_view_t *view, dns_db_t *hints, dns_db_t *db,
 	    (rresult == ISC_R_SUCCESS || rresult == DNS_R_GLUE)) {
 		result = dns_rdataset_first(&rootrrset);
 		while (result == ISC_R_SUCCESS) {
+			dns_rdata_reset(&rdata);
 			dns_rdataset_current(&rootrrset, &rdata);
 			report(view, name, ISC_TRUE, &rdata);
 			dns_rdata_reset(&rdata);

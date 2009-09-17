@@ -32,7 +32,6 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -77,7 +76,7 @@ struct fw_hwaddr firewire_broadcastaddr = {
 
 static int
 firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-    struct rtentry *rt0)
+    struct route *ro)
 {
 	struct fw_com *fc = IFP2FWC(ifp);
 	int error, type;
@@ -89,7 +88,9 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct mbuf *mtail;
 	int unicast, dgl, foff;
 	static int next_dgl;
+#if defined(INET) || defined(INET6)
 	struct llentry *lle;
+#endif
 
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -138,7 +139,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		 * doesn't fit into the arp model.
 		 */
 		if (unicast) {
-			error = arpresolve(ifp, rt0, m, dst, (u_char *) destfw, &lle);
+			error = arpresolve(ifp, ro ? ro->ro_rt : NULL, m, dst, (u_char *) destfw, &lle);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -630,7 +631,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 }
 
 int
-firewire_ioctl(struct ifnet *ifp, int command, caddr_t data)
+firewire_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;

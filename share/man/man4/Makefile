@@ -7,12 +7,14 @@ MAN=	aac.4 \
 	${_acpi_asus.4} \
 	${_acpi_dock.4} \
 	${_acpi_fujitsu.4} \
+	${_acpi_hp.4} \
 	${_acpi_ibm.4} \
 	${_acpi_panasonic.4} \
 	${_acpi_sony.4} \
 	acpi_thermal.4 \
 	${_acpi_toshiba.4} \
 	acpi_video.4 \
+	${_acpi_wmi.4} \
 	adv.4 \
 	adw.4 \
 	ae.4 \
@@ -21,11 +23,14 @@ MAN=	aac.4 \
 	aha.4 \
 	ahb.4 \
 	ahc.4 \
+	ahci.4 \
 	ahd.4 \
 	aio.4 \
+	alc.4 \
 	ale.4 \
 	altq.4 \
 	amd.4 \
+	${_amdtemp.4} \
 	${_amdsmb.4} \
 	amr.4 \
 	an.4 \
@@ -49,9 +54,12 @@ MAN=	aac.4 \
 	bktr.4 \
 	blackhole.4 \
 	bpf.4 \
+	bridge.4 \
 	bt.4 \
+	bwi.4 \
 	cardbus.4 \
 	carp.4 \
+	cas.4 \
 	ccd.4 \
 	cd.4 \
 	cdce.4 \
@@ -77,6 +85,7 @@ MAN=	aac.4 \
 	digi.4 \
 	disc.4 \
 	divert.4 \
+	${_dpms.4} \
 	dpt.4 \
 	dummynet.4 \
 	ed.4 \
@@ -86,6 +95,7 @@ MAN=	aac.4 \
 	em.4 \
 	en.4 \
 	enc.4 \
+	epair.4 \
 	esp.4 \
 	et.4 \
 	exca.4 \
@@ -94,7 +104,6 @@ MAN=	aac.4 \
 	fd.4 \
 	fdc.4 \
 	firewire.4 \
-	fla.4 \
 	fpa.4 \
 	fwe.4 \
 	fwip.4 \
@@ -124,10 +133,9 @@ MAN=	aac.4 \
 	icmp6.4 \
 	ida.4 \
 	idt.4 \
-	ieee80211.4 \
-	if_bridge.4 \
 	ifmib.4 \
 	igb.4 \
+	igmp.4 \
 	iic.4 \
 	iicbb.4 \
 	iicbus.4 \
@@ -150,14 +158,15 @@ MAN=	aac.4 \
 	ispfw.4 \
 	iwi.4 \
 	iwn.4 \
+	iwnfw.4 \
 	ixgb.4 \
 	ixgbe.4 \
 	jme.4 \
 	joy.4 \
-	${_k8temp.4} \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
+	ksyms.4 \
 	ktr.4 \
 	kue.4 \
 	lagg.4 \
@@ -188,6 +197,7 @@ MAN=	aac.4 \
 	meteor.4 \
 	mfi.4 \
 	miibus.4 \
+	mld.4 \
 	mlx.4 \
 	mly.4 \
 	mmc.4 \
@@ -198,6 +208,8 @@ MAN=	aac.4 \
 	msk.4 \
 	mtio.4 \
 	multicast.4 \
+	mwl.4 \
+	mwlfw.4 \
 	mxge.4 \
 	my.4 \
 	natm.4 \
@@ -205,6 +217,7 @@ MAN=	aac.4 \
 	ncr.4 \
 	ncv.4 \
 	${_ndis.4} \
+	net80211.4 \
 	netgraph.4 \
 	netintro.4 \
 	${_nfe.4} \
@@ -289,7 +302,6 @@ MAN=	aac.4 \
 	ppbus.4 \
 	ppc.4 \
 	ppi.4 \
-	ppp.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
@@ -322,9 +334,9 @@ MAN=	aac.4 \
 	sf.4 \
 	si.4 \
 	sio.4 \
+	siis.4 \
 	sis.4 \
 	sk.4 \
-	sl.4 \
 	smb.4 \
 	smbus.4 \
 	smp.4 \
@@ -390,6 +402,7 @@ MAN=	aac.4 \
 	u3g.4 \
 	uark.4 \
 	uart.4 \
+	uath.4 \
 	ubsa.4 \
 	ubsec.4 \
 	ubser.4 \
@@ -420,7 +433,6 @@ MAN=	aac.4 \
 	urio.4 \
 	${_urtw.4} \
 	usb.4 \
-	uscanner.4 \
 	uslcom.4 \
 	utopia.4 \
 	uvisor.4 \
@@ -466,6 +478,9 @@ MLINKS+=bce.4 if_bce.4
 MLINKS+=bfe.4 if_bfe.4
 MLINKS+=bge.4 if_bge.4
 MLINKS+=bktr.4 brooktree.4
+MLINKS+=bridge.4 if_bridge.4
+MLINKS+=bwi.4 if_bwi.4
+MLINKS+=cas.4 if_cas.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
 MLINKS+=dc.4 if_dc.4
@@ -477,6 +492,7 @@ MLINKS+=ef.4 if_ef.4
 MLINKS+=em.4 if_em.4
 MLINKS+=en.4 if_en.4
 MLINKS+=enc.4 if_enc.4
+MLINKS+=epair.4 if_epair.4
 MLINKS+=et.4 if_et.4
 MLINKS+=faith.4 if_faith.4
 MLINKS+=fatm.4 if_fatm.4
@@ -496,7 +512,6 @@ MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=idt.4 if_idt.4
-MLINKS+=if_bridge.4 bridge.4
 MLINKS+=igb.4 if_igb.4
 MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
@@ -532,7 +547,6 @@ MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
 	pcm.4 sound.4
 MLINKS+=pcn.4 if_pcn.4
-MLINKS+=ppp.4 if_ppp.4
 MLINKS+=ral.4 if_ral.4
 MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
@@ -545,7 +559,6 @@ MLINKS+=scsi.4 CAM.4 \
 MLINKS+=sf.4 if_sf.4
 MLINKS+=sis.4 if_sis.4
 MLINKS+=sk.4 if_sk.4
-MLINKS+=sl.4 if_sl.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=sn.4 if_sn.4
 MLINKS+=snd_envy24.4 snd_ak452x.4
@@ -566,6 +579,7 @@ MLINKS+=tun.4 if_tun.4
 MLINKS+=tx.4 if_tx.4
 MLINKS+=txp.4 if_txp.4
 MLINKS+=u3g.4 u3gstub.4
+MLINKS+=uath.4 if_uath.4
 MLINKS+=udav.4 if_udav.4
 MLINKS+=upgt.4 if_upgt.4
 MLINKS+=ural.4 if_ural.4
@@ -587,14 +601,18 @@ _acpi_aiboost.4=acpi_aiboost.4
 _acpi_asus.4=	acpi_asus.4
 _acpi_dock.4=	acpi_dock.4
 _acpi_fujitsu.4=acpi_fujitsu.4
+_acpi_hp.4=	acpi_hp.4
 _acpi_ibm.4=	acpi_ibm.4
 _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
+_acpi_wmi.4=	acpi_wmi.4
 _amdsmb.4=	amdsmb.4
+_amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
+_dpms.4=	dpms.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
@@ -609,7 +627,6 @@ _ipmi.4=	ipmi.4
 _io.4=		io.4
 _linux.4=	linux.4
 _ndis.4=	ndis.4
-_k8temp.4=	k8temp.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4

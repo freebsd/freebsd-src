@@ -146,7 +146,7 @@ void mach64_driver_irq_preinstall(struct drm_device * dev)
 
 int mach64_driver_irq_postinstall(struct drm_device * dev)
 {
-	return drm_vblank_init(dev, 1);
+	return 0;
 }
 
 void mach64_driver_irq_uninstall(struct drm_device * dev)

@@ -34,6 +34,6 @@ struct smbus_softc {
 	struct mtx lock;
 };
 
-void	smbus_generic_intr(device_t dev, u_char devaddr, char low, char high);
+void smbus_generic_intr(device_t dev, u_char devaddr, char low, char high, int err);
 
 #endif

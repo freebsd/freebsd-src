@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2009
+.Dd May 12, 2009
 .Dt TRUSS 1
 .Os
 .Sh NAME
@@ -8,12 +8,12 @@
 .Nd trace system calls
 .Sh SYNOPSIS
 .Nm
-.Op Fl faedDS
+.Op Fl facedDS
 .Op Fl o Ar file
 .Op Fl s Ar strsize
 .Fl p Ar pid
 .Nm
-.Op Fl faedDS
+.Op Fl facedDS
 .Op Fl o Ar file
 .Op Fl s Ar strsize
 .Ar command Op Ar args
@@ -36,6 +36,12 @@ etc.
 Show the argument strings that are passed in each
 .Xr execve 2
 system call.
+.It Fl c
+Do not display individual system calls.
+Instead, before exiting, print a summary containing for each system call:
+the total system time used,
+the number of times the call was invoked,
+and the number of times the call returned with an error.
 .It Fl e
 Show the environment strings that are passed in each
 .Xr execve 2

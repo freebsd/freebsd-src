@@ -45,14 +45,15 @@ static boolean_t	db_term(db_expr_t *valuep);
 static boolean_t	db_unary(db_expr_t *valuep);
 
 static boolean_t
-db_term(valuep)
-	db_expr_t *valuep;
+db_term(db_expr_t *valuep)
 {
 	int	t;
 
 	t = db_read_token();
 	if (t == tIDENT) {
-	    if (!db_value_of_name(db_tok_string, valuep)) {
+	    if (!db_value_of_name(db_tok_string, valuep) &&
+		!db_value_of_name_pcpu(db_tok_string, valuep) &&
+		!db_value_of_name_vnet(db_tok_string, valuep)) {
 		db_error("Symbol not found\n");
 		/*NOTREACHED*/
 	    }
@@ -100,8 +101,7 @@ db_term(valuep)
 }
 
 static boolean_t
-db_unary(valuep)
-	db_expr_t *valuep;
+db_unary(db_expr_t *valuep)
 {
 	int	t;
 
@@ -128,8 +128,7 @@ db_unary(valuep)
 }
 
 static boolean_t
-db_mult_expr(valuep)
-	db_expr_t *valuep;
+db_mult_expr(db_expr_t *valuep)
 {
 	db_expr_t	lhs, rhs;
 	int		t;
@@ -165,8 +164,7 @@ db_mult_expr(valuep)
 }
 
 static boolean_t
-db_add_expr(valuep)
-	db_expr_t *valuep;
+db_add_expr(db_expr_t *valuep)
 {
 	db_expr_t	lhs, rhs;
 	int		t;
@@ -192,8 +190,7 @@ db_add_expr(valuep)
 }
 
 static boolean_t
-db_shift_expr(valuep)
-	db_expr_t *valuep;
+db_shift_expr(db_expr_t *valuep)
 {
 	db_expr_t	lhs, rhs;
 	int		t;
@@ -225,8 +222,7 @@ db_shift_expr(valuep)
 }
 
 int
-db_expression(valuep)
-	db_expr_t *valuep;
+db_expression(db_expr_t *valuep)
 {
 	return (db_shift_expr(valuep));
 }

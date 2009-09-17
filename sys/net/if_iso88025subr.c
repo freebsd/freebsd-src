@@ -43,7 +43,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -150,7 +149,7 @@ iso88025_ifdetach(ifp, bpf)
 }
 
 int
-iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
+iso88025_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
         struct ifaddr *ifa;
         struct ifreq *ifr;
@@ -232,11 +231,11 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
  * ISO88025 encapsulation
  */
 int
-iso88025_output(ifp, m, dst, rt0)
+iso88025_output(ifp, m, dst, ro)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *dst;
-	struct rtentry *rt0;
+	struct route *ro;
 {
 	u_int16_t snap_type = 0;
 	int loop_copy = 0, error = 0, rif_len = 0;
@@ -244,7 +243,13 @@ iso88025_output(ifp, m, dst, rt0)
 	struct iso88025_header *th;
 	struct iso88025_header gen_th;
 	struct sockaddr_dl *sdl = NULL;
+	struct rtentry *rt0 = NULL;
+#if defined(INET) || defined(INET6)
 	struct llentry *lle;
+#endif
+
+	if (ro != NULL)
+		rt0 = ro->ro_rt;
 
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);

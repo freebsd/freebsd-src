@@ -53,17 +53,19 @@ SYM_MAPS+=	${.CURDIR}/sys/Symbol.map
 CLEANFILES+=	${SASM} ${SPSEUDO}
 
 ${SASM}:
-	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' > ${.TARGET}
+	printf '#include "compat.h"\n' > ${.TARGET}
+	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' >> ${.TARGET}
 
 ${SPSEUDO}:
+	printf '#include "compat.h"\n' > ${.TARGET}
 	printf '#include "SYS.h"\nPSEUDO(${.PREFIX:S/_//})\n' \
-	    > ${.TARGET}
+	    >> ${.TARGET}
 
 MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \
 	aio_suspend.2 aio_waitcomplete.2 aio_write.2 \
 	bind.2 brk.2 chdir.2 chflags.2 \
-	chmod.2 chown.2 chroot.2 clock_gettime.2 close.2 \
+	chmod.2 chown.2 chroot.2 clock_gettime.2 close.2 closefrom.2 \
 	connect.2 cpuset.2 cpuset_getaffinity.2 dup.2 execve.2 _exit.2 \
 	extattr_get_file.2 fcntl.2 fhopen.2 flock.2 fork.2 fsync.2 \
 	getdirentries.2 getdtablesize.2 \
@@ -79,6 +81,7 @@ MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	mlockall.2 mmap.2 modfind.2 modnext.2 modstat.2 mount.2 mprotect.2 \
 	mq_close.2 mq_getattr.2 mq_notify.2 mq_open.2 mq_receive.2 mq_send.2 \
 	mq_setattr.2 \
+	msgctl.2 msgget.2 msgrcv.2 msgsnd.2 \
 	msync.2 munmap.2 nanosleep.2 nfssvc.2 ntp_adjtime.2 open.2 \
 	pathconf.2 pipe.2 poll.2 posix_openpt.2 profil.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
@@ -137,7 +140,10 @@ MLINKS+=getsockopt.2 setsockopt.2
 MLINKS+=gettimeofday.2 settimeofday.2
 MLINKS+=getuid.2 geteuid.2
 MLINKS+=intro.2 errno.2
-MLINKS+=jail.2 jail_attach.2
+MLINKS+=jail.2 jail_attach.2 \
+	jail.2 jail_get.2 \
+	jail.2 jail_remove.2 \
+	jail.2 jail_set.2
 MLINKS+=kldunload.2 kldunloadf.2
 MLINKS+=kqueue.2 kevent.2
 MLINKS+=link.2 linkat.2
@@ -154,6 +160,7 @@ MLINKS+=mq_send.2 mq_timedsend.2
 MLINKS+=ntp_adjtime.2 ntp_gettime.2
 MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
+MLINKS+=pathconf.2 lpathconf.2
 MLINKS+=read.2 pread.2 read.2 preadv.2 read.2 readv.2
 MLINKS+=readlink.2 readlinkat.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2

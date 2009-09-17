@@ -106,12 +106,6 @@ static struct {
 	{ CENTAUR_VENDOR_ID,	CPU_VENDOR_CENTAUR },	/* CentaurHauls */
 };
 
-int cpu_cores;
-int cpu_logical;
-
-
-extern int pq_l2size;
-extern int pq_l2nways;
 
 void
 printcpuinfo(void)
@@ -195,7 +189,6 @@ printcpuinfo(void)
 	    cpu_vendor_id == CPU_VENDOR_CENTAUR) {
 		printf("  Stepping = %u", cpu_id & 0xf);
 		if (cpu_high > 0) {
-			u_int cmp = 1, htt = 1;
 
 			/*
 			 * Here we should probably set up flags indicating
@@ -378,21 +371,21 @@ printcpuinfo(void)
 			switch (cpu_vendor_id) {
 			case CPU_VENDOR_AMD:
 				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-				    AMD64_CPU_FAMILY(cpu_id) >= 0x10 ||
+				    CPUID_TO_FAMILY(cpu_id) >= 0x10 ||
 				    cpu_id == 0x60fb2)
 					tsc_is_invariant = 1;
 				break;
 			case CPU_VENDOR_INTEL:
 				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-				    (AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
-				    AMD64_CPU_MODEL(cpu_id) >= 0xe) ||
-				    (AMD64_CPU_FAMILY(cpu_id) == 0xf &&
-				    AMD64_CPU_MODEL(cpu_id) >= 0x3))
+				    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+				    CPUID_TO_MODEL(cpu_id) >= 0xe) ||
+				    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
+				    CPUID_TO_MODEL(cpu_id) >= 0x3))
 					tsc_is_invariant = 1;
 				break;
 			case CPU_VENDOR_CENTAUR:
-				if (AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
-				    AMD64_CPU_MODEL(cpu_id) >= 0xf &&
+				if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+				    CPUID_TO_MODEL(cpu_id) >= 0xf &&
 				    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 					tsc_is_invariant = 1;
 				break;
@@ -400,28 +393,6 @@ printcpuinfo(void)
 			if (tsc_is_invariant)
 				printf("\n  TSC: P-state invariant");
 
-			/*
-			 * If this CPU supports HTT or CMP then mention the
-			 * number of physical/logical cores it contains.
-			 */
-			if (cpu_feature & CPUID_HTT)
-				htt = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-			if (cpu_vendor_id == CPU_VENDOR_AMD &&
-			    (amd_feature2 & AMDID2_CMP))
-				cmp = (cpu_procinfo2 & AMDID_CMP_CORES) + 1;
-			else if (cpu_vendor_id == CPU_VENDOR_INTEL &&
-			    (cpu_high >= 4)) {
-				cpuid_count(4, 0, regs);
-				if ((regs[0] & 0x1f) != 0)
-					cmp = ((regs[0] >> 26) & 0x3f) + 1;
-			}
-			cpu_cores = cmp;
-			cpu_logical = htt / cmp;
-			if (cmp > 1)
-				printf("\n  Cores per package: %d", cmp);
-			if ((htt / cmp) > 1)
-				printf("\n  Logical CPUs per core: %d",
-				    cpu_logical);
 		}
 	}
 	/* Avoid ugly blank lines: only print newline when we have to. */
@@ -497,6 +468,22 @@ identify_cpu(void)
 	cpu_procinfo = regs[1];
 	cpu_feature = regs[3];
 	cpu_feature2 = regs[2];
+
+	/*
+	 * Clear "Limit CPUID Maxval" bit and get the largest standard CPUID
+	 * function number again if it is set from BIOS.  It is necessary
+	 * for probing correct CPU topology later.
+	 * XXX This is only done on the BSP package.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_INTEL && cpu_high > 0 && cpu_high < 4) {
+		uint64_t msr;
+		msr = rdmsr(MSR_IA32_MISC_ENABLE);
+		if ((msr & 0x400000ULL) != 0) {
+			wrmsr(MSR_IA32_MISC_ENABLE, msr & ~0x400000ULL);
+			do_cpuid(0, regs);
+			cpu_high = regs[0];
+		}
+	}
 
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
 	    cpu_vendor_id == CPU_VENDOR_AMD ||

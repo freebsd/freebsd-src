@@ -192,7 +192,7 @@ ar5211EnableRfKill(struct ath_hal *ah)
  * Configure GPIO Output lines
  */
 HAL_BOOL
-ar5211GpioCfgOutput(struct ath_hal *ah, uint32_t gpio)
+ar5211GpioCfgOutput(struct ath_hal *ah, uint32_t gpio, HAL_GPIO_MUX_TYPE type)
 {
 	uint32_t reg;
 

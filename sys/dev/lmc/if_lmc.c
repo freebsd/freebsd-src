@@ -114,6 +114,7 @@
 # include <net/if_types.h>
 # include <net/if_media.h>
 # include <net/netisr.h>
+# include <net/route.h>
 # include <machine/bus.h>
 # include <machine/resource.h>
 # include <sys/rman.h>
@@ -3959,7 +3960,7 @@ user_interrupt(softc_t *sc, int check_status)
 # if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
 
 /* Service the card from the kernel idle loop without interrupts. */
-static void
+static int
 fbsd_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
   {
   softc_t *sc = IFP2SC(ifp);
@@ -3975,12 +3976,13 @@ fbsd_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
     {
     /* Last call -- reenable card interrupts. */
     WRITE_CSR(TLP_INT_ENBL, TLP_INT_TXRX);
-    return;
+    return 0;
     }
 #endif
 
   sc->quota = count;
   core_interrupt(sc, (cmd==POLL_AND_CHECK_STATUS));
+  return 0;
   }
 
 # endif  /* (__FreeBSD__ && DEVICE_POLLING) */
@@ -4583,7 +4585,7 @@ lmc_ifnet_start(struct ifnet *ifp)
 /* Called from a syscall (user context; no spinlocks). */
 static int
 lmc_raw_output(struct ifnet *ifp, struct mbuf *m,
- struct sockaddr *dst, struct rtentry *rt)
+ struct sockaddr *dst, struct route *ro)
   {
   softc_t *sc = IFP2SC(ifp);
   int error = 0;
@@ -4827,6 +4829,7 @@ setup_ifnet(struct ifnet *ifp)
 
 # if (defined(__FreeBSD__) && defined(DEVICE_POLLING))
   ifp->if_capabilities |= IFCAP_POLLING;
+  ifp->if_capenable    |= IFCAP_POLLING_NOCOUNT;
 # if (__FreeBSD_version < 500000)
   ifp->if_capenable    |= IFCAP_POLLING;
 # endif
@@ -5750,14 +5753,14 @@ static driver_t driver =
 
 static devclass_t devclass;
 
-DRIVER_MODULE(if_lmc, pci, driver, devclass, 0, 0);
-MODULE_VERSION(if_lmc, 2);
-MODULE_DEPEND(if_lmc, pci, 1, 1, 1);
+DRIVER_MODULE(lmc, pci, driver, devclass, 0, 0);
+MODULE_VERSION(lmc, 2);
+MODULE_DEPEND(lmc, pci, 1, 1, 1);
 # if NETGRAPH
-MODULE_DEPEND(if_lmc, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
+MODULE_DEPEND(lmc, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 # endif
 # if NSPPP
-MODULE_DEPEND(if_lmc, sppp, 1, 1, 1);
+MODULE_DEPEND(lmc, sppp, 1, 1, 1);
 # endif
 
 #endif  /* __FreeBSD__ */

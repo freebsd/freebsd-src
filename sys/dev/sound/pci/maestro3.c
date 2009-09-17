@@ -52,6 +52,10 @@
  * http://virgo.caltech.edu/~dmoore/maestro3.pdf.gz
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
@@ -162,8 +166,8 @@ struct sc_info {
 static void *m3_pchan_init(kobj_t, void *, struct snd_dbuf *, struct pcm_channel *, int);
 static int m3_pchan_free(kobj_t, void *);
 static int m3_pchan_setformat(kobj_t, void *, u_int32_t);
-static int m3_pchan_setspeed(kobj_t, void *, u_int32_t);
-static int m3_pchan_setblocksize(kobj_t, void *, u_int32_t);
+static u_int32_t m3_pchan_setspeed(kobj_t, void *, u_int32_t);
+static u_int32_t m3_pchan_setblocksize(kobj_t, void *, u_int32_t);
 static int m3_pchan_trigger(kobj_t, void *, int);
 static int m3_pchan_trigger_locked(kobj_t, void *, int);
 static u_int32_t m3_pchan_getptr_internal(struct sc_pchinfo *);
@@ -174,8 +178,8 @@ static struct pcmchan_caps *m3_pchan_getcaps(kobj_t, void *);
 static void *m3_rchan_init(kobj_t, void *, struct snd_dbuf *, struct pcm_channel *, int);
 static int m3_rchan_free(kobj_t, void *);
 static int m3_rchan_setformat(kobj_t, void *, u_int32_t);
-static int m3_rchan_setspeed(kobj_t, void *, u_int32_t);
-static int m3_rchan_setblocksize(kobj_t, void *, u_int32_t);
+static u_int32_t m3_rchan_setspeed(kobj_t, void *, u_int32_t);
+static u_int32_t m3_rchan_setblocksize(kobj_t, void *, u_int32_t);
 static int m3_rchan_trigger(kobj_t, void *, int);
 static int m3_rchan_trigger_locked(kobj_t, void *, int);
 static u_int32_t m3_rchan_getptr_internal(struct sc_rchinfo *);
@@ -185,7 +189,7 @@ static struct pcmchan_caps *m3_rchan_getcaps(kobj_t, void *);
 static int m3_chan_active(struct sc_info *);
 
 /* talk to the codec - called from ac97.c */
-static int	 m3_initcd(kobj_t, void *);
+static u_int32_t m3_initcd(kobj_t, void *);
 static int	 m3_rdcd(kobj_t, void *, int);
 static int  	 m3_wrcd(kobj_t, void *, int, u_int32_t);
 
@@ -206,7 +210,7 @@ static kobj_method_t m3_codec_methods[] = {
 	KOBJMETHOD(ac97_init,	m3_initcd),
 	KOBJMETHOD(ac97_read,	m3_rdcd),
 	KOBJMETHOD(ac97_write,	m3_wrcd),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(m3_codec);
 
@@ -214,10 +218,10 @@ AC97_DECLARE(m3_codec);
 /* channel descriptors */
 
 static u_int32_t m3_playfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps m3_playcaps = {8000, 48000, m3_playfmt, 0};
@@ -231,15 +235,15 @@ static kobj_method_t m3_pch_methods[] = {
 	KOBJMETHOD(channel_getptr,		m3_pchan_getptr),
 	KOBJMETHOD(channel_getcaps,		m3_pchan_getcaps),
 	KOBJMETHOD(channel_free,		m3_pchan_free),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(m3_pch);
 
 static u_int32_t m3_recfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps m3_reccaps = {8000, 48000, m3_recfmt, 0};
@@ -253,7 +257,7 @@ static kobj_method_t m3_rch_methods[] = {
 	KOBJMETHOD(channel_getptr,		m3_rchan_getptr),
 	KOBJMETHOD(channel_getcaps,		m3_rchan_getcaps),
 	KOBJMETHOD(channel_free,		m3_rchan_free),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(m3_rch);
 
@@ -309,7 +313,7 @@ m3_wait(struct sc_info *sc)
 /* -------------------------------------------------------------------- */
 /* ac97 codec */
 
-static int
+static u_int32_t
 m3_initcd(kobj_t kobj, void *devinfo)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
@@ -404,7 +408,7 @@ m3_pchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	ch->buffer = b;
 	ch->parent = sc;
 	ch->channel = c;
-	ch->fmt = AFMT_U8;
+	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->spd = DSP_DEFAULT_SPEED;
 	M3_UNLOCK(sc); /* XXX */
 	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0) {
@@ -516,10 +520,10 @@ m3_pchan_setformat(kobj_t kobj, void *chdata, u_int32_t format)
 		 ("m3_pchan_setformat(dac=%d, format=0x%x{%s-%s})\n",
 		  ch->dac_idx, format,
 		  format & (AFMT_U8|AFMT_S8) ? "8bit":"16bit",
-		  format & AFMT_STEREO ? "STEREO":"MONO"));
+		  (AFMT_CHANNEL(format) > 1) ? "STEREO":"MONO"));
 
 	/* mono word */
-        data = (format & AFMT_STEREO) ? 0 : 1;
+        data = (AFMT_CHANNEL(format) > 1)? 0 : 1;
         m3_wr_assp_data(sc, ch->dac_data + SRC3_MODE_OFFSET, data);
 
         /* 8bit word */
@@ -532,7 +536,7 @@ m3_pchan_setformat(kobj_t kobj, void *chdata, u_int32_t format)
         return (0);
 }
 
-static int
+static u_int32_t
 m3_pchan_setspeed(kobj_t kobj, void *chdata, u_int32_t speed)
 {
 	struct sc_pchinfo *ch = chdata;
@@ -555,7 +559,7 @@ m3_pchan_setspeed(kobj_t kobj, void *chdata, u_int32_t speed)
 	return (speed);
 }
 
-static int
+static u_int32_t
 m3_pchan_setblocksize(kobj_t kobj, void *chdata, u_int32_t blocksize)
 {
 	struct sc_pchinfo *ch = chdata;
@@ -756,7 +760,7 @@ m3_rchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	ch->buffer = b;
 	ch->parent = sc;
 	ch->channel = c;
-	ch->fmt = AFMT_U8;
+	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->spd = DSP_DEFAULT_SPEED;
 	M3_UNLOCK(sc); /* XXX */
 	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, 0, sc->bufsz) != 0) {
@@ -863,10 +867,10 @@ m3_rchan_setformat(kobj_t kobj, void *chdata, u_int32_t format)
 		 ("m3_rchan_setformat(dac=%d, format=0x%x{%s-%s})\n",
 		  ch->adc_idx, format,
 		  format & (AFMT_U8|AFMT_S8) ? "8bit":"16bit",
-		  format & AFMT_STEREO ? "STEREO":"MONO"));
+		  (AFMT_CHANNEL(format) > 1) ? "STEREO":"MONO"));
 
 	/* mono word */
-        data = (format & AFMT_STEREO) ? 0 : 1;
+        data = (AFMT_CHANNEL(format) > 1) ? 0 : 1;
         m3_wr_assp_data(sc, ch->adc_data + SRC3_MODE_OFFSET, data);
 
         /* 8bit word */
@@ -878,7 +882,7 @@ m3_rchan_setformat(kobj_t kobj, void *chdata, u_int32_t format)
         return (0);
 }
 
-static int
+static u_int32_t
 m3_rchan_setspeed(kobj_t kobj, void *chdata, u_int32_t speed)
 {
 	struct sc_rchinfo *ch = chdata;
@@ -901,7 +905,7 @@ m3_rchan_setspeed(kobj_t kobj, void *chdata, u_int32_t speed)
 	return (speed);
 }
 
-static int
+static u_int32_t
 m3_rchan_setblocksize(kobj_t kobj, void *chdata, u_int32_t blocksize)
 {
 	struct sc_rchinfo *ch = chdata;

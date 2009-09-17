@@ -209,7 +209,11 @@ lock_driver_idle(IAL_ADAPTER_T *pAdapter)
 #if (__FreeBSD_version < 500000)
 		YIELD_THREAD;
 #else 
+#if (__FreeBSD_version > 700033)
 		pause("switch", 1);
+#else
+		tsleep(lock_driver_idle, PPAUSE, "switch", 1);
+#endif
 #endif
 		oldspl = lock_driver();
 	}
@@ -337,6 +341,7 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 			case HPT_IOCTL_GET_CHANNEL_INFO:
 			case HPT_IOCTL_GET_LOGICAL_DEVICES:
 			case HPT_IOCTL_GET_DEVICE_INFO:
+			case HPT_IOCTL_GET_DEVICE_INFO_V2:				
 			case HPT_IOCTL_GET_EVENT:
 			case HPT_IOCTL_GET_DRIVER_CAPABILITIES:
 				if(hpt_default_ioctl(_VBUS_P dwIoControlCode, lpInBuffer, nInBufferSize, 
@@ -351,10 +356,14 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 				switch(dwIoControlCode) {
 				case HPT_IOCTL_CREATE_ARRAY:
 					pVDev = ID_TO_VDEV(((PCREATE_ARRAY_PARAMS)lpInBuffer)->Members[0]); break;
+				case HPT_IOCTL_CREATE_ARRAY_V2:
+					pVDev = ID_TO_VDEV(((PCREATE_ARRAY_PARAMS_V2)lpInBuffer)->Members[0]); break;
 				case HPT_IOCTL_SET_ARRAY_INFO:
 					pVDev = ID_TO_VDEV(((PHPT_SET_ARRAY_INFO)lpInBuffer)->idArray); break;
 				case HPT_IOCTL_SET_DEVICE_INFO:
 					pVDev = ID_TO_VDEV(((PHPT_SET_DEVICE_INFO)lpInBuffer)->idDisk); break;
+				case HPT_IOCTL_SET_DEVICE_INFO_V2:
+					pVDev = ID_TO_VDEV(((PHPT_SET_DEVICE_INFO_V2)lpInBuffer)->idDisk); break;
 				case HPT_IOCTL_SET_BOOT_MARK:
 				case HPT_IOCTL_ADD_SPARE_DISK:
 				case HPT_IOCTL_REMOVE_SPARE_DISK:
@@ -410,6 +419,22 @@ int Kernel_DeviceIoControl(_VBUS_ARG
                     break;
 				}
 
+
+				case HPT_IOCTL_CREATE_ARRAY_V2:
+				{
+					pAdapter=(IAL_ADAPTER_T *)(ID_TO_VDEV(*(DEVICEID *)lpOutBuffer))->pVBus->OsExt;
+					oldspl = lock_driver();
+				             if(((PCREATE_ARRAY_PARAMS_V2)lpInBuffer)->CreateFlags & CAF_CREATE_AND_DUPLICATE) {
+						  (ID_TO_VDEV(*(DEVICEID *)lpOutBuffer))->u.array.rf_auto_rebuild = 0;
+				                          hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, ID_TO_VDEV(*(DEVICEID *)lpOutBuffer), DUPLICATE);
+					} else if(((PCREATE_ARRAY_PARAMS_V2)lpInBuffer)->CreateFlags & CAF_CREATE_R5_ZERO_INIT) {
+				                          hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, ID_TO_VDEV(*(DEVICEID *)lpOutBuffer), INITIALIZE);
+					} else if(((PCREATE_ARRAY_PARAMS_V2)lpInBuffer)->CreateFlags & CAF_CREATE_R5_BUILD_PARITY) {
+				                          hpt_queue_dpc((HPT_DPC)hpt_rebuild_data_block, pAdapter, ID_TO_VDEV(*(DEVICEID *)lpOutBuffer), REBUILD_PARITY);
+					}
+					unlock_driver(oldspl);
+					break;
+				}
 				case HPT_IOCTL_ADD_DISK_TO_ARRAY:
 				{
 					PVDevice pArray = ID_TO_VDEV(((PHPT_ADD_DISK_TO_ARRAY)lpInBuffer)->idArray);
@@ -424,7 +449,11 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 						unlock_driver(oldspl);
 						while (!pArray->u.array.rf_rebuilding)
 						{
+#if (__FreeBSD_version > 700033)
 							pause("pause", 1);
+#else
+							tsleep((caddr_t)Kernel_DeviceIoControl, PPAUSE, "pause", 1);
+#endif
 							if ( timeout >= hz*3)
 								break;
 							timeout ++;
@@ -489,7 +518,11 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 
 			while (!pVDevice->u.array.rf_rebuilding)
 			{
+#if (__FreeBSD_version > 700033)
 				pause("pause", 1);
+#else
+				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+#endif
 				if ( timeout >= hz*20)
 					break;
 				timeout ++;
@@ -514,7 +547,11 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			
 			while (pVDevice->u.array.rf_abort_rebuild)
 			{
+#if (__FreeBSD_version > 700033)
 				pause("pause", 1);
+#else
+				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+#endif
 				if ( timeout >= hz*20)
 					break;
 				timeout ++;
@@ -538,7 +575,11 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			
 			while (!pVDevice->u.array.rf_verifying)
 			{
+#if (__FreeBSD_version > 700033)
 				pause("pause", 1);
+#else
+				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+#endif
 				if ( timeout >= hz*20)
 					break;
 				timeout ++;
@@ -557,7 +598,11 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			
 			while (pVDevice->u.array.rf_abort_rebuild)
 			{
+#if (__FreeBSD_version > 700033)
 				pause("pause", 1);
+#else
+				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+#endif
 				if ( timeout >= hz*80)
 					break;
 				timeout ++;
@@ -578,7 +623,11 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			
 			while (!pVDevice->u.array.rf_initializing)
 			{
+#if (__FreeBSD_version > 700033)
 				pause("pause", 1);
+#else
+				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+#endif
 				if ( timeout >= hz*80)
 					break;
 				timeout ++;
@@ -597,7 +646,11 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			
 			while (pVDevice->u.array.rf_abort_rebuild)
 			{
+#if (__FreeBSD_version > 700033)
 				pause("pause", 1);
+#else
+				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+#endif
 				if ( timeout >= hz*80)
 					break;
 				timeout ++;
@@ -952,7 +1005,11 @@ fail:
 #if (__FreeBSD_version < 500000)		
 		YIELD_THREAD; 
 #else 
+#if (__FreeBSD_version > 700033)
 		pause("switch", 1);
+#else
+		tsleep(hpt_rebuild_data_block, PPAUSE, "switch", 1);
+#endif
 #endif
 		oldspl = lock_driver();
 	}

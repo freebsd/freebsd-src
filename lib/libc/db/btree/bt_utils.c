@@ -62,11 +62,7 @@ __FBSDID("$FreeBSD$");
  *	RET_SUCCESS, RET_ERROR.
  */
 int
-__bt_ret(t, e, key, rkey, data, rdata, copy)
-	BTREE *t;
-	EPG *e;
-	DBT *key, *rkey, *data, *rdata;
-	int copy;
+__bt_ret(BTREE *t, EPG *e, DBT *key, DBT *rkey, DBT *data, DBT *rdata, int copy)
 {
 	BLEAF *bl;
 	void *p;
@@ -88,8 +84,7 @@ __bt_ret(t, e, key, rkey, data, rdata, copy)
 		key->data = rkey->data;
 	} else if (copy || F_ISSET(t, B_DB_LOCK)) {
 		if (bl->ksize > rkey->size) {
-			p = (void *)(rkey->data == NULL ?
-			    malloc(bl->ksize) : realloc(rkey->data, bl->ksize));
+			p = realloc(rkey->data, bl->ksize);
 			if (p == NULL)
 				return (RET_ERROR);
 			rkey->data = p;
@@ -115,9 +110,7 @@ dataonly:
 	} else if (copy || F_ISSET(t, B_DB_LOCK)) {
 		/* Use +1 in case the first record retrieved is 0 length. */
 		if (bl->dsize + 1 > rdata->size) {
-			p = (void *)(rdata->data == NULL ?
-			    malloc(bl->dsize + 1) :
-			    realloc(rdata->data, bl->dsize + 1));
+			p = realloc(rdata->data, bl->dsize + 1);
 			if (p == NULL)
 				return (RET_ERROR);
 			rdata->data = p;
@@ -148,10 +141,7 @@ dataonly:
  *	> 0 if k1 is > record
  */
 int
-__bt_cmp(t, k1, e)
-	BTREE *t;
-	const DBT *k1;
-	EPG *e;
+__bt_cmp(BTREE *t, const DBT *k1, EPG *e)
 {
 	BINTERNAL *bi;
 	BLEAF *bl;
@@ -203,7 +193,7 @@ __bt_cmp(t, k1, e)
  *
  * Parameters:
  *	a:	DBT #1
- *	b: 	DBT #2
+ *	b:	DBT #2
  *
  * Returns:
  *	< 0 if a is < b
@@ -211,8 +201,7 @@ __bt_cmp(t, k1, e)
  *	> 0 if a is > b
  */
 int
-__bt_defcmp(a, b)
-	const DBT *a, *b;
+__bt_defcmp(const DBT *a, const DBT *b)
 {
 	size_t len;
 	u_char *p1, *p2;
@@ -235,14 +224,13 @@ __bt_defcmp(a, b)
  *
  * Parameters:
  *	a:	DBT #1
- *	b: 	DBT #2
+ *	b:	DBT #2
  *
  * Returns:
  *	Number of bytes needed to distinguish b from a.
  */
 size_t
-__bt_defpfx(a, b)
-	const DBT *a, *b;
+__bt_defpfx(const DBT *a, const DBT *b)
 {
 	u_char *p1, *p2;
 	size_t cnt, len;

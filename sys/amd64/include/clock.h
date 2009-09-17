@@ -15,7 +15,6 @@
  * XXX large parts of the driver and its interface are misplaced.
  */
 extern int	clkintr_pending;
-extern int	statclock_disable;
 extern u_int	i8254_freq;
 extern int	i8254_max_count;
 extern uint64_t	tsc_freq;
@@ -23,6 +22,12 @@ extern int	tsc_is_broken;
 extern int	tsc_is_invariant;
 
 void	i8254_init(void);
+
+struct trapframe;
+
+int	hardclockintr(struct trapframe *frame);
+int	statclockintr(struct trapframe *frame);
+int	profclockintr(struct trapframe *frame);
 
 /*
  * Driver to clock driver interface.

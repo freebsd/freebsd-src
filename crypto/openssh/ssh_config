@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.23 2007/06/08 04:40:40 pvalchev Exp $
+#	$OpenBSD: ssh_config,v 1.25 2009/02/17 01:28:32 djm Exp $
 #	$FreeBSD$
 
 # This is the ssh client system-wide configuration file.  See
@@ -38,10 +38,11 @@
 #   Port 22
 #   Protocol 2,1
 #   Cipher 3des
-#   Ciphers aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,aes192-cbc,aes256-cbc
+#   Ciphers aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,aes128-cbc,3des-cbc
 #   MACs hmac-md5,hmac-sha1,umac-64@openssh.com,hmac-ripemd160
 #   EscapeChar ~
 #   Tunnel no
 #   TunnelDevice any:any
 #   PermitLocalCommand no
-#   VersionAddendum FreeBSD-20080801
+#   VisualHostKey no
+#   VersionAddendum FreeBSD-20090522

@@ -29,7 +29,6 @@ MAC Framework	rwatson	Pre-commit review requested.
 MAC Modules	rwatson	Pre-commit review requested.
 contrib/openbsm	rwatson	Pre-commit review requested.
 sys/security/audit	rwatson	Pre-commit review requested.
-ATA/IDE		sos	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
 ahd(4)		gibbs	Pre-commit review requested.
 NEWCARD		imp	Pre-commit review requested.
@@ -77,7 +76,7 @@ groff		ru	Recommends pre-commit review.
 share/mk	ru	This is a vital component of the build system, so I
 			offer a pre-commit review for anything non-trivial.
 ipfw		ipfw	Pre-commit review preferred. send to ipfw@freebsd.org
-drm		anholt	Just keep me informed of changes, try not to break it.
+drm		rnoland	Just keep me informed of changes, try not to break it.
 libufs		jmallett	Willing to handle problems, help with work.
 fdc(4)		joerg	Just keep me informed of changes, try not to break it.
 sppp(4)		joerg	Just keep me informed of changes, try not to break it.
@@ -112,7 +111,7 @@ truss		alfred	Will be happy to review code, but not mandatory.
 rpc		alfred	Pre-commit review requested.
 xfs		kan@FreeBSD.org,rodrigc@FreeBSD.org,cattelan@xfs.org
 			Pre-commit review preferred.
-pkg_install	krion	Pre-commit review or approval from portmgr@ requested.
+pkg_install	portmgr	Pre-commit review or approval from portmgr@ requested.
 linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.
@@ -124,8 +123,6 @@ lib/libsdp		emax	Pre-commit review preferred.
 usr.bin/bluetooth	emax	Pre-commit review preferred.
 usr.sbin/bluetooth	emax	Pre-commit review preferred.
 gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
-BSD.{local,x11*}.dist	portmgr	Pre-commit review requested, since these files interface with ports.
-usb		core	Please contact core@ before any major changes
 ncurses		rafan	Heads-up appreciated, try not to break it.
 
 Following are the entries from the Makefiles, and a few other sources.

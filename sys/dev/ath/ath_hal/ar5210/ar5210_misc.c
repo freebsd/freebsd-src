@@ -158,7 +158,7 @@ ar5210EnableRfKill(struct ath_hal *ah)
  * Configure GPIO Output lines
  */
 HAL_BOOL
-ar5210GpioCfgOutput(struct ath_hal *ah, uint32_t gpio)
+ar5210GpioCfgOutput(struct ath_hal *ah, uint32_t gpio, HAL_GPIO_MUX_TYPE type)
 {
 	HALASSERT(gpio < AR_NUM_GPIO);
 

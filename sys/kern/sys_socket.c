@@ -32,8 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/file.h>
@@ -53,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -74,16 +73,17 @@ soo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
 	struct socket *so = fp->f_data;
-#ifdef MAC
 	int error;
 
-	SOCK_LOCK(so);
+#ifdef MAC
 	error = mac_socket_check_receive(active_cred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif
-	return (soreceive(so, 0, uio, 0, 0, 0));
+	CURVNET_SET(so->so_vnet);
+	error = soreceive(so, 0, uio, 0, 0, 0);
+	CURVNET_RESTORE();
+	return (error);
 }
 
 /* ARGSUSED */
@@ -95,9 +95,7 @@ soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	int error;
 
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_send(active_cred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif
@@ -125,6 +123,7 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 	struct socket *so = fp->f_data;
 	int error = 0;
 
+	CURVNET_SET(so->so_vnet);
 	switch (cmd) {
 	case FIONBIO:
 		SOCK_LOCK(so);
@@ -170,6 +169,19 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 		*(int *)data = so->so_rcv.sb_cc;
 		break;
 
+	case FIONWRITE:
+		/* Unlocked read. */
+		*(int *)data = so->so_snd.sb_cc;
+		break;
+
+	case FIONSPACE:
+		if ((so->so_snd.sb_hiwat < so->so_snd.sb_cc) ||
+		    (so->so_snd.sb_mbmax < so->so_snd.sb_mbcnt))
+			*(int *)data = 0;
+		else
+			*(int *)data = sbspace(&so->so_snd);
+		break;
+
 	case FIOSETOWN:
 		error = fsetown(*(int *)data, &so->so_sigio);
 		break;
@@ -205,6 +217,7 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 			    (so, cmd, data, 0, td));
 		break;
 	}
+	CURVNET_RESTORE();
 	return (error);
 }
 
@@ -216,9 +229,7 @@ soo_poll(struct file *fp, int events, struct ucred *active_cred,
 #ifdef MAC
 	int error;
 
-	SOCK_LOCK(so);
 	error = mac_socket_check_poll(active_cred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif
@@ -237,9 +248,7 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
 #ifdef MAC
-	SOCK_LOCK(so);
 	error = mac_socket_check_stat(active_cred, so);
-	SOCK_UNLOCK(so);
 	if (error)
 		return (error);
 #endif

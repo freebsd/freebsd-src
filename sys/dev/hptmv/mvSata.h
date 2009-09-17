@@ -36,15 +36,34 @@
 #define SUPPORT_MV_SATA_GEN_2 0
 #endif
 
-#if SUPPORT_MV_SATA_GEN_1==1 && SUPPORT_MV_SATA_GEN_2==1
+#ifndef SUPPORT_MV_SATA_GEN_2E
+#define SUPPORT_MV_SATA_GEN_2E 0
+#endif
+
+#if (SUPPORT_MV_SATA_GEN_1 + SUPPORT_MV_SATA_GEN_2 + SUPPORT_MV_SATA_GEN_2E) > 1
+
 #define MV_SATA_GEN_1(x) ((x)->sataAdapterGeneration==1)
-#define MV_SATA_GEN_2(x) ((x)->sataAdapterGeneration==2)
+#define MV_SATA_GEN_2(x) ((x)->sataAdapterGeneration>=2)
+#define MV_SATA_GEN_2E(x) ((x)->sataAdapterGeneration==3)
+
 #elif SUPPORT_MV_SATA_GEN_1==1
+
 #define MV_SATA_GEN_1(x) 1
 #define MV_SATA_GEN_2(x) 0
+#define MV_SATA_GEN_2E(x) 0
+
 #elif SUPPORT_MV_SATA_GEN_2==1
+
 #define MV_SATA_GEN_1(x) 0
 #define MV_SATA_GEN_2(x) 1
+#define MV_SATA_GEN_2E(x) 0
+
+#elif SUPPORT_MV_SATA_GEN_2E==1
+
+#define MV_SATA_GEN_1(x)  0
+#define MV_SATA_GEN_2(x)  1 /* gen2E impiles gen2 */
+#define MV_SATA_GEN_2E(x) 1
+
 #else 
 #error "Which IC do you support?"
 #endif
@@ -56,8 +75,15 @@
 #define MV_SATA_DEVICE_ID_5081			   		0x5081
 #define MV_SATA_DEVICE_ID_6080			   		0x6080
 #define MV_SATA_DEVICE_ID_6081			   		0x6081
+
+#if defined(RR2310) || defined(RR1740) || defined(RR2210) || defined (RR2522)
+#define MV_SATA_CHANNELS_NUM					4
+#define MV_SATA_UNITS_NUM						1
+#else 
 #define MV_SATA_CHANNELS_NUM					8
 #define MV_SATA_UNITS_NUM						2
+#endif
+
 #define MV_SATA_PCI_BAR0_SPACE_SIZE				(1<<18) /* 256 Kb*/
 
 #define CHANNEL_QUEUE_LENGTH					32
@@ -156,7 +182,7 @@ typedef MV_BOOLEAN (* HPTLIBAPI mvSataCommandCompletionCallBack_t)(struct mvSata
                                                          MV_COMPLETION_TYPE,
 														 MV_VOID_PTR, MV_U16,
 														 MV_U32,
-											    struct mvStorageDevRegisters FAR*);
+											    struct mvStorageDevRegisters SS_SEG*);
 
 typedef enum mvQueuedCommandType 
 {
@@ -222,8 +248,8 @@ typedef struct mvSataChannel
 	MV_BOOLEAN                  waitingForInterrupt;
 	MV_BOOLEAN                  lba48Address; 
 	MV_BOOLEAN                  maxReadTransfer;
-	struct mvDmaRequestQueueEntry FAR *requestQueue;
-	struct mvDmaResponseQueueEntry FAR *responseQueue;
+	struct mvDmaRequestQueueEntry SS_SEG *requestQueue;
+	struct mvDmaResponseQueueEntry SS_SEG *responseQueue;
 	MV_U32                      requestQueuePciHiAddress;
 	MV_U32                      requestQueuePciLowAddress;
 	MV_U32                      responseQueuePciHiAddress;
@@ -243,7 +269,7 @@ typedef struct mvSataChannel
 	MV_BOOLEAN					queueCommandsEnabled;
 	MV_U8                       noneUdmaOutstandingCommands;
 	MV_U8                       EdmaQueuedCommands;
-    MV_U32                      freeIDsStack[MV_EDMA_QUEUE_LENGTH];
+    MV_U32                      freeIDsStack[CHANNEL_QUEUE_LENGTH];
 	MV_U32                      freeIDsNum;
 	MV_U32                      reqInPtr;
 	MV_U32                      rspOutPtr;
@@ -279,7 +305,10 @@ typedef struct mvSataAdapter
 	MV_BOOLEAN        implement60X1A0Workarounds;
 	MV_BOOLEAN        implement60X1A1Workarounds;
 	MV_BOOLEAN        implement60X1B0Workarounds;
+	MV_BOOLEAN		  implement7042A0Workarounds;
+	MV_BOOLEAN		  implement7042A1Workarounds;
 	MV_U8			  sataAdapterGeneration;
+	MV_BOOLEAN		isPEX;
 	MV_U8             failLEDMask;
     MV_U8			  signalAmps[MV_SATA_CHANNELS_NUM];
 	MV_U8			  pre[MV_SATA_CHANNELS_NUM];
@@ -394,21 +423,9 @@ MV_BOOLEAN HPTLIBAPI mvSataChannelSetEdmaLoopBackMode(MV_SATA_ADAPTER *pAdapter,
 MV_BOOLEAN HPTLIBAPI mvSataGetChannelStatus(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex,
 								  MV_SATA_CHANNEL_STATUS *pChannelStatus);
 
-/* Execute UDMA ATA commands */
-MV_EDMA_QUEUE_RESULT HPTLIBAPI mvSataQueueUDmaCommand(MV_SATA_ADAPTER *pAdapter,
-											MV_U8 channelIndex,
-											MV_UDMA_TYPE readWrite,
-											MV_U32 lowLBAAddr,
-											MV_U16 highLBAAddr,
-											MV_U16 sectorCount,
-											MV_U32 prdLowAddr,
-											MV_U32 prdHighAddr,
-									mvSataCommandCompletionCallBack_t callBack,
-											MV_VOID_PTR commandId);
-
 MV_QUEUE_COMMAND_RESULT HPTLIBAPI mvSataQueueCommand(MV_SATA_ADAPTER *pAdapter,
 										   MV_U8 channelIndex,
-										   MV_QUEUE_COMMAND_INFO FAR *pCommandParams);
+										   MV_QUEUE_COMMAND_INFO SS_SEG *pCommandParams);
 
 /* Interrupt Service Routine */
 MV_BOOLEAN HPTLIBAPI mvSataInterruptServiceRoutine(MV_SATA_ADAPTER *pAdapter);

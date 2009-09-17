@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1990,1991 Regents of The University of Michigan.
+ * Copyright (c) 2009 Robert N. M. Watson
  * All Rights Reserved.
  *
  * Permission to use, copy, modify, and distribute this software and
@@ -22,16 +23,19 @@
  *	Ann Arbor, Michigan
  *	+1-313-764-2278
  *	netatalk@umich.edu
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/priv.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/route.h>
@@ -43,7 +47,10 @@
 #include <netatalk/at_var.h>
 #include <netatalk/at_extern.h>
 
-struct at_ifaddr *at_ifaddr_list;
+struct rwlock		 at_ifaddr_rw;
+struct at_ifaddrhead	 at_ifaddrhead;
+
+RW_SYSINIT(at_ifaddr_rw, &at_ifaddr_rw, "at_ifaddr_rw");
 
 static int aa_dorangeroute(struct ifaddr *ifa, u_int first, u_int last,
 	    int cmd);
@@ -72,26 +79,31 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	struct sockaddr_at *sat;
 	struct netrange	*nr;
 	struct at_aliasreq *ifra = (struct at_aliasreq *)data;
-	struct at_ifaddr *aa0;
-	struct at_ifaddr *aa = NULL;
-	struct ifaddr *ifa, *ifa0;
+	struct at_ifaddr *aa;
+	struct ifaddr *ifa;
+	int error;
 
 	/*
 	 * If we have an ifp, then find the matching at_ifaddr if it exists
 	 */
+	aa = NULL;
+	AT_IFADDR_RLOCK();
 	if (ifp != NULL) {
-		for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
+		TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 			if (aa->aa_ifp == ifp)
 				break;
 		}
 	}
+	if (aa != NULL)
+		ifa_ref(&aa->aa_ifa);
+	AT_IFADDR_RUNLOCK();
 
 	/*
 	 * In this first switch table we are basically getting ready for
 	 * the second one, by getting the atalk-specific things set up
 	 * so that they start to look more similar to other protocols etc.
 	 */
-
+	error = 0;
 	switch (cmd) {
 	case SIOCAIFADDR:
 	case SIOCDIFADDR:
@@ -102,18 +114,28 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		 * the first address on the NEXT interface!
 		 */
 		if (ifra->ifra_addr.sat_family == AF_APPLETALK) {
-			for (; aa; aa = aa->aa_next) {
+			struct at_ifaddr *oaa;
+
+			AT_IFADDR_RLOCK();
+			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp &&
 				    sateqaddr(&aa->aa_addr, &ifra->ifra_addr))
 					break;
 			}
+			if (oaa != NULL && oaa != aa)
+				ifa_free(&oaa->aa_ifa);
+			if (aa != NULL && oaa != aa)
+				ifa_ref(&aa->aa_ifa);
+			AT_IFADDR_RUNLOCK();
 		}
 		/*
 		 * If we a retrying to delete an addres but didn't find such,
 		 * then rewurn with an error
 		 */
-		if (cmd == SIOCDIFADDR && aa == NULL)
-			return (EADDRNOTAVAIL);
+		if (cmd == SIOCDIFADDR && aa == NULL) {
+			error = EADDRNOTAVAIL;
+			goto out;
+		}
 		/*FALLTHROUGH*/
 
 	case SIOCSIFADDR:
@@ -122,33 +144,51 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		 *
 		 * XXXRW: Layering?
 		 */
-		if (priv_check(td, PRIV_NET_ADDIFADDR))
-			return (EPERM);
+		if (priv_check(td, PRIV_NET_ADDIFADDR)) {
+			error = EPERM;
+			goto out;
+		}
 
 		sat = satosat(&ifr->ifr_addr);
 		nr = (struct netrange *)sat->sat_zero;
 		if (nr->nr_phase == 1) {
+			struct at_ifaddr *oaa;
+
 			/*
 			 * Look for a phase 1 address on this interface.
 			 * This may leave aa pointing to the first address on
 			 * the NEXT interface!
 			 */
-			for (; aa; aa = aa->aa_next) {
+			AT_IFADDR_RLOCK();
+			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp &&
 				    (aa->aa_flags & AFA_PHASE2) == 0)
 					break;
 			}
+			if (oaa != NULL && oaa != aa)
+				ifa_free(&oaa->aa_ifa);
+			if (aa != NULL && oaa != aa)
+				ifa_ref(&aa->aa_ifa);
+			AT_IFADDR_RUNLOCK();
 		} else {		/* default to phase 2 */
+			struct at_ifaddr *oaa;
+
 			/*
 			 * Look for a phase 2 address on this interface.
 			 * This may leave aa pointing to the first address on
 			 * the NEXT interface!
 			 */
-			for (; aa; aa = aa->aa_next) {
+			AT_IFADDR_RLOCK();
+			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp && (aa->aa_flags &
 				    AFA_PHASE2))
 					break;
 			}
+			if (oaa != NULL && oaa != aa)
+				ifa_free(&oaa->aa_ifa);
+			if (aa != NULL && oaa != aa)
+				ifa_ref(&aa->aa_ifa);
+			AT_IFADDR_RUNLOCK();
 		}
 
 		if (ifp == NULL)
@@ -159,43 +199,20 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		 * allocate a fresh one. 
 		 */
 		if (aa == NULL) {
-			aa0 = malloc(sizeof(struct at_ifaddr), M_IFADDR,
-			    M_WAITOK | M_ZERO);
-			callout_init(&aa0->aa_callout, CALLOUT_MPSAFE);
-			if ((aa = at_ifaddr_list) != NULL) {
-				/*
-				 * Don't let the loopback be first, since the
-				 * first address is the machine's default
-				 * address for binding.  If it is, stick
-				 * ourself in front, otherwise go to the back
-				 * of the list.
-				 */
-				if (at_ifaddr_list->aa_ifp->if_flags &
-				    IFF_LOOPBACK) {
-					aa = aa0;
-					aa->aa_next = at_ifaddr_list;
-					at_ifaddr_list = aa;
-				} else {
-					for (; aa->aa_next; aa = aa->aa_next)
-						;
-					aa->aa_next = aa0;
-				}
-			} else
-				at_ifaddr_list = aa0;
-			aa = aa0;
+			aa = malloc(sizeof(struct at_ifaddr), M_IFADDR,
+			    M_NOWAIT | M_ZERO);
+			if (aa == NULL) {
+				error = ENOBUFS;
+				goto out;
+			}
+			callout_init(&aa->aa_callout, CALLOUT_MPSAFE);
 
-			/*
-			 * Find the end of the interface's addresses
-			 * and link our new one on the end 
-			 */
 			ifa = (struct ifaddr *)aa;
-			IFA_LOCK_INIT(ifa);
-			ifa->ifa_refcnt = 1;
-			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
+			ifa_init(ifa);
 
 			/*
 			 * As the at_ifaddr contains the actual sockaddrs,
-			 * and the ifaddr itself, link them al together
+			 * and the ifaddr itself, link them all together
 			 * correctly.
 			 */
 			ifa->ifa_addr = (struct sockaddr *)&aa->aa_addr;
@@ -210,10 +227,36 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			else
 				aa->aa_flags |= AFA_PHASE2;
 
+			ifa_ref(&aa->aa_ifa);		/* at_ifaddrhead */
+			AT_IFADDR_WLOCK();
+			if (!TAILQ_EMPTY(&at_ifaddrhead)) {
+				/*
+				 * Don't let the loopback be first, since the
+				 * first address is the machine's default
+				 * address for binding.  If it is, stick
+				 * ourself in front, otherwise go to the back
+				 * of the list.
+				 */
+				if (TAILQ_FIRST(&at_ifaddrhead)->aa_ifp->
+				    if_flags & IFF_LOOPBACK)
+					TAILQ_INSERT_HEAD(&at_ifaddrhead, aa,
+					    aa_link);
+				else
+					TAILQ_INSERT_TAIL(&at_ifaddrhead, aa,
+					    aa_link);
+			} else
+				TAILQ_INSERT_HEAD(&at_ifaddrhead, aa,
+				    aa_link);
+			AT_IFADDR_WUNLOCK();
+
 			/*
 			 * and link it all together
 			 */
 			aa->aa_ifp = ifp;
+			ifa_ref(&aa->aa_ifa);		/* if_addrhead */
+			IF_ADDR_LOCK(ifp);
+			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
+			IF_ADDR_UNLOCK(ifp);
 		} else {
 			/*
 			 * If we DID find one then we clobber any routes
@@ -227,28 +270,46 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		sat = satosat(&ifr->ifr_addr);
 		nr = (struct netrange *)sat->sat_zero;
 		if (nr->nr_phase == 1) {
+			struct at_ifaddr *oaa;
+
 			/*
 			 * If the request is specifying phase 1, then
 			 * only look at a phase one address
 			 */
-			for (; aa; aa = aa->aa_next) {
+			AT_IFADDR_RLOCK();
+			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp &&
 				    (aa->aa_flags & AFA_PHASE2) == 0)
 					break;
 			}
+			if (oaa != NULL && oaa != aa)
+				ifa_free(&oaa->aa_ifa);
+			if (aa != NULL && oaa != aa)
+				ifa_ref(&aa->aa_ifa);
+			AT_IFADDR_RUNLOCK();
 		} else {
+			struct at_ifaddr *oaa;
+
 			/*
 			 * default to phase 2
 			 */
-			for (; aa; aa = aa->aa_next) {
+			AT_IFADDR_RLOCK();
+			for (oaa = aa; aa; aa = TAILQ_NEXT(aa, aa_link)) {
 				if (aa->aa_ifp == ifp && (aa->aa_flags &
 				    AFA_PHASE2))
 					break;
 			}
+			if (oaa != NULL && oaa != aa)
+				ifa_free(&oaa->aa_ifa);
+			if (aa != NULL && oaa != aa)
+				ifa_ref(&aa->aa_ifa);
+			AT_IFADDR_RUNLOCK();
 		}
 
-		if (aa == NULL)
-			return (EADDRNOTAVAIL);
+		if (aa == NULL) {
+			error = EADDRNOTAVAIL;
+			goto out;
+		}
 		break;
 	}
 
@@ -277,59 +338,53 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		break;
 
 	case SIOCSIFADDR:
-		return (at_ifinit(ifp, aa,
-		    (struct sockaddr_at *)&ifr->ifr_addr));
+		error = at_ifinit(ifp, aa,
+		    (struct sockaddr_at *)&ifr->ifr_addr);
+		goto out;
 
 	case SIOCAIFADDR:
-		if (sateqaddr(&ifra->ifra_addr, &aa->aa_addr))
-			return (0);
-		return (at_ifinit(ifp, aa,
-		    (struct sockaddr_at *)&ifr->ifr_addr));
+		if (sateqaddr(&ifra->ifra_addr, &aa->aa_addr)) {
+			error = 0;
+			goto out;
+		}
+		error = at_ifinit(ifp, aa,
+		    (struct sockaddr_at *)&ifr->ifr_addr);
+		goto out;
 
 	case SIOCDIFADDR:
-		/*
-		 * scrub all routes.. didn't we just DO this? XXX yes, del it
-		 */
-		at_scrub(ifp, aa);
 
 		/*
 		 * remove the ifaddr from the interface
 		 */
-		ifa0 = (struct ifaddr *)aa;
-		TAILQ_REMOVE(&ifp->if_addrhead, ifa0, ifa_link);
+		ifa = (struct ifaddr *)aa;
+		IF_ADDR_LOCK(ifp);
+		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
+		IF_ADDR_UNLOCK(ifp);
+		ifa_free(ifa);				/* if_addrhead */
 
 		/*
 		 * Now remove the at_ifaddr from the parallel structure
 		 * as well, or we'd be in deep trouble
 		 */
-		aa0 = aa;
-		if (aa0 == (aa = at_ifaddr_list)) {
-			at_ifaddr_list = aa->aa_next;
-		} else {
-			while (aa->aa_next && (aa->aa_next != aa0))
-				aa = aa->aa_next;
 
-			/*
-			 * if we found it, remove it, otherwise we screwed up.
-			 */
-			if (aa->aa_next)
-				aa->aa_next = aa0->aa_next;
-			else
-				panic("at_control");
-		}
-
-		/*
-		 * Now reclaim the reference.
-		 */
-		IFAFREE(ifa0);
+		AT_IFADDR_WLOCK();
+		TAILQ_REMOVE(&at_ifaddrhead, aa, aa_link);
+		AT_IFADDR_WUNLOCK();
+		ifa_free(ifa);				/* at_ifaddrhead */
 		break;
 
 	default:
-		if (ifp == NULL || ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
-		return ((*ifp->if_ioctl)(ifp, cmd, data));
+		if (ifp == NULL || ifp->if_ioctl == NULL) {
+			error = EOPNOTSUPP;
+			goto out;
+		}
+		error = ((*ifp->if_ioctl)(ifp, cmd, data));
 	}
-	return (0);
+
+out:
+	if (aa != NULL)
+		ifa_free(&aa->aa_ifa);
+	return (error);
 }
 
 /* 
@@ -670,6 +725,8 @@ at_broadcast(struct sockaddr_at *sat)
 {
 	struct at_ifaddr *aa;
 
+	AT_IFADDR_LOCK_ASSERT();
+
 	/*
 	 * If the node is not right, it can't be a broadcast 
 	 */
@@ -685,7 +742,7 @@ at_broadcast(struct sockaddr_at *sat)
 	/*
 	 * failing that, if the net is one we have, it's a broadcast as well.
 	 */
-	for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
+	TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 		if ((aa->aa_ifp->if_flags & IFF_BROADCAST)
 		    && (ntohs(sat->sat_addr.s_net) >= ntohs(aa->aa_firstnet)
 		    && ntohs(sat->sat_addr.s_net) <= ntohs(aa->aa_lastnet)))
@@ -755,7 +812,6 @@ static int
 aa_addsingleroute(struct ifaddr *ifa, struct at_addr *addr,
     struct at_addr *mask)
 {
-	int error;
 
 #if 0
 	printf("aa_addsingleroute: %x.%x mask %x.%x ...\n",
@@ -763,22 +819,15 @@ aa_addsingleroute(struct ifaddr *ifa, struct at_addr *addr,
 	    mask->s_node);
 #endif
 
-	error = aa_dosingleroute(ifa, addr, mask, RTM_ADD, RTF_UP);
-	if (error)
-		printf("aa_addsingleroute: error %d\n", error);
-	return (error);
+	return (aa_dosingleroute(ifa, addr, mask, RTM_ADD, RTF_UP));
 }
 
 static int
 aa_delsingleroute(struct ifaddr *ifa, struct at_addr *addr,
     struct at_addr *mask)
 {
-	int error;
 
-	error = aa_dosingleroute(ifa, addr, mask, RTM_DELETE, 0);
-	if (error)
-		printf("aa_delsingleroute: error %d\n", error);
-	return (error);
+	return (aa_dosingleroute(ifa, addr, mask, RTM_DELETE, 0));
 }
 
 static int
@@ -803,36 +852,6 @@ aa_dosingleroute(struct ifaddr *ifa, struct at_addr *at_addr,
 	    (flags & RTF_HOST)?(ifa->ifa_dstaddr):(ifa->ifa_addr),
 	    (struct sockaddr *) &mask, flags, NULL));
 }
-
-#if 0
-
-static void
-aa_clean(void)
-{
-	struct at_ifaddr *aa;
-	struct ifaddr *ifa;
-	struct ifnet *ifp;
-
-	while ((aa = at_ifaddr_list) != NULL) {
-		ifp = aa->aa_ifp;
-		at_scrub(ifp, aa);
-		at_ifaddr_list = aa->aa_next;
-		if ((ifa = ifp->if_addrlist) == (struct ifaddr *)aa)
-			ifp->if_addrlist = ifa->ifa_next;
-		else {
-			while (ifa->ifa_next &&
-			    (ifa->ifa_next != (struct ifaddr *)aa))
-				ifa = ifa->ifa_next;
-			if (ifa->ifa_next)
-				ifa->ifa_next =
-				    ((struct ifaddr *)aa)->ifa_next;
-			else
-				panic("at_entry");
-		}
-	}
-}
-
-#endif
 
 static int
 aa_claim_addr(struct ifaddr *ifa, struct sockaddr *gw0)

@@ -131,6 +131,7 @@ static const struct {
 	const struct asn_oid	*oid;	/* the OID to return */
 } fs_type_map[] = {
 	{ "ufs",	&OIDX_hrFSBerkeleyFFS_c },
+	{ "zfs",        &OIDX_hrFSOther_c },
 	{ "cd9660",	&OIDX_hrFSiso9660_c },
 	{ "nfs",	&OIDX_hrFSNFS_c },
 	{ "ext2fs",	&OIDX_hrFSLinuxExt2_c },

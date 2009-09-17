@@ -5,7 +5,6 @@
 
 # PROVIDE: ipfs
 # REQUIRE: ipnat
-# BEFORE:  netif
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr

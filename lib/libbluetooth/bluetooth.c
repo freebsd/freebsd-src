@@ -1,7 +1,9 @@
 /*
  * bluetooth.c
- *
- * Copyright (c) 2001-2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ */
+
+/*-
+ * Copyright (c) 2001-2009 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

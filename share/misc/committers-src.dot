@@ -88,6 +88,7 @@ eik [label="Oliver Eikemeier\neik@FreeBSD.org\n2004/05/20"]
 emaste [label="Ed Maste\nemaste@FreeBSD.org\n2005/10/04"]
 emax [label="Maksim Yevmenkin\nemax@FreeBSD.org\n2003/10/12"]
 eri [label="Ermal Luci\neri@FreeBSD.org\n2008/06/11"]
+fabient [label="Fabien Thomas\nfabient@FreeBSD.org\n2009/03/16"]
 fanf [label="Tony Finch\nfanf@FreeBSD.org\n2002/05/05"]
 fjoe [label="Max Khon\nfjoe@FreeBSD.org\n2001/08/06"]
 flz [label="Florent Thoumie\nflz@FreeBSD.org\n2006/03/30"]
@@ -105,6 +106,7 @@ ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jayanth [label="Jayanth Vijayaraghavan\njayanth@FreeBSD.org\n2000/05/08"]
+jilles [label="Jilles Tjoelker\njilles@FreeBSD.org\n2009/05/22"]
 jinmei [label="JINMEI Tatuya\njinmei@FreeBSD.org\n2007/03/17"]
 jdp [label="John Polstra\njdp@FreeBSD.org\n????/??/??"]
 jhb [label="John Baldwin\njhb@FreeBSD.org\n1999/08/23"]
@@ -125,6 +127,7 @@ linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2006/09/30"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
 lulf [label="Ulf Lilleengen\nlulf@FreeBSD.org\n2007/10/24"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
+markm [label="Mark Murray\nmarkm@FreeBSD.org\n199?/??/??"]
 marks [label="Mark Santcroos\nmarks@FreeBSD.org\n2004/03/18"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2006/06/01"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
@@ -136,6 +139,8 @@ mr [label="Michael Reifenberger\nmr@FreeBSD.org\n2001/09/30"]
 murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2005/03/31"]
 njl [label="Nate Lawson\nnjl@FreeBSD.org\n2002/08/07"]
+nork [label="Norikatsu Shigemura\nnork@FreeBSD.org\n2009/06/09"]
+np [label="Navdeep Parhar\nnp@FreeBSD.org\n2009/06/05"]
 nwhitehorn [label="Nathan Whitehorn\nnwhitehorn@FreeBSD.org\n2008/07/03"]
 obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
@@ -167,6 +172,7 @@ sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 shiba [label="Takeshi Shibagaki\nshiba@FreeBSD.org\n2000/06/19"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
+snb [label="Nick Barkas\nsnb@FreeBSD.org\n2009/05/05"]
 sson [label="Stacey Son\nsson@FreeBSD.org\n2008/07/08"]
 suz [label="SUZUKI Shinsuke\nsuz@FreeBSD.org\n2002/03/26"]
 syrinx [label="Shteryana Shopova\nsyrinx@FreeBSD.org\n2006/10/07"]
@@ -175,6 +181,7 @@ thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 ticso [label="Bernd Walter\nticso@FreeBSD.org\n2002/01/31"]
 trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2008/08/22"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
+tuexen [label="Michael Tuexen\ntuexen@FreeBSD.org\n2009/06/06"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
 vanhu [label="Yvan Vanhullebus\nvanhu@FreeBSD.org\n2008/07/21"]
 versus [label="Konrad Jankowski\nversus@FreeBSD.org\n2008/10/27"]
@@ -243,6 +250,9 @@ dds -> versus
 
 dwmalone -> fanf
 dwmalone -> peadar
+dwmalone -> snb
+
+ed -> jilles
 
 eivind -> des
 eivind -> rwatson
@@ -261,6 +271,7 @@ gnn -> rrs
 gnn -> ivoras
 gnn -> vanhu
 gnn -> lstewart
+gnn -> np
 
 grog -> edwin
 grog -> le
@@ -278,6 +289,7 @@ imp -> keichii
 imp -> mb
 imp -> mr
 imp -> non
+imp -> nork
 imp -> onoe
 imp -> remko
 imp -> rik
@@ -314,6 +326,7 @@ jkh -> wes
 jkh -> yar
 
 jkoshy -> kaiw
+jkoshy -> fabient
 
 jlemon -> bmilekic
 jlemon -> brooks
@@ -336,6 +349,8 @@ kmacy -> lstewart
 marcel -> arun
 marcel -> marius
 marcel -> nwhitehorn
+
+markm -> sheldonh
 
 mdodd -> jake
 
@@ -371,7 +386,11 @@ philip -> matteo
 
 pjd -> lulf
 
+rgrimes -> markm
+
 rpaulo -> avg
+
+rrs -> tuexen
 
 ru -> ceri
 ru -> cjc

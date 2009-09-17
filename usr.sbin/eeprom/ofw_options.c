@@ -52,18 +52,18 @@ __FBSDID("$FreeBSD$");
 
 struct ofwo_extabent {
 	const char	*ex_prop;
-	int		(*ex_handler)(struct ofwo_extabent *, int, const void *,
-			    int, const char *);
+	int		(*ex_handler)(const struct ofwo_extabent *, int,
+			    const void *, int, const char *);
 };
 
-static int	ofwo_oemlogo(struct ofwo_extabent *, int, const void *, int,
-		    const char *);
-static int	ofwo_secmode(struct ofwo_extabent *, int, const void *, int,
-		    const char *);
-static int	ofwo_secpwd(struct ofwo_extabent *, int, const void *, int,
-		    const char *);
+static int	ofwo_oemlogo(const struct ofwo_extabent *, int, const void *,
+		    int, const char *);
+static int	ofwo_secmode(const struct ofwo_extabent *, int, const void *,
+		    int, const char *);
+static int	ofwo_secpwd(const struct ofwo_extabent *, int, const void *,
+		    int, const char *);
 
-static struct ofwo_extabent ofwo_extab[] = {
+static const struct ofwo_extabent const ofwo_extab[] = {
 	{ "oem-logo",			ofwo_oemlogo },
 	{ "security-mode",		ofwo_secmode },
 	{ "security-password",		ofwo_secpwd },
@@ -81,8 +81,8 @@ ofwo_printprop(const char *prop, const char* buf, int buflen)
 }
 
 static int
-ofwo_oemlogo(struct ofwo_extabent *exent, int fd, const void *buf, int buflen,
-    const char *val)
+ofwo_oemlogo(const struct ofwo_extabent *exent, int fd, const void *buf,
+    int buflen, const char *val)
 {
 	int lfd;
 	char logo[OFWO_LOGO + 1];
@@ -117,8 +117,8 @@ ofwo_oemlogo(struct ofwo_extabent *exent, int fd, const void *buf, int buflen,
 }
 
 static int
-ofwo_secmode(struct ofwo_extabent *exent, int fd, const void *buf, int buflen,
-    const char *val)
+ofwo_secmode(const struct ofwo_extabent *exent, int fd, const void *buf,
+    int buflen, const char *val)
 {
 	int res;
 
@@ -145,8 +145,8 @@ ofwo_secmode(struct ofwo_extabent *exent, int fd, const void *buf, int buflen,
 }
 
 static int
-ofwo_secpwd(struct ofwo_extabent *exent, int fd __unused,
-    const void *buf __unused, __unused int buflen, const char *val)
+ofwo_secpwd(const struct ofwo_extabent *exent, int fd, const void *buf,
+    int buflen, const char *val)
 {
 	void *pbuf;
 	int len, pblen, rv;
@@ -246,14 +246,14 @@ ofwo_dump(void)
 	int fd, len, nlen, pblen;
 	phandle_t optnode;
 	char prop[OFWO_MAXPROP + 1];
-	struct ofwo_extabent *ex;
+	const struct ofwo_extabent *ex;
 
 	pblen = 0;
 	pbuf = NULL;
 	fd = ofw_open(O_RDONLY);
 	optnode = ofw_optnode(fd);
 	for (nlen = ofw_firstprop(fd, optnode, prop, sizeof(prop)); nlen != 0;
-	     nlen = ofw_nextprop(fd, optnode, prop, prop, sizeof(prop))) {
+	    nlen = ofw_nextprop(fd, optnode, prop, prop, sizeof(prop))) {
 		len = ofw_getprop_alloc(fd, optnode, prop, &pbuf, &pblen, 1);
 		if (len < 0)
 			continue;
@@ -277,7 +277,7 @@ ofwo_action(const char *prop, const char *val)
 {
 	void *pbuf;
 	int fd, len, pblen, rv;
-	struct ofwo_extabent *ex;
+	const struct ofwo_extabent *ex;
 
 	pblen = 0;
 	rv = EX_OK;
@@ -300,7 +300,7 @@ ofwo_action(const char *prop, const char *val)
 		rv = (*ex->ex_handler)(ex, fd, pbuf, len, val);
 	else if (val)
 		rv = ofwo_setstr(fd, pbuf, len, prop, val);
-	else 
+	else
 		ofwo_printprop(prop, (char *)pbuf, len);
 out:
 	if (pbuf != NULL)

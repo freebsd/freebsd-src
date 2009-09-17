@@ -539,7 +539,6 @@ nve_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = nve_ioctl;
-	ifp->if_output = ether_output;
 	ifp->if_start = nve_ifstart;
 	ifp->if_watchdog = nve_watchdog;
 	ifp->if_timer = 0;
@@ -585,11 +584,11 @@ nve_detach(device_t dev)
 	ifp = sc->ifp;
 
 	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
 		NVE_LOCK(sc);
 		nve_stop(sc);
 		NVE_UNLOCK(sc);
 		callout_drain(&sc->stat_callout);
-		ether_ifdetach(ifp);
 	}
 
 	if (sc->miibus)
@@ -1134,7 +1133,7 @@ nve_setmulti(struct nve_softc *sc)
 		return;
 	}
 	/* Setup multicast filter */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		u_char *addrp;
 
@@ -1148,7 +1147,7 @@ nve_setmulti(struct nve_softc *sc)
 			oraddr[i] |= mcaddr;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 	for (i = 0; i < 6; i++) {
 		hwfilter.acMulticastAddress[i] = andaddr[i] & oraddr[i];
 		hwfilter.acMulticastMask[i] = andaddr[i] | (~oraddr[i]);

@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-keygen.docbook,v 1.7.18.13 2008/10/15 23:46:06 tbox Exp $ -->
+<!-- $Id: dnssec-keygen.docbook,v 1.22 2008/10/14 14:32:50 jreed Exp $ -->
 <refentry id="man.dnssec-keygen">
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -92,13 +92,13 @@
           <para>
             Selects the cryptographic algorithm.  The value of
             <option>algorithm</option> must be one of RSAMD5 (RSA) or RSASHA1,
-            	      DSA, DH (Diffie Hellman), or HMAC-MD5.  These values
-            are case insensitive.
+	    DSA, NSEC3RSASHA1, NSEC3DSA, DH (Diffie Hellman), or HMAC-MD5.
+	    These values are case insensitive.
           </para>
           <para>
             Note 1: that for DNSSEC, RSASHA1 is a mandatory to implement
-            algorithm,
-            and DSA is recommended.  For TSIG, HMAC-MD5 is mandatory.
+            algorithm, and DSA is recommended.  For TSIG, HMAC-MD5 is
+	    mandatory.
           </para>
           <para>
             Note 2: HMAC-MD5 and DH automatically set the -k flag.
@@ -130,8 +130,8 @@
             zone key (KEY/DNSKEY)), HOST or ENTITY (for a key associated with
             a host (KEY)),
             USER (for a key associated with a user(KEY)) or OTHER (DNSKEY).
-            These values are
-            case insensitive.
+            These values are case insensitive.  Defaults to ZONE for DNSKEY
+	    generation.
           </para>
         </listitem>
       </varlistentry>

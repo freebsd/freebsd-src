@@ -57,16 +57,19 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_sta.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 
 #define	IEEE80211_RATE2MBS(r)	(((r) & IEEE80211_RATE_VAL) / 2)
 
 static	void sta_vattach(struct ieee80211vap *);
 static	void sta_beacon_miss(struct ieee80211vap *);
 static	int sta_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-static	int sta_input(struct ieee80211_node *, struct mbuf *,
-	    int rssi, int noise, uint32_t rstamp);
+static	int sta_input(struct ieee80211_node *, struct mbuf *, int, int);
 static void sta_recv_mgmt(struct ieee80211_node *, struct mbuf *,
-	    int subtype, int rssi, int noise, uint32_t rstamp);
+	    int subtype, int rssi, int nf);
+static void sta_recv_ctl(struct ieee80211_node *, struct mbuf *, int subtype);
 
 void
 ieee80211_sta_attach(struct ieee80211com *ic)
@@ -90,6 +93,7 @@ sta_vattach(struct ieee80211vap *vap)
 	vap->iv_newstate = sta_newstate;
 	vap->iv_input = sta_input;
 	vap->iv_recv_mgmt = sta_recv_mgmt;
+	vap->iv_recv_ctl = sta_recv_ctl;
 	vap->iv_opdetach = sta_vdetach;
 	vap->iv_bmiss = sta_beacon_miss;
 }
@@ -105,14 +109,25 @@ sta_beacon_miss(struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 
 	KASSERT((ic->ic_flags & IEEE80211_F_SCAN) == 0, ("scanning"));
-	KASSERT(vap->iv_state == IEEE80211_S_RUN,
-	    ("wrong state %d", vap->iv_state));
+	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
+	    ("wrong state %s", ieee80211_state_name[vap->iv_state]));
 
-	IEEE80211_DPRINTF(vap,
-		IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
-		"beacon miss, mode %u state %s\n",
-		vap->iv_opmode, ieee80211_state_name[vap->iv_state]);
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
+	    "beacon miss, mode %s state %s\n",
+	    ieee80211_opmode_name[vap->iv_opmode],
+	    ieee80211_state_name[vap->iv_state]);
 
+	if (vap->iv_state == IEEE80211_S_CSA) {
+		/*
+		 * A Channel Switch is pending; assume we missed the
+		 * beacon that would've completed the process and just
+		 * force the switch.  If we made a mistake we'll not
+		 * find the AP on the new channel and fall back to a
+		 * normal scan.
+		 */
+		ieee80211_csa_completeswitch(ic);
+		return;
+	}
 	if (++vap->iv_bmiss_count < vap->iv_bmiss_max) {
 		/*
 		 * Send a directed probe req before falling back to a
@@ -129,6 +144,9 @@ sta_beacon_miss(struct ieee80211vap *vap)
 	vap->iv_bmiss_count = 0;
 	vap->iv_stats.is_beacon_miss++;
 	if (vap->iv_roaming == IEEE80211_ROAMING_AUTO) {
+#ifdef IEEE80211_SUPPORT_SUPERG
+		struct ieee80211com *ic = vap->iv_ic;
+
 		/*
 		 * If we receive a beacon miss interrupt when using
 		 * dynamic turbo, attempt to switch modes before
@@ -137,6 +155,7 @@ sta_beacon_miss(struct ieee80211vap *vap)
 		if (IEEE80211_ATH_CAP(vap, vap->iv_bss, IEEE80211_NODE_TURBOP))
 			ieee80211_dturbo_switch(vap,
 			    ic->ic_bsschan->ic_flags ^ IEEE80211_CHAN_TURBO);
+#endif
 		/*
 		 * Try to reassociate before scanning for a new ap.
 		 */
@@ -353,6 +372,7 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		}
 		switch (ostate) {
 		case IEEE80211_S_RUN:
+		case IEEE80211_S_CSA:
 			break;
 		case IEEE80211_S_AUTH:		/* when join is done in fw */
 		case IEEE80211_S_ASSOC:
@@ -406,8 +426,12 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(vap->iv_bss, ostate != IEEE80211_S_RUN);
 		break;
+	case IEEE80211_S_CSA:
+		if (ostate != IEEE80211_S_RUN)
+			goto invalid;
+		break;
 	case IEEE80211_S_SLEEP:
-		ieee80211_sta_pwrsave(vap, 0);
+		ieee80211_sta_pwrsave(vap, 1);
 		break;
 	default:
 	invalid:
@@ -483,8 +507,7 @@ doprint(struct ieee80211vap *vap, int subtype)
  * by the 802.11 layer.
  */
 static int
-sta_input(struct ieee80211_node *ni, struct mbuf *m,
-	int rssi, int noise, uint32_t rstamp)
+sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 {
 #define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
@@ -540,7 +563,8 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
 	    IEEE80211_FC0_VERSION_0) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, NULL, "wrong version %x", wh->i_fc[0]);
+		    ni->ni_macaddr, NULL, "wrong version, fc %02x:%02x",
+		    wh->i_fc[0], wh->i_fc[1]);
 		vap->iv_stats.is_rx_badversion++;
 		goto err;
 	}
@@ -558,8 +582,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 			goto out;
 		}
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
-		ni->ni_noise = noise;
-		ni->ni_rstamp = rstamp;
+		ni->ni_noise = nf;
 		if (HAS_SEQ(type)) {
 			uint8_t tid = ieee80211_gettid(wh);
 			if (IEEE80211_QOS_HAS_SEQ(wh) &&
@@ -735,8 +758,8 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 		}
 
 		/* copy to listener after decrypt */
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
+		if (ieee80211_radiotap_active_vap(vap))
+			ieee80211_radiotap_tx(vap, m);
 		need_tap = 0;
 
 		/*
@@ -795,32 +818,13 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 			m = ieee80211_decap_amsdu(ni, m);
 			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-		} else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) &&
-#define	FF_LLC_SIZE	(sizeof(struct ether_header) + sizeof(struct llc))
-		    m->m_pkthdr.len >= 3*FF_LLC_SIZE) {
-			struct llc *llc;
-
-			/*
-			 * Check for fast-frame tunnel encapsulation.
-			 */
-			if (m->m_len < FF_LLC_SIZE &&
-			    (m = m_pullup(m, FF_LLC_SIZE)) == NULL) {
-				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-				    ni->ni_macaddr, "fast-frame",
-				    "%s", "m_pullup(llc) failed");
-				vap->iv_stats.is_rx_tooshort++;
+		} else {
+#ifdef IEEE80211_SUPPORT_SUPERG
+			m = ieee80211_decap_fastframe(vap, ni, m);
+			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-			}
-			llc = (struct llc *)(mtod(m, uint8_t *) + 
-				sizeof(struct ether_header));
-			if (llc->llc_snap.ether_type == htons(ATH_FF_ETH_TYPE)) {
-				m_adj(m, FF_LLC_SIZE);
-				m = ieee80211_decap_fastframe(ni, m);
-				if (m == NULL)
-					return IEEE80211_FC0_TYPE_DATA;
-			}
+#endif
 		}
-#undef FF_LLC_SIZE
 		ieee80211_deliver_data(vap, ni, m);
 		return IEEE80211_FC0_TYPE_DATA;
 
@@ -880,16 +884,15 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m,
 			wh = mtod(m, struct ieee80211_frame *);
 			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 		}
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
-		vap->iv_recv_mgmt(ni, m, subtype, rssi, noise, rstamp);
-		m_freem(m);
-		return IEEE80211_FC0_TYPE_MGT;
+		vap->iv_recv_mgmt(ni, m, subtype, rssi, nf);
+		goto out;
 
 	case IEEE80211_FC0_TYPE_CTL:
 		vap->iv_stats.is_rx_ctl++;
 		IEEE80211_NODE_STAT(ni, rx_ctrl);
+		vap->iv_recv_ctl(ni, m, subtype);
 		goto out;
+
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 		    wh, NULL, "bad frame type 0x%x", type);
@@ -900,8 +903,8 @@ err:
 	ifp->if_ierrors++;
 out:
 	if (m != NULL) {
-		if (bpf_peers_present(vap->iv_rawbpf) && need_tap)
-			bpf_mtap(vap->iv_rawbpf, m);
+		if (need_tap && ieee80211_radiotap_active_vap(vap))
+			ieee80211_radiotap_rx(vap, m);
 		m_freem(m);
 	}
 	return type;
@@ -910,7 +913,7 @@ out:
 
 static void
 sta_auth_open(struct ieee80211_node *ni, struct ieee80211_frame *wh,
-    int rssi, int noise, uint32_t rstamp, uint16_t seq, uint16_t status)
+    int rssi, int nf, uint16_t seq, uint16_t status)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 
@@ -939,7 +942,7 @@ sta_auth_open(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 
 static void
 sta_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
-    uint8_t *frm, uint8_t *efrm, int rssi, int noise, uint32_t rstamp,
+    uint8_t *frm, uint8_t *efrm, int rssi, int nf,
     uint16_t seq, uint16_t status)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
@@ -1094,49 +1097,110 @@ ieee80211_parse_wmeparams(struct ieee80211vap *vap, uint8_t *frm,
 #undef MS
 }
 
-static int
-ieee80211_parse_athparams(struct ieee80211_node *ni, uint8_t *frm,
+/*
+ * Process 11h Channel Switch Announcement (CSA) ie.  If this
+ * is the first CSA then initiate the switch.  Otherwise we
+ * track state and trigger completion and/or cancel of the switch.
+ * XXX should be public for IBSS use
+ */
+static void
+ieee80211_parse_csaparams(struct ieee80211vap *vap, uint8_t *frm,
 	const struct ieee80211_frame *wh)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
-	const struct ieee80211_ath_ie *ath;
-	u_int len = frm[1];
-	int capschanged;
-	uint16_t defkeyix;
+	struct ieee80211com *ic = vap->iv_ic;
+	const struct ieee80211_csa_ie *csa =
+	    (const struct ieee80211_csa_ie *) frm;
 
-	if (len < sizeof(struct ieee80211_ath_ie)-2) {
+	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
+	    ("state %s", ieee80211_state_name[vap->iv_state]));
+
+	if (csa->csa_mode > 1) {
 		IEEE80211_DISCARD_IE(vap,
-		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_SUPERG,
-		    wh, "Atheros", "too short, len %u", len);
-		return -1;
+		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_DOTH,
+		    wh, "CSA", "invalid mode %u", csa->csa_mode);
+		return;
 	}
-	ath = (const struct ieee80211_ath_ie *)frm;
-	capschanged = (ni->ni_ath_flags != ath->ath_capability);
-	defkeyix = LE_READ_2(ath->ath_defkeyix);
-	if (capschanged || defkeyix != ni->ni_ath_defkeyix) {
-		ni->ni_ath_flags = ath->ath_capability;
-		ni->ni_ath_defkeyix = defkeyix;
-		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
-		    "ath ie change: new caps 0x%x defkeyix 0x%x",
-		    ni->ni_ath_flags, ni->ni_ath_defkeyix);
-	}
-	if (IEEE80211_ATH_CAP(vap, ni, ATHEROS_CAP_TURBO_PRIME)) {
-		uint16_t curflags, newflags;
-
+	IEEE80211_LOCK(ic);
+	if ((ic->ic_flags & IEEE80211_F_CSAPENDING) == 0) {
 		/*
-		 * Check for turbo mode switch.  Calculate flags
-		 * for the new mode and effect the switch.
+		 * Convert the channel number to a channel reference.  We
+		 * try first to preserve turbo attribute of the current
+		 * channel then fallback.  Note this will not work if the
+		 * CSA specifies a channel that requires a band switch (e.g.
+		 * 11a => 11g).  This is intentional as 11h is defined only
+		 * for 5GHz/11a and because the switch does not involve a
+		 * reassociation, protocol state (capabilities, negotated
+		 * rates, etc) may/will be wrong.
 		 */
-		newflags = curflags = vap->iv_ic->ic_bsschan->ic_flags;
-		/* NB: BOOST is not in ic_flags, so get it from the ie */
-		if (ath->ath_capability & ATHEROS_CAP_BOOST) 
-			newflags |= IEEE80211_CHAN_TURBO;
-		else
-			newflags &= ~IEEE80211_CHAN_TURBO;
-		if (newflags != curflags)
-			ieee80211_dturbo_switch(vap, newflags);
+		struct ieee80211_channel *c =
+		    ieee80211_find_channel_byieee(ic, csa->csa_newchan,
+			(ic->ic_bsschan->ic_flags & IEEE80211_CHAN_ALLTURBO));
+		if (c == NULL) {
+			c = ieee80211_find_channel_byieee(ic,
+			    csa->csa_newchan,
+			    (ic->ic_bsschan->ic_flags & IEEE80211_CHAN_ALL));
+			if (c == NULL) {
+				IEEE80211_DISCARD_IE(vap,
+				    IEEE80211_MSG_ELEMID | IEEE80211_MSG_DOTH,
+				    wh, "CSA", "invalid channel %u",
+				    csa->csa_newchan);
+				goto done;
+			}
+		}
+#if IEEE80211_CSA_COUNT_MIN > 0
+		if (csa->csa_count < IEEE80211_CSA_COUNT_MIN) {
+			/*
+			 * Require at least IEEE80211_CSA_COUNT_MIN count to
+			 * reduce the risk of being redirected by a fabricated
+			 * CSA.  If a valid CSA is dropped we'll still get a
+			 * beacon miss when the AP leaves the channel so we'll
+			 * eventually follow to the new channel.
+			 *
+			 * NOTE: this violates the 11h spec that states that
+			 * count may be any value and if 0 then a switch
+			 * should happen asap.
+			 */
+			IEEE80211_DISCARD_IE(vap,
+			    IEEE80211_MSG_ELEMID | IEEE80211_MSG_DOTH,
+			    wh, "CSA", "count %u too small, must be >= %u",
+			    csa->csa_count, IEEE80211_CSA_COUNT_MIN);
+			goto done;
+		}
+#endif
+		ieee80211_csa_startswitch(ic, c, csa->csa_mode, csa->csa_count);
+	} else {
+		/*
+		 * Validate this ie against the initial CSA.  We require
+		 * mode and channel not change and the count must be
+		 * monotonically decreasing.  This may be pointless and
+		 * canceling the switch as a result may be too paranoid but
+		 * in the worst case if we drop out of CSA because of this
+		 * and the AP does move then we'll just end up taking a
+		 * beacon miss and scan to find the AP.
+		 *
+		 * XXX may want <= on count as we also process ProbeResp
+		 * frames and those may come in w/ the same count as the
+		 * previous beacon; but doing so leaves us open to a stuck
+		 * count until we add a dead-man timer
+		 */
+		if (!(csa->csa_count < ic->ic_csa_count &&
+		      csa->csa_mode == ic->ic_csa_mode &&
+		      csa->csa_newchan == ieee80211_chan2ieee(ic, ic->ic_csa_newchan))) {
+			IEEE80211_NOTE_FRAME(vap, IEEE80211_MSG_DOTH, wh,
+			    "CSA ie mismatch, initial ie <%d,%d,%d>, "
+			    "this ie <%d,%d,%d>", ic->ic_csa_mode,
+			    ic->ic_csa_newchan, ic->ic_csa_count,
+			    csa->csa_mode, csa->csa_newchan, csa->csa_count);
+			ieee80211_csa_cancelswitch(ic);
+		} else {
+			if (csa->csa_count <= 1)
+				ieee80211_csa_completeswitch(ic);
+			else
+				ic->ic_csa_count = csa->csa_count;
+		}
 	}
-	return capschanged;
+done:
+	IEEE80211_UNLOCK(ic);
 }
 
 /*
@@ -1176,14 +1240,16 @@ startbgscan(struct ieee80211vap *vap)
 
 	return ((vap->iv_flags & IEEE80211_F_BGSCAN) &&
 	    (ic->ic_flags & IEEE80211_F_CSAPENDING) == 0 &&
+#ifdef IEEE80211_SUPPORT_SUPERG
 	    !IEEE80211_IS_CHAN_DTURBO(ic->ic_curchan) &&
+#endif
 	    time_after(ticks, ic->ic_lastscan + vap->iv_bgscanintvl) &&
 	    time_after(ticks, ic->ic_lastdata + vap->iv_bgscanidle));
 }
 
 static void
 sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
-	int subtype, int rssi, int noise, uint32_t rstamp)
+	int subtype, int rssi, int nf)
 {
 #define	ISPROBE(_st)	((_st) == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 #define	ISREASSOC(_st)	((_st) == IEEE80211_FC0_SUBTYPE_REASSOC_RESP)
@@ -1205,7 +1271,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 * We process beacon/probe response frames:
 		 *    o when scanning, or
 		 *    o station mode when associated (to collect state
-		 *      updates such as 802.11g slot time), or
+		 *      updates such as 802.11g slot time)
 		 * Frames otherwise received are discarded.
 		 */ 
 		if (!((ic->ic_flags & IEEE80211_F_SCAN) || ni->ni_associd)) {
@@ -1271,10 +1337,12 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			    (ni->ni_flags & IEEE80211_NODE_QOS) &&
 			    ieee80211_parse_wmeparams(vap, scan.wme, wh) > 0)
 				ieee80211_wme_updateparams(vap);
+#ifdef IEEE80211_SUPPORT_SUPERG
 			if (scan.ath != NULL)
 				ieee80211_parse_athparams(ni, scan.ath, wh);
+#endif
 			if (scan.htcap != NULL && scan.htinfo != NULL &&
-			    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
+			    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 				ieee80211_ht_updateparams(ni,
 				    scan.htcap, scan.htinfo);
 				/* XXX state changes? */
@@ -1301,6 +1369,20 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				ni->ni_dtim_count = tim->tim_count;
 				ni->ni_dtim_period = tim->tim_period;
 			}
+			if (scan.csa != NULL &&
+			    (vap->iv_flags & IEEE80211_F_DOTH))
+				ieee80211_parse_csaparams(vap, scan.csa, wh);
+			else if (ic->ic_flags & IEEE80211_F_CSAPENDING) {
+				/*
+				 * No CSA ie or 11h disabled, but a channel
+				 * switch is pending; drop out so we aren't
+				 * stuck in CSA state.  If the AP really is
+				 * moving we'll get a beacon miss and scan.
+				 */
+				IEEE80211_LOCK(ic);
+				ieee80211_csa_cancelswitch(ic);
+				IEEE80211_UNLOCK(ic);
+			}
 			/*
 			 * If scanning, pass the info to the scan module.
 			 * Otherwise, check if it's the right time to do
@@ -1317,7 +1399,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			 */
 			if (ic->ic_flags & IEEE80211_F_SCAN) {
 				ieee80211_add_scan(vap, &scan, wh,
-					subtype, rssi, noise, rstamp);
+					subtype, rssi, nf);
 			} else if (contbgscan(vap)) {
 				ieee80211_bg_scan(vap, 0);
 			} else if (startbgscan(vap)) {
@@ -1346,8 +1428,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				ieee80211_probe_curchan(vap, 1);
 				ic->ic_flags_ext &= ~IEEE80211_FEXT_PROBECHAN;
 			}
-			ieee80211_add_scan(vap, &scan, wh,
-				subtype, rssi, noise, rstamp);
+			ieee80211_add_scan(vap, &scan, wh, subtype, rssi, nf);
 			return;
 		}
 		break;
@@ -1382,11 +1463,10 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			return;
 		}
 		if (algo == IEEE80211_AUTH_ALG_SHARED)
-			sta_auth_shared(ni, wh, frm + 6, efrm, rssi,
-			    noise, rstamp, seq, status);
-		else if (algo == IEEE80211_AUTH_ALG_OPEN)
-			sta_auth_open(ni, wh, rssi, noise, rstamp,
+			sta_auth_shared(ni, wh, frm + 6, efrm, rssi, nf,
 			    seq, status);
+		else if (algo == IEEE80211_AUTH_ALG_OPEN)
+			sta_auth_open(ni, wh, rssi, nf, seq, status);
 		else {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 			    wh, "auth", "unsupported alg %d", algo);
@@ -1452,7 +1532,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			case IEEE80211_ELEMID_VENDOR:
 				if (iswmeoui(frm))
 					wme = frm;
-				else if (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
+				else if (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) {
 					/*
 					 * Accept pre-draft HT ie's if the
 					 * standard ones have not been seen.
@@ -1508,12 +1588,18 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 *     are HT capable in our AssocReq.
 		 */
 		if (htcap != NULL && htinfo != NULL &&
-		    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
+		    (vap->iv_flags_ht & IEEE80211_FHT_HT)) {
 			ieee80211_ht_node_init(ni);
 			ieee80211_ht_updateparams(ni, htcap, htinfo);
 			ieee80211_setup_htrates(ni, htcap,
 			     IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
 			ieee80211_setup_basic_htrates(ni, htinfo);
+			ieee80211_node_setuptxparms(ni);
+		} else {
+#ifdef IEEE80211_SUPPORT_SUPERG
+			if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_ATH))
+				ieee80211_ff_node_init(ni);
+#endif
 		}
 		/*
 		 * Configure state now that we are associated.
@@ -1631,7 +1717,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	case IEEE80211_FC0_SUBTYPE_ACTION:
 		if (vap->iv_state == IEEE80211_S_RUN) {
 			if (ieee80211_parse_action(ni, m0) == 0)
-				ic->ic_recv_action(ni, frm, efrm);
+				ic->ic_recv_action(ni, wh, frm, efrm);
 		} else
 			vap->iv_stats.is_rx_mgtdiscard++;
 		break;
@@ -1649,4 +1735,9 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	}
 #undef ISREASSOC
 #undef ISPROBE
+}
+
+static void
+sta_recv_ctl(struct ieee80211_node *ni, struct mbuf *m0, int subtype)
+{
 }

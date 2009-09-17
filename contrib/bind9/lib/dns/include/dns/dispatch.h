@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.h,v 1.48.18.9 2008/06/24 23:45:55 tbox Exp $ */
+/* $Id: dispatch.h,v 1.60.82.2 2009/01/29 23:47:44 tbox Exp $ */
 
 #ifndef DNS_DISPATCH_H
 #define DNS_DISPATCH_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file dns/dispatch.h
  * \brief
  * DNS Dispatch Management
  * 	Shared UDP and single-use TCP dispatches for queries and responses.
@@ -55,7 +55,7 @@
 #include <isc/buffer.h>
 #include <isc/lang.h>
 #include <isc/socket.h>
-#include <dns/types.h>
+#include <isc/types.h>
 
 #include <dns/types.h>
 
@@ -220,6 +220,21 @@ dns_dispatchmgr_setavailports(dns_dispatchmgr_t *mgr, isc_portset_t *v4portset,
  *\li	mgr is a valid dispatchmgr
  *\li	v4portset is NULL or a valid port set
  *\li	v6portset is NULL or a valid port set
+ */
+
+void
+dns_dispatchmgr_setstats(dns_dispatchmgr_t *mgr, isc_stats_t *stats);
+/*%<
+ * Sets statistics counter for the dispatchmgr.  This function is expected to
+ * be called only on zone creation (when necessary).
+ * Once installed, it cannot be removed or replaced.  Also, there is no
+ * interface to get the installed stats from the zone; the caller must keep the
+ * stats to reference (e.g. dump) it later.
+ *
+ * Requires:
+ *\li	mgr is a valid dispatchmgr with no managed dispatch.
+ *\li	stats is a valid statistics supporting resolver statistics counters
+ *	(see dns/stats.h).
  */
 
 isc_result_t

@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
+#include <sys/jail.h>
 #include <sys/kbio.h>
 #include <sys/kernel.h>
 #include <sys/linker_set.h>
@@ -58,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
@@ -1553,23 +1554,28 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 	/* LINUX_CDROMAUDIOBUFSIZ */
 
 	case LINUX_DVD_READ_STRUCT: {
-		l_dvd_struct lds;
-		struct dvd_struct bds;
+		l_dvd_struct *lds;
+		struct dvd_struct *bds;
 
-		error = copyin((void *)args->arg, &lds, sizeof(lds));
+		lds = malloc(sizeof(*lds), M_LINUX, M_WAITOK);
+		bds = malloc(sizeof(*bds), M_LINUX, M_WAITOK);
+		error = copyin((void *)args->arg, lds, sizeof(*lds));
 		if (error)
-			break;
-		error = linux_to_bsd_dvd_struct(&lds, &bds);
+			goto out;
+		error = linux_to_bsd_dvd_struct(lds, bds);
 		if (error)
-			break;
-		error = fo_ioctl(fp, DVDIOCREADSTRUCTURE, (caddr_t)&bds,
+			goto out;
+		error = fo_ioctl(fp, DVDIOCREADSTRUCTURE, (caddr_t)bds,
 		    td->td_ucred, td);
 		if (error)
-			break;
-		error = bsd_to_linux_dvd_struct(&bds, &lds);
+			goto out;
+		error = bsd_to_linux_dvd_struct(bds, lds);
 		if (error)
-			break;
-		error = copyout(&lds, (void *)args->arg, sizeof(lds));
+			goto out;
+		error = copyout(lds, (void *)args->arg, sizeof(*lds));
+	out:
+		free(bds, M_LINUX);
+		free(lds, M_LINUX);
 		break;
 	}
 
@@ -2052,9 +2058,10 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 int
 linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 {
-	INIT_VNET_NET(ifp->if_vnet);
 	struct ifnet *ifscan;
 	int ethno;
+
+	IFNET_RLOCK_ASSERT();
 
 	/* Short-circuit non ethernet interfaces */
 	if (!IFP_IS_ETH(ifp))
@@ -2062,16 +2069,12 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 
 	/* Determine the (relative) unit number for ethernet interfaces */
 	ethno = 0;
-	IFNET_RLOCK();
 	TAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
-		if (ifscan == ifp) {
-			IFNET_RUNLOCK();
+		if (ifscan == ifp)
 			return (snprintf(buffer, buflen, "eth%d", ethno));
-		}
 		if (IFP_IS_ETH(ifscan))
 			ethno++;
 	}
-	IFNET_RUNLOCK();
 
 	return (0);
 }
@@ -2084,9 +2087,8 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
  */
 
 static struct ifnet *
-ifname_linux_to_bsd(const char *lxname, char *bsdname)
+ifname_linux_to_bsd(struct thread *td, const char *lxname, char *bsdname)
 {
-	INIT_VNET_NET(TD_TO_VNET(curthread));
 	struct ifnet *ifp;
 	int len, unit;
 	char *ep;
@@ -2102,6 +2104,7 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 		return (NULL);
 	index = 0;
 	is_eth = (len == 3 && !strncmp(lxname, "eth", len)) ? 1 : 0;
+	CURVNET_SET(TD_TO_VNET(td));
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		/*
@@ -2115,6 +2118,7 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 			break;
 	}
 	IFNET_RUNLOCK();
+	CURVNET_RESTORE();
 	if (ifp != NULL)
 		strlcpy(bsdname, ifp->if_xname, IFNAMSIZ);
 	return (ifp);
@@ -2127,7 +2131,6 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 static int
 linux_ifconf(struct thread *td, struct ifconf *uifc)
 {
-	INIT_VNET_NET(TD_TO_VNET(td));
 #ifdef COMPAT_LINUX32
 	struct l_ifconf ifc;
 #else
@@ -2145,9 +2148,11 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 
 	max_len = MAXPHYS - 1;
 
+	CURVNET_SET(TD_TO_VNET(td));
 	/* handle the 'request buffer size' case */
 	if (ifc.ifc_buf == PTROUT(NULL)) {
 		ifc.ifc_len = 0;
+		IFNET_RLOCK();
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				struct sockaddr *sa = ifa->ifa_addr;
@@ -2155,12 +2160,16 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 					ifc.ifc_len += sizeof(ifr);
 			}
 		}
+		IFNET_RUNLOCK();
 		error = copyout(&ifc, uifc, sizeof(ifc));
+		CURVNET_RESTORE();
 		return (error);
 	}
 
-	if (ifc.ifc_len <= 0)
+	if (ifc.ifc_len <= 0) {
+		CURVNET_RESTORE();
 		return (EINVAL);
+	}
 
 again:
 	/* Keep track of eth interfaces */
@@ -2174,7 +2183,7 @@ again:
 	valid_len = 0;
 
 	/* Return all AF_INET addresses of all interfaces */
-	IFNET_RLOCK();		/* could sleep XXX */
+	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		int addrs = 0;
 
@@ -2222,6 +2231,7 @@ again:
 	memcpy(PTRIN(ifc.ifc_buf), sbuf_data(sb), ifc.ifc_len);
 	error = copyout(&ifc, uifc, sizeof(ifc));
 	sbuf_delete(sb);
+	CURVNET_RESTORE();
 
 	return (error);
 }
@@ -2372,7 +2382,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		printf("%s(): ioctl %d on %.*s\n", __func__,
 		    args->cmd & 0xffff, LINUX_IFNAMSIZ, lifname);
 #endif
-		ifp = ifname_linux_to_bsd(lifname, ifname);
+		ifp = ifname_linux_to_bsd(td, lifname, ifname);
 		if (ifp == NULL)
 			return (EINVAL);
 		/*

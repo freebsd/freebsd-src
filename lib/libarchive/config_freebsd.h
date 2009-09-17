@@ -25,14 +25,29 @@
  * $FreeBSD$
  */
 
-/* FreeBSD 5.0 and later have ACL support. */
+/* FreeBSD 5.0 and later have ACL and extattr support. */
 #if __FreeBSD__ > 4
 #define	HAVE_ACL_CREATE_ENTRY 1
+#define	HAVE_ACL_GET_PERM_NP 1
 #define	HAVE_ACL_INIT 1
 #define	HAVE_ACL_SET_FD 1
 #define	HAVE_ACL_SET_FD_NP 1
 #define	HAVE_ACL_SET_FILE 1
 #define	HAVE_ACL_USER 1
+#define	HAVE_EXTATTR_GET_FILE 1
+#define	HAVE_EXTATTR_LIST_FILE 1
+#define	HAVE_EXTATTR_SET_FD 1
+#define	HAVE_EXTATTR_SET_FILE 1
+#define	HAVE_SYS_ACL_H 1
+#define	HAVE_SYS_EXTATTR_H 1
+#endif
+
+#ifdef WITH_OPENSSL
+#define	HAVE_OPENSSL_MD5_H 1
+#define	HAVE_OPENSSL_RIPEMD_H 1
+#define	HAVE_OPENSSL_SHA_H 1
+#define	HAVE_SHA384 1
+#define	HAVE_SHA512 1
 #endif
 
 #define	HAVE_BZLIB_H 1
@@ -68,6 +83,8 @@
 #define	HAVE_LIMITS_H 1
 #define	HAVE_LUTIMES 1
 #define	HAVE_MALLOC 1
+#define	HAVE_MD5 1
+#define	HAVE_MD5_H 1
 #define	HAVE_MEMMOVE 1
 #define	HAVE_MEMSET 1
 #define	HAVE_MKDIR 1
@@ -77,8 +94,16 @@
 #define	HAVE_POLL 1
 #define	HAVE_POLL_H 1
 #define	HAVE_PWD_H 1
+#define	HAVE_READLINK 1
+#define	HAVE_RIPEMD_H
+#define	HAVE_RMD160 1
 #define	HAVE_SELECT 1
 #define	HAVE_SETENV 1
+#define	HAVE_SHA_H 1
+#define	HAVE_SHA1 1
+#define	HAVE_SHA256 1
+#define	HAVE_SHA256_H 1
+#define	HAVE_SIGNAL_H 1
 #define	HAVE_STDINT_H 1
 #define	HAVE_STDLIB_H 1
 #define	HAVE_STRCHR 1
@@ -93,7 +118,6 @@
 #define	HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC 1
 #define	HAVE_STRUCT_STAT_ST_FLAGS 1
 #define	HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC 1
-#define	HAVE_SYS_ACL_H 1
 #define	HAVE_SYS_IOCTL_H 1
 #define	HAVE_SYS_SELECT_H 1
 #define	HAVE_SYS_STAT_H 1

@@ -615,10 +615,7 @@ vm86_datacall(intnum, vmf, vmc)
 }
 
 vm_offset_t
-vm86_getaddr(vmc, sel, off)
-	struct vm86context *vmc;
-	u_short sel;
-	u_short off;
+vm86_getaddr(struct vm86context *vmc, u_short sel, u_short off)
 {
 	int i, page;
 	vm_offset_t addr;

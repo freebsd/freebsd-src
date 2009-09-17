@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -14,6 +14,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract 
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -94,7 +97,6 @@ struct sysctl_oid;
 struct sysctl_req;
 struct thread;
 struct ucred;
-struct uio;
 struct vattr;
 struct vnode;
 
@@ -132,6 +134,25 @@ typedef void	(*mpo_bpfdesc_init_label_t)(struct label *label);
 typedef void	(*mpo_cred_associate_nfsd_t)(struct ucred *cred);
 typedef int	(*mpo_cred_check_relabel_t)(struct ucred *cred,
 		    struct label *newlabel);
+typedef int	(*mpo_cred_check_setaudit_t)(struct ucred *cred,
+		    struct auditinfo *ai);
+typedef int	(*mpo_cred_check_setaudit_addr_t)(struct ucred *cred,
+		    struct auditinfo_addr *aia);
+typedef int	(*mpo_cred_check_setauid_t)(struct ucred *cred, uid_t auid);
+typedef int	(*mpo_cred_check_setegid_t)(struct ucred *cred, gid_t egid);
+typedef int	(*mpo_cred_check_seteuid_t)(struct ucred *cred, uid_t euid);
+typedef int	(*mpo_cred_check_setgid_t)(struct ucred *cred, gid_t gid);
+typedef int	(*mpo_cred_check_setgroups_t)(struct ucred *cred, int ngroups,
+		    gid_t *gidset);
+typedef int	(*mpo_cred_check_setregid_t)(struct ucred *cred, gid_t rgid,
+		    gid_t egid);
+typedef int	(*mpo_cred_check_setresgid_t)(struct ucred *cred, gid_t rgid,
+		    gid_t egid, gid_t sgid);
+typedef int	(*mpo_cred_check_setresuid_t)(struct ucred *cred, uid_t ruid,
+		    uid_t euid, uid_t suid);
+typedef int	(*mpo_cred_check_setreuid_t)(struct ucred *cred, uid_t ruid,
+		    uid_t euid);
+typedef int	(*mpo_cred_check_setuid_t)(struct ucred *cred, uid_t uid);
 typedef int	(*mpo_cred_check_visible_t)(struct ucred *cr1,
 		    struct ucred *cr2);
 typedef void	(*mpo_cred_copy_label_t)(struct label *src,
@@ -353,25 +374,6 @@ typedef int	(*mpo_proc_check_debug_t)(struct ucred *cred,
 		    struct proc *p);
 typedef int	(*mpo_proc_check_sched_t)(struct ucred *cred,
 		    struct proc *p);
-typedef int	(*mpo_proc_check_setaudit_t)(struct ucred *cred,
-		    struct auditinfo *ai);
-typedef int	(*mpo_proc_check_setaudit_addr_t)(struct ucred *cred,
-		    struct auditinfo_addr *aia);
-typedef int	(*mpo_proc_check_setauid_t)(struct ucred *cred, uid_t auid);
-typedef int	(*mpo_proc_check_setegid_t)(struct ucred *cred, gid_t egid);
-typedef int	(*mpo_proc_check_seteuid_t)(struct ucred *cred, uid_t euid);
-typedef int	(*mpo_proc_check_setgid_t)(struct ucred *cred, gid_t gid);
-typedef int	(*mpo_proc_check_setgroups_t)(struct ucred *cred, int ngroups,
-		    gid_t *gidset);
-typedef int	(*mpo_proc_check_setregid_t)(struct ucred *cred, gid_t rgid,
-		    gid_t egid);
-typedef int	(*mpo_proc_check_setresgid_t)(struct ucred *cred, gid_t rgid,
-		    gid_t egid, gid_t sgid);
-typedef int	(*mpo_proc_check_setresuid_t)(struct ucred *cred, uid_t ruid,
-		    uid_t euid, uid_t suid);
-typedef int	(*mpo_proc_check_setreuid_t)(struct ucred *cred, uid_t ruid,
-		    uid_t euid);
-typedef int	(*mpo_proc_check_setuid_t)(struct ucred *cred, uid_t uid);
 typedef int	(*mpo_proc_check_signal_t)(struct ucred *cred,
 		    struct proc *proc, int signum);
 typedef int	(*mpo_proc_check_wait_t)(struct ucred *cred,
@@ -554,7 +556,7 @@ typedef int	(*mpo_vnode_check_getacl_t)(struct ucred *cred,
 		    acl_type_t type);
 typedef int	(*mpo_vnode_check_getextattr_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel,
-		    int attrnamespace, const char *name, struct uio *uio);
+		    int attrnamespace, const char *name);
 typedef int	(*mpo_vnode_check_link_t)(struct ucred *cred,
 		    struct vnode *dvp, struct label *dvplabel,
 		    struct vnode *vp, struct label *vplabel,
@@ -603,7 +605,7 @@ typedef int	(*mpo_vnode_check_setacl_t)(struct ucred *cred,
 		    struct acl *acl);
 typedef int	(*mpo_vnode_check_setextattr_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel,
-		    int attrnamespace, const char *name, struct uio *uio);
+		    int attrnamespace, const char *name);
 typedef int	(*mpo_vnode_check_setflags_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel, u_long flags);
 typedef int	(*mpo_vnode_check_setmode_t)(struct ucred *cred,
@@ -679,6 +681,18 @@ struct mac_policy_ops {
 
 	mpo_cred_associate_nfsd_t		mpo_cred_associate_nfsd;
 	mpo_cred_check_relabel_t		mpo_cred_check_relabel;
+	mpo_cred_check_setaudit_t		mpo_cred_check_setaudit;
+	mpo_cred_check_setaudit_addr_t		mpo_cred_check_setaudit_addr;
+	mpo_cred_check_setauid_t		mpo_cred_check_setauid;
+	mpo_cred_check_setuid_t			mpo_cred_check_setuid;
+	mpo_cred_check_seteuid_t		mpo_cred_check_seteuid;
+	mpo_cred_check_setgid_t			mpo_cred_check_setgid;
+	mpo_cred_check_setegid_t		mpo_cred_check_setegid;
+	mpo_cred_check_setgroups_t		mpo_cred_check_setgroups;
+	mpo_cred_check_setreuid_t		mpo_cred_check_setreuid;
+	mpo_cred_check_setregid_t		mpo_cred_check_setregid;
+	mpo_cred_check_setresuid_t		mpo_cred_check_setresuid;
+	mpo_cred_check_setresgid_t		mpo_cred_check_setresgid;
 	mpo_cred_check_visible_t		mpo_cred_check_visible;
 	mpo_cred_copy_label_t			mpo_cred_copy_label;
 	mpo_cred_create_swapper_t		mpo_cred_create_swapper;
@@ -798,18 +812,6 @@ struct mac_policy_ops {
 
 	mpo_proc_check_debug_t			mpo_proc_check_debug;
 	mpo_proc_check_sched_t			mpo_proc_check_sched;
-	mpo_proc_check_setaudit_t		mpo_proc_check_setaudit;
-	mpo_proc_check_setaudit_addr_t		mpo_proc_check_setaudit_addr;
-	mpo_proc_check_setauid_t		mpo_proc_check_setauid;
-	mpo_proc_check_setuid_t			mpo_proc_check_setuid;
-	mpo_proc_check_seteuid_t		mpo_proc_check_seteuid;
-	mpo_proc_check_setgid_t			mpo_proc_check_setgid;
-	mpo_proc_check_setegid_t		mpo_proc_check_setegid;
-	mpo_proc_check_setgroups_t		mpo_proc_check_setgroups;
-	mpo_proc_check_setreuid_t		mpo_proc_check_setreuid;
-	mpo_proc_check_setregid_t		mpo_proc_check_setregid;
-	mpo_proc_check_setresuid_t		mpo_proc_check_setresuid;
-	mpo_proc_check_setresgid_t		mpo_proc_check_setresgid;
 	mpo_proc_check_signal_t			mpo_proc_check_signal;
 	mpo_proc_check_wait_t			mpo_proc_check_wait;
 	mpo_proc_destroy_label_t		mpo_proc_destroy_label;

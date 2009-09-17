@@ -393,7 +393,7 @@ lge_setmulti(sc)
 	CSR_WRITE_4(sc, LGE_MAR1, 0);
 
 	/* now program new ones */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -404,7 +404,7 @@ lge_setmulti(sc)
 		else
 			hashes[1] |= (1 << (h - 32));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	CSR_WRITE_4(sc, LGE_MAR0, hashes[0]);
 	CSR_WRITE_4(sc, LGE_MAR1, hashes[1]);
@@ -1257,7 +1257,6 @@ lge_init_locked(sc)
 	struct lge_softc	*sc;
 {
 	struct ifnet		*ifp = sc->lge_ifp;
-	struct mii_data		*mii;
 
 	LGE_LOCK_ASSERT(sc);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -1268,8 +1267,6 @@ lge_init_locked(sc)
 	 */
 	lge_stop(sc);
 	lge_reset(sc);
-
-	mii = device_get_softc(sc->lge_miibus);
 
 	/* Set MAC address */
 	CSR_WRITE_4(sc, LGE_PAR0, *(u_int32_t *)(&IF_LLADDR(sc->lge_ifp)[0]));

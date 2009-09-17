@@ -57,6 +57,8 @@ enum {
 	CH_SET_HW_SCHED,
 	CH_LOAD_BOOT,
 	CH_CLEAR_STATS,
+	CH_GET_UP_LA,
+	CH_GET_UP_IOQS,
 };
 
 /* statistics categories */
@@ -188,6 +190,31 @@ struct ch_eeprom {
 	uint8_t  *data;
 };
 
+#define LA_BUFSIZE	(2 * 1024)
+struct ch_up_la {
+	uint32_t stopped;
+	uint32_t idx;
+	uint32_t bufsize;
+	uint32_t *data;
+};
+
+struct t3_ioq_entry {
+	uint32_t ioq_cp;
+	uint32_t ioq_pp;
+	uint32_t ioq_alen;
+	uint32_t ioq_stats;
+};
+
+#define IOQS_BUFSIZE	(1024)
+struct ch_up_ioqs {
+	uint32_t ioq_rx_enable;
+	uint32_t ioq_tx_enable;
+	uint32_t ioq_rx_status;
+	uint32_t ioq_tx_status;
+	uint32_t bufsize;
+	struct t3_ioq_entry *data;
+};
+
 #define CHELSIO_SETREG		_IOW('f', CH_SETREG, struct ch_reg)
 #define CHELSIO_GETREG		_IOWR('f', CH_GETREG, struct ch_reg)
 #define CHELSIO_GETMTUTAB	_IOR('f', CH_GETMTUTAB, struct ch_mtus)
@@ -210,4 +237,6 @@ struct ch_eeprom {
 #define CHELSIO_GET_MIIREG	_IOWR('f', CH_GET_MIIREG, struct ch_mii_data)
 #define CHELSIO_SET_MIIREG	_IOW('f', CH_SET_MIIREG, struct ch_mii_data)
 #define CHELSIO_GET_EEPROM	_IOWR('f', CH_GET_EEPROM, struct ch_eeprom)
+#define CHELSIO_GET_UP_LA	_IOWR('f', CH_GET_UP_LA, struct ch_up_la)
+#define CHELSIO_GET_UP_IOQS	_IOWR('f', CH_GET_UP_IOQS, struct ch_up_ioqs)
 #endif

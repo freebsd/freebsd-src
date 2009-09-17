@@ -393,6 +393,10 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	quad_t last;
 	size_t tblsz;
 
+	/* We don't nest, which means that our depth should be 0. */
+	if (basetable->gpt_depth != 0)
+		return (ENXIO);
+
 	table = (struct g_part_gpt_table *)basetable;
 	pp = gpp->gpp_provider;
 	tblsz = (basetable->gpt_entries * sizeof(struct gpt_ent) +
@@ -405,9 +409,9 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	last = (pp->mediasize / pp->sectorsize) - 1;
 
 	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
-	table->mbr[DOSPARTOFF + 1] = 0xff;		/* shd */
-	table->mbr[DOSPARTOFF + 2] = 0xff;		/* ssect */
-	table->mbr[DOSPARTOFF + 3] = 0xff;		/* scyl */
+	table->mbr[DOSPARTOFF + 1] = 0x01;		/* shd */
+	table->mbr[DOSPARTOFF + 2] = 0x01;		/* ssect */
+	table->mbr[DOSPARTOFF + 3] = 0x00;		/* scyl */
 	table->mbr[DOSPARTOFF + 4] = 0xee;		/* typ */
 	table->mbr[DOSPARTOFF + 5] = 0xff;		/* ehd */
 	table->mbr[DOSPARTOFF + 6] = 0xff;		/* esect */

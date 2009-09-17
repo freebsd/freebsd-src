@@ -43,9 +43,9 @@ struct trapframe;
  * together.
  */
 struct intr_handler {
-	driver_filter_t	*ih_filter;	/* Filter function. */
-	driver_intr_t	*ih_handler;	/* Handler function. */
-	void		*ih_argument;	/* Argument to pass to handler. */
+	driver_filter_t	*ih_filter;	/* Filter handler function. */
+	driver_intr_t	*ih_handler;	/* Threaded handler function. */
+	void		*ih_argument;	/* Argument to pass to handlers. */
 	int		 ih_flags;
 	const char	*ih_name;	/* Name of handler. */
 	struct intr_event *ih_event;	/* Event we are connected to. */

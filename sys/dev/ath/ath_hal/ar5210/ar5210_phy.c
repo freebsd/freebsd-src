@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5210_phy.c,v 1.3 2008/11/10 01:19:37 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -50,14 +50,14 @@ HAL_RATE_TABLE ar5210_turbo_table = {
 	{
 /*                                                 short            ctrl  */
 /*                valid                rateCode Preamble  dot11Rate Rate */
-/*   6 Mb */ {  AH_TRUE, TURBO,   6000,    0x0b,    0x00, (0x80|12),   0 },
-/*   9 Mb */ {  AH_TRUE, TURBO,   9000,    0x0f,    0x00,        18,   0 },
-/*  12 Mb */ {  AH_TRUE, TURBO,  12000,    0x0a,    0x00, (0x80|24),   2 },
-/*  18 Mb */ {  AH_TRUE, TURBO,  18000,    0x0e,    0x00,        36,   2 },
-/*  24 Mb */ {  AH_TRUE, TURBO,  24000,    0x09,    0x00, (0x80|48),   4 },
-/*  36 Mb */ {  AH_TRUE, TURBO,  36000,    0x0d,    0x00,        72,   4 },
-/*  48 Mb */ {  AH_TRUE, TURBO,  48000,    0x08,    0x00,        96,   4 },
-/*  54 Mb */ {  AH_TRUE, TURBO,  54000,    0x0c,    0x00,       108,   4 }
+/*   6 Mb */ {  AH_TRUE, TURBO,  12000,    0x0b,    0x00, (0x80|12),   0 },
+/*   9 Mb */ {  AH_TRUE, TURBO,  18000,    0x0f,    0x00,        18,   0 },
+/*  12 Mb */ {  AH_TRUE, TURBO,  24000,    0x0a,    0x00, (0x80|24),   2 },
+/*  18 Mb */ {  AH_TRUE, TURBO,  36000,    0x0e,    0x00,        36,   2 },
+/*  24 Mb */ {  AH_TRUE, TURBO,  48000,    0x09,    0x00, (0x80|48),   4 },
+/*  36 Mb */ {  AH_TRUE, TURBO,  72000,    0x0d,    0x00,        72,   4 },
+/*  48 Mb */ {  AH_TRUE, TURBO,  96000,    0x08,    0x00,        96,   4 },
+/*  54 Mb */ {  AH_TRUE, TURBO, 108000,    0x0c,    0x00,       108,   4 }
 	},
 };
 

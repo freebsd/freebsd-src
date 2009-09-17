@@ -584,7 +584,7 @@ try_next:
 			sprintf(pp->sp_name, "si%r%r", unit,
 			    (int)(pp - sc->sc_ports));
 #endif
-			tp = pp->sp_tty = tty_alloc(&si_tty_class, pp, &Giant);
+			tp = pp->sp_tty = tty_alloc_mutex(&si_tty_class, pp, &Giant);
 			tty_makedev(tp, NULL, "A%r%r", unit, (int)(pp - sc->sc_ports));
 		}
 try_next2:

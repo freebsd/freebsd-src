@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		ugidfw
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 SRCS=		ugidfw.c
 INCS=		ugidfw.h
 

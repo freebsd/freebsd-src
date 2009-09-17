@@ -249,7 +249,7 @@ MODULE_DEPEND(arcmsr, cam, 1, 1, 1);
 	#if __FreeBSD_version < 503000
 		static int arcmsr_open(dev_t dev, int flags, int fmt, struct thread *proc)
 	#else
-		static int arcmsr_open(struct cdev *dev, int flags, int fmt, d_thread_t *proc)
+		static int arcmsr_open(struct cdev *dev, int flags, int fmt, struct thread *proc)
 	#endif 
 #endif
 {
@@ -274,7 +274,7 @@ MODULE_DEPEND(arcmsr, cam, 1, 1, 1);
 	#if __FreeBSD_version < 503000
 		static int arcmsr_close(dev_t dev, int flags, int fmt, struct thread *proc)
 	#else
-		static int arcmsr_close(struct cdev *dev, int flags, int fmt, d_thread_t *proc)
+		static int arcmsr_close(struct cdev *dev, int flags, int fmt, struct thread *proc)
 	#endif 
 #endif
 {
@@ -299,7 +299,7 @@ MODULE_DEPEND(arcmsr, cam, 1, 1, 1);
 	#if __FreeBSD_version < 503000
 		static int arcmsr_ioctl(dev_t dev, u_long ioctl_cmd, caddr_t arg, int flags, struct thread *proc)
 	#else
-		static int arcmsr_ioctl(struct cdev *dev, u_long ioctl_cmd, caddr_t arg, int flags, d_thread_t *proc)
+		static int arcmsr_ioctl(struct cdev *dev, u_long ioctl_cmd, caddr_t arg, int flags, struct thread *proc)
 	#endif 
 #endif
 {

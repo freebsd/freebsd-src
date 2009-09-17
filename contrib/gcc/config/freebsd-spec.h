@@ -168,6 +168,7 @@ is built with the --enable-threads configure-time option.}		\
     %{pg:  %{pthread:-lpthread_p} -lc_p}}				\
   %{shared:								\
     %{pthread:-lpthread} -lc}						\
+  %{fstack-protector|fstack-protector-all:-lssp_nonshared}		\
   "
 #endif
 #endif

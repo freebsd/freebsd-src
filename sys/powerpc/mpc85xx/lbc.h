@@ -39,10 +39,10 @@
 #define	LBC_DEVTYPE_RTC		2
 
 /* Local access registers */
-#define	LBC85XX_BR(n)	(OCP85XX_LBC_OFF + (8 * n))
-#define	LBC85XX_OR(n)	(OCP85XX_LBC_OFF + 4 + (8 * n))
-#define	LBC85XX_LBCR	(OCP85XX_LBC_OFF + 0xd0)
-#define	LBC85XX_LCRR	(OCP85XX_LBC_OFF + 0xd4)
+#define	LBC85XX_BR(n)	(8 * n)
+#define	LBC85XX_OR(n)	(4 + (8 * n))
+#define	LBC85XX_LBCR	(0xd0)
+#define	LBC85XX_LCRR	(0xd4)
 
 /* LBC machine select */
 #define	LBCRES_MSEL_GPCM	0

@@ -28,12 +28,15 @@ MAN=	accept_filter.9 \
 	bus_dma.9 \
 	bus_generic_attach.9 \
 	bus_generic_detach.9 \
+	bus_generic_new_pass.9 \
 	bus_generic_print_child.9 \
 	bus_generic_read_ivar.9 \
 	bus_generic_shutdown.9 \
+	BUS_NEW_PASS.9 \
 	BUS_PRINT_CHILD.9 \
 	BUS_READ_IVAR.9 \
 	bus_release_resource.9 \
+	bus_set_pass.9 \
 	bus_set_resource.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
@@ -54,7 +57,6 @@ MAN=	accept_filter.9 \
 	DECLARE_MODULE.9 \
 	DELAY.9 \
 	devclass.9 \
-	devclass_add_driver.9 \
 	devclass_find.9 \
 	devclass_get_device.9 \
 	devclass_get_devices.9 \
@@ -99,6 +101,7 @@ MAN=	accept_filter.9 \
 	DRIVER_MODULE.9 \
 	EVENTHANDLER.9 \
 	extattr.9 \
+	fail.9 \
 	fetch.9 \
 	firmware.9 \
 	g_access.9 \
@@ -118,13 +121,19 @@ MAN=	accept_filter.9 \
 	hashinit.9 \
 	hexdump.9 \
 	ieee80211.9 \
+	ieee80211_amrr.9 \
+	ieee80211_beacon.9 \
+	ieee80211_bmiss.9 \
 	ieee80211_crypto.9 \
+	ieee80211_ddb.9 \
 	ieee80211_input.9 \
-	ieee80211_ioctl.9 \
 	ieee80211_node.9 \
 	ieee80211_output.9 \
 	ieee80211_proto.9 \
 	ieee80211_radiotap.9 \
+	ieee80211_regdomain.9 \
+	ieee80211_scan.9 \
+	ieee80211_vap.9 \
 	ifnet.9 \
 	inittodr.9 \
 	insmntque.9 \
@@ -161,6 +170,7 @@ MAN=	accept_filter.9 \
 	mtx_pool.9 \
 	mutex.9 \
 	namei.9 \
+	netisr.9 \
 	panic.9 \
 	pbuf.9 \
 	p_candebug.9 \
@@ -201,6 +211,7 @@ MAN=	accept_filter.9 \
 	random.9 \
 	random_harvest.9 \
 	redzone.9 \
+	refcount.9 \
 	resettodr.9 \
 	resource_int_value.9 \
 	rijndael.9 \
@@ -216,6 +227,7 @@ MAN=	accept_filter.9 \
 	selrecord.9 \
 	sema.9 \
 	sf_buf.9 \
+	sglist.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
@@ -330,7 +342,6 @@ MAN=	accept_filter.9 \
 	VOP_GETVOBJECT.9 \
 	VOP_INACTIVE.9 \
 	VOP_IOCTL.9 \
-	VOP_LEASE.9 \
 	VOP_LINK.9 \
 	VOP_LISTEXTATTR.9 \
 	VOP_LOCK.9 \
@@ -549,8 +560,6 @@ MLINKS+=crypto.9 crypto_dispatch.9 \
 	crypto.9 crypto_unregister_all.9
 MLINKS+=DB_COMMAND.9 DB_SHOW_COMMAND.9 \
 	DB_COMMAND.9 DB_SHOW_ALL_COMMAND.9
-MLINKS+=devclass_add_driver.9 devclass_delete_driver.9 \
-	devclass_add_driver.9 devclass_find_driver.9
 MLINKS+=dev_clone.9 drain_dev_clone_events.9
 MLINKS+=devfs_set_cdevpriv.9 devfs_get_cdevpriv.9 \
 	devfs_set_cdevpriv.9 devfs_clear_cdevpriv.9
@@ -624,52 +633,62 @@ MLINKS+=hash.9 hash32.9 \
 MLINKS+=hashinit.9 hashdestroy.9 \
 	hashinit.9 hashinit_flags.9 \
 	hashinit.9 phashinit.9
-MLINKS+=ieee80211.9 ieee80211_attach.9 \
-	ieee80211.9 ieee80211_chan2ieee.9 \
-	ieee80211.9 ieee80211_chan2mode.9 \
-	ieee80211.9 ieee80211_ieee2mhz.9 \
-	ieee80211.9 ieee80211_ifattach.9 \
-	ieee80211.9 ieee80211_ifdetach.9 \
-	ieee80211.9 ieee80211_media2rate.9 \
-	ieee80211.9 ieee80211_media_change.9 \
-	ieee80211.9 ieee80211_media_init.9 \
-	ieee80211.9 ieee80211_media_status.9 \
-	ieee80211.9 ieee80211_mhz2ieee.9 \
-	ieee80211.9 ieee80211_rate2media.9 \
-	ieee80211.9 ieee80211_setmode.9 \
-	ieee80211.9 ieee80211_watchdog.9
-MLINKS+=ieee80211_crypto.9 ieee80211_crypto_attach.9 \
-	ieee80211_crypto.9 ieee80211_crypto_detach.9 \
-	ieee80211_crypto.9 ieee80211_wep_crypt.9
-MLINKS+=ieee80211_input.9 ieee80211_decap.9 \
-	ieee80211_input.9 ieee80211_recv_mgmt.9
-MLINKS+=ieee80211_ioctl.9 ieee80211_cfgget.9 \
-	ieee80211_ioctl.9 ieee80211_cfgset.9
-MLINKS+=ieee80211_node.9 ieee80211_alloc_node.9 \
-	ieee80211_node.9 ieee80211_begin_scan.9 \
-	ieee80211_node.9 ieee80211_create_ibss.9 \
-	ieee80211_node.9 ieee80211_dup_bss.9 \
-	ieee80211_node.9 ieee80211_end_scan.9 \
-	ieee80211_node.9 ieee80211_find_node.9 \
-	ieee80211_node.9 ieee80211_free_allnodes.9 \
+MLINKS+=ieee80211.9 ieee80211_ifattach.9 \
+	ieee80211.9 ieee80211_ifdetach.9
+MLINKS+=ieee80211_amrr.9 ieee80211_amrr_init.9 \
+	ieee80211_amrr.9 ieee80211_amrr_cleanup.9 \
+	ieee80211_amrr.9 ieee80211_amrr_setinterval.9 \
+	ieee80211_amrr.9 ieee80211_amrr_node_init.9 \
+	ieee80211_amrr.9 ieee80211_amrr_tx_complete.9 \
+	ieee80211_amrr.9 ieee80211_amrr_tx_update.9
+MLINKS+=ieee80211_beacon.9 ieee80211_beacon_alloc.9 \
+	ieee80211_beacon.9 ieee80211_beacon_update.9 \
+	ieee80211_beacon.9 ieee80211_beacon_notify.9
+MLINKS+=ieee80211_bmiss.9 ieee80211_beacon_miss.9
+MLINKS+=ieee80211_crypto.9 ieee80211_key_update_begin.9 \
+	ieee80211_crypto.9 ieee80211_key_update_end.9 \
+	ieee80211_crypto.9 ieee80211_crypto_newkey.9 \
+	ieee80211_crypto.9 ieee80211_crypto_setkey.9 \
+	ieee80211_crypto.9 ieee80211_crypto_delglobalkeys.9 \
+	ieee80211_crypto.9 ieee80211_crypto_reload_keys.9 \
+	ieee80211_crypto.9 ieee80211_crypto_decap.9 \
+	ieee80211_crypto.9 ieee80211_crypto_encap.9 \
+	ieee80211_crypto.9 ieee80211_crypto_demic.9 \
+	ieee80211_crypto.9 ieee80211_crypto_enmic.9 \
+	ieee80211_crypto.9 ieee80211_notify_michael_failure.9 \
+	ieee80211_crypto.9 ieee80211_notify_replay_failure.9 \
+	ieee80211_crypto.9 ieee80211_crypto_register.9 \
+	ieee80211_crypto.9 ieee80211_crypto_unregister.9 \
+	ieee80211_crypto.9 ieee80211_crypto_available.9
+MLINKS+=ieee80211_input.9 ieee80211_input_all.9
+MLINKS+=ieee80211_node.9 ieee80211_find_rxnode.9 \
+	ieee80211_node.9 ieee80211_find_rxnode_withkey.9 \
+	ieee80211_node.9 ieee80211_ref_node.9 \
+	ieee80211_node.9 ieee80211_unref_node.9 \
 	ieee80211_node.9 ieee80211_free_node.9 \
 	ieee80211_node.9 ieee80211_iterate_nodes.9 \
-	ieee80211_node.9 ieee80211_lookup_node.9 \
-	ieee80211_node.9 ieee80211_next_scan.9 \
-	ieee80211_node.9 ieee80211_node_attach.9 \
-	ieee80211_node.9 ieee80211_node_detach.9 \
-	ieee80211_node.9 ieee80211_node_lateattach.9 \
-	ieee80211_node.9 ieee80211_timeout_nodes.9
-MLINKS+=ieee80211_output.9 ieee80211_add_rates.9 \
-	ieee80211_output.9 ieee80211_add_xrates.9 \
-	ieee80211_output.9 ieee80211_encap.9 \
-	ieee80211_output.9 ieee80211_send_mgmt.9
-MLINKS+=ieee80211_proto.9 ieee80211_dump_pkt.9 \
-	ieee80211_proto.9 ieee80211_fix_rate.9 \
-	ieee80211_proto.9 ieee80211_print_essid.9 \
-	ieee80211_proto.9 ieee80211_proto_attach.9 \
-	ieee80211_proto.9 ieee80211_proto_detach.9
-MLINKS+=ieee80211_radiotap.9 radiotap.9
+	ieee80211_node.9 ieee80211_dump_node.9 \
+	ieee80211_node.9 ieee80211_dump_nodes.9
+MLINKS+=ieee80211_output.9 M_WME_GETAC.9 \
+	ieee80211_output.9 M_SEQNO_GET.9 \
+	ieee80211_output.9 ieee80211_process_callback.9
+MLINKS+=ieee80211_proto.9 ieee80211_new_state.9 \
+	ieee80211_proto.9 ieee80211_start_all.9 \
+	ieee80211_proto.9 ieee80211_stop_all.9 \
+	ieee80211_proto.9 ieee80211_suspend_all.9 \
+	ieee80211_proto.9 ieee80211_resume_all.9 \
+	ieee80211_proto.9 ieee80211_waitfor_parent.9
+MLINKS+=ieee80211_radiotap.9 radiotap.9 \
+	ieee80211_radiotap.9 ieee80211_radiotap_attach.9 \
+	ieee80211_radiotap.9 ieee80211_radiotap_active_vap.9 \
+	ieee80211_radiotap.9 ieee80211_radiotap_active.9 \
+	ieee80211_radiotap.9 ieee80211_radiotap_tx.9
+MLINKS+=ieee80211_regdomain.9 ieee80211_init_channels.9 \
+	ieee80211_regdomain.9 ieee80211_sort_channels.9 \
+	ieee80211_regdomain.9 ieee80211_alloc_countryie.9
+MLINKS+=ieee80211_vap.9 ieee80211_vap_setup.9 \
+	ieee80211_vap.9 ieee80211_vap_attach.9 \
+	ieee80211_vap.9 ieee80211_vap_detach.9
 MLINKS+=ifnet.9 ifaddr.9 \
 	ifnet.9 if_data.9 \
 	ifnet.9 ifqueue.9
@@ -694,8 +713,9 @@ MLINKS+=kobj.9 DEFINE_CLASS.9 \
 	kobj.9 kobj_delete.9 \
 	kobj.9 kobj_init.9
 MLINKS+=kproc.9 kproc_create.9 \
+	kproc.9 kthread_create.9 \
 	kproc.9 kproc_exit.9 \
-	kproc.9 kproc_resume,.9 \
+	kproc.9 kproc_resume.9 \
 	kproc.9 kproc_shutdown.9 \
 	kproc.9 kproc_start.9 \
 	kproc.9 kproc_suspend.9 \
@@ -920,6 +940,9 @@ MLINKS+=random.9 arc4rand.9 \
 	random.9 arc4random.9 \
 	random.9 read_random.9 \
 	random.9 srandom.9
+MLINKS+=refcount.9 refcount_acquire.9 \
+	refcount.9 refcount_init.9 \
+	refcount.9 refcount_release.9
 MLINKS+=resource_int_value.9 resource_long_value.9 \
 	resource_int_value.9 resource_string_value.9
 MLINKS+=rman.9 rman_activate_resource.9 \
@@ -1018,6 +1041,24 @@ MLINKS+=sf_buf.9 sf_buf_alloc.9 \
 	sf_buf.9 sf_buf_free.9 \
 	sf_buf.9 sf_buf_kva.9 \
 	sf_buf.9 sf_buf_page.9
+MLINKS+=sglist.9 sglist_alloc.9 \
+	sglist.9 sglist_append.9 \
+	sglist.9 sglist_append_mbuf.9 \
+	sglist.9 sglist_append_phys.9 \
+	sglist.9 sglist_append_uio.9 \
+	sglist.9 sglist_append_user.9 \
+	sglist.9 sglist_build.9 \
+	sglist.9 sglist_clone.9 \
+	sglist.9 sglist_consume_uio.9 \
+	sglist.9 sglist_count.9 \
+	sglist.9 sglist_free.9 \
+	sglist.9 sglist_hold.9 \
+	sglist.9 sglist_init.9 \
+	sglist.9 sglist_join.9 \
+	sglist.9 sglist_length.9 \
+	sglist.9 sglist_reset.9 \
+	sglist.9 sglist_slice.9 \
+	sglist.9 sglist_split.9
 MLINKS+=signal.9 cursig.9 \
 	signal.9 execsigs.9 \
 	signal.9 issignal.9 \
@@ -1186,55 +1227,58 @@ MLINKS+=uidinfo.9 uifind.9 \
 	uidinfo.9 uihashinit.9 \
 	uidinfo.9 uihold.9
 MLINKS+=uio.9 uiomove.9
-MLINKS+=usbdi.9 usbd_abort_default_pipe.9 \
-	usbdi.9 usbd_abort_pipe.9 \
-	usbdi.9 usbd_alloc_buffer.9 \
-	usbdi.9 usbd_alloc_xfer.9 \
-	usbdi.9 usbd_clear_endpoint_stall.9 \
-	usbdi.9 usbd_clear_endpoint_stall_async.9 \
-	usbdi.9 usbd_clear_endpoint_toggle.9 \
-	usbdi.9 usbd_close_pipe.9 \
-	usbdi.9 usbd_device2interface_handle.9 \
+MLINKS+=usbdi.9 usb_fifo_alloc_buffer.9 \
+	usbdi.9 usb_fifo_attach.9 \
+	usbdi.9 usb_fifo_detach.9 \
+	usbdi.9 usb_fifo_free_buffer.9 \
+	usbdi.9 usb_fifo_get_data.9 \
+	usbdi.9 usb_fifo_get_data_buffer.9 \
+	usbdi.9 usb_fifo_get_data_error.9 \
+	usbdi.9 usb_fifo_get_data_linear.9 \
+	usbdi.9 usb_fifo_put_bytes_max.9 \
+	usbdi.9 usb_fifo_put_data.9 \
+	usbdi.9 usb_fifo_put_data_buffer.9 \
+	usbdi.9 usb_fifo_put_data_error.9 \
+	usbdi.9 usb_fifo_put_data_linear.9 \
+	usbdi.9 usb_fifo_reset.9 \
+	usbdi.9 usb_fifo_softc.9 \
+	usbdi.9 usb_fifo_wakeup.9 \
 	usbdi.9 usbd_do_request.9 \
-	usbdi.9 usbd_do_request_async.9 \
 	usbdi.9 usbd_do_request_flags.9 \
-	usbdi.9 usbd_do_request_flags_pipe.9 \
-	usbdi.9 usbd_endpoint_count.9 \
 	usbdi.9 usbd_errstr.9 \
-	usbdi.9 usbd_find_edesc.9 \
-	usbdi.9 usbd_find_idesc.9 \
-	usbdi.9 usbd_free_buffer.9 \
-	usbdi.9 usbd_free_xfer.9 \
-	usbdi.9 usbd_get_buffer.9 \
-	usbdi.9 usbd_get_config.9 \
-	usbdi.9 usbd_get_config_desc.9 \
-	usbdi.9 usbd_get_config_desc_full.9 \
-	usbdi.9 usbd_get_config_descriptor.9 \
-	usbdi.9 usbd_get_device_descriptor.9 \
-	usbdi.9 usbd_get_endpoint_descriptor.9 \
-	usbdi.9 usbd_get_interface_altindex.9 \
-	usbdi.9 usbd_get_interface_descriptor.9 \
-	usbdi.9 usbd_get_no_alts.9 \
-	usbdi.9 usbd_get_quirks.9 \
-	usbdi.9 usbd_get_speed.9 \
-	usbdi.9 usbd_get_string.9 \
-	usbdi.9 usbd_get_string_desc.9 \
-	usbdi.9 usbd_get_xfer_status.9 \
-	usbdi.9 usbd_interface2device_handle.9 \
-	usbdi.9 usbd_interface2endpoint_descriptor.9 \
-	usbdi.9 usbd_interface_count.9 \
-	usbdi.9 usbd_open_pipe.9 \
-	usbdi.9 usbd_open_pipe_intr.9 \
-	usbdi.9 usbd_pipe2device_handle.9 \
-	usbdi.9 usbd_set_config_index.9 \
-	usbdi.9 usbd_set_config_no.9 \
-	usbdi.9 usbd_set_interface.9 \
-	usbdi.9 usbd_setup_default_xfer.9 \
-	usbdi.9 usbd_setup_isoc_xfer.9 \
-	usbdi.9 usbd_setup_xfer.9 \
-	usbdi.9 usbd_sync_transfer.9 \
-	usbdi.9 usbd_transfer.9 \
-	usbdi.9 usb_find_desc.9
+	usbdi.9 usbd_lookup_id_by_info.9 \
+	usbdi.9 usbd_lookup_id_by_uaa.9 \
+	usbdi.9 usbd_transfer_clear_stall.9 \
+	usbdi.9 usbd_transfer_drain.9 \
+	usbdi.9 usbd_transfer_pending.9 \
+	usbdi.9 usbd_transfer_poll.9 \
+	usbdi.9 usbd_transfer_setup.9 \
+	usbdi.9 usbd_transfer_start.9 \
+	usbdi.9 usbd_transfer_stop.9 \
+	usbdi.9 usbd_transfer_submit.9 \
+	usbdi.9 usbd_transfer_unsetup.9 \
+	usbdi.9 usbd_xfer_clr_flag.9 \
+	usbdi.9 usbd_xfer_frame_data.9 \
+	usbdi.9 usbd_xfer_frame_len.9 \
+	usbdi.9 usbd_xfer_get_frame.9 \
+	usbdi.9 usbd_xfer_get_priv.9 \
+	usbdi.9 usbd_xfer_is_stalled.9 \
+	usbdi.9 usbd_xfer_max_framelen.9 \
+	usbdi.9 usbd_xfer_max_frames.9 \
+	usbdi.9 usbd_xfer_max_len.9 \
+	usbdi.9 usbd_xfer_set_flag.9 \
+	usbdi.9 usbd_xfer_set_frame_data.9 \
+	usbdi.9 usbd_xfer_set_frame_len.9 \
+	usbdi.9 usbd_xfer_set_frame_offset.9 \
+	usbdi.9 usbd_xfer_set_frames.9 \
+	usbdi.9 usbd_xfer_set_interval.9 \
+	usbdi.9 usbd_xfer_set_priv.9 \
+	usbdi.9 usbd_xfer_set_stall.9 \
+	usbdi.9 usbd_xfer_set_timeout.9 \
+	usbdi.9 usbd_xfer_softc.9 \
+	usbdi.9 usbd_xfer_state.9 \
+	usbdi.9 usbd_xfer_state.9 \
+	usbdi.9 usbd_xfer_status.9
 MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \
@@ -1243,7 +1287,10 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 	vfs_getopt.9 vfs_filteropt.9 \
 	vfs_getopt.9 vfs_flagopt.9 \
 	vfs_getopt.9 vfs_getopts.9 \
-	vfs_getopt.9 vfs_scanopt.9
+	vfs_getopt.9 vfs_scanopt.9 \
+	vfs_getopt.9 vfs_setopt.9 \
+	vfs_getopt.9 vfs_setopt_part.9 \
+	vfs_getopt.9 vfs_setopts.9
 MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9 \
@@ -1281,6 +1328,7 @@ MLINKS+=vm_page_io.9 vm_page_io_finish.9 \
 MLINKS+=vm_page_wakeup.9 vm_page_busy.9 \
 	vm_page_wakeup.9 vm_page_flash.9
 MLINKS+=vm_page_wire.9 vm_page_unwire.9
+MLINKS+=VOP_ACCESS.9 VOP_ACCESSX.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9 \
 	VOP_ATTRIB.9 VOP_SETATTR.9
 MLINKS+=VOP_CREATE.9 VOP_MKDIR.9 \

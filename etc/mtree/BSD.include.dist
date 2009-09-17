@@ -78,6 +78,8 @@
         ..
     ..
     cam
+        ata
+        ..
         scsi
         ..
     ..
@@ -102,6 +104,8 @@
         ..
         lmc
         ..
+	mfi
+	..
         mpt
             mpilib
             ..
@@ -120,10 +124,6 @@
         ..
         usb
         ..
-        usb2
-            include
-            ..
-        ..
         utopia
         ..
         vkbd
@@ -139,6 +139,8 @@
         fifofs
         ..
         msdosfs
+        ..
+        nfs
         ..
         ntfs
         ..
@@ -254,6 +256,8 @@
     objc
     ..
     openssl
+    ..
+    pcap
     ..
     protocols
     ..

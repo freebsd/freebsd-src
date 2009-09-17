@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.c,v 3.136 2007/02/22 21:57:37 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.c,v 3.145 2009/06/25 21:15:37 christos Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -39,7 +39,7 @@ char    copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-RCSID("$tcsh: sh.c,v 3.136 2007/02/22 21:57:37 christos Exp $")
+RCSID("$tcsh: sh.c,v 3.145 2009/06/25 21:15:37 christos Exp $")
 
 #include "tc.h"
 #include "ed.h"
@@ -139,6 +139,7 @@ struct saved_state {
     Char	  HIST;
     int	  cantell;
     struct Bin	  B;
+    int		  justpr;
 };
 
 static	int		  srccat	(Char *, Char *);
@@ -228,10 +229,6 @@ main(int argc, char **argv)
 	while (f < 3);
 	xclose(f);
     }
-
-#ifdef O_TEXT
-    setmode(0, O_TEXT);
-#endif
 
     osinit();			/* Os dependent initialization */
 
@@ -761,7 +758,7 @@ main(int argc, char **argv)
     }
     if (argc > 1 && strcmp(argv[1], "--help") == 0) {
 	xprintf("%S\n\n", varval(STRversion));
-	xprintf(CGETS(11, 8, HELP_STRING));
+	xprintf("%s", CGETS(11, 8, HELP_STRING));
 	xexit(0);
     }
     /*
@@ -945,9 +942,6 @@ main(int argc, char **argv)
 	    /* ... doesn't return */
 	    stderror(ERR_SYSTEM, tempv[0], strerror(errno));
 	}
-#ifdef O_TEXT
-	setmode(nofile, O_TEXT);
-#endif
 	xfree(ffile);
 	dolzero = 1;
 	ffile = SAVE(tempv[0]);
@@ -1110,17 +1104,7 @@ main(int argc, char **argv)
 	    }
 #endif /* NeXT */
 #ifdef BSDJOBS			/* if we have tty job control */
-    retry:
-	    if ((tpgrp = tcgetpgrp(f)) != -1) {
-		if (tpgrp != shpgrp) {
-		    struct sigaction old;
-
-		    sigaction(SIGTTIN, NULL, &old);
-		    signal(SIGTTIN, SIG_DFL);
-		    (void) kill(0, SIGTTIN);
-		    sigaction(SIGTTIN, &old, NULL);
-		    goto retry;
-		}
+	    if (grabpgrp(f, shpgrp) != -1) {
 		/*
 		 * Thanks to Matt Day for the POSIX references, and to
 		 * Paul Close for the SGI clarification.
@@ -1178,8 +1162,9 @@ main(int argc, char **argv)
 	    if (tpgrp == -1) {
 	notty:
 	        xprintf(CGETS(11, 1, "Warning: no access to tty (%s).\n"),
-			strerror(errno));
-		xprintf(CGETS(11, 2, "Thus no job control in this shell.\n"));
+		    strerror(errno));
+		xprintf("%s",
+		    CGETS(11, 2, "Thus no job control in this shell.\n"));
 		/*
 		 * Fix from:Sakari Jalovaara <sja@sirius.hut.fi> if we don't
 		 * have access to tty, disable editing too
@@ -1423,9 +1408,6 @@ srcfile(const char *f, int onlyown, int flag, Char **av)
 
     if ((unit = xopen(f, O_RDONLY|O_LARGEFILE)) == -1) 
 	return 0;
-#ifdef O_TEXT
-    setmode(unit, O_TEXT);
-#endif
     cleanup_push(&unit, open_cleanup);
     unit = dmove(unit, -1);
     cleanup_ignore(&unit);
@@ -1490,6 +1472,7 @@ st_save(struct saved_state *st, int unit, int hflg, Char **al, Char **av)
     st->alvec		= alvec;
     st->onelflg		= onelflg;
     st->enterhist	= enterhist;
+    st->justpr		= justpr;
     if (hflg)
 	st->HIST	= HIST;
     else
@@ -1588,6 +1571,7 @@ st_restore(void *xst)
 	HIST	= st->HIST;
     enterhist	= st->enterhist;
     cantell	= st->cantell;
+    justpr	= st->justpr;
 
     if (st->argv != NULL)
 	setq(STRargv, st->argv, &shvhed, VAR_READWRITE);
@@ -1657,6 +1641,7 @@ goodbye(Char **v, struct command *c)
 	size_t omark;
 	sigset_t set;
 
+	sigemptyset(&set);
 	signal(SIGQUIT, SIG_IGN);
 	sigaddset(&set, SIGQUIT);
 	sigprocmask(SIG_UNBLOCK, &set, NULL);
@@ -1854,15 +1839,19 @@ process(int catch)
     jmp_buf_t osetexit;
     /* PWP: This might get nuked my longjmp so don't make it a register var */
     size_t omark;
+    volatile int didexitset = 0;
 
     getexit(osetexit);
     omark = cleanup_push_mark();
-    exitset++;
     for (;;) {
 	struct command *t;
 	int hadhist, old_pintr_disabled;
 
-	(void) setexit();
+	(void)setexit();
+	if (didexitset == 0) {
+	    exitset++;
+	    didexitset++;
+	}
 	pendjob();
 
 	justpr = enterhist;	/* execute if not entering history */
@@ -2026,9 +2015,9 @@ process(int catch)
     cmd_done:
 	cleanup_until(&paraml);
     }
-    exitset--;
     cleanup_pop_mark(omark);
     resexit(osetexit);
+    exitset--;
 }
 
 /*ARGSUSED*/
@@ -2361,4 +2350,29 @@ record(void)
 	recdirs(NULL, adrof(STRsavedirs) != NULL);
 	rechist(NULL, adrof(STRsavehist) != NULL);
     }
+}
+
+/*
+ * Grab the tty repeatedly, and give up if we are not in the correct
+ * tty process group.
+ */
+int
+grabpgrp(int fd, pid_t desired)
+{
+    struct sigaction old;
+    pid_t pgrp;
+    size_t i;
+
+    for (i = 0; i < 100; i++) {
+	if ((pgrp = tcgetpgrp(fd)) == -1)
+	    return -1;
+	if (pgrp == desired)
+	    return 0;
+	(void)sigaction(SIGTTIN, NULL, &old);
+	(void)signal(SIGTTIN, SIG_DFL);
+	(void)kill(0, SIGTTIN);
+	(void)sigaction(SIGTTIN, &old, NULL);
+    }
+    errno = EPERM;
+    return -1;
 }

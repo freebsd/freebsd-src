@@ -26,7 +26,7 @@
 #define __CXGBTOOL_VERSION_H
 
 #define PROGNAME "cxgbtool"
-#define VERSION "1.15f"
-#define COPYRIGHT "Copyright (c) 2004-2008 Chelsio Communications"
+#define VERSION "1.16f"
+#define COPYRIGHT "Copyright (c) 2004-2009 Chelsio Communications"
 
 #endif //__CXGBTOOL_VERSION_H

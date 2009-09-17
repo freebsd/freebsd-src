@@ -129,6 +129,8 @@ remountable_fs_names[] = {
 static const char userquotaeq[] = "userquota=";
 static const char groupquotaeq[] = "groupquota=";
 
+static char *mountprog = NULL;
+
 static int
 use_mountprog(const char *vfstype)
 {
@@ -138,10 +140,13 @@ use_mountprog(const char *vfstype)
 	 */
 	unsigned int i;
 	const char *fs[] = {
-	"cd9660", "mfs", "msdosfs", "nfs", "nfs4", "ntfs",
+	"cd9660", "mfs", "msdosfs", "newnfs", "nfs", "ntfs",
 	"nwfs", "nullfs", "portalfs", "smbfs", "udf", "unionfs",
 	NULL
 	};
+
+	if (mountprog != NULL)
+		return (1);
 
 	for (i = 0; fs[i] != NULL; ++i) {
 		if (strcmp(vfstype, fs[i]) == 0)
@@ -165,8 +170,10 @@ exec_mountprog(const char *name, const char *execname, char *const argv[])
 		/* Go find an executable. */
 		execvP(execname, _PATH_SYSPATH, argv);
 		if (errno == ENOENT) {
-			warn("exec %s not found in %s", execname,
-			    _PATH_SYSPATH);
+			warn("exec %s not found", execname);
+			if (execname[0] != '/') {
+				warnx("in path: %s", _PATH_SYSPATH);
+			}
 		}
 		exit(1);
 	default:				/* Parent. */
@@ -340,6 +347,9 @@ main(int argc, char *argv[])
 			for (i = 0; i < mntsize; i++) {
 				if (checkvfsname(mntbuf[i].f_fstypename,
 				    vfslist))
+					continue;
+				if (!verbose &&
+				    (mntbuf[i].f_flags & MNT_IGNORE) != 0)
 					continue;
 				prmount(&mntbuf[i]);
 			}
@@ -558,13 +568,16 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	mnt_argv.c = -1;
 	append_arg(&mnt_argv, execname);
 	mangle(optbuf, &mnt_argv);
+	if (mountprog != NULL)
+		strcpy(execname, mountprog);
+
 	append_arg(&mnt_argv, strdup(spec));
 	append_arg(&mnt_argv, strdup(name));
 	append_arg(&mnt_argv, NULL);
 
 	if (debug) {
 		if (use_mountprog(vfstype))
-			printf("exec: mount_%s", vfstype);
+			printf("exec: %s", execname);
 		else
 			printf("mount -t %s", vfstype);
 		for (i = 1; i < mnt_argv.c; i++)
@@ -681,7 +694,7 @@ catopt(char *s0, const char *s1)
 void
 mangle(char *options, struct cpa *a)
 {
-	char *p, *s;
+	char *p, *s, *val;
 
 	for (s = options; (p = strsep(&s, ",")) != NULL;)
 		if (*p != '\0') {
@@ -702,6 +715,22 @@ mangle(char *options, struct cpa *a)
 				 * loopback NFS mounts can't be mounted
 				 * before mountd starts.
 				 */
+				continue;
+			} else if (strncmp(p, "mountprog", 9) == 0) {
+				/*
+				 * "mountprog" is used to force the use of
+				 * userland mount programs.
+				 */
+				val = strchr(p, '=');
+                        	if (val != NULL) {
+                                	++val;
+					if (*val != '\0')
+						mountprog = strdup(val);
+				}
+
+				if (mountprog == NULL) {
+					errx(1, "Need value for -o mountprog");
+				}
 				continue;
 			} else if (strcmp(p, "userquota") == 0) {
 				continue;

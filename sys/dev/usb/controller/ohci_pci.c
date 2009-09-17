@@ -49,15 +49,32 @@ __FBSDID("$FreeBSD$");
  * sharing of code between *BSD's
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_defs.h>
+#include <dev/usb/usbdi.h>
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_sw_transfer.h>
 #include <dev/usb/usb_util.h>
 
 #include <dev/usb/usb_controller.h>
@@ -155,6 +172,9 @@ ohci_pci_match(device_t self)
 	case 0x00d710de:
 		return ("nVidia nForce3 USB Controller");
 
+	case 0x03f110de:
+		return ("nVidia nForce MCP61 USB Controller");
+
 	case 0x70011039:
 		return ("SiS 5571 USB controller");
 
@@ -201,7 +221,7 @@ ohci_pci_attach(device_t self)
 	sc->sc_bus.devices_max = OHCI_MAX_DEVICES;
 
 	/* get all DMA memory */
-	if (usb2_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(self),
+	if (usb_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(self),
 	    &ohci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
@@ -290,10 +310,10 @@ ohci_pci_attach(device_t self)
 
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)(void *)ohci_interrupt, sc, &sc->sc_intr_hdl);
+	    NULL, (driver_intr_t *)ohci_interrupt, sc, &sc->sc_intr_hdl);
 #else
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)(void *)ohci_interrupt, sc, &sc->sc_intr_hdl);
+	    (driver_intr_t *)ohci_interrupt, sc, &sc->sc_intr_hdl);
 #endif
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);
@@ -355,7 +375,7 @@ ohci_pci_detach(device_t self)
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
-	usb2_bus_mem_free_all(&sc->sc_bus, &ohci_iterate_hw_softc);
+	usb_bus_mem_free_all(&sc->sc_bus, &ohci_iterate_hw_softc);
 
 	return (0);
 }
@@ -383,5 +403,4 @@ static driver_t ohci_driver =
 static devclass_t ohci_devclass;
 
 DRIVER_MODULE(ohci, pci, ohci_driver, ohci_devclass, 0, 0);
-DRIVER_MODULE(ohci, cardbus, ohci_driver, ohci_devclass, 0, 0);
 MODULE_DEPEND(ohci, usb, 1, 1, 1);

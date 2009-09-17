@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 #include "clock_if.h"
 
-#define DS133X_DEVNAME		"rtc"
+#define DS133X_DEVNAME		"ds133x_rtc"
 
 #define	DS133X_ADDR		0xd0	/* slave address */
 #define	DS133X_DATE_REG		0x0

@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.h,v 1.76.18.3 2005/06/23 04:23:16 marka Exp $ */
+/* $Id: adb.h,v 1.85 2008/04/03 06:09:04 tbox Exp $ */
 
 #ifndef DNS_ADB_H
 #define DNS_ADB_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file
+/*! \file dns/adb.h
  *\brief
  * DNS Address Database
  *
@@ -99,7 +99,7 @@ ISC_LANG_BEGINDECLS
 
 typedef struct dns_adbname		dns_adbname_t;
 
-/*! 
+/*!
  *\brief
  * Represents a lookup for a single name.
  *
@@ -220,7 +220,7 @@ struct dns_adbaddrinfo {
 	ISC_LINK(dns_adbaddrinfo_t)	publink;
 };
 
-/*!< 
+/*!<
  * The event sent to the caller task is just a plain old isc_event_t.  It
  * contains no data other than a simple status, passed in the "type" field
  * to indicate that another address resolved, or all partially resolved
@@ -345,7 +345,7 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
  *
  * If no events will be generated, the *find->result_v4 and/or result_v6
  * members may be examined for address lookup status.  The usual #ISC_R_SUCCESS,
- * #ISC_R_FAILURE, and #DNS_R_NX{DOMAIN,RRSET} are returned, along with
+ * #ISC_R_FAILURE, #DNS_R_NXDOMAIN, and #DNS_R_NXRRSET are returned, along with
  * #ISC_R_NOTFOUND meaning the ADB has not _yet_ found the values.  In this
  * latter case, retrying may produce more addresses.
  *
@@ -520,7 +520,7 @@ void
 dns_adb_adjustsrtt(dns_adb_t *adb, dns_adbaddrinfo_t *addr,
 		   unsigned int rtt, unsigned int factor);
 /*%<
- * Mix the round trip time into the existing smoothed rtt.  
+ * Mix the round trip time into the existing smoothed rtt.
 
  * The formula used
  * (where srtt is the existing rtt value, and rtt and factor are arguments to
@@ -623,12 +623,11 @@ void
 dns_adb_flushname(dns_adb_t *adb, dns_name_t *name);
 /*%<
  * Flush 'name' from the adb cache.
- * 
+ *
  * Requires:
  *\li	'adb' is valid.
  *\li	'name' is valid.
  */
-
 
 ISC_LANG_ENDDECLS
 

@@ -435,6 +435,8 @@ epinit_locked(struct ep_softc *sc)
 	if (!sc->epb.mii_trans)
 		ep_ifmedia_upd(ifp);
 
+	if (sc->stat & F_HAS_TX_PLL)
+		CSR_WRITE_2(sc, EP_COMMAND, TX_PLL_ENABLE);
 	CSR_WRITE_2(sc, EP_COMMAND, RX_ENABLE);
 	CSR_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
 
@@ -473,7 +475,7 @@ epstart_locked(struct ifnet *ifp)
 	struct ep_softc *sc;
 	u_int len;
 	struct mbuf *m, *m0;
-	int pad;
+	int pad, started;
 
 	sc = ifp->if_softc;
 	if (sc->gone)
@@ -482,11 +484,15 @@ epstart_locked(struct ifnet *ifp)
 	EP_BUSY_WAIT(sc);
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
 		return;
+	started = 0;
 startagain:
 	/* Sneak a peek at the next packet */
 	IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
 	if (m0 == NULL)
 		return;
+	if (!started && (sc->stat & F_HAS_TX_PLL))
+		CSR_WRITE_2(sc, EP_COMMAND, TX_PLL_ENABLE);
+	started++;
 	for (len = 0, m = m0; m != NULL; m = m->m_next)
 		len += m->m_len;
 
@@ -659,14 +665,13 @@ rescan:
 #ifdef EP_LOCAL_STATS
 						sc->tx_underrun++;
 #endif
-					} else {
-						if (status & TXS_JABBER);
-						else
-							++ifp->if_collisions;
-							/* TXS_MAX_COLLISION
-							 * we shouldn't get
-							 * here
-							 */
+					}
+					if (status & TXS_MAX_COLLISION) {
+						/*
+						 * TXS_MAX_COLLISION we
+						 * shouldn't get here
+						 */
+						++ifp->if_collisions;
 					}
 					++ifp->if_oerrors;
 					CSR_WRITE_2(sc, EP_COMMAND, TX_ENABLE);
@@ -895,8 +900,25 @@ static void
 ep_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct ep_softc *sc = ifp->if_softc;
+	uint16_t ms;
 
-	ifmr->ifm_active = sc->ifmedia.ifm_media;
+	switch (IFM_SUBTYPE(sc->ifmedia.ifm_media)) {
+	case IFM_10_T:
+		GO_WINDOW(sc, 4);
+		ms = CSR_READ_2(sc, EP_W4_MEDIA_TYPE);
+		GO_WINDOW(sc, 0);
+		ifmr->ifm_status = IFM_AVALID;
+		if (ms & MT_LB) {
+			ifmr->ifm_status |= IFM_ACTIVE;
+			ifmr->ifm_active = IFM_ETHER | IFM_10_T;
+		} else {
+			ifmr->ifm_active = IFM_ETHER | IFM_NONE;
+		}
+		break;
+	default:
+		ifmr->ifm_active = sc->ifmedia.ifm_media;
+		break;
+	}
 }
 
 static int

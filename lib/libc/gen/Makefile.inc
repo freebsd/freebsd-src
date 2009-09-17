@@ -9,7 +9,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	alarm.c arc4random.c assert.c basename.c check_utility_compat.c \
 	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
-	dlfcn.c dlfunc.c drand48.c erand48.c err.c errlst.c errno.c \
+	dlfcn.c drand48.c erand48.c err.c errlst.c errno.c \
 	exec.c fdevname.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
 	fpclassify.c frexp.c fstab.c ftok.c fts.c fts-compat.c ftw.c \
 	getbootfile.c getbsize.c \
@@ -55,7 +55,7 @@ MAN+=	alarm.3 arc4random.3 \
 	getpagesize.3 getpass.3 getpeereid.3 getprogname.3 getpwent.3 \
 	getttyent.3 getusershell.3 getvfsbyname.3 \
 	glob.3 initgroups.3 isgreater.3 ldexp.3 lockf.3 makecontext.3 \
-	modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
+	modf.3 \
 	nice.3 nlist.3 pause.3 popen.3 \
 	posix_spawn.3 posix_spawn_file_actions_addopen.3 \
 	posix_spawn_file_actions_init.3 posix_spawnattr_getflags.3 \
@@ -70,8 +70,8 @@ MAN+=	alarm.3 arc4random.3 \
 	siginterrupt.3 signal.3 sigsetops.3 sleep.3 \
 	statvfs.3 stringlist.3 \
 	strtofflags.3 sysconf.3 sysctl.3 syslog.3 tcgetpgrp.3 tcgetsid.3 \
-	tcsendbreak.3 tcsetattr.3 tcsetpgrp.3 time.3 times.3 timezone.3 \
-	ttyname.3 tzset.3 ualarm.3 ucontext.3 ulimit.3 uname.3 \
+	tcsendbreak.3 tcsetattr.3 tcsetpgrp.3 tcsetsid.3 time.3 times.3 \
+	timezone.3 ttyname.3 tzset.3 ualarm.3 ucontext.3 ulimit.3 uname.3 \
 	unvis.3 usleep.3 utime.3 valloc.3 vis.3 wordexp.3
 
 MLINKS+=arc4random.3 arc4random_addrandom.3 arc4random.3 arc4random_stir.3 \

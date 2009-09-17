@@ -31,14 +31,13 @@
  */
 #include "opt_sctp.h"
 #include "opt_mpath.h"
-#include "opt_route.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/domain.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -51,7 +50,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -66,9 +64,11 @@
 #include <netinet6/scope6_var.h>
 #endif
 
+#if defined(INET) || defined(INET6)
 #ifdef SCTP
 extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
 #endif /* SCTP */
+#endif
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
@@ -90,11 +90,7 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 #define	RTSOCK_UNLOCK()	mtx_unlock(&rtsock_mtx)
 #define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
 
-static struct	ifqueue rtsintrq;
-
 SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
-SYSCTL_INT(_net_route, OID_AUTO, netisr_maxqlen, CTLFLAG_RW,
-    &rtsintrq.ifq_maxlen, 0, "maximum routing socket dispatch queue length");
 
 struct walkarg {
 	int	w_tmemsize;
@@ -119,16 +115,38 @@ static void	rt_getmetrics(const struct rt_metrics_lite *in,
 			struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, const struct sockaddr *);
 
+static struct netisr_handler rtsock_nh = {
+	.nh_name = "rtsock",
+	.nh_handler = rts_input,
+	.nh_proto = NETISR_ROUTE,
+	.nh_policy = NETISR_POLICY_SOURCE,
+};
+
+static int
+sysctl_route_netisr_maxqlen(SYSCTL_HANDLER_ARGS)
+{
+	int error, qlimit;
+
+	netisr_getqlimit(&rtsock_nh, &qlimit);
+	error = sysctl_handle_int(oidp, &qlimit, 0, req);
+        if (error || !req->newptr)
+                return (error);
+	if (qlimit < 1)
+		return (EINVAL);
+	return (netisr_setqlimit(&rtsock_nh, qlimit));
+}
+SYSCTL_PROC(_net_route, OID_AUTO, netisr_maxqlen, CTLTYPE_INT|CTLFLAG_RW,
+    0, 0, sysctl_route_netisr_maxqlen, "I",
+    "maximum routing socket dispatch queue length");
+
 static void
 rts_init(void)
 {
 	int tmp;
 
-	rtsintrq.ifq_maxlen = 256;
 	if (TUNABLE_INT_FETCH("net.route.netisr_maxqlen", &tmp))
-		rtsintrq.ifq_maxlen = tmp;
-	mtx_init(&rtsintrq.ifq_mtx, "rts_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_ROUTE, rts_input, &rtsintrq, 0);
+		rtsock_nh.nh_qlimit = tmp;
+	netisr_register(&rtsock_nh);
 }
 SYSINIT(rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rts_init, 0);
 
@@ -356,6 +374,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * Try to find an address on the given outgoing interface
 		 * that belongs to the jail.
 		 */
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa;
 			sa = ifa->ifa_addr;
@@ -367,10 +386,13 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				break;
 			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 		if (!found) {
 			/*
 			 * As a last resort return the 'default' jail address.
 			 */
+			ia = ((struct sockaddr_in *)rt->rt_ifa->ifa_addr)->
+			    sin_addr;
 			if (prison_get_ip4(cred, &ia) != 0)
 				return (ESRCH);
 		}
@@ -394,6 +416,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * Try to find an address on the given outgoing interface
 		 * that belongs to the jail.
 		 */
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa;
 			sa = ifa->ifa_addr;
@@ -406,10 +429,13 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				break;
 			}
 		}
+		IF_ADDR_UNLOCK(ifp);
 		if (!found) {
 			/*
 			 * As a last resort return the 'default' jail address.
 			 */
+			ia6 = ((struct sockaddr_in6 *)rt->rt_ifa->ifa_addr)->
+			    sin6_addr;
 			if (prison_get_ip6(cred, &ia6) != 0)
 				return (ESRCH);
 		}
@@ -434,7 +460,6 @@ static int
 route_output(struct mbuf *m, struct socket *so)
 {
 #define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
-	INIT_VNET_NET(so->so_vnet);
 	struct rt_msghdr *rtm = NULL;
 	struct rtentry *rt = NULL;
 	struct radix_node_head *rnh;
@@ -488,6 +513,39 @@ route_output(struct mbuf *m, struct socket *so)
 			senderr(error);
 	}
 
+	/*
+	 * The given gateway address may be an interface address.
+	 * For example, issuing a "route change" command on a route
+	 * entry that was created from a tunnel, and the gateway
+	 * address given is the local end point. In this case the 
+	 * RTF_GATEWAY flag must be cleared or the destination will
+	 * not be reachable even though there is no error message.
+	 */
+	if (info.rti_info[RTAX_GATEWAY] != NULL &&
+	    info.rti_info[RTAX_GATEWAY]->sa_family != AF_LINK) {
+		struct route gw_ro;
+
+		bzero(&gw_ro, sizeof(gw_ro));
+		gw_ro.ro_dst = *info.rti_info[RTAX_GATEWAY];
+		rtalloc_ign_fib(&gw_ro, 0, so->so_fibnum);
+		/* 
+		 * A host route through the loopback interface is 
+		 * installed for each interface adddress. In pre 8.0
+		 * releases the interface address of a PPP link type
+		 * is not reachable locally. This behavior is fixed as 
+		 * part of the new L2/L3 redesign and rewrite work. The
+		 * signature of this interface address route is the
+		 * AF_LINK sa_family type of the rt_gateway, and the
+		 * rt_ifp has the IFF_LOOPBACK flag set.
+		 */
+		if (gw_ro.ro_rt != NULL &&
+		    gw_ro.ro_rt->rt_gateway->sa_family == AF_LINK &&
+		    gw_ro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK)
+			info.rti_flags &= ~RTF_GATEWAY;
+		if (gw_ro.ro_rt != NULL)
+			RTFREE(gw_ro.ro_rt);
+	}
+
 	switch (rtm->rtm_type) {
 		struct rtentry *saved_nrt;
 
@@ -535,7 +593,8 @@ route_output(struct mbuf *m, struct socket *so)
 	case RTM_GET:
 	case RTM_CHANGE:
 	case RTM_LOCK:
-		rnh = V_rt_tables[so->so_fibnum][info.rti_info[RTAX_DST]->sa_family];
+		rnh = rt_tables_get_rnh(so->so_fibnum,
+		    info.rti_info[RTAX_DST]->sa_family);
 		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
 		RADIX_NODE_HEAD_RLOCK(rnh);
@@ -637,7 +696,6 @@ route_output(struct mbuf *m, struct socket *so)
 			}
 			(void)rt_msg2(rtm->rtm_type, &info, (caddr_t)rtm, NULL);
 			rtm->rtm_flags = rt->rt_flags;
-			rtm->rtm_use = 0;
 			rt_getmetrics(&rt->rt_rmx, &rtm->rtm_rmx);
 			rtm->rtm_addrs = info.rti_addrs;
 			break;
@@ -657,6 +715,13 @@ route_output(struct mbuf *m, struct socket *so)
 				RT_UNLOCK(rt);
 				RADIX_NODE_HEAD_LOCK(rnh);
 				error = rt_getifa_fib(&info, rt->rt_fibnum);
+				/*
+				 * XXXRW: Really we should release this
+				 * reference later, but this maintains
+				 * historical behavior.
+				 */
+				if (info.rti_ifa != NULL)
+					ifa_free(info.rti_ifa);
 				RADIX_NODE_HEAD_UNLOCK(rnh);
 				if (error != 0)
 					senderr(error);
@@ -668,7 +733,7 @@ route_output(struct mbuf *m, struct socket *so)
 			    rt->rt_ifa->ifa_rtrequest != NULL) {
 				rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt,
 				    &info);
-				IFAFREE(rt->rt_ifa);
+				ifa_free(rt->rt_ifa);
 			}
 			if (info.rti_info[RTAX_GATEWAY] != NULL) {
 				RT_UNLOCK(rt);
@@ -682,19 +747,17 @@ route_output(struct mbuf *m, struct socket *so)
 					RT_UNLOCK(rt);
 					senderr(error);
 				}
-				rt->rt_flags |= RTF_GATEWAY;
+				rt->rt_flags |= (RTF_GATEWAY & info.rti_flags);
 			}
 			if (info.rti_ifa != NULL &&
 			    info.rti_ifa != rt->rt_ifa) {
-				IFAREF(info.rti_ifa);
+				ifa_ref(info.rti_ifa);
 				rt->rt_ifa = info.rti_ifa;
 				rt->rt_ifp = info.rti_ifp;
 			}
 			/* Allow some flags to be toggled on change. */
-			if (rtm->rtm_fmask & RTF_FMASK)
-				rt->rt_flags = (rt->rt_flags &
-				    ~rtm->rtm_fmask) |
-				    (rtm->rtm_flags & rtm->rtm_fmask);
+			rt->rt_flags = (rt->rt_flags & ~RTF_FMASK) |
+				    (rtm->rtm_flags & RTF_FMASK);
 			rt_setmetrics(rtm->rtm_inits, &rtm->rtm_rmx,
 					&rt->rt_rmx);
 			rtm->rtm_index = rt->rt_ifp->if_index;
@@ -773,6 +836,7 @@ rt_setmetrics(u_long which, const struct rt_metrics *in,
 	 * of tcp hostcache. The rest is ignored.
 	 */
 	metric(RTV_MTU, rmx_mtu);
+	metric(RTV_WEIGHT, rmx_weight);
 	/* Userland -> kernel timebase conversion. */
 	if (which & RTV_EXPIRE)
 		out->rmx_expire = in->rmx_expire ?
@@ -786,6 +850,7 @@ rt_getmetrics(const struct rt_metrics_lite *in, struct rt_metrics *out)
 #define metric(e) out->e = in->e;
 	bzero(out, sizeof(*out));
 	metric(rmx_mtu);
+	metric(rmx_weight);
 	/* Kernel -> userland timebase conversion. */
 	out->rmx_expire = in->rmx_expire ?
 	    in->rmx_expire - time_uptime + time_second : 0;
@@ -1039,6 +1104,7 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
 		("unexpected cmd %u", cmd));
+#if defined(INET) || defined(INET6)
 #ifdef SCTP
 	/*
 	 * notify the SCTP stack
@@ -1047,6 +1113,7 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 	 */
 	sctp_addr_change(ifa, cmd);
 #endif /* SCTP */
+#endif
 	if (route_cb.any_count == 0)
 		return;
 	for (pass = 1; pass < 3; pass++) {
@@ -1203,7 +1270,6 @@ rt_ifannouncemsg(struct ifnet *ifp, int what)
 static void
 rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 {
-	INIT_VNET_NET(curvnet);
 	struct m_tag *tag;
 
 	/*
@@ -1221,6 +1287,14 @@ rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 		*(unsigned short *)(tag + 1) = sa->sa_family;
 		m_tag_prepend(m, tag);
 	}
+#ifdef VIMAGE
+	if (V_loif)
+		m->m_pkthdr.rcvif = V_loif;
+	else {
+		m_freem(m);
+		return;
+	}
+#endif
 	netisr_queue(NETISR_ROUTE, m);	/* mbuf is free'd on failure. */
 }
 
@@ -1257,7 +1331,10 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 		struct rt_msghdr *rtm = (struct rt_msghdr *)w->w_tmem;
 
 		rtm->rtm_flags = rt->rt_flags;
-		rtm->rtm_use = rt->rt_rmx.rmx_pksent;
+		/*
+		 * let's be honest about this being a retarded hack
+		 */
+		rtm->rtm_fmask = rt->rt_rmx.rmx_pksent;
 		rt_getmetrics(&rt->rt_rmx, &rtm->rtm_rmx);
 		rtm->rtm_index = rt->rt_ifp->if_index;
 		rtm->rtm_errno = rtm->rtm_pid = rtm->rtm_seq = 0;
@@ -1271,7 +1348,6 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 static int
 sysctl_iflist(int af, struct walkarg *w)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct rt_addrinfo info;
@@ -1332,7 +1408,6 @@ done:
 static int
 sysctl_ifmalist(int af, struct walkarg *w)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	struct	rt_addrinfo info;
@@ -1382,10 +1457,9 @@ done:
 static int
 sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_NET(curvnet);
 	int	*name = (int *)arg1;
 	u_int	namelen = arg2;
-	struct radix_node_head *rnh;
+	struct radix_node_head *rnh = NULL; /* silence compiler. */
 	int	i, lim, error = EINVAL;
 	u_char	af;
 	struct	walkarg w;
@@ -1432,14 +1506,16 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		/*
 		 * take care of routing entries
 		 */
-		for (error = 0; error == 0 && i <= lim; i++)
-			if ((rnh = V_rt_tables[req->td->td_proc->p_fibnum][i]) != NULL) {
+		for (error = 0; error == 0 && i <= lim; i++) {
+			rnh = rt_tables_get_rnh(req->td->td_proc->p_fibnum, i);
+			if (rnh != NULL) {
 				RADIX_NODE_HEAD_LOCK(rnh); 
 			    	error = rnh->rnh_walktree(rnh,
 				    sysctl_dumpentry, &w);
 				RADIX_NODE_HEAD_UNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
+		}
 		break;
 
 	case NET_RT_IFLIST:
@@ -1482,4 +1558,4 @@ static struct domain routedomain = {
 	.dom_protoswNPROTOSW =	&routesw[sizeof(routesw)/sizeof(routesw[0])]
 };
 
-DOMAIN_SET(route);
+VNET_DOMAIN_SET(route);

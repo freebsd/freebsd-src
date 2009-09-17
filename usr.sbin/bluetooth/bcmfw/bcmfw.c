@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <dev/usb/usb.h>
+#include <dev/usb/usb_ioctl.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netgraph.h>

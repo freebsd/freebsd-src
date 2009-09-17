@@ -32,7 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
 #include "opt_param.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mbuf_profiling.h"
@@ -48,8 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/uio.h>
-
-#include <security/mac/mac_framework.h>
 
 int	max_linkhdr;
 int	max_protohdr;
@@ -323,11 +320,13 @@ m_demote(struct mbuf *m0, int all)
 			m->m_flags &= ~M_PKTHDR;
 			bzero(&m->m_pkthdr, sizeof(struct pkthdr));
 		}
-		if (m->m_type == MT_HEADER)
-			m->m_type = MT_DATA;
-		if (m != m0 && m->m_nextpkt != NULL)
+		if (m != m0 && m->m_nextpkt != NULL) {
+			KASSERT(m->m_nextpkt == NULL,
+			    ("%s: m_nextpkt not NULL", __func__));
+			m_freem(m->m_nextpkt);
 			m->m_nextpkt = NULL;
-		m->m_flags = m->m_flags & (M_EXT|M_EOR|M_RDONLY|M_FREELIST);
+		}
+		m->m_flags = m->m_flags & (M_EXT|M_RDONLY|M_FREELIST|M_NOFREE);
 	}
 }
 
@@ -1768,6 +1767,34 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 	KASSERT(progress == total, ("%s: progress != total", __func__));
 
 	return (m);
+}
+
+/*
+ * Copy an mbuf chain into a uio limited by len if set.
+ */
+int
+m_mbuftouio(struct uio *uio, struct mbuf *m, int len)
+{
+	int error, length, total;
+	int progress = 0;
+
+	if (len > 0)
+		total = min(uio->uio_resid, len);
+	else
+		total = uio->uio_resid;
+
+	/* Fill the uio with data from the mbufs. */
+	for (; m != NULL; m = m->m_next) {
+		length = min(m->m_len, total - progress);
+
+		error = uiomove(mtod(m, void *), length, uio);
+		if (error)
+			return (error);
+
+		progress += length;
+	}
+
+	return (0);
 }
 
 /*

@@ -14,6 +14,10 @@
 !:mime	text/troff
 0	search/1	'''		troff or preprocessor input text
 !:mime	text/troff
+0	regex/20	\^\\.[A-Za-z0-9][A-Za-z0-9][\ \t]	troff or preprocessor input text
+!:mime	text/troff
+0	regex/20	\^\\.[A-Za-z0-9][A-Za-z0-9]$	troff or preprocessor input text
+!:mime	text/troff
 
 # ditroff intermediate output text
 0	search/1	x\ T		ditroff output text

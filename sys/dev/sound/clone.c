@@ -33,6 +33,10 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #if defined(SND_DIAGNOSTIC) || defined(SND_DEBUG)
 #include <dev/sound/pcm/sound.h>
 #endif
@@ -88,9 +92,9 @@ struct snd_clone {
 #define SND_CLONE_ASSERT(x, y)		do {			\
 	if (!(x))						\
 		panic y;					\
-} while(0)
+} while (0)
 #else
-#define SND_CLONE_ASSERT(x...)		KASSERT(x)
+#define SND_CLONE_ASSERT(...)		KASSERT(__VA_ARGS__)
 #endif
 
 /*

@@ -58,20 +58,20 @@ as long as the name is unique.
 This node type supports the generic control messages, plus the
 following:
 .Bl -tag -width indent
-.It Dv NGM_BPF_GET_STATS
+.It Dv NGM_HOLE_GET_STATS
 This command takes an
 .Tn ASCII
 string argument, the hook name, and returns the statistics
 associated with the hook as a
 .Vt "struct ng_hole_hookstat" .
-.It Dv NGM_BPF_CLR_STATS
+.It Dv NGM_HOLE_CLR_STATS
 This command takes an
 .Tn ASCII
 string argument, the hook name, and clears the statistics
 associated with the hook.
-.It Dv NGM_BPF_GETCLR_STATS
+.It Dv NGM_HOLE_GETCLR_STATS
 This command is identical to
-.Dv NGM_BPF_GET_STATS ,
+.Dv NGM_HOLE_GET_STATS ,
 except that the statistics are also atomically cleared.
 .El
 .Sh SHUTDOWN

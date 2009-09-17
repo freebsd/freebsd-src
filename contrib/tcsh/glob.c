@@ -329,8 +329,8 @@ glob(const char *pattern, int flags, int (*errfunc) (const char *, int),
 	    
 	    len = mblen((const char *)(patnext - 1), MB_LEN_MAX);
 	    if (len == -1)
-		mblen(NULL, 0);
-	    if (len > 1) {
+		(void)mblen(NULL, 0);
+	    else if (len > 1) {
 		*bufnext++ = (Char) c;
 		while (--len != 0)
 		    *bufnext++ = (Char) (*patnext++ | M_PROTECT);

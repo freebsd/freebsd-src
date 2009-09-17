@@ -220,13 +220,11 @@ Since execute permission is checked by
 .Fn fexecve ,
 the file descriptor
 .Fa fd
-need not have been
-opened with the
+need not have been opened with the
 .Dv O_EXEC
 flag.
-However, if the file to be executed denies read and write
-permission for the process preparing to do the exec, the only way to
-provide the
+However, if the file to be executed denies read permission for the process
+preparing to do the exec, the only way to provide the
 .Fa fd
 to
 .Fn fexecve
@@ -234,6 +232,7 @@ is to use the
 .Dv O_EXEC
 flag when opening
 .Fa fd .
+Note that the file to be executed can not be open for writing.
 .Sh RETURN VALUES
 As the
 .Fn execve
@@ -277,7 +276,7 @@ The new process file has the appropriate access
 permission, but has an invalid magic number in its header.
 .It Bq Er ETXTBSY
 The new process file is a pure procedure (shared text)
-file that is currently open for writing or reading by some process.
+file that is currently open for writing by some process.
 .It Bq Er ENOMEM
 The new process requires more virtual memory than
 is allowed by the imposed maximum

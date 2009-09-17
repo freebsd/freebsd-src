@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.char.h,v 3.32 2006/09/26 16:44:37 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.char.h,v 3.35 2008/09/25 14:41:34 christos Exp $ */
 /*
  * sh.char.h: Table for spotting special characters quickly
  * 	      Makes for very obscure but efficient coding.
@@ -64,7 +64,9 @@ extern unsigned short _mbmap_big5[];
 extern unsigned short _mbmap_utf8[];
 /* VARIABLE Check str */
 /* same compiler require #define even not define DSPMBYTE */
+#undef	_MB1
 #define _MB1	0x0001
+#undef	_MB2
 #define _MB2	0x0002
 
 #ifndef NLS
@@ -72,21 +74,56 @@ extern tcshuc _cmap_lower[], _cmap_upper[];
 
 #endif
 
+#ifndef __QNXNTO__
+#undef	_QF
 #define	_QF	0x0001		/* '" (Forward quotes) */
+#undef	_QB
 #define	_QB	0x0002		/* ` (Backquote) */
+#undef	_SP
 #define	_SP	0x0004		/* space and tab */
+#else
+#undef	_XD
+#define	_XD	0x0001		/* As in <ctype.h> */
+#undef	_UP
+#define	_UP	0x0002		/* As in <ctype.h> */
+#undef	_SP
+#define	_SP	0x0004		/* As in <ctype.h> */
+#endif
+#undef	_NL
 #define	_NL	0x0008		/* \n */
+#undef	_META
 #define	_META	0x0010		/* lex meta characters, sp #'`";&<>()|\t\n */
+#undef	_GLOB
 #define	_GLOB	0x0020		/* glob characters, *?{[` */
+#undef	_ESC
 #define	_ESC	0x0040		/* \ */
+#undef	_DOL
 #define	_DOL	0x0080		/* $ */
+#undef	_DIG
 #define	_DIG  	0x0100		/* 0-9 */
+#undef	_LET
 #define	_LET  	0x0200		/* a-z, A-Z, _, or locale-specific */
+#ifndef __QNXNTO__
+#undef	_UP
 #define	_UP   	0x0400		/* A-Z, or locale-specific */
+#else
+#undef	_QF
+#define	_QF	0x0400		/* '" (Forward quotes) */
+#endif
+#undef	_DOW
 #define	_DOW  	0x0800		/* a-z, or locale-specific */
+#ifndef __QNXNTO__
+#undef	_XD
 #define	_XD 	0x1000		/* 0-9, a-f, A-F */
+#else
+#undef	_QB
+#define	_QB	0x1000		/* 0-9, a-f, A-F */
+#endif
+#undef	_CMD
 #define	_CMD	0x2000		/* lex end of command chars, ;&(|` */
+#undef	_CTR
 #define _CTR	0x4000		/* control */
+#undef	_PUN
 #define _PUN	0x8000		/* punctuation */
 
 #ifdef IS_ASCII
@@ -137,9 +174,12 @@ extern tcshuc _cmap_lower[], _cmap_upper[];
 		         (iswalnum((tcshuc) (c)) || (c) == '_'))
 #else
 #define letter(c)	(((Char)(c) & QUOTE) ? 0 :  \
-			 (isalpha((tcshuc) (c)) || (c) == '_'))
+			 ((isalpha((tcshuc) (c)) && !(cmap((c), _PUN))) \
+			  || (c) == '_'))
 #define alnum(c)	(((Char)(c) & QUOTE) ? 0 :  \
-		         (isalnum((tcshuc) (c)) || (c) == '_'))
+		         ((isalnum((tcshuc) (c)) && !(cmap((c), _PUN))) \
+			  || (c) == '_'))
+
 #endif
 
 #if defined(DSPMBYTE)

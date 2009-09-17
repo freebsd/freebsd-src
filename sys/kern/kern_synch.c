@@ -173,7 +173,6 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	}
 	catch = priority & PCATCH;
 	pri = priority & PRIMASK;
-	rval = 0;
 
 	/*
 	 * If we are already on a sleep queue, then remove us from that
@@ -189,6 +188,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 		flags = SLEEPQ_SLEEP;
 	if (catch)
 		flags |= SLEEPQ_INTERRUPTIBLE;
+	if (priority & PBDRY)
+		flags |= SLEEPQ_STOP_ON_BDRY;
 
 	sleepq_lock(ident);
 	CTR5(KTR_PROC, "sleep: thread %ld (pid %ld, %s) on %s (%p)",
@@ -348,8 +349,11 @@ wakeup(void *ident)
 	sleepq_lock(ident);
 	wakeup_swapper = sleepq_broadcast(ident, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(ident);
-	if (wakeup_swapper)
+	if (wakeup_swapper) {
+		KASSERT(ident != &proc0,
+		    ("wakeup and wakeup_swapper and proc0"));
 		kick_proc0();
+	}
 }
 
 /*

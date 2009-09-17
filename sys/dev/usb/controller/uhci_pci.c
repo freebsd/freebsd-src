@@ -48,14 +48,32 @@ __FBSDID("$FreeBSD$");
  * sharing of code between *BSD's
  */
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_defs.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_sw_transfer.h>
 #include <dev/usb/usb_util.h>
 #include <dev/usb/usb_debug.h>
 
@@ -182,6 +200,15 @@ uhci_pci_match(device_t self)
 	case 0x265b8086:
 		return ("Intel 82801FB/FR/FW/FRW (ICH6) USB controller USB-D");
 
+	case 0x27c88086:
+		return ("Intel 82801G (ICH7) USB controller USB-A");
+	case 0x27c98086:
+		return ("Intel 82801G (ICH7) USB controller USB-B");
+	case 0x27ca8086:
+		return ("Intel 82801G (ICH7) USB controller USB-C");
+	case 0x27cb8086:
+		return ("Intel 82801G (ICH7) USB controller USB-D");
+
 	case 0x28308086:
 		return ("Intel 82801H (ICH8) USB controller USB-A");
 	case 0x28318086:
@@ -252,7 +279,7 @@ uhci_pci_attach(device_t self)
 	sc->sc_bus.devices_max = UHCI_MAX_DEVICES;
 
 	/* get all DMA memory */
-	if (usb2_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(self),
+	if (usb_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(self),
 	    &uhci_iterate_hw_softc)) {
 		return ENOMEM;
 	}
@@ -324,10 +351,10 @@ uhci_pci_attach(device_t self)
 
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)(void *)uhci_interrupt, sc, &sc->sc_intr_hdl);
+	    NULL, (driver_intr_t *)uhci_interrupt, sc, &sc->sc_intr_hdl);
 #else
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)(void *)uhci_interrupt, sc, &sc->sc_intr_hdl);
+	    (driver_intr_t *)uhci_interrupt, sc, &sc->sc_intr_hdl);
 #endif
 
 	if (err) {
@@ -341,7 +368,7 @@ uhci_pci_attach(device_t self)
 	 * that the BIOS won't touch the keyboard anymore if it is connected
 	 * to the ports of the root hub?
 	 */
-#if USB_DEBUG
+#ifdef USB_DEBUG
 	if (pci_read_config(self, PCI_LEGSUP, 2) != PCI_LEGSUP_USBPIRQDEN) {
 		device_printf(self, "LegSup = 0x%04x\n",
 		    pci_read_config(self, PCI_LEGSUP, 2));
@@ -411,7 +438,7 @@ uhci_pci_detach(device_t self)
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
-	usb2_bus_mem_free_all(&sc->sc_bus, &uhci_iterate_hw_softc);
+	usb_bus_mem_free_all(&sc->sc_bus, &uhci_iterate_hw_softc);
 
 	return (0);
 }
@@ -439,5 +466,4 @@ static driver_t uhci_driver =
 static devclass_t uhci_devclass;
 
 DRIVER_MODULE(uhci, pci, uhci_driver, uhci_devclass, 0, 0);
-DRIVER_MODULE(uhci, cardbus, uhci_driver, uhci_devclass, 0, 0);
 MODULE_DEPEND(uhci, usb, 1, 1, 1);

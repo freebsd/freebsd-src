@@ -3,7 +3,7 @@
  */
 
 /*-
- * Copyright (c) 2003 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ * Copyright (c) 2003-2009 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,500 +31,412 @@
  * $FreeBSD$
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
 #include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/conf.h>
-#include <sys/filio.h>
-#include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
 #include <sys/module.h>
-#include <sys/poll.h>
-#include <sys/proc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
 #include <sys/sysctl.h>
-#include <sys/uio.h>
-
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usbdi_util.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
 
 #include "usbdevs.h"
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usb_ioctl.h>
+
+#define	USB_DEBUG_VAR usb_debug
+#include <dev/usb/usb_debug.h>
+#include <dev/usb/usb_dev.h>
 
 /*
  * Download firmware to BCM2033.
  */
 
-#define UBTBCMFW_CONFIG_NO	1	/* Config number */
-#define UBTBCMFW_IFACE_IDX	0 	/* Control interface */
-#define UBTBCMFW_INTR_IN_EP	0x81	/* Fixed endpoint */
-#define UBTBCMFW_BULK_OUT_EP	0x02	/* Fixed endpoint */
-#define UBTBCMFW_INTR_IN	UE_GET_ADDR(UBTBCMFW_INTR_IN_EP)
-#define UBTBCMFW_BULK_OUT	UE_GET_ADDR(UBTBCMFW_BULK_OUT_EP)
+#define	UBTBCMFW_CONFIG_NO	1	/* Config number */
+#define	UBTBCMFW_IFACE_IDX	0	/* Control interface */
 
-struct ubtbcmfw_softc {
-	device_t		sc_dev;			/* base device */
-	usbd_device_handle	sc_udev;		/* USB device handle */
-	struct cdev *sc_ctrl_dev;		/* control device */
-	struct cdev *sc_intr_in_dev;		/* interrupt device */
-	struct cdev *sc_bulk_out_dev;	/* bulk device */
-	usbd_pipe_handle	sc_intr_in_pipe;	/* interrupt pipe */
-	usbd_pipe_handle	sc_bulk_out_pipe;	/* bulk out pipe */
-	int			sc_flags;
-#define UBTBCMFW_CTRL_DEV	(1 << 0)
-#define UBTBCMFW_INTR_IN_DEV	(1 << 1)
-#define UBTBCMFW_BULK_OUT_DEV	(1 << 2)
-	int			sc_refcnt;
-	int			sc_dying;
+#define	UBTBCMFW_BSIZE		1024
+#define	UBTBCMFW_IFQ_MAXLEN	2
+
+enum {
+	UBTBCMFW_BULK_DT_WR = 0,
+	UBTBCMFW_INTR_DT_RD,
+	UBTBCMFW_N_TRANSFER,
 };
 
-typedef struct ubtbcmfw_softc	*ubtbcmfw_softc_p;
+struct ubtbcmfw_softc {
+	struct usb_device	*sc_udev;
+	struct mtx		sc_mtx;
+	struct usb_xfer	*sc_xfer[UBTBCMFW_N_TRANSFER];
+	struct usb_fifo_sc	sc_fifo;
+};
 
 /*
- * Device methods
+ * Prototypes
  */
 
-#define UBTBCMFW_UNIT(n)	((dev2unit(n) >> 4) & 0xf)
-#define UBTBCMFW_ENDPOINT(n)	(dev2unit(n) & 0xf)
-#define UBTBCMFW_MINOR(u, e)	(((u) << 4) | (e))
-#define UBTBCMFW_BSIZE		1024
+static device_probe_t		ubtbcmfw_probe;
+static device_attach_t		ubtbcmfw_attach;
+static device_detach_t		ubtbcmfw_detach;
 
-static d_open_t		ubtbcmfw_open;
-static d_close_t	ubtbcmfw_close;
-static d_read_t		ubtbcmfw_read;
-static d_write_t	ubtbcmfw_write;
-static d_ioctl_t	ubtbcmfw_ioctl;
-static d_poll_t		ubtbcmfw_poll;
+static usb_callback_t		ubtbcmfw_write_callback;
+static usb_callback_t		ubtbcmfw_read_callback;
 
-static struct cdevsw	ubtbcmfw_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	ubtbcmfw_open,
-	.d_close =	ubtbcmfw_close,
-	.d_read =	ubtbcmfw_read,
-	.d_write =	ubtbcmfw_write,
-	.d_ioctl =	ubtbcmfw_ioctl,
-	.d_poll =	ubtbcmfw_poll,
-	.d_name =	"ubtbcmfw",
+static usb_fifo_close_t	ubtbcmfw_close;
+static usb_fifo_cmd_t		ubtbcmfw_start_read;
+static usb_fifo_cmd_t		ubtbcmfw_start_write;
+static usb_fifo_cmd_t		ubtbcmfw_stop_read;
+static usb_fifo_cmd_t		ubtbcmfw_stop_write;
+static usb_fifo_ioctl_t	ubtbcmfw_ioctl;
+static usb_fifo_open_t		ubtbcmfw_open;
+
+static struct usb_fifo_methods	ubtbcmfw_fifo_methods = 
+{
+	.f_close =		&ubtbcmfw_close,
+	.f_ioctl =		&ubtbcmfw_ioctl,
+	.f_open =		&ubtbcmfw_open,
+	.f_start_read =		&ubtbcmfw_start_read,
+	.f_start_write =	&ubtbcmfw_start_write,
+	.f_stop_read =		&ubtbcmfw_stop_read,
+	.f_stop_write =		&ubtbcmfw_stop_write,
+	.basename[0] =		"ubtbcmfw",
+	.basename[1] =		"ubtbcmfw",
+	.basename[2] =		"ubtbcmfw",
+	.postfix[0] =		"",
+	.postfix[1] =		".1",
+	.postfix[2] =		".2",
+};
+
+/*
+ * Device's config structure
+ */
+
+static const struct usb_config	ubtbcmfw_config[UBTBCMFW_N_TRANSFER] =
+{
+	[UBTBCMFW_BULK_DT_WR] = {
+		.type =		UE_BULK,
+		.endpoint =	0x02,	/* fixed */
+		.direction =	UE_DIR_OUT,
+		.if_index =	UBTBCMFW_IFACE_IDX,
+		.bufsize =	UBTBCMFW_BSIZE,
+		.flags =	{ .pipe_bof = 1, .force_short_xfer = 1,
+				  .proxy_buffer = 1, },
+		.callback =	&ubtbcmfw_write_callback,
+	},
+
+	[UBTBCMFW_INTR_DT_RD] = {
+		.type =		UE_INTERRUPT,
+		.endpoint =	0x01,	/* fixed */
+		.direction =	UE_DIR_IN,
+		.if_index =	UBTBCMFW_IFACE_IDX,
+		.bufsize =	UBTBCMFW_BSIZE,
+		.flags =	{ .pipe_bof = 1, .short_xfer_ok = 1,
+				  .proxy_buffer = 1, },
+		.callback =	&ubtbcmfw_read_callback,
+	},
 };
 
 /*
  * Module
  */
 
-static device_probe_t ubtbcmfw_match;
-static device_attach_t ubtbcmfw_attach;
-static device_detach_t ubtbcmfw_detach;
+static devclass_t	ubtbcmfw_devclass;
 
-static device_method_t ubtbcmfw_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		ubtbcmfw_match),
-	DEVMETHOD(device_attach,	ubtbcmfw_attach),
-	DEVMETHOD(device_detach,	ubtbcmfw_detach),
-
-	{ 0, 0 }
+static device_method_t	ubtbcmfw_methods[] =
+{
+	DEVMETHOD(device_probe, ubtbcmfw_probe),
+	DEVMETHOD(device_attach, ubtbcmfw_attach),
+	DEVMETHOD(device_detach, ubtbcmfw_detach),
+	{0, 0}
 };
 
-static driver_t ubtbcmfw_driver = {
-	"ubtbcmfw",
-	ubtbcmfw_methods,
-	sizeof(struct ubtbcmfw_softc)
+static driver_t		ubtbcmfw_driver =
+{
+	.name =		"ubtbcmfw",
+	.methods =	ubtbcmfw_methods,
+	.size =		sizeof(struct ubtbcmfw_softc),
 };
 
-static devclass_t ubtbcmfw_devclass;
-
+DRIVER_MODULE(ubtbcmfw, uhub, ubtbcmfw_driver, ubtbcmfw_devclass, NULL, 0);
 MODULE_DEPEND(ubtbcmfw, usb, 1, 1, 1);
-DRIVER_MODULE(ubtbcmfw, uhub, ubtbcmfw_driver, ubtbcmfw_devclass,
-	      usbd_driver_load, 0);
 
 /*
  * Probe for a USB Bluetooth device
  */
 
 static int
-ubtbcmfw_match(device_t self)
+ubtbcmfw_probe(device_t dev)
 {
-#define	USB_PRODUCT_BROADCOM_BCM2033NF	0x2033
-	struct usb_attach_arg *uaa = device_get_ivars(self);
+	const struct usb_device_id	devs[] = {
+	/* Broadcom BCM2033 devices only */
+	{ USB_VPI(USB_VENDOR_BROADCOM, USB_PRODUCT_BROADCOM_BCM2033, 0) },
+	};
 
-	if (uaa->iface != NULL)
-		return (UMATCH_NONE);
+	struct usb_attach_arg	*uaa = device_get_ivars(dev);
 
-	/* Match the boot device. */
-	if (uaa->vendor == USB_VENDOR_BROADCOM &&
-	    uaa->product == USB_PRODUCT_BROADCOM_BCM2033NF)
-		return (UMATCH_VENDOR_PRODUCT);
+	if (uaa->usb_mode != USB_MODE_HOST)
+		return (ENXIO);
 
-	return (UMATCH_NONE);
-}
+	if (uaa->info.bIfaceIndex != 0)
+		return (ENXIO);
+
+	return (usbd_lookup_id_by_uaa(devs, sizeof(devs), uaa));
+} /* ubtbcmfw_probe */
 
 /*
  * Attach the device
  */
 
 static int
-ubtbcmfw_attach(device_t self)
+ubtbcmfw_attach(device_t dev)
 {
-	struct ubtbcmfw_softc *sc = device_get_softc(self);
-	struct usb_attach_arg *uaa = device_get_ivars(self);
-	usbd_interface_handle	iface;
-	usbd_status		err;
+	struct usb_attach_arg	*uaa = device_get_ivars(dev);
+	struct ubtbcmfw_softc	*sc = device_get_softc(dev);
+	uint8_t			iface_index;
+	int			error;
 
-	sc->sc_dev = self;
 	sc->sc_udev = uaa->device;
 
-	sc->sc_ctrl_dev = sc->sc_intr_in_dev = sc->sc_bulk_out_dev = NULL;
-	sc->sc_intr_in_pipe = sc->sc_bulk_out_pipe = NULL;
-	sc->sc_flags = sc->sc_refcnt = sc->sc_dying = 0;
+	device_set_usb_desc(dev);
 
-	err = usbd_set_config_no(sc->sc_udev, UBTBCMFW_CONFIG_NO, 1);
-	if (err) {
-		printf("%s: setting config no failed. %s\n",
-			device_get_nameunit(sc->sc_dev), usbd_errstr(err));
-		goto bad;
+	mtx_init(&sc->sc_mtx, "ubtbcmfw lock", NULL, MTX_DEF | MTX_RECURSE);
+
+	iface_index = UBTBCMFW_IFACE_IDX;
+	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
+				ubtbcmfw_config, UBTBCMFW_N_TRANSFER,
+				sc, &sc->sc_mtx);
+	if (error != 0) {
+		device_printf(dev, "allocating USB transfers failed. %s\n",
+			usbd_errstr(error));
+		goto detach;
 	}
 
-	err = usbd_device2interface_handle(sc->sc_udev, UBTBCMFW_IFACE_IDX,
-			&iface);
-	if (err) {
-		printf("%s: getting interface handle failed. %s\n",
-			device_get_nameunit(sc->sc_dev), usbd_errstr(err));
-		goto bad;
+	error = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
+			&ubtbcmfw_fifo_methods, &sc->sc_fifo,
+			device_get_unit(dev), 0 - 1, uaa->info.bIfaceIndex,
+			UID_ROOT, GID_OPERATOR, 0644);
+	if (error != 0) {
+		device_printf(dev, "could not attach fifo. %s\n",
+			usbd_errstr(error));
+		goto detach;
 	}
 
-	/* Will be used as a bulk pipe */
-	err = usbd_open_pipe(iface, UBTBCMFW_INTR_IN_EP, 0,
-			&sc->sc_intr_in_pipe);
-	if (err) {
-		printf("%s: open intr in failed. %s\n",
-			device_get_nameunit(sc->sc_dev), usbd_errstr(err));
-		goto bad;
-	}
+	return (0);	/* success */
 
-	err = usbd_open_pipe(iface, UBTBCMFW_BULK_OUT_EP, 0,
-			&sc->sc_bulk_out_pipe);
-	if (err) {
-		printf("%s: open bulk out failed. %s\n",
-			device_get_nameunit(sc->sc_dev), usbd_errstr(err));
-		goto bad;
-	}
+detach:
+	ubtbcmfw_detach(dev);
 
-	/* Create device nodes */
-	sc->sc_ctrl_dev = make_dev(&ubtbcmfw_cdevsw,
-		UBTBCMFW_MINOR(device_get_unit(sc->sc_dev), 0),
-		UID_ROOT, GID_OPERATOR, 0644,
-		"%s", device_get_nameunit(sc->sc_dev));
-
-	sc->sc_intr_in_dev = make_dev(&ubtbcmfw_cdevsw,
-		UBTBCMFW_MINOR(device_get_unit(sc->sc_dev), UBTBCMFW_INTR_IN),
-		UID_ROOT, GID_OPERATOR, 0644,
-		"%s.%d", device_get_nameunit(sc->sc_dev), UBTBCMFW_INTR_IN);
-
-	sc->sc_bulk_out_dev = make_dev(&ubtbcmfw_cdevsw,
-		UBTBCMFW_MINOR(device_get_unit(sc->sc_dev), UBTBCMFW_BULK_OUT),
-		UID_ROOT, GID_OPERATOR, 0644,
-		"%s.%d", device_get_nameunit(sc->sc_dev), UBTBCMFW_BULK_OUT);
-
-	return 0;
-bad:
-	ubtbcmfw_detach(self);  
-	return ENXIO;
-}
+	return (ENXIO);	/* failure */
+} /* ubtbcmfw_attach */ 
 
 /*
  * Detach the device
  */
 
 static int
-ubtbcmfw_detach(device_t self)
+ubtbcmfw_detach(device_t dev)
 {
-	struct ubtbcmfw_softc *sc = device_get_softc(self);
+	struct ubtbcmfw_softc	*sc = device_get_softc(dev);
 
-	sc->sc_dying = 1;
-	if (-- sc->sc_refcnt >= 0) {
-		if (sc->sc_intr_in_pipe != NULL) 
-			usbd_abort_pipe(sc->sc_intr_in_pipe);
+	usb_fifo_detach(&sc->sc_fifo);
 
-		if (sc->sc_bulk_out_pipe != NULL) 
-			usbd_abort_pipe(sc->sc_bulk_out_pipe);
+	usbd_transfer_unsetup(sc->sc_xfer, UBTBCMFW_N_TRANSFER);
 
-		usb_detach_wait(sc->sc_dev);
-	}
-
-	/* Destroy device nodes */
-	if (sc->sc_bulk_out_dev != NULL) {
-		destroy_dev(sc->sc_bulk_out_dev);
-		sc->sc_bulk_out_dev = NULL;
-	}
-
-	if (sc->sc_intr_in_dev != NULL) {
-		destroy_dev(sc->sc_intr_in_dev);
-		sc->sc_intr_in_dev = NULL;
-	}
-
-	if (sc->sc_ctrl_dev != NULL) {
-		destroy_dev(sc->sc_ctrl_dev);
-		sc->sc_ctrl_dev = NULL;
-	}
-
-	/* Close pipes */
-	if (sc->sc_intr_in_pipe != NULL) {
-		usbd_close_pipe(sc->sc_intr_in_pipe);
-		sc->sc_intr_in_pipe = NULL;
-	}
-
-	if (sc->sc_bulk_out_pipe != NULL) {
-		usbd_close_pipe(sc->sc_bulk_out_pipe);
-		sc->sc_intr_in_pipe = NULL;
-	}
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
-}
+} /* ubtbcmfw_detach */
 
 /*
- * Open endpoint device
- * XXX FIXME softc locking
+ * USB write callback
+ */
+
+static void
+ubtbcmfw_write_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct ubtbcmfw_softc	*sc = usbd_xfer_softc(xfer);
+	struct usb_fifo	*f = sc->sc_fifo.fp[USB_FIFO_TX];
+	struct usb_page_cache	*pc;
+	uint32_t		actlen;
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_SETUP:
+	case USB_ST_TRANSFERRED:
+setup_next:
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (usb_fifo_get_data(f, pc, 0, usbd_xfer_max_len(xfer),
+			    &actlen, 0)) {
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_transfer_submit(xfer);
+		}
+		break;
+
+	default: /* Error */
+		if (error != USB_ERR_CANCELLED) {
+			/* try to clear stall first */
+			usbd_xfer_set_stall(xfer);
+			goto setup_next;
+		}
+		break;
+	}
+} /* ubtbcmfw_write_callback */
+
+/*
+ * USB read callback
+ */
+
+static void
+ubtbcmfw_read_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct ubtbcmfw_softc	*sc = usbd_xfer_softc(xfer);
+	struct usb_fifo	*fifo = sc->sc_fifo.fp[USB_FIFO_RX];
+	struct usb_page_cache	*pc;
+	int			actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usb_fifo_put_data(fifo, pc, 0, actlen, 1);
+		/* FALLTHROUGH */
+
+	case USB_ST_SETUP:
+setup_next:
+		if (usb_fifo_put_bytes_max(fifo) > 0) {
+			usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+			usbd_transfer_submit(xfer);
+		}
+		break;
+
+	default: /* Error */
+		if (error != USB_ERR_CANCELLED) {
+			/* try to clear stall first */
+			usbd_xfer_set_stall(xfer);
+			goto setup_next;
+		}
+		break;
+	}
+} /* ubtbcmfw_read_callback */
+
+/*
+ * Called when we about to start read()ing from the device
+ */
+
+static void
+ubtbcmfw_start_read(struct usb_fifo *fifo)
+{
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
+
+	usbd_transfer_start(sc->sc_xfer[UBTBCMFW_INTR_DT_RD]);
+} /* ubtbcmfw_start_read */
+
+/*
+ * Called when we about to stop reading (i.e. closing fifo)
+ */
+
+static void
+ubtbcmfw_stop_read(struct usb_fifo *fifo)
+{
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
+
+	usbd_transfer_stop(sc->sc_xfer[UBTBCMFW_INTR_DT_RD]);
+} /* ubtbcmfw_stop_read */
+
+/*
+ * Called when we about to start write()ing to the device, poll()ing
+ * for write or flushing fifo
+ */
+
+static void
+ubtbcmfw_start_write(struct usb_fifo *fifo)
+{
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
+
+	usbd_transfer_start(sc->sc_xfer[UBTBCMFW_BULK_DT_WR]);
+} /* ubtbcmfw_start_write */
+
+/*
+ * Called when we about to stop writing (i.e. closing fifo)
+ */
+
+static void
+ubtbcmfw_stop_write(struct usb_fifo *fifo)
+{
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
+
+	usbd_transfer_stop(sc->sc_xfer[UBTBCMFW_BULK_DT_WR]);
+} /* ubtbcmfw_stop_write */
+
+/*
+ * Called when fifo is open
  */
 
 static int
-ubtbcmfw_open(struct cdev *dev, int flag, int mode, struct thread *p)
+ubtbcmfw_open(struct usb_fifo *fifo, int fflags)
 {
-	ubtbcmfw_softc_p	sc = NULL;
-	int			error = 0;
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
+	struct usb_xfer	*xfer;
 
-	/* checks for sc != NULL */
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL)
-		return (ENXIO);
-	if (sc->sc_dying)
-		return (ENXIO);
+	/*
+	 * f_open fifo method can only be called with either FREAD
+	 * or FWRITE flag set at one time.
+	 */
 
-	switch (UBTBCMFW_ENDPOINT(dev)) {
-	case USB_CONTROL_ENDPOINT:
-		if (!(sc->sc_flags & UBTBCMFW_CTRL_DEV))
-			sc->sc_flags |= UBTBCMFW_CTRL_DEV;
-		else
-			error = EBUSY;
-		break;
+	if (fflags & FREAD)
+		xfer = sc->sc_xfer[UBTBCMFW_INTR_DT_RD];
+	else if (fflags & FWRITE)
+		xfer = sc->sc_xfer[UBTBCMFW_BULK_DT_WR];
+	else
+		return (EINVAL);	/* should not happen */
 
-	case UBTBCMFW_INTR_IN:
-		if (!(sc->sc_flags & UBTBCMFW_INTR_IN_DEV)) {
-			if (sc->sc_intr_in_pipe != NULL)
-				sc->sc_flags |= UBTBCMFW_INTR_IN_DEV;
-			else
-				error = ENXIO;
-		} else
-			error = EBUSY;
-		break;
-
-	case UBTBCMFW_BULK_OUT:
-		if (!(sc->sc_flags & UBTBCMFW_BULK_OUT_DEV)) {
-			if (sc->sc_bulk_out_pipe != NULL)
-				sc->sc_flags |= UBTBCMFW_BULK_OUT_DEV;
-			else
-				error = ENXIO;
-		} else
-			error = EBUSY;
-		break;
-
-	default:
-		error = ENXIO;
-		break;
-	}
-
-	return (error);
-}
-
-/*
- * Close endpoint device
- * XXX FIXME softc locking
- */
-
-static int
-ubtbcmfw_close(struct cdev *dev, int flag, int mode, struct thread *p)
-{
-	ubtbcmfw_softc_p	sc = NULL;
-
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL)
-		return (ENXIO);
-
-	switch (UBTBCMFW_ENDPOINT(dev)) {
-	case USB_CONTROL_ENDPOINT:
-		sc->sc_flags &= ~UBTBCMFW_CTRL_DEV;
-		break;
-
-	case UBTBCMFW_INTR_IN:
-		if (sc->sc_intr_in_pipe != NULL)
-			usbd_abort_pipe(sc->sc_intr_in_pipe);
-
-		sc->sc_flags &= ~UBTBCMFW_INTR_IN_DEV;
-		break;
-
-	case UBTBCMFW_BULK_OUT:
-		if (sc->sc_bulk_out_pipe != NULL)
-			usbd_abort_pipe(sc->sc_bulk_out_pipe);
-
-		sc->sc_flags &= ~UBTBCMFW_BULK_OUT_DEV;
-		break;
-	}
+	if (usb_fifo_alloc_buffer(fifo, usbd_xfer_max_len(xfer),
+			UBTBCMFW_IFQ_MAXLEN) != 0)
+		return (ENOMEM);
 
 	return (0);
-}
+} /* ubtbcmfw_open */
+
+/* 
+ * Called when fifo is closed
+ */
+
+static void
+ubtbcmfw_close(struct usb_fifo *fifo, int fflags)
+{
+	if (fflags & (FREAD | FWRITE))
+		usb_fifo_free_buffer(fifo);
+} /* ubtbcmfw_close */
 
 /*
- * Read from the endpoint device
- * XXX FIXME softc locking
+ * Process ioctl() on USB device
  */
 
 static int
-ubtbcmfw_read(struct cdev *dev, struct uio *uio, int flag)
+ubtbcmfw_ioctl(struct usb_fifo *fifo, u_long cmd, void *data,
+    int fflags)
 {
-	ubtbcmfw_softc_p	sc = NULL;
-	u_int8_t		buf[UBTBCMFW_BSIZE];
-	usbd_xfer_handle	xfer;
-	usbd_status		err;
-	int			n, tn, error = 0;
-
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL || sc->sc_dying)
-		return (ENXIO);
-
-	if (UBTBCMFW_ENDPOINT(dev) != UBTBCMFW_INTR_IN)
-		return (EOPNOTSUPP);
-	if (sc->sc_intr_in_pipe == NULL)
-		return (ENXIO);
-
-	xfer = usbd_alloc_xfer(sc->sc_udev);
-	if (xfer == NULL)
-		return (ENOMEM);
-
-	sc->sc_refcnt ++;
-
-	while ((n = min(sizeof(buf), uio->uio_resid)) != 0) {
-		tn = n;
-		err = usbd_bulk_transfer(xfer, sc->sc_intr_in_pipe,
-				USBD_SHORT_XFER_OK, USBD_DEFAULT_TIMEOUT,
-				buf, &tn, "bcmrd");
-		switch (err) {
-		case USBD_NORMAL_COMPLETION:
-			error = uiomove(buf, tn, uio);
-			break;
-
-		case USBD_INTERRUPTED:
-			error = EINTR;
-			break;
-
-		case USBD_TIMEOUT:
-			error = ETIMEDOUT;
-			break;
-
-		default:
-			error = EIO;
-			break;
-		}
-
-		if (error != 0 || tn < n)
-			break;
-	}
-
-	usbd_free_xfer(xfer);
-
-	if (-- sc->sc_refcnt < 0)
-		usb_detach_wakeup(sc->sc_dev);
-
-	return (error);
-}
-
-/*
- * Write into the endpoint device
- * XXX FIXME softc locking
- */
-
-static int
-ubtbcmfw_write(struct cdev *dev, struct uio *uio, int flag)
-{
-	ubtbcmfw_softc_p	sc = NULL;
-	u_int8_t		buf[UBTBCMFW_BSIZE];
-	usbd_xfer_handle	xfer;
-	usbd_status		err;
-	int			n, error = 0;
-
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL || sc->sc_dying)
-		return (ENXIO);
-
-	if (UBTBCMFW_ENDPOINT(dev) != UBTBCMFW_BULK_OUT)
-		return (EOPNOTSUPP);
-	if (sc->sc_bulk_out_pipe == NULL)
-		return (ENXIO);
-
-	xfer = usbd_alloc_xfer(sc->sc_udev);
-	if (xfer == NULL)
-		return (ENOMEM);
-
-	sc->sc_refcnt ++;
-
-	while ((n = min(sizeof(buf), uio->uio_resid)) != 0) {
-		error = uiomove(buf, n, uio);
-		if (error != 0)
-			break;
-
-		err = usbd_bulk_transfer(xfer, sc->sc_bulk_out_pipe,
-				0, USBD_DEFAULT_TIMEOUT, buf, &n, "bcmwr");
-		switch (err) {
-		case USBD_NORMAL_COMPLETION:
-			break;
-
-		case USBD_INTERRUPTED:
-			error = EINTR;
-			break;
-
-		case USBD_TIMEOUT:
-			error = ETIMEDOUT;
-			break;
-
-		default:
-			error = EIO;
-			break;
-		}
-
-		if (error != 0)
-			break;
-	}
-
-	usbd_free_xfer(xfer);
-
-	if (-- sc->sc_refcnt < 0)
-		usb_detach_wakeup(sc->sc_dev);
-
-	return (error);
-}
-
-/*
- * Process ioctl on the endpoint device
- * XXX FIXME softc locking
- */
-
-static int
-ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
-  struct thread *p)
-{
-	ubtbcmfw_softc_p	sc = NULL;
+	struct ubtbcmfw_softc	*sc = usb_fifo_softc(fifo);
 	int			error = 0;
-
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL || sc->sc_dying)
-		return (ENXIO);
-
-	if (UBTBCMFW_ENDPOINT(dev) != USB_CONTROL_ENDPOINT)
-		return (EOPNOTSUPP);
-
-	sc->sc_refcnt ++;
 
 	switch (cmd) {
 	case USB_GET_DEVICE_DESC:
-		*(usb_device_descriptor_t *) data =
-				*usbd_get_device_descriptor(sc->sc_udev);
+		memcpy(data, usbd_get_device_descriptor(sc->sc_udev),
+			sizeof(struct usb_device_descriptor));
 		break;
 
 	default:
@@ -532,46 +444,5 @@ ubtbcmfw_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		break;
 	}
 
-	if (-- sc->sc_refcnt < 0)
-		usb_detach_wakeup(sc->sc_dev);
-
 	return (error);
-}
-
-/*
- * Poll the endpoint device
- * XXX FIXME softc locking
- */
-
-static int
-ubtbcmfw_poll(struct cdev *dev, int events, struct thread *p)
-{
-	ubtbcmfw_softc_p	sc = NULL;
-	int			revents = 0;
-
-	sc = devclass_get_softc(ubtbcmfw_devclass, UBTBCMFW_UNIT(dev));
-	if (sc == NULL)
-		return (ENXIO);
-
-	switch (UBTBCMFW_ENDPOINT(dev)) {
-	case UBTBCMFW_INTR_IN:
-		if (sc->sc_intr_in_pipe != NULL)
-			revents |= events & (POLLIN | POLLRDNORM);
-		else
-			revents = ENXIO;
-		break;
-
-	case UBTBCMFW_BULK_OUT:
-		if (sc->sc_bulk_out_pipe != NULL)
-			revents |= events & (POLLOUT | POLLWRNORM);
-		else
-			revents = ENXIO;
-		break;
-
-	default:
-		revents = EOPNOTSUPP;
-		break;
-	}
-
-	return (revents);
-}
+} /* ubtbcmfw_ioctl */

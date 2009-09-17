@@ -69,7 +69,7 @@ static vfs_extattrctl_t	nullfs_extattrctl;
  * Mount null layer
  */
 static int
-nullfs_mount(struct mount *mp, struct thread *td)
+nullfs_mount(struct mount *mp)
 {
 	int error = 0;
 	struct vnode *lowerrootvp, *vp;
@@ -115,8 +115,7 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	/*
 	 * Find lower node
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF,
-		UIO_SYSSPACE, target, td);
+	NDINIT(ndp, LOOKUP, FOLLOW|LOCKLEAF, UIO_SYSSPACE, target, curthread);
 	error = namei(ndp);
 	/*
 	 * Re-lock vnode.
@@ -200,10 +199,9 @@ nullfs_mount(struct mount *mp, struct thread *td)
  * Free reference to null layer
  */
 static int
-nullfs_unmount(mp, mntflags, td)
+nullfs_unmount(mp, mntflags)
 	struct mount *mp;
 	int mntflags;
-	struct thread *td;
 {
 	void *mntdata;
 	int error;
@@ -215,7 +213,7 @@ nullfs_unmount(mp, mntflags, td)
 		flags |= FORCECLOSE;
 
 	/* There is 1 extra root vnode reference (nullm_rootvp). */
-	error = vflush(mp, 1, flags, td);
+	error = vflush(mp, 1, flags, curthread);
 	if (error)
 		return (error);
 
@@ -229,11 +227,10 @@ nullfs_unmount(mp, mntflags, td)
 }
 
 static int
-nullfs_root(mp, flags, vpp, td)
+nullfs_root(mp, flags, vpp)
 	struct mount *mp;
 	int flags;
 	struct vnode **vpp;
-	struct thread *td;
 {
 	struct vnode *vp;
 
@@ -257,21 +254,19 @@ nullfs_root(mp, flags, vpp, td)
 }
 
 static int
-nullfs_quotactl(mp, cmd, uid, arg, td)
+nullfs_quotactl(mp, cmd, uid, arg)
 	struct mount *mp;
 	int cmd;
 	uid_t uid;
 	void *arg;
-	struct thread *td;
 {
-	return VFS_QUOTACTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, uid, arg, td);
+	return VFS_QUOTACTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, uid, arg);
 }
 
 static int
-nullfs_statfs(mp, sbp, td)
+nullfs_statfs(mp, sbp)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct thread *td;
 {
 	int error;
 	struct statfs mstat;
@@ -282,7 +277,7 @@ nullfs_statfs(mp, sbp, td)
 
 	bzero(&mstat, sizeof(mstat));
 
-	error = VFS_STATFS(MOUNTTONULLMOUNT(mp)->nullm_vfs, &mstat, td);
+	error = VFS_STATFS(MOUNTTONULLMOUNT(mp)->nullm_vfs, &mstat);
 	if (error)
 		return (error);
 
@@ -300,10 +295,9 @@ nullfs_statfs(mp, sbp, td)
 }
 
 static int
-nullfs_sync(mp, waitfor, td)
+nullfs_sync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
-	struct thread *td;
 {
 	/*
 	 * XXX - Assumes no data cached at null layer.
@@ -341,16 +335,15 @@ nullfs_fhtovp(mp, fidp, vpp)
 }
 
 static int                        
-nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, td)
+nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname)
 	struct mount *mp;
 	int cmd;
 	struct vnode *filename_vp;
 	int namespace;
 	const char *attrname;
-	struct thread *td;            
 {
 	return VFS_EXTATTRCTL(MOUNTTONULLMOUNT(mp)->nullm_vfs, cmd, filename_vp,
-	    namespace, attrname, td);
+	    namespace, attrname);
 }
 
 

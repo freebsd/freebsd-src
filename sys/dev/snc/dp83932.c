@@ -691,7 +691,7 @@ camprogram(sc)
 	ifp->if_flags &= ~IFF_ALLMULTI;
 
 	/* Loop through multicast addresses */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
         TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
                 if (ifma->ifma_addr->sa_family != AF_LINK)
                         continue;
@@ -705,7 +705,7 @@ camprogram(sc)
 			 LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		mcount++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	NIC_PUT(sc, SNCR_CDP, LOWER(sc->v_cda));
 	NIC_PUT(sc, SNCR_CDC, MAXCAM);

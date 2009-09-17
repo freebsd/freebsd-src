@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 #include <sys/time.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -65,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/if_ether.h>
-#include <netinet/vinet.h>
 #include <net/pfvar.h>
 
 /*

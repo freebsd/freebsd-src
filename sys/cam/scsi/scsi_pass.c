@@ -179,7 +179,6 @@ passasync(void *callback_arg, u_int32_t code,
 	  struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
-	struct cam_sim *sim;
 
 	periph = (struct cam_periph *)callback_arg;
 
@@ -198,7 +197,6 @@ passasync(void *callback_arg, u_int32_t code,
 		 * this device and start the probe
 		 * process.
 		 */
-		sim = xpt_path_sim(cgd->ccb_h.path);
 		status = cam_periph_alloc(passregister, passoninvalidate,
 					  passcleanup, passstart, "pass",
 					  CAM_PERIPH_BIO, cgd->ccb_h.path,
@@ -530,7 +528,8 @@ passsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	 * ready), it will save a few cycles if we check for it here.
 	 */
 	if (((ccb->ccb_h.flags & CAM_DATA_PHYS) == 0)
-	 && (((ccb->ccb_h.func_code == XPT_SCSI_IO)
+	 && (((ccb->ccb_h.func_code == XPT_SCSI_IO ||
+	       ccb->ccb_h.func_code == XPT_ATA_IO)
 	    && ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE))
 	  || (ccb->ccb_h.func_code == XPT_DEV_MATCH))) {
 

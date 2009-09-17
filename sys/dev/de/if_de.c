@@ -3041,7 +3041,7 @@ tulip_addr_filter(tulip_softc_t * const sc)
 
     multicnt = 0;
     ifp = sc->tulip_ifp;      
-    IF_ADDR_LOCK(ifp);
+    if_maddr_rlock(ifp);
 
     /* Copy MAC address on stack to align. */
     if (ifp->if_input != NULL)
@@ -3134,7 +3134,7 @@ tulip_addr_filter(tulip_softc_t * const sc)
 	    *sp++ = TULIP_SP_MAC(eaddr[2]);
 	}
     }
-    IF_ADDR_UNLOCK(ifp);
+    if_maddr_runlock(ifp);
 }
 
 static void

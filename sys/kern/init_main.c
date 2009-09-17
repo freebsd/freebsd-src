@@ -46,13 +46,13 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_init_path.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/exec.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
@@ -422,7 +422,7 @@ proc0_init(void *dummy __unused)
 	p->p_sysent = &null_sysvec;
 	p->p_flag = P_SYSTEM | P_INMEM;
 	p->p_state = PRS_NORMAL;
-	knlist_init(&p->p_klist, &p->p_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&p->p_klist, &p->p_mtx);
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
 	td->td_tid = PID_MAX + 1;
@@ -435,6 +435,7 @@ proc0_init(void *dummy __unused)
 	td->td_oncpu = 0;
 	td->td_flags = TDF_INMEM|TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
+	prison0.pr_cpuset = cpuset_ref(td->td_cpuset);
 	p->p_peers = 0;
 	p->p_leader = p;
 
@@ -451,7 +452,7 @@ proc0_init(void *dummy __unused)
 	p->p_ucred->cr_ngroups = 1;	/* group 0 */
 	p->p_ucred->cr_uidinfo = uifind(0);
 	p->p_ucred->cr_ruidinfo = uifind(0);
-	p->p_ucred->cr_prison = NULL;	/* Don't jail it. */
+	p->p_ucred->cr_prison = &prison0;
 #ifdef AUDIT
 	audit_cred_kproc0(p->p_ucred);
 #endif

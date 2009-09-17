@@ -104,7 +104,8 @@ static struct ifmedia_description *get_subtype_desc(int,
 
 #define	IFM_OPMODE(x) \
 	((x) & (IFM_IEEE80211_ADHOC | IFM_IEEE80211_HOSTAP | \
-	 IFM_IEEE80211_IBSS | IFM_IEEE80211_WDS | IFM_IEEE80211_MONITOR))
+	 IFM_IEEE80211_IBSS | IFM_IEEE80211_WDS | IFM_IEEE80211_MONITOR | \
+	 IFM_IEEE80211_MBSS))
 #define	IFM_IEEE80211_STA	0
 
 static void
@@ -330,7 +331,7 @@ setmediainst(const char *val, int d, int s, const struct afswtch *afp)
 	ifmr = ifmedia_getstate(s);
 
 	inst = atoi(val);
-	if (inst < 0 || inst > IFM_INST_MAX)
+	if (inst < 0 || inst > (int)IFM_INST_MAX)
 		errx(1, "invalid media instance: %s", val);
 
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
@@ -822,7 +823,7 @@ static __constructor void
 ifmedia_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(media_cmds);  i++)
 		cmd_register(&media_cmds[i]);

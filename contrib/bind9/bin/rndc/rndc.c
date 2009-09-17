@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.96.18.21 2008/10/15 03:07:19 marka Exp $ */
+/* $Id: rndc.c,v 1.122.44.2 2009/01/18 23:47:35 tbox Exp $ */
 
 /*! \file */
 
@@ -200,7 +200,7 @@ rndc_recvdone(isc_task_t *task, isc_event_t *event) {
 		      "* the remote server is using an older version of"
 		      " the command protocol,\n"
 		      "* this host is not authorized to connect,\n"
-		      "* the clocks are not syncronized, or\n"
+		      "* the clocks are not synchronized, or\n"
 		      "* the key is invalid.");
 
 	if (ccmsg.result != ISC_R_SUCCESS)
@@ -263,7 +263,7 @@ rndc_recvnonce(isc_task_t *task, isc_event_t *event) {
 		      "* the remote server is using an older version of"
 		      " the command protocol,\n"
 		      "* this host is not authorized to connect,\n"
-		      "* the clocks are not syncronized, or\n"
+		      "* the clocks are not synchronized, or\n"
 		      "* the key is invalid.");
 
 	if (ccmsg.result != ISC_R_SUCCESS)
@@ -369,7 +369,7 @@ rndc_connected(isc_task_t *task, isc_event_t *event) {
 	r.base = databuf;
 
 	isccc_ccmsg_init(mctx, sock, &ccmsg);
-	isccc_ccmsg_setmaxsize(&ccmsg, 1024);
+	isccc_ccmsg_setmaxsize(&ccmsg, 1024 * 1024);
 
 	DO("schedule recv", isccc_ccmsg_readmessage(&ccmsg, task,
 						    rndc_recvnonce, NULL));
@@ -690,7 +690,9 @@ main(int argc, char **argv) {
 	if (result != ISC_R_SUCCESS)
 		fatal("isc_app_start() failed: %s", isc_result_totext(result));
 
-	while ((ch = isc_commandline_parse(argc, argv, "b:c:k:Mmp:s:Vy:"))
+	isc_commandline_errprint = ISC_FALSE;
+
+	while ((ch = isc_commandline_parse(argc, argv, "b:c:hk:Mmp:s:Vy:"))
 	       != -1) {
 		switch (ch) {
 		case 'b':
@@ -741,13 +743,18 @@ main(int argc, char **argv) {
 			break;
 
 		case '?':
+			if (isc_commandline_option != '?') {
+				fprintf(stderr, "%s: invalid argument -%c\n",
+					program, isc_commandline_option);
+				usage(1);
+			}
+		case 'h':
 			usage(0);
 			break;
-
 		default:
-			fatal("unexpected error parsing command arguments: "
-			      "got %c\n", ch);
-			break;
+			fprintf(stderr, "%s: unhandled option -%c\n",
+				program, isc_commandline_option);
+			exit(1);
 		}
 	}
 

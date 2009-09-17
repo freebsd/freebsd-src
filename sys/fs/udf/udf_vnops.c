@@ -417,7 +417,15 @@ udf_print(struct vop_print_args *ap)
 
 #define lblkno(udfmp, loc)	((loc) >> (udfmp)->bshift)
 #define blkoff(udfmp, loc)	((loc) & (udfmp)->bmask)
-#define lblktosize(imp, blk)	((blk) << (udfmp)->bshift)
+#define lblktosize(udfmp, blk)	((blk) << (udfmp)->bshift)
+
+static inline int
+is_data_in_fentry(const struct udf_node *node)
+{
+	const struct file_entry *fentry = node->fentry;
+
+	return ((le16toh(fentry->icbtag.flags) & 0x7) == 3);
+}
 
 static int
 udf_read(struct vop_read_args *ap)
@@ -426,7 +434,9 @@ udf_read(struct vop_read_args *ap)
 	struct uio *uio = ap->a_uio;
 	struct udf_node *node = VTON(vp);
 	struct udf_mnt *udfmp;
+	struct file_entry *fentry;
 	struct buf *bp;
+	uint8_t *data;
 	daddr_t lbn, rablock;
 	off_t diff, fsize;
 	int error = 0;
@@ -436,6 +446,22 @@ udf_read(struct vop_read_args *ap)
 		return (0);
 	if (uio->uio_offset < 0)
 		return (EINVAL);
+
+	if (is_data_in_fentry(node)) {
+		fentry = node->fentry;
+		data = &fentry->data[le32toh(fentry->l_ea)];
+		fsize = le32toh(fentry->l_ad);
+
+		n = uio->uio_resid;
+		diff = fsize - uio->uio_offset;
+		if (diff <= 0)
+			return (0);
+		if (diff < n)
+			n = diff;
+		error = uiomove(data + uio->uio_offset, (int)n, uio);
+		return (error);
+	}
+
 	fsize = le64toh(node->fentry->inf_len);
 	udfmp = node->udfmp;
 	do {
@@ -712,7 +738,7 @@ udf_getfid(struct udf_dirstream *ds)
 	 * Update the offset. Align on a 4 byte boundary because the
 	 * UDF spec says so.
 	 */
-	ds->this_off = ds->off;
+	ds->this_off = ds->offset + ds->off;
 	if (!ds->fid_fragment) {
 		ds->off += (total_fid_size + 3) & ~0x03;
 	} else {
@@ -833,11 +859,11 @@ udf_readdir(struct vop_readdir_args *a)
 		}
 		if (error)
 			break;
+		uio->uio_offset = ds->offset + ds->off;
 	}
 
 	/* tell the calling layer whether we need to be called again */
 	*a->a_eofflag = uiodir.eofflag;
-	uio->uio_offset = ds->offset + ds->off;
 
 	if (error < 0)
 		error = 0;
@@ -981,34 +1007,27 @@ udf_strategy(struct vop_strategy_args *a)
 	struct buf *bp;
 	struct vnode *vp;
 	struct udf_node *node;
-	int maxsize;
-	daddr_t sector;
 	struct bufobj *bo;
-	int multiplier;
+	off_t offset;
+	uint32_t maxsize;
+	daddr_t sector;
+	int error;
 
 	bp = a->a_bp;
 	vp = a->a_vp;
 	node = VTON(vp);
 
 	if (bp->b_blkno == bp->b_lblkno) {
-		/*
-		 * Files that are embedded in the fentry don't translate well
-		 * to a block number.  Reject.
-		 */
-		if (udf_bmap_internal(node, bp->b_lblkno * node->udfmp->bsize,
-		    &sector, &maxsize)) {
+		offset = lblktosize(node->udfmp, bp->b_lblkno);
+		error = udf_bmap_internal(node, offset, &sector, &maxsize);
+		if (error) {
 			clrbuf(bp);
 			bp->b_blkno = -1;
+			bufdone(bp);
+			return (0);
 		}
-
 		/* bmap gives sector numbers, bio works with device blocks */
-		multiplier = node->udfmp->bsize / DEV_BSIZE;
-		bp->b_blkno = sector * multiplier;
-
-	}
-	if ((long)bp->b_blkno == -1) {
-		bufdone(bp);
-		return (0);
+		bp->b_blkno = sector << (node->udfmp->bshift - DEV_BSHIFT);
 	}
 	bo = node->udfmp->im_bo;
 	bp->b_iooffset = dbtob(bp->b_blkno);
@@ -1022,6 +1041,7 @@ udf_bmap(struct vop_bmap_args *a)
 	struct udf_node *node;
 	uint32_t max_size;
 	daddr_t lsector;
+	int nblk;
 	int error;
 
 	node = VTON(a->a_vp);
@@ -1033,17 +1053,42 @@ udf_bmap(struct vop_bmap_args *a)
 	if (a->a_runb)
 		*a->a_runb = 0;
 
-	error = udf_bmap_internal(node, a->a_bn * node->udfmp->bsize, &lsector,
-	    &max_size);
+	/*
+	 * UDF_INVALID_BMAP means data embedded into fentry, this is an internal
+	 * error that should not be propagated to calling code.
+	 * Most obvious mapping for this error is EOPNOTSUPP as we can not truly
+	 * translate block numbers in this case.
+	 * Incidentally, this return code will make vnode pager to use VOP_READ
+	 * to get data for mmap-ed pages and udf_read knows how to do the right
+	 * thing for this kind of files.
+	 */
+	error = udf_bmap_internal(node, a->a_bn << node->udfmp->bshift,
+	    &lsector, &max_size);
+	if (error == UDF_INVALID_BMAP)
+		return (EOPNOTSUPP);
 	if (error)
 		return (error);
 
 	/* Translate logical to physical sector number */
 	*a->a_bnp = lsector << (node->udfmp->bshift - DEV_BSHIFT);
 
-	/* Punt on read-ahead for now */
-	if (a->a_runp)
-		*a->a_runp = 0;
+	/*
+	 * Determine maximum number of readahead blocks following the
+	 * requested block.
+	 */
+	if (a->a_runp) {
+		nblk = (max_size >> node->udfmp->bshift) - 1;
+		if (nblk <= 0)
+			*a->a_runp = 0;
+		else if (nblk >= (MAXBSIZE >> node->udfmp->bshift))
+			*a->a_runp = (MAXBSIZE >> node->udfmp->bshift) - 1;
+		else
+			*a->a_runp = nblk;
+	}
+
+	if (a->a_runb) {
+		*a->a_runb = 0;
+	}
 
 	return (0);
 }
@@ -1247,16 +1292,20 @@ static int
 udf_readatoffset(struct udf_node *node, int *size, off_t offset,
     struct buf **bp, uint8_t **data)
 {
-	struct udf_mnt *udfmp;
-	struct file_entry *fentry = NULL;
+	struct udf_mnt *udfmp = node->udfmp;
+	struct vnode *vp = node->i_vnode;
+	struct file_entry *fentry;
 	struct buf *bp1;
 	uint32_t max_size;
 	daddr_t sector;
+	off_t off;
+	int adj_size;
 	int error;
 
-	udfmp = node->udfmp;
-
-	*bp = NULL;
+	/*
+	 * This call is made *not* only to detect UDF_INVALID_BMAP case,
+	 * max_size is used as an ad-hoc read-ahead hint for "normal" case.
+	 */
 	error = udf_bmap_internal(node, offset, &sector, &max_size);
 	if (error == UDF_INVALID_BMAP) {
 		/*
@@ -1266,6 +1315,12 @@ udf_readatoffset(struct udf_node *node, int *size, off_t offset,
 		fentry = node->fentry;
 		*data = &fentry->data[le32toh(fentry->l_ea)];
 		*size = le32toh(fentry->l_ad);
+		if (offset >= *size)
+			*size = 0;
+		else {
+			*data += offset;
+			*size -= offset;
+		}
 		return (0);
 	} else if (error != 0) {
 		return (error);
@@ -1274,9 +1329,18 @@ udf_readatoffset(struct udf_node *node, int *size, off_t offset,
 	/* Adjust the size so that it is within range */
 	if (*size == 0 || *size > max_size)
 		*size = max_size;
-	*size = min(*size, MAXBSIZE);
 
-	if ((error = udf_readlblks(udfmp, sector, *size + (offset & udfmp->bmask), bp))) {
+	/*
+	 * Because we will read starting at block boundary, we need to adjust
+	 * how much we need to read so that all promised data is in.
+	 * Also, we can't promise to read more than MAXBSIZE bytes starting
+	 * from block boundary, so adjust what we promise too.
+	 */
+	off = blkoff(udfmp, offset);
+	*size = min(*size, MAXBSIZE - off);
+	adj_size = (*size + off + udfmp->bmask) & ~udfmp->bmask;
+	*bp = NULL;
+	if ((error = bread(vp, lblkno(udfmp, offset), adj_size, NOCRED, bp))) {
 		printf("warning: udf_readlblks returned error %d\n", error);
 		/* note: *bp may be non-NULL */
 		return (error);

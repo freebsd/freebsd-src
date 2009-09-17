@@ -24,3 +24,4 @@ ENTRY(truncl)
 
 	leave
 	ret
+END(truncl)

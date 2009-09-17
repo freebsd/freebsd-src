@@ -188,10 +188,8 @@ struct zfs_fuid_info;
 #ifdef _KERNEL
 void zfs_perm_init(struct znode *, struct znode *, int, vattr_t *,
     dmu_tx_t *, cred_t *, zfs_acl_t *, zfs_fuid_info_t **);
-#ifdef TODO
 int zfs_getacl(struct znode *, vsecattr_t *, boolean_t, cred_t *);
 int zfs_setacl(struct znode *, vsecattr_t *, boolean_t, cred_t *);
-#endif
 void zfs_acl_rele(void *);
 void zfs_oldace_byteswap(ace_t *, int);
 void zfs_ace_byteswap(void *, size_t, boolean_t);

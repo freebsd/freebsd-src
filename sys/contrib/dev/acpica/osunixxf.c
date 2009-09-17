@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -116,7 +116,7 @@
 
 /*
  * These interfaces are required in order to compile the ASL compiler under
- * Linux.
+ * Linux or other Unix-like system.
  */
 
 #include <stdio.h>
@@ -124,11 +124,14 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <semaphore.h>
+#include <pthread.h>
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/acdebug.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/acdebug.h>
 
 #define _COMPONENT          ACPI_OS_SERVICES
         ACPI_MODULE_NAME    ("osunixxf")
@@ -137,9 +140,19 @@
 extern FILE                    *AcpiGbl_DebugFile;
 FILE                           *AcpiGbl_OutputFile;
 
+
+/* Upcalls to AcpiExec */
+
 ACPI_PHYSICAL_ADDRESS
 AeLocalGetRootPointer (
     void);
+
+void
+AeTableOverride (
+    ACPI_TABLE_HEADER       *ExistingTable,
+    ACPI_TABLE_HEADER       **NewTable);
+
+typedef void* (*PTHREAD_CALLBACK) (void *);
 
 
 /******************************************************************************
@@ -157,16 +170,17 @@ AeLocalGetRootPointer (
 ACPI_STATUS
 AcpiOsInitialize (void)
 {
-    AcpiGbl_OutputFile = stdout;
 
-    return AE_OK;
+    AcpiGbl_OutputFile = stdout;
+    return (AE_OK);
 }
 
 
 ACPI_STATUS
 AcpiOsTerminate (void)
 {
-    return AE_OK;
+
+    return (AE_OK);
 }
 
 
@@ -250,64 +264,12 @@ AcpiOsTableOverride (
 
 #ifdef ACPI_EXEC_APP
 
-    /* This code exercises the table override mechanism in the core */
-
-    if (ACPI_COMPARE_NAME (ExistingTable->Signature, ACPI_SIG_DSDT))
-    {
-        /* override DSDT with itself */
-
-        *NewTable = AcpiGbl_DbTablePtr;
-    }
+    AeTableOverride (ExistingTable, NewTable);
     return (AE_OK);
 #else
-    return AE_NO_ACPI_TABLES;
+
+    return (AE_NO_ACPI_TABLES);
 #endif
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsReadable
- *
- * PARAMETERS:  Pointer             - Area to be verified
- *              Length              - Size of area
- *
- * RETURN:      TRUE if readable for entire length
- *
- * DESCRIPTION: Verify that a pointer is valid for reading
- *
- *****************************************************************************/
-
-BOOLEAN
-AcpiOsReadable (
-    void                    *Pointer,
-    ACPI_SIZE               Length)
-{
-
-    return (TRUE);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsWritable
- *
- * PARAMETERS:  Pointer             - Area to be verified
- *              Length              - Size of area
- *
- * RETURN:      TRUE if writable for entire length
- *
- * DESCRIPTION: Verify that a pointer is valid for writing
- *
- *****************************************************************************/
-
-BOOLEAN
-AcpiOsWritable (
-    void                    *Pointer,
-    ACPI_SIZE               Length)
-{
-
-    return (TRUE);
 }
 
 
@@ -353,11 +315,8 @@ AcpiOsPrintf (
 
 
     va_start (Args, Fmt);
-
     AcpiOsVprintf (Fmt, Args);
-
     va_end (Args);
-    return;
 }
 
 
@@ -406,8 +365,6 @@ AcpiOsVprintf (
     {
         Count = vfprintf (AcpiGbl_OutputFile, Fmt, Args);
     }
-
-    return;
 }
 
 
@@ -471,7 +428,7 @@ AcpiOsMapMemory (
     ACPI_SIZE               length)
 {
 
-    return (ACPI_TO_POINTER ((ACPI_NATIVE_UINT) where));
+    return (ACPI_TO_POINTER ((ACPI_SIZE) where));
 }
 
 
@@ -519,8 +476,7 @@ AcpiOsAllocate (
 
 
     Mem = (void *) malloc ((size_t) size);
-
-    return Mem;
+    return (Mem);
 }
 
 
@@ -540,7 +496,6 @@ void
 AcpiOsFree (
     void                    *mem)
 {
-
 
     free (mem);
 }
@@ -565,11 +520,31 @@ AcpiOsCreateSemaphore (
     UINT32              InitialUnits,
     ACPI_HANDLE         *OutHandle)
 {
+    sem_t               *Sem;
 
 
-    *OutHandle = (ACPI_HANDLE) 1;
-    return AE_OK;
+    if (!OutHandle)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+    Sem = AcpiOsAllocate (sizeof (sem_t));
+
+    if (!Sem)
+    {
+        return (AE_NO_MEMORY);
+    }
+
+    if (sem_init (Sem, 0, InitialUnits) == -1)
+    {
+        AcpiOsFree (Sem);
+        return (AE_BAD_PARAMETER);
+    }
+
+    *OutHandle = (ACPI_HANDLE) Sem;
+    return (AE_OK);
 }
+
 
 /******************************************************************************
  *
@@ -587,13 +562,20 @@ ACPI_STATUS
 AcpiOsDeleteSemaphore (
     ACPI_HANDLE         Handle)
 {
+    sem_t               *Sem = (sem_t *) Handle;
 
-    if (!Handle)
+
+    if (!Sem)
     {
-        return AE_BAD_PARAMETER;
+        return (AE_BAD_PARAMETER);
     }
 
-    return AE_OK;
+    if (sem_destroy (Sem) == -1)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+    return (AE_OK);
 }
 
 
@@ -617,9 +599,78 @@ AcpiOsWaitSemaphore (
     UINT32              Units,
     UINT16              Timeout)
 {
+    ACPI_STATUS         Status = AE_OK;
+    sem_t               *Sem = (sem_t *) Handle;
+    struct timespec     T;
 
 
-    return AE_OK;
+    if (!Sem)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+    switch (Timeout)
+    {
+    /*
+     * No Wait:
+     * --------
+     * A zero timeout value indicates that we shouldn't wait - just
+     * acquire the semaphore if available otherwise return AE_TIME
+     * (a.k.a. 'would block').
+     */
+    case 0:
+
+        if (sem_trywait(Sem) == -1)
+        {
+            Status = (AE_TIME);
+        }
+        break;
+
+    /* Wait Indefinitely */
+
+    case ACPI_WAIT_FOREVER:
+
+        if (sem_wait (Sem))
+        {
+            Status = (AE_TIME);
+        }
+        break;
+
+    /* Wait with Timeout */
+
+    default:
+
+        T.tv_sec = Timeout / 1000;
+        T.tv_nsec = (Timeout - (T.tv_sec * 1000)) * 1000000;
+
+#ifdef ACPI_USE_ALTERNATE_TIMEOUT
+        /*
+         * Alternate timeout mechanism for environments where
+         * sem_timedwait is not available or does not work properly.
+         */
+        while (Timeout)
+        {
+            if (sem_trywait (Sem) == 0)
+            {
+                /* Got the semaphore */
+                return (AE_OK);
+            }
+            usleep (1000);  /* one millisecond */
+            Timeout--;
+        }
+        Status = (AE_TIME);
+#else
+
+        if (sem_timedwait (Sem, &T))
+        {
+            Status = (AE_TIME);
+        }
+#endif
+
+        break;
+    }
+
+    return (Status);
 }
 
 
@@ -641,11 +692,30 @@ AcpiOsSignalSemaphore (
     ACPI_HANDLE         Handle,
     UINT32              Units)
 {
+    sem_t               *Sem = (sem_t *)Handle;
 
 
-    return AE_OK;
+    if (!Sem)
+    {
+        return (AE_BAD_PARAMETER);
+    }
+
+    if (sem_post (Sem) == -1)
+    {
+        return (AE_LIMIT);
+    }
+
+    return (AE_OK);
 }
 
+
+/******************************************************************************
+ *
+ * FUNCTION:    Spinlock interfaces
+ *
+ * DESCRIPTION: Map these interfaces to semaphore interfaces
+ *
+ *****************************************************************************/
 
 ACPI_STATUS
 AcpiOsCreateLock (
@@ -654,6 +724,7 @@ AcpiOsCreateLock (
 
     return (AcpiOsCreateSemaphore (1, 1, OutHandle));
 }
+
 
 void
 AcpiOsDeleteLock (
@@ -703,8 +774,7 @@ AcpiOsInstallInterruptHandler (
     void                    *Context)
 {
 
-
-    return AE_OK;
+    return (AE_OK);
 }
 
 
@@ -726,7 +796,7 @@ AcpiOsRemoveInterruptHandler (
     ACPI_OSD_HANDLER        ServiceRoutine)
 {
 
-    return AE_OK;
+    return (AE_OK);
 }
 
 
@@ -750,39 +820,16 @@ AcpiOsExecute (
     ACPI_OSD_EXEC_CALLBACK  Function,
     void                    *Context)
 {
-
-//    _beginthread (Function, (unsigned) 0, Context);
-    return 0;
-}
+    pthread_t               thread;
+    int                     ret;
 
 
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsBreakpoint
- *
- * PARAMETERS:  Msg                 Message to print
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Print a message and break to the debugger.
- *
- *****************************************************************************/
-
-ACPI_STATUS
-AcpiOsBreakpoint (
-    char                    *Msg)
-{
-
-    if (Msg)
+    ret = pthread_create (&thread, NULL, (PTHREAD_CALLBACK) Function, Context);
+    if (ret)
     {
-        AcpiOsPrintf ("AcpiOsBreakpoint: %s ****\n", Msg);
+        AcpiOsPrintf("Create thread failed");
     }
-    else
-    {
-        AcpiOsPrintf ("At AcpiOsBreakpoint ****\n");
-    }
-
-    return AE_OK;
+    return (0);
 }
 
 
@@ -807,7 +854,6 @@ AcpiOsStall (
     {
         usleep (microseconds);
     }
-    return;
 }
 
 
@@ -834,8 +880,6 @@ AcpiOsSleep (
      * Arg to usleep() must be less than 1,000,000 (1 second)
      */
     usleep ((milliseconds % 1000) * 1000);      /* Sleep for remaining usecs */
-
-    return;
 }
 
 /******************************************************************************
@@ -853,9 +897,10 @@ AcpiOsSleep (
 UINT64
 AcpiOsGetTimer (void)
 {
-    struct timeval  time;
+    struct timeval          time;
 
-    gettimeofday(&time, NULL);
+
+    gettimeofday (&time, NULL);
 
     /* Seconds * 10^7 = 100ns(10^-7), Microseconds(10^-6) * 10^1 = 100ns */
 
@@ -882,33 +927,6 @@ AcpiOsValidateInterface (
 {
 
     return (AE_SUPPORT);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsValidateAddress
- *
- * PARAMETERS:  SpaceId             - ACPI space ID
- *              Address             - Physical address
- *              Length              - Address length
- *
- * RETURN:      AE_OK if Address/Length is valid for the SpaceId. Otherwise,
- *              should return AE_AML_ILLEGAL_ADDRESS.
- *
- * DESCRIPTION: Validate a system address via the host OS. Used to validate
- *              the addresses accessed by AML operation regions.
- *
- *****************************************************************************/
-
-ACPI_STATUS
-AcpiOsValidateAddress (
-    UINT8                   SpaceId,
-    ACPI_PHYSICAL_ADDRESS   Address,
-    ACPI_SIZE               Length)
-{
-
-    return (AE_OK);
 }
 
 
@@ -1010,6 +1028,9 @@ AcpiOsReadPort (
     case 32:
         *Value = 0xFFFFFFFF;
         break;
+
+    default:
+        return (AE_BAD_PARAMETER);
     }
 
     return (AE_OK);
@@ -1072,7 +1093,6 @@ AcpiOsReadMemory (
 
     default:
         return (AE_BAD_PARAMETER);
-        break;
     }
     return (AE_OK);
 }
@@ -1103,10 +1123,72 @@ AcpiOsWriteMemory (
 }
 
 
-ACPI_THREAD_ID
-AcpiOsGetThreadId(void)
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsReadable
+ *
+ * PARAMETERS:  Pointer             - Area to be verified
+ *              Length              - Size of area
+ *
+ * RETURN:      TRUE if readable for entire length
+ *
+ * DESCRIPTION: Verify that a pointer is valid for reading
+ *
+ *****************************************************************************/
+
+BOOLEAN
+AcpiOsReadable (
+    void                    *Pointer,
+    ACPI_SIZE               Length)
 {
-    return getpid();
+
+    return (TRUE);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsWritable
+ *
+ * PARAMETERS:  Pointer             - Area to be verified
+ *              Length              - Size of area
+ *
+ * RETURN:      TRUE if writable for entire length
+ *
+ * DESCRIPTION: Verify that a pointer is valid for writing
+ *
+ *****************************************************************************/
+
+BOOLEAN
+AcpiOsWritable (
+    void                    *Pointer,
+    ACPI_SIZE               Length)
+{
+
+    return (TRUE);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsGetThreadId
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Id of the running thread
+ *
+ * DESCRIPTION: Get the Id of the current (running) thread
+ *
+ * NOTE:        The environment header should contain this line:
+ *                  #define ACPI_THREAD_ID pthread_t
+ *
+ *****************************************************************************/
+
+ACPI_THREAD_ID
+AcpiOsGetThreadId (void)
+{
+
+    return (pthread_self ());
 }
 
 
@@ -1119,7 +1201,7 @@ AcpiOsGetThreadId(void)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Miscellaneous functions
+ * DESCRIPTION: Miscellaneous functions. Example implementation only.
  *
  *****************************************************************************/
 
@@ -1135,19 +1217,11 @@ AcpiOsSignal (
         break;
 
     case ACPI_SIGNAL_BREAKPOINT:
+        break;
 
-        if (Info)
-        {
-            AcpiOsPrintf ("AcpiOsBreakpoint: %s ****\n", Info);
-        }
-        else
-        {
-            AcpiOsPrintf ("At AcpiOsBreakpoint ****\n");
-        }
-
+    default:
         break;
     }
-
 
     return (AE_OK);
 }

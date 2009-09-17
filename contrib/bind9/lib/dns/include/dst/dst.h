@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,16 +15,18 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dst.h,v 1.1.6.5 2006/01/27 23:57:44 marka Exp $ */
+/* $Id: dst.h,v 1.12 2008/09/24 02:46:23 marka Exp $ */
 
 #ifndef DST_DST_H
 #define DST_DST_H 1
 
-/*! \file */
+/*! \file dst/dst.h */
 
 #include <isc/lang.h>
 
 #include <dns/types.h>
+
+#include <dst/gssapi.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -49,6 +51,8 @@ typedef struct dst_context 	dst_context_t;
 #define DST_ALG_DSA		3
 #define DST_ALG_ECC		4
 #define DST_ALG_RSASHA1		5
+#define DST_ALG_NSEC3DSA	6
+#define DST_ALG_NSEC3RSASHA1	7
 #define DST_ALG_HMACMD5		157
 #define DST_ALG_GSSAPI		160
 #define DST_ALG_HMACSHA1	161	/* XXXMPA */
@@ -398,16 +402,28 @@ dst_key_privatefrombuffer(dst_key_t *key, isc_buffer_t *buffer);
  *\li	If successful, key will contain a valid private key.
  */
 
+gss_ctx_id_t
+dst_key_getgssctx(const dst_key_t *key);
+/*%<
+ * Returns the opaque key data.
+ * Be cautions when using this value unless you know what you are doing.
+ *
+ * Requires:
+ *\li	"key" is not NULL.
+ *
+ * Returns:
+ *\li	gssctx key data, possibly NULL.
+ */
 
 isc_result_t
-dst_key_fromgssapi(dns_name_t *name, void *opaque, isc_mem_t *mctx,
-		                   dst_key_t **keyp);
+dst_key_fromgssapi(dns_name_t *name, gss_ctx_id_t gssctx, isc_mem_t *mctx,
+		   dst_key_t **keyp);
 /*%<
  * Converts a GSSAPI opaque context id into a DST key.
  *
  * Requires:
  *\li	"name" is a valid absolute dns name.
- *\li	"opaque" is a GSSAPI context id.
+ *\li	"gssctx" is a GSSAPI context id.
  *\li	"mctx" is a valid memory context.
  *\li	"keyp" is not NULL and "*keyp" is NULL.
  *
@@ -419,6 +435,12 @@ dst_key_fromgssapi(dns_name_t *name, void *opaque, isc_mem_t *mctx,
  *\li	If successful, *keyp will contain a valid key and be responsible for
  *	the context id.
  */
+
+isc_result_t
+dst_key_fromlabel(dns_name_t *name, int alg, unsigned int flags,
+		  unsigned int protocol, dns_rdataclass_t rdclass,
+		  const char *engine, const char *label, const char *pin,
+		  isc_mem_t *mctx, dst_key_t **keyp);
 
 isc_result_t
 dst_key_generate(dns_name_t *name, unsigned int alg,

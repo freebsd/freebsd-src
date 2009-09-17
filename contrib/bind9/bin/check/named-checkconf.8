@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named-checkconf.8,v 1.16.18.13 2007/06/20 02:26:58 marka Exp $
+.\" $Id: named-checkconf.8,v 1.30 2007/06/20 02:27:32 marka Exp $
 .\"
 .hy 0
 .ad l
@@ -33,12 +33,17 @@
 named\-checkconf \- named configuration file syntax checking tool
 .SH "SYNOPSIS"
 .HP 16
-\fBnamed\-checkconf\fR [\fB\-v\fR] [\fB\-j\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] {filename} [\fB\-z\fR]
+\fBnamed\-checkconf\fR [\fB\-h\fR] [\fB\-v\fR] [\fB\-j\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] {filename} [\fB\-z\fR]
 .SH "DESCRIPTION"
 .PP
 \fBnamed\-checkconf\fR
 checks the syntax, but not the semantics, of a named configuration file.
 .SH "OPTIONS"
+.PP
+\-h
+.RS 4
+Print the usage summary and exit.
+.RE
 .PP
 \-t \fIdirectory\fR
 .RS 4

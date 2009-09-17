@@ -34,24 +34,35 @@ __FBSDID("$FreeBSD$");
  * RS232 bridges.
  */
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_cdc.h>
-#include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbhid.h>
+#include "usbdevs.h"
 
-#define	USB_DEBUG_VAR usb2_debug
-
-#include <dev/usb/usb_core.h>
+#define	USB_DEBUG_VAR usb_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_hid.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
@@ -66,11 +77,12 @@ enum {
 };
 
 struct ucycom_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[UCYCOM_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct usb_xfer *sc_xfer[UCYCOM_N_TRANSFER];
+	struct mtx sc_mtx;
 
 	uint32_t sc_model;
 #define	MODEL_CY7C63743		0x63743
@@ -101,48 +113,47 @@ static device_probe_t ucycom_probe;
 static device_attach_t ucycom_attach;
 static device_detach_t ucycom_detach;
 
-static usb2_callback_t ucycom_ctrl_write_callback;
-static usb2_callback_t ucycom_intr_read_callback;
+static usb_callback_t ucycom_ctrl_write_callback;
+static usb_callback_t ucycom_intr_read_callback;
 
-static void	ucycom_cfg_open(struct usb2_com_softc *);
-static void	ucycom_start_read(struct usb2_com_softc *);
-static void	ucycom_stop_read(struct usb2_com_softc *);
-static void	ucycom_start_write(struct usb2_com_softc *);
-static void	ucycom_stop_write(struct usb2_com_softc *);
+static void	ucycom_cfg_open(struct ucom_softc *);
+static void	ucycom_start_read(struct ucom_softc *);
+static void	ucycom_stop_read(struct ucom_softc *);
+static void	ucycom_start_write(struct ucom_softc *);
+static void	ucycom_stop_write(struct ucom_softc *);
 static void	ucycom_cfg_write(struct ucycom_softc *, uint32_t, uint8_t);
-static int	ucycom_pre_param(struct usb2_com_softc *, struct termios *);
-static void	ucycom_cfg_param(struct usb2_com_softc *, struct termios *);
+static int	ucycom_pre_param(struct ucom_softc *, struct termios *);
+static void	ucycom_cfg_param(struct ucom_softc *, struct termios *);
 
-static const struct usb2_config ucycom_config[UCYCOM_N_TRANSFER] = {
+static const struct usb_config ucycom_config[UCYCOM_N_TRANSFER] = {
 
 	[UCYCOM_CTRL_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = (sizeof(struct usb2_device_request) + UCYCOM_MAX_IOLEN),
-		.mh.flags = {},
-		.mh.callback = &ucycom_ctrl_write_callback,
-		.mh.timeout = 1000,	/* 1 second */
+		.bufsize = (sizeof(struct usb_device_request) + UCYCOM_MAX_IOLEN),
+		.callback = &ucycom_ctrl_write_callback,
+		.timeout = 1000,	/* 1 second */
 	},
 
 	[UCYCOM_INTR_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = UCYCOM_MAX_IOLEN,
-		.mh.callback = &ucycom_intr_read_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = UCYCOM_MAX_IOLEN,
+		.callback = &ucycom_intr_read_callback,
 	},
 };
 
-static const struct usb2_com_callback ucycom_callback = {
-	.usb2_com_cfg_param = &ucycom_cfg_param,
-	.usb2_com_cfg_open = &ucycom_cfg_open,
-	.usb2_com_pre_param = &ucycom_pre_param,
-	.usb2_com_start_read = &ucycom_start_read,
-	.usb2_com_stop_read = &ucycom_stop_read,
-	.usb2_com_start_write = &ucycom_start_write,
-	.usb2_com_stop_write = &ucycom_stop_write,
+static const struct ucom_callback ucycom_callback = {
+	.ucom_cfg_param = &ucycom_cfg_param,
+	.ucom_cfg_open = &ucycom_cfg_open,
+	.ucom_pre_param = &ucycom_pre_param,
+	.ucom_start_read = &ucycom_start_read,
+	.ucom_stop_read = &ucycom_stop_read,
+	.ucom_start_write = &ucycom_start_write,
+	.ucom_stop_write = &ucycom_stop_write,
 };
 
 static device_method_t ucycom_methods[] = {
@@ -160,14 +171,14 @@ static driver_t ucycom_driver = {
 	.size = sizeof(struct ucycom_softc),
 };
 
-DRIVER_MODULE(ucycom, ushub, ucycom_driver, ucycom_devclass, NULL, 0);
+DRIVER_MODULE(ucycom, uhub, ucycom_driver, ucycom_devclass, NULL, 0);
 MODULE_DEPEND(ucycom, ucom, 1, 1, 1);
 MODULE_DEPEND(ucycom, usb, 1, 1, 1);
 
 /*
  * Supported devices
  */
-static const struct usb2_device_id ucycom_devs[] = {
+static const struct usb_device_id ucycom_devs[] = {
 	{USB_VPI(USB_VENDOR_DELORME, USB_PRODUCT_DELORME_EARTHMATE, MODEL_CY7C64013)},
 };
 
@@ -177,9 +188,9 @@ static const struct usb2_device_id ucycom_devs[] = {
 static int
 ucycom_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != 0) {
@@ -188,13 +199,13 @@ ucycom_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != UCYCOM_IFACE_INDEX) {
 		return (ENXIO);
 	}
-	return (usb2_lookup_id_by_uaa(ucycom_devs, sizeof(ucycom_devs), uaa));
+	return (usbd_lookup_id_by_uaa(ucycom_devs, sizeof(ucycom_devs), uaa));
 }
 
 static int
 ucycom_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct ucycom_softc *sc = device_get_softc(dev);
 	void *urd_ptr = NULL;
 	int32_t error;
@@ -203,7 +214,8 @@ ucycom_attach(device_t dev)
 
 	sc->sc_udev = uaa->device;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
+	mtx_init(&sc->sc_mtx, "ucycom", NULL, MTX_DEF);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
 	    "%s", device_get_nameunit(dev));
@@ -220,15 +232,14 @@ ucycom_attach(device_t dev)
 
 	/* get report descriptor */
 
-	error = usb2_req_get_hid_desc
-	    (uaa->device, &Giant,
+	error = usbd_req_get_hid_desc(uaa->device, NULL,
 	    &urd_ptr, &urd_len, M_USBDEV,
 	    UCYCOM_IFACE_INDEX);
 
 	if (error) {
 		device_printf(dev, "failed to get report "
 		    "descriptor: %s\n",
-		    usb2_errstr(error));
+		    usbd_errstr(error));
 		goto detach;
 	}
 	/* get report sizes */
@@ -248,16 +259,16 @@ ucycom_attach(device_t dev)
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 
 	iface_index = UCYCOM_IFACE_INDEX;
-	error = usb2_transfer_setup(uaa->device, &iface_index,
+	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, ucycom_config, UCYCOM_N_TRANSFER,
-	    sc, &Giant);
+	    sc, &sc->sc_mtx);
 	if (error) {
 		device_printf(dev, "allocating USB "
 		    "transfers failed!\n");
 		goto detach;
 	}
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &ucycom_callback, &Giant);
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	    &ucycom_callback, &sc->sc_mtx);
 
 	if (error) {
 		goto detach;
@@ -280,15 +291,15 @@ ucycom_detach(device_t dev)
 {
 	struct ucycom_softc *sc = device_get_softc(dev);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
-	usb2_transfer_unsetup(sc->sc_xfer, UCYCOM_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UCYCOM_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
 
 static void
-ucycom_cfg_open(struct usb2_com_softc *ucom)
+ucycom_cfg_open(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
@@ -297,45 +308,49 @@ ucycom_cfg_open(struct usb2_com_softc *ucom)
 }
 
 static void
-ucycom_start_read(struct usb2_com_softc *ucom)
+ucycom_start_read(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UCYCOM_INTR_RD]);
+	usbd_transfer_start(sc->sc_xfer[UCYCOM_INTR_RD]);
 }
 
 static void
-ucycom_stop_read(struct usb2_com_softc *ucom)
+ucycom_stop_read(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UCYCOM_INTR_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UCYCOM_INTR_RD]);
 }
 
 static void
-ucycom_start_write(struct usb2_com_softc *ucom)
+ucycom_start_write(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UCYCOM_CTRL_RD]);
+	usbd_transfer_start(sc->sc_xfer[UCYCOM_CTRL_RD]);
 }
 
 static void
-ucycom_stop_write(struct usb2_com_softc *ucom)
+ucycom_stop_write(struct ucom_softc *ucom)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UCYCOM_CTRL_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UCYCOM_CTRL_RD]);
 }
 
 static void
-ucycom_ctrl_write_callback(struct usb2_xfer *xfer)
+ucycom_ctrl_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ucycom_softc *sc = xfer->priv_sc;
-	struct usb2_device_request req;
+	struct ucycom_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_device_request req;
+	struct usb_page_cache *pc0, *pc1;
 	uint8_t data[2];
 	uint8_t offset;
 	uint32_t actlen;
+
+	pc0 = usbd_xfer_get_frame(xfer, 0);
+	pc1 = usbd_xfer_get_frame(xfer, 1);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -354,7 +369,7 @@ tr_transferred:
 			break;
 		}
 
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers + 1, offset,
+		if (ucom_get_data(&sc->sc_ucom, pc1, offset,
 		    sc->sc_olen - offset, &actlen)) {
 
 			req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
@@ -376,22 +391,22 @@ tr_transferred:
 				break;
 			}
 
-			usb2_copy_in(xfer->frbuffers, 0, &req, sizeof(req));
-			usb2_copy_in(xfer->frbuffers + 1, 0, data, offset);
+			usbd_copy_in(pc0, 0, &req, sizeof(req));
+			usbd_copy_in(pc1, 0, data, offset);
 
-			xfer->frlengths[0] = sizeof(req);
-			xfer->frlengths[1] = sc->sc_olen;
-			xfer->nframes = xfer->frlengths[1] ? 2 : 1;
-			usb2_start_hardware(xfer);
+			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
+			usbd_xfer_set_frame_len(xfer, 1, sc->sc_olen);
+			usbd_xfer_set_frames(xfer, sc->sc_olen ? 2 : 1);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			return;
 		}
 		DPRINTF("error=%s\n",
-		    usb2_errstr(xfer->error));
+		    usbd_errstr(error));
 		goto tr_transferred;
 	}
 }
@@ -399,9 +414,9 @@ tr_transferred:
 static void
 ucycom_cfg_write(struct ucycom_softc *sc, uint32_t baud, uint8_t cfg)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t len;
-	usb2_error_t err;
+	usb_error_t err;
 
 	len = sc->sc_flen;
 	if (len > sizeof(sc->sc_temp_cfg)) {
@@ -422,16 +437,16 @@ ucycom_cfg_write(struct ucycom_softc *sc, uint32_t baud, uint8_t cfg)
 	sc->sc_temp_cfg[3] = (baud >> 24) & 0xff;
 	sc->sc_temp_cfg[4] = cfg;
 
-	err = usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
+	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, sc->sc_temp_cfg, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "
-		    "(ignored)\n", usb2_errstr(err));
+		    "(ignored)\n", usbd_errstr(err));
 	}
 }
 
 static int
-ucycom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+ucycom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	switch (t->c_ospeed) {
 		case 600:
@@ -459,7 +474,7 @@ ucycom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-ucycom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+ucycom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct ucycom_softc *sc = ucom->sc_parent;
 	uint8_t cfg;
@@ -494,42 +509,45 @@ ucycom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-ucycom_intr_read_callback(struct usb2_xfer *xfer)
+ucycom_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ucycom_softc *sc = xfer->priv_sc;
+	struct ucycom_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint8_t buf[2];
 	uint32_t offset;
 	uint32_t len;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+	pc = usbd_xfer_get_frame(xfer, 0);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		switch (sc->sc_model) {
 		case MODEL_CY7C63743:
-			if (xfer->actlen < 1) {
+			if (actlen < 1) {
 				goto tr_setup;
 			}
-			usb2_copy_out(xfer->frbuffers, 0, buf, 1);
+			usbd_copy_out(pc, 0, buf, 1);
 
 			sc->sc_ist = buf[0] & ~0x07;
 			len = buf[0] & 0x07;
 
-			(xfer->actlen)--;
-
+			actlen--;
 			offset = 1;
 
 			break;
 
 		case MODEL_CY7C64013:
-			if (xfer->actlen < 2) {
+			if (actlen < 2) {
 				goto tr_setup;
 			}
-			usb2_copy_out(xfer->frbuffers, 0, buf, 2);
+			usbd_copy_out(pc, 0, buf, 2);
 
 			sc->sc_ist = buf[0] & ~0x07;
 			len = buf[1];
 
-			(xfer->actlen) -= 2;
-
+			actlen -= 2;
 			offset = 2;
 
 			break;
@@ -539,23 +557,21 @@ ucycom_intr_read_callback(struct usb2_xfer *xfer)
 			goto tr_setup;
 		}
 
-		if (len > xfer->actlen) {
-			len = xfer->actlen;
-		}
-		if (len) {
-			usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers,
-			    offset, len);
-		}
+		if (len > actlen)
+			len = actlen;
+		if (len)
+			ucom_put_data(&sc->sc_ucom, pc, offset, len);
+		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = sc->sc_ilen;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, sc->sc_ilen);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;

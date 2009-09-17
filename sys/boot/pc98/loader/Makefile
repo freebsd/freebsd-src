@@ -18,6 +18,7 @@ CFLAGS+=	-DLOADER_TFTP_SUPPORT
 CFLAGS+=	-DLOADER_NFS_SUPPORT
 .endif
 
+# Include bcache code.
 HAVE_BCACHE=	yes
 
 # Enable PnP and ISA-PnP code.

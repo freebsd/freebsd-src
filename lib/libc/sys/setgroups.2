@@ -53,9 +53,7 @@ The
 argument
 indicates the number of entries in the array and must be no
 more than
-.Dv NGROUPS ,
-as defined in
-.In sys/param.h .
+.Dv {NGROUPS_MAX}+1 .
 .Pp
 Only the super-user may set a new group list.
 .Sh RETURN VALUES
@@ -71,7 +69,7 @@ The caller is not the super-user.
 The number specified in the
 .Fa ngroups
 argument is larger than the
-.Dv NGROUPS
+.Dv {NGROUPS_MAX}+1
 limit.
 .It Bq Er EFAULT
 The address specified for

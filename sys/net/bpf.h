@@ -726,6 +726,94 @@ struct bpf_zbuf_header {
 #define DLT_BLUETOOTH_HCI_H4_WITH_PHDR	201
 
 /*
+ * AX.25 packet with a 1-byte KISS header; see
+ *
+ *      http://www.ax25.net/kiss.htm
+ *
+ * as per Richard Stearn <richard@rns-stearn.demon.co.uk>.
+ */
+#define DLT_AX25_KISS           202
+
+/*
+ * LAPD packets from an ISDN channel, starting with the address field,
+ * with no pseudo-header.
+ * Requested by Varuna De Silva <varunax@gmail.com>.
+ */
+#define DLT_LAPD                203
+
+/*
+ * Variants of various link-layer headers, with a one-byte direction
+ * pseudo-header prepended - zero means "received by this host",
+ * non-zero (any non-zero value) means "sent by this host" - as per
+ * Will Barker <w.barker@zen.co.uk>.
+ */
+#define DLT_PPP_WITH_DIR        204     /* PPP - don't confuse with DLT_PPP_WITH_DIRECTION */
+#define DLT_C_HDLC_WITH_DIR     205     /* Cisco HDLC */
+#define DLT_FRELAY_WITH_DIR     206     /* Frame Relay */
+#define DLT_LAPB_WITH_DIR       207     /* LAPB */
+
+/*
+ * 208 is reserved for an as-yet-unspecified proprietary link-layer
+ * type, as requested by Will Barker.
+ */
+
+/*
+ * IPMB with a Linux-specific pseudo-header; as requested by Alexey Neyman
+ * <avn@pigeonpoint.com>.
+ */
+#define DLT_IPMB_LINUX          209
+
+/*
+ * FlexRay automotive bus - http://www.flexray.com/ - as requested
+ * by Hannes Kaelber <hannes.kaelber@x2e.de>.
+ */
+#define DLT_FLEXRAY             210
+
+/*
+ * Media Oriented Systems Transport (MOST) bus for multimedia
+ * transport - http://www.mostcooperation.com/ - as requested
+ * by Hannes Kaelber <hannes.kaelber@x2e.de>.
+ */
+#define DLT_MOST                211
+
+/*
+ * Local Interconnect Network (LIN) bus for vehicle networks -
+ * http://www.lin-subbus.org/ - as requested by Hannes Kaelber
+ * <hannes.kaelber@x2e.de>.
+ */
+#define DLT_LIN                 212
+
+/*
+ * X2E-private data link type used for serial line capture,
+ * as requested by Hannes Kaelber <hannes.kaelber@x2e.de>.
+ */
+#define DLT_X2E_SERIAL          213
+
+/*
+ * X2E-private data link type used for the Xoraya data logger
+ * family, as requested by Hannes Kaelber <hannes.kaelber@x2e.de>.
+ */
+#define DLT_X2E_XORAYA          214
+
+/*
+ * IEEE 802.15.4, exactly as it appears in the spec (no padding, no
+ * nothing), but with the PHY-level data for non-ASK PHYs (4 octets
+ * of 0 as preamble, one octet of SFD, one octet of frame length+
+ * reserved bit, and then the MAC-layer data, starting with the
+ * frame control field).
+ *
+ * Requested by Max Filippov <jcmvbkbc@gmail.com>.
+ */
+#define DLT_IEEE802_15_4_NONASK_PHY     215
+
+/*
+ * DLT and savefile link type values are split into a class and
+ * a member of that class.  A class value of 0 indicates a regular
+ * DLT_/LINKTYPE_ value.
+ */
+#define DLT_CLASS(x)            ((x) & 0x03ff0000)
+
+/*
  * The instruction encodings.
  */
 /* instruction classes */

@@ -160,7 +160,7 @@ static void
 my_connect(int sock, struct sockaddr *sa, socklen_t len)
 {
 
-	if (connect(sock, sa, len) < 0)
+	if (connect(sock, sa, len) < 0 && errno != EINPROGRESS)
 		err(-1, "%s: connect", test);
 }
 

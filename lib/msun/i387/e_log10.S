@@ -42,3 +42,4 @@ ENTRY(log10)
 	fldl	4(%esp)
 	fyl2x
 	ret
+END(log10)

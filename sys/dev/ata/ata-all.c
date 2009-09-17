@@ -291,7 +291,7 @@ ata_reinit(device_t dev)
     ATA_LOCKING(dev, ATA_LF_UNLOCK);
 
     /* Add new children. */
-    ata_identify(dev);
+/*    ata_identify(dev); */
 
     if (bootverbose)
 	device_printf(dev, "reinit done ..\n");
@@ -472,6 +472,7 @@ int
 ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 {
     struct ata_device *atadev = device_get_softc(dev);
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_ioc_request *ioc_request = (struct ata_ioc_request *)data;
     struct ata_params *params = (struct ata_params *)data;
     int *mode = (int *)data;
@@ -481,6 +482,10 @@ ata_device_ioctl(device_t dev, u_long cmd, caddr_t data)
 
     switch (cmd) {
     case IOCATAREQUEST:
+	if (ioc_request->count >
+	    (ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS)) {
+		return (EFBIG);
+	}
 	if (!(buf = malloc(ioc_request->count, M_ATA, M_NOWAIT))) {
 	    return ENOMEM;
 	}
@@ -627,7 +632,9 @@ ata_getparam(struct ata_device *atadev, int init)
 	request->timeout = 1;
 	request->retries = 0;
 	request->u.ata.command = command;
-	request->flags = (ATA_R_READ|ATA_R_AT_HEAD|ATA_R_DIRECT|ATA_R_QUIET);
+	request->flags = (ATA_R_READ|ATA_R_AT_HEAD|ATA_R_DIRECT);
+	if (!bootverbose)
+	    request->flags |= ATA_R_QUIET;
 	request->data = (void *)&atadev->param;
 	request->bytecount = sizeof(struct ata_params);
 	request->donecount = 0;
@@ -704,7 +711,7 @@ ata_identify(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_device *atadev;
     device_t *children;
-    device_t child;
+    device_t child, master = NULL;
     int nchildren, i, n = ch->devices;
 
     if (bootverbose)
@@ -741,6 +748,15 @@ ata_identify(device_t dev)
 		unit = (device_get_unit(dev) << 1) + i;
 #endif
 	    if ((child = ata_add_child(dev, atadev, unit))) {
+		/*
+		 * PATA slave should be identified first, to allow
+		 * device cable detection on master to work properly.
+		 */
+		if (i == 0 && (n & ATA_PORTMULTIPLIER) == 0 &&
+			(n & ((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << 1)) != 0) {
+		    master = child;
+		    continue;
+		}
 		if (ata_getparam(atadev, 1)) {
 		    device_delete_child(dev, child);
 		    free(atadev, M_ATA);
@@ -748,6 +764,13 @@ ata_identify(device_t dev)
 	    }
 	    else
 		free(atadev, M_ATA);
+	}
+    }
+    if (master) {
+	atadev = device_get_softc(master);
+	if (ata_getparam(atadev, 1)) {
+	    device_delete_child(dev, master);
+	    free(atadev, M_ATA);
 	}
     }
     bus_generic_probe(dev);

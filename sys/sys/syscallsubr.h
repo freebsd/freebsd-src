@@ -37,6 +37,7 @@
 struct file;
 struct itimerval;
 struct image_args;
+struct jail;
 struct mbuf;
 struct msghdr;
 struct msqid_ds;
@@ -105,6 +106,9 @@ int	kern_getsockname(struct thread *td, int fd, struct sockaddr **sa,
 int	kern_getsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t *valsize);
 int	kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data);
+int	kern_jail(struct thread *td, struct jail *j);
+int	kern_jail_get(struct thread *td, struct uio *options, int flags);
+int	kern_jail_set(struct thread *td, struct uio *options, int flags);
 int	kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	    struct kevent_copyops *k_ops, const struct timespec *timeout);
 int	kern_kldload(struct thread *td, const char *file, int *fileid);
@@ -141,7 +145,7 @@ int	kern_open(struct thread *td, char *path, enum uio_seg pathseg,
 int	kern_openat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int flags, int mode);
 int	kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg,
-	    int name);
+	    int name, u_long flags);
 int	kern_pipe(struct thread *td, int fildes[2]);
 int	kern_preadv(struct thread *td, int fd, struct uio *auio, off_t offset);
 int	kern_ptrace(struct thread *td, int req, pid_t pid, void *addr,
@@ -166,7 +170,7 @@ int	kern_sched_rr_get_interval(struct thread *td, pid_t pid,
 int	kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 	    union semun *arg, register_t *rval);
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
-	    fd_set *fd_ex, struct timeval *tvp);
+	    fd_set *fd_ex, struct timeval *tvp, int abi_nfdbits);
 int	kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	    struct uio *hdr_uio, struct uio *trl_uio, int compat);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
@@ -216,6 +220,8 @@ int	kern_utimesat(struct thread *td, int fd, char *path,
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
 int	kern_writev(struct thread *td, int fd, struct uio *auio);
+int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
+	    int *rsv);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */

@@ -14,6 +14,7 @@ ENTRY(scalbnf)
 	fscale
 	fstp	%st(1)		/* bug fix for fp stack overflow */
 	ret
+END(scalbnf)
 
 .globl CNAME(ldexpf)
 .set	CNAME(ldexpf),CNAME(scalbnf)

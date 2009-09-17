@@ -67,6 +67,7 @@ struct ifinfo {
 extern struct timeval tm_max;
 extern int dflag;
 extern int aflag;
+extern int Fflag;
 extern char *otherconf_script;
 extern int ifconfig(char *);
 extern void iflist_init(void);

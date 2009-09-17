@@ -168,7 +168,7 @@ struct bpb {
 static struct {
     const char *name;
     struct bpb bpb;
-} stdfmt[] = {
+} const stdfmt[] = {
     {"160",  {512, 1, 1, 2,  64,  320, 0xfe, 1,  8, 1, BPBGAP}},
     {"180",  {512, 1, 1, 2,  64,  360, 0xfc, 2,  9, 1, BPBGAP}},
     {"320",  {512, 2, 1, 2, 112,  640, 0xff, 1,  8, 2, BPBGAP}},
@@ -181,7 +181,7 @@ static struct {
     {"2880", {512, 2, 1, 2, 240, 5760, 0xf0, 9, 36, 2, BPBGAP}}
 };
 
-static u_int8_t bootcode[] = {
+static const u_int8_t bootcode[] = {
     0xfa,			/* cli		    */
     0x31, 0xc0, 		/* xor	   ax,ax    */
     0x8e, 0xd0, 		/* mov	   ss,ax    */
@@ -232,13 +232,13 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-    static char opts[] = "@:NB:C:F:I:L:O:S:a:b:c:e:f:h:i:k:m:n:o:r:s:u:";
-    static const char *opt_B, *opt_L, *opt_O, *opt_f;
-    static u_int opt_F, opt_I, opt_S, opt_a, opt_b, opt_c, opt_e;
-    static u_int opt_h, opt_i, opt_k, opt_m, opt_n, opt_o, opt_r;
-    static u_int opt_s, opt_u;
-    static int opt_N;
-    static int Iflag, mflag, oflag;
+    static const char opts[] = "@:NB:C:F:I:L:O:S:a:b:c:e:f:h:i:k:m:n:o:r:s:u:";
+    const char *opt_B = NULL, *opt_L = NULL, *opt_O = NULL, *opt_f = NULL;
+    u_int opt_F = 0, opt_I = 0, opt_S = 0, opt_a = 0, opt_b = 0, opt_c = 0;
+    u_int opt_e = 0, opt_h = 0, opt_i = 0, opt_k = 0, opt_m = 0, opt_n = 0;
+    u_int opt_o = 0, opt_r = 0, opt_s = 0, opt_u = 0;
+    int opt_N = 0;
+    int Iflag = 0, mflag = 0, oflag = 0;
     char buf[MAXPATHLEN];
     struct stat sb;
     struct timeval tv;
@@ -255,7 +255,7 @@ main(int argc, char *argv[])
     time_t now;
     u_int fat, bss, rds, cls, dir, lsn, x, x1, x2;
     int ch, fd, fd1;
-    static off_t opt_create=0, opt_ofs=0;
+    off_t opt_create = 0, opt_ofs = 0;
 
     while ((ch = getopt(argc, argv, opts)) != -1)
 	switch (ch) {
@@ -349,31 +349,33 @@ main(int argc, char *argv[])
     if (argc < 1 || argc > 2)
 	usage();
     fname = *argv++;
-    if (!strchr(fname, '/')) {
+    if (!opt_create && !strchr(fname, '/')) {
 	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
 	if (!(fname = strdup(buf)))
 	    err(1, NULL);
     }
     dtype = *argv;
     if (opt_create) {
-	off_t pos;
-
 	if (opt_N)
 	    errx(1, "create (-C) is incompatible with -N");
 	fd = open(fname, O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (fd == -1)
 	    errx(1, "failed to create %s", fname);
-	pos = lseek(fd, opt_create - 1, SEEK_SET);
-	if (write(fd, "\0", 1) != 1)
+	if (ftruncate(fd, opt_create))
 	    errx(1, "failed to initialize %jd bytes", (intmax_t)opt_create);
-	pos = lseek(fd, 0, SEEK_SET);
-    } else if ((fd = open(fname, opt_N ? O_RDONLY : O_RDWR)) == -1 ||
-	fstat(fd, &sb))
+    } else if ((fd = open(fname, opt_N ? O_RDONLY : O_RDWR)) == -1)
 	err(1, "%s", fname);
+    if (fstat(fd, &sb))
+	err(1, "%s", fname);
+    if (opt_create) {
+	if (!S_ISREG(sb.st_mode))
+	    warnx("warning, %s is not a regular file", fname);
+    } else {
+	if (!S_ISCHR(sb.st_mode))
+	    warnx("warning, %s is not a character device", fname);
+    }
     if (!opt_N)
 	check_mounted(fname, sb.st_mode);
-    if (!S_ISCHR(sb.st_mode))
-	warnx("warning, %s is not a character device", fname);
     if (opt_ofs && opt_ofs != lseek(fd, opt_ofs, SEEK_SET))
 	errx(1, "cannot seek to %jd", (intmax_t)opt_ofs);
     memset(&bpb, 0, sizeof(bpb));
@@ -793,13 +795,25 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
     /* Maybe it's a fixed drive */
     if (lp == NULL) {
 	if (ioctl(fd, DIOCGDINFO, &dlp) == -1) {
-	    if (ioctl(fd, DIOCGSECTORSIZE, &dlp.d_secsize) == -1)
+	    if (bpb->bps == 0 && ioctl(fd, DIOCGSECTORSIZE, &dlp.d_secsize) == -1)
 		errx(1, "Cannot get sector size, %s", strerror(errno));
-	    if (ioctl(fd, DIOCGFWSECTORS, &dlp.d_nsectors) == -1)
-		errx(1, "Cannot get number of sectors, %s", strerror(errno));
-	    if (ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks)== -1)
-		errx(1, "Cannot get number of heads, %s", strerror(errno));
+
+	    /* XXX Should we use bpb->bps if it's set? */
 	    dlp.d_secperunit = ms / dlp.d_secsize;
+
+	    if (bpb->spt == 0 && ioctl(fd, DIOCGFWSECTORS, &dlp.d_nsectors) == -1) {
+		warnx("Cannot get number of sectors per track, %s", strerror(errno));
+		dlp.d_nsectors = 63;
+	    }
+	    if (bpb->hds == 0 && ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks) == -1) {
+		warnx("Cannot get number of heads, %s", strerror(errno));
+		if (dlp.d_secperunit <= 63*1*1024)
+		    dlp.d_ntracks = 1;
+		else if (dlp.d_secperunit <= 63*16*1024)
+		    dlp.d_ntracks = 16;
+		else
+		    dlp.d_ntracks = 255;
+	    }
 	}
 
 	hs = (ms / dlp.d_secsize) - dlp.d_secperunit;
@@ -971,30 +985,31 @@ setstr(u_int8_t *dest, const char *src, size_t len)
 static void
 usage(void)
 {
-    fprintf(stderr,
-	    "usage: newfs_msdos [ -options ] special [disktype]\n");
-    fprintf(stderr, "where the options are:\n");
-    fprintf(stderr, "\t-N don't create file system: "
-	    "just print out parameters\n");
-    fprintf(stderr, "\t-B get bootstrap from file\n");
-    fprintf(stderr, "\t-F FAT type (12, 16, or 32)\n");
-    fprintf(stderr, "\t-I volume ID\n");
-    fprintf(stderr, "\t-L volume label\n");
-    fprintf(stderr, "\t-O OEM string\n");
-    fprintf(stderr, "\t-S bytes/sector\n");
-    fprintf(stderr, "\t-a sectors/FAT\n");
-    fprintf(stderr, "\t-b block size\n");
-    fprintf(stderr, "\t-c sectors/cluster\n");
-    fprintf(stderr, "\t-e root directory entries\n");
-    fprintf(stderr, "\t-f standard format\n");
-    fprintf(stderr, "\t-h drive heads\n");
-    fprintf(stderr, "\t-i file system info sector\n");
-    fprintf(stderr, "\t-k backup boot sector\n");
-    fprintf(stderr, "\t-m media descriptor\n");
-    fprintf(stderr, "\t-n number of FATs\n");
-    fprintf(stderr, "\t-o hidden sectors\n");
-    fprintf(stderr, "\t-r reserved sectors\n");
-    fprintf(stderr, "\t-s file system size (sectors)\n");
-    fprintf(stderr, "\t-u sectors/track\n");
-    exit(1);
+	fprintf(stderr,
+	    "usage: newfs_msdos [ -options ] special [disktype]\n"
+	    "where the options are:\n"
+	    "\t-@ create file system at specified offset\n"                         
+	    "\t-B get bootstrap from file\n"
+	    "\t-C create image file with specified size\n"
+	    "\t-F FAT type (12, 16, or 32)\n"
+	    "\t-I volume ID\n"
+	    "\t-L volume label\n"
+	    "\t-N don't create file system: just print out parameters\n"
+	    "\t-O OEM string\n"
+	    "\t-S bytes/sector\n"
+	    "\t-a sectors/FAT\n"
+	    "\t-b block size\n"
+	    "\t-c sectors/cluster\n"
+	    "\t-e root directory entries\n"
+	    "\t-f standard format\n"
+	    "\t-h drive heads\n"
+	    "\t-i file system info sector\n"
+	    "\t-k backup boot sector\n"
+	    "\t-m media descriptor\n"
+	    "\t-n number of FATs\n"
+	    "\t-o hidden sectors\n"
+	    "\t-r reserved sectors\n"
+	    "\t-s file system size (sectors)\n"
+	    "\t-u sectors/track\n");
+	exit(1);
 }

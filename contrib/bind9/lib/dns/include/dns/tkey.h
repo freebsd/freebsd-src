@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,18 +15,19 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tkey.h,v 1.19.18.2 2005/04/29 00:16:23 marka Exp $ */
+/* $Id: tkey.h,v 1.26.332.2 2009/01/18 23:47:41 tbox Exp $ */
 
 #ifndef DNS_TKEY_H
 #define DNS_TKEY_H 1
 
-/*! \file */
+/*! \file dns/tkey.h */
 
 #include <isc/lang.h>
 
 #include <dns/types.h>
 
 #include <dst/dst.h>
+#include <dst/gssapi.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -40,13 +41,14 @@ ISC_LANG_BEGINDECLS
 struct dns_tkeyctx {
 	dst_key_t *dhkey;
 	dns_name_t *domain;
-	void *gsscred;
+	gss_cred_id_t gsscred;
 	isc_mem_t *mctx;
 	isc_entropy_t *ectx;
 };
 
 isc_result_t
-dns_tkeyctx_create(isc_mem_t *mctx, isc_entropy_t *ectx, dns_tkeyctx_t **tctxp);
+dns_tkeyctx_create(isc_mem_t *mctx, isc_entropy_t *ectx,
+		   dns_tkeyctx_t **tctxp);
 /*%<
  *	Create an empty TKEY context.
  *
@@ -119,12 +121,28 @@ dns_tkey_builddhquery(dns_message_t *msg, dst_key_t *key, dns_name_t *name,
  */
 
 isc_result_t
-dns_tkey_buildgssquery(dns_message_t *msg, dns_name_t *name,
-		       dns_name_t *gname, void *cred,
-		       isc_uint32_t lifetime, void **context);
+dns_tkey_buildgssquery(dns_message_t *msg, dns_name_t *name, dns_name_t *gname,
+		       isc_buffer_t *intoken, isc_uint32_t lifetime,
+		       gss_ctx_id_t *context, isc_boolean_t win2k);
 /*%<
- * XXX
+ *	Builds a query containing a TKEY that will generate a GSSAPI context.
+ *	The key is requested to have the specified lifetime (in seconds).
+ *
+ *	Requires:
+ *\li		'msg'	  is a valid message
+ *\li		'name'	  is a valid name
+ *\li		'gname'	  is a valid name
+ *\li		'context' is a pointer to a valid gss_ctx_id_t
+ *			  (which may have the value GSS_C_NO_CONTEXT)
+ *\li		'win2k'   when true says to turn on some hacks to work
+ *			  with the non-standard GSS-TSIG of Windows 2000
+ *
+ *	Returns:
+ *\li		ISC_R_SUCCESS	msg was successfully updated to include the
+ *				query to be sent
+ *\li		other		an error occurred while building the message
  */
+
 
 isc_result_t
 dns_tkey_builddeletequery(dns_message_t *msg, dns_tsigkey_t *key);
@@ -144,7 +162,7 @@ dns_tkey_builddeletequery(dns_message_t *msg, dns_tsigkey_t *key);
 
 isc_result_t
 dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
-                           dst_key_t *key, isc_buffer_t *nonce,
+			   dst_key_t *key, isc_buffer_t *nonce,
 			   dns_tsigkey_t **outkey, dns_tsig_keyring_t *ring);
 /*%<
  *	Processes a response to a query containing a TKEY that was
@@ -167,8 +185,9 @@ dns_tkey_processdhresponse(dns_message_t *qmsg, dns_message_t *rmsg,
 
 isc_result_t
 dns_tkey_processgssresponse(dns_message_t *qmsg, dns_message_t *rmsg,
-			    dns_name_t *gname, void *cred, void **context,
-			    dns_tsigkey_t **outkey, dns_tsig_keyring_t *ring);
+			    dns_name_t *gname, gss_ctx_id_t *context,
+			    isc_buffer_t *outtoken, dns_tsigkey_t **outkey,
+			    dns_tsig_keyring_t *ring);
 /*%<
  * XXX
  */
@@ -192,6 +211,39 @@ dns_tkey_processdeleteresponse(dns_message_t *qmsg, dns_message_t *rmsg,
  *				component of the query or response
  */
 
+
+isc_result_t
+dns_tkey_gssnegotiate(dns_message_t *qmsg, dns_message_t *rmsg,
+		      dns_name_t *server, gss_ctx_id_t *context,
+		      dns_tsigkey_t **outkey, dns_tsig_keyring_t *ring,
+		      isc_boolean_t win2k);
+
+/*
+ *	Client side negotiation of GSS-TSIG.  Process the response
+ *	to a TKEY, and establish a TSIG key if negotiation was successful.
+ *	Build a response to the input TKEY message.  Can take multiple
+ *	calls to successfully establish the context.
+ *
+ *	Requires:
+ *		'qmsg'    is a valid message, the original TKEY request;
+ *			     it will be filled with the new message to send
+ *		'rmsg'    is a valid message, the incoming TKEY message
+ *		'server'  is the server name
+ *		'context' is the input context handle
+ *		'outkey'  receives the established key, if non-NULL;
+ *			      if non-NULL must point to NULL
+ *		'ring'	  is the keyring in which to establish the key,
+ *			      or NULL
+ *		'win2k'   when true says to turn on some hacks to work
+ *			      with the non-standard GSS-TSIG of Windows 2000
+ *
+ *	Returns:
+ *		ISC_R_SUCCESS	context was successfully established
+ *		ISC_R_NOTFOUND  couldn't find a needed part of the query
+ *					or response
+ *		DNS_R_CONTINUE  additional context negotiation is required;
+ *					send the new qmsg to the server
+ */
 
 ISC_LANG_ENDDECLS
 

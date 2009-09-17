@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -18,7 +18,7 @@
 #ifndef GENERIC_DNSSIG_46_H
 #define GENERIC_DNSSIG_46_H 1
 
-/* $Id: rrsig_46.h,v 1.3.20.2 2005/04/29 00:16:39 marka Exp $ */
+/* $Id: rrsig_46.h,v 1.7 2007/06/19 23:47:17 tbox Exp $ */
 
 /*!
  *  \brief Per RFC2535 */
