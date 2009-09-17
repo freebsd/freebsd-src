@@ -736,11 +736,16 @@ setup:
 	ciss_printf(sc, "PERFORMANT Transport\n");
 	if ((ciss_force_interrupt != 1) && (ciss_setup_msix(sc) == 0)) {
 	    intr = ciss_perf_msi_intr;
-	    sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_MSI;
 	} else {
 	    intr = ciss_perf_intr;
-	    sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_OPQ;
 	}
+	/* XXX The docs say that the 0x01 bit is only for SAS controllers.
+	 * Unfortunately, there is no good way to know if this is a SAS
+	 * controller.  Hopefully enabling this bit universally will work OK.
+	 * It seems to work fine for SA6i controllers.
+	 */
+        sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_OPQ | CISS_TL_PERF_INTR_MSI;
+
     } else {
 	ciss_printf(sc, "SIMPLE Transport\n");
 	/* MSIX doesn't seem to work in SIMPLE mode, only enable if it forced */
@@ -834,7 +839,10 @@ ciss_setup_msix(struct ciss_softc *sc)
 	return (EINVAL);
 
     val = pci_msix_count(sc->ciss_dev);
-    if ((val != CISS_MSI_COUNT) || (pci_alloc_msix(sc->ciss_dev, &val) != 0))
+    if (val < CISS_MSI_COUNT)
+	return (EINVAL);
+    val = MIN(val, CISS_MSI_COUNT);
+    if (pci_alloc_msix(sc->ciss_dev, &val) != 0)
 	return (EINVAL);
 
     sc->ciss_msi = val;
@@ -2559,15 +2567,16 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
     /*
      * Allocate an in-kernel databuffer if required, copy in user data.
      */
+    mtx_unlock(&sc->ciss_mtx);
     cr->cr_length = ioc->buf_size;
     if (ioc->buf_size > 0) {
 	if ((cr->cr_data = malloc(ioc->buf_size, CISS_MALLOC_CLASS, M_NOWAIT)) == NULL) {
 	    error = ENOMEM;
-	    goto out;
+	    goto out_unlocked;
 	}
 	if ((error = copyin(ioc->buf, cr->cr_data, ioc->buf_size))) {
 	    debug(0, "copyin: bad data buffer %p/%d", ioc->buf, ioc->buf_size);
-	    goto out;
+	    goto out_unlocked;
 	}
     }
 
@@ -2578,6 +2587,7 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
     bcopy(&ioc->Request, &cc->cdb, sizeof(cc->cdb));
 
     /* XXX anything else to populate here? */
+    mtx_lock(&sc->ciss_mtx);
 
     /*
      * Run the command.
@@ -2598,14 +2608,18 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
      * Copy the results back to the user.
      */
     bcopy(ce, &ioc->error_info, sizeof(*ce));
+    mtx_unlock(&sc->ciss_mtx);
     if ((ioc->buf_size > 0) &&
 	(error = copyout(cr->cr_data, ioc->buf, ioc->buf_size))) {
 	debug(0, "copyout: bad data buffer %p/%d", ioc->buf, ioc->buf_size);
-	goto out;
+	goto out_unlocked;
     }
 
     /* done OK */
     error = 0;
+
+out_unlocked:
+    mtx_lock(&sc->ciss_mtx);
 
 out:
     if ((cr != NULL) && (cr->cr_data != NULL))
