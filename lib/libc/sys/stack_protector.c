@@ -108,4 +108,8 @@ __chk_fail(void)
 	__fail("buffer overflow detected; terminated");
 }
 
+#ifdef PIC
 __sym_compat(__stack_chk_fail_local, __stack_chk_fail, FBSD_1.0);
+#else
+__weak_reference(__stack_chk_fail, __stack_chk_fail_local);
+#endif
