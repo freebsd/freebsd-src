@@ -1449,6 +1449,7 @@ ufs_mkdir(ap)
 	{
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
+		gid_t ucred_group;
 		ucp = cnp->cn_cred;
 #endif
 		/*
@@ -1476,6 +1477,7 @@ ufs_mkdir(ap)
 				refcount_init(&ucred.cr_ref, 1);
 				ucred.cr_uid = ip->i_uid;
 				ucred.cr_ngroups = 1;
+				ucred.cr_groups = &ucred_group;
 				ucred.cr_groups[0] = dp->i_gid;
 				ucp = &ucred;
 			}
