@@ -55,24 +55,24 @@
 #define	KTR_TRAP	0x00000100		/* Trap processing */
 #define	KTR_INTR	0x00000200		/* Interrupt tracing */
 #define	KTR_SIG		0x00000400		/* Signal processing */
-#define	KTR_SPARE2	0x00000800		/* Unused */
+#define	KTR_SPARE2	0x00000800		/* XXX Used by cxgb */
 #define	KTR_PROC	0x00001000		/* Process scheduling */
 #define	KTR_SYSC	0x00002000		/* System call */
 #define	KTR_INIT	0x00004000		/* System initialization */
-#define	KTR_SPARE3	0x00008000		/* Unused */
-#define	KTR_SPARE4	0x00010000		/* Unused */
+#define	KTR_SPARE3	0x00008000		/* XXX Used by cxgb */
+#define	KTR_SPARE4	0x00010000		/* XXX Used by cxgb */
 #define	KTR_EVH		0x00020000		/* Eventhandler */
 #define	KTR_VFS		0x00040000		/* VFS events */
 #define	KTR_VOP		0x00080000		/* Auto-generated vop events */
 #define	KTR_VM		0x00100000		/* The virtual memory system */
-#define	KTR_SPARE1	0x00200000		/* Unused */
+#define	KTR_INET	0x00200000		/* IPv4 stack */
 #define	KTR_RUNQ	0x00400000		/* Run queue */
 #define	KTR_CONTENTION	0x00800000		/* Lock contention */
 #define	KTR_UMA		0x01000000		/* UMA slab allocator */
 #define	KTR_CALLOUT	0x02000000		/* Callouts and timeouts */
 #define	KTR_GEOM	0x04000000		/* GEOM I/O events */
 #define	KTR_BUSDMA	0x08000000		/* busdma(9) events */
-#define	KTR_SPARE5	0x10000000		/* Unused */
+#define	KTR_INET6	0x10000000		/* IPv6 stack */
 #define	KTR_SCHED	0x20000000		/* Machine parsed sched info. */
 #define	KTR_BUF		0x40000000		/* Buffer cache */
 #define	KTR_ALL		0x7fffffff
@@ -147,13 +147,13 @@ void	ktr_tracepoint(u_int mask, const char *file, int line,
 #define	CTR4(m, format, p1, p2, p3, p4)	CTR6(m, format, p1, p2, p3, p4, 0, 0)
 #define	CTR5(m, format, p1, p2, p3, p4, p5)	CTR6(m, format, p1, p2, p3, p4, p5, 0)
 #else	/* KTR */
-#define	CTR0(m, d)
-#define	CTR1(m, d, p1)
-#define	CTR2(m, d, p1, p2)
-#define	CTR3(m, d, p1, p2, p3)
-#define	CTR4(m, d, p1, p2, p3, p4)
-#define	CTR5(m, d, p1, p2, p3, p4, p5)
-#define	CTR6(m, d, p1, p2, p3, p4, p5, p6)
+#define	CTR0(m, d)			(void)0
+#define	CTR1(m, d, p1)			(void)0
+#define	CTR2(m, d, p1, p2)		(void)0
+#define	CTR3(m, d, p1, p2, p3)		(void)0
+#define	CTR4(m, d, p1, p2, p3, p4)	(void)0
+#define	CTR5(m, d, p1, p2, p3, p4, p5)	(void)0
+#define	CTR6(m, d, p1, p2, p3, p4, p5, p6)	(void)0
 #endif	/* KTR */
 
 #define	TR0(d)				CTR0(KTR_GEN, d)

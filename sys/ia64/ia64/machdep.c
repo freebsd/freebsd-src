@@ -122,7 +122,7 @@ struct fpswa_iface *fpswa_iface;
 u_int64_t ia64_pal_base;
 u_int64_t ia64_port_base;
 
-static int ia64_inval_icache_needed;
+static int ia64_sync_icache_needed;
 
 char machine[] = MACHINE;
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
@@ -216,7 +216,7 @@ identifycpu(void)
 		}
 		break;
 	case 0x20:
-		ia64_inval_icache_needed = 1;
+		ia64_sync_icache_needed = 1;
 
 		family_name = "Itanium 2";
 		switch (model) {
@@ -309,6 +309,21 @@ cpu_boot(int howto)
 {
 
 	efi_reset_system();
+}
+
+void
+cpu_flush_dcache(void *ptr, size_t len)
+{
+	vm_offset_t lim, va;
+
+	va = (uintptr_t)ptr & ~31;
+	lim = (uintptr_t)ptr + len;
+	while (va < lim) {
+		ia64_fc(va);
+		va += 32;
+	}
+
+	ia64_srlz_d();
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -409,7 +424,11 @@ void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 
-	pcpu->pc_acpi_id = cpuid;
+	/*
+	 * Set pc_acpi_id to "uninitialized".
+	 * See sys/dev/acpica/acpi_cpu.c
+	 */
+	pcpu->pc_acpi_id = 0xffffffff;
 }
 
 void
@@ -632,6 +651,21 @@ ia64_init(void)
 		bootverbose = 1;
 
 	/*
+	 * Find the beginning and end of the kernel.
+	 */
+	kernstart = trunc_page(kernel_text);
+#ifdef DDB
+	ksym_start = bootinfo.bi_symtab;
+	ksym_end = bootinfo.bi_esymtab;
+	kernend = (vm_offset_t)round_page(ksym_end);
+#else
+	kernend = (vm_offset_t)round_page(_end);
+#endif
+	/* But if the bootstrap tells us otherwise, believe it! */
+	if (bootinfo.bi_kernend)
+		kernend = round_page(bootinfo.bi_kernend);
+
+	/*
 	 * Setup the PCPU data for the bootstrap processor. It is needed
 	 * by printf(). Also, since printf() has critical sections, we
 	 * need to initialize at least pc_curthread.
@@ -639,6 +673,8 @@ ia64_init(void)
 	pcpup = &pcpu0;
 	ia64_set_k4((u_int64_t)pcpup);
 	pcpu_init(pcpup, 0, sizeof(pcpu0));
+	dpcpu_init((void *)kernend, 0);
+	kernend += DPCPU_SIZE;
 	PCPU_SET(curthread, &thread0);
 
 	/*
@@ -667,21 +703,6 @@ ia64_init(void)
 	ia64_sal_init();
 	calculate_frequencies();
 
-	/*
-	 * Find the beginning and end of the kernel.
-	 */
-	kernstart = trunc_page(kernel_text);
-#ifdef DDB
-	ksym_start = bootinfo.bi_symtab;
-	ksym_end = bootinfo.bi_esymtab;
-	kernend = (vm_offset_t)round_page(ksym_end);
-#else
-	kernend = (vm_offset_t)round_page(_end);
-#endif
-
-	/* But if the bootstrap tells us otherwise, believe it! */
-	if (bootinfo.bi_kernend)
-		kernend = round_page(bootinfo.bi_kernend);
 	if (metadata_missing)
 		printf("WARNING: loader(8) metadata is missing!\n");
 
@@ -1522,11 +1543,11 @@ ia64_highfp_save(struct thread *td)
 }
 
 void
-ia64_invalidate_icache(vm_offset_t va, vm_offset_t sz)
+ia64_sync_icache(vm_offset_t va, vm_offset_t sz)
 {
 	vm_offset_t lim;
 
-	if (!ia64_inval_icache_needed)
+	if (!ia64_sync_icache_needed)
 		return;
 
 	lim = va + sz;

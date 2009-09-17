@@ -272,11 +272,12 @@ int	tcsendbreak(int, int);
 #if __POSIX_VISIBLE >= 200112 || __BSD_VISIBLE
 pid_t	tcgetsid(int);
 #endif
+#if __BSD_VISIBLE
+int	tcsetsid(int, pid_t);
 
-#ifndef _POSIX_SOURCE
 void	cfmakeraw(struct termios *);
 int	cfsetspeed(struct termios *, speed_t);
-#endif /* !_POSIX_SOURCE */
+#endif
 __END_DECLS
 
 #endif /* !_KERNEL */

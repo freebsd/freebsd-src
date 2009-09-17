@@ -23,8 +23,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
 
-#include <machine/cpufunc.h>
-#include <machine/intr_machdep.h>
 #include <machine/xen/xen-os.h>
 #include <xen/xen_intr.h>
 #include <machine/bus.h>
@@ -234,14 +232,14 @@ evtchn_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 		__evtchn_reset_buffer_ring();
 		break;
 	case EVTCHN_BIND:
-		if ( !synch_test_and_set_bit((int)arg, &bound_ports[0]) )
-			unmask_evtchn((int)arg);
+		if ( !synch_test_and_set_bit((uintptr_t)arg, &bound_ports[0]) )
+			unmask_evtchn((uintptr_t)arg);
 		else
 			rc = EINVAL;
 		break;
 	case EVTCHN_UNBIND:
-		if ( synch_test_and_clear_bit((int)arg, &bound_ports[0]) )
-			mask_evtchn((int)arg);
+		if ( synch_test_and_clear_bit((uintptr_t)arg, &bound_ports[0]) )
+			mask_evtchn((uintptr_t)arg);
 		else
 			rc = EINVAL;
 		break;
@@ -383,11 +381,11 @@ evtchn_dev_init(void *dummy __unused)
 	/* (DEVFS) automatically destroy the symlink with its destination. */
 	devfs_auto_unregister(evtchn_miscdev.devfs_handle, symlink_handle);
 #endif
-	printk("Event-channel device installed.\n");
+	if (bootverbose)
+		printf("Event-channel device installed.\n");
 
 	return 0;
 }
-
 
 SYSINIT(evtchn_dev_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, evtchn_dev_init, NULL);
 

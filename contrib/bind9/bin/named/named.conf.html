@@ -13,7 +13,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: named.conf.html,v 1.1.2.36 2008/09/05 01:32:08 tbox Exp $ -->
+<!-- $Id: named.conf.html,v 1.45 2008/09/25 04:45:04 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -191,6 +191,7 @@ options {<br>
 	use-ixfr <em class="replaceable"><code>boolean</code></em>;<br>
 	version ( <em class="replaceable"><code>quoted_string</code></em> | none );<br>
 	allow-recursion { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
+	allow-recursion-on { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	sortlist { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	topology { <em class="replaceable"><code>address_match_element</code></em>; ... }; // not implemented<br>
 	auth-nxdomain <em class="replaceable"><code>boolean</code></em>; // default changed<br>
@@ -207,14 +208,17 @@ options {<br>
 	additional-from-cache <em class="replaceable"><code>boolean</code></em>;<br>
 	query-source ( ( <em class="replaceable"><code>ipv4_address</code></em> | * ) | [<span class="optional"> address ( <em class="replaceable"><code>ipv4_address</code></em> | * ) </span>] ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	query-source-v6 ( ( <em class="replaceable"><code>ipv6_address</code></em> | * ) | [<span class="optional"> address ( <em class="replaceable"><code>ipv6_address</code></em> | * ) </span>] ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
+	use-queryport-pool <em class="replaceable"><code>boolean</code></em>;<br>
+	queryport-pool-ports <em class="replaceable"><code>integer</code></em>;<br>
+	queryport-pool-updateinterval <em class="replaceable"><code>integer</code></em>;<br>
 	cleaning-interval <em class="replaceable"><code>integer</code></em>;<br>
 	min-roots <em class="replaceable"><code>integer</code></em>; // not implemented<br>
 	lame-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	max-ncache-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	max-cache-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	transfer-format ( many-answers | one-answer );<br>
-	max-cache-size <em class="replaceable"><code>size_no_default</code></em>;<br>
-	max-acache-size <em class="replaceable"><code>size_no_default</code></em>;<br>
+	max-cache-size <em class="replaceable"><code>size</code></em>;<br>
+	max-acache-size <em class="replaceable"><code>size</code></em>;<br>
 	clients-per-query <em class="replaceable"><code>number</code></em>;<br>
 	max-clients-per-query <em class="replaceable"><code>number</code></em>;<br>
 	check-names ( master | slave | response )<br>
@@ -250,7 +254,9 @@ options {<br>
 	ixfr-from-differences <em class="replaceable"><code>ixfrdiff</code></em>;<br>
 <br>
 	allow-query { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
+	allow-query-on { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-query-cache { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
+	allow-query-cache-on { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-transfer { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-update { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-update-forwarding { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -261,6 +267,7 @@ options {<br>
 	notify-source ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-source-v6 ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-delay <em class="replaceable"><code>seconds</code></em>;<br>
+	notify-to-soa <em class="replaceable"><code>boolean</code></em>;<br>
 	also-notify [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> )<br>
 		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ... };<br>
 	allow-notify { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -280,7 +287,12 @@ options {<br>
 	max-refresh-time <em class="replaceable"><code>integer</code></em>;<br>
 	min-refresh-time <em class="replaceable"><code>integer</code></em>;<br>
 	multi-master <em class="replaceable"><code>boolean</code></em>;<br>
+<br>
 	sig-validity-interval <em class="replaceable"><code>integer</code></em>;<br>
+	sig-re-signing-interval <em class="replaceable"><code>integer</code></em>;<br>
+	sig-signing-nodes <em class="replaceable"><code>integer</code></em>;<br>
+	sig-signing-signatures <em class="replaceable"><code>integer</code></em>;<br>
+	sig-signing-type <em class="replaceable"><code>integer</code></em>;<br>
 <br>
 	transfer-source ( <em class="replaceable"><code>ipv4_address</code></em> | * )<br>
 		[<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
@@ -295,8 +307,11 @@ options {<br>
 <br>
 	zone-statistics <em class="replaceable"><code>boolean</code></em>;<br>
 	key-directory <em class="replaceable"><code>quoted_string</code></em>;<br>
+	try-tcp-refresh <em class="replaceable"><code>boolean</code></em>;<br>
 	zero-no-soa-ttl <em class="replaceable"><code>boolean</code></em>;<br>
 	zero-no-soa-ttl-cache <em class="replaceable"><code>boolean</code></em>;<br>
+<br>
+	nsec3-test-zone <em class="replaceable"><code>boolean</code></em>;  // testing only<br>
 <br>
 	allow-v6-synthesis { <em class="replaceable"><code>address_match_element</code></em>; ... }; // obsolete<br>
 	deallocate-on-exit <em class="replaceable"><code>boolean</code></em>; // obsolete<br>
@@ -314,7 +329,7 @@ options {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544407"></a><h2>VIEW</h2>
+<a name="id2544452"></a><h2>VIEW</h2>
 <div class="literallayout"><p><br>
 view <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	match-clients { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -339,6 +354,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	};<br>
 <br>
 	allow-recursion { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
+	allow-recursion-on { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	sortlist { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	topology { <em class="replaceable"><code>address_match_element</code></em>; ... }; // not implemented<br>
 	auth-nxdomain <em class="replaceable"><code>boolean</code></em>; // default changed<br>
@@ -355,14 +371,17 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	additional-from-cache <em class="replaceable"><code>boolean</code></em>;<br>
 	query-source ( ( <em class="replaceable"><code>ipv4_address</code></em> | * ) | [<span class="optional"> address ( <em class="replaceable"><code>ipv4_address</code></em> | * ) </span>] ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	query-source-v6 ( ( <em class="replaceable"><code>ipv6_address</code></em> | * ) | [<span class="optional"> address ( <em class="replaceable"><code>ipv6_address</code></em> | * ) </span>] ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
+	use-queryport-pool <em class="replaceable"><code>boolean</code></em>;<br>
+	queryport-pool-ports <em class="replaceable"><code>integer</code></em>;<br>
+	queryport-pool-updateinterval <em class="replaceable"><code>integer</code></em>;<br>
 	cleaning-interval <em class="replaceable"><code>integer</code></em>;<br>
 	min-roots <em class="replaceable"><code>integer</code></em>; // not implemented<br>
 	lame-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	max-ncache-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	max-cache-ttl <em class="replaceable"><code>integer</code></em>;<br>
 	transfer-format ( many-answers | one-answer );<br>
-	max-cache-size <em class="replaceable"><code>size_no_default</code></em>;<br>
-	max-acache-size <em class="replaceable"><code>size_no_default</code></em>;<br>
+	max-cache-size <em class="replaceable"><code>size</code></em>;<br>
+	max-acache-size <em class="replaceable"><code>size</code></em>;<br>
 	clients-per-query <em class="replaceable"><code>number</code></em>;<br>
 	max-clients-per-query <em class="replaceable"><code>number</code></em>;<br>
 	check-names ( master | slave | response )<br>
@@ -398,7 +417,9 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	ixfr-from-differences <em class="replaceable"><code>ixfrdiff</code></em>;<br>
 <br>
 	allow-query { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
+	allow-query-on { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-query-cache { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
+	allow-query-cache-on { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-transfer { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-update { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-update-forwarding { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -409,6 +430,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	notify-source ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-source-v6 ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-delay <em class="replaceable"><code>seconds</code></em>;<br>
+	notify-to-soa <em class="replaceable"><code>boolean</code></em>;<br>
 	also-notify [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> )<br>
 		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ... };<br>
 	allow-notify { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -442,6 +464,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	use-alt-transfer-source <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
 	zone-statistics <em class="replaceable"><code>boolean</code></em>;<br>
+	try-tcp-refresh <em class="replaceable"><code>boolean</code></em>;<br>
 	key-directory <em class="replaceable"><code>quoted_string</code></em>;<br>
 	zero-no-soa-ttl <em class="replaceable"><code>boolean</code></em>;<br>
 	zero-no-soa-ttl-cache <em class="replaceable"><code>boolean</code></em>;<br>
@@ -454,7 +477,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544972"></a><h2>ZONE</h2>
+<a name="id2545113"></a><h2>ZONE</h2>
 <div class="literallayout"><p><br>
 zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	type ( master | slave | stub | hint |<br>
@@ -480,12 +503,15 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	zero-no-soa-ttl <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
 	allow-query { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
+	allow-query-on { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-transfer { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-update { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	allow-update-forwarding { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 	update-policy {<br>
 		( grant | deny ) <em class="replaceable"><code>string</code></em><br>
-		( name | subdomain | wildcard | self ) <em class="replaceable"><code>string</code></em><br>
+		( name | subdomain | wildcard | self | selfsub | selfwild |<br>
+                  krb5-self | ms-self | krb5-subdomain | ms-subdomain |<br>
+		  tcp-self | 6to4-self ) <em class="replaceable"><code>string</code></em><br>
 		<em class="replaceable"><code>rrtypelist</code></em>; ...<br>
 	};<br>
 	update-check-ksk <em class="replaceable"><code>boolean</code></em>;<br>
@@ -495,6 +521,7 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	notify-source ( <em class="replaceable"><code>ipv4_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-source-v6 ( <em class="replaceable"><code>ipv6_address</code></em> | * ) [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	notify-delay <em class="replaceable"><code>seconds</code></em>;<br>
+	notify-to-soa <em class="replaceable"><code>boolean</code></em>;<br>
 	also-notify [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] { ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> )<br>
 		[<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>]; ... };<br>
 	allow-notify { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -528,7 +555,10 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	use-alt-transfer-source <em class="replaceable"><code>boolean</code></em>;<br>
 <br>
 	zone-statistics <em class="replaceable"><code>boolean</code></em>;<br>
+	try-tcp-refresh <em class="replaceable"><code>boolean</code></em>;<br>
 	key-directory <em class="replaceable"><code>quoted_string</code></em>;<br>
+<br>
+	nsec3-test-zone <em class="replaceable"><code>boolean</code></em>;  // testing only<br>
 <br>
 	ixfr-base <em class="replaceable"><code>quoted_string</code></em>; // obsolete<br>
 	ixfr-tmp-file <em class="replaceable"><code>quoted_string</code></em>; // obsolete<br>
@@ -539,12 +569,12 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545325"></a><h2>FILES</h2>
+<a name="id2545410"></a><h2>FILES</h2>
 <p><code class="filename">/etc/named.conf</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545337"></a><h2>SEE ALSO</h2>
+<a name="id2545421"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named-checkconf</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,

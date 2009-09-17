@@ -105,8 +105,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#include <machine/mutex.h>
-
 /*
  * System initialization
  */
@@ -350,7 +348,7 @@ more:
 			break;
 		}
 		vm_page_test_dirty(p);
-		if ((p->dirty & p->valid) == 0 ||
+		if (p->dirty == 0 ||
 		    p->queue != PQ_INACTIVE ||
 		    p->wire_count != 0 ||	/* may be held by buf cache */
 		    p->hold_count != 0) {	/* may be undergoing I/O */
@@ -378,7 +376,7 @@ more:
 			break;
 		}
 		vm_page_test_dirty(p);
-		if ((p->dirty & p->valid) == 0 ||
+		if (p->dirty == 0 ||
 		    p->queue != PQ_INACTIVE ||
 		    p->wire_count != 0 ||	/* may be held by buf cache */
 		    p->hold_count != 0) {	/* may be undergoing I/O */
@@ -462,7 +460,6 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 			 * essentially lose the changes by pretending it
 			 * worked.
 			 */
-			pmap_clear_modify(mt);
 			vm_page_undirty(mt);
 			break;
 		case VM_PAGER_ERROR:
@@ -516,7 +513,9 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 	int actcount, rcount, remove_mode;
 
 	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
-	if (first_object->type == OBJT_DEVICE || first_object->type == OBJT_PHYS)
+	if (first_object->type == OBJT_DEVICE ||
+	    first_object->type == OBJT_SG ||
+	    first_object->type == OBJT_PHYS)
 		return;
 	for (object = first_object;; object = backing_object) {
 		if (pmap_resident_count(pmap) <= desired)
@@ -787,7 +786,8 @@ rescan0:
 		 */
 		if (object->ref_count == 0) {
 			vm_page_flag_clear(m, PG_REFERENCED);
-			pmap_clear_reference(m);
+			KASSERT(!pmap_page_is_mapped(m),
+			    ("vm_pageout_scan: page %p is mapped", m));
 
 		/*
 		 * Otherwise, if the page has been referenced while in the 
@@ -822,12 +822,13 @@ rescan0:
 		}
 
 		/*
-		 * If the upper level VM system doesn't know anything about 
-		 * the page being dirty, we have to check for it again.  As 
-		 * far as the VM code knows, any partially dirty pages are 
-		 * fully dirty.
+		 * If the upper level VM system does not believe that the page
+		 * is fully dirty, but it is mapped for write access, then we
+		 * consult the pmap to see if the page's dirty status should
+		 * be updated.
 		 */
-		if (m->dirty == 0 && !pmap_is_modified(m)) {
+		if (m->dirty != VM_PAGE_BITS_ALL &&
+		    (m->flags & PG_WRITEABLE) != 0) {
 			/*
 			 * Avoid a race condition: Unless write access is
 			 * removed from the page, another processor could
@@ -841,10 +842,10 @@ rescan0:
 			 * to the page, removing all access will be cheaper
 			 * overall.
 			 */
-			if ((m->flags & PG_WRITEABLE) != 0)
+			if (pmap_is_modified(m))
+				vm_page_dirty(m);
+			else if (m->dirty == 0)
 				pmap_remove_all(m);
-		} else {
-			vm_page_dirty(m);
 		}
 
 		if (m->valid == 0) {
@@ -1184,6 +1185,7 @@ vm_pageout_oom(int shortage)
 	struct proc *p, *bigproc;
 	vm_offset_t size, bigsize;
 	struct thread *td;
+	struct vmspace *vm;
 
 	/*
 	 * We keep the process bigproc locked once we find it to keep anyone
@@ -1204,8 +1206,8 @@ vm_pageout_oom(int shortage)
 		/*
 		 * If this is a system or protected process, skip it.
 		 */
-		if ((p->p_flag & P_SYSTEM) || (p->p_pid == 1) ||
-		    (p->p_flag & P_PROTECTED) ||
+		if ((p->p_flag & (P_INEXEC | P_PROTECTED | P_SYSTEM)) ||
+		    (p->p_pid == 1) ||
 		    ((p->p_pid < 48) && (swap_pager_avail != 0))) {
 			PROC_UNLOCK(p);
 			continue;
@@ -1233,14 +1235,21 @@ vm_pageout_oom(int shortage)
 		/*
 		 * get the process size
 		 */
-		if (!vm_map_trylock_read(&p->p_vmspace->vm_map)) {
+		vm = vmspace_acquire_ref(p);
+		if (vm == NULL) {
 			PROC_UNLOCK(p);
 			continue;
 		}
-		size = vmspace_swap_count(p->p_vmspace);
-		vm_map_unlock_read(&p->p_vmspace->vm_map);
+		if (!vm_map_trylock_read(&vm->vm_map)) {
+			vmspace_free(vm);
+			PROC_UNLOCK(p);
+			continue;
+		}
+		size = vmspace_swap_count(vm);
+		vm_map_unlock_read(&vm->vm_map);
 		if (shortage == VM_OOM_MEM)
-			size += vmspace_resident_count(p->p_vmspace);
+			size += vmspace_resident_count(vm);
+		vmspace_free(vm);
 		/*
 		 * if the this process is bigger than the biggest one
 		 * remember it.
@@ -1533,6 +1542,7 @@ vm_daemon()
 	struct rlimit rsslim;
 	struct proc *p;
 	struct thread *td;
+	struct vmspace *vm;
 	int breakout, swapout_flags;
 
 	while (TRUE) {
@@ -1557,7 +1567,7 @@ vm_daemon()
 			 * looked at this process, skip it.
 			 */
 			PROC_LOCK(p);
-			if (p->p_flag & (P_SYSTEM | P_WEXIT)) {
+			if (p->p_flag & (P_INEXEC | P_SYSTEM | P_WEXIT)) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -1595,13 +1605,17 @@ vm_daemon()
 			 */
 			if ((p->p_flag & P_INMEM) == 0)
 				limit = 0;	/* XXX */
+			vm = vmspace_acquire_ref(p);
 			PROC_UNLOCK(p);
+			if (vm == NULL)
+				continue;
 
-			size = vmspace_resident_count(p->p_vmspace);
+			size = vmspace_resident_count(vm);
 			if (limit >= 0 && size >= limit) {
 				vm_pageout_map_deactivate_pages(
-				    &p->p_vmspace->vm_map, limit);
+				    &vm->vm_map, limit);
 			}
+			vmspace_free(vm);
 		}
 		sx_sunlock(&allproc_lock);
 	}

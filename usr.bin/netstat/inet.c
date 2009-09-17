@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/route.h>
+#include <net/if_arp.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -257,7 +258,7 @@ pcblist_kvm(u_long off, char **bufp, int istcp)
 		if (istcp) {
 			if (inp->inp_ppcb == NULL)
 				bzero(&xt.xt_tp, sizeof xt.xt_tp);
-			else if (inp->inp_vflag & INP_TIMEWAIT) {
+			else if (inp->inp_flags & INP_TIMEWAIT) {
 				bzero(&xt.xt_tp, sizeof xt.xt_tp);
 				xt.xt_tp.t_state = TCPS_TIME_WAIT;
 			} else
@@ -312,6 +313,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 	struct inpcb *inp;
 	struct xinpgen *xig, *oxig;
 	struct xsocket *so;
+	struct xtcp_timer *timer;
 
 	istcp = 0;
 	switch (proto) {
@@ -346,6 +348,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 	     xig->xig_len > sizeof(struct xinpgen);
 	     xig = (struct xinpgen *)((char *)xig + xig->xig_len)) {
 		if (istcp) {
+			timer = &((struct xtcpcb *)xig)->xt_timer;
 			tp = &((struct xtcpcb *)xig)->xt_tp;
 			inp = &((struct xtcpcb *)xig)->xt_inp;
 			so = &((struct xtcpcb *)xig)->xt_socket;
@@ -413,14 +416,17 @@ protopr(u_long off, const char *name, int af1, int proto)
 				       "%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s",
 				       "Proto", "Recv-Q", "Send-Q",
 				       "Local Address", "Foreign Address");
-				if (xflag)
-					printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %s\n",
+				if (xflag) {
+					printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s ",
 					       	"R-MBUF", "S-MBUF", "R-CLUS", 
 						"S-CLUS", "R-HIWA", "S-HIWA", 
 						"R-LOWA", "S-LOWA", "R-BCNT", 
-						"S-BCNT", "R-BMAX", "S-BMAX",
-					       "(state)");
-				else
+						"S-BCNT", "R-BMAX", "S-BMAX");
+					printf("%7.7s %7.7s %7.7s %7.7s %7.7s %7.7s %s\n",
+						"rexmt", "persist", "keep",
+						"2msl", "delack", "rcvtime",
+                                               "(state)");
+				} else
 					printf("(state)\n");
 			}
 			first = 0;
@@ -515,7 +521,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 				       so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
 				       so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
 				       so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
-			else
+			else {
 				printf("%6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u ",
 				       so->so_rcv.sb_mcnt, so->so_snd.sb_mcnt,
 				       so->so_rcv.sb_ccnt, so->so_snd.sb_ccnt,
@@ -523,6 +529,14 @@ protopr(u_long off, const char *name, int af1, int proto)
 				       so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
 				       so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
 				       so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
+				printf("%4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d ",
+					timer->tt_rexmt / 1000, (timer->tt_rexmt % 1000) / 10,
+					timer->tt_persist / 1000, (timer->tt_persist % 1000) / 10,
+					timer->tt_keep / 1000, (timer->tt_keep % 1000) / 10,
+					timer->tt_2msl / 1000, (timer->tt_2msl % 1000) / 10,
+					timer->tt_delack / 1000, (timer->tt_delack % 1000) / 10,
+					timer->t_rcvtime / 1000, (timer->t_rcvtime % 1000) / 10);
+			}
 		}
 		if (istcp && !Lflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
@@ -871,6 +885,47 @@ ip_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 #undef p1a
 }
 
+/*
+ * Dump ARP statistics structure.
+ */
+void
+arp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
+{
+	struct arpstat arpstat, zerostat;
+	size_t len = sizeof(arpstat);
+
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.link.ether.arp.stats", &arpstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			warn("sysctl: net.link.ether.arp.stats");
+			return;
+		}
+	} else
+		kread(off, &arpstat, len);
+
+	printf("%s:\n", name);
+
+#define	p(f, m) if (arpstat.f || sflag <= 1) \
+    printf(m, arpstat.f, plural(arpstat.f))
+#define	p2(f, m) if (arpstat.f || sflag <= 1) \
+    printf(m, arpstat.f, pluralies(arpstat.f))
+
+	p(txrequests, "\t%lu ARP request%s sent\n");
+	p2(txreplies, "\t%lu ARP repl%s sent\n");
+	p(rxrequests, "\t%lu ARP request%s received\n");
+	p2(rxreplies, "\t%lu ARP repl%s received\n");
+	p(received, "\t%lu ARP packet%s received\n");
+	p(dropped, "\t%lu total packet%s dropped due to no ARP entry\n");
+	p(timeouts, "\t%lu ARP entry%s timed out\n");
+	p(dupips, "\t%lu Duplicate IP%s seen\n");
+#undef p
+#undef p2
+}
+
+
+
 static	const char *icmpnames[ICMP_MAXTYPE + 1] = {
 	"echo reply",			/* RFC 792 */
 	"#1",
@@ -997,32 +1052,30 @@ icmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	}
 }
 
+#ifndef BURN_BRIDGES
 /*
- * Dump IGMP statistics structure.
+ * Dump IGMP statistics structure (pre 8.x kernel).
  */
-void
-igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
+static void
+igmp_stats_live_old(u_long off, const char *name)
 {
-	struct igmpstat igmpstat, zerostat;
-	size_t len = sizeof igmpstat;
+	struct oigmpstat oigmpstat, zerostat;
+	size_t len = sizeof(oigmpstat);
 
-	if (live) {
-		if (zflag)
-			memset(&zerostat, 0, len);
-		if (sysctlbyname("net.inet.igmp.stats", &igmpstat, &len,
-		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-			warn("sysctl: net.inet.igmp.stats");
-			return;
-		}
-	} else
-		kread(off, &igmpstat, len);
+	if (zflag)
+		memset(&zerostat, 0, len);
+	if (sysctlbyname("net.inet.igmp.stats", &oigmpstat, &len,
+	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+		warn("sysctl: net.inet.igmp.stats");
+		return;
+	}
 
 	printf("%s:\n", name);
 
-#define	p(f, m) if (igmpstat.f || sflag <= 1) \
-    printf(m, igmpstat.f, plural(igmpstat.f))
-#define	py(f, m) if (igmpstat.f || sflag <= 1) \
-    printf(m, igmpstat.f, igmpstat.f != 1 ? "ies" : "y")
+#define	p(f, m) if (oigmpstat.f || sflag <= 1) \
+    printf(m, oigmpstat.f, plural(oigmpstat.f))
+#define	py(f, m) if (oigmpstat.f || sflag <= 1) \
+    printf(m, oigmpstat.f, oigmpstat.f != 1 ? "ies" : "y")
 	p(igps_rcv_total, "\t%u message%s received\n");
 	p(igps_rcv_tooshort, "\t%u message%s received with too few bytes\n");
 	p(igps_rcv_badsum, "\t%u message%s received with bad checksum\n");
@@ -1037,6 +1090,89 @@ igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
         p(igps_snd_reports, "\t%u membership report%s sent\n");
 #undef p
 #undef py
+}
+#endif /* !BURN_BRIDGES */
+
+/*
+ * Dump IGMP statistics structure.
+ */
+void
+igmp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
+{
+	struct igmpstat igmpstat, zerostat;
+	size_t len;
+
+#ifndef BURN_BRIDGES
+	if (live) {
+		/*
+		 * Detect if we are being run against a pre-IGMPv3 kernel.
+		 * We cannot do this for a core file as the legacy
+		 * struct igmpstat has no size field, nor does it
+		 * export it in any readily-available symbols.
+		 */
+		len = 0;
+		if (sysctlbyname("net.inet.igmp.stats", NULL, &len, NULL,
+		    0) < 0) {
+			warn("sysctl: net.inet.igmp.stats");
+			return;
+		}
+		if (len < sizeof(igmpstat)) {
+			igmp_stats_live_old(off, name);
+			return;
+		}
+	}
+#endif /* !BURN_BRIDGES */
+
+	len = sizeof(igmpstat);
+	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet.igmp.stats", &igmpstat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+			warn("sysctl: net.inet.igmp.stats");
+			return;
+		}
+	} else {
+		len = sizeof(igmpstat);
+		kread(off, &igmpstat, len);
+	}
+
+	if (igmpstat.igps_version != IGPS_VERSION_3) {
+		warnx("%s: version mismatch (%d != %d)", __func__,
+		    igmpstat.igps_version, IGPS_VERSION_3);
+	}
+	if (igmpstat.igps_len != IGPS_VERSION3_LEN) {
+		warnx("%s: size mismatch (%d != %d)", __func__,
+		    igmpstat.igps_len, IGPS_VERSION3_LEN);
+	}
+
+	printf("%s:\n", name);
+
+#define	p64(f, m) if (igmpstat.f || sflag <= 1) \
+    printf(m, (uintmax_t) igmpstat.f, plural(igmpstat.f))
+#define	py64(f, m) if (igmpstat.f || sflag <= 1) \
+    printf(m, (uintmax_t) igmpstat.f, pluralies(igmpstat.f))
+	p64(igps_rcv_total, "\t%ju message%s received\n");
+	p64(igps_rcv_tooshort, "\t%ju message%s received with too few bytes\n");
+	p64(igps_rcv_badttl, "\t%ju message%s received with wrong TTL\n");
+	p64(igps_rcv_badsum, "\t%ju message%s received with bad checksum\n");
+	py64(igps_rcv_v1v2_queries, "\t%ju V1/V2 membership quer%s received\n");
+	py64(igps_rcv_v3_queries, "\t%ju V3 membership quer%s received\n");
+	py64(igps_rcv_badqueries,
+	    "\t%ju membership quer%s received with invalid field(s)\n");
+	py64(igps_rcv_gen_queries, "\t%ju general quer%s received\n");
+	py64(igps_rcv_group_queries, "\t%ju group quer%s received\n");
+	py64(igps_rcv_gsr_queries, "\t%ju group-source quer%s received\n");
+	py64(igps_drop_gsr_queries, "\t%ju group-source quer%s dropped\n");
+	p64(igps_rcv_reports, "\t%ju membership report%s received\n");
+	p64(igps_rcv_badreports,
+	    "\t%ju membership report%s received with invalid field(s)\n");
+	p64(igps_rcv_ourreports,
+"\t%ju membership report%s received for groups to which we belong\n");
+        p64(igps_rcv_nora, "\t%ju V3 report%s received without Router Alert\n");
+        p64(igps_snd_reports, "\t%ju membership report%s sent\n");
+#undef p64
+#undef py64
 }
 
 /*

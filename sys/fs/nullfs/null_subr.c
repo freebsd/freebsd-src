@@ -269,20 +269,14 @@ null_hashrem(xp)
 
 #ifdef DIAGNOSTIC
 
-#ifdef KDB
-#define	null_checkvp_barrier	1
-#else
-#define	null_checkvp_barrier	0
-#endif
-
 struct vnode *
 null_checkvp(vp, fil, lno)
 	struct vnode *vp;
 	char *fil;
 	int lno;
 {
-	int interlock = 0;
 	struct null_node *a = VTONULL(vp);
+
 #ifdef notyet
 	/*
 	 * Can't do this check because vop_reclaim runs
@@ -290,9 +284,8 @@ null_checkvp(vp, fil, lno)
 	 */
 	if (vp->v_op != null_vnodeop_p) {
 		printf ("null_checkvp: on non-null-node\n");
-		while (null_checkvp_barrier) /*WAIT*/ ;
 		panic("null_checkvp");
-	};
+	}
 #endif
 	if (a->null_lowervp == NULLVP) {
 		/* Should never happen */
@@ -301,32 +294,24 @@ null_checkvp(vp, fil, lno)
 		for (p = (u_long *) a, i = 0; i < 8; i++)
 			printf(" %lx", p[i]);
 		printf("\n");
-		/* wait for debugger */
-		while (null_checkvp_barrier) /*WAIT*/ ;
 		panic("null_checkvp");
 	}
-	if (mtx_owned(VI_MTX(vp)) != 0) {
-		VI_UNLOCK(vp);
-		interlock = 1;
-	}
-	if (vrefcnt(a->null_lowervp) < 1) {
+	VI_LOCK_FLAGS(a->null_lowervp, MTX_DUPOK);
+	if (a->null_lowervp->v_usecount < 1) {
 		int i; u_long *p;
 		printf("vp = %p, unref'ed lowervp\n", (void *)vp);
 		for (p = (u_long *) a, i = 0; i < 8; i++)
 			printf(" %lx", p[i]);
 		printf("\n");
-		/* wait for debugger */
-		while (null_checkvp_barrier) /*WAIT*/ ;
 		panic ("null with unref'ed lowervp");
-	};
-	if (interlock != 0)
-		VI_LOCK(vp);
+	}
+	VI_UNLOCK(a->null_lowervp);
 #ifdef notyet
 	printf("null %x/%d -> %x/%d [%s, %d]\n",
 	        NULLTOV(a), vrefcnt(NULLTOV(a)),
 		a->null_lowervp, vrefcnt(a->null_lowervp),
 		fil, lno);
 #endif
-	return a->null_lowervp;
+	return (a->null_lowervp);
 }
 #endif

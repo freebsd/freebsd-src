@@ -730,8 +730,8 @@ dump_tables()
     /*
      * PART 6: And finally the variable data
      */
-    if (fwrite(variable,
-	       ntohl(new_locale.variable_len), 1, fp) != 1) {
+    if (new_locale.variable_len != 0 &&
+	fwrite(variable, ntohl(new_locale.variable_len), 1, fp) != 1) {
 	perror(locale_file);
 	exit(1);
     }

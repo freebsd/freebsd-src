@@ -47,6 +47,7 @@
 .ds doc-str-Lb-libfetch    File Transfer Library (libfetch, \-lfetch)
 .ds doc-str-Lb-libgeom     Userland API Library for kernel GEOM subsystem (libgeom, \-lgeom)
 .ds doc-str-Lb-libipx      IPX Address Conversion Support Library (libipx, \-lipx)
+.ds doc-str-Lb-libjail     Jail Library (libjail, \-ljail)
 .ds doc-str-Lb-libkiconv   Kernel side iconv library (libkiconv, \-lkiconv)
 .ds doc-str-Lb-libkse      N:M Threading Library (libkse, \-lkse)
 .ds doc-str-Lb-libmd       Message Digest (MD4, MD5, etc.) Support Library (libmd, \-lmd)
@@ -65,13 +66,18 @@
 .ds doc-volume-as-arm      arm
 .
 .\" Default .Os value
-.ds doc-default-operating-system FreeBSD\~8.0
+.ds doc-default-operating-system FreeBSD\~9.0
 .
 .\" FreeBSD releases not found in doc-common
 .ds doc-operating-system-FreeBSD-6.3    6.3
 .ds doc-operating-system-FreeBSD-6.4    6.4
 .ds doc-operating-system-FreeBSD-7.1    7.1
 .ds doc-operating-system-FreeBSD-8.0    8.0
+.ds doc-operating-system-FreeBSD-9.0    9.0
+.
+.\" Definitions not (yet) in doc-syms
+.ds doc-str-St--p1003.1-2008   \*[doc-Tn-font-size]\%IEEE\*[doc-str-St] Std 1003.1-2008
+.as doc-str-St--p1003.1-2008   " (\*[Lq]\)\*[Px]\*[doc-str-St].1\*[Rq])
 .
 .ec
 .

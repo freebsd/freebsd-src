@@ -254,7 +254,7 @@ __ACPI_BUS_ACCESSOR(acpi, magic, ACPI, MAGIC, uintptr_t)
 __ACPI_BUS_ACCESSOR(acpi, private, ACPI, PRIVATE, void *)
 __ACPI_BUS_ACCESSOR(acpi, flags, ACPI, FLAGS, int)
 
-void acpi_fake_objhandler(ACPI_HANDLE h, UINT32 fn, void *data);
+void acpi_fake_objhandler(ACPI_HANDLE h, void *data);
 static __inline device_t
 acpi_get_device(ACPI_HANDLE handle)
 {
@@ -330,6 +330,7 @@ ACPI_STATUS	acpi_SetIntrModel(int model);
 int		acpi_ReqSleepState(struct acpi_softc *sc, int state);
 int		acpi_AckSleepState(struct apm_clone_data *clone, int error);
 ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
+void		acpi_resync_clock(struct acpi_softc *sc);
 int		acpi_wake_init(device_t dev, int type);
 int		acpi_wake_set_enable(device_t dev, int enable);
 int		acpi_parse_prw(ACPI_HANDLE h, struct acpi_prw_data *prw);
@@ -455,6 +456,11 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
  * their children need them.
  */
 #define	ACPI_DEV_BASE_ORDER	10
+
+/* Default maximum number of tasks to enqueue. */
+#ifndef ACPI_MAX_TASKS
+#define	ACPI_MAX_TASKS		32
+#endif
 
 /* Default number of task queue threads to start. */
 #ifndef ACPI_MAX_THREADS

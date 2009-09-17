@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rcode.c,v 1.2.18.2 2006/01/27 23:57:44 marka Exp $ */
+/* $Id: rcode.c,v 1.8 2008/09/25 04:02:38 tbox Exp $ */
 
 #include <config.h>
 #include <ctype.h>
@@ -66,7 +66,7 @@
 #define ERCODENAMES \
 	/* extended rcodes */ \
 	{ dns_rcode_badvers, "BADVERS", 0}, \
-	{ 0, NULL, 0 } 
+	{ 0, NULL, 0 }
 
 #define TSIGRCODENAMES \
 	/* extended rcodes */ \
@@ -96,8 +96,10 @@
 	{ DNS_KEYALG_RSAMD5, "RSA", 0 }, \
 	{ DNS_KEYALG_DH, "DH", 0 }, \
 	{ DNS_KEYALG_DSA, "DSA", 0 }, \
+	{ DNS_KEYALG_NSEC3DSA, "NSEC3DSA", 0 }, \
 	{ DNS_KEYALG_ECC, "ECC", 0 }, \
 	{ DNS_KEYALG_RSASHA1, "RSASHA1", 0 }, \
+	{ DNS_KEYALG_NSEC3RSASHA1, "NSEC3RSASHA1", 0 }, \
 	{ DNS_KEYALG_INDIRECT, "INDIRECT", 0 }, \
 	{ DNS_KEYALG_PRIVATEDNS, "PRIVATEDNS", 0 }, \
 	{ DNS_KEYALG_PRIVATEOID, "PRIVATEOID", 0 }, \
@@ -114,6 +116,10 @@
 	{ 255,    "ALL", 0 }, \
 	{ 0, NULL, 0}
 
+#define HASHALGNAMES \
+	{ 1, "SHA-1", 0 }, \
+	{ 0, NULL, 0 }
+
 struct tbl {
 	unsigned int    value;
 	const char      *name;
@@ -125,6 +131,7 @@ static struct tbl tsigrcodes[] = { RCODENAMES TSIGRCODENAMES };
 static struct tbl certs[] = { CERTNAMES };
 static struct tbl secalgs[] = { SECALGNAMES };
 static struct tbl secprotos[] = { SECPROTONAMES };
+static struct tbl hashalgs[] = { HASHALGNAMES };
 
 static struct keyflag {
 	const char *name;
@@ -238,7 +245,7 @@ dns_mnemonic_fromtext(unsigned int *valuep, isc_textregion_t *source,
 
 static isc_result_t
 dns_mnemonic_totext(unsigned int value, isc_buffer_t *target,
-		    struct tbl *table) 
+		    struct tbl *table)
 {
 	int i = 0;
 	char buf[sizeof("4294967296")];
@@ -271,7 +278,7 @@ dns_tsigrcode_fromtext(dns_rcode_t *rcodep, isc_textregion_t *source) {
 	RETERR(dns_mnemonic_fromtext(&value, source, tsigrcodes, 0xffff));
 	*rcodep = value;
 	return (ISC_R_SUCCESS);
-} 
+}
 
 isc_result_t
 dns_tsigrcode_totext(dns_rcode_t rcode, isc_buffer_t *target) {
@@ -315,6 +322,14 @@ dns_secproto_fromtext(dns_secproto_t *secprotop, isc_textregion_t *source) {
 isc_result_t
 dns_secproto_totext(dns_secproto_t secproto, isc_buffer_t *target) {
 	return (dns_mnemonic_totext(secproto, target, secprotos));
+}
+
+isc_result_t
+dns_hashalg_fromtext(unsigned char *hashalg, isc_textregion_t *source) {
+	unsigned int value;
+	RETERR(dns_mnemonic_fromtext(&value, source, hashalgs, 0xff));
+	*hashalg = value;
+	return (ISC_R_SUCCESS);
 }
 
 isc_result_t

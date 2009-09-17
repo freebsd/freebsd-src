@@ -100,7 +100,7 @@ SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");
 static int	coredump(struct thread *);
 static char	*expand_name(const char *, uid_t, pid_t);
 static int	killpg1(struct thread *td, int sig, int pgid, int all);
-static int	issignal(struct thread *p);
+static int	issignal(struct thread *td, int stop_allowed);
 static int	sigprop(int sig);
 static void	tdsigwakeup(struct thread *, int, sig_t, int);
 static void	sig_suspend_threads(struct thread *, struct proc *, int);
@@ -111,8 +111,12 @@ static struct thread *sigtd(struct proc *p, int sig, int prop);
 static void	sigqueue_start(void);
 
 static uma_zone_t	ksiginfo_zone = NULL;
-struct filterops sig_filtops =
-	{ 0, filt_sigattach, filt_sigdetach, filt_signal };
+struct filterops sig_filtops = {
+	.f_isfd = 0,
+	.f_attach = filt_sigattach,
+	.f_detach = filt_sigdetach,
+	.f_event = filt_signal,
+};
 
 int	kern_logsigexit = 1;
 SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, 
@@ -558,12 +562,14 @@ sigqueue_delete_stopmask_proc(struct proc *p)
  * action, the process stops in issignal().
  */
 int
-cursig(struct thread *td)
+cursig(struct thread *td, int stop_allowed)
 {
 	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
+	KASSERT(stop_allowed == SIG_STOP_ALLOWED ||
+	    stop_allowed == SIG_STOP_NOT_ALLOWED, ("cursig: stop_allowed"));
 	mtx_assert(&td->td_proc->p_sigacts->ps_mtx, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_NOTOWNED);
-	return (SIGPENDING(td) ? issignal(td) : 0);
+	return (SIGPENDING(td) ? issignal(td, stop_allowed) : 0);
 }
 
 /*
@@ -1191,7 +1197,7 @@ restart:
 		SIG_CANTMASK(td->td_sigmask);
 		SIGDELSET(td->td_sigmask, i);
 		mtx_lock(&ps->ps_mtx);
-		sig = cursig(td);
+		sig = cursig(td, SIG_STOP_ALLOWED);
 		mtx_unlock(&ps->ps_mtx);
 		if (sig)
 			goto out;
@@ -1674,8 +1680,8 @@ kill(td, uap)
 	register struct proc *p;
 	int error;
 
-	AUDIT_ARG(signum, uap->signum);
-	AUDIT_ARG(pid, uap->pid);
+	AUDIT_ARG_SIGNUM(uap->signum);
+	AUDIT_ARG_PID(uap->pid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
@@ -1685,7 +1691,7 @@ kill(td, uap)
 			if ((p = zpfind(uap->pid)) == NULL)
 				return (ESRCH);
 		}
-		AUDIT_ARG(process, p);
+		AUDIT_ARG_PROCESS(p);
 		error = p_cansignal(td, p, uap->signum);
 		if (error == 0 && uap->signum)
 			psignal(p, uap->signum);
@@ -1717,8 +1723,8 @@ okillpg(td, uap)
 	register struct okillpg_args *uap;
 {
 
-	AUDIT_ARG(signum, uap->signum);
-	AUDIT_ARG(pid, uap->pgid);
+	AUDIT_ARG_SIGNUM(uap->signum);
+	AUDIT_ARG_PID(uap->pgid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
@@ -2310,18 +2316,28 @@ static void
 sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 {
 	struct thread *td2;
+	int wakeup_swapper;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
+	wakeup_swapper = 0;
 	FOREACH_THREAD_IN_PROC(p, td2) {
 		thread_lock(td2);
 		td2->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
 		if ((TD_IS_SLEEPING(td2) || TD_IS_SWAPPED(td2)) &&
-		    (td2->td_flags & TDF_SINTR) &&
-		    !TD_IS_SUSPENDED(td2)) {
-			thread_suspend_one(td2);
-		} else {
+		    (td2->td_flags & TDF_SINTR)) {
+			if (td2->td_flags & TDF_SBDRY) {
+				if (TD_IS_SUSPENDED(td2))
+					wakeup_swapper |=
+					    thread_unsuspend_one(td2);
+				if (TD_ON_SLEEPQ(td2))
+					wakeup_swapper |=
+					    sleepq_abort(td2, ERESTART);
+			} else if (!TD_IS_SUSPENDED(td2)) {
+				thread_suspend_one(td2);
+			}
+		} else if (!TD_IS_SUSPENDED(td2)) {
 			if (sending || td != td2)
 				td2->td_flags |= TDF_ASTPENDING;
 #ifdef SMP
@@ -2331,6 +2347,8 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 		}
 		thread_unlock(td2);
 	}
+	if (wakeup_swapper)
+		kick_proc0();
 }
 
 int
@@ -2387,8 +2405,7 @@ stopme:
  *		postsig(sig);
  */
 static int
-issignal(td)
-	struct thread *td;
+issignal(struct thread *td, int stop_allowed)
 {
 	struct proc *p;
 	struct sigacts *ps;
@@ -2506,6 +2523,10 @@ issignal(td)
 		    		    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
 					break;	/* == ignore */
+
+				/* Ignore, but do not drop the stop signal. */
+				if (stop_allowed != SIG_STOP_ALLOWED)
+					return (sig);
 				mtx_unlock(&ps->ps_mtx);
 				WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 				    &p->p_mtx.lock_object, "Catching SIGSTOP");
@@ -2585,7 +2606,6 @@ postsig(sig)
 	sig_t action;
 	ksiginfo_t ksi;
 	sigset_t returnmask;
-	int code;
 
 	KASSERT(sig != 0, ("postsig"));
 
@@ -2653,10 +2673,7 @@ postsig(sig)
 			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 		}
 		td->td_ru.ru_nsignals++;
-		if (p->p_sig != sig) {
-			code = 0;
-		} else {
-			code = p->p_code;
+		if (p->p_sig == sig) {
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
@@ -2944,7 +2961,8 @@ coredump(struct thread *td)
 restart:
 	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, name, td);
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
-	error = vn_open(&nd, &flags, S_IRUSR | S_IWUSR, NULL);
+	error = vn_open_cred(&nd, &flags, S_IRUSR | S_IWUSR, VN_OPEN_NOAUDIT,
+	    cred, NULL);
 	if (error) {
 #ifdef AUDIT
 		audit_proc_coredump(td, name, error);
@@ -2988,7 +3006,6 @@ restart:
 	if (set_core_nodump_flag)
 		vattr.va_flags = UF_NODUMP;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	VOP_LEASE(vp, td, cred, LEASE_WRITE);
 	VOP_SETATTR(vp, &vattr, cred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);

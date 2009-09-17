@@ -180,15 +180,36 @@ struct vop_vector ffs_fifoops2 = {
 static int
 ffs_fsync(struct vop_fsync_args *ap)
 {
+	struct vnode *vp;
+	struct bufobj *bo;
 	int error;
 
-	error = ffs_syncvnode(ap->a_vp, ap->a_waitfor);
+	vp = ap->a_vp;
+	bo = &vp->v_bufobj;
+retry:
+	error = ffs_syncvnode(vp, ap->a_waitfor);
 	if (error)
 		return (error);
 	if (ap->a_waitfor == MNT_WAIT &&
-	    (ap->a_vp->v_mount->mnt_flag & MNT_SOFTDEP))
-                error = softdep_fsync(ap->a_vp);
-	return (error);
+	    (vp->v_mount->mnt_flag & MNT_SOFTDEP)) {
+		error = softdep_fsync(vp);
+		if (error)
+			return (error);
+
+		/*
+		 * The softdep_fsync() function may drop vp lock,
+		 * allowing for dirty buffers to reappear on the
+		 * bo_dirty list. Recheck and resync as needed.
+		 */
+		BO_LOCK(bo);
+		if (vp->v_type == VREG && (bo->bo_numoutput > 0 ||
+		    bo->bo_dirty.bv_cnt > 0)) {
+			BO_UNLOCK(bo);
+			goto retry;
+		}
+		BO_UNLOCK(bo);
+	}
+	return (0);
 }
 
 int
@@ -1225,6 +1246,35 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 	return (0);
 }
 
+static void
+ffs_lock_ea(struct vnode *vp)
+{
+	struct inode *ip;
+
+	ip = VTOI(vp);
+	VI_LOCK(vp);
+	while (ip->i_flag & IN_EA_LOCKED) {
+		ip->i_flag |= IN_EA_LOCKWAIT;
+		msleep(&ip->i_ea_refs, &vp->v_interlock, PINOD + 2, "ufs_ea",
+		    0);
+	}
+	ip->i_flag |= IN_EA_LOCKED;
+	VI_UNLOCK(vp);
+}
+
+static void
+ffs_unlock_ea(struct vnode *vp)
+{
+	struct inode *ip;
+
+	ip = VTOI(vp);
+	VI_LOCK(vp);
+	if (ip->i_flag & IN_EA_LOCKWAIT)
+		wakeup(&ip->i_ea_refs);
+	ip->i_flag &= ~(IN_EA_LOCKED | IN_EA_LOCKWAIT);
+	VI_UNLOCK(vp);
+}
+
 static int
 ffs_open_ea(struct vnode *vp, struct ucred *cred, struct thread *td)
 {
@@ -1234,14 +1284,22 @@ ffs_open_ea(struct vnode *vp, struct ucred *cred, struct thread *td)
 
 	ip = VTOI(vp);
 
-	if (ip->i_ea_area != NULL)
-		return (EBUSY);
+	ffs_lock_ea(vp);
+	if (ip->i_ea_area != NULL) {
+		ip->i_ea_refs++;
+		ffs_unlock_ea(vp);
+		return (0);
+	}
 	dp = ip->i_din2;
 	error = ffs_rdextattr(&ip->i_ea_area, vp, td, 0);
-	if (error)
+	if (error) {
+		ffs_unlock_ea(vp);
 		return (error);
+	}
 	ip->i_ea_len = dp->di_extsize;
 	ip->i_ea_error = 0;
+	ip->i_ea_refs++;
+	ffs_unlock_ea(vp);
 	return (0);
 }
 
@@ -1258,11 +1316,16 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 	struct ufs2_dinode *dp;
 
 	ip = VTOI(vp);
-	if (ip->i_ea_area == NULL)
+
+	ffs_lock_ea(vp);
+	if (ip->i_ea_area == NULL) {
+		ffs_unlock_ea(vp);
 		return (EINVAL);
+	}
 	dp = ip->i_din2;
 	error = ip->i_ea_error;
 	if (commit && error == 0) {
+		ASSERT_VOP_ELOCKED(vp, "ffs_close_ea commit");
 		if (cred == NOCRED)
 			cred =  vp->v_mount->mnt_cred;
 		liovec.iov_base = ip->i_ea_area;
@@ -1279,10 +1342,13 @@ ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td
 			error = ffs_truncate(vp, 0, IO_EXT, cred, td);
 		error = ffs_extwrite(vp, &luio, IO_EXT | IO_SYNC, cred);
 	}
-	free(ip->i_ea_area, M_TEMP);
-	ip->i_ea_area = NULL;
-	ip->i_ea_len = 0;
-	ip->i_ea_error = 0;
+	if (--ip->i_ea_refs == 0) {
+		free(ip->i_ea_area, M_TEMP);
+		ip->i_ea_area = NULL;
+		ip->i_ea_len = 0;
+		ip->i_ea_error = 0;
+	}
+	ffs_unlock_ea(vp);
 	return (error);
 }
 
@@ -1335,7 +1401,7 @@ struct vop_openextattr_args {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	return (ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td));
@@ -1363,7 +1429,7 @@ struct vop_closeextattr_args {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	if (ap->a_commit && (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY))
@@ -1392,12 +1458,11 @@ vop_deleteextattr {
 	uint32_t ealength, ul;
 	int ealen, olen, eapad1, eapad2, error, i, easize;
 	u_char *eae, *p;
-	int stand_alone;
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	if (strlen(ap->a_name) == 0)
@@ -1409,19 +1474,19 @@ vop_deleteextattr {
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VWRITE);
 	if (error) {
+
+		/*
+		 * ffs_lock_ea is not needed there, because the vnode
+		 * must be exclusively locked.
+		 */
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = error;
 		return (error);
 	}
 
-	if (ip->i_ea_area == NULL) {
-		error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
-		if (error)
-			return (error);
-		stand_alone = 1;
-	} else {
-		stand_alone = 0;
-	}
+	error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
+	if (error)
+		return (error);
 
 	ealength = eapad1 = ealen = eapad2 = 0;
 
@@ -1434,8 +1499,7 @@ vop_deleteextattr {
 	if (olen == -1) {
 		/* delete but nonexistent */
 		free(eae, M_TEMP);
-		if (stand_alone)
-			ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 		return(ENOATTR);
 	}
 	bcopy(p, &ul, sizeof ul);
@@ -1446,9 +1510,8 @@ vop_deleteextattr {
 	}
 	if (easize > NXADDR * fs->fs_bsize) {
 		free(eae, M_TEMP);
-		if (stand_alone)
-			ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
-		else if (ip->i_ea_error == 0)
+		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = ENOSPC;
 		return(ENOSPC);
 	}
@@ -1456,8 +1519,7 @@ vop_deleteextattr {
 	ip->i_ea_area = eae;
 	ip->i_ea_len = easize;
 	free(p, M_TEMP);
-	if (stand_alone)
-		error = ffs_close_ea(ap->a_vp, 1, ap->a_cred, ap->a_td);
+	error = ffs_close_ea(ap->a_vp, 1, ap->a_cred, ap->a_td);
 	return(error);
 }
 
@@ -1482,12 +1544,12 @@ vop_getextattr {
 	struct fs *fs;
 	u_char *eae, *p;
 	unsigned easize;
-	int error, ealen, stand_alone;
+	int error, ealen;
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
@@ -1495,14 +1557,10 @@ vop_getextattr {
 	if (error)
 		return (error);
 
-	if (ip->i_ea_area == NULL) {
-		error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
-		if (error)
-			return (error);
-		stand_alone = 1;
-	} else {
-		stand_alone = 0;
-	}
+	error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
+	if (error)
+		return (error);
+
 	eae = ip->i_ea_area;
 	easize = ip->i_ea_len;
 
@@ -1516,8 +1574,8 @@ vop_getextattr {
 			error = uiomove(p, ealen, ap->a_uio);
 	} else
 		error = ENOATTR;
-	if (stand_alone)
-		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+
+	ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 	return(error);
 }
 
@@ -1542,12 +1600,12 @@ vop_listextattr {
 	u_char *eae, *p, *pe, *pn;
 	unsigned easize;
 	uint32_t ul;
-	int error, ealen, stand_alone;
+	int error, ealen;
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
@@ -1555,14 +1613,9 @@ vop_listextattr {
 	if (error)
 		return (error);
 
-	if (ip->i_ea_area == NULL) {
-		error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
-		if (error)
-			return (error);
-		stand_alone = 1;
-	} else {
-		stand_alone = 0;
-	}
+	error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
+	if (error)
+		return (error);
 	eae = ip->i_ea_area;
 	easize = ip->i_ea_len;
 
@@ -1586,8 +1639,7 @@ vop_listextattr {
 			error = uiomove(p, ealen + 1, ap->a_uio);
 		}
 	}
-	if (stand_alone)
-		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+	ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 	return(error);
 }
 
@@ -1612,12 +1664,11 @@ vop_setextattr {
 	uint32_t ealength, ul;
 	int ealen, olen, eapad1, eapad2, error, i, easize;
 	u_char *eae, *p;
-	int stand_alone;
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (ap->a_vp->v_type == VCHR)
+	if (ap->a_vp->v_type == VCHR || ap->a_vp->v_type == VBLK)
 		return (EOPNOTSUPP);
 
 	if (strlen(ap->a_name) == 0)
@@ -1633,19 +1684,19 @@ vop_setextattr {
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VWRITE);
 	if (error) {
+
+		/*
+		 * ffs_lock_ea is not needed there, because the vnode
+		 * must be exclusively locked.
+		 */
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = error;
 		return (error);
 	}
 
-	if (ip->i_ea_area == NULL) {
-		error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
-		if (error)
-			return (error);
-		stand_alone = 1;
-	} else {
-		stand_alone = 0;
-	}
+	error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
+	if (error)
+		return (error);
 
 	ealen = ap->a_uio->uio_resid;
 	ealength = sizeof(uint32_t) + 3 + strlen(ap->a_name);
@@ -1677,9 +1728,8 @@ vop_setextattr {
 	}
 	if (easize > NXADDR * fs->fs_bsize) {
 		free(eae, M_TEMP);
-		if (stand_alone)
-			ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
-		else if (ip->i_ea_error == 0)
+		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = ENOSPC;
 		return(ENOSPC);
 	}
@@ -1695,9 +1745,8 @@ vop_setextattr {
 	error = uiomove(p, ealen, ap->a_uio);
 	if (error) {
 		free(eae, M_TEMP);
-		if (stand_alone)
-			ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
-		else if (ip->i_ea_error == 0)
+		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = error;
 		return(error);
 	}
@@ -1708,8 +1757,7 @@ vop_setextattr {
 	ip->i_ea_area = eae;
 	ip->i_ea_len = easize;
 	free(p, M_TEMP);
-	if (stand_alone)
-		error = ffs_close_ea(ap->a_vp, 1, ap->a_cred, ap->a_td);
+	error = ffs_close_ea(ap->a_vp, 1, ap->a_cred, ap->a_td);
 	return(error);
 }
 

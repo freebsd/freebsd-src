@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
@@ -58,13 +59,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 #ifdef COMPAT_IA32
 #include <sys/procfs.h>
 #include <machine/fpu.h>
 #include <compat/ia32/ia32_reg.h>
-
-extern struct sysentvec ia32_freebsd_sysvec;
 
 struct ptrace_io_desc32 {
 	int		piod_op;
@@ -271,7 +271,10 @@ proc_rwmem(struct proc *p, struct uio *uio)
 		 */
 		error = vm_fault(map, pageno, reqprot, fault_flags);
 		if (error) {
-			error = EFAULT;
+			if (error == KERN_RESOURCE_SHORTAGE)
+				error = ENOMEM;
+			else
+				error = EFAULT;
 			break;
 		}
 
@@ -394,13 +397,12 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 #ifdef COMPAT_IA32
 	int wrap32 = 0;
 
-	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec)
+	if (SV_CURPROC_FLAG(SV_ILP32))
 		wrap32 = 1;
 #endif
-	AUDIT_ARG(pid, uap->pid);
-	AUDIT_ARG(cmd, uap->req);
-	AUDIT_ARG(addr, uap->addr);
-	AUDIT_ARG(value, uap->data);
+	AUDIT_ARG_PID(uap->pid);
+	AUDIT_ARG_CMD(uap->req);
+	AUDIT_ARG_VALUE(uap->data);
 	addr = &r;
 	switch (uap->req) {
 	case PT_GETREGS:
@@ -546,7 +548,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			pid = p->p_pid;
 		}
 	}
-	AUDIT_ARG(process, p);
+	AUDIT_ARG_PROCESS(p);
 
 	if ((p->p_flag & P_WEXIT) != 0) {
 		error = ESRCH;
@@ -581,8 +583,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	 * Test if we're a 32 bit client and what the target is.
 	 * Set the wrap controls accordingly.
 	 */
-	if (td->td_proc->p_sysent == &ia32_freebsd_sysvec) {
-		if (td2->td_proc->p_sysent == &ia32_freebsd_sysvec)
+	if (SV_CURPROC_FLAG(SV_ILP32)) {
+		if (td2->td_proc->p_sysent->sv_flags & SV_ILP32)
 			safe = 1;
 		wrap32 = 1;
 	}

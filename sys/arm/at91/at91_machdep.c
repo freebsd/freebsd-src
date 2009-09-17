@@ -179,6 +179,14 @@ static const struct pmap_devmap at91rm9200_devmap[] = {
 		PTE_NOCACHE,
 	},
 	{
+		/* CompactFlash controller. */
+		AT91RM92_CF_BASE,
+		AT91RM92_CF_PA_BASE,
+		AT91RM92_CF_SIZE,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
+	{
 		0,
 		0,
 		0,
@@ -207,6 +215,7 @@ void *
 initarm(void *arg, void *arg2)
 {
 	struct pv_addr  kernel_l1pt;
+	struct pv_addr  dpcpu;
 	int loop, i;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
@@ -256,6 +265,10 @@ initarm(void *arg, void *arg2)
 	 */
 	valloc_pages(systempage, 1);
 
+	/* Allocate dynamic per-cpu area. */
+	valloc_pages(dpcpu, DPCPU_SIZE / PAGE_SIZE);
+	dpcpu_init((void *)dpcpu.pv_va, 0);
+
 	/* Allocate stacks for all modes */
 	valloc_pages(irqstack, IRQ_STACK_SIZE);
 	valloc_pages(abtstack, ABT_STACK_SIZE);
@@ -288,6 +301,11 @@ initarm(void *arg, void *arg2)
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+
+	/* Map the DPCPU pages */
+	pmap_map_chunk(l1pagetable, dpcpu.pv_va, dpcpu.pv_pa, DPCPU_SIZE,
+	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+
 	/* Map the stack pages */
 	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
 	    IRQ_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);

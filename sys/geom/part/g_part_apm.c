@@ -216,6 +216,11 @@ g_part_apm_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_provider *pp;
 	struct g_part_apm_table *table;
+	uint32_t last;
+
+	/* We don't nest, which means that our depth should be 0. */
+	if (basetable->gpt_depth != 0)
+		return (ENXIO);
 
 	table = (struct g_part_apm_table *)basetable;
 	pp = gpp->gpp_provider;
@@ -223,12 +228,15 @@ g_part_apm_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	    pp->mediasize < (2 + 2 * basetable->gpt_entries) * pp->sectorsize)
 		return (ENOSPC);
 
+	/* APM uses 32-bit LBAs. */
+	last = MIN(pp->mediasize / pp->sectorsize, 0xffffffff) - 1;
+
 	basetable->gpt_first = 2 + basetable->gpt_entries;
-	basetable->gpt_last = (pp->mediasize / pp->sectorsize) - 1;
+	basetable->gpt_last = last;
 
 	table->ddr.ddr_sig = APM_DDR_SIG;
 	table->ddr.ddr_blksize = pp->sectorsize;
-	table->ddr.ddr_blkcount = basetable->gpt_last + 1;
+	table->ddr.ddr_blkcount = last + 1;
 
 	table->self.ent_sig = APM_ENT_SIG;
 	table->self.ent_pmblkcnt = basetable->gpt_entries + 1;

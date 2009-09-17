@@ -39,17 +39,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysmacros.h>
 #endif
 #endif
-#ifdef HAVE_EXT2FS_EXT2_FS_H
-#include <ext2fs/ext2_fs.h>	/* for Linux file flags */
-#endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>	/* for Linux file flags */
 #endif
+/*
+ * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
+ * As the include guards don't agree, the order of include is important.
+ */
 #ifdef HAVE_LINUX_EXT2_FS_H
 #include <linux/ext2_fs.h>	/* for Linux file flags */
+#endif
+#if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
+#include <ext2fs/ext2_fs.h>	/* for Linux file flags */
 #endif
 #include <stddef.h>
 #include <stdio.h>
@@ -79,7 +83,7 @@ __FBSDID("$FreeBSD$");
 #elif defined makedev
 /* There's a "makedev" macro. */
 #define ae_makedev(maj, min) makedev((maj), (min))
-#elif defined mkdev || defined _WIN32 || defined __WIN32__
+#elif defined mkdev || ((defined _WIN32 || defined __WIN32__) && !defined(__CYGWIN__))
 /* Windows. <sigh> */
 #define ae_makedev(maj, min) mkdev((maj), (min))
 #else
@@ -111,6 +115,7 @@ static int	acl_special(struct archive_entry *entry,
 static struct ae_acl *acl_new_entry(struct archive_entry *entry,
 		    int type, int permset, int tag, int id);
 static int	isint_w(const wchar_t *start, const wchar_t *end, int *result);
+static int	ismode_w(const wchar_t *start, const wchar_t *end, int *result);
 static void	next_field_w(const wchar_t **wp, const wchar_t **start,
 		    const wchar_t **end, wchar_t *sep);
 static int	prefix_w(const wchar_t *start, const wchar_t *end,
@@ -228,8 +233,8 @@ aes_get_wcs(struct aes *aes)
 		if (w == NULL)
 			__archive_errx(1, "No memory for aes_get_wcs()");
 		r = mbstowcs(w, aes->aes_mbs.s, wcs_length);
-		w[wcs_length] = 0;
 		if (r > 0) {
+			w[r] = 0;
 			aes->aes_set |= AES_SET_WCS;
 			return (aes->aes_wcs = w);
 		}
@@ -366,6 +371,7 @@ archive_entry_clear(struct archive_entry *entry)
 	aes_clean(&entry->ae_gname);
 	aes_clean(&entry->ae_hardlink);
 	aes_clean(&entry->ae_pathname);
+	aes_clean(&entry->ae_sourcepath);
 	aes_clean(&entry->ae_symlink);
 	aes_clean(&entry->ae_uname);
 	archive_entry_acl_clear(entry);
@@ -395,6 +401,7 @@ archive_entry_clone(struct archive_entry *entry)
 	aes_copy(&entry2->ae_gname, &entry->ae_gname);
 	aes_copy(&entry2->ae_hardlink, &entry->ae_hardlink);
 	aes_copy(&entry2->ae_pathname, &entry->ae_pathname);
+	aes_copy(&entry2->ae_sourcepath, &entry->ae_sourcepath);
 	aes_copy(&entry2->ae_symlink, &entry->ae_symlink);
 	entry2->ae_set = entry->ae_set;
 	aes_copy(&entry2->ae_uname, &entry->ae_uname);
@@ -1232,7 +1239,7 @@ static struct ae_acl *
 acl_new_entry(struct archive_entry *entry,
     int type, int permset, int tag, int id)
 {
-	struct ae_acl *ap;
+	struct ae_acl *ap, *aq;
 
 	if (type != ARCHIVE_ENTRY_ACL_TYPE_ACCESS &&
 	    type != ARCHIVE_ENTRY_ACL_TYPE_DEFAULT)
@@ -1245,20 +1252,26 @@ acl_new_entry(struct archive_entry *entry,
 	/* XXX TODO: More sanity-checks on the arguments XXX */
 
 	/* If there's a matching entry already in the list, overwrite it. */
-	for (ap = entry->acl_head; ap != NULL; ap = ap->next) {
+	ap = entry->acl_head;
+	aq = NULL;
+	while (ap != NULL) {
 		if (ap->type == type && ap->tag == tag && ap->id == id) {
 			ap->permset = permset;
 			return (ap);
 		}
+		aq = ap;
+		ap = ap->next;
 	}
 
-	/* Add a new entry to the list. */
+	/* Add a new entry to the end of the list. */
 	ap = (struct ae_acl *)malloc(sizeof(*ap));
 	if (ap == NULL)
 		return (NULL);
 	memset(ap, 0, sizeof(*ap));
-	ap->next = entry->acl_head;
-	entry->acl_head = ap;
+	if (aq == NULL)
+		entry->acl_head = ap;
+	else
+		aq->next = ap;
 	ap->type = type;
 	ap->tag = tag;
 	ap->id = id;
@@ -1580,11 +1593,10 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 	struct {
 		const wchar_t *start;
 		const wchar_t *end;
-	} field[4];
+	} field[4], name;
 
 	int fields;
 	int type, tag, permset, id;
-	const wchar_t *p;
 	wchar_t sep;
 
 	while (text != NULL  &&  *text != L'\0') {
@@ -1603,36 +1615,12 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 			++fields;
 		} while (sep == L':');
 
-		if (fields < 3)
-			return (ARCHIVE_WARN);
-
 		/* Check for a numeric ID in field 1 or 3. */
 		id = -1;
 		isint_w(field[1].start, field[1].end, &id);
 		/* Field 3 is optional. */
 		if (id == -1 && fields > 3)
 			isint_w(field[3].start, field[3].end, &id);
-
-		/* Parse the permissions from field 2. */
-		permset = 0;
-		p = field[2].start;
-		while (p < field[2].end) {
-			switch (*p++) {
-			case 'r': case 'R':
-				permset |= ARCHIVE_ENTRY_ACL_READ;
-				break;
-			case 'w': case 'W':
-				permset |= ARCHIVE_ENTRY_ACL_WRITE;
-				break;
-			case 'x': case 'X':
-				permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
-				break;
-			case '-':
-				break;
-			default:
-				return (ARCHIVE_WARN);
-			}
-		}
 
 		/*
 		 * Solaris extension:  "defaultuser::rwx" is the
@@ -1645,22 +1633,47 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 		} else
 			type = default_type;
 
+		name.start = name.end = NULL;
 		if (prefix_w(field[0].start, field[0].end, L"user")) {
-			if (id != -1 || field[1].start < field[1].end)
+			if (!ismode_w(field[2].start, field[2].end, &permset))
+				return (ARCHIVE_WARN);
+			if (id != -1 || field[1].start < field[1].end) {
 				tag = ARCHIVE_ENTRY_ACL_USER;
-			else
+				name = field[1];
+			} else
 				tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
 		} else if (prefix_w(field[0].start, field[0].end, L"group")) {
-			if (id != -1 || field[1].start < field[1].end)
+			if (!ismode_w(field[2].start, field[2].end, &permset))
+				return (ARCHIVE_WARN);
+			if (id != -1 || field[1].start < field[1].end) {
 				tag = ARCHIVE_ENTRY_ACL_GROUP;
-			else
+				name = field[1];
+			} else
 				tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
 		} else if (prefix_w(field[0].start, field[0].end, L"other")) {
-			if (id != -1 || field[1].start < field[1].end)
+			if (fields == 2
+			    && field[1].start < field[1].end
+			    && ismode_w(field[1].start, field[2].end, &permset)) {
+				/* This is Solaris-style "other:rwx" */
+			} else if (fields == 3
+			    && field[1].start == field[1].end
+			    && field[2].start < field[2].end
+			    && ismode_w(field[2].start, field[2].end, &permset)) {
+				/* This is FreeBSD-style "other::rwx" */
+			} else
 				return (ARCHIVE_WARN);
 			tag = ARCHIVE_ENTRY_ACL_OTHER;
 		} else if (prefix_w(field[0].start, field[0].end, L"mask")) {
-			if (id != -1 || field[1].start < field[1].end)
+			if (fields == 2
+			    && field[1].start < field[1].end
+			    && ismode_w(field[1].start, field[1].end, &permset)) {
+				/* This is Solaris-style "mask:rwx" */
+			} else if (fields == 3
+			    && field[1].start == field[1].end
+			    && field[2].start < field[2].end
+			    && ismode_w(field[2].start, field[2].end, &permset)) {
+				/* This is FreeBSD-style "mask::rwx" */
+			} else
 				return (ARCHIVE_WARN);
 			tag = ARCHIVE_ENTRY_ACL_MASK;
 		} else
@@ -1668,7 +1681,7 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 
 		/* Add entry to the internal list. */
 		archive_entry_acl_add_entry_w_len(entry, type, permset,
-		    tag, id, field[1].start, field[1].end - field[1].start);
+		    tag, id, name.start, name.end - name.start);
 	}
 	return (ARCHIVE_OK);
 }
@@ -1788,6 +1801,38 @@ isint_w(const wchar_t *start, const wchar_t *end, int *result)
 		start++;
 	}
 	*result = n;
+	return (1);
+}
+
+/*
+ * Parse a string as a mode field.  Returns true if
+ * the string is non-empty and consists only of mode characters,
+ * false otherwise.
+ */
+static int
+ismode_w(const wchar_t *start, const wchar_t *end, int *permset)
+{
+	const wchar_t *p;
+
+	p = start;
+	*permset = 0;
+	while (p < end) {
+		switch (*p++) {
+		case 'r': case 'R':
+			*permset |= ARCHIVE_ENTRY_ACL_READ;
+			break;
+		case 'w': case 'W':
+			*permset |= ARCHIVE_ENTRY_ACL_WRITE;
+			break;
+		case 'x': case 'X':
+			*permset |= ARCHIVE_ENTRY_ACL_EXECUTE;
+			break;
+		case '-':
+			break;
+		default:
+			return (0);
+		}
+	}
 	return (1);
 }
 

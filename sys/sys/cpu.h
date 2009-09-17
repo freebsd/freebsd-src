@@ -36,12 +36,22 @@
  */
 
 #define CPU_IVAR_PCPU		1
+#define CPU_IVAR_NOMINAL_MHZ	2
 
 static __inline struct pcpu *cpu_get_pcpu(device_t dev)
 {
 	uintptr_t v = 0;
 	BUS_READ_IVAR(device_get_parent(dev), dev, CPU_IVAR_PCPU, &v);
 	return ((struct pcpu *)v);
+}
+
+static __inline int32_t cpu_get_nominal_mhz(device_t dev)
+{
+	uintptr_t v = 0;
+	if (BUS_READ_IVAR(device_get_parent(dev), dev,
+	    CPU_IVAR_NOMINAL_MHZ, &v) != 0)
+		return (-1);
+	return ((int32_t)v);
 }
 
 /*

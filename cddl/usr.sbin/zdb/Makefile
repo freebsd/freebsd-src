@@ -6,8 +6,6 @@ PROG=	zdb
 MAN=	zdb.8
 SRCS=	zdb.c zdb_il.c
 
-CFLAGS+= -std=c99
-
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem
@@ -24,5 +22,7 @@ CFLAGS+= -I${.CURDIR}/../../lib/libumem
 DPADD=	${LIBAVL} ${LIBGEOM} ${LIBM} ${LIBNVPAIR} ${LIBPTHREAD} ${LIBUMEM} \
 	${LIBUUTIL} ${LIBZ} ${LIBZFS} ${LIBZPOOL}
 LDADD=	-lavl -lgeom -lm -lnvpair -lpthread -lumem -luutil -lz -lzfs -lzpool
+
+CSTD=	c99
 
 .include <bsd.prog.mk>

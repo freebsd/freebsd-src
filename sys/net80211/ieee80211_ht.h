@@ -35,8 +35,6 @@
 /* threshold for aging overlapping non-HT bss */
 #define	IEEE80211_NONHT_PRESENT_AGE	msecs_to_ticks(60*1000)
 
-typedef uint16_t ieee80211_seq;
-
 struct ieee80211_tx_ampdu {
 	struct ieee80211_node *txa_ni;	/* back pointer */
 	u_short		txa_flags;
@@ -60,6 +58,7 @@ struct ieee80211_tx_ampdu {
 	int		txa_nextrequest;/* soonest to make next request */
 	struct callout	txa_timer;
 	void		*txa_private;	/* driver-private storage */
+	uint64_t	txa_pad[4];
 };
 
 /* return non-zero if AMPDU tx for the TID is running */
@@ -143,6 +142,7 @@ struct ieee80211_rx_ampdu {
 	int		rxa_age;	/* age of oldest frame in window */
 	int		rxa_nframes;	/* frames since ADDBA */
 	struct mbuf *rxa_m[IEEE80211_AGGR_BAWMAX];
+	uint64_t	rxa_pad[4];
 };
 
 void	ieee80211_ht_attach(struct ieee80211com *);
@@ -186,16 +186,12 @@ void	ieee80211_parse_htinfo(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_ht_updateparams(struct ieee80211_node *, const uint8_t *,
 		const uint8_t *);
 void	ieee80211_ht_updatehtcap(struct ieee80211_node *, const uint8_t *);
-void	ieee80211_recv_action(struct ieee80211_node *,
-		const uint8_t *, const uint8_t *);
 int	ieee80211_ampdu_request(struct ieee80211_node *,
 		struct ieee80211_tx_ampdu *);
 void	ieee80211_ampdu_stop(struct ieee80211_node *,
 		struct ieee80211_tx_ampdu *, int);
 int	ieee80211_send_bar(struct ieee80211_node *, struct ieee80211_tx_ampdu *,
 		ieee80211_seq);
-int	ieee80211_send_action(struct ieee80211_node *,
-		int, int, uint16_t [4]);
 uint8_t	*ieee80211_add_htcap(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htcap_vendor(uint8_t *, struct ieee80211_node *);
 uint8_t	*ieee80211_add_htinfo(uint8_t *, struct ieee80211_node *);

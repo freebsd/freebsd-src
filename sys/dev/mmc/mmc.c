@@ -1437,7 +1437,7 @@ mmc_scan(struct mmc_softc *sc)
 }
 
 static int
-mmc_read_ivar(device_t bus, device_t child, int which, u_char *result)
+mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct mmc_ivars *ivar = device_get_ivars(child);
 

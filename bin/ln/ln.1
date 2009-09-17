@@ -32,7 +32,7 @@
 .\"	@(#)ln.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2008
+.Dd July 17, 2009
 .Dt LN 1
 .Os
 .Sh NAME
@@ -41,13 +41,13 @@
 .Nd link files
 .Sh SYNOPSIS
 .Nm
-.Op Fl s Op Fl F
+.Op Fl L | Fl P | Fl s Op Fl F
 .Op Fl f | iw
 .Op Fl hnv
 .Ar source_file
 .Op Ar target_file
 .Nm
-.Op Fl s Op Fl F
+.Op Fl L | Fl P | Fl s Op Fl F
 .Op Fl f | iw
 .Op Fl hnv
 .Ar source_file ...
@@ -77,16 +77,6 @@ to a file is one of the differences between a hard and symbolic link.
 .Pp
 The options are as follows:
 .Bl -tag -width flag
-.It Fl f
-If the target file already exists,
-then unlink it so that the link may occur.
-(The
-.Fl f
-option overrides any previous
-.Fl i
-and
-.Fl w
-options.)
 .It Fl F
 If the target file already exists and is a directory, then remove it
 so that the link may occur.
@@ -105,6 +95,29 @@ The
 option is a no-op unless
 .Fl s
 option is specified.
+.It Fl L
+When creating a hard link to a symbolic link,
+create a hard link to the target of the symbolic link.
+This is the default.
+This option cancels the
+.Fl P
+option.
+.It Fl P
+When creating a hard link to a symbolic link,
+create a hard link to the symbolic link itself.
+This option cancels the
+.Fl L
+option.
+.It Fl f
+If the target file already exists,
+then unlink it so that the link may occur.
+(The
+.Fl f
+option overrides any previous
+.Fl i
+and
+.Fl w
+options.)
 .It Fl h
 If the
 .Ar target_file

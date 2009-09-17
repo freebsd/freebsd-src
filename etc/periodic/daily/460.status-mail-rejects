@@ -12,10 +12,8 @@ then
 fi
 
 case "$daily_status_mail_rejects_shorten" in
-[Yy][Ee][Ss])
-    sed_output='\4 \3...';;
-*)
-    sed_output='\2 (\3... \4)';;
+[Yy][Ee][Ss])	shorten='cut -d" " -f2,3';;
+*)		shorten=cat;;
 esac
 
 case "$daily_status_mail_rejects_enable" in
@@ -39,7 +37,8 @@ case "$daily_status_mail_rejects_enable" in
 	    echo
 	    echo Checking for rejected mail hosts:
 
-	    start=`date -v-1d '+%b %e'`
+	    yesterday=$(date -v-1d '+%b %e')
+	    today=$(date '+%b %e')
 	    n=$(($daily_status_mail_rejects_logs - 2))
 	    rc=$({
 		while [ $n -ge 0 ]
@@ -57,9 +56,14 @@ case "$daily_status_mail_rejects_enable" in
 		    n=$(($n - 1))
 		done
 		cat /var/log/maillog
-	    } |
-		sed -n -E "s/^$start"'.*ruleset=check_[^ ]+, +arg1=<?([^@]+@)?([^>,]+).*reject=([^ ]+) .* ([^ ]+)$/'"$sed_output"'/p' |
-		sort -f | uniq -ic | sort -fnr | tee /dev/stderr | wc -l)
+	    } | sed -Ene "/^$today/q" -e "/^$yesterday/{"'
+		    s/.*ruleset=check_relay,.* relay=([^,]+), reject=([^ ]*).*/\2 check_relay \1/p
+		    t end
+                    s/.*ruleset=check_rcpt,.* arg1=<?([^>,]+).* reject=([^ ]+) .* ([^ ]+)/\2 check_rcpt \1 \3/p
+		    t end
+                    s/.*ruleset=check_([^,]+),.* arg1=<?([^@]+@)?([^>,]+).* reject=([^ ]+) .* ([^ ]+)/\4 check_\1 \3 \5/p
+		    :end
+		}' | eval $shorten | sort -f | uniq -ic | sort -fnr | tee /dev/stderr | wc -l)
 	    [ $rc -gt 0 ] && rc=1
 	fi;;
 

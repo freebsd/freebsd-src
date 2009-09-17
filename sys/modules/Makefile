@@ -14,16 +14,18 @@ SUBDIR=	${_3dfx} \
 	${_agp} \
 	aha \
 	${_ahb} \
+	ahci \
 	${_aic} \
 	aic7xxx \
 	aio \
 	${_amd} \
+	${_amdtemp} \
+	alc \
 	ale \
 	amr \
 	${_an} \
 	${_aout} \
 	${_apm} \
-	${_ar} \
 	${_arcmsr} \
 	${_arcnet} \
 	${_asmc} \
@@ -38,10 +40,12 @@ SUBDIR=	${_3dfx} \
 	${_bktr} \
 	${_bm} \
 	bridgestp \
+	bwi \
 	cam \
 	${_canbepm} \
 	${_canbus} \
 	${_cardbus} \
+	cas \
 	${_cbb} \
 	cd9660 \
 	cd9660_iconv \
@@ -106,6 +110,7 @@ SUBDIR=	${_3dfx} \
 	if_disc \
 	if_edsc \
 	if_ef \
+	if_epair \
 	if_faith \
 	if_gif \
 	if_gre \
@@ -137,9 +142,9 @@ SUBDIR=	${_3dfx} \
 	${_ixgb} \
 	jme \
 	joy \
-	${_k8temp} \
 	kbdmux \
 	krpc \
+	ksyms \
 	le \
 	lge \
 	libalias \
@@ -178,6 +183,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	mwl \
 	mxge \
 	my \
 	${_ncp} \
@@ -185,9 +191,13 @@ SUBDIR=	${_3dfx} \
 	${_ndis} \
 	netgraph \
 	${_nfe} \
+	nfscl \
 	nfsclient \
+	nfscommon \
+	nfsd \
 	nfslockd \
 	nfsserver \
+	nfssvc \
 	nge \
 	nmdm \
 	${_nsp} \
@@ -216,10 +226,11 @@ SUBDIR=	${_3dfx} \
 	procfs \
 	pseudofs \
 	${_pst} \
+	pty  \
 	puc \
 	ral \
+	ralfw \
 	${_random} \
-	${_ray} \
 	rc4 \
 	${_rdma} \
 	re \
@@ -234,6 +245,7 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	sf \
+	siis \
 	sis \
 	sk \
 	${_smbfs} \
@@ -244,7 +256,6 @@ SUBDIR=	${_3dfx} \
 	${_speaker} \
 	${_splash} \
 	${_sppp} \
-	${_sr} \
 	ste \
 	${_stg} \
 	stge \
@@ -265,8 +276,9 @@ SUBDIR=	${_3dfx} \
 	ubsec \
 	udf \
 	udf_iconv \
-	${_ufs} \
+	ufs \
 	unionfs \
+	usb \
 	utopia \
 	${_vesa} \
 	vge \
@@ -286,6 +298,7 @@ SUBDIR=	${_3dfx} \
 	wlan_xauth \
 	${_wpi} \
 	${_wpifw} \
+	x86emu \
 	${_xe} \
 	xfs \
 	xl \
@@ -295,10 +308,6 @@ SUBDIR=	${_3dfx} \
 .if ${MACHINE_ARCH} != "powerpc"
 _syscons=	syscons
 _vpo=		vpo
-.endif
-
-.if defined(ALL_MODULES)
-_ufs=		ufs
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -331,7 +340,6 @@ _amd=		amd
 _an=		an
 _aout=		aout
 _apm=		apm
-_ar=		ar
 _arcnet=	arcnet
 _bktr=		bktr
 _cardbus=	cardbus
@@ -384,7 +392,6 @@ _opensolaris=	opensolaris
 _pccard=	pccard
 _pcfclock=	pcfclock
 _pst=		pst
-_ray=		ray
 _rdma=		rdma
 _safe=		safe
 _sbni=		sbni
@@ -394,7 +401,6 @@ _sound=		sound
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
-_sr=		sr
 _stg=		stg
 _streams=	streams
 _svr4=		svr4
@@ -408,6 +414,7 @@ _zfs=		zfs
 _aac=		aac
 _acpi=		acpi
 _ahb=		ahb
+_amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
 _asr=		asr
@@ -434,7 +441,6 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
-_k8temp=	k8temp
 _mly=		mly
 _nfe=		nfe
 _nve=		nve
@@ -463,6 +469,7 @@ _aac=		aac
 _acpi=		acpi
 _agp=		agp
 _an=		an
+_amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
 _cardbus=	cardbus
@@ -475,6 +482,7 @@ _cpufreq=	cpufreq
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _cyclic=	cyclic
 .endif
+_dpms=		dpms
 _drm=		drm
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
@@ -501,7 +509,6 @@ _ipwfw=		ipwfw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
-_k8temp=	k8temp
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
@@ -526,9 +533,11 @@ _scsi_low=	scsi_low
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
+_splash=	splash
 _sppp=		sppp
 _tmpfs=		tmpfs
 _twa=		twa
+_vesa=		vesa
 _wi=		wi
 _wpi=		wpi
 _wpifw=		wpifw
@@ -543,7 +552,6 @@ _zfs=		zfs
 #	nsp s3 sbni stg vesa
 # acpi is not enabled because it is broken as a module on ia64
 _aic=		aic
-#_ar=		ar	not 64-bit clean
 _an=		an
 _arcnet=	arcnet
 _asr=		asr
@@ -568,7 +576,6 @@ _smbfs=		smbfs
 _sound=		sound
 _splash=	splash
 _sppp=		sppp
-#_sr=		sr		not 64bit clean
 _streams=	streams
 _wi=		wi
 _xe=		xe
@@ -577,8 +584,10 @@ _xe=		xe
 .if ${MACHINE_ARCH} == "powerpc"
 _an=		an
 _bm=		bm
+_cpufreq=	cpufreq
 _nvram=		powermac_nvram
 _smbfs=		smbfs
+_sound=		sound
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
@@ -586,6 +595,9 @@ _auxio=		auxio
 _em=		em
 _i2c=		i2c
 _igb=		igb
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_opensolaris=	opensolaris
+.endif
 _sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs

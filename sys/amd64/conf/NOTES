@@ -30,11 +30,6 @@ device		mptable			# Optional MPSPEC mptable support
 #
 options 	MP_WATCHDOG
 
-# 
-# Debugging options.
-#
-options		STOP_NMI		# Stop CPUS using NMI instead of IPI
-
 
 
 #####################################################################
@@ -82,7 +77,7 @@ options 	DEVICE_POLLING
 
 # BPF_JITTER adds support for BPF just-in-time compiler.
 
-options		BPF_JITTER
+options 	BPF_JITTER
 
 
 #####################################################################
@@ -153,11 +148,17 @@ device		agp
 #
 # AGP debugging.
 #
-options		AGP_DEBUG
+options 	AGP_DEBUG
 
 
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
+
+# To include support for VGA VESA video modes (depends on X86EMU)
+options 	VESA
+
+# Turn on extra debugging checks and output for VESA support.
+options 	VESA_DEBUG
 
 #
 # Optional devices:
@@ -237,12 +238,9 @@ device		tdfx			# Enable 3Dfx Voodoo support
 # kernel environment variables to select initial debugging levels for the
 # Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
 # defined when it is built).
-#
-# ACPI_NO_SEMAPHORES makes the AcpiOs*Semaphore routines a no-op.
 
 device		acpi
 options 	ACPI_DEBUG
-#!options 	ACPI_NO_SEMAPHORES
 
 # The cpufreq(4) driver provides support for non-ACPI CPU frequency control
 device		cpufreq
@@ -288,7 +286,7 @@ device		wpi
 
 device		ath			# Atheros pci/cardbus NIC's
 device		ath_hal			# pci/cardbus chip support
-options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample		# SampleRate tx rate control for ath
 #device		ath_rate_amrr		# AMRR rate control for ath driver
 #device		ath_rate_onoe		# Onoe rate control for ath driver
@@ -400,10 +398,10 @@ device		ichwd
 # Temperature sensors:
 #
 # coretemp: on-die sensor on Intel Core and newer CPUs
-# k8temp: on-die sensor on AMD K8 CPUs
+# amdtemp: on-die sensor on AMD K8/K10/K11 CPUs
 #
 device		coretemp
-device		k8temp
+device		amdtemp
 
 #
 # CPU control pseudo-device. Provides access to MSRs, CPUID info and
@@ -457,7 +455,7 @@ options 	LINPROCFS
 
 #Enable the linux-like sys filesystem support (requires COMPAT_LINUX32
 # and PSEUDOFS)
-options		LINSYSFS
+options 	LINSYSFS
 
 #
 # SysVR4 ABI emulation

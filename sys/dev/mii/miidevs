@@ -52,6 +52,7 @@ $FreeBSD$
 oui AGERE			0x00a0bc	Agere Systems
 oui ALTIMA			0x0010a9	Altima Communications
 oui AMD				0x00001a	Advanced Micro Devices
+oui ASIX			0x00602e	Asix Semiconductor
 oui ATHEROS			0x001374	Atheros Communications
 oui BROADCOM			0x001018	Broadcom Corporation
 oui BROADCOM2			0x000af7	Broadcom Corporation
@@ -119,6 +120,9 @@ model xxALTIMA ACXXX		0x0001 ACXXX 10/100 media interface
 model AMD 79c973phy		0x0036 Am79c973 internal PHY
 model AMD 79c978		0x0039 Am79c978 HomePNA PHY
 model xxAMD 79C873		0x0000 Am79C873/DM9101 10/100 media interface
+
+/* Asix semiconductor PHYs. */
+model ASIX AX88X9X		0x0031 Ax88x9x internal PHY
 
 /* Atheros Communications/Attansic PHYs. */
 model ATHEROS F1		0x0001 Atheros F1 10/100/1000 PHY
@@ -200,6 +204,7 @@ model NATSEMI DP83815		0x0002 DP83815 10/100 media interface
 model NATSEMI DP83847		0x0003 DP83847 10/100 media interface
 model NATSEMI DP83891		0x0005 DP83891 10/100/1000 media interface
 model NATSEMI DP83861		0x0006 DP83861 10/100/1000 media interface
+model NATSEMI DP83865		0x0007 DP83865 10/100/1000 media interface
 
 /* Quality Semiconductor PHYs */
 model QUALSEMI QS6612		0x0000 QS6612 10/100 media interface
@@ -243,6 +248,7 @@ model MARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
 model MARVELL E1116		0x0021 Marvell 88E1116 Gigabit PHY
 model MARVELL E1116R		0x0024 Marvell 88E1116R Gigabit PHY
 model MARVELL E1118		0x0022 Marvell 88E1118 Gigabit PHY
+model MARVELL E3016		0x0026 Marvell 88E3016 10/100 Fast Ethernet PHY
 model xxMARVELL E1000		0x0005 Marvell 88E1000 Gigabit PHY
 model xxMARVELL E1011		0x0002 Marvell 88E1011 Gigabit PHY
 model xxMARVELL E1000_3		0x0003 Marvell 88E1000 Gigabit PHY

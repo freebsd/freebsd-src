@@ -108,12 +108,29 @@ struct	gate_descriptor {
 	u_int64_t sd_xx1:32;
 } __packed;
 
+/*
+ * Generic descriptor
+ */
+union	descriptor	{
+	struct	user_segment_descriptor sd;
+	struct	gate_descriptor gd;
+};
+
 	/* system segments and gate types */
 #define	SDT_SYSNULL	 0	/* system null */
+#define	SDT_SYS286TSS	 1	/* system 286 TSS available */
 #define	SDT_SYSLDT	 2	/* system 64 bit local descriptor table */
+#define	SDT_SYS286BSY	 3	/* system 286 TSS busy */
+#define	SDT_SYS286CGT	 4	/* system 286 call gate */
+#define	SDT_SYSTASKGT	 5	/* system task gate */
+#define	SDT_SYS286IGT	 6	/* system 286 interrupt gate */
+#define	SDT_SYS286TGT	 7	/* system 286 trap gate */
+#define	SDT_SYSNULL2	 8	/* system null again */
 #define	SDT_SYSTSS	 9	/* system available 64 bit TSS */
+#define	SDT_SYSNULL3	10	/* system null again */
 #define	SDT_SYSBSY	11	/* system busy 64 bit TSS */
 #define	SDT_SYSCGT	12	/* system 64 bit call gate */
+#define	SDT_SYSNULL4	13	/* system null again */
 #define	SDT_SYSIGT	14	/* system 64 bit interrupt gate */
 #define	SDT_SYSTGT	15	/* system 64 bit trap gate */
 
@@ -195,15 +212,19 @@ struct region_descriptor {
  * Entries in the Global Descriptor Table (GDT)
  */
 #define	GNULL_SEL	0	/* Null Descriptor */
-#define	GCODE_SEL	1	/* Kernel Code Descriptor */
-#define	GDATA_SEL	2	/* Kernel Data Descriptor */
-#define	GUCODE32_SEL	3	/* User 32 bit code Descriptor */
-#define	GUDATA_SEL	4	/* User 32/64 bit Data Descriptor */
-#define	GUCODE_SEL	5	/* User 64 bit Code Descriptor */
-#define	GPROC0_SEL	6	/* TSS for entering kernel etc */
-/* slot 7 is second half of GPROC0_SEL */
-#define	GUGS32_SEL	8	/* User 32 bit GS Descriptor */
-#define	NGDT 		9
+#define	GNULL2_SEL	1	/* Null Descriptor */
+#define	GUFS32_SEL	2	/* User 32 bit %fs Descriptor */
+#define	GUGS32_SEL	3	/* User 32 bit %gs Descriptor */
+#define	GCODE_SEL	4	/* Kernel Code Descriptor */
+#define	GDATA_SEL	5	/* Kernel Data Descriptor */
+#define	GUCODE32_SEL	6	/* User 32 bit code Descriptor */
+#define	GUDATA_SEL	7	/* User 32/64 bit Data Descriptor */
+#define	GUCODE_SEL	8	/* User 64 bit Code Descriptor */
+#define	GPROC0_SEL	9	/* TSS for entering kernel etc */
+/* slot 10 is second half of GPROC0_SEL */
+#define	GUSERLDT_SEL	11	/* LDT */
+/* slot 11 is second half of GUSERLDT_SEL */
+#define	NGDT 		13
 
 #ifdef _KERNEL
 extern struct user_segment_descriptor gdt[];
@@ -218,6 +239,9 @@ void	ssdtosd(struct soft_segment_descriptor *ssdp,
 	    struct user_segment_descriptor *sdp);
 void	ssdtosyssd(struct soft_segment_descriptor *ssdp,
 	    struct system_segment_descriptor *sdp);
+void	update_gdt_gsbase(struct thread *td, uint32_t base);
+void	update_gdt_fsbase(struct thread *td, uint32_t base);
+
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_SEGMENTS_H_ */

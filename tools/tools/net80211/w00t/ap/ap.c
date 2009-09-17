@@ -846,7 +846,7 @@ void next_event(struct params *p)
 
 int main(int argc, char *argv[])
 {
-	char *iface = "ath0";
+	char *iface = "wlan0";
 	char *tap = "tap0";
 	struct params p;
 	int ch;

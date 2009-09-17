@@ -32,7 +32,6 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -46,10 +45,10 @@
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/conf.h>
-#include <sys/vimage.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -58,6 +57,7 @@
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/bpf.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -95,22 +95,17 @@
 static struct mtx gif_mtx;
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-struct vnet_gif vnet_gif_0;
-#endif
-#endif
+static VNET_DEFINE(LIST_HEAD(, gif_softc), gif_softc_list);
 
-#ifdef VIMAGE_GLOBALS
-static LIST_HEAD(, gif_softc) gif_softc_list;
-static int max_gif_nesting;
-static int parallel_tunnels;
+#define	V_gif_softc_list	VNET(gif_softc_list)
+
 #ifdef INET
-int ip_gif_ttl;
+VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
+#define	V_ip_gif_ttl		VNET(ip_gif_ttl)
 #endif
 #ifdef INET6
-int ip6_gif_hlim;
-#endif
+VNET_DEFINE(int, ip6_gif_hlim) = GIF_HLIM;
+#define	V_ip6_gif_hlim		VNET(ip6_gif_hlim)
 #endif
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
@@ -140,13 +135,17 @@ SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
  */
 #define MAX_GIF_NEST 1
 #endif
-SYSCTL_V_INT(V_NET, vnet_gif, _net_link_gif, OID_AUTO, max_nesting,
-    CTLFLAG_RW, max_gif_nesting, 0, "Max nested tunnels");
+
+static VNET_DEFINE(int, max_gif_nesting) = MAX_GIF_NEST;
+#define	V_max_gif_nesting	VNET(max_gif_nesting)
+
+SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_RW,
+    &VNET_NAME(max_gif_nesting), 0, "Max nested tunnels");
 
 #ifdef INET6
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_V_INT(V_NET, vnet_gif, _net_inet6_ip6, IPV6CTL_GIF_HLIM,
-    gifhlim, CTLFLAG_RW, ip6_gif_hlim, 0, "");
+SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_RW,
+    &VNET_NAME(ip6_gif_hlim), 0, "");
 #endif
 
 /*
@@ -154,8 +153,15 @@ SYSCTL_V_INT(V_NET, vnet_gif, _net_inet6_ip6, IPV6CTL_GIF_HLIM,
  * pair of addresses.  Some applications require this functionality so
  * we allow control over this check here.
  */
-SYSCTL_V_INT(V_NET, vnet_gif, _net_link_gif, OID_AUTO, parallel_tunnels,
-    CTLFLAG_RW, parallel_tunnels, 0, "Allow parallel tunnels?");
+#ifdef XBONEHACK
+static VNET_DEFINE(int, parallel_tunnels) = 1;
+#else
+static VNET_DEFINE(int, parallel_tunnels) = 0;
+#endif
+#define	V_parallel_tunnels	VNET(parallel_tunnels)
+
+SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
+    &VNET_NAME(parallel_tunnels), 0, "Allow parallel tunnels?");
 
 /* copy from src/sys/net/if_ethersubr.c */
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
@@ -171,7 +177,6 @@ gif_clone_create(ifc, unit, params)
 	int unit;
 	caddr_t params;
 {
-	INIT_VNET_GIF(curvnet);
 	struct gif_softc *sc;
 
 	sc = malloc(sizeof(struct gif_softc), M_GIF, M_WAITOK | M_ZERO);
@@ -188,6 +193,7 @@ gif_clone_create(ifc, unit, params)
 	if_initname(GIF2IFP(sc), ifc->ifc_name, unit);
 
 	sc->encap_cookie4 = sc->encap_cookie6 = NULL;
+	sc->gif_options = GIF_ACCEPT_REVETHIP;
 
 	GIF2IFP(sc)->if_addrlen = 0;
 	GIF2IFP(sc)->if_mtu    = GIF_MTU;
@@ -250,6 +256,15 @@ gif_clone_destroy(ifp)
 	free(sc, M_GIF);
 }
 
+static void
+vnet_gif_init(const void *unused __unused)
+{
+
+	LIST_INIT(&V_gif_softc_list);
+}
+VNET_SYSINIT(vnet_gif_init, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, vnet_gif_init,
+    NULL);
+
 static int
 gifmodevent(mod, type, data)
 	module_t mod;
@@ -260,29 +275,12 @@ gifmodevent(mod, type, data)
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&gif_mtx, "gif_mtx", NULL, MTX_DEF);
-
-		LIST_INIT(&V_gif_softc_list);
-		V_max_gif_nesting = MAX_GIF_NEST;
-#ifdef XBONEHACK
-		V_parallel_tunnels = 1;
-#else
-		V_parallel_tunnels = 0;
-#endif
-#ifdef INET
-		V_ip_gif_ttl = GIF_TTL;
-#endif
-#ifdef INET6
-		V_ip6_gif_hlim = GIF_HLIM;
-#endif
 		if_clone_attach(&gif_cloner);
-
 		break;
+
 	case MOD_UNLOAD:
 		if_clone_detach(&gif_cloner);
 		mtx_destroy(&gif_mtx);
-#ifdef INET6
-		V_ip6_gif_hlim = 0;
-#endif
 		break;
 	default:
 		return EOPNOTSUPP;
@@ -387,13 +385,12 @@ gif_start(struct ifnet *ifp)
 }
 
 int
-gif_output(ifp, m, dst, rt)
+gif_output(ifp, m, dst, ro)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *dst;
-	struct rtentry *rt;	/* added in net2 */
+	struct route *ro;
 {
-	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;
 	struct m_tag *mtag;
 	int error = 0;
@@ -510,6 +507,7 @@ gif_input(m, af, ifp)
 	struct ifnet *ifp;
 {
 	int isr, n;
+	struct gif_softc *sc = ifp->if_softc;
 	struct etherip_header *eip;
 	struct ether_header *eh;
 	struct ifnet *oldifp;
@@ -570,11 +568,25 @@ gif_input(m, af, ifp)
 		}
 
 		eip = mtod(m, struct etherip_header *);
- 		if (eip->eip_ver !=
-		    (ETHERIP_VERSION & ETHERIP_VER_VERS_MASK)) {
-			/* discard unknown versions */
-			m_freem(m);
-			return;
+		/* 
+		 * GIF_ACCEPT_REVETHIP (enabled by default) intentionally
+		 * accepts an EtherIP packet with revered version field in
+		 * the header.  This is a knob for backward compatibility
+		 * with FreeBSD 7.2R or prior.
+		 */
+		if (sc->gif_options & GIF_ACCEPT_REVETHIP) {
+			if (eip->eip_resvl != ETHERIP_VERSION
+			    && eip->eip_ver != ETHERIP_VERSION) {
+				/* discard unknown versions */
+				m_freem(m);
+				return;
+			}
+		} else {
+			if (eip->eip_ver != ETHERIP_VERSION) {
+				/* discard unknown versions */
+				m_freem(m);
+				return;
+			}
 		}
 		m_adj(m, sizeof(struct etherip_header));
 
@@ -629,6 +641,7 @@ gif_ioctl(ifp, cmd, data)
 	struct gif_softc *sc  = ifp->if_softc;
 	struct ifreq     *ifr = (struct ifreq*)data;
 	int error = 0, size;
+	u_int	options;
 	struct sockaddr *dst, *src;
 #ifdef	SIOCSIFMTU /* xxx */
 	u_long mtu;
@@ -863,6 +876,24 @@ gif_ioctl(ifp, cmd, data)
 		/* if_ioctl() takes care of it */
 		break;
 
+	case GIFGOPTS:
+		options = sc->gif_options;
+		error = copyout(&options, ifr->ifr_data,
+				sizeof(options));
+		break;
+
+	case GIFSOPTS:
+		if ((error = priv_check(curthread, PRIV_NET_GIF)) != 0)
+			break;
+		error = copyin(ifr->ifr_data, &options, sizeof(options));
+		if (error)
+			break;
+		if (options & ~GIF_OPTMASK)
+			error = EINVAL;
+		else
+			sc->gif_options = options;
+		break;
+
 	default:
 		error = EINVAL;
 		break;
@@ -884,7 +915,6 @@ gif_set_tunnel(ifp, src, dst)
 	struct sockaddr *src;
 	struct sockaddr *dst;
 {
-	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;
 	struct gif_softc *sc2;
 	struct sockaddr *osrc, *odst, *sa;

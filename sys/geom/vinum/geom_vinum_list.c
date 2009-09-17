@@ -1,5 +1,5 @@
 /*-
- *  Copyright (c) 2004 Lukas Ertl
+ *  Copyright (c) 2004, 2007 Lukas Ertl
  *  All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 
@@ -302,19 +301,37 @@ gv_lpi(struct gv_plex *p, struct sbuf *sb, int flags)
 		sbuf_printf(sb, "Plex %s:\tSize:\t%9jd bytes (%jd MB)\n",
 		    p->name, (intmax_t)p->size, (intmax_t)p->size / MEGABYTE);
 		sbuf_printf(sb, "\t\tSubdisks: %8d\n", p->sdcount);
-		sbuf_printf(sb, "\t\tState: %s\n\t\tOrganization: %s",
-		    gv_plexstate(p->state), gv_plexorg(p->org));
+		sbuf_printf(sb, "\t\tState: %s\n", gv_plexstate(p->state));
+		if ((p->flags & GV_PLEX_SYNCING) ||
+		    (p->flags & GV_PLEX_GROWING) ||
+		    (p->flags & GV_PLEX_REBUILDING)) {
+			sbuf_printf(sb, "\t\tSynced: ");
+			sbuf_printf(sb, "%16jd bytes (%d%%)\n",
+			    (intmax_t)p->synced,
+			    (p->size > 0) ? (int)((p->synced * 100) / p->size) :
+			    0);
+		}
+		sbuf_printf(sb, "\t\tOrganization: %s", gv_plexorg(p->org));
 		if (gv_is_striped(p)) {
 			sbuf_printf(sb, "\tStripe size: %s\n",
 			    gv_roughlength(p->stripesize, 1));
 		}
+		sbuf_printf(sb, "\t\tFlags: %d\n", p->flags);
 		if (p->vol_sc != NULL) {
 			sbuf_printf(sb, "\t\tPart of volume %s\n", p->volume);
 		}
 	} else {
-		sbuf_printf(sb, "P %-18s %2s State: %s\tSubdisks: %5d"
-		    "\tSize: %s\n", p->name, gv_plexorg_short(p->org),
-		    gv_plexstate(p->state), p->sdcount,
+		sbuf_printf(sb, "P %-18s %2s State: ", p->name,
+		gv_plexorg_short(p->org));
+		if ((p->flags & GV_PLEX_SYNCING) ||
+		    (p->flags & GV_PLEX_GROWING) ||
+		    (p->flags & GV_PLEX_REBUILDING)) {
+			sbuf_printf(sb, "S %d%%\t", (int)((p->synced * 100) /
+			    p->size));
+		} else {
+			sbuf_printf(sb, "%s\t", gv_plexstate(p->state));
+		}
+		sbuf_printf(sb, "Subdisks: %5d\tSize: %s\n", p->sdcount,
 		    gv_roughlength(p->size, 0));
 	}
 
@@ -396,6 +413,7 @@ gv_lsi(struct gv_sd *s, struct sbuf *sb, int flags)
 		    s->drive_sc == NULL ? "*missing*" : s->drive_sc->name,
 		    (intmax_t)s->drive_offset,
 		    gv_roughlength(s->drive_offset, 1));
+		sbuf_printf(sb, "\t\tFlags: %d\n", s->flags);
 	} else {
 		sbuf_printf(sb, "S %-21s State: ", s->name);
 		if (s->state == GV_SD_INITIALIZING ||
@@ -455,6 +473,7 @@ gv_ldi(struct gv_drive *d, struct sbuf *sb, int flags)
 		sbuf_printf(sb, "\t\tAvailable: %11jd bytes (%jd MB)\n",
 		    (intmax_t)d->avail, (intmax_t)d->avail / MEGABYTE);
 		sbuf_printf(sb, "\t\tState: %s\n", gv_drivestate(d->state));
+		sbuf_printf(sb, "\t\tFlags: %d\n", d->flags);
 
 		/* Be very verbose. */
 		if (flags & GV_FLAG_VV) {
@@ -469,7 +488,7 @@ gv_ldi(struct gv_drive *d, struct sbuf *sb, int flags)
 		sbuf_printf(sb, "D %-21s State: %s\t/dev/%s\tA: %jd/%jd MB "
 		    "(%d%%)\n", d->name, gv_drivestate(d->state), d->device,
 		    (intmax_t)d->avail / MEGABYTE, (intmax_t)d->size / MEGABYTE,
-		    (int)((d->avail * 100) / d->size));
+		    d->size > 0 ? (int)((d->avail * 100) / d->size) : 0);
 	}
 
 	/* Recursive listing. */

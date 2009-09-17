@@ -9,6 +9,8 @@ CFLAGS+= -DKEYSERV_RANDOM -DBROKEN_DES -I.
 DPADD=	${LIBMP} ${LIBCRYPTO} ${LIBRPCSVC}
 LDADD=	-lmp -lcrypto -lrpcsvc
 
+WARNS?=	1
+
 RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 
 CLEANFILES= crypt_svc.c crypt.h

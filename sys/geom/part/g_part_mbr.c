@@ -230,7 +230,7 @@ g_part_mbr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	struct g_part_mbr_table *table;
-	uint64_t msize;
+	uint32_t msize;
 
 	pp = gpp->gpp_provider;
 	cp = LIST_FIRST(&pp->consumers);
@@ -238,7 +238,7 @@ g_part_mbr_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (pp->sectorsize < MBRSIZE)
 		return (ENOSPC);
 
-	msize = pp->mediasize / pp->sectorsize;
+	msize = MIN(pp->mediasize / pp->sectorsize, 0xffffffff);
 	basetable->gpt_first = basetable->gpt_sectors;
 	basetable->gpt_last = msize - (msize % basetable->gpt_sectors) - 1;
 

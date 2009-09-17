@@ -62,6 +62,7 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
+#include <sys/cpu.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
@@ -91,6 +92,10 @@ static const struct cputab models[] = {
         { "Motorola PowerPC 620",	MPC620,		REVFMT_HEX },
         { "Motorola PowerPC 750",	MPC750,		REVFMT_MAJMIN },
         { "IBM PowerPC 750FX",		IBM750FX,	REVFMT_MAJMIN },
+        { "IBM PowerPC 970",		IBM970,		REVFMT_MAJMIN },
+        { "IBM PowerPC 970FX",		IBM970FX,	REVFMT_MAJMIN },
+        { "IBM PowerPC 970GX",		IBM970GX,	REVFMT_MAJMIN },
+        { "IBM PowerPC 970MP",		IBM970MP,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7410",	MPC7410,	REVFMT_MAJMIN },
         { "Motorola PowerPC 7450",	MPC7450,	REVFMT_MAJMIN },
@@ -227,7 +232,6 @@ cpu_setup(u_int cpuid)
 
 		case FSL_E500v1:
 		case FSL_E500v2:
-			hid0 |= HID0_EMCP;
 			break;
 	}
 
@@ -273,6 +277,12 @@ cpu_setup(u_int cpuid)
 			if (bootverbose)
 				cpu_print_cacheinfo(cpuid, vers);
 			break;
+		case IBM970:
+		case IBM970FX:
+		case IBM970MP:
+			cpu_print_speed();
+			printf("\n");
+			break;
 		default:
 			printf("\n");
 			break;
@@ -285,13 +295,63 @@ void
 cpu_print_speed(void)
 {
 	uint64_t	cps;
+	
+	if (cpu_est_clockrate(0, &cps) == 0)
+		printf(", %lld.%02lld MHz", cps / 1000000, (cps / 10000) % 100);
+}
 
-	mtspr(SPR_MMCR0, SPR_MMCR0_FC);
-	mtspr(SPR_PMC1, 0);
-	mtspr(SPR_MMCR0, SPR_MMCR0_PMC1SEL(PMCN_CYCLES));
-	DELAY(100000);
-	cps = (mfspr(SPR_PMC1) * 10) + 4999;
-	printf(", %lld.%02lld MHz", cps / 1000000, (cps / 10000) % 100);
+/* Get current clock frequency for the given cpu id. */
+int
+cpu_est_clockrate(int cpu_id, uint64_t *cps)
+{
+	uint16_t	vers;
+	register_t	msr;
+
+	vers = mfpvr() >> 16;
+	msr = mfmsr();
+	mtmsr(msr & ~PSL_EE);
+
+	switch (vers) {
+		case MPC7450:
+		case MPC7455:
+		case MPC7457:
+		case MPC750:
+		case IBM750FX:
+		case MPC7400:
+		case MPC7410:
+		case MPC7447A:
+		case MPC7448:
+			mtspr(SPR_MMCR0, SPR_MMCR0_FC);
+			mtspr(SPR_PMC1, 0);
+			mtspr(SPR_MMCR0, SPR_MMCR0_PMC1SEL(PMCN_CYCLES));
+			DELAY(1000);
+			*cps = (mfspr(SPR_PMC1) * 1000) + 4999;
+			mtspr(SPR_MMCR0, SPR_MMCR0_FC);
+
+			mtmsr(msr);
+			return (0);
+		case IBM970:
+		case IBM970FX:
+		case IBM970MP:
+			isync();
+			mtspr(SPR_970MMCR0, SPR_MMCR0_FC);
+			isync();
+			mtspr(SPR_970MMCR1, 0);
+			mtspr(SPR_970MMCRA, 0);
+			mtspr(SPR_970PMC1, 0);
+			mtspr(SPR_970MMCR0,
+			    SPR_970MMCR0_PMC1SEL(PMC970N_CYCLES));
+			isync();
+			DELAY(1000);
+			powerpc_sync();
+			mtspr(SPR_970MMCR0, SPR_MMCR0_FC);
+			*cps = (mfspr(SPR_970PMC1) * 1000) + 4999;
+
+			mtmsr(msr);
+			return (0);
+	}
+	
+	return (ENXIO);
 }
 
 void

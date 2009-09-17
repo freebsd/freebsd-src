@@ -99,8 +99,10 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
 
+#ifdef INET
 #ifdef __FreeBSD__
 #include <machine/in_cksum.h>
+#endif
 #endif
 
 #define PFLOGMTU	(32768 + MHLEN + MLEN)
@@ -113,7 +115,7 @@ __FBSDID("$FreeBSD$");
 
 void	pflogattach(int);
 int	pflogoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-	    	       struct rtentry *);
+    		       struct route *);
 int	pflogioctl(struct ifnet *, u_long, caddr_t);
 void	pflogstart(struct ifnet *);
 #ifdef __FreeBSD__
@@ -287,7 +289,7 @@ pflogstart(struct ifnet *ifp)
 
 int
 pflogoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-	struct rtentry *rt)
+       struct route *ro)
 {
 	m_freem(m);
 	return (0);

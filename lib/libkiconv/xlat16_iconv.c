@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Ryuichiro Imura
+ * Copyright (c) 2003, 2005 Ryuichiro Imura
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,9 +41,11 @@
 #include <dlfcn.h>
 #include <err.h>
 #include <errno.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wctype.h>
 
 #include "quirks.h"
 
@@ -56,6 +58,7 @@ struct xlat16_table {
 };
 
 static struct xlat16_table kiconv_xlat16_open(const char *, const char *, int);
+static int chklocale(int, const char *);
 
 static int my_iconv_init(void);
 static iconv_t (*my_iconv_open)(const char *, const char *);
@@ -67,30 +70,18 @@ int
 kiconv_add_xlat16_cspair(const char *tocode, const char *fromcode, int flag)
 {
 	int error;
-	size_t i, size, idxsize;
-	struct iconv_cspair_info *csi;
+	size_t idxsize;
 	struct xlat16_table xt;
 	void *data;
 	char *p;
 
-	if (sysctlbyname("kern.iconv.cslist", NULL, &size, NULL, 0) == -1)
-		return (-1);
-	if (size > 0) {
-		csi = malloc(size);
-		if (csi == NULL)
-			return (-1);
-		if (sysctlbyname("kern.iconv.cslist", csi, &size, NULL, 0) == -1) {
-			free(csi);
-			return (-1);
-		}
-		for (i = 0; i < (size/sizeof(*csi)); i++, csi++){
-			if (strcmp(csi->cs_to, tocode) == 0 &&
-			    strcmp(csi->cs_from, fromcode) == 0)
-				return (0);
-		}
-	}
+	if (kiconv_lookupcs(tocode, fromcode) == 0)
+		return (0);
 
-	xt = kiconv_xlat16_open(tocode, fromcode, flag);
+	if (flag & KICONV_WCTYPE)
+		xt = kiconv_xlat16_open(fromcode, fromcode, flag);
+	else
+		xt = kiconv_xlat16_open(tocode, fromcode, flag);
 	if (xt.size == 0)
 		return (-1);
 
@@ -117,7 +108,7 @@ kiconv_add_xlat16_cspair(const char *tocode, const char *fromcode, int flag)
 int
 kiconv_add_xlat16_cspairs(const char *foreigncode, const char *localcode)
 {
-	int error;
+	int error, locale;
 
 	error = kiconv_add_xlat16_cspair(foreigncode, localcode,
 	    KICONV_FROM_LOWER | KICONV_FROM_UPPER);
@@ -127,7 +118,14 @@ kiconv_add_xlat16_cspairs(const char *foreigncode, const char *localcode)
 	    KICONV_LOWER | KICONV_UPPER);
 	if (error)
 		return (error);
-	
+	locale = chklocale(LC_CTYPE, localcode);
+	if (locale == 0) {
+		error = kiconv_add_xlat16_cspair(KICONV_WCTYPE_NAME, localcode,
+		    KICONV_WCTYPE);
+		if (error)
+			return (error);
+	}
+
 	return (0);
 }
 
@@ -175,6 +173,31 @@ kiconv_xlat16_open(const char *tocode, const char *fromcode, int lcase)
 			bzero(dst, outbytesleft);
 
 			c = ((ls & 0x100 ? us | 0x80 : us) << 8) | (u_char)ls;
+
+			if (lcase & KICONV_WCTYPE) {
+				if ((c & 0xff) == 0)
+					c >>= 8;
+				if (iswupper(c)) {
+					c = towlower(c);
+					if ((c & 0xff00) == 0)
+						c <<= 8;
+					table[us] = c | XLAT16_HAS_LOWER_CASE;
+				} else if (iswlower(c)) {
+					c = towupper(c);
+					if ((c & 0xff00) == 0)
+						c <<= 8;
+					table[us] = c | XLAT16_HAS_UPPER_CASE;
+				} else
+					table[us] = 0;
+				/*
+				 * store not NULL
+				 */
+				if (table[us])
+					xt.idx[ls] = table;
+
+				continue;
+			}
+
 			c = quirk_vendor2unix(c, pre_q_list, pre_q_size);
 			src[0] = (u_char)(c >> 8);
 			src[1] = (u_char)c;
@@ -255,6 +278,24 @@ kiconv_xlat16_open(const char *tocode, const char *fromcode, int lcase)
 	xt.size = p - (char *)xt.data;
 	xt.data = realloc(xt.data, xt.size);
 	return (xt);
+}
+
+static int
+chklocale(int category, const char *code)
+{
+	char *p;
+	int error = -1;
+
+	p = strchr(setlocale(category, NULL), '.');
+	if (p++) {
+		error = strcasecmp(code, p);
+		if (error) {
+			/* XXX - can't avoid calling quirk here... */
+			error = strcasecmp(code, kiconv_quirkcs(p,
+			    KICONV_VENDOR_MICSFT));
+		}
+	}
+	return (error);
 }
 
 static int
@@ -380,17 +421,21 @@ my_iconv_char(iconv_t cd, const u_char **ibuf, size_t * ilen, u_char **obuf,
 
 #else /* statically linked */
 
+#include <sys/types.h>
+#include <sys/iconv.h>
 #include <errno.h>
 
 int
-kiconv_add_xlat16_cspair(const char *tocode, const char *fromcode, int flag)
+kiconv_add_xlat16_cspair(const char *tocode __unused, const char *fromcode __unused,
+    int flag __unused)
 {
+
 	errno = EINVAL;
 	return (-1);
 }
 
 int
-kiconv_add_xlat16_cspairs(const char *tocode, const char *fromcode)
+kiconv_add_xlat16_cspairs(const char *tocode __unused, const char *fromcode __unused)
 {
 	errno = EINVAL;
 	return (-1);

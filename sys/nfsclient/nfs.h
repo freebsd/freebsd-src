@@ -63,10 +63,13 @@
 #define	NFS_MAXATTRTIMO 60
 #endif
 #ifndef NFS_MINDIRATTRTIMO
-#define	NFS_MINDIRATTRTIMO 30		/* VDIR attrib cache timeout in sec */
+#define	NFS_MINDIRATTRTIMO 3		/* VDIR attrib cache timeout in sec */
 #endif
 #ifndef NFS_MAXDIRATTRTIMO
 #define	NFS_MAXDIRATTRTIMO 60
+#endif
+#ifndef	NFS_ACCESSCACHESIZE
+#define	NFS_ACCESSCACHESIZE 8		/* Per-node access cache entries */
 #endif
 #define	NFS_WSIZE	8192		/* Def. write data size <= 8192 */
 #define	NFS_RSIZE	8192		/* Def. read data size <= 8192 */
@@ -108,18 +111,6 @@
  */
 #define NFS_NFSSTATS	1		/* struct: struct nfsstats */
 
-/*
- * File context information for nfsv4.	Currently, there is only one
- * lockowner for the whole machine "0."
- */
-struct nfs4_fctx {
-	TAILQ_ENTRY(nfs4_fstate) next;
-	uint32_t	refcnt;
-	struct nfs4_lowner *lop;
-	struct nfsnode *np;
-	char		stateid[NFSX_V4STATEID];
-};
-
 #ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
@@ -132,9 +123,6 @@ MALLOC_DECLARE(M_NFSDIRECTIO);
 
 extern struct uma_zone *nfsmount_zone;
 
-#ifdef NFS_LEGACYRPC
-extern struct callout nfs_callout;
-#endif
 extern struct nfsstats nfsstats;
 extern struct mtx nfs_iod_mtx;
 
@@ -159,57 +147,7 @@ extern int nfsv3_procid[NFS_NPROCS];
 		(e) != ERESTART && (e) != EWOULDBLOCK && \
 		((s) & PR_CONNREQUIRED) == 0)
 
-#ifdef NFS_LEGACYRPC
-
-/*
- * Nfs outstanding request list element
- */
-struct nfsreq {
-	TAILQ_ENTRY(nfsreq) r_chain;
-	struct mbuf	*r_mreq;
-	struct mbuf	*r_mrep;
-	struct mbuf	*r_md;
-	caddr_t		r_dpos;
-	struct nfsmount *r_nmp;
-	struct vnode	*r_vp;
-	u_int32_t	r_xid;
-	int		r_flags;	/* flags on request, see below */
-	int		r_retry;	/* max retransmission count */
-	int		r_rexmit;	/* current retrans count */
-	int		r_timer;	/* tick counter on reply */
-	u_int32_t	r_procnum;	/* NFS procedure number */
-	int		r_rtt;		/* RTT for rpc */
-	int		r_lastmsg;	/* last tprintf */
-	struct thread	*r_td;		/* Proc that did I/O system call */
-	struct mtx	r_mtx;		/* Protects nfsreq fields */
-};
-
-/*
- * Queue head for nfsreq's
- */
-extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
-
-/* Flag values for r_flags */
-#define R_TIMING	0x01		/* timing request (in mntp) */
-#define R_SENT		0x02		/* request has been sent */
-#define	R_SOFTTERM	0x04		/* soft mnt, too many retries */
-#define	R_RESENDERR	0x08		/* Resend failed */
-#define	R_SOCKERR	0x10		/* Fatal error on socket */
-#define	R_TPRINTFMSG	0x20		/* Did a tprintf msg. */
-#define	R_MUSTRESEND	0x40		/* Must resend request */
-#define	R_GETONEREP	0x80		/* Probe for one reply only */
-#define	R_PIN_REQ	0x100		/* Pin request down (rexmit in prog or other) */
-
-#else
-
-/*
- * This is only needed to keep things working while we support
- * compiling for both RPC implementations.
- */
-struct nfsreq;
 struct nfsmount;
-
-#endif
 
 struct buf;
 struct socket;
@@ -304,21 +242,9 @@ enum nfs_rto_timer_t {
 
 vfs_init_t nfs_init;
 vfs_uninit_t nfs_uninit;
-int	nfs_mountroot(struct mount *mp, struct thread *td);
+int	nfs_mountroot(struct mount *mp);
 
-#ifdef NFS_LEGACYRPC
-#ifndef NFS4_USE_RPCCLNT
-int	nfs_send(struct socket *, struct sockaddr *, struct mbuf *,
-	    struct nfsreq *);
-int	nfs_connect_lock(struct nfsreq *);
-void	nfs_connect_unlock(struct nfsreq *);
-void	nfs_up(struct nfsreq *, struct nfsmount *, struct thread *,
-	    const char *, int);
-void	nfs_down(struct nfsreq *, struct nfsmount *, struct thread *,
-	    const char *, int, int);
-#endif /* ! NFS4_USE_RPCCLNT */
-#endif
-
+void	nfs_purgecache(struct vnode *);
 int	nfs_vinvalbuf(struct vnode *, int, struct thread *, int);
 int	nfs_readrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_writerpc(struct vnode *, struct uio *, struct ucred *, int *,
@@ -331,7 +257,7 @@ int	nfs_asyncio(struct nfsmount *, struct buf *, struct ucred *, struct thread *
 int	nfs_doio(struct vnode *, struct buf *, struct ucred *, struct thread *);
 void	nfs_doio_directwrite (struct buf *);
 int	nfs_readlinkrpc(struct vnode *, struct uio *, struct ucred *);
-int	nfs_sigintr(struct nfsmount *, struct nfsreq *, struct thread *);
+int	nfs_sigintr(struct nfsmount *, struct thread *);
 int	nfs_readdirplusrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_request(struct vnode *, struct mbuf *, int, struct thread *,
 	    struct ucred *, struct mbuf **, struct mbuf **, caddr_t *);
@@ -343,7 +269,7 @@ void	nfs_nhuninit(void);
 int	nfs_nmcancelreqs(struct nfsmount *);
 void	nfs_timer(void*);
 
-int	nfs_connect(struct nfsmount *, struct nfsreq *);
+int	nfs_connect(struct nfsmount *);
 void	nfs_disconnect(struct nfsmount *);
 void	nfs_safedisconnect(struct nfsmount *);
 int	nfs_getattrcache(struct vnode *, struct vattr *);

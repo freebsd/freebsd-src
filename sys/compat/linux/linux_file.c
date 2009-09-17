@@ -30,7 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1109,6 +1108,9 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 	} else if (strcmp(fstypename, "proc") == 0) {
 		strcpy(fstypename, "linprocfs");
 		fsdata = NULL;
+	} else if (strcmp(fstypename, "vfat") == 0) {
+		strcpy(fstypename, "msdosfs");
+		fsdata = NULL;
 	} else {
 		return (ENODEV);
 	}
@@ -1134,6 +1136,12 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 		error = kernel_vmount(fsflags,
 			"fstype", fstypename,
 			"fspath", mntonname,
+			NULL);
+	} else if (strcmp(fstypename, "msdosfs") == 0) {
+		error = kernel_vmount(fsflags,
+			"fstype", fstypename,
+			"fspath", mntonname,
+			"from", mntfromname,
 			NULL);
 	} else
 		error = EOPNOTSUPP;

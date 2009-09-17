@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2005
+.Dd March 14, 2009
 .Dt CAL 1
 .Os
 .Sh NAME
@@ -33,24 +33,24 @@
 .Nd displays a calendar and the date of Easter
 .Sh SYNOPSIS
 .Nm
-.Op Fl jy
+.Op Fl hjy
 .Oo
 .Op Ar month
 .Ar year
 .Oc
 .Nm
-.Op Fl j
+.Op Fl hj
 .Fl m Ar month
 .Op Ar year
 .Nm ncal
-.Op Fl jJpwy
+.Op Fl hjJpwy
 .Op Fl s Ar country_code
 .Oo
 .Op Ar month
 .Ar year
 .Oc
 .Nm ncal
-.Op Fl Jeo
+.Op Fl hJeo
 .Op Ar year
 .Sh DESCRIPTION
 The
@@ -65,6 +65,8 @@ the current month is displayed.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl h
+Turns off highlighting of today.
 .It Fl J
 Display Julian Calendar, if combined with the
 .Fl e
@@ -142,7 +144,3 @@ command and manual were written by
 .Sh BUGS
 The assignment of Julian\(enGregorian switching dates to
 country codes is historically naive for many countries.
-.Pp
-The
-.Nm
-utility does not recognize multibyte characters.

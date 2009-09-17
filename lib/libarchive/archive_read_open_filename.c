@@ -61,7 +61,6 @@ struct read_file_data {
 };
 
 static int	file_close(struct archive *, void *);
-static int	file_open(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
 #if ARCHIVE_API_VERSION < 2
 static ssize_t	file_skip(struct archive *, void *, size_t request);
@@ -80,78 +79,72 @@ int
 archive_read_open_filename(struct archive *a, const char *filename,
     size_t block_size)
 {
-	struct read_file_data *mine;
-
-	if (filename == NULL || filename[0] == '\0') {
-		mine = (struct read_file_data *)malloc(sizeof(*mine));
-		if (mine == NULL) {
-			archive_set_error(a, ENOMEM, "No memory");
-			return (ARCHIVE_FATAL);
-		}
-		mine->filename[0] = '\0';
-	} else {
-		mine = (struct read_file_data *)malloc(sizeof(*mine) + strlen(filename));
-		if (mine == NULL) {
-			archive_set_error(a, ENOMEM, "No memory");
-			return (ARCHIVE_FATAL);
-		}
-		strcpy(mine->filename, filename);
-	}
-	mine->block_size = block_size;
-	mine->buffer = NULL;
-	mine->fd = -1;
-	/* lseek() almost never works; disable it by default.  See below. */
-	mine->can_skip = 0;
-	return (archive_read_open2(a, mine, file_open, file_read, file_skip, file_close));
-}
-
-static int
-file_open(struct archive *a, void *client_data)
-{
-	struct read_file_data *mine = (struct read_file_data *)client_data;
 	struct stat st;
+	struct read_file_data *mine;
+	void *b;
+	int fd;
 
-	mine->buffer = malloc(mine->block_size);
-	if (mine->buffer == NULL) {
-		archive_set_error(a, ENOMEM, "No memory");
-		return (ARCHIVE_FATAL);
-	}
-	if (mine->filename[0] != '\0')
-		mine->fd = open(mine->filename, O_RDONLY | O_BINARY);
-	else
-		mine->fd = 0; /* Fake "open" for stdin. */
-	if (mine->fd < 0) {
-		archive_set_error(a, errno, "Failed to open '%s'",
-		    mine->filename);
-		return (ARCHIVE_FATAL);
-	}
-	if (fstat(mine->fd, &st) == 0) {
-		/* If we're reading a file from disk, ensure that we don't
-		   overwrite it with an extracted file. */
-		if (S_ISREG(st.st_mode)) {
-			archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
-			/*
-			 * Enabling skip here is a performance
-			 * optimization for anything that supports
-			 * lseek().  On FreeBSD, only regular files
-			 * and raw disk devices support lseek() and
-			 * there's no portable way to determine if a
-			 * device is a raw disk device, so we only
-			 * enable this optimization for regular files.
-			 */
-			mine->can_skip = 1;
-		}
-		/* Remember mode so close can decide whether to flush. */
-		mine->st_mode = st.st_mode;
+	archive_clear_error(a);
+	if (filename == NULL || filename[0] == '\0') {
+		/* We used to invoke archive_read_open_fd(a,0,block_size)
+		 * here, but that doesn't (and shouldn't) handle the
+		 * end-of-file flush when reading stdout from a pipe.
+		 * Basically, read_open_fd() is intended for folks who
+		 * are willing to handle such details themselves.  This
+		 * API is intended to be a little smarter for folks who
+		 * want easy handling of the common case.
+		 */
+		filename = ""; /* Normalize NULL to "" */
+		fd = 0;
 	} else {
-		if (mine->filename[0] == '\0')
-			archive_set_error(a, errno, "Can't stat stdin");
-		else
-			archive_set_error(a, errno, "Can't stat '%s'",
-			    mine->filename);
+		fd = open(filename, O_RDONLY | O_BINARY);
+		if (fd < 0) {
+			archive_set_error(a, errno,
+			    "Failed to open '%s'", filename);
+			return (ARCHIVE_FATAL);
+		}
+	}
+	if (fstat(fd, &st) != 0) {
+		archive_set_error(a, errno, "Can't stat '%s'", filename);
 		return (ARCHIVE_FATAL);
 	}
-	return (0);
+
+	mine = (struct read_file_data *)calloc(1,
+	    sizeof(*mine) + strlen(filename));
+	b = malloc(block_size);
+	if (mine == NULL || b == NULL) {
+		archive_set_error(a, ENOMEM, "No memory");
+		free(mine);
+		free(b);
+		return (ARCHIVE_FATAL);
+	}
+	strcpy(mine->filename, filename);
+	mine->block_size = block_size;
+	mine->buffer = b;
+	mine->fd = fd;
+	/* Remember mode so close can decide whether to flush. */
+	mine->st_mode = st.st_mode;
+	/* If we're reading a file from disk, ensure that we don't
+	   overwrite it with an extracted file. */
+	if (S_ISREG(st.st_mode)) {
+		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
+		/*
+		 * Enabling skip here is a performance optimization
+		 * for anything that supports lseek().  On FreeBSD
+		 * (and probably many other systems), only regular
+		 * files and raw disk devices support lseek() (on
+		 * other input types, lseek() returns success but
+		 * doesn't actually change the file pointer, which
+		 * just completely screws up the position-tracking
+		 * logic).  In addition, I've yet to find a portable
+		 * way to determine if a device is a raw disk device.
+		 * So I don't see a way to do much better than to only
+		 * enable this optimization for regular files.
+		 */
+		mine->can_skip = 1;
+	}
+	return (archive_read_open2(a, mine,
+		NULL, file_read, file_skip, file_close));
 }
 
 static ssize_t
@@ -238,30 +231,32 @@ file_close(struct archive *a, void *client_data)
 
 	(void)a; /* UNUSED */
 
-	/*
-	 * Sometimes, we should flush the input before closing.
-	 *   Regular files: faster to just close without flush.
-	 *   Devices: must not flush (user might need to
-	 *      read the "next" item on a non-rewind device).
-	 *   Pipes and sockets:  must flush (otherwise, the
-	 *      program feeding the pipe or socket may complain).
-	 * Here, I flush everything except for regular files and
-	 * device nodes.
-	 */
-	if (!S_ISREG(mine->st_mode)
-	    && !S_ISCHR(mine->st_mode)
-	    && !S_ISBLK(mine->st_mode)) {
-		ssize_t bytesRead;
-		do {
-			bytesRead = read(mine->fd, mine->buffer,
-			    mine->block_size);
-		} while (bytesRead > 0);
+	/* Only flush and close if open succeeded. */
+	if (mine->fd >= 0) {
+		/*
+		 * Sometimes, we should flush the input before closing.
+		 *   Regular files: faster to just close without flush.
+		 *   Devices: must not flush (user might need to
+		 *      read the "next" item on a non-rewind device).
+		 *   Pipes and sockets:  must flush (otherwise, the
+		 *      program feeding the pipe or socket may complain).
+		 * Here, I flush everything except for regular files and
+		 * device nodes.
+		 */
+		if (!S_ISREG(mine->st_mode)
+		    && !S_ISCHR(mine->st_mode)
+		    && !S_ISBLK(mine->st_mode)) {
+			ssize_t bytesRead;
+			do {
+				bytesRead = read(mine->fd, mine->buffer,
+				    mine->block_size);
+			} while (bytesRead > 0);
+		}
+		/* If a named file was opened, then it needs to be closed. */
+		if (mine->filename[0] != '\0')
+			close(mine->fd);
 	}
-	/* If a named file was opened, then it needs to be closed. */
-	if (mine->filename[0] != '\0')
-		close(mine->fd);
-	if (mine->buffer != NULL)
-		free(mine->buffer);
+	free(mine->buffer);
 	free(mine);
 	return (ARCHIVE_OK);
 }

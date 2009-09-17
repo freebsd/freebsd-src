@@ -190,13 +190,19 @@ static struct msk_product {
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8062X,
 	    "Marvell Yukon 88E8062 SX/LX Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8035,
-	    "Marvell Yukon 88E8035 Gigabit Ethernet" },
+	    "Marvell Yukon 88E8035 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8036,
-	    "Marvell Yukon 88E8036 Gigabit Ethernet" },
+	    "Marvell Yukon 88E8036 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8038,
-	    "Marvell Yukon 88E8038 Gigabit Ethernet" },
+	    "Marvell Yukon 88E8038 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_8039,
-	    "Marvell Yukon 88E8039 Gigabit Ethernet" },
+	    "Marvell Yukon 88E8039 Fast Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_8040,
+	    "Marvell Yukon 88E8040 Fast Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_8040T,
+	    "Marvell Yukon 88E8040T Fast Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_8048,
+	    "Marvell Yukon 88E8048 Fast Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_4361,
 	    "Marvell Yukon 88E8050 Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_4360,
@@ -207,8 +213,14 @@ static struct msk_product {
 	    "Marvell Yukon 88E8055 Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_4364,
 	    "Marvell Yukon 88E8056 Gigabit Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_4365,
+	    "Marvell Yukon 88E8070 Gigabit Ethernet" },
 	{ VENDORID_MARVELL, DEVICEID_MRVL_436A,
 	    "Marvell Yukon 88E8058 Gigabit Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_436B,
+	    "Marvell Yukon 88E8071 Gigabit Ethernet" },
+	{ VENDORID_MARVELL, DEVICEID_MRVL_436C,
+	    "Marvell Yukon 88E8072 Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE550SX,
 	    "D-Link 550SX Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE560T,
@@ -218,9 +230,10 @@ static struct msk_product {
 static const char *model_name[] = {
 	"Yukon XL",
         "Yukon EC Ultra",
-        "Yukon Unknown",
+        "Yukon EX",
         "Yukon EC",
-        "Yukon FE"
+        "Yukon FE",
+        "Yukon FE+"
 };
 
 static int mskc_probe(device_t);
@@ -249,8 +262,8 @@ static void msk_intr_hwerr(struct msk_softc *);
 #ifndef __NO_STRICT_ALIGNMENT
 static __inline void msk_fixup_rx(struct mbuf *);
 #endif
-static void msk_rxeof(struct msk_if_softc *, uint32_t, int);
-static void msk_jumbo_rxeof(struct msk_if_softc *, uint32_t, int);
+static void msk_rxeof(struct msk_if_softc *, uint32_t, uint32_t, int);
+static void msk_jumbo_rxeof(struct msk_if_softc *, uint32_t, uint32_t, int);
 static void msk_txeof(struct msk_if_softc *, int);
 static int msk_encap(struct msk_if_softc *, struct mbuf **);
 static void msk_tx_task(void *, int);
@@ -258,6 +271,7 @@ static void msk_start(struct ifnet *);
 static int msk_ioctl(struct ifnet *, u_long, caddr_t);
 static void msk_set_prefetch(struct msk_softc *, int, bus_addr_t, uint32_t);
 static void msk_set_rambuffer(struct msk_if_softc *);
+static void msk_set_tx_stfwd(struct msk_if_softc *);
 static void msk_init(void *);
 static void msk_init_locked(struct msk_if_softc *);
 static void msk_stop(struct msk_if_softc *);
@@ -285,11 +299,9 @@ static int msk_phy_writereg(struct msk_if_softc *, int, int, int);
 static int msk_miibus_readreg(device_t, int, int);
 static int msk_miibus_writereg(device_t, int, int, int);
 static void msk_miibus_statchg(device_t);
-static void msk_link_task(void *, int);
 
-static void msk_setmulti(struct msk_if_softc *);
+static void msk_rxfilter(struct msk_if_softc *);
 static void msk_setvlan(struct msk_if_softc *, struct ifnet *);
-static void msk_setpromisc(struct msk_if_softc *);
 
 static void msk_stats_clear(struct msk_if_softc *);
 static void msk_stats_update(struct msk_if_softc *);
@@ -460,40 +472,44 @@ msk_phy_writereg(struct msk_if_softc *sc_if, int phy, int reg, int val)
 static void
 msk_miibus_statchg(device_t dev)
 {
-	struct msk_if_softc *sc_if;
-
-	sc_if = device_get_softc(dev);
-	taskqueue_enqueue(taskqueue_swi, &sc_if->msk_link_task);
-}
-
-static void
-msk_link_task(void *arg, int pending)
-{
 	struct msk_softc *sc;
 	struct msk_if_softc *sc_if;
 	struct mii_data *mii;
 	struct ifnet *ifp;
 	uint32_t gmac;
 
-	sc_if = (struct msk_if_softc *)arg;
+	sc_if = device_get_softc(dev);
 	sc = sc_if->msk_softc;
 
-	MSK_IF_LOCK(sc_if);
+	MSK_IF_LOCK_ASSERT(sc_if);
 
 	mii = device_get_softc(sc_if->msk_miibus);
 	ifp = sc_if->msk_ifp;
-	if (mii == NULL || ifp == NULL) {
-		MSK_IF_UNLOCK(sc_if);
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
+
+	sc_if->msk_flags &= ~MSK_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_AVALID | IFM_ACTIVE)) ==
+	    (IFM_AVALID | IFM_ACTIVE)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc_if->msk_flags |= MSK_FLAG_LINK;
+			break;
+		case IFM_1000_T:
+		case IFM_1000_SX:
+		case IFM_1000_LX:
+		case IFM_1000_CX:
+			if ((sc_if->msk_flags & MSK_FLAG_FASTETHER) == 0)
+				sc_if->msk_flags |= MSK_FLAG_LINK;
+			break;
+		default:
+			break;
+		}
 	}
 
-	if (mii->mii_media_status & IFM_ACTIVE) {
-		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-			sc_if->msk_link = 1;
-	} else
-		sc_if->msk_link = 0;
-
-	if (sc_if->msk_link != 0) {
+	if ((sc_if->msk_flags & MSK_FLAG_LINK) != 0) {
 		/* Enable Tx FIFO Underrun. */
 		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_MSK),
 		    GM_IS_TX_FF_UR | GM_IS_RX_FF_OR);
@@ -550,17 +566,17 @@ msk_link_task(void *arg, int pending)
 		msk_phy_writereg(sc_if, PHY_ADDR_MARV, PHY_MARV_INT_MASK, 0);
 		/* Disable Rx/Tx MAC. */
 		gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
-		gmac &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
-		GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
-		/* Read again to ensure writing. */
-		GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
+		if ((GM_GPCR_RX_ENA | GM_GPCR_TX_ENA) != 0) {
+			gmac &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
+			GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
+			/* Read again to ensure writing. */
+			GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
+		}
 	}
-
-	MSK_IF_UNLOCK(sc_if);
 }
 
 static void
-msk_setmulti(struct msk_if_softc *sc_if)
+msk_rxfilter(struct msk_if_softc *sc_if)
 {
 	struct msk_softc *sc;
 	struct ifnet *ifp;
@@ -577,16 +593,15 @@ msk_setmulti(struct msk_if_softc *sc_if)
 
 	bzero(mchash, sizeof(mchash));
 	mode = GMAC_READ_2(sc, sc_if->msk_port, GM_RX_CTRL);
-	mode |= GM_RXCR_UCF_ENA;
-	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
-		if ((ifp->if_flags & IFF_PROMISC) != 0)
-			mode &= ~(GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
-		else if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
-			mchash[0] = 0xffff;
-			mchash[1] = 0xffff;
-		}
+	if ((ifp->if_flags & IFF_PROMISC) != 0)
+		mode &= ~(GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
+	else if ((ifp->if_flags & IFF_ALLMULTI) != 0) {
+		mode |= GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA;
+		mchash[0] = 0xffff;
+		mchash[1] = 0xffff;
 	} else {
-		IF_ADDR_LOCK(ifp);
+		mode |= GM_RXCR_UCF_ENA;
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -597,8 +612,9 @@ msk_setmulti(struct msk_if_softc *sc_if)
 			/* Set the corresponding bit in the hash table. */
 			mchash[crc >> 5] |= 1 << (crc & 0x1f);
 		}
-		IF_ADDR_UNLOCK(ifp);
-		mode |= GM_RXCR_MCF_ENA;
+		if_maddr_runlock(ifp);
+		if (mchash[0] != 0 || mchash[1] != 0)
+			mode |= GM_RXCR_MCF_ENA;
 	}
 
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_MC_ADDR_H1,
@@ -629,26 +645,6 @@ msk_setvlan(struct msk_if_softc *sc_if, struct ifnet *ifp)
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
 		    TX_VLAN_TAG_OFF);
 	}
-}
-
-static void
-msk_setpromisc(struct msk_if_softc *sc_if)
-{
-	struct msk_softc *sc;
-	struct ifnet *ifp;
-	uint16_t mode;
-
-	MSK_IF_LOCK_ASSERT(sc_if);
-
-	sc = sc_if->msk_softc;
-	ifp = sc_if->msk_ifp;
-
-	mode = GMAC_READ_2(sc, sc_if->msk_port, GM_RX_CTRL);
-	if (ifp->if_flags & IFF_PROMISC)
-		mode &= ~(GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
-	else
-		mode |= (GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
-	GMAC_WRITE_2(sc, sc_if->msk_port, GM_RX_CTRL, mode);
 }
 
 static int
@@ -890,15 +886,16 @@ msk_mediachange(struct ifnet *ifp)
 {
 	struct msk_if_softc *sc_if;
 	struct mii_data	*mii;
+	int error;
 
 	sc_if = ifp->if_softc;
 
 	MSK_IF_LOCK(sc_if);
 	mii = device_get_softc(sc_if->msk_miibus);
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
 	MSK_IF_UNLOCK(sc_if);
 
-	return (0);
+	return (error);
 }
 
 /*
@@ -912,6 +909,10 @@ msk_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc_if = ifp->if_softc;
 	MSK_IF_LOCK(sc_if);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		MSK_IF_UNLOCK(sc_if);
+		return;
+	}
 	mii = device_get_softc(sc_if->msk_miibus);
 
 	mii_pollstat(mii);
@@ -934,38 +935,41 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch(command) {
 	case SIOCSIFMTU:
+		MSK_IF_LOCK(sc_if);
 		if (ifr->ifr_mtu > MSK_JUMBO_MTU || ifr->ifr_mtu < ETHERMIN)
 			error = EINVAL;
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
-			if ((sc_if->msk_flags & MSK_FLAG_NOJUMBO) != 0 &&
-			    ifr->ifr_mtu > ETHERMTU)
-				error = EINVAL;
-			else {
-				MSK_IF_LOCK(sc_if);
-				ifp->if_mtu = ifr->ifr_mtu;
-				if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-					msk_init_locked(sc_if);
-				MSK_IF_UNLOCK(sc_if);
+ 			if (ifr->ifr_mtu > ETHERMTU) {
+				if ((sc_if->msk_flags & MSK_FLAG_JUMBO) == 0) {
+					error = EINVAL;
+					MSK_IF_UNLOCK(sc_if);
+					break;
+				}
+				if ((sc_if->msk_flags &
+				    MSK_FLAG_JUMBO_NOCSUM) != 0) {
+					ifp->if_hwassist &=
+					    ~(MSK_CSUM_FEATURES | CSUM_TSO);
+					ifp->if_capenable &=
+					    ~(IFCAP_TSO4 | IFCAP_TXCSUM);
+					VLAN_CAPABILITIES(ifp);
+				}
 			}
+			ifp->if_mtu = ifr->ifr_mtu;
+			msk_init_locked(sc_if);
 		}
+		MSK_IF_UNLOCK(sc_if);
 		break;
 	case SIOCSIFFLAGS:
 		MSK_IF_LOCK(sc_if);
 		if ((ifp->if_flags & IFF_UP) != 0) {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-				if (((ifp->if_flags ^ sc_if->msk_if_flags)
-				    & IFF_PROMISC) != 0) {
-					msk_setpromisc(sc_if);
-					msk_setmulti(sc_if);
-				}
-			} else {
-				if (sc_if->msk_detach == 0)
-					msk_init_locked(sc_if);
-			}
-		} else {
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-				msk_stop(sc_if);
-		}
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+			    ((ifp->if_flags ^ sc_if->msk_if_flags) &
+			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
+				msk_rxfilter(sc_if);
+			else if ((sc_if->msk_flags & MSK_FLAG_DETACH) == 0)
+				msk_init_locked(sc_if);
+		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			msk_stop(sc_if);
 		sc_if->msk_if_flags = ifp->if_flags;
 		MSK_IF_UNLOCK(sc_if);
 		break;
@@ -973,7 +977,7 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCDELMULTI:
 		MSK_IF_LOCK(sc_if);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-			msk_setmulti(sc_if);
+			msk_rxfilter(sc_if);
 		MSK_IF_UNLOCK(sc_if);
 		break;
 	case SIOCGIFMEDIA:
@@ -984,33 +988,35 @@ msk_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFCAP:
 		MSK_IF_LOCK(sc_if);
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if ((mask & IFCAP_TXCSUM) != 0) {
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (IFCAP_TXCSUM & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0 &&
-			    (IFCAP_TXCSUM & ifp->if_capabilities) != 0)
+			if ((IFCAP_TXCSUM & ifp->if_capenable) != 0)
 				ifp->if_hwassist |= MSK_CSUM_FEATURES;
 			else
 				ifp->if_hwassist &= ~MSK_CSUM_FEATURES;
 		}
-		if ((mask & IFCAP_VLAN_HWTAGGING) != 0) {
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (IFCAP_RXCSUM & ifp->if_capabilities) != 0)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (IFCAP_VLAN_HWTAGGING & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			msk_setvlan(sc_if, ifp);
 		}
-
-		if ((mask & IFCAP_TSO4) != 0) {
+		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
+		    (IFCAP_VLAN_HWCSUM & ifp->if_capabilities) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (IFCAP_TSO4 & ifp->if_capabilities) != 0) {
 			ifp->if_capenable ^= IFCAP_TSO4;
-			if ((IFCAP_TSO4 & ifp->if_capenable) != 0 &&
-			    (IFCAP_TSO4 & ifp->if_capabilities) != 0)
+			if ((IFCAP_TSO4 & ifp->if_capenable) != 0)
 				ifp->if_hwassist |= CSUM_TSO;
 			else
 				ifp->if_hwassist &= ~CSUM_TSO;
 		}
 		if (ifp->if_mtu > ETHERMTU &&
-		    sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
-			/*
-			 * In Yukon EC Ultra, TSO & checksum offload is not
-			 * supported for jumbo frame.
-			 */
+		    (sc_if->msk_flags & MSK_FLAG_JUMBO_NOCSUM) != 0) {
 			ifp->if_hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
 			ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
 		}
@@ -1094,7 +1100,7 @@ mskc_setup_rambuffer(struct msk_softc *sc)
 static void
 msk_phy_power(struct msk_softc *sc, int mode)
 {
-	uint32_t val;
+	uint32_t our, val;
 	int i;
 
 	switch (mode) {
@@ -1120,16 +1126,21 @@ msk_phy_power(struct msk_softc *sc, int mode)
 
 		val = pci_read_config(sc->msk_dev, PCI_OUR_REG_1, 4);
 		val &= ~(PCI_Y2_PHY1_POWD | PCI_Y2_PHY2_POWD);
-		if (sc->msk_hw_id == CHIP_ID_YUKON_XL &&
-		    sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
-			/* Deassert Low Power for 1st PHY. */
-			val |= PCI_Y2_PHY1_COMA;
-			if (sc->msk_num_port > 1)
-				val |= PCI_Y2_PHY2_COMA;
-		} else if (sc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
-			uint32_t our;
-
-			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_ON);
+		if (sc->msk_hw_id == CHIP_ID_YUKON_XL) {
+			if (sc->msk_hw_rev > CHIP_REV_YU_XL_A1) {
+				/* Deassert Low Power for 1st PHY. */
+				val |= PCI_Y2_PHY1_COMA;
+				if (sc->msk_num_port > 1)
+					val |= PCI_Y2_PHY2_COMA;
+			}
+		}
+		/* Release PHY from PowerDown/COMA mode. */
+		pci_write_config(sc->msk_dev, PCI_OUR_REG_1, val, 4);
+		switch (sc->msk_hw_id) {
+		case CHIP_ID_YUKON_EC_U:
+		case CHIP_ID_YUKON_EX:
+		case CHIP_ID_YUKON_FE_P:
+			CSR_WRITE_2(sc, B0_CTST, Y2_HW_WOL_OFF);
 
 			/* Enable all clocks. */
 			pci_write_config(sc->msk_dev, PCI_OUR_REG_3, 0, 4);
@@ -1138,11 +1149,22 @@ msk_phy_power(struct msk_softc *sc, int mode)
 			    PCI_ASPM_INT_FIFO_EMPTY|PCI_ASPM_CLKRUN_REQUEST);
 			/* Set all bits to 0 except bits 15..12. */
 			pci_write_config(sc->msk_dev, PCI_OUR_REG_4, our, 4);
-			/* Set to default value. */
-			pci_write_config(sc->msk_dev, PCI_OUR_REG_5, 0, 4);
+			our = pci_read_config(sc->msk_dev, PCI_OUR_REG_5, 4);
+			our &= PCI_CTL_TIM_VMAIN_AV_MSK;
+			pci_write_config(sc->msk_dev, PCI_OUR_REG_5, our, 4);
+			pci_write_config(sc->msk_dev, PCI_CFG_REG_1, 0, 4);
+			/*
+			 * Disable status race, workaround for
+			 * Yukon EC Ultra & Yukon EX.
+			 */
+			val = CSR_READ_4(sc, B2_GP_IO);
+			val |= GLB_GPIO_STAT_RACE_DIS;
+			CSR_WRITE_4(sc, B2_GP_IO, val);
+			CSR_READ_4(sc, B2_GP_IO);
+			break;
+		default:
+			break;
 		}
-		/* Release PHY from PowerDown/COMA mode. */
-		pci_write_config(sc->msk_dev, PCI_OUR_REG_1, val, 4);
 		for (i = 0; i < sc->msk_num_port; i++) {
 			CSR_WRITE_2(sc, MR_ADDR(i, GMAC_LINK_CTRL),
 			    GMLC_RST_SET);
@@ -1193,10 +1215,18 @@ mskc_reset(struct msk_softc *sc)
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
 
 	/* Disable ASF. */
-	if (sc->msk_hw_id < CHIP_ID_YUKON_XL) {
-		CSR_WRITE_4(sc, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
-		CSR_WRITE_2(sc, B0_CTST, Y2_ASF_DISABLE);
-	}
+	if (sc->msk_hw_id == CHIP_ID_YUKON_EX) {
+		status = CSR_READ_2(sc, B28_Y2_ASF_HCU_CCSR);
+		/* Clear AHB bridge & microcontroller reset. */
+		status &= ~(Y2_ASF_HCU_CCSR_AHB_RST |
+		    Y2_ASF_HCU_CCSR_CPU_RST_MODE);
+		/* Clear ASF microcontroller state. */
+		status &= ~ Y2_ASF_HCU_CCSR_UC_STATE_MSK;
+		CSR_WRITE_2(sc, B28_Y2_ASF_HCU_CCSR, status);
+	} else
+		CSR_WRITE_1(sc, B28_Y2_ASF_STAT_CMD, Y2_ASF_RESET);
+	CSR_WRITE_2(sc, B0_CTST, Y2_ASF_DISABLE);
+
 	/*
 	 * Since we disabled ASF, S/W reset is required for Power Management.
 	 */
@@ -1248,6 +1278,10 @@ mskc_reset(struct msk_softc *sc)
 		CSR_WRITE_4(sc, MR_ADDR(i, GMAC_CTRL), GMC_RST_SET);
 		CSR_WRITE_4(sc, MR_ADDR(i, GMAC_CTRL), GMC_RST_CLR);
 		CSR_WRITE_4(sc, MR_ADDR(i, GMAC_CTRL), GMC_F_LOOPB_OFF);
+		if (sc->msk_hw_id == CHIP_ID_YUKON_EX)
+			CSR_WRITE_4(sc, MR_ADDR(i, GMAC_CTRL),
+			    GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON |
+			    GMC_BYP_RETR_ON);
 	}
 	CSR_WRITE_1(sc, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
@@ -1439,12 +1473,7 @@ msk_attach(device_t dev)
 	}
 
 	callout_init_mtx(&sc_if->msk_tick_ch, &sc_if->msk_softc->msk_mtx, 0);
-	TASK_INIT(&sc_if->msk_link_task, 0, msk_link_task, sc_if);
 	msk_sysctl_node(sc_if);
-
-	/* Disable jumbo frame for Yukon FE. */
-	if (sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_FE)
-		sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
 
 	if ((error = msk_txrx_dma_alloc(sc_if) != 0))
 		goto fail;
@@ -1473,6 +1502,13 @@ msk_attach(device_t dev)
 	 * make Rx checksum offload work on Yukon II hardware.
 	 */
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
+	/*
+	 * Enable Rx checksum offloading if controller support new
+	 * descriptor format.
+	 */
+	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 && 
+	    (sc_if->msk_flags & MSK_FLAG_NORX_CSUM) == 0)
+		ifp->if_capabilities |= IFCAP_RXCSUM;
 	ifp->if_hwassist = MSK_CSUM_FEATURES | CSUM_TSO;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = msk_ioctl;
@@ -1506,14 +1542,24 @@ msk_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 	MSK_IF_LOCK(sc_if);
 
-	/*
-	 * VLAN capability setup 
-	 * Due to Tx checksum offload hardware bugs, msk(4) manually
-	 * computes checksum for short frames. For VLAN tagged frames
-	 * this workaround does not work so disable checksum offload
-	 * for VLAN interface.
-	 */
-	ifp->if_capabilities |= IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING;
+	/* VLAN capability setup */
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	if ((sc_if->msk_flags & MSK_FLAG_NOHWVLAN) == 0) {
+		/*
+		 * Due to Tx checksum offload hardware bugs, msk(4) manually
+		 * computes checksum for short frames. For VLAN tagged frames
+		 * this workaround does not work so disable checksum offload
+		 * for VLAN interface.
+		 */
+        	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
+		/*
+		 * Enable Rx checksum offloading for VLAN taggedd frames
+		 * if controller support new descriptor format.
+		 */
+		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0 && 
+		    (sc_if->msk_flags & MSK_FLAG_NORX_CSUM) == 0)
+			ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
+	}
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
@@ -1594,7 +1640,7 @@ mskc_attach(device_t dev)
 	sc->msk_hw_rev = (CSR_READ_1(sc, B2_MAC_CFG) >> 4) & 0x0f;
 	/* Bail out if chip is not recognized. */
 	if (sc->msk_hw_id < CHIP_ID_YUKON_XL ||
-	    sc->msk_hw_id > CHIP_ID_YUKON_FE) {
+	    sc->msk_hw_id > CHIP_ID_YUKON_FE_P) {
 		device_printf(dev, "unknown device: id=0x%02x, rev=0x%02x\n",
 		    sc->msk_hw_id, sc->msk_hw_rev);
 		mtx_destroy(&sc->msk_mtx);
@@ -1645,14 +1691,57 @@ mskc_attach(device_t dev)
 
 	switch (sc->msk_hw_id) {
 	case CHIP_ID_YUKON_EC:
+		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO;
+		break;
 	case CHIP_ID_YUKON_EC_U:
 		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_JUMBO_NOCSUM;
+		break;
+	case CHIP_ID_YUKON_EX:
+		sc->msk_clock = 125;	/* 125 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO | MSK_FLAG_DESCV2 |
+		    MSK_FLAG_AUTOTX_CSUM;
+		/*
+		 * Yukon Extreme seems to have silicon bug for
+		 * automatic Tx checksum calculation capability.
+		 */
+		if (sc->msk_hw_rev == CHIP_REV_YU_EX_B0)
+			sc->msk_pflags &= ~MSK_FLAG_AUTOTX_CSUM;
+		/*
+		 * Yukon Extreme A0 could not use store-and-forward
+		 * for jumbo frames, so disable Tx checksum
+		 * offloading for jumbo frames.
+		 */
+		if (sc->msk_hw_rev == CHIP_REV_YU_EX_A0)
+			sc->msk_pflags |= MSK_FLAG_JUMBO_NOCSUM;
 		break;
 	case CHIP_ID_YUKON_FE:
 		sc->msk_clock = 100;	/* 100 Mhz */
+		sc->msk_pflags |= MSK_FLAG_FASTETHER;
+		break;
+	case CHIP_ID_YUKON_FE_P:
+		sc->msk_clock = 50;	/* 50 Mhz */
+		sc->msk_pflags |= MSK_FLAG_FASTETHER | MSK_FLAG_DESCV2 |
+		    MSK_FLAG_AUTOTX_CSUM;
+		if (sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
+			/*
+			 * XXX
+			 * FE+ A0 has status LE writeback bug so msk(4)
+			 * does not rely on status word of received frame
+			 * in msk_rxeof() which in turn disables all
+			 * hardware assistance bits reported by the status
+			 * word as well as validity of the recevied frame.
+			 * Just pass received frames to upper stack with
+			 * minimal test and let upper stack handle them.
+			 */
+			sc->msk_pflags |= MSK_FLAG_NOHWVLAN |
+			    MSK_FLAG_NORXCHK | MSK_FLAG_NORX_CSUM;
+		}
 		break;
 	case CHIP_ID_YUKON_XL:
 		sc->msk_clock = 156;	/* 156 Mhz */
+		sc->msk_pflags |= MSK_FLAG_JUMBO;
 		break;
 	default:
 		sc->msk_clock = 156;	/* 156 Mhz */
@@ -1682,7 +1771,7 @@ mskc_attach(device_t dev)
 			if (sc->msk_num_port == 1 &&
 			    pci_alloc_msi(dev, &msir) == 0) {
 				if (msic == msir) {
-					sc->msk_msi = 1;
+					sc->msk_pflags |= MSK_FLAG_MSI;
 					sc->msk_irq_spec = msic == 2 ?
 					    msk_irq_spec_msi2 :
 					    msk_irq_spec_msi;
@@ -1808,13 +1897,12 @@ msk_detach(device_t dev)
 	ifp = sc_if->msk_ifp;
 	if (device_is_attached(dev)) {
 		/* XXX */
-		sc_if->msk_detach = 1;
+		sc_if->msk_flags |= MSK_FLAG_DETACH;
 		msk_stop(sc_if);
 		/* Can't hold locks while calling detach. */
 		MSK_IF_UNLOCK(sc_if);
 		callout_drain(&sc_if->msk_tick_ch);
 		taskqueue_drain(taskqueue_fast, &sc_if->msk_tx_task);
-		taskqueue_drain(taskqueue_swi, &sc_if->msk_link_task);
 		ether_ifdetach(ifp);
 		MSK_IF_LOCK(sc_if);
 	}
@@ -1893,7 +1981,7 @@ mskc_detach(device_t dev)
 		sc->msk_intrhand[1] = NULL;
 	}
 	bus_release_resources(dev, sc->msk_irq_spec, sc->msk_irq);
-	if (sc->msk_msi)
+	if ((sc->msk_pflags & MSK_FLAG_MSI) != 0)
 		pci_release_msi(dev);
 	bus_release_resources(dev, sc->msk_res_spec, sc->msk_res);
 	mtx_destroy(&sc->msk_mtx);
@@ -2195,11 +2283,10 @@ msk_rx_dma_jalloc(struct msk_if_softc *sc_if)
 	bus_size_t rxalign;
 	int error, i;
 
-	if (jumbo_disable != 0 || (sc_if->msk_flags & MSK_FLAG_NOJUMBO) != 0) {
-		sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
+	if (jumbo_disable != 0 || (sc_if->msk_flags & MSK_FLAG_JUMBO) == 0) {
+		sc_if->msk_flags &= ~MSK_FLAG_JUMBO;
 		device_printf(sc_if->msk_if_dev,
 		    "disabling jumbo frame support\n");
-		sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
 		return (0);
 	}
 	/* Create tag for jumbo Rx ring. */
@@ -2294,7 +2381,7 @@ jumbo_fail:
 	msk_rx_dma_jfree(sc_if);
 	device_printf(sc_if->msk_if_dev, "disabling jumbo frame support "
 	    "due to resource shortage\n");
-	sc_if->msk_flags |= MSK_FLAG_NOJUMBO;
+	sc_if->msk_flags &= ~MSK_FLAG_JUMBO;
 	return (error);
 }
 
@@ -2430,7 +2517,10 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 
 	tcp_offset = offset = 0;
 	m = *m_head;
-	if ((m->m_pkthdr.csum_flags & (MSK_CSUM_FEATURES | CSUM_TSO)) != 0) {
+	if (((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
+	    (m->m_pkthdr.csum_flags & MSK_CSUM_FEATURES) != 0) ||
+	    ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
+	    (m->m_pkthdr.csum_flags & CSUM_TSO) != 0)) {
 		/*
 		 * Since mbuf has no protocol specific structure information
 		 * in it we have to inspect protocol information here to
@@ -2489,9 +2579,12 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		 * resort to S/W checksum routine when we encounter short
 		 * TCP frames.
 		 * Short UDP packets appear to be handled correctly by
-		 * Yukon II.
+		 * Yukon II. Also I assume this bug does not happen on
+		 * controllers that use newer descriptor format or
+		 * automatic Tx checksum calaulcation.
 		 */
-		if (m->m_pkthdr.len < MSK_MIN_FRAMELEN &&
+		if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) == 0 &&
+		    (m->m_pkthdr.len < MSK_MIN_FRAMELEN) &&
 		    (m->m_pkthdr.csum_flags & CSUM_TCP) != 0) {
 			m = m_pullup(m, offset + sizeof(struct tcphdr));
 			if (m == NULL) {
@@ -2557,11 +2650,18 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 
 	/* Check TSO support. */
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-		tso_mtu = offset + m->m_pkthdr.tso_segsz;
+		if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0)
+			tso_mtu = m->m_pkthdr.tso_segsz;
+		else
+			tso_mtu = offset + m->m_pkthdr.tso_segsz;
 		if (tso_mtu != sc_if->msk_cdata.msk_tso_mtu) {
 			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
 			tx_le->msk_addr = htole32(tso_mtu);
-			tx_le->msk_control = htole32(OP_LRGLEN | HW_OWNER);
+			if ((sc_if->msk_flags & MSK_FLAG_DESCV2) != 0)
+				tx_le->msk_control = htole32(OP_MSS | HW_OWNER);
+			else
+				tx_le->msk_control =
+				    htole32(OP_LRGLEN | HW_OWNER);
 			sc_if->msk_cdata.msk_tx_cnt++;
 			MSK_INC(prod, MSK_TX_RING_CNT);
 			sc_if->msk_cdata.msk_tso_mtu = tso_mtu;
@@ -2585,15 +2685,21 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	}
 	/* Check if we have to handle checksum offload. */
 	if (tso == 0 && (m->m_pkthdr.csum_flags & MSK_CSUM_FEATURES) != 0) {
-		tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
-		tx_le->msk_addr = htole32(((tcp_offset + m->m_pkthdr.csum_data)
-		    & 0xffff) | ((uint32_t)tcp_offset << 16));
-		tx_le->msk_control = htole32(1 << 16 | (OP_TCPLISW | HW_OWNER));
-		control = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
-		if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
-			control |= UDPTCP;
-		sc_if->msk_cdata.msk_tx_cnt++;
-		MSK_INC(prod, MSK_TX_RING_CNT);
+		if ((sc_if->msk_flags & MSK_FLAG_AUTOTX_CSUM) != 0)
+			control |= CALSUM;
+		else {
+			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
+			tx_le->msk_addr = htole32(((tcp_offset +
+			    m->m_pkthdr.csum_data) & 0xffff) |
+			    ((uint32_t)tcp_offset << 16));
+			tx_le->msk_control = htole32(1 << 16 |
+			    (OP_TCPLISW | HW_OWNER));
+			control = CALSUM | WR_SUM | INIT_SUM | LOCK_SUM;
+			if ((m->m_pkthdr.csum_flags & CSUM_UDP) != 0)
+				control |= UDPTCP;
+			sc_if->msk_cdata.msk_tx_cnt++;
+			MSK_INC(prod, MSK_TX_RING_CNT);
+		}
 	}
 
 	si = prod;
@@ -2664,7 +2770,7 @@ msk_start(struct ifnet *ifp)
 	MSK_IF_LOCK(sc_if);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || sc_if->msk_link == 0) {
+	    IFF_DRV_RUNNING || (sc_if->msk_flags & MSK_FLAG_LINK) == 0) {
 		MSK_IF_UNLOCK(sc_if);
 		return;
 	}
@@ -2721,11 +2827,12 @@ msk_watchdog(struct msk_if_softc *sc_if)
 	if (sc_if->msk_watchdog_timer == 0 || --sc_if->msk_watchdog_timer)
 		return;
 	ifp = sc_if->msk_ifp;
-	if (sc_if->msk_link == 0) {
+	if ((sc_if->msk_flags & MSK_FLAG_LINK) == 0) {
 		if (bootverbose)
 			if_printf(sc_if->msk_ifp, "watchdog timeout "
 			   "(missed link)\n");
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		msk_init_locked(sc_if);
 		return;
 	}
@@ -2750,6 +2857,7 @@ msk_watchdog(struct msk_if_softc *sc_if)
 
 	if_printf(ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	msk_init_locked(sc_if);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue(taskqueue_fast, &sc_if->msk_tx_task);
@@ -2808,7 +2916,7 @@ mskc_suspend(device_t dev)
 
 	/* Put hardware reset. */
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
-	sc->msk_suspended = 1;
+	sc->msk_pflags |= MSK_FLAG_SUSPEND;
 
 	MSK_UNLOCK(sc);
 
@@ -2828,10 +2936,13 @@ mskc_resume(device_t dev)
 	mskc_reset(sc);
 	for (i = 0; i < sc->msk_num_port; i++) {
 		if (sc->msk_if[i] != NULL && sc->msk_if[i]->msk_ifp != NULL &&
-		    ((sc->msk_if[i]->msk_ifp->if_flags & IFF_UP) != 0))
+		    ((sc->msk_if[i]->msk_ifp->if_flags & IFF_UP) != 0)) {
+			sc->msk_if[i]->msk_ifp->if_drv_flags &=
+			    ~IFF_DRV_RUNNING;
 			msk_init_locked(sc->msk_if[i]);
+		}
 	}
-	sc->msk_suspended = 0;
+	sc->msk_pflags &= ~MSK_FLAG_SUSPEND;
 
 	MSK_UNLOCK(sc);
 
@@ -2856,7 +2967,8 @@ msk_fixup_rx(struct mbuf *m)
 #endif
 
 static void
-msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
+msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
+    int len)
 {
 	struct mbuf *m;
 	struct ifnet *ifp;
@@ -2873,7 +2985,18 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
 			rxlen -= ETHER_VLAN_ENCAP_LEN;
-		if (len > sc_if->msk_framesize ||
+		if ((sc_if->msk_flags & MSK_FLAG_NORXCHK) != 0) {
+			/*
+			 * For controllers that returns bogus status code
+			 * just do minimal check and let upper stack
+			 * handle this frame.
+			 */
+			if (len > MSK_MAX_FRAMELEN || len < ETHER_HDR_LEN) {
+				ifp->if_ierrors++;
+				msk_discard_rxbuf(sc_if, cons);
+				break;
+			}
+		} else if (len > sc_if->msk_framesize ||
 		    ((status & GMR_FS_ANY_ERR) != 0) ||
 		    ((status & GMR_FS_RX_OK) == 0) || (rxlen != len)) {
 			/* Don't count flow-control packet as errors. */
@@ -2897,6 +3020,18 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 			msk_fixup_rx(m);
 #endif
 		ifp->if_ipackets++;
+		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
+		    (control & (CSS_IPV4 | CSS_IPFRAG)) == CSS_IPV4) {
+			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+			if ((control & CSS_IPV4_CSUM_OK) != 0)
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			if ((control & (CSS_TCP | CSS_UDP)) != 0 &&
+			    (control & (CSS_TCPUDP_CSUM_OK)) != 0) {
+				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
+				    CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
@@ -2913,7 +3048,8 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 }
 
 static void
-msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
+msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
+    int len)
 {
 	struct mbuf *m;
 	struct ifnet *ifp;
@@ -2954,6 +3090,18 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 			msk_fixup_rx(m);
 #endif
 		ifp->if_ipackets++;
+		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0 &&
+		    (control & (CSS_IPV4 | CSS_IPFRAG)) == CSS_IPV4) {
+			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
+			if ((control & CSS_IPV4_CSUM_OK) != 0)
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			if ((control & (CSS_TCP | CSS_UDP)) != 0 &&
+			    (control & (CSS_TCPUDP_CSUM_OK)) != 0) {
+				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID |
+				    CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+		}
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
 		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
@@ -3282,9 +3430,9 @@ msk_handle_events(struct msk_softc *sc)
 		case OP_RXSTAT:
 			if (sc_if->msk_framesize >
 			    (MCLBYTES - MSK_RX_BUF_ALIGN))
-				msk_jumbo_rxeof(sc_if, status, len);
+				msk_jumbo_rxeof(sc_if, status, control, len);
 			else
-				msk_rxeof(sc_if, status, len);
+				msk_rxeof(sc_if, status, control, len);
 			rxprog++;
 			/*
 			 * Because there is no way to sync single Rx LE
@@ -3344,7 +3492,8 @@ msk_legacy_intr(void *xsc)
 
 	/* Reading B0_Y2_SP_ISRC2 masks further interrupts. */
 	status = CSR_READ_4(sc, B0_Y2_SP_ISRC2);
-	if (status == 0 || status == 0xffffffff || sc->msk_suspended != 0 ||
+	if (status == 0 || status == 0xffffffff ||
+	    (sc->msk_pflags & MSK_FLAG_SUSPEND) != 0 ||
 	    (status & sc->msk_intrmask) == 0) {
 		CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
 		return;
@@ -3431,7 +3580,8 @@ msk_int_task(void *arg, int pending)
 
 	/* Get interrupt source. */
 	status = CSR_READ_4(sc, B0_ISRC);
-	if (status == 0 || status == 0xffffffff || sc->msk_suspended != 0 ||
+	if (status == 0 || status == 0xffffffff ||
+	    (sc->msk_pflags & MSK_FLAG_SUSPEND) != 0 ||
 	    (status & sc->msk_intrmask) == 0)
 		goto done;
 
@@ -3490,6 +3640,48 @@ done:
 }
 
 static void
+msk_set_tx_stfwd(struct msk_if_softc *sc_if)
+{
+	struct msk_softc *sc;
+	struct ifnet *ifp;
+
+	ifp = sc_if->msk_ifp;
+	sc = sc_if->msk_softc;
+	switch (sc->msk_hw_id) {
+	case CHIP_ID_YUKON_EX:
+		if (sc->msk_hw_rev == CHIP_REV_YU_EX_A0)
+			goto yukon_ex_workaround;
+		if (ifp->if_mtu > ETHERMTU)
+			CSR_WRITE_4(sc,
+			    MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
+			    TX_JUMBO_ENA | TX_STFW_ENA);
+		else
+			CSR_WRITE_4(sc,
+			    MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
+			    TX_JUMBO_DIS | TX_STFW_ENA);
+		break;
+	default:
+yukon_ex_workaround:
+		if (ifp->if_mtu > ETHERMTU) {
+			/* Set Tx GMAC FIFO Almost Empty Threshold. */
+			CSR_WRITE_4(sc,
+			    MR_ADDR(sc_if->msk_port, TX_GMF_AE_THR),
+			    MSK_ECU_JUMBO_WM << 16 | MSK_ECU_AE_THR);
+			/* Disable Store & Forward mode for Tx. */
+			CSR_WRITE_4(sc,
+			    MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
+			    TX_JUMBO_ENA | TX_STFW_DIS);
+		} else {
+			/* Enable Store & Forward mode for Tx. */
+			CSR_WRITE_4(sc,
+			    MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
+			    TX_JUMBO_DIS | TX_STFW_ENA);
+		}
+		break;
+	}
+}
+
+static void
 msk_init(void *xsc)
 {
 	struct msk_if_softc *sc_if = xsc;
@@ -3507,6 +3699,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	struct mii_data	 *mii;
 	uint16_t eaddr[ETHER_ADDR_LEN / 2];
 	uint16_t gmac;
+	uint32_t reg;
 	int error, i;
 
 	MSK_IF_LOCK_ASSERT(sc_if);
@@ -3514,6 +3707,9 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	ifp = sc_if->msk_ifp;
 	sc = sc_if->msk_softc;
 	mii = device_get_softc(sc_if->msk_miibus);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	error = 0;
 	/* Cancel pending I/O and free all Rx/Tx buffers. */
@@ -3525,27 +3721,25 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		sc_if->msk_framesize = ifp->if_mtu;
 	sc_if->msk_framesize += ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	if (ifp->if_mtu > ETHERMTU &&
-	    sc_if->msk_softc->msk_hw_id == CHIP_ID_YUKON_EC_U) {
-		/*
-		 * In Yukon EC Ultra, TSO & checksum offload is not
-		 * supported for jumbo frame.
-		 */
+	    (sc_if->msk_flags & MSK_FLAG_JUMBO_NOCSUM) != 0) {
 		ifp->if_hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
 		ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
 	}
 
+ 	/* GMAC Control reset. */
+ 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_SET);
+ 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_CLR);
+ 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_F_LOOPB_OFF);
+	if (sc->msk_hw_id == CHIP_ID_YUKON_EX)
+		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL),
+		    GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON |
+		    GMC_BYP_RETR_ON);
+ 
 	/*
-	 * Initialize GMAC first.
-	 * Without this initialization, Rx MAC did not work as expected
-	 * and Rx MAC garbled status LEs and it resulted in out-of-order
-	 * or duplicated frame delivery which in turn showed very poor
-	 * Rx performance.(I had to write a packet analysis code that
-	 * could be embeded in driver to diagnose this issue.)
-	 * I've spent almost 2 months to fix this issue. If I have had
-	 * datasheet for Yukon II I wouldn't have encountered this. :-(
+	 * Initialize GMAC first such that speed/duplex/flow-control
+	 * parameters are renegotiated when interface is brought up.
 	 */
-	gmac = GM_GPCR_SPEED_100 | GM_GPCR_SPEED_1000 | GM_GPCR_DUP_FULL;
-	GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
+	GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, 0);
 
 	/* Dummy read the Interrupt Source Register. */
 	CSR_READ_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_SRC));
@@ -3591,14 +3785,14 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	/* Configure Rx MAC FIFO. */
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T), GMF_RST_SET);
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T), GMF_RST_CLR);
-	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T),
-	    GMF_OPER_ON | GMF_RX_F_FL_ON);
+	reg = GMF_OPER_ON | GMF_RX_F_FL_ON;
+	if (sc->msk_hw_id == CHIP_ID_YUKON_FE_P ||
+	    sc->msk_hw_id == CHIP_ID_YUKON_EX)
+		reg |= GMF_RX_OVER_ON;
+	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T), reg);
 
-	/* Set promiscuous mode. */
-	msk_setpromisc(sc_if);
-
-	/* Set multicast filter. */
-	msk_setmulti(sc_if);
+	/* Set receive filter. */
+	msk_rxfilter(sc_if);
 
 	/* Flush Rx MAC FIFO on any flow control or error. */
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_FL_MSK),
@@ -3608,8 +3802,12 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	 * Set Rx FIFO flush threshold to 64 bytes + 1 FIFO word
 	 * due to hardware hang on receipt of pause frames.
 	 */
-	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_FL_THR),
-	    RX_GMF_FL_THR_DEF + 1);
+	reg = RX_GMF_FL_THR_DEF + 1;
+	/* Another magic for Yukon FE+ - From Linux. */
+	if (sc->msk_hw_id == CHIP_ID_YUKON_FE_P &&
+	    sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0)
+		reg = 0x178;
+	CSR_WRITE_2(sc, MR_ADDR(sc_if->msk_port, RX_GMF_FL_THR), reg);
 
 	/* Configure Tx MAC FIFO. */
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T), GMF_RST_SET);
@@ -3625,21 +3823,17 @@ msk_init_locked(struct msk_if_softc *sc_if)
 		    MSK_ECU_LLPP);
 		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, RX_GMF_UP_THR),
 		    MSK_ECU_ULPP);
-		if (ifp->if_mtu > ETHERMTU) {
-			/*
-			 * Set Tx GMAC FIFO Almost Empty Threshold.
-			 */
-			CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_AE_THR),
-			    MSK_ECU_JUMBO_WM << 16 | MSK_ECU_AE_THR);
-			/* Disable Store & Forward mode for Tx. */
-			CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
-			    TX_JUMBO_ENA | TX_STFW_DIS);
-		} else {
-			/* Enable Store & Forward mode for Tx. */
-			CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
-			    TX_JUMBO_DIS | TX_STFW_ENA);
-		}
+		/* Configure store-and-forward for Tx. */
+		msk_set_tx_stfwd(sc_if);
 	}
+
+ 	if (sc->msk_hw_id == CHIP_ID_YUKON_FE_P &&
+ 	    sc->msk_hw_rev == CHIP_REV_YU_FE_P_A0) {
+ 		/* Disable dynamic watermark - from Linux. */
+ 		reg = CSR_READ_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_EA));
+ 		reg &= ~0x03;
+ 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_EA), reg);
+ 	}
 
 	/*
 	 * Disable Force Sync bit and Alloc bit in Tx RAM interface
@@ -3661,10 +3855,23 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR), BMU_OPER_INIT);
 	CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR), BMU_FIFO_OP_ON);
 	CSR_WRITE_2(sc, Q_ADDR(sc_if->msk_txq, Q_WM), MSK_BMU_TX_WM);
-	if (sc->msk_hw_id == CHIP_ID_YUKON_EC_U &&
-	    sc->msk_hw_rev == CHIP_REV_YU_EC_U_A0) {
-		/* Fix for Yukon-EC Ultra: set BMU FIFO level */
-		CSR_WRITE_2(sc, Q_ADDR(sc_if->msk_txq, Q_AL), MSK_ECU_TXFF_LEV);
+	switch (sc->msk_hw_id) {
+	case CHIP_ID_YUKON_EC_U:
+		if (sc->msk_hw_rev == CHIP_REV_YU_EC_U_A0) {
+			/* Fix for Yukon-EC Ultra: set BMU FIFO level */
+			CSR_WRITE_2(sc, Q_ADDR(sc_if->msk_txq, Q_AL),
+			    MSK_ECU_TXFF_LEV);
+		}
+		break;
+	case CHIP_ID_YUKON_EX:
+		/*
+		 * Yukon Extreme seems to have silicon bug for
+		 * automatic Tx checksum calculation capability.
+		 */
+		if (sc->msk_hw_rev == CHIP_REV_YU_EX_B0)
+			CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_F),
+			    F_TX_CHK_AUTO_OFF);
+		break;
 	}
 
 	/* Setup Rx Queue Bus Memory Interface. */
@@ -3716,7 +3923,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	CSR_WRITE_4(sc, B0_IMSK, sc->msk_intrmask);
 	CSR_READ_4(sc, B0_IMSK);
 
-	sc_if->msk_link = 0;
+	sc_if->msk_flags &= ~MSK_FLAG_LINK;
 	mii_mediachg(mii);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -3951,7 +4158,7 @@ msk_stop(struct msk_if_softc *sc_if)
 	 * Mark the interface down.
 	 */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	sc_if->msk_link = 0;
+	sc_if->msk_flags &= ~MSK_FLAG_LINK;
 }
 
 /*
@@ -4196,7 +4403,7 @@ msk_sysctl_node(struct msk_if_softc *sc_if)
 	    child, rx_pkts_too_long, "frames too long");
 	MSK_SYSCTL_STAT32(sc_if, ctx, "jabbers",
 	    child, rx_pkts_jabbers, "Jabber errors");
-	MSK_SYSCTL_STAT32(sc_if, ctx, "jabbers",
+	MSK_SYSCTL_STAT32(sc_if, ctx, "overflows",
 	    child, rx_fifo_oflows, "FIFO overflows");
 
 	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "tx", CTLFLAG_RD,

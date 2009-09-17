@@ -61,10 +61,10 @@ void HPTLIBAPI DoXor2(ULONG *p0, ULONG *p2, UINT nBytes);
 #define xor_init(arg) 0
 #define xor_add_item(handle, dest, src, nsrc, bytes) \
 	do {\
-		if (((void**)src)[0]==dest)\
-			DoXor2((PULONG)(dest), ((PULONG *)src)[1], bytes);\
+		if (((void**)(src))[0]==dest)\
+			DoXor2((PULONG)(dest), ((PULONG *)(src))[1], bytes);\
 		else\
-			DoXor1((PULONG)(dest), ((PULONG *)src)[0], ((PULONG *)src)[1], bytes);\
+			DoXor1((PULONG)(dest), ((PULONG *)(src))[0], ((PULONG *)(src))[1], bytes);\
 	} while(0)
 #define xor_exec(handle, done, tag) done(_VBUS_P tag, 0)
 #define xor_poll()

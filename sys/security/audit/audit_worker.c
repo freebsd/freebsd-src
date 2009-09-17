@@ -131,7 +131,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	 * that we know how we're doing on space.  Consider failure of these
 	 * operations to indicate a future inability to write to the file.
 	 */
-	error = VFS_STATFS(vp->v_mount, mnt_stat, curthread);
+	error = VFS_STATFS(vp->v_mount, mnt_stat);
 	if (error)
 		goto fail;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);

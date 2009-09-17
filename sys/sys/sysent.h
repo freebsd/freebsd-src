@@ -60,6 +60,7 @@ struct sysent {			/* system call table */
 				/* optional argument conversion function. */
 	u_int32_t sy_entry;	/* DTrace entry ID for systrace. */
 	u_int32_t sy_return;	/* DTrace return ID for systrace. */
+	u_int32_t sy_flags;	/* General flags for system calls. */
 };
 
 struct image_params;

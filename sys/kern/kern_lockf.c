@@ -106,7 +106,7 @@ static int	 lf_owner_matches(struct lock_owner *, caddr_t, struct flock *,
     int);
 static struct lockf_entry *
 		 lf_alloc_lock(struct lock_owner *);
-static void	 lf_free_lock(struct lockf_entry *);
+static int	 lf_free_lock(struct lockf_entry *);
 static int	 lf_clearlock(struct lockf *, struct lockf_entry *);
 static int	 lf_overlaps(struct lockf_entry *, struct lockf_entry *);
 static int	 lf_blocks(struct lockf_entry *, struct lockf_entry *);
@@ -347,9 +347,13 @@ lf_alloc_lock(struct lock_owner *lo)
 	return (lf);
 }
 
-static void
+static int
 lf_free_lock(struct lockf_entry *lock)
 {
+
+	KASSERT(lock->lf_refs > 0, ("lockf_entry negative ref count %p", lock));
+	if (--lock->lf_refs > 0)
+		return (0);
 	/*
 	 * Adjust the lock_owner reference count and
 	 * reclaim the entry if this is the last lock
@@ -394,6 +398,7 @@ lf_free_lock(struct lockf_entry *lock)
 		printf("Freed lock %p\n", lock);
 #endif
 	free(lock, M_LOCKF);
+	return (1);
 }
 
 /*
@@ -540,6 +545,7 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 	 * the lf_lock_owners_lock tax twice.
 	 */
 	lock = lf_alloc_lock(NULL);
+	lock->lf_refs = 1;
 	lock->lf_start = start;
 	lock->lf_end = end;
 	lock->lf_owner = lo;
@@ -633,7 +639,23 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 	}
 
 	sx_xlock(&state->ls_lock);
-	switch(ap->a_op) {
+	/*
+	 * Recheck the doomed vnode after state->ls_lock is
+	 * locked. lf_purgelocks() requires that no new threads add
+	 * pending locks when vnode is marked by VI_DOOMED flag.
+	 */
+	VI_LOCK(vp);
+	if (vp->v_iflag & VI_DOOMED) {
+		state->ls_threads--;
+		wakeup(state);
+		VI_UNLOCK(vp);
+		sx_xunlock(&state->ls_lock);
+		lf_free_lock(lock);
+		return (ENOENT);
+	}
+	VI_UNLOCK(vp);
+
+	switch (ap->a_op) {
 	case F_SETLK:
 		error = lf_setlock(state, lock, vp, ap->a_cookiep);
 		break;
@@ -755,8 +777,11 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 	 * the remaining locks.
 	 */
 	VI_LOCK(vp);
+	KASSERT(vp->v_iflag & VI_DOOMED,
+	    ("lf_purgelocks: vp %p has not vgone yet", vp));
 	state = *statep;
 	if (state) {
+		*statep = NULL;
 		state->ls_threads++;
 		VI_UNLOCK(vp);
 
@@ -789,7 +814,6 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 		VI_LOCK(vp);
 		while (state->ls_threads > 1)
 			msleep(state, VI_MTX(vp), 0, "purgelocks", 0);
-		*statep = 0;
 		VI_UNLOCK(vp);
 
 		/*
@@ -798,7 +822,9 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 		 * above). We don't need to bother locking since we
 		 * are the last thread using this state structure.
 		 */
-		LIST_FOREACH_SAFE(lock, &state->ls_pending, lf_link, nlock) {
+		KASSERT(LIST_EMPTY(&state->ls_pending),
+		    ("lock pending for %p", state));
+		LIST_FOREACH_SAFE(lock, &state->ls_active, lf_link, nlock) {
 			LIST_REMOVE(lock, lf_link);
 			lf_free_lock(lock);
 		}
@@ -1361,7 +1387,7 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 	/*
 	 * Scan lock list for this file looking for locks that would block us.
 	 */
-	while (lf_getblock(state, lock)) {
+	if (lf_getblock(state, lock)) {
 		/*
 		 * Free the structure and return if nonblocking.
 		 */
@@ -1430,7 +1456,13 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 			goto out;
 		}
 
+		lock->lf_refs++;
 		error = sx_sleep(lock, &state->ls_lock, priority, lockstr, 0);
+		if (lf_free_lock(lock)) {
+			error = EINTR;
+			goto out;
+		}
+
 		/*
 		 * We may have been awakened by a signal and/or by a
 		 * debugger continuing us (in which cases we must
@@ -1792,6 +1824,7 @@ lf_split(struct lockf *state, struct lockf_entry *lock1,
 	 */
 	splitlock = lf_alloc_lock(lock1->lf_owner);
 	memcpy(splitlock, lock1, sizeof *splitlock);
+	splitlock->lf_refs = 1;
 	if (splitlock->lf_flags & F_REMOTE)
 		vref(splitlock->lf_vnode);
 
@@ -1904,9 +1937,14 @@ lf_iteratelocks_vnode(struct vnode *vp, lf_iterator *fn, void *arg)
 	 * make sure it doesn't go away before we are finished.
 	 */
 	STAILQ_INIT(&locks);
+	VI_LOCK(vp);
 	ls = vp->v_lockf;
-	if (!ls)
+	if (!ls) {
+		VI_UNLOCK(vp);
 		return (0);
+	}
+	ls->ls_threads++;
+	VI_UNLOCK(vp);
 
 	sx_xlock(&ls->ls_lock);
 	LIST_FOREACH(lf, &ls->ls_active, lf_link) {
@@ -1927,6 +1965,10 @@ lf_iteratelocks_vnode(struct vnode *vp, lf_iterator *fn, void *arg)
 		STAILQ_INSERT_TAIL(&locks, ldesc, link);
 	}
 	sx_xunlock(&ls->ls_lock);
+	VI_LOCK(vp);
+	ls->ls_threads--;
+	wakeup(ls);
+	VI_UNLOCK(vp);
 
 	/*
 	 * Call the iterator function for each lock in turn. If the

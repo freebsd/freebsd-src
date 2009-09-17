@@ -2390,7 +2390,7 @@ cons60l1|cons60-iso8859-1:\
 cons60l1-m|cons60-iso8859-1-mono:\
 	:li#60:tc=cons25l1-m:
 # 132x25 ISO 8859-1 FreeBSD console
-cons25l1-w|:cons25w-iso8859-1:\
+cons25l1-w|cons25w-iso8859-1:\
 	:co#132:tc=cons25l1:
 cons30l1-w|cons30w-iso8859-1:\
 	:co#132:tc=cons30l1:
@@ -2401,7 +2401,7 @@ cons50l1-w|cons50w-iso8859-1:\
 cons60l1-w|cons60w-iso8859-1:\
 	:co#132:tc=cons60l1:
 # ISO 8859-7 FreeBSD console with ACS support
-cons25l7:cons25-iso8859-7:\
+cons25l7|cons25-iso8859-7:\
 	:ac=f\260g\261{\360}\243+\253,\273i\247:\
 	:tc=cons25w:
 cons25l7-m|cons25-iso8859-7-mono:\
@@ -2481,7 +2481,7 @@ vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
 	:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:K5=\EOn:pt:sr=2*\EM:xn:\
 	:sc=2\E7:rc=2\E8:cs=5\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
 	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:\
-	:RA=\E[?7l:SA=\E[?7h:
+	:RA=\E[?7l:SA=\E[?7h:po=\E[5i:pf=\E[4i:
 vt100-nam|dec-vt100-nam|vt100nam|vt100 w/no am:\
 	:am@:xn@:\
 	:is=\E>\E[?1;3;4;5;7l\E[?8h\E[1;24r\E[24;1H:\
@@ -2771,7 +2771,9 @@ SC|screen|VT 100/ANSI X3.64 virtual terminal:\
 	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
 	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
 	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:\
-	:kh=\E[1~:kI=\E[2~:kD=\E[3~:kH=\E[4~:@7=\E[4~:kP=\E[5~:\
+	:F3=\E[25~:F4=\E[26~:F5=\E[28~:F6=\E[29~:\
+	:F7=\E[31~:F8=\E[32~:F9=\E[33~:FA=\E[34~:\
+	:kh=\E[1~:kI=\E[2~:kD=\E[3~:@7=\E[4~:kP=\E[5~:\
 	:kN=\E[6~:eA=\E(B\E)0:as=^N:ae=^O:ti=\E[?1049h:te=\E[?1049l:\
 	:vi=\E[?25l:ve=\E[34h\E[?25h:vs=\E[34l:\
 	:Co#8:pa#64:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:\
@@ -3998,6 +4000,31 @@ wy100q|Wyse 100 for Quotron:\
 	:dc=\EW:dl=\ER:do=^J:ei=\Er:im=\Eq:is=\E`\072\200\EC\EDF\E0\E'\E(\EA21:\
 	:kd=^J:kl=^H:kr=^L:ku=^K:li#24:nd=^L:up=^K:us=\EG8:ue=\EG0:\
 	:so=\EG4:se=\EG0:sg#1:sr=\Ej:ho=^^:ug#1:
+# Wyse 120 definitions from conf/81882 by Meister des Chaos <meister@netz00.com>
+wy120|wyse120|wy150|wyse150|Wyse 120/150:\
+        :am:bw:hs:km:mi:ms:xo:\
+        :co#80:it#8:li#24:pb#9601:ws#45:\
+        :ae=\EcD:al=\EE:as=\EcE:bl=^G:bt=\EI:cd=\EY:ce=\ET:cl=\E+:\
+        :cm=\E=%+ %+ :cr=^M:ct=\E0:dc=\EW:dl=\ER:do=^J:ds=\EF\r:\
+        :ei=\Er:fs=^M:ho=^^:i1=\EcB0\EcC1:i2=\EwJ\Ew1:im=\Eq:ip=:\
+        :is=\Ed$\EcD\E'\Er\EH\003\Ed/\EO\Ee1\Ed*\E`@\E`9\E`1\016\024\El:\
+        :k1=^A@\r:k2=^AA\r:k3=^AB\r:k4=^AC\r:k5=^AD\r:k6=^AE\r:\
+        :k7=^AF\r:k8=^AG\r:k9=^AH\r:kD=\EW:kI=\EQ:kN=\EK:kP=\EJ:\
+        :kb=^H:kd=^J:kh=^^:kl=^H:kr=^L:ku=^K:le=^H:ll=^^^K:mb=\EG2:\
+        :me=\E(\EH\003\EG0\EcD:mh=\EGp:mr=\EG4:nd=^L:nw=\r\n:\
+        :se=\EG0:sf=\n:so=\EGt:sr=\Ej:st=\E1:ta=\011:te=\Ew1:\
+        :ti=\Ew0:ts=\EF:ue=\EG0:up=^K:us=\EG8:vb=\E`8\E`9:ve=\E`1:\
+        :vi=\E`0:
+wy120-w|wyse120-w|wy150-w|wyse150-w|wyse 120/150 132-column:\
+	:cm=\Ea%i%dR%dC:co#132:ws#97:tc=wy120:
+wy120-25|wyse120-25|wy150-25|wyse150-25|wyse 120/150 80-column 25-lines:\
+        :li#25:tc=wy120:
+wy120-25-w|wyse120-25-w|wy150-25-w|wyse150-25-w|wyse 120/150 132-column 25-lines:\
+	:cm=\Ea%i%dR%dC:co#132:li#25:ws#97:tc=wy120:
+wy120-vb|wyse120-vb|wy150-vb|wyse150-vb|Wyse 120/150 visible bell:\
+	:bl@:tc=wy120:
+wy120-w-vb|wy120-wvb|wyse120-wvb|wy150-w-vb|wyse150-w-vb|Wyse 120/150 132-column visible bell:\
+	:bl@:cm=\Ea%i%dR%dC:co#132:ws#97:tc=wy120:
 # # --------------------------------
 #
 # y: TELERAY
@@ -4501,7 +4528,9 @@ linux|Linux Console:\
 	:me=\E[0;10m:mh=\E[2m:mr=\E[7m:nd=\E[C:nw=^M^J:rc=\E8:\
 	:sc=\E7:se=\E[m:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
 	:ue=\E[24m:up=\E[A:us=\E[4m:vb=200\E[?5h\E[?5l:\
-	:ve=\E[?25h:vi=\E[?25l:
+	:ve=\E[?25h:vi=\E[?25l:\
+	:k;=\E[21~:F1=\E[23~:F2=\E[24~:F3=\E[25~:F4=\E[26~:F5=\E[28~:\
+	:F6=\E[29~:F7=\E[31~:F8=\E[32~:F9=\E[33~:FA=\E[34~:
 linux-m|Linux Console no color:\
 	:pa@:Co@:AF@:AB@:op@:\
 	:tc=linux:
@@ -4546,6 +4575,12 @@ rxvt-mono|rxvt terminal emulator (monochrome) (X Window System):\
 	:se=\E[27m:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
 	:te=\E[?47l\E8:ti=\E7\E[?47h:ue=\E[24m:up=\E[A:us=\E[4m:\
 	:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:vs=\E[?25h:
+
+# Termcap entry for rxvt-unicode, taken from http://cvs.schmorp.de/rxvt-unicode/doc/rxvt.7.html#I_need_a_termcap_file_entry
+rxvt-unicode|rxvt-unicode terminal (X Window System):\
+	:SF=\E[%dS:SR=\E[%dT:bw:ec=\E[%dX:kb=\177:kd=\EOB:ke=\E[?1l\E>:\
+	:kl=\EOD:kr=\EOC:ks=\E[?1h\E=:ku=\EOA:lm#0:te=\E[r\E[?1049l:\
+	:ti=\E[?1049h:tc=rxvt-mono:
 
 rxvt|rxvt terminal emulator (X Window System):\
 	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:tc=rxvt-mono:

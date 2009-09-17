@@ -155,7 +155,7 @@ ata_sis_probe(device_t dev)
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_sis_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -189,10 +189,6 @@ ata_sis_chipinit(device_t dev)
 	    ctlr->ch_attach = ata_sis_ch_attach;
 	    ctlr->ch_detach = ata_pci_ch_detach;
 	    ctlr->reset = ata_sis_reset;
-
-	    /* enable PCI interrupt */
-	    pci_write_config(dev, PCIR_COMMAND,
-			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
 	}
 	ctlr->setmode = ata_sata_setmode;
 	return 0;
@@ -230,7 +226,7 @@ ata_sis_ch_attach(device_t dev)
 static void
 ata_sis_reset(device_t dev)
 {
-    if (ata_sata_phy_reset(dev))
+    if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
 }
 

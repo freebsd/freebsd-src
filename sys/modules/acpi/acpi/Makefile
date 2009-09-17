@@ -8,16 +8,25 @@
 .error "The ACPI module is only for i386"
 .endif
 
-.PATH: ${.CURDIR}/../../../contrib/dev/acpica \
-       ${.CURDIR}/../../../pci \
-       ${.CURDIR}/../../../dev/acpica \
-       ${.CURDIR}/../../../dev/acpica/Osd \
-       ${.CURDIR}/../../../${MACHINE_ARCH}/acpica
+.PATH:	${.CURDIR}/../../../contrib/dev/acpica/debugger \
+	${.CURDIR}/../../../contrib/dev/acpica/disassembler \
+	${.CURDIR}/../../../contrib/dev/acpica/dispatcher \
+	${.CURDIR}/../../../contrib/dev/acpica/events \
+	${.CURDIR}/../../../contrib/dev/acpica/executer \
+	${.CURDIR}/../../../contrib/dev/acpica/hardware \
+	${.CURDIR}/../../../contrib/dev/acpica/namespace \
+	${.CURDIR}/../../../contrib/dev/acpica/parser \
+	${.CURDIR}/../../../contrib/dev/acpica/resources \
+	${.CURDIR}/../../../contrib/dev/acpica/tables \
+	${.CURDIR}/../../../contrib/dev/acpica/utilities \
+	${.CURDIR}/../../../pci \
+	${.CURDIR}/../../../dev/acpica \
+	${.CURDIR}/../../../dev/acpica/Osd \
+	${.CURDIR}/../../../${MACHINE_ARCH}/acpica
 
 KMOD=	acpi
 
 # ACPI CA sources
-CFLAGS+=   -I${.CURDIR}/../../../contrib/dev/acpica
 SRCS+=	dsfield.c dsinit.c dsmethod.c dsmthdat.c dsobject.c dsopcode.c
 SRCS+=	dsutils.c dswexec.c dswload.c dswscope.c dswstate.c
 SRCS+=	evevent.c evgpe.c evgpeblk.c evmisc.c evregion.c evrgnini.c evsci.c
@@ -26,18 +35,18 @@ SRCS+=	exconfig.c exconvrt.c excreate.c exdump.c exfield.c exfldio.c exmisc.c
 SRCS+=	exmutex.c exnames.c exoparg1.c exoparg2.c exoparg3.c exoparg6.c
 SRCS+=	exprep.c exregion.c exresnte.c exresolv.c exresop.c exstore.c
 SRCS+=	exstoren.c exstorob.c exsystem.c exutils.c
-SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwtimer.c
+SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwtimer.c hwvalid.c hwxface.c
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c nsload.c nsnames.c
-SRCS+=	nsobject.c nsparse.c nssearch.c nsutils.c nswalk.c nsxfeval.c
-SRCS+=	nsxfname.c nsxfobj.c
+SRCS+=	nsobject.c nsparse.c nspredef.c nsrepair.c nssearch.c nsutils.c
+SRCS+=	nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
 SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c pstree.c psutils.c
 SRCS+=	pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c rsirq.c rslist.c
 SRCS+=	rsmemory.c rsmisc.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
-SRCS+=	utalloc.c utcache.c utclib.c utcopy.c utdebug.c utdelete.c uteval.c
-SRCS+=	utglobal.c utinit.c utmath.c utmisc.c utmutex.c utobject.c utresrc.c
-SRCS+=	utstate.c utxface.c
+SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c uteval.c utglobal.c
+SRCS+=	utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c utobject.c
+SRCS+=	utresrc.c utstate.c utxface.c
 
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c acpi_package.c acpi_pci.c acpi_pcib.c
@@ -70,11 +79,11 @@ DBSRC+=	dmresrcs.c dmutils.c dmwalk.c
 .if KTR
 CFLAGS+=-DKTR
 .endif
+.if ACPI_MAX_TASKS
+CFLAGS+=-DACPI_MAX_TASKS=${ACPI_MAX_TASKS}
+.endif
 .if ACPI_MAX_THREADS
 CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}
-.endif
-.if ACPI_NO_SEMAPHORES
-CFLAGS+=-DACPI_NO_SEMAPHORES
 .endif
 .if ACPI_DEBUG
 CFLAGS+=-DACPI_DEBUG

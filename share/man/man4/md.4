@@ -66,11 +66,12 @@ For more information, please see
 To create a kernel with a ramdisk or MD file system, your kernel config
 needs the following options:
 .Bd -literal -offset indent
-options 	MD_ROOT			#MD is a potential root device
+options 	MD_ROOT			# MD is a potential root device
 options		MD_ROOT_SIZE=8192	# 8MB ram disk
 makeoptions	MFS_IMAGE=/h/foo/ARM-MD
-options 	ROOTDEVNAME=\"ufs:md0\"
+options 	ROOTDEVNAME=\\"ufs:md0\\"
 .Ed
+.Pp
 The image in
 .Pa /h/foo/ARM-MD
 will be loaded as the initial image each boot.

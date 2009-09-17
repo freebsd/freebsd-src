@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/time.h>
 #include <sys/uio.h>
+
+#include <net/vnet.h>
+
 #include <netinet/tcp.h>
 
 #include <rpc/rpc.h>
@@ -91,7 +94,7 @@ static bool_t clnt_vc_control(CLIENT *, u_int, void *);
 static void clnt_vc_close(CLIENT *);
 static void clnt_vc_destroy(CLIENT *);
 static bool_t time_not_ok(struct timeval *);
-static void clnt_vc_soupcall(struct socket *so, void *arg, int waitflag);
+static int clnt_vc_soupcall(struct socket *so, void *arg, int waitflag);
 
 static struct clnt_ops clnt_vc_ops = {
 	.cl_call =	clnt_vc_call,
@@ -137,7 +140,10 @@ struct ct_data {
 	size_t		ct_record_resid; /* how much left of reply to read */
 	bool_t		ct_record_eor;	 /* true if reading last fragment */
 	struct ct_request_list ct_pending;
+	int		ct_upcallrefs;	/* Ref cnt of upcalls in prog. */
 };
+
+static void clnt_vc_upcallsdone(struct ct_data *);
 
 static const char clnt_vc_errstr[] = "%s : %s";
 static const char clnt_vc_str[] = "clnt_vc_create";
@@ -184,6 +190,7 @@ clnt_vc_create(
 	ct->ct_threads = 0;
 	ct->ct_closing = FALSE;
 	ct->ct_closed = FALSE;
+	ct->ct_upcallrefs = 0;
 
 	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
 		error = soconnect(so, raddr, curthread);
@@ -192,7 +199,7 @@ clnt_vc_create(
 		while ((so->so_state & SS_ISCONNECTING)
 		    && so->so_error == 0) {
 			error = msleep(&so->so_timeo, SOCK_MTX(so),
-			    PSOCK | PCATCH, "connec", 0);
+			    PSOCK | PCATCH | PBDRY, "connec", 0);
 			if (error) {
 				if (error == EINTR || error == ERESTART)
 					interrupted = 1;
@@ -213,8 +220,11 @@ clnt_vc_create(
 		}
 	}
 
-	if (!__rpc_socket2sockinfo(so, &si))
+	CURVNET_SET(so->so_vnet);
+	if (!__rpc_socket2sockinfo(so, &si)) {
+		CURVNET_RESTORE();
 		goto err;
+	}
 
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		bzero(&sopt, sizeof(sopt));
@@ -235,6 +245,7 @@ clnt_vc_create(
 		sopt.sopt_valsize = sizeof(one);
 		sosetopt(so, &sopt);
 	}
+	CURVNET_RESTORE();
 
 	ct->ct_closeit = FALSE;
 
@@ -286,9 +297,7 @@ clnt_vc_create(
 	soreserve(ct->ct_socket, sendsz, recvsz);
 
 	SOCKBUF_LOCK(&ct->ct_socket->so_rcv);
-	ct->ct_socket->so_upcallarg = ct;
-	ct->ct_socket->so_upcall = clnt_vc_soupcall;
-	ct->ct_socket->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(ct->ct_socket, SO_RCV, clnt_vc_soupcall, ct);
 	SOCKBUF_UNLOCK(&ct->ct_socket->so_rcv);
 
 	ct->ct_record = NULL;
@@ -475,6 +484,7 @@ call_again:
 		errp->re_errno = error;
 		switch (error) {
 		case EINTR:
+		case ERESTART:
 			stat = RPC_INTR;
 			break;
 		case EWOULDBLOCK:
@@ -707,7 +717,7 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 
 	case CLSET_INTERRUPTIBLE:
 		if (*(int *) info)
-			ct->ct_waitflag = PCATCH;
+			ct->ct_waitflag = PCATCH | PBDRY;
 		else
 			ct->ct_waitflag = 0;
 		break;
@@ -750,17 +760,19 @@ clnt_vc_close(CLIENT *cl)
 	}
 
 	if (ct->ct_socket) {
+		ct->ct_closing = TRUE;
+		mtx_unlock(&ct->ct_lock);
+
 		SOCKBUF_LOCK(&ct->ct_socket->so_rcv);
-		ct->ct_socket->so_upcallarg = NULL;
-		ct->ct_socket->so_upcall = NULL;
-		ct->ct_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+		soupcall_clear(ct->ct_socket, SO_RCV);
+		clnt_vc_upcallsdone(ct);
 		SOCKBUF_UNLOCK(&ct->ct_socket->so_rcv);
 
 		/*
 		 * Abort any pending requests and wait until everyone
 		 * has finished with clnt_vc_call.
 		 */
-		ct->ct_closing = TRUE;
+		mtx_lock(&ct->ct_lock);
 		TAILQ_FOREACH(cr, &ct->ct_pending, cr_link) {
 			cr->cr_xid = 0;
 			cr->cr_error = ESHUTDOWN;
@@ -815,7 +827,7 @@ time_not_ok(struct timeval *t)
 		t->tv_usec <= -1 || t->tv_usec > 1000000);
 }
 
-void
+int
 clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	struct ct_data *ct = (struct ct_data *) arg;
@@ -826,6 +838,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 	uint32_t xid, header;
 	bool_t do_read;
 
+	ct->ct_upcallrefs++;
 	uio.uio_td = curthread;
 	do {
 		/*
@@ -840,20 +853,20 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 			 * error condition
 			 */
 			do_read = FALSE;
-			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_cc >= sizeof(uint32_t)
 			    || (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			    || so->so_error)
 				do_read = TRUE;
-			SOCKBUF_UNLOCK(&so->so_rcv);
 
 			if (!do_read)
-				return;
+				break;
 
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			uio.uio_resid = sizeof(uint32_t);
 			m = NULL;
 			rcvflag = MSG_DONTWAIT | MSG_SOCALLBCK;
 			error = soreceive(so, NULL, &uio, &m, NULL, &rcvflag);
+			SOCKBUF_LOCK(&so->so_rcv);
 
 			if (error == EWOULDBLOCK)
 				break;
@@ -893,25 +906,25 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 			 * buffered.
 			 */
 			do_read = FALSE;
-			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_cc >= ct->ct_record_resid
 			    || (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			    || so->so_error)
 				do_read = TRUE;
-			SOCKBUF_UNLOCK(&so->so_rcv);
 
 			if (!do_read)
-				return;
+				break;
 
 			/*
 			 * We have the record mark. Read as much as
 			 * the socket has buffered up to the end of
 			 * this record.
 			 */
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			uio.uio_resid = ct->ct_record_resid;
 			m = NULL;
 			rcvflag = MSG_DONTWAIT | MSG_SOCALLBCK;
 			error = soreceive(so, NULL, &uio, &m, NULL, &rcvflag);
+			SOCKBUF_LOCK(&so->so_rcv);
 
 			if (error == EWOULDBLOCK)
 				break;
@@ -980,4 +993,24 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 			}
 		}
 	} while (m);
+	ct->ct_upcallrefs--;
+	if (ct->ct_upcallrefs < 0)
+		panic("rpcvc upcall refcnt");
+	if (ct->ct_upcallrefs == 0)
+		wakeup(&ct->ct_upcallrefs);
+	return (SU_OK);
+}
+
+/*
+ * Wait for all upcalls in progress to complete.
+ */
+static void
+clnt_vc_upcallsdone(struct ct_data *ct)
+{
+
+	SOCKBUF_LOCK_ASSERT(&ct->ct_socket->so_rcv);
+
+	while (ct->ct_upcallrefs > 0)
+		(void) msleep(&ct->ct_upcallrefs,
+		    SOCKBUF_MTX(&ct->ct_socket->so_rcv), 0, "rpcvcup", 0);
 }

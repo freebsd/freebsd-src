@@ -67,6 +67,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <jail.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -249,6 +250,19 @@ main(int argc, char *argv[])
 					errx(1, "%s: cloning name too long",
 					    ifname);
 				ifconfig(argc, argv, 1, NULL);
+				exit(0);
+			}
+			/*
+			 * NOTE:  We have to special-case the `-vnet' command
+			 * right here as we would otherwise fail when trying
+			 * to find the interface as it lives in another vnet.
+			 */
+			if (argc > 0 && (strcmp(argv[0], "-vnet") == 0)) {
+				iflen = strlcpy(name, ifname, sizeof(name));
+				if (iflen >= sizeof(name))
+					errx(1, "%s: interface name too long",
+					    ifname);
+				ifconfig(argc, argv, 0, NULL);
 				exit(0);
 			}
 			errx(1, "interface %s does not exist", ifname);
@@ -441,22 +455,23 @@ static const struct cmd setifdstaddr_cmd =
 	DEF_CMD("ifdstaddr", 0, setifdstaddr);
 
 static int
-ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *afp)
+ifconfig(int argc, char *const *argv, int iscreate, const struct afswtch *uafp)
 {
-	const struct afswtch *nafp;
+	const struct afswtch *afp, *nafp;
 	const struct cmd *p;
 	struct callback *cb;
 	int s;
 
 	strncpy(ifr.ifr_name, name, sizeof ifr.ifr_name);
+	afp = uafp != NULL ? uafp : af_getbyname("inet");
 top:
-	if (afp == NULL)
-		afp = af_getbyname("inet");
 	ifr.ifr_addr.sa_family =
 		afp->af_af == AF_LINK || afp->af_af == AF_UNSPEC ?
-		AF_INET : afp->af_af;
+		AF_LOCAL : afp->af_af;
 
-	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0)
+	if ((s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0)) < 0 &&
+	    (uafp != NULL || errno != EPROTONOSUPPORT ||
+	     (s = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0))
 		err(1, "socket(family %u,SOCK_DGRAM", ifr.ifr_addr.sa_family);
 
 	while (argc > 0) {
@@ -628,6 +643,34 @@ deletetunnel(const char *vname, int param, int s, const struct afswtch *afp)
 }
 
 static void
+setifvnet(const char *jname, int dummy __unused, int s,
+    const struct afswtch *afp)
+{
+	struct ifreq my_ifr;
+
+	memcpy(&my_ifr, &ifr, sizeof(my_ifr));
+	my_ifr.ifr_jid = jail_getid(jname);
+	if (my_ifr.ifr_jid < 0)
+		errx(1, "%s", jail_errmsg);
+	if (ioctl(s, SIOCSIFVNET, &my_ifr) < 0)
+		err(1, "SIOCSIFVNET");
+}
+
+static void
+setifrvnet(const char *jname, int dummy __unused, int s,
+    const struct afswtch *afp)
+{
+	struct ifreq my_ifr;
+
+	memcpy(&my_ifr, &ifr, sizeof(my_ifr));
+	my_ifr.ifr_jid = jail_getid(jname);
+	if (my_ifr.ifr_jid < 0)
+		errx(1, "%s", jail_errmsg);
+	if (ioctl(s, SIOCSIFRVNET, &my_ifr) < 0)
+		err(1, "SIOCSIFRVNET(%d, %s)", my_ifr.ifr_jid, my_ifr.ifr_name);
+}
+
+static void
 setifnetmask(const char *addr, int dummy __unused, int s,
     const struct afswtch *afp)
 {
@@ -782,7 +825,7 @@ setifname(const char *val, int dummy __unused, int s,
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6SMART\7RUNNING" \
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
-"\20MULTICAST\22PPROMISC\23MONITOR\24STATICARP\25NEEDSGIANT"
+"\20MULTICAST\22PPROMISC\23MONITOR\24STATICARP"
 
 #define	IFCAPBITS \
 "\020\1RXCSUM\2TXCSUM\3NETCONS\4VLAN_MTU\5VLAN_HWTAGGING\6JUMBO_MTU\7POLLING" \
@@ -803,11 +846,12 @@ status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 
 	if (afp == NULL) {
 		allfamilies = 1;
-		afp = af_getbyname("inet");
-	} else
+		ifr.ifr_addr.sa_family = AF_LOCAL;
+	} else {
 		allfamilies = 0;
-
-	ifr.ifr_addr.sa_family = afp->af_af == AF_LINK ? AF_INET : afp->af_af;
+		ifr.ifr_addr.sa_family =
+		    afp->af_af == AF_LINK ? AF_LOCAL : afp->af_af;
+	}
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 
 	s = socket(ifr.ifr_addr.sa_family, SOCK_DGRAM, 0);
@@ -1010,6 +1054,8 @@ static struct cmd basic_cmds[] = {
 	DEF_CMD_ARG2("tunnel",			settunnel),
 	DEF_CMD("-tunnel", 0,			deletetunnel),
 	DEF_CMD("deletetunnel", 0,		deletetunnel),
+	DEF_CMD_ARG("vnet",			setifvnet),
+	DEF_CMD_ARG("-vnet",			setifrvnet),
 	DEF_CMD("link0",	IFF_LINK0,	setifflags),
 	DEF_CMD("-link0",	-IFF_LINK0,	setifflags),
 	DEF_CMD("link1",	IFF_LINK1,	setifflags),
@@ -1051,7 +1097,7 @@ static __constructor void
 ifconfig_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(basic_cmds);  i++)
 		cmd_register(&basic_cmds[i]);

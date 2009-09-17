@@ -175,6 +175,7 @@ sbunlock(struct sockbuf *sb)
 void
 sowakeup(struct socket *so, struct sockbuf *sb)
 {
+	int ret;
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
@@ -186,13 +187,22 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 		wakeup(&sb->sb_cc);
 	}
 	KNOTE_LOCKED(&sb->sb_sel.si_note, 0);
-	SOCKBUF_UNLOCK(sb);
-	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
-		pgsigio(&so->so_sigio, SIGIO, 0);
-	if (sb->sb_flags & SB_UPCALL)
-		(*so->so_upcall)(so, so->so_upcallarg, M_DONTWAIT);
+	if (sb->sb_upcall != NULL) {
+		ret = sb->sb_upcall(so, sb->sb_upcallarg, M_DONTWAIT);
+		if (ret == SU_ISCONNECTED) {
+			KASSERT(sb == &so->so_rcv,
+			    ("SO_SND upcall returned SU_ISCONNECTED"));
+			soupcall_clear(so, SO_RCV);
+		}
+	} else
+		ret = SU_OK;
 	if (sb->sb_flags & SB_AIO)
 		aio_swake(so, sb);
+	SOCKBUF_UNLOCK(sb);
+	if (ret == SU_ISCONNECTED)
+		soisconnected(so);
+	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
+		pgsigio(&so->so_sigio, SIGIO, 0);
 	mtx_assert(SOCKBUF_MTX(sb), MA_NOTOWNED);
 }
 
@@ -518,6 +528,9 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m)
 
 	SBLASTMBUFCHK(sb);
 
+	/* Remove all packet headers and mbuf tags to get a pure data chain. */
+	m_demote(m, 1);
+	
 	sbcompress(sb, m, sb->sb_mbtail);
 
 	sb->sb_lastrecord = sb->sb_mb;
@@ -577,10 +590,6 @@ sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0)
 
 	if (m0 == 0)
 		return;
-	m = sb->sb_mb;
-	if (m)
-		while (m->m_nextpkt)
-			m = m->m_nextpkt;
 	/*
 	 * Put the first mbuf on the queue.  Note this permits zero length
 	 * records.
@@ -588,16 +597,14 @@ sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0)
 	sballoc(sb, m0);
 	SBLASTRECORDCHK(sb);
 	SBLINKRECORD(sb, m0);
-	if (m)
-		m->m_nextpkt = m0;
-	else
-		sb->sb_mb = m0;
+	sb->sb_mbtail = m0;
 	m = m0->m_next;
 	m0->m_next = 0;
 	if (m && (m0->m_flags & M_EOR)) {
 		m0->m_flags &= ~M_EOR;
 		m->m_flags |= M_EOR;
 	}
+	/* always call sbcompress() so it can do SBLASTMBUFCHK() */
 	sbcompress(sb, m, m0);
 }
 

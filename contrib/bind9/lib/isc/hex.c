@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hex.c,v 1.14.18.2 2005/04/29 00:16:46 marka Exp $ */
+/* $Id: hex.c,v 1.20 2008/09/25 04:02:39 tbox Exp $ */
 
 /*! \file */
 
@@ -156,7 +156,7 @@ isc_hex_tobuffer(isc_lex_t *lexer, isc_buffer_t *target, int length) {
 }
 
 isc_result_t
-isc_hex_decodestring(char *cstr, isc_buffer_t *target) {
+isc_hex_decodestring(const char *cstr, isc_buffer_t *target) {
 	hex_decode_ctx_t ctx;
 
 	hex_decode_init(&ctx, -1, target);
@@ -168,7 +168,7 @@ isc_hex_decodestring(char *cstr, isc_buffer_t *target) {
 			continue;
 		RETERR(hex_decode_char(&ctx, c));
 	}
-	RETERR(hex_decode_finish(&ctx));	
+	RETERR(hex_decode_finish(&ctx));
 	return (ISC_R_SUCCESS);
 }
 

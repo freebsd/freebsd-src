@@ -1072,7 +1072,7 @@ bm_setladrf(struct bm_softc *sc)
 		/* Clear the hash table. */
 		memset(hash, 0, sizeof(hash));
 
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(inm, &ifp->if_multiaddrs, ifma_link) {
 			if (inm->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -1085,7 +1085,7 @@ bm_setladrf(struct bm_softc *sc)
 			/* Set the corresponding bit in the filter. */
 			hash[crc >> 4] |= 1 << (crc & 0xf);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 
 	/* Write out new hash table */

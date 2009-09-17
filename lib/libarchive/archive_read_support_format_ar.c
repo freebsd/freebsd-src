@@ -72,8 +72,6 @@ struct ar {
 #define AR_fmag_offset 58
 #define AR_fmag_size 2
 
-#define isdigit(x)	(x) >= '0' && (x) <= '9'
-
 static int	archive_read_format_ar_bid(struct archive_read *a);
 static int	archive_read_format_ar_cleanup(struct archive_read *a);
 static int	archive_read_format_ar_read_data(struct archive_read *a,
@@ -105,7 +103,9 @@ archive_read_support_format_ar(struct archive *_a)
 
 	r = __archive_read_register_format(a,
 	    ar,
+	    "ar",
 	    archive_read_format_ar_bid,
+	    NULL,
 	    archive_read_format_ar_read_header,
 	    archive_read_format_ar_read_data,
 	    archive_read_format_ar_skip,
@@ -307,8 +307,10 @@ archive_read_format_ar_read_header(struct archive_read *a,
 	/*
 	 * GNU variant handles long filenames by storing /<number>
 	 * to indicate a name stored in the filename table.
+	 * XXX TODO: Verify that it's all digits... Don't be fooled
+	 * by "/9xyz" XXX
 	 */
-	if (filename[0] == '/' && isdigit(filename[1])) {
+	if (filename[0] == '/' && filename[1] >= '0' && filename[1] <= '9') {
 		number = ar_atol10(h + AR_name_offset + 1, AR_name_size - 1);
 		/*
 		 * If we can't look up the real name, warn and return

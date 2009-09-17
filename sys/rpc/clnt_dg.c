@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/uio.h>
 
+#include <net/vnet.h>
+
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
 
@@ -79,7 +81,7 @@ static void clnt_dg_abort(CLIENT *);
 static bool_t clnt_dg_control(CLIENT *, u_int, void *);
 static void clnt_dg_close(CLIENT *);
 static void clnt_dg_destroy(CLIENT *);
-static void clnt_dg_soupcall(struct socket *so, void *arg, int waitflag);
+static int clnt_dg_soupcall(struct socket *so, void *arg, int waitflag);
 
 static struct clnt_ops clnt_dg_ops = {
 	.cl_call =	clnt_dg_call,
@@ -112,7 +114,7 @@ TAILQ_HEAD(cu_request_list, cu_request);
 #define MCALL_MSG_SIZE 24
 
 /*
- * This structure is pointed to by the socket's so_upcallarg
+ * This structure is pointed to by the socket buffer's sb_upcallarg
  * member. It is separate from the client private data to facilitate
  * multiple clients sharing the same socket. The cs_lock mutex is used
  * to protect all fields of this structure, the socket's receive
@@ -123,7 +125,10 @@ struct cu_socket {
 	struct mtx		cs_lock;
 	int			cs_refs;	/* Count of clients */
 	struct cu_request_list	cs_pending;	/* Requests awaiting replies */
+	int			cs_upcallrefs;	/* Refcnt of upcalls in prog.*/
 };
+
+static void clnt_dg_upcallsdone(struct socket *, struct cu_socket *);
 
 /*
  * Private data kept per client handle
@@ -183,6 +188,7 @@ clnt_dg_create(
 	CLIENT *cl = NULL;		/* client handle */
 	struct cu_data *cu = NULL;	/* private data */
 	struct cu_socket *cs = NULL;
+	struct sockbuf *sb;
 	struct timeval now;
 	struct rpc_msg call_msg;
 	struct __rpc_sockinfo si;
@@ -193,11 +199,14 @@ clnt_dg_create(
 		return (NULL);
 	}
 
+	CURVNET_SET(so->so_vnet);
 	if (!__rpc_socket2sockinfo(so, &si)) {
 		rpc_createerr.cf_stat = RPC_TLIERROR;
 		rpc_createerr.cf_error.re_errno = 0;
+		CURVNET_RESTORE();
 		return (NULL);
 	}
+	CURVNET_RESTORE();
 
 	/*
 	 * Find the receive and the send size
@@ -260,15 +269,16 @@ clnt_dg_create(
 	cu->cu_socket = so;
 	soreserve(so, 256*1024, 256*1024);
 
+	sb = &so->so_rcv;
 	SOCKBUF_LOCK(&so->so_rcv);
 recheck_socket:
-	if (so->so_upcall) {
-		if (so->so_upcall != clnt_dg_soupcall) {
+	if (sb->sb_upcall) {
+		if (sb->sb_upcall != clnt_dg_soupcall) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			printf("clnt_dg_create(): socket already has an incompatible upcall\n");
 			goto err2;
 		}
-		cs = (struct cu_socket *) so->so_upcallarg;
+		cs = (struct cu_socket *) sb->sb_upcallarg;
 		mtx_lock(&cs->cs_lock);
 		cs->cs_refs++;
 		mtx_unlock(&cs->cs_lock);
@@ -277,10 +287,10 @@ recheck_socket:
 		 * We are the first on this socket - allocate the
 		 * structure and install it in the socket.
 		 */
-		SOCKBUF_UNLOCK(&cu->cu_socket->so_rcv);
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		cs = mem_alloc(sizeof(*cs));
-		SOCKBUF_LOCK(&cu->cu_socket->so_rcv);
-		if (so->so_upcall) {
+		SOCKBUF_LOCK(&so->so_rcv);
+		if (sb->sb_upcall) {
 			/*
 			 * We have lost a race with some other client.
 			 */
@@ -289,10 +299,9 @@ recheck_socket:
 		}
 		mtx_init(&cs->cs_lock, "cs->cs_lock", NULL, MTX_DEF);
 		cs->cs_refs = 1;
+		cs->cs_upcallrefs = 0;
 		TAILQ_INIT(&cs->cs_pending);
-		so->so_upcallarg = cs;
-		so->so_upcall = clnt_dg_soupcall;
-		so->so_rcv.sb_flags |= SB_UPCALL;
+		soupcall_set(so, SO_RCV, clnt_dg_soupcall, cs);
 	}
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
@@ -322,7 +331,7 @@ clnt_dg_call(
 	struct timeval	utimeout)	/* seconds to wait before giving up */
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
-	struct cu_socket *cs = (struct cu_socket *) cu->cu_socket->so_upcallarg;
+	struct cu_socket *cs;
 	struct rpc_timers *rt;
 	AUTH *auth;
 	struct rpc_err *errp;
@@ -343,6 +352,7 @@ clnt_dg_call(
 	struct cu_request *cr;
 	int error;
 
+	cs = cu->cu_socket->so_rcv.sb_upcallarg;
 	cr = malloc(sizeof(struct cu_request), M_RPC, M_WAITOK);
 
 	mtx_lock(&cs->cs_lock);
@@ -542,11 +552,13 @@ get_reply:
 		tv -= time_waited;
 
 		if (tv > 0) {
-			if (cu->cu_closing || cu->cu_closed)
+			if (cu->cu_closing || cu->cu_closed) {
 				error = 0;
-			else
+				cr->cr_error = ESHUTDOWN;
+			} else {
 				error = msleep(cr, &cs->cs_lock,
 				    cu->cu_waitflag, cu->cu_waitchan, tv);
+			}
 		} else {
 			error = EWOULDBLOCK;
 		}
@@ -797,9 +809,10 @@ static bool_t
 clnt_dg_control(CLIENT *cl, u_int request, void *info)
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
-	struct cu_socket *cs = (struct cu_socket *) cu->cu_socket->so_upcallarg;
+	struct cu_socket *cs;
 	struct sockaddr *addr;
 
+	cs = cu->cu_socket->so_rcv.sb_upcallarg;
 	mtx_lock(&cs->cs_lock);
 
 	switch (request) {
@@ -929,9 +942,10 @@ static void
 clnt_dg_close(CLIENT *cl)
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
-	struct cu_socket *cs = (struct cu_socket *) cu->cu_socket->so_upcallarg;
+	struct cu_socket *cs;
 	struct cu_request *cr;
 
+	cs = cu->cu_socket->so_rcv.sb_upcallarg;
 	mtx_lock(&cs->cs_lock);
 
 	if (cu->cu_closed) {
@@ -974,22 +988,23 @@ static void
 clnt_dg_destroy(CLIENT *cl)
 {
 	struct cu_data *cu = (struct cu_data *)cl->cl_private;
-	struct cu_socket *cs = (struct cu_socket *) cu->cu_socket->so_upcallarg;
+	struct cu_socket *cs;
 	struct socket *so = NULL;
 	bool_t lastsocketref;
 
+	cs = cu->cu_socket->so_rcv.sb_upcallarg;
 	clnt_dg_close(cl);
 
 	mtx_lock(&cs->cs_lock);
 
 	cs->cs_refs--;
 	if (cs->cs_refs == 0) {
-		mtx_destroy(&cs->cs_lock);
+		mtx_unlock(&cs->cs_lock);
 		SOCKBUF_LOCK(&cu->cu_socket->so_rcv);
-		cu->cu_socket->so_upcallarg = NULL;
-		cu->cu_socket->so_upcall = NULL;
-		cu->cu_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+		soupcall_clear(cu->cu_socket, SO_RCV);
+		clnt_dg_upcallsdone(cu->cu_socket, cs);
 		SOCKBUF_UNLOCK(&cu->cu_socket->so_rcv);
+		mtx_destroy(&cs->cs_lock);
 		mem_free(cs, sizeof(*cs));
 		lastsocketref = TRUE;
 	} else {
@@ -1023,7 +1038,7 @@ time_not_ok(struct timeval *t)
 		t->tv_usec < -1 || t->tv_usec > 1000000);
 }
 
-void
+int
 clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	struct cu_socket *cs = (struct cu_socket *) arg;
@@ -1034,15 +1049,18 @@ clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 	int error, rcvflag, foundreq;
 	uint32_t xid;
 
+	cs->cs_upcallrefs++;
 	uio.uio_resid = 1000000000;
 	uio.uio_td = curthread;
 	do {
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		m = NULL;
 		control = NULL;
 		rcvflag = MSG_DONTWAIT;
 		error = soreceive(so, NULL, &uio, &m, &control, &rcvflag);
 		if (control)
 			m_freem(control);
+		SOCKBUF_LOCK(&so->so_rcv);
 
 		if (error == EWOULDBLOCK)
 			break;
@@ -1107,5 +1125,24 @@ clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 		if (!foundreq)
 			m_freem(m);
 	} while (m);
+	cs->cs_upcallrefs--;
+	if (cs->cs_upcallrefs < 0)
+		panic("rpcdg upcall refcnt");
+	if (cs->cs_upcallrefs == 0)
+		wakeup(&cs->cs_upcallrefs);
+	return (SU_OK);
 }
 
+/*
+ * Wait for all upcalls in progress to complete.
+ */
+static void
+clnt_dg_upcallsdone(struct socket *so, struct cu_socket *cs)
+{
+
+	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+
+	while (cs->cs_upcallrefs > 0)
+		(void) msleep(&cs->cs_upcallrefs, SOCKBUF_MTX(&so->so_rcv), 0,
+		    "rpcdgup", 0);
+}

@@ -101,15 +101,13 @@ LINK_SO=	\
     LIBDEPS="$${LIBDEPS:-$(LIBDEPS)}"; \
     SHAREDCMD="$${SHAREDCMD:-$(CC)}"; \
     SHAREDFLAGS="$${SHAREDFLAGS:-$(CFLAGS) $(SHARED_LDFLAGS)}"; \
-    nm -Pg $$SHOBJECTS | grep ' [BDT] ' | cut -f1 -d' ' > lib$(LIBNAME).exp; \
     LIBPATH=`for x in $$LIBDEPS; do if echo $$x | grep '^ *-L' > /dev/null 2>&1; then echo $$x | sed -e 's/^ *-L//'; fi; done | uniq`; \
     LIBPATH=`echo $$LIBPATH | sed -e 's/ /:/g'`; \
     LD_LIBRARY_PATH=$$LIBPATH:$$LD_LIBRARY_PATH \
     $${SHAREDCMD} $${SHAREDFLAGS} \
 	-o $$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX \
 	$$ALLSYMSFLAGS $$SHOBJECTS $$NOALLSYMSFLAGS $$LIBDEPS \
-  ) && $(SYMLINK_SO); \
-  ( $(SET_X); rm -f lib$(LIBNAME).exp )
+  ) && $(SYMLINK_SO)
 
 SYMLINK_SO=	\
 	if [ -n "$$INHIBIT_SYMLINKS" ]; then :; else \
@@ -202,8 +200,10 @@ link_app.bsd:
 # to use native NSModule(3) API and refers to dlfcn as termporary hack.
 link_o.darwin:
 	@ $(CALC_VERSIONS); \
-	SHLIB=lib$(LIBNAME); \
-	SHLIB_SUFFIX=.so; \
+	SHLIB=`expr "$$THIS" : '.*/\([^/\.]*\)\.'`; \
+	SHLIB=$${SHLIB:-lib$(LIBNAME)}; \
+	SHLIB_SUFFIX=`expr "$$THIS" : '.*\(\.[^\.]*\)$$'`; \
+	SHLIB_SUFFIX=$${SHLIB_SUFFIX:-.so}; \
 	ALLSYMSFLAGS='-all_load'; \
 	NOALLSYMSFLAGS=''; \
 	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS)"; \
@@ -236,24 +236,30 @@ link_o.cygwin:
 	@ $(CALC_VERSIONS); \
 	INHIBIT_SYMLINKS=yes; \
 	SHLIB=cyg$(LIBNAME); \
-	expr $(PLATFORM) : 'mingw' > /dev/null && SHLIB=$(LIBNAME)eay32; \
+	base=-Wl,--enable-auto-image-base; \
+	if expr $(PLATFORM) : 'mingw' > /dev/null; then \
+		SHLIB=$(LIBNAME)eay32; base=; \
+	fi; \
 	SHLIB_SUFFIX=.dll; \
 	LIBVERSION="$(LIBVERSION)"; \
 	SHLIB_SOVER=${LIBVERSION:+"-$(LIBVERSION)"}; \
 	ALLSYMSFLAGS='-Wl,--whole-archive'; \
 	NOALLSYMSFLAGS='-Wl,--no-whole-archive'; \
-	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared -Wl,-Bsymbolic -Wl,--out-implib,lib$(LIBNAME).dll.a"; \
+	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared $$base -Wl,-Bsymbolic -Wl,--out-implib,lib$(LIBNAME).dll.a"; \
 	$(LINK_SO_O)
 link_a.cygwin:
 	@ $(CALC_VERSIONS); \
 	INHIBIT_SYMLINKS=yes; \
 	SHLIB=cyg$(LIBNAME); \
-	expr $(PLATFORM) : 'mingw' > /dev/null && SHLIB=$(LIBNAME)eay32; \
+	base=-Wl,--enable-auto-image-base; \
+	if expr $(PLATFORM) : 'mingw' > /dev/null; then \
+		SHLIB=$(LIBNAME)eay32; \
+		base=;  [ $(LIBNAME) = "crypto" ] && base=-Wl,--image-base,0x63000000; \
+	fi; \
 	SHLIB_SUFFIX=.dll; \
 	SHLIB_SOVER=-$(LIBVERSION); \
 	ALLSYMSFLAGS='-Wl,--whole-archive'; \
 	NOALLSYMSFLAGS='-Wl,--no-whole-archive'; \
-	base=;  [ $(LIBNAME) = "crypto" ] && base=-Wl,--image-base,0x63000000; \
 	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared $$base -Wl,-Bsymbolic -Wl,--out-implib,lib$(LIBNAME).dll.a"; \
 	[ -f apps/$$SHLIB$$SHLIB_SUFFIX ] && rm apps/$$SHLIB$$SHLIB_SUFFIX; \
 	[ -f test/$$SHLIB$$SHLIB_SUFFIX ] && rm test/$$SHLIB$$SHLIB_SUFFIX; \
@@ -278,7 +284,7 @@ link_o.alpha-osf1:
 		SHLIB_SOVER=; \
 		ALLSYMSFLAGS='-all'; \
 		NOALLSYMSFLAGS='-none'; \
-		SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared"; \
+		SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared -Wl,-B,symbolic"; \
 		if [ -n "$$SHLIB_HIST" ]; then \
 			SHAREDFLAGS="$$SHAREDFLAGS -set_version $$SHLIB_HIST"; \
 		fi; \
@@ -299,7 +305,7 @@ link_a.alpha-osf1:
 		SHLIB_SOVER=; \
 		ALLSYMSFLAGS='-all'; \
 		NOALLSYMSFLAGS='-none'; \
-		SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared"; \
+		SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared -Wl,-B,symbolic"; \
 		if [ -n "$$SHLIB_HIST" ]; then \
 			SHAREDFLAGS="$$SHAREDFLAGS -set_version $$SHLIB_HIST"; \
 		fi; \
@@ -422,7 +428,7 @@ link_o.irix:
 		($(CC) -v 2>&1 | grep gcc) > /dev/null && MINUSWL="-Wl,"; \
 		ALLSYMSFLAGS="$${MINUSWL}-all"; \
 		NOALLSYMSFLAGS="$${MINUSWL}-none"; \
-		SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared -Wl,-soname,$$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX"; \
+		SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared -Wl,-soname,$$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX,-B,symbolic"; \
 	fi; \
 	$(LINK_SO_O)
 link_a.irix:
@@ -436,7 +442,7 @@ link_a.irix:
 		($(CC) -v 2>&1 | grep gcc) > /dev/null && MINUSWL="-Wl,"; \
 		ALLSYMSFLAGS="$${MINUSWL}-all"; \
 		NOALLSYMSFLAGS="$${MINUSWL}-none"; \
-		SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared -Wl,-soname,$$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX"; \
+		SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -shared -Wl,-soname,$$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX,-B,symbolic"; \
 	fi; \
 	$(LINK_SO_A)
 link_app.irix:
@@ -460,7 +466,7 @@ link_o.hpux:
 	ALLSYMSFLAGS='-Wl,-Fl'; \
 	NOALLSYMSFLAGS=''; \
 	expr $(PLATFORM) : 'hpux64' > /dev/null && ALLSYMSFLAGS='-Wl,+forceload'; \
-	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -Wl,-B,symbolic,+vnocompatwarnings,-z,+s,+h,$$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX"; \
+	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -Wl,-B,symbolic,+vnocompatwarnings,-z,+s,+h,$$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX,+cdp,../:,+cdp,./:"; \
 	fi; \
 	rm -f $$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX || :; \
 	$(LINK_SO_O) && chmod a=rx $$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX
@@ -473,7 +479,7 @@ link_a.hpux:
 	ALLSYMSFLAGS='-Wl,-Fl'; \
 	NOALLSYMSFLAGS=''; \
 	expr $(PLATFORM) : 'hpux64' > /dev/null && ALLSYMSFLAGS='-Wl,+forceload'; \
-	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -Wl,-B,symbolic,+vnocompatwarnings,-z,+s,+h,$$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX"; \
+	SHAREDFLAGS="$(CFLAGS) $(SHARED_LDFLAGS) -Wl,-B,symbolic,+vnocompatwarnings,-z,+s,+h,$$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX,+cdp,../:,+cdp,./:"; \
 	fi; \
 	rm -f $$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX || :; \
 	$(LINK_SO_A) && chmod a=rx $$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX
@@ -485,26 +491,26 @@ link_app.hpux:
 
 link_o.aix:
 	@ $(CALC_VERSIONS); \
-	OBJECT_MODE=`expr x$(SHARED_LDFLAGS) : 'x\-[a-z]\([0-9]*\)'`; \
+	OBJECT_MODE=`expr "x$(SHARED_LDFLAGS)" : 'x\-[a-z]*\(64\)'` || :; \
 	OBJECT_MODE=$${OBJECT_MODE:-32}; export OBJECT_MODE; \
 	SHLIB=lib$(LIBNAME).so; \
 	SHLIB_SUFFIX=; \
-	ALLSYMSFLAGS='-bnogc'; \
+	ALLSYMSFLAGS=''; \
 	NOALLSYMSFLAGS=''; \
-	SHAREDFLAGS='$(CFLAGS) $(SHARED_LDFLAGS) -G -bE:lib$(LIBNAME).exp -bM:SRE'; \
-	$(LINK_SO_O); rm -rf lib$(LIBNAME).exp
+	SHAREDFLAGS='$(CFLAGS) $(SHARED_LDFLAGS) -Wl,-bexpall,-bnolibpath,-bM:SRE'; \
+	$(LINK_SO_O);
 link_a.aix:
 	@ $(CALC_VERSIONS); \
-	OBJECT_MODE=`expr x$(SHARED_LDFLAGS) : 'x\-[a-z]\([0-9]*\)'`; \
+	OBJECT_MODE=`expr "x$(SHARED_LDFLAGS)" : 'x\-[a-z]*\(64\)'` || : ; \
 	OBJECT_MODE=$${OBJECT_MODE:-32}; export OBJECT_MODE; \
 	SHLIB=lib$(LIBNAME).so; \
 	SHLIB_SUFFIX=; \
 	ALLSYMSFLAGS='-bnogc'; \
 	NOALLSYMSFLAGS=''; \
-	SHAREDFLAGS='$(CFLAGS) $(SHARED_LDFLAGS) -G -bE:lib$(LIBNAME).exp -bM:SRE'; \
+	SHAREDFLAGS='$(CFLAGS) $(SHARED_LDFLAGS) -Wl,-bexpall,-bnolibpath,-bM:SRE'; \
 	$(LINK_SO_A_VIA_O)
 link_app.aix:
-	LDFLAGS="$(CFLAGS) -blibpath:$(LIBRPATH):$${LIBPATH:-/usr/lib:/lib}"; \
+	LDFLAGS="$(CFLAGS) -Wl,-brtl,-blibpath:$(LIBRPATH):$${LIBPATH:-/usr/lib:/lib}"; \
 	$(LINK_APP)
 
 link_o.reliantunix:

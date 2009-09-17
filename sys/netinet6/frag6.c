@@ -32,8 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -45,10 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -57,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet/in_systm.h>	/* for ECN definitions */
 #include <netinet/ip.h>		/* for ECN definitions */
-#include <netinet6/vinet6.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -78,11 +75,13 @@ static struct mtx ip6qlock;
 /*
  * These fields all protected by ip6qlock.
  */
-#ifdef VIMAGE_GLOBALS
-static u_int frag6_nfragpackets;
-static u_int frag6_nfrags;
-static struct	ip6q ip6q;	/* ip6 reassemble queue */
-#endif
+static VNET_DEFINE(u_int, frag6_nfragpackets);
+static VNET_DEFINE(u_int, frag6_nfrags);
+static VNET_DEFINE(struct ip6q, ip6q);	/* ip6 reassemble queue */
+
+#define	V_frag6_nfragpackets		VNET(frag6_nfragpackets)
+#define	V_frag6_nfrags			VNET(frag6_nfrags)
+#define	V_ip6q				VNET(ip6q)
 
 #define	IP6Q_LOCK_INIT()	mtx_init(&ip6qlock, "ip6qlock", NULL, MTX_DEF);
 #define	IP6Q_LOCK()		mtx_lock(&ip6qlock)
@@ -98,7 +97,6 @@ static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 static void
 frag6_change(void *tag)
 {
-	INIT_VNET_INET6(curvnet);
 
 	V_ip6_maxfragpackets = nmbclusters / 4;
 	V_ip6_maxfrags = nmbclusters / 4;
@@ -107,16 +105,17 @@ frag6_change(void *tag)
 void
 frag6_init(void)
 {
-	INIT_VNET_INET6(curvnet);
-
-	V_ip6_maxfragpackets = nmbclusters / 4;
-	V_ip6_maxfrags = nmbclusters / 4;
-	EVENTHANDLER_REGISTER(nmbclusters_change,
-	    frag6_change, NULL, EVENTHANDLER_PRI_ANY);
-
-	IP6Q_LOCK_INIT();
 
 	V_ip6q.ip6q_next = V_ip6q.ip6q_prev = &V_ip6q;
+	V_ip6_maxfragpackets = nmbclusters / 4;
+	V_ip6_maxfrags = nmbclusters / 4;
+
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
+	IP6Q_LOCK_INIT();
+	EVENTHANDLER_REGISTER(nmbclusters_change,
+	    frag6_change, NULL, EVENTHANDLER_PRI_ANY);
 }
 
 /*
@@ -154,7 +153,6 @@ frag6_init(void)
 int
 frag6_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp, *t;
 	struct ip6_hdr *ip6;
 	struct ip6_frag *ip6f;
@@ -185,8 +183,10 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	dstifp = NULL;
 #ifdef IN6_IFSTAT_STRICT
 	/* find the destination interface of the packet. */
-	if ((ia = ip6_getdstifaddr(m)) != NULL)
+	if ((ia = ip6_getdstifaddr(m)) != NULL) {
 		dstifp = ia->ia_ifp;
+		ifa_free(&ia->ia_ifa);
+	}
 #else
 	/* we are violating the spec, this is not the destination interface */
 	if ((m->m_flags & M_PKTHDR) != 0)
@@ -617,7 +617,6 @@ insert:
 void
 frag6_freef(struct ip6q *q6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct ip6asfrag *af6, *down6;
 
 	IP6Q_LOCK_ASSERT();
@@ -720,11 +719,10 @@ frag6_slowtimo(void)
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct ip6q *q6;
 
+	VNET_LIST_RLOCK_NOSLEEP();
 	IP6Q_LOCK();
-	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_INET6(vnet_iter);
 		q6 = V_ip6q.ip6q_next;
 		if (q6)
 			while (q6 != &V_ip6q) {
@@ -749,8 +747,8 @@ frag6_slowtimo(void)
 		}
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
 	IP6Q_UNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
 /*
@@ -761,12 +759,13 @@ frag6_drain(void)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 
-	if (IP6Q_TRYLOCK() == 0)
+	VNET_LIST_RLOCK_NOSLEEP();
+	if (IP6Q_TRYLOCK() == 0) {
+		VNET_LIST_RUNLOCK_NOSLEEP();
 		return;
-	VNET_LIST_RLOCK();
+	}
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_INET6(vnet_iter);
 		while (V_ip6q.ip6q_next != &V_ip6q) {
 			V_ip6stat.ip6s_fragdropped++;
 			/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
@@ -774,6 +773,6 @@ frag6_drain(void)
 		}
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
 	IP6Q_UNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 }

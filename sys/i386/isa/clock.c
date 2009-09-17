@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
@@ -69,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/ppireg.h>
 #include <machine/timerreg.h>
+#include <machine/smp.h>
 
 #include <isa/rtc.h>
 #ifdef DEV_ISA
@@ -89,7 +91,6 @@ __FBSDID("$FreeBSD$");
 int	clkintr_pending;
 static int pscnt = 1;
 static int psdiv = 1;
-int	statclock_disable;
 #ifndef TIMER_FREQ
 #define TIMER_FREQ   1193182
 #endif
@@ -104,6 +105,7 @@ static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
 static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
+static	int	using_atrtc_timer;
 static	int	using_lapic_timer;
 
 /* Values for timerX_state: */
@@ -126,6 +128,37 @@ static struct timecounter i8254_timecounter = {
 	"i8254",		/* name */
 	0			/* quality */
 };
+
+int
+hardclockintr(struct trapframe *frame)
+{
+
+	if (PCPU_GET(cpuid) == 0)
+		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	else
+		hardclock_cpu(TRAPF_USERMODE(frame));
+	return (FILTER_HANDLED);
+}
+
+int
+statclockintr(struct trapframe *frame)
+{
+
+	profclockintr(frame);
+	statclock(TRAPF_USERMODE(frame));
+	return (FILTER_HANDLED);
+}
+
+int
+profclockintr(struct trapframe *frame)
+{
+
+	if (!using_atrtc_timer)
+		hardclockintr(frame);
+	if (profprocs != 0)
+		profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	return (FILTER_HANDLED);
+}
 
 static int
 clkintr(struct trapframe *frame)
@@ -155,7 +188,29 @@ clkintr(struct trapframe *frame)
 		(*lapic_cyclic_clock_func[cpu])(frame);
 #endif
 
-	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	if (using_atrtc_timer) {
+#ifdef SMP
+		if (smp_started)
+			ipi_all_but_self(IPI_HARDCLOCK);
+#endif
+		hardclockintr(frame);
+	} else {
+		if (--pscnt <= 0) {
+			pscnt = psratio;
+#ifdef SMP
+			if (smp_started)
+				ipi_all_but_self(IPI_STATCLOCK);
+#endif
+			statclockintr(frame);
+		} else {
+#ifdef SMP
+			if (smp_started)
+				ipi_all_but_self(IPI_PROFCLOCK);
+#endif
+			profclockintr(frame);
+		}
+	}
+
 #ifdef DEV_MCA
 	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
 	if (MCA_system)
@@ -238,13 +293,20 @@ rtcintr(struct trapframe *frame)
 
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
 		flag = 1;
-		if (profprocs != 0) {
-			if (--pscnt == 0)
-				pscnt = psdiv;
-			profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+		if (--pscnt <= 0) {
+			pscnt = psdiv;
+#ifdef SMP
+			if (smp_started)
+				ipi_all_but_self(IPI_STATCLOCK);
+#endif
+			statclockintr(frame);
+		} else {
+#ifdef SMP
+			if (smp_started)
+				ipi_all_but_self(IPI_PROFCLOCK);
+#endif
+			profclockintr(frame);
 		}
-		if (pscnt == psdiv)
-			statclock(TRAPF_USERMODE(frame));
 	}
 	return(flag ? FILTER_HANDLED : FILTER_STRAY);
 }
@@ -461,7 +523,6 @@ startrtclock()
 void
 cpu_initclocks()
 {
-	int diag;
 
 #ifdef DEV_APIC
 	using_lapic_timer = lapic_setup_clock();
@@ -495,21 +556,21 @@ cpu_initclocks()
 	 * kernel clocks, then setup the RTC to periodically interrupt to
 	 * drive statclock() and profclock().
 	 */
-	if (!statclock_disable && !using_lapic_timer) {
-		diag = rtcin(RTC_DIAG);
-		if (diag != 0)
-			printf("RTC BIOS diagnostic error %b\n",
-			    diag, RTCDG_BITS);
-
-	        /* Setting stathz to nonzero early helps avoid races. */
-		stathz = RTC_NOPROFRATE;
-		profhz = RTC_PROFRATE;
-
-		/* Enable periodic interrupts from the RTC. */
-		intr_add_handler("rtc", 8,
-		    (driver_filter_t *)rtcintr, NULL, NULL,
-		    INTR_TYPE_CLK, NULL);
-		atrtc_enable_intr();
+	if (!using_lapic_timer) {
+		using_atrtc_timer = atrtc_setup_clock();
+		if (using_atrtc_timer) {
+			/* Enable periodic interrupts from the RTC. */
+			intr_add_handler("rtc", 8,
+			    (driver_filter_t *)rtcintr, NULL, NULL,
+			    INTR_TYPE_CLK, NULL);
+			atrtc_enable_intr();
+		} else {
+			profhz = hz;
+			if (hz < 128)
+				stathz = hz;
+			else
+				stathz = hz / (hz / 128);
+		}
 	}
 
 	init_TSC_tc();
@@ -519,7 +580,7 @@ void
 cpu_startprofclock(void)
 {
 
-	if (using_lapic_timer)
+	if (using_lapic_timer || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_PROF);
 	psdiv = pscnt = psratio;
@@ -529,7 +590,7 @@ void
 cpu_stopprofclock(void)
 {
 
-	if (using_lapic_timer)
+	if (using_lapic_timer || !using_atrtc_timer)
 		return;
 	atrtc_rate(RTCSA_NOPROF);
 	psdiv = pscnt = 1;

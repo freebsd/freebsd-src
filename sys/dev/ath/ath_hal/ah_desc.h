@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_desc.h,v 1.5 2008/11/10 04:08:00 sam Exp $
+ * $FreeBSD$
  */
 
 #ifndef _DEV_ATH_DESC_H
@@ -36,7 +36,6 @@ struct ath_tx_status {
 	uint16_t	ts_tstamp;	/* h/w assigned timestamp */
 	uint8_t		ts_status;	/* frame status, 0 => xmit ok */
 	uint8_t		ts_rate;	/* h/w transmit rate index */
-#define	HAL_TXSTAT_ALTRATE	0x80	/* alternate xmit rate used */
 	int8_t		ts_rssi;	/* tx ack RSSI */
 	uint8_t		ts_shortretry;	/* # short retries */
 	uint8_t		ts_longretry;	/* # long retries */

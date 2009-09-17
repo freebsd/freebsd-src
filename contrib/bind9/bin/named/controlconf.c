@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: controlconf.c,v 1.40.18.14 2008/07/23 23:33:02 marka Exp $ */
+/* $Id: controlconf.c,v 1.60 2008/07/23 23:27:54 marka Exp $ */
 
 /*! \file */
 
@@ -597,6 +597,7 @@ control_newconn(isc_task_t *task, isc_event_t *event) {
 	}
 
 	sock = nevent->newsocket;
+	isc_socket_setname(sock, "control", NULL);
 	(void)isc_socket_getpeername(sock, &peeraddr);
 	if (listener->type == isc_sockettype_tcp &&
 	    !address_ok(&peeraddr, listener->acl)) {
@@ -1007,7 +1008,7 @@ update_listener(ns_controls_t *cp, controllistener_t **listenerp,
 	if (control != NULL && type == isc_sockettype_tcp) {
 		allow = cfg_tuple_get(control, "allow");
 		result = cfg_acl_fromconfig(allow, config, ns_g_lctx,
-					    aclconfctx, listener->mctx,
+					    aclconfctx, listener->mctx, 0,
 					    &new_acl);
 	} else {
 		result = dns_acl_any(listener->mctx, &new_acl);
@@ -1094,7 +1095,8 @@ add_listener(ns_controls_t *cp, controllistener_t **listenerp,
 		if (control != NULL && type == isc_sockettype_tcp) {
 			allow = cfg_tuple_get(control, "allow");
 			result = cfg_acl_fromconfig(allow, config, ns_g_lctx,
-						    aclconfctx, mctx, &new_acl);
+						    aclconfctx, mctx, 0,
+						    &new_acl);
 		} else {
 			result = dns_acl_any(mctx, &new_acl);
 		}
@@ -1143,6 +1145,8 @@ add_listener(ns_controls_t *cp, controllistener_t **listenerp,
 		result = isc_socket_create(ns_g_socketmgr,
 					   isc_sockaddr_pf(&listener->address),
 					   type, &listener->sock);
+	if (result == ISC_R_SUCCESS)
+		isc_socket_setname(listener->sock, "control", NULL);
 
 	if (result == ISC_R_SUCCESS)
 		result = isc_socket_bind(listener->sock, &listener->address,

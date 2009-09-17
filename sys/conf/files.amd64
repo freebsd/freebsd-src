@@ -69,6 +69,19 @@ hptrr_lib.o			optional	hptrr			\
 #
 amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
+amd64/acpica/acpi_switch.S	optional	acpi
+acpi_wakecode.h			optional acpi		\
+	dependency 	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
+	compile-with	"${MAKE} -f $S/amd64/acpica/Makefile ${.TARGET} MAKESRCPATH=$S/amd64/acpica"	\
+	no-obj no-implicit-rule before-depend				\
+	clean		"acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin"
+#
+acpi_wakedata.h			optional acpi		\
+	dependency 	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
+	compile-with	"${MAKE} -f $S/amd64/acpica/Makefile ${.TARGET} MAKESRCPATH=$S/amd64/acpica"	\
+	no-obj no-implicit-rule before-depend				\
+	clean		"acpi_wakedata.h acpi_wakecode.o acpi_wakecode.bin"
+#
 amd64/acpica/acpi_wakeup.c	optional	acpi
 amd64/acpica/madt.c		optional	acpi
 amd64/amd64/amd64_mem.c		optional	mem
@@ -97,6 +110,7 @@ amd64/amd64/legacy.c		standard
 amd64/amd64/local_apic.c	standard
 amd64/amd64/locore.S		standard	no-obj
 amd64/amd64/machdep.c		standard
+amd64/amd64/mca.c		standard
 amd64/amd64/mem.c		optional	mem
 amd64/amd64/minidump_machdep.c	standard
 amd64/amd64/mp_machdep.c	optional	smp
@@ -132,10 +146,12 @@ crypto/via/padlock.c		optional	padlock
 crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock
 dev/acpica/acpi_if.m		standard
+dev/acpi_support/acpi_wmi_if.m	standard
 dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
 dev/agp/agp_intel.c		optional	agp
 dev/agp/agp_via.c		optional	agp
+dev/amdtemp/amdtemp.c		optional	amdtemp
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/asmc/asmc.c			optional	asmc isa
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
@@ -146,6 +162,7 @@ dev/atkbdc/atkbdc_subr.c	optional	atkbdc
 dev/atkbdc/psm.c		optional	psm atkbdc
 dev/coretemp/coretemp.c		optional	coretemp
 dev/cpuctl/cpuctl.c		optional	cpuctl
+dev/dpms/dpms.c			optional	dpms x86emu
 # There are no systems with isa slots, so all ed isa entries should go..
 dev/ed/if_ed_3c503.c		optional	ed isa ed_3c503
 dev/ed/if_ed_isa.c		optional	ed isa
@@ -153,6 +170,7 @@ dev/ed/if_ed_wd80x3.c		optional	ed isa
 dev/ed/if_ed_hpp.c		optional	ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional	ed isa ed_sic
 dev/fb/fb.c			optional	fb | vga
+dev/fb/vesa.c			optional	vga vesa x86emu
 dev/fb/vga.c			optional	vga
 dev/ichwd/ichwd.c		optional	ichwd
 dev/if_ndis/if_ndis.c		optional	ndis
@@ -169,6 +187,7 @@ dev/ipmi/ipmi_smbus.c		optional	ipmi smbus
 dev/ipmi/ipmi_smbios.c		optional	ipmi
 dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
 dev/ipmi/ipmi_pci.c		optional	ipmi pci
+dev/ipmi/ipmi_linux.c		optional	ipmi compat_linux32
 dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
@@ -187,7 +206,6 @@ dev/hwpmc/hwpmc_core.c		optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
-dev/k8temp/k8temp.c		optional	k8temp
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd | usb2_input_kbd
 dev/mem/memutil.c		optional	mem
 dev/nfe/if_nfe.c		optional	nfe pci
@@ -201,9 +219,9 @@ dev/sio/sio_puc.c		optional	sio puc
 dev/speaker/spkr.c		optional	speaker
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/scterm-teken.c	optional	sc
+dev/syscons/scvesactl.c		optional	sc vga vesa x86emu
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
-dev/syscons/teken/teken.c	optional sc
 dev/uart/uart_cpu_amd64.c	optional	uart
 dev/wpi/if_wpi.c		optional	wpi
 isa/atrtc.c			standard
@@ -218,6 +236,7 @@ amd64/ia32/ia32_reg.c		optional	compat_ia32
 amd64/ia32/ia32_signal.c	optional	compat_ia32
 amd64/ia32/ia32_sigtramp.S	optional	compat_ia32
 amd64/ia32/ia32_syscall.c	optional	compat_ia32
+amd64/ia32/ia32_misc.c		optional	compat_ia32
 compat/freebsd32/freebsd32_ioctl.c	optional	compat_ia32
 compat/freebsd32/freebsd32_misc.c	optional	compat_ia32
 compat/freebsd32/freebsd32_syscalls.c	optional	compat_ia32
@@ -269,6 +288,8 @@ i386/bios/smbios.c		optional	smbios
 i386/bios/vpd.c			optional	vpd
 i386/cpufreq/powernow.c		optional	cpufreq
 i386/cpufreq/est.c		optional	cpufreq
+i386/cpufreq/hwpstate.c		optional	cpufreq
 i386/cpufreq/p4tcc.c		optional	cpufreq
 #
+libkern/memmove.c		standard
 libkern/memset.c		standard

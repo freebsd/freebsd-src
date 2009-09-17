@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2008
+.Dd June 14, 2009
 .Dt VLAN 4
 .Os
 .Sh NAME
@@ -36,7 +36,6 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device miibus"
 .Cd "device vlan"
 .Ed
 .Pp
@@ -124,6 +123,7 @@ By now, the list of physical interfaces able of full VLAN processing
 in the hardware is limited to the following devices:
 .Xr ae 4 ,
 .Xr age 4 ,
+.Xr alc 4 ,
 .Xr ale 4 ,
 .Xr bce 4 ,
 .Xr bge 4 ,
@@ -161,6 +161,7 @@ The following interfaces support long frames for
 .Nm
 natively:
 .Xr bfe 4 ,
+.Xr cas 4 ,
 .Xr dc 4 ,
 .Xr fwe 4 ,
 .Xr fxp 4 ,
@@ -193,18 +194,7 @@ The MTU setting on
 .Nm
 can be corrected manually if used in conjunction with such a parent interface.
 .Sh SEE ALSO
-.Xr kqueue 2 ,
-.Xr miibus 4 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8
 .Sh BUGS
 No 802.1Q features except VLAN tagging are implemented.
-.Pp
-.Dv EVFILT_NETDEV
-events on a
-.Nm
-interface will be sent through
-.Xr kqueue 2
-only if the parent interface uses
-.Xr miibus 4
-for link state notification.

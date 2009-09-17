@@ -171,7 +171,9 @@ padlock_sha_update(struct padlock_sha_ctx *ctx, uint8_t *buf, uint16_t bufsize)
 	if (ctx->psc_size - ctx->psc_offset < bufsize) {
 		ctx->psc_size = MAX(ctx->psc_size * 2, ctx->psc_size + bufsize);
 		ctx->psc_buf = realloc(ctx->psc_buf, ctx->psc_size, M_PADLOCK,
-		    M_WAITOK);
+		    M_NOWAIT);
+		if(ctx->psc_buf == NULL)
+			return (ENOMEM);
 	}
 	bcopy(buf, ctx->psc_buf + ctx->psc_offset, bufsize);
 	ctx->psc_offset += bufsize;

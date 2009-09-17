@@ -79,61 +79,6 @@ The file should be locked on entry.
 .Sh RETURN VALUES
 Zero is returned if the call is successful, otherwise an appropriate
 error code is returned.
-.Sh PSEUDOCODE
-.Bd -literal
-int
-vop_fsync(struct vnode *vp, int waitfor, struct thread *td)
-{
-    struct buf *bp;
-    struct buf *nbp;
-    struct timeval tv;
-    int s;
-
-loop:
-    s = splbio();
-    for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
-	nbp = bp->b_vnbufs.le_next;
-
-	/*
-	 * Ignore buffers which are already being written.
-	 */
-	if (bp->b_flags & B_BUSY)
-	    continue;
-
-	/*
-	 * Make sure the buffer is dirty.
-	 */
-	if ((bp->b_flags & B_DELWRI) == 0)
-	    panic("vop_fsync: not dirty");
-
-	vfs_bio_awrite(bp);
-	splx(s);
-	goto loop;
-    }
-    splx(s);
-
-    if (waitfor == MNT_WAIT) {
-	s = splbio();
-	while (vp->v_numoutput) {
-	    vp->v_flag |= VBWAIT;
-	    tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "vopfsn");
-	}
-	splx(s);
-#ifdef DIAGNOSTIC
-	if (vp->v_dirtyblkhd.lh_first) {
-	    vprint("vop_fsync: dirty", vp);
-	    goto loop;
-	}
-#endif
-    }
-
-    /*
-     * Write out the on-disc version of the vnode.
-     */
-    tv = time;
-    return VOP_UPDATE(vp, &tv, &tv, waitfor == MNT_WAIT);
-}
-.Ed
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOSPC

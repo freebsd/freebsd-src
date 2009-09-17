@@ -802,8 +802,6 @@
 
     &hwlist.umct;
 
-    &hwlist.uscanner;
-
     &hwlist.umass;
 
     <para arch="i386,pc98,amd64">オーディオデバイス (&man.uaudio.4; ドライバ)</para>

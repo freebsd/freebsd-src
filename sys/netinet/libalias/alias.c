@@ -742,7 +742,7 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 		u_short alias_port;
 		u_short proxy_port;
 		int accumulate;
-		int r = 0, error;
+		int error;
 		struct alias_data ad = {
 			.lnk = lnk, 
 			.oaddr = &original_address, 
@@ -762,6 +762,9 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 
 		/* Walk out chain. */		
 		error = find_handler(IN, UDP, la, pip, &ad);
+		/* If we cannot figure out the packet, ignore it. */
+		if (error < 0)
+			return (PKT_ALIAS_IGNORED);
 
 /* If UDP checksum is not zero, then adjust since destination port */
 /* is being unaliased and destination address is being altered.    */
@@ -801,13 +804,7 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 		    &original_address, &pip->ip_dst, 2);
 		pip->ip_dst = original_address;
 
-		/*
-		 * If we cannot figure out the packet, ignore it.
-		 */
-		if (r < 0)
-			return (PKT_ALIAS_IGNORED);
-		else
-			return (PKT_ALIAS_OK);
+		return (PKT_ALIAS_OK);
 	}
 	return (PKT_ALIAS_IGNORED);
 }
@@ -1226,7 +1223,6 @@ FragmentOut(struct libalias *la, struct in_addr *ip_src, u_short *ip_sum)
 (prototypes in alias.h)
 */
 
-// XXX ip free
 int
 LibAliasSaveFragment(struct libalias *la, char *ptr)
 {
@@ -1246,7 +1242,6 @@ LibAliasSaveFragment(struct libalias *la, char *ptr)
 	return (iresult);
 }
 
-// XXX ip free
 char           *
 LibAliasGetFragment(struct libalias *la, char *ptr)
 {
@@ -1268,7 +1263,6 @@ LibAliasGetFragment(struct libalias *la, char *ptr)
 	return (fptr);
 }
 
-// XXX ip free
 void
 LibAliasFragmentIn(struct libalias *la, char *ptr,	/* Points to correctly
 							 * de-aliased header

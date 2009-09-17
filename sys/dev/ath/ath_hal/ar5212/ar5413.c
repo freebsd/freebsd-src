@@ -232,7 +232,7 @@ ar5413SetRfRegs(struct ath_hal *ah,
 			ar5212ModifyRfBuffer(priv->Bank6Data, 1 , 1, 291, 2);
 
 			/* Optimum value for rf_pwd_iclobuf2G for PCIe chips only */
-			if (IS_PCIE(ah)) {
+			if (AH_PRIVATE(ah)->ah_ispcie) {
 				ar5212ModifyRfBuffer(priv->Bank6Data, ath_hal_reverseBits(6, 3),
 						 3, 131, 3);
 			}

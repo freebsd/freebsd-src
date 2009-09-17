@@ -8,7 +8,7 @@
   002   '1'    '!'    nop    nop    '`'    '`'    nop    nop     O
   003   '2'    '"'    nul    nul    '@'    '@'    nul    nul     O
   004   '3'    163    nop    nop    '#'    '#'    nop    nop     O
-  005   '4'    '$'    nop    nop    '4'    '$'    nop    nop     O
+  005   '4'    '$'    164    164    '4'    '$'    nop    nop     O
   006   '5'    '%'    nop    nop    '5'    '%'    nop    nop     O
   007   '6'    '^'    rs     rs     '^'    '^'    rs     rs      O
   008   '7'    '&'    nop    nop    '['    '['    esc    esc     O

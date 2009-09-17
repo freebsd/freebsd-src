@@ -32,26 +32,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
 #include <sys/libkern.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 
 #include <geom/geom.h>
 #include <geom/vinum/geom_vinum_var.h>
 #include <geom/vinum/geom_vinum.h>
-#include <geom/vinum/geom_vinum_share.h>
-
-static int      gv_move_sd(struct gv_softc *, struct gctl_req *,
-		    struct gv_sd *, char *, int);
 
 void
 gv_move(struct g_geom *gp, struct gctl_req *req)
 {
 	struct gv_softc *sc;
 	struct gv_sd *s;
+	struct gv_drive *d;
 	char buf[20], *destination, *object;
-	int *argc, err, *flags, i, type;
+	int *argc, *flags, i, type;
 
 	sc = gp->softc;
 
@@ -74,6 +69,7 @@ gv_move(struct g_geom *gp, struct gctl_req *req)
 		gctl_error(req, "destination '%s' is not a drive", destination);
 		return;
 	}
+	d = gv_find_drive(sc, destination);
 
 	/*
 	 * We start with 1 here, because argv[0] on the command line is the
@@ -97,67 +93,59 @@ gv_move(struct g_geom *gp, struct gctl_req *req)
 			gctl_error(req, "unknown subdisk '%s'", object);
 			return;
 		}
-		err = gv_move_sd(sc, req, s, destination, *flags);
-		if (err)
-			return;
+		gv_post_event(sc, GV_EVENT_MOVE_SD, s, d, *flags, 0);
 	}
-
-	gv_save_config_all(sc);
 }
 
 /* Move a subdisk. */
-static int
-gv_move_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *cursd, char *destination, int flags)
+int
+gv_move_sd(struct gv_softc *sc, struct gv_sd *cursd, 
+    struct gv_drive *destination, int flags)
 {
 	struct gv_drive *d;
 	struct gv_sd *newsd, *s, *s2;
 	struct gv_plex *p;
-	struct g_consumer *cp;
-	char errstr[ERRBUFSIZ];
 	int err;
 
 	g_topology_assert();
 	KASSERT(cursd != NULL, ("gv_move_sd: NULL cursd"));
+	KASSERT(destination != NULL, ("gv_move_sd: NULL destination"));
 
-	cp = cursd->consumer;
+	d = cursd->drive_sc;
 
-	if (cp != NULL && (cp->acr || cp->acw || cp->ace)) {
-		gctl_error(req, "subdisk '%s' is busy", cursd->name);
-		return (-1);
+	if ((gv_consumer_is_open(d->consumer) ||
+	    gv_consumer_is_open(destination->consumer)) &&
+	    !(flags && GV_FLAG_F)) {
+		G_VINUM_DEBUG(0, "consumers on current and destination drive "
+		    " still open");
+		return (GV_ERR_ISBUSY);
 	}
 
 	if (!(flags && GV_FLAG_F)) {
-		gctl_error(req, "-f flag not passed; move would be "
+		G_VINUM_DEBUG(1, "-f flag not passed; move would be "
 		    "destructive");
-		return (-1);
+		return (GV_ERR_INVFLAG);
 	}
 
-	d = gv_find_drive(sc, destination);
-	if (d == NULL) {
-		gctl_error(req, "destination drive '%s' not found",
-		    destination);
-		return (-1);
-	}
-
-	if (d == cursd->drive_sc) {
-		gctl_error(req, "subdisk '%s' already on drive '%s'",
-		    cursd->name, destination);
-		return (-1);
+	if (destination == cursd->drive_sc) {
+		G_VINUM_DEBUG(1, "subdisk '%s' already on drive '%s'",
+		    cursd->name, destination->name);
+		return (GV_ERR_ISATTACHED);
 	}
 
 	/* XXX: Does it have to be part of a plex? */
 	p = gv_find_plex(sc, cursd->plex);
 	if (p == NULL) {
-		gctl_error(req, "subdisk '%s' is not part of a plex",
+		G_VINUM_DEBUG(0, "subdisk '%s' is not part of a plex",
 		    cursd->name);
-		return (-1);
+		return (GV_ERR_NOTFOUND);
 	}
-	
+
 	/* Stale the old subdisk. */
 	err = gv_set_sd_state(cursd, GV_SD_STALE,
 	    GV_SETSTATE_FORCE | GV_SETSTATE_CONFIG);
 	if (err) {
-		gctl_error(req, "could not set the subdisk '%s' to state "
+		G_VINUM_DEBUG(0, "could not set the subdisk '%s' to state "
 		    "'stale'", cursd->name);
 		return (err);
 	}
@@ -171,54 +159,30 @@ gv_move_sd(struct gv_softc *sc, struct gctl_req *req, struct gv_sd *cursd, char 
 	newsd->plex_offset = cursd->plex_offset;
 	newsd->size = cursd->size;
 	newsd->drive_offset = -1;
-	strncpy(newsd->name, cursd->name, GV_MAXSDNAME);
-	strncpy(newsd->drive, destination, GV_MAXDRIVENAME);
-	strncpy(newsd->plex, cursd->plex, GV_MAXPLEXNAME);
+	strlcpy(newsd->name, cursd->name, sizeof(newsd->name));
+	strlcpy(newsd->drive, destination->name, sizeof(newsd->drive));
+	strlcpy(newsd->plex, cursd->plex, sizeof(newsd->plex));
 	newsd->state = GV_SD_STALE;
 	newsd->vinumconf = cursd->vinumconf;
 
-	err = gv_sd_to_drive(sc, d, newsd, errstr, ERRBUFSIZ);
+	err = gv_sd_to_drive(newsd, destination);
 	if (err) {
 		/* XXX not enough free space? */
-		gctl_error(req, errstr);
 		g_free(newsd);
 		return (err);
 	}
 
 	/* Replace the old sd by the new one. */
-	if (cp != NULL)
-		g_detach(cp);
 	LIST_FOREACH_SAFE(s, &p->subdisks, in_plex, s2) {
 		if (s == cursd) {
-			p->sdcount--;
-			p->size -= s->size;
-			err = gv_rm_sd(sc, req, s, 0);
-			if (err)
-				return (err);
-			
+			gv_rm_sd(sc, s);
 		}
 	}
-
-	gv_sd_to_plex(p, newsd, 1);
-
-	/* Creates the new providers.... */
-	gv_drive_modify(d);
-
-	/* And reconnect the consumer ... */
-	if (cp != NULL) {
-		newsd->consumer = cp;
-		err = g_attach(cp, newsd->provider);
-		if (err) {
-			g_destroy_consumer(cp);
-			gctl_error(req, "proposed move would create a loop "
-			    "in GEOM config");
-			return (err);
-		}
-	}
-
+	gv_sd_to_plex(newsd, p);
 	LIST_INSERT_HEAD(&sc->subdisks, newsd, sd);
-
-	gv_save_config_all(sc);
-
+	/* Update volume size of plex. */
+	if (p->vol_sc != NULL)
+		gv_update_vol_size(p->vol_sc, gv_vol_size(p->vol_sc));
+	gv_save_config(p->vinumconf);
 	return (0);
 }

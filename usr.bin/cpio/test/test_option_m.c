@@ -45,7 +45,7 @@ DEFINE_TEST(test_option_m)
 	now = time(NULL);
 	assertEqualInt(r, 0);
 	assertEmptyFile("out");
-	assertFileContents("1 block\n", 8, "err");
+	assertTextFileContents("1 block\n", "err");
 	assertEqualInt(0, stat("file", &st));
 	/* Should have been created within the last few seconds. */
 	assert(st.st_mtime <= now);
@@ -60,7 +60,7 @@ DEFINE_TEST(test_option_m)
 	now = time(NULL);
 	assertEqualInt(r, 0);
 	assertEmptyFile("out");
-	assertFileContents("1 block\n", 8, "err");
+	assertTextFileContents("1 block\n", "err");
 	assertEqualInt(0, stat("file", &st));
 	/*
 	 * mtime in reference archive is '1' == 1 second after

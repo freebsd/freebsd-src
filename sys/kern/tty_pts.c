@@ -30,14 +30,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_tty.h"
-
 /* Add compatibility bits for FreeBSD. */
 #define PTS_COMPAT
-#ifdef DEV_PTY
-/* Add /dev/ptyXX compat bits. */
+/* Add pty(4) compat bits. */
 #define PTS_EXTERNAL
-#endif /* DEV_PTY */
 /* Add bits to make Linux binaries work. */
 #define PTS_LINUX
 
@@ -50,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
@@ -58,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
@@ -66,8 +64,16 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+/*
+ * Our utmp(5) format is limited to 8-byte TTY line names.  This means
+ * we can at most allocate 1000 pseudo-terminals ("pts/999").  Allow
+ * users to increase this number, assuming they have manually increased
+ * UT_LINESIZE.
+ */
 static struct unrhdr *pts_pool;
-#define MAXPTSDEVS 999
+static unsigned int pts_maxdev = 999;
+SYSCTL_UINT(_kern, OID_AUTO, pts_maxdev, CTLFLAG_RW, &pts_maxdev, 0,
+    "Maximum amount of pts(4) pseudo-terminals");
 
 static MALLOC_DEFINE(M_PTS, "pts", "pseudo tty device");
 
@@ -194,8 +200,10 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		error = uiomove(ib, iblen, uio);
 
 		tty_lock(tp);
-		if (error != 0)
+		if (error != 0) {
+			iblen = 0;
 			goto done;
+		}
 
 		/*
 		 * When possible, avoid the slow path. rint_bypass()
@@ -203,25 +211,12 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		 */
 		MPASS(iblen > 0);
 		do {
-			if (ttydisc_can_bypass(tp)) {
-				/* Store data at once. */
-				rintlen = ttydisc_rint_bypass(tp,
-				    ibstart, iblen);
-				ibstart += rintlen;
-				iblen -= rintlen;
-
-				if (iblen == 0) {
-					/* All data written. */
-					break;
-				}
-			} else {
-				error = ttydisc_rint(tp, *ibstart, 0);
-				if (error == 0) {
-					/* Character stored successfully. */
-					ibstart++;
-					iblen--;
-					continue;
-				}
+			rintlen = ttydisc_rint_simple(tp, ibstart, iblen);
+			ibstart += rintlen;
+			iblen -= rintlen;
+			if (iblen == 0) {
+				/* All data written. */
+				break;
 			}
 
 			/* Maybe the device isn't used anyway. */
@@ -250,6 +245,12 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 done:	ttydisc_rint_done(tp);
 	tty_unlock(tp);
+
+	/*
+	 * Don't account for the part of the buffer that we couldn't
+	 * pass to the TTY.
+	 */
+	uio->uio_resid += iblen;
 	return (error);
 }
 
@@ -310,7 +311,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	case TIOCGETA:
 		/* Obtain terminal flags through tcgetattr(). */
 		tty_lock(tp);
-		bcopy(&tp->t_termios, data, sizeof(struct termios));
+		*(struct termios*)data = tp->t_termios;
 		tty_unlock(tp);
 		return (0);
 #endif /* PTS_LINUX */
@@ -399,8 +400,7 @@ ptsdev_poll(struct file *fp, int events, struct ucred *active_cred,
 	if (psc->pts_flags & PTS_FINISHED) {
 		/* Slave device is not opened. */
 		tty_unlock(tp);
-		return (events &
-		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
+		return ((events & (POLLIN|POLLRDNORM)) | POLLHUP);
 	}
 
 	if (events & (POLLIN|POLLRDNORM)) {
@@ -494,10 +494,16 @@ pts_kqops_write_event(struct knote *kn, long hint)
 	}
 }
 
-static struct filterops pts_kqops_read =
-    { 1, NULL, pts_kqops_read_detach, pts_kqops_read_event };
-static struct filterops pts_kqops_write =
-    { 1, NULL, pts_kqops_write_detach, pts_kqops_write_event };
+static struct filterops pts_kqops_read = {
+	.f_isfd = 1,
+	.f_detach = pts_kqops_read_detach,
+	.f_event = pts_kqops_read_event,
+};
+static struct filterops pts_kqops_write = {
+	.f_isfd = 1,
+	.f_detach = pts_kqops_write_detach,
+	.f_event = pts_kqops_write_event,
+};
 
 static int
 ptsdev_kqfilter(struct file *fp, struct knote *kn)
@@ -694,7 +700,10 @@ static struct ttydevsw pts_class = {
 	.tsw_free	= ptsdrv_free,
 };
 
-static int
+#ifndef PTS_EXTERNAL
+static
+#endif /* !PTS_EXTERNAL */
+int
 pts_alloc(int fflags, struct thread *td, struct file *fp)
 {
 	int unit, ok;
@@ -716,6 +725,11 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 		chgptscnt(uid, -1, 0);
 		return (EAGAIN);
 	}
+	if (unit > pts_maxdev) {
+		free_unr(pts_pool, unit);
+		chgptscnt(uid, -1, 0);
+		return (EAGAIN);
+	}
 
 	/* Allocate TTY and softc. */
 	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
@@ -726,9 +740,9 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 	psc->pts_uidinfo = uid;
 	uihold(uid);
 
-	tp = tty_alloc(&pts_class, psc, NULL);
-	knlist_init(&psc->pts_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
-	knlist_init(&psc->pts_outpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
+	tp = tty_alloc(&pts_class, psc);
+	knlist_init_mtx(&psc->pts_inpoll.si_note, tp->t_mtx);
+	knlist_init_mtx(&psc->pts_outpoll.si_note, tp->t_mtx);
 
 	/* Expose the slave device as well. */
 	tty_makedev(tp, td->td_ucred, "pts/%u", psc->pts_unit);
@@ -766,9 +780,9 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 	psc->pts_uidinfo = uid;
 	uihold(uid);
 
-	tp = tty_alloc(&pts_class, psc, NULL);
-	knlist_init(&psc->pts_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
-	knlist_init(&psc->pts_outpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
+	tp = tty_alloc(&pts_class, psc);
+	knlist_init_mtx(&psc->pts_inpoll.si_note, tp->t_mtx);
+	knlist_init_mtx(&psc->pts_outpoll.si_note, tp->t_mtx);
 
 	/* Expose the slave device as well. */
 	tty_makedev(tp, td->td_ucred, "%s", name);
@@ -810,29 +824,11 @@ posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	return (0);
 }
 
-#if defined(PTS_COMPAT) || defined(PTS_LINUX)
-static int
-ptmx_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
-{
-
-	return (pts_alloc(fflags & (FREAD|FWRITE), td, fp));
-}
-
-static struct cdevsw ptmx_cdevsw = {
-	.d_version	= D_VERSION,
-	.d_fdopen	= ptmx_fdopen,
-	.d_name		= "ptmx",
-};
-#endif /* PTS_COMPAT || PTS_LINUX */
-
 static void
 pts_init(void *unused)
 {
 
-	pts_pool = new_unrhdr(0, MAXPTSDEVS, NULL);
-#if defined(PTS_COMPAT) || defined(PTS_LINUX)
-	make_dev(&ptmx_cdevsw, 0, UID_ROOT, GID_WHEEL, 0666, "ptmx");
-#endif /* PTS_COMPAT || PTS_LINUX */
+	pts_pool = new_unrhdr(0, INT_MAX, NULL);
 }
 
 SYSINIT(pts, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, pts_init, NULL);

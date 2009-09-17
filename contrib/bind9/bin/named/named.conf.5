@@ -12,7 +12,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named.conf.5,v 1.1.2.27 2008/09/05 01:32:08 tbox Exp $
+.\" $Id: named.conf.5,v 1.36 2008/09/25 04:45:04 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -193,6 +193,7 @@ options {
 	use\-ixfr \fIboolean\fR;
 	version ( \fIquoted_string\fR | none );
 	allow\-recursion { \fIaddress_match_element\fR; ... };
+	allow\-recursion\-on { \fIaddress_match_element\fR; ... };
 	sortlist { \fIaddress_match_element\fR; ... };
 	topology { \fIaddress_match_element\fR; ... }; // not implemented
 	auth\-nxdomain \fIboolean\fR; // default changed
@@ -209,14 +210,17 @@ options {
 	additional\-from\-cache \fIboolean\fR;
 	query\-source ( ( \fIipv4_address\fR | * ) | [ address ( \fIipv4_address\fR | * ) ] ) [ port ( \fIinteger\fR | * ) ];
 	query\-source\-v6 ( ( \fIipv6_address\fR | * ) | [ address ( \fIipv6_address\fR | * ) ] ) [ port ( \fIinteger\fR | * ) ];
+	use\-queryport\-pool \fIboolean\fR;
+	queryport\-pool\-ports \fIinteger\fR;
+	queryport\-pool\-updateinterval \fIinteger\fR;
 	cleaning\-interval \fIinteger\fR;
 	min\-roots \fIinteger\fR; // not implemented
 	lame\-ttl \fIinteger\fR;
 	max\-ncache\-ttl \fIinteger\fR;
 	max\-cache\-ttl \fIinteger\fR;
 	transfer\-format ( many\-answers | one\-answer );
-	max\-cache\-size \fIsize_no_default\fR;
-	max\-acache\-size \fIsize_no_default\fR;
+	max\-cache\-size \fIsize\fR;
+	max\-acache\-size \fIsize\fR;
 	clients\-per\-query \fInumber\fR;
 	max\-clients\-per\-query \fInumber\fR;
 	check\-names ( master | slave | response )
@@ -249,7 +253,9 @@ options {
 	dialup \fIdialuptype\fR;
 	ixfr\-from\-differences \fIixfrdiff\fR;
 	allow\-query { \fIaddress_match_element\fR; ... };
+	allow\-query\-on { \fIaddress_match_element\fR; ... };
 	allow\-query\-cache { \fIaddress_match_element\fR; ... };
+	allow\-query\-cache\-on { \fIaddress_match_element\fR; ... };
 	allow\-transfer { \fIaddress_match_element\fR; ... };
 	allow\-update { \fIaddress_match_element\fR; ... };
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
@@ -259,6 +265,7 @@ options {
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-delay \fIseconds\fR;
+	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
 		[ port \fIinteger\fR ]; ... };
 	allow\-notify { \fIaddress_match_element\fR; ... };
@@ -277,6 +284,10 @@ options {
 	min\-refresh\-time \fIinteger\fR;
 	multi\-master \fIboolean\fR;
 	sig\-validity\-interval \fIinteger\fR;
+	sig\-re\-signing\-interval \fIinteger\fR;
+	sig\-signing\-nodes \fIinteger\fR;
+	sig\-signing\-signatures \fIinteger\fR;
+	sig\-signing\-type \fIinteger\fR;
 	transfer\-source ( \fIipv4_address\fR | * )
 		[ port ( \fIinteger\fR | * ) ];
 	transfer\-source\-v6 ( \fIipv6_address\fR | * )
@@ -288,8 +299,10 @@ options {
 	use\-alt\-transfer\-source \fIboolean\fR;
 	zone\-statistics \fIboolean\fR;
 	key\-directory \fIquoted_string\fR;
+	try\-tcp\-refresh \fIboolean\fR;
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	zero\-no\-soa\-ttl\-cache \fIboolean\fR;
+	nsec3\-test\-zone \fIboolean\fR;  // testing only
 	allow\-v6\-synthesis { \fIaddress_match_element\fR; ... }; // obsolete
 	deallocate\-on\-exit \fIboolean\fR; // obsolete
 	fake\-iquery \fIboolean\fR; // obsolete
@@ -327,6 +340,7 @@ view \fIstring\fR \fIoptional_class\fR {
 		\fIstring\fR \fIinteger\fR \fIinteger\fR \fIinteger\fR \fIquoted_string\fR; ...
 	};
 	allow\-recursion { \fIaddress_match_element\fR; ... };
+	allow\-recursion\-on { \fIaddress_match_element\fR; ... };
 	sortlist { \fIaddress_match_element\fR; ... };
 	topology { \fIaddress_match_element\fR; ... }; // not implemented
 	auth\-nxdomain \fIboolean\fR; // default changed
@@ -343,14 +357,17 @@ view \fIstring\fR \fIoptional_class\fR {
 	additional\-from\-cache \fIboolean\fR;
 	query\-source ( ( \fIipv4_address\fR | * ) | [ address ( \fIipv4_address\fR | * ) ] ) [ port ( \fIinteger\fR | * ) ];
 	query\-source\-v6 ( ( \fIipv6_address\fR | * ) | [ address ( \fIipv6_address\fR | * ) ] ) [ port ( \fIinteger\fR | * ) ];
+	use\-queryport\-pool \fIboolean\fR;
+	queryport\-pool\-ports \fIinteger\fR;
+	queryport\-pool\-updateinterval \fIinteger\fR;
 	cleaning\-interval \fIinteger\fR;
 	min\-roots \fIinteger\fR; // not implemented
 	lame\-ttl \fIinteger\fR;
 	max\-ncache\-ttl \fIinteger\fR;
 	max\-cache\-ttl \fIinteger\fR;
 	transfer\-format ( many\-answers | one\-answer );
-	max\-cache\-size \fIsize_no_default\fR;
-	max\-acache\-size \fIsize_no_default\fR;
+	max\-cache\-size \fIsize\fR;
+	max\-acache\-size \fIsize\fR;
 	clients\-per\-query \fInumber\fR;
 	max\-clients\-per\-query \fInumber\fR;
 	check\-names ( master | slave | response )
@@ -383,7 +400,9 @@ view \fIstring\fR \fIoptional_class\fR {
 	dialup \fIdialuptype\fR;
 	ixfr\-from\-differences \fIixfrdiff\fR;
 	allow\-query { \fIaddress_match_element\fR; ... };
+	allow\-query\-on { \fIaddress_match_element\fR; ... };
 	allow\-query\-cache { \fIaddress_match_element\fR; ... };
+	allow\-query\-cache\-on { \fIaddress_match_element\fR; ... };
 	allow\-transfer { \fIaddress_match_element\fR; ... };
 	allow\-update { \fIaddress_match_element\fR; ... };
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
@@ -393,6 +412,7 @@ view \fIstring\fR \fIoptional_class\fR {
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-delay \fIseconds\fR;
+	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
 		[ port \fIinteger\fR ]; ... };
 	allow\-notify { \fIaddress_match_element\fR; ... };
@@ -421,6 +441,7 @@ view \fIstring\fR \fIoptional_class\fR {
 		[ port ( \fIinteger\fR | * ) ];
 	use\-alt\-transfer\-source \fIboolean\fR;
 	zone\-statistics \fIboolean\fR;
+	try\-tcp\-refresh \fIboolean\fR;
 	key\-directory \fIquoted_string\fR;
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	zero\-no\-soa\-ttl\-cache \fIboolean\fR;
@@ -456,12 +477,15 @@ zone \fIstring\fR \fIoptional_class\fR {
 	journal \fIquoted_string\fR;
 	zero\-no\-soa\-ttl \fIboolean\fR;
 	allow\-query { \fIaddress_match_element\fR; ... };
+	allow\-query\-on { \fIaddress_match_element\fR; ... };
 	allow\-transfer { \fIaddress_match_element\fR; ... };
 	allow\-update { \fIaddress_match_element\fR; ... };
 	allow\-update\-forwarding { \fIaddress_match_element\fR; ... };
 	update\-policy {
 		( grant | deny ) \fIstring\fR
-		( name | subdomain | wildcard | self ) \fIstring\fR
+		( name | subdomain | wildcard | self | selfsub | selfwild |
+                  krb5\-self | ms\-self | krb5\-subdomain | ms\-subdomain |
+		  tcp\-self | 6to4\-self ) \fIstring\fR
 		\fIrrtypelist\fR; ...
 	};
 	update\-check\-ksk \fIboolean\fR;
@@ -470,6 +494,7 @@ zone \fIstring\fR \fIoptional_class\fR {
 	notify\-source ( \fIipv4_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-source\-v6 ( \fIipv6_address\fR | * ) [ port ( \fIinteger\fR | * ) ];
 	notify\-delay \fIseconds\fR;
+	notify\-to\-soa \fIboolean\fR;
 	also\-notify [ port \fIinteger\fR ] { ( \fIipv4_address\fR | \fIipv6_address\fR )
 		[ port \fIinteger\fR ]; ... };
 	allow\-notify { \fIaddress_match_element\fR; ... };
@@ -498,7 +523,9 @@ zone \fIstring\fR \fIoptional_class\fR {
 		[ port ( \fIinteger\fR | * ) ];
 	use\-alt\-transfer\-source \fIboolean\fR;
 	zone\-statistics \fIboolean\fR;
+	try\-tcp\-refresh \fIboolean\fR;
 	key\-directory \fIquoted_string\fR;
+	nsec3\-test\-zone \fIboolean\fR;  // testing only
 	ixfr\-base \fIquoted_string\fR; // obsolete
 	ixfr\-tmp\-file \fIquoted_string\fR; // obsolete
 	maintain\-ixfr\-base \fIboolean\fR; // obsolete

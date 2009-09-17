@@ -193,6 +193,7 @@ retry:
 	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	error = insmntque(*vpp, mp);
 	if (error != 0) {
+		free(pvd, M_PFSVNCACHE);
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -245,11 +246,13 @@ pfs_vncache_free(struct vnode *vp)
 	KASSERT(pvd != NULL, ("pfs_vncache_free(): no vnode data\n"));
 	if (pvd->pvd_next)
 		pvd->pvd_next->pvd_prev = pvd->pvd_prev;
-	if (pvd->pvd_prev)
+	if (pvd->pvd_prev) {
 		pvd->pvd_prev->pvd_next = pvd->pvd_next;
-	else if (pfs_vncache == pvd)
+		--pfs_vncache_entries;
+	} else if (pfs_vncache == pvd) {
 		pfs_vncache = pvd->pvd_next;
-	--pfs_vncache_entries;
+		--pfs_vncache_entries;
+	}
 	mtx_unlock(&pfs_vncache_mutex);
 
 	free(pvd, M_PFSVNCACHE);
@@ -270,13 +273,13 @@ pfs_vncache_free(struct vnode *vp)
  * The only way to improve this situation is to change the data structure
  * used to implement the cache.
  */
-void
-pfs_purge(struct pfs_node *pn)
+static void
+pfs_purge_locked(struct pfs_node *pn)
 {
 	struct pfs_vdata *pvd;
 	struct vnode *vnp;
 
-	mtx_lock(&pfs_vncache_mutex);
+	mtx_assert(&pfs_vncache_mutex, MA_OWNED);
 	pvd = pfs_vncache;
 	while (pvd != NULL) {
 		if (pvd->pvd_dead || (pn != NULL && pvd->pvd_pn == pn)) {
@@ -286,22 +289,26 @@ pfs_purge(struct pfs_node *pn)
 			VOP_LOCK(vnp, LK_EXCLUSIVE);
 			vgone(vnp);
 			VOP_UNLOCK(vnp, 0);
-			vdrop(vnp);
 			mtx_lock(&pfs_vncache_mutex);
+			vdrop(vnp);
 			pvd = pfs_vncache;
 		} else {
 			pvd = pvd->pvd_next;
 		}
 	}
+}
+
+void
+pfs_purge(struct pfs_node *pn)
+{
+
+	mtx_lock(&pfs_vncache_mutex);
+	pfs_purge_locked(pn);
 	mtx_unlock(&pfs_vncache_mutex);
 }
 
 /*
  * Free all vnodes associated with a defunct process
- *
- * XXXRW: It is unfortunate that pfs_exit() always acquires and releases two
- * mutexes (one of which is Giant) for every process exit, even if procfs
- * isn't mounted.
  */
 static void
 pfs_exit(void *arg, struct proc *p)
@@ -311,13 +318,11 @@ pfs_exit(void *arg, struct proc *p)
 
 	if (pfs_vncache == NULL)
 		return;
-	mtx_lock(&Giant);
 	mtx_lock(&pfs_vncache_mutex);
 	for (pvd = pfs_vncache, dead = 0; pvd != NULL; pvd = pvd->pvd_next)
 		if (pvd->pvd_pid == p->p_pid)
 			dead = pvd->pvd_dead = 1;
-	mtx_unlock(&pfs_vncache_mutex);
 	if (dead)
-		pfs_purge(NULL);
-	mtx_unlock(&Giant);
+		pfs_purge_locked(NULL);
+	mtx_unlock(&pfs_vncache_mutex);
 }

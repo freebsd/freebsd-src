@@ -44,12 +44,15 @@
 
 #include <net80211/_ieee80211.h>
 #include <net80211/ieee80211.h>
+#include <net80211/ieee80211_ageq.h>
 #include <net80211/ieee80211_crypto.h>
 #include <net80211/ieee80211_dfs.h>
 #include <net80211/ieee80211_ioctl.h>		/* for ieee80211_stats */
+#include <net80211/ieee80211_phy.h>
 #include <net80211/ieee80211_power.h>
 #include <net80211/ieee80211_node.h>
 #include <net80211/ieee80211_proto.h>
+#include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_scan.h>
 
 #define	IEEE80211_TXPOWER_MAX	100	/* .5 dbM (XXX units?) */
@@ -106,6 +109,11 @@ struct ieee80211_appie {
 };
 
 struct ieee80211_tdma_param;
+struct ieee80211_rate_table;
+struct ieee80211_tx_ampdu;
+struct ieee80211_rx_ampdu;
+struct ieee80211_superg;
+struct ieee80211_frame;
 
 struct ieee80211com {
 	struct ifnet		*ic_ifp;	/* associated device */
@@ -115,12 +123,17 @@ struct ieee80211com {
 	enum ieee80211_phytype	ic_phytype;	/* XXX wrong for multi-mode */
 	enum ieee80211_opmode	ic_opmode;	/* operation mode */
 	struct ifmedia		ic_media;	/* interface media config */
-	uint8_t			ic_myaddr[IEEE80211_ADDR_LEN];
 	struct callout		ic_inact;	/* inactivity processing */
+	struct taskqueue	*ic_tq;		/* deferred state thread */
 	struct task		ic_parent_task;	/* deferred parent processing */
+	struct task		ic_promisc_task;/* deferred promisc update */
+	struct task		ic_mcast_task;	/* deferred mcast update */
+	struct task		ic_chan_task;	/* deferred channel change */
+	struct task		ic_bmiss_task;	/* deferred beacon miss hndlr */
 
 	uint32_t		ic_flags;	/* state flags */
 	uint32_t		ic_flags_ext;	/* extended state flags */
+	uint32_t		ic_flags_ht;	/* HT state flags */
 	uint32_t		ic_flags_ven;	/* vendor state flags */
 	uint32_t		ic_caps;	/* capabilities */
 	uint32_t		ic_htcaps;	/* HT capabilities */
@@ -162,6 +175,7 @@ struct ieee80211com {
 	uint8_t			ic_chan_active[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_scan[IEEE80211_CHAN_BYTES];
 	struct ieee80211_channel *ic_curchan;	/* current channel */
+	const struct ieee80211_rate_table *ic_rt; /* table for ic_curchan */
 	struct ieee80211_channel *ic_bsschan;	/* bss channel */
 	struct ieee80211_channel *ic_prevchan;	/* previous channel */
 	struct ieee80211_regdomain ic_regdomain;/* regulatory data */
@@ -170,7 +184,8 @@ struct ieee80211com {
 
 	/* 802.11h/DFS state */
 	struct ieee80211_channel *ic_csa_newchan;/* channel for doing CSA */
-	int			ic_csa_count;	/* count for doing CSA */
+	short			ic_csa_mode;	/* mode for doing CSA */
+	short			ic_csa_count;	/* count for doing CSA */
 	struct ieee80211_dfs_state ic_dfs;	/* DFS state */
 
 	struct ieee80211_scan_state *ic_scan;	/* scan state */
@@ -180,6 +195,8 @@ struct ieee80211com {
 	/* NB: this is the union of all vap stations/neighbors */
 	int			ic_max_keyix;	/* max h/w key index */
 	struct ieee80211_node_table ic_sta;	/* stations/neighbors */
+	struct ieee80211_ageq	ic_stageq;	/* frame staging queue */
+	uint32_t		ic_hash_key;	/* random key for mac hash */
 
 	/* XXX multi-bss: split out common/vap parts */
 	struct ieee80211_wme_state ic_wme;	/* WME/WMM state */
@@ -195,6 +212,16 @@ struct ieee80211com {
 	enum ieee80211_protmode	ic_htprotmode;	/* HT protection mode */
 	int			ic_lastnonerp;	/* last time non-ERP sta noted*/
 	int			ic_lastnonht;	/* last time non-HT sta noted */
+
+	/* optional state for Atheros SuperG protocol extensions */
+	struct ieee80211_superg	*ic_superg;
+
+	/* radiotap handling */
+	struct ieee80211_radiotap_header *ic_th;/* tx radiotap headers */
+	void			*ic_txchan;	/* channel state in ic_th */
+	struct ieee80211_radiotap_header *ic_rh;/* rx radiotap headers */
+	void			*ic_rxchan;	/* channel state in ic_rh */
+	int			ic_montaps;	/* active monitor mode taps */
 
 	/* virtual ap create/delete */
 	struct ieee80211vap*	(*ic_vap_create)(struct ieee80211com *,
@@ -229,7 +256,7 @@ struct ieee80211com {
 	void			(*ic_newassoc)(struct ieee80211_node *, int);
 	/* TDMA update notification */
 	void			(*ic_tdma_update)(struct ieee80211_node *,
-				    const struct ieee80211_tdma_param *);
+				    const struct ieee80211_tdma_param *, int);
 	/* node state management */
 	struct ieee80211_node*	(*ic_node_alloc)(struct ieee80211vap *,
 				    const uint8_t [IEEE80211_ADDR_LEN]);
@@ -259,11 +286,11 @@ struct ieee80211com {
 	 * driver passes out-of-order frames to ieee80211_input
 	 * from an assocated HT station.
 	 */
-	void			(*ic_recv_action)(struct ieee80211_node *,
+	int			(*ic_recv_action)(struct ieee80211_node *,
+				    const struct ieee80211_frame *,
 				    const uint8_t *frm, const uint8_t *efrm);
 	int			(*ic_send_action)(struct ieee80211_node *,
-				    int category, int action,
-				    uint16_t args[4]);
+				    int category, int action, void *);
 	/* check if A-MPDU should be enabled this station+ac */
 	int			(*ic_ampdu_enable)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *);
@@ -280,10 +307,19 @@ struct ieee80211com {
 	/* BAR response received */
 	void			(*ic_bar_response)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *, int status);
+	/* start/stop doing A-MPDU rx processing for a station */
+	int			(*ic_ampdu_rx_start)(struct ieee80211_node *,
+				    struct ieee80211_rx_ampdu *, int baparamset,
+				    int batimeout, int baseqctl);
+	void			(*ic_ampdu_rx_stop)(struct ieee80211_node *,
+				    struct ieee80211_rx_ampdu *);
+	uint64_t		ic_spare[8];
 };
 
 struct ieee80211_aclator;
 struct ieee80211_tdma_state;
+struct ieee80211_mesh_state;
+struct ieee80211_hwmp_state;
 
 struct ieee80211vap {
 	struct ifmedia		iv_media;	/* interface media config */
@@ -300,13 +336,16 @@ struct ieee80211vap {
 	uint8_t			iv_myaddr[IEEE80211_ADDR_LEN];
 	uint32_t		iv_flags;	/* state flags */
 	uint32_t		iv_flags_ext;	/* extended state flags */
+	uint32_t		iv_flags_ht;	/* HT state flags */
 	uint32_t		iv_flags_ven;	/* vendor state flags */
 	uint32_t		iv_caps;	/* capabilities */
 	uint32_t		iv_htcaps;	/* HT capabilities */
 	enum ieee80211_opmode	iv_opmode;	/* operation mode */
 	enum ieee80211_state	iv_state;	/* state machine state */
-	void			(*iv_newstate_cb)(struct ieee80211vap *,
-				    enum ieee80211_state, int);
+	enum ieee80211_state	iv_nstate;	/* pending state */
+	int			iv_nstate_arg;	/* pending state arg */
+	struct task		iv_nstate_task;	/* deferred state processing */
+	struct task		iv_swbmiss_task;/* deferred iv_bmiss call */
 	struct callout		iv_mgtsend;	/* mgmt frame response timer */
 						/* inactivity timer settings */
 	int			iv_inact_init;	/* setting for new station */
@@ -395,15 +434,18 @@ struct ieee80211vap {
 	void			*iv_as;		/* private aclator state */
 
 	struct ieee80211_tdma_state *iv_tdma;	/* tdma state */
+	struct ieee80211_mesh_state *iv_mesh;	/* MBSS state */
+	struct ieee80211_hwmp_state *iv_hwmp;	/* HWMP state */
 
 	/* operate-mode detach hook */
 	void			(*iv_opdetach)(struct ieee80211vap *);
 	/* receive processing */
 	int			(*iv_input)(struct ieee80211_node *,
-				    struct mbuf *, int rssi, int noise,
-				    uint32_t rstamp);
+				    struct mbuf *, int, int);
 	void			(*iv_recv_mgmt)(struct ieee80211_node *,
-				    struct mbuf *, int, int, int, uint32_t);
+				    struct mbuf *, int, int, int);
+	void			(*iv_recv_ctl)(struct ieee80211_node *,
+				    struct mbuf *, int);
 	void			(*iv_deliver_data)(struct ieee80211vap *,
 				    struct ieee80211_node *, struct mbuf *);
 #if 0
@@ -425,7 +467,8 @@ struct ieee80211vap {
 				    enum ieee80211_state, int);
 	/* 802.3 output method for raw frame xmit */
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
-				    struct sockaddr *, struct rtentry *);
+				    struct sockaddr *, struct route *);
+	uint64_t		iv_spare[8];
 };
 MALLOC_DECLARE(M_80211_VAP);
 
@@ -483,7 +526,6 @@ MALLOC_DECLARE(M_80211_VAP);
 	((vap)->iv_flags & (ni)->ni_ath_flags & (bit))
 
 /* ic_flags_ext/iv_flags_ext */
-#define	IEEE80211_FEXT_NONHT_PR	 0x00000001	/* STATUS: non-HT sta present */
 #define	IEEE80211_FEXT_INACT	 0x00000002	/* CONF: sta inact handling */
 #define	IEEE80211_FEXT_SCANWAIT	 0x00000004	/* STATUS: awaiting scan */
 /* 0x00000006 reserved */
@@ -492,36 +534,52 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FEXT_TSN 	 0x00000020	/* CONF: TSN enabled */
 #define	IEEE80211_FEXT_SCANREQ	 0x00000040	/* STATUS: scan req params */
 #define	IEEE80211_FEXT_RESUME	 0x00000080	/* STATUS: start on resume */
+#define	IEEE80211_FEXT_4ADDR	 0x00000100	/* CONF: apply 4-addr encap */
 #define	IEEE80211_FEXT_NONERP_PR 0x00000200	/* STATUS: non-ERP sta present*/
 #define	IEEE80211_FEXT_SWBMISS	 0x00000400	/* CONF: do bmiss in s/w */
 #define	IEEE80211_FEXT_DFS	 0x00000800	/* CONF: DFS enabled */
 #define	IEEE80211_FEXT_DOTD	 0x00001000	/* CONF: 11d enabled */
+#define	IEEE80211_FEXT_STATEWAIT 0x00002000	/* STATUS: awaiting state chg */
+#define	IEEE80211_FEXT_REINIT	 0x00004000	/* STATUS: INIT state first */
+#define	IEEE80211_FEXT_BPF	 0x00008000	/* STATUS: BPF tap present */
 /* NB: immutable: should be set only when creating a vap */
 #define	IEEE80211_FEXT_WDSLEGACY 0x00010000	/* CONF: legacy WDS operation */
 #define	IEEE80211_FEXT_PROBECHAN 0x00020000	/* CONF: probe passive channel*/
-#define	IEEE80211_FEXT_HT	 0x00080000	/* CONF: HT supported */
-#define	IEEE80211_FEXT_AMPDU_TX	 0x00100000	/* CONF: A-MPDU tx supported */
-#define	IEEE80211_FEXT_AMPDU_RX	 0x00200000	/* CONF: A-MPDU tx supported */
-#define	IEEE80211_FEXT_AMSDU_TX	 0x00400000	/* CONF: A-MSDU tx supported */
-#define	IEEE80211_FEXT_AMSDU_RX	 0x00800000	/* CONF: A-MSDU tx supported */
-#define	IEEE80211_FEXT_USEHT40	 0x01000000	/* CONF: 20/40 use enabled */
-#define	IEEE80211_FEXT_PUREN	 0x02000000	/* CONF: 11n w/o legacy sta's */
-#define	IEEE80211_FEXT_SHORTGI20 0x04000000	/* CONF: short GI in HT20 */
-#define	IEEE80211_FEXT_SHORTGI40 0x08000000	/* CONF: short GI in HT40 */
-#define	IEEE80211_FEXT_HTCOMPAT  0x10000000	/* CONF: HT vendor OUI's */
-#define	IEEE80211_FEXT_RIFS  	 0x20000000	/* CONF: RIFS enabled */
 
 #define	IEEE80211_FEXT_BITS \
-	"\20\1NONHT_PR\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
-	"\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\22WDSLEGACY\23PROBECHAN\24HT" \
-	"\25AMDPU_TX\26AMPDU_TX\27AMSDU_TX\30AMSDU_RX\31USEHT40\32PUREN" \
-	"\33SHORTGI20\34SHORTGI40\35HTCOMPAT\36RIFS"
+	"\20\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
+	"\0114ADDR\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\16STATEWAIT\17REINIT" \
+	"\20BPF\21WDSLEGACY\22PROBECHAN"
+
+/* ic_flags_ht/iv_flags_ht */
+#define	IEEE80211_FHT_NONHT_PR	 0x00000001	/* STATUS: non-HT sta present */
+#define	IEEE80211_FHT_GF  	 0x00040000	/* CONF: Greenfield enabled */
+#define	IEEE80211_FHT_HT	 0x00080000	/* CONF: HT supported */
+#define	IEEE80211_FHT_AMPDU_TX	 0x00100000	/* CONF: A-MPDU tx supported */
+#define	IEEE80211_FHT_AMPDU_RX	 0x00200000	/* CONF: A-MPDU rx supported */
+#define	IEEE80211_FHT_AMSDU_TX	 0x00400000	/* CONF: A-MSDU tx supported */
+#define	IEEE80211_FHT_AMSDU_RX	 0x00800000	/* CONF: A-MSDU rx supported */
+#define	IEEE80211_FHT_USEHT40	 0x01000000	/* CONF: 20/40 use enabled */
+#define	IEEE80211_FHT_PUREN	 0x02000000	/* CONF: 11n w/o legacy sta's */
+#define	IEEE80211_FHT_SHORTGI20	 0x04000000	/* CONF: short GI in HT20 */
+#define	IEEE80211_FHT_SHORTGI40	 0x08000000	/* CONF: short GI in HT40 */
+#define	IEEE80211_FHT_HTCOMPAT 	 0x10000000	/* CONF: HT vendor OUI's */
+#define	IEEE80211_FHT_RIFS  	 0x20000000	/* CONF: RIFS enabled */
+#define	IEEE80211_FHT_STBC_TX 	 0x40000000	/* CONF: STBC tx enabled */
+#define	IEEE80211_FHT_STBC_RX 	 0x80000000	/* CONF: STBC rx enabled */
+
+#define	IEEE80211_FHT_BITS \
+	"\20\1NONHT_PR" \
+	"\23GF\24HT\25AMDPU_TX\26AMPDU_TX" \
+	"\27AMSDU_TX\30AMSDU_RX\31USEHT40\32PUREN\33SHORTGI20\34SHORTGI40" \
+	"\35HTCOMPAT\36RIFS\37STBC_TX\40STBC_RX"
 
 #define	IEEE80211_FVEN_BITS	"\20"
 
 /* ic_caps/iv_caps: device driver capabilities */
-/* 0x2f available */
+/* 0x2e available */
 #define	IEEE80211_C_STA		0x00000001	/* CAPABILITY: STA available */
+#define	IEEE80211_C_8023ENCAP	0x00000002	/* CAPABILITY: 802.3 encap */
 #define	IEEE80211_C_FF		0x00000040	/* CAPABILITY: ATH FF avail */
 #define	IEEE80211_C_TURBOP	0x00000080	/* CAPABILITY: ATH Turbo avail*/
 #define	IEEE80211_C_IBSS	0x00000100	/* CAPABILITY: IBSS available */
@@ -534,6 +592,7 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_C_SHPREAMBLE	0x00008000	/* CAPABILITY: short preamble */
 #define	IEEE80211_C_MONITOR	0x00010000	/* CAPABILITY: monitor mode */
 #define	IEEE80211_C_DFS		0x00020000	/* CAPABILITY: DFS/radar avail*/
+#define	IEEE80211_C_MBSS	0x00040000	/* CAPABILITY: MBSS available */
 /* 0x7c0000 available */
 #define	IEEE80211_C_WPA1	0x00800000	/* CAPABILITY: WPA1 avail */
 #define	IEEE80211_C_WPA2	0x01000000	/* CAPABILITY: WPA2 avail */
@@ -550,12 +609,12 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_C_OPMODE \
 	(IEEE80211_C_STA | IEEE80211_C_IBSS | IEEE80211_C_HOSTAP | \
 	 IEEE80211_C_AHDEMO | IEEE80211_C_MONITOR | IEEE80211_C_WDS | \
-	 IEEE80211_C_TDMA)
+	 IEEE80211_C_TDMA | IEEE80211_C_MBSS)
 
 #define	IEEE80211_C_BITS \
-	"\20\1STA\7FF\10TURBOP\11IBSS\12PMGT" \
+	"\20\1STA\002803ENCAP\7FF\10TURBOP\11IBSS\12PMGT" \
 	"\13HOSTAP\14AHDEMO\15SWRETRY\16TXPMGT\17SHSLOT\20SHPREAMBLE" \
-	"\21MONITOR\22DFS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
+	"\21MONITOR\22DFS\23MBSS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
 	"\37TXFRAG\40TDMA"
 
 /*
@@ -575,7 +634,8 @@ MALLOC_DECLARE(M_80211_VAP);
 	"\20\1LDPC\2CHWIDTH40\5GREENFIELD\6SHORTGI20\7SHORTGI40\10TXSTBC" \
 	"\21AMPDU\22AMSDU\23HT\24SMPS\25RIFS"
 
-void	ieee80211_ifattach(struct ieee80211com *);
+void	ieee80211_ifattach(struct ieee80211com *,
+		const uint8_t macaddr[IEEE80211_ADDR_LEN]);
 void	ieee80211_ifdetach(struct ieee80211com *);
 int	ieee80211_vap_setup(struct ieee80211com *, struct ieee80211vap *,
 		const char name[IFNAMSIZ], int unit, int opmode, int flags,
@@ -607,6 +667,52 @@ struct ieee80211_channel *ieee80211_find_channel_byieee(struct ieee80211com *,
 		int ieee, int flags);
 int	ieee80211_setmode(struct ieee80211com *, enum ieee80211_phymode);
 enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
+uint32_t ieee80211_mac_hash(const struct ieee80211com *,
+		const uint8_t addr[IEEE80211_ADDR_LEN]);
+
+void	ieee80211_radiotap_attach(struct ieee80211com *,
+	    struct ieee80211_radiotap_header *th, int tlen,
+		uint32_t tx_radiotap,
+	    struct ieee80211_radiotap_header *rh, int rlen,
+		uint32_t rx_radiotap);
+void	ieee80211_radiotap_detach(struct ieee80211com *);
+void	ieee80211_radiotap_vattach(struct ieee80211vap *);
+void	ieee80211_radiotap_vdetach(struct ieee80211vap *);
+void	ieee80211_radiotap_chan_change(struct ieee80211com *);
+void	ieee80211_radiotap_tx(struct ieee80211vap *, struct mbuf *);
+void	ieee80211_radiotap_rx(struct ieee80211vap *, struct mbuf *);
+void	ieee80211_radiotap_rx_all(struct ieee80211com *, struct mbuf *);
+
+static __inline int
+ieee80211_radiotap_active(const struct ieee80211com *ic)
+{
+	return (ic->ic_flags_ext & IEEE80211_FEXT_BPF) != 0;
+}
+
+static __inline int
+ieee80211_radiotap_active_vap(const struct ieee80211vap *vap)
+{
+	return (vap->iv_flags_ext & IEEE80211_FEXT_BPF) ||
+	    vap->iv_ic->ic_montaps != 0;
+}
+
+/*
+ * Enqueue a task on the state thread.
+ */
+static __inline void
+ieee80211_runtask(struct ieee80211com *ic, struct task *task)
+{
+	taskqueue_enqueue(ic->ic_tq, task);
+}
+
+/*
+ * Wait for a queued task to complete.
+ */
+static __inline void
+ieee80211_draintask(struct ieee80211com *ic, struct task *task)
+{
+	taskqueue_drain(ic->ic_tq, task);
+}
 
 /* 
  * Key update synchronization methods.  XXX should not be visible.
@@ -664,14 +770,14 @@ ieee80211_beacon_notify(struct ieee80211vap *vap, int what)
 
 /*
  * Calculate HT channel promotion flags for a channel.
- * XXX belongs in ieee80211_ht.h but needs IEEE80211_FEXT_*
+ * XXX belongs in ieee80211_ht.h but needs IEEE80211_FHT_*
  */
 static __inline int
 ieee80211_htchanflags(const struct ieee80211_channel *c)
 {
 	return IEEE80211_IS_CHAN_HT40(c) ?
-	    IEEE80211_FEXT_HT | IEEE80211_FEXT_USEHT40 :
-	    IEEE80211_IS_CHAN_HT(c) ?  IEEE80211_FEXT_HT : 0;
+	    IEEE80211_FHT_HT | IEEE80211_FHT_USEHT40 :
+	    IEEE80211_IS_CHAN_HT(c) ?  IEEE80211_FHT_HT : 0;
 }
 
 /*
@@ -682,7 +788,7 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
  * program) and/or the msgs generated by net80211.  Messages are
  * broken into functional classes and can be controlled with the
  * wlandebug program.  Certain of these msg groups are for facilities
- * that are no longer part of net80211 (e.g. IEEE80211_MSG_DOT1X).
+ * that are no longer part of net80211 (e.g. IEEE80211_MSG_DOT1XSM).
  */
 #define	IEEE80211_MSG_11N	0x80000000	/* 11n mode debug */
 #define	IEEE80211_MSG_DEBUG	0x40000000	/* IFF_DEBUG equivalent */
@@ -698,11 +804,11 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 #define	IEEE80211_MSG_OUTPUT	0x00100000	/* output handling */
 #define	IEEE80211_MSG_STATE	0x00080000	/* state machine */
 #define	IEEE80211_MSG_POWER	0x00040000	/* power save handling */
-#define	IEEE80211_MSG_DOT1X	0x00020000	/* 802.1x authenticator */
+#define	IEEE80211_MSG_HWMP	0x00020000	/* hybrid mesh protocol */
 #define	IEEE80211_MSG_DOT1XSM	0x00010000	/* 802.1x state machine */
 #define	IEEE80211_MSG_RADIUS	0x00008000	/* 802.1x radius client */
 #define	IEEE80211_MSG_RADDUMP	0x00004000	/* dump 802.1x radius packets */
-#define	IEEE80211_MSG_RADKEYS	0x00002000	/* dump 802.1x keys */
+#define	IEEE80211_MSG_MESH	0x00002000	/* mesh networking */
 #define	IEEE80211_MSG_WPA	0x00001000	/* WPA/RSN protocol */
 #define	IEEE80211_MSG_ACL	0x00000800	/* ACL handling */
 #define	IEEE80211_MSG_WME	0x00000400	/* WME protocol */
@@ -720,7 +826,7 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 
 #define	IEEE80211_MSG_BITS \
 	"\20\2TDMA\3IOCTL\4WDS\5ACTION\6RATECTL\7ROAM\10INACT\11DOTH\12SUPERG" \
-	"\13WME\14ACL\15WPA\16RADKEYS\17RADDUMP\20RADIUS\21DOT1XSM\22DOT1X" \
+	"\13WME\14ACL\15WPA\16RADKEYS\17RADDUMP\20RADIUS\21DOT1XSM\22HWMP" \
 	"\23POWER\24STATE\25OUTPUT\26SCAN\27AUTH\30ASSOC\31NODE\32ELEMID" \
 	"\33XRATE\34INPUT\35CRYPTO\36DUPMPKTS\37DEBUG\04011N"
 

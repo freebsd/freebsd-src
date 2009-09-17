@@ -409,6 +409,8 @@ acl_posix1e_mode_to_entry(acl_tag_t tag, uid_t uid, gid_t gid, mode_t mode)
 
 	acl_entry.ae_tag = tag;
 	acl_entry.ae_perm = acl_posix1e_mode_to_perm(tag, mode);
+	acl_entry.ae_entry_type = 0;
+	acl_entry.ae_flags = 0;
 	switch(tag) {
 	case ACL_USER_OBJ:
 		acl_entry.ae_id = uid;

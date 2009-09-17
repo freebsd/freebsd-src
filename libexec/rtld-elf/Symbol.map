@@ -8,6 +8,7 @@ FBSD_1.0 {
     dlerror;
     dlopen;
     dlsym;
+    dlfunc;
     dlvsym;
     dladdr;
     dllockinit;

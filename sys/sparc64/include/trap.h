@@ -91,7 +91,7 @@
 
 #ifndef LOCORE
 void sun4u_set_traptable(void *tba_addr);
-extern const char *trap_msg[];
+extern const char *const trap_msg[];
 #endif
 
 #endif

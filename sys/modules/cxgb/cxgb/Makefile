@@ -9,7 +9,7 @@ SRCS+=	cxgb_xgmac.c cxgb_vsc7323.c cxgb_t3_hw.c cxgb_main.c
 SRCS+=  cxgb_sge.c cxgb_offload.c cxgb_tn1010.c
 SRCS+=	device_if.h bus_if.h pci_if.h
 SRCS+=	opt_inet.h opt_zero.h opt_sched.h
-SRCS+=	uipc_mvec.c cxgb_support.c cxgb_multiq.c 
+SRCS+=	uipc_mvec.c
 
 CFLAGS+= -g -DDEFAULT_JUMBO -I${CXGB}
 CFLAGS+= -DDISABLE_MBUF_IOVEC

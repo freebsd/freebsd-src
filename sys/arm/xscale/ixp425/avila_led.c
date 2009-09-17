@@ -88,13 +88,14 @@ led_avila_attach(device_t dev)
 	return (0);
 }
 
-static void
+static int
 led_avila_detach(device_t dev)
 {
 	struct led_avila_softc *sc = device_get_softc(dev);
 
 	if (sc->sc_led != NULL)
 		led_destroy(sc->sc_led);
+	return (0);
 }
 
 static device_method_t led_avila_methods[] = {

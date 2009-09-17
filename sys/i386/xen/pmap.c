@@ -121,6 +121,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sf_buf.h>
 #include <sys/sx.h>
 #include <sys/vmmeter.h>
 #include <sys/sched.h>
@@ -222,6 +223,8 @@ static uma_zone_t pdptzone;
 #endif
 #endif
 
+static int pat_works;			/* Is page attribute table sane? */
+
 /*
  * Data for the pv entry allocation mechanism
  */
@@ -310,6 +313,7 @@ static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 static boolean_t pmap_is_prefaultable_locked(pmap_t pmap, vm_offset_t addr);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 
+static __inline void pagezero(void *page);
 
 #if defined(PAE) && !defined(XEN)
 static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
@@ -326,22 +330,6 @@ CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
 CTASSERT(KERNBASE % (1 << 24) == 0);
 
 
-
-static __inline void
-pagezero(void *page)
-{
-#if defined(I686_CPU)
-	if (cpu_class == CPUCLASS_686) {
-#if defined(CPU_ENABLE_SSE)
-		if (cpu_feature & CPUID_SSE2)
-			sse2_pagezero(page);
-		else
-#endif
-			i686_pagezero(page);
-	} else
-#endif
-		bzero(page, PAGE_SIZE);
-}
 
 void 
 pd_set(struct pmap *pmap, int ptepindex, vm_paddr_t val, int type)
@@ -528,33 +516,36 @@ pmap_init_pat(void)
 	if (!(cpu_feature & CPUID_PAT))
 		return;
 
-#ifdef PAT_WORKS
-	/*
-	 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
-	 * Program 4 and 5 as WP and WC.
-	 * Leave 6 and 7 as UC and UC-.
-	 */
-	pat_msr = rdmsr(MSR_PAT);
-	pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
-	pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
-	    PAT_VALUE(5, PAT_WRITE_COMBINING);
-#else
-	/*
-	 * Due to some Intel errata, we can only safely use the lower 4
-	 * PAT entries.  Thus, just replace PAT Index 2 with WC instead
-	 * of UC-.
-	 *
-	 *   Intel Pentium III Processor Specification Update
-	 * Errata E.27 (Upper Four PAT Entries Not Usable With Mode B
-	 * or Mode C Paging)
-	 *
-	 *   Intel Pentium IV  Processor Specification Update
-	 * Errata N46 (PAT Index MSB May Be Calculated Incorrectly)
-	 */
-	pat_msr = rdmsr(MSR_PAT);
-	pat_msr &= ~PAT_MASK(2);
-	pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
-#endif
+	if (cpu_vendor_id != CPU_VENDOR_INTEL ||
+	    (CPUID_TO_FAMILY(cpu_id) == 6 && CPUID_TO_MODEL(cpu_id) >= 0xe)) {
+		/*
+		 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
+		 * Program 4 and 5 as WP and WC.
+		 * Leave 6 and 7 as UC and UC-.
+		 */
+		pat_msr = rdmsr(MSR_PAT);
+		pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
+		pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
+		    PAT_VALUE(5, PAT_WRITE_COMBINING);
+		pat_works = 1;
+	} else {
+		/*
+		 * Due to some Intel errata, we can only safely use the lower 4
+		 * PAT entries.  Thus, just replace PAT Index 2 with WC instead
+		 * of UC-.
+		 *
+		 *   Intel Pentium III Processor Specification Update
+		 * Errata E.27 (Upper Four PAT Entries Not Usable With Mode B
+		 * or Mode C Paging)
+		 *
+		 *   Intel Pentium IV  Processor Specification Update
+		 * Errata N46 (PAT Index MSB May Be Calculated Incorrectly)
+		 */
+		pat_msr = rdmsr(MSR_PAT);
+		pat_msr &= ~PAT_MASK(2);
+		pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
+		pat_works = 0;
+	}
 	wrmsr(MSR_PAT, pat_msr);
 }
 
@@ -605,18 +596,18 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
+	m->md.pat_mode = PAT_WRITE_BACK;
 }
 
 #if defined(PAE) && !defined(XEN)
-
-static MALLOC_DEFINE(M_PMAPPDPT, "pmap", "pmap pdpt");
-
 static void *
 pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
-	*flags = UMA_SLAB_PRIV;
-	return (contigmalloc(PAGE_SIZE, M_PMAPPDPT, 0, 0x0ULL, 0xffffffffULL,
-	    1, 0));
+
+	/* Inform UMA that this allocator uses kernel_map/object. */
+	*flags = UMA_SLAB_KERNEL;
+	return ((void *)kmem_alloc_contig(kernel_map, bytes, wait, 0x0ULL,
+	    0xffffffffULL, 1, 0, VM_MEMATTR_DEFAULT));
 }
 #endif
 
@@ -759,7 +750,7 @@ pmap_init(void)
  * Determine the appropriate bits to set in a PTE or PDE for a specified
  * caching mode.
  */
-static int
+int
 pmap_cache_bits(int mode, boolean_t is_pde)
 {
 	int pat_flag, pat_index, cache_bits;
@@ -783,44 +774,48 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 	}
 	
 	/* Map the caching mode to a PAT index. */
-	switch (mode) {
-#ifdef PAT_WORKS
-	case PAT_UNCACHEABLE:
-		pat_index = 3;
-		break;
-	case PAT_WRITE_THROUGH:
-		pat_index = 1;
-		break;
-	case PAT_WRITE_BACK:
-		pat_index = 0;
-		break;
-	case PAT_UNCACHED:
-		pat_index = 2;
-		break;
-	case PAT_WRITE_COMBINING:
-		pat_index = 5;
-		break;
-	case PAT_WRITE_PROTECTED:
-		pat_index = 4;
-		break;
-#else
-	case PAT_UNCACHED:
-	case PAT_UNCACHEABLE:
-	case PAT_WRITE_PROTECTED:
-		pat_index = 3;
-		break;
-	case PAT_WRITE_THROUGH:
-		pat_index = 1;
-		break;
-	case PAT_WRITE_BACK:
-		pat_index = 0;
-		break;
-	case PAT_WRITE_COMBINING:
-		pat_index = 2;
-		break;
-#endif
-	default:
-		panic("Unknown caching mode %d\n", mode);
+	if (pat_works) {
+		switch (mode) {
+			case PAT_UNCACHEABLE:
+				pat_index = 3;
+				break;
+			case PAT_WRITE_THROUGH:
+				pat_index = 1;
+				break;
+			case PAT_WRITE_BACK:
+				pat_index = 0;
+				break;
+			case PAT_UNCACHED:
+				pat_index = 2;
+				break;
+			case PAT_WRITE_COMBINING:
+				pat_index = 5;
+				break;
+			case PAT_WRITE_PROTECTED:
+				pat_index = 4;
+				break;
+			default:
+				panic("Unknown caching mode %d\n", mode);
+		}
+	} else {
+		switch (mode) {
+			case PAT_UNCACHED:
+			case PAT_UNCACHEABLE:
+			case PAT_WRITE_PROTECTED:
+				pat_index = 3;
+				break;
+			case PAT_WRITE_THROUGH:
+				pat_index = 1;
+				break;
+			case PAT_WRITE_BACK:
+				pat_index = 0;
+				break;
+			case PAT_WRITE_COMBINING:
+				pat_index = 2;
+				break;
+			default:
+				panic("Unknown caching mode %d\n", mode);
+		}
 	}	
 
 	/* Map the 3-bit index value into the PAT, PCD, and PWT bits. */
@@ -987,6 +982,40 @@ pmap_invalidate_cache(void)
 	wbinvd();
 }
 #endif /* !SMP */
+
+void
+pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
+{
+
+	KASSERT((sva & PAGE_MASK) == 0,
+	    ("pmap_invalidate_cache_range: sva not page-aligned"));
+	KASSERT((eva & PAGE_MASK) == 0,
+	    ("pmap_invalidate_cache_range: eva not page-aligned"));
+
+	if (cpu_feature & CPUID_SS)
+		; /* If "Self Snoop" is supported, do nothing. */
+	else if (cpu_feature & CPUID_CLFSH) {
+
+		/*
+		 * Otherwise, do per-cache line flush.  Use the mfence
+		 * instruction to insure that previous stores are
+		 * included in the write-back.  The processor
+		 * propagates flush to other processors in the cache
+		 * coherence domain.
+		 */
+		mfence();
+		for (; sva < eva; sva += cpu_clflush_line_size)
+			clflush(sva);
+		mfence();
+	} else {
+
+		/*
+		 * No targeted cache flush methods are supported by CPU,
+		 * globally invalidate cache as a last resort.
+		 */
+		pmap_invalidate_cache();
+	}
+}
 
 /*
  * Are we current address space or kernel?  N.B. We return FALSE when
@@ -1700,7 +1729,7 @@ retry:
  * Deal with a SMP shootdown of other users of the pmap that we are
  * trying to dispose of.  This can be a bit hairy.
  */
-static u_int *lazymask;
+static cpumask_t *lazymask;
 static u_int lazyptd;
 static volatile u_int lazywait;
 
@@ -1709,7 +1738,7 @@ void pmap_lazyfix_action(void);
 void
 pmap_lazyfix_action(void)
 {
-	u_int mymask = PCPU_GET(cpumask);
+	cpumask_t mymask = PCPU_GET(cpumask);
 
 #ifdef COUNT_IPIS
 	(*ipi_lazypmap_counts[PCPU_GET(cpuid)])++;
@@ -1721,7 +1750,7 @@ pmap_lazyfix_action(void)
 }
 
 static void
-pmap_lazyfix_self(u_int mymask)
+pmap_lazyfix_self(cpumask_t mymask)
 {
 
 	if (rcr3() == lazyptd)
@@ -1733,8 +1762,7 @@ pmap_lazyfix_self(u_int mymask)
 static void
 pmap_lazyfix(pmap_t pmap)
 {
-	u_int mymask;
-	u_int mask;
+	cpumask_t mymask, mask;
 	u_int spins;
 
 	while ((mask = pmap->pm_active) != 0) {
@@ -3093,7 +3121,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 	vm_page_t p;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT(object->type == OBJT_DEVICE,
+	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 	if (pseflag && 
 	    ((addr & (NBPDR - 1)) == 0) && ((size & (NBPDR - 1)) == 0)) {
@@ -3307,6 +3335,22 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
 }	
+
+static __inline void
+pagezero(void *page)
+{
+#if defined(I686_CPU)
+	if (cpu_class == CPUCLASS_686) {
+#if defined(CPU_ENABLE_SSE)
+		if (cpu_feature & CPUID_SSE2)
+			sse2_pagezero(page);
+		else
+#endif
+			i686_pagezero(page);
+	} else
+#endif
+		bzero(page, PAGE_SIZE);
+}
 
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping 
@@ -3865,7 +3909,8 @@ pmap_clear_reference(vm_page_t m)
 void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 {
-	vm_offset_t va, tmpva, offset;
+	vm_offset_t va, offset;
+	vm_size_t tmpsize;
 
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
@@ -3878,14 +3923,10 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 
-	for (tmpva = va; size > 0; ) {
-		pmap_kenter_attr(tmpva, pa, mode);
-		size -= PAGE_SIZE;
-		tmpva += PAGE_SIZE;
-		pa += PAGE_SIZE;
-	}
-	pmap_invalidate_range(kernel_pmap, va, tmpva);
-	pmap_invalidate_cache();
+	for (tmpsize = 0; tmpsize < size; tmpsize += PAGE_SIZE)
+		pmap_kenter_attr(va + tmpsize, pa + tmpsize, mode);
+	pmap_invalidate_range(kernel_pmap, va, va + tmpsize);
+	pmap_invalidate_cache_range(va, va + size);
 	return ((void *)(va + offset));
 }
 
@@ -3921,6 +3962,58 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	kmem_free(kernel_map, base, size);
 }
 
+/*
+ * Sets the memory attribute for the specified page.
+ */
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+	struct sysmaps *sysmaps;
+	vm_offset_t sva, eva;
+
+	m->md.pat_mode = ma;
+	if ((m->flags & PG_FICTITIOUS) != 0)
+		return;
+
+	/*
+	 * If "m" is a normal page, flush it from the cache.
+	 * See pmap_invalidate_cache_range().
+	 *
+	 * First, try to find an existing mapping of the page by sf
+	 * buffer. sf_buf_invalidate_cache() modifies mapping and
+	 * flushes the cache.
+	 */    
+	if (sf_buf_invalidate_cache(m))
+		return;
+
+	/*
+	 * If page is not mapped by sf buffer, but CPU does not
+	 * support self snoop, map the page transient and do
+	 * invalidation. In the worst case, whole cache is flushed by
+	 * pmap_invalidate_cache_range().
+	 */
+	if ((cpu_feature & (CPUID_SS|CPUID_CLFSH)) == CPUID_CLFSH) {
+		sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
+		mtx_lock(&sysmaps->lock);
+		if (*sysmaps->CMAP2)
+			panic("pmap_page_set_memattr: CMAP2 busy");
+		sched_pin();
+		PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW |
+		    xpmap_ptom(VM_PAGE_TO_PHYS(m)) | PG_A | PG_M |
+		    pmap_cache_bits(m->md.pat_mode, 0));
+		invlcaddr(sysmaps->CADDR2);
+		sva = (vm_offset_t)sysmaps->CADDR2;
+		eva = sva + PAGE_SIZE;
+	} else
+		sva = eva = 0; /* gcc */
+	pmap_invalidate_cache_range(sva, eva);
+	if (sva != 0) {
+		PT_SET_MA(sysmaps->CADDR2, 0);
+		sched_unpin();
+		mtx_unlock(&sysmaps->lock);
+	}
+}
+
 int
 pmap_change_attr(va, size, mode)
 	vm_offset_t va;
@@ -3931,6 +4024,7 @@ pmap_change_attr(va, size, mode)
 	pt_entry_t *pte;
 	u_int opte, npte;
 	pd_entry_t *pde;
+	boolean_t changed;
 
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
@@ -3952,6 +4046,8 @@ pmap_change_attr(va, size, mode)
 			return (EINVAL);
 	}
 
+	changed = FALSE;
+
 	/*
 	 * Ok, all the pages exist and are 4k, so run through them updating
 	 * their cache mode.
@@ -3969,6 +4065,8 @@ pmap_change_attr(va, size, mode)
 			npte |= pmap_cache_bits(mode, 0);
 			PT_SET_VA_MA(pte, npte, TRUE);
 		} while (npte != opte && (*pte != npte));
+		if (npte != opte)
+			changed = TRUE;
 		tmpva += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
@@ -3977,8 +4075,10 @@ pmap_change_attr(va, size, mode)
 	 * Flush CPU caches to make sure any data isn't cached that shouldn't
 	 * be, etc.
 	 */
-	pmap_invalidate_range(kernel_pmap, base, tmpva);
-	pmap_invalidate_cache();
+	if (changed) {
+		pmap_invalidate_range(kernel_pmap, base, tmpva);
+		pmap_invalidate_cache_range(base, tmpva);
+	}
 	return (0);
 }
 
@@ -4071,7 +4171,6 @@ pmap_activate(struct thread *td)
 	td->td_pcb->pcb_cr3 = cr3;
 	PT_UPDATES_FLUSH();
 	load_cr3(cr3);
-		
 	PCPU_SET(curpmap, pmap);
 	critical_exit();
 }
@@ -4099,6 +4198,72 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 	else
 		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
+
+#ifdef XEN
+
+void
+pmap_suspend()
+{
+	pmap_t pmap;
+	int i, pdir, offset;
+	vm_paddr_t pdirma;
+	mmu_update_t mu[4];
+
+	/*
+	 * We need to remove the recursive mapping structure from all
+	 * our pmaps so that Xen doesn't get confused when it restores
+	 * the page tables. The recursive map lives at page directory
+	 * index PTDPTDI. We assume that the suspend code has stopped
+	 * the other vcpus (if any).
+	 */
+	LIST_FOREACH(pmap, &allpmaps, pm_list) {
+		for (i = 0; i < 4; i++) {
+			/*
+			 * Figure out which page directory (L2) page
+			 * contains this bit of the recursive map and
+			 * the offset within that page of the map
+			 * entry
+			 */
+			pdir = (PTDPTDI + i) / NPDEPG;
+			offset = (PTDPTDI + i) % NPDEPG;
+			pdirma = pmap->pm_pdpt[pdir] & PG_FRAME;
+			mu[i].ptr = pdirma + offset * sizeof(pd_entry_t);
+			mu[i].val = 0;
+		}
+		HYPERVISOR_mmu_update(mu, 4, NULL, DOMID_SELF);
+	}
+}
+
+void
+pmap_resume()
+{
+	pmap_t pmap;
+	int i, pdir, offset;
+	vm_paddr_t pdirma;
+	mmu_update_t mu[4];
+
+	/*
+	 * Restore the recursive map that we removed on suspend.
+	 */
+	LIST_FOREACH(pmap, &allpmaps, pm_list) {
+		for (i = 0; i < 4; i++) {
+			/*
+			 * Figure out which page directory (L2) page
+			 * contains this bit of the recursive map and
+			 * the offset within that page of the map
+			 * entry
+			 */
+			pdir = (PTDPTDI + i) / NPDEPG;
+			offset = (PTDPTDI + i) % NPDEPG;
+			pdirma = pmap->pm_pdpt[pdir] & PG_FRAME;
+			mu[i].ptr = pdirma + offset * sizeof(pd_entry_t);
+			mu[i].val = (pmap->pm_pdpt[i] & PG_FRAME) | PG_V;
+		}
+		HYPERVISOR_mmu_update(mu, 4, NULL, DOMID_SELF);
+	}
+}
+
+#endif
 
 #if defined(PMAP_DEBUG)
 pmap_pid_dump(int pid)

@@ -43,6 +43,44 @@
 	( { register_t val;						\
 	  __asm __volatile("mfspr %0,%1" : "=r"(val) : "K"(reg));	\
 	  val; } )
+
+/* The following routines allow manipulation of the full 64-bit width 
+ * of SPRs on 64 bit CPUs in bridge mode */
+
+#define mtspr64(reg,valhi,vallo,scratch)				\
+	__asm __volatile("						\
+		mfmsr %0; 						\
+		insrdi %0,1,1,0; 					\
+		mtmsrd %0; 						\
+		isync; 							\
+									\
+		sld %1,%1,%4;						\
+		or %1,%1,%2;						\
+		mtspr %3,%1;						\
+		srd %1,%1,%4;						\
+									\
+		clrldi %0,%0,1; 					\
+		mtmsrd %0; 						\
+		isync;"							\
+	: "=r"(scratch), "=r"(valhi) : "r"(vallo), "K"(reg), "r"(32))
+
+#define mfspr64upper(reg,scratch)					\
+	( { register_t val;						\
+	    __asm __volatile("						\
+		mfmsr %0; 						\
+		insrdi %0,1,1,0; 					\
+		mtmsrd %0; 						\
+		isync; 							\
+									\
+		mfspr %1,%2;						\
+		srd %1,%1,%3;						\
+									\
+		clrldi %0,%0,1; 					\
+		mtmsrd %0; 						\
+		isync;" 						\
+	    : "=r"(scratch), "=r"(val) : "K"(reg), "r"(32)); 			\
+	    val; } )
+
 #endif /* _LOCORE */
 
 /*
@@ -89,10 +127,10 @@
 #define	SPR_SPRG5		0x115	/* 4.. SPR General 5 */
 #define	SPR_SPRG6		0x116	/* 4.. SPR General 6 */
 #define	SPR_SPRG7		0x117	/* 4.. SPR General 7 */
+#define	SPR_SCOMC		0x114	/* ... SCOM Address Register (970) */
+#define	SPR_SCOMD		0x115	/* ... SCOM Data Register (970) */
 #define	SPR_ASR			0x118	/* ... Address Space Register (PPC64) */
 #define	SPR_EAR			0x11a	/* .68 External Access Register */
-#define	SPR_TBL			0x11c	/* 468 Time Base Lower */
-#define	SPR_TBU			0x11d	/* 468 Time Base Upper */
 #define	SPR_PVR			0x11f	/* 468 Processor Version Register */
 #define	  MPC601		  0x0001
 #define	  MPC603		  0x0003
@@ -112,7 +150,11 @@
 #define	  IBM401E2		  0x0025
 #define	  IBM401F2		  0x0026
 #define	  IBM401G2		  0x0027
+#define	  IBM970		  0x0039
+#define	  IBM970FX		  0x003c
 #define	  IBMPOWER3		  0x0041
+#define	  IBM970MP		  0x0044
+#define	  IBM970GX		  0x0045
 #define	  MPC860		  0x0050
 #define	  MPC8240		  0x0081
 #define	  IBM405GP		  0x4011
@@ -262,6 +304,20 @@
 #define	SPR_DVC1		0x3b6	/* 4.. Data Value Compare 1 */
 #define	SPR_DVC2		0x3b7	/* 4.. Data Value Compare 2 */
 #define	SPR_MMCR0		0x3b8	/* .6. Monitor Mode Control Register 0 */
+
+#define	SPR_970MMCR0		0x31b	/* ... Monitor Mode Control Register 0 (PPC 970) */
+#define	SPR_970MMCR1		0x31e	/* ... Monitor Mode Control Register 1 (PPC 970) */
+#define	SPR_970MMCRA		0x312	/* ... Monitor Mode Control Register 2 (PPC 970) */
+#define	SPR_970MMCR0		0x31b	/* ... Monitor Mode Control Register 0 (PPC 970) */
+#define SPR_970PMC1		0x313	/* ... PMC 1 */
+#define SPR_970PMC2		0x314	/* ... PMC 2 */
+#define SPR_970PMC3		0x315	/* ... PMC 3 */
+#define SPR_970PMC4		0x316	/* ... PMC 4 */
+#define SPR_970PMC5		0x317	/* ... PMC 5 */
+#define SPR_970PMC6		0x318	/* ... PMC 6 */
+#define SPR_970PMC7		0x319	/* ... PMC 7 */
+#define SPR_970PMC8		0x31a	/* ... PMC 8 */
+
 #define	  SPR_MMCR0_FC		  0x80000000 /* Freeze counters */
 #define	  SPR_MMCR0_FCS		  0x40000000 /* Freeze counters in supervisor mode */
 #define	  SPR_MMCR0_FCP		  0x20000000 /* Freeze counters in user mode */
@@ -280,6 +336,8 @@
 #define	  SPR_MMCR0_TRIGGER	  0x00002000 /* Trigger */
 #define	  SPR_MMCR0_PMC1SEL(x)	  ((x) << 6) /* PMC1 selector */
 #define	  SPR_MMCR0_PMC2SEL(x)	  ((x) << 0) /* PMC2 selector */
+#define	  SPR_970MMCR0_PMC1SEL(x) ((x) << 8) /* PMC1 selector (970) */
+#define	  SPR_970MMCR0_PMC2SEL(x) ((x) << 1) /* PMC2 selector (970) */
 #define	SPR_SGR			0x3b9	/* 4.. Storage Guarded Register */
 #define	SPR_PMC1		0x3b9	/* .6. Performance Counter Register 1 */
 #define	SPR_DCWR		0x3ba	/* 4.. Data Cache Write-through Register */
@@ -349,6 +407,8 @@
 #define	SPR_SRR3		0x3df	/* 4.. Save/Restore Register 3 */
 #define	SPR_HID0		0x3f0	/* ..8 Hardware Implementation Register 0 */
 #define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
+#define	SPR_HID4		0x3f4	/* ..8 Hardware Implementation Register 4 */
+#define	SPR_HID5		0x3f6	/* ..8 Hardware Implementation Register 5 */
 
 #if defined(AIM)
 #define	SPR_DBSR		0x3f0	/* 4.. Debug Status Register */
@@ -375,6 +435,7 @@
 #define	SPR_DAC2		0x3f7	/* 4.. Data Address Compare 2 */
 #define	SPR_PIR			0x3ff	/* .6. Processor Identification Register */
 #elif defined(E500)
+#define	SPR_PIR			0x11e	/* ..8 Processor Identification Register */
 #define	SPR_DBSR		0x130	/* ..8 Debug Status Register */
 #define	  DBSR_IDE		  0x80000000 /* Imprecise debug event. */
 #define	  DBSR_UDE		  0x40000000 /* Unconditional debug event. */
@@ -523,12 +584,17 @@
 /* Performance counter declarations */
 #define	PMC_OVERFLOW	  	0x80000000 /* Counter has overflowed */
 
-/* The first five countable [non-]events are common to all the PMC's */
+/* The first five countable [non-]events are common to many PMC's */
 #define	PMCN_NONE		 0 /* Count nothing */
 #define	PMCN_CYCLES		 1 /* Processor cycles */
 #define	PMCN_ICOMP		 2 /* Instructions completed */
 #define	PMCN_TBLTRANS		 3 /* TBL bit transitions */
 #define	PCMN_IDISPATCH		 4 /* Instructions dispatched */
+
+/* Similar things for the 970 PMC direct counters */
+#define	PMC970N_NONE		0x8 /* Count nothing */
+#define	PMC970N_CYCLES		0xf /* Processor cycles */
+#define	PMC970N_ICOMP		0x9 /* Instructions completed */
 
 #if defined(AIM)
 
@@ -564,6 +630,8 @@
 #define	  SVR_MPC8533E		  0x8034
 #define	  SVR_MPC8541		  0x8072
 #define	  SVR_MPC8541E		  0x807a
+#define	  SVR_MPC8548		  0x8031
+#define	  SVR_MPC8548E		  0x8039
 #define	  SVR_MPC8555		  0x8071
 #define	  SVR_MPC8555E		  0x8079
 #define	  SVR_MPC8572		  0x80e0
@@ -621,6 +689,9 @@
 #define	  L1CSR1_ICLFR		0x00000100	/* Instruction Cache Lock Bits Flash Reset */
 #define	  L1CSR1_ICFI		0x00000002	/* Instruction Cache Flash Invalidate */
 #define	  L1CSR1_ICE		0x00000001	/* Instruction Cache Enable */
+
+#define	SPR_BUCSR		0x3F5	/* ..8 Branch Unit Control and Status Register */
+#define	  BUCSR_BPEN		0x00000001	/* Branch Prediction Enable */
 
 #endif /* #elif defined(E500) */
 

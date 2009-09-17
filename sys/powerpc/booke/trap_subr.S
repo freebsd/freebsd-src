@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2006-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
+ * Copyright (C) 2006-2009 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
  * Copyright (C) 2006 Juniper Networks, Inc.
  * All rights reserved.
@@ -75,11 +75,16 @@
  * SPRG1 - all interrupts except TLB miss, critical, machine check
  * SPRG2 - critical
  * SPRG3 - machine check
+ * SPRG4-6 - scratch
  *
  */
 
 /* Get the per-CPU data structure */
 #define GET_CPUINFO(r) mfsprg0 r
+
+#define RES_GRANULE	32
+#define RES_LOCK	0	/* offset to the 'lock' word */
+#define RES_RECURSE	4	/* offset to the 'recurse' word */
 
 /*
  * Standard interrupt prolog
@@ -198,20 +203,23 @@
 	/* save DEAR, ESR */						\
 	lwz	%r28, (savearea+CPUSAVE_BOOKE_DEAR)(%r2);		\
 	lwz	%r29, (savearea+CPUSAVE_BOOKE_ESR)(%r2);		\
-	stw	%r28, FRAME_BOOKE_DEAR+8(1);				\
-	stw	%r29, FRAME_BOOKE_ESR+8(1);				\
+	stw	%r28, FRAME_BOOKE_DEAR+8(%r1);				\
+	stw	%r29, FRAME_BOOKE_ESR+8(%r1);				\
 	/* save XER, CTR, exc number */					\
 	mfxer	%r3;							\
 	mfctr	%r4;							\
-	stw	%r3, FRAME_XER+8(1);					\
-	stw	%r4, FRAME_CTR+8(1);					\
+	stw	%r3, FRAME_XER+8(%r1);					\
+	stw	%r4, FRAME_CTR+8(%r1);					\
 	li	%r5, exc;						\
-	stw	%r5, FRAME_EXC+8(1);					\
+	stw	%r5, FRAME_EXC+8(%r1);					\
+	/* save DBCR0 */						\
+	mfspr	%r3, SPR_DBCR0;						\
+	stw	%r3, FRAME_BOOKE_DBCR0+8(%r1);				\
 	/* save xSSR0-1 */						\
 	lwz	%r30, (savearea+CPUSAVE_SRR0)(%r2);			\
 	lwz	%r31, (savearea+CPUSAVE_SRR1)(%r2);			\
-	stw	%r30, FRAME_SRR0+8(1);					\
-	stw	%r31, FRAME_SRR1+8(1)
+	stw	%r30, FRAME_SRR0+8(%r1);				\
+	stw	%r31, FRAME_SRR1+8(%r1)
 
 /*
  *
@@ -231,6 +239,9 @@
 	mtxer	%r5;							\
 	mtlr	%r6;							\
 	mtcr	%r7;							\
+	/* restore DBCR0 */						\
+	lwz	%r4, FRAME_BOOKE_DBCR0+8(%r1);				\
+	mtspr	SPR_DBCR0, %r4;						\
 	/* restore xSRR0-1 */						\
 	lwz	%r30, FRAME_SRR0+8(%r1);				\
 	lwz	%r31, FRAME_SRR1+8(%r1);				\
@@ -259,7 +270,7 @@
 	/* calculate TLB nesting level and TLBSAVE instance address */	\
 	GET_CPUINFO(%r1);	 	/* Per-cpu structure */		\
 	lwz	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
-	rlwinm	%r29, %r28, 6, 24, 25;	/* 4 x TLBSAVE_LEN */		\
+	rlwinm	%r29, %r28, 6, 23, 25;	/* 4 x TLBSAVE_LEN */		\
 	addi	%r28, %r28, 1;						\
 	stw	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
 	addi	%r29, %r29, PC_BOOKE_TLBSAVE@l; 			\
@@ -294,7 +305,7 @@
 	lwz	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
 	subi	%r28, %r28, 1;						\
 	stw	%r28, PC_BOOKE_TLB_LEVEL(%r1);				\
-	rlwinm	%r29, %r28, 6, 24, 25; /* 4 x TLBSAVE_LEN */		\
+	rlwinm	%r29, %r28, 6, 23, 25; /* 4 x TLBSAVE_LEN */		\
 	addi	%r29, %r29, PC_BOOKE_TLBSAVE@l;				\
 	add	%r1, %r1, %r29;						\
 									\
@@ -312,6 +323,55 @@
 	lmw	%r20, (TLBSAVE_BOOKE_R20)(%r1);				\
 	mfsprg4	%r1
 
+#ifdef SMP
+#define TLB_LOCK							\
+	GET_CPUINFO(%r20);						\
+	lwz	%r21, PC_CURTHREAD(%r20);				\
+	lwz	%r22, PC_BOOKE_TLB_LOCK(%r20);				\
+									\
+1:	lwarx	%r23, 0, %r22;						\
+	cmpwi	%r23, MTX_UNOWNED;					\
+	beq	2f;							\
+									\
+	/* check if this is recursion */				\
+	cmplw	cr0, %r21, %r23;					\
+	bne-	1b;							\
+									\
+2:	/* try to acquire lock */					\
+	stwcx.	%r21, 0, %r22;						\
+	bne-	1b;							\
+									\
+	/* got it, update recursion counter */				\
+	lwz	%r21, RES_RECURSE(%r22);				\
+	addi	%r21, %r21, 1;						\
+	stw	%r21, RES_RECURSE(%r22);				\
+	isync;								\
+	msync
+
+#define TLB_UNLOCK							\
+	GET_CPUINFO(%r20);						\
+	lwz	%r21, PC_CURTHREAD(%r20);				\
+	lwz	%r22, PC_BOOKE_TLB_LOCK(%r20);				\
+									\
+	/* update recursion counter */					\
+	lwz	%r23, RES_RECURSE(%r22);				\
+	subi	%r23, %r23, 1;						\
+	stw	%r23, RES_RECURSE(%r22);				\
+									\
+	cmpwi	%r23, 0;						\
+	bne	1f;							\
+	isync;								\
+	msync;								\
+									\
+	/* release the lock */						\
+	li	%r23, MTX_UNOWNED;					\
+	stw	%r23, 0(%r22);						\
+1:	isync;								\
+	msync
+#else
+#define TLB_LOCK
+#define TLB_UNLOCK
+#endif	/* SMP */
 
 #define INTERRUPT(label)						\
 	.globl	label;							\
@@ -455,6 +515,7 @@ INTERRUPT(int_watchdog)
  ****************************************************************************/
 INTERRUPT(int_data_tlb_error)
 	TLB_PROLOG
+	TLB_LOCK
 
 	mfdear	%r31
 
@@ -497,6 +558,7 @@ tlb_miss_handle:
 	bl	tlb_fill_entry
 
 tlb_miss_return:
+	TLB_UNLOCK
 	TLB_RESTORE
 	rfi
 
@@ -642,6 +704,7 @@ tlb_fill_entry:
  ****************************************************************************/
 INTERRUPT(int_inst_tlb_error)
 	TLB_PROLOG
+	TLB_LOCK
 
 	mfsrr0	%r31			/* faulting address */
 
@@ -790,3 +853,36 @@ dbleave:
 	FRAME_LEAVE(SPR_SRR0, SPR_SRR1)
 	rfi
 #endif /* KDB */
+
+#ifdef SMP
+ENTRY(tlb_lock)
+	GET_CPUINFO(%r5)
+	lwz	%r5, PC_CURTHREAD(%r5)
+1:	lwarx	%r4, 0, %r3
+	cmpwi	%r4, MTX_UNOWNED
+	bne	1b
+	stwcx.	%r5, 0, %r3
+	bne-	1b
+	isync
+	msync
+	blr
+
+ENTRY(tlb_unlock)
+	isync
+	msync
+	li	%r4, MTX_UNOWNED
+	stw	%r4, 0(%r3)
+	isync
+	msync
+	blr
+/*
+ * TLB miss spin locks. For each CPU we have a reservation granule (32 bytes);
+ * only a single word from this granule will actually be used as a spin lock
+ * for mutual exclusion between TLB miss handler and pmap layer that
+ * manipulates page table contents.
+ */
+	.data
+	.align	5
+GLOBAL(tlb0_miss_locks)
+	.space	RES_GRANULE * MAXCPU
+#endif

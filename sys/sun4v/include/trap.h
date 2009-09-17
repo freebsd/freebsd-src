@@ -144,7 +144,7 @@
 
 
 #ifndef LOCORE
-extern const char *trap_msg[];
+extern const char *const trap_msg[];
 extern void set_mmfsa_traptable(void *, uint64_t);
 extern void trap_init(void);
 #endif

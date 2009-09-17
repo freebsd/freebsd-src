@@ -34,26 +34,55 @@ static unsigned char archive[] = {
 
 DEFINE_TEST(test_read_compress_program)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("archive_read_support_compression_program()");
-#else
+	int r;
 	struct archive_entry *ae;
 	struct archive *a;
+	const char *extprog;
+
+	/*
+	 * First, test handling when a non-existent compression
+	 * program is requested.
+	 */
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, 0, archive_read_support_compression_none(a));
-	assertEqualIntA(a, 0, archive_read_support_compression_program(a, "gunzip"));
-	assert(0 == archive_read_support_format_all(a));
-	assertEqualIntA(a, 0, archive_read_open_memory(a, archive, sizeof(archive)));
-	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
-	assert(archive_compression(a) == ARCHIVE_COMPRESSION_PROGRAM);
-	assert(archive_format(a) == ARCHIVE_FORMAT_TAR_USTAR);
-	assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assert(0 == archive_read_finish(a));
-#endif
-#endif
+	r = archive_read_support_compression_program(a, "nonexistent");
+	if (r == ARCHIVE_FATAL) {
+		skipping("archive_read_support_compression_program() "
+		    "unsupported on this platform");
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, r);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+
+	/*
+	 * If we have "gzip -d", try using that.
+	 */
+	if ((extprog = external_gzip_program(1)) == NULL) {
+		skipping("There is no gzip uncompression "
+		    "program in this platform");
+		return;
+	}
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_compression_program(a, extprog));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_next_header(a, &ae));
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_PROGRAM);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
 

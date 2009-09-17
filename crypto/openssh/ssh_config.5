@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.111 2008/06/26 11:46:31 grunk Exp $
+.\" $OpenBSD: ssh_config.5,v 1.119 2009/02/22 23:50:57 djm Exp $
 .\" $FreeBSD$
-.Dd June 26 2008
+.Dd February 22 2009
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -104,7 +104,7 @@ Restricts the following declarations (up to the next
 .Cm Host
 keyword) to be only for those hosts that match one of the patterns
 given after the keyword.
-If more than one pattern is provided, they should be separated by whitepsace.
+If more than one pattern is provided, they should be separated by whitespace.
 A single
 .Ql *
 as a pattern can be used to provide global
@@ -205,9 +205,9 @@ and
 .Dq cast128-cbc .
 The default is:
 .Bd -literal -offset 3n
-aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour128,
-arcfour256,arcfour,aes192-cbc,aes256-cbc,aes128-ctr,
-aes192-ctr,aes256-ctr
+aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
+aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
+aes256-cbc,arcfour
 .Ed
 .It Cm ClearAllForwardings
 Specifies that all local, remote, and dynamic port forwardings
@@ -812,7 +812,15 @@ and
 .Ar host Ns / Ns Ar hostport .
 Multiple forwardings may be specified, and additional
 forwardings can be given on the command line.
-Only the superuser can forward privileged ports.
+Privileged ports can be forwarded only when
+logging in as root on the remote machine.
+.Pp
+If the
+.Ar port
+argument is
+.Ql 0 ,
+the listen port will be dynamically allocated on the server and reported
+to the client at run time.
 .Pp
 If the
 .Ar bind_address
@@ -1065,15 +1073,17 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20080801 .
+.Dq FreeBSD-20090522 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,
 an ASCII art representation of the remote host key fingerprint is
-printed additionally to the hex fingerprint string.
+printed in addition to the hex fingerprint string at login and
+for unknown host keys.
 If this flag is set to
 .Dq no ,
-only the hex fingerprint string will be printed.
+no fingerprint strings are printed at login and
+only the hex fingerprint string will be printed for unknown host keys.
 The default is
 .Dq no .
 .It Cm XAuthLocation

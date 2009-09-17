@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: adfile - Application-level disassembler file support routines
- *              $Revision: 1.3 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -115,8 +114,9 @@
  *****************************************************************************/
 
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acapps.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -125,6 +125,13 @@
 #define _COMPONENT          ACPI_TOOLS
         ACPI_MODULE_NAME    ("adfile")
 
+/* Local prototypes */
+
+INT32
+AdWriteBuffer (
+    char                    *Filename,
+    char                    *Buffer,
+    UINT32                  Length);
 
 char                        FilenameBuf[20];
 
@@ -146,8 +153,8 @@ AdGenerateFilename (
     char                    *Prefix,
     char                    *TableId)
 {
-    ACPI_NATIVE_UINT         i;
-    ACPI_NATIVE_UINT         j;
+    UINT32                  i;
+    UINT32                  j;
 
 
     for (i = 0; Prefix[i]; i++)
@@ -183,14 +190,14 @@ AdGenerateFilename (
  *
  ******************************************************************************/
 
-ACPI_NATIVE_INT
+INT32
 AdWriteBuffer (
-    char                *Filename,
-    char                *Buffer,
-    UINT32              Length)
+    char                    *Filename,
+    char                    *Buffer,
+    UINT32                  Length)
 {
-    FILE                *fp;
-    ACPI_SIZE           Actual;
+    FILE                    *fp;
+    ACPI_SIZE               Actual;
 
 
     fp = fopen (Filename, "wb");
@@ -202,7 +209,7 @@ AdWriteBuffer (
 
     Actual = fwrite (Buffer, (size_t) Length, 1, fp);
     fclose (fp);
-    return ((ACPI_NATIVE_INT) Actual);
+    return ((INT32) Actual);
 }
 
 

@@ -29,6 +29,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 
 #include  <dev/sound/isa/sb.h>
@@ -43,7 +47,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define SB_DEFAULT_BUFSZ	4096
 
 static u_int32_t sb_fmt[] = {
-	AFMT_U8,
+	SND_FORMAT(AFMT_U8, 1, 0),
 	0
 };
 static struct pcmchan_caps sb200_playcaps = {4000, 23000, sb_fmt, 0};
@@ -52,8 +56,8 @@ static struct pcmchan_caps sb201_playcaps = {4000, 44100, sb_fmt, 0};
 static struct pcmchan_caps sb201_reccaps = {4000, 15000, sb_fmt, 0};
 
 static u_int32_t sbpro_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
 	0
 };
 static struct pcmchan_caps sbpro_playcaps = {4000, 44100, sbpro_fmt, 0};
@@ -372,7 +376,7 @@ sbpromix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
     	return left | (right << 8);
 }
 
-static int
+static u_int32_t
 sbpromix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
     	struct sb_info *sb = mix_getdevinfo(m);
@@ -395,7 +399,7 @@ static kobj_method_t sbpromix_mixer_methods[] = {
     	KOBJMETHOD(mixer_init,		sbpromix_init),
     	KOBJMETHOD(mixer_set,		sbpromix_set),
     	KOBJMETHOD(mixer_setrecsrc,	sbpromix_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(sbpromix_mixer);
 
@@ -453,7 +457,7 @@ sbmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
     	return left | (left << 8);
 }
 
-static int
+static u_int32_t
 sbmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	return 0;
@@ -463,7 +467,7 @@ static kobj_method_t sbmix_mixer_methods[] = {
     	KOBJMETHOD(mixer_init,		sbmix_init),
     	KOBJMETHOD(mixer_set,		sbmix_set),
     	KOBJMETHOD(mixer_setrecsrc,	sbmix_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(sbmix_mixer);
 
@@ -496,7 +500,7 @@ sb_speed(struct sb_chinfo *ch)
 {
 	struct sb_info *sb = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+	int stereo = (AFMT_CHANNEL(ch->fmt) > 1)? 1 : 0;
 	int speed, tmp, thresh, max;
 	u_char tconst;
 
@@ -537,7 +541,7 @@ sb_start(struct sb_chinfo *ch)
 {
 	struct sb_info *sb = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-    	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+    	int stereo = (AFMT_CHANNEL(ch->fmt) > 1)? 1 : 0;
 	int l = ch->blksz;
 	u_char i;
 
@@ -614,7 +618,7 @@ sbchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 sbchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sb_chinfo *ch = data;
@@ -623,7 +627,7 @@ sbchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return sb_speed(ch);
 }
 
-static int
+static u_int32_t
 sbchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sb_chinfo *ch = data;
@@ -648,7 +652,7 @@ sbchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 sbchan_getptr(kobj_t obj, void *data)
 {
 	struct sb_chinfo *ch = data;
@@ -677,7 +681,7 @@ static kobj_method_t sbchan_methods[] = {
     	KOBJMETHOD(channel_trigger,		sbchan_trigger),
     	KOBJMETHOD(channel_getptr,		sbchan_getptr),
     	KOBJMETHOD(channel_getcaps,		sbchan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(sbchan);
 

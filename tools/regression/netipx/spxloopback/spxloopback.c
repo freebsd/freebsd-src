@@ -46,11 +46,7 @@
 #include <unistd.h>
 
 #define	IPX_ENDPOINT	"0xbebe.1.0x8a13"
-#define	PACKETLEN	128
-
-#if 0
-#define	SPX_SUPPORTS_SENDTO_WITH_CONNECT
-#endif
+#define	PACKETLEN	16 * (1024 * 1024)
 
 static void
 packet_fill(u_char *packet)
@@ -62,61 +58,40 @@ packet_fill(u_char *packet)
 }
 
 static int
-packet_check(u_char *packet)
+packet_check(u_char *packet, size_t totlen, ssize_t len)
 {
-	int i;
+	size_t i;
 
-	for (i = 0; i < PACKETLEN; i++) {
+	for (i = totlen; i < totlen + len; i++) {
 		if (packet[i] != (i & 0xff))
 			return (-1);
 	}
 	return (0);
 }
 
-#ifdef SPX_SUPPORTS_SENDTO_WITH_CONNECT
-static void
-my_sendto(int sock, const char *who, pid_t pid, struct sockaddr *sa,
-    socklen_t sa_len)
-{
-	u_char packet[PACKETLEN];
-	ssize_t len;
-	int error;
-
-	packet_fill(packet);
-	len = sendto(sock, packet, sizeof(packet), 0, sa, sa_len);
-	if (len < 0) {
-		error = errno;
-		(void)kill(pid, SIGTERM);
-		errno = error;
-		err(-1, "%s: sendto()", who);
-	}
-	if (len != sizeof(packet)) {
-		(void)kill(pid, SIGTERM);
-		errx(-1, "%s: sendto(): short send (%d length, %d sent)",
-		    who, sizeof(packet), len);
-	}
-}
-#endif
-
 static void
 my_send(int sock, const char *who, pid_t pid)
 {
 	u_char packet[PACKETLEN];
 	ssize_t len;
+	size_t totlen;
 	int error;
 
+	totlen = 0;
 	packet_fill(packet);
-	len = send(sock, packet, sizeof(packet), 0);
-	if (len < 0) {
-		error = errno;
-		(void)kill(pid, SIGTERM);
-		errno = error;
-		err(-1, "%s: send()", who);
-	}
-	if (len != sizeof(packet)) {
-		(void)kill(pid, SIGTERM);
-		errx(-1, "%s: send(): short send (%d length, %d sent)", who,
-		    sizeof(packet), len);
+	while (totlen < PACKETLEN) {
+		len = send(sock, packet + totlen, PACKETLEN - totlen, 0);
+		if (len < 0) {
+			error = errno;
+			(void)kill(pid, SIGTERM);
+			errno = error;
+			err(-1, "%s: send()", who);
+		}
+		if (len == 0) {
+			(void)kill(pid, SIGTERM);
+			errx(-1, "%s: send(): EOF", who);
+		}
+		totlen += len;
 	}
 }
 
@@ -125,24 +100,28 @@ my_recv(int sock, const char *who, pid_t pid)
 {
 	u_char packet[PACKETLEN];
 	ssize_t len;
+	size_t totlen;
 	int error;
 
+	totlen = 0;
 	bzero(packet, sizeof(packet));
-	len = recv(sock, packet, sizeof(packet), 0);
-	if (len < 0) {
-		errno = error;
-		(void)kill(pid, SIGTERM);
-		errno = error;
-		err(-1, "%s: recv()", who);
-	}
-	if (len != sizeof(packet)) {
-		(void)kill(pid, SIGTERM);
-		errx(-1, "%s: recv(): got %d expected %d", who, len,
-		    sizeof(packet));
-	}
-	if (packet_check(packet) < 0) {
-		(void)kill(pid, SIGTERM);
-		errx(-1, "%s: recv(): got bad data", who);
+	while (totlen < PACKETLEN) {
+		len = recv(sock, packet + totlen, sizeof(packet) - totlen, 0);
+		if (len < 0) {
+			errno = error;
+			(void)kill(pid, SIGTERM);
+			errno = error;
+			err(-1, "%s: recv()", who);
+		}
+		if (len == 0) {
+			(void)kill(pid, SIGTERM);
+			errx(-1, "%s: recv(): EOF", who);
+		}
+		if (packet_check(packet, totlen, len) < 0) {
+			(void)kill(pid, SIGTERM);
+			errx(-1, "%s: recv(): got bad data", who);
+		}
+		totlen += len;
 	}
 }
 

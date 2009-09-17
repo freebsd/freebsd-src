@@ -278,7 +278,6 @@ restart:
 			return (error);
 		goto restart;
 	}
-	VOP_LEASE(nd.ni_dvp, td, KERNCRED, LEASE_WRITE);
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vat);
 	VOP_UNLOCK(nd.ni_dvp, 0);
 	if (error) {
@@ -2229,7 +2228,7 @@ ffs_copyonwrite(devvp, bp)
 			VI_UNLOCK(devvp);
 			if (saved_runningbufspace != 0) {
 				bp->b_runningbufspace = saved_runningbufspace;
-				atomic_add_int(&runningbufspace,
+				atomic_add_long(&runningbufspace,
 					       bp->b_runningbufspace);
 			}
 			return (0);		/* Snapshot gone */
@@ -2354,7 +2353,7 @@ ffs_copyonwrite(devvp, bp)
 	 */
 	if (saved_runningbufspace != 0) {
 		bp->b_runningbufspace = saved_runningbufspace;
-		atomic_add_int(&runningbufspace, bp->b_runningbufspace);
+		atomic_add_long(&runningbufspace, bp->b_runningbufspace);
 	}
 	return (error);
 }

@@ -93,7 +93,7 @@ struct pic {
 	void (*pic_resume)(struct pic *);
 	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
-	void (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
+	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
 	STAILQ_ENTRY(pic) pics;
 };
 
@@ -139,6 +139,7 @@ int	intr_bind(u_int vector, u_char cpu);
 int	intr_config_intr(int vector, enum intr_trigger trig,
     enum intr_polarity pol);
 void	intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame);
+u_int	intr_next_cpu(void);
 struct intsrc *intr_lookup_source(int vector);
 int	intr_register_pic(struct pic *pic);
 int	intr_register_source(struct intsrc *isrc);

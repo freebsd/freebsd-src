@@ -33,7 +33,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ipstealth.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -45,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -53,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -63,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_options.h>
 #include <netinet/ip_icmp.h>
 #include <machine/in_cksum.h>
-#include <netinet/vinet.h>
 
 #include <sys/socketvar.h>
 
@@ -99,7 +97,6 @@ static void	save_rte(struct mbuf *m, u_char *, struct in_addr);
 int
 ip_dooptions(struct mbuf *m, int pass)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip *ip = mtod(m, struct ip *);
 	u_char *cp;
 	struct in_ifaddr *ia;
@@ -165,9 +162,8 @@ ip_dooptions(struct mbuf *m, int pass)
 				goto bad;
 			}
 			ipaddr.sin_addr = ip->ip_dst;
-			ia = (struct in_ifaddr *)
-				ifa_ifwithaddr((struct sockaddr *)&ipaddr);
-			if (ia == NULL) {
+			if (ifa_ifwithaddr_check((struct sockaddr *)&ipaddr)
+			    == 0) {
 				if (opt == IPOPT_SSRR) {
 					type = ICMP_UNREACH;
 					code = ICMP_UNREACH_SRCFAIL;
@@ -218,7 +214,7 @@ nosourcerouting:
 #ifdef IPSTEALTH
 dropit:
 #endif
-					V_ipstat.ips_cantforward++;
+					IPSTAT_INC(ips_cantforward);
 					m_freem(m);
 					return (1);
 				}
@@ -246,6 +242,7 @@ dropit:
 			ip->ip_dst = ipaddr.sin_addr;
 			(void)memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
 			    sizeof(struct in_addr));
+			ifa_free(&ia->ia_ifa);
 			cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 			/*
 			 * Let ip_intr's mcast routing check handle mcast pkts
@@ -287,6 +284,7 @@ dropit:
 			}
 			(void)memcpy(cp + off, &(IA_SIN(ia)->sin_addr),
 			    sizeof(struct in_addr));
+			ifa_free(&ia->ia_ifa);
 			cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 			break;
 
@@ -332,6 +330,7 @@ dropit:
 					continue;
 				(void)memcpy(sin, &IA_SIN(ia)->sin_addr,
 				    sizeof(struct in_addr));
+				ifa_free(&ia->ia_ifa);
 				cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 				off += sizeof(struct in_addr);
 				break;
@@ -366,7 +365,7 @@ dropit:
 	return (0);
 bad:
 	icmp_error(m, type, code, 0, 0);
-	V_ipstat.ips_badoptions++;
+	IPSTAT_INC(ips_badoptions);
 	return (1);
 }
 
@@ -682,4 +681,65 @@ ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 bad:
 	(void)m_free(m);
 	return (EINVAL);
+}
+
+/*
+ * Check for the presence of the IP Router Alert option [RFC2113]
+ * in the header of an IPv4 datagram.
+ *
+ * This call is not intended for use from the forwarding path; it is here
+ * so that protocol domains may check for the presence of the option.
+ * Given how FreeBSD's IPv4 stack is currently structured, the Router Alert
+ * option does not have much relevance to the implementation, though this
+ * may change in future.
+ * Router alert options SHOULD be passed if running in IPSTEALTH mode and
+ * we are not the endpoint.
+ * Length checks on individual options should already have been peformed
+ * by ip_dooptions() therefore they are folded under INVARIANTS here.
+ *
+ * Return zero if not present or options are invalid, non-zero if present.
+ */
+int
+ip_checkrouteralert(struct mbuf *m)
+{
+	struct ip *ip = mtod(m, struct ip *);
+	u_char *cp;
+	int opt, optlen, cnt, found_ra;
+
+	found_ra = 0;
+	cp = (u_char *)(ip + 1);
+	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
+	for (; cnt > 0; cnt -= optlen, cp += optlen) {
+		opt = cp[IPOPT_OPTVAL];
+		if (opt == IPOPT_EOL)
+			break;
+		if (opt == IPOPT_NOP)
+			optlen = 1;
+		else {
+#ifdef INVARIANTS
+			if (cnt < IPOPT_OLEN + sizeof(*cp))
+				break;
+#endif
+			optlen = cp[IPOPT_OLEN];
+#ifdef INVARIANTS
+			if (optlen < IPOPT_OLEN + sizeof(*cp) || optlen > cnt)
+				break;
+#endif
+		}
+		switch (opt) {
+		case IPOPT_RA:
+#ifdef INVARIANTS
+			if (optlen != IPOPT_OFFSET + sizeof(uint16_t) ||
+			    (*((uint16_t *)&cp[IPOPT_OFFSET]) != 0))
+			    break;
+			else
+#endif
+			found_ra = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return (found_ra);
 }

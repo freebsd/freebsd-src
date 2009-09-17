@@ -1498,8 +1498,6 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread
 		return (0);
 
 	case FD_STYPE:                  /* set drive type */
-		if (!(fflag & FWRITE))
-			return (EPERM);
 		/*
 		 * Allow setting drive type temporarily iff
 		 * currently unset.  Used for fdformat so any
@@ -1521,8 +1519,6 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread
 		return (0);
 
 	case FD_SOPTS:			/* set drive options */
-		if (!(fflag & FWRITE))
-			return (EPERM);
 		fd->options = *(int *)data;
 		return (0);
 

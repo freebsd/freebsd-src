@@ -469,8 +469,8 @@ static struct witness_lock_order_data *w_lofree = NULL;
 static struct witness_lock_order_hash w_lohash;
 static int w_max_used_index = 0;
 static unsigned int w_generation = 0;
-static const char *w_notrunning = "Witness not running\n";
-static const char *w_stillcold = "Witness is still cold\n";
+static const char w_notrunning[] = "Witness not running\n";
+static const char w_stillcold[] = "Witness is still cold\n";
 
 
 static struct witness_order_list_entry order_lists[] = {
@@ -512,7 +512,8 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "ifaddr", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
-	 * Multicast - protocol locks before interface locks, after UDP locks.
+	 * IPv4 multicast:
+	 * protocol locks before interface locks, after UDP locks.
 	 */
 	{ "udpinp", &lock_class_rw },
 	{ "in_multi_mtx", &lock_class_mtx_sleep },
@@ -520,8 +521,19 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "if_addr_mtx", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
+	 * IPv6 multicast:
+	 * protocol locks before interface locks, after UDP locks.
+	 */
+	{ "udpinp", &lock_class_rw },
+	{ "in6_multi_mtx", &lock_class_mtx_sleep },
+	{ "mld_mtx", &lock_class_mtx_sleep },
+	{ "if_addr_mtx", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
 	 * UNIX Domain Sockets
 	 */
+	{ "unp_global_rwlock", &lock_class_rw },
+	{ "unp_list_lock", &lock_class_mtx_sleep },
 	{ "unp", &lock_class_mtx_sleep },
 	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },
@@ -596,6 +608,13 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "kqueue", &lock_class_mtx_sleep },
 	{ "struct mount mtx", &lock_class_mtx_sleep },
 	{ "vnode interlock", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
+	 * ZFS locking
+	 */
+	{ "dn->dn_mtx", &lock_class_sx },
+	{ "dr->dt.di.dr_mtx", &lock_class_sx },
+	{ "db->db_mtx", &lock_class_sx },
 	{ NULL, NULL },
 	/*
 	 * spin locks
@@ -1511,12 +1530,6 @@ found:
 		    instance->li_line);
 		panic("share->uexcl");
 	}
-	if ((instance->li_flags & LI_NORELEASE) != 0 && witness_watch > 0) {
-		printf("forbidden unlock of (%s) %s @ %s:%d\n", class->lc_name,
-		    lock->lo_name, file, line);
-		panic("lock marked norelease");
-	}
-
 	/* If we are recursed, unrecurse. */
 	if ((instance->li_flags & LI_RECURSEMASK) > 0) {
 		CTR4(KTR_WITNESS, "%s: pid %d unrecursed on %s r=%d", __func__,
@@ -1524,6 +1537,12 @@ found:
 		    instance->li_flags);
 		instance->li_flags--;
 		return;
+	}
+	/* The lock is now being dropped, check for NORELEASE flag */
+	if ((instance->li_flags & LI_NORELEASE) != 0 && witness_watch > 0) {
+		printf("forbidden unlock of (%s) %s @ %s:%d\n", class->lc_name,
+		    lock->lo_name, file, line);
+		panic("lock marked norelease");
 	}
 
 	/* Otherwise, remove this item from the list. */

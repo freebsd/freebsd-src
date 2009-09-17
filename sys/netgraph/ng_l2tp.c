@@ -342,9 +342,6 @@ NETGRAPH_INIT(l2tp, &ng_l2tp_typestruct);
 #define L2TP_SEQ_CHECK(x)	do { } while (0)
 #endif
 
-/* memmove macro */
-#define memmove(d, s, l)	bcopy(s, d, l)
-
 /* Whether to use m_copypacket() or m_dup() */
 #define L2TP_COPY_MBUF		m_copypacket
 

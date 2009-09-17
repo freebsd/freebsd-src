@@ -55,7 +55,10 @@ options {
         allow-notify { <address_match_element>; ... };
         allow-query { <address_match_element>; ... };
         allow-query-cache { <address_match_element>; ... };
+        allow-query-cache-on { <address_match_element>; ... };
+        allow-query-on { <address_match_element>; ... };
         allow-recursion { <address_match_element>; ... };
+        allow-recursion-on { <address_match_element>; ... };
         allow-transfer { <address_match_element>; ... };
         allow-update { <address_match_element>; ... };
         allow-update-forwarding { <address_match_element>; ... };
@@ -134,6 +137,7 @@ options {
         max-transfer-time-in <integer>;
         max-transfer-time-out <integer>;
         max-udp-size <integer>;
+        memstatistics <boolean>;
         memstatistics-file <quoted_string>;
         min-refresh-time <integer>;
         min-retry-time <integer>;
@@ -146,6 +150,8 @@ options {
         notify-delay <integer>;
         notify-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ];
         notify-source-v6 ( <ipv6_address> | * ) [ port ( <integer> | * ) ];
+        notify-to-soa <boolean>;
+        nsec3-test-zone <boolean>; // test only
         pid-file ( <quoted_string> | none );
         port <integer>;
         preferred-glue <string>;
@@ -153,11 +159,14 @@ options {
         query-source <querysource4>;
         query-source-v6 <querysource6>;
         querylog <boolean>;
+        queryport-pool-ports <integer>; // obsolete
+        queryport-pool-updateinterval <integer>; // obsolete
         random-device <quoted_string>;
         recursing-file <quoted_string>;
         recursion <boolean>;
         recursive-clients <integer>;
         request-ixfr <boolean>;
+        request-nsid <boolean>;
         reserved-sockets <integer>;
         rfc2308-type1 <boolean>; // not yet implemented
         root-delegation-only [ exclude { <quoted_string>; ... } ];
@@ -166,7 +175,10 @@ options {
         serial-queries <integer>; // obsolete
         serial-query-rate <integer>;
         server-id ( <quoted_string> | none |;
-        sig-validity-interval <integer>;
+        sig-signing-nodes <integer>;
+        sig-signing-signatures <integer>;
+        sig-signing-type <integer>;
+        sig-validity-interval <integer> [ <integer> ];
         sortlist { <address_match_element>; ... };
         stacksize <size>;
         statistics-file <quoted_string>;
@@ -185,10 +197,12 @@ options {
         transfers-out <integer>;
         transfers-per-ns <integer>;
         treat-cr-as-space <boolean>; // obsolete
+        try-tcp-refresh <boolean>;
         update-check-ksk <boolean>;
         use-alt-transfer-source <boolean>;
         use-id-pool <boolean>; // obsolete
         use-ixfr <boolean>;
+        use-queryport-pool <boolean>; // obsolete
         use-v4-udp-ports { <portrange>; ... };
         use-v6-udp-ports { <portrange>; ... };
         version ( <quoted_string> | none );
@@ -216,6 +230,11 @@ server <netprefix> {
         transfers <integer>;
 };
 
+statistics-channels {
+        inet ( <ipv4_address> | <ipv6_address> | * ) [ port ( <integer> | *
+            ) ] [ allow { <address_match_element>; ... } ];
+};
+
 trusted-keys { <string> <integer> <integer> <integer> <quoted_string>; ... };
 
 view <string> <optional_class> {
@@ -226,7 +245,10 @@ view <string> <optional_class> {
         allow-notify { <address_match_element>; ... };
         allow-query { <address_match_element>; ... };
         allow-query-cache { <address_match_element>; ... };
+        allow-query-cache-on { <address_match_element>; ... };
+        allow-query-on { <address_match_element>; ... };
         allow-recursion { <address_match_element>; ... };
+        allow-recursion-on { <address_match_element>; ... };
         allow-transfer { <address_match_element>; ... };
         allow-update { <address_match_element>; ... };
         allow-update-forwarding { <address_match_element>; ... };
@@ -305,12 +327,17 @@ view <string> <optional_class> {
         notify-delay <integer>;
         notify-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ];
         notify-source-v6 ( <ipv6_address> | * ) [ port ( <integer> | * ) ];
+        notify-to-soa <boolean>;
+        nsec3-test-zone <boolean>; // test only
         preferred-glue <string>;
         provide-ixfr <boolean>;
         query-source <querysource4>;
         query-source-v6 <querysource6>;
+        queryport-pool-ports <integer>; // obsolete
+        queryport-pool-updateinterval <integer>; // obsolete
         recursion <boolean>;
         request-ixfr <boolean>;
+        request-nsid <boolean>;
         rfc2308-type1 <boolean>; // not yet implemented
         root-delegation-only [ exclude { <quoted_string>; ... } ];
         rrset-order { [ class <string> ] [ type <string> ] [ name
@@ -337,7 +364,10 @@ view <string> <optional_class> {
                     <integer> | * ) ];
                 transfers <integer>;
         };
-        sig-validity-interval <integer>;
+        sig-signing-nodes <integer>;
+        sig-signing-signatures <integer>;
+        sig-signing-type <integer>;
+        sig-validity-interval <integer> [ <integer> ];
         sortlist { <address_match_element>; ... };
         suppress-initial-notify <boolean>; // not yet implemented
         topology { <address_match_element>; ... }; // not implemented
@@ -346,13 +376,16 @@ view <string> <optional_class> {
         transfer-source-v6 ( <ipv6_address> | * ) [ port ( <integer> | * ) ];
         trusted-keys { <string> <integer> <integer> <integer>
             <quoted_string>; ... };
+        try-tcp-refresh <boolean>;
         update-check-ksk <boolean>;
         use-alt-transfer-source <boolean>;
+        use-queryport-pool <boolean>; // obsolete
         zero-no-soa-ttl <boolean>;
         zero-no-soa-ttl-cache <boolean>;
         zone <string> <optional_class> {
                 allow-notify { <address_match_element>; ... };
                 allow-query { <address_match_element>; ... };
+                allow-query-on { <address_match_element>; ... };
                 allow-transfer { <address_match_element>; ... };
                 allow-update { <address_match_element>; ... };
                 allow-update-forwarding { <address_match_element>; ... };
@@ -403,19 +436,26 @@ view <string> <optional_class> {
                     ) ];
                 notify-source-v6 ( <ipv6_address> | * ) [ port ( <integer>
                     | * ) ];
+                notify-to-soa <boolean>;
+                nsec3-test-zone <boolean>; // test only
                 pubkey <integer> <integer> <integer>
                     <quoted_string>; // obsolete
-                sig-validity-interval <integer>;
+                sig-signing-nodes <integer>;
+                sig-signing-signatures <integer>;
+                sig-signing-type <integer>;
+                sig-validity-interval <integer> [ <integer> ];
                 transfer-source ( <ipv4_address> | * ) [ port ( <integer> |
                     * ) ];
                 transfer-source-v6 ( <ipv6_address> | * ) [ port (
                     <integer> | * ) ];
+                try-tcp-refresh <boolean>;
                 type ( master | slave | stub | hint | forward |
                     delegation-only );
                 update-check-ksk <boolean>;
                 update-policy { ( grant | deny ) <string> ( name |
-                    subdomain | wildcard | self | selfsub | selfwild )
-                    <string> <rrtypelist>; ... };
+                    subdomain | wildcard | self | selfsub | selfwild |
+                    krb5-self | ms-self | krb5-subdomain | ms-subdomain |
+                    tcp-self | 6to4-self ) <string> <rrtypelist>; ... };
                 use-alt-transfer-source <boolean>;
                 zero-no-soa-ttl <boolean>;
                 zone-statistics <boolean>;
@@ -426,6 +466,7 @@ view <string> <optional_class> {
 zone <string> <optional_class> {
         allow-notify { <address_match_element>; ... };
         allow-query { <address_match_element>; ... };
+        allow-query-on { <address_match_element>; ... };
         allow-transfer { <address_match_element>; ... };
         allow-update { <address_match_element>; ... };
         allow-update-forwarding { <address_match_element>; ... };
@@ -473,15 +514,22 @@ zone <string> <optional_class> {
         notify-delay <integer>;
         notify-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ];
         notify-source-v6 ( <ipv6_address> | * ) [ port ( <integer> | * ) ];
+        notify-to-soa <boolean>;
+        nsec3-test-zone <boolean>; // test only
         pubkey <integer> <integer> <integer> <quoted_string>; // obsolete
-        sig-validity-interval <integer>;
+        sig-signing-nodes <integer>;
+        sig-signing-signatures <integer>;
+        sig-signing-type <integer>;
+        sig-validity-interval <integer> [ <integer> ];
         transfer-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ];
         transfer-source-v6 ( <ipv6_address> | * ) [ port ( <integer> | * ) ];
+        try-tcp-refresh <boolean>;
         type ( master | slave | stub | hint | forward | delegation-only );
         update-check-ksk <boolean>;
         update-policy { ( grant | deny ) <string> ( name | subdomain |
-            wildcard | self | selfsub | selfwild ) <string> <rrtypelist>;
-            ... };
+            wildcard | self | selfsub | selfwild | krb5-self | ms-self |
+            krb5-subdomain | ms-subdomain | tcp-self | 6to4-self ) <string>
+            <rrtypelist>; ... };
         use-alt-transfer-source <boolean>;
         zero-no-soa-ttl <boolean>;
         zone-statistics <boolean>;

@@ -66,11 +66,6 @@ struct archive_string *
 __archive_strappend_char(struct archive_string *, char);
 #define	archive_strappend_char __archive_strappend_char
 
-/* Append an integer in the specified base (2 <= base <= 16). */
-struct archive_string *
-__archive_strappend_int(struct archive_string *as, int d, int base);
-#define	archive_strappend_int __archive_strappend_int
-
 /* Convert a wide-char string to UTF-8 and append the result. */
 struct archive_string *
 __archive_strappend_w_utf8(struct archive_string *, const wchar_t *);
@@ -104,8 +99,12 @@ __archive_string_ensure(struct archive_string *, size_t);
 #define	archive_string_ensure __archive_string_ensure
 
 /* Append C string, which may lack trailing \0. */
+/* The source is declared void * here because this gets used with
+ * "signed char *", "unsigned char *" and "char *" arguments.
+ * Declaring it "char *" as with some of the other functions just
+ * leads to a lot of extra casts. */
 struct archive_string *
-__archive_strncat(struct archive_string *, const char *, size_t);
+__archive_strncat(struct archive_string *, const void *, size_t);
 #define	archive_strncat  __archive_strncat
 
 /* Append a C string to an archive_string, resizing as necessary. */

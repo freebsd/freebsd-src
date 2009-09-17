@@ -1198,8 +1198,7 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 
 					if (lengthsize == 0) {
 						DPRINTF(("cfe memspace "
-						    "lengthsize == 0"));
-						state->card->error++;
+						    "lengthsize == 0\n"));
 					}
 					for (i = 0; i < cfe->num_memspace; i++) {
 						if (lengthsize) {
@@ -1211,9 +1210,8 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 							cfe->memspace[i].length = 0;
 						}
 						if (cfe->memspace[i].length == 0) {
-							DPRINTF(("cfe->memspace[%d].length == 0",
+							DPRINTF(("cfe->memspace[%d].length == 0\n",
 								 i));
-							state->card->error++;
 						}
 						if (cardaddrsize) {
 							cfe->memspace[i].cardaddr =

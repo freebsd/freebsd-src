@@ -39,7 +39,6 @@
 #include <sys/syslog.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/vimage.h>
 
 #include <net/ethernet.h>
 #include <net/if_llc.h>
@@ -48,7 +47,6 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-#include <net/route.h>
 #include <net/bpf.h>
 #include <net/vnet.h>
 
@@ -221,7 +219,7 @@ ef_start(struct ifnet *ifp)
 		if (m == 0)
 			break;
 		BPF_MTAP(ifp, m);
-		IFQ_HANDOFF(p, m, error);
+		error = p->if_transmit(p, m);
 		if (error) {
 			ifp->if_oerrors++;
 			continue;
@@ -494,8 +492,20 @@ ef_load(void)
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INIT_VNET_NET(vnet_iter);
-		IFNET_RLOCK();
+
+		/*
+		 * XXXRW: The following loop walks the ifnet list while
+		 * modifying it, something not well-supported by ifnet
+		 * locking.  To avoid lock upgrade/recursion issues, manually
+		 * acquire a write lock of ifnet_sxlock here, rather than a
+		 * read lock, so that when if_alloc() recurses the lock, we
+		 * don't panic.  This structure, in which if_ef automatically
+		 * attaches to all ethernet interfaces, should be replaced
+		 * with a model like that found in if_vlan, in which
+		 * interfaces are explicitly configured, which would avoid
+		 * this (and other) problems.
+		 */
+		sx_xlock(&ifnet_sxlock);
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			if (ifp->if_type != IFT_ETHER) continue;
 			EFDEBUG("Found interface %s\n", ifp->if_xname);
@@ -526,7 +536,7 @@ ef_load(void)
 			efcount++;
 			SLIST_INSERT_HEAD(&efdev, efl, el_next);
 		}
-		IFNET_RUNLOCK();
+		sx_xunlock(&ifnet_sxlock);
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK();

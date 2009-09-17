@@ -24,8 +24,28 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_defs.h>
+#include <dev/usb/usbdi.h>
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
@@ -34,25 +54,28 @@
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_transfer.h>
 
+#include <ddb/ddb.h>
+#include <ddb/db_sym.h>
+
 /*
  * Define this unconditionally in case a kernel module is loaded that
  * has been compiled with debugging options.
  */
-int	usb2_debug = 0;
+int	usb_debug = 0;
 
-SYSCTL_NODE(_hw, OID_AUTO, usb2, CTLFLAG_RW, 0, "USB debugging");
-SYSCTL_INT(_hw_usb2, OID_AUTO, debug, CTLFLAG_RW,
-    &usb2_debug, 0, "Debug level");
+SYSCTL_NODE(_hw, OID_AUTO, usb, CTLFLAG_RW, 0, "USB debugging");
+SYSCTL_INT(_hw_usb, OID_AUTO, debug, CTLFLAG_RW,
+    &usb_debug, 0, "Debug level");
 
 /*------------------------------------------------------------------------*
- *	usb2_dump_iface
+ *	usb_dump_iface
  *
  * This function dumps information about an USB interface.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_iface(struct usb2_interface *iface)
+usb_dump_iface(struct usb_interface *iface)
 {
-	printf("usb2_dump_iface: iface=%p\n", iface);
+	printf("usb_dump_iface: iface=%p\n", iface);
 	if (iface == NULL) {
 		return;
 	}
@@ -61,14 +84,14 @@ usb2_dump_iface(struct usb2_interface *iface)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_dump_device
+ *	usb_dump_device
  *
  * This function dumps information about an USB device.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_device(struct usb2_device *udev)
+usb_dump_device(struct usb_device *udev)
 {
-	printf("usb2_dump_device: dev=%p\n", udev);
+	printf("usb_dump_device: dev=%p\n", udev);
 	if (udev == NULL) {
 		return;
 	}
@@ -81,72 +104,72 @@ usb2_dump_device(struct usb2_device *udev)
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_dump_queue
+ *	usb_dump_queue
  *
- * This function dumps the USB transfer that are queued up on an USB pipe.
+ * This function dumps the USB transfer that are queued up on an USB endpoint.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_queue(struct usb2_pipe *pipe)
+usb_dump_queue(struct usb_endpoint *ep)
 {
-	struct usb2_xfer *xfer;
+	struct usb_xfer *xfer;
 
-	printf("usb2_dump_queue: pipe=%p xfer: ", pipe);
-	TAILQ_FOREACH(xfer, &pipe->pipe_q.head, wait_entry) {
+	printf("usb_dump_queue: endpoint=%p xfer: ", ep);
+	TAILQ_FOREACH(xfer, &ep->endpoint_q.head, wait_entry) {
 		printf(" %p", xfer);
 	}
 	printf("\n");
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_dump_pipe
+ *	usb_dump_endpoint
  *
- * This function dumps information about an USB pipe.
+ * This function dumps information about an USB endpoint.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_pipe(struct usb2_pipe *pipe)
+usb_dump_endpoint(struct usb_endpoint *ep)
 {
-	if (pipe) {
-		printf("usb2_dump_pipe: pipe=%p", pipe);
+	if (ep) {
+		printf("usb_dump_endpoint: endpoint=%p", ep);
 
 		printf(" edesc=%p isoc_next=%d toggle_next=%d",
-		    pipe->edesc, pipe->isoc_next, pipe->toggle_next);
+		    ep->edesc, ep->isoc_next, ep->toggle_next);
 
-		if (pipe->edesc) {
+		if (ep->edesc) {
 			printf(" bEndpointAddress=0x%02x",
-			    pipe->edesc->bEndpointAddress);
+			    ep->edesc->bEndpointAddress);
 		}
 		printf("\n");
-		usb2_dump_queue(pipe);
+		usb_dump_queue(ep);
 	} else {
-		printf("usb2_dump_pipe: pipe=NULL\n");
+		printf("usb_dump_endpoint: endpoint=NULL\n");
 	}
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_dump_xfer
+ *	usb_dump_xfer
  *
  * This function dumps information about an USB transfer.
  *------------------------------------------------------------------------*/
 void
-usb2_dump_xfer(struct usb2_xfer *xfer)
+usb_dump_xfer(struct usb_xfer *xfer)
 {
-	struct usb2_device *udev;
-	printf("usb2_dump_xfer: xfer=%p\n", xfer);
+	struct usb_device *udev;
+	printf("usb_dump_xfer: xfer=%p\n", xfer);
 	if (xfer == NULL) {
 		return;
 	}
-	if (xfer->pipe == NULL) {
-		printf("xfer %p: pipe=NULL\n",
+	if (xfer->endpoint == NULL) {
+		printf("xfer %p: endpoint=NULL\n",
 		    xfer);
 		return;
 	}
 	udev = xfer->xroot->udev;
 	printf("xfer %p: udev=%p vid=0x%04x pid=0x%04x addr=%d "
-	    "pipe=%p ep=0x%02x attr=0x%02x\n",
+	    "endpoint=%p ep=0x%02x attr=0x%02x\n",
 	    xfer, udev,
 	    UGETW(udev->ddesc.idVendor),
 	    UGETW(udev->ddesc.idProduct),
-	    udev->address, xfer->pipe,
-	    xfer->pipe->edesc->bEndpointAddress,
-	    xfer->pipe->edesc->bmAttributes);
+	    udev->address, xfer->endpoint,
+	    xfer->endpoint->edesc->bEndpointAddress,
+	    xfer->endpoint->edesc->bmAttributes);
 }

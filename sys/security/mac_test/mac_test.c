@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -14,6 +14,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -216,6 +219,142 @@ test_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(newlabel, MAGIC_CRED);
 	COUNTER_INC(cred_check_relabel);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setaudit);
+static int
+test_cred_check_setaudit(struct ucred *cred, struct auditinfo *ai)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setaudit);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setaudit_addr);
+static int
+test_cred_check_setaudit_addr(struct ucred *cred,
+    struct auditinfo_addr *aia)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setaudit_addr);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setauid);
+static int
+test_cred_check_setauid(struct ucred *cred, uid_t auid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setauid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setegid);
+static int
+test_cred_check_setegid(struct ucred *cred, gid_t egid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setegid);
+
+	return (0);
+}
+
+COUNTER_DECL(proc_check_euid);
+static int
+test_cred_check_seteuid(struct ucred *cred, uid_t euid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(proc_check_euid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setregid);
+static int
+test_cred_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setregid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setreuid);
+static int
+test_cred_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setreuid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setgid);
+static int
+test_cred_check_setgid(struct ucred *cred, gid_t gid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setgid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setgroups);
+static int
+test_cred_check_setgroups(struct ucred *cred, int ngroups,
+	gid_t *gidset)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setgroups);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setresgid);
+static int
+test_cred_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
+	gid_t sgid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setresgid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setresuid);
+static int
+test_cred_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
+	uid_t suid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setresuid);
+
+	return (0);
+}
+
+COUNTER_DECL(cred_check_setuid);
+static int
+test_cred_check_setuid(struct ucred *cred, uid_t uid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_check_setuid);
 
 	return (0);
 }
@@ -532,7 +671,9 @@ test_inpcb_create(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	LABEL_CHECK(inplabel, MAGIC_INPCB);
 	COUNTER_INC(inpcb_create);
 }
@@ -577,6 +718,8 @@ static void
 test_inpcb_sosetlabel(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
+
+	SOCK_LOCK_ASSERT(so);
 
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
 	LABEL_CHECK(inplabel, MAGIC_INPCB);
@@ -1350,142 +1493,6 @@ test_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 	return (0);
 }
 
-COUNTER_DECL(proc_check_setaudit);
-static int
-test_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setaudit);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setaudit_addr);
-static int
-test_proc_check_setaudit_addr(struct ucred *cred,
-    struct auditinfo_addr *aia)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setaudit_addr);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setauid);
-static int
-test_proc_check_setauid(struct ucred *cred, uid_t auid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setauid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setegid);
-static int
-test_proc_check_setegid(struct ucred *cred, gid_t egid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setegid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_euid);
-static int
-test_proc_check_seteuid(struct ucred *cred, uid_t euid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_euid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setregid);
-static int
-test_proc_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setregid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setreuid);
-static int
-test_proc_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setreuid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setgid);
-static int
-test_proc_check_setgid(struct ucred *cred, gid_t gid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setgid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setgroups);
-static int
-test_proc_check_setgroups(struct ucred *cred, int ngroups,
-	gid_t *gidset)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setgroups);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setresgid);
-static int
-test_proc_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
-	gid_t sgid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setresgid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setresuid);
-static int
-test_proc_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
-	uid_t suid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setresuid);
-
-	return (0);
-}
-
-COUNTER_DECL(proc_check_setuid);
-static int
-test_proc_check_setuid(struct ucred *cred, uid_t uid)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_check_setuid);
-
-	return (0);
-}
-
 COUNTER_DECL(proc_check_wait);
 static int
 test_proc_check_wait(struct ucred *cred, struct proc *p)
@@ -1523,7 +1530,9 @@ test_socket_check_accept(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_accept);
 
 	return (0);
@@ -1536,7 +1545,9 @@ test_socket_check_bind(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_bind);
 
 	return (0);
@@ -1549,7 +1560,9 @@ test_socket_check_connect(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_connect);
 
 	return (0);
@@ -1561,7 +1574,9 @@ test_socket_check_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(socket_check_deliver);
 
@@ -1575,7 +1590,9 @@ test_socket_check_listen(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_listen);
 
 	return (0);
@@ -1588,7 +1605,9 @@ test_socket_check_poll(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_poll);
 
 	return (0);
@@ -1601,7 +1620,9 @@ test_socket_check_receive(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_receive);
 
 	return (0);
@@ -1612,6 +1633,8 @@ static int
 test_socket_check_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
+
+	SOCK_LOCK_ASSERT(so);
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
@@ -1628,7 +1651,9 @@ test_socket_check_send(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_send);
 
 	return (0);
@@ -1641,7 +1666,9 @@ test_socket_check_stat(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_stat);
 
 	return (0);
@@ -1654,7 +1681,9 @@ test_socket_check_visible(struct ucred *cred, struct socket *so,
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	SOCK_LOCK(so);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socket_check_visible);
 
 	return (0);
@@ -1683,11 +1712,13 @@ test_socket_create(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(socket_create_mbuf);
 static void
-test_socket_create_mbuf(struct socket *so, struct label *socketlabel,
+test_socket_create_mbuf(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
-	LABEL_CHECK(socketlabel, MAGIC_SOCKET);
+	SOCK_LOCK(so);
+	LABEL_CHECK(solabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
 	COUNTER_INC(socket_create_mbuf);
 }
@@ -1746,8 +1777,12 @@ test_socket_newconn(struct socket *oldso, struct label *oldsolabel,
     struct socket *newso, struct label *newsolabel)
 {
 
+	SOCK_LOCK(oldso);
 	LABEL_CHECK(oldsolabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(oldso);
+	SOCK_LOCK(newso);
 	LABEL_CHECK(newsolabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(newso);
 	COUNTER_INC(socket_newconn);
 }
 
@@ -1756,6 +1791,8 @@ static void
 test_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
+
+	SOCK_LOCK_ASSERT(so);
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
@@ -1802,11 +1839,13 @@ test_socketpeer_init_label(struct label *label, int flag)
 COUNTER_DECL(socketpeer_set_from_mbuf);
 static void
 test_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
-    struct socket *socket, struct label *socketpeerlabel)
+    struct socket *so, struct label *sopeerlabel)
 {
 
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
-	LABEL_CHECK(socketpeerlabel, MAGIC_SOCKET);
+	SOCK_LOCK(so);
+	LABEL_CHECK(sopeerlabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(so);
 	COUNTER_INC(socketpeer_set_from_mbuf);
 }
 
@@ -1817,8 +1856,12 @@ test_socketpeer_set_from_socket(struct socket *oldso,
     struct label *newsopeerlabel)
 {
 
+	SOCK_LOCK(oldso);
 	LABEL_CHECK(oldsolabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(oldso);
+	SOCK_LOCK(newso);
 	LABEL_CHECK(newsopeerlabel, MAGIC_SOCKET);
+	SOCK_UNLOCK(newso);
 	COUNTER_INC(socketpeer_set_from_socket);
 }
 
@@ -2432,8 +2475,7 @@ test_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
 COUNTER_DECL(vnode_check_getextattr);
 static int
 test_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -2639,8 +2681,7 @@ test_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
 COUNTER_DECL(vnode_check_setextattr);
 static int
 test_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -2881,6 +2922,18 @@ static struct mac_policy_ops test_ops =
 	.mpo_bpfdesc_init_label = test_bpfdesc_init_label,
 
 	.mpo_cred_check_relabel = test_cred_check_relabel,
+	.mpo_cred_check_setaudit = test_cred_check_setaudit,
+	.mpo_cred_check_setaudit_addr = test_cred_check_setaudit_addr,
+	.mpo_cred_check_setauid = test_cred_check_setauid,
+	.mpo_cred_check_seteuid = test_cred_check_seteuid,
+	.mpo_cred_check_setegid = test_cred_check_setegid,
+	.mpo_cred_check_setgid = test_cred_check_setgid,
+	.mpo_cred_check_setgroups = test_cred_check_setgroups,
+	.mpo_cred_check_setregid = test_cred_check_setregid,
+	.mpo_cred_check_setresgid = test_cred_check_setresgid,
+	.mpo_cred_check_setresuid = test_cred_check_setresuid,
+	.mpo_cred_check_setreuid = test_cred_check_setreuid,
+	.mpo_cred_check_setuid = test_cred_check_setuid,
 	.mpo_cred_check_visible = test_cred_check_visible,
 	.mpo_cred_copy_label = test_cred_copy_label,
 	.mpo_cred_create_init = test_cred_create_init,
@@ -3010,18 +3063,6 @@ static struct mac_policy_ops test_ops =
 
 	.mpo_proc_check_debug = test_proc_check_debug,
 	.mpo_proc_check_sched = test_proc_check_sched,
-	.mpo_proc_check_setaudit = test_proc_check_setaudit,
-	.mpo_proc_check_setaudit_addr = test_proc_check_setaudit_addr,
-	.mpo_proc_check_setauid = test_proc_check_setauid,
-	.mpo_proc_check_seteuid = test_proc_check_seteuid,
-	.mpo_proc_check_setegid = test_proc_check_setegid,
-	.mpo_proc_check_setgid = test_proc_check_setgid,
-	.mpo_proc_check_setgroups = test_proc_check_setgroups,
-	.mpo_proc_check_setregid = test_proc_check_setregid,
-	.mpo_proc_check_setresgid = test_proc_check_setresgid,
-	.mpo_proc_check_setresuid = test_proc_check_setresuid,
-	.mpo_proc_check_setreuid = test_proc_check_setreuid,
-	.mpo_proc_check_setuid = test_proc_check_setuid,
 	.mpo_proc_check_signal = test_proc_check_signal,
 	.mpo_proc_check_wait = test_proc_check_wait,
 	.mpo_proc_destroy_label = test_proc_destroy_label,

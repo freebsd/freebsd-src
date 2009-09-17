@@ -28,6 +28,7 @@
  * This file contains fallback-compatibility code for the old FreeBSD
  * USB stack.
  */
+#ifdef HID_COMPAT7
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -75,3 +76,4 @@ hid_get_report_desc_compat7(int fd)
 
 	return (hid_use_report_desc(rep.ucrd_data, (unsigned int)rep.ucrd_size));
 }
+#endif	/* HID_COMPAT7 */

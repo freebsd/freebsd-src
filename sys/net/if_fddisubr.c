@@ -40,7 +40,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -98,7 +97,7 @@ static const u_char fddibroadcastaddr[FDDI_ADDR_LEN] =
 static int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
 static int fddi_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-		       struct rtentry *); 
+		       struct route *); 
 static void fddi_input(struct ifnet *ifp, struct mbuf *m);
 
 #define	senderr(e)	do { error = (e); goto bad; } while (0)
@@ -111,17 +110,19 @@ static void fddi_input(struct ifnet *ifp, struct mbuf *m);
  * Assumes that ifp is actually pointer to arpcom structure.
  */
 static int
-fddi_output(ifp, m, dst, rt0)
+fddi_output(ifp, m, dst, ro)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *dst;
-	struct rtentry *rt0;
+	struct route *ro;
 {
 	u_int16_t type;
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
  	u_char esrc[FDDI_ADDR_LEN], edst[FDDI_ADDR_LEN];
 	struct fddi_header *fh;
+#if defined(INET) || defined(INET6)
 	struct llentry *lle;
+#endif
 
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -139,6 +140,10 @@ fddi_output(ifp, m, dst, rt0)
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET: {
+		struct rtentry *rt0 = NULL;
+
+		if (ro != NULL)
+			rt0 = ro->ro_rt;
 		error = arpresolve(ifp, rt0, m, dst, edst, &lle);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
@@ -217,6 +222,7 @@ fddi_output(ifp, m, dst, rt0)
 	    } else {
 		type = htons(ETHERTYPE_AT);
 	    }
+	    ifa_free(&aa->aa_ifa);
 	    break;
 	}
 #endif /* NETATALK */
@@ -612,7 +618,7 @@ fddi_ifdetach(ifp, bpf)
 int
 fddi_ioctl (ifp, command, data)
 	struct ifnet *ifp;
-	int command;
+	u_long command;
 	caddr_t data;
 {
 	struct ifaddr *ifa;

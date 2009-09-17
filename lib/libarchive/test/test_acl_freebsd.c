@@ -72,6 +72,8 @@ set_acls(struct archive_entry *ae, struct myacl_t *acls)
 static int
 acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 {
+	gid_t g, *gp;
+	uid_t u, *up;
 	acl_tag_t tag_type;
 	acl_permset_t opaque_ps;
 	int permset = 0;
@@ -97,7 +99,10 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 	case ACL_USER:
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_USER)
 			return (0);
-		if ((uid_t)myacl->qual != *(uid_t *)acl_get_qualifier(aclent))
+		up = acl_get_qualifier(aclent);
+		u = *up;
+		acl_free(up);
+		if ((uid_t)myacl->qual != u)
 			return (0);
 		break;
 	case ACL_GROUP_OBJ:
@@ -106,7 +111,10 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 	case ACL_GROUP:
 		if (myacl->tag != ARCHIVE_ENTRY_ACL_GROUP)
 			return (0);
-		if ((gid_t)myacl->qual != *(gid_t *)acl_get_qualifier(aclent))
+		gp = acl_get_qualifier(aclent);
+		g = *gp;
+		acl_free(gp);
+		if ((gid_t)myacl->qual != g)
 			return (0);
 		break;
 	case ACL_MASK:
@@ -200,10 +208,13 @@ DEFINE_TEST(test_acl_freebsd)
 	/* Create a test file and try to set an ACL on it. */
 	fd = open("pretest", O_WRONLY | O_CREAT | O_EXCL, 0777);
 	failure("Could not create test file?!");
-	if (!assert(fd >= 0))
+	if (!assert(fd >= 0)) {
+		acl_free(acl);
 		return;
+	}
 
 	n = acl_set_fd(fd, acl);
+	acl_free(acl);
 	if (n != 0 && errno == EOPNOTSUPP) {
 		close(fd);
 		skipping("ACL tests require that ACL support be enabled on the filesystem");
@@ -239,5 +250,6 @@ DEFINE_TEST(test_acl_freebsd)
 	acl = acl_get_file("test0", ACL_TYPE_ACCESS);
 	assert(acl != (acl_t)NULL);
 	compare_acls(acl, acls2);
+	acl_free(acl);
 #endif
 }

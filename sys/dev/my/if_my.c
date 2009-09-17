@@ -337,7 +337,7 @@ my_setmulti(struct my_softc * sc)
 	CSR_WRITE_4(sc, MY_MAR1, 0);
 
 	/* now program new ones */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -349,7 +349,7 @@ my_setmulti(struct my_softc * sc)
 			hashes[1] |= (1 << (h - 32));
 		mcnt++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (mcnt)
 		rxfilt |= MY_AM;
@@ -1700,7 +1700,7 @@ my_watchdog(struct ifnet * ifp)
 	my_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		my_start_locked(ifp);
-	MY_LOCK(sc);
+	MY_UNLOCK(sc);
 	return;
 }
 

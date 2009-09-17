@@ -65,6 +65,8 @@ static int numDevs;
 	DEVICE_ENTRY(DEVICE_TYPE_NETWORK, name, descr, 0)
 #define	SERIAL(name, descr, max)					\
 	DEVICE_ENTRY(DEVICE_TYPE_NETWORK, name, descr, max)
+#define	USB(name, descr, max)						\
+	DEVICE_ENTRY(DEVICE_TYPE_USB, name, descr, max)
 
 static struct _devname {
     DeviceType type;
@@ -78,6 +80,7 @@ static struct _devname {
     CDROM("acd%d",	"ATAPI/IDE CDROM",			4),
     DISK("da%d",	"SCSI disk device",			16),
     DISK("ad%d",	"ATA/IDE disk device",			16),
+    DISK("ada%d",	"SATA disk device",			16),
     DISK("ar%d",	"ATA/IDE RAID device",			16),
     DISK("afd%d",	"ATAPI/IDE floppy device",		4),
     DISK("mlxd%d",	"Mylex RAID disk",			4),
@@ -89,8 +92,10 @@ static struct _devname {
     DISK("mfid%d",	"LSI MegaRAID SAS array",		4),
     FLOPPY("fd%d",	"floppy drive unit A",			4),
     SERIAL("cuad%d",	"%s on device %s (COM%d)",		16),
+    USB("da%da",	"USB Mass Storage Device",		16),
     NETWORK("ae",	"Attansic/Atheros L2 Fast Ethernet"),
     NETWORK("age",	"Attansic/Atheros L1 Gigabit Ethernet"),
+    NETWORK("alc",	"Atheros AR8131/AR8132 PCIe Ethernet"),
     NETWORK("ale",	"Atheros AR8121/AR8113/AR8114 PCIe Ethernet"),
     NETWORK("an",	"Aironet 4500/4800 802.11 wireless adapter"),
     NETWORK("ath",	"Atheros IEEE 802.11 wireless adapter"),
@@ -99,6 +104,8 @@ static struct _devname {
     NETWORK("bce",	"Broadcom NetXtreme II Gigabit Ethernet card"),
     NETWORK("bfe",	"Broadcom BCM440x PCI Ethernet card"),
     NETWORK("bge",	"Broadcom BCM570x PCI Gigabit Ethernet card"),
+    NETWORK("bm",	"Apple BMAC Built-in Ethernet"),
+    NETWORK("cas",	"Sun Cassini/Cassini+ or NS DP83065 Saturn Ethernet"),
     NETWORK("cue",	"CATC USB Ethernet adapter"),
     NETWORK("cxgb",	"Chelsio T3 10Gb Ethernet card"),
     NETWORK("fpa",	"DEC DEFPA PCI FDDI card"),
@@ -154,6 +161,7 @@ static struct _devname {
     NETWORK("txp",	"3Com 3cR990 Ethernet card"),
     NETWORK("ti",	"Alteon Networks PCI Gigabit Ethernet card"),
     NETWORK("tl",	"Texas Instruments ThunderLAN PCI Ethernet card"),
+    NETWORK("uath",	"Atheros AR5005UG and AR5005UX USB wireless adapter"),
     NETWORK("upgt",	"Conexant/Intersil PrismGT USB wireless adapter"),
     NETWORK("ural",	"Ralink Technology RT2500USB 802.11 wireless adapter"),
     NETWORK("urtw",	"Realtek 8187L USB wireless adapter"),
@@ -388,6 +396,22 @@ skipif:
 		}
 		break;
 
+	    case DEVICE_TYPE_USB:
+		fd = deviceTry(device_names[i], try, j);
+		if (fd >= 0) {
+			char n[BUFSIZ];
+
+			close(fd);
+			snprintf(n, sizeof(n), device_names[i].name, j);
+			deviceRegister(strdup(n), device_names[i].description,
+			    strdup(try), DEVICE_TYPE_USB, TRUE, mediaInitUSB,
+			    mediaGetUSB, mediaShutdownUSB, NULL);
+
+			if (isDebug())
+				msgDebug("Found a USB disk for %s\n", try);
+		}
+		break;
+
 	    case DEVICE_TYPE_NETWORK:
 		fd = deviceTry(device_names[i], try, j);
 		/* The only network devices that you can open this way are serial ones */
@@ -417,7 +441,7 @@ skipif:
 	}
     }
 
-    /* Finally, go get the disks and look for DOS partitions to register */
+    /* Finally, go get the disks and look for partitions to register */
     if ((names = Disk_Names()) != NULL) {
 	int i;
 
@@ -454,7 +478,11 @@ skipif:
 	    if (isDebug())
 		msgDebug("Found a disk device named %s\n", names[i]);
 
-	    /* Look for existing DOS partitions to register as "DOS media devices" */
+	    /* Look for existing DOS partitions to register as "DOS media devices"
+	     * XXX: libdisks handling of extended partitions is too
+	     * simplistic - it does not handle them containing (for
+	     * example) UFS partitions
+	     */
 	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == fat || c1->type == efi || c1->type == extended) {
 		    Device *dev;
@@ -466,8 +494,25 @@ skipif:
 					 mediaInitDOS, mediaGetDOS, mediaShutdownDOS, NULL);
 		    dev->private = c1;
 		    if (isDebug())
-			msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
+			msgDebug("Found a DOS partition %s\n", c1->name);
+		} else if (c1->type == freebsd) {
+		    Device *dev;
+		    char devname[80];
+		    Chunk *c2;
+			
+		    for (c2 = c1->part; c2; c2 = c2->next) {
+			if (c2->type != part || c2->subtype != 7)
+			    continue;
+			/* Got one! */
+			snprintf(devname, sizeof devname, "/dev/%s", c1->name);
+			dev = deviceRegister(c2->name, c2->name, strdup(devname), DEVICE_TYPE_UFS, TRUE,
+					     mediaInitUFS, mediaGetUFS, mediaShutdownUFS, NULL);
+			dev->private = c2;
+			if (isDebug())
+			    msgDebug("Found a UFS sub-partition %s\n", c2->name);
+		    }
 		}
+		
 	    }
 	}
 	free(names);

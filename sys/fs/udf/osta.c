@@ -280,7 +280,7 @@ main()
  * Define MAXLEN = 255
  *
  * Macintosh:
- * Define MAC.
+ * Define APPLE_MAC.
  * Define MAXLEN = 31.
  *
  * UNIX
@@ -484,7 +484,7 @@ int UnicodeInString(
  */
 int IsIllegal(unicode_t ch)
 {
-#ifdef MAC
+#ifdef APPLE_MAC
 	/* Only illegal character on the MAC is the colon. */
 	if (ch == 0x003A) {
 		return(1);

@@ -121,6 +121,7 @@ archive_write_set_format_shar(struct archive *_a)
 	a->format_data = shar;
 
 	a->pad_uncompressed = 0;
+	a->format_name = "shar";
 	a->format_write_header = archive_write_shar_header;
 	a->format_finish = archive_write_shar_finish;
 	a->format_destroy = archive_write_shar_destroy;

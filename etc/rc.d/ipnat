@@ -5,7 +5,6 @@
 
 # PROVIDE: ipnat
 # REQUIRE: ipfilter
-# BEFORE:  DAEMON netif
 # KEYWORD: nojail
 
 . /etc/rc.subr

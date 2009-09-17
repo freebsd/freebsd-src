@@ -35,7 +35,7 @@ static const char rcsid[] =
 #include <sys/mount.h>
 
 #include <rpc/rpc.h>
-#include <nfs/rpcv2.h>
+#include <rpcsvc/mount.h>
 
 #include <err.h>
 #include <netdb.h>
@@ -176,18 +176,18 @@ do_umntall(char *hostname) {
 
 	try.tv_sec = 3;
 	try.tv_usec = 0;
-	clp = clnt_create_timed(hostname, RPCPROG_MNT, RPCMNT_VER1, "udp",
+	clp = clnt_create_timed(hostname, MOUNTPROG, MOUNTVERS, "udp",
 	    &try);
 	if (clp == NULL) {
-		warnx("%s: %s", hostname, clnt_spcreateerror("RPCPROG_MNT"));
+		warnx("%s: %s", hostname, clnt_spcreateerror("MOUNTPROG"));
 		return (0);
 	}
 	clp->cl_auth = authunix_create_default();
-	clnt_stat = clnt_call(clp, RPCMNT_UMNTALL,
+	clnt_stat = clnt_call(clp, MOUNTPROC_UMNTALL,
 	    (xdrproc_t)xdr_void, (caddr_t)0,
 	    (xdrproc_t)xdr_void, (caddr_t)0, try);
 	if (clnt_stat != RPC_SUCCESS)
-		warnx("%s: %s", hostname, clnt_sperror(clp, "RPCMNT_UMNTALL"));
+		warnx("%s: %s", hostname, clnt_sperror(clp, "MOUNTPROC_UMNTALL"));
 	auth_destroy(clp->cl_auth);
 	clnt_destroy(clp);
 	return (clnt_stat == RPC_SUCCESS);
@@ -204,17 +204,17 @@ do_umount(char *hostname, char *dirp) {
 
 	try.tv_sec = 3;
 	try.tv_usec = 0;
-	clp = clnt_create_timed(hostname, RPCPROG_MNT, RPCMNT_VER1, "udp",
+	clp = clnt_create_timed(hostname, MOUNTPROG, MOUNTVERS, "udp",
 	    &try);
 	if (clp  == NULL) {
-		warnx("%s: %s", hostname, clnt_spcreateerror("RPCPROG_MNT"));
+		warnx("%s: %s", hostname, clnt_spcreateerror("MOUNTPROG"));
 		return (0);
 	}
 	clp->cl_auth = authsys_create_default();
-	clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, (xdrproc_t)xdr_dir, dirp,
+	clnt_stat = clnt_call(clp, MOUNTPROC_UMNT, (xdrproc_t)xdr_dir, dirp,
 	    (xdrproc_t)xdr_void, (caddr_t)0, try);
 	if (clnt_stat != RPC_SUCCESS)
-		warnx("%s: %s", hostname, clnt_sperror(clp, "RPCMNT_UMOUNT"));
+		warnx("%s: %s", hostname, clnt_sperror(clp, "MOUNTPROC_UMNT"));
 	auth_destroy(clp->cl_auth);
 	clnt_destroy(clp);
 	return (clnt_stat == RPC_SUCCESS);
@@ -255,7 +255,7 @@ is_mounted(char *hostname, char *dirp) {
  */
 int
 xdr_dir(XDR *xdrsp, char *dirp) {
-	return (xdr_string(xdrsp, &dirp, RPCMNT_PATHLEN));
+	return (xdr_string(xdrsp, &dirp, MNTPATHLEN));
 }
 
 static void

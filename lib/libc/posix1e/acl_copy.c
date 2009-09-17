@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <string.h>
 
+#include "acl_support.h"
+
 /*
  * acl_copy_entry() (23.4.4): copy the contents of ACL entry src_d to
  * ACL entry dest_d
@@ -48,9 +50,21 @@ acl_copy_entry(acl_entry_t dest_d, acl_entry_t src_d)
 		return (-1);
 	}
 
-	dest_d->ae_tag  = src_d->ae_tag;
-	dest_d->ae_id   = src_d->ae_id;
+	/*
+	 * Can we brand the new entry the same as the source entry?
+	 */
+	if (!_entry_brand_may_be(dest_d, _entry_brand(src_d))) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	_entry_brand_as(dest_d, _entry_brand(src_d));
+
+	dest_d->ae_tag = src_d->ae_tag;
+	dest_d->ae_id = src_d->ae_id;
 	dest_d->ae_perm = src_d->ae_perm;
+	dest_d->ae_entry_type = src_d->ae_entry_type;
+	dest_d->ae_flags = src_d->ae_flags;
 
 	return (0);
 }

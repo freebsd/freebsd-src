@@ -17,29 +17,42 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_cdc.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR umoscom_debug
-
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
 #if USB_DEBUG
 static int umoscom_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
-SYSCTL_INT(_hw_usb2_umoscom, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
+SYSCTL_INT(_hw_usb_umoscom, OID_AUTO, debug, CTLFLAG_RW,
     &umoscom_debug, 0, "Debug level");
 #endif
 
@@ -161,11 +174,12 @@ enum {
 };
 
 struct umoscom_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_xfer *sc_xfer[UMOSCOM_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UMOSCOM_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint8_t	sc_mcr;
 	uint8_t	sc_lcr;
@@ -177,72 +191,72 @@ static device_probe_t umoscom_probe;
 static device_attach_t umoscom_attach;
 static device_detach_t umoscom_detach;
 
-static usb2_callback_t umoscom_write_callback;
-static usb2_callback_t umoscom_read_callback;
-static usb2_callback_t umoscom_intr_callback;
+static usb_callback_t umoscom_write_callback;
+static usb_callback_t umoscom_read_callback;
+static usb_callback_t umoscom_intr_callback;
 
-static void	umoscom_cfg_open(struct usb2_com_softc *);
-static void	umoscom_cfg_close(struct usb2_com_softc *);
-static void	umoscom_cfg_set_break(struct usb2_com_softc *, uint8_t);
-static void	umoscom_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	umoscom_cfg_set_rts(struct usb2_com_softc *, uint8_t);
-static int	umoscom_pre_param(struct usb2_com_softc *, struct termios *);
-static void	umoscom_cfg_param(struct usb2_com_softc *, struct termios *);
-static void	umoscom_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static void	umoscom_cfg_open(struct ucom_softc *);
+static void	umoscom_cfg_close(struct ucom_softc *);
+static void	umoscom_cfg_set_break(struct ucom_softc *, uint8_t);
+static void	umoscom_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	umoscom_cfg_set_rts(struct ucom_softc *, uint8_t);
+static int	umoscom_pre_param(struct ucom_softc *, struct termios *);
+static void	umoscom_cfg_param(struct ucom_softc *, struct termios *);
+static void	umoscom_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
 static void	umoscom_cfg_write(struct umoscom_softc *, uint16_t, uint16_t);
 static uint8_t	umoscom_cfg_read(struct umoscom_softc *, uint16_t);
-static void	umoscom_start_read(struct usb2_com_softc *);
-static void	umoscom_stop_read(struct usb2_com_softc *);
-static void	umoscom_start_write(struct usb2_com_softc *);
-static void	umoscom_stop_write(struct usb2_com_softc *);
+static void	umoscom_start_read(struct ucom_softc *);
+static void	umoscom_stop_read(struct ucom_softc *);
+static void	umoscom_start_write(struct ucom_softc *);
+static void	umoscom_stop_write(struct ucom_softc *);
 
-static const struct usb2_config umoscom_config_data[UMOSCOM_N_TRANSFER] = {
+static const struct usb_config umoscom_config_data[UMOSCOM_N_TRANSFER] = {
 
 	[UMOSCOM_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UMOSCOM_BUFSIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &umoscom_write_callback,
+		.bufsize = UMOSCOM_BUFSIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &umoscom_write_callback,
 	},
 
 	[UMOSCOM_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UMOSCOM_BUFSIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &umoscom_read_callback,
+		.bufsize = UMOSCOM_BUFSIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &umoscom_read_callback,
 	},
 
 	[UMOSCOM_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &umoscom_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &umoscom_intr_callback,
 	},
 };
 
-static const struct usb2_com_callback umoscom_callback = {
+static const struct ucom_callback umoscom_callback = {
 	/* configuration callbacks */
-	.usb2_com_cfg_get_status = &umoscom_cfg_get_status,
-	.usb2_com_cfg_set_dtr = &umoscom_cfg_set_dtr,
-	.usb2_com_cfg_set_rts = &umoscom_cfg_set_rts,
-	.usb2_com_cfg_set_break = &umoscom_cfg_set_break,
-	.usb2_com_cfg_param = &umoscom_cfg_param,
-	.usb2_com_cfg_open = &umoscom_cfg_open,
-	.usb2_com_cfg_close = &umoscom_cfg_close,
+	.ucom_cfg_get_status = &umoscom_cfg_get_status,
+	.ucom_cfg_set_dtr = &umoscom_cfg_set_dtr,
+	.ucom_cfg_set_rts = &umoscom_cfg_set_rts,
+	.ucom_cfg_set_break = &umoscom_cfg_set_break,
+	.ucom_cfg_param = &umoscom_cfg_param,
+	.ucom_cfg_open = &umoscom_cfg_open,
+	.ucom_cfg_close = &umoscom_cfg_close,
 
 	/* other callbacks */
-	.usb2_com_pre_param = &umoscom_pre_param,
-	.usb2_com_start_read = &umoscom_start_read,
-	.usb2_com_stop_read = &umoscom_stop_read,
-	.usb2_com_start_write = &umoscom_start_write,
-	.usb2_com_stop_write = &umoscom_stop_write,
+	.ucom_pre_param = &umoscom_pre_param,
+	.ucom_start_read = &umoscom_start_read,
+	.ucom_stop_read = &umoscom_stop_read,
+	.ucom_start_write = &umoscom_start_write,
+	.ucom_stop_write = &umoscom_stop_write,
 };
 
 static device_method_t umoscom_methods[] = {
@@ -260,20 +274,20 @@ static driver_t umoscom_driver = {
 	.size = sizeof(struct umoscom_softc),
 };
 
-DRIVER_MODULE(umoscom, ushub, umoscom_driver, umoscom_devclass, NULL, 0);
+DRIVER_MODULE(umoscom, uhub, umoscom_driver, umoscom_devclass, NULL, 0);
 MODULE_DEPEND(umoscom, ucom, 1, 1, 1);
 MODULE_DEPEND(umoscom, usb, 1, 1, 1);
 
-static const struct usb2_device_id umoscom_devs[] = {
+static const struct usb_device_id umoscom_devs[] = {
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7703, 0)}
 };
 
 static int
 umoscom_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UMOSCOM_CONFIG_INDEX) {
@@ -282,13 +296,13 @@ umoscom_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != UMOSCOM_IFACE_INDEX) {
 		return (ENXIO);
 	}
-	return (usb2_lookup_id_by_uaa(umoscom_devs, sizeof(umoscom_devs), uaa));
+	return (usbd_lookup_id_by_uaa(umoscom_devs, sizeof(umoscom_devs), uaa));
 }
 
 static int
 umoscom_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umoscom_softc *sc = device_get_softc(dev);
 	int error;
 	uint8_t iface_index;
@@ -300,27 +314,31 @@ umoscom_attach(device_t dev)
 	device_set_desc(dev, "MOSCHIP USB Serial Port Adapter");
 	device_printf(dev, "<MOSCHIP USB Serial Port Adapter>\n");
 
+	mtx_init(&sc->sc_mtx, "umoscom", NULL, MTX_DEF);
+
 	iface_index = UMOSCOM_IFACE_INDEX;
-	error = usb2_transfer_setup(uaa->device, &iface_index,
+	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, umoscom_config_data,
-	    UMOSCOM_N_TRANSFER, sc, &Giant);
+	    UMOSCOM_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
 		goto detach;
 	}
 	/* clear stall at first run */
-	usb2_transfer_set_stall(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
-	usb2_transfer_set_stall(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
+	mtx_lock(&sc->sc_mtx);
+	usbd_xfer_set_stall(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
+	usbd_xfer_set_stall(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &umoscom_callback, &Giant);
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	    &umoscom_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
 	return (0);
 
 detach:
-	device_printf(dev, "attach error: %s\n", usb2_errstr(error));
+	device_printf(dev, "attach error: %s\n", usbd_errstr(error));
 	umoscom_detach(dev);
 	return (ENXIO);
 }
@@ -330,19 +348,15 @@ umoscom_detach(device_t dev)
 {
 	struct umoscom_softc *sc = device_get_softc(dev);
 
-	mtx_lock(&Giant);
-
-	mtx_unlock(&Giant);
-
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
-	usb2_transfer_unsetup(sc->sc_xfer, UMOSCOM_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UMOSCOM_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
 
 static void
-umoscom_cfg_open(struct usb2_com_softc *ucom)
+umoscom_cfg_open(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
@@ -368,13 +382,13 @@ umoscom_cfg_open(struct usb2_com_softc *ucom)
 }
 
 static void
-umoscom_cfg_close(struct usb2_com_softc *ucom)
+umoscom_cfg_close(struct ucom_softc *ucom)
 {
 	return;
 }
 
 static void
-umoscom_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+umoscom_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 	uint16_t val;
@@ -387,7 +401,7 @@ umoscom_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umoscom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+umoscom_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
@@ -400,7 +414,7 @@ umoscom_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umoscom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+umoscom_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
@@ -413,7 +427,7 @@ umoscom_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static int
-umoscom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+umoscom_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	if ((t->c_ospeed <= 1) || (t->c_ospeed > 115200))
 		return (EINVAL);
@@ -422,7 +436,7 @@ umoscom_pre_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-umoscom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+umoscom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 	uint16_t data;
@@ -477,7 +491,7 @@ umoscom_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-umoscom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *p_lsr, uint8_t *p_msr)
+umoscom_cfg_get_status(struct ucom_softc *ucom, uint8_t *p_lsr, uint8_t *p_msr)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 	uint8_t lsr;
@@ -508,7 +522,7 @@ umoscom_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *p_lsr, uint8_t *p_m
 static void
 umoscom_cfg_write(struct umoscom_softc *sc, uint16_t reg, uint16_t val)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = UMOSCOM_WRITE;
@@ -516,14 +530,14 @@ umoscom_cfg_write(struct umoscom_softc *sc, uint16_t reg, uint16_t val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 0);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom,
 	    &req, NULL, 0, 1000);
 }
 
 static uint8_t
 umoscom_cfg_read(struct umoscom_softc *sc, uint16_t reg)
 {
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint8_t val;
 
 	req.bmRequestType = UT_READ_VENDOR_DEVICE;
@@ -532,7 +546,7 @@ umoscom_cfg_read(struct umoscom_softc *sc, uint16_t reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, &val, 0, 1000);
 
 	DPRINTF("reg=0x%04x, val=0x%02x\n", reg, val);
@@ -541,50 +555,51 @@ umoscom_cfg_read(struct umoscom_softc *sc, uint16_t reg)
 }
 
 static void
-umoscom_start_read(struct usb2_com_softc *ucom)
+umoscom_start_read(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
 #if 0
 	/* start interrupt endpoint */
-	usb2_transfer_start(sc->sc_xfer[UMOSCOM_INTR_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UMOSCOM_INTR_DT_RD]);
 #endif
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
 }
 
 static void
-umoscom_stop_read(struct usb2_com_softc *ucom)
+umoscom_stop_read(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
 	/* stop interrupt transfer */
-	usb2_transfer_stop(sc->sc_xfer[UMOSCOM_INTR_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UMOSCOM_INTR_DT_RD]);
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UMOSCOM_BULK_DT_RD]);
 }
 
 static void
-umoscom_start_write(struct usb2_com_softc *ucom)
+umoscom_start_write(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
 }
 
 static void
-umoscom_stop_write(struct usb2_com_softc *ucom)
+umoscom_stop_write(struct ucom_softc *ucom)
 {
 	struct umoscom_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UMOSCOM_BULK_DT_WR]);
 }
 
 static void
-umoscom_write_callback(struct usb2_xfer *xfer)
+umoscom_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umoscom_softc *sc = xfer->priv_sc;
+	struct umoscom_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -593,19 +608,20 @@ umoscom_write_callback(struct usb2_xfer *xfer)
 tr_setup:
 		DPRINTF("\n");
 
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (ucom_get_data(&sc->sc_ucom, pc, 0,
 		    UMOSCOM_BUFSIZE, &actlen)) {
 
-			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			DPRINTFN(0, "transfer failed\n");
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -613,28 +629,33 @@ tr_setup:
 }
 
 static void
-umoscom_read_callback(struct usb2_xfer *xfer)
+umoscom_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umoscom_softc *sc = xfer->priv_sc;
+	struct umoscom_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		DPRINTF("got %d bytes\n", xfer->actlen);
-		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 0, xfer->actlen);
+		DPRINTF("got %d bytes\n", actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		ucom_put_data(&sc->sc_ucom, pc, 0, actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
 		DPRINTF("\n");
 
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			DPRINTFN(0, "transfer failed\n");
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -642,29 +663,32 @@ tr_setup:
 }
 
 static void
-umoscom_intr_callback(struct usb2_xfer *xfer)
+umoscom_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umoscom_softc *sc = xfer->priv_sc;
+	struct umoscom_softc *sc = usbd_xfer_softc(xfer);
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		if (xfer->actlen < 2) {
+		if (actlen < 2) {
 			DPRINTF("too short message\n");
 			goto tr_setup;
 		}
-		usb2_com_status_change(&sc->sc_ucom);
+		ucom_status_change(&sc->sc_ucom);
 
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			DPRINTFN(0, "transfer failed\n");
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;

@@ -66,7 +66,7 @@ static const char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/6/93";
  * the end.
  */
 int
-bytes(FILE *fp, off_t off)
+bytes(FILE *fp, const char *fn, off_t off)
 {
 	int ch, len, tlen;
 	char *ep, *p, *t;
@@ -84,7 +84,7 @@ bytes(FILE *fp, off_t off)
 		}
 	}
 	if (ferror(fp)) {
-		ierr();
+		ierr(fn);
 		free(sp);
 		return 1;
 	}
@@ -136,7 +136,7 @@ bytes(FILE *fp, off_t off)
  * the end.
  */
 int
-lines(FILE *fp, off_t off)
+lines(FILE *fp, const char *fn, off_t off)
 {
 	struct {
 		int blen;
@@ -178,7 +178,7 @@ lines(FILE *fp, off_t off)
 		}
 	}
 	if (ferror(fp)) {
-		ierr();
+		ierr(fn);
 		rc = 1;
 		goto done;
 	}

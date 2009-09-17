@@ -28,8 +28,7 @@
 #
 
 # PROVIDE: hostid
-# REQUIRE: root
-# BEFORE: mountcritlocal
+# BEFORE: fsck
 # KEYWORD: nojail
 
 . /etc/rc.subr
@@ -68,7 +67,7 @@ hostid_hardware()
 	esac
 }
 
-hostid_reset()
+hostid_generate()
 {
 	# First look for UUID in hardware.
 	uuid=`hostid_hardware`
@@ -76,12 +75,17 @@ hostid_reset()
 		# If not found, fall back to software-generated UUID.
 		uuid=`uuidgen`
 	fi
+	hostid_set $uuid
+}
+
+hostid_reset()
+{
+	hostid_generate
 	# Store newly generated UUID in ${hostid_file}.
 	echo $uuid > ${hostid_file}
 	if [ $? -ne 0 ]; then
 		warn "could not store hostuuid in ${hostid_file}."
 	fi
-	hostid_set $uuid
 }
 
 hostid_start()
@@ -91,7 +95,7 @@ hostid_start()
 		hostid_set `cat ${hostid_file}`
 	else
 		# No hostid file, generate UUID.
-		hostid_reset
+		hostid_generate
 	fi
 }
 

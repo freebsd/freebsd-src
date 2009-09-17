@@ -42,3 +42,4 @@ ENTRY(logb)
 	fxtract
 	fstp	%st
 	ret
+END(logb)

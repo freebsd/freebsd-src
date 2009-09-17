@@ -41,7 +41,8 @@
 #define EVFILT_NETDEV		(-8)	/* network devices */
 #define EVFILT_FS		(-9)	/* filesystem events */
 #define EVFILT_LIO		(-10)	/* attached to lio requests */
-#define EVFILT_SYSCOUNT		10
+#define EVFILT_USER		(-11)	/* User events */
+#define EVFILT_SYSCOUNT		11
 
 #define EV_SET(kevp_, a, b, c, d, e, f) do {	\
 	struct kevent *kevp = (kevp_);		\
@@ -71,6 +72,8 @@ struct kevent {
 /* flags */
 #define EV_ONESHOT	0x0010		/* only report one occurrence */
 #define EV_CLEAR	0x0020		/* clear event state after reporting */
+#define EV_RECEIPT	0x0040		/* force EV_ERROR on success, data=0 */
+#define EV_DISPATCH	0x0080		/* disable event after reporting */
 
 #define EV_SYSFLAGS	0xF000		/* reserved by system */
 #define EV_FLAG1	0x2000		/* filter-specific flag */
@@ -78,6 +81,25 @@ struct kevent {
 /* returned values */
 #define EV_EOF		0x8000		/* EOF detected */
 #define EV_ERROR	0x4000		/* error, data contains errno */
+
+ /*
+  * data/hint flags/masks for EVFILT_USER, shared with userspace
+  *
+  * On input, the top two bits of fflags specifies how the lower twenty four
+  * bits should be applied to the stored value of fflags.
+  *
+  * On output, the top two bits will always be set to NOTE_FFNOP and the
+  * remaining twenty four bits will contain the stored fflags value.
+  */
+#define NOTE_FFNOP	0x00000000		/* ignore input fflags */
+#define NOTE_FFAND	0x40000000		/* AND fflags */
+#define NOTE_FFOR	0x80000000		/* OR fflags */
+#define NOTE_FFCOPY	0xc0000000		/* copy fflags */
+#define NOTE_FFCTRLMASK	0xc0000000		/* masks for operations */
+#define NOTE_FFLAGSMASK	0x00ffffff
+
+#define NOTE_TRIGGER	0x01000000		/* Cause the event to be
+						   triggered for output. */
 
 /*
  * data/hint flags for EVFILT_{READ|WRITE}, shared with userspace
@@ -124,7 +146,8 @@ struct knlist {
 	struct	klist	kl_list;
 	void    (*kl_lock)(void *);	/* lock function */
 	void    (*kl_unlock)(void *);
-	int    (*kl_locked)(void *);
+	void	(*kl_assert_locked)(void *);
+	void	(*kl_assert_unlocked)(void *);
 	void *kl_lockarg;		/* argument passed to kl_lockf() */
 };
 
@@ -135,8 +158,14 @@ struct knlist {
 MALLOC_DECLARE(M_KQUEUE);
 #endif
 
-#define KNOTE(list, hist, lock)		knote(list, hist, lock)
-#define KNOTE_LOCKED(list, hint)	knote(list, hint, 1)
+/*
+ * Flags for knote call
+ */
+#define	KNF_LISTLOCKED	0x0001			/* knlist is locked */
+#define	KNF_NOKQLOCK	0x0002			/* do not keep KQ_LOCK */
+
+#define KNOTE(list, hist, flags)	knote(list, hist, flags)
+#define KNOTE_LOCKED(list, hint)	knote(list, hint, KNF_LISTLOCKED)
 #define KNOTE_UNLOCKED(list, hint)	knote(list, hint, 0)
 
 #define	KNLIST_EMPTY(list)		SLIST_EMPTY(&(list)->kl_list)
@@ -147,11 +176,22 @@ MALLOC_DECLARE(M_KQUEUE);
  */
 #define NOTE_SIGNAL	0x08000000
 
+/*
+ * Hint values for the optional f_touch event filter.  If f_touch is not set 
+ * to NULL and f_isfd is zero the f_touch filter will be called with the type
+ * argument set to EVENT_REGISTER during a kevent() system call.  It is also
+ * called under the same conditions with the type argument set to EVENT_PROCESS
+ * when the event has been triggered.
+ */
+#define EVENT_REGISTER	1
+#define EVENT_PROCESS	2
+
 struct filterops {
 	int	f_isfd;		/* true if ident == filedescriptor */
 	int	(*f_attach)(struct knote *kn);
 	void	(*f_detach)(struct knote *kn);
 	int	(*f_event)(struct knote *kn, long hint);
+	void	(*f_touch)(struct knote *kn, struct kevent *kev, long type);
 };
 
 /*
@@ -186,6 +226,7 @@ struct knote {
 	} kn_ptr;
 	struct			filterops *kn_fop;
 	void			*kn_hook;
+	int			kn_hookid;
 
 #define kn_id		kn_kevent.ident
 #define kn_filter	kn_kevent.filter
@@ -203,8 +244,9 @@ struct kevent_copyops {
 struct thread;
 struct proc;
 struct knlist;
+struct mtx;
 
-extern void	knote(struct knlist *list, long hint, int islocked);
+extern void	knote(struct knlist *list, long hint, int lockflags);
 extern void	knote_fork(struct knlist *list, int pid);
 extern void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);
 extern void	knlist_remove(struct knlist *knl, struct knote *kn, int islocked);
@@ -212,7 +254,8 @@ extern void	knlist_remove_inevent(struct knlist *knl, struct knote *kn);
 extern int	knlist_empty(struct knlist *knl);
 extern void	knlist_init(struct knlist *knl, void *lock,
     void (*kl_lock)(void *), void (*kl_unlock)(void *),
-    int (*kl_locked)(void *));
+    void (*kl_assert_locked)(void *), void (*kl_assert_unlocked)(void *));
+extern void	knlist_init_mtx(struct knlist *knl, struct mtx *lock);
 extern void	knlist_destroy(struct knlist *knl);
 extern void	knlist_cleardel(struct knlist *knl, struct thread *td,
 	int islocked, int killkn);

@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_MESH
+#include <net80211/ieee80211_mesh.h>
+#endif
 
 #include <net/bpf.h>
 
@@ -55,17 +58,21 @@ __FBSDID("$FreeBSD$");
 #endif
 
 int
-ieee80211_input_all(struct ieee80211com *ic,
-	struct mbuf *m, int rssi, int noise, u_int32_t rstamp)
+ieee80211_input_all(struct ieee80211com *ic, struct mbuf *m, int rssi, int nf)
 {
 	struct ieee80211vap *vap;
 	int type = -1;
+
+	m->m_flags |= M_BCAST;		/* NB: mark for bpf tap'ing */
 
 	/* XXX locking */
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		struct ieee80211_node *ni;
 		struct mbuf *mcopy;
 
+		/* NB: could check for IFF_UP but this is cheaper */
+		if (vap->iv_state == IEEE80211_S_INIT)
+			continue;
 		/*
 		 * WDS vap's only receive directed traffic from the
 		 * station at the ``far end''.  That traffic should
@@ -89,7 +96,7 @@ ieee80211_input_all(struct ieee80211com *ic,
 			m = NULL;
 		}
 		ni = ieee80211_ref_node(vap->iv_bss);
-		type = ieee80211_input(ni, mcopy, rssi, noise, rstamp);
+		type = ieee80211_input(ni, mcopy, rssi, nf);
 		ieee80211_free_node(ni);
 	}
 	if (m != NULL)			/* no vaps, reclaim mbuf */
@@ -98,7 +105,7 @@ ieee80211_input_all(struct ieee80211com *ic,
 }
 
 /*
- * This function reassemble fragments.
+ * This function reassembles fragments.
  *
  * XXX should handle 3 concurrent reassemblies per-spec.
  */
@@ -197,6 +204,9 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 	struct ether_header *eh = mtod(m, struct ether_header *);
 	struct ifnet *ifp = vap->iv_ifp;
 
+	/* clear driver/net80211 flags before passing up */
+	m->m_flags &= ~(M_80211_RX | M_MCAST | M_BCAST);
+
 	/* NB: see hostap_deliver_data, this path doesn't handle hostap */
 	KASSERT(vap->iv_opmode != IEEE80211_M_HOSTAP, ("gack, hostap"));
 	/*
@@ -212,9 +222,6 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 		IEEE80211_NODE_STAT(ni, rx_ucast);
 	m->m_pkthdr.rcvif = ifp;
 
-	/* clear driver/net80211 flags before passing up */
-	m->m_flags &= ~M_80211_RX;
-
 	if (ni->ni_vlan != 0) {
 		/* attach vlan tag */
 		m->m_pkthdr.ether_vtag = ni->ni_vlan;
@@ -226,13 +233,17 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 struct mbuf *
 ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 {
-	struct ieee80211_qosframe_addr4 wh;	/* Max size address frames */
+	struct ieee80211_qosframe_addr4 wh;
 	struct ether_header *eh;
 	struct llc *llc;
 
+	KASSERT(hdrlen <= sizeof(wh),
+	    ("hdrlen %d > max %zd", hdrlen, sizeof(wh)));
+
 	if (m->m_len < hdrlen + sizeof(*llc) &&
 	    (m = m_pullup(m, hdrlen + sizeof(*llc))) == NULL) {
-		/* XXX stat, msg */
+		vap->iv_stats.is_rx_tooshort++;
+		/* XXX msg */
 		return NULL;
 	}
 	memcpy(&wh, mtod(m, caddr_t), hdrlen);
@@ -269,53 +280,9 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 	}
 #ifdef ALIGNED_POINTER
 	if (!ALIGNED_POINTER(mtod(m, caddr_t) + sizeof(*eh), uint32_t)) {
-		struct mbuf *n, *n0, **np;
-		caddr_t newdata;
-		int off, pktlen;
-
-		n0 = NULL;
-		np = &n0;
-		off = 0;
-		pktlen = m->m_pkthdr.len;
-		while (pktlen > off) {
-			if (n0 == NULL) {
-				MGETHDR(n, M_DONTWAIT, MT_DATA);
-				if (n == NULL) {
-					m_freem(m);
-					return NULL;
-				}
-				M_MOVE_PKTHDR(n, m);
-				n->m_len = MHLEN;
-			} else {
-				MGET(n, M_DONTWAIT, MT_DATA);
-				if (n == NULL) {
-					m_freem(m);
-					m_freem(n0);
-					return NULL;
-				}
-				n->m_len = MLEN;
-			}
-			if (pktlen - off >= MINCLSIZE) {
-				MCLGET(n, M_DONTWAIT);
-				if (n->m_flags & M_EXT)
-					n->m_len = n->m_ext.ext_size;
-			}
-			if (n0 == NULL) {
-				newdata =
-				    (caddr_t)ALIGN(n->m_data + sizeof(*eh)) -
-				    sizeof(*eh);
-				n->m_len -= newdata - n->m_data;
-				n->m_data = newdata;
-			}
-			if (n->m_len > pktlen - off)
-				n->m_len = pktlen - off;
-			m_copydata(m, off, n->m_len, mtod(n, caddr_t));
-			off += n->m_len;
-			*np = n;
-			np = &n->m_next;
-		}
-		m_freem(m);
-		m = n0;
+		m = ieee80211_realign(vap, m, sizeof(*eh));
+		if (m == NULL)
+			return NULL;
 	}
 #endif /* ALIGNED_POINTER */
 	if (llc != NULL) {
@@ -355,73 +322,6 @@ ieee80211_decap1(struct mbuf *m, int *framelen)
 	m_adj(m, sizeof(struct llc));
 	return m;
 #undef FF_LLC_SIZE
-}
-
-/*
- * Decap the encapsulated frame pair and dispatch the first
- * for delivery.  The second frame is returned for delivery
- * via the normal path.
- */
-struct mbuf *
-ieee80211_decap_fastframe(struct ieee80211_node *ni, struct mbuf *m)
-{
-#define	MS(x,f)	(((x) & f) >> f##_S)
-	struct ieee80211vap *vap = ni->ni_vap;
-	uint32_t ath;
-	struct mbuf *n;
-	int framelen;
-
-	m_copydata(m, 0, sizeof(uint32_t), (caddr_t) &ath);
-	if (MS(ath, ATH_FF_PROTO) != ATH_FF_PROTO_L2TUNNEL) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, "fast-frame",
-		    "unsupport tunnel protocol, header 0x%x", ath);
-		vap->iv_stats.is_ff_badhdr++;
-		m_freem(m);
-		return NULL;
-	}
-	/* NB: skip header and alignment padding */
-	m_adj(m, roundup(sizeof(uint32_t) - 2, 4) + 2);
-
-	vap->iv_stats.is_ff_decap++;
-
-	/*
-	 * Decap the first frame, bust it apart from the
-	 * second and deliver; then decap the second frame
-	 * and return it to the caller for normal delivery.
-	 */
-	m = ieee80211_decap1(m, &framelen);
-	if (m == NULL) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, "fast-frame", "%s", "first decap failed");
-		vap->iv_stats.is_ff_tooshort++;
-		return NULL;
-	}
-	n = m_split(m, framelen, M_NOWAIT);
-	if (n == NULL) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, "fast-frame",
-		    "%s", "unable to split encapsulated frames");
-		vap->iv_stats.is_ff_split++;
-		m_freem(m);			/* NB: must reclaim */
-		return NULL;
-	}
-	/* XXX not right for WDS */
-	vap->iv_deliver_data(vap, ni, m);	/* 1st of pair */
-
-	/*
-	 * Decap second frame.
-	 */
-	m_adj(n, roundup2(framelen, 4) - framelen);	/* padding */
-	n = ieee80211_decap1(n, &framelen);
-	if (n == NULL) {
-		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, "fast-frame", "%s", "second decap failed");
-		vap->iv_stats.is_ff_tooshort++;
-	}
-	/* XXX verify framelen against mbuf contents */
-	return n;				/* 2nd delivered by caller */
-#undef MS
 }
 
 /*
@@ -510,16 +410,6 @@ ieee80211_alloc_challenge(struct ieee80211_node *ni)
 	return (ni->ni_challenge != NULL);
 }
 
-void
-ieee80211_parse_ath(struct ieee80211_node *ni, uint8_t *ie)
-{
-	const struct ieee80211_ath_ie *ath =
-		(const struct ieee80211_ath_ie *) ie;
-
-	ni->ni_ath_flags = ath->ath_capability;
-	ni->ni_ath_defkeyix = LE_READ_2(&ath->ath_defkeyix);
-}
-
 /*
  * Parse a Beacon or ProbeResponse frame and return the
  * useful information in an ieee80211_scanparams structure.
@@ -548,6 +438,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	 *	[tlv] ssid
 	 *	[tlv] supported rates
 	 *	[tlv] country information
+	 *	[tlv] channel switch announcement (CSA)
 	 *	[tlv] parameter set (FH/DS)
 	 *	[tlv] erp information
 	 *	[tlv] extended supported rates
@@ -556,6 +447,8 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	 *	[tlv] HT capabilities
 	 *	[tlv] HT information
 	 *	[tlv] Atheros capabilities
+	 *	[tlv] Mesh ID
+	 *	[tlv] Mesh Configuration
 	 */
 	IEEE80211_VERIFY_LENGTH(efrm - frm, 12,
 	    return (scan->status = IEEE80211_BPARSE_BADIELEN));
@@ -580,6 +473,9 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			break;
 		case IEEE80211_ELEMID_COUNTRY:
 			scan->country = frm;
+			break;
+		case IEEE80211_ELEMID_CSA:
+			scan->csa = frm;
 			break;
 		case IEEE80211_ELEMID_FHPARMS:
 			if (ic->ic_phytype == IEEE80211_T_FH) {
@@ -628,18 +524,28 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		case IEEE80211_ELEMID_HTINFO:
 			scan->htinfo = frm;
 			break;
+#ifdef IEEE80211_SUPPORT_MESH
+		case IEEE80211_ELEMID_MESHID:
+			scan->meshid = frm;
+			break;
+		case IEEE80211_ELEMID_MESHCONF:
+			scan->meshconf = frm;
+			break;
+#endif
 		case IEEE80211_ELEMID_VENDOR:
 			if (iswpaoui(frm))
 				scan->wpa = frm;
 			else if (iswmeparam(frm) || iswmeinfo(frm))
 				scan->wme = frm;
+#ifdef IEEE80211_SUPPORT_SUPERG
 			else if (isatherosoui(frm))
 				scan->ath = frm;
+#endif
 #ifdef IEEE80211_SUPPORT_TDMA
 			else if (istdmaoui(frm))
 				scan->tdma = frm;
 #endif
-			else if (vap->iv_flags_ext & IEEE80211_FEXT_HTCOMPAT) {
+			else if (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) {
 				/*
 				 * Accept pre-draft HT ie's if the
 				 * standard ones have not been seen.
@@ -712,6 +618,14 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		 */
 		IEEE80211_VERIFY_LENGTH(scan->country[1], 3 * sizeof(uint8_t),
 		    scan->country = NULL);
+	}
+	if (scan->csa != NULL) {
+		/*
+		 * Validate Channel Switch Announcement; this must
+		 * be the correct length or we toss the frame.
+		 */
+		IEEE80211_VERIFY_LENGTH(scan->csa[1], 3 * sizeof(uint8_t),
+		    scan->status |= IEEE80211_BPARSE_CSA_INVALID);
 	}
 	/*
 	 * Process HT ie's.  This is complicated by our

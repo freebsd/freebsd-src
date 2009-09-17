@@ -236,7 +236,7 @@ static int dc_newbuf(struct dc_softc *, int, int);
 static int dc_encap(struct dc_softc *, struct mbuf **);
 static void dc_pnic_rx_bug_war(struct dc_softc *, int);
 static int dc_rx_resync(struct dc_softc *);
-static void dc_rxeof(struct dc_softc *);
+static int dc_rxeof(struct dc_softc *);
 static void dc_txeof(struct dc_softc *);
 static void dc_tick(void *);
 static void dc_tx_underrun(struct dc_softc *);
@@ -331,7 +331,6 @@ static driver_t dc_driver = {
 
 static devclass_t dc_devclass;
 
-DRIVER_MODULE(dc, cardbus, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(dc, pci, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
 
@@ -1111,7 +1110,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1119,7 +1118,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (ifp->if_flags & IFF_BROADCAST) {
 		h = dc_mchash_le(sc, ifp->if_broadcastaddr);
@@ -1186,7 +1185,7 @@ dc_setfilt_admtek(struct dc_softc *sc)
 		return;
 
 	/* Now program new ones. */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1201,7 +1200,7 @@ dc_setfilt_admtek(struct dc_softc *sc)
 		else
 			hashes[1] |= (1 << (h - 32));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	CSR_WRITE_4(sc, DC_AL_MAR0, hashes[0]);
 	CSR_WRITE_4(sc, DC_AL_MAR1, hashes[1]);
@@ -1259,7 +1258,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 		return;
 
 	/* now program new ones */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1269,7 +1268,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 		else
 			hashes[1] |= (1 << (h - 32));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	CSR_WRITE_4(sc, DC_AX_FILTIDX, DC_AX_FILTIDX_MAR0);
 	CSR_WRITE_4(sc, DC_AX_FILTDATA, hashes[0]);
@@ -1314,7 +1313,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	else
 		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_RX_ALLMULTI);
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1322,7 +1321,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		sp[h >> 4] |= htole32(1 << (h & 0xF));
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if (ifp->if_flags & IFF_BROADCAST) {
 		h = dc_mchash_le(sc, ifp->if_broadcastaddr);
@@ -2641,19 +2640,21 @@ dc_rx_resync(struct dc_softc *sc)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void
+static int
 dc_rxeof(struct dc_softc *sc)
 {
 	struct mbuf *m, *m0;
 	struct ifnet *ifp;
 	struct dc_desc *cur_rx;
-	int i, total_len = 0;
+	int i, total_len, rx_npkts;
 	u_int32_t rxstat;
 
 	DC_LOCK_ASSERT(sc);
 
 	ifp = sc->dc_ifp;
 	i = sc->dc_cdata.dc_rx_prod;
+	total_len = 0;
+	rx_npkts = 0;
 
 	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap, BUS_DMASYNC_POSTREAD);
 	while (!(le32toh(sc->dc_ldata->dc_rx_list[i].dc_status) &
@@ -2707,7 +2708,7 @@ dc_rxeof(struct dc_softc *sc)
 					continue;
 				} else {
 					dc_init_locked(sc);
-					return;
+					return (rx_npkts);
 				}
 			}
 		}
@@ -2746,9 +2747,11 @@ dc_rxeof(struct dc_softc *sc)
 		DC_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		DC_LOCK(sc);
+		rx_npkts++;
 	}
 
 	sc->dc_cdata.dc_rx_prod = i;
+	return (rx_npkts);
 }
 
 /*
@@ -2990,20 +2993,21 @@ dc_tx_underrun(struct dc_softc *sc)
 #ifdef DEVICE_POLLING
 static poll_handler_t dc_poll;
 
-static void
+static int
 dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct dc_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	DC_LOCK(sc);
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		DC_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	sc->rxcycles = count;
-	dc_rxeof(sc);
+	rx_npkts = dc_rxeof(sc);
 	dc_txeof(sc);
 	if (!IFQ_IS_EMPTY(&ifp->if_snd) &&
 	    !(ifp->if_drv_flags & IFF_DRV_OACTIVE))
@@ -3018,7 +3022,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			DC_ISR_BUS_ERR);
 		if (!status) {
 			DC_UNLOCK(sc);
-			return;
+			return (rx_npkts);
 		}
 		/* ack what we have */
 		CSR_WRITE_4(sc, DC_ISR, status);
@@ -3044,6 +3048,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		}
 	}
 	DC_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 

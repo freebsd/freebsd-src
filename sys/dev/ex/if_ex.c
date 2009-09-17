@@ -870,13 +870,13 @@ ex_setmulti(struct ex_softc *sc)
 	ifp = sc->ifp;
 
 	count = 0;
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
 		if (maddr->ifma_addr->sa_family != AF_LINK)
 			continue;
 		count++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	if ((ifp->if_flags & IFF_PROMISC) || (ifp->if_flags & IFF_ALLMULTI)
 			|| count > 63) {
@@ -904,7 +904,7 @@ ex_setmulti(struct ex_softc *sc)
 		CSR_WRITE_2(sc, IO_PORT_REG, 0);
 		CSR_WRITE_2(sc, IO_PORT_REG, (count + 1) * 6);
 
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(maddr, &ifp->if_multiaddrs, ifma_link) {
 			if (maddr->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -915,7 +915,7 @@ ex_setmulti(struct ex_softc *sc)
 			CSR_WRITE_2(sc, IO_PORT_REG, *addr++);
 			CSR_WRITE_2(sc, IO_PORT_REG, *addr++);
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 
 		/* Program our MAC address as well */
 		/* XXX: Is this necessary?  The Linux driver does this

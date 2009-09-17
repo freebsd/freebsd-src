@@ -33,26 +33,30 @@
 #define _SYS_RMLOCK_H_
 
 #include <sys/mutex.h>
-
 #include <sys/_lock.h>
 #include <sys/_rmlock.h>
 
 #ifdef _KERNEL
 
+/*
+ * Flags passed to rm_init(9).
+ */
+#define	RM_NOWITNESS	0x00000001
+#define	RM_RECURSE	0x00000002
 
-void	rm_init(struct rmlock *rm, const char *name, int opts);
+void	rm_init(struct rmlock *rm, const char *name);
+void	rm_init_flags(struct rmlock *rm, const char *name, int opts);
 void	rm_destroy(struct rmlock *rm);
 int	rm_wowned(struct rmlock *rm);
 void	rm_sysinit(void *arg);
-
+void	rm_sysinit_flags(void *arg);
 
 void	_rm_wlock_debug(struct rmlock *rm, const char *file, int line);
 void	_rm_wunlock_debug(struct rmlock *rm, const char *file, int line);
 void	_rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
-    const char *file, int line);
+	    const char *file, int line);
 void	_rm_runlock_debug(struct rmlock *rm,  struct rm_priotracker *tracker,
-    const char *file, int line);
-
+	    const char *file, int line);
 
 void	_rm_wlock(struct rmlock *rm);
 void	_rm_wunlock(struct rmlock *rm);
@@ -61,50 +65,57 @@ void	_rm_runlock(struct rmlock *rm,  struct rm_priotracker *tracker);
 
 /*
  * Public interface for lock operations.
- *
  */
-
 #ifndef LOCK_DEBUG
 #error LOCK_DEBUG not defined, include <sys/lock.h> before <sys/rmlock.h>
 #endif
 
 #if LOCK_DEBUG > 0
-
 #define	rm_wlock(rm)	_rm_wlock_debug((rm), LOCK_FILE, LOCK_LINE)
 #define	rm_wunlock(rm)	_rm_wunlock_debug((rm), LOCK_FILE, LOCK_LINE)
 #define	rm_rlock(rm,tracker)  \
     _rm_rlock_debug((rm),(tracker), LOCK_FILE, LOCK_LINE )
 #define	rm_runlock(rm,tracker)	\
     _rm_runlock_debug((rm), (tracker), LOCK_FILE, LOCK_LINE )
-
 #else
-
 #define	rm_wlock(rm)		_rm_wlock((rm))
 #define	rm_wunlock(rm)		_rm_wunlock((rm))
 #define	rm_rlock(rm,tracker)   	_rm_rlock((rm),(tracker))
 #define	rm_runlock(rm,tracker)	_rm_runlock((rm), (tracker))
-
 #endif
 
-#define	rm_initialized(rm)	lock_initalized(&(rm)->lock_object)
-
 struct rm_args {
+	struct rmlock	*ra_rm;
+	const char 	*ra_desc;
+};
+
+struct rm_args_flags {
 	struct rmlock	*ra_rm;
 	const char 	*ra_desc;
 	int		ra_opts;
 };
 
-#define	RM_SYSINIT(name, rm, desc, opts)       				\
+#define	RM_SYSINIT(name, rm, desc)       				\
 	static struct rm_args name##_args = {				\
 		(rm),							\
 		(desc),							\
-                (opts),							\
 	};								\
 	SYSINIT(name##_rm_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rm_sysinit, &name##_args);					\
 	SYSUNINIT(name##_rm_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rm_destroy, (rm))
 
+
+#define	RM_SYSINIT_FLAGS(name, rm, desc, opts)       			\
+	static struct rm_args name##_args = {				\
+		(rm),							\
+		(desc),							\
+                (opts),							\
+	};								\
+	SYSINIT(name##_rm_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	    rm_sysinit_flags, &name##_args);				\
+	SYSUNINIT(name##_rm_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	    rm_destroy, (rm))
 
 #endif /* _KERNEL */
 #endif /* !_SYS_RMLOCK_H_ */

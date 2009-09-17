@@ -102,15 +102,6 @@ METHOD const struct pccard_product * do_product_lookup {
 }
 
 #
-# Helper method for the above.  When a compatibility driver is converted,
-# one must write a match routine.  This routine is unused on OLDCARD but
-# is used as a discriminator for NEWCARD.
-#
-METHOD int compat_match {
-	device_t dev;
-}
-
-#
 # Scanning function for accessing the CIS of a card in its driver.
 #
 METHOD int cis_scan {

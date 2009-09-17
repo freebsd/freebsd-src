@@ -38,7 +38,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm
-.Op Fl 2dlnr
+.Op Fl 2delnr
 .Op Fl h Ar bindip
 .Op Fl p Ar port
 .Op Ar exportsfile ...
@@ -68,6 +68,18 @@ Output debugging information.
 .Nm
 will not detach from the controlling terminal and will print
 debugging messages to stderr.
+.It Fl e
+Forces
+.Nm
+to try and start the experimental server that includes NFSv4 support in it.
+If this flag isn't specified, the experimental server will only be started
+if it is linked into the kernel and the regular one isn't.
+.br
+ie. The kernel is built with the following:
+.Bd -literal -offset indent -compact
+# options	NFSSERVER
+options		NFSD
+.Ed
 .It Fl h Ar bindip
 Specify specific IP addresses to bind to for TCP and UDP requests.
 This option may be specified multiple times.
@@ -171,6 +183,7 @@ the current list of remote mounted file systems
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
 .Xr kldload 2 ,
+.Xr nfsv4 4 ,
 .Xr exports 5 ,
 .Xr nfsd 8 ,
 .Xr rpcbind 8 ,

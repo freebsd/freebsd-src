@@ -38,12 +38,12 @@ LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
 	nfs nfsclient nfsserver \
 	sys vm
 
-LSUBDIRS=	cam/scsi \
+LSUBDIRS=	cam/ata cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
-	dev/ic dev/iicbus ${_dev_ieee488} dev/lmc dev/ofw \
+	dev/ic dev/iicbus ${_dev_ieee488} dev/lmc dev/mfi dev/ofw \
 	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
-	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs \
+	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/nfs fs/ntfs fs/nullfs \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/multipath geom/nop \
@@ -54,7 +54,7 @@ LSUBDIRS=	cam/scsi \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
 
-LSUBSUBDIRS=	dev/mpt/mpilib dev/usb2/include
+LSUBSUBDIRS=	dev/mpt/mpilib
 
 .if ${MACHINE_ARCH} == "powerpc"
 _dev_powermac_nvram=	dev/powermac_nvram

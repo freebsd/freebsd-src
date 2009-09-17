@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2009
+.Dd September 2, 2009
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -344,11 +344,6 @@ If
 .Xr dhclient 8
 is used to set the hostname via DHCP,
 this variable should be set to an empty string.
-.It Va ipv6_enable
-.Pq Vt bool
-Enable support for IPv6 networking.
-Note that this requires that the kernel has been compiled with
-.Cd "options INET6" .
 .It Va nisdomainname
 .Pq Vt str
 The NIS domain name of this host, or
@@ -1169,6 +1164,15 @@ One or more
 .Xr wlan 4
 devices must be created for each wireless devices as of
 .Fx 8.0 .
+Debugging flags for
+.Xr wlan 4
+devices as set by
+.Xr wlandebug 8
+may be specified with an
+.Va wlandebug_ Ns Aq Ar interface
+variable.
+The contents of this variable will be passed directly to
+.Xr wlandebug 8 .
 .Pp
 If the
 .Va ifconfig_ Ns Aq Ar interface
@@ -1242,28 +1246,45 @@ This is the IPv6 equivalent of
 Instead of setting the ifconfig variables as
 .Va ifconfig_ Ns Aq Ar interface
 they should be set as
-.Va ipv6_ifconfig_ Ns Aq Ar interface .
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6.
 Aliases should be set as
-.Va ipv6_ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n .
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n .
 .Va ipv6_prefix_ Ns Aq Ar interface
 does something.
-Interfaces that do not have a
-.Va ipv6_ifconfig_ Ns Aq Ar interface
-setting will be auto configured by
+Interfaces that have a
+.Fl accept_rtadv
+flag in
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+setting will be automatically configured by
 .Xr rtsol 8
 if the
 .Va ipv6_gateway_enable
 is set to
 .Dq Li NO .
-Note that the IPv6 networking code does not support the
-.Pa /etc/start_if. Ns Aq Ar interface
-files.
 .It Va ipv6_default_interface
 .Pq Vt str
 If not set to
 .Dq Li NO ,
 this is the default output interface for scoped addresses.
 Now this works only for IPv6 link local multicast addresses.
+.It Va ip6addrctl_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+install default address selection policy table
+.Pq RFC 3484 .
+If a file
+.Pa /etc/ip6addrctl.conf
+is found the
+.Xr ip6addrctl 8
+reads and installs it.
+If not, a pre-defined policy table will be installed.
+There are two pre-defined ones; IPv4-preferred and IPv6-preferred.
+If set
+.Va ipv6_prefer
+variable to
+.Dq Li YES
+the IPv6-preferred one is used. Default is IPv4-preferred.
 .It Va cloned_interfaces
 .Pq Vt str
 Set to the list of clonable network interfaces to create on this host.
@@ -1494,7 +1515,7 @@ Options passed to the
 .Xr geli 8
 utility when encrypted GEOM providers for swap partitions are created.
 The default is
-.Dq Li "-a aes -l 256 -s 4096 -d" .
+.Dq Li "-e aes -l 256 -s 4096 -d" .
 .It Va root_rw_mount
 .Pq Vt bool
 Set to
@@ -1622,6 +1643,12 @@ Path to
 .Xr named 8
 (default
 .Pa /usr/sbin/named ) .
+.It Va named_conf
+.Pq Vt str
+Path to
+.Xr named 8
+configuration file, (default
+.Pa /etc/namedb/named.conf ) .
 .It Va named_flags
 .Pq Vt str
 If
@@ -1669,6 +1696,26 @@ daemon's PID file
 into the
 .Xr chroot 8
 environment.
+.It Va named_wait
+.Pq Vt bool
+Set to have
+.Pa /etc/rc.d/named
+loop until working name service is established.
+.It Va named_wait_host
+.Pq Vt str
+Name of host to lookup for the named_wait option.
+(Default localhost)
+.It Va named_auto_forward
+.Pq Vt bool
+Set to enable automatic creation of a forwarder
+configuration file derived from
+.Pa /etc/resolv.conf .
+.It Va named_auto_forward_only
+.Pq Vt bool
+Set to change the default forwarder configuration from
+.Dq forward first
+to
+.Dq forward only .
 .It Va kerberos5_server_enable
 .Pq Vt bool
 Set to
@@ -2192,6 +2239,22 @@ name server!).
 .Pq Vt str
 The IPv6 equivalent of
 .Va defaultrouter .
+.It Va static_arp_pairs
+.Pq Vt str
+Set to the list of static ARP pairs that are to be added at system
+boot time.
+For each whitespace separated
+.Ar element
+in the value, a
+.Va static_arp_ Ns Aq Ar element
+variable is assumed to exist whose contents will later be passed to a
+.Dq Nm arp Cm -S
+operation.
+For example
+.Bd -literal
+static_arp_pairs="gw"
+static_arp_gw="192.168.1.1 00:01:02:03:04:05"
+.Ed
 .It Va static_routes
 .Pq Vt str
 Set to the list of static routes that are to be added at system
@@ -2249,48 +2312,48 @@ between interfaces.
 .Pq Vt bool
 The IPv6 equivalent of
 .Va gateway_enable .
-.It Va router_enable
+.It Va routed_enable
 .Pq Vt bool
 If set to
 .Dq Li YES ,
 run a routing daemon of some sort, based on the
 settings of
-.Va router
+.Va routed_program
 and
-.Va router_flags .
-.It Va ipv6_router_enable
+.Va routed_flags .
+.It Va route6d_enable
 .Pq Vt bool
 The IPv6 equivalent of
-.Va router_enable .
+.Va routed_enable .
 If set to
 .Dq Li YES ,
 run a routing daemon of some sort, based on the
 settings of
-.Va ipv6_router
+.Va route6d_program
 and
-.Va ipv6_router_flags .
-.It Va router
+.Va route6d_flags .
+.It Va routed_program
 .Pq Vt str
 If
-.Va router_enable
+.Va routed_enable
 is set to
 .Dq Li YES ,
 this is the name of the routing daemon to use.
-.It Va ipv6_router
+.It Va route6d_program
 .Pq Vt str
 The IPv6 equivalent of
-.Va router .
-.It Va router_flags
+.Va routed_program .
+.It Va routed_flags
 .Pq Vt str
 If
-.Va router_enable
+.Va routed_enable
 is set to
 .Dq Li YES ,
 these are the flags to pass to the routing daemon.
-.It Va ipv6_router_flags
+.It Va route6d_flags
 .Pq Vt str
 The IPv6 equivalent of
-.Va router_flags .
+.Va routed_flags .
 .It Va mrouted_enable
 .Pq Vt bool
 If set to
@@ -3393,6 +3456,13 @@ to
 .Dq Li YES
 by default for every jail in
 .Va jail_list .
+.It Va jail_exec_prestart Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestart Ns Aq Ar N
+for every jail in
+.Va jail_list .
 .It Va jail_exec_start
 .Pq Vt str
 Unset by default.
@@ -3407,10 +3477,31 @@ When set, use as default value for
 .Va jail_ Ns Ao Ar jname Ac Ns Va _exec_afterstart Ns Aq Ar N
 for every jail in
 .Va jail_list .
+.It Va jail_exec_poststart Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststart Ns Aq Ar N
+for every jail in
+.Va jail_list .
+.It Va jail_exec_prestop Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestop Ns Aq Ar N
+for every jail in
+.Va jail_list .
 .It Va jail_exec_stop
 Unset by default.
 When set, use as default value for
 .Va jail_ Ns Ao Ar jname Ac Ns Va _exec_stop
+for every jail in
+.Va jail_list .
+.It Va jail_exec_poststop Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+When set, use as default value for
+.Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststop Ns Aq Ar N
 for every jail in
 .Va jail_list .
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _rootdir
@@ -3528,13 +3619,33 @@ When set to
 mount the process file system inside jail
 .Ar jname
 at jail startup.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestart Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+This is the command run as
+.Ar N Ns
+th command
+before jail startup, where
+.Ar N
+is 0, 1, and so on.
+It is run outside the jail.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_start
 .Pq Vt str
 Set to
 .Dq Li /bin/sh /etc/rc
 by default.
-This is the command executed at jail startup.
+This is the command executed in a jail at jail startup.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_afterstart Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+This is the command run as
+.Ar N Ns
+th command
+in a jail
+after jail startup, where
+.Ar N
+is 1, 2, and so on.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststart Ns Aq Ar N
 .Pq Vt str
 Unset by default.
 This is the command run as
@@ -3542,13 +3653,34 @@ This is the command run as
 th command
 after jail startup, where
 .Ar N
-is 1, 2, and so on.
+is 0, 1, and so on.
+It is run outside the jail.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_prestop Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+This is the command run as
+.Ar N Ns
+th command
+before jail shutdown, where
+.Ar N
+is 0, 1, and so on.
+It is run outside the jail.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_stop
 .Pq Vt str
 Set to
 .Dq Li /bin/sh /etc/rc.shutdown
 by default.
-This is the command executed at jail shutdown.
+This is the command executed in a jail at jail shutdown.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _exec_poststop Ns Aq Ar N
+.Pq Vt str
+Unset by default.
+This is the command run as
+.Ar N Ns
+th command
+after jail shutdown, where
+.Ar N
+is 0, 1, and so on.
+It is run outside the jail.
 .It Va jail_set_hostname_allow
 .Pq Vt bool
 If set to
@@ -4065,6 +4197,7 @@ Default
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr timed 8 ,
+.Xr wlandebug 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,
 .Xr ypserv 8 ,

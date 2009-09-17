@@ -106,6 +106,7 @@ sctp_pathmtu_adjustment(struct sctp_inpcb *inp,
     uint16_t nxtsz)
 {
 	struct sctp_tmit_chunk *chk;
+	uint16_t overhead;
 
 	/* Adjust that too */
 	stcb->asoc.smallest_mtu = nxtsz;
@@ -114,18 +115,26 @@ sctp_pathmtu_adjustment(struct sctp_inpcb *inp,
 	SCTP_PRINTF("sctp_pathmtu_adjust called inp:%p stcb:%p net:%p nxtsz:%d\n",
 	    inp, stcb, net, nxtsz);
 #endif
+	overhead = IP_HDR_SIZE;
+	if (sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.peer_auth_chunks)) {
+		overhead += sctp_get_auth_chunk_len(stcb->asoc.peer_hmac_id);
+	}
 	TAILQ_FOREACH(chk, &stcb->asoc.send_queue, sctp_next) {
-		if ((chk->send_size + IP_HDR_SIZE) > nxtsz) {
+		if ((chk->send_size + overhead) > nxtsz) {
 			chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
 		}
 	}
 	TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
-		if ((chk->send_size + IP_HDR_SIZE) > nxtsz) {
+		if ((chk->send_size + overhead) > nxtsz) {
 			/*
 			 * For this guy we also mark for immediate resend
 			 * since we sent to big of chunk
 			 */
 			chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
+			if (chk->sent < SCTP_DATAGRAM_RESEND) {
+				sctp_flight_size_decrease(chk);
+				sctp_total_flight_decrease(stcb, chk);
+			}
 			if (chk->sent != SCTP_DATAGRAM_RESEND) {
 				sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
 			}
@@ -140,8 +149,6 @@ sctp_pathmtu_adjustment(struct sctp_inpcb *inp,
 			}
 			/* Clear any time so NO RTT is being done */
 			chk->do_rtt = 0;
-			sctp_flight_size_decrease(chk);
-			sctp_total_flight_decrease(stcb, chk);
 		}
 	}
 }
@@ -3326,6 +3333,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				if ((stcb->asoc.strm_realoutsize - stcb->asoc.streamoutcnt) < addstrmcnt) {
 					/* Need to allocate more */
 					struct sctp_stream_out *oldstream;
+					struct sctp_stream_queue_pending *sp;
+					int removed;
 
 					oldstream = stcb->asoc.strmout;
 					/* get some more */
@@ -3342,20 +3351,63 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					 * the old out stuff and
 					 * initializing the new stuff.
 					 */
-					memcpy(stcb->asoc.strmout, oldstream,
-					    (stcb->asoc.streamoutcnt * sizeof(struct sctp_stream_out)));
+					SCTP_TCB_SEND_LOCK(stcb);
+					for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+						TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
+						stcb->asoc.strmout[i].next_sequence_sent = oldstream[i].next_sequence_sent;
+						stcb->asoc.strmout[i].last_msg_incomplete = oldstream[i].last_msg_incomplete;
+						stcb->asoc.strmout[i].stream_no = i;
+						if (oldstream[i].next_spoke.tqe_next) {
+							sctp_remove_from_wheel(stcb, &stcb->asoc, &oldstream[i], 1);
+							stcb->asoc.strmout[i].next_spoke.tqe_next = NULL;
+							stcb->asoc.strmout[i].next_spoke.tqe_prev = NULL;
+							removed = 1;
+						} else {
+							/* not on out wheel */
+							stcb->asoc.strmout[i].next_spoke.tqe_next = NULL;
+							stcb->asoc.strmout[i].next_spoke.tqe_prev = NULL;
+							removed = 0;
+						}
+						/*
+						 * now anything on those
+						 * queues?
+						 */
+						while (TAILQ_EMPTY(&oldstream[i].outqueue) == 0) {
+							sp = TAILQ_FIRST(&oldstream[i].outqueue);
+							TAILQ_REMOVE(&oldstream[i].outqueue, sp, next);
+							TAILQ_INSERT_TAIL(&stcb->asoc.strmout[i].outqueue, sp, next);
+						}
+						/* Did we disrupt the wheel? */
+						if (removed) {
+							sctp_insert_on_wheel(stcb,
+							    &stcb->asoc,
+							    &stcb->asoc.strmout[i],
+							    1);
+						}
+						/*
+						 * Now move assoc pointers
+						 * too
+						 */
+						if (stcb->asoc.last_out_stream == &oldstream[i]) {
+							stcb->asoc.last_out_stream = &stcb->asoc.strmout[i];
+						}
+						if (stcb->asoc.locked_on_sending == &oldstream[i]) {
+							stcb->asoc.locked_on_sending = &stcb->asoc.strmout[i];
+						}
+					}
 					/* now the new streams */
 					for (i = stcb->asoc.streamoutcnt; i < (stcb->asoc.streamoutcnt + addstrmcnt); i++) {
 						stcb->asoc.strmout[i].next_sequence_sent = 0x0;
 						TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
 						stcb->asoc.strmout[i].stream_no = i;
 						stcb->asoc.strmout[i].last_msg_incomplete = 0;
-						stcb->asoc.strmout[i].next_spoke.tqe_next = 0;
-						stcb->asoc.strmout[i].next_spoke.tqe_prev = 0;
+						stcb->asoc.strmout[i].next_spoke.tqe_next = NULL;
+						stcb->asoc.strmout[i].next_spoke.tqe_prev = NULL;
 					}
 					stcb->asoc.strm_realoutsize = stcb->asoc.streamoutcnt + addstrmcnt;
 					SCTP_FREE(oldstream, SCTP_M_STRMO);
 				}
+				SCTP_TCB_SEND_UNLOCK(stcb);
 				goto skip_stuff;
 			} else {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);

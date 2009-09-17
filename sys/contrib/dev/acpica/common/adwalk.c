@@ -1,7 +1,6 @@
 /******************************************************************************
  *
  * Module Name: adwalk - Application-level disassembler parse tree walk routines
- *              $Revision: 1.6 $
  *
  *****************************************************************************/
 
@@ -9,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -115,14 +114,15 @@
  *****************************************************************************/
 
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/acparser.h>
-#include <contrib/dev/acpica/amlcode.h>
-#include <contrib/dev/acpica/acdebug.h>
-#include <contrib/dev/acpica/acdisasm.h>
-#include <contrib/dev/acpica/acdispat.h>
-#include <contrib/dev/acpica/acnamesp.h>
-#include <contrib/dev/acpica/acapps.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acparser.h>
+#include <contrib/dev/acpica/include/amlcode.h>
+#include <contrib/dev/acpica/include/acdebug.h>
+#include <contrib/dev/acpica/include/acdisasm.h>
+#include <contrib/dev/acpica/include/acdispat.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 
 #define _COMPONENT          ACPI_TOOLS
@@ -252,6 +252,7 @@ AcpiDmFindOrphanMethods (
  *
  * PARAMETERS:  ParseTreeRoot       - Root of the parse tree
  *              NamespaceRoot       - Root of the internal namespace
+ *              OwnerId             - OwnerId of the table to be disassembled
  *
  * RETURN:      None
  *
@@ -263,7 +264,8 @@ AcpiDmFindOrphanMethods (
 void
 AcpiDmFinishNamespaceLoad (
     ACPI_PARSE_OBJECT       *ParseTreeRoot,
-    ACPI_NAMESPACE_NODE     *NamespaceRoot)
+    ACPI_NAMESPACE_NODE     *NamespaceRoot,
+    ACPI_OWNER_ID           OwnerId)
 {
     ACPI_STATUS             Status;
     ACPI_OP_WALK_INFO       Info;
@@ -277,7 +279,7 @@ AcpiDmFinishNamespaceLoad (
 
     /* Create and initialize a new walk state */
 
-    WalkState = AcpiDsCreateWalkState (0, ParseTreeRoot, NULL, NULL);
+    WalkState = AcpiDsCreateWalkState (OwnerId, ParseTreeRoot, NULL, NULL);
     if (!WalkState)
     {
         return;
@@ -304,6 +306,7 @@ AcpiDmFinishNamespaceLoad (
  *
  * PARAMETERS:  ParseTreeRoot       - Root of the parse tree
  *              NamespaceRoot       - Root of the internal namespace
+ *              OwnerId             - OwnerId of the table to be disassembled
  *
  * RETURN:      None
  *
@@ -314,7 +317,8 @@ AcpiDmFinishNamespaceLoad (
 void
 AcpiDmCrossReferenceNamespace (
     ACPI_PARSE_OBJECT       *ParseTreeRoot,
-    ACPI_NAMESPACE_NODE     *NamespaceRoot)
+    ACPI_NAMESPACE_NODE     *NamespaceRoot,
+    ACPI_OWNER_ID           OwnerId)
 {
     ACPI_STATUS             Status;
     ACPI_OP_WALK_INFO       Info;
@@ -328,7 +332,7 @@ AcpiDmCrossReferenceNamespace (
 
     /* Create and initialize a new walk state */
 
-    WalkState = AcpiDsCreateWalkState (0, ParseTreeRoot, NULL, NULL);
+    WalkState = AcpiDsCreateWalkState (OwnerId, ParseTreeRoot, NULL, NULL);
     if (!WalkState)
     {
         return;
@@ -469,6 +473,9 @@ AcpiDmDumpDescending (
     case AML_DEVICE_OP:
     case AML_INT_NAMEDFIELD_OP:
         AcpiOsPrintf ("%4.4s", &Op->Named.Name);
+        break;
+
+    default:
         break;
     }
 
@@ -618,6 +625,9 @@ AcpiDmFindOrphanDescending (
 
         }
         break;
+
+    default:
+        break;
     }
 
     return (AE_OK);
@@ -650,6 +660,9 @@ AcpiDmLoadDescendingOp (
     char                    *Path = NULL;
     ACPI_PARSE_OBJECT       *NextOp;
     ACPI_NAMESPACE_NODE     *Node;
+    char                    FieldPath[5];
+    BOOLEAN                 PreDefined = FALSE;
+    UINT8                   PreDefineIndex = 0;
 
 
     WalkState = Info->WalkState;
@@ -672,6 +685,13 @@ AcpiDmLoadDescendingOp (
         /* For all named operators, get the new name */
 
         Path = (char *) Op->Named.Path;
+
+        if (!Path && Op->Common.AmlOpcode == AML_INT_NAMEDFIELD_OP)
+        {
+            *ACPI_CAST_PTR (UINT32, &FieldPath[0]) = Op->Named.Name;
+            FieldPath[4] = 0;
+            Path = FieldPath;
+        }
     }
     else if (OpInfo->Flags & AML_CREATE)
     {
@@ -698,6 +718,36 @@ AcpiDmLoadDescendingOp (
                 WalkState, &Node);
 
     Op->Common.Node = Node;
+
+    if (ACPI_SUCCESS (Status))
+    {
+        /* Check if it's a predefined node */
+
+        while (AcpiGbl_PreDefinedNames[PreDefineIndex].Name)
+        {
+            if (!ACPI_STRNCMP (Node->Name.Ascii,
+                AcpiGbl_PreDefinedNames[PreDefineIndex].Name, 4))
+            {
+                PreDefined = TRUE;
+                break;
+            }
+
+            PreDefineIndex++;
+        }
+
+        /*
+         * Set node owner id if it satisfies all the following conditions:
+         * 1) Not a predefined node, _SB_ etc
+         * 2) Not the root node
+         * 3) Not a node created by Scope
+         */
+
+        if (!PreDefined && Node != AcpiGbl_RootNode &&
+            Op->Common.AmlOpcode != AML_SCOPE_OP)
+        {
+            Node->OwnerId = WalkState->OwnerId;
+        }
+    }
 
 
 Exit:
@@ -740,10 +790,12 @@ AcpiDmXrefDescendingOp (
     const ACPI_OPCODE_INFO  *OpInfo;
     ACPI_WALK_STATE         *WalkState;
     ACPI_OBJECT_TYPE        ObjectType;
+    ACPI_OBJECT_TYPE        ObjectType2;
     ACPI_STATUS             Status;
     char                    *Path = NULL;
     ACPI_PARSE_OBJECT       *NextOp;
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_OPERAND_OBJECT     *Object;
 
 
     WalkState = Info->WalkState;
@@ -818,6 +870,33 @@ AcpiDmXrefDescendingOp (
                        WalkState, &Node);
 #endif
         }
+    }
+
+    /*
+     * Found the node in external table, add it to external list
+     * Node->OwnerId == 0 indicates built-in ACPI Names, _OS_ etc
+     */
+    else if (Node->OwnerId && WalkState->OwnerId != Node->OwnerId)
+    {
+        ObjectType2 = ObjectType;
+
+        Object = AcpiNsGetAttachedObject (Node);
+        if (Object)
+        {
+            ObjectType2 = Object->Common.Type;
+        }
+
+        if (ObjectType2 == ACPI_TYPE_METHOD)
+        {
+            AcpiDmAddToExternalList (Path, ACPI_TYPE_METHOD,
+                Object->Method.ParamCount);
+        }
+        else
+        {
+            AcpiDmAddToExternalList (Path, (UINT8) ObjectType2, 0);
+        }
+
+        Op->Common.Node = Node;
     }
     else
     {

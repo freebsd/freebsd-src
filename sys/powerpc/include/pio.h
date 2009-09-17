@@ -61,6 +61,13 @@ __outl(volatile u_int32_t *a, u_int32_t v)
 }
 
 static __inline void
+__outll(volatile u_int64_t *a, u_int64_t v)
+{
+	*a = v;
+	__asm__ volatile("eieio; sync");
+}
+
+static __inline void
 __outwrb(volatile u_int16_t *a, u_int16_t v)
 {
 	__asm__ volatile("sthbrx %0, 0, %1" :: "r"(v), "r"(a));
@@ -104,6 +111,16 @@ __inl(volatile u_int32_t *a)
 	return _v_;
 }
 
+static __inline u_int64_t
+__inll(volatile u_int64_t *a)
+{
+	u_int64_t _v_;
+
+	_v_ = *a;
+	__asm__ volatile("eieio; sync");
+	return _v_;
+}
+
 static __inline u_int16_t
 __inwrb(volatile u_int16_t *a)
 {
@@ -130,12 +147,16 @@ __inlrb(volatile u_int32_t *a)
 #define	out16(a,v)	outw(a,v)
 #define	outl(a,v)	(__outl((volatile u_int32_t *)(a), v))
 #define	out32(a,v)	outl(a,v)
+#define	outll(a,v)	(__outll((volatile u_int64_t *)(a), v))
+#define	out64(a,v)	outll(a,v)
 #define	inb(a)		(__inb((volatile u_int8_t *)(a)))
 #define	in8(a)		inb(a)
 #define	inw(a)		(__inw((volatile u_int16_t *)(a)))
 #define	in16(a)		inw(a)
 #define	inl(a)		(__inl((volatile u_int32_t *)(a)))
 #define	in32(a)		inl(a)
+#define	inll(a)		(__inll((volatile u_int64_t *)(a)))
+#define	in64(a)		inll(a)
 
 #define	out8rb(a,v)	outb(a,v)
 #define	outwrb(a,v)	(__outwrb((volatile u_int16_t *)(a), v))
@@ -167,6 +188,14 @@ __outsw(volatile u_int16_t *a, const u_int16_t *s, size_t c)
 
 static __inline void
 __outsl(volatile u_int32_t *a, const u_int32_t *s, size_t c)
+{
+	while (c--)
+		*a = *s++;
+	__asm__ volatile("eieio; sync");
+}
+
+static __inline void
+__outsll(volatile u_int64_t *a, const u_int64_t *s, size_t c)
 {
 	while (c--)
 		*a = *s++;
@@ -214,6 +243,14 @@ __insl(volatile u_int32_t *a, u_int32_t *d, size_t c)
 }
 
 static __inline void
+__insll(volatile u_int64_t *a, u_int64_t *d, size_t c)
+{
+	while (c--)
+		*d++ = *a;
+	__asm__ volatile("eieio; sync");
+}
+
+static __inline void
 __inswrb(volatile u_int16_t *a, u_int16_t *d, size_t c)
 {
 	while (c--)
@@ -235,12 +272,16 @@ __inslrb(volatile u_int32_t *a, u_int32_t *d, size_t c)
 #define	outs16(a,s,c)	outsw(a,s,c)
 #define	outsl(a,s,c)	(__outsl((volatile u_int32_t *)(a), s, c))
 #define	outs32(a,s,c)	outsl(a,s,c)
+#define	outsll(a,s,c)	(__outsll((volatile u_int64_t *)(a), s, c))
+#define	outs64(a,s,c)	outsll(a,s,c)
 #define	insb(a,d,c)	(__insb((volatile u_int8_t *)(a), d, c))
 #define	ins8(a,d,c)	insb(a,d,c)
 #define	insw(a,d,c)	(__insw((volatile u_int16_t *)(a), d, c))
 #define	ins16(a,d,c)	insw(a,d,c)
 #define	insl(a,d,c)	(__insl((volatile u_int32_t *)(a), d, c))
 #define	ins32(a,d,c)	insl(a,d,c)
+#define	insll(a,d,c)	(__insll((volatile u_int64_t *)(a), d, c))
+#define	ins64(a,d,c)	insll(a,d,c)
 
 #define	outs8rb(a,s,c)	outsb(a,s,c)
 #define	outswrb(a,s,c)	(__outswrb((volatile u_int16_t *)(a), s, c))

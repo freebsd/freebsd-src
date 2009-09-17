@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -124,8 +125,11 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_input =		udp_input,
 	.pr_ctlinput =		udp_ctlinput,
-	.pr_ctloutput =		ip_ctloutput,
+	.pr_ctloutput =		udp_ctloutput,
 	.pr_init =		udp_init,
+#ifdef VIMAGE
+	.pr_destroy =		udp_destroy,
+#endif
 	.pr_usrreqs =		&udp_usrreqs
 },
 {
@@ -137,6 +141,9 @@ struct protosw inetsw[] = {
 	.pr_ctlinput =		tcp_ctlinput,
 	.pr_ctloutput =		tcp_ctloutput,
 	.pr_init =		tcp_init,
+#ifdef VIMAGE
+	.pr_destroy =		tcp_destroy,
+#endif
 	.pr_slowtimo =		tcp_slowtimo,
 	.pr_drain =		tcp_drain,
 	.pr_usrreqs =		&tcp_usrreqs
@@ -205,7 +212,6 @@ struct protosw inetsw[] = {
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
 	.pr_input =		igmp_input,
 	.pr_ctloutput =		rip_ctloutput,
-	.pr_init =		igmp_init,
 	.pr_fasttimo =		igmp_fasttimo,
 	.pr_slowtimo =		igmp_slowtimo,
 	.pr_usrreqs =		&rip_usrreqs
@@ -348,11 +354,15 @@ IPPROTOSPACER,
 	.pr_input =		rip_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_init =		rip_init,
+#ifdef VIMAGE
+	.pr_destroy =		rip_destroy,
+#endif
 	.pr_usrreqs =		&rip_usrreqs
 },
 };
 
 extern int in_inithead(void **, int);
+extern int in_detachhead(void **, int);
 
 struct domain inetdomain = {
 	.dom_family =		AF_INET,
@@ -364,13 +374,16 @@ struct domain inetdomain = {
 #else
 	.dom_rtattach =		in_inithead,
 #endif
+#ifdef VIMAGE
+	.dom_rtdetach =		in_detachhead,
+#endif
 	.dom_rtoffset =		32,
 	.dom_maxrtkey =		sizeof(struct sockaddr_in),
 	.dom_ifattach =		in_domifattach,
 	.dom_ifdetach =		in_domifdetach
 };
 
-DOMAIN_SET(inet);
+VNET_DOMAIN_SET(inet);
 
 SYSCTL_NODE(_net,      PF_INET,		inet,	CTLFLAG_RW, 0,
 	"Internet Family");

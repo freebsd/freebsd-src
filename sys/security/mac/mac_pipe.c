@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
+ * Copyright (c) 2009 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
@@ -10,6 +11,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,6 +40,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -45,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
+#include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/pipe.h>
@@ -60,7 +66,7 @@ mac_pipe_label_alloc(void)
 	struct label *label;
 
 	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(pipe_init_label, label);
+	MAC_POLICY_PERFORM(pipe_init_label, label);
 	return (label);
 }
 
@@ -78,7 +84,7 @@ void
 mac_pipe_label_free(struct label *label)
 {
 
-	MAC_PERFORM(pipe_destroy_label, label);
+	MAC_POLICY_PERFORM_NOSLEEP(pipe_destroy_label, label);
 	mac_labelzone_free(label);
 }
 
@@ -96,7 +102,7 @@ void
 mac_pipe_copy_label(struct label *src, struct label *dest)
 {
 
-	MAC_PERFORM(pipe_copy_label, src, dest);
+	MAC_POLICY_PERFORM_NOSLEEP(pipe_copy_label, src, dest);
 }
 
 int
@@ -105,7 +111,7 @@ mac_pipe_externalize_label(struct label *label, char *elements,
 {
 	int error;
 
-	MAC_EXTERNALIZE(pipe, label, elements, outbuf, outbuflen);
+	MAC_POLICY_EXTERNALIZE(pipe, label, elements, outbuf, outbuflen);
 
 	return (error);
 }
@@ -115,7 +121,7 @@ mac_pipe_internalize_label(struct label *label, char *string)
 {
 	int error;
 
-	MAC_INTERNALIZE(pipe, label, string);
+	MAC_POLICY_INTERNALIZE(pipe, label, string);
 
 	return (error);
 }
@@ -124,7 +130,7 @@ void
 mac_pipe_create(struct ucred *cred, struct pipepair *pp)
 {
 
-	MAC_PERFORM(pipe_create, cred, pp, pp->pp_label);
+	MAC_POLICY_PERFORM_NOSLEEP(pipe_create, cred, pp, pp->pp_label);
 }
 
 static void
@@ -132,8 +138,12 @@ mac_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *newlabel)
 {
 
-	MAC_PERFORM(pipe_relabel, cred, pp, pp->pp_label, newlabel);
+	MAC_POLICY_PERFORM_NOSLEEP(pipe_relabel, cred, pp, pp->pp_label,
+	    newlabel);
 }
+
+MAC_CHECK_PROBE_DEFINE4(pipe_check_ioctl, "struct ucred *",
+    "struct pipepair *", "unsigned long", "void *");
 
 int
 mac_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
@@ -143,10 +153,15 @@ mac_pipe_check_ioctl(struct ucred *cred, struct pipepair *pp,
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_ioctl, cred, pp, pp->pp_label, cmd, data);
+	MAC_POLICY_CHECK_NOSLEEP(pipe_check_ioctl, cred, pp, pp->pp_label,
+	    cmd, data);
+	MAC_CHECK_PROBE4(pipe_check_ioctl, error, cred, pp, cmd, data);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(pipe_check_poll, "struct ucred *",
+    "struct pipepair *");
 
 int
 mac_pipe_check_poll(struct ucred *cred, struct pipepair *pp)
@@ -155,10 +170,14 @@ mac_pipe_check_poll(struct ucred *cred, struct pipepair *pp)
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_poll, cred, pp, pp->pp_label);
+	MAC_POLICY_CHECK_NOSLEEP(pipe_check_poll, cred, pp, pp->pp_label);
+	MAC_CHECK_PROBE2(pipe_check_poll, error, cred, pp);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(pipe_check_read, "struct ucred *",
+    "struct pipepair *");
 
 int
 mac_pipe_check_read(struct ucred *cred, struct pipepair *pp)
@@ -167,10 +186,14 @@ mac_pipe_check_read(struct ucred *cred, struct pipepair *pp)
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_read, cred, pp, pp->pp_label);
+	MAC_POLICY_CHECK_NOSLEEP(pipe_check_read, cred, pp, pp->pp_label);
+	MAC_CHECK_PROBE2(pipe_check_read, error, cred, pp);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(pipe_check_relabel, "struct ucred *",
+    "struct pipepair *", "struct label *");
 
 static int
 mac_pipe_check_relabel(struct ucred *cred, struct pipepair *pp,
@@ -180,10 +203,15 @@ mac_pipe_check_relabel(struct ucred *cred, struct pipepair *pp,
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_relabel, cred, pp, pp->pp_label, newlabel);
+	MAC_POLICY_CHECK_NOSLEEP(pipe_check_relabel, cred, pp, pp->pp_label,
+	    newlabel);
+	MAC_CHECK_PROBE3(pipe_check_relabel, error, cred, pp, newlabel);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(pipe_check_stat, "struct ucred *",
+    "struct pipepair *");
 
 int
 mac_pipe_check_stat(struct ucred *cred, struct pipepair *pp)
@@ -192,10 +220,14 @@ mac_pipe_check_stat(struct ucred *cred, struct pipepair *pp)
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_stat, cred, pp, pp->pp_label);
+	MAC_POLICY_CHECK_NOSLEEP(pipe_check_stat, cred, pp, pp->pp_label);
+	MAC_CHECK_PROBE2(pipe_check_stat, error, cred, pp);
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE2(pipe_check_write, "struct ucred *",
+    "struct pipepair *");
 
 int
 mac_pipe_check_write(struct ucred *cred, struct pipepair *pp)
@@ -204,7 +236,8 @@ mac_pipe_check_write(struct ucred *cred, struct pipepair *pp)
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	MAC_CHECK(pipe_check_write, cred, pp, pp->pp_label);
+	MAC_POLICY_CHECK_NOSLEEP(pipe_check_write, cred, pp, pp->pp_label);
+	MAC_CHECK_PROBE2(pipe_check_write, error, cred, pp);
 
 	return (error);
 }

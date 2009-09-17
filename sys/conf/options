@@ -60,7 +60,7 @@ KDB_UNATTENDED	opt_kdb.h
 SYSCTL_DEBUG	opt_sysctl.h
 
 # Miscellaneous options.
-ADAPTIVE_SX
+ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
 CODA_COMPAT_5	opt_coda.h
@@ -93,6 +93,7 @@ GEOM_NOP	opt_geom.h
 GEOM_PART_APM	opt_geom.h
 GEOM_PART_BSD	opt_geom.h
 GEOM_PART_EBR	opt_geom.h
+GEOM_PART_EBR_COMPAT	opt_geom.h
 GEOM_PART_GPT	opt_geom.h
 GEOM_PART_MBR	opt_geom.h
 GEOM_PART_PC98	opt_geom.h
@@ -112,7 +113,7 @@ KSTACK_PAGES
 KTRACE
 KTRACE_REQUEST_POOL	opt_ktrace.h
 LIBICONV
-MAC
+MAC		opt_global.h
 MAC_BIBA	opt_dontuse.h
 MAC_BSDEXTENDED	opt_dontuse.h
 MAC_IFOFF	opt_dontuse.h
@@ -133,6 +134,7 @@ MPROF_BUFFERS	opt_mprof.h
 MPROF_HASH_SIZE	opt_mprof.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
+NO_ADAPTIVE_SX
 NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
@@ -225,12 +227,13 @@ KGSSAPI_DEBUG	opt_kgssapi.h
 # filesystems will be enabled - but look below.
 NFSCLIENT	opt_nfs.h
 NFSSERVER	opt_nfs.h
-NFS4CLIENT	opt_nfs.h
 
-# Use this option to compile both NFS client and server using the
-# legacy RPC implementation instead of the newer KRPC system (which
-# supports modern features such as RPCSEC_GSS
-NFS_LEGACYRPC	opt_nfs.h
+# Use these options to compile the experimental nfs client and/or
+# server that supports NFSv4 into a kernel.
+# NFSCL - client
+# NFSD - server
+NFSCL		opt_nfs.h
+NFSD		opt_nfs.h
 
 # filesystems and libiconv bridge
 CD9660_ICONV	opt_dontuse.h
@@ -393,8 +396,8 @@ IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPSEC			opt_ipsec.h
 IPSEC_DEBUG		opt_ipsec.h
-IP_NONLOCALBIND		opt_inet.h
 IPSEC_FILTERTUNNEL	opt_ipsec.h
+IPSEC_NAT_T		opt_ipsec.h
 IPSTEALTH
 IPX
 KRPC
@@ -407,18 +410,16 @@ MROUTING		opt_mrouting.h
 NCP
 NETATALK		opt_atalk.h
 NFSLOCKD
-PPP_BSDCOMP		opt_ppp.h
-PPP_DEFLATE		opt_ppp.h
-PPP_FILTER		opt_ppp.h
 RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
-COMPAT_ROUTE_FLAGS	opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading
 TCP_SIGNATURE		opt_inet.h
+TCP_SORECEIVE_STREAM	opt_inet.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
+FLOWTABLE		opt_route.h
 
 #
 # SCTP
@@ -480,6 +481,7 @@ NETGRAPH_MPPC_ENCRYPTION	opt_netgraph.h
 NETGRAPH_NAT		opt_netgraph.h
 NETGRAPH_NETFLOW	opt_netgraph.h
 NETGRAPH_ONE2MANY	opt_netgraph.h
+NETGRAPH_PIPE		opt_netgraph.h
 NETGRAPH_PPP		opt_netgraph.h
 NETGRAPH_PPPOE		opt_netgraph.h
 NETGRAPH_PPTPGRE	opt_netgraph.h
@@ -630,7 +632,7 @@ BUS_DEBUG		opt_bus.h
 
 # options for USB support
 USB_DEBUG		opt_usb.h
-USBVERBOSE		opt_usb.h
+USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
 UKBD_DFLT_KEYMAP	opt_ukbd.h
@@ -660,8 +662,8 @@ WITNESS_SKIPSPIN	opt_witness.h
 
 # options for ACPI support
 ACPI_DEBUG		opt_acpi.h
+ACPI_MAX_TASKS		opt_acpi.h
 ACPI_MAX_THREADS	opt_acpi.h
-ACPI_NO_SEMAPHORES	opt_acpi.h
 
 # ISA support
 DEV_ISA			opt_isa.h
@@ -671,7 +673,6 @@ ISAPNP			opt_isa.h
 DEV_BPF			opt_bpf.h
 DEV_MCA			opt_mca.h
 DEV_CARP		opt_carp.h
-DEV_PTY			opt_tty.h
 DEV_SPLASH		opt_splash.h
 
 # EISA support
@@ -748,7 +749,6 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
-ATH_SUPPORT_TDMA	opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
@@ -765,10 +765,22 @@ AH_NEED_DESC_SWAP	opt_ah.h
 AH_USE_INIPDGAIN	opt_ah.h
 AH_MAXCHAN		opt_ah.h
 
+# options for the Broadcom BCM43xx driver (bwi)
+BWI_DEBUG		opt_bwi.h
+BWI_DEBUG_VERBOSE	opt_bwi.h
+
 # options for the Marvell 8335 wireless driver
 MALO_DEBUG		opt_malo.h
 MALO_TXBUF		opt_malo.h
 MALO_RXBUF		opt_malo.h
+
+# options for the Marvell wireless driver
+MWL_DEBUG		opt_mwl.h
+MWL_TXBUF		opt_mwl.h
+MWL_RXBUF		opt_mwl.h
+MWL_DIAGAPI		opt_mwl.h
+MWL_AGGR_SIZE		opt_mwl.h
+MWL_TX_NODROP		opt_mwl.h
 
 # dcons options 
 DCONS_BUF_SIZE		opt_dcons.h
@@ -792,6 +804,8 @@ INTR_FILTER
 IEEE80211_DEBUG		opt_wlan.h
 IEEE80211_DEBUG_REFCNT	opt_wlan.h
 IEEE80211_AMPDU_AGE	opt_wlan.h
+IEEE80211_SUPPORT_MESH	opt_wlan.h
+IEEE80211_SUPPORT_SUPERG	opt_wlan.h
 IEEE80211_SUPPORT_TDMA	opt_wlan.h
 
 # 802.11 TDMA support
@@ -801,11 +815,27 @@ TDMA_BINTVAL_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11B_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11G_DEFAULT	opt_tdma.h
 TDMA_TXRATE_11A_DEFAULT	opt_tdma.h
+TDMA_TXRATE_TURBO_DEFAULT	opt_tdma.h
+TDMA_TXRATE_HALF_DEFAULT	opt_tdma.h
+TDMA_TXRATE_QUARTER_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11NA_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11NG_DEFAULT	opt_tdma.h
 
-# Virtualize the network stack
+# Network stack virtualization options
 VIMAGE			opt_global.h
-VIMAGE_GLOBALS		opt_global.h
+VNET_DEBUG		opt_global.h
 
 # Common Flash Interface (CFI) options
 CFI_SUPPORT_STRATAFLASH	opt_cfi.h
 CFI_ARMEDANDDANGEROUS	opt_cfi.h
+
+# Sound options
+SND_DEBUG		opt_snd.h
+SND_DIAGNOSTIC		opt_snd.h
+SND_FEEDER_MULTIFORMAT	opt_snd.h
+SND_FEEDER_FULL_MULTIFORMAT	opt_snd.h
+SND_FEEDER_RATE_HP	opt_snd.h
+SND_PCM_64		opt_snd.h
+SND_OLDSTEREO		opt_snd.h
+
+X86EMU

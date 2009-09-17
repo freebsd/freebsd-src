@@ -68,7 +68,6 @@
 /*
  * ng_gif(4) netgraph node type
  */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -77,7 +76,6 @@
 #include <sys/errno.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -562,19 +560,18 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 		ng_gif_input_orphan_p = ng_gif_input_orphan;
 
 		/* Create nodes for any already-existing gif interfaces */
-		IFNET_RLOCK();
 		VNET_LIST_RLOCK();
+		IFNET_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET_QUIET(vnet_iter); /* XXX revisit quiet */
-			INIT_VNET_NET(curvnet);
 			TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 				if (ifp->if_type == IFT_GIF)
 					ng_gif_attach(ifp);
 			}
 			CURVNET_RESTORE();
 		}
-		VNET_LIST_RUNLOCK();
 		IFNET_RUNLOCK();
+		VNET_LIST_RUNLOCK();
 		break;
 
 	case MOD_UNLOAD:

@@ -110,6 +110,7 @@ ata_nvidia_probe(device_t dev)
      { ATA_NFORCE_MCP67_A9, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
      { ATA_NFORCE_MCP67_AA, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
      { ATA_NFORCE_MCP67_AB, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
+     { ATA_NFORCE_MCP67_AC, 0, NVAHCI,  0, ATA_SA300, "nForce MCP67" },
      { ATA_NFORCE_MCP73,    0, 0,       0, ATA_UDMA6, "nForce MCP73" },
      { ATA_NFORCE_MCP73_A0, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
      { ATA_NFORCE_MCP73_A1, 0, NVAHCI,  0, ATA_SA300, "nForce MCP73" },
@@ -137,7 +138,7 @@ ata_nvidia_probe(device_t dev)
 	ctlr->chipinit = ata_ahci_chipinit;
     else
 	ctlr->chipinit = ata_nvidia_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -183,11 +184,6 @@ ata_nvidia_chipinit(device_t dev)
 		/* enable device and PHY state change interrupts */
 		ATA_OUTB(ctlr->r_res2, offset + 1, 0xdd);
 	    }
-
-	    /* enable PCI interrupt */
-	    pci_write_config(dev, PCIR_COMMAND,
-			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
-
 	}
 	ctlr->setmode = ata_sata_setmode;
     }
@@ -254,7 +250,7 @@ ata_nvidia_status(device_t dev)
 static void
 ata_nvidia_reset(device_t dev)
 {
-    if (ata_sata_phy_reset(dev))
+    if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
 }
 
@@ -291,3 +287,4 @@ ata_nvidia_setmode(device_t dev, int mode)
 }
 
 ATA_DECLARE_DRIVER(ata_nvidia);
+MODULE_DEPEND(ata_nvidia, ata_ahci, 1, 1, 1);

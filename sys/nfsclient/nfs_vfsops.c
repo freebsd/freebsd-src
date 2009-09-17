@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -56,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
-#include <sys/vimage.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -66,10 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <netinet/in.h>
 
-#include <rpc/rpcclnt.h>
 #include <rpc/rpc.h>
 
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
@@ -143,9 +141,7 @@ VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfs, 1);
-#ifndef NFS_LEGACYRPC
 MODULE_DEPEND(nfs, krpc, 1, 1, 1);
-#endif
 #ifdef KGSSAPI
 MODULE_DEPEND(nfs, kgssapi, 1, 1, 1);
 #endif
@@ -256,9 +252,10 @@ nfs_convert_diskless(void)
  * nfs statfs call
  */
 static int
-nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+nfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct vnode *vp;
+	struct thread *td;
 	struct nfs_statfs *sfp;
 	caddr_t bpos, dpos;
 	struct nfsmount *nmp = VFSTONFS(mp);
@@ -267,6 +264,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	struct nfsnode *np;
 	u_quad_t tquad;
 
+	td = curthread;
 #ifndef nolint
 	sfp = NULL;
 #endif
@@ -411,14 +409,14 @@ nfsmout:
  * client activity occurs.
  */
 int
-nfs_mountroot(struct mount *mp, struct thread *td)
+nfs_mountroot(struct mount *mp)
 {
-	INIT_VPROCG(TD_TO_VPROCG(td));
+	struct thread *td = curthread;
 	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
 	struct ifreq ir;
-	int error, i;
+	int error;
 	u_long l;
 	char buf[128];
 	char *cp;
@@ -465,9 +463,11 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 			break;
 	}
 #endif
+
 	error = ifioctl(so, SIOCAIFADDR, (caddr_t)&nd->myif, td);
 	if (error)
 		panic("nfs_mountroot: SIOCAIFADDR: %d", error);
+
 	if ((cp = getenv("boot.netif.mtu")) != NULL) {
 		ir.ifr_mtu = strtol(cp, NULL, 10);
 		bcopy(nd->myif.ifra_name, ir.ifr_name, IFNAMSIZ);
@@ -522,13 +522,10 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	 * set hostname here and then let the "/etc/rc.xxx" files
 	 * mount the right /var based upon its preset value.
 	 */
-	mtx_lock(&hostname_mtx);
-	bcopy(nd->my_hostnam, V_hostname, MAXHOSTNAMELEN);
-	V_hostname[MAXHOSTNAMELEN - 1] = '\0';
-	for (i = 0; i < MAXHOSTNAMELEN; i++)
-		if (V_hostname[i] == '\0')
-			break;
-	mtx_unlock(&hostname_mtx);
+	mtx_lock(&prison0.pr_mtx);
+	strlcpy(prison0.pr_hostname, nd->my_hostnam,
+	    sizeof (prison0.pr_hostname));
+	mtx_unlock(&prison0.pr_mtx);
 	inittodr(ntohl(nd->root_time));
 	return (0);
 }
@@ -553,7 +550,6 @@ nfs_mountdiskless(char *path,
 	return (0);
 }
 
-#ifndef NFS_LEGACYRPC
 static int
 nfs_sec_name_to_num(char *sec)
 {
@@ -571,7 +567,6 @@ nfs_sec_name_to_num(char *sec)
 	 */
 	return (AUTH_SYS);
 }
-#endif
 
 static void
 nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
@@ -581,10 +576,8 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	int adjsock;
 	int maxio;
 	char *p;
-#ifndef NFS_LEGACYRPC
 	char *secname;
 	char *principal;
-#endif
 
 	s = splnet();
 
@@ -736,16 +729,10 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	nmp->nm_sotype = argp->sotype;
 	nmp->nm_soproto = argp->proto;
 
-	if (
-#ifdef NFS_LEGACYRPC
-		nmp->nm_so
-#else
-		nmp->nm_client
-#endif
-	    && adjsock) {
+	if (nmp->nm_client && adjsock) {
 		nfs_safedisconnect(nmp);
 		if (nmp->nm_sotype == SOCK_DGRAM)
-			while (nfs_connect(nmp, NULL)) {
+			while (nfs_connect(nmp)) {
 				printf("nfs_args: retrying connect\n");
 				(void) tsleep(&fake_wchan, PSOCK, "nfscon", hz);
 			}
@@ -759,7 +746,6 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 			*p = '\0';
 	}
 
-#ifndef NFS_LEGACYRPC
 	if (vfs_getopt(mp->mnt_optnew, "sec",
 		(void **) &secname, NULL) == 0) {
 		nmp->nm_secflavor = nfs_sec_name_to_num(secname);
@@ -775,7 +761,6 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 		snprintf(nmp->nm_principal, sizeof(nmp->nm_principal),
 		    "nfs@%s", nmp->nm_hostname);
 	}
-#endif
 }
 
 static const char *nfs_opts[] = { "from", "nfs_args",
@@ -799,7 +784,7 @@ static const char *nfs_opts[] = { "from", "nfs_args",
  */
 /* ARGSUSED */
 static int
-nfs_mount(struct mount *mp, struct thread *td)
+nfs_mount(struct mount *mp)
 {
 	struct nfs_args args = {
 	    .version = NFS_ARGSVERSION,
@@ -846,7 +831,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 	}
 
 	if ((mp->mnt_flag & (MNT_ROOTFS | MNT_UPDATE)) == MNT_ROOTFS) {
-		error = nfs_mountroot(mp, td);
+		error = nfs_mountroot(mp);
 		goto out;
 	}
 
@@ -1131,7 +1116,8 @@ nfs_mount(struct mount *mp, struct thread *td)
 			}
 		}
 	}
-	error = mountnfs(&args, mp, nam, args.hostname, &vp, td->td_ucred);
+	error = mountnfs(&args, mp, nam, args.hostname, &vp,
+	    curthread->td_ucred);
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
@@ -1153,7 +1139,7 @@ out:
  */
 /* ARGSUSED */
 static int
-nfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+nfs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	int error;
 	struct nfs_args args;
@@ -1245,7 +1231,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 * the first request, in case the server is not responding.
 	 */
 	if (nmp->nm_sotype == SOCK_DGRAM &&
-		(error = nfs_connect(nmp, NULL)))
+		(error = nfs_connect(nmp)))
 		goto bad;
 
 	/*
@@ -1298,7 +1284,7 @@ bad:
  * unmount system call
  */
 static int
-nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
+nfs_unmount(struct mount *mp, int mntflags)
 {
 	struct nfsmount *nmp;
 	int error, flags = 0;
@@ -1319,7 +1305,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 			goto out;
 	}
 	/* We hold 1 extra ref on the root vnode; see comment in mountnfs(). */
-	error = vflush(mp, 1, flags, td);
+	error = vflush(mp, 1, flags, curthread);
 	if (error)
 		goto out;
 
@@ -1339,7 +1325,7 @@ out:
  * Return root of a filesystem
  */
 static int
-nfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+nfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct vnode *vp;
 	struct nfsmount *nmp;
@@ -1373,10 +1359,13 @@ nfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
  */
 /* ARGSUSED */
 static int
-nfs_sync(struct mount *mp, int waitfor, struct thread *td)
+nfs_sync(struct mount *mp, int waitfor)
 {
 	struct vnode *vp, *mvp;
+	struct thread *td;
 	int error, allerror = 0;
+
+	td = curthread;
 
 	/*
 	 * Force stale buffer cache information to be flushed.

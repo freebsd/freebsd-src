@@ -18,11 +18,13 @@ CPU_XSCALE_IXP425	opt_global.h
 CPU_XSCALE_IXP435	opt_global.h
 CPU_XSCALE_PXA2X0	opt_global.h
 FLASHADDR		opt_global.h
+IXP4XX_FLASH_SIZE	opt_global.h
 KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
 LOADERRAMADDR		opt_global.h
 PHYSADDR		opt_global.h
 PHYSMEM_SIZE		opt_global.h
+MII_ADDR_BASE		opt_global.h
 SKYEYE_WORKAROUNDS	opt_global.h
 SOC_MV_DISCOVERY	opt_global.h
 SOC_MV_KIRKWOOD		opt_global.h

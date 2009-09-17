@@ -42,7 +42,7 @@
  * a callback when scanning on a ``passive channel'' when the
  * IEEE80211_FEXT_PROBECHAN flag is set.
  *
- * A scan operation involves constructing a set of channels to inspec
+ * A scan operation involves constructing a set of channels to inspect
  * (the scan set), visiting each channel and collecting information
  * (e.g. what bss are present), and then analyzing the results to make
  * decisions like which bss to join.  This process needs to be as fast
@@ -90,6 +90,7 @@ struct ieee80211_scan_ssid {
  */
 struct ieee80211_scan_state {
 	struct ieee80211vap *ss_vap;
+	struct ieee80211com *ss_ic;
 	const struct ieee80211_scanner *ss_ops;	/* policy hookup, see below */
 	void		*ss_priv;		/* scanner private state */
 	uint16_t	ss_flags;
@@ -149,7 +150,7 @@ struct ieee80211_scanparams;
 void	ieee80211_add_scan(struct ieee80211vap *,
 		const struct ieee80211_scanparams *,
 		const struct ieee80211_frame *,
-		int subtype, int rssi, int noise, int rstamp);
+		int subtype, int rssi, int noise);
 void	ieee80211_scan_timeout(struct ieee80211com *);
 
 void	ieee80211_scan_assoc_success(struct ieee80211vap *,
@@ -175,6 +176,7 @@ enum {
 	IEEE80211_BPARSE_CHAN_INVALID	= 0x10,	/* invalid FH/DSPARMS chan */
 	IEEE80211_BPARSE_OFFCHAN	= 0x20,	/* DSPARMS chan != curchan */
 	IEEE80211_BPARSE_BINTVAL_INVALID= 0x40,	/* invalid beacon interval */
+	IEEE80211_BPARSE_CSA_INVALID	= 0x80,	/* invalid CSA ie */
 };
 
 /*
@@ -210,6 +212,10 @@ struct ieee80211_scanparams {
 	uint8_t		*htinfo;
 	uint8_t		*ath;
 	uint8_t		*tdma;
+	uint8_t		*csa;
+	uint8_t		*meshid;
+	uint8_t		*meshconf;
+	uint8_t		*spare[3];
 };
 
 /*
@@ -223,7 +229,6 @@ struct ieee80211_scan_entry {
 	uint8_t		se_ssid[2+IEEE80211_NWID_LEN];
 	uint8_t		se_rates[2+IEEE80211_RATE_MAXSIZE];
 	uint8_t		se_xrates[2+IEEE80211_RATE_MAXSIZE];
-	uint32_t	se_rstamp;	/* recv timestamp */
 	union {
 		uint8_t		data[8];
 		u_int64_t	tsf;
@@ -239,6 +244,7 @@ struct ieee80211_scan_entry {
 	int8_t		se_rssi;	/* avg'd recv ssi */
 	int8_t		se_noise;	/* noise floor */
 	uint8_t		se_cc[2];	/* captured country code */
+	uint8_t		se_meshid[2+IEEE80211_MESHID_LEN];
 	struct ieee80211_ies se_ies;	/* captured ie's */
 	u_int		se_age;		/* age of entry (0 on create) */
 };
@@ -268,7 +274,7 @@ struct ieee80211_scanner {
 	int	(*scan_add)(struct ieee80211_scan_state *,
 			const struct ieee80211_scanparams *,
 			const struct ieee80211_frame *,
-			int subtype, int rssi, int noise, int rstamp);
+			int subtype, int rssi, int noise);
 	/* age and/or purge entries in the cache */
 	void	(*scan_age)(struct ieee80211_scan_state *);
 	/* note that association failed for an entry */
@@ -281,6 +287,10 @@ struct ieee80211_scanner {
 	/* iterate over entries in the scan cache */
 	void	(*scan_iterate)(struct ieee80211_scan_state *,
 			ieee80211_scan_iter_func *, void *);
+	void	(*scan_spare0)(void);
+	void	(*scan_spare1)(void);
+	void	(*scan_spare2)(void);
+	void	(*scan_spare4)(void);
 };
 void	ieee80211_scanner_register(enum ieee80211_opmode,
 		const struct ieee80211_scanner *);

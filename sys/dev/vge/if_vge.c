@@ -156,7 +156,7 @@ static int vge_tx_list_init	(struct vge_softc *);
 static __inline void vge_fixup_rx
 				(struct mbuf *);
 #endif
-static void vge_rxeof		(struct vge_softc *);
+static int vge_rxeof		(struct vge_softc *);
 static void vge_txeof		(struct vge_softc *);
 static void vge_intr		(void *);
 static void vge_tick		(void *);
@@ -221,7 +221,6 @@ static driver_t vge_driver = {
 static devclass_t vge_devclass;
 
 DRIVER_MODULE(vge, pci, vge_driver, vge_devclass, 0, 0);
-DRIVER_MODULE(vge, cardbus, vge_driver, vge_devclass, 0, 0);
 DRIVER_MODULE(miibus, vge, miibus_driver, miibus_devclass, 0, 0);
 
 #ifdef VGE_EEPROM
@@ -570,7 +569,7 @@ vge_setmulti(sc)
 	}
 
 	/* Now program new ones */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -598,7 +597,7 @@ vge_setmulti(sc)
 		CSR_WRITE_4(sc, VGE_MAR0, hashes[0]);
 		CSR_WRITE_4(sc, VGE_MAR1, hashes[1]);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	return;
 }
@@ -652,10 +651,8 @@ vge_probe(dev)
 	device_t		dev;
 {
 	struct vge_type		*t;
-	struct vge_softc	*sc;
 
 	t = vge_devs;
-	sc = device_get_softc(dev);
 
 	while (t->vge_name != NULL) {
 		if ((pci_get_vendor(dev) == t->vge_vid) &&
@@ -1298,7 +1295,7 @@ vge_fixup_rx(m)
  * RX handler. We support the reception of jumbo frames that have
  * been fragmented across multiple 2K mbuf cluster buffers.
  */
-static void
+static int
 vge_rxeof(sc)
 	struct vge_softc	*sc;
 {
@@ -1485,7 +1482,7 @@ vge_rxeof(sc)
 	CSR_WRITE_2(sc, VGE_RXDESC_RESIDUECNT, lim);
 
 
-	return;
+	return (lim);
 }
 
 static void
@@ -1585,17 +1582,18 @@ vge_tick(xsc)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct vge_softc *sc = ifp->if_softc;
+	int rx_npkts = 0;
 
 	VGE_LOCK(sc);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 		goto done;
 
 	sc->rxcycles = count;
-	vge_rxeof(sc);
+	rx_npkts = vge_rxeof(sc);
 	vge_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1626,6 +1624,7 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 done:
 	VGE_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 

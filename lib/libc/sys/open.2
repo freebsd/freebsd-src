@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd February 28, 2009
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -116,6 +116,7 @@ O_FSYNC		synchronous writes
 O_SYNC		synchronous writes
 O_NOFOLLOW	do not follow symlinks
 O_NOCTTY	don't assign controlling terminal
+O_TTY_INIT	restore default terminal attributes
 .Ed
 .Pp
 Opening a file with
@@ -206,6 +207,19 @@ compatibility.
 The
 .Fn open
 system call will not assign controlling terminals on
+.Fx .
+.Pp
+.Dv O_TTY_INIT
+may be used to ensure the OS restores the terminal attributes when
+initially opening a TTY.
+This is the default on
+.Fx ,
+but is present for
+.Tn POSIX
+compatibility.
+The initial call to
+.Fn open
+on a TTY will always restore default terminal attributes on
 .Fx .
 .Pp
 If successful,

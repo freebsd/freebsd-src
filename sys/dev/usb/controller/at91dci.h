@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /*-
  * Copyright (c) 2006 ATMEL
- * Copyright (c) 2007 Hans Petter Selasky <hselasky@freebsd.org>
+ * Copyright (c) 2007 Hans Petter Selasky <hselasky@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,8 @@
  */
 
 /*
- * USB Device Port (UDP) register definition, based on
- * "AT91RM9200.h" provided by ATMEL.
+ * USB Device Port (UDP) register definition, based on "AT91RM9200.h" provided
+ * by ATMEL.
  */
 
 #ifndef _AT9100_DCI_H_
@@ -141,7 +141,7 @@ struct at91dci_td {
 	bus_space_handle_t io_hdl;
 	struct at91dci_td *obj_next;
 	at91dci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_packet_size;
@@ -157,7 +157,7 @@ struct at91dci_td {
 
 struct at91dci_std_temp {
 	at91dci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	struct at91dci_td *td;
 	struct at91dci_td *td_next;
 	uint32_t len;
@@ -169,17 +169,18 @@ struct at91dci_std_temp {
          * short_pkt = 1: transfer should not be short terminated
          */
 	uint8_t	setup_alt_next;
+	uint8_t did_stall;
 };
 
 struct at91dci_config_desc {
-	struct usb2_config_descriptor confd;
-	struct usb2_interface_descriptor ifcd;
-	struct usb2_endpoint_descriptor endpd;
+	struct usb_config_descriptor confd;
+	struct usb_interface_descriptor ifcd;
+	struct usb_endpoint_descriptor endpd;
 } __packed;
 
 union at91dci_hub_temp {
 	uWord	wValue;
-	struct usb2_port_status ps;
+	struct usb_port_status ps;
 };
 
 struct at91dci_ep_flags {
@@ -201,13 +202,10 @@ struct at91dci_flags {
 };
 
 struct at91dci_softc {
-	struct usb2_bus sc_bus;
+	struct usb_bus sc_bus;
 	union at91dci_hub_temp sc_hub_temp;
-	LIST_HEAD(, usb2_xfer) sc_interrupt_list_head;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
 
-	struct usb2_device *sc_devices[AT91_MAX_DEVICES];
+	struct usb_device *sc_devices[AT91_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;
@@ -235,7 +233,7 @@ struct at91dci_softc {
 
 /* prototypes */
 
-usb2_error_t at91dci_init(struct at91dci_softc *sc);
+usb_error_t at91dci_init(struct at91dci_softc *sc);
 void	at91dci_uninit(struct at91dci_softc *sc);
 void	at91dci_suspend(struct at91dci_softc *sc);
 void	at91dci_resume(struct at91dci_softc *sc);

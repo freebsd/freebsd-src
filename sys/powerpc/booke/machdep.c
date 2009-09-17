@@ -82,7 +82,9 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_ddb.h"
 #include "opt_kstack_pages.h"
+#include "opt_msgbuf.h"
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -125,17 +127,20 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/md_var.h>
 #include <machine/mmuvar.h>
-#include <machine/pmap.h>
 #include <machine/sigframe.h>
 #include <machine/metadata.h>
 #include <machine/bootinfo.h>
-#include <machine/powerpc.h>
+#include <machine/platform.h>
 
 #include <sys/linker.h>
 #include <sys/reboot.h>
 
 #include <powerpc/mpc85xx/ocpbus.h>
 #include <powerpc/mpc85xx/mpc85xx.h>
+
+#ifdef DDB
+extern vm_offset_t ksym_start, ksym_end;
+#endif
 
 #ifdef  DEBUG
 #define debugf(fmt, args...) printf(fmt, ##args)
@@ -150,9 +155,6 @@ extern unsigned char __bss_start[];
 extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
 extern unsigned char _end[];
-
-extern struct mem_region availmem_regions[];
-extern int availmem_regions_sz;
 
 extern void dcache_enable(void);
 extern void dcache_inval(void);
@@ -175,6 +177,9 @@ int cacheline_size = 32;
 
 SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
+
+int hw_direct_map = 0;
+int ppc64 = 0;
 
 static void cpu_e500_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL);
@@ -330,9 +335,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	struct pcpu *pc;
 	void *kmdp;
 	vm_offset_t end;
-	struct bi_mem_region *mr;
 	uint32_t csr;
-	int i;
 
 	kmdp = NULL;
 
@@ -352,6 +355,10 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
 			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
 			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+#ifdef DDB
+			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
+			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+#endif
 		}
 	} else {
 		/*
@@ -368,24 +375,11 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		while(1);
 	}
 
-	/* Initialize memory regions table */
-	mr = bootinfo_mr();
-	for (i = 0; i < bootinfo->bi_mem_reg_no; i++, mr++) {
-		if (i == MEM_REGIONS)
-			break;
-		availmem_regions[i].mr_start = mr->mem_base;
-		availmem_regions[i].mr_size = mr->mem_size;
-	}
-	availmem_regions_sz = i;
-
 	/* Initialize TLB1 handling */
 	tlb1_init(bootinfo->bi_bar_base);
 
-	/*
-	 * Time Base and Decrementer are updated every 8 CCB bus clocks.
-	 * HID0[SEL_TBCLK] = 0
-	 */
-	decr_config(bootinfo->bi_bus_clk / 8);
+	/* Reset Time Base */
+	mttb(0);
 
 	/* Init params/tunables that can be overridden by the loader. */
 	init_param1();
@@ -417,6 +411,11 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	debugf(" MSR = 0x%08x\n", mfmsr());
 	debugf(" HID0 = 0x%08x\n", mfspr(SPR_HID0));
 	debugf(" HID1 = 0x%08x\n", mfspr(SPR_HID1));
+	debugf(" BUCSR = 0x%08x\n", mfspr(SPR_BUCSR));
+
+	__asm __volatile("msync; isync");
+	csr = ccsr_read4(OCP85XX_L2CTL);
+	debugf(" L2CTL = 0x%08x\n", csr);
 
 	print_bootinfo();
 	print_kernel_section_addr();
@@ -430,6 +429,9 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
+
+	/* Initialise platform module */
+	platform_probe_and_attach();
 
 	/* Initialise virtual memory. */
 	pmap_mmu_install(MMU_TYPE_BOOKE, 0);
@@ -485,12 +487,25 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	return (((uintptr_t)thread0.td_pcb - 16) & ~15);
 }
 
+#define RES_GRANULE 32
+extern uint32_t tlb0_miss_locks[];
+
 /* Initialise a struct pcpu. */
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 {
 
 	pcpu->pc_tid_next = TID_MIN;
+
+#ifdef SMP
+	uint32_t *ptr;
+	int words_per_gran = RES_GRANULE / sizeof(uint32_t);
+
+	ptr = &tlb0_miss_locks[cpuid * words_per_gran];
+	pcpu->pc_booke_tlb_lock = ptr;
+	*ptr = MTX_UNOWNED;
+	*(ptr + 1) = 0;		/* recurse counter */
+#endif
 }
 
 /* Set set up registers on exec. */
@@ -562,12 +577,14 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 	return (0);
 }
 
-/* Get current clock frequency for the given cpu id. */
-int
-cpu_est_clockrate(int cpu_id, uint64_t *rate)
+/*
+ * Flush the D-cache for non-DMA I/O so that the I-cache can
+ * be made coherent later.
+ */
+void
+cpu_flush_dcache(void *ptr, size_t len)
 {
-
-	return (ENXIO);
+	/* TBD */
 }
 
 /*
@@ -806,14 +823,10 @@ int
 ptrace_single_step(struct thread *td)
 {
 	struct trapframe *tf;
-	u_int reg;
-
-	reg = mfspr(SPR_DBCR0);
-	reg |= DBCR0_IC | DBCR0_IDM;
-	mtspr(SPR_DBCR0, reg);
 
 	tf = td->td_frame;
 	tf->srr1 |= PSL_DE;
+	tf->cpu.booke.dbcr0 |= (DBCR0_IDM | DBCR0_IC);
 	return (0);
 }
 
@@ -824,6 +837,7 @@ ptrace_clear_single_step(struct thread *td)
 
 	tf = td->td_frame;
 	tf->srr1 &= ~PSL_DE;
+	tf->cpu.booke.dbcr0 &= ~(DBCR0_IDM | DBCR0_IC);
 	return (0);
 }
 

@@ -165,11 +165,11 @@
 #define	CPUID_FAMILY		0x00000f00
 #define	CPUID_EXT_MODEL		0x000f0000
 #define	CPUID_EXT_FAMILY	0x0ff00000
-#define	I386_CPU_MODEL(id) \
+#define	CPUID_TO_MODEL(id) \
     ((((id) & CPUID_MODEL) >> 4) | \
     ((((id) & CPUID_FAMILY) >= 0x600) ? \
     (((id) & CPUID_EXT_MODEL) >> 12) : 0))
-#define	I386_CPU_FAMILY(id) \
+#define	CPUID_TO_FAMILY(id) \
     ((((id) & CPUID_FAMILY) >> 8) + \
     ((((id) & CPUID_FAMILY) == 0xf00) ? \
     (((id) & CPUID_EXT_FAMILY) >> 20) : 0))
@@ -181,6 +181,13 @@
 #define	CPUID_CLFUSH_SIZE	0x0000ff00
 #define	CPUID_HTT_CORES		0x00ff0000
 #define	CPUID_LOCAL_APIC_ID	0xff000000
+
+/* 
+ * CPUID instruction 0xb ebx info.
+ */
+#define	CPUID_TYPE_INVAL	0
+#define	CPUID_TYPE_SMT		1
+#define	CPUID_TYPE_CORE		2
 
 /*
  * AMD extended function 8000_0007h edx info
@@ -408,6 +415,34 @@
 #define	DIR1			0xff
 
 /*
+ * Machine Check register constants.
+ */
+#define	MCG_CAP_COUNT		0x000000ff
+#define	MCG_CAP_CTL_P		0x00000100
+#define	MCG_CAP_EXT_P		0x00000200
+#define	MCG_CAP_TES_P		0x00000800
+#define	MCG_CAP_EXT_CNT		0x00ff0000
+#define	MCG_STATUS_RIPV		0x00000001
+#define	MCG_STATUS_EIPV		0x00000002
+#define	MCG_STATUS_MCIP		0x00000004
+#define	MCG_CTL_ENABLE		0xffffffffffffffffUL
+#define	MCG_CTL_DISABLE		0x0000000000000000UL
+#define	MSR_MC_CTL(x)		(MSR_MC0_CTL + (x) * 4)
+#define	MSR_MC_STATUS(x)	(MSR_MC0_STATUS + (x) * 4)
+#define	MSR_MC_ADDR(x)		(MSR_MC0_ADDR + (x) * 4)
+#define	MSR_MC_MISC(x)		(MSR_MC0_MISC + (x) * 4)
+#define	MC_STATUS_MCA_ERROR	0x000000000000ffffUL
+#define	MC_STATUS_MODEL_ERROR	0x00000000ffff0000UL
+#define	MC_STATUS_OTHER_INFO	0x01ffffff00000000UL
+#define	MC_STATUS_PCC		0x0200000000000000UL
+#define	MC_STATUS_ADDRV		0x0400000000000000UL
+#define	MC_STATUS_MISCV		0x0800000000000000UL
+#define	MC_STATUS_EN		0x1000000000000000UL
+#define	MC_STATUS_UC		0x2000000000000000UL
+#define	MC_STATUS_OVER		0x4000000000000000UL
+#define	MC_STATUS_VAL		0x8000000000000000UL
+
+/*
  * The following four 3-byte registers control the non-cacheable regions.
  * These registers must be written as three separate bytes.
  *
@@ -539,21 +574,5 @@
 #define	VIA_CRYPT_CWLO_KEY128		0x0000000a	/* 128bit, 10 rds */
 #define	VIA_CRYPT_CWLO_KEY192		0x0000040c	/* 192bit, 12 rds */
 #define	VIA_CRYPT_CWLO_KEY256		0x0000080e	/* 256bit, 15 rds */
-
-#ifndef LOCORE
-static __inline u_char
-read_cyrix_reg(u_char reg)
-{
-	outb(0x22, reg);
-	return inb(0x23);
-}
-
-static __inline void
-write_cyrix_reg(u_char reg, u_char data)
-{
-	outb(0x22, reg);
-	outb(0x23, data);
-}
-#endif
 
 #endif /* !_MACHINE_SPECIALREG_H_ */

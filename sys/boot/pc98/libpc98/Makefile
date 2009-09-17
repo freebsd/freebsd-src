@@ -5,8 +5,9 @@ INTERNALLIB=
 
 .PATH:	${.CURDIR}/../../i386/libi386
 
-SRCS=	bioscd.c biosdisk.c biosmem.c biospnp.c biospci.c biossmap.c \
-	bootinfo.c bootinfo32.c comconsole.c devicename.c elf32_freebsd.c \
+SRCS=	bioscd.c biosdisk.c biosmem.c biospnp.c \
+	biospci.c biossmap.c bootinfo.c bootinfo32.c \
+	comconsole.c devicename.c elf32_freebsd.c \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
 	time.c vidconsole.c
 

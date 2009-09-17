@@ -19,7 +19,7 @@ SHLIBDIR= /lib
 SHLIB=kse
 .endif
 
-SHLIB_MAJOR= 3
+SHLIB_MAJOR= 4
 CFLAGS+=-DPTHREAD_KERNEL
 CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 	-I${.CURDIR}/../../include

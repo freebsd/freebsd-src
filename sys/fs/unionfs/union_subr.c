@@ -52,9 +52,7 @@
 #include <sys/stat.h>
 #include <sys/resourcevar.h>
 
-#ifdef MAC
-#include <sys/mac.h>
-#endif
+#include <security/mac/mac_framework.h>
 
 #include <vm/uma.h>
 
@@ -488,9 +486,7 @@ unionfs_create_uppervattr_core(struct unionfs_mount *ump,
 		}
 		break;
 	default:		/* UNIONFS_TRADITIONAL */
-		FILEDESC_SLOCK(td->td_proc->p_fd);
 		uva->va_mode = 0777 & ~td->td_proc->p_fd->fd_cmask;
-		FILEDESC_SUNLOCK(td->td_proc->p_fd);
 		uva->va_uid = ump->um_uid;
 		uva->va_gid = ump->um_gid;
 		break;
@@ -805,10 +801,6 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 
 	if ((error = vn_start_write(udvp, &mp, V_WAIT | PCATCH)))
 		goto unionfs_mkshadowdir_free_out;
-	if ((error = VOP_LEASE(udvp, td, cn.cn_cred, LEASE_WRITE))) {
-		vn_finished_write(mp);
-		goto unionfs_mkshadowdir_free_out;
-	}
 	unionfs_create_uppervattr_core(ump, &lva, &va, td);
 
 	error = VOP_MKDIR(udvp, &uvp, &cn, &va);
@@ -874,8 +866,7 @@ unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp,
 
 	if ((error = vn_start_write(dvp, &mp, V_WAIT | PCATCH)))
 		goto unionfs_mkwhiteout_free_out;
-	if (!(error = VOP_LEASE(dvp, td, td->td_ucred, LEASE_WRITE)))
-		error = VOP_WHITEOUT(dvp, &cn, CREATE);
+	error = VOP_WHITEOUT(dvp, &cn, CREATE);
 
 	vn_finished_write(mp);
 
@@ -949,9 +940,6 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 		goto unionfs_vn_create_on_upper_free_out1;
 	}
 
-	if ((error = VOP_LEASE(udvp, td, cred, LEASE_WRITE)) != 0)
-		goto unionfs_vn_create_on_upper_free_out1;
-
 	if ((error = VOP_CREATE(udvp, &vp, &cn, uvap)) != 0)
 		goto unionfs_vn_create_on_upper_free_out1;
 
@@ -999,10 +987,6 @@ unionfs_copyfile_core(struct vnode *lvp, struct vnode *uvp,
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_offset = 0;
 
-	if ((error = VOP_LEASE(lvp, td, cred, LEASE_READ)) != 0)
-		return (error);
-	if ((error = VOP_LEASE(uvp, td, cred, LEASE_WRITE)) != 0)
-		return (error);
 	buf = malloc(MAXBSIZE, M_TEMP, M_WAITOK);
 
 	while (error == 0) {

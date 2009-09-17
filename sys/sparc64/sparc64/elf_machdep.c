@@ -99,7 +99,8 @@ static Elf64_Brandinfo freebsd_brand_info = {
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &elf64_freebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_ANY,
@@ -114,7 +115,8 @@ static Elf64_Brandinfo freebsd_brand_oinfo = {
 	.interp_path	= "/usr/libexec/ld-elf.so.1",
 	.sysvec		= &elf64_freebsd_sysvec,
 	.interp_newpath	= NULL,
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &elf64_freebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
 SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
@@ -283,7 +285,7 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	value = rela->r_addend + (Elf_Addr)lf->address;
 	where = (Elf_Addr *)((Elf_Addr)lf->address + rela->r_offset);
 
-	*where = value;
+	*where = elf_relocaddr(lf, value);
 
 	return (0);
 }
@@ -336,8 +338,9 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 	if (RELOC_PC_RELATIVE(rtype))
 		value -= (Elf_Addr)where;
 
-	if (RELOC_BASE_RELATIVE(rtype))
-		value += relocbase;
+	if (RELOC_BASE_RELATIVE(rtype)) {
+		value = elf_relocaddr(lf, value + relocbase);
+	}
 
 	mask = RELOC_VALUE_BITMASK(rtype);
 	value >>= RELOC_VALUE_RIGHTSHIFT(rtype);

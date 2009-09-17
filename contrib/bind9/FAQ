@@ -1,6 +1,6 @@
 Frequently Asked Questions about BIND 9
 
-Copyright © 2004-2008 Internet Systems Consortium, Inc. ("ISC")
+Copyright © 2004-2009 Internet Systems Consortium, Inc. ("ISC")
 
 Copyright © 2000-2003 Internet Software Consortium.
 
@@ -600,7 +600,7 @@ Q: Why do queries for NSEC3 records fail to return the NSEC3 record?
 
 A: NSEC3 records are strictly meta data and can only be returned in the
    authority section. This is done so that signing the zone using NSEC3
-   records does not bring names into existance that do not exist in the
+   records does not bring names into existence that do not exist in the
    unsigned version of the zone.
 
 5. Operating-System Specific Questions
@@ -825,7 +825,6 @@ A: /dev/random is not configured. Use rndcontrol(8) to tell the kernel to
    use certain interrupts as a source of random events. You can make this
    permanent by setting rand_irqs in /etc/rc.conf.
 
-   /etc/rc.conf
    rand_irqs="3 14 15"
 
    See also <http://people.freebsd.org/~dougb/randomness.html>.

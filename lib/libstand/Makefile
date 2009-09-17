@@ -35,7 +35,7 @@ CFLAGS+=	-msoft-float -D_STANDALONE
 CFLAGS+=	-m32 -I.
 .endif
 .if ${MACHINE_ARCH} == "arm"
-CFLAGS+=	-msoft-float -DSOFTFLOAT -D_STANDALONE
+CFLAGS+=	-msoft-float -D_STANDALONE
 .endif
 
 # standalone components and stuff we have modified locally

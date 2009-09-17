@@ -64,15 +64,15 @@ Vodafone Mobile Connect Card 3G
 .It
 Qualcomm Inc. CDMA MSM
 .It
-Huawei B190, E220 ('<Huawei Mobile>')
+Huawei B190, E180v, E220 ('<Huawei Mobile>')
 .It
-Novatal U740, MC950D, X950D, etc.
+Novatel U740, MC950D, X950D, etc.
 .It
 Sierra MC875U, MC8775U, etc.
 .El
 .Pp
 (See
-.Pa /sys/dev/u3g.c
+.Pa /sys/dev/usb/serial/u3g.c
 for the complete list of supported cards for each vendor
 mentioned above.)
 .Pp
@@ -109,7 +109,7 @@ and replug the device.
 The
 .Nm
 driver appeared in
-.Fx 8.0 ,
+.Fx 7.2 ,
 is based on the
 .Xr uark 4
 driver, and written by

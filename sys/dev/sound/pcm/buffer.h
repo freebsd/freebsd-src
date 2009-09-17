@@ -46,9 +46,9 @@ struct snd_dbuf {
 	volatile int rp; /* pointers to the ready area */
 	volatile int rl; /* length of ready area */
 	volatile int hp;
-	volatile u_int32_t total, prev_total;
+	volatile u_int64_t total, prev_total;
 	int dmachan, dir;       /* dma channel */
-	u_int32_t fmt, spd, bps;
+	u_int32_t fmt, spd, bps, align;
 	unsigned int blksz, blkcnt;
 	int xrun;
 	u_int32_t flags;
@@ -107,9 +107,10 @@ unsigned int sndbuf_getfree(struct snd_dbuf *b);
 unsigned int sndbuf_getfreeptr(struct snd_dbuf *b);
 unsigned int sndbuf_getready(struct snd_dbuf *b);
 unsigned int sndbuf_getreadyptr(struct snd_dbuf *b);
-unsigned int sndbuf_getblocks(struct snd_dbuf *b);
-unsigned int sndbuf_getprevblocks(struct snd_dbuf *b);
-unsigned int sndbuf_gettotal(struct snd_dbuf *b);
+u_int64_t sndbuf_getblocks(struct snd_dbuf *b);
+u_int64_t sndbuf_getprevblocks(struct snd_dbuf *b);
+u_int64_t sndbuf_gettotal(struct snd_dbuf *b);
+u_int64_t sndbuf_getprevtotal(struct snd_dbuf *b);
 unsigned int snd_xbytes(unsigned int v, unsigned int from, unsigned int to);
 unsigned int sndbuf_xbytes(unsigned int v, struct snd_dbuf *from, struct snd_dbuf *to);
 u_int8_t sndbuf_zerodata(u_int32_t fmt);

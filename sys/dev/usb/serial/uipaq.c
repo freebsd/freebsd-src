@@ -51,21 +51,35 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 #include <dev/usb/usb_cdc.h>
+#include "usbdevs.h"
 
-#define	USB_DEBUG_VAR usb2_debug
-
-#include <dev/usb/usb_core.h>
+#define	USB_DEBUG_VAR usb_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
@@ -81,11 +95,12 @@ enum {
 };
 
 struct uipaq_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_xfer *sc_xfer[UIPAQ_N_TRANSFER];
-	struct usb2_device *sc_udev;
+	struct usb_xfer *sc_xfer[UIPAQ_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct mtx sc_mtx;
 
 	uint16_t sc_line;
 
@@ -97,46 +112,46 @@ static device_probe_t uipaq_probe;
 static device_attach_t uipaq_attach;
 static device_detach_t uipaq_detach;
 
-static usb2_callback_t uipaq_write_callback;
-static usb2_callback_t uipaq_read_callback;
+static usb_callback_t uipaq_write_callback;
+static usb_callback_t uipaq_read_callback;
 
-static void	uipaq_start_read(struct usb2_com_softc *);
-static void	uipaq_stop_read(struct usb2_com_softc *);
-static void	uipaq_start_write(struct usb2_com_softc *);
-static void	uipaq_stop_write(struct usb2_com_softc *);
-static void	uipaq_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	uipaq_cfg_set_rts(struct usb2_com_softc *, uint8_t);
-static void	uipaq_cfg_set_break(struct usb2_com_softc *, uint8_t);
+static void	uipaq_start_read(struct ucom_softc *);
+static void	uipaq_stop_read(struct ucom_softc *);
+static void	uipaq_start_write(struct ucom_softc *);
+static void	uipaq_stop_write(struct ucom_softc *);
+static void	uipaq_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	uipaq_cfg_set_rts(struct ucom_softc *, uint8_t);
+static void	uipaq_cfg_set_break(struct ucom_softc *, uint8_t);
 
-static const struct usb2_config uipaq_config_data[UIPAQ_N_TRANSFER] = {
+static const struct usb_config uipaq_config_data[UIPAQ_N_TRANSFER] = {
 
 	[UIPAQ_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UIPAQ_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &uipaq_write_callback,
+		.bufsize = UIPAQ_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &uipaq_write_callback,
 	},
 
 	[UIPAQ_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UIPAQ_BUF_SIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &uipaq_read_callback,
+		.bufsize = UIPAQ_BUF_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &uipaq_read_callback,
 	},
 };
 
-static const struct usb2_com_callback uipaq_callback = {
-	.usb2_com_cfg_set_dtr = &uipaq_cfg_set_dtr,
-	.usb2_com_cfg_set_rts = &uipaq_cfg_set_rts,
-	.usb2_com_cfg_set_break = &uipaq_cfg_set_break,
-	.usb2_com_start_read = &uipaq_start_read,
-	.usb2_com_stop_read = &uipaq_stop_read,
-	.usb2_com_start_write = &uipaq_start_write,
-	.usb2_com_stop_write = &uipaq_stop_write,
+static const struct ucom_callback uipaq_callback = {
+	.ucom_cfg_set_dtr = &uipaq_cfg_set_dtr,
+	.ucom_cfg_set_rts = &uipaq_cfg_set_rts,
+	.ucom_cfg_set_break = &uipaq_cfg_set_break,
+	.ucom_start_read = &uipaq_start_read,
+	.ucom_stop_read = &uipaq_stop_read,
+	.ucom_start_write = &uipaq_start_write,
+	.ucom_stop_write = &uipaq_stop_write,
 };
 
 /*
@@ -144,7 +159,7 @@ static const struct usb2_com_callback uipaq_callback = {
  * support the same hardware. Numeric values are used where no usbdevs
  * entries exist.
  */
-static const struct usb2_device_id uipaq_devs[] = {
+static const struct usb_device_id uipaq_devs[] = {
 	/* Socket USB Sync */
 	{USB_VPI(0x0104, 0x00be, 0)},
 	/* USB Sync 0301 */
@@ -995,8 +1010,10 @@ static const struct usb2_device_id uipaq_devs[] = {
 	{USB_VPI(USB_VENDOR_SHARP, 0x9121, 0)},
 	/* SHARP S01SH USB Modem */
 	{USB_VPI(USB_VENDOR_SHARP, 0x9151, 0)},
-/**/
+	/**/
 	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WZERO3ES, 0)},
+	/**/
+	{USB_VPI(USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WILLCOM03, 0)},
 	/* Symbol USB Sync */
 	{USB_VPI(USB_VENDOR_SYMBOL, 0x2000, 0)},
 	/* Symbol USB Sync 0x2001 */
@@ -1068,16 +1085,16 @@ static driver_t uipaq_driver = {
 	.size = sizeof(struct uipaq_softc),
 };
 
-DRIVER_MODULE(uipaq, ushub, uipaq_driver, uipaq_devclass, NULL, 0);
+DRIVER_MODULE(uipaq, uhub, uipaq_driver, uipaq_devclass, NULL, 0);
 MODULE_DEPEND(uipaq, ucom, 1, 1, 1);
 MODULE_DEPEND(uipaq, usb, 1, 1, 1);
 
 static int
 uipaq_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UIPAQ_CONFIG_INDEX) {
@@ -1086,14 +1103,18 @@ uipaq_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != UIPAQ_IFACE_INDEX) {
 		return (ENXIO);
 	}
-	return (usb2_lookup_id_by_uaa(uipaq_devs, sizeof(uipaq_devs), uaa));
+	if (uaa->info.bInterfaceClass == UICLASS_IAD) {
+		DPRINTF("IAD detected - not UIPAQ serial device\n");
+		return (ENXIO);
+	}
+	return (usbd_lookup_id_by_uaa(uipaq_devs, sizeof(uipaq_devs), uaa));
 }
 
 static int
 uipaq_attach(device_t dev)
 {
-	struct usb2_device_request req;
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_device_request req;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct uipaq_softc *sc = device_get_softc(dev);
 	int error;
 	uint8_t iface_index;
@@ -1101,7 +1122,8 @@ uipaq_attach(device_t dev)
 
 	sc->sc_udev = uaa->device;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
+	mtx_init(&sc->sc_mtx, "uipaq", NULL, MTX_DEF);
 
 	/*
 	 * Send magic bytes, cribbed from Linux ipaq driver that
@@ -1115,27 +1137,29 @@ uipaq_attach(device_t dev)
 	USETW(req.wLength, 0);
 	for (i = 0; i != 64; i++) {
 		error =
-		    usb2_do_request_flags(uaa->device, NULL, &req,
+		    usbd_do_request_flags(uaa->device, NULL, &req,
 		    NULL, 0, NULL, 100);
 		if (error == 0)
 			break;
-		usb2_pause_mtx(NULL, hz / 10);
+		usb_pause_mtx(NULL, hz / 10);
 	}
 
 	iface_index = UIPAQ_IFACE_INDEX;
-	error = usb2_transfer_setup(uaa->device, &iface_index,
+	error = usbd_transfer_setup(uaa->device, &iface_index,
 	    sc->sc_xfer, uipaq_config_data,
-	    UIPAQ_N_TRANSFER, sc, &Giant);
+	    UIPAQ_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
 		goto detach;
 	}
 	/* clear stall at first run */
-	usb2_transfer_set_stall(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
-	usb2_transfer_set_stall(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
+	mtx_lock(&sc->sc_mtx);
+	usbd_xfer_set_stall(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
+	usbd_xfer_set_stall(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
+	mtx_unlock(&sc->sc_mtx);
 
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &uipaq_callback, &Giant);
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	    &uipaq_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -1151,52 +1175,52 @@ uipaq_detach(device_t dev)
 {
 	struct uipaq_softc *sc = device_get_softc(dev);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
-	usb2_transfer_unsetup(sc->sc_xfer, UIPAQ_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UIPAQ_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
 
 static void
-uipaq_start_read(struct usb2_com_softc *ucom)
+uipaq_start_read(struct ucom_softc *ucom)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
 
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
 }
 
 static void
-uipaq_stop_read(struct usb2_com_softc *ucom)
+uipaq_stop_read(struct ucom_softc *ucom)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UIPAQ_BULK_DT_RD]);
 }
 
 static void
-uipaq_start_write(struct usb2_com_softc *ucom)
+uipaq_start_write(struct ucom_softc *ucom)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
 }
 
 static void
-uipaq_stop_write(struct usb2_com_softc *ucom)
+uipaq_stop_write(struct ucom_softc *ucom)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UIPAQ_BULK_DT_WR]);
 }
 
 static void
-uipaq_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+uipaq_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTF("onoff=%d\n", onoff);
 
@@ -1212,15 +1236,15 @@ uipaq_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
 static void
-uipaq_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+uipaq_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 
 	DPRINTF("onoff=%d\n", onoff);
 
@@ -1236,15 +1260,15 @@ uipaq_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
 static void
-uipaq_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+uipaq_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct uipaq_softc *sc = ucom->sc_parent;
-	struct usb2_device_request req;
+	struct usb_device_request req;
 	uint16_t temp;
 
 	temp = onoff ? UCDC_BREAK_ON : UCDC_BREAK_OFF;
@@ -1256,31 +1280,33 @@ uipaq_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 	req.wIndex[1] = 0;
 	USETW(req.wLength, 0);
 
-	usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000);
 }
 
 static void
-uipaq_write_callback(struct usb2_xfer *xfer)
+uipaq_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uipaq_softc *sc = xfer->priv_sc;
+	struct uipaq_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (ucom_get_data(&sc->sc_ucom, pc, 0,
 		    UIPAQ_BUF_SIZE, &actlen)) {
-			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -1288,25 +1314,29 @@ tr_setup:
 }
 
 static void
-uipaq_read_callback(struct usb2_xfer *xfer)
+uipaq_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct uipaq_softc *sc = xfer->priv_sc;
+	struct uipaq_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers, 0,
-		    xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		ucom_put_data(&sc->sc_ucom, pc, 0, actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;

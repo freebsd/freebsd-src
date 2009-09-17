@@ -86,3 +86,4 @@ sysvmsg 	SysV IPC Message Queue Regression Utility
 sysvsem 	SysV IPC Semaphore Regression Utility
 sysvshm 	SysV IPC Shared Memory Regression Utility
 gaithrstress	General threaded getaddrinfo(3) exerciser
+date		Date(1) + format string regression test

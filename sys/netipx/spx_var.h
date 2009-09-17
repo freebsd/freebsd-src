@@ -143,4 +143,18 @@ struct	spx_istat {
 #define	SSEQ_GT(a,b)	(((short)((a)-(b))) > 0)
 #define	SSEQ_GEQ(a,b)	(((short)((a)-(b))) >= 0)
 
+#ifdef _KERNEL
+/* Following was struct spxstat spxstat; */
+#ifndef spxstat
+#define	spxstat	spx_istat.newstats
+#endif
+extern struct spx_istat	spx_istat;
+extern u_short	spx_newchecks[50];
+
+int	spx_output(struct spxpcb *cb, struct mbuf *m0);
+int	spx_reass(struct spxpcb *cb, struct mbuf *msi, struct spx *si);
+void	spx_reass_flush(struct spxpcb *cb);
+void	spx_reass_init(struct spxpcb *cb);
+#endif
+
 #endif /* !_NETIPX_SPX_VAR_H_ */

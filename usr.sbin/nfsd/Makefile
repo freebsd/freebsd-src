@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	nfsd
-MAN=	nfsd.8
+MAN=	nfsd.8 nfsv4.4 stablerestart.5
 
 WARNS?=	6
 

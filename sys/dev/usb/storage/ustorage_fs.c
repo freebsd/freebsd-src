@@ -35,35 +35,77 @@
  * NOTE: Much of the SCSI statemachine handling code derives from the
  * Linux USB gadget stack.
  */
-#include "usbdevs.h"
+
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_defs.h>
+#include <dev/usb/usbdi.h>
+#include "usbdevs.h"
+#include "usb_if.h"
 
 #define	USB_DEBUG_VAR ustorage_fs_debug
-
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_device.h>
 
 #if USB_DEBUG
 static int ustorage_fs_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, ustorage_fs, CTLFLAG_RW, 0, "USB ustorage_fs");
-SYSCTL_INT(_hw_usb2_ustorage_fs, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ustorage_fs, CTLFLAG_RW, 0, "USB ustorage_fs");
+SYSCTL_INT(_hw_usb_ustorage_fs, OID_AUTO, debug, CTLFLAG_RW,
     &ustorage_fs_debug, 0, "ustorage_fs debug level");
 #endif
 
 /* Define some limits */
 
-#define	USTORAGE_FS_BULK_SIZE (1 << 17)
-#define	USTORAGE_FS_MAX_LUN 8
-#define	USTORAGE_FS_RELEASE 0x0101
-#define	USTORAGE_FS_RAM_SECT (1 << 13)
+#ifndef USTORAGE_FS_BULK_SIZE 
+#define	USTORAGE_FS_BULK_SIZE (1UL << 17)	/* bytes */
+#endif
+
+#ifndef	USTORAGE_FS_MAX_LUN
+#define	USTORAGE_FS_MAX_LUN	8	/* units */
+#endif
+
+#ifndef USTORAGE_QDATA_MAX
+#define	USTORAGE_QDATA_MAX	40	/* bytes */
+#endif
+
+#define sc_cmd_data sc_cbw.CBWCDB
+
+/*
+ * The SCSI ID string must be exactly 28 characters long
+ * exluding the terminating zero.
+ */
+#ifndef USTORAGE_FS_ID_STRING
+#define	USTORAGE_FS_ID_STRING \
+	"FreeBSD " /* 8 */ \
+	"File-Stor Gadget" /* 16 */ \
+	"0101" /* 4 */
+#endif
+
+/*
+ * The following macro defines the number of
+ * sectors to be allocated for the RAM disk:
+ */
+#ifndef USTORAGE_FS_RAM_SECT
+#define	USTORAGE_FS_RAM_SECT (1UL << 13)
+#endif
 
 static uint8_t *ustorage_fs_ramdisk;
 
@@ -120,7 +162,7 @@ typedef struct {
 
 struct ustorage_fs_lun {
 
-	void   *memory_image;
+	uint8_t	*memory_image;
 
 	uint32_t num_sectors;
 	uint32_t sense_data;
@@ -153,23 +195,19 @@ struct ustorage_fs_softc {
 		uint8_t	cbw_dir;
 		uint8_t	cmd_dir;
 		uint8_t	lun;
-		uint8_t	cmd_data[CBWCDBLENGTH];
 		uint8_t	cmd_len;
 		uint8_t	data_short:1;
 		uint8_t	data_error:1;
 	}	sc_transfer;
 
 	device_t sc_dev;
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[USTORAGE_FS_T_BBB_MAX];
+	struct usb_device *sc_udev;
+	struct usb_xfer *sc_xfer[USTORAGE_FS_T_BBB_MAX];
 
-	uint32_t sc_unit;
-
-	uint8_t	sc_name[16];
 	uint8_t	sc_iface_no;		/* interface number */
 	uint8_t	sc_last_lun;
 	uint8_t	sc_last_xfer_index;
-	uint8_t	sc_qdata[1024];
+	uint8_t	sc_qdata[USTORAGE_QDATA_MAX];
 };
 
 /* prototypes */
@@ -179,14 +217,13 @@ static device_attach_t ustorage_fs_attach;
 static device_detach_t ustorage_fs_detach;
 static device_suspend_t ustorage_fs_suspend;
 static device_resume_t ustorage_fs_resume;
-static device_shutdown_t ustorage_fs_shutdown;
 static usb_handle_request_t ustorage_fs_handle_request;
 
-static usb2_callback_t ustorage_fs_t_bbb_command_callback;
-static usb2_callback_t ustorage_fs_t_bbb_data_dump_callback;
-static usb2_callback_t ustorage_fs_t_bbb_data_read_callback;
-static usb2_callback_t ustorage_fs_t_bbb_data_write_callback;
-static usb2_callback_t ustorage_fs_t_bbb_status_callback;
+static usb_callback_t ustorage_fs_t_bbb_command_callback;
+static usb_callback_t ustorage_fs_t_bbb_data_dump_callback;
+static usb_callback_t ustorage_fs_t_bbb_data_read_callback;
+static usb_callback_t ustorage_fs_t_bbb_data_write_callback;
+static usb_callback_t ustorage_fs_t_bbb_status_callback;
 
 static void ustorage_fs_transfer_start(struct ustorage_fs_softc *sc, uint8_t xfer_index);
 static void ustorage_fs_transfer_stop(struct ustorage_fs_softc *sc);
@@ -216,7 +253,6 @@ static device_method_t ustorage_fs_methods[] = {
 	DEVMETHOD(device_detach, ustorage_fs_detach),
 	DEVMETHOD(device_suspend, ustorage_fs_suspend),
 	DEVMETHOD(device_resume, ustorage_fs_resume),
-	DEVMETHOD(device_shutdown, ustorage_fs_shutdown),
 
 	{0, 0}
 };
@@ -229,55 +265,60 @@ static driver_t ustorage_fs_driver = {
 
 static devclass_t ustorage_fs_devclass;
 
-DRIVER_MODULE(ustorage_fs, ushub, ustorage_fs_driver, ustorage_fs_devclass, NULL, 0);
+DRIVER_MODULE(ustorage_fs, uhub, ustorage_fs_driver, ustorage_fs_devclass, NULL, 0);
 MODULE_VERSION(ustorage_fs, 0);
 MODULE_DEPEND(ustorage_fs, usb, 1, 1, 1);
 
-struct usb2_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
+static struct usb_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
 
 	[USTORAGE_FS_T_BBB_COMMAND] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.md.bufsize = sizeof(ustorage_fs_bbb_cbw_t),
-		.md.flags = {.ext_buffer = 1,},
-		.md.callback = &ustorage_fs_t_bbb_command_callback,
+		.bufsize = sizeof(ustorage_fs_bbb_cbw_t),
+		.flags = {.ext_buffer = 1,},
+		.callback = &ustorage_fs_t_bbb_command_callback,
+		.usb_mode = USB_MODE_DEVICE,
 	},
 
 	[USTORAGE_FS_T_BBB_DATA_DUMP] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.md.bufsize = 0,	/* use wMaxPacketSize */
-		.md.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
-		.md.callback = &ustorage_fs_t_bbb_data_dump_callback,
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.callback = &ustorage_fs_t_bbb_data_dump_callback,
+		.usb_mode = USB_MODE_DEVICE,
 	},
 
 	[USTORAGE_FS_T_BBB_DATA_READ] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.md.bufsize = USTORAGE_FS_BULK_SIZE,
-		.md.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,.ext_buffer = 1},
-		.md.callback = &ustorage_fs_t_bbb_data_read_callback,
+		.bufsize = USTORAGE_FS_BULK_SIZE,
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,.ext_buffer = 1},
+		.callback = &ustorage_fs_t_bbb_data_read_callback,
+		.usb_mode = USB_MODE_DEVICE,
 	},
 
 	[USTORAGE_FS_T_BBB_DATA_WRITE] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.md.bufsize = USTORAGE_FS_BULK_SIZE,
-		.md.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,.ext_buffer = 1},
-		.md.callback = &ustorage_fs_t_bbb_data_write_callback,
+		.bufsize = USTORAGE_FS_BULK_SIZE,
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,.ext_buffer = 1},
+		.callback = &ustorage_fs_t_bbb_data_write_callback,
+		.usb_mode = USB_MODE_DEVICE,
 	},
 
 	[USTORAGE_FS_T_BBB_STATUS] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.md.bufsize = sizeof(ustorage_fs_bbb_csw_t),
-		.md.flags = {.short_xfer_ok = 1,.ext_buffer = 1,},
-		.md.callback = &ustorage_fs_t_bbb_status_callback,
+		.bufsize = sizeof(ustorage_fs_bbb_csw_t),
+		.flags = {.short_xfer_ok = 1,.ext_buffer = 1,},
+		.callback = &ustorage_fs_t_bbb_status_callback,
+		.usb_mode = USB_MODE_DEVICE,
 	},
 };
 
@@ -288,10 +329,10 @@ struct usb2_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
 static int
 ustorage_fs_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface_descriptor *id;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface_descriptor *id;
 
-	if (uaa->usb2_mode != USB_MODE_DEVICE) {
+	if (uaa->usb_mode != USB_MODE_DEVICE) {
 		return (ENXIO);
 	}
 	if (uaa->use_generic == 0) {
@@ -299,7 +340,7 @@ ustorage_fs_probe(device_t dev)
 		return (ENXIO);
 	}
 	/* Check for a standards compliant device */
-	id = usb2_get_interface_descriptor(uaa->iface);
+	id = usbd_get_interface_descriptor(uaa->iface);
 	if ((id == NULL) ||
 	    (id->bInterfaceClass != UICLASS_MASS) ||
 	    (id->bInterfaceSubClass != UISUBCLASS_SCSI) ||
@@ -313,9 +354,10 @@ static int
 ustorage_fs_attach(device_t dev)
 {
 	struct ustorage_fs_softc *sc = device_get_softc(dev);
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
-	struct usb2_interface_descriptor *id;
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_interface_descriptor *id;
 	int err;
+	int unit;
 
 	/*
 	 * NOTE: the softc struct is bzero-ed in device_set_driver.
@@ -325,9 +367,9 @@ ustorage_fs_attach(device_t dev)
 
 	sc->sc_dev = dev;
 	sc->sc_udev = uaa->device;
-	sc->sc_unit = device_get_unit(dev);
+	unit = device_get_unit(dev);
 
-	if (sc->sc_unit == 0) {
+	if (unit == 0) {
 		if (ustorage_fs_ramdisk == NULL) {
 			/*
 			 * allocate a memory image for our ramdisk until
@@ -343,17 +385,15 @@ ustorage_fs_attach(device_t dev)
 		sc->sc_lun[0].num_sectors = USTORAGE_FS_RAM_SECT;
 		sc->sc_lun[0].removable = 1;
 	}
-	snprintf(sc->sc_name, sizeof(sc->sc_name),
-	    "%s", device_get_nameunit(dev));
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "USTORAGE_FS lock",
 	    NULL, (MTX_DEF | MTX_RECURSE));
 
 	/* get interface index */
 
-	id = usb2_get_interface_descriptor(uaa->iface);
+	id = usbd_get_interface_descriptor(uaa->iface);
 	if (id == NULL) {
 		device_printf(dev, "failed to get "
 		    "interface number\n");
@@ -361,12 +401,12 @@ ustorage_fs_attach(device_t dev)
 	}
 	sc->sc_iface_no = id->bInterfaceNumber;
 
-	err = usb2_transfer_setup(uaa->device,
+	err = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, ustorage_fs_bbb_config,
 	    USTORAGE_FS_T_BBB_MAX, sc, &sc->sc_mtx);
 	if (err) {
 		device_printf(dev, "could not setup required "
-		    "transfers, %s\n", usb2_errstr(err));
+		    "transfers, %s\n", usbd_errstr(err));
 		goto detach;
 	}
 	/* start Mass Storage State Machine */
@@ -389,7 +429,7 @@ ustorage_fs_detach(device_t dev)
 
 	/* teardown our statemachine */
 
-	usb2_transfer_unsetup(sc->sc_xfer, USTORAGE_FS_T_BBB_MAX);
+	usbd_transfer_unsetup(sc->sc_xfer, USTORAGE_FS_T_BBB_MAX);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -410,12 +450,6 @@ ustorage_fs_resume(device_t dev)
 	return (0);			/* success */
 }
 
-static int
-ustorage_fs_shutdown(device_t dev)
-{
-	return (0);			/* success */
-}
-
 /*
  * Generic functions to handle transfers
  */
@@ -425,29 +459,31 @@ ustorage_fs_transfer_start(struct ustorage_fs_softc *sc, uint8_t xfer_index)
 {
 	if (sc->sc_xfer[xfer_index]) {
 		sc->sc_last_xfer_index = xfer_index;
-		usb2_transfer_start(sc->sc_xfer[xfer_index]);
+		usbd_transfer_start(sc->sc_xfer[xfer_index]);
 	}
 }
 
 static void
 ustorage_fs_transfer_stop(struct ustorage_fs_softc *sc)
 {
-	usb2_transfer_stop(sc->sc_xfer[sc->sc_last_xfer_index]);
+	usbd_transfer_stop(sc->sc_xfer[sc->sc_last_xfer_index]);
 	mtx_unlock(&sc->sc_mtx);
-	usb2_transfer_drain(sc->sc_xfer[sc->sc_last_xfer_index]);
+	usbd_transfer_drain(sc->sc_xfer[sc->sc_last_xfer_index]);
 	mtx_lock(&sc->sc_mtx);
 }
 
 static int
 ustorage_fs_handle_request(device_t dev,
     const void *preq, void **pptr, uint16_t *plen,
-    uint16_t offset, uint8_t is_complete)
+    uint16_t offset, uint8_t *pstate)
 {
 	struct ustorage_fs_softc *sc = device_get_softc(dev);
-	const struct usb2_device_request *req = preq;
+	const struct usb_device_request *req = preq;
+	uint8_t is_complete = *pstate;
 
 	if (!is_complete) {
-		if (req->bRequest == UR_BBB_RESET) {
+		if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&
+		    (req->bRequest == UR_BBB_RESET)) {
 			*plen = 0;
 			mtx_lock(&sc->sc_mtx);
 			ustorage_fs_transfer_stop(sc);
@@ -456,7 +492,8 @@ ustorage_fs_handle_request(device_t dev,
 			    USTORAGE_FS_T_BBB_COMMAND);
 			mtx_unlock(&sc->sc_mtx);
 			return (0);
-		} else if (req->bRequest == UR_BBB_GET_MAX_LUN) {
+		} else if ((req->bmRequestType == UT_READ_CLASS_INTERFACE) &&
+			   (req->bRequest == UR_BBB_GET_MAX_LUN)) {
 			if (offset == 0) {
 				*plen = 1;
 				*pptr = &sc->sc_last_lun;
@@ -470,11 +507,11 @@ ustorage_fs_handle_request(device_t dev,
 }
 
 static void
-ustorage_fs_t_bbb_command_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ustorage_fs_softc *sc = xfer->priv_sc;
+	struct ustorage_fs_softc *sc = usbd_xfer_softc(xfer);
 	uint32_t tag;
-	uint8_t error = 0;
+	uint8_t err = 0;
 
 	DPRINTF("\n");
 
@@ -525,14 +562,9 @@ ustorage_fs_t_bbb_command_callback(struct usb2_xfer *xfer)
 			    sc->sc_transfer.cmd_len);
 			break;
 		}
-		bcopy(sc->sc_cbw.CBWCDB, sc->sc_transfer.cmd_data,
-		    sc->sc_transfer.cmd_len);
 
-		bzero(sc->sc_cbw.CBWCDB + sc->sc_transfer.cmd_len,
-		    sizeof(sc->sc_cbw.CBWCDB) - sc->sc_transfer.cmd_len);
-
-		error = ustorage_fs_do_cmd(sc);
-		if (error) {
+		err = ustorage_fs_do_cmd(sc);
+		if (err) {
 			/* got an error */
 			DPRINTF("command failed\n");
 			break;
@@ -540,7 +572,7 @@ ustorage_fs_t_bbb_command_callback(struct usb2_xfer *xfer)
 		if ((sc->sc_transfer.data_rem > 0) &&
 		    (sc->sc_transfer.cbw_dir != sc->sc_transfer.cmd_dir)) {
 			/* contradicting data transfer direction */
-			error = 1;
+			err = 1;
 			DPRINTF("data direction mismatch\n");
 			break;
 		}
@@ -562,30 +594,28 @@ ustorage_fs_t_bbb_command_callback(struct usb2_xfer *xfer)
 tr_setup:
 		if (sc->sc_transfer.data_error) {
 			sc->sc_transfer.data_error = 0;
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			DPRINTF("stall pipe\n");
-		} else {
-			xfer->flags.stall_pipe = 0;
 		}
 
-		xfer->frlengths[0] = sizeof(sc->sc_cbw);
-		usb2_set_frame_data(xfer, &sc->sc_cbw, 0);
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_data(xfer, 0, &sc->sc_cbw,
+		    sizeof(sc->sc_cbw));
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
 		DPRINTF("error\n");
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->pipe->is_stalled) {
+		if (!usbd_xfer_is_stalled(xfer))
 			sc->sc_transfer.data_error = 1;
-		}
+
 		/* try again */
 		goto tr_setup;
 	}
-	if (error) {
+	if (err) {
 		if (sc->sc_csw.bCSWStatus == 0) {
 			/* set some default error code */
 			sc->sc_csw.bCSWStatus = CSWSTATUS_FAILED;
@@ -605,20 +635,22 @@ tr_setup:
 }
 
 static void
-ustorage_fs_t_bbb_data_dump_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_data_dump_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ustorage_fs_softc *sc = xfer->priv_sc;
-	uint32_t max_bulk = xfer->max_data_length;
+	struct ustorage_fs_softc *sc = usbd_xfer_softc(xfer);
+	uint32_t max_bulk = usbd_xfer_max_len(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	DPRINTF("\n");
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		sc->sc_transfer.data_rem -= xfer->actlen;
-		sc->sc_transfer.offset += xfer->actlen;
+		sc->sc_transfer.data_rem -= actlen;
+		sc->sc_transfer.offset += actlen;
 
-		if ((xfer->actlen != xfer->sumlen) ||
-		    (sc->sc_transfer.data_rem == 0)) {
+		if (actlen != sumlen || sc->sc_transfer.data_rem == 0) {
 			/* short transfer or end of data */
 			ustorage_fs_transfer_start(sc,
 			    USTORAGE_FS_T_BBB_STATUS);
@@ -633,45 +665,45 @@ tr_setup:
 		}
 		if (sc->sc_transfer.data_error) {
 			sc->sc_transfer.data_error = 0;
-			xfer->flags.stall_pipe = 1;
-		} else {
-			xfer->flags.stall_pipe = 0;
+			usbd_xfer_set_stall(xfer);
 		}
-		xfer->frlengths[0] = max_bulk;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, max_bulk);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		/*
 		 * If the pipe is already stalled, don't do another stall:
 		 */
-		if (!xfer->pipe->is_stalled) {
+		if (!usbd_xfer_is_stalled(xfer))
 			sc->sc_transfer.data_error = 1;
-		}
+
 		/* try again */
 		goto tr_setup;
 	}
 }
 
 static void
-ustorage_fs_t_bbb_data_read_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_data_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ustorage_fs_softc *sc = xfer->priv_sc;
-	uint32_t max_bulk = xfer->max_data_length;
+	struct ustorage_fs_softc *sc = usbd_xfer_softc(xfer);
+	uint32_t max_bulk = usbd_xfer_max_len(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	DPRINTF("\n");
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		sc->sc_transfer.data_rem -= xfer->actlen;
-		sc->sc_transfer.data_ptr += xfer->actlen;
-		sc->sc_transfer.offset += xfer->actlen;
+		sc->sc_transfer.data_rem -= actlen;
+		sc->sc_transfer.data_ptr += actlen;
+		sc->sc_transfer.offset += actlen;
 
-		if ((xfer->actlen != xfer->sumlen) ||
-		    (sc->sc_transfer.data_rem == 0)) {
+		if (actlen != sumlen || sc->sc_transfer.data_rem == 0) {
 			/* short transfer or end of data */
 			ustorage_fs_transfer_start(sc,
 			    USTORAGE_FS_T_BBB_STATUS);
@@ -686,45 +718,45 @@ tr_setup:
 		}
 		if (sc->sc_transfer.data_error) {
 			sc->sc_transfer.data_error = 0;
-			xfer->flags.stall_pipe = 1;
-		} else {
-			xfer->flags.stall_pipe = 0;
+			usbd_xfer_set_stall(xfer);
 		}
 
-		xfer->frlengths[0] = max_bulk;
-		usb2_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_data(xfer, 0, sc->sc_transfer.data_ptr,
+		    max_bulk);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->pipe->is_stalled) {
+		if (!usbd_xfer_is_stalled(xfer))
 			sc->sc_transfer.data_error = 1;
-		}
+
 		/* try again */
 		goto tr_setup;
 	}
 }
 
 static void
-ustorage_fs_t_bbb_data_write_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ustorage_fs_softc *sc = xfer->priv_sc;
-	uint32_t max_bulk = xfer->max_data_length;
+	struct ustorage_fs_softc *sc = usbd_xfer_softc(xfer);
+	uint32_t max_bulk = usbd_xfer_max_len(xfer);
+	int actlen, sumlen;
+
+	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
 	DPRINTF("\n");
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		sc->sc_transfer.data_rem -= xfer->actlen;
-		sc->sc_transfer.data_ptr += xfer->actlen;
-		sc->sc_transfer.offset += xfer->actlen;
+		sc->sc_transfer.data_rem -= actlen;
+		sc->sc_transfer.data_ptr += actlen;
+		sc->sc_transfer.offset += actlen;
 
-		if ((xfer->actlen != xfer->sumlen) ||
-		    (sc->sc_transfer.data_rem == 0)) {
+		if (actlen != sumlen || sc->sc_transfer.data_rem == 0) {
 			/* short transfer or end of data */
 			ustorage_fs_transfer_start(sc,
 			    USTORAGE_FS_T_BBB_STATUS);
@@ -734,47 +766,43 @@ ustorage_fs_t_bbb_data_write_callback(struct usb2_xfer *xfer)
 tr_setup:
 		if (max_bulk >= sc->sc_transfer.data_rem) {
 			max_bulk = sc->sc_transfer.data_rem;
-			if (sc->sc_transfer.data_short) {
-				xfer->flags.force_short_xfer = 1;
-			} else {
-				xfer->flags.force_short_xfer = 0;
-			}
-		} else {
-			xfer->flags.force_short_xfer = 0;
-		}
+			if (sc->sc_transfer.data_short)
+				usbd_xfer_set_flag(xfer, USB_FORCE_SHORT_XFER);
+			else
+				usbd_xfer_clr_flag(xfer, USB_FORCE_SHORT_XFER);
+		} else
+			usbd_xfer_clr_flag(xfer, USB_FORCE_SHORT_XFER);
 
 		if (sc->sc_transfer.data_error) {
 			sc->sc_transfer.data_error = 0;
-			xfer->flags.stall_pipe = 1;
-		} else {
-			xfer->flags.stall_pipe = 0;
+			usbd_xfer_set_stall(xfer);
 		}
 
-		xfer->frlengths[0] = max_bulk;
-		usb2_set_frame_data(xfer, sc->sc_transfer.data_ptr, 0);
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_data(xfer, 0, sc->sc_transfer.data_ptr,
+		    max_bulk);
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:			/* Error */
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		/*
 		 * If the pipe is already stalled, don't do another
 		 * stall
 		 */
-		if (!xfer->pipe->is_stalled) {
+		if (!usbd_xfer_is_stalled(xfer))
 			sc->sc_transfer.data_error = 1;
-		}
+
 		/* try again */
 		goto tr_setup;
 	}
 }
 
 static void
-ustorage_fs_t_bbb_status_callback(struct usb2_xfer *xfer)
+ustorage_fs_t_bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct ustorage_fs_softc *sc = xfer->priv_sc;
+	struct ustorage_fs_softc *sc = usbd_xfer_softc(xfer);
 
 	DPRINTF("\n");
 
@@ -790,24 +818,22 @@ tr_setup:
 
 		if (sc->sc_transfer.data_error) {
 			sc->sc_transfer.data_error = 0;
-			xfer->flags.stall_pipe = 1;
-		} else {
-			xfer->flags.stall_pipe = 0;
+			usbd_xfer_set_stall(xfer);
 		}
 
-		xfer->frlengths[0] = sizeof(sc->sc_csw);
-		usb2_set_frame_data(xfer, &sc->sc_csw, 0);
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_data(xfer, 0, &sc->sc_csw,
+		    sizeof(sc->sc_csw));
+		usbd_transfer_submit(xfer);
 		break;
 
 	default:
-		if (xfer->error == USB_ERR_CANCELLED) {
+		if (error == USB_ERR_CANCELLED) {
 			break;
 		}
 		/* If the pipe is already stalled, don't do another stall */
-		if (!xfer->pipe->is_stalled) {
+		if (!usbd_xfer_is_stalled(xfer))
 			sc->sc_transfer.data_error = 1;
-		}
+
 		/* try again */
 		goto tr_setup;
 	}
@@ -908,17 +934,17 @@ ustorage_fs_verify(struct ustorage_fs_softc *sc)
 	/*
 	 * Get the starting Logical Block Address
 	 */
-	lba = get_be32(&sc->sc_transfer.cmd_data[2]);
+	lba = get_be32(&sc->sc_cmd_data[2]);
 
 	/*
 	 * We allow DPO (Disable Page Out = don't save data in the cache)
 	 * but we don't implement it.
 	 */
-	if ((sc->sc_transfer.cmd_data[1] & ~0x10) != 0) {
+	if ((sc->sc_cmd_data[1] & ~0x10) != 0) {
 		currlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 		return (1);
 	}
-	vlen = get_be16(&sc->sc_transfer.cmd_data[7]);
+	vlen = get_be16(&sc->sc_cmd_data[7]);
 	if (vlen == 0) {
 		goto done;
 	}
@@ -955,8 +981,6 @@ static uint8_t
 ustorage_fs_inquiry(struct ustorage_fs_softc *sc)
 {
 	uint8_t *buf = sc->sc_transfer.data_ptr;
-	static const char vendor_id[] = "FreeBSD ";
-	static const char product_id[] = "File-Stor Gadget";
 
 	struct ustorage_fs_lun *currlun = sc->sc_transfer.currlun;
 
@@ -978,12 +1002,12 @@ ustorage_fs_inquiry(struct ustorage_fs_softc *sc)
 	buf[4] = 31;
 	/* Additional length */
 	/* No special options */
-	/*
-	 * NOTE: We are writing an extra zero here, that is not
-	 * transferred to the peer:
-	 */
-	snprintf(buf + 8, 28 + 1, "%-8s%-16s%04x", vendor_id, product_id,
-	    USTORAGE_FS_RELEASE);
+	/* Copy in ID string */
+	memcpy(buf + 8, USTORAGE_FS_ID_STRING, 28);
+
+#if (USTORAGE_QDATA_MAX < 36)
+#error "(USTORAGE_QDATA_MAX < 36)"
+#endif
 	return (ustorage_fs_min_len(sc, 36, 0 - 1));
 }
 
@@ -1049,9 +1073,12 @@ ustorage_fs_request_sense(struct ustorage_fs_softc *sc)
 	/* Additional sense length */
 	buf[12] = ASC(sd);
 	buf[13] = ASCQ(sd);
+
+#if (USTORAGE_QDATA_MAX < 18)
+#error "(USTORAGE_QDATA_MAX < 18)"
+#endif
 	return (ustorage_fs_min_len(sc, 18, 0 - 1));
 }
-
 
 /*------------------------------------------------------------------------*
  *	ustorage_fs_read_capacity
@@ -1065,21 +1092,24 @@ ustorage_fs_read_capacity(struct ustorage_fs_softc *sc)
 {
 	uint8_t *buf = sc->sc_transfer.data_ptr;
 	struct ustorage_fs_lun *currlun = sc->sc_transfer.currlun;
-	uint32_t lba = get_be32(&sc->sc_transfer.cmd_data[2]);
-	uint8_t pmi = sc->sc_transfer.cmd_data[8];
+	uint32_t lba = get_be32(&sc->sc_cmd_data[2]);
+	uint8_t pmi = sc->sc_cmd_data[8];
 
 	/* Check the PMI and LBA fields */
 	if ((pmi > 1) || ((pmi == 0) && (lba != 0))) {
 		currlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 		return (1);
 	}
-	put_be32(&buf[0], currlun->num_sectors - 1);
 	/* Max logical block */
-	put_be32(&buf[4], 512);
+	put_be32(&buf[0], currlun->num_sectors - 1);
 	/* Block length */
+	put_be32(&buf[4], 512);
+
+#if (USTORAGE_QDATA_MAX < 8)
+#error "(USTORAGE_QDATA_MAX < 8)"
+#endif
 	return (ustorage_fs_min_len(sc, 8, 0 - 1));
 }
-
 
 /*------------------------------------------------------------------------*
  *	ustorage_fs_mode_sense
@@ -1096,7 +1126,7 @@ ustorage_fs_mode_sense(struct ustorage_fs_softc *sc)
 	uint8_t *buf0;
 	uint16_t len;
 	uint16_t limit;
-	uint8_t mscmnd = sc->sc_transfer.cmd_data[0];
+	uint8_t mscmnd = sc->sc_cmd_data[0];
 	uint8_t pc;
 	uint8_t page_code;
 	uint8_t changeable_values;
@@ -1104,13 +1134,13 @@ ustorage_fs_mode_sense(struct ustorage_fs_softc *sc)
 
 	buf0 = buf;
 
-	if ((sc->sc_transfer.cmd_data[1] & ~0x08) != 0) {
+	if ((sc->sc_cmd_data[1] & ~0x08) != 0) {
 		/* Mask away DBD */
 		currlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 		return (1);
 	}
-	pc = sc->sc_transfer.cmd_data[2] >> 6;
-	page_code = sc->sc_transfer.cmd_data[2] & 0x3f;
+	pc = sc->sc_cmd_data[2] >> 6;
+	page_code = sc->sc_cmd_data[2] & 0x3f;
 	if (pc == 3) {
 		currlun->sense_data = SS_SAVING_PARAMETERS_NOT_SUPPORTED;
 		return (1);
@@ -1181,6 +1211,10 @@ ustorage_fs_mode_sense(struct ustorage_fs_softc *sc)
 		buf0[0] = len - 1;
 	else
 		put_be16(buf0, len - 2);
+
+#if (USTORAGE_QDATA_MAX < 24)
+#error "(USTORAGE_QDATA_MAX < 24)"
+#endif
 	return (ustorage_fs_min_len(sc, len, 0 - 1));
 }
 
@@ -1203,9 +1237,9 @@ ustorage_fs_start_stop(struct ustorage_fs_softc *sc)
 		currlun->sense_data = SS_INVALID_COMMAND;
 		return (1);
 	}
-	immed = sc->sc_transfer.cmd_data[1] & 0x01;
-	loej = sc->sc_transfer.cmd_data[4] & 0x02;
-	start = sc->sc_transfer.cmd_data[4] & 0x01;
+	immed = sc->sc_cmd_data[1] & 0x01;
+	loej = sc->sc_cmd_data[4] & 0x02;
+	start = sc->sc_cmd_data[4] & 0x01;
 
 	if (immed || loej || start) {
 		/* compile fix */
@@ -1230,8 +1264,8 @@ ustorage_fs_prevent_allow(struct ustorage_fs_softc *sc)
 		currlun->sense_data = SS_INVALID_COMMAND;
 		return (1);
 	}
-	prevent = sc->sc_transfer.cmd_data[4] & 0x01;
-	if ((sc->sc_transfer.cmd_data[4] & ~0x01) != 0) {
+	prevent = sc->sc_cmd_data[4] & 0x01;
+	if ((sc->sc_cmd_data[4] & ~0x01) != 0) {
 		/* Mask away Prevent */
 		currlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 		return (1);
@@ -1261,12 +1295,16 @@ ustorage_fs_read_format_capacities(struct ustorage_fs_softc *sc)
 	/* Only the Current / Maximum Capacity Descriptor */
 	buf += 4;
 
-	put_be32(&buf[0], currlun->num_sectors);
 	/* Number of blocks */
-	put_be32(&buf[4], 512);
+	put_be32(&buf[0], currlun->num_sectors);
 	/* Block length */
-	buf[4] = 0x02;
+	put_be32(&buf[4], 512);
 	/* Current capacity */
+	buf[4] = 0x02;
+
+#if (USTORAGE_QDATA_MAX < 12)
+#error "(USTORAGE_QDATA_MAX < 12)"
+#endif
 	return (ustorage_fs_min_len(sc, 12, 0 - 1));
 }
 
@@ -1331,18 +1369,18 @@ ustorage_fs_read(struct ustorage_fs_softc *sc)
 	 * Get the starting Logical Block Address and check that it's not
 	 * too big
 	 */
-	if (sc->sc_transfer.cmd_data[0] == SC_READ_6) {
-		lba = (sc->sc_transfer.cmd_data[1] << 16) |
-		    get_be16(&sc->sc_transfer.cmd_data[2]);
+	if (sc->sc_cmd_data[0] == SC_READ_6) {
+		lba = (((uint32_t)sc->sc_cmd_data[1]) << 16) |
+		    get_be16(&sc->sc_cmd_data[2]);
 	} else {
-		lba = get_be32(&sc->sc_transfer.cmd_data[2]);
+		lba = get_be32(&sc->sc_cmd_data[2]);
 
 		/*
 		 * We allow DPO (Disable Page Out = don't save data in the
 		 * cache) and FUA (Force Unit Access = don't read from the
 		 * cache), but we don't implement them.
 		 */
-		if ((sc->sc_transfer.cmd_data[1] & ~0x18) != 0) {
+		if ((sc->sc_cmd_data[1] & ~0x18) != 0) {
 			currlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			return (1);
 		}
@@ -1359,8 +1397,7 @@ ustorage_fs_read(struct ustorage_fs_softc *sc)
 	file_offset = lba;
 	file_offset <<= 9;
 
-	sc->sc_transfer.data_ptr =
-	    USB_ADD_BYTES(currlun->memory_image, (uint32_t)file_offset);
+	sc->sc_transfer.data_ptr = currlun->memory_image + file_offset;
 
 	return (0);
 }
@@ -1390,11 +1427,11 @@ ustorage_fs_write(struct ustorage_fs_softc *sc)
 	 * Get the starting Logical Block Address and check that it's not
 	 * too big.
 	 */
-	if (sc->sc_transfer.cmd_data[0] == SC_WRITE_6)
-		lba = (sc->sc_transfer.cmd_data[1] << 16) |
-		    get_be16(&sc->sc_transfer.cmd_data[2]);
+	if (sc->sc_cmd_data[0] == SC_WRITE_6)
+		lba = (((uint32_t)sc->sc_cmd_data[1]) << 16) |
+		    get_be16(&sc->sc_cmd_data[2]);
 	else {
-		lba = get_be32(&sc->sc_transfer.cmd_data[2]);
+		lba = get_be32(&sc->sc_cmd_data[2]);
 
 		/*
 		 * We allow DPO (Disable Page Out = don't save data in the
@@ -1402,11 +1439,11 @@ ustorage_fs_write(struct ustorage_fs_softc *sc)
 		 * medium).  We don't implement DPO; we implement FUA by
 		 * performing synchronous output.
 		 */
-		if ((sc->sc_transfer.cmd_data[1] & ~0x18) != 0) {
+		if ((sc->sc_cmd_data[1] & ~0x18) != 0) {
 			currlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			return (1);
 		}
-		if (sc->sc_transfer.cmd_data[1] & 0x08) {
+		if (sc->sc_cmd_data[1] & 0x08) {
 			/* FUA */
 			/* XXX set SYNC flag here */
 		}
@@ -1424,8 +1461,7 @@ ustorage_fs_write(struct ustorage_fs_softc *sc)
 	file_offset = lba;
 	file_offset <<= 9;
 
-	sc->sc_transfer.data_ptr =
-	    USB_ADD_BYTES(currlun->memory_image, (uint32_t)file_offset);
+	sc->sc_transfer.data_ptr = currlun->memory_image + file_offset;
 
 	return (0);
 }
@@ -1483,7 +1519,7 @@ ustorage_fs_check_cmd(struct ustorage_fs_softc *sc, uint8_t min_cmd_size,
     uint16_t mask, uint8_t needs_medium)
 {
 	struct ustorage_fs_lun *currlun;
-	uint8_t lun = (sc->sc_transfer.cmd_data[1] >> 5);
+	uint8_t lun = (sc->sc_cmd_data[1] >> 5);
 	uint8_t i;
 
 	/* Verify the length of the command itself */
@@ -1494,7 +1530,7 @@ ustorage_fs_check_cmd(struct ustorage_fs_softc *sc, uint8_t min_cmd_size,
 		return (1);
 	}
 	/* Mask away the LUN */
-	sc->sc_transfer.cmd_data[1] &= 0x1f;
+	sc->sc_cmd_data[1] &= 0x1f;
 
 	/* Check if LUN is correct */
 	if (lun != sc->sc_transfer.lun) {
@@ -1504,7 +1540,7 @@ ustorage_fs_check_cmd(struct ustorage_fs_softc *sc, uint8_t min_cmd_size,
 	if (sc->sc_transfer.lun <= sc->sc_last_lun) {
 		sc->sc_transfer.currlun = currlun =
 		    sc->sc_lun + sc->sc_transfer.lun;
-		if (sc->sc_transfer.cmd_data[0] != SC_REQUEST_SENSE) {
+		if (sc->sc_cmd_data[0] != SC_REQUEST_SENSE) {
 			currlun->sense_data = SS_NO_SENSE;
 			currlun->sense_data_info = 0;
 			currlun->info_valid = 0;
@@ -1515,8 +1551,8 @@ ustorage_fs_check_cmd(struct ustorage_fs_softc *sc, uint8_t min_cmd_size,
 		 * else must fail!
 		 */
 		if ((currlun->unit_attention_data != SS_NO_SENSE) &&
-		    (sc->sc_transfer.cmd_data[0] != SC_INQUIRY) &&
-		    (sc->sc_transfer.cmd_data[0] != SC_REQUEST_SENSE)) {
+		    (sc->sc_cmd_data[0] != SC_INQUIRY) &&
+		    (sc->sc_cmd_data[0] != SC_REQUEST_SENSE)) {
 			currlun->sense_data = currlun->unit_attention_data;
 			currlun->unit_attention_data = SS_NO_SENSE;
 			return (1);
@@ -1528,8 +1564,8 @@ ustorage_fs_check_cmd(struct ustorage_fs_softc *sc, uint8_t min_cmd_size,
 		 * INQUIRY and REQUEST SENSE commands are explicitly allowed
 		 * to use unsupported LUNs; all others may not.
 		 */
-		if ((sc->sc_transfer.cmd_data[0] != SC_INQUIRY) &&
-		    (sc->sc_transfer.cmd_data[0] != SC_REQUEST_SENSE)) {
+		if ((sc->sc_cmd_data[0] != SC_INQUIRY) &&
+		    (sc->sc_cmd_data[0] != SC_REQUEST_SENSE)) {
 			return (1);
 		}
 	}
@@ -1539,7 +1575,7 @@ ustorage_fs_check_cmd(struct ustorage_fs_softc *sc, uint8_t min_cmd_size,
 	 * non-zero.
 	 */
 	for (i = 0; i != min_cmd_size; i++) {
-		if (sc->sc_transfer.cmd_data[i] && !(mask & (1 << i))) {
+		if (sc->sc_cmd_data[i] && !(mask & (1UL << i))) {
 			if (currlun) {
 				currlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			}
@@ -1570,22 +1606,24 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 {
 	uint8_t error = 1;
 	uint8_t i;
+	uint32_t temp;
+	const uint32_t mask9 = (0xFFFFFFFFUL >> 9) << 9;
 
 	/* set default data transfer pointer */
 	sc->sc_transfer.data_ptr = sc->sc_qdata;
 
 	DPRINTF("cmd_data[0]=0x%02x, data_rem=0x%08x\n",
-	    sc->sc_transfer.cmd_data[0], sc->sc_transfer.data_rem);
+	    sc->sc_cmd_data[0], sc->sc_transfer.data_rem);
 
-	switch (sc->sc_transfer.cmd_data[0]) {
+	switch (sc->sc_cmd_data[0]) {
 	case SC_INQUIRY:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc, sc->sc_transfer.cmd_data[4], 0 - 1);
+		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], 0 - 1);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 4) | 1, 0);
+		    (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1595,12 +1633,12 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_MODE_SELECT_6:
 		sc->sc_transfer.cmd_dir = DIR_READ;
-		error = ustorage_fs_min_len(sc, sc->sc_transfer.cmd_data[4], 0 - 1);
+		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], 0 - 1);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 1) | (1 << 4) | 1, 0);
+		    (1UL << 1) | (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1611,12 +1649,12 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	case SC_MODE_SELECT_10:
 		sc->sc_transfer.cmd_dir = DIR_READ;
 		error = ustorage_fs_min_len(sc,
-		    get_be16(&sc->sc_transfer.cmd_data[7]), 0 - 1);
+		    get_be16(&sc->sc_cmd_data[7]), 0 - 1);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (1 << 1) | (3 << 7) | 1, 0);
+		    (1UL << 1) | (3UL << 7) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1626,12 +1664,12 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_MODE_SENSE_6:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc, sc->sc_transfer.cmd_data[4], 0 - 1);
+		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], 0 - 1);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 1) | (1 << 2) | (1 << 4) | 1, 0);
+		    (1UL << 1) | (1UL << 2) | (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1642,12 +1680,12 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	case SC_MODE_SENSE_10:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
 		error = ustorage_fs_min_len(sc,
-		    get_be16(&sc->sc_transfer.cmd_data[7]), 0 - 1);
+		    get_be16(&sc->sc_cmd_data[7]), 0 - 1);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (1 << 1) | (1 << 2) | (3 << 7) | 1, 0);
+		    (1UL << 1) | (1UL << 2) | (3UL << 7) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1661,7 +1699,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 4) | 1, 0);
+		    (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1670,15 +1708,15 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 		break;
 
 	case SC_READ_6:
-		i = sc->sc_transfer.cmd_data[4];
+		i = sc->sc_cmd_data[4];
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc,
-		    ((i == 0) ? 256 : i) << 9, 0 - (1 << 9));
+		temp = ((i == 0) ? 256UL : i);
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (7 << 1) | (1 << 4) | 1, 1);
+		    (7UL << 1) | (1UL << 4) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1688,13 +1726,13 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_READ_10:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc,
-		    get_be16(&sc->sc_transfer.cmd_data[7]) << 9, 0 - (1 << 9));
+		temp = get_be16(&sc->sc_cmd_data[7]);
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (1 << 1) | (0xf << 2) | (3 << 7) | 1, 1);
+		    (1UL << 1) | (0xfUL << 2) | (3UL << 7) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1704,13 +1742,19 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_READ_12:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc,
-		    get_be32(&sc->sc_transfer.cmd_data[6]) << 9, 0 - (1 << 9));
+		temp = get_be32(&sc->sc_cmd_data[6]);
+		if (temp >= (1UL << (32 - 9))) {
+			/* numerical overflow */
+			sc->sc_csw.bCSWStatus = CSWSTATUS_FAILED;
+			error = 1;
+			break;
+		}
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 12,
-		    (1 << 1) | (0xf << 2) | (0xf << 6) | 1, 1);
+		    (1UL << 1) | (0xfUL << 2) | (0xfUL << 6) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1721,7 +1765,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	case SC_READ_CAPACITY:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (0xf << 2) | (1 << 8) | 1, 1);
+		    (0xfUL << 2) | (1UL << 8) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1732,12 +1776,12 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 	case SC_READ_FORMAT_CAPACITIES:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
 		error = ustorage_fs_min_len(sc,
-		    get_be16(&sc->sc_transfer.cmd_data[7]), 0 - 1);
+		    get_be16(&sc->sc_cmd_data[7]), 0 - 1);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (3 << 7) | 1, 1);
+		    (3UL << 7) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1747,12 +1791,12 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_REQUEST_SENSE:
 		sc->sc_transfer.cmd_dir = DIR_WRITE;
-		error = ustorage_fs_min_len(sc, sc->sc_transfer.cmd_data[4], 0 - 1);
+		error = ustorage_fs_min_len(sc, sc->sc_cmd_data[4], 0 - 1);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 4) | 1, 0);
+		    (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1766,7 +1810,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (1 << 1) | (1 << 4) | 1, 0);
+		    (1UL << 1) | (1UL << 4) | 1, 0);
 		if (error) {
 			break;
 		}
@@ -1780,7 +1824,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (0xf << 2) | (3 << 7) | 1, 1);
+		    (0xfUL << 2) | (3UL << 7) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1807,7 +1851,7 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (1 << 1) | (0xf << 2) | (3 << 7) | 1, 1);
+		    (1UL << 1) | (0xfUL << 2) | (3UL << 7) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1816,15 +1860,15 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 		break;
 
 	case SC_WRITE_6:
-		i = sc->sc_transfer.cmd_data[4];
+		i = sc->sc_cmd_data[4];
 		sc->sc_transfer.cmd_dir = DIR_READ;
-		error = ustorage_fs_min_len(sc,
-		    ((i == 0) ? 256 : i) << 9, 0 - (1 << 9));
+		temp = ((i == 0) ? 256UL : i);
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 6,
-		    (7 << 1) | (1 << 4) | 1, 1);
+		    (7UL << 1) | (1UL << 4) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1834,13 +1878,13 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_WRITE_10:
 		sc->sc_transfer.cmd_dir = DIR_READ;
-		error = ustorage_fs_min_len(sc,
-		    get_be16(&sc->sc_transfer.cmd_data[7]) << 9, 0 - (1 << 9));
+		temp = get_be16(&sc->sc_cmd_data[7]);
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 10,
-		    (1 << 1) | (0xf << 2) | (3 << 7) | 1, 1);
+		    (1UL << 1) | (0xfUL << 2) | (3UL << 7) | 1, 1);
 		if (error) {
 			break;
 		}
@@ -1850,13 +1894,19 @@ ustorage_fs_do_cmd(struct ustorage_fs_softc *sc)
 
 	case SC_WRITE_12:
 		sc->sc_transfer.cmd_dir = DIR_READ;
-		error = ustorage_fs_min_len(sc,
-		    get_be32(&sc->sc_transfer.cmd_data[6]) << 9, 0 - (1 << 9));
+		temp = get_be32(&sc->sc_cmd_data[6]);
+		if (temp > (mask9 >> 9)) {
+			/* numerical overflow */
+			sc->sc_csw.bCSWStatus = CSWSTATUS_FAILED;
+			error = 1;
+			break;
+		}
+		error = ustorage_fs_min_len(sc, temp << 9, mask9);
 		if (error) {
 			break;
 		}
 		error = ustorage_fs_check_cmd(sc, 12,
-		    (1 << 1) | (0xf << 2) | (0xf << 6) | 1, 1);
+		    (1UL << 1) | (0xfUL << 2) | (0xfUL << 6) | 1, 1);
 		if (error) {
 			break;
 		}

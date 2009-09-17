@@ -436,10 +436,11 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 			if (osp == 0)
 				bzero(dst, sc->sectorsize);
 			else if (osp <= 255)
-				for (i = 0; i < sc->sectorsize; i++)
-					dst[i] = osp;
-			else
+				memset(dst, osp, sc->sectorsize);
+			else {
 				bcopy((void *)osp, dst, sc->sectorsize);
+				cpu_flush_dcache(dst, sc->sectorsize);
+			}
 			osp = 0;
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (sc->flags & MD_COMPRESS) {
@@ -491,6 +492,7 @@ mdstart_preload(struct md_s *sc, struct bio *bp)
 	case BIO_READ:
 		bcopy(sc->pl_ptr + bp->bio_offset, bp->bio_data,
 		    bp->bio_length);
+		cpu_flush_dcache(bp->bio_data, bp->bio_length);
 		break;
 	case BIO_WRITE:
 		bcopy(bp->bio_data, sc->pl_ptr + bp->bio_offset,
@@ -633,6 +635,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				break;
 			}
 			bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
+			cpu_flush_dcache(p, len);
 		} else if (bp->bio_cmd == BIO_WRITE) {
 			if (len != PAGE_SIZE && m->valid != VM_PAGE_BITS_ALL)
 				rv = vm_pager_get_pages(sc->object, &m, 1, 0);
@@ -924,12 +927,20 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (nd.ni_vp->v_type != VREG ||
-	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred))) {
-		VOP_UNLOCK(nd.ni_vp, 0);
-		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
-		return (error ? error : EINVAL);
+	if (nd.ni_vp->v_type != VREG) {
+		error = EINVAL;
+		goto bad;
+	}	
+	error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred);
+	if (error != 0)
+		goto bad;
+	if (VOP_ISLOCKED(nd.ni_vp) != LK_EXCLUSIVE) {
+		vn_lock(nd.ni_vp, LK_UPGRADE | LK_RETRY);
+		if (nd.ni_vp->v_iflag & VI_DOOMED) {
+			/* Forced unmount. */
+			error = EBADF;
+			goto bad;
+		}
 	}
 	nd.ni_vp->v_vflag |= VV_MD;
 	VOP_UNLOCK(nd.ni_vp, 0);
@@ -948,13 +959,15 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		sc->vnode = NULL;
 		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY);
 		nd.ni_vp->v_vflag &= ~VV_MD;
-		VOP_UNLOCK(nd.ni_vp, 0);
-		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
-		return (error);
+		goto bad;
 	}
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
+bad:
+	VOP_UNLOCK(nd.ni_vp, 0);
+	(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
 }
 
 static int
@@ -1029,18 +1042,18 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	if (mdio->md_fwheads != 0)
 		sc->fwheads = mdio->md_fwheads;
 	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, PAGE_SIZE * npage,
-	    VM_PROT_DEFAULT, 0);
+	    VM_PROT_DEFAULT, 0, td->td_ucred);
 	if (sc->object == NULL)
 		return (ENOMEM);
 	sc->flags = mdio->md_options & MD_FORCE;
 	if (mdio->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, npage) < 0) {
-			vm_object_deallocate(sc->object);
-			sc->object = NULL;
-			return (EDOM);
+			error = EDOM;
+			goto finish;
 		}
 	}
 	error = mdsetcred(sc, td->td_ucred);
+ finish:
 	if (error != 0) {
 		vm_object_deallocate(sc->object);
 		sc->object = NULL;

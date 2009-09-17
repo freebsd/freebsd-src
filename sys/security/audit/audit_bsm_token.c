@@ -30,12 +30,13 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#86
+ * P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#93
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/endian.h>
 #include <sys/queue.h>
@@ -139,7 +140,7 @@ au_to_attr32(struct vnode_au_info *vni)
 	token_t *t;
 	u_char *dptr = NULL;
 	u_int16_t pad0_16 = 0;
-	u_int16_t pad0_32 = 0;
+	u_int32_t pad0_32 = 0;
 
 	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 2 * sizeof(u_int16_t) +
 	    3 * sizeof(u_int32_t) + sizeof(u_int64_t) + sizeof(u_int32_t));
@@ -186,7 +187,7 @@ au_to_attr64(struct vnode_au_info *vni)
 	token_t *t;
 	u_char *dptr = NULL;
 	u_int16_t pad0_16 = 0;
-	u_int16_t pad0_32 = 0;
+	u_int32_t pad0_32 = 0;
 
 	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 2 * sizeof(u_int16_t) +
 	    3 * sizeof(u_int32_t) + sizeof(u_int64_t) * 2);
@@ -439,7 +440,8 @@ au_to_ipc_perm(struct ipc_perm *perm)
 	u_char *dptr = NULL;
 	u_int16_t pad0 = 0;
 
-	GET_TOKEN_AREA(t, dptr, 12 * sizeof(u_int16_t) + sizeof(u_int32_t));
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 12 * sizeof(u_int16_t) +
+	    sizeof(u_int32_t));
 
 	ADD_U_CHAR(dptr, AUT_IPC_PERM);
 
@@ -869,13 +871,13 @@ au_to_socket_ex(u_short so_domain, u_short so_type,
 		    5 * sizeof(u_int16_t) + 2 * sizeof(u_int32_t));
 	else if (so_domain == AF_INET6)
 		GET_TOKEN_AREA(t, dptr, sizeof(u_char) +
-		    5 * sizeof(u_int16_t) + 16 * sizeof(u_int32_t));
+		    5 * sizeof(u_int16_t) + 8 * sizeof(u_int32_t));
 	else
 		return (NULL);
 
 	ADD_U_CHAR(dptr, AUT_SOCKET_EX);
-	ADD_U_INT16(dptr, so_domain);	/* XXXRW: explicitly convert? */
-	ADD_U_INT16(dptr, so_type);	/* XXXRW: explicitly convert? */
+	ADD_U_INT16(dptr, au_domain_to_bsm(so_domain));
+	ADD_U_INT16(dptr, au_socket_type_to_bsm(so_type));
 	if (so_domain == AF_INET) {
 		ADD_U_INT16(dptr, AU_IPv4);
 		sin = (struct sockaddr_in *)sa_local;
@@ -929,7 +931,7 @@ kau_to_socket(struct socket_au_info *soi)
 /*
  * token ID                1 byte
  * socket family           2 bytes
- * path                    104 bytes
+ * path                    (up to) 104 bytes + NULL  (NULL terminated string)
  */
 token_t *
 au_to_sock_unix(struct sockaddr_un *so)
@@ -1187,12 +1189,27 @@ token_t *
 au_to_me(void)
 {
 	auditinfo_t auinfo;
+	auditinfo_addr_t aia;
 
-	if (getaudit(&auinfo) != 0)
-		return (NULL);
+	/*
+	 * Try to use getaudit_addr(2) first.  If this kernel does not support
+	 * it, then fall back on to getaudit(2).
+	 */
+	if (getaudit_addr(&aia, sizeof(aia)) != 0) {
+		if (errno == ENOSYS) {
+			if (getaudit(&auinfo) != 0)
+				return (NULL);
+			return (au_to_subject32(auinfo.ai_auid, geteuid(),
+				getegid(), getuid(), getgid(), getpid(),
+				auinfo.ai_asid, &auinfo.ai_termid));
+		} else {
+			/* getaudit_addr(2) failed for some other reason. */
+			return (NULL); 
+		}
+	} 
 
-	return (au_to_subject32(auinfo.ai_auid, geteuid(), getegid(),
-	    getuid(), getgid(), getpid(), auinfo.ai_asid, &auinfo.ai_termid));
+	return (au_to_subject32_ex(aia.ai_auid, geteuid(), getegid(), getuid(),
+		getgid(), getpid(), aia.ai_asid, &aia.ai_termid));
 }
 #endif
 
@@ -1459,7 +1476,7 @@ au_to_header32_ex(int rec_size, au_event_t e_type, au_emod_t e_mod)
 
 	if (gettimeofday(&tm, NULL) == -1)
 		return (NULL);
-	if (auditon(A_GETKAUDIT, &aia, sizeof(aia)) < 0) {
+	if (audit_get_kaudit(&aia, sizeof(aia)) != 0) {
 		if (errno != ENOSYS)
 			return (NULL);
 		return (au_to_header32_tm(rec_size, e_type, e_mod, tm));

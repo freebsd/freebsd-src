@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.str.c,v 3.26 2006/03/02 18:46:45 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.str.c,v 3.30 2009/06/25 21:27:38 christos Exp $ */
 /*
  * tc.str.c: Short string package
  * 	     This has been a lesson of how to write buggy code!
@@ -35,7 +35,7 @@
 
 #include <limits.h>
 
-RCSID("$tcsh: tc.str.c,v 3.26 2006/03/02 18:46:45 christos Exp $")
+RCSID("$tcsh: tc.str.c,v 3.30 2009/06/25 21:27:38 christos Exp $")
 
 #define MALLOC_INCR	128
 #ifdef WIDE_STRINGS
@@ -52,7 +52,7 @@ one_mbtowc(wchar_t *pwc, const char *s, size_t n)
 
     len = rt_mbtowc(pwc, s, n);
     if (len == -1) {
-        mbtowc(NULL, NULL, 0);
+        reset_mbtowc();
 	*pwc = (unsigned char)*s | INVALID_BYTE;
     }
     if (len <= 0)
@@ -169,10 +169,17 @@ short2str(const Char *src)
 	dst += one_wctomb(dst, *src & CHAR);
 	src++;
 	if (dst >= edst) {
+	    char *wdst = dst;
+	    char *wedst = edst;
+
 	    dstsize += MALLOC_INCR;
 	    sdst = xrealloc(sdst, (dstsize + MALLOC_SURPLUS) * sizeof(char));
 	    edst = &sdst[dstsize];
 	    dst = &edst[-MALLOC_INCR];
+	    while (wdst > wedst) {
+		dst++;
+		wdst--;
+	    }
 	}
     }
     *dst = 0;
@@ -480,14 +487,21 @@ short2qstr(const Char *src)
 	dst += one_wctomb(dst, *src & CHAR);
 	src++;
 	if (dst >= edst) {
+	    ptrdiff_t i = dst - edst;
 	    dstsize += MALLOC_INCR;
 	    sdst = xrealloc(sdst, (dstsize + MALLOC_SURPLUS) * sizeof(char));
 	    edst = &sdst[dstsize];
-	    dst = &edst[-MALLOC_INCR];
+	    dst = &edst[-MALLOC_INCR + i];
 	}
     }
     *dst = 0;
     return (sdst);
+}
+
+struct blk_buf *
+bb_alloc()
+{
+    return xcalloc(1, sizeof(struct blk_buf));
 }
 
 static void
@@ -522,6 +536,13 @@ bb_cleanup(void *xbb)
     xfree(bb->vec);
 }
 
+void
+bb_free(void *bb)
+{
+    bb_cleanup(bb);
+    xfree(bb);
+}
+
 Char **
 bb_finish(struct blk_buf *bb)
 {
@@ -530,6 +551,13 @@ bb_finish(struct blk_buf *bb)
 }
 
 #define DO_STRBUF(STRBUF, CHAR, STRLEN)				\
+								\
+struct STRBUF *							\
+STRBUF##_alloc(void)						\
+{								\
+    return xcalloc(1, sizeof(struct STRBUF));			\
+}								\
+								\
 static void							\
 STRBUF##_store1(struct STRBUF *buf, CHAR c)			\
 {								\
@@ -591,6 +619,13 @@ STRBUF##_cleanup(void *xbuf)					\
 								\
     buf = xbuf;							\
     xfree(buf->s);						\
+}								\
+								\
+void								\
+STRBUF##_free(void *xbuf)					\
+{								\
+    STRBUF##_cleanup(xbuf);					\
+    xfree(xbuf);						\
 }								\
 								\
 const struct STRBUF STRBUF##_init /* = STRBUF##_INIT; */

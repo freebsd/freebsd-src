@@ -95,7 +95,7 @@ openfirm_getstr(int len, const char *user, char **cpp)
 	int error;
 	char *cp;
 
-	/* Reject obvious bogus requests */
+	/* Reject obvious bogus requests. */
 	if ((u_int)len > OFIOCMAXNAME)
 		return (ENAMETOOLONG);
 
@@ -141,7 +141,7 @@ openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 	}
 
 	if (node != 0 && node != lastnode) {
-		/* Not an easy one, must search for it */
+		/* Not an easy one, we must search for it. */
 		ok = openfirm_checkid(OF_peer(0), node);
 		if (!ok)
 			return (EINVAL);
@@ -169,7 +169,7 @@ openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			break;
 		}
 		of->of_buflen = len;
-		/* -1 means no entry; 0 means no value */
+		/* -1 means no entry; 0 means no value. */
 		if (len <= 0)
 			break;
 		value = malloc(len, M_TEMP, M_WAITOK);
@@ -185,7 +185,7 @@ openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 		/*
 		 * Note: Text string values for at least the /options node
 		 * have to be null-terminated and the length parameter must
-		 * include this terminating null. However, like OF_getprop(),
+		 * include this terminating null.  However, like OF_getprop(),
 		 * OF_setprop() will return the actual length of the text
 		 * string, i.e. omitting the terminating null.
 		 */
@@ -274,6 +274,7 @@ openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 static int
 openfirm_modevent(module_t mod, int type, void *data)
 {
+
 	switch(type) {
 	case MOD_LOAD:
 		if (bootverbose)

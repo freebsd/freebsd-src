@@ -71,7 +71,7 @@ int	smc_attach(device_t);
 int	smc_detach(device_t);
 
 int	smc_miibus_readreg(device_t, int, int);
-void	smc_miibus_writereg(device_t, int, int, int);
+int	smc_miibus_writereg(device_t, int, int, int);
 void	smc_miibus_statchg(device_t);
 
 #endif /* _IF_SMCVAR_H_ */

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/ed.chared.c,v 3.93 2006/08/23 15:03:13 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.chared.c,v 3.95 2009/06/25 21:15:37 christos Exp $ */
 /*
  * ed.chared.c: Character editing functions.
  */
@@ -72,7 +72,7 @@
 
 #include "sh.h"
 
-RCSID("$tcsh: ed.chared.c,v 3.93 2006/08/23 15:03:13 christos Exp $")
+RCSID("$tcsh: ed.chared.c,v 3.95 2009/06/25 21:15:37 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -120,8 +120,8 @@ static	Char	*c_prev_word		(Char *, Char *, int);
 static	Char	*c_next_word		(Char *, Char *, int);
 static	Char	*c_number		(Char *, int *, int);
 static	Char	*c_expand		(Char *);
-static	void	 c_excl			(Char *);
-static	void	 c_substitute		(void);
+static	int	 c_excl			(Char *);
+static	int	 c_substitute		(void);
 static	void	 c_delfini		(void);
 static	int	 c_hmatch		(Char *);
 static	void	 c_hsetpat		(void);
@@ -682,13 +682,16 @@ excl_err:
  * space (or the beginning of the buffer) and properly expand all the excl's
  * from there up to the current cursor position. We also avoid (trying to)
  * expanding '>!'
+ * Returns number of expansions attempted (doesn't matter whether they succeeded
+ * or not).
  */
 
-static void
+static int
 c_excl(Char *p)
 {
     int i;
     Char *q;
+    int nr_exp;
 
     /*
      * if />[SPC TAB]*![SPC TAB]/, back up p to just after the >. otherwise,
@@ -708,9 +711,10 @@ c_excl(Char *p)
 
     /*
      * Forever: Look for history char.  (Stop looking when we find the cursor.)
-     * Count backslashes.  Of odd, skip history char. Return if all done.
-     * Expand if even number of backslashes.
+     * Count backslashes.  If odd, skip history char.  Expand if even number of
+     * backslashes.
      */
+    nr_exp = 0;
     for (;;) {
 	while (*p != HIST && p < Cursor)
 	    ++p;
@@ -718,18 +722,23 @@ c_excl(Char *p)
 	    continue;
 	if (i % 2 == 0)
 	    ++p;
-	if (p >= Cursor)
-	    return;
-	if (i % 2 == 1)
+	if (p >= Cursor)   /* all done */
+	    return nr_exp;
+	if (i % 2 == 1) {
 	    p = c_expand(p);
+	    ++nr_exp;
+	}
     }
+
+    return nr_exp;
 }
 
 
-static void
+static int
 c_substitute(void)
 {
     Char *p;
+    int  nr_exp;
 
     /*
      * Start p out one character before the cursor.  Move it backwards looking
@@ -743,8 +752,12 @@ c_substitute(void)
      * If we found a history character, go expand it.
      */
     if (*p == HIST)
-	c_excl(p);
+	nr_exp = c_excl(p);
+    else
+        nr_exp = 0;
     Refresh();
+
+    return nr_exp;
 }
 
 static void
@@ -3441,13 +3454,20 @@ e_tty_stopo(Char c)
     return(CC_NORM);
 }
 
+/* returns the number of (attempted) expansions */
+int
+ExpandHistory(void)
+{
+    *LastChar = '\0';		/* just in case */
+    return c_substitute();
+}
+
 /*ARGSUSED*/
 CCRETVAL
 e_expand_history(Char c)
 {
     USE(c);
-    *LastChar = '\0';		/* just in case */
-    c_substitute();
+    (void)ExpandHistory();
     return(CC_NORM);
 }
 
@@ -3457,7 +3477,7 @@ e_magic_space(Char c)
 {
     USE(c);
     *LastChar = '\0';		/* just in case */
-    c_substitute();
+    (void)c_substitute();
     return(e_insert(' '));
 }
 
@@ -3548,7 +3568,7 @@ e_load_average(Char c)
      */
     if (ioctl(SHIN, TIOCSTAT, (ioctl_t) &c) < 0) 
 #endif
-	xprintf(CGETS(5, 1, "Load average unavailable\n"));
+	xprintf("%s", CGETS(5, 1, "Load average unavailable\n"));
     return(CC_REFRESH);
 }
 

@@ -89,10 +89,6 @@ DRIVER_MODULE(powermac_nvram, nexus, powermac_nvram_driver, powermac_nvram_devcl
  * Cdev methods.
  */
 
-#define	NVRAM_UNIT(dev)		dev2unit(dev)
-#define	NVRAM_SOFTC(unit)	((struct powermac_nvram_softc *) \
-     devclass_get_softc(powermac_nvram_devclass, unit))
-
 static	d_open_t	powermac_nvram_open;
 static	d_close_t	powermac_nvram_close;
 static	d_read_t	powermac_nvram_read;
@@ -131,19 +127,25 @@ powermac_nvram_attach(device_t dev)
 {
 	struct powermac_nvram_softc *sc;
 	phandle_t node;
-	u_int32_t reg[2];
-	int gen0, gen1;
+	u_int32_t reg[3];
+	int gen0, gen1, i;
 
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 
-	if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
+	if ((i = OF_getprop(node, "reg", reg, sizeof(reg))) < 8)
 		return ENXIO;
 
 	sc->sc_dev = dev;
 	sc->sc_node = node;
 
-	sc->sc_bank0 = (vm_offset_t)pmap_mapdev(reg[0], NVRAM_SIZE * 2);
+	/*
+	 * Find which byte of reg corresponds to the 32-bit physical address.
+	 * We should probably read #address-cells from /chosen instead.
+	 */
+	i = (i/4) - 2;
+
+	sc->sc_bank0 = (vm_offset_t)pmap_mapdev(reg[i], NVRAM_SIZE * 2);
 	sc->sc_bank1 = sc->sc_bank0 + NVRAM_SIZE;
 
 	gen0 = powermac_nvram_check((void *)sc->sc_bank0);
@@ -163,6 +165,7 @@ powermac_nvram_attach(device_t dev)
 
 	sc->sc_cdev = make_dev(&powermac_nvram_cdevsw, 0, 0, 0, 0600,
 	    "powermac_nvram");
+	sc->sc_cdev->si_drv1 = sc;
 
 	return 0;
 }
@@ -186,9 +189,8 @@ powermac_nvram_detach(device_t dev)
 static int
 powermac_nvram_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct powermac_nvram_softc *sc;
+	struct powermac_nvram_softc *sc = dev->si_drv1;
 
-	sc = NVRAM_SOFTC(NVRAM_UNIT(dev));
 	if (sc->sc_isopen)
 		return EBUSY;
 	sc->sc_isopen = 1;
@@ -199,11 +201,9 @@ powermac_nvram_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 powermac_nvram_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	struct powermac_nvram_softc *sc;
+	struct powermac_nvram_softc *sc = dev->si_drv1;
 	struct core99_header *header;
 	vm_offset_t bank;
-
-	sc = NVRAM_SOFTC(NVRAM_UNIT(dev));
 
 	if (sc->sc_wpos != sizeof(sc->sc_data)) {
 		/* Short write, restore in-memory copy */
@@ -240,9 +240,7 @@ static int
 powermac_nvram_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int rv, amnt, data_available;
-	struct powermac_nvram_softc *sc;
-
-	sc = NVRAM_SOFTC(NVRAM_UNIT(dev));
+	struct powermac_nvram_softc *sc = dev->si_drv1;
 
 	rv = 0;
 	while (uio->uio_resid > 0) {
@@ -265,9 +263,7 @@ static int
 powermac_nvram_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int rv, amnt, data_available;
-	struct powermac_nvram_softc *sc;
-
-	sc = NVRAM_SOFTC(NVRAM_UNIT(dev));
+	struct powermac_nvram_softc *sc = dev->si_drv1;
 
 	if (sc->sc_wpos >= sizeof(sc->sc_data))
 		return EINVAL;

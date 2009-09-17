@@ -194,7 +194,8 @@ enum {
 	PCCARD_IVAR_PRODUCT_STR,/* CIS strnig for "Product" */
 	PCCARD_IVAR_CIS3_STR,
 	PCCARD_IVAR_CIS4_STR,
-	PCCARD_IVAR_FUNCTION
+	PCCARD_IVAR_FUNCTION,
+	PCCARD_IVAR_FUNCE_DISK
 };
 
 #define PCCARD_ACCESSOR(A, B, T)					\
@@ -211,6 +212,7 @@ PCCARD_ACCESSOR(product,	PRODUCT,		uint32_t)
 PCCARD_ACCESSOR(prodext,	PRODEXT,		uint16_t)
 PCCARD_ACCESSOR(function_number,FUNCTION_NUMBER,	uint32_t)
 PCCARD_ACCESSOR(function,	FUNCTION,		uint32_t)
+PCCARD_ACCESSOR(funce_disk,	FUNCE_DISK,		uint16_t)
 PCCARD_ACCESSOR(vendor_str,	VENDOR_STR,		const char *)
 PCCARD_ACCESSOR(product_str,	PRODUCT_STR,		const char *)
 PCCARD_ACCESSOR(cis3_str,	CIS3_STR,		const char *)
@@ -250,3 +252,23 @@ enum {
 		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
 		  PCMCIA_CIS_ ## p2}
 #endif
+
+/*
+ * Defines to decoe the get_funce_disk return value.  See the PCMCIA standard
+ * for all the details of what these bits mean.
+ */
+#define	PFD_I_V_MASK		0x3
+#define PFD_I_V_NONE_REQUIRED	0x0
+#define PFD_I_V_REQ_MOD_ACC	0x1
+#define PFD_I_V_REQ_ACC		0x2
+#define PFD_I_V_REQ_ALWYS	0x1
+#define PFD_I_S			0x4	/* 0 rotating, 1 silicon */
+#define PFD_I_U			0x8	/* SN Uniq? */
+#define	PFD_I_D			0x10	/* 0 - 1 drive, 1 - 2 drives */
+#define PFD_P_P0		0x100
+#define PFD_P_P1		0x200
+#define PFD_P_P2		0x400
+#define PFD_P_P3		0x800
+#define PFD_P_N			0x1000	/* 3f7/377 excluded? */
+#define PFD_P_E			0x2000	/* Index bit supported? */
+#define	PFD_P_I			0x4000	/* twincard */

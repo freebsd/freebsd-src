@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Lukas Ertl
+ * Copyright (c) 2004, 2007 Lukas Ertl
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/malloc.h>
 
@@ -43,8 +41,10 @@ gv_setstate(struct g_geom *gp, struct gctl_req *req)
 	struct gv_softc *sc;
 	struct gv_sd *s;
 	struct gv_drive *d;
+	struct gv_volume *v;
+	struct gv_plex *p;
 	char *obj, *state;
-	int err, f, *flags, newstate, type;
+	int f, *flags, type;
 
 	f = 0;
 	obj = gctl_get_param(req, "object", NULL);
@@ -72,43 +72,52 @@ gv_setstate(struct g_geom *gp, struct gctl_req *req)
 	type = gv_object_type(sc, obj);
 	switch (type) {
 	case GV_TYPE_VOL:
+		if (gv_volstatei(state) < 0) {
+			gctl_error(req, "invalid volume state '%s'", state);
+			break;
+		}
+		v = gv_find_vol(sc, obj);
+		gv_post_event(sc, GV_EVENT_SET_VOL_STATE, v, NULL,
+		    gv_volstatei(state), f);
+		break;
+
 	case GV_TYPE_PLEX:
-		gctl_error(req, "volume or plex state cannot be set currently");
+		if (gv_plexstatei(state) < 0) {
+			gctl_error(req, "invalid plex state '%s'", state);
+			break;
+		}
+		p = gv_find_plex(sc, obj);
+		gv_post_event(sc, GV_EVENT_SET_PLEX_STATE, p, NULL,
+		    gv_plexstatei(state), f);
 		break;
 
 	case GV_TYPE_SD:
-		newstate = gv_sdstatei(state);
-		if (newstate < 0) {
+		if (gv_sdstatei(state) < 0) {
 			gctl_error(req, "invalid subdisk state '%s'", state);
 			break;
 		}
 		s = gv_find_sd(sc, obj);
-		err = gv_set_sd_state(s, newstate, f);
-		if (err)
-			gctl_error(req, "cannot set subdisk state");
+		gv_post_event(sc, GV_EVENT_SET_SD_STATE, s, NULL,
+		    gv_sdstatei(state), f);
 		break;
 
 	case GV_TYPE_DRIVE:
-		newstate = gv_drivestatei(state);
-		if (newstate < 0) {
+		if (gv_drivestatei(state) < 0) {
 			gctl_error(req, "invalid drive state '%s'", state);
 			break;
 		}
 		d = gv_find_drive(sc, obj);
-		err = gv_set_drive_state(d, newstate, f);
-		if (err)
-			gctl_error(req, "cannot set drive state");
+		gv_post_event(sc, GV_EVENT_SET_DRIVE_STATE, d, NULL,
+		    gv_drivestatei(state), f);
 		break;
 
 	default:
 		gctl_error(req, "unknown object '%s'", obj);
 		break;
 	}
-
-	return;
 }
 
-/* Update drive state; return 0 if the state changes, otherwise -1. */
+/* Update drive state; return 0 if the state changes, otherwise error. */
 int
 gv_set_drive_state(struct gv_drive *d, int newstate, int flags)
 {
@@ -123,9 +132,9 @@ gv_set_drive_state(struct gv_drive *d, int newstate, int flags)
 		return (0);
 
 	/* We allow to take down an open drive only with force. */
-	if ((newstate == GV_DRIVE_DOWN) && gv_is_open(d->geom) &&
+	if ((newstate == GV_DRIVE_DOWN) && gv_consumer_is_open(d->consumer) &&
 	    (!(flags & GV_SETSTATE_FORCE)))
-		return (-1);
+		return (GV_ERR_ISBUSY);
 
 	d->state = newstate;
 
@@ -136,7 +145,7 @@ gv_set_drive_state(struct gv_drive *d, int newstate, int flags)
 
 	/* Save the config back to disk. */
 	if (flags & GV_SETSTATE_CONFIG)
-		gv_save_config_all(d->vinumconf);
+		gv_save_config(d->vinumconf);
 
 	return (0);
 }
@@ -165,14 +174,24 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 		 * force.
 		 */
 		if ((s->plex_sc != NULL) && !(flags & GV_SETSTATE_FORCE))
-			return (-1);
+			return (GV_ERR_ISATTACHED);
+		break;
+
+	case GV_SD_REVIVING:
+	case GV_SD_INITIALIZING:
+		/*
+		 * Only do this if we're forced, since it usually is done
+		 * internally, and then we do use the force flag. 
+		 */
+		if (!flags & GV_SETSTATE_FORCE)
+			return (GV_ERR_SETSTATE);
 		break;
 
 	case GV_SD_UP:
 		/* We can't bring the subdisk up if our drive is dead. */
 		d = s->drive_sc;
 		if ((d == NULL) || (d->state != GV_DRIVE_UP))
-			return (-1);
+			return (GV_ERR_SETSTATE);
 
 		/* Check from where we want to be brought up. */
 		switch (s->state) {
@@ -201,12 +220,15 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 
 			if (p->org != GV_PLEX_RAID5)
 				break;
-			else if (flags & GV_SETSTATE_FORCE)
+			else if (s->flags & GV_SD_CANGOUP) {
+				s->flags &= ~GV_SD_CANGOUP;
+				break;
+			} else if (flags & GV_SETSTATE_FORCE)
 				break;
 			else
 				s->state = GV_SD_STALE;
 
-			status = -1;
+			status = GV_ERR_SETSTATE;
 			break;
 
 		case GV_SD_STALE:
@@ -221,21 +243,24 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 			if (p == NULL || flags & GV_SETSTATE_FORCE)
 				break;
 
-			if ((p->org != GV_PLEX_RAID5) &&
-			    (p->vol_sc->plexcount == 1))
+			if ((p->org != GV_PLEX_RAID5 &&
+			    p->vol_sc->plexcount == 1) ||
+			    (p->flags & GV_PLEX_SYNCING &&
+			    p->synced > 0 &&
+			    p->org == GV_PLEX_RAID5))
 				break;
 			else
-				return (-1);
+				return (GV_ERR_SETSTATE);
 
 		default:
-			return (-1);
+			return (GV_ERR_INVSTATE);
 		}
 		break;
 
 	/* Other state transitions are only possible with force. */
 	default:
 		if (!(flags & GV_SETSTATE_FORCE))
-			return (-1);
+			return (GV_ERR_SETSTATE);
 	}
 
 	/* We can change the state and do it. */
@@ -248,11 +273,102 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 
 	/* Save the config back to disk. */
 	if (flags & GV_SETSTATE_CONFIG)
-		gv_save_config_all(s->vinumconf);
+		gv_save_config(s->vinumconf);
 
 	return (status);
 }
 
+int
+gv_set_plex_state(struct gv_plex *p, int newstate, int flags)
+{
+	struct gv_volume *v;
+	int oldstate, plexdown;
+
+	KASSERT(p != NULL, ("gv_set_plex_state: NULL p"));
+
+	oldstate = p->state;
+	v = p->vol_sc;
+	plexdown = 0;
+
+	if (newstate == oldstate)
+		return (0);
+
+	switch (newstate) {
+	case GV_PLEX_UP:
+		/* Let update_plex handle if the plex can come up */
+		gv_update_plex_state(p);
+		if (p->state != GV_PLEX_UP && !(flags & GV_SETSTATE_FORCE))
+			return (GV_ERR_SETSTATE);
+		p->state = newstate;
+		break;
+	case GV_PLEX_DOWN:
+		/*
+		 * Set state to GV_PLEX_DOWN only if no-one is using the plex,
+		 * or if the state is forced.
+		 */
+		if (v != NULL) {
+			/* If the only one up, force is needed. */
+			plexdown = gv_plexdown(v);
+			if ((v->plexcount == 1 ||
+			    (v->plexcount - plexdown == 1)) &&
+			    ((flags & GV_SETSTATE_FORCE) == 0))
+				return (GV_ERR_SETSTATE);
+		}
+		p->state = newstate;
+		break;
+	case GV_PLEX_DEGRADED:
+		/* Only used internally, so we have to be forced. */
+		if (flags & GV_SETSTATE_FORCE)
+			p->state = newstate;
+		break;
+	}
+
+	/* Update our volume if we have one. */
+	if (v != NULL)
+		gv_update_vol_state(v);
+
+	/* Save config. */
+	if (flags & GV_SETSTATE_CONFIG)
+		gv_save_config(p->vinumconf);
+	return (0);
+}
+
+int
+gv_set_vol_state(struct gv_volume *v, int newstate, int flags)
+{
+	int oldstate;
+
+	KASSERT(v != NULL, ("gv_set_vol_state: NULL v"));
+
+	oldstate = v->state;
+
+	if (newstate == oldstate)
+		return (0);
+
+	switch (newstate) {
+	case GV_VOL_UP:
+		/* Let update handle if the volume can come up. */
+		gv_update_vol_state(v);
+		if (v->state != GV_VOL_UP && !(flags & GV_SETSTATE_FORCE))
+			return (GV_ERR_SETSTATE);
+		v->state = newstate;
+		break;
+	case GV_VOL_DOWN:
+		/*
+		 * Set state to GV_VOL_DOWN only if no-one is using the volume,
+		 * or if the state should be forced.
+		 */
+		if (!gv_provider_is_open(v->provider) &&
+		    !(flags & GV_SETSTATE_FORCE))
+			return (GV_ERR_ISBUSY);
+		v->state = newstate;
+		break;
+	}
+	/* Save config */
+	if (flags & GV_SETSTATE_CONFIG)
+		gv_save_config(v->vinumconf);
+	return (0);
+}
 
 /* Update the state of a subdisk based on its environment. */
 void
@@ -268,15 +384,19 @@ gv_update_sd_state(struct gv_sd *s)
 	oldstate = s->state;
 	
 	/* If our drive isn't up we cannot be up either. */
-	if (d->state != GV_DRIVE_UP)
+	if (d->state != GV_DRIVE_UP) {
 		s->state = GV_SD_DOWN;
 	/* If this subdisk was just created, we assume it is good.*/
-	else if (s->flags & GV_SD_NEWBORN) {
+	} else if (s->flags & GV_SD_NEWBORN) {
 		s->state = GV_SD_UP;
 		s->flags &= ~GV_SD_NEWBORN;
-	} else if (s->state != GV_SD_UP)
-		s->state = GV_SD_STALE;
-	else
+	} else if (s->state != GV_SD_UP) {
+		if (s->flags & GV_SD_CANGOUP) {
+			s->state = GV_SD_UP;
+			s->flags &= ~GV_SD_CANGOUP;
+		} else
+			s->state = GV_SD_STALE;
+	} else
 		s->state = GV_SD_UP;
 	
 	if (s->state != oldstate)
@@ -292,6 +412,7 @@ gv_update_sd_state(struct gv_sd *s)
 void
 gv_update_plex_state(struct gv_plex *p)
 {
+	struct gv_sd *s;
 	int sdstates;
 	int oldstate;
 
@@ -316,12 +437,23 @@ gv_update_plex_state(struct gv_plex *p)
 
 	/* Some of our subdisks are initializing. */
 	} else if (sdstates & GV_SD_INITSTATE) {
-		if (p->flags & GV_PLEX_SYNCING)
+
+		if (p->flags & GV_PLEX_SYNCING ||
+		    p->flags & GV_PLEX_REBUILDING)
 			p->state = GV_PLEX_DEGRADED;
 		else
 			p->state = GV_PLEX_DOWN;
 	} else
 		p->state = GV_PLEX_DOWN;
+
+	if (p->state == GV_PLEX_UP) {
+		LIST_FOREACH(s, &p->subdisks, in_plex) {
+			if (s->flags & GV_SD_GROW) {
+				p->state = GV_PLEX_GROWABLE;
+				break;
+			}
+		}
+	}
 
 	if (p->state != oldstate)
 		G_VINUM_DEBUG(1, "plex %s state change: %s -> %s", p->name,

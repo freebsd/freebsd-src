@@ -5,8 +5,6 @@
 PROG=	ztest
 NO_MAN=
 
-CFLAGS+= -std=c99
-
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris
 CFLAGS+= -I${.CURDIR}/../../compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../compat/opensolaris/lib/libumem
@@ -20,5 +18,7 @@ CFLAGS+= -I${.CURDIR}/../../lib/libumem
 DPADD=	${LIBM} ${LIBNVPAIR} ${LIBUMEM} ${LIBZPOOL} \
 	${LIBPTHREAD} ${LIBZ} ${LIBAVL}
 LDADD=	-lm -lnvpair -lumem -lzpool -lpthread -lz -lavl
+
+CSTD=	c99
 
 .include <bsd.prog.mk>

@@ -33,9 +33,11 @@ static	HAL_BOOL ar5210GetChannelEdges(struct ath_hal *,
 static	HAL_BOOL ar5210GetChipPowerLimits(struct ath_hal *ah,
 		struct ieee80211_channel *chan);
 
+static void ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5210DisablePCIE(struct ath_hal *ah);
+
 static const struct ath_hal_private ar5210hal = {{
 	.ah_magic			= AR5210_MAGIC,
-	.ah_abi				= HAL_ABI_VERSION,
 
 	.ah_getRateTable		= ar5210GetRateTable,
 	.ah_detach			= ar5210Detach,
@@ -44,6 +46,8 @@ static const struct ath_hal_private ar5210hal = {{
 	.ah_reset			= ar5210Reset,
 	.ah_phyDisable			= ar5210PhyDisable,
 	.ah_disable			= ar5210Disable,
+	.ah_configPCIE			= ar5210ConfigPCIE,
+	.ah_disablePCIE			= ar5210DisablePCIE,
 	.ah_setPCUConfig		= ar5210SetPCUConfig,
 	.ah_perCalibration		= ar5210PerCalibration,
 	.ah_perCalibrationN		= ar5210PerCalibrationN,
@@ -155,11 +159,6 @@ static const struct ath_hal_private ar5210hal = {{
 #ifdef AH_SUPPORT_WRITE_EEPROM
 	.ah_eepromWrite			= ar5210EepromWrite,
 #endif
-	.ah_gpioCfgInput		= ar5210GpioCfgInput,
-	.ah_gpioCfgOutput		= ar5210GpioCfgOutput,
-	.ah_gpioGet			= ar5210GpioGet,
-	.ah_gpioSet			= ar5210GpioSet,
-	.ah_gpioSetIntr			= ar5210Gpio0SetIntr,
 	.ah_getChipPowerLimits		= ar5210GetChipPowerLimits,
 };
 
@@ -323,6 +322,16 @@ ar5210GetChipPowerLimits(struct ath_hal *ah, struct ieee80211_channel *chan)
 	return AH_TRUE;
 }
 
+static void
+ar5210ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+{
+}
+
+static void
+ar5210DisablePCIE(struct ath_hal *ah)
+{
+}
+
 /*
  * Fill all software cached or static hardware state information.
  */
@@ -360,6 +369,11 @@ ar5210FillCapabilityInfo(struct ath_hal *ah)
 	}
 
 	pCap->halTstampPrecision = 15;		/* NB: s/w extended from 13 */
+	pCap->halIntrMask = (HAL_INT_COMMON - HAL_INT_BNR)
+			| HAL_INT_RX
+			| HAL_INT_TX
+			| HAL_INT_FATAL
+			;
 
 	ahpriv->ah_rxornIsFatal = AH_TRUE;
 	return AH_TRUE;

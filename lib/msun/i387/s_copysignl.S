@@ -15,3 +15,4 @@ ENTRY(copysignl)
 	movl	%eax,12(%esp)
 	fldt	4(%esp)
 	ret
+END(copysignl)

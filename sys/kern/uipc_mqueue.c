@@ -256,10 +256,16 @@ static void	filt_mqdetach(struct knote *kn);
 static int	filt_mqread(struct knote *kn, long hint);
 static int	filt_mqwrite(struct knote *kn, long hint);
 
-struct filterops mq_rfiltops =
-	{ 1, NULL, filt_mqdetach, filt_mqread };
-struct filterops mq_wfiltops =
-	{ 1, NULL, filt_mqdetach, filt_mqwrite };
+struct filterops mq_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_mqdetach,
+	.f_event = filt_mqread,
+};
+struct filterops mq_wfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_mqdetach,
+	.f_event = filt_mqwrite,
+};
 
 /*
  * Initialize fileno bitmap
@@ -561,7 +567,7 @@ mqfs_destroy(struct mqfs_node *node)
  * Mount a mqfs instance
  */
 static int
-mqfs_mount(struct mount *mp, struct thread *td)
+mqfs_mount(struct mount *mp)
 {
 	struct statfs *sbp;
 
@@ -591,11 +597,12 @@ mqfs_mount(struct mount *mp, struct thread *td)
  * Unmount a mqfs instance
  */
 static int
-mqfs_unmount(struct mount *mp, int mntflags, struct thread *td)
+mqfs_unmount(struct mount *mp, int mntflags)
 {
 	int error;
 
-	error = vflush(mp, 0, (mntflags & MNT_FORCE) ?  FORCECLOSE : 0, td);
+	error = vflush(mp, 0, (mntflags & MNT_FORCE) ?  FORCECLOSE : 0,
+	    curthread);
 	return (error);
 }
 
@@ -603,7 +610,7 @@ mqfs_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return a root vnode
  */
 static int
-mqfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+mqfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct mqfs_info *mqfs;
 	int ret;
@@ -617,7 +624,7 @@ mqfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
  * Return filesystem stats
  */
 static int
-mqfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+mqfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	/* XXX update statistics */
 	return (0);
@@ -1091,7 +1098,7 @@ struct vop_open_args {
 	int a_mode;
 	struct ucred *a_cred;
 	struct thread *a_td;
-	int a_fdidx;
+	struct file *a_fp;
 };
 #endif
 
@@ -1530,8 +1537,8 @@ mqueue_alloc(const struct mq_attr *attr)
 		mq->mq_msgsize = default_msgsize;
 	}
 	mtx_init(&mq->mq_mutex, "mqueue lock", NULL, MTX_DEF);
-	knlist_init(&mq->mq_rsel.si_note, &mq->mq_mutex, NULL, NULL, NULL);
-	knlist_init(&mq->mq_wsel.si_note, &mq->mq_mutex, NULL, NULL, NULL);
+	knlist_init_mtx(&mq->mq_rsel.si_note, &mq->mq_mutex);
+	knlist_init_mtx(&mq->mq_wsel.si_note, &mq->mq_mutex);
 	atomic_add_int(&curmq, 1);
 	return (mq);
 }

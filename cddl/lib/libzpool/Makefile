@@ -13,7 +13,7 @@
 # ATOMIC_SRCS
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
-ATOMIC_SRCS=	atomic.S
+ATOMIC_SRCS=	opensolaris_atomic.S
 .else
 .PATH: ${.CURDIR}/../../../sys/cddl/compat/opensolaris/kern
 ATOMIC_SRCS=	opensolaris_atomic.c
@@ -32,8 +32,6 @@ UNICODE_SRCS=	u8_textprep.c
 SRCS=		${ZFS_COMMON_SRCS} ${ZFS_SHARED_SRCS} \
 		${KERNEL_SRCS} ${LIST_SRCS} ${ATOMIC_SRCS} \
 		${UNICODE_SRCS}
-
-CFLAGS+=	-std=c99
 
 CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris
 CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris/include
@@ -59,5 +57,7 @@ LDADD=		-lpthread -lz
 
 # atomic.S doesn't like profiling.
 NO_PROFILE=
+
+CSTD=	c99
 
 .include <bsd.lib.mk>

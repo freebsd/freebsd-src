@@ -54,9 +54,6 @@ SRCS =  vnode_if.h \
 	xfs_iget.c \
 	xfs_attr_leaf.c \
 	xfs_attr.c \
-	xfsrtstubs.c \
-	xfsquotasstubs.c \
-	xfsdmapistubs.c \
 	xfs_dmops.c \
 	xfs_qmops.c \
 	xfs_mountops.c \

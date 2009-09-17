@@ -9,9 +9,7 @@ SUBDIR=	${_atrun} \
 	fingerd \
 	ftpd \
 	getty \
-	lukemftpd \
 	${_mail.local} \
-	makekey \
 	${_mknetid} \
 	${_pppoed} \
 	rbootd \

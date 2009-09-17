@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/cdio.h>
 #include <sys/fcntl.h>
+#include <sys/filio.h>
 #include <sys/file.h>
 #include <sys/ioccom.h>
 #include <sys/mdioctl.h>
@@ -178,6 +179,22 @@ freebsd32_ioctl_ioc_read_toc(struct thread *td,
 	return error;
 }
 
+static int
+freebsd32_ioctl_fiodgname(struct thread *td,
+    struct freebsd32_ioctl_args *uap, struct file *fp)
+{
+	struct fiodgname_arg fgn;
+	struct fiodgname_arg32 fgn32;
+	int error;
+
+	if ((error = copyin(uap->data, &fgn32, sizeof fgn32)) != 0)
+		return (error);
+	CP(fgn32, fgn, len);
+	PTRIN_CP(fgn32, fgn, buf);
+	error = fo_ioctl(fp, FIODGNAME, (caddr_t)&fgn, td->td_ucred, td);
+	fdrop(fp, td);
+	return (error);
+}
 
 int
 freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
@@ -209,6 +226,9 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 
 	case CDIOREADTOCHEADER_32:
 		return freebsd32_ioctl_ioc_toc_header(td, uap, fp);
+
+	case FIODGNAME_32:
+		return freebsd32_ioctl_fiodgname(td, uap, fp);
 
 	default:
 		fdrop(fp, td);

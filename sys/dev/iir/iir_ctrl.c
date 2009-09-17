@@ -52,10 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 #include <machine/bus.h>
-#include <vm/vm.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
-#include <vm/pmap.h>
 
 #include <dev/iir/iir.h>
 
@@ -144,7 +140,7 @@ gdt_minor2softc(int minor_no)
 }
 
 static int
-iir_open(struct cdev *dev, int flags, int fmt, d_thread_t * p)
+iir_open(struct cdev *dev, int flags, int fmt, struct thread * p)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_open()\n"));
 
@@ -162,7 +158,7 @@ iir_open(struct cdev *dev, int flags, int fmt, d_thread_t * p)
 }
 
 static int
-iir_close(struct cdev *dev, int flags, int fmt, d_thread_t * p)
+iir_close(struct cdev *dev, int flags, int fmt, struct thread * p)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_close()\n"));
                 
@@ -222,7 +218,7 @@ iir_read(struct cdev *dev, struct uio * uio, int ioflag)
  */
 
 static int
-iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, d_thread_t * p)
+iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread * p)
 {
     GDT_DPRINTF(GDT_D_DEBUG, ("iir_ioctl() cmd 0x%lx\n",cmd));
 

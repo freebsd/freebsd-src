@@ -24,7 +24,7 @@
 .\" ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 24, 1994
+.Dd July 9, 2009
 .Os
 .Dt FTOK 3
 .Sh NAME
@@ -41,7 +41,7 @@
 The
 .Fn ftok
 function attempts to create a unique key suitable for use with the
-.Xr msgget 3 ,
+.Xr msgget 2 ,
 .Xr semget 2
 and
 .Xr shmget 2
@@ -66,7 +66,7 @@ does not exist or if it cannot be accessed by the calling process.
 .Sh SEE ALSO
 .Xr semget 2 ,
 .Xr shmget 2 ,
-.Xr msgget 3
+.Xr msgget 2
 .Sh HISTORY
 The
 .Fn ftok

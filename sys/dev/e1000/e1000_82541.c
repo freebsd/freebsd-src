@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2008, Intel Corporation 
+  Copyright (c) 2001-2009, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -261,6 +261,8 @@ static s32 e1000_init_mac_params_82541(struct e1000_hw *hw)
 	mac->ops.clear_vfta = e1000_clear_vfta_generic;
 	/* setting MTA */
 	mac->ops.mta_set = e1000_mta_set_generic;
+	/* ID LED init */
+	mac->ops.id_led_init = e1000_id_led_init_generic;
 	/* setup LED */
 	mac->ops.setup_led = e1000_setup_led_82541;
 	/* cleanup LED */
@@ -375,17 +377,25 @@ static s32 e1000_reset_hw_82541(struct e1000_hw *hw)
 static s32 e1000_init_hw_82541(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
+	struct e1000_dev_spec_82541 *dev_spec = &hw->dev_spec._82541;
 	u32 i, txdctl;
 	s32 ret_val;
 
 	DEBUGFUNC("e1000_init_hw_82541");
 
 	/* Initialize identification LED */
-	ret_val = e1000_id_led_init_generic(hw);
+	ret_val = mac->ops.id_led_init(hw);
 	if (ret_val) {
 		DEBUGOUT("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
 	}
+        
+	/* Storing the Speed Power Down  value for later use */
+	ret_val = hw->phy.ops.read_reg(hw,
+	                               IGP01E1000_GMII_FIFO,
+	                               &dev_spec->spd_default);
+	if (ret_val)
+		goto out;
 
 	/* Disabling VLAN filtering */
 	DEBUGOUT("Initializing the IEEE VLAN\n");
@@ -423,6 +433,7 @@ static s32 e1000_init_hw_82541(struct e1000_hw *hw)
 	 */
 	e1000_clear_hw_cntrs_82541(hw);
 
+out:
 	return ret_val;
 }
 

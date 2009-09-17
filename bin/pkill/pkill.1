@@ -36,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 23, 2006
+.Dd May 16, 2009
 .Dt PKILL 1
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Nd find or signal processes by name
 .Sh SYNOPSIS
 .Nm pgrep
-.Op Fl LSfilnovx
+.Op Fl LSafilnovx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -60,7 +60,7 @@
 .Ar pattern ...
 .Nm pkill
 .Op Fl Ar signal
-.Op Fl ILfinovx
+.Op Fl ILafinovx
 .Op Fl F Ar pidfile
 .Op Fl G Ar gid
 .Op Fl M Ar core
@@ -128,6 +128,15 @@ The default is a newline.
 This option can only be used with the
 .Nm pgrep
 command.
+.It Fl a
+Include process ancestors in the match list.
+By default, the current
+.Nm pgrep
+or
+.Nm pkill
+process and all of its ancestors are excluded (unless
+.Fl v
+is used).
 .It Fl f
 Match against full argument lists.
 The default is to match against process names.

@@ -59,14 +59,14 @@
 #define	UDESCSUB_CDC_ENF	15
 #define	UDESCSUB_CDC_ANF	16
 
-struct usb2_cdc_header_descriptor {
+struct usb_cdc_header_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDescriptorSubtype;
 	uWord	bcdCDC;
 } __packed;
 
-struct usb2_cdc_cm_descriptor {
+struct usb_cdc_cm_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDescriptorSubtype;
@@ -76,7 +76,7 @@ struct usb2_cdc_cm_descriptor {
 	uByte	bDataInterface;
 } __packed;
 
-struct usb2_cdc_acm_descriptor {
+struct usb_cdc_acm_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDescriptorSubtype;
@@ -87,7 +87,7 @@ struct usb2_cdc_acm_descriptor {
 #define	USB_CDC_ACM_HAS_NETWORK_CONN	0x08
 } __packed;
 
-struct usb2_cdc_union_descriptor {
+struct usb_cdc_union_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDescriptorSubtype;
@@ -95,7 +95,7 @@ struct usb2_cdc_union_descriptor {
 	uByte	bSlaveInterface[1];
 } __packed;
 
-struct usb2_cdc_ethernet_descriptor {
+struct usb_cdc_ethernet_descriptor {
 	uByte	bLength;
 	uByte	bDescriptorType;
 	uByte	bDescriptorSubtype;
@@ -122,7 +122,7 @@ struct usb2_cdc_ethernet_descriptor {
 #define	UCDC_BREAK_ON			0xffff
 #define	UCDC_BREAK_OFF			0x0000
 
-struct usb2_cdc_abstract_state {
+struct usb_cdc_abstract_state {
 	uWord	wState;
 #define	UCDC_IDLE_SETTING		0x0001
 #define	UCDC_DATA_MULTIPLEXED		0x0002
@@ -130,7 +130,7 @@ struct usb2_cdc_abstract_state {
 
 #define	UCDC_ABSTRACT_STATE_LENGTH	2
 
-struct usb2_cdc_line_state {
+struct usb_cdc_line_state {
 	uDWord	dwDTERate;
 	uByte	bCharFormat;
 #define	UCDC_STOP_BIT_1			0
@@ -147,7 +147,7 @@ struct usb2_cdc_line_state {
 
 #define	UCDC_LINE_STATE_LENGTH		7
 
-struct usb2_cdc_notification {
+struct usb_cdc_notification {
 	uByte	bmRequestType;
 #define	UCDC_NOTIFICATION		0xa1
 	uByte	bNotification;

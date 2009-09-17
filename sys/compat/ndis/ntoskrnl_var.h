@@ -33,9 +33,9 @@
  */
 
 #ifndef _NTOSKRNL_VAR_H_
-#define _NTOSKRNL_VAR_H_
+#define	_NTOSKRNL_VAR_H_
 
-#define MTX_NTOSKRNL_SPIN_LOCK "NDIS thread lock"
+#define	MTX_NTOSKRNL_SPIN_LOCK "NDIS thread lock"
 
 /*
  * us_buf is really a wchar_t *, but it's inconvenient to include
@@ -82,7 +82,7 @@ typedef struct ansi_string ansi_string;
  */
 
 struct mdl {
-        struct mdl		*mdl_next;
+	struct mdl		*mdl_next;
 	uint16_t		mdl_size;
 	uint16_t		mdl_flags;
 	void			*mdl_process;
@@ -96,50 +96,50 @@ typedef struct mdl mdl, ndis_buffer;
 
 /* MDL flags */
 
-#define MDL_MAPPED_TO_SYSTEM_VA		0x0001
-#define MDL_PAGES_LOCKED		0x0002
-#define MDL_SOURCE_IS_NONPAGED_POOL	0x0004
-#define MDL_ALLOCATED_FIXED_SIZE	0x0008
-#define MDL_PARTIAL			0x0010
-#define MDL_PARTIAL_HAS_BEEN_MAPPED	0x0020
-#define MDL_IO_PAGE_READ		0x0040
-#define MDL_WRITE_OPERATION		0x0080
-#define MDL_PARENT_MAPPED_SYSTEM_VA	0x0100
-#define MDL_FREE_EXTRA_PTES		0x0200
-#define MDL_IO_SPACE			0x0800
-#define MDL_NETWORK_HEADER		0x1000
-#define MDL_MAPPING_CAN_FAIL		0x2000
-#define MDL_ALLOCATED_MUST_SUCCEED	0x4000
-#define MDL_ZONE_ALLOCED		0x8000	/* BSD private */
+#define	MDL_MAPPED_TO_SYSTEM_VA		0x0001
+#define	MDL_PAGES_LOCKED		0x0002
+#define	MDL_SOURCE_IS_NONPAGED_POOL	0x0004
+#define	MDL_ALLOCATED_FIXED_SIZE	0x0008
+#define	MDL_PARTIAL			0x0010
+#define	MDL_PARTIAL_HAS_BEEN_MAPPED	0x0020
+#define	MDL_IO_PAGE_READ		0x0040
+#define	MDL_WRITE_OPERATION		0x0080
+#define	MDL_PARENT_MAPPED_SYSTEM_VA	0x0100
+#define	MDL_FREE_EXTRA_PTES		0x0200
+#define	MDL_IO_SPACE			0x0800
+#define	MDL_NETWORK_HEADER		0x1000
+#define	MDL_MAPPING_CAN_FAIL		0x2000
+#define	MDL_ALLOCATED_MUST_SUCCEED	0x4000
+#define	MDL_ZONE_ALLOCED		0x8000	/* BSD private */
 
-#define MDL_ZONE_PAGES 16
-#define MDL_ZONE_SIZE (sizeof(mdl) + (sizeof(vm_offset_t) * MDL_ZONE_PAGES))
+#define	MDL_ZONE_PAGES 16
+#define	MDL_ZONE_SIZE (sizeof(mdl) + (sizeof(vm_offset_t) * MDL_ZONE_PAGES))
 
 /* Note: assumes x86 page size of 4K. */
 
 #ifndef PAGE_SHIFT
 #if PAGE_SIZE == 4096
-#define PAGE_SHIFT	12
+#define	PAGE_SHIFT	12
 #elif PAGE_SIZE == 8192
-#define PAGE_SHIFT	13
+#define	PAGE_SHIFT	13
 #else
 #error PAGE_SHIFT undefined!
 #endif
 #endif
 
-#define SPAN_PAGES(ptr, len)					\
+#define	SPAN_PAGES(ptr, len)					\
 	((uint32_t)((((uintptr_t)(ptr) & (PAGE_SIZE - 1)) +	\
 	(len) + (PAGE_SIZE - 1)) >> PAGE_SHIFT))
 
-#define PAGE_ALIGN(ptr)						\
+#define	PAGE_ALIGN(ptr)						\
 	((void *)((uintptr_t)(ptr) & ~(PAGE_SIZE - 1)))
 
-#define BYTE_OFFSET(ptr)					\
+#define	BYTE_OFFSET(ptr)					\
 	((uint32_t)((uintptr_t)(ptr) & (PAGE_SIZE - 1)))
 
-#define MDL_PAGES(m)	(vm_offset_t *)(m + 1)
+#define	MDL_PAGES(m)	(vm_offset_t *)(m + 1)
 
-#define MmInitializeMdl(b, baseva, len)					\
+#define	MmInitializeMdl(b, baseva, len)					\
 	(b)->mdl_next = NULL;						\
 	(b)->mdl_size = (uint16_t)(sizeof(mdl) +			\
 		(sizeof(vm_offset_t) * SPAN_PAGES((baseva), (len))));	\
@@ -148,19 +148,19 @@ typedef struct mdl mdl, ndis_buffer;
 	(b)->mdl_byteoffset = BYTE_OFFSET((baseva));			\
 	(b)->mdl_bytecount = (uint32_t)(len);
 
-#define MmGetMdlByteOffset(mdl)		((mdl)->mdl_byteoffset)
-#define MmGetMdlByteCount(mdl)		((mdl)->mdl_bytecount)
-#define MmGetMdlVirtualAddress(mdl)					\
+#define	MmGetMdlByteOffset(mdl)		((mdl)->mdl_byteoffset)
+#define	MmGetMdlByteCount(mdl)		((mdl)->mdl_bytecount)
+#define	MmGetMdlVirtualAddress(mdl)					\
 	((void *)((char *)((mdl)->mdl_startva) + (mdl)->mdl_byteoffset))
-#define MmGetMdlStartVa(mdl)		((mdl)->mdl_startva)
-#define MmGetMdlPfnArray(mdl)		MDL_PAGES(mdl)
+#define	MmGetMdlStartVa(mdl)		((mdl)->mdl_startva)
+#define	MmGetMdlPfnArray(mdl)		MDL_PAGES(mdl)
 
-#define WDM_MAJOR		1
-#define WDM_MINOR_WIN98		0x00
-#define WDM_MINOR_WINME		0x05
-#define WDM_MINOR_WIN2000	0x10
-#define WDM_MINOR_WINXP		0x20
-#define WDM_MINOR_WIN2003	0x30
+#define	WDM_MAJOR		1
+#define	WDM_MINOR_WIN98		0x00
+#define	WDM_MINOR_WINME		0x05
+#define	WDM_MINOR_WIN2000	0x10
+#define	WDM_MINOR_WINXP		0x20
+#define	WDM_MINOR_WIN2003	0x30
 
 /*-
  * The ndis_kspin_lock type is called KSPIN_LOCK in MS-Windows.
@@ -168,10 +168,10 @@ typedef struct mdl mdl, ndis_buffer;
  *	typedef ULONG_PTR KSPIN_LOCK;
  *
  * From basetsd.h (SDK, Feb. 2003):
- * 	typedef [public] unsigned __int3264 ULONG_PTR, *PULONG_PTR;
- * 	typedef unsigned __int64 ULONG_PTR, *PULONG_PTR;
- * 	typedef _W64 unsigned long ULONG_PTR, *PULONG_PTR;
- * 
+ *	typedef [public] unsigned __int3264 ULONG_PTR, *PULONG_PTR;
+ *	typedef unsigned __int64 ULONG_PTR, *PULONG_PTR;
+ *	typedef _W64 unsigned long ULONG_PTR, *PULONG_PTR;
+ *
  * The keyword __int3264 specifies an integral type that has the following
  * properties:
  *	+ It is 32-bit on 32-bit platforms
@@ -203,19 +203,19 @@ union slist_header {
 typedef union slist_header slist_header;
 
 struct list_entry {
-        struct list_entry *nle_flink;
-        struct list_entry *nle_blink;
+	struct list_entry *nle_flink;
+	struct list_entry *nle_blink;
 };
 
 typedef struct list_entry list_entry;
 
-#define InitializeListHead(l)			\
+#define	InitializeListHead(l)			\
 	(l)->nle_flink = (l)->nle_blink = (l)
 
-#define IsListEmpty(h)				\
+#define	IsListEmpty(h)				\
 	((h)->nle_flink == (h))
 
-#define RemoveEntryList(e)			\
+#define	RemoveEntryList(e)			\
 	do {					\
 		list_entry		*b;	\
 		list_entry		*f;	\
@@ -256,7 +256,7 @@ RemoveTailList(list_entry *l)
 	return (e);
 }
 
-#define InsertTailList(l, e)			\
+#define	InsertTailList(l, e)			\
 	do {					\
 		list_entry		*b;	\
 						\
@@ -267,7 +267,7 @@ RemoveTailList(list_entry *l)
 		l->nle_blink = (e);		\
 	} while (0)
 
-#define InsertHeadList(l, e)			\
+#define	InsertHeadList(l, e)			\
 	do {					\
 		list_entry		*f;	\
 						\
@@ -278,7 +278,7 @@ RemoveTailList(list_entry *l)
 		l->nle_flink = e;		\
 	} while (0)
 
-#define CONTAINING_RECORD(addr, type, field)	\
+#define	CONTAINING_RECORD(addr, type, field)	\
 	((type *)((vm_offset_t)(addr) - (vm_offset_t)(&((type *)0)->field)))
 
 struct nt_dispatch_header {
@@ -294,48 +294,48 @@ typedef struct nt_dispatch_header nt_dispatch_header;
 
 /* Dispatcher object types */
 
-#define DISP_TYPE_NOTIFICATION_EVENT	0	/* KEVENT */
-#define DISP_TYPE_SYNCHRONIZATION_EVENT	1	/* KEVENT */
-#define DISP_TYPE_MUTANT		2	/* KMUTANT/KMUTEX */
-#define DISP_TYPE_PROCESS		3	/* KPROCESS */
-#define DISP_TYPE_QUEUE			4	/* KQUEUE */
-#define DISP_TYPE_SEMAPHORE		5	/* KSEMAPHORE */
-#define DISP_TYPE_THREAD		6	/* KTHREAD */
-#define DISP_TYPE_NOTIFICATION_TIMER	8	/* KTIMER */
-#define DISP_TYPE_SYNCHRONIZATION_TIMER	9	/* KTIMER */
+#define	DISP_TYPE_NOTIFICATION_EVENT	0	/* KEVENT */
+#define	DISP_TYPE_SYNCHRONIZATION_EVENT	1	/* KEVENT */
+#define	DISP_TYPE_MUTANT		2	/* KMUTANT/KMUTEX */
+#define	DISP_TYPE_PROCESS		3	/* KPROCESS */
+#define	DISP_TYPE_QUEUE			4	/* KQUEUE */
+#define	DISP_TYPE_SEMAPHORE		5	/* KSEMAPHORE */
+#define	DISP_TYPE_THREAD		6	/* KTHREAD */
+#define	DISP_TYPE_NOTIFICATION_TIMER	8	/* KTIMER */
+#define	DISP_TYPE_SYNCHRONIZATION_TIMER	9	/* KTIMER */
 
-#define OTYPE_EVENT		0
-#define OTYPE_MUTEX		1
-#define OTYPE_THREAD		2
-#define OTYPE_TIMER		3
+#define	OTYPE_EVENT		0
+#define	OTYPE_MUTEX		1
+#define	OTYPE_THREAD		2
+#define	OTYPE_TIMER		3
 
 /* Windows dispatcher levels. */
 
-#define PASSIVE_LEVEL		0
-#define LOW_LEVEL		0
-#define APC_LEVEL		1
-#define DISPATCH_LEVEL		2
-#define DEVICE_LEVEL		(DISPATCH_LEVEL + 1)
-#define PROFILE_LEVEL		27
-#define CLOCK1_LEVEL		28
-#define CLOCK2_LEVEL		28
-#define IPI_LEVEL		29
-#define POWER_LEVEL		30
-#define HIGH_LEVEL		31
+#define	PASSIVE_LEVEL		0
+#define	LOW_LEVEL		0
+#define	APC_LEVEL		1
+#define	DISPATCH_LEVEL		2
+#define	DEVICE_LEVEL		(DISPATCH_LEVEL + 1)
+#define	PROFILE_LEVEL		27
+#define	CLOCK1_LEVEL		28
+#define	CLOCK2_LEVEL		28
+#define	IPI_LEVEL		29
+#define	POWER_LEVEL		30
+#define	HIGH_LEVEL		31
 
-#define SYNC_LEVEL_UP		DISPATCH_LEVEL
-#define SYNC_LEVEL_MP		(IPI_LEVEL - 1)
+#define	SYNC_LEVEL_UP		DISPATCH_LEVEL
+#define	SYNC_LEVEL_MP		(IPI_LEVEL - 1)
 
-#define AT_PASSIVE_LEVEL(td)		\
+#define	AT_PASSIVE_LEVEL(td)		\
 	((td)->td_proc->p_flag & P_KTHREAD == FALSE)
 
-#define AT_DISPATCH_LEVEL(td)		\
+#define	AT_DISPATCH_LEVEL(td)		\
 	((td)->td_base_pri == PI_REALTIME)
 
-#define AT_DIRQL_LEVEL(td)		\
+#define	AT_DIRQL_LEVEL(td)		\
 	((td)->td_priority <= PI_NET)
 
-#define AT_HIGH_LEVEL(td)		\
+#define	AT_HIGH_LEVEL(td)		\
 	((td)->td_critnest != 0)
 
 struct nt_objref {
@@ -348,8 +348,8 @@ TAILQ_HEAD(nt_objref_head, nt_objref);
 
 typedef struct nt_objref nt_objref;
 
-#define EVENT_TYPE_NOTIFY	0
-#define EVENT_TYPE_SYNC		1
+#define	EVENT_TYPE_NOTIFY	0
+#define	EVENT_TYPE_SYNC		1
 
 /*
  * We need to use the timeout()/untimeout() API for ktimers
@@ -375,8 +375,8 @@ struct ktimer {
 	uint32_t		k_period;
 };
 
-#define k_timerlistentry	u.k_timerlistentry
-#define k_callout		u.k_callout
+#define	k_timerlistentry	u.k_timerlistentry
+#define	k_callout		u.k_callout
 
 typedef struct ktimer ktimer;
 
@@ -403,11 +403,11 @@ struct kdpc {
 	void			*k_lock;
 };
 
-#define KDPC_IMPORTANCE_LOW	0
-#define KDPC_IMPORTANCE_MEDIUM	1
-#define KDPC_IMPORTANCE_HIGH	2
+#define	KDPC_IMPORTANCE_LOW	0
+#define	KDPC_IMPORTANCE_MEDIUM	1
+#define	KDPC_IMPORTANCE_HIGH	2
 
-#define KDPC_CPU_DEFAULT	255
+#define	KDPC_CPU_DEFAULT	255
 
 typedef struct kdpc kdpc;
 
@@ -432,7 +432,7 @@ struct kmutant {
 
 typedef struct kmutant kmutant;
 
-#define LOOKASIDE_DEPTH 256
+#define	LOOKASIDE_DEPTH 256
 
 struct general_lookaside {
 	slist_header		gl_listhead;
@@ -526,15 +526,15 @@ struct wait_block {
 
 typedef struct wait_block wait_block;
 
-#define wb_ext wb_kthread
+#define	wb_ext wb_kthread
 
-#define THREAD_WAIT_OBJECTS	3
-#define MAX_WAIT_OBJECTS	64
+#define	THREAD_WAIT_OBJECTS	3
+#define	MAX_WAIT_OBJECTS	64
 
-#define WAITTYPE_ALL		0
-#define WAITTYPE_ANY		1
+#define	WAITTYPE_ALL		0
+#define	WAITTYPE_ANY		1
 
-#define WAITKEY_VALID		0x8000
+#define	WAITKEY_VALID		0x8000
 
 /* kthread priority  */
 #define	LOW_PRIORITY		0
@@ -654,198 +654,198 @@ typedef struct devobj_extension devobj_extension;
 
 /* Device object flags */
 
-#define DO_VERIFY_VOLUME		0x00000002      
-#define DO_BUFFERED_IO			0x00000004      
-#define DO_EXCLUSIVE			0x00000008      
-#define DO_DIRECT_IO			0x00000010      
-#define DO_MAP_IO_BUFFER		0x00000020      
-#define DO_DEVICE_HAS_NAME		0x00000040      
-#define DO_DEVICE_INITIALIZING		0x00000080      
-#define DO_SYSTEM_BOOT_PARTITION	0x00000100      
-#define DO_LONG_TERM_REQUESTS		0x00000200      
-#define DO_NEVER_LAST_DEVICE		0x00000400      
-#define DO_SHUTDOWN_REGISTERED		0x00000800      
-#define DO_BUS_ENUMERATED_DEVICE	0x00001000      
-#define DO_POWER_PAGABLE		0x00002000      
-#define DO_POWER_INRUSH			0x00004000      
-#define DO_LOW_PRIORITY_FILESYSTEM	0x00010000      
+#define	DO_VERIFY_VOLUME		0x00000002
+#define	DO_BUFFERED_IO			0x00000004
+#define	DO_EXCLUSIVE			0x00000008
+#define	DO_DIRECT_IO			0x00000010
+#define	DO_MAP_IO_BUFFER		0x00000020
+#define	DO_DEVICE_HAS_NAME		0x00000040
+#define	DO_DEVICE_INITIALIZING		0x00000080
+#define	DO_SYSTEM_BOOT_PARTITION	0x00000100
+#define	DO_LONG_TERM_REQUESTS		0x00000200
+#define	DO_NEVER_LAST_DEVICE		0x00000400
+#define	DO_SHUTDOWN_REGISTERED		0x00000800
+#define	DO_BUS_ENUMERATED_DEVICE	0x00001000
+#define	DO_POWER_PAGABLE		0x00002000
+#define	DO_POWER_INRUSH			0x00004000
+#define	DO_LOW_PRIORITY_FILESYSTEM	0x00010000
 
 /* Priority boosts */
 
-#define IO_NO_INCREMENT			0
-#define IO_CD_ROM_INCREMENT		1
-#define IO_DISK_INCREMENT		1
-#define IO_KEYBOARD_INCREMENT		6
-#define IO_MAILSLOT_INCREMENT		2
-#define IO_MOUSE_INCREMENT		6
-#define IO_NAMED_PIPE_INCREMENT		2
-#define IO_NETWORK_INCREMENT		2
-#define IO_PARALLEL_INCREMENT		1
-#define IO_SERIAL_INCREMENT		2
-#define IO_SOUND_INCREMENT		8
-#define IO_VIDEO_INCREMENT		1
+#define	IO_NO_INCREMENT			0
+#define	IO_CD_ROM_INCREMENT		1
+#define	IO_DISK_INCREMENT		1
+#define	IO_KEYBOARD_INCREMENT		6
+#define	IO_MAILSLOT_INCREMENT		2
+#define	IO_MOUSE_INCREMENT		6
+#define	IO_NAMED_PIPE_INCREMENT		2
+#define	IO_NETWORK_INCREMENT		2
+#define	IO_PARALLEL_INCREMENT		1
+#define	IO_SERIAL_INCREMENT		2
+#define	IO_SOUND_INCREMENT		8
+#define	IO_VIDEO_INCREMENT		1
 
 /* IRP major codes */
 
-#define IRP_MJ_CREATE                   0x00
-#define IRP_MJ_CREATE_NAMED_PIPE        0x01
-#define IRP_MJ_CLOSE                    0x02
-#define IRP_MJ_READ                     0x03
-#define IRP_MJ_WRITE                    0x04
-#define IRP_MJ_QUERY_INFORMATION        0x05
-#define IRP_MJ_SET_INFORMATION          0x06
-#define IRP_MJ_QUERY_EA                 0x07
-#define IRP_MJ_SET_EA                   0x08
-#define IRP_MJ_FLUSH_BUFFERS            0x09
-#define IRP_MJ_QUERY_VOLUME_INFORMATION 0x0a
-#define IRP_MJ_SET_VOLUME_INFORMATION   0x0b
-#define IRP_MJ_DIRECTORY_CONTROL        0x0c
-#define IRP_MJ_FILE_SYSTEM_CONTROL      0x0d
-#define IRP_MJ_DEVICE_CONTROL           0x0e
-#define IRP_MJ_INTERNAL_DEVICE_CONTROL  0x0f
-#define IRP_MJ_SHUTDOWN                 0x10
-#define IRP_MJ_LOCK_CONTROL             0x11
-#define IRP_MJ_CLEANUP                  0x12
-#define IRP_MJ_CREATE_MAILSLOT          0x13
-#define IRP_MJ_QUERY_SECURITY           0x14
-#define IRP_MJ_SET_SECURITY             0x15
-#define IRP_MJ_POWER                    0x16
-#define IRP_MJ_SYSTEM_CONTROL           0x17
-#define IRP_MJ_DEVICE_CHANGE            0x18
-#define IRP_MJ_QUERY_QUOTA              0x19
-#define IRP_MJ_SET_QUOTA                0x1a
-#define IRP_MJ_PNP                      0x1b
-#define IRP_MJ_PNP_POWER                IRP_MJ_PNP      // Obsolete....
-#define IRP_MJ_MAXIMUM_FUNCTION         0x1b
-#define IRP_MJ_SCSI                     IRP_MJ_INTERNAL_DEVICE_CONTROL
+#define	IRP_MJ_CREATE                   0x00
+#define	IRP_MJ_CREATE_NAMED_PIPE        0x01
+#define	IRP_MJ_CLOSE                    0x02
+#define	IRP_MJ_READ                     0x03
+#define	IRP_MJ_WRITE                    0x04
+#define	IRP_MJ_QUERY_INFORMATION        0x05
+#define	IRP_MJ_SET_INFORMATION          0x06
+#define	IRP_MJ_QUERY_EA                 0x07
+#define	IRP_MJ_SET_EA                   0x08
+#define	IRP_MJ_FLUSH_BUFFERS            0x09
+#define	IRP_MJ_QUERY_VOLUME_INFORMATION 0x0a
+#define	IRP_MJ_SET_VOLUME_INFORMATION   0x0b
+#define	IRP_MJ_DIRECTORY_CONTROL        0x0c
+#define	IRP_MJ_FILE_SYSTEM_CONTROL      0x0d
+#define	IRP_MJ_DEVICE_CONTROL           0x0e
+#define	IRP_MJ_INTERNAL_DEVICE_CONTROL  0x0f
+#define	IRP_MJ_SHUTDOWN                 0x10
+#define	IRP_MJ_LOCK_CONTROL             0x11
+#define	IRP_MJ_CLEANUP                  0x12
+#define	IRP_MJ_CREATE_MAILSLOT          0x13
+#define	IRP_MJ_QUERY_SECURITY           0x14
+#define	IRP_MJ_SET_SECURITY             0x15
+#define	IRP_MJ_POWER                    0x16
+#define	IRP_MJ_SYSTEM_CONTROL           0x17
+#define	IRP_MJ_DEVICE_CHANGE            0x18
+#define	IRP_MJ_QUERY_QUOTA              0x19
+#define	IRP_MJ_SET_QUOTA                0x1a
+#define	IRP_MJ_PNP                      0x1b
+#define	IRP_MJ_PNP_POWER                IRP_MJ_PNP      // Obsolete....
+#define	IRP_MJ_MAXIMUM_FUNCTION         0x1b
+#define	IRP_MJ_SCSI                     IRP_MJ_INTERNAL_DEVICE_CONTROL
 
 /* IRP minor codes */
 
-#define IRP_MN_QUERY_DIRECTORY          0x01
-#define IRP_MN_NOTIFY_CHANGE_DIRECTORY  0x02
-#define IRP_MN_USER_FS_REQUEST          0x00
+#define	IRP_MN_QUERY_DIRECTORY          0x01
+#define	IRP_MN_NOTIFY_CHANGE_DIRECTORY  0x02
+#define	IRP_MN_USER_FS_REQUEST          0x00
 
-#define IRP_MN_MOUNT_VOLUME             0x01
-#define IRP_MN_VERIFY_VOLUME            0x02
-#define IRP_MN_LOAD_FILE_SYSTEM         0x03
-#define IRP_MN_TRACK_LINK               0x04
-#define IRP_MN_KERNEL_CALL              0x04
+#define	IRP_MN_MOUNT_VOLUME             0x01
+#define	IRP_MN_VERIFY_VOLUME            0x02
+#define	IRP_MN_LOAD_FILE_SYSTEM         0x03
+#define	IRP_MN_TRACK_LINK               0x04
+#define	IRP_MN_KERNEL_CALL              0x04
 
-#define IRP_MN_LOCK                     0x01
-#define IRP_MN_UNLOCK_SINGLE            0x02
-#define IRP_MN_UNLOCK_ALL               0x03
-#define IRP_MN_UNLOCK_ALL_BY_KEY        0x04
+#define	IRP_MN_LOCK                     0x01
+#define	IRP_MN_UNLOCK_SINGLE            0x02
+#define	IRP_MN_UNLOCK_ALL               0x03
+#define	IRP_MN_UNLOCK_ALL_BY_KEY        0x04
 
-#define IRP_MN_NORMAL                   0x00
-#define IRP_MN_DPC                      0x01
-#define IRP_MN_MDL                      0x02
-#define IRP_MN_COMPLETE                 0x04
-#define IRP_MN_COMPRESSED               0x08
+#define	IRP_MN_NORMAL                   0x00
+#define	IRP_MN_DPC                      0x01
+#define	IRP_MN_MDL                      0x02
+#define	IRP_MN_COMPLETE                 0x04
+#define	IRP_MN_COMPRESSED               0x08
 
-#define IRP_MN_MDL_DPC                  (IRP_MN_MDL | IRP_MN_DPC)
-#define IRP_MN_COMPLETE_MDL             (IRP_MN_COMPLETE | IRP_MN_MDL)
-#define IRP_MN_COMPLETE_MDL_DPC         (IRP_MN_COMPLETE_MDL | IRP_MN_DPC)
+#define	IRP_MN_MDL_DPC                  (IRP_MN_MDL | IRP_MN_DPC)
+#define	IRP_MN_COMPLETE_MDL             (IRP_MN_COMPLETE | IRP_MN_MDL)
+#define	IRP_MN_COMPLETE_MDL_DPC         (IRP_MN_COMPLETE_MDL | IRP_MN_DPC)
 
-#define IRP_MN_SCSI_CLASS               0x01
+#define	IRP_MN_SCSI_CLASS               0x01
 
-#define IRP_MN_START_DEVICE                 0x00
-#define IRP_MN_QUERY_REMOVE_DEVICE          0x01
-#define IRP_MN_REMOVE_DEVICE                0x02
-#define IRP_MN_CANCEL_REMOVE_DEVICE         0x03
-#define IRP_MN_STOP_DEVICE                  0x04
-#define IRP_MN_QUERY_STOP_DEVICE            0x05
-#define IRP_MN_CANCEL_STOP_DEVICE           0x06
+#define	IRP_MN_START_DEVICE                 0x00
+#define	IRP_MN_QUERY_REMOVE_DEVICE          0x01
+#define	IRP_MN_REMOVE_DEVICE                0x02
+#define	IRP_MN_CANCEL_REMOVE_DEVICE         0x03
+#define	IRP_MN_STOP_DEVICE                  0x04
+#define	IRP_MN_QUERY_STOP_DEVICE            0x05
+#define	IRP_MN_CANCEL_STOP_DEVICE           0x06
 
-#define IRP_MN_QUERY_DEVICE_RELATIONS       0x07
-#define IRP_MN_QUERY_INTERFACE              0x08
-#define IRP_MN_QUERY_CAPABILITIES           0x09
-#define IRP_MN_QUERY_RESOURCES              0x0A
-#define IRP_MN_QUERY_RESOURCE_REQUIREMENTS  0x0B
-#define IRP_MN_QUERY_DEVICE_TEXT            0x0C
-#define IRP_MN_FILTER_RESOURCE_REQUIREMENTS 0x0D
+#define	IRP_MN_QUERY_DEVICE_RELATIONS       0x07
+#define	IRP_MN_QUERY_INTERFACE              0x08
+#define	IRP_MN_QUERY_CAPABILITIES           0x09
+#define	IRP_MN_QUERY_RESOURCES              0x0A
+#define	IRP_MN_QUERY_RESOURCE_REQUIREMENTS  0x0B
+#define	IRP_MN_QUERY_DEVICE_TEXT            0x0C
+#define	IRP_MN_FILTER_RESOURCE_REQUIREMENTS 0x0D
 
-#define IRP_MN_READ_CONFIG                  0x0F
-#define IRP_MN_WRITE_CONFIG                 0x10
-#define IRP_MN_EJECT                        0x11
-#define IRP_MN_SET_LOCK                     0x12
-#define IRP_MN_QUERY_ID                     0x13
-#define IRP_MN_QUERY_PNP_DEVICE_STATE       0x14
-#define IRP_MN_QUERY_BUS_INFORMATION        0x15
-#define IRP_MN_DEVICE_USAGE_NOTIFICATION    0x16
-#define IRP_MN_SURPRISE_REMOVAL             0x17
-#define IRP_MN_QUERY_LEGACY_BUS_INFORMATION 0x18
+#define	IRP_MN_READ_CONFIG                  0x0F
+#define	IRP_MN_WRITE_CONFIG                 0x10
+#define	IRP_MN_EJECT                        0x11
+#define	IRP_MN_SET_LOCK                     0x12
+#define	IRP_MN_QUERY_ID                     0x13
+#define	IRP_MN_QUERY_PNP_DEVICE_STATE       0x14
+#define	IRP_MN_QUERY_BUS_INFORMATION        0x15
+#define	IRP_MN_DEVICE_USAGE_NOTIFICATION    0x16
+#define	IRP_MN_SURPRISE_REMOVAL             0x17
+#define	IRP_MN_QUERY_LEGACY_BUS_INFORMATION 0x18
 
-#define IRP_MN_WAIT_WAKE                    0x00
-#define IRP_MN_POWER_SEQUENCE               0x01
-#define IRP_MN_SET_POWER                    0x02
-#define IRP_MN_QUERY_POWER                  0x03
+#define	IRP_MN_WAIT_WAKE                    0x00
+#define	IRP_MN_POWER_SEQUENCE               0x01
+#define	IRP_MN_SET_POWER                    0x02
+#define	IRP_MN_QUERY_POWER                  0x03
 
-#define IRP_MN_QUERY_ALL_DATA               0x00
-#define IRP_MN_QUERY_SINGLE_INSTANCE        0x01
-#define IRP_MN_CHANGE_SINGLE_INSTANCE       0x02
-#define IRP_MN_CHANGE_SINGLE_ITEM           0x03
-#define IRP_MN_ENABLE_EVENTS                0x04
-#define IRP_MN_DISABLE_EVENTS               0x05
-#define IRP_MN_ENABLE_COLLECTION            0x06
-#define IRP_MN_DISABLE_COLLECTION           0x07
-#define IRP_MN_REGINFO                      0x08
-#define IRP_MN_EXECUTE_METHOD               0x09
-#define IRP_MN_REGINFO_EX                   0x0b
+#define	IRP_MN_QUERY_ALL_DATA               0x00
+#define	IRP_MN_QUERY_SINGLE_INSTANCE        0x01
+#define	IRP_MN_CHANGE_SINGLE_INSTANCE       0x02
+#define	IRP_MN_CHANGE_SINGLE_ITEM           0x03
+#define	IRP_MN_ENABLE_EVENTS                0x04
+#define	IRP_MN_DISABLE_EVENTS               0x05
+#define	IRP_MN_ENABLE_COLLECTION            0x06
+#define	IRP_MN_DISABLE_COLLECTION           0x07
+#define	IRP_MN_REGINFO                      0x08
+#define	IRP_MN_EXECUTE_METHOD               0x09
+#define	IRP_MN_REGINFO_EX                   0x0b
 
 /* IRP flags */
 
-#define IRP_NOCACHE                     0x00000001
-#define IRP_PAGING_IO                   0x00000002
-#define IRP_MOUNT_COMPLETION            0x00000002
-#define IRP_SYNCHRONOUS_API             0x00000004
-#define IRP_ASSOCIATED_IRP              0x00000008
-#define IRP_BUFFERED_IO                 0x00000010
-#define IRP_DEALLOCATE_BUFFER           0x00000020
-#define IRP_INPUT_OPERATION             0x00000040
-#define IRP_SYNCHRONOUS_PAGING_IO       0x00000040
-#define IRP_CREATE_OPERATION            0x00000080
-#define IRP_READ_OPERATION              0x00000100
-#define IRP_WRITE_OPERATION             0x00000200
-#define IRP_CLOSE_OPERATION             0x00000400
-#define IRP_DEFER_IO_COMPLETION         0x00000800
-#define IRP_OB_QUERY_NAME               0x00001000
-#define IRP_HOLD_DEVICE_QUEUE           0x00002000
-#define IRP_RETRY_IO_COMPLETION         0x00004000
-#define IRP_CLASS_CACHE_OPERATION       0x00008000
-#define IRP_SET_USER_EVENT              IRP_CLOSE_OPERATION
+#define	IRP_NOCACHE                     0x00000001
+#define	IRP_PAGING_IO                   0x00000002
+#define	IRP_MOUNT_COMPLETION            0x00000002
+#define	IRP_SYNCHRONOUS_API             0x00000004
+#define	IRP_ASSOCIATED_IRP              0x00000008
+#define	IRP_BUFFERED_IO                 0x00000010
+#define	IRP_DEALLOCATE_BUFFER           0x00000020
+#define	IRP_INPUT_OPERATION             0x00000040
+#define	IRP_SYNCHRONOUS_PAGING_IO       0x00000040
+#define	IRP_CREATE_OPERATION            0x00000080
+#define	IRP_READ_OPERATION              0x00000100
+#define	IRP_WRITE_OPERATION             0x00000200
+#define	IRP_CLOSE_OPERATION             0x00000400
+#define	IRP_DEFER_IO_COMPLETION         0x00000800
+#define	IRP_OB_QUERY_NAME               0x00001000
+#define	IRP_HOLD_DEVICE_QUEUE           0x00002000
+#define	IRP_RETRY_IO_COMPLETION         0x00004000
+#define	IRP_CLASS_CACHE_OPERATION       0x00008000
+#define	IRP_SET_USER_EVENT              IRP_CLOSE_OPERATION
 
 /* IRP I/O control flags */
 
-#define IRP_QUOTA_CHARGED               0x01
-#define IRP_ALLOCATED_MUST_SUCCEED      0x02
-#define IRP_ALLOCATED_FIXED_SIZE        0x04
-#define IRP_LOOKASIDE_ALLOCATION        0x08
+#define	IRP_QUOTA_CHARGED               0x01
+#define	IRP_ALLOCATED_MUST_SUCCEED      0x02
+#define	IRP_ALLOCATED_FIXED_SIZE        0x04
+#define	IRP_LOOKASIDE_ALLOCATION        0x08
 
 /* I/O method types */
 
-#define METHOD_BUFFERED			0
-#define METHOD_IN_DIRECT		1
-#define METHOD_OUT_DIRECT		2
-#define METHOD_NEITHER			3
+#define	METHOD_BUFFERED			0
+#define	METHOD_IN_DIRECT		1
+#define	METHOD_OUT_DIRECT		2
+#define	METHOD_NEITHER			3
 
 /* File access types */
 
-#define FILE_ANY_ACCESS			0x0000
-#define FILE_SPECIAL_ACCESS		FILE_ANY_ACCESS
-#define FILE_READ_ACCESS		0x0001
-#define FILE_WRITE_ACCESS		0x0002
+#define	FILE_ANY_ACCESS			0x0000
+#define	FILE_SPECIAL_ACCESS		FILE_ANY_ACCESS
+#define	FILE_READ_ACCESS		0x0001
+#define	FILE_WRITE_ACCESS		0x0002
 
 /* Recover I/O access method from IOCTL code. */
 
-#define IO_METHOD(x)			((x) & 0xFFFFFFFC)
+#define	IO_METHOD(x)			((x) & 0xFFFFFFFC)
 
 /* Recover function code from IOCTL code */
 
-#define IO_FUNC(x)			(((x) & 0x7FFC) >> 2)
+#define	IO_FUNC(x)			(((x) & 0x7FFC) >> 2)
 
 /* Macro to construct an IOCTL code. */
 
-#define IOCTL_CODE(dev, func, iomethod, acc)	\
+#define	IOCTL_CODE(dev, func, iomethod, acc)	\
 	((dev) << 16) | (acc << 14) | (func << 2) | (iomethod))
 
 
@@ -856,8 +856,8 @@ struct io_status_block {
 	} u;
 	register_t		isb_info;
 };
-#define isb_status		u.isb_status
-#define isb_ptr			u.isb_ptr
+#define	isb_status		u.isb_status
+#define	isb_ptr			u.isb_ptr
 
 typedef struct io_status_block io_status_block;
 
@@ -936,10 +936,10 @@ typedef struct io_stack_location io_stack_location;
 
 /* Stack location control flags */
 
-#define SL_PENDING_RETURNED		0x01
-#define SL_INVOKE_ON_CANCEL		0x20
-#define SL_INVOKE_ON_SUCCESS		0x40
-#define SL_INVOKE_ON_ERROR		0x80
+#define	SL_PENDING_RETURNED		0x01
+#define	SL_INVOKE_ON_CANCEL		0x20
+#define	SL_INVOKE_ON_SUCCESS		0x40
+#define	SL_INVOKE_ON_ERROR		0x80
 
 struct irp {
 	uint16_t		irp_type;
@@ -980,7 +980,7 @@ struct irp {
 			union {
 				kdevice_qentry			irp_dqe;
 				struct {
-					void 			*irp_drvctx[4];
+					void			*irp_drvctx[4];
 				} s1;
 			} u1;
 			void			*irp_thread;
@@ -997,7 +997,7 @@ struct irp {
 		union {
 			kapc			irp_apc;
 			struct {
-				void		*irp_xfer;
+				void		*irp_ep;
 				void		*irp_dev;
 			} irp_usb;
 		} irp_misc;
@@ -1005,21 +1005,21 @@ struct irp {
 	} irp_tail;
 };
 
-#define irp_csl			s2.u2.irp_csl
-#define irp_pkttype		s2.u2.irp_pkttype
+#define	irp_csl			s2.u2.irp_csl
+#define	irp_pkttype		s2.u2.irp_pkttype
 
 #define	IRP_NDIS_DEV(irp)	(irp)->irp_tail.irp_misc.irp_usb.irp_dev
-#define	IRP_NDISUSB_XFER(irp)	(irp)->irp_tail.irp_misc.irp_usb.irp_xfer
+#define	IRP_NDISUSB_EP(irp)	(irp)->irp_tail.irp_misc.irp_usb.irp_ep
 
 typedef struct irp irp;
 
-#define InterlockedExchangePointer(dst, val)				\
+#define	InterlockedExchangePointer(dst, val)				\
 	(void *)InterlockedExchange((uint32_t *)(dst), (uintptr_t)(val))
 
-#define IoSizeOfIrp(ssize)						\
+#define	IoSizeOfIrp(ssize)						\
 	((uint16_t) (sizeof(irp) + ((ssize) * (sizeof(io_stack_location)))))
 
-#define IoSetCancelRoutine(irp, func)					\
+#define	IoSetCancelRoutine(irp, func)					\
 	(cancel_func)InterlockedExchangePointer(			\
 	(void *)&(ip)->irp_cancelfunc, (void *)(func))
 
@@ -1027,19 +1027,19 @@ typedef struct irp irp;
 	(u_long)InterlockedExchangePointer(				\
 	(void *)&(ip)->irp_cancel, (void *)(val))
 
-#define IoGetCurrentIrpStackLocation(irp)				\
+#define	IoGetCurrentIrpStackLocation(irp)				\
 	(irp)->irp_tail.irp_overlay.irp_csl
 
-#define IoGetNextIrpStackLocation(irp)					\
+#define	IoGetNextIrpStackLocation(irp)					\
 	((irp)->irp_tail.irp_overlay.irp_csl - 1)
 
-#define IoSetNextIrpStackLocation(irp)					\
+#define	IoSetNextIrpStackLocation(irp)					\
 	do {								\
 		irp->irp_currentstackloc--;				\
 		irp->irp_tail.irp_overlay.irp_csl--;			\
 	} while(0)
 
-#define IoSetCompletionRoutine(irp, func, ctx, ok, err, cancel)		\
+#define	IoSetCompletionRoutine(irp, func, ctx, ok, err, cancel)		\
 	do {								\
 		io_stack_location		*s;			\
 		s = IoGetNextIrpStackLocation((irp));			\
@@ -1051,12 +1051,12 @@ typedef struct irp irp;
 		if (cancel) s->isl_ctl |= SL_INVOKE_ON_CANCEL;		\
 	} while(0)
 
-#define IoMarkIrpPending(irp)						\
+#define	IoMarkIrpPending(irp)						\
 	IoGetCurrentIrpStackLocation(irp)->isl_ctl |= SL_PENDING_RETURNED
 #define	IoUnmarkIrpPending(irp)						\
 	IoGetCurrentIrpStackLocation(irp)->isl_ctl &= ~SL_PENDING_RETURNED
 
-#define IoCopyCurrentIrpStackLocationToNext(irp)			\
+#define	IoCopyCurrentIrpStackLocationToNext(irp)			\
 	do {								\
 		io_stack_location *src, *dst;				\
 		src = IoGetCurrentIrpStackLocation(irp);		\
@@ -1065,16 +1065,16 @@ typedef struct irp irp;
 		    offsetof(io_stack_location, isl_completionfunc));	\
 	} while(0)
 
-#define IoSkipCurrentIrpStackLocation(irp)				\
+#define	IoSkipCurrentIrpStackLocation(irp)				\
 	do {								\
 		(irp)->irp_currentstackloc++;				\
 		(irp)->irp_tail.irp_overlay.irp_csl++;			\
 	} while(0)
 
-#define IoInitializeDpcRequest(dobj, dpcfunc)				\
+#define	IoInitializeDpcRequest(dobj, dpcfunc)				\
 	KeInitializeDpc(&(dobj)->do_dpc, dpcfunc, dobj)
 
-#define IoRequestDpc(dobj, irp, ctx)					\
+#define	IoRequestDpc(dobj, irp, ctx)					\
 	KeInsertQueueDpc(&(dobj)->do_dpc, irp, ctx)
 
 typedef uint32_t (*driver_dispatch)(device_object *, irp *);
@@ -1109,136 +1109,136 @@ struct driver_object {
 
 typedef struct driver_object driver_object;
 
-#define DEVPROP_DEVICE_DESCRIPTION	0x00000000
-#define DEVPROP_HARDWARE_ID		0x00000001
-#define DEVPROP_COMPATIBLE_IDS		0x00000002
-#define DEVPROP_BOOTCONF		0x00000003
-#define DEVPROP_BOOTCONF_TRANSLATED	0x00000004
-#define DEVPROP_CLASS_NAME		0x00000005
-#define DEVPROP_CLASS_GUID		0x00000006
-#define DEVPROP_DRIVER_KEYNAME		0x00000007
-#define DEVPROP_MANUFACTURER		0x00000008
-#define DEVPROP_FRIENDLYNAME		0x00000009
-#define DEVPROP_LOCATION_INFO		0x0000000A
-#define DEVPROP_PHYSDEV_NAME		0x0000000B
-#define DEVPROP_BUSTYPE_GUID		0x0000000C
-#define DEVPROP_LEGACY_BUSTYPE		0x0000000D
-#define DEVPROP_BUS_NUMBER		0x0000000E
-#define DEVPROP_ENUMERATOR_NAME		0x0000000F
-#define DEVPROP_ADDRESS			0x00000010
-#define DEVPROP_UINUMBER		0x00000011
-#define DEVPROP_INSTALL_STATE		0x00000012
-#define DEVPROP_REMOVAL_POLICY		0x00000013
+#define	DEVPROP_DEVICE_DESCRIPTION	0x00000000
+#define	DEVPROP_HARDWARE_ID		0x00000001
+#define	DEVPROP_COMPATIBLE_IDS		0x00000002
+#define	DEVPROP_BOOTCONF		0x00000003
+#define	DEVPROP_BOOTCONF_TRANSLATED	0x00000004
+#define	DEVPROP_CLASS_NAME		0x00000005
+#define	DEVPROP_CLASS_GUID		0x00000006
+#define	DEVPROP_DRIVER_KEYNAME		0x00000007
+#define	DEVPROP_MANUFACTURER		0x00000008
+#define	DEVPROP_FRIENDLYNAME		0x00000009
+#define	DEVPROP_LOCATION_INFO		0x0000000A
+#define	DEVPROP_PHYSDEV_NAME		0x0000000B
+#define	DEVPROP_BUSTYPE_GUID		0x0000000C
+#define	DEVPROP_LEGACY_BUSTYPE		0x0000000D
+#define	DEVPROP_BUS_NUMBER		0x0000000E
+#define	DEVPROP_ENUMERATOR_NAME		0x0000000F
+#define	DEVPROP_ADDRESS			0x00000010
+#define	DEVPROP_UINUMBER		0x00000011
+#define	DEVPROP_INSTALL_STATE		0x00000012
+#define	DEVPROP_REMOVAL_POLICY		0x00000013
 
 /* Various supported device types (used with IoCreateDevice()) */
 
-#define FILE_DEVICE_BEEP		0x00000001
-#define FILE_DEVICE_CD_ROM		0x00000002
-#define FILE_DEVICE_CD_ROM_FILE_SYSTEM	0x00000003
-#define FILE_DEVICE_CONTROLLER		0x00000004
-#define FILE_DEVICE_DATALINK		0x00000005
-#define FILE_DEVICE_DFS			0x00000006
-#define FILE_DEVICE_DISK		0x00000007
-#define FILE_DEVICE_DISK_FILE_SYSTEM	0x00000008
-#define FILE_DEVICE_FILE_SYSTEM		0x00000009
-#define FILE_DEVICE_INPORT_PORT		0x0000000A
-#define FILE_DEVICE_KEYBOARD		0x0000000B
-#define FILE_DEVICE_MAILSLOT		0x0000000C
-#define FILE_DEVICE_MIDI_IN		0x0000000D
-#define FILE_DEVICE_MIDI_OUT		0x0000000E
-#define FILE_DEVICE_MOUSE		0x0000000F
-#define FILE_DEVICE_MULTI_UNC_PROVIDER	0x00000010
-#define FILE_DEVICE_NAMED_PIPE		0x00000011
-#define FILE_DEVICE_NETWORK		0x00000012
-#define FILE_DEVICE_NETWORK_BROWSER	0x00000013
-#define FILE_DEVICE_NETWORK_FILE_SYSTEM	0x00000014
-#define FILE_DEVICE_NULL		0x00000015
-#define FILE_DEVICE_PARALLEL_PORT	0x00000016
-#define FILE_DEVICE_PHYSICAL_NETCARD	0x00000017
-#define FILE_DEVICE_PRINTER		0x00000018
-#define FILE_DEVICE_SCANNER		0x00000019
-#define FILE_DEVICE_SERIAL_MOUSE_PORT	0x0000001A
-#define FILE_DEVICE_SERIAL_PORT		0x0000001B
-#define FILE_DEVICE_SCREEN		0x0000001C
-#define FILE_DEVICE_SOUND		0x0000001D
-#define FILE_DEVICE_STREAMS		0x0000001E
-#define FILE_DEVICE_TAPE		0x0000001F
-#define FILE_DEVICE_TAPE_FILE_SYSTEM	0x00000020
-#define FILE_DEVICE_TRANSPORT		0x00000021
-#define FILE_DEVICE_UNKNOWN		0x00000022
-#define FILE_DEVICE_VIDEO		0x00000023
-#define FILE_DEVICE_VIRTUAL_DISK	0x00000024
-#define FILE_DEVICE_WAVE_IN		0x00000025
-#define FILE_DEVICE_WAVE_OUT		0x00000026
-#define FILE_DEVICE_8042_PORT		0x00000027
-#define FILE_DEVICE_NETWORK_REDIRECTOR	0x00000028
-#define FILE_DEVICE_BATTERY		0x00000029
-#define FILE_DEVICE_BUS_EXTENDER	0x0000002A
-#define FILE_DEVICE_MODEM		0x0000002B
-#define FILE_DEVICE_VDM			0x0000002C
-#define FILE_DEVICE_MASS_STORAGE	0x0000002D
-#define FILE_DEVICE_SMB			0x0000002E
-#define FILE_DEVICE_KS			0x0000002F
-#define FILE_DEVICE_CHANGER		0x00000030
-#define FILE_DEVICE_SMARTCARD		0x00000031
-#define FILE_DEVICE_ACPI		0x00000032
-#define FILE_DEVICE_DVD			0x00000033
-#define FILE_DEVICE_FULLSCREEN_VIDEO	0x00000034
-#define FILE_DEVICE_DFS_FILE_SYSTEM	0x00000035
-#define FILE_DEVICE_DFS_VOLUME		0x00000036
-#define FILE_DEVICE_SERENUM		0x00000037
-#define FILE_DEVICE_TERMSRV		0x00000038
-#define FILE_DEVICE_KSEC		0x00000039
-#define FILE_DEVICE_FIPS		0x0000003A
+#define	FILE_DEVICE_BEEP		0x00000001
+#define	FILE_DEVICE_CD_ROM		0x00000002
+#define	FILE_DEVICE_CD_ROM_FILE_SYSTEM	0x00000003
+#define	FILE_DEVICE_CONTROLLER		0x00000004
+#define	FILE_DEVICE_DATALINK		0x00000005
+#define	FILE_DEVICE_DFS			0x00000006
+#define	FILE_DEVICE_DISK		0x00000007
+#define	FILE_DEVICE_DISK_FILE_SYSTEM	0x00000008
+#define	FILE_DEVICE_FILE_SYSTEM		0x00000009
+#define	FILE_DEVICE_INPORT_PORT		0x0000000A
+#define	FILE_DEVICE_KEYBOARD		0x0000000B
+#define	FILE_DEVICE_MAILSLOT		0x0000000C
+#define	FILE_DEVICE_MIDI_IN		0x0000000D
+#define	FILE_DEVICE_MIDI_OUT		0x0000000E
+#define	FILE_DEVICE_MOUSE		0x0000000F
+#define	FILE_DEVICE_MULTI_UNC_PROVIDER	0x00000010
+#define	FILE_DEVICE_NAMED_PIPE		0x00000011
+#define	FILE_DEVICE_NETWORK		0x00000012
+#define	FILE_DEVICE_NETWORK_BROWSER	0x00000013
+#define	FILE_DEVICE_NETWORK_FILE_SYSTEM	0x00000014
+#define	FILE_DEVICE_NULL		0x00000015
+#define	FILE_DEVICE_PARALLEL_PORT	0x00000016
+#define	FILE_DEVICE_PHYSICAL_NETCARD	0x00000017
+#define	FILE_DEVICE_PRINTER		0x00000018
+#define	FILE_DEVICE_SCANNER		0x00000019
+#define	FILE_DEVICE_SERIAL_MOUSE_PORT	0x0000001A
+#define	FILE_DEVICE_SERIAL_PORT		0x0000001B
+#define	FILE_DEVICE_SCREEN		0x0000001C
+#define	FILE_DEVICE_SOUND		0x0000001D
+#define	FILE_DEVICE_STREAMS		0x0000001E
+#define	FILE_DEVICE_TAPE		0x0000001F
+#define	FILE_DEVICE_TAPE_FILE_SYSTEM	0x00000020
+#define	FILE_DEVICE_TRANSPORT		0x00000021
+#define	FILE_DEVICE_UNKNOWN		0x00000022
+#define	FILE_DEVICE_VIDEO		0x00000023
+#define	FILE_DEVICE_VIRTUAL_DISK	0x00000024
+#define	FILE_DEVICE_WAVE_IN		0x00000025
+#define	FILE_DEVICE_WAVE_OUT		0x00000026
+#define	FILE_DEVICE_8042_PORT		0x00000027
+#define	FILE_DEVICE_NETWORK_REDIRECTOR	0x00000028
+#define	FILE_DEVICE_BATTERY		0x00000029
+#define	FILE_DEVICE_BUS_EXTENDER	0x0000002A
+#define	FILE_DEVICE_MODEM		0x0000002B
+#define	FILE_DEVICE_VDM			0x0000002C
+#define	FILE_DEVICE_MASS_STORAGE	0x0000002D
+#define	FILE_DEVICE_SMB			0x0000002E
+#define	FILE_DEVICE_KS			0x0000002F
+#define	FILE_DEVICE_CHANGER		0x00000030
+#define	FILE_DEVICE_SMARTCARD		0x00000031
+#define	FILE_DEVICE_ACPI		0x00000032
+#define	FILE_DEVICE_DVD			0x00000033
+#define	FILE_DEVICE_FULLSCREEN_VIDEO	0x00000034
+#define	FILE_DEVICE_DFS_FILE_SYSTEM	0x00000035
+#define	FILE_DEVICE_DFS_VOLUME		0x00000036
+#define	FILE_DEVICE_SERENUM		0x00000037
+#define	FILE_DEVICE_TERMSRV		0x00000038
+#define	FILE_DEVICE_KSEC		0x00000039
+#define	FILE_DEVICE_FIPS		0x0000003A
 
 /* Device characteristics */
 
-#define FILE_REMOVABLE_MEDIA		0x00000001
-#define FILE_READ_ONLY_DEVICE		0x00000002
-#define FILE_FLOPPY_DISKETTE		0x00000004
-#define FILE_WRITE_ONCE_MEDIA		0x00000008
-#define FILE_REMOTE_DEVICE		0x00000010
-#define FILE_DEVICE_IS_MOUNTED		0x00000020
-#define FILE_VIRTUAL_VOLUME		0x00000040
-#define FILE_AUTOGENERATED_DEVICE_NAME	0x00000080
-#define FILE_DEVICE_SECURE_OPEN		0x00000100
+#define	FILE_REMOVABLE_MEDIA		0x00000001
+#define	FILE_READ_ONLY_DEVICE		0x00000002
+#define	FILE_FLOPPY_DISKETTE		0x00000004
+#define	FILE_WRITE_ONCE_MEDIA		0x00000008
+#define	FILE_REMOTE_DEVICE		0x00000010
+#define	FILE_DEVICE_IS_MOUNTED		0x00000020
+#define	FILE_VIRTUAL_VOLUME		0x00000040
+#define	FILE_AUTOGENERATED_DEVICE_NAME	0x00000080
+#define	FILE_DEVICE_SECURE_OPEN		0x00000100
 
 /* Status codes */
 
-#define STATUS_SUCCESS			0x00000000
-#define STATUS_USER_APC			0x000000C0
-#define STATUS_KERNEL_APC		0x00000100
-#define STATUS_ALERTED			0x00000101
-#define STATUS_TIMEOUT			0x00000102
-#define STATUS_PENDING			0x00000103
+#define	STATUS_SUCCESS			0x00000000
+#define	STATUS_USER_APC			0x000000C0
+#define	STATUS_KERNEL_APC		0x00000100
+#define	STATUS_ALERTED			0x00000101
+#define	STATUS_TIMEOUT			0x00000102
+#define	STATUS_PENDING			0x00000103
 #define	STATUS_FAILURE			0xC0000001
 #define	STATUS_NOT_IMPLEMENTED		0xC0000002
-#define STATUS_INVALID_PARAMETER	0xC000000D
-#define STATUS_INVALID_DEVICE_REQUEST	0xC0000010
-#define STATUS_MORE_PROCESSING_REQUIRED	0xC0000016
+#define	STATUS_INVALID_PARAMETER	0xC000000D
+#define	STATUS_INVALID_DEVICE_REQUEST	0xC0000010
+#define	STATUS_MORE_PROCESSING_REQUIRED	0xC0000016
 #define	STATUS_NO_MEMORY		0xC0000017
-#define STATUS_BUFFER_TOO_SMALL		0xC0000023
-#define STATUS_MUTANT_NOT_OWNED		0xC0000046
+#define	STATUS_BUFFER_TOO_SMALL		0xC0000023
+#define	STATUS_MUTANT_NOT_OWNED		0xC0000046
 #define	STATUS_NOT_SUPPORTED		0xC00000BB
-#define STATUS_INVALID_PARAMETER_2	0xC00000F0
-#define STATUS_INSUFFICIENT_RESOURCES	0xC000009A
+#define	STATUS_INVALID_PARAMETER_2	0xC00000F0
+#define	STATUS_INSUFFICIENT_RESOURCES	0xC000009A
 #define	STATUS_DEVICE_NOT_CONNECTED	0xC000009D
 #define	STATUS_CANCELLED		0xC0000120
-#define STATUS_NOT_FOUND		0xC0000225
+#define	STATUS_NOT_FOUND		0xC0000225
 #define	STATUS_DEVICE_REMOVED		0xC00002B6
 
-#define STATUS_WAIT_0			0x00000000
+#define	STATUS_WAIT_0			0x00000000
 
 /* Memory pool types, for ExAllocatePoolWithTag() */
 
-#define NonPagedPool			0x00000000
-#define PagedPool			0x00000001
-#define NonPagedPoolMustSucceed		0x00000002
-#define DontUseThisType			0x00000003
-#define NonPagedPoolCacheAligned	0x00000004
-#define PagedPoolCacheAligned		0x00000005
-#define NonPagedPoolCacheAlignedMustS	0x00000006
-#define MaxPoolType			0x00000007
+#define	NonPagedPool			0x00000000
+#define	PagedPool			0x00000001
+#define	NonPagedPoolMustSucceed		0x00000002
+#define	DontUseThisType			0x00000003
+#define	NonPagedPoolCacheAligned	0x00000004
+#define	PagedPoolCacheAligned		0x00000005
+#define	NonPagedPoolCacheAlignedMustS	0x00000006
+#define	MaxPoolType			0x00000007
 
 /*
  * IO_WORKITEM is an opaque structures that must be allocated
@@ -1257,13 +1257,13 @@ struct io_workitem {
 
 typedef struct io_workitem io_workitem;
 
-#define WORKQUEUE_CRITICAL	0
-#define WORKQUEUE_DELAYED	1
-#define WORKQUEUE_HYPERCRITICAL	2
+#define	WORKQUEUE_CRITICAL	0
+#define	WORKQUEUE_DELAYED	1
+#define	WORKQUEUE_HYPERCRITICAL	2
 
-#define WORKITEM_THREADS	4
-#define WORKITEM_LEGACY_THREAD	3
-#define WORKIDX_INC(x)		(x) = (x + 1) % WORKITEM_LEGACY_THREAD
+#define	WORKITEM_THREADS	4
+#define	WORKITEM_LEGACY_THREAD	3
+#define	WORKIDX_INC(x)		(x) = (x + 1) % WORKITEM_LEGACY_THREAD
 
 /*
  * Older, deprecated work item API, needed to support NdisQueueWorkItem().
@@ -1281,7 +1281,7 @@ struct work_queue_item {
 
 typedef struct work_queue_item work_queue_item;
 
-#define ExInitializeWorkItem(w, func, ctx)		\
+#define	ExInitializeWorkItem(w, func, ctx)		\
 	do {						\
 		(w)->wqi_func = (func);			\
 		(w)->wqi_ctx = (ctx);			\
@@ -1293,17 +1293,17 @@ typedef struct work_queue_item work_queue_item;
  * Windows stack is larger, so we need to give our threads more
  * stack pages. 4 should be enough, we use 8 just to extra safe.
  */
-#define NDIS_KSTACK_PAGES	8
+#define	NDIS_KSTACK_PAGES	8
 
 /*
  * Different kinds of function wrapping we can do.
  */
 
-#define WINDRV_WRAP_STDCALL	1
-#define WINDRV_WRAP_FASTCALL	2
-#define WINDRV_WRAP_REGPARM	3
-#define WINDRV_WRAP_CDECL	4
-#define WINDRV_WRAP_AMD64	5
+#define	WINDRV_WRAP_STDCALL	1
+#define	WINDRV_WRAP_FASTCALL	2
+#define	WINDRV_WRAP_REGPARM	3
+#define	WINDRV_WRAP_CDECL	4
+#define	WINDRV_WRAP_AMD64	5
 
 struct drvdb_ent {
 	driver_object		*windrv_object;
@@ -1362,7 +1362,7 @@ extern void KeFlushQueuedDpcs(void);
 extern uint32_t KeGetCurrentProcessorNumber(void);
 extern void KeInitializeTimer(ktimer *);
 extern void KeInitializeTimerEx(ktimer *, uint32_t);
-extern uint8_t KeSetTimer(ktimer *, int64_t, kdpc *);  
+extern uint8_t KeSetTimer(ktimer *, int64_t, kdpc *);
 extern uint8_t KeSetTimerEx(ktimer *, int64_t, uint32_t, kdpc *);
 extern uint8_t KeCancelTimer(ktimer *);
 extern uint8_t KeReadStateTimer(ktimer *);
@@ -1420,32 +1420,32 @@ extern void IoFreeWorkItem(io_workitem *);
 extern void IoQueueWorkItem(io_workitem *, io_workitem_func,
 	uint32_t, void *);
 
-#define IoCallDriver(a, b)		IofCallDriver(a, b)
-#define IoCompleteRequest(a, b)		IofCompleteRequest(a, b)
+#define	IoCallDriver(a, b)		IofCallDriver(a, b)
+#define	IoCompleteRequest(a, b)		IofCompleteRequest(a, b)
 
 /*
  * On the Windows x86 arch, KeAcquireSpinLock() and KeReleaseSpinLock()
  * routines live in the HAL. We try to imitate this behavior.
  */
 #ifdef __i386__
-#define KeAcquireSpinLock(a, b)	*(b) = KfAcquireSpinLock(a)
-#define KeReleaseSpinLock(a, b)	KfReleaseSpinLock(a, b)
-#define KeRaiseIrql(a, b)	*(b) = KfRaiseIrql(a)
-#define KeLowerIrql(a)		KfLowerIrql(a)
-#define KeAcquireSpinLockAtDpcLevel(a)	KefAcquireSpinLockAtDpcLevel(a)
-#define KeReleaseSpinLockFromDpcLevel(a)  KefReleaseSpinLockFromDpcLevel(a)
+#define	KeAcquireSpinLock(a, b)	*(b) = KfAcquireSpinLock(a)
+#define	KeReleaseSpinLock(a, b)	KfReleaseSpinLock(a, b)
+#define	KeRaiseIrql(a, b)	*(b) = KfRaiseIrql(a)
+#define	KeLowerIrql(a)		KfLowerIrql(a)
+#define	KeAcquireSpinLockAtDpcLevel(a)	KefAcquireSpinLockAtDpcLevel(a)
+#define	KeReleaseSpinLockFromDpcLevel(a)  KefReleaseSpinLockFromDpcLevel(a)
 #endif /* __i386__ */
 
 #ifdef __amd64__
-#define KeAcquireSpinLock(a, b)	*(b) = KfAcquireSpinLock(a)
-#define KeReleaseSpinLock(a, b)	KfReleaseSpinLock(a, b)
+#define	KeAcquireSpinLock(a, b)	*(b) = KfAcquireSpinLock(a)
+#define	KeReleaseSpinLock(a, b)	KfReleaseSpinLock(a, b)
 
 /*
  * These may need to be redefined later;
  * not sure where they live on amd64 yet.
  */
-#define KeRaiseIrql(a, b)	*(b) = KfRaiseIrql(a)
-#define KeLowerIrql(a)		KfLowerIrql(a)
+#define	KeRaiseIrql(a, b)	*(b) = KfRaiseIrql(a)
+#define	KeLowerIrql(a)		KfLowerIrql(a)
 #endif /* __amd64__ */
 
 __END_DECLS

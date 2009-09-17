@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd.8#4 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditfilterd/auditfilterd.8#6 $
 .\"
 .Dd October 3, 2006
 .Dt AUDITFILTERD 8
@@ -42,9 +42,7 @@ The
 .Nm
 daemon is an extensible audit event monitoring daemon, allowing pluggable
 modules to track audit events from a live audit source.
-It is configured using the
-.Xr audit_filter 5
-configuration file.
+It is configured using the audit_filter configuration file.
 The source can either be a pipe or a file.
 .Pp
 The options are as follows:
@@ -82,3 +80,7 @@ The
 .Nm
 daemon and audit filter APIs were created by
 .An Robert Watson .
+.Sh BUGS
+.Nm
+is experimental, and should not be relied on in production.
+APIs and services it offers can and will change in future OpenBSM releases.

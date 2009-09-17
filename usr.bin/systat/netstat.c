@@ -222,7 +222,7 @@ again:
 		if (nports && !checkport(&inpcb))
 			continue;
 		if (istcp) {
-			if (inpcb.inp_vflag & INP_TIMEWAIT) {
+			if (inpcb.inp_flags & INP_TIMEWAIT) {
 				bzero(&sockb, sizeof(sockb));
 				enter_kvm(&inpcb, &sockb, TCPS_TIME_WAIT,
 					 "tcp");

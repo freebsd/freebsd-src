@@ -61,11 +61,11 @@ const char *progname;
 #define	IEEE80211_MSG_OUTPUT	0x00100000	/* output handling */
 #define	IEEE80211_MSG_STATE	0x00080000	/* state machine */
 #define	IEEE80211_MSG_POWER	0x00040000	/* power save handling */
-#define	IEEE80211_MSG_DOT1X	0x00020000	/* 802.1x authenticator */
+#define	IEEE80211_MSG_HWMP	0x00020000	/* hybrid mesh protocol */
 #define	IEEE80211_MSG_DOT1XSM	0x00010000	/* 802.1x state machine */
 #define	IEEE80211_MSG_RADIUS	0x00008000	/* 802.1x radius client */
 #define	IEEE80211_MSG_RADDUMP	0x00004000	/* dump 802.1x radius packets */
-#define	IEEE80211_MSG_RADKEYS	0x00002000	/* dump 802.1x keys */
+#define	IEEE80211_MSG_MESH	0x00002000	/* mesh networking */
 #define	IEEE80211_MSG_WPA	0x00001000	/* WPA/RSN protocol */
 #define	IEEE80211_MSG_ACL	0x00000800	/* ACL handling */
 #define	IEEE80211_MSG_WME	0x00000400	/* WME protocol */
@@ -97,11 +97,11 @@ static struct {
 	{ "output",	IEEE80211_MSG_OUTPUT },
 	{ "state",	IEEE80211_MSG_STATE },
 	{ "power",	IEEE80211_MSG_POWER },
-	{ "dot1x",	IEEE80211_MSG_DOT1X },
+	{ "hwmp",	IEEE80211_MSG_HWMP },
 	{ "dot1xsm",	IEEE80211_MSG_DOT1XSM },
 	{ "radius",	IEEE80211_MSG_RADIUS },
 	{ "raddump",	IEEE80211_MSG_RADDUMP },
-	{ "radkeys",	IEEE80211_MSG_RADKEYS },
+	{ "mesh",	IEEE80211_MSG_MESH },
 	{ "wpa",	IEEE80211_MSG_WPA },
 	{ "acl",	IEEE80211_MSG_ACL },
 	{ "wme",	IEEE80211_MSG_WME },

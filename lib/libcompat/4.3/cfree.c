@@ -37,8 +37,7 @@ static char sccsid[] = "@(#)cfree.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 
 void
-cfree(p)
-	void *p;
+cfree(void *p)
 {
 	free(p);
 }

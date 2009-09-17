@@ -284,7 +284,7 @@ tkip_decap(struct ieee80211_key *k, struct mbuf *m, int hdrlen)
 		/*
 		 * Replay violation; notify upper layer.
 		 */
-		ieee80211_notify_replay_failure(vap, wh, k, ctx->rx_rsc);
+		ieee80211_notify_replay_failure(vap, wh, k, ctx->rx_rsc, tid);
 		vap->iv_stats.is_rx_tkipreplay++;
 		return 0;
 	}

@@ -125,7 +125,7 @@ ata_marvell_probe(device_t dev)
 	ctlr->chipinit = ata_marvell_pata_chipinit;
 	break;
     }
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -212,9 +212,6 @@ ata_marvell_edma_chipinit(device_t dev)
     ATA_OUTL(ctlr->r_res1, 0x01d64, 0x000000ff/*HC0*/ | 0x0001fe00/*HC1*/ |
 	     /*(1<<19) | (1<<20) | (1<<21) |*/(1<<22) | (1<<24) | (0x7f << 25));
 
-    /* enable PCI interrupt */
-    pci_write_config(dev, PCIR_COMMAND,
-		     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
     return 0;
 }
 
@@ -223,11 +220,11 @@ ata_marvell_edma_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    u_int64_t work = ch->dma.work_bus;
+    u_int64_t work;
     int i;
 
     ata_marvell_edma_dmainit(dev);
-
+    work = ch->dma.work_bus;
     /* clear work area */
     bzero(ch->dma.work, 1024+256);
 
@@ -506,7 +503,7 @@ ata_marvell_edma_reset(device_t dev)
     ATA_OUTL(ctlr->r_res1, 0x0200c + ATA_MV_EDMA_BASE(ch), ~0x0);
 
     /* enable channel and test for devices */
-    if (ata_sata_phy_reset(dev))
+    if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
 
     /* enable EDMA machinery */

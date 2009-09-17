@@ -33,5 +33,6 @@ uint32_t ccsr_read4(uintptr_t addr);
 void ccsr_write4(uintptr_t addr, uint32_t val);
 int law_enable(int trgt, u_long addr, u_long size);
 int law_disable(int trgt, u_long addr, u_long size);
+int law_getmax(void);
 
 #endif /* _MPC85XX_H_ */

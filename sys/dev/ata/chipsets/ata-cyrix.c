@@ -67,7 +67,7 @@ ata_cyrix_probe(device_t dev)
     if (pci_get_devid(dev) == ATA_CYRIX_5530) {
 	device_set_desc(dev, "Cyrix 5530 ATA33 controller");
 	ctlr->chipinit = ata_cyrix_chipinit;
-	return 0;
+	return (BUS_PROBE_DEFAULT);
     }
     return ENXIO;
 }

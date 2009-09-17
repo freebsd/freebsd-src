@@ -57,19 +57,33 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR udbp_debug
-
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_parse.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
 
 #include <sys/mbuf.h>
 
@@ -83,8 +97,8 @@ __FBSDID("$FreeBSD$");
 #if USB_DEBUG
 static int udbp_debug = 0;
 
-SYSCTL_NODE(_hw_usb2, OID_AUTO, udbp, CTLFLAG_RW, 0, "USB udbp");
-SYSCTL_INT(_hw_usb2_udbp, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, udbp, CTLFLAG_RW, 0, "USB udbp");
+SYSCTL_INT(_hw_usb_udbp, OID_AUTO, debug, CTLFLAG_RW,
     &udbp_debug, 0, "udbp debug level");
 #endif
 
@@ -105,7 +119,7 @@ struct udbp_softc {
 	struct ng_bt_mbufq sc_xmitq_hipri;	/* hi-priority transmit queue */
 	struct ng_bt_mbufq sc_xmitq;	/* low-priority transmit queue */
 
-	struct usb2_xfer *sc_xfer[UDBP_T_MAX];
+	struct usb_xfer *sc_xfer[UDBP_T_MAX];
 	node_p	sc_node;		/* back pointer to node */
 	hook_p	sc_hook;		/* pointer to the hook */
 	struct mbuf *sc_bulk_in_buffer;
@@ -128,10 +142,10 @@ static device_probe_t udbp_probe;
 static device_attach_t udbp_attach;
 static device_detach_t udbp_detach;
 
-static usb2_callback_t udbp_bulk_read_callback;
-static usb2_callback_t udbp_bulk_read_clear_stall_callback;
-static usb2_callback_t udbp_bulk_write_callback;
-static usb2_callback_t udbp_bulk_write_clear_stall_callback;
+static usb_callback_t udbp_bulk_read_callback;
+static usb_callback_t udbp_bulk_read_clear_stall_callback;
+static usb_callback_t udbp_bulk_write_callback;
+static usb_callback_t udbp_bulk_write_clear_stall_callback;
 
 static void	udbp_bulk_read_complete(node_p, hook_p, void *, int);
 
@@ -186,47 +200,45 @@ static struct ng_type ng_udbp_typestruct = {
 };
 
 /* USB config */
-static const struct usb2_config udbp_config[UDBP_T_MAX] = {
+static const struct usb_config udbp_config[UDBP_T_MAX] = {
 
 	[UDBP_T_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = UDBP_BUFFERSIZE,
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &udbp_bulk_write_callback,
-		.mh.timeout = UDBP_TIMEOUT,
+		.bufsize = UDBP_BUFFERSIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &udbp_bulk_write_callback,
+		.timeout = UDBP_TIMEOUT,
 	},
 
 	[UDBP_T_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.bufsize = UDBP_BUFFERSIZE,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.callback = &udbp_bulk_read_callback,
+		.bufsize = UDBP_BUFFERSIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = &udbp_bulk_read_callback,
 	},
 
 	[UDBP_T_WR_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &udbp_bulk_write_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
+		.bufsize = sizeof(struct usb_device_request),
+		.callback = &udbp_bulk_write_clear_stall_callback,
+		.timeout = 1000,	/* 1 second */
+		.interval = 50,	/* 50ms */
 	},
 
 	[UDBP_T_RD_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &udbp_bulk_read_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
+		.bufsize = sizeof(struct usb_device_request),
+		.callback = &udbp_bulk_read_clear_stall_callback,
+		.timeout = 1000,	/* 1 second */
+		.interval = 50,	/* 50ms */
 	},
 };
 
@@ -246,7 +258,7 @@ static driver_t udbp_driver = {
 	.size = sizeof(struct udbp_softc),
 };
 
-DRIVER_MODULE(udbp, ushub, udbp_driver, udbp_devclass, udbp_modload, 0);
+DRIVER_MODULE(udbp, uhub, udbp_driver, udbp_devclass, udbp_modload, 0);
 MODULE_DEPEND(udbp, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 MODULE_DEPEND(udbp, usb, 1, 1, 1);
 
@@ -279,9 +291,9 @@ udbp_modload(module_t mod, int event, void *data)
 static int
 udbp_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	/*
@@ -315,21 +327,21 @@ udbp_probe(device_t dev)
 static int
 udbp_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct udbp_softc *sc = device_get_softc(dev);
 	int error;
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
 	    "%s", device_get_nameunit(dev));
 
 	mtx_init(&sc->sc_mtx, "udbp lock", NULL, MTX_DEF | MTX_RECURSE);
 
-	error = usb2_transfer_setup(uaa->device, &uaa->info.bIfaceIndex,
+	error = usbd_transfer_setup(uaa->device, &uaa->info.bIfaceIndex,
 	    sc->sc_xfer, udbp_config, UDBP_T_MAX, sc, &sc->sc_mtx);
 	if (error) {
-		DPRINTF("error=%s\n", usb2_errstr(error));
+		DPRINTF("error=%s\n", usbd_errstr(error));
 		goto detach;
 	}
 	NG_BT_MBUFQ_INIT(&sc->sc_xmitq, UDBP_Q_MAXLEN);
@@ -378,7 +390,7 @@ udbp_detach(device_t dev)
 	}
 	/* free USB transfers, if any */
 
-	usb2_transfer_unsetup(sc->sc_xfer, UDBP_T_MAX);
+	usbd_transfer_unsetup(sc->sc_xfer, UDBP_T_MAX);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -397,10 +409,14 @@ udbp_detach(device_t dev)
 }
 
 static void
-udbp_bulk_read_callback(struct usb2_xfer *xfer)
+udbp_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct udbp_softc *sc = xfer->priv_sc;
+	struct udbp_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	struct mbuf *m;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -418,14 +434,14 @@ udbp_bulk_read_callback(struct usb2_xfer *xfer)
 			m_freem(m);
 			goto tr_setup;
 		}
-		m->m_pkthdr.len = m->m_len = xfer->actlen;
+		m->m_pkthdr.len = m->m_len = actlen;
 
-		usb2_copy_out(xfer->frbuffers, 0, m->m_data, xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, m->m_data, actlen);
 
 		sc->sc_bulk_in_buffer = m;
 
-		DPRINTF("received package %d "
-		    "bytes\n", xfer->actlen);
+		DPRINTF("received package %d bytes\n", actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
@@ -434,18 +450,18 @@ tr_setup:
 			return;
 		}
 		if (sc->sc_flags & UDBP_FLAG_READ_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UDBP_T_RD_CS]);
+			usbd_transfer_start(sc->sc_xfer[UDBP_T_RD_CS]);
 			return;
 		}
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= UDBP_FLAG_READ_STALL;
-			usb2_transfer_start(sc->sc_xfer[UDBP_T_RD_CS]);
+			usbd_transfer_start(sc->sc_xfer[UDBP_T_RD_CS]);
 		}
 		return;
 
@@ -453,15 +469,15 @@ tr_setup:
 }
 
 static void
-udbp_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
+udbp_bulk_read_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct udbp_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UDBP_T_RD];
+	struct udbp_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_xfer *xfer_other = sc->sc_xfer[UDBP_T_RD];
 
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
+	if (usbd_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
 		sc->sc_flags &= ~UDBP_FLAG_READ_STALL;
-		usb2_transfer_start(xfer_other);
+		usbd_transfer_start(xfer_other);
 	}
 }
 
@@ -500,15 +516,16 @@ done:
 	}
 	/* start USB bulk-in transfer, if not already started */
 
-	usb2_transfer_start(sc->sc_xfer[UDBP_T_RD]);
+	usbd_transfer_start(sc->sc_xfer[UDBP_T_RD]);
 
 	mtx_unlock(&sc->sc_mtx);
 }
 
 static void
-udbp_bulk_write_callback(struct usb2_xfer *xfer)
+udbp_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct udbp_softc *sc = xfer->priv_sc;
+	struct udbp_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	struct mbuf *m;
 
 	switch (USB_GET_STATE(xfer)) {
@@ -518,7 +535,7 @@ udbp_bulk_write_callback(struct usb2_xfer *xfer)
 
 	case USB_ST_SETUP:
 		if (sc->sc_flags & UDBP_FLAG_WRITE_STALL) {
-			usb2_transfer_start(sc->sc_xfer[UDBP_T_WR_CS]);
+			usbd_transfer_start(sc->sc_xfer[UDBP_T_WR_CS]);
 			return;
 		}
 		/* get next mbuf, if any */
@@ -537,23 +554,23 @@ udbp_bulk_write_callback(struct usb2_xfer *xfer)
 			    MCLBYTES);
 			m->m_pkthdr.len = MCLBYTES;
 		}
-		usb2_m_copy_in(xfer->frbuffers, 0, m, 0, m->m_pkthdr.len);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_m_copy_in(pc, 0, m, 0, m->m_pkthdr.len);
 
-		xfer->frlengths[0] = m->m_pkthdr.len;
+		usbd_xfer_set_frame_len(xfer, 0, m->m_pkthdr.len);
+
+		DPRINTF("packet out: %d bytes\n", m->m_pkthdr.len);
 
 		m_freem(m);
 
-		DPRINTF("packet out: %d bytes\n",
-		    xfer->frlengths[0]);
-
-		usb2_start_hardware(xfer);
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= UDBP_FLAG_WRITE_STALL;
-			usb2_transfer_start(sc->sc_xfer[UDBP_T_WR_CS]);
+			usbd_transfer_start(sc->sc_xfer[UDBP_T_WR_CS]);
 		}
 		return;
 
@@ -561,15 +578,15 @@ udbp_bulk_write_callback(struct usb2_xfer *xfer)
 }
 
 static void
-udbp_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
+udbp_bulk_write_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct udbp_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[UDBP_T_WR];
+	struct udbp_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_xfer *xfer_other = sc->sc_xfer[UDBP_T_WR];
 
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
+	if (usbd_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
 		sc->sc_flags &= ~UDBP_FLAG_WRITE_STALL;
-		usb2_transfer_start(xfer_other);
+		usbd_transfer_start(xfer_other);
 	}
 }
 
@@ -727,7 +744,7 @@ ng_udbp_rcvdata(hook_p hook, item_p item)
 		/*
 		 * start bulk-out transfer, if not already started:
 		 */
-		usb2_transfer_start(sc->sc_xfer[UDBP_T_WR]);
+		usbd_transfer_start(sc->sc_xfer[UDBP_T_WR]);
 		error = 0;
 	}
 
@@ -795,10 +812,10 @@ ng_udbp_connect(hook_p hook)
 	    UDBP_FLAG_WRITE_STALL);
 
 	/* start bulk-in transfer */
-	usb2_transfer_start(sc->sc_xfer[UDBP_T_RD]);
+	usbd_transfer_start(sc->sc_xfer[UDBP_T_RD]);
 
 	/* start bulk-out transfer */
-	usb2_transfer_start(sc->sc_xfer[UDBP_T_WR]);
+	usbd_transfer_start(sc->sc_xfer[UDBP_T_WR]);
 
 	mtx_unlock(&sc->sc_mtx);
 
@@ -825,12 +842,12 @@ ng_udbp_disconnect(hook_p hook)
 		} else {
 
 			/* stop bulk-in transfer */
-			usb2_transfer_stop(sc->sc_xfer[UDBP_T_RD_CS]);
-			usb2_transfer_stop(sc->sc_xfer[UDBP_T_RD]);
+			usbd_transfer_stop(sc->sc_xfer[UDBP_T_RD_CS]);
+			usbd_transfer_stop(sc->sc_xfer[UDBP_T_RD]);
 
 			/* stop bulk-out transfer */
-			usb2_transfer_stop(sc->sc_xfer[UDBP_T_WR_CS]);
-			usb2_transfer_stop(sc->sc_xfer[UDBP_T_WR]);
+			usbd_transfer_stop(sc->sc_xfer[UDBP_T_WR_CS]);
+			usbd_transfer_stop(sc->sc_xfer[UDBP_T_WR]);
 
 			/* cleanup queues */
 			NG_BT_MBUFQ_DRAIN(&sc->sc_xmitq);

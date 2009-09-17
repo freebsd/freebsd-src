@@ -60,7 +60,6 @@ dev/kbd/kbd.c			optional	atkbd | sc | ukbd | usb2_input_kbd
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
-dev/syscons/teken/teken.c	optional sc
 dev/uart/uart_cpu_ia64.c	optional	uart
 dev/acpica/acpi_if.m		standard
 ia64/acpica/OsdEnvironment.c	optional	acpi
@@ -70,6 +69,7 @@ ia64/acpica/madt.c		optional	acpi
 ia64/disasm/disasm_decode.c	standard
 ia64/disasm/disasm_extract.c	standard
 ia64/disasm/disasm_format.c	standard
+ia64/ia32/ia32_misc.c		optional	compat_ia32
 ia64/ia32/ia32_reg.c		optional	compat_ia32
 ia64/ia32/ia32_signal.c		optional	compat_ia32
 ia64/ia32/ia32_trap.c		optional	compat_ia32
@@ -130,4 +130,5 @@ libkern/ia64/__umoddi3.S	standard
 libkern/ia64/__umodsi3.S	standard
 libkern/ia64/bswap16.S		standard
 libkern/ia64/bswap32.S		standard
+libkern/memmove.c		standard
 libkern/memset.c		standard

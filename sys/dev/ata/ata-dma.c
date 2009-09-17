@@ -40,9 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
-#include <dev/pci/pcivar.h>
 #include <dev/ata/ata-all.h>
-#include <dev/ata/ata-pci.h>
 
 /* prototypes */
 static void ata_dmasetupc_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
@@ -274,10 +272,10 @@ ata_dmaload(struct ata_request *request, void *addr, int *entries)
 		      "FAILURE - zero length DMA transfer attempted\n");
 	return EIO;
     }
-    if (((uintptr_t)(request->data) & (ch->dma.alignment - 1)) ||
-	(request->bytecount & (ch->dma.alignment - 1))) {
+    if (request->bytecount & (ch->dma.alignment - 1)) {
 	device_printf(request->dev,
-		      "FAILURE - non aligned DMA transfer attempted\n");
+		      "FAILURE - odd-sized DMA transfer attempt %d %% %d\n",
+		      request->bytecount, ch->dma.alignment);
 	return EIO;
     }
     if (request->bytecount > ch->dma.max_iosize) {

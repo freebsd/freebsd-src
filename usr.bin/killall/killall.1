@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2007
+.Dd May 27, 2009
 .Os
 .Dt KILLALL 1
 .Sh NAME
@@ -34,7 +34,7 @@
 .Nm
 .Op Fl delmsvz
 .Op Fl help
-.Op Fl j Ar jid
+.Op Fl j Ar jail
 .Op Fl u Ar user
 .Op Fl t Ar tty
 .Op Fl c Ar procname
@@ -91,9 +91,9 @@ The signal may be specified either as a name
 (with or without a leading
 .Dq Li SIG ) ,
 or numerically.
-.It Fl j Ar jid
-Kill processes in the jail specified by
-.Ar jid .
+.It Fl j Ar jail
+Kill processes in the specified
+.Ar jail .
 .It Fl u Ar user
 Limit potentially matching processes to those belonging to
 the specified

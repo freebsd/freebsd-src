@@ -223,9 +223,53 @@
 	lwz	%r3,(savearea+CPUSAVE_SRR0)(%r2); /* restore srr0 */	\
 	mtsrr0	%r3;							\
 	lwz	%r3,(savearea+CPUSAVE_SRR1)(%r2); /* restore srr1 */	\
+									\
+	/* Make sure HV bit of MSR propagated to SRR1 */		\
+	mfmsr	%r2;							\
+	or	%r3,%r2,%r3;						\
+									\
 	mtsrr1	%r3;							\
 	mfsprg2	%r2;			/* restore r2 & r3 */		\
 	mfsprg3	%r3
+
+/*
+ * The next two routines are 64-bit glue code. The first is used to test if
+ * we are on a 64-bit system. By copying it to the illegal instruction
+ * handler, we can test for 64-bit mode by trying to execute a 64-bit
+ * instruction and seeing what happens. The second gets copied in front
+ * of all the other handlers to restore 32-bit bridge mode when traps
+ * are taken.
+ */
+
+/* 64-bit test code. Sets SPRG2 to 0 if an illegal instruction is executed */
+
+	.globl	CNAME(testppc64),CNAME(testppc64size)
+CNAME(testppc64):
+	mtsprg1 %r31
+	mfsrr0  %r31
+	addi	%r31, %r31, 4
+	mtsrr0  %r31
+
+	li	%r31, 0
+	mtsprg2 %r31
+	mfsprg1 %r31
+
+	rfi
+CNAME(testppc64size) = .-CNAME(testppc64)
+
+
+/* 64-bit bridge mode restore snippet. Gets copied in front of everything else
+ * on 64-bit systems. */
+
+	.globl	CNAME(restorebridge),CNAME(restorebridgesize)
+CNAME(restorebridge):
+	mtsprg1	%r31
+	mfmsr	%r31
+	clrldi	%r31,%r31,1
+	mtmsrd	%r31
+	mfsprg1	%r31
+	isync
+CNAME(restorebridgesize) = .-CNAME(restorebridge)
 
 #ifdef SMP
 /*
@@ -270,6 +314,17 @@ CNAME(trapcode):
 CNAME(trapsize) = .-CNAME(trapcode)
 
 /*
+ * 64-bit version of trapcode. Identical, except it calls generictrap64.
+ */
+	.globl	CNAME(trapcode64)
+CNAME(trapcode64):
+	mtsprg1	%r1			/* save SP */
+	mflr	%r1			/* Save the old LR in r1 */
+	mtsprg2 %r1			/* And then in SPRG2 */
+	li	%r1, 0x20		/* How to get the vector from LR */
+	bla	generictrap64		/* LR & SPRG3 is exception # */
+
+/*
  * For ALI: has to save DSISR and DAR
  */
 	.globl	CNAME(alitrap),CNAME(alisize)
@@ -288,7 +343,7 @@ CNAME(alitrap):
 	mflr	%r28			/* save LR */
 	mfcr	%r29			/* save CR */
 
-	/* Put our exception vector in SPRG0 */
+	/* Put our exception vector in SPRG3 */
 	li	%r31, EXC_ALI
 	mtsprg3	%r31
 
@@ -360,7 +415,7 @@ CNAME(dsisize) = .-CNAME(dsitrap)
  * Preamble code for DSI/ISI traps
  */
 disitrap:
-	/* Write the trap vector to SPRG0 by computing LR & 0xff00 */
+	/* Write the trap vector to SPRG3 by computing LR & 0xff00 */
 	mflr	%r1
 	andi.	%r1,%r1,0xff00
 	mtsprg3	%r1
@@ -405,8 +460,6 @@ disitrap:
 	stw	%r30,(PC_DBSAVE  +CPUSAVE_R30)(%r1) /* save r30 */
 	lwz	%r31,(PC_DISISAVE+CPUSAVE_R31)(%r1) /* get  r31 */
 	stw	%r31,(PC_DBSAVE  +CPUSAVE_R31)(%r1) /* save r31 */
-	lis	%r1,(tmpstk+TMPSTKSZ-16)@ha	/* get new SP */
-	addi	%r1,%r1,(tmpstk+TMPSTKSZ-16)@l
 	b	dbtrap
 #endif
 
@@ -432,6 +485,14 @@ realtrap:
  * SPRG1 - Original R1 contents
  * SPRG2 - Original LR
  */
+
+generictrap64:
+	mtsprg3	%r31
+	mfmsr	%r31
+	clrldi	%r31,%r31,1
+	mtmsrd	%r31
+	mfsprg3	%r31
+	isync
 
 generictrap:
 	/* Save R1 for computing the exception vector */
@@ -504,7 +565,14 @@ CNAME(asttrapexit):
 	b	trapexit		/* test ast ret value ? */
 1:
 	FRAME_LEAVE(PC_TEMPSAVE)
+
+	.globl	CNAME(rfi_patch1)	/* replace rfi with rfid on ppc64 */
+CNAME(rfi_patch1):
 	rfi
+
+	.globl	CNAME(rfid_patch)
+CNAME(rfid_patch):
+	rfid
 
 #if defined(KDB)
 /*
@@ -533,7 +601,7 @@ CNAME(breakpoint):
  * Now the kdb trap catching code.
  */
 dbtrap:
-	/* Write the trap vector to SPRG0 by computing LR & 0xff00 */
+	/* Write the trap vector to SPRG3 by computing LR & 0xff00 */
 	mflr	%r1
 	andi.	%r1,%r1,0xff00
 	mtsprg3	%r1
@@ -561,11 +629,13 @@ dbtrap:
 	mflr	%r28
 	mfcr	%r29
 	lwz	%r31,(PC_DBSAVE+CPUSAVE_R31)(%r1)
-	mtlr	%r31
+	mtsprg3	%r31			/* SPRG3 was clobbered by FRAME_LEAVE */
 	mfsprg1	%r1
 	b	realtrap
 dbleave:
 	FRAME_LEAVE(PC_DBSAVE)
+	.globl	CNAME(rfi_patch2)	/* replace rfi with rfid on ppc64 */
+CNAME(rfi_patch2):
 	rfi
 
 /*

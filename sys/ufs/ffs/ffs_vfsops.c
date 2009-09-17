@@ -32,7 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
 #include "opt_quota.h"
 #include "opt_ufs.h"
 #include "opt_ffs.h"
@@ -132,9 +131,10 @@ static const char *ffs_opts[] = { "acls", "async", "noatime", "noclusterr",
     "union", NULL };
 
 static int
-ffs_mount(struct mount *mp, struct thread *td)
+ffs_mount(struct mount *mp)
 {
 	struct vnode *devvp;
+	struct thread *td;
 	struct ufsmount *ump = 0;
 	struct fs *fs;
 	int error, flags;
@@ -143,6 +143,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 	struct nameidata ndp;
 	char *fspec;
 
+	td = curthread;
 	if (vfs_filteropt(mp->mnt_optnew, ffs_opts))
 		return (EINVAL);
 	if (uma_inode == NULL) {
@@ -213,7 +214,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 					 * ignore the suspension to
 					 * synchronize on-disk state.
 					 */
-					curthread->td_pflags |= TDP_IGNSUSP;
+					td->td_pflags |= TDP_IGNSUSP;
 					break;
 				}
 				MNT_IUNLOCK(mp);
@@ -431,7 +432,7 @@ ffs_mount(struct mount *mp, struct thread *td)
  */
 
 static int
-ffs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+ffs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct ufs_args args;
 	int error;
@@ -883,7 +884,8 @@ ffs_mountfs(devvp, mp, td)
 	 * Initialize filesystem stat information in mount struct.
 	 */
 	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED;
+	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED |
+	    MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
@@ -1024,11 +1026,11 @@ ffs_oldfscompat_write(fs, ump)
  * unmount system call
  */
 static int
-ffs_unmount(mp, mntflags, td)
+ffs_unmount(mp, mntflags)
 	struct mount *mp;
 	int mntflags;
-	struct thread *td;
 {
+	struct thread *td;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
 	int error, flags, susp;
@@ -1037,6 +1039,7 @@ ffs_unmount(mp, mntflags, td)
 #endif
 
 	flags = 0;
+	td = curthread;
 	fs = ump->um_fs;
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
@@ -1068,20 +1071,20 @@ ffs_unmount(mp, mntflags, td)
 				    MNTK_SUSPEND2);
 				wakeup(&mp->mnt_flag);
 				MNT_IUNLOCK(mp);
-				curthread->td_pflags |= TDP_IGNSUSP;
+				td->td_pflags |= TDP_IGNSUSP;
 				break;
 			}
 			MNT_IUNLOCK(mp);
 			vn_start_write(NULL, &mp, V_WAIT);
 		}
 	}
-	if (mp->mnt_flag & MNT_SOFTDEP) {
-		if ((error = softdep_flushfiles(mp, flags, td)) != 0)
-			goto fail;
-	} else {
-		if ((error = ffs_flushfiles(mp, flags, td)) != 0)
-			goto fail;
-	}
+	if (mp->mnt_flag & MNT_SOFTDEP)
+		error = softdep_flushfiles(mp, flags, td);
+	else
+		error = ffs_flushfiles(mp, flags, td);
+	if (error != 0 && error != ENXIO)
+		goto fail;
+
 	UFS_LOCK(ump);
 	if (fs->fs_pendingblocks != 0 || fs->fs_pendinginodes != 0) {
 		printf("%s: unmount pending error: blocks %jd files %d\n",
@@ -1094,7 +1097,7 @@ ffs_unmount(mp, mntflags, td)
 	if (fs->fs_ronly == 0) {
 		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT, 0);
-		if (error) {
+		if (error && error != ENXIO) {
 			fs->fs_clean = 0;
 			goto fail;
 		}
@@ -1198,10 +1201,9 @@ ffs_flushfiles(mp, flags, td)
  * Get filesystem statistics.
  */
 static int
-ffs_statfs(mp, sbp, td)
+ffs_statfs(mp, sbp)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct thread *td;
 {
 	struct ufsmount *ump;
 	struct fs *fs;
@@ -1234,12 +1236,12 @@ ffs_statfs(mp, sbp, td)
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
 static int
-ffs_sync(mp, waitfor, td)
+ffs_sync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
-	struct thread *td;
 {
 	struct vnode *mvp, *vp, *devvp;
+	struct thread *td;
 	struct inode *ip;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
@@ -1252,6 +1254,7 @@ ffs_sync(mp, waitfor, td)
 	int softdep_accdeps;
 	struct bufobj *bo;
 
+	td = curthread;
 	fs = ump->um_fs;
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0) {		/* XXX */
 		printf("fs = %s\n", fs->fs_fsmnt);
@@ -1440,10 +1443,9 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		return (error);
 	}
 	/*
-	 * FFS supports recursive and shared locking.
+	 * FFS supports recursive locking.
 	 */
 	VN_LOCK_AREC(vp);
-	VN_LOCK_ASHARE(vp);
 	vp->v_data = ip;
 	vp->v_bufobj.bo_bsize = fs->fs_bsize;
 	ip->i_vnode = vp;
@@ -1451,6 +1453,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ip->i_fs = fs;
 	ip->i_dev = dev;
 	ip->i_number = ino;
+	ip->i_ea_refs = 0;
 #ifdef QUOTA
 	{
 		int i;
@@ -1516,6 +1519,10 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	/*
 	 * Finish inode initialization.
 	 */
+	if (vp->v_type != VFIFO) {
+		/* FFS supports shared locking for all files except fifos. */
+		VN_LOCK_ASHARE(vp);
+	}
 
 	/*
 	 * Set up a generation number for this inode if it does not
@@ -1694,15 +1701,15 @@ ffs_sbupdate(mp, waitfor, suspended)
 
 static int
 ffs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
-	int attrnamespace, const char *attrname, struct thread *td)
+	int attrnamespace, const char *attrname)
 {
 
 #ifdef UFS_EXTATTR
 	return (ufs_extattrctl(mp, cmd, filename_vp, attrnamespace,
-	    attrname, td));
+	    attrname));
 #else
 	return (vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace,
-	    attrname, td));
+	    attrname));
 #endif
 }
 
@@ -1841,7 +1848,9 @@ ffs_bufwrite(struct buf *bp)
 		    ("bufwrite: needs chained iodone (%p)", bp->b_iodone));
 
 		/* get a new block */
-		newbp = geteblk(bp->b_bufsize);
+		newbp = geteblk(bp->b_bufsize, GB_NOWAIT_BD);
+		if (newbp == NULL)
+			goto normal_write;
 
 		/*
 		 * set it to be identical to the old block.  We have to
@@ -1881,6 +1890,7 @@ ffs_bufwrite(struct buf *bp)
 	}
 
 	/* Let the normal bufwrite do the rest for us */
+normal_write:
 	return (bufwrite(bp));
 }
 
@@ -1915,7 +1925,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 					}
 				}
 				bp->b_runningbufspace = bp->b_bufsize;
-				atomic_add_int(&runningbufspace,
+				atomic_add_long(&runningbufspace,
 					       bp->b_runningbufspace);
 			} else {
 				error = ffs_copyonwrite(vp, bp);

@@ -2,7 +2,7 @@
 __FBSDID("$FreeBSD$");
 
 /*-
- * Copyright (c) 2008 Hans Petter Selasky <hselasky@freebsd.org>
+ * Copyright (c) 2008 Hans Petter Selasky <hselasky@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,14 +27,32 @@ __FBSDID("$FreeBSD$");
  * SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_defs.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_sw_transfer.h>
 #include <dev/usb/usb_util.h>
 
 #include <dev/usb/usb_controller.h>
@@ -139,7 +157,7 @@ uss820_atmelarm_attach(device_t dev)
 	sc->sc_bus.devices_max = USS820_MAX_DEVICES;
 
 	/* get all DMA memory */
-	if (usb2_bus_mem_alloc_all(&sc->sc_bus,
+	if (usb_bus_mem_alloc_all(&sc->sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);
 	}
@@ -153,9 +171,6 @@ uss820_atmelarm_attach(device_t dev)
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
-
-	/* multiply all addresses by 4 */
-	sc->sc_reg_shift = 2;
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -171,10 +186,10 @@ uss820_atmelarm_attach(device_t dev)
 
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
+	    NULL, (driver_intr_t *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
+	    (driver_intr_t *)uss820dci_interrupt, sc, &sc->sc_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_intr_hdl = NULL;
@@ -232,7 +247,7 @@ uss820_atmelarm_detach(device_t dev)
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
-	usb2_bus_mem_free_all(&sc->sc_bus, NULL);
+	usb_bus_mem_free_all(&sc->sc_bus, NULL);
 
 	return (0);
 }

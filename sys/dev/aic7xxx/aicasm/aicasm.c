@@ -79,8 +79,8 @@ static void output_code(void);
 static void output_listing(char *ifilename);
 static void dump_scope(scope_t *scope);
 static void emit_patch(scope_t *scope, int patch);
-static int check_patch(patch_t **start_patch, int start_instr,
-		       int *skip_addr, int *func_vals);
+static int check_patch(patch_t **start_patch, unsigned int start_instr,
+		       unsigned int *skip_addr, int *func_vals);
 
 struct path_list search_path;
 int includes_search_curdir;
@@ -116,8 +116,6 @@ int main(int argc, char *argv[]);
 int
 main(int argc, char *argv[])
 {
-	extern char *optarg;
-	extern int optind;
 	int  ch;
 	int  retval;
 	char *inputfilename;
@@ -530,7 +528,7 @@ output_listing(char *ifilename)
 	int *func_values;
 	int instrcount;
 	int instrptr;
-	int line;
+	unsigned int line;
 	int func_count;
 	int skip_addr;
 
@@ -649,8 +647,8 @@ output_listing(char *ifilename)
 }
 
 static int
-check_patch(patch_t **start_patch, int start_instr,
-	    int *skip_addr, int *func_vals)
+check_patch(patch_t **start_patch, unsigned int start_instr,
+	    unsigned int *skip_addr, int *func_vals)
 {
 	patch_t *cur_patch;
 

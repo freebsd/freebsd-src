@@ -43,3 +43,4 @@ ENTRY(scalbn)
 	fscale
 	fstp	%st(1)
 	ret
+END(scalbn)

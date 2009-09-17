@@ -356,8 +356,6 @@ struct ath_hal_5212 {
 	((AH_PRIVATE(ah)->ah_macVersion) == AR_SREV_2417)
 #define IS_HB63(ah)		(AH5212(ah)->ah_isHb63 == AH_TRUE)
 
-#define IS_PCIE(ah) (IS_5424(ah) || IS_2425(ah))
-
 #define	AH_RADIO_MAJOR(ah) \
 	(AH_PRIVATE(ah)->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR)
 #define	AH_RADIO_MINOR(ah) \
@@ -450,7 +448,8 @@ extern	HAL_BOOL ar5212SetRegulatoryDomain(struct ath_hal *ah,
 		uint16_t regDomain, HAL_STATUS *stats);
 extern	u_int ar5212GetWirelessModes(struct ath_hal *ah);
 extern	void ar5212EnableRfKill(struct ath_hal *);
-extern	HAL_BOOL ar5212GpioCfgOutput(struct ath_hal *, uint32_t gpio);
+extern	HAL_BOOL ar5212GpioCfgOutput(struct ath_hal *, uint32_t gpio,
+		HAL_GPIO_MUX_TYPE);
 extern	HAL_BOOL ar5212GpioCfgInput(struct ath_hal *, uint32_t gpio);
 extern	HAL_BOOL ar5212GpioSet(struct ath_hal *, uint32_t gpio, uint32_t val);
 extern	uint32_t ar5212GpioGet(struct ath_hal *ah, uint32_t gpio);

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 25, 2007
+.Dd May 28, 2009
 .Dt SX 9
 .Os
 .Sh NAME
@@ -122,10 +122,10 @@ argument to
 specifies a set of optional flags to alter the behavior of
 .Fa sx .
 It contains one or more of the following flags:
-.Bl -tag -width SX_ADAPTIVESPIN
-.It Dv SX_ADAPTIVESPIN
-If the kernel is compiled with
-.Cd "options ADAPTIVE_SX" ,
+.Bl -tag -width SX_NOADAPTIVE
+.It Dv SX_NOADAPTIVE
+If the kernel is not compiled with
+.Cd "options NO_ADAPTIVE_SX" ,
 then lock operations for
 .Fa sx
 will spin instead of sleeping while an exclusive lock holder is executing on

@@ -3122,7 +3122,7 @@ jme_set_filter(struct jme_softc *sc)
 	rxcfg |= RXMAC_MULTICAST;
 	bzero(mchash, sizeof(mchash));
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &sc->jme_ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -3135,7 +3135,7 @@ jme_set_filter(struct jme_softc *sc)
 		/* Set the corresponding bit in the hash table. */
 		mchash[crc >> 5] |= 1 << (crc & 0x1f);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	CSR_WRITE_4(sc, JME_MAR0, mchash[0]);
 	CSR_WRITE_4(sc, JME_MAR1, mchash[1]);

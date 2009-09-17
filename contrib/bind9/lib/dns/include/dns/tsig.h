@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsig.h,v 1.43.18.4 2006/01/27 23:57:44 marka Exp $ */
+/* $Id: tsig.h,v 1.51 2007/06/19 23:47:17 tbox Exp $ */
 
 #ifndef DNS_TSIG_H
 #define DNS_TSIG_H 1
 
-/*! \file */
+/*! \file dns/tsig.h */
 
 #include <isc/lang.h>
 #include <isc/refcount.h>
@@ -59,6 +59,7 @@ LIBDNS_EXTERNAL_DATA extern dns_name_t *dns_tsig_hmacsha512_name;
 
 struct dns_tsig_keyring {
 	dns_rbt_t *keys;
+	unsigned int writecount;
 	isc_rwlock_t lock;
 	isc_mem_t *mctx;
 };
@@ -79,7 +80,9 @@ struct dns_tsigkey {
 };
 
 #define dns_tsigkey_identity(tsigkey) \
-	((tsigkey)->generated ? ((tsigkey)->creator) : (&((tsigkey)->name)))
+	((tsigkey) == NULL ? NULL : \
+         (tsigkey)->generated ? ((tsigkey)->creator) : \
+         (&((tsigkey)->name)))
 
 ISC_LANG_BEGINDECLS
 

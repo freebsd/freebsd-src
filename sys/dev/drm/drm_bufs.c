@@ -45,25 +45,33 @@ __FBSDID("$FreeBSD$");
  */
 static int drm_alloc_resource(struct drm_device *dev, int resource)
 {
+	struct resource *res;
+	int rid;
+
+	DRM_SPINLOCK_ASSERT(&dev->dev_lock);
+
 	if (resource >= DRM_MAX_PCI_RESOURCE) {
 		DRM_ERROR("Resource %d too large\n", resource);
 		return 1;
 	}
 
-	DRM_UNLOCK();
 	if (dev->pcir[resource] != NULL) {
-		DRM_LOCK();
 		return 0;
 	}
 
-	dev->pcirid[resource] = PCIR_BAR(resource);
-	dev->pcir[resource] = bus_alloc_resource_any(dev->device,
-	    SYS_RES_MEMORY, &dev->pcirid[resource], RF_SHAREABLE);
+	DRM_UNLOCK();
+	rid = PCIR_BAR(resource);
+	res = bus_alloc_resource_any(dev->device, SYS_RES_MEMORY, &rid,
+	    RF_SHAREABLE);
 	DRM_LOCK();
-
-	if (dev->pcir[resource] == NULL) {
+	if (res == NULL) {
 		DRM_ERROR("Couldn't find resource 0x%x\n", resource);
 		return 1;
+	}
+
+	if (dev->pcir[resource] == NULL) {
+		dev->pcirid[resource] = rid;
+		dev->pcir[resource] = res;
 	}
 
 	return 0;
@@ -216,7 +224,7 @@ int drm_addmap(struct drm_device * dev, unsigned long offset,
 			DRM_LOCK();
 			return EINVAL;
 		}
-		map->offset = map->offset + dev->sg->handle;
+		map->offset += dev->sg->handle;
 		break;
 	case _DRM_CONSISTENT:
 		/* Unfortunately, we don't get any alignment specification from
@@ -295,6 +303,9 @@ int drm_addmap_ioctl(struct drm_device *dev, void *data,
 void drm_rmmap(struct drm_device *dev, drm_local_map_t *map)
 {
 	DRM_SPINLOCK_ASSERT(&dev->dev_lock);
+
+	if (map == NULL)
+		return;
 
 	TAILQ_REMOVE(&dev->maplist, map, link);
 
@@ -880,8 +891,7 @@ int drm_addbufs_pci(struct drm_device *dev, struct drm_buf_desc *request)
 	return ret;
 }
 
-int drm_addbufs_ioctl(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv)
+int drm_addbufs(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	struct drm_buf_desc *request = data;
 	int err;
@@ -1053,11 +1063,12 @@ int drm_mapbufs(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	vaddr = round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ);
 #if __FreeBSD_version >= 600023
 	retcode = vm_mmap(&vms->vm_map, &vaddr, size, PROT_READ | PROT_WRITE,
-	    VM_PROT_ALL, MAP_SHARED, OBJT_DEVICE, dev->devnode, foff);
+	    VM_PROT_ALL, MAP_SHARED | MAP_NOSYNC, OBJT_DEVICE,
+	    dev->devnode, foff);
 #else
 	retcode = vm_mmap(&vms->vm_map, &vaddr, size, PROT_READ | PROT_WRITE,
-	    VM_PROT_ALL, MAP_SHARED, SLIST_FIRST(&dev->devnode->si_hlist),
-	    foff);
+	    VM_PROT_ALL, MAP_SHARED | MAP_NOSYNC,
+	    SLIST_FIRST(&dev->devnode->si_hlist), foff);
 #endif
 	if (retcode)
 		goto done;
@@ -1106,7 +1117,7 @@ int drm_order(unsigned long size)
 	if (size == 0)
 		return 0;
 
-	order = ffsl(size) - 1;
+	order = flsl(size) - 1;
 	if (size & ~(1ul << order))
 		++order;
 

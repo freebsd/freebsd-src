@@ -178,9 +178,9 @@ load_securenets(void)
  * yp_access() checks the mapname and client host address and watches for
  * the following things:
  *
- * - If the client is referencing one of the master.passwd.* maps, it must
- *   be using a privileged port to make its RPC to us. If it is, then we can
- *   assume that the caller is root and allow the RPC to succeed. If it
+ * - If the client is referencing one of the master.passwd.* or shadow.* maps,
+ *   it must be using a privileged port to make its RPC to us. If it is, then
+ *   we can assume that the caller is root and allow the RPC to succeed. If it
  *   isn't access is denied.
  *
  * - The client's IP address is checked against the securenets rules.
@@ -254,7 +254,7 @@ possible spoof attempt from %s:%d",
 #ifdef DB_CACHE
 		if ((yp_testflag((char *)map, (char *)domain, YP_SECURE) ||
 #else
-		if ((strstr(map, "master.passwd.") ||
+		if ((strstr(map, "master.passwd.") || strstr(map, "shadow.") ||
 #endif
 		    (rqstp->rq_prog == YPPROG &&
 		     rqstp->rq_proc == YPPROC_XFR) ||

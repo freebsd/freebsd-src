@@ -5320,6 +5320,15 @@ posix_memalign(void **memptr, size_t alignment, size_t size)
 			goto RETURN;
 		}
 
+		if (size == 0) {
+			if (opt_sysv == false)
+				size = 1;
+			else {
+				result = NULL;
+				ret = 0;
+				goto RETURN;
+			}
+		}
 		result = ipalloc(alignment, size);
 	}
 

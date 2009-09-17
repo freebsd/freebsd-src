@@ -42,3 +42,4 @@ ENTRY(significand)
 	fxtract
 	fstp	%st(1)
 	ret
+END(significand)

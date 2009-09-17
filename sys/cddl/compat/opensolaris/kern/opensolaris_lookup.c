@@ -66,7 +66,6 @@ lookupnameat(char *dirname, enum uio_seg seg, enum symfollow follow,
 int
 traverse(vnode_t **cvpp, int lktype)
 {
-	kthread_t *td = curthread;
 	vnode_t *cvp;
 	vnode_t *tvp;
 	vfs_t *vfsp;
@@ -101,7 +100,7 @@ traverse(vnode_t **cvpp, int lktype)
 		 * The read lock must be held across the call to VFS_ROOT() to
 		 * prevent a concurrent unmount from destroying the vfs.
 		 */
-		error = VFS_ROOT(vfsp, lktype, &tvp, td);
+		error = VFS_ROOT(vfsp, lktype, &tvp);
 		if (error != 0)
 			return (error);
 		cvp = tvp;

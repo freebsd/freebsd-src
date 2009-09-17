@@ -48,8 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
-#include <contrib/dev/acpica/acpi.h>
-#include <contrib/dev/acpica/actables.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/actables.h>
+
 #include <dev/acpica/acpivar.h>
 #include <dev/pci/pcivar.h>
 
@@ -483,6 +485,10 @@ madt_parse_apics(ACPI_SUBTABLE_HEADER *entry, void *arg __unused)
 			    apic->Id);
 		if (ioapics[apic->Id].io_apic != NULL)
 			panic("%s: Double APIC ID %u", __func__, apic->Id);
+		if (apic->GlobalIrqBase >= FIRST_MSI_INT) {
+			printf("MADT: Ignoring bogus I/O APIC ID %u", apic->Id);
+			break;
+		}
 		ioapics[apic->Id].io_apic = ioapic_create(apic->Address,
 		    apic->Id, apic->GlobalIrqBase);
 		ioapics[apic->Id].io_vector = apic->GlobalIrqBase;

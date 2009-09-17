@@ -11,6 +11,8 @@ DPADD=	${LIBPCAP}
 
 MAN=	ipfwpcap.8
 
+WARNS?=	6
+
 .include <bsd.prog.mk>
 
 test:	$(CMD)

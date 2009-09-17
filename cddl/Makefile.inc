@@ -6,3 +6,5 @@ OPENSOLARIS_SYS_DISTDIR= ${.CURDIR}/../../../sys/cddl/contrib/opensolaris
 IGNORE_PRAGMA=	YES
 
 CFLAGS+=	-DNEED_SOLARIS_BOOLEAN
+
+CSTD?=		gnu89

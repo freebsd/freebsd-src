@@ -61,25 +61,19 @@
 #include <sys/syslog.h>
 #include <sys/refcount.h>
 #include <sys/proc.h>
-#include <sys/vimage.h>
 #include <sys/unistd.h>
 #include <sys/kthread.h>
 #include <sys/smp.h>
 #include <machine/cpu.h>
 
 #include <net/netisr.h>
+#include <net/vnet.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
 
 MODULE_VERSION(netgraph, NG_ABI_VERSION);
-
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-struct vnet_netgraph vnet_netgraph_0;
-#endif
-#endif
 
 /* Mutex to protect topology events. */
 static struct mtx	ng_topo_mtx;
@@ -136,6 +130,7 @@ struct ng_node ng_deadnode = {
 		STAILQ_HEAD_INITIALIZER(ng_deadnode.nd_input_queue.queue),
 	},
 	1,	/* refs */
+	NULL,	/* vnet */
 #ifdef	NETGRAPH_DEBUG
 	ND_MAGIC,
 	__FILE__,
@@ -176,9 +171,9 @@ static struct mtx	ng_typelist_mtx;
 
 /* Hash related definitions */
 /* XXX Don't need to initialise them because it's a LIST */
-#ifdef VIMAGE_GLOBALS
-static LIST_HEAD(, ng_node) ng_ID_hash[NG_ID_HASH_SIZE];
-#endif
+static VNET_DEFINE(LIST_HEAD(, ng_node), ng_ID_hash[NG_ID_HASH_SIZE]);
+#define	V_ng_ID_hash			VNET(ng_ID_hash)
+
 static struct mtx	ng_idhash_mtx;
 /* Method to find a node.. used twice so do it here */
 #define NG_IDHASH_FN(ID) ((ID) % (NG_ID_HASH_SIZE))
@@ -194,9 +189,9 @@ static struct mtx	ng_idhash_mtx;
 		}							\
 	} while (0)
 
-#ifdef VIMAGE_GLOBALS
-static LIST_HEAD(, ng_node) ng_name_hash[NG_NAME_HASH_SIZE];
-#endif
+static VNET_DEFINE(LIST_HEAD(, ng_node), ng_name_hash[NG_NAME_HASH_SIZE]);
+#define	V_ng_name_hash			VNET(ng_name_hash)
+
 static struct mtx	ng_namehash_mtx;
 #define NG_NAMEHASH(NAME, HASH)				\
 	do {						\
@@ -227,7 +222,6 @@ static int	ng_mkpeer(node_p node, const char *name,
 
 /* Imported, these used to be externally visible, some may go back. */
 void	ng_destroy_hook(hook_p hook);
-node_p	ng_name2noderef(node_p node, const char *name);
 int	ng_path2noderef(node_p here, const char *path,
 	node_p *dest, hook_p *lasthook);
 int	ng_make_node(const char *type, node_p *nodepp);
@@ -365,9 +359,8 @@ ng_alloc_node(void)
 #define TRAP_ERROR()
 #endif
 
-#ifdef VIMAGE_GLOBALS
-static	ng_ID_t nextID;
-#endif
+static VNET_DEFINE(ng_ID_t, nextID) = 1;
+#define	V_nextID			VNET(nextID)
 
 #ifdef INVARIANTS
 #define CHECK_DATA_MBUF(m)	do {					\
@@ -629,7 +622,6 @@ ng_make_node(const char *typename, node_p *nodepp)
 int
 ng_make_node_common(struct ng_type *type, node_p *nodepp)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	node_p node;
 
 	/* Require the node type to have been already installed */
@@ -645,6 +637,9 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 		return (ENOMEM);
 	}
 	node->nd_type = type;
+#ifdef VIMAGE
+	node->nd_vnet = curvnet;
+#endif
 	NG_NODE_REF(node);				/* note reference */
 	type->refs++;
 
@@ -811,7 +806,6 @@ ng_unref_node(node_p node)
 static node_p
 ng_ID2noderef(ng_ID_t ID)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	node_p node;
 	mtx_lock(&ng_idhash_mtx);
 	NG_IDHASH_FIND(ID, node);
@@ -837,7 +831,6 @@ ng_node2ID(node_p node)
 int
 ng_name_node(node_p node, const char *name)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	int i, hash;
 	node_p node2;
 
@@ -888,7 +881,6 @@ ng_name_node(node_p node, const char *name)
 node_p
 ng_name2noderef(node_p here, const char *name)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	node_p node;
 	ng_ID_t temp;
 	int	hash;
@@ -2205,10 +2197,14 @@ ng_snd_item(item_p item, int flags)
 	}
 
 	/*
-	 * If sender or receiver requests queued delivery or stack usage
+	 * If sender or receiver requests queued delivery, or call graph
+	 * loops back from outbound to inbound path, or stack usage
 	 * level is dangerous - enqueue message.
 	 */
 	if ((flags & NG_QUEUE) || (hook && (hook->hk_flags & HK_QUEUE))) {
+		queue = 1;
+	} else if (hook && (hook->hk_flags & HK_TO_INBOUND) &&
+	    curthread->td_ng_outbound) {
 		queue = 1;
 	} else {
 		queue = 0;
@@ -2445,7 +2441,6 @@ ng_apply_item(node_p node, item_p item, int rw)
 static int
 ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	int error = 0;
 	struct ng_mesg *msg;
 	struct ng_mesg *resp = NULL;
@@ -3068,6 +3063,35 @@ ng_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
+#ifdef VIMAGE 
+static void
+vnet_netgraph_uninit(const void *unused __unused)
+{
+#if 0
+	node_p node, last_killed = NULL;
+
+	/* XXXRW: utterly bogus. */
+	while ((node = LIST_FIRST(&V_ng_allnodes)) != NULL) {
+		if (node == last_killed) {
+			/* This should never happen */
+			node->nd_flags |= NGF_REALLY_DIE;
+			printf("netgraph node %s needs NGF_REALLY_DIE\n",
+			    node->nd_name);
+			ng_rmnode(node, NULL, NULL, 0);
+			/* This must never happen */
+			if (node == LIST_FIRST(&V_ng_allnodes))
+				panic("netgraph node %s won't die",
+				    node->nd_name);
+		}
+		ng_rmnode(node, NULL, NULL, 0);
+		last_killed = node;
+	}
+#endif
+}
+VNET_SYSUNINIT(vnet_netgraph_uninit, SI_SUB_NETGRAPH, SI_ORDER_ANY,
+    vnet_netgraph_uninit, NULL);
+#endif /* VIMAGE */
+
 /*
  * Handle loading and unloading for this code.
  * The only thing we need to link into is the NETISR strucure.
@@ -3082,7 +3106,6 @@ ngb_mod_event(module_t mod, int event, void *data)
 	switch (event) {
 	case MOD_LOAD:
 		/* Initialize everything. */
-		V_nextID = 1;
 		NG_WORKLIST_LOCK_INIT();
 		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL,
 		    MTX_DEF);
@@ -3286,6 +3309,7 @@ ngthread(void *arg)
 			NG_WORKLIST_SLEEP();
 		STAILQ_REMOVE_HEAD(&ng_worklist, nd_input_queue.q_work);
 		NG_WORKLIST_UNLOCK();
+		CURVNET_SET(node->nd_vnet);
 		CTR3(KTR_NET, "%20s: node [%x] (%p) taken off worklist",
 		    __func__, node->nd_ID, node);
 		/*
@@ -3315,6 +3339,7 @@ ngthread(void *arg)
 			}
 		}
 		NG_NODE_UNREF(node);
+		CURVNET_RESTORE();
 	}
 }
 
@@ -3648,7 +3673,9 @@ ng_callout_trampoline(void *arg)
 {
 	item_p item = arg;
 
+	CURVNET_SET(NGI_NODE(item)->nd_vnet);
 	ng_snd_item(item, 0);
+	CURVNET_RESTORE();
 }
 
 

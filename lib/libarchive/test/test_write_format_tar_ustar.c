@@ -340,7 +340,7 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	assert(is_null(e, 1024));
 	e += 1024;
 
-	assertEqualInt(used, e - buff);
+	assertEqualInt((int)used, e - buff);
 
 	free(buff);
 }

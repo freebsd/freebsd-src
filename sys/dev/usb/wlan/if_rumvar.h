@@ -18,6 +18,7 @@
  */
 
 #define RUM_TX_LIST_COUNT	8
+#define RUM_TX_MINFREE		2
 
 struct rum_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
@@ -25,16 +26,19 @@ struct rum_rx_radiotap_header {
 	uint8_t		wr_rate;
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
+	int8_t		wr_antsignal;
+	int8_t		wr_antnoise;
 	uint8_t		wr_antenna;
-	uint8_t		wr_antsignal;
 };
 
 #define RT2573_RX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
 	 (1 << IEEE80211_RADIOTAP_RATE) |				\
 	 (1 << IEEE80211_RADIOTAP_CHANNEL) |				\
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |			\
+	 (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE) |			\
 	 (1 << IEEE80211_RADIOTAP_ANTENNA) |				\
-	 (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL))
+	 0)
 
 struct rum_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
@@ -52,11 +56,6 @@ struct rum_tx_radiotap_header {
 	 (1 << IEEE80211_RADIOTAP_ANTENNA))
 
 struct rum_softc;
-
-struct rum_task {
-	struct usb2_proc_msg	hdr;
-	struct rum_softc	*sc;
-};
 
 struct rum_tx_data {
 	STAILQ_ENTRY(rum_tx_data)	next;
@@ -76,11 +75,10 @@ struct rum_node {
 
 struct rum_vap {
 	struct ieee80211vap		vap;
-	struct rum_softc		*sc;
 	struct ieee80211_beacon_offsets	bo;
 	struct ieee80211_amrr		amrr;
-	struct usb2_callout		amrr_ch;
-	struct rum_task			amrr_task[2];
+	struct usb_callout		amrr_ch;
+	struct task			amrr_task;
 
 	int				(*newstate)(struct ieee80211vap *,
 					    enum ieee80211_state, int);
@@ -96,25 +94,12 @@ enum {
 struct rum_softc {
 	struct ifnet			*sc_ifp;
 	device_t			sc_dev;
-	struct usb2_device		*sc_udev;
-	struct usb2_process		sc_tq;
+	struct usb_device		*sc_udev;
 
-	const struct ieee80211_rate_table *sc_rates;
-	struct usb2_xfer		*sc_xfer[RUM_N_TRANSFER];
+	struct usb_xfer		*sc_xfer[RUM_N_TRANSFER];
 
 	uint8_t				rf_rev;
 	uint8_t				rffreq;
-
-	enum ieee80211_state		sc_state;
-	int				sc_arg;
-	struct rum_task			sc_synctask[2];
-	struct rum_task			sc_task[2];
-	struct rum_task			sc_promisctask[2];
-	struct rum_task			sc_scantask[2];
-	int				sc_scan_action;
-#define RUM_SCAN_START	0
-#define RUM_SCAN_END	1
-#define RUM_SET_CHANNEL	2
 
 	struct rum_tx_data		tx_data[RUM_TX_LIST_COUNT];
 	rum_txdhead			tx_q;

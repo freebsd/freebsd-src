@@ -93,7 +93,7 @@ struct ndis_evt {
 
 static int find_ifname(int, char *);
 static int announce_event(char *, int, struct sockaddr_in *);
-static void usage(char *);
+static void usage(void);
 
 static void
 dbgmsg(const char *fmt, ...)
@@ -262,10 +262,9 @@ announce_event(ifname, sock, dst)
 }
 
 static void
-usage(progname)
-	char			*progname;
+usage()
 {
-	fprintf(stderr, "Usage: ndis_events [-a] [-d] [-v]\n", progname);
+	fprintf(stderr, "Usage: ndis_events [-a] [-d] [-v]\n");
 	exit(1);
 }
 
@@ -294,7 +293,7 @@ main(argc, argv)
 			all_events++;
 			break;
 		default:
-			usage(PROGNAME);
+			usage();
 			break;
 		}
 	}

@@ -167,6 +167,15 @@ instead of copying.
 (i and p modes)
 Set file modification time on created files to match
 those in the source.
+.It Fl n
+(i mode, only with
+.Fl t )
+Display numeric uid and gid.
+By default,
+.Nm
+displays the user and group names when they are provided in the
+archive, or looks up the user and group names in the system
+password database.
 .It Fl O Ar file
 Write archive to
 .Ar file .

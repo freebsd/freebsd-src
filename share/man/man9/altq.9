@@ -543,11 +543,6 @@ Make sure that calls to
 and
 .Fn IFQ_DRV_PURGE
 are protected with a mutex of some kind.
-Setting
-.Dv IFF_NEEDSGIANT
-in
-.Va if_flags
-might also be appropriate.
 .Ss Attach routine
 Use
 .Fn IFQ_SET_MAXLEN

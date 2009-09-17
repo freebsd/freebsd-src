@@ -70,6 +70,19 @@ ISC_ATOMIC_ARCH=	x86_32
 ISC_ATOMIC_ARCH=	${MACHINE_ARCH}
 .endif
 
+# Optional features
+.if ${MK_BIND_LARGE_FILE} == "yes"
+CFLAGS+=	-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64
+.endif
+.if ${MK_BIND_SIGCHASE} == "yes"
+CFLAGS+=	-DDIG_SIGCHASE
+.endif
+.if ${MK_BIND_XML} == "yes"
+CFLAGS+=	-DHAVE_LIBXML2
+CFLAGS+=	-I/usr/local/include -I/usr/local/include/libxml2
+CFLAGS+=	-L/usr/local/lib -lxml2 -lz -liconv -lm
+.endif
+
 # Link against BIND libraries
 .if ${MK_BIND_LIBS} == "no"
 LIBBIND9=	${LIB_BIND_REL}/bind9/libbind9.a

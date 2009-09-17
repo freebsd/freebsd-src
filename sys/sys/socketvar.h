@@ -45,6 +45,8 @@
 #include <sys/sockopt.h>
 #endif
 
+struct vnet;
+
 /*
  * Kernel structure per socket.
  * Contains send and receive buffer queues,
@@ -52,6 +54,8 @@
  * private data and error information.
  */
 typedef	u_quad_t so_gen_t;
+
+struct socket;
 
 /*-
  * Locking key to struct socket:
@@ -72,6 +76,7 @@ struct socket {
 	short	so_state;		/* (b) internal state flags SS_* */
 	int	so_qstate;		/* (e) internal state flags SQ_* */
 	void	*so_pcb;		/* protocol control block */
+	struct	vnet *so_vnet;		/* network stack instance */
 	struct	protosw *so_proto;	/* (a) protocol handle */
 /*
  * Variables for connection queuing.
@@ -101,8 +106,6 @@ struct socket {
 
 	struct sockbuf so_rcv, so_snd;
 
-	void	(*so_upcall)(struct socket *, void *, int);
-	void	*so_upcallarg;
 	struct	ucred *so_cred;		/* (a) user credentials */
 	struct	label *so_label;	/* (b) MAC label for socket */
 	struct	label *so_peerlabel;	/* (b) cached MAC label for peer */
@@ -194,10 +197,11 @@ struct xsocket {
     ((so)->so_proto->pr_flags & PR_ATOMIC)
 
 /* can we read something from so? */
-#define	soreadable(so) \
+#define	soreadabledata(so) \
     ((so)->so_rcv.sb_cc >= (so)->so_rcv.sb_lowat || \
-	((so)->so_rcv.sb_state & SBS_CANTRCVMORE) || \
 	!TAILQ_EMPTY(&(so)->so_comp) || (so)->so_error)
+#define	soreadable(so) \
+	(soreadabledata(so) || ((so)->so_rcv.sb_state & SBS_CANTRCVMORE))
 
 /* can we write something to so? */
 #define	sowriteable(so) \
@@ -277,7 +281,7 @@ struct xsocket {
 
 struct accept_filter {
 	char	accf_name[16];
-	void	(*accf_callback)
+	int	(*accf_callback)
 		(struct socket *so, void *arg, int waitflag);
 	void *	(*accf_create)
 		(struct socket *so, char *arg);
@@ -301,6 +305,14 @@ struct mbuf;
 struct sockaddr;
 struct ucred;
 struct uio;
+
+/* 'which' values for socket upcalls. */
+#define	SO_RCV		1
+#define	SO_SND		2
+
+/* Return values for socket upcalls. */
+#define	SU_OK		0
+#define	SU_ISCONNECTED	1
 
 /*
  * From uipc_socket and friends
@@ -334,6 +346,9 @@ int	sopoll_generic(struct socket *so, int events,
 	    struct ucred *active_cred, struct thread *td);
 int	soreceive(struct socket *so, struct sockaddr **paddr, struct uio *uio,
 	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp);
+int	soreceive_stream(struct socket *so, struct sockaddr **paddr,
+	    struct uio *uio, struct mbuf **mp0, struct mbuf **controlp,
+	    int *flagsp);
 int	soreceive_dgram(struct socket *so, struct sockaddr **paddr,
 	    struct uio *uio, struct mbuf **mp0, struct mbuf **controlp,
 	    int *flagsp);
@@ -353,6 +368,9 @@ int	sosend_generic(struct socket *so, struct sockaddr *addr,
 	    int flags, struct thread *td);
 int	soshutdown(struct socket *so, int how);
 void	sotoxsocket(struct socket *so, struct xsocket *xso);
+void	soupcall_clear(struct socket *so, int which);
+void	soupcall_set(struct socket *so, int which,
+	    int (*func)(struct socket *, void *, int), void *arg);
 void	sowakeup(struct socket *so, struct sockbuf *sb);
 int	selsocket(struct socket *so, int events, struct timeval *tv,
 	    struct thread *td);

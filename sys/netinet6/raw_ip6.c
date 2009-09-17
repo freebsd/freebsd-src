@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sx.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -90,7 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_pcb.h>
-#include <netinet/vinet.h>
 
 #include <netinet/icmp6.h>
 #include <netinet/ip6.h>
@@ -101,7 +99,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/raw_ip6.h>
 #include <netinet6/scope6_var.h>
-#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -117,24 +114,34 @@ __FBSDID("$FreeBSD$");
  * Raw interface to IP6 protocol.
  */
 
-#ifdef VIMAGE_GLOBALS
-extern struct	inpcbhead ripcb;
-extern struct	inpcbinfo ripcbinfo;
-struct rip6stat rip6stat;
-#endif
+VNET_DECLARE(struct inpcbhead, ripcb);
+VNET_DECLARE(struct inpcbinfo, ripcbinfo);
+#define	V_ripcb				VNET(ripcb)
+#define	V_ripcbinfo			VNET(ripcbinfo)
+
+VNET_DEFINE(struct rip6stat, rip6stat);
 
 extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
 
 /*
- * Hooks for multicast forwarding.
+ * Hooks for multicast routing. They all default to NULL, so leave them not
+ * initialized and rely on BSS being set to 0.
  */
-struct socket *ip6_mrouter = NULL;
+
+/*
+ * The socket used to communicate with the multicast routing daemon.
+ */
+VNET_DEFINE(struct socket *, ip6_mrouter);
+
+/*
+ * The various mrouter functions.
+ */
 int (*ip6_mrouter_set)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_get)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_done)(void);
 int (*ip6_mforward)(struct ip6_hdr *, struct ifnet *, struct mbuf *);
-int (*mrt6_ioctl)(int, caddr_t);
+int (*mrt6_ioctl)(u_long, caddr_t);
 
 /*
  * Setup generic address and protocol structures for raw_input routine, then
@@ -143,11 +150,7 @@ int (*mrt6_ioctl)(int, caddr_t);
 int
 rip6_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_INET(curvnet);
-	INIT_VNET_INET6(curvnet);
-#ifdef IPSEC
-	INIT_VNET_IPSEC(curvnet);
-#endif
+	struct ifnet *ifp;
 	struct mbuf *m = *mp;
 	register struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	register struct inpcb *in6p;
@@ -165,6 +168,8 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	init_sin6(&fromsa, m); /* general init */
 
+	ifp = m->m_pkthdr.rcvif;
+
 	INP_INFO_RLOCK(&V_ripcbinfo);
 	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		/* XXX inp locking */
@@ -179,15 +184,48 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
 		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
 			continue;
-		if (prison_check_ip6(in6p->inp_cred, &ip6->ip6_dst) != 0)
-			continue;
-		INP_RLOCK(in6p);
+		if (jailed(in6p->inp_cred)) {
+			/*
+			 * Allow raw socket in jail to receive multicast;
+			 * assume process had PRIV_NETINET_RAW at attach,
+			 * and fall through into normal filter path if so.
+			 */
+			if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
+			    prison_check_ip6(in6p->inp_cred,
+			    &ip6->ip6_dst) != 0)
+				continue;
+		}
 		if (in6p->in6p_cksum != -1) {
 			V_rip6stat.rip6s_isum++;
 			if (in6_cksum(m, proto, *offp,
 			    m->m_pkthdr.len - *offp)) {
 				INP_RUNLOCK(in6p);
 				V_rip6stat.rip6s_badsum++;
+				continue;
+			}
+		}
+		INP_RLOCK(in6p);
+		/*
+		 * If this raw socket has multicast state, and we
+		 * have received a multicast, check if this socket
+		 * should receive it, as multicast filtering is now
+		 * the responsibility of the transport layer.
+		 */
+		if (in6p->in6p_moptions &&
+		    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+			struct sockaddr_in6 mcaddr;
+			int blocked;
+
+			bzero(&mcaddr, sizeof(struct sockaddr_in6));
+			mcaddr.sin6_len = sizeof(struct sockaddr_in6);
+			mcaddr.sin6_family = AF_INET6;
+			mcaddr.sin6_addr = ip6->ip6_dst;
+
+			blocked = im6o_mc_filter(in6p->in6p_moptions, ifp,
+			    (struct sockaddr *)&mcaddr,
+			    (struct sockaddr *)&fromsa);
+			if (blocked != MCAST_PASS) {
+				IP6STAT_INC(ip6s_notmember);
 				continue;
 			}
 		}
@@ -273,7 +311,6 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 void
 rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 	int off = 0;
@@ -329,7 +366,6 @@ rip6_output(m, va_alist)
 	va_dcl
 #endif
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *control;
 	struct socket *so;
 	struct sockaddr_in6 *dstsock;
@@ -342,7 +378,7 @@ rip6_output(m, va_alist)
 	struct ifnet *oifp = NULL;
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
 	int scope_ambiguous = 0;
-	struct in6_addr *in6a;
+	struct in6_addr in6a;
 	va_list ap;
 
 	va_start(ap, m);
@@ -403,16 +439,14 @@ rip6_output(m, va_alist)
 	/*
 	 * Source address selection.
 	 */
-	if ((in6a = in6_selectsrc(dstsock, optp, in6p, NULL, so->so_cred,
-	    &oifp, &error)) == NULL) {
-		if (error == 0)
-			error = EADDRNOTAVAIL;
+	error = in6_selectsrc(dstsock, optp, in6p, NULL, so->so_cred,
+	    &oifp, &in6a);
+	if (error)
 		goto bad;
-	}
-	error = prison_get_ip6(in6p->inp_cred, in6a);
+	error = prison_get_ip6(in6p->inp_cred, &in6a);
 	if (error != 0)
 		goto bad;
-	ip6->ip6_src = *in6a;
+	ip6->ip6_src = in6a;
 
 	if (oifp && scope_ambiguous) {
 		/*
@@ -476,7 +510,7 @@ rip6_output(m, va_alist)
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);
-		V_icmp6stat.icp6s_outhist[type]++;
+		ICMP6STAT_INC(icp6s_outhist[type]);
 	} else
 		V_rip6stat.rip6s_opackets++;
 
@@ -564,7 +598,6 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 static int
 rip6_attach(struct socket *so, int proto, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct icmp6_filter *filter;
 	int error;
@@ -603,13 +636,12 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 static void
 rip6_detach(struct socket *so)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_detach: inp == NULL"));
 
-	if (so == ip6_mrouter && ip6_mrouter_done)
+	if (so == V_ip6_mrouter && ip6_mrouter_done)
 		ip6_mrouter_done();
 	/* xxx: RSVP */
 	INP_INFO_WLOCK(&V_ripcbinfo);
@@ -661,12 +693,9 @@ rip6_disconnect(struct socket *so)
 static int
 rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_NET(so->so_vnet);
-	INIT_VNET_INET(so->so_vnet);
-	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
-	struct ifaddr *ia = NULL;
+	struct ifaddr *ifa = NULL;
 	int error = 0;
 
 	inp = sotoinpcb(so);
@@ -682,14 +711,17 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr) &&
-	    (ia = ifa_ifwithaddr((struct sockaddr *)addr)) == 0)
+	    (ifa = ifa_ifwithaddr((struct sockaddr *)addr)) == NULL)
 		return (EADDRNOTAVAIL);
-	if (ia &&
-	    ((struct in6_ifaddr *)ia)->ia6_flags &
+	if (ifa != NULL &&
+	    ((struct in6_ifaddr *)ifa)->ia6_flags &
 	    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|
 	     IN6_IFF_DETACHED|IN6_IFF_DEPRECATED)) {
+		ifa_free(ifa);
 		return (EADDRNOTAVAIL);
 	}
+	if (ifa != NULL)
+		ifa_free(ifa);
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	inp->in6p_laddr = addr->sin6_addr;
@@ -701,12 +733,9 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	INIT_VNET_NET(so->so_vnet);
-	INIT_VNET_INET(so->so_vnet);
-	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
-	struct in6_addr *in6a = NULL;
+	struct in6_addr in6a;
 	struct ifnet *ifp = NULL;
 	int error = 0, scope_ambiguous = 0;
 
@@ -736,13 +765,12 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	/* Source address selection. XXX: need pcblookup? */
-	in6a = in6_selectsrc(addr, inp->in6p_outputopts,
-			     inp, NULL, so->so_cred,
-			     &ifp, &error);
-	if (in6a == NULL) {
+	error = in6_selectsrc(addr, inp->in6p_outputopts,
+	    inp, NULL, so->so_cred, &ifp, &in6a);
+	if (error) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_ripcbinfo);
-		return (error ? error : EADDRNOTAVAIL);
+		return (error);
 	}
 
 	/* XXX: see above */
@@ -753,7 +781,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (error);
 	}
 	inp->in6p_faddr = addr->sin6_addr;
-	inp->in6p_laddr = *in6a;
+	inp->in6p_laddr = in6a;
 	soisconnected(so);
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_ripcbinfo);

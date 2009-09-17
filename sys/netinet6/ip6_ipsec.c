@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet6.h"
 #include "opt_ipsec.h"
 
 #include <sys/param.h>
@@ -42,10 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -72,9 +73,25 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/ip6_ipsec.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/vinet6.h>
 
 extern	struct protosw inet6sw[];
+
+
+#ifdef INET6 
+#ifdef IPSEC
+#ifdef IPSEC_FILTERTUNNEL
+static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 1;
+#else
+static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 0;
+#endif
+#define	V_ip6_ipsec6_filtertunnel	VNET(ip6_ipsec6_filtertunnel)
+
+SYSCTL_DECL(_net_inet6_ipsec6);
+SYSCTL_VNET_INT(_net_inet6_ipsec6, OID_AUTO,
+	filtertunnel, CTLFLAG_RW, &VNET_NAME(ip6_ipsec6_filtertunnel),  0,
+	"If set filter packets from an IPsec tunnel.");
+#endif /* IPSEC */
+#endif /* INET6 */
 
 /*
  * Check if we have to jump over firewall processing for this packet.
@@ -84,11 +101,13 @@ extern	struct protosw inet6sw[];
 int
 ip6_ipsec_filtertunnel(struct mbuf *m)
 {
-#if defined(IPSEC) && !defined(IPSEC_FILTERTUNNEL)
+#if defined(IPSEC)
+
 	/*
 	 * Bypass packet filtering for packets from a tunnel.
 	 */
-	if (m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
+	if (!V_ip6_ipsec6_filtertunnel &&
+	    m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
 		return 1;
 #endif
 	return 0;
@@ -104,8 +123,6 @@ int
 ip6_ipsec_fwd(struct mbuf *m)
 {
 #ifdef IPSEC
-	INIT_VNET_INET6(curvnet);
-	INIT_VNET_IPSEC(curvnet);
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
@@ -151,7 +168,6 @@ int
 ip6_ipsec_input(struct mbuf *m, int nxt)
 {
 #ifdef IPSEC
-	INIT_VNET_IPSEC(curvnet);
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;

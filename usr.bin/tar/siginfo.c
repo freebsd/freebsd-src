@@ -82,8 +82,10 @@ siginfo_init(struct bsdtar *bsdtar)
 	/* We want to catch SIGINFO, if it exists. */
 	bsdtar->siginfo->siginfo_old = signal(SIGINFO, siginfo_handler);
 #endif
+#ifdef SIGUSR1
 	/* ... and treat SIGUSR1 the same way as SIGINFO. */
 	bsdtar->siginfo->sigusr1_old = signal(SIGUSR1, siginfo_handler);
+#endif
 }
 
 void
@@ -135,8 +137,10 @@ siginfo_done(struct bsdtar *bsdtar)
 	/* Restore old SIGINFO handler. */
 	signal(SIGINFO, bsdtar->siginfo->siginfo_old);
 #endif
+#ifdef SIGUSR1
 	/* And the old SIGUSR1 handler, too. */
 	signal(SIGUSR1, bsdtar->siginfo->sigusr1_old);
+#endif
 
 	/* Free strings. */
 	free(bsdtar->siginfo->path);

@@ -119,7 +119,6 @@ ed_probe_WD80x3_generic(device_t dev, int flags, uint16_t *intr_vals[])
 		sum += ed_asic_inb(sc, ED_WD_PROM + i);
 
 	if (sum != totalsum) {
-
 		/*
 		 * Checksum is invalid. This often happens with cheap WD8003E
 		 * clones.  In this case, the checksum byte (the eighth byte)
@@ -268,9 +267,11 @@ ed_probe_WD80x3_generic(device_t dev, int flags, uint16_t *intr_vals[])
 		printf("%x -> %x\n", i, ed_asic_inb(sc, i));
 #endif
 	pmem = rman_get_start(sc->mem_res);
-	error = ed_isa_mem_ok(dev, pmem, memsize);
-	if (error)
-		return (error);
+	if (!(flags & ED_FLAGS_PCCARD)) {
+		error = ed_isa_mem_ok(dev, pmem, memsize);
+		if (error)
+			return (error);
+	}
 
 	/*
 	 * (note that if the user specifies both of the following flags that

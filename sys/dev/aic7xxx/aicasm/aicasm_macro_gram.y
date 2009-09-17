@@ -66,6 +66,9 @@ static symbol_t *macro_symbol;
 
 static void add_macro_arg(const char *argtext, int position);
 
+extern int mmlex(void);
+extern int mmparse(void);
+
 %}
 
 %union {
@@ -157,7 +160,7 @@ add_macro_arg(const char *argtext, int argnum)
 	}
 }
 
-void
+static void
 mmerror(const char *string)
 {
 	stop(string, EX_DATAERR);

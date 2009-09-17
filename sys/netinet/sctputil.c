@@ -917,24 +917,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 #endif
 	asoc->sb_send_resv = 0;
 	if (override_tag) {
-#ifdef MICHAELS_EXPERIMENT
-		if (sctp_is_in_timewait(override_tag, stcb->sctp_ep->sctp_lport, stcb->rport)) {
-			/*
-			 * It must be in the time-wait hash, we put it there
-			 * when we aloc one. If not the peer is playing
-			 * games.
-			 */
-			asoc->my_vtag = override_tag;
-		} else {
-			SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOMEM);
-#ifdef INVARIANTS
-			panic("Huh is_in_timewait fails");
-#endif
-			return (ENOMEM);
-		}
-#else
 		asoc->my_vtag = override_tag;
-#endif
 	} else {
 		asoc->my_vtag = sctp_select_a_tag(m, stcb->sctp_ep->sctp_lport, stcb->rport, 1);
 	}
@@ -970,7 +953,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->sent_queue_retran_cnt = 0;
 
 	/* for CMT */
-	asoc->last_net_data_came_from = NULL;
+	asoc->last_net_cmt_send_started = NULL;
 
 	/* This will need to be adjusted */
 	asoc->last_cwr_tsn = asoc->init_seq_number - 1;
@@ -1159,11 +1142,12 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->nr_mapping_array_size = SCTP_INITIAL_NR_MAPPING_ARRAY;
 	SCTP_MALLOC(asoc->nr_mapping_array, uint8_t *, asoc->nr_mapping_array_size,
 	    SCTP_M_MAP);
-	/*
-	 * if (asoc->nr_mapping_array == NULL) { SCTP_FREE(asoc->strmout,
-	 * SCTP_M_STRMO); SCTP_LTRACE_ERR_RET(NULL, stcb, NULL,
-	 * SCTP_FROM_SCTPUTIL, ENOMEM); return (ENOMEM); }
-	 */
+	if (asoc->nr_mapping_array == NULL) {
+		SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
+		SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
+		SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTPUTIL, ENOMEM);
+		return (ENOMEM);
+	}
 	memset(asoc->nr_mapping_array, 0, asoc->nr_mapping_array_size);
 
 	/* Now the init of the other outqueues */
@@ -1222,32 +1206,24 @@ sctp_expand_mapping_array(struct sctp_association *asoc, uint32_t needed)
 	SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
 	asoc->mapping_array = new_array;
 	asoc->mapping_array_size = new_size;
-	return (0);
-}
-
-/* EY - nr_sack version of the above method */
-int
-sctp_expand_nr_mapping_array(struct sctp_association *asoc, uint32_t needed)
-{
-	/* nr mapping array needs to grow */
-	uint8_t *new_array;
-	uint32_t new_size;
-
-	new_size = asoc->nr_mapping_array_size + ((needed + 7) / 8 + SCTP_NR_MAPPING_ARRAY_INCR);
-	SCTP_MALLOC(new_array, uint8_t *, new_size, SCTP_M_MAP);
-	if (new_array == NULL) {
-		/* can't get more, forget it */
-		SCTP_PRINTF("No memory for expansion of SCTP mapping array %d\n",
-		    new_size);
-		return (-1);
+	if (asoc->peer_supports_nr_sack) {
+		new_size = asoc->nr_mapping_array_size + ((needed + 7) / 8 + SCTP_NR_MAPPING_ARRAY_INCR);
+		SCTP_MALLOC(new_array, uint8_t *, new_size, SCTP_M_MAP);
+		if (new_array == NULL) {
+			/* can't get more, forget it */
+			SCTP_PRINTF("No memory for expansion of SCTP mapping array %d\n",
+			    new_size);
+			return (-1);
+		}
+		memset(new_array, 0, new_size);
+		memcpy(new_array, asoc->nr_mapping_array, asoc->nr_mapping_array_size);
+		SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
+		asoc->nr_mapping_array = new_array;
+		asoc->nr_mapping_array_size = new_size;
 	}
-	memset(new_array, 0, new_size);
-	memcpy(new_array, asoc->nr_mapping_array, asoc->nr_mapping_array_size);
-	SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
-	asoc->nr_mapping_array = new_array;
-	asoc->nr_mapping_array_size = new_size;
 	return (0);
 }
+
 
 #if defined(SCTP_USE_THREAD_BASED_ITERATOR)
 static void
@@ -1508,6 +1484,7 @@ sctp_timeout_handler(void *t)
 		SCTP_INP_INCR_REF(inp);
 		if ((inp->sctp_socket == 0) &&
 		    ((tmr->type != SCTP_TIMER_TYPE_INPKILL) &&
+		    (tmr->type != SCTP_TIMER_TYPE_INIT) &&
 		    (tmr->type != SCTP_TIMER_TYPE_SEND) &&
 		    (tmr->type != SCTP_TIMER_TYPE_RECV) &&
 		    (tmr->type != SCTP_TIMER_TYPE_HEARTBEAT) &&
@@ -2589,7 +2566,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/***************************/
 	/* 2. update RTTVAR & SRTT */
 	/***************************/
-	o_calctime = calc_time;
+	net->rtt = o_calctime = calc_time;
 	/* this is Van Jacobson's integer version */
 	if (net->RTO_measured) {
 		calc_time -= (net->lastsa >> SCTP_RTT_SHIFT);	/* take away 1/8th when
@@ -2863,7 +2840,8 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	control->spec_flags = M_NOTIFICATION;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, so_locked);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD,
+	    so_locked);
 	if (event == SCTP_COMM_LOST) {
 		/* Wake up any sleeper */
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -2959,7 +2937,9 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD,
+	    SCTP_SO_NOT_LOCKED);
 }
 
 
@@ -3005,8 +2985,6 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 	ssf->ssf_info.sinfo_assoc_id = sctp_get_associd(stcb);
 	ssf->ssf_assoc_id = sctp_get_associd(stcb);
 
-	SCTP_BUF_NEXT(m_notify) = chk->data;
-	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed);
 	if (chk->data) {
 		/*
 		 * trim off the sctp chunk header(it should be there)
@@ -3017,6 +2995,8 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 			chk->send_size -= sizeof(struct sctp_data_chunk);
 		}
 	}
+	SCTP_BUF_NEXT(m_notify) = chk->data;
+	SCTP_BUF_LEN(m_notify) = sizeof(struct sctp_send_failed);
 	/* Steal off the mbuf */
 	chk->data = NULL;
 	/*
@@ -3040,7 +3020,9 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint32_t error,
 	control->spec_flags = M_NOTIFICATION;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, so_locked);
+	    &stcb->sctp_socket->so_rcv, 1,
+	    SCTP_READ_LOCK_NOT_HELD,
+	    so_locked);
 }
 
 
@@ -3114,7 +3096,7 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 	control->spec_flags = M_NOTIFICATION;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, so_locked);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
 
@@ -3161,13 +3143,17 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb,
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 }
 
 /* This always must be called with the read-queue LOCKED in the INP */
-void
+static void
 sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
-    int nolock, uint32_t val)
+    uint32_t val, int so_locked
+#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
+    SCTP_UNUSED
+#endif
+)
 {
 	struct mbuf *m_notify;
 	struct sctp_pdapi_event *pdapi;
@@ -3208,9 +3194,6 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 	control->tail_mbuf = m_notify;
 	control->held_length = 0;
 	control->length = 0;
-	if (nolock == 0) {
-		SCTP_INP_READ_LOCK(stcb->sctp_ep);
-	}
 	sb = &stcb->sctp_socket->so_rcv;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 		sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBALLOC, SCTP_BUF_LEN(m_notify));
@@ -3227,12 +3210,30 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 		/* we really should not see this case */
 		TAILQ_INSERT_TAIL(&stcb->sctp_ep->read_queue, control, next);
 	}
-	if (nolock == 0) {
-		SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
-	}
 	if (stcb->sctp_ep && stcb->sctp_socket) {
 		/* This should always be the case */
+#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		struct socket *so;
+
+		so = SCTP_INP_SO(stcb->sctp_ep);
+		if (!so_locked) {
+			atomic_add_int(&stcb->asoc.refcnt, 1);
+			SCTP_TCB_UNLOCK(stcb);
+			SCTP_SOCKET_LOCK(so, 1);
+			SCTP_TCB_LOCK(stcb);
+			atomic_subtract_int(&stcb->asoc.refcnt, 1);
+			if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
+				SCTP_SOCKET_UNLOCK(so, 1);
+				return;
+			}
+		}
+#endif
 		sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
+#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		if (!so_locked) {
+			SCTP_SOCKET_UNLOCK(so, 1);
+		}
+#endif
 	}
 }
 
@@ -3301,7 +3302,7 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 }
 
 static void
@@ -3348,7 +3349,7 @@ sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
-	    &stcb->sctp_socket->so_rcv, 1, so_locked);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, so_locked);
 }
 
 
@@ -3404,7 +3405,7 @@ sctp_notify_stream_reset_add(struct sctp_tcb *stcb, int number_entries, int flag
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 }
 
 
@@ -3470,7 +3471,7 @@ sctp_notify_stream_reset(struct sctp_tcb *stcb,
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb,
 	    control,
-	    &stcb->sctp_socket->so_rcv, 1, SCTP_SO_NOT_LOCKED);
+	    &stcb->sctp_socket->so_rcv, 1, SCTP_READ_LOCK_NOT_HELD, SCTP_SO_NOT_LOCKED);
 }
 
 
@@ -3559,9 +3560,9 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 
 			val = *((uint32_t *) data);
 
-			sctp_notify_partial_delivery_indication(stcb, error, 0, val);
+			sctp_notify_partial_delivery_indication(stcb, error, val, so_locked);
+			break;
 		}
-		break;
 	case SCTP_NOTIFY_STRDATA_ERR:
 		break;
 	case SCTP_NOTIFY_ASSOC_ABORTED:
@@ -3604,11 +3605,9 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	case SCTP_NOTIFY_STR_RESET_FAILED_OUT:
 		sctp_notify_stream_reset(stcb, error, ((uint16_t *) data), (SCTP_STRRESET_OUTBOUND_STR | SCTP_STRRESET_FAILED));
 		break;
-
 	case SCTP_NOTIFY_STR_RESET_FAILED_IN:
 		sctp_notify_stream_reset(stcb, error, ((uint16_t *) data), (SCTP_STRRESET_INBOUND_STR | SCTP_STRRESET_FAILED));
 		break;
-
 	case SCTP_NOTIFY_ASCONF_ADD_IP:
 		sctp_notify_peer_addr_change(stcb, SCTP_ADDR_ADDED, data,
 		    error);
@@ -3686,12 +3685,14 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 		while (chk) {
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
 			asoc->sent_queue_cnt--;
-			sctp_free_bufspace(stcb, asoc, chk, 1);
-			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
-			    SCTP_NOTIFY_DATAGRAM_SENT, chk, so_locked);
-			if (chk->data) {
-				sctp_m_freem(chk->data);
-				chk->data = NULL;
+			if (chk->data != NULL) {
+				sctp_free_bufspace(stcb, asoc, chk, 1);
+				sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
+				    SCTP_NOTIFY_DATAGRAM_SENT, chk, so_locked);
+				if (chk->data) {
+					sctp_m_freem(chk->data);
+					chk->data = NULL;
+				}
 			}
 			sctp_free_a_chunk(stcb, chk);
 			/* sa_ignore FREED_MEMORY */
@@ -3704,11 +3705,14 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 		while (chk) {
 			TAILQ_REMOVE(&asoc->send_queue, chk, sctp_next);
 			asoc->send_queue_cnt--;
-			sctp_free_bufspace(stcb, asoc, chk, 1);
-			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, SCTP_NOTIFY_DATAGRAM_UNSENT, chk, so_locked);
-			if (chk->data) {
-				sctp_m_freem(chk->data);
-				chk->data = NULL;
+			if (chk->data != NULL) {
+				sctp_free_bufspace(stcb, asoc, chk, 1);
+				sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb,
+				    SCTP_NOTIFY_DATAGRAM_UNSENT, chk, so_locked);
+				if (chk->data) {
+					sctp_m_freem(chk->data);
+					chk->data = NULL;
+				}
 			}
 			sctp_free_a_chunk(stcb, chk);
 			/* sa_ignore FREED_MEMORY */
@@ -4324,6 +4328,7 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
     struct sctp_queued_to_read *control,
     struct sockbuf *sb,
     int end,
+    int inp_read_lock_held,
     int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
@@ -4344,7 +4349,8 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 #endif
 		return;
 	}
-	SCTP_INP_READ_LOCK(inp);
+	if (inp_read_lock_held == 0)
+		SCTP_INP_READ_LOCK(inp);
 	if (!(control->spec_flags & M_NOTIFICATION)) {
 		atomic_add_int(&inp->total_recvs, 1);
 		if (!control->do_not_ref_stcb) {
@@ -4385,13 +4391,16 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 		control->tail_mbuf = prev;
 	} else {
 		/* Everything got collapsed out?? */
+		if (inp_read_lock_held == 0)
+			SCTP_INP_READ_UNLOCK(inp);
 		return;
 	}
 	if (end) {
 		control->end_added = 1;
 	}
 	TAILQ_INSERT_TAIL(&inp->read_queue, control, next);
-	SCTP_INP_READ_UNLOCK(inp);
+	if (inp_read_lock_held == 0)
+		SCTP_INP_READ_UNLOCK(inp);
 	if (inp && inp->sctp_socket) {
 		if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE)) {
 			SCTP_ZERO_COPY_EVENT(inp, inp->sctp_socket);
@@ -4630,65 +4639,44 @@ sctp_free_bufspace(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 int
 sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
-    int reason, struct sctpchunk_listhead *queue, int so_locked
+    int reason, int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
 )
 {
+	struct sctp_stream_out *strq;
+	struct sctp_tmit_chunk *chk = NULL;
+	struct sctp_stream_queue_pending *sp;
+	uint16_t stream = 0, seq = 0;
+	uint8_t foundeom = 0;
 	int ret_sz = 0;
 	int notdone;
-	uint8_t foundeom = 0;
+	int do_wakeup_routine = 0;
 
+	stream = tp1->rec.data.stream_number;
+	seq = tp1->rec.data.stream_seq;
 	do {
 		ret_sz += tp1->book_size;
-		tp1->sent = SCTP_FORWARD_TSN_SKIP;
-		if (tp1->data) {
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			struct socket *so;
-
-#endif
+		if (tp1->data != NULL) {
+			if (tp1->sent < SCTP_DATAGRAM_RESEND) {
+				sctp_flight_size_decrease(tp1);
+				sctp_total_flight_decrease(stcb, tp1);
+			}
 			sctp_free_bufspace(stcb, &stcb->asoc, tp1, 1);
-			sctp_flight_size_decrease(tp1);
-			sctp_total_flight_decrease(stcb, tp1);
+			stcb->asoc.peers_rwnd += tp1->send_size;
+			stcb->asoc.peers_rwnd += SCTP_BASE_SYSCTL(sctp_peer_chunk_oh);
 			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, so_locked);
-			sctp_m_freem(tp1->data);
-			tp1->data = NULL;
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			so = SCTP_INP_SO(stcb->sctp_ep);
-			if (!so_locked) {
-				atomic_add_int(&stcb->asoc.refcnt, 1);
-				SCTP_TCB_UNLOCK(stcb);
-				SCTP_SOCKET_LOCK(so, 1);
-				SCTP_TCB_LOCK(stcb);
-				atomic_subtract_int(&stcb->asoc.refcnt, 1);
-				if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
-					/*
-					 * assoc was freed while we were
-					 * unlocked
-					 */
-					SCTP_SOCKET_UNLOCK(so, 1);
-					return (ret_sz);
-				}
+			if (tp1->data) {
+				sctp_m_freem(tp1->data);
+				tp1->data = NULL;
 			}
-#endif
-			sctp_sowwakeup(stcb->sctp_ep, stcb->sctp_socket);
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			if (!so_locked) {
-				SCTP_SOCKET_UNLOCK(so, 1);
+			do_wakeup_routine = 1;
+			if (PR_SCTP_BUF_ENABLED(tp1->flags)) {
+				stcb->asoc.sent_queue_cnt_removeable--;
 			}
-#endif
 		}
-		if (PR_SCTP_BUF_ENABLED(tp1->flags)) {
-			stcb->asoc.sent_queue_cnt_removeable--;
-		}
-		if (queue == &stcb->asoc.send_queue) {
-			TAILQ_REMOVE(&stcb->asoc.send_queue, tp1, sctp_next);
-			/* on to the sent queue */
-			TAILQ_INSERT_TAIL(&stcb->asoc.sent_queue, tp1,
-			    sctp_next);
-			stcb->asoc.sent_queue_cnt++;
-		}
+		tp1->sent = SCTP_FORWARD_TSN_SKIP;
 		if ((tp1->rec.data.rcv_flags & SCTP_DATA_NOT_FRAG) ==
 		    SCTP_DATA_NOT_FRAG) {
 			/* not frag'ed we ae done   */
@@ -4707,22 +4695,153 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 			tp1 = TAILQ_NEXT(tp1, sctp_next);
 		}
 	} while (tp1 && notdone);
-	if ((foundeom == 0) && (queue == &stcb->asoc.sent_queue)) {
+	if (foundeom == 0) {
 		/*
 		 * The multi-part message was scattered across the send and
 		 * sent queue.
 		 */
+next_on_sent:
 		tp1 = TAILQ_FIRST(&stcb->asoc.send_queue);
 		/*
 		 * recurse throught the send_queue too, starting at the
 		 * beginning.
 		 */
-		if (tp1) {
-			ret_sz += sctp_release_pr_sctp_chunk(stcb, tp1, reason,
-			    &stcb->asoc.send_queue, so_locked);
-		} else {
-			SCTP_PRINTF("hmm, nothing on the send queue and no EOM?\n");
+		if ((tp1) &&
+		    (tp1->rec.data.stream_number == stream) &&
+		    (tp1->rec.data.stream_seq == seq)
+		    ) {
+			/*
+			 * save to chk in case we have some on stream out
+			 * queue. If so and we have an un-transmitted one we
+			 * don't have to fudge the TSN.
+			 */
+			chk = tp1;
+			ret_sz += tp1->book_size;
+			sctp_free_bufspace(stcb, &stcb->asoc, tp1, 1);
+			sctp_ulp_notify(SCTP_NOTIFY_DG_FAIL, stcb, reason, tp1, so_locked);
+			if (tp1->data) {
+				sctp_m_freem(tp1->data);
+				tp1->data = NULL;
+			}
+			/* No flight involved here book the size to 0 */
+			tp1->book_size = 0;
+			if (tp1->rec.data.rcv_flags & SCTP_DATA_LAST_FRAG) {
+				foundeom = 1;
+			}
+			do_wakeup_routine = 1;
+			tp1->sent = SCTP_FORWARD_TSN_SKIP;
+			TAILQ_REMOVE(&stcb->asoc.send_queue, tp1, sctp_next);
+			/*
+			 * on to the sent queue so we can wait for it to be
+			 * passed by.
+			 */
+			TAILQ_INSERT_TAIL(&stcb->asoc.sent_queue, tp1,
+			    sctp_next);
+			stcb->asoc.send_queue_cnt--;
+			stcb->asoc.sent_queue_cnt++;
+			goto next_on_sent;
 		}
+	}
+	if (foundeom == 0) {
+		/*
+		 * Still no eom found. That means there is stuff left on the
+		 * stream out queue.. yuck.
+		 */
+		strq = &stcb->asoc.strmout[stream];
+		SCTP_TCB_SEND_LOCK(stcb);
+		sp = TAILQ_FIRST(&strq->outqueue);
+		while (sp->strseq <= seq) {
+			/* Check if its our SEQ */
+			if (sp->strseq == seq) {
+				sp->discard_rest = 1;
+				/*
+				 * We may need to put a chunk on the queue
+				 * that holds the TSN that would have been
+				 * sent with the LAST bit.
+				 */
+				if (chk == NULL) {
+					/* Yep, we have to */
+					sctp_alloc_a_chunk(stcb, chk);
+					if (chk == NULL) {
+						/*
+						 * we are hosed. All we can
+						 * do is nothing.. which
+						 * will cause an abort if
+						 * the peer is paying
+						 * attention.
+						 */
+						goto oh_well;
+					}
+					memset(chk, 0, sizeof(*chk));
+					chk->rec.data.rcv_flags = SCTP_DATA_LAST_FRAG;
+					chk->sent = SCTP_FORWARD_TSN_SKIP;
+					chk->asoc = &stcb->asoc;
+					chk->rec.data.stream_seq = sp->strseq;
+					chk->rec.data.stream_number = sp->stream;
+					chk->rec.data.payloadtype = sp->ppid;
+					chk->rec.data.context = sp->context;
+					chk->flags = sp->act_flags;
+					chk->addr_over = sp->addr_over;
+					chk->whoTo = sp->net;
+					atomic_add_int(&chk->whoTo->ref_count, 1);
+					chk->rec.data.TSN_seq = atomic_fetchadd_int(&stcb->asoc.sending_seq, 1);
+					stcb->asoc.pr_sctp_cnt++;
+					chk->pr_sctp_on = 1;
+					TAILQ_INSERT_TAIL(&stcb->asoc.sent_queue, chk, sctp_next);
+					stcb->asoc.sent_queue_cnt++;
+					stcb->asoc.pr_sctp_cnt++;
+				} else {
+					chk->rec.data.rcv_flags |= SCTP_DATA_LAST_FRAG;
+				}
+		oh_well:
+				if (sp->data) {
+					/*
+					 * Pull any data to free up the SB
+					 * and allow sender to "add more"
+					 * whilc we will throw away :-)
+					 */
+					sctp_free_spbufspace(stcb, &stcb->asoc,
+					    sp);
+					ret_sz += sp->length;
+					do_wakeup_routine = 1;
+					sp->some_taken = 1;
+					sctp_m_freem(sp->data);
+					sp->length = 0;
+					sp->data = NULL;
+					sp->tail_mbuf = NULL;
+				}
+				break;
+			} else {
+				/* Next one please */
+				sp = TAILQ_NEXT(sp, next);
+			}
+		}		/* End while */
+		SCTP_TCB_SEND_UNLOCK(stcb);
+	}
+	if (do_wakeup_routine) {
+#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		struct socket *so;
+
+		so = SCTP_INP_SO(stcb->sctp_ep);
+		if (!so_locked) {
+			atomic_add_int(&stcb->asoc.refcnt, 1);
+			SCTP_TCB_UNLOCK(stcb);
+			SCTP_SOCKET_LOCK(so, 1);
+			SCTP_TCB_LOCK(stcb);
+			atomic_subtract_int(&stcb->asoc.refcnt, 1);
+			if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
+				/* assoc was freed while we were unlocked */
+				SCTP_SOCKET_UNLOCK(so, 1);
+				return (ret_sz);
+			}
+		}
+#endif
+		sctp_sowwakeup(stcb->sctp_ep, stcb->sctp_socket);
+#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		if (!so_locked) {
+			SCTP_SOCKET_UNLOCK(so, 1);
+		}
+#endif
 	}
 	return (ret_sz);
 }
@@ -5247,6 +5366,38 @@ restart_nosblocks:
 			sctp_free_remote_addr(control->whoFrom);
 			sctp_free_a_readq(stcb, control);
 		}
+		if (hold_rlock) {
+			hold_rlock = 0;
+			SCTP_INP_READ_UNLOCK(inp);
+		}
+		goto restart;
+	}
+	if ((control->length == 0) &&
+	    (control->end_added == 1)) {
+		/*
+		 * Do we also need to check for (control->pdapi_aborted ==
+		 * 1)?
+		 */
+		if (hold_rlock == 0) {
+			hold_rlock = 1;
+			SCTP_INP_READ_LOCK(inp);
+		}
+		TAILQ_REMOVE(&inp->read_queue, control, next);
+		if (control->data) {
+#ifdef INVARIANTS
+			panic("control->data not null but control->length == 0");
+#else
+			SCTP_PRINTF("Strange, data left in the control buffer. Cleaning up.\n");
+			sctp_m_freem(control->data);
+			control->data = NULL;
+#endif
+		}
+		if (control->aux_data) {
+			sctp_m_free(control->aux_data);
+			control->aux_data = NULL;
+		}
+		sctp_free_remote_addr(control->whoFrom);
+		sctp_free_a_readq(stcb, control);
 		if (hold_rlock) {
 			hold_rlock = 0;
 			SCTP_INP_READ_UNLOCK(inp);

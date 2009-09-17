@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 static int ata_jmicron_chipinit(device_t dev);
 static int ata_jmicron_ch_attach(device_t dev);
 static int ata_jmicron_ch_detach(device_t dev);
+static int ata_jmicron_ch_suspend(device_t dev);
+static int ata_jmicron_ch_resume(device_t dev);
 static void ata_jmicron_reset(device_t dev);
 static void ata_jmicron_setmode(device_t dev, int mode);
 
@@ -92,7 +94,7 @@ ata_jmicron_probe(device_t dev)
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_jmicron_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -127,11 +129,15 @@ ata_jmicron_chipinit(device_t dev)
 
 	ctlr->ch_attach = ata_jmicron_ch_attach;
 	ctlr->ch_detach = ata_jmicron_ch_detach;
+	ctlr->ch_suspend = ata_jmicron_ch_suspend;
+	ctlr->ch_resume = ata_jmicron_ch_resume;
 	ctlr->reset = ata_jmicron_reset;
 	ctlr->setmode = ata_jmicron_setmode;
 
 	/* set the number of HW channels */ 
 	ctlr->channels = ctlr->chip->cfg1 + ctlr->chip->cfg2;
+	ctlr->ichannels |= ((0xffffffffU >> (32 - ctlr->chip->cfg2))
+	    << ctlr->chip->cfg1);
     }
     return 0;
 }
@@ -168,6 +174,30 @@ ata_jmicron_ch_detach(device_t dev)
     else
 	error = ata_ahci_ch_detach(dev);
 
+    return (error);
+}
+
+static int
+ata_jmicron_ch_suspend(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    int error = 0;
+
+    if (ch->unit < ctlr->chip->cfg1)
+	error = ata_ahci_ch_suspend(dev);
+    return error;
+}
+
+static int
+ata_jmicron_ch_resume(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
+    struct ata_channel *ch = device_get_softc(dev);
+    int error = 0;
+
+    if (ch->unit < ctlr->chip->cfg1)
+	error = ata_ahci_ch_resume(dev);
     return (error);
 }
 

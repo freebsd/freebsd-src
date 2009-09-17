@@ -38,9 +38,9 @@
 #include <fcntl.h>
 #include <sys/file.h>
 
-__COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n"
+__COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993 "
 	    "The Regents of the University of California."
-	    "  All rights reserved.\n");
+	    "  All rights reserved.");
 #ifdef __NetBSD__
 __RCSID("$NetBSD$");
 #include <util.h>
@@ -54,46 +54,49 @@ __RCSID("$Revision: 2.31 $");
 pid_t	mypid;
 
 naddr	myaddr;				/* system address */
-char	myname[MAXHOSTNAMELEN+1];
+static char myname[MAXHOSTNAMELEN+1];
 
-int	verbose;
+static int verbose;
 
 int	supplier;			/* supply or broadcast updates */
 int	supplier_set;
-int	ipforwarding = 1;		/* kernel forwarding on */
+static int ipforwarding = 1;		/* kernel forwarding on */
 
-int	default_gateway;		/* 1=advertise default */
-int	background = 1;
+static int default_gateway;		/* 1=advertise default */
+static int background = 1;
 int	ridhosts;			/* 1=reduce host routes */
 int	mhome;				/* 1=want multi-homed host route */
 int	advertise_mhome;		/* 1=must continue advertising it */
 int	auth_ok = 1;			/* 1=ignore auth if we do not care */
 
 struct timeval epoch;			/* when started */
-struct timeval clk, prev_clk;
+struct timeval clk;
+static struct timeval prev_clk;
 static int usec_fudge;
 struct timeval now;			/* current idea of time */
 time_t	now_stale;
 time_t	now_expire;
 time_t	now_garbage;
 
-struct timeval next_bcast;		/* next general broadcast */
+static struct timeval next_bcast;	/* next general broadcast */
 struct timeval no_flash = {		/* inhibit flash update */
 	EPOCH+SUPPLY_INTERVAL, 0
 };
 
-struct timeval flush_kern_timer;
+static struct timeval flush_kern_timer;
 
-fd_set	fdbits;
-int	sock_max;
+static fd_set fdbits;
+static int sock_max;
 int	rip_sock = -1;			/* RIP socket */
-struct interface *rip_sock_mcast;	/* current multicast interface */
+const struct interface *rip_sock_mcast;	/* current multicast interface */
 int	rt_sock;			/* routing socket */
 int	rt_sock_seqno;
 
 
 static  int get_rip_sock(naddr, int);
 static void timevalsub(struct timeval *, struct timeval *, struct timeval *);
+static void sigalrm(int s UNUSED);
+static void sigterm(int sig);
 
 int
 main(int argc,
@@ -529,7 +532,9 @@ usage:
 			n--;
 		}
 
-		for (ifp = ifnet; n > 0 && 0 != ifp; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
+			if (n <= 0)
+				break;
 			if (ifp->int_rip_sock >= 0
 			    && FD_ISSET(ifp->int_rip_sock, &ibits)) {
 				read_rip(ifp->int_rip_sock, ifp);
@@ -541,7 +546,7 @@ usage:
 
 
 /* ARGSUSED */
-void
+static void
 sigalrm(int s UNUSED)
 {
 	/* Historically, SIGALRM would cause the daemon to check for
@@ -553,7 +558,7 @@ sigalrm(int s UNUSED)
 
 
 /* watch for fatal signals */
-void
+static void
 sigterm(int sig)
 {
 	stopint = sig;
@@ -578,7 +583,7 @@ fix_select(void)
 		if (sock_max <= rip_sock)
 			sock_max = rip_sock+1;
 	}
-	for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (ifp->int_rip_sock >= 0) {
 			FD_SET(ifp->int_rip_sock, &fdbits);
 			if (sock_max <= ifp->int_rip_sock)
@@ -690,7 +695,7 @@ rip_off(void)
 
 		/* get non-broadcast sockets to listen to queries.
 		 */
-		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			if (ifp->int_state & IS_REMOTE)
 				continue;
 			if (ifp->int_rip_sock < 0) {
@@ -761,7 +766,7 @@ rip_on(struct interface *ifp)
 		 * since that would let two daemons bind to the broadcast
 		 * socket.
 		 */
-		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			if (ifp->int_rip_sock >= 0) {
 				(void)close(ifp->int_rip_sock);
 				ifp->int_rip_sock = -1;
@@ -776,7 +781,7 @@ rip_on(struct interface *ifp)
 		if (next_bcast.tv_sec < now.tv_sec+MIN_WAITTIME)
 			next_bcast.tv_sec = now.tv_sec+MIN_WAITTIME;
 
-		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+		LIST_FOREACH(ifp, &ifnet, int_list) {
 			ifp->int_query_time = NEVER;
 			rip_mcast_on(ifp);
 		}

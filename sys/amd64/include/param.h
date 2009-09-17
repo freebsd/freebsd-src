@@ -39,38 +39,19 @@
  * $FreeBSD$
  */
 
+
+#ifndef _AMD64_INCLUDE_PARAM_H_
+#define	_AMD64_INCLUDE_PARAM_H_
+
+#include <machine/_align.h>
+
 /*
  * Machine dependent constants for AMD64.
  */
 
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is u_long and
- * must be cast to any desired pointer type.
- *
- * ALIGNED_POINTER is a boolean macro that checks whether an address
- * is valid to fetch data elements of type t from on this architecture.
- * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits). 
- *
- */
-#ifndef _ALIGNBYTES
-#define	_ALIGNBYTES	(sizeof(long) - 1)
-#endif
-#ifndef _ALIGN
-#define	_ALIGN(p)	(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
-#endif
-#ifndef _ALIGNED_POINTER
-#define	_ALIGNED_POINTER(p,t)	((((u_long)(p)) & (sizeof(t)-1)) == 0)
-#endif
-
-#ifndef _NO_NAMESPACE_POLLUTION
 
 #define __HAVE_ACPI
 #define __PCI_REROUTE_INTERRUPT
-
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
 
 #ifndef MACHINE
 #define	MACHINE		"amd64"
@@ -87,8 +68,20 @@
 
 #define	ALIGNBYTES		_ALIGNBYTES
 #define	ALIGN(p)		_ALIGN(p)
-#define	ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
+/*
+ * ALIGNED_POINTER is a boolean macro that checks whether an address
+ * is valid to fetch data elements of type t from on this architecture.
+ * This does not reflect the optimal alignment, just the possibility
+ * (within reasonable limits). 
+ */
+#define	ALIGNED_POINTER(p, t)	1
 
+/*
+ * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
+ * architecture.  It should be used with appropriate caution.
+ */
+#define	CACHE_LINE_SHIFT	7
+#define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
 /* Size of the level 1 page table units */
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
@@ -131,15 +124,6 @@
 #endif
 
 /*
- * Ceiling on size of buffer cache (really only effects write queueing,
- * the VM page cache is not effected), can be changed via
- * the kern.maxbcache /boot/loader.conf variable.
- */
-#ifndef VM_BCACHE_SIZE_MAX
-#define	VM_BCACHE_SIZE_MAX	(1024 * 1024 * 1024)
-#endif
-
-/*
  * Mach derived conversion macros
  */
 #define	round_page(x)	((((unsigned long)(x)) + PAGE_MASK) & ~(PAGE_MASK))
@@ -156,5 +140,4 @@
 
 #define	pgtok(x)	((unsigned long)(x) * (PAGE_SIZE / 1024)) 
 
-#endif /* !_MACHINE_PARAM_H_ */
-#endif /* !_NO_NAMESPACE_POLLUTION */
+#endif /* !_AMD64_INCLUDE_PARAM_H_ */

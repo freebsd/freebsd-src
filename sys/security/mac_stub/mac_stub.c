@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -14,6 +14,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -199,6 +202,93 @@ stub_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 }
 
 static int
+stub_cred_check_setaudit(struct ucred *cred, struct auditinfo *ai)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setauid(struct ucred *cred, uid_t auid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setegid(struct ucred *cred, gid_t egid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_seteuid(struct ucred *cred, uid_t euid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setgid(struct ucred *cred, gid_t gid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setgroups(struct ucred *cred, int ngroups,
+	gid_t *gidset)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
+	gid_t sgid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
+	uid_t suid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
+{
+
+	return (0);
+}
+
+static int
+stub_cred_check_setuid(struct ucred *cred, uid_t uid)
+{
+
+	return (0);
+}
+
+static int
 stub_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 {
 
@@ -322,6 +412,8 @@ static void
 stub_inpcb_sosetlabel(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
+
+	SOCK_LOCK_ASSERT(so);
 
 }
 
@@ -701,93 +793,6 @@ stub_proc_check_sched(struct ucred *cred, struct proc *p)
 }
 
 static int
-stub_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setaudit_addr(struct ucred *cred, struct auditinfo_addr *aia)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setauid(struct ucred *cred, uid_t auid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setegid(struct ucred *cred, gid_t egid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_seteuid(struct ucred *cred, uid_t euid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setgid(struct ucred *cred, gid_t gid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setgroups(struct ucred *cred, int ngroups,
-	gid_t *gidset)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
-	gid_t sgid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
-	uid_t suid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
-{
-
-	return (0);
-}
-
-static int
-stub_proc_check_setuid(struct ucred *cred, uid_t uid)
-{
-
-	return (0);
-}
-
-static int
 stub_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 {
 
@@ -806,6 +811,11 @@ stub_socket_check_accept(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
+
 	return (0);
 }
 
@@ -814,6 +824,11 @@ stub_socket_check_bind(struct ucred *cred, struct socket *so,
     struct label *solabel, struct sockaddr *sa)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
+
 	return (0);
 }
 
@@ -821,6 +836,11 @@ static int
 stub_socket_check_connect(struct ucred *cred, struct socket *so,
     struct label *solabel, struct sockaddr *sa)
 {
+
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 
 	return (0);
 }
@@ -837,6 +857,11 @@ stub_socket_check_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
+
 	return (0);
 }
 
@@ -844,6 +869,11 @@ static int
 stub_socket_check_listen(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
+
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 
 	return (0);
 }
@@ -853,6 +883,11 @@ stub_socket_check_poll(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
+
 	return (0);
 }
 
@@ -860,6 +895,11 @@ static int
 stub_socket_check_receive(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
+
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 
 	return (0);
 }
@@ -869,12 +909,19 @@ stub_socket_check_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 
+	SOCK_LOCK_ASSERT(so);
+
 	return (0);
 }
 static int
 stub_socket_check_send(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
+
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 
 	return (0);
 }
@@ -883,6 +930,11 @@ static int
 stub_socket_check_stat(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
+
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 
 	return (0);
 }
@@ -900,6 +952,11 @@ stub_socket_check_visible(struct ucred *cred, struct socket *so,
    struct label *solabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
+
 	return (0);
 }
 
@@ -915,6 +972,10 @@ stub_socket_create_mbuf(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 }
 
 static void
@@ -922,6 +983,14 @@ stub_socket_newconn(struct socket *oldso, struct label *oldsolabel,
     struct socket *newso, struct label *newsolabel)
 {
 
+#if 0
+	SOCK_LOCK(oldso);
+	SOCK_UNLOCK(oldso);
+#endif
+#if 0
+	SOCK_LOCK(newso);
+	SOCK_UNLOCK(newso);
+#endif
 }
 
 static void
@@ -929,6 +998,7 @@ stub_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 
+	SOCK_LOCK_ASSERT(so);
 }
 
 static void
@@ -936,6 +1006,10 @@ stub_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
     struct socket *so, struct label *sopeerlabel)
 {
 
+#if 0
+	SOCK_LOCK(so);
+	SOCK_UNLOCK(so);
+#endif
 }
 
 static void
@@ -944,6 +1018,14 @@ stub_socketpeer_set_from_socket(struct socket *oldso,
     struct label *newsopeerlabel)
 {
 
+#if 0
+	SOCK_LOCK(oldso);
+	SOCK_UNLOCK(oldso);
+#endif
+#if 0
+	SOCK_LOCK(newso);
+	SOCK_UNLOCK(newso);
+#endif
 }
 
 static void
@@ -1280,8 +1362,7 @@ stub_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
 
 static int
 stub_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 
 	return (0);
@@ -1419,8 +1500,7 @@ stub_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
 
 static int
 stub_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 
 	return (0);
@@ -1541,6 +1621,18 @@ static struct mac_policy_ops stub_ops =
 
 	.mpo_cred_associate_nfsd = stub_cred_associate_nfsd,
 	.mpo_cred_check_relabel = stub_cred_check_relabel,
+	.mpo_cred_check_setaudit = stub_cred_check_setaudit,
+	.mpo_cred_check_setaudit_addr = stub_cred_check_setaudit_addr,
+	.mpo_cred_check_setauid = stub_cred_check_setauid,
+	.mpo_cred_check_setegid = stub_cred_check_setegid,
+	.mpo_cred_check_seteuid = stub_cred_check_seteuid,
+	.mpo_cred_check_setgid = stub_cred_check_setgid,
+	.mpo_cred_check_setgroups = stub_cred_check_setgroups,
+	.mpo_cred_check_setregid = stub_cred_check_setregid,
+	.mpo_cred_check_setresgid = stub_cred_check_setresgid,
+	.mpo_cred_check_setresuid = stub_cred_check_setresuid,
+	.mpo_cred_check_setreuid = stub_cred_check_setreuid,
+	.mpo_cred_check_setuid = stub_cred_check_setuid,
 	.mpo_cred_check_visible = stub_cred_check_visible,
 	.mpo_cred_copy_label = stub_copy_label,
 	.mpo_cred_create_init = stub_cred_create_init,
@@ -1660,18 +1752,6 @@ static struct mac_policy_ops stub_ops =
 
 	.mpo_proc_check_debug = stub_proc_check_debug,
 	.mpo_proc_check_sched = stub_proc_check_sched,
-	.mpo_proc_check_setaudit = stub_proc_check_setaudit,
-	.mpo_proc_check_setaudit_addr = stub_proc_check_setaudit_addr,
-	.mpo_proc_check_setauid = stub_proc_check_setauid,
-	.mpo_proc_check_setegid = stub_proc_check_setegid,
-	.mpo_proc_check_seteuid = stub_proc_check_seteuid,
-	.mpo_proc_check_setgid = stub_proc_check_setgid,
-	.mpo_proc_check_setgroups = stub_proc_check_setgroups,
-	.mpo_proc_check_setregid = stub_proc_check_setregid,
-	.mpo_proc_check_setresgid = stub_proc_check_setresgid,
-	.mpo_proc_check_setresuid = stub_proc_check_setresuid,
-	.mpo_proc_check_setreuid = stub_proc_check_setreuid,
-	.mpo_proc_check_setuid = stub_proc_check_setuid,
 	.mpo_proc_check_signal = stub_proc_check_signal,
 	.mpo_proc_check_wait = stub_proc_check_wait,
 

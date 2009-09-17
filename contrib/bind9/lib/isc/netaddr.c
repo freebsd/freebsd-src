@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: netaddr.c,v 1.27.18.8 2005/04/27 05:02:03 sra Exp $ */
+/* $Id: netaddr.c,v 1.38 2007/06/18 23:47:44 tbox Exp $ */
 
 /*! \file */
 
@@ -79,7 +79,7 @@ isc_netaddr_eqprefix(const isc_netaddr_t *a, const isc_netaddr_t *b,
 	if (a->family != b->family)
 		return (ISC_FALSE);
 
-	if (a->zone != b->zone)
+	if (a->zone != b->zone && b->zone != 0)
 		return (ISC_FALSE);
 
 	switch (a->family) {

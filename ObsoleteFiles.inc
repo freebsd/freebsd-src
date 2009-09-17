@@ -14,6 +14,495 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090909: vesa and dpms promoted to be i386/amd64 common
+OLD_FILES+=usr/include/machine/pc/vesa.h
+OLD_FILES+=usr/share/man/man4/i386/dpms.4.gz
+# 20090904: remove lukemftpd
+OLD_FILES+=usr/libexec/lukemftpd
+OLD_FILES+=usr/share/man/man5/ftpd.conf.5.gz
+OLD_FILES+=usr/share/man/man5/ftpusers.5.gz
+OLD_FILES+=usr/share/man/man8/lukemftpd.8.gz
+# 20090902: BSD.{x11,x11-4}.dist are dead and BSD.local.dist lives in ports/
+OLD_FILES+=etc/mtree/BSD.local.dist
+OLD_FILES+=etc/mtree/BSD.x11.dist
+OLD_FILES+=etc/mtree/BSD.x11-4.dist
+# 20090801: vimage.h removed in favour of vnet.h
+OLD_FILES+=usr/include/sys/vimage.h
+# 20090719: library version bump for 8.0
+OLD_LIBS+=lib/libalias.so.6
+OLD_LIBS+=lib/libavl.so.1
+OLD_LIBS+=lib/libbegemot.so.3
+OLD_LIBS+=lib/libbsdxml.so.3
+OLD_LIBS+=lib/libbsnmp.so.4
+OLD_LIBS+=lib/libcam.so.4
+OLD_LIBS+=lib/libcrypt.so.4
+OLD_LIBS+=lib/libcrypto.so.5
+OLD_LIBS+=lib/libctf.so.1
+OLD_LIBS+=lib/libdevstat.so.6
+OLD_LIBS+=lib/libdtrace.so.1
+OLD_LIBS+=lib/libedit.so.6
+OLD_LIBS+=lib/libgeom.so.4
+OLD_LIBS+=lib/libipsec.so.3
+OLD_LIBS+=lib/libipx.so.4
+OLD_LIBS+=lib/libkiconv.so.3
+OLD_LIBS+=lib/libkvm.so.4
+OLD_LIBS+=lib/libmd.so.4
+OLD_LIBS+=lib/libncurses.so.7
+OLD_LIBS+=lib/libncursesw.so.7
+OLD_LIBS+=lib/libnvpair.so.1
+OLD_LIBS+=lib/libpcap.so.6
+OLD_LIBS+=lib/libreadline.so.7
+OLD_LIBS+=lib/libsbuf.so.4
+OLD_LIBS+=lib/libufs.so.4
+OLD_LIBS+=lib/libumem.so.1
+OLD_LIBS+=lib/libutil.so.7
+OLD_LIBS+=lib/libuutil.so.1
+OLD_LIBS+=lib/libz.so.4
+OLD_LIBS+=lib/libzfs.so.1
+OLD_LIBS+=lib/libzpool.so.1
+OLD_LIBS+=usr/lib/libarchive.so.4
+OLD_LIBS+=usr/lib/libauditd.so.4
+OLD_LIBS+=usr/lib/libbluetooth.so.3
+OLD_LIBS+=usr/lib/libbsm.so.2
+OLD_LIBS+=usr/lib/libbz2.so.3
+OLD_LIBS+=usr/lib/libcalendar.so.4
+OLD_LIBS+=usr/lib/libcom_err.so.4
+OLD_LIBS+=usr/lib/libdevinfo.so.4
+OLD_LIBS+=usr/lib/libdialog.so.6
+OLD_LIBS+=usr/lib/libdwarf.so.1
+OLD_LIBS+=usr/lib/libfetch.so.5
+OLD_LIBS+=usr/lib/libform.so.4
+OLD_LIBS+=usr/lib/libformw.so.4
+OLD_LIBS+=usr/lib/libftpio.so.7
+OLD_LIBS+=usr/lib/libgnuregex.so.4
+OLD_LIBS+=usr/lib/libgpib.so.2
+OLD_LIBS+=usr/lib/libhistory.so.7
+OLD_LIBS+=usr/lib/libmagic.so.3
+OLD_LIBS+=usr/lib/libmemstat.so.2
+OLD_LIBS+=usr/lib/libmenu.so.4
+OLD_LIBS+=usr/lib/libmenuw.so.4
+OLD_LIBS+=usr/lib/libmilter.so.4
+OLD_LIBS+=usr/lib/libncp.so.3
+OLD_LIBS+=usr/lib/libnetgraph.so.3
+OLD_LIBS+=usr/lib/libngatm.so.3
+OLD_LIBS+=usr/lib/libobjc.so.3
+OLD_LIBS+=usr/lib/libopie.so.5
+OLD_LIBS+=usr/lib/libpam.so.4
+OLD_LIBS+=usr/lib/libpanel.so.4
+OLD_LIBS+=usr/lib/libpanelw.so.4
+OLD_LIBS+=usr/lib/libpmc.so.4
+OLD_LIBS+=usr/lib/libproc.so.1
+OLD_LIBS+=usr/lib/libradius.so.3
+OLD_LIBS+=usr/lib/librpcsvc.so.4
+OLD_LIBS+=usr/lib/libsdp.so.3
+OLD_LIBS+=usr/lib/libsmb.so.3
+OLD_LIBS+=usr/lib/libssh.so.4
+OLD_LIBS+=usr/lib/libssl.so.5
+OLD_LIBS+=usr/lib/libtacplus.so.3
+OLD_LIBS+=usr/lib/libugidfw.so.3
+OLD_LIBS+=usr/lib/libusb.so.1
+OLD_LIBS+=usr/lib/libusbhid.so.3
+OLD_LIBS+=usr/lib/libvgl.so.5
+OLD_LIBS+=usr/lib/libwrap.so.5
+OLD_LIBS+=usr/lib/libypclnt.so.3
+OLD_LIBS+=usr/lib/pam_chroot.so.4
+OLD_LIBS+=usr/lib/pam_deny.so.4
+OLD_LIBS+=usr/lib/pam_echo.so.4
+OLD_LIBS+=usr/lib/pam_exec.so.4
+OLD_LIBS+=usr/lib/pam_ftpusers.so.4
+OLD_LIBS+=usr/lib/pam_group.so.4
+OLD_LIBS+=usr/lib/pam_guest.so.4
+OLD_LIBS+=usr/lib/pam_krb5.so.4
+OLD_LIBS+=usr/lib/pam_ksu.so.4
+OLD_LIBS+=usr/lib/pam_lastlog.so.4
+OLD_LIBS+=usr/lib/pam_login_access.so.4
+OLD_LIBS+=usr/lib/pam_nologin.so.4
+OLD_LIBS+=usr/lib/pam_opie.so.4
+OLD_LIBS+=usr/lib/pam_opieaccess.so.4
+OLD_LIBS+=usr/lib/pam_passwdqc.so.4
+OLD_LIBS+=usr/lib/pam_permit.so.4
+OLD_LIBS+=usr/lib/pam_radius.so.4
+OLD_LIBS+=usr/lib/pam_rhosts.so.4
+OLD_LIBS+=usr/lib/pam_rootok.so.4
+OLD_LIBS+=usr/lib/pam_securetty.so.4
+OLD_LIBS+=usr/lib/pam_self.so.4
+OLD_LIBS+=usr/lib/pam_ssh.so.4
+OLD_LIBS+=usr/lib/pam_tacplus.so.4
+OLD_LIBS+=usr/lib/pam_unix.so.4
+OLD_LIBS+=usr/lib/snmp_atm.so.5
+OLD_LIBS+=usr/lib/snmp_bridge.so.5
+OLD_LIBS+=usr/lib/snmp_hostres.so.5
+OLD_LIBS+=usr/lib/snmp_mibII.so.5
+OLD_LIBS+=usr/lib/snmp_netgraph.so.5
+OLD_LIBS+=usr/lib/snmp_pf.so.5
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libalias.so.6
+OLD_LIBS+=usr/lib32/libarchive.so.4
+OLD_LIBS+=usr/lib32/libauditd.so.4
+OLD_LIBS+=usr/lib32/libavl.so.1
+OLD_LIBS+=usr/lib32/libbegemot.so.3
+OLD_LIBS+=usr/lib32/libbluetooth.so.3
+OLD_LIBS+=usr/lib32/libbsdxml.so.3
+OLD_LIBS+=usr/lib32/libbsm.so.2
+OLD_LIBS+=usr/lib32/libbsnmp.so.4
+OLD_LIBS+=usr/lib32/libbz2.so.3
+OLD_LIBS+=usr/lib32/libcalendar.so.4
+OLD_LIBS+=usr/lib32/libcam.so.4
+OLD_LIBS+=usr/lib32/libcom_err.so.4
+OLD_LIBS+=usr/lib32/libcrypt.so.4
+OLD_LIBS+=usr/lib32/libcrypto.so.5
+OLD_LIBS+=usr/lib32/libctf.so.1
+OLD_LIBS+=usr/lib32/libdevinfo.so.4
+OLD_LIBS+=usr/lib32/libdevstat.so.6
+OLD_LIBS+=usr/lib32/libdialog.so.6
+OLD_LIBS+=usr/lib32/libdtrace.so.1
+OLD_LIBS+=usr/lib32/libdwarf.so.1
+OLD_LIBS+=usr/lib32/libedit.so.6
+OLD_LIBS+=usr/lib32/libfetch.so.5
+OLD_LIBS+=usr/lib32/libform.so.4
+OLD_LIBS+=usr/lib32/libformw.so.4
+OLD_LIBS+=usr/lib32/libftpio.so.7
+OLD_LIBS+=usr/lib32/libgeom.so.4
+OLD_LIBS+=usr/lib32/libgnuregex.so.4
+OLD_LIBS+=usr/lib32/libgpib.so.2
+OLD_LIBS+=usr/lib32/libhistory.so.7
+OLD_LIBS+=usr/lib32/libipsec.so.3
+OLD_LIBS+=usr/lib32/libipx.so.4
+OLD_LIBS+=usr/lib32/libkiconv.so.3
+OLD_LIBS+=usr/lib32/libkvm.so.4
+OLD_LIBS+=usr/lib32/libmagic.so.3
+OLD_LIBS+=usr/lib32/libmd.so.4
+OLD_LIBS+=usr/lib32/libmemstat.so.2
+OLD_LIBS+=usr/lib32/libmenu.so.4
+OLD_LIBS+=usr/lib32/libmenuw.so.4
+OLD_LIBS+=usr/lib32/libmilter.so.4
+OLD_LIBS+=usr/lib32/libncp.so.3
+OLD_LIBS+=usr/lib32/libncurses.so.7
+OLD_LIBS+=usr/lib32/libncursesw.so.7
+OLD_LIBS+=usr/lib32/libnetgraph.so.3
+OLD_LIBS+=usr/lib32/libngatm.so.3
+OLD_LIBS+=usr/lib32/libnvpair.so.1
+OLD_LIBS+=usr/lib32/libobjc.so.3
+OLD_LIBS+=usr/lib32/libopie.so.5
+OLD_LIBS+=usr/lib32/libpam.so.4
+OLD_LIBS+=usr/lib32/libpanel.so.4
+OLD_LIBS+=usr/lib32/libpanelw.so.4
+OLD_LIBS+=usr/lib32/libpcap.so.6
+OLD_LIBS+=usr/lib32/libpmc.so.4
+OLD_LIBS+=usr/lib32/libproc.so.1
+OLD_LIBS+=usr/lib32/libradius.so.3
+OLD_LIBS+=usr/lib32/libreadline.so.7
+OLD_LIBS+=usr/lib32/librpcsvc.so.4
+OLD_LIBS+=usr/lib32/libsbuf.so.4
+OLD_LIBS+=usr/lib32/libsdp.so.3
+OLD_LIBS+=usr/lib32/libsmb.so.3
+OLD_LIBS+=usr/lib32/libssh.so.4
+OLD_LIBS+=usr/lib32/libssl.so.5
+OLD_LIBS+=usr/lib32/libtacplus.so.3
+OLD_LIBS+=usr/lib32/libufs.so.4
+OLD_LIBS+=usr/lib32/libugidfw.so.3
+OLD_LIBS+=usr/lib32/libumem.so.1
+OLD_LIBS+=usr/lib32/libusb.so.1
+OLD_LIBS+=usr/lib32/libusbhid.so.3
+OLD_LIBS+=usr/lib32/libutil.so.7
+OLD_LIBS+=usr/lib32/libuutil.so.1
+OLD_LIBS+=usr/lib32/libvgl.so.5
+OLD_LIBS+=usr/lib32/libwrap.so.5
+OLD_LIBS+=usr/lib32/libypclnt.so.3
+OLD_LIBS+=usr/lib32/libz.so.4
+OLD_LIBS+=usr/lib32/libzfs.so.1
+OLD_LIBS+=usr/lib32/libzpool.so.1
+OLD_LIBS+=usr/lib32/pam_chroot.so.4
+OLD_LIBS+=usr/lib32/pam_deny.so.4
+OLD_LIBS+=usr/lib32/pam_echo.so.4
+OLD_LIBS+=usr/lib32/pam_exec.so.4
+OLD_LIBS+=usr/lib32/pam_ftpusers.so.4
+OLD_LIBS+=usr/lib32/pam_group.so.4
+OLD_LIBS+=usr/lib32/pam_guest.so.4
+OLD_LIBS+=usr/lib32/pam_krb5.so.4
+OLD_LIBS+=usr/lib32/pam_ksu.so.4
+OLD_LIBS+=usr/lib32/pam_lastlog.so.4
+OLD_LIBS+=usr/lib32/pam_login_access.so.4
+OLD_LIBS+=usr/lib32/pam_nologin.so.4
+OLD_LIBS+=usr/lib32/pam_opie.so.4
+OLD_LIBS+=usr/lib32/pam_opieaccess.so.4
+OLD_LIBS+=usr/lib32/pam_passwdqc.so.4
+OLD_LIBS+=usr/lib32/pam_permit.so.4
+OLD_LIBS+=usr/lib32/pam_radius.so.4
+OLD_LIBS+=usr/lib32/pam_rhosts.so.4
+OLD_LIBS+=usr/lib32/pam_rootok.so.4
+OLD_LIBS+=usr/lib32/pam_securetty.so.4
+OLD_LIBS+=usr/lib32/pam_self.so.4
+OLD_LIBS+=usr/lib32/pam_ssh.so.4
+OLD_LIBS+=usr/lib32/pam_tacplus.so.4
+OLD_LIBS+=usr/lib32/pam_unix.so.4
+.endif
+# 20090718: the gdm pam.d file is no longer required.
+OLD_FILES+=etc/pam.d/gdm
+# 20090713: vimage container structs removed.
+OLD_FILES+=usr/include/netinet/vinet.h
+OLD_FILES+=usr/include/netinet6/vinet6.h
+OLD_FILES+=usr/include/netipsec/vipsec.h
+# 20090712: ieee80211.4 -> net80211.4
+OLD_FILES+=usr/share/man/man4/ieee80211.4.gz
+# 20090711: typo fixed, kproc_resume,.9 -> kproc_resume.9
+OLD_FILES+=usr/share/man/man9/kproc_resume,.9.gz
+# 20090709: msgctl.3 msgget.3 msgrcv.3 msgsnd.3 manual pages moved
+OLD_FILES+=usr/share/man/man3/msgctl.3.gz
+OLD_FILES+=usr/share/man/man3/msgget.3.gz
+OLD_FILES+=usr/share/man/man3/msgrcv.3.gz
+OLD_FILES+=usr/share/man/man3/msgsnd.3.gz
+# 20090630: old kernel RPC implementation removal
+OLD_FILES+=usr/include/nfs/rpcv2.h
+# 20090624: update usbdi(9)
+OLD_FILES+=usr/share/man/man9/usbd_abort_default_pipe.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_abort_pipe.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_alloc_buffer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_alloc_xfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_stall.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_stall_async.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_clear_endpoint_toggle.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_close_pipe.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_device2interface_handle.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_do_request_async.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_do_request_flags_pipe.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_endpoint_count.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_find_edesc.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_find_idesc.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_free_buffer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_free_xfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_buffer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_config.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_config_desc.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_config_desc_full.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_config_descriptor.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_device_descriptor.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_endpoint_descriptor.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_interface_altindex.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_interface_descriptor.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_no_alts.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_quirks.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_speed.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_string.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_string_desc.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_get_xfer_status.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_interface2device_handle.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_interface2endpoint_descriptor.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_interface_count.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_open_pipe.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_open_pipe_intr.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_pipe2device_handle.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_set_config_index.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_set_config_no.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_set_interface.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_setup_default_xfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_setup_isoc_xfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_setup_xfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_sync_transfer.9.gz
+OLD_FILES+=usr/share/man/man9/usbd_transfer.9.gz
+OLD_FILES+=usr/share/man/man9/usb_find_desc.9.gz
+# 20090623: number of headers needed for a usb driver reduced
+OLD_FILES+=usr/include/dev/usb/usb_defs.h
+OLD_FILES+=usr/include/dev/usb/usb_error.h
+OLD_FILES+=usr/include/dev/usb/usb_handle_request.h
+OLD_FILES+=usr/include/dev/usb/usb_hid.h
+OLD_FILES+=usr/include/dev/usb/usb_lookup.h
+OLD_FILES+=usr/include/dev/usb/usb_mfunc.h
+OLD_FILES+=usr/include/dev/usb/usb_parse.h
+OLD_FILES+=usr/include/dev/usb/usb_revision.h
+# 20090609: devclass_add_driver is no longer public
+OLD_FILES+=usr/share/man/man9/devclass_add_driver.9.gz
+OLD_FILES+=usr/share/man/man9/devclass_delete_driver.9.gz
+OLD_FILES+=usr/share/man/man9/devclass_find_driver.9.gz
+# 20090605: removal of clists
+OLD_FILES+=usr/include/sys/clist.h
+# 20090602: removal of window(1)
+OLD_FILES+=usr/bin/window
+OLD_FILES+=usr/share/man/man1/window.1.gz
+# 20090531: bind 9.6.1rc1 import
+OLD_LIBS+=usr/lib/liblwres.so.30
+# 20090530: removal of early.sh
+OLD_FILES+=etc/rc.d/early.sh
+# 20090527: renaming of S{LIST,TAILQ}_REMOVE_NEXT() to _REMOVE_AFTER()
+OLD_FILES+=usr/share/man/man3/SLIST_REMOVE_NEXT.3.gz
+OLD_FILES+=usr/share/man/man3/STAILQ_REMOVE_NEXT.3.gz
+# 20090527: removal of legacy USB stack
+OLD_FILES+=usr/include/legacy/dev/usb/dsbr100io.h
+OLD_FILES+=usr/include/legacy/dev/usb/ehcireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/ehcivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/hid.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_urtwreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_urtwvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/ohcireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/ohcivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/rio500_usb.h
+OLD_FILES+=usr/include/legacy/dev/usb/rt2573_ucode.h
+OLD_FILES+=usr/include/legacy/dev/usb/sl811hsreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/sl811hsvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/ubser.h
+OLD_FILES+=usr/include/legacy/dev/usb/ucomvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/udbp.h
+OLD_FILES+=usr/include/legacy/dev/usb/uftdireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/ugraphire_rdesc.h
+OLD_FILES+=usr/include/legacy/dev/usb/uhcireg.h
+OLD_FILES+=usr/include/legacy/dev/usb/uhcivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_mem.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_port.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_quirks.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbcdc.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbdi.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbdi_util.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbdivar.h
+OLD_FILES+=usr/include/legacy/dev/usb/usbhid.h
+OLD_FILES+=usr/include/legacy/dev/usb/uxb360gp_rdesc.h
+OLD_DIRS+=usr/include/legacy/dev/usb
+OLD_DIRS+=usr/include/legacy/dev
+OLD_DIRS+=usr/include/legacy
+# 20090526: removal of makekey(8)
+OLD_FILES+=usr/libexec/makekey
+OLD_FILES+=usr/share/man/man8/makekey.8.gz
+# 20090522: removal of University of Michigan NFSv4 client
+OLD_FILES+=etc/rc.d/idmapd
+OLD_FILES+=sbin/idmapd
+OLD_FILES+=sbin/mount_nfs4
+OLD_FILES+=usr/share/man/man8/idmapd.8.gz
+OLD_FILES+=usr/share/man/man8/mount_nfs4.8.gz
+# 20090513: removal of legacy versions of USB network interface drivers
+OLD_FILES+=usr/include/legacy/dev/usb/if_upgtvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/usb_ethersubr.h
+# 20090417: removal of legacy versions of USB network interface drivers
+OLD_FILES+=usr/include/legacy/dev/usb/if_auereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_axereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_cdcereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_cuereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_kuereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_ruereg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_rumreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_rumvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_udavreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_uralreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_uralvar.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_zydfw.h
+OLD_FILES+=usr/include/legacy/dev/usb/if_zydreg.h
+OLD_FILES+=usr/include/legacy/dev/usb/kue_fw.h
+# 20090416: removal of ar(4), ray(4), sr(4), raycontrol(8)
+OLD_FILES+=usr/sbin/raycontrol
+OLD_FILES+=usr/share/man/man4/i386/ar.4.gz
+OLD_FILES+=usr/share/man/man4/i386/ray.4.gz
+OLD_FILES+=usr/share/man/man4/i386/sr.4.gz
+OLD_FILES+=usr/share/man/man8/raycontrol.8.gz
+# 20090410: VOP_LEASE.9 removed
+OLD_FILES+=usr/share/man/man9/VOP_LEASE.9.gz
+# 20090406: usb_sw_transfer.h removed
+OLD_FILES+=usr/include/dev/usb/usb_sw_transfer.h
+# 20090405: removal of if_ppp(4) and if_sl(4)
+OLD_FILES+=sbin/slattach rescue/slattach
+OLD_FILES+=sbin/startslip rescue/startslip
+OLD_FILES+=usr/include/net/if_ppp.h
+OLD_FILES+=usr/include/net/if_pppvar.h
+OLD_FILES+=usr/include/net/if_slvar.h
+OLD_FILES+=usr/include/net/ppp_comp.h
+OLD_FILES+=usr/include/net/slip.h
+OLD_FILES+=usr/sbin/sliplogin
+OLD_FILES+=usr/sbin/slstat
+OLD_FILES+=usr/sbin/pppd
+OLD_FILES+=usr/sbin/pppstats
+OLD_FILES+=usr/share/man/man1/startslip.1.gz
+OLD_FILES+=usr/share/man/man4/if_ppp.4.gz
+OLD_FILES+=usr/share/man/man4/if_sl.4.gz
+OLD_FILES+=usr/share/man/man4/ppp.4.gz
+OLD_FILES+=usr/share/man/man4/sl.4.gz
+OLD_FILES+=usr/share/man/man8/pppd.8.gz
+OLD_FILES+=usr/share/man/man8/pppstats.8.gz
+OLD_FILES+=usr/share/man/man8/slattach.8.gz
+OLD_FILES+=usr/share/man/man8/slip.8.gz
+OLD_FILES+=usr/share/man/man8/sliplogin.8.gz
+OLD_FILES+=usr/share/man/man8/slstat.8.gz
+# 20090321: libpcap upgraded to 1.0.0
+OLD_LIBS+=lib/libpcap.so.5
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libpcap.so.5
+.endif
+# 20090319: uscanner(4) has been removed
+OLD_FILES+=usr/share/man/man4/uscanner.4.gz
+# 20090313: k8temp(4) renamed to amdtemp(4)
+OLD_FILES+=usr/share/man/man4/k8temp.4.gz
+# 20090308: libusb.so.1 renamed
+OLD_LIBS+=usr/lib/libusb20.so.1
+OLD_FILES+=usr/lib/libusb20.a
+OLD_FILES+=usr/lib/libusb20.so
+OLD_FILES+=usr/lib/libusb20_p.a
+OLD_FILES+=usr/include/libusb20_compat01.h
+OLD_FILES+=usr/include/libusb20_compat10.h
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libusb20.so.1
+OLD_FILES+=usr/lib32/libusb20.a
+OLD_FILES+=usr/lib32/libusb20.so
+OLD_FILES+=usr/lib32/libusb20_p.a
+.endif
+# 20090226: libmp(3) functions renamed
+OLD_LIBS+=usr/lib/libmp.so.6
+.if ${TARGET_ARCH} == "amd64"
+OLD_LIBS+=usr/lib32/libmp.so.6
+.endif
+# 20090223: changeover of USB stacks
+OLD_FILES+=usr/include/dev/usb2/include/ufm2_ioctl.h
+OLD_FILES+=usr/include/dev/usb2/include/urio2_ioctl.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_cdc.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_defs.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_devid.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_devtable.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_endian.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_error.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_hid.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_ioctl.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_mfunc.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_revision.h
+OLD_FILES+=usr/include/dev/usb2/include/usb2_standard.h
+OLD_DIRS+=usr/include/dev/usb2/include
+OLD_DIRS+=usr/include/dev/usb2
+OLD_FILES+=usr/include/dev/usb/dsbr100io.h
+OLD_FILES+=usr/include/dev/usb/ehcireg.h
+OLD_FILES+=usr/include/dev/usb/ehcivar.h
+OLD_FILES+=usr/include/dev/usb/hid.h
+OLD_FILES+=usr/include/dev/usb/if_auereg.h
+OLD_FILES+=usr/include/dev/usb/if_axereg.h
+OLD_FILES+=usr/include/dev/usb/if_cdcereg.h
+OLD_FILES+=usr/include/dev/usb/if_cuereg.h
+OLD_FILES+=usr/include/dev/usb/if_kuereg.h
+OLD_FILES+=usr/include/dev/usb/if_ruereg.h
+OLD_FILES+=usr/include/dev/usb/if_rumreg.h
+OLD_FILES+=usr/include/dev/usb/if_rumvar.h
+OLD_FILES+=usr/include/dev/usb/if_udavreg.h
+OLD_FILES+=usr/include/dev/usb/if_upgtvar.h
+OLD_FILES+=usr/include/dev/usb/if_uralreg.h
+OLD_FILES+=usr/include/dev/usb/if_uralvar.h
+OLD_FILES+=usr/include/dev/usb/if_urtwreg.h
+OLD_FILES+=usr/include/dev/usb/if_urtwvar.h
+OLD_FILES+=usr/include/dev/usb/if_zydfw.h
+OLD_FILES+=usr/include/dev/usb/if_zydreg.h
+OLD_FILES+=usr/include/dev/usb/kue_fw.h
+OLD_FILES+=usr/include/dev/usb/ohcireg.h
+OLD_FILES+=usr/include/dev/usb/ohcivar.h
+OLD_FILES+=usr/include/dev/usb/rio500_usb.h
+OLD_FILES+=usr/include/dev/usb/rt2573_ucode.h
+OLD_FILES+=usr/include/dev/usb/sl811hsreg.h
+OLD_FILES+=usr/include/dev/usb/sl811hsvar.h
+OLD_FILES+=usr/include/dev/usb/ubser.h
+OLD_FILES+=usr/include/dev/usb/ucomvar.h
+OLD_FILES+=usr/include/dev/usb/udbp.h
+OLD_FILES+=usr/include/dev/usb/uftdireg.h
+OLD_FILES+=usr/include/dev/usb/ugraphire_rdesc.h
+OLD_FILES+=usr/include/dev/usb/uhcireg.h
+OLD_FILES+=usr/include/dev/usb/uhcivar.h
+OLD_FILES+=usr/include/dev/usb/usb_ethersubr.h
+OLD_FILES+=usr/include/dev/usb/usb_mem.h
+OLD_FILES+=usr/include/dev/usb/usb_port.h
+OLD_FILES+=usr/include/dev/usb/usb_quirks.h
+OLD_FILES+=usr/include/dev/usb/usbcdc.h
+OLD_FILES+=usr/include/dev/usb/usbdivar.h
+OLD_FILES+=usr/include/dev/usb/uxb360gp_rdesc.h
 # 20090203: removal of pccard header files
 OLD_FILES+=usr/include/pccard/cardinfo.h
 OLD_FILES+=usr/include/pccard/cis.h
@@ -326,8 +815,6 @@ OLD_FILES+=rescue/bsdlabel
 OLD_FILES+=rescue/fdisk
 OLD_FILES+=rescue/gpt
 .endif
-# 20071026: kthread(9)/kproc(9) API changes
-OLD_FILES+=usr/share/man/man9/kthread_create.9.gz
 # 20071025: rc.d/nfslocking superceeded by rc.d/lockd and rc.d/statd
 OLD_FILES+=etc/rc.d/nfslocking
 # 20070930: rename of cached to nscd
@@ -1371,6 +1858,8 @@ OLD_FILES+=lib/geom/geom_concat.so.1
 OLD_FILES+=lib/geom/geom_label.so.1
 OLD_FILES+=lib/geom/geom_nop.so.1
 OLD_FILES+=lib/geom/geom_stripe.so.1
+# 20040713: fla(4) removed.
+OLD_FILES+=usr/share/man/man4/fla.4.gz
 # 200407XX
 OLD_FILES+=usr/sbin/kernbb
 OLD_FILES+=usr/sbin/ntp-genkeys
@@ -1597,7 +2086,6 @@ OLD_FILES+=usr/sbin/kenv
 OLD_FILES+=usr/bin/kenv
 OLD_FILES+=usr/sbin/elf2aout
 # 200210XX
-OLD_FILES+=usr/include/libusb.h
 OLD_FILES+=usr/include/libusbhid.h
 OLD_FILES+=usr/share/man/man3/All_FreeBSD.3.gz
 OLD_FILES+=usr/share/man/man3/CheckRules.3.gz
@@ -1707,9 +2195,6 @@ OLD_FILES+=usr/lib/libss.a
 OLD_FILES+=usr/lib/libss_p.a
 OLD_FILES+=usr/lib/libtelnet.a
 OLD_FILES+=usr/lib/libtelnet_p.a
-OLD_FILES+=usr/lib/libusb.a
-OLD_FILES+=usr/lib/libusb.so
-OLD_FILES+=usr/lib/libusb_p.a
 OLD_FILES+=usr/sbin/diskpart
 # 200202XX
 OLD_FILES+=usr/bin/gprof4

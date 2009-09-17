@@ -27,18 +27,18 @@ cpu		CPU_XSCALE_PXA2X0
 hints		"GUMSTIX.hints"
 
 options 	PHYSADDR=0xa0000000
-options		KERNPHYSADDR=0xa0200000	
-options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
+options 	KERNPHYSADDR=0xa0200000	
+options 	KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
 
-options		STARTUP_PAGETABLE_ADDR=0xa0000000
+options 	STARTUP_PAGETABLE_ADDR=0xa0000000
 include		"../xscale/pxa/std.pxa"
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		#Default places to look for devices.
 makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-options		HZ=100
-#options		DEVICE_POLLING
+options 	HZ=100
+#options 	DEVICE_POLLING
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
@@ -62,13 +62,13 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options		BOOTP
-options		BOOTP_NFSROOT
-options		BOOTP_WIRED_TO=smc0
-options		BOOTP_COMPAT
-options		BOOTP_NFSV3
-options		BOOTP_BLOCKSIZE=4096
-options		PREEMPTION
+options 	BOOTP
+options 	BOOTP_NFSROOT
+options 	BOOTP_WIRED_TO=smc0
+options 	BOOTP_COMPAT
+options 	BOOTP_NFSV3
+options 	BOOTP_BLOCKSIZE=4096
+options 	PREEMPTION
 device		loop
 device		ether
 device		mii
@@ -80,7 +80,7 @@ device		uart_ns8250
 device		pty
 
 # Debugging for use in -current
-options		KDB
+options 	KDB
 options 	DDB			#Enable the kernel debugger
 #options 	INVARIANTS		#Enable calls of extra sanity checking
 #options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
@@ -89,4 +89,4 @@ options 	DDB			#Enable the kernel debugger
 #options 	DIAGNOSTIC
 
 device		md
-device          random          # Entropy device
+device		random		# Entropy device

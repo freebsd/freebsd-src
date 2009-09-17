@@ -67,9 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
 #include <dev/iir/iir.h>
 
 MALLOC_DEFINE(M_GDTBUF, "iirbuf", "iir driver buffer");

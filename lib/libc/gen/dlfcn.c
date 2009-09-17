@@ -105,6 +105,14 @@ dlsym(void * __restrict handle, const char * __restrict name)
 	return NULL;
 }
 
+#pragma weak dlfunc
+dlfunc_t
+dlfunc(void * __restrict handle, const char * __restrict name)
+{
+	_rtld_error(sorry);
+	return NULL;
+}
+
 #pragma weak dlvsym
 void *
 dlvsym(void * __restrict handle, const char * __restrict name,

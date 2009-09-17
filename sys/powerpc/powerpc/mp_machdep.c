@@ -30,15 +30,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/bus.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
+#include <machine/platform.h>
+#include <machine/md_var.h>
 #include <machine/smp.h>
 
 #include "pic_if.h"
@@ -46,30 +56,35 @@ __FBSDID("$FreeBSD$");
 extern struct pcpu __pcpu[MAXCPU];
 
 volatile static int ap_awake;
-volatile static u_int ap_state;
+volatile static u_int ap_letgo;
 volatile static uint32_t ap_decr;
-volatile static uint32_t ap_tbl;
+volatile static u_quad_t ap_timebase;
+static u_int ipi_msg_cnt[32];
 
 void
 machdep_ap_bootstrap(void)
 {
 
-	pcpup->pc_awake = 1;
+	PCPU_SET(pir, mfspr(SPR_PIR));
+	PCPU_SET(awake, 1);
+	__asm __volatile("msync; isync");
 
-	while (ap_state == 0)
+	while (ap_letgo == 0)
 		;
 
-	mtspr(SPR_TBL, 0);
-	mtspr(SPR_TBU, 0);
-	mtspr(SPR_TBL, ap_tbl);
+	/* Initialize DEC and TB, sync with the BSP values */
+	decr_ap_init();
+	mttb(ap_timebase);
 	__asm __volatile("mtdec %0" :: "r"(ap_decr));
 
-	ap_awake++;
+	atomic_add_int(&ap_awake, 1);
+	CTR1(KTR_SMP, "SMP: AP CPU%d launched", PCPU_GET(cpuid));
 
-	/* Initialize curthread. */
+	/* Initialize curthread */
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 	PCPU_SET(curpcb, curthread->td_pcb);
 
+	/* Let the DEC and external interrupts go */
 	mtmsr(mfmsr() | PSL_EE);
 	sched_throw(NULL);
 }
@@ -88,10 +103,10 @@ cpu_mp_setmaxid(void)
 	int error;
 
 	mp_ncpus = 0;
-	error = powerpc_smp_first_cpu(&cpuref);
+	error = platform_smp_first_cpu(&cpuref);
 	while (!error) {
 		mp_ncpus++;
-		error = powerpc_smp_next_cpu(&cpuref);
+		error = platform_smp_next_cpu(&cpuref);
 	}
 	/* Sanity. */
 	if (mp_ncpus == 0)
@@ -121,11 +136,11 @@ cpu_mp_start(void)
 	struct pcpu *pc;
 	int error;
 
-	error = powerpc_smp_get_bsp(&bsp);
+	error = platform_smp_get_bsp(&bsp);
 	KASSERT(error == 0, ("Don't know BSP"));
 	KASSERT(bsp.cr_cpuid == 0, ("%s: cpuid != 0", __func__));
 
-	error = powerpc_smp_first_cpu(&cpu);
+	error = platform_smp_first_cpu(&cpu);
 	while (!error) {
 		if (cpu.cr_cpuid >= MAXCPU) {
 			printf("SMP: cpu%d: skipped -- ID out of range\n",
@@ -138,8 +153,12 @@ cpu_mp_start(void)
 			goto next;
 		}
 		if (cpu.cr_cpuid != bsp.cr_cpuid) {
+			void *dpcpu;
+
 			pc = &__pcpu[cpu.cr_cpuid];
+			dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
 			pcpu_init(pc, cpu.cr_cpuid, sizeof(*pc));
+			dpcpu_init(dpcpu, cpu.cr_cpuid);
 		} else {
 			pc = pcpup;
 			pc->pc_cpuid = bsp.cr_cpuid;
@@ -148,9 +167,8 @@ cpu_mp_start(void)
 		pc->pc_cpumask = 1 << pc->pc_cpuid;
 		pc->pc_hwref = cpu.cr_hwref;
 		all_cpus |= pc->pc_cpumask;
-
- next:
-		error = powerpc_smp_next_cpu(&cpu);
+next:
+		error = platform_smp_next_cpu(&cpu);
 	}
 }
 
@@ -175,7 +193,7 @@ static void
 cpu_mp_unleash(void *dummy)
 {
 	struct pcpu *pc;
-	int cpus;
+	int cpus, timeout;
 
 	if (mp_ncpus <= 1)
 		return;
@@ -186,35 +204,47 @@ cpu_mp_unleash(void *dummy)
 		cpus++;
 		pc->pc_other_cpus = all_cpus & ~pc->pc_cpumask;
 		if (!pc->pc_bsp) {
-			printf("Waking up CPU %d (dev=%x)\n", pc->pc_cpuid,
-			    pc->pc_hwref);
-			powerpc_smp_start_cpu(pc);
+			if (bootverbose)
+				printf("Waking up CPU %d (dev=%x)\n",
+				    pc->pc_cpuid, pc->pc_hwref);
+
+			platform_smp_start_cpu(pc);
+			
+			timeout = 2000;	/* wait 2sec for the AP */
+			while (!pc->pc_awake && --timeout > 0)
+				DELAY(1000);
+
 		} else {
-			__asm __volatile("mfspr %0,1023" : "=r"(pc->pc_pir));
+			PCPU_SET(pir, mfspr(SPR_PIR));
 			pc->pc_awake = 1;
 		}
-		if (pc->pc_awake)
+		if (pc->pc_awake) {
+			if (bootverbose)
+				printf("Adding CPU %d, pir=%x, awake=%x\n",
+				    pc->pc_cpuid, pc->pc_pir, pc->pc_awake);
 			smp_cpus++;
+		} else
+			stopped_cpus |= (1 << pc->pc_cpuid);
 	}
 
 	ap_awake = 1;
 
-	__asm __volatile("mftb %0" : "=r"(ap_tbl));
-	ap_tbl += 10;
+	/* Provide our current DEC and TB values for APs */
 	__asm __volatile("mfdec %0" : "=r"(ap_decr));
-	ap_state++;
-	powerpc_sync();
+	ap_timebase = mftb() + 10;
+	__asm __volatile("msync; isync");
+	
+	/* Let APs continue */
+	atomic_store_rel_int(&ap_letgo, 1);
 
-	mtspr(SPR_TBL, 0);
-	mtspr(SPR_TBU, 0);
-	mtspr(SPR_TBL, ap_tbl);
+	mttb(ap_timebase);
 
 	while (ap_awake < smp_cpus)
 		;
 
 	if (smp_cpus != cpus || cpus != mp_ncpus) {
 		printf("SMP: %d CPUs found; %d CPUs usable; %d CPUs woken\n",
-			mp_ncpus, cpus, smp_cpus);
+		    mp_ncpus, cpus, smp_cpus);
 	}
 
 	smp_active = 1;
@@ -223,14 +253,14 @@ cpu_mp_unleash(void *dummy)
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
 
-static u_int ipi_msg_cnt[32];
-
 int
 powerpc_ipi_handler(void *arg)
 {
 	cpumask_t self;
 	uint32_t ipimask;
 	int msg;
+
+	CTR2(KTR_SMP, "%s: MSR 0x%08x", __func__, mfmsr());
 
 	ipimask = atomic_readandclear_32(&(pcpup->pc_ipimask));
 	if (ipimask == 0)
@@ -240,14 +270,24 @@ powerpc_ipi_handler(void *arg)
 		ipi_msg_cnt[msg]++;
 		switch (msg) {
 		case IPI_AST:
+			CTR1(KTR_SMP, "%s: IPI_AST", __func__);
 			break;
 		case IPI_PREEMPT:
+			CTR1(KTR_SMP, "%s: IPI_PREEMPT", __func__);
 			sched_preempt(curthread);
 			break;
 		case IPI_RENDEZVOUS:
+			CTR1(KTR_SMP, "%s: IPI_RENDEZVOUS", __func__);
 			smp_rendezvous_action();
 			break;
 		case IPI_STOP:
+
+			/*
+			 * IPI_STOP_HARD is mapped to IPI_STOP so it is not
+			 * necessary to add such case in the switch.
+			 */
+			CTR1(KTR_SMP, "%s: IPI_STOP or IPI_STOP_HARD (stop)",
+			    __func__);
 			self = PCPU_GET(cpumask);
 			savectx(PCPU_GET(curpcb));
 			atomic_set_int(&stopped_cpus, self);
@@ -255,6 +295,7 @@ powerpc_ipi_handler(void *arg)
 				cpu_spinwait();
 			atomic_clear_int(&started_cpus, self);
 			atomic_clear_int(&stopped_cpus, self);
+			CTR1(KTR_SMP, "%s: IPI_STOP (restart)", __func__);
 			break;
 		}
 	}
@@ -266,8 +307,13 @@ static void
 ipi_send(struct pcpu *pc, int ipi)
 {
 
+	CTR4(KTR_SMP, "%s: pc=%p, targetcpu=%d, IPI=%d", __func__,
+	    pc, pc->pc_cpuid, ipi);
+
 	atomic_set_32(&pc->pc_ipimask, (1 << ipi));
 	PIC_IPI(pic, pc->pc_cpuid);
+
+	CTR1(KTR_SMP, "%s: sent", __func__);
 }
 
 /* Send an IPI to a set of cpus. */

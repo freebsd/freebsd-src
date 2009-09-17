@@ -306,6 +306,7 @@ typedef union {
 #define RADEON_INDEX_PRIM_OFFSET	20
 
 #define RADEON_SCRATCH_REG_OFFSET	32
+#define R600_SCRATCH_REG_OFFSET	        256
 
 #define RADEON_NR_SAREA_CLIPRECTS	12
 
@@ -496,6 +497,8 @@ typedef struct {
 #define DRM_RADEON_SURF_ALLOC 0x1a
 #define DRM_RADEON_SURF_FREE  0x1b
 
+#define DRM_RADEON_CS         0x26
+
 #define DRM_IOCTL_RADEON_CP_INIT    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_INIT, drm_radeon_init_t)
 #define DRM_IOCTL_RADEON_CP_START   DRM_IO(  DRM_COMMAND_BASE + DRM_RADEON_CP_START)
 #define DRM_IOCTL_RADEON_CP_STOP    DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_CP_STOP, drm_radeon_cp_stop_t)
@@ -523,13 +526,15 @@ typedef struct {
 #define DRM_IOCTL_RADEON_SETPARAM   DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_SETPARAM, drm_radeon_setparam_t)
 #define DRM_IOCTL_RADEON_SURF_ALLOC DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_SURF_ALLOC, drm_radeon_surface_alloc_t)
 #define DRM_IOCTL_RADEON_SURF_FREE  DRM_IOW( DRM_COMMAND_BASE + DRM_RADEON_SURF_FREE, drm_radeon_surface_free_t)
+#define DRM_IOCTL_RADEON_CS DRM_IOWR(DRM_COMMAND_BASE + DRM_RADEON_CS, struct drm_radeon_cs)
 
 typedef struct drm_radeon_init {
 	enum {
 		RADEON_INIT_CP = 0x01,
 		RADEON_CLEANUP_CP = 0x02,
 		RADEON_INIT_R200_CP = 0x03,
-		RADEON_INIT_R300_CP = 0x04
+		RADEON_INIT_R300_CP = 0x04,
+		RADEON_INIT_R600_CP = 0x05,
 	} func;
 	unsigned long sarea_priv_offset;
 	int is_pci; /* for overriding only */
@@ -655,6 +660,9 @@ typedef struct drm_radeon_indirect {
 	int discard;
 } drm_radeon_indirect_t;
 
+#define RADEON_INDIRECT_DISCARD (1 << 0)
+#define RADEON_INDIRECT_NOFLUSH (1 << 1)
+
 /* enum for card type parameters */
 #define RADEON_CARD_PCI 0
 #define RADEON_CARD_AGP 1
@@ -680,6 +688,8 @@ typedef struct drm_radeon_indirect {
 #define RADEON_PARAM_VBLANK_CRTC           13   /* VBLANK CRTC */
 #define RADEON_PARAM_FB_LOCATION           14   /* FB location */
 #define RADEON_PARAM_NUM_GB_PIPES          15   /* num GB pipes */
+#define RADEON_PARAM_DEVICE_ID             16
+#define RADEON_PARAM_NUM_Z_PIPES           17   /* num Z pipes */
 
 typedef struct drm_radeon_getparam {
 	int param;
@@ -749,5 +759,24 @@ typedef struct drm_radeon_surface_free {
 
 #define	DRM_RADEON_VBLANK_CRTC1		1
 #define	DRM_RADEON_VBLANK_CRTC2		2
+
+/* New interface which obsolete all previous interface.
+ */
+#define RADEON_CHUNK_ID_RELOCS 0x01
+#define RADEON_CHUNK_ID_IB     0x02
+#define RADEON_CHUNK_ID_OLD 0xff
+
+struct drm_radeon_cs_chunk {
+	uint32_t chunk_id;
+	uint32_t length_dw;
+	uint64_t chunk_data;
+};
+
+struct drm_radeon_cs {
+	uint32_t        num_chunks;
+	uint32_t        cs_id;
+	uint64_t        chunks; /* this points to uint64_t * which point to
+				   cs chunks */
+};
 
 #endif

@@ -35,23 +35,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/proc.h>
+#include <sys/eventhandler.h>
 #include <sys/resourcevar.h>
 #include <sys/socket.h>			/* needed by net/if.h		*/
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>			/* for IFF_* flags		*/
 #include <net/netisr.h>			/* for NETISR_POLL		*/
 #include <net/vnet.h>
 
-static void netisr_poll(void);		/* the two netisr handlers      */
-static void netisr_pollmore(void);
-static int poll_switch(SYSCTL_HANDLER_ARGS);
-
 void hardclock_device_poll(void);	/* hook from hardclock		*/
-void ether_poll(int);			/* polling in idle loop		*/
 
 static struct mtx	poll_mtx;
 
@@ -108,6 +103,10 @@ SYSCTL_NODE(_kern, OID_AUTO, polling, CTLFLAG_RW, 0,
 
 SYSCTL_UINT(_kern_polling, OID_AUTO, burst, CTLFLAG_RD,
 	&poll_burst, 0, "Current polling burst size");
+
+static int	netisr_poll_scheduled;
+static int	netisr_pollmore_scheduled;
+static int	poll_shutting_down;
 
 static int poll_burst_max_sysctl(SYSCTL_HANDLER_ARGS)
 {
@@ -229,10 +228,6 @@ static uint32_t poll_handlers; /* next free entry in pr[]. */
 SYSCTL_UINT(_kern_polling, OID_AUTO, handlers, CTLFLAG_RD,
 	&poll_handlers, 0, "Number of registered poll handlers");
 
-static int polling = 0;
-SYSCTL_PROC(_kern_polling, OID_AUTO, enable, CTLTYPE_UINT | CTLFLAG_RW,
-	0, sizeof(int), poll_switch, "I", "Switch polling for all interfaces");
-
 static uint32_t phase;
 SYSCTL_UINT(_kern_polling, OID_AUTO, phase, CTLFLAG_RD,
 	&phase, 0, "Polling phase");
@@ -259,12 +254,19 @@ struct pollrec {
 static struct pollrec pr[POLL_LIST_LEN];
 
 static void
+poll_shutdown(void *arg, int howto)
+{
+
+	poll_shutting_down = 1;
+}
+
+static void
 init_device_poll(void)
 {
 
 	mtx_init(&poll_mtx, "polling", NULL, MTX_DEF);
-	netisr_register(NETISR_POLL, (netisr_t *)netisr_poll, NULL, 0);
-	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL, 0);
+	EVENTHANDLER_REGISTER(shutdown_post_sync, poll_shutdown, NULL,
+	    SHUTDOWN_PRI_LAST);
 }
 SYSINIT(device_poll, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, init_device_poll, NULL);
 
@@ -288,7 +290,7 @@ hardclock_device_poll(void)
 	static struct timeval prev_t, t;
 	int delta;
 
-	if (poll_handlers == 0)
+	if (poll_handlers == 0 || poll_shutting_down)
 		return;
 
 	microuptime(&t);
@@ -313,7 +315,9 @@ hardclock_device_poll(void)
 		if (phase != 0)
 			suspect++;
 		phase = 1;
-		schednetisrbits(1 << NETISR_POLL | 1 << NETISR_POLLMORE);
+		netisr_poll_scheduled = 1;
+		netisr_pollmore_scheduled = 1;
+		netisr_sched_poll();
 		phase = 2;
 	}
 	if (pending_polls++ > 0)
@@ -323,7 +327,7 @@ hardclock_device_poll(void)
 /*
  * ether_poll is called from the idle loop.
  */
-void
+static void
 ether_poll(int count)
 {
 	int i;
@@ -364,9 +368,16 @@ netisr_pollmore()
 	int kern_load;
 
 	mtx_lock(&poll_mtx);
+	if (!netisr_pollmore_scheduled) {
+		mtx_unlock(&poll_mtx);
+		return;
+	}
+	netisr_pollmore_scheduled = 0;
 	phase = 5;
 	if (residual_burst > 0) {
-		schednetisrbits(1 << NETISR_POLL | 1 << NETISR_POLLMORE);
+		netisr_poll_scheduled = 1;
+		netisr_pollmore_scheduled = 1;
+		netisr_sched_poll();
 		mtx_unlock(&poll_mtx);
 		/* will run immediately on return, followed by netisrs */
 		return;
@@ -396,23 +407,29 @@ netisr_pollmore()
 		poll_burst -= (poll_burst / 8);
 		if (poll_burst < 1)
 			poll_burst = 1;
-		schednetisrbits(1 << NETISR_POLL | 1 << NETISR_POLLMORE);
+		netisr_poll_scheduled = 1;
+		netisr_pollmore_scheduled = 1;
+		netisr_sched_poll();
 		phase = 6;
 	}
 	mtx_unlock(&poll_mtx);
 }
 
 /*
- * netisr_poll is scheduled by schednetisr when appropriate, typically once
- * per tick.
+ * netisr_poll is typically scheduled once per tick.
  */
-static void
+void
 netisr_poll(void)
 {
 	int i, cycles;
 	enum poll_cmd arg = POLL_ONLY;
 
 	mtx_lock(&poll_mtx);
+	if (!netisr_poll_scheduled) {
+		mtx_unlock(&poll_mtx);
+		return;
+	}
+	netisr_poll_scheduled = 0;
 	phase = 3;
 	if (residual_burst == 0) { /* first call in this tick */
 		microuptime(&poll_start_t);
@@ -512,52 +529,6 @@ ether_poll_deregister(struct ifnet *ifp)
 		pr[i].ifp = pr[poll_handlers].ifp;
 	}
 	mtx_unlock(&poll_mtx);
-	return (0);
-}
-
-/*
- * Legacy interface for turning polling on all interfaces at one time.
- */
-static int
-poll_switch(SYSCTL_HANDLER_ARGS)
-{
-	INIT_VNET_NET(curvnet);
-	struct ifnet *ifp;
-	int error;
-	int val = polling;
-
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr )
-		return (error);
-
-	if (val == polling)
-		return (0);
-
-	if (val < 0 || val > 1)
-		return (EINVAL);
-
-	polling = val;
-
-	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (ifp->if_capabilities & IFCAP_POLLING) {
-			struct ifreq ifr;
-
-			if (val == 1)
-				ifr.ifr_reqcap =
-				    ifp->if_capenable | IFCAP_POLLING;
-			else
-				ifr.ifr_reqcap =
-				    ifp->if_capenable & ~IFCAP_POLLING;
-			IFF_LOCKGIANT(ifp);	/* LOR here */
-			(void) (*ifp->if_ioctl)(ifp, SIOCSIFCAP, (caddr_t)&ifr);
-			IFF_UNLOCKGIANT(ifp);
-		}
-	}
-	IFNET_RUNLOCK();
-
-	log(LOG_ERR, "kern.polling.enable is deprecated. Use ifconfig(8)");
-
 	return (0);
 }
 

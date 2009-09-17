@@ -222,6 +222,21 @@ clear_traps(void)
 
 
 /*
+ * Check if we have any traps enabled.
+ */
+int
+have_traps(void)
+{
+	char *volatile *tp;
+
+	for (tp = trap ; tp <= &trap[NSIG - 1] ; tp++) {
+		if (*tp && **tp)	/* trap not NULL or SIG_IGN */
+			return 1;
+	}
+	return 0;
+}
+
+/*
  * Set the signal handler for the specified signal.  The routine figures
  * out what it should be set to.
  */
@@ -416,7 +431,7 @@ dotrap(void)
 					if (i == SIGCHLD)
 						ignore_sigchld++;
 					savestatus = exitstatus;
-					evalstring(trap[i]);
+					evalstring(trap[i], 0);
 					exitstatus = savestatus;
 					if (i == SIGCHLD)
 						ignore_sigchld--;
@@ -471,7 +486,7 @@ exitshell(int status)
 	handler = &loc1;
 	if ((p = trap[0]) != NULL && *p != '\0') {
 		trap[0] = NULL;
-		evalstring(p);
+		evalstring(p, 0);
 	}
 l1:   handler = &loc2;			/* probably unnecessary */
 	flushall();

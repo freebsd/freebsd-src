@@ -5,8 +5,6 @@
 
 SOFTFLOAT_BITS=32
 
-CFLAGS+=-DSOFTFLOAT
-
 # Long double is just double precision.
 MDSRCS+=machdep_ldisd.c
 SYM_MAPS+=${.CURDIR}/arm/Symbol.map

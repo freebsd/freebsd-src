@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -125,7 +125,7 @@ SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RW, &ptys_equal,
     0, "Label pty devices as biba/equal on create");
 TUNABLE_INT("security.mac.biba.ptys_equal", &ptys_equal);
 
-static int	interfaces_equal;
+static int	interfaces_equal = 1;
 SYSCTL_INT(_security_mac_biba, OID_AUTO, interfaces_equal, CTLFLAG_RW,
     &interfaces_equal, 0, "Label network interfaces as biba/equal on create");
 TUNABLE_INT("security.mac.biba.interfaces_equal", &interfaces_equal);
@@ -1177,7 +1177,9 @@ biba_inpcb_create(struct socket *so, struct label *solabel,
 	source = SLOT(solabel);
 	dest = SLOT(inplabel);
 
+	SOCK_LOCK(so);
 	biba_copy_effective(source, dest);
+	SOCK_UNLOCK(so);
 }
 
 static void
@@ -1197,6 +1199,8 @@ biba_inpcb_sosetlabel(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 	struct mac_biba *source, *dest;
+
+	SOCK_LOCK_ASSERT(so);
 
 	source = SLOT(solabel);
 	dest = SLOT(inplabel);
@@ -1785,7 +1789,6 @@ biba_priv_check(struct ucred *cred, int priv)
 	case PRIV_TTY_DRAINWAIT:
 	case PRIV_TTY_DTRWAIT:
 	case PRIV_TTY_EXCLUSIVE:
-	case PRIV_TTY_PRISON:
 	case PRIV_TTY_STI:
 	case PRIV_TTY_SETA:
 
@@ -1827,6 +1830,8 @@ biba_priv_check(struct ucred *cred, int priv)
 	case PRIV_VM_MADV_PROTECT:
 	case PRIV_VM_MLOCK:
 	case PRIV_VM_MUNLOCK:
+	case PRIV_VM_SWAP_NOQUOTA:
+	case PRIV_VM_SWAP_NORLIMIT:
 
 	/*
 	 * Allow some but not all network privileges.  In general, dont allow
@@ -1918,6 +1923,7 @@ biba_socket_check_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_biba *p, *s;
+	int error;
 
 	if (!biba_enabled)
 		return (0);
@@ -1925,7 +1931,10 @@ biba_socket_check_deliver(struct socket *so, struct label *solabel,
 	p = SLOT(mlabel);
 	s = SLOT(solabel);
 
-	return (biba_equal_effective(p, s) ? 0 : EACCES);
+	SOCK_LOCK(so);
+	error = biba_equal_effective(p, s) ? 0 : EACCES;
+	SOCK_UNLOCK(so);
+	return (error);
 }
 
 static int
@@ -1934,6 +1943,8 @@ biba_socket_check_relabel(struct ucred *cred, struct socket *so,
 {
 	struct mac_biba *subj, *obj, *new;
 	int error;
+
+	SOCK_LOCK_ASSERT(so);
 
 	new = SLOT(newlabel);
 	subj = SLOT(cred->cr_label);
@@ -1991,8 +2002,12 @@ biba_socket_check_visible(struct ucred *cred, struct socket *so,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(solabel);
 
-	if (!biba_dominate_effective(obj, subj))
+	SOCK_LOCK(so);
+	if (!biba_dominate_effective(obj, subj)) {
+		SOCK_UNLOCK(so);
 		return (ENOENT);
+	}
+	SOCK_UNLOCK(so);
 
 	return (0);
 }
@@ -2018,19 +2033,26 @@ biba_socket_create_mbuf(struct socket *so, struct label *solabel,
 	source = SLOT(solabel);
 	dest = SLOT(mlabel);
 
+	SOCK_LOCK(so);
 	biba_copy_effective(source, dest);
+	SOCK_UNLOCK(so);
 }
 
 static void
 biba_socket_newconn(struct socket *oldso, struct label *oldsolabel,
     struct socket *newso, struct label *newsolabel)
 {
-	struct mac_biba *source, *dest;
+	struct mac_biba source, *dest;
 
-	source = SLOT(oldsolabel);
+	SOCK_LOCK(oldso);
+	source = *SLOT(oldsolabel);
+	SOCK_UNLOCK(oldso);
+
 	dest = SLOT(newsolabel);
 
-	biba_copy_effective(source, dest);
+	SOCK_LOCK(newso);
+	biba_copy_effective(&source, dest);
+	SOCK_UNLOCK(newso);
 }
 
 static void
@@ -2038,6 +2060,8 @@ biba_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 	struct mac_biba *source, *dest;
+
+	SOCK_LOCK_ASSERT(so);
 
 	source = SLOT(newlabel);
 	dest = SLOT(solabel);
@@ -2054,7 +2078,9 @@ biba_socketpeer_set_from_mbuf(struct mbuf *m, struct label *mlabel,
 	source = SLOT(mlabel);
 	dest = SLOT(sopeerlabel);
 
+	SOCK_LOCK(so);
 	biba_copy_effective(source, dest);
+	SOCK_UNLOCK(so);
 }
 
 static void
@@ -2062,12 +2088,16 @@ biba_socketpeer_set_from_socket(struct socket *oldso,
     struct label *oldsolabel, struct socket *newso,
     struct label *newsopeerlabel)
 {
-	struct mac_biba *source, *dest;
+	struct mac_biba source, *dest;
 
-	source = SLOT(oldsolabel);
+	SOCK_LOCK(oldso);
+	source = *SLOT(oldsolabel);
+	SOCK_UNLOCK(oldso);
 	dest = SLOT(newsopeerlabel);
 
-	biba_copy_effective(source, dest);
+	SOCK_LOCK(newso);
+	biba_copy_effective(&source, dest);
+	SOCK_UNLOCK(newso);
 }
 
 static void
@@ -2775,8 +2805,7 @@ biba_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
 
 static int
 biba_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 	struct mac_biba *subj, *obj;
 
@@ -2893,11 +2922,11 @@ biba_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(vplabel);
 
 	/* XXX privilege override for admin? */
-	if (accmode & (VREAD | VEXEC | VSTAT)) {
+	if (accmode & (VREAD | VEXEC | VSTAT_PERMS)) {
 		if (!biba_dominate_effective(obj, subj))
 			return (EACCES);
 	}
-	if (accmode & (VWRITE | VAPPEND | VADMIN)) {
+	if (accmode & VMODIFY_PERMS) {
 		if (!biba_dominate_effective(subj, obj))
 			return (EACCES);
 	}
@@ -3116,8 +3145,7 @@ biba_vnode_check_setacl(struct ucred *cred, struct vnode *vp,
 
 static int
 biba_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
+    struct label *vplabel, int attrnamespace, const char *name)
 {
 	struct mac_biba *subj, *obj;
 

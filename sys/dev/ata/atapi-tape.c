@@ -138,15 +138,13 @@ ast_attach(device_t dev)
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_SEQUENTIAL | DEVSTAT_TYPE_IF_IDE,
 		      DEVSTAT_PRIORITY_TAPE);
-    device = make_dev(&ast_cdevsw, 2 * device_get_unit(dev),
-		      UID_ROOT, GID_OPERATOR, 0640, "ast%d",
-		      device_get_unit(dev));
+    device = make_dev(&ast_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0640,
+    		      "ast%d", device_get_unit(dev));
     device->si_drv1 = dev;
     device->si_iosize_max = ch->dma.max_iosize ? ch->dma.max_iosize : DFLTPHYS;
     stp->dev1 = device;
-    device = make_dev(&ast_cdevsw, 2 * device_get_unit(dev) + 1,
-		      UID_ROOT, GID_OPERATOR, 0640, "nast%d",
-		      device_get_unit(dev));
+    device = make_dev(&ast_cdevsw, 1, UID_ROOT, GID_OPERATOR, 0640,
+		      "nast%d", device_get_unit(dev));
     device->si_drv1 = dev;
     device->si_iosize_max = ch->dma.max_iosize;
     stp->dev2 = device;
@@ -238,8 +236,8 @@ ast_close(struct cdev *cdev, int flags, int fmt, struct thread *td)
 	(stp->flags & (F_DATA_WRITTEN | F_FM_WRITTEN)) == F_DATA_WRITTEN)
 	ast_write_filemark(dev, ATAPI_WF_WRITE);
 
-    /* if minor is even rewind on close */
-    if (!(dev2unit(cdev) & 0x01))
+    /* if unit is zero rewind on close */
+    if (dev2unit(cdev) == 0)
 	ast_rewind(dev);
 
     if (stp->cap.lock && count_dev(cdev) == 1)

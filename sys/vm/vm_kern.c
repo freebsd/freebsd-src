@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -234,7 +235,8 @@ kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
 
 	*min = vm_map_min(parent);
 	ret = vm_map_find(parent, NULL, 0, min, size, superpage_align ?
-	    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
+	    VMFS_ALIGNED_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL,
+	    MAP_ACC_NO_CHARGE);
 	if (ret != KERN_SUCCESS)
 		panic("kmem_suballoc: bad status return of %d", ret);
 	*max = *min + size;
@@ -271,7 +273,7 @@ kmem_malloc(map, size, flags)
 	int flags;
 {
 	vm_offset_t offset, i;
-	vm_map_entry_t entry, freelist;
+	vm_map_entry_t entry;
 	vm_offset_t addr;
 	vm_page_t m;
 	int pflags;
@@ -355,10 +357,8 @@ retry:
 				vm_page_unlock_queues();
 			}
 			VM_OBJECT_UNLOCK(kmem_object);
-			freelist = NULL;
-			vm_map_delete(map, addr, addr + size, &freelist);
+			vm_map_delete(map, addr, addr + size);
 			vm_map_unlock(map);
-			vm_map_entry_free_freelist(map, freelist);
 			return (0);
 		}
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
@@ -423,6 +423,8 @@ kmem_alloc_wait(map, size)
 	vm_offset_t addr;
 
 	size = round_page(size);
+	if (!swap_reserve(size))
+		return (0);
 
 	for (;;) {
 		/*
@@ -435,12 +437,14 @@ kmem_alloc_wait(map, size)
 		/* no space now; see if we can ever get space */
 		if (vm_map_max(map) - vm_map_min(map) < size) {
 			vm_map_unlock(map);
+			swap_release(size);
 			return (0);
 		}
 		map->needs_wakeup = TRUE;
 		vm_map_unlock_and_wait(map, 0);
 	}
-	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
+	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_ALL,
+	    VM_PROT_ALL, MAP_ACC_CHARGED);
 	vm_map_unlock(map);
 	return (addr);
 }
@@ -457,18 +461,14 @@ kmem_free_wakeup(map, addr, size)
 	vm_offset_t addr;
 	vm_size_t size;
 {
-	vm_map_entry_t freelist;
 
-	freelist = NULL;
 	vm_map_lock(map);
-	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size),
-	     &freelist);
+	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
 	if (map->needs_wakeup) {
 		map->needs_wakeup = FALSE;
 		vm_map_wakeup(map);
 	}
 	vm_map_unlock(map);
-	vm_map_entry_free_freelist(map, freelist);
 }
 
 /*
@@ -500,3 +500,26 @@ kmem_init(start, end)
 	/* ... and ending with the completion of the above `insert' */
 	vm_map_unlock(m);
 }
+
+#ifdef DIAGNOSTIC
+/*
+ * Allow userspace to directly trigger the VM drain routine for testing
+ * purposes.
+ */
+static int
+debug_vm_lowmem(SYSCTL_HANDLER_ARGS)
+{
+	int error, i;
+
+	i = 0;
+	error = sysctl_handle_int(oidp, &i, 0, req);
+	if (error)
+		return (error);
+	if (i)	 
+		EVENTHANDLER_INVOKE(vm_lowmem, 0);
+	return (0);
+}
+
+SYSCTL_PROC(_debug, OID_AUTO, vm_lowmem, CTLTYPE_INT | CTLFLAG_RW, 0, 0,
+    debug_vm_lowmem, "I", "set to trigger vm_lowmem event");
+#endif

@@ -290,7 +290,7 @@ static	int	pppoe_send_event(sessp sp, enum cmd cmdid);
 static __inline const struct pppoe_tag*
 next_tag(const struct pppoe_hdr* ph)
 {
-	return (const struct pppoe_tag*)(((const char*)&ph->tag[0])
+	return (const struct pppoe_tag*)(((const char*)(ph + 1))
 	    + ntohs(ph->length));
 }
 
@@ -303,7 +303,7 @@ static const struct pppoe_tag*
 get_tag(const struct pppoe_hdr* ph, uint16_t idx)
 {
 	const char *const end = (const char *)next_tag(ph);
-	const struct pppoe_tag *pt = &ph->tag[0];
+	const struct pppoe_tag *pt = (const void *)(ph + 1);
 	const char *ptn;
 
 	/*
@@ -381,7 +381,7 @@ make_packet(sessp sp) {
 	    ("%s: called from wrong state", __func__));
 	CTR2(KTR_NET, "%20s: called %d", __func__, sp->Session_ID);
 
-	dp = (char *)wh->ph.tag;
+	dp = (char *)(&wh->ph + 1);
 	for (count = 0, tag = sp->neg->tags;
 	    ((count < sp->neg->numtags) && (count < NUMTAGS));
 	    tag++, count++) {
@@ -434,12 +434,12 @@ pppoe_match_svc(node_p node, const struct pppoe_tag *tag)
 		if (neg->service_len != ntohs(tag->tag_len))
 			continue;
 
-		if (strncmp(tag->tag_data, neg->service.data,
+		if (strncmp((const char *)(tag + 1), neg->service.data,
 		    ntohs(tag->tag_len)) == 0)
 			break;
 	}
 	CTR3(KTR_NET, "%20s: matched %p for %s", __func__,
-	    sp?sp->hook:NULL, tag->tag_data);
+	    sp?sp->hook:NULL, (const char *)(tag + 1));
 
 	return (sp?sp->hook:NULL);
 }
@@ -583,7 +583,7 @@ pppoe_finduniq(node_p node, const struct pppoe_tag *tag)
 	hook_p	hook = NULL;
 	union uniq uniq;
 
-	bcopy(tag->tag_data, uniq.bytes, sizeof(void *));
+	bcopy(tag + 1, uniq.bytes, sizeof(void *));
 	/* Cycle through all known hooks. */
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		/* Skip any nonsession hook. */
@@ -1100,7 +1100,7 @@ send_acname(sessp sp, const struct pppoe_tag *tag)
 
 	sts = (struct ngpppoe_sts *)msg->data;
 	tlen = min(NG_HOOKSIZ - 1, ntohs(tag->tag_len));
-	strncpy(sts->hook, tag->tag_data, tlen);
+	strncpy(sts->hook, (const char *)(tag + 1), tlen);
 	sts->hook[tlen] = '\0';
 	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
 
@@ -1438,7 +1438,8 @@ ng_pppoe_rcvdata_ether(hook_p hook, item_p item)
 					break;
 				}
 				if (neg->ac_name_len != htons(tag->tag_len) ||
-				    strncmp(neg->ac_name.data, tag->tag_data,
+				    strncmp(neg->ac_name.data,
+				    (const char *)(tag + 1),
 				    neg->ac_name_len) != 0) {
 					break;
 				}
@@ -1767,10 +1768,10 @@ ng_pppoe_disconnect(hook_p hook)
 				 * Add a General error message and adjust
 				 * sizes.
 				 */
-				tag = wh->ph.tag;
+				tag = (void *)(&wh->ph + 1);
 				tag->tag_type = PTT_GEN_ERR;
 				tag->tag_len = htons((u_int16_t)msglen);
-				strncpy(tag->tag_data, SIGNOFF, msglen);
+				strncpy((char *)(tag + 1), SIGNOFF, msglen);
 				m->m_pkthdr.len = (m->m_len += sizeof(*tag) +
 				    msglen);
 				wh->ph.length = htons(sizeof(*tag) + msglen);
@@ -1859,7 +1860,7 @@ scan_tags(sessp	sp, const struct pppoe_hdr* ph)
 {
 	const char *const end = (const char *)next_tag(ph);
 	const char *ptn;
-	const struct pppoe_tag *pt = &ph->tag[0];
+	const struct pppoe_tag *pt = (const void *)(ph + 1);
 
 	/*
 	 * Keep processing tags while a tag header will still fit.

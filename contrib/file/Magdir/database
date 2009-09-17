@@ -242,3 +242,28 @@
 # URL:  http://www.grc.nasa.gov/WWW/cgns/adf/
 # From: Nicolas Chauvat <nicolas.chauvat@logilab.fr>
 0	string	@(#)ADF\ Database	CGNS Advanced Data Format
+
+# Tokyo Cabinet magic data
+# http://tokyocabinet.sourceforge.net/index.html
+0	string		ToKyO\ CaBiNeT\n	Tokyo Cabinet
+>14	string		x			\b (%s)
+>32	byte		0			\b, Hash
+!:mime	application/x-tokyocabinet-hash
+>32	byte		1			\b, B+ tree
+!:mime	application/x-tokyocabinet-btree
+>32	byte		2			\b, Fixed-length
+!:mime	application/x-tokyocabinet-fixed
+>32	byte		3			\b, Table
+!:mime	application/x-tokyocabinet-table
+>33	byte		&1			\b, [open]
+>33	byte		&2			\b, [fatal]
+>34	byte		x			\b, apow=%d
+>35	byte		x			\b, fpow=%d
+>36	byte		&0x01			\b, [large]
+>36	byte		&0x02			\b, [deflate]
+>36	byte		&0x04			\b, [bzip]
+>36	byte		&0x08			\b, [tcbs]
+>36	byte		&0x10			\b, [excodec]
+>40	lequad		x			\b, bnum=%lld
+>48	lequad		x			\b, rnum=%lld
+>56	lequad		x			\b, fsiz=%lld

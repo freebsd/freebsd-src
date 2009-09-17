@@ -104,6 +104,12 @@ ieee80211_rate2phytype(const struct ieee80211_rate_table *rt, uint8_t rate)
 	return rt->info[rix].phy;
 }
 
+static __inline__ int
+ieee80211_isratevalid(const struct ieee80211_rate_table *rt, uint8_t rate)
+{
+	return rt->rateCodeToIndex[rate] != (uint8_t)-1;
+}
+
 /*
  * Calculate ACK field for
  * o  non-fragment data frames

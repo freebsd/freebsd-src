@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: asloperands - AML operand processing
- *              $Revision: 1.61 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -118,7 +117,7 @@
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
-#include <contrib/dev/acpica/amlcode.h>
+#include <contrib/dev/acpica/include/amlcode.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("asloperands")
@@ -948,7 +947,8 @@ OpnDoDefinitionBlock (
 {
     ACPI_PARSE_OBJECT       *Child;
     ACPI_SIZE               Length;
-    ACPI_NATIVE_UINT        i;
+    UINT32                  i;
+    char                    *Filename;
 
 
     /*
@@ -966,7 +966,19 @@ OpnDoDefinitionBlock (
         *Child->Asl.Value.Buffer &&
         (Gbl_UseDefaultAmlFilename))
     {
-        Gbl_OutputFilenamePrefix = (char *) Child->Asl.Value.Buffer;
+        /*
+         * We will use the AML filename that is embedded in the source file
+         * for the output filename.
+         */
+        Filename = ACPI_ALLOCATE (strlen (Gbl_DirectoryPath) +
+                    strlen ((char *) Child->Asl.Value.Buffer) + 1);
+
+        /* Prepend the current directory path */
+
+        strcpy (Filename, Gbl_DirectoryPath);
+        strcat (Filename, (char *) Child->Asl.Value.Buffer);
+
+        Gbl_OutputFilenamePrefix = Filename;
     }
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
 

@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
  * Wolfgang Grandeggar <wolfgang@cec.ch>.
  * This device smells a lot like the Belkin F5U103, except that it has
  * suffered some mild brain-damage.  This driver is based off of the ubsa.c
- * driver from Alexander Kabaev <kan@freebsd.org>.  Merging the two together
+ * driver from Alexander Kabaev <kan@FreeBSD.org>.  Merging the two together
  * might be useful, though the subtle differences might lead to lots of
  * #ifdef's.
  */
@@ -44,23 +44,34 @@ __FBSDID("$FreeBSD$");
  * be called from within the config thread function !
  */
 
-#include "usbdevs.h"
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_error.h>
-#include <dev/usb/usb_cdc.h>
-#include <dev/usb/usb_defs.h>
+#include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
+#include "usbdevs.h"
 
-#define	USB_DEBUG_VAR usb2_debug
-
-#include <dev/usb/usb_core.h>
+#define	USB_DEBUG_VAR usb_debug
 #include <dev/usb/usb_debug.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_request.h>
-#include <dev/usb/usb_lookup.h>
-#include <dev/usb/usb_util.h>
-#include <dev/usb/usb_busdma.h>
-#include <dev/usb/usb_device.h>
 
 #include <dev/usb/serial/usb_serial.h>
 
@@ -78,7 +89,7 @@ __FBSDID("$FreeBSD$");
 
 #define	UMCT_INTR_INTERVAL	100
 #define	UMCT_IFACE_INDEX	0
-#define	UMCT_CONFIG_INDEX	1
+#define	UMCT_CONFIG_INDEX	0
 
 enum {
 	UMCT_BULK_DT_WR,
@@ -88,11 +99,12 @@ enum {
 };
 
 struct umct_softc {
-	struct usb2_com_super_softc sc_super_ucom;
-	struct usb2_com_softc sc_ucom;
+	struct ucom_super_softc sc_super_ucom;
+	struct ucom_softc sc_ucom;
 
-	struct usb2_device *sc_udev;
-	struct usb2_xfer *sc_xfer[UMCT_N_TRANSFER];
+	struct usb_device *sc_udev;
+	struct usb_xfer *sc_xfer[UMCT_N_TRANSFER];
+	struct mtx sc_mtx;
 
 	uint32_t sc_unit;
 
@@ -112,43 +124,43 @@ static device_probe_t umct_probe;
 static device_attach_t umct_attach;
 static device_detach_t umct_detach;
 
-static usb2_callback_t umct_intr_callback;
-static usb2_callback_t umct_write_callback;
-static usb2_callback_t umct_read_callback;
+static usb_callback_t umct_intr_callback;
+static usb_callback_t umct_write_callback;
+static usb_callback_t umct_read_callback;
 
 static void	umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
 		    uint16_t len, uint32_t value);
-static void	umct_cfg_get_status(struct usb2_com_softc *, uint8_t *,
+static void	umct_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
-static void	umct_cfg_set_break(struct usb2_com_softc *, uint8_t);
-static void	umct_cfg_set_dtr(struct usb2_com_softc *, uint8_t);
-static void	umct_cfg_set_rts(struct usb2_com_softc *, uint8_t);
+static void	umct_cfg_set_break(struct ucom_softc *, uint8_t);
+static void	umct_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void	umct_cfg_set_rts(struct ucom_softc *, uint8_t);
 static uint8_t	umct_calc_baud(uint32_t);
-static int	umct_pre_param(struct usb2_com_softc *, struct termios *);
-static void	umct_cfg_param(struct usb2_com_softc *, struct termios *);
-static void	umct_start_read(struct usb2_com_softc *);
-static void	umct_stop_read(struct usb2_com_softc *);
-static void	umct_start_write(struct usb2_com_softc *);
-static void	umct_stop_write(struct usb2_com_softc *);
+static int	umct_pre_param(struct ucom_softc *, struct termios *);
+static void	umct_cfg_param(struct ucom_softc *, struct termios *);
+static void	umct_start_read(struct ucom_softc *);
+static void	umct_stop_read(struct ucom_softc *);
+static void	umct_start_write(struct ucom_softc *);
+static void	umct_stop_write(struct ucom_softc *);
 
-static const struct usb2_config umct_config[UMCT_N_TRANSFER] = {
+static const struct usb_config umct_config[UMCT_N_TRANSFER] = {
 
 	[UMCT_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.mh.callback = &umct_write_callback,
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = &umct_write_callback,
 	},
 
 	[UMCT_BULK_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &umct_read_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &umct_read_callback,
 		.ep_index = 0,		/* first interrupt endpoint */
 	},
 
@@ -156,27 +168,27 @@ static const struct usb2_config umct_config[UMCT_N_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
-		.mh.callback = &umct_intr_callback,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &umct_intr_callback,
 		.ep_index = 1,		/* second interrupt endpoint */
 	},
 };
 
-static const struct usb2_com_callback umct_callback = {
-	.usb2_com_cfg_get_status = &umct_cfg_get_status,
-	.usb2_com_cfg_set_dtr = &umct_cfg_set_dtr,
-	.usb2_com_cfg_set_rts = &umct_cfg_set_rts,
-	.usb2_com_cfg_set_break = &umct_cfg_set_break,
-	.usb2_com_cfg_param = &umct_cfg_param,
-	.usb2_com_pre_param = &umct_pre_param,
-	.usb2_com_start_read = &umct_start_read,
-	.usb2_com_stop_read = &umct_stop_read,
-	.usb2_com_start_write = &umct_start_write,
-	.usb2_com_stop_write = &umct_stop_write,
+static const struct ucom_callback umct_callback = {
+	.ucom_cfg_get_status = &umct_cfg_get_status,
+	.ucom_cfg_set_dtr = &umct_cfg_set_dtr,
+	.ucom_cfg_set_rts = &umct_cfg_set_rts,
+	.ucom_cfg_set_break = &umct_cfg_set_break,
+	.ucom_cfg_param = &umct_cfg_param,
+	.ucom_pre_param = &umct_pre_param,
+	.ucom_start_read = &umct_start_read,
+	.ucom_stop_read = &umct_stop_read,
+	.ucom_start_write = &umct_start_write,
+	.ucom_stop_write = &umct_stop_write,
 };
 
-static const struct usb2_device_id umct_devs[] = {
+static const struct usb_device_id umct_devs[] = {
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_USB232, 0)},
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_SITECOM_USB232, 0)},
 	{USB_VPI(USB_VENDOR_MCT, USB_PRODUCT_MCT_DU_H3SP_USB232, 0)},
@@ -199,16 +211,16 @@ static driver_t umct_driver = {
 	.size = sizeof(struct umct_softc),
 };
 
-DRIVER_MODULE(umct, ushub, umct_driver, umct_devclass, NULL, 0);
+DRIVER_MODULE(umct, uhub, umct_driver, umct_devclass, NULL, 0);
 MODULE_DEPEND(umct, ucom, 1, 1, 1);
 MODULE_DEPEND(umct, usb, 1, 1, 1);
 
 static int
 umct_probe(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb2_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
 	if (uaa->info.bConfigIndex != UMCT_CONFIG_INDEX) {
@@ -217,22 +229,23 @@ umct_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != UMCT_IFACE_INDEX) {
 		return (ENXIO);
 	}
-	return (usb2_lookup_id_by_uaa(umct_devs, sizeof(umct_devs), uaa));
+	return (usbd_lookup_id_by_uaa(umct_devs, sizeof(umct_devs), uaa));
 }
 
 static int
 umct_attach(device_t dev)
 {
-	struct usb2_attach_arg *uaa = device_get_ivars(dev);
+	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umct_softc *sc = device_get_softc(dev);
 	int32_t error;
-	uint16_t maxp;
+	//uint16_t maxp;
 	uint8_t iface_index;
 
 	sc->sc_udev = uaa->device;
 	sc->sc_unit = device_get_unit(dev);
 
-	device_set_usb2_desc(dev);
+	device_set_usb_desc(dev);
+	mtx_init(&sc->sc_mtx, "umct", NULL, MTX_DEF);
 
 	snprintf(sc->sc_name, sizeof(sc->sc_name),
 	    "%s", device_get_nameunit(dev));
@@ -240,8 +253,8 @@ umct_attach(device_t dev)
 	sc->sc_iface_no = uaa->info.bIfaceNum;
 
 	iface_index = UMCT_IFACE_INDEX;
-	error = usb2_transfer_setup(uaa->device, &iface_index,
-	    sc->sc_xfer, umct_config, UMCT_N_TRANSFER, sc, &Giant);
+	error = usbd_transfer_setup(uaa->device, &iface_index,
+	    sc->sc_xfer, umct_config, UMCT_N_TRANSFER, sc, &sc->sc_mtx);
 
 	if (error) {
 		device_printf(dev, "allocating USB "
@@ -253,12 +266,13 @@ umct_attach(device_t dev)
 	 * The only way to differentiate it from the real interrupt
 	 * endpoint is to look at the wMaxPacketSize field.
 	 */
-	maxp = UGETW(sc->sc_xfer[UMCT_BULK_DT_RD]->pipe->edesc->wMaxPacketSize);
+#ifdef XXX
+	maxp = UGETW(sc->sc_xfer[UMCT_BULK_DT_RD]->endpoint->edesc->wMaxPacketSize);
 	if (maxp == 0x2) {
 
 		/* guessed wrong - switch around endpoints */
 
-		struct usb2_xfer *temp = sc->sc_xfer[UMCT_INTR_DT_RD];
+		struct usb_xfer *temp = sc->sc_xfer[UMCT_INTR_DT_RD];
 
 		sc->sc_xfer[UMCT_INTR_DT_RD] = sc->sc_xfer[UMCT_BULK_DT_RD];
 		sc->sc_xfer[UMCT_BULK_DT_RD] = temp;
@@ -266,15 +280,16 @@ umct_attach(device_t dev)
 		sc->sc_xfer[UMCT_BULK_DT_RD]->callback = &umct_read_callback;
 		sc->sc_xfer[UMCT_INTR_DT_RD]->callback = &umct_intr_callback;
 	}
-	sc->sc_obufsize = sc->sc_xfer[UMCT_BULK_DT_WR]->max_data_length;
+#endif
+	sc->sc_obufsize = usbd_xfer_max_len(sc->sc_xfer[UMCT_BULK_DT_WR]);
 
 	if (uaa->info.idProduct == USB_PRODUCT_MCT_SITECOM_USB232) {
 		if (sc->sc_obufsize > 16) {
 			sc->sc_obufsize = 16;
 		}
 	}
-	error = usb2_com_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
-	    &umct_callback, &Giant);
+	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
+	    &umct_callback, &sc->sc_mtx);
 	if (error) {
 		goto detach;
 	}
@@ -290,9 +305,9 @@ umct_detach(device_t dev)
 {
 	struct umct_softc *sc = device_get_softc(dev);
 
-	usb2_com_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
-
-	usb2_transfer_unsetup(sc->sc_xfer, UMCT_N_TRANSFER);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	usbd_transfer_unsetup(sc->sc_xfer, UMCT_N_TRANSFER);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
 }
@@ -301,8 +316,8 @@ static void
 umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
     uint16_t len, uint32_t value)
 {
-	struct usb2_device_request req;
-	usb2_error_t err;
+	struct usb_device_request req;
+	usb_error_t err;
 	uint8_t temp[4];
 
 	if (len > 4)
@@ -315,44 +330,49 @@ umct_cfg_do_request(struct umct_softc *sc, uint8_t request,
 	USETW(req.wLength, len);
 	USETDW(temp, value);
 
-	err = usb2_com_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	err = ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, temp, 0, 1000);
 	if (err) {
 		DPRINTFN(0, "device request failed, err=%s "
-		    "(ignored)\n", usb2_errstr(err));
+		    "(ignored)\n", usbd_errstr(err));
 	}
 	return;
 }
 
 static void
-umct_intr_callback(struct usb2_xfer *xfer)
+umct_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umct_softc *sc = xfer->priv_sc;
+	struct umct_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint8_t buf[2];
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		if (xfer->actlen < 2) {
+		if (actlen < 2) {
 			DPRINTF("too short message\n");
 			goto tr_setup;
 		}
-		usb2_copy_out(xfer->frbuffers, 0, buf, sizeof(buf));
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, buf, sizeof(buf));
 
 		sc->sc_msr = buf[0];
 		sc->sc_lsr = buf[1];
 
-		usb2_com_status_change(&sc->sc_ucom);
+		ucom_status_change(&sc->sc_ucom);
 
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -360,7 +380,7 @@ tr_setup:
 }
 
 static void
-umct_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
+umct_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -369,7 +389,7 @@ umct_cfg_get_status(struct usb2_com_softc *ucom, uint8_t *lsr, uint8_t *msr)
 }
 
 static void
-umct_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
+umct_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -382,7 +402,7 @@ umct_cfg_set_break(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umct_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
+umct_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -395,7 +415,7 @@ umct_cfg_set_dtr(struct usb2_com_softc *ucom, uint8_t onoff)
 }
 
 static void
-umct_cfg_set_rts(struct usb2_com_softc *ucom, uint8_t onoff)
+umct_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
@@ -438,13 +458,13 @@ umct_calc_baud(uint32_t baud)
 }
 
 static int
-umct_pre_param(struct usb2_com_softc *ucom, struct termios *t)
+umct_pre_param(struct ucom_softc *ucom, struct termios *t)
 {
 	return (0);			/* we accept anything */
 }
 
 static void
-umct_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
+umct_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 	uint32_t value;
@@ -485,67 +505,69 @@ umct_cfg_param(struct usb2_com_softc *ucom, struct termios *t)
 }
 
 static void
-umct_start_read(struct usb2_com_softc *ucom)
+umct_start_read(struct ucom_softc *ucom)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
 	/* start interrupt endpoint */
-	usb2_transfer_start(sc->sc_xfer[UMCT_INTR_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UMCT_INTR_DT_RD]);
 
 	/* start read endpoint */
-	usb2_transfer_start(sc->sc_xfer[UMCT_BULK_DT_RD]);
+	usbd_transfer_start(sc->sc_xfer[UMCT_BULK_DT_RD]);
 }
 
 static void
-umct_stop_read(struct usb2_com_softc *ucom)
+umct_stop_read(struct ucom_softc *ucom)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
 	/* stop interrupt endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UMCT_INTR_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UMCT_INTR_DT_RD]);
 
 	/* stop read endpoint */
-	usb2_transfer_stop(sc->sc_xfer[UMCT_BULK_DT_RD]);
+	usbd_transfer_stop(sc->sc_xfer[UMCT_BULK_DT_RD]);
 }
 
 static void
-umct_start_write(struct usb2_com_softc *ucom)
+umct_start_write(struct ucom_softc *ucom)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_start(sc->sc_xfer[UMCT_BULK_DT_WR]);
+	usbd_transfer_start(sc->sc_xfer[UMCT_BULK_DT_WR]);
 }
 
 static void
-umct_stop_write(struct usb2_com_softc *ucom)
+umct_stop_write(struct ucom_softc *ucom)
 {
 	struct umct_softc *sc = ucom->sc_parent;
 
-	usb2_transfer_stop(sc->sc_xfer[UMCT_BULK_DT_WR]);
+	usbd_transfer_stop(sc->sc_xfer[UMCT_BULK_DT_WR]);
 }
 
 static void
-umct_write_callback(struct usb2_xfer *xfer)
+umct_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umct_softc *sc = xfer->priv_sc;
+	struct umct_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
 	uint32_t actlen;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
 tr_setup:
-		if (usb2_com_get_data(&sc->sc_ucom, xfer->frbuffers, 0,
+		pc = usbd_xfer_get_frame(xfer, 0);
+		if (ucom_get_data(&sc->sc_ucom, pc, 0,
 		    sc->sc_obufsize, &actlen)) {
 
-			xfer->frlengths[0] = actlen;
-			usb2_start_hardware(xfer);
+			usbd_xfer_set_frame_len(xfer, 0, actlen);
+			usbd_transfer_submit(xfer);
 		}
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;
@@ -553,25 +575,29 @@ tr_setup:
 }
 
 static void
-umct_read_callback(struct usb2_xfer *xfer)
+umct_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct umct_softc *sc = xfer->priv_sc;
+	struct umct_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		usb2_com_put_data(&sc->sc_ucom, xfer->frbuffers,
-		    0, xfer->actlen);
+		pc = usbd_xfer_get_frame(xfer, 0);
+		ucom_put_data(&sc->sc_ucom, pc, 0, actlen);
 
 	case USB_ST_SETUP:
 tr_setup:
-		xfer->frlengths[0] = xfer->max_data_length;
-		usb2_start_hardware(xfer);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
 		return;
 
 	default:			/* Error */
-		if (xfer->error != USB_ERR_CANCELLED) {
+		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			xfer->flags.stall_pipe = 1;
+			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
 		return;

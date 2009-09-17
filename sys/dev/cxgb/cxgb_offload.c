@@ -94,6 +94,9 @@ register_tdev(struct t3cdev *tdev)
 static inline void
 unregister_tdev(struct t3cdev *tdev)
 {
+	if (!inited)
+		return;
+
 	mtx_lock(&cxgb_db_lock);
 	TAILQ_REMOVE(&ofld_dev_list, tdev, entry);
 	mtx_unlock(&cxgb_db_lock);	

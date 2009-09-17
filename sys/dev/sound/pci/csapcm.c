@@ -28,7 +28,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/soundcard.h>
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/chip.h>
@@ -94,21 +97,21 @@ static void	csa_ac97_suspend(struct csa_info *csa);
 static void	csa_ac97_resume(struct csa_info *csa);
 
 static u_int32_t csa_playfmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S8,
-	AFMT_STEREO | AFMT_S8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_S16_BE,
-	AFMT_STEREO | AFMT_S16_BE,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S8, 1, 0),
+	SND_FORMAT(AFMT_S8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_S16_BE, 1, 0),
+	SND_FORMAT(AFMT_S16_BE, 2, 0),
 	0
 };
 static struct pcmchan_caps csa_playcaps = {8000, 48000, csa_playfmt, 0};
 
 static u_int32_t csa_recfmt[] = {
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
 };
 static struct pcmchan_caps csa_reccaps = {11025, 48000, csa_recfmt, 0};
@@ -163,7 +166,7 @@ csa_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 static kobj_method_t csa_ac97_methods[] = {
     	KOBJMETHOD(ac97_read,		csa_rdcd),
     	KOBJMETHOD(ac97_write,		csa_wrcd),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(csa_ac97);
 
@@ -489,7 +492,7 @@ csa_setupchan(struct csa_chinfo *ch)
 			csa->pfie |= 0x8000;
 		if (ch->fmt & AFMT_BIGENDIAN)
 			csa->pfie |= 0x4000;
-		if (!(ch->fmt & AFMT_STEREO))
+		if (AFMT_CHANNEL(ch->fmt) < 2)
 			csa->pfie |= 0x2000;
 		if (ch->fmt & AFMT_8BIT)
 			csa->pfie |= 0x1000;
@@ -498,7 +501,7 @@ csa_setupchan(struct csa_chinfo *ch)
 		tmp = 4;
 		if (ch->fmt & AFMT_16BIT)
 			tmp <<= 1;
-		if (ch->fmt & AFMT_STEREO)
+		if (AFMT_CHANNEL(ch->fmt) > 1)
 			tmp <<= 1;
 		tmp--;
 
@@ -548,7 +551,7 @@ csachan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 csachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct csa_chinfo *ch = data;
@@ -557,7 +560,7 @@ csachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return ch->spd; /* XXX calc real speed */
 }
 
-static int
+static u_int32_t
 csachan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	return CS461x_BUFFSIZE / 2;
@@ -589,13 +592,13 @@ csachan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 csachan_getptr(kobj_t obj, void *data)
 {
 	struct csa_chinfo *ch = data;
 	struct csa_info *csa = ch->parent;
 	csa_res *resp;
-	int ptr;
+	u_int32_t ptr;
 
 	resp = &csa->res;
 
@@ -627,7 +630,7 @@ static kobj_method_t csachan_methods[] = {
     	KOBJMETHOD(channel_trigger,		csachan_trigger),
     	KOBJMETHOD(channel_getptr,		csachan_getptr),
     	KOBJMETHOD(channel_getcaps,		csachan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(csachan);
 

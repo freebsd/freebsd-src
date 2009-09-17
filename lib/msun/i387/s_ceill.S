@@ -25,3 +25,4 @@ ENTRY(ceill)
 
 	leave
 	ret
+END(ceill)

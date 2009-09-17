@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -17,7 +17,7 @@
 
 /*%
  * Principal Author: Brian Wellington
- * $Id: dst_result.c,v 1.1.6.3 2005/04/29 00:15:52 marka Exp $
+ * $Id: dst_result.c,v 1.7 2008/04/01 23:47:10 tbox Exp $
  */
 
 #include <config.h>
@@ -49,7 +49,8 @@ static const char *text[DST_R_NRESULTS] = {
 	"not a key that can compute a secret",	/*%< 17 */
 	"failure computing a shared secret",	/*%< 18 */
 	"no randomness available",		/*%< 19 */
-	"bad key type"				/*%< 20 */
+	"bad key type",				/*%< 20 */
+	"no engine"				/*%< 21 */
 };
 
 #define DST_RESULT_RESULTSET			2

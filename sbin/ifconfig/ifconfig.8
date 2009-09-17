@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2009
+.Dd September 2, 2009
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -417,6 +417,18 @@ If the driver offers user-configurable VLAN support, disable
 reception of extended frames, tag processing in hardware, or
 frame filtering in hardware,
 respectively.
+.It Cm vnet Ar jail
+Move the interface to the
+.Xr jail 8 ,
+specified by name or JID.
+If the jail has a virtual network stack, the interface will disappear
+from the current environment and become visible to the jail.
+.It Fl vnet Ar jail
+Reclaim the interface from the
+.Xr jail 8 ,
+specified by name or JID.
+If the jail has a virtual network stack, the interface will disappear
+from the jail, and become visible to the current network environment.
 .It Cm polling
 Turn on
 .Xr polling 4
@@ -586,6 +598,48 @@ If the interface was reset when previously marked down,
 the hardware will be re-initialized.
 .El
 .Pp
+The following parameters are for ICMPv6 Neightbor Discovery Protocol:
+.Bl -tag -width indent
+.It Cm accept_rtadv
+Set a flag to enable accepting ICMPv6 Router Advertisement messages.
+.It Cm -accept_rtadv
+Clear a flag
+.Cm accept_rtadv .
+.It Cm auto_linklocal
+Set a flag to perform automatic link-local address configuration when
+the interface becomes avalilable.
+.It Cm -auto_linklocal
+Clear a flag
+.Cm auto_linklocal .
+.It Cm defaultif
+Set the specified interface as the default route when there is no
+default router.
+.It Cm -defaultif
+Clear a flag
+.Cm defaultif .
+.It Cm ifdisabled
+Set a flag to disable all of IPv6 network communications on the
+specified interface.
+.It Cm -ifdisabled
+Clear a flag
+.Cm ifdisabled .
+When this flag is cleared and 
+.Cm auto_linklocal
+flag is enabled, automatic configuration of a link-local address is
+performed.
+.It Cm nud
+Set a flag to enable Neighbor Unreachability Detection.
+.It Cm -nud
+Clear a flag
+.Cm nud .
+.It Cm prefer_source
+Set a flag to prefer addesses on the interface as candidates of the
+source address for outgoing packets.
+.It Cm -prefer_source
+Clear a flag
+.Cm prefer_source .
+.El
+.Pp
 The following parameters are specific to cloning
 IEEE 802.11 wireless interfaces with the
 .Cm create
@@ -611,6 +665,7 @@ is one of
 .Cm hostap ),
 .Cm wds ,
 .Cm tdma ,
+.Cm mesh ,
 and
 .Cm monitor .
 The operating mode of a cloned interface cannot be changed.
@@ -1183,6 +1238,9 @@ indicates the address is denied access,
 .Ql *
 indicates the address is present but the current policy open
 (so the ACL is not consulted).
+.It Cm list mesh
+Displays the mesh routing table, used for forwarding packets on a mesh
+network.
 .It Cm list regdomain
 Display the current regulatory settings including the available channels
 and transmit power caps.
@@ -1266,6 +1324,8 @@ When operating as an access point display the stations that are
 currently associated.
 When operating in ad-hoc mode display stations identified as
 neighbors in the IBSS.
+When operating in mesh mode display stations identified as
+neighbors in the MBSS.
 When operating in station mode display the access point.
 Capabilities advertised by the stations are described under
 the
@@ -1801,6 +1861,85 @@ as it handles the RADIUS processing
 (and marks stations as authorized).
 .El
 .Pp
+The following parameters are related to a wireless interface operating in mesh
+mode:
+.Bl -tag -width indent
+.It Cm meshid Ar meshid
+Set the desired Mesh Identifier.
+The Mesh ID is a string up to 32 characters in length.
+A mesh interface must have a Mesh Identifier specified
+to reach an operational state.
+.It Cm meshttl Ar ttl
+Set the desired ``time to live'' for mesh forwarded packets;
+this is the number of hops a packet may be forwarded before
+it is discarded.
+The default setting for
+.Cm meshttl
+is 31.
+.It Cm meshpeering
+Enable or disable peering with neighbor mesh stations.
+Stations must peer before any data packets can be exchanged.
+By default
+.Cm meshpeering
+is enabled.
+.It Cm meshforward
+Enable or disable forwarding packets by a mesh interface.
+By default
+.Cm meshforward
+is enabled.
+.It Cm meshmetric Ar protocol
+Set the specified
+.Ar protocol
+as the link metric protocol used on a mesh network.
+The default protocol is called
+.Ar AIRTIME .
+The mesh interface will restart after changing this setting.
+.It Cm meshpath Ar protocol
+Set the specified
+.Ar protocol
+as the path selection protocol used on a mesh network.
+The only available protocol at the moment is called
+.Ar HWMP
+(Hybrid Wireless Mesh Protocol).
+The mesh interface will restart after changing this setting.
+.It Cm hwmprootmode Ar mode
+Stations on a mesh network can operate as ``root nodes.''
+Root nodes try to find paths to all mesh nodes and advertise themselves
+regularly.
+When there is a root mesh node on a network, other mesh nodes can setup
+paths between themselves faster because they can use the root node
+to find the destination.
+This path may not be the best, but on-demand
+routing will eventually find the best path.
+The following modes are recognized:
+.Pp
+.Bl -tag -width ".Cm PROACTIVE" -compact
+.It Cm DISABLED
+Disable root mode.
+.It Cm NORMAL
+Send broadcast path requests every two seconds.
+Nodes on the mesh without a path to this root mesh station with try to
+discover a path to us.
+.It Cm PROACTIVE
+Send broadcast path requests every two seconds and every node must reply with
+with a path reply even if it already has a path to this root mesh station,
+.It Cm RANN
+Send broadcast root annoucement (RANN) frames.
+Nodes on the mesh without a path to this root mesh station with try to
+discover a path to us.
+.El
+By default
+.Cm hwmprootmode 
+is set to
+.Ar DISABLED .
+.It Cm hwmpmaxhops Ar cnt
+Set the maximum number of hops allowed in an HMWP path to
+.Ar cnt .
+The default setting for
+.Cm hwmpmaxhops
+is 31.
+.El
+.Pp
 The following parameters are for compatibility with other systems:
 .Bl -tag -width indent
 .It Cm nwid Ar ssid
@@ -2100,6 +2239,24 @@ interfaces previously configured with
 Another name for the
 .Fl tunnel
 parameter.
+.It Cm accept_rev_ethip_ver
+Set a flag to acccept both correct EtherIP packets and ones
+with reversed version field.  Enabled by default.
+This is for backward compatibility with
+.Fx 6.1 ,
+6.2, 6.3, 7.0, and 7.1.
+.It Cm -accept_rev_ethip_ver
+Clear a flag
+.Cm accept_rev_ethip_ver .
+.It Cm send_rev_ethip_ver
+Set a flag to send EtherIP packets with reversed version
+field intentionally.  Disabled by default.
+This is for backward compatibility with
+.Fx 6.1 ,
+6.2, 6.3, 7.0, and 7.1.
+.It Cm -send_rev_ethip_ver
+Clear a flag
+.Cm send_rev_ethip_ver .
 .El
 .Pp
 The following parameters are specific to GRE tunnel interfaces,
@@ -2324,6 +2481,9 @@ from the interface
 .Li ed0 :
 .Dl # ifconfig ed0 inet 192.0.2.45 -alias
 .Pp
+Enable IPv6 functionality of the interface:
+.Dl # ifconfig em0 inet6 -ifdisabled
+.Pp
 Add the IPv6 address
 .Li 2001:DB8:DBDB::123/48
 to the interface
@@ -2360,6 +2520,7 @@ tried to alter an interface's configuration.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr carp 4 ,
+.Xr gif 4 ,
 .Xr netintro 4 ,
 .Xr pfsync 4 ,
 .Xr polling 4 ,
@@ -2367,6 +2528,7 @@ tried to alter an interface's configuration.
 .\" .Xr eon 5 ,
 .Xr rc 8 ,
 .Xr routed 8 ,
+.Xr jail 8 ,
 .Xr sysctl 8
 .Sh HISTORY
 The
@@ -2377,12 +2539,13 @@ utility appeared in
 Basic IPv6 node operation requires a link-local address on each
 interface configured for IPv6.
 Normally, such an address is automatically configured by the
-kernel on each interface added to the system; this behaviour may
-be disabled by setting the sysctl MIB variable
-.Va net.inet6.ip6.auto_linklocal
-to 0.
+kernel on each interface added to the system or enabled; this behavior may
+be disabled by setting per-interface flag
+.Cm -auto_linklocal .
+The default value of this flag is 1 and can be disabled by using the sysctl
+MIB variable
+.Va net.inet6.ip6.auto_linklocal .
 .Pp
-If you delete such an address using
-.Nm ,
-the kernel may act very odd.
-Do this at your own risk.
+Do not configure IPv6 addresses with no link-local address by using
+.Nm .
+It can result in unexpected behaviors of the kernel.

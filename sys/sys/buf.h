@@ -443,13 +443,14 @@ buf_countdeps(struct buf *bp, int i)
  */
 #define	GB_LOCK_NOWAIT	0x0001		/* Fail if we block on a buf lock. */
 #define	GB_NOCREAT	0x0002		/* Don't create a buf if not found. */
+#define	GB_NOWAIT_BD	0x0004		/* Do not wait for bufdaemon */
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
-extern int	maxswzone;		/* Max KVA for swap structures */
-extern int	maxbcache;		/* Max KVA for buffer cache */
-extern int	runningbufspace;
-extern int	hibufspace;
+extern long	maxswzone;		/* Max KVA for swap structures */
+extern long	maxbcache;		/* Max KVA for buffer cache */
+extern long	runningbufspace;
+extern long	hibufspace;
 extern int	dirtybufthresh;
 extern int	bdwriteskip;
 extern int	dirtybufferflushes;
@@ -487,7 +488,7 @@ struct buf *     getpbuf(int *);
 struct buf *incore(struct bufobj *, daddr_t);
 struct buf *gbincore(struct bufobj *, daddr_t);
 struct buf *getblk(struct vnode *, daddr_t, int, int, int, int);
-struct buf *geteblk(int);
+struct buf *geteblk(int, int);
 int	bufwait(struct buf *);
 int	bufwrite(struct buf *);
 void	bufdone(struct buf *);
@@ -497,7 +498,7 @@ int	cluster_read(struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, long, int, struct buf **);
 int	cluster_wbuild(struct vnode *, long, daddr_t, int);
 void	cluster_write(struct vnode *, struct buf *, u_quad_t, int);
-void	vfs_bio_set_validclean(struct buf *, int base, int size);
+void	vfs_bio_set_valid(struct buf *, int base, int size);
 void	vfs_bio_clrbuf(struct buf *);
 void	vfs_busy_pages(struct buf *, int clear_modify);
 void	vfs_unbusy_pages(struct buf *);

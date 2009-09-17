@@ -4,8 +4,10 @@
 .include <bsd.own.mk>
 
 PROG=	ifmcstat
+SRCS=	ifmcstat.c printb.c
+
 MAN=	ifmcstat.8
-BINMODE= 550
+BINMODE= 555
 
 WARNS?=	2
 

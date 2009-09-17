@@ -172,7 +172,8 @@ extern unsigned devfs_rule_depth;
 void devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de);
 void devfs_rules_cleanup (struct devfs_mount *dm);
 int devfs_rules_ioctl(struct devfs_mount *dm, u_long cmd, caddr_t data, struct thread *td);
-int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct thread *td);
+int devfs_allocv (struct devfs_dirent *de, struct mount *mp,
+    struct vnode **vpp);
 void devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked);
 void devfs_dirent_free(struct devfs_dirent *de);
 void devfs_populate (struct devfs_mount *dm);

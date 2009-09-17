@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/taskqueue.h>
 
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -51,6 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_sta.h>
 #include <net80211/ieee80211_hostap.h>
 #include <net80211/ieee80211_wds.h>
+#ifdef IEEE80211_SUPPORT_MESH
+#include <net80211/ieee80211_mesh.h>
+#endif
 #include <net80211/ieee80211_monitor.h>
 #include <net80211/ieee80211_input.h>
 
@@ -76,7 +78,8 @@ const char *ieee80211_opmode_name[IEEE80211_OPMODE_MAX] = {
 	"WDS",		/* IEEE80211_M_WDS */
 	"AHDEMO",	/* IEEE80211_M_AHDEMO */
 	"HOSTAP",	/* IEEE80211_M_HOSTAP */
-	"MONITOR"	/* IEEE80211_M_MONITOR */
+	"MONITOR",	/* IEEE80211_M_MONITOR */
+	"MBSS"		/* IEEE80211_M_MBSS */
 };
 const char *ieee80211_state_name[IEEE80211_S_MAX] = {
 	"INIT",		/* IEEE80211_S_INIT */
@@ -96,7 +99,13 @@ const char *ieee80211_wme_acnames[] = {
 	"WME_UPSD",
 };
 
+static void beacon_miss(void *, int);
+static void beacon_swmiss(void *, int);
 static void parent_updown(void *, int);
+static void update_mcast(void *, int);
+static void update_promisc(void *, int);
+static void update_channel(void *, int);
+static void ieee80211_newstate_cb(void *, int);
 static int ieee80211_new_state_locked(struct ieee80211vap *,
 	enum ieee80211_state, int);
 
@@ -131,6 +140,10 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	ic->ic_protmode = IEEE80211_PROT_CTSONLY;
 
 	TASK_INIT(&ic->ic_parent_task, 0, parent_updown, ifp);
+	TASK_INIT(&ic->ic_mcast_task, 0, update_mcast, ic);
+	TASK_INIT(&ic->ic_promisc_task, 0, update_promisc, ic);
+	TASK_INIT(&ic->ic_chan_task, 0, update_channel, ic);
+	TASK_INIT(&ic->ic_bmiss_task, 0, beacon_miss, ic);
 
 	ic->ic_wme.wme_hipri_switch_hysteresis =
 		AGGRESSIVE_MODE_SWITCH_HYSTERESIS;
@@ -143,6 +156,9 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	ieee80211_sta_attach(ic);
 	ieee80211_wds_attach(ic);
 	ieee80211_hostap_attach(ic);
+#ifdef IEEE80211_SUPPORT_MESH
+	ieee80211_mesh_attach(ic);
+#endif
 	ieee80211_monitor_attach(ic);
 }
 
@@ -150,6 +166,9 @@ void
 ieee80211_proto_detach(struct ieee80211com *ic)
 {
 	ieee80211_monitor_detach(ic);
+#ifdef IEEE80211_SUPPORT_MESH
+	ieee80211_mesh_detach(ic);
+#endif
 	ieee80211_hostap_detach(ic);
 	ieee80211_wds_detach(ic);
 	ieee80211_adhoc_detach(ic);
@@ -176,6 +195,8 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	vap->iv_bmiss_max = IEEE80211_BMISS_MAX;
 	callout_init(&vap->iv_swbmiss, CALLOUT_MPSAFE);
 	callout_init(&vap->iv_mgtsend, CALLOUT_MPSAFE);
+	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
+	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
 	/*
 	 * Install default tx rate handling: no fixed rate, lowest
 	 * supported rate for mgmt and multicast frames.  Default
@@ -1072,6 +1093,33 @@ parent_updown(void *arg, int npending)
 	parent->if_ioctl(parent, SIOCSIFFLAGS, NULL);
 }
 
+static void
+update_mcast(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+	struct ifnet *parent = ic->ic_ifp;
+
+	ic->ic_update_mcast(parent);
+}
+
+static void
+update_promisc(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+	struct ifnet *parent = ic->ic_ifp;
+
+	ic->ic_update_promisc(parent);
+}
+
+static void
+update_channel(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
+
+	ic->ic_set_channel(ic);
+	ieee80211_radiotap_chan_change(ic);
+}
+
 /*
  * Block until the parent is in a known state.  This is
  * used after any operations that dispatch a task (e.g.
@@ -1080,7 +1128,13 @@ parent_updown(void *arg, int npending)
 void
 ieee80211_waitfor_parent(struct ieee80211com *ic)
 {
-	taskqueue_drain(taskqueue_thread, &ic->ic_parent_task);
+	taskqueue_block(ic->ic_tq);
+	ieee80211_draintask(ic, &ic->ic_parent_task);
+	ieee80211_draintask(ic, &ic->ic_mcast_task);
+	ieee80211_draintask(ic, &ic->ic_promisc_task);
+	ieee80211_draintask(ic, &ic->ic_chan_task);
+	ieee80211_draintask(ic, &ic->ic_bmiss_task);
+	taskqueue_unblock(ic->ic_tq);
 }
 
 /*
@@ -1121,7 +1175,7 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 			    IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
 			    "%s: up parent %s\n", __func__, parent->if_xname);
 			parent->if_flags |= IFF_UP;
-			taskqueue_enqueue(taskqueue_thread, &ic->ic_parent_task);
+			ieee80211_runtask(ic, &ic->ic_parent_task);
 			return;
 		}
 	}
@@ -1156,8 +1210,7 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 			 * preempted if the station is locked to a particular
 			 * channel.
 			 */
-			/* XXX needed? */
-			ieee80211_new_state_locked(vap, IEEE80211_S_INIT, 0);
+			vap->iv_flags_ext |= IEEE80211_FEXT_REINIT;
 			if (vap->iv_opmode == IEEE80211_M_MONITOR ||
 			    vap->iv_opmode == IEEE80211_M_WDS)
 				ieee80211_new_state_locked(vap,
@@ -1177,22 +1230,12 @@ ieee80211_init(void *arg)
 {
 	struct ieee80211vap *vap = arg;
 
-	/*
-	 * This routine is publicly accessible through the vap's
-	 * if_init method so guard against calls during detach.
-	 * ieee80211_vap_detach null's the backpointer before
-	 * tearing down state to signal any callback should be
-	 * rejected/ignored.
-	 */
-	if (vap != NULL) {
-		IEEE80211_DPRINTF(vap,
-		    IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
-		    "%s\n", __func__);
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
+	    "%s\n", __func__);
 
-		IEEE80211_LOCK(vap->iv_ic);
-		ieee80211_start_locked(vap);
-		IEEE80211_UNLOCK(vap->iv_ic);
-	}
+	IEEE80211_LOCK(vap->iv_ic);
+	ieee80211_start_locked(vap);
+	IEEE80211_UNLOCK(vap->iv_ic);
 }
 
 /*
@@ -1240,7 +1283,7 @@ ieee80211_stop_locked(struct ieee80211vap *vap)
 			    IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,
 			    "down parent %s\n", parent->if_xname);
 			parent->if_flags &= ~IFF_UP;
-			taskqueue_enqueue(taskqueue_thread, &ic->ic_parent_task);
+			ieee80211_runtask(ic, &ic->ic_parent_task);
 		}
 	}
 }
@@ -1316,46 +1359,23 @@ ieee80211_resume_all(struct ieee80211com *ic)
 	IEEE80211_UNLOCK(ic);
 }
 
-/*
- * Switch between turbo and non-turbo operating modes.
- * Use the specified channel flags to locate the new
- * channel, update 802.11 state, and then call back into
- * the driver to effect the change.
- */
-void
-ieee80211_dturbo_switch(struct ieee80211vap *vap, int newflags)
-{
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ieee80211_channel *chan;
-
-	chan = ieee80211_find_channel(ic, ic->ic_bsschan->ic_freq, newflags);
-	if (chan == NULL) {		/* XXX should not happen */
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
-		    "%s: no channel with freq %u flags 0x%x\n",
-		    __func__, ic->ic_bsschan->ic_freq, newflags);
-		return;
-	}
-
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SUPERG,
-	    "%s: %s -> %s (freq %u flags 0x%x)\n", __func__,
-	    ieee80211_phymode_name[ieee80211_chan2mode(ic->ic_bsschan)],
-	    ieee80211_phymode_name[ieee80211_chan2mode(chan)],
-	    chan->ic_freq, chan->ic_flags);
-
-	ic->ic_bsschan = chan;
-	ic->ic_prevchan = ic->ic_curchan;
-	ic->ic_curchan = chan;
-	ic->ic_set_channel(ic);
-	/* NB: do not need to reset ERP state 'cuz we're in sta mode */
-}
-
 void
 ieee80211_beacon_miss(struct ieee80211com *ic)
 {
+	IEEE80211_LOCK(ic);
+	if ((ic->ic_flags & IEEE80211_F_SCAN) == 0) {
+		/* Process in a taskq, the handler may reenter the driver */
+		ieee80211_runtask(ic, &ic->ic_bmiss_task);
+	}
+	IEEE80211_UNLOCK(ic);
+}
+
+static void
+beacon_miss(void *arg, int npending)
+{
+	struct ieee80211com *ic = arg;
 	struct ieee80211vap *vap;
 
-	if (ic->ic_flags & IEEE80211_F_SCAN)
-		return;
 	/* XXX locking */
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		/*
@@ -1364,10 +1384,22 @@ ieee80211_beacon_miss(struct ieee80211com *ic)
 		 * handlers duplicating these checks.
 		 */
 		if (vap->iv_opmode == IEEE80211_M_STA &&
-		    vap->iv_state == IEEE80211_S_RUN &&
+		    vap->iv_state >= IEEE80211_S_RUN &&
 		    vap->iv_bmiss != NULL)
 			vap->iv_bmiss(vap);
 	}
+}
+
+static void
+beacon_swmiss(void *arg, int npending)
+{
+	struct ieee80211vap *vap = arg;
+
+	if (vap->iv_state != IEEE80211_S_RUN)
+		return;
+
+	/* XXX Call multiple times if npending > zero? */
+	vap->iv_bmiss(vap);
 }
 
 /*
@@ -1399,7 +1431,7 @@ ieee80211_swbmiss(void *arg)
 		vap->iv_swbmiss_count = 0;
 	} else if (vap->iv_swbmiss_count == 0) {
 		if (vap->iv_bmiss != NULL)
-			vap->iv_bmiss(vap);
+			ieee80211_runtask(ic, &vap->iv_swbmiss_task);
 		if (vap->iv_bmiss_count == 0)	/* don't re-arm timer */
 			return;
 	} else
@@ -1429,18 +1461,32 @@ ieee80211_csa_startswitch(struct ieee80211com *ic,
 	IEEE80211_LOCK_ASSERT(ic);
 
 	ic->ic_csa_newchan = c;
+	ic->ic_csa_mode = mode;
 	ic->ic_csa_count = count;
-	/* XXX record mode? */
 	ic->ic_flags |= IEEE80211_F_CSAPENDING;
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
-		    vap->iv_opmode == IEEE80211_M_IBSS)
+		    vap->iv_opmode == IEEE80211_M_IBSS ||
+		    vap->iv_opmode == IEEE80211_M_MBSS)
 			ieee80211_beacon_notify(vap, IEEE80211_BEACON_CSA);
 		/* switch to CSA state to block outbound traffic */
 		if (vap->iv_state == IEEE80211_S_RUN)
 			ieee80211_new_state_locked(vap, IEEE80211_S_CSA, 0);
 	}
 	ieee80211_notify_csa(ic, c, mode, count);
+}
+
+static void
+csa_completeswitch(struct ieee80211com *ic)
+{
+	struct ieee80211vap *vap;
+
+	ic->ic_csa_newchan = NULL;
+	ic->ic_flags &= ~IEEE80211_F_CSAPENDING;
+
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		if (vap->iv_state == IEEE80211_S_CSA)
+			ieee80211_new_state_locked(vap, IEEE80211_S_RUN, 0);
 }
 
 /*
@@ -1451,19 +1497,25 @@ ieee80211_csa_startswitch(struct ieee80211com *ic,
 void
 ieee80211_csa_completeswitch(struct ieee80211com *ic)
 {
-	struct ieee80211vap *vap;
-
 	IEEE80211_LOCK_ASSERT(ic);
 
 	KASSERT(ic->ic_flags & IEEE80211_F_CSAPENDING, ("csa not pending"));
 
 	ieee80211_setcurchan(ic, ic->ic_csa_newchan);
-	ic->ic_csa_newchan = NULL;
-	ic->ic_flags &= ~IEEE80211_F_CSAPENDING;
+	csa_completeswitch(ic);
+}
 
-	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
-		if (vap->iv_state == IEEE80211_S_CSA)
-			ieee80211_new_state_locked(vap, IEEE80211_S_RUN, 0);
+/*
+ * Cancel an 802.11h channel switch started by ieee80211_csa_startswitch.
+ * We clear state and move all vap's in CSA state to RUN state
+ * so they can again transmit.
+ */
+void
+ieee80211_csa_cancelswitch(struct ieee80211com *ic)
+{
+	IEEE80211_LOCK_ASSERT(ic);
+
+	csa_completeswitch(ic);
 }
 
 /*
@@ -1496,7 +1548,6 @@ ieee80211_cac_completeswitch(struct ieee80211vap *vap0)
  * and mark them as waiting for a scan to complete.  These vaps
  * will be brought up when the scan completes and the scanning vap
  * reaches RUN state by wakeupwaiting.
- * XXX if we do this in threads we can use sleep/wakeup.
  */
 static void
 markwaiting(struct ieee80211vap *vap0)
@@ -1506,10 +1557,16 @@ markwaiting(struct ieee80211vap *vap0)
 
 	IEEE80211_LOCK_ASSERT(ic);
 
+	/*
+	 * A vap list entry can not disappear since we are running on the
+	 * taskqueue and a vap destroy will queue and drain another state
+	 * change task.
+	 */
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		if (vap == vap0)
 			continue;
 		if (vap->iv_state != IEEE80211_S_INIT) {
+			/* NB: iv_newstate may drop the lock */
 			vap->iv_newstate(vap, IEEE80211_S_INIT, 0);
 			vap->iv_flags_ext |= IEEE80211_FEXT_SCANWAIT;
 		}
@@ -1520,6 +1577,7 @@ markwaiting(struct ieee80211vap *vap0)
  * Wakeup all vap's waiting for a scan to complete.  This is the
  * companion to markwaiting (above) and is used to coordinate
  * multiple vaps scanning.
+ * This is called from the state taskqueue.
  */
 static void
 wakeupwaiting(struct ieee80211vap *vap0)
@@ -1529,12 +1587,18 @@ wakeupwaiting(struct ieee80211vap *vap0)
 
 	IEEE80211_LOCK_ASSERT(ic);
 
+	/*
+	 * A vap list entry can not disappear since we are running on the
+	 * taskqueue and a vap destroy will queue and drain another state
+	 * change task.
+	 */
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		if (vap == vap0)
 			continue;
 		if (vap->iv_flags_ext & IEEE80211_FEXT_SCANWAIT) {
 			vap->iv_flags_ext &= ~IEEE80211_FEXT_SCANWAIT;
 			/* NB: sta's cannot go INIT->RUN */
+			/* NB: iv_newstate may drop the lock */
 			vap->iv_newstate(vap,
 			    vap->iv_opmode == IEEE80211_M_STA ?
 			        IEEE80211_S_SCAN : IEEE80211_S_RUN, 0);
@@ -1546,15 +1610,63 @@ wakeupwaiting(struct ieee80211vap *vap0)
  * Handle post state change work common to all operating modes.
  */
 static void
-ieee80211_newstate_cb(struct ieee80211vap *vap, 
-	enum ieee80211_state nstate, int arg)
+ieee80211_newstate_cb(void *xvap, int npending)
 {
+	struct ieee80211vap *vap = xvap;
 	struct ieee80211com *ic = vap->iv_ic;
+	enum ieee80211_state nstate, ostate;
+	int arg, rc;
 
-	IEEE80211_LOCK_ASSERT(ic);
+	IEEE80211_LOCK(ic);
+	nstate = vap->iv_nstate;
+	arg = vap->iv_nstate_arg;
 
+	if (vap->iv_flags_ext & IEEE80211_FEXT_REINIT) {
+		/*
+		 * We have been requested to drop back to the INIT before
+		 * proceeding to the new state.
+		 */
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
+		    "%s: %s -> %s arg %d\n", __func__,
+		    ieee80211_state_name[vap->iv_state],
+		    ieee80211_state_name[IEEE80211_S_INIT], arg);
+		vap->iv_newstate(vap, IEEE80211_S_INIT, arg);
+		vap->iv_flags_ext &= ~IEEE80211_FEXT_REINIT;
+	}
+
+	ostate = vap->iv_state;
+	if (nstate == IEEE80211_S_SCAN && ostate != IEEE80211_S_INIT) {
+		/*
+		 * SCAN was forced; e.g. on beacon miss.  Force other running
+		 * vap's to INIT state and mark them as waiting for the scan to
+		 * complete.  This insures they don't interfere with our
+		 * scanning.  Since we are single threaded the vaps can not
+		 * transition again while we are executing.
+		 *
+		 * XXX not always right, assumes ap follows sta
+		 */
+		markwaiting(vap);
+	}
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
-	    "%s: %s arg %d\n", __func__, ieee80211_state_name[nstate], arg);
+	    "%s: %s -> %s arg %d\n", __func__,
+	    ieee80211_state_name[ostate], ieee80211_state_name[nstate], arg);
+
+	rc = vap->iv_newstate(vap, nstate, arg);
+	vap->iv_flags_ext &= ~IEEE80211_FEXT_STATEWAIT;
+	if (rc != 0) {
+		/* State transition failed */
+		KASSERT(rc != EINPROGRESS, ("iv_newstate was deferred"));
+		KASSERT(nstate != IEEE80211_S_INIT,
+		    ("INIT state change failed"));
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
+		    "%s: %s returned error %d\n", __func__,
+		    ieee80211_state_name[nstate], rc);
+		goto done;
+	}
+
+	/* No actual transition, skip post processing */
+	if (ostate == nstate)
+		goto done;
 
 	if (nstate == IEEE80211_S_RUN) {
 		/*
@@ -1582,7 +1694,8 @@ ieee80211_newstate_cb(struct ieee80211vap *vap,
 		/* XXX NB: cast for altq */
 		ieee80211_flush_ifq((struct ifqueue *)&ic->ic_ifp->if_snd, vap);
 	}
-	vap->iv_newstate_cb = NULL;
+done:
+	IEEE80211_UNLOCK(ic);
 }
 
 /*
@@ -1619,9 +1732,33 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211vap *vp;
 	enum ieee80211_state ostate;
-	int nrunning, nscanning, rc;
+	int nrunning, nscanning;
 
 	IEEE80211_LOCK_ASSERT(ic);
+
+	if (vap->iv_flags_ext & IEEE80211_FEXT_STATEWAIT) {
+		if (vap->iv_nstate == IEEE80211_S_INIT) {
+			/*
+			 * XXX The vap is being stopped, do no allow any other
+			 * state changes until this is completed.
+			 */
+			return -1;
+		} else if (vap->iv_state != vap->iv_nstate) {
+#if 0
+			/* Warn if the previous state hasn't completed. */
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
+			    "%s: pending %s -> %s transition lost\n", __func__,
+			    ieee80211_state_name[vap->iv_state],
+			    ieee80211_state_name[vap->iv_nstate]);
+#else
+			/* XXX temporarily enable to identify issues */
+			if_printf(vap->iv_ifp,
+			    "%s: pending %s -> %s transition lost\n",
+			    __func__, ieee80211_state_name[vap->iv_state],
+			    ieee80211_state_name[vap->iv_nstate]);
+#endif
+		}
+	}
 
 	nrunning = nscanning = 0;
 	/* XXX can track this state instead of calculating */
@@ -1658,8 +1795,7 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 				    __func__, ieee80211_state_name[ostate],
 				    ieee80211_state_name[nstate]);
 				vap->iv_flags_ext |= IEEE80211_FEXT_SCANWAIT;
-				rc = 0;
-				goto done;
+				return 0;
 			}
 			if (nrunning) {
 				/*
@@ -1683,16 +1819,6 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 				}
 #endif
 			}
-		} else {
-			/*
-			 * SCAN was forced; e.g. on beacon miss.  Force
-			 * other running vap's to INIT state and mark
-			 * them as waiting for the scan to complete.  This
-			 * insures they don't interfere with our scanning.
-			 *
-			 * XXX not always right, assumes ap follows sta
-			 */
-			markwaiting(vap);
 		}
 		break;
 	case IEEE80211_S_RUN:
@@ -1709,8 +1835,7 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 			     ieee80211_state_name[ostate],
 			     ieee80211_state_name[nstate]);
 			vap->iv_flags_ext |= IEEE80211_FEXT_SCANWAIT;
-			rc = 0;
-			goto done;
+			return 0;
 		}
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP &&
 		    IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
@@ -1730,6 +1855,8 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 		}
 		break;
 	case IEEE80211_S_INIT:
+		/* cancel any scan in progress */
+		ieee80211_cancel_scan(vap);
 		if (ostate == IEEE80211_S_INIT ) {
 			/* XXX don't believe this */
 			/* INIT -> INIT. nothing to do */
@@ -1739,20 +1866,12 @@ ieee80211_new_state_locked(struct ieee80211vap *vap,
 	default:
 		break;
 	}
-	/* XXX on transition RUN->CAC do we need to set nstate = iv_state? */
-	if (ostate != nstate) {
-		/*
-		 * Arrange for work to happen after state change completes.
-		 * If this happens asynchronously the caller must arrange
-		 * for the com lock to be held.
-		 */
-		vap->iv_newstate_cb = ieee80211_newstate_cb;
-	}
-	rc = vap->iv_newstate(vap, nstate, arg);
-	if (rc == 0 && vap->iv_newstate_cb != NULL)
-		vap->iv_newstate_cb(vap, nstate, arg);
-done:
-	return rc;
+	/* defer the state change to a thread */
+	vap->iv_nstate = nstate;
+	vap->iv_nstate_arg = arg;
+	vap->iv_flags_ext |= IEEE80211_FEXT_STATEWAIT;
+	ieee80211_runtask(ic, &vap->iv_nstate_task);
+	return EINPROGRESS;
 }
 
 int

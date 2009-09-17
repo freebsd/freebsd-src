@@ -869,16 +869,13 @@ ar5212ProcTxDesc(struct ath_hal *ah,
 		ts->ts_rate = MS(ads->ds_ctl3, AR_XmitRate0);
 		break;
 	case 1:
-		ts->ts_rate = MS(ads->ds_ctl3, AR_XmitRate1) |
-			HAL_TXSTAT_ALTRATE;
+		ts->ts_rate = MS(ads->ds_ctl3, AR_XmitRate1);
 		break;
 	case 2:
-		ts->ts_rate = MS(ads->ds_ctl3, AR_XmitRate2) |
-			HAL_TXSTAT_ALTRATE;
+		ts->ts_rate = MS(ads->ds_ctl3, AR_XmitRate2);
 		break;
 	case 3:
-		ts->ts_rate = MS(ads->ds_ctl3, AR_XmitRate3) |
-			HAL_TXSTAT_ALTRATE;
+		ts->ts_rate = MS(ads->ds_ctl3, AR_XmitRate3);
 		break;
 	}
 	ts->ts_rssi = MS(ads->ds_txstatus1, AR_AckSigStrength);

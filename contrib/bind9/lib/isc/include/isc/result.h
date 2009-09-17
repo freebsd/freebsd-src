@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,10 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: result.h,v 1.62.18.4 2005/06/22 22:05:49 marka Exp $ */
+/* $Id: result.h,v 1.71 2008/09/25 04:02:39 tbox Exp $ */
 
 #ifndef ISC_RESULT_H
 #define ISC_RESULT_H 1
+
+/*! \file isc/result.h */
 
 #include <isc/lang.h>
 #include <isc/types.h>
@@ -83,9 +85,10 @@
 #define ISC_R_DISABLED			57	/*%< disabled */
 #define ISC_R_MAXSIZE			58	/*%< max size */
 #define ISC_R_BADADDRESSFORM		59	/*%< invalid address format */
+#define ISC_R_BADBASE32			60	/*%< bad base32 encoding */
 
 /*% Not a result code: the number of results. */
-#define ISC_R_NRESULTS 			60
+#define ISC_R_NRESULTS 			61
 
 ISC_LANG_BEGINDECLS
 

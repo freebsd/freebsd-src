@@ -1,5 +1,5 @@
 /* rsautl.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2000.
  */
 /* ====================================================================
@@ -119,24 +119,36 @@ int MAIN(int argc, char **argv)
 	while(argc >= 1)
 	{
 		if (!strcmp(*argv,"-in")) {
-			if (--argc < 1) badarg = 1;
-                        infile= *(++argv);
+			if (--argc < 1)
+				badarg = 1;
+			else
+				infile= *(++argv);
 		} else if (!strcmp(*argv,"-out")) {
-			if (--argc < 1) badarg = 1;
-			outfile= *(++argv);
+			if (--argc < 1)
+				badarg = 1;
+			else
+				outfile= *(++argv);
 		} else if(!strcmp(*argv, "-inkey")) {
-			if (--argc < 1) badarg = 1;
-			keyfile = *(++argv);
+			if (--argc < 1)
+				badarg = 1;
+			else
+				keyfile = *(++argv);
 		} else if (!strcmp(*argv,"-passin")) {
-			if (--argc < 1) badarg = 1;
-			passargin= *(++argv);
+			if (--argc < 1)
+				badarg = 1;
+			else
+				passargin= *(++argv);
 		} else if (strcmp(*argv,"-keyform") == 0) {
-			if (--argc < 1) badarg = 1;
-			keyform=str2fmt(*(++argv));
+			if (--argc < 1)
+				badarg = 1;
+			else
+				keyform=str2fmt(*(++argv));
 #ifndef OPENSSL_NO_ENGINE
 		} else if(!strcmp(*argv, "-engine")) {
-			if (--argc < 1) badarg = 1;
-			engine = *(++argv);
+			if (--argc < 1)
+				badarg = 1;
+			else
+				engine = *(++argv);
 #endif
 		} else if(!strcmp(*argv, "-pubin")) {
 			key_type = KEY_PUBKEY;

@@ -218,11 +218,8 @@ nsp_cr_read_1(bst, bsh, ofs)
 }
 
 static __inline void 
-nsp_cr_write_1(bst, bsh, ofs, va)
-	bus_space_tag_t bst;
-	bus_space_handle_t bsh;
-	bus_addr_t ofs;
-	u_int8_t va;
+nsp_cr_write_1(bus_space_tag_t bst, bus_space_handle_t bsh, bus_addr_t ofs,
+    u_int8_t va)
 {
 
 	bus_space_write_1(bst, bsh, nsp_idxr, ofs);
@@ -230,9 +227,7 @@ nsp_cr_write_1(bst, bsh, ofs, va)
 }
 	
 static int
-nsp_expect_signal(sc, curphase, mask)
-	struct nsp_softc *sc;
-	u_int8_t curphase, mask;
+nsp_expect_signal(struct nsp_softc *sc, u_int8_t curphase, u_int8_t mask)
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 	bus_space_tag_t bst = sc->sc_iot;
@@ -1224,10 +1219,7 @@ WriteLoop:
 }
 
 static int
-nsp_negate_signal(sc, mask, s)
-	struct nsp_softc *sc;
-	u_int8_t mask;
-	u_char *s;
+nsp_negate_signal(struct nsp_softc *sc, u_int8_t mask, u_char *s)
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 	bus_space_tag_t bst = sc->sc_iot;
@@ -1354,10 +1346,8 @@ nsp_disconnected(sc, ti)
 static void nsp_error(struct nsp_softc *, u_char *, u_int8_t, u_int8_t, u_int8_t);
 
 static void
-nsp_error(sc, s, isrc, ph, irqphs)
-	struct nsp_softc *sc;
-	u_char *s;
-	u_int8_t isrc, ph, irqphs;
+nsp_error(struct nsp_softc * sc, u_char *s, u_int8_t isrc, u_int8_t ph,
+    u_int8_t irqphs)
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 
@@ -1430,10 +1420,7 @@ nsp_ccb_nexus_establish(sc)
 }
 
 static int
-nsp_phase_match(sc, phase, stat)
-	struct nsp_softc *sc;
-	u_int8_t phase;
-	u_int8_t stat;
+nsp_phase_match(struct nsp_softc *sc, u_int8_t phase, u_int8_t stat)
 {
 	struct scsi_low_softc *slp = &sc->sc_sclow;
 

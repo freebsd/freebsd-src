@@ -37,10 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
-#ifndef INET
-#error The option TCPDEBUG requires option INET.
-#endif
-
 #ifdef TCPDEBUG
 /* load symbolic names */
 #define PRUREQUESTS
@@ -121,7 +117,9 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 	    (isipv6 != 0) ? AF_INET6 :
 #endif
 	    AF_INET;
+#ifdef INET
 	td->td_time = iptime();
+#endif
 	td->td_act = act;
 	td->td_ostate = ostate;
 	td->td_tcb = (caddr_t)tp;
@@ -129,9 +127,11 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 		td->td_cb = *tp;
 	if (ipgen != NULL) {
 		switch (td->td_family) {
+#ifdef INET
 		case AF_INET:
 			bcopy(ipgen, &td->td_ti.ti_i, sizeof(td->td_ti.ti_i));
 			break;
+#endif
 #ifdef INET6
 		case AF_INET6:
 			bcopy(ipgen, td->td_ip6buf, sizeof(td->td_ip6buf));
@@ -141,9 +141,11 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 	}
 	if (th != NULL) {
 		switch (td->td_family) {
+#ifdef INET
 		case AF_INET:
 			td->td_ti.ti_t = *th;
 			break;
+#endif
 #ifdef INET6
 		case AF_INET6:
 			td->td_ti6.th = *th;
