@@ -2354,6 +2354,9 @@ zfs_ioc_rollback(zfs_cmd_t *zc)
 		if (error == 0) {
 			int resume_err;
 
+#ifdef FREEBSD_NAMECACHE
+			cache_purgevfs(zfsvfs->z_vfs);
+#endif
 			ASSERT(strcmp(osname, zc->zc_name) == 0);
 			error = dmu_objset_rollback(os);
 			resume_err = zfs_resume_fs(zfsvfs, osname, mode);
