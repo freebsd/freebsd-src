@@ -2152,6 +2152,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	/* handle the 'request buffer size' case */
 	if (ifc.ifc_buf == PTROUT(NULL)) {
 		ifc.ifc_len = 0;
+		IFNET_RLOCK();
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				struct sockaddr *sa = ifa->ifa_addr;
@@ -2159,6 +2160,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 					ifc.ifc_len += sizeof(ifr);
 			}
 		}
+		IFNET_RUNLOCK();
 		error = copyout(&ifc, uifc, sizeof(ifc));
 		CURVNET_RESTORE();
 		return (error);
