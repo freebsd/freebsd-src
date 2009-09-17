@@ -46,9 +46,7 @@
 #include <limits.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/ioctl.h>
-#include <dev/usb/usb.h>
-#include <dev/usb/usbhid.h>
+#include <dev/usb2/include/usb2_hid.h>
 #include <usbhid.h>
 #include <syslog.h>
 #include <signal.h>
@@ -155,8 +153,7 @@ main(int argc, char **argv)
 	fd = open(dev, O_RDWR);
 	if (fd < 0)
 		err(1, "%s", dev);
-	if (ioctl(fd, USB_GET_REPORT_ID, &reportid) < 0)
-		reportid = -1;
+	reportid = hid_get_report_id(fd);
 	repd = hid_get_report_desc(fd);
 	if (repd == NULL)
 		err(1, "hid_get_report_desc() failed");

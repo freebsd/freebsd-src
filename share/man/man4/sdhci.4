@@ -24,16 +24,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2008
+.Dd January 14, 2009
 .Dt SDHCI 4
 .Os
 .Sh NAME
 .Nm sdhci
 .Nd PCI SD Host Controller bridge driver
 .Sh SYNOPSIS
-.Cd device mmc
-.Cd device mmcsd
-.Cd device sdhci
+To compile this driver into the kernel, place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device mmc"
+.Cd "device mmcsd"
+.Cd "device sdhci"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time, place the
+following lines in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mmc_load="YES"
+mmcsd_load="YES"
+sdhci_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -42,6 +55,22 @@ SD Host Controller Specification.
 Driver supports up to six high speed 4bit MMC/SD slots per controller.
 Driver attaches mmc bus to the respective slot on card insertion and
 detaches it on card removing.
+.Sh HARDWARE
+The
+.Nm
+driver supports different specification compatible chips. The following
+chips have been verified to work:
+.Pp
+.Bl -bullet -compact
+.It
+ENE CB712
+.It
+ENE CB714
+.It
+RICOH R5C822
+.It
+TI PCIXX21/XX11
+.El
 .Sh SEE ALSO
 .Xr mmc 4 ,
 .Xr mmcsd 4
@@ -50,3 +79,8 @@ detaches it on card removing.
 .Re
 .Sh AUTHORS
 .An Alexander Motin Aq mav@FreeBSD.org .
+.Sh BUGS
+Many of existing SD controller chips have some nonstandard requirements,
+proprietary registers and hardware bugs, requiring additional handling.
+ENE chips are handled to work fine, while some revisions of RICOH and TI
+controllers still don't see cards without some additional initialization.

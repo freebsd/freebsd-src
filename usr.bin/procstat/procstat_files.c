@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
@@ -144,6 +144,8 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 		    "PRO", "NAME");
 
 	freep = kinfo_getfile(pid, &cnt);
+	if (freep == NULL)
+		return;
 	for (i = 0; i < cnt; i++) {
 		kif = &freep[i];
 		

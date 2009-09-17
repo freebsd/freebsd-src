@@ -58,7 +58,9 @@ struct ieee80211_ds_plcp_hdr {
 #define	OFDM	IEEE80211_T_OFDM
 #define	CCK	IEEE80211_T_CCK
 #define	TURBO	IEEE80211_T_TURBO
-#define	PBCC	(IEEE80211_T_HT+1)		/* XXX */
+#define	HALF	IEEE80211_T_OFDM_HALF
+#define	QUART	IEEE80211_T_OFDM_QUARTER
+#define	PBCC	(IEEE80211_T_OFDM_QUARTER+1)		/* XXX */
 #define	B(r)	(0x80 | r)
 #define	Mb(x)	(x*1000)
 
@@ -116,14 +118,14 @@ static struct ieee80211_rate_table ieee80211_half_table = {
     .info = {
 /*                                   short            ctrl  */
 /*                                Preamble  dot11Rate Rate */
-     [0] = { .phy = OFDM,    3000,    0x00,      B(6),   0 },
-     [1] = { .phy = OFDM,    4500,    0x00,         9,   0 },
-     [2] = { .phy = OFDM,    6000,    0x00,     B(12),   2 },
-     [3] = { .phy = OFDM,    9000,    0x00,        18,   2 },
-     [4] = { .phy = OFDM,   12000,    0x00,     B(24),   4 },
-     [5] = { .phy = OFDM,   18000,    0x00,        36,   4 },
-     [6] = { .phy = OFDM,   24000,    0x00,        48,   4 },
-     [7] = { .phy = OFDM,   27000,    0x00,        54,   4 }
+     [0] = { .phy = HALF,    3000,    0x00,      B(6),   0 },
+     [1] = { .phy = HALF,    4500,    0x00,         9,   0 },
+     [2] = { .phy = HALF,    6000,    0x00,     B(12),   2 },
+     [3] = { .phy = HALF,    9000,    0x00,        18,   2 },
+     [4] = { .phy = HALF,   12000,    0x00,     B(24),   4 },
+     [5] = { .phy = HALF,   18000,    0x00,        36,   4 },
+     [6] = { .phy = HALF,   24000,    0x00,        48,   4 },
+     [7] = { .phy = HALF,   27000,    0x00,        54,   4 }
     },
 };
 
@@ -132,14 +134,14 @@ static struct ieee80211_rate_table ieee80211_quarter_table = {
     .info = {
 /*                                   short            ctrl  */
 /*                                Preamble  dot11Rate Rate */
-     [0] = { .phy = OFDM,    1500,    0x00,      B(3),   0 },
-     [1] = { .phy = OFDM,    2250,    0x00,         4,   0 },
-     [2] = { .phy = OFDM,    3000,    0x00,      B(9),   2 },
-     [3] = { .phy = OFDM,    4500,    0x00,         9,   2 },
-     [4] = { .phy = OFDM,    6000,    0x00,     B(12),   4 },
-     [5] = { .phy = OFDM,    9000,    0x00,        18,   4 },
-     [6] = { .phy = OFDM,   12000,    0x00,        24,   4 },
-     [7] = { .phy = OFDM,   13500,    0x00,        27,   4 }
+     [0] = { .phy = QUART,   1500,    0x00,      B(3),   0 },
+     [1] = { .phy = QUART,   2250,    0x00,         4,   0 },
+     [2] = { .phy = QUART,   3000,    0x00,      B(9),   2 },
+     [3] = { .phy = QUART,   4500,    0x00,         9,   2 },
+     [4] = { .phy = QUART,   6000,    0x00,     B(12),   4 },
+     [5] = { .phy = QUART,   9000,    0x00,        18,   4 },
+     [6] = { .phy = QUART,  12000,    0x00,        24,   4 },
+     [7] = { .phy = QUART,  13500,    0x00,        27,   4 }
     },
 };
 
@@ -177,6 +179,8 @@ static struct ieee80211_rate_table ieee80211_turboa_table = {
 #undef	Mb
 #undef	B
 #undef	OFDM
+#undef	HALF
+#undef	QUART
 #undef	CCK
 #undef	TURBO
 #undef	XR
@@ -361,6 +365,30 @@ ieee80211_rate2plcp(int rate, enum ieee80211_phytype type)
 	return 0;		/* XXX unsupported/unknown rate */
 }
 
+#define CCK_SIFS_TIME		10
+#define CCK_PREAMBLE_BITS	144
+#define CCK_PLCP_BITS		48
+
+#define OFDM_SIFS_TIME		16
+#define OFDM_PREAMBLE_TIME	20
+#define OFDM_PLCP_BITS		22
+#define OFDM_SYMBOL_TIME	4
+
+#define OFDM_HALF_SIFS_TIME	32
+#define OFDM_HALF_PREAMBLE_TIME	40
+#define OFDM_HALF_PLCP_BITS	22
+#define OFDM_HALF_SYMBOL_TIME	8
+
+#define OFDM_QUARTER_SIFS_TIME 		64
+#define OFDM_QUARTER_PREAMBLE_TIME	80
+#define OFDM_QUARTER_PLCP_BITS		22
+#define OFDM_QUARTER_SYMBOL_TIME	16
+
+#define TURBO_SIFS_TIME		8
+#define TURBO_PREAMBLE_TIME	14
+#define TURBO_PLCP_BITS		22
+#define TURBO_SYMBOL_TIME	4
+
 /*
  * Compute the time to transmit a frame of length frameLen bytes
  * using the specified rate, phy, and short preamble setting.
@@ -381,9 +409,6 @@ ieee80211_compute_duration(const struct ieee80211_rate_table *rt,
 
 	switch (rt->info[rix].phy) {
 	case IEEE80211_T_CCK:
-#define CCK_SIFS_TIME		10
-#define CCK_PREAMBLE_BITS	144
-#define CCK_PLCP_BITS		48
 		phyTime		= CCK_PREAMBLE_BITS + CCK_PLCP_BITS;
 		if (isShortPreamble && rt->info[rix].shortPreamble)
 			phyTime >>= 1;
@@ -391,65 +416,37 @@ ieee80211_compute_duration(const struct ieee80211_rate_table *rt,
 		txTime		= CCK_SIFS_TIME + phyTime
 				+ ((numBits * 1000)/kbps);
 		break;
-#undef CCK_SIFS_TIME
-#undef CCK_PREAMBLE_BITS
-#undef CCK_PLCP_BITS
-
 	case IEEE80211_T_OFDM:
-#define OFDM_SIFS_TIME		16
-#define OFDM_PREAMBLE_TIME	20
-#define OFDM_PLCP_BITS		22
-#define OFDM_SYMBOL_TIME	4
+		bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME) / 1000;
+		KASSERT(bitsPerSymbol != 0, ("full rate bps"));
 
-#define OFDM_SIFS_TIME_HALF	32
-#define OFDM_PREAMBLE_TIME_HALF	40
-#define OFDM_PLCP_BITS_HALF	22
-#define OFDM_SYMBOL_TIME_HALF	8
-
-#define OFDM_SIFS_TIME_QUARTER 		64
-#define OFDM_PREAMBLE_TIME_QUARTER	80
-#define OFDM_PLCP_BITS_QUARTER		22
-#define OFDM_SYMBOL_TIME_QUARTER	16
-		if (rt == &ieee80211_half_table) {
-			bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME_QUARTER) / 1000;
-			KASSERT(bitsPerSymbol != 0, ("1/2 rate bps"));
-
-			numBits		= OFDM_PLCP_BITS + (frameLen << 3);
-			numSymbols	= howmany(numBits, bitsPerSymbol);
-			txTime		= OFDM_SIFS_TIME_QUARTER 
-					+ OFDM_PREAMBLE_TIME_QUARTER
-					+ (numSymbols * OFDM_SYMBOL_TIME_QUARTER);
-		} else if (rt == &ieee80211_quarter_table) {
-			bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME_HALF) / 1000;
-			KASSERT(bitsPerSymbol != 0, ("1/4 rate bps"));
-
-			numBits		= OFDM_PLCP_BITS + (frameLen << 3);
-			numSymbols	= howmany(numBits, bitsPerSymbol);
-			txTime		= OFDM_SIFS_TIME_HALF
-					+ OFDM_PREAMBLE_TIME_HALF
-					+ (numSymbols * OFDM_SYMBOL_TIME_HALF);
-		} else { /* full rate channel */
-			bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME) / 1000;
-			KASSERT(bitsPerSymbol != 0, ("full rate bps"));
-
-			numBits		= OFDM_PLCP_BITS + (frameLen << 3);
-			numSymbols	= howmany(numBits, bitsPerSymbol);
-			txTime		= OFDM_SIFS_TIME
-					+ OFDM_PREAMBLE_TIME
-					+ (numSymbols * OFDM_SYMBOL_TIME);
-		}
+		numBits		= OFDM_PLCP_BITS + (frameLen << 3);
+		numSymbols	= howmany(numBits, bitsPerSymbol);
+		txTime		= OFDM_SIFS_TIME
+				+ OFDM_PREAMBLE_TIME
+				+ (numSymbols * OFDM_SYMBOL_TIME);
 		break;
+	case IEEE80211_T_OFDM_HALF:
+		bitsPerSymbol	= (kbps * OFDM_HALF_SYMBOL_TIME) / 1000;
+		KASSERT(bitsPerSymbol != 0, ("1/4 rate bps"));
 
-#undef OFDM_SIFS_TIME
-#undef OFDM_PREAMBLE_TIME
-#undef OFDM_PLCP_BITS
-#undef OFDM_SYMBOL_TIME
+		numBits		= OFDM_PLCP_BITS + (frameLen << 3);
+		numSymbols	= howmany(numBits, bitsPerSymbol);
+		txTime		= OFDM_HALF_SIFS_TIME
+				+ OFDM_HALF_PREAMBLE_TIME
+				+ (numSymbols * OFDM_HALF_SYMBOL_TIME);
+		break;
+	case IEEE80211_T_OFDM_QUARTER:
+		bitsPerSymbol	= (kbps * OFDM_QUARTER_SYMBOL_TIME) / 1000;
+		KASSERT(bitsPerSymbol != 0, ("1/2 rate bps"));
 
+		numBits		= OFDM_PLCP_BITS + (frameLen << 3);
+		numSymbols	= howmany(numBits, bitsPerSymbol);
+		txTime		= OFDM_QUARTER_SIFS_TIME
+				+ OFDM_QUARTER_PREAMBLE_TIME
+				+ (numSymbols * OFDM_QUARTER_SYMBOL_TIME);
+		break;
 	case IEEE80211_T_TURBO:
-#define TURBO_SIFS_TIME		8
-#define TURBO_PREAMBLE_TIME	14
-#define TURBO_PLCP_BITS		22
-#define TURBO_SYMBOL_TIME	4
 		/* we still save OFDM rates in kbps - so double them */
 		bitsPerSymbol = ((kbps << 1) * TURBO_SYMBOL_TIME) / 1000;
 		KASSERT(bitsPerSymbol != 0, ("turbo bps"));
@@ -459,11 +456,6 @@ ieee80211_compute_duration(const struct ieee80211_rate_table *rt,
 		txTime        = TURBO_SIFS_TIME + TURBO_PREAMBLE_TIME
 			      + (numSymbols * TURBO_SYMBOL_TIME);
 		break;
-#undef TURBO_SIFS_TIME
-#undef TURBO_PREAMBLE_TIME
-#undef TURBO_PLCP_BITS
-#undef TURBO_SYMBOL_TIME
-
 	default:
 		panic("%s: unknown phy %u (rate %u)\n", __func__,
 		      rt->info[rix].phy, rate);

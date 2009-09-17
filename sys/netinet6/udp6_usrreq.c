@@ -153,7 +153,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	}
 #endif
 	opts = NULL;
-	if (inp->in6p_flags & IN6P_CONTROLOPTS ||
+	if (inp->inp_flags & INP_CONTROLOPTS ||
 	    inp->inp_socket->so_options & SO_TIMESTAMP)
 		ip6_savecontrol(inp, n, &opts);
 	m_adj(n, off + sizeof(struct udphdr));
@@ -259,7 +259,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		LIST_FOREACH(inp, &V_udb, inp_list) {
 			if ((inp->inp_vflag & INP_IPV6) == 0)
 				continue;
-			if (inp->in6p_lport != uh->uh_dport)
+			if (inp->inp_lport != uh->uh_dport)
 				continue;
 			/*
 			 * XXX: Do not check source port of incoming datagram
@@ -278,7 +278,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 				if (!IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr,
 							&ip6->ip6_src) ||
-				    inp->in6p_fport != uh->uh_sport)
+				    inp->inp_fport != uh->uh_sport)
 					continue;
 			}
 
@@ -287,8 +287,24 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
 					INP_RLOCK(last);
-					udp6_append(last, n, off, &fromsa);
-					INP_RUNLOCK(last);
+					if (last->inp_ppcb != NULL) {
+						/*
+						 * Engage the tunneling
+						 * protocol we will have to
+						 * leave the info_lock up,
+						 * since we are hunting
+						 * through multiple UDP's.
+						 * 
+						 */
+						udp_tun_func_t tunnel_func;
+
+						tunnel_func = (udp_tun_func_t)last->inp_ppcb;
+						tunnel_func(n, off, last);
+						INP_RUNLOCK(last);
+					} else {
+						udp6_append(last, n, off, &fromsa);
+						INP_RUNLOCK(last);
+					}
 				}
 			}
 			last = inp;
@@ -317,6 +333,17 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		INP_RLOCK(last);
 		INP_INFO_RUNLOCK(&V_udbinfo);
+		if (last->inp_ppcb != NULL) {
+			/*
+			 * Engage the tunneling protocol.
+			 */
+			udp_tun_func_t tunnel_func;
+
+			tunnel_func = (udp_tun_func_t)inp->inp_ppcb;
+			tunnel_func(m, off, last);
+			INP_RUNLOCK(last);
+			return (IPPROTO_DONE);
+		}
 		udp6_append(last, m, off, &fromsa);
 		INP_RUNLOCK(last);
 		return (IPPROTO_DONE);
@@ -354,6 +381,17 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	}
 	INP_RLOCK(inp);
 	INP_INFO_RUNLOCK(&V_udbinfo);
+	if (inp->inp_ppcb != NULL) {
+		/*
+		 * Engage the tunneling protocol.
+		 */
+		udp_tun_func_t tunnel_func;
+
+		tunnel_func = (udp_tun_func_t)inp->inp_ppcb;
+		tunnel_func(m, off, inp);
+		INP_RUNLOCK(inp);
+		return (IPPROTO_DONE);
+	}
 	udp6_append(inp, m, off, &fromsa);
 	INP_RUNLOCK(inp);
 	return (IPPROTO_DONE);
@@ -562,7 +600,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		fport = sin6->sin6_port; /* allow 0 port */
 
 		if (IN6_IS_ADDR_V4MAPPED(faddr)) {
-			if ((inp->in6p_flags & IN6P_IPV6_V6ONLY)) {
+			if ((inp->inp_flags & IN6P_IPV6_V6ONLY)) {
 				/*
 				 * I believe we should explicitly discard the
 				 * packet when mapped addresses are disabled,
@@ -606,7 +644,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 				error = EADDRNOTAVAIL;
 			goto release;
 		}
-		if (inp->in6p_lport == 0 &&
+		if (inp->inp_lport == 0 &&
 		    (error = in6_pcbsetport(laddr, inp, td->td_ucred)) != 0)
 			goto release;
 	} else {
@@ -615,7 +653,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 			goto release;
 		}
 		if (IN6_IS_ADDR_V4MAPPED(&inp->in6p_faddr)) {
-			if ((inp->in6p_flags & IN6P_IPV6_V6ONLY)) {
+			if ((inp->inp_flags & IN6P_IPV6_V6ONLY)) {
 				/*
 				 * XXX: this case would happen when the
 				 * application sets the V6ONLY flag after
@@ -632,7 +670,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		}
 		laddr = &inp->in6p_laddr;
 		faddr = &inp->in6p_faddr;
-		fport = inp->in6p_fport;
+		fport = inp->inp_fport;
 	}
 
 	if (af == AF_INET)
@@ -652,7 +690,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	 * Stuff checksum and output datagram.
 	 */
 	udp6 = (struct udphdr *)(mtod(m, caddr_t) + hlen);
-	udp6->uh_sport = inp->in6p_lport; /* lport is always set in the PCB */
+	udp6->uh_sport = inp->inp_lport; /* lport is always set in the PCB */
 	udp6->uh_dport = fport;
 	if (plen <= 0xffff)
 		udp6->uh_ulen = htons((u_short)plen);
@@ -663,7 +701,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 	switch (af) {
 	case AF_INET6:
 		ip6 = mtod(m, struct ip6_hdr *);
-		ip6->ip6_flow	= inp->in6p_flowinfo & IPV6_FLOWINFO_MASK;
+		ip6->ip6_flow	= inp->inp_flow & IPV6_FLOWINFO_MASK;
 		ip6->ip6_vfc	&= ~IPV6_VERSION_MASK;
 		ip6->ip6_vfc	|= IPV6_VERSION;
 #if 0				/* ip6_plen will be filled in ip6_output. */
@@ -845,52 +883,43 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
+	struct sockaddr_in6 *sin6;
 	int error;
 
 	inp = sotoinpcb(so);
+	sin6 = (struct sockaddr_in6 *)nam;
 	KASSERT(inp != NULL, ("udp6_connect: inp == NULL"));
 
 	INP_INFO_WLOCK(&V_udbinfo);
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
-		struct sockaddr_in6 *sin6_p;
+	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
+	    IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+		struct sockaddr_in sin;
 
-		sin6_p = (struct sockaddr_in6 *)nam;
-		if (IN6_IS_ADDR_V4MAPPED(&sin6_p->sin6_addr)) {
-			struct sockaddr_in sin;
-
-			if (inp->inp_faddr.s_addr != INADDR_ANY) {
-				error = EISCONN;
-				goto out;
-			}
-			in6_sin6_2_sin(&sin, sin6_p);
-			if (td && jailed(td->td_ucred))
-				if (prison_remote_ip4(td->td_ucred,
-				    &sin.sin_addr) != 0) {
-					error = EAFNOSUPPORT;
-					goto out;
-				}
-			error = in_pcbconnect(inp, (struct sockaddr *)&sin,
-			    td->td_ucred);
-			if (error == 0) {
-				inp->inp_vflag |= INP_IPV4;
-				inp->inp_vflag &= ~INP_IPV6;
-				soisconnected(so);
-			}
+		if (inp->inp_faddr.s_addr != INADDR_ANY) {
+			error = EISCONN;
 			goto out;
 		}
+		in6_sin6_2_sin(&sin, sin6);
+		error = prison_remote_ip4(td->td_ucred, &sin.sin_addr);
+		if (error != 0)
+			goto out;
+		error = in_pcbconnect(inp, (struct sockaddr *)&sin,
+		    td->td_ucred);
+		if (error == 0) {
+			inp->inp_vflag |= INP_IPV4;
+			inp->inp_vflag &= ~INP_IPV6;
+			soisconnected(so);
+		}
+		goto out;
 	}
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		error = EISCONN;
 		goto out;
 	}
-	if (td && jailed(td->td_ucred)) {
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
-		if (prison_remote_ip6(td->td_ucred, &sin6->sin6_addr) != 0) {
-			error = EAFNOSUPPORT;
-			goto out;
-		}
-	}
+	error = prison_remote_ip6(td->td_ucred, &sin6->sin6_addr);
+	if (error != 0)
+		goto out;
 	error = in6_pcbconnect(inp, nam, td->td_ucred);
 	if (error == 0) {
 		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {

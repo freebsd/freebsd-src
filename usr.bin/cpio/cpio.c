@@ -161,9 +161,9 @@ main(int argc, char *argv[])
 			cpio->bytes_per_block = 5120;
 			break;
 		case 'C': /* NetBSD/OpenBSD */
-			cpio->bytes_per_block = atoi(optarg);
+			cpio->bytes_per_block = atoi(cpio->optarg);
 			if (cpio->bytes_per_block <= 0)
-				cpio_errc(1, 0, "Invalid blocksize %s", optarg);
+				cpio_errc(1, 0, "Invalid blocksize %s", cpio->optarg);
 			break;
 		case 'c': /* POSIX 1997 */
 			cpio->format = "odc";
@@ -172,22 +172,22 @@ main(int argc, char *argv[])
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_NO_AUTODIR;
 			break;
 		case 'E': /* NetBSD/OpenBSD */
-			include_from_file(cpio, optarg);
+			include_from_file(cpio, cpio->optarg);
 			break;
 		case 'F': /* NetBSD/OpenBSD/GNU cpio */
-			cpio->filename = optarg;
+			cpio->filename = cpio->optarg;
 			break;
 		case 'f': /* POSIX 1997 */
-			exclude(cpio, optarg);
+			exclude(cpio, cpio->optarg);
 			break;
 		case 'H': /* GNU cpio (also --format) */
-			cpio->format = optarg;
+			cpio->format = cpio->optarg;
 			break;
 		case 'h':
 			long_help();
 			break;
 		case 'I': /* NetBSD/OpenBSD */
-			cpio->filename = optarg;
+			cpio->filename = cpio->optarg;
 			break;
 		case 'i': /* POSIX 1997 */
 			cpio->mode = opt;
@@ -209,7 +209,7 @@ main(int argc, char *argv[])
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
 		case 'O': /* GNU cpio */
-			cpio->filename = optarg;
+			cpio->filename = cpio->optarg;
 			break;
 		case 'o': /* POSIX 1997 */
 			cpio->mode = opt;
@@ -222,7 +222,7 @@ main(int argc, char *argv[])
 			cpio->quiet = 1;
 			break;
 		case 'R': /* GNU cpio, also --owner */
-			if (owner_parse(optarg, &uid, &gid))
+			if (owner_parse(cpio->optarg, &uid, &gid))
 				usage();
 			if (uid != -1)
 				cpio->uid_override = uid;
@@ -269,9 +269,6 @@ main(int argc, char *argv[])
 
 	/* TODO: Sanity-check args, error out on nonsensical combinations. */
 
-	cpio->argc -= optind;
-	cpio->argv += optind;
-
 	switch (cpio->mode) {
 	case 'o':
 		mode_out(cpio);
@@ -314,11 +311,7 @@ usage(void)
 	fprintf(stderr, "  List:    %s -it < archive\n", p);
 	fprintf(stderr, "  Extract: %s -i < archive\n", p);
 	fprintf(stderr, "  Create:  %s -o < filenames > archive\n", p);
-#ifdef HAVE_GETOPT_LONG
 	fprintf(stderr, "  Help:    %s --help\n", p);
-#else
-	fprintf(stderr, "  Help:    %s -h\n", p);
-#endif
 	exit(1);
 }
 

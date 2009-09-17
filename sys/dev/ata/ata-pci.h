@@ -45,31 +45,25 @@ struct ata_pci_controller {
     int                 r_type2;
     int                 r_rid2;
     struct resource     *r_res2;
+    int                 r_irq_rid;
     struct resource     *r_irq;
     void                *handle;
     struct ata_chip_id  *chip;
+    int			legacy;
     int                 channels;
+    int			ichannels;
     int                 (*chipinit)(device_t);
     int                 (*suspend)(device_t);
     int                 (*resume)(device_t);
-    int                 (*allocate)(device_t);
+    int                 (*ch_attach)(device_t);
+    int                 (*ch_detach)(device_t);
     int                 (*locking)(device_t, int);
     void                (*reset)(device_t);
-    void                (*dmainit)(device_t);
     void                (*setmode)(device_t, int);
     struct {
     void                (*function)(void *);
     void                *argument;
     } interrupt[8];     /* XXX SOS max ch# for now */
-};
-
-/* structure for SATA connection update hotplug/hotswap support */
-struct ata_connect_task {
-    struct task task;
-    device_t    dev;  
-    int         action;
-#define ATA_C_ATTACH    1
-#define ATA_C_DETACH    2
 };
 
 /* defines for known chipset PCI id's */
@@ -255,8 +249,32 @@ struct ata_connect_task {
 #define ATA_NFORCE_MCP61_S2     0x03f610de
 #define ATA_NFORCE_MCP61_S3     0x03f710de
 #define ATA_NFORCE_MCP65        0x044810de
+#define ATA_NFORCE_MCP67_A0     0x055010de
+#define ATA_NFORCE_MCP67_A1     0x055110de
+#define ATA_NFORCE_MCP67_A2     0x055210de
+#define ATA_NFORCE_MCP67_A3     0x055310de
+#define ATA_NFORCE_MCP67_A4     0x055410de
+#define ATA_NFORCE_MCP67_A5     0x055510de
+#define ATA_NFORCE_MCP67_A6     0x055610de
+#define ATA_NFORCE_MCP67_A7     0x055710de
+#define ATA_NFORCE_MCP67_A8     0x055810de
+#define ATA_NFORCE_MCP67_A9     0x055910de
+#define ATA_NFORCE_MCP67_AA     0x055A10de
+#define ATA_NFORCE_MCP67_AB     0x055B10de
 #define ATA_NFORCE_MCP67        0x056010de
 #define ATA_NFORCE_MCP73        0x056c10de
+#define ATA_NFORCE_MCP73_A0     0x07f010de
+#define ATA_NFORCE_MCP73_A1     0x07f110de
+#define ATA_NFORCE_MCP73_A2     0x07f210de
+#define ATA_NFORCE_MCP73_A3     0x07f310de
+#define ATA_NFORCE_MCP73_A4     0x07f410de
+#define ATA_NFORCE_MCP73_A5     0x07f510de
+#define ATA_NFORCE_MCP73_A6     0x07f610de
+#define ATA_NFORCE_MCP73_A7     0x07f710de
+#define ATA_NFORCE_MCP73_A8     0x07f810de
+#define ATA_NFORCE_MCP73_A9     0x07f910de
+#define ATA_NFORCE_MCP73_AA     0x07fa10de
+#define ATA_NFORCE_MCP73_AB     0x07fb10de
 #define ATA_NFORCE_MCP77        0x075910de
 
 #define ATA_PROMISE_ID          0x105a
@@ -406,10 +424,12 @@ struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type,
 int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, struct resource *r);
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_filter_t *filter, driver_intr_t *function, void *argument, void **cookiep);
  int ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq, void *cookie);
-int ata_pci_allocate(device_t dev);
+int ata_pci_ch_attach(device_t dev);
+int ata_pci_ch_detach(device_t dev);
 int ata_pci_status(device_t dev);
 void ata_pci_hw(device_t dev);
 void ata_pci_dmainit(device_t dev);
+void ata_pci_dmafini(device_t dev);
 char *ata_pcivendor2str(device_t dev);
 int ata_legacy(device_t);
 void ata_generic_intr(void *data);
@@ -422,7 +442,6 @@ int ata_check_80pin(device_t dev, int mode);
 int ata_mode2idx(int mode);
 
 /* global prototypes ata-sata.c */
-void ata_sata_phy_event(void *context, int dummy);
 void ata_sata_phy_check_events(device_t dev);
 int ata_sata_phy_reset(device_t dev);
 void ata_sata_setmode(device_t dev, int mode);
@@ -431,14 +450,15 @@ void ata_pm_identify(device_t dev);
 
 /* global prototypes from chipsets/ata-*.c */
 int ata_ahci_chipinit(device_t);
-int ata_ahci_allocate(device_t dev);
+int ata_ahci_ch_attach(device_t dev);
+int ata_ahci_ch_detach(device_t dev);
 void ata_ahci_reset(device_t dev);
-void ata_ahci_dmainit(device_t dev);
 int ata_marvell_edma_chipinit(device_t);
 int ata_sii_chipinit(device_t);
 
 /* global prototypes ata-dma.c */
 void ata_dmainit(device_t);
+void ata_dmafini(device_t dev);
 
 /* externs */
 extern devclass_t ata_pci_devclass;

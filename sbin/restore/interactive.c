@@ -545,6 +545,7 @@ printlist(char *name, char *basename)
 			     strcmp(dp->d_name, ".") == 0 ||
 			     strcmp(dp->d_name, "..") == 0))
 				continue;
+			locname[namelen] = '\0';
 			if (namelen + dp->d_namlen >= MAXPATHLEN) {
 				fprintf(stderr, "%s%s: name exceeds %d char\n",
 					locname, dp->d_name, MAXPATHLEN);

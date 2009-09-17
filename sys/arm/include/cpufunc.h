@@ -377,17 +377,17 @@ extern unsigned arm10_dcache_sets_inc;
 extern unsigned arm10_dcache_index_max;
 extern unsigned arm10_dcache_index_inc;
 
-u_int	feroceon_control_ext 		(u_int, u_int);
-void	feroceon_setttb			(u_int);
-void	feroceon_dcache_wbinv_range	(vm_offset_t, vm_size_t);
-void	feroceon_dcache_inv_range	(vm_offset_t, vm_size_t);
-void	feroceon_dcache_wb_range	(vm_offset_t, vm_size_t);
-void	feroceon_idcache_wbinv_range	(vm_offset_t, vm_size_t);
+u_int	sheeva_control_ext 		(u_int, u_int);
+void	sheeva_setttb			(u_int);
+void	sheeva_dcache_wbinv_range	(vm_offset_t, vm_size_t);
+void	sheeva_dcache_inv_range		(vm_offset_t, vm_size_t);
+void	sheeva_dcache_wb_range		(vm_offset_t, vm_size_t);
+void	sheeva_idcache_wbinv_range	(vm_offset_t, vm_size_t);
 
-void	feroceon_l2cache_wbinv_range	(vm_offset_t, vm_size_t);
-void	feroceon_l2cache_inv_range	(vm_offset_t, vm_size_t);
-void	feroceon_l2cache_wb_range	(vm_offset_t, vm_size_t);
-void	feroceon_l2cache_wbinv_all	(void);
+void	sheeva_l2cache_wbinv_range	(vm_offset_t, vm_size_t);
+void	sheeva_l2cache_inv_range	(vm_offset_t, vm_size_t);
+void	sheeva_l2cache_wb_range		(vm_offset_t, vm_size_t);
+void	sheeva_l2cache_wbinv_all	(void);
 #endif
 
 #ifdef CPU_ARM11

@@ -143,7 +143,7 @@ cardbus_device_setup_regs(pcicfgregs *cfg)
 	 * Some cards power up with garbage in their BARs.  This
 	 * code clears all that junk out.
 	 */
-	for (i = 0; i < PCI_MAX_BAR_0; i++)
+	for (i = 0; i < PCIR_MAX_BAR_0; i++)
 		pci_write_config(dev, PCIR_BAR(i), 0, 4);
 
 	cfg->intline =
@@ -207,7 +207,7 @@ cardbus_attach_card(device_t cbdev)
 	}
 	if (cardattached > 0)
 		return (0);
-	POWER_DISABLE_SOCKET(brdev, cbdev);
+/*	POWER_DISABLE_SOCKET(brdev, cbdev); */
 	return (ENOENT);
 }
 
@@ -269,6 +269,7 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 	}
 	if (i > 0 && i == numdevs)
 		POWER_ENABLE_SOCKET(device_get_parent(cbdev), cbdev);
+	/* XXX Should I wait for power to become good? */
 	for (i = 0; i < numdevs; i++) {
 		dev = devlist[i];
 		if (device_get_state(dev) != DS_NOTPRESENT)

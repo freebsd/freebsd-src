@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named.docbook,v 1.7.18.12 2007/08/28 07:20:01 tbox Exp $ -->
+<!-- $Id: named.docbook,v 1.7.18.14 2008/08/21 23:46:01 tbox Exp $ -->
 <refentry id="man.named">
   <refentryinfo>
     <date>June 30, 2000</date>
@@ -41,6 +41,7 @@
       <year>2005</year>
       <year>2006</year>
       <year>2007</year>
+      <year>2008</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -64,6 +65,7 @@
       <arg><option>-n <replaceable class="parameter">#cpus</replaceable></option></arg>
       <arg><option>-p <replaceable class="parameter">port</replaceable></option></arg>
       <arg><option>-s</option></arg>
+      <arg><option>-S <replaceable class="parameter">#max-socks</replaceable></option></arg>
       <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
       <arg><option>-u <replaceable class="parameter">user</replaceable></option></arg>
       <arg><option>-v</option></arg>
@@ -212,6 +214,33 @@
             </para>
           </note>
         </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-S <replaceable class="parameter">#max-socks</replaceable></term>
+        <listitem>
+	  <para>
+	    Allow <command>named</command> to use up to
+	    <replaceable class="parameter">#max-socks</replaceable> sockets.
+	  </para>
+          <warning>
+            <para>
+              This option should be unnecessary for the vast majority
+              of users.
+	      The use of this option could even be harmful because the
+              specified value may exceed the limitation of the
+              underlying system API.
+	      It is therefore set only when the default configuration
+              causes exhaustion of file descriptors and the
+              operational environment is known to support the
+              specified number of sockets.
+	      Note also that the actual maximum number is normally a little
+              fewer than the specified value because
+	      <command>named</command> reserves some file descriptors
+	      for its internal use.
+            </para>
+          </warning>
+	</listitem>
       </varlistentry>
 
       <varlistentry>

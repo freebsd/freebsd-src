@@ -103,8 +103,9 @@ sysctl_devname(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, devname, CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_ANYBODY,
-	NULL, 0, sysctl_devname, "", "devname(3) handler");
+SYSCTL_PROC(_kern, OID_AUTO, devname,
+    CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_ANYBODY|CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_devname, "", "devname(3) handler");
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev, CTLFLAG_RD,
     0, sizeof(struct cdev), "sizeof(struct cdev)");

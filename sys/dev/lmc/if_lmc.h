@@ -1642,7 +1642,7 @@ static void detach_card(softc_t *);
 #ifdef __FreeBSD__
 static int fbsd_probe(device_t);
 static int fbsd_detach(device_t);
-static void fbsd_shutdown(device_t);
+static int fbsd_shutdown(device_t);
 static int fbsd_attach(device_t);
 #endif /* __FreeBSD__ */
 

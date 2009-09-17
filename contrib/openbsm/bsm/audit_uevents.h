@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Apple Inc.
+ * Copyright (c) 2004-2008 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,22 +26,14 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_uevents.h#8 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/audit_uevents.h#10 $
  */
 
 #ifndef _BSM_AUDIT_UEVENTS_H_
 #define	_BSM_AUDIT_UEVENTS_H_
 
-/*-
- * User level audit event numbers
- *
- * Range of audit event numbers:
- * 0			Reserved, invalid
- * 1     - 2047		Reserved for kernel events
- * 2048  - 32767	Defined by BSM for user events
- * 32768 - 36864	Reserved for Mac OS-X applications
- * 36865 - 65535	Reserved for applications
- *
+/*
+ * Solaris userspace events.
  */
 #define	AUE_at_create		6144
 #define	AUE_at_delete		6145
@@ -70,8 +62,13 @@
 #define	AUE_shutdown		6168
 #define	AUE_poweroff		6169
 #define	AUE_crontab_mod		6170
-#define	AUE_audit_startup	6171
-#define	AUE_audit_shutdown	6172
+#define	AUE_ftpd_logout		6171
+#define	AUE_ssh			6172
+#define	AUE_role_login		6173
+#define	AUE_prof_cmd		6180
+#define	AUE_filesystem_add	6181
+#define	AUE_filesystem_delete	6182
+#define	AUE_filesystem_modify	6183
 #define	AUE_allocate_succ	6200
 #define	AUE_allocate_fail	6201
 #define	AUE_deallocate_succ	6202
@@ -83,20 +80,63 @@
 #define	AUE_delete_user		6209
 #define	AUE_disable_user	6210
 #define	AUE_enable_user		6211
-#define	AUE_sudo		6300
-#define	AUE_modify_password	6501	/* Not assigned by Sun. */
-#define	AUE_create_group	6511	/* Not assigned by Sun. */
-#define	AUE_delete_group	6512	/* Not assigned by Sun. */
-#define	AUE_modify_group	6513	/* Not assigned by Sun. */
-#define	AUE_add_to_group	6514	/* Not assigned by Sun. */
-#define	AUE_remove_from_group	6515	/* Not assigned by Sun. */
-#define	AUE_revoke_obj		6521	/* Not assigned by Sun; not used. */
-#define	AUE_lw_login		6600	/* Not assigned by Sun; tentative. */
-#define	AUE_lw_logout		6601	/* Not assigned by Sun; tentative. */
-#define	AUE_auth_user		7000	/* Not assigned by Sun. */
-#define	AUE_ssconn		7001	/* Not assigned by Sun. */
-#define	AUE_ssauthorize		7002	/* Not assigned by Sun. */
-#define	AUE_ssauthint		7003	/* Not assigned by Sun. */
+#define	AUE_newgrp_login	6212
+#define	AUE_admin_authentication	6213
+#define	AUE_kadmind_auth	6214
+#define	AUE_kadmind_unauth	6215
+#define	AUE_krb5kdc_as_req	6216
+#define	AUE_krb5kdc_tgs_req	6217
+#define	AUE_krb5kdc_tgs_req_2ndtktmm	6218
+#define	AUE_krb5kdc_tgs_req_alt_tgt	6219
+
+/*
+ * Historic Darwin use of the low event numbering space, which collided with
+ * the Solaris event space.  Now obsoleted and new, higher, event numbers
+ * assigned to make it easier to interpret Solaris events using the OpenBSM
+ * tools.
+ */
+#define	AUE_DARWIN_audit_startup	6171
+#define	AUE_DARWIN_audit_shutdown	6172
+#define	AUE_DARWIN_sudo			6300
+#define	AUE_DARWIN_modify_password	6501
+#define	AUE_DARWIN_create_group		6511
+#define	AUE_DARWIN_delete_group		6512
+#define	AUE_DARWIN_modify_group		6513
+#define	AUE_DARWIN_add_to_group		6514
+#define	AUE_DARWIN_remove_from_group	6515
+#define	AUE_DARWIN_revoke_obj		6521
+#define	AUE_DARWIN_lw_login		6600
+#define	AUE_DARWIN_lw_logout		6601
+#define	AUE_DARWIN_auth_user		7000
+#define	AUE_DARWIN_ssconn		7001
+#define	AUE_DARWIN_ssauthorize		7002
+#define	AUE_DARWIN_ssauthint		7003
+
+/*
+ * Historic/third-party appliation allocations of event idenfiers.
+ */
 #define	AUE_openssh		32800
+
+/*
+ * OpenBSM-managed application event space.
+ */
+#define	AUE_audit_startup	45000		/* Darwin-specific. */
+#define	AUE_audit_shutdown	45001		/* Darwin-specific. */
+#define	AUE_modify_password	45014		/* Darwin-specific. */
+#define	AUE_create_group	45015		/* Darwin-specific. */
+#define	AUE_delete_group	45016		/* Darwin-specific. */
+#define	AUE_modify_group	45017		/* Darwin-specific. */
+#define	AUE_add_to_group	45018		/* Darwin-specific. */
+#define	AUE_remove_from_group	45019		/* Darwin-specific. */
+#define	AUE_revoke_obj		45020		/* Darwin-specific. */
+#define	AUE_lw_login		45021		/* Darwin-specific. */
+#define	AUE_lw_logout		45022		/* Darwin-specific. */
+#define	AUE_auth_user		45023		/* Darwin-specific. */
+#define	AUE_ssconn		45024		/* Darwin-specific. */
+#define	AUE_ssauthorize		45025		/* Darwin-specific. */
+#define	AUE_ssauthint		45026		/* Darwin-specific. */
+#define	AUE_calife		45027		/* OpenBSM-allocated. */
+#define	AUE_sudo		45028		/* OpenBSM-allocated. */
+#define	AUE_audit_recovery	45029		/* OpenBSM-allocated. */
 
 #endif /* !_BSM_AUDIT_UEVENTS_H_ */

@@ -305,7 +305,7 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 			/* Group name not found - try to parse this as gid */
 			gid = strtol(gid_str, &endp, 10);
 			if (*gid_str == '\0' || *endp != '\0') {
-				wpa_printf(MSG_DEBUG, "CTRL: Invalid group "
+				wpa_printf(MSG_ERROR, "CTRL: Invalid group "
 					   "'%s'", gid_str);
 				goto fail;
 			}

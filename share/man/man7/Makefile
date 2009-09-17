@@ -2,7 +2,8 @@
 # $FreeBSD$
 
 #MISSING: eqnchar.7 ms.7 term.7
-MAN=	ascii.7 \
+MAN=	adding_user.7 \
+	ascii.7 \
 	bsd.snmpmod.mk.7 \
 	build.7 \
 	clocks.7 \

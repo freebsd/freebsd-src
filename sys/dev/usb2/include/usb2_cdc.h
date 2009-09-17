@@ -188,18 +188,4 @@ struct usb2_cdc_notification {
 #define	UCDC_MDM_PARITY_ERR		0x20
 #define	UCDC_MDM_OVERRUN_ERR		0x40
 
-/* 512x4 Multi Frame Ethernet Header */
-struct usb2_cdc_mf_eth_512x4_header {
-	uByte	bSig[2];		/* "FL" - Frag List */
-	uByte	bReserved[4];
-	uWord	wFragLength[511 * 4];
-#define	CDCE_512X4_FRAG_LENGTH_OFFSET 6	/* bytes */
-#define	CDCE_512X4_FRAG_LAST_MASK 0x8000
-#define	CDCE_512X4_FRAG_LENGTH_MASK 0x1FFF	/* bytes */
-#define	CDCE_512X4_FRAME_FRAG_MAX 4	/* fragments */
-#define	CDCE_512X4_FRAMES_MAX 511	/* frames */
-#define	CDCE_512X4_FRAGS_MAX (511 * 4)	/* fragments */
-	uWord	wPadding;		/* used to make transfer short */
-} __packed;
-
 #endif					/* _USB_CDC_H_ */

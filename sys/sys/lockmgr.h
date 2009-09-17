@@ -183,8 +183,6 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	KA_UNLOCKED	LA_UNLOCKED
 #define	KA_RECURSED	LA_RECURSED
 #define	KA_NOTRECURSED	LA_NOTRECURSED
-#define	KA_HELD
-#define	KA_UNHELD
 #endif
 
 #endif /* _KERNEL */

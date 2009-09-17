@@ -108,14 +108,13 @@ void
 cpu_fork(register struct thread *td1, register struct proc *p2,
     struct thread *td2, int flags)
 {
-	struct pcb *pcb1, *pcb2;
+	struct pcb *pcb2;
 	struct trapframe *tf;
 	struct switchframe *sf;
 	struct mdproc *mdp2;
 
 	if ((flags & RFPROC) == 0)
 		return;
-	pcb1 = td1->td_pcb;
 	pcb2 = (struct pcb *)(td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3

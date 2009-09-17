@@ -31,6 +31,7 @@
  */
 #include "opt_sctp.h"
 #include "opt_mpath.h"
+#include "opt_route.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -38,11 +39,13 @@
 #include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -51,6 +54,8 @@
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
@@ -332,55 +337,48 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
     struct rtentry *rt, union sockaddr_union *saun, struct ucred *cred)
 {
 
+	/* First, see if the returned address is part of the jail. */
+	if (prison_if(cred, rt->rt_ifa->ifa_addr) == 0) {
+		info->rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
+		return (0);
+	}
+
 	switch (info->rti_info[RTAX_DST]->sa_family) {
 #ifdef INET
 	case AF_INET:
 	{
 		struct in_addr ia;
+		struct ifaddr *ifa;
+		int found;
 
+		found = 0;
 		/*
-		 * 1. Check if the returned address is part of the jail.
+		 * Try to find an address on the given outgoing interface
+		 * that belongs to the jail.
 		 */
-		ia = ((struct sockaddr_in *)rt->rt_ifa->ifa_addr)->sin_addr;
-		if (prison_check_ip4(cred, &ia) != 0) {
-			info->rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
-
-		} else {
-			struct ifaddr *ifa;
-			int found;
-
-			found = 0;
-
-			/*
-			 * 2. Try to find an address on the given outgoing
-			 *    interface that belongs to the jail.
-			 */
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				struct sockaddr *sa;
-				sa = ifa->ifa_addr;
-				if (sa->sa_family != AF_INET)
-					continue;
-				ia = ((struct sockaddr_in *)sa)->sin_addr;
-				if (prison_check_ip4(cred, &ia) != 0) {
-					found = 1;
-					break;
-				}
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			struct sockaddr *sa;
+			sa = ifa->ifa_addr;
+			if (sa->sa_family != AF_INET)
+				continue;
+			ia = ((struct sockaddr_in *)sa)->sin_addr;
+			if (prison_check_ip4(cred, &ia) == 0) {
+				found = 1;
+				break;
 			}
-			if (!found) {
-				/*
-				 * 3. As a last resort return the 'default'
-				 * jail address.
-				 */
-				if (prison_getip4(cred, &ia) != 0)
-					return (ESRCH);
-			}
-			bzero(&saun->sin, sizeof(struct sockaddr_in));
-			saun->sin.sin_len = sizeof(struct sockaddr_in);
-			saun->sin.sin_family = AF_INET;
-			saun->sin.sin_addr.s_addr = ia.s_addr;
-			info->rti_info[RTAX_IFA] =
-			    (struct sockaddr *)&saun->sin;
 		}
+		if (!found) {
+			/*
+			 * As a last resort return the 'default' jail address.
+			 */
+			if (prison_get_ip4(cred, &ia) != 0)
+				return (ESRCH);
+		}
+		bzero(&saun->sin, sizeof(struct sockaddr_in));
+		saun->sin.sin_len = sizeof(struct sockaddr_in);
+		saun->sin.sin_family = AF_INET;
+		saun->sin.sin_addr.s_addr = ia.s_addr;
+		info->rti_info[RTAX_IFA] = (struct sockaddr *)&saun->sin;
 		break;
 	}
 #endif
@@ -388,54 +386,40 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 	case AF_INET6:
 	{
 		struct in6_addr ia6;
+		struct ifaddr *ifa;
+		int found;
 
+		found = 0;
 		/*
-		 * 1. Check if the returned address is part of the jail.
+		 * Try to find an address on the given outgoing interface
+		 * that belongs to the jail.
 		 */
-		bcopy(&((struct sockaddr_in6 *)rt->rt_ifa->ifa_addr)->sin6_addr,
-		    &ia6, sizeof(struct in6_addr));
-		if (prison_check_ip6(cred, &ia6) != 0) {
-			info->rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
-		} else {
-			struct ifaddr *ifa;
-			int found;
-
-			found = 0;
-
-			/*
-			 * 2. Try to find an address on the given outgoing
-			 *    interface that belongs to the jail.
-			 */
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				struct sockaddr *sa;
-				sa = ifa->ifa_addr;
-				if (sa->sa_family != AF_INET6)
-					continue;
-				bcopy(&((struct sockaddr_in6 *)sa)->sin6_addr,
-				    &ia6, sizeof(struct in6_addr));
-				if (prison_check_ip6(cred, &ia6) != 0) {
-					found = 1;
-					break;
-				}
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			struct sockaddr *sa;
+			sa = ifa->ifa_addr;
+			if (sa->sa_family != AF_INET6)
+				continue;
+			bcopy(&((struct sockaddr_in6 *)sa)->sin6_addr,
+			    &ia6, sizeof(struct in6_addr));
+			if (prison_check_ip6(cred, &ia6) == 0) {
+				found = 1;
+				break;
 			}
-			if (!found) {
-				/*
-				 * 3. As a last resort return the 'default'
-				 * jail address.
-				 */
-				if (prison_getip6(cred, &ia6) != 0)
-					return (ESRCH);
-			}
-			bzero(&saun->sin6, sizeof(struct sockaddr_in6));
-			saun->sin6.sin6_len = sizeof(struct sockaddr_in6);
-			saun->sin6.sin6_family = AF_INET6;
-			bcopy(&ia6, &saun->sin6.sin6_addr,
-			    sizeof(struct in6_addr));
-			if (sa6_recoverscope(&saun->sin6) != 0)
-				return (ESRCH);
-			info->rti_info[RTAX_IFA] =
-			    (struct sockaddr *)&saun->sin6;
 		}
+		if (!found) {
+			/*
+			 * As a last resort return the 'default' jail address.
+			 */
+			if (prison_get_ip6(cred, &ia6) != 0)
+				return (ESRCH);
+		}
+		bzero(&saun->sin6, sizeof(struct sockaddr_in6));
+		saun->sin6.sin6_len = sizeof(struct sockaddr_in6);
+		saun->sin6.sin6_family = AF_INET6;
+		bcopy(&ia6, &saun->sin6.sin6_addr, sizeof(struct in6_addr));
+		if (sa6_recoverscope(&saun->sin6) != 0)
+			return (ESRCH);
+		info->rti_info[RTAX_IFA] = (struct sockaddr *)&saun->sin6;
 		break;
 	}
 #endif
@@ -494,19 +478,6 @@ route_output(struct mbuf *m, struct socket *so)
 	    (info.rti_info[RTAX_GATEWAY] != NULL &&
 	     info.rti_info[RTAX_GATEWAY]->sa_family >= AF_MAX))
 		senderr(EINVAL);
-	if (info.rti_info[RTAX_GENMASK]) {
-		struct radix_node *t;
-		t = rn_addmask((caddr_t) info.rti_info[RTAX_GENMASK], 0, 1);
-		if (t != NULL &&
-		    bcmp((char *)(void *)info.rti_info[RTAX_GENMASK] + 1,
-		    (char *)(void *)t->rn_key + 1,
-		    ((struct sockaddr *)t->rn_key)->sa_len - 1) == 0)
-			info.rti_info[RTAX_GENMASK] =
-			    (struct sockaddr *)t->rn_key;
-		else
-			senderr(ENOBUFS);
-	}
-
 	/*
 	 * Verify that the caller has the appropriate privilege; RTM_GET
 	 * is the only operation the non-superuser is allowed.
@@ -524,6 +495,13 @@ route_output(struct mbuf *m, struct socket *so)
 		if (info.rti_info[RTAX_GATEWAY] == NULL)
 			senderr(EINVAL);
 		saved_nrt = NULL;
+
+		/* support for new ARP code */
+		if (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK &&
+		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
+			error = lla_rt_output(rtm, &info);
+			break;
+		}
 		error = rtrequest1_fib(RTM_ADD, &info, &saved_nrt,
 		    so->so_fibnum);
 		if (error == 0 && saved_nrt) {
@@ -532,13 +510,19 @@ route_output(struct mbuf *m, struct socket *so)
 				&rtm->rtm_rmx, &saved_nrt->rt_rmx);
 			rtm->rtm_index = saved_nrt->rt_ifp->if_index;
 			RT_REMREF(saved_nrt);
-			saved_nrt->rt_genmask = info.rti_info[RTAX_GENMASK];
 			RT_UNLOCK(saved_nrt);
 		}
 		break;
 
 	case RTM_DELETE:
 		saved_nrt = NULL;
+		/* support for new ARP code */
+		if (info.rti_info[RTAX_GATEWAY] && 
+		    (info.rti_info[RTAX_GATEWAY]->sa_family == AF_LINK) &&
+		    (rtm->rtm_flags & RTF_LLDATA) != 0) {
+			error = lla_rt_output(rtm, &info);
+			break;
+		}
 		error = rtrequest1_fib(RTM_DELETE, &info, &saved_nrt,
 		    so->so_fibnum);
 		if (error == 0) {
@@ -554,11 +538,11 @@ route_output(struct mbuf *m, struct socket *so)
 		rnh = V_rt_tables[so->so_fibnum][info.rti_info[RTAX_DST]->sa_family];
 		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
-		RADIX_NODE_HEAD_LOCK(rnh);
+		RADIX_NODE_HEAD_RLOCK(rnh);
 		rt = (struct rtentry *) rnh->rnh_lookup(info.rti_info[RTAX_DST],
 			info.rti_info[RTAX_NETMASK], rnh);
 		if (rt == NULL) {	/* XXX looks bogus */
-			RADIX_NODE_HEAD_UNLOCK(rnh);
+			RADIX_NODE_HEAD_RUNLOCK(rnh);
 			senderr(ESRCH);
 		}
 #ifdef RADIX_MPATH
@@ -574,14 +558,14 @@ route_output(struct mbuf *m, struct socket *so)
 		    (rtm->rtm_type != RTM_GET || info.rti_info[RTAX_GATEWAY])) {
 			rt = rt_mpath_matchgate(rt, info.rti_info[RTAX_GATEWAY]);
 			if (!rt) {
-				RADIX_NODE_HEAD_UNLOCK(rnh);
+				RADIX_NODE_HEAD_RUNLOCK(rnh);
 				senderr(ESRCH);
 			}
 		}
 #endif
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
+		RADIX_NODE_HEAD_RUNLOCK(rnh);
 
 		/* 
 		 * Fix for PR: 82974
@@ -607,26 +591,27 @@ route_output(struct mbuf *m, struct socket *so)
 		case RTM_GET:
 		report:
 			RT_LOCK_ASSERT(rt);
+			if ((rt->rt_flags & RTF_HOST) == 0
+			    ? jailed(curthread->td_ucred)
+			    : prison_if(curthread->td_ucred,
+			    rt_key(rt)) != 0) {
+				RT_UNLOCK(rt);
+				senderr(ESRCH);
+			}
 			info.rti_info[RTAX_DST] = rt_key(rt);
 			info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 			info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-			info.rti_info[RTAX_GENMASK] = rt->rt_genmask;
+			info.rti_info[RTAX_GENMASK] = 0;
 			if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
 				ifp = rt->rt_ifp;
 				if (ifp) {
 					info.rti_info[RTAX_IFP] =
 					    ifp->if_addr->ifa_addr;
-					if (jailed(so->so_cred)) {
-						error = rtm_get_jailed(
-						    &info, ifp, rt, &saun,
-						    so->so_cred);
-						if (error != 0) {
-							RT_UNLOCK(rt);
-							senderr(ESRCH);
-						}
-					} else {
-						info.rti_info[RTAX_IFA] =
-						    rt->rt_ifa->ifa_addr;
+					error = rtm_get_jailed(&info, ifp, rt,
+					    &saun, curthread->td_ucred);
+					if (error != 0) {
+						RT_UNLOCK(rt);
+						senderr(error);
 					}
 					if (ifp->if_flags & IFF_POINTOPOINT)
 						info.rti_info[RTAX_BRD] =
@@ -670,8 +655,10 @@ route_output(struct mbuf *m, struct socket *so)
 			     !sa_equal(info.rti_info[RTAX_IFA],
 				       rt->rt_ifa->ifa_addr))) {
 				RT_UNLOCK(rt);
-				if ((error = rt_getifa_fib(&info,
-				    rt->rt_fibnum)) != 0)
+				RADIX_NODE_HEAD_LOCK(rnh);
+				error = rt_getifa_fib(&info, rt->rt_fibnum);
+				RADIX_NODE_HEAD_UNLOCK(rnh);
+				if (error != 0)
 					senderr(error);
 				RT_LOCK(rt);
 			}
@@ -684,13 +671,18 @@ route_output(struct mbuf *m, struct socket *so)
 				IFAFREE(rt->rt_ifa);
 			}
 			if (info.rti_info[RTAX_GATEWAY] != NULL) {
-				if ((error = rt_setgate(rt, rt_key(rt),
-					info.rti_info[RTAX_GATEWAY])) != 0) {
+				RT_UNLOCK(rt);
+				RADIX_NODE_HEAD_LOCK(rnh);
+				RT_LOCK(rt);
+				
+				error = rt_setgate(rt, rt_key(rt),
+				    info.rti_info[RTAX_GATEWAY]);
+				RADIX_NODE_HEAD_UNLOCK(rnh);
+				if (error != 0) {
 					RT_UNLOCK(rt);
 					senderr(error);
 				}
-				if (!(rt->rt_flags & RTF_LLINFO))
-					rt->rt_flags |= RTF_GATEWAY;
+				rt->rt_flags |= RTF_GATEWAY;
 			}
 			if (info.rti_ifa != NULL &&
 			    info.rti_ifa != rt->rt_ifa) {
@@ -708,8 +700,6 @@ route_output(struct mbuf *m, struct socket *so)
 			rtm->rtm_index = rt->rt_ifp->if_index;
 			if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest)
 			       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, &info);
-			if (info.rti_info[RTAX_GENMASK])
-				rt->rt_genmask = info.rti_info[RTAX_GENMASK];
 			/* FALLTHROUGH */
 		case RTM_LOCK:
 			/* We don't support locks anymore */
@@ -1247,11 +1237,15 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
+	if ((rt->rt_flags & RTF_HOST) == 0
+	    ? jailed(w->w_req->td->td_ucred)
+	    : prison_if(w->w_req->td->td_ucred, rt_key(rt)) != 0)
+		return (0);
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
 	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
 	info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-	info.rti_info[RTAX_GENMASK] = rt->rt_genmask;
+	info.rti_info[RTAX_GENMASK] = 0;
 	if (rt->rt_ifp) {
 		info.rti_info[RTAX_IFP] = rt->rt_ifp->if_addr->ifa_addr;
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
@@ -1307,8 +1301,8 @@ sysctl_iflist(int af, struct walkarg *w)
 		while ((ifa = TAILQ_NEXT(ifa, ifa_link)) != NULL) {
 			if (af && af != ifa->ifa_addr->sa_family)
 				continue;
-			if (jailed(curthread->td_ucred) &&
-			    !prison_if(curthread->td_ucred, ifa->ifa_addr))
+			if (prison_if(w->w_req->td->td_ucred,
+			    ifa->ifa_addr) != 0)
 				continue;
 			info.rti_info[RTAX_IFA] = ifa->ifa_addr;
 			info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
@@ -1335,7 +1329,7 @@ done:
 	return (error);
 }
 
-int
+static int
 sysctl_ifmalist(int af, struct walkarg *w)
 {
 	INIT_VNET_NET(curvnet);
@@ -1356,8 +1350,8 @@ sysctl_ifmalist(int af, struct walkarg *w)
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
-			if (jailed(curproc->p_ucred) &&
-			    !prison_if(curproc->p_ucred, ifma->ifma_addr))
+			if (prison_if(w->w_req->td->td_ucred,
+			    ifma->ifma_addr) != 0)
 				continue;
 			info.rti_info[RTAX_IFA] = ifma->ifma_addr;
 			info.rti_info[RTAX_GATEWAY] =
@@ -1422,8 +1416,24 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 			lim = AF_MAX;
 		} else				/* dump only one table */
 			i = lim = af;
+
+		/*
+		 * take care of llinfo entries, the caller must
+		 * specify an AF
+		 */
+		if (w.w_op == NET_RT_FLAGS &&
+		    (w.w_arg == 0 || w.w_arg & RTF_LLINFO)) {
+			if (af != 0)
+				error = lltable_sysctl_dumparp(af, w.w_req);
+			else
+				error = EINVAL;
+			break;
+		}
+		/*
+		 * take care of routing entries
+		 */
 		for (error = 0; error == 0 && i <= lim; i++)
-			if ((rnh = V_rt_tables[curthread->td_proc->p_fibnum][i]) != NULL) {
+			if ((rnh = V_rt_tables[req->td->td_proc->p_fibnum][i]) != NULL) {
 				RADIX_NODE_HEAD_LOCK(rnh); 
 			    	error = rnh->rnh_walktree(rnh,
 				    sysctl_dumpentry, &w);

@@ -17,6 +17,7 @@
 #include <unistd.h>
 #endif
 
+#include <cstdio>
 #include <QMessageBox>
 
 #include "wpagui.h"

@@ -39,65 +39,53 @@
 #if defined(HAVE_LIMITS_H)
 #include <limits.h>
 #endif
-#ifndef SIZE_T_MAX
-#ifdef __LP64__
-#define SIZE_T_MAX (size_t)0xffffffffffffffffU
-#else
-#define SIZE_T_MAX (size_t)0xffffffffU
-#endif
-#endif
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.35 2007/12/27 16:35:59 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.44 2008/07/16 18:00:57 christos Exp $")
 #endif	/* lint */
 
-#ifndef HAVE_VSNPRINTF
-int vsnprintf(char *, size_t, const char *, va_list);
+#ifndef SIZE_MAX
+#define SIZE_MAX	((size_t)~0)
 #endif
 
 /*
- * Like printf, only we print to a buffer and advance it.
+ * Like printf, only we append to a buffer.
  */
+protected int
+file_vprintf(struct magic_set *ms, const char *fmt, va_list ap)
+{
+	int len;
+	char *buf, *newstr;
+
+	len = vasprintf(&buf, fmt, ap);
+	if (len < 0)
+		goto out;
+
+	if (ms->o.buf != NULL) {
+		len = asprintf(&newstr, "%s%s", ms->o.buf, buf);
+		free(buf);
+		if (len < 0)
+			goto out;
+		free(ms->o.buf);
+		buf = newstr;
+	}
+	ms->o.buf = buf;
+	return 0;
+out:
+	file_error(ms, errno, "vasprintf failed");
+	return -1;
+}
+
 protected int
 file_printf(struct magic_set *ms, const char *fmt, ...)
 {
+	int rv;
 	va_list ap;
-	size_t size;
-	ssize_t len;
-	char *buf;
 
 	va_start(ap, fmt);
-
-	len = vsnprintf(ms->o.ptr, ms->o.left, fmt, ap);
-	if (len == -1)
-		goto out;
-	if (len >= (ssize_t)ms->o.left) {
-		long diff;	/* XXX: really ptrdiff_t */
-
-		va_end(ap);
-		size = (ms->o.size - ms->o.left) + len + 1024;
-		if ((buf = realloc(ms->o.buf, size)) == NULL) {
-			file_oomem(ms, size);
-			return -1;
-		}
-		diff = ms->o.ptr - ms->o.buf;
-		ms->o.ptr = buf + diff;
-		ms->o.buf = buf;
-		ms->o.left = size - diff;
-		ms->o.size = size;
-
-		va_start(ap, fmt);
-		len = vsnprintf(ms->o.ptr, ms->o.left, fmt, ap);
-		if (len == -1)
-			goto out;
-	}
+	rv = file_vprintf(ms, fmt, ap);
 	va_end(ap);
-	ms->o.ptr += len;
-	ms->o.left -= len;
-	return 0;
-out:
-	file_error(ms, errno, "vsnprintf failed");
-	return -1;
+	return rv;
 }
 
 /*
@@ -108,21 +96,17 @@ private void
 file_error_core(struct magic_set *ms, int error, const char *f, va_list va,
     uint32_t lineno)
 {
-	size_t len;
 	/* Only the first error is ok */
 	if (ms->haderr)
 		return;
-	len = 0;
 	if (lineno != 0) {
-		(void)snprintf(ms->o.buf, ms->o.size, "line %u: ", lineno);
-		len = strlen(ms->o.buf);
+		free(ms->o.buf);
+		ms->o.buf = NULL;
+		file_printf(ms, "line %u: ", lineno);
 	}
-	(void)vsnprintf(ms->o.buf + len, ms->o.size - len, f, va);
-	if (error > 0) {
-		len = strlen(ms->o.buf);
-		(void)snprintf(ms->o.buf + len, ms->o.size - len, " (%s)",
-		    strerror(error));
-	}
+        file_vprintf(ms, f, va);
+	if (error > 0)
+		file_printf(ms, " (%s)", strerror(error));
 	ms->haderr++;
 	ms->error = error;
 }
@@ -175,6 +159,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
 {
 	int m;
 	int mime = ms->flags & MAGIC_MIME;
+	const unsigned char *ubuf = CAST(const unsigned char *, buf);
 
 	if (nb == 0) {
 		if ((!mime || (mime & MAGIC_MIME_TYPE)) &&
@@ -184,7 +169,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
 		return 1;
 	} else if (nb == 1) {
 		if ((!mime || (mime & MAGIC_MIME_TYPE)) &&
-		    file_printf(ms, mime ?  "application/octet-stream" :
+		    file_printf(ms, mime ? "application/octet-stream" :
 		    "very short file (no magic)") == -1)
 			return -1;
 		return 1;
@@ -205,19 +190,19 @@ file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
 
 	/* try compression stuff */
 	if ((ms->flags & MAGIC_NO_CHECK_COMPRESS) != 0 ||
-	    (m = file_zmagic(ms, fd, inname, buf, nb)) == 0) {
+	    (m = file_zmagic(ms, fd, inname, ubuf, nb)) == 0) {
 	    /* Check if we have a tar file */
 	    if ((ms->flags & MAGIC_NO_CHECK_TAR) != 0 ||
-		(m = file_is_tar(ms, buf, nb)) == 0) {
+		(m = file_is_tar(ms, ubuf, nb)) == 0) {
 		/* try tests in /etc/magic (or surrogate magic file) */
 		if ((ms->flags & MAGIC_NO_CHECK_SOFT) != 0 ||
-		    (m = file_softmagic(ms, buf, nb)) == 0) {
+		    (m = file_softmagic(ms, ubuf, nb, BINTEST)) == 0) {
 		    /* try known keywords, check whether it is ASCII */
 		    if ((ms->flags & MAGIC_NO_CHECK_ASCII) != 0 ||
-			(m = file_ascmagic(ms, buf, nb)) == 0) {
+			(m = file_ascmagic(ms, ubuf, nb)) == 0) {
 			/* abandon hope, all ye who remain here */
 			if ((!mime || (mime & MAGIC_MIME_TYPE)) &&
-			    file_printf(ms, mime ?  "application/octet-stream" :
+			    file_printf(ms, mime ? "application/octet-stream" :
 				"data") == -1)
 				return -1;
 			m = 1;
@@ -236,7 +221,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
 		 * information from the ELF headers that cannot easily
 		 * be extracted with rules in the magic file.
 		 */
-		(void)file_tryelf(ms, fd, buf, nb);
+		(void)file_tryelf(ms, fd, ubuf, nb);
 	}
 #endif
 	return m;
@@ -250,8 +235,7 @@ file_reset(struct magic_set *ms)
 		file_error(ms, 0, "no magic files loaded");
 		return -1;
 	}
-	ms->o.ptr = ms->o.buf;
-	ms->o.left = ms->o.size;
+	ms->o.buf = NULL;
 	ms->haderr = 0;
 	ms->error = -1;
 	return 0;
@@ -277,21 +261,18 @@ file_getbuffer(struct magic_set *ms)
 	if (ms->flags & MAGIC_RAW)
 		return ms->o.buf;
 
-	len = ms->o.size - ms->o.left;
 	/* * 4 is for octal representation, + 1 is for NUL */
-	if (len > (SIZE_T_MAX - 1) / 4) {
+	len = strlen(ms->o.buf);
+	if (len > (SIZE_MAX - 1) / 4) {
 		file_oomem(ms, len);
 		return NULL;
 	}
 	psize = len * 4 + 1;
-	if (ms->o.psize < psize) {
-		if ((pbuf = realloc(ms->o.pbuf, psize)) == NULL) {
-			file_oomem(ms, psize);
-			return NULL;
-		}
-		ms->o.psize = psize;
-		ms->o.pbuf = pbuf;
+	if ((pbuf = CAST(char *, realloc(ms->o.pbuf, psize))) == NULL) {
+		file_oomem(ms, psize);
+		return NULL;
 	}
+	ms->o.pbuf = pbuf;
 
 #if defined(HAVE_WCHAR_H) && defined(HAVE_MBRTOWC) && defined(HAVE_WCWIDTH)
 	{
@@ -304,7 +285,7 @@ file_getbuffer(struct magic_set *ms)
 
 		np = ms->o.pbuf;
 		op = ms->o.buf;
-		eop = op + strlen(ms->o.buf);
+		eop = op + len;
 
 		while (op < eop) {
 			bytesconsumed = mbrtowc(&nextchar, op,
@@ -350,8 +331,9 @@ file_check_mem(struct magic_set *ms, unsigned int level)
 
 	if (level >= ms->c.len) {
 		len = (ms->c.len += 20) * sizeof(*ms->c.li);
-		ms->c.li = (ms->c.li == NULL) ? malloc(len) :
-		    realloc(ms->c.li, len);
+		ms->c.li = CAST(struct level_info *, (ms->c.li == NULL) ?
+		    malloc(len) :
+		    realloc(ms->c.li, len));
 		if (ms->c.li == NULL) {
 			file_oomem(ms, len);
 			return -1;
@@ -364,28 +346,3 @@ file_check_mem(struct magic_set *ms, unsigned int level)
 #endif /* ENABLE_CONDITIONALS */
 	return 0;
 }
-/*
- * Yes these wrappers suffer from buffer overflows, but if your OS does not
- * have the real functions, maybe you should consider replacing your OS?
- */
-#ifndef HAVE_VSNPRINTF
-int
-vsnprintf(char *buf, size_t len, const char *fmt, va_list ap)
-{
-	return vsprintf(buf, fmt, ap);
-}
-#endif
-
-#ifndef HAVE_SNPRINTF
-/*ARGSUSED*/
-int
-snprintf(char *buf, size_t len, const char *fmt, ...)
-{
-	int rv;
-	va_list ap;
-	va_start(ap, fmt);
-	rv = vsprintf(buf, fmt, ap);
-	va_end(ap);
-	return rv;
-}
-#endif

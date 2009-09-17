@@ -64,9 +64,10 @@ void Job_Make(struct GNode *);
 void Job_Init(int);
 Boolean Job_Full(void);
 Boolean Job_Empty(void);
-int Job_Finish(void);
+void Job_Finish(void);
 void Job_Wait(void);
 void Job_AbortAll(void);
+void Job_SetPrefix(void);
 
 void Proc_Init(void);
 

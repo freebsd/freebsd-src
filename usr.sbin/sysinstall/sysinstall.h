@@ -52,17 +52,13 @@
 
 /*** Defines ***/
 
-#if defined(__i386__) || defined(__alpha__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__)
 #define	WITH_SYSCONS
 #define	WITH_MICE
 #endif
 
 #if defined(__i386__) || defined(__amd64__)
 #define	WITH_SLICES
-#endif
-
-#if defined(__i386__)
-#define	WITH_LINUX
 #endif
 
 /* device limits */
@@ -106,7 +102,6 @@
 #define VAR_DISTS			"dists"
 #define VAR_DIST_MAIN			"distMain"
 #define VAR_DIST_SRC			"distSRC"
-#define VAR_DIST_X11			"distX11"
 #define VAR_DIST_KERNEL			"distKernel"
 #define VAR_DEDICATE_DISK		"dedicateDisk"
 #define VAR_DOMAINNAME			"domainname"
@@ -169,7 +164,6 @@
 #define VAR_NO_HOME			"noHome"
 #define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
-#define	VAR_OSF1_ENABLE			"osf1_enable"
 #define	VAR_RPCBIND_ENABLE		"rpcbind_enable"
 #define VAR_NTPDATE_FLAGS		"ntpdate_flags"
 #define VAR_PACKAGE			"package"
@@ -190,13 +184,11 @@
 #define VAR_SWAP_SIZE			"swapSize"
 #define VAR_TRY_DHCP			"tryDHCP"
 #define VAR_TRY_RTSOL			"tryRTSOL"
-#define VAR_SKIP_PCCARD			"skipPCCARD"
 #define VAR_UFS_PATH			"ufs"
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"
 #define VAR_TMP_SIZE			"tmpSize"
 #define VAR_HOME_SIZE			"homeSize"
-#define VAR_XORG_CONFIG			"_xorgconfig"
 #define VAR_TERM			"TERM"
 #define VAR_CONSTERM                    "_consterm"
 
@@ -278,7 +270,6 @@ typedef enum {
     DEVICE_TYPE_FTP,
     DEVICE_TYPE_NETWORK,
     DEVICE_TYPE_CDROM,
-    DEVICE_TYPE_TAPE,
     DEVICE_TYPE_DOS,
     DEVICE_TYPE_UFS,
     DEVICE_TYPE_NFS,
@@ -422,7 +413,6 @@ extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
 extern unsigned int	SrcDists;		/* Which src distributions we want		*/
-extern unsigned int	XOrgDists;		/* Which X.Org dists we want			*/
 extern unsigned int	KernelDists;		/* Which kernel dists we want			*/
 extern int		BootMgr;		/* Which boot manager to use 			*/
 extern int		StatusLine;		/* Where to print our status messages		*/
@@ -451,7 +441,6 @@ extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
 extern DMenu		MenuMediaDOS;		/* DOS media menu				*/
 extern DMenu		MenuMediaFloppy;	/* Floppy media menu				*/
 extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
-extern DMenu		MenuMediaTape;		/* Tape media menu				*/
 extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
 extern DMenu		MenuNTP;		/* NTP time server menu				*/
 extern DMenu		MenuSecurity;		/* System security options menu			*/
@@ -533,9 +522,6 @@ extern int	configSaverTimeout(dialogMenuItem *self);
 extern int	configLinux(dialogMenuItem *self);
 #endif
 extern int	configNTP(dialogMenuItem *self);
-#ifdef __alpha__
-extern int	configOSF1(dialogMenuItem *self);
-#endif
 extern int	configCountry(dialogMenuItem *self);
 extern int	configUsers(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);
@@ -601,11 +587,8 @@ extern int	distConfig(dialogMenuItem *self);
 extern int	distSetCustom(dialogMenuItem *self);
 extern int	distUnsetCustom(dialogMenuItem *self);
 extern int	distSetDeveloper(dialogMenuItem *self);
-extern int	distSetXDeveloper(dialogMenuItem *self);
 extern int	distSetKernDeveloper(dialogMenuItem *self);
-extern int	distSetXKernDeveloper(dialogMenuItem *self);
 extern int	distSetUser(dialogMenuItem *self);
-extern int	distSetXUser(dialogMenuItem *self);
 extern int	distSetMinimum(dialogMenuItem *self);
 extern int	distSetEverything(dialogMenuItem *self);
 extern int	distSetSrc(dialogMenuItem *self);
@@ -731,7 +714,6 @@ extern int	mediaTimeout(void);
 extern int	mediaSetCDROM(dialogMenuItem *self);
 extern int	mediaSetFloppy(dialogMenuItem *self);
 extern int	mediaSetDOS(dialogMenuItem *self);
-extern int	mediaSetTape(dialogMenuItem *self);
 extern int	mediaSetFTP(dialogMenuItem *self);
 extern int	mediaSetFTPActive(dialogMenuItem *self);
 extern int	mediaSetFTPPassive(dialogMenuItem *self);
@@ -830,9 +812,6 @@ extern int	package_add(char *name);
 extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_installed(char *name);
 
-/* pccard.c */
-extern void	pccardInitialize(void);
-
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(int status);
@@ -848,11 +827,6 @@ extern void	systemChangeTerminal(char *color, const u_char c_termcap[], char *mo
 extern void	systemChangeScreenmap(const u_char newmap[]);
 extern void	systemCreateHoloshell(void);
 extern int	vsystem(char *fmt, ...) __printflike(1, 2);
-
-/* tape.c */
-extern Boolean	mediaInitTape(Device *dev);
-extern FILE	*mediaGetTape(Device *dev, char *file, Boolean probe);
-extern void	mediaShutdownTape(Device *dev);
 
 /* tcpip.c */
 extern int	tcpOpenDialog(Device *dev);

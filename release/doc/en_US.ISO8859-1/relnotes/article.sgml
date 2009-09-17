@@ -29,6 +29,7 @@
     <year>2006</year>
     <year>2007</year>
     <year>2008</year>
+    <year>2009</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -346,6 +347,12 @@
       instead of just setting it to a null value.</para>
 
     <para>The &man.fdopendir.3; library function has been added.</para>
+
+    <para role="merged">The &man.fetch.3; library now support HTTP 1.1
+      If-Modified-Since behavior.  The &man.fetch.1; program now
+      supports <option>-i <replaceable>filename</replaceable></option>
+      which will only download the specified HTTP URL if the content
+      is newer than <replaceable>filename</replaceable>.</para>
 
     <para>&man.find.1; has been enhanced by the addition of a number
       of primaries that were present in GNU find but not &os;

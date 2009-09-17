@@ -79,25 +79,9 @@ __FBSDID("$FreeBSD$");
 				printf ("%s: ", d->name); printf s;}})
 #define CP_LOCK_NAME	"cpX"
 
-static	int	cp_mpsafenet = 1;
-TUNABLE_INT("debug.cp.mpsafenet", &cp_mpsafenet);
-SYSCTL_NODE(_debug, OID_AUTO, cp, CTLFLAG_RD, 0, "Cronyx Tau-PCI Adapters");
-SYSCTL_INT(_debug_cp, OID_AUTO, mpsafenet, CTLFLAG_RD, &cp_mpsafenet, 0,
-	"Enable/disable MPSAFE network support for Cronyx Tau-PCI Adapters");
-
-#define CP_LOCK(_bd)		do { \
-				    if (cp_mpsafenet) \
-					mtx_lock (&(_bd)->cp_mtx); \
-				} while (0)
-#define CP_UNLOCK(_bd)		do { \
-				    if (cp_mpsafenet) \
-					mtx_unlock (&(_bd)->cp_mtx); \
-				} while (0)
-
-#define CP_LOCK_ASSERT(_bd)	do { \
-				    if (cp_mpsafenet) \
-					mtx_assert (&(_bd)->cp_mtx, MA_OWNED); \
-				} while (0)
+#define CP_LOCK(_bd)		mtx_lock (&(_bd)->cp_mtx)
+#define CP_UNLOCK(_bd)		mtx_unlock (&(_bd)->cp_mtx)
+#define CP_LOCK_ASSERT(_bd)	mtx_assert (&(_bd)->cp_mtx, MA_OWNED)
 
 static	int cp_probe		__P((device_t));
 static	int cp_attach		__P((device_t));
@@ -194,7 +178,6 @@ static struct cdevsw cp_cdevsw = {
 	.d_close    = cp_close,
 	.d_ioctl    = cp_ioctl,
 	.d_name     = "cp",
-	.d_flags    = D_NEEDGIANT,
 };
 
 /*
@@ -478,9 +461,9 @@ static int cp_attach (device_t dev)
 		splx (s);
 		return (ENXIO);
 	}
-	callout_init (&led_timo[unit], cp_mpsafenet ? CALLOUT_MPSAFE : 0);
+	callout_init (&led_timo[unit], CALLOUT_MPSAFE);
 	error  = bus_setup_intr (dev, bd->cp_irq,
-				INTR_TYPE_NET|(cp_mpsafenet?INTR_MPSAFE:0),
+				INTR_TYPE_NET|INTR_MPSAFE,
 				NULL, cp_intr, bd, &bd->cp_intrhand);
 	if (error) {
 		cp_destroy = 1;
@@ -525,8 +508,7 @@ static int cp_attach (device_t dev)
 		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
 		mtx_init (&d->queue.ifq_mtx, "cp_queue", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "cp_queue_hi", NULL, MTX_DEF);
-		callout_init (&d->timeout_handle,
-			     cp_mpsafenet ? CALLOUT_MPSAFE : 0);
+		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
 #else /*NETGRAPH*/
 		d->ifp = if_alloc(IFT_PPP);
 		if (d->ifp == NULL) {
@@ -537,8 +519,6 @@ static int cp_attach (device_t dev)
 		if_initname (d->ifp, "cp", b->num * NCHAN + c->num);
 		d->ifp->if_mtu		= PP_MTU;
 		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
-		if (!cp_mpsafenet)
-			d->ifp->if_flags |= IFF_NEEDSGIANT;
 		d->ifp->if_ioctl	= cp_sioctl;
 		d->ifp->if_start	= cp_ifstart;
 		d->ifp->if_watchdog	= cp_ifwatchdog;
@@ -2270,9 +2250,6 @@ static int cp_modevent (module_t mod, int type, void *unused)
 {
 	static int load_count = 0;
 
-	if (cp_mpsafenet)
-		cp_cdevsw.d_flags &= ~D_NEEDGIANT;
-
 	switch (type) {
 	case MOD_LOAD:
 #ifdef NETGRAPH
@@ -2280,7 +2257,7 @@ static int cp_modevent (module_t mod, int type, void *unused)
 			printf ("Failed to register ng_cp\n");
 #endif
 		++load_count;
-		callout_init (&timeout_handle, cp_mpsafenet?CALLOUT_MPSAFE:0);
+		callout_init (&timeout_handle, CALLOUT_MPSAFE);
 		callout_reset (&timeout_handle, hz*5, cp_timeout, 0);
 		break;
 	case MOD_UNLOAD:

@@ -88,7 +88,7 @@ mount_fs(const char *vfstype, int argc, char *argv[])
 	char *p, *val;
 	int ret;
 
-	strncpy(fstype, vfstype, sizeof(fstype));
+	strlcpy(fstype, vfstype, sizeof(fstype));
 	memset(errmsg, 0, sizeof(errmsg));
 
 	getmnt_silent = 1;

@@ -57,7 +57,7 @@ extern "C" {
 #define BFD_ARCH_SIZE 64
 
 
-#if defined(__i386__) || defined(__powerpc__) || defined(__arm__)
+#if defined(__i386__) || defined(__powerpc__) || defined(__arm__) || defined(__mips__)
 #define BFD_HOST_64BIT_LONG 0
 #define BFD_HOST_64_BIT long long
 #define BFD_HOST_U_64_BIT unsigned long long

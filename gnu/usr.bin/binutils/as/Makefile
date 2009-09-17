@@ -20,6 +20,10 @@ SRCS+=	app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 # DEO: why not used?
 #SRCS+=	itbl-ops.c
 
+.if ${TARGET_ARCH} == "mips"
+SRCS+=	itbl-ops.c itbl-parse.y itbl-lex.l
+.endif
+
 .if ${TARGET_ARCH} == "amd64"
 SRCS+=	tc-i386.c
 .elif ${TARGET_ARCH} == "powerpc"

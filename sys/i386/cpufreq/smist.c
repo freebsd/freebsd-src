@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/bus.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/vm86.h>
 
@@ -285,7 +286,7 @@ smist_identify(driver_t *driver, device_t parent)
 		return;
 
 	/* Check for a supported processor */
-	if (strcmp(cpu_vendor, "GenuineIntel") != 0)
+	if (cpu_vendor_id != CPU_VENDOR_INTEL)
 		return;
 	switch (cpu_id & 0xff0) {
 	case 0x680:	/* Pentium III [coppermine] */

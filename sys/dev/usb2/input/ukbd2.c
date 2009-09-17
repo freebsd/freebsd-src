@@ -99,7 +99,6 @@ SYSCTL_INT(_hw_usb2_ukbd, OID_AUTO, debug, CTLFLAG_RW,
 #define	UKBD_DRIVER_NAME          "ukbd"
 #define	UKBD_NMOD                     8	/* units */
 #define	UKBD_NKEYCODE                 6	/* units */
-#define	UKBD_N_TRANSFER               3	/* units */
 #define	UKBD_IN_BUF_SIZE  (2*(UKBD_NMOD + (2*UKBD_NKEYCODE)))	/* bytes */
 #define	UKBD_IN_BUF_FULL  (UKBD_IN_BUF_SIZE / 2)	/* bytes */
 #define	UKBD_NFKEY        (sizeof(fkey_tab)/sizeof(fkey_tab[0]))	/* units */
@@ -117,6 +116,13 @@ struct ukbd_data {
 	uint8_t	reserved;
 	uint8_t	keycode[UKBD_NKEYCODE];
 } __packed;
+
+enum {
+	UKBD_INTR_DT,
+	UKBD_INTR_CS,
+	UKBD_CTRL_LED,
+	UKBD_N_TRANSFER = 3,
+};
 
 struct ukbd_softc {
 	keyboard_t sc_kbd;
@@ -240,22 +246,18 @@ static const uint8_t ukbd_trtab[256] = {
 };
 
 /* prototypes */
-static void ukbd_timeout(void *arg);
-static void ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds);
-static int ukbd_set_typematic(keyboard_t *kbd, int code);
-
+static void	ukbd_timeout(void *);
+static void	ukbd_set_leds(struct ukbd_softc *, uint8_t);
+static int	ukbd_set_typematic(keyboard_t *, int);
 #ifdef UKBD_EMULATE_ATSCANCODE
-static int
-ukbd_key2scan(struct ukbd_softc *sc, int keycode,
-    int shift, int up);
-
+static int	ukbd_key2scan(struct ukbd_softc *, int, int, int);
 #endif
-static uint32_t ukbd_read_char(keyboard_t *kbd, int wait);
-static void ukbd_clear_state(keyboard_t *kbd);
-static int ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg);
-static int ukbd_enable(keyboard_t *kbd);
-static int ukbd_disable(keyboard_t *kbd);
-static void ukbd_interrupt(struct ukbd_softc *sc);
+static uint32_t	ukbd_read_char(keyboard_t *, int);
+static void	ukbd_clear_state(keyboard_t *);
+static int	ukbd_ioctl(keyboard_t *, u_long, caddr_t);
+static int	ukbd_enable(keyboard_t *);
+static int	ukbd_disable(keyboard_t *);
+static void	ukbd_interrupt(struct ukbd_softc *);
 
 static device_probe_t ukbd_probe;
 static device_attach_t ukbd_attach;
@@ -280,7 +282,6 @@ ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 	} else {
 		DPRINTF("input buffer is full\n");
 	}
-	return;
 }
 
 static int32_t
@@ -292,7 +293,7 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 
 	if (sc->sc_inputs == 0) {
 		/* start transfer, if not already started */
-		usb2_transfer_start(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 	}
 	if (sc->sc_flags & UKBD_FLAG_POLLING) {
 		DPRINTFN(2, "polling\n");
@@ -450,24 +451,19 @@ ukbd_timeout(void *arg)
 	ukbd_interrupt(sc);
 
 	usb2_callout_reset(&sc->sc_callout, hz / 40, &ukbd_timeout, sc);
-
-	mtx_unlock(&Giant);
-
-	return;
 }
 
 static void
 ukbd_clear_stall_callback(struct usb2_xfer *xfer)
 {
 	struct ukbd_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
+	struct usb2_xfer *xfer_other = sc->sc_xfer[UKBD_INTR_DT];
 
 	if (usb2_clear_stall_callback(xfer, xfer_other)) {
 		DPRINTF("stall cleared\n");
 		sc->sc_flags &= ~UKBD_FLAG_INTR_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -501,7 +497,7 @@ ukbd_intr_callback(struct usb2_xfer *xfer)
 		}
 	case USB_ST_SETUP:
 		if (sc->sc_flags & UKBD_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[1]);
+			usb2_transfer_start(sc->sc_xfer[UKBD_INTR_CS]);
 			return;
 		}
 		if (sc->sc_inputs < UKBD_IN_BUF_FULL) {
@@ -518,7 +514,7 @@ ukbd_intr_callback(struct usb2_xfer *xfer)
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			sc->sc_flags |= UKBD_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[1]);
+			usb2_transfer_start(sc->sc_xfer[UKBD_INTR_CS]);
 		}
 		return;
 	}
@@ -564,7 +560,7 @@ ukbd_set_leds_callback(struct usb2_xfer *xfer)
 
 static const struct usb2_config ukbd_config[UKBD_N_TRANSFER] = {
 
-	[0] = {
+	[UKBD_INTR_DT] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
@@ -573,7 +569,7 @@ static const struct usb2_config ukbd_config[UKBD_N_TRANSFER] = {
 		.mh.callback = &ukbd_intr_callback,
 	},
 
-	[1] = {
+	[UKBD_INTR_CS] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -583,7 +579,7 @@ static const struct usb2_config ukbd_config[UKBD_N_TRANSFER] = {
 		.mh.interval = 50,	/* 50ms */
 	},
 
-	[2] = {
+	[UKBD_CTRL_LED] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -629,9 +625,6 @@ ukbd_attach(device_t dev)
 	usb2_error_t err;
 	uint16_t n;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	mtx_assert(&Giant, MA_OWNED);
 
 	kbd_init_struct(kbd, UKBD_DRIVER_NAME, KB_OTHER, unit, 0, 0, 0);
@@ -647,8 +640,7 @@ ukbd_attach(device_t dev)
 	sc->sc_mode = K_XLATE;
 	sc->sc_iface = uaa->iface;
 
-	usb2_callout_init_mtx(&sc->sc_callout, &Giant,
-	    CALLOUT_RETURNUNLOCKED);
+	usb2_callout_init_mtx(&sc->sc_callout, &Giant, 0);
 
 	err = usb2_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, ukbd_config,
@@ -709,12 +701,12 @@ ukbd_attach(device_t dev)
 
 	/* start the keyboard */
 
-	usb2_transfer_start(sc->sc_xfer[0]);
+	usb2_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 
 	/* start the timer */
 
-	ukbd_timeout(sc);		/* will unlock mutex */
-
+	ukbd_timeout(sc);
+	mtx_unlock(&Giant);
 	return (0);			/* success */
 
 detach:
@@ -1323,7 +1315,6 @@ ukbd_clear_state(keyboard_t *kbd)
 	bzero(&sc->sc_odata, sizeof(sc->sc_odata));
 	bzero(&sc->sc_ntime, sizeof(sc->sc_ntime));
 	bzero(&sc->sc_otime, sizeof(sc->sc_otime));
-	return;
 }
 
 /* save the internal state, not used */
@@ -1372,9 +1363,7 @@ ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds)
 
 	/* start transfer, if not already started */
 
-	usb2_transfer_start(sc->sc_xfer[2]);
-
-	return;
+	usb2_transfer_start(sc->sc_xfer[UKBD_CTRL_LED]);
 }
 
 static int

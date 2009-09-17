@@ -147,6 +147,7 @@ options 	GEOM_MULTIPATH		# Disk multipath
 options 	GEOM_NOP		# Test class.
 options 	GEOM_PART_APM		# Apple partitioning
 options 	GEOM_PART_BSD		# BSD disklabel
+options 	GEOM_PART_EBR		# Extended Boot Records
 options 	GEOM_PART_GPT		# GPT partitioning
 options 	GEOM_PART_MBR		# MBR partitioning
 options 	GEOM_PART_PC98		# PC-9800 disk partitioning
@@ -633,6 +634,14 @@ options 	ALTQ_PRIQ	# Priority Queueing
 options 	ALTQ_NOPCC	# Required if the TSC is unusable
 options 	ALTQ_DEBUG
 
+# IP optional behaviour.
+# IP_NONLOCALBIND disables the check that bind() usually makes that the
+# address is one that is assigned to an interface on this machine.
+# It allows transparent proxies to pretend to be other machines.
+# How the packet GET to that machine is a problem solved elsewhere,
+# smart routers, ipfw fwd, etc.
+options        IP_NONLOCALBIND		# Allow impersonation for proxies.
+
 # netgraph(4). Enable the base netgraph code with the NETGRAPH option.
 # Individual node types can be enabled with the corresponding option
 # listed below; however, this is not strictly necessary as netgraph
@@ -706,40 +715,81 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #
 # Network interfaces:
 #  The `loop' device is MANDATORY when networking is enabled.
+device		loop
+
 #  The `ether' device provides generic code to handle
 #  Ethernets; it is MANDATORY when an Ethernet device driver is
 #  configured or token-ring is enabled.
+device		ether
+
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
 #  according to IEEE 802.1Q.  It requires `device miibus'.
+device		vlan
+
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
 #  and ath drivers and will eventually be required by all 802.11 drivers.
+device		wlan
+options		IEEE80211_DEBUG		#enable debugging msgs
+options		IEEE80211_AMPDU_AGE	#age frames in AMPDU reorder q's
+
 #  The `wlan_wep', `wlan_tkip', and `wlan_ccmp' devices provide
 #  support for WEP, TKIP, and AES-CCMP crypto protocols optionally
 #  used with 802.11 devices that depend on the `wlan' module.
+device		wlan_wep
+device		wlan_ccmp
+device		wlan_tkip
+
 #  The `wlan_xauth' device provides support for external (i.e. user-mode)
 #  authenticators for use with 802.11 drivers that use the `wlan'
 #  module and support 802.1x and/or WPA security protocols.
+device		wlan_xauth
+
 #  The `wlan_acl' device provides a MAC-based access control mechanism
 #  for use with 802.11 drivers operating in ap mode and using the
 #  `wlan' module.
+#  The 'wlan_amrr' device provides AMRR transmit rate control algorithm
+device		wlan_acl
+device		wlan_amrr
+
+# Generic TokenRing
+device		token
+
 #  The `fddi' device provides generic code to support FDDI.
+device		fddi
+
 #  The `arcnet' device provides generic code to support Arcnet.
+device		arcnet
+
 #  The `sppp' device serves a similar role for certain types
 #  of synchronous PPP links (like `cx', `ar').
+device		sppp
+
 #  The `sl' device implements the Serial Line IP (SLIP) service.
 #  The `ppp' device implements the Point-to-Point Protocol.
+
+
 #  The `bpf' device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
 #  option.  The number of devices determines the maximum number of
 #  simultaneous BPF clients programs runnable.  DHCP requires bpf.
+device		bpf
+
 #  The `disc' device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
 #  included for testing and benchmarking purposes.
+device		disc
+
 #  The `edsc' device implements a minimal Ethernet interface,
 #  which discards all packets sent and receives none.
+device		edsc
+
 #  The `tap' device is a pty-like virtual Ethernet interface
-#  The `tun' device implements (user-)ppp and nos-tun
+device		tap
+
+#  The `tun' device implements (user-)ppp and nos-tun(8)
+device		tun
+
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
 #  IPv6 over IPv6 tunneling.
@@ -747,17 +797,45 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 #  GRE and MOBILE, as specified in the RFC1701 and RFC2004.
 #  The XBONEHACK option allows the same pair of addresses to be configured on
 #  multiple gif interfaces.
+device		gif
+device		gre
+options 	XBONEHACK
+
 #  The `faith' device captures packets sent to it and diverts them
 #  to the IPv4/IPv6 translation daemon.
 #  The `stf' device implements 6to4 encapsulation.
+device		faith
+device		stf
+
 #  The `ef' device provides support for multiple ethernet frame types
 #  specified via ETHER_* options. See ef(4) for details.
-#
+device		ef
+options 	ETHER_II		# enable Ethernet_II frame
+options 	ETHER_8023		# enable Ethernet_802.3 (Novell) frame
+options 	ETHER_8022		# enable Ethernet_802.2 frame
+options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
+
 # The pf packet filter consists of three devices:
 #  The `pf' device provides /dev/pf and the firewall code itself.
 #  The `pflog' device provides the pflog0 interface which logs packets.
 #  The `pfsync' device provides the pfsync0 interface used for
 #   synchronization of firewall state tables (over the net).
+device		pf
+device		pflog
+device		pfsync
+
+# Bridge interface.
+device		if_bridge
+
+# Common Address Redundancy Protocol. See carp(4) for more details.
+device		carp
+
+# IPsec interface.
+device		enc
+
+# Link aggregation interface.
+device		lagg
+
 #
 # The PPP_BSDCOMP option enables support for compress(1) style entire
 # packet compression, the PPP_DEFLATE is for zlib/gzip style compression.
@@ -765,47 +843,7 @@ device		mn	# Munich32x/Falc54 Nx64kbit/sec cards.
 # events for resetting the demand dial activity timer - requires bpf.
 # See pppd(8) for more details.
 #
-device		ether			#Generic Ethernet
-device		vlan			#VLAN support (needs miibus)
-device		wlan			#802.11 support
-options		IEEE80211_DEBUG		#enable debugging msgs
-options		IEEE80211_AMPDU_AGE	#age frames in AMPDU reorder q's
-device		wlan_wep		#802.11 WEP support
-device		wlan_ccmp		#802.11 CCMP support
-device		wlan_tkip		#802.11 TKIP support
-device		wlan_xauth		#802.11 external authenticator support
-device		wlan_acl		#802.11 MAC ACL support
-device		wlan_amrr		#AMRR transmit rate control algorithm
-device		token			#Generic TokenRing
-device		fddi			#Generic FDDI
-device		arcnet			#Generic Arcnet
-device		sppp			#Generic Synchronous PPP
-device		loop			#Network loopback device
-device		bpf			#Berkeley packet filter
-device		disc			#Discard device based on loopback
-device		edsc			#Ethernet discard device
-device		tap			#Virtual Ethernet driver
-device		tun			#Tunnel driver (ppp(8), nos-tun(8))
-device		gre			#IP over IP tunneling
-device		if_bridge		#Bridge interface
-device		pf			#PF OpenBSD packet-filter firewall
-device		pflog			#logging support interface for PF
-device		pfsync			#synchronization interface for PF
-device		carp			#Common Address Redundancy Protocol
-device		enc			#IPsec interface
-device		lagg			#Link aggregation interface
 
-device		ef			# Multiple ethernet frames support
-options 	ETHER_II		# enable Ethernet_II frame
-options 	ETHER_8023		# enable Ethernet_802.3 (Novell) frame
-options 	ETHER_8022		# enable Ethernet_802.2 frame
-options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
-
-# for IPv6
-device		gif			#IPv6 and IPv4 tunneling
-options 	XBONEHACK
-device		faith			#for IPv6 and IPv4 translation
-device		stf			#6to4 IPv6 over IPv4 encapsulation
 
 #
 # Internet family options:
@@ -934,7 +972,12 @@ options 	HPFS			#OS/2 File system
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSSERVER		#Network File System server
 options		NFSLOCKD		#Network Lock Manager
-options 	NTFS			#NT File System
+
+# NT File System. Read-mostly, see mount_ntfs(8) for details.
+# For a full read-write NTFS support consider sysutils/fusefs-ntfs
+# port/package.
+options 	NTFS
+
 options 	NULLFS			#NULL filesystem
 # Broken (depends on NCP):
 #options 	NWFS			#NetWare filesystem
@@ -1361,6 +1404,10 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 # `flags' for sc
 #	0x80	Put the video card in the VESA 800x600 dots, 16 color mode
 #	0x100	Probe for a keyboard device periodically if one is not present
+
+# Enable experimental features of the syscons terminal emulator (teken).
+options		TEKEN_UTF8		# UTF-8 output handling
+options		TEKEN_XTERM		# xterm-style terminal emulation
 
 #
 # Optional devices:
@@ -1958,7 +2005,7 @@ device		fatm			#Fore PCA200E
 device		hatm			#Fore/Marconi HE155/622
 device		patm			#IDT77252 cards (ProATM and IDT)
 device		utopia			#ATM PHY driver
-options 	NATM			#native ATM
+#options 	NATM			#native ATM
 
 options 	LIBMBPOOL		#needed by patm, iatm
 
@@ -1984,8 +2031,6 @@ device		sound
 # snd_ad1816:		Analog Devices AD1816 ISA PnP/non-PnP.
 # snd_als4000:		Avance Logic ALS4000 PCI.
 # snd_atiixp:		ATI IXP 200/300/400 PCI.
-# snd_au88x0		Aureal Vortex 1/2/Advantage PCI. This driver
-#			lacks support for playback and recording.
 # snd_audiocs:		Crystal Semiconductor CS4231 SBus/EBus. Only
 #			for sparc64.
 # snd_cmi:		CMedia CMI8338/CMI8738 PCI.
@@ -2004,7 +2049,7 @@ device		sound
 # snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
 # snd_hda:		Intel High Definition Audio (Controller) and
 #			compatible.
-# snd_ich:		Intel ICH PCI and some more audio controllers
+# snd_ich:		Intel ICH AC'97 and some more audio controllers
 #			embedded in a chipset, for example nVidia
 #			nForce controllers.
 # snd_maestro:		ESS Technology Maestro-1/2x PCI.
@@ -2029,7 +2074,6 @@ device		sound
 device		snd_ad1816
 device		snd_als4000
 device		snd_atiixp
-#device		snd_au88x0
 #device		snd_audiocs
 device		snd_cmi
 device		snd_cs4281
@@ -2095,43 +2139,8 @@ device	tnt4882
 # scd: Sony CD-ROM using proprietary (non-ATAPI) interface
 # mcd: Mitsumi CD-ROM using proprietary (non-ATAPI) interface
 # bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
-# cy: Cyclades serial driver
 # joy: joystick (including IO DATA PCJOY PC Card joystick)
-# rc: RISCom/8 multiport card
-# rp: Comtrol Rocketport(ISA/PCI) - single card
-# si: Specialix SI/XIO 4-32 port terminal multiplexor
 # cmx: OmniKey CardMan 4040 pccard smartcard reader
-
-# Notes on the Comtrol Rocketport driver:
-#
-# The exact values used for rp0 depend on how many boards you have
-# in the system.  The manufacturer's sample configs are listed as:
-#
-#               device  rp	# core driver support
-#
-#   Comtrol Rocketport ISA single card
-#		hint.rp.0.at="isa"
-#		hint.rp.0.port="0x280"
-#
-#   If instead you have two ISA cards, one installed at 0x100 and the
-#   second installed at 0x180, then you should add the following to
-#   your kernel probe hints:
-#		hint.rp.0.at="isa"
-#		hint.rp.0.port="0x100"
-#		hint.rp.1.at="isa"
-#		hint.rp.1.port="0x180"
-#
-#   For 4 ISA cards, it might be something like this:
-#		hint.rp.0.at="isa"
-#		hint.rp.0.port="0x180"
-#		hint.rp.1.at="isa"
-#		hint.rp.1.port="0x100"
-#		hint.rp.2.at="isa"
-#		hint.rp.2.port="0x340"
-#		hint.rp.3.at="isa"
-#		hint.rp.3.port="0x240"
-#
-#   For PCI cards, you need no hints.
 
 # Mitsumi CD-ROM
 device		mcd
@@ -2309,6 +2318,7 @@ device		ds1672
 # ppi	General-purpose I/O ("Geek Port") + IEEE1284 I/O
 # pps	Pulse per second Timing Interface
 # lpbb	Philips official parallel port I2C bit-banging interface
+# pcfclock Parallel port clock driver.
 #
 # Supported interfaces:
 # ppc	ISA-bus parallel port interfaces.

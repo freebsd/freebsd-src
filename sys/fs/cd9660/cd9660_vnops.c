@@ -168,10 +168,14 @@ cd9660_open(ap)
 		int a_fdidx;
 	} */ *ap;
 {
-	struct iso_node *ip = VTOI(ap->a_vp);
+	struct vnode *vp = ap->a_vp;
+	struct iso_node *ip = VTOI(vp);
 
-	vnode_create_vobject(ap->a_vp, ip->i_size, ap->a_td);
-	return 0;
+	if (vp->v_type == VCHR || vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
+	vnode_create_vobject(vp, ip->i_size, ap->a_td);
+	return (0);
 }
 
 

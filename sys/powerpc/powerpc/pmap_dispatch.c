@@ -37,9 +37,8 @@ __FBSDID("$FreeBSD$");
  * the highest priority call will be installed as the default
  * MMU handler when pmap_bootstrap() is called.
  *
- * It is required that kobj_machdep_init() be called before
- * pmap_bootstrap() to allow the kobj subsystem to initialise. This
- * in turn requires that mutex_init() has been called.
+ * It is required that mutex_init() be called before pmap_bootstrap(), 
+ * as the PMAP layer makes extensive use of mutexes.
  */
 
 #include <sys/param.h>

@@ -113,7 +113,9 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
+#ifdef VIMAGE_GLOBALS
 static struct unrhdr	*ng_eiface_unit;
+#endif
 
 /************************************************************************
 			INTERFACE STUFF

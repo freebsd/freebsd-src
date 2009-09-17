@@ -512,8 +512,6 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 		}
 	}
 
-	p1a(ip6s_forward_cachehit, "\t%ju forward cache hit\n");
-	p1a(ip6s_forward_cachemiss, "\t%ju forward cache miss\n");
 	printf("\tSource addresses selection rule applied:\n");
 	for (i = 0; i < 16; i++) {
 		if (ip6stat.ip6s_sources_rule[i])
@@ -866,7 +864,8 @@ icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 
 #define	p(f, m) if (icmp6stat.f || sflag <= 1) \
     printf(m, (uintmax_t)icmp6stat.f, plural(icmp6stat.f))
-#define	p_5(f, m) printf(m, (uintmax_t)icmp6stat.f)
+#define	p_5(f, m) if (icmp6stat.f || sflag <= 1) \
+    printf(m, (uintmax_t)icmp6stat.f)
 
 	p(icp6s_error, "\t%ju call%s to icmp6_error\n");
 	p(icp6s_canterror,
@@ -1058,7 +1057,7 @@ rip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 #define	p(f, m) if (rip6stat.f || sflag <= 1) \
     printf(m, (uintmax_t)rip6stat.f, plural(rip6stat.f))
 	p(rip6s_ipackets, "\t%ju message%s received\n");
-	p(rip6s_isum, "\t%ju checksum calcuration%s on inbound\n");
+	p(rip6s_isum, "\t%ju checksum calculation%s on inbound\n");
 	p(rip6s_badsum, "\t%ju message%s with bad checksum\n");
 	p(rip6s_nosock, "\t%ju message%s dropped due to no socket\n");
 	p(rip6s_nosockmcast,

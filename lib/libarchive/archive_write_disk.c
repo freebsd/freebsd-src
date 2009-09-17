@@ -178,6 +178,8 @@ struct archive_write_disk {
 	int			 fd;
 	/* Current offset for writing data to the file. */
 	off_t			 offset;
+	/* Last offset actually written to disk. */
+	off_t			 fd_offset;
 	/* Maximum size of file, -1 if unknown. */
 	off_t			 filesize;
 	/* Dir we were in before this restore; only for deep paths. */
@@ -187,8 +189,6 @@ struct archive_write_disk {
 	/* UID/GID to use in restoring this entry. */
 	uid_t			 uid;
 	gid_t			 gid;
-	/* Last offset written to disk. */
-	off_t			 last_offset;
 };
 
 /*
@@ -235,7 +235,7 @@ static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
 static gid_t	trivial_lookup_gid(void *, const char *, gid_t);
 static uid_t	trivial_lookup_uid(void *, const char *, uid_t);
 static ssize_t	write_data_block(struct archive_write_disk *,
-		    const char *, size_t, off_t);
+		    const char *, size_t);
 
 static struct archive_vtable *archive_write_disk_vtable(void);
 
@@ -337,7 +337,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	}
 	a->entry = archive_entry_clone(entry);
 	a->fd = -1;
-	a->last_offset = 0;
+	a->fd_offset = 0;
 	a->offset = 0;
 	a->uid = a->user_uid;
 	a->mode = archive_entry_mode(a->entry);
@@ -484,7 +484,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	}
 
 	/* We've created the object and are ready to pour data into it. */
-	if (ret == ARCHIVE_OK)
+	if (ret >= ARCHIVE_WARN)
 		a->archive.state = ARCHIVE_STATE_DATA;
 	/*
 	 * If it's not open, tell our client not to try writing.
@@ -513,12 +513,11 @@ archive_write_disk_set_skip_file(struct archive *_a, dev_t d, ino_t i)
 }
 
 static ssize_t
-write_data_block(struct archive_write_disk *a,
-    const char *buff, size_t size, off_t offset)
+write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 {
+	uint64_t start_size = size;
 	ssize_t bytes_written = 0;
 	ssize_t block_size = 0, bytes_to_write;
-	int r;
 
 	if (a->filesize == 0 || a->fd < 0) {
 		archive_set_error(&a->archive, 0,
@@ -528,6 +527,7 @@ write_data_block(struct archive_write_disk *a,
 
 	if (a->flags & ARCHIVE_EXTRACT_SPARSE) {
 #if HAVE_STRUCT_STAT_ST_BLKSIZE
+		int r;
 		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
 			return (r);
 		block_size = a->pst->st_blksize;
@@ -538,8 +538,9 @@ write_data_block(struct archive_write_disk *a,
 #endif
 	}
 
-	if (a->filesize >= 0 && (off_t)(offset + size) > a->filesize)
-		size = (size_t)(a->filesize - offset);
+	/* If this write would run beyond the file size, truncate it. */
+	if (a->filesize >= 0 && (off_t)(a->offset + size) > a->filesize)
+		start_size = size = (size_t)(a->filesize - a->offset);
 
 	/* Write the data. */
 	while (size > 0) {
@@ -555,7 +556,7 @@ write_data_block(struct archive_write_disk *a,
 				if (*p != '\0')
 					break;
 			}
-			offset += p - buff;
+			a->offset += p - buff;
 			size -= p - buff;
 			buff = p;
 			if (size == 0)
@@ -563,22 +564,25 @@ write_data_block(struct archive_write_disk *a,
 
 			/* Calculate next block boundary after offset. */
 			block_end
-			    = (offset / block_size) * block_size + block_size;
+			    = (a->offset / block_size + 1) * block_size;
 
 			/* If the adjusted write would cross block boundary,
 			 * truncate it to the block boundary. */
 			bytes_to_write = size;
-			if (offset + bytes_to_write > block_end)
-				bytes_to_write = block_end - offset;
+			if (a->offset + bytes_to_write > block_end)
+				bytes_to_write = block_end - a->offset;
 		}
 
 		/* Seek if necessary to the specified offset. */
-		if (offset != a->last_offset) {
-			if (lseek(a->fd, offset, SEEK_SET) < 0) {
+		if (a->offset != a->fd_offset) {
+			if (lseek(a->fd, a->offset, SEEK_SET) < 0) {
 				archive_set_error(&a->archive, errno,
 				    "Seek failed");
 				return (ARCHIVE_FATAL);
 			}
+			a->fd_offset = a->offset;
+			a->archive.file_position = a->offset;
+			a->archive.raw_position = a->offset;
  		}
 		bytes_written = write(a->fd, buff, bytes_to_write);
 		if (bytes_written < 0) {
@@ -587,12 +591,12 @@ write_data_block(struct archive_write_disk *a,
 		}
 		buff += bytes_written;
 		size -= bytes_written;
-		offset += bytes_written;
+		a->offset += bytes_written;
 		a->archive.file_position += bytes_written;
 		a->archive.raw_position += bytes_written;
-		a->last_offset = a->offset = offset;
+		a->fd_offset = a->offset;
 	}
-	return (bytes_written);
+	return (start_size - size);
 }
 
 static ssize_t
@@ -605,9 +609,9 @@ _archive_write_data_block(struct archive *_a,
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_disk_block");
 
-	r = write_data_block(a, buff, size, offset);
-
-	if (r < 0)
+	a->offset = offset;
+	r = write_data_block(a, buff, size);
+	if (r < ARCHIVE_OK)
 		return (r);
 	if ((size_t)r < size) {
 		archive_set_error(&a->archive, 0,
@@ -625,7 +629,7 @@ _archive_write_data(struct archive *_a, const void *buff, size_t size)
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_data");
 
-	return (write_data_block(a, buff, size, a->offset));
+	return (write_data_block(a, buff, size));
 }
 
 static int
@@ -646,7 +650,7 @@ _archive_write_finish_entry(struct archive *_a)
 		/* There's no file. */
 	} else if (a->filesize < 0) {
 		/* File size is unknown, so we can't set the size. */
-	} else if (a->last_offset == a->filesize) {
+	} else if (a->fd_offset == a->filesize) {
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
 	} else {
@@ -843,7 +847,7 @@ edit_deep_directories(struct archive_write_disk *a)
 		*tail = '\0'; /* Terminate dir portion */
 		ret = create_dir(a, a->name);
 		if (ret == ARCHIVE_OK && chdir(a->name) != 0)
-			ret = ARCHIVE_WARN;
+			ret = ARCHIVE_FAILED;
 		*tail = '/'; /* Restore the / we removed. */
 		if (ret != ARCHIVE_OK)
 			return;
@@ -884,7 +888,7 @@ restore_entry(struct archive_write_disk *a)
 			/* We tried, but couldn't get rid of it. */
 			archive_set_error(&a->archive, errno,
 			    "Could not unlink");
-			return(ARCHIVE_WARN);
+			return(ARCHIVE_FAILED);
 		}
 	}
 
@@ -903,7 +907,7 @@ restore_entry(struct archive_write_disk *a)
 	    && (a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 		/* If we're not overwriting, we're done. */
 		archive_set_error(&a->archive, en, "Already exists");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 
 	/*
@@ -918,7 +922,7 @@ restore_entry(struct archive_write_disk *a)
 		if (rmdir(a->name) != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't remove already-existing dir");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 		a->pst = NULL;
 		/* Try again. */
@@ -945,7 +949,7 @@ restore_entry(struct archive_write_disk *a)
 		if (r != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't stat existing object");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 
 		/*
@@ -974,7 +978,7 @@ restore_entry(struct archive_write_disk *a)
 			if (unlink(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't unlink already-existing object");
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 			}
 			a->pst = NULL;
 			/* Try again. */
@@ -984,7 +988,7 @@ restore_entry(struct archive_write_disk *a)
 			if (rmdir(a->name) != 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't remove already-existing dir");
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 			}
 			/* Try again. */
 			en = create_filesystem_object(a);
@@ -1007,7 +1011,7 @@ restore_entry(struct archive_write_disk *a)
 	if (en) {
 		/* Everything failed; give up here. */
 		archive_set_error(&a->archive, en, "Can't create '%s'", a->name);
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 
 	a->pst = NULL; /* Cached stat data no longer valid. */
@@ -1393,7 +1397,7 @@ check_symlinks(struct archive_write_disk *a)
 					    "Could not remove symlink %s",
 					    a->name);
 					pn[0] = c;
-					return (ARCHIVE_WARN);
+					return (ARCHIVE_FAILED);
 				}
 				a->pst = NULL;
 				/*
@@ -1417,7 +1421,7 @@ check_symlinks(struct archive_write_disk *a)
 					    "Cannot remove intervening symlink %s",
 					    a->name);
 					pn[0] = c;
-					return (ARCHIVE_WARN);
+					return (ARCHIVE_FAILED);
 				}
 				a->pst = NULL;
 			} else {
@@ -1425,7 +1429,7 @@ check_symlinks(struct archive_write_disk *a)
 				    "Cannot extract through symlink %s",
 				    a->name);
 				pn[0] = c;
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 			}
 		}
 	}
@@ -1551,7 +1555,7 @@ create_parent_dir(struct archive_write_disk *a, char *path)
  * Create the specified dir, recursing to create parents as necessary.
  *
  * Returns ARCHIVE_OK if the path exists when we're done here.
- * Otherwise, returns ARCHIVE_WARN.
+ * Otherwise, returns ARCHIVE_FAILED.
  * Assumes path is in mutable storage; path is unchanged on exit.
  */
 static int
@@ -1596,18 +1600,18 @@ create_dir(struct archive_write_disk *a, char *path)
 		if ((a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 			archive_set_error(&a->archive, EEXIST,
 			    "Can't create directory '%s'", path);
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 		if (unlink(path) != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't create directory '%s': "
 			    "Conflicting file cannot be removed");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 	} else if (errno != ENOENT && errno != ENOTDIR) {
 		/* Stat failed? */
 		archive_set_error(&a->archive, errno, "Can't test directory '%s'", path);
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	} else if (slash != NULL) {
 		*slash = '\0';
 		r = create_dir(a, path);
@@ -1648,7 +1652,7 @@ create_dir(struct archive_write_disk *a, char *path)
 		return (ARCHIVE_OK);
 
 	archive_set_error(&a->archive, errno, "Failed to create dir '%s'", path);
-	return (ARCHIVE_WARN);
+	return (ARCHIVE_FAILED);
 }
 
 /*
@@ -1752,7 +1756,7 @@ set_time(int fd, int mode, const char *name,
 	(void)mtime_nsec; /* UNUSED */
 	times.actime = atime;
 	times.modtime = mtime;
-	if (S_ISLINK(mode))
+	if (S_ISLNK(mode))
 		return (ARCHIVE_OK);
 	return (utime(name, &times));
 }

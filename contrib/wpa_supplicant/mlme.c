@@ -985,8 +985,6 @@ static void ieee80211_send_probe_req(struct wpa_supplicant *wpa_s,
 	supp_rates[1] = 0;
 	for (i = 0; i < wpa_s->mlme.num_curr_rates; i++) {
 		struct wpa_rate_data *rate = &wpa_s->mlme.curr_rates[i];
-		if (!(rate->flags & WPA_RATE_SUPPORTED))
-			continue;
 		if (esupp_rates) {
 			pos = buf + len;
 			len++;
@@ -996,6 +994,7 @@ static void ieee80211_send_probe_req(struct wpa_supplicant *wpa_s,
 			esupp_rates[0] = WLAN_EID_EXT_SUPP_RATES;
 			esupp_rates[1] = 1;
 			pos = &esupp_rates[2];
+			len += 3;
 		} else {
 			pos = buf + len;
 			len++;

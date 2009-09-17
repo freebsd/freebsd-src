@@ -69,9 +69,10 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_IPFW);
 
+#ifdef VIMAGE_GLOBALS
 extern struct ip_fw_chain layer3_chain;
-
 static eventhandler_tag ifaddr_event_tag;
+#endif
 
 extern ipfw_nat_t *ipfw_nat_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
@@ -91,7 +92,7 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 	LIST_FOREACH(ptr, &V_layer3_chain.nat, _next) {
 		/* ...using nic 'ifp->if_xname' as dynamic alias address. */
 		if (strncmp(ptr->if_name, ifp->if_xname, IF_NAMESIZE) == 0) {
-			mtx_lock(&ifp->if_addr_mtx);
+			IF_ADDR_LOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list) {
 				if (ifa->ifa_addr == NULL)
 					continue;
@@ -101,7 +102,7 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 				    (ifa->ifa_addr))->sin_addr;
 				LibAliasSetAddress(ptr->lib, ptr->ip);
 			}
-			mtx_unlock(&ifp->if_addr_mtx);
+			IF_ADDR_UNLOCK(ifp);
 		}
 	}
 	IPFW_WUNLOCK(&V_layer3_chain);	
@@ -325,6 +326,10 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	else
 		retval = LibAliasOut(t->lib, c, 
 			mcl->m_len + M_TRAILINGSPACE(mcl));
+	if (retval == PKT_ALIAS_RESPOND) {
+	  m->m_flags |= M_SKIP_FIREWALL;
+	  retval = PKT_ALIAS_OK;
+	}
 	if (retval != PKT_ALIAS_OK &&
 	    retval != PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
 		/* XXX - should i add some logging? */

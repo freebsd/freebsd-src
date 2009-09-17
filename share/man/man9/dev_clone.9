@@ -24,7 +24,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2008
+.Dd January 3, 2009
+.Dt DEV_CLONE 9
+.Os
 .Sh NAME
 .Nm dev_clone ,
 .Nm drain_dev_clone_events
@@ -40,11 +42,11 @@ EVENTHANDLER_REGISTER(dev_clone, clone_handler, arg, priority);
 .Ft void
 .Fn drain_dev_clone_events
 .Sh DESCRIPTION
-Device driver may register a listener that will be notified each time
-name lookup on the
-.Xr devfs
+A device driver may register a listener that will be notified each time
+a name lookup on the
+.Xr devfs 5
 mount point fails to find the vnode.
-Listener shall be registered for the
+A listener shall be registered for the
 .Va dev_clone
 event.
 When called, it is supplied with the first argument
@@ -52,23 +54,25 @@ When called, it is supplied with the first argument
 that was specified at handler registration time,
 appropriate credentials
 .Va cr ,
+and a name
 .Va name
-of the length
+of length
 .Va namelen
-that was looked for.
-If handler decides that the name is appropriate and want to create device
-that will be associated with the name, it should return it to the devfs
+that we look for.
+If the handler decides that the name is appropriate and wants to create the device
+that will be associated with the name, it should return it to devfs
 in the
-.Va dev .
+.Va dev
+argument.
 .Pp
 The
 .Fn drain_dev_clone_events
 function is a barrier.
-It is guaranteed that all calls to eventhandlers for dev_clone that were
-started before
+It is guaranteed that all calls to eventhandlers for
+.Nm dev_clone
+that were started before
 .Fn drain_dev_clone_events
 call, are finished before it returns control.
-.Pp
 .Sh SEE ALSO
 .Xr devfs 5 ,
 .Xr namei 9

@@ -44,10 +44,7 @@ __FBSDID("$FreeBSD$");
  * first slen characters of s.
  */
 char *
-strnstr(s, find, slen)
-	const char *s;
-	const char *find;
-	size_t slen;
+strnstr(const char *s, const char *find, size_t slen)
 {
 	char c, sc;
 	size_t len;

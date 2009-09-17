@@ -47,11 +47,20 @@ struct pcb {
 						    copyin/copyout */
 	int		pcb_flags;
 #define	PCB_FPU		1	/* Process had FPU initialized */
+#define	PCB_VEC		2	/* Process had Altivec initialized */
 	struct fpu {
 		double	fpr[32];
 		double	fpscr;	/* FPSCR stored as double for easier access */
 	} pcb_fpu;		/* Floating point processor */
 	unsigned int	pcb_fpcpu;		/* which CPU had our FPU
+							stuff. */
+	struct vec {
+		uint32_t vr[32][4];
+		register_t vrsave;
+		register_t spare[2];
+		register_t vscr;
+	} pcb_vec __attribute__((aligned(16)));	/* Vector processor */
+	unsigned int	pcb_veccpu;		/* which CPU had our vector
 							stuff. */
 
 	union {

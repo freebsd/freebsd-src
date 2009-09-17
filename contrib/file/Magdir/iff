@@ -13,8 +13,11 @@
 #>4	belong		x		\b, FORM is %d bytes long
 # audio formats
 >8	string		AIFF		\b, AIFF audio
+!:mime	audio/x-aiff
 >8	string		AIFC		\b, AIFF-C compressed audio
+!:mime	audio/x-aiff
 >8	string		8SVX		\b, 8SVX 8-bit sampled sound voice
+!:mime	audio/x-aiff
 >8	string		16SV		\b, 16SV 16-bit sampled sound voice
 >8	string		SAMP		\b, SAMP sampled audio
 >8	string		MAUD		\b, MAUD MacroSystem audio

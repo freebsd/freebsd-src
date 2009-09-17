@@ -142,11 +142,6 @@ enum ISOCountryCode {
 	CTRY_ITALY		= 380,	/* Italy */
 	CTRY_JAMAICA		= 388,	/* Jamaica */
 	CTRY_JAPAN		= 392,	/* Japan */
-	CTRY_JAPAN1		= 393,	/* Japan (JP1) */
-	CTRY_JAPAN2		= 394,	/* Japan (JP0) */
-	CTRY_JAPAN3		= 395,	/* Japan (JP1-1) */
-	CTRY_JAPAN4		= 396,	/* Japan (JE1) */
-	CTRY_JAPAN5		= 397,	/* Japan (JE2) */
 	CTRY_JORDAN		= 400,	/* Jordan */
 	CTRY_KAZAKHSTAN		= 398,	/* Kazakhstan */
 	CTRY_KENYA		= 404,	/* Kenya */
@@ -209,6 +204,38 @@ enum ISOCountryCode {
 	CTRY_VIET_NAM		= 704,	/* Viet Nam */
 	CTRY_YEMEN		= 887,	/* Yemen */
 	CTRY_ZIMBABWE		= 716,	/* Zimbabwe */
+
+	/* NB: from here down not listed in 3166; they come from Atheros */
+	CTRY_DEBUG		= 0x1ff, /* debug */
+	CTRY_DEFAULT		= 0,	 /* default */
+
+	CTRY_UNITED_STATES_FCC49 = 842,	/* United States (Public Safety)*/
+	CTRY_KOREA_ROC3		= 412,	/* South Korea */
+
+	CTRY_JAPAN1		= 393,	/* Japan (JP1) */
+	CTRY_JAPAN2		= 394,	/* Japan (JP0) */
+	CTRY_JAPAN3		= 395,	/* Japan (JP1-1) */
+	CTRY_JAPAN4		= 396,	/* Japan (JE1) */
+	CTRY_JAPAN5		= 397,	/* Japan (JE2) */
+	CTRY_JAPAN6		= 399,	/* Japan (JP6) */
+	CTRY_JAPAN7		= 4007,	/* Japan (J7) */
+	CTRY_JAPAN8		= 4008,	/* Japan (J8) */
+	CTRY_JAPAN9		= 4009,	/* Japan (J9) */
+	CTRY_JAPAN10		= 4010,	/* Japan (J10) */
+	CTRY_JAPAN11		= 4011,	/* Japan (J11) */
+	CTRY_JAPAN12		= 4012,	/* Japan (J12) */
+	CTRY_JAPAN13		= 4013,	/* Japan (J13) */
+	CTRY_JAPAN14		= 4014,	/* Japan (J14) */
+	CTRY_JAPAN15		= 4015,	/* Japan (J15) */
+	CTRY_JAPAN16		= 4016,	/* Japan (J16) */
+	CTRY_JAPAN17		= 4017,	/* Japan (J17) */
+	CTRY_JAPAN18		= 4018,	/* Japan (J18) */
+	CTRY_JAPAN19		= 4019,	/* Japan (J19) */
+	CTRY_JAPAN20		= 4020,	/* Japan (J20) */
+	CTRY_JAPAN21		= 4021,	/* Japan (J21) */
+	CTRY_JAPAN22		= 4022,	/* Japan (J22) */
+	CTRY_JAPAN23		= 4023,	/* Japan (J23) */
+	CTRY_JAPAN24		= 4024,	/* Japan (J24) */
 };
 
 enum RegdomainCode {
@@ -225,21 +252,27 @@ enum RegdomainCode {
 	SKU_APAC3		= 0x5d,	/* Asia Pacific w/o ISM band */
 	SKU_ROW			= 0x81,	/* China/Taiwan/Rest of World */
 	SKU_NONE		= 0xf0,	/* "Region Free" */
-	SKU_DEBUG		= 0x1ff
+	SKU_DEBUG		= 0x1ff,
+
+	/* NB: from here down private */
+	SKU_SR9			= 0x0298, /* Ubiquiti SR9 (900MHz/GSM) */
+	SKU_XR9			= 0x0299, /* Ubiquiti XR9 (900MHz/GSM) */
+	SKU_GZ901		= 0x029a, /* Zcomax GZ-901 (900MHz/GSM) */
 };
 
 #if defined(__KERNEL__) || defined(_KERNEL)
-#define CTRY_DEBUG                0x1ff   /* debug */
-#define CTRY_DEFAULT              0       /* default */
-
+struct ieee80211com;
 void	ieee80211_regdomain_attach(struct ieee80211com *);
 void	ieee80211_regdomain_detach(struct ieee80211com *);
+struct ieee80211vap;
 void	ieee80211_regdomain_vattach(struct ieee80211vap *);
 void	ieee80211_regdomain_vdetach(struct ieee80211vap *);
 
+struct ieee80211_regdomain;
 int	ieee80211_init_channels(struct ieee80211com *,
 	    const struct ieee80211_regdomain *, const uint8_t bands[]);
-void	ieee80211_sort_channels(struct ieee80211_channel chans[], int nchans);
+struct ieee80211_channel;
+void	ieee80211_sort_channels(struct ieee80211_channel *chans, int nchans);
 struct ieee80211_appie;
 struct ieee80211_appie *ieee80211_alloc_countryie(struct ieee80211com *);
 struct ieee80211_regdomain_req;

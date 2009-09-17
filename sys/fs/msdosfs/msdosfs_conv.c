@@ -1060,8 +1060,11 @@ mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 	char *slot;
 	size_t count, newlen;
 
-	KASSERT(nbp->nb_len == 0 || id == nbp->nb_last_id - 1,
-	    ("non-decreasing id: id %d, last id %d", id, nbp->nb_last_id));
+	if (nbp->nb_len != 0 && id != nbp->nb_last_id - 1) {
+		printf("msdosfs: non-decreasing id: id %d, last id %d\n",
+		    id, nbp->nb_last_id);
+		return;
+	}
 
 	/* Will store this substring in a WIN_CHARS-aligned slot. */
 	slot = &nbp->nb_buf[id * WIN_CHARS];

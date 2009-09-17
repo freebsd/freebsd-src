@@ -161,7 +161,7 @@ struct ixpqmgr_softc {
 
 static int qmgr_debug = 0;
 SYSCTL_INT(_debug, OID_AUTO, qmgr, CTLFLAG_RW, &qmgr_debug,
-	   0, "IXP425 Q-Manager debug msgs");
+	   0, "IXP4XX Q-Manager debug msgs");
 TUNABLE_INT("debug.qmgr", &qmgr_debug);
 #define	DPRINTF(dev, fmt, ...) do {					\
 	if (qmgr_debug) printf(fmt, __VA_ARGS__);			\
@@ -204,7 +204,7 @@ aqm_reg_write(struct ixpqmgr_softc *sc, bus_size_t off, uint32_t val)
 static int
 ixpqmgr_probe(device_t dev)
 {
-	device_set_desc(dev, "IXP425 Q-Manager");
+	device_set_desc(dev, "IXP4XX Q-Manager");
 	return 0;
 }
 

@@ -38,6 +38,12 @@
 
 struct pmap;
 
+#ifdef KTR
+#define	PCPU_MD_FIELDS_PAD	(4 - (PCPU_NAME_LEN + 7) / 8)
+#else
+#define	PCPU_MD_FIELDS_PAD	4
+#endif
+
 /*
  * Inside the kernel, the globally reserved register g7 is used to
  * point at the globaldata structure.
@@ -72,7 +78,7 @@ struct pmap;
 	u_int   pc_kwbuf_full;                                          \
 	struct rwindow pc_tsbwbuf[2];                                   \
         uint16_t pc_cpulist[MAXCPU];                                    \
-	uint64_t pad[4];
+	uint64_t pad[PCPU_MD_FIELDS_PAD];
 
 	/* XXX SUN4V_FIXME - as we access the *_ra and *_size fields in quick
 	 * succession we _really_ want them to be L1 cache line size aligned

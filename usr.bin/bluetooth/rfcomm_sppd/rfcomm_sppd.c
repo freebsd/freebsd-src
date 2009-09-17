@@ -281,22 +281,8 @@ main(int argc, char *argv[])
 	}
 
 	/* Became daemon if required */
-	if (background) {
-		switch (fork()) {
-		case -1:
-			err(1, "Could not fork()");
-			/* NOT REACHED */
-
-		case 0:
-			exit(0);
-			/* NOT REACHED */
-
-		default:
-			if (daemon(0, 0) < 0)
-				err(1, "Could not daemon()");
-			break;
-		}
-	}
+	if (background && daemon(0, 0) < 0)
+		err(1, "Could not daemon()");
 
 	openlog(SPPD_IDENT, LOG_NDELAY|LOG_PERROR|LOG_PID, LOG_DAEMON);
 	syslog(LOG_INFO, "Starting on %s...", (tty != NULL)? tty : "stdin/stdout");

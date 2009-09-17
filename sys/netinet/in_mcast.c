@@ -1036,7 +1036,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 
 			ro.ro_rt = NULL;
 			*(struct sockaddr_in *)&ro.ro_dst = gsa->sin;
-			in_rtalloc_ign(&ro, RTF_CLONING,
+			in_rtalloc_ign(&ro, 0,
 			   inp->inp_inc.inc_fibnum);
 			if (ro.ro_rt != NULL) {
 				ifp = ro.ro_rt->rt_ifp;

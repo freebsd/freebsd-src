@@ -65,6 +65,7 @@ SUBDIR=	${_ac} \
 	getpmac \
 	gstat \
 	${_gssd} \
+	i2c \
 	ifmcstat \
 	inetd \
 	iostat \
@@ -86,6 +87,7 @@ SUBDIR=	${_ac} \
 	${_lptcontrol} \
 	${_mailstats} \
 	mailwrapper \
+	makefs \
 	${_makemap} \
 	manctl \
 	memcontrol \
@@ -404,7 +406,7 @@ _crunch=	crunch
 .endif
 
 .if ${MK_USB} != "no"
-_usbdevs=	usbdevs
+#_usbdevs=	usbdevs
 _usbconfig=	usbconfig
 .endif
 

@@ -221,9 +221,9 @@ fifolog_int_read(const struct fifolog_file *ff, off_t recno)
 	recno++;			/* label sector */
 	i = pread(ff->fd, ff->recbuf, ff->recsize, recno * ff->recsize);
 	if (i < 0)
-		return (-1);
+		return (-2);
 	if (i != (int)ff->recsize)
-		return (-1);
+		return (-3);
 	return (0);
 }
 

@@ -30,15 +30,24 @@ dev/kbd/kbd.c			optional	sc
 dev/ofw/openfirm.c		optional	aim
 dev/ofw/openfirmio.c		optional	aim
 dev/ofw/ofw_bus_if.m		optional	aim
+dev/ofw/ofw_if.m		optional	aim
 dev/ofw/ofw_bus_subr.c		optional	aim
 dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
+dev/ofw/ofw_iicbus.c		optional	iicbus aim
+dev/ofw/ofw_standard.c		optional	aim
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
 dev/quicc/quicc_bfe_ocp.c	optional	quicc mpc85xx
 dev/scc/scc_bfe_macio.c		optional	scc powermac
+dev/sound/macio/aoa.c		optional	snd_davbus | snd_ai2s powermac
+dev/sound/macio/davbus.c	optional	snd_davbus powermac
+dev/sound/macio/i2s.c		optional	snd_ai2s powermac
+dev/sound/macio/snapper.c	optional	snd_ai2s iicbus powermac
+dev/sound/macio/tumbler.c	optional	snd_ai2s iicbus powermac
 dev/syscons/scgfbrndr.c		optional	sc
-dev/syscons/scterm-sc.c		optional	sc
+dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
+dev/syscons/teken/teken.c	optional sc
 dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_ocp.c		optional	tsec mpc85xx
 dev/uart/uart_bus_ocp.c		optional	uart mpc85xx
@@ -81,7 +90,6 @@ powerpc/booke/interrupt.c	optional	e500
 powerpc/booke/locore.S		optional	e500 no-obj
 powerpc/booke/machdep.c		optional	e500
 powerpc/booke/pmap.c		optional	e500
-powerpc/booke/support.S		optional	e500
 powerpc/booke/swtch.S		optional	e500
 powerpc/booke/trap.c		optional	e500
 powerpc/booke/uio_machdep.c	optional	e500
@@ -110,6 +118,7 @@ powerpc/powermac/ata_dbdma.c	optional	powermac ata
 powerpc/powermac/dbdma.c	optional	powermac pci
 powerpc/powermac/grackle.c	optional	powermac pci
 powerpc/powermac/hrowpic.c	optional	powermac pci
+powerpc/powermac/kiic.c		optional	powermac kiic
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/pswitch.c	optional	powermac pswitch
@@ -117,6 +126,7 @@ powerpc/powermac/uninorth.c	optional	powermac pci
 powerpc/powermac/cuda.c		optional	powermac cuda
 powerpc/powermac/pmu.c		optional	powermac pmu 
 powerpc/powermac/macgpio.c	optional	powermac pci 
+powerpc/powerpc/altivec.c	optional	aim
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard

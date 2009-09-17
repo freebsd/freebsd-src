@@ -21,8 +21,10 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/ofw/ofw_bus_if.m		standard
+dev/ofw/ofw_if.m		standard
 dev/ofw/ofw_bus_subr.c		standard
 dev/ofw/ofw_console.c		optional	ofw_console
+dev/ofw/ofw_standard.c		standard
 dev/ofw/openfirm.c		standard
 dev/ofw/openfirmio.c		standard
 dev/ofw/openpromio.c		standard
@@ -65,7 +67,6 @@ sun4v/sun4v/mp_locore.S		optional	smp
 sun4v/sun4v/mp_machdep.c	optional	smp
 sun4v/sun4v/nexus.c		standard
 sun4v/cddl/t1_copy.S		standard
-sparc64/sparc64/ofw_bus.c	standard
 sparc64/sparc64/ofw_machdep.c	standard
 sun4v/sun4v/pmap.c		standard
 sparc64/sparc64/prof_machdep.c	optional	profiling-routine

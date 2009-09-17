@@ -101,6 +101,15 @@ static void setblock(struct fs *, unsigned char *, int);
 static void wtfs(ufs2_daddr_t, int, char *);
 static u_int32_t newfs_random(void);
 
+static int
+do_sbwrite(struct uufsd *disk)
+{
+	if (!disk->d_sblock)
+		disk->d_sblock = disk->d_fs.fs_sblockloc / disk->d_bsize;
+	return (pwrite(disk->d_fd, &disk->d_fs, SBLOCKSIZE, (off_t)((part_ofs +
+	    disk->d_sblock) * disk->d_bsize)));
+}
+
 void
 mkfs(struct partition *pp, char *fsys)
 {
@@ -465,14 +474,15 @@ mkfs(struct partition *pp, char *fsys)
 
 		if (fsdummy.fs_magic == FS_UFS1_MAGIC) {
 			fsdummy.fs_magic = 0;
-			bwrite(&disk, SBLOCK_UFS1 / disk.d_bsize, chdummy, SBLOCKSIZE);
+			bwrite(&disk, part_ofs + SBLOCK_UFS1 / disk.d_bsize,
+			    chdummy, SBLOCKSIZE);
 			for (i = 0; i < fsdummy.fs_ncg; i++)
-				bwrite(&disk, fsbtodb(&fsdummy, cgsblock(&fsdummy, i)),
-	                    chdummy, SBLOCKSIZE);
+				bwrite(&disk, part_ofs + fsbtodb(&fsdummy,
+				    cgsblock(&fsdummy, i)), chdummy, SBLOCKSIZE);
 		}
 	}
 	if (!Nflag)
-		sbwrite(&disk, 0);
+		do_sbwrite(&disk);
 	if (Xflag == 1) {
 		printf("** Exiting on Xflag 1\n");
 		exit(0);
@@ -540,7 +550,7 @@ mkfs(struct partition *pp, char *fsys)
 		exit(0);
 	}
 	if (!Nflag)
-		sbwrite(&disk, 0);
+		do_sbwrite(&disk);
 	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize)
 		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)),
 			sblock.fs_cssize - i < sblock.fs_bsize ?
@@ -960,7 +970,7 @@ wtfs(ufs2_daddr_t bno, int size, char *bf)
 {
 	if (Nflag)
 		return;
-	if (bwrite(&disk, bno, bf, size) < 0)
+	if (bwrite(&disk, part_ofs + bno, bf, size) < 0)
 		err(36, "wtfs: %d bytes at sector %jd", size, (intmax_t)bno);
 }
 

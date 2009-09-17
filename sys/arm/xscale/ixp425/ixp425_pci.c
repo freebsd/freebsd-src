@@ -89,8 +89,7 @@ static pcib_route_interrupt_t ixppcib_route_interrupt;
 static int
 ixppcib_probe(device_t dev)
 {
-
-	device_set_desc(dev, "IXP425 PCI Bus");
+	device_set_desc(dev, "IXP4XX PCI Bus");
         return (0);
 }
 
@@ -130,8 +129,8 @@ ixppcib_attach(device_t dev)
 	if (sc->sc_mem == NULL)
 		panic("cannot allocate PCI MEM space");
 
-#define	AHB_OFFSET	0x10000000UL
-	if (bus_dma_tag_create(NULL, 1, 0, AHB_OFFSET + 64 * 1024 * 1024,
+	/* NB: PCI dma window is 64M so anything above must be bounced */
+	if (bus_dma_tag_create(NULL, 1, 0, IXP425_AHB_OFFSET + 64 * 1024 * 1024,
 	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
 	    NULL, NULL, &sc->sc_dmat))
 		panic("couldn't create the PCI dma tag !");
@@ -153,7 +152,7 @@ ixppcib_attach(device_t dev)
 
 	/* Initialize memory and i/o rmans. */
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
-	sc->sc_io_rman.rm_descr = "IXP425 PCI I/O Ports";
+	sc->sc_io_rman.rm_descr = "IXP4XX PCI I/O Ports";
 	if (rman_init(&sc->sc_io_rman) != 0 ||
 		rman_manage_region(&sc->sc_io_rman, 0, 
 	    	    IXP425_PCI_IO_SIZE) != 0) {
@@ -161,7 +160,7 @@ ixppcib_attach(device_t dev)
 	}
 
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_mem_rman.rm_descr = "IXP425 PCI Memory";
+	sc->sc_mem_rman.rm_descr = "IXP4XX PCI Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0 ||
 		rman_manage_region(&sc->sc_mem_rman, IXP425_PCI_MEM_HWBASE,
 		    IXP425_PCI_MEM_HWBASE + IXP425_PCI_MEM_SIZE) != 0) {
@@ -173,20 +172,20 @@ ixppcib_attach(device_t dev)
 	 * 	begin at the physical memory start + OFFSET
 	 */
 	PCI_CSR_WRITE_4(sc, PCI_AHBMEMBASE,
-	    (AHB_OFFSET & 0xFF000000) +
-	    ((AHB_OFFSET & 0xFF000000) >> 8) +
-	    ((AHB_OFFSET & 0xFF000000) >> 16) +
-	    ((AHB_OFFSET & 0xFF000000) >> 24) +
+	    (IXP425_AHB_OFFSET & 0xFF000000) +
+	    ((IXP425_AHB_OFFSET & 0xFF000000) >> 8) +
+	    ((IXP425_AHB_OFFSET & 0xFF000000) >> 16) +
+	    ((IXP425_AHB_OFFSET & 0xFF000000) >> 24) +
 	    0x00010203);
 	
 #define IXPPCIB_WRITE_CONF(sc, reg, val) \
 	ixp425_pci_conf_reg_write(sc, reg, val)
 	/* Write Mapping registers PCI Configuration Registers */
 	/* Base Address 0 - 3 */
-	IXPPCIB_WRITE_CONF(sc, PCI_MAPREG_BAR0, AHB_OFFSET + 0x00000000);
-	IXPPCIB_WRITE_CONF(sc, PCI_MAPREG_BAR1, AHB_OFFSET + 0x01000000);
-	IXPPCIB_WRITE_CONF(sc, PCI_MAPREG_BAR2, AHB_OFFSET + 0x02000000);
-	IXPPCIB_WRITE_CONF(sc, PCI_MAPREG_BAR3, AHB_OFFSET + 0x03000000);
+	IXPPCIB_WRITE_CONF(sc, PCI_MAPREG_BAR0, IXP425_AHB_OFFSET + 0x00000000);
+	IXPPCIB_WRITE_CONF(sc, PCI_MAPREG_BAR1, IXP425_AHB_OFFSET + 0x01000000);
+	IXPPCIB_WRITE_CONF(sc, PCI_MAPREG_BAR2, IXP425_AHB_OFFSET + 0x02000000);
+	IXPPCIB_WRITE_CONF(sc, PCI_MAPREG_BAR3, IXP425_AHB_OFFSET + 0x03000000);
 	
 	/* Base Address 4 */
 	IXPPCIB_WRITE_CONF(sc, PCI_MAPREG_BAR4, 0xffffffff);

@@ -60,17 +60,19 @@ static void printfile(int fileid, int verbose)
     if (kldstat(fileid, &stat) < 0)
 	warn("can't stat file id %d", fileid);
     else
-	printf("%2d %4d %p %-8jx %s (%s)\n",
+	printf("%2d %4d %p %-8jx %s",
 	       stat.id, stat.refs, stat.address, (uintmax_t)stat.size, 
-	       stat.name, stat.pathname);
+	       stat.name);
 
     if (verbose) {
+	printf(" (%s)\n", stat.pathname);
 	printf("\tContains modules:\n");
 	printf("\t\tId Name\n");
 	for (modid = kldfirstmod(fileid); modid > 0;
 	     modid = modfnext(modid))
 	    printmod(modid);
-    }
+    } else
+	printf("\n");
 }
 
 static void

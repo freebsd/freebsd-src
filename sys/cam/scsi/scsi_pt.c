@@ -342,11 +342,11 @@ ptdtor(struct cam_periph *periph)
 
 	softc = (struct pt_softc *)periph->softc;
 
-	devstat_remove_entry(softc->device_stats);
-
-	destroy_dev(softc->dev);
-
 	xpt_print(periph->path, "removing device entry\n");
+	devstat_remove_entry(softc->device_stats);
+	cam_periph_unlock(periph);
+	destroy_dev(softc->dev);
+	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
 }
 

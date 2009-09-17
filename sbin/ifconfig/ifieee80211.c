@@ -79,6 +79,7 @@
 
 #include <net80211/ieee80211_ioctl.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -98,10 +99,6 @@
 #define	IEEE80211_FIXED_RATE_NONE	0xff
 #endif
 
-#define	REQ_ECM		0x01000000	/* enable if ECM set */
-#define	REQ_OUTDOOR	0x02000000	/* enable for outdoor operation */
-#define	REQ_FLAGS	0xff000000	/* private flags, don't pass to os */
-
 /* XXX need these publicly defined or similar */
 #ifndef IEEE80211_NODE_AUTH
 #define	IEEE80211_NODE_AUTH	0x0001		/* authorized for data */
@@ -119,6 +116,8 @@
 #define	IEEE80211_NODE_RIFS	0x4000		/* RIFS enabled */
 #endif
 
+#define	MAXCHAN	1536		/* max 1.5K channels */
+
 #define	MAXCOL	78
 static	int col;
 static	char spacer;
@@ -127,9 +126,19 @@ static void LINE_INIT(char c);
 static void LINE_BREAK(void);
 static void LINE_CHECK(const char *fmt, ...);
 
-static const char *modename[] = {
-	"auto", "11a", "11b", "11g", "fh", "turboA", "turboG",
-	"sturbo", "11na", "11ng"
+static const char *modename[IEEE80211_MODE_MAX] = {
+	[IEEE80211_MODE_AUTO]	  = "auto",
+	[IEEE80211_MODE_11A]	  = "11a",
+	[IEEE80211_MODE_11B]	  = "11b",
+	[IEEE80211_MODE_11G]	  = "11g",
+	[IEEE80211_MODE_FH]	  = "fh",
+	[IEEE80211_MODE_TURBO_A]  = "turboA",
+	[IEEE80211_MODE_TURBO_G]  = "turboG",
+	[IEEE80211_MODE_STURBO_A] = "sturbo",
+	[IEEE80211_MODE_11NA]	  = "11na",
+	[IEEE80211_MODE_11NG]	  = "11ng",
+	[IEEE80211_MODE_HALF]	  = "half",
+	[IEEE80211_MODE_QUARTER]  = "quarter"
 };
 
 static void set80211(int s, int type, int val, int len, void *data);
@@ -145,7 +154,7 @@ static void print_channels(int, const struct ieee80211req_chaninfo *,
 static void regdomain_makechannels(struct ieee80211_regdomain_req *,
     const struct ieee80211_devcaps_req *);
 
-static struct ieee80211req_chaninfo chaninfo;
+static struct ieee80211req_chaninfo *chaninfo;
 static struct ieee80211_regdomain regdomain;
 static int gotregdomain = 0;
 static struct ieee80211_roamparams_req roamparams;
@@ -175,10 +184,14 @@ gethtconf(int s)
 static void
 getchaninfo(int s)
 {
-	if (chaninfo.ic_nchans != 0)
+	if (chaninfo != NULL)
 		return;
-	if (get80211(s, IEEE80211_IOC_CHANINFO, &chaninfo, sizeof(chaninfo)) < 0)
-		errx(1, "unable to get channel information");
+	chaninfo = malloc(IEEE80211_CHANINFO_SIZE(MAXCHAN));
+	if (chaninfo == NULL)
+		errx(1, "no space for channel list");
+	if (get80211(s, IEEE80211_IOC_CHANINFO, chaninfo,
+	    IEEE80211_CHANINFO_SIZE(MAXCHAN)) < 0)
+		err(1, "unable to get channel information");
 	ifmr = ifmedia_getstate(s);
 	gethtconf(s);
 }
@@ -205,19 +218,19 @@ getregdata(void)
 static int
 canpromote(int i, int from, int to)
 {
-	const struct ieee80211_channel *fc = &chaninfo.ic_chans[i];
+	const struct ieee80211_channel *fc = &chaninfo->ic_chans[i];
 	int j;
 
 	if ((fc->ic_flags & from) != from)
 		return i;
 	/* NB: quick check exploiting ordering of chans w/ same frequency */
-	if (i+1 < chaninfo.ic_nchans &&
-	    chaninfo.ic_chans[i+1].ic_freq == fc->ic_freq &&
-	    (chaninfo.ic_chans[i+1].ic_flags & to) == to)
+	if (i+1 < chaninfo->ic_nchans &&
+	    chaninfo->ic_chans[i+1].ic_freq == fc->ic_freq &&
+	    (chaninfo->ic_chans[i+1].ic_flags & to) == to)
 		return i+1;
 	/* brute force search in case channel list is not ordered */
-	for (j = 0; j < chaninfo.ic_nchans; j++) {
-		const struct ieee80211_channel *tc = &chaninfo.ic_chans[j];
+	for (j = 0; j < chaninfo->ic_nchans; j++) {
+		const struct ieee80211_channel *tc = &chaninfo->ic_chans[j];
 		if (j != i &&
 		    tc->ic_freq == fc->ic_freq && (tc->ic_flags & to) == to)
 		return j;
@@ -287,13 +300,13 @@ mapfreq(struct ieee80211_channel *chan, int freq, int flags)
 {
 	int i;
 
-	for (i = 0; i < chaninfo.ic_nchans; i++) {
-		const struct ieee80211_channel *c = &chaninfo.ic_chans[i];
+	for (i = 0; i < chaninfo->ic_nchans; i++) {
+		const struct ieee80211_channel *c = &chaninfo->ic_chans[i];
 
 		if (c->ic_freq == freq && (c->ic_flags & flags) == flags) {
 			if (flags == 0) {
 				/* when ambiguous promote to ``best'' */
-				c = &chaninfo.ic_chans[promote(i)];
+				c = &chaninfo->ic_chans[promote(i)];
 			}
 			*chan = *c;
 			return;
@@ -307,13 +320,13 @@ mapchan(struct ieee80211_channel *chan, int ieee, int flags)
 {
 	int i;
 
-	for (i = 0; i < chaninfo.ic_nchans; i++) {
-		const struct ieee80211_channel *c = &chaninfo.ic_chans[i];
+	for (i = 0; i < chaninfo->ic_nchans; i++) {
+		const struct ieee80211_channel *c = &chaninfo->ic_chans[i];
 
 		if (c->ic_ieee == ieee && (c->ic_flags & flags) == flags) {
 			if (flags == 0) {
 				/* when ambiguous promote to ``best'' */
-				c = &chaninfo.ic_chans[promote(i)];
+				c = &chaninfo->ic_chans[promote(i)];
 			}
 			*chan = *c;
 			return;
@@ -331,7 +344,7 @@ getcurchan(int s)
 		int val;
 		/* fall back to legacy ioctl */
 		if (get80211val(s, IEEE80211_IOC_CHANNEL, &val) < 0)
-			errx(-1, "cannot figure out current channel");
+			err(-1, "cannot figure out current channel");
 		getchaninfo(s);
 		mapchan(&curchan, val, 0);
 	}
@@ -354,6 +367,10 @@ chan2mode(const struct ieee80211_channel *c)
 		return IEEE80211_MODE_STURBO_A;
 	if (IEEE80211_IS_CHAN_FHSS(c))
 		return IEEE80211_MODE_FH;
+	if (IEEE80211_IS_CHAN_HALF(c))
+		return IEEE80211_MODE_HALF;
+	if (IEEE80211_IS_CHAN_QUARTER(c))
+		return IEEE80211_MODE_QUARTER;
 	if (IEEE80211_IS_CHAN_A(c))
 		return IEEE80211_MODE_11A;
 	if (IEEE80211_IS_CHAN_ANYG(c))
@@ -370,7 +387,7 @@ getroam(int s)
 		return;
 	if (get80211(s, IEEE80211_IOC_ROAM,
 	    &roamparams, sizeof(roamparams)) < 0)
-		errx(1, "unable to get roaming parameters");
+		err(1, "unable to get roaming parameters");
 	gotroam = 1;
 }
 
@@ -388,7 +405,7 @@ gettxparams(int s)
 		return;
 	if (get80211(s, IEEE80211_IOC_TXPARAMS,
 	    &txparams, sizeof(txparams)) < 0)
-		errx(1, "unable to get transmit parameters");
+		err(1, "unable to get transmit parameters");
 	gottxparams = 1;
 }
 
@@ -406,26 +423,27 @@ getregdomain(int s)
 		return;
 	if (get80211(s, IEEE80211_IOC_REGDOMAIN,
 	    &regdomain, sizeof(regdomain)) < 0)
-		errx(1, "unable to get regulatory domain info");
+		err(1, "unable to get regulatory domain info");
 	gotregdomain = 1;
 }
 
 static void
 getdevcaps(int s, struct ieee80211_devcaps_req *dc)
 {
-	if (get80211(s, IEEE80211_IOC_DEVCAPS, dc, sizeof(*dc)) < 0)
-		errx(1, "unable to get device capabilities");
+	if (get80211(s, IEEE80211_IOC_DEVCAPS, dc,
+	    IEEE80211_DEVCAPS_SPACE(dc)) < 0)
+		err(1, "unable to get device capabilities");
 }
 
 static void
 setregdomain_cb(int s, void *arg)
 {
-	struct ieee80211_regdomain_req req;
+	struct ieee80211_regdomain_req *req;
 	struct ieee80211_regdomain *rd = arg;
-	struct ieee80211_devcaps_req dc;
+	struct ieee80211_devcaps_req *dc;
 	struct regdata *rdp = getregdata();
 
-	if (rd->country != 0) {
+	if (rd->country != NO_COUNTRY) {
 		const struct country *cc;
 		/*
 		 * Check current country seting to make sure it's
@@ -456,40 +474,58 @@ setregdomain_cb(int s, void *arg)
 				errx(1, "country %s (%s) is not usable with "
 				    "regdomain %d", cc->isoname, cc->name,
 				    rd->regdomain);
-			else if (rp->cc != 0 && rp->cc != cc)
+			else if (rp->cc != NULL && rp->cc != cc)
 				errx(1, "country %s (%s) is not usable with "
 				   "regdomain %s", cc->isoname, cc->name,
 				   rp->name);
 		}
 	}
-	req.rd = *rd;
 	/*
 	 * Fetch the device capabilities and calculate the
 	 * full set of netbands for which we request a new
 	 * channel list be constructed.  Once that's done we
 	 * push the regdomain info + channel list to the kernel.
 	 */
-	getdevcaps(s, &dc);
+	dc = malloc(IEEE80211_DEVCAPS_SIZE(MAXCHAN));
+	if (dc == NULL)
+		errx(1, "no space for device capabilities");
+	dc->dc_chaninfo.ic_nchans = MAXCHAN;
+	getdevcaps(s, dc);
 #if 0
 	if (verbose) {
-		printf("drivercaps: 0x%x\n", dc.dc_drivercaps);
-		printf("cryptocaps: 0x%x\n", dc.dc_cryptocaps);
-		printf("htcaps    : 0x%x\n", dc.dc_htcaps);
-		memcpy(&chaninfo, &dc.dc_chaninfo, sizeof(chaninfo));
-		print_channels(s, &dc.dc_chaninfo, 1/*allchans*/, 1/*verbose*/);
+		printf("drivercaps: 0x%x\n", dc->dc_drivercaps);
+		printf("cryptocaps: 0x%x\n", dc->dc_cryptocaps);
+		printf("htcaps    : 0x%x\n", dc->dc_htcaps);
+		memcpy(chaninfo, &dc->dc_chaninfo,
+		    IEEE80211_CHANINFO_SPACE(&dc->dc_chaninfo));
+		print_channels(s, &dc->dc_chaninfo, 1/*allchans*/, 1/*verbose*/);
 	}
 #endif
-	regdomain_makechannels(&req, &dc);
+	req = malloc(IEEE80211_REGDOMAIN_SIZE(dc->dc_chaninfo.ic_nchans));
+	if (req == NULL)
+		errx(1, "no space for regdomain request");
+	req->rd = *rd;
+	regdomain_makechannels(req, dc);
 	if (verbose) {
 		LINE_INIT(':');
 		print_regdomain(rd, 1/*verbose*/);
 		LINE_BREAK();
-		memcpy(&chaninfo, &req.chaninfo, sizeof(chaninfo));
-		print_channels(s, &req.chaninfo, 1/*allchans*/, 1/*verbose*/);
+		/* blech, reallocate channel list for new data */
+		if (chaninfo != NULL)
+			free(chaninfo);
+		chaninfo = malloc(IEEE80211_CHANINFO_SPACE(&req->chaninfo));
+		if (chaninfo == NULL)
+			errx(1, "no space for channel list");
+		memcpy(chaninfo, &req->chaninfo,
+		    IEEE80211_CHANINFO_SPACE(&req->chaninfo));
+		print_channels(s, &req->chaninfo, 1/*allchans*/, 1/*verbose*/);
 	}
-	if (req.chaninfo.ic_nchans == 0)
+	if (req->chaninfo.ic_nchans == 0)
 		errx(1, "no channels calculated");
-	set80211(s, IEEE80211_IOC_REGDOMAIN, 0, sizeof(req), &req);
+	set80211(s, IEEE80211_IOC_REGDOMAIN, 0,
+	    IEEE80211_REGDOMAIN_SPACE(req), req);
+	free(req);
+	free(dc);
 }
 
 static int
@@ -664,30 +700,38 @@ getchannelflags(const char *val, int freq)
 }
 
 static void
+getchannel(int s, struct ieee80211_channel *chan, const char *val)
+{
+	int v, flags;
+	char *eptr;
+
+	memset(chan, 0, sizeof(*chan));
+	if (isanyarg(val)) {
+		chan->ic_freq = IEEE80211_CHAN_ANY;
+		return;
+	}
+	getchaninfo(s);
+	errno = 0;
+	v = strtol(val, &eptr, 10);
+	if (val[0] == '\0' || val == eptr || errno == ERANGE ||
+	    /* channel may be suffixed with nothing, :flag, or /width */
+	    (eptr[0] != '\0' && eptr[0] != ':' && eptr[0] != '/'))
+		errx(1, "invalid channel specification%s",
+		    errno == ERANGE ? " (out of range)" : "");
+	flags = getchannelflags(val, v);
+	if (v > 255) {		/* treat as frequency */
+		mapfreq(chan, v, flags);
+	} else {
+		mapchan(chan, v, flags);
+	}
+}
+
+static void
 set80211channel(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct ieee80211_channel chan;
 
-	memset(&chan, 0, sizeof(chan));
-	if (!isanyarg(val)) {
-		int v, flags;
-		char *ep;
-
-		getchaninfo(s);
-		v = strtol(val, &ep, 10);
-		if (val[0] == '\0' || val == ep || errno == ERANGE ||
-		    /* channel may be suffixed with nothing, :flag, or /width */
-		    (ep[0] != '\0' && ep[0] != ':' && ep[0] != '/'))
-			errx(1, "invalid channel specification");
-		flags = getchannelflags(val, v);
-		if (v > 255) {		/* treat as frequency */
-			mapfreq(&chan, v, flags);
-		} else {
-			mapchan(&chan, v, flags);
-		}
-	} else {
-		chan.ic_freq = IEEE80211_CHAN_ANY;
-	}
+	getchannel(s, &chan, val);
 	set80211(s, IEEE80211_IOC_CURCHAN, 0, sizeof(chan), &chan);
 }
 
@@ -695,17 +739,8 @@ static void
 set80211chanswitch(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct ieee80211_chanswitch_req csr;
-	int v, flags;
 
-	memset(&csr, 0, sizeof(csr));
-	getchaninfo(s);
-	v = atoi(val);
-	flags = getchannelflags(val, v);
-	if (v > 255) {		/* treat as frequency */
-		mapfreq(&csr.csa_chan, v, flags);
-	} else {
-		mapchan(&csr.csa_chan, v, flags);
-	}
+	getchannel(s, &csr.csa_chan, val);
 	csr.csa_mode = 1;
 	csr.csa_count = 5;
 	set80211(s, IEEE80211_IOC_CHANSWITCH, 0, sizeof(csr), &csr);
@@ -981,7 +1016,6 @@ static void
 set80211chanlist(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct ieee80211req_chanlist chanlist;
-#define	MAXCHAN	(sizeof(chanlist.ic_channels)*NBBY)
 	char *temp, *cp, *tp;
 
 	temp = malloc(strlen(val) + 1);
@@ -998,18 +1032,18 @@ set80211chanlist(const char *val, int d, int s, const struct afswtch *rafp)
 			*tp++ = '\0';
 		switch (sscanf(cp, "%u-%u", &first, &last)) {
 		case 1:
-			if (first > MAXCHAN)
-				errx(-1, "channel %u out of range, max %zu",
-					first, MAXCHAN);
+			if (first > IEEE80211_CHAN_MAX)
+				errx(-1, "channel %u out of range, max %u",
+					first, IEEE80211_CHAN_MAX);
 			setbit(chanlist.ic_channels, first);
 			break;
 		case 2:
-			if (first > MAXCHAN)
-				errx(-1, "channel %u out of range, max %zu",
-					first, MAXCHAN);
-			if (last > MAXCHAN)
-				errx(-1, "channel %u out of range, max %zu",
-					last, MAXCHAN);
+			if (first > IEEE80211_CHAN_MAX)
+				errx(-1, "channel %u out of range, max %u",
+					first, IEEE80211_CHAN_MAX);
+			if (last > IEEE80211_CHAN_MAX)
+				errx(-1, "channel %u out of range, max %u",
+					last, IEEE80211_CHAN_MAX);
 			if (first > last)
 				errx(-1, "void channel range, %u > %u",
 					first, last);
@@ -1027,7 +1061,6 @@ set80211chanlist(const char *val, int d, int s, const struct afswtch *rafp)
 		cp = tp;
 	}
 	set80211(s, IEEE80211_IOC_CHANLIST, 0, sizeof(chanlist), &chanlist);
-#undef MAXCHAN
 }
 
 static void
@@ -1284,7 +1317,6 @@ getmodeflags(const char *val)
 			case 'g':		/* 802.11g */
 				flags |= IEEE80211_CHAN_G;
 				break;
-			case 'h':		/* ht = 802.11n */
 			case 'n':		/* 802.11n */
 				flags |= IEEE80211_CHAN_HT;
 				break;
@@ -1298,6 +1330,12 @@ getmodeflags(const char *val)
 				break;
 			case 's':		/* st = Atheros Static Turbo */
 				flags |= IEEE80211_CHAN_STURBO;
+				break;
+			case 'h':		/* 1/2-width channels */
+				flags |= IEEE80211_CHAN_HALF;
+				break;
+			case 'q':		/* 1/4-width channels */
+				flags |= IEEE80211_CHAN_QUARTER;
 				break;
 			default:
 				errx(-1, "%s: Invalid mode attribute %c\n",
@@ -1338,6 +1376,10 @@ getmodeflags(const char *val)
 	    _base.params[IEEE80211_MODE_11G]._param = _v;		\
     if ((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)		\
 	    _base.params[IEEE80211_MODE_11B]._param = _v;		\
+    if (_flags & IEEE80211_CHAN_HALF)					\
+	    _base.params[IEEE80211_MODE_HALF]._param = _v;		\
+    if (_flags & IEEE80211_CHAN_QUARTER)				\
+	    _base.params[IEEE80211_MODE_QUARTER]._param = _v;		\
 } while (0)
 #define	_APPLY1(_flags, _base, _param, _v) do {				\
     if (_flags & IEEE80211_CHAN_HT) {					\
@@ -1351,6 +1393,10 @@ getmodeflags(const char *val)
 	    _base.params[IEEE80211_MODE_TURBO_G]._param = _v;		\
     else if ((_flags & IEEE80211_CHAN_ST) == IEEE80211_CHAN_ST)		\
 	    _base.params[IEEE80211_MODE_STURBO_A]._param = _v;		\
+    else if (_flags & IEEE80211_CHAN_HALF)				\
+	    _base.params[IEEE80211_MODE_HALF]._param = _v;		\
+    else if (_flags & IEEE80211_CHAN_QUARTER)				\
+	    _base.params[IEEE80211_MODE_QUARTER]._param = _v;		\
     else if ((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)		\
 	    _base.params[IEEE80211_MODE_11A]._param = _v;		\
     else if ((_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)		\
@@ -1360,50 +1406,15 @@ getmodeflags(const char *val)
 } while (0)
 #define	_APPLY_RATE(_flags, _base, _param, _v) do {			\
     if (_flags & IEEE80211_CHAN_HT) {					\
-	    if ((_flags & (IEEE80211_CHAN_5GHZ|IEEE80211_CHAN_2GHZ)) == 0) {\
-		    _base.params[IEEE80211_MODE_11NA]._param = _v|0x80;	\
-		    _base.params[IEEE80211_MODE_11NG]._param = _v|0x80;	\
-	    } else if (_flags & IEEE80211_CHAN_5GHZ)			\
-		    _base.params[IEEE80211_MODE_11NA]._param = _v|0x80;	\
-	    else							\
-		    _base.params[IEEE80211_MODE_11NG]._param = _v|0x80;	\
+	(_v) = (_v / 2) | IEEE80211_RATE_MCS;				\
     }									\
-    if (_flags & IEEE80211_CHAN_TURBO) {				\
-	    if ((_flags & (IEEE80211_CHAN_5GHZ|IEEE80211_CHAN_2GHZ)) == 0) {\
-		    _base.params[IEEE80211_MODE_TURBO_A]._param = 2*_v;	\
-		    _base.params[IEEE80211_MODE_TURBO_G]._param = 2*_v;	\
-	    } else if (_flags & IEEE80211_CHAN_5GHZ)			\
-		    _base.params[IEEE80211_MODE_TURBO_A]._param = 2*_v;	\
-	    else							\
-		    _base.params[IEEE80211_MODE_TURBO_G]._param = 2*_v;	\
-    }									\
-    if (_flags & IEEE80211_CHAN_STURBO)					\
-	    _base.params[IEEE80211_MODE_STURBO_A]._param = 2*_v;	\
-    if ((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)		\
-	    _base.params[IEEE80211_MODE_11A]._param = 2*_v;		\
-    if ((_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)		\
-	    _base.params[IEEE80211_MODE_11G]._param = (_v == 5 ? 11 : 2*_v);\
-    if ((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)		\
-	    _base.params[IEEE80211_MODE_11B]._param = (_v == 5 ? 11 : 2*_v);\
+    _APPLY(_flags, _base, _param, _v);					\
 } while (0)
 #define	_APPLY_RATE1(_flags, _base, _param, _v) do {			\
     if (_flags & IEEE80211_CHAN_HT) {					\
-	    if (_flags & IEEE80211_CHAN_5GHZ)				\
-		    _base.params[IEEE80211_MODE_11NA]._param = _v|0x80;	\
-	    else							\
-		    _base.params[IEEE80211_MODE_11NG]._param = _v|0x80;	\
-    } else if ((_flags & IEEE80211_CHAN_108A) == IEEE80211_CHAN_108A)	\
-	    _base.params[IEEE80211_MODE_TURBO_A]._param = 2*_v;		\
-    else if ((_flags & IEEE80211_CHAN_108G) == IEEE80211_CHAN_108G)	\
-	    _base.params[IEEE80211_MODE_TURBO_G]._param = 2*_v;		\
-    else if ((_flags & IEEE80211_CHAN_ST) == IEEE80211_CHAN_ST)		\
-	    _base.params[IEEE80211_MODE_STURBO_A]._param = 2*_v;	\
-    else if ((_flags & IEEE80211_CHAN_A) == IEEE80211_CHAN_A)		\
-	    _base.params[IEEE80211_MODE_11A]._param = 2*_v;		\
-    else if ((_flags & IEEE80211_CHAN_G) == IEEE80211_CHAN_G)		\
-	    _base.params[IEEE80211_MODE_11G]._param = (_v == 5 ? 11 : 2*_v);\
-    else if ((_flags & IEEE80211_CHAN_B) == IEEE80211_CHAN_B)		\
-	    _base.params[IEEE80211_MODE_11B]._param = (_v == 5 ? 11 : 2*_v);\
+	(_v) = (_v / 2) | IEEE80211_RATE_MCS;				\
+    }									\
+    _APPLY1(_flags, _base, _param, _v);					\
 } while (0)
 
 static
@@ -1425,55 +1436,70 @@ DECL_CMD_FUNC(set80211roamrssi, val, d)
 	callback_register(setroam_cb, &roamparams);
 }
 
+static int
+getrate(const char *val, const char *tag)
+{
+	double v = atof(val);
+	int rate;
+
+	rate = (int) (2*v);
+	if (rate != 2*v)
+		errx(-1, "invalid %s rate (must be .5 Mb/s units)", tag);
+	return rate;		/* NB: returns 2x the specified value */
+}
+
 static
 DECL_CMD_FUNC(set80211roamrate, val, d)
 {
-	int v = atoi(val), flags;
+	int rate, flags;
 
+	rate = getrate(val, "roam");
 	flags = getmodeflags(val);
 	getroam(s);
 	if (flags == 0) {		/* NB: no flags => current channel */
 		flags = getcurchan(s)->ic_flags;
-		_APPLY_RATE1(flags, roamparams, rate, v);
+		_APPLY_RATE1(flags, roamparams, rate, rate);
 	} else
-		_APPLY_RATE(flags, roamparams, rate, v);
+		_APPLY_RATE(flags, roamparams, rate, rate);
 	callback_register(setroam_cb, &roamparams);
 }
 
 static
 DECL_CMD_FUNC(set80211mcastrate, val, d)
 {
-	int v = atoi(val), flags;
+	int rate, flags;
 
+	rate = getrate(val, "mcast");
 	flags = getmodeflags(val);
 	gettxparams(s);
 	if (flags == 0) {		/* NB: no flags => current channel */
 		flags = getcurchan(s)->ic_flags;
-		_APPLY_RATE1(flags, txparams, mcastrate, v);
+		_APPLY_RATE1(flags, txparams, mcastrate, rate);
 	} else
-		_APPLY_RATE(flags, txparams, mcastrate, v);
+		_APPLY_RATE(flags, txparams, mcastrate, rate);
 	callback_register(settxparams_cb, &txparams);
 }
 
 static
 DECL_CMD_FUNC(set80211mgtrate, val, d)
 {
-	int v = atoi(val), flags;
+	int rate, flags;
 
+	rate = getrate(val, "mgmt");
 	flags = getmodeflags(val);
 	gettxparams(s);
 	if (flags == 0) {		/* NB: no flags => current channel */
 		flags = getcurchan(s)->ic_flags;
-		_APPLY_RATE1(flags, txparams, mgmtrate, v);
+		_APPLY_RATE1(flags, txparams, mgmtrate, rate);
 	} else
-		_APPLY_RATE(flags, txparams, mgmtrate, v);
+		_APPLY_RATE(flags, txparams, mgmtrate, rate);
 	callback_register(settxparams_cb, &txparams);
 }
 
 static
 DECL_CMD_FUNC(set80211ucastrate, val, d)
 {
-	int v, flags;
+	int flags;
 
 	gettxparams(s);
 	flags = getmodeflags(val);
@@ -1486,12 +1512,12 @@ DECL_CMD_FUNC(set80211ucastrate, val, d)
 			_APPLY(flags, txparams, ucastrate,
 			    IEEE80211_FIXED_RATE_NONE);
 	} else {
-		v = atoi(val);
+		int rate = getrate(val, "ucast");
 		if (flags == 0) {	/* NB: no flags => current channel */
 			flags = getcurchan(s)->ic_flags;
-			_APPLY_RATE1(flags, txparams, ucastrate, v);
+			_APPLY_RATE1(flags, txparams, ucastrate, rate);
 		} else
-			_APPLY_RATE(flags, txparams, ucastrate, v);
+			_APPLY_RATE(flags, txparams, ucastrate, rate);
 	}
 	callback_register(settxparams_cb, &txparams);
 }
@@ -1642,7 +1668,7 @@ set80211amsdu(const char *val, int d, int s, const struct afswtch *rafp)
 	int amsdu;
 
 	if (get80211val(s, IEEE80211_IOC_AMSDU, &amsdu) < 0)
-		errx(-1, "cannot get AMSDU setting");
+		err(-1, "cannot get AMSDU setting");
 	if (d < 0) {
 		d = -d;
 		amsdu &= ~d;
@@ -1712,6 +1738,30 @@ set80211rifs(const char *val, int d, int s, const struct afswtch *rafp)
 	set80211(s, IEEE80211_IOC_RIFS, d, 0, NULL);
 }
 
+static
+DECL_CMD_FUNC(set80211tdmaslot, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_SLOT, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211tdmaslotcnt, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_SLOTCNT, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211tdmaslotlen, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_SLOTLEN, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211tdmabintval, val, d)
+{
+	set80211(s, IEEE80211_IOC_TDMA_BINTERVAL, atoi(val), 0, NULL);
+}
+
 static int
 regdomain_sort(const void *a, const void *b)
 {
@@ -1742,6 +1792,70 @@ chanlookup(const struct ieee80211_channel chans[], int nchans,
 	return NULL;
 }
 
+static int
+chanfind(const struct ieee80211_channel chans[], int nchans, int flags)
+{
+	int i;
+
+	for (i = 0; i < nchans; i++) {
+		const struct ieee80211_channel *c = &chans[i];
+		if ((c->ic_flags & flags) == flags)
+			return 1;
+	}
+	return 0;
+}
+
+/*
+ * Check channel compatibility.
+ */
+static int
+checkchan(const struct ieee80211req_chaninfo *avail, int freq, int flags)
+{
+	flags &= ~REQ_FLAGS;
+	/*
+	 * Check if exact channel is in the calibration table;
+	 * everything below is to deal with channels that we
+	 * want to include but that are not explicitly listed.
+	 */
+	if (flags & IEEE80211_CHAN_HT40) {
+		/* NB: we use an HT40 channel center that matches HT20 */
+		flags = (flags &~ IEEE80211_CHAN_HT40) | IEEE80211_CHAN_HT20;
+	}
+	if (chanlookup(avail->ic_chans, avail->ic_nchans, freq, flags) != NULL)
+		return 1;
+	if (flags & IEEE80211_CHAN_GSM) {
+		/*
+		 * XXX GSM frequency mapping is handled in the kernel
+		 * so we cannot find them in the calibration table;
+		 * just accept the channel and the kernel will reject
+		 * the channel list if it's wrong.
+		 */
+		return 1;
+	}
+	/*
+	 * If this is a 1/2 or 1/4 width channel allow it if a full
+	 * width channel is present for this frequency, and the device
+	 * supports fractional channels on this band.  This is a hack
+	 * that avoids bloating the calibration table; it may be better
+	 * by per-band attributes though (we are effectively calculating
+	 * this attribute by scanning the channel list ourself).
+	 */
+	if ((flags & (IEEE80211_CHAN_HALF | IEEE80211_CHAN_QUARTER)) == 0)
+		return 0;
+	if (chanlookup(avail->ic_chans, avail->ic_nchans, freq,
+	    flags &~ (IEEE80211_CHAN_HALF | IEEE80211_CHAN_QUARTER)) == NULL)
+		return 0;
+	if (flags & IEEE80211_CHAN_HALF) {
+		return chanfind(avail->ic_chans, avail->ic_nchans,
+		    IEEE80211_CHAN_HALF |
+		       (flags & (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ)));
+	} else {
+		return chanfind(avail->ic_chans, avail->ic_nchans,
+		    IEEE80211_CHAN_QUARTER |
+			(flags & (IEEE80211_CHAN_2GHZ | IEEE80211_CHAN_5GHZ)));
+	}
+}
+
 static void
 regdomain_addchans(struct ieee80211req_chaninfo *ci,
 	const netband_head *bands,
@@ -1752,46 +1866,79 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 	const struct netband *nb;
 	const struct freqband *b;
 	struct ieee80211_channel *c, *prev;
-	int freq, channelSep;
+	int freq, hi_adj, lo_adj, channelSep;
+	uint32_t flags;
 
+	hi_adj = (chanFlags & IEEE80211_CHAN_HT40U) ? -20 : 0;
+	lo_adj = (chanFlags & IEEE80211_CHAN_HT40D) ? 20 : 0;
 	channelSep = (chanFlags & IEEE80211_CHAN_2GHZ) ? 0 : 40;
 	LIST_FOREACH(nb, bands, next) {
 		b = nb->band;
-		if (verbose)
-			printf("%s: chanFlags 0x%x b %p\n",
-			    __func__, chanFlags, b);
+		if (verbose) {
+			printf("%s:", __func__);
+			printb(" chanFlags", chanFlags, IEEE80211_CHAN_BITS);
+			printb(" bandFlags", nb->flags | b->flags,
+			    IEEE80211_CHAN_BITS);
+			putchar('\n');
+		}
 		prev = NULL;
-		for (freq = b->freqStart; freq <= b->freqEnd; freq += b->chanSep) {
-			uint32_t flags = nb->flags | b->flags;
-
-			/* check if device can operate on this frequency */
-			if (chanlookup(avail->ic_chans, avail->ic_nchans, freq, chanFlags) == NULL) {
-				if (verbose)
-					printf("%u: skip, flags 0x%x not available\n", freq, chanFlags);
-				continue;
+		for (freq = b->freqStart + lo_adj;
+		     freq <= b->freqEnd + hi_adj; freq += b->chanSep) {
+			/*
+			 * Construct flags for the new channel.  We take
+			 * the attributes from the band descriptions except
+			 * for HT40 which is enabled generically (i.e. +/-
+			 * extension channel) in the band description and
+			 * then constrained according by channel separation.
+			 */
+			flags = nb->flags | b->flags;
+			if (flags & IEEE80211_CHAN_HT) {
+				/*
+				 * HT channels are generated specially; we're
+				 * called to add HT20, HT40+, and HT40- chan's
+				 * so we need to expand only band specs for
+				 * the HT channel type being added.
+				 */
+				if ((chanFlags & IEEE80211_CHAN_HT20) &&
+				    (flags & IEEE80211_CHAN_HT20) == 0) {
+					if (verbose)
+						printf("%u: skip, not an "
+						    "HT20 channel\n", freq);
+					continue;
+				}
+				if ((chanFlags & IEEE80211_CHAN_HT40) &&
+				    (flags & IEEE80211_CHAN_HT40) == 0) {
+					if (verbose)
+						printf("%u: skip, not an "
+						    "HT40 channel\n", freq);
+					continue;
+				}
+				/*
+				 * DFS and HT40 don't mix.  This should be
+				 * expressed in the regdomain database but
+				 * just in case enforce it here.
+				 */
+				if ((chanFlags & IEEE80211_CHAN_HT40) &&
+				    (flags & IEEE80211_CHAN_DFS)) {
+					if (verbose)
+						printf("%u: skip, HT40+DFS "
+						    "not permitted\n", freq);
+					continue;
+				}
+				/* NB: HT attribute comes from caller */
+				flags &= ~IEEE80211_CHAN_HT;
+				flags |= chanFlags & IEEE80211_CHAN_HT;
 			}
-			if ((flags & IEEE80211_CHAN_HALF) &&
-			    (chanFlags & IEEE80211_CHAN_HALF) == 0) {
-				if (verbose)
-					printf("%u: skip, device does not support half-rate channels\n", freq);
-				continue;
-			}
-			if ((flags & IEEE80211_CHAN_QUARTER) &&
-			    (chanFlags & IEEE80211_CHAN_QUARTER) == 0) {
-				if (verbose)
-					printf("%u: skip, device does not support quarter-rate channels\n", freq);
-				continue;
-			}
-			if ((flags & IEEE80211_CHAN_HT20) &&
-			    (chanFlags & IEEE80211_CHAN_HT20) == 0) {
-				if (verbose)
-					printf("%u: skip, device does not support HT20 operation\n", freq);
-				continue;
-			}
-			if ((flags & IEEE80211_CHAN_HT40) &&
-			    (chanFlags & IEEE80211_CHAN_HT40) == 0) {
-				if (verbose)
-					printf("%u: skip, device does not support HT40 operation\n", freq);
+			/*
+			 * Check if device can operate on this frequency.
+			 */
+			if (!checkchan(avail, freq, flags)) {
+				if (verbose) {
+					printf("%u: skip, ", freq);
+					printb("flags", flags,
+					    IEEE80211_CHAN_BITS);
+					printf(" not available\n");
+				}
 				continue;
 			}
 			if ((flags & REQ_ECM) && !reg->ecm) {
@@ -1799,9 +1946,16 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 					printf("%u: skip, ECM channel\n", freq);
 				continue;
 			}
+			if ((flags & REQ_INDOOR) && reg->location == 'O') {
+				if (verbose)
+					printf("%u: skip, indoor channel\n",
+					    freq);
+				continue;
+			}
 			if ((flags & REQ_OUTDOOR) && reg->location == 'I') {
 				if (verbose)
-					printf("%u: skip, outdoor channel\n", freq);
+					printf("%u: skip, outdoor channel\n",
+					    freq);
 				continue;
 			}
 			if ((flags & IEEE80211_CHAN_HT40) &&
@@ -1814,21 +1968,24 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 			}
 			if (ci->ic_nchans == IEEE80211_CHAN_MAX) {
 				if (verbose)
-					printf("%u: skip, channel table full\n", freq);
+					printf("%u: skip, channel table full\n",
+					    freq);
 				break;
 			}
 			c = &ci->ic_chans[ci->ic_nchans++];
+			memset(c, 0, sizeof(*c));
 			c->ic_freq = freq;
-			c->ic_flags = chanFlags |
-			    (flags &~ (REQ_FLAGS | IEEE80211_CHAN_HT40));
+			c->ic_flags = flags;
 			if (c->ic_flags & IEEE80211_CHAN_DFS)
 				c->ic_maxregpower = nb->maxPowerDFS;
 			else
 				c->ic_maxregpower = nb->maxPower;
-			if (verbose)
-				printf("[%3d] add freq %u flags 0x%x power %u\n",
-				    ci->ic_nchans-1, c->ic_freq, c->ic_flags,
-				    c->ic_maxregpower);
+			if (verbose) {
+				printf("[%3d] add freq %u ",
+				    ci->ic_nchans-1, c->ic_freq);
+				printb("flags", c->ic_flags, IEEE80211_CHAN_BITS);
+				printf(" power %u\n", c->ic_maxregpower);
+			}
 			/* NB: kernel fills in other fields */
 			prev = c;
 		}
@@ -1866,7 +2023,14 @@ regdomain_makechannels(
 		errx(1, "internal error, regdomain %d not found",
 			    reg->regdomain);
 	if (rd->sku != SKU_DEBUG) {
-		memset(ci, 0, sizeof(*ci));
+		/*
+		 * regdomain_addchans incrememnts the channel count for
+		 * each channel it adds so initialize ic_nchans to zero.
+		 * Note that we know we have enough space to hold all possible
+		 * channels because the devcaps list size was used to
+		 * allocate our request.
+		 */
+		ci->ic_nchans = 0;
 		if (!LIST_EMPTY(&rd->bands_11b))
 			regdomain_addchans(ci, &rd->bands_11b, reg,
 			    IEEE80211_CHAN_B, &dc->dc_chaninfo);
@@ -1876,32 +2040,37 @@ regdomain_makechannels(
 		if (!LIST_EMPTY(&rd->bands_11a))
 			regdomain_addchans(ci, &rd->bands_11a, reg,
 			    IEEE80211_CHAN_A, &dc->dc_chaninfo);
-		if (!LIST_EMPTY(&rd->bands_11na)) {
+		if (!LIST_EMPTY(&rd->bands_11na) && dc->dc_htcaps != 0) {
 			regdomain_addchans(ci, &rd->bands_11na, reg,
 			    IEEE80211_CHAN_A | IEEE80211_CHAN_HT20,
 			    &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11na, reg,
-			    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U,
-			    &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11na, reg,
-			    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D,
-			    &dc->dc_chaninfo);
+			if (dc->dc_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
+				regdomain_addchans(ci, &rd->bands_11na, reg,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U,
+				    &dc->dc_chaninfo);
+				regdomain_addchans(ci, &rd->bands_11na, reg,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D,
+				    &dc->dc_chaninfo);
+			}
 		}
-		if (!LIST_EMPTY(&rd->bands_11ng)) {
+		if (!LIST_EMPTY(&rd->bands_11ng) && dc->dc_htcaps != 0) {
 			regdomain_addchans(ci, &rd->bands_11ng, reg,
 			    IEEE80211_CHAN_G | IEEE80211_CHAN_HT20,
 			    &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11ng, reg,
-			    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U,
-			    &dc->dc_chaninfo);
-			regdomain_addchans(ci, &rd->bands_11ng, reg,
-			    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D,
-			    &dc->dc_chaninfo);
+			if (dc->dc_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
+				regdomain_addchans(ci, &rd->bands_11ng, reg,
+				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U,
+				    &dc->dc_chaninfo);
+				regdomain_addchans(ci, &rd->bands_11ng, reg,
+				    IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D,
+				    &dc->dc_chaninfo);
+			}
 		}
 		qsort(ci->ic_chans, ci->ic_nchans, sizeof(ci->ic_chans[0]),
 		    regdomain_sort);
 	} else
-		*ci = dc->dc_chaninfo;
+		memcpy(ci, &dc->dc_chaninfo,
+		    IEEE80211_CHANINFO_SPACE(&dc->dc_chaninfo));
 }
 
 static void
@@ -1951,8 +2120,12 @@ DECL_CMD_FUNC(set80211regdomain, val, d)
 
 	rd = lib80211_regdomain_findbyname(rdp, val);
 	if (rd == NULL) {
-		rd = lib80211_regdomain_findbysku(rdp, atoi(val));
-		if (rd == NULL)
+		char *eptr;
+		long sku = strtol(val, &eptr, 0);
+
+		if (eptr != val)
+			rd = lib80211_regdomain_findbysku(rdp, sku);
+		if (eptr == val || rd == NULL)
 			errx(1, "unknown regdomain %s", val);
 	}
 	getregdomain(s);
@@ -1975,8 +2148,12 @@ DECL_CMD_FUNC(set80211country, val, d)
 
 	cc = lib80211_country_findbyname(rdp, val);
 	if (cc == NULL) {
-		cc = lib80211_country_findbycc(rdp, atoi(val));
-		if (cc == NULL)
+		char *eptr;
+		long code = strtol(val, &eptr, 0);
+
+		if (eptr != val)
+			cc = lib80211_country_findbycc(rdp, code);
+		if (eptr == val || cc == NULL)
 			errx(1, "unknown ISO country code %s", val);
 	}
 	getregdomain(s);
@@ -2544,6 +2721,22 @@ printwpsie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 #undef N
 }
 
+static void
+printtdmaie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
+{
+	printf("%s", tag);
+	if (verbose && ielen >= sizeof(struct ieee80211_tdma_param)) {
+		const struct ieee80211_tdma_param *tdma =
+		   (const struct ieee80211_tdma_param *) ie;
+
+		/* XXX tstamp */
+		printf("<v%u slot:%u slotcnt:%u slotlen:%u bintval:%u inuse:0x%x>",
+		    tdma->tdma_version, tdma->tdma_slot, tdma->tdma_slotcnt,
+		    LE_READ_2(&tdma->tdma_slotlen), tdma->tdma_bintval,
+		    tdma->tdma_inuse[0]);
+	}
+}
+
 /*
  * Copy the ssid string contents into buf, truncating to fit.  If the
  * ssid is entirely printable then just copy intact.  Otherwise convert
@@ -2667,6 +2860,12 @@ isatherosoui(const u_int8_t *frm)
 }
 
 static __inline int
+istdmaoui(const uint8_t *frm)
+{
+	return frm[1] > 3 && LE_READ_4(frm+2) == ((TDMA_OUI_TYPE<<24)|TDMA_OUI);
+}
+
+static __inline int
 iswpsoui(const uint8_t *frm)
 {
 	return frm[1] > 3 && LE_READ_4(frm+2) == ((WPS_OUI_TYPE<<24)|WPA_OUI);
@@ -2735,6 +2934,8 @@ printies(const u_int8_t *vp, int ielen, int maxcols)
 				printathie(" ATH", vp, 2+vp[1], maxcols);
 			else if (iswpsoui(vp))
 				printwpsie(" WPS", vp, 2+vp[1], maxcols);
+			else if (istdmaoui(vp))
+				printtdmaie(" TDMA", vp, 2+vp[1], maxcols);
 			else if (verbose)
 				printie(" VEN", vp, 2+vp[1], maxcols);
 			break;
@@ -2989,23 +3190,16 @@ get_chaninfo(const struct ieee80211_channel *c, int precise,
 	buf[0] = '\0';
 	if (IEEE80211_IS_CHAN_FHSS(c))
 		strlcat(buf, " FHSS", bsize);
-	if (IEEE80211_IS_CHAN_A(c)) {
-		if (IEEE80211_IS_CHAN_HALF(c))
-			strlcat(buf, " 11a/10Mhz", bsize);
-		else if (IEEE80211_IS_CHAN_QUARTER(c))
-			strlcat(buf, " 11a/5Mhz", bsize);
-		else
-			strlcat(buf, " 11a", bsize);
-	}
-	if (IEEE80211_IS_CHAN_ANYG(c)) {
-		if (IEEE80211_IS_CHAN_HALF(c))
-			strlcat(buf, " 11g/10Mhz", bsize);
-		else if (IEEE80211_IS_CHAN_QUARTER(c))
-			strlcat(buf, " 11g/5Mhz", bsize);
-		else
-			strlcat(buf, " 11g", bsize);
-	} else if (IEEE80211_IS_CHAN_B(c))
+	if (IEEE80211_IS_CHAN_A(c))
+		strlcat(buf, " 11a", bsize);
+	else if (IEEE80211_IS_CHAN_ANYG(c))
+		strlcat(buf, " 11g", bsize);
+	else if (IEEE80211_IS_CHAN_B(c))
 		strlcat(buf, " 11b", bsize);
+	if (IEEE80211_IS_CHAN_HALF(c))
+		strlcat(buf, "/10Mhz", bsize);
+	if (IEEE80211_IS_CHAN_QUARTER(c))
+		strlcat(buf, "/5Mhz", bsize);
 	if (IEEE80211_IS_CHAN_TURBO(c))
 		strlcat(buf, " Turbo", bsize);
 	if (precise) {
@@ -3033,23 +3227,49 @@ print_chaninfo(const struct ieee80211_channel *c, int verb)
 		get_chaninfo(c, verb, buf, sizeof(buf)));
 }
 
+static int
+chanpref(const struct ieee80211_channel *c)
+{
+	if (IEEE80211_IS_CHAN_HT40(c))
+		return 40;
+	if (IEEE80211_IS_CHAN_HT20(c))
+		return 30;
+	if (IEEE80211_IS_CHAN_HALF(c))
+		return 10;
+	if (IEEE80211_IS_CHAN_QUARTER(c))
+		return 5;
+	if (IEEE80211_IS_CHAN_TURBO(c))
+		return 25;
+	if (IEEE80211_IS_CHAN_A(c))
+		return 20;
+	if (IEEE80211_IS_CHAN_G(c))
+		return 20;
+	if (IEEE80211_IS_CHAN_B(c))
+		return 15;
+	if (IEEE80211_IS_CHAN_PUREG(c))
+		return 15;
+	return 0;
+}
+
 static void
 print_channels(int s, const struct ieee80211req_chaninfo *chans,
 	int allchans, int verb)
 {
-	struct ieee80211req_chaninfo achans;
+	struct ieee80211req_chaninfo *achans;
 	uint8_t reported[IEEE80211_CHAN_BYTES];
 	const struct ieee80211_channel *c;
 	int i, half;
 
-	memset(&achans, 0, sizeof(achans));
+	achans = malloc(IEEE80211_CHANINFO_SPACE(chans));
+	if (achans == NULL)
+		errx(1, "no space for active channel list");
+	achans->ic_nchans = 0;
 	memset(reported, 0, sizeof(reported));
 	if (!allchans) {
 		struct ieee80211req_chanlist active;
 
 		if (get80211(s, IEEE80211_IOC_CHANLIST, &active, sizeof(active)) < 0)
 			errx(1, "unable to get active channel list");
-		memset(&achans, 0, sizeof(achans));
 		for (i = 0; i < chans->ic_nchans; i++) {
 			c = &chans->ic_chans[i];
 			if (!isset(active.ic_channels, c->ic_ieee))
@@ -3062,9 +3282,9 @@ print_channels(int s, const struct ieee80211req_chaninfo *chans,
 			 */
 			if (isset(reported, c->ic_ieee) && !verb) {
 				/* XXX we assume duplicates are adjacent */
-				achans.ic_chans[achans.ic_nchans-1] = *c;
+				achans->ic_chans[achans->ic_nchans-1] = *c;
 			} else {
-				achans.ic_chans[achans.ic_nchans++] = *c;
+				achans->ic_chans[achans->ic_nchans++] = *c;
 				setbit(reported, c->ic_ieee);
 			}
 		}
@@ -3074,33 +3294,37 @@ print_channels(int s, const struct ieee80211req_chaninfo *chans,
 			/* suppress duplicates as above */
 			if (isset(reported, c->ic_ieee) && !verb) {
 				/* XXX we assume duplicates are adjacent */
-				achans.ic_chans[achans.ic_nchans-1] = *c;
+				struct ieee80211_channel *a =
+				    &achans->ic_chans[achans->ic_nchans-1];
+				if (chanpref(c) > chanpref(a))
+					*a = *c;
 			} else {
-				achans.ic_chans[achans.ic_nchans++] = *c;
+				achans->ic_chans[achans->ic_nchans++] = *c;
 				setbit(reported, c->ic_ieee);
 			}
 		}
 	}
-	half = achans.ic_nchans / 2;
-	if (achans.ic_nchans % 2)
+	half = achans->ic_nchans / 2;
+	if (achans->ic_nchans % 2)
 		half++;
 
-	for (i = 0; i < achans.ic_nchans / 2; i++) {
-		print_chaninfo(&achans.ic_chans[i], verb);
-		print_chaninfo(&achans.ic_chans[half+i], verb);
+	for (i = 0; i < achans->ic_nchans / 2; i++) {
+		print_chaninfo(&achans->ic_chans[i], verb);
+		print_chaninfo(&achans->ic_chans[half+i], verb);
 		printf("\n");
 	}
-	if (achans.ic_nchans % 2) {
-		print_chaninfo(&achans.ic_chans[i], verb);
+	if (achans->ic_nchans % 2) {
+		print_chaninfo(&achans->ic_chans[i], verb);
 		printf("\n");
 	}
+	free(achans);
 }
 
 static void
 list_channels(int s, int allchans)
 {
 	getchaninfo(s);
-	print_channels(s, &chaninfo, allchans, verbose);
+	print_channels(s, chaninfo, allchans, verbose);
 }
 
 static void
@@ -3125,48 +3349,52 @@ print_txpow_verbose(const struct ieee80211_channel *c)
 static void
 list_txpow(int s)
 {
-	struct ieee80211req_chaninfo achans;
+	struct ieee80211req_chaninfo *achans;
 	uint8_t reported[IEEE80211_CHAN_BYTES];
 	struct ieee80211_channel *c, *prev;
 	int i, half;
 
 	getchaninfo(s);
-	memset(&achans, 0, sizeof(achans));
+	achans = malloc(IEEE80211_CHANINFO_SPACE(chaninfo));
+	if (achans == NULL)
+		errx(1, "no space for active channel list");
+	achans->ic_nchans = 0;
 	memset(reported, 0, sizeof(reported));
-	for (i = 0; i < chaninfo.ic_nchans; i++) {
-		c = &chaninfo.ic_chans[i];
+	for (i = 0; i < chaninfo->ic_nchans; i++) {
+		c = &chaninfo->ic_chans[i];
 		/* suppress duplicates as above */
 		if (isset(reported, c->ic_ieee) && !verbose) {
 			/* XXX we assume duplicates are adjacent */
-			prev = &achans.ic_chans[achans.ic_nchans-1];
+			prev = &achans->ic_chans[achans->ic_nchans-1];
 			/* display highest power on channel */
 			if (c->ic_maxpower > prev->ic_maxpower)
 				*prev = *c;
 		} else {
-			achans.ic_chans[achans.ic_nchans++] = *c;
+			achans->ic_chans[achans->ic_nchans++] = *c;
 			setbit(reported, c->ic_ieee);
 		}
 	}
 	if (!verbose) {
-		half = achans.ic_nchans / 2;
-		if (achans.ic_nchans % 2)
+		half = achans->ic_nchans / 2;
+		if (achans->ic_nchans % 2)
 			half++;
 
-		for (i = 0; i < achans.ic_nchans / 2; i++) {
-			print_txpow(&achans.ic_chans[i]);
-			print_txpow(&achans.ic_chans[half+i]);
+		for (i = 0; i < achans->ic_nchans / 2; i++) {
+			print_txpow(&achans->ic_chans[i]);
+			print_txpow(&achans->ic_chans[half+i]);
 			printf("\n");
 		}
-		if (achans.ic_nchans % 2) {
-			print_txpow(&achans.ic_chans[i]);
+		if (achans->ic_nchans % 2) {
+			print_txpow(&achans->ic_chans[i]);
 			printf("\n");
 		}
 	} else {
-		for (i = 0; i < achans.ic_nchans; i++) {
-			print_txpow_verbose(&achans.ic_chans[i]);
+		for (i = 0; i < achans->ic_nchans; i++) {
+			print_txpow_verbose(&achans->ic_chans[i]);
 			printf("\n");
 		}
 	}
+	free(achans);
 }
 
 static void
@@ -3178,31 +3406,36 @@ list_keys(int s)
 	"\20\1STA\7FF\10TURBOP\11IBSS\12PMGT" \
 	"\13HOSTAP\14AHDEMO\15SWRETRY\16TXPMGT\17SHSLOT\20SHPREAMBLE" \
 	"\21MONITOR\22DFS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
-	"\37TXFRAG"
-
-#define	IEEE80211_CRYPTO_BITS \
-	"\20\1WEP\2TKIP\3AES\4AES_CCM\5TKIPMIC\6CKIP\12PMGT"
-
-#define	IEEE80211_HTCAP_BITS \
-	"\20\1LDPC\2CHWIDTH40\5GREENFIELD\6SHORTGI20\7SHORTGI40\10TXSTBC" \
-	"\21AMPDU\22AMSDU\23HT"
+	"\37TXFRAG\40TDMA"
 
 static void
 list_capabilities(int s)
 {
-	struct ieee80211_devcaps_req dc;
+	struct ieee80211_devcaps_req *dc;
 
-	getdevcaps(s, &dc);
-	printb("drivercaps", dc.dc_drivercaps, IEEE80211_C_BITS);
-	if (dc.dc_cryptocaps != 0 || verbose) {
+	if (verbose)
+		dc = malloc(IEEE80211_DEVCAPS_SIZE(MAXCHAN));
+	else
+		dc = malloc(IEEE80211_DEVCAPS_SIZE(1));
+	if (dc == NULL)
+		errx(1, "no space for device capabilities");
+	dc->dc_chaninfo.ic_nchans = verbose ? MAXCHAN : 1;
+	getdevcaps(s, dc);
+	printb("drivercaps", dc->dc_drivercaps, IEEE80211_C_BITS);
+	if (dc->dc_cryptocaps != 0 || verbose) {
 		putchar('\n');
-		printb("cryptocaps", dc.dc_cryptocaps, IEEE80211_CRYPTO_BITS);
+		printb("cryptocaps", dc->dc_cryptocaps, IEEE80211_CRYPTO_BITS);
 	}
-	if (dc.dc_htcaps != 0 || verbose) {
+	if (dc->dc_htcaps != 0 || verbose) {
 		putchar('\n');
-		printb("htcaps", dc.dc_htcaps, IEEE80211_HTCAP_BITS);
+		printb("htcaps", dc->dc_htcaps, IEEE80211_HTCAP_BITS);
 	}
 	putchar('\n');
+	if (verbose) {
+		chaninfo = &dc->dc_chaninfo;	/* XXX */
+		print_channels(s, &dc->dc_chaninfo, 1/*allchans*/, verbose);
+	}
+	free(dc);
 }
 
 static int
@@ -3292,27 +3525,27 @@ list_roam(int s)
 	int mode;
 
 	getroam(s);
-	for (mode = IEEE80211_MODE_11A; mode < IEEE80211_MODE_11NA; mode++) {
+	for (mode = IEEE80211_MODE_11A; mode < IEEE80211_MODE_MAX; mode++) {
 		rp = &roamparams.params[mode];
 		if (rp->rssi == 0 && rp->rate == 0)
 			continue;
-		if (rp->rssi & 1)
-			LINE_CHECK("roam:%-6.6s rssi %2u.5dBm rate %2u Mb/s",
-			    modename[mode], rp->rssi/2, rp->rate/2);
-		else
-			LINE_CHECK("roam:%-6.6s rssi %4udBm rate %2u Mb/s",
-			    modename[mode], rp->rssi/2, rp->rate/2);
-	}
-	for (; mode < IEEE80211_MODE_MAX; mode++) {
-		rp = &roamparams.params[mode];
-		if (rp->rssi == 0 && rp->rate == 0)
-			continue;
-		if (rp->rssi & 1)
-			LINE_CHECK("roam:%-6.6s rssi %2u.5dBm  MCS %2u    ",
-			    modename[mode], rp->rssi/2, rp->rate &~ 0x80);
-		else
-			LINE_CHECK("roam:%-6.6s rssi %4udBm  MCS %2u    ",
-			    modename[mode], rp->rssi/2, rp->rate &~ 0x80);
+		if (mode == IEEE80211_MODE_11NA || mode == IEEE80211_MODE_11NG) {
+			if (rp->rssi & 1)
+				LINE_CHECK("roam:%-7.7s rssi %2u.5dBm  MCS %2u    ",
+				    modename[mode], rp->rssi/2,
+				    rp->rate &~ IEEE80211_RATE_MCS);
+			else
+				LINE_CHECK("roam:%-7.7s rssi %4udBm  MCS %2u    ",
+				    modename[mode], rp->rssi/2,
+				    rp->rate &~ IEEE80211_RATE_MCS);
+		} else {
+			if (rp->rssi & 1)
+				LINE_CHECK("roam:%-7.7s rssi %2u.5dBm rate %2u Mb/s",
+				    modename[mode], rp->rssi/2, rp->rate/2);
+			else
+				LINE_CHECK("roam:%-7.7s rssi %4udBm rate %2u Mb/s",
+				    modename[mode], rp->rssi/2, rp->rate/2);
+		}
 	}
 }
 
@@ -3323,36 +3556,40 @@ list_txparams(int s)
 	int mode;
 
 	gettxparams(s);
-	for (mode = IEEE80211_MODE_11A; mode < IEEE80211_MODE_11NA; mode++) {
+	for (mode = IEEE80211_MODE_11A; mode < IEEE80211_MODE_MAX; mode++) {
 		tp = &txparams.params[mode];
 		if (tp->mgmtrate == 0 && tp->mcastrate == 0)
 			continue;
-		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
-			LINE_CHECK("%-6.6s ucast NONE    mgmt %2u Mb/s "
-			    "mcast %2u Mb/s maxretry %u",
-			    modename[mode], tp->mgmtrate/2,
-			    tp->mcastrate/2, tp->maxretry);
-		else
-			LINE_CHECK("%-6.6s ucast %2u Mb/s mgmt %2u Mb/s "
-			    "mcast %2u Mb/s maxretry %u",
-			    modename[mode], tp->ucastrate/2, tp->mgmtrate/2,
-			    tp->mcastrate/2, tp->maxretry);
-	}
-	for (; mode < IEEE80211_MODE_MAX; mode++) {
-		tp = &txparams.params[mode];
-		if (tp->mgmtrate == 0 && tp->mcastrate == 0)
-			continue;
-		if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
-			LINE_CHECK("%-6.6s ucast NONE    mgmt %2u MCS  "
-			    "mcast %2u MCS  maxretry %u",
-			    modename[mode], tp->mgmtrate &~ 0x80,
-			    tp->mcastrate &~ 0x80, tp->maxretry);
-		else
-			LINE_CHECK("%-6.6s ucast %2u MCS  mgmt %2u MCS  "
-			    "mcast %2u MCS  maxretry %u",
-			    modename[mode], tp->ucastrate &~ 0x80,
-			    tp->mgmtrate &~ 0x80,
-			    tp->mcastrate &~ 0x80, tp->maxretry);
+		if (mode == IEEE80211_MODE_11NA || mode == IEEE80211_MODE_11NG) {
+			if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
+				LINE_CHECK("%-7.7s ucast NONE    mgmt %2u MCS  "
+				    "mcast %2u MCS  maxretry %u",
+				    modename[mode],
+				    tp->mgmtrate &~ IEEE80211_RATE_MCS,
+				    tp->mcastrate &~ IEEE80211_RATE_MCS,
+				    tp->maxretry);
+			else
+				LINE_CHECK("%-7.7s ucast %2u MCS  mgmt %2u MCS  "
+				    "mcast %2u MCS  maxretry %u",
+				    modename[mode],
+				    tp->ucastrate &~ IEEE80211_RATE_MCS,
+				    tp->mgmtrate &~ IEEE80211_RATE_MCS,
+				    tp->mcastrate &~ IEEE80211_RATE_MCS,
+				    tp->maxretry);
+		} else {
+			if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
+				LINE_CHECK("%-7.7s ucast NONE    mgmt %2u Mb/s "
+				    "mcast %2u Mb/s maxretry %u",
+				    modename[mode],
+				    tp->mgmtrate/2,
+				    tp->mcastrate/2, tp->maxretry);
+			else
+				LINE_CHECK("%-7.7s ucast %2u Mb/s mgmt %2u Mb/s "
+				    "mcast %2u Mb/s maxretry %u",
+				    modename[mode],
+				    tp->ucastrate/2, tp->mgmtrate/2,
+				    tp->mcastrate/2, tp->maxretry);
+		}
 	}
 }
 
@@ -3481,7 +3718,7 @@ list_regdomain(int s, int channelsalso)
 		spacer = ':';
 		print_regdomain(&regdomain, 1);
 		LINE_BREAK();
-		print_channels(s, &chaninfo, 1/*allchans*/, 1/*verbose*/);
+		print_channels(s, chaninfo, 1/*allchans*/, 1/*verbose*/);
 	} else
 		print_regdomain(&regdomain, verbose);
 }
@@ -3534,8 +3771,12 @@ get80211opmode(int s)
 	(void) strncpy(ifmr.ifm_name, name, sizeof(ifmr.ifm_name));
 
 	if (ioctl(s, SIOCGIFMEDIA, (caddr_t)&ifmr) >= 0) {
-		if (ifmr.ifm_current & IFM_IEEE80211_ADHOC)
-			return IEEE80211_M_IBSS;	/* XXX ahdemo */
+		if (ifmr.ifm_current & IFM_IEEE80211_ADHOC) {
+			if (ifmr.ifm_current & IFM_FLAG0)
+				return IEEE80211_M_AHDEMO;
+			else
+				return IEEE80211_M_IBSS;
+		}
 		if (ifmr.ifm_current & IFM_IEEE80211_HOSTAP)
 			return IEEE80211_M_HOSTAP;
 		if (ifmr.ifm_current & IFM_IEEE80211_MONITOR)
@@ -3650,14 +3891,16 @@ printkey(const struct ieee80211req_key *ik)
 static void
 printrate(const char *tag, int v, int defrate, int defmcs)
 {
-	if (v == 11)
-		LINE_CHECK("%s 5.5", tag);
-	else if (v & 0x80) {
+	if ((v & IEEE80211_RATE_MCS) == 0) {
+		if (v != defrate) {
+			if (v & 1)
+				LINE_CHECK("%s %d.5", tag, v/2);
+			else
+				LINE_CHECK("%s %d", tag, v/2);
+		}
+	} else {
 		if (v != defmcs)
 			LINE_CHECK("%s %d", tag, v &~ 0x80);
-	} else {
-		if (v != defrate)
-			LINE_CHECK("%s %d", tag, v/2);
 	}
 }
 
@@ -3950,8 +4193,10 @@ end:
 		tp = &txparams.params[chan2mode(c)];
 		printrate("ucastrate", tp->ucastrate,
 		    IEEE80211_FIXED_RATE_NONE, IEEE80211_FIXED_RATE_NONE);
-		printrate("mcastrate", tp->mcastrate, 2*1, 0x80|0);
-		printrate("mgmtrate", tp->mgmtrate, 2*1, 0x80|0);
+		printrate("mcastrate", tp->mcastrate, 2*1,
+		    IEEE80211_RATE_MCS|0);
+		printrate("mgmtrate", tp->mgmtrate, 2*1,
+		    IEEE80211_RATE_MCS|0);
 		if (tp->maxretry != 6)		/* XXX */
 			LINE_CHECK("maxretry %d", tp->maxretry);
 	} else {
@@ -4244,7 +4489,17 @@ end:
 			}
 		}
 	}
-	if (get80211val(s, IEEE80211_IOC_BEACON_INTERVAL, &val) != -1) {
+
+	if (opmode == IEEE80211_M_AHDEMO) {
+		if (get80211val(s, IEEE80211_IOC_TDMA_SLOT, &val) != -1)
+			LINE_CHECK("tdmaslot %u", val);
+		if (get80211val(s, IEEE80211_IOC_TDMA_SLOTCNT, &val) != -1)
+			LINE_CHECK("tdmaslotcnt %u", val);
+		if (get80211val(s, IEEE80211_IOC_TDMA_SLOTLEN, &val) != -1)
+			LINE_CHECK("tdmaslotlen %u", val);
+		if (get80211val(s, IEEE80211_IOC_TDMA_BINTERVAL, &val) != -1)
+			LINE_CHECK("tdmabintval %u", val);
+	} else if (get80211val(s, IEEE80211_IOC_BEACON_INTERVAL, &val) != -1) {
 		/* XXX default define not visible */
 		if (val != 100 || verbose)
 			LINE_CHECK("bintval %u", val);
@@ -4279,6 +4534,7 @@ get80211len(int s, int type, void *data, int len, int *plen)
 	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
 	ireq.i_type = type;
 	ireq.i_len = len;
+	assert(ireq.i_len == len);	/* NB: check for 16-bit truncation */
 	ireq.i_data = data;
 	if (ioctl(s, SIOCG80211, &ireq) < 0)
 		return -1;
@@ -4310,6 +4566,7 @@ set80211(int s, int type, int val, int len, void *data)
 	ireq.i_type = type;
 	ireq.i_val = val;
 	ireq.i_len = len;
+	assert(ireq.i_len == len);	/* NB: check for 16-bit truncation */
 	ireq.i_data = data;
 	if (ioctl(s, SIOCS80211, &ireq) < 0)
 		err(1, "SIOCS80211");
@@ -4467,7 +4724,10 @@ DECL_CMD_FUNC(set80211clone_wlanmode, arg, d)
 		params.icp_opmode = IEEE80211_M_WDS;
 	else if (iseq(arg, "monitor"))
 		params.icp_opmode = IEEE80211_M_MONITOR;
-	else
+	else if (iseq(arg, "tdma")) {
+		params.icp_opmode = IEEE80211_M_AHDEMO;
+		params.icp_flags |= IEEE80211_CLONE_TDMA;
+	} else
 		errx(1, "Don't know to create %s for %s", arg, name);
 	clone_setcallback(wlan_create);
 #undef iseq
@@ -4642,6 +4902,11 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("-smps",	IEEE80211_HTCAP_SMPS_OFF,	set80211smps),
 	/* XXX for testing */
 	DEF_CMD_ARG("chanswitch",	set80211chanswitch),
+
+	DEF_CMD_ARG("tdmaslot",		set80211tdmaslot),
+	DEF_CMD_ARG("tdmaslotcnt",	set80211tdmaslotcnt),
+	DEF_CMD_ARG("tdmaslotlen",	set80211tdmaslotlen),
+	DEF_CMD_ARG("tdmabintval",	set80211tdmabintval),
 
 	/* vap cloning support */
 	DEF_CLONE_CMD_ARG("wlanaddr",	set80211clone_wlanaddr),

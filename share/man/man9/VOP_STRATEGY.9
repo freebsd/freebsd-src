@@ -53,7 +53,9 @@ This call either reads or writes data from a file, depending on the value of
 .Pp
 The call may block.
 .Sh RETURN VALUES
-Zero is returned on success, otherwise an error is returned.
+Always zero.
+Errors should be signalled by setting BIO_ERROR on b_ioflags field in struct buf,
+and setting b_error to the appropriate errno value.
 .Sh SEE ALSO
 .\" .Xr buf 9 ,
 .Xr vnode 9

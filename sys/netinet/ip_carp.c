@@ -371,14 +371,6 @@ carp_setroute(struct carp_softc *sc, int cmd)
 			    (cmd == RTM_DELETE && count == 0))
 				rtinit(ifa, cmd, RTF_UP | RTF_HOST);
 		}
-#ifdef INET6
-		if (ifa->ifa_addr->sa_family == AF_INET6) {
-			if (cmd == RTM_ADD)
-				in6_ifaddloop(ifa);
-			else
-				in6_ifremloop(ifa);
-		}
-#endif /* INET6 */
 	}
 	splx(s);
 }
@@ -2148,6 +2140,7 @@ carp_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 static void
 carp_set_state(struct carp_softc *sc, int state)
 {
+	int link_state;
 
 	if (sc->sc_carpdev)
 		CARP_SCLOCK_ASSERT(sc);
@@ -2158,16 +2151,16 @@ carp_set_state(struct carp_softc *sc, int state)
 	sc->sc_state = state;
 	switch (state) {
 	case BACKUP:
-		SC2IFP(sc)->if_link_state = LINK_STATE_DOWN;
+		link_state = LINK_STATE_DOWN;
 		break;
 	case MASTER:
-		SC2IFP(sc)->if_link_state = LINK_STATE_UP;
+		link_state = LINK_STATE_UP;
 		break;
 	default:
-		SC2IFP(sc)->if_link_state = LINK_STATE_UNKNOWN;
+		link_state = LINK_STATE_UNKNOWN;
 		break;
 	}
-	rt_ifmsg(SC2IFP(sc));
+	if_link_state_change(SC2IFP(sc), link_state);
 }
 
 void

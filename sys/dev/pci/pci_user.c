@@ -307,7 +307,10 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	struct pci_conf_io *cio;
 	struct pci_devinfo *dinfo;
 	struct pci_io *io;
+	struct pci_bar_io *bio;
 	struct pci_match_conf *pattern_buf;
+	struct resource_list_entry *rle;
+	uint32_t value;
 	size_t confsz, iolen, pbufsz;
 	int error, ionum, i, num_patterns;
 #ifdef PRE7_COMPAT
@@ -319,11 +322,11 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	io_old = NULL;
 	pattern_buf_old = NULL;
 
-	if (!(flag & FWRITE) &&
-	    (cmd != PCIOCGETCONF && cmd != PCIOCGETCONF_OLD))
+	if (!(flag & FWRITE) && cmd != PCIOCGETBAR &&
+	    cmd != PCIOCGETCONF && cmd != PCIOCGETCONF_OLD)
 		return EPERM;
 #else
-	if (!(flag & FWRITE) && cmd != PCIOCGETCONF)
+	if (!(flag & FWRITE) && cmd != PCIOCGETBAR && cmd != PCIOCGETCONF)
 		return EPERM;
 #endif
 
@@ -669,6 +672,70 @@ getconfexit:
 		}
 		break;
 
+	case PCIOCGETBAR:
+		bio = (struct pci_bar_io *)data;
+
+		/*
+		 * Assume that the user-level bus number is
+		 * in fact the physical PCI bus number.
+		 */
+		pcidev = pci_find_dbsf(bio->pbi_sel.pc_domain,
+		    bio->pbi_sel.pc_bus, bio->pbi_sel.pc_dev,
+		    bio->pbi_sel.pc_func);
+		if (pcidev == NULL) {
+			error = ENODEV;
+			break;
+		}
+		dinfo = device_get_ivars(pcidev);
+		
+		/*
+		 * Look for a resource list entry matching the requested BAR.
+		 *
+		 * XXX: This will not find BARs that are not initialized, but
+		 * maybe that is ok?
+		 */
+		rle = resource_list_find(&dinfo->resources, SYS_RES_MEMORY,
+		    bio->pbi_reg);
+		if (rle == NULL)
+			rle = resource_list_find(&dinfo->resources,
+			    SYS_RES_IOPORT, bio->pbi_reg);
+		if (rle == NULL || rle->res == NULL) {
+			error = EINVAL;
+			break;
+		}
+
+		/*
+		 * Ok, we have a resource for this BAR.  Read the lower
+		 * 32 bits to get any flags.
+		 */
+		value = pci_read_config(pcidev, bio->pbi_reg, 4);
+		if (PCI_BAR_MEM(value)) {
+			if (rle->type != SYS_RES_MEMORY) {
+				error = EINVAL;
+				break;
+			}
+			value &= ~PCIM_BAR_MEM_BASE;
+		} else {
+			if (rle->type != SYS_RES_IOPORT) {
+				error = EINVAL;
+				break;
+			}
+			value &= ~PCIM_BAR_IO_BASE;
+		}
+		bio->pbi_base = rman_get_start(rle->res) | value;
+		bio->pbi_length = rman_get_size(rle->res);
+
+		/*
+		 * Check the command register to determine if this BAR
+		 * is enabled.
+		 */
+		value = pci_read_config(pcidev, PCIR_COMMAND, 2);
+		if (rle->type == SYS_RES_MEMORY)
+			bio->pbi_enabled = (value & PCIM_CMD_MEMEN) != 0;
+		else
+			bio->pbi_enabled = (value & PCIM_CMD_PORTEN) != 0;
+		error = 0;
+		break;
 	default:
 		error = ENOTTY;
 		break;

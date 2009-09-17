@@ -32,7 +32,7 @@ S=${.CURDIR}/../../..
 KMOD=usb2_input_kbd
 SRCS= 
 SRCS+= bus_if.h usb2_if.h device_if.h vnode_if.h
-SRCS+= opt_usb.h opt_bus.h opt_compat.h opt_kbd.h opt_ukbd.h
+SRCS+= opt_usb.h opt_bus.h opt_compat.h opt_kbd.h opt_ukbd.h usbdevs.h
 SRCS+= ukbd2.c
 
 .include <bsd.kmod.mk>

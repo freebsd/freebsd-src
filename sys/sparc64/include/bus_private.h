@@ -66,9 +66,10 @@ struct bus_dmamap {
 	int			dm_flags;		/* (p) */
 };
 
-/* Flag values. */
-#define	DMF_LOADED	1	/* Map is loaded */
-#define	DMF_COHERENT	2	/* Coherent mapping requested */
+/* Flag values */
+#define	DMF_LOADED	(1 << 0)	/* Map is loaded. */
+#define	DMF_COHERENT	(1 << 1)	/* Coherent mapping requested. */
+#define	DMF_STREAMED	(1 << 2)	/* Streaming cache used. */
 
 int sparc64_dma_alloc_map(bus_dma_tag_t dmat, bus_dmamap_t *mapp);
 void sparc64_dma_free_map(bus_dma_tag_t dmat, bus_dmamap_t map);

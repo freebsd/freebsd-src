@@ -56,50 +56,51 @@ driver supports the following adapters:
 .Pp
 .Bl -bullet -compact
 .It
-Option Globetrotter 3G Fusion (only 3G part, not WLAN)
+Option GT 3G Fusion, GT Fusion Quad, etc. (only 3G part, not WLAN)
 .It
-Option Globetrotter 3G Fusion Quad (only 3G part, not WLAN)
-.It
-Option Globetrotter 3G Quad
-.It
-Option Globetrotter 3G
+Option GT 3G, GT 3G Quad, etc.
 .It
 Vodafone Mobile Connect Card 3G
 .It
 Qualcomm Inc. CDMA MSM
 .It
-Huawei E220 (E270?)
+Huawei B190, E220 ('<Huawei Mobile>')
 .It
-Huawei Mobile
+Novatal U740, MC950D, X950D, etc.
 .It
-Novatal MC950D
-.It
-Sierra cards
+Sierra MC875U, MC8775U, etc.
 .El
 .Pp
-See
+(See
 .Pa /sys/dev/u3g.c
 for the complete list of supported cards for each vendor
-mentioned above.
+mentioned above.)
 .Pp
-The supported 3G cards provide the necessary modem port for ppp,
-pppd, or mpd connections as well as extra ports (depending on the specific
-device) to provide other functions (diagnostic port, SIM toolkit port).
+The supported 3G cards provide the necessary modem port for ppp, pppd, or mpd
+connections as well as extra ports (depending on the specific device) to
+provide other functions (additional command port, diagnostic port, SIM toolkit
+port).
 .Pp
 In some of these devices a mass storage device supported by the
 .Xr umass 4
 driver is present which contains Windows and Mac OS X drivers.
-This device is
-hidden, unless the machine was booted in verbose mode (see
+The device starts up in disk mode (TruInstall, ZeroCD, etc.) and requires
+additional commands to switch it to modem mode.
+.Pp
+The
+.Xr u3gstub 4
+device will attach temporarily to a 3G device with a mass storage device and
+force it to switch to modem mode,
+The attach and detach of
+.Xr u3gstub
+and any driver disk device present on the 3G device is is hidden, unless the
+machine was booted in verbose mode (see
 .Xr boot 8 ) .
 To temporarily unhide the device, set
 .Va debug.bootverbose
 to 1 using
 .Xr sysctl 8
 and replug the device.
-The
-.Xr u3gstub 4
-device will attach temporarily and detach within seconds.
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,

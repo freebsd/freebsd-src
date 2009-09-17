@@ -71,12 +71,12 @@ static int g_part_pc98_add(struct g_part_table *, struct g_part_entry *,
 static int g_part_pc98_bootcode(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_pc98_destroy(struct g_part_table *, struct g_part_parms *);
-static int g_part_pc98_dumpconf(struct g_part_table *, struct g_part_entry *,
+static void g_part_pc98_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_pc98_dumpto(struct g_part_table *, struct g_part_entry *);
 static int g_part_pc98_modify(struct g_part_table *, struct g_part_entry *,  
     struct g_part_parms *);
-static char *g_part_pc98_name(struct g_part_table *, struct g_part_entry *,
+static const char *g_part_pc98_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_pc98_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_pc98_read(struct g_part_table *, struct g_consumer *);
@@ -257,7 +257,7 @@ g_part_pc98_destroy(struct g_part_table *basetable, struct g_part_parms *gpp)
 	return (0);
 }
 
-static int
+static void
 g_part_pc98_dumpconf(struct g_part_table *table,
     struct g_part_entry *baseentry, struct sbuf *sb, const char *indent)
 {
@@ -268,7 +268,6 @@ g_part_pc98_dumpconf(struct g_part_table *table,
 	entry = (struct g_part_pc98_entry *)baseentry;
 	if (entry == NULL) {
 		/* confxml: scheme information */
-		return (0);
 	}
 
 	type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
@@ -288,7 +287,6 @@ g_part_pc98_dumpconf(struct g_part_table *table,
 		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent,
 		    type & 0x7f7f);
 	}
-	return (0);
 }
 
 static int
@@ -318,7 +316,7 @@ g_part_pc98_modify(struct g_part_table *basetable,
 	return (0);
 }
 
-static char *
+static const char *
 g_part_pc98_name(struct g_part_table *table, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
 {
@@ -333,7 +331,7 @@ g_part_pc98_probe(struct g_part_table *table, struct g_consumer *cp)
 	struct g_provider *pp;
 	u_char *buf, *p;
 	int error, index, res, sum;
-	uint16_t magic;
+	uint16_t magic, ecyl, scyl;
 
 	pp = cp->provider;
 
@@ -365,11 +363,15 @@ g_part_pc98_probe(struct g_part_table *table, struct g_consumer *cp)
 
 	for (index = 0; index < NDOSPART; index++) {
 		p = buf + SECSIZE + index * DOSPARTSIZE;
-		if (p[2] != 0 || p[3] != 0)
-			goto out;
-		if (p[1] == 0)
+		if (p[0] == 0 || p[1] == 0)	/* !dp_mid || !dp_sid */
 			continue;
-		if (le16dec(p + 10) == 0)
+		scyl = le16dec(p + 10);
+		ecyl = le16dec(p + 14);
+		if (scyl == 0 || ecyl == 0)
+			goto out;
+		if (p[8] == p[12] &&		/* dp_ssect == dp_esect */
+		    p[9] == p[13] &&		/* dp_shd == dp_ehd */
+		    scyl == ecyl)
 			goto out;
 	}
 

@@ -86,14 +86,14 @@ static struct timecounter ixp425_timer_timecounter = {
 	NULL, 				/* no poll_pps */
 	~0u, 				/* counter_mask */
 	COUNTS_PER_SEC,			/* frequency */
-	"IXP425 Timer", 		/* name */
+	"IXP4XX Timer", 		/* name */
 	1000,				/* quality */
 };
 
 static int
 ixpclk_probe(device_t dev)
 {
-	device_set_desc(dev, "IXP425 Timer");
+	device_set_desc(dev, "IXP4XX Timer");
 	return (0);
 }
 

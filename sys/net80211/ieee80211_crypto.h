@@ -104,6 +104,10 @@ struct ieee80211_key {
 	(IEEE80211_KEY_SWENCRYPT | IEEE80211_KEY_SWDECRYPT)
 #define	IEEE80211_KEY_SWMIC	(IEEE80211_KEY_SWENMIC | IEEE80211_KEY_SWDEMIC)
 
+#define	IEEE80211_KEY_BITS \
+	"\20\1XMIT\2RECV\3GROUP\4SWENCRYPT\5SWDECRYPT\6SWENMIC\7SWDEMIC" \
+	"\10DEVKEY\11CIPHER0\12CIPHER1"
+
 #define	IEEE80211_KEYIX_NONE	((ieee80211_keyix) -1)
 
 /*
@@ -130,6 +134,9 @@ struct ieee80211_key {
 #define	IEEE80211_CRYPTO_AES_CCM	(1<<IEEE80211_CIPHER_AES_CCM)
 #define	IEEE80211_CRYPTO_TKIPMIC	(1<<IEEE80211_CIPHER_TKIPMIC)
 #define	IEEE80211_CRYPTO_CKIP		(1<<IEEE80211_CIPHER_CKIP)
+
+#define	IEEE80211_CRYPTO_BITS \
+	"\20\1WEP\2TKIP\3AES\4AES_CCM\5TKIPMIC\6CKIP"
 
 #if defined(__KERNEL__) || defined(_KERNEL)
 
@@ -218,7 +225,7 @@ static __inline void
 ieee80211_crypto_resetkey(struct ieee80211vap *vap,
 	struct ieee80211_key *k, ieee80211_keyix ix)
 {
-	k->wk_cipher = &ieee80211_cipher_none;;
+	k->wk_cipher = &ieee80211_cipher_none;
 	k->wk_private = k->wk_cipher->ic_attach(vap, k);
 	k->wk_keyix = k->wk_rxkeyix = ix;
 	k->wk_flags = IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV;

@@ -37,9 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 size_t
-wcsspn(s, set)
-	const wchar_t *s;
-	const wchar_t *set;
+wcsspn(const wchar_t *s, const wchar_t *set)
 {
 	const wchar_t *p;
 	const wchar_t *q;

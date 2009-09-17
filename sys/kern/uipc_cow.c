@@ -129,7 +129,11 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	 * set up COW
 	 */
 	vm_page_lock_queues();
-	vm_page_cowsetup(pp);
+	if (vm_page_cowsetup(pp) != 0) {
+		vm_page_unhold(pp);
+		vm_page_unlock_queues();
+		return (0);
+	}
 
 	/*
 	 * wire the page for I/O

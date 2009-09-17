@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2007
+.Dd December 23, 2008
 .Dt NSSWITCH.CONF 5
 .Os
 .Sh NAME
@@ -141,9 +141,13 @@ The following databases are used by the following C library functions:
 .Xr getrpcbynumber 3 ,
 .Xr getrpcent 3
 .It proto
-.Xr getprotobyname 3
+.Xr getprotobyname 3 ,
 .Xr getprotobynumber 3 ,
 .Xr getprotoent 3
+.It netgroup
+.Xr getnetgrent 3 ,
+.Xr setnetgrent 3 ,
+.Xr innetgr 3
 .El
 .Ss Status codes
 The following status codes are available:

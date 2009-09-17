@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_tty.8,v 1.5 1999/01/25 23:46:28 archie Exp $
 .\"
-.Dd October 2, 2008
+.Dd December 25, 2008
 .Dt NG_TTY 4
 .Os
 .Sh NAME
@@ -78,18 +78,6 @@ being connected to a
 .Xr ng_async 4
 type node.
 The hot character has no effect on the transmission of data.
-.Pp
-The node will attempt to give itself the same netgraph name as the name
-of the tty device.
-In any case, information about the node is available via the netgraph
-.Xr ioctl 2
-command
-.Dv NGIOCGINFO .
-This command returns a
-.Dv "struct nodeinfo"
-similar to the
-.Dv NGM_NODEINFO
-netgraph control message.
 .Sh HOOKS
 This node type supports the following hooks:
 .Pp
@@ -112,7 +100,7 @@ so that all received data is forwarded immediately.
 Returns an integer containing the current hot character in the lower
 eight bits.
 .It Dv NGM_TTY_SET_TTY
-This command takes an integer pointer to the open file descriptor of the tty
+This command takes integer process ID and file descriptor of open tty
 and registers the tty hooks.
 .El
 .Sh SHUTDOWN

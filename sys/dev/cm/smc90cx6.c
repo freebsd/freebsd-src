@@ -861,14 +861,10 @@ cm_ioctl(ifp, command, data)
 	caddr_t data;
 {
 	struct cm_softc *sc;
-	struct ifaddr *ifa;
-	struct ifreq *ifr;
 	int error;
 
 	error = 0;
 	sc = ifp->if_softc;
-	ifa = (struct ifaddr *)data;
-	ifr = (struct ifreq *)data;
 
 #if defined(CM_DEBUG) && (CM_DEBUG > 2)
 	if_printf(ifp, "ioctl() called, cmd = 0x%lx\n", command);

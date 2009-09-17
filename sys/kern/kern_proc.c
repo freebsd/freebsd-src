@@ -115,6 +115,7 @@ MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
 static void doenterpgrp(struct proc *, struct pgrp *);
 static void orphanpg(struct pgrp *pg);
+static void fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp);
 static void fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp);
 static void fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp,
     int preferthread);
@@ -231,6 +232,7 @@ proc_init(void *mem, int size, int flags)
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
 	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
+	cv_init(&p->p_pwait, "ppwait");
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();
@@ -669,6 +671,30 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 #endif /* DDB */
 
 /*
+ * Calculate the kinfo_proc members which contain process-wide
+ * informations.
+ * Must be called with the target process locked.
+ */
+static void
+fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp)
+{
+	struct thread *td;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	kp->ki_estcpu = 0;
+	kp->ki_pctcpu = 0;
+	kp->ki_runtime = 0;
+	FOREACH_THREAD_IN_PROC(p, td) {
+		thread_lock(td);
+		kp->ki_pctcpu += sched_pctcpu(td);
+		kp->ki_runtime += cputick2usec(td->td_runtime);
+		kp->ki_estcpu += td->td_estcpu;
+		thread_unlock(td);
+	}
+}
+
+/*
  * Clear kinfo_proc and fill in any information that is common
  * to all threads in the process.
  * Must be called with the target process locked.
@@ -868,14 +894,15 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_numthreads = p->p_numthreads;
 	kp->ki_pcb = td->td_pcb;
 	kp->ki_kstack = (void *)td->td_kstack;
-	kp->ki_pctcpu = sched_pctcpu(td);
-	kp->ki_estcpu = td->td_estcpu;
 	kp->ki_slptime = (ticks - td->td_slptick) / hz;
 	kp->ki_pri.pri_class = td->td_pri_class;
 	kp->ki_pri.pri_user = td->td_user_pri;
 
-	if (preferthread)
+	if (preferthread) {
 		kp->ki_runtime = cputick2usec(td->td_runtime);
+		kp->ki_pctcpu = sched_pctcpu(td);
+		kp->ki_estcpu = td->td_estcpu;
+	}
 
 	/* We can't get this anymore but ps etc never used it anyway. */
 	kp->ki_rqindex = 0;
@@ -893,9 +920,11 @@ void
 fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
 {
 
+	MPASS(FIRST_THREAD_IN_PROC(p) != NULL);
+
 	fill_kinfo_proc_only(p, kp);
-	if (FIRST_THREAD_IN_PROC(p) != NULL)
-		fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp, 0);
+	fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp, 0);
+	fill_kinfo_aggregate(p, kp);
 }
 
 struct pstats *
@@ -959,26 +988,20 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 	pid_t pid = p->p_pid;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	MPASS(FIRST_THREAD_IN_PROC(p) != NULL);
 
-	fill_kinfo_proc_only(p, &kinfo_proc);
-	if (flags & KERN_PROC_NOTHREADS) {
-		if (FIRST_THREAD_IN_PROC(p) != NULL)
-			fill_kinfo_thread(FIRST_THREAD_IN_PROC(p),
-			    &kinfo_proc, 0);
+	fill_kinfo_proc(p, &kinfo_proc);
+	if (flags & KERN_PROC_NOTHREADS)
 		error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-				   sizeof(kinfo_proc));
-	} else {
-		if (FIRST_THREAD_IN_PROC(p) != NULL)
-			FOREACH_THREAD_IN_PROC(p, td) {
-				fill_kinfo_thread(td, &kinfo_proc, 1);
-				error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-						   sizeof(kinfo_proc));
-				if (error)
-					break;
-			}
-		else
+		    sizeof(kinfo_proc));
+	else {
+		FOREACH_THREAD_IN_PROC(p, td) {
+			fill_kinfo_thread(td, &kinfo_proc, 1);
 			error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-					   sizeof(kinfo_proc));
+			    sizeof(kinfo_proc));
+			if (error)
+				break;
+		}
 	}
 	PROC_UNLOCK(p);
 	if (error)
@@ -1279,7 +1302,7 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 	struct vnode *vp;
 	char *retbuf, *freebuf;
-	int error;
+	int error, vfslocked;
 
 	if (arglen != 1)
 		return (EINVAL);
@@ -1305,7 +1328,9 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	if (*pidp != -1)
 		PROC_UNLOCK(p);
 	error = vn_fullpath(req->td, vp, &retbuf, &freebuf);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vrele(vp);
+	VFS_UNLOCK_GIANT(vfslocked);
 	if (error)
 		return (error);
 	error = SYSCTL_OUT(req, retbuf, strlen(retbuf) + 1);
@@ -1356,6 +1381,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	struct vnode *vp;
 	struct proc *p;
 	vm_map_t map;
+	struct vmspace *vm;
 
 	name = (int *)arg1;
 	if ((p = pfind((pid_t)name[0])) == NULL)
@@ -1370,7 +1396,11 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	}
 	_PHOLD(p);
 	PROC_UNLOCK(p);
-
+	vm = vmspace_acquire_ref(p);
+	if (vm == NULL) {
+		PRELE(p);
+		return (ESRCH);
+	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
 
 	map = &p->p_vmspace->vm_map;	/* XXXRW: More locking required? */
@@ -1411,13 +1441,32 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 			lobj = tobj;
 		}
 
+		kve->kve_start = (void*)entry->start;
+		kve->kve_end = (void*)entry->end;
+		kve->kve_offset = (off_t)entry->offset;
+
+		if (entry->protection & VM_PROT_READ)
+			kve->kve_protection |= KVME_PROT_READ;
+		if (entry->protection & VM_PROT_WRITE)
+			kve->kve_protection |= KVME_PROT_WRITE;
+		if (entry->protection & VM_PROT_EXECUTE)
+			kve->kve_protection |= KVME_PROT_EXEC;
+
+		if (entry->eflags & MAP_ENTRY_COW)
+			kve->kve_flags |= KVME_FLAG_COW;
+		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
+			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
+
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
+
 		kve->kve_fileid = 0;
 		kve->kve_fsid = 0;
 		freepath = NULL;
 		fullpath = "";
 		if (lobj) {
 			vp = NULL;
-			switch(lobj->type) {
+			switch (lobj->type) {
 			case OBJT_DEFAULT:
 				kve->kve_type = KVME_TYPE_DEFAULT;
 				break;
@@ -1467,38 +1516,21 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_shadow_count = 0;
 		}
 
-		kve->kve_start = (void*)entry->start;
-		kve->kve_end = (void*)entry->end;
-		kve->kve_offset = (off_t)entry->offset;
-
-		if (entry->protection & VM_PROT_READ)
-			kve->kve_protection |= KVME_PROT_READ;
-		if (entry->protection & VM_PROT_WRITE)
-			kve->kve_protection |= KVME_PROT_WRITE;
-		if (entry->protection & VM_PROT_EXECUTE)
-			kve->kve_protection |= KVME_PROT_EXEC;
-
-		if (entry->eflags & MAP_ENTRY_COW)
-			kve->kve_flags |= KVME_FLAG_COW;
-		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
-			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
-
 		strlcpy(kve->kve_path, fullpath, sizeof(kve->kve_path));
 		if (freepath != NULL)
 			free(freepath, M_TEMP);
 
-		last_timestamp = map->timestamp;
-		vm_map_unlock_read(map);
 		error = SYSCTL_OUT(req, kve, sizeof(*kve));
 		vm_map_lock_read(map);
 		if (error)
 			break;
-		if (last_timestamp + 1 != map->timestamp) {
+		if (last_timestamp != map->timestamp) {
 			vm_map_lookup_entry(map, addr - 1, &tmp_entry);
 			entry = tmp_entry;
 		}
 	}
 	vm_map_unlock_read(map);
+	vmspace_free(vm);
 	PRELE(p);
 	free(kve, M_TEMP);
 	return (error);
@@ -1521,6 +1553,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	int error, *name;
 	struct vnode *vp;
 	struct proc *p;
+	struct vmspace *vm;
 	vm_map_t map;
 
 	name = (int *)arg1;
@@ -1536,10 +1569,14 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	}
 	_PHOLD(p);
 	PROC_UNLOCK(p);
-
+	vm = vmspace_acquire_ref(p);
+	if (vm == NULL) {
+		PRELE(p);
+		return (ESRCH);
+	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
 
-	map = &p->p_vmspace->vm_map;	/* XXXRW: More locking required? */
+	map = &vm->vm_map;	/* XXXRW: More locking required? */
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
@@ -1576,13 +1613,32 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			lobj = tobj;
 		}
 
+		kve->kve_start = entry->start;
+		kve->kve_end = entry->end;
+		kve->kve_offset = entry->offset;
+
+		if (entry->protection & VM_PROT_READ)
+			kve->kve_protection |= KVME_PROT_READ;
+		if (entry->protection & VM_PROT_WRITE)
+			kve->kve_protection |= KVME_PROT_WRITE;
+		if (entry->protection & VM_PROT_EXECUTE)
+			kve->kve_protection |= KVME_PROT_EXEC;
+
+		if (entry->eflags & MAP_ENTRY_COW)
+			kve->kve_flags |= KVME_FLAG_COW;
+		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
+			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
+
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
+
 		kve->kve_fileid = 0;
 		kve->kve_fsid = 0;
 		freepath = NULL;
 		fullpath = "";
 		if (lobj) {
 			vp = NULL;
-			switch(lobj->type) {
+			switch (lobj->type) {
 			case OBJT_DEFAULT:
 				kve->kve_type = KVME_TYPE_DEFAULT;
 				break;
@@ -1632,28 +1688,10 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_shadow_count = 0;
 		}
 
-		kve->kve_start = entry->start;
-		kve->kve_end = entry->end;
-		kve->kve_offset = entry->offset;
-
-		if (entry->protection & VM_PROT_READ)
-			kve->kve_protection |= KVME_PROT_READ;
-		if (entry->protection & VM_PROT_WRITE)
-			kve->kve_protection |= KVME_PROT_WRITE;
-		if (entry->protection & VM_PROT_EXECUTE)
-			kve->kve_protection |= KVME_PROT_EXEC;
-
-		if (entry->eflags & MAP_ENTRY_COW)
-			kve->kve_flags |= KVME_FLAG_COW;
-		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
-			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
-
 		strlcpy(kve->kve_path, fullpath, sizeof(kve->kve_path));
 		if (freepath != NULL)
 			free(freepath, M_TEMP);
 
-		last_timestamp = map->timestamp;
-		vm_map_unlock_read(map);
 		/* Pack record size down */
 		kve->kve_structsize = offsetof(struct kinfo_vmentry, kve_path) +
 		    strlen(kve->kve_path) + 1;
@@ -1663,12 +1701,13 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		vm_map_lock_read(map);
 		if (error)
 			break;
-		if (last_timestamp + 1 != map->timestamp) {
+		if (last_timestamp != map->timestamp) {
 			vm_map_lookup_entry(map, addr - 1, &tmp_entry);
 			entry = tmp_entry;
 		}
 	}
 	vm_map_unlock_read(map);
+	vmspace_free(vm);
 	PRELE(p);
 	free(kve, M_TEMP);
 	return (error);
@@ -1778,82 +1817,85 @@ repeat:
 
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
-SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT,
-	0, 0, sysctl_kern_proc, "S,proc", "Return entire process table");
+SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
+	CTLFLAG_MPSAFE, 0, 0, sysctl_kern_proc, "S,proc",
+	"Return entire process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_GID, gid, CTLFLAG_RD,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_GID, gid, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_PGRP, pgrp, CTLFLAG_RD, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PGRP, pgrp, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_RGID, rgid, CTLFLAG_RD,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_RGID, rgid, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_SESSION, sid, CTLFLAG_RD,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_SESSION, sid, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_TTY, tty, CTLFLAG_RD | CTLFLAG_MPSAFE, 
 	sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_TTY, tty, CTLFLAG_RD, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_UID, uid, CTLFLAG_RD | CTLFLAG_MPSAFE, 
 	sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_UID, uid, CTLFLAG_RD, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_RUID, ruid, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_RUID, ruid, CTLFLAG_RD, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PID, pid, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_PID, pid, CTLFLAG_RD, 
-	sysctl_kern_proc, "Process table");
-
-static SYSCTL_NODE(_kern_proc, KERN_PROC_PROC, proc, CTLFLAG_RD,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PROC, proc, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc, "Return process table, no threads");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args,
-	CTLFLAG_RW | CTLFLAG_ANYBODY,
+	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
 	sysctl_kern_proc_args, "Process argument list");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_PATHNAME, pathname, CTLFLAG_RD,
-	sysctl_kern_proc_pathname, "Process executable path");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PATHNAME, pathname, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_pathname, "Process executable path");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_SV_NAME, sv_name, CTLFLAG_RD,
-	sysctl_kern_proc_sv_name, "Process syscall vector name (ABI type)");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_SV_NAME, sv_name, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_sv_name,
+	"Process syscall vector name (ABI type)");
 
 static SYSCTL_NODE(_kern_proc, (KERN_PROC_GID | KERN_PROC_INC_THREAD), gid_td,
-	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+	CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
 
 static SYSCTL_NODE(_kern_proc, (KERN_PROC_PGRP | KERN_PROC_INC_THREAD), pgrp_td,
-	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+	CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
 
 static SYSCTL_NODE(_kern_proc, (KERN_PROC_RGID | KERN_PROC_INC_THREAD), rgid_td,
-	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+	CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
 
 static SYSCTL_NODE(_kern_proc, (KERN_PROC_SESSION | KERN_PROC_INC_THREAD),
-	sid_td, CTLFLAG_RD, sysctl_kern_proc, "Process table");
+	sid_td, CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
 
 static SYSCTL_NODE(_kern_proc, (KERN_PROC_TTY | KERN_PROC_INC_THREAD), tty_td,
-	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+	CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
 
 static SYSCTL_NODE(_kern_proc, (KERN_PROC_UID | KERN_PROC_INC_THREAD), uid_td,
-	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+	CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
 
 static SYSCTL_NODE(_kern_proc, (KERN_PROC_RUID | KERN_PROC_INC_THREAD), ruid_td,
-	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+	CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
 
 static SYSCTL_NODE(_kern_proc, (KERN_PROC_PID | KERN_PROC_INC_THREAD), pid_td,
-	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+	CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
 
 static SYSCTL_NODE(_kern_proc, (KERN_PROC_PROC | KERN_PROC_INC_THREAD), proc_td,
-	CTLFLAG_RD, sysctl_kern_proc, "Return process table, no threads");
+	CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_kern_proc,
+	"Return process table, no threads");
 
 #ifdef COMPAT_FREEBSD7
-static SYSCTL_NODE(_kern_proc, KERN_PROC_OVMMAP, ovmmap, CTLFLAG_RD,
-	sysctl_kern_proc_ovmmap, "Old Process vm map entries");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_OVMMAP, ovmmap, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_ovmmap, "Old Process vm map entries");
 #endif
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_VMMAP, vmmap, CTLFLAG_RD,
-	sysctl_kern_proc_vmmap, "Process vm map entries");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_VMMAP, vmmap, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_vmmap, "Process vm map entries");
 
 #if defined(STACK) || defined(DDB)
-static SYSCTL_NODE(_kern_proc, KERN_PROC_KSTACK, kstack, CTLFLAG_RD,
-	sysctl_kern_proc_kstack, "Process kernel stacks");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_KSTACK, kstack, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_kstack, "Process kernel stacks");
 #endif

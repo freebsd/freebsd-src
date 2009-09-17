@@ -150,7 +150,15 @@
 #define	AMDID2_SVM	0x00000004
 #define	AMDID2_EXT_APIC	0x00000008
 #define	AMDID2_CR8	0x00000010
+#define	AMDID2_ABM	0x00000020
+#define	AMDID2_SSE4A	0x00000040
+#define	AMDID2_MAS	0x00000080
 #define	AMDID2_PREFETCH	0x00000100
+#define	AMDID2_OSVW	0x00000200
+#define	AMDID2_IBS	0x00000400
+#define	AMDID2_SSE5	0x00000800
+#define	AMDID2_SKINIT	0x00001000
+#define	AMDID2_WDT	0x00002000
 
 /*
  * CPUID instruction 1 eax info
@@ -197,6 +205,7 @@
  * CPUID manufacturers identifiers
  */
 #define	AMD_VENDOR_ID		"AuthenticAMD"
+#define	CENTAUR_VENDOR_ID	"CentaurHauls"
 #define	INTEL_VENDOR_ID		"GenuineIntel"
 
 /*
@@ -449,5 +458,41 @@
 #define	MSR_TOP_MEM	0xc001001a	/* boundary for ram below 4G */
 #define	MSR_TOP_MEM2	0xc001001d	/* boundary for ram above 4G */
 #define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
+
+/* VIA ACE crypto featureset: for via_feature_rng */
+#define	VIA_HAS_RNG		1	/* cpu has RNG */
+
+/* VIA ACE crypto featureset: for via_feature_xcrypt */
+#define	VIA_HAS_AES		1	/* cpu has AES */
+#define	VIA_HAS_SHA		2	/* cpu has SHA1 & SHA256 */
+#define	VIA_HAS_MM		4	/* cpu has RSA instructions */
+#define	VIA_HAS_AESCTR		8	/* cpu has AES-CTR instructions */
+
+/* Centaur Extended Feature flags */
+#define	VIA_CPUID_HAS_RNG	0x000004
+#define	VIA_CPUID_DO_RNG	0x000008
+#define	VIA_CPUID_HAS_ACE	0x000040
+#define	VIA_CPUID_DO_ACE	0x000080
+#define	VIA_CPUID_HAS_ACE2	0x000100
+#define	VIA_CPUID_DO_ACE2	0x000200
+#define	VIA_CPUID_HAS_PHE	0x000400
+#define	VIA_CPUID_DO_PHE	0x000800
+#define	VIA_CPUID_HAS_PMM	0x001000
+#define	VIA_CPUID_DO_PMM	0x002000
+
+/* VIA ACE xcrypt-* instruction context control options */
+#define	VIA_CRYPT_CWLO_ROUND_M		0x0000000f
+#define	VIA_CRYPT_CWLO_ALG_M		0x00000070
+#define	VIA_CRYPT_CWLO_ALG_AES		0x00000000
+#define	VIA_CRYPT_CWLO_KEYGEN_M		0x00000080
+#define	VIA_CRYPT_CWLO_KEYGEN_HW	0x00000000
+#define	VIA_CRYPT_CWLO_KEYGEN_SW	0x00000080
+#define	VIA_CRYPT_CWLO_NORMAL		0x00000000
+#define	VIA_CRYPT_CWLO_INTERMEDIATE	0x00000100
+#define	VIA_CRYPT_CWLO_ENCRYPT		0x00000000
+#define	VIA_CRYPT_CWLO_DECRYPT		0x00000200
+#define	VIA_CRYPT_CWLO_KEY128		0x0000000a	/* 128bit, 10 rds */
+#define	VIA_CRYPT_CWLO_KEY192		0x0000040c	/* 192bit, 12 rds */
+#define	VIA_CRYPT_CWLO_KEY256		0x0000080e	/* 256bit, 15 rds */
 
 #endif /* !_MACHINE_SPECIALREG_H_ */

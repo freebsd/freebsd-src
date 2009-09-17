@@ -278,7 +278,7 @@ svr4_sys_getdents64(td, uap)
 	buflen = max(DIRBLKSIZ, nbytes);
 	buflen = min(buflen, MAXBSIZE);
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 again:
 	aiov.iov_base = buf;
 	aiov.iov_len = buflen;
@@ -447,7 +447,7 @@ svr4_sys_getdents(td, uap)
 
 	buflen = min(MAXBSIZE, uap->nbytes);
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	off = fp->f_offset;
 again:
 	aiov.iov_base = buf;

@@ -1,8 +1,7 @@
 # $FreeBSD$
 
-WITHOUT_SSP=
-
 .include <bsd.own.mk>
+MK_SSP=		no
 
 PROG?=		ld-elf.so.1
 SRCS=		rtld_start.S \

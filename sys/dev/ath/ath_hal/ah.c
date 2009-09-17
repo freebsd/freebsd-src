@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah.c,v 1.15 2008/11/15 22:15:44 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -32,7 +32,7 @@ OS_SET_DECLARE(ah_chips, struct ath_hal_chip);
 const char*
 ath_hal_probe(uint16_t vendorid, uint16_t devid)
 {
-	struct ath_hal_chip **pchip;
+	struct ath_hal_chip * const *pchip;
 
 	OS_SET_FOREACH(pchip, ah_chips) {
 		const char *name = (*pchip)->probe(vendorid, devid);
@@ -53,7 +53,7 @@ struct ath_hal*
 ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *error)
 {
-	struct ath_hal_chip **pchip;
+	struct ath_hal_chip * const *pchip;
 
 	OS_SET_FOREACH(pchip, ah_chips) {
 		struct ath_hal_chip *chip = *pchip;
@@ -78,6 +78,15 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 	return AH_NULL;
 }
 
+/*
+ * Return the mask of available modes based on the hardware capabilities.
+ */
+u_int
+ath_hal_getwirelessmodes(struct ath_hal*ah)
+{
+	return ath_hal_getWirelessModes(ah);
+}
+
 /* linker set of registered RF backends */
 OS_SET_DECLARE(ah_rfs, struct ath_hal_rf);
 
@@ -88,7 +97,7 @@ OS_SET_DECLARE(ah_rfs, struct ath_hal_rf);
 struct ath_hal_rf *
 ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode)
 {
-	struct ath_hal_rf **prf;
+	struct ath_hal_rf * const *prf;
 
 	OS_SET_FOREACH(prf, ah_rfs) {
 		struct ath_hal_rf *rf = *prf;
@@ -152,14 +161,12 @@ ath_hal_computetxtime(struct ath_hal *ah,
 	kbps = rates->info[rateix].rateKbps;
 	/*
 	 * index can be invalid duting dynamic Turbo transitions. 
+	 * XXX
 	 */
-	if(kbps == 0) return 0;
+	if (kbps == 0)
+		return 0;
 	switch (rates->info[rateix].phy) {
-
 	case IEEE80211_T_CCK:
-#define CCK_SIFS_TIME        10
-#define CCK_PREAMBLE_BITS   144
-#define CCK_PLCP_BITS        48
 		phyTime		= CCK_PREAMBLE_BITS + CCK_PLCP_BITS;
 		if (shortPreamble && rates->info[rateix].shortPreamble)
 			phyTime >>= 1;
@@ -167,81 +174,47 @@ ath_hal_computetxtime(struct ath_hal *ah,
 		txTime		= CCK_SIFS_TIME + phyTime
 				+ ((numBits * 1000)/kbps);
 		break;
-#undef CCK_SIFS_TIME
-#undef CCK_PREAMBLE_BITS
-#undef CCK_PLCP_BITS
-
 	case IEEE80211_T_OFDM:
-#define OFDM_SIFS_TIME        16
-#define OFDM_PREAMBLE_TIME    20
-#define OFDM_PLCP_BITS        22
-#define OFDM_SYMBOL_TIME       4
+		bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME) / 1000;
+		HALASSERT(bitsPerSymbol != 0);
 
-#define OFDM_SIFS_TIME_HALF	32
-#define OFDM_PREAMBLE_TIME_HALF	40
-#define OFDM_PLCP_BITS_HALF	22
-#define OFDM_SYMBOL_TIME_HALF	8
-
-#define OFDM_SIFS_TIME_QUARTER 		64
-#define OFDM_PREAMBLE_TIME_QUARTER	80
-#define OFDM_PLCP_BITS_QUARTER		22
-#define OFDM_SYMBOL_TIME_QUARTER	16
-
-		if (AH_PRIVATE(ah)->ah_curchan && 
-			IS_CHAN_QUARTER_RATE(AH_PRIVATE(ah)->ah_curchan)) {
-			bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME_QUARTER) / 1000;
-			HALASSERT(bitsPerSymbol != 0);
-
-			numBits		= OFDM_PLCP_BITS + (frameLen << 3);
-			numSymbols	= howmany(numBits, bitsPerSymbol);
-			txTime		= OFDM_SIFS_TIME_QUARTER 
-						+ OFDM_PREAMBLE_TIME_QUARTER
-					+ (numSymbols * OFDM_SYMBOL_TIME_QUARTER);
-		} else if (AH_PRIVATE(ah)->ah_curchan &&
-				IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan)) {
-			bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME_HALF) / 1000;
-			HALASSERT(bitsPerSymbol != 0);
-
-			numBits		= OFDM_PLCP_BITS + (frameLen << 3);
-			numSymbols	= howmany(numBits, bitsPerSymbol);
-			txTime		= OFDM_SIFS_TIME_HALF + 
-						OFDM_PREAMBLE_TIME_HALF
-					+ (numSymbols * OFDM_SYMBOL_TIME_HALF);
-		} else { /* full rate channel */
-			bitsPerSymbol	= (kbps * OFDM_SYMBOL_TIME) / 1000;
-			HALASSERT(bitsPerSymbol != 0);
-
-			numBits		= OFDM_PLCP_BITS + (frameLen << 3);
-			numSymbols	= howmany(numBits, bitsPerSymbol);
-			txTime		= OFDM_SIFS_TIME + OFDM_PREAMBLE_TIME
-					+ (numSymbols * OFDM_SYMBOL_TIME);
-		}
+		numBits		= OFDM_PLCP_BITS + (frameLen << 3);
+		numSymbols	= howmany(numBits, bitsPerSymbol);
+		txTime		= OFDM_SIFS_TIME
+				+ OFDM_PREAMBLE_TIME
+				+ (numSymbols * OFDM_SYMBOL_TIME);
 		break;
+	case IEEE80211_T_OFDM_HALF:
+		bitsPerSymbol	= (kbps * OFDM_HALF_SYMBOL_TIME) / 1000;
+		HALASSERT(bitsPerSymbol != 0);
 
-#undef OFDM_SIFS_TIME
-#undef OFDM_PREAMBLE_TIME
-#undef OFDM_PLCP_BITS
-#undef OFDM_SYMBOL_TIME
+		numBits		= OFDM_HALF_PLCP_BITS + (frameLen << 3);
+		numSymbols	= howmany(numBits, bitsPerSymbol);
+		txTime		= OFDM_HALF_SIFS_TIME
+				+ OFDM_HALF_PREAMBLE_TIME
+				+ (numSymbols * OFDM_HALF_SYMBOL_TIME);
+		break;
+	case IEEE80211_T_OFDM_QUARTER:
+		bitsPerSymbol	= (kbps * OFDM_QUARTER_SYMBOL_TIME) / 1000;
+		HALASSERT(bitsPerSymbol != 0);
 
+		numBits		= OFDM_QUARTER_PLCP_BITS + (frameLen << 3);
+		numSymbols	= howmany(numBits, bitsPerSymbol);
+		txTime		= OFDM_QUARTER_SIFS_TIME
+				+ OFDM_QUARTER_PREAMBLE_TIME
+				+ (numSymbols * OFDM_QUARTER_SYMBOL_TIME);
+		break;
 	case IEEE80211_T_TURBO:
-#define TURBO_SIFS_TIME         8
-#define TURBO_PREAMBLE_TIME    14
-#define TURBO_PLCP_BITS        22
-#define TURBO_SYMBOL_TIME       4
 		/* we still save OFDM rates in kbps - so double them */
 		bitsPerSymbol = ((kbps << 1) * TURBO_SYMBOL_TIME) / 1000;
 		HALASSERT(bitsPerSymbol != 0);
 
-		numBits       = TURBO_PLCP_BITS + (frameLen << 3);
-		numSymbols    = howmany(numBits, bitsPerSymbol);
-		txTime        = TURBO_SIFS_TIME + TURBO_PREAMBLE_TIME
-			      + (numSymbols * TURBO_SYMBOL_TIME);
+		numBits		= TURBO_PLCP_BITS + (frameLen << 3);
+		numSymbols	= howmany(numBits, bitsPerSymbol);
+		txTime		= TURBO_SIFS_TIME
+				+ TURBO_PREAMBLE_TIME
+				+ (numSymbols * TURBO_SYMBOL_TIME);
 		break;
-#undef TURBO_SIFS_TIME
-#undef TURBO_PREAMBLE_TIME
-#undef TURBO_PLCP_BITS
-#undef TURBO_SYMBOL_TIME
-
 	default:
 		HALDEBUG(ah, HAL_DEBUG_PHYIO,
 		    "%s: unknown phy %u (rate ix %u)\n",
@@ -250,71 +223,6 @@ ath_hal_computetxtime(struct ath_hal *ah,
 		break;
 	}
 	return txTime;
-}
-
-static __inline int
-mapgsm(u_int freq, u_int flags)
-{
-	freq *= 10;
-	if (flags & CHANNEL_QUARTER)
-		freq += 5;
-	else if (flags & CHANNEL_HALF)
-		freq += 10;
-	else
-		freq += 20;
-	return (freq - 24220) / 5;
-}
-
-static __inline int
-mappsb(u_int freq, u_int flags)
-{
-	return ((freq * 10) + (((freq % 5) == 2) ? 5 : 0) - 49400) / 5;
-}
-
-/*
- * Convert GHz frequency to IEEE channel number.
- */
-int
-ath_hal_mhz2ieee(struct ath_hal *ah, u_int freq, u_int flags)
-{
-	if (flags & CHANNEL_2GHZ) {	/* 2GHz band */
-		if (freq == 2484)
-			return 14;
-		if (freq < 2484) {
-			if (ath_hal_isgsmsku(ah))
-				return mapgsm(freq, flags);
-			return ((int)freq - 2407) / 5;
-		} else
-			return 15 + ((freq - 2512) / 20);
-	} else if (flags & CHANNEL_5GHZ) {/* 5Ghz band */
-		if (ath_hal_ispublicsafetysku(ah) &&
-		    IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq)) {
-			return mappsb(freq, flags);
-		} else if ((flags & CHANNEL_A) && (freq <= 5000)) {
-			return (freq - 4000) / 5;
-		} else {
-			return (freq - 5000) / 5;
-		}
-	} else {			/* either, guess */
-		if (freq == 2484)
-			return 14;
-		if (freq < 2484) {
-			if (ath_hal_isgsmsku(ah))
-				return mapgsm(freq, flags);
-			return ((int)freq - 2407) / 5;
-		}
-		if (freq < 5000) {
-			if (ath_hal_ispublicsafetysku(ah) &&
-			    IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq)) {
-				return mappsb(freq, flags);
-			} else if (freq > 4900) {
-				return (freq - 4000) / 5;
-			} else {
-				return 15 + ((freq - 2512) / 20);
-			}
-		}
-		return (freq - 5000) / 5;
-	}
 }
 
 typedef enum {
@@ -328,15 +236,15 @@ typedef enum {
 } WIRELESS_MODE;
 
 static WIRELESS_MODE
-ath_hal_chan2wmode(struct ath_hal *ah, const HAL_CHANNEL *chan)
+ath_hal_chan2wmode(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-	if (IS_CHAN_CCK(chan))
+	if (IEEE80211_IS_CHAN_B(chan))
 		return WIRELESS_MODE_11b;
-	if (IS_CHAN_G(chan))
+	if (IEEE80211_IS_CHAN_G(chan))
 		return WIRELESS_MODE_11g;
-	if (IS_CHAN_108G(chan))
+	if (IEEE80211_IS_CHAN_108G(chan))
 		return WIRELESS_MODE_108g;
-	if (IS_CHAN_TURBO(chan))
+	if (IEEE80211_IS_CHAN_TURBO(chan))
 		return WIRELESS_MODE_TURBO;
 	return WIRELESS_MODE_11a;
 }
@@ -350,18 +258,14 @@ static const uint8_t CLOCK_RATE[]  = { 40,  80,   22,  44,   88  };
 u_int
 ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 {
-	const HAL_CHANNEL *c = (const HAL_CHANNEL *) AH_PRIVATE(ah)->ah_curchan;
+	const struct ieee80211_channel *c = AH_PRIVATE(ah)->ah_curchan;
 	u_int clks;
 
 	/* NB: ah_curchan may be null when called attach time */
 	if (c != AH_NULL) {
 		clks = usecs * CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
-		if (IS_CHAN_HT40(c))
+		if (IEEE80211_IS_CHAN_HT40(c))
 			clks <<= 1;
-		else if (IS_CHAN_HALF_RATE(c))
-			clks >>= 1;
-		else if (IS_CHAN_QUARTER_RATE(c))
-			clks >>= 2;
 	} else
 		clks = usecs * CLOCK_RATE[WIRELESS_MODE_11b];
 	return clks;
@@ -370,18 +274,14 @@ ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 u_int
 ath_hal_mac_usec(struct ath_hal *ah, u_int clks)
 {
-	const HAL_CHANNEL *c = (const HAL_CHANNEL *) AH_PRIVATE(ah)->ah_curchan;
+	const struct ieee80211_channel *c = AH_PRIVATE(ah)->ah_curchan;
 	u_int usec;
 
 	/* NB: ah_curchan may be null when called attach time */
 	if (c != AH_NULL) {
 		usec = clks / CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
-		if (IS_CHAN_HT40(c))
+		if (IEEE80211_IS_CHAN_HT40(c))
 			usec >>= 1;
-		else if (IS_CHAN_HALF_RATE(c))
-			usec <<= 1;
-		else if (IS_CHAN_QUARTER_RATE(c))
-			usec <<= 2;
 	} else
 		usec = clks / CLOCK_RATE[WIRELESS_MODE_11b];
 	return usec;
@@ -505,11 +405,7 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		}
 		return HAL_ENOTSUPP;
 	case HAL_CAP_11D:
-#ifdef AH_SUPPORT_11D
 		return HAL_OK;
-#else
-		return HAL_ENOTSUPP;
-#endif
 	case HAL_CAP_RXORN_FATAL:	/* HAL_INT_RXORN treated as fatal  */
 		return AH_PRIVATE(ah)->ah_rxornIsFatal ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_HT:
@@ -597,6 +493,15 @@ ath_hal_getregdump(struct ath_hal *ah, const HAL_REGRANGE *regs,
 	}
 	return (char *) dp - (char *) dstbuf;
 }
+ 
+static void
+ath_hal_setregs(struct ath_hal *ah, const HAL_REGWRITE *regs, int space)
+{
+	while (space >= sizeof(HAL_REGWRITE)) {
+		OS_REG_WRITE(ah, regs->addr, regs->value);
+		regs++, space -= sizeof(HAL_REGWRITE);
+	}
+}
 
 HAL_BOOL
 ath_hal_getdiagstate(struct ath_hal *ah, int request,
@@ -610,6 +515,10 @@ ath_hal_getdiagstate(struct ath_hal *ah, int request,
 		return AH_TRUE;
 	case HAL_DIAG_REGS:
 		*resultsize = ath_hal_getregdump(ah, args, *result,*resultsize);
+		return AH_TRUE;
+	case HAL_DIAG_SETREGS:
+		ath_hal_setregs(ah, args, argsize);
+		*resultsize = 0;
 		return AH_TRUE;
 	case HAL_DIAG_FATALERR:
 		*result = &AH_PRIVATE(ah)->ah_fatalState[0];
@@ -764,7 +673,7 @@ static const int16_t NOISE_FLOOR[] = { -96, -93,  -98, -96,  -93 };
  *     implement the ah_getChanNoise method.
  */
 int16_t
-ath_hal_getChanNoise(struct ath_hal *ah, HAL_CHANNEL *chan)
+ath_hal_getChanNoise(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	HAL_CHANNEL_INTERNAL *ichan;
 
@@ -772,7 +681,7 @@ ath_hal_getChanNoise(struct ath_hal *ah, HAL_CHANNEL *chan)
 	if (ichan == AH_NULL) {
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "%s: invalid channel %u/0x%x; no mapping\n",
-		    __func__, chan->channel, chan->channelFlags);
+		    __func__, chan->ic_freq, chan->ic_flags);
 		return 0;
 	}
 	if (ichan->rawNoiseFloor == 0) {
@@ -811,8 +720,8 @@ ath_hal_process_noisefloor(struct ath_hal *ah)
 		c = &AH_PRIVATE(ah)->ah_channels[i];
 		if (c->rawNoiseFloor >= 0)
 			continue;
-		mode = ath_hal_chan2wmode(ah, (HAL_CHANNEL *) c);
-		HALASSERT(mode < WIRELESS_MODE_MAX);
+		/* XXX can't identify proper mode */
+		mode = IS_CHAN_5GHZ(c) ? WIRELESS_MODE_11a : WIRELESS_MODE_11g;
 		nf = c->rawNoiseFloor + NOISE_FLOOR[mode] +
 			ath_hal_getNfAdjust(ah, c);
 		if (IS_CHAN_5GHZ(c)) {
@@ -838,9 +747,8 @@ ath_hal_process_noisefloor(struct ath_hal *ah)
 		/* Apply correction factor */
 		c->noiseFloorAdjust = ath_hal_getNfAdjust(ah, c) +
 			(IS_CHAN_5GHZ(c) ? correct5 : correct2);
-		HALDEBUG(ah, HAL_DEBUG_NFCAL, "%u/0x%x raw nf %d adjust %d\n",
-		    c->channel, c->channelFlags, c->rawNoiseFloor,
-		    c->noiseFloorAdjust);
+		HALDEBUG(ah, HAL_DEBUG_NFCAL, "%u raw nf %d adjust %d\n",
+		    c->channel, c->rawNoiseFloor, c->noiseFloorAdjust);
 	}
 }
 

@@ -288,6 +288,8 @@ svr4_ptm_alloc(td)
 	 * 
 	 * Cycle through the names. If sys_open() returns ENOENT (or
 	 * ENXIO), short circuit the cycle and exit.
+	 *
+	 * XXX: Maybe this can now be implemented by posix_openpt()?
 	 */
 	static char ptyname[] = "/dev/ptyXX";
 	static char ttyletters[] = "pqrstuwxyzPQRST";

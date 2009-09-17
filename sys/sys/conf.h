@@ -141,11 +141,11 @@ typedef void d_purge_t(struct cdev *dev);
 typedef int d_spare2_t(struct cdev *dev);
 
 typedef int dumper_t(
-	void *priv,		/* Private to the driver. */
-	void *virtual,		/* Virtual (mapped) address. */
-	vm_offset_t physical,	/* Physical address of virtual. */
-	off_t offset,		/* Byte-offset to write at. */
-	size_t length);		/* Number of bytes to dump. */
+	void *_priv,		/* Private to the driver. */
+	void *_virtual,		/* Virtual (mapped) address. */
+	vm_offset_t _physical,	/* Physical address of virtual. */
+	off_t _offset,		/* Byte-offset to write at. */
+	size_t _length);	/* Number of bytes to dump. */
 
 #endif /* _KERNEL */
 
@@ -219,8 +219,6 @@ struct cdevsw {
 #define	d_gianttrick		__d_giant.gianttrick
 #define	d_postfree_list		__d_giant.postfree_list
 
-#define NUMCDEVSW 256
-
 struct module;
 
 struct devsw_module_data {
@@ -274,10 +272,7 @@ void	dev_lock(void);
 void	dev_unlock(void);
 void	setconf(void);
 
-#define	dev2unit(d)	((d) ? (d)->si_drv0 : NODEV)
-#define	minor(d)	((d) ? (d)->si_drv0 : NODEV)
-#define	unit2minor(u)	(u)
-#define	minor2unit(m)	(m)
+#define	dev2unit(d)	((d)->si_drv0)
 
 typedef	void (*cdevpriv_dtr_t)(void *data);
 int	devfs_get_cdevpriv(void **datap);

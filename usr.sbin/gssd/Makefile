@@ -2,7 +2,7 @@
 
 PROG=	gssd
 MAN=	gssd.8
-SRCS=	gssd.c gssd_svc.c gssd_xdr.c gssd_prot.c
+SRCS=	gssd.c gssd.h gssd_svc.c gssd_xdr.c gssd_prot.c
 
 CFLAGS+= -I.
 WARNS?= 1

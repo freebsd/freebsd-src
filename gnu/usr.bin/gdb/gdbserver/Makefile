@@ -22,6 +22,10 @@ SRCS+= fbsd-i386-low.c i387-fp.c reg-i386.c
 SRCS+= fbsd-arm-low.c reg-arm.c
 .endif
 
+.if ${MACHINE_ARCH} == "powerpc"
+SRCS+= fbsd-ppc-low.c reg-ppc.c
+.endif
+
 #CFLAGS+=	-I${.CURDIR}/../arch/${MACHINE_ARCH}
 CFLAGS+=	-I${GDBDIR}/gdb/gdbserver
 CFLAGS+=	-I${GDBDIR}/gdb/regformats

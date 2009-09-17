@@ -86,7 +86,7 @@
 
 /*
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
- *	$Id: netdb.h,v 1.15.18.6 2006/10/02 01:23:09 marka Exp $
+ *	$Id: netdb.h,v 1.15.18.7 2008/02/28 05:49:37 marka Exp $
  */
 
 #ifndef _NETDB_H_
@@ -481,7 +481,7 @@ int		endservent_r __P((struct servent_data *));
 void		endservent_r __P((struct servent_data *));
 #endif
 #ifdef _AIX
-int		setnetgrent_r __P((const char *, void **));
+int		setnetgrent_r __P((char *, void **));
 void		endnetgrent_r __P((void **));
 /*
  * Note: AIX's netdb.h declares innetgr_r() as: 

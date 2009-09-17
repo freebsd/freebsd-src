@@ -162,7 +162,7 @@ char   *center(char *s, char *t, int w);
 void	mkmonth(int year, int month, int jd_flag, struct monthlines * monthl);
 void    mkmonthb(int year, int month, int jd_flag, struct monthlines * monthl);
 void    mkweekdays(struct weekdays * wds);
-int     parsemonth(const char *s);
+int     parsemonth(const char *s, int *m, int *y);
 void    printcc(void);
 void    printeaster(int year, int julian, int orthodox);
 void    printmonth(int year, int month, int jd_flag);
@@ -322,11 +322,11 @@ main(int argc, char *argv[])
 	}
 
 	if (flag_month != NULL) {
-		m = parsemonth(flag_month);
-		if (m < 1 || m > 12)
+		if (parsemonth(flag_month, &m, &y)) {
 			errx(EX_USAGE,
 			    "%s is neither a month number (1..12) nor a name",
 			    flag_month);
+		}
 	}
 
 	if (flag_easter)
@@ -859,18 +859,34 @@ center(char *s, char *t, int w)
 }
 
 int
-parsemonth(const char *s)
+parsemonth(const char *s, int *m, int *y)
 {
-	int v;
+	int nm, ny;
 	char *cp;
 	struct tm tm;
 
-	v = (int)strtol(s, &cp, 10);
-	if (cp != s)
-		return (v);
-	if (strptime(s, "%B", &tm) != NULL)
-		return (tm.tm_mon + 1);
-	if (strptime(s, "%b", &tm) != NULL)
-		return (tm.tm_mon + 1);
-	return (0);
+	nm = (int)strtol(s, &cp, 10);
+	if (cp != s) {
+		ny = *y;
+		if (*cp == '\0') {
+			;	/* no special action */
+		} else if (*cp == 'f' || *cp == 'F') {
+			if (nm <= *m)
+				ny++;
+		} else if (*cp == 'p' || *cp == 'P') {
+			if (nm >= *m)
+				ny--;
+		} else
+			return (1);
+		if (nm < 1 || nm > 12)
+			return 1;
+		*m = nm;
+		*y = ny;
+		return (0);
+	}
+	if (strptime(s, "%B", &tm) != NULL || strptime(s, "%b", &tm) != NULL) {
+		*m = tm.tm_mon + 1;
+		return (0);
+	}
+	return (1);
 }

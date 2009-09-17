@@ -55,27 +55,41 @@ MODULE_VERSION(usb2_template, 1);
 
 /* function prototypes */
 
-static void usb2_make_raw_desc(struct usb2_temp_setup *temp, const uint8_t *raw);
-static void usb2_make_endpoint_desc(struct usb2_temp_setup *temp, const struct usb2_temp_endpoint_desc *ted);
-static void usb2_make_interface_desc(struct usb2_temp_setup *temp, const struct usb2_temp_interface_desc *tid);
-static void usb2_make_config_desc(struct usb2_temp_setup *temp, const struct usb2_temp_config_desc *tcd);
-static void usb2_make_device_desc(struct usb2_temp_setup *temp, const struct usb2_temp_device_desc *tdd);
-static uint8_t usb2_hw_ep_match(const struct usb2_hw_ep_profile *pf, uint8_t ep_type, uint8_t ep_dir_in);
-static uint8_t usb2_hw_ep_find_match(struct usb2_hw_ep_scratch *ues, struct usb2_hw_ep_scratch_sub *ep, uint8_t is_simplex);
-static uint8_t usb2_hw_ep_get_needs(struct usb2_hw_ep_scratch *ues, uint8_t ep_type, uint8_t is_complete);
-static usb2_error_t usb2_hw_ep_resolve(struct usb2_device *udev, struct usb2_descriptor *desc);
-static const struct usb2_temp_device_desc *usb2_temp_get_tdd(struct usb2_device *udev);
-static void *usb2_temp_get_device_desc(struct usb2_device *udev);
-static void *usb2_temp_get_qualifier_desc(struct usb2_device *udev);
-static void *usb2_temp_get_config_desc(struct usb2_device *udev, uint16_t *pLength, uint8_t index);
-static const void *usb2_temp_get_string_desc(struct usb2_device *udev, uint16_t lang_id, uint8_t string_index);
-static const void *usb2_temp_get_vendor_desc(struct usb2_device *udev, const struct usb2_device_request *req);
-static const void *usb2_temp_get_hub_desc(struct usb2_device *udev);
-static void usb2_temp_get_desc(struct usb2_device *udev, struct usb2_device_request *req, const void **pPtr, uint16_t *pLength);
-static usb2_error_t usb2_temp_setup(struct usb2_device *udev, const struct usb2_temp_device_desc *tdd);
-static void usb2_temp_unsetup(struct usb2_device *udev);
-static usb2_error_t usb2_temp_setup_by_index(struct usb2_device *udev, uint16_t index);
-static void usb2_temp_init(void *arg);
+static void	usb2_make_raw_desc(struct usb2_temp_setup *, const uint8_t *);
+static void	usb2_make_endpoint_desc(struct usb2_temp_setup *,
+		    const struct usb2_temp_endpoint_desc *);
+static void	usb2_make_interface_desc(struct usb2_temp_setup *,
+		    const struct usb2_temp_interface_desc *);
+static void	usb2_make_config_desc(struct usb2_temp_setup *,
+		    const struct usb2_temp_config_desc *);
+static void	usb2_make_device_desc(struct usb2_temp_setup *,
+		    const struct usb2_temp_device_desc *);
+static uint8_t	usb2_hw_ep_match(const struct usb2_hw_ep_profile *, uint8_t,
+		    uint8_t);
+static uint8_t	usb2_hw_ep_find_match(struct usb2_hw_ep_scratch *,
+		    struct usb2_hw_ep_scratch_sub *, uint8_t);
+static uint8_t	usb2_hw_ep_get_needs(struct usb2_hw_ep_scratch *, uint8_t,
+		    uint8_t);
+static usb2_error_t usb2_hw_ep_resolve(struct usb2_device *,
+		    struct usb2_descriptor *);
+static const struct usb2_temp_device_desc *usb2_temp_get_tdd(struct usb2_device *);
+static void	*usb2_temp_get_device_desc(struct usb2_device *);
+static void	*usb2_temp_get_qualifier_desc(struct usb2_device *);
+static void	*usb2_temp_get_config_desc(struct usb2_device *, uint16_t *,
+		    uint8_t);
+static const void *usb2_temp_get_string_desc(struct usb2_device *, uint16_t,
+		    uint8_t);
+static const void *usb2_temp_get_vendor_desc(struct usb2_device *,
+		    const struct usb2_device_request *);
+static const void *usb2_temp_get_hub_desc(struct usb2_device *);
+static void	usb2_temp_get_desc(struct usb2_device *,
+		    struct usb2_device_request *, const void **, uint16_t *);
+static usb2_error_t usb2_temp_setup(struct usb2_device *,
+		    const struct usb2_temp_device_desc *);
+static void	usb2_temp_unsetup(struct usb2_device *);
+static usb2_error_t usb2_temp_setup_by_index(struct usb2_device *,
+		    uint16_t index);
+static void	usb2_temp_init(void *);
 
 /*------------------------------------------------------------------------*
  *	usb2_make_raw_desc
@@ -116,7 +130,6 @@ usb2_make_raw_desc(struct usb2_temp_setup *temp,
 		}
 		temp->size += len;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -217,7 +230,6 @@ usb2_make_endpoint_desc(struct usb2_temp_setup *temp,
 		}
 	}
 	temp->bNumEndpoints++;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -289,7 +301,6 @@ usb2_make_interface_desc(struct usb2_temp_setup *temp,
 		id->bInterfaceProtocol = tid->bInterfaceProtocol;
 		id->iInterface = tid->iInterface;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -352,7 +363,6 @@ usb2_make_config_desc(struct usb2_temp_setup *temp,
 			cd->bmAttributes &= ~UC_SELF_POWERED;
 		}
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -448,7 +458,6 @@ usb2_make_device_desc(struct usb2_temp_setup *temp,
 			break;
 		}
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1154,7 +1163,6 @@ tr_valid:
 tr_stalled:
 	*pPtr = NULL;
 	*pLength = 0;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1267,7 +1275,6 @@ usb2_temp_unsetup(struct usb2_device *udev)
 
 		udev->usb2_template_ptr = NULL;
 	}
-	return;
 }
 
 static usb2_error_t
@@ -1299,7 +1306,6 @@ usb2_temp_init(void *arg)
 	usb2_temp_get_desc_p = &usb2_temp_get_desc;
 	usb2_temp_setup_by_index_p = &usb2_temp_setup_by_index;
 	usb2_temp_unsetup_p = &usb2_temp_unsetup;
-	return;
 }
 
 SYSINIT(usb2_temp_init, SI_SUB_LOCK, SI_ORDER_FIRST, usb2_temp_init, NULL);

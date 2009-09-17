@@ -3,7 +3,7 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "WPA_SUPPLICANT.CONF" "5" "19 February 2008" "" ""
+.TH "WPA_SUPPLICANT.CONF" "5" "28 November 2008" "" ""
 
 .SH NAME
 wpa_supplicant.conf \- configuration file for wpa_supplicant
@@ -24,7 +24,7 @@ run in the background.
 Changes to configuration file can be reloaded be sending
 SIGHUP signal to \fBwpa_supplicant\fR ('killall -HUP
 wpa_supplicant'). Similarly, reloading can be triggered with
-the 'wpa_cli reconfigure' command.
+the \fBwpa_cli reconfigure\fR command.
 .PP
 Configuration file can include one or more network blocks,
 e.g., one for each used SSID. wpa_supplicant will automatically
@@ -179,7 +179,7 @@ network={
 .TP 3
 6. 
 Authentication for wired Ethernet. This can be used with
-'wired' interface (-Dwired on command line).
+\fBwired\fR interface (-Dwired on command line).
 .sp
 .RS
 

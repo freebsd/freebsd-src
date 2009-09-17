@@ -459,7 +459,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 #if HAVE_REGEX_H
 	r = apply_substitution(bsdtar, name, &subst_name, 0);
 	if (r == -1) {
-		bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+		bsdtar_warnc(bsdtar, 0, "Invalid substitution, skipping entry");
 		return 1;
 	}
 	if (r == 1) {
@@ -475,7 +475,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (archive_entry_hardlink(entry)) {
 		r = apply_substitution(bsdtar, archive_entry_hardlink(entry), &subst_name, 1);
 		if (r == -1) {
-			bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+			bsdtar_warnc(bsdtar, 0, "Invalid substitution, skipping entry");
 			return 1;
 		}
 		if (r == 1) {
@@ -486,7 +486,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (archive_entry_symlink(entry) != NULL) {
 		r = apply_substitution(bsdtar, archive_entry_symlink(entry), &subst_name, 1);
 		if (r == -1) {
-			bsdtar_warnc(bsdtar, 0, "Invalid substituion, skipping entry");
+			bsdtar_warnc(bsdtar, 0, "Invalid substitution, skipping entry");
 			return 1;
 		}
 		if (r == 1) {

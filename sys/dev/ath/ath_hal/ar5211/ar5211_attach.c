@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2006 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5211_attach.c,v 1.11 2008/11/27 22:29:52 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -31,12 +31,11 @@
 static HAL_BOOL ar5211GetChannelEdges(struct ath_hal *ah,
 		uint16_t flags, uint16_t *low, uint16_t *high);
 static HAL_BOOL ar5211GetChipPowerLimits(struct ath_hal *ah,
-		HAL_CHANNEL *chans, uint32_t nchans);
+		struct ieee80211_channel *chan);
 
 static const struct ath_hal_private ar5211hal = {{
 	.ah_magic			= AR5211_MAGIC,
 	.ah_abi				= HAL_ABI_VERSION,
-	.ah_countryCode			= CTRY_DEFAULT,
 
 	.ah_getRateTable		= ar5211GetRateTable,
 	.ah_detach			= ar5211Detach,
@@ -232,7 +231,7 @@ ar5211Attach(uint16_t devid, HAL_SOFTC sc,
 	ahp->ah_acktimeout = (u_int) -1;
 	ahp->ah_ctstimeout = (u_int) -1;
 
-	if (!ar5211ChipReset(ah, AH_FALSE)) {	/* reset chip */
+	if (!ar5211ChipReset(ah, AH_NULL)) {	/* reset chip */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
 		ecode = HAL_EIO;
 		goto bad;
@@ -420,12 +419,13 @@ static HAL_BOOL
 ar5211GetChannelEdges(struct ath_hal *ah,
 	uint16_t flags, uint16_t *low, uint16_t *high)
 {
-	if (flags & CHANNEL_5GHZ) {
+	if (flags & IEEE80211_CHAN_5GHZ) {
 		*low = 4920;
 		*high = 6100;
 		return AH_TRUE;
 	}
-	if (flags & CHANNEL_2GHZ && ath_hal_eepromGetFlag(ah, AR_EEP_BMODE)) {
+	if (flags & IEEE80211_CHAN_2GHZ &&
+	    ath_hal_eepromGetFlag(ah, AR_EEP_BMODE)) {
 		*low = 2312;
 		*high = 2732;
 		return AH_TRUE;
@@ -434,20 +434,14 @@ ar5211GetChannelEdges(struct ath_hal *ah,
 }
 
 static HAL_BOOL
-ar5211GetChipPowerLimits(struct ath_hal *ah, HAL_CHANNEL *chans, uint32_t nchans)
+ar5211GetChipPowerLimits(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
-	HAL_CHANNEL *chan;
-	int i;
-
 	/* XXX fill in, this is just a placeholder */
-	for (i = 0; i < nchans; i++) {
-		chan = &chans[i];
-		HALDEBUG(ah, HAL_DEBUG_ATTACH,
-		    "%s: no min/max power for %u/0x%x\n",
-		    __func__, chan->channel, chan->channelFlags);
-		chan->maxTxPower = MAX_RATE_POWER;
-		chan->minTxPower = 0;
-	}
+	HALDEBUG(ah, HAL_DEBUG_ATTACH,
+	    "%s: no min/max power for %u/0x%x\n",
+	    __func__, chan->ic_freq, chan->ic_flags);
+	chan->ic_maxpower = MAX_RATE_POWER;
+	chan->ic_minpower = 0;
 	return AH_TRUE;
 }
 

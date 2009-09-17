@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus_private.h>
 #include <machine/iommureg.h>
 #include <machine/iommuvar.h>
-#include <machine/ofw_bus.h>
 #include <machine/resource.h>
 #include <machine/ver.h>
 

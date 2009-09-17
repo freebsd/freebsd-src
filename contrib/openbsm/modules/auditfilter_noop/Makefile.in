@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/modules/auditfilter_noop/Makefile.in#6 $
+# $P4: //depot/projects/trustedbsd/openbsm/modules/auditfilter_noop/Makefile.in#7 $
 #
 
 VPATH = @srcdir@

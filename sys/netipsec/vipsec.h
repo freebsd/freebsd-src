@@ -38,8 +38,6 @@
 #include <net/pfkeyv2.h>
 #include <net/raw_cb.h>
 
-#include <netinet/ipprotosw.h>
-
 #include <netipsec/ah_var.h>
 #include <netipsec/esp_var.h>
 #include <netipsec/ipcomp_var.h>
@@ -108,6 +106,12 @@ struct vnet_ipsec {
 	LIST_HEAD(, secacq)	_acqtree;
 	LIST_HEAD(, secspacq)	_spacqtree;
 };
+
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+extern struct vnet_ipsec vnet_ipsec_0;
+#endif
+#endif
 
 /*
  * Symbol translation macros

@@ -87,6 +87,8 @@ __BEGIN_DECLS
 report_desc_t hid_get_report_desc(int file);
 report_desc_t hid_use_report_desc(unsigned char *data, unsigned int size);
 void hid_dispose_report_desc(report_desc_t);
+int hid_get_report_id(int file);
+int hid_set_immed(int fd, int enable);
 
 /* Parsing of a HID report descriptor, parse.c: */
 hid_data_t hid_start_parse(report_desc_t d, int kindset, int id);

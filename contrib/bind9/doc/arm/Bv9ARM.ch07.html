@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch07.html,v 1.75.18.63 2007/10/31 01:35:59 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch07.html,v 1.75.18.76 2008/10/16 01:29:41 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -46,10 +46,10 @@
 <p><b>Table of Contents</b></p>
 <dl>
 <dt><span class="sect1"><a href="Bv9ARM.ch07.html#Access_Control_Lists">Access Control Lists</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch07.html#id2592714"><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span></a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch07.html#id2593181"><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span></a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2592791">The <span><strong class="command">chroot</strong></span> Environment</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2592851">Using the <span><strong class="command">setuid</strong></span> Function</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2593326">The <span><strong class="command">chroot</strong></span> Environment</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2593386">Using the <span><strong class="command">setuid</strong></span> Function</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch07.html#dynamic_update_security">Dynamic Update Security</a></span></dt>
 </dl>
@@ -118,7 +118,7 @@ zone "example.com" {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2592714"></a><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span>
+<a name="id2593181"></a><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span>
 </h2></div></div></div>
 <p>
           On UNIX servers, it is possible to run <acronym class="acronym">BIND</acronym> in a <span class="emphasis"><em>chrooted</em></span> environment
@@ -142,7 +142,7 @@ zone "example.com" {
         </p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592791"></a>The <span><strong class="command">chroot</strong></span> Environment</h3></div></div></div>
+<a name="id2593326"></a>The <span><strong class="command">chroot</strong></span> Environment</h3></div></div></div>
 <p>
             In order for a <span><strong class="command">chroot</strong></span> environment
             to
@@ -170,7 +170,7 @@ zone "example.com" {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2592851"></a>Using the <span><strong class="command">setuid</strong></span> Function</h3></div></div></div>
+<a name="id2593386"></a>Using the <span><strong class="command">setuid</strong></span> Function</h3></div></div></div>
 <p>
             Prior to running the <span><strong class="command">named</strong></span> daemon,
             use

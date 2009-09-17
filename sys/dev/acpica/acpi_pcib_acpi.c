@@ -68,10 +68,11 @@ static int		acpi_pcib_read_ivar(device_t dev, device_t child,
 			    int which, uintptr_t *result);
 static int		acpi_pcib_write_ivar(device_t dev, device_t child,
 			    int which, uintptr_t value);
-static uint32_t		acpi_pcib_read_config(device_t dev, int bus, int slot,
-			    int func, int reg, int bytes);
-static void		acpi_pcib_write_config(device_t dev, int bus, int slot,
-			    int func, int reg, uint32_t data, int bytes);
+static uint32_t		acpi_pcib_read_config(device_t dev, u_int bus,
+			    u_int slot, u_int func, u_int reg, int bytes);
+static void		acpi_pcib_write_config(device_t dev, u_int bus,
+			    u_int slot, u_int func, u_int reg, uint32_t data,
+			    int bytes);
 static int		acpi_pcib_acpi_route_interrupt(device_t pcib,
 			    device_t dev, int pin);
 static int		acpi_pcib_alloc_msi(device_t pcib, device_t dev,
@@ -297,15 +298,15 @@ acpi_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 static uint32_t
-acpi_pcib_read_config(device_t dev, int bus, int slot, int func, int reg,
-    int bytes)
+acpi_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
+    u_int reg, int bytes)
 {
     return (pci_cfgregread(bus, slot, func, reg, bytes));
 }
 
 static void
-acpi_pcib_write_config(device_t dev, int bus, int slot, int func, int reg,
-    uint32_t data, int bytes)
+acpi_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
+    u_int reg, uint32_t data, int bytes)
 {
     pci_cfgregwrite(bus, slot, func, reg, data, bytes);
 }

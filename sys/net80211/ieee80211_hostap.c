@@ -355,7 +355,7 @@ hostap_deliver_data(struct ieee80211vap *vap,
 		if (mcopy != NULL) {
 			int len, err;
 			len = mcopy->m_pkthdr.len;
-			err = (ifp->if_transmit)(ifp, mcopy);
+			err = ifp->if_transmit(ifp, mcopy);
 			if (err) {
 				/* NB: IFQ_HANDOFF reclaims mcopy */
 			} else {
@@ -902,7 +902,7 @@ hostap_auth_open(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		 * open auth is attempted.
 		 */
 		if (ni->ni_challenge != NULL) {
-			FREE(ni->ni_challenge, M_80211_NODE);
+			free(ni->ni_challenge, M_80211_NODE);
 			ni->ni_challenge = NULL;
 		}
 		/* XXX hack to workaround calling convention */
@@ -928,6 +928,11 @@ hostap_auth_open(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 	 * after the transaction completes.
 	 */
 	ni->ni_flags |= IEEE80211_NODE_AREF;
+	/*
+	 * Mark the node as requiring a valid association id
+	 * before outbound traffic is permitted.
+	 */
+	ni->ni_flags |= IEEE80211_NODE_ASSOCID;
 
 	if (vap->iv_acl != NULL &&
 	    vap->iv_acl->iac_getpolicy(vap) == IEEE80211_MACCMD_POLICY_RADIUS) {
@@ -1054,6 +1059,11 @@ hostap_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		 * after the transaction completes.
 		 */
 		ni->ni_flags |= IEEE80211_NODE_AREF;
+		/*
+		 * Mark the node as requiring a valid associatio id
+		 * before outbound traffic is permitted.
+		 */
+		ni->ni_flags |= IEEE80211_NODE_ASSOCID;
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 		ni->ni_noise = noise;
 		ni->ni_rstamp = rstamp;
@@ -1986,7 +1996,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			return;
 		/* discard challenge after association */
 		if (ni->ni_challenge != NULL) {
-			FREE(ni->ni_challenge, M_80211_NODE);
+			free(ni->ni_challenge, M_80211_NODE);
 			ni->ni_challenge = NULL;
 		}
 		/* NB: 802.11 spec says to ignore station's privacy bit */

@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/sx.h>
 #include <sys/uio.h>
 #include <sys/fcntl.h>
 
@@ -47,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ppbus/ppb_msq.h>
 
 #ifdef PERIPH_1284
+#include <sys/malloc.h>
 #include <dev/ppbus/ppb_1284.h>
 #endif
 
@@ -61,11 +64,10 @@ __FBSDID("$FreeBSD$");
 struct ppi_data {
     device_t	ppi_device;
     struct cdev *ppi_cdev;
+    struct sx	ppi_lock;
     int		ppi_flags;
 #define HAVE_PPBUS	(1<<0)
-#define HAD_PPBUS	(1<<1)
 
-    int		ppi_count;
     int		ppi_mode;			/* IEEE1284 mode */
     char	ppi_buffer[BUFSIZE];
 
@@ -80,6 +82,10 @@ struct ppi_data {
 
 static devclass_t ppi_devclass;
 
+#ifdef PERIPH_1284
+static void	ppiintr(void *arg);
+#endif
+
 static	d_open_t	ppiopen;
 static	d_close_t	ppiclose;
 static	d_ioctl_t	ppiioctl;
@@ -88,7 +94,6 @@ static	d_read_t	ppiread;
 
 static struct cdevsw ppi_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	ppiopen,
 	.d_close =	ppiclose,
 	.d_read =	ppiread,
@@ -160,13 +165,27 @@ ppi_attach(device_t dev)
 {
 	struct ppi_data *ppi = DEVTOSOFTC(dev);
 #ifdef PERIPH_1284
-	int rid = 0;
+	int error, rid = 0;
 
 	/* declare our interrupt handler */
 	ppi->intr_resource = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
+	if (ppi->intr_resource) {
+		/* register our interrupt handler */
+		error = bus_setup_intr(dev, ppi->intr_resource,
+		    INTR_TYPE_TTY | INTR_MPSAFE, NULL, ppiintr, dev,
+		    &ppi->intr_cookie);
+		if (error) {
+			bus_release_resource(dev, SYS_RES_IRQ, rid,
+			    ppi->intr_resource);
+			device_printf(dev,
+			    "Unable to register interrupt handler\n");
+			return (error);
+		}
+	}
 #endif /* PERIPH_1284 */
 
+	sx_init(&ppi->ppi_lock, "ppi");
 	ppi->ppi_cdev = make_dev(&ppi_cdevsw, device_get_unit(dev),
 		 UID_ROOT, GID_WHEEL,
 		 0600, "ppi%d", device_get_unit(dev));
@@ -177,6 +196,22 @@ ppi_attach(device_t dev)
 	ppi->ppi_cdev->si_drv1 = ppi;
 	ppi->ppi_device = dev;
 
+	return (0);
+}
+
+static int
+ppi_detach(device_t dev)
+{
+	struct ppi_data *ppi = DEVTOSOFTC(dev);
+
+	destroy_dev(ppi->ppi_cdev);
+#ifdef PERIPH_1284
+	if (ppi->intr_resource != NULL) {
+		bus_teardown_intr(dev, ppi->intr_resource, ppi->intr_cookie);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, ppi->intr_resource);
+	}
+#endif
+	sx_destroy(&ppi->ppi_lock);
 	return (0);
 }
 
@@ -200,6 +235,7 @@ ppiintr(void *arg)
 	device_t ppbus = device_get_parent(ppidev);
 	struct ppi_data *ppi = DEVTOSOFTC(ppidev);
 
+	ppb_assert_locked(ppbus);
 	ppi_disable_intr(ppidev);
 
 	switch (ppb_1284_get_state(ppbus)) {
@@ -259,24 +295,20 @@ ppiopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	device_t ppbus = device_get_parent(ppidev);
 	int res;
 
+	sx_xlock(&ppi->ppi_lock);
 	if (!(ppi->ppi_flags & HAVE_PPBUS)) {
-		if ((res = ppb_request_bus(ppbus, ppidev,
-			(flags & O_NONBLOCK) ? PPB_DONTWAIT :
-						(PPB_WAIT | PPB_INTR))))
+		ppb_lock(ppbus);
+		res = ppb_request_bus(ppbus, ppidev,
+		    (flags & O_NONBLOCK) ? PPB_DONTWAIT : PPB_WAIT | PPB_INTR);
+		ppb_unlock(ppbus);
+		if (res) {
+			sx_xunlock(&ppi->ppi_lock);
 			return (res);
+		}
 
 		ppi->ppi_flags |= HAVE_PPBUS;
-
-#ifdef PERIPH_1284
-		if (ppi->intr_resource) {
-			/* register our interrupt handler */
-			bus_setup_intr(ppidev, ppi->intr_resource,
-				       INTR_TYPE_TTY, NULL, ppiintr, dev,
-				       &ppi->intr_cookie);
-		}
-#endif /* PERIPH_1284 */
 	}
-	ppi->ppi_count += 1;
+	sx_xunlock(&ppi->ppi_lock);
 
 	return (0);
 }
@@ -288,28 +320,28 @@ ppiclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	device_t ppidev = ppi->ppi_device;
 	device_t ppbus = device_get_parent(ppidev);
 
-	ppi->ppi_count --;
-	if (!ppi->ppi_count) {
-
+	sx_xlock(&ppi->ppi_lock);
+	ppb_lock(ppbus);
 #ifdef PERIPH_1284
-		switch (ppb_1284_get_state(ppbus)) {
-		case PPB_PERIPHERAL_IDLE:
-			ppb_peripheral_terminate(ppbus, 0);
-			break;
-		case PPB_REVERSE_IDLE:
-		case PPB_EPP_IDLE:
-		case PPB_ECP_FORWARD_IDLE:
-		default:
-			ppb_1284_terminate(ppbus);
-			break;
-		}
+	switch (ppb_1284_get_state(ppbus)) {
+	case PPB_PERIPHERAL_IDLE:
+		ppb_peripheral_terminate(ppbus, 0);
+		break;
+	case PPB_REVERSE_IDLE:
+	case PPB_EPP_IDLE:
+	case PPB_ECP_FORWARD_IDLE:
+	default:
+		ppb_1284_terminate(ppbus);
+		break;
+	}
 #endif /* PERIPH_1284 */
 
-		/* unregistration of interrupt forced by release */
-		ppb_release_bus(ppbus, ppidev);
+	/* unregistration of interrupt forced by release */
+	ppb_release_bus(ppbus, ppidev);
+	ppb_unlock(ppbus);
 
-		ppi->ppi_flags &= ~HAVE_PPBUS;
-	}
+	ppi->ppi_flags &= ~HAVE_PPBUS;
+	sx_xunlock(&ppi->ppi_lock);
 
 	return (0);
 }
@@ -330,7 +362,11 @@ ppiread(struct cdev *dev, struct uio *uio, int ioflag)
 	device_t ppidev = ppi->ppi_device;
 	device_t ppbus = device_get_parent(ppidev);
 	int len, error = 0;
+	char *buffer;
 
+	buffer = malloc(BUFSIZE, M_DEVBUF, M_WAITOK);
+
+	ppb_lock(ppbus);
 	switch (ppb_1284_get_state(ppbus)) {
 	case PPB_PERIPHERAL_IDLE:
 		ppb_peripheral_terminate(ppbus, 0);
@@ -346,11 +382,14 @@ ppiread(struct cdev *dev, struct uio *uio, int ioflag)
 			/* XXX Wait 2 seconds to let the remote host some
 			 * time to terminate its interrupt
 			 */
-			tsleep(ppi, PPBPRI, "ppiread", 2*hz);
+			ppb_sleep(ppbus, ppi, PPBPRI, "ppiread", 2 * hz);
 
 			if ((error = ppb_1284_negociate(ppbus,
-				ppi->ppi_mode = PPB_BYTE, 0)))
+			    ppi->ppi_mode = PPB_BYTE, 0))) {
+				ppb_unlock(ppbus);
+				free(buffer, M_DEVBUF);
 				return (error);
+			}
 		}
 		break;
 
@@ -367,11 +406,11 @@ ppiread(struct cdev *dev, struct uio *uio, int ioflag)
 	/* read data */
 	len = 0;
 	while (uio->uio_resid) {
-		if ((error = ppb_1284_read(ppbus, ppi->ppi_mode,
-			ppi->ppi_buffer, min(BUFSIZE, uio->uio_resid),
-			&len))) {
+		error = ppb_1284_read(ppbus, ppi->ppi_mode,
+		    buffer, min(BUFSIZE, uio->uio_resid), &len);
+		ppb_unlock(ppbus);
+		if (error)
 			goto error;
-		}
 
 		if (!len)
 			goto error;		/* no more data */
@@ -379,12 +418,14 @@ ppiread(struct cdev *dev, struct uio *uio, int ioflag)
 #ifdef DEBUG_1284
 		printf("d");
 #endif
-		if ((error = uiomove(ppi->ppi_buffer, len, uio)))
+		if ((error = uiomove(buffer, len, uio)))
 			goto error;
+		ppb_lock(ppbus);
 	}
+	ppb_unlock(ppbus);
 
 error:
-
+	free(buffer, M_DEVBUF);
 #else /* PERIPH_1284 */
 	int error = ENODEV;
 #endif
@@ -413,6 +454,7 @@ ppiwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	device_t ppidev = ppi->ppi_device;
 	device_t ppbus = device_get_parent(ppidev);
 	int len, error = 0, sent;
+	char *buffer;
 
 #if 0
 	int ret;
@@ -425,18 +467,26 @@ ppiwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		  MS_RET(0)
 	};
 
+	buffer = malloc(BUFSIZE, M_DEVBUF, M_WAITOK);
+	ppb_lock(ppbus);
+
 	/* negotiate ECP mode */
 	if (ppb_1284_negociate(ppbus, PPB_ECP, 0)) {
 		printf("ppiwrite: ECP negotiation failed\n");
 	}
 
 	while (!error && (len = min(uio->uio_resid, BUFSIZE))) {
-		uiomove(ppi->ppi_buffer, len, uio);
+		ppb_unlock(ppbus);
+		uiomove(buffer, len, uio);
 
-		ppb_MS_init_msq(msq, 2, ADDRESS, ppi->ppi_buffer, LENGTH, len);
+		ppb_MS_init_msq(msq, 2, ADDRESS, buffer, LENGTH, len);
 
+		ppb_lock(ppbus);
 		error = ppb_MS_microseq(ppbus, msq, &ret);
 	}
+#else
+	buffer = malloc(BUFSIZE, M_DEVBUF, M_WAITOK);
+	ppb_lock(ppbus);
 #endif
 
 	/* we have to be peripheral to be able to send data, so
@@ -454,7 +504,7 @@ ppiwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		ppi_enable_intr(ppidev);
 
 		/* sleep until IEEE1284 negotiation starts */
-		error = tsleep(ppi, PCATCH | PPBPRI, "ppiwrite", 0);
+		error = ppb_sleep(ppbus, ppi, PCATCH | PPBPRI, "ppiwrite", 0);
 
 		switch (error) {
 		case 0:
@@ -473,9 +523,11 @@ ppiwrite(struct cdev *dev, struct uio *uio, int ioflag)
 
 	/* negotiation done, write bytes to master host */
 	while ((len = min(uio->uio_resid, BUFSIZE)) != 0) {
-		uiomove(ppi->ppi_buffer, len, uio);
+		ppb_unlock(ppbus);
+		uiomove(buffer, len, uio);
+		ppb_lock(ppbus);
 		if ((error = byte_peripheral_write(ppbus,
-						ppi->ppi_buffer, len, &sent)))
+						buffer, len, &sent)))
 			goto error;
 #ifdef DEBUG_1284
 		printf("d");
@@ -483,7 +535,8 @@ ppiwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 
 error:
-
+	ppb_unlock(ppbus);
+	free(buffer, M_DEVBUF);
 #else /* PERIPH_1284 */
 	int error = ENODEV;
 #endif
@@ -500,6 +553,7 @@ ppiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 	int error = 0;
 	u_int8_t *val = (u_int8_t *)data;
 
+	ppb_lock(ppbus);
 	switch (cmd) {
 
 	case PPIGDATA:			/* get data register */
@@ -548,6 +602,7 @@ ppiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		error = ENOTTY;
 		break;
 	}
+	ppb_unlock(ppbus);
 
 	return (error);
 }
@@ -557,6 +612,7 @@ static device_method_t ppi_methods[] = {
 	DEVMETHOD(device_identify,	ppi_identify),
 	DEVMETHOD(device_probe,		ppi_probe),
 	DEVMETHOD(device_attach,	ppi_attach),
+	DEVMETHOD(device_detach,	ppi_detach),
 
 	{ 0, 0 }
 };

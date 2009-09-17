@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/libkern.h>
 #include <sys/endian.h>
-#if defined(__i386__) && !defined(PC98)
+#if defined(__amd64__) || (defined(__i386__) && !defined(PC98))
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>

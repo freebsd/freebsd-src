@@ -117,7 +117,7 @@ __FBSDID("$FreeBSD$");
 		pci_read_config(DEV, REG, SIZE) MASK1) MASK2, SIZE)
 
 static void cbb_chipinit(struct cbb_softc *sc);
-static void cbb_pci_intr(void *arg);
+static int cbb_pci_filt(void *arg);
 
 static struct yenta_chipinfo {
 	uint32_t yc_id;
@@ -313,8 +313,6 @@ cbb_pci_attach(device_t brdev)
 
 	parent = device_get_parent(brdev);
 	mtx_init(&sc->mtx, device_get_nameunit(brdev), "cbb", MTX_DEF);
-	cv_init(&sc->cv, "cbb cv");
-	cv_init(&sc->powercv, "cbb cv");
 	sc->chipset = cbb_chipset(pci_get_devid(brdev), NULL);
 	sc->dev = brdev;
 	sc->cbdev = NULL;
@@ -332,7 +330,6 @@ cbb_pci_attach(device_t brdev)
 	if (!sc->base_res) {
 		device_printf(brdev, "Could not map register memory\n");
 		mtx_destroy(&sc->mtx);
-		cv_destroy(&sc->cv);
 		return (ENOMEM);
 	} else {
 		DEVPRINTF((brdev, "Found memory at %08lx\n",
@@ -416,7 +413,7 @@ cbb_pci_attach(device_t brdev)
 	}
 
 	if (bus_setup_intr(brdev, sc->irq_res, INTR_TYPE_AV | INTR_MPSAFE,
-	    NULL, cbb_pci_intr, sc, &sc->intrhand)) {
+	    cbb_pci_filt, NULL, sc, &sc->intrhand)) {
 		device_printf(brdev, "couldn't establish interrupt\n");
 		goto err;
 	}
@@ -442,6 +439,7 @@ cbb_pci_attach(device_t brdev)
 		device_printf(brdev, "unable to create event thread.\n");
 		panic("cbb_create_event_thread");
 	}
+	sc->sc_root_token = root_mount_hold(device_get_nameunit(sc->dev));
 	return (0);
 err:
 	if (sc->irq_res)
@@ -451,7 +449,6 @@ err:
 		    sc->base_res);
 	}
 	mtx_destroy(&sc->mtx);
-	cv_destroy(&sc->cv);
 	return (ENOMEM);
 }
 
@@ -686,73 +683,96 @@ cbb_pci_shutdown(device_t brdev)
 	return (0);
 }
 
-static void
-cbb_pci_intr(void *arg)
+static int
+cbb_pci_filt(void *arg)
 {
 	struct cbb_softc *sc = arg;
 	uint32_t sockevent;
+	uint8_t csc;
+	int retval = FILTER_STRAY;
 
 	/*
-	 * Read the socket event.  Sometimes, the theory goes, the PCI
-	 * bus is so loaded that it cannot satisfy the read request, so
-	 * we get garbage back from the following read.  We have to filter
-	 * out the garbage so that we don't spontaneously reset the card
-	 * under high load.  PCI isn't supposed to act like this.  No doubt
-	 * this is a bug in the PCI bridge chipset (or cbb brige) that's being
-	 * used in certain amd64 laptops today.  Work around the issue by
-	 * assuming that any bits we don't know about being set means that
-	 * we got garbage.
-	 */
-	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
-	if (sockevent != 0 && (sockevent & ~CBB_SOCKET_EVENT_VALID_MASK) == 0) {
-		/* ack the interrupt */
-		cbb_set(sc, CBB_SOCKET_EVENT, sockevent);
-
-		/*
-		 * If anything has happened to the socket, we assume that
-		 * the card is no longer OK, and we shouldn't call its
-		 * ISR.  We set cardok as soon as we've attached the
-		 * card.  This helps in a noisy eject, which happens
-		 * all too often when users are ejecting their PC Cards.
-		 *
-		 * We use this method in preference to checking to see if
-		 * the card is still there because the check suffers from
-		 * a race condition in the bouncing case.  Prior versions
-		 * of the pccard software used a similar trick and achieved
-		 * excellent results.
-		 */
-		if (sockevent & CBB_SOCKET_EVENT_CD) {
-			mtx_lock(&sc->mtx);
-			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
-			sc->cardok = 0;
-			cbb_disable_func_intr(sc);
-			cv_signal(&sc->cv);
-			mtx_unlock(&sc->mtx);
-		}
-		/*
-		 * If we get a power interrupt, wakeup anybody that might
-		 * be waiting for one.
-		 */
-		if (sockevent & CBB_SOCKET_EVENT_POWER) {
-			mtx_lock(&sc->mtx);
-			sc->powerintr++;
-			cv_signal(&sc->powercv);
-			mtx_unlock(&sc->mtx);
-		}
-	}
-	/*
-	 * Some chips also require us to read the old ExCA registe for
-	 * card status change when we route CSC vis PCI.  This isn't supposed
-	 * to be required, but it clears the interrupt state on some chipsets.
+	 * Some chips also require us to read the old ExCA registe for card
+	 * status change when we route CSC vis PCI.  This isn't supposed to be
+	 * required, but it clears the interrupt state on some chipsets.
 	 * Maybe there's a setting that would obviate its need.  Maybe we
 	 * should test the status bits and deal with them, but so far we've
 	 * not found any machines that don't also give us the socket status
 	 * indication above.
 	 *
-	 * We have to call this unconditionally because some bridges deliver
-	 * the event independent of the CBB_SOCKET_EVENT_CD above.
+	 * This call used to be unconditional.  However, further research
+	 * suggests that we hit this condition when the card READY interrupt
+	 * fired.  So now we only read it for 16-bit cards, and we only claim
+	 * the interrupt if READY is set.  If this still causes problems, then
+	 * the next step would be to read this if we have a 16-bit card *OR*
+	 * we have no card.  We treat the READY signal as if it were the power
+	 * completion signal.  Some bridges may double signal things here, bit
+	 * signalling twice should be OK since we only sleep on the powerintr
+	 * in one place and a double wakeup would be benign there.
 	 */
-	exca_getb(&sc->exca[0], EXCA_CSC);
+	if (sc->flags & CBB_16BIT_CARD) {
+		csc = exca_getb(&sc->exca[0], EXCA_CSC);
+		if (csc & EXCA_CSC_READY) {
+			atomic_add_int(&sc->powerintr, 1);
+			wakeup((void *)&sc->powerintr);
+			retval = FILTER_HANDLED;
+		}
+	}
+
+	/*
+	 * Read the socket event.  Sometimes, the theory goes, the PCI bus is
+	 * so loaded that it cannot satisfy the read request, so we get
+	 * garbage back from the following read.  We have to filter out the
+	 * garbage so that we don't spontaneously reset the card under high
+	 * load.  PCI isn't supposed to act like this.  No doubt this is a bug
+	 * in the PCI bridge chipset (or cbb brige) that's being used in
+	 * certain amd64 laptops today.  Work around the issue by assuming
+	 * that any bits we don't know about being set means that we got
+	 * garbage.
+	 */
+	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
+	if (sockevent != 0 && (sockevent & ~CBB_SOCKET_EVENT_VALID_MASK) == 0) {
+		/*
+		 * If anything has happened to the socket, we assume that the
+		 * card is no longer OK, and we shouldn't call its ISR.  We
+		 * set cardok as soon as we've attached the card.  This helps
+		 * in a noisy eject, which happens all too often when users
+		 * are ejecting their PC Cards.
+		 *
+		 * We use this method in preference to checking to see if the
+		 * card is still there because the check suffers from a race
+		 * condition in the bouncing case.
+		 */
+#define DELTA (CBB_SOCKET_MASK_CD)
+		if (sockevent & DELTA) {
+			cbb_clrb(sc, CBB_SOCKET_MASK, DELTA);
+			cbb_set(sc, CBB_SOCKET_EVENT, DELTA);
+			sc->cardok = 0;
+			cbb_disable_func_intr(sc);
+			wakeup(&sc->intrhand);
+		}
+#undef DELTA
+
+		/*
+		 * Wakeup anybody waiting for a power interrupt.  We have to
+		 * use atomic_add_int for wakups on other cores.
+		 */
+		if (sockevent & CBB_SOCKET_EVENT_POWER) {
+			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_EVENT_POWER);
+			cbb_set(sc, CBB_SOCKET_EVENT, CBB_SOCKET_EVENT_POWER);
+			atomic_add_int(&sc->powerintr, 1);
+			wakeup((void *)&sc->powerintr);
+		}
+
+		/*
+		 * Status change interrupts aren't presently used in the
+		 * rest of the driver.  For now, just ACK them.
+		 */
+		if (sockevent & CBB_SOCKET_EVENT_CSTS)
+			cbb_set(sc, CBB_SOCKET_EVENT, CBB_SOCKET_EVENT_CSTS);
+		retval = FILTER_HANDLED;
+	}
+	return retval;
 }
 
 /************************************************************************/
@@ -766,20 +786,17 @@ cbb_maxslots(device_t brdev)
 }
 
 static uint32_t
-cbb_read_config(device_t brdev, int b, int s, int f, int reg, int width)
+cbb_read_config(device_t brdev, u_int b, u_int s, u_int f, u_int reg, int width)
 {
-	uint32_t rv;
-
 	/*
 	 * Pass through to the next ppb up the chain (i.e. our grandparent).
 	 */
-	rv = PCIB_READ_CONFIG(device_get_parent(device_get_parent(brdev)),
-	    b, s, f, reg, width);
-	return (rv);
+	return (PCIB_READ_CONFIG(device_get_parent(device_get_parent(brdev)),
+	    b, s, f, reg, width));
 }
 
 static void
-cbb_write_config(device_t brdev, int b, int s, int f, int reg, uint32_t val,
+cbb_write_config(device_t brdev, u_int b, u_int s, u_int f, u_int reg, uint32_t val,
     int width)
 {
 	/*

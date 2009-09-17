@@ -38,8 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 char *
-strdup(str)
-	const char *str;
+strdup(const char *str)
 {
 	size_t len;
 	char *copy;

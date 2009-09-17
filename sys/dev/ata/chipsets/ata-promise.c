@@ -53,16 +53,16 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_promise_chipinit(device_t dev);
-static int ata_promise_allocate(device_t dev);
+static int ata_promise_ch_attach(device_t dev);
 static int ata_promise_status(device_t dev);
 static int ata_promise_dmastart(struct ata_request *request);
 static int ata_promise_dmastop(struct ata_request *request);
 static void ata_promise_dmareset(device_t dev);
-static void ata_promise_dmainit(device_t dev);
 static void ata_promise_setmode(device_t dev, int mode);
-static int ata_promise_tx2_allocate(device_t dev);
+static int ata_promise_tx2_ch_attach(device_t dev);
 static int ata_promise_tx2_status(device_t dev);
-static int ata_promise_mio_allocate(device_t dev);
+static int ata_promise_mio_ch_attach(device_t dev);
+static int ata_promise_mio_ch_detach(device_t dev);
 static void ata_promise_mio_intr(void *data);
 static int ata_promise_mio_status(device_t dev);
 static int ata_promise_mio_command(struct ata_request *request);
@@ -226,19 +226,19 @@ ata_promise_chipinit(device_t dev)
     case PR_NEW:
 	/* setup clocks */
 	ATA_OUTB(ctlr->r_res1, 0x11, ATA_INB(ctlr->r_res1, 0x11) | 0x0a);
-
-	ctlr->dmainit = ata_promise_dmainit;
 	/* FALLTHROUGH */
 
     case PR_OLD:
 	/* enable burst mode */
 	ATA_OUTB(ctlr->r_res1, 0x1f, ATA_INB(ctlr->r_res1, 0x1f) | 0x01);
-	ctlr->allocate = ata_promise_allocate;
+	ctlr->ch_attach = ata_promise_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->setmode = ata_promise_setmode;
 	return 0;
 
     case PR_TX:
-	ctlr->allocate = ata_promise_tx2_allocate;
+	ctlr->ch_attach = ata_promise_tx2_ch_attach;
+	ctlr->ch_detach = ata_pci_ch_detach;
 	ctlr->setmode = ata_promise_setmode;
 	return 0;
 
@@ -284,9 +284,9 @@ ata_promise_chipinit(device_t dev)
 	    TAILQ_INIT(&hpkt->queue);
 	    hpkt->busy = 0;
 	    device_set_ivars(dev, hpkt);
-	    ctlr->allocate = ata_promise_mio_allocate;
+	    ctlr->ch_attach = ata_promise_mio_ch_attach;
+	    ctlr->ch_detach = ata_promise_mio_ch_detach;
 	    ctlr->reset = ata_promise_mio_reset;
-	    ctlr->dmainit = ata_promise_mio_dmainit;
 	    ctlr->setmode = ata_promise_setmode;
 	    ctlr->channels = 4;
 	    return 0;
@@ -337,9 +337,9 @@ sataii:
 	if ((ctlr->chip->cfg2 == PR_SATA2) || (ctlr->chip->cfg2 == PR_CMBO2))
 	    ATA_OUTL(ctlr->r_res2, 0x44, ATA_INL(ctlr->r_res2, 0x44) | 0x2000);
 
-	ctlr->allocate = ata_promise_mio_allocate;
+	ctlr->ch_attach = ata_promise_mio_ch_attach;
+	ctlr->ch_detach = ata_promise_mio_ch_detach;
 	ctlr->reset = ata_promise_mio_reset;
-	ctlr->dmainit = ata_promise_mio_dmainit;
 	ctlr->setmode = ata_promise_mio_setmode;
 
 	return 0;
@@ -354,12 +354,19 @@ failnfree:
 }
 
 static int
-ata_promise_allocate(device_t dev)
+ata_promise_ch_attach(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
+
+    if (ctlr->chip->cfg1 == PR_NEW) {
+        ch->dma.start = ata_promise_dmastart;
+        ch->dma.stop = ata_promise_dmastop;
+        ch->dma.reset = ata_promise_dmareset;
+    }
 
     ch->hw.status = ata_promise_status;
     return 0;
@@ -431,17 +438,6 @@ ata_promise_dmareset(device_t dev)
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR); 
     ch->flags &= ~ATA_DMA_ACTIVE;
-}
-
-static void
-ata_promise_dmainit(device_t dev)
-{
-    struct ata_channel *ch = device_get_softc(dev);
-
-    ata_dmainit(dev);
-    ch->dma.start = ata_promise_dmastart;
-    ch->dma.stop = ata_promise_dmastop;
-    ch->dma.reset = ata_promise_dmareset;
 }
 
 static void
@@ -521,11 +517,11 @@ ata_promise_setmode(device_t dev, int mode)
 }
 
 static int
-ata_promise_tx2_allocate(device_t dev)
+ata_promise_tx2_ch_attach(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
-    if (ata_pci_allocate(dev))
+    if (ata_pci_ch_attach(dev))
 	return ENXIO;
 
     ch->hw.status = ata_promise_tx2_status;
@@ -545,13 +541,15 @@ ata_promise_tx2_status(device_t dev)
 }
 
 static int
-ata_promise_mio_allocate(device_t dev)
+ata_promise_mio_ch_attach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int offset = (ctlr->chip->cfg2 & PR_SX4X) ? 0x000c0000 : 0;
     int i;
- 
+
+    ata_promise_mio_dmainit(dev);
+
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
 	ch->r_io[i].res = ctlr->r_res2;
 	ch->r_io[i].offset = offset + 0x0200 + (i << 2) + (ch->unit << 7); 
@@ -584,6 +582,14 @@ ata_promise_mio_allocate(device_t dev)
 	ch->hw.pm_write = ata_promise_mio_pm_write;
      }
     return 0;
+}
+
+static int
+ata_promise_mio_ch_detach(device_t dev)
+{
+
+    ata_dmafini(dev);
+    return (0);
 }
 
 static void
@@ -631,7 +637,6 @@ ata_promise_mio_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    struct ata_connect_task *tp;
     u_int32_t fake_reg, stat_reg, vector, status;
 
     switch (ctlr->chip->cfg2) {
@@ -657,31 +662,17 @@ ata_promise_mio_status(device_t dev)
     ATA_OUTL(ctlr->r_res2, stat_reg, status & (0x00000011 << ch->unit));
 
     /* check for and handle disconnect events */
-    if ((status & (0x00000001 << ch->unit)) &&
-	(tp = (struct ata_connect_task *)
-	      malloc(sizeof(struct ata_connect_task),
-		     M_ATA, M_NOWAIT | M_ZERO))) {
-
+    if (status & (0x00000001 << ch->unit)) {
 	if (bootverbose)
 	    device_printf(dev, "DISCONNECT requested\n");
-	tp->action = ATA_C_DETACH;
-	tp->dev = dev;
-	TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	taskqueue_enqueue(taskqueue_thread, &tp->task);
+	taskqueue_enqueue(taskqueue_thread, &ch->conntask);
     }
 
     /* check for and handle connect events */
-    if ((status & (0x00000010 << ch->unit)) &&
-	(tp = (struct ata_connect_task *)
-	      malloc(sizeof(struct ata_connect_task),
-		     M_ATA, M_NOWAIT | M_ZERO))) {
-
+    if (status & (0x00000010 << ch->unit)) {
 	if (bootverbose)
 	    device_printf(dev, "CONNECT requested\n");
-	tp->action = ATA_C_ATTACH;
-	tp->dev = dev;
-	TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	taskqueue_enqueue(taskqueue_thread, &tp->task);
+	taskqueue_enqueue(taskqueue_thread, &ch->conntask);
     }
 
     /* do we have any device action ? */
@@ -817,21 +808,21 @@ ata_promise_mio_reset(device_t dev)
 		if (1 | bootverbose)
         	    device_printf(dev, "SIGNATURE: %08x\n", signature);
 
-		switch (signature) {
-		case 0x00000101:
+		switch (signature >> 16) {
+		case 0x0000:
 		    ch->devices = ATA_ATA_MASTER;
 		    break;
-		case 0x96690101:
+		case 0x9669:
 		    ch->devices = ATA_PORTMULTIPLIER;
 		    ata_pm_identify(dev);
 		    break;
-		case 0xeb140101:
+		case 0xeb14:
 		    ch->devices = ATA_ATAPI_MASTER;
 		    break;
 		default: /* SOS XXX */
 		    if (bootverbose)
 			device_printf(dev,
-				      "No signature, asuming disk device\n");
+				      "No signature, assuming disk device\n");
 		    ch->devices = ATA_ATA_MASTER;
 		}
 		if (bootverbose)

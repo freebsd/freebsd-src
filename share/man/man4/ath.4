@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+.\" Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
 .\" All rights reserved.
 .\""
 .\" Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd April 13, 2008
+.Dd January 13, 2009
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@ kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ath"
 .Cd "device ath_hal"
+.Cd "options AH_SUPPORT_AR5416"
 .Cd "device ath_rate_sample"
 .Cd "device wlan"
 .Ed
@@ -55,14 +56,14 @@ if_ath_load="YES"
 The
 .Nm
 driver provides support for wireless network adapters based on
-the Atheros AR5210, AR5211, and AR5212 programming APIs.
+the Atheros AR5210, AR5211, AR5212, and AR5416 programming APIs.
 These APIs are used by a wide variety of chips; most all chips with
 a PCI and/or CardBus interface are supported.
 Chip-specific support is provided by the Atheros Hardware Access Layer
-(HAL), that is packaged separately.
+(HAL).
 .Pp
 Supported features include 802.11 and 802.3 frames, power management, BSS,
-IBSS, and host-based access point operation modes.
+IBSS, TDMA, and host-based access point operation modes.
 All host/device interaction is via DMA.
 .Pp
 The
@@ -78,17 +79,21 @@ speeds as above for 802.11a operation and
 1Mbps, 2Mbps, 5.5 Mbps and 11Mbps for 802.11b operation.
 AR5212-based devices support 802.11a, 802.11b, and 802.11g operation
 with transmit speeds appropriate to each.
+AR5416-class devices are capable of 802.11n operation
+but are supported only in legacy modes (802.11a, 11b, 11g).
 Most chips also support an Atheros Turbo Mode (TM) that operates in
 the 5Ghz frequency range with 2x the transmit speeds.
 Some chips also support Turbo mode in the 2.4Ghz range with 802.11g
 though this support is not presently available due to regulatory requirements.
 (Note that Turbo modes are, however,
 only interoperable with other Atheros-based devices.)
+AR5212-based devices also support half- (10MHz) and quarter-width (5MHz) channels.
 The actual transmit speed used is dependent on signal quality and the
 .Dq "rate control"
 algorithm employed by the driver.
 All chips support WEP encryption.
-The AR5212 has hardware support for the AES-CCM, TKIP, and Michael cryptographic
+AR5212 and AR5416 parts have hardware support for the
+AES-CCM, TKIP, and Michael cryptographic
 operations required for WPA.
 To enable encryption, use
 .Xr ifconfig 8
@@ -120,6 +125,13 @@ Multiple
 interfaces may be operated together with 
 .Cm hostap
 interfaces to construct a wireless repeater device.
+The driver also support
+.Cm tdma
+operation when compiled with
+.Cd "options AH_SUPPORT_TDMA"
+(and the wlan module is build with
+.Cd "options IEEE80211_SUPPORT_TDMA"
+to enable the associated 802.11 support).
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
@@ -179,6 +191,14 @@ ifconfig wlan0 create wlandev ath0 wlanmode hostap \e
 ifconfig wlan1 create wlandev ath0 wlanmode hostap bssid \e
 	ssid freeloaders up
 ifconfig bridge0 create addm wlan0 addm wlan1 addm fxp0 up
+.Ed
+.Pp
+Create a master node in a two slot TDMA BSS configured to use
+2.5 millisecond slots.
+.Bd -literal -offset indent
+ifconfig wlan0 create wlandev ath0 wlanmode tdma \e
+	ssid tdma-test tmdaslot 0 tdmaslotlen 2500 \e
+	channel 36 up 
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag

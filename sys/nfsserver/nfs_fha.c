@@ -162,7 +162,7 @@ static void
 fha_extract_info(struct svc_req *req, struct fha_info *i)
 {
 	struct mbuf *md = req->rq_args;
-	fhandle_t fh;
+	nfsfh_t fh;
 	caddr_t dpos = mtod(md, caddr_t);
 	static u_int64_t random_fh = 0;
 	int error;
@@ -205,11 +205,11 @@ fha_extract_info(struct svc_req *req, struct fha_info *i)
 		goto out;
 	
 	/* Grab the filehandle. */
-	error = nfsm_srvmtofh_xx(&fh, v3, &md, &dpos);
+	error = nfsm_srvmtofh_xx(&fh.fh_generic, v3, &md, &dpos);
 	if (error)
 		goto out;
 
-	i->fh = *(const u_int64_t *)(fh.fh_fid.fid_data);
+	i->fh = *(const u_int64_t *)(fh.fh_generic.fh_fid.fid_data);
 
 	/* Content ourselves with zero offset for all but reads. */
 	if (procnum != NFSPROC_READ)

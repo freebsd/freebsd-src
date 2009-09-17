@@ -296,7 +296,8 @@ mfi_attach(struct mfi_softc *sc)
 	uint32_t status;
 	int error, commsz, framessz, sensesz;
 	int frames, unit, max_fw_sge;
-    device_printf(sc->mfi_dev, "Megaraid SAS driver Ver 2.00 \n");
+
+	device_printf(sc->mfi_dev, "Megaraid SAS driver Ver 3.00 \n");
 
 	mtx_init(&sc->mfi_io_lock, "MFI I/O lock", NULL, MTX_DEF);
 	sx_init(&sc->mfi_config_lock, "MFI config");

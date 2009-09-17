@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -92,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #define HTTP_MOVED_PERM		301
 #define HTTP_MOVED_TEMP		302
 #define HTTP_SEE_OTHER		303
+#define HTTP_NOT_MODIFIED	304
 #define HTTP_TEMP_REDIRECT	307
 #define HTTP_NEED_AUTH		401
 #define HTTP_NEED_PROXY_AUTH	407
@@ -797,20 +799,23 @@ FILE *
 http_request(struct url *URL, const char *op, struct url_stat *us,
     struct url *purl, const char *flags)
 {
+	char timebuf[80];
+	char hbuf[MAXHOSTNAMELEN + 7], *host;
 	conn_t *conn;
 	struct url *url, *new;
-	int chunked, direct, need_auth, noredirect, verbose;
+	int chunked, direct, ims, need_auth, noredirect, verbose;
 	int e, i, n, val;
 	off_t offset, clength, length, size;
 	time_t mtime;
 	const char *p;
 	FILE *f;
 	hdr_t h;
-	char hbuf[MAXHOSTNAMELEN + 7], *host;
+	struct tm *timestruct;
 
 	direct = CHECK_FLAG('d');
 	noredirect = CHECK_FLAG('A');
 	verbose = CHECK_FLAG('v');
+	ims = CHECK_FLAG('i');
 
 	if (direct && purl) {
 		fetchFreeURL(purl);
@@ -879,6 +884,14 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 			    op, url->doc);
 		}
 
+		if (ims && url->ims_time) {
+			timestruct = gmtime((time_t *)&url->ims_time);
+			(void)strftime(timebuf, 80, "%a, %d %b %Y %T GMT",
+			    timestruct);
+			if (verbose)
+				fetch_info("If-Modified-Since: %s", timebuf);
+			http_cmd(conn, "If-Modified-Since: %s", timebuf);
+		}
 		/* virtual host */
 		http_cmd(conn, "Host: %s", host);
 
@@ -940,6 +953,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		switch (http_get_reply(conn)) {
 		case HTTP_OK:
 		case HTTP_PARTIAL:
+		case HTTP_NOT_MODIFIED:
 			/* fine */
 			break;
 		case HTTP_MOVED_PERM:
@@ -1074,7 +1088,10 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		}
 
 		/* we have a hit or an error */
-		if (conn->err == HTTP_OK || conn->err == HTTP_PARTIAL || HTTP_ERROR(conn->err))
+		if (conn->err == HTTP_OK
+		    || conn->err == HTTP_NOT_MODIFIED
+		    || conn->err == HTTP_PARTIAL
+		    || HTTP_ERROR(conn->err))
 			break;
 
 		/* all other cases: we got a redirect */
@@ -1101,6 +1118,11 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		  " size %lld, clength %lld\n",
 		  (long long)offset, (long long)length,
 		  (long long)size, (long long)clength));
+
+	if (conn->err == HTTP_NOT_MODIFIED) {
+		http_seterr(HTTP_NOT_MODIFIED);
+		return (NULL);
+	}
 
 	/* check for inconsistencies */
 	if (clength != -1 && length != -1 && clength != length) {

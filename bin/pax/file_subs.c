@@ -425,17 +425,9 @@ node_creat(ARCHD *arcn)
 	 * we were able to create the node. set uid/gid, modes and times
 	 */
 	if (pids)
-		res = ((arcn->type == PAX_SLK) ?
-		    set_lids(arcn->name, arcn->sb.st_uid, arcn->sb.st_gid) :
-		    set_ids(arcn->name, arcn->sb.st_uid, arcn->sb.st_gid));
+		res = set_ids(arcn->name, arcn->sb.st_uid, arcn->sb.st_gid);
 	else
 		res = 0;
-
-	/*
-	 * symlinks are done now.
-	 */
-	if (arcn->type == PAX_SLK)
-		return(0);
 
 	/*
 	 * IMPORTANT SECURITY NOTE:
@@ -632,7 +624,7 @@ chk_path( char *name, uid_t st_uid, gid_t st_gid)
  *	used by -t to reset access times).
  *	When ign is zero, only those times the user has asked for are set, the
  *	other ones are left alone. We do not assume the un-documented feature
- *	of many utimes() implementations that consider a 0 time value as a do
+ *	of many lutimes() implementations that consider a 0 time value as a do
  *	not set request.
  */
 
@@ -661,7 +653,7 @@ set_ftime(char *fnm, time_t mtime, time_t atime, int frc)
 	/*
 	 * set the times
 	 */
-	if (utimes(fnm, tv) < 0)
+	if (lutimes(fnm, tv) < 0)
 		syswarn(1, errno, "Access/modification time set failed on: %s",
 		    fnm);
 	return;
@@ -676,30 +668,6 @@ set_ftime(char *fnm, time_t mtime, time_t atime, int frc)
 
 int
 set_ids(char *fnm, uid_t uid, gid_t gid)
-{
-	if (chown(fnm, uid, gid) < 0) {
-		/*
-		 * ignore EPERM unless in verbose mode or being run by root.
-		 * if running as pax, POSIX requires a warning.
-		 */
-		if (strcmp(NM_PAX, argv0) == 0 || errno != EPERM || vflag ||
-		    geteuid() == 0)
-			syswarn(1, errno, "Unable to set file uid/gid of %s",
-			    fnm);
-		return(-1);
-	}
-	return(0);
-}
-
-/*
- * set_lids()
- *	set the uid and gid of a file system node
- * Return:
- *	0 when set, -1 on failure
- */
-
-int
-set_lids(char *fnm, uid_t uid, gid_t gid)
 {
 	if (lchown(fnm, uid, gid) < 0) {
 		/*
@@ -724,7 +692,7 @@ void
 set_pmode(char *fnm, mode_t mode)
 {
 	mode &= ABITS;
-	if (chmod(fnm, mode) < 0)
+	if (lchmod(fnm, mode) < 0)
 		syswarn(1, errno, "Could not set permissions on %s", fnm);
 	return;
 }

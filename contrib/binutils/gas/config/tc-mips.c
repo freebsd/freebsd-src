@@ -281,6 +281,9 @@ static int mips_32bitmode = 0;
 
 #define HAVE_64BIT_OBJECTS (mips_abi == N64_ABI)
 
+/* True if relocations are stored in-place.  */
+#define HAVE_IN_PLACE_ADDENDS (!HAVE_NEWABI)
+
 /* We can only have 64bit addresses if the object file format
    supports it.  */
 #define HAVE_32BIT_ADDRESSES                           \
@@ -13019,6 +13022,26 @@ mips_fix_adjustable (fixS *fixp)
 
   if (fixp->fx_addsy == NULL)
     return 1;
+
+  /* If symbol SYM is in a mergeable section, relocations of the form
+     SYM + 0 can usually be made section-relative.  The mergeable data
+     is then identified by the section offset rather than by the symbol.
+
+     However, if we're generating REL LO16 relocations, the offset is split
+     between the LO16 and parterning high part relocation.  The linker will
+     need to recalculate the complete offset in order to correctly identify
+     the merge data.
+
+     The linker has traditionally not looked for the parterning high part
+     relocation, and has thus allowed orphaned R_MIPS_LO16 relocations to be
+     placed anywhere.  Rather than break backwards compatibility by changing
+     this, it seems better not to force the issue, and instead keep the
+     original symbol.  This will work with either linker behavior.  */
+  if ((fixp->fx_r_type == BFD_RELOC_LO16
+       || reloc_needs_lo_p (fixp->fx_r_type))
+      && HAVE_IN_PLACE_ADDENDS
+      && (S_GET_SEGMENT (fixp->fx_addsy)->flags & SEC_MERGE) != 0)
+    return 0;
 
 #ifdef OBJ_ELF
   if (OUTPUT_FLAVOR == bfd_target_elf_flavour

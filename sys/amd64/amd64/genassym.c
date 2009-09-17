@@ -36,6 +36,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_hwpmc_hooks.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -44,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
+#ifdef	HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 #include <sys/errno.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -216,3 +220,7 @@ ASSYM(KUC32SEL, GSEL(GUCODE32_SEL, SEL_UPL));
 ASSYM(SEL_RPL_MASK, SEL_RPL_MASK);
 
 ASSYM(MSR_GSBASE, MSR_GSBASE);
+
+#ifdef	HWPMC_HOOKS
+ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
+#endif

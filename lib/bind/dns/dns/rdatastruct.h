@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003 Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -1608,10 +1608,10 @@ typedef struct dns_rdata_rrsig {
 
 #endif /* GENERIC_DNSSIG_46_H */
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -1627,10 +1627,10 @@ typedef struct dns_rdata_rrsig {
 #ifndef GENERIC_NSEC_47_H
 #define GENERIC_NSEC_47_H 1
 
-/* $Id: nsec_47.h,v 1.4.20.2 2005/04/29 00:16:37 marka Exp $ */
+/* $Id: nsec_47.h,v 1.4.20.4 2008/07/15 23:46:14 tbox Exp $ */
 
 /*!
- * \brief Per draft-ietf-dnsext-nsec-rdata-01.txt */
+ * \brief Per RFC 3845 */
 
 typedef struct dns_rdata_nsec {
 	dns_rdatacommon_t	common;

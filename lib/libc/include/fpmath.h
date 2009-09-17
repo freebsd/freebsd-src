@@ -30,6 +30,10 @@
 #include <sys/endian.h>
 #include "_fpmath.h"
 
+#ifndef _IEEE_WORD_ORDER
+#define	_IEEE_WORD_ORDER	_BYTE_ORDER
+#endif
+
 union IEEEf2bits {
 	float	f;
 	struct {
@@ -52,10 +56,15 @@ union IEEEd2bits {
 	double	d;
 	struct {
 #if _BYTE_ORDER == _LITTLE_ENDIAN
+#if _IEEE_WORD_ORDER == _LITTLE_ENDIAN
 		unsigned int	manl	:32;
+#endif
 		unsigned int	manh	:20;
 		unsigned int	exp	:11;
 		unsigned int	sign	:1;
+#if _IEEE_WORD_ORDER == _BIG_ENDIAN
+		unsigned int	manl	:32;
+#endif
 #else /* _BIG_ENDIAN */
 		unsigned int	sign	:1;
 		unsigned int	exp	:11;

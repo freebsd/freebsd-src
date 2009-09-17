@@ -65,7 +65,7 @@ int
 main(int argc, char *argv[])
 {
 	const struct passwd *pw;
-	int ch, howto, i, fd, lflag, nflag, qflag, pflag, sverrno;
+	int ch, howto, i, fd, lflag, nflag, qflag, sverrno;
 	u_int pageins;
 	const char *p, *user, *kernel = NULL;
 
@@ -91,7 +91,6 @@ main(int argc, char *argv[])
 			howto |= RB_NOSYNC;
 			break;
 		case 'p':
-			pflag = 1;
 			howto |= RB_POWEROFF;
 			break;
 		case 'q':

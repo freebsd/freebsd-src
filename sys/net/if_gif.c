@@ -95,6 +95,12 @@
 static struct mtx gif_mtx;
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 
+#ifndef VIMAGE
+#ifndef VIMAGE_GLOBALS
+struct vnet_gif vnet_gif_0;
+#endif
+#endif
+
 #ifdef VIMAGE_GLOBALS
 static LIST_HEAD(, gif_softc) gif_softc_list;
 static int max_gif_nesting;

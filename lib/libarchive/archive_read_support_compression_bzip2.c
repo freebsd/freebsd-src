@@ -51,30 +51,49 @@ __FBSDID("$FreeBSD$");
 #if HAVE_BZLIB_H
 struct private_data {
 	bz_stream	 stream;
-	char		*uncompressed_buffer;
-	size_t		 uncompressed_buffer_size;
-	char		*read_next;
-	int64_t		 total_out;
+	char		*out_block;
+	size_t		 out_block_size;
+	char		 valid; /* True = decompressor is initialized */
 	char		 eof; /* True = found end of compressed data. */
 };
 
-static int	finish(struct archive_read *);
-static ssize_t	read_ahead(struct archive_read *, const void **, size_t);
-static ssize_t	read_consume(struct archive_read *, size_t);
-static int	drive_decompressor(struct archive_read *a, struct private_data *);
+/* Bzip2 source */
+static ssize_t	bzip2_source_read(struct archive_read_source *, const void **);
+static int	bzip2_source_close(struct archive_read_source *);
 #endif
 
-/* These two functions are defined even if we lack the library.  See below. */
-static int	bid(const void *, size_t);
-static int	init(struct archive_read *, const void *, size_t);
+/*
+ * Note that we can detect bzip2 archives even if we can't decompress
+ * them.  (In fact, we like detecting them because we can give better
+ * error messages.)  So the bid framework here gets compiled even
+ * if bzlib is unavailable.
+ */
+static int	bzip2_reader_bid(struct archive_reader *, const void *, size_t);
+static struct archive_read_source *bzip2_reader_init(struct archive_read *,
+    struct archive_reader *, struct archive_read_source *,
+    const void *, size_t);
+static int	bzip2_reader_free(struct archive_reader *);
 
 int
 archive_read_support_compression_bzip2(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	if (__archive_read_register_compression(a, bid, init) != NULL)
-		return (ARCHIVE_OK);
-	return (ARCHIVE_FATAL);
+	struct archive_reader *reader = __archive_read_get_reader(a);
+
+	if (reader == NULL)
+		return (ARCHIVE_FATAL);
+
+	reader->data = NULL;
+	reader->bid = bzip2_reader_bid;
+	reader->init = bzip2_reader_init;
+	reader->free = bzip2_reader_free;
+	return (ARCHIVE_OK);
+}
+
+static int
+bzip2_reader_free(struct archive_reader *self){
+	(void)self; /* UNUSED */
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -85,10 +104,12 @@ archive_read_support_compression_bzip2(struct archive *_a)
  * from verifying as much as we would like.
  */
 static int
-bid(const void *buff, size_t len)
+bzip2_reader_bid(struct archive_reader *self, const void *buff, size_t len)
 {
 	const unsigned char *buffer;
 	int bits_checked;
+
+	(void)self; /* UNUSED */
 
 	if (len < 1)
 		return (0);
@@ -150,16 +171,19 @@ bid(const void *buff, size_t len)
  * decompression.  We can, however, still detect compressed archives
  * and emit a useful message.
  */
-static int
-init(struct archive_read *a, const void *buff, size_t n)
+static struct archive_read_source *
+bzip2_reader_init(struct archive_read *a, struct archive_reader *reader,
+    struct archive_read_source *upstream, const void *buff, size_t n)
 {
 	(void)a;	/* UNUSED */
+	(void)reader;	/* UNUSED */
+	(void)upstream; /* UNUSED */
 	(void)buff;	/* UNUSED */
 	(void)n;	/* UNUSED */
 
 	archive_set_error(&a->archive, -1,
 	    "This version of libarchive was compiled without bzip2 support");
-	return (ARCHIVE_FATAL);
+	return (NULL);
 }
 
 
@@ -168,37 +192,42 @@ init(struct archive_read *a, const void *buff, size_t n)
 /*
  * Setup the callbacks.
  */
-static int
-init(struct archive_read *a, const void *buff, size_t n)
+static struct archive_read_source *
+bzip2_reader_init(struct archive_read *a, struct archive_reader *reader,
+    struct archive_read_source *upstream, const void *buff, size_t n)
 {
+	static const size_t out_block_size = 64 * 1024;
+	void *out_block;
+	struct archive_read_source *self;
 	struct private_data *state;
-	int ret;
+
+	(void)reader; /* UNUSED */
 
 	a->archive.compression_code = ARCHIVE_COMPRESSION_BZIP2;
 	a->archive.compression_name = "bzip2";
 
-	state = (struct private_data *)malloc(sizeof(*state));
-	if (state == NULL) {
+	self = calloc(sizeof(*self), 1);
+	state = (struct private_data *)calloc(sizeof(*state), 1);
+	out_block = (unsigned char *)malloc(out_block_size);
+	if (self == NULL || state == NULL || out_block == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate data for %s decompression",
 		    a->archive.compression_name);
-		return (ARCHIVE_FATAL);
-	}
-	memset(state, 0, sizeof(*state));
-
-	state->uncompressed_buffer_size = 64 * 1024;
-	state->uncompressed_buffer = (char *)malloc(state->uncompressed_buffer_size);
-	state->stream.next_out = state->uncompressed_buffer;
-	state->read_next = state->uncompressed_buffer;
-	state->stream.avail_out = state->uncompressed_buffer_size;
-
-	if (state->uncompressed_buffer == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate %s decompression buffers",
-		    a->archive.compression_name);
+		free(out_block);
 		free(state);
-		return (ARCHIVE_FATAL);
+		free(self);
+		return (NULL);
 	}
+
+
+	self->archive = a;
+	self->data = state;
+	state->out_block_size = out_block_size;
+	state->out_block = out_block;
+	self->upstream = upstream;
+	self->read = bzip2_source_read;
+	self->skip = NULL; /* not supported */
+	self->close = bzip2_source_close;
 
 	/*
 	 * A bug in bzlib.h: stream.next_in should be marked 'const'
@@ -209,218 +238,160 @@ init(struct archive_read *a, const void *buff, size_t n)
 	state->stream.next_in = (char *)(uintptr_t)(const void *)buff;
 	state->stream.avail_in = n;
 
-	a->decompressor->read_ahead = read_ahead;
-	a->decompressor->consume = read_consume;
-	a->decompressor->skip = NULL; /* not supported */
-	a->decompressor->finish = finish;
+	state->stream.next_out = state->out_block;
+	state->stream.avail_out = state->out_block_size;
 
-	/* Initialize compression library. */
-	ret = BZ2_bzDecompressInit(&(state->stream),
-	    0 /* library verbosity */,
-	    0 /* don't use slow low-mem algorithm */);
-
-	/* If init fails, try using low-memory algorithm instead. */
-	if (ret == BZ_MEM_ERROR) {
-		ret = BZ2_bzDecompressInit(&(state->stream),
-		    0 /* library verbosity */,
-		    1 /* do use slow low-mem algorithm */);
-	}
-
-	if (ret == BZ_OK) {
-		a->decompressor->data = state;
-		return (ARCHIVE_OK);
-	}
-
-	/* Library setup failed: Clean up. */
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "Internal error initializing %s library",
-	    a->archive.compression_name);
-	free(state->uncompressed_buffer);
-	free(state);
-
-	/* Override the error message if we know what really went wrong. */
-	switch (ret) {
-	case BZ_PARAM_ERROR:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Internal error initializing compression library: "
-		    "invalid setup parameter");
-		break;
-	case BZ_MEM_ERROR:
-		archive_set_error(&a->archive, ENOMEM,
-		    "Internal error initializing compression library: "
-		    "out of memory");
-		break;
-	case BZ_CONFIG_ERROR:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Internal error initializing compression library: "
-		    "mis-compiled library");
-		break;
-	}
-
-	return (ARCHIVE_FATAL);
+	return (self);
 }
 
 /*
- * Return a block of data from the decompression buffer.  Decompress more
- * as necessary.
+ * Return the next block of decompressed data.
  */
 static ssize_t
-read_ahead(struct archive_read *a, const void **p, size_t min)
+bzip2_source_read(struct archive_read_source *self, const void **p)
 {
 	struct private_data *state;
-	size_t read_avail, was_avail;
+	size_t read_avail, decompressed;
+	const void *read_buf;
 	int ret;
 
-	state = (struct private_data *)a->decompressor->data;
-	if (!a->client_reader) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "No read callback is registered?  "
-		    "This is probably an internal programming error.");
-		return (ARCHIVE_FATAL);
+	state = (struct private_data *)self->data;
+	read_avail = 0;
+
+	if (state->eof) {
+		*p = NULL;
+		return (0);
 	}
 
-	read_avail = state->stream.next_out - state->read_next;
+	/* Empty our output buffer. */
+	state->stream.next_out = state->out_block;
+	state->stream.avail_out = state->out_block_size;
 
-	if (read_avail + state->stream.avail_out < min) {
-		memmove(state->uncompressed_buffer, state->read_next,
-		    read_avail);
-		state->read_next = state->uncompressed_buffer;
-		state->stream.next_out = state->read_next + read_avail;
-		state->stream.avail_out
-		    = state->uncompressed_buffer_size - read_avail;
-	}
+	/* Try to fill the output buffer. */
+	for (;;) {
+		/* If the last upstream block is done, get another one. */
+		if (state->stream.avail_in == 0) {
+			ret = (self->upstream->read)(self->upstream,
+			    &read_buf);
+			/* stream.next_in is really const, but bzlib
+			 * doesn't declare it so. <sigh> */
+			state->stream.next_in
+			    = (unsigned char *)(uintptr_t)read_buf;
+			if (ret < 0)
+				return (ARCHIVE_FATAL);
+			/* There is no more data, return whatever we have. */
+			if (ret == 0) {
+				state->eof = 1;
+				*p = state->out_block;
+				decompressed = state->stream.next_out
+				    - state->out_block;
+				return (decompressed);
+			}
+			state->stream.avail_in = ret;
+		}
 
-	while (read_avail < min &&		/* Haven't satisfied min. */
-	    read_avail < state->uncompressed_buffer_size) { /* !full */
-		was_avail = read_avail;
-		if ((ret = drive_decompressor(a, state)) < ARCHIVE_OK)
-			return (ret);
-		if (ret == ARCHIVE_EOF)
-			break; /* Break on EOF even if we haven't met min. */
-		read_avail = state->stream.next_out - state->read_next;
-		if (was_avail == read_avail) /* No progress? */
+		if (!state->valid) {
+			if (state->stream.next_in[0] != 'B') {
+				state->eof = 1;
+				*p = state->out_block;
+				decompressed = state->stream.next_out
+				    - state->out_block;
+				return (decompressed);
+			}
+			/* Initialize compression library. */
+			ret = BZ2_bzDecompressInit(&(state->stream),
+					   0 /* library verbosity */,
+					   0 /* don't use low-mem algorithm */);
+
+			/* If init fails, try low-memory algorithm instead. */
+			if (ret == BZ_MEM_ERROR)
+				ret = BZ2_bzDecompressInit(&(state->stream),
+					   0 /* library verbosity */,
+					   1 /* do use low-mem algo */);
+
+			if (ret != BZ_OK) {
+				const char *detail = NULL;
+				int err = ARCHIVE_ERRNO_MISC;
+				switch (ret) {
+				case BZ_PARAM_ERROR:
+					detail = "invalid setup parameter";
+					break;
+				case BZ_MEM_ERROR:
+					err = ENOMEM;
+					detail = "out of memory";
+					break;
+				case BZ_CONFIG_ERROR:
+					detail = "mis-compiled library";
+					break;
+				}
+				archive_set_error(&self->archive->archive, err,
+				    "Internal error initializing decompressor%s%s",
+				    detail == NULL ? "" : ": ",
+				    detail);
+				return (ARCHIVE_FATAL);
+			}
+			state->valid = 1;
+		}
+
+		/* Decompress as much as we can in one pass. */
+		ret = BZ2_bzDecompress(&(state->stream));
+		switch (ret) {
+		case BZ_STREAM_END: /* Found end of stream. */
+			switch (BZ2_bzDecompressEnd(&(state->stream))) {
+			case BZ_OK:
+				break;
+			default:
+				archive_set_error(&(self->archive->archive),
+					  ARCHIVE_ERRNO_MISC,
+					  "Failed to clean up decompressor");
+				return (ARCHIVE_FATAL);
+			}
+			state->valid = 0;
+			/* FALLTHROUGH */
+		case BZ_OK: /* Decompressor made some progress. */
+			/* If we filled our buffer, update stats and return. */
+			if (state->stream.avail_out == 0) {
+				*p = state->out_block;
+				decompressed = state->stream.next_out
+				    - state->out_block;
+				return (decompressed);
+			}
 			break;
+		default: /* Return an error. */
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC, "bzip decompression failed");
+			return (ARCHIVE_FATAL);
+		}
 	}
-
-	*p = state->read_next;
-	return (read_avail);
-}
-
-/*
- * Mark a previously-returned block of data as read.
- */
-static ssize_t
-read_consume(struct archive_read *a, size_t n)
-{
-	struct private_data *state;
-
-	state = (struct private_data *)a->decompressor->data;
-	a->archive.file_position += n;
-	state->read_next += n;
-	if (state->read_next > state->stream.next_out)
-		__archive_errx(1, "Request to consume too many "
-		    "bytes from bzip2 decompressor");
-	return (n);
 }
 
 /*
  * Clean up the decompressor.
  */
 static int
-finish(struct archive_read *a)
+bzip2_source_close(struct archive_read_source *self)
 {
 	struct private_data *state;
-	int ret;
+	int ret = ARCHIVE_OK;
 
-	state = (struct private_data *)a->decompressor->data;
-	ret = ARCHIVE_OK;
-	switch (BZ2_bzDecompressEnd(&(state->stream))) {
-	case BZ_OK:
-		break;
-	default:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Failed to clean up %s compressor",
-		    a->archive.compression_name);
-		ret = ARCHIVE_FATAL;
+	state = (struct private_data *)self->data;
+
+	if (state->valid) {
+		switch (BZ2_bzDecompressEnd(&state->stream)) {
+		case BZ_OK:
+			break;
+		default:
+			archive_set_error(&self->archive->archive,
+					  ARCHIVE_ERRNO_MISC,
+					  "Failed to clean up decompressor");
+			ret = ARCHIVE_FATAL;
+		}
 	}
 
-	free(state->uncompressed_buffer);
+	free(state->out_block);
 	free(state);
-
-	a->decompressor->data = NULL;
-	return (ret);
-}
-
-/*
- * Utility function to pull data through decompressor, reading input
- * blocks as necessary.
- */
-static int
-drive_decompressor(struct archive_read *a, struct private_data *state)
-{
-	ssize_t ret;
-	int decompressed, total_decompressed;
-	char *output;
-	const void *read_buf;
-
-	if (state->eof)
-		return (ARCHIVE_EOF);
-	total_decompressed = 0;
-	for (;;) {
-		if (state->stream.avail_in == 0) {
-			read_buf = state->stream.next_in;
-			ret = (a->client_reader)(&a->archive, a->client_data,
-			    &read_buf);
-			state->stream.next_in = (void *)(uintptr_t)read_buf;
-			if (ret < 0) {
-				/*
-				 * TODO: Find a better way to handle
-				 * this read failure.
-				 */
-				goto fatal;
-			}
-			if (ret == 0  &&  total_decompressed == 0) {
-				archive_set_error(&a->archive, EIO,
-				    "Premature end of %s compressed data",
-				    a->archive.compression_name);
-				return (ARCHIVE_FATAL);
-			}
-			a->archive.raw_position += ret;
-			state->stream.avail_in = ret;
-		}
-
-		{
-			output = state->stream.next_out;
-
-			/* Decompress some data. */
-			ret = BZ2_bzDecompress(&(state->stream));
-			decompressed = state->stream.next_out - output;
-
-			/* Accumulate the total bytes of output. */
-			state->total_out += decompressed;
-			total_decompressed += decompressed;
-
-			switch (ret) {
-			case BZ_OK: /* Decompressor made some progress. */
-				if (decompressed > 0)
-					return (ARCHIVE_OK);
-				break;
-			case BZ_STREAM_END:	/* Found end of stream. */
-				state->eof = 1;
-				return (ARCHIVE_OK);
-			default:
-				/* Any other return value is an error. */
-				goto fatal;
-			}
-		}
-	}
+	free(self);
 	return (ARCHIVE_OK);
-
-	/* Return a fatal error. */
-fatal:
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "%s decompression failed", a->archive.compression_name);
-	return (ARCHIVE_FATAL);
 }
 
 #endif /* HAVE_BZLIB_H */

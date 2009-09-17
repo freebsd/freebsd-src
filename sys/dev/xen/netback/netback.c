@@ -30,6 +30,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -57,6 +58,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#ifdef SCTP
+#include <netinet/sctp.h>
+#include <netinet/sctp_crc32.h>
+#endif
 
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -295,6 +300,11 @@ fixup_checksum(struct mbuf *m)
 			htons(IPPROTO_TCP + (iplen - iphlen)));
 		th->th_sum = in_cksum_skip(m, iplen + sizeof(*eh), sizeof(*eh) + iphlen);
 		m->m_pkthdr.csum_flags &= ~CSUM_TCP;
+#ifdef SCTP
+	} else if (sw_csum & CSUM_SCTP) {
+		sctp_delayed_cksum(m);
+		sw_csum &= ~CSUM_SCTP;
+#endif
 	} else {
 		u_short csum;
 		struct udphdr *uh = (struct udphdr *)((caddr_t)ip + iphlen);
@@ -908,7 +918,8 @@ netif_rx(netif_t *netif)
 #ifdef XEN_NETBACK_FIXUP_CSUM
 		/* Check if we need to compute a checksum.  This happens */
 		/* when bridging from one domain to another. */
-		if ((m->m_pkthdr.csum_flags & CSUM_DELAY_DATA))
+		if ((m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) ||
+			(m->m_pkthdr.csum_flags & CSUM_SCTP))
 			fixup_checksum(m);
 #endif
 

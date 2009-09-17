@@ -404,9 +404,7 @@ struct profil_args {
 #endif
 /* ARGSUSED */
 int
-profil(td, uap)
-	struct thread *td;
-	register struct profil_args *uap;
+profil(struct thread *td, struct profil_args *uap)
 {
 	struct uprof *upp;
 	struct proc *p;

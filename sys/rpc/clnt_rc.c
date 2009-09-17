@@ -181,11 +181,12 @@ again:
 		rpc_createerr.cf_error.re_errno = 0;
 		goto out;
 	}
-	if (rc->rc_privport)
-		bindresvport(so, NULL);
 
 	oldcred = td->td_ucred;
 	td->td_ucred = rc->rc_ucred;
+	if (rc->rc_privport)
+		bindresvport(so, NULL);
+
 	if (rc->rc_nconf->nc_semantics == NC_TPI_CLTS)
 		rc->rc_client = clnt_dg_create(so,
 		    (struct sockaddr *) &rc->rc_addr, rc->rc_prog, rc->rc_vers,
