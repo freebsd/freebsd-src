@@ -33,13 +33,6 @@
 #include <sys/queue.h>
 
 /* some PCI bus constants */
-
-#define	PCI_DOMAINMAX	65535	/* highest supported domain number */
-#define	PCI_BUSMAX	255	/* highest supported bus number */
-#define	PCI_SLOTMAX	31	/* highest supported slot number */
-#define	PCI_FUNCMAX	7	/* highest supported function number */
-#define	PCI_REGMAX	255	/* highest supported config register addr. */
-
 #define	PCI_MAXMAPS_0	6	/* max. no. of memory/port maps */
 #define	PCI_MAXMAPS_1	2	/* max. no. of maps for PCI to PCI bridge */
 #define	PCI_MAXMAPS_2	1	/* max. no. of maps for CardBus bridge */
