@@ -145,7 +145,7 @@ static int	filt_timer(struct knote *kn, long hint);
 static int	filt_userattach(struct knote *kn);
 static void	filt_userdetach(struct knote *kn);
 static int	filt_user(struct knote *kn, long hint);
-static void	filt_usertouch(struct knote *kn, struct kevent *kev, long type);
+static void	filt_usertouch(struct knote *kn, struct kevent *kev, unsigned long type);
 
 static struct filterops file_filtops = {
 	.f_isfd = 1,
@@ -616,9 +616,9 @@ filt_user(struct knote *kn, __unused long hint)
 }
 
 static void
-filt_usertouch(struct knote *kn, struct kevent *kev, long type)
+filt_usertouch(struct knote *kn, struct kevent *kev, unsigned long type)
 {
-	int ffctrl;
+	unsigned int ffctrl;
 
 	switch (type) {
 	case EVENT_REGISTER:
