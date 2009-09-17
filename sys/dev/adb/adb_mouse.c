@@ -46,7 +46,7 @@
 
 #include "adb.h"
 
-#define CDEV_GET_SOFTC(x) devclass_get_softc(adb_mouse_devclass, minor(x) & 0x1f)
+#define CDEV_GET_SOFTC(x) (x)->si_drv1
 
 static int adb_mouse_probe(device_t dev);
 static int adb_mouse_attach(device_t dev);
@@ -181,7 +181,7 @@ adb_mouse_attach(device_t dev)
 		sc->mode.resolution = 200;
 		break;
 	case 4:
-		adb_read_register(dev,1,&r1_len,r1);
+		r1_len = adb_read_register(dev,1,r1);
 		if (r1_len < 8)
 			break;
 
@@ -236,6 +236,7 @@ adb_mouse_attach(device_t dev)
 	sc->cdev = make_dev(&ams_cdevsw, device_get_unit(dev),
 		       UID_ROOT, GID_OPERATOR, 0644, "ams%d", 
 		       device_get_unit(dev));
+	sc->cdev->si_drv1 = sc;
 
 	adb_set_autopoll(dev,1);
 

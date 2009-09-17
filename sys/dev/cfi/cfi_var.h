@@ -74,4 +74,11 @@ uint32_t cfi_read(struct cfi_softc *, u_int);
 uint8_t cfi_read_qry(struct cfi_softc *, u_int);
 int cfi_write_block(struct cfi_softc *);
 
+#ifdef CFI_SUPPORT_STRATAFLASH
+int	cfi_intel_get_factory_pr(struct cfi_softc *sc, uint64_t *);
+int	cfi_intel_get_oem_pr(struct cfi_softc *sc, uint64_t *);
+int	cfi_intel_set_oem_pr(struct cfi_softc *sc, uint64_t);
+int	cfi_intel_get_plr(struct cfi_softc *sc, uint32_t *);
+int	cfi_intel_set_plr(struct cfi_softc *sc);
+#endif /* CFI_SUPPORT_STRATAFLASH */
 #endif /* _DEV_CFI_VAR_H_ */

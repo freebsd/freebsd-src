@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,6 +69,7 @@ enum {
 	ATH_DEBUG_FF		= 0x00200000,	/* fast frames */
 	ATH_DEBUG_DFS		= 0x00400000,	/* DFS processing */
 	ATH_DEBUG_TDMA		= 0x00800000,	/* TDMA processing */
+	ATH_DEBUG_TDMA_TIMER	= 0x01000000,	/* TDMA timer processing */
 	ATH_DEBUG_REGDOMAIN	= 0x02000000,	/* regulatory processing */
 	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	ATH_DEBUG_ANY		= 0xffffffff
@@ -99,6 +100,7 @@ static struct {
 	{ "ff",		ATH_DEBUG_FF },
 	{ "dfs",	ATH_DEBUG_DFS },
 	{ "tdma",	ATH_DEBUG_TDMA },
+	{ "tdma_timer",	ATH_DEBUG_TDMA_TIMER },
 	{ "regdomain",	ATH_DEBUG_REGDOMAIN },
 	{ "fatal",	ATH_DEBUG_FATAL },
 };

@@ -79,6 +79,7 @@ struct mmcsd_softc {
 	struct bio_queue_head bio_queue;
 	daddr_t eblock, eend;	/* Range remaining after the last erase. */
 	int running;
+	int suspend;
 };
 
 /* bus entry points */
@@ -90,6 +91,8 @@ static int mmcsd_detach(device_t dev);
 static int mmcsd_open(struct disk *dp);
 static int mmcsd_close(struct disk *dp);
 static void mmcsd_strategy(struct bio *bp);
+static int mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
+	off_t offset, size_t length);
 static void mmcsd_task(void *arg);
 
 static const char *mmcsd_card_name(device_t dev);
@@ -129,7 +132,7 @@ mmcsd_attach(device_t dev)
 	d->d_open = mmcsd_open;
 	d->d_close = mmcsd_close;
 	d->d_strategy = mmcsd_strategy;
-	// d->d_dump = mmcsd_dump;	Need polling mmc layer
+	d->d_dump = mmcsd_dump;
 	d->d_name = "mmcsd";
 	d->d_drv1 = sc;
 	d->d_maxsize = 4*1024*1024;	/* Maximum defined SD card AU size. */
@@ -163,6 +166,7 @@ mmcsd_attach(device_t dev)
 	bioq_init(&sc->bio_queue);
 
 	sc->running = 1;
+	sc->suspend = 0;
 	sc->eblock = sc->eend = 0;
 	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
 
@@ -174,16 +178,16 @@ mmcsd_detach(device_t dev)
 {
 	struct mmcsd_softc *sc = device_get_softc(dev);
 
-	/* kill thread */
 	MMCSD_LOCK(sc);
-	sc->running = 0;
-	wakeup(sc);
-	MMCSD_UNLOCK(sc);
-
-	/* wait for thread to finish.  XXX probably want timeout.  -sorbo */
-	MMCSD_LOCK(sc);
-	while (sc->running != -1)
-		msleep(sc, &sc->sc_mtx, PRIBIO, "detach", 0);
+	sc->suspend = 0;
+	if (sc->running > 0) {
+		/* kill thread */
+		sc->running = 0;
+		wakeup(sc);
+		/* wait for thread to finish. */
+		while (sc->running != -1)
+			msleep(sc, &sc->sc_mtx, 0, "detach", 0);
+	}
 	MMCSD_UNLOCK(sc);
 
 	/* Flush the request queue. */
@@ -193,6 +197,41 @@ mmcsd_detach(device_t dev)
 
 	MMCSD_LOCK_DESTROY(sc);
 
+	return (0);
+}
+
+static int
+mmcsd_suspend(device_t dev)
+{
+	struct mmcsd_softc *sc = device_get_softc(dev);
+
+	MMCSD_LOCK(sc);
+	sc->suspend = 1;
+	if (sc->running > 0) {
+		/* kill thread */
+		sc->running = 0;
+		wakeup(sc);
+		/* wait for thread to finish. */
+		while (sc->running != -1)
+			msleep(sc, &sc->sc_mtx, 0, "detach", 0);
+	}
+	MMCSD_UNLOCK(sc);
+	return (0);
+}
+
+static int
+mmcsd_resume(device_t dev)
+{
+	struct mmcsd_softc *sc = device_get_softc(dev);
+
+	MMCSD_LOCK(sc);
+	sc->suspend = 0;
+	if (sc->running <= 0) {
+		sc->running = 1;
+		MMCSD_UNLOCK(sc);
+		kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
+	} else
+		MMCSD_UNLOCK(sc);
 	return (0);
 }
 
@@ -215,10 +254,10 @@ mmcsd_strategy(struct bio *bp)
 
 	sc = (struct mmcsd_softc *)bp->bio_disk->d_drv1;
 	MMCSD_LOCK(sc);
-	if (sc->running > 0) {
+	if (sc->running > 0 || sc->suspend > 0) {
 		bioq_disksort(&sc->bio_queue, bp);
-		wakeup(sc);
 		MMCSD_UNLOCK(sc);
+		wakeup(sc);
 	} else {
 		MMCSD_UNLOCK(sc);
 		biofinish(bp, NULL, ENXIO);
@@ -378,6 +417,33 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 	return (end);
 }
 
+static int
+mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
+	off_t offset, size_t length)
+{
+	struct disk *disk = arg;
+	struct mmcsd_softc *sc = (struct mmcsd_softc *)disk->d_drv1;
+	device_t dev = sc->dev;
+	struct bio bp;
+	daddr_t block, end;
+
+	/* length zero is special and really means flush buffers to media */
+	if (!length)
+		return (0);
+
+	bzero(&bp, sizeof(struct bio));
+	bp.bio_disk = disk;
+	bp.bio_pblkno = offset / disk->d_sectorsize;
+	bp.bio_bcount = length;
+	bp.bio_data = virtual;
+	bp.bio_cmd = BIO_WRITE;
+	end = bp.bio_pblkno + bp.bio_bcount / sc->disk->d_sectorsize;
+	MMCBUS_ACQUIRE_BUS(device_get_parent(dev), dev);
+	block = mmcsd_rw(sc, &bp);
+	MMCBUS_RELEASE_BUS(device_get_parent(dev), dev);
+	return ((end < block) ? EIO : 0);
+}
+
 static void
 mmcsd_task(void *arg)
 {
@@ -428,8 +494,8 @@ mmcsd_task(void *arg)
 out:
 	/* tell parent we're done */
 	sc->running = -1;
-	wakeup(sc);
 	MMCSD_UNLOCK(sc);
+	wakeup(sc);
 
 	kproc_exit(0);
 }
@@ -458,6 +524,8 @@ static device_method_t mmcsd_methods[] = {
 	DEVMETHOD(device_probe, mmcsd_probe),
 	DEVMETHOD(device_attach, mmcsd_attach),
 	DEVMETHOD(device_detach, mmcsd_detach),
+	DEVMETHOD(device_suspend, mmcsd_suspend),
+	DEVMETHOD(device_resume, mmcsd_resume),
 	{0, 0},
 };
 

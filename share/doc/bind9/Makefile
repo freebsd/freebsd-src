@@ -20,7 +20,7 @@ ARM=		Bv9ARM.ch01.html Bv9ARM.ch02.html Bv9ARM.ch03.html \
 		man.rndc.html
 ARMDIR=		${TOPDIR}/arm
 MISC=		dnssec format-options.pl ipv6 migration migration-4to9 \
-		options rfc-compliance roadmap sdb
+		options rfc-compliance roadmap sdb sort-options.pl
 MISCDIR=	${TOPDIR}/misc
 
 .include <bsd.prog.mk>

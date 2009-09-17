@@ -98,7 +98,7 @@ static	int hifn_attach(device_t);
 static	int hifn_detach(device_t);
 static	int hifn_suspend(device_t);
 static	int hifn_resume(device_t);
-static	void hifn_shutdown(device_t);
+static	int hifn_shutdown(device_t);
 
 static	int hifn_newsession(device_t, u_int32_t *, struct cryptoini *);
 static	int hifn_freesession(device_t, u_int64_t);
@@ -691,12 +691,13 @@ hifn_detach(device_t dev)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 hifn_shutdown(device_t dev)
 {
 #ifdef notyet
 	hifn_stop(device_get_softc(dev));
 #endif
+	return (0);
 }
 
 /*

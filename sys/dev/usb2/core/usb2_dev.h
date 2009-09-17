@@ -130,27 +130,39 @@ struct usb2_fifo_sc {
 
 int	usb2_fifo_wait(struct usb2_fifo *fifo);
 void	usb2_fifo_signal(struct usb2_fifo *fifo);
-int	usb2_fifo_alloc_buffer(struct usb2_fifo *f, uint32_t bufsize, uint16_t nbuf);
+int	usb2_fifo_alloc_buffer(struct usb2_fifo *f, uint32_t bufsize,
+	    uint16_t nbuf);
 void	usb2_fifo_free_buffer(struct usb2_fifo *f);
-int	usb2_fifo_attach(struct usb2_device *udev, void *priv_sc, struct mtx *priv_mtx, struct usb2_fifo_methods *pm, struct usb2_fifo_sc *f_sc, uint16_t unit, uint16_t subunit, uint8_t iface_index);
+int	usb2_fifo_attach(struct usb2_device *udev, void *priv_sc,
+	    struct mtx *priv_mtx, struct usb2_fifo_methods *pm,
+	    struct usb2_fifo_sc *f_sc, uint16_t unit, uint16_t subunit,
+	    uint8_t iface_index);
 void	usb2_fifo_detach(struct usb2_fifo_sc *f_sc);
 uint32_t usb2_fifo_put_bytes_max(struct usb2_fifo *fifo);
-void	usb2_fifo_put_data(struct usb2_fifo *fifo, struct usb2_page_cache *pc, uint32_t offset, uint32_t len, uint8_t what);
-void	usb2_fifo_put_data_linear(struct usb2_fifo *fifo, void *ptr, uint32_t len, uint8_t what);
+void	usb2_fifo_put_data(struct usb2_fifo *fifo, struct usb2_page_cache *pc,
+	    uint32_t offset, uint32_t len, uint8_t what);
+void	usb2_fifo_put_data_linear(struct usb2_fifo *fifo, void *ptr,
+	    uint32_t len, uint8_t what);
 uint8_t	usb2_fifo_put_data_buffer(struct usb2_fifo *f, void *ptr, uint32_t len);
 void	usb2_fifo_put_data_error(struct usb2_fifo *fifo);
-uint8_t	usb2_fifo_get_data(struct usb2_fifo *fifo, struct usb2_page_cache *pc, uint32_t offset, uint32_t len, uint32_t *actlen, uint8_t what);
-uint8_t	usb2_fifo_get_data_linear(struct usb2_fifo *fifo, void *ptr, uint32_t len, uint32_t *actlen, uint8_t what);
-uint8_t	usb2_fifo_get_data_buffer(struct usb2_fifo *f, void **pptr, uint32_t *plen);
+uint8_t	usb2_fifo_get_data(struct usb2_fifo *fifo, struct usb2_page_cache *pc,
+	    uint32_t offset, uint32_t len, uint32_t *actlen, uint8_t what);
+uint8_t	usb2_fifo_get_data_linear(struct usb2_fifo *fifo, void *ptr,
+	    uint32_t len, uint32_t *actlen, uint8_t what);
+uint8_t	usb2_fifo_get_data_buffer(struct usb2_fifo *f, void **pptr,
+	    uint32_t *plen);
 void	usb2_fifo_get_data_error(struct usb2_fifo *fifo);
 uint8_t	usb2_fifo_opened(struct usb2_fifo *fifo);
 void	usb2_fifo_free(struct usb2_fifo *f);
 void	usb2_fifo_reset(struct usb2_fifo *f);
-int	usb2_check_thread_perm(struct usb2_device *udev, struct thread *td, int fflags, uint8_t iface_index, uint8_t ep_index);
+int	usb2_check_thread_perm(struct usb2_device *udev, struct thread *td,
+	    int fflags, uint8_t iface_index, uint8_t ep_index);
 void	usb2_fifo_wakeup(struct usb2_fifo *f);
-struct usb2_symlink *usb2_alloc_symlink(const char *target, const char *fmt,...);
+struct usb2_symlink *usb2_alloc_symlink(const char *target,
+	    const char *fmt,...);
 void	usb2_free_symlink(struct usb2_symlink *ps);
 uint32_t usb2_lookup_symlink(const char *src_ptr, uint8_t src_len);
-int	usb2_read_symlink(uint8_t *user_ptr, uint32_t startentry, uint32_t user_len);
+int	usb2_read_symlink(uint8_t *user_ptr, uint32_t startentry,
+	    uint32_t user_len);
 
 #endif					/* _USB2_DEV_H_ */

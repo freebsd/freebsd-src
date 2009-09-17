@@ -81,7 +81,7 @@ MODULE_DEPEND(bm, miibus, 1, 1, 1);
 static int bm_probe		(device_t);
 static int bm_attach		(device_t);
 static int bm_detach		(device_t);
-static void bm_shutdown		(device_t);
+static int bm_shutdown		(device_t);
 
 static void bm_start		(struct ifnet *);
 static void bm_start_locked	(struct ifnet *);
@@ -654,7 +654,7 @@ bm_detach(device_t dev)
 	return (0);
 }
 
-static void
+static int
 bm_shutdown(device_t dev)
 {
 	struct bm_softc *sc;
@@ -664,6 +664,8 @@ bm_shutdown(device_t dev)
 	BM_LOCK(sc);
 	bm_stop(sc);
 	BM_UNLOCK(sc);
+
+	return (0);
 }
 
 static void

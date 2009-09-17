@@ -102,10 +102,7 @@ is possible, include:
 .Sh DESCRIPTION
 The
 .Nm
-kernel debugger has most of the features of the old
-.Nm kdb ,
-but with a more rational syntax
-inspired by
+kernel debugger is an interactive debugger with a syntax inspired by
 .Xr gdb 1 .
 If linked into the running kernel,
 it can be invoked locally with the
@@ -202,7 +199,7 @@ the
 .Nm emacs
 control keys, the usual
 .Tn ANSI
-arrow keys might be used to
+arrow keys may be used to
 browse through the history buffer, and move the cursor within the
 current line.
 .Sh COMMANDS
@@ -254,8 +251,6 @@ display as an instruction
 display as an instruction with possible alternate formats depending on the
 machine:
 .Bl -tag -width ".Tn powerpc" -compact
-.It Tn alpha
-Show the registers of the instruction.
 .It Tn amd64
 No alternate format.
 .It Tn i386

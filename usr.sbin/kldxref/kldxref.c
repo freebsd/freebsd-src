@@ -57,37 +57,19 @@
 #define	MAXRECSIZE	1024
 #define check(val)	if ((error = (val)) != 0) break
 
-#ifndef min
-#define	min(a,b)	(((a)<(b)) ? (a) : (b))
-#endif
+static int dflag;	/* do not create a hint file, only write on stdout */
+static int verbose;
 
-struct mod_info {
-	char*	mi_name;
-	int	mi_ver;
-	SLIST_ENTRY(mod_info) mi_next;
-};
-
-#ifdef notnow
-struct kld_info {
-	char*	k_filename;
-	SLIST_HEAD(mod_list_head, mod_info) k_modules;
-	SLIST_ENTRY(kld_info) k_next;
-};
-
-SLIST_HEAD(kld_list_head, kld_info) kldlist;
-#endif
-
-static int dflag, verbose;
-
-FILE *fxref;
+static FILE *fxref;	/* current hints file */
 
 static const char *xref_file = "linker.hints";
 
+/*
+ * A record is stored in the static buffer recbuf before going to disk.
+ */
 static char recbuf[MAXRECSIZE];
-static int recpos, reccnt;
-
-FILE *maketempfile(char *, const char *);
-static void usage(void);
+static int recpos;	/* current write position */
+static int reccnt;	/* total record written to this file so far */
 
 static void
 intalign(void)
@@ -105,7 +87,7 @@ record_start(void)
 static int
 record_end(void)
 {
-	if (dflag || recpos == 0)
+	if (recpos == 0)
 		return 0;
 	reccnt++;
 	intalign();
@@ -123,6 +105,9 @@ record_buf(const void *buf, int size)
 	return 0;
 }
 
+/*
+ * An int is stored in host order and aligned
+ */
 static int
 record_int(int val)
 {
@@ -130,21 +115,21 @@ record_int(int val)
 	return record_buf(&val, sizeof(val));
 }
 
-static int
-record_byte(u_char val)
-{
-	return record_buf(&val, sizeof(val));
-}
-
+/*
+ * A string is stored as 1-byte length plus data, no padding
+ */
 static int
 record_string(const char *str)
 {
-	int len = strlen(str);
-	int error;
-
+	int len, error;
+	u_char val;
+	
 	if (dflag)
 		return 0;
-	error = record_byte(len);
+	val = len = strlen(str);
+	if (len > 255)
+		errx(1, "string %s too long", str);
+	error = record_buf(&val, sizeof(val));
 	if (error)
 		return error;
 	return record_buf(str, len);
@@ -170,21 +155,23 @@ parse_entry(struct mod_metadata *md, const char *cval,
 		break;
 	case MDT_VERSION:
 		check(EF_SEG_READ(ef, data, sizeof(mdv), &mdv));
-		record_int(MDT_VERSION);
-		record_string(cval);
-		record_int(mdv.mv_version);
-		record_string(kldname);
-		if (!dflag)
-			break;
-		printf("  interface %s.%d\n", cval, mdv.mv_version);
+		if (dflag) {
+			printf("  interface %s.%d\n", cval, mdv.mv_version);
+		} else {
+			record_int(MDT_VERSION);
+			record_string(cval);
+			record_int(mdv.mv_version);
+			record_string(kldname);
+		}
 		break;
 	case MDT_MODULE:
-		record_int(MDT_MODULE);
-		record_string(cval);
-		record_string(kldname);
-		if (!dflag)
-			break;
-		printf("  module %s\n", cval);
+		if (dflag) {
+			printf("  module %s\n", cval);
+		} else {
+			record_int(MDT_MODULE);
+			record_string(cval);
+			record_string(kldname);
+		}
 		break;
 	default:
 		warnx("unknown metadata record %d in file %s", md->md_type, kldname);
@@ -199,8 +186,6 @@ read_kld(char *filename, char *kldname)
 {
 	struct mod_metadata md;
 	struct elf_file ef;
-/*	struct kld_info *kip;
-	struct mod_info *mip;*/
 	void **p, **orgp;
 	int error, eftype, nmlen;
 	long start, finish, entries;
@@ -224,8 +209,9 @@ read_kld(char *filename, char *kldname)
 	}
 	if (!dflag) {
 		cp = strrchr(kldname, '.');
-		nmlen = cp ? min(MAXMODNAME, cp - kldname) : 
-		    min(MAXMODNAME, strlen(kldname));
+		nmlen = (cp != NULL) ? cp - kldname : (int)strlen(kldname);
+		if (nmlen > MAXMODNAME)
+			nmlen = MAXMODNAME;
 		strlcpy(kldmodname, kldname, nmlen);
 /*		fprintf(fxref, "%s:%s:%d\n", kldmodname, kldname, 0);*/
 	}
@@ -252,26 +238,42 @@ read_kld(char *filename, char *kldname)
 	return error;
 }
 
-FILE *
+/*
+ * Create a temp file in directory root, make sure we don't
+ * overflow the buffer for the destination name
+ */
+static FILE *
 maketempfile(char *dest, const char *root)
 {
 	char *p;
-	int fd;
+	int n, fd;
 
-	strlcpy(dest, root, MAXPATHLEN);
+	p = strrchr(root, '/');
+	n = p != NULL ? p - root + 1 : 0;
+	if (snprintf(dest, MAXPATHLEN, "%.*slhint.XXXXXX", n, root) >=
+	    MAXPATHLEN) {
+		errno = ENAMETOOLONG;
+		return NULL;
+	}
 
-	if ((p = strrchr(dest, '/')) != 0)
-		p++;
-	else
-		p = dest;
-	strcpy(p, "lhint.XXXXXX");
 	fd = mkstemp(dest);
-	if (fd >= 0)
-		fchmod(fd, 0644);	/* nothing secret in the file */
-	return ((fd == -1) ? NULL : fdopen(fd, "w+"));
+	if (fd < 0)
+		return NULL;
+	fchmod(fd, 0644);	/* nothing secret in the file */
+	return fdopen(fd, "w+");
 }
 
 static char xrefname[MAXPATHLEN], tempname[MAXPATHLEN];
+
+static void
+usage(void)
+{
+
+	fprintf(stderr, "%s\n",
+	    "usage: kldxref [-Rdv] [-f hintsfile] path ..."
+	);
+	exit(1);
+}
 
 int
 main(int argc, char *argv[])
@@ -282,20 +284,19 @@ main(int argc, char *argv[])
 	struct stat sb;
 
 	fts_options = FTS_PHYSICAL;
-/*	SLIST_INIT(&kldlist);*/
 
 	while ((opt = getopt(argc, argv, "Rdf:v")) != -1) {
 		switch (opt) {
-		case 'd':
+		case 'd':	/* no hint file, only print on stdout */
 			dflag = 1;
 			break;
-		case 'f':
+		case 'f':	/* use this name instead of linker.hints */
 			xref_file = optarg;
 			break;
 		case 'v':
 			verbose++;
 			break;
-		case 'R':
+		case 'R':	/* recurse on directories */
 			fts_options |= FTS_COMFOLLOW;
 			break;
 		default:
@@ -321,19 +322,22 @@ main(int argc, char *argv[])
 
 	for (;;) {
 		p = fts_read(ftsp);
-		if ((p == NULL || p->fts_info == FTS_D) && !dflag && fxref) {
+		if ((p == NULL || p->fts_info == FTS_D) && fxref) {
+			/* close and rename the current hint file */
 			fclose(fxref);
 			fxref = NULL;
 			if (reccnt) {
 				rename(tempname, xrefname);
 			} else {
+				/* didn't find any entry, ignore this file */
 				unlink(tempname);
 				unlink(xrefname);
 			}
 		}
 		if (p == NULL)
 			break;
-		if (p && p->fts_info == FTS_D && !dflag) {
+		if (p->fts_info == FTS_D && !dflag) {
+			/* visiting a new directory, create a new hint file */
 			snprintf(xrefname, sizeof(xrefname), "%s/%s",
 			    ftsp->fts_path, xref_file);
 			fxref = maketempfile(tempname, ftsp->fts_path);
@@ -343,6 +347,7 @@ main(int argc, char *argv[])
 			fwrite(&ival, sizeof(ival), 1, fxref);
 			reccnt = 0;
 		}
+		/* skip non-files or .symbols entries */
 		if (p->fts_info != FTS_F)
 			continue;
 		if (p->fts_namelen >= 8 &&
@@ -352,14 +357,4 @@ main(int argc, char *argv[])
 	}
 	fts_close(ftsp);
 	return 0;
-}
-
-static void
-usage(void)
-{
-
-	fprintf(stderr, "%s\n",
-	    "usage: kldxref [-Rdv] [-f hintsfile] path ..."
-	);
-	exit(1);
 }

@@ -563,7 +563,8 @@ int		sc_clean_up(scr_stat *scp);
 int		sc_switch_scr(sc_softc_t *sc, u_int next_scr);
 void		sc_alloc_scr_buffer(scr_stat *scp, int wait, int discard);
 int		sc_init_emulator(scr_stat *scp, char *name);
-void		sc_paste(scr_stat *scp, u_char *p, int count);
+void		sc_paste(scr_stat *scp, const u_char *p, int count);
+void		sc_respond(scr_stat *scp, const u_char *p, int count);
 void		sc_bell(scr_stat *scp, int pitch, int duration);
 
 /* schistory.c */

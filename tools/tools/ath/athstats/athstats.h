@@ -46,6 +46,8 @@ struct athstatfoo {
 	void (*setifname)(struct athstatfoo *, const char *ifname);
 	/* set the mac address of the associated station/ap */
 	void (*setstamac)(struct athstatfoo *, const uint8_t mac[]);
+	/* zero in-kernel statistics */
+	void (*zerostats)(struct athstatfoo *);
 };
 
 struct athstatfoo *athstats_new(const char *ifname, const char *fmtstring);

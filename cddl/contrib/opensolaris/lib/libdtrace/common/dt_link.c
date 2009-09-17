@@ -1739,15 +1739,11 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		 * Arches which are 32-bit only just use the normal
 		 * library path.
 		 */
-#if defined(__i386__)
-		int use_32 = 1;  /* use /usr/lib/... -sson */
-#else
 		int use_32 = 0;
-#endif
 #endif
 
 		(void) snprintf(drti, sizeof (drti), "/usr/lib%s/dtrace/drti.o",
-		    use_32 ? "":"32");
+		    use_32 ? "32":"");
 
 		len = snprintf(&tmp, 1, fmt, dtp->dt_ld_path, file, tfile,
 		    drti) + 1;

@@ -30,7 +30,9 @@ SUBDIR += bluetooth
 SUBDIR += bluetooth_ng
 SUBDIR += bluetooth_fw
 SUBDIR += controller
+.if ${MACHINE_ARCH} == "arm"
 SUBDIR += controller_at91dci
+.endif
 SUBDIR += controller_ehci
 SUBDIR += controller_musb
 SUBDIR += controller_ohci
@@ -53,11 +55,11 @@ SUBDIR += input_ms
 SUBDIR += misc
 SUBDIR += misc_dbp
 SUBDIR += misc_fm
-SUBDIR += ndis
+#SUBDIR += ndis
 SUBDIR += quirk
 SUBDIR += scanner
 SUBDIR += serial
-#SUBDIR += serial_3g
+SUBDIR += serial_3g
 SUBDIR += serial_ark
 SUBDIR += serial_bsa
 SUBDIR += serial_bser
@@ -72,6 +74,7 @@ SUBDIR += serial_mct
 SUBDIR += serial_modem
 SUBDIR += serial_moscom
 SUBDIR += serial_plcom
+SUBDIR += serial_slcom
 SUBDIR += serial_visor
 SUBDIR += serial_vscom
 SUBDIR += sound
@@ -87,4 +90,3 @@ SUBDIR += wlan_rum
 SUBDIR += wlan_zyd
 
 .include <bsd.subdir.mk>
-

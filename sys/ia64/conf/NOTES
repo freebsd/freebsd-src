@@ -101,6 +101,9 @@ options 	VGA_WIDTH90		# support 90 column modes
 # Debugging.
 options 	VGA_DEBUG
 
+# AGP debugging.
+options		AGP_DEBUG
+
 # The following devices are not supported.
 nodevice	fdc
 nooption	FDC_DEBUG

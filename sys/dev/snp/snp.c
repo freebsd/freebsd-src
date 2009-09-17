@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
 #include <sys/snoop.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
@@ -126,7 +127,6 @@ snp_open(struct cdev *dev, int flag, int mode, struct thread *td)
 
 	/* Allocate per-snoop data. */
 	ss = malloc(sizeof(struct snp_softc), M_SNP, M_WAITOK|M_ZERO);
-	ttyoutq_init(&ss->snp_outq);
 	cv_init(&ss->snp_outwait, "snp out");
 
 	devfs_set_cdevpriv(ss, snp_dtor);
@@ -246,7 +246,7 @@ snp_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			sx_xunlock(&snp_register_lock);
 			return (EBUSY);
 		}
-		error = ttyhook_register(&ss->snp_tty, td, *(int *)data,
+		error = ttyhook_register(&ss->snp_tty, td->td_proc, *(int *)data,
 		    &snp_hook, ss);
 		sx_xunlock(&snp_register_lock);
 		if (error != 0)

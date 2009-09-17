@@ -55,8 +55,8 @@ extern const union __nan_un {
 #ifdef __MATH_BUILTIN_CONSTANTS
 #define	HUGE_VALF	__builtin_huge_valf()
 #define	HUGE_VALL	__builtin_huge_vall()
-#define	INFINITY	__builtin_inf()
-#define	NAN		__builtin_nan("")
+#define	INFINITY	__builtin_inff()
+#define	NAN		__builtin_nanf("")
 #else
 #define	HUGE_VALF	(float)HUGE_VAL
 #define	HUGE_VALL	(long double)HUGE_VAL
@@ -70,12 +70,12 @@ extern const union __nan_un {
 
 /* XXX We need a <machine/math.h>. */
 #if defined(__ia64__) || defined(__sparc64__)
-#define	FP_FAST_FMA
+#define	FP_FAST_FMA	1
 #endif
 #ifdef __ia64__
-#define	FP_FAST_FMAL
+#define	FP_FAST_FMAL	1
 #endif
-#define	FP_FAST_FMAF
+#define	FP_FAST_FMAF	1
 
 /* Symbolic constants to classify floating point numbers. */
 #define	FP_INFINITE	0x01

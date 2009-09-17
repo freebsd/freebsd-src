@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -96,6 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6protosw.h>
 #include <netinet6/nd6.h>
 #include <netinet6/scope6_var.h>
+#include <netinet6/vinet6.h>
 #endif				/* INET6 */
 
 
@@ -152,16 +154,8 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define MOD_IPSEC ipsec
 
 /* then define the macro(s) that hook into the vimage macros */
-#if defined(__FreeBSD__) && __FreeBSD_version >= 800044 && defined(VIMAGE)
-#if 0
-#define VSYMNAME(__MODULE) vnet_ ## __MODULE
-#define MODULE_GLOBAL(__MODULE, __SYMBOL) VSYM(VSYMNAME(__MODULE), __SYMBOL)
-#else
 #define MODULE_GLOBAL(__MODULE, __SYMBOL) V_ ## __SYMBOL
-#endif
-#else
-#define MODULE_GLOBAL(__MODULE, __SYMBOL) (__SYMBOL)
-#endif
+
 /*
  *
  */
@@ -499,4 +493,25 @@ sctp_get_mbuf_for_msg(unsigned int space_needed,
 #define MD5_Update	MD5Update
 #define MD5_Final	MD5Final
 
+#endif
+
+#define SCTP_DECREMENT_AND_CHECK_REFCOUNT(addr) (atomic_fetchadd_int(addr, -1) == 1)
+#if defined(INVARIANTS)
+#define SCTP_SAVE_ATOMIC_DECREMENT(addr, val) \
+{ \
+	int32_t oldval; \
+	oldval = atomic_fetchadd_int(addr, -val); \
+	if (oldval < val) { \
+		panic("Counter goes negative"); \
+	} \
+}
+#else
+#define SCTP_SAVE_ATOMIC_DECREMENT(addr, val) \
+{ \
+	int32_t oldval; \
+	oldval = atomic_fetchadd_int(addr, -val); \
+	if (oldval < val) { \
+		*addr = 0; \
+	} \
+}
 #endif

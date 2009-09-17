@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <stddef.h>
 #include <fcntl.h>
+#include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/mntent.h>
 #include <sys/mnttab.h>

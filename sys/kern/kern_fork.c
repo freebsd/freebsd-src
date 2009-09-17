@@ -754,7 +754,7 @@ again:
 	 */
 	PROC_LOCK(p2);
 	while (p2->p_flag & P_PPWAIT)
-		msleep(p1, &p2->p_mtx, PWAIT, "ppwait", 0);
+		cv_wait(&p2->p_pwait, &p2->p_mtx);
 	PROC_UNLOCK(p2);
 
 	/*

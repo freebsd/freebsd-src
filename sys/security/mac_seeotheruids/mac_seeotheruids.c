@@ -186,4 +186,4 @@ static struct mac_policy_ops seeotheruids_ops =
 };
 
 MAC_POLICY_SET(&seeotheruids_ops, mac_seeotheruids,
-    "TrustedBSD MAC/seeotheruids", MPC_LOADTIME_FLAG_UNLOADOK, NULL, 0);
+    "TrustedBSD MAC/seeotheruids", MPC_LOADTIME_FLAG_UNLOADOK, NULL);

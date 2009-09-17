@@ -46,10 +46,7 @@ __FBSDID("$FreeBSD$");
  * truncation occurred.
  */
 size_t
-wcslcat(dst, src, siz)
-	wchar_t *dst;
-	const wchar_t *src;
-	size_t siz;
+wcslcat(wchar_t *dst, const wchar_t *src, size_t siz)
 {
 	wchar_t *d = dst;
 	const wchar_t *s = src;

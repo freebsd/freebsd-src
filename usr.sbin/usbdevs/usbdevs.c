@@ -65,7 +65,7 @@ int main(int, char **);
 void
 usage()
 {
-	fprintf(stderr, "usage: %s [-a addr] [-d] [-f dev] [-v]\n",
+	fprintf(stderr, "usage: %s [-a addr] [-d] [-f dev] [-o] [-v]\n",
 	    getprogname());
 	exit(1);
 }

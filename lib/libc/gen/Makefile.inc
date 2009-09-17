@@ -10,7 +10,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
 	dlfcn.c dlfunc.c drand48.c erand48.c err.c errlst.c errno.c \
-	exec.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
+	exec.c fdevname.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
 	fpclassify.c frexp.c fstab.c ftok.c fts.c fts-compat.c ftw.c \
 	getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
@@ -78,6 +78,8 @@ MLINKS+=arc4random.3 arc4random_addrandom.3 arc4random.3 arc4random_stir.3 \
 	arc4random.3 arc4random_buf.3 arc4random.3 arc4random_uniform.3
 MLINKS+=ctermid.3 ctermid_r.3
 MLINKS+=devname.3 devname_r.3
+MLINKS+=devname.3 fdevname.3
+MLINKS+=devname.3 fdevname_r.3
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
 	directory.3 fdopendir.3 \
 	directory.3 readdir.3 directory.3 readdir_r.3 directory.3 rewinddir.3 \

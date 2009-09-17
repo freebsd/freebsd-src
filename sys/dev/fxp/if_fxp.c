@@ -44,7 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -253,7 +255,7 @@ static int		fxp_serial_ifmedia_upd(struct ifnet *ifp);
 static void		fxp_serial_ifmedia_sts(struct ifnet *ifp,
 			    struct ifmediareq *ifmr);
 static int		fxp_miibus_readreg(device_t dev, int phy, int reg);
-static void		fxp_miibus_writereg(device_t dev, int phy, int reg,
+static int		fxp_miibus_writereg(device_t dev, int phy, int reg,
 			    int value);
 static void		fxp_load_ucode(struct fxp_softc *sc);
 static int		sysctl_int_range(SYSCTL_HANDLER_ARGS,
@@ -1538,8 +1540,8 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		 * the chip is an 82550/82551 or not.
 		 */
 		if (sc->flags & FXP_FLAG_EXT_RFA) {
-			cbp->tbd[i + 2].tb_addr = htole32(segs[i].ds_addr);
-			cbp->tbd[i + 2].tb_size = htole32(segs[i].ds_len);
+			cbp->tbd[i + 1].tb_addr = htole32(segs[i].ds_addr);
+			cbp->tbd[i + 1].tb_size = htole32(segs[i].ds_len);
 		} else {
 			cbp->tbd[i].tb_addr = htole32(segs[i].ds_addr);
 			cbp->tbd[i].tb_size = htole32(segs[i].ds_len);
@@ -1548,13 +1550,13 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 	if (sc->flags & FXP_FLAG_EXT_RFA) {
 		/* Configure dynamic TBD for 82550/82551. */
 		cbp->tbd_number = 0xFF;
-		cbp->tbd[nseg + 1].tb_size |= htole32(0x8000);
+		cbp->tbd[nseg].tb_size |= htole32(0x8000);
 	} else
 		cbp->tbd_number = nseg;
 	/* Configure TSO. */
 	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
 		cbp->tbd[-1].tb_size = htole32(m->m_pkthdr.tso_segsz << 16);
-		cbp->tbd[1].tb_size = htole32(tcp_payload << 16);
+		cbp->tbd[1].tb_size |= htole32(tcp_payload << 16);
 		cbp->ipcb_ip_schedule |= FXP_IPCB_LARGESEND_ENABLE |
 		    FXP_IPCB_IP_CHECKSUM_ENABLE |
 		    FXP_IPCB_TCP_PACKET |
@@ -2543,7 +2545,8 @@ fxp_new_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 		return (error);
 	}
 
-	bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
+	if (rxp->rx_mbuf != NULL)
+		bus_dmamap_unload(sc->fxp_mtag, rxp->rx_map);
 	tmp_map = sc->spare_map;
 	sc->spare_map = rxp->rx_map;
 	rxp->rx_map = tmp_map;
@@ -2639,7 +2642,7 @@ fxp_miibus_readreg(device_t dev, int phy, int reg)
 	return (value & 0xffff);
 }
 
-static void
+static int
 fxp_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
@@ -2655,6 +2658,7 @@ fxp_miibus_writereg(device_t dev, int phy, int reg, int value)
 
 	if (count <= 0)
 		device_printf(dev, "fxp_miibus_writereg: timed out\n");
+	return (0);
 }
 
 static int

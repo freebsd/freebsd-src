@@ -1679,7 +1679,7 @@ p_candebug(struct thread *td, struct proc *p)
 	 * should be moved to the caller's of p_candebug().
 	 */
 	if ((p->p_flag & P_INEXEC) != 0)
-		return (EAGAIN);
+		return (EBUSY);
 
 	return (0);
 }

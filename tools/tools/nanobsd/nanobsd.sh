@@ -47,6 +47,7 @@ NANO_TOOLS=tools/tools/nanobsd
 
 # Where cust_pkg() finds packages to install
 NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
+NANO_PACKAGE_LIST="*"
 
 # Object tree directory
 # default is subdir of /usr/obj
@@ -592,7 +593,11 @@ cust_pkg () (
 
 	# Copy packages into chroot
 	mkdir -p ${NANO_WORLDDIR}/Pkg
-	cp ${NANO_PACKAGE_DIR}/* ${NANO_WORLDDIR}/Pkg
+	(
+		cd ${NANO_PACKAGE_DIR}
+		find ${NANO_PACKAGE_LIST} -print |
+		    cpio -dumpv ${NANO_WORLDDIR}/Pkg
+	)
 
 	# Count & report how many we have to install
 	todo=`ls ${NANO_WORLDDIR}/Pkg | wc -l`

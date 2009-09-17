@@ -28,6 +28,8 @@
 #ifndef _USS820_DCI_H_
 #define	_USS820_DCI_H_
 
+#define	USS820_MAX_DEVICES (USB_MIN_DEVICES + 1)
+
 #define	USS820_EP_MAX 8			/* maximum number of endpoints */
 
 #define	USS820_TXDAT 0x00		/* Transmit FIFO data */
@@ -345,8 +347,8 @@ struct uss820dci_softc {
 	LIST_HEAD(, usb2_xfer) sc_interrupt_list_head;
 	struct usb2_sw_transfer sc_root_ctrl;
 	struct usb2_sw_transfer sc_root_intr;
-	struct usb2_config_td sc_config_td;
 
+	struct usb2_device *sc_devices[USS820_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;

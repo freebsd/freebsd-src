@@ -92,7 +92,17 @@ struct kobjop_desc {
 /*
  * Shorthand for constructing method tables.
  */
+#if 1
 #define KOBJMETHOD(NAME, FUNC) { &NAME##_desc, (kobjop_t) FUNC }
+#else /* notyet */
+#define KOBJMETHOD(NAME, FUNC) \
+{ &NAME##_desc, (kobjop_t) (FUNC != (NAME##_t *)NULL ? FUNC : NULL) }
+#endif
+
+/*
+ *
+ */
+#define KOBJMETHOD_END	{ NULL, NULL }
 
 /*
  * Declare a class (which should be defined in another file.
@@ -114,7 +124,7 @@ DEFINE_CLASS_0(name, name ## _class, methods, size)
 #define DEFINE_CLASS_0(name, classvar, methods, size)	\
 							\
 struct kobj_class classvar = {				\
-	#name, methods, size, 0				\
+	#name, methods, size, NULL			\
 }
 
 /*
@@ -127,7 +137,7 @@ struct kobj_class classvar = {				\
 		       base1)				\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1, 0 };					\
+	{ &base1, NULL };				\
 struct kobj_class classvar = {				\
 	#name, methods, size, name ## _baseclasses	\
 }
@@ -143,7 +153,7 @@ struct kobj_class classvar = {				\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
-	  &base2, 0 };					\
+	  &base2, NULL };				\
 struct kobj_class name ## _class = {			\
 	#name, methods, size, name ## _baseclasses	\
 }
@@ -160,7 +170,7 @@ struct kobj_class name ## _class = {			\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
 	  &base2,					\
-	  &base3, 0 };					\
+	  &base3, NULL };				\
 struct kobj_class name ## _class = {			\
 	#name, methods, size, name ## _baseclasses	\
 }
@@ -245,10 +255,5 @@ kobj_method_t* kobj_lookup_method(kobj_class_t cls,
  * Default method implementation. Returns ENXIO.
  */
 int kobj_error_method(void);
-
-/*
- * Machine-dependent initialisation call for boot-time kobj clients
- */
-void kobj_machdep_init(void);
 
 #endif /* !_SYS_KOBJ_H_ */

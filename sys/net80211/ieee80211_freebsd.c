@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2003-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -124,6 +124,16 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		    ieee80211_opmode_name[cp.icp_opmode]);
 		return EOPNOTSUPP;
 	}
+	if ((cp.icp_flags & IEEE80211_CLONE_TDMA) &&
+#ifdef IEEE80211_SUPPORT_TDMA
+	    (ic->ic_caps & IEEE80211_C_TDMA) == 0
+#else
+	    (1)
+#endif
+	) {
+		if_printf(ifp, "TDMA not supported\n");
+		return EOPNOTSUPP;
+	}
 	vap = ic->ic_vap_create(ic, ifc->ifc_name, unit,
 			cp.icp_opmode, cp.icp_flags, cp.icp_bssid,
 			cp.icp_flags & IEEE80211_CLONE_MACADDR ?
@@ -234,7 +244,7 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	struct sysctl_oid *oid;
 	char num[14];			/* sufficient for 32 bits */
 
-	MALLOC(ctx, struct sysctl_ctx_list *, sizeof(struct sysctl_ctx_list),
+	ctx = (struct sysctl_ctx_list *) malloc(sizeof(struct sysctl_ctx_list),
 		M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (ctx == NULL) {
 		if_printf(ifp, "%s: cannot allocate sysctl context!\n",
@@ -310,7 +320,7 @@ ieee80211_sysctl_vdetach(struct ieee80211vap *vap)
 
 	if (vap->iv_sysctl != NULL) {
 		sysctl_ctx_free(vap->iv_sysctl);
-		FREE(vap->iv_sysctl, M_DEVBUF);
+		free(vap->iv_sysctl, M_DEVBUF);
 		vap->iv_sysctl = NULL;
 	}
 }

@@ -132,13 +132,14 @@ afd_detach(device_t dev)
     return 0;
 }
 
-static void
+static int
 afd_shutdown(device_t dev)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
     if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
 	ata_controlcmd(dev, ATA_FLUSHCACHE, 0, 0, 0);
+    return 0;
 }
 
 static int
@@ -146,11 +147,11 @@ afd_reinit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_device *atadev = device_get_softc(dev);
-    
-    if (((atadev->unit == ATA_MASTER) && !(ch->devices & ATA_ATAPI_MASTER)) ||
-	((atadev->unit == ATA_SLAVE) && !(ch->devices & ATA_ATAPI_SLAVE))) {
+
+    /* if detach pending, return error */
+    if (!(ch->devices & (ATA_ATAPI_MASTER << atadev->unit)))
 	return 1;
-    }
+
     ATA_SETMODE(device_get_parent(dev), dev);
     return 0;
 }

@@ -91,6 +91,9 @@ for dir in /bin /usr/bin /usr/local/bin; do
 	if [ -x "${dir}/svnversion" ]; then
 		svnversion=${dir}/svnversion
 		SRCDIR=${d##*obj}
+		if [ -n "$MACHINE" ]; then
+			SRCDIR=${SRCDIR##/$MACHINE}
+		fi
 		SRCDIR=${SRCDIR%%/sys/*}
 		break
 	fi

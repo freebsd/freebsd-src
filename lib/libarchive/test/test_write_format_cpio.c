@@ -134,7 +134,10 @@ test_format(int	(*set_format)(struct archive *))
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, used));
 
-	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+	if (!assertEqualIntA(a, 0, archive_read_next_header(a, &ae))) {
+		archive_read_finish(a);
+		return;
+	}
 
 	assertEqualInt(1, archive_entry_mtime(ae));
 	/* Not the same as above: cpio doesn't store hi-res times. */

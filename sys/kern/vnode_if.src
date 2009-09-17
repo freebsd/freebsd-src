@@ -171,6 +171,11 @@ vop_setattr {
 	IN struct ucred *cred;
 };
 
+%% markatime	vp	L L L
+
+vop_markatime {
+	IN struct vnode *vp;
+};
 
 %% read		vp	L L L
 
@@ -594,4 +599,14 @@ vop_setlabel {
 vop_vptofh {
 	IN struct vnode *vp;
 	IN struct fid *fhp;
+};
+
+%% vptocnp		vp	L L L
+%% vptocnp		vpp	- U -
+
+vop_vptocnp {
+	IN struct vnode *vp;
+	OUT struct vnode **vpp;
+	INOUT char *buf;
+	INOUT int *buflen;
 };

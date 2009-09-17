@@ -48,10 +48,30 @@
 
 #include "wlanstats.h"
 
-#define	S_DEFAULT \
-	"input,rx_mgmt,output,rx_badkeyid,scan_active,scan_bg,bmiss,rssi,noise,rate"
-#define	S_AMPDU \
-	"input,output,ampdu_reorder,ampdu_oor,rx_dup,ampdu_flush,ampdu_move,ampdu_drop,ampdu_bar,ampdu_baroow,ampdu_barmove,rssi,rate"
+static struct {
+	const char *tag;
+	const char *fmt;
+} tags[] = {
+  { "default",
+    "input,rx_mgmt,output,rx_badkeyid,scan_active,scan_bg,bmiss,rssi,noise,rate"
+  },
+  { "ampdu",
+    "input,output,ampdu_reorder,ampdu_oor,rx_dup,ampdu_flush,ampdu_move,"
+    "ampdu_drop,ampdu_bar,ampdu_baroow,ampdu_barmove,rssi,rate"
+  },
+};
+
+static const char *
+getfmt(const char *tag)
+{
+#define	N(a)	(sizeof(a)/sizeof(a[0]))
+	int i;
+	for (i = 0; i < N(tags); i++)
+		if (strcasecmp(tags[i].tag, tag) == 0)
+			return tags[i].fmt;
+	return tag;
+#undef N
+}
 
 static int signalled;
 
@@ -138,10 +158,14 @@ main(int argc, char *argv[])
 	struct wlanstatfoo *wf;
 	struct ether_addr *ea;
 	const uint8_t *mac = NULL;
+	const char *ifname;
 	int allnodes = 0;
 	int c, mode;
 
-	wf = wlanstats_new("wlan0", S_DEFAULT);
+	ifname = getenv("WLAN");
+	if (ifname == NULL)
+		ifname = "wlan0";
+	wf = wlanstats_new(ifname, getfmt("default"));
 	while ((c = getopt(argc, argv, "ai:lm:o:")) != -1) {
 		switch (c) {
 		case 'a':
@@ -160,10 +184,7 @@ main(int argc, char *argv[])
 			mac = ea->octet;
 			break;
 		case 'o':
-			if (strcasecmp(optarg, "ampdu") == 0)
-				wf->setfmt(wf, S_AMPDU);
-			else
-				wf->setfmt(wf, optarg);
+			wf->setfmt(wf, getfmt(optarg));
 			break;
 		default:
 			errx(-1, "usage: %s [-a] [-i ifname] [-l] [-o fmt] [interval]\n", argv[0]);

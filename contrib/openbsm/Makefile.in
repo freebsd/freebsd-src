@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/Makefile.in#8 $
+# $P4: //depot/projects/trustedbsd/openbsm/Makefile.in#9 $
 #
 VPATH = @srcdir@
 pkgdatadir = $(datadir)/@PACKAGE@
@@ -35,6 +35,9 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+@HAVE_AUDIT_SYSCALLS_TRUE@am__append_1 = \
+@HAVE_AUDIT_SYSCALLS_TRUE@       	libauditd
+
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(top_srcdir)/config/config.h.in \
@@ -63,7 +66,7 @@ RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = $(SUBDIRS)
+DIST_SUBDIRS = bsm libauditd libbsm bin man modules sys
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -183,14 +186,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUBDIRS = \
-	bsm		\
-	libbsm		\
-	bin		\
-	man		\
-	modules		\
-	sys
-
+SUBDIRS = bsm $(am__append_1) libbsm bin man modules sys
 EXTRA_DIST = \
 	CHANGELOG	\
 	LICENSE		\

@@ -48,7 +48,7 @@ static void adb_bus_enumerate(void *xdev);
 static void adb_probe_nomatch(device_t dev, device_t child);
 static int adb_print_child(device_t dev, device_t child);
 
-static int adb_send_raw_packet_sync(device_t dev, uint8_t to, uint8_t command, uint8_t reg, int len, u_char *data);
+static int adb_send_raw_packet_sync(device_t dev, uint8_t to, uint8_t command, uint8_t reg, int len, u_char *data, u_char *reply);
 
 static char *adb_device_string[] = {
 	"HOST", "dongle", "keyboard", "mouse", "tablet", "modem", "RESERVED", "misc"
@@ -118,8 +118,7 @@ adb_bus_enumerate(void *xdev)
 
 	sc->packet_reply = 0;
 	sc->autopoll_mask = 0;
-
-	mtx_init(&sc->sc_sync_mtx,"adbsyn",NULL,MTX_DEF | MTX_RECURSE);
+	sc->sync_packet = 0xffff;
 
 	/* Initialize devinfo */
 	for (i = 0; i < 16; i++) {
@@ -128,7 +127,7 @@ adb_bus_enumerate(void *xdev)
 	}
 	
 	/* Reset ADB bus */
-	adb_send_raw_packet_sync(dev,0,ADB_COMMAND_BUS_RESET,0,0,NULL);
+	adb_send_raw_packet_sync(dev,0,ADB_COMMAND_BUS_RESET,0,0,NULL,NULL);
 	DELAY(1500);
 
 	/* Enumerate bus */
@@ -140,7 +139,7 @@ adb_bus_enumerate(void *xdev)
 
 	    do {
 		reply = adb_send_raw_packet_sync(dev,i,
-			    ADB_COMMAND_TALK,3,0,NULL);
+			    ADB_COMMAND_TALK,3,0,NULL,NULL);
 	
 		if (reply) {
 			/* If we got a response, relocate to next_free */
@@ -150,10 +149,10 @@ adb_bus_enumerate(void *xdev)
 			r3 |= 0x00fe;
 
 			adb_send_raw_packet_sync(dev,i, ADB_COMMAND_LISTEN,3,
-			    sizeof(uint16_t),(u_char *)(&r3));
+			    sizeof(uint16_t),(u_char *)(&r3),NULL);
 
 			adb_send_raw_packet_sync(dev,next_free,
-			    ADB_COMMAND_TALK,3,0,NULL);
+			    ADB_COMMAND_TALK,3,0,NULL,NULL);
 
 			sc->devinfo[next_free].default_address = i;
 			if (first_relocated < 0)
@@ -169,9 +168,9 @@ adb_bus_enumerate(void *xdev)
 			
 			adb_send_raw_packet_sync(dev,first_relocated,
 			    ADB_COMMAND_LISTEN,3,
-			    sizeof(uint16_t),(u_char *)(&r3));
+			    sizeof(uint16_t),(u_char *)(&r3),NULL);
 			adb_send_raw_packet_sync(dev,i,
-			    ADB_COMMAND_TALK,3,0,NULL);
+			    ADB_COMMAND_TALK,3,0,NULL,NULL);
 
 			sc->devinfo[i].default_address = i;
 			sc->devinfo[(int)(first_relocated)].default_address = 0;
@@ -194,10 +193,6 @@ adb_bus_enumerate(void *xdev)
 
 static int adb_bus_detach(device_t dev)
 {
-	struct adb_softc *sc = device_get_softc(dev);
-
-	mtx_destroy(&sc->sc_sync_mtx);
-
 	return (bus_generic_detach(dev));
 }
 	
@@ -230,6 +225,7 @@ adb_receive_raw_packet(device_t dev, u_char status, u_char command, int len,
 	if (sc->sync_packet == command)  {
 		memcpy(sc->syncreg,data,(len > 8) ? 8 : len);
 		atomic_store_rel_int(&sc->packet_reply,len + 1);
+		wakeup(sc);
 	}
 
 	if (sc->children[addr] != NULL) {
@@ -317,12 +313,12 @@ adb_get_device_handler(device_t dev)
 
 static int 
 adb_send_raw_packet_sync(device_t dev, uint8_t to, uint8_t command, 
-    uint8_t reg, int len, u_char *data) 
+    uint8_t reg, int len, u_char *data, u_char *reply) 
 {
 	u_char command_byte = 0;
 	struct adb_softc *sc;
 	int result = -1;
-	int i = 0;
+	int i = 1;
 
 	sc = device_get_softc(dev);
 	
@@ -331,7 +327,8 @@ adb_send_raw_packet_sync(device_t dev, uint8_t to, uint8_t command,
 	command_byte |= reg;
 
 	/* Wait if someone else has a synchronous request pending */
-	mtx_lock(&sc->sc_sync_mtx);
+	while (!atomic_cmpset_int(&sc->sync_packet, 0xffff, command_byte))
+		tsleep(sc, 0, "ADB sync", hz/10);
 
 	sc->packet_reply = 0;
 	sc->sync_packet = command_byte;
@@ -343,21 +340,27 @@ adb_send_raw_packet_sync(device_t dev, uint8_t to, uint8_t command,
 		 * Maybe the command got lost? Try resending and polling the 
 		 * controller.
 		 */
-		if (i > 40)
+		if (i % 40 == 0)
 			ADB_HB_SEND_RAW_PACKET(sc->parent, command_byte, 
 			    len, data, 1);
 
-		DELAY(100);
+		tsleep(sc, 0, "ADB sync", hz/10);
 		i++;
 	}
 
 	result = sc->packet_reply - 1;
 
+	if (reply != NULL && result > 0)
+		memcpy(reply,sc->syncreg,result);
+
 	/* Clear packet sync */
 	sc->packet_reply = 0;
-	sc->sync_packet = 0xffff; /* We can't match a 16 bit value */
 
-	mtx_unlock(&sc->sc_sync_mtx);
+	/*
+	 * We can't match a value beyond 8 bits, so set sync_packet to 
+	 * 0xffff to avoid collisions.
+	 */
+	atomic_set_int(&sc->sync_packet, 0xffff); 
 
 	return (result);
 }
@@ -375,37 +378,27 @@ adb_set_device_handler(device_t dev, uint8_t newhandler)
 	newr3 = dinfo->register3 & 0xff00;
 	newr3 |= (uint16_t)(newhandler);
 
+	adb_send_raw_packet_sync(sc->sc_dev,dinfo->address, ADB_COMMAND_LISTEN, 
+	    3, sizeof(uint16_t), (u_char *)(&newr3), NULL);
 	adb_send_raw_packet_sync(sc->sc_dev,dinfo->address, 
-	    ADB_COMMAND_LISTEN, 3, sizeof(uint16_t), (u_char *)(&newr3));
-	adb_send_raw_packet_sync(sc->sc_dev,dinfo->address, 
-	    ADB_COMMAND_TALK, 3, 0, NULL);
+	    ADB_COMMAND_TALK, 3, 0, NULL, NULL);
 
 	return (dinfo->handler_id);
 }
 
-uint8_t 
-adb_read_register(device_t dev, u_char reg, 
-    size_t *len, void *data) 
+size_t 
+adb_read_register(device_t dev, u_char reg, void *data) 
 {
 	struct adb_softc *sc;
 	struct adb_devinfo *dinfo;
-	size_t orig_len;
+	size_t result;
 
 	dinfo = device_get_ivars(dev);
 	sc = device_get_softc(device_get_parent(dev));
 
-	orig_len = *len;
+	result = adb_send_raw_packet_sync(sc->sc_dev,dinfo->address,
+	           ADB_COMMAND_TALK, reg, 0, NULL, data);
 
-	mtx_lock(&sc->sc_sync_mtx);
-	
-	*len = adb_send_raw_packet_sync(sc->sc_dev,dinfo->address,
-	           ADB_COMMAND_TALK, reg, 0, NULL);
-
-	if (*len > 0)
-		memcpy(data,sc->syncreg,*len);
-
-	mtx_unlock(&sc->sc_sync_mtx);
-
-	return ((*len > 0) ? 0 : -1);
+	return (result);
 }
 

@@ -180,7 +180,7 @@ pt_entry_t pg_nx;
 
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
-static int pg_ps_enabled;
+static int pg_ps_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RD, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
 
@@ -1932,15 +1932,15 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	pc->pc_map[field] |= 1ul << bit;
 	/* move to head of list */
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 	if (pc->pc_map[0] != PC_FREE0 || pc->pc_map[1] != PC_FREE1 ||
-	    pc->pc_map[2] != PC_FREE2)
+	    pc->pc_map[2] != PC_FREE2) {
+		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 		return;
+	}
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
 	PV_STAT(pc_chunk_frees++);
 	/* entire chunk is free, return it */
-	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
 	vm_page_unwire(m, 0);
@@ -3400,9 +3400,7 @@ retry:
 			}
 
 			p = vm_page_lookup(object, pindex);
-			vm_page_lock_queues();
 			vm_page_wakeup(p);
-			vm_page_unlock_queues();
 		}
 
 		ptepa = VM_PAGE_TO_PHYS(p);
@@ -3416,15 +3414,11 @@ retry:
 			while ((pdpg =
 			    pmap_allocpde(pmap, va, M_NOWAIT)) == NULL) {
 				PMAP_UNLOCK(pmap);
-				vm_page_lock_queues();
 				vm_page_busy(p);
-				vm_page_unlock_queues();
 				VM_OBJECT_UNLOCK(object);
 				VM_WAIT;
 				VM_OBJECT_LOCK(object);
-				vm_page_lock_queues();
 				vm_page_wakeup(p);
-				vm_page_unlock_queues();
 				PMAP_LOCK(pmap);
 			}
 			pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pdpg));

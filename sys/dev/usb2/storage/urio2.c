@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
  * 2000/2/24  first version.
  */
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_lookup.h>
 #include <dev/usb2/core/usb2_util.h>
@@ -213,9 +212,6 @@ urio_attach(device_t dev)
 	struct urio_softc *sc = device_get_softc(dev);
 	int error;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	sc->sc_udev = uaa->device;
@@ -293,7 +289,6 @@ urio_write_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~URIO_FLAG_WRITE_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -339,7 +334,6 @@ urio_read_clear_stall_callback(struct usb2_xfer *xfer)
 		sc->sc_flags &= ~URIO_FLAG_READ_STALL;
 		usb2_transfer_start(xfer_other);
 	}
-	return;
 }
 
 static void
@@ -348,7 +342,6 @@ urio_start_read(struct usb2_fifo *fifo)
 	struct urio_softc *sc = fifo->priv_sc0;
 
 	usb2_transfer_start(sc->sc_xfer[URIO_T_RD]);
-	return;
 }
 
 static void
@@ -358,7 +351,6 @@ urio_stop_read(struct usb2_fifo *fifo)
 
 	usb2_transfer_stop(sc->sc_xfer[URIO_T_RD_CS]);
 	usb2_transfer_stop(sc->sc_xfer[URIO_T_RD]);
-	return;
 }
 
 static void
@@ -367,7 +359,6 @@ urio_start_write(struct usb2_fifo *fifo)
 	struct urio_softc *sc = fifo->priv_sc0;
 
 	usb2_transfer_start(sc->sc_xfer[URIO_T_WR]);
-	return;
 }
 
 static void
@@ -377,7 +368,6 @@ urio_stop_write(struct usb2_fifo *fifo)
 
 	usb2_transfer_stop(sc->sc_xfer[URIO_T_WR_CS]);
 	usb2_transfer_stop(sc->sc_xfer[URIO_T_WR]);
-	return;
 }
 
 static int
@@ -419,7 +409,6 @@ urio_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);
 	}
-	return;
 }
 
 static int

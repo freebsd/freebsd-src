@@ -411,32 +411,31 @@ struct fwohci_trailer{
 #define	OHCI_CNTL_PHYPKT	(0x1 << 10)
 #define	OHCI_CNTL_SID		(0x1 << 9)
 
+/*
+ * defined in OHCI 1.1 
+ * chapter 6.1
+ */
 #define OHCI_INT_DMA_ATRQ	(0x1 << 0)
 #define OHCI_INT_DMA_ATRS	(0x1 << 1)
 #define OHCI_INT_DMA_ARRQ	(0x1 << 2)
 #define OHCI_INT_DMA_ARRS	(0x1 << 3)
 #define OHCI_INT_DMA_PRRQ	(0x1 << 4)
 #define OHCI_INT_DMA_PRRS	(0x1 << 5)
-#define OHCI_INT_DMA_IT	(0x1 << 6)
-#define OHCI_INT_DMA_IR	(0x1 << 7)
-#define OHCI_INT_PW_ERR	(0x1 << 8)
-#define OHCI_INT_LR_ERR	(0x1 << 9)
-
+#define OHCI_INT_DMA_IT 	(0x1 << 6)
+#define OHCI_INT_DMA_IR 	(0x1 << 7)
+#define OHCI_INT_PW_ERR 	(0x1 << 8)
+#define OHCI_INT_LR_ERR 	(0x1 << 9)
 #define OHCI_INT_PHY_SID	(0x1 << 16)
 #define OHCI_INT_PHY_BUS_R	(0x1 << 17)
-
 #define OHCI_INT_REG_FAIL	(0x1 << 18)
-
 #define OHCI_INT_PHY_INT	(0x1 << 19)
 #define OHCI_INT_CYC_START	(0x1 << 20)
 #define OHCI_INT_CYC_64SECOND	(0x1 << 21)
 #define OHCI_INT_CYC_LOST	(0x1 << 22)
 #define OHCI_INT_CYC_ERR	(0x1 << 23)
-
 #define OHCI_INT_ERR		(0x1 << 24)
 #define OHCI_INT_CYC_LONG	(0x1 << 25)
 #define OHCI_INT_PHY_REG	(0x1 << 26)
-
 #define OHCI_INT_EN		(0x1 << 31)
 
 #define IP_CHANNELS             0x0234

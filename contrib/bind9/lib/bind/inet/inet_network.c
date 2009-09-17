@@ -84,9 +84,9 @@ again:
 	}
 	if (!digit)
 		return (INADDR_NONE);
+	if (pp >= parts + 4 || val > 0xffU)
+		return (INADDR_NONE);
 	if (*cp == '.') {
-		if (pp >= parts + 4 || val > 0xffU)
-			return (INADDR_NONE);
 		*pp++ = val, cp++;
 		goto again;
 	}

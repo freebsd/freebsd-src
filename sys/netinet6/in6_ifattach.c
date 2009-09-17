@@ -778,7 +778,7 @@ in6_ifdetach(struct ifnet *ifp)
 		if ((ia->ia_flags & IFA_ROUTE) &&
 		    (rt = rtalloc1((struct sockaddr *)&ia->ia_addr, 0, 0UL))) {
 			rtflags = rt->rt_flags;
-			rtfree(rt);
+			RTFREE_LOCKED(rt);
 			rtrequest(RTM_DELETE, (struct sockaddr *)&ia->ia_addr,
 			    (struct sockaddr *)&ia->ia_addr,
 			    (struct sockaddr *)&ia->ia_prefixmask,
@@ -834,7 +834,7 @@ in6_ifdetach(struct ifnet *ifp)
 	/* XXX grab lock first to avoid LOR */
 	if (V_rt_tables[0][AF_INET6] != NULL) {
 		RADIX_NODE_HEAD_LOCK(V_rt_tables[0][AF_INET6]);
-		rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
+		rt = rtalloc1((struct sockaddr *)&sin6, 0, RTF_RNH_LOCKED);
 		if (rt) {
 			if (rt->rt_ifp == ifp)
 				rtexpunge(rt);
@@ -903,10 +903,6 @@ in6_purgemaddrs(struct ifnet *ifp)
 {
 	struct in6_multi *in6m;
 	struct in6_multi *oin6m;
-
-#ifdef DIAGNOSTIC
-	printf("%s: purging ifp %p\n", __func__, ifp);
-#endif
 
 	IFF_LOCKGIANT(ifp);
 	LIST_FOREACH_SAFE(in6m, &in6_multihead, in6m_entry, oin6m) {

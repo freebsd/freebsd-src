@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.c,v 1.410.18.52 2007/08/30 05:15:03 marka Exp $ */
+/* $Id: zone.c,v 1.410.18.55 2008/10/24 01:43:17 tbox Exp $ */
 
 /*! \file */
 
@@ -813,10 +813,10 @@ dns_zone_getdbtype(dns_zone_t *zone, char ***argv, isc_mem_t *mctx) {
 	isc_result_t result = ISC_R_SUCCESS;
 	void *mem;
 	char **tmp, *tmp2;
-	
+
 	REQUIRE(DNS_ZONE_VALID(zone));
 	REQUIRE(argv != NULL && *argv == NULL);
-	
+
 	LOCK_ZONE(zone);
 	size = (zone->db_argc + 1) * sizeof(char *);
 	for (i = 0; i < zone->db_argc; i++)
@@ -927,7 +927,7 @@ void
 dns_zone_setacache(dns_zone_t *zone, dns_acache_t *acache) {
 	REQUIRE(DNS_ZONE_VALID(zone));
 	REQUIRE(acache != NULL);
-	
+
 	LOCK_ZONE(zone);
 	if (zone->acache != NULL)
 		dns_acache_detach(&zone->acache);
@@ -1425,7 +1425,7 @@ zone_check_mx(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 	dns_fixedname_t fixed;
 	dns_name_t *foundname;
 	int level;
-	
+
 	/*
 	 * Outside of zone.
 	 */
@@ -1507,7 +1507,7 @@ zone_check_srv(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 	dns_fixedname_t fixed;
 	dns_name_t *foundname;
 	int level;
-	
+
 	/*
 	 * "." means the services does not exist.
 	 */
@@ -1598,7 +1598,7 @@ zone_check_glue(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 	dns_rdataset_t a;
 	dns_rdataset_t aaaa;
 	int level;
-	
+
 	/*
 	 * Outside of zone.
 	 */
@@ -1636,7 +1636,7 @@ zone_check_glue(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 		if (tresult == ISC_R_SUCCESS) {
 			dns_rdataset_disassociate(&aaaa);
 			return (ISC_TRUE);
-		} 
+		}
 		if (tresult == DNS_R_DELEGATION)
 			dns_rdataset_disassociate(&aaaa);
 		if (result == DNS_R_GLUE || tresult == DNS_R_GLUE) {
@@ -1660,14 +1660,16 @@ zone_check_glue(dns_zone_t *zone, dns_db_t *db, dns_name_t *name,
 	if (result == DNS_R_NXRRSET || result == DNS_R_NXDOMAIN ||
 	    result == DNS_R_EMPTYNAME || result == DNS_R_DELEGATION) {
 		const char *what;
-		if (dns_name_issubdomain(name, owner))
+		isc_boolean_t required = ISC_FALSE;
+		if (dns_name_issubdomain(name, owner)) {
 			what = "REQUIRED GLUE ";
-		else if (result == DNS_R_DELEGATION)
+			required = ISC_TRUE;
+		 } else if (result == DNS_R_DELEGATION)
 			what = "SIBLING GLUE ";
 		else
 			what = "";
 
-		if (result != DNS_R_DELEGATION ||
+		if (result != DNS_R_DELEGATION || required ||
 		    DNS_ZONE_OPTION(zone, DNS_ZONEOPT_CHECKSIBLING)) {
 			dns_zone_log(zone, level, "%s/NS '%s' has no %s"
 				     "address records (A or AAAA)",
@@ -1749,7 +1751,7 @@ integrity_checks(dns_zone_t *zone, dns_db_t *db) {
 		if (dns_name_equal(name, &zone->origin))
 			goto checkmx;
 
-		result = dns_db_findrdataset(db, node, NULL, dns_rdatatype_ns, 
+		result = dns_db_findrdataset(db, node, NULL, dns_rdatatype_ns,
 					     0, 0, &rdataset, NULL);
 		if (result != ISC_R_SUCCESS)
 			goto checkmx;
@@ -1771,7 +1773,7 @@ integrity_checks(dns_zone_t *zone, dns_db_t *db) {
 		dns_rdataset_disassociate(&rdataset);
 
  checkmx:
-		result = dns_db_findrdataset(db, node, NULL, dns_rdatatype_mx, 
+		result = dns_db_findrdataset(db, node, NULL, dns_rdatatype_mx,
 					     0, 0, &rdataset, NULL);
 		if (result != ISC_R_SUCCESS)
 			goto checksrv;
@@ -1790,7 +1792,7 @@ integrity_checks(dns_zone_t *zone, dns_db_t *db) {
  checksrv:
 		if (zone->rdclass != dns_rdataclass_in)
 			goto next;
-		result = dns_db_findrdataset(db, node, NULL, dns_rdatatype_srv, 
+		result = dns_db_findrdataset(db, node, NULL, dns_rdatatype_srv,
 					     0, 0, &rdataset, NULL);
 		if (result != ISC_R_SUCCESS)
 			goto next;
@@ -1848,12 +1850,12 @@ zone_check_dnskeys(dns_zone_t *zone, dns_db_t *db) {
 
 	for (result = dns_rdataset_first(&rdataset);
 	     result == ISC_R_SUCCESS;
-	     result = dns_rdataset_next(&rdataset)) 
+	     result = dns_rdataset_next(&rdataset))
 	{
 		dns_rdataset_current(&rdataset, &rdata);
 		result = dns_rdata_tostruct(&rdata, &dnskey, NULL);
 		INSIST(result == ISC_R_SUCCESS);
-		
+
 		if ((dnskey.algorithm == DST_ALG_RSASHA1 ||
 		     dnskey.algorithm == DST_ALG_RSAMD5) &&
 		     dnskey.datalen > 1 && dnskey.data[0] == 1 &&
@@ -1885,7 +1887,7 @@ zone_check_dnskeys(dns_zone_t *zone, dns_db_t *db) {
 		dns_db_detachnode(db, &node);
 	if (version != NULL)
 		dns_db_closeversion(db, &version, ISC_FALSE);
-	
+
 }
 
 static isc_result_t
@@ -2039,7 +2041,7 @@ zone_postload(dns_zone_t *zone, dns_db_t *db, isc_time_t loadtime,
 			} else if (!isc_serial_ge(serial, zone->serial))
 				dns_zone_log(zone, ISC_LOG_ERROR,
 					     "zone serial has gone backwards");
-			else if (serial == zone->serial && !hasinclude) 
+			else if (serial == zone->serial && !hasinclude)
 				dns_zone_log(zone, ISC_LOG_ERROR,
 					     "zone serial unchanged. "
 					     "zone may fail to transfer "
@@ -2171,7 +2173,7 @@ zone_check_ns(dns_zone_t *zone, dns_db_t *db, dns_name_t *name) {
 	dns_fixedname_t fixed;
 	dns_name_t *foundname;
 	int level;
-	
+
 	if (DNS_ZONE_OPTION(zone, DNS_ZONEOPT_NOCHECKNS))
 		return (ISC_TRUE);
 
@@ -2760,7 +2762,7 @@ dns_zone_setmasterswithkeys(dns_zone_t *zone,
 	}
 
 	LOCK_ZONE(zone);
-	/* 
+	/*
 	 * The refresh code assumes that 'masters' wouldn't change under it.
 	 * If it will change then kill off any current refresh in progress
 	 * and update the masters info.  If it won't change then we can just
@@ -2815,7 +2817,7 @@ dns_zone_setmasterswithkeys(dns_zone_t *zone,
 		goto unlock;
 	}
 	memcpy(new, masters, count * sizeof(*new));
-	
+
 	/*
 	 * Similarly for mastersok.
 	 */
@@ -4834,7 +4836,7 @@ add_opt(dns_message_t *message, isc_uint16_t udpsize) {
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 	dns_rdataset_init(rdataset);
-	
+
 	rdatalist->type = dns_rdatatype_opt;
 	rdatalist->covers = 0;
 
@@ -4871,7 +4873,7 @@ add_opt(dns_message_t *message, isc_uint16_t udpsize) {
 		dns_message_puttemprdataset(message, &rdataset);
 	if (rdata != NULL)
 		dns_message_puttemprdata(message, &rdata);
-	
+
 	return (result);
 }
 
@@ -5161,7 +5163,7 @@ ns_query(dns_zone_t *zone, dns_rdataset_t *soardataset, dns_stub_t *stub) {
 		}
 	}
 	if (key == NULL)
-		(void)dns_view_getpeertsig(zone->view, &masterip, &key);	
+		(void)dns_view_getpeertsig(zone->view, &masterip, &key);
 
 	if (zone->view->peers != NULL) {
 		dns_peer_t *peer = NULL;
@@ -5181,7 +5183,7 @@ ns_query(dns_zone_t *zone, dns_rdataset_t *soardataset, dns_stub_t *stub) {
 				  dns_resolver_getudpsize(zone->view->resolver);
 			(void)dns_peer_getudpsize(peer, &udpsize);
 		}
-		
+
 	}
 	if (!DNS_ZONE_FLAG(zone, DNS_ZONEFLG_NOEDNS)) {
 		result = add_opt(message, udpsize);
@@ -5315,7 +5317,7 @@ zone_shutdown(isc_task_t *task, isc_event_t *event) {
 		if (zone->writeio != NULL)
 			zonemgr_cancelio(zone->writeio);
 
-		if (zone->dctx != NULL) 
+		if (zone->dctx != NULL)
 			dns_dumpctx_cancel(zone->dctx);
 	}
 
@@ -6664,7 +6666,7 @@ zone_xfrdone(dns_zone_t *zone, isc_result_t result) {
 		}
 		DNS_ZONE_CLRFLAG(zone, DNS_ZONEFLG_NEEDCOMPACT);
 	}
-	
+
 	/*
 	 * This transfer finishing freed up a transfer quota slot.
 	 * Let any other zones waiting for quota have it.
@@ -6702,7 +6704,7 @@ zone_loaddone(void *arg, isc_result_t result) {
 	ENTER;
 
 	tresult = dns_db_endload(load->db, &load->callbacks.add_private);
-	if (tresult != ISC_R_SUCCESS && 
+	if (tresult != ISC_R_SUCCESS &&
 	    (result == ISC_R_SUCCESS || result == DNS_R_SEENINCLUDE))
 		result = tresult;
 
@@ -7725,7 +7727,7 @@ zone_saveunique(dns_zone_t *zone, const char *path, const char *templat) {
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
-	dns_zone_log(zone, ISC_LOG_INFO, "saved '%s' as '%s'",
+	dns_zone_log(zone, ISC_LOG_WARNING, "saved '%s' as '%s'",
 		     path, buf);
 
  cleanup:

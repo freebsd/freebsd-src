@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_eeprom_v14.c,v 1.4 2008/11/10 19:04:26 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -54,6 +54,7 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 			    __func__, ath_hal_ether_sprintf(macaddr));
 			return HAL_EEBADMAC;
 		}
+		return HAL_OK;
         case AR_EEP_REGDMN_0:
 		return pBase->regDmn[0];
         case AR_EEP_REGDMN_1:
@@ -158,18 +159,6 @@ v14EepromDiag(struct ath_hal *ah, int request,
 	}
 	return AH_FALSE;
 }
-
-/* XXX conditionalize by target byte order */
-#ifndef bswap16
-static __inline__ uint16_t
-__bswap16(uint16_t _x)
-{
- 	return ((uint16_t)(
-	      (((const uint8_t *)(&_x))[0]    ) |
-	      (((const uint8_t *)(&_x))[1]<< 8))
-	);
-}
-#endif
 
 /* Do structure specific swaps if Eeprom format is non native to host */
 static void

@@ -1549,7 +1549,7 @@ si_command(struct si_port *pp, int cmd, int waitflag)
 			/* This is very very bad.  The card has crashed. */
 			/* XXX the driver breaks at this point */
 			if (err == ETIMEDOUT)
-				printf("%s: tsleep1 timeout. hi_stat %s, sp_pend %s\n", pp->sp_name, si_cmdname(ccbp->hi_stat), si_cmdname(pp->sp_pend));
+				DPRINT(("%s: tsleep1 timeout. hi_stat %s, sp_pend %s\n", pp->sp_name, si_cmdname(ccbp->hi_stat), si_cmdname(pp->sp_pend)));
 			splx(oldspl);
 			return;
 		}
@@ -1586,7 +1586,7 @@ si_command(struct si_port *pp, int cmd, int waitflag)
 			if (err) {
 				DPRINT((pp, DBG_PARAM, "sicmd2 tsleep error: hi_stat (%s) sp_pend (%s)\n", si_cmdname(ccbp->hi_stat), si_cmdname(pp->sp_pend)));
 				if (err == ETIMEDOUT) {
-					printf("%s: tsleep2 timeout. hi_stat %s, sp_pend %s\n", pp->sp_name, si_cmdname(ccbp->hi_stat), si_cmdname(pp->sp_pend));
+					DPRINT(("%s: tsleep2 timeout. hi_stat %s, sp_pend %s\n", pp->sp_name, si_cmdname(ccbp->hi_stat), si_cmdname(pp->sp_pend)));
 				}
 				break;
 			}

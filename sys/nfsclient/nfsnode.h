@@ -109,6 +109,7 @@ struct nfsnode {
 	time_t			n_modestamp;	/* mode cache timestamp */
 	struct timespec		n_mtime;	/* Prev modify time. */
 	time_t			n_ctime;	/* Prev create time. */
+	time_t			n_dmtime;	/* Prev dir modify time. */
 	time_t			n_expiry;	/* Lease expiry time */
 	nfsfh_t			*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */

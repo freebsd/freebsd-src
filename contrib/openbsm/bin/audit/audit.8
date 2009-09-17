@@ -25,9 +25,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.8#11 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.8#13 $
 .\"
-.Dd October 2, 2006
+.Dd December 11, 2008
 .Dt AUDIT 8
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd audit management utility
 .Sh SYNOPSIS
 .Nm
-.Fl n | s | t
+.Fl i | n | s | t
 .Sh DESCRIPTION
 The
 .Nm
@@ -43,6 +43,13 @@ utility controls the state of the audit system.
 One of the following flags is required as an argument to
 .Nm :
 .Bl -tag -width indent
+.It Fl i
+Initializes and starts auditing.
+This option is currently for Mac OS X only
+and requires
+.Xr auditd 8
+to be configured to run under 
+.Xr launchd 8 .
 .It Fl n
 Forces the audit system to close the existing audit log file and rotate to
 a new log file in a location specified in the audit control file.
@@ -59,6 +66,13 @@ and renamed to indicate the time of the shutdown.
 The
 .Xr auditd 8
 daemon must already be running.
+Optionally, it can be configured to be started
+on-demand by
+.Xr launchd 8
+(Mac OS X only).
+The
+.Nm 
+utility requires audit administrator privileges for successful operation.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/security/audit_control" -compact
 .It Pa /etc/security/audit_control
@@ -67,7 +81,8 @@ Audit policy file used to configure the auditing system.
 .Sh SEE ALSO
 .Xr audit 4 ,
 .Xr audit_control 5 ,
-.Xr auditd 8
+.Xr auditd 8 ,
+.Xr launchd 8
 .Sh HISTORY
 The OpenBSM implementation was created by McAfee Research, the security
 division of McAfee Inc., under contract to Apple Computer Inc.\& in 2004.

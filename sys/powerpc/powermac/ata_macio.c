@@ -164,9 +164,11 @@ ata_macio_probe(device_t dev)
 	ch = &sc->sc_ch.sc_ch;
 
 	if (strcmp(name,"ata-4") == 0) {
+		device_set_desc(dev,"Apple MacIO Ultra ATA Controller");
 		sc->rev = 4;
 		sc->max_mode = ATA_UDMA4;
 	} else {
+		device_set_desc(dev,"Apple MacIO ATA Controller");
 		sc->rev = 3;
 		sc->max_mode = ATA_WDMA2;
 	}

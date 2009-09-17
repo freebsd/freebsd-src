@@ -71,7 +71,7 @@ usage(void)
 void
 add_rule(int argc, char *argv[])
 {
-	char errstr[BUFSIZ];
+	char errstr[BUFSIZ], charstr[BUFSIZ];
 	struct mac_bsdextended_rule rule;
 	int error, rulenum;
 
@@ -86,7 +86,10 @@ add_rule(int argc, char *argv[])
 		warnx("%s", errstr);
 		return;
 	}
-	printf("Added rule %d\n", rulenum);
+	if (bsde_rule_to_string(&rule, charstr, BUFSIZ) == -1)
+		warnx("Added rule, but unable to print string.");
+	else
+		printf("%d %s\n", rulenum, charstr);
 }
 
 void

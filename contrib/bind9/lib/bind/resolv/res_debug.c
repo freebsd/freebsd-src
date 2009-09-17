@@ -95,7 +95,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_debug.c,v 1.10.18.5 2005/07/28 07:38:11 marka Exp $";
+static const char rcsid[] = "$Id: res_debug.c,v 1.10.18.6 2008/04/03 23:15:15 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -189,10 +189,56 @@ do_section(const res_state statp,
 				p_type(ns_rr_type(rr)),
 				p_class(ns_rr_class(rr)));
 		else if (section == ns_s_ar && ns_rr_type(rr) == ns_t_opt) {
+			u_int16_t optcode, optlen, rdatalen = ns_rr_rdlen(rr);
 			u_int32_t ttl = ns_rr_ttl(rr);
+
 			fprintf(file,
 				"; EDNS: version: %u, udp=%u, flags=%04x\n",
 				(ttl>>16)&0xff, ns_rr_class(rr), ttl&0xffff);
+
+			while (rdatalen >= 4) {
+				const u_char *cp = ns_rr_rdata(rr);
+				int i;
+
+				GETSHORT(optcode, cp);
+				GETSHORT(optlen, cp);
+
+				if (optcode == NS_OPT_NSID) {
+					fputs("; NSID: ", file);
+					if (optlen == 0) {
+						fputs("; NSID\n", file);
+					} else {
+						fputs("; NSID: ", file);
+						for (i = 0; i < optlen; i++)
+							fprintf(file, "%02x ",
+								cp[i]);
+						fputs(" (",file);
+						for (i = 0; i < optlen; i++)
+							fprintf(file, "%c",
+								isprint(cp[i])?
+								cp[i] : '.');
+						fputs(")\n", file);
+					}
+				} else {
+					if (optlen == 0) {
+						fprintf(file, "; OPT=%u\n",
+							optcode);
+					} else {
+						fprintf(file, "; OPT=%u: ",
+							optcode);
+						for (i = 0; i < optlen; i++)
+							fprintf(file, "%02x ",
+								cp[i]);
+						fputs(" (",file);
+						for (i = 0; i < optlen; i++)
+							fprintf(file, "%c",
+								isprint(cp[i]) ?
+									cp[i] : '.');
+						fputs(")\n", file);
+					}
+				}
+				rdatalen -= 4 + optlen;
+			}
 		} else {
 			n = ns_sprintrr(handle, &rr, NULL, NULL,
 					buf, buflen);
@@ -204,7 +250,7 @@ do_section(const res_state statp,
 						buf = malloc(buflen += 1024);
 					if (buf == NULL) {
 						fprintf(file,
-				              ";; memory allocation failure\n");
+					      ";; memory allocation failure\n");
 					      return;
 					}
 					continue;
@@ -381,7 +427,7 @@ const struct res_sym __p_default_section_syms[] = {
 	{ns_s_an,	"ANSWER",	(char *)0},
 	{ns_s_ns,	"AUTHORITY",	(char *)0},
 	{ns_s_ar,	"ADDITIONAL",	(char *)0},
-	{0,             (char *)0,	(char *)0}
+	{0,		(char *)0,	(char *)0}
 };
 
 const struct res_sym __p_update_section_syms[] = {
@@ -389,7 +435,7 @@ const struct res_sym __p_update_section_syms[] = {
 	{S_PREREQ,	"PREREQUISITE",	(char *)0},
 	{S_UPDATE,	"UPDATE",	(char *)0},
 	{S_ADDT,	"ADDITIONAL",	(char *)0},
-	{0,             (char *)0,	(char *)0}
+	{0,		(char *)0,	(char *)0}
 };
 
 const struct res_sym __p_key_syms[] = {
@@ -617,6 +663,7 @@ p_option(u_long option) {
 	case RES_USE_INET6:	return "inet6";
 #ifdef RES_USE_EDNS0	/*%< KAME extension */
 	case RES_USE_EDNS0:	return "edns0";
+	case RES_NSID:		return "nsid";
 #endif
 #ifdef RES_USE_DNAME
 	case RES_USE_DNAME:	return "dname";

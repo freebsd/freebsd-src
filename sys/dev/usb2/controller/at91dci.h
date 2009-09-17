@@ -34,6 +34,8 @@
 #ifndef _AT9100_DCI_H_
 #define	_AT9100_DCI_H_
 
+#define	AT91_MAX_DEVICES (USB_MIN_DEVICES + 1)
+
 #define	AT91_UDP_FRM 	0x00		/* Frame number register */
 #define	AT91_UDP_FRM_MASK     (0x7FF <<  0)	/* Frame Number as Defined in
 						 * the Packet Field Formats */
@@ -204,8 +206,8 @@ struct at91dci_softc {
 	LIST_HEAD(, usb2_xfer) sc_interrupt_list_head;
 	struct usb2_sw_transfer sc_root_ctrl;
 	struct usb2_sw_transfer sc_root_intr;
-	struct usb2_config_td sc_config_td;
 
+	struct usb2_device *sc_devices[AT91_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;
@@ -238,5 +240,6 @@ void	at91dci_uninit(struct at91dci_softc *sc);
 void	at91dci_suspend(struct at91dci_softc *sc);
 void	at91dci_resume(struct at91dci_softc *sc);
 void	at91dci_interrupt(struct at91dci_softc *sc);
+void	at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on);
 
 #endif					/* _AT9100_DCI_H_ */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2007 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -116,7 +116,11 @@ static const struct fmt athstats[] = {
 	{ 5,	"txencode",	"txencode",	"tx encapsulation failed" },
 #define	S_TX_NONODE	AFTER(S_TX_ENCAP)
 	{ 5,	"txnonode",	"txnonode",	"tx failed 'cuz no node" },
-#define	S_TX_NOMBUF	AFTER(S_TX_NONODE)
+#define	S_TX_NOBUF	AFTER(S_TX_NONODE)
+	{ 5,	"txnobuf",	"txnobuf",	"tx failed 'cuz dma buffer allocation failed" },
+#define	S_TX_NOFRAG	AFTER(S_TX_NOBUF)
+	{ 5,	"txnofrag",	"txnofrag",	"tx failed 'cuz frag buffer allocation(s) failed" },
+#define	S_TX_NOMBUF	AFTER(S_TX_NOFRAG)
 	{ 5,	"txnombuf",	"txnombuf",	"tx failed 'cuz mbuf allocation failed" },
 #ifndef __linux__
 #define	S_TX_NOMCL	AFTER(S_TX_NOMBUF)
@@ -215,7 +219,11 @@ static const struct fmt athstats[] = {
 	{ 5,	"tdmab",	"tdmab",	"TDMA slot update set beacon timers" },
 #define	S_TDMA_TSF	AFTER(S_TDMA_TIMERS)
 	{ 5,	"tdmat",	"tdmat",	"TDMA slot update set TSF" },
-#define	S_RATE_CALLS	AFTER(S_TDMA_TSF)
+#define	S_TDMA_TSFADJ	AFTER(S_TDMA_TSF)
+	{ 8,	"tdmadj",	"tdmadj",	"TDMA slot adjust (usecs, smoothed)" },
+#define	S_TDMA_ACK	AFTER(S_TDMA_TSFADJ)
+	{ 5,	"tdmack",	"tdmack",	"TDMA tx failed 'cuz ACK required" },
+#define	S_RATE_CALLS	AFTER(S_TDMA_ACK)
 #else
 #define	S_RATE_CALLS	AFTER(S_PER_RFGAIN)
 #endif
@@ -234,7 +242,9 @@ static const struct fmt athstats[] = {
 	{ 5,	"bmissphantom",	"bmissphantom",	"phantom beacon misses" },
 #define	S_TX_RAW	AFTER(S_BMISS_PHANTOM)
 	{ 5,	"txraw",	"txraw",	"tx frames through raw api" },
-#define	S_RX_TOOBIG	AFTER(S_TX_RAW)
+#define	S_TX_RAW_FAIL	AFTER(S_TX_RAW)
+	{ 5,	"txrawfail",	"txrawfail",	"raw tx failed 'cuz interface/hw down" },
+#define	S_RX_TOOBIG	AFTER(S_TX_RAW_FAIL)
 	{ 5,	"rx2big",	"rx2big",	"rx failed 'cuz frame too large"  },
 #ifndef __linux__
 #define	S_CABQ_XMIT	AFTER(S_RX_TOOBIG)
@@ -426,6 +436,15 @@ ath_setifname(struct athstatfoo *wf0, const char *ifname)
 #endif
 }
 
+static void 
+ath_zerostats(struct athstatfoo *wf0)
+{
+	struct athstatfoo_p *wf = (struct athstatfoo_p *) wf0;
+
+	if (ioctl(wf->s, SIOCZATHSTATS, &wf->ifr) < 0)
+		err(-1, wf->ifr.ifr_name);
+}
+
 static void
 ath_collect(struct athstatfoo_p *wf, struct _athstats *stats)
 {
@@ -536,6 +555,8 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_QSTOP:	STAT(tx_qstop);
 	case S_TX_ENCAP:	STAT(tx_encap);
 	case S_TX_NONODE:	STAT(tx_nonode);
+	case S_TX_NOBUF:	STAT(tx_nobuf);
+	case S_TX_NOFRAG:	STAT(tx_nofrag);
 	case S_TX_NOMBUF:	STAT(tx_nombuf);
 #ifdef S_TX_NOMCL
 	case S_TX_NOMCL:	STAT(tx_nomcl);
@@ -555,6 +576,8 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_SHORTPRE:	STAT(tx_shortpre);
 	case S_TX_ALTRATE:	STAT(tx_altrate);
 	case S_TX_PROTECT:	STAT(tx_protect);
+	case S_TX_RAW:		STAT(tx_raw);
+	case S_TX_RAW_FAIL:	STAT(tx_raw_fail);
 	case S_RX_NOMBUF:	STAT(rx_nombuf);
 #ifdef S_RX_BUSDMA
 	case S_RX_BUSDMA:	STAT(rx_busdma);
@@ -603,6 +626,11 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TDMA_UPDATE:	STAT(tdma_update);
 	case S_TDMA_TIMERS:	STAT(tdma_timers);
 	case S_TDMA_TSF:	STAT(tdma_tsf);
+	case S_TDMA_TSFADJ:
+		snprintf(b, bs, "-%d/+%d",
+		    wf->cur.ath.ast_tdma_tsfadjm, wf->cur.ath.ast_tdma_tsfadjp);
+		return 1;
+	case S_TDMA_ACK:	STAT(tdma_ack);
 #endif
 	case S_RATE_CALLS:	STAT(rate_calls);
 	case S_RATE_RAISE:	STAT(rate_raise);
@@ -746,6 +774,8 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_QSTOP:	STAT(tx_qstop);
 	case S_TX_ENCAP:	STAT(tx_encap);
 	case S_TX_NONODE:	STAT(tx_nonode);
+	case S_TX_NOBUF:	STAT(tx_nobuf);
+	case S_TX_NOFRAG:	STAT(tx_nofrag);
 	case S_TX_NOMBUF:	STAT(tx_nombuf);
 #ifdef S_TX_NOMCL
 	case S_TX_NOMCL:	STAT(tx_nomcl);
@@ -765,6 +795,8 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TX_SHORTPRE:	STAT(tx_shortpre);
 	case S_TX_ALTRATE:	STAT(tx_altrate);
 	case S_TX_PROTECT:	STAT(tx_protect);
+	case S_TX_RAW:		STAT(tx_raw);
+	case S_TX_RAW_FAIL:	STAT(tx_raw_fail);
 	case S_RX_NOMBUF:	STAT(rx_nombuf);
 #ifdef S_RX_BUSDMA
 	case S_RX_BUSDMA:	STAT(rx_busdma);
@@ -813,6 +845,12 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_TDMA_UPDATE:	STAT(tdma_update);
 	case S_TDMA_TIMERS:	STAT(tdma_timers);
 	case S_TDMA_TSF:	STAT(tdma_tsf);
+	case S_TDMA_TSFADJ:
+		snprintf(b, bs, "-%d/+%d",
+		    wf->total.ath.ast_tdma_tsfadjm,
+		    wf->total.ath.ast_tdma_tsfadjp);
+		return 1;
+	case S_TDMA_ACK:	STAT(tdma_ack);
 #endif
 	case S_RATE_CALLS:	STAT(rate_calls);
 	case S_RATE_RAISE:	STAT(rate_raise);
@@ -968,6 +1006,7 @@ athstats_new(const char *ifname, const char *fmtstring)
 #if 0
 		wf->base.setstamac = wlan_setstamac;
 #endif
+		wf->base.zerostats = ath_zerostats;
 		wf->s = socket(AF_INET, SOCK_DGRAM, 0);
 		if (wf->s < 0)
 			err(1, "socket");

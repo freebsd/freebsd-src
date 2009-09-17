@@ -52,8 +52,16 @@
 #include <string.h>
 #include <sysexits.h>
 
+#if defined(__FreeBSD__)
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/iec68113.h>
+#elif defined(__NetBSD__)
+#include <dev/ieee1394/firewire.h>
+#include <dev/ieee1394/iec68113.h>
+#else
+#warning "You need to add support for your OS"
+#endif
+
 
 #include "fwmethods.h"
 
@@ -187,10 +195,9 @@ mpegtsrecv(int d, const char *filename, char ich, int count)
 		if (len < 0) {
 			if (errno == EAGAIN) {
 				fprintf(stderr, "(EAGAIN) - push 'Play'?\n");
-				if (len <= 0)
-					continue;
-			} else
-				err(1, "read failed");
+				continue;
+			}
+			err(1, "read failed");
 		}
 		ptr = (uint32_t *) buf;
 

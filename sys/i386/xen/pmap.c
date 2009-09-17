@@ -154,7 +154,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <xen/interface/xen.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/hypercall.h>
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
@@ -3126,9 +3126,7 @@ retry:
 			}
 
 			p = vm_page_lookup(object, pindex);
-			vm_page_lock_queues();
 			vm_page_wakeup(p);
-			vm_page_unlock_queues();
 		}
 
 		ptepa = VM_PAGE_TO_PHYS(p);
@@ -3713,14 +3711,17 @@ pmap_remove_write(vm_page_t m)
 retry:
 		oldpte = *pte;
 		if ((oldpte & PG_RW) != 0) {
+			vm_paddr_t newpte = oldpte & ~(PG_RW | PG_M);
+			
 			/*
 			 * Regardless of whether a pte is 32 or 64 bits
 			 * in size, PG_RW and PG_M are among the least
 			 * significant 32 bits.
 			 */
-			if (!atomic_cmpset_int((u_int *)pte, oldpte,
-			    oldpte & ~(PG_RW | PG_M)))
+			PT_SET_VA_MA(pte, newpte, TRUE);
+			if (*pte != newpte)
 				goto retry;
+			
 			if ((oldpte & PG_M) != 0)
 				vm_page_dirty(m);
 			pmap_invalidate_page(pmap, pv->pv_va);

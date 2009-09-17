@@ -43,6 +43,7 @@ test_compat_gtar_1(void)
 	char name[] = "test_compat_gtar_1.tgz";
 	struct archive_entry *ae;
 	struct archive *a;
+	int r;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
@@ -51,7 +52,11 @@ test_compat_gtar_1(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 10240));
 
 	/* Read first entry. */
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
+	if (r != ARCHIVE_OK) {
+		archive_read_finish(a);
+		return;
+	}
 	assertEqualString(
 		"12345678901234567890123456789012345678901234567890"
 		"12345678901234567890123456789012345678901234567890"
@@ -66,7 +71,11 @@ test_compat_gtar_1(void)
 	assertEqualInt(0100644, archive_entry_mode(ae));
 
 	/* Read second entry. */
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualIntA(a, ARCHIVE_OK, r = archive_read_next_header(a, &ae));
+	if (r != ARCHIVE_OK) {
+		archive_read_finish(a);
+		return;
+	}
 	assertEqualString(
 		"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij"
 		"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghij"

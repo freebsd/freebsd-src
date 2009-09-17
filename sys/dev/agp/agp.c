@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_agp.h"
 #include "opt_bus.h"
 
 #include <sys/param.h>
@@ -554,7 +555,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		 */
 		m = vm_page_grab(mem->am_obj, OFF_TO_IDX(i),
 		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
-		AGP_DPF("found page pa=%#x\n", VM_PAGE_TO_PHYS(m));
+		AGP_DPF("found page pa=%#jx\n", (uintmax_t)VM_PAGE_TO_PHYS(m));
 	}
 	VM_OBJECT_UNLOCK(mem->am_obj);
 
@@ -564,6 +565,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		device_printf(dev, "memory already bound\n");
 		error = EINVAL;
 		VM_OBJECT_LOCK(mem->am_obj);
+		i = 0;
 		goto bad;
 	}
 	
@@ -584,15 +586,14 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		for (j = 0; j < PAGE_SIZE && i + j < mem->am_size;
 		     j += AGP_PAGE_SIZE) {
 			vm_offset_t pa = VM_PAGE_TO_PHYS(m) + j;
-			AGP_DPF("binding offset %#x to pa %#x\n",
-				offset + i + j, pa);
+			AGP_DPF("binding offset %#jx to pa %#jx\n",
+				(uintmax_t)offset + i + j, (uintmax_t)pa);
 			error = AGP_BIND_PAGE(dev, offset + i + j, pa);
 			if (error) {
 				/*
 				 * Bail out. Reverse all the mappings
 				 * and unwire the pages.
 				 */
-				vm_page_wakeup(m);
 				for (k = 0; k < i + j; k += AGP_PAGE_SIZE)
 					AGP_UNBIND_PAGE(dev, offset + k);
 				goto bad;
@@ -622,8 +623,10 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 bad:
 	mtx_unlock(&sc->as_lock);
 	VM_OBJECT_LOCK_ASSERT(mem->am_obj, MA_OWNED);
-	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
-		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(i));
+	for (k = 0; k < mem->am_size; k += PAGE_SIZE) {
+		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(k));
+		if (k >= i)
+			vm_page_wakeup(m);
 		vm_page_lock_queues();
 		vm_page_unwire(m, 0);
 		vm_page_unlock_queues();

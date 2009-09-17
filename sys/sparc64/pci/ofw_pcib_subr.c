@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/ofw_bus.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>

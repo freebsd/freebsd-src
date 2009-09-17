@@ -154,6 +154,44 @@ command_load(int argc, char *argv[])
     return (error == 0 ? CMD_OK : CMD_ERROR);
 }
 
+COMMAND_SET(load_geli, "load_geli", "load a geli key", command_load_geli);
+
+static int
+command_load_geli(int argc, char *argv[])
+{
+    char	typestr[80];
+    char	*cp;
+    int		ch, num;
+
+    if (argc < 3) {
+	    command_errmsg = "usage is [-n key#] <prov> <file>";
+	    return(CMD_ERROR);
+    }
+
+    num = 0;
+    optind = 1;
+    optreset = 1;
+    while ((ch = getopt(argc, argv, "n:")) != -1) {
+	switch(ch) {
+	case 'n':
+	    num = strtol(optarg, &cp, 0);
+	    if (cp == optarg) {
+		    sprintf(command_errbuf, "bad key index '%s'", optarg);
+		    return(CMD_ERROR);
+	    }
+	    break;
+	case '?':
+	default:
+	    /* getopt has already reported an error */
+	    return(CMD_OK);
+	}
+    }
+    argv += (optind - 1);
+    argc -= (optind - 1);
+    sprintf(typestr, "%s:geli_keyfile%d", argv[1], num);
+    return(file_loadraw(typestr, argv[2]));
+}
+
 COMMAND_SET(unload, "unload", "unload all modules", command_unload);
 
 static int

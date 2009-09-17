@@ -551,6 +551,11 @@ initarm(void *mdp, void *unused __unused)
 	print_kenv();
 
 	/*
+	 * Re-initialise MPP
+	 */
+	platform_mpp_init();
+
+	/*
 	 * Re-initialise decode windows
 	 */
 	if (soc_decode_win() != 0)

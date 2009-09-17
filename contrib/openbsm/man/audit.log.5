@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2005-2006 Robert N. M. Watson
+.\" Copyright (c) 2008 Apple Inc.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit.log.5#19 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit.log.5#23 $
 .\"
 .Dd November 5, 2006
 .Dt AUDIT.LOG 5
@@ -139,7 +140,7 @@ token can be created using
 The
 .Dq trailer
 terminates a BSM audit record, and contains a magic number,
-.Dv TRAILER_PAD_MAGIC
+.Dv AUT_TRAILER_MAGIC
 and length that can be used to validate that the record was read properly.
 A
 .Dq trailer
@@ -515,7 +516,7 @@ An exec_args token may be created using
 .It Sy "Field	Bytes	Description"
 .It "Token ID	1 byte	Token ID"
 .It Li "Count" Ta "4 bytes" Ta "Number of arguments"
-.It Li "Text" Ta "* bytes" Ta "Count null-terminated strings"
+.It Li "Text" Ta "* bytes" Ta "Count nul-terminated strings"
 .El
 .Ss exec_env Token
 The
@@ -560,25 +561,24 @@ or
 .It Li "Local port" Ta "2 bytes" Ta "Local port"
 .It Li "Socket address" Ta "4 bytes" Ta "Socket address"
 .El
-.Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
-.It Sy "Field	Bytes	Description"
-.It "Token ID	1 byte	Token ID"
-.It Li "Socket domain" Ta "4 bytes" Ta "Socket domain"
-.It Li "Socket family" Ta "2 bytes" Ta "Socket family"
-.It Li "Address type" Ta "1 byte" Ta "Address type (IPv4/IPv6)"
-.It Li "Local port" Ta "2 bytes" Ta "Local port"
-.It Li "Local IP address" Ta "4/16 bytes" Ta "Local IP address"
-.It Li "Remote port" Ta "2 bytes" Ta "Remote port"
-.It Li "Remote IP address" Ta "4/16 bytes" Ta "Remote IP address"
-.El
 .Ss Expanded Socket Token
 The
 .Dq expanded socket
 token contains information about IPv4 and IPv6 sockets.
+A
+.Dq expanded socket
+token can be created using
+.Xr au_to_socket_ex 3 .
 .Bl -column -offset 3n ".No Terminal Address Type/Length" ".No N bytes + 1 NUL"
 .It Sy "Field	Bytes	Description"
-.It "Token ID	1 byte	Token ID"
-.It XXXXX
+.It Li "Token ID" Ta "1 byte" Ta "Token ID"
+.It Li "Socket domain" Ta "2 bytes" Ta "Socket domain"
+.It Li "Socket type" Ta "2 bytes" Ta "Socket type"
+.It Li "Address type" Ta "2 byte" Ta "Address type (IPv4/IPv6)"
+.It Li "Local port" Ta "2 bytes" Ta "Local port"
+.It Li "Local IP address" Ta "4/16 bytes" Ta "Local IP address"
+.It Li "Remote port" Ta "2 bytes" Ta "Remote port"
+.It Li "Remote IP address" Ta "4/16 bytes" Ta "Remote IP address"
 .El
 .Ss Seq Token
 The

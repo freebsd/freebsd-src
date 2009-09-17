@@ -294,21 +294,15 @@ static int
 archive_read_format_tar_bid(struct archive_read *a)
 {
 	int bid;
-	ssize_t bytes_read;
 	const void *h;
 	const struct archive_entry_header_ustar *header;
 
 	bid = 0;
 
 	/* Now let's look at the actual header and see if it matches. */
-	if (a->decompressor->read_ahead != NULL)
-		bytes_read = (a->decompressor->read_ahead)(a, &h, 512);
-	else
-		bytes_read = 0; /* Empty file. */
-	if (bytes_read < 0)
-		return (ARCHIVE_FATAL);
-	if (bytes_read < 512)
-		return (0);
+	h = __archive_read_ahead(a, 512, NULL);
+	if (h == NULL)
+		return (-1);
 
 	/* If it's an end-of-archive mark, we can handle it. */
 	if ((*(const char *)h) == 0
@@ -479,7 +473,7 @@ archive_read_format_tar_read_data(struct archive_read *a,
 
 	/* If we're at end of file, return EOF. */
 	if (tar->sparse_list == NULL || tar->entry_bytes_remaining == 0) {
-		if ((a->decompressor->skip)(a, tar->entry_padding) < 0)
+		if (__archive_read_skip(a, tar->entry_padding) < 0)
 			return (ARCHIVE_FATAL);
 		tar->entry_padding = 0;
 		*buff = NULL;
@@ -488,14 +482,14 @@ archive_read_format_tar_read_data(struct archive_read *a,
 		return (ARCHIVE_EOF);
 	}
 
-	bytes_read = (a->decompressor->read_ahead)(a, buff, 1);
-	if (bytes_read == 0) {
+	*buff = __archive_read_ahead(a, 1, &bytes_read);
+	if (bytes_read < 0)
+		return (ARCHIVE_FATAL);
+	if (*buff == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Truncated tar archive");
 		return (ARCHIVE_FATAL);
 	}
-	if (bytes_read < 0)
-		return (ARCHIVE_FATAL);
 	if (bytes_read > tar->entry_bytes_remaining)
 		bytes_read = tar->entry_bytes_remaining;
 	/* Don't read more than is available in the
@@ -507,7 +501,7 @@ archive_read_format_tar_read_data(struct archive_read *a,
 	tar->sparse_list->remaining -= bytes_read;
 	tar->sparse_list->offset += bytes_read;
 	tar->entry_bytes_remaining -= bytes_read;
-	(a->decompressor->consume)(a, bytes_read);
+	__archive_read_consume(a, bytes_read);
 	return (ARCHIVE_OK);
 }
 
@@ -524,8 +518,8 @@ archive_read_format_tar_skip(struct archive_read *a)
 	 * length requested or fail, so we can rely upon the entire entry
 	 * plus padding being skipped.
 	 */
-	bytes_skipped = (a->decompressor->skip)(a, tar->entry_bytes_remaining +
-	    tar->entry_padding);
+	bytes_skipped = __archive_read_skip(a,
+	    tar->entry_bytes_remaining + tar->entry_padding);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
 
@@ -552,31 +546,35 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 	const struct archive_entry_header_ustar *header;
 
 	/* Read 512-byte header record */
-	bytes = (a->decompressor->read_ahead)(a, &h, 512);
+	h = __archive_read_ahead(a, 512, &bytes);
 	if (bytes < 0)
 		return (bytes);
-	if (bytes == 0) {
-		/*
-		 * An archive that just ends without a proper
-		 * end-of-archive marker.  Yes, there are tar programs
-		 * that do this; hold our nose and accept it.
-		 */
-		return (ARCHIVE_EOF);
-	}
-	if (bytes < 512) {
+	if (bytes < 512) {  /* Short read or EOF. */
+		/* Try requesting just one byte and see what happens. */
+		h = __archive_read_ahead(a, 1, &bytes);
+		if (bytes == 0) {
+			/*
+			 * The archive ends at a 512-byte boundary but
+			 * without a proper end-of-archive marker.
+			 * Yes, there are tar writers that do this;
+			 * hold our nose and accept it.
+			 */
+			return (ARCHIVE_EOF);
+		}
+		/* Archive ends with a partial block; this is bad. */
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated tar archive");
 		return (ARCHIVE_FATAL);
 	}
-	(a->decompressor->consume)(a, 512);
+	__archive_read_consume(a, 512);
 
 
 	/* Check for end-of-archive mark. */
 	if (((*(const char *)h)==0) && archive_block_is_null((const unsigned char *)h)) {
 		/* Try to consume a second all-null record, as well. */
-		bytes = (a->decompressor->read_ahead)(a, &h, 512);
-		if (bytes > 0)
-			(a->decompressor->consume)(a, bytes);
+		h = __archive_read_ahead(a, 512, NULL);
+		if (h != NULL)
+			__archive_read_consume(a, 512);
 		archive_set_error(&a->archive, 0, NULL);
 		if (a->archive.archive_format_name == NULL) {
 			a->archive.archive_format = ARCHIVE_FORMAT_TAR;
@@ -837,10 +835,8 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
     struct archive_string *as, const void *h)
 {
 	off_t size, padded_size;
-	ssize_t bytes_read, bytes_to_copy;
 	const struct archive_entry_header_ustar *header;
 	const void *src;
-	char *dest;
 
 	(void)tar; /* UNUSED */
 	header = (const struct archive_entry_header_ustar *)h;
@@ -858,27 +854,14 @@ read_body_to_string(struct archive_read *a, struct tar *tar,
 		return (ARCHIVE_FATAL);
 	}
 
-	/* Read the body into the string. */
+ 	/* Read the body into the string. */
 	padded_size = (size + 511) & ~ 511;
-	dest = as->s;
-	while (padded_size > 0) {
-		bytes_read = (a->decompressor->read_ahead)(a, &src, padded_size);
-		if (bytes_read == 0)
-			return (ARCHIVE_EOF);
-		if (bytes_read < 0)
-			return (ARCHIVE_FATAL);
-		if (bytes_read > padded_size)
-			bytes_read = padded_size;
-		(a->decompressor->consume)(a, bytes_read);
-		bytes_to_copy = bytes_read;
-		if ((off_t)bytes_to_copy > size)
-			bytes_to_copy = (ssize_t)size;
-		memcpy(dest, src, bytes_to_copy);
-		dest += bytes_to_copy;
-		size -= bytes_to_copy;
-		padded_size -= bytes_read;
-	}
-	*dest = '\0';
+	src = __archive_read_ahead(a, padded_size, NULL);
+	if (src == NULL)
+		return (ARCHIVE_FATAL);
+	memcpy(as->s, src, size);
+	__archive_read_consume(a, padded_size);
+	as->s[size] = '\0';
 	return (ARCHIVE_OK);
 }
 
@@ -1766,7 +1749,7 @@ gnu_sparse_old_read(struct archive_read *a, struct tar *tar,
 		return (ARCHIVE_OK);
 
 	do {
-		bytes_read = (a->decompressor->read_ahead)(a, &data, 512);
+		data = __archive_read_ahead(a, 512, &bytes_read);
 		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
 		if (bytes_read < 512) {
@@ -1775,7 +1758,7 @@ gnu_sparse_old_read(struct archive_read *a, struct tar *tar,
 			    "detected while reading sparse file data");
 			return (ARCHIVE_FATAL);
 		}
-		(a->decompressor->consume)(a, 512);
+		__archive_read_consume(a, 512);
 		ext = (const struct extended *)data;
 		gnu_sparse_old_parse(tar, ext->sparse, 21);
 	} while (ext->isextended[0] != 0);
@@ -1953,7 +1936,7 @@ gnu_sparse_10_read(struct archive_read *a, struct tar *tar)
 	/* Skip rest of block... */
 	bytes_read = tar->entry_bytes_remaining - remaining;
 	to_skip = 0x1ff & -bytes_read;
-	if (to_skip != (a->decompressor->skip)(a, to_skip))
+	if (to_skip != __archive_read_skip(a, to_skip))
 		return (ARCHIVE_FATAL);
 	return (bytes_read + to_skip);
 }
@@ -2108,7 +2091,7 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 	const char *s;
 	void *p;
 
-	bytes_read = (a->decompressor->read_ahead)(a, &t, 1);
+	t = __archive_read_ahead(a, 1, &bytes_read);
 	if (bytes_read <= 0)
 		return (ARCHIVE_FATAL);
 	s = t;  /* Start of line? */
@@ -2122,7 +2105,7 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 			    "Line too long");
 			return (ARCHIVE_FATAL);
 		}
-		(a->decompressor->consume)(a, bytes_read);
+		__archive_read_consume(a, bytes_read);
 		*start = s;
 		return (bytes_read);
 	}
@@ -2140,7 +2123,7 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 			return (ARCHIVE_FATAL);
 		}
 		memcpy(tar->line.s + total_size, t, bytes_read);
-		(a->decompressor->consume)(a, bytes_read);
+		__archive_read_consume(a, bytes_read);
 		total_size += bytes_read;
 		/* If we found '\n', clean up and return. */
 		if (p != NULL) {
@@ -2148,7 +2131,7 @@ readline(struct archive_read *a, struct tar *tar, const char **start,
 			return (total_size);
 		}
 		/* Read some more. */
-		bytes_read = (a->decompressor->read_ahead)(a, &t, 1);
+		t = __archive_read_ahead(a, 1, &bytes_read);
 		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
 		s = t;  /* Start of line? */

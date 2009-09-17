@@ -88,6 +88,9 @@ VGA_WIDTH90		opt_vga.h
 VESA
 VESA_DEBUG		opt_vesa.h
 
+# AGP debugging support
+AGP_DEBUG		opt_agp.h
+
 PSM_DEBUG		opt_psm.h
 PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h

@@ -65,8 +65,7 @@ static const u8 WPA_CIPHER_SUITE_WEP104[] = { 0x00, 0x50, 0xf2, 5 };
 struct wpa_ie_hdr {
 	u8 elem_id;
 	u8 len;
-	u8 oui[3];
-	u8 oui_type;
+	u8 oui[4]; /* 24-bit OUI followed by 8-bit OUI type */
 	u8 version[2];
 } STRUCT_PACKED;
 
@@ -1406,7 +1405,7 @@ static int wpa_supplicant_get_pmk(struct wpa_sm *sm,
 					   "caching attempt");
 				sm->cur_pmksa = NULL;
 				abort_cached = 1;
-			} else {
+			} else if (!abort_cached) {
 				return -1;
 			}
 		}
@@ -1567,7 +1566,6 @@ static void wpa_supplicant_key_neg_complete(struct wpa_sm *sm,
 		MACSTR " [PTK=%s GTK=%s]", MAC2STR(addr),
 		wpa_cipher_txt(sm->pairwise_cipher),
 		wpa_cipher_txt(sm->group_cipher));
-	eloop_cancel_timeout(sm->ctx->scan, sm->ctx->ctx, NULL);
 	wpa_sm_cancel_auth_timeout(sm);
 	wpa_sm_set_state(sm, WPA_COMPLETED);
 
@@ -1904,7 +1902,6 @@ static void wpa_report_ie_mismatch(struct wpa_sm *sm,
 	}
 
 	wpa_sm_disassociate(sm, REASON_IE_IN_4WAY_DIFFERS);
-	wpa_sm_req_scan(sm, 0, 0);
 }
 
 
@@ -3798,7 +3795,6 @@ static void wpa_sm_pmksa_free_cb(struct rsn_pmksa_cache_entry *entry,
 
 		os_memset(sm->pmk, 0, sizeof(sm->pmk));
 		wpa_sm_deauthenticate(sm, REASON_UNSPECIFIED);
-		wpa_sm_req_scan(sm, 0, 0);
 	}
 }
 

@@ -255,8 +255,6 @@
     ..
     openssl
     ..
-    pccard
-    ..
     protocols
     ..
     readline

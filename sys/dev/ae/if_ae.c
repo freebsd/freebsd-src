@@ -105,7 +105,7 @@ static void	ae_phy_init(ae_softc_t *sc);
 static int	ae_reset(ae_softc_t *sc);
 static void	ae_init(void *arg);
 static int	ae_init_locked(ae_softc_t *sc);
-static unsigned	int	ae_detach(device_t dev);
+static int	ae_detach(device_t dev);
 static int	ae_miibus_readreg(device_t dev, int phy, int reg);
 static int	ae_miibus_writereg(device_t dev, int phy, int reg, int val);
 static void	ae_miibus_statchg(device_t dev);
@@ -746,7 +746,7 @@ ae_init_locked(ae_softc_t *sc)
 	return (0);
 }
 
-static unsigned int
+static int
 ae_detach(device_t dev)
 {
 	struct ae_softc *sc;
@@ -1105,11 +1105,8 @@ ae_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 ae_alloc_rings(ae_softc_t *sc)
 {
-	bus_dma_tag_t bustag;
 	bus_addr_t busaddr;
 	int error;
-
-	bustag = bus_get_dma_tag(sc->dev);
 
 	/*
 	 * Create parent DMA tag.
@@ -1903,8 +1900,8 @@ ae_rxeof(ae_softc_t *sc, ae_rxd_t *rxd)
 	if_printf(ifp, "Rx interrupt occuried.\n");
 #endif
 	size = le16toh(rxd->len) - ETHER_CRC_LEN;
-	if (size < 0) {
-		if_printf(ifp, "Negative length packet received.");
+	if (size < (ETHER_MIN_LEN - ETHER_CRC_LEN - ETHER_VLAN_ENCAP_LEN)) {
+		if_printf(ifp, "Runt frame received.");
 		return (EIO);
 	}
 

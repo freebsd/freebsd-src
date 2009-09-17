@@ -126,11 +126,6 @@ struct ip6protosw {
 	int	(*pr_ctloutput)		/* control output (from above) */
 			__P((struct socket *, struct sockopt *));
 
-/* user-protocol hook */
-	int	(*pr_usrreq)		/* user request: see list below */
-			__P((struct socket *, int, struct mbuf *,
-			     struct mbuf *, struct mbuf *, struct thread *));
-
 /* utility hooks */
 	void	(*pr_init)		/* initialization hook */
 			__P((void));

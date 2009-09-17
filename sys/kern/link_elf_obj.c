@@ -474,8 +474,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		goto out;
 	}
 	if (hdr->e_type != ET_REL) {
-		link_elf_error(filename, "Unsupported file type");
-		error = ENOEXEC;
+		error = ENOSYS;
 		goto out;
 	}
 	if (hdr->e_machine != ELF_TARG_MACH) {

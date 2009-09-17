@@ -174,7 +174,7 @@ openprom_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			error = OF_getprop(node, prop, buf, proplen);
 			break;
 		case OPROMNXTPROP:
-			error = OF_nextprop(node, prop, buf);
+			error = OF_nextprop(node, prop, buf, OPROMMAXPARAM);
 			proplen = strlen(buf);
 			break;
 		}

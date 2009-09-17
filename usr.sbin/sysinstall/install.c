@@ -686,18 +686,6 @@ nodisks:
     if (!msgYesNo("Would you like to set this machine's time zone now?"))
 	systemExecute("tzsetup");
 
-#ifdef WITH_LINUX
-    dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to enable Linux binary compatibility?"))
-	(void)configLinux(self);
-#endif
-
-#ifdef __alpha__
-    dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to enable OSF/1 binary compatibility?"))
-	(void)configOSF1(self);
-#endif
-
 #ifdef WITH_MICE
     dialog_clear_norefresh();
     if (!msgNoYes("Does this system have a PS/2, serial, or bus mouse?"))
@@ -1196,7 +1184,6 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_CPIO_VERBOSITY,		"high", 0);
     variable_set2(VAR_INSTALL_ROOT,		"/", 0);
     variable_set2(VAR_INSTALL_CFG,		"install.cfg", 0);
-    variable_set2(VAR_SKIP_PCCARD,		"NO", 0);
     cp = getenv("EDITOR");
     if (!cp)
 	cp = "/usr/bin/ee";

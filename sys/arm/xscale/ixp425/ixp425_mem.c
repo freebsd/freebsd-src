@@ -62,11 +62,10 @@ static uint32_t sdram_other[] = {
 	0, 0
 };
 
-#define MCU_REG_READ(x)	(*(volatile uint32_t *)(IXP425_MCU_VBASE + (x)))
-
 uint32_t
 ixp425_sdram_size(void)
 {
+#define MCU_REG_READ(x)	(*(volatile uint32_t *)(IXP425_MCU_VBASE + (x)))
 	uint32_t size, sdr_config;
 
 	sdr_config = MCU_REG_READ(MCU_SDR_CONFIG);
@@ -82,4 +81,22 @@ ixp425_sdram_size(void)
 	}
 
 	return (size);
+#undef MCU_REG_READ
+}
+
+uint32_t
+ixp435_ddram_size(void)
+{
+#define MCU_REG_READ(x)	(*(volatile uint32_t *)(IXP425_MCU_VBASE + (x)))
+	uint32_t sbr0;
+
+	/*
+	 * Table 198, page 516 shows DDR-I/II SDRAM bank sizes
+	 * for SBR0 and SBR1.  The manual states both banks must
+	 * be programmed to be the same size.  We just assume
+	 * it's done right and calculate 2x for the memory size.
+	 */
+	sbr0 = MCU_REG_READ(MCU_DDR_SBR0);
+	return 2 * 16*(sbr0 & 0x7f) * 1024 * 1024;
+#undef MCU_REG_READ
 }

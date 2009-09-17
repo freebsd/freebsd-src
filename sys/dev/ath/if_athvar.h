@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -109,7 +109,8 @@ struct ath_buf {
 	TAILQ_ENTRY(ath_buf)	bf_stagelist;	/* stage queue list */
 	u_int32_t		bf_age;		/* age when placed on stageq */
 	int			bf_nseg;
-	int			bf_txflags;	/* tx descriptor flags */
+	uint16_t		bf_txflags;	/* tx descriptor flags */
+	uint16_t		bf_flags;	/* status flags (below) */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
 	struct ath_desc_status	bf_status;	/* tx/rx status */
 	bus_addr_t		bf_daddr;	/* physical addr of desc */
@@ -121,6 +122,8 @@ struct ath_buf {
 	bus_dma_segment_t	bf_segs[ATH_MAX_SCATTER];
 };
 typedef STAILQ_HEAD(, ath_buf) ath_bufhead;
+
+#define	ATH_BUF_BUSY	0x00000002	/* (tx) desc owned by h/w */
 
 /*
  * DMA state for tx/rx descriptors.
@@ -148,6 +151,8 @@ struct ath_descdma {
 struct ath_txq {
 	u_int			axq_qnum;	/* hardware q number */
 #define	ATH_TXQ_SWQ	(HAL_NUM_TX_QUEUES+1)	/* qnum for s/w only queue */
+	u_int			axq_flags;
+#define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
 	u_int			axq_depth;	/* queue depth (stat only) */
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
@@ -248,19 +253,19 @@ struct ath_softc {
 				sc_swbmiss  : 1,/* sta mode using sw bmiss */
 				sc_stagbeacons:1,/* use staggered beacons */
 				sc_wmetkipmic:1,/* can do WME+TKIP MIC */
-				sc_resume_up: 1;/* on resume, start all vaps */
+				sc_resume_up: 1,/* on resume, start all vaps */
+				sc_tdma	    : 1,/* TDMA in use */
+				sc_resetcal : 1;/* reset cal state next trip */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
-#define	IEEE80211_MODE_HALF	(IEEE80211_MODE_MAX+0)
-#define	IEEE80211_MODE_QUARTER	(IEEE80211_MODE_MAX+1)
-	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX+2];
+	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX];
 	const HAL_RATE_TABLE	*sc_currates;	/* current rate table */
 	enum ieee80211_phymode	sc_curmode;	/* current phy mode */
 	HAL_OPMODE		sc_opmode;	/* current operating mode */
 	u_int16_t		sc_curtxpow;	/* current tx power limit */
 	u_int16_t		sc_curaid;	/* current association id */
-	HAL_CHANNEL		sc_curchan;	/* current h/w channel */
+	struct ieee80211_channel *sc_curchan;	/* current installed channel */
 	u_int8_t		sc_curbssid[IEEE80211_ADDR_LEN];
 	u_int8_t		sc_rixmap[256];	/* IEEE to h/w rate table ix */
 	struct {
@@ -334,9 +339,21 @@ struct ath_softc {
 	int			sc_nbcnvaps;	/* # vaps with beacons */
 
 	struct callout		sc_cal_ch;	/* callout handle for cals */
-	int			sc_calinterval;	/* current polling interval */
-	int			sc_caltries;	/* cals at current interval */
+	int			sc_lastlongcal;	/* last long cal completed */
+	int			sc_lastcalreset;/* last cal reset done */
 	HAL_NODE_STATS		sc_halstats;	/* station-mode rssi stats */
+#ifdef ATH_SUPPORT_TDMA
+	u_int			sc_tdmadbaprep;	/* TDMA DBA prep time */
+	u_int			sc_tdmaswbaprep;/* TDMA SWBA prep time */
+	u_int			sc_tdmaswba;	/* TDMA SWBA counter */
+	u_int32_t		sc_tdmabintval;	/* TDMA beacon interval (TU) */
+	u_int32_t		sc_tdmaguard;	/* TDMA guard time (usec) */
+	u_int			sc_tdmaslotlen;	/* TDMA slot length (usec) */
+	u_int			sc_tdmabintcnt;	/* TDMA beacon intvl (slots) */
+	struct ath_rx_status	*sc_tdmars;	/* TDMA status of last rx */
+	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
+	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
+#endif
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -374,6 +391,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_detach)((_ah)))
 #define	ath_hal_reset(_ah, _opmode, _chan, _outdoor, _pstatus) \
 	((*(_ah)->ah_reset)((_ah), (_opmode), (_chan), (_outdoor), (_pstatus)))
+#define	ath_hal_macversion(_ah) \
+	(((_ah)->ah_macVersion << 4) | ((_ah)->ah_macRev))
 #define	ath_hal_getratetable(_ah, _mode) \
 	((*(_ah)->ah_getRateTable)((_ah), (_mode)))
 #define	ath_hal_getmac(_ah, _mac) \
@@ -416,8 +435,10 @@ void	ath_intr(void *);
 	((*(_ah)->ah_waitForBeaconDone)((_ah), (_bf)->bf_daddr))
 #define	ath_hal_putrxbuf(_ah, _bufaddr) \
 	((*(_ah)->ah_setRxDP)((_ah), (_bufaddr)))
+/* NB: common across all chips */
+#define	AR_TSF_L32	0x804c	/* MAC local clock lower 32 bits */
 #define	ath_hal_gettsf32(_ah) \
-	((*(_ah)->ah_getTsf32)((_ah)))
+	OS_REG_READ(_ah, AR_TSF_L32)
 #define	ath_hal_gettsf64(_ah) \
 	((*(_ah)->ah_getTsf64)((_ah)))
 #define	ath_hal_resettsf(_ah) \
@@ -438,12 +459,24 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setChannel)((_ah), (_chan)))
 #define	ath_hal_calibrate(_ah, _chan, _iqcal) \
 	((*(_ah)->ah_perCalibration)((_ah), (_chan), (_iqcal)))
+#if HAL_ABI_VERSION >= 0x08111000
+#define	ath_hal_calibrateN(_ah, _chan, _lcal, _isdone) \
+	((*(_ah)->ah_perCalibrationN)((_ah), (_chan), 0x1, (_lcal), (_isdone)))
+#define	ath_hal_calreset(_ah, _chan) \
+	((*(_ah)->ah_resetCalValid)((_ah), (_chan)))
+#else
+#define	ath_hal_calibrateN(_ah, _chan, _lcal, _isdone) \
+	ath_hal_calibrate(_ah, _chan, _isdone)
+#define	ath_hal_calreset(_ah, _chan)	(0)
+#endif
 #define	ath_hal_setledstate(_ah, _state) \
 	((*(_ah)->ah_setLedState)((_ah), (_state)))
 #define	ath_hal_beaconinit(_ah, _nextb, _bperiod) \
 	((*(_ah)->ah_beaconInit)((_ah), (_nextb), (_bperiod)))
 #define	ath_hal_beaconreset(_ah) \
 	((*(_ah)->ah_resetStationBeaconTimers)((_ah)))
+#define	ath_hal_beaconsettimers(_ah, _bt) \
+	((*(_ah)->ah_setBeaconTimers)((_ah), (_bt)))
 #define	ath_hal_beacontimers(_ah, _bs) \
 	((*(_ah)->ah_setStationBeaconTimers)((_ah), (_bs)))
 #define	ath_hal_setassocid(_ah, _bss, _associd) \
@@ -475,6 +508,10 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getTxQueueProps)((_ah), (_q), (_qi)))
 #define	ath_hal_settxqueueprops(_ah, _q, _qi) \
 	((*(_ah)->ah_setTxQueueProps)((_ah), (_q), (_qi)))
+/* NB: common across all chips */
+#define	AR_Q_TXE	0x0840	/* MAC Transmit Queue enable */
+#define	ath_hal_txqenabled(_ah, _qnum) \
+	(OS_REG_READ(_ah, AR_Q_TXE) & (1<<(_qnum)))
 #define	ath_hal_getrfgain(_ah) \
 	((*(_ah)->ah_getRfGain)((_ah)))
 #define	ath_hal_getdefantenna(_ah) \

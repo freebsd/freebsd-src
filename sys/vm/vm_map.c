@@ -100,7 +100,8 @@ __FBSDID("$FreeBSD$");
  *	Synchronization is required prior to most operations.
  *
  *	Maps consist of an ordered doubly-linked list of simple
- *	entries; a single hint is used to speed up lookups.
+ *	entries; a self-adjusting binary search tree of these
+ *	entries is used to speed up lookups.
  *
  *	Since portions of maps are specified by start/end addresses,
  *	which may not align with existing map entries, all
@@ -469,7 +470,7 @@ _vm_map_lock_read(vm_map_t map, const char *file, int line)
 	if (map->system_map)
 		_mtx_lock_flags(&map->system_mtx, 0, file, line);
 	else
-		(void)_sx_xlock(&map->lock, 0, file, line);
+		(void)_sx_slock(&map->lock, 0, file, line);
 }
 
 void
@@ -479,7 +480,7 @@ _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 	if (map->system_map)
 		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
 	else
-		_sx_xunlock(&map->lock, file, line);
+		_sx_sunlock(&map->lock, file, line);
 }
 
 int
@@ -502,20 +503,44 @@ _vm_map_trylock_read(vm_map_t map, const char *file, int line)
 
 	error = map->system_map ?
 	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
-	    !_sx_try_xlock(&map->lock, file, line);
+	    !_sx_try_slock(&map->lock, file, line);
 	return (error == 0);
 }
 
+/*
+ *	_vm_map_lock_upgrade:	[ internal use only ]
+ *
+ *	Tries to upgrade a read (shared) lock on the specified map to a write
+ *	(exclusive) lock.  Returns the value "0" if the upgrade succeeds and a
+ *	non-zero value if the upgrade fails.  If the upgrade fails, the map is
+ *	returned without a read or write lock held.
+ *
+ *	Requires that the map be read locked.
+ */
 int
 _vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
 {
+	unsigned int last_timestamp;
 
-#ifdef INVARIANTS
 	if (map->system_map) {
+#ifdef INVARIANTS
 		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-	} else
-		_sx_assert(&map->lock, SX_XLOCKED, file, line);
 #endif
+	} else {
+		if (!_sx_try_upgrade(&map->lock, file, line)) {
+			last_timestamp = map->timestamp;
+			_sx_sunlock(&map->lock, file, line);
+			/*
+			 * If the map's timestamp does not change while the
+			 * map is unlocked, then the upgrade succeeds.
+			 */
+			(void)_sx_xlock(&map->lock, 0, file, line);
+			if (last_timestamp != map->timestamp) {
+				_sx_xunlock(&map->lock, file, line);
+				return (1);
+			}
+		}
+	}
 	map->timestamp++;
 	return (0);
 }
@@ -524,12 +549,28 @@ void
 _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 {
 
-#ifdef INVARIANTS
 	if (map->system_map) {
+#ifdef INVARIANTS
 		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-	} else
-		_sx_assert(&map->lock, SX_XLOCKED, file, line);
 #endif
+	} else
+		_sx_downgrade(&map->lock, file, line);
+}
+
+/*
+ *	vm_map_locked:
+ *
+ *	Returns a non-zero value if the caller holds a write (exclusive) lock
+ *	on the specified map and the value "0" otherwise.
+ */
+int
+vm_map_locked(vm_map_t map)
+{
+
+	if (map->system_map)
+		return (mtx_owned(&map->system_mtx));
+	else
+		return (sx_xlocked(&map->lock));
 }
 
 /*
@@ -737,9 +778,9 @@ vm_map_entry_splay(vm_offset_t addr, vm_map_entry_t root)
 				rlist = root;
 				root = y;
 			}
-		} else {
+		} else if (addr >= root->end) {
 			y = root->right;
-			if (addr < root->end || y == NULL)
+			if (y == NULL)
 				break;
 			if (addr >= y->end && y->right != NULL) {
 				/* Rotate left and put y on llist. */
@@ -755,7 +796,8 @@ vm_map_entry_splay(vm_offset_t addr, vm_map_entry_t root)
 				llist = root;
 				root = y;
 			}
-		}
+		} else
+			break;
 	}
 
 	/*
@@ -900,20 +942,64 @@ vm_map_lookup_entry(
 	vm_map_entry_t *entry)	/* OUT */
 {
 	vm_map_entry_t cur;
+	boolean_t locked;
 
-	cur = vm_map_entry_splay(address, map->root);
+	/*
+	 * If the map is empty, then the map entry immediately preceding
+	 * "address" is the map's header.
+	 */
+	cur = map->root;
 	if (cur == NULL)
 		*entry = &map->header;
-	else {
-		map->root = cur;
+	else if (address >= cur->start && cur->end > address) {
+		*entry = cur;
+		return (TRUE);
+	} else if ((locked = vm_map_locked(map)) ||
+	    sx_try_upgrade(&map->lock)) {
+		/*
+		 * Splay requires a write lock on the map.  However, it only
+		 * restructures the binary search tree; it does not otherwise
+		 * change the map.  Thus, the map's timestamp need not change
+		 * on a temporary upgrade.
+		 */
+		map->root = cur = vm_map_entry_splay(address, cur);
+		if (!locked)
+			sx_downgrade(&map->lock);
 
+		/*
+		 * If "address" is contained within a map entry, the new root
+		 * is that map entry.  Otherwise, the new root is a map entry
+		 * immediately before or after "address".
+		 */
 		if (address >= cur->start) {
 			*entry = cur;
 			if (cur->end > address)
 				return (TRUE);
 		} else
 			*entry = cur->prev;
-	}
+	} else
+		/*
+		 * Since the map is only locked for read access, perform a
+		 * standard binary search tree lookup for "address".
+		 */
+		for (;;) {
+			if (address < cur->start) {
+				if (cur->left == NULL) {
+					*entry = cur->prev;
+					break;
+				}
+				cur = cur->left;
+			} else if (cur->end > address) {
+				*entry = cur;
+				return (TRUE);
+			} else {
+				if (cur->right == NULL) {
+					*entry = cur;
+					break;
+				}
+				cur = cur->right;
+			}
+		}
 	return (FALSE);
 }
 
@@ -1175,16 +1261,19 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t start, vm_size_t length, vm_prot_t prot,
     vm_prot_t max, int cow)
 {
+	vm_map_entry_t freelist;
 	vm_offset_t end;
 	int result;
 
-	vm_map_lock(map);
 	end = start + length;
+	freelist = NULL;
+	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
-	(void) vm_map_delete(map, start, end);
+	(void) vm_map_delete(map, start, end, &freelist);
 	result = vm_map_insert(map, object, offset, start, end, prot,
 	    max, cow);
 	vm_map_unlock(map);
+	vm_map_entry_free_freelist(map, freelist);
 	return (result);
 }
 
@@ -1264,6 +1353,16 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 			entry->offset = prev->offset;
 			if (entry->prev != &map->header)
 				vm_map_entry_resize_free(map, entry->prev);
+
+			/*
+			 * If the backing object is a vnode object,
+			 * vm_object_deallocate() calls vrele().
+			 * However, vrele() does not lock the vnode
+			 * because the vnode has additional
+			 * references.  Thus, the map lock can be kept
+			 * without causing a lock-order reversal with
+			 * the vnode lock.
+			 */
 			if (prev->object.vm_object)
 				vm_object_deallocate(prev->object.vm_object);
 			vm_map_entry_dispose(map, prev);
@@ -1285,6 +1384,10 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 			vm_map_entry_unlink(map, next);
 			entry->end = next->end;
 			vm_map_entry_resize_free(map, entry);
+
+			/*
+			 * See comment above.
+			 */
 			if (next->object.vm_object)
 				vm_object_deallocate(next->object.vm_object);
 			vm_map_entry_dispose(map, next);
@@ -1616,7 +1719,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 
 		/*
 		 * Update physical map if necessary. Worry about copy-on-write
-		 * here -- CHECK THIS XXX
+		 * here.
 		 */
 		if (current->protection != old_prot) {
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
@@ -1793,7 +1896,7 @@ vm_map_madvise(
  *	Sets the inheritance of the specified address
  *	range in the target map.  Inheritance
  *	affects how the map will be shared with
- *	child maps at the time of vm_map_fork.
+ *	child maps at the time of vmspace_fork.
  */
 int
 vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
@@ -2204,6 +2307,7 @@ vm_map_sync(
 	vm_size_t size;
 	vm_object_t object;
 	vm_ooffset_t offset;
+	unsigned int last_timestamp;
 
 	vm_map_lock_read(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -2238,8 +2342,7 @@ vm_map_sync(
 	 * Make a second pass, cleaning/uncaching pages from the indicated
 	 * objects as we go.
 	 */
-	for (current = entry; current != &map->header && current->start < end;
-	    current = current->next) {
+	for (current = entry; current != &map->header && current->start < end;) {
 		offset = current->offset + (start - current->start);
 		size = (end <= current->end ? end : current->end) - start;
 		if (current->eflags & MAP_ENTRY_IS_SUB_MAP) {
@@ -2259,8 +2362,16 @@ vm_map_sync(
 		} else {
 			object = current->object.vm_object;
 		}
+		vm_object_reference(object);
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
 		vm_object_sync(object, offset, size, syncio, invalidate);
 		start += size;
+		vm_object_deallocate(object);
+		vm_map_lock_read(map);
+		if (last_timestamp == map->timestamp ||
+		    !vm_map_lookup_entry(map, start, &current))
+			current = current->next;
 	}
 
 	vm_map_unlock_read(map);
@@ -2282,6 +2393,23 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 	    entry->object.vm_object != NULL &&
 	    entry->object.vm_object->type == OBJT_DEVICE);
 	entry->wired_count = 0;
+}
+
+void
+vm_map_entry_free_freelist(vm_map_t map, vm_map_entry_t freelist)
+{
+	vm_map_entry_t e;
+	vm_object_t object;
+
+	while (freelist != NULL) {
+		e = freelist;
+		freelist = freelist->next;
+		if ((e->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
+			object = e->object.vm_object;
+			vm_object_deallocate(object);
+		}
+		vm_map_entry_dispose(map, e);
+	}
 }
 
 /*
@@ -2316,10 +2444,8 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 				object->size = offidxstart;
 		}
 		VM_OBJECT_UNLOCK(object);
-		vm_object_deallocate(object);
-	}
-
-	vm_map_entry_dispose(map, entry);
+	} else
+		entry->object.vm_object = NULL;
 }
 
 /*
@@ -2329,7 +2455,8 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
  *	map.
  */
 int
-vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
+vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end,
+    vm_map_entry_t *freelist)
 {
 	vm_map_entry_t entry;
 	vm_map_entry_t first_entry;
@@ -2406,6 +2533,8 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		 * modify bits will be set in the wrong object!)
 		 */
 		vm_map_entry_delete(map, entry);
+		entry->next = *freelist;
+		*freelist = entry;
 		entry = next;
 	}
 	return (KERN_SUCCESS);
@@ -2420,12 +2549,15 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 int
 vm_map_remove(vm_map_t map, vm_offset_t start, vm_offset_t end)
 {
+	vm_map_entry_t freelist;
 	int result;
 
+	freelist = NULL;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
-	result = vm_map_delete(map, start, end);
+	result = vm_map_delete(map, start, end, &freelist);
 	vm_map_unlock(map);
+	vm_map_entry_free_freelist(map, freelist);
 	return (result);
 }
 
@@ -2593,6 +2725,7 @@ vmspace_fork(struct vmspace *vm1)
 	vm_map_entry_t old_entry;
 	vm_map_entry_t new_entry;
 	vm_object_t object;
+	int locked;
 
 	vm_map_lock(old_map);
 
@@ -2603,6 +2736,8 @@ vmspace_fork(struct vmspace *vm1)
 	vm2->vm_daddr = vm1->vm_daddr;
 	vm2->vm_maxsaddr = vm1->vm_maxsaddr;
 	new_map = &vm2->vm_map;	/* XXX */
+	locked = vm_map_trylock(new_map); /* trylock to silence WITNESS */
+	KASSERT(locked, ("vmspace_fork: lock failed"));
 	new_map->timestamp = 1;
 
 	old_entry = old_map->header.next;
@@ -2640,6 +2775,12 @@ vmspace_fork(struct vmspace *vm1)
 				/* Transfer the second reference too. */
 				vm_object_reference(
 				    old_entry->object.vm_object);
+
+				/*
+				 * As in vm_map_simplify_entry(), the
+				 * vnode lock will not be acquired in
+				 * this call to vm_object_deallocate().
+				 */
 				vm_object_deallocate(object);
 				object = old_entry->object.vm_object;
 			}
@@ -2652,7 +2793,8 @@ vmspace_fork(struct vmspace *vm1)
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
-			new_entry->eflags &= ~MAP_ENTRY_USER_WIRED;
+			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
+			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wired_count = 0;
 
 			/*
@@ -2678,7 +2820,8 @@ vmspace_fork(struct vmspace *vm1)
 			 */
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
-			new_entry->eflags &= ~MAP_ENTRY_USER_WIRED;
+			new_entry->eflags &= ~(MAP_ENTRY_USER_WIRED |
+			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wired_count = 0;
 			new_entry->object.vm_object = NULL;
 			vm_map_entry_link(new_map, new_map->header.prev,
@@ -2692,6 +2835,8 @@ vmspace_fork(struct vmspace *vm1)
 	}
 unlock_and_return:
 	vm_map_unlock(old_map);
+	if (vm2 != NULL)
+		vm_map_unlock(new_map);
 
 	return (vm2);
 }
@@ -3108,34 +3253,18 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	vm_prot_t fault_type = fault_typea;
 
 RetryLookup:;
+
+	vm_map_lock_read(map);
+
 	/*
 	 * Lookup the faulting address.
 	 */
-
-	vm_map_lock_read(map);
-#define	RETURN(why) \
-		{ \
-		vm_map_unlock_read(map); \
-		return (why); \
-		}
-
-	/*
-	 * If the map has an interesting hint, try it before calling full
-	 * blown lookup routine.
-	 */
-	entry = map->root;
-	*out_entry = entry;
-	if (entry == NULL ||
-	    (vaddr < entry->start) || (vaddr >= entry->end)) {
-		/*
-		 * Entry was either not a valid hint, or the vaddr was not
-		 * contained in the entry, so do a full lookup.
-		 */
-		if (!vm_map_lookup_entry(map, vaddr, out_entry))
-			RETURN(KERN_INVALID_ADDRESS);
-
-		entry = *out_entry;
+	if (!vm_map_lookup_entry(map, vaddr, out_entry)) {
+		vm_map_unlock_read(map);
+		return (KERN_INVALID_ADDRESS);
 	}
+
+	entry = *out_entry;
 
 	/*
 	 * Handle submaps.
@@ -3160,13 +3289,15 @@ RetryLookup:;
 		prot = entry->protection;
 	fault_type &= (VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE);
 	if ((fault_type & prot) != fault_type) {
-			RETURN(KERN_PROTECTION_FAILURE);
+		vm_map_unlock_read(map);
+		return (KERN_PROTECTION_FAILURE);
 	}
 	if ((entry->eflags & MAP_ENTRY_USER_WIRED) &&
 	    (entry->eflags & MAP_ENTRY_COW) &&
 	    (fault_type & VM_PROT_WRITE) &&
 	    (fault_typea & VM_PROT_OVERRIDE_WRITE) == 0) {
-		RETURN(KERN_PROTECTION_FAILURE);
+		vm_map_unlock_read(map);
+		return (KERN_PROTECTION_FAILURE);
 	}
 
 	/*
@@ -3236,8 +3367,6 @@ RetryLookup:;
 
 	*out_prot = prot;
 	return (KERN_SUCCESS);
-
-#undef	RETURN
 }
 
 /*
@@ -3262,22 +3391,12 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 	vm_prot_t fault_type = fault_typea;
 
 	/*
-	 * If the map has an interesting hint, try it before calling full
-	 * blown lookup routine.
+	 * Lookup the faulting address.
 	 */
-	entry = map->root;
-	*out_entry = entry;
-	if (entry == NULL ||
-	    (vaddr < entry->start) || (vaddr >= entry->end)) {
-		/*
-		 * Entry was either not a valid hint, or the vaddr was not
-		 * contained in the entry, so do a full lookup.
-		 */
-		if (!vm_map_lookup_entry(map, vaddr, out_entry))
-			return (KERN_INVALID_ADDRESS);
+	if (!vm_map_lookup_entry(map, vaddr, out_entry))
+		return (KERN_INVALID_ADDRESS);
 
-		entry = *out_entry;
-	}
+	entry = *out_entry;
 
 	/*
 	 * Fail if the entry refers to a submap.

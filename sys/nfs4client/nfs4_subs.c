@@ -668,7 +668,7 @@ nfsm_v4build_create_xx(struct nfs4_compound *cp, struct nfs4_oparg_create *c,
 		nfsm_buildf_xx(mb, bpos, "s", strlen(c->linktext), c->linktext);
 	else if (c->type == NFCHR || c->type == NFBLK)
 		nfsm_buildf_xx(mb, bpos, "uu",
-		    umajor(c->vap->va_rdev), uminor(c->vap->va_rdev));
+		    major(c->vap->va_rdev), minor(c->vap->va_rdev));
 
 	/* Name */
 	nfsm_buildf_xx(mb, bpos, "s", c->namelen, c->name);	

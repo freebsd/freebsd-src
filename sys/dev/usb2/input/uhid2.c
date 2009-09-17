@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
  * HID spec: http://www.usb.org/developers/devclass_docs/HID1_11.pdf
  */
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -82,9 +82,15 @@ SYSCTL_INT(_hw_usb2_uhid, OID_AUTO, debug, CTLFLAG_RW,
     &uhid_debug, 0, "Debug level");
 #endif
 
-#define	UHID_N_TRANSFER    4		/* units */
 #define	UHID_BSIZE	1024		/* bytes, buffer size */
 #define	UHID_FRAME_NUM 	  50		/* bytes, frame number */
+
+enum {
+	UHID_INTR_DT_RD,
+	UHID_CTRL_DT_WR,
+	UHID_CTRL_DT_RD,
+	UHID_N_TRANSFER,
+};
 
 struct uhid_softc {
 	struct usb2_fifo_sc sc_fifo;
@@ -107,7 +113,6 @@ struct uhid_softc {
 	uint8_t	sc_fid;
 	uint8_t	sc_flags;
 #define	UHID_FLAG_IMMED        0x01	/* set if read should be immediate */
-#define	UHID_FLAG_INTR_STALL   0x02	/* set if interrupt transfer stalled */
 #define	UHID_FLAG_STATIC_DESC  0x04	/* set if report descriptors are
 					 * static */
 };
@@ -123,7 +128,6 @@ static device_attach_t uhid_attach;
 static device_detach_t uhid_detach;
 
 static usb2_callback_t uhid_intr_callback;
-static usb2_callback_t uhid_intr_clear_stall_callback;
 static usb2_callback_t uhid_write_callback;
 static usb2_callback_t uhid_read_callback;
 
@@ -167,39 +171,22 @@ uhid_intr_callback(struct usb2_xfer *xfer)
 		}
 
 	case USB_ST_SETUP:
-		if (sc->sc_flags & UHID_FLAG_INTR_STALL) {
-			usb2_transfer_start(sc->sc_xfer[1]);
-		} else {
-			if (usb2_fifo_put_bytes_max(
-			    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
-				xfer->frlengths[0] = xfer->max_data_length;
-				usb2_start_hardware(xfer);
-			}
+re_submit:
+		if (usb2_fifo_put_bytes_max(
+		    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
+			xfer->frlengths[0] = sc->sc_isize;
+			usb2_start_hardware(xfer);
 		}
 		return;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
-			sc->sc_flags |= UHID_FLAG_INTR_STALL;
-			usb2_transfer_start(sc->sc_xfer[1]);
+			xfer->flags.stall_pipe = 1;
+			goto re_submit;
 		}
 		return;
 	}
-}
-
-static void
-uhid_intr_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct uhid_softc *sc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = sc->sc_xfer[0];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		sc->sc_flags &= ~UHID_FLAG_INTR_STALL;
-		usb2_transfer_start(xfer_other);
-	}
-	return;
 }
 
 static void
@@ -212,7 +199,6 @@ uhid_fill_set_report(struct usb2_device_request *req, uint8_t iface_no,
 	req->wIndex[0] = iface_no;
 	req->wIndex[1] = 0;
 	USETW(req->wLength, size);
-	return;
 }
 
 static void
@@ -225,7 +211,6 @@ uhid_fill_get_report(struct usb2_device_request *req, uint8_t iface_no,
 	req->wIndex[0] = iface_no;
 	req->wIndex[1] = 0;
 	USETW(req->wLength, size);
-	return;
 }
 
 static void
@@ -328,26 +313,16 @@ uhid_read_callback(struct usb2_xfer *xfer)
 
 static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
 
-	[0] = {
+	[UHID_INTR_DT_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
-		.mh.bufsize = 0,	/* use wMaxPacketSize */
+		.mh.bufsize = UHID_BSIZE,
 		.mh.callback = &uhid_intr_callback,
 	},
 
-	[1] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.callback = &uhid_intr_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-	},
-
-	[2] = {
+	[UHID_CTRL_DT_WR] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -356,7 +331,7 @@ static const struct usb2_config uhid_config[UHID_N_TRANSFER] = {
 		.mh.timeout = 1000,	/* 1 second */
 	},
 
-	[3] = {
+	[UHID_CTRL_DT_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
 		.direction = UE_DIR_ANY,
@@ -372,11 +347,10 @@ uhid_start_read(struct usb2_fifo *fifo)
 	struct uhid_softc *sc = fifo->priv_sc0;
 
 	if (sc->sc_flags & UHID_FLAG_IMMED) {
-		usb2_transfer_start(sc->sc_xfer[3]);
+		usb2_transfer_start(sc->sc_xfer[UHID_CTRL_DT_RD]);
 	} else {
-		usb2_transfer_start(sc->sc_xfer[0]);
+		usb2_transfer_start(sc->sc_xfer[UHID_INTR_DT_RD]);
 	}
-	return;
 }
 
 static void
@@ -384,9 +358,8 @@ uhid_stop_read(struct usb2_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[3]);
-	usb2_transfer_stop(sc->sc_xfer[0]);
-	return;
+	usb2_transfer_stop(sc->sc_xfer[UHID_CTRL_DT_RD]);
+	usb2_transfer_stop(sc->sc_xfer[UHID_INTR_DT_RD]);
 }
 
 static void
@@ -394,8 +367,7 @@ uhid_start_write(struct usb2_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_start(sc->sc_xfer[2]);
-	return;
+	usb2_transfer_start(sc->sc_xfer[UHID_CTRL_DT_WR]);
 }
 
 static void
@@ -403,8 +375,7 @@ uhid_stop_write(struct usb2_fifo *fifo)
 {
 	struct uhid_softc *sc = fifo->priv_sc0;
 
-	usb2_transfer_stop(sc->sc_xfer[2]);
-	return;
+	usb2_transfer_stop(sc->sc_xfer[UHID_CTRL_DT_WR]);
 }
 
 static int
@@ -509,7 +480,6 @@ uhid_close(struct usb2_fifo *fifo, int fflags, struct thread *td)
 	if (fflags & (FREAD | FWRITE)) {
 		usb2_fifo_free_buffer(fifo);
 	}
-	return;
 }
 
 static int
@@ -531,6 +501,8 @@ uhid_ioctl(struct usb2_fifo *fifo, u_long cmd, void *addr,
 			size = sc->sc_repdesc_size;
 		}
 		ugd->ugd_actlen = size;
+		if (ugd->ugd_data == NULL)
+			break;		/* descriptor length only */
 		error = copyout(sc->sc_repdesc_ptr, ugd->ugd_data, size);
 		break;
 
@@ -661,9 +633,6 @@ uhid_attach(device_t dev)
 
 	DPRINTFN(10, "sc=%p\n", sc);
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	device_set_usb2_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "uhid lock", NULL, MTX_DEF | MTX_RECURSE);

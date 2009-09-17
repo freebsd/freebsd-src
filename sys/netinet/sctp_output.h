@@ -88,7 +88,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
 
 struct mbuf *
 sctp_arethere_unrecognized_parameters(struct mbuf *, int, int *,
-    struct sctp_chunkhdr *);
+    struct sctp_chunkhdr *, int *);
 void sctp_queue_op_err(struct sctp_tcb *, struct mbuf *);
 
 int
@@ -150,6 +150,9 @@ void send_forward_tsn(struct sctp_tcb *, struct sctp_association *);
 
 void sctp_send_sack(struct sctp_tcb *);
 
+/* EY 05/07/08 if nr_sacks used, the following function will be called instead of sctp_send_sack */
+void sctp_send_nr_sack(struct sctp_tcb *);
+
 int sctp_send_hb(struct sctp_tcb *, int, struct sctp_nets *);
 
 void sctp_send_ecn_echo(struct sctp_tcb *, struct sctp_nets *, uint32_t);
@@ -189,10 +192,14 @@ sctp_add_stream_reset_result_tsn(struct sctp_tmit_chunk *chk,
 
 int
 sctp_send_str_reset_req(struct sctp_tcb *stcb,
-    int number_entries, uint16_t * list,
-    uint8_t send_out_req, uint32_t resp_seq,
+    int number_entries,
+    uint16_t * list,
+    uint8_t send_out_req,
+    uint32_t resp_seq,
     uint8_t send_in_req,
-    uint8_t send_tsn_req);
+    uint8_t send_tsn_req,
+    uint8_t add_str,
+    uint16_t adding);
 
 
 void

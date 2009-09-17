@@ -187,32 +187,17 @@ cleanup(struct archive_read *a)
 static int
 mtree_bid(struct archive_read *a)
 {
-	struct mtree *mtree;
-	ssize_t bytes_read;
-	const void *h;
 	const char *signature = "#mtree";
 	const char *p;
-	int bid;
-
-	mtree = (struct mtree *)(a->format->data);
 
 	/* Now let's look at the actual header and see if it matches. */
-	bytes_read = (a->decompressor->read_ahead)(a, &h, strlen(signature));
+	p = __archive_read_ahead(a, strlen(signature), NULL);
+	if (p == NULL)
+		return (-1);
 
-	if (bytes_read <= 0)
-		return (bytes_read);
-
-	p = h;
-	bid = 0;
-	while (bytes_read > 0 && *signature != '\0') {
-		if (*p != *signature)
-			return (bid = 0);
-		bid += 8;
-		p++;
-		signature++;
-		bytes_read--;
-	}
-	return (bid);
+	if (strncmp(p, signature, strlen(signature)) == 0)
+		return (8 * strlen(signature));
+	return (0);
 }
 
 /*
@@ -1239,8 +1224,8 @@ readline(struct archive_read *a, struct mtree *mtree, char **start, ssize_t limi
 	/* Accumulate line in a line buffer. */
 	for (;;) {
 		/* Read some more. */
-		bytes_read = (a->decompressor->read_ahead)(a, &t, 1);
-		if (bytes_read == 0)
+		t = __archive_read_ahead(a, 1, &bytes_read);
+		if (t == NULL)
 			return (0);
 		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
@@ -1263,7 +1248,7 @@ readline(struct archive_read *a, struct mtree *mtree, char **start, ssize_t limi
 			return (ARCHIVE_FATAL);
 		}
 		memcpy(mtree->line.s + total_size, t, bytes_read);
-		(a->decompressor->consume)(a, bytes_read);
+		__archive_read_consume(a, bytes_read);
 		total_size += bytes_read;
 		/* Null terminate. */
 		mtree->line.s[total_size] = '\0';

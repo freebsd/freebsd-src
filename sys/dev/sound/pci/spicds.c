@@ -234,7 +234,7 @@ spicds_init(struct spicds_info *codec)
 	if (codec->type == SPICDS_TYPE_AK4358) 
 	spicds_wrcd(codec, 0x00, 0x07);		/* I2S, 24bit, power-up */
 	if (codec->type == SPICDS_TYPE_AK4381)
-	spicds_wrcd(codec, 0x00, 0x0f);		/* I2S, 24bit, power-up */
+	spicds_wrcd(codec, 0x00, 0x8f);		/* I2S, 24bit, power-up */
 	if (codec->type == SPICDS_TYPE_AK4396)
 	spicds_wrcd(codec, 0x00, 0x07);		/* I2S, 24bit, power-up */
 	snd_mtxunlock(codec->lock);
@@ -296,7 +296,8 @@ spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int r
 		case SPICDS_TYPE_WM8770:
                         right = right + 27;
 			break;
-		case SPICDS_TYPE_AK4381 || SPICDS_TYPE_AK4396:
+		case SPICDS_TYPE_AK4381: 
+		case SPICDS_TYPE_AK4396:
 			right = right * 255 / 100;
 			break;
                 default:   

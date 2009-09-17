@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 # hp:  file(1) magic for Hewlett Packard machines (see also "printer")
 #
@@ -202,34 +201,40 @@
 0	string		msgcat01	HP NLS message catalog,
 >8	long		>0		%d messages
 
-# addendum to /etc/magic with HP-48sx file-types by phk@data.fls.dk 1jan92
-0	string		HPHP48-		HP48 binary
->7	byte		>0		- Rev %c
->8	beshort		0x1129		(ADR)
->8	beshort		0x3329		(REAL)
->8	beshort		0x5529		(LREAL)
->8	beshort		0x7729		(COMPLX)
->8	beshort		0x9d29		(LCOMPLX)
->8	beshort		0xbf29		(CHAR)
->8	beshort		0xe829		(ARRAY)
->8	beshort		0x0a2a		(LNKARRAY)
->8	beshort		0x2c2a		(STRING)
->8	beshort		0x4e2a		(HXS)
->8	beshort		0x742a		(LIST)
->8	beshort		0x962a		(DIR)
->8	beshort		0xb82a		(ALG)
->8	beshort		0xda2a		(UNIT)
->8	beshort		0xfc2a		(TAGGED)
->8	beshort		0x1e2b		(GROB)
->8	beshort		0x402b		(LIB)
->8	beshort		0x622b		(BACKUP)
->8	beshort		0x882b		(LIBDATA)
->8	beshort		0x9d2d		(PROG)
->8	beshort		0xcc2d		(CODE)
->8	beshort		0x482e		(GNAME)
->8	beshort		0x6d2e		(LNAME)
->8	beshort		0x922e		(XLIB)
-0	string		%%HP:		HP48 text
+# Summary: HP-48/49 calculator
+# Created by: phk@data.fls.dk
+# Modified by (1): AMAKAWA Shuhei <sa264@cam.ac.uk>
+# Modified by (2): Samuel Thibault <samuel.thibault@ens-lyon.org> (HP49 support)
+0	string		HPHP		HP
+>4	string		48		48 binary
+>4	string		49		49 binary
+>7	byte		>64		- Rev %c
+>8	leshort		0x2911		(ADR)
+>8	leshort		0x2933		(REAL)
+>8	leshort		0x2955		(LREAL)
+>8	leshort		0x2977		(COMPLX)
+>8	leshort		0x299d		(LCOMPLX)
+>8	leshort		0x29bf		(CHAR)
+>8	leshort		0x29e8		(ARRAY)
+>8	leshort		0x2a0a		(LNKARRAY)
+>8	leshort		0x2a2c		(STRING)
+>8	leshort		0x2a4e		(HXS)
+>8	leshort		0x2a74		(LIST)
+>8	leshort		0x2a96		(DIR)
+>8	leshort		0x2ab8		(ALG)
+>8	leshort		0x2ada		(UNIT)
+>8	leshort		0x2afc		(TAGGED)
+>8	leshort		0x2b1e		(GROB)
+>8	leshort		0x2b40		(LIB)
+>8	leshort		0x2b62		(BACKUP)
+>8	leshort		0x2b88		(LIBDATA)
+>8	leshort		0x2d9d		(PROG)
+>8	leshort		0x2dcc		(CODE)
+>8	leshort		0x2e48		(GNAME)
+>8	leshort		0x2e6d		(LNAME)
+>8	leshort		0x2e92		(XLIB)
+
+0	string		%%HP:		HP text
 >6	string		T(0)		- T(0)
 >6	string		T(1)		- T(1)
 >6	string		T(2)		- T(2)
@@ -239,6 +244,45 @@
 >10	string		A(G)		A(G)
 >14	string		F(.)		F(.);
 >14	string		F(,)		F(,);
+
+
+# Summary: HP-38/39 calculator
+# Created by: Samuel Thibault <samuel.thibault@ens-lyon.org>
+0	string		HP3
+>3	string		8		HP 38
+>3	string		9		HP 39
+>4	string		Bin		binary
+>4	string		Asc		ASCII
+>7	string		A		(Directory List)
+>7	string		B		(Zaplet)
+>7	string		C		(Note)
+>7	string		D		(Program)
+>7	string		E		(Variable)
+>7	string		F		(List)
+>7	string		G		(Matrix)
+>7	string		H		(Library)
+>7	string		I		(Target List)
+>7	string		J		(ASCII Vector specification)
+>7	string		K		(wildcard)
+
+# Summary: HP-38/39 calculator
+# Created by: Samuel Thibault <samuel.thibault@ens-lyon.org>
+0	string		HP3
+>3	string		8		HP 38
+>3	string		9		HP 39
+>4	string		Bin		binary
+>4	string		Asc		ASCII
+>7	string		A		(Directory List)
+>7	string		B		(Zaplet)
+>7	string		C		(Note)
+>7	string		D		(Program)
+>7	string		E		(Variable)
+>7	string		F		(List)
+>7	string		G		(Matrix)
+>7	string		H		(Library)
+>7	string		I		(Target List)
+>7	string		J		(ASCII Vector specification)
+>7	string		K		(wildcard)
 
 # hpBSD magic numbers
 0	beshort		200		hp200 (68010) BSD
@@ -390,6 +434,4 @@
 >>>>>>>>>0xC4	belong	33		- received SIGXCPU
 >>>>>>>>>0xC4	belong	34		- received SIGXFSZ
 
-# From: AMAKAWA Shuhei <sa264@cam.ac.uk>
-0	string	HPHP49-			HP49 binary
 

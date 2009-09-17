@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#30 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#34 $
 # $FreeBSD$
 #
 # The mapping between event identifiers and values is also hard-coded in
@@ -7,6 +7,20 @@
 # and programs, such as the kernel, may need to be recompiled to recognize
 # those changes.  It is advisable not to change the numbering or naming of
 # kernel audit events.
+#
+# Allocation of BSM event identifier ranges:
+#
+# 0                    Reserved and invalid
+# 1     - 2047         Reserved for Solaris kernel events
+# 2048  - 5999         Reserved and unallocated
+# 6000  - 9999         Reserved for Solaris user events
+# 10000 - 32767        Reserved and unallocated
+# 32768 - 65535        Available for third party applications
+#
+# Of the third party range, OpenBSM allocates from the following ranges:
+#
+# 43000 - 44999        Reserved for OpenBSM kernel events
+# 45000 - 46999        Reserved for OpenBSM application events
 #
 0:AUE_NULL:indir system call:no
 1:AUE_EXIT:exit(2):pc
@@ -186,6 +200,7 @@
 205:AUE_SETGID:setgid(2):pc
 206:AUE_READL:readl(2):no
 207:AUE_READVL:readvl(2):no
+208:AUE_FSTAT:fstat(2):fa
 209:AUE_DUP2:dup2(2):no
 210:AUE_MMAP:mmap(2):no
 211:AUE_AUDIT:audit(2):ot
@@ -535,33 +550,107 @@
 43187:AUE_CAP_GETRIGHTS:cap_getrights(2):fm
 43188:AUE_CAP_ENTER:cap_enter(2):pc
 43189:AUE_CAP_GETMODE:cap_getmode(2):pc
+43190:AUE_POSIX_SPAWN:posix_spawn(2):pc
+43191:AUE_FSGETPATH:fsgetpath(2):ot
 #
-# User space system events.
+# Solaris userspace events.
 #
+6144:AUE_at_create:at-create atjob:ad
+6145:AUE_at_delete:at-delete atjob (at or atrm):ad
+6146:AUE_at_perm:at-permission:no
+6147:AUE_cron_invoke:cron-invoke:ad
+6148:AUE_crontab_create:crontab-crontab created:ad
+6149:AUE_crontab_delete:crontab-crontab deleted:ad
+6150:AUE_crontab_perm:crontab-permission:no
+6151:AUE_inetd_connect:inetd connection:na
 6152:AUE_login:login - local:lo
 6153:AUE_logout:logout - local:lo
+6154:AUE_telnet:login - telnet:lo
+6155:AUE_rlogin:login - rlogin:lo
+6156:AUE_mountd_mount:mount:na
+6157:AUE_mountd_umount:unmount:na
+6158:AUE_rshd:rsh access:lo
 6159:AUE_su:su(1):lo
 6160:AUE_halt:system halt:ad
+6161:AUE_reboot:system reboot:ad
+6162:AUE_rexecd:rexecd:lo
+6163:AUE_passwd:passwd:lo
+6164:AUE_rexd:rexd:lo
+6165:AUE_ftpd:ftp access:lo
+6166:AUE_init:init:lo
+6167:AUE_uadmin:uadmin:no
 6168:AUE_shutdown:system shutdown:ad
-6171:AUE_audit_startup:audit startup:ad
-6172:AUE_audit_shutdown:audit shutdown:ad
+6168:AUE_poweroff:system poweroff:ad
+6170:AUE_crontab_mod:crontab-modify:ad
+6171:AUE_ftpd_logout:ftp logout:lo
+6172:AUE_ssh:login - ssh:lo
+6173:AUE_role_login:role login:lo
+6180:AUE_prof_cmd: profile command:ad
+6181:AUE_filesystem_add:add filesystem:ad
+6182:AUE_filesystem_delete:delete filesystem:ad
+6183:AUE_filesystem_modify:modify filesystem:ad
+6200:AUE_allocate_succ:allocate-device success:ot
+6201:AUE_allocate_fail:allocate-device failure:ot
+6202:AUE_deallocate_succ:deallocate-device success:ot
+6203:AUE_deallocate_fail:deallocate-device failure:ot
+6204:AUE_listdevice_succ:allocate-list devices success:ot
+6205:AUE_listdevice_fail:allocate-list devices failure:ot
 6207:AUE_create_user:create user:ad
 6208:AUE_modify_user:modify user:ad
 6209:AUE_delete_user:delete user:ad
 6210:AUE_disable_user:disable user:ad
-6211:AUE_enable_user::ad
-6300:AUE_sudo:sudo(1):ad
-6501:AUE_modify_password:modify password:ad
-6511:AUE_create_group:create group:ad
-6512:AUE_delete_group:delete group:ad
-6513:AUE_modify_group:modify group:ad
-6514:AUE_add_to_group:add to group:ad
-6515:AUE_remove_from_group:remove from group:ad
-6521:AUE_revoke_obj:revoke object priv:fm
-6600:AUE_lw_login:loginwindow login:lo
-6601:AUE_lw_logout:loginwindow logout:lo
-7000:AUE_auth_user:user authentication:ad
-7001:AUE_ssconn:SecSrvr connection setup:ad
-7002:AUE_ssauthorize:SecSrvr AuthEngine:ad
-7003:AUE_ssauthint:SecSrvr authinternal mech:ad
+6211:AUE_enable_user:enable users:ad
+6212:AUE_newgrp_login:newgrp login:lo
+6213:AUE_admin_authenticate:admin login:lo
+6214:AUE_kadmind_auth:authenticated kadmind request:ua
+6215:AUE_kadmind_unauth:unauthenticated kadmind req:ua
+6216:AUE_krb5kdc_as_req:kdc authentication svc request:ap
+6217:AUE_krb5kdc_tgs_req:kdc tkt-grant svc request:ap
+6218:AUE_krb5kdc_tgs_req_2ndtktmm:kdc tgs 2ndtkt mismtch:ap
+6219:AUE_krb5kdc_tgs_req_alt_tgt:kdc tgs issue alt tgt:ap
+#
+# Historic Darwin use of low event numbering space, which collided with the
+# Solaris event space.  Now obsoleted and new, higher, event numbers assigned
+# to make it easier to interpret Solaris events using the OpenBSM tools.
+#
+6171:AUE_DARWIN_audit_startup:audit startup:ad
+6172:AUE_DARWIN_audit_shutdown:audit shutdown:ad
+6300:AUE_DARWIN_sudo:sudo(1):ad
+6501:AUE_DARWIN_modify_password:modify password:ad
+6511:AUE_DARWIN_create_group:create group:ad
+6512:AUE_DARWIN_delete_group:delete group:ad
+6513:AUE_DARWIN_modify_group:modify group:ad
+6514:AUE_DARWIN_add_to_group:add to group:ad
+6515:AUE_DARWIN_remove_from_group:remove from group:ad
+6521:AUE_DARWIN_revoke_obj:revoke object priv:fm
+6600:AUE_DARWIN_lw_login:loginwindow login:lo
+6601:AUE_DARWIN_lw_logout:loginwindow logout:lo
+7000:AUE_DARWIN_auth_user:user authentication:ad
+7001:AUE_DARWIN_ssconn:SecSrvr connection setup:ad
+7002:AUE_DARWIN_ssauthorize:SecSrvr AuthEngine:ad
+7003:AUE_DARWIN_ssauthint:SecSrvr authinternal mech:ad
+#
+# Historic/third-party application allocations of event identifiers.
+#
 32800:AUE_openssh:OpenSSH login:lo
+#
+# OpenBSM-managed application event space.
+#
+45000:AUE_audit_startup:audit startup:ad
+45001:AUE_audit_shutdown:audit shutdown:ad
+45014:AUE_modify_password:modify password:ad
+45015:AUE_create_group:create group:ad
+45016:AUE_delete_group:delete group:ad
+45017:AUE_modify_group:modify group:ad
+45018:AUE_add_to_group:add to group:ad
+45019:AUE_remove_from_group:remove from group:ad
+45020:AUE_revoke_obj:revoke object priv:fm
+45021:AUE_lw_login:loginwindow login:lo
+45022:AUE_lw_logout:loginwindow logout:lo
+45023:AUE_auth_user:user authentication:ad
+45024:AUE_ssconn:SecSrvr connection setup:ad
+45025:AUE_ssauthorize:SecSrvr AuthEngine:ad
+45026:AUE_ssauthint:SecSrvr authinternal mech:ad
+45027:AUE_calife:Calife:ad
+45028:AUE_sudo:sudo(1):ad
+45029:AUE_audit_recovery:audit crash recovery:ad

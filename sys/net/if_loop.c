@@ -38,6 +38,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -81,6 +82,8 @@
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
 #endif
+
+#include <security/mac/mac_framework.h>
 
 #ifdef TINY_LOMTU
 #define	LOMTU	(1024+512)
@@ -176,8 +179,19 @@ looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
     struct rtentry *rt)
 {
 	u_int32_t af;
+#ifdef MAC
+	int error;
+#endif
 
 	M_ASSERTPKTHDR(m); /* check if we have the packet header */
+
+#ifdef MAC
+	error = mac_ifnet_check_transmit(ifp, m);
+	if (error) {
+		m_freem(m);
+		return (error);
+	}
+#endif
 
 	if (rt && rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
 		m_freem(m);
@@ -229,6 +243,10 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 	M_ASSERTPKTHDR(m);
 	m_tag_delete_nonpersistent(m);
 	m->m_pkthdr.rcvif = ifp;
+
+#ifdef MAC
+	mac_ifnet_create_mbuf(ifp, m);
+#endif
 
 	/*
 	 * Let BPF see incoming packet in the following manner:

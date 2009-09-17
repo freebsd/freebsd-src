@@ -538,7 +538,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 	struct tcpopt to;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
-	int isipv6 = inp->inp_inc.inc_isipv6;
+	int isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
 #endif
 
 	INP_WLOCK_ASSERT(inp);

@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
 
@@ -54,6 +54,8 @@ procstat_vm(pid_t pid, struct kinfo_proc *kipp __unused)
 		    "PRES", "REF", "SHD", "FL", "TP", "PATH");
 
 	freep = kinfo_getvmmap(pid, &cnt);
+	if (freep == NULL)
+		return;
 	for (i = 0; i < cnt; i++) {
 		kve = &freep[i];
 		printf("%5d ", pid);

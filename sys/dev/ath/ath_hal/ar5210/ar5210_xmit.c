@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2004 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5210_xmit.c,v 1.5 2008/11/10 04:08:02 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -154,7 +154,7 @@ HAL_BOOL
 ar5210ResetTxQueue(struct ath_hal *ah, u_int q)
 {
 	struct ath_hal_5210 *ahp = AH5210(ah);
-	HAL_CHANNEL_INTERNAL *chan = AH_PRIVATE(ah)->ah_curchan;
+	const struct ieee80211_channel *chan = AH_PRIVATE(ah)->ah_curchan;
 	HAL_TX_QUEUE_INFO *qi;
 	uint32_t cwMin;
 
@@ -177,7 +177,7 @@ ar5210ResetTxQueue(struct ath_hal *ah, u_int q)
 		return AH_TRUE;
 
 	/* Set turbo mode / base mode parameters on or off */
-	if (IS_CHAN_TURBO(chan)) {
+	if (IEEE80211_IS_CHAN_TURBO(chan)) {
 		OS_REG_WRITE(ah, AR_SLOT_TIME, INIT_SLOT_TIME_TURBO);
 		OS_REG_WRITE(ah, AR_TIME_OUT, INIT_ACK_CTS_TIMEOUT_TURBO);
 		OS_REG_WRITE(ah, AR_USEC, INIT_TRANSMIT_LATENCY_TURBO);

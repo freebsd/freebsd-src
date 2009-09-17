@@ -130,7 +130,7 @@ struct trapframe {
 };
 
 /* REVISIT */
-struct	frame *get_current_fp __P((void));
+struct	frame *get_current_fp(void);
 #define	get_next_fp(fp)		(0)
 #define	get_return_ptr(fp)	(0)
 void	get_stack_trace(u_int32_t depth, u_int32_t *trace);

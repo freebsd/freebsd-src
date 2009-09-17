@@ -78,6 +78,7 @@ struct vop_vector dead_vnodeops = {
 	.vop_rmdir =		VOP_PANIC,
 	.vop_setattr =		VOP_EBADF,
 	.vop_symlink =		VOP_PANIC,
+	.vop_vptocnp =		VOP_EBADF,
 	.vop_write =		dead_write,
 };
 

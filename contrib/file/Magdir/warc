@@ -1,0 +1,6 @@
+
+#------------------------------------------------------------------------------
+# warc:  file(1) magic for WARC files
+
+0	string	WARC/	WARC Archive
+>5	string	x	version %.4s

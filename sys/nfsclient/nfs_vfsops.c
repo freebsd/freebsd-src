@@ -976,39 +976,43 @@ nfs_mount(struct mount *mp, struct thread *td)
 	}
 	if (vfs_getopt(mp->mnt_optnew, "acregmin", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.acregmin);
-		if (ret != 1 || args.acregmin <= 0) {
+		if (ret != 1 || args.acregmin < 0) {
 			vfs_mount_error(mp, "illegal acregmin: %s",
 			    opt);
 			error = EINVAL;
 			goto out;
 		}
+		args.flags |= NFSMNT_ACREGMIN;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "acregmax", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.acregmax);
-		if (ret != 1 || args.acregmax <= 0) {
+		if (ret != 1 || args.acregmax < 0) {
 			vfs_mount_error(mp, "illegal acregmax: %s",
 			    opt);
 			error = EINVAL;
 			goto out;
 		}
+		args.flags |= NFSMNT_ACREGMAX;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "acdirmin", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.acdirmin);
-		if (ret != 1 || args.acdirmin <= 0) {
+		if (ret != 1 || args.acdirmin < 0) {
 			vfs_mount_error(mp, "illegal acdirmin: %s",
 			    opt);
 			error = EINVAL;
 			goto out;
 		}
+		args.flags |= NFSMNT_ACDIRMIN;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "acdirmax", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.acdirmax);
-		if (ret != 1 || args.acdirmax <= 0) {
+		if (ret != 1 || args.acdirmax < 0) {
 			vfs_mount_error(mp, "illegal acdirmax: %s",
 			    opt);
 			error = EINVAL;
 			goto out;
 		}
+		args.flags |= NFSMNT_ACDIRMAX;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "deadthresh", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.deadthresh);

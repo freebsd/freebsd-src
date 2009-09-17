@@ -61,6 +61,7 @@ struct uninorth_softc {
 	bus_space_tag_t		sc_iot;
 	bus_space_tag_t		sc_memt;
 	bus_dma_tag_t		sc_dmat;
+	struct ofw_bus_iinfo	sc_pci_iinfo;
 
 	int			sc_u3;
 };

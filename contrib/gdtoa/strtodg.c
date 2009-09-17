@@ -331,6 +331,27 @@ strtodg
 	Long L;
 	ULong *b, *be, y, z;
 	Bigint *ab, *bb, *bb1, *bd, *bd0, *bs, *delta, *rvb, *rvb0;
+#ifdef USE_LOCALE /*{{*/
+#ifdef NO_LOCALE_CACHE
+	char *decimalpoint = localeconv()->decimal_point;
+	int dplen = strlen(decimalpoint);
+#else
+	char *decimalpoint;
+	static char *decimalpoint_cache;
+	static int dplen;
+	if (!(s0 = decimalpoint_cache)) {
+		s0 = localeconv()->decimal_point;
+		if ((decimalpoint_cache = (char*)malloc(strlen(s0) + 1))) {
+			strcpy(decimalpoint_cache, s0);
+			s0 = decimalpoint_cache;
+			}
+		dplen = strlen(s0);
+		}
+	decimalpoint = (char*)s0;
+#endif /*NO_LOCALE_CACHE*/
+#else  /*USE_LOCALE}{*/
+#define dplen 1
+#endif /*USE_LOCALE}}*/
 
 	irv = STRTOG_Zero;
 	denorm = sign = nz0 = nz = 0;
@@ -389,13 +410,17 @@ strtodg
 			z = 10*z + c - '0';
 	nd0 = nd;
 #ifdef USE_LOCALE
-	if (c == *localeconv()->decimal_point)
+	if (c == *decimalpoint) {
+		for(i = 1; decimalpoint[i]; ++i)
+			if (s[i] != decimalpoint[i])
+				goto dig_done;
+		s += i;
+		c = *s;
 #else
-	if (c == '.')
-#endif
-		{
-		decpt = 1;
+	if (c == '.') {
 		c = *++s;
+#endif
+		decpt = 1;
 		if (!nd) {
 			for(; c == '0'; c = *++s)
 				nz++;
@@ -424,7 +449,7 @@ strtodg
 				nz = 0;
 				}
 			}
-		}
+		}/*}*/
  dig_done:
 	e = 0;
 	if (c == 'e' || c == 'E') {
@@ -683,7 +708,7 @@ strtodg
 
 	/* Put digits into bd: true value = bd * 10^e */
 
-	bd0 = s2b(s0, nd0, nd, y);
+	bd0 = s2b(s0, nd0, nd, y, dplen);
 
 	for(;;) {
 		bd = Balloc(bd0->k);
@@ -992,7 +1017,7 @@ strtodg
 		irv = STRTOG_Normal | STRTOG_Inexlo;
 		*exp = fpi->emax;
 		b = bits;
-		be = b + (fpi->nbits >> 5) + 1;
+		be = b + ((fpi->nbits + 31) >> 5);
 		while(b < be)
 			*b++ = -1;
 		if ((j = fpi->nbits & 0x1f))

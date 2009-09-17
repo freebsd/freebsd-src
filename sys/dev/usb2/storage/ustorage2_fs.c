@@ -35,7 +35,7 @@
  * NOTE: Much of the SCSI statemachine handling code derives from the
  * Linux USB gadget stack.
  */
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -318,9 +318,6 @@ ustorage_fs_attach(device_t dev)
 	struct usb2_interface_descriptor *id;
 	int err;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	/*
 	 * NOTE: the softc struct is bzero-ed in device_set_driver.
 	 * We can safely call ustorage_fs_detach without specifically
@@ -431,7 +428,6 @@ ustorage_fs_transfer_start(struct ustorage_fs_softc *sc, uint8_t xfer_index)
 		sc->sc_last_xfer_index = xfer_index;
 		usb2_transfer_start(sc->sc_xfer[xfer_index]);
 	}
-	return;
 }
 
 static void
@@ -441,7 +437,6 @@ ustorage_fs_transfer_stop(struct ustorage_fs_softc *sc)
 	mtx_unlock(&sc->sc_mtx);
 	usb2_transfer_drain(sc->sc_xfer[sc->sc_last_xfer_index]);
 	mtx_lock(&sc->sc_mtx);
-	return;
 }
 
 static int
@@ -608,7 +603,6 @@ tr_setup:
 		}
 		ustorage_fs_transfer_start(sc, USTORAGE_FS_T_BBB_STATUS);
 	}
-	return;
 }
 
 static void
@@ -661,7 +655,6 @@ tr_setup:
 		/* try again */
 		goto tr_setup;
 	}
-	return;
 }
 
 static void
@@ -715,7 +708,6 @@ tr_setup:
 		/* try again */
 		goto tr_setup;
 	}
-	return;
 }
 
 static void
@@ -778,7 +770,6 @@ tr_setup:
 		/* try again */
 		goto tr_setup;
 	}
-	return;
 }
 
 static void
@@ -821,7 +812,6 @@ tr_setup:
 		/* try again */
 		goto tr_setup;
 	}
-	return;
 }
 
 /* SCSI commands that we recognize */
@@ -1308,6 +1298,7 @@ ustorage_fs_mode_select(struct ustorage_fs_softc *sc)
 static uint8_t
 ustorage_fs_synchronize_cache(struct ustorage_fs_softc *sc)
 {
+#if 0
 	struct ustorage_fs_lun *currlun = sc->sc_transfer.currlun;
 	uint8_t rc;
 
@@ -1318,6 +1309,7 @@ ustorage_fs_synchronize_cache(struct ustorage_fs_softc *sc)
 	if (rc) {
 		currlun->sense_data = SS_WRITE_ERROR;
 	}
+#endif
 	return (0);
 }
 

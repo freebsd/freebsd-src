@@ -1,4 +1,4 @@
-OpenBSM 1.1 alpha 1
+OpenBSM 1.1 alpha 4
 
   Introduction
 
@@ -19,6 +19,7 @@ OpenBSM consists of several directories:
     bsm/           Library include files for BSM
     compat/        Compatibility code to build on various OS's
     etc/           Sample /etc/security configuration files
+    libauditd      Common audit management functions for auditd and launchd
     libbsm/        Implementation of BSM library interfaces and man pages
     man/           System call and configuration file man pages
     modules/       Directory for auditfilterd module source
@@ -55,4 +56,4 @@ Information on TrustedBSD may be found on the TrustedBSD home page:
 
     http://www.TrustedBSD.org/
 
-$P4: //depot/projects/trustedbsd/openbsm/README#32 $
+$P4: //depot/projects/trustedbsd/openbsm/README#34 $

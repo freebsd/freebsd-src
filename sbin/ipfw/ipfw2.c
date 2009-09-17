@@ -20,75 +20,41 @@
  * $FreeBSD$
  */
 
-#include <sys/param.h>
-#include <sys/mbuf.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <sys/time.h>
-#include <sys/wait.h>
-#include <sys/queue.h>
+
+#include "ipfw2.h"
 
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
-#include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
-#include <timeconv.h>	/* XXX do we need this ? */
-#include <unistd.h>
 #include <sysexits.h>
+#include <time.h>	/* ctime */
+#include <timeconv.h>	/* _long_to_time */
 #include <unistd.h>
 #include <fcntl.h>
 
-#define IPFW_INTERNAL	/* Access to protected structures in ip_fw.h. */
-
 #include <net/ethernet.h>
-#include <net/if.h>
-#include <net/if_dl.h>
-#include <net/pfvar.h>
-#include <net/route.h> /* def. of struct route */
+#include <net/if.h>		/* only IFNAMSIZ */
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
+#include <netinet/in_systm.h>	/* only n_short, n_long */
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
-#include <netinet/icmp6.h>
 #include <netinet/ip_fw.h>
-#include <netinet/ip_dummynet.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#include <alias.h>
 
-int
-		do_value_as_ip,		/* show table value as IP */
-		do_resolv,		/* Would try to resolve all */
-		do_time,		/* Show time stamps */
-		do_quiet,		/* Be quiet in add and flush */
-		do_pipe,		/* this cmd refers to a pipe */
-	        do_nat, 		/* Nat configuration. */
-		do_sort,		/* field to sort results (0 = no) */
-		do_dynamic,		/* display dynamic rules */
-		do_expired,		/* display expired dynamic rules */
-		do_compact,		/* show rules in compact mode */
-		do_force,		/* do not ask for confirmation */
-		use_set,		/* work with specified set number */
-		show_sets,		/* display rule sets */
-		test_only,		/* only check syntax */
-		comment_only,		/* only print action and comment */
-		verbose;
+struct cmdline_opts co;	/* global options */
 
-#define	IP_MASK_ALL	0xffffffff
-/*
- * the following macro returns an error message if we run out of
- * arguments.
- */
-#define NEED1(msg)      {if (!ac) errx(EX_USAGE, msg);}
+int resvd_set_number = RESVD_SET;
 
 #define GET_UINT_ARG(arg, min, max, tok, s_x) do {			\
 	if (!ac)							\
@@ -119,27 +85,16 @@ int
 	}								\
 } while (0)
 
-#define PRINT_UINT_ARG(str, arg) do {					\
-	if (str != NULL)						\
-		printf("%s",str);					\
-	if (arg == IP_FW_TABLEARG)					\
-		printf("tablearg");					\
-	else								\
-		printf("%u", (uint32_t)arg);				\
-} while (0)
-
-/*
- * _s_x is a structure that stores a string <-> token pairs, used in
- * various places in the parser. Entries are stored in arrays,
- * with an entry with s=NULL as terminator.
- * The search routines are match_token() and match_value().
- * Often, an element with x=0 contains an error string.
- *
- */
-struct _s_x {
-	char const *s;
-	int x;
-};
+static void
+PRINT_UINT_ARG(const char *str, uint32_t arg)
+{
+	if (str != NULL)
+		printf("%s",str);
+	if (arg == IP_FW_TABLEARG)
+		printf("tablearg");
+	else
+		printf("%u", arg);
+}
 
 static struct _s_x f_tcpflags[] = {
 	{ "syn", TH_SYN },
@@ -230,168 +185,8 @@ static struct _s_x ether_types[] = {
 	{ NULL,		0 }
 };
 
-static void show_usage(void);
 
-enum tokens {
-	TOK_NULL=0,
-
-	TOK_OR,
-	TOK_NOT,
-	TOK_STARTBRACE,
-	TOK_ENDBRACE,
-
-	TOK_ACCEPT,
-	TOK_COUNT,
-	TOK_PIPE,
-	TOK_QUEUE,
-	TOK_DIVERT,
-	TOK_TEE,
-	TOK_NETGRAPH,
-	TOK_NGTEE,
-	TOK_FORWARD,
-	TOK_SKIPTO,
-	TOK_DENY,
-	TOK_REJECT,
-	TOK_RESET,
-	TOK_UNREACH,
-	TOK_CHECKSTATE,
-	TOK_NAT,
-
-	TOK_ALTQ,
-	TOK_LOG,
-	TOK_TAG,
-	TOK_UNTAG,
-
-	TOK_TAGGED,
-	TOK_UID,
-	TOK_GID,
-	TOK_JAIL,
-	TOK_IN,
-	TOK_LIMIT,
-	TOK_KEEPSTATE,
-	TOK_LAYER2,
-	TOK_OUT,
-	TOK_DIVERTED,
-	TOK_DIVERTEDLOOPBACK,
-	TOK_DIVERTEDOUTPUT,
-	TOK_XMIT,
-	TOK_RECV,
-	TOK_VIA,
-	TOK_FRAG,
-	TOK_IPOPTS,
-	TOK_IPLEN,
-	TOK_IPID,
-	TOK_IPPRECEDENCE,
-	TOK_IPTOS,
-	TOK_IPTTL,
-	TOK_IPVER,
-	TOK_ESTAB,
-	TOK_SETUP,
-	TOK_TCPDATALEN,
-	TOK_TCPFLAGS,
-	TOK_TCPOPTS,
-	TOK_TCPSEQ,
-	TOK_TCPACK,
-	TOK_TCPWIN,
-	TOK_ICMPTYPES,
-	TOK_MAC,
-	TOK_MACTYPE,
-	TOK_VERREVPATH,
-	TOK_VERSRCREACH,
-	TOK_ANTISPOOF,
-	TOK_IPSEC,
-	TOK_COMMENT,
-
-	TOK_PLR,
-	TOK_NOERROR,
-	TOK_BUCKETS,
-	TOK_DSTIP,
-	TOK_SRCIP,
-	TOK_DSTPORT,
-	TOK_SRCPORT,
-	TOK_ALL,
-	TOK_MASK,
-	TOK_BW,
-	TOK_DELAY,
-	TOK_RED,
-	TOK_GRED,
-	TOK_DROPTAIL,
-	TOK_PROTO,
-	TOK_WEIGHT,
-	TOK_IP,
-	TOK_IF,
- 	TOK_ALOG,
- 	TOK_DENY_INC,
- 	TOK_SAME_PORTS,
- 	TOK_UNREG_ONLY,
- 	TOK_RESET_ADDR,
- 	TOK_ALIAS_REV,
- 	TOK_PROXY_ONLY,
-	TOK_REDIR_ADDR,
-	TOK_REDIR_PORT,
-	TOK_REDIR_PROTO,	
-
-	TOK_IPV6,
-	TOK_FLOWID,
-	TOK_ICMP6TYPES,
-	TOK_EXT6HDR,
-	TOK_DSTIP6,
-	TOK_SRCIP6,
-
-	TOK_IPV4,
-	TOK_UNREACH6,
-	TOK_RESET6,
-
-	TOK_FIB,
-	TOK_SETFIB,
-};
-
-struct _s_x dummynet_params[] = {
-	{ "plr",		TOK_PLR },
-	{ "noerror",		TOK_NOERROR },
-	{ "buckets",		TOK_BUCKETS },
-	{ "dst-ip",		TOK_DSTIP },
-	{ "src-ip",		TOK_SRCIP },
-	{ "dst-port",		TOK_DSTPORT },
-	{ "src-port",		TOK_SRCPORT },
-	{ "proto",		TOK_PROTO },
-	{ "weight",		TOK_WEIGHT },
-	{ "all",		TOK_ALL },
-	{ "mask",		TOK_MASK },
-	{ "droptail",		TOK_DROPTAIL },
-	{ "red",		TOK_RED },
-	{ "gred",		TOK_GRED },
-	{ "bw",			TOK_BW },
-	{ "bandwidth",		TOK_BW },
-	{ "delay",		TOK_DELAY },
-	{ "pipe",		TOK_PIPE },
-	{ "queue",		TOK_QUEUE },
-	{ "flow-id",		TOK_FLOWID},
-	{ "dst-ipv6",		TOK_DSTIP6},
-	{ "dst-ip6",		TOK_DSTIP6},
-	{ "src-ipv6",		TOK_SRCIP6},
-	{ "src-ip6",		TOK_SRCIP6},
-	{ "dummynet-params",	TOK_NULL },
-	{ NULL, 0 }	/* terminator */
-};
-
-struct _s_x nat_params[] = {
-	{ "ip",	                TOK_IP },
-	{ "if",	                TOK_IF },
- 	{ "log",                TOK_ALOG },
- 	{ "deny_in",	        TOK_DENY_INC },
- 	{ "same_ports",	        TOK_SAME_PORTS },
- 	{ "unreg_only",	        TOK_UNREG_ONLY },
- 	{ "reset",	        TOK_RESET_ADDR },
- 	{ "reverse",	        TOK_ALIAS_REV },	
- 	{ "proxy_only",	        TOK_PROXY_ONLY },
-	{ "redirect_addr",	TOK_REDIR_ADDR },
-	{ "redirect_port",	TOK_REDIR_PORT },
-	{ "redirect_proto",	TOK_REDIR_PROTO },
- 	{ NULL, 0 }	/* terminator */
-};
-
-struct _s_x rule_actions[] = {
+static struct _s_x rule_actions[] = {
 	{ "accept",		TOK_ACCEPT },
 	{ "pass",		TOK_ACCEPT },
 	{ "allow",		TOK_ACCEPT },
@@ -420,7 +215,7 @@ struct _s_x rule_actions[] = {
 	{ NULL, 0 }	/* terminator */
 };
 
-struct _s_x rule_action_params[] = {
+static struct _s_x rule_action_params[] = {
 	{ "altq",		TOK_ALTQ },
 	{ "log",		TOK_LOG },
 	{ "tag",		TOK_TAG },
@@ -428,7 +223,7 @@ struct _s_x rule_action_params[] = {
 	{ NULL, 0 }	/* terminator */
 };
 
-struct _s_x rule_options[] = {
+static struct _s_x rule_options[] = {
 	{ "tagged",		TOK_TAGGED },
 	{ "uid",		TOK_UID },
 	{ "gid",		TOK_GID },
@@ -507,26 +302,54 @@ struct _s_x rule_options[] = {
 	{ NULL, 0 }	/* terminator */
 };
 
-#define	TABLEARG	"tablearg"
-
-static __inline uint64_t
-align_uint64(uint64_t *pll) {
+/*  
+ * The following is used to generate a printable argument for
+ * 64-bit numbers, irrespective of platform alignment and bit size.
+ * Because all the printf in this program use %llu as a format,
+ * we just return an unsigned long long, which is larger than
+ * we need in certain cases, but saves the hassle of using
+ * PRIu64 as a format specifier.
+ * We don't care about inlining, this is not performance critical code.
+ */
+unsigned long long
+align_uint64(const uint64_t *pll)
+{
 	uint64_t ret;
 
 	bcopy (pll, &ret, sizeof(ret));
 	return ret;
 }
 
+void *
+safe_calloc(size_t number, size_t size)
+{
+	void *ret = calloc(number, size);
+
+	if (ret == NULL)
+		err(EX_OSERR, "calloc");
+	return ret;
+}
+
+void *
+safe_realloc(void *ptr, size_t size)
+{
+	void *ret = realloc(ptr, size);
+
+	if (ret == NULL)
+		err(EX_OSERR, "realloc");
+	return ret;
+}
+
 /*
  * conditionally runs the command.
  */
-static int
+int
 do_cmd(int optname, void *optval, uintptr_t optlen)
 {
 	static int s = -1;	/* the socket */
 	int i;
 
-	if (test_only)
+	if (co.test_only)
 		return 0;
 
 	if (s == -1)
@@ -550,7 +373,7 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
  * match_token takes a table and a string, returns the value associated
  * with the string (-1 in case of failure).
  */
-static int
+int
 match_token(struct _s_x *table, char *string)
 {
 	struct _s_x *pt;
@@ -566,7 +389,7 @@ match_token(struct _s_x *table, char *string)
  * match_value takes a table and a value, returns the string associated
  * with the value (NULL in case of failure).
  */
-static char const *
+char const *
 match_value(struct _s_x *p, int value)
 {
 	for (; p->s != NULL; p++)
@@ -584,7 +407,7 @@ match_value(struct _s_x *p, int value)
  * This function will be removed in the future through the usual
  * deprecation process.
  */
-static int
+int
 _substrcmp(const char *str1, const char* str2)
 {
 	
@@ -612,7 +435,7 @@ _substrcmp(const char *str1, const char* str2)
  * This function will be removed in the future through the usual
  * deprecation process.
  */
-static int
+int
 _substrcmp2(const char *str1, const char* str2, const char* str3)
 {
 	
@@ -635,13 +458,13 @@ print_port(int proto, uint16_t port)
 	if (proto == IPPROTO_ETHERTYPE) {
 		char const *s;
 
-		if (do_resolv && (s = match_value(ether_types, port)) )
+		if (co.do_resolv && (s = match_value(ether_types, port)) )
 			printf("%s", s);
 		else
 			printf("0x%04x", port);
 	} else {
 		struct servent *se = NULL;
-		if (do_resolv) {
+		if (co.do_resolv) {
 			struct protoent *pe = getprotobynumber(proto);
 
 			se = getservbyport(htons(port), pe ? pe->p_name : NULL);
@@ -653,7 +476,7 @@ print_port(int proto, uint16_t port)
 	}
 }
 
-struct _s_x _port_name[] = {
+static struct _s_x _port_name[] = {
 	{"dst-port",	O_IP_DSTPORT},
 	{"src-port",	O_IP_SRCPORT},
 	{"ipid",	O_IPID},
@@ -724,9 +547,7 @@ strtoport(char *s, char **end, int base, int proto)
 		if (*s1 == '\\' && s1[1] != '\0')
 			s1++;
 
-	buf = malloc(s1 - s + 1);
-	if (buf == NULL)
-		return 0;
+	buf = safe_calloc(s1 - s + 1, 1);
 
 	/*
 	 * copy into a buffer skipping backslashes
@@ -758,107 +579,6 @@ strtoport(char *s, char **end, int base, int proto)
 		}
 	}
 	return 0;	/* not found */
-}
-
-/*
- * Map between current altq queue id numbers and names.
- */
-static int altq_fetched = 0;
-static TAILQ_HEAD(, pf_altq) altq_entries = 
-	TAILQ_HEAD_INITIALIZER(altq_entries);
-
-static void
-altq_set_enabled(int enabled)
-{
-	int pffd;
-
-	pffd = open("/dev/pf", O_RDWR);
-	if (pffd == -1)
-		err(EX_UNAVAILABLE,
-		    "altq support opening pf(4) control device");
-	if (enabled) {
-		if (ioctl(pffd, DIOCSTARTALTQ) != 0 && errno != EEXIST)
-			err(EX_UNAVAILABLE, "enabling altq");
-	} else {
-		if (ioctl(pffd, DIOCSTOPALTQ) != 0 && errno != ENOENT)
-			err(EX_UNAVAILABLE, "disabling altq");
-	}
-	close(pffd);
-}
-
-static void
-altq_fetch()
-{
-	struct pfioc_altq pfioc;
-	struct pf_altq *altq;
-	int pffd, mnr;
-
-	if (altq_fetched)
-		return;
-	altq_fetched = 1;
-	pffd = open("/dev/pf", O_RDONLY);
-	if (pffd == -1) {
-		warn("altq support opening pf(4) control device");
-		return;
-	}
-	bzero(&pfioc, sizeof(pfioc));
-	if (ioctl(pffd, DIOCGETALTQS, &pfioc) != 0) {
-		warn("altq support getting queue list");
-		close(pffd);
-		return;
-	}
-	mnr = pfioc.nr;
-	for (pfioc.nr = 0; pfioc.nr < mnr; pfioc.nr++) {
-		if (ioctl(pffd, DIOCGETALTQ, &pfioc) != 0) {
-			if (errno == EBUSY)
-				break;
-			warn("altq support getting queue list");
-			close(pffd);
-			return;
-		}
-		if (pfioc.altq.qid == 0)
-			continue;
-		altq = malloc(sizeof(*altq));
-		if (altq == NULL)
-			err(EX_OSERR, "malloc");
-		*altq = pfioc.altq;
-		TAILQ_INSERT_TAIL(&altq_entries, altq, entries);
-	}
-	close(pffd);
-}
-
-static u_int32_t
-altq_name_to_qid(const char *name)
-{
-	struct pf_altq *altq;
-
-	altq_fetch();
-	TAILQ_FOREACH(altq, &altq_entries, entries)
-		if (strcmp(name, altq->qname) == 0)
-			break;
-	if (altq == NULL)
-		errx(EX_DATAERR, "altq has no queue named `%s'", name);
-	return altq->qid;
-}
-
-static const char *
-altq_qid_to_name(u_int32_t qid)
-{
-	struct pf_altq *altq;
-
-	altq_fetch();
-	TAILQ_FOREACH(altq, &altq_entries, entries)
-		if (qid == altq->qid)
-			break;
-	if (altq == NULL)
-		return NULL;
-	return altq->qname;
-}
-
-static void
-fill_altq_qid(u_int32_t *qid, const char *av)
-{
-	*qid = altq_name_to_qid(av);
 }
 
 /*
@@ -954,40 +674,6 @@ print_reject_code(uint16_t code)
 		printf("unreach %u", code);
 }
 
-static struct _s_x icmp6codes[] = {
-      { "no-route",		ICMP6_DST_UNREACH_NOROUTE },
-      { "admin-prohib",		ICMP6_DST_UNREACH_ADMIN },
-      { "address",		ICMP6_DST_UNREACH_ADDR },
-      { "port",			ICMP6_DST_UNREACH_NOPORT },
-      { NULL, 0 }
-};
-
-static void
-fill_unreach6_code(u_short *codep, char *str)
-{
-	int val;
-	char *s;
-
-	val = strtoul(str, &s, 0);
-	if (s == str || *s != '\0' || val >= 0x100)
-		val = match_token(icmp6codes, str);
-	if (val < 0)
-		errx(EX_DATAERR, "unknown ICMPv6 unreachable code ``%s''", str);
-	*codep = val;
-	return;
-}
-
-static void
-print_unreach6_code(uint16_t code)
-{
-	char const *s = match_value(icmp6codes, code);
-
-	if (s != NULL)
-		printf("unreach6 %s", s);
-	else
-		printf("unreach6 %u", code);
-}
-
 /*
  * Returns the number of bits set (from left) in a contiguous bitmask,
  * or -1 if the mask is not contiguous.
@@ -999,7 +685,7 @@ print_unreach6_code(uint16_t code)
  * the first bit on the wire is bit 0 of the first byte.
  * len is the max length in bits.
  */
-static int
+int
 contigmask(uint8_t *p, int len)
 {
 	int i, n;
@@ -1111,7 +797,7 @@ print_ip(ipfw_insn_ip *cmd, char const *s)
 	int mb =	/* mask length */
 	    (cmd->o.opcode == O_IP_SRC || cmd->o.opcode == O_IP_DST) ?
 		32 : contigmask((uint8_t *)&(a[1]), 32);
-	if (mb == 32 && do_resolv)
+	if (mb == 32 && co.do_resolv)
 		he = gethostbyaddr((char *)&(a[0]), sizeof(u_long), AF_INET);
 	if (he != NULL)		/* resolved to name */
 		printf("%s", he->h_name);
@@ -1190,226 +876,6 @@ print_icmptypes(ipfw_insn_u32 *cmd)
 	}
 }
 
-/* 
- * Print the ip address contained in a command.
- */
-static void
-print_ip6(ipfw_insn_ip6 *cmd, char const *s)
-{
-       struct hostent *he = NULL;
-       int len = F_LEN((ipfw_insn *) cmd) - 1;
-       struct in6_addr *a = &(cmd->addr6);
-       char trad[255];
-
-       printf("%s%s ", cmd->o.len & F_NOT ? " not": "", s);
-
-       if (cmd->o.opcode == O_IP6_SRC_ME || cmd->o.opcode == O_IP6_DST_ME) {
-               printf("me6");
-               return;
-       }
-       if (cmd->o.opcode == O_IP6) {
-               printf(" ip6");
-               return;
-       }
-
-       /*
-        * len == 4 indicates a single IP, whereas lists of 1 or more
-        * addr/mask pairs have len = (2n+1). We convert len to n so we
-        * use that to count the number of entries.
-        */
-
-       for (len = len / 4; len > 0; len -= 2, a += 2) {
-           int mb =        /* mask length */
-               (cmd->o.opcode == O_IP6_SRC || cmd->o.opcode == O_IP6_DST) ?
-               128 : contigmask((uint8_t *)&(a[1]), 128);
-
-           if (mb == 128 && do_resolv)
-               he = gethostbyaddr((char *)a, sizeof(*a), AF_INET6);
-           if (he != NULL)             /* resolved to name */
-               printf("%s", he->h_name);
-           else if (mb == 0)           /* any */
-               printf("any");
-           else {          /* numeric IP followed by some kind of mask */
-               if (inet_ntop(AF_INET6,  a, trad, sizeof( trad ) ) == NULL)
-                   printf("Error ntop in print_ip6\n");
-               printf("%s",  trad );
-               if (mb < 0)     /* XXX not really legal... */
-                   printf(":%s",
-                       inet_ntop(AF_INET6, &a[1], trad, sizeof(trad)));
-               else if (mb < 128)
-                   printf("/%d", mb);
-           }
-           if (len > 2)
-               printf(",");
-       }
-}
-
-static void
-fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av)
-{
-       uint8_t type;
-
-       bzero(cmd, sizeof(*cmd));
-       while (*av) {
-           if (*av == ',')
-               av++;
-           type = strtoul(av, &av, 0);
-           if (*av != ',' && *av != '\0')
-               errx(EX_DATAERR, "invalid ICMP6 type");
-	   /*
-	    * XXX: shouldn't this be 0xFF?  I can't see any reason why
-	    * we shouldn't be able to filter all possiable values
-	    * regardless of the ability of the rest of the kernel to do
-	    * anything useful with them.
-	    */
-           if (type > ICMP6_MAXTYPE)
-               errx(EX_DATAERR, "ICMP6 type out of range");
-           cmd->d[type / 32] |= ( 1 << (type % 32));
-       }
-       cmd->o.opcode = O_ICMP6TYPE;
-       cmd->o.len |= F_INSN_SIZE(ipfw_insn_icmp6);
-}
-
-
-static void
-print_icmp6types(ipfw_insn_u32 *cmd)
-{
-       int i, j;
-       char sep= ' ';
-
-       printf(" ip6 icmp6types");
-       for (i = 0; i < 7; i++)
-               for (j=0; j < 32; ++j) {
-                       if ( (cmd->d[i] & (1 << (j))) == 0)
-                               continue;
-                       printf("%c%d", sep, (i*32 + j));
-                       sep = ',';
-               }
-}
-
-static void
-print_flow6id( ipfw_insn_u32 *cmd)
-{
-       uint16_t i, limit = cmd->o.arg1;
-       char sep = ',';
-
-       printf(" flow-id ");
-       for( i=0; i < limit; ++i) {
-               if (i == limit - 1)
-                       sep = ' ';
-               printf("%d%c", cmd->d[i], sep);
-       }
-}
-
-/* structure and define for the extension header in ipv6 */
-static struct _s_x ext6hdrcodes[] = {
-       { "frag",       EXT_FRAGMENT },
-       { "hopopt",     EXT_HOPOPTS },
-       { "route",      EXT_ROUTING },
-       { "dstopt",     EXT_DSTOPTS },
-       { "ah",         EXT_AH },
-       { "esp",        EXT_ESP },
-       { "rthdr0",     EXT_RTHDR0 },
-       { "rthdr2",     EXT_RTHDR2 },
-       { NULL,         0 }
-};
-
-/* fills command for the extension header filtering */
-int
-fill_ext6hdr( ipfw_insn *cmd, char *av)
-{
-       int tok;
-       char *s = av;
-
-       cmd->arg1 = 0;
-
-       while(s) {
-           av = strsep( &s, ",") ;
-           tok = match_token(ext6hdrcodes, av);
-           switch (tok) {
-           case EXT_FRAGMENT:
-               cmd->arg1 |= EXT_FRAGMENT;
-               break;
-
-           case EXT_HOPOPTS:
-               cmd->arg1 |= EXT_HOPOPTS;
-               break;
-
-           case EXT_ROUTING:
-               cmd->arg1 |= EXT_ROUTING;
-               break;
-
-           case EXT_DSTOPTS:
-               cmd->arg1 |= EXT_DSTOPTS;
-               break;
-
-           case EXT_AH:
-               cmd->arg1 |= EXT_AH;
-               break;
-
-           case EXT_ESP:
-               cmd->arg1 |= EXT_ESP;
-               break;
-
-           case EXT_RTHDR0:
-               cmd->arg1 |= EXT_RTHDR0;
-               break;
-
-           case EXT_RTHDR2:
-               cmd->arg1 |= EXT_RTHDR2;
-               break;
-
-           default:
-               errx( EX_DATAERR, "invalid option for ipv6 exten header" );
-               break;
-           }
-       }
-       if (cmd->arg1 == 0 )
-           return 0;
-       cmd->opcode = O_EXT_HDR;
-       cmd->len |= F_INSN_SIZE( ipfw_insn );
-       return 1;
-}
-
-void
-print_ext6hdr( ipfw_insn *cmd )
-{
-       char sep = ' ';
-
-       printf(" extension header:");
-       if (cmd->arg1 & EXT_FRAGMENT ) {
-           printf("%cfragmentation", sep);
-           sep = ',';
-       }
-       if (cmd->arg1 & EXT_HOPOPTS ) {
-           printf("%chop options", sep);
-           sep = ',';
-       }
-       if (cmd->arg1 & EXT_ROUTING ) {
-           printf("%crouting options", sep);
-           sep = ',';
-       }
-       if (cmd->arg1 & EXT_RTHDR0 ) {
-           printf("%crthdr0", sep);
-           sep = ',';
-       }
-       if (cmd->arg1 & EXT_RTHDR2 ) {
-           printf("%crthdr2", sep);
-           sep = ',';
-       }
-       if (cmd->arg1 & EXT_DSTOPTS ) {
-           printf("%cdestination options", sep);
-           sep = ',';
-       }
-       if (cmd->arg1 & EXT_AH ) {
-           printf("%cauthentication header", sep);
-           sep = ',';
-       }
-       if (cmd->arg1 & EXT_ESP ) {
-           printf("%cencapsulated security payload", sep);
-       }
-}
-
 /*
  * show_ipfw() prints the body of an ipfw rule.
  * Because the standard rule has at least proto src_ip dst_ip, we use
@@ -1432,22 +898,22 @@ print_ext6hdr( ipfw_insn *cmd )
 
 #define	HAVE_IP		(HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP)
 static void
-show_prerequisites(int *flags, int want, int cmd)
+show_prerequisites(int *flags, int want, int cmd __unused)
 {
-	if (comment_only)
+	if (co.comment_only)
 		return;
 	if ( (*flags & HAVE_IP) == HAVE_IP)
 		*flags |= HAVE_OPTIONS;
 
 	if ( !(*flags & HAVE_OPTIONS)) {
-		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO))
+		if ( !(*flags & HAVE_PROTO) && (want & HAVE_PROTO)) {
 			if ( (*flags & HAVE_PROTO4))
 				printf(" ip4");
 			else if ( (*flags & HAVE_PROTO6))
 				printf(" ip6");
 			else
 				printf(" ip");
-
+		}
 		if ( !(*flags & HAVE_SRCIP) && (want & HAVE_SRCIP))
 			printf(" from any");
 		if ( !(*flags & HAVE_DSTIP) && (want & HAVE_DSTIP))
@@ -1462,7 +928,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	static int twidth = 0;
 	int l;
 	ipfw_insn *cmd, *tagptr = NULL;
-	char *comment = NULL;	/* ptr to comment if we have one */
+	const char *comment = NULL;	/* ptr to comment if we have one */
 	int proto = 0;		/* default */
 	int flags = 0;	/* prerequisites */
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
@@ -1473,7 +939,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	bcopy(&rule->next_rule, &set_disable, sizeof(set_disable));
 
 	if (set_disable & (1 << rule->set)) { /* disabled */
-		if (!show_sets)
+		if (!co.show_sets)
 			return;
 		else
 			printf("# DISABLED ");
@@ -1484,9 +950,9 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		printf("%*llu %*llu ", pcwidth, align_uint64(&rule->pcnt),
 		    bcwidth, align_uint64(&rule->bcnt));
 
-	if (do_time == 2)
+	if (co.do_time == 2)
 		printf("%10u ", rule->timestamp);
-	else if (do_time == 1) {
+	else if (co.do_time == 1) {
 		char timestr[30];
 		time_t t = (time_t)0;
 
@@ -1506,7 +972,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		}
 	}
 
-	if (show_sets)
+	if (co.show_sets)
 		printf("set %d ", rule->set);
 
 	/*
@@ -1636,13 +1102,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			printf(" log");
 	}
 	if (altqptr) {
-		const char *qname;
-
-		qname = altq_qid_to_name(altqptr->qid);
-		if (qname == NULL)
-			printf(" altq ?<%u>", altqptr->qid);
-		else
-			printf(" altq %s", qname);
+		print_altq_cmd(altqptr);
 	}
 	if (tagptr) {
 		if (tagptr->len & F_NOT)
@@ -1667,14 +1127,14 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		}			
 	}
 	if (rule->_pad & 1) {	/* empty rules before options */
-		if (!do_compact) {
+		if (!co.do_compact) {
 			show_prerequisites(&flags, HAVE_PROTO, 0);
 			printf(" from any to any");
 		}
 		flags |= HAVE_IP | HAVE_OPTIONS;
 	}
 
-	if (comment_only)
+	if (co.comment_only)
 		comment = "...";
 
         for (l = rule->act_ofs, cmd = rule->cmd ;
@@ -1682,7 +1142,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		/* useful alias */
 		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;
 
-		if (comment_only) {
+		if (co.comment_only) {
 			if (cmd->opcode != O_NOP)
 				continue;
 			printf(" // %s\n", (char *)(cmd + 1));
@@ -2069,7 +1529,7 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 	uint16_t rulenum;
 	char buf[INET6_ADDRSTRLEN];
 
-	if (!do_expired) {
+	if (!co.do_expired) {
 		if (!d->expire && !(d->dyn_type == O_LIMIT_PARENT))
 			return;
 	}
@@ -2113,254 +1573,6 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 	printf("\n");
 }
 
-static int
-sort_q(const void *pa, const void *pb)
-{
-	int rev = (do_sort < 0);
-	int field = rev ? -do_sort : do_sort;
-	long long res = 0;
-	const struct dn_flow_queue *a = pa;
-	const struct dn_flow_queue *b = pb;
-
-	switch (field) {
-	case 1: /* pkts */
-		res = a->len - b->len;
-		break;
-	case 2: /* bytes */
-		res = a->len_bytes - b->len_bytes;
-		break;
-
-	case 3: /* tot pkts */
-		res = a->tot_pkts - b->tot_pkts;
-		break;
-
-	case 4: /* tot bytes */
-		res = a->tot_bytes - b->tot_bytes;
-		break;
-	}
-	if (res < 0)
-		res = -1;
-	if (res > 0)
-		res = 1;
-	return (int)(rev ? res : -res);
-}
-
-static void
-list_queues(struct dn_flow_set *fs, struct dn_flow_queue *q)
-{
-	int l;
-	int index_printed, indexes = 0;
-	char buff[255];
-	struct protoent *pe;
-
-	if (fs->rq_elements == 0)
-		return;
-
-	if (do_sort != 0)
-		heapsort(q, fs->rq_elements, sizeof *q, sort_q);
-
-	/* Print IPv4 flows */
-	index_printed = 0;
-	for (l = 0; l < fs->rq_elements; l++) {
-		struct in_addr ina;
-
-		/* XXX: Should check for IPv4 flows */
-		if (IS_IP6_FLOW_ID(&(q[l].id)))
-			continue;
-
-		if (!index_printed) {
-			index_printed = 1;
-			if (indexes > 0)	/* currently a no-op */
-				printf("\n");
-			indexes++;
-			printf("    "
-			    "mask: 0x%02x 0x%08x/0x%04x -> 0x%08x/0x%04x\n",
-			    fs->flow_mask.proto,
-			    fs->flow_mask.src_ip, fs->flow_mask.src_port,
-			    fs->flow_mask.dst_ip, fs->flow_mask.dst_port);
-
-			printf("BKT Prot ___Source IP/port____ "
-			    "____Dest. IP/port____ "
-			    "Tot_pkt/bytes Pkt/Byte Drp\n");
-		}
-
-		printf("%3d ", q[l].hash_slot);
-		pe = getprotobynumber(q[l].id.proto);
-		if (pe)
-			printf("%-4s ", pe->p_name);
-		else
-			printf("%4u ", q[l].id.proto);
-		ina.s_addr = htonl(q[l].id.src_ip);
-		printf("%15s/%-5d ",
-		    inet_ntoa(ina), q[l].id.src_port);
-		ina.s_addr = htonl(q[l].id.dst_ip);
-		printf("%15s/%-5d ",
-		    inet_ntoa(ina), q[l].id.dst_port);
-		printf("%4qu %8qu %2u %4u %3u\n",
-		    q[l].tot_pkts, q[l].tot_bytes,
-		    q[l].len, q[l].len_bytes, q[l].drops);
-		if (verbose)
-			printf("   S %20qd  F %20qd\n",
-			    q[l].S, q[l].F);
-	}
-
-	/* Print IPv6 flows */
-	index_printed = 0;
-	for (l = 0; l < fs->rq_elements; l++) {
-		if (!IS_IP6_FLOW_ID(&(q[l].id)))
-			continue;
-
-		if (!index_printed) {
-			index_printed = 1;
-			if (indexes > 0)
-				printf("\n");
-			indexes++;
-			printf("\n        mask: proto: 0x%02x, flow_id: 0x%08x,  ",
-			    fs->flow_mask.proto, fs->flow_mask.flow_id6);
-			inet_ntop(AF_INET6, &(fs->flow_mask.src_ip6),
-			    buff, sizeof(buff));
-			printf("%s/0x%04x -> ", buff, fs->flow_mask.src_port);
-			inet_ntop( AF_INET6, &(fs->flow_mask.dst_ip6),
-			    buff, sizeof(buff) );
-			printf("%s/0x%04x\n", buff, fs->flow_mask.dst_port);
-
-			printf("BKT ___Prot___ _flow-id_ "
-			    "______________Source IPv6/port_______________ "
-			    "_______________Dest. IPv6/port_______________ "
-			    "Tot_pkt/bytes Pkt/Byte Drp\n");
-		}
-		printf("%3d ", q[l].hash_slot);
-		pe = getprotobynumber(q[l].id.proto);
-		if (pe != NULL)
-			printf("%9s ", pe->p_name);
-		else
-			printf("%9u ", q[l].id.proto);
-		printf("%7d  %39s/%-5d ", q[l].id.flow_id6,
-		    inet_ntop(AF_INET6, &(q[l].id.src_ip6), buff, sizeof(buff)),
-		    q[l].id.src_port);
-		printf(" %39s/%-5d ",
-		    inet_ntop(AF_INET6, &(q[l].id.dst_ip6), buff, sizeof(buff)),
-		    q[l].id.dst_port);
-		printf(" %4qu %8qu %2u %4u %3u\n",
-		    q[l].tot_pkts, q[l].tot_bytes,
-		    q[l].len, q[l].len_bytes, q[l].drops);
-		if (verbose)
-			printf("   S %20qd  F %20qd\n", q[l].S, q[l].F);
-	}
-}
-
-static void
-print_flowset_parms(struct dn_flow_set *fs, char *prefix)
-{
-	int l;
-	char qs[30];
-	char plr[30];
-	char red[90];	/* Display RED parameters */
-
-	l = fs->qsize;
-	if (fs->flags_fs & DN_QSIZE_IS_BYTES) {
-		if (l >= 8192)
-			sprintf(qs, "%d KB", l / 1024);
-		else
-			sprintf(qs, "%d B", l);
-	} else
-		sprintf(qs, "%3d sl.", l);
-	if (fs->plr)
-		sprintf(plr, "plr %f", 1.0 * fs->plr / (double)(0x7fffffff));
-	else
-		plr[0] = '\0';
-	if (fs->flags_fs & DN_IS_RED)	/* RED parameters */
-		sprintf(red,
-		    "\n\t  %cRED w_q %f min_th %d max_th %d max_p %f",
-		    (fs->flags_fs & DN_IS_GENTLE_RED) ? 'G' : ' ',
-		    1.0 * fs->w_q / (double)(1 << SCALE_RED),
-		    SCALE_VAL(fs->min_th),
-		    SCALE_VAL(fs->max_th),
-		    1.0 * fs->max_p / (double)(1 << SCALE_RED));
-	else
-		sprintf(red, "droptail");
-
-	printf("%s %s%s %d queues (%d buckets) %s\n",
-	    prefix, qs, plr, fs->rq_elements, fs->rq_size, red);
-}
-
-static void
-list_pipes(void *data, uint nbytes, int ac, char *av[])
-{
-	int rulenum;
-	void *next = data;
-	struct dn_pipe *p = (struct dn_pipe *) data;
-	struct dn_flow_set *fs;
-	struct dn_flow_queue *q;
-	int l;
-
-	if (ac > 0)
-		rulenum = strtoul(*av++, NULL, 10);
-	else
-		rulenum = 0;
-	for (; nbytes >= sizeof *p; p = (struct dn_pipe *)next) {
-		double b = p->bandwidth;
-		char buf[30];
-		char prefix[80];
-
-		if (SLIST_NEXT(p, next) != (struct dn_pipe *)DN_IS_PIPE)
-			break;	/* done with pipes, now queues */
-
-		/*
-		 * compute length, as pipe have variable size
-		 */
-		l = sizeof(*p) + p->fs.rq_elements * sizeof(*q);
-		next = (char *)p + l;
-		nbytes -= l;
-
-		if ((rulenum != 0 && rulenum != p->pipe_nr) || do_pipe == 2)
-			continue;
-
-		/*
-		 * Print rate (or clocking interface)
-		 */
-		if (p->if_name[0] != '\0')
-			sprintf(buf, "%s", p->if_name);
-		else if (b == 0)
-			sprintf(buf, "unlimited");
-		else if (b >= 1000000)
-			sprintf(buf, "%7.3f Mbit/s", b/1000000);
-		else if (b >= 1000)
-			sprintf(buf, "%7.3f Kbit/s", b/1000);
-		else
-			sprintf(buf, "%7.3f bit/s ", b);
-
-		sprintf(prefix, "%05d: %s %4d ms ",
-		    p->pipe_nr, buf, p->delay);
-		print_flowset_parms(&(p->fs), prefix);
-		if (verbose)
-			printf("   V %20qd\n", p->V >> MY_M);
-
-		q = (struct dn_flow_queue *)(p+1);
-		list_queues(&(p->fs), q);
-	}
-	for (fs = next; nbytes >= sizeof *fs; fs = next) {
-		char prefix[80];
-
-		if (SLIST_NEXT(fs, next) != (struct dn_flow_set *)DN_IS_QUEUE)
-			break;
-		l = sizeof(*fs) + fs->rq_elements * sizeof(*q);
-		next = (char *)fs + l;
-		nbytes -= l;
-
-		if (rulenum != 0 && ((rulenum != fs->fs_nr && do_pipe == 2) ||
-		    (rulenum != fs->parent_nr && do_pipe == 1))) {
-			continue;
-		}
-
-		q = (struct dn_flow_queue *)(fs+1);
-		sprintf(prefix, "q%05d: weight %d pipe %d ",
-		    fs->fs_nr, fs->weight, fs->parent_nr);
-		print_flowset_parms(fs, prefix);
-		list_queues(fs, q);
-	}
-}
-
 /*
  * This one handles all set-related commands
  * 	ipfw set { show | enable | disable }
@@ -2368,8 +1580,8 @@ list_pipes(void *data, uint nbytes, int ac, char *av[])
  * 	ipfw set move X to Y
  * 	ipfw set move rule X to Y
  */
-static void
-sets_handler(int ac, char *av[])
+void
+ipfw_sets_handler(int ac, char *av[])
 {
 	uint32_t set_disable, masks[2];
 	int i, nbytes;
@@ -2386,8 +1598,7 @@ sets_handler(int ac, char *av[])
 		char const *msg;
 
 		nbytes = sizeof(struct ip_fw);
-		if ((data = calloc(1, nbytes)) == NULL)
-			err(EX_OSERR, "calloc");
+		data = safe_calloc(1, nbytes);
 		if (do_cmd(IP_FW_GET, data, (uintptr_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_GET)");
 		bcopy(&((struct ip_fw *)data)->next_rule,
@@ -2469,8 +1680,8 @@ sets_handler(int ac, char *av[])
 		errx(EX_USAGE, "invalid set command %s\n", *av);
 }
 
-static void
-sysctl_handler(int ac, char *av[], int which)
+void
+ipfw_sysctl_handler(int ac, char *av[], int which)
 {
 	ac--;
 	av++;
@@ -2499,8 +1710,8 @@ sysctl_handler(int ac, char *av[], int which)
 	}
 }
 
-static void
-list(int ac, char *av[], int show_counters)
+void
+ipfw_list(int ac, char *av[], int show_counters)
 {
 	struct ip_fw *r;
 	ipfw_dyn_rule *dynrules, *d;
@@ -2517,12 +1728,12 @@ list(int ac, char *av[], int show_counters)
 	int seen = 0;
 	uint8_t set;
 
-	const int ocmd = do_pipe ? IP_DUMMYNET_GET : IP_FW_GET;
+	const int ocmd = co.do_pipe ? IP_DUMMYNET_GET : IP_FW_GET;
 	int nalloc = 1024;	/* start somewhere... */
 
 	last = 0;
 
-	if (test_only) {
+	if (co.test_only) {
 		fprintf(stderr, "Testing only, list disabled\n");
 		return;
 	}
@@ -2536,15 +1747,14 @@ list(int ac, char *av[], int show_counters)
 	while (nbytes >= nalloc) {
 		nalloc = nalloc * 2 + 200;
 		nbytes = nalloc;
-		if ((data = realloc(data, nbytes)) == NULL)
-			err(EX_OSERR, "realloc");
+		data = safe_realloc(data, nbytes);
 		if (do_cmd(ocmd, data, (uintptr_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_%s_GET)",
-				do_pipe ? "DUMMYNET" : "FW");
+				co.do_pipe ? "DUMMYNET" : "FW");
 	}
 
-	if (do_pipe) {
-		list_pipes(data, nbytes, ac, av);
+	if (co.do_pipe) {
+		ipfw_list_pipes(data, nbytes, ac, av);
 		goto done;
 	}
 
@@ -2571,7 +1781,7 @@ list(int ac, char *av[], int show_counters)
 	if (show_counters) {
 		for (n = 0, r = data; n < nstat; n++, r = NEXT(r)) {
 			/* skip rules from another set */
-			if (use_set && r->set != use_set - 1)
+			if (co.use_set && r->set != co.use_set - 1)
 				continue;
 
 			/* packet counter */
@@ -2587,13 +1797,13 @@ list(int ac, char *av[], int show_counters)
 				bcwidth = width;
 		}
 	}
-	if (do_dynamic && ndyn) {
+	if (co.do_dynamic && ndyn) {
 		for (n = 0, d = dynrules; n < ndyn; n++, d++) {
-			if (use_set) {
+			if (co.use_set) {
 				/* skip rules from another set */
 				bcopy((char *)&d->rule + sizeof(uint16_t),
 				      &set, sizeof(uint8_t));
-				if (set != use_set - 1)
+				if (set != co.use_set - 1)
 					continue;
 			}
 			width = snprintf(NULL, 0, "%llu",
@@ -2610,18 +1820,18 @@ list(int ac, char *av[], int show_counters)
 	/* if no rule numbers were specified, list all rules */
 	if (ac == 0) {
 		for (n = 0, r = data; n < nstat; n++, r = NEXT(r)) {
-			if (use_set && r->set != use_set - 1)
+			if (co.use_set && r->set != co.use_set - 1)
 				continue;
 			show_ipfw(r, pcwidth, bcwidth);
 		}
 
-		if (do_dynamic && ndyn) {
+		if (co.do_dynamic && ndyn) {
 			printf("## Dynamic rules (%d):\n", ndyn);
 			for (n = 0, d = dynrules; n < ndyn; n++, d++) {
-				if (use_set) {
+				if (co.use_set) {
 					bcopy((char *)&d->rule + sizeof(uint16_t),
 					      &set, sizeof(uint8_t));
-					if (set != use_set - 1)
+					if (set != co.use_set - 1)
 						continue;
 				}
 				show_dyn_ipfw(d, pcwidth, bcwidth);
@@ -2645,7 +1855,7 @@ list(int ac, char *av[], int show_counters)
 		for (n = seen = 0, r = data; n < nstat; n++, r = NEXT(r) ) {
 			if (r->rulenum > last)
 				break;
-			if (use_set && r->set != use_set - 1)
+			if (co.use_set && r->set != co.use_set - 1)
 				continue;
 			if (r->rulenum >= rnum && r->rulenum <= last) {
 				show_ipfw(r, pcwidth, bcwidth);
@@ -2660,7 +1870,7 @@ list(int ac, char *av[], int show_counters)
 		}
 	}
 
-	if (do_dynamic && ndyn) {
+	if (co.do_dynamic && ndyn) {
 		printf("## Dynamic rules:\n");
 		for (lac = ac, lav = av; lac != 0; lac--) {
 			last = rnum = strtoul(*lav++, &endptr, 10);
@@ -2675,10 +1885,10 @@ list(int ac, char *av[], int show_counters)
 				bcopy(&d->rule, &rulenum, sizeof(rulenum));
 				if (rulenum > rnum)
 					break;
-				if (use_set) {
+				if (co.use_set) {
 					bcopy((char *)&d->rule + sizeof(uint16_t),
 					      &set, sizeof(uint8_t));
-					if (set != use_set - 1)
+					if (set != co.use_set - 1)
 						continue;
 				}
 				if (r->rulenum >= rnum && r->rulenum <= last)
@@ -2696,60 +1906,6 @@ done:
 		exit(exitval);
 #undef NEXT
 }
-
-static void
-show_usage(void)
-{
-	fprintf(stderr, "usage: ipfw [options]\n"
-"do \"ipfw -h\" or see ipfw manpage for details\n"
-);
-	exit(EX_USAGE);
-}
-
-static void
-help(void)
-{
-	fprintf(stderr,
-"ipfw syntax summary (but please do read the ipfw(8) manpage):\n"
-"ipfw [-abcdefhnNqStTv] <command> where <command> is one of:\n"
-"add [num] [set N] [prob x] RULE-BODY\n"
-"{pipe|queue} N config PIPE-BODY\n"
-"[pipe|queue] {zero|delete|show} [N{,N}]\n"
-"nat N config {ip IPADDR|if IFNAME|log|deny_in|same_ports|unreg_only|reset|\n"
-"		reverse|proxy_only|redirect_addr linkspec|\n"
-"		redirect_port linkspec|redirect_proto linkspec}\n"
-"set [disable N... enable N...] | move [rule] X to Y | swap X Y | show\n"
-"set N {show|list|zero|resetlog|delete} [N{,N}] | flush\n"
-"table N {add ip[/bits] [value] | delete ip[/bits] | flush | list}\n"
-"table all {flush | list}\n"
-"\n"
-"RULE-BODY:	check-state [PARAMS] | ACTION [PARAMS] ADDR [OPTION_LIST]\n"
-"ACTION:	check-state | allow | count | deny | unreach{,6} CODE |\n"
-"               skipto N | {divert|tee} PORT | forward ADDR |\n"
-"               pipe N | queue N | nat N | setfib FIB\n"
-"PARAMS: 	[log [logamount LOGLIMIT]] [altq QUEUE_NAME]\n"
-"ADDR:		[ MAC dst src ether_type ] \n"
-"		[ ip from IPADDR [ PORT ] to IPADDR [ PORTLIST ] ]\n"
-"		[ ipv6|ip6 from IP6ADDR [ PORT ] to IP6ADDR [ PORTLIST ] ]\n"
-"IPADDR:	[not] { any | me | ip/bits{x,y,z} | table(t[,v]) | IPLIST }\n"
-"IP6ADDR:	[not] { any | me | me6 | ip6/bits | IP6LIST }\n"
-"IP6LIST:	{ ip6 | ip6/bits }[,IP6LIST]\n"
-"IPLIST:	{ ip | ip/bits | ip:mask }[,IPLIST]\n"
-"OPTION_LIST:	OPTION [OPTION_LIST]\n"
-"OPTION:	bridged | diverted | diverted-loopback | diverted-output |\n"
-"	{dst-ip|src-ip} IPADDR | {dst-ip6|src-ip6|dst-ipv6|src-ipv6} IP6ADDR |\n"
-"	{dst-port|src-port} LIST |\n"
-"	estab | frag | {gid|uid} N | icmptypes LIST | in | out | ipid LIST |\n"
-"	iplen LIST | ipoptions SPEC | ipprecedence | ipsec | iptos SPEC |\n"
-"	ipttl LIST | ipversion VER | keep-state | layer2 | limit ... |\n"
-"	icmp6types LIST | ext6hdr LIST | flow-id N[,N] | fib FIB |\n"
-"	mac ... | mac-type LIST | proto LIST | {recv|xmit|via} {IF|IPADDR} |\n"
-"	setup | {tcpack|tcpseq|tcpwin} NN | tcpflags SPEC | tcpoptions SPEC |\n"
-"	tcpdatalen LIST | verrevpath | versrcreach | antispoof\n"
-);
-exit(0);
-}
-
 
 static int
 lookup_host (char *host, struct in_addr *ipaddr)
@@ -2814,7 +1970,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 	 */
 	char *t = NULL, *p = strpbrk(av, "/:,{");
 	int masklen;
-	char md, nd;
+	char md, nd = '\0';
 
 	if (p) {
 		md = *p;
@@ -2949,7 +2105,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 		return;
 	}
 	/* A single IP can be stored in an optimized format */
-	if (d[1] == IP_MASK_ALL && av == NULL && len == 0) {
+	if (d[1] == ~0 && av == NULL && len == 0) {
 		cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32);
 		return;
 	}
@@ -2962,23 +2118,8 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 }
 
 
-/* Try to find ipv6 address by hostname */
-static int
-lookup_host6 (char *host, struct in6_addr *ip6addr)
-{
-	struct hostent *he;
-
-	if (!inet_pton(AF_INET6, host, ip6addr)) {
-		if ((he = gethostbyname2(host, AF_INET6)) == NULL)
-			return(-1);
-		memcpy(ip6addr, he->h_addr_list[0], sizeof( struct in6_addr));
-	}
-	return(0);
-}
-
-
 /* n2mask sets n bits of the mask */
-static void
+void
 n2mask(struct in6_addr *mask, int n)
 {
 	static int	minimask[9] =
@@ -2996,198 +2137,6 @@ n2mask(struct in6_addr *mask, int n)
 	return;
 }
  
-
-/*
- * fill the addr and mask fields in the instruction as appropriate from av.
- * Update length as appropriate.
- * The following formats are allowed:
- *     any     matches any IP6. Actually returns an empty instruction.
- *     me      returns O_IP6_*_ME
- *
- *     03f1::234:123:0342                single IP6 addres
- *     03f1::234:123:0342/24            address/mask
- *     03f1::234:123:0342/24,03f1::234:123:0343/               List of address
- *
- * Set of address (as in ipv6) not supported because ipv6 address
- * are typically random past the initial prefix.
- * Return 1 on success, 0 on failure.
- */
-static int
-fill_ip6(ipfw_insn_ip6 *cmd, char *av)
-{
-	int len = 0;
-	struct in6_addr *d = &(cmd->addr6);
-	/*
-	 * Needed for multiple address.
-	 * Note d[1] points to struct in6_add r mask6 of cmd
-	 */
-
-       cmd->o.len &= ~F_LEN_MASK;	/* zero len */
-
-       if (strcmp(av, "any") == 0)
-	       return (1);
-
-
-       if (strcmp(av, "me") == 0) {	/* Set the data for "me" opt*/
-	       cmd->o.len |= F_INSN_SIZE(ipfw_insn);
-	       return (1);
-       }
-
-       if (strcmp(av, "me6") == 0) {	/* Set the data for "me" opt*/
-	       cmd->o.len |= F_INSN_SIZE(ipfw_insn);
-	       return (1);
-       }
-
-       av = strdup(av);
-       while (av) {
-		/*
-		 * After the address we can have '/' indicating a mask,
-		 * or ',' indicating another address follows.
-		 */
-
-		char *p;
-		int masklen;
-		char md = '\0';
-
-		if ((p = strpbrk(av, "/,")) ) {
-			md = *p;	/* save the separator */
-			*p = '\0';	/* terminate address string */
-			p++;		/* and skip past it */
-		}
-		/* now p points to NULL, mask or next entry */
-
-		/* lookup stores address in *d as a side effect */
-		if (lookup_host6(av, d) != 0) {
-			/* XXX: failed. Free memory and go */
-			errx(EX_DATAERR, "bad address \"%s\"", av);
-		}
-		/* next, look at the mask, if any */
-		masklen = (md == '/') ? atoi(p) : 128;
-		if (masklen > 128 || masklen < 0)
-			errx(EX_DATAERR, "bad width \"%s\''", p);
-		else
-			n2mask(&d[1], masklen);
-
-		APPLY_MASK(d, &d[1])   /* mask base address with mask */
-
-		/* find next separator */
-
-		if (md == '/') {	/* find separator past the mask */
-			p = strpbrk(p, ",");
-			if (p != NULL)
-				p++;
-		}
-		av = p;
-
-		/* Check this entry */
-		if (masklen == 0) {
-			/*
-			 * 'any' turns the entire list into a NOP.
-			 * 'not any' never matches, so it is removed from the
-			 * list unless it is the only item, in which case we
-			 * report an error.
-			 */
-			if (cmd->o.len & F_NOT && av == NULL && len == 0)
-				errx(EX_DATAERR, "not any never matches");
-			continue;
-		}
-
-		/*
-		 * A single IP can be stored alone
-		 */
-		if (masklen == 128 && av == NULL && len == 0) {
-			len = F_INSN_SIZE(struct in6_addr);
-			break;
-		}
-
-		/* Update length and pointer to arguments */
-		len += F_INSN_SIZE(struct in6_addr)*2;
-		d += 2;
-	} /* end while */
-
-	/*
-	 * Total length of the command, remember that 1 is the size of
-	 * the base command.
-	 */
-	if (len + 1 > F_LEN_MASK)
-		errx(EX_DATAERR, "address list too long");
-	cmd->o.len |= len+1;
-	free(av);
-	return (1);
-}
-
-/*
- * fills command for ipv6 flow-id filtering
- * note that the 20 bit flow number is stored in a array of u_int32_t
- * it's supported lists of flow-id, so in the o.arg1 we store how many
- * additional flow-id we want to filter, the basic is 1
- */
-void
-fill_flow6( ipfw_insn_u32 *cmd, char *av )
-{
-	u_int32_t type;	 /* Current flow number */
-	u_int16_t nflow = 0;    /* Current flow index */
-	char *s = av;
-	cmd->d[0] = 0;	  /* Initializing the base number*/
-
-	while (s) {
-		av = strsep( &s, ",") ;
-		type = strtoul(av, &av, 0);
-		if (*av != ',' && *av != '\0')
-			errx(EX_DATAERR, "invalid ipv6 flow number %s", av);
-		if (type > 0xfffff)
-			errx(EX_DATAERR, "flow number out of range %s", av);
-		cmd->d[nflow] |= type;
-		nflow++;
-	}
-	if( nflow > 0 ) {
-		cmd->o.opcode = O_FLOW6ID;
-		cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32) + nflow;
-		cmd->o.arg1 = nflow;
-	}
-	else {
-		errx(EX_DATAERR, "invalid ipv6 flow number %s", av);
-	}
-}
-
-static ipfw_insn *
-add_srcip6(ipfw_insn *cmd, char *av)
-{
-
-	fill_ip6((ipfw_insn_ip6 *)cmd, av);
-	if (F_LEN(cmd) == 0)				/* any */
-		;
-	if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn)) {	/* "me" */
-		cmd->opcode = O_IP6_SRC_ME;
-	} else if (F_LEN(cmd) ==
-	    (F_INSN_SIZE(struct in6_addr) + F_INSN_SIZE(ipfw_insn))) {
-		/* single IP, no mask*/
-		cmd->opcode = O_IP6_SRC;
-	} else {					/* addr/mask opt */
-		cmd->opcode = O_IP6_SRC_MASK;
-	}
-	return cmd;
-}
-
-static ipfw_insn *
-add_dstip6(ipfw_insn *cmd, char *av)
-{
-
-	fill_ip6((ipfw_insn_ip6 *)cmd, av);
-	if (F_LEN(cmd) == 0)				/* any */
-		;
-	if (F_LEN(cmd) == F_INSN_SIZE(ipfw_insn)) {	/* "me" */
-		cmd->opcode = O_IP6_DST_ME;
-	} else if (F_LEN(cmd) ==
-	    (F_INSN_SIZE(struct in6_addr) + F_INSN_SIZE(ipfw_insn))) {
-		/* single IP, no mask*/
-		cmd->opcode = O_IP6_DST;
-	} else {					/* addr/mask opt */
-		cmd->opcode = O_IP6_DST_MASK;
-	}
-	return cmd;
-}
-
 
 /*
  * helper function to process a set of flags and set bits in the
@@ -3224,16 +2173,14 @@ fill_flags(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 }
 
 
-static void
-delete(int ac, char *av[])
+void
+ipfw_delete(int ac, char *av[])
 {
 	uint32_t rulenum;
-	struct dn_pipe p;
 	int i;
 	int exitval = EX_OK;
 	int do_set = 0;
 
-	memset(&p, 0, sizeof p);
 
 	av++; ac--;
 	NEED1("missing rule specification");
@@ -3241,7 +2188,7 @@ delete(int ac, char *av[])
 		/* Do not allow using the following syntax:
 		 *	ipfw set N delete set M
 		 */
-		if (use_set)
+		if (co.use_set)
 			errx(EX_DATAERR, "invalid syntax");
 		do_set = 1;	/* delete set */
 		ac--; av++;
@@ -3250,27 +2197,18 @@ delete(int ac, char *av[])
 	/* Rule number */
 	while (ac && isdigit(**av)) {
 		i = atoi(*av); av++; ac--;
-		if (do_nat) {
+		if (co.do_nat) {
 			exitval = do_cmd(IP_FW_NAT_DEL, &i, sizeof i);
 			if (exitval) {
 				exitval = EX_UNAVAILABLE;
 				warn("rule %u not available", i);
 			}
- 		} else if (do_pipe) {
-			if (do_pipe == 1)
-				p.pipe_nr = i;
-			else
-				p.fs.fs_nr = i;
-			i = do_cmd(IP_DUMMYNET_DEL, &p, sizeof p);
-			if (i) {
-				exitval = 1;
-				warn("rule %u: setsockopt(IP_DUMMYNET_DEL)",
-				    do_pipe == 1 ? p.pipe_nr : p.fs.fs_nr);
-			}
+ 		} else if (co.do_pipe) {
+			exitval = ipfw_delete_pipe(co.do_pipe, i);
 		} else {
-			if (use_set)
+			if (co.use_set)
 				rulenum = (i & 0xffff) | (5 << 24) |
-				    ((use_set - 1) << 16);
+				    ((co.use_set - 1) << 16);
 			else
 			rulenum =  (i & 0xffff) | (do_set << 24);
 			i = do_cmd(IP_FW_DEL, &rulenum, sizeof rulenum);
@@ -3307,1142 +2245,6 @@ fill_iface(ipfw_insn_if *cmd, char *arg)
 		cmd->p.glob = strpbrk(arg, "*?[") != NULL ? 1 : 0;
 	} else if (!inet_aton(arg, &cmd->p.ip))
 		errx(EX_DATAERR, "bad ip address ``%s''", arg);
-}
-
-/* 
- * Search for interface with name "ifn", and fill n accordingly:
- *
- * n->ip        ip address of interface "ifn"
- * n->if_name   copy of interface name "ifn"
- */
-static void
-set_addr_dynamic(const char *ifn, struct cfg_nat *n)
-{
-	size_t needed;
-	int mib[6];
-	char *buf, *lim, *next;
-	struct if_msghdr *ifm;
-	struct ifa_msghdr *ifam;
-	struct sockaddr_dl *sdl;
-	struct sockaddr_in *sin;
-	int ifIndex, ifMTU;
-
-	mib[0] = CTL_NET;
-	mib[1] = PF_ROUTE;
-	mib[2] = 0;
-	mib[3] = AF_INET;	
-	mib[4] = NET_RT_IFLIST;
-	mib[5] = 0;		
-/*
- * Get interface data.
- */
-	if (sysctl(mib, 6, NULL, &needed, NULL, 0) == -1)
-		err(1, "iflist-sysctl-estimate");
-	if ((buf = malloc(needed)) == NULL)
-		errx(1, "malloc failed");
-	if (sysctl(mib, 6, buf, &needed, NULL, 0) == -1)
-		err(1, "iflist-sysctl-get");
-	lim = buf + needed;
-/*
- * Loop through interfaces until one with
- * given name is found. This is done to
- * find correct interface index for routing
- * message processing.
- */
-	ifIndex	= 0;
-	next = buf;
-	while (next < lim) {
-		ifm = (struct if_msghdr *)next;
-		next += ifm->ifm_msglen;
-		if (ifm->ifm_version != RTM_VERSION) {
-			if (verbose)
-				warnx("routing message version %d "
-				    "not understood", ifm->ifm_version);
-			continue;
-		}
-		if (ifm->ifm_type == RTM_IFINFO) {
-			sdl = (struct sockaddr_dl *)(ifm + 1);
-			if (strlen(ifn) == sdl->sdl_nlen &&
-			    strncmp(ifn, sdl->sdl_data, sdl->sdl_nlen) == 0) {
-				ifIndex = ifm->ifm_index;
-				ifMTU = ifm->ifm_data.ifi_mtu;
-				break;
-			}
-		}
-	}
-	if (!ifIndex)
-		errx(1, "unknown interface name %s", ifn);
-/*
- * Get interface address.
- */
-	sin = NULL;
-	while (next < lim) {
-		ifam = (struct ifa_msghdr *)next;
-		next += ifam->ifam_msglen;
-		if (ifam->ifam_version != RTM_VERSION) {
-			if (verbose)
-				warnx("routing message version %d "
-				    "not understood", ifam->ifam_version);
-			continue;
-		}
-		if (ifam->ifam_type != RTM_NEWADDR)
-			break;
-		if (ifam->ifam_addrs & RTA_IFA) {
-			int i;
-			char *cp = (char *)(ifam + 1);
-
-			for (i = 1; i < RTA_IFA; i <<= 1) {
-				if (ifam->ifam_addrs & i)
-					cp += SA_SIZE((struct sockaddr *)cp);
-			}
-			if (((struct sockaddr *)cp)->sa_family == AF_INET) {
-				sin = (struct sockaddr_in *)cp;
-				break;
-			}
-		}
-	}
-	if (sin == NULL)
-		errx(1, "%s: cannot get interface address", ifn);
-
-	n->ip = sin->sin_addr;
-	strncpy(n->if_name, ifn, IF_NAMESIZE);
-
-	free(buf);
-}
-
-/* 
- * XXX - The following functions, macros and definitions come from natd.c:
- * it would be better to move them outside natd.c, in a file 
- * (redirect_support.[ch]?) shared by ipfw and natd, but for now i can live 
- * with it.
- */
-
-/*
- * Definition of a port range, and macros to deal with values.
- * FORMAT:  HI 16-bits == first port in range, 0 == all ports.
- *          LO 16-bits == number of ports in range
- * NOTES:   - Port values are not stored in network byte order.
- */
-
-#define port_range u_long
-
-#define GETLOPORT(x)     ((x) >> 0x10)
-#define GETNUMPORTS(x)   ((x) & 0x0000ffff)
-#define GETHIPORT(x)     (GETLOPORT((x)) + GETNUMPORTS((x)))
-
-/* Set y to be the low-port value in port_range variable x. */
-#define SETLOPORT(x,y)   ((x) = ((x) & 0x0000ffff) | ((y) << 0x10))
-
-/* Set y to be the number of ports in port_range variable x. */
-#define SETNUMPORTS(x,y) ((x) = ((x) & 0xffff0000) | (y))
-
-static void 
-StrToAddr (const char* str, struct in_addr* addr)
-{
-	struct hostent* hp;
-
-	if (inet_aton (str, addr))
-		return;
-
-	hp = gethostbyname (str);
-	if (!hp)
-		errx (1, "unknown host %s", str);
-
-	memcpy (addr, hp->h_addr, sizeof (struct in_addr));
-}
-
-static int 
-StrToPortRange (const char* str, const char* proto, port_range *portRange)
-{
-	char*           sep;
-	struct servent*	sp;
-	char*		end;
-	u_short         loPort;
-	u_short         hiPort;
-	
-	/* First see if this is a service, return corresponding port if so. */
-	sp = getservbyname (str,proto);
-	if (sp) {
-	        SETLOPORT(*portRange, ntohs(sp->s_port));
-		SETNUMPORTS(*portRange, 1);
-		return 0;
-	}
-	        
-	/* Not a service, see if it's a single port or port range. */
-	sep = strchr (str, '-');
-	if (sep == NULL) {
-	        SETLOPORT(*portRange, strtol(str, &end, 10));
-		if (end != str) {
-		        /* Single port. */
-		        SETNUMPORTS(*portRange, 1);
-			return 0;
-		}
-
-		/* Error in port range field. */
-		errx (EX_DATAERR, "%s/%s: unknown service", str, proto);
-	}
-
-	/* Port range, get the values and sanity check. */
-	sscanf (str, "%hu-%hu", &loPort, &hiPort);
-	SETLOPORT(*portRange, loPort);
-	SETNUMPORTS(*portRange, 0);	/* Error by default */
-	if (loPort <= hiPort)
-	        SETNUMPORTS(*portRange, hiPort - loPort + 1);
-
-	if (GETNUMPORTS(*portRange) == 0)
-	        errx (EX_DATAERR, "invalid port range %s", str);
-
-	return 0;
-}
-
-static int 
-StrToProto (const char* str)
-{
-	if (!strcmp (str, "tcp"))
-		return IPPROTO_TCP;
-
-	if (!strcmp (str, "udp"))
-		return IPPROTO_UDP;
-
-	errx (EX_DATAERR, "unknown protocol %s. Expected tcp or udp", str);
-}
-
-static int 
-StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, 
-		       port_range *portRange)
-{
-	char*	ptr;
-
-	ptr = strchr (str, ':');
-	if (!ptr)
-		errx (EX_DATAERR, "%s is missing port number", str);
-
-	*ptr = '\0';
-	++ptr;
-
-	StrToAddr (str, addr);
-	return StrToPortRange (ptr, proto, portRange);
-}
-
-/* End of stuff taken from natd.c. */
-
-#define INC_ARGCV() do {        \
-	(*_av)++;               \
-	(*_ac)--;               \
-	av = *_av;              \
-	ac = *_ac;              \
-} while(0)
-
-/* 
- * The next 3 functions add support for the addr, port and proto redirect and 
- * their logic is loosely based on SetupAddressRedirect(), SetupPortRedirect() 
- * and SetupProtoRedirect() from natd.c.
- *
- * Every setup_* function fills at least one redirect entry 
- * (struct cfg_redir) and zero or more server pool entry (struct cfg_spool) 
- * in buf.
- * 
- * The format of data in buf is:
- * 
- *
- *     cfg_nat    cfg_redir    cfg_spool    ......  cfg_spool 
- *
- *    -------------------------------------        ------------
- *   |          | .....X ... |          |         |           |  .....
- *    ------------------------------------- ...... ------------
- *                     ^          
- *                spool_cnt       n=0       ......   n=(X-1)
- *
- * len points to the amount of available space in buf
- * space counts the memory consumed by every function
- *
- * XXX - Every function get all the argv params so it 
- * has to check, in optional parameters, that the next
- * args is a valid option for the redir entry and not 
- * another token. Only redir_port and redir_proto are 
- * affected by this.
- */
-
-static int
-setup_redir_addr(char *spool_buf, int len,
-		 int *_ac, char ***_av) 
-{
-	char **av, *sep; /* Token separator. */
-	/* Temporary buffer used to hold server pool ip's. */
-	char tmp_spool_buf[NAT_BUF_LEN]; 
-	int ac, space, lsnat;
-	struct cfg_redir *r;	
-	struct cfg_spool *tmp;		
-
-	av = *_av;
-	ac = *_ac;
-	space = 0;
-	lsnat = 0;
-	if (len >= SOF_REDIR) {
-		r = (struct cfg_redir *)spool_buf;
-		/* Skip cfg_redir at beginning of buf. */
-		spool_buf = &spool_buf[SOF_REDIR];
-		space = SOF_REDIR;
-		len -= SOF_REDIR;
-	} else 
-		goto nospace; 
-	r->mode = REDIR_ADDR;
-	/* Extract local address. */
-	if (ac == 0) 
-		errx(EX_DATAERR, "redirect_addr: missing local address");
-	sep = strchr(*av, ',');
-	if (sep) {		/* LSNAT redirection syntax. */
-		r->laddr.s_addr = INADDR_NONE;
-		/* Preserve av, copy spool servers to tmp_spool_buf. */
-		strncpy(tmp_spool_buf, *av, strlen(*av)+1);
-		lsnat = 1;
-	} else 
-		StrToAddr(*av, &r->laddr);		
-	INC_ARGCV();
-
-	/* Extract public address. */
-	if (ac == 0) 
-		errx(EX_DATAERR, "redirect_addr: missing public address");
-	StrToAddr(*av, &r->paddr);
-	INC_ARGCV();
-
-	/* Setup LSNAT server pool. */
-	if (sep) {
-		sep = strtok(tmp_spool_buf, ",");		
-		while (sep != NULL) {
-			tmp = (struct cfg_spool *)spool_buf;		
-			if (len < SOF_SPOOL)
-				goto nospace;
-			len -= SOF_SPOOL;
-			space += SOF_SPOOL;			
-			StrToAddr(sep, &tmp->addr);
-			tmp->port = ~0;
-			r->spool_cnt++;
-			/* Point to the next possible cfg_spool. */
-			spool_buf = &spool_buf[SOF_SPOOL];
-			sep = strtok(NULL, ",");
-		}
-	}
-	return(space);
-nospace:
-	errx(EX_DATAERR, "redirect_addr: buf is too small\n");
-}
-
-static int
-setup_redir_port(char *spool_buf, int len,
-		 int *_ac, char ***_av) 
-{
-	char **av, *sep, *protoName;
-	char tmp_spool_buf[NAT_BUF_LEN];
-	int ac, space, lsnat;
-	struct cfg_redir *r;
-	struct cfg_spool *tmp;
-	u_short numLocalPorts;
-	port_range portRange;	
-
-	av = *_av;
-	ac = *_ac;
-	space = 0;
-	lsnat = 0;
-	numLocalPorts = 0;	
-
-	if (len >= SOF_REDIR) {
-		r = (struct cfg_redir *)spool_buf;
-		/* Skip cfg_redir at beginning of buf. */
-		spool_buf = &spool_buf[SOF_REDIR];
-		space = SOF_REDIR;
-		len -= SOF_REDIR;
-	} else 
-		goto nospace; 
-	r->mode = REDIR_PORT;
-	/*
-	 * Extract protocol.
-	 */
-	if (ac == 0)
-		errx (EX_DATAERR, "redirect_port: missing protocol");
-	r->proto = StrToProto(*av);
-	protoName = *av;	
-	INC_ARGCV();
-
-	/*
-	 * Extract local address.
-	 */
-	if (ac == 0)
-		errx (EX_DATAERR, "redirect_port: missing local address");
-
-	sep = strchr(*av, ',');
-	/* LSNAT redirection syntax. */
-	if (sep) {
-		r->laddr.s_addr = INADDR_NONE;
-		r->lport = ~0;
-		numLocalPorts = 1;
-		/* Preserve av, copy spool servers to tmp_spool_buf. */
-		strncpy(tmp_spool_buf, *av, strlen(*av)+1);
-		lsnat = 1;
-	} else {
-		if (StrToAddrAndPortRange (*av, &r->laddr, protoName, 
-		    &portRange) != 0)
-			errx(EX_DATAERR, "redirect_port:"
-			    "invalid local port range");
-
-		r->lport = GETLOPORT(portRange);
-		numLocalPorts = GETNUMPORTS(portRange);
-	}
-	INC_ARGCV();	
-
-	/*
-	 * Extract public port and optionally address.
-	 */
-	if (ac == 0)
-		errx (EX_DATAERR, "redirect_port: missing public port");
-
-	sep = strchr (*av, ':');
-	if (sep) {
-	        if (StrToAddrAndPortRange (*av, &r->paddr, protoName, 
-		    &portRange) != 0)
-		        errx(EX_DATAERR, "redirect_port:" 
-			    "invalid public port range");
-	} else {
-		r->paddr.s_addr = INADDR_ANY;
-		if (StrToPortRange (*av, protoName, &portRange) != 0)
-		        errx(EX_DATAERR, "redirect_port:"
-			    "invalid public port range");
-	}
-
-	r->pport = GETLOPORT(portRange);
-	r->pport_cnt = GETNUMPORTS(portRange);
-	INC_ARGCV();
-
-	/*
-	 * Extract remote address and optionally port.
-	 */	
-	/* 
-	 * NB: isalpha(**av) => we've to check that next parameter is really an
-	 * option for this redirect entry, else stop here processing arg[cv].
-	 */
-	if (ac != 0 && !isalpha(**av)) { 
-		sep = strchr (*av, ':');
-		if (sep) {
-		        if (StrToAddrAndPortRange (*av, &r->raddr, protoName, 
-			    &portRange) != 0)
-				errx(EX_DATAERR, "redirect_port:"
-				    "invalid remote port range");
-		} else {
-		        SETLOPORT(portRange, 0);
-			SETNUMPORTS(portRange, 1);
-			StrToAddr (*av, &r->raddr);
-		}
-		INC_ARGCV();
-	} else {
-		SETLOPORT(portRange, 0);
-		SETNUMPORTS(portRange, 1);
-		r->raddr.s_addr = INADDR_ANY;
-	}
-	r->rport = GETLOPORT(portRange);
-	r->rport_cnt = GETNUMPORTS(portRange);
-
-	/* 
-	 * Make sure port ranges match up, then add the redirect ports.
-	 */
-	if (numLocalPorts != r->pport_cnt)
-	        errx(EX_DATAERR, "redirect_port:"
-		    "port ranges must be equal in size");
-
-	/* Remote port range is allowed to be '0' which means all ports. */
-	if (r->rport_cnt != numLocalPorts && 
-	    (r->rport_cnt != 1 || r->rport != 0))
-	        errx(EX_DATAERR, "redirect_port: remote port must"
-		    "be 0 or equal to local port range in size");
-
-	/*
-	 * Setup LSNAT server pool.
-	 */
-	if (lsnat) {
-		sep = strtok(tmp_spool_buf, ",");
-		while (sep != NULL) {
-			tmp = (struct cfg_spool *)spool_buf;
-			if (len < SOF_SPOOL)
-				goto nospace;
-			len -= SOF_SPOOL;
-			space += SOF_SPOOL;
-			if (StrToAddrAndPortRange(sep, &tmp->addr, protoName, 
-			    &portRange) != 0)
-				errx(EX_DATAERR, "redirect_port:"
-				    "invalid local port range");
-			if (GETNUMPORTS(portRange) != 1)
-				errx(EX_DATAERR, "redirect_port: local port"
-				    "must be single in this context");
-			tmp->port = GETLOPORT(portRange);
-			r->spool_cnt++;	
-			/* Point to the next possible cfg_spool. */
-			spool_buf = &spool_buf[SOF_SPOOL];
-			sep = strtok(NULL, ",");
-		}
-	}
-	return (space);
-nospace:
-	errx(EX_DATAERR, "redirect_port: buf is too small\n");
-}
-
-static int
-setup_redir_proto(char *spool_buf, int len,
-		 int *_ac, char ***_av) 
-{
-	char **av;
-	int ac, space;
-	struct protoent *protoent;
-	struct cfg_redir *r;
-	
-	av = *_av;
-	ac = *_ac;
-	if (len >= SOF_REDIR) {
-		r = (struct cfg_redir *)spool_buf;
-		/* Skip cfg_redir at beginning of buf. */
-		spool_buf = &spool_buf[SOF_REDIR];
-		space = SOF_REDIR;
-		len -= SOF_REDIR;
-	} else 
-		goto nospace;
-	r->mode = REDIR_PROTO;
-	/*
-	 * Extract protocol.
-	 */	
-	if (ac == 0)
-		errx(EX_DATAERR, "redirect_proto: missing protocol");
-
-	protoent = getprotobyname(*av);
-	if (protoent == NULL)
-		errx(EX_DATAERR, "redirect_proto: unknown protocol %s", *av);
-	else
-		r->proto = protoent->p_proto;
-
-	INC_ARGCV();
-	
-	/*
-	 * Extract local address.
-	 */
-	if (ac == 0)
-		errx(EX_DATAERR, "redirect_proto: missing local address");
-	else
-		StrToAddr(*av, &r->laddr);
-
-	INC_ARGCV();
-	
-	/*
-	 * Extract optional public address.
-	 */
-	if (ac == 0) {
-		r->paddr.s_addr = INADDR_ANY;		
-		r->raddr.s_addr = INADDR_ANY;	
-	} else {
-		/* see above in setup_redir_port() */
-		if (!isalpha(**av)) {
-			StrToAddr(*av, &r->paddr);			
-			INC_ARGCV();
-		
-			/*
-			 * Extract optional remote address.
-			 */	
-			/* see above in setup_redir_port() */
-			if (ac!=0 && !isalpha(**av)) {
-				StrToAddr(*av, &r->raddr);
-				INC_ARGCV();
-			}
-		}		
-	}
-	return (space);
-nospace:
-	errx(EX_DATAERR, "redirect_proto: buf is too small\n");
-}
-
-static void
-show_nat(int ac, char **av);
-
-static void
-print_nat_config(char *buf) {
-	struct cfg_nat *n;
-	int i, cnt, flag, off;
-	struct cfg_redir *t;
-	struct cfg_spool *s;
-	struct protoent *p;
-
-	n = (struct cfg_nat *)buf;
-	flag = 1;
-	off  = sizeof(*n);
-	printf("ipfw nat %u config", n->id);
-	if (strlen(n->if_name) != 0)
-		printf(" if %s", n->if_name);
-	else if (n->ip.s_addr != 0)
-		printf(" ip %s", inet_ntoa(n->ip));
-	while (n->mode != 0) {
-		if (n->mode & PKT_ALIAS_LOG) {
-			printf(" log");
-			n->mode &= ~PKT_ALIAS_LOG;
-		} else if (n->mode & PKT_ALIAS_DENY_INCOMING) {
-			printf(" deny_in");
-			n->mode &= ~PKT_ALIAS_DENY_INCOMING;
-		} else if (n->mode & PKT_ALIAS_SAME_PORTS) {
-			printf(" same_ports");
-			n->mode &= ~PKT_ALIAS_SAME_PORTS;
-		} else if (n->mode & PKT_ALIAS_UNREGISTERED_ONLY) {
-			printf(" unreg_only");
-			n->mode &= ~PKT_ALIAS_UNREGISTERED_ONLY;
-		} else if (n->mode & PKT_ALIAS_RESET_ON_ADDR_CHANGE) {
-			printf(" reset");
-			n->mode &= ~PKT_ALIAS_RESET_ON_ADDR_CHANGE;
-		} else if (n->mode & PKT_ALIAS_REVERSE) {
-			printf(" reverse");
-			n->mode &= ~PKT_ALIAS_REVERSE;
-		} else if (n->mode & PKT_ALIAS_PROXY_ONLY) {
-			printf(" proxy_only");
-			n->mode &= ~PKT_ALIAS_PROXY_ONLY;
-		}
-	}
-	/* Print all the redirect's data configuration. */
-	for (cnt = 0; cnt < n->redir_cnt; cnt++) {
-		t = (struct cfg_redir *)&buf[off];
-		off += SOF_REDIR;
-		switch (t->mode) {
-		case REDIR_ADDR:
-			printf(" redirect_addr");
-			if (t->spool_cnt == 0)
-				printf(" %s", inet_ntoa(t->laddr));
-			else
-				for (i = 0; i < t->spool_cnt; i++) {
-					s = (struct cfg_spool *)&buf[off];
-					if (i)
-						printf(",");
-					else 
-						printf(" ");
-					printf("%s", inet_ntoa(s->addr));
-					off += SOF_SPOOL;
-				}
-			printf(" %s", inet_ntoa(t->paddr));
-			break;
-		case REDIR_PORT:
-			p = getprotobynumber(t->proto);
-			printf(" redirect_port %s ", p->p_name);
-			if (!t->spool_cnt) {
-				printf("%s:%u", inet_ntoa(t->laddr), t->lport);
-				if (t->pport_cnt > 1)
-					printf("-%u", t->lport + 
-					    t->pport_cnt - 1);
-			} else
-				for (i=0; i < t->spool_cnt; i++) {
-					s = (struct cfg_spool *)&buf[off];
-					if (i)
-						printf(",");
-					printf("%s:%u", inet_ntoa(s->addr), 
-					    s->port);
-					off += SOF_SPOOL;
-				}
-
-			printf(" ");
-			if (t->paddr.s_addr)
-				printf("%s:", inet_ntoa(t->paddr)); 
-			printf("%u", t->pport);
-			if (!t->spool_cnt && t->pport_cnt > 1)
-				printf("-%u", t->pport + t->pport_cnt - 1);
-
-			if (t->raddr.s_addr) {
-				printf(" %s", inet_ntoa(t->raddr));
-				if (t->rport) {
-					printf(":%u", t->rport);
-					if (!t->spool_cnt && t->rport_cnt > 1)
-						printf("-%u", t->rport + 
-						    t->rport_cnt - 1);
-				}
-			}
-			break;
-		case REDIR_PROTO:
-			p = getprotobynumber(t->proto);
-			printf(" redirect_proto %s %s", p->p_name, 
-			    inet_ntoa(t->laddr));
-			if (t->paddr.s_addr != 0) {
-				printf(" %s", inet_ntoa(t->paddr));
-				if (t->raddr.s_addr)
-					printf(" %s", inet_ntoa(t->raddr));
-			}
-			break;
-		default:
-			errx(EX_DATAERR, "unknown redir mode");
-			break;
-		}
-	}
-	printf("\n");
-}
-
-static void
-config_nat(int ac, char **av)
-{
-	struct cfg_nat *n;              /* Nat instance configuration. */
-	int i, len, off, tok;
-	char *id, buf[NAT_BUF_LEN]; 	/* Buffer for serialized data. */
-	
-	len = NAT_BUF_LEN;
-	/* Offset in buf: save space for n at the beginning. */
-	off = sizeof(*n);
-	memset(buf, 0, sizeof(buf));
-	n = (struct cfg_nat *)buf;
-
-	av++; ac--;
-	/* Nat id. */
-	if (ac && isdigit(**av)) {
-		id = *av;
-		i = atoi(*av); 
-		ac--; av++;		
-		n->id = i;
-	} else 
-		errx(EX_DATAERR, "missing nat id");
-	if (ac == 0) 
-		errx(EX_DATAERR, "missing option");
-
-	while (ac > 0) {
-		tok = match_token(nat_params, *av);
-		ac--; av++;
-		switch (tok) {
-		case TOK_IP:
-			if (ac == 0) 
-				errx(EX_DATAERR, "missing option");
-			if (!inet_aton(av[0], &(n->ip)))
-				errx(EX_DATAERR, "bad ip address ``%s''", 
-				    av[0]);
-			ac--; av++;
-			break;	    
-		case TOK_IF:
-			if (ac == 0) 
-				errx(EX_DATAERR, "missing option");
-			set_addr_dynamic(av[0], n);
-			ac--; av++;
-			break;
-		case TOK_ALOG:
-			n->mode |= PKT_ALIAS_LOG;
-			break;
-		case TOK_DENY_INC:
-			n->mode |= PKT_ALIAS_DENY_INCOMING;
-			break;
-		case TOK_SAME_PORTS:
-			n->mode |= PKT_ALIAS_SAME_PORTS;
-			break;
-		case TOK_UNREG_ONLY:
-			n->mode |= PKT_ALIAS_UNREGISTERED_ONLY;
-			break;
-		case TOK_RESET_ADDR:
-			n->mode |= PKT_ALIAS_RESET_ON_ADDR_CHANGE;
-			break;
-		case TOK_ALIAS_REV:
-			n->mode |= PKT_ALIAS_REVERSE;
-			break;
-		case TOK_PROXY_ONLY:
-			n->mode |= PKT_ALIAS_PROXY_ONLY;
-			break;
-			/* 
-			 * All the setup_redir_* functions work directly in the final 
-			 * buffer, see above for details.
-			 */
-		case TOK_REDIR_ADDR:
-		case TOK_REDIR_PORT:
-		case TOK_REDIR_PROTO:
-			switch (tok) {
-			case TOK_REDIR_ADDR:
-				i = setup_redir_addr(&buf[off], len, &ac, &av);
-				break;			  
-			case TOK_REDIR_PORT:
-				i = setup_redir_port(&buf[off], len, &ac, &av);
-				break;			  
-			case TOK_REDIR_PROTO:
-				i = setup_redir_proto(&buf[off], len, &ac, &av);
-				break;
-			}
-			n->redir_cnt++;
-			off += i;
-			len -= i;
-			break;
-		default:
-			errx(EX_DATAERR, "unrecognised option ``%s''", av[-1]);
-		}
-	}
-
-	i = do_cmd(IP_FW_NAT_CFG, buf, off);
-	if (i)
-		err(1, "setsockopt(%s)", "IP_FW_NAT_CFG");
-
-	/* After every modification, we show the resultant rule. */
-	int _ac = 3;
-	char *_av[] = {"show", "config", id};
-	show_nat(_ac, _av);
-}
-
-static void
-config_pipe(int ac, char **av)
-{
-	struct dn_pipe p;
-	int i;
-	char *end;
-	void *par = NULL;
-
-	memset(&p, 0, sizeof p);
-
-	av++; ac--;
-	/* Pipe number */
-	if (ac && isdigit(**av)) {
-		i = atoi(*av); av++; ac--;
-		if (do_pipe == 1)
-			p.pipe_nr = i;
-		else
-			p.fs.fs_nr = i;
-	}
-	while (ac > 0) {
-		double d;
-		int tok = match_token(dummynet_params, *av);
-		ac--; av++;
-
-		switch(tok) {
-		case TOK_NOERROR:
-			p.fs.flags_fs |= DN_NOERROR;
-			break;
-
-		case TOK_PLR:
-			NEED1("plr needs argument 0..1\n");
-			d = strtod(av[0], NULL);
-			if (d > 1)
-				d = 1;
-			else if (d < 0)
-				d = 0;
-			p.fs.plr = (int)(d*0x7fffffff);
-			ac--; av++;
-			break;
-
-		case TOK_QUEUE:
-			NEED1("queue needs queue size\n");
-			end = NULL;
-			p.fs.qsize = strtoul(av[0], &end, 0);
-			if (*end == 'K' || *end == 'k') {
-				p.fs.flags_fs |= DN_QSIZE_IS_BYTES;
-				p.fs.qsize *= 1024;
-			} else if (*end == 'B' ||
-			    _substrcmp2(end, "by", "bytes") == 0) {
-				p.fs.flags_fs |= DN_QSIZE_IS_BYTES;
-			}
-			ac--; av++;
-			break;
-
-		case TOK_BUCKETS:
-			NEED1("buckets needs argument\n");
-			p.fs.rq_size = strtoul(av[0], NULL, 0);
-			ac--; av++;
-			break;
-
-		case TOK_MASK:
-			NEED1("mask needs mask specifier\n");
-			/*
-			 * per-flow queue, mask is dst_ip, dst_port,
-			 * src_ip, src_port, proto measured in bits
-			 */
-			par = NULL;
-
-			bzero(&p.fs.flow_mask, sizeof(p.fs.flow_mask));
-			end = NULL;
-
-			while (ac >= 1) {
-			    uint32_t *p32 = NULL;
-			    uint16_t *p16 = NULL;
-			    uint32_t *p20 = NULL;
-			    struct in6_addr *pa6 = NULL;
-			    uint32_t a;
-
-			    tok = match_token(dummynet_params, *av);
-			    ac--; av++;
-			    switch(tok) {
-			    case TOK_ALL:
-				    /*
-				     * special case, all bits significant
-				     */
-				    p.fs.flow_mask.dst_ip = ~0;
-				    p.fs.flow_mask.src_ip = ~0;
-				    p.fs.flow_mask.dst_port = ~0;
-				    p.fs.flow_mask.src_port = ~0;
-				    p.fs.flow_mask.proto = ~0;
-				    n2mask(&(p.fs.flow_mask.dst_ip6), 128);
-				    n2mask(&(p.fs.flow_mask.src_ip6), 128);
-				    p.fs.flow_mask.flow_id6 = ~0;
-				    p.fs.flags_fs |= DN_HAVE_FLOW_MASK;
-				    goto end_mask;
-
-			    case TOK_DSTIP:
-				    p32 = &p.fs.flow_mask.dst_ip;
-				    break;
-
-			    case TOK_SRCIP:
-				    p32 = &p.fs.flow_mask.src_ip;
-				    break;
-
-			    case TOK_DSTIP6:
-				    pa6 = &(p.fs.flow_mask.dst_ip6);
-				    break;
-			    
-			    case TOK_SRCIP6:
-				    pa6 = &(p.fs.flow_mask.src_ip6);
-				    break;
-
-			    case TOK_FLOWID:
-				    p20 = &p.fs.flow_mask.flow_id6;
-				    break;
-
-			    case TOK_DSTPORT:
-				    p16 = &p.fs.flow_mask.dst_port;
-				    break;
-
-			    case TOK_SRCPORT:
-				    p16 = &p.fs.flow_mask.src_port;
-				    break;
-
-			    case TOK_PROTO:
-				    break;
-
-			    default:
-				    ac++; av--; /* backtrack */
-				    goto end_mask;
-			    }
-			    if (ac < 1)
-				    errx(EX_USAGE, "mask: value missing");
-			    if (*av[0] == '/') {
-				    a = strtoul(av[0]+1, &end, 0);
-				    if (pa6 == NULL)
-					    a = (a == 32) ? ~0 : (1 << a) - 1;
-			    } else
-				    a = strtoul(av[0], &end, 0);
-			    if (p32 != NULL)
-				    *p32 = a;
-			    else if (p16 != NULL) {
-				    if (a > 0xFFFF)
-					    errx(EX_DATAERR,
-						"port mask must be 16 bit");
-				    *p16 = (uint16_t)a;
-			    } else if (p20 != NULL) {
-				    if (a > 0xfffff)
-					errx(EX_DATAERR,
-					    "flow_id mask must be 20 bit");
-				    *p20 = (uint32_t)a;
-			    } else if (pa6 != NULL) {
-				    if (a < 0 || a > 128)
-					errx(EX_DATAERR,
-					    "in6addr invalid mask len");
-				    else
-					n2mask(pa6, a);
-			    } else {
-				    if (a > 0xFF)
-					    errx(EX_DATAERR,
-						"proto mask must be 8 bit");
-				    p.fs.flow_mask.proto = (uint8_t)a;
-			    }
-			    if (a != 0)
-				    p.fs.flags_fs |= DN_HAVE_FLOW_MASK;
-			    ac--; av++;
-			} /* end while, config masks */
-end_mask:
-			break;
-
-		case TOK_RED:
-		case TOK_GRED:
-			NEED1("red/gred needs w_q/min_th/max_th/max_p\n");
-			p.fs.flags_fs |= DN_IS_RED;
-			if (tok == TOK_GRED)
-				p.fs.flags_fs |= DN_IS_GENTLE_RED;
-			/*
-			 * the format for parameters is w_q/min_th/max_th/max_p
-			 */
-			if ((end = strsep(&av[0], "/"))) {
-			    double w_q = strtod(end, NULL);
-			    if (w_q > 1 || w_q <= 0)
-				errx(EX_DATAERR, "0 < w_q <= 1");
-			    p.fs.w_q = (int) (w_q * (1 << SCALE_RED));
-			}
-			if ((end = strsep(&av[0], "/"))) {
-			    p.fs.min_th = strtoul(end, &end, 0);
-			    if (*end == 'K' || *end == 'k')
-				p.fs.min_th *= 1024;
-			}
-			if ((end = strsep(&av[0], "/"))) {
-			    p.fs.max_th = strtoul(end, &end, 0);
-			    if (*end == 'K' || *end == 'k')
-				p.fs.max_th *= 1024;
-			}
-			if ((end = strsep(&av[0], "/"))) {
-			    double max_p = strtod(end, NULL);
-			    if (max_p > 1 || max_p <= 0)
-				errx(EX_DATAERR, "0 < max_p <= 1");
-			    p.fs.max_p = (int)(max_p * (1 << SCALE_RED));
-			}
-			ac--; av++;
-			break;
-
-		case TOK_DROPTAIL:
-			p.fs.flags_fs &= ~(DN_IS_RED|DN_IS_GENTLE_RED);
-			break;
-
-		case TOK_BW:
-			NEED1("bw needs bandwidth or interface\n");
-			if (do_pipe != 1)
-			    errx(EX_DATAERR, "bandwidth only valid for pipes");
-			/*
-			 * set clocking interface or bandwidth value
-			 */
-			if (av[0][0] >= 'a' && av[0][0] <= 'z') {
-			    int l = sizeof(p.if_name)-1;
-			    /* interface name */
-			    strncpy(p.if_name, av[0], l);
-			    p.if_name[l] = '\0';
-			    p.bandwidth = 0;
-			} else {
-			    p.if_name[0] = '\0';
-			    p.bandwidth = strtoul(av[0], &end, 0);
-			    if (*end == 'K' || *end == 'k') {
-				end++;
-				p.bandwidth *= 1000;
-			    } else if (*end == 'M') {
-				end++;
-				p.bandwidth *= 1000000;
-			    }
-			    if ((*end == 'B' &&
-				  _substrcmp2(end, "Bi", "Bit/s") != 0) ||
-			        _substrcmp2(end, "by", "bytes") == 0)
-				p.bandwidth *= 8;
-			    if (p.bandwidth < 0)
-				errx(EX_DATAERR, "bandwidth too large");
-			}
-			ac--; av++;
-			break;
-
-		case TOK_DELAY:
-			if (do_pipe != 1)
-				errx(EX_DATAERR, "delay only valid for pipes");
-			NEED1("delay needs argument 0..10000ms\n");
-			p.delay = strtoul(av[0], NULL, 0);
-			ac--; av++;
-			break;
-
-		case TOK_WEIGHT:
-			if (do_pipe == 1)
-				errx(EX_DATAERR,"weight only valid for queues");
-			NEED1("weight needs argument 0..100\n");
-			p.fs.weight = strtoul(av[0], &end, 0);
-			ac--; av++;
-			break;
-
-		case TOK_PIPE:
-			if (do_pipe == 1)
-				errx(EX_DATAERR,"pipe only valid for queues");
-			NEED1("pipe needs pipe_number\n");
-			p.fs.parent_nr = strtoul(av[0], &end, 0);
-			ac--; av++;
-			break;
-
-		default:
-			errx(EX_DATAERR, "unrecognised option ``%s''", av[-1]);
-		}
-	}
-	if (do_pipe == 1) {
-		if (p.pipe_nr == 0)
-			errx(EX_DATAERR, "pipe_nr must be > 0");
-		if (p.delay > 10000)
-			errx(EX_DATAERR, "delay must be < 10000");
-	} else { /* do_pipe == 2, queue */
-		if (p.fs.parent_nr == 0)
-			errx(EX_DATAERR, "pipe must be > 0");
-		if (p.fs.weight >100)
-			errx(EX_DATAERR, "weight must be <= 100");
-	}
-	if (p.fs.flags_fs & DN_QSIZE_IS_BYTES) {
-		size_t len;
-		long limit;
-
-		len = sizeof(limit);
-		if (sysctlbyname("net.inet.ip.dummynet.pipe_byte_limit",
-			&limit, &len, NULL, 0) == -1)
-			limit = 1024*1024;
-		if (p.fs.qsize > limit)
-			errx(EX_DATAERR, "queue size must be < %ldB", limit);
-	} else {
-		size_t len;
-		long limit;
-
-		len = sizeof(limit);
-		if (sysctlbyname("net.inet.ip.dummynet.pipe_slot_limit",
-			&limit, &len, NULL, 0) == -1)
-			limit = 100;
-		if (p.fs.qsize > limit)
-			errx(EX_DATAERR, "2 <= queue size <= %ld", limit);
-	}
-	if (p.fs.flags_fs & DN_IS_RED) {
-		size_t len;
-		int lookup_depth, avg_pkt_size;
-		double s, idle, weight, w_q;
-		struct clockinfo ck;
-		int t;
-
-		if (p.fs.min_th >= p.fs.max_th)
-		    errx(EX_DATAERR, "min_th %d must be < than max_th %d",
-			p.fs.min_th, p.fs.max_th);
-		if (p.fs.max_th == 0)
-		    errx(EX_DATAERR, "max_th must be > 0");
-
-		len = sizeof(int);
-		if (sysctlbyname("net.inet.ip.dummynet.red_lookup_depth",
-			&lookup_depth, &len, NULL, 0) == -1)
-		    errx(1, "sysctlbyname(\"%s\")",
-			"net.inet.ip.dummynet.red_lookup_depth");
-		if (lookup_depth == 0)
-		    errx(EX_DATAERR, "net.inet.ip.dummynet.red_lookup_depth"
-			" must be greater than zero");
-
-		len = sizeof(int);
-		if (sysctlbyname("net.inet.ip.dummynet.red_avg_pkt_size",
-			&avg_pkt_size, &len, NULL, 0) == -1)
-
-		    errx(1, "sysctlbyname(\"%s\")",
-			"net.inet.ip.dummynet.red_avg_pkt_size");
-		if (avg_pkt_size == 0)
-			errx(EX_DATAERR,
-			    "net.inet.ip.dummynet.red_avg_pkt_size must"
-			    " be greater than zero");
-
-		len = sizeof(struct clockinfo);
-		if (sysctlbyname("kern.clockrate", &ck, &len, NULL, 0) == -1)
-			errx(1, "sysctlbyname(\"%s\")", "kern.clockrate");
-
-		/*
-		 * Ticks needed for sending a medium-sized packet.
-		 * Unfortunately, when we are configuring a WF2Q+ queue, we
-		 * do not have bandwidth information, because that is stored
-		 * in the parent pipe, and also we have multiple queues
-		 * competing for it. So we set s=0, which is not very
-		 * correct. But on the other hand, why do we want RED with
-		 * WF2Q+ ?
-		 */
-		if (p.bandwidth==0) /* this is a WF2Q+ queue */
-			s = 0;
-		else
-			s = (double)ck.hz * avg_pkt_size * 8 / p.bandwidth;
-
-		/*
-		 * max idle time (in ticks) before avg queue size becomes 0.
-		 * NOTA:  (3/w_q) is approx the value x so that
-		 * (1-w_q)^x < 10^-3.
-		 */
-		w_q = ((double)p.fs.w_q) / (1 << SCALE_RED);
-		idle = s * 3. / w_q;
-		p.fs.lookup_step = (int)idle / lookup_depth;
-		if (!p.fs.lookup_step)
-			p.fs.lookup_step = 1;
-		weight = 1 - w_q;
-		for (t = p.fs.lookup_step; t > 1; --t)
-			weight *= 1 - w_q;
-		p.fs.lookup_weight = (int)(weight * (1 << SCALE_RED));
-	}
-	i = do_cmd(IP_DUMMYNET_CONFIGURE, &p, sizeof p);
-	if (i)
-		err(1, "setsockopt(%s)", "IP_DUMMYNET_CONFIGURE");
 }
 
 static void
@@ -4754,8 +2556,8 @@ add_dst(ipfw_insn *cmd, char *av, u_char proto)
  * various match patterns, log/altq actions, and the actual action.
  *
  */
-static void
-add(int ac, char *av[])
+void
+ipfw_add(int ac, char *av[])
 {
 	/*
 	 * rules are added into the 'rulebuf' and then copied in
@@ -4907,7 +2709,7 @@ chkarg:
 			if (action->arg1 <= 0 || action->arg1 >= IP_FW_TABLEARG)
 				errx(EX_DATAERR, "illegal argument for %s",
 				    *(av - 1));
-		} else if (_substrcmp(*av, TABLEARG) == 0) {
+		} else if (_substrcmp(*av, "tablearg") == 0) {
 			action->arg1 = IP_FW_TABLEARG;
 		} else if (i == TOK_DIVERT || i == TOK_TEE) {
 			struct servent *s;
@@ -4931,7 +2733,10 @@ chkarg:
 		action->opcode = O_FORWARD_IP;
 		action->len = F_INSN_SIZE(ipfw_insn_sa);
 
-		p->sa.sin_len = sizeof(struct sockaddr_in);
+		/*
+		 * In the kernel we assume AF_INET and use only
+		 * sin_port and sin_addr.
+		 */
 		p->sa.sin_family = AF_INET;
 		p->sa.sin_port = 0;
 		/*
@@ -5033,7 +2838,7 @@ chkarg:
 			have_altq = (ipfw_insn *)a;
 			cmd->len = F_INSN_SIZE(ipfw_insn_altq);
 			cmd->opcode = O_ALTQ;
-			fill_altq_qid(&a->qid, *av);
+			a->qid = altq_name_to_qid(*av);
 			ac--; av++;
 		    }
 			break;
@@ -5759,17 +3564,22 @@ done:
 	i = (char *)dst - (char *)rule;
 	if (do_cmd(IP_FW_ADD, rule, (uintptr_t)&i) == -1)
 		err(EX_UNAVAILABLE, "getsockopt(%s)", "IP_FW_ADD");
-	if (!do_quiet)
+	if (!co.do_quiet)
 		show_ipfw(rule, 0, 0);
 }
 
-static void
-zero(int ac, char *av[], int optname /* IP_FW_ZERO or IP_FW_RESETLOG */)
+/*
+ * clear the counters or the log counters.
+ */
+void
+ipfw_zero(int ac, char *av[], int optname /* 0 = IP_FW_ZERO, 1 = IP_FW_RESETLOG */)
 {
 	uint32_t arg, saved_arg;
 	int failed = EX_OK;
-	char const *name = optname == IP_FW_ZERO ?  "ZERO" : "RESETLOG";
 	char const *errstr;
+	char const *name = optname ? "RESETLOG" : "ZERO";
+
+	optname = optname ? IP_FW_RESETLOG : IP_FW_ZERO;
 
 	av++; ac--;
 
@@ -5777,7 +3587,7 @@ zero(int ac, char *av[], int optname /* IP_FW_ZERO or IP_FW_RESETLOG */)
 		/* clear all entries */
 		if (do_cmd(optname, NULL, 0) < 0)
 			err(EX_UNAVAILABLE, "setsockopt(IP_FW_%s)", name);
-		if (!do_quiet)
+		if (!co.do_quiet)
 			printf("%s.\n", optname == IP_FW_ZERO ?
 			    "Accounting cleared":"Logging counts reset");
 
@@ -5792,15 +3602,15 @@ zero(int ac, char *av[], int optname /* IP_FW_ZERO or IP_FW_RESETLOG */)
 				errx(EX_DATAERR,
 				    "invalid rule number %s\n", *av);
 			saved_arg = arg;
-			if (use_set)
-				arg |= (1 << 24) | ((use_set - 1) << 16);
+			if (co.use_set)
+				arg |= (1 << 24) | ((co.use_set - 1) << 16);
 			av++;
 			ac--;
 			if (do_cmd(optname, &arg, sizeof(arg))) {
 				warn("rule %u: setsockopt(IP_FW_%s)",
 				    saved_arg, name);
 				failed = EX_UNAVAILABLE;
-			} else if (!do_quiet)
+			} else if (!co.do_quiet)
 				printf("Entry %d %s.\n", saved_arg,
 				    optname == IP_FW_ZERO ?
 					"cleared" : "logging count reset");
@@ -5812,12 +3622,12 @@ zero(int ac, char *av[], int optname /* IP_FW_ZERO or IP_FW_RESETLOG */)
 		exit(failed);
 }
 
-static void
-flush(int force)
+void
+ipfw_flush(int force)
 {
-	int cmd = do_pipe ? IP_DUMMYNET_FLUSH : IP_FW_FLUSH;
+	int cmd = co.do_pipe ? IP_DUMMYNET_FLUSH : IP_FW_FLUSH;
 
-	if (!force && !do_quiet) { /* need to ask user */
+	if (!force && !co.do_quiet) { /* need to ask user */
 		int c;
 
 		printf("Are you sure? [yn] ");
@@ -5833,29 +3643,17 @@ flush(int force)
 			return;
 	}
 	/* `ipfw set N flush` - is the same that `ipfw delete set N` */
-	if (use_set) {
-		uint32_t arg = ((use_set - 1) & 0xffff) | (1 << 24);
+	if (co.use_set) {
+		uint32_t arg = ((co.use_set - 1) & 0xffff) | (1 << 24);
 		if (do_cmd(IP_FW_DEL, &arg, sizeof(arg)) < 0)
 			err(EX_UNAVAILABLE, "setsockopt(IP_FW_DEL)");
 	} else if (do_cmd(cmd, NULL, 0) < 0)
 		err(EX_UNAVAILABLE, "setsockopt(IP_%s_FLUSH)",
-		    do_pipe ? "DUMMYNET" : "FW");
-	if (!do_quiet)
-		printf("Flushed all %s.\n", do_pipe ? "pipes" : "rules");
+		    co.do_pipe ? "DUMMYNET" : "FW");
+	if (!co.do_quiet)
+		printf("Flushed all %s.\n", co.do_pipe ? "pipes" : "rules");
 }
 
-/*
- * Free a the (locally allocated) copy of command line arguments.
- */
-static void
-free_args(int ac, char **av)
-{
-	int i;
-
-	for (i=0; i < ac; i++)
-		free(av[i]);
-	free(av);
-}
 
 static void table_list(ipfw_table_entry ent, int need_header);
 
@@ -5866,8 +3664,8 @@ static void table_list(ipfw_table_entry ent, int need_header);
  * 	ipfw table {N | all} flush
  * 	ipfw table {N | all} list
  */
-static void
-table_handler(int ac, char *av[])
+void
+ipfw_table_handler(int ac, char *av[])
 {
 	ipfw_table_entry ent;
 	int do_add;
@@ -5944,7 +3742,7 @@ table_handler(int ac, char *av[])
 		if (do_cmd(do_add ? IP_FW_TABLE_ADD : IP_FW_TABLE_DEL,
 		    &ent, sizeof(ent)) < 0) {
 			/* If running silent, don't bomb out on these errors. */
-			if (!(do_quiet && (errno == (do_add ? EEXIST : ESRCH))))
+			if (!(co.do_quiet && (errno == (do_add ? EEXIST : ESRCH))))
 				err(EX_OSERR, "setsockopt(IP_FW_TABLE_%s)",
 				    do_add ? "ADD" : "DEL");
 			/* In silent mode, react to a failed add by deleting */
@@ -5989,9 +3787,7 @@ table_list(ipfw_table_entry ent, int need_header)
 		return;
 
 	l = sizeof(*tbl) + a * sizeof(ipfw_table_entry);
-	tbl = malloc(l);
-	if (tbl == NULL)
-		err(EX_OSERR, "malloc");
+	tbl = safe_calloc(1, l);
 	tbl->tbl = ent.tbl;
 	if (do_cmd(IP_FW_TABLE_LIST, tbl, (uintptr_t)&l) < 0)
 		err(EX_OSERR, "getsockopt(IP_FW_TABLE_LIST)");
@@ -6000,7 +3796,7 @@ table_list(ipfw_table_entry ent, int need_header)
 	for (a = 0; a < tbl->cnt; a++) {
 		unsigned int tval;
 		tval = tbl->ent[a].value;
-		if (do_value_as_ip) {
+		if (co.do_value_as_ip) {
 			char tbuf[128];
 			strncpy(tbuf, inet_ntoa(*(struct in_addr *)
 				&tbl->ent[a].addr), 127);
@@ -6015,507 +3811,4 @@ table_list(ipfw_table_entry ent, int need_header)
 		}
 	}
 	free(tbl);
-}
-
-static void
-show_nat(int ac, char **av)
-{
-	struct cfg_nat *n;
-	struct cfg_redir *e;
-	int cmd, i, nbytes, do_cfg, do_rule, frule, lrule, nalloc, size;
-	int nat_cnt, redir_cnt, r;
-	uint8_t *data, *p;
-	char *endptr;
-
-	do_rule = 0;
-	nalloc = 1024;
-	size = 0;
-	data = NULL;
-	frule = 0;
-	lrule = IPFW_DEFAULT_RULE; /* max ipfw rule number */
-	ac--; av++;
-
-	if (test_only)
-		return;
-
-	/* Parse parameters. */
-	for (cmd = IP_FW_NAT_GET_LOG, do_cfg = 0; ac != 0; ac--, av++) {
-		if (!strncmp(av[0], "config", strlen(av[0]))) {
-			cmd = IP_FW_NAT_GET_CONFIG, do_cfg = 1; 
-			continue;
-		}
-		/* Convert command line rule #. */
-		frule = lrule = strtoul(av[0], &endptr, 10);
-		if (*endptr == '-')
-			lrule = strtoul(endptr+1, &endptr, 10);
-		if (lrule == 0)			
-			err(EX_USAGE, "invalid rule number: %s", av[0]);
-		do_rule = 1;
-	}
-
-	nbytes = nalloc;
-	while (nbytes >= nalloc) {
-		nalloc = nalloc * 2;
-		nbytes = nalloc;
-		if ((data = realloc(data, nbytes)) == NULL)
-			err(EX_OSERR, "realloc");
-		if (do_cmd(cmd, data, (uintptr_t)&nbytes) < 0)
-			err(EX_OSERR, "getsockopt(IP_FW_GET_%s)",
-			    (cmd == IP_FW_NAT_GET_LOG) ? "LOG" : "CONFIG");
-	}
-	if (nbytes == 0)
-		exit(0);
-	if (do_cfg) {
-		nat_cnt = *((int *)data);
-		for (i = sizeof(nat_cnt); nat_cnt; nat_cnt--) {
-			n = (struct cfg_nat *)&data[i];
-			if (frule <= n->id && lrule >= n->id)
-				print_nat_config(&data[i]);
-			i += sizeof(struct cfg_nat);
-			for (redir_cnt = 0; redir_cnt < n->redir_cnt; redir_cnt++) {
-				e = (struct cfg_redir *)&data[i];
-				i += sizeof(struct cfg_redir) + e->spool_cnt * 
-				    sizeof(struct cfg_spool);
-			}
-		}
-	} else {
-		for (i = 0; 1; i += LIBALIAS_BUF_SIZE + sizeof(int)) {
-			p = &data[i];
-			if (p == data + nbytes)
-				break;
-			bcopy(p, &r, sizeof(int));
-			if (do_rule) {
-				if (!(frule <= r && lrule >= r))
-					continue;
-			}
-			printf("nat %u: %s\n", r, p+sizeof(int));
-		}
-	}
-}
-
-/*
- * Called with the arguments (excluding program name).
- * Returns 0 if successful, 1 if empty command, errx() in case of errors.
- */
-static int
-ipfw_main(int oldac, char **oldav)
-{
-	int ch, ac, save_ac;
-	const char *errstr;
-	char **av, **save_av;
-	int do_acct = 0;		/* Show packet/byte count */
-
-#define WHITESP		" \t\f\v\n\r"
-	if (oldac == 0)
-		return 1;
-	else if (oldac == 1) {
-		/*
-		 * If we are called with a single string, try to split it into
-		 * arguments for subsequent parsing.
-		 * But first, remove spaces after a ',', by copying the string
-		 * in-place.
-		 */
-		char *arg = oldav[0];	/* The string... */
-		int l = strlen(arg);
-		int copy = 0;		/* 1 if we need to copy, 0 otherwise */
-		int i, j;
-		for (i = j = 0; i < l; i++) {
-			if (arg[i] == '#')	/* comment marker */
-				break;
-			if (copy) {
-				arg[j++] = arg[i];
-				copy = !index("," WHITESP, arg[i]);
-			} else {
-				copy = !index(WHITESP, arg[i]);
-				if (copy)
-					arg[j++] = arg[i];
-			}
-		}
-		if (!copy && j > 0)	/* last char was a 'blank', remove it */
-			j--;
-		l = j;			/* the new argument length */
-		arg[j++] = '\0';
-		if (l == 0)		/* empty string! */
-			return 1;
-
-		/*
-		 * First, count number of arguments. Because of the previous
-		 * processing, this is just the number of blanks plus 1.
-		 */
-		for (i = 0, ac = 1; i < l; i++)
-			if (index(WHITESP, arg[i]) != NULL)
-				ac++;
-
-		av = calloc(ac, sizeof(char *));
-
-		/*
-		 * Second, copy arguments from cmd[] to av[]. For each one,
-		 * j is the initial character, i is the one past the end.
-		 */
-		for (ac = 0, i = j = 0; i < l; i++)
-			if (index(WHITESP, arg[i]) != NULL || i == l-1) {
-				if (i == l-1)
-					i++;
-				av[ac] = calloc(i-j+1, 1);
-				bcopy(arg+j, av[ac], i-j);
-				ac++;
-				j = i + 1;
-			}
-	} else {
-		/*
-		 * If an argument ends with ',' join with the next one.
-		 */
-		int first, i, l;
-
-		av = calloc(oldac, sizeof(char *));
-		for (first = i = ac = 0, l = 0; i < oldac; i++) {
-			char *arg = oldav[i];
-			int k = strlen(arg);
-
-			l += k;
-			if (arg[k-1] != ',' || i == oldac-1) {
-				/* Time to copy. */
-				av[ac] = calloc(l+1, 1);
-				for (l=0; first <= i; first++) {
-					strcat(av[ac]+l, oldav[first]);
-					l += strlen(oldav[first]);
-				}
-				ac++;
-				l = 0;
-				first = i+1;
-			}
-		}
-	}
-
-	/* Set the force flag for non-interactive processes */
-	if (!do_force)
-		do_force = !isatty(STDIN_FILENO);
-
-	/* Save arguments for final freeing of memory. */
-	save_ac = ac;
-	save_av = av;
-
-	optind = optreset = 0;
-	while ((ch = getopt(ac, av, "abcdefhinNqs:STtv")) != -1)
-		switch (ch) {
-		case 'a':
-			do_acct = 1;
-			break;
-
-		case 'b':
-			comment_only = 1;
-			do_compact = 1;
-			break;
-
-		case 'c':
-			do_compact = 1;
-			break;
-
-		case 'd':
-			do_dynamic = 1;
-			break;
-
-		case 'e':
-			do_expired = 1;
-			break;
-
-		case 'f':
-			do_force = 1;
-			break;
-
-		case 'h': /* help */
-			free_args(save_ac, save_av);
-			help();
-			break;	/* NOTREACHED */
-
-		case 'i':
-			do_value_as_ip = 1;
-			break;
-
-		case 'n':
-			test_only = 1;
-			break;
-
-		case 'N':
-			do_resolv = 1;
-			break;
-
-		case 'q':
-			do_quiet = 1;
-			break;
-
-		case 's': /* sort */
-			do_sort = atoi(optarg);
-			break;
-
-		case 'S':
-			show_sets = 1;
-			break;
-
-		case 't':
-			do_time = 1;
-			break;
-
-		case 'T':
-			do_time = 2;	/* numeric timestamp */
-			break;
-
-		case 'v': /* verbose */
-			verbose = 1;
-			break;
-
-		default:
-			free_args(save_ac, save_av);
-			return 1;
-		}
-
-	ac -= optind;
-	av += optind;
-	NEED1("bad arguments, for usage summary ``ipfw''");
-
-	/*
-	 * An undocumented behaviour of ipfw1 was to allow rule numbers first,
-	 * e.g. "100 add allow ..." instead of "add 100 allow ...".
-	 * In case, swap first and second argument to get the normal form.
-	 */
-	if (ac > 1 && isdigit(*av[0])) {
-		char *p = av[0];
-
-		av[0] = av[1];
-		av[1] = p;
-	}
-
-	/*
-	 * Optional: pipe, queue or nat.
-	 */
-	do_nat = 0;
-	do_pipe = 0;
-	if (!strncmp(*av, "nat", strlen(*av)))
- 	        do_nat = 1;
- 	else if (!strncmp(*av, "pipe", strlen(*av)))
-		do_pipe = 1;
-	else if (_substrcmp(*av, "queue") == 0)
-		do_pipe = 2;
-	else if (!strncmp(*av, "set", strlen(*av))) {
-		if (ac > 1 && isdigit(av[1][0])) {
-			use_set = strtonum(av[1], 0, RESVD_SET, &errstr);
-			if (errstr)
-				errx(EX_DATAERR,
-				    "invalid set number %s\n", av[1]);
-			ac -= 2; av += 2; use_set++;
-		}
-	}
-
-	if (do_pipe || do_nat) {
-		ac--;
-		av++;
-	}
-	NEED1("missing command");
-
-	/*
-	 * For pipes, queues and nats we normally say 'nat|pipe NN config'
-	 * but the code is easier to parse as 'nat|pipe config NN'
-	 * so we swap the two arguments.
-	 */
-	if ((do_pipe || do_nat) && ac > 1 && isdigit(*av[0])) {
-		char *p = av[0];
-
-		av[0] = av[1];
-		av[1] = p;
-	}
-
-	int try_next = 0;
-	if (use_set == 0) {
-		if (_substrcmp(*av, "add") == 0)
-			add(ac, av);
-		else if (do_nat && _substrcmp(*av, "show") == 0)
- 			show_nat(ac, av);
-		else if (do_pipe && _substrcmp(*av, "config") == 0)
-			config_pipe(ac, av);
-		else if (do_nat && _substrcmp(*av, "config") == 0)
- 			config_nat(ac, av);
-		else if (_substrcmp(*av, "set") == 0)
-			sets_handler(ac, av);
-		else if (_substrcmp(*av, "table") == 0)
-			table_handler(ac, av);
-		else if (_substrcmp(*av, "enable") == 0)
-			sysctl_handler(ac, av, 1);
-		else if (_substrcmp(*av, "disable") == 0)
-			sysctl_handler(ac, av, 0);
-		else
-			try_next = 1;
-	}
-
-	if (use_set || try_next) {
-		if (_substrcmp(*av, "delete") == 0)
-			delete(ac, av);
-		else if (_substrcmp(*av, "flush") == 0)
-			flush(do_force);
-		else if (_substrcmp(*av, "zero") == 0)
-			zero(ac, av, IP_FW_ZERO);
-		else if (_substrcmp(*av, "resetlog") == 0)
-			zero(ac, av, IP_FW_RESETLOG);
-		else if (_substrcmp(*av, "print") == 0 ||
-		         _substrcmp(*av, "list") == 0)
-			list(ac, av, do_acct);
-		else if (_substrcmp(*av, "show") == 0)
-			list(ac, av, 1 /* show counters */);
-		else
-			errx(EX_USAGE, "bad command `%s'", *av);
-	}
-
-	/* Free memory allocated in the argument parsing. */
-	free_args(save_ac, save_av);
-	return 0;
-}
-
-
-static void
-ipfw_readfile(int ac, char *av[])
-{
-#define MAX_ARGS	32
-	char	buf[BUFSIZ];
-	char	*cmd = NULL, *filename = av[ac-1];
-	int	c, lineno=0;
-	FILE	*f = NULL;
-	pid_t	preproc = 0;
-
-	filename = av[ac-1];
-
-	while ((c = getopt(ac, av, "cfNnp:qS")) != -1) {
-		switch(c) {
-		case 'c':
-			do_compact = 1;
-			break;
-
-		case 'f':
-			do_force = 1;
-			break;
-
-		case 'N':
-			do_resolv = 1;
-			break;
-
-		case 'n':
-			test_only = 1;
-			break;
-
-		case 'p':
-			cmd = optarg;
-			/*
-			 * Skip previous args and delete last one, so we
-			 * pass all but the last argument to the preprocessor
-			 * via av[optind-1]
-			 */
-			av += optind - 1;
-			ac -= optind - 1;
-			if (ac < 2)
-				errx(EX_USAGE, "no filename argument");
-			av[ac-1] = NULL;
-			fprintf(stderr, "command is %s\n", av[0]);
-			break;
-
-		case 'q':
-			do_quiet = 1;
-			break;
-
-		case 'S':
-			show_sets = 1;
-			break;
-
-		default:
-			errx(EX_USAGE, "bad arguments, for usage"
-			     " summary ``ipfw''");
-		}
-
-		if (cmd != NULL)
-			break;
-	}
-
-	if (cmd == NULL && ac != optind + 1) {
-		fprintf(stderr, "ac %d, optind %d\n", ac, optind);
-		errx(EX_USAGE, "extraneous filename arguments");
-	}
-
-	if ((f = fopen(filename, "r")) == NULL)
-		err(EX_UNAVAILABLE, "fopen: %s", filename);
-
-	if (cmd != NULL) {			/* pipe through preprocessor */
-		int pipedes[2];
-
-		if (pipe(pipedes) == -1)
-			err(EX_OSERR, "cannot create pipe");
-
-		preproc = fork();
-		if (preproc == -1)
-			err(EX_OSERR, "cannot fork");
-
-		if (preproc == 0) {
-			/*
-			 * Child, will run the preprocessor with the
-			 * file on stdin and the pipe on stdout.
-			 */
-			if (dup2(fileno(f), 0) == -1
-			    || dup2(pipedes[1], 1) == -1)
-				err(EX_OSERR, "dup2()");
-			fclose(f);
-			close(pipedes[1]);
-			close(pipedes[0]);
-			execvp(cmd, av);
-			err(EX_OSERR, "execvp(%s) failed", cmd);
-		} else { /* parent, will reopen f as the pipe */
-			fclose(f);
-			close(pipedes[1]);
-			if ((f = fdopen(pipedes[0], "r")) == NULL) {
-				int savederrno = errno;
-
-				(void)kill(preproc, SIGTERM);
-				errno = savederrno;
-				err(EX_OSERR, "fdopen()");
-			}
-		}
-	}
-
-	while (fgets(buf, BUFSIZ, f)) {		/* read commands */
-		char linename[10];
-		char *args[1];
-
-		lineno++;
-		sprintf(linename, "Line %d", lineno);
-		setprogname(linename); /* XXX */
-		args[0] = buf;
-		ipfw_main(1, args);
-	}
-	fclose(f);
-	if (cmd != NULL) {
-		int status;
-
-		if (waitpid(preproc, &status, 0) == -1)
-			errx(EX_OSERR, "waitpid()");
-		if (WIFEXITED(status) && WEXITSTATUS(status) != EX_OK)
-			errx(EX_UNAVAILABLE,
-			    "preprocessor exited with status %d",
-			    WEXITSTATUS(status));
-		else if (WIFSIGNALED(status))
-			errx(EX_UNAVAILABLE,
-			    "preprocessor exited with signal %d",
-			    WTERMSIG(status));
-	}
-}
-
-int
-main(int ac, char *av[])
-{
-	/*
-	 * If the last argument is an absolute pathname, interpret it
-	 * as a file to be preprocessed.
-	 */
-
-	if (ac > 1 && av[ac - 1][0] == '/' && access(av[ac - 1], R_OK) == 0)
-		ipfw_readfile(ac, av);
-	else {
-		if (ipfw_main(ac-1, av+1))
-			show_usage();
-	}
-	return EX_OK;
 }

@@ -239,7 +239,8 @@ aes_get_wcs(struct aes *aes)
 	if (aes->aes_set & AES_SET_UTF8) {
 		/* Try converting UTF8 to WCS. */
 		aes->aes_wcs = __archive_string_utf8_w(&(aes->aes_utf8));
-		aes->aes_set |= AES_SET_WCS;
+		if (aes->aes_wcs != NULL)
+			aes->aes_set |= AES_SET_WCS;
 		return (aes->aes_wcs);
 	}
 	return (NULL);

@@ -382,10 +382,6 @@ print_routing(char *proto)
 		rtm = (struct rt_msghdr *)next;
 		sa = (struct sockaddr *)(rtm + 1);
 		get_rtaddrs(rtm->rtm_addrs, sa, rti_info);
-		if (rtm->rtm_flags & RTF_WASCLONED) {
-			if ((rtm->rtm_flags & RTF_LLINFO) == 0)
-				continue;
-		}
 		if ((sa = rti_info[RTAX_DST]) != NULL) {
 			sprintf(fbuf, "%s", sock_ntop(sa, sa->sa_len));
 			if (((sa1 = rti_info[RTAX_NETMASK]) != NULL)

@@ -2981,8 +2981,8 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
     {
 	struct ccb_trans_settings	*cts = &ccb->cts;
 	int				bus, target;
-	struct ccb_trans_settings_spi *spi =
-	    &cts->xport_specific.spi;
+	struct ccb_trans_settings_spi *spi = &cts->xport_specific.spi;
+	struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
 
 	bus = cam_sim_bus(sim);
 	target = cts->ccb_h.target_id;
@@ -2996,6 +2996,9 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	spi->valid = CTS_SPI_VALID_DISC;
 	spi->flags = CTS_SPI_FLAGS_DISC_ENB;
+
+	scsi->valid = CTS_SCSI_VALID_TQ;
+	scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
 
 	cts->ccb_h.status = CAM_REQ_CMP;
 	break;

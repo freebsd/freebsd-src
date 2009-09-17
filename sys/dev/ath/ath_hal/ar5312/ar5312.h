@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5312.h,v 1.5 2008/11/22 07:37:40 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _ATH_AR5312_H_
 #define _ATH_AR5312_H_
@@ -38,8 +38,6 @@
 	 AH_PRIVATE(ah)->ah_devid == AR5212_AR2317_REV1 || \
 	 AH_PRIVATE(ah)->ah_devid == AR5212_AR2317_REV2)
 
-extern	struct ath_hal * ar5312Attach(uint16_t devid, HAL_SOFTC sc,
-				      HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status);
 extern  HAL_BOOL ar5312IsInterruptPending(struct ath_hal *ah);
 
 /* AR5312 */
@@ -62,8 +60,10 @@ extern  void ar5312SetupClock(struct ath_hal *ah, HAL_OPMODE opmode);
 extern  void ar5312RestoreClock(struct ath_hal *ah, HAL_OPMODE opmode);
 extern  void ar5312DumpState(struct ath_hal *ah);
 extern  HAL_BOOL ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
-              HAL_CHANNEL *chan, HAL_BOOL bChannelChange, HAL_STATUS *status);
-extern  HAL_BOOL ar5312ChipReset(struct ath_hal *ah, HAL_CHANNEL *chan);
+              struct ieee80211_channel *chan,
+	      HAL_BOOL bChannelChange, HAL_STATUS *status);
+extern  HAL_BOOL ar5312ChipReset(struct ath_hal *ah,
+	      struct ieee80211_channel *chan);
 extern  HAL_BOOL ar5312SetPowerMode(struct ath_hal *ah, HAL_POWER_MODE mode,
                                     int setChip);
 extern  HAL_BOOL ar5312PhyDisable(struct ath_hal *ah);

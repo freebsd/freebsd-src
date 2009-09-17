@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2007-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,65 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
-#define	IEEE80211_MSG_BITS \
-	"\20\3IOCTL\4WDS\5ACTION\6RATECTL\7ROAM\10INACT\11DOTH\12SUPERG" \
-	"\13WME\14ACL\15WPA\16RADKEYS\17RADDUMP\20RADIUS\21DOT1X\22POWER" \
-	"\23STATE\24OUTPUT\25SCAN\26AUTH\27ASSOC\30NODE\31ELEMID\32XRATE" \
-	"\33INPUT\34CRYPTO\35DUPMPKTS\36DEBUG\3711N"
-
-#define	IEEE80211_F_BITS \
-	"\20\1TURBOP\2COMP\3FF\4BURST\5PRIVACY\6PUREG\10SCAN\11ASCAN\12SIBSS" \
-	"\13SHSLOT\14PMGTON\15DESBSSID\16WME\17BGSCAN\20SWRETRY\21TXPOW_FIXED" \
-	"\22IBSSON\23SHPREAMBLE\24DATAPAD\25USEPROT\26USERBARKER\27CSAPENDING" \
-	"\30WPA1\31WPA2\32DROPUNENC\33COUNTERM\34HIDESSID\35NOBRIDG\36PCF" \
-	"\37DOTH\40DWDS"
-
-#define	IEEE80211_FEXT_BITS \
-	"\20\1NONHT_PR\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
-	"\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\22WDSLEGACY\23PROBECHAN\24HT" \
-	"\25AMDPU_TX\26AMPDU_TX\27AMSDU_TX\30AMSDU_RX\31USEHT40\32PUREN" \
-	"\33SHORTGI20\34SHORTGI40\35HTCOMPAT\36RIFS"
-
-#define	IEEE80211_FVEN_BITS	"\20"
-
-#define	IEEE80211_C_BITS \
-	"\20\1STA\7FF\10TURBOP\11IBSS\12PMGT" \
-	"\13HOSTAP\14AHDEMO\15SWRETRY\16TXPMGT\17SHSLOT\20SHPREAMBLE" \
-	"\21MONITOR\22DFS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
-	"\37TXFRAG"
-
-#define	IEEE80211_C_CRYPTO_BITS \
-	"\20\1WEP\2TKIP\3AES\4AES_CCM\5TKIPMIC\6CKIP\12PMGT"
-
-#define	IEEE80211_C_HTCAP_BITS \
-	"\20\1LDPC\2CHWIDTH40\5GREENFIELD\6SHORTGI20\7SHORTGI40\10TXSTBC" \
-	"\21AMPDU\22AMSDU\23HT\24SMPS\25RIFS"
-
-/* NB: policy bits not included */
-#define	IEEE80211_CHAN_BITS \
-	"\20\5TURBO\6CCK\7OFDM\0102GHZ\0115GHZ\12PASSIVE\13DYN\14GFSK" \
-	"\15STURBO\16HALF\17QUARTER\20HT20\21HT40U\22HT40D\23DFS"
-
-#define	IEEE80211_NODE_BITS \
-	"\20\1AUTH\2QOS\3ERP\5PWR_MGT\6AREF\7HT\10HTCOMPAT\11WPS\12TSN" \
-	"\13AMPDU_RX\14AMPDU_TX\15MIMO_PS\16MIMO_RTS\17RIFS\20SGI20\21SGI40"
-
-#define	IEEE80211_ERP_BITS \
-	"\20\1NON_ERP_PRESENT\2USE_PROTECTION\3LONG_PREAMBLE"
-
-#define	IEEE80211_CAPINFO_BITS \
-	"\20\1ESS\2IBSS\3CF_POLLABLE\4CF_POLLREQ\5PRIVACY\6SHORT_PREAMBLE" \
-	"\7PBCC\10CHNL_AGILITY\11SPECTRUM_MGMT\13SHORT_SLOTTIME\14RSN" \
-	"\16DSSOFDM"
-
-#define	IEEE80211_HTCAP_BITS \
-	"\20\1LDPC\2CHWIDTH40\5GREENFIELD\6SHORTGI20\7SHORTGI40\10TXSTBC" \
-	"\13DELBA\14AMSDU(7935)\15DSSSCCK40\16PSMP\1740INTOLERANT" \
-	"\20LSIGTXOPPROT"
-
-#define	IEEE80211_AGGR_BITS \
-	"\20\1IMMEDIATE\2XCHGPEND\3RUNNING\4SETUP\5NAK"
-
 #define DB_PRINTSYM(prefix, addr) \
 	db_printf(prefix " "); \
 	db_printsym((db_addr_t) addr, DB_STGY_ANY); \
@@ -120,6 +61,8 @@ static void _db_show_vap(const struct ieee80211vap *, int);
 static void _db_show_com(const struct ieee80211com *,
 	int showvaps, int showsta, int showprocs);
 
+static void _db_show_node_table(const char *tag,
+	const struct ieee80211_node_table *);
 static void _db_show_channel(const char *tag, const struct ieee80211_channel *);
 static void _db_show_ssid(const char *tag, int ix, int len, const uint8_t *);
 static void _db_show_appie(const char *tag, const struct ieee80211_appie *);
@@ -137,6 +80,15 @@ DB_SHOW_COMMAND(sta, db_show_sta)
 		return;
 	}
 	_db_show_sta((const struct ieee80211_node *) addr);
+}
+
+DB_SHOW_COMMAND(statab, db_show_statab)
+{
+	if (!have_addr) {
+		db_printf("usage: show statab <addr>\n");
+		return;
+	}
+	_db_show_node_table("", (const struct ieee80211_node_table *) addr);
 }
 
 DB_SHOW_COMMAND(vap, db_show_vap)
@@ -278,6 +230,7 @@ _db_show_sta(const struct ieee80211_node *ni)
 		ni->ni_rxfragstamp);
 	db_printf("\trxfrag[0] %p rxfrag[1] %p rxfrag[2] %p\n",
 		ni->ni_rxfrag[0], ni->ni_rxfrag[1], ni->ni_rxfrag[2]);
+	_db_show_key("\tucastkey", 0, &ni->ni_ucastkey);
 	db_printf("\trstamp %u avgrssi 0x%x (rssi %d) noise %d\n",
 		ni->ni_rstamp, ni->ni_avgrssi,
 		IEEE80211_RSSI_GET(ni->ni_avgrssi), ni->ni_noise);
@@ -485,7 +438,6 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf("\tifp %p", ic->ic_ifp);
 	db_printf(" comlock %p", &ic->ic_comlock);
 	db_printf("\n");
-	_db_show_stats(&ic->ic_stats);
 	db_printf("\theadroom %d", ic->ic_headroom);
 	db_printf(" phytype %d", ic->ic_phytype);
 	db_printf(" opmode %s", ieee80211_opmode_name[ic->ic_opmode]);
@@ -500,7 +452,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf("\tflags_ven=%b\n", ic->ic_flags_ven, IEEE80211_FVEN_BITS);
 	db_printf("\tcaps=%b\n", ic->ic_caps, IEEE80211_C_BITS);
 	db_printf("\tcryptocaps=%b\n",
-	    ic->ic_cryptocaps, IEEE80211_C_CRYPTO_BITS);
+	    ic->ic_cryptocaps, IEEE80211_CRYPTO_BITS);
 	db_printf("\thtcaps=%b\n", ic->ic_htcaps, IEEE80211_HTCAP_BITS);
 
 #if 0
@@ -541,7 +493,7 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	 */
 	db_printf("\tnchans %d", ic->ic_nchans);
 #if 0
-	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX+1];
+	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX];
 	uint8_t			ic_chan_avail[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_active[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_scan[IEEE80211_CHAN_BYTES];
@@ -567,9 +519,12 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 	db_printf("\n");
 
 	db_printf("\tmax_keyix %d", ic->ic_max_keyix);
-	db_printf(" sta %p", &ic->ic_sta);
 	db_printf(" wme %p", &ic->ic_wme);
+	if (!showsta)
+		db_printf(" sta %p", &ic->ic_sta);
 	db_printf("\n");
+	if (showsta)
+		_db_show_node_table("\t", &ic->ic_sta);
 
 	db_printf("\tprotmode %d", ic->ic_protmode);
 	db_printf(" nonerpsta %u", ic->ic_nonerpsta);
@@ -634,6 +589,26 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta, int showp
 }
 
 static void
+_db_show_node_table(const char *tag, const struct ieee80211_node_table *nt)
+{
+	int i;
+
+	db_printf("%s%s@%p:\n", tag, nt->nt_name, nt);
+	db_printf("%s  nodelock %p", tag, &nt->nt_nodelock);
+	db_printf(" inact_init %d", nt->nt_inact_init);
+	db_printf(" scanlock %p", &nt->nt_scanlock);
+	db_printf(" scangen %u\n", nt->nt_scangen);
+	db_printf("%s  keyixmax %d keyixmap %p\n",
+	    tag, nt->nt_keyixmax, nt->nt_keyixmap);
+	for (i = 0; i < nt->nt_keyixmax; i++) {
+		const struct ieee80211_node *ni = nt->nt_keyixmap[i];
+		if (ni != NULL)
+			db_printf("%s  [%3u] %p %s\n", tag, i, ni,
+			    ether_sprintf(ni->ni_macaddr));
+	}
+}
+
+static void
 _db_show_channel(const char *tag, const struct ieee80211_channel *c)
 {
 	db_printf("%s ", tag);
@@ -642,7 +617,7 @@ _db_show_channel(const char *tag, const struct ieee80211_channel *c)
 	else if (c == IEEE80211_CHAN_ANYC)
 		db_printf("<ANY>");
 	else
-		db_printf("[%u (%u) flags=%b maxreg %u maxpow %u minpow %u state 0x%x extieee %u]",
+		db_printf("[%u (%u) flags=%b maxreg %d maxpow %d minpow %d state 0x%x extieee %u]",
 		    c->ic_freq, c->ic_ieee,
 		    c->ic_flags, IEEE80211_CHAN_BITS,
 		    c->ic_maxregpower, c->ic_maxpower, c->ic_minpower,
@@ -697,8 +672,6 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 	const struct ieee80211_cipher *cip = wk->wk_cipher;
 	int keylen = wk->wk_keylen;
 
-	if ((wk->wk_flags & IEEE80211_KEY_DEVKEY) == 0)
-		return;
 	db_printf(tag, ix);
 	switch (cip->ic_cipher) {
 	case IEEE80211_CIPHER_WEP:
@@ -729,6 +702,8 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 			cip->ic_cipher, wk->wk_keyix, 8*keylen);
 		break;
 	}
+	if (wk->wk_rxkeyix != wk->wk_keyix)
+		db_printf(" rxkeyix %u", wk->wk_rxkeyix);
 	if (memcmp(wk->wk_key, zerodata, keylen) != 0) {
 		int i;
 
@@ -742,22 +717,9 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 		if (cip->ic_cipher != IEEE80211_CIPHER_WEP &&
 		    wk->wk_keytsc != 0)
 			db_printf(" tsc %ju", (uintmax_t)wk->wk_keytsc);
-		if (wk->wk_flags != 0) {
-			const char *sep = " ";
-
-			if (wk->wk_flags & IEEE80211_KEY_XMIT)
-				db_printf("%stx", sep), sep = "+";
-			if (wk->wk_flags & IEEE80211_KEY_RECV)
-				db_printf("%srx", sep), sep = "+";
-			if (wk->wk_flags & IEEE80211_KEY_DEFAULT)
-				db_printf("%sdef", sep), sep = "+";
-			if (wk->wk_flags & IEEE80211_KEY_SWCRYPT)
-				db_printf("%sswcrypt", sep), sep = "+";
-			if (wk->wk_flags & IEEE80211_KEY_SWMIC)
-				db_printf("%sswmic", sep), sep = "+";
-		}
-		db_printf("\n");
+		db_printf(" flags=%b", wk->wk_flags, IEEE80211_KEY_BITS);
 	}
+	db_printf("\n");
 }
 
 static void

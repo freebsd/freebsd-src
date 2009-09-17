@@ -30,10 +30,10 @@
 #include "wpa_ctrl.h"
 #include "eap.h"
 
-#define DBUS_VERSION (DBUS_VERSION_MAJOR << 8 | DBUS_VERSION_MINOR)
+#define _DBUS_VERSION (DBUS_VERSION_MAJOR << 8 | DBUS_VERSION_MINOR)
 #define DBUS_VER(major, minor) ((major) << 8 | (minor))
 
-#if DBUS_VERSION < DBUS_VER(1,1)
+#if _DBUS_VERSION < DBUS_VER(1,1)
 #define dbus_watch_get_unix_fd dbus_watch_get_fd
 #endif
 

@@ -334,12 +334,22 @@ pmap_bootstrap(vm_offset_t ekva)
 
 	/*
 	 * Calculate the size of kernel virtual memory, and the size and mask
-	 * for the kernel TSB.
+	 * for the kernel TSB based on the phsyical memory size but limited
+	 * by letting the kernel TSB take up no more than half of the dTLB
+	 * slots available for locked entries.
 	 */
 	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
+	virtsz = MIN(virtsz,
+	    (dtlb_slots / 2 * PAGE_SIZE_4M) << (PAGE_SHIFT - TTE_SHIFT));
 	vm_max_kernel_address = VM_MIN_KERNEL_ADDRESS + virtsz;
 	tsb_kernel_size = virtsz >> (PAGE_SHIFT - TTE_SHIFT);
 	tsb_kernel_mask = (tsb_kernel_size >> TTE_SHIFT) - 1;
+
+	if (kernel_tlb_slots + PCPU_PAGES + tsb_kernel_size / PAGE_SIZE_4M +
+	    1 /* PROM page */ + 1 /* spare */ > dtlb_slots)
+		panic("pmap_bootstrap: insufficient dTLB entries");
+	if (kernel_tlb_slots + 1 /* PROM page */ + 1 /* spare */ > itlb_slots)
+		panic("pmap_bootstrap: insufficient iTLB entries");
 
 	/*
 	 * Allocate the kernel TSB and lock it in the TLB.

@@ -74,7 +74,6 @@ static char *disk;
 static int cyls, sectors, heads, cylsecs, disksecs;
 
 struct mboot {
-	unsigned char padding[2]; /* force the longs to be long aligned */
 	unsigned char *bootinst;  /* boot code */
 	off_t bootinst_size;
 	struct	dos_partition parts[NDOSPART];
@@ -123,102 +122,113 @@ static char *f_flag = NULL;	/* Read config info from file */
 static int v_flag  = 0;		/* Be verbose */
 static int print_config_flag = 0;
 
-static struct part_type
-{
-	unsigned char type;
-	const char *name;
-} part_types[] = {
-	 {0x00, "unused"}
-	,{0x01, "Primary DOS with 12 bit FAT"}
-	,{0x02, "XENIX / file system"}
-	,{0x03, "XENIX /usr file system"}
-	,{0x04, "Primary DOS with 16 bit FAT (< 32MB)"}
-	,{0x05, "Extended DOS"}
-	,{0x06, "Primary 'big' DOS (>= 32MB)"}
-	,{0x07, "OS/2 HPFS, NTFS, QNX-2 (16 bit) or Advanced UNIX"}
-	,{0x08, "AIX file system or SplitDrive"}
-	,{0x09, "AIX boot partition or Coherent"}
-	,{0x0A, "OS/2 Boot Manager, OPUS or Coherent swap"}
-	,{0x0B, "DOS or Windows 95 with 32 bit FAT"}
-	,{0x0C, "DOS or Windows 95 with 32 bit FAT (LBA)"}
-	,{0x0E, "Primary 'big' DOS (>= 32MB, LBA)"}
-	,{0x0F, "Extended DOS (LBA)"}
-	,{0x10, "OPUS"}
-	,{0x11, "OS/2 BM: hidden DOS with 12-bit FAT"}
-	,{0x12, "Compaq diagnostics"}
-	,{0x14, "OS/2 BM: hidden DOS with 16-bit FAT (< 32MB)"}
-	,{0x16, "OS/2 BM: hidden DOS with 16-bit FAT (>= 32MB)"}
-	,{0x17, "OS/2 BM: hidden IFS (e.g. HPFS)"}
-	,{0x18, "AST Windows swapfile"}
-	,{0x24, "NEC DOS"}
-	,{0x3C, "PartitionMagic recovery"}
-	,{0x39, "plan9"}
-	,{0x40, "VENIX 286"}
-	,{0x41, "Linux/MINIX (sharing disk with DRDOS)"}
-	,{0x42, "SFS or Linux swap (sharing disk with DRDOS)"}
-	,{0x43, "Linux native (sharing disk with DRDOS)"}
-	,{0x4D, "QNX 4.2 Primary"}
-	,{0x4E, "QNX 4.2 Secondary"}
-	,{0x4F, "QNX 4.2 Tertiary"}
-	,{0x50, "DM (disk manager)"}
-	,{0x51, "DM6 Aux1 (or Novell)"}
-	,{0x52, "CP/M or Microport SysV/AT"}
-	,{0x53, "DM6 Aux3"}
-	,{0x54, "DM6"}
-	,{0x55, "EZ-Drive (disk manager)"}
-	,{0x56, "Golden Bow (disk manager)"}
-	,{0x5c, "Priam Edisk (disk manager)"} /* according to S. Widlake */
-	,{0x61, "SpeedStor"}
-	,{0x63, "System V/386 (such as ISC UNIX), GNU HURD or Mach"}
-	,{0x64, "Novell Netware/286 2.xx"}
-	,{0x65, "Novell Netware/386 3.xx"}
-	,{0x70, "DiskSecure Multi-Boot"}
-	,{0x75, "PCIX"}
-	,{0x77, "QNX4.x"}
-	,{0x78, "QNX4.x 2nd part"}
-	,{0x79, "QNX4.x 3rd part"}
-	,{0x80, "Minix until 1.4a"}
-	,{0x81, "Minix since 1.4b, early Linux partition or Mitac disk manager"}
-	,{0x82, "Linux swap or Solaris x86"}
-	,{0x83, "Linux native"}
-	,{0x84, "OS/2 hidden C: drive"}
-	,{0x85, "Linux extended"}
-	,{0x86, "NTFS volume set??"}
-	,{0x87, "NTFS volume set??"}
-	,{0x93, "Amoeba file system"}
-	,{0x94, "Amoeba bad block table"}
-	,{0x9F, "BSD/OS"}
-	,{0xA0, "Suspend to Disk"}
-	,{0xA5, "FreeBSD/NetBSD/386BSD"}
-	,{0xA6, "OpenBSD"}
-	,{0xA7, "NeXTSTEP"}
-	,{0xA9, "NetBSD"}
-	,{0xAC, "IBM JFS"}
-	,{0xAF, "HFS+"}
-	,{0xB7, "BSDI BSD/386 file system"}
-	,{0xB8, "BSDI BSD/386 swap"}
-	,{0xBE, "Solaris x86 boot"}
-	,{0xBF, "Solaris x86 (new)"}
-	,{0xC1, "DRDOS/sec with 12-bit FAT"}
-	,{0xC4, "DRDOS/sec with 16-bit FAT (< 32MB)"}
-	,{0xC6, "DRDOS/sec with 16-bit FAT (>= 32MB)"}
-	,{0xC7, "Syrinx"}
-	,{0xDB, "CP/M, Concurrent CP/M, Concurrent DOS or CTOS"}
-	,{0xE1, "DOS access or SpeedStor with 12-bit FAT extended partition"}
-	,{0xE3, "DOS R/O or SpeedStor"}
-	,{0xE4, "SpeedStor with 16-bit FAT extended partition < 1024 cyl."}
-	,{0xEB, "BeOS file system"}
-	,{0xEE, "EFI GPT"}
-	,{0xEF, "EFI System Partition"}
-	,{0xF1, "SpeedStor"}
-	,{0xF2, "DOS 3.3+ Secondary"}
-	,{0xF4, "SpeedStor large partition"}
-	,{0xFE, "SpeedStor >1024 cyl. or LANstep"}
-	,{0xFF, "Xenix bad blocks table"}
+/*
+ * A list of partition types, probably outdated.
+ */
+static const char *const part_types[256] = {
+	[0x00] = "unused",
+	[0x01] = "Primary DOS with 12 bit FAT",
+	[0x02] = "XENIX / file system",
+	[0x03] = "XENIX /usr file system",
+	[0x04] = "Primary DOS with 16 bit FAT (< 32MB)",
+	[0x05] = "Extended DOS",
+	[0x06] = "Primary DOS, 16 bit FAT (>= 32MB)",
+	[0x07] = "NTFS, OS/2 HPFS, QNX-2 (16 bit) or Advanced UNIX",
+	[0x08] = "AIX file system or SplitDrive",
+	[0x09] = "AIX boot partition or Coherent",
+	[0x0A] = "OS/2 Boot Manager, OPUS or Coherent swap",
+	[0x0B] = "DOS or Windows 95 with 32 bit FAT",
+	[0x0C] = "DOS or Windows 95 with 32 bit FAT (LBA)",
+	[0x0E] = "Primary 'big' DOS (>= 32MB, LBA)",
+	[0x0F] = "Extended DOS (LBA)",
+	[0x10] = "OPUS",
+	[0x11] = "OS/2 BM: hidden DOS with 12-bit FAT",
+	[0x12] = "Compaq diagnostics",
+	[0x14] = "OS/2 BM: hidden DOS with 16-bit FAT (< 32MB)",
+	[0x16] = "OS/2 BM: hidden DOS with 16-bit FAT (>= 32MB)",
+	[0x17] = "OS/2 BM: hidden IFS (e.g. HPFS)",
+	[0x18] = "AST Windows swapfile",
+	[0x1b] = "ASUS Recovery partition (NTFS)",
+	[0x24] = "NEC DOS",
+	[0x3C] = "PartitionMagic recovery",
+	[0x39] = "plan9",
+	[0x40] = "VENIX 286",
+	[0x41] = "Linux/MINIX (sharing disk with DRDOS)",
+	[0x42] = "SFS or Linux swap (sharing disk with DRDOS)",
+	[0x43] = "Linux native (sharing disk with DRDOS)",
+	[0x4D] = "QNX 4.2 Primary",
+	[0x4E] = "QNX 4.2 Secondary",
+	[0x4F] = "QNX 4.2 Tertiary",
+	[0x50] = "DM (disk manager)",
+	[0x51] = "DM6 Aux1 (or Novell)",
+	[0x52] = "CP/M or Microport SysV/AT",
+	[0x53] = "DM6 Aux3",
+	[0x54] = "DM6",
+	[0x55] = "EZ-Drive (disk manager)",
+	[0x56] = "Golden Bow (disk manager)",
+	[0x5c] = "Priam Edisk (disk manager)", /* according to S. Widlake */
+	[0x61] = "SpeedStor",
+	[0x63] = "System V/386 (such as ISC UNIX), GNU HURD or Mach",
+	[0x64] = "Novell Netware/286 2.xx",
+	[0x65] = "Novell Netware/386 3.xx",
+	[0x70] = "DiskSecure Multi-Boot",
+	[0x75] = "PCIX",
+	[0x77] = "QNX4.x",
+	[0x78] = "QNX4.x 2nd part",
+	[0x79] = "QNX4.x 3rd part",
+	[0x80] = "Minix until 1.4a",
+	[0x81] = "Minix since 1.4b, early Linux partition or Mitac disk manager",
+	[0x82] = "Linux swap or Solaris x86",
+	[0x83] = "Linux native",
+	[0x84] = "OS/2 hidden C: drive",
+	[0x85] = "Linux extended",
+	[0x86] = "NTFS volume set??",
+	[0x87] = "NTFS volume set??",
+	[0x93] = "Amoeba file system",
+	[0x94] = "Amoeba bad block table",
+	[0x9F] = "BSD/OS",
+	[0xA0] = "Suspend to Disk",
+	[0xA5] = "FreeBSD/NetBSD/386BSD",
+	[0xA6] = "OpenBSD",
+	[0xA7] = "NeXTSTEP",
+	[0xA9] = "NetBSD",
+	[0xAC] = "IBM JFS",
+	[0xAF] = "HFS+",
+	[0xB7] = "BSDI BSD/386 file system",
+	[0xB8] = "BSDI BSD/386 swap",
+	[0xBE] = "Solaris x86 boot",
+	[0xBF] = "Solaris x86 (new)",
+	[0xC1] = "DRDOS/sec with 12-bit FAT",
+	[0xC4] = "DRDOS/sec with 16-bit FAT (< 32MB)",
+	[0xC6] = "DRDOS/sec with 16-bit FAT (>= 32MB)",
+	[0xC7] = "Syrinx",
+	[0xDB] = "CP/M, Concurrent CP/M, Concurrent DOS or CTOS",
+	[0xDE] = "DELL Utilities - FAT filesystem",
+	[0xE1] = "DOS access or SpeedStor with 12-bit FAT extended partition",
+	[0xE3] = "DOS R/O or SpeedStor",
+	[0xE4] = "SpeedStor with 16-bit FAT extended partition < 1024 cyl.",
+	[0xEB] = "BeOS file system",
+	[0xEE] = "EFI GPT",
+	[0xEF] = "EFI System Partition",
+	[0xF1] = "SpeedStor",
+	[0xF2] = "DOS 3.3+ Secondary",
+	[0xF4] = "SpeedStor large partition",
+	[0xFE] = "SpeedStor >1024 cyl. or LANstep",
+	[0xFF] = "Xenix bad blocks table",
 };
 
-static void print_s0(int which);
-static void print_part(int i);
+static const char *
+get_type(int t)
+{
+	const char *ret;
+
+	ret = (t >= 0 && t <= 255) ? part_types[t] : NULL;
+	return ret ? ret : "unknown";
+}
+
+
+static void print_s0(void);
+static void print_part(const struct dos_partition *);
 static void init_sector0(unsigned long start);
 static void init_boot(void);
 static void change_part(int i);
@@ -236,7 +246,6 @@ static int read_s0(void);
 static int write_s0(void);
 static int ok(const char *str);
 static int decimal(const char *str, int *num, int deflt);
-static const char *get_type(int type);
 static int read_config(char *config_file);
 static void reset_boot(void);
 static int sanitize_partition(struct dos_partition *);
@@ -308,7 +317,7 @@ main(int argc, char *argv[])
 	} else {
 		disk = g_device_path(argv[0]);
 		if (disk == NULL)
-			err(1, "unable to get correct path for %s\n", argv[0]);
+			err(1, "unable to get correct path for %s", argv[0]);
 	}
 	if (open_disk(u_flag) < 0)
 		err(1, "cannot open disk %s", disk);
@@ -329,7 +338,7 @@ main(int argc, char *argv[])
 		printf("g c%d h%d s%d\n", dos_cyls, dos_heads, dos_sectors);
 
 		for (i = 0; i < NDOSPART; i++) {
-			partp = ((struct dos_partition *)&mboot.parts) + i;
+			partp = &mboot.parts[i];
 
 			if (partp->dp_start == 0 && partp->dp_size == 0)
 				continue;
@@ -350,7 +359,7 @@ main(int argc, char *argv[])
 		    dos_sectors);
 		printf("Part  %11s %11s Type Flags\n", "Start", "Size");
 		for (i = 0; i < NDOSPART; i++) {
-			partp = ((struct dos_partition *) &mboot.parts) + i;
+			partp = &mboot.parts[i];
 			if (partp->dp_start == 0 && partp->dp_size == 0)
 				continue;
 			printf("%4d: %11lu %11lu 0x%02x 0x%02x\n", i + 1,
@@ -366,7 +375,7 @@ main(int argc, char *argv[])
 	if (I_flag) {
 		read_s0();
 		reset_boot();
-		partp = (struct dos_partition *) (&mboot.parts[0]);
+		partp = &mboot.parts[0];
 		partp->dp_typ = DOSPTYP_386BSD;
 		partp->dp_flag = ACTIVE;
 		partp->dp_start = dos_sectors;
@@ -374,7 +383,7 @@ main(int argc, char *argv[])
 		    dos_sectors;
 		dos(partp);
 		if (v_flag)
-			print_s0(-1);
+			print_s0();
 		if (!t_flag)
 			write_s0();
 		exit(0);
@@ -385,7 +394,7 @@ main(int argc, char *argv[])
 	    if (!read_config(f_flag))
 		exit(1);
 	    if (v_flag)
-		print_s0(-1);
+		print_s0();
 	    if (!t_flag)
 		write_s0();
 	} else {
@@ -417,7 +426,7 @@ main(int argc, char *argv[])
 		    printf("\nWe haven't changed the partition table yet.  ");
 		    printf("This is your last chance.\n");
 		}
-		print_s0(-1);
+		print_s0();
 		if (!t_flag) {
 		    if (ok("Should we write new partition table?"))
 			write_s0();
@@ -440,28 +449,24 @@ usage()
 }
 
 static void
-print_s0(int which)
+print_s0(void)
 {
 	int	i;
 
 	print_params();
 	printf("Information from DOS bootblock is:\n");
-	if (which == -1)
-		for (i = 1; i <= NDOSPART; i++)
-			printf("%d: ", i), print_part(i);
-	else
-		print_part(which);
+	for (i = 1; i <= NDOSPART; i++) {
+		printf("%d: ", i);
+		print_part(&mboot.parts[i - 1]);
+	}
 }
 
 static struct dos_partition mtpart;
 
 static void
-print_part(int i)
+print_part(const struct dos_partition *partp)
 {
-	struct	  dos_partition *partp;
 	u_int64_t part_mb;
-
-	partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 
 	if (!bcmp(partp, &mtpart, sizeof (struct dos_partition))) {
 		printf("<UNUSED>\n");
@@ -529,7 +534,7 @@ init_boot(void)
 static void
 init_sector0(unsigned long start)
 {
-	struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[0]);
+	struct dos_partition *partp = &mboot.parts[0];
 
 	init_boot();
 
@@ -547,21 +552,21 @@ init_sector0(unsigned long start)
 static void
 change_part(int i)
 {
-	struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
+    struct dos_partition *partp = &mboot.parts[i - 1];
 
     printf("The data for partition %d is:\n", i);
-    print_part(i);
+    print_part(partp);
 
     if (u_flag && ok("Do you want to change it?")) {
 	int tmp;
 
 	if (i_flag) {
-		bzero((char *)partp, sizeof (struct dos_partition));
-		if (i == 1) {
-			init_sector0(1);
-			printf("\nThe static data for the slice 1 has been reinitialized to:\n");
-			print_part(i);
-		}
+	    bzero(partp, sizeof (*partp));
+	    if (i == 1) {
+		init_sector0(1);
+		printf("\nThe static data for the slice 1 has been reinitialized to:\n");
+		print_part(partp);
+	    }
 	}
 
 	do {
@@ -598,7 +603,7 @@ change_part(int i)
 		} else
 			dos(partp);
 
-		print_part(i);
+		print_part(partp);
 	} while (!ok("Are we happy with this entry?"));
     }
 }
@@ -873,7 +878,7 @@ write_s0()
 	int	sector, i;
 
 	if (iotest) {
-		print_s0(-1);
+		print_s0();
 		return 0;
 	}
 	for(i = 0; i < NDOSPART; i++)
@@ -943,23 +948,6 @@ decimal(const char *str, int *num, int deflt)
 				lbuf);
 	}
 
-}
-
-static const char *
-get_type(int type)
-{
-	int	numentries = (sizeof(part_types)/sizeof(struct part_type));
-	int	counter = 0;
-	struct	part_type *ptr = part_types;
-
-
-	while(counter < numentries) {
-		if(ptr->type == type)
-			return(ptr->name);
-		ptr++;
-		counter++;
-	}
-	return("unknown");
 }
 
 
@@ -1112,21 +1100,21 @@ process_partition(CMD *command)
 		    current_line_number, partition);
 	    break;
 	}
-	partp = ((struct dos_partition *) &mboot.parts) + partition - 1;
-	bzero((char *)partp, sizeof (struct dos_partition));
+	partp = &mboot.parts[partition - 1];
+	bzero(partp, sizeof (*partp));
 	partp->dp_typ = command->args[1].arg_val;
 	partp->dp_start = command->args[2].arg_val;
 	partp->dp_size = command->args[3].arg_val;
 	max_end = partp->dp_start + partp->dp_size;
 
-		if (partp->dp_typ == 0) {
+	if (partp->dp_typ == 0) {
 	    /*
 	     * Get out, the partition is marked as unused.
 	     */
 	    /*
 	     * Insure that it's unused.
 	     */
-	    bzero((char *)partp, sizeof (struct dos_partition));
+	    bzero(partp, sizeof(*partp));
 	    status = 1;
 	    break;
 	}
@@ -1213,7 +1201,7 @@ process_active(CMD *command)
 	/*
 	 * Reset active partition
 	 */
-	partp = ((struct dos_partition *) &mboot.parts);
+	partp = mboot.parts;
 	for (i = 0; i < NDOSPART; i++)
 	    partp[i].dp_flag = 0;
 	partp[partition-1].dp_flag = ACTIVE;
@@ -1308,9 +1296,9 @@ reset_boot(void)
     struct dos_partition	*partp;
 
     init_boot();
-	for (i = 0; i < 4; ++i) {
-	partp = ((struct dos_partition *) &mboot.parts) + i;
-	bzero((char *)partp, sizeof (struct dos_partition));
+    for (i = 0; i < 4; ++i) {
+	partp = &mboot.parts[i];
+	bzero(partp, sizeof(*partp));
     }
 }
 

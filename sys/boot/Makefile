@@ -2,17 +2,13 @@
 
 .include <bsd.own.mk>
 
-.if ${MACHINE_ARCH} == "mips"
-MK_FORTH=no	# not yet
-.endif
-
 .if ${MK_FORTH} != "no"
 # Build the add-in FORTH interpreter.
 SUBDIR+=		ficl
 .endif
 
 # Build EFI library.
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE} == "i386" || ${MACHINE_ARCH} == "ia64"
 SUBDIR+=		efi
 .endif
 

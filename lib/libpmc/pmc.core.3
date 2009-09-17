@@ -730,6 +730,58 @@ and the underlying hardware events used.
 .It Li interrupts Ta Li HW_Int_Rx
 .It Li unhalted-cycles Ta (unsupported)
 .El
+.Sh PROCESSOR ERRATA
+The following errata affect performance measurement on these
+processors.
+These errata are documented in
+.Rs
+.%T "Intel® CoreTM Duo Processor and Intel® CoreTM Solo Processor on 65 nm Process"
+.%B "Specification Update"
+.%N "Order Number 309222-017"
+.%D July 2008
+.%Q "Intel Corporation"
+.Re
+.Bl -tag -width indent -compact
+.It AE19
+Data prefetch performance monitoring events can only be enabled
+on a single core.
+.It AE25
+Performance monitoring counters that count external bus events
+may report incorrect values after processor power state transitions.
+.It AE28
+Performance monitoring events for retired floating point operations
+(C1H) may not be accurate.
+.It AE29
+DR3 address match on MOVD/MOVQ/MOVNTQ memory store
+instruction may incorrectly increment performance monitoring count
+for saturating simd instructions retired (Event CFH).
+.It AE33
+Hardware prefetch performance monitoring events may be counted
+inaccurately.
+.It AE36
+The
+.Li CPU_CLK_UNHALTED
+performance monitoring event (Event 3CH) counts
+clocks when the processor is in the C1/C2 processor power states.
+.It AE39
+Certain performance monitoring counters related to bus, L2 cache
+and power management are inaccurate.
+.It AE51
+Performance monitoring events for retired instructions (Event C0H) may
+not be accurate.
+.It AE67
+Performance monitoring event
+.Li FP_ASSIST
+may not be accurate.
+.It AE78
+Performance monitoring event for hardware prefetch requests (Event
+4EH) and hardware prefetch request cache misses (Event 4FH) may not be
+accurate.
+.It AE82
+Performance monitoring event
+.Li FP_MMX_TRANS_TO_MMX
+may not count some transitions.
+.El
 .Sh SEE ALSO
 .Xr pmc 3 ,
 .Xr pmc.atom 3 ,

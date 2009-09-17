@@ -45,18 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 
 #include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <xen/xenbus/xenbusvar.h>
 #include <xen/xenbus/xenbus_comms.h>
-
-#define kmalloc(size, unused) malloc(size, M_DEVBUF, M_WAITOK)
-#define BUG_ON        PANIC_IF
-#define semaphore     sema
-#define rw_semaphore  sema
-#define DEFINE_SPINLOCK(lock) struct mtx lock
-#define DECLARE_MUTEX(lock) struct sema lock
-#define u32           uint32_t
-#define simple_strtoul strtoul
 
 struct xenbus_dev_transaction {
 	LIST_ENTRY(xenbus_dev_transaction) list;
@@ -78,62 +69,65 @@ struct xenbus_dev_data {
 #define MASK_READ_IDX(idx) ((idx)&(PAGE_SIZE-1))
 	char read_buffer[PAGE_SIZE];
 	unsigned int read_cons, read_prod;
-	int read_waitq;
 };
-#if 0
-static struct proc_dir_entry *xenbus_dev_intf;
-#endif
+
 static int 
 xenbus_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	int i = 0;
+	int error;
 	struct xenbus_dev_data *u = dev->si_drv1;
 
-	if (wait_event_interruptible(&u->read_waitq,
-				     u->read_prod != u->read_cons))
-		return EINTR;
+	while (u->read_prod == u->read_cons) {
+		error = tsleep(u, PCATCH, "xbdread", hz/10);
+		if (error && error != EWOULDBLOCK)
+			return (error);
+	}
 
-	for (i = 0; i < uio->uio_iov[0].iov_len; i++) {
+	while (uio->uio_resid > 0) {
 		if (u->read_cons == u->read_prod)
 			break;
-		copyout(&u->read_buffer[MASK_READ_IDX(u->read_cons)], (char *)uio->uio_iov[0].iov_base+i, 1);
+		error = uiomove(&u->read_buffer[MASK_READ_IDX(u->read_cons)],
+		    1, uio);
+		if (error)
+			return (error);
 		u->read_cons++;
-		uio->uio_resid--;
 	}
-	return 0;
+	return (0);
 }
 
-static void queue_reply(struct xenbus_dev_data *u,
-			char *data, unsigned int len)
+static void
+queue_reply(struct xenbus_dev_data *u, char *data, unsigned int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++, u->read_prod++)
 		u->read_buffer[MASK_READ_IDX(u->read_prod)] = data[i];
 
-	BUG_ON((u->read_prod - u->read_cons) > sizeof(u->read_buffer));
+	KASSERT((u->read_prod - u->read_cons) <= sizeof(u->read_buffer),
+	    ("xenstore reply too big"));
 
-	wakeup(&u->read_waitq);
+	wakeup(u);
 }
 
 static int 
 xenbus_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	int err = 0;
+	int error;
 	struct xenbus_dev_data *u = dev->si_drv1;
 	struct xenbus_dev_transaction *trans;
 	void *reply;
-	int len = uio->uio_iov[0].iov_len;
+	int len = uio->uio_resid;
 
 	if ((len + u->len) > sizeof(u->u.buffer))
-		return EINVAL;
+		return (EINVAL);
 
-	if (copyin(u->u.buffer + u->len, uio->uio_iov[0].iov_base, len) != 0)
-		return EFAULT;
+	error = uiomove(u->u.buffer + u->len, len, uio);
+	if (error)
+		return (error);
 
 	u->len += len;
 	if (u->len < (sizeof(u->u.msg) + u->u.msg.len))
-		return len;
+		return (0);
 
 	switch (u->u.msg.type) {
 	case XS_TRANSACTION_START:
@@ -147,67 +141,59 @@ xenbus_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	case XS_MKDIR:
 	case XS_RM:
 	case XS_SET_PERMS:
-		reply = xenbus_dev_request_and_reply(&u->u.msg);
-		if (IS_ERR(reply)) {
-			err = PTR_ERR(reply);
-		} else {
+		error = xenbus_dev_request_and_reply(&u->u.msg, &reply);
+		if (!error) {
 			if (u->u.msg.type == XS_TRANSACTION_START) {
-				trans = kmalloc(sizeof(*trans), GFP_KERNEL);
-				trans->handle.id = simple_strtoul(reply, NULL, 0);
+				trans = malloc(sizeof(*trans), M_DEVBUF,
+				    M_WAITOK);
+				trans->handle.id = strtoul(reply, NULL, 0);
 				LIST_INSERT_HEAD(&u->transactions, trans, list);
 			} else if (u->u.msg.type == XS_TRANSACTION_END) {
-				LIST_FOREACH(trans, &u->transactions,
-					     list)
-					if (trans->handle.id ==
-					    u->u.msg.tx_id)
+				LIST_FOREACH(trans, &u->transactions, list)
+					if (trans->handle.id == u->u.msg.tx_id)
 						break;
 #if 0 /* XXX does this mean the list is empty? */
 				BUG_ON(&trans->list == &u->transactions);
 #endif
 				LIST_REMOVE(trans, list);
-				kfree(trans);
+				free(trans, M_DEVBUF);
 			}
 			queue_reply(u, (char *)&u->u.msg, sizeof(u->u.msg));
 			queue_reply(u, (char *)reply, u->u.msg.len);
-			kfree(reply);
+			free(reply, M_DEVBUF);
 		}
 		break;
 
 	default:
-		err = EINVAL;
+		error = EINVAL;
 		break;
 	}
 
-	if (err == 0) {
+	if (error == 0)
 		u->len = 0;
-		err = len;
-	}
 
-	return err;
+	return (error);
 }
 
-static int xenbus_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+static int
+xenbus_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct xenbus_dev_data *u;
 
-	if (xen_start_info->store_evtchn == 0)
-		return ENOENT;
+	if (xen_store_evtchn == 0)
+		return (ENOENT);
 #if 0 /* XXX figure out if equiv needed */
 	nonseekable_open(inode, filp);
 #endif
-	u = kmalloc(sizeof(*u), GFP_KERNEL);
-	if (u == NULL)
-		return ENOMEM;
-
-	memset(u, 0, sizeof(*u));
+	u = malloc(sizeof(*u), M_DEVBUF, M_WAITOK|M_ZERO);
 	LIST_INIT(&u->transactions);
-
         dev->si_drv1 = u;
 
-	return 0;
+	return (0);
 }
 
-static int xenbus_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
+static int
+xenbus_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	struct xenbus_dev_data *u = dev->si_drv1;
 	struct xenbus_dev_transaction *trans, *tmp;
@@ -215,11 +201,11 @@ static int xenbus_dev_close(struct cdev *dev, int fflag, int devtype, struct thr
 	LIST_FOREACH_SAFE(trans, &u->transactions, list, tmp) {
 		xenbus_transaction_end(trans->handle, 1);
 		LIST_REMOVE(trans, list);
-		kfree(trans);
+		free(trans, M_DEVBUF);
 	}
 
-	kfree(u);
-	return 0;
+	free(u, M_DEVBUF);
+	return (0);
 }
 
 static struct cdevsw xenbus_dev_cdevsw = {
@@ -234,21 +220,10 @@ static struct cdevsw xenbus_dev_cdevsw = {
 static int
 xenbus_dev_sysinit(void)
 {
-	make_dev(&xenbus_dev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0400, "xenbus");
+	make_dev(&xenbus_dev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0400,
+	    "xen/xenbus");
 
-	return 0;
+	return (0);
 }
-SYSINIT(xenbus_dev_sysinit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, xenbus_dev_sysinit, NULL);
-/* SYSINIT NEEDED XXX */
-
-
-
-/*
- * Local variables:
- *  c-file-style: "linux"
- *  indent-tabs-mode: t
- *  c-indent-level: 8
- *  c-basic-offset: 8
- *  tab-width: 8
- * End:
- */
+SYSINIT(xenbus_dev_sysinit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE,
+    xenbus_dev_sysinit, NULL);

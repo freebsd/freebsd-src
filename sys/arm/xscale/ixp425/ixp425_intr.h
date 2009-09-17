@@ -69,80 +69,20 @@ ixp425_set_intrsteer(void)
 	IXPREG(IXP425_INT_SELECT) = intr_steer & IXP425_INT_HWMASK;
 }
 
-#define INT_SWMASK						\
-	((1U << IXP425_INT_bit31) | (1U << IXP425_INT_bit30) |	\
-	 (1U << IXP425_INT_bit14) | (1U << IXP425_INT_bit11))
+extern __volatile uint32_t intr_enabled2;
+extern uint32_t intr_steer2;
 
-#if 0
 static __inline void __attribute__((__unused__))
-ixp425_splx(int new)
+ixp435_set_intrmask(void)
 {
-	extern __volatile uint32_t intr_enabled;
-	extern __volatile int current_spl_level;
-	extern __volatile int ixp425_ipending;
-	extern void ixp425_do_pending(void);
-	int oldirqstate, hwpend;
-
-	/* Don't let the compiler re-order this code with preceding code */
-	__insn_barrier();
-
-	current_spl_level = new;
-
-	hwpend = (ixp425_ipending & IXP425_INT_HWMASK) & ~new;
-	if (hwpend != 0) {
-		oldirqstate = disable_interrupts(I32_bit);
-		intr_enabled |= hwpend;
-		ixp425_set_intrmask();
-		restore_interrupts(oldirqstate);
-	}
-
-	if ((ixp425_ipending & INT_SWMASK) & ~new)
-		ixp425_do_pending();
+	IXPREG(IXP435_INT_ENABLE2) = intr_enabled2 & IXP435_INT_HWMASK;
 }
 
-static __inline int __attribute__((__unused__))
-ixp425_splraise(int ipl)
+static __inline void
+ixp435_set_intrsteer(void)
 {
-	extern __volatile int current_spl_level;
-	extern int ixp425_imask[];
-	int	old;
-
-	old = current_spl_level;
-	current_spl_level |= ixp425_imask[ipl];
-
-	/* Don't let the compiler re-order this code with subsequent code */
-	__insn_barrier();
-
-	return (old);
+	IXPREG(IXP435_INT_SELECT2) = intr_steer2 & IXP435_INT_HWMASK;
 }
-
-static __inline int __attribute__((__unused__))
-ixp425_spllower(int ipl)
-{
-	extern __volatile int current_spl_level;
-	extern int ixp425_imask[];
-	int old = current_spl_level;
-
-	ixp425_splx(ixp425_imask[ipl]);
-	return(old);
-}
-
-#endif
-#if !defined(EVBARM_SPL_NOINLINE)
-
-#define splx(new)		ixp425_splx(new)
-#define	_spllower(ipl)		ixp425_spllower(ipl)
-#define	_splraise(ipl)		ixp425_splraise(ipl)
-void	_setsoftintr(int);
-
-#else
-
-int	_splraise(int);
-int	_spllower(int);
-void	splx(int);
-void	_setsoftintr(int);
-
-#endif /* ! EVBARM_SPL_NOINLINE */
 
 #endif /* _LOCORE */
 

@@ -339,7 +339,7 @@ ntfs_strategy(ap)
 		}
 	}
 	bufdone(bp);
-	return (error);
+	return (0);
 }
 
 static int

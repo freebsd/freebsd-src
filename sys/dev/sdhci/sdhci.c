@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
 #include <dev/pci/pcireg.h>
@@ -150,6 +151,12 @@ struct sdhci_softc {
 	int		num_slots;	/* Number of slots on this controller */
 	struct sdhci_slot slots[6];
 };
+
+SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
+
+int	sdhci_debug;
+TUNABLE_INT("hw.sdhci.debug", &sdhci_debug);
+SYSCTL_INT(_hw_sdhci, OID_AUTO, debug, CTLFLAG_RW, &sdhci_debug, 0, "Debug level");
 
 static inline uint8_t
 RD1(struct sdhci_slot *slot, bus_size_t off)
@@ -301,8 +308,10 @@ sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 
 	WR1(slot, SDHCI_SOFTWARE_RESET, mask);
 
-	if (mask & SDHCI_RESET_ALL)
+	if (mask & SDHCI_RESET_ALL) {
 		slot->clock = 0;
+		slot->power = 0;
+	}
 
 	/* Wait max 100 ms */
 	timeout = 100;
@@ -732,7 +741,7 @@ sdhci_attach(device_t dev)
 		if (sc->quirks & SDHCI_QUIRK_FORCE_DMA)
 			slot->opt |= SDHCI_HAVE_DMA;
 
-		if (bootverbose) {
+		if (bootverbose || sdhci_debug) {
 			slot_printf(slot, "%uMHz%s 4bits%s%s%s %s\n",
 			    slot->max_clk / 1000000,
 			    (caps & SDHCI_CAN_DO_HISPD) ? " HS" : "",
@@ -904,8 +913,11 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 
 	/* Read controller present state. */
 	state = RD4(slot, SDHCI_PRESENT_STATE);
-	/* Do not issue command if there is no card. */
-	if ((state & SDHCI_CARD_PRESENT) == 0) {
+	/* Do not issue command if there is no card, clock or power.
+	 * Controller will not detect timeout without clock active. */
+	if ((state & SDHCI_CARD_PRESENT) == 0 ||
+	    slot->power == 0 ||
+	    slot->clock == 0) {
 		cmd->error = MMC_ERR_FAILED;
 		slot->req = NULL;
 		slot->curcmd = NULL;
@@ -1141,17 +1153,10 @@ sdhci_start(struct sdhci_slot *slot)
 		return;
 	}
 */
-	if (req->cmd->error) {
-		if (bootverbose) {
-			slot_printf(slot,
-			    "Command error %d (opcode %u arg %u flags %u "
-			    "dlen %u dflags %u)\n",
-			    req->cmd->error, req->cmd->opcode, req->cmd->arg,
-			    req->cmd->flags,
-			    (req->cmd->data)?(u_int)req->cmd->data->len:0,
-			    (req->cmd->data)?(u_int)req->cmd->data->flags:0);
-		}
-	} else if (slot->sc->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST) {
+	if (sdhci_debug > 1)
+		slot_printf(slot, "result: %d\n", req->cmd->error);
+	if (!req->cmd->error &&
+	    (slot->sc->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST)) {
 		sdhci_reset(slot, SDHCI_RESET_CMD);
 		sdhci_reset(slot, SDHCI_RESET_DATA);
 	}
@@ -1172,13 +1177,22 @@ sdhci_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 		SDHCI_UNLOCK(slot);
 		return (EBUSY);
 	}
-/*	printf("%s cmd op %u arg %u flags %u data %ju\n", __func__,
-    	    req->cmd->opcode, req->cmd->arg, req->cmd->flags,
-    	    (req->cmd->data)?req->cmd->data->len:0); */
+	if (sdhci_debug > 1) {
+		slot_printf(slot, "CMD%u arg %#x flags %#x dlen %u dflags %#x\n",
+    		    req->cmd->opcode, req->cmd->arg, req->cmd->flags,
+    		    (req->cmd->data)?(u_int)req->cmd->data->len:0,
+		    (req->cmd->data)?req->cmd->data->flags:0);
+	}
 	slot->req = req;
 	slot->flags = 0;
 	sdhci_start(slot);
 	SDHCI_UNLOCK(slot);
+	if (dumping) {
+		while (slot->req != NULL) {
+			sdhci_intr(slot->sc);
+			DELAY(10);
+		}
+	}
 	return (0);
 }
 
@@ -1202,7 +1216,7 @@ sdhci_acquire_host(device_t brdev, device_t reqdev)
 
 	SDHCI_LOCK(slot);
 	while (slot->bus_busy)
-		msleep(slot, &slot->mtx, PZERO, "sdhciah", hz / 5);
+		msleep(slot, &slot->mtx, 0, "sdhciah", 0);
 	slot->bus_busy++;
 	/* Activate led. */
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl |= SDHCI_CTRL_LED);
@@ -1219,8 +1233,8 @@ sdhci_release_host(device_t brdev, device_t reqdev)
 	/* Deactivate led. */
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl &= ~SDHCI_CTRL_LED);
 	slot->bus_busy--;
-	wakeup(slot);
 	SDHCI_UNLOCK(slot);
+	wakeup(slot);
 	return (0);
 }
 
@@ -1358,23 +1372,23 @@ sdhci_intr(void *arg)
 			SDHCI_UNLOCK(slot);
 			continue;
 		}
-/*
-		slot_printf(slot, "got interrupt %x\n", intmask);
-*/
+		if (sdhci_debug > 2)
+			slot_printf(slot, "Interrupt %#x\n", intmask);
+
 		/* Handle card presence interrupts. */
 		if (intmask & (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE)) {
 			WR4(slot, SDHCI_INT_STATUS, intmask & 
 			    (SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE));
 
 			if (intmask & SDHCI_INT_CARD_REMOVE) {
-				if (bootverbose)
+				if (bootverbose || sdhci_debug)
 					slot_printf(slot, "Card removed\n");
 				callout_stop(&slot->card_callout);
 				taskqueue_enqueue(taskqueue_swi_giant,
 				    &slot->card_task);
 			}
 			if (intmask & SDHCI_INT_CARD_INSERT) {
-				if (bootverbose)
+				if (bootverbose || sdhci_debug)
 					slot_printf(slot, "Card inserted\n");
 				callout_reset(&slot->card_callout, hz / 2,
 				    sdhci_card_delay, slot);
@@ -1419,7 +1433,7 @@ sdhci_intr(void *arg)
 }
 
 static int
-sdhci_read_ivar(device_t bus, device_t child, int which, u_char *result)
+sdhci_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
 	struct sdhci_slot *slot = device_get_ivars(child);
 

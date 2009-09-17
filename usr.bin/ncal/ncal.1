@@ -30,7 +30,7 @@
 .Sh NAME
 .Nm cal ,
 .Nm ncal
-.Nd displays a calendar and the date of easter
+.Nd displays a calendar and the date of Easter
 .Sh SYNOPSIS
 .Nm
 .Op Fl jy
@@ -57,7 +57,7 @@ The
 .Nm
 utility displays a simple calendar in traditional format and
 .Nm ncal
-offers an alternative layout, more options and the date of easter.
+offers an alternative layout, more options and the date of Easter.
 The new format is a little cramped but it makes a year fit
 on a 25x80 terminal.
 If arguments are not specified,
@@ -68,16 +68,24 @@ The options are as follows:
 .It Fl J
 Display Julian Calendar, if combined with the
 .Fl e
-option, display date of easter according to the Julian Calendar.
+option, display date of Easter according to the Julian Calendar.
 .It Fl e
-Display date of easter (for western churches).
+Display date of Easter (for western churches).
 .It Fl j
 Display Julian days (days one-based, numbered from January 1).
 .It Fl m Ar month
 Display the specified
 .Ar month .
+If
+.Ar month
+is specified as a decimal number, it may be followed by the letter
+.Ql f
+or
+.Ql p
+to indicate the following or preceding month of that number,
+respectively.
 .It Fl o
-Display date of orthodox easter (Greek and Russian
+Display date of Orthodox Easter (Greek and Russian
 Orthodox Churches).
 .It Fl p
 Print the country codes and switching days from Julian to Gregorian
@@ -101,7 +109,7 @@ Print the number of the week below each week column.
 Display a calendar for the specified year.
 .El
 .Pp
-A single parameter specifies the year (1 - 9999) to be displayed;
+A single parameter specifies the year (1\(en9999) to be displayed;
 note the year must be fully specified:
 .Dq Li cal 89
 will
@@ -113,7 +121,7 @@ Month and year default to those of the current system clock and time zone (so
 .Dq Li cal -m 8
 will display a calendar for the month of August in the current year).
 .Pp
-A year starts on Jan 1.
+A year starts on January 1.
 .Sh SEE ALSO
 .Xr calendar 3 ,
 .Xr strftime 3
@@ -132,7 +140,7 @@ The
 command and manual were written by
 .An Wolfgang Helbig Aq helbig@FreeBSD.org .
 .Sh BUGS
-The assignment of Julian\(emGregorian switching dates to
+The assignment of Julian\(enGregorian switching dates to
 country codes is historically naive for many countries.
 .Pp
 The

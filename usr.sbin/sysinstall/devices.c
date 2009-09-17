@@ -57,8 +57,6 @@ static int numDevs;
 
 #define	CDROM(name, descr, max)					\
 	DEVICE_ENTRY(DEVICE_TYPE_CDROM, name, descr, max)
-#define	TAPE(name, descr, max)						\
-	DEVICE_ENTRY(DEVICE_TYPE_TAPE, name, descr, max)
 #define	DISK(name, descr, max)						\
 	DEVICE_ENTRY(DEVICE_TYPE_DISK, name, descr, max)
 #define	FLOPPY(name, descr, max)					\
@@ -78,8 +76,6 @@ static struct _devname {
     CDROM("mcd%d",	"Mitsumi (old model) CDROM drive",	4),
     CDROM("scd%d",	"Sony CDROM drive - CDU31/33A type",	4),
     CDROM("acd%d",	"ATAPI/IDE CDROM",			4),
-    TAPE("sa%d",	"SCSI tape drive",			4),
-    TAPE("rwt%d",	"Wangtek tape drive",			4),
     DISK("da%d",	"SCSI disk device",			16),
     DISK("ad%d",	"ATA/IDE disk device",			16),
     DISK("ar%d",	"ATA/IDE RAID device",			16),
@@ -93,7 +89,7 @@ static struct _devname {
     DISK("mfid%d",	"LSI MegaRAID SAS array",		4),
     FLOPPY("fd%d",	"floppy drive unit A",			4),
     SERIAL("cuad%d",	"%s on device %s (COM%d)",		16),
-    NETWORK("ae",	"Attansic/Atheros L2 FastEthernet"),
+    NETWORK("ae",	"Attansic/Atheros L2 Fast Ethernet"),
     NETWORK("age",	"Attansic/Atheros L1 Gigabit Ethernet"),
     NETWORK("ale",	"Atheros AR8121/AR8113/AR8114 PCIe Ethernet"),
     NETWORK("an",	"Aironet 4500/4800 802.11 wireless adapter"),
@@ -115,14 +111,18 @@ static struct _devname {
     NETWORK("ed",	"Novell NE1000/2000; 3C503; NE2000-compatible PCMCIA"),
     NETWORK("ep",	"3Com 3C509 Ethernet card/3C589 PCMCIA"),
     NETWORK("em",	"Intel(R) PRO/1000 Ethernet card"),
+    NETWORK("et",	"Agere ET1310 based PCI Express Gigabit Ethernet card"),
     NETWORK("ex",	"Intel EtherExpress Pro/10 Ethernet card"),
     NETWORK("fe",	"Fujitsu MB86960A/MB86965A Ethernet card"),
     NETWORK("gem",	"Apple GMAC or Sun ERI/GEM Ethernet adapter"),
     NETWORK("hme",	"Sun HME (Happy Meal Ethernet) Ethernet adapter"),
     NETWORK("ie",	"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"),
+    NETWORK("igb",	"Intel(R) PRO/1000 PCI Express Gigabit Ethernet card"),
     NETWORK("ipw",	"Intel PRO/Wireless 2100 IEEE 802.11 adapter"),
     NETWORK("iwi",	"Intel PRO/Wireless 2200BG/2225BG/2915ABG adapter"),
+    NETWORK("iwn",	"Intel Wireless WiFi Link 4965AGN IEEE 802.11n adapter"),
     NETWORK("ixgb",	"Intel(R) PRO/10Gb Ethernet card"),
+    NETWORK("ixgbe",	"Intel(R) PRO/10Gb Ethernet card"),
     NETWORK("jme",	"JMicron JMC250 Gigabit/JMC260 Fast Ethernet"),
     NETWORK("kue",	"Kawasaki LSI USB Ethernet adapter"),
     NETWORK("le",	"AMD Am7900 LANCE or Am79C9xx PCnet Ethernet adapter"),
@@ -133,6 +133,7 @@ static struct _devname {
     NETWORK("nfe",	"NVIDIA nForce MCP Ethernet"),
     NETWORK("nge",	"NatSemi PCI Gigabit Ethernet card"),
     NETWORK("nve",	"NVIDIA nForce MCP Ethernet"),
+    NETWORK("nxge",	"Neterion Xframe 10GbE Server/Storage adapter"),
     NETWORK("pcn",	"AMD Am79c79x PCI Ethernet card"),
     NETWORK("ral",	"Ralink Technology IEEE 802.11 wireless adapter"),
     NETWORK("ray",	"Raytheon Raylink 802.11 wireless adapter"),
@@ -155,6 +156,7 @@ static struct _devname {
     NETWORK("tl",	"Texas Instruments ThunderLAN PCI Ethernet card"),
     NETWORK("upgt",	"Conexant/Intersil PrismGT USB wireless adapter"),
     NETWORK("ural",	"Ralink Technology RT2500USB 802.11 wireless adapter"),
+    NETWORK("urtw",	"Realtek 8187L USB wireless adapter"),
     NETWORK("vge",	"VIA VT612x PCI Gigabit Ethernet card"),
     NETWORK("vr",	"VIA VT3043/VT86C100A Rhine PCI Ethernet card"),
     NETWORK("vlan",	"IEEE 802.1Q VLAN network interface"),
@@ -364,20 +366,6 @@ skipif:
 					 mediaShutdownCDROM, NULL);
 		    if (isDebug())
 			msgDebug("Found a CDROM device for %s\n", try);
-		}
-		break;
-
-	    case DEVICE_TYPE_TAPE:
-		fd = deviceTry(device_names[i], try, j);
-		if (fd >= 0) {
-		    char n[BUFSIZ];
-
-		    close(fd);
-		    snprintf(n, sizeof n, device_names[i].name, j);
-		    deviceRegister(strdup(n), device_names[i].description, strdup(try),
-				   DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, mediaShutdownTape, NULL);
-		    if (isDebug())
-			msgDebug("Found a TAPE device for %s\n", try);
 		}
 		break;
 

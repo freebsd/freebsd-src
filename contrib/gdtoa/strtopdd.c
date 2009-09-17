@@ -39,9 +39,9 @@ strtopdd(CONST char *s, char **sp, double *dd)
 #endif
 {
 #ifdef Sudden_Underflow
-	static FPI fpi = { 106, 1-1023, 2046-1023-106+1, 1, 1 };
+	static FPI fpi0 = { 106, 1-1023, 2046-1023-106+1, 1, 1 };
 #else
-	static FPI fpi = { 106, 1-1023-53+1, 2046-1023-106+1, 1, 0 };
+	static FPI fpi0 = { 106, 1-1023-53+1, 2046-1023-106+1, 1, 0 };
 #endif
 	ULong bits[4];
 	Long exp;
@@ -51,8 +51,13 @@ strtopdd(CONST char *s, char **sp, double *dd)
 		ULong L[4];
 		} U;
 	U *u;
+#ifdef Honor_FLT_ROUNDS
+#include "gdtoa_fltrnds.h"
+#else
+#define fpi &fpi0
+#endif
 
-	rv = strtodg(s, sp, &fpi, &exp, bits);
+	rv = strtodg(s, sp, fpi, &exp, bits);
 	u = (U*)dd;
 	switch(rv & STRTOG_Retmask) {
 	  case STRTOG_NoNumber:

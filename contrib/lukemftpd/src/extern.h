@@ -139,7 +139,7 @@ void	feat(void);
 void	format_path(char *, const char *);
 int	ftpd_pclose(FILE *);
 FILE   *ftpd_popen(char *[], const char *, int);
-char   *getline(char *, int, FILE *);
+int	getline(char *, int, FILE *);
 void	init_curclass(void);
 void	logxfer(const char *, off_t, const char *, const char *,
 	    const struct timeval *, const char *);

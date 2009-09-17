@@ -713,7 +713,6 @@ Make_Run(Lst *targs)
 	GNode	*gn;		/* a temporary pointer */
 	GNode	*cgn;
 	Lst	examine;	/* List of targets to examine */
-	int	errors;		/* Number of errors the Job module reports */
 	LstNode	*ln;
 
 	Lst_Init(&examine);
@@ -793,15 +792,14 @@ Make_Run(Lst *targs)
 		MakeStartJobs();
 	}
 
-	errors = Job_Finish();
+	Job_Finish();
 
 	/*
 	 * Print the final status of each target. E.g. if it wasn't made
 	 * because some inferior reported an error.
 	 */
-	errors = ((errors == 0) && (numNodes != 0));
 	LST_FOREACH(ln, targs)
-		MakePrintStatus(Lst_Datum(ln), errors);
+		MakePrintStatus(Lst_Datum(ln), (makeErrors == 0) && (numNodes != 0));
 
 	return (TRUE);
 }

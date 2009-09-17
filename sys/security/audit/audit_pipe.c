@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2006 Robert N. M. Watson
- * Copyright (c) 2008 Apple, Inc.
+ * Copyright (c) 2008-2009 Apple, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -76,7 +76,7 @@ static MALLOC_DEFINE(M_AUDIT_PIPE_PRESELECT, "audit_pipe_presel",
  * Audit pipe buffer parameters.
  */
 #define	AUDIT_PIPE_QLIMIT_DEFAULT	(128)
-#define	AUDIT_PIPE_QLIMIT_MIN		(0)
+#define	AUDIT_PIPE_QLIMIT_MIN		(1)
 #define	AUDIT_PIPE_QLIMIT_MAX		(1024)
 
 /*
@@ -169,7 +169,8 @@ struct audit_pipe {
 	/*
 	 * Current pending record list.  Protected by a combination of ap_mtx
 	 * and ap_sx.  Note particularly that *both* locks are required to
-	 * remove a record from the head of the queue, as an in-progress read		 * may sleep while copying and therefore cannot hold ap_mtx.
+	 * remove a record from the head of the queue, as an in-progress read
+	 * may sleep while copying and therefore cannot hold ap_mtx.
 	 */
 	TAILQ_HEAD(, audit_pipe_entry)	 ap_queue;
 
@@ -434,6 +435,10 @@ audit_pipe_preselect(au_id_t auid, au_event_t event, au_class_t class,
     int sorf, int trail_preselect)
 {
 	struct audit_pipe *ap;
+
+	/* Lockless read to avoid acquiring the global lock if not needed. */
+	if (TAILQ_EMPTY(&audit_pipe_list))
+		return (0);
 
 	AUDIT_PIPE_LIST_RLOCK();
 	TAILQ_FOREACH(ap, &audit_pipe_list, ap_list) {
@@ -1072,18 +1077,13 @@ audit_pipe_kqfilter(struct cdev *dev, struct knote *kn)
 static int
 audit_pipe_kqread(struct knote *kn, long hint)
 {
-	struct audit_pipe_entry *ape;
 	struct audit_pipe *ap;
 
 	ap = (struct audit_pipe *)kn->kn_hook;
 	KASSERT(ap != NULL, ("audit_pipe_kqread: ap == NULL"));
-
 	AUDIT_PIPE_LOCK_ASSERT(ap);
 
 	if (ap->ap_qlen != 0) {
-		ape = TAILQ_FIRST(&ap->ap_queue);
-		KASSERT(ape != NULL, ("audit_pipe_kqread: ape == NULL"));
-
 		kn->kn_data = ap->ap_qbyteslen - ap->ap_qoffset;
 		return (1);
 	} else {

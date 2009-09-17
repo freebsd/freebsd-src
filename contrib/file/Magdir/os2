@@ -1,12 +1,11 @@
-
 #------------------------------------------------------------------------------
 # os2:  file(1) magic for OS/2 files
 #
 
 # Provided 1998/08/22 by
 # David Mediavilla <davidme.news@REMOVEIFNOTSPAMusa.net>
-1	string	InternetShortcut	MS Windows 95 Internet shortcut text
->24	string	>\ 			(URL=<%s>)
+1	search/1	InternetShortcut	MS Windows 95 Internet shortcut text
+>24	search/1	>\ 			(URL=<%s>)
 
 # OS/2 URL objects
 # Provided 1998/08/22 by
