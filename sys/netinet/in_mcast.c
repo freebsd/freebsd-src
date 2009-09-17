@@ -1957,11 +1957,6 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
 		return (EADDRNOTAVAIL);
 
-	/*
-	 * MCAST_JOIN_SOURCE on an exclusive membership is an error.
-	 * On an existing inclusive membership, it just adds the
-	 * source to the filter list.
-	 */
 	imo = inp_findmoptions(inp);
 	idx = imo_match_group(imo, ifp, &gsa->sa);
 	if (idx == -1) {
@@ -1969,15 +1964,33 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	} else {
 		inm = imo->imo_membership[idx];
 		imf = &imo->imo_mfilters[idx];
-		if (ssa->ss.ss_family != AF_UNSPEC &&
-		    imf->imf_st[1] != MCAST_INCLUDE) {
-			error = EINVAL;
-			goto out_inp_locked;
-		}
-		lims = imo_match_source(imo, idx, &ssa->sa);
-		if (lims != NULL) {
-			error = EADDRNOTAVAIL;
-			goto out_inp_locked;
+		if (ssa->ss.ss_family != AF_UNSPEC) {
+			/*
+			 * MCAST_JOIN_SOURCE on an exclusive membership
+			 * is an error. On an existing inclusive membership,
+			 * it just adds the source to the filter list.
+			 */
+			if (imf->imf_st[1] != MCAST_INCLUDE) {
+				error = EINVAL;
+				goto out_inp_locked;
+			}
+			/* Throw out duplicates. */
+			lims = imo_match_source(imo, idx, &ssa->sa);
+			if (lims != NULL) {
+				error = EADDRNOTAVAIL;
+				goto out_inp_locked;
+			}
+		} else {
+			/*
+			 * MCAST_JOIN_GROUP on an existing inclusive
+			 * membership is an error; if you want to change
+			 * filter mode, you must use the userland API
+			 * setsourcefilter().
+			 */
+			if (imf->imf_st[1] == MCAST_INCLUDE) {
+				error = EINVAL;
+				goto out_inp_locked;
+			}
 		}
 	}
 
@@ -2010,7 +2023,8 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	/*
 	 * Graft new source into filter list for this inpcb's
 	 * membership of the group. The in_multi may not have
-	 * been allocated yet if this is a new membership.
+	 * been allocated yet if this is a new membership, however,
+	 * the in_mfilter slot will be allocated and must be initialized.
 	 */
 	if (ssa->ss.ss_family != AF_UNSPEC) {
 		/* Membership starts in IN mode */
@@ -2026,6 +2040,12 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			    __func__);
 			error = ENOMEM;
 			goto out_imo_free;
+		}
+	} else {
+		/* No address specified; Membership starts in EX mode */
+		if (is_new) {
+			CTR1(KTR_IGMPV3, "%s: new join w/o source", __func__);
+			imf_init(imf, MCAST_UNDEFINED, MCAST_EXCLUDE);
 		}
 	}
 
@@ -2189,6 +2209,9 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 		return (EINVAL);
 
+	if (ifp == NULL)
+		return (EADDRNOTAVAIL);
+
 	/*
 	 * Find the membership in the membership array.
 	 */
@@ -2275,9 +2298,11 @@ out_imf_rollback:
 	imf_reap(imf);
 
 	if (is_final) {
-		/* Remove the gap in the membership array. */
-		for (++idx; idx < imo->imo_num_memberships; ++idx)
+		/* Remove the gap in the membership and filter array. */
+		for (++idx; idx < imo->imo_num_memberships; ++idx) {
 			imo->imo_membership[idx-1] = imo->imo_membership[idx];
+			imo->imo_mfilters[idx-1] = imo->imo_mfilters[idx];
+		}
 		imo->imo_num_memberships--;
 	}
 
