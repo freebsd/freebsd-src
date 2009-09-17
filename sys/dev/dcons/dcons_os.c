@@ -72,7 +72,7 @@
 
 
 #ifndef DCONS_POLL_HZ
-#define DCONS_POLL_HZ	100
+#define DCONS_POLL_HZ	25
 #endif
 
 #ifndef DCONS_BUF_SIZE
@@ -357,9 +357,10 @@ dcons_attach_port(int port, char *name, int flags)
 	struct tty *tp;
 
 	dc = &sc[port];
-	tp = tty_alloc(&dcons_ttydevsw, dc, NULL);
+	tp = tty_alloc(&dcons_ttydevsw, dc);
 	dc->flags = flags;
 	dc->tty   = tp;
+	tty_init_console(tp, 0);
 	tty_makedev(tp, NULL, "%s", name);
 	return(0);
 }
@@ -402,8 +403,9 @@ dcons_modevent(module_t mode, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		ret = dcons_drv_init(1);
-		if (ret == 0) {
+		if (ret != -1)
 			dcons_attach();
+		if (ret == 0) {
 			dcons_cnprobe(&dcons_consdev);
 			dcons_cninit(&dcons_consdev);
 			cnadd(&dcons_consdev);

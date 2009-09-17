@@ -47,6 +47,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <ufs/ufs/dinode.h>
+#include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
 #ifdef UFS_SMALL_CGBASE
 /* XXX: Revert to old (broken for over 1.5Tb filesystems) version of cgbase
@@ -93,7 +94,7 @@ static __inline int
 fsfind(const char *name, ino_t * ino)
 {
 	char buf[DEV_BSIZE];
-	struct dirent *d;
+	struct direct *d;
 	char *s;
 	ssize_t n;
 
@@ -104,7 +105,7 @@ fsfind(const char *name, ino_t * ino)
 			if (ls)
 				printf("%s ", d->d_name);
 			else if (!strcmp(name, d->d_name)) {
-				*ino = d->d_fileno;
+				*ino = d->d_ino;
 				return d->d_type;
 			}
 			s += d->d_reclen;

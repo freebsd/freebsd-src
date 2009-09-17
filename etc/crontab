@@ -4,7 +4,6 @@
 #
 SHELL=/bin/sh
 PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin
-HOME=/var/log
 #
 #minute	hour	mday	month	wday	who	command
 #

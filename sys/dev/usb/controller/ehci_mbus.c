@@ -38,14 +38,32 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_defs.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_sw_transfer.h>
 #include <dev/usb/usb_util.h>
 
 #include <dev/usb/usb_controller.h>
@@ -68,6 +86,9 @@ static int err_intr(void *arg);
 
 static struct resource *irq_err;
 static void *ih_err;
+
+/* EHCI HC regs start at this offset within USB range */
+#define	MV_USB_HOST_OFST	0x0100
 
 #define	USB_BRIDGE_INTR_CAUSE  0x210
 #define	USB_BRIDGE_INTR_MASK   0x214
@@ -139,7 +160,7 @@ ehci_mbus_attach(device_t self)
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
 
 	/* get all DMA memory */
-	if (usb2_bus_mem_alloc_all(&sc->sc_bus,
+	if (usb_bus_mem_alloc_all(&sc->sc_bus,
 	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
@@ -154,7 +175,7 @@ ehci_mbus_attach(device_t self)
 	}
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
 	bsh = rman_get_bushandle(sc->sc_io_res);
-	sc->sc_io_size = MV_USB_SIZE - MV_USB_HOST_OFST;
+	sc->sc_io_size = rman_get_size(sc->sc_io_res) - MV_USB_HOST_OFST;
 
 	/*
 	 * Marvell EHCI host controller registers start at certain offset within
@@ -211,7 +232,7 @@ ehci_mbus_attach(device_t self)
 	    MV_USB_DEVICE_UNDERFLOW);
 
 	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)(void *)ehci_interrupt, sc, &sc->sc_intr_hdl);
+	    NULL, (driver_intr_t *)ehci_interrupt, sc, &sc->sc_intr_hdl);
 	if (err) {
 		device_printf(self, "Could not setup irq, %d\n", err);
 		sc->sc_intr_hdl = NULL;
@@ -306,7 +327,7 @@ ehci_mbus_detach(device_t self)
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
-	usb2_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);
+	usb_bus_mem_free_all(&sc->sc_bus, &ehci_iterate_hw_softc);
 
 	return (0);
 }

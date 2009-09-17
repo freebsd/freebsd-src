@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
-#include <sys/vimage.h>
 
 #include <vm/vm_param.h>
 
@@ -103,9 +102,13 @@ ogethostid(td, uap)
 	struct thread *td;
 	struct ogethostid_args *uap;
 {
+	size_t len = sizeof(long);
+	int name[2];
 
-	*(long *)(td->td_retval) = hostid;
-	return (0);
+	name[0] = CTL_KERN;
+	name[1] = KERN_HOSTID;
+	return (kernel_sysctl(td, name, 2, (long *)td->td_retval, &len,
+	    NULL, 0, NULL, 0));
 }
 #endif /* COMPAT_43 */
 
@@ -121,15 +124,12 @@ osethostid(td, uap)
 	struct thread *td;
 	struct osethostid_args *uap;
 {
-	int error;
+	int name[2];
 
-	error = priv_check(td, PRIV_SETHOSTID);
-	if (error)
-		return (error);
-	mtx_lock(&Giant);
-	hostid = uap->hostid;
-	mtx_unlock(&Giant);
-	return (0);
+	name[0] = CTL_KERN;
+	name[1] = KERN_HOSTID;
+	return (kernel_sysctl(td, name, 2, NULL, NULL, &uap->hostid,
+	    sizeof(uap->hostid), NULL, 0));
 }
 
 int

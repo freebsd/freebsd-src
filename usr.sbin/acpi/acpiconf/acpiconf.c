@@ -37,7 +37,8 @@
 #include <unistd.h>
 
 #include <dev/acpica/acpiio.h>
-#include <contrib/dev/acpica/acpi.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 
 #define ACPIDEV		"/dev/acpi"
 

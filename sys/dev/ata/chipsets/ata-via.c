@@ -120,7 +120,7 @@ ata_via_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_via_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -143,10 +143,6 @@ ata_via_chipinit(device_t dev)
 	    ctlr->ch_attach = ata_via_ch_attach;
 	    ctlr->ch_detach = ata_via_ch_detach;
 	    ctlr->reset = ata_via_reset;
-
-	    /* enable PCI interrupt */
-	    pci_write_config(dev, PCIR_COMMAND,
-			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
 	}
 
 	if (ctlr->chip->cfg2 & VIABAR) {
@@ -273,7 +269,7 @@ ata_via_reset(device_t dev)
     if ((ctlr->chip->cfg2 & VIABAR) && (ch->unit > 1))
         ata_generic_reset(dev);
     else
-	if (ata_sata_phy_reset(dev))
+	if (ata_sata_phy_reset(dev, -1, 1))
 	    ata_generic_reset(dev);
 }
 

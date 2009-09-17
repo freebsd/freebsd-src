@@ -39,13 +39,14 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
-#include "opt_mac.h"
+#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/eventhandler.h>
 #include <sys/filedesc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/sysctl.h>
@@ -54,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/jail.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
@@ -146,7 +146,7 @@ rfork(td, uap)
 	if ((uap->flags & RFKERNELONLY) != 0)
 		return (EINVAL);
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 	error = fork1(td, uap->flags, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
@@ -214,6 +214,7 @@ fork1(td, flags, pages, procp)
 	struct thread *td2;
 	struct sigacts *newsigacts;
 	struct vmspace *vm2;
+	vm_ooffset_t mem_charged;
 	int error;
 
 	/* Can't copy and clear. */
@@ -274,37 +275,54 @@ norfproc_fail:
 	 * however it proved un-needed and caused problems
 	 */
 
+	mem_charged = 0;
 	vm2 = NULL;
+	if (pages == 0)
+		pages = KSTACK_PAGES;
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
-	if (TAILQ_EMPTY(&newproc->p_threads)) {
-		td2 = thread_alloc();
+	td2 = FIRST_THREAD_IN_PROC(newproc);
+	if (td2 == NULL) {
+		td2 = thread_alloc(pages);
 		if (td2 == NULL) {
 			error = ENOMEM;
 			goto fail1;
 		}
 		proc_linkup(newproc, td2);
-	} else
-		td2 = FIRST_THREAD_IN_PROC(newproc);
-
-	/* Allocate and switch to an alternate kstack if specified. */
-	if (pages != 0) {
-		if (!vm_thread_new_altkstack(td2, pages)) {
-			error = ENOMEM;
-			goto fail1;
+	} else {
+		if (td2->td_kstack == 0 || td2->td_kstack_pages != pages) {
+			if (td2->td_kstack != 0)
+				vm_thread_dispose(td2);
+			if (!thread_alloc_stack(td2, pages)) {
+				error = ENOMEM;
+				goto fail1;
+			}
 		}
 	}
+
 	if ((flags & RFMEM) == 0) {
-		vm2 = vmspace_fork(p1->p_vmspace);
+		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
 		if (vm2 == NULL) {
 			error = ENOMEM;
 			goto fail1;
 		}
-	}
+		if (!swap_reserve(mem_charged)) {
+			/*
+			 * The swap reservation failed. The accounting
+			 * from the entries of the copied vm2 will be
+			 * substracted in vmspace_free(), so force the
+			 * reservation there.
+			 */
+			swap_reserve_force(mem_charged);
+			error = ENOMEM;
+			goto fail1;
+		}
+	} else
+		vm2 = NULL;
 #ifdef MAC
 	mac_proc_init(newproc);
 #endif
-	knlist_init(&newproc->p_klist, &newproc->p_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
 	STAILQ_INIT(&newproc->p_ktr);
 
 	/* We have to lock the process tree while we look for a pid. */
@@ -435,7 +453,7 @@ again:
 	thread_lock(td);
 	sched_fork(td, td2);
 	thread_unlock(td);
-	AUDIT_ARG(pid, p2->p_pid);
+	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
 
@@ -454,9 +472,8 @@ again:
 
 	p2->p_ucred = crhold(td->td_ucred);
 
-	/* In case we are jailed tell the prison that we exist. */
-	if (jailed(p2->p_ucred))
-		prison_proc_hold(p2->p_ucred->cr_prison);
+	/* Tell the prison that we exist. */
+	prison_proc_hold(p2->p_ucred->cr_prison);
 
 	PROC_UNLOCK(p2);
 
@@ -522,6 +539,11 @@ again:
 	td2->td_sigstk = td->td_sigstk;
 	td2->td_sigmask = td->td_sigmask;
 	td2->td_flags = TDF_INMEM;
+
+#ifdef VIMAGE
+	td2->td_vnet = NULL;
+	td2->td_vnet_lpush = NULL;
+#endif
 
 	/*
 	 * Duplicate sub-structures as needed.

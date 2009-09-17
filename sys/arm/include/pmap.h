@@ -75,7 +75,10 @@
 
 #endif
 
+#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
+#define	pmap_page_set_memattr(m, ma)	(void)0
+
 /*
  * Pmap stuff
  */
@@ -94,6 +97,7 @@ struct	pv_entry;
 
 struct	md_page {
 	int pvh_attrs;
+	vm_offset_t pv_kva;		/* first kernel VA mapping */
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 
@@ -138,7 +142,8 @@ struct	pmap {
 typedef struct pmap *pmap_t;
 
 #ifdef _KERNEL
-extern pmap_t	kernel_pmap;
+extern struct pmap	kernel_pmap_store;
+#define kernel_pmap	(&kernel_pmap_store)
 #define pmap_kernel() kernel_pmap
 
 #define	PMAP_ASSERT_LOCKED(pmap) \
@@ -165,8 +170,6 @@ typedef struct pv_entry {
 	TAILQ_ENTRY(pv_entry)	pv_plist;
 	int		pv_flags;	/* flags (wired, etc...) */
 } *pv_entry_t;
-
-#define PV_ENTRY_NULL   ((pv_entry_t) 0)
 
 #ifdef _KERNEL
 
@@ -495,6 +498,7 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #define	PVF_EXEC	0x10		/* mapping is executable */
 #define	PVF_NC		0x20		/* mapping is non-cacheable */
 #define	PVF_MWC		0x40		/* mapping is used multiple times in userland */
+#define	PVF_UNMAN	0x80		/* mapping is unmanaged */
 
 void vector_page_setprot(int);
 

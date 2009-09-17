@@ -1,0 +1,214 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
+               [<!ENTITY mdash "&#8212;">]>
+<!--
+ - Copyright (C) 2008  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: dnssec-dsfromkey.docbook,v 1.6 2008/11/07 13:54:11 jreed Exp $ -->
+<refentry id="man.dnssec-dsfromkey">
+  <refentryinfo>
+    <date>November 29, 2008</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle><application>dnssec-dsfromkey</application></refentrytitle>
+    <manvolnum>8</manvolnum>
+    <refmiscinfo>BIND9</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><application>dnssec-dsfromkey</application></refname>
+    <refpurpose>DNSSEC DS RR generation tool</refpurpose>
+  </refnamediv>
+
+  <docinfo>
+    <copyright>
+      <year>2008</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+  </docinfo>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>dnssec-dsfromkey</command>
+      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-1</option></arg>
+      <arg><option>-2</option></arg>
+      <arg><option>-a <replaceable class="parameter">alg</replaceable></option></arg>
+      <arg choice="req">keyfile</arg>
+    </cmdsynopsis>
+    <cmdsynopsis>
+      <command>dnssec-dsfromkey</command>
+      <arg choice="req">-s</arg>
+      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-1</option></arg>
+      <arg><option>-2</option></arg>
+      <arg><option>-a <replaceable class="parameter">alg</replaceable></option></arg>
+      <arg><option>-c <replaceable class="parameter">class</replaceable></option></arg>
+      <arg><option>-d <replaceable class="parameter">dir</replaceable></option></arg>
+      <arg choice="req">dnsname</arg>
+   </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+    <para><command>dnssec-dsfromkey</command>
+      outputs the Delegation Signer (DS) resource record (RR), as defined in
+      RFC 3658 and RFC 4509, for the given key(s).
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>OPTIONS</title>
+
+    <variablelist>
+      <varlistentry>
+        <term>-1</term>
+        <listitem>
+          <para>
+            Use SHA-1 as the digest algorithm (the default is to use
+            both SHA-1 and SHA-256).
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-2</term>
+        <listitem>
+          <para>
+            Use SHA-256 as the digest algorithm.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-a <replaceable class="parameter">algorithm</replaceable></term>
+        <listitem>
+          <para>
+            Select the digest algorithm. The value of
+            <option>algorithm</option> must be one of SHA-1 (SHA1) or
+            SHA-256 (SHA256). These values are case insensitive.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-v <replaceable class="parameter">level</replaceable></term>
+        <listitem>
+          <para>
+            Sets the debugging level.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-s</term>
+        <listitem>
+          <para>
+            Keyset mode: in place of the keyfile name, the argument is
+            the DNS domain name of a keyset file. Following options make sense
+            only in this mode.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-c <replaceable class="parameter">class</replaceable></term>
+        <listitem>
+          <para>
+            Specifies the DNS class (default is IN), useful only
+            in the keyset mode.
+          </para>
+	  </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-d <replaceable class="parameter">directory</replaceable></term>
+        <listitem>
+          <para>
+            Look for <filename>keyset</filename> files in
+            <option>directory</option> as the directory, ignored when
+            not in the keyset mode.
+          </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>EXAMPLE</title>
+    <para>
+      To build the SHA-256 DS RR from the
+      <userinput>Kexample.com.+003+26160</userinput>
+      keyfile name, the following command would be issued:
+    </para>
+    <para><userinput>dnssec-dsfromkey -2 Kexample.com.+003+26160</userinput>
+    </para>
+    <para>
+      The command would print something like:
+    </para>
+    <para><userinput>example.com. IN DS 26160 5 2 3A1EADA7A74B8D0BA86726B0C227AA85AB8BBD2B2004F41A868A54F0 C5EA0B94</userinput>
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+    <para>
+      The keyfile can be designed by the key identification
+      <filename>Knnnn.+aaa+iiiii</filename> or the full file name
+      <filename>Knnnn.+aaa+iiiii.key</filename> as generated by
+      <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>.
+    </para>
+    <para>
+      The keyset file name is built from the <option>directory</option>,
+      the string <filename>keyset-</filename> and the
+      <option>dnsname</option>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>CAVEAT</title>
+    <para>
+      A keyfile error can give a "file not found" even if the file exists.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para><citerefentry>
+        <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>dnssec-signzone</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
+      <citetitle>RFC 3658</citetitle>,
+      <citetitle>RFC 4509</citetitle>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para><corpauthor>Internet Systems Consortium</corpauthor>
+    </para>
+  </refsect1>
+
+</refentry><!--
+ - Local variables:
+ - mode: sgml
+ - End:
+-->

@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*-
- * Copyright (c) 2007 Hans Petter Selasky <hselasky@freebsd.org>
+ * Copyright (c) 2007 Hans Petter Selasky <hselasky@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -255,16 +255,11 @@
 #define	USS820_UNK1 0x1f		/* Unknown */
 #define	USS820_UNK1_UNKNOWN 0xFF
 
-#define	USS820_GET_REG(sc,reg) \
-  ((reg) << (sc)->sc_reg_shift)
-
 #define	USS820_READ_1(sc, reg) \
-  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, \
-    USS820_GET_REG(sc,reg))
+  bus_space_read_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg)
 
 #define	USS820_WRITE_1(sc, reg, data)	\
-  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, \
-    USS820_GET_REG(sc,reg), data)
+  bus_space_write_1((sc)->sc_io_tag, (sc)->sc_io_hdl, reg, data)
 
 struct uss820dci_td;
 
@@ -275,35 +270,22 @@ struct uss820dci_td {
 	bus_space_handle_t io_hdl;
 	struct uss820dci_td *obj_next;
 	uss820dci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_packet_size;
-	uint8_t	rx_stat_reg;
-	uint8_t	tx_stat_reg;
-	uint8_t	rx_flag_reg;
-	uint8_t	tx_flag_reg;
-	uint8_t	rx_fifo_reg;
-	uint8_t	tx_fifo_reg;
-	uint8_t	rx_count_low_reg;
-	uint8_t	rx_count_high_reg;
-	uint8_t	tx_count_low_reg;
-	uint8_t	tx_count_high_reg;
-	uint8_t	rx_cntl_reg;
-	uint8_t	tx_cntl_reg;
-	uint8_t	ep_reg;
-	uint8_t	pend_reg;
 	uint8_t	ep_index;
 	uint8_t	error:1;
 	uint8_t	alt_next:1;
 	uint8_t	short_pkt:1;
 	uint8_t	support_multi_buffer:1;
 	uint8_t	did_stall:1;
+	uint8_t	did_enable:1;
 };
 
 struct uss820_std_temp {
 	uss820dci_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	struct uss820dci_td *td;
 	struct uss820dci_td *td_next;
 	uint32_t len;
@@ -315,17 +297,18 @@ struct uss820_std_temp {
          * short_pkt = 1: transfer should not be short terminated
          */
 	uint8_t	setup_alt_next;
+	uint8_t did_stall;
 };
 
 struct uss820dci_config_desc {
-	struct usb2_config_descriptor confd;
-	struct usb2_interface_descriptor ifcd;
-	struct usb2_endpoint_descriptor endpd;
+	struct usb_config_descriptor confd;
+	struct usb_interface_descriptor ifcd;
+	struct usb_endpoint_descriptor endpd;
 } __packed;
 
 union uss820_hub_temp {
 	uWord	wValue;
-	struct usb2_port_status ps;
+	struct usb_port_status ps;
 };
 
 struct uss820_flags {
@@ -342,13 +325,10 @@ struct uss820_flags {
 };
 
 struct uss820dci_softc {
-	struct usb2_bus sc_bus;
+	struct usb_bus sc_bus;
 	union uss820_hub_temp sc_hub_temp;
-	LIST_HEAD(, usb2_xfer) sc_interrupt_list_head;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
 
-	struct usb2_device *sc_devices[USS820_MAX_DEVICES];
+	struct usb_device *sc_devices[USS820_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;
@@ -359,7 +339,6 @@ struct uss820dci_softc {
 	uint8_t	sc_rt_addr;		/* root HUB address */
 	uint8_t	sc_dv_addr;		/* device address */
 	uint8_t	sc_conf;		/* root HUB config */
-	uint8_t	sc_reg_shift;
 
 	uint8_t	sc_hub_idata[1];
 
@@ -368,7 +347,7 @@ struct uss820dci_softc {
 
 /* prototypes */
 
-usb2_error_t uss820dci_init(struct uss820dci_softc *sc);
+usb_error_t uss820dci_init(struct uss820dci_softc *sc);
 void	uss820dci_uninit(struct uss820dci_softc *sc);
 void	uss820dci_suspend(struct uss820dci_softc *sc);
 void	uss820dci_resume(struct uss820dci_softc *sc);

@@ -37,7 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/power.h>
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+
 #include <dev/acpica/acpivar.h>
 
 #define _COMPONENT	ACPI_OEM

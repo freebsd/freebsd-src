@@ -80,8 +80,7 @@ Only the root, /usr, and /tmp file systems need be statically
 compiled into the kernel;
 everything else will be automatically loaded at mount
 time.
-(Exception: the UFS family - FFS and LFS cannot
-currently be demand-loaded.)
+(Exception: the FFS cannot currently be demand-loaded.)
 Some people still prefer to statically
 compile other file systems as well.
 .Pp
@@ -199,6 +198,8 @@ command to determine which file systems need to be dumped.
 If the fifth field is not present, a value of zero is returned and
 .Nm dump
 will assume that the file system does not need to be dumped.
+If the fifth field is greater than 0, then it specifies the number of days
+between dumps for this file system.
 .Pp
 The sixth field,
 .Pq Fa fs_passno ,

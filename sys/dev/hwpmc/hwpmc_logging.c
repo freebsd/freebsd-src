@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/pmc.h>
+#include <sys/pmckern.h>
 #include <sys/pmclog.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
@@ -552,6 +553,12 @@ pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 	int error;
 	struct proc *p;
 
+	/*
+	 * As long as it is possible to get a LOR between pmc_sx lock and
+	 * proctree/allproc sx locks used for adding a new process, assure
+	 * the former is not held here.
+	 */
+	sx_assert(&pmc_sx, SA_UNLOCKED);
 	PMCDBG(LOG,CFG,1, "config po=%p logfd=%d", po, logfd);
 
 	p = po->po_owner;

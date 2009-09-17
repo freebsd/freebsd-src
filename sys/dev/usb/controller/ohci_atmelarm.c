@@ -25,14 +25,32 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_defs.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
+
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_sw_transfer.h>
 #include <dev/usb/usb_util.h>
 
 #include <dev/usb/usb_controller.h>
@@ -75,7 +93,7 @@ ohci_atmelarm_attach(device_t dev)
 	sc->sc_ohci.sc_bus.devices_max = OHCI_MAX_DEVICES;
 
 	/* get all DMA memory */
-	if (usb2_bus_mem_alloc_all(&sc->sc_ohci.sc_bus,
+	if (usb_bus_mem_alloc_all(&sc->sc_ohci.sc_bus,
 	    USB_GET_DMA_TAG(dev), &ohci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
@@ -112,10 +130,10 @@ ohci_atmelarm_attach(device_t dev)
 
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)ohci_interrupt, sc, &sc->sc_ohci.sc_intr_hdl);
+	    NULL, (driver_intr_t *)ohci_interrupt, sc, &sc->sc_ohci.sc_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_ohci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)ohci_interrupt, sc, &sc->sc_ohci.sc_intr_hdl);
+	    (driver_intr_t *)ohci_interrupt, sc, &sc->sc_ohci.sc_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_ohci.sc_intr_hdl = NULL;
@@ -193,7 +211,7 @@ ohci_atmelarm_detach(device_t dev)
 		    sc->sc_ohci.sc_io_res);
 		sc->sc_ohci.sc_io_res = NULL;
 	}
-	usb2_bus_mem_free_all(&sc->sc_ohci.sc_bus, &ohci_iterate_hw_softc);
+	usb_bus_mem_free_all(&sc->sc_ohci.sc_bus, &ohci_iterate_hw_softc);
 
 	return (0);
 }

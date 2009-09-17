@@ -127,7 +127,7 @@ svr4_to_native_rl(rl)
 
 int
 svr4_sys_getrlimit(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_getrlimit_args *uap;
 {
 	int rl = svr4_to_native_rl(uap->which);
@@ -174,7 +174,7 @@ svr4_sys_getrlimit(td, uap)
 
 int
 svr4_sys_setrlimit(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_setrlimit_args *uap;
 {
 	int rl = svr4_to_native_rl(uap->which);
@@ -225,7 +225,7 @@ svr4_sys_setrlimit(td, uap)
 
 int
 svr4_sys_getrlimit64(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_getrlimit64_args *uap;
 {
 	int rl = svr4_to_native_rl(uap->which);
@@ -272,7 +272,7 @@ svr4_sys_getrlimit64(td, uap)
 
 int
 svr4_sys_setrlimit64(td, uap)
-	register struct thread *td;
+	struct thread *td;
 	struct svr4_sys_setrlimit64_args *uap;
 {
 	int rl = svr4_to_native_rl(uap->which);

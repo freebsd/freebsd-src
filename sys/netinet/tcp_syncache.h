@@ -34,15 +34,20 @@
 #define _NETINET_TCP_SYNCACHE_H_
 #ifdef _KERNEL
 
+struct toeopt;
+
 void	 syncache_init(void);
+#ifdef VIMAGE
+void	syncache_destroy(void);
+#endif
 void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
 int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct socket **, struct mbuf *);
-int	 tcp_offload_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
+int	 tcp_offload_syncache_expand(struct in_conninfo *inc, struct toeopt *toeo,
              struct tcphdr *th, struct socket **lsop, struct mbuf *m);
 void	 syncache_add(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *);
-void	 tcp_offload_syncache_add(struct in_conninfo *, struct tcpopt *,
+void	 tcp_offload_syncache_add(struct in_conninfo *, struct toeopt *,
              struct tcphdr *, struct inpcb *, struct socket **,
              struct toe_usrreqs *tu, void *toepcb);
 
@@ -74,9 +79,7 @@ struct syncache {
 	struct toe_usrreqs *sc_tu;		/* TOE operations */
 	void 		*sc_toepcb;		/* TOE protocol block */
 #endif			
-#ifdef MAC
 	struct label	*sc_label;		/* MAC label reference */
-#endif
 	struct ucred	*sc_cred;		/* cred cache for jail checks */
 };
 
@@ -96,6 +99,7 @@ struct syncache {
 #define	SYNCOOKIE_LIFETIME	16	/* seconds */
 
 struct syncache_head {
+	struct vnet	*sch_vnet;
 	struct mtx	sch_mtx;
 	TAILQ_HEAD(sch_head, syncache)	sch_bucket;
 	struct callout	sch_timer;

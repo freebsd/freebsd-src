@@ -27,3 +27,4 @@ ENTRY(floorf)
 
 	leave
 	ret
+END(floorf)

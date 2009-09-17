@@ -2,7 +2,7 @@
 __FBSDID("$FreeBSD$");
 
 /*-
- * Copyright (c) 2008 Hans Petter Selasky <hselasky@freebsd.org>
+ * Copyright (c) 2008 Hans Petter Selasky <hselasky@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,10 +31,28 @@ __FBSDID("$FreeBSD$");
  * This file contains the USB templates for an USB Mass Storage Device.
  */
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usb_mfunc.h>
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
 
-#include <dev/usb/usb_core.h>
+#include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
 
 #include <dev/usb/template/usb_template.h>
 
@@ -95,14 +113,14 @@ USB_MAKE_STRING_DESC(STRING_MSC_SERIAL, string_msc_serial);
 
 /* prototypes */
 
-static usb2_temp_get_string_desc_t msc_get_string_desc;
+static usb_temp_get_string_desc_t msc_get_string_desc;
 
-static const struct usb2_temp_packet_size bulk_mps = {
+static const struct usb_temp_packet_size bulk_mps = {
 	.mps[USB_SPEED_FULL] = 64,
 	.mps[USB_SPEED_HIGH] = 512,
 };
 
-static const struct usb2_temp_endpoint_desc bulk_in_ep = {
+static const struct usb_temp_endpoint_desc bulk_in_ep = {
 	.pPacketSize = &bulk_mps,
 #ifdef USB_HIP_IN_EP_0
 	.bEndpointAddress = USB_HIP_IN_EP_0,
@@ -112,7 +130,7 @@ static const struct usb2_temp_endpoint_desc bulk_in_ep = {
 	.bmAttributes = UE_BULK,
 };
 
-static const struct usb2_temp_endpoint_desc bulk_out_ep = {
+static const struct usb_temp_endpoint_desc bulk_out_ep = {
 	.pPacketSize = &bulk_mps,
 #ifdef USB_HIP_OUT_EP_0
 	.bEndpointAddress = USB_HIP_OUT_EP_0,
@@ -122,13 +140,13 @@ static const struct usb2_temp_endpoint_desc bulk_out_ep = {
 	.bmAttributes = UE_BULK,
 };
 
-static const struct usb2_temp_endpoint_desc *msc_data_endpoints[] = {
+static const struct usb_temp_endpoint_desc *msc_data_endpoints[] = {
 	&bulk_in_ep,
 	&bulk_out_ep,
 	NULL,
 };
 
-static const struct usb2_temp_interface_desc msc_data_interface = {
+static const struct usb_temp_interface_desc msc_data_interface = {
 	.ppEndpoints = msc_data_endpoints,
 	.bInterfaceClass = UICLASS_MASS,
 	.bInterfaceSubClass = UISUBCLASS_SCSI,
@@ -136,24 +154,24 @@ static const struct usb2_temp_interface_desc msc_data_interface = {
 	.iInterface = STRING_MSC_DATA_INDEX,
 };
 
-static const struct usb2_temp_interface_desc *msc_interfaces[] = {
+static const struct usb_temp_interface_desc *msc_interfaces[] = {
 	&msc_data_interface,
 	NULL,
 };
 
-static const struct usb2_temp_config_desc msc_config_desc = {
+static const struct usb_temp_config_desc msc_config_desc = {
 	.ppIfaceDesc = msc_interfaces,
 	.bmAttributes = UC_BUS_POWERED,
 	.bMaxPower = 25,		/* 50 mA */
 	.iConfiguration = STRING_MSC_CONFIG_INDEX,
 };
 
-static const struct usb2_temp_config_desc *msc_configs[] = {
+static const struct usb_temp_config_desc *msc_configs[] = {
 	&msc_config_desc,
 	NULL,
 };
 
-const struct usb2_temp_device_desc usb2_template_msc = {
+const struct usb_temp_device_desc usb_template_msc = {
 	.getStringDesc = &msc_get_string_desc,
 	.ppConfigDesc = msc_configs,
 	.idVendor = 0x0001,

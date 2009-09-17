@@ -44,3 +44,4 @@ ENTRY(finite)
 	setneb	%al
 	andl	$0x000000ff, %eax
 	ret
+END(finite)

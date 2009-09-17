@@ -204,7 +204,11 @@ main(int argc, char *argv[])
 
 	/* check only if password database is valid */
 	if (Cflag) {
-		for (cnt = 1; scan(fp, &pwd); ++cnt);
+		while (scan(fp, &pwd))
+			if (!is_comment && strlen(pwd.pw_name) >= MAXLOGNAME) {
+				warnx("%s: username too long", pwd.pw_name);
+				exit(1);
+			}
 		exit(0);
 	}
 

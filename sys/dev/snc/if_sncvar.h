@@ -44,4 +44,4 @@ int	snc_alloc_irq		(device_t, int, int);
 int	snc_probe		(device_t, int);
 int	snc_attach		(device_t);
 
-void	snc_shutdown		(device_t);
+int	snc_shutdown		(device_t);

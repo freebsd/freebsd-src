@@ -41,14 +41,16 @@
 extern  HAL_BOOL ar5312IsInterruptPending(struct ath_hal *ah);
 
 /* AR5312 */
-extern	HAL_BOOL ar5312GpioCfgOutput(struct ath_hal *, uint32_t gpio);
+extern	HAL_BOOL ar5312GpioCfgOutput(struct ath_hal *, uint32_t gpio,
+		HAL_GPIO_MUX_TYPE);
 extern	HAL_BOOL ar5312GpioCfgInput(struct ath_hal *, uint32_t gpio);
 extern	HAL_BOOL ar5312GpioSet(struct ath_hal *, uint32_t gpio, uint32_t val);
 extern	uint32_t ar5312GpioGet(struct ath_hal *ah, uint32_t gpio);
 extern	void ar5312GpioSetIntr(struct ath_hal *ah, u_int, uint32_t ilevel);
 
 /* AR2315+ */
-extern	HAL_BOOL ar5315GpioCfgOutput(struct ath_hal *, uint32_t gpio);
+extern	HAL_BOOL ar5315GpioCfgOutput(struct ath_hal *, uint32_t gpio,
+		HAL_GPIO_MUX_TYPE);
 extern	HAL_BOOL ar5315GpioCfgInput(struct ath_hal *, uint32_t gpio);
 extern	HAL_BOOL ar5315GpioSet(struct ath_hal *, uint32_t gpio, uint32_t val);
 extern	uint32_t ar5315GpioGet(struct ath_hal *ah, uint32_t gpio);

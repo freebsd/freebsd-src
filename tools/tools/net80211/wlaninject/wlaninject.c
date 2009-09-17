@@ -58,6 +58,14 @@ void setup_if(char *dev, int chan) {
 	if ((s = socket(PF_INET, SOCK_DGRAM, 0)) == -1)
 		err(1, "socket()");
 
+	/* chan */
+	memset(&ireq, 0, sizeof(ireq));
+	snprintf(ireq.i_name, sizeof(ireq.i_name), "%s", dev);
+	ireq.i_type = IEEE80211_IOC_CHANNEL;
+	ireq.i_val = chan;
+	if (ioctl(s, SIOCS80211, &ireq) == -1)
+		err(1, "ioctl(SIOCS80211)");
+
 	/* UP & PROMISC */
 	memset(&ifr, 0, sizeof(ifr));
 	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s", dev);
@@ -69,34 +77,6 @@ void setup_if(char *dev, int chan) {
 	ifr.ifr_flagshigh = flags >> 16;
 	if (ioctl(s, SIOCSIFFLAGS, &ifr) == -1)
 		err(1, "ioctl(SIOCSIFFLAGS)");
-
-	/* set monitor mode */
-	memset(&ifmr, 0, sizeof(ifmr));
-	snprintf(ifmr.ifm_name, sizeof(ifmr.ifm_name), "%s", dev);
-	if (ioctl(s, SIOCGIFMEDIA, &ifmr) == -1)
-		err(1, "ioctl(SIOCGIFMEDIA)");
-	if (ifmr.ifm_count == 0) {
-		printf("0 media thinggies...\n");
-		exit(1);
-	}
-	mwords = (int *)malloc(ifmr.ifm_count * sizeof(int));
-	if (!mwords)
-		err(1, "malloc()");
-	ifmr.ifm_ulist = mwords;
-	if (ioctl(s, SIOCGIFMEDIA, &ifmr) == -1)
-		err(1, "ioctl(SIOCGIFMEDIA)");
-	free(mwords);
-	ifr.ifr_media = ifmr.ifm_current | IFM_IEEE80211_MONITOR;
-	if (ioctl(s, SIOCSIFMEDIA, &ifr) == -1)
-		err(1, "ioctl(SIOCSIFMEDIA)");
-
-	/* chan */
-	memset(&ireq, 0, sizeof(ireq));
-	snprintf(ireq.i_name, sizeof(ireq.i_name), "%s", dev);
-	ireq.i_type = IEEE80211_IOC_CHANNEL;
-	ireq.i_val = chan;
-	if (ioctl(s, SIOCS80211, &ireq) == -1)
-		err(1, "ioctl(SIOCS80211)");
 
 	close(s);
 }
@@ -546,7 +526,7 @@ int do_verify(struct ieee80211_frame *sent, int slen, void *got, int glen)
 int main(int argc, char *argv[])
 {
 	int fd, fd2;
-	char *iface = "ath0";
+	char *iface = "wlan0";
 	char *verify = NULL;
 	int chan = 1;
 	struct {

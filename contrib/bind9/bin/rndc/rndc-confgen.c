@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc-confgen.c,v 1.18.18.5 2008/10/15 23:46:06 tbox Exp $ */
+/* $Id: rndc-confgen.c,v 1.26 2008/10/15 23:47:31 tbox Exp $ */
 
 /*! \file */
 
@@ -160,6 +160,8 @@ main(int argc, char **argv) {
 	serveraddr = DEFAULT_SERVER;
 	port = DEFAULT_PORT;
 
+	isc_commandline_errprint = ISC_FALSE;
+
 	while ((ch = isc_commandline_parse(argc, argv,
 					   "ab:c:hk:Mmp:r:s:t:u:Vy")) != -1) {
 		switch (ch) {
@@ -214,12 +216,17 @@ main(int argc, char **argv) {
 			verbose = ISC_TRUE;
 			break;
 		case '?':
-			usage(1);
+			if (isc_commandline_option != '?') {
+				fprintf(stderr, "%s: invalid argument -%c\n",
+					program, isc_commandline_option);
+				usage(1);
+			} else
+				usage(0);
 			break;
 		default:
-			fatal("unexpected error parsing command arguments: "
-			      "got %c\n", ch);
-			break;
+			fprintf(stderr, "%s: unhandled option -%c\n",
+				program, isc_commandline_option);
+			exit(1);
 		}
 	}
 

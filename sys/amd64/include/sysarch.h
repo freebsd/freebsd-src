@@ -35,6 +35,15 @@
 #ifndef _MACHINE_SYSARCH_H_
 #define _MACHINE_SYSARCH_H_
 
+#define I386_GET_LDT	0
+#define I386_SET_LDT	1
+#define	LDT_AUTO_ALLOC	0xffffffff
+				/* I386_IOPL */
+#define I386_GET_IOPERM	3
+#define I386_SET_IOPERM	4
+
+/* XXX Not implementable #define I386_VM86	6 */
+
 #define	I386_GET_FSBASE		7
 #define	I386_SET_FSBASE		8
 #define	I386_GET_GSBASE		9
@@ -46,6 +55,18 @@
 #define	AMD64_GET_GSBASE	130
 #define	AMD64_SET_GSBASE	131
 
+struct i386_ldt_args {
+	unsigned int start;
+	struct user_segment_descriptor *descs __packed;
+	unsigned int num;
+};
+
+struct i386_ioperm_args {
+	unsigned int start;
+	unsigned int length;
+	int	enable;
+};
+
 #ifndef _KERNEL
 #include <sys/cdefs.h>
 
@@ -56,6 +77,15 @@ int amd64_set_fsbase(void *);
 int amd64_set_gsbase(void *);
 int sysarch(int, void *);
 __END_DECLS
+#else
+struct thread;
+union descriptor;
+
+int amd64_get_ldt(struct thread *, struct i386_ldt_args *);
+int amd64_set_ldt(struct thread *, struct i386_ldt_args *,
+    struct user_segment_descriptor *);
+int amd64_get_ioperm(struct thread *, struct i386_ioperm_args *);
+int amd64_set_ioperm(struct thread *, struct i386_ioperm_args *);
 #endif
 
 #endif /* !_MACHINE_SYSARCH_H_ */

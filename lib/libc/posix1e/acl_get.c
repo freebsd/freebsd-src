@@ -47,8 +47,12 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
+#include "acl_support.h"
 
 acl_t
 acl_get_file(const char *path_p, acl_type_t type)
@@ -60,11 +64,15 @@ acl_get_file(const char *path_p, acl_type_t type)
 	if (aclp == NULL)
 		return (NULL);
 
+	type = _acl_type_unold(type);
 	error = __acl_get_file(path_p, type, &aclp->ats_acl);
 	if (error) {
 		acl_free(aclp);
 		return (NULL);
 	}
+
+	aclp->ats_acl.acl_maxcnt = ACL_MAX_ENTRIES;
+	_acl_brand_from_type(aclp, type);
 
 	return (aclp);
 }
@@ -79,11 +87,15 @@ acl_get_link_np(const char *path_p, acl_type_t type)
 	if (aclp == NULL)
 		return (NULL);
 
+	type = _acl_type_unold(type);
 	error = __acl_get_link(path_p, type, &aclp->ats_acl);
 	if (error) {
 		acl_free(aclp);
 		return (NULL);
 	}
+
+	aclp->ats_acl.acl_maxcnt = ACL_MAX_ENTRIES;
+	_acl_brand_from_type(aclp, type);
 
 	return (aclp);
 }
@@ -91,20 +103,10 @@ acl_get_link_np(const char *path_p, acl_type_t type)
 acl_t
 acl_get_fd(int fd)
 {
-	acl_t	aclp;
-	int	error;
+	if (fpathconf(fd, _PC_ACL_NFS4) == 1)
+		return (acl_get_fd_np(fd, ACL_TYPE_NFS4));
 
-	aclp = acl_init(ACL_MAX_ENTRIES);
-	if (aclp == NULL)
-		return (NULL);
-
-	error = ___acl_get_fd(fd, ACL_TYPE_ACCESS, &aclp->ats_acl);
-	if (error) {
-		acl_free(aclp);
-		return (NULL);
-	}
-
-	return (aclp);
+	return (acl_get_fd_np(fd, ACL_TYPE_ACCESS));
 }
 
 acl_t
@@ -117,11 +119,15 @@ acl_get_fd_np(int fd, acl_type_t type)
 	if (aclp == NULL)
 		return (NULL);
 
+	type = _acl_type_unold(type);
 	error = ___acl_get_fd(fd, type, &aclp->ats_acl);
 	if (error) {
 		acl_free(aclp);
 		return (NULL);
 	}
+
+	aclp->ats_acl.acl_maxcnt = ACL_MAX_ENTRIES;
+	_acl_brand_from_type(aclp, type);
 
 	return (aclp);
 }
@@ -210,6 +216,25 @@ acl_get_tag_type(acl_entry_t entry_d, acl_tag_t *tag_type_p)
 	}
 
 	*tag_type_p = entry_d->ae_tag;
+
+	return (0);
+}
+
+int
+acl_get_entry_type_np(acl_entry_t entry_d, acl_entry_type_t *entry_type_p)
+{
+
+	if (entry_d == NULL || entry_type_p == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if (!_entry_brand_may_be(entry_d, ACL_BRAND_NFS4)) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	*entry_type_p = entry_d->ae_entry_type;
 
 	return (0);
 }

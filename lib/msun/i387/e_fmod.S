@@ -46,3 +46,4 @@ ENTRY(fmod)
 	jp	1b
 	fstp	%st(1)
 	ret
+END(fmod)

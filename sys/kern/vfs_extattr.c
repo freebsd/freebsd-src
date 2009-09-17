@@ -29,8 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -72,8 +70,8 @@ extattrctl(td, uap)
 	char attrname[EXTATTR_MAXNAMELEN];
 	int vfslocked, fnvfslocked, error;
 
-	AUDIT_ARG(cmd, uap->cmd);
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_CMD(uap->cmd);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	/*
 	 * uap->attrname is not always defined.  We check again later when we
 	 * invoke the VFS call so as to pass in NULL there if needed.
@@ -84,7 +82,7 @@ extattrctl(td, uap)
 		if (error)
 			return (error);
 	}
-	AUDIT_ARG(text, attrname);
+	AUDIT_ARG_TEXT(attrname);
 
 	vfslocked = fnvfslocked = 0;
 	mp = NULL;
@@ -133,7 +131,7 @@ extattrctl(td, uap)
 	}
 
 	error = VFS_EXTATTRCTL(mp, uap->cmd, filename_vp, uap->attrnamespace,
-	    uap->attrname != NULL ? attrname : NULL, td);
+	    uap->attrname != NULL ? attrname : NULL);
 
 	vn_finished_write(mp_writable);
 out:
@@ -175,7 +173,6 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error)
 		return (error);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	aiov.iov_base = data;
@@ -195,7 +192,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 
 #ifdef MAC
 	error = mac_vnode_check_setextattr(td->td_ucred, vp, attrnamespace,
-	    attrname, &auio);
+	    attrname);
 	if (error)
 		goto done;
 #endif
@@ -226,12 +223,12 @@ extattr_set_fd(td, uap)
 	char attrname[EXTATTR_MAXNAMELEN];
 	int vfslocked, error;
 
-	AUDIT_ARG(fd, uap->fd);
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_FD(uap->fd);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
-	AUDIT_ARG(text, attrname);
+	AUDIT_ARG_TEXT(attrname);
 
 	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
 	if (error)
@@ -261,11 +258,11 @@ extattr_set_file(td, uap)
 	char attrname[EXTATTR_MAXNAMELEN];
 	int vfslocked, error;
 
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
-	AUDIT_ARG(text, attrname);
+	AUDIT_ARG_TEXT(attrname);
 
 	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
@@ -298,11 +295,11 @@ extattr_set_link(td, uap)
 	char attrname[EXTATTR_MAXNAMELEN];
 	int vfslocked, error;
 
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
-	AUDIT_ARG(text, attrname);
+	AUDIT_ARG_TEXT(attrname);
 
 	NDINIT(&nd, LOOKUP, MPSAFE | NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
@@ -341,7 +338,6 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	int error;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	/*
@@ -373,7 +369,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 
 #ifdef MAC
 	error = mac_vnode_check_getextattr(td->td_ucred, vp, attrnamespace,
-	    attrname, &auio);
+	    attrname);
 	if (error)
 		goto done;
 #endif
@@ -407,12 +403,12 @@ extattr_get_fd(td, uap)
 	char attrname[EXTATTR_MAXNAMELEN];
 	int vfslocked, error;
 
-	AUDIT_ARG(fd, uap->fd);
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_FD(uap->fd);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
-	AUDIT_ARG(text, attrname);
+	AUDIT_ARG_TEXT(attrname);
 
 	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
 	if (error)
@@ -442,11 +438,11 @@ extattr_get_file(td, uap)
 	char attrname[EXTATTR_MAXNAMELEN];
 	int vfslocked, error;
 
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
-	AUDIT_ARG(text, attrname);
+	AUDIT_ARG_TEXT(attrname);
 
 	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
@@ -479,11 +475,11 @@ extattr_get_link(td, uap)
 	char attrname[EXTATTR_MAXNAMELEN];
 	int vfslocked, error;
 
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
-	AUDIT_ARG(text, attrname);
+	AUDIT_ARG_TEXT(attrname);
 
 	NDINIT(&nd, LOOKUP, MPSAFE | NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
@@ -522,7 +518,6 @@ extattr_delete_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error)
 		return (error);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 #ifdef MAC
@@ -558,12 +553,12 @@ extattr_delete_fd(td, uap)
 	char attrname[EXTATTR_MAXNAMELEN];
 	int vfslocked, error;
 
-	AUDIT_ARG(fd, uap->fd);
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_FD(uap->fd);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return (error);
-	AUDIT_ARG(text, attrname);
+	AUDIT_ARG_TEXT(attrname);
 
 	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
 	if (error)
@@ -590,11 +585,11 @@ extattr_delete_file(td, uap)
 	char attrname[EXTATTR_MAXNAMELEN];
 	int vfslocked, error;
 
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return(error);
-	AUDIT_ARG(text, attrname);
+	AUDIT_ARG_TEXT(attrname);
 
 	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
@@ -623,11 +618,11 @@ extattr_delete_link(td, uap)
 	char attrname[EXTATTR_MAXNAMELEN];
 	int vfslocked, error;
 
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = copyinstr(uap->attrname, attrname, EXTATTR_MAXNAMELEN, NULL);
 	if (error)
 		return(error);
-	AUDIT_ARG(text, attrname);
+	AUDIT_ARG_TEXT(attrname);
 
 	NDINIT(&nd, LOOKUP, MPSAFE | NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
@@ -664,7 +659,6 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 	int error;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_READ);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
 	auiop = NULL;
@@ -723,8 +717,8 @@ extattr_list_fd(td, uap)
 	struct file *fp;
 	int vfslocked, error;
 
-	AUDIT_ARG(fd, uap->fd);
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_FD(uap->fd);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	error = getvnode(td->td_proc->p_fd, uap->fd, &fp);
 	if (error)
 		return (error);
@@ -751,7 +745,7 @@ extattr_list_file(td, uap)
 	struct nameidata nd;
 	int vfslocked, error;
 
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
 	error = namei(&nd);
@@ -781,7 +775,7 @@ extattr_list_link(td, uap)
 	struct nameidata nd;
 	int vfslocked, error;
 
-	AUDIT_ARG(value, uap->attrnamespace);
+	AUDIT_ARG_VALUE(uap->attrnamespace);
 	NDINIT(&nd, LOOKUP, MPSAFE | NOFOLLOW | AUDITVNODE1, UIO_USERSPACE,
 	    uap->path, td);
 	error = namei(&nd);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2009 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,19 +93,19 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_mirror_softc *sc;
 	struct g_mirror_disk *disk;
-	const char *name, *balancep;
-	intmax_t *slicep;
+	const char *name, *balancep, *prov;
+	intmax_t *slicep, *priority;
 	uint32_t slice;
 	uint8_t balance;
 	int *autosync, *noautosync, *failsync, *nofailsync, *hardcode, *dynamic;
-	int *nargs, do_sync = 0, dirty = 1;
+	int *nargs, do_sync = 0, dirty = 1, do_priority = 0;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
 		gctl_error(req, "No '%s' argument.", "nargs");
 		return;
 	}
-	if (*nargs != 1) {
+	if (*nargs != 1 && *nargs != 2) {
 		gctl_error(req, "Invalid number of arguments.");
 		return;
 	}
@@ -149,6 +149,29 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "dynamic");
 		return;
 	}
+	priority = gctl_get_paraml(req, "priority", sizeof(*priority));
+	if (priority == NULL) {
+		gctl_error(req, "No '%s' argument.", "priority");
+		return;
+	}
+	if (*priority < -1 || *priority > 255) {
+		gctl_error(req, "Priority range is 0 to 255, %jd given",
+		    *priority);
+		return;
+	}
+	/* 
+	 * Since we have a priority, we also need a provider now.
+	 * Note: be WARNS safe, by always assigning prov and only throw an
+	 * error if *priority != -1.
+	 */
+	prov = gctl_get_asciiparam(req, "arg1");
+	if (*priority > -1) {
+		if (prov == NULL) {
+			gctl_error(req, "Priority needs a disk name");
+			return;
+		}
+		do_priority = 1;
+	}
 	if (*autosync && *noautosync) {
 		gctl_error(req, "'%s' and '%s' specified.", "autosync",
 		    "noautosync");
@@ -189,17 +212,30 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		slice = sc->sc_slice;
 	else
 		slice = *slicep;
-	if (g_mirror_ndisks(sc, -1) < sc->sc_ndisks) {
+	/* Enforce usage() of -p not allowing any other options. */
+	if (do_priority && (*autosync || *noautosync || *failsync ||
+	    *nofailsync || *hardcode || *dynamic || *slicep != -1 ||
+	    strcmp(balancep, "none") != 0)) {
 		sx_xunlock(&sc->sc_lock);
-		gctl_error(req, "Not all disks connected. Try 'forget' command "
-		    "first.");
+		gctl_error(req, "only -p accepted when setting priority");
 		return;
 	}
 	if (sc->sc_balance == balance && sc->sc_slice == slice && !*autosync &&
 	    !*noautosync && !*failsync && !*nofailsync && !*hardcode &&
-	    !*dynamic) {
+	    !*dynamic && !do_priority) {
 		sx_xunlock(&sc->sc_lock);
 		gctl_error(req, "Nothing has changed.");
+		return;
+	}
+	if ((!do_priority && *nargs != 1) || (do_priority && *nargs != 2)) {
+		sx_xunlock(&sc->sc_lock);
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	if (g_mirror_ndisks(sc, -1) < sc->sc_ndisks) {
+		sx_xunlock(&sc->sc_lock);
+		gctl_error(req, "Not all disks connected. Try 'forget' command "
+		    "first.");
 		return;
 	}
 	sc->sc_balance = balance;
@@ -223,6 +259,23 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		}
 	}
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		/*
+		 * Handle priority first, since we only need one disk, do one
+		 * operation on it and then we're done. No need to check other
+		 * flags, as usage doesn't allow it.
+		 */
+		if (do_priority) {
+			if (strcmp(disk->d_name, prov) == 0) {
+				if (disk->d_priority == *priority)
+					gctl_error(req, "Nothing has changed.");
+				else {
+					disk->d_priority = *priority;
+					g_mirror_update_metadata(disk);
+				}
+				break;
+			}
+			continue;
+		}
 		if (do_sync) {
 			if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
 				disk->d_flags &= ~G_MIRROR_DISK_FLAG_FORCE_SYNC;

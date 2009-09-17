@@ -104,7 +104,7 @@ static int	mfi_mapcmd(struct mfi_softc *, struct mfi_command *);
 static int	mfi_send_frame(struct mfi_softc *, struct mfi_command *);
 static void	mfi_complete(struct mfi_softc *, struct mfi_command *);
 static int	mfi_abort(struct mfi_softc *, struct mfi_command *);
-static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, d_thread_t *);
+static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, struct thread *);
 static void	mfi_timeout(void *);
 static int	mfi_user_command(struct mfi_softc *,
 		    struct mfi_ioc_passthru *);
@@ -230,7 +230,7 @@ mfi_issue_cmd_ppc(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt)
 static int
 mfi_transition_firmware(struct mfi_softc *sc)
 {
-	int32_t fw_state, cur_state;
+	uint32_t fw_state, cur_state;
 	int max_wait, i;
 
 	fw_state = sc->mfi_read_fw_status(sc)& MFI_FWSTATE_MASK;
@@ -341,7 +341,7 @@ mfi_attach(struct mfi_softc *sc)
 	status = sc->mfi_read_fw_status(sc);
 	sc->mfi_max_fw_cmds = status & MFI_FWSTATE_MAXCMD_MASK;
 	max_fw_sge = (status & MFI_FWSTATE_MAXSGL_MASK) >> 16;
-	sc->mfi_max_sge = min(max_fw_sge, ((MAXPHYS / PAGE_SIZE) + 1));
+	sc->mfi_max_sge = min(max_fw_sge, ((MFI_MAXPHYS / PAGE_SIZE) + 1));
 
 	/*
 	 * Create the dma tag for data buffers.  Used both for block I/O
@@ -1686,7 +1686,7 @@ mfi_dump_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt, int len)
 }
 
 static int
-mfi_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+mfi_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct mfi_softc *sc;
 	int error;
@@ -1706,7 +1706,7 @@ mfi_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 }
 
 static int
-mfi_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
+mfi_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct mfi_softc *sc;
 	struct mfi_aen *mfi_aen_entry, *tmp;
@@ -1910,7 +1910,7 @@ out:
 #endif
 
 static int
-mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
+mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	struct mfi_softc *sc;
 	union mfi_statrequest *ms;
@@ -2234,7 +2234,7 @@ out:
 }
 
 static int
-mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
+mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	struct mfi_softc *sc;
 	struct mfi_linux_ioc_packet l_ioc;

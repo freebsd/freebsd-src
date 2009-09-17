@@ -58,10 +58,7 @@ The
 system call
 returns the actual number of groups returned in
 .Fa gidset .
-No more than
-.Dv NGROUPS_MAX
-will ever
-be returned.
+At least one and as many as {NGROUPS_MAX}+1 values may be returned.
 If
 .Fa gidsetlen
 is zero,
@@ -92,6 +89,11 @@ an invalid address.
 .Sh SEE ALSO
 .Xr setgroups 2 ,
 .Xr initgroups 3
+.Sh STANDARDS
+The
+.Fn getgroups
+system call conforms to
+.St -p1003.1-2008 .
 .Sh HISTORY
 The
 .Fn getgroups

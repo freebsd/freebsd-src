@@ -95,13 +95,13 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 			goto done;
 		}
 		for (i = 0; i < gid_len; i++) {
-			if (i + 1 < NGROUPS)
+			if (i + 1 < XU_NGROUPS)
 				xcr->cr_groups[i + 1] = IXDR_GET_INT32(buf);
 			else
 				buf++;
 		}
-		if (gid_len + 1 > NGROUPS)
-			xcr->cr_ngroups = NGROUPS;
+		if (gid_len + 1 > XU_NGROUPS)
+			xcr->cr_ngroups = XU_NGROUPS;
 		else
 			xcr->cr_ngroups = gid_len + 1;
 

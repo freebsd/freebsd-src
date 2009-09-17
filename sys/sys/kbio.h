@@ -229,16 +229,22 @@ typedef struct fkeyarg	fkeyarg_t;
 
 /* flags set to the return value in the KD_XLATE mode */
 
-#define NOKEY		0x100		/* no key pressed marker 	*/
-#define FKEY		0x200		/* function key marker 		*/
-#define MKEY		0x400		/* meta key marker (prepend ESC)*/
-#define BKEY		0x800		/* backtab (ESC [ Z)		*/
+#define	NOKEY		0x01000000	/* no key pressed marker 	*/
+#define	FKEY		0x02000000	/* function key marker 		*/
+#define	MKEY		0x04000000	/* meta key marker (prepend ESC)*/
+#define	BKEY		0x08000000	/* backtab (ESC [ Z)		*/
 
-#define SPCLKEY		0x8000		/* special key			*/
-#define RELKEY		0x4000		/* key released			*/
-#define ERRKEY		0x2000		/* error			*/
+#define	SPCLKEY		0x80000000	/* special key			*/
+#define	RELKEY		0x40000000	/* key released			*/
+#define	ERRKEY		0x20000000	/* error			*/
 
-#define KEYCHAR(c)	((c) & 0x00ff)
-#define KEYFLAGS(c)	((c) & ~0x00ff)
+/*
+ * The top byte is used to store the flags.  This means there are 24
+ * bits left to store the actual character.  Because UTF-8 can encode
+ * 2^21 different characters, this is good enough to get Unicode
+ * working.
+ */
+#define KEYCHAR(c)	((c) & 0x00ffffff)
+#define KEYFLAGS(c)	((c) & ~0x00ffffff)
 
 #endif /* !_SYS_KBIO_H_ */

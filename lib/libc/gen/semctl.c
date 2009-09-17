@@ -29,15 +29,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define _WANT_SEMUN_OLD
+
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <stdarg.h>
 #include <stdlib.h>
 
-extern int __semctl(int semid, int semnum, int cmd, union semun *arg);
+int	__semctl(int semid, int semnum, int cmd, union semun *arg);
+int	freebsd7___semctl(int semid, int semnum, int cmd, union semun_old *arg);
 
-int semctl(int semid, int semnum, int cmd, ...)
+int
+semctl(int semid, int semnum, int cmd, ...)
 {
 	va_list ap;
 	union semun semun;
@@ -55,3 +59,25 @@ int semctl(int semid, int semnum, int cmd, ...)
 
 	return (__semctl(semid, semnum, cmd, semun_ptr));
 }
+
+int
+freebsd7_semctl(int semid, int semnum, int cmd, ...)
+{
+	va_list ap;
+	union semun_old semun;
+	union semun_old *semun_ptr;
+
+	va_start(ap, cmd);
+	if (cmd == IPC_SET || cmd == IPC_STAT || cmd == GETALL
+	    || cmd == SETVAL || cmd == SETALL) {
+		semun = va_arg(ap, union semun_old);
+		semun_ptr = &semun;
+	} else {
+		semun_ptr = NULL;
+	}
+	va_end(ap);
+
+	return (freebsd7___semctl(semid, semnum, cmd, semun_ptr));
+}
+
+__sym_compat(semctl, freebsd7_semctl, FBSD_1.0);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2006 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2006, 2009 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 nCircle Network Security, Inc.
@@ -20,6 +20,9 @@
  *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
+ *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,12 +55,81 @@
 #error "no user-serviceable parts inside"
 #endif
 
+#include <sys/lock.h>
+#include <sys/rmlock.h>
+
 /*
  * MAC Framework sysctl namespace.
  */
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_security_mac);
 #endif /* SYSCTL_DECL */
+
+/*
+ * MAC Framework SDT DTrace probe namespace, macros for declaring entry
+ * point probes, macros for invoking them.
+ */
+#ifdef SDT_PROVIDER_DECLARE
+SDT_PROVIDER_DECLARE(mac);		/* MAC Framework-level events. */
+SDT_PROVIDER_DECLARE(mac_framework);	/* Entry points to MAC. */
+
+#define	MAC_CHECK_PROBE_DEFINE4(name, arg0, arg1, arg2, arg3)		\
+	SDT_PROBE_DEFINE5(mac_framework, kernel, name, mac_check_err,	\
+	    "int", arg0, arg1, arg2, arg3);				\
+	SDT_PROBE_DEFINE5(mac_framework, kernel, name, mac_check_ok,	\
+	    "int", arg0, arg1, arg2, arg3);
+
+#define	MAC_CHECK_PROBE_DEFINE3(name, arg0, arg1, arg2)			\
+	SDT_PROBE_DEFINE4(mac_framework, kernel, name, mac_check_err,	\
+	    "int", arg0, arg1, arg2);					\
+	SDT_PROBE_DEFINE4(mac_framework, kernel, name, mac_check_ok,	\
+	    "int", arg0, arg1, arg2);
+
+#define	MAC_CHECK_PROBE_DEFINE2(name, arg0, arg1)			\
+	SDT_PROBE_DEFINE3(mac_framework, kernel, name, mac_check_err,	\
+	    "int", arg0, arg1);						\
+	SDT_PROBE_DEFINE3(mac_framework, kernel, name, mac_check_ok,	\
+	    "int", arg0, arg1);
+
+#define	MAC_CHECK_PROBE_DEFINE1(name, arg0)				\
+	SDT_PROBE_DEFINE2(mac_framework, kernel, name, mac_check_err,	\
+	    "int", arg0);						\
+	SDT_PROBE_DEFINE2(mac_framework, kernel, name, mac_check_ok,	\
+	    "int", arg0);
+
+#define	MAC_CHECK_PROBE4(name, error, arg0, arg1, arg2, arg3)	do {	\
+	if (error) {							\
+		SDT_PROBE(mac_framework, kernel, name, mac_check_err,	\
+		    error, arg0, arg1, arg2, arg3);			\
+	} else {							\
+		SDT_PROBE(mac_framework, kernel, name, mac_check_ok,	\
+		    0, arg0, arg1, arg2, arg3);				\
+	}								\
+} while (0)
+
+#define	MAC_CHECK_PROBE3(name, error, arg0, arg1, arg2)			\
+	MAC_CHECK_PROBE4(name, error, arg0, arg1, arg2, 0)
+#define	MAC_CHECK_PROBE2(name, error, arg0, arg1)			\
+	MAC_CHECK_PROBE3(name, error, arg0, arg1, 0)
+#define	MAC_CHECK_PROBE1(name, error, arg0)				\
+	MAC_CHECK_PROBE2(name, error, arg0, 0)
+#endif
+
+#define	MAC_GRANT_PROBE_DEFINE2(name, arg0, arg1)			\
+	SDT_PROBE_DEFINE3(mac_framework, kernel, name, mac_grant_err,	\
+	    "int", arg0, arg1);						\
+	SDT_PROBE_DEFINE3(mac_framework, kernel, name, mac_grant_ok,	\
+	    "INT", arg0, arg1);
+
+#define	MAC_GRANT_PROBE2(name, error, arg0, arg1)	do {		\
+	if (error) {							\
+		SDT_PROBE(mac_framework, kernel, name, mac_grant_err,	\
+		    error, arg0, arg1, 0, 0);				\
+	} else {							\
+		SDT_PROBE(mac_framework, kernel, name, mac_grant_ok,	\
+		    error, arg0, arg1, 0, 0);				\
+	}								\
+} while (0)
 
 /*
  * MAC Framework global types and typedefs.
@@ -117,6 +189,7 @@ struct label {
  */
 extern struct mac_policy_list_head	mac_policy_list;
 extern struct mac_policy_list_head	mac_static_policy_list;
+extern u_int				mac_policy_count;
 extern uint64_t				mac_labeled;
 extern struct mtx			mac_ifnet_mtx;
 
@@ -125,12 +198,10 @@ extern struct mtx			mac_ifnet_mtx;
  */
 int	mac_error_select(int error1, int error2);
 
-void	mac_policy_grab_exclusive(void);
-void	mac_policy_assert_exclusive(void);
-void	mac_policy_release_exclusive(void);
-void	mac_policy_list_busy(void);
-int	mac_policy_list_conditional_busy(void);
-void	mac_policy_list_unbusy(void);
+void	mac_policy_slock_nosleep(struct rm_priotracker *tracker);
+void	mac_policy_slock_sleep(void);
+void	mac_policy_sunlock_nosleep(struct rm_priotracker *tracker);
+void	mac_policy_sunlock_sleep(void);
 
 struct label	*mac_labelzone_alloc(int flags);
 void		 mac_labelzone_free(struct label *label);
@@ -186,13 +257,16 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 	    struct ucred *cred);
 
 /*
- * MAC_CHECK performs the designated check by walking the policy module list
- * and checking with each as to how it feels about the request.  Note that it
- * returns its value via 'error' in the scope of the caller.
+ * MAC Framework composition macros invoke all registered MAC policies for a
+ * specific entry point.  They come in two forms: one which permits policies
+ * to sleep/block, and another that does not.
+ *
+ * MAC_POLICY_CHECK performs the designated check by walking the policy
+ * module list and checking with each as to how it feels about the request.
+ * Note that it returns its value via 'error' in the scope of the caller.
  */
-#define	MAC_CHECK(check, args...) do {					\
+#define	MAC_POLICY_CHECK(check, args...) do {				\
 	struct mac_policy_conf *mpc;					\
-	int entrycount;							\
 									\
 	error = 0;							\
 	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
@@ -201,27 +275,51 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 			    mpc->mpc_ops->mpo_ ## check (args),		\
 			    error);					\
 	}								\
-	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {	\
+	if (!LIST_EMPTY(&mac_policy_list)) {				\
+		mac_policy_slock_sleep();				\
 		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
 			if (mpc->mpc_ops->mpo_ ## check != NULL)	\
 				error = mac_error_select(		\
 				    mpc->mpc_ops->mpo_ ## check (args),	\
 				    error);				\
 		}							\
-		mac_policy_list_unbusy();				\
+		mac_policy_sunlock_sleep();				\
+	}								\
+} while (0)
+
+#define	MAC_POLICY_CHECK_NOSLEEP(check, args...) do {			\
+	struct mac_policy_conf *mpc;					\
+									\
+	error = 0;							\
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
+		if (mpc->mpc_ops->mpo_ ## check != NULL)		\
+			error = mac_error_select(			\
+			    mpc->mpc_ops->mpo_ ## check (args),		\
+			    error);					\
+	}								\
+	if (!LIST_EMPTY(&mac_policy_list)) {				\
+		struct rm_priotracker tracker;				\
+									\
+		mac_policy_slock_nosleep(&tracker);			\
+		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
+			if (mpc->mpc_ops->mpo_ ## check != NULL)	\
+				error = mac_error_select(		\
+				    mpc->mpc_ops->mpo_ ## check (args),	\
+				    error);				\
+		}							\
+		mac_policy_sunlock_nosleep(&tracker);			\
 	}								\
 } while (0)
 
 /*
- * MAC_GRANT performs the designated check by walking the policy module list
- * and checking with each as to how it feels about the request.  Unlike
- * MAC_CHECK, it grants if any policies return '0', and otherwise returns
- * EPERM.  Note that it returns its value via 'error' in the scope of the
- * caller.
+ * MAC_POLICY_GRANT performs the designated check by walking the policy
+ * module list and checking with each as to how it feels about the request.
+ * Unlike MAC_POLICY_CHECK, it grants if any policies return '0', and
+ * otherwise returns EPERM.  Note that it returns its value via 'error' in
+ * the scope of the caller.
  */
-#define	MAC_GRANT(check, args...) do {					\
+#define	MAC_POLICY_GRANT_NOSLEEP(check, args...) do {			\
 	struct mac_policy_conf *mpc;					\
-	int entrycount;							\
 									\
 	error = EPERM;							\
 	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
@@ -230,7 +328,10 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 				error = 0;				\
 		}							\
 	}								\
-	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {	\
+	if (!LIST_EMPTY(&mac_policy_list)) {				\
+		struct rm_priotracker tracker;				\
+									\
+		mac_policy_slock_nosleep(&tracker);			\
 		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
 			if (mpc->mpc_ops->mpo_ ## check != NULL) {	\
 				if (mpc->mpc_ops->mpo_ ## check (args)	\
@@ -238,45 +339,67 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 					error = 0;			\
 			}						\
 		}							\
-		mac_policy_list_unbusy();				\
+		mac_policy_sunlock_nosleep(&tracker);			\
 	}								\
 } while (0)
 
 /*
- * MAC_BOOLEAN performs the designated boolean composition by walking the
- * module list, invoking each instance of the operation, and combining the
- * results using the passed C operator.  Note that it returns its value via
- * 'result' in the scope of the caller, which should be initialized by the
- * caller in a meaningful way to get a meaningful result.
+ * MAC_POLICY_BOOLEAN performs the designated boolean composition by walking
+ * the module list, invoking each instance of the operation, and combining
+ * the results using the passed C operator.  Note that it returns its value
+ * via 'result' in the scope of the caller, which should be initialized by
+ * the caller in a meaningful way to get a meaningful result.
  */
-#define	MAC_BOOLEAN(operation, composition, args...) do {		\
+#define	MAC_POLICY_BOOLEAN(operation, composition, args...) do {	\
 	struct mac_policy_conf *mpc;					\
-	int entrycount;							\
 									\
 	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
 		if (mpc->mpc_ops->mpo_ ## operation != NULL)		\
 			result = result composition			\
 			    mpc->mpc_ops->mpo_ ## operation (args);	\
 	}								\
-	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {	\
+	if (!LIST_EMPTY(&mac_policy_list)) {				\
+		mac_policy_slock_sleep();				\
 		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
 			if (mpc->mpc_ops->mpo_ ## operation != NULL)	\
 				result = result composition		\
 				    mpc->mpc_ops->mpo_ ## operation	\
 				    (args);				\
 		}							\
-		mac_policy_list_unbusy();				\
+		mac_policy_sunlock_sleep();				\
+	}								\
+} while (0)
+
+#define	MAC_POLICY_BOOLEAN_NOSLEEP(operation, composition, args...) do {\
+	struct mac_policy_conf *mpc;					\
+									\
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
+		if (mpc->mpc_ops->mpo_ ## operation != NULL)		\
+			result = result composition			\
+			    mpc->mpc_ops->mpo_ ## operation (args);	\
+	}								\
+	if (!LIST_EMPTY(&mac_policy_list)) {				\
+		struct rm_priotracker tracker;				\
+									\
+		mac_policy_slock_nosleep(&tracker);			\
+		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
+			if (mpc->mpc_ops->mpo_ ## operation != NULL)	\
+				result = result composition		\
+				    mpc->mpc_ops->mpo_ ## operation	\
+				    (args);				\
+		}							\
+		mac_policy_sunlock_nosleep(&tracker);			\
 	}								\
 } while (0)
 
 /*
- * MAC_EXTERNALIZE queries each policy to see if it can generate an
+ * MAC_POLICY_EXTERNALIZE queries each policy to see if it can generate an
  * externalized version of a label element by name.  Policies declare whether
  * they have matched a particular element name, parsed from the string by
- * MAC_EXTERNALIZE, and an error is returned if any element is matched by no
- * policy.
+ * MAC_POLICY_EXTERNALIZE, and an error is returned if any element is matched
+ * by no policy.
  */
-#define	MAC_EXTERNALIZE(type, label, elementlist, outbuf, 		\
+#define	MAC_POLICY_EXTERNALIZE(type, label, elementlist, outbuf, 	\
     outbuflen) do {							\
 	int claimed, first, ignorenotfound, savedlen;			\
 	char *element_name, *element_temp;				\
@@ -302,7 +425,7 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 			break;						\
 		}							\
 		claimed = 0;						\
-		MAC_CHECK(type ## _externalize_label, label,		\
+		MAC_POLICY_CHECK(type ## _externalize_label, label,	\
 		    element_name, &sb, &claimed);			\
 		if (error)						\
 			break;						\
@@ -320,11 +443,11 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 } while (0)
 
 /*
- * MAC_INTERNALIZE presents parsed element names and data to each policy to
- * see if any is willing to claim it and internalize the label data.  If no
- * policies match, an error is returned.
+ * MAC_POLICY_INTERNALIZE presents parsed element names and data to each
+ * policy to see if any is willing to claim it and internalize the label
+ * data.  If no policies match, an error is returned.
  */
-#define	MAC_INTERNALIZE(type, label, instring) do {			\
+#define	MAC_POLICY_INTERNALIZE(type, label, instring) do {		\
 	char *element, *element_name, *element_data;			\
 	int claimed;							\
 									\
@@ -338,7 +461,7 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 			break;						\
 		}							\
 		claimed = 0;						\
-		MAC_CHECK(type ## _internalize_label, label,		\
+		MAC_POLICY_CHECK(type ## _internalize_label, label,	\
 		    element_name, element_data, &claimed);		\
 		if (error)						\
 			break;						\
@@ -351,23 +474,42 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 } while (0)
 
 /*
- * MAC_PERFORM performs the designated operation by walking the policy module
- * list and invoking that operation for each policy.
+ * MAC_POLICY_PERFORM performs the designated operation by walking the policy
+ * module list and invoking that operation for each policy.
  */
-#define	MAC_PERFORM(operation, args...) do {				\
+#define	MAC_POLICY_PERFORM(operation, args...) do {			\
 	struct mac_policy_conf *mpc;					\
-	int entrycount;							\
 									\
 	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
 		if (mpc->mpc_ops->mpo_ ## operation != NULL)		\
 			mpc->mpc_ops->mpo_ ## operation (args);		\
 	}								\
-	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {	\
+	if (!LIST_EMPTY(&mac_policy_list)) {				\
+		mac_policy_slock_sleep();				\
 		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
 			if (mpc->mpc_ops->mpo_ ## operation != NULL)	\
 				mpc->mpc_ops->mpo_ ## operation (args);	\
 		}							\
-		mac_policy_list_unbusy();				\
+		mac_policy_sunlock_sleep();				\
+	}								\
+} while (0)
+
+#define	MAC_POLICY_PERFORM_NOSLEEP(operation, args...) do {		\
+	struct mac_policy_conf *mpc;					\
+									\
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
+		if (mpc->mpc_ops->mpo_ ## operation != NULL)		\
+			mpc->mpc_ops->mpo_ ## operation (args);		\
+	}								\
+	if (!LIST_EMPTY(&mac_policy_list)) {				\
+		struct rm_priotracker tracker;				\
+									\
+		mac_policy_slock_nosleep(&tracker);			\
+		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
+			if (mpc->mpc_ops->mpo_ ## operation != NULL)	\
+				mpc->mpc_ops->mpo_ ## operation (args);	\
+		}							\
+		mac_policy_sunlock_nosleep(&tracker);			\
 	}								\
 } while (0)
 

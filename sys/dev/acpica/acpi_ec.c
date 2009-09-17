@@ -42,7 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+
 #include <dev/acpica/acpivar.h>
 
 /* Hooks for the ACPI CA debugging infrastructure */
@@ -747,7 +749,7 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
      * If booting, check if we need to run the query handler.  If so, we
      * we call it directly here since our thread taskq is not active yet.
      */
-    if (cold || rebooting) {
+    if (cold || rebooting || sc->ec_suspending) {
 	if ((EC_GET_CSR(sc) & EC_EVENT_SCI)) {
 	    CTR0(KTR_ACPI, "ec running gpe handler directly");
 	    EcGpeQueryHandler(sc);

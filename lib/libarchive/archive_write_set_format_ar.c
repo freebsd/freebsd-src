@@ -125,6 +125,7 @@ archive_write_set_format_ar(struct archive_write *a)
 	memset(ar, 0, sizeof(*ar));
 	a->format_data = ar;
 
+	a->format_name = "ar";
 	a->format_write_header = archive_write_ar_header;
 	a->format_write_data = archive_write_ar_data;
 	a->format_finish = archive_write_ar_finish;

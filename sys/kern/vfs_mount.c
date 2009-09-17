@@ -68,17 +68,16 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #include "opt_rootdevname.h"
-#include "opt_mac.h"
 
 #define	ROOTNAME		"root_device"
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
+static void	set_rootvnode(void);
 static int	vfs_domount(struct thread *td, const char *fstype,
 		    char *fspath, int fsflags, void *fsdata);
 static int	vfs_mountroot_ask(void);
-static int	vfs_mountroot_try(const char *mountfrom);
+static int	vfs_mountroot_try(const char *mountfrom, const char *options);
 static void	free_mntarg(struct mntarg *ma);
-static int	vfs_getopt_pos(struct vfsoptlist *opts, const char *name);
 
 static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
@@ -95,14 +94,6 @@ struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
 struct mtx mountlist_mtx;
 MTX_SYSINIT(mountlist, &mountlist_mtx, "mountlist", MTX_DEF);
 
-TAILQ_HEAD(vfsoptlist, vfsopt);
-struct vfsopt {
-	TAILQ_ENTRY(vfsopt) link;
-	char	*name;
-	void	*value;
-	int	len;
-};
-
 /*
  * The vnode of the system's root (/ in the filesystem, without chroot
  * active.)
@@ -118,6 +109,10 @@ struct vnode	*rootvnode;
  *              of being mounted as root
  * path      := disk device name or other data used by the filesystem
  *              to locate its physical store
+ *
+ * The environment variable vfs.root.mountfrom options is a comma delimited
+ * set of string mount options.  These mount options must be parseable
+ * by nmount() in the kernel.
  */
 
 /*
@@ -164,11 +159,6 @@ vfs_freeopt(struct vfsoptlist *opts, struct vfsopt *opt)
 	free(opt->name, M_MOUNT);
 	if (opt->value != NULL)
 		free(opt->value, M_MOUNT);
-#ifdef INVARIANTS
-	else if (opt->len != 0)
-		panic("%s: mount option with NULL value but length != 0",
-		    __func__);
-#endif
 	free(opt, M_MOUNT);
 }
 
@@ -204,6 +194,7 @@ vfs_deleteopt(struct vfsoptlist *opts, const char *name)
 static int
 vfs_equalopts(const char *opt1, const char *opt2)
 {
+	char *p;
 
 	/* "opt" vs. "opt" or "noopt" vs. "noopt" */
 	if (strcmp(opt1, opt2) == 0)
@@ -214,6 +205,17 @@ vfs_equalopts(const char *opt1, const char *opt2)
 	/* "opt" vs. "noopt" */
 	if (strncmp(opt2, "no", 2) == 0 && strcmp(opt1, opt2 + 2) == 0)
 		return (1);
+	while ((p = strchr(opt1, '.')) != NULL &&
+	    !strncmp(opt1, opt2, ++p - opt1)) {
+		opt2 += p - opt1;
+		opt1 = p;
+		/* "foo.noopt" vs. "foo.opt" */
+		if (strncmp(opt1, "no", 2) == 0 && strcmp(opt1 + 2, opt2) == 0)
+			return (1);
+		/* "foo.opt" vs. "foo.noopt" */
+		if (strncmp(opt2, "no", 2) == 0 && strcmp(opt1, opt2 + 2) == 0)
+			return (1);
+	}
 	return (0);
 }
 
@@ -244,34 +246,23 @@ vfs_sanitizeopts(struct vfsoptlist *opts)
 /*
  * Build a linked list of mount options from a struct uio.
  */
-static int
+int
 vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 {
 	struct vfsoptlist *opts;
 	struct vfsopt *opt;
-	size_t memused;
+	size_t memused, namelen, optlen;
 	unsigned int i, iovcnt;
-	int error, namelen, optlen;
+	int error;
 
 	opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK);
 	TAILQ_INIT(opts);
 	memused = 0;
 	iovcnt = auio->uio_iovcnt;
 	for (i = 0; i < iovcnt; i += 2) {
-		opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
 		namelen = auio->uio_iov[i].iov_len;
 		optlen = auio->uio_iov[i + 1].iov_len;
-		opt->name = malloc(namelen, M_MOUNT, M_WAITOK);
-		opt->value = NULL;
-		opt->len = 0;
-
-		/*
-		 * Do this early, so jumps to "bad" will free the current
-		 * option.
-		 */
-		TAILQ_INSERT_TAIL(opts, opt, link);
 		memused += sizeof(struct vfsopt) + optlen + namelen;
-
 		/*
 		 * Avoid consuming too much memory, and attempts to overflow
 		 * memused.
@@ -283,6 +274,19 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 			goto bad;
 		}
 
+		opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
+		opt->name = malloc(namelen, M_MOUNT, M_WAITOK);
+		opt->value = NULL;
+		opt->len = 0;
+		opt->pos = i / 2;
+		opt->seen = 0;
+
+		/*
+		 * Do this early, so jumps to "bad" will free the current
+		 * option.
+		 */
+		TAILQ_INSERT_TAIL(opts, opt, link);
+
 		if (auio->uio_segflg == UIO_SYSSPACE) {
 			bcopy(auio->uio_iov[i].iov_base, opt->name, namelen);
 		} else {
@@ -292,7 +296,7 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 				goto bad;
 		}
 		/* Ensure names are null-terminated strings. */
-		if (opt->name[namelen - 1] != '\0') {
+		if (namelen == 0 || opt->name[namelen - 1] != '\0') {
 			error = EINVAL;
 			goto bad;
 		}
@@ -361,6 +365,7 @@ vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *opts)
 			new->value = NULL;
 		}
 		new->len = opt->len;
+		new->seen = opt->seen;
 		TAILQ_INSERT_TAIL(toopts, new, link);
 next:
 		continue;
@@ -380,12 +385,10 @@ nmount(td, uap)
 	} */ *uap;
 {
 	struct uio *auio;
-	struct iovec *iov;
-	unsigned int i;
 	int error;
 	u_int iovcnt;
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 	CTR4(KTR_VFS, "%s: iovp %p with iovcnt %d and flags %d", __func__,
 	    uap->iovp, uap->iovcnt, uap->flags);
 
@@ -413,16 +416,6 @@ nmount(td, uap)
 		CTR2(KTR_VFS, "%s: failed for invalid uio op with %d errno",
 		    __func__, error);
 		return (error);
-	}
-	iov = auio->uio_iov;
-	for (i = 0; i < iovcnt; i++) {
-		if (iov->iov_len > MMAXOPTIONLEN) {
-			free(auio, M_IOV);
-			CTR1(KTR_VFS, "%s: failed for invalid new auio",
-			    __func__);
-			return (EINVAL);
-		}
-		iov++;
 	}
 	error = vfs_donmount(td, uap->flags, auio);
 
@@ -692,6 +685,8 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 		noro_opt->name = strdup("noro", M_MOUNT);
 		noro_opt->value = NULL;
 		noro_opt->len = 0;
+		noro_opt->pos = -1;
+		noro_opt->seen = 1;
 		TAILQ_INSERT_TAIL(optlist, noro_opt, link);
 	}
 
@@ -755,7 +750,7 @@ mount(td, uap)
 	struct mntarg *ma = NULL;
 	int error;
 
-	AUDIT_ARG(fflags, uap->flags);
+	AUDIT_ARG_FFLAGS(uap->flags);
 
 	/*
 	 * Filter out MNT_ROOTFS.  We do not want clients of mount() in
@@ -772,7 +767,7 @@ mount(td, uap)
 		return (error);
 	}
 
-	AUDIT_ARG(text, fstype);
+	AUDIT_ARG_TEXT(fstype);
 	mtx_lock(&Giant);
 	vfsp = vfs_byname_kld(fstype, td, &error);
 	free(fstype, M_TEMP);
@@ -791,7 +786,7 @@ mount(td, uap)
 	ma = mount_argb(ma, !(uap->flags & MNT_NOSUID), "nosuid");
 	ma = mount_argb(ma, !(uap->flags & MNT_NOEXEC), "noexec");
 
-	error = vfsp->vfc_vfsops->vfs_cmount(ma, uap->data, uap->flags, td);
+	error = vfsp->vfc_vfsops->vfs_cmount(ma, uap->data, uap->flags);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -986,7 +981,7 @@ vfs_domount(
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
 	 * get.  No freeing of cn_pnbuf.
 	 */
-        error = VFS_MOUNT(mp, td);
+        error = VFS_MOUNT(mp);
 
 	/*
 	 * Process the export option only if we are
@@ -1015,7 +1010,7 @@ vfs_domount(
 		if (mp->mnt_opt != NULL)
 			vfs_freeopts(mp->mnt_opt);
 		mp->mnt_opt = mp->mnt_optnew;
-		(void)VFS_STATFS(mp, &mp->mnt_stat, td);
+		(void)VFS_STATFS(mp, &mp->mnt_stat);
 	}
 	/*
 	 * Prevent external consumers of mount options from reading
@@ -1072,11 +1067,12 @@ vfs_domount(
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
 		vfs_event_signal(NULL, VQ_MOUNT, 0);
-		if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp, td))
+		if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp))
 			panic("mount: lost mount");
-		mountcheckdirs(vp, newdp);
-		vput(newdp);
+		VOP_UNLOCK(newdp, 0);
 		VOP_UNLOCK(vp, 0);
+		mountcheckdirs(vp, newdp);
+		vrele(newdp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			error = vfs_allocate_syncvnode(mp);
 		vfs_unbusy(mp);
@@ -1118,6 +1114,7 @@ unmount(td, uap)
 	char *pathbuf;
 	int error, id0, id1;
 
+	AUDIT_ARG_VALUE(uap->flags);
 	if (jailed(td->td_ucred) || usermount == 0) {
 		error = priv_check(td, PRIV_VFS_UNMOUNT);
 		if (error)
@@ -1130,9 +1127,9 @@ unmount(td, uap)
 		free(pathbuf, M_TEMP);
 		return (error);
 	}
-	AUDIT_ARG(upath, td, pathbuf, ARG_UPATH1);
 	mtx_lock(&Giant);
 	if (uap->flags & MNT_BYFSID) {
+		AUDIT_ARG_TEXT(pathbuf);
 		/* Decode the filesystem ID. */
 		if (sscanf(pathbuf, "FSID:%d:%d", &id0, &id1) != 2) {
 			mtx_unlock(&Giant);
@@ -1148,6 +1145,7 @@ unmount(td, uap)
 		}
 		mtx_unlock(&mountlist_mtx);
 	} else {
+		AUDIT_ARG_UPATH1(td, pathbuf);
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)
@@ -1278,7 +1276,7 @@ dounmount(mp, flags, td)
 	 * such references to cause an EBUSY error.
 	 */
 	if ((flags & MNT_FORCE) &&
-	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp, td) == 0) {
+	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
 		if (mp->mnt_vnodecovered != NULL)
 			mountcheckdirs(fsrootvp, mp->mnt_vnodecovered);
 		if (fsrootvp == rootvnode) {
@@ -1288,10 +1286,8 @@ dounmount(mp, flags, td)
 		vput(fsrootvp);
 	}
 	if (((mp->mnt_flag & MNT_RDONLY) ||
-	     (error = VFS_SYNC(mp, MNT_WAIT, td)) == 0) ||
-	    (flags & MNT_FORCE)) {
-		error = VFS_UNMOUNT(mp, flags, td);
-	}
+	     (error = VFS_SYNC(mp, MNT_WAIT)) == 0) || (flags & MNT_FORCE) != 0)
+		error = VFS_UNMOUNT(mp, flags);
 	vn_finished_write(mp);
 	/*
 	 * If we failed to flush the dirty blocks for this mount point,
@@ -1301,7 +1297,7 @@ dounmount(mp, flags, td)
 	 */
 	if (error && error != ENXIO) {
 		if ((flags & MNT_FORCE) &&
-		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp, td) == 0) {
+		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp) == 0) {
 			if (mp->mnt_vnodecovered != NULL)
 				mountcheckdirs(mp->mnt_vnodecovered, fsrootvp);
 			if (rootvnode == NULL) {
@@ -1366,6 +1362,9 @@ root_mount_hold(const char *identifier)
 {
 	struct root_hold_token *h;
 
+	if (root_mounted())
+		return (NULL);
+
 	h = malloc(sizeof *h, M_DEVBUF, M_ZERO | M_WAITOK);
 	h->who = identifier;
 	mtx_lock(&mountlist_mtx);
@@ -1381,6 +1380,8 @@ void
 root_mount_rel(struct root_hold_token *h)
 {
 
+	if (h == NULL)
+		return;
 	mtx_lock(&mountlist_mtx);
 	LIST_REMOVE(h, list);
 	wakeup(&root_holds);
@@ -1395,6 +1396,8 @@ static void
 root_mount_prepare(void)
 {
 	struct root_hold_token *h;
+	struct timeval lastfail;
+	int curfail = 0;
 
 	for (;;) {
 		DROP_GIANT();
@@ -1405,10 +1408,12 @@ root_mount_prepare(void)
 			mtx_unlock(&mountlist_mtx);
 			break;
 		}
-		printf("Root mount waiting for:");
-		LIST_FOREACH(h, &root_holds, list)
-			printf(" %s", h->who);
-		printf("\n");
+		if (ppsratecheck(&lastfail, &curfail, 1)) {
+			printf("Root mount waiting for:");
+			LIST_FOREACH(h, &root_holds, list)
+				printf(" %s", h->who);
+			printf("\n");
+		}
 		msleep(&root_holds, &mountlist_mtx, PZERO | PDROP, "roothold",
 		    hz);
 	}
@@ -1421,6 +1426,11 @@ static void
 root_mount_done(void)
 {
 
+	/* Keep prison0's root in sync with the global rootvnode. */
+	mtx_lock(&prison0.pr_mtx);
+	prison0.pr_root = rootvnode;
+	vref(prison0.pr_root);
+	mtx_unlock(&prison0.pr_mtx);
 	/*
 	 * Use a mutex to prevent the wakeup being missed and waiting for
 	 * an extra 1 second sleep.
@@ -1464,14 +1474,16 @@ root_mount_wait(void)
 }
 
 static void
-set_rootvnode(struct thread *td)
+set_rootvnode()
 {
 	struct proc *p;
 
-	if (VFS_ROOT(TAILQ_FIRST(&mountlist), LK_EXCLUSIVE, &rootvnode, td))
+	if (VFS_ROOT(TAILQ_FIRST(&mountlist), LK_EXCLUSIVE, &rootvnode))
 		panic("Cannot find root vnode");
 
-	p = td->td_proc;
+	VOP_UNLOCK(rootvnode, 0);
+
+	p = curthread->td_proc;
 	FILEDESC_XLOCK(p->p_fd);
 
 	if (p->p_fd->fd_cdir != NULL)
@@ -1485,8 +1497,6 @@ set_rootvnode(struct thread *td)
 	VREF(rootvnode);
 
 	FILEDESC_XUNLOCK(p->p_fd);
-
-	VOP_UNLOCK(rootvnode, 0);
 
 	EVENTHANDLER_INVOKE(mountroot);
 }
@@ -1512,7 +1522,7 @@ devfs_first(void)
 
 	mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td->td_ucred);
 
-	error = VFS_MOUNT(mp, td);
+	error = VFS_MOUNT(mp);
 	KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
 	if (error)
 		return;
@@ -1525,7 +1535,7 @@ devfs_first(void)
 	TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 
-	set_rootvnode(td);
+	set_rootvnode();
 
 	error = kern_symlink(td, "/", "dev", UIO_SYSSPACE);
 	if (error)
@@ -1551,7 +1561,7 @@ devfs_fixup(struct thread *td)
 	mtx_unlock(&mountlist_mtx);
 	cache_purgevfs(mp);
 
-	VFS_ROOT(mp, LK_EXCLUSIVE, &dvp, td);
+	VFS_ROOT(mp, LK_EXCLUSIVE, &dvp);
 	VI_LOCK(dvp);
 	dvp->v_iflag &= ~VI_MOUNT;
 	VI_UNLOCK(dvp);
@@ -1559,7 +1569,7 @@ devfs_fixup(struct thread *td)
 
 	/* Set up the real rootvnode, and purge the cache */
 	TAILQ_FIRST(&mountlist)->mnt_vnodecovered = NULL;
-	set_rootvnode(td);
+	set_rootvnode();
 	cache_purgevfs(rootvnode->v_mount);
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, "/dev", td);
@@ -1611,14 +1621,32 @@ vfs_mount_error(struct mount *mp, const char *fmt, ...)
 	va_end(ap);
 }
 
+void
+vfs_opterror(struct vfsoptlist *opts, const char *fmt, ...)
+{
+	va_list ap;
+	int error, len;
+	char *errmsg;
+
+	error = vfs_getopt(opts, "errmsg", (void **)&errmsg, &len);
+	if (error || errmsg == NULL || len <= 0)
+		return;
+
+	va_start(ap, fmt);
+	vsnprintf(errmsg, (size_t)len, fmt, ap);
+	va_end(ap);
+}
+
 /*
  * Find and mount the root filesystem
  */
 void
 vfs_mountroot(void)
 {
-	char *cp;
+	char *cp, *options;
 	int error, i, asked = 0;
+
+	options = NULL;
 
 	root_mount_prepare();
 
@@ -1636,12 +1664,14 @@ vfs_mountroot(void)
 		asked = 1;
 	}
 
+	options = getenv("vfs.root.mountfrom.options");
+
 	/*
 	 * The root filesystem information is compiled in, and we are
 	 * booted with instructions to use it.
 	 */
 	if (ctrootdevname != NULL && (boothowto & RB_DFLTROOT)) {
-		if (!vfs_mountroot_try(ctrootdevname))
+		if (!vfs_mountroot_try(ctrootdevname, options))
 			goto mounted;
 		ctrootdevname = NULL;
 	}
@@ -1653,7 +1683,7 @@ vfs_mountroot(void)
 	 */
 	if (boothowto & RB_CDROM) {
 		for (i = 0; cdrom_rootdevnames[i] != NULL; i++) {
-			if (!vfs_mountroot_try(cdrom_rootdevnames[i]))
+			if (!vfs_mountroot_try(cdrom_rootdevnames[i], options))
 				goto mounted;
 		}
 	}
@@ -1665,7 +1695,7 @@ vfs_mountroot(void)
 	 */
 	cp = getenv("vfs.root.mountfrom");
 	if (cp != NULL) {
-		error = vfs_mountroot_try(cp);
+		error = vfs_mountroot_try(cp, options);
 		freeenv(cp);
 		if (!error)
 			goto mounted;
@@ -1674,16 +1704,16 @@ vfs_mountroot(void)
 	/*
 	 * Try values that may have been computed by code during boot
 	 */
-	if (!vfs_mountroot_try(rootdevnames[0]))
+	if (!vfs_mountroot_try(rootdevnames[0], options))
 		goto mounted;
-	if (!vfs_mountroot_try(rootdevnames[1]))
+	if (!vfs_mountroot_try(rootdevnames[1], options))
 		goto mounted;
 
 	/*
 	 * If we (still) have a compiled-in default, try it.
 	 */
 	if (ctrootdevname != NULL)
-		if (!vfs_mountroot_try(ctrootdevname))
+		if (!vfs_mountroot_try(ctrootdevname, options))
 			goto mounted;
 	/*
 	 * Everything so far has failed, prompt on the console if we haven't
@@ -1697,24 +1727,75 @@ vfs_mountroot(void)
 
 mounted:
 	root_mount_done();
+	freeenv(options);
+}
+
+static struct mntarg *
+parse_mountroot_options(struct mntarg *ma, const char *options)
+{
+	char *p;
+	char *name, *name_arg;
+	char *val, *val_arg;
+	char *opts;
+
+	if (options == NULL || options[0] == '\0')
+		return (ma);
+
+	p = opts = strdup(options, M_MOUNT);
+	if (opts == NULL) {
+		return (ma);
+	} 
+
+	while((name = strsep(&p, ",")) != NULL) {
+		if (name[0] == '\0')
+			break;
+
+		val = strchr(name, '=');
+		if (val != NULL) {
+			*val = '\0';
+			++val;
+		}
+		if( strcmp(name, "rw") == 0 ||
+		    strcmp(name, "noro") == 0) {
+			/*
+			 * The first time we mount the root file system,
+			 * we need to mount 'ro', so We need to ignore
+			 * 'rw' and 'noro' mount options.
+			 */
+			continue;
+		}
+		name_arg = strdup(name, M_MOUNT);
+		val_arg = NULL;
+		if (val != NULL) 
+			val_arg = strdup(val, M_MOUNT);
+
+		ma = mount_arg(ma, name_arg, val_arg,
+		    (val_arg != NULL ? -1 : 0));
+	}
+	free(opts, M_MOUNT);
+	return (ma);
 }
 
 /*
  * Mount (mountfrom) as the root filesystem.
  */
 static int
-vfs_mountroot_try(const char *mountfrom)
+vfs_mountroot_try(const char *mountfrom, const char *options)
 {
 	struct mount	*mp;
+	struct mntarg	*ma;
 	char		*vfsname, *path;
 	time_t		timebase;
 	int		error;
 	char		patt[32];
+	char		errmsg[255];
 
 	vfsname = NULL;
 	path    = NULL;
 	mp      = NULL;
+	ma	= NULL;
 	error   = EINVAL;
+	bzero(errmsg, sizeof(errmsg));
 
 	if (mountfrom == NULL)
 		return (error);		/* don't complain */
@@ -1731,12 +1812,14 @@ vfs_mountroot_try(const char *mountfrom)
 	if (path[0] == '\0')
 		strcpy(path, ROOTNAME);
 
-	error = kernel_vmount(
-	    MNT_RDONLY | MNT_ROOTFS,
-	    "fstype", vfsname,
-	    "fspath", "/",
-	    "from", path,
-	    NULL);
+	ma = mount_arg(ma, "fstype", vfsname, -1);
+	ma = mount_arg(ma, "fspath", "/", -1);
+	ma = mount_arg(ma, "from", path, -1);
+	ma = mount_arg(ma, "errmsg", errmsg, sizeof(errmsg));
+	ma = mount_arg(ma, "ro", NULL, 0);
+	ma = parse_mountroot_options(ma, options);
+	error = kernel_mount(ma, MNT_ROOTFS);
+
 	if (error == 0) {
 		/*
 		 * We mount devfs prior to mounting the / FS, so the first
@@ -1763,6 +1846,16 @@ vfs_mountroot_try(const char *mountfrom)
 
 		devfs_fixup(curthread);
 	}
+
+	if (error != 0 ) {
+		printf("ROOT MOUNT ERROR: %s\n", errmsg);
+		printf("If you have invalid mount options, reboot, and ");
+		printf("first try the following from\n");
+		printf("the loader prompt:\n\n");
+		printf("     set vfs.root.mountfrom.options=rw\n\n");
+		printf("and then remove invalid mount options from ");
+		printf("/etc/fstab.\n\n");
+	}
 out:
 	free(path, M_MOUNT);
 	free(vfsname, M_MOUNT);
@@ -1778,15 +1871,32 @@ static int
 vfs_mountroot_ask(void)
 {
 	char name[128];
+	char *mountfrom;
+	char *options;
 
 	for(;;) {
+		printf("Loader variables:\n");
+		printf("vfs.root.mountfrom=");
+		mountfrom = getenv("vfs.root.mountfrom");
+		if (mountfrom != NULL) {
+			printf("%s", mountfrom);
+		}
+		printf("\n");
+		printf("vfs.root.mountfrom.options=");
+		options = getenv("vfs.root.mountfrom.options");
+		if (options != NULL) {
+			printf("%s", options);
+		}
+		printf("\n");
+		freeenv(mountfrom);
+		freeenv(options);
 		printf("\nManual root filesystem specification:\n");
 		printf("  <fstype>:<device>  Mount <device> using filesystem <fstype>\n");
-#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
-		printf("                       eg. ufs:da0s1a\n");
-#else
-		printf("                       eg. ufs:/dev/da0a\n");
-#endif
+		printf("                       eg. ufs:/dev/da0s1a\n");
+		printf("                       eg. cd9660:/dev/acd0\n");
+		printf("                       This is equivalent to: ");
+		printf("mount -t cd9660 /dev/acd0 /\n"); 
+		printf("\n");
 		printf("  ?                  List valid disk boot devices\n");
 		printf("  <empty line>       Abort manual input\n");
 		printf("\nmountroot> ");
@@ -1798,7 +1908,7 @@ vfs_mountroot_ask(void)
 			g_dev_print();
 			continue;
 		}
-		if (!vfs_mountroot_try(name))
+		if (!vfs_mountroot_try(name, NULL))
 			return (0);
 	}
 }
@@ -1880,6 +1990,7 @@ vfs_getopt(opts, name, buf, len)
 
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) == 0) {
+			opt->seen = 1;
 			if (len != NULL)
 				*len = opt->len;
 			if (buf != NULL)
@@ -1890,20 +2001,19 @@ vfs_getopt(opts, name, buf, len)
 	return (ENOENT);
 }
 
-static int
+int
 vfs_getopt_pos(struct vfsoptlist *opts, const char *name)
 {
 	struct vfsopt *opt;
-	int i;
 
 	if (opts == NULL)
 		return (-1);
 
-	i = 0;
 	TAILQ_FOREACH(opt, opts, link) {
-		if (strcmp(name, opt->name) == 0)
-			return (i);
-		++i;
+		if (strcmp(name, opt->name) == 0) {
+			opt->seen = 1;
+			return (opt->pos);
+		}
 	}
 	return (-1);
 }
@@ -1917,7 +2027,9 @@ vfs_getopts(struct vfsoptlist *opts, const char *name, int *error)
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) != 0)
 			continue;
-		if (((char *)opt->value)[opt->len - 1] != '\0') {
+		opt->seen = 1;
+		if (opt->len == 0 ||
+		    ((char *)opt->value)[opt->len - 1] != '\0') {
 			*error = EINVAL;
 			return (NULL);
 		}
@@ -1934,6 +2046,7 @@ vfs_flagopt(struct vfsoptlist *opts, const char *name, u_int *w, u_int val)
 
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) == 0) {
+			opt->seen = 1;
 			if (w != NULL)
 				*w |= val;
 			return (1);
@@ -1956,6 +2069,7 @@ vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...)
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) != 0)
 			continue;
+		opt->seen = 1;
 		if (opt->len == 0 || opt->value == NULL)
 			return (0);
 		if (((char *)opt->value)[opt->len - 1] != '\0')
@@ -1966,6 +2080,67 @@ vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...)
 		return (ret);
 	}
 	return (0);
+}
+
+int
+vfs_setopt(struct vfsoptlist *opts, const char *name, void *value, int len)
+{
+	struct vfsopt *opt;
+
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) != 0)
+			continue;
+		opt->seen = 1;
+		if (opt->value == NULL)
+			opt->len = len;
+		else {
+			if (opt->len != len)
+				return (EINVAL);
+			bcopy(value, opt->value, len);
+		}
+		return (0);
+	}
+	return (ENOENT);
+}
+
+int
+vfs_setopt_part(struct vfsoptlist *opts, const char *name, void *value, int len)
+{
+	struct vfsopt *opt;
+
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) != 0)
+			continue;
+		opt->seen = 1;
+		if (opt->value == NULL)
+			opt->len = len;
+		else {
+			if (opt->len < len)
+				return (EINVAL);
+			opt->len = len;
+			bcopy(value, opt->value, len);
+		}
+		return (0);
+	}
+	return (ENOENT);
+}
+
+int
+vfs_setopts(struct vfsoptlist *opts, const char *name, const char *value)
+{
+	struct vfsopt *opt;
+
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) != 0)
+			continue;
+		opt->seen = 1;
+		if (opt->value == NULL)
+			opt->len = strlen(value) + 1;
+		else if (strlcpy(opt->value, value, opt->len) >= opt->len)
+			return (EINVAL);
+		return (0);
+	}
+	return (ENOENT);
 }
 
 /*
@@ -1989,6 +2164,7 @@ vfs_copyopt(opts, name, dest, len)
 
 	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) == 0) {
+			opt->seen = 1;
 			if (len != opt->len)
 				return (EINVAL);
 			bcopy(opt->value, dest, opt->len);
@@ -2094,11 +2270,11 @@ __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp)
 
 
 int
-__vfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+__vfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	int error;
 
-	error = mp->mnt_op->vfs_statfs(mp, &mp->mnt_stat, td);
+	error = mp->mnt_op->vfs_statfs(mp, &mp->mnt_stat);
 	if (sbp != &mp->mnt_stat)
 		*sbp = mp->mnt_stat;
 	return (error);

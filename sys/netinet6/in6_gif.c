@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/protosw.h>
 #include <sys/malloc.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -66,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_ecn.h>
 #ifdef INET6
 #include <netinet6/ip6_ecn.h>
-#include <netinet6/vinet6.h>
 #endif
 
 #include <net/if_gif.h>
@@ -91,14 +89,13 @@ in6_gif_output(struct ifnet *ifp,
     int family,			/* family of the packet to be encapsulate */
     struct mbuf *m)
 {
-	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;
 	struct sockaddr_in6 *dst = (struct sockaddr_in6 *)&sc->gif_ro6.ro_dst;
 	struct sockaddr_in6 *sin6_src = (struct sockaddr_in6 *)sc->gif_psrc;
 	struct sockaddr_in6 *sin6_dst = (struct sockaddr_in6 *)sc->gif_pdst;
 	struct ip6_hdr *ip6;
 	struct etherip_header eiphdr;
-	int proto, error;
+	int error, len, proto;
 	u_int8_t itos, otos;
 
 	GIF_LOCK_ASSERT(sc);
@@ -144,8 +141,22 @@ in6_gif_output(struct ifnet *ifp,
 #endif
 	case AF_LINK:
 		proto = IPPROTO_ETHERIP;
-		eiphdr.eip_ver = ETHERIP_VERSION & ETHERIP_VER_VERS_MASK;
-		eiphdr.eip_pad = 0;
+
+		/*
+		 * GIF_SEND_REVETHIP (disabled by default) intentionally
+		 * sends an EtherIP packet with revered version field in
+		 * the header.  This is a knob for backward compatibility
+		 * with FreeBSD 7.2R or prior.
+		 */
+		if ((sc->gif_options & GIF_SEND_REVETHIP)) {
+			eiphdr.eip_ver = 0;
+			eiphdr.eip_resvl = ETHERIP_VERSION;
+			eiphdr.eip_resvh = 0;
+		} else {
+			eiphdr.eip_ver = ETHERIP_VERSION;
+			eiphdr.eip_resvl = 0;
+			eiphdr.eip_resvh = 0;
+		}
 		/* prepend Ethernet-in-IP header */
 		M_PREPEND(m, sizeof(struct etherip_header), M_DONTWAIT);
 		if (m && m->m_len < sizeof(struct etherip_header))
@@ -166,13 +177,27 @@ in6_gif_output(struct ifnet *ifp,
 	}
 
 	/* prepend new IP header */
-	M_PREPEND(m, sizeof(struct ip6_hdr), M_DONTWAIT);
-	if (m && m->m_len < sizeof(struct ip6_hdr))
-		m = m_pullup(m, sizeof(struct ip6_hdr));
+	len = sizeof(struct ip6_hdr);
+#ifndef __NO_STRICT_ALIGNMENT
+	if (family == AF_LINK)
+		len += ETHERIP_ALIGN;
+#endif
+	M_PREPEND(m, len, M_DONTWAIT);
+	if (m != NULL && m->m_len < len)
+		m = m_pullup(m, len);
 	if (m == NULL) {
 		printf("ENOBUFS in in6_gif_output %d\n", __LINE__);
 		return ENOBUFS;
 	}
+#ifndef __NO_STRICT_ALIGNMENT
+	if (family == AF_LINK) {
+		len = mtod(m, vm_offset_t) & 3;
+		KASSERT(len == 0 || len == ETHERIP_ALIGN,
+		    ("in6_gif_output: unexpected misalignment"));
+		m->m_data += len;
+		m->m_len -= ETHERIP_ALIGN;
+	}
+#endif
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	ip6->ip6_flow	= 0;
@@ -251,7 +276,6 @@ in6_gif_output(struct ifnet *ifp,
 int
 in6_gif_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct ifnet *gifp = NULL;
 	struct gif_softc *sc;

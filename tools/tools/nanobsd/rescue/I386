@@ -310,7 +310,6 @@ device		ural		# Ralink Technology RT2500USB wireless NICs
 device		rum		# Ralink Technology RT2501USB wireless NICs
 device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
 device		urio		# Diamond Rio 500 MP3 player
-device		uscanner	# Scanners
 # USB Serial devices
 device		ucom		# Generic com ttys
 device		u3g		# USB-based 3G modems (Option, Huawei, Sierra)

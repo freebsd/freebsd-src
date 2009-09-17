@@ -57,6 +57,22 @@ struct	icmpstat {
 	u_long	icps_noroute;		/* no route back */
 };
 
+#ifdef _KERNEL
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
+#define	ICMPSTAT_ADD(name, val)	V_icmpstat.name += (val)
+#define	ICMPSTAT_INC(name)	ICMPSTAT_ADD(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_icmpstat_inc(int statnum);
+#define	KMOD_ICMPSTAT_INC(name)						\
+	kmod_icmpstat_inc(offsetof(struct icmpstat, name) / sizeof(u_long))
+#endif
+
 /*
  * Names for ICMP sysctl objects
  */
@@ -74,9 +90,10 @@ struct	icmpstat {
 
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet_icmp);
-#ifdef VIMAGE_GLOBALS
-extern struct icmpstat icmpstat;	/* icmp statistics */
-#endif
+
+VNET_DECLARE(struct icmpstat, icmpstat);	/* icmp statistics. */
+#define	V_icmpstat	VNET(icmpstat)
+
 extern int badport_bandlim(int);
 #define BANDLIM_UNLIMITED -1
 #define BANDLIM_ICMP_UNREACH 0

@@ -93,6 +93,7 @@ static char *descrs[] = {
     "deskutils", "Various Desktop utilities.",
     "devel", "Software development utilities and libraries.",
     "dns", "Domain Name Service tools.",
+    "docs", "Meta-ports for FreeBSD documentation.",
     "editors", "Editors.",
     "elisp", "Things related to Emacs Lisp.",
     "emulators", "Utilities for emulating other operating systems.",

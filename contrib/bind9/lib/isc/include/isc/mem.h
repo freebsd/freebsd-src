@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,12 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.h,v 1.59.18.11 2008/02/07 23:45:56 tbox Exp $ */
+/* $Id: mem.h,v 1.78.120.3 2009/02/11 03:07:01 jinmei Exp $ */
 
 #ifndef ISC_MEM_H
 #define ISC_MEM_H 1
 
-/*! \file */
+/*! \file isc/mem.h */
 
 #include <stdio.h>
 
@@ -28,6 +28,7 @@
 #include <isc/mutex.h>
 #include <isc/platform.h>
 #include <isc/types.h>
+#include <isc/xml.h>
 
 ISC_LANG_BEGINDECLS
 
@@ -93,7 +94,7 @@ LIBISC_EXTERNAL_DATA extern unsigned int isc_mem_debugging;
 /*!<
  * The variable isc_mem_debugging holds a set of flags for
  * turning certain memory debugging options on or off at
- * runtime.  Its is intialized to the value ISC_MEM_DEGBUGGING,
+ * runtime.  It is initialized to the value ISC_MEM_DEGBUGGING,
  * which is 0 by default but may be overridden at compile time.
  * The following flags can be specified:
  *
@@ -105,7 +106,7 @@ LIBISC_EXTERNAL_DATA extern unsigned int isc_mem_debugging;
  *	Crash if a free doesn't match an allocation.
  *
  * \li #ISC_MEM_DEBUGUSAGE
- *	If a hi_water mark is set, print the maximium inuse memory
+ *	If a hi_water mark is set, print the maximum inuse memory
  *	every time it is raised once it exceeds the hi_water mark.
  *
  * \li #ISC_MEM_DEBUGSIZE
@@ -153,11 +154,12 @@ LIBISC_EXTERNAL_DATA extern unsigned int isc_mem_debugging;
 
 #define isc_mem_get(c, s)	isc__mem_get((c), (s) _ISC_MEM_FILELINE)
 #define isc_mem_allocate(c, s)	isc__mem_allocate((c), (s) _ISC_MEM_FILELINE)
+#define isc_mem_reallocate(c, p, s) isc__mem_reallocate((c), (p), (s) _ISC_MEM_FILELINE)
 #define isc_mem_strdup(c, p)	isc__mem_strdup((c), (p) _ISC_MEM_FILELINE)
 #define isc_mempool_get(c)	isc__mempool_get((c) _ISC_MEM_FILELINE)
 
 /*%
- * isc_mem_putanddetach() is a convienence function for use where you
+ * isc_mem_putanddetach() is a convenience function for use where you
  * have a structure with an attached memory context.
  *
  * Given:
@@ -340,12 +342,12 @@ isc_mem_setwater(isc_mem_t *mctx, isc_mem_water_t water, void *water_arg,
  *
  * When the memory usage of 'mctx' exceeds 'hiwater',
  * '(water)(water_arg, #ISC_MEM_HIWATER)' will be called.  'water' needs to
- * call isc_mem_waterack() with #ISC_MEM_HIWATER to acknowlege the state
+ * call isc_mem_waterack() with #ISC_MEM_HIWATER to acknowledge the state
  * change.  'water' may be called multiple times.
  *
  * When the usage drops below 'lowater', 'water' will again be called, this
  * time with #ISC_MEM_LOWATER.  'water' need to calls isc_mem_waterack() with
- * #ISC_MEM_LOWATER to acknowlege the change.
+ * #ISC_MEM_LOWATER to acknowledge the change.
  *
  *	static void
  *	water(void *arg, int mark) {
@@ -359,6 +361,7 @@ isc_mem_setwater(isc_mem_t *mctx, isc_mem_water_t water, void *water_arg,
  *		}
  *		UNLOCK(&foo->marklock);
  *	}
+ *
  * If 'water' is NULL then 'water_arg', 'hi_water' and 'lo_water' are
  * ignored and the state is reset.
  *
@@ -371,7 +374,7 @@ isc_mem_setwater(isc_mem_t *mctx, isc_mem_water_t water, void *water_arg,
 void
 isc_mem_waterack(isc_mem_t *ctx, int mark);
 /*%<
- * Called to acknowledge changes in signalled by calls to 'water'.
+ * Called to acknowledge changes in signaled by calls to 'water'.
  */
 
 void
@@ -397,6 +400,65 @@ isc_mem_checkdestroyed(FILE *file);
  * Prints out those that have not been.
  * Fatally fails if there are still active contexts.
  */
+
+unsigned int
+isc_mem_references(isc_mem_t *ctx);
+/*%<
+ * Return the current reference count.
+ */
+
+void
+isc_mem_setname(isc_mem_t *ctx, const char *name, void *tag);
+/*%<
+ * Name 'ctx'.
+ *
+ * Notes:
+ *
+ *\li	Only the first 15 characters of 'name' will be copied.
+ *
+ *\li	'tag' is for debugging purposes only.
+ *
+ * Requires:
+ *
+ *\li	'ctx' is a valid ctx.
+ */
+
+const char *
+isc_mem_getname(isc_mem_t *ctx);
+/*%<
+ * Get the name of 'ctx', as previously set using isc_mem_setname().
+ *
+ * Requires:
+ *\li	'ctx' is a valid ctx.
+ *
+ * Returns:
+ *\li	A non-NULL pointer to a null-terminated string.
+ * 	If the ctx has not been named, the string is
+ * 	empty.
+ */
+
+void *
+isc_mem_gettag(isc_mem_t *ctx);
+/*%<
+ * Get the tag value for  'task', as previously set using isc_mem_setname().
+ *
+ * Requires:
+ *\li	'ctx' is a valid ctx.
+ *
+ * Notes:
+ *\li	This function is for debugging purposes only.
+ *
+ * Requires:
+ *\li	'ctx' is a valid task.
+ */
+
+#ifdef HAVE_LIBXML2
+void
+isc_mem_renderxml(xmlTextWriterPtr writer);
+/*%<
+ * Render all contexts' statistics and status in XML for writer.
+ */
+#endif /* HAVE_LIBXML2 */
 
 /*
  * Memory pools
@@ -451,7 +513,7 @@ isc_mempool_associatelock(isc_mempool_t *mpctx, isc_mutex_t *lock);
  * and it is also used to set or get internal state via the isc_mempool_get*()
  * and isc_mempool_set*() set of functions.
  *
- * Mutiple pools can each share a single lock.  For instance, if "manager"
+ * Multiple pools can each share a single lock.  For instance, if "manager"
  * type object contained pools for various sizes of events, and each of
  * these pools used a common lock.  Note that this lock must NEVER be used
  * by other than mempool routines once it is given to a pool, since that can
@@ -551,6 +613,8 @@ void
 isc__mem_put(isc_mem_t *, void *, size_t _ISC_MEM_FLARG);
 void *
 isc__mem_allocate(isc_mem_t *, size_t _ISC_MEM_FLARG);
+void *
+isc__mem_reallocate(isc_mem_t *, void *, size_t _ISC_MEM_FLARG);
 void
 isc__mem_free(isc_mem_t *, void * _ISC_MEM_FLARG);
 char *

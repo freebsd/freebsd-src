@@ -30,7 +30,7 @@
 /* AX88x90 based miibus defines */
 #define ED_AX88X90_MIIBUS	0x04	/* MII bus register on ASIC */
 #define ED_AX88X90_MII_CLK	    0x01
-#define ED_AX88X90_MII_DIROUT	    0x02
+#define ED_AX88X90_MII_DIRIN	    0x02
 #define ED_AX88X90_MII_DATAIN	    0x04
 #define ED_AX88X90_MII_DATAOUT	    0x08
 #define	ED_AX88X90_TEST		0x05	/* "test" register on asic */

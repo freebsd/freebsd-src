@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fnv_hash.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
@@ -49,9 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-#include <rpc/rpcclnt.h>
-
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
@@ -133,19 +131,13 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 	 */
 	np = uma_zalloc(nfsnode_zone, M_WAITOK | M_ZERO);
 
-	if (nmp->nm_flag & NFSMNT_NFSV4)
-		error = getnewvnode("nfs4", mntp, &nfs4_vnodeops, &nvp);
-	else
-		error = getnewvnode("nfs", mntp, &nfs_vnodeops, &nvp);
+	error = getnewvnode("nfs", mntp, &nfs_vnodeops, &nvp);
 	if (error) {
 		uma_zfree(nfsnode_zone, np);
 		return (error);
 	}
 	vp = nvp;
-	if (nmp->nm_flag & NFSMNT_NFSV4)
-		vp->v_bufobj.bo_ops = &buf_ops_nfs4;
-	else
-		vp->v_bufobj.bo_ops = &buf_ops_nfs;
+	vp->v_bufobj.bo_ops = &buf_ops_nfs;
 	vp->v_data = np;
 	np->n_vnode = vp;
 	/* 
@@ -166,7 +158,7 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 		np->n_fhp = &np->n_fh;
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
 	np->n_fhsize = fhsize;
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	error = insmntque(vp, mntp);
 	if (error != 0) {
 		*npp = NULL;

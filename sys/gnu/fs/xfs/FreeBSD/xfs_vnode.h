@@ -182,7 +182,7 @@ typedef int	(*xfs_vop_open_t)(bhv_desc_t *, struct cred *);
 typedef ssize_t (*xfs_vop_read_t)(bhv_desc_t *, uio_t *, int, struct cred *);
 typedef ssize_t (*xfs_vop_write_t)(bhv_desc_t *, uio_t *, int, struct cred *);
 typedef int	(*xfs_vop_ioctl_t)(bhv_desc_t *, struct inode *, struct file *,
-				int, unsigned int, void *);
+				int, u_long, void *);
 typedef int	(*xfs_vop_getattr_t)(bhv_desc_t *, struct xfs_vattr *, int,
 				struct cred *);
 typedef int	(*xfs_vop_setattr_t)(bhv_desc_t *, struct xfs_vattr *, int,

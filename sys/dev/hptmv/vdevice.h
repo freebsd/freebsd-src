@@ -35,20 +35,20 @@
 
 typedef  struct _VDevice
 {
-    UCHAR        VDeviceType;
-    UCHAR        vf_bootmark: 1; 	/* is boot device? */
-    UCHAR		 vf_bootable: 1;    /* has active partition */
-    UCHAR        vf_online: 1; 		/* is usable? */
-    UCHAR        vf_cache_disk: 1;  /* Cache enabled */
+	UCHAR        VDeviceType;
+	UCHAR        vf_bootmark: 1; 	/* is boot device? */
+	UCHAR		 vf_bootable: 1;    /* has active partition */
+	UCHAR        vf_online: 1; 		/* is usable? */
+	UCHAR        vf_cache_disk: 1;  /* Cache enabled */
 	UCHAR        vf_format_v2: 1;   /* old array block */
 	UCHAR        vf_freed: 1;       /* memory free */
-    UCHAR        reserve1;
-    UCHAR        bSerialNumber; 	/* valid if pParent!=0 */
+	UCHAR        reserve1;
+	UCHAR        bSerialNumber; 	/* valid if pParent!=0 */
 
-    PVDevice	 pParent;			/* parent array */
+	PVDevice	 pParent;			/* parent array */
 	PVBus        pVBus;				/* vbus this device located. Must not be NULL. */
 
-    LBA_T        VDeviceCapacity;   /* number of blocks */
+	LBA_T        VDeviceCapacity;   /* number of blocks */
 
 	LBA_T        LockedLba;
 	USHORT       LockedSectors;
@@ -58,16 +58,16 @@ typedef  struct _VDevice
 	void  *QuiesceArg;
 	void (* HPTLIBAPI flush_callback)(_VBUS_ARG void *arg);
 	void *flush_callback_arg;
-    
+
 
 #if defined(_RAID5N_)
 	struct stripe **CacheEntry;
 	struct range_lock *range_lock;
 #endif
 
-    void (* HPTLIBAPI pfnSendCommand)(_VBUS_ARG PCommand pCmd);   /* call this to send a command to a VDevice */
-    void (* HPTLIBAPI pfnDeviceFailed)(_VBUS_ARG PVDevice pVDev); /* call this when a VDevice failed */
-	
+	void (* HPTLIBAPI pfnSendCommand)(_VBUS_ARG PCommand pCmd);   /* call this to send a command to a VDevice */
+	void (* HPTLIBAPI pfnDeviceFailed)(_VBUS_ARG PVDevice pVDev); /* call this when a VDevice failed */
+
 	union {
 #ifdef SUPPORT_ARRAY
 		RaidArray array;
@@ -85,10 +85,10 @@ typedef  struct _VDevice
 /*
  * bUserDeviceMode
  */
-#define MEMBER_NOT_SET_MODE  0x5F 
+#define MEMBER_NOT_SET_MODE  0x5F
 
-/* 
- * arrayType 
+/*
+ * arrayType
  */
 #define VD_SPARE             0
 #define VD_REMOVABLE         1
@@ -120,10 +120,10 @@ void HPTLIBAPI fSingleDiskFailed(_VBUS_ARG PVDevice pVDev);
 
 typedef struct _VBus  {
 	/* pVDevice[] may be non-continuous */
-    PVDevice      pVDevice[MAX_VDEVICE_PER_VBUS];
+	PVDevice      pVDevice[MAX_VDEVICE_PER_VBUS];
 
-    UINT          nInstances;
-    PChipInstance pChipInstance[MAX_CHIP_IN_VBUS];
+	UINT          nInstances;
+	PChipInstance pChipInstance[MAX_CHIP_IN_VBUS];
 
 	void *        OsExt; /* for OS private use */
 
@@ -176,15 +176,19 @@ typedef struct _VBus  {
 		for(i = 0; i < MAX_VDEVICE_PER_VBUS; i++) \
 			if ((pVDev=pVBus->pVDevice[i])==0) continue; else
 
-#define FOR_EACH_DEV_ON_ALL_VBUS(pVBus, pVDev, i) \
+
+#define FOR_EACH_VBUS(pVBus) \
 	for(pVBus = gVBus; pVBus < &gVBus[MAX_VBUS]; pVBus++) \
-		for(i = 0; i < MAX_VDEVICE_PER_VBUS; i++) \
-			if ((pVDev=pVBus->pVDevice[i])==0) continue; else
 
 #define FOR_EACH_ARRAY_ON_ALL_VBUS(pVBus, pArray, i) \
 	for(pVBus = gVBus; pVBus < &gVBus[MAX_VBUS]; pVBus++) \
 		for(i = 0; i < MAX_ARRAY_PER_VBUS; i++) \
 			if ((pArray=((PVDevice)&pVBus->_ArrayTables[i*ARRAY_VDEV_SIZE]))->u.array.dArStamp==0) continue; else
+
+#define FOR_EACH_DEV_ON_ALL_VBUS(pVBus, pVDev, i) \
+	FOR_EACH_VBUS(pVBus) \
+		for(i = 0; i < MAX_VDEVICE_PER_VBUS; i++) \
+			if ((pVDev=pVBus->pVDevice[i])==0) continue; else
 
 /***************************************************************************
  * Description:  the functions called by IDE layer
@@ -196,10 +200,10 @@ void HPTLIBAPI IdeRegisterDevice(PDevice pDev);
 #endif
 
 /***************************************************************************
- * Description:  the functions OS must provided 
+ * Description:  the functions OS must provided
  ***************************************************************************/
 
-void OsSetDeviceTable(PDevice pDevice, PIDENTIFY_DATA pIdentify);
+void HPTLIBAPI OsSetDeviceTable(PDevice pDevice, PIDENTIFY_DATA pIdentify);
 
 /*
  * allocate and free data structure
@@ -240,12 +244,12 @@ void VBus_Config(PVBus pVBus, char *str);
 #endif
 
 #pragma pack(1)
-struct fdisk_partition_table 
+struct fdisk_partition_table
 {
 	UCHAR 		bootid;   			/* bootable?  0=no, 128=yes  */
 	UCHAR 		beghead;  			/* beginning head number */
 	UCHAR 		begsect;  			/* beginning sector number */
-	UCHAR		begcyl;   			/* 10 bit nmbr, with high 2 bits put in begsect */	
+	UCHAR		begcyl;   			/* 10 bit nmbr, with high 2 bits put in begsect */
 	UCHAR		systid;   			/* Operating System type indicator code */
 	UCHAR 		endhead;  			/* ending head number */
 	UCHAR 		endsect;  			/* ending sector number */
@@ -254,7 +258,7 @@ struct fdisk_partition_table
 	ULONG 		numsect;            /* number of sectors in partition */
 };
 
-typedef struct _Master_Boot_Record 
+typedef struct _Master_Boot_Record
 {
 	UCHAR   bootinst[446];   		/* space to hold actual boot code */
 	struct 	fdisk_partition_table parts[4];
@@ -278,5 +282,5 @@ typedef struct _TIME_RECORD {
 #endif
 #endif
 
-#pragma pack()	
+#pragma pack()
 #endif

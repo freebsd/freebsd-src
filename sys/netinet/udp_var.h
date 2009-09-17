@@ -51,6 +51,25 @@ struct udpiphdr {
 #define	ui_ulen		ui_u.uh_ulen
 #define	ui_sum		ui_u.uh_sum
 
+typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *);
+
+/*
+ * UDP control block; one per udp.
+ */
+struct udpcb {
+	udp_tun_func_t	u_tun_func;	/* UDP kernel tunneling callback. */
+	u_int		u_flags;	/* Generic UDP flags. */
+};
+
+#define	intoudpcb(ip)	((struct udpcb *)(ip)->inp_ppcb)
+#define	sotoudpcb(so)	(intoudpcb(sotoinpcb(so)))
+
+				/* IPsec: ESP in UDP tunneling: */
+#define	UF_ESPINUDP_NON_IKE	0x00000001	/* w/ non-IKE marker .. */
+	/* .. per draft-ietf-ipsec-nat-t-ike-0[01],
+	 * and draft-ietf-ipsec-udp-encaps-(00/)01.txt */
+#define	UF_ESPINUDP		0x00000002	/* w/ non-ESP marker. */
+
 struct udpstat {
 				/* input statistics: */
 	u_long	udps_ipackets;		/* total input packets */
@@ -70,6 +89,22 @@ struct udpstat {
 	u_long	udps_noportmcast;
 	u_long	udps_filtermcast;	/* blocked by multicast filter */
 };
+
+#ifdef _KERNEL
+/*
+ * In-kernel consumers can use these accessor macros directly to update
+ * stats.
+ */
+#define	UDPSTAT_ADD(name, val)	V_udpstat.name += (val)
+#define	UDPSTAT_INC(name)	UDPSTAT_ADD(name, 1)
+
+/*
+ * Kernel module consumers must use this accessor macro.
+ */
+void	kmod_udpstat_inc(int statnum);
+#define	KMOD_UDPSTAT_INC(name)						\
+	kmod_udpstat_inc(offsetof(struct udpstat, name) / sizeof(u_long))
+#endif
 
 /*
  * Names for UDP sysctl objects.
@@ -95,24 +130,33 @@ SYSCTL_DECL(_net_inet_udp);
 
 extern struct pr_usrreqs	udp_usrreqs;
 
-#ifdef VIMAGE_GLOBALS
-extern struct inpcbhead		udb;
-extern struct inpcbinfo		udbinfo;
-extern struct udpstat		udpstat;
-extern int			udp_blackhole;
-#endif
+VNET_DECLARE(struct inpcbhead, udb);
+VNET_DECLARE(struct inpcbinfo, udbinfo);
+VNET_DECLARE(struct udpstat, udpstat);
+VNET_DECLARE(int, udp_blackhole);
+
+#define	V_udb			VNET(udb)
+#define	V_udbinfo		VNET(udbinfo)
+#define	V_udpstat		VNET(udpstat)
+#define	V_udp_blackhole		VNET(udp_blackhole)
+
 extern u_long			udp_sendspace;
 extern u_long			udp_recvspace;
 extern int			udp_log_in_vain;
 
+int		 udp_newudpcb(struct inpcb *);
+void		 udp_discardcb(struct udpcb *);
+
 void		 udp_ctlinput(int, struct sockaddr *, void *);
+int	 	 udp_ctloutput(struct socket *, struct sockopt *);
 void		 udp_init(void);
+#ifdef VIMAGE
+void		 udp_destroy(void);
+#endif
 void		 udp_input(struct mbuf *, int);
 struct inpcb	*udp_notify(struct inpcb *inp, int errno);
 int		 udp_shutdown(struct socket *so);
 
-
-typedef void(*udp_tun_func_t)(struct mbuf *, int off, struct inpcb *);
 int udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f);
 #endif
 

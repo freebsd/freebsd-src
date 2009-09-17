@@ -49,7 +49,7 @@ MALLOC_DEFINE(M_REISERFSNODE, "reiserfs_node", "ReiserFS vnode private part");
  * -------------------------------------------------------------------*/
 
 static int
-reiserfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+reiserfs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct reiserfs_args args;
 	int error;
@@ -70,7 +70,7 @@ reiserfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
  * Mount system call
  */
 static int
-reiserfs_mount(struct mount *mp, struct thread *td)
+reiserfs_mount(struct mount *mp)
 {
 	size_t size;
 	int error, len;
@@ -81,7 +81,9 @@ reiserfs_mount(struct mount *mp, struct thread *td)
 	struct reiserfs_mount *rmp;
 	struct reiserfs_sb_info *sbi;
 	struct nameidata nd, *ndp = &nd;
+	struct thread *td;
 
+	td = curthread;
 	if (!(mp->mnt_flag & MNT_RDONLY))
 		return EROFS;
 
@@ -158,7 +160,7 @@ reiserfs_mount(struct mount *mp, struct thread *td)
 	reiserfs_log(LOG_DEBUG, "prepare statfs data\n");
 	(void)copystr(fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	(void)reiserfs_statfs(mp, &mp->mnt_stat, td);
+	(void)reiserfs_statfs(mp, &mp->mnt_stat);
 
 	reiserfs_log(LOG_DEBUG, "done\n");
 	return (0);
@@ -168,7 +170,7 @@ reiserfs_mount(struct mount *mp, struct thread *td)
  * Unmount system call
  */
 static int
-reiserfs_unmount(struct mount *mp, int mntflags, struct thread *td)
+reiserfs_unmount(struct mount *mp, int mntflags)
 {
 	int error, flags = 0;
 	struct reiserfs_mount *rmp;
@@ -185,7 +187,7 @@ reiserfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 
 	/* Flush files -> vflush */
 	reiserfs_log(LOG_DEBUG, "flush vnodes\n");
-	if ((error = vflush(mp, 0, flags, td)))
+	if ((error = vflush(mp, 0, flags, curthread)))
 		return (error);
 
 	/* XXX Super block update */
@@ -252,8 +254,7 @@ reiserfs_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return the root of a filesystem.
  */ 
 static int
-reiserfs_root(struct mount *mp, int flags, struct vnode **vpp,
-    struct thread *td)
+reiserfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	int error;
 	struct vnode *vp;
@@ -262,7 +263,7 @@ reiserfs_root(struct mount *mp, int flags, struct vnode **vpp,
 	rootkey.on_disk_key.k_dir_id = REISERFS_ROOT_PARENT_OBJECTID;
 	rootkey.on_disk_key.k_objectid = REISERFS_ROOT_OBJECTID;
 
-	error = reiserfs_iget(mp, &rootkey, &vp, td);
+	error = reiserfs_iget(mp, &rootkey, &vp, curthread);
 
 	if (error == 0)
 		*vpp = vp;
@@ -273,7 +274,7 @@ reiserfs_root(struct mount *mp, int flags, struct vnode **vpp,
  * The statfs syscall
  */
 static int
-reiserfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+reiserfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct reiserfs_mount *rmp;
 	struct reiserfs_sb_info *sbi;

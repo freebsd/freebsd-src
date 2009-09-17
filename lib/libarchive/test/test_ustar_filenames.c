@@ -43,7 +43,7 @@ test_filename(const char *prefix, int dlen, int flen)
 
 	if (prefix != NULL) {
 		strcpy(filename, prefix);
-		i = strlen(prefix);
+		i = (int)strlen(prefix);
 	}
 	if (dlen > 0) {
 		for (; i < dlen; i++)

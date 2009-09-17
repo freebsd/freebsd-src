@@ -134,6 +134,7 @@ struct g_geom {
 	void			*softc;
 	unsigned		flags;
 #define	G_GEOM_WITHER		1
+#define	G_GEOM_VOLATILE_BIO	2
 };
 
 /*
@@ -193,6 +194,17 @@ struct g_provider {
 	/* Two fields for the implementing class to use */
 	void			*private;
 	u_int			index;
+};
+
+/*
+ * Descriptor of a classifier. We can register a function and
+ * an argument, which is called by g_io_request() on bio's
+ * that are not previously classified.
+ */
+struct g_classifier_hook {
+	TAILQ_ENTRY(g_classifier_hook) link;
+	int			(*func)(void *arg, struct bio *bp);
+	void			*arg;
 };
 
 /* geom_dev.c */
@@ -272,6 +284,8 @@ void g_destroy_bio(struct bio *);
 void g_io_deliver(struct bio *bp, int error);
 int g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr);
 int g_io_flush(struct g_consumer *cp);
+int g_register_classifier(struct g_classifier_hook *hook);
+void g_unregister_classifier(struct g_classifier_hook *hook);
 void g_io_request(struct bio *bp, struct g_consumer *cp);
 struct bio *g_new_bio(void);
 struct bio *g_alloc_bio(void);

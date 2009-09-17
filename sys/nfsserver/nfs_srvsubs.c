@@ -67,7 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#include <nfs/rpcv2.h>
+#include <rpc/rpc.h>
+
 #include <nfs/nfsproto.h>
 #include <nfsserver/nfs.h>
 #include <nfs/xdr_subs.h>
@@ -80,10 +81,7 @@ __FBSDID("$FreeBSD$");
  * This is kinda hokey, but may save a little time doing byte swaps
  */
 u_int32_t nfsrv_nfs_xdrneg1;
-u_int32_t nfsrv_rpc_call, nfsrv_rpc_vers, nfsrv_rpc_reply,
-	nfsrv_rpc_msgdenied, nfsrv_rpc_autherr,
-	nfsrv_rpc_mismatch, nfsrv_rpc_auth_unix, nfsrv_rpc_msgaccepted;
-u_int32_t nfsrv_nfs_prog, nfsrv_nfs_true, nfsrv_nfs_false;
+u_int32_t nfsrv_nfs_true, nfsrv_nfs_false;
 
 /* And other global data */
 static const nfstype nfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR,
@@ -92,17 +90,6 @@ static const nfstype nfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR,
 #define vtonfsv3_mode(m)	txdr_unsigned((m) & ALLPERMS)
 
 int nfsrv_ticks;
-
-#ifdef NFS_LEGACYRPC
-struct nfssvc_sockhead nfssvc_sockhead;
-int nfssvc_sockhead_flag;
-struct nfsd_head nfsd_head;
-int nfsd_head_flag;
-#endif
-
-static int nfssvc_offset = SYS_nfssvc;
-static struct sysent nfssvc_prev_sysent;
-MAKE_SYSENT(nfssvc);
 
 struct mtx nfsd_mtx;
 
@@ -519,27 +506,19 @@ static const short *nfsrv_v3errmap[] = {
 	nfsv3err_commit,
 };
 
+extern int (*nfsd_call_nfsserver)(struct thread *, struct nfssvc_args *);
+
 /*
  * Called once to initialize data structures...
  */
 static int
 nfsrv_modevent(module_t mod, int type, void *data)
 {
-	static int registered;
 	int error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&nfsd_mtx, "nfsd_mtx", NULL, MTX_DEF);
-		nfsrv_rpc_vers = txdr_unsigned(RPC_VER2);
-		nfsrv_rpc_call = txdr_unsigned(RPC_CALL);
-		nfsrv_rpc_reply = txdr_unsigned(RPC_REPLY);
-		nfsrv_rpc_msgdenied = txdr_unsigned(RPC_MSGDENIED);
-		nfsrv_rpc_msgaccepted = txdr_unsigned(RPC_MSGACCEPTED);
-		nfsrv_rpc_mismatch = txdr_unsigned(RPC_MISMATCH);
-		nfsrv_rpc_autherr = txdr_unsigned(RPC_AUTHERR);
-		nfsrv_rpc_auth_unix = txdr_unsigned(RPCAUTH_UNIX);
-		nfsrv_nfs_prog = txdr_unsigned(NFS_PROG);
 		nfsrv_nfs_true = txdr_unsigned(TRUE);
 		nfsrv_nfs_false = txdr_unsigned(FALSE);
 		nfsrv_nfs_xdrneg1 = txdr_unsigned(-1);
@@ -547,24 +526,11 @@ nfsrv_modevent(module_t mod, int type, void *data)
 		if (nfsrv_ticks < 1)
 			nfsrv_ticks = 1;
 
-#ifdef NFS_LEGACYRPC
-		nfsrv_initcache();	/* Init the server request cache */
-		NFSD_LOCK();
-		nfsrv_init(0);		/* Init server data structures */
-		callout_init(&nfsrv_callout, CALLOUT_MPSAFE);
-		NFSD_UNLOCK();
-		nfsrv_timer(0);
-#else
 		NFSD_LOCK();
 		nfsrv_init(0);		/* Init server data structures */
 		NFSD_UNLOCK();
-#endif
 
-		error = syscall_register(&nfssvc_offset, &nfssvc_sysent,
-		    &nfssvc_prev_sysent);
-		if (error)
-			break;
-		registered = 1;
+		nfsd_call_nfsserver = nfssvc_nfsserver;
 		break;
 
 	case MOD_UNLOAD:
@@ -573,12 +539,8 @@ nfsrv_modevent(module_t mod, int type, void *data)
 			break;
 		}
 
-		if (registered)
-			syscall_deregister(&nfssvc_offset, &nfssvc_prev_sysent);
+		nfsd_call_nfsserver = NULL;
 		callout_drain(&nfsrv_callout);
-#ifdef NFS_LEGACYRPC
-		nfsrv_destroycache();	/* Free the server request cache */
-#endif
 		mtx_destroy(&nfsd_mtx);
 		break;
 	default:
@@ -596,9 +558,8 @@ DECLARE_MODULE(nfsserver, nfsserver_mod, SI_SUB_VFS, SI_ORDER_ANY);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfsserver, 1);
-#ifndef NFS_LEGACYRPC
+MODULE_DEPEND(nfsserver, nfssvc, 1, 1, 1);
 MODULE_DEPEND(nfsserver, krpc, 1, 1, 1);
-#endif
 
 /*
  * Set up nameidata for a lookup() call and do it.
@@ -1135,7 +1096,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 		 * old mountd that doesn't pass in a secflavor list.
 		 */
 		numsecflavors = 1;
-		authsys = RPCAUTH_UNIX;
+		authsys = AUTH_SYS;
 		secflavors = &authsys;
 	}
 	credflavor = nfsd->nd_credflavor;
@@ -1188,9 +1149,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 	cred = nfsd->nd_cr;
 	if (cred->cr_uid == 0 || (exflags & MNT_EXPORTANON)) {
 		cred->cr_uid = credanon->cr_uid;
-		for (i = 0; i < credanon->cr_ngroups && i < NGROUPS; i++)
-			cred->cr_groups[i] = credanon->cr_groups[i];
-		cred->cr_ngroups = i;
+		crsetgroups(cred, credanon->cr_ngroups, credanon->cr_groups);
 	}
 	if (exflags & MNT_EXRDONLY)
 		*rdonlyp = 1;
@@ -1200,6 +1159,9 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 	if (!lockflag)
 		VOP_UNLOCK(*vpp, 0);
 out:
+	if (credanon != NULL)
+		crfree(credanon);
+
 	if (error) {
 		VFS_UNLOCK_GIANT(vfslocked);
 	} else
@@ -1226,52 +1188,6 @@ nfs_ispublicfh(fhandle_t *fhp)
 			return (FALSE);
 	return (TRUE);
 }
-
-#ifdef NFS_LEGACYRPC
-
-/*
- * This function compares two net addresses by family and returns TRUE
- * if they are the same host.
- * If there is any doubt, return FALSE.
- * The AF_INET family is handled as a special case so that address mbufs
- * don't need to be saved to store "struct in_addr", which is only 4 bytes.
- */
-int
-netaddr_match(int family, union nethostaddr *haddr, struct sockaddr *nam)
-{
-	struct sockaddr_in *inetaddr;
-
-	NFSD_LOCK_DONTCARE();
-
-	switch (family) {
-	case AF_INET:
-		inetaddr = (struct sockaddr_in *)nam;
-		if (inetaddr->sin_family == AF_INET &&
-		    inetaddr->sin_addr.s_addr == haddr->had_inetaddr)
-			return (1);
-		break;
-#ifdef INET6
-	case AF_INET6:
-	{
-		register struct sockaddr_in6 *inet6addr1, *inet6addr2;
-
-		inet6addr1 = (struct sockaddr_in6 *)nam;
-		inet6addr2 = (struct sockaddr_in6 *)haddr->had_nam;
-	/* XXX - should test sin6_scope_id ? */
-		if (inet6addr1->sin6_family == AF_INET6 &&
-		    IN6_ARE_ADDR_EQUAL(&inet6addr1->sin6_addr,
-				       &inet6addr2->sin6_addr))
-			return (1);
-		break;
-	}
-#endif
-	default:
-		break;
-	};
-	return (0);
-}
-
-#endif
 
 /*
  * Map errnos to NFS error numbers. For Version 3 also filter out error

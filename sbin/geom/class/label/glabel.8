@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2004
+.Dd June 13, 2009
 .Dt GLABEL 8
 .Os
 .Sh NAME
@@ -91,11 +91,17 @@ Currently supported file systems are:
 .Pp
 .Bl -bullet -offset indent -compact
 .It
-UFS1 (directory
+UFS1 volume names (directory
 .Pa /dev/ufs/ ) .
 .It
-UFS2 (directory
+UFS2 volume names (directory
 .Pa /dev/ufs/ ) .
+.It
+UFS1 file system IDs (directory
+.Pa /dev/ufsid/ ) .
+.It
+UFS2 file system IDs (directory
+.Pa /dev/ufsid/ ) .
 .It
 MSDOSFS (FAT12, FAT16, FAT32) (directory
 .Pa /dev/msdosfs/ ) .
@@ -113,7 +119,18 @@ NTFS (directory
 .Pa /dev/ntfs/ ) .
 .El
 .Pp
-Non file-system labels are created in the directory
+Support for partition metadata is implemented for:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+GPT labels (directory
+.Pa /dev/gpt/ ) .
+.It
+GPT UUIDs (directory
+.Pa /dev/gptid/ ) .
+.El
+.Pp
+Generic labels are created in the directory
 .Pa /dev/label/ .
 .Pp
 The first argument to

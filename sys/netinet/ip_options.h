@@ -49,6 +49,7 @@ struct ipopt_tag {
 
 extern	int	ip_doopts;		/* process or ignore IP options */
 
+int		 ip_checkrouteralert(struct mbuf *);
 int		 ip_dooptions(struct mbuf *, int);
 struct mbuf	*ip_insertoptions(struct mbuf *, struct mbuf *, int *);
 int		 ip_optcopy(struct ip *, struct ip *);

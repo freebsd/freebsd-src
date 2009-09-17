@@ -90,8 +90,8 @@ static int agp_nvidia_attach(device_t);
 static int agp_nvidia_detach(device_t);
 static u_int32_t agp_nvidia_get_aperture(device_t);
 static int agp_nvidia_set_aperture(device_t, u_int32_t);
-static int agp_nvidia_bind_page(device_t, int, vm_offset_t);
-static int agp_nvidia_unbind_page(device_t, int);
+static int agp_nvidia_bind_page(device_t, vm_offset_t, vm_offset_t);
+static int agp_nvidia_unbind_page(device_t, vm_offset_t);
 
 static int nvidia_init_iorr(u_int32_t, u_int32_t);
 
@@ -312,12 +312,12 @@ agp_nvidia_set_aperture(device_t dev, u_int32_t aperture)
 }
 
 static int
-agp_nvidia_bind_page(device_t dev, int offset, vm_offset_t physical)
+agp_nvidia_bind_page(device_t dev, vm_offset_t offset, vm_offset_t physical)
 {
 	struct agp_nvidia_softc *sc = device_get_softc(dev);
 	u_int32_t index;
 
-	if (offset < 0 || offset >= (sc->gatt->ag_entries << AGP_PAGE_SHIFT))
+	if (offset >= (sc->gatt->ag_entries << AGP_PAGE_SHIFT))
 		return (EINVAL);
 
 	index = (sc->pg_offset + offset) >> AGP_PAGE_SHIFT;
@@ -327,12 +327,12 @@ agp_nvidia_bind_page(device_t dev, int offset, vm_offset_t physical)
 }
 
 static int
-agp_nvidia_unbind_page(device_t dev, int offset)
+agp_nvidia_unbind_page(device_t dev, vm_offset_t offset)
 {
 	struct agp_nvidia_softc *sc = device_get_softc(dev);
 	u_int32_t index;
 
-	if (offset < 0 || offset >= (sc->gatt->ag_entries << AGP_PAGE_SHIFT))
+	if (offset >= (sc->gatt->ag_entries << AGP_PAGE_SHIFT))
 		return (EINVAL);
 
 	index = (sc->pg_offset + offset) >> AGP_PAGE_SHIFT;
@@ -341,8 +341,8 @@ agp_nvidia_unbind_page(device_t dev, int offset)
 	return (0);
 }
 
-static int
-agp_nvidia_flush_tlb (device_t dev, int offset)
+static void
+agp_nvidia_flush_tlb (device_t dev)
 {
 	struct agp_nvidia_softc *sc;
 	u_int32_t wbc_reg, temp;
@@ -378,8 +378,6 @@ agp_nvidia_flush_tlb (device_t dev, int offset)
 		temp = ag_virtual[i * PAGE_SIZE / sizeof(u_int32_t)];
 	for(i = 0; i < pages; i++)
 		temp = ag_virtual[i * PAGE_SIZE / sizeof(u_int32_t)];
-
-	return (0);
 }
 
 #define	SYSCFG		0xC0010010

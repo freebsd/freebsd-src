@@ -394,7 +394,7 @@ RetryFault:;
 			 * found the page ).
 			 */
 			vm_page_busy(fs.m);
-			if (((fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
+			if (fs.m->valid != VM_PAGE_BITS_ALL &&
 				fs.m->object != kernel_object && fs.m->object != kmem_object) {
 				goto readrest;
 			}
@@ -433,7 +433,7 @@ RetryFault:;
 				unlock_and_deallocate(&fs);
 				VM_WAITPFAULT;
 				goto RetryFault;
-			} else if ((fs.m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
+			} else if (fs.m->valid == VM_PAGE_BITS_ALL)
 				break;
 		}
 
@@ -472,7 +472,8 @@ readrest:
 			    (fs.first_object == fs.object ||
 			     (is_first_object_locked = VM_OBJECT_TRYLOCK(fs.first_object))) &&
 			    fs.first_object->type != OBJT_DEVICE &&
-			    fs.first_object->type != OBJT_PHYS) {
+			    fs.first_object->type != OBJT_PHYS &&
+			    fs.first_object->type != OBJT_SG) {
 				vm_pindex_t firstpindex, tmppindex;
 
 				if (fs.first_pindex < 2 * VM_FAULT_READ)
@@ -868,13 +869,17 @@ vnode_locked:
 		}
 	}
 	/*
-	 * update lastr imperfectly (we do not know how much
-	 * getpages will actually read), but good enough.
+	 * If the page was filled by a pager, update the map entry's
+	 * last read offset.  Since the pager does not return the
+	 * actual set of pages that it read, this update is based on
+	 * the requested set.  Typically, the requested and actual
+	 * sets are the same.
 	 *
 	 * XXX The following assignment modifies the map
 	 * without holding a write lock on it.
 	 */
-	fs.entry->lastr = fs.pindex + faultcount - behind;
+	if (hardfault)
+		fs.entry->lastr = fs.pindex + faultcount - behind;
 
 	if (prot & VM_PROT_WRITE) {
 		vm_object_set_writeable_dirty(fs.object);
@@ -912,13 +917,11 @@ vnode_locked:
 	KASSERT(fs.m->oflags & VPO_BUSY,
 		("vm_fault: page %p not busy!", fs.m));
 	/*
-	 * Sanity check: page must be completely valid or it is not fit to
+	 * Page must be completely valid or it is not fit to
 	 * map into user space.  vm_pager_get_pages() ensures this.
 	 */
-	if (fs.m->valid != VM_PAGE_BITS_ALL) {
-		vm_page_zero_invalid(fs.m, TRUE);
-		printf("Warning: page %p partially invalid on fault\n", fs.m);
-	}
+	KASSERT(fs.m->valid == VM_PAGE_BITS_ALL,
+	    ("vm_fault: page %p partially invalid", fs.m));
 	VM_OBJECT_UNLOCK(fs.object);
 
 	/*
@@ -1022,10 +1025,8 @@ vm_fault_prefault(pmap_t pmap, vm_offset_t addra, vm_map_entry_t entry)
 			VM_OBJECT_UNLOCK(lobject);
 			break;
 		}
-		if (((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
-			(m->busy == 0) &&
+		if (m->valid == VM_PAGE_BITS_ALL &&
 		    (m->flags & PG_FICTITIOUS) == 0) {
-
 			vm_page_lock_queues();
 			pmap_enter_quick(pmap, addr, m, entry->protection);
 			vm_page_unlock_queues();
@@ -1126,11 +1127,9 @@ vm_fault_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *		entry corresponding to a main map entry that is wired down).
  */
 void
-vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
-	vm_map_t dst_map;
-	vm_map_t src_map;
-	vm_map_entry_t dst_entry;
-	vm_map_entry_t src_entry;
+vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
+    vm_map_entry_t dst_entry, vm_map_entry_t src_entry,
+    vm_ooffset_t *fork_charge)
 {
 	vm_object_t backing_object, dst_object, object;
 	vm_object_t src_object;
@@ -1161,9 +1160,16 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 #endif
 
 	VM_OBJECT_LOCK(dst_object);
+	KASSERT(dst_entry->object.vm_object == NULL,
+	    ("vm_fault_copy_entry: vm_object not NULL"));
 	dst_entry->object.vm_object = dst_object;
 	dst_entry->offset = 0;
-
+	dst_object->uip = curthread->td_ucred->cr_ruidinfo;
+	uihold(dst_object->uip);
+	dst_object->charge = dst_entry->end - dst_entry->start;
+	KASSERT(dst_entry->uip == NULL,
+	    ("vm_fault_copy_entry: leaked swp charge"));
+	*fork_charge += dst_object->charge;
 	prot = dst_entry->max_protection;
 
 	/*
@@ -1247,8 +1253,6 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
  *
  * Return value:
  *  number of pages in marray
- *
- * This routine can't block.
  */
 static int
 vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)

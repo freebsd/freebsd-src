@@ -42,6 +42,10 @@ typedef struct kinfo {
 	int ki_valid;		/* 1 => uarea stuff valid */
 	double	 ki_pcpu;	/* calculated in main() */
 	segsz_t	 ki_memsize;	/* calculated in main() */
+	union {
+		int level;	/* used in decendant_sort() */
+		char *prefix;	/* calculated in decendant_sort() */
+	} ki_d;
 } KINFO;
 
 /* Variables. */

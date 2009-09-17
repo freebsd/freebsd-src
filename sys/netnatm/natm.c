@@ -100,24 +100,24 @@ struct mtx	natm_mtx;
 /*
  * User socket requests.
  */
-static int	natm_usr_attach(struct socket *, int, d_thread_t *);
+static int	natm_usr_attach(struct socket *, int, struct thread *);
 static void	natm_usr_detach(struct socket *);
 static int	natm_usr_connect(struct socket *, struct sockaddr *,
-		    d_thread_t *);
+		    struct thread *);
 static int	natm_usr_disconnect(struct socket *);
 static int	natm_usr_shutdown(struct socket *);
 static int	natm_usr_send(struct socket *, int, struct mbuf *,
-		    struct sockaddr *, struct mbuf *, d_thread_t *);
+		    struct sockaddr *, struct mbuf *, struct thread *);
 static int	natm_usr_peeraddr(struct socket *, struct sockaddr **);
 static int	natm_usr_control(struct socket *, u_long, caddr_t,
-		    struct ifnet *, d_thread_t *);
+		    struct ifnet *, struct thread *);
 static void	natm_usr_abort(struct socket *);
 static int	natm_usr_bind(struct socket *, struct sockaddr *,
-		    d_thread_t *);
+		    struct thread *);
 static int	natm_usr_sockaddr(struct socket *, struct sockaddr **);
 
 static int
-natm_usr_attach(struct socket *so, int proto, d_thread_t *p)
+natm_usr_attach(struct socket *so, int proto, struct thread *p)
 {
 	struct natmpcb *npcb;
 	int error = 0;
@@ -155,7 +155,7 @@ natm_usr_detach(struct socket *so)
 }
 
 static int
-natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
+natm_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *p)
 {
 	struct natmpcb *npcb;
 	struct sockaddr_natm *snatm;
@@ -221,13 +221,9 @@ natm_usr_connect(struct socket *so, struct sockaddr *nam, d_thread_t *p)
 	op.param.traffic = ATMIO_TRAFFIC_UBR;
 	NATM_UNLOCK();
 
-	IFF_LOCKGIANT(ifp);
 	if (ifp->if_ioctl == NULL || 
-	    ifp->if_ioctl(ifp, SIOCATMOPENVCC, (caddr_t)&op) != 0) {
-		IFF_UNLOCKGIANT(ifp);
+	    ifp->if_ioctl(ifp, SIOCATMOPENVCC, (caddr_t)&op) != 0)
 		return (EIO);
-	}
-	IFF_UNLOCKGIANT(ifp);
 	soisconnected(so);
 	return (error);
 }
@@ -259,11 +255,8 @@ natm_usr_disconnect(struct socket *so)
 	cl.vpi = npcb->npcb_vpi;
 	cl.vci = npcb->npcb_vci;
 	NATM_UNLOCK();
-	if (ifp->if_ioctl != NULL) {
-		IFF_LOCKGIANT(ifp);
+	if (ifp->if_ioctl != NULL)
 		ifp->if_ioctl(ifp, SIOCATMCLOSEVCC, (caddr_t)&cl);
-		IFF_UNLOCKGIANT(ifp);
-	}
 	soisdisconnected(so);
 	return (error);
 }
@@ -278,7 +271,7 @@ natm_usr_shutdown(struct socket *so)
 
 static int
 natm_usr_send(struct socket *so, int flags, struct mbuf *m, 
-	struct sockaddr *nam, struct mbuf *control, d_thread_t *p)
+	struct sockaddr *nam, struct mbuf *control, struct thread *p)
 {
 	struct natmpcb *npcb;
 	struct atm_pseudohdr *aph;
@@ -339,20 +332,16 @@ natm_usr_peeraddr(struct socket *so, struct sockaddr **nam)
 
 static int
 natm_usr_control(struct socket *so, u_long cmd, caddr_t arg,
-	struct ifnet *ifp, d_thread_t *p)
+	struct ifnet *ifp, struct thread *p)
 {
 	struct natmpcb *npcb;
-	int error;
 
 	npcb = (struct natmpcb *)so->so_pcb;
 	KASSERT(npcb != NULL, ("natm_usr_control: npcb == NULL"));
 
 	if (ifp == NULL || ifp->if_ioctl == NULL)
 		return (EOPNOTSUPP);
-	IFF_LOCKGIANT(ifp);
-	error = ((*ifp->if_ioctl)(ifp, cmd, arg));
-	IFF_UNLOCKGIANT(ifp);
-	return (error);
+	return ((*ifp->if_ioctl)(ifp, cmd, arg));
 }
 
 static void
@@ -368,7 +357,7 @@ natm_usr_close(struct socket *so)
 }
 
 static int
-natm_usr_bind(struct socket *so, struct sockaddr *nam, d_thread_t *p)
+natm_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *p)
 {
 
 	return (EOPNOTSUPP);

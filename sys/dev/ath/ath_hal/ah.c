@@ -22,6 +22,8 @@
 #include "ah_internal.h"
 #include "ah_devid.h"
 
+#include "ar5416/ar5416reg.h"		/* NB: includes ar5212reg.h */
+
 /* linker set of registered chips */
 OS_SET_DECLARE(ah_chips, struct ath_hal_chip);
 
@@ -78,6 +80,44 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 	return AH_NULL;
 }
 
+const char *
+ath_hal_mac_name(struct ath_hal *ah)
+{
+	switch (ah->ah_macVersion) {
+	case AR_SREV_VERSION_CRETE:
+	case AR_SREV_VERSION_MAUI_1:
+		return "5210";
+	case AR_SREV_VERSION_MAUI_2:
+	case AR_SREV_VERSION_OAHU:
+		return "5211";
+	case AR_SREV_VERSION_VENICE:
+		return "5212";
+	case AR_SREV_VERSION_GRIFFIN:
+		return "2413";
+	case AR_SREV_VERSION_CONDOR:
+		return "5424";
+	case AR_SREV_VERSION_EAGLE:
+		return "5413";
+	case AR_SREV_VERSION_COBRA:
+		return "2415";
+	case AR_SREV_2425:
+		return "2425";
+	case AR_SREV_2417:
+		return "2417";
+	case AR_XSREV_VERSION_OWL_PCI:
+		return "5416";
+	case AR_XSREV_VERSION_OWL_PCIE:
+		return "5418";
+	case AR_XSREV_VERSION_SOWL:
+		return "9160";
+	case AR_XSREV_VERSION_MERLIN:
+		return "9280";
+	case AR_XSREV_VERSION_KITE:
+		return "9285";
+	}
+	return "????";
+}
+
 /*
  * Return the mask of available modes based on the hardware capabilities.
  */
@@ -106,6 +146,48 @@ ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode)
 	}
 	*ecode = HAL_ENOTSUPP;
 	return AH_NULL;
+}
+
+const char *
+ath_hal_rf_name(struct ath_hal *ah)
+{
+	switch (ah->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR) {
+	case 0:			/* 5210 */
+		return "5110";	/* NB: made up */
+	case AR_RAD5111_SREV_MAJOR:
+	case AR_RAD5111_SREV_PROD:
+		return "5111";
+	case AR_RAD2111_SREV_MAJOR:
+		return "2111";
+	case AR_RAD5112_SREV_MAJOR:
+	case AR_RAD5112_SREV_2_0:
+	case AR_RAD5112_SREV_2_1:
+		return "5112";
+	case AR_RAD2112_SREV_MAJOR:
+	case AR_RAD2112_SREV_2_0:
+	case AR_RAD2112_SREV_2_1:
+		return "2112";
+	case AR_RAD2413_SREV_MAJOR:
+		return "2413";
+	case AR_RAD5413_SREV_MAJOR:
+		return "5413";
+	case AR_RAD2316_SREV_MAJOR:
+		return "2316";
+	case AR_RAD2317_SREV_MAJOR:
+		return "2317";
+	case AR_RAD5424_SREV_MAJOR:
+		return "5424";
+
+	case AR_RAD5133_SREV_MAJOR:
+		return "5133";
+	case AR_RAD2133_SREV_MAJOR:
+		return "2133";
+	case AR_RAD5122_SREV_MAJOR:
+		return "5122";
+	case AR_RAD2122_SREV_MAJOR:
+		return "2122";
+	}
+	return "????";
 }
 
 /*
@@ -205,8 +287,7 @@ ath_hal_computetxtime(struct ath_hal *ah,
 				+ (numSymbols * OFDM_QUARTER_SYMBOL_TIME);
 		break;
 	case IEEE80211_T_TURBO:
-		/* we still save OFDM rates in kbps - so double them */
-		bitsPerSymbol = ((kbps << 1) * TURBO_SYMBOL_TIME) / 1000;
+		bitsPerSymbol	= (kbps * TURBO_SYMBOL_TIME) / 1000;
 		HALASSERT(bitsPerSymbol != 0);
 
 		numBits		= TURBO_PLCP_BITS + (frameLen << 3);
@@ -419,6 +500,11 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_RXTSTAMP_PREC:	/* rx desc tstamp precision (bits) */
 		*result = pCap->halTstampPrecision;
 		return HAL_OK;
+	case HAL_CAP_INTRMASK:		/* mask of supported interrupts */
+		*result = pCap->halIntrMask;
+		return HAL_OK;
+	case HAL_CAP_BSSIDMATCH:	/* hardware has disable bssid match */
+		return pCap->halBssidMatchSupport ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
@@ -762,6 +848,7 @@ ath_hal_ini_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 {
 	int r;
 
+	HALASSERT(col < ia->cols);
 	for (r = 0; r < ia->rows; r++) {
 		OS_REG_WRITE(ah, HAL_INI_VAL(ia, r, 0),
 		    HAL_INI_VAL(ia, r, col));
@@ -775,6 +862,7 @@ ath_hal_ini_bank_setup(uint32_t data[], const HAL_INI_ARRAY *ia, int col)
 {
 	int r;
 
+	HALASSERT(col < ia->cols);
 	for (r = 0; r < ia->rows; r++)
 		data[r] = HAL_INI_VAL(ia, r, col);
 }

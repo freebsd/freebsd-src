@@ -51,7 +51,12 @@ acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 
 	acl_int = &(*acl_p)->ats_acl;
 
-	if ((acl_int->acl_cnt >= ACL_MAX_ENTRIES) || (acl_int->acl_cnt < 0)) {
+	/*
+	 * +1, because we are checking if there is space left for one more
+	 * entry.
+	 */
+	if ((acl_int->acl_cnt + 1 >= ACL_MAX_ENTRIES) ||
+	    (acl_int->acl_cnt < 0)) {
 		errno = EINVAL;
 		return (-1);
 	}
@@ -61,6 +66,50 @@ acl_create_entry(acl_t *acl_p, acl_entry_t *entry_p)
 	(**entry_p).ae_tag  = ACL_UNDEFINED_TAG;
 	(**entry_p).ae_id   = ACL_UNDEFINED_ID;
 	(**entry_p).ae_perm = ACL_PERM_NONE;
+	(**entry_p).ae_entry_type = 0;
+	(**entry_p).ae_flags = 0;
+
+	(*acl_p)->ats_cur_entry = 0;
+
+	return (0);
+}
+
+int
+acl_create_entry_np(acl_t *acl_p, acl_entry_t *entry_p, int offset)
+{
+	int i;
+	struct acl *acl_int;
+
+	if (acl_p == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	acl_int = &(*acl_p)->ats_acl;
+
+	if ((acl_int->acl_cnt + 1 >= ACL_MAX_ENTRIES) || (acl_int->acl_cnt < 0)) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	if (offset < 0 || offset >= acl_int->acl_cnt) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	/* Make room for the new entry. */
+	for (i = acl_int->acl_cnt; i > offset; i--)
+		acl_int->acl_entry[i] = acl_int->acl_entry[i - 1];
+
+	acl_int->acl_cnt++;
+
+	*entry_p = &acl_int->acl_entry[offset];
+
+	(**entry_p).ae_tag  = ACL_UNDEFINED_TAG;
+	(**entry_p).ae_id   = ACL_UNDEFINED_ID;
+	(**entry_p).ae_perm = ACL_PERM_NONE;
+	(**entry_p).ae_entry_type = 0;
+	(**entry_p).ae_flags= 0;
 
 	(*acl_p)->ats_cur_entry = 0;
 

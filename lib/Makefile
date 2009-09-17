@@ -35,12 +35,12 @@ SUBDIR=	${_csu} libc libbsm libauditd libcom_err libcrypt libelf libkvm msun \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libdwarf libedit libexpat libfetch libftpio libgeom ${_libgpib} \
 	${_libgssapi} ${_librpcsec_gss} libipsec \
-	${_libipx} libkiconv libmagic libmemstat ${_libmilter} ${_libmp} \
-	${_libncp} ${_libngatm} libopie libpam libpcap \
+	${_libipx} libjail libkiconv libmagic libmemstat ${_libmilter} \
+	${_libmp} ${_libncp} ${_libngatm} libopie libpam libpcap \
 	${_libpmc} libproc librt ${_libsdp} ${_libsm} ${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} libstand ${_libtelnet} ${_libthr} libthread_db libufs \
-	libugidfw ${_libusbhid} ${_libusb20} ${_libvgl} libwrap liby libz \
+	libugidfw ${_libusbhid} ${_libusb} ${_libvgl} libwrap liby libz \
 	${_bind}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
@@ -112,6 +112,7 @@ _libsmb=	libsmb
 _libncp=	libncp
 .endif
 _libsmb=	libsmb
+_libvgl=	libvgl
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc"
@@ -139,7 +140,7 @@ _libtelnet=	libtelnet
 
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
-_libusb20=	libusb20
+_libusb=	libusb
 .endif
 
 .include <bsd.subdir.mk>

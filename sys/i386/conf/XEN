@@ -11,7 +11,7 @@ makeoptions	MODULES_OVERRIDE=""
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
-#options		SCHED_4BSD		 
+#options 	SCHED_4BSD		 
 
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
@@ -54,22 +54,22 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
-options		PAE
+options 	PAE
 nooption	NATIVE
 option		XEN
 nodevice	atpic
 nodevice	isa
-options		MCLSHIFT=12
+options 	MCLSHIFT=12
 
 # To make an SMP kernel, the next two lines are needed
 options 	SMP			# Symmetric MultiProcessor Kernel
 device		apic			# I/O APIC
 
 
-device         atkbdc          # AT keyboard controller
-device         atkbd           # AT keyboard
-device         psm             # PS/2 mouse
-device         pci
+device		atkbdc		# AT keyboard controller
+device		atkbd		# AT keyboard
+device		psm		# PS/2 mouse
+device		pci
 
 device		kbdmux		# keyboard multiplexer
 

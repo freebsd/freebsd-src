@@ -35,7 +35,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -111,6 +110,7 @@ static int data_lengths[] = {
 	sizeof(struct ktr_csw),			/* KTR_CSW */
 	0,					/* KTR_USER */
 	0,					/* KTR_STRUCT */
+	0,					/* KTR_SYSCTL */
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -319,7 +319,7 @@ ktr_enqueuerequest(struct thread *td, struct ktr_request *req)
  * is used both internally before committing other records, and also on
  * system call return.  We drain all the ones we can find at the time when
  * drain is requested, but don't keep draining after that as those events
- * may me approximately "after" the current event.
+ * may be approximately "after" the current event.
  */
 static void
 ktr_drain(struct thread *td)
@@ -477,6 +477,40 @@ ktrnamei(path)
 		req->ktr_header.ktr_len = namelen;
 		req->ktr_buffer = buf;
 	}
+	ktr_submitrequest(curthread, req);
+}
+
+void
+ktrsysctl(name, namelen)
+	int *name;
+	u_int namelen;
+{
+	struct ktr_request *req;
+	u_int mib[CTL_MAXNAME + 2];
+	char *mibname;
+	size_t mibnamelen;
+	int error;
+
+	/* Lookup name of mib. */    
+	KASSERT(namelen <= CTL_MAXNAME, ("sysctl MIB too long"));
+	mib[0] = 0;
+	mib[1] = 1;
+	bcopy(name, mib + 2, namelen * sizeof(*name));
+	mibnamelen = 128;
+	mibname = malloc(mibnamelen, M_KTRACE, M_WAITOK);
+	error = kernel_sysctl(curthread, mib, namelen + 2, mibname, &mibnamelen,
+	    NULL, 0, &mibnamelen, 0);
+	if (error) {
+		free(mibname, M_KTRACE);
+		return;
+	}
+	req = ktr_getrequest(KTR_SYSCTL);
+	if (req == NULL) {
+		free(mibname, M_KTRACE);
+		return;
+	}
+	req->ktr_header.ktr_len = mibnamelen;
+	req->ktr_buffer = mibname;
 	ktr_submitrequest(curthread, req);
 }
 
@@ -925,6 +959,9 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	mtx_unlock(&ktrace_mtx);
 
 	kth = &req->ktr_header;
+	KASSERT(((u_short)kth->ktr_type & ~KTR_DROP) <
+	    sizeof(data_lengths) / sizeof(data_lengths[0]),
+	    ("data_lengths array overflow"));
 	datalen = data_lengths[(u_short)kth->ktr_type & ~KTR_DROP];
 	buflen = kth->ktr_len;
 	auio.uio_iov = &aiov[0];
@@ -954,7 +991,6 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	(void)VOP_LEASE(vp, td, cred, LEASE_WRITE);
 #ifdef MAC
 	error = mac_vnode_check_write(cred, NOCRED, vp);
 	if (error == 0)

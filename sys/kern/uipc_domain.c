@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
+
+#include <net/vnet.h>
+
 #include <vm/uma.h>
 
 /*
@@ -58,7 +61,7 @@ __FBSDID("$FreeBSD$");
  */
 
 static void domaininit(void *);
-SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL);
+SYSINIT(domain, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, domaininit, NULL);
 
 static void domainfinalize(void *);
 SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
@@ -159,9 +162,10 @@ protosw_init(struct protosw *pr)
  * Note: you cant unload it again because a socket may be using it.
  * XXX can't fail at this time.
  */
-static void
-net_init_domain(struct domain *dp)
+void
+domain_init(void *arg)
 {
+	struct domain *dp = arg;
 	struct protosw *pr;
 
 	if (dp->dom_init)
@@ -177,13 +181,36 @@ net_init_domain(struct domain *dp)
 		panic("%s: max_datalen < 1", __func__);
 }
 
+#ifdef VIMAGE
+void
+vnet_domain_init(void *arg)
+{
+
+	/* Virtualized case is no different -- call init functions. */
+	domain_init(arg);
+}
+
+void
+vnet_domain_uninit(void *arg)
+{
+	struct domain *dp = arg;
+	struct protosw *pr;
+
+	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
+		if (pr->pr_destroy)
+			(*pr->pr_destroy)();
+	if (dp->dom_destroy)
+		(*dp->dom_destroy)();
+}
+#endif
+
 /*
  * Add a new protocol domain to the list of supported domains
  * Note: you cant unload it again because a socket may be using it.
  * XXX can't fail at this time.
  */
 void
-net_add_domain(void *data)
+domain_add(void *data)
 {
 	struct domain *dp;
 
@@ -197,20 +224,19 @@ net_add_domain(void *data)
 	    dp->dom_name));
 #ifndef INVARIANTS
 	if (domain_init_status < 1)
-		printf("WARNING: attempt to net_add_domain(%s) before "
+		printf("WARNING: attempt to domain_add(%s) before "
 		    "domaininit()\n", dp->dom_name);
 #endif
 #ifdef notyet
 	KASSERT(domain_init_status < 2,
-	    ("attempt to net_add_domain(%s) after domainfinalize()",
+	    ("attempt to domain_add(%s) after domainfinalize()",
 	    dp->dom_name));
 #else
 	if (domain_init_status >= 2)
-		printf("WARNING: attempt to net_add_domain(%s) after "
+		printf("WARNING: attempt to domain_add(%s) after "
 		    "domainfinalize()\n", dp->dom_name);
 #endif
 	mtx_unlock(&dom_mtx);
-	net_init_domain(dp);
 }
 
 static void
@@ -310,6 +336,7 @@ found:
 int
 pf_proto_register(int family, struct protosw *npr)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct domain *dp;
 	struct protosw *pr, *fpr;
 
@@ -365,7 +392,13 @@ found:
 	mtx_unlock(&dom_mtx);
 
 	/* Initialize and activate the protocol. */
-	protosw_init(fpr);
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET_QUIET(vnet_iter);
+		protosw_init(fpr);
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
 
 	return (0);
 }

@@ -33,6 +33,7 @@ mtu
 net
 netmask
 nostatic
+nostick
 osi
 prefixlen
 proto1
@@ -44,8 +45,11 @@ rtt
 rttvar
 sa
 sendpipe
+show
 ssthresh
 static
+sticky
+weight
 x25
 xns
 xresolve

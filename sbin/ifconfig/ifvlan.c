@@ -136,8 +136,6 @@ DECL_CMD_FUNC(setvlantag, val, d)
 
 	if (getvlan(s, &ifr, &vreq) != -1)
 		vlan_set(s, &ifr);
-	else
-		clone_setcallback(vlan_create);
 }
 
 static
@@ -149,8 +147,6 @@ DECL_CMD_FUNC(setvlandev, val, d)
 
 	if (getvlan(s, &ifr, &vreq) != -1)
 		vlan_set(s, &ifr);
-	else
-		clone_setcallback(vlan_create);
 }
 
 static
@@ -196,11 +192,12 @@ static __constructor void
 vlan_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(vlan_cmds);  i++)
 		cmd_register(&vlan_cmds[i]);
 	af_register(&af_vlan);
 	callback_register(vlan_cb, NULL);
+	clone_setdefcallback("vlan", vlan_create);
 #undef N
 }

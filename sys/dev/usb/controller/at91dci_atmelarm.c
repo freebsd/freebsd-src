@@ -26,15 +26,32 @@ __FBSDID("$FreeBSD$");
  * SUCH DAMAGE.
  */
 
+#include <sys/stdint.h>
+#include <sys/stddef.h>
+#include <sys/param.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/bus.h>
+#include <sys/linker_set.h>
+#include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
+#include <sys/sysctl.h>
+#include <sys/sx.h>
+#include <sys/unistd.h>
+#include <sys/callout.h>
+#include <sys/malloc.h>
+#include <sys/priv.h>
 
-#include <dev/usb/usb_mfunc.h>
-#include <dev/usb/usb_defs.h>
 #include <dev/usb/usb.h>
+#include <dev/usb/usbdi.h>
 
 #include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_sw_transfer.h>
 #include <dev/usb/usb_util.h>
 
 #include <dev/usb/usb_controller.h>
@@ -146,7 +163,7 @@ at91_udp_attach(device_t dev)
 	sc->sc_dci.sc_bus.devices_max = AT91_MAX_DEVICES;
 
 	/* get all DMA memory */
-	if (usb2_bus_mem_alloc_all(&sc->sc_dci.sc_bus,
+	if (usb_bus_mem_alloc_all(&sc->sc_dci.sc_bus,
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);
 	}
@@ -168,7 +185,7 @@ at91_udp_attach(device_t dev)
 	at91_udp_pull_down(sc);
 
 	/* wait 10ms for pulldown to stabilise */
-	usb2_pause_mtx(NULL, hz / 100);
+	usb_pause_mtx(NULL, hz / 100);
 
 	sc->sc_iclk = at91_pmc_clock_ref("udc_clk");
 	sc->sc_fclk = at91_pmc_clock_ref("udpck");
@@ -205,10 +222,10 @@ at91_udp_attach(device_t dev)
 
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
+	    NULL, (driver_intr_t *)at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
+	    (driver_intr_t *)at91dci_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_dci.sc_intr_hdl = NULL;
@@ -216,10 +233,10 @@ at91_udp_attach(device_t dev)
 	}
 #if (__FreeBSD_version >= 700031)
 	err = bus_setup_intr(dev, sc->sc_vbus_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (void *)at91_vbus_poll, sc, &sc->sc_vbus_intr_hdl);
+	    NULL, (driver_intr_t *)at91_vbus_poll, sc, &sc->sc_vbus_intr_hdl);
 #else
 	err = bus_setup_intr(dev, sc->sc_vbus_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (void *)at91_vbus_poll, sc, &sc->sc_vbus_intr_hdl);
+	    (driver_intr_t *)at91_vbus_poll, sc, &sc->sc_vbus_intr_hdl);
 #endif
 	if (err) {
 		sc->sc_vbus_intr_hdl = NULL;
@@ -297,7 +314,7 @@ at91_udp_detach(device_t dev)
 		    sc->sc_dci.sc_io_res);
 		sc->sc_dci.sc_io_res = NULL;
 	}
-	usb2_bus_mem_free_all(&sc->sc_dci.sc_bus, NULL);
+	usb_bus_mem_free_all(&sc->sc_dci.sc_bus, NULL);
 
 	/* disable clocks */
 	at91_pmc_clock_disable(sc->sc_iclk);

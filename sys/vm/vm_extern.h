@@ -33,30 +33,17 @@
 #ifndef _VM_EXTERN_H_
 #define	_VM_EXTERN_H_
 
-struct buf;
 struct proc;
 struct vmspace;
-struct vmtotal;
-struct mount;
 struct vnode;
 
 #ifdef _KERNEL
 
-#ifdef TYPEDEF_FOR_UAP
-int getpagesize(struct thread *, void *, int *);
-int madvise(struct thread *, void *, int *);
-int mincore(struct thread *, void *, int *);
-int mprotect(struct thread *, void *, int *);
-int msync(struct thread *, void *, int *);
-int munmap(struct thread *, void *, int *);
-int obreak(struct thread *, void *, int *);
-int sbrk(struct thread *, void *, int *);
-int sstk(struct thread *, void *, int *);
-int swapon(struct thread *, void *, int *);
-#endif			/* TYPEDEF_FOR_UAP */
-
 int kernacc(void *, int, int);
 vm_offset_t kmem_alloc(vm_map_t, vm_size_t);
+vm_offset_t kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags,
+    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
+    unsigned long boundary, vm_memattr_t memattr);
 vm_offset_t kmem_alloc_nofault(vm_map_t, vm_size_t);
 vm_offset_t kmem_alloc_wait(vm_map_t, vm_size_t);
 void kmem_free(vm_map_t, vm_offset_t, vm_size_t);
@@ -68,7 +55,8 @@ vm_map_t kmem_suballoc(vm_map_t, vm_offset_t *, vm_offset_t *, vm_size_t,
 void swapout_procs(int);
 int useracc(void *, int, int);
 int vm_fault(vm_map_t, vm_offset_t, vm_prot_t, int);
-void vm_fault_copy_entry(vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t);
+void vm_fault_copy_entry(vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t,
+    vm_ooffset_t *);
 void vm_fault_unwire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t);
 int vm_fault_wire(vm_map_t, vm_offset_t, vm_offset_t, boolean_t, boolean_t);
 int vm_forkproc(struct thread *, struct proc *, struct thread *, struct vmspace *, int);
@@ -76,7 +64,7 @@ void vm_waitproc(struct proc *);
 int vm_mmap(vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, objtype_t, void *, vm_ooffset_t);
 void vm_set_page_size(void);
 struct vmspace *vmspace_alloc(vm_offset_t, vm_offset_t);
-struct vmspace *vmspace_fork(struct vmspace *);
+struct vmspace *vmspace_fork(struct vmspace *, vm_ooffset_t *);
 int vmspace_exec(struct proc *, vm_offset_t, vm_offset_t);
 int vmspace_unshare(struct proc *);
 void vmspace_exit(struct thread *);
@@ -92,9 +80,7 @@ int vm_fault_quick(caddr_t v, int prot);
 struct sf_buf *vm_imgact_map_page(vm_object_t object, vm_ooffset_t offset);
 void vm_imgact_unmap_page(struct sf_buf *sf);
 void vm_thread_dispose(struct thread *td);
-void vm_thread_dispose_altkstack(struct thread *td);
 int vm_thread_new(struct thread *td, int pages);
-int vm_thread_new_altkstack(struct thread *td, int pages);
 void vm_thread_swapin(struct thread *td);
 void vm_thread_swapout(struct thread *td);
 #endif				/* _KERNEL */

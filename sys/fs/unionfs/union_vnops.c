@@ -638,7 +638,6 @@ unionfs_check_corrected_access(accmode_t accmode,
 	uid_t		uid;	/* upper side vnode's uid */
 	gid_t		gid;	/* upper side vnode's gid */
 	u_short		vmode;	/* upper side vnode's mode */
-	gid_t          *gp;
 	u_short		mask;
 
 	mask = 0;
@@ -659,17 +658,14 @@ unionfs_check_corrected_access(accmode_t accmode,
 
 	/* check group */
 	count = 0;
-	gp = cred->cr_groups;
-	for (; count < cred->cr_ngroups; count++, gp++) {
-		if (gid == *gp) {
-			if (accmode & VEXEC)
-				mask |= S_IXGRP;
-			if (accmode & VREAD)
-				mask |= S_IRGRP;
-			if (accmode & VWRITE)
-				mask |= S_IWGRP;
-			return ((vmode & mask) == mask ? 0 : EACCES);
-		}
+	if (groupmember(gid, cred)) {
+		if (accmode & VEXEC)
+			mask |= S_IXGRP;
+		if (accmode & VREAD)
+			mask |= S_IRGRP;
+		if (accmode & VWRITE)
+			mask |= S_IWGRP;
+		return ((vmode & mask) == mask ? 0 : EACCES);
 	}
 
 	/* check other */
@@ -902,27 +898,6 @@ unionfs_write(struct vop_write_args *ap)
 }
 
 static int
-unionfs_lease(struct vop_lease_args *ap)
-{
-	int error;
-	struct unionfs_node *unp;
-	struct vnode   *vp;
-
-	UNIONFS_INTERNAL_DEBUG("unionfs_lease: enter\n");
-
-	KASSERT_UNIONFS_VNODE(ap->a_vp);
-
-	unp = VTOUNIONFS(ap->a_vp);
-	vp = (unp->un_uppervp != NULLVP ? unp->un_uppervp : unp->un_lowervp);
-
-	error = VOP_LEASE(vp, ap->a_td, ap->a_cred, ap->a_flag);
-
-	UNIONFS_INTERNAL_DEBUG("unionfs_lease: lease (%d)\n", error);
-
-	return (error);
-}
-
-static int
 unionfs_ioctl(struct vop_ioctl_args *ap)
 {
 	int error;
@@ -947,7 +922,7 @@ unionfs_ioctl(struct vop_ioctl_args *ap)
 	error = VOP_IOCTL(ovp, ap->a_command, ap->a_data, ap->a_fflag,
 	    ap->a_cred, ap->a_td);
 
-	UNIONFS_INTERNAL_DEBUG("unionfs_ioctl: lease (%d)\n", error);
+	UNIONFS_INTERNAL_DEBUG("unionfs_ioctl: leave (%d)\n", error);
 
 	return (error);
 }
@@ -2461,7 +2436,6 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_getwritemount =	unionfs_getwritemount,
 	.vop_inactive =		unionfs_inactive,
 	.vop_ioctl =		unionfs_ioctl,
-	.vop_lease =		unionfs_lease,
 	.vop_link =		unionfs_link,
 	.vop_listextattr =	unionfs_listextattr,
 	.vop_lock1 =		unionfs_lock,

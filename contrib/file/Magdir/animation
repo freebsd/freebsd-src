@@ -325,6 +325,7 @@
 
 # MP2, M1A
 0       beshort&0xFFFE  0xFFFC         MPEG ADTS, layer II, v1
+!:mime	audio/mpeg
 # rates
 >2      byte&0xF0       0x10           \b,  32 kbps
 >2      byte&0xF0       0x20           \b,  48 kbps
@@ -399,6 +400,7 @@
 
 # MP3, M2A
 0       beshort&0xFFFE  0xFFF2         MPEG ADTS, layer III, v2
+!:mime	audio/mpeg
 # rate
 >2      byte&0xF0       0x10           \b,   8 kbps
 >2      byte&0xF0       0x20           \b,  16 kbps
@@ -790,3 +792,24 @@
 0       belong             0x00000001
 >4      byte&0x1F	   0x07
 !:mime	video/h264
+
+# Type: Bink Video
+# URL:  http://wiki.multimedia.cx/index.php?title=3DBink_Container
+# From: <hoehle@users.sourceforge.net>  2008-07-18
+0	string		BIK	Bink Video
+>3	regex		=[a-z]	rev.%s
+#>4	ulelong		x	size %d
+>20	ulelong		x	\b, %d
+>24	ulelong		x	\bx%d
+>8	ulelong		x	\b, %d frames
+>32	ulelong		x	at rate %d/
+>28	ulelong		>1	\b%d
+>40	ulelong		=0	\b, no audio
+>40	ulelong		!0	\b, %d audio track
+>>40	ulelong		!1	\bs
+# follow properties of the first audio track only
+>>48	uleshort	x	%dHz
+>>51	byte&0x20	0	mono
+>>51	byte&0x20	!0	stereo
+#>>51	byte&0x10	0	FFT
+#>>51	byte&0x10	!0	DCT

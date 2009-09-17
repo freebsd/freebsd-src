@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/bus.h>
+#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -89,6 +90,28 @@ cpu_topo(void)
 	return smp_topo_none();
 }
 
+static void
+ia64_store_mca_state(void* arg)
+{
+	unsigned int ncpu = (unsigned int)(uintptr_t)arg;
+	struct thread* td;
+
+	/* ia64_mca_save_state() is CPU-sensitive, so bind ourself to our target CPU */
+	td = curthread;
+	thread_lock(td);
+	sched_bind(td, ncpu);
+	thread_unlock(td);
+
+	/*
+	 * Get and save the CPU specific MCA records. Should we get the
+	 * MCA state for each processor, or just the CMC state?
+	 */
+	ia64_mca_save_state(SAL_INFO_MCA);
+	ia64_mca_save_state(SAL_INFO_CMC);
+
+	kproc_exit(0);
+}
+
 void
 ia64_ap_startup(void)
 {
@@ -117,13 +140,6 @@ ia64_ap_startup(void)
 	/* Initialize curthread. */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
-
-	/*
-	 * Get and save the CPU specific MCA records. Should we get the
-	 * MCA state for each processor, or just the CMC state?
-	 */
-	ia64_mca_save_state(SAL_INFO_MCA);
-	ia64_mca_save_state(SAL_INFO_CMC);
 
 	atomic_add_int(&ap_awake, 1);
 	while (!smp_started)
@@ -191,29 +207,26 @@ cpu_mp_add(u_int acpiid, u_int apicid, u_int apiceid)
 {
 	struct pcpu *pc;
 	u_int64_t lid;
-
-	/* Ignore any processor numbers outside our range */
-	if (acpiid > mp_maxid)
-		return;
-
-	KASSERT((all_cpus & (1UL << acpiid)) == 0,
-	    ("%s: cpu%d already in CPU map", __func__, acpiid));
+	void *dpcpu;
+	u_int cpuid;
 
 	lid = LID_SAPIC_SET(apicid, apiceid);
+	cpuid = ((ia64_get_lid() & LID_SAPIC_MASK) == lid) ? 0 : smp_cpus++;
 
-	if ((ia64_get_lid() & LID_SAPIC_MASK) == lid) {
-		KASSERT(acpiid == 0,
-		    ("%s: the BSP must be cpu0", __func__));
-	}
+	KASSERT((all_cpus & (1UL << cpuid)) == 0,
+	    ("%s: cpu%d already in CPU map", __func__, acpiid));
 
-	if (acpiid != 0) {
+	if (cpuid != 0) {
 		pc = (struct pcpu *)malloc(sizeof(*pc), M_SMP, M_WAITOK);
-		pcpu_init(pc, acpiid, sizeof(*pc));
+		pcpu_init(pc, cpuid, sizeof(*pc));
+		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		dpcpu_init(dpcpu, cpuid);
 	} else
 		pc = pcpup;
 
+	pc->pc_acpi_id = acpiid;
 	pc->pc_lid = lid;
-	all_cpus |= (1UL << acpiid);
+	all_cpus |= (1UL << cpuid);
 }
 
 void
@@ -225,8 +238,8 @@ cpu_mp_announce()
 	for (i = 0; i <= mp_maxid; i++) {
 		pc = pcpu_find(i);
 		if (pc != NULL) {
-			printf("cpu%d: SAPIC Id=%x, SAPIC Eid=%x", i,
-			    LID_SAPIC_ID(pc->pc_lid),
+			printf("cpu%d: ACPI Id=%x, SAPIC Id=%x, SAPIC Eid=%x",
+			    i, pc->pc_acpi_id, LID_SAPIC_ID(pc->pc_lid),
 			    LID_SAPIC_EID(pc->pc_lid));
 			if (i == 0)
 				printf(" (BSP)\n");
@@ -285,8 +298,12 @@ cpu_mp_unleash(void *dummy)
 	smp_cpus = 0;
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
 		cpus++;
-		if (pc->pc_awake)
+		if (pc->pc_awake) {
+			kproc_create(ia64_store_mca_state,
+			    (void*)((uintptr_t)pc->pc_cpuid), NULL, 0, 0,
+			    "mca %u", pc->pc_cpuid);
 			smp_cpus++;
+		}
 	}
 
 	ap_awake = 1;

@@ -65,8 +65,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofwvar.h>
+#include <dev/ofw/openfirm.h>
+
 #include "ofw_if.h"
 
 static void ofw_std_init(ofw_t ofw, void *openfirm);
@@ -83,8 +84,8 @@ static ssize_t ofw_std_getprop(ofw_t ofw, phandle_t package,
     const char *propname, void *buf, size_t buflen);
 static int ofw_std_nextprop(ofw_t ofw, phandle_t package, const char *previous,
     char *buf, size_t);
-static int ofw_std_setprop(ofw_t ofw, phandle_t package, char *propname,
-    void *buf, size_t len);
+static int ofw_std_setprop(ofw_t ofw, phandle_t package, const char *propname,
+    const void *buf, size_t len);
 static ssize_t ofw_std_canon(ofw_t ofw, const char *device, char *buf,
     size_t len);
 static phandle_t ofw_std_finddevice(ofw_t ofw, const char *device);
@@ -101,7 +102,7 @@ static ssize_t ofw_std_read(ofw_t ofw, ihandle_t instance, void *addr,
     size_t len);
 static ssize_t ofw_std_write(ofw_t ofw, ihandle_t instance, const void *addr,
     size_t len);
-static int ofw_std_seek(ofw_t ofw, ihandle_t instance, u_int64_t pos);
+static int ofw_std_seek(ofw_t ofw, ihandle_t instance, uint64_t pos);
 static caddr_t ofw_std_claim(ofw_t ofw, void *virt, size_t size, u_int align);
 static void ofw_std_release(ofw_t ofw, void *virt, size_t size);
 static void ofw_std_enter(ofw_t ofw);
@@ -147,11 +148,12 @@ OFW_DEF(ofw_std);
 
 static int (*openfirmware)(void *);
 
-/* Initialiser */
+/* Initializer */
 
 static void
 ofw_std_init(ofw_t ofw, void *openfirm)
 {
+
 	openfirmware = (int (*)(void *))openfirm;
 }
 
@@ -199,12 +201,11 @@ ofw_std_interpret(ofw_t ofw, const char *cmd, int nreturns,
 
 	args.nreturns = ++nreturns;
 	args.slot[i++] = (cell_t)cmd;
-	if (openfirmware(&args) == -1) {
+	if (openfirmware(&args) == -1)
 		return (-1);
-	}
 	status = args.slot[i++];
 	while (i < 1 + nreturns)
-		returns[j] = args.slot[i++];
+		returns[j++] = args.slot[i++];
 	return (status);
 }
 
@@ -383,8 +384,8 @@ ofw_std_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
 /* Set the value of a property of a package. */
 /* XXX Has a bug on FirePower */
 static int
-ofw_std_setprop(ofw_t ofw, phandle_t package, char *propname, void *buf,
-    size_t len)
+ofw_std_setprop(ofw_t ofw, phandle_t package, const char *propname,
+    const void *buf, size_t len)
 {
 	static struct {
 		cell_t name;
@@ -571,9 +572,8 @@ ofw_std_open(ofw_t ofw, const char *device)
 	};
 
 	args.device = (cell_t)device;
-	if (openfirmware(&args) == -1 || args.instance == 0) {
+	if (openfirmware(&args) == -1 || args.instance == 0)
 		return (-1);
-	}
 	return (args.instance);
 }
 
@@ -650,7 +650,7 @@ ofw_std_write(ofw_t ofw, ihandle_t instance, const void *addr, size_t len)
 
 /* Seek to a position. */
 static int
-ofw_std_seek(ofw_t ofw, ihandle_t instance, u_int64_t pos)
+ofw_std_seek(ofw_t ofw, ihandle_t instance, uint64_t pos)
 {
 	static struct {
 		cell_t name;
@@ -760,4 +760,3 @@ ofw_std_exit(ofw_t ofw)
 	for (;;)			/* just in case */
 		;
 }
-

@@ -866,9 +866,6 @@ linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 	union descriptor desc;
 	int size, written;
 
-	if (uap->ptr == NULL)
-		return (EINVAL);
-
 	switch (uap->func) {
 	case 0x00: /* read_ldt */
 		ldt.start = 0;
@@ -911,7 +908,7 @@ linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 		error = i386_set_ldt(td, &ldt, &desc);
 		break;
 	default:
-		error = EINVAL;
+		error = ENOSYS;
 		break;
 	}
 

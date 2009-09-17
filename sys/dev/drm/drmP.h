@@ -63,7 +63,6 @@ struct drm_file;
 #include <sys/signalvar.h>
 #include <sys/poll.h>
 #include <sys/tree.h>
-#include <sys/taskqueue.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -148,6 +147,8 @@ MALLOC_DECLARE(DRM_MEM_AGPLISTS);
 MALLOC_DECLARE(DRM_MEM_CTXBITMAP);
 MALLOC_DECLARE(DRM_MEM_SGLISTS);
 MALLOC_DECLARE(DRM_MEM_DRAWABLE);
+
+SYSCTL_DECL(_hw_drm);
 
 #define DRM_MAX_CTXBITMAP (PAGE_SIZE * 8)
 
@@ -241,17 +242,23 @@ typedef u_int8_t u8;
 #endif
 
 #define DRM_READ8(map, offset)						\
-	*(volatile u_int8_t *) (((unsigned long)(map)->handle) + (offset))
+	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset))
 #define DRM_READ16(map, offset)						\
-	*(volatile u_int16_t *) (((unsigned long)(map)->handle) + (offset))
+	*(volatile u_int16_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset))
 #define DRM_READ32(map, offset)						\
-	*(volatile u_int32_t *)(((unsigned long)(map)->handle) + (offset))
+	*(volatile u_int32_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset))
 #define DRM_WRITE8(map, offset, val)					\
-	*(volatile u_int8_t *) (((unsigned long)(map)->handle) + (offset)) = val
+	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset)) = val
 #define DRM_WRITE16(map, offset, val)					\
-	*(volatile u_int16_t *) (((unsigned long)(map)->handle) + (offset)) = val
+	*(volatile u_int16_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset)) = val
 #define DRM_WRITE32(map, offset, val)					\
-	*(volatile u_int32_t *)(((unsigned long)(map)->handle) + (offset)) = val
+	*(volatile u_int32_t *)(((vm_offset_t)(map)->handle) +		\
+	    (vm_offset_t)(offset)) = val
 
 #define DRM_VERIFYAREA_READ( uaddr, size )		\
 	(!useracc(__DECONST(caddr_t, uaddr), size, VM_PROT_READ))
@@ -294,8 +301,8 @@ for ( ret = 0 ; !ret && !(condition) ; ) {			\
 	DRM_UNLOCK();						\
 	mtx_lock(&dev->irq_lock);				\
 	if (!(condition))					\
-	   ret = -mtx_sleep(&(queue), &dev->irq_lock, 		\
-			 PZERO | PCATCH, "drmwtq", (timeout));	\
+	    ret = -mtx_sleep(&(queue), &dev->irq_lock, 		\
+		PCATCH, "drmwtq", (timeout));			\
 	mtx_unlock(&dev->irq_lock);				\
 	DRM_LOCK();						\
 }
@@ -319,6 +326,12 @@ typedef struct drm_pci_id_list
 	long driver_private;
 	char *name;
 } drm_pci_id_list_t;
+
+struct drm_msi_blacklist_entry
+{
+	int vendor;
+	int device;
+};
 
 #define DRM_AUTH	0x1
 #define DRM_MASTER	0x2
@@ -405,7 +418,6 @@ struct drm_file {
 	struct drm_device *dev;
 	int		  authenticated;
 	int		  master;
-	int		  minor;
 	pid_t		  pid;
 	uid_t		  uid;
 	drm_magic_t	  magic;
@@ -469,9 +481,7 @@ typedef struct drm_sg_mem {
 	void			 *virtual;
 	int			  pages;
 	dma_addr_t		 *busaddr;
-	struct drm_dma_handle	 *sg_dmah;	/* Handle for sg_pages   */
 	struct drm_dma_handle	 *dmah;		/* Handle to PCI memory  */
-						/* for ATI PCIGART table */
 } drm_sg_mem_t;
 
 typedef TAILQ_HEAD(drm_map_list, drm_local_map) drm_map_list_t;
@@ -493,19 +503,10 @@ typedef struct drm_local_map {
 	TAILQ_ENTRY(drm_local_map) link;
 } drm_local_map_t;
 
-TAILQ_HEAD(drm_vbl_sig_list, drm_vbl_sig);
-typedef struct drm_vbl_sig {
-	TAILQ_ENTRY(drm_vbl_sig) link;
-	unsigned int	sequence;
-	int		signo;
-	int		pid;
-} drm_vbl_sig_t;
-
 struct drm_vblank_info {
 	wait_queue_head_t queue;	/* vblank wait queue */
 	atomic_t count;			/* number of VBLANK interrupts */
 					/* (driver must alloc the right number of counters) */
-	struct drm_vbl_sig_list sigs;	/* signal list to send on VBLANK */
 	atomic_t refcount;		/* number of users of vblank interrupts */
 	u32 last;			/* protected by dev->vbl_lock, used */
 					/* for wraparound handling */
@@ -532,6 +533,7 @@ struct drm_ati_pcigart_info {
 	struct drm_dma_handle *table_handle;
 	drm_local_map_t mapping;
 	int table_size;
+	struct drm_dma_handle *dmah; /* handle for ATI PCIGART table */
 };
 
 #ifndef DMA_BIT_MASK
@@ -602,7 +604,7 @@ struct drm_driver_info {
 };
 
 /* Length for the array of resource pointers for drm_get_resource_*. */
-#define DRM_MAX_PCI_RESOURCE	3
+#define DRM_MAX_PCI_RESOURCE	6
 
 /** 
  * DRM device functions structure
@@ -628,7 +630,6 @@ struct drm_device {
 	struct mtx	  irq_lock;	/* protects irq condition checks */
 	struct mtx	  dev_lock;	/* protects everything else */
 	DRM_SPINTYPE	  drw_lock;
-	DRM_SPINTYPE	  tsk_lock;
 
 				/* Usage Counters */
 	int		  open_count;	/* Outstanding files open	   */
@@ -657,6 +658,7 @@ struct drm_device {
 				/* Context support */
 	int		  irq;		/* Interrupt used by board	   */
 	int		  irq_enabled;	/* True if the irq handler is enabled */
+	int		  msi_enabled;	/* MSI enabled */
 	int		  irqrid;	/* Interrupt used by board */
 	struct resource   *irqr;	/* Resource for interrupt used by board	   */
 	void		  *irqh;	/* Handle from bus_setup_intr      */
@@ -674,7 +676,6 @@ struct drm_device {
 	int		  last_context;	/* Last current context		   */
 
 	int		  vblank_disable_allowed;
-	atomic_t 	  vbl_signal_pending;	/* number of signals pending on all crtcs */
 	struct callout	  vblank_disable_timer;
 	u32		  max_vblank_count;	/* size of vblank counter register */
 	struct drm_vblank_info *vblank;		/* per crtc vblank info */
@@ -695,9 +696,6 @@ struct drm_device {
 	struct unrhdr	  *drw_unrhdr;
 	/* RB tree of drawable infos */
 	RB_HEAD(drawable_tree, bsd_drm_drawable_info) drw_head;
-
-	struct task	  locked_task;
-	void		  (*locked_task_call)(struct drm_device *dev);
 };
 
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
@@ -718,10 +716,10 @@ static inline int drm_core_has_AGP(struct drm_device *dev)
 extern int	drm_debug_flag;
 
 /* Device setup support (drm_drv.c) */
-int	drm_probe(device_t nbdev, drm_pci_id_list_t *idlist);
-int	drm_attach(device_t nbdev, drm_pci_id_list_t *idlist);
+int	drm_probe(device_t kdev, drm_pci_id_list_t *idlist);
+int	drm_attach(device_t kdev, drm_pci_id_list_t *idlist);
 void	drm_close(void *data);
-int	drm_detach(device_t nbdev);
+int	drm_detach(device_t kdev);
 d_ioctl_t drm_ioctl;
 d_open_t drm_open;
 d_read_t drm_read;
@@ -792,9 +790,9 @@ void	drm_handle_vblank(struct drm_device *dev, int crtc);
 u32	drm_vblank_count(struct drm_device *dev, int crtc);
 int	drm_vblank_get(struct drm_device *dev, int crtc);
 void	drm_vblank_put(struct drm_device *dev, int crtc);
+void	drm_vblank_cleanup(struct drm_device *dev);
 int	drm_vblank_wait(struct drm_device *dev, unsigned int *vbl_seq);
 int	drm_vblank_init(struct drm_device *dev, int num_crtcs);
-void	drm_vbl_send_signals(struct drm_device *dev, int crtc);
 int 	drm_modeset_ctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 
@@ -899,8 +897,8 @@ int	drm_addmap_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int	drm_rmmap_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
-int	drm_addbufs_ioctl(struct drm_device *dev, void *data,
-			  struct drm_file *file_priv);
+int	drm_addbufs(struct drm_device *dev, void *data,
+		    struct drm_file *file_priv);
 int	drm_infobufs(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv);
 int	drm_markbufs(struct drm_device *dev, void *data,
@@ -918,8 +916,6 @@ int	drm_control(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv);
 int	drm_wait_vblank(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
-void	drm_locked_tasklet(struct drm_device *dev,
-			   void (*tasklet)(struct drm_device *dev));
 
 /* AGP/GART support (drm_agpsupport.c) */
 int	drm_agp_acquire_ioctl(struct drm_device *dev, void *data,

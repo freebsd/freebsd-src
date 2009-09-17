@@ -25,8 +25,8 @@
  */
 
 /*
- * This header file defines the registers of the Mentor Graphics
- * USB OnTheGo Inventra chip.
+ * This header file defines the registers of the Mentor Graphics USB OnTheGo
+ * Inventra chip.
  */
 
 #ifndef _MUSB2_OTG_H_
@@ -305,7 +305,7 @@ struct musbotg_dma {
 struct musbotg_td {
 	struct musbotg_td *obj_next;
 	musbotg_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_frame_size;	/* packet_size * mult */
@@ -320,7 +320,7 @@ struct musbotg_td {
 
 struct musbotg_std_temp {
 	musbotg_cmd_t *func;
-	struct usb2_page_cache *pc;
+	struct usb_page_cache *pc;
 	struct musbotg_td *td;
 	struct musbotg_td *td_next;
 	uint32_t len;
@@ -332,17 +332,18 @@ struct musbotg_std_temp {
          * short_pkt = 1: transfer should not be short terminated
          */
 	uint8_t	setup_alt_next;
+	uint8_t did_stall;
 };
 
 struct musbotg_config_desc {
-	struct usb2_config_descriptor confd;
-	struct usb2_interface_descriptor ifcd;
-	struct usb2_endpoint_descriptor endpd;
+	struct usb_config_descriptor confd;
+	struct usb_interface_descriptor ifcd;
+	struct usb_endpoint_descriptor endpd;
 } __packed;
 
 union musbotg_hub_temp {
 	uWord	wValue;
-	struct usb2_port_status ps;
+	struct usb_port_status ps;
 };
 
 struct musbotg_flags {
@@ -361,13 +362,11 @@ struct musbotg_flags {
 };
 
 struct musbotg_softc {
-	struct usb2_bus sc_bus;
+	struct usb_bus sc_bus;
 	union musbotg_hub_temp sc_hub_temp;
-	struct usb2_sw_transfer sc_root_ctrl;
-	struct usb2_sw_transfer sc_root_intr;
-	struct usb2_hw_ep_profile sc_hw_ep_profile[16];
+	struct usb_hw_ep_profile sc_hw_ep_profile[16];
 
-	struct usb2_device *sc_devices[MUSB2_MAX_DEVICES];
+	struct usb_device *sc_devices[MUSB2_MAX_DEVICES];
 	struct resource *sc_io_res;
 	struct resource *sc_irq_res;
 	void   *sc_intr_hdl;
@@ -397,7 +396,7 @@ struct musbotg_softc {
 
 /* prototypes */
 
-usb2_error_t musbotg_init(struct musbotg_softc *sc);
+usb_error_t musbotg_init(struct musbotg_softc *sc);
 void	musbotg_uninit(struct musbotg_softc *sc);
 void	musbotg_suspend(struct musbotg_softc *sc);
 void	musbotg_resume(struct musbotg_softc *sc);

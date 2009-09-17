@@ -64,6 +64,28 @@
 .Fa "int flags" "int pages" "char * procname" "const char *fmt" "..."
 .Fc
 .Sh DESCRIPTION
+In
+.Fx 8.0 ,
+the
+.Fn kthread* 9
+family of functions was renamed to be the
+.Fn kproc* 9
+family of functions, as they were misnamed
+and actually produced kernel processes.
+A new family of
+.Em different
+.Fn kthread_* 9
+functions was added to produce
+.Em real
+kernel 
+.Em threads . 
+See the
+.Xr kthread 9
+man page for more information on those calls.
+Also note that the
+.Fn kproc_kthread_add 9
+function appears in both pages as its functionality is split.
+.Pp
 The function
 .Fn kproc_start
 is used to start

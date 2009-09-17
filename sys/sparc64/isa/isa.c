@@ -118,7 +118,7 @@ isa_init(device_t dev)
 static const struct {
 	const char	*name;
 	uint32_t	id;
-} ofw_isa_pnp_map[] = {
+} const ofw_isa_pnp_map[] = {
 	{ "SUNW,lomh",	0x0000ae4e }, /* SUN0000 */
 	{ "dma",	0x0002d041 }, /* PNP0200 */
 	{ "floppy",	0x0007d041 }, /* PNP0700 */
@@ -130,6 +130,7 @@ static const struct {
 	{ "rmc-comm",	0x0300ae4e }, /* SUN0003 */
 	{ "kb_ps2",	0x0303d041 }, /* PNP0303 */
 	{ "kdmouse",	0x030fd041 }, /* PNP0F03 */
+	{ "bscbus",	0x0400ae4e }, /* SUN0004 */
 	{ "power",	0x0c0cd041 }, /* PNP0C0C */
 	{ NULL,		0x0 }
 };

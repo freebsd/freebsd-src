@@ -73,7 +73,7 @@ union ad_u {
 
 
 int	rdisc_sock = -1;		/* router-discovery raw socket */
-struct interface *rdisc_sock_mcast;	/* current multicast interface */
+static const struct interface *rdisc_sock_mcast; /* current multicast interface */
 
 struct timeval rdisc_timer;
 int rdisc_ok;				/* using solicited route */
@@ -87,7 +87,9 @@ struct dr {				/* accumulated advertisements */
     time_t  dr_life;			/* lifetime in host byte order */
     n_long  dr_recv_pref;		/* received but biased preference */
     n_long  dr_pref;			/* preference adjusted by metric */
-} *cur_drp, drs[MAX_ADS];
+};
+static const struct dr *cur_drp;
+static struct dr drs[MAX_ADS];
 
 /* convert between signed, balanced around zero,
  * and unsigned zero-based preferences */
@@ -170,6 +172,8 @@ set_rdisc_mg(struct interface *ifp,
 {
 	struct group_req gr;
 	struct sockaddr_in *sin;
+
+	assert(ifp != NULL);
 
 	if (rdisc_sock < 0) {
 		/* Create the raw socket so that we can hear at least
@@ -278,7 +282,7 @@ set_supplier(void)
 	/* Switch router discovery multicast groups from soliciting
 	 * to advertising.
 	 */
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (ifp->int_state & IS_BROKE)
 			continue;
 		ifp->int_rdisc_cnt = 0;
@@ -817,7 +821,7 @@ rdisc_adv(void)
 
 	rdisc_timer.tv_sec = now.tv_sec + NEVER;
 
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (0 != (ifp->int_state & (IS_NO_ADV_OUT | IS_BROKE)))
 			continue;
 
@@ -859,7 +863,7 @@ rdisc_sol(void)
 
 	rdisc_timer.tv_sec = now.tv_sec + NEVER;
 
-	for (ifp = ifnet; ifp; ifp = ifp->int_next) {
+	LIST_FOREACH(ifp, &ifnet, int_list) {
 		if (0 != (ifp->int_state & (IS_NO_SOL_OUT | IS_BROKE))
 		    || ifp->int_rdisc_cnt >= MAX_SOLICITATIONS)
 			continue;
@@ -942,7 +946,6 @@ read_d(void)
 #endif
 		union {
 			struct ip ip;
-			u_short s[512/2];
 			u_char	b[512];
 		} pkt;
 	} buf;

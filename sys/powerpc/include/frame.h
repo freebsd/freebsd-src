@@ -65,6 +65,7 @@ struct trapframe {
 		struct {
 			register_t dear;
 			register_t esr;
+			register_t dbcr0;
 		} booke;
 	} cpu;
 };

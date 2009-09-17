@@ -115,12 +115,16 @@
 
 #include <stdio.h>
 #include "ssl_locl.h"
+#ifndef OPENSSL_NO_COMP
 #include <openssl/comp.h>
+#endif
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/md5.h>
 #include <openssl/rand.h>
-
+#ifdef KSSL_DEBUG
+#include <openssl/des.h>
+#endif
 
 int dtls1_enc(SSL *s, int send)
 	{
@@ -202,10 +206,11 @@ int dtls1_enc(SSL *s, int send)
 		{
                 unsigned long ui;
 		printf("EVP_Cipher(ds=%p,rec->data=%p,rec->input=%p,l=%ld) ==>\n",
-                        ds,rec->data,rec->input,l);
-		printf("\tEVP_CIPHER_CTX: %d buf_len, %d key_len [%d %d], %d iv_len\n",
+                        (void *)ds,rec->data,rec->input,l);
+		printf("\tEVP_CIPHER_CTX: %d buf_len, %d key_len [%ld %ld], %d iv_len\n",
                         ds->buf_len, ds->cipher->key_len,
-                        DES_KEY_SZ, DES_SCHEDULE_SZ,
+                        (unsigned long)DES_KEY_SZ,
+			(unsigned long)DES_SCHEDULE_SZ,
                         ds->cipher->iv_len);
 		printf("\t\tIV: ");
 		for (i=0; i<ds->cipher->iv_len; i++) printf("%02X", ds->iv[i]);
@@ -230,10 +235,10 @@ int dtls1_enc(SSL *s, int send)
 
 #ifdef KSSL_DEBUG
 		{
-                unsigned long i;
+                unsigned long ki;
                 printf("\trec->data=");
-		for (i=0; i<l; i++)
-                        printf(" %02x", rec->data[i]);  printf("\n");
+		for (ki=0; ki<l; ki++)
+                        printf(" %02x", rec->data[ki]);  printf("\n");
                 }
 #endif	/* KSSL_DEBUG */
 

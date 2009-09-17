@@ -10,14 +10,14 @@ makeoptions	MODULES_OVERRIDE=""
 options 	KDB
 options 	DDB
 
-options		XBOX			# kernel is for XBOX
+options 	XBOX			# kernel is for XBOX
 device		xboxfb			# frame buffer support (REQUIRED!)
 device		sc			# syscons
 device		fb
 
 # no support yet for root device name fetching
-options		ROOTDEVNAME=\"ufs:ad0s1a\"
-#options	ROOTDEVNAME=\"cd9660:acd0\"
+options 	ROOTDEVNAME=\"ufs:ad0s1a\"
+#options 	ROOTDEVNAME=\"cd9660:acd0\"
 
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
@@ -85,14 +85,12 @@ device		bpf		# Berkeley packet filter
 #device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		usb		# USB Bus (required)
-device		ugen		# Generic
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
 device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
 device		urio		# Diamond Rio 500 MP3 player
-device		uscanner	# Scanners
 
 device		miibus
 device		aue		# ADMtek USB Ethernet

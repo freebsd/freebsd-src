@@ -17,6 +17,9 @@
  * This software was enhanced by SPARTA ISSO under SPAWAR contract 
  * N66001-04-C-6019 ("SEFOS").
  *
+ * This software was developed at the University of Cambridge Computer
+ * Laboratory with support from a grant from Google, Inc.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -73,10 +76,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/mac.h>
 #include <sys/module.h>
+#include <sys/rmlock.h>
 #include <sys/sdt.h>
+#include <sys/sx.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
@@ -85,22 +89,15 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_policy.h>
 
 /*
- * DTrace SDT provider for MAC.
+ * DTrace SDT providers for MAC.
  */
 SDT_PROVIDER_DEFINE(mac);
+SDT_PROVIDER_DEFINE(mac_framework);
 
-SDT_PROBE_DEFINE(mac, kernel, policy, modevent);
-SDT_PROBE_ARGTYPE(mac, kernel, policy, modevent, 0, "int");
-SDT_PROBE_ARGTYPE(mac, kernel, policy, modevent, 1,
+SDT_PROBE_DEFINE2(mac, kernel, policy, modevent, "int",
     "struct mac_policy_conf *mpc");
-
-SDT_PROBE_DEFINE(mac, kernel, policy, register);
-SDT_PROBE_ARGTYPE(mac, kernel, policy, register, 0,
-    "struct mac_policy_conf *");
-
-SDT_PROBE_DEFINE(mac, kernel, policy, unregister);
-SDT_PROBE_ARGTYPE(mac, kernel, policy, unregister, 0,
-    "struct mac_policy_conf *");
+SDT_PROBE_DEFINE1(mac, kernel, policy, register, "struct mac_policy_conf *");
+SDT_PROBE_DEFINE1(mac, kernel, policy, unregister, "struct mac_policy_conf *");
 
 /*
  * Root sysctl node for all MAC and MAC policy controls.
@@ -158,164 +155,126 @@ SYSCTL_QUAD(_security_mac, OID_AUTO, labeled, CTLFLAG_RD, &mac_labeled, 0,
 MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
 
 /*
- * mac_static_policy_list holds a list of policy modules that are not loaded
- * while the system is "live", and cannot be unloaded.  These policies can be
- * invoked without holding the busy count.
+ * MAC policy modules are placed in one of two lists: mac_static_policy_list,
+ * for policies that are loaded early and cannot be unloaded, and
+ * mac_policy_list, which holds policies either loaded later in the boot
+ * cycle or that may be unloaded.  The static policy list does not require
+ * locks to iterate over, but the dynamic list requires synchronization.
+ * Support for dynamic policy loading can be compiled out using the
+ * MAC_STATIC kernel option.
  *
- * mac_policy_list stores the list of dynamic policies.  A busy count is
- * maintained for the list, stored in mac_policy_busy.  The busy count is
- * protected by mac_policy_mtx; the list may be modified only while the busy
- * count is 0, requiring that the lock be held to prevent new references to
- * the list from being acquired.  For almost all operations, incrementing the
- * busy count is sufficient to guarantee consistency, as the list cannot be
- * modified while the busy count is elevated.  For a few special operations
- * involving a change to the list of active policies, the mtx itself must be
- * held.  A condition variable, mac_policy_cv, is used to signal potential
- * exclusive consumers that they should try to acquire the lock if a first
- * attempt at exclusive access fails.
- *
- * This design intentionally avoids fairness, and may starve attempts to
- * acquire an exclusive lock on a busy system.  This is required because we
- * do not ever want acquiring a read reference to perform an unbounded length
- * sleep.  Read references are acquired in ithreads, network isrs, etc, and
- * any unbounded blocking could lead quickly to deadlock.
- *
- * Another reason for never blocking on read references is that the MAC
- * Framework may recurse: if a policy calls a VOP, for example, this might
- * lead to vnode life cycle operations (such as init/destroy).
- *
- * If the kernel option MAC_STATIC has been compiled in, all locking becomes
- * a no-op, and the global list of policies is not allowed to change after
- * early boot.
- *
- * XXXRW: Currently, we signal mac_policy_cv every time the framework becomes
- * unbusy and there is a thread waiting to enter it exclusively.  Since it 
- * may take some time before the thread runs, we may issue a lot of signals.
- * We should instead keep track of the fact that we've signalled, taking into 
- * account that the framework may be busy again by the time the thread runs, 
- * requiring us to re-signal. 
+ * The dynamic policy list is protected by two locks: modifying the list
+ * requires both locks to be held exclusively.  One of the locks,
+ * mac_policy_rm, is acquired over policy entry points that will never sleep;
+ * the other, mac_policy_sx, is acquire over policy entry points that may
+ * sleep.  The former category will be used when kernel locks may be held
+ * over calls to the MAC Framework, during network processing in ithreads,
+ * etc.  The latter will tend to involve potentially blocking memory
+ * allocations, extended attribute I/O, etc.
  */
 #ifndef MAC_STATIC
-static struct mtx mac_policy_mtx;
-static struct cv mac_policy_cv;
-static int mac_policy_count;
-static int mac_policy_wait;
+static struct rmlock mac_policy_rm;	/* Non-sleeping entry points. */
+static struct sx mac_policy_sx;		/* Sleeping entry points. */
 #endif
+
 struct mac_policy_list_head mac_policy_list;
 struct mac_policy_list_head mac_static_policy_list;
+u_int mac_policy_count;			/* Registered policy count. */
 
-/*
- * We manually invoke WITNESS_WARN() to allow Witness to generate warnings
- * even if we don't end up ever triggering the wait at run-time.  The
- * consumer of the exclusive interface must not hold any locks (other than
- * potentially Giant) since we may sleep for long (potentially indefinite)
- * periods of time waiting for the framework to become quiescent so that a
- * policy list change may be made.
- */
+static void	mac_policy_xlock(void);
+static void	mac_policy_xlock_assert(void);
+static void	mac_policy_xunlock(void);
+
 void
-mac_policy_grab_exclusive(void)
+mac_policy_slock_nosleep(struct rm_priotracker *tracker)
 {
 
 #ifndef MAC_STATIC
 	if (!mac_late)
 		return;
+
+	rm_rlock(&mac_policy_rm, tracker);
+#endif
+}
+
+void
+mac_policy_slock_sleep(void)
+{
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
- 	    "mac_policy_grab_exclusive() at %s:%d", __FILE__, __LINE__);
-	mtx_lock(&mac_policy_mtx);
-	while (mac_policy_count != 0) {
-		mac_policy_wait++;
-		cv_wait(&mac_policy_cv, &mac_policy_mtx);
-		mac_policy_wait--;
-	}
+ 	    "mac_policy_slock_sleep");
+
+#ifndef MAC_STATIC
+	if (!mac_late)
+		return;
+
+	sx_slock(&mac_policy_sx);
 #endif
 }
 
 void
-mac_policy_assert_exclusive(void)
+mac_policy_sunlock_nosleep(struct rm_priotracker *tracker)
 {
 
 #ifndef MAC_STATIC
 	if (!mac_late)
 		return;
 
-	mtx_assert(&mac_policy_mtx, MA_OWNED);
-	KASSERT(mac_policy_count == 0,
-	    ("mac_policy_assert_exclusive(): not exclusive"));
+	rm_runlock(&mac_policy_rm, tracker);
 #endif
 }
 
 void
-mac_policy_release_exclusive(void)
-{
-#ifndef MAC_STATIC
-	int dowakeup;
-
-	if (!mac_late)
-		return;
-
-	KASSERT(mac_policy_count == 0,
-	    ("mac_policy_release_exclusive(): not exclusive"));
-	dowakeup = (mac_policy_wait != 0);
-	mtx_unlock(&mac_policy_mtx);
-	if (dowakeup)
-		cv_signal(&mac_policy_cv);
-#endif
-}
-
-void
-mac_policy_list_busy(void)
+mac_policy_sunlock_sleep(void)
 {
 
 #ifndef MAC_STATIC
 	if (!mac_late)
 		return;
 
-	mtx_lock(&mac_policy_mtx);
-	mac_policy_count++;
-	mtx_unlock(&mac_policy_mtx);
+	sx_sunlock(&mac_policy_sx);
 #endif
 }
 
-int
-mac_policy_list_conditional_busy(void)
+static void
+mac_policy_xlock(void)
 {
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+ 	    "mac_policy_xlock()");
+
 #ifndef MAC_STATIC
-	int ret;
-
-	if (!mac_late)
-		return (1);
-
-	mtx_lock(&mac_policy_mtx);
-	if (!LIST_EMPTY(&mac_policy_list)) {
-		mac_policy_count++;
-		ret = 1;
-	} else
-		ret = 0;
-	mtx_unlock(&mac_policy_mtx);
-	return (ret);
-#else
-	return (1);
-#endif
-}
-
-void
-mac_policy_list_unbusy(void)
-{
-#ifndef MAC_STATIC
-	int dowakeup;
-
 	if (!mac_late)
 		return;
 
-	mtx_lock(&mac_policy_mtx);
-	mac_policy_count--;
-	KASSERT(mac_policy_count >= 0, ("MAC_POLICY_LIST_LOCK"));
-	dowakeup = (mac_policy_count == 0 && mac_policy_wait != 0);
-	mtx_unlock(&mac_policy_mtx);
+	sx_xlock(&mac_policy_sx);
+	rm_wlock(&mac_policy_rm);
+#endif
+}
 
-	if (dowakeup)
-		cv_signal(&mac_policy_cv);
+static void
+mac_policy_xunlock(void)
+{
+
+#ifndef MAC_STATIC
+	if (!mac_late)
+		return;
+
+	rm_wunlock(&mac_policy_rm);
+	sx_xunlock(&mac_policy_sx);
+#endif
+}
+
+static void
+mac_policy_xlock_assert(void)
+{
+
+#ifndef MAC_STATIC
+	if (!mac_late)
+		return;
+
+	/* XXXRW: rm_assert(&mac_policy_rm, RA_WLOCKED); */
+	sx_assert(&mac_policy_sx, SA_XLOCKED);
 #endif
 }
 
@@ -331,8 +290,8 @@ mac_init(void)
 	mac_labelzone_init();
 
 #ifndef MAC_STATIC
-	mtx_init(&mac_policy_mtx, "mac_policy_mtx", NULL, MTX_DEF);
-	cv_init(&mac_policy_cv, "mac_policy_cv");
+	rm_init_flags(&mac_policy_rm, "mac_policy_rm", RM_NOWITNESS);
+	sx_init_flags(&mac_policy_sx, "mac_policy_sx", SX_NOWITNESS);
 #endif
 }
 
@@ -393,17 +352,22 @@ mac_policy_getlabeled(struct mac_policy_conf *mpc)
  * requiring labels across all policies.
  */
 static void
-mac_policy_updateflags(void)
+mac_policy_update(void)
 {
 	struct mac_policy_conf *mpc;
 
-	mac_policy_assert_exclusive();
+	mac_policy_xlock_assert();
 
 	mac_labeled = 0;
-	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list)
+	mac_policy_count = 0;
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {
 		mac_labeled |= mac_policy_getlabeled(mpc);
-	LIST_FOREACH(mpc, &mac_policy_list, mpc_list)
+		mac_policy_count++;
+	}
+	LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {
 		mac_labeled |= mac_policy_getlabeled(mpc);
+		mac_policy_count++;
+	}
 }
 
 static int
@@ -418,7 +382,7 @@ mac_policy_register(struct mac_policy_conf *mpc)
 	 * We don't technically need exclusive access while !mac_late, but
 	 * hold it for assertion consistency.
 	 */
-	mac_policy_grab_exclusive();
+	mac_policy_xlock();
 
 	/*
 	 * If the module can potentially be unloaded, or we're loading late,
@@ -476,14 +440,14 @@ mac_policy_register(struct mac_policy_conf *mpc)
 	 */
 	if (mpc->mpc_ops->mpo_init != NULL)
 		(*(mpc->mpc_ops->mpo_init))(mpc);
-	mac_policy_updateflags();
+	mac_policy_update();
 
 	SDT_PROBE(mac, kernel, policy, register, mpc, 0, 0, 0, 0);
 	printf("Security policy loaded: %s (%s)\n", mpc->mpc_fullname,
 	    mpc->mpc_name);
 
 out:
-	mac_policy_release_exclusive();
+	mac_policy_xunlock();
 	return (error);
 }
 
@@ -495,9 +459,9 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 	 * If we fail the load, we may get a request to unload.  Check to see
 	 * if we did the run-time registration, and if not, silently succeed.
 	 */
-	mac_policy_grab_exclusive();
+	mac_policy_xlock();
 	if ((mpc->mpc_runtime_flags & MPC_RUNTIME_FLAG_REGISTERED) == 0) {
-		mac_policy_release_exclusive();
+		mac_policy_xunlock();
 		return (0);
 	}
 #if 0
@@ -505,7 +469,7 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 	 * Don't allow unloading modules with private data.
 	 */
 	if (mpc->mpc_field_off != NULL) {
-		MAC_POLICY_LIST_UNLOCK();
+		mac_policy_xunlock();
 		return (EBUSY);
 	}
 #endif
@@ -514,7 +478,7 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 	 * its own definition.
 	 */
 	if ((mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_UNLOADOK) == 0) {
-		mac_policy_release_exclusive();
+		mac_policy_xunlock();
 		return (EBUSY);
 	}
 	if (mpc->mpc_ops->mpo_destroy != NULL)
@@ -522,9 +486,8 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 
 	LIST_REMOVE(mpc, mpc_list);
 	mpc->mpc_runtime_flags &= ~MPC_RUNTIME_FLAG_REGISTERED;
-	mac_policy_updateflags();
-
-	mac_policy_release_exclusive();
+	mac_policy_update();
+	mac_policy_xunlock();
 
 	SDT_PROBE(mac, kernel, policy, unregister, mpc, 0, 0, 0, 0);
 	printf("Security policy unload: %s (%s)\n", mpc->mpc_fullname,

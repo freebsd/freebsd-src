@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2007
+.Dd July 13, 2009
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -51,16 +51,6 @@ hint.pcm.0.drq="1"
 hint.pcm.0.flags="0x0"
 .Ed
 .Sh DESCRIPTION
-.Bf -emphasis
-Note: There exists some ambiguity in the naming at the moment
-.Pq Nm sound , pcm , snd .
-It will be resolved soon by renaming
-.Cd "device sound"
-to
-.Cd "device snd" ,
-and doing associated changes.
-.Ef
-.Pp
 The
 .Nm
 driver provides support for
@@ -151,6 +141,40 @@ To define default values for the different mixer channels,
 set the channel to the preferred value using hints, e.g.:
 .Va hint.pcm.0.line Ns = Ns Qq Li 0 .
 This will mute the input channel per default.
+.Ss Multichannel Audio
+Multichannel audio, popularly referred to as
+.Dq surround sound
+is supported and enabled by default.
+The FreeBSD multichannel matrix processor supports up to 18 interleaved
+channels, but the limit is currently set to 8 channels (as commonly used
+for 7.1 surround sound).
+The internal matrix mapping can handle reduction, expansion or
+re-routing of channels.
+This provides a base interface for related multichannel
+.Fn ioctl
+support.
+Multichannel audio works both with and without
+.Tn VCHANs .
+Most bridge device drivers are still missing multichannel matrixing support
+, but in most cases this should be trivial to implement.
+Use the
+.Va dev.pcm.%d.[play|rec].vchanformat
+.Xr sysctl(8)
+to adjust the number of channels used.
+The current multichannel interleaved structure and arrangement was
+implemented by inspecting various popular UNIX applications.
+There were no single standard, so much care has been taken to try
+to satisfy each possible scenario, despite the fact that each
+application has its own conflicting standard.
+.Ss EQ
+The Parametric Software Equlizer (EQ) enables the use of
+.Dq tone
+controls (bass and treble).
+Commonly used for ear-candy or frequency compensation due to the vast
+difference in hardware quality.
+EQ is disabled by default, but can be enabled with the
+.Va hint.pcm. Ns Ao Ar X Ac Ns Va .eq
+tunable.
 .Ss VCHANs
 Each device can optionally support more playback and recording channels
 than physical hardware provides by using
@@ -161,23 +185,137 @@ or
 options can be configured via the
 .Xr sysctl 8
 interface but can only be manipulated while the device is inactive.
+.Ss VPC
+FreeBSD supports independent and individual volume controls for each active
+application, without touching the master
+.Nm
+volume.
+This is sometimes referred to as Volume Per Channel (VPC).
+The
+.Tn VPC
+feature is enabled by default.
+.Ss Loader Tunables
+The following loader tunables are used to set driver configuration at the
+.Xr loader 8
+prompt before booting the kernel, or they can be stored in
+.Pa /boot/loader.conf
+in order to automatically set them before booting the kernel.
+It is also possible to use
+.Xr kenv 1
+to change these tunables before loading the
+.Nm
+driver.
+The following tunables can not be changed during runtime using
+.Xr sysctl 8 .
+.Bl -tag -width indent
+.It Va hint.pcm. Ns Ao Ar X Ac Ns Va .eq
+Set to 1 or 0 to explicitly enable (1) or disable (0) the equalizer.
+Requires a driver reload if changed.
+Enabling this will make bass and treble controls appear in mixer applications.
+This tunable is undefined by default.
+Equalizing is disabled by default.
+.It Va hint.pcm. Ns Ao Ar X Ac Ns Va .vpc
+Set to 1 or 0 to explicitly enable (1) or disable (0) the
+.Tn VPC
+feature.
+This tunable is undefined by default.
+.Tn VPC
+is however enabled by default.
+.El
 .Ss Runtime Configuration
 There are a number of
 .Xr sysctl 8
-variables available.
+variables available which can be modified during runtime.
+These values can also be stored in
+.Pa /etc/sysctl.conf
+in order to automatically set them during the boot process.
 .Va hw.snd.*
-tunables are global settings and
+are global settings and
 .Va dev.pcm.*
 are device specific.
-.Bl -tag -width ".Va hw.snd.report_soft_formats" -offset indent
-.It Va hw.snd.latency_profile
-Define sets of buffering latency conversion tables for the
-.Va hw.snd.latency
-tunable.
-A value of 0 will use a low and aggressive latency profile which can result
-in possible underruns if the application cannot keep up with a rapid irq
-rate, especially during high workload.
-The default value is 1, which is considered a moderate/safe latency profile.
+.Bl -tag -width indent
+.It Va hw.snd.compat_linux_mmap
+Linux
+.Xr mmap 2
+compability.
+The following values are supported (default is 0):
+.Bl -tag -width 2n
+.It -1
+Force disabling/denying PROT_EXEC
+.Xr mmap 2
+requests.
+.It 0
+Auto detect proc/ABI type, allow
+.Xr mmap 2
+for Linux applications, and deny for everything else.
+.It 1
+Always allow PROT_EXEC page mappings.
+.El
+.It Va hw.snd.default_auto
+Enable to automatically assign default sound unit to the most recent
+attached device.
+.It Va hw.snd.default_unit
+Default sound card for systems with multiple sound cards.
+When using
+.Xr devfs 5 ,
+the default device for
+.Pa /dev/dsp .
+Equivalent to a symlink from
+.Pa /dev/dsp
+to
+.Pa /dev/dsp Ns Va ${hw.snd.default_unit} .
+.It Va hw.snd.feeder_eq_exact_rate
+Only certain rates are allowed for precise processing.
+The default behavior is however to allow sloppy processing for all rates,
+even the unsupported ones.
+Enable to toggle this requirement and only allow processing for supported
+rates.
+.It Va hw.snd.feeder_rate_max
+Maximum allowable sample rate.
+.It Va hw.snd.feeder_rate_min
+Minimum allowable sample rate.
+.It Va hw.snd.feeder_rate_polyphase_max
+Adjust to set the maximum number of allowed polyphase entries during the
+process of building resampling filters.
+Disabling polyphase resampling has the benefit of reducing memory usage, at
+the expense of slower and lower quality conversion.
+Only applicable when the SINC interpolator is used.
+Default value is 183040.
+Set to 0 to disable polyphase resampling.
+.It Va hw.snd.feeder_rate_quality
+Sample rate converter quality.
+Default value is 1, linear interpolation.
+Available options include:
+.Bl -tag -width 2n
+.It 0
+Zero Order Hold, ZOH.
+Very fast, but with poor quality.
+.It 1
+Linear interpolation.
+Fast, quality is subject to personal preference.
+Technically the quality is poor however, due to the lack of anti-aliasing
+filtering.
+.It 2
+Bandlimited SINC interpolator.
+Implements polyphase banking to boost the conversion speed, at the cost of
+memory usage, with multiple high quality polynomial interpolators to improve
+the conversion accuracy.
+100% fixed point, 64bit accumulator with 32bit coefficients and high precision
+sample buffering.
+Quality values are 100dB stopband, 8 taps and 85% bandwidth.
+.It 3
+Continuation of the bandlimited SINC interpolator, with 100dB stopband, 36
+taps and 90% bandwidth as quality values.
+.It 4
+Continuation of the bandlimited SINC inteprolator, with 100dB stopband, 164
+taps and 97% bandwidth as quality values.
+.El
+.It Va hw.snd.feeder_rate_round
+Sample rate rounding threshold, to avoid large prime division at the
+cost of accuracy.
+All requested sample rates will be rounded to the nearest threshold value.
+Possible values range between 0 (disabled) and 500.
+Default is 25.
 .It Va hw.snd.latency
 Configure the buffering latency.
 Only affects applications that do not explicitly request
@@ -186,26 +324,35 @@ This tunable provides finer granularity than the
 .Va hw.snd.latency_profile
 tunable.
 Possible values range between 0 (lowest latency) and 10 (highest latency).
+.It Va hw.snd.latency_profile
+Define sets of buffering latency conversion tables for the
+.Va hw.snd.latency
+tunable.
+A value of 0 will use a low and aggressive latency profile which can result
+in possible underruns if the application cannot keep up with a rapid irq
+rate, especially during high workload.
+The default value is 1, which is considered a moderate/safe latency profile.
+.It Va hw.snd.maxautovchans
+Global
+.Tn VCHAN
+setting that only affects devices with at least one playback or recording channel available.
+The sound system will dynamically create up to this many
+.Tn VCHANs .
+Set to
+.Dq 0
+if no
+.Tn VCHANS
+are desired.
+Maximum value is 256.
 .It Va hw.snd.report_soft_formats
 Controls the internal format conversion if it is
 available transparently to the application software.
 When disabled or not available, the application will
 only be able to select formats the device natively supports.
-.It Va hw.snd.compat_linux_mmap
-Enable to allow PROT_EXEC page mappings.
-All Linux applications using sound and
-.Xr mmap 2
-require this.
-.It Va hw.snd.feeder_rate_round
-Sample rate rounding threshold, to avoid large prime division at the
-cost of accuracy.
-All requested sample rates will be rounded to the nearest threshold value.
-Possible values range between 0 (disabled) and 500.
-Default is 25.
-.It Va hw.snd.feeder_rate_max
-Maximum allowable sample rate.
-.It Va hw.snd.feeder_rate_min
-Minimum allowable sample rate.
+.It Va hw.snd.report_soft_matrix
+Enable seamless channel matrixing even if the hardware does not support it.
+Makes it possible to play multichannel streams even with a simple stereo
+sound card.
 .It Va hw.snd.verbose
 Level of verbosity for the
 .Pa /dev/sndstat
@@ -228,31 +375,46 @@ File names and versions of the currently loaded sound modules.
 .It 4
 Various messages intended for debugging.
 .El
-.It Va hw.snd.maxautovchans
-Global
+.It Va hw.snd.vpc_0db
+Default value for
+.Nm
+volume.
+Increase to give more room for attenuation control.
+Decrease for more amplification, with the possible cost of sound clipping.
+.It Va hw.snd.vpc_autoreset
+When a channel is closed the channel volume will be reset to 0db.
+This means that any changes to the volume will be lost.
+Enabling this will preserve the volume, at the cost of possible confusion
+when applications tries to re-open the same device.
+.It Va hw.snd.vpc_mixer_bypass
+The recommended way to use the
+.Tn VPC
+feature is to teach applications to use
+the correct
+.Fn ioctl :
+.Dv SNDCTL_DSP_GETPLAYVOL, SNDCTL_DSP_SETPLAYVOL,
+.Dv SNDCTL_DSP_SETRECVOL, SNDCTL_DSP_SETRECVOL.
+This is however not always possible.
+Enable this to allow applications to use their own existing mixer logic
+to control their own channel volume.
+.It Va hw.snd.vpc_reset
+Enable to restore all channel volumes back to the default value of 0db.
+.It Va dev.pcm.%d.bitperfect
+Enable or disable bitperfect mode.
+When enabled, channels will skip all dsp processing, such as channel
+matrixing, rate converting and equalizing.
+The pure
+.Nm
+stream will be fed directly to the hardware.
+If
+.Tn VCHANs
+are enabled, the bitperfect mode will use the
 .Tn VCHAN
-setting that only affects devices with at least one playback or recording channel available.
-The sound system will dynamically create up this many
-.Tn VCHANs .
-Set to
-.Dq 0
-if no
-.Tn VCHANS
-are desired.
-Maximum value is 256.
-.It Va hw.snd.default_unit
-Default sound card for systems with multiple sound cards.
-When using
-.Xr devfs 5 ,
-the default device for
-.Pa /dev/dsp .
-Equivalent to a symlink from
-.Pa /dev/dsp
-to
-.Pa /dev/dsp Ns Va ${hw.snd.default_unit} .
-.It Va hw.snd.default_auto
-Enable to automatically assign default sound unit to the most recent
-attached device.
+format/rate as the definitive format/rate target.
+The recommended way to use bitperfect mode is to disable
+.Tn VCHANs
+and enable this sysctl.
+Default is disabled.
 .It Va dev.pcm.%d.[play|rec].vchans
 The current number of
 .Tn VCHANs
@@ -264,17 +426,79 @@ Setting this value to
 will disable
 .Tn VCHANs
 for this device.
-.It Va dev.pcm.%d.[play|rec].vchanrate
-Sample rate speed for
-.Tn VCHAN
-mixing.
-All playback paths will be converted to this sample rate before the mixing
-process begins.
 .It Va dev.pcm.%d.[play|rec].vchanformat
 Format for
 .Tn VCHAN
 mixing.
 All playback paths will be converted to this format before the mixing
+process begins.
+By default only 2 channels are enabled.
+Available options include:
+.Bl -tag -width 2n
+.It s16le:1.0
+Mono
+.It s16le:2.0
+Stereo, 2 channels (left, right).
+.It s16le:2.1
+3 channels (left, right, LFE).
+.It s16le:3.0
+3 channels (left, right, rear center).
+.It s16le:4.0
+Quadraphonic, 4 channels (front/rear left and right).
+.It s16le:4.1
+5 channels (4.0 + LFE).
+.It s16le:5.0
+5 channels (4.0 + center).
+.It s16le:5.1
+6 channels (4.0 + center + LFE).
+.It s16le:6.0
+6 channels (4.0 + front/rear center).
+.It s16le:6.1
+7 channels (6.0 + LFE).
+.It s16le:7.1
+8 channels (4.0 + center + LFE + left and right side).
+.El
+.It Va dev.pcm.%d.[play|rec].vchanmode
+.Tn VCHAN
+format/rate selection.
+Available options include:
+.Bl -tag -width 2n
+.It fixed
+Channel mixing is done using fixed format/rate.
+Advanced operations such as digital passthrough will not work.
+Can be considered as a
+.Dq legacy
+mode.
+This is the default mode for hardware channels which lack support for digital
+formats.
+.It passthrough
+Channel mixing is done using fixed format/rate, but advanced operations such
+as digital passthrough also work.
+All channels will produce sound as usual until a digital format playback is
+requested.
+When this happens all other channels will be muted and the latest incoming
+digital format will be allowed to pass through undisturbed.
+Multiple concurrent digital streams are supported, but the latest stream will
+take precedence and mute all other streams.
+.It adaptive
+Works like the
+.Dq passthrough
+mode, but is a bit smarter, especially for
+multiple
+.Nm
+channels with different format/rate.
+When a new channel is about to start, the entire list of virtual channels will
+be scanned, and the channel with the best format/rate (usually the
+highest/biggest) will be selected.
+This ensures that mixing quality depends on the best channel.
+The downside is that the hardware DMA mode needs to be restarted, which may
+cause annoying pops or clicks.
+.El
+.It Va dev.pcm.%d.[play|rec].vchanrate
+Sample rate speed for
+.Tn VCHAN
+mixing.
+All playback paths will be converted to this sample rate before the mixing
 process begins.
 .It Va dev.pcm.%d.polling
 Experimental polling mode support where the driver operates by querying the
@@ -407,6 +631,18 @@ A device node is not created properly.
 .Xr dmesg 8 ,
 .Xr kldload 8 ,
 .Xr sysctl 8
+.Rs
+.%T "Cookbook formulae for audio EQ biquad filter coefficients, by Robert Bristow-Johnson"
+.%O "http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt"
+.Re
+.Rs
+.%T "Julius O'Smith's Digital Audio Resampling"
+.%O "http://ccrma.stanford.edu/~jos/resample/"
+.Re
+.Rs
+.%T "Polynomial Interpolators for High-Quality Resampling of Oversampled Audio, by Olli Niemitalo"
+.%O "http://www.student.oulu.fi/~oniemita/dsp/deip.pdf"
+.Re
 .Rs
 .%T "The OSS API"
 .%O "http://www.opensound.com/pguide/oss.pdf"

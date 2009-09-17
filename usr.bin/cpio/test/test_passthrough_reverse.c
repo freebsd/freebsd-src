@@ -75,7 +75,7 @@ DEFINE_TEST(test_passthrough_reverse)
 	assertEqualInt(0, chdir("out"));
 
 	/* Verify stderr and stdout. */
-	assertFileContents("out/dir/file\nout/dir\n1 block\n", 29,
+	assertTextFileContents("out/dir/file\nout/dir\n1 block\n",
 	    "../stderr");
 	assertEmptyFile("../stdout");
 
@@ -85,7 +85,11 @@ DEFINE_TEST(test_passthrough_reverse)
 		assertEqualInt(r, 0);
 		assert(S_ISDIR(st.st_mode));
 		failure("st.st_mode=0%o",  st.st_mode);
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		assertEqualInt(0700, st.st_mode & 0700);
+#else
 		assertEqualInt(0743, st.st_mode & 0777);
+#endif
 	}
 
 
@@ -95,7 +99,11 @@ DEFINE_TEST(test_passthrough_reverse)
 	assertEqualInt(r, 0);
 	if (r == 0) {
 		assert(S_ISREG(st.st_mode));
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		assertEqualInt(0600, st.st_mode & 0700);
+#else
 		assertEqualInt(0644, st.st_mode & 0777);
+#endif
 		assertEqualInt(10, st.st_size);
 		assertEqualInt(1, st.st_nlink);
 	}

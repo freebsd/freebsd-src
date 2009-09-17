@@ -69,7 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#define	MV_PHY_ADDR_BASE	8
+#ifndef MII_ADDR_BASE
+#define MII_ADDR_BASE 8
+#endif
 
 #include <dev/mge/if_mgevar.h>
 #include <arm/mv/mvreg.h>
@@ -88,7 +90,7 @@ static int mge_suspend(device_t dev);
 static int mge_resume(device_t dev);
 
 static int mge_miibus_readreg(device_t dev, int phy, int reg);
-static void mge_miibus_writereg(device_t dev, int phy, int reg, int value);
+static int mge_miibus_writereg(device_t dev, int phy, int reg, int value);
 
 static int mge_ifmedia_upd(struct ifnet *ifp);
 static void mge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
@@ -106,7 +108,7 @@ static void mge_ver_params(struct mge_softc *sc);
 
 static void mge_intrs_ctrl(struct mge_softc *sc, int enable);
 static void mge_intr_rx(void *arg);
-static void mge_intr_rx_locked(struct mge_softc *sc, int count);
+static int mge_intr_rx_locked(struct mge_softc *sc, int count);
 static void mge_intr_tx(void *arg);
 static void mge_intr_tx_locked(struct mge_softc *sc);
 static void mge_intr_misc(void *arg);
@@ -239,7 +241,8 @@ mge_ver_params(struct mge_softc *sc)
 	uint32_t d, r;
 
 	soc_id(&d, &r);
-	if (d == MV_DEV_88F6281 || d == MV_DEV_MV78100) {
+	if (d == MV_DEV_88F6281 || d == MV_DEV_MV78100 ||
+	    d == MV_DEV_MV78100_Z0) {
 		sc->mge_ver = 2;
 		sc->mge_mtu = 0x4e8;
 		sc->mge_tfut_ipg_max = 0xFFFF;
@@ -568,17 +571,18 @@ mge_reinit_rx(struct mge_softc *sc)
 #ifdef DEVICE_POLLING
 static poll_handler_t mge_poll;
 
-static void
+static int
 mge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct mge_softc *sc = ifp->if_softc;
 	uint32_t int_cause, int_cause_ext;
+	int rx_npkts = 0;
 
 	MGE_GLOBAL_LOCK(sc);
 
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		MGE_GLOBAL_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -596,9 +600,10 @@ mge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 
 	mge_intr_tx_locked(sc);
-	mge_intr_rx_locked(sc, count);
+	rx_npkts = mge_intr_rx_locked(sc, count);
 
 	MGE_GLOBAL_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -641,6 +646,7 @@ mge_attach(device_t dev)
 	sc->tx_desc_curr = 0;
 	sc->rx_desc_curr = 0;
 	sc->tx_desc_used_idx = 0;
+	sc->tx_desc_used_count = 0;
 
 	/* Configure defaults for interrupts coalescing */
 	sc->rx_ic_time = 768;
@@ -898,6 +904,7 @@ mge_init_locked(void *arg)
 	sc->tx_desc_curr = 0;
 	sc->rx_desc_curr = 0;
 	sc->tx_desc_used_idx = 0;
+	sc->tx_desc_used_count = 0;
 
 	/* Enable RX descriptors */
 	for (i = 0; i < MGE_RX_DESC_NUM; i++) {
@@ -1010,7 +1017,7 @@ mge_intr_rx(void *arg) {
 }
 
 
-static void
+static int
 mge_intr_rx_locked(struct mge_softc *sc, int count)
 {
 	struct ifnet *ifp = sc->ifp;
@@ -1018,10 +1025,11 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 	uint16_t bufsize;
 	struct mge_desc_wrapper* dw;
 	struct mbuf *mb;
+	int rx_npkts = 0;
 
 	MGE_RECEIVE_LOCK_ASSERT(sc);
 
-	while(count != 0) {
+	while (count != 0) {
 		dw = &sc->mge_rx_desc[sc->rx_desc_curr];
 		bus_dmamap_sync(sc->mge_desc_dtag, dw->desc_dmap,
 		    BUS_DMASYNC_POSTREAD);
@@ -1032,7 +1040,6 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 		if ((status & MGE_DMA_OWNED) != 0)
 			break;
 
-		sc->rx_desc_curr = (++sc->rx_desc_curr % MGE_RX_DESC_NUM);
 		if (dw->mge_desc->byte_count &&
 		    ~(status & MGE_ERR_SUMMARY)) {
 
@@ -1042,6 +1049,10 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 			mb = m_devget(dw->buffer->m_data,
 			    dw->mge_desc->byte_count - ETHER_CRC_LEN,
 			    0, ifp, NULL);
+
+			if (mb == NULL)
+				/* Give up if no mbufs */
+				break;
 
 			mb->m_len -= 2;
 			mb->m_pkthdr.len -= 2;
@@ -1053,10 +1064,12 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 			MGE_RECEIVE_UNLOCK(sc);
 			(*ifp->if_input)(ifp, mb);
 			MGE_RECEIVE_LOCK(sc);
+			rx_npkts++;
 		}
 
 		dw->mge_desc->byte_count = 0;
 		dw->mge_desc->cmd_status = MGE_RX_ENABLE_INT | MGE_DMA_OWNED;
+		sc->rx_desc_curr = (++sc->rx_desc_curr % MGE_RX_DESC_NUM);
 		bus_dmamap_sync(sc->mge_desc_dtag, dw->desc_dmap,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
@@ -1064,7 +1077,7 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 			count -= 1;
 	}
 
-	return;
+	return (rx_npkts);
 }
 
 static void
@@ -1253,14 +1266,15 @@ mge_miibus_readreg(device_t dev, int phy, int reg)
 
 	/*
 	 * We assume static PHY address <=> device unit mapping:
-	 * PHY Address = MV_PHY_ADDR_BASE + devce unit.
+	 * PHY Address = MII_ADDR_BASE + devce unit.
 	 * This is true for most Marvell boards.
 	 * 
 	 * Code below grants proper PHY detection on each device
 	 * unit.
 	 */
 
-	if ((MV_PHY_ADDR_BASE + device_get_unit(dev)) != phy)
+	
+	if ((MII_ADDR_BASE + device_get_unit(dev)) != phy)
 		return (0);
 
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
@@ -1276,13 +1290,13 @@ mge_miibus_readreg(device_t dev, int phy, int reg)
 	return (MGE_READ(sc_mge0, MGE_REG_SMI) & 0xffff);
 }
 
-static void
+static int
 mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
 	uint32_t retries;
 
-	if ((MV_PHY_ADDR_BASE + device_get_unit(dev)) != phy)
-		return;
+	if ((MII_ADDR_BASE + device_get_unit(dev)) != phy)
+		return (0);
 
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
 	    (MGE_SMI_WRITE | (reg << 21) | (phy << 16) | (value & 0xffff)));
@@ -1293,6 +1307,7 @@ mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 
 	if (retries == 0)
 		device_printf(dev, "Timeout while writing to PHY\n");
+	return (0);
 }
 
 static int
@@ -1513,7 +1528,8 @@ mge_stop(struct mge_softc *sc)
 	MGE_WRITE(sc, MGE_RX_QUEUE_CMD, MGE_DISABLE_RXQ_ALL);
 
 	/* Remove pending data from TX queue */
-	while (sc->tx_desc_used_idx < sc->tx_desc_curr) {
+	while (sc->tx_desc_used_idx != sc->tx_desc_curr &&
+	    sc->tx_desc_used_count) {
 		/* Get the descriptor */
 		dw = &sc->mge_tx_desc[sc->tx_desc_used_idx];
 		desc = dw->mge_desc;
@@ -1528,6 +1544,7 @@ mge_stop(struct mge_softc *sc)
 
 		sc->tx_desc_used_idx = (++sc->tx_desc_used_idx) %
 		    MGE_TX_DESC_NUM;
+		sc->tx_desc_used_count--;
 
 		bus_dmamap_sync(sc->mge_tx_dtag, dw->buffer_dmap,
 		    BUS_DMASYNC_POSTWRITE);
@@ -1717,7 +1734,7 @@ mge_setup_multicast(struct mge_softc *sc)
 		memset(smt, 0, sizeof(smt));
 		memset(omt, 0, sizeof(omt));
 
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -1731,7 +1748,7 @@ mge_setup_multicast(struct mge_softc *sc)
 				omt[i >> 2] |= v << ((i & 0x03) << 3);
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 
 	for (i = 0; i < MGE_MCAST_REG_NUMBER; i++) {

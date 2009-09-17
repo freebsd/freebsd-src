@@ -40,7 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/power.h>
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 #include <isa/isavar.h>

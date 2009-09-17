@@ -77,6 +77,7 @@ static MALLOC_DEFINE(M_AUDITCRED, "audit_cred", "Audit cred storage");
 MALLOC_DEFINE(M_AUDITDATA, "audit_data", "Audit data storage");
 MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
 MALLOC_DEFINE(M_AUDITTEXT, "audit_text", "Audit text storage");
+MALLOC_DEFINE(M_AUDITGIDSET, "audit_gidset", "Audit GID set storage");
 
 SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
     "TrustedBSD audit controls");
@@ -129,8 +130,8 @@ struct mtx		audit_mtx;
  * outstanding in the system.
  */
 struct kaudit_queue	audit_q;
-size_t			audit_q_len;
-size_t			audit_pre_q_len;
+int			audit_q_len;
+int			audit_pre_q_len;
 
 /*
  * Audit queue control settings (minimum free, low/high water marks, etc.)
@@ -253,6 +254,8 @@ audit_record_dtor(void *mem, int size, void *arg)
 		free(ar->k_ar.ar_arg_argv, M_AUDITTEXT);
 	if (ar->k_ar.ar_arg_envv != NULL)
 		free(ar->k_ar.ar_arg_envv, M_AUDITTEXT);
+	if (ar->k_ar.ar_arg_groups.gidset != NULL)
+		free(ar->k_ar.ar_arg_groups.gidset, M_AUDITGIDSET);
 }
 
 /*
@@ -406,14 +409,19 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	else
 		sorf = AU_PRS_SUCCESS;
 
+	/*
+	 * syscalls.master sometimes contains a prototype event number, which
+	 * we will transform into a more specific event number now that we
+	 * have more complete information gathered during the system call.
+	 */
 	switch(ar->k_ar.ar_event) {
 	case AUE_OPEN_RWTC:
-		/*
-		 * The open syscall always writes a AUE_OPEN_RWTC event;
-		 * change it to the proper type of event based on the flags
-		 * and the error value.
-		 */
 		ar->k_ar.ar_event = audit_flags_and_error_to_openevent(
+		    ar->k_ar.ar_arg_fflags, error);
+		break;
+
+	case AUE_OPENAT_RWTC:
+		ar->k_ar.ar_event = audit_flags_and_error_to_openatevent(
 		    ar->k_ar.ar_arg_fflags, error);
 		break;
 
@@ -492,6 +500,8 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 	au_id_t auid;
 
 	KASSERT(td->td_ar == NULL, ("audit_syscall_enter: td->td_ar != NULL"));
+	KASSERT((td->td_pflags & TDP_AUDITREC) == 0,
+	    ("audit_syscall_enter: TDP_AUDITREC set"));
 
 	/*
 	 * In FreeBSD, each ABI has its own system call table, and hence
@@ -542,9 +552,13 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 			panic("audit_failing_stop: thread continued");
 		}
 		td->td_ar = audit_new(event, td);
-	} else if (audit_pipe_preselect(auid, event, class, AU_PRS_BOTH, 0))
+		if (td->td_ar != NULL)
+			td->td_pflags |= TDP_AUDITREC;
+	} else if (audit_pipe_preselect(auid, event, class, AU_PRS_BOTH, 0)) {
 		td->td_ar = audit_new(event, td);
-	else
+		if (td->td_ar != NULL)
+			td->td_pflags |= TDP_AUDITREC;
+	} else
 		td->td_ar = NULL;
 }
 
@@ -572,6 +586,7 @@ audit_syscall_exit(int error, struct thread *td)
 
 	audit_commit(td->td_ar, error, retval);
 	td->td_ar = NULL;
+	td->td_pflags &= ~TDP_AUDITREC;
 }
 
 void
@@ -626,6 +641,8 @@ audit_thread_free(struct thread *td)
 {
 
 	KASSERT(td->td_ar == NULL, ("audit_thread_free: td_ar != NULL"));
+	KASSERT((td->td_pflags & TDP_AUDITREC) == 0,
+	    ("audit_thread_free: TDP_AUDITREC set"));
 }
 
 void

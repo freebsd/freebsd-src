@@ -16,7 +16,9 @@
  */
 
 /*
- * XenoBSD block device driver
+ * XenBSD block device driver
+ *
+ * Copyright (c) 2009 Frank Suchomel, Citrix
  */
 
 #include <sys/cdefs.h>
@@ -40,17 +42,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/vmparam.h>
 
-#include <xen/hypervisor.h>
 #include <machine/xen/xen-os.h>
+#include <machine/xen/xenfunc.h>
+#include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/evtchn.h>
+#include <xen/gnttab.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/protocols.h>
 #include <xen/xenbus/xenbusvar.h>
 
 #include <geom/geom_disk.h>
-#include <machine/xen/xenfunc.h>
-#include <xen/gnttab.h>
 
 #include <dev/xen/blkfront/block.h>
 
@@ -106,7 +108,7 @@ static char * blkif_status_name[] = {
 #endif
 #define WPRINTK(fmt, args...) printf("[XEN] " fmt, ##args)
 #if 0
-#define DPRINTK(fmt, args...) printf("[XEN] %s:%d" fmt ".\n", __FUNCTION__, __LINE__,##args)
+#define DPRINTK(fmt, args...) printf("[XEN] %s:%d: " fmt ".\n", __func__, __LINE__, ##args)
 #else
 #define DPRINTK(fmt, args...) 
 #endif
@@ -122,6 +124,10 @@ static int blkif_ioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct
 static int blkif_queue_request(struct bio *bp);
 static void xb_strategy(struct bio *bp);
 
+// In order to quiesce the device during kernel dumps, outstanding requests to
+// DOM0 for disk reads/writes need to be accounted for.
+static	int	blkif_queued_requests;
+static	int	xb_dump(void *, void *, vm_offset_t, off_t, size_t);
 
 
 /* XXX move to xb_vbd.c when VBD update support is added */
@@ -137,7 +143,6 @@ pfn_to_mfn(vm_paddr_t pfn)
 {
 	return (phystomach(pfn << PAGE_SHIFT) >> PAGE_SHIFT);
 }
-
 
 /*
  * Translate Linux major/minor to an appropriate name and unit
@@ -232,6 +237,7 @@ xlvbd_add(device_t dev, blkif_sector_t capacity,
 	sc->xb_disk->d_close = blkif_close;
 	sc->xb_disk->d_ioctl = blkif_ioctl;
 	sc->xb_disk->d_strategy = xb_strategy;
+	sc->xb_disk->d_dump = xb_dump;
 	sc->xb_disk->d_name = name;
 	sc->xb_disk->d_drv1 = sc;
 	sc->xb_disk->d_sectorsize = sector_size;
@@ -287,9 +293,10 @@ xb_strategy(struct bio *bp)
 	 * Place it in the queue of disk activities for this disk
 	 */
 	mtx_lock(&blkif_io_lock);
-	bioq_disksort(&sc->xb_bioq, bp);
 
+	bioq_disksort(&sc->xb_bioq, bp);
 	xb_startio(sc);
+
 	mtx_unlock(&blkif_io_lock);
 	return;
 
@@ -301,6 +308,81 @@ xb_strategy(struct bio *bp)
 	biodone(bp);
 	return;
 }
+
+static void xb_quiesce(struct blkfront_info *info);
+// Quiesce the disk writes for a dump file before allowing the next buffer.
+static void
+xb_quiesce(struct blkfront_info *info)
+{
+	int		mtd;
+
+	// While there are outstanding requests
+	while (blkif_queued_requests) {
+		RING_FINAL_CHECK_FOR_RESPONSES(&info->ring, mtd);
+		if (mtd) {
+			// Recieved request completions, update queue.
+			blkif_int(info);
+		}
+		if (blkif_queued_requests) {
+			// Still pending requests, wait for the disk i/o to complete
+			HYPERVISOR_block();
+		}
+	}
+}
+
+// Some bio structures for dumping core
+#define DUMP_BIO_NO 16				// 16 * 4KB = 64KB dump block
+static	struct bio		xb_dump_bp[DUMP_BIO_NO];
+
+// Kernel dump function for a paravirtualized disk device
+static int
+xb_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
+        size_t length)
+{
+			int				 sbp;
+  			int			     mbp;
+			size_t			 chunk;
+	struct	disk   			*dp = arg;
+	struct	xb_softc		*sc = (struct xb_softc *) dp->d_drv1;
+	        int	    		 rc = 0;
+
+	xb_quiesce(sc->xb_info);		// All quiet on the western front.
+	if (length > 0) {
+		// If this lock is held, then this module is failing, and a successful
+		// kernel dump is highly unlikely anyway.
+		mtx_lock(&blkif_io_lock);
+		// Split the 64KB block into 16 4KB blocks
+		for (sbp=0; length>0 && sbp<DUMP_BIO_NO; sbp++) {
+			chunk = length > PAGE_SIZE ? PAGE_SIZE : length;
+			xb_dump_bp[sbp].bio_disk   = dp;
+			xb_dump_bp[sbp].bio_pblkno = offset / dp->d_sectorsize;
+			xb_dump_bp[sbp].bio_bcount = chunk;
+			xb_dump_bp[sbp].bio_resid  = chunk;
+			xb_dump_bp[sbp].bio_data   = virtual;
+			xb_dump_bp[sbp].bio_cmd    = BIO_WRITE;
+			xb_dump_bp[sbp].bio_done   = NULL;
+
+			bioq_disksort(&sc->xb_bioq, &xb_dump_bp[sbp]);
+
+			length -= chunk;
+			offset += chunk;
+			virtual = (char *) virtual + chunk;
+		}
+		// Tell DOM0 to do the I/O
+		xb_startio(sc);
+		mtx_unlock(&blkif_io_lock);
+
+		// Must wait for the completion: the dump routine reuses the same
+		//                               16 x 4KB buffer space.
+		xb_quiesce(sc->xb_info);	// All quite on the eastern front
+		// If there were any errors, bail out...
+		for (mbp=0; mbp<sbp; mbp++) {
+			if ((rc = xb_dump_bp[mbp].bio_error)) break;
+		}
+	}
+	return (rc);
+}
+
 
 static int
 blkfront_probe(device_t dev)
@@ -323,17 +405,17 @@ blkfront_probe(device_t dev)
 static int
 blkfront_attach(device_t dev)
 {
-	int err, vdevice, i, unit;
+	int error, vdevice, i, unit;
 	struct blkfront_info *info;
 	const char *name;
 
 	/* FIXME: Use dynamic device id if this is not set. */
-	err = xenbus_scanf(XBT_NIL, xenbus_get_node(dev),
+	error = xenbus_scanf(XBT_NIL, xenbus_get_node(dev),
 	    "virtual-device", NULL, "%i", &vdevice);
-	if (err) {
-		xenbus_dev_fatal(dev, err, "reading virtual-device");
+	if (error) {
+		xenbus_dev_fatal(dev, error, "reading virtual-device");
 		printf("couldn't find virtual device");
-		return (err);
+		return (error);
 	}
 
 	blkfront_vdevice_to_unit(vdevice, &unit, &name);
@@ -362,9 +444,22 @@ blkfront_attach(device_t dev)
 	/* Front end dir is a number, which is used as the id. */
 	info->handle = strtoul(strrchr(xenbus_get_node(dev),'/')+1, NULL, 0);
 
-	err = talk_to_backend(dev, info);
-	if (err)
-		return (err);
+	error = talk_to_backend(dev, info);
+	if (error)
+		return (error);
+
+	return (0);
+}
+
+static int
+blkfront_suspend(device_t dev)
+{
+	struct blkfront_info *info = device_get_softc(dev);
+
+	/* Prevent new requests being issued until we fix things up. */
+	mtx_lock(&blkif_io_lock);
+	info->connected = BLKIF_STATE_SUSPENDED;
+	mtx_unlock(&blkif_io_lock);
 
 	return (0);
 }
@@ -375,16 +470,14 @@ blkfront_resume(device_t dev)
 	struct blkfront_info *info = device_get_softc(dev);
 	int err;
 
-	DPRINTK("blkfront_resume: %s\n", dev->nodename);
+	DPRINTK("blkfront_resume: %s\n", xenbus_get_node(dev));
 
 	blkif_free(info, 1);
-
 	err = talk_to_backend(dev, info);
-
 	if (info->connected == BLKIF_STATE_SUSPENDED && !err)
 		blkif_recover(info);
 
-	return err;
+	return (err);
 }
 
 /* Common code used when first setting up, and when resuming. */
@@ -425,6 +518,7 @@ talk_to_backend(device_t dev, struct blkfront_info *info)
 		message = "writing protocol";
 		goto abort_transaction;
 	}
+
 	err = xenbus_transaction_end(xbt, 0);
 	if (err) {
 		if (err == EAGAIN)
@@ -462,8 +556,8 @@ setup_blkring(device_t dev, struct blkfront_info *info)
 	SHARED_RING_INIT(sring);
 	FRONT_RING_INIT(&info->ring, sring, PAGE_SIZE);
 
-	error = xenbus_grant_ring(dev, (vtomach(info->ring.sring) >> PAGE_SHIFT),
-		&info->ring_ref);
+	error = xenbus_grant_ring(dev,
+	    (vtomach(info->ring.sring) >> PAGE_SHIFT), &info->ring_ref);
 	if (error) {
 		free(sring, M_DEVBUF);
 		info->ring.sring = NULL;
@@ -471,11 +565,11 @@ setup_blkring(device_t dev, struct blkfront_info *info)
 	}
 	
 	error = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
-		"xbd", (driver_intr_t *)blkif_int, info,
-					INTR_TYPE_BIO | INTR_MPSAFE, &info->irq);
+	    "xbd", (driver_intr_t *)blkif_int, info,
+	    INTR_TYPE_BIO | INTR_MPSAFE, &info->irq);
 	if (error) {
 		xenbus_dev_fatal(dev, error,
-				 "bind_evtchn_to_irqhandler failed");
+		    "bind_evtchn_to_irqhandler failed");
 		goto fail;
 	}
 
@@ -489,12 +583,12 @@ setup_blkring(device_t dev, struct blkfront_info *info)
 /**
  * Callback received when the backend's state changes.
  */
-static void
+static int
 blkfront_backend_changed(device_t dev, XenbusState backend_state)
 {
 	struct blkfront_info *info = device_get_softc(dev);
 
-	DPRINTK("blkfront:backend_changed.\n");
+	DPRINTK("backend_state=%d\n", backend_state);
 
 	switch (backend_state) {
 	case XenbusStateUnknown:
@@ -531,6 +625,8 @@ blkfront_backend_changed(device_t dev, XenbusState backend_state)
 		bdput(bd);
 #endif
 	}
+
+	return (0);
 }
 
 /* 
@@ -633,6 +729,7 @@ GET_ID_FROM_FREELIST(struct blkfront_info *info)
 	KASSERT(nfree <= BLK_RING_SIZE, ("free %lu > RING_SIZE", nfree));
 	info->shadow_free = info->shadow[nfree].req.id;
 	info->shadow[nfree].req.id = 0x0fffffee; /* debug */
+	atomic_add_int(&blkif_queued_requests, 1);
 	return nfree;
 }
 
@@ -642,6 +739,7 @@ ADD_ID_TO_FREELIST(struct blkfront_info *info, unsigned long id)
 	info->shadow[id].req.id  = info->shadow_free;
 	info->shadow[id].request = 0;
 	info->shadow_free = id;
+	atomic_subtract_int(&blkif_queued_requests, 1);
 }
 
 static inline void 
@@ -707,7 +805,7 @@ blkif_open(struct disk *dp)
 	struct xb_softc	*sc = (struct xb_softc *)dp->d_drv1;
 
 	if (sc == NULL) {
-		printk("xb%d: not found", sc->xb_unit);
+		printf("xb%d: not found", sc->xb_unit);
 		return (ENXIO);
 	}
 
@@ -1019,9 +1117,11 @@ blkif_recover(struct blkfront_info *info)
 	blkif_request_t *req;
 	struct blk_shadow *copy;
 
+	if (!info->sc)
+		return;
+
 	/* Stage 1: Make a safe copy of the shadow state. */
 	copy = (struct blk_shadow *)malloc(sizeof(info->shadow), M_DEVBUF, M_NOWAIT|M_ZERO);
-	PANIC_IF(copy == NULL);
 	memcpy(copy, info->shadow, sizeof(info->shadow));
 
 	/* Stage 2: Set up free list. */
@@ -1084,7 +1184,7 @@ static device_method_t blkfront_methods[] = {
 	DEVMETHOD(device_attach,        blkfront_attach), 
 	DEVMETHOD(device_detach,        blkfront_detach), 
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
-	DEVMETHOD(device_suspend,       bus_generic_suspend), 
+	DEVMETHOD(device_suspend,       blkfront_suspend), 
 	DEVMETHOD(device_resume,        blkfront_resume), 
  
 	/* Xenbus interface */

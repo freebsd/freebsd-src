@@ -56,7 +56,7 @@ static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
 #include "extern.h"
 
 void
-ierr()
+ierr(const char *fname)
 {
 	warn("%s", fname);
 	rval = 1;

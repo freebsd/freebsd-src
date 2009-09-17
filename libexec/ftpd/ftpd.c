@@ -105,9 +105,6 @@ __FBSDID("$FreeBSD$");
 static char version[] = "Version 6.00LS";
 #undef main
 
-extern	off_t restart_point;
-extern	char cbuf[];
-
 union sockunion ctrl_addr;
 union sockunion data_source;
 union sockunion data_dest;

@@ -1,5 +1,13 @@
 #!/bin/sh -
 
+##
+## Modified to handle -vpath <path> option by Michael Graff, ISC.
+## The purpose of this is to allow this script to run outside of the
+## source directory, for instance when running configure with
+##   ../bind9-mainline/configure
+## and still have "make depend" work.
+##
+
 ## ++Copyright++ 1987
 ## -
 ## Copyright (c) 1987 Regents of the University of California.
@@ -60,6 +68,10 @@ MAKE=Makefile			# default makefile name is "Makefile"
 
 while :
 	do case "$1" in
+		# -vpath allows one to select a virtual path for .c files
+		-vpath)
+			VPATH=$2;
+			shift; shift ;;
 		# -f allows you to select a makefile name
 		-f)
 			MAKE=$2
@@ -76,7 +88,7 @@ while :
 done
 
 if [ $# = 0 ] ; then
-	echo 'usage: mkdep [-p] [-f makefile] [flags] file ...'
+	echo 'usage: mkdep [-vpath path] [-p] [-f makefile] [flags] file ...'
 	exit 1
 fi
 
@@ -107,11 +119,26 @@ _EOF_
 # egrep '^#include[ 	]*".*"' /dev/null $* |
 # sed -e 's/:[^"]*"\([^"]*\)".*/: \1/' -e 's/\.c/.o/' |
 
+if [ X"${VPATH}" != X ] ; then
+    for arg in $* ; do
+	case "$arg" in
+	    -*)
+		newargs="$newargs $arg"
+		;;
+	    *)
+		newargs="$newargs $VPATH/$arg"
+		;;
+	esac
+    done
+else
+    newargs="$*";
+fi
+
 MKDEPPROG="@MKDEPPROG@"
 if [ X"${MKDEPPROG}" != X ]; then
-    @SHELL@ -c "${MKDEPPROG} $*"
+    @SHELL@ -c "${MKDEPPROG} ${newargs}"
 else
-    @MKDEPCC@ @MKDEPCFLAGS@ $* |
+    @MKDEPCC@ @MKDEPCFLAGS@ ${newargs} |
     sed "
 	s; \./; ;g
 	@LIBTOOL_MKDEP_SED@

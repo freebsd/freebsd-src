@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
  * copy data between mbuf chains and uio lists.
  */
 
+#include "opt_kdtrace.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -63,12 +65,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#include <rpc/rpcclnt.h>
-
-#include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
+#include <nfsclient/nfs_kdtrace.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsmount.h>
@@ -81,13 +81,29 @@ __FBSDID("$FreeBSD$");
  */
 #include <machine/stdarg.h>
 
+#ifdef KDTRACE_HOOKS
+dtrace_nfsclient_attrcache_flush_probe_func_t
+    dtrace_nfsclient_attrcache_flush_done_probe;
+uint32_t nfsclient_attrcache_flush_done_id;
+
+dtrace_nfsclient_attrcache_get_hit_probe_func_t
+    dtrace_nfsclient_attrcache_get_hit_probe;
+uint32_t nfsclient_attrcache_get_hit_id;
+
+dtrace_nfsclient_attrcache_get_miss_probe_func_t
+    dtrace_nfsclient_attrcache_get_miss_probe;
+uint32_t nfsclient_attrcache_get_miss_id;
+
+dtrace_nfsclient_attrcache_load_probe_func_t
+    dtrace_nfsclient_attrcache_load_done_probe;
+uint32_t nfsclient_attrcache_load_done_id;
+#endif /* !KDTRACE_HOOKS */
+
 /*
  * Data items converted to xdr at startup, since they are constant
  * This is kinda hokey, but may save a little time doing byte swaps
  */
 u_int32_t	nfs_xdrneg1;
-u_int32_t	rpc_call, rpc_vers, rpc_reply, rpc_msgdenied, rpc_autherr,
-		    rpc_mismatch, rpc_auth_unix, rpc_msgaccepted;
 u_int32_t	nfs_true, nfs_false;
 
 /* And other global data */
@@ -99,10 +115,6 @@ static enum vtype nv2tov_type[8]= {
 int		nfs_ticks;
 int		nfs_pbuf_freecnt = -1;	/* start out unlimited */
 
-#ifdef NFS_LEGACYRPC
-struct nfs_reqq	nfs_reqq;
-struct mtx nfs_reqq_mtx;
-#endif
 struct nfs_bufq	nfs_bufq;
 static struct mtx nfs_xid_mtx;
 
@@ -172,87 +184,6 @@ nfsm_reqhead(struct vnode *vp, u_long procid, int hsiz)
 		MCLGET(mb, M_WAIT);
 	mb->m_len = 0;
 	return (mb);
-}
-
-/*
- * Build the RPC header and fill in the authorization info.
- * The authorization string argument is only used when the credentials
- * come from outside of the kernel.
- * Returns the head of the mbuf list.
- */
-struct mbuf *
-nfsm_rpchead(struct ucred *cr, int nmflag, int procid, int auth_type,
-    int auth_len, struct mbuf *mrest, int mrest_len, struct mbuf **mbp,
-    u_int32_t **xidpp)
-{
-	struct mbuf *mb;
-	u_int32_t *tl;
-	caddr_t bpos;
-	int i;
-	struct mbuf *mreq;
-	int grpsiz, authsiz;
-
-	authsiz = nfsm_rndup(auth_len);
-	MGETHDR(mb, M_WAIT, MT_DATA);
-	if ((authsiz + 10 * NFSX_UNSIGNED) >= MINCLSIZE) {
-		MCLGET(mb, M_WAIT);
-	} else if ((authsiz + 10 * NFSX_UNSIGNED) < MHLEN) {
-		MH_ALIGN(mb, authsiz + 10 * NFSX_UNSIGNED);
-	} else {
-		MH_ALIGN(mb, 8 * NFSX_UNSIGNED);
-	}
-	mb->m_len = 0;
-	mreq = mb;
-	bpos = mtod(mb, caddr_t);
-
-	/*
-	 * First the RPC header.
-	 */
-	tl = nfsm_build(u_int32_t *, 8 * NFSX_UNSIGNED);
-
-	*xidpp = tl;
-	*tl++ = txdr_unsigned(nfs_xid_gen());
-	*tl++ = rpc_call;
-	*tl++ = rpc_vers;
-	*tl++ = txdr_unsigned(NFS_PROG);
-	if (nmflag & NFSMNT_NFSV3) {
-		*tl++ = txdr_unsigned(NFS_VER3);
-		*tl++ = txdr_unsigned(procid);
-	} else {
-		*tl++ = txdr_unsigned(NFS_VER2);
-		*tl++ = txdr_unsigned(nfsv2_procid[procid]);
-	}
-
-	/*
-	 * And then the authorization cred.
-	 */
-	*tl++ = txdr_unsigned(auth_type);
-	*tl = txdr_unsigned(authsiz);
-	switch (auth_type) {
-	case RPCAUTH_UNIX:
-		tl = nfsm_build(u_int32_t *, auth_len);
-		*tl++ = 0;		/* stamp ?? */
-		*tl++ = 0;		/* NULL hostname */
-		*tl++ = txdr_unsigned(cr->cr_uid);
-		*tl++ = txdr_unsigned(cr->cr_groups[0]);
-		grpsiz = (auth_len >> 2) - 5;
-		*tl++ = txdr_unsigned(grpsiz);
-		for (i = 1; i <= grpsiz; i++)
-			*tl++ = txdr_unsigned(cr->cr_groups[i]);
-		break;
-	}
-
-	/*
-	 * And the verifier...
-	 */
-	tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
-	*tl++ = txdr_unsigned(RPCAUTH_NULL);
-	*tl = 0;
-	mb->m_next = mrest;
-	mreq->m_pkthdr.len = authsiz + 10 * NFSX_UNSIGNED + mrest_len;
-	mreq->m_pkthdr.rcvif = NULL;
-	*mbp = mb;
-	return (mreq);
 }
 
 /*
@@ -408,14 +339,6 @@ nfs_init(struct vfsconf *vfsp)
 
 	nfsmount_zone = uma_zcreate("NFSMOUNT", sizeof(struct nfsmount),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	rpc_vers = txdr_unsigned(RPC_VER2);
-	rpc_call = txdr_unsigned(RPC_CALL);
-	rpc_reply = txdr_unsigned(RPC_REPLY);
-	rpc_msgdenied = txdr_unsigned(RPC_MSGDENIED);
-	rpc_msgaccepted = txdr_unsigned(RPC_MSGACCEPTED);
-	rpc_mismatch = txdr_unsigned(RPC_MISMATCH);
-	rpc_autherr = txdr_unsigned(RPC_AUTHERR);
-	rpc_auth_unix = txdr_unsigned(RPCAUTH_UNIX);
 	nfs_true = txdr_unsigned(TRUE);
 	nfs_false = txdr_unsigned(FALSE);
 	nfs_xdrneg1 = txdr_unsigned(-1);
@@ -432,11 +355,6 @@ nfs_init(struct vfsconf *vfsp)
 	/*
 	 * Initialize reply list and start timer
 	 */
-#ifdef NFS_LEGACYRPC
-	TAILQ_INIT(&nfs_reqq);
-	mtx_init(&nfs_reqq_mtx, "NFS reqq lock", NULL, MTX_DEF);
-	callout_init(&nfs_callout, CALLOUT_MPSAFE);
-#endif
 	mtx_init(&nfs_iod_mtx, "NFS iod lock", NULL, MTX_DEF);
 	mtx_init(&nfs_xid_mtx, "NFS xid lock", NULL, MTX_DEF);
 
@@ -449,13 +367,6 @@ int
 nfs_uninit(struct vfsconf *vfsp)
 {
 	int i;
-
-#ifdef NFS_LEGACYRPC
-	callout_stop(&nfs_callout);
-
-	KASSERT(TAILQ_EMPTY(&nfs_reqq),
-	    ("nfs_uninit: request queue not empty"));
-#endif
 
 	/*
 	 * Tell all nfsiod processes to exit. Clear nfs_iodmax, and wakeup
@@ -498,28 +409,25 @@ int
 nfs_upgrade_vnlock(struct vnode *vp)
 {
 	int old_lock;
-	
- 	if ((old_lock = VOP_ISLOCKED(vp)) != LK_EXCLUSIVE) {
- 		if (old_lock == LK_SHARED) {
- 			/* Upgrade to exclusive lock, this might block */
- 			vn_lock(vp, LK_UPGRADE | LK_RETRY);
- 		} else {
- 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
- 		}
+
+	ASSERT_VOP_LOCKED(vp, "nfs_upgrade_vnlock");
+	old_lock = VOP_ISLOCKED(vp);
+	if (old_lock != LK_EXCLUSIVE) {
+		KASSERT(old_lock == LK_SHARED,
+		    ("nfs_upgrade_vnlock: wrong old_lock %d", old_lock));
+		/* Upgrade to exclusive lock, this might block */
+		vn_lock(vp, LK_UPGRADE | LK_RETRY);
   	}
-	return old_lock;
+	return (old_lock);
 }
 
 void
 nfs_downgrade_vnlock(struct vnode *vp, int old_lock)
 {
 	if (old_lock != LK_EXCLUSIVE) {
- 		if (old_lock == LK_SHARED) {
- 			/* Downgrade from exclusive lock, this might block */
- 			vn_lock(vp, LK_DOWNGRADE);
- 		} else {
- 			VOP_UNLOCK(vp, 0);
- 		}
+		KASSERT(old_lock == LK_SHARED, ("wrong old_lock %d", old_lock));
+		/* Downgrade from exclusive lock. */
+		vn_lock(vp, LK_DOWNGRADE | LK_RETRY);
   	}
 }
 
@@ -556,7 +464,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	struct vnode *vp = *vpp;
 	struct vattr *vap;
 	struct nfs_fattr *fp;
-	struct nfsnode *np;
+	struct nfsnode *np = NULL;
 	int32_t t1;
 	caddr_t cp2;
 	int rdev;
@@ -566,12 +474,15 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	struct timespec mtime, mtime_save;
 	int v3 = NFS_ISV3(vp);
 	struct thread *td = curthread;
+	int error = 0;
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;
 	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, M_WAIT);
-	if (cp2 == NULL)
-		return EBADRPC;
+	if (cp2 == NULL) {
+		error = EBADRPC;
+		goto out;
+	}
 	fp = (struct nfs_fattr *)cp2;
 	if (v3) {
 		vtyp = nfsv3tov_type(fp->fa_type);
@@ -684,6 +595,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 				 */
 				vap->va_size = np->n_size;
 				np->n_attrstamp = 0;
+				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
 			} else if (np->n_flag & NMODIFIED) {
 				/*
 				 * We've modified the file: Use the larger
@@ -716,9 +628,11 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	 * We detect this by for the mtime moving back. We invalidate the 
 	 * attrcache when this happens.
 	 */
-	if (timespeccmp(&mtime_save, &vap->va_mtime, >))
+	if (timespeccmp(&mtime_save, &vap->va_mtime, >)) {
 		/* Size changed or mtime went backwards */
 		np->n_attrstamp = 0;
+		KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+	}
 	if (vaper != NULL) {
 		bcopy((caddr_t)vap, (caddr_t)vaper, sizeof(*vap));
 		if (np->n_flag & NCHG) {
@@ -728,8 +642,18 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 				vaper->va_mtime = np->n_mtim;
 		}
 	}
+
+#ifdef KDTRACE_HOOKS
+	if (np->n_attrstamp != 0)
+		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, &np->n_vattr, 0);
+#endif
 	mtx_unlock(&np->n_mtx);
-	return (0);
+out:
+#ifdef KDTRACE_HOOKS
+	if (error)
+		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, NULL, error);
+#endif
+	return (error);
 }
 
 #ifdef NFS_ACDEBUG
@@ -794,7 +718,8 @@ nfs_getattrcache(struct vnode *vp, struct vattr *vaper)
 	if ((time_second - np->n_attrstamp) >= timeo) {
 		nfsstats.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
-		return( ENOENT);
+		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
+		return (ENOENT);
 	}
 	nfsstats.attrcache_hits++;
 	if (vap->va_size != np->n_size) {
@@ -823,7 +748,31 @@ nfs_getattrcache(struct vnode *vp, struct vattr *vaper)
 #ifdef NFS_ACDEBUG
 	mtx_unlock(&Giant);	/* nfs_printf() */
 #endif
+	KDTRACE_NFS_ATTRCACHE_GET_HIT(vp, vap);
 	return (0);
+}
+
+/*
+ * Purge all cached information about an NFS vnode including name
+ * cache entries, the attribute cache, and the access cache.  This is
+ * called when an NFS request for a node fails with a stale
+ * filehandle.
+ */
+void
+nfs_purgecache(struct vnode *vp)
+{
+	struct nfsnode *np;
+	int i;
+
+	np = VTONFS(vp);
+	cache_purge(vp);
+	mtx_lock(&np->n_mtx);
+	np->n_attrstamp = 0;
+	KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+	for (i = 0; i < NFS_ACCESSCACHESIZE; i++)
+		np->n_accesscache[i].stamp = 0;
+	KDTRACE_NFS_ACCESSCACHE_FLUSH_DONE(vp);
+	mtx_unlock(&np->n_mtx);
 }
 
 static nfsuint64 nfs_nullcookie = { { 0, 0 } };

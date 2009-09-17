@@ -358,10 +358,10 @@ void	tsec_receive_intr(void *arg);
 void	tsec_transmit_intr(void *arg);
 
 int	tsec_miibus_readreg(device_t dev, int phy, int reg);
-void	tsec_miibus_writereg(device_t dev, int phy, int reg, int value);
+int	tsec_miibus_writereg(device_t dev, int phy, int reg, int value);
 void	tsec_miibus_statchg(device_t dev);
 int	tsec_resume(device_t dev); /* XXX */
-void	tsec_shutdown(device_t dev);
+int	tsec_shutdown(device_t dev);
 int	tsec_suspend(device_t dev); /* XXX */
 
 void	tsec_get_hwaddr(struct tsec_softc *sc, uint8_t *addr);

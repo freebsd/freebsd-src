@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2006
+.Dd March 16, 2009
 .Dt NANOBSD 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 applications
 .Sh SYNOPSIS
 .Nm
-.Op Fl bhkw
+.Op Fl bhknw
 .Op Fl c Ar config-file
 .Sh DESCRIPTION
 The
@@ -59,6 +59,12 @@ Display usage information.
 Skip the
 .Cm buildkernel
 stage of the build.
+.It Fl n
+Do not cleanup before each build stage.
+This suppresses the normal cleanup work done before the
+.Cm buildworld
+stage and adds -DNO_CLEAN to the make command line
+used for each build stage (world and kernel).
 .It Fl w
 Skip the
 .Cm buildworld

@@ -312,7 +312,12 @@ int	chflags(const char *, unsigned long);
 int	chmod(const char *, mode_t);
 #if __BSD_VISIBLE
 int	fchflags(int, unsigned long);
+#endif
+#if __POSIX_VISIBLE >= 200112
 int	fchmod(int, mode_t);
+#endif
+#if __POSIX_VISIBLE >= 200809
+int	fchmodat(int, const char *, mode_t, int);
 #endif
 int	fstat(int, struct stat *);
 #if __BSD_VISIBLE
@@ -330,10 +335,12 @@ int	mknod(const char *, mode_t, dev_t);
 #endif
 int	stat(const char * __restrict, struct stat * __restrict);
 mode_t	umask(mode_t);
-#if __BSD_VISIBLE
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
 int	fstatat(int, const char *, struct stat *, int);
 int	mkdirat(int, const char *, mode_t);
 int	mkfifoat(int, const char *, mode_t);
+#endif
+#if __BSD_VISIBLE || __XSI_VISIBLE >= 700
 int	mknodat(int, const char *, mode_t, dev_t);
 #endif
 __END_DECLS

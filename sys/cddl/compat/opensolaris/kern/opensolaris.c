@@ -31,7 +31,9 @@
 #include <sys/conf.h>
 #include <sys/cpuvar.h>
 #include <sys/errno.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/misc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
 
@@ -46,10 +48,6 @@ static void
 opensolaris_load(void *dummy)
 {
 	int i;
-
-	printf("This module (opensolaris) contains code covered by the\n");
-	printf("Common Development and Distribution License (CDDL)\n");
-	printf("see http://opensolaris.org/os/licensing/opensolaris_license/\n");
 
 	/*
 	 * "Enable" all CPUs even though they may not exist just so
@@ -81,6 +79,7 @@ opensolaris_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
+		utsname.nodename = prison0.pr_hostname;
 		break;
 
 	case MOD_UNLOAD:

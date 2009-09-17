@@ -155,8 +155,6 @@ struct ses_softc {
 #define	SES_FLAG_OPEN		0x02
 #define	SES_FLAG_INITIALIZED	0x04
 
-#define SESUNIT(x)       (dev2unit((x)))
-
 static	d_open_t	sesopen;
 static	d_close_t	sesclose;
 static	d_ioctl_t	sesioctl;
@@ -252,6 +250,9 @@ sesasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		if (arg == NULL) {
 			break;
 		}
+
+		if (cgd->protocol != PROTO_SCSI)
+			break;
 
 		inq_len = cgd->inq_data.additional_length + 4;
 

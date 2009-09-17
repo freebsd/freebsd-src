@@ -104,9 +104,9 @@ ata_intel_probe(device_t dev)
      { ATA_I82801GB_S1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH7" },
      { ATA_I82801GB_R1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH7" },
      { ATA_I82801GB_AH,  0, INTEL_AHCI, 0, ATA_SA300, "ICH7" },
-     { ATA_I82801GBM_S1, 0, INTEL_AHCI, 0, ATA_SA300, "ICH7M" },
-     { ATA_I82801GBM_R1, 0, INTEL_AHCI, 0, ATA_SA300, "ICH7M" },
-     { ATA_I82801GBM_AH, 0, INTEL_AHCI, 0, ATA_SA300, "ICH7M" },
+     { ATA_I82801GBM_S1, 0, INTEL_AHCI, 0, ATA_SA150, "ICH7M" },
+     { ATA_I82801GBM_R1, 0, INTEL_AHCI, 0, ATA_SA150, "ICH7M" },
+     { ATA_I82801GBM_AH, 0, INTEL_AHCI, 0, ATA_SA150, "ICH7M" },
      { ATA_I63XXESB2,    0,          0, 1, ATA_UDMA5, "63XXESB2" },
      { ATA_I63XXESB2_S1, 0, INTEL_AHCI, 0, ATA_SA300, "63XXESB2" },
      { ATA_I63XXESB2_S2, 0, INTEL_AHCI, 0, ATA_SA300, "63XXESB2" },
@@ -146,7 +146,7 @@ ata_intel_probe(device_t dev)
 
     ata_set_desc(dev);
     ctlr->chipinit = ata_intel_chipinit;
-    return 0;
+    return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -213,10 +213,6 @@ ata_intel_chipinit(device_t dev)
 	    ctlr->setmode = ata_intel_sata_setmode;
 	else
 	    ctlr->setmode = ata_sata_setmode;
-
-	/* enable PCI interrupt */
-	pci_write_config(dev, PCIR_COMMAND,
-			 pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400, 2);
     }
     return 0;
 }
@@ -521,7 +517,7 @@ ata_intel_31244_tf_write(struct ata_request *request)
 static void
 ata_intel_31244_reset(device_t dev)
 {
-    if (ata_sata_phy_reset(dev))
+    if (ata_sata_phy_reset(dev, -1, 1))
 	ata_generic_reset(dev);
 }
 

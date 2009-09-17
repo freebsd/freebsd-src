@@ -58,18 +58,17 @@ static const char rcsid[] =
 
 static	struct in6_ifreq in6_ridreq;
 static	struct in6_aliasreq in6_addreq = 
-  { { 0 }, 
-    { 0 }, 
-    { 0 }, 
-    { 0 }, 
-    0, 
-    { 0, 0, ND6_INFINITE_LIFETIME, ND6_INFINITE_LIFETIME } };
+  { .ifra_flags = 0, 
+    .ifra_lifetime = { 0, 0, ND6_INFINITE_LIFETIME, ND6_INFINITE_LIFETIME } };
 static	int ip6lifetime;
 
 static	void in6_fillscopeid(struct sockaddr_in6 *sin6);
 static	int prefix(void *, int);
 static	char *sec2str(time_t);
 static	int explicit_prefix = 0;
+
+extern void setnd6flags(const char *, int, int, const struct afswtch *);
+extern void setnd6defif(const char *, int, int, const struct afswtch *);
 
 static	char addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
 
@@ -497,6 +496,18 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-deprecated", -IN6_IFF_DEPRECATED,	setip6flags),
 	DEF_CMD("autoconf",	IN6_IFF_AUTOCONF,	setip6flags),
 	DEF_CMD("-autoconf",	-IN6_IFF_AUTOCONF,	setip6flags),
+	DEF_CMD("accept_rtadv",	ND6_IFF_ACCEPT_RTADV,	setnd6flags),
+	DEF_CMD("-accept_rtadv",-ND6_IFF_ACCEPT_RTADV,	setnd6flags),
+	DEF_CMD("defaultif",	1,			setnd6defif),
+	DEF_CMD("-defaultif",	-1,			setnd6defif),
+	DEF_CMD("ifdisabled",	ND6_IFF_IFDISABLED,	setnd6flags),
+	DEF_CMD("-ifdisabled",	-ND6_IFF_IFDISABLED,	setnd6flags),
+	DEF_CMD("nud",		ND6_IFF_PERFORMNUD,	setnd6flags),
+	DEF_CMD("-nud",		-ND6_IFF_PERFORMNUD,	setnd6flags),
+	DEF_CMD("prefer_source",ND6_IFF_PREFER_SOURCE,	setnd6flags),
+	DEF_CMD("-prefer_source",-ND6_IFF_PREFER_SOURCE,setnd6flags),
+	DEF_CMD("auto_linklocal",ND6_IFF_AUTO_LINKLOCAL,setnd6flags),
+	DEF_CMD("-auto_linklocal",-ND6_IFF_AUTO_LINKLOCAL,setnd6flags),
 	DEF_CMD_ARG("pltime",        			setip6pltime),
 	DEF_CMD_ARG("vltime",        			setip6vltime),
 	DEF_CMD("eui64",	0,			setip6eui64),
@@ -522,13 +533,13 @@ in6_Lopt_cb(const char *optarg __unused)
 {
 	ip6lifetime++;	/* print IPv6 address lifetime */
 }
-static struct option in6_Lopt = { "L", "[-L]", in6_Lopt_cb };
+static struct option in6_Lopt = { .opt = "L", .opt_usage = "[-L]", .cb = in6_Lopt_cb };
 
 static __constructor void
 inet6_ctor(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
+	size_t i;
 
 	for (i = 0; i < N(inet6_cmds);  i++)
 		cmd_register(&inet6_cmds[i]);

@@ -64,8 +64,7 @@ struct  rthash nethash[ROUTEHASHSIZ];
  * Lookup dst in the tables for an exact match.
  */
 struct rt_entry *
-rtlookup(dst)
-	struct sockaddr *dst;
+rtlookup(struct sockaddr *dst)
 {
 	register struct rt_entry *rt;
 	register struct rthash *rh;
@@ -90,8 +89,7 @@ rtlookup(dst)
  * Find a route to dst as the kernel would.
  */
 struct rt_entry *
-rtfind(dst)
-	struct sockaddr *dst;
+rtfind(struct sockaddr *dst)
 {
 	register struct rt_entry *rt;
 	register struct rthash *rh;
@@ -118,10 +116,8 @@ rtfind(dst)
 }
 
 void
-rtadd(dst, gate, metric, ticks, state)
-	struct sockaddr *dst, *gate;
-	short metric, ticks;
-	int state;
+rtadd(struct sockaddr *dst, struct sockaddr *gate, short metric,
+    short ticks, int state)
 {
 	struct afhash h;
 	register struct rt_entry *rt;
@@ -171,11 +167,8 @@ rtadd(dst, gate, metric, ticks, state)
 }
 
 void
-rtadd_clone(ort, dst, gate, metric, ticks, state)
-	struct rt_entry *ort;
-	struct sockaddr *dst, *gate;
-	short metric, ticks;
-	int state;
+rtadd_clone(struct rt_entry *ort, struct sockaddr *dst,
+    struct sockaddr *gate, short metric, short ticks, int state)
 {
 	struct afhash h;
 	register struct rt_entry *rt;
@@ -216,10 +209,8 @@ rtadd_clone(ort, dst, gate, metric, ticks, state)
 }
 
 void
-rtchange(rt, gate, metric, ticks)
-	struct rt_entry *rt;
-	struct sockaddr *gate;
-	short metric, ticks;
+rtchange(struct rt_entry *rt, struct sockaddr *gate, short metric,
+    short ticks)
 {
 	int doioctl = 0, metricchanged = 0;
 	struct rtuentry oldroute;
@@ -337,8 +328,7 @@ rtchange(rt, gate, metric, ticks)
 }
 
 void
-rtdelete(rt)
-	struct rt_entry *rt;
+rtdelete(struct rt_entry *rt)
 {
 
 	struct sockaddr *sa = &(rt->rt_router);
@@ -380,9 +370,7 @@ rtinit(void)
 int seqno;
 
 int
-rtioctl(action, ort)
-	int action;
-	struct rtuentry *ort;
+rtioctl(int action, struct rtuentry *ort)
 {
 #ifndef RTM_ADD
 	if (install == 0)

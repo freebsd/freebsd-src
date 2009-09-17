@@ -63,6 +63,10 @@ BIN1+=	${.CURDIR}/../usr.bin/mail/misc/mail.rc
 BIN1+=	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config
 .endif
 
+.if ${MK_NTP} != "no"
+BIN1+=	ntp.conf
+.endif
+
 .if ${MK_OPENSSH} != "no"
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config \
@@ -95,8 +99,7 @@ BIN1+= regdomain.xml
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
-MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
-	BSD.var.dist BSD.x11.dist BSD.x11-4.dist
+MTREE=	BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
 .if ${MK_SENDMAIL} != "no"
 MTREE+=	BSD.sendmail.dist
 .endif

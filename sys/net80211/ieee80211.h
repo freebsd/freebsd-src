@@ -36,6 +36,8 @@
 /* is 802.11 address multicast/broadcast? */
 #define	IEEE80211_IS_MULTICAST(_a)	(*(_a) & 0x01)
 
+typedef uint16_t ieee80211_seq;
+
 /* IEEE 802.11 PLCP header */
 struct ieee80211_plcp_hdr {
 	uint16_t	i_sfd;
@@ -131,6 +133,7 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_FC0_SUBTYPE_ACTION		0xd0
 /* for TYPE_CTL */
 #define	IEEE80211_FC0_SUBTYPE_BAR		0x80
+#define	IEEE80211_FC0_SUBTYPE_BA		0x90
 #define	IEEE80211_FC0_SUBTYPE_PS_POLL		0xa0
 #define	IEEE80211_FC0_SUBTYPE_RTS		0xb0
 #define	IEEE80211_FC0_SUBTYPE_CTS		0xc0
@@ -154,6 +157,9 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_FC1_DIR_TODS			0x01	/* STA->AP  */
 #define	IEEE80211_FC1_DIR_FROMDS		0x02	/* AP ->STA */
 #define	IEEE80211_FC1_DIR_DSTODS		0x03	/* AP ->AP  */
+
+#define	IEEE80211_IS_DSTODS(wh) \
+	(((wh)->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 
 #define	IEEE80211_FC1_MORE_FRAG			0x04
 #define	IEEE80211_FC1_RETRY			0x08
@@ -179,6 +185,7 @@ struct ieee80211_qosframe_addr4 {
 	(IEEE80211_SEQ_SUB(b, a+1) < IEEE80211_SEQ_BA_RANGE-1)
 
 #define	IEEE80211_NWID_LEN			32
+#define	IEEE80211_MESHID_LEN			32
 
 #define	IEEE80211_QOS_TXOP			0x00ff
 /* bit 8 is reserved */
@@ -312,9 +319,12 @@ struct ieee80211_action {
 	uint8_t		ia_action;
 } __packed;
 
-#define	IEEE80211_ACTION_CAT_QOS	0	/* QoS */
+#define	IEEE80211_ACTION_CAT_SM		0	/* Spectrum Management */
+#define	IEEE80211_ACTION_CAT_QOS	1	/* QoS */
+#define	IEEE80211_ACTION_CAT_DLS	2	/* DLS */
 #define	IEEE80211_ACTION_CAT_BA		3	/* BA */
 #define	IEEE80211_ACTION_CAT_HT		7	/* HT */
+#define	IEEE80211_ACTION_CAT_VENDOR	127	/* Vendor Specific */
 
 #define	IEEE80211_ACTION_HT_TXCHWIDTH	0	/* recommended xmit chan width*/
 #define	IEEE80211_ACTION_HT_MIMOPWRSAVE	1	/* MIMO power save */
@@ -683,7 +693,7 @@ enum {
 	IEEE80211_ELEMID_TPCREQ		= 34,
 	IEEE80211_ELEMID_TPCREP		= 35,
 	IEEE80211_ELEMID_SUPPCHAN	= 36,
-	IEEE80211_ELEMID_CHANSWITCHANN	= 37,
+	IEEE80211_ELEMID_CSA		= 37,
 	IEEE80211_ELEMID_MEASREQ	= 38,
 	IEEE80211_ELEMID_MEASREP	= 39,
 	IEEE80211_ELEMID_QUIET		= 40,
@@ -696,6 +706,30 @@ enum {
 	IEEE80211_ELEMID_TPC		= 150,
 	IEEE80211_ELEMID_CCKM		= 156,
 	IEEE80211_ELEMID_VENDOR		= 221,	/* vendor private */
+
+	/*
+	 * 802.11s IEs based on D3.0 spec and were not assigned by
+	 * ANA. Beware changing them because some of them are being
+	 * kept compatible with Linux.
+	 */
+	IEEE80211_ELEMID_MESHCONF	= 51,
+	IEEE80211_ELEMID_MESHID		= 52,
+	IEEE80211_ELEMID_MESHLINK	= 35,
+	IEEE80211_ELEMID_MESHCNGST	= 36,
+	IEEE80211_ELEMID_MESHPEER	= 55,
+	IEEE80211_ELEMID_MESHCSA	= 38,
+	IEEE80211_ELEMID_MESHTIM	= 39,
+	IEEE80211_ELEMID_MESHAWAKEW	= 40,
+	IEEE80211_ELEMID_MESHBEACONT	= 41,
+	IEEE80211_ELEMID_MESHPANN	= 48,
+	IEEE80211_ELEMID_MESHRANN	= 49,
+	IEEE80211_ELEMID_MESHPREQ	= 68,
+	IEEE80211_ELEMID_MESHPREP	= 69,
+	IEEE80211_ELEMID_MESHPERR	= 70,
+	IEEE80211_ELEMID_MESHPU		= 53,
+	IEEE80211_ELEMID_MESHPUC	= 54,
+	IEEE80211_ELEMID_MESHAH		= 60, /* Abbreviated Handshake */
+	IEEE80211_ELEMID_MESHPEERVER	= 80, /* Peering Protocol Version */
 };
 
 struct ieee80211_tim_ie {
@@ -734,26 +768,12 @@ struct ieee80211_csa_ie {
 } __packed;
 
 /*
- * Atheros advanced capability information element.
+ * Note the min acceptable CSA count is used to guard against
+ * malicious CSA injection in station mode.  Defining this value
+ * as other than 0 violates the 11h spec.
  */
-struct ieee80211_ath_ie {
-	uint8_t		ath_id;			/* IEEE80211_ELEMID_VENDOR */
-	uint8_t		ath_len;		/* length in bytes */
-	uint8_t		ath_oui[3];		/* 0x00, 0x03, 0x7f */
-	uint8_t		ath_oui_type;		/* OUI type */
-	uint8_t		ath_oui_subtype;	/* OUI subtype */
-	uint8_t		ath_version;		/* spec revision */
-	uint8_t		ath_capability;		/* capability info */
-#define	ATHEROS_CAP_TURBO_PRIME		0x01	/* dynamic turbo--aka Turbo' */
-#define	ATHEROS_CAP_COMPRESSION		0x02	/* data compression */
-#define	ATHEROS_CAP_FAST_FRAME		0x04	/* fast (jumbo) frames */
-#define	ATHEROS_CAP_XR			0x08	/* Xtended Range support */
-#define	ATHEROS_CAP_AR			0x10	/* Advanded Radar support */
-#define	ATHEROS_CAP_BURST		0x20	/* Bursting - not negotiated */
-#define	ATHEROS_CAP_WME			0x40	/* CWMin tuning */
-#define	ATHEROS_CAP_BOOST		0x80	/* use turbo/!turbo mode */
-	uint8_t		ath_defkeyix[2];
-} __packed;
+#define	IEEE80211_CSA_COUNT_MIN	2
+#define	IEEE80211_CSA_COUNT_MAX	255
 
 /* rate set entries are in .5 Mb/s units, and potentially marked as basic */
 #define	IEEE80211_RATE_BASIC		0x80
@@ -768,9 +788,11 @@ struct ieee80211_ath_ie {
 	"\20\1NON_ERP_PRESENT\2USE_PROTECTION\3LONG_PREAMBLE"
 
 #define	ATH_OUI			0x7f0300	/* Atheros OUI */
-#define	ATH_OUI_TYPE		0x01
-#define	ATH_OUI_SUBTYPE		0x01
-#define	ATH_OUI_VERSION		0x00
+#define	ATH_OUI_TYPE		0x01		/* Atheros protocol ie */
+
+/* NB: Atheros allocated the OUI for this purpose ~2005 but beware ... */
+#define	TDMA_OUI		ATH_OUI
+#define	TDMA_OUI_TYPE		0x02		/* TDMA protocol ie */
 
 #define	BCM_OUI			0x4c9000	/* Broadcom OUI */
 #define	BCM_OUI_HTCAP		51		/* pre-draft HTCAP ie */
@@ -893,6 +915,17 @@ enum {
 	IEEE80211_REASON_SETUP_NEEDED		= 38,	/* 11e */
 	IEEE80211_REASON_TIMEOUT		= 39,	/* 11e */
 
+	/* values not yet allocated by ANA */
+	IEEE80211_REASON_PEER_LINK_CANCELED	= 2,	/* 11s */
+	IEEE80211_REASON_MESH_MAX_PEERS		= 3,	/* 11s */
+	IEEE80211_REASON_MESH_CPVIOLATION	= 4,	/* 11s */
+	IEEE80211_REASON_MESH_CLOSE_RCVD	= 5,	/* 11s */
+	IEEE80211_REASON_MESH_MAX_RETRIES	= 6,	/* 11s */
+	IEEE80211_REASON_MESH_CONFIRM_TIMEOUT	= 7,	/* 11s */
+	IEEE80211_REASON_MESH_INVALID_GTK	= 8,	/* 11s */
+	IEEE80211_REASON_MESH_INCONS_PARAMS	= 9,	/* 11s */
+	IEEE80211_REASON_MESH_INVALID_SECURITY	= 10,	/* 11s */
+
 	IEEE80211_STATUS_SUCCESS		= 0,
 	IEEE80211_STATUS_UNSPECIFIED		= 1,
 	IEEE80211_STATUS_CAPINFO		= 10,
@@ -912,6 +945,7 @@ enum {
 	IEEE80211_STATUS_SUPCHAN_REQUIRED	= 24,	/* 11h */
 	IEEE80211_STATUS_SHORTSLOT_REQUIRED	= 25,	/* 11g */
 	IEEE80211_STATUS_DSSSOFDM_REQUIRED	= 26,	/* 11g */
+	IEEE80211_STATUS_MISSING_HT_CAPS	= 27,	/* 11n D3.0 */
 	IEEE80211_STATUS_INVALID_IE		= 40,	/* 11i */
 	IEEE80211_STATUS_GROUP_CIPHER_INVALID	= 41,	/* 11i */
 	IEEE80211_STATUS_PAIRWISE_CIPHER_INVALID = 42,	/* 11i */
@@ -1047,56 +1081,5 @@ struct ieee80211_duration {
 				 IEEE80211_DUR_DS_LONG_PREAMBLE + \
 				 IEEE80211_DUR_DS_SLOW_PLCPHDR + \
 				 IEEE80211_DUR_DIFS)
-
-/*
- * Atheros fast-frame encapsulation format.
- * FF max payload:
- * 802.2 + FFHDR + HPAD + 802.3 + 802.2 + 1500 + SPAD + 802.3 + 802.2 + 1500:
- *   8   +   4   +  4   +   14  +   8   + 1500 +  6   +   14  +   8   + 1500
- * = 3066
- */
-/* fast frame header is 32-bits */
-#define	ATH_FF_PROTO	0x0000003f	/* protocol */
-#define	ATH_FF_PROTO_S	0
-#define	ATH_FF_FTYPE	0x000000c0	/* frame type */
-#define	ATH_FF_FTYPE_S	6
-#define	ATH_FF_HLEN32	0x00000300	/* optional hdr length */
-#define	ATH_FF_HLEN32_S	8
-#define	ATH_FF_SEQNUM	0x001ffc00	/* sequence number */
-#define	ATH_FF_SEQNUM_S	10
-#define	ATH_FF_OFFSET	0xffe00000	/* offset to 2nd payload */
-#define	ATH_FF_OFFSET_S	21
-
-#define	ATH_FF_MAX_HDR_PAD	4
-#define	ATH_FF_MAX_SEP_PAD	6
-#define	ATH_FF_MAX_HDR		30
-
-#define	ATH_FF_PROTO_L2TUNNEL	0	/* L2 tunnel protocol */
-#define	ATH_FF_ETH_TYPE		0x88bd	/* Ether type for encapsulated frames */
-#define	ATH_FF_SNAP_ORGCODE_0	0x00
-#define	ATH_FF_SNAP_ORGCODE_1	0x03
-#define	ATH_FF_SNAP_ORGCODE_2	0x7f
-
-struct ieee80211_tdma_param {
-	u_int8_t	tdma_id;	/* IEEE80211_ELEMID_VENDOR */
-	u_int8_t	tdma_len;
-	u_int8_t	tdma_oui[3];	/* 0x00, 0x03, 0x7f */
-	u_int8_t	tdma_type;	/* OUI type */
-	u_int8_t	tdma_subtype;	/* OUI subtype */
-	u_int8_t	tdma_version;	/* spec revision */
-	u_int8_t	tdma_slot;	/* station slot # */
-	u_int8_t	tdma_slotcnt;	/* bss slot count */
-	u_int16_t	tdma_slotlen;	/* bss slot len (100us) */
-	u_int8_t	tdma_bintval;	/* beacon interval (superframes) */
-	u_int8_t	tdma_inuse[1];	/* slot occupancy map */
-	u_int8_t	tdma_pad[2];
-	u_int8_t	tdma_tstamp[8];	/* timestamp from last beacon */
-} __packed;
-
-/* NB: Atheros allocated the OUI for this purpose ~3 years ago but beware ... */
-#define	TDMA_OUI		ATH_OUI
-#define	TDMA_OUI_TYPE		0x02
-#define	TDMA_SUBTYPE_PARAM	0x01
-#define	TDMA_VERSION		2
 
 #endif /* _NET80211_IEEE80211_H_ */

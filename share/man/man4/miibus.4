@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2008
+.Dd June 14, 2009
 .Dt MIIBUS 4
 .Os
 .Sh NAME
@@ -47,6 +47,8 @@ interface:
 .Bl -tag -compact -width ".Xr fxp 4"
 .It Xr age 4
 Attansic/Atheros L1 Gigabit Ethernet
+.It Xr alc 4
+Atheros AR8131/AR8132 PCIe Ethernet
 .It Xr ale 4
 Atheros AR8121/AR8113/AR8114 PCIe Ethernet
 .It Xr aue 4
@@ -59,6 +61,8 @@ Broadcom NetXtreme II Gigabit Ethernet
 Broadcom BCM4401 Ethernet
 .It Xr bge 4
 Broadcom BCM570xx Gigabit Ethernet
+.It Xr cas 4
+Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
 .It Xr dc 4
 DEC/Intel 21143 and various workalikes
 .It Xr ed 4
@@ -127,6 +131,7 @@ and
 but as a result are not well behaved newbus device drivers.
 .Sh SEE ALSO
 .Xr age 4 ,
+.Xr alc 4 ,
 .Xr ale 4 ,
 .Xr arp 4 ,
 .Xr aue 4 ,
@@ -134,6 +139,7 @@ but as a result are not well behaved newbus device drivers.
 .Xr bce 4 ,
 .Xr bfe 4 ,
 .Xr bge 4 ,
+.Xr cas 4 ,
 .Xr dc 4 ,
 .Xr ed 4 ,
 .Xr et 4 ,

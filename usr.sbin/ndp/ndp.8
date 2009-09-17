@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 1998
+.Dd September 2, 2009
 .Dt NDP 8
 .Os
 .\"
@@ -182,11 +182,16 @@ NUD is usually turned on by default.
 Specify whether or not to accept Router Advertisement messages
 received on the
 .Ar interface .
-Note that the kernel does not accept Router Advertisement messages
-unless the
-.Li net.inet6.ip6.accept_rtadv
-variable is non-0, even if the flag is on.
-This flag is set to 1 by default.
+This flag is set by
+.Va net.inet6.ip6.accept_rtadv
+sysctl variable.
+.It Ic auto_linklocal
+Specify whether or not to perform automatic link-local address configuration
+on
+.Ar interface .
+This flag is set by
+.Va net.inet6.ip6.auto_linklocal
+sysctl variable.
 .It Ic prefer_source
 Prefer addresses on the
 .Ar interface
@@ -204,9 +209,8 @@ In the sending case, an error of ENETDOWN will be returned to the
 application.
 This flag is typically set automatically in the kernel as a result of
 a certain failure of Duplicate Address Detection.
-While the flag can be set or cleared by hand with the
-.Nm
-command, it is not generally advisable to modify this flag manually.
+If the auto_linklocal per-interface flag is set, automatic link-local
+address configuration is performed again when this flag is cleared.
 .It Ic basereachable Ns Li = Ns Pq Ar number
 Specify the BaseReachbleTimer on the interface in millisecond.
 .It Ic retrans Ns Li = Ns Pq Ar number
@@ -253,6 +257,10 @@ Most useful when used with
 The
 .Nm
 utility first appeared in the WIDE Hydrangea IPv6 protocol stack kit.
+The
+.Fl I Ar auto_linklocal
+flag first appeared in
+.Fx 8.0 .
 .\"
 .\" .Sh BUGS
 .\" (to be written)

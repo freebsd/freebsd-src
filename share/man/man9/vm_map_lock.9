@@ -73,7 +73,6 @@ The
 .Fn vm_map_lock_read
 macro obtains a read-lock on
 .Fa map .
-Currently this is implemented as an exclusive lock.
 .Pp
 The
 .Fn vm_map_unlock_read
@@ -93,23 +92,18 @@ macro attempts to obtain a read-lock on
 .Fa map .
 It returns FALSE if the lock cannot be immediately acquired;
 otherwise return TRUE with the lock acquired.
-Currently this is implemented as an exclusive lock.
 .Pp
 The
 .Fn vm_map_lock_upgrade
 macro attempts to atomically upgrade a read-lock on
 .Fa map
 to an exclusive lock.
-As read-locks are currently implemented as exclusive locks,
-this macro is a no-op.
 .Pp
 The
 .Fn vm_map_lock_downgrade
 macro attempts to downgrade an exclusive lock on
 .Fa map
 to a read-lock.
-As read-locks are currently implemented as exclusive locks,
-this macro is a no-op.
 .Sh IMPLEMENTATION NOTES
 Currently, all of the locking macros implement their locks as sleep locks.
 .Sh SEE ALSO

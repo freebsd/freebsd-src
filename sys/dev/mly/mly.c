@@ -310,7 +310,7 @@ mly_attach(device_t dev)
     /*
      * Create the control device.
      */
-    sc->mly_dev_t = make_dev(&mly_cdevsw, device_get_unit(sc->mly_dev), UID_ROOT, GID_OPERATOR,
+    sc->mly_dev_t = make_dev(&mly_cdevsw, 0, UID_ROOT, GID_OPERATOR,
 			     S_IRUSR | S_IWUSR, "mly%d", device_get_unit(sc->mly_dev));
     sc->mly_dev_t->si_drv1 = sc;
 
@@ -2834,8 +2834,7 @@ mly_print_controller(int controller)
 static int
 mly_user_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-    int			unit = dev2unit(dev);
-    struct mly_softc	*sc = devclass_get_softc(devclass_find("mly"), unit);
+    struct mly_softc	*sc = dev->si_drv1;
 
     sc->mly_state |= MLY_STATE_OPEN;
     return(0);
@@ -2847,8 +2846,7 @@ mly_user_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 mly_user_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-    int			unit = dev2unit(dev);
-    struct mly_softc	*sc = devclass_get_softc(devclass_find("mly"), unit);
+    struct mly_softc	*sc = dev->si_drv1;
 
     sc->mly_state &= ~MLY_STATE_OPEN;
     return (0);

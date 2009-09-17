@@ -71,7 +71,7 @@ mtmsr(register_t value)
 static __inline register_t
 mfmsr(void)
 {
-	register_t	value;
+	register_t value;
 
 	__asm __volatile ("mfmsr %0" : "=r"(value));
 
@@ -88,7 +88,7 @@ mtsrin(vm_offset_t va, register_t value)
 static __inline register_t
 mfsrin(vm_offset_t va)
 {
-	register_t	value;
+	register_t value;
 
 	__asm __volatile ("mfsrin %0,%1" : "=r"(value) : "r"(va));
 
@@ -105,7 +105,7 @@ mtdec(register_t value)
 static __inline register_t
 mfdec(void)
 {
-	register_t	value;
+	register_t value;
 
 	__asm __volatile ("mfdec %0" : "=r"(value));
 
@@ -115,11 +115,35 @@ mfdec(void)
 static __inline register_t
 mfpvr(void)
 {
-	register_t	value;
+	register_t value;
 
 	__asm __volatile ("mfpvr %0" : "=r"(value));
 
 	return (value);
+}
+
+static __inline u_quad_t
+mftb(void)
+{
+	u_quad_t tb;
+	uint32_t *tbup = (uint32_t *)&tb;
+	uint32_t *tblp = tbup + 1;
+
+	do {
+		*tbup = mfspr(TBR_TBU);
+		*tblp = mfspr(TBR_TBL);
+	} while (*tbup != mfspr(TBR_TBU));
+
+	return (tb);
+}
+
+static __inline void
+mttb(u_quad_t time)
+{
+
+	mtspr(TBR_TBWL, 0);
+	mtspr(TBR_TBWU, (uint32_t)(time >> 32));
+	mtspr(TBR_TBWL, (uint32_t)(time & 0xffffffff));
 }
 
 static __inline void
@@ -146,7 +170,7 @@ powerpc_sync(void)
 static __inline register_t
 intr_disable(void)
 {
-	register_t	msr;
+	register_t msr;
 
 	msr = mfmsr();
 	mtmsr(msr & ~PSL_EE);
@@ -163,11 +187,11 @@ intr_restore(register_t msr)
 static __inline struct pcpu *
 powerpc_get_pcpup(void)
 {
-	struct pcpu	*ret;
+	struct pcpu *ret;
 
 	__asm __volatile("mfsprg %0, 0" : "=r"(ret));
 
-	return(ret);
+	return (ret);
 }
 
 #endif /* _KERNEL */

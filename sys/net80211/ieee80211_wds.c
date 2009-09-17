@@ -57,13 +57,15 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_wds.h>
 #include <net80211/ieee80211_input.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 
 static void wds_vattach(struct ieee80211vap *);
 static int wds_newstate(struct ieee80211vap *, enum ieee80211_state, int);
-static	int wds_input(struct ieee80211_node *ni, struct mbuf *m,
-	    int rssi, int noise, uint32_t rstamp);
+static	int wds_input(struct ieee80211_node *ni, struct mbuf *m, int, int);
 static void wds_recv_mgmt(struct ieee80211_node *, struct mbuf *,
-	    int subtype, int rssi, int noise, u_int32_t rstamp);
+	    int subtype, int, int);
 
 void
 ieee80211_wds_attach(struct ieee80211com *ic)
@@ -93,6 +95,28 @@ wds_vattach(struct ieee80211vap *vap)
 	vap->iv_input = wds_input;
 	vap->iv_recv_mgmt = wds_recv_mgmt;
 	vap->iv_opdetach = wds_vdetach;
+}
+
+static void
+wds_flush(struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct mbuf *m, *next;
+	int8_t rssi, nf;
+
+	m = ieee80211_ageq_remove(&ic->ic_stageq,
+	    (void *)(uintptr_t) ieee80211_mac_hash(ic, ni->ni_macaddr));
+	if (m == NULL)
+		return;
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_WDS, ni,
+	    "%s", "flush wds queue");
+	ic->ic_node_getsignal(ni, &rssi, &nf);
+	for (; m != NULL; m = next) {
+		next = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		ieee80211_input(ni, m, rssi, nf);
+	}
 }
 
 static int
@@ -193,27 +217,10 @@ ieee80211_create_wds(struct ieee80211vap *vap, struct ieee80211_channel *chan)
 	}
 
 	/*
-	 * Flush pending frames now that were setup.
+	 * Flush any pending frames now that were setup.
 	 */
-	if (ni != NULL && IEEE80211_NODE_WDSQ_QLEN(ni) != 0) {
-		int8_t rssi, noise;
-
-		IEEE80211_NOTE(vap, IEEE80211_MSG_WDS, ni,
-		    "flush wds queue, %u packets queued",
-		    IEEE80211_NODE_WDSQ_QLEN(ni));
-		ic->ic_node_getsignal(ni, &rssi, &noise);
-		for (;;) {
-			struct mbuf *m;
-
-			IEEE80211_NODE_WDSQ_LOCK(ni);
-			_IEEE80211_NODE_WDSQ_DEQUEUE_HEAD(ni, m);
-			IEEE80211_NODE_WDSQ_UNLOCK(ni);
-			if (m == NULL)
-				break;
-			/* XXX cheat and re-use last rstamp */
-			ieee80211_input(ni, m, rssi, noise, ni->ni_rstamp);
-		}
-	}
+	if (ni != NULL)
+		wds_flush(ni);
 	return (ni == NULL ? ENOENT : 0);
 }
 
@@ -247,9 +254,7 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 		if (ifp == m->m_pkthdr.rcvif)
 			continue;
 		/*
-		 * Duplicate the frame and send it.  We don't need
-		 * to classify or lookup the tx node; this was already
-		 * done by the caller so we can just re-use the info.
+		 * Duplicate the frame and send it.
 		 */
 		mcopy = m_copypacket(m, M_DONTWAIT);
 		if (mcopy == NULL) {
@@ -264,6 +269,7 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 			m_freem(mcopy);
 			continue;
 		}
+		/* calculate priority so drivers can find the tx queue */
 		if (ieee80211_classify(ni, mcopy)) {
 			IEEE80211_DISCARD_MAC(vap,
 			    IEEE80211_MSG_OUTPUT | IEEE80211_MSG_WDS,
@@ -275,7 +281,19 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 			ieee80211_free_node(ni);
 			continue;
 		}
-		mcopy->m_flags |= M_MCAST | M_WDS;
+
+		BPF_MTAP(ifp, m);		/* 802.3 tx */
+
+		/*
+		 * Encapsulate the packet in prep for transmission.
+		 */
+		mcopy = ieee80211_encap(vap, ni, mcopy);
+		if (mcopy == NULL) {
+			/* NB: stat+msg handled in ieee80211_encap */
+			ieee80211_free_node(ni);
+			continue;
+		}
+		mcopy->m_flags |= M_MCAST;
 		mcopy->m_pkthdr.rcvif = (void *) ni;
 
 		err = parent->if_transmit(parent, mcopy);
@@ -298,88 +316,21 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 void
 ieee80211_dwds_discover(struct ieee80211_node *ni, struct mbuf *m)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	int qlen, age;
 
-	IEEE80211_NODE_WDSQ_LOCK(ni);
-	if (!_IF_QFULL(&ni->ni_wdsq)) {
-		/*
-		 * Tag the frame with it's expiry time and insert
-		 * it in the queue.  The aging interval is 4 times
-		 * the listen interval specified by the station. 
-		 * Frames that sit around too long are reclaimed
-		 * using this information.
-		 */
-		/* XXX handle overflow? */
-		/* XXX per/vap beacon interval? */
-		/* NB: TU -> secs */
-		age = ((ni->ni_intval * ic->ic_lintval) << 2) / 1024;
-		_IEEE80211_NODE_WDSQ_ENQUEUE(ni, m, qlen, age);
-		IEEE80211_NODE_WDSQ_UNLOCK(ni);
-
-		IEEE80211_NOTE(vap, IEEE80211_MSG_WDS, ni,
-		    "save frame, %u now queued", qlen);
-	} else {
-		vap->iv_stats.is_dwds_qdrop++;
-		_IF_DROP(&ni->ni_wdsq);
-		IEEE80211_NODE_WDSQ_UNLOCK(ni);
-
-		IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT | IEEE80211_MSG_WDS,
-		    mtod(m, struct ieee80211_frame *), "wds data",
-		    "pending q overflow, drops %d (len %d)",
-		    ni->ni_wdsq.ifq_drops, ni->ni_wdsq.ifq_len);
-
-#ifdef IEEE80211_DEBUG
-		if (ieee80211_msg_dumppkts(vap))
-			ieee80211_dump_pkt(ic, mtod(m, caddr_t),
-			    m->m_len, -1, -1);
-#endif
-		/* XXX tail drop? */
-		m_freem(m);
-	}
+	/*
+	 * Save the frame with an aging interval 4 times
+	 * the listen interval specified by the station. 
+	 * Frames that sit around too long are reclaimed
+	 * using this information.
+	 * XXX handle overflow?
+	 * XXX per/vap beacon interval?
+	 */
+	m->m_pkthdr.rcvif = (void *)(uintptr_t)
+	    ieee80211_mac_hash(ic, ni->ni_macaddr);
+	(void) ieee80211_ageq_append(&ic->ic_stageq, m,
+	    ((ni->ni_intval * ic->ic_lintval) << 2) / 1024);
 	ieee80211_notify_wds_discover(ni);
-}
-
-/*
- * Age frames on the WDS pending queue. The aging interval is
- * 4 times the listen interval specified by the station.  This
- * number is factored into the age calculations when the frame
- * is placed on the queue.  We store ages as time differences
- * so we can check and/or adjust only the head of the list.
- * If a frame's age exceeds the threshold then discard it.
- * The number of frames discarded is returned to the caller.
- */
-int
-ieee80211_node_wdsq_age(struct ieee80211_node *ni)
-{
-#ifdef IEEE80211_DEBUG
-	struct ieee80211vap *vap = ni->ni_vap;
-#endif
-	struct mbuf *m;
-	int discard = 0;
-
-	IEEE80211_NODE_WDSQ_LOCK(ni);
-	while (_IF_POLL(&ni->ni_wdsq, m) != NULL &&
-	     M_AGE_GET(m) < IEEE80211_INACT_WAIT) {
-		IEEE80211_NOTE(vap, IEEE80211_MSG_WDS, ni,
-			"discard frame, age %u", M_AGE_GET(m));
-
-		/* XXX could be optimized */
-		_IEEE80211_NODE_WDSQ_DEQUEUE_HEAD(ni, m);
-		m_freem(m);
-		discard++;
-	}
-	if (m != NULL)
-		M_AGE_SUB(m, IEEE80211_INACT_WAIT);
-	IEEE80211_NODE_WDSQ_UNLOCK(ni);
-
-	IEEE80211_NOTE(vap, IEEE80211_MSG_WDS, ni,
-	    "discard %u frames for age", discard);
-#if 0
-	IEEE80211_NODE_STAT_ADD(ni, wds_discard, discard);
-#endif
-	return discard;
 }
 
 /*
@@ -453,8 +404,7 @@ wds_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
  * by the 802.11 layer.
  */
 static int
-wds_input(struct ieee80211_node *ni, struct mbuf *m,
-	int rssi, int noise, uint32_t rstamp)
+wds_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 {
 #define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
@@ -508,7 +458,8 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
 	    IEEE80211_FC0_VERSION_0) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-		    ni->ni_macaddr, NULL, "wrong version %x", wh->i_fc[0]);
+		    ni->ni_macaddr, NULL, "wrong version, fc %02x:%02x",
+		    wh->i_fc[0], wh->i_fc[1]);
 		vap->iv_stats.is_rx_badversion++;
 		goto err;
 	}
@@ -535,8 +486,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		goto out;
 	}
 	IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
-	ni->ni_noise = noise;
-	ni->ni_rstamp = rstamp;
+	ni->ni_noise = nf;
 	if (HAS_SEQ(type)) {
 		uint8_t tid = ieee80211_gettid(wh);
 		if (IEEE80211_QOS_HAS_SEQ(wh) &&
@@ -668,8 +618,8 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		}
 
 		/* copy to listener after decrypt */
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
+		if (ieee80211_radiotap_active_vap(vap))
+			ieee80211_radiotap_rx(vap, m);
 		need_tap = 0;
 
 		/*
@@ -728,32 +678,13 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 			m = ieee80211_decap_amsdu(ni, m);
 			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-		} else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) &&
-#define	FF_LLC_SIZE	(sizeof(struct ether_header) + sizeof(struct llc))
-		    m->m_pkthdr.len >= 3*FF_LLC_SIZE) {
-			struct llc *llc;
-
-			/*
-			 * Check for fast-frame tunnel encapsulation.
-			 */
-			if (m->m_len < FF_LLC_SIZE &&
-			    (m = m_pullup(m, FF_LLC_SIZE)) == NULL) {
-				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
-				    ni->ni_macaddr, "fast-frame",
-				    "%s", "m_pullup(llc) failed");
-				vap->iv_stats.is_rx_tooshort++;
+		} else {
+#ifdef IEEE80211_SUPPORT_SUPERG
+			m = ieee80211_decap_fastframe(vap, ni, m);
+			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-			}
-			llc = (struct llc *)(mtod(m, uint8_t *) + 
-				sizeof(struct ether_header));
-			if (llc->llc_snap.ether_type == htons(ATH_FF_ETH_TYPE)) {
-				m_adj(m, FF_LLC_SIZE);
-				m = ieee80211_decap_fastframe(ni, m);
-				if (m == NULL)
-					return IEEE80211_FC0_TYPE_DATA;
-			}
+#endif
 		}
-#undef FF_LLC_SIZE
 		ieee80211_deliver_data(vap, ni, m);
 		return IEEE80211_FC0_TYPE_DATA;
 
@@ -787,16 +718,14 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 			vap->iv_stats.is_rx_mgtdiscard++; /* XXX */
 			goto out;
 		}
-		if (bpf_peers_present(vap->iv_rawbpf))
-			bpf_mtap(vap->iv_rawbpf, m);
-		vap->iv_recv_mgmt(ni, m, subtype, rssi, noise, rstamp);
-		m_freem(m);
-		return IEEE80211_FC0_TYPE_MGT;
+		vap->iv_recv_mgmt(ni, m, subtype, rssi, nf);
+		goto out;
 
 	case IEEE80211_FC0_TYPE_CTL:
 		vap->iv_stats.is_rx_ctl++;
 		IEEE80211_NODE_STAT(ni, rx_ctrl);
 		goto out;
+
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
 		    wh, "bad", "frame type 0x%x", type);
@@ -807,8 +736,8 @@ err:
 	ifp->if_ierrors++;
 out:
 	if (m != NULL) {
-		if (bpf_peers_present(vap->iv_rawbpf) && need_tap)
-			bpf_mtap(vap->iv_rawbpf, m);
+		if (need_tap && ieee80211_radiotap_active_vap(vap))
+			ieee80211_radiotap_rx(vap, m);
 		m_freem(m);
 	}
 	return type;
@@ -817,7 +746,7 @@ out:
 
 static void
 wds_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
-	int subtype, int rssi, int noise, u_int32_t rstamp)
+	int subtype, int rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -848,7 +777,7 @@ wds_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		}
 		ni->ni_inact = ni->ni_inact_reload;
 		if (ieee80211_parse_action(ni, m0) == 0)
-			ic->ic_recv_action(ni, frm, efrm);
+			ic->ic_recv_action(ni, wh, frm, efrm);
 		break;
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,

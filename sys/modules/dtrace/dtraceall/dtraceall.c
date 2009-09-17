@@ -65,9 +65,11 @@ MODULE_DEPEND(dtraceall, cyclic, 1, 1, 1);
 MODULE_DEPEND(dtraceall, opensolaris, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtrace, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtmalloc, 1, 1, 1);
+MODULE_DEPEND(dtraceall, dtnfsclient, 1, 1, 1);
 #if defined(__amd64__) || defined(__i386__)
 MODULE_DEPEND(dtraceall, fbt, 1, 1, 1);
 #endif
+MODULE_DEPEND(dtraceall, lockstat, 1, 1, 1);
 MODULE_DEPEND(dtraceall, sdt, 1, 1, 1);
 MODULE_DEPEND(dtraceall, systrace, 1, 1, 1);
 MODULE_DEPEND(dtraceall, profile, 1, 1, 1);

@@ -97,6 +97,15 @@ mbufs, that this user may hold at any time.
 The maximum size (in bytes) of the stack segment for a process;
 this defines how far a program's stack segment may be extended.
 Stack extension is performed automatically by the system.
+.It Dv RLIMIT_SWAP
+The maximum size (in bytes) of the swap space that may be reserved or
+used by all of this user id's processes.
+This limit is enforced only if bit 1 of the
+.Va vm.overcommit
+sysctl is set.
+Please see
+.Xr tuning 7
+for a complete description of this sysctl.
 .It Dv RLIMIT_NPTS
 The maximum number of pseudo-terminals created by this user id.
 .El

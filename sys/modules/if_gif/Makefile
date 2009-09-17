@@ -5,8 +5,7 @@
 .PATH: ${.CURDIR}/../../net ${.CURDIR}/../../netinet ${.CURDIR}/../../netinet6
 
 KMOD=	if_gif
-SRCS=	if_gif.c in_gif.c opt_inet.h opt_inet6.h opt_mac.h \
-	opt_mrouting.h
+SRCS=	if_gif.c in_gif.c opt_inet.h opt_inet6.h opt_mrouting.h
 
 .if !defined(KERNBUILDDIR)
 opt_inet.h:

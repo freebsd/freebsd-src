@@ -124,6 +124,7 @@ Lst create = Lst_Initializer(create);
 Boolean		allPrecious;	/* .PRECIOUS given on line by itself */
 Boolean		is_posix;	/* .POSIX target seen */
 Boolean		mfAutoDeps;	/* .MAKEFILEDEPS target seen */
+Boolean		remakingMakefiles; /* True if remaking makefiles is in progress */
 Boolean		beSilent;	/* -s flag */
 Boolean		beVerbose;	/* -v flag */
 Boolean		beQuiet;	/* -Q flag */
@@ -732,41 +733,6 @@ Remake_Makefiles(void)
 		Suff_FindDeps(gn);
 
 		/*
-		 * ! dependencies as well as
-		 * dependencies with .FORCE, .EXEC and .PHONY attributes
-		 * are skipped to prevent infinite loops
-		 */
-		if (gn->type & (OP_FORCE | OP_EXEC | OP_PHONY)) {
-			DEBUGF(MAKE, ("skipping (force, exec or phony).\n",
-			    gn->name));
-			continue;
-		}
-
-		/*
-		 * Skip :: targets that have commands and no children
-		 * because such targets are always out-of-date
-		 */
-		if ((gn->type & OP_DOUBLEDEP) &&
-		    !Lst_IsEmpty(&gn->commands) &&
-		    Lst_IsEmpty(&gn->children)) {
-			DEBUGF(MAKE, ("skipping (doubledep, no sources "
-			    "and has commands).\n"));
-			continue;
-		}
-
-		/*
-		 * Skip targets without sources and without commands
-		 */
-		if (Lst_IsEmpty(&gn->commands) &&
-		    Lst_IsEmpty(&gn->children)) {
-			DEBUGF(MAKE,
-			    ("skipping (no sources and no commands).\n"));
-			continue;
-		}
-
-		DEBUGF(MAKE, ("\n"));
-
-		/*
 		 * -t, -q and -n has no effect unless the makefile is
 		 * specified as one of the targets explicitly in the
 		 * command line
@@ -787,7 +753,9 @@ Remake_Makefiles(void)
 		 * Check and remake the makefile
 		 */
 		mtime = Dir_MTime(gn);
+		remakingMakefiles = TRUE;
 		Compat_Make(gn, gn);
+		remakingMakefiles = FALSE;
 
 		/*
 		 * Restore -t, -q and -n behaviour

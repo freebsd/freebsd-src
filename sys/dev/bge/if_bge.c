@@ -332,7 +332,7 @@ static int bge_get_eaddr_eeprom(struct bge_softc *, uint8_t[]);
 static int bge_get_eaddr(struct bge_softc *, uint8_t[]);
 
 static void bge_txeof(struct bge_softc *);
-static void bge_rxeof(struct bge_softc *);
+static int bge_rxeof(struct bge_softc *);
 
 static void bge_asf_driver_up (struct bge_softc *);
 static void bge_tick(void *);
@@ -384,12 +384,13 @@ static uint32_t bge_readreg_ind(struct bge_softc *, int);
 #endif
 static void bge_writemem_direct(struct bge_softc *, int, int);
 static void bge_writereg_ind(struct bge_softc *, int, int);
+static void bge_set_max_readrq(struct bge_softc *, int);
 
 static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
 static void bge_miibus_statchg(device_t);
 #ifdef DEVICE_POLLING
-static void bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
+static int bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
 
 #define	BGE_RESET_START 1
@@ -521,6 +522,34 @@ bge_writemem_ind(struct bge_softc *sc, int off, int val)
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, off, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_DATA, val, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, 0, 4);
+}
+
+/*
+ * PCI Express only
+ */
+static void
+bge_set_max_readrq(struct bge_softc *sc, int expr_ptr)
+{
+	device_t dev;
+	uint16_t val;
+
+	KASSERT((sc->bge_flags & BGE_FLAG_PCIE) && expr_ptr != 0,
+	    ("%s: not applicable", __func__));
+
+	dev = sc->bge_dev;
+
+	val = pci_read_config(dev, expr_ptr + BGE_PCIE_DEVCTL, 2);
+	if ((val & BGE_PCIE_DEVCTL_MAX_READRQ_MASK) !=
+	    BGE_PCIE_DEVCTL_MAX_READRQ_4096) {
+		if (bootverbose)
+			device_printf(dev, "adjust device control 0x%04x ",
+			    val);
+		val &= ~BGE_PCIE_DEVCTL_MAX_READRQ_MASK;
+		val |= BGE_PCIE_DEVCTL_MAX_READRQ_4096;
+		pci_write_config(dev, expr_ptr + BGE_PCIE_DEVCTL, val, 2);
+		if (bootverbose)
+			printf("-> 0x%04x\n", val);
+	}
 }
 
 #ifdef notdef
@@ -1157,7 +1186,7 @@ bge_setmulti(struct bge_softc *sc)
 		CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), 0);
 
 	/* Now program new ones. */
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
@@ -1165,7 +1194,7 @@ bge_setmulti(struct bge_softc *sc)
 		    ifma->ifma_addr), ETHER_ADDR_LEN) & 0x7F;
 		hashes[(h & 0x60) >> 5] |= 1 << (h & 0x1F);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	for (i = 0; i < 4; i++)
 		CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), hashes[i]);
@@ -1266,8 +1295,7 @@ bge_stop_fw(sc)
 }
 
 /*
- * Do endian, PCI and DMA initialization. Also check the on-board ROM
- * self-test results.
+ * Do endian, PCI and DMA initialization.
  */
 static int
 bge_chipinit(struct bge_softc *sc)
@@ -1277,18 +1305,6 @@ bge_chipinit(struct bge_softc *sc)
 
 	/* Set endianness before we access any non-PCI registers. */
 	pci_write_config(sc->bge_dev, BGE_PCI_MISC_CTL, BGE_INIT, 4);
-
-	/*
-	 * Check the 'ROM failed' bit on the RX CPU to see if
-	 * self-tests passed. Skip this check when there's no
-	 * chip containing the Ethernet address fitted, since
-	 * in that case it will always fail.
-	 */
-	if ((sc->bge_flags & BGE_FLAG_EADDR) &&
-	    CSR_READ_4(sc, BGE_RXCPU_MODE) & BGE_RXCPUMODE_ROMFAIL) {
-		device_printf(sc->bge_dev, "RX CPU self-diagnostics failed!\n");
-		return (ENODEV);
-	}
 
 	/* Clear the MAC control register */
 	CSR_WRITE_4(sc, BGE_MAC_MODE, 0);
@@ -1387,9 +1403,11 @@ bge_chipinit(struct bge_softc *sc)
 
 	/*
 	 * Disable memory write invalidate.  Apparently it is not supported
-	 * properly by these devices.
+	 * properly by these devices.  Also ensure that INTx isn't disabled,
+	 * as these chips need it even when using MSI.
 	 */
-	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD, PCIM_CMD_MWIEN, 4);
+	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD,
+	    PCIM_CMD_INTxDIS | PCIM_CMD_MWIEN, 4);
 
 	/* Set the timer prescaler (always 66Mhz) */
 	CSR_WRITE_4(sc, BGE_MISC_CFG, BGE_32BITTIME_66MHZ);
@@ -1742,14 +1760,18 @@ bge_blockinit(struct bge_softc *sc)
 	/* Enable host coalescing bug fix. */
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5787)
-			val |= 1 << 29;
+		val |= 1 << 29;
 
 	/* Turn on write DMA state machine */
 	CSR_WRITE_4(sc, BGE_WDMA_MODE, val);
+	DELAY(40);
 
 	/* Turn on read DMA state machine */
-	CSR_WRITE_4(sc, BGE_RDMA_MODE,
-	    BGE_RDMAMODE_ENABLE | BGE_RDMAMODE_ALL_ATTNS);
+	val = BGE_RDMAMODE_ENABLE | BGE_RDMAMODE_ALL_ATTNS;
+	if (sc->bge_flags & BGE_FLAG_PCIE)
+		val |= BGE_RDMAMODE_FIFO_LONG_BURST;
+	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
+	DELAY(40);
 
 	/* Turn on RX data completion state machine */
 	CSR_WRITE_4(sc, BGE_RDC_MODE, BGE_RDCMODE_ENABLE);
@@ -2387,7 +2409,7 @@ bge_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Save ASIC rev. */
+	/* Save various chip information. */
 	sc->bge_chipid =
 	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
 	    BGE_PCIMISCCTL_ASICREV;
@@ -2419,14 +2441,14 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5780:
 	case BGE_ASICREV_BCM5714:
 		sc->bge_flags |= BGE_FLAG_5714_FAMILY /* | BGE_FLAG_JUMBO */;
-		/* FALLTHRU */
+		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5750:
 	case BGE_ASICREV_BCM5752:
 	case BGE_ASICREV_BCM5755:
 	case BGE_ASICREV_BCM5787:
 	case BGE_ASICREV_BCM5906:
 		sc->bge_flags |= BGE_FLAG_575X_PLUS;
-		/* FALLTHRU */
+		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5705:
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
 		break;
@@ -2470,14 +2492,17 @@ bge_attach(device_t dev)
 		 * Found a PCI Express capabilities register, this
 		 * must be a PCI Express device.
 		 */
-		if (reg != 0)
+		if (reg != 0) {
 			sc->bge_flags |= BGE_FLAG_PCIE;
 #else
 	if (BGE_IS_5705_PLUS(sc)) {
 		reg = pci_read_config(dev, BGE_PCIE_CAPID_REG, 4);
-		if ((reg & 0xFF) == BGE_PCIE_CAPID)
+		if ((reg & 0xFF) == BGE_PCIE_CAPID) {
 			sc->bge_flags |= BGE_FLAG_PCIE;
+			reg = BGE_PCIE_CAPID;
 #endif
+			bge_set_max_readrq(sc, reg);
+		}
 	} else {
 		/*
 		 * Check if the device is in PCI-X Mode.
@@ -2521,6 +2546,13 @@ bge_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
+
+	if (bootverbose)
+		device_printf(dev,
+		    "CHIP ID 0x%08x; ASIC REV 0x%02x; CHIP REV 0x%02x; %s\n",
+		    sc->bge_chipid, sc->bge_asicrev, sc->bge_chiprev,
+		    (sc->bge_flags & BGE_FLAG_PCIX) ? "PCI-X" :
+		    ((sc->bge_flags & BGE_FLAG_PCIE) ? "PCI-E" : "PCI"));
 
 	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
@@ -3018,18 +3050,20 @@ bge_reset(struct bge_softc *sc)
  * 2) the frame is from the standard receive ring
  */
 
-static void
+static int
 bge_rxeof(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
-	int stdcnt = 0, jumbocnt = 0;
+	int rx_npkts = 0, stdcnt = 0, jumbocnt = 0;
+	uint16_t rx_prod, rx_cons;
 
 	BGE_LOCK_ASSERT(sc);
+	rx_cons = sc->bge_rx_saved_considx;
+	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
 
 	/* Nothing to do. */
-	if (sc->bge_rx_saved_considx ==
-	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx)
-		return;
+	if (rx_cons == rx_prod)
+		return (rx_npkts);
 
 	ifp = sc->bge_ifp;
 
@@ -3041,8 +3075,7 @@ bge_rxeof(struct bge_softc *sc)
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_POSTREAD);
 
-	while(sc->bge_rx_saved_considx !=
-	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx) {
+	while (rx_cons != rx_prod) {
 		struct bge_rx_bd	*cur_rx;
 		uint32_t		rxidx;
 		struct mbuf		*m = NULL;
@@ -3057,11 +3090,10 @@ bge_rxeof(struct bge_softc *sc)
 		}
 #endif
 
-		cur_rx =
-	    &sc->bge_ldata.bge_rx_return_ring[sc->bge_rx_saved_considx];
+		cur_rx = &sc->bge_ldata.bge_rx_return_ring[rx_cons];
 
 		rxidx = cur_rx->bge_idx;
-		BGE_INC(sc->bge_rx_saved_considx, sc->bge_return_ring_cnt);
+		BGE_INC(rx_cons, sc->bge_return_ring_cnt);
 
 		if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING &&
 		    cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG) {
@@ -3161,6 +3193,10 @@ bge_rxeof(struct bge_softc *sc)
 		BGE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		BGE_LOCK(sc);
+		rx_npkts++;
+
+		if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+			return (rx_npkts);
 	}
 
 	if (stdcnt > 0)
@@ -3171,6 +3207,7 @@ bge_rxeof(struct bge_softc *sc)
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
 
+	sc->bge_rx_saved_considx = rx_cons;
 	bge_writembx(sc, BGE_MBX_RX_CONS0_LO, sc->bge_rx_saved_considx);
 	if (stdcnt)
 		bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);
@@ -3184,6 +3221,7 @@ bge_rxeof(struct bge_softc *sc)
 	if (BGE_IS_5705_PLUS(sc))
 		ifp->if_ierrors += CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
 #endif
+	return (rx_npkts);
 }
 
 static void
@@ -3236,16 +3274,17 @@ bge_txeof(struct bge_softc *sc)
 }
 
 #ifdef DEVICE_POLLING
-static void
+static int
 bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct bge_softc *sc = ifp->if_softc;
 	uint32_t statusword;
-	
+	int rx_npkts = 0;
+
 	BGE_LOCK(sc);
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 		BGE_UNLOCK(sc);
-		return;
+		return (rx_npkts);
 	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
@@ -3268,12 +3307,17 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			bge_link_upd(sc);
 
 	sc->rxcycles = count;
-	bge_rxeof(sc);
+	rx_npkts = bge_rxeof(sc);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		BGE_UNLOCK(sc);
+		return (rx_npkts);
+	}
 	bge_txeof(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bge_start_locked(ifp);
 
 	BGE_UNLOCK(sc);
+	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
@@ -3338,7 +3382,9 @@ bge_intr(void *xsc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check RX return ring producer/consumer. */
 		bge_rxeof(sc);
+	}
 
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc);
 	}
@@ -3882,6 +3928,7 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct bge_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 	struct ifmedia *ifm;
 
 	BGE_LOCK_ASSERT(sc);
@@ -3932,12 +3979,9 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 
 	sc->bge_link_evt++;
 	mii = device_get_softc(sc->bge_miibus);
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		    miisc = LIST_NEXT(miisc, mii_list))
+	if (mii->mii_instance)
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
-	}
 	mii_mediachg(mii);
 
 	/*

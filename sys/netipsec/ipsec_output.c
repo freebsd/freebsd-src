@@ -42,11 +42,11 @@
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/pfil.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -65,7 +65,6 @@
 #include <netinet/in_pcb.h>
 #ifdef INET6
 #include <netinet/icmp6.h>
-#include <netinet6/vinet6.h>
 #endif
 
 #include <netipsec/ipsec.h>
@@ -84,6 +83,10 @@
 
 #include <machine/in_cksum.h>
 
+#ifdef IPSEC_NAT_T
+#include <netinet/udp.h>
+#endif
+
 #ifdef DEV_ENC
 #include <net/if_enc.h>
 #endif
@@ -92,7 +95,6 @@
 int
 ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct tdb_ident *tdbi;
 	struct m_tag *mtag;
 	struct secasvar *sav;
@@ -180,6 +182,57 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 		ip->ip_len = ntohs(ip->ip_len);
 		ip->ip_off = ntohs(ip->ip_off);
 
+#ifdef IPSEC_NAT_T
+		/*
+		 * If NAT-T is enabled, now that all IPsec processing is done
+		 * insert UDP encapsulation header after IP header.
+		 */
+		if (sav->natt_type) {
+#ifdef _IP_VHL
+			const int hlen = IP_VHL_HL(ip->ip_vhl);
+#else
+			const int hlen = (ip->ip_hl << 2);
+#endif
+			int size, off;
+			struct mbuf *mi;
+			struct udphdr *udp;
+
+			size = sizeof(struct udphdr);
+			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE) {
+				/*
+				 * draft-ietf-ipsec-nat-t-ike-0[01].txt and
+				 * draft-ietf-ipsec-udp-encaps-(00/)01.txt,
+				 * ignoring possible AH mode
+				 * non-IKE marker + non-ESP marker
+				 * from draft-ietf-ipsec-udp-encaps-00.txt.
+				 */
+				size += sizeof(u_int64_t);
+			}
+			mi = m_makespace(m, hlen, size, &off);
+			if (mi == NULL) {
+				DPRINTF(("%s: m_makespace for udphdr failed\n",
+				    __func__));
+				error = ENOBUFS;
+				goto bad;
+			}
+
+			udp = (struct udphdr *)(mtod(mi, caddr_t) + off);
+			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE)
+				udp->uh_sport = htons(UDP_ENCAP_ESPINUDP_PORT);
+			else
+				udp->uh_sport =
+					KEY_PORTFROMSADDR(&sav->sah->saidx.src);
+			udp->uh_dport = KEY_PORTFROMSADDR(&sav->sah->saidx.dst);
+			udp->uh_sum = 0;
+			udp->uh_ulen = htons(m->m_pkthdr.len - hlen);
+			ip->ip_len = m->m_pkthdr.len;
+			ip->ip_p = IPPROTO_UDP;
+
+			if (sav->natt_type == UDP_ENCAP_ESPINUDP_NON_IKE)
+				*(u_int64_t *)(udp + 1) = 0;
+		}
+#endif /* IPSEC_NAT_T */
+
 		return ip_output(m, NULL, NULL, IP_RAWOUTPUT, NULL, NULL);
 #endif /* INET */
 #ifdef INET6
@@ -209,7 +262,6 @@ ipsec_nextisr(
 {
 #define IPSEC_OSTAT(x,y,z) (isr->saidx.proto == IPPROTO_ESP ? (x)++ : \
 			    isr->saidx.proto == IPPROTO_AH ? (y)++ : (z)++)
-	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *sav;
 
 	IPSECREQUEST_LOCK_ASSERT(isr);
@@ -353,7 +405,6 @@ ipsec4_process_packet(
 	int flags,
 	int tunalready)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secasindex saidx;
 	struct secasvar *sav;
 	struct ip *ip;
@@ -567,7 +618,6 @@ ipsec6_output_trans(
 	int flags,
 	int *tun)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct ipsecrequest *isr;
 	struct secasindex saidx;
 	int error = 0;
@@ -635,7 +685,6 @@ bad:
 static int
 ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct ip6_hdr *oip6;
 	struct ip6_hdr *ip6;
 	size_t plen;
@@ -705,8 +754,6 @@ ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 int
 ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int flags)
 {
-	INIT_VNET_INET6(curvnet);
-	INIT_VNET_IPSEC(curvnet);
 	struct ip6_hdr *ip6;
 	struct ipsecrequest *isr;
 	struct secasindex saidx;

@@ -23,8 +23,6 @@
 
 /* $FreeBSD$ */
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -53,9 +51,7 @@ ddp_output(struct mbuf *m, struct socket *so)
 	struct ddpcb *ddp = sotoddpcb(so);
 
 #ifdef MAC
-	SOCK_LOCK(so);
 	mac_socket_create_mbuf(so, m);
-	SOCK_UNLOCK(so);
 #endif
 
 	M_PREPEND(m, sizeof(struct ddpehdr), M_DONTWAIT);
@@ -146,12 +142,16 @@ ddp_route(struct mbuf *m, struct route *ro)
 	if ((ro->ro_rt != NULL) && (ro->ro_rt->rt_ifa) &&
 	    (ifp = ro->ro_rt->rt_ifa->ifa_ifp)) {
 		net = ntohs(satosat(ro->ro_rt->rt_gateway)->sat_addr.s_net);
-		for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
+		AT_IFADDR_RLOCK();
+		TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 			if (((net == 0) || (aa->aa_ifp == ifp)) &&
 			    net >= ntohs(aa->aa_firstnet) &&
 			    net <= ntohs(aa->aa_lastnet))
 				break;
 		}
+		if (aa != NULL)
+			ifa_ref(&aa->aa_ifa);
+		AT_IFADDR_RUNLOCK();
 	} else {
 		m_freem(m);
 #ifdef NETATALK_DEBUG
@@ -203,6 +203,7 @@ ddp_route(struct mbuf *m, struct route *ro)
 	if (!(aa->aa_flags & AFA_PHASE2)) {
 		MGET(m0, M_DONTWAIT, MT_DATA);
 		if (m0 == NULL) {
+			ifa_free(&aa->aa_ifa);
 			m_freem(m);
 			printf("ddp_route: no buffers\n");
 			return (ENOBUFS);
@@ -235,8 +236,11 @@ ddp_route(struct mbuf *m, struct route *ro)
 	if ((satosat(&aa->aa_addr)->sat_addr.s_net ==
 	    satosat(&ro->ro_dst)->sat_addr.s_net) &&
 	    (satosat(&aa->aa_addr)->sat_addr.s_node ==
-	    satosat(&ro->ro_dst)->sat_addr.s_node))
+	    satosat(&ro->ro_dst)->sat_addr.s_node)) {
+		ifa_free(&aa->aa_ifa);
 		return (if_simloop(ifp, m, gate.sat_family, 0));
+	}
+	ifa_free(&aa->aa_ifa);
 
 	/* XXX */
 	return ((*ifp->if_output)(ifp, m, (struct sockaddr *)&gate, NULL));

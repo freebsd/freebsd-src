@@ -29,18 +29,19 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
+
 #include <assert.h>
-#include <nsswitch.h>
 #include <grp.h>
-#include <string.h>
+#include <nsswitch.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include "../debug.h"
-#include "passwd.h"
+#include "group.h"
 
 static int group_marshal_func(struct group *, char *, size_t *);
 static int group_lookup_func(const char *, size_t, char **, size_t *);
-static void *group_mp_init_func();
+static void *group_mp_init_func(void);
 static int group_mp_lookup_func(char **, size_t *, void *);
 static void group_mp_destroy_func(void *);
 
@@ -140,7 +141,7 @@ group_lookup_func(const char *key, size_t key_size, char **buffer,
 	switch (lookup_type) {
 	case nss_lt_name:
 		size = key_size - sizeof(enum nss_lookup_type)	+ 1;
-		name = (char *)calloc(1, size);
+		name = calloc(1, size);
 		assert(name != NULL);
 		memcpy(name, key + sizeof(enum nss_lookup_type), size - 1);
 		break;
@@ -174,7 +175,7 @@ group_lookup_func(const char *key, size_t key_size, char **buffer,
 
 	if (result != NULL) {
 		group_marshal_func(result, NULL, buffer_size);
-		*buffer = (char *)malloc(*buffer_size);
+		*buffer = malloc(*buffer_size);
 		assert(*buffer != NULL);
 		group_marshal_func(result, *buffer, buffer_size);
 	}
@@ -184,7 +185,7 @@ group_lookup_func(const char *key, size_t key_size, char **buffer,
 }
 
 static void *
-group_mp_init_func()
+group_mp_init_func(void)
 {
 	TRACE_IN(group_mp_init_func);
 	setgrent();
@@ -202,7 +203,7 @@ group_mp_lookup_func(char **buffer, size_t *buffer_size, void *mdata)
 	result = getgrent();
 	if (result != NULL) {
 		group_marshal_func(result, NULL, buffer_size);
-		*buffer = (char *)malloc(*buffer_size);
+		*buffer = malloc(*buffer_size);
 		assert(*buffer != NULL);
 		group_marshal_func(result, *buffer, buffer_size);
 	}
@@ -219,12 +220,12 @@ group_mp_destroy_func(void *mdata)
 }
 
 struct agent *
-init_group_agent()
+init_group_agent(void)
 {
 	struct common_agent	*retval;
 
 	TRACE_IN(init_group_agent);
-	retval = (struct common_agent *)calloc(1, sizeof(struct common_agent));
+	retval = calloc(1, sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent.name = strdup("group");
@@ -238,13 +239,13 @@ init_group_agent()
 }
 
 struct agent *
-init_group_mp_agent()
+init_group_mp_agent(void)
 {
 	struct multipart_agent	*retval;
 
 	TRACE_IN(init_group_mp_agent);
-	retval = (struct multipart_agent *)calloc(1,
-		sizeof(struct multipart_agent));
+	retval = calloc(1,
+		sizeof(*retval));
 	assert(retval != NULL);
 
 	retval->parent.name = strdup("group");

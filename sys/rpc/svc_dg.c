@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 
+#include <net/vnet.h>
+
 #include <rpc/rpc.h>
 
 #include <rpc/rpc_com.h>
@@ -68,7 +70,7 @@ static bool_t svc_dg_reply(SVCXPRT *, struct rpc_msg *,
     struct sockaddr *, struct mbuf *);
 static void svc_dg_destroy(SVCXPRT *);
 static bool_t svc_dg_control(SVCXPRT *, const u_int, void *);
-static void svc_dg_soupcall(struct socket *so, void *arg, int waitflag);
+static int svc_dg_soupcall(struct socket *so, void *arg, int waitflag);
 
 static struct xp_ops svc_dg_ops = {
 	.xp_recv =	svc_dg_recv,
@@ -101,8 +103,10 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	struct sockaddr* sa;
 	int error;
 
+	CURVNET_SET(so->so_vnet);
 	if (!__rpc_socket2sockinfo(so, &si)) {
 		printf(svc_dg_str, svc_dg_err1);
+		CURVNET_RESTORE();
 		return (NULL);
 	}
 	/*
@@ -112,6 +116,7 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	recvsize = __rpc_get_t_size(si.si_af, si.si_proto, (int)recvsize);
 	if ((sendsize == 0) || (recvsize == 0)) {
 		printf(svc_dg_str, svc_dg_err2);
+		CURVNET_RESTORE();
 		return (NULL);
 	}
 
@@ -124,6 +129,7 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	xprt->xp_ops = &svc_dg_ops;
 
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+	CURVNET_RESTORE();
 	if (error)
 		goto freedata;
 
@@ -133,9 +139,7 @@ svc_dg_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	xprt_register(xprt);
 
 	SOCKBUF_LOCK(&so->so_rcv);
-	so->so_upcallarg = xprt;
-	so->so_upcall = svc_dg_soupcall;
-	so->so_rcv.sb_flags |= SB_UPCALL;
+	soupcall_set(so, SO_RCV, svc_dg_soupcall, xprt);
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	return (xprt);
@@ -205,9 +209,7 @@ svc_dg_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 	if (error) {
 		SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-		xprt->xp_socket->so_upcallarg = NULL;
-		xprt->xp_socket->so_upcall = NULL;
-		xprt->xp_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+		soupcall_clear(xprt->xp_socket, SO_RCV);
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 		xprt_inactive(xprt);
 		sx_xunlock(&xprt->xp_lock);
@@ -275,9 +277,7 @@ svc_dg_destroy(SVCXPRT *xprt)
 {
 
 	SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
-	xprt->xp_socket->so_upcallarg = NULL;
-	xprt->xp_socket->so_upcall = NULL;
-	xprt->xp_socket->so_rcv.sb_flags &= ~SB_UPCALL;
+	soupcall_clear(xprt->xp_socket, SO_RCV);
 	SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 
 	sx_destroy(&xprt->xp_lock);
@@ -300,10 +300,11 @@ svc_dg_control(xprt, rq, in)
 	return (FALSE);
 }
 
-static void
+static int
 svc_dg_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	SVCXPRT *xprt = (SVCXPRT *) arg;
 
 	xprt_active(xprt);
+	return (SU_OK);
 }

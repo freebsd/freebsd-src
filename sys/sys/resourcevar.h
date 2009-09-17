@@ -86,15 +86,21 @@ struct plimit {
  * (a) Constant from inception
  * (b) Lockless, updated using atomics
  * (c) Locked by global uihashtbl_mtx
+ * (d) Locked by the ui_vmsize_mtx
  */
 struct uidinfo {
 	LIST_ENTRY(uidinfo) ui_hash;	/* (c) hash chain of uidinfos */
+	struct mtx ui_vmsize_mtx;
+	vm_ooffset_t ui_vmsize;		/* (d) swap reservation by uid */
 	long	ui_sbsize;		/* (b) socket buffer space consumed */
 	long	ui_proccnt;		/* (b) number of processes */
 	long	ui_ptscnt;		/* (b) number of pseudo-terminals */
 	uid_t	ui_uid;			/* (a) uid */
 	u_int	ui_ref;			/* (b) reference count */
 };
+
+#define	UIDINFO_VMSIZE_LOCK(ui)		mtx_lock(&((ui)->ui_vmsize_mtx))
+#define	UIDINFO_VMSIZE_UNLOCK(ui)	mtx_unlock(&((ui)->ui_vmsize_mtx))
 
 struct proc;
 struct rusage_ext;

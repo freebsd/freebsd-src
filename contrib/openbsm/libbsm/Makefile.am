@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile.am#8 $
+# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile.am#9 $
 #
 
 if USE_NATIVE_INCLUDES
@@ -17,6 +17,7 @@ libbsm_la_SOURCES =	\
 	bsm_domain.c	\
 	bsm_errno.c	\
 	bsm_event.c	\
+	bsm_fcntl.c	\
 	bsm_flags.c	\
 	bsm_io.c	\
 	bsm_mask.c	\
@@ -36,6 +37,7 @@ man3_MANS =		\
 	au_domain.3	\
 	au_errno.3	\
 	au_event.3	\
+	au_fcntl_cmd.3	\
 	au_free_token.3	\
 	au_io.3		\
 	au_mask.3	\

@@ -42,9 +42,17 @@
 #define	DOSMAGICOFFSET	510
 #define	DOSMAGIC	0xAA55
 
-#define	DOSMID_386BSD	(0x14|0x80)	/* 386BSD | bootable */
-#define	DOSSID_386BSD	(0x44|0x80)	/* 386BSD | active */
-#define	DOSPTYP_386BSD	(DOSSID_386BSD << 8 | DOSMID_386BSD)
+#define	PC98_MID_BOOTABLE	0x80
+#define	PC98_MID_MASK		0x7f
+#define	PC98_MID_386BSD		0x14
+
+#define	PC98_SID_ACTIVE		0x80
+#define	PC98_SID_MASK		0x7f
+#define	PC98_SID_386BSD		0x44
+
+#define	DOSMID_386BSD		(PC98_MID_386BSD | PC98_MID_BOOTABLE)
+#define	DOSSID_386BSD		(PC98_SID_386BSD | PC98_SID_ACTIVE)
+#define	DOSPTYP_386BSD		(DOSSID_386BSD << 8 | DOSMID_386BSD)
 
 struct pc98_partition {
     	unsigned char	dp_mid;

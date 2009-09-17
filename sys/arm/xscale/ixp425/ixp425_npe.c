@@ -306,8 +306,14 @@ ixpnpe_attach(device_t dev, int npeid)
 	sc->sc_nrefs = 1;
 
 	sc->sc_size = config->size;
-	sc->insMemSize = config->ins_memsize;	/* size of instruction memory */
-	sc->dataMemSize = config->data_memsize;	/* size of data memory */
+	if (cpu_is_ixp42x()) {
+		/* NB: instruction/data memory sizes are NPE-dependent */
+		sc->insMemSize = config->ins_memsize;
+		sc->dataMemSize = config->data_memsize;
+	} else {
+		sc->insMemSize = IXP46X_NPEDL_INS_MEMSIZE_WORDS;
+		sc->dataMemSize = IXP46X_NPEDL_DATA_MEMSIZE_WORDS;
+	}
 
 	if (bus_space_map(sc->sc_iot, config->base, sc->sc_size, 0, &sc->sc_ioh))
 		panic("%s: Cannot map registers", device_get_name(dev));
@@ -798,20 +804,34 @@ static const uint32_t ixNpeDlCtxtRegResetValues[] = {
 	IX_NPEDL_CTXT_REG_RESET_CINDEX,
 };
 
-#define	IX_NPEDL_RESET_NPE_PARITY	0x0800
 #define	IX_NPEDL_PARITY_BIT_MASK	0x3F00FFFF
 #define	IX_NPEDL_CONFIG_CTRL_REG_MASK	0x3F3FFFFF
+
+#if 0
+/*
+ * Reset the NPE and its coprocessor using the
+ * fuse bits in the feature control register.
+ */
+static void
+npe_reset(int npeid)
+{
+	uint32_t mask = EXP_FCTRL_NPEA << npeid;
+	uint32_t v;
+
+	v = ixp4xx_read_feature_bits();
+	ixp4xx_write_feature_bits(v &~ mask);
+	/* un-fuse and un-reset the NPE & coprocessor */
+	ixp4xx_write_feature_bits(v | mask);
+}
+#endif
 
 static int
 npe_cpu_reset(struct ixpnpe_softc *sc)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
-	struct ixp425_softc *sa =
-	    device_get_softc(device_get_parent(sc->sc_dev));
 	uint32_t ctxtReg; /* identifies Context Store reg (0-3) */
 	uint32_t regAddr;
 	uint32_t regVal;
-	uint32_t resetNpeParity;
 	uint32_t ixNpeConfigCtrlRegVal;
 	int i, error = 0;
 	
@@ -929,33 +949,15 @@ npe_cpu_reset(struct ixpnpe_softc *sc)
 
 	/* Reset the Watch-count register */
 	npe_reg_write(sc, IX_NPEDL_REG_OFFSET_WC, 0);
-	
+#if 0
 	/*
 	 * WR IXA00055043 - Remove IMEM Parity Introduced by NPE Reset Operation
+	 * XXX Removed because it breaks IXP435 operation; e.g. on Gateworks
+	 * XXX 2358 boards reseting NPE-A after NPE-C is running causes both
+	 * XXX npe's to stop working
 	 */
-
-	/*
-	 * Reset the NPE and its coprocessor - to reset internal
-	 * states and remove parity error.  Note this makes no
-	 * sense based on the documentation.  The feature control
-	 * register always reads back as 0 on the ixp425 and further
-	 * the bit definition of NPEA/NPEB is off by 1 according to
-	 * the Intel documention--so we're blindly following the
-	 * Intel code w/o any real understanding.
-	 */
-	regVal = EXP_BUS_READ_4(sa, EXP_FCTRL_OFFSET);
-	DPRINTFn(2, sc->sc_dev, "%s: FCTRL 0x%x\n", __func__, regVal);
-	resetNpeParity =
-	    IX_NPEDL_RESET_NPE_PARITY << (1 + device_get_unit(sc->sc_dev));
-	DPRINTFn(2, sc->sc_dev, "%s: FCTRL fuse parity, write 0x%x\n",
-	    __func__, regVal | resetNpeParity);
-	EXP_BUS_WRITE_4(sa, EXP_FCTRL_OFFSET, regVal | resetNpeParity);
-
-	/* un-fuse and un-reset the NPE & coprocessor */
-	DPRINTFn(2, sc->sc_dev, "%s: FCTRL unfuse parity, write 0x%x\n",
-	    __func__, regVal & resetNpeParity);
-	EXP_BUS_WRITE_4(sa, EXP_FCTRL_OFFSET, regVal &~ resetNpeParity);
-
+	npe_reset(sc->sc_npeid);
+#endif
 	/*
 	 * Call NpeMgr function to stop the NPE again after the Feature Control
 	 * has unfused and Un-Reset the NPE and its associated Coprocessors.

@@ -318,9 +318,10 @@ dump_getfstab(void)
 		return;
 	}
 	while ((fs = getfsent()) != NULL) {
-		if (strcmp(fs->fs_type, FSTAB_RW) &&
+		if ((strcmp(fs->fs_type, FSTAB_RW) &&
 		    strcmp(fs->fs_type, FSTAB_RO) &&
-		    strcmp(fs->fs_type, FSTAB_RQ))
+		    strcmp(fs->fs_type, FSTAB_RQ)) ||
+		    strcmp(fs->fs_vfstype, "ufs"))
 			continue;
 		fs = allocfsent(fs);
 		if ((pf = (struct pfstab *)malloc(sizeof (*pf))) == NULL)
@@ -405,7 +406,7 @@ lastdump(int arg)	/* w ==> just what to do; W ==> most recent dumps */
 		};
 		if (arg != 'w' || dumpme)
 			(void) printf(
-			    "%c %8s\t(%6s) Last dump: Level %c, Date %s\n",
+			    "%c %8s\t(%6s) Last dump: Level %d, Date %s\n",
 			    dumpme && (arg != 'w') ? '>' : ' ',
 			    dtwalk->dd_name,
 			    dt ? dt->fs_file : "",

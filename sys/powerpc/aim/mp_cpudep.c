@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/smp.h>
 
-#include <machine/bat.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/hid.h>
@@ -54,91 +53,6 @@ extern register_t l2cr_config;
 extern register_t l3cr_config;
 
 void *ap_pcpu;
-
-static int
-powerpc_smp_fill_cpuref(struct cpuref *cpuref, phandle_t cpu)
-{
-	int cpuid, res;
-
-	cpuref->cr_hwref = cpu;
-	res = OF_getprop(cpu, "reg", &cpuid, sizeof(cpuid));
-	if (res < 0)
-		return (ENOENT);
-
-	cpuref->cr_cpuid = cpuid & 0xff;
-	return (0);
-}
-
-int
-powerpc_smp_first_cpu(struct cpuref *cpuref)
-{
-	char buf[8];
-	phandle_t cpu, dev, root;
-	int res;
-
-	root = OF_peer(0);
-
-	dev = OF_child(root);
-	while (dev != 0) {
-		res = OF_getprop(dev, "name", buf, sizeof(buf));
-		if (res > 0 && strcmp(buf, "cpus") == 0)
-			break;
-		dev = OF_peer(dev);
-	}
-	if (dev == 0)
-		return (ENOENT);
-
-	cpu = OF_child(dev);
-	while (cpu != 0) {
-		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
-		if (res > 0 && strcmp(buf, "cpu") == 0)
-			break;
-		cpu = OF_peer(cpu);
-	}
-	if (cpu == 0)
-		return (ENOENT);
-
-	return (powerpc_smp_fill_cpuref(cpuref, cpu));
-}
-
-int
-powerpc_smp_next_cpu(struct cpuref *cpuref)
-{
-	char buf[8];
-	phandle_t cpu;
-	int res;
-
-	cpu = OF_peer(cpuref->cr_hwref);
-	while (cpu != 0) {
-		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
-		if (res > 0 && strcmp(buf, "cpu") == 0)
-			break;
-		cpu = OF_peer(cpu);
-	}
-	if (cpu == 0)
-		return (ENOENT);
-
-	return (powerpc_smp_fill_cpuref(cpuref, cpu));
-}
-
-int
-powerpc_smp_get_bsp(struct cpuref *cpuref)
-{
-	ihandle_t inst;
-	phandle_t bsp, chosen;
-	int res;
-
-	chosen = OF_finddevice("/chosen");
-	if (chosen == 0)
-		return (ENXIO);
-
-	res = OF_getprop(chosen, "cpu", &inst, sizeof(inst));
-	if (res < 0)
-		return (ENXIO);
-
-	bsp = OF_instance_to_package(inst);
-	return (powerpc_smp_fill_cpuref(cpuref, bsp));
-}
 
 static register_t
 l2_enable(void)
@@ -250,8 +164,10 @@ cpudep_ap_bootstrap(void)
 	mtmsr(msr);
 	isync();
 
-	reg = l3_enable();
-	reg = l2_enable();
+	if (l3cr_config != 0)
+		reg = l3_enable();
+	if (l2cr_config != 0)
+		reg = l2_enable();
 	reg = l1d_enable();
 	reg = l1i_enable();
 
@@ -268,31 +184,3 @@ cpudep_ap_bootstrap(void)
 	return (sp);
 }
 
-int
-powerpc_smp_start_cpu(struct pcpu *pc)
-{
-	phandle_t cpu;
-	volatile uint8_t *rstvec;
-	int res, reset, timeout;
-
-	cpu = pc->pc_hwref;
-	res = OF_getprop(cpu, "soft-reset", &reset, sizeof(reset));
-	if (res < 0)
-		return (ENXIO);
-
-	ap_pcpu = pc;
-
-	rstvec = (uint8_t *)(0x80000000 + reset);
-
-	*rstvec = 4;
-	powerpc_sync();
-	DELAY(1);
-	*rstvec = 0;
-	powerpc_sync();
-
-	timeout = 1000;
-	while (!pc->pc_awake && timeout--)
-		DELAY(100);
-
-	return ((pc->pc_awake) ? 0 : EBUSY);
-}

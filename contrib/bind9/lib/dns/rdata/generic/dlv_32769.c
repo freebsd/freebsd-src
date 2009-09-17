@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dlv_32769.c,v 1.2.2.5 2007/08/28 07:20:06 tbox Exp $ */
+/* $Id: dlv_32769.c,v 1.6 2007/06/18 23:47:43 tbox Exp $ */
 
 /* draft-ietf-dnsext-delegation-signer-05.txt */
 

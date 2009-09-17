@@ -84,68 +84,6 @@ otherwise an appropriate error is returned.
 .Fn VOP_SETATTR
 returns zero if the attributes were changed successfully, otherwise an
 appropriate error is returned.
-.Sh PSEUDOCODE
-.Bd -literal
-int
-vop_getattr(struct vnode *vp, struct vattr *vap, struct ucred *cred)
-{
-
-    /*
-     * Fill in the contents of *vap with information from
-     * the file system.
-     */
-    ...;
-
-    return 0;
-}
-
-int
-vop_setattr(struct vnode *vp, struct vattr *vap, struct ucred *cred)
-{
-
-    /*
-     * Check for unsettable attributes.
-     */
-    if ((vap->va_type != VNON) || (vap->va_nlink != VNOVAL) ||
-	(vap->va_fsid != VNOVAL) || (vap->va_fileid != VNOVAL) ||
-	(vap->va_blocksize != VNOVAL) || (vap->va_rdev != VNOVAL) ||
-	((int)vap->va_bytes != VNOVAL) || (vap->va_gen != VNOVAL)) {
-	return (EINVAL);
-    }
-
-    if (vap->va_flags != VNOVAL) {
-	/*
-	 * Set the immutable and append flags of the file.
-	 */
-    }
-
-    if (vap->va_uid != (uid_t)VNOVAL || vap->va_gid != (gid_t)VNOVAL) {
-	/*
-	 * Change owner and/or group of the file.
-	 */
-    }
-
-    if (vap->va_size != VNOVAL) {
-	/*
-	 * Truncate the file to the specified size.
-	 */
-    }
-
-    if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
-	/*
-	 * Change access and/or modification time of file.
-	 */
-    }
-
-    if (vap->va_mode != (mode_t)VNOVAL) {
-	/*
-	 * Change permissions of file.
-	 */
-    }
-
-    return 0;
-}
-.Ed
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EPERM

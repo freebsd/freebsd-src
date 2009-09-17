@@ -15,7 +15,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 2008
+.Dd July 8, 2009
 .Os
 .Dt RAL 4
 .Sh NAME
@@ -72,12 +72,15 @@ supports
 .Cm station ,
 .Cm adhoc ,
 .Cm hostap ,
+.Cm mesh ,
 .Cm wds ,
 and
 .Cm monitor
 mode operation.
 Only one
 .Cm hostap
+or
+.Cm mesh
 virtual interface may be configured at a time.
 Any number of 
 .Cm wds
@@ -251,3 +254,7 @@ The original
 .Nm
 driver was written by
 .An Damien Bergamini Aq damien@FreeBSD.org .
+.Sh BUGS
+Host AP mode doesn't support client power save.
+Clients using power save mode will experience
+packet loss (disabling power saving on the client will fix this).

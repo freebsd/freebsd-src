@@ -133,9 +133,10 @@ handler_chain_destroy(void)
 static int
 _attach_handler(struct proto_handler *p)
 {
-	struct proto_handler *b = NULL;
+	struct proto_handler *b;
 
-	LIBALIAS_WLOCK_ASSERT();	
+	LIBALIAS_WLOCK_ASSERT();
+	b = NULL;
 	LIST_FOREACH(b, &handler_chain, entries) {
 		if ((b->pri == p->pri) && 
 		    (b->dir == p->dir) &&
@@ -172,10 +173,11 @@ _detach_handler(struct proto_handler *p)
 int
 LibAliasAttachHandlers(struct proto_handler *_p)
 {
-	int i, error = -1;
+	int i, error;
 
 	LIBALIAS_WLOCK();
-	for (i=0; 1; i++) {
+	error = -1;
+	for (i = 0; 1; i++) {
 		if (*((int *)&_p[i]) == EOH) 
 			break;
 		error = _attach_handler(&_p[i]);
@@ -189,10 +191,11 @@ LibAliasAttachHandlers(struct proto_handler *_p)
 int
 LibAliasDetachHandlers(struct proto_handler *_p)
 {
-	int i, error = -1;
+	int i, error;
 
 	LIBALIAS_WLOCK();
-	for (i=0; 1; i++) {
+	error = -1;
+	for (i = 0; 1; i++) {
 		if (*((int *)&_p[i]) == EOH) 
 			break;
 		error = _detach_handler(&_p[i]);
@@ -206,26 +209,27 @@ LibAliasDetachHandlers(struct proto_handler *_p)
 int
 detach_handler(struct proto_handler *_p)
 {
-	int error = -1;
+	int error;
 
 	LIBALIAS_WLOCK();
+	error = -1;
 	error = _detach_handler(_p);
 	LIBALIAS_WUNLOCK();
 	return (error);
 }
 
 int
-find_handler(int8_t dir, int8_t proto, struct libalias *la, struct ip *pip, 
-	     struct alias_data *ad)
+find_handler(int8_t dir, int8_t proto, struct libalias *la, __unused struct ip *pip, 
+    struct alias_data *ad)
 {
 	struct proto_handler *p;
-	int error = ENOENT;
+	int error;
 
 	LIBALIAS_RLOCK();
-	
+	error = ENOENT;
 	LIST_FOREACH(p, &handler_chain, entries) {
 		if ((p->dir & dir) && (p->proto & proto))
-			if (p->fingerprint(la, pip, ad) == 0) {
+			if (p->fingerprint(la, ad) == 0) {
 				error = p->protohandler(la, pip, ad);
 				break;
 			}
@@ -259,9 +263,11 @@ attach_dll(struct dll *p)
 void *
 detach_dll(char *p)
 {
-	struct dll *b = NULL, *b_tmp;
-	void *error = NULL;
+	struct dll *b, *b_tmp;
+	void *error;
 
+	b = NULL;
+	error = NULL;
 	SLIST_FOREACH_SAFE(b, &dll_chain, next, b_tmp)
 		if (!strncmp(b->name, p, DLL_LEN)) {
 			SLIST_REMOVE(&dll_chain, b, dll, next); 

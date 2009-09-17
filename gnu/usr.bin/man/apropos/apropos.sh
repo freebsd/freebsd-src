@@ -18,7 +18,6 @@
 # $FreeBSD$
 
 
-PATH=/bin:/usr/bin:$PATH
 db=whatis	# name of whatis data base
 grepopt=''
 

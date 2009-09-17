@@ -61,6 +61,7 @@
 
 /* Autonegotiation advertisement register */
 #define	IP1000PHY_MII_ANAR		0x04
+#define	IP1000PHY_ANAR_CSMA		0x0001
 #define	IP1000PHY_ANAR_10T		0x0020
 #define	IP1000PHY_ANAR_10T_FDX		0x0040
 #define	IP1000PHY_ANAR_100TX		0x0080

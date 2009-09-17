@@ -1,4 +1,4 @@
-/* $OpenBSD: nchan.c,v 1.60 2008/06/30 12:16:02 djm Exp $ */
+/* $OpenBSD: nchan.c,v 1.62 2008/11/07 18:50:18 stevesk Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -387,6 +387,8 @@ chan_send_eow2(Channel *c)
 		    c->self);
 		return;
 	}
+	if (!(datafellows & SSH_NEW_OPENSSH))
+		return;
 	packet_start(SSH2_MSG_CHANNEL_REQUEST);
 	packet_put_int(c->remote_id);
 	packet_put_cstring("eow@openssh.com");
@@ -484,12 +486,12 @@ chan_shutdown_write(Channel *c)
 	if (c->sock != -1) {
 		if (shutdown(c->sock, SHUT_WR) < 0)
 			debug2("channel %d: chan_shutdown_write: "
-			    "shutdown() failed for fd%d: %.100s",
+			    "shutdown() failed for fd %d: %.100s",
 			    c->self, c->sock, strerror(errno));
 	} else {
 		if (channel_close_fd(&c->wfd) < 0)
 			logit("channel %d: chan_shutdown_write: "
-			    "close() failed for fd%d: %.100s",
+			    "close() failed for fd %d: %.100s",
 			    c->self, c->wfd, strerror(errno));
 	}
 }
@@ -508,13 +510,13 @@ chan_shutdown_read(Channel *c)
 		if (shutdown(c->sock, SHUT_RD) < 0
 		    && errno != ENOTCONN)
 			error("channel %d: chan_shutdown_read: "
-			    "shutdown() failed for fd%d [i%d o%d]: %.100s",
+			    "shutdown() failed for fd %d [i%d o%d]: %.100s",
 			    c->self, c->sock, c->istate, c->ostate,
 			    strerror(errno));
 	} else {
 		if (channel_close_fd(&c->rfd) < 0)
 			logit("channel %d: chan_shutdown_read: "
-			    "close() failed for fd%d: %.100s",
+			    "close() failed for fd %d: %.100s",
 			    c->self, c->rfd, strerror(errno));
 	}
 }

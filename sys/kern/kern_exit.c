@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -132,7 +131,12 @@ exit1(struct thread *td, int rv)
 	mtx_assert(&Giant, MA_NOTOWNED);
 
 	p = td->td_proc;
-	if (p == initproc) {
+	/*
+	 * XXX in case we're rebooting we just let init die in order to
+	 * work around an unsolved stack overflow seen very late during
+	 * shutdown on sparc64 when the gmirror worker process exists.
+	 */ 
+	if (p == initproc && rebooting == 0) {
 		printf("init died (signal %d, exit %d)\n",
 		    WTERMSIG(rv), WEXITSTATUS(rv));
 		panic("Going nowhere without my init!");
@@ -211,7 +215,7 @@ exit1(struct thread *td, int rv)
 	 * it was.  The exit status is WEXITSTATUS(rv), but it's not clear
 	 * what the return value is.
 	 */
-	AUDIT_ARG(exit, WEXITSTATUS(rv), 0);
+	AUDIT_ARG_EXIT(WEXITSTATUS(rv), 0);
 	AUDIT_SYSCALL_EXIT(0, td);
 #endif
 
@@ -300,52 +304,48 @@ exit1(struct thread *td, int rv)
 
 	sx_xlock(&proctree_lock);
 	if (SESS_LEADER(p)) {
-		struct session *sp;
+		struct session *sp = p->p_session;
+		struct tty *tp;
 
-		sp = p->p_session;
-
+		/*
+		 * s_ttyp is not zero'd; we use this to indicate that
+		 * the session once had a controlling terminal. (for
+		 * logging and informational purposes)
+		 */
 		SESS_LOCK(sp);
 		ttyvp = sp->s_ttyvp;
+		tp = sp->s_ttyp;
 		sp->s_ttyvp = NULL;
+		sp->s_leader = NULL;
 		SESS_UNLOCK(sp);
 
-		if (ttyvp != NULL) {
-			/*
-			 * Controlling process.
-			 * Signal foreground pgrp and revoke access to
-			 * controlling terminal.
-			 *
-			 * There is no need to drain the terminal here,
-			 * because this will be done on revocation.
-			 */
-			if (sp->s_ttyp != NULL) {
-				struct tty *tp = sp->s_ttyp;
+		/*
+		 * Signal foreground pgrp and revoke access to
+		 * controlling terminal if it has not been revoked
+		 * already.
+		 *
+		 * Because the TTY may have been revoked in the mean
+		 * time and could already have a new session associated
+		 * with it, make sure we don't send a SIGHUP to a
+		 * foreground process group that does not belong to this
+		 * session.
+		 */
 
-				tty_lock(tp);
+		if (tp != NULL) {
+			tty_lock(tp);
+			if (tp->t_session == sp)
 				tty_signal_pgrp(tp, SIGHUP);
-				tty_unlock(tp);
-
-				/*
-				 * The tty could have been revoked
-				 * if we blocked.
-				 */
-				if (ttyvp->v_type != VBAD) {
-					sx_xunlock(&proctree_lock);
-					VOP_LOCK(ttyvp, LK_EXCLUSIVE);
-					VOP_REVOKE(ttyvp, REVOKEALL);
-					VOP_UNLOCK(ttyvp, 0);
-					sx_xlock(&proctree_lock);
-				}
-			}
-			/*
-			 * s_ttyp is not zero'd; we use this to indicate that
-			 * the session once had a controlling terminal.
-			 * (for logging and informational purposes)
-			 */
+			tty_unlock(tp);
 		}
-		SESS_LOCK(p->p_session);
-		sp->s_leader = NULL;
-		SESS_UNLOCK(p->p_session);
+
+		if (ttyvp != NULL) {
+			sx_xunlock(&proctree_lock);
+			vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY);
+			if (ttyvp->v_type != VBAD)
+				VOP_REVOKE(ttyvp, REVOKEALL);
+			VOP_UNLOCK(ttyvp, 0);
+			sx_xlock(&proctree_lock);
+		}
 	}
 	fixjobc(p, p->p_pgrp, 0);
 	sx_xunlock(&proctree_lock);
@@ -454,9 +454,8 @@ exit1(struct thread *td, int rv)
 	p->p_xstat = rv;
 	p->p_xthread = td;
 
-	/* In case we are jailed tell the prison that we are gone. */
-	if (jailed(p->p_ucred))
-		prison_proc_free(p->p_ucred->cr_prison);
+	/* Tell the prison that we are gone. */
+	prison_proc_free(p->p_ucred->cr_prison);
 
 #ifdef KDTRACE_HOOKS
 	/*
@@ -504,13 +503,13 @@ exit1(struct thread *td, int rv)
 		proc_reparent(p, initproc);
 		p->p_sigparent = SIGCHLD;
 		PROC_LOCK(p->p_pptr);
+
 		/*
-		 * If this was the last child of our parent, notify
-		 * parent, so in case he was wait(2)ing, he will
+		 * Notify parent, so in case he was wait(2)ing or
+		 * executing waitpid(2) with our pid, he will
 		 * continue.
 		 */
-		if (LIST_EMPTY(&pp->p_children))
-			wakeup(pp);
+		wakeup(pp);
 	} else
 		mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 
@@ -584,8 +583,6 @@ abort2(struct thread *td, struct abort2_args *uap)
 	struct sbuf *sb;
 	void *uargs[16];
 	int error, i, sig;
-
-	error = 0;	/* satisfy compiler */
 
 	/*
 	 * Do it right now so we can log either proper call of abort2(), or
@@ -685,14 +682,130 @@ wait4(struct thread *td, struct wait_args *uap)
 	return (error);
 }
 
+/*
+ * Reap the remains of a zombie process and optionally return status and
+ * rusage.  Asserts and will release both the proctree_lock and the process
+ * lock as part of its work.
+ */
+static void
+proc_reap(struct thread *td, struct proc *p, int *status, int options,
+    struct rusage *rusage)
+{
+	struct proc *q, *t;
+
+	sx_assert(&proctree_lock, SA_XLOCKED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	KASSERT(p->p_state == PRS_ZOMBIE, ("proc_reap: !PRS_ZOMBIE"));
+
+	q = td->td_proc;
+	if (rusage) {
+		*rusage = p->p_ru;
+		calcru(p, &rusage->ru_utime, &rusage->ru_stime);
+	}
+	PROC_SUNLOCK(p);
+	td->td_retval[0] = p->p_pid;
+	if (status)
+		*status = p->p_xstat;	/* convert to int */
+	if (options & WNOWAIT) {
+		/*
+		 *  Only poll, returning the status.  Caller does not wish to
+		 * release the proc struct just yet.
+		 */
+		PROC_UNLOCK(p);
+		sx_xunlock(&proctree_lock);
+		return;
+	}
+
+	PROC_LOCK(q);
+	sigqueue_take(p->p_ksi);
+	PROC_UNLOCK(q);
+	PROC_UNLOCK(p);
+
+	/*
+	 * If we got the child via a ptrace 'attach', we need to give it back
+	 * to the old parent.
+	 */
+	if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
+		PROC_LOCK(p);
+		p->p_oppid = 0;
+		proc_reparent(p, t);
+		PROC_UNLOCK(p);
+		tdsignal(t, NULL, SIGCHLD, p->p_ksi);
+		wakeup(t);
+		cv_broadcast(&p->p_pwait);
+		PROC_UNLOCK(t);
+		sx_xunlock(&proctree_lock);
+		return;
+	}
+
+	/*
+	 * Remove other references to this process to ensure we have an
+	 * exclusive reference.
+	 */
+	sx_xlock(&allproc_lock);
+	LIST_REMOVE(p, p_list);	/* off zombproc */
+	sx_xunlock(&allproc_lock);
+	LIST_REMOVE(p, p_sibling);
+	leavepgrp(p);
+	sx_xunlock(&proctree_lock);
+
+	/*
+	 * As a side effect of this lock, we know that all other writes to
+	 * this proc are visible now, so no more locking is needed for p.
+	 */
+	PROC_LOCK(p);
+	p->p_xstat = 0;		/* XXX: why? */
+	PROC_UNLOCK(p);
+	PROC_LOCK(q);
+	ruadd(&q->p_stats->p_cru, &q->p_crux, &p->p_ru, &p->p_rux);
+	PROC_UNLOCK(q);
+
+	/*
+	 * Decrement the count of procs running with this uid.
+	 */
+	(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
+
+	/*
+	 * Free credentials, arguments, and sigacts.
+	 */
+	crfree(p->p_ucred);
+	p->p_ucred = NULL;
+	pargs_drop(p->p_args);
+	p->p_args = NULL;
+	sigacts_free(p->p_sigacts);
+	p->p_sigacts = NULL;
+
+	/*
+	 * Do any thread-system specific cleanups.
+	 */
+	thread_wait(p);
+
+	/*
+	 * Give vm and machine-dependent layer a chance to free anything that
+	 * cpu_exit couldn't release while still running in process context.
+	 */
+	vm_waitproc(p);
+#ifdef MAC
+	mac_proc_destroy(p);
+#endif
+	KASSERT(FIRST_THREAD_IN_PROC(p),
+	    ("proc_reap: no residual thread!"));
+	uma_zfree(proc_zone, p);
+	sx_xlock(&allproc_lock);
+	nprocs--;
+	sx_xunlock(&allproc_lock);
+}
+
 int
 kern_wait(struct thread *td, pid_t pid, int *status, int options,
     struct rusage *rusage)
 {
-	struct proc *p, *q, *t;
+	struct proc *p, *q;
 	int error, nfound;
 
-	AUDIT_ARG(pid, pid);
+	AUDIT_ARG_PID(pid);
+	AUDIT_ARG_VALUE(options);
 
 	q = td->td_proc;
 	if (pid == 0) {
@@ -739,107 +852,7 @@ loop:
 		nfound++;
 		PROC_SLOCK(p);
 		if (p->p_state == PRS_ZOMBIE) {
-			if (rusage) {
-				*rusage = p->p_ru;
-				calcru(p, &rusage->ru_utime, &rusage->ru_stime);
-			}
-			PROC_SUNLOCK(p);
-			td->td_retval[0] = p->p_pid;
-			if (status)
-				*status = p->p_xstat;	/* convert to int */
-			if (options & WNOWAIT) {
-
-				/*
-				 *  Only poll, returning the status.
-				 *  Caller does not wish to release the proc
-				 *  struct just yet.
-				 */
-				PROC_UNLOCK(p);
-				sx_xunlock(&proctree_lock);
-				return (0);
-			}
-
-			PROC_LOCK(q);
-			sigqueue_take(p->p_ksi);
-			PROC_UNLOCK(q);
-			PROC_UNLOCK(p);
-
-			/*
-			 * If we got the child via a ptrace 'attach',
-			 * we need to give it back to the old parent.
-			 */
-			if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
-				PROC_LOCK(p);
-				p->p_oppid = 0;
-				proc_reparent(p, t);
-				PROC_UNLOCK(p);
-				tdsignal(t, NULL, SIGCHLD, p->p_ksi);
-				wakeup(t);
-				cv_broadcast(&p->p_pwait);
-				PROC_UNLOCK(t);
-				sx_xunlock(&proctree_lock);
-				return (0);
-			}
-
-			/*
-			 * Remove other references to this process to ensure
-			 * we have an exclusive reference.
-			 */
-			sx_xlock(&allproc_lock);
-			LIST_REMOVE(p, p_list);	/* off zombproc */
-			sx_xunlock(&allproc_lock);
-			LIST_REMOVE(p, p_sibling);
-			leavepgrp(p);
-			sx_xunlock(&proctree_lock);
-
-			/*
-			 * As a side effect of this lock, we know that
-			 * all other writes to this proc are visible now, so
-			 * no more locking is needed for p.
-			 */
-			PROC_LOCK(p);
-			p->p_xstat = 0;		/* XXX: why? */
-			PROC_UNLOCK(p);
-			PROC_LOCK(q);
-			ruadd(&q->p_stats->p_cru, &q->p_crux, &p->p_ru,
-			    &p->p_rux);
-			PROC_UNLOCK(q);
-
-			/*
-			 * Decrement the count of procs running with this uid.
-			 */
-			(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
-
-			/*
-			 * Free credentials, arguments, and sigacts.
-			 */
-			crfree(p->p_ucred);
-			p->p_ucred = NULL;
-			pargs_drop(p->p_args);
-			p->p_args = NULL;
-			sigacts_free(p->p_sigacts);
-			p->p_sigacts = NULL;
-
-			/*
-			 * Do any thread-system specific cleanups.
-			 */
-			thread_wait(p);
-
-			/*
-			 * Give vm and machine-dependent layer a chance
-			 * to free anything that cpu_exit couldn't
-			 * release while still running in process context.
-			 */
-			vm_waitproc(p);
-#ifdef MAC
-			mac_proc_destroy(p);
-#endif
-			KASSERT(FIRST_THREAD_IN_PROC(p),
-			    ("kern_wait: no residual thread!"));
-			uma_zfree(proc_zone, p);
-			sx_xlock(&allproc_lock);
-			nprocs--;
-			sx_xunlock(&allproc_lock);
+			proc_reap(td, p, status, options, rusage);
 			return (0);
 		}
 		if ((p->p_flag & P_STOPPED_SIG) &&

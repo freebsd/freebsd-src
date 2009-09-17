@@ -42,12 +42,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
+#include <sys/systm.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+struct vga_resource {
+	struct resource	*vr_res;
+	int	vr_refs;
+};
+
 struct vga_pci_softc {
 	device_t	vga_msi_child;	/* Child driver using MSI. */
+	struct vga_resource vga_res[PCIR_MAX_BAR_0 + 1];
 };
 
 static int
@@ -130,7 +138,27 @@ static struct resource *
 vga_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
+	struct vga_pci_softc *sc;
+	int bar;
 
+	switch (type) {
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		/*
+		 * For BARs, we cache the resource so that we only allocate it
+		 * from the PCI bus once.
+		 */
+		bar = PCI_RID2BAR(*rid);
+		if (bar < 0 || bar > PCIR_MAX_BAR_0)
+			return (NULL);
+		sc = device_get_softc(dev);
+		if (sc->vga_res[bar].vr_res == NULL)
+			sc->vga_res[bar].vr_res = bus_alloc_resource(dev, type,
+			    rid, start, end, count, flags);
+		if (sc->vga_res[bar].vr_res != NULL)
+			sc->vga_res[bar].vr_refs++;
+		return (sc->vga_res[bar].vr_res);
+	}
 	return (bus_alloc_resource(dev, type, rid, start, end, count, flags));
 }
 
@@ -138,6 +166,37 @@ static int
 vga_pci_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
+	struct vga_pci_softc *sc;
+	int bar, error;
+
+	switch (type) {
+	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
+		/*
+		 * For BARs, we release the resource from the PCI bus
+		 * when the last child reference goes away.
+		 */
+		bar = PCI_RID2BAR(rid);
+		if (bar < 0 || bar > PCIR_MAX_BAR_0)
+			return (EINVAL);
+		sc = device_get_softc(dev);
+		if (sc->vga_res[bar].vr_res == NULL)
+			return (EINVAL);
+		KASSERT(sc->vga_res[bar].vr_res == r,
+		    ("vga_pci resource mismatch"));
+		if (sc->vga_res[bar].vr_refs > 1) {
+			sc->vga_res[bar].vr_refs--;
+			return (0);
+		}
+		KASSERT(sc->vga_res[bar].vr_refs > 0,
+		    ("vga_pci resource reference count underflow"));
+		error = bus_release_resource(dev, type, rid, r);
+		if (error == 0) {
+			sc->vga_res[bar].vr_res = NULL;
+			sc->vga_res[bar].vr_refs = 0;
+		}
+		return (error);
+	}
 
 	return (bus_release_resource(dev, type, rid, r));
 }

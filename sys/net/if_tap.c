@@ -462,7 +462,7 @@ tapcreate(struct cdev *dev)
 	tp->tap_flags |= TAP_INITED;
 	mtx_unlock(&tp->tap_mtx);
 
-	knlist_init(&tp->tap_rsel.si_note, NULL, NULL, NULL, NULL);
+	knlist_init_mtx(&tp->tap_rsel.si_note, NULL);
 
 	TAPDEBUG("interface %s is created. minor = %#x\n", 
 		ifp->if_xname, dev2unit(dev));
@@ -600,6 +600,7 @@ static int
 tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct tap_softc	*tp = ifp->if_softc;
+	struct ifreq		*ifr = (struct ifreq *)data;
 	struct ifstat		*ifs = NULL;
 	int			 s, dummy;
 
@@ -607,6 +608,10 @@ tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		case SIOCSIFFLAGS: /* XXX -- just like vmnet does */
 		case SIOCADDMULTI:
 		case SIOCDELMULTI:
+			break;
+
+		case SIOCSIFMTU:
+			ifp->if_mtu = ifr->ifr_mtu;
 			break;
 
 		case SIOCGIFSTATUS:
@@ -929,7 +934,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (0);
 
 	if ((uio->uio_resid < 0) || (uio->uio_resid > TAPMRU)) {
-		TAPDEBUG("%s invalid packet len = %d, minor = %#x\n",
+		TAPDEBUG("%s invalid packet len = %zd, minor = %#x\n",
 			ifp->if_xname, uio->uio_resid, dev2unit(dev));
 
 		return (EIO);

@@ -62,7 +62,8 @@
 #include <machine/sapicvar.h>
 #include <machine/vmparam.h>
 
-#include <contrib/dev/acpica/acpi.h>
+#include <contrib/dev/acpica/include/acpi.h>
+
 #include <dev/acpica/acpivar.h>
 
 #include <isa/isareg.h>

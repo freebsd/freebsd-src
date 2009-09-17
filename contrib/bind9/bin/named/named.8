@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named.8,v 1.20.18.16 2008/09/01 02:29:00 tbox Exp $
+.\" $Id: named.8,v 1.38 2008/11/07 01:11:19 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -33,7 +33,7 @@
 named \- Internet domain name server
 .SH "SYNOPSIS"
 .HP 6
-\fBnamed\fR [\fB\-4\fR] [\fB\-6\fR] [\fB\-c\ \fR\fB\fIconfig\-file\fR\fR] [\fB\-d\ \fR\fB\fIdebug\-level\fR\fR] [\fB\-f\fR] [\fB\-g\fR] [\fB\-m\ \fR\fB\fIflag\fR\fR] [\fB\-n\ \fR\fB\fI#cpus\fR\fR] [\fB\-p\ \fR\fB\fIport\fR\fR] [\fB\-s\fR] [\fB\-S\ \fR\fB\fI#max\-socks\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-u\ \fR\fB\fIuser\fR\fR] [\fB\-v\fR] [\fB\-x\ \fR\fB\fIcache\-file\fR\fR]
+\fBnamed\fR [\fB\-4\fR] [\fB\-6\fR] [\fB\-c\ \fR\fB\fIconfig\-file\fR\fR] [\fB\-d\ \fR\fB\fIdebug\-level\fR\fR] [\fB\-f\fR] [\fB\-g\fR] [\fB\-m\ \fR\fB\fIflag\fR\fR] [\fB\-n\ \fR\fB\fI#cpus\fR\fR] [\fB\-p\ \fR\fB\fIport\fR\fR] [\fB\-s\fR] [\fB\-S\ \fR\fB\fI#max\-socks\fR\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-u\ \fR\fB\fIuser\fR\fR] [\fB\-v\fR] [\fB\-V\fR] [\fB\-x\ \fR\fB\fIcache\-file\fR\fR]
 .SH "DESCRIPTION"
 .PP
 \fBnamed\fR
@@ -186,6 +186,11 @@ is run on kernel 2.2.18 or later, or kernel 2.3.99\-pre3 or later, since previou
 Report the version number and exit.
 .RE
 .PP
+\-V
+.RS 4
+Report the version number and build options, and exit.
+.RE
+.PP
 \-x \fIcache\-file\fR
 .RS 4
 Load data from
@@ -226,7 +231,7 @@ BIND 9 Administrator Reference Manual.
 The default configuration file.
 .RE
 .PP
-\fI/var/run/named.pid\fR
+\fI/var/run/named/named.pid\fR
 .RS 4
 The default process\-id file.
 .RE

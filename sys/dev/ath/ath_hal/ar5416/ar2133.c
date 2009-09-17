@@ -415,6 +415,8 @@ ar2133RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 	struct ar2133State *priv;
 	uint32_t *bankData;
 
+	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: attach AR2133 radio\n", __func__);
+
 	HALASSERT(ahp->ah_rfHal == AH_NULL);
 	priv = ath_hal_malloc(sizeof(struct ar2133State)
 	    + AH5416(ah)->ah_ini_bank0.rows * sizeof(uint32_t)

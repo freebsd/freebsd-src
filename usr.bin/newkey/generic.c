@@ -79,12 +79,12 @@ genkeys(char *public, char *secret, char *pass)
 #   define BASEBITS (8*sizeof (short) - 1)
 #	define BASE		(1 << BASEBITS)
 
-	MINT *pk = itom(0);
-	MINT *sk = itom(0);
+	MINT *pk = mp_itom(0);
+	MINT *sk = mp_itom(0);
 	MINT *tmp;
-	MINT *base = itom(BASE);
-	MINT *root = itom(PROOT);
-	MINT *modulus = xtom(HEXMODULUS);
+	MINT *base = mp_itom(BASE);
+	MINT *root = mp_itom(PROOT);
+	MINT *modulus = mp_xtom(HEXMODULUS);
 	short r;
 	unsigned short seed[KEYSIZE/BASEBITS + 1];
 	char *xkey;
@@ -92,24 +92,24 @@ genkeys(char *public, char *secret, char *pass)
 	getseed((char *)seed, sizeof (seed), (u_char *)pass);
 	for (i = 0; i < KEYSIZE/BASEBITS + 1; i++) {
 		r = seed[i] % BASE;
-		tmp = itom(r);
-		mult(sk, base, sk);
-		madd(sk, tmp, sk);
-		mfree(tmp);
+		tmp = mp_itom(r);
+		mp_mult(sk, base, sk);
+		mp_madd(sk, tmp, sk);
+		mp_mfree(tmp);
 	}
-	tmp = itom(0);
-	mdiv(sk, modulus, tmp, sk);
-	mfree(tmp);
-	pow(root, sk, modulus, pk);
-	xkey = mtox(sk);
+	tmp = mp_itom(0);
+	mp_mdiv(sk, modulus, tmp, sk);
+	mp_mfree(tmp);
+	mp_pow(root, sk, modulus, pk);
+	xkey = mp_mtox(sk);
 	adjust(secret, xkey);
-	xkey = mtox(pk);
+	xkey = mp_mtox(pk);
 	adjust(public, xkey);
-	mfree(sk);
-	mfree(base);
-	mfree(pk);
-	mfree(root);
-	mfree(modulus);
+	mp_mfree(sk);
+	mp_mfree(base);
+	mp_mfree(pk);
+	mp_mfree(root);
+	mp_mfree(modulus);
 }
 
 /*

@@ -51,7 +51,9 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#ifdef __FreeBSD__
 #include <net/vnet.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -76,7 +78,6 @@
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
-#include <sys/vimage.h>
 #include <machine/clock.h>
 #endif
 #if defined(__i386__)
@@ -448,6 +449,9 @@ static void
 tbr_timeout(arg)
 	void *arg;
 {
+#if defined(__FreeBSD__)
+	VNET_ITERATOR_DECL(vnet_iter);
+#endif
 	struct ifnet *ifp;
 	int active, s;
 
@@ -458,18 +462,26 @@ tbr_timeout(arg)
 	s = splimp();
 #endif
 #if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
+	VNET_LIST_RLOCK_NOSLEEP();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
 #endif
-	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
-		/* read from if_snd unlocked */
-		if (!TBR_IS_ENABLED(&ifp->if_snd))
-			continue;
-		active++;
-		if (!IFQ_IS_EMPTY(&ifp->if_snd) && ifp->if_start != NULL)
-			(*ifp->if_start)(ifp);
-	}
+		for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
+		    ifp = TAILQ_NEXT(ifp, if_list)) {
+			/* read from if_snd unlocked */
+			if (!TBR_IS_ENABLED(&ifp->if_snd))
+				continue;
+			active++;
+			if (!IFQ_IS_EMPTY(&ifp->if_snd) &&
+			    ifp->if_start != NULL)
+				(*ifp->if_start)(ifp);
+		}
 #if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
-	IFNET_RUNLOCK();
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK_NOSLEEP();
+	IFNET_RUNLOCK_NOSLEEP();
 #endif
 	splx(s);
 	if (active > 0)
@@ -812,10 +824,7 @@ read_dsfield(m, pktattr)
 }
 
 void
-write_dsfield(m, pktattr, dsfield)
-	struct mbuf *m;
-	struct altq_pktattr *pktattr;
-	u_int8_t dsfield;
+write_dsfield(struct mbuf *m, struct altq_pktattr *pktattr, u_int8_t dsfield)
 {
 	struct mbuf *m0;
 

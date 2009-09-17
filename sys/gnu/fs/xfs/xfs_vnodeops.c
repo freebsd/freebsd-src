@@ -4506,7 +4506,7 @@ xfs_free_file_space(
 int
 xfs_change_file_space(
 	bhv_desc_t	*bdp,
-	int		cmd,
+	u_long		cmd,
 	xfs_flock64_t	*bf,
 	xfs_off_t	offset,
 	cred_t		*credp,

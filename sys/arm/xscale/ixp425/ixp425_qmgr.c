@@ -338,7 +338,7 @@ ixpqmgr_detach(device_t dev)
 
 int
 ixpqmgr_qconfig(int qId, int qEntries, int ne, int nf, int srcSel,
-    void (*cb)(int, void *), void *cbarg)
+    qconfig_hand_t *cb, void *cbarg)
 {
 	struct ixpqmgr_softc *sc = ixpqmgr_sc;
 	struct qmgrInfo *qi = &sc->qinfo[qId];

@@ -184,7 +184,7 @@ update_mp(struct mount *mp, struct thread *td)
 			pmp->pm_flags |= MSDOSFSMNT_LONGNAME;
 		else {
 			if ((error =
-			    msdosfs_root(mp, LK_EXCLUSIVE, &rootvp, td)) != 0)
+			    msdosfs_root(mp, LK_EXCLUSIVE, &rootvp)) != 0)
 				return error;
 			pmp->pm_flags |= findwin95(VTODE(rootvp)) ?
 			    MSDOSFSMNT_LONGNAME : MSDOSFSMNT_SHORTNAME;
@@ -195,7 +195,7 @@ update_mp(struct mount *mp, struct thread *td)
 }
 
 static int
-msdosfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+msdosfs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct msdosfs_args args;
 	int error;
@@ -233,9 +233,10 @@ msdosfs_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
  * special file to treat as a filesystem.
  */
 static int
-msdosfs_mount(struct mount *mp, struct thread *td)
+msdosfs_mount(struct mount *mp)
 {
 	struct vnode *devvp;	  /* vnode for blk device to mount */
+	struct thread *td;
 	/* msdosfs specific mount control block */
 	struct msdosfsmount *pmp = NULL;
 	struct nameidata ndp;
@@ -243,6 +244,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	accmode_t accmode;
 	char *from;
 
+	td = curthread;
 	if (vfs_filteropt(mp->mnt_optnew, msdosfs_opts))
 		return (EINVAL);
 
@@ -265,7 +267,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 		}
 		if (!(pmp->pm_flags & MSDOSFSMNT_RONLY) &&
 		    vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
-			error = VFS_SYNC(mp, MNT_WAIT, td);
+			error = VFS_SYNC(mp, MNT_WAIT);
 			if (error)
 				return (error);
 			flags = WRITECLOSE;
@@ -392,7 +394,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	error = update_mp(mp, td);
 	if (error) {
 		if ((mp->mnt_flag & MNT_UPDATE) == 0)
-			msdosfs_unmount(mp, MNT_FORCE, td);
+			msdosfs_unmount(mp, MNT_FORCE);
 		return error;
 	}
 
@@ -408,7 +410,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 {
 	struct msdosfsmount *pmp;
 	struct buf *bp;
-	struct cdev *dev = devvp->v_rdev;
+	struct cdev *dev;
 	union bootsector *bsp;
 	struct byte_bpb33 *b33;
 	struct byte_bpb50 *b50;
@@ -419,8 +421,12 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	struct g_consumer *cp;
 	struct bufobj *bo;
 
+	bp = NULL;		/* This and pmp both used in error_exit. */
+	pmp = NULL;
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	/* XXX: use VOP_ACCESS to check FS perms */
+
+	dev = devvp->v_rdev;
+	dev_ref(dev);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "msdosfs", ronly ? 0 : 1);
@@ -428,11 +434,9 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0);
 	if (error)
-		return (error);
+		goto error_exit;
 
 	bo = &devvp->v_bufobj;
-	bp = NULL;		/* This and pmp both used in error_exit. */
-	pmp = NULL;
 
 	/*
 	 * Read the boot sector of the filesystem, and then check the
@@ -707,6 +711,7 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	 * fillinusemap() needs pm_devvp.
 	 */
 	pmp->pm_devvp = devvp;
+	pmp->pm_dev = dev;
 
 	/*
 	 * Have the inuse map filled in.
@@ -763,6 +768,7 @@ error_exit:
 		free(pmp, M_MSDOSFSMNT);
 		mp->mnt_data = NULL;
 	}
+	dev_rel(dev);
 	return (error);
 }
 
@@ -770,7 +776,7 @@ error_exit:
  * Unmount the filesystem described by mp.
  */
 static int
-msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
+msdosfs_unmount(struct mount *mp, int mntflags)
 {
 	struct msdosfsmount *pmp;
 	int error, flags;
@@ -778,13 +784,13 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	flags = 0;
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	error = vflush(mp, 0, flags, td);
-	if (error)
+	error = vflush(mp, 0, flags, curthread);
+	if (error && error != ENXIO)
 		return error;
 	pmp = VFSTOMSDOSFS(mp);
 	if ((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0) {
 		error = markvoldirty(pmp, 0);
-		if (error) {
+		if (error && error != ENXIO) {
 			(void)markvoldirty(pmp, 1);
 			return (error);
 		}
@@ -827,6 +833,7 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(pmp->pm_devvp);
+	dev_rel(pmp->pm_dev);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 	if (pmp->pm_flags & MSDOSFS_LARGEFS)
 		msdosfs_fileno_free(mp);
@@ -835,11 +842,11 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
-	return (0);
+	return (error);
 }
 
 static int
-msdosfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+msdosfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct denode *ndep;
@@ -856,7 +863,7 @@ msdosfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 }
 
 static int
-msdosfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
+msdosfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	struct msdosfsmount *pmp;
 
@@ -872,12 +879,15 @@ msdosfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 }
 
 static int
-msdosfs_sync(struct mount *mp, int waitfor, struct thread *td)
+msdosfs_sync(struct mount *mp, int waitfor)
 {
 	struct vnode *vp, *nvp;
+	struct thread *td;
 	struct denode *dep;
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	int error, allerror = 0;
+
+	td = curthread;
 
 	/*
 	 * If we ever switch to not updating all of the fats all the time,

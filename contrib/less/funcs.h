@@ -30,6 +30,8 @@
 	public void backspace ();
 	public void putbs ();
 	public char WIN32getch ();
+	public void WIN32setcolors ();
+	public void WIN32textout ();
 	public void match_brac ();
 	public void ch_ungetchar ();
 	public void end_logfile ();
@@ -81,6 +83,9 @@
 	public void ungetcc ();
 	public void ungetsc ();
 	public void commands ();
+	public int cvt_length ();
+	public int * cvt_alloc_chpos ();
+	public void cvt_text ();
 	public void init_cmds ();
 	public void add_fcmd_table ();
 	public void add_ecmd_table ();
@@ -122,6 +127,8 @@
 	public char * bad_file ();
 	public POSITION filesize ();
 	public char * shell_coption ();
+	public int eof_displayed ();
+	public int entire_file_displayed ();
 	public void squish_check ();
 	public void forw ();
 	public void back ();
@@ -164,6 +171,7 @@
 	public int pappend ();
 	public int pflushmbc ();
 	public void pdone ();
+	public void set_status_col ();
 	public int gline ();
 	public void null_line ();
 	public POSITION forw_raw_line ();
@@ -188,6 +196,8 @@
 	public void opt_l ();
 	public void opt_j ();
 	public void calc_jump_sline ();
+	public void opt_shift ();
+	public void calc_shift_count ();
 	public void opt_k ();
 	public void opt_t ();
 	public void opt__T ();
@@ -228,6 +238,10 @@
 	public void error ();
 	public void ierror ();
 	public int query ();
+	public int compile_pattern ();
+	public void uncompile_pattern ();
+	public int is_null_pattern ();
+	public int match_pattern ();
 	public POSITION position ();
 	public void add_forw_pos ();
 	public void add_back_pos ();
@@ -243,15 +257,21 @@
 	public char * eq_message ();
 	public char * pr_string ();
 	public char * wait_message ();
+	public void init_search ();
 	public void repaint_hilite ();
 	public void clear_attn ();
 	public void undo_search ();
+	public void clr_hlist ();
 	public void clr_hilite ();
+	public void clr_filter ();
+	public int is_filtered ();
 	public int is_hilited ();
 	public void chg_caseless ();
 	public void chg_hilite ();
 	public int search ();
 	public void prep_hilite ();
+	public void set_filter_pattern ();
+	public int is_filtering ();
 	public RETSIGTYPE winch ();
 	public RETSIGTYPE winch ();
 	public void init_signals ();

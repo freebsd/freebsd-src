@@ -56,6 +56,6 @@ typedef struct xattr_namespace {
 extern struct xattr_namespace *xfs_namespaces;
 
 extern int xfs_ioctl(struct bhv_desc *, struct inode *, struct file *,
-		    int, unsigned int, void *);
+		    int, u_long, void *);
 
 #endif /* __XFS_IOPS_H__ */

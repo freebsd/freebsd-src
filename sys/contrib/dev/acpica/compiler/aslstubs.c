@@ -2,7 +2,6 @@
 /******************************************************************************
  *
  * Module Name: aslstubs - Stubs used to link to Aml interpreter
- *              $Revision: 1.20 $
  *
  *****************************************************************************/
 
@@ -10,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2007, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2009, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -115,10 +114,12 @@
  *
  *****************************************************************************/
 
-#include <stdio.h>
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
-#include <contrib/dev/acpica/acdispat.h>
-#include <contrib/dev/acpica/actables.h>
+#include <contrib/dev/acpica/include/acdispat.h>
+#include <contrib/dev/acpica/include/actables.h>
+#include <contrib/dev/acpica/include/acevents.h>
+#include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslstubs")
@@ -136,6 +137,30 @@ AeLocalGetRootPointer (
     return 0;
 }
 
+void
+AcpiNsExecModuleCodeList (
+    void)
+{
+}
+
+ACPI_STATUS
+AcpiHwReadPort (
+    ACPI_IO_ADDRESS         Address,
+    UINT32                  *Value,
+    UINT32                  Width)
+{
+    return (AE_OK);
+}
+
+ACPI_STATUS
+AcpiHwWritePort (
+    ACPI_IO_ADDRESS         Address,
+    UINT32                  Value,
+    UINT32                  Width)
+{
+    return (AE_OK);
+}
+
 ACPI_STATUS
 AcpiDsMethodError (
     ACPI_STATUS             Status,
@@ -146,7 +171,7 @@ AcpiDsMethodError (
 
 ACPI_STATUS
 AcpiDsMethodDataGetValue (
-    UINT16                  Opcode,
+    UINT8                   Type,
     UINT32                  Index,
     ACPI_WALK_STATE         *WalkState,
     ACPI_OPERAND_OBJECT     **DestDesc)
@@ -156,7 +181,7 @@ AcpiDsMethodDataGetValue (
 
 ACPI_STATUS
 AcpiDsMethodDataGetNode (
-    UINT16                  Opcode,
+    UINT8                   Type,
     UINT32                  Index,
     ACPI_WALK_STATE         *WalkState,
     ACPI_NAMESPACE_NODE     **Node)
@@ -166,7 +191,7 @@ AcpiDsMethodDataGetNode (
 
 ACPI_STATUS
 AcpiDsStoreObjectToLocal (
-    UINT16                  Opcode,
+    UINT8                   Type,
     UINT32                  Index,
     ACPI_OPERAND_OBJECT     *SrcDesc,
     ACPI_WALK_STATE         *WalkState)
@@ -197,14 +222,14 @@ AcpiEvIsNotifyObject (
 }
 
 ACPI_STATUS
-AcpiEvAcquireGlobalLock(
-    UINT32                  Timeout)
+AcpiEvAcquireGlobalLock (
+    UINT16                  Timeout)
 {
     return (AE_OK);
 }
 
 ACPI_STATUS
-AcpiEvReleaseGlobalLock(
+AcpiEvReleaseGlobalLock (
     void)
 {
     return (AE_OK);
@@ -273,7 +298,7 @@ AcpiTbFindTable (
     char                    *Signature,
     char                    *OemId,
     char                    *OemTableId,
-    ACPI_NATIVE_UINT        *TableIndex)
+    UINT32                  *TableIndex)
 {
     return (AE_SUPPORT);
 }

@@ -55,7 +55,6 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/vimage.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -572,18 +571,16 @@ static moduledata_t vlan_mod = {
 
 DECLARE_MODULE(if_vlan, vlan_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_vlan, 3);
-MODULE_DEPEND(if_vlan, miibus, 1, 1, 1);
 
 static struct ifnet *
 vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 {
-	INIT_VNET_NET(curvnet);
 	const char *cp;
 	struct ifnet *ifp;
 	int t = 0;
 
 	/* Check for <etherif>.<vlan> style interface names. */
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER)
 			continue;
@@ -601,7 +598,7 @@ vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 			*tag = t;
 		break;
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 
 	return (ifp);
 }
@@ -1367,7 +1364,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		p = ifunit(vlr.vlr_parent);
-		if (p == 0) {
+		if (p == NULL) {
 			error = ENOENT;
 			break;
 		}

@@ -39,11 +39,10 @@ static void make_dist(const char *, const char *, const char *, Package *);
 static int create_from_installed_recursive(const char *, const char *);
 static int create_from_installed(const char *, const char *, const char *);
 
-static char *home;
-
 int
 pkg_perform(char **pkgs)
 {
+    static const char *home;
     char *pkg = *pkgs;		/* Only one arg to create */
     char *cp;
     FILE *pkg_in, *fp;

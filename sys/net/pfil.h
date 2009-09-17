@@ -95,7 +95,7 @@ struct pfil_head *pfil_head_get(int, u_long);
 
 #define	PFIL_HOOKED(p) ((p)->ph_nhooks > 0)
 #define	PFIL_LOCK_INIT(p) \
-    rm_init(&(p)->ph_lock, "PFil hook read/write mutex", LO_RECURSABLE)
+    rm_init_flags(&(p)->ph_lock, "PFil hook read/write mutex", RM_RECURSE)
 #define	PFIL_LOCK_DESTROY(p) rm_destroy(&(p)->ph_lock)
 #define PFIL_RLOCK(p, t) rm_rlock(&(p)->ph_lock, (t))
 #define PFIL_WLOCK(p) rm_wlock(&(p)->ph_lock)

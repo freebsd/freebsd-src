@@ -60,6 +60,7 @@ struct bsdtar {
 	char		  option_chroot; /* --chroot */
 	char		  option_dont_traverse_mounts; /* --one-file-system */
 	char		  option_fast_read; /* --fast-read */
+	const char	 *option_options; /* --options */
 	char		  option_honor_nodump; /* --nodump */
 	char		  option_interactive; /* -w */
 	char		  option_no_owner; /* -o */
@@ -92,7 +93,8 @@ struct bsdtar {
 	 * Data for various subsystems.  Full definitions are located in
 	 * the file where they are used.
 	 */
-	struct archive_entry_linkresolver *resolver;
+	struct archive		*diskreader;	/* for write.c */
+	struct archive_entry_linkresolver *resolver; /* for write.c */
 	struct archive_dir	*archive_dir;	/* for write.c */
 	struct name_cache	*gname_cache;	/* for write.c */
 	char			*buff;		/* for write.c */
@@ -109,9 +111,11 @@ enum {
 	OPTION_CHROOT,
 	OPTION_EXCLUDE,
 	OPTION_FORMAT,
+	OPTION_OPTIONS,
 	OPTION_HELP,
 	OPTION_INCLUDE,
 	OPTION_KEEP_NEWER_FILES,
+	OPTION_LZMA,
 	OPTION_NEWER_CTIME,
 	OPTION_NEWER_CTIME_THAN,
 	OPTION_NEWER_MTIME,
@@ -123,6 +127,7 @@ enum {
 	OPTION_NUMERIC_OWNER,
 	OPTION_ONE_FILE_SYSTEM,
 	OPTION_POSIX,
+	OPTION_SAME_OWNER,
 	OPTION_STRIP_COMPONENTS,
 	OPTION_TOTALS,
 	OPTION_USE_COMPRESS_PROGRAM,

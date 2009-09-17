@@ -187,7 +187,8 @@ padvance(char **path, char *name)
 	if (*path == NULL)
 		return NULL;
 	start = *path;
-	for (p = start ; *p && *p != ':' && *p != '%' ; p++);
+	for (p = start; *p && *p != ':' && *p != '%'; p++)
+		; /* nothing */
 	len = p - start + strlen(name) + 2;	/* "2" is for '/' and '\0' */
 	while (stackblocksize() < len)
 		growstackblock();
@@ -285,7 +286,7 @@ printentry(struct tblentry *cmdp, int verbose)
 		out1fmt("function %s", cmdp->cmdname);
 		if (verbose) {
 			INTOFF;
-			name = commandtext(cmdp->param.func);
+			name = commandtext(getfuncnode(cmdp->param.func));
 			out1c(' ');
 			out1str(name);
 			ckfree(name);
@@ -582,7 +583,7 @@ deletefuncs(void)
 		while ((cmdp = *pp) != NULL) {
 			if (cmdp->cmdtype == CMDFUNCTION) {
 				*pp = cmdp->next;
-				freefunc(cmdp->param.func);
+				unreffunc(cmdp->param.func);
 				ckfree(cmdp);
 			} else {
 				pp = &cmdp->next;
@@ -669,7 +670,7 @@ addcmdentry(char *name, struct cmdentry *entry)
 	INTOFF;
 	cmdp = cmdlookup(name, 1);
 	if (cmdp->cmdtype == CMDFUNCTION) {
-		freefunc(cmdp->param.func);
+		unreffunc(cmdp->param.func);
 	}
 	cmdp->cmdtype = entry->cmdtype;
 	cmdp->param = entry->u;
@@ -704,7 +705,7 @@ unsetfunc(char *name)
 	struct tblentry *cmdp;
 
 	if ((cmdp = cmdlookup(name, 0)) != NULL && cmdp->cmdtype == CMDFUNCTION) {
-		freefunc(cmdp->param.func);
+		unreffunc(cmdp->param.func);
 		delete_cmd_entry();
 		return (0);
 	}
@@ -755,6 +756,7 @@ typecmd_impl(int argc, char **argv, int cmd)
 		if ((cmdp = cmdlookup(argv[i], 0)) != NULL) {
 			entry.cmdtype = cmdp->cmdtype;
 			entry.u = cmdp->param;
+			entry.special = cmdp->special;
 		}
 		else {
 			/* Finally use brute force */
@@ -803,6 +805,9 @@ typecmd_impl(int argc, char **argv, int cmd)
 		case CMDBUILTIN:
 			if (cmd == TYPECMD_SMALLV)
 				out1fmt("%s\n", argv[i]);
+			else if (entry.special)
+				out1fmt("%s is a special shell builtin\n",
+				    argv[i]);
 			else
 				out1fmt("%s is a shell builtin\n", argv[i]);
 			break;

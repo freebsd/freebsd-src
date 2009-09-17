@@ -21,6 +21,7 @@
 #define	IPI_AST			4
 #define	IPI_RENDEZVOUS		5
 #define	IPI_STOP		6
+#define	IPI_STOP_HARD		6
 #define	IPI_PREEMPT		7
 
 #define	IPI_COUNT		8

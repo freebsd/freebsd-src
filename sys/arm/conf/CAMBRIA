@@ -66,13 +66,19 @@ options 	VERBOSE_INIT_ARM
 device		pci
 device		uart
 
+device		ixpwdog		# watchdog timer
+
+options 	IXP4XX_FLASH_SIZE=0x02000000	# stock 2358 comes w/ 32M
+device		cfi		# flash support
+device		cfid		# flash disk support
+device		geom_redboot	# redboot fis parser
+
 # I2C Bus
 device		iicbus
 device		iicbb
 device		iic
 
 device		ixpiic		# I2C bus glue
-device		ixpwdog		# watchdog timer
 device		ds1672		# DS1672 on I2C bus
 device		ad7418		# AD7418 on I2C bus
 
@@ -80,7 +86,7 @@ device		cambria_fled	# Font Panel LED on I2C bus
 device		cambria_led	# 8-LED latch
 
 device		ata
-device		atadisk         # ATA disk drives
+device		atadisk		# ATA disk drives
 device		avila_ata	# Gateworks CF/IDE support
 
 device		npe		# Network Processing Engine
@@ -96,21 +102,13 @@ device		loop
 device		if_bridge
 
 device		md
-device          random          # Entropy device
-
-# NB: 2 USB 2.0 ports standard
-device		usb
-options		USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
-#options		USB_DEBUG
-device		ehci
-device		ugen
-device		umass
-device		scbus		# SCSI bus (required for SCSI)
-device		da		# Direct Access (disks)
+device		random		# Entropy device
 
 # Wireless NIC cards
 device		wlan		# 802.11 support
-options		IEEE80211_DEBUG
+options 	IEEE80211_DEBUG
+options 	IEEE80211_SUPPORT_TDMA
+options 	IEEE80211_SUPPORT_MESH
 device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
@@ -118,13 +116,13 @@ device		wlan_xauth
 
 device		ath		# Atheros pci/cardbus NIC's
 options 	ATH_DEBUG
-options		ATH_DIAGAPI
-#options		ATH_TX99_DIAG
+options 	ATH_DIAGAPI
+#options 	ATH_TX99_DIAG
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
-options		AH_DEBUG
-#options		AH_ASSERT
-options		AH_PRIVATE_DIAG
+options 	AH_DEBUG
+#options 	AH_ASSERT
+options 	AH_PRIVATE_DIAG
 #device		ath_ar5210
 #device		ath_ar5211
 #
@@ -136,13 +134,22 @@ device		ath_rf5112
 device		ath_rf5413
 #
 #device		ath_ar5416
-#options		AH_SUPPORT_AR5416	# NB: for 11n descriptor format
+#options 	AH_SUPPORT_AR5416	# NB: for 11n descriptor format
 #device		ath_rf2133
 #device		ath_ar9160
 #device		ath_ar9280
 #device		ath_rf9280
 #device		ath_ar9285
 
-device		ural
-device		zyd
-device		wlan_amrr
+# NB: 2 USB 2.0 ports standard
+device		usb
+options 	USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
+#options 	USB_DEBUG
+device		ehci
+device		umass
+device		scbus		# SCSI bus (required for SCSI)
+device		da		# Direct Access (disks)
+
+#device		ural
+#device		zyd
+#device		wlan_amrr

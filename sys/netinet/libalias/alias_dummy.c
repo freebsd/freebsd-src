@@ -60,7 +60,7 @@ static void
 AliasHandleDummy(struct libalias *la, struct ip *ip, struct alias_data *ah);
 
 static int 
-fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
+fingerprint(struct libalias *la, struct alias_data *ah)
 {
 
 	/* 

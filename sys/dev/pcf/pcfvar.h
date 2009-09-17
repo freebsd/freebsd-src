@@ -135,7 +135,7 @@ pcf_get_S1(struct pcf_softc *sc)
 extern int pcf_repeated_start(device_t, u_char, int);
 extern int pcf_start(device_t, u_char, int);
 extern int pcf_stop(device_t);
-extern int pcf_write(device_t, char *, int, int *, int);
+extern int pcf_write(device_t, const char *, int, int *, int);
 extern int pcf_read(device_t, char *, int, int *, int, int);
 extern int pcf_rst_card(device_t, u_char, u_char, u_char *);
 extern driver_intr_t pcf_intr;

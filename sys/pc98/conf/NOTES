@@ -29,10 +29,6 @@ device		apic			# I/O apic
 #
 options 	MP_WATCHDOG
 
-# Debugging options.
-#
-options		STOP_NMI		# Stop CPUS using NMI instead of IPI
-
 
 
 #####################################################################
@@ -193,7 +189,7 @@ options 	DEVICE_POLLING
 
 # BPF_JITTER adds support for BPF just-in-time compiler.
 
-options		BPF_JITTER
+options 	BPF_JITTER
 
 
 #####################################################################
@@ -295,7 +291,7 @@ device		pci
 device		agp
 
 # AGP debugging.
-options		AGP_DEBUG
+options 	AGP_DEBUG
 
 
 #####################################################################
@@ -372,8 +368,6 @@ hint.mse.0.irq="13"
 # Network interfaces:
 #
 
-# ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
-#       (requires sppp)
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
@@ -391,13 +385,11 @@ hint.mse.0.irq="13"
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # snc:	National Semiconductor DP8393X SONIC Ethernet adapter driver
-# sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # ural:	Ralink Technology RT2500USB IEEE 802.11 wireless adapter
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 
 # Order for ISA/EISA devices is important here
 
-device		ar
 device		ce
 device		cp
 device		cs
@@ -427,7 +419,6 @@ hint.snc.0.at="isa"
 hint.snc.0.port="0x888"
 hint.snc.0.irq="6"
 hint.snc.0.maddr="0xc0000"
-device		sr
 device		ural
 
 device		ath		# Atheros pci/cardbus NIC's
@@ -442,7 +433,7 @@ device		ath_hal		# pci/cardbus chip support
 #device		ath_rf5112
 #device		ath_rf5413
 #device		ath_ar5416	# AR5416 chips
-options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
 #

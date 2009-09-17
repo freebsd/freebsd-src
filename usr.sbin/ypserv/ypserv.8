@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 3, 2008
+.Dd June 25, 2009
 .Dt YPSERV 8
 .Os
 .Sh NAME
@@ -142,7 +142,11 @@ and
 .Pa master.passwd.byuid
 maps in a special way.
 When the server receives a request to access
-either of these two maps, it will check the TCP port from which the
+either of these two maps (or in fact either of the
+.Pa shadow.byname
+or
+.Pa shadow.byuid
+maps), it will check the TCP port from which the
 request originated and return an error if the port number is greater
 than 1023.
 Since only the superuser is allowed to bind to TCP ports

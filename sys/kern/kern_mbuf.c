@@ -28,7 +28,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
 #include "opt_param.h"
 
 #include <sys/param.h>
@@ -45,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
@@ -233,9 +234,6 @@ static void	mb_zfini_pack(void *, int);
 static void	mb_reclaim(void *);
 static void	mbuf_init(void *);
 static void    *mbuf_jumbo_alloc(uma_zone_t, int, u_int8_t *, int);
-static void	mbuf_jumbo_free(void *, int, u_int8_t);
-
-static MALLOC_DEFINE(M_JUMBOFRAME, "jumboframes", "mbuf jumbo frame buffers");
 
 /* Ensure that MSIZE doesn't break dtom() - it must be a power of 2 */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
@@ -297,7 +295,6 @@ mbuf_init(void *dummy)
 	if (nmbjumbo9 > 0)
 		uma_zone_set_max(zone_jumbo9, nmbjumbo9);
 	uma_zone_set_allocf(zone_jumbo9, mbuf_jumbo_alloc);
-	uma_zone_set_freef(zone_jumbo9, mbuf_jumbo_free);
 
 	zone_jumbo16 = uma_zcreate(MBUF_JUMBO16_MEM_NAME, MJUM16BYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -310,7 +307,6 @@ mbuf_init(void *dummy)
 	if (nmbjumbo16 > 0)
 		uma_zone_set_max(zone_jumbo16, nmbjumbo16);
 	uma_zone_set_allocf(zone_jumbo16, mbuf_jumbo_alloc);
-	uma_zone_set_freef(zone_jumbo16, mbuf_jumbo_free);
 
 	zone_ext_refcnt = uma_zcreate(MBUF_EXTREFCNT_MEM_NAME, sizeof(u_int),
 	    NULL, NULL,
@@ -359,18 +355,8 @@ mbuf_jumbo_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
-	return (contigmalloc(bytes, M_JUMBOFRAME, wait, (vm_paddr_t)0,
-	    ~(vm_paddr_t)0, 1, 0));
-}
-
-/*
- * UMA backend page deallocator for the jumbo frame zones.
- */
-static void
-mbuf_jumbo_free(void *mem, int size, u_int8_t flags)
-{
-
-	contigfree(mem, size, M_JUMBOFRAME);
+	return ((void *)kmem_alloc_contig(kernel_map, bytes, wait,
+	    (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT));
 }
 
 /*
@@ -655,6 +641,32 @@ mb_ctor_pack(void *mem, int size, void *arg, int how)
 #endif
 	}
 	/* m_ext is already initialized. */
+
+	return (0);
+}
+
+int
+m_pkthdr_init(struct mbuf *m, int how)
+{
+#ifdef MAC
+	int error;
+#endif
+	m->m_data = m->m_pktdat;
+	SLIST_INIT(&m->m_pkthdr.tags);
+	m->m_pkthdr.rcvif = NULL;
+	m->m_pkthdr.header = NULL;
+	m->m_pkthdr.len = 0;
+	m->m_pkthdr.flowid = 0;
+	m->m_pkthdr.csum_flags = 0;
+	m->m_pkthdr.csum_data = 0;
+	m->m_pkthdr.tso_segsz = 0;
+	m->m_pkthdr.ether_vtag = 0;
+#ifdef MAC
+	/* If the label init fails, fail the alloc */
+	error = mac_mbuf_init(m, how);
+	if (error)
+		return (error);
+#endif
 
 	return (0);
 }

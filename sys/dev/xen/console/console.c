@@ -5,6 +5,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/consio.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/tty.h>
@@ -18,7 +19,7 @@ __FBSDID("$FreeBSD$");
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <sys/cons.h>
-#include <sys/priv.h>
+#include <sys/kdb.h>
 #include <sys/proc.h>
 
 #include <dev/xen/console/xencons_ring.h>
@@ -44,17 +45,15 @@ static int xc_mute;
 static void xcons_force_flush(void);
 static void xencons_priv_interrupt(void *);
 
-static cn_probe_t       xccnprobe;
-static cn_init_t        xccninit;
-static cn_getc_t        xccngetc;
-static cn_putc_t        xccnputc;
-static cn_putc_t        xccnputc_dom0;
-static cn_checkc_t      xccncheckc;
+static cn_probe_t       xc_cnprobe;
+static cn_init_t        xc_cninit;
+static cn_term_t        xc_cnterm;
+static cn_getc_t        xc_cngetc;
+static cn_putc_t        xc_cnputc;
 
 #define XC_POLLTIME 	(hz/10)
 
-CONS_DRIVER(xc, xccnprobe, xccninit, NULL, xccngetc, 
-	    xccncheckc, xccnputc, NULL);
+CONSOLE_DRIVER(xc);
 
 static int xen_console_up;
 static boolean_t xc_start_needed;
@@ -75,17 +74,17 @@ static unsigned int wc, wp; /* write_cons, write_prod */
 #define	XCUNIT(x)	(dev2unit(x))
 #define ISTTYOPEN(tp)	((tp) && ((tp)->t_state & TS_ISOPEN))
 #define CN_LOCK_INIT(x, _name) \
-        mtx_init(&x, _name, NULL, MTX_DEF|MTX_RECURSE)
+        mtx_init(&x, _name, NULL, MTX_SPIN|MTX_RECURSE)
 
 #define CN_LOCK(l)        								\
 		do {											\
 				if (panicstr == NULL)					\
-                        mtx_lock(&(l));			\
+                        mtx_lock_spin(&(l));			\
 		} while (0)
 #define CN_UNLOCK(l)        							\
 		do {											\
 				if (panicstr == NULL)					\
-                        mtx_unlock(&(l));			\
+                        mtx_unlock_spin(&(l));			\
 		} while (0)
 #define CN_LOCK_ASSERT(x)    mtx_assert(&x, MA_OWNED)
 #define CN_LOCK_DESTROY(x)   mtx_destroy(&x)
@@ -104,7 +103,7 @@ static struct ttydevsw xc_ttydevsw = {
 };
 
 static void
-xccnprobe(struct consdev *cp)
+xc_cnprobe(struct consdev *cp)
 {
 	cp->cn_pri = CN_REMOTE;
 	sprintf(cp->cn_name, "%s0", driver_name);
@@ -112,39 +111,28 @@ xccnprobe(struct consdev *cp)
 
 
 static void
-xccninit(struct consdev *cp)
+xc_cninit(struct consdev *cp)
 { 
 	CN_LOCK_INIT(cn_mtx,"XCONS LOCK");
 
 }
-int
-xccngetc(struct consdev *dev)
-{
-	int c;
-	if (xc_mute)
-	    	return 0;
-	do {
-		if ((c = xccncheckc(dev)) == -1) {
-			/* polling without sleeping in Xen doesn't work well. 
-			 * Sleeping gives other things like clock a chance to 
-			 * run
-			 */
-			tsleep(&cn_mtx, PWAIT | PCATCH, "console sleep", 
-			       XC_POLLTIME);
-		}
-	} while(c == -1);
-	return c;
+
+static void
+xc_cnterm(struct consdev *cp)
+{ 
 }
 
-int
-xccncheckc(struct consdev *dev)
+static int
+xc_cngetc(struct consdev *dev)
 {
 	int ret = (xc_mute ? 0 : -1);
-	if (xencons_has_input()) 
-			xencons_handle_input(NULL);
+
+	if (xencons_has_input())
+		xencons_handle_input(NULL);
 	
 	CN_LOCK(cn_mtx);
 	if ((rp - rc)) {
+		/* if (kdb_active) printf("%s:%d\n", __func__, __LINE__); */
 		/* we need to return only one char */
 		ret = (int)rbuf[RBUF_MASK(rc)];
 		rc++;
@@ -154,15 +142,25 @@ xccncheckc(struct consdev *dev)
 }
 
 static void
-xccnputc(struct consdev *dev, int c)
+xc_cnputc_domu(struct consdev *dev, int c)
 {
 	xcons_putc(c);
 }
 
 static void
-xccnputc_dom0(struct consdev *dev, int c)
+xc_cnputc_dom0(struct consdev *dev, int c)
 {
 	HYPERVISOR_console_io(CONSOLEIO_write, 1, (char *)&c);
+}
+
+static void
+xc_cnputc(struct consdev *dev, int c)
+{
+
+	if (xen_start_info->flags & SIF_INITDOMAIN)
+		xc_cnputc_dom0(dev, c);
+	else
+		xc_cnputc_domu(dev, c);
 }
 
 extern int db_active;
@@ -217,13 +215,8 @@ static int
 xc_attach(device_t dev) 
 {
 	int error;
-	struct xc_softc *sc = (struct xc_softc *)device_get_softc(dev);
 
-	if (xen_start_info->flags & SIF_INITDOMAIN) {
-		xc_consdev.cn_putc = xccnputc_dom0;
-	} 
-
-	xccons = tty_alloc(&xc_ttydevsw, NULL, NULL);
+	xccons = tty_alloc(&xc_ttydevsw, NULL);
 	tty_makedev(xccons, NULL, "xc%r", 0);
 
 	callout_init(&xc_callout, 0);
@@ -235,16 +228,15 @@ xc_attach(device_t dev)
     
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
 			error = bind_virq_to_irqhandler(
-					VIRQ_CONSOLE,
-						0,
-						"console",
-						NULL,
-						xencons_priv_interrupt,
-						sc, INTR_TYPE_TTY, NULL);
+				 VIRQ_CONSOLE,
+				 0,
+				 "console",
+				 NULL,
+				 xencons_priv_interrupt, NULL,
+				 INTR_TYPE_TTY, NULL);
 		
 				KASSERT(error >= 0, ("can't register console interrupt"));
 	}
-
 
 	/* register handler to flush console on shutdown */
 	if ((EVENTHANDLER_REGISTER(shutdown_post_sync, xc_shutdown,
@@ -270,15 +262,21 @@ xencons_rx(char *buf, unsigned len)
 	int           i;
 	struct tty *tp = xccons;
 
-	if (xen_console_up) {
+	if (xen_console_up
+#ifdef DDB
+	    && !kdb_active
+#endif
+		) {
 		tty_lock(tp);
 		for (i = 0; i < len; i++)
 			ttydisc_rint(tp, buf[i], 0);
 		ttydisc_rint_done(tp);
 		tty_unlock(tp);
 	} else {
+		CN_LOCK(cn_mtx);
 		for (i = 0; i < len; i++)
 			rbuf[RBUF_MASK(rp++)] = buf[i];
+		CN_UNLOCK(cn_mtx);
 	}
 }
 
@@ -376,7 +374,7 @@ xc_timeout(void *v)
 	tp = (struct tty *)v;
 
 	tty_lock(tp);
-	while ((c = xccncheckc(NULL)) != -1)
+	while ((c = xc_cngetc(NULL)) != -1)
 		ttydisc_rint(tp, c, 0);
 
 	if (xc_start_needed) {
@@ -423,12 +421,3 @@ xcons_force_flush(void)
 }
 
 DRIVER_MODULE(xc, nexus, xc_driver, xc_devclass, 0, 0);
-/*
- * Local variables:
- * mode: C
- * c-set-style: "BSD"
- * c-basic-offset: 8
- * tab-width: 4
- * indent-tabs-mode: t
- * End:
- */

@@ -101,7 +101,9 @@ scprobe(device_t dev)
 static int
 scattach(device_t dev)
 {
-	return sc_attach_unit(device_get_unit(dev), device_get_flags(dev));
+
+	return (sc_attach_unit(device_get_unit(dev), device_get_flags(dev) |
+	    SC_AUTODETECT_KBD));
 }
 
 static int
@@ -238,8 +240,10 @@ sc_get_cons_priority(int *unit, int *flags)
 			*flags = f;
 		}
 	}
-	if (*unit < 0)
-		return CN_DEAD;
+	if (*unit < 0) {
+		*unit = 0;
+		*flags = 0;
+	}
 #if 0
 	return ((*flags & SC_KERNEL_CONSOLE) ? CN_INTERNAL : CN_NORMAL);
 #endif

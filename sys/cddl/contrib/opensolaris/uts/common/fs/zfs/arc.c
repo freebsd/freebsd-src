@@ -131,6 +131,8 @@
 #include <sys/kstat.h>
 #include <sys/sdt.h>
 
+#include <vm/vm_pageout.h>
+
 static kmutex_t		arc_reclaim_thr_lock;
 static kcondvar_t	arc_reclaim_thr_cv;	/* used to signal reclaim thr */
 static uint8_t		arc_thread_exit;
@@ -156,6 +158,7 @@ static int		arc_grow_retry = 60;
  */
 static int		arc_min_prefetch_lifespan;
 
+extern int zfs_prefetch_disable;
 static int arc_dead;
 
 /*
@@ -1710,14 +1713,23 @@ arc_adjust(void)
 static void
 arc_do_user_evicts(void)
 {
+	static arc_buf_t *tmp_arc_eviction_list;
+
+	/*
+	 * Move list over to avoid LOR
+	 */
+restart:	
 	mutex_enter(&arc_eviction_mtx);
-	while (arc_eviction_list != NULL) {
-		arc_buf_t *buf = arc_eviction_list;
-		arc_eviction_list = buf->b_next;
+	tmp_arc_eviction_list = arc_eviction_list;
+	arc_eviction_list = NULL;
+	mutex_exit(&arc_eviction_mtx);
+
+	while (tmp_arc_eviction_list != NULL) {
+		arc_buf_t *buf = tmp_arc_eviction_list;
+		tmp_arc_eviction_list = buf->b_next;
 		rw_enter(&buf->b_lock, RW_WRITER);
 		buf->b_hdr = NULL;
 		rw_exit(&buf->b_lock);
-		mutex_exit(&arc_eviction_mtx);
 
 		if (buf->b_efunc != NULL)
 			VERIFY(buf->b_efunc(buf) == 0);
@@ -1725,9 +1737,10 @@ arc_do_user_evicts(void)
 		buf->b_efunc = NULL;
 		buf->b_private = NULL;
 		kmem_cache_free(buf_cache, buf);
-		mutex_enter(&arc_eviction_mtx);
 	}
-	mutex_exit(&arc_eviction_mtx);
+
+	if (arc_eviction_list != NULL)
+		goto restart;
 }
 
 /*
@@ -1808,6 +1821,13 @@ arc_reclaim_needed(void)
 #endif
 
 #ifdef _KERNEL
+
+	/*
+	 * If pages are needed or we're within 2048 pages 
+	 * of needing to page need to reclaim
+	 */
+	if (vm_pages_needed || (vm_paging_target() > -2048))
+		return (1);
 
 	if (needfree)
 		return (1);
@@ -3402,6 +3422,8 @@ arc_lowmem(void *arg __unused, int howto __unused)
 void
 arc_init(void)
 {
+	int prefetch_tunable_set = 0;
+	
 	mutex_init(&arc_reclaim_thr_lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&arc_reclaim_thr_cv, NULL, CV_DEFAULT, NULL);
 	mutex_init(&arc_lowmem_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -3530,6 +3552,27 @@ arc_init(void)
 	mutex_init(&zfs_write_limit_lock, NULL, MUTEX_DEFAULT, NULL);
 
 #ifdef _KERNEL
+	if (TUNABLE_INT_FETCH("vfs.zfs.prefetch_disable", &zfs_prefetch_disable))
+		prefetch_tunable_set = 1;
+	
+#ifdef __i386__
+	if (prefetch_tunable_set == 0) {
+		printf("ZFS NOTICE: Prefetch is disabled by default on i386 "
+		    "-- to enable,\n");
+		printf("            add \"vfs.zfs.prefetch_disable=0\" "
+		    "to /boot/loader.conf.\n");
+		zfs_prefetch_disable=1;
+	}
+#else	
+	if ((((uint64_t)physmem * PAGESIZE) < (1ULL << 32)) &&
+	    prefetch_tunable_set == 0) {
+		printf("ZFS NOTICE: Prefetch is disabled by default if less "
+		    "than 4GB of RAM is present;\n"
+		    "            to enable, add \"vfs.zfs.prefetch_disable=0\" "
+		    "to /boot/loader.conf.\n");
+		zfs_prefetch_disable=1;
+	}
+#endif	
 	/* Warn about ZFS memory and address space requirements. */
 	if (((uint64_t)physmem * PAGESIZE) < (256 + 128 + 64) * (1 << 20)) {
 		printf("ZFS WARNING: Recommended minimum RAM size is 512MB; "

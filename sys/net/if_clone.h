@@ -72,6 +72,7 @@ struct if_clone {
 void	if_clone_init(void);
 void	if_clone_attach(struct if_clone *);
 void	if_clone_detach(struct if_clone *);
+void	vnet_if_clone_init(void);
 
 int	if_clone_create(char *, size_t, caddr_t);
 int	if_clone_destroy(const char *);

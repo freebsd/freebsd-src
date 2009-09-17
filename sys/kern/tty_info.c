@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #define BOTH    3
 
 static int
-proc_sum(struct proc *p, int *estcpup)
+proc_sum(struct proc *p, fixpt_t *estcpup)
 {
 	struct thread *td;
 	int estcpu;
@@ -213,9 +213,9 @@ proc_compare(struct proc *p1, struct proc *p2)
 void
 tty_info(struct tty *tp)
 {
-	struct timeval utime, stime;
-	struct proc *p, *pick;
-	struct thread *td, *picktd;
+	struct timeval rtime, utime, stime;
+	struct proc *p, *ppick;
+	struct thread *td, *tdpick;
 	const char *stateprefix, *state;
 	long rss;
 	int load, pctcpu;
@@ -230,7 +230,8 @@ tty_info(struct tty *tp)
 
 	/* Print load average. */
 	load = (averunnable.ldavg[0] * 100 + FSCALE / 2) >> FSHIFT;
-	ttyprintf(tp, "load: %d.%02d ", load / 100, load % 100);
+	ttyprintf(tp, "%sload: %d.%02d ", tp->t_column == 0 ? "" : "\n",
+	    load / 100, load % 100);
 
 	if (tp->t_session == NULL) {
 		ttyprintf(tp, "not a controlling terminal\n");
@@ -254,18 +255,17 @@ tty_info(struct tty *tp)
 	 * whole list. However, we're guaranteed not to reference an exited
 	 * thread or proc since we hold the tty locked.
 	 */
-	pick = NULL;
-	LIST_FOREACH(p, &tp->t_pgrp->pg_members, p_pglist)
-		if (proc_compare(pick, p))
-			pick = p;
+	p = NULL;
+	LIST_FOREACH(ppick, &tp->t_pgrp->pg_members, p_pglist)
+		if (proc_compare(p, ppick))
+			p = ppick;
 
-	PROC_LOCK(pick);
-	picktd = NULL;
-	td = FIRST_THREAD_IN_PROC(pick);
-	FOREACH_THREAD_IN_PROC(pick, td)
-		if (thread_compare(picktd, td))
-			picktd = td;
-	td = picktd;
+	PROC_LOCK(p);
+	PGRP_UNLOCK(tp->t_pgrp);
+	td = NULL;
+	FOREACH_THREAD_IN_PROC(p, tdpick)
+		if (thread_compare(td, tdpick))
+			td = tdpick;
 	stateprefix = "";
 	thread_lock(td);
 	if (TD_IS_RUNNING(td))
@@ -285,28 +285,28 @@ tty_info(struct tty *tp)
 		state = "suspended";
 	else if (TD_AWAITING_INTR(td))
 		state = "intrwait";
-	else if (pick->p_state == PRS_ZOMBIE)
+	else if (p->p_state == PRS_ZOMBIE)
 		state = "zombie";
 	else
 		state = "unknown";
 	pctcpu = (sched_pctcpu(td) * 10000 + FSCALE / 2) >> FSHIFT;
 	thread_unlock(td);
-	if (pick->p_state == PRS_NEW || pick->p_state == PRS_ZOMBIE)
+	if (p->p_state == PRS_NEW || p->p_state == PRS_ZOMBIE)
 		rss = 0;
 	else
-		rss = pgtok(vmspace_resident_count(pick->p_vmspace));
-	PROC_UNLOCK(pick);
-	PROC_LOCK(pick);
-	PGRP_UNLOCK(tp->t_pgrp);
-	rufetchcalc(pick, &ru, &utime, &stime);
-	pid = pick->p_pid;
-	bcopy(pick->p_comm, comm, sizeof(comm));
-	PROC_UNLOCK(pick);
+		rss = pgtok(vmspace_resident_count(p->p_vmspace));
+	microuptime(&rtime);
+	timevalsub(&rtime, &p->p_stats->p_start);
+	rufetchcalc(p, &ru, &utime, &stime);
+	pid = p->p_pid;
+	strlcpy(comm, p->p_comm, sizeof comm);
+	PROC_UNLOCK(p);
 
-	/* Print command, pid, state, utime, stime, %cpu, and rss. */
+	/* Print command, pid, state, rtime, utime, stime, %cpu, and rss. */
 	ttyprintf(tp,
-	    " cmd: %s %d [%s%s] %ld.%02ldu %ld.%02lds %d%% %ldk\n",
+	    " cmd: %s %d [%s%s] %ld.%02ldr %ld.%02ldu %ld.%02lds %d%% %ldk\n",
 	    comm, pid, stateprefix, state,
+	    (long)rtime.tv_sec, rtime.tv_usec / 10000,
 	    (long)utime.tv_sec, utime.tv_usec / 10000,
 	    (long)stime.tv_sec, stime.tv_usec / 10000,
 	    pctcpu / 100, rss);

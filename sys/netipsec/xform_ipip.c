@@ -50,7 +50,6 @@
 #include <sys/kernel.h>
 #include <sys/protosw.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/pfil.h>
@@ -68,7 +67,6 @@
 #ifdef MROUTING
 #include <netinet/ip_mroute.h>
 #endif
-#include <netinet/vinet.h>
 
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
@@ -92,16 +90,14 @@
  * We can control the acceptance of IP4 packets by altering the sysctl
  * net.inet.ipip.allow value.  Zero means drop them, all else is acceptance.
  */
-#ifdef VIMAGE_GLOBALS
-int	ipip_allow;
-struct	ipipstat ipipstat;
-#endif
+VNET_DEFINE(int, ipip_allow) = 0;
+VNET_DEFINE(struct ipipstat, ipipstat);
 
 SYSCTL_DECL(_net_inet_ipip);
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipip, OID_AUTO,
-	ipip_allow,	CTLFLAG_RW,	ipip_allow,	0, "");
-SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipip, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	ipipstat,	ipipstat, "");
+SYSCTL_VNET_INT(_net_inet_ipip, OID_AUTO,
+	ipip_allow,	CTLFLAG_RW,	&VNET_NAME(ipip_allow),	0, "");
+SYSCTL_VNET_STRUCT(_net_inet_ipip, IPSECCTL_STATS,
+	stats,		CTLFLAG_RD,	&VNET_NAME(ipipstat),	ipipstat, "");
 
 /* XXX IPCOMP */
 #define	M_IPSEC	(M_AUTHIPHDR|M_AUTHIPDGM|M_DECRYPTED)
@@ -159,9 +155,9 @@ ip4_input(struct mbuf *m, int off)
 static void
 _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_IPSEC(curvnet);
+#ifdef INET
 	register struct sockaddr_in *sin;
+#endif
 	register struct ifnet *ifp;
 	register struct ifaddr *ifa;
 	struct ip *ipo;
@@ -307,7 +303,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	if ((m->m_pkthdr.rcvif == NULL ||
 	    !(m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK)) &&
 	    V_ipip_allow != 2) {
-	    	IFNET_RLOCK();
+	    	IFNET_RLOCK_NOSLEEP();
 		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 #ifdef INET
@@ -322,7 +318,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 					    ipo->ip_src.s_addr)	{
 						V_ipipstat.ipips_spoof++;
 						m_freem(m);
-						IFNET_RUNLOCK();
+						IFNET_RUNLOCK_NOSLEEP();
 						return;
 					}
 				}
@@ -339,7 +335,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 					if (IN6_ARE_ADDR_EQUAL(&sin6->sin6_addr, &ip6->ip6_src)) {
 						V_ipipstat.ipips_spoof++;
 						m_freem(m);
-						IFNET_RUNLOCK();
+						IFNET_RUNLOCK_NOSLEEP();
 						return;
 					}
 
@@ -347,7 +343,7 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 #endif /* INET6 */
 			}
 		}
-		IFNET_RUNLOCK();
+		IFNET_RUNLOCK_NOSLEEP();
 	}
 
 	/* Statistics */
@@ -412,10 +408,6 @@ ipip_output(
 	int protoff
 )
 {
-	INIT_VNET_IPSEC(curvnet);
-#ifdef INET
-	INIT_VNET_INET(curvnet);
-#endif /* INET */
 	struct secasvar *sav;
 	u_int8_t tp, otos;
 	struct secasindex *saidx;
@@ -699,8 +691,6 @@ ipe4_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 static void
 ipe4_attach(void)
 {
-
-	V_ipip_allow = 0;
 
 	xform_register(&ipe4_xformsw);
 	/* attach to encapsulation framework */

@@ -99,6 +99,8 @@ struct ieee80211_key {
 };
 #define	IEEE80211_KEY_COMMON 		/* common flags passed in by apps */\
 	(IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV | IEEE80211_KEY_GROUP)
+#define	IEEE80211_KEY_DEVICE		/* flags owned by device driver */\
+	(IEEE80211_KEY_DEVKEY|IEEE80211_KEY_CIPHER0|IEEE80211_KEY_CIPHER1)
 
 #define	IEEE80211_KEY_SWCRYPT \
 	(IEEE80211_KEY_SWENCRYPT | IEEE80211_KEY_SWDECRYPT)
@@ -236,7 +238,7 @@ ieee80211_crypto_resetkey(struct ieee80211vap *vap,
  */
 void	ieee80211_notify_replay_failure(struct ieee80211vap *,
 		const struct ieee80211_frame *, const struct ieee80211_key *,
-		uint64_t rsc);
+		uint64_t rsc, int tid);
 void	ieee80211_notify_michael_failure(struct ieee80211vap *,
 		const struct ieee80211_frame *, u_int keyix);
 #endif /* defined(__KERNEL__) || defined(_KERNEL) */

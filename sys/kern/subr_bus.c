@@ -66,6 +66,8 @@ typedef struct driverlink *driverlink_t;
 struct driverlink {
 	kobj_class_t	driver;
 	TAILQ_ENTRY(driverlink) link;	/* list of drivers in devclass */
+	int		pass;
+	TAILQ_ENTRY(driverlink) passlink;
 };
 
 /*
@@ -82,6 +84,8 @@ struct devclass {
 	char		*name;
 	device_t	*devices;	/* array of devices indexed by unit */
 	int		maxunit;	/* size of devices array */
+	int		flags;
+#define DC_HAS_CHILDREN		1
 
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
@@ -346,11 +350,18 @@ device_sysctl_fini(device_t dev)
  * tested since 3.4 or 2.2.8!
  */
 
+/* Deprecated way to adjust queue length */
 static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
-static int devctl_disable = 0;
-TUNABLE_INT("hw.bus.devctl_disable", &devctl_disable);
+/* XXX Need to support old-style tunable hw.bus.devctl_disable" */
 SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RW, NULL,
-    0, sysctl_devctl_disable, "I", "devctl disable");
+    0, sysctl_devctl_disable, "I", "devctl disable -- deprecated");
+
+#define DEVCTL_DEFAULT_QUEUE_LEN 1000
+static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
+static int devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
+TUNABLE_INT("hw.bus.devctl_queue", &devctl_queue_length);
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_queue, CTLTYPE_INT | CTLFLAG_RW, NULL,
+    0, sysctl_devctl_queue, "I", "devctl queue length");
 
 static d_open_t		devopen;
 static d_close_t	devclose;
@@ -381,6 +392,7 @@ static struct dev_softc
 {
 	int	inuse;
 	int	nonblock;
+	int	queued;
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo sel;
@@ -401,7 +413,7 @@ devinit(void)
 }
 
 static int
-devopen(struct cdev *dev, int oflags, int devtype, d_thread_t *td)
+devopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	if (devsoftc.inuse)
 		return (EBUSY);
@@ -413,13 +425,13 @@ devopen(struct cdev *dev, int oflags, int devtype, d_thread_t *td)
 }
 
 static int
-devclose(struct cdev *dev, int fflag, int devtype, d_thread_t *td)
+devclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	devsoftc.inuse = 0;
 	mtx_lock(&devsoftc.mtx);
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
-
+	devsoftc.async_proc = NULL;
 	return (0);
 }
 
@@ -454,6 +466,7 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 	n1 = TAILQ_FIRST(&devsoftc.devq);
 	TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+	devsoftc.queued--;
 	mtx_unlock(&devsoftc.mtx);
 	rv = uiomove(n1->dei_data, strlen(n1->dei_data), uio);
 	free(n1->dei_data, M_BUS);
@@ -462,7 +475,7 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 static	int
-devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
+devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	switch (cmd) {
 
@@ -492,7 +505,7 @@ devioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 }
 
 static	int
-devpoll(struct cdev *dev, int events, d_thread_t *td)
+devpoll(struct cdev *dev, int events, struct thread *td)
 {
 	int	revents = 0;
 
@@ -527,15 +540,33 @@ devctl_process_running(void)
 void
 devctl_queue_data(char *data)
 {
-	struct dev_event_info *n1 = NULL;
+	struct dev_event_info *n1 = NULL, *n2 = NULL;
 	struct proc *p;
 
+	if (strlen(data) == 0)
+		return;
+	if (devctl_queue_length == 0)
+		return;
 	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
 	if (n1 == NULL)
 		return;
 	n1->dei_data = data;
 	mtx_lock(&devsoftc.mtx);
+	if (devctl_queue_length == 0) {
+		free(n1->dei_data, M_BUS);
+		free(n1, M_BUS);
+		return;
+	}
+	/* Leave at least one spot in the queue... */
+	while (devsoftc.queued > devctl_queue_length - 1) {
+		n2 = TAILQ_FIRST(&devsoftc.devq);
+		TAILQ_REMOVE(&devsoftc.devq, n2, dei_link);
+		free(n2->dei_data, M_BUS);
+		free(n2, M_BUS);
+		devsoftc.queued--;
+	}
 	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
+	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
@@ -604,7 +635,7 @@ devaddq(const char *type, const char *what, device_t dev)
 	char *pnp = NULL;
 	const char *parstr;
 
-	if (devctl_disable)
+	if (!devctl_queue_length)/* Rare race, but lost races safely discard */
 		return;
 	data = malloc(1024, M_BUS, M_NOWAIT);
 	if (data == NULL)
@@ -704,7 +735,7 @@ fail:
 
 /*
  * Called when there's no match for this device.  This is only called
- * the first time that no match happens, so we don't keep getitng this
+ * the first time that no match happens, so we don't keep getting this
  * message.  Should that prove to be undesirable, we can change it.
  * This is called when all drivers that can attach to a given bus
  * decline to accept this device.  Other errrors may not be detected.
@@ -721,12 +752,11 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 	struct dev_event_info *n1;
 	int dis, error;
 
-	dis = devctl_disable;
+	dis = devctl_queue_length == 0;
 	error = sysctl_handle_int(oidp, &dis, 0, req);
 	if (error || !req->newptr)
 		return (error);
 	mtx_lock(&devsoftc.mtx);
-	devctl_disable = dis;
 	if (dis) {
 		while (!TAILQ_EMPTY(&devsoftc.devq)) {
 			n1 = TAILQ_FIRST(&devsoftc.devq);
@@ -734,6 +764,35 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 			free(n1->dei_data, M_BUS);
 			free(n1, M_BUS);
 		}
+		devsoftc.queued = 0;
+		devctl_queue_length = 0;
+	} else {
+		devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
+	}
+	mtx_unlock(&devsoftc.mtx);
+	return (0);
+}
+
+static int
+sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
+{
+	struct dev_event_info *n1;
+	int q, error;
+
+	q = devctl_queue_length;
+	error = sysctl_handle_int(oidp, &q, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (q < 0)
+		return (EINVAL);
+	mtx_lock(&devsoftc.mtx);
+	devctl_queue_length = q;
+	while (devsoftc.queued > devctl_queue_length) {
+		n1 = TAILQ_FIRST(&devsoftc.devq);
+		TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+		free(n1->dei_data, M_BUS);
+		free(n1, M_BUS);
+		devsoftc.queued--;
 	}
 	mtx_unlock(&devsoftc.mtx);
 	return (0);
@@ -751,11 +810,97 @@ static kobj_method_t null_methods[] = {
 DEFINE_CLASS(null, null_methods, 0);
 
 /*
+ * Bus pass implementation
+ */
+
+static driver_list_t passes = TAILQ_HEAD_INITIALIZER(passes);
+int bus_current_pass = BUS_PASS_ROOT;
+
+/**
+ * @internal
+ * @brief Register the pass level of a new driver attachment
+ *
+ * Register a new driver attachment's pass level.  If no driver
+ * attachment with the same pass level has been added, then @p new
+ * will be added to the global passes list.
+ *
+ * @param new		the new driver attachment
+ */
+static void
+driver_register_pass(struct driverlink *new)
+{
+	struct driverlink *dl;
+
+	/* We only consider pass numbers during boot. */
+	if (bus_current_pass == BUS_PASS_DEFAULT)
+		return;
+
+	/*
+	 * Walk the passes list.  If we already know about this pass
+	 * then there is nothing to do.  If we don't, then insert this
+	 * driver link into the list.
+	 */
+	TAILQ_FOREACH(dl, &passes, passlink) {
+		if (dl->pass < new->pass)
+			continue;
+		if (dl->pass == new->pass)
+			return;
+		TAILQ_INSERT_BEFORE(dl, new, passlink);
+		return;
+	}
+	TAILQ_INSERT_TAIL(&passes, new, passlink);
+}
+
+/**
+ * @brief Raise the current bus pass
+ *
+ * Raise the current bus pass level to @p pass.  Call the BUS_NEW_PASS()
+ * method on the root bus to kick off a new device tree scan for each
+ * new pass level that has at least one driver.
+ */
+void
+bus_set_pass(int pass)
+{
+	struct driverlink *dl;
+
+	if (bus_current_pass > pass)
+		panic("Attempt to lower bus pass level");
+
+	TAILQ_FOREACH(dl, &passes, passlink) {
+		/* Skip pass values below the current pass level. */
+		if (dl->pass <= bus_current_pass)
+			continue;
+
+		/*
+		 * Bail once we hit a driver with a pass level that is
+		 * too high.
+		 */
+		if (dl->pass > pass)
+			break;
+
+		/*
+		 * Raise the pass level to the next level and rescan
+		 * the tree.
+		 */
+		bus_current_pass = dl->pass;
+		BUS_NEW_PASS(root_bus);
+	}
+
+	/*
+	 * If there isn't a driver registered for the requested pass,
+	 * then bus_current_pass might still be less than 'pass'.  Set
+	 * it to 'pass' in that case.
+	 */
+	if (bus_current_pass < pass)
+		bus_current_pass = pass;
+	KASSERT(bus_current_pass == pass, ("Failed to update bus pass level"));
+}
+
+/*
  * Devclass implementation
  */
 
 static devclass_list_t devclasses = TAILQ_HEAD_INITIALIZER(devclasses);
-
 
 /**
  * @internal
@@ -790,7 +935,7 @@ devclass_find_internal(const char *classname, const char *parentname,
 	if (create && !dc) {
 		PDEBUG(("creating %s", classname));
 		dc = malloc(sizeof(struct devclass) + strlen(classname) + 1,
-		    M_BUS, M_NOWAIT|M_ZERO);
+		    M_BUS, M_NOWAIT | M_ZERO);
 		if (!dc)
 			return (NULL);
 		dc->parent = NULL;
@@ -812,7 +957,8 @@ devclass_find_internal(const char *classname, const char *parentname,
 	 */
 	if (parentname && dc && !dc->parent &&
 	    strcmp(classname, parentname) != 0) {
-		dc->parent = devclass_find_internal(parentname, NULL, FALSE);
+		dc->parent = devclass_find_internal(parentname, NULL, TRUE);
+		dc->parent->flags |= DC_HAS_CHILDREN;
 	}
 
 	return (dc);
@@ -847,6 +993,51 @@ devclass_find(const char *classname)
 }
 
 /**
+ * @brief Register that a device driver has been added to a devclass
+ *
+ * Register that a device driver has been added to a devclass.  This
+ * is called by devclass_add_driver to accomplish the recursive
+ * notification of all the children classes of dc, as well as dc.
+ * Each layer will have BUS_DRIVER_ADDED() called for all instances of
+ * the devclass.  We do a full search here of the devclass list at
+ * each iteration level to save storing children-lists in the devclass
+ * structure.  If we ever move beyond a few dozen devices doing this,
+ * we may need to reevaluate...
+ *
+ * @param dc		the devclass to edit
+ * @param driver	the driver that was just added
+ */
+static void
+devclass_driver_added(devclass_t dc, driver_t *driver)
+{
+	devclass_t parent;
+	int i;
+
+	/*
+	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
+	 */
+	for (i = 0; i < dc->maxunit; i++)
+		if (dc->devices[i])
+			BUS_DRIVER_ADDED(dc->devices[i], driver);
+
+	/*
+	 * Walk through the children classes.  Since we only keep a
+	 * single parent pointer around, we walk the entire list of
+	 * devclasses looking for children.  We set the
+	 * DC_HAS_CHILDREN flag when a child devclass is created on
+	 * the parent, so we only walk the list for those devclasses
+	 * that have children.
+	 */
+	if (!(dc->flags & DC_HAS_CHILDREN))
+		return;
+	parent = dc;
+	TAILQ_FOREACH(dc, &devclasses, link) {
+		if (dc->parent == parent)
+			devclass_driver_added(dc, driver);
+	}
+}
+
+/**
  * @brief Add a device driver to a device class
  *
  * Add a device driver to a devclass. This is normally called
@@ -857,13 +1048,16 @@ devclass_find(const char *classname)
  * @param dc		the devclass to edit
  * @param driver	the driver to register
  */
-int
-devclass_add_driver(devclass_t dc, driver_t *driver)
+static int
+devclass_add_driver(devclass_t dc, driver_t *driver, int pass)
 {
 	driverlink_t dl;
-	int i;
 
 	PDEBUG(("%s", DRIVERNAME(driver)));
+
+	/* Don't allow invalid pass values. */
+	if (pass <= BUS_PASS_ROOT)
+		return (EINVAL);
 
 	dl = malloc(sizeof *dl, M_BUS, M_NOWAIT|M_ZERO);
 	if (!dl)
@@ -885,14 +1079,10 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 	dl->driver = driver;
 	TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
 	driver->refs++;		/* XXX: kobj_mtx */
+	dl->pass = pass;
+	driver_register_pass(dl);
 
-	/*
-	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
-	 */
-	for (i = 0; i < dc->maxunit; i++)
-		if (dc->devices[i])
-			BUS_DRIVER_ADDED(dc->devices[i], driver);
-
+	devclass_driver_added(dc, driver);
 	bus_data_generation_update();
 	return (0);
 }
@@ -911,7 +1101,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
  * @param dc		the devclass to edit
  * @param driver	the driver to unregister
  */
-int
+static int
 devclass_delete_driver(devclass_t busclass, driver_t *driver)
 {
 	devclass_t dc = devclass_find(driver->name);
@@ -986,7 +1176,7 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
  * @param dc		the devclass to edit
  * @param driver	the driver to unregister
  */
-int
+static int
 devclass_quiesce_driver(devclass_t busclass, driver_t *driver)
 {
 	devclass_t dc = devclass_find(driver->name);
@@ -1054,27 +1244,6 @@ devclass_find_driver_internal(devclass_t dc, const char *classname)
 	}
 
 	PDEBUG(("not found"));
-	return (NULL);
-}
-
-/**
- * @brief Search a devclass for a driver
- *
- * This function searches the devclass's list of drivers and returns
- * the first driver whose name is @p classname or @c NULL if there is
- * no driver of that name.
- *
- * @param dc		the devclass to search
- * @param classname	the driver name to search for
- */
-kobj_class_t
-devclass_find_driver(devclass_t dc, const char *classname)
-{
-	driverlink_t dl;
-
-	dl = devclass_find_driver_internal(dc, classname);
-	if (dl)
-		return (dl->driver);
 	return (NULL);
 }
 
@@ -1754,11 +1923,18 @@ device_probe_child(device_t dev, device_t child)
 		for (dl = first_matching_driver(dc, child);
 		     dl;
 		     dl = next_matching_driver(dc, child, dl)) {
+
+			/* If this driver's pass is too high, then ignore it. */
+			if (dl->pass > bus_current_pass)
+				continue;
+
 			PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
 			device_set_driver(child, dl->driver);
 			if (!hasclass) {
 				if (device_set_devclass(child, dl->driver->name)) {
-					PDEBUG(("Unable to set device class"));
+					printf("driver bug: Unable to set devclass (devname: %s)\n",
+					    (child ? device_get_name(child) :
+						"no device"));
 					device_set_driver(child, NULL);
 					continue;
 				}
@@ -2393,8 +2569,9 @@ device_probe(device_t dev)
 		}
 		return (-1);
 	}
-	if ((error = device_probe_child(dev->parent, dev)) != 0) {
-		if (!(dev->flags & DF_DONENOMATCH)) {
+	if ((error = device_probe_child(dev->parent, dev)) != 0) {		
+		if (bus_current_pass == BUS_PASS_DEFAULT &&
+		    !(dev->flags & DF_DONENOMATCH)) {
 			BUS_PROBE_NOMATCH(dev->parent, dev);
 			devnomatch(dev);
 			dev->flags |= DF_DONENOMATCH;
@@ -2939,6 +3116,17 @@ bus_generic_probe(device_t dev)
 	driverlink_t dl;
 
 	TAILQ_FOREACH(dl, &dc->drivers, link) {
+		/*
+		 * If this driver's pass is too high, then ignore it.
+		 * For most drivers in the default pass, this will
+		 * never be true.  For early-pass drivers they will
+		 * only call the identify routines of eligible drivers
+		 * when this routine is called.  Drivers for later
+		 * passes should have their identify routines called
+		 * on early-pass busses during BUS_NEW_PASS().
+		 */
+		if (dl->pass > bus_current_pass)
+				continue;
 		DEVICE_IDENTIFY(dl->driver, dev);
 	}
 
@@ -3161,6 +3349,36 @@ bus_generic_driver_added(device_t dev, driver_t *driver)
 	TAILQ_FOREACH(child, &dev->children, link) {
 		if (child->state == DS_NOTPRESENT ||
 		    (child->flags & DF_REBID))
+			device_probe_and_attach(child);
+	}
+}
+
+/**
+ * @brief Helper function for implementing BUS_NEW_PASS().
+ *
+ * This implementing of BUS_NEW_PASS() first calls the identify
+ * routines for any drivers that probe at the current pass.  Then it
+ * walks the list of devices for this bus.  If a device is already
+ * attached, then it calls BUS_NEW_PASS() on that device.  If the
+ * device is not already attached, it attempts to attach a driver to
+ * it.
+ */
+void
+bus_generic_new_pass(device_t dev)
+{
+	driverlink_t dl;
+	devclass_t dc;
+	device_t child;
+
+	dc = dev->devclass;
+	TAILQ_FOREACH(dl, &dc->drivers, link) {
+		if (dl->pass == bus_current_pass)
+			DEVICE_IDENTIFY(dl->driver, dev);
+	}
+	TAILQ_FOREACH(child, &dev->children, link) {
+		if (child->state >= DS_ATTACHED)
+			BUS_NEW_PASS(child);
+		else if (child->state == DS_NOTPRESENT)
 			device_probe_and_attach(child);
 	}
 }
@@ -3863,13 +4081,11 @@ DECLARE_MODULE(rootbus, root_bus_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 void
 root_bus_configure(void)
 {
-	device_t dev;
 
 	PDEBUG(("."));
 
-	TAILQ_FOREACH(dev, &root_bus->children, link) {
-		device_probe_and_attach(dev);
-	}
+	/* Eventually this will be split up, but this is sufficient for now. */
+	bus_set_pass(BUS_PASS_DEFAULT);
 }
 
 /**
@@ -3883,10 +4099,10 @@ root_bus_configure(void)
 int
 driver_module_handler(module_t mod, int what, void *arg)
 {
-	int error;
 	struct driver_module_data *dmd;
 	devclass_t bus_devclass;
 	kobj_class_t driver;
+	int error, pass;
 
 	dmd = (struct driver_module_data *)arg;
 	bus_devclass = devclass_find_internal(dmd->dmd_busname, NULL, TRUE);
@@ -3897,10 +4113,11 @@ driver_module_handler(module_t mod, int what, void *arg)
 		if (dmd->dmd_chainevh)
 			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);
 
+		pass = dmd->dmd_pass;
 		driver = dmd->dmd_driver;
-		PDEBUG(("Loading module: driver %s on bus %s",
-		    DRIVERNAME(driver), dmd->dmd_busname));
-		error = devclass_add_driver(bus_devclass, driver);
+		PDEBUG(("Loading module: driver %s on bus %s (pass %d)",
+		    DRIVERNAME(driver), dmd->dmd_busname, pass));
+		error = devclass_add_driver(bus_devclass, driver, pass);
 		if (error)
 			break;
 

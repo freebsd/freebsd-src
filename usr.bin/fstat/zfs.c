@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #define _KERNEL
 #include <sys/mount.h>
+#include <sys/taskqueue.h>
 #undef _KERNEL
 #include <sys/sysctl.h>
 
@@ -57,7 +58,7 @@
  * definition.
  */
 #define LOCATION_ZID (2 * sizeof(void *))
-#define LOCATION_ZPHYS(zsize) ((zsize) - (2 * sizeof(void *)))
+#define LOCATION_ZPHYS(zsize) ((zsize) - (2 * sizeof(void *) + sizeof(struct task)))
 
 int
 zfs_filestat(struct vnode *vp, struct filestat *fsp)
@@ -116,7 +117,7 @@ zfs_filestat(struct vnode *vp, struct filestat *fsp)
 		goto bad;
 	}
 
-	fsp->fsid = (long)mount.mnt_stat.f_fsid.val[0];
+	fsp->fsid = (long)(uint32_t)mount.mnt_stat.f_fsid.val[0];
 	fsp->fileid = *zid;
 	/*
 	 * XXX: Shows up wrong in output, but UFS has this error too. Could

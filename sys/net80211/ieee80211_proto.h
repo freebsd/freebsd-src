@@ -58,23 +58,29 @@ void	ieee80211_proto_vdetach(struct ieee80211vap *);
 
 void	ieee80211_syncifflag_locked(struct ieee80211com *, int flag);
 void	ieee80211_syncflag(struct ieee80211vap *, int flag);
+void	ieee80211_syncflag_ht(struct ieee80211vap *, int flag);
 void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 
-#define	ieee80211_input(ni, m, rssi, noise, rstamp) \
-	((ni)->ni_vap->iv_input(ni, m, rssi, noise, rstamp))
-int	ieee80211_input_all(struct ieee80211com *, struct mbuf *,
-		int, int, uint32_t);
+#define	ieee80211_input(ni, m, rssi, nf) \
+	((ni)->ni_vap->iv_input(ni, m, rssi, nf))
+int	ieee80211_input_all(struct ieee80211com *, struct mbuf *, int, int);
 struct ieee80211_bpf_params;
 int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int,
 		struct ieee80211_bpf_params *);
 int	ieee80211_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);
 int	ieee80211_output(struct ifnet *, struct mbuf *,
-		struct sockaddr *, struct rtentry *);
+               struct sockaddr *, struct route *ro);
+void	ieee80211_send_setup(struct ieee80211_node *, struct mbuf *, int, int,
+        const uint8_t [IEEE80211_ADDR_LEN], const uint8_t [IEEE80211_ADDR_LEN],
+        const uint8_t [IEEE80211_ADDR_LEN]);
 void	ieee80211_start(struct ifnet *);
 int	ieee80211_send_nulldata(struct ieee80211_node *);
 int	ieee80211_classify(struct ieee80211_node *, struct mbuf *m);
-struct mbuf *ieee80211_encap(struct ieee80211_node *, struct mbuf *);
+struct mbuf *ieee80211_mbuf_adjust(struct ieee80211vap *, int,
+		struct ieee80211_key *, struct mbuf *);
+struct mbuf *ieee80211_encap(struct ieee80211vap *, struct ieee80211_node *,
+		struct mbuf *);
 int	ieee80211_send_mgmt(struct ieee80211_node *, int, int);
 struct ieee80211_appie;
 int	ieee80211_send_probereq(struct ieee80211_node *ni,
@@ -99,6 +105,11 @@ struct mbuf *ieee80211_alloc_rts(struct ieee80211com *ic,
 struct mbuf *ieee80211_alloc_cts(struct ieee80211com *,
 		const uint8_t [IEEE80211_ADDR_LEN], uint16_t);
 
+uint8_t *ieee80211_add_rates(uint8_t *, const struct ieee80211_rateset *);
+uint8_t *ieee80211_add_xrates(uint8_t *, const struct ieee80211_rateset *);
+uint16_t ieee80211_getcapinfo(struct ieee80211vap *,
+		struct ieee80211_channel *);
+
 void	ieee80211_reset_erp(struct ieee80211com *);
 void	ieee80211_set_shortslottime(struct ieee80211com *, int onoff);
 int	ieee80211_iserp_rateset(const struct ieee80211_rateset *);
@@ -119,7 +130,7 @@ ieee80211_hdrsize(const void *data)
 	/* NB: we don't handle control frames */
 	KASSERT((wh->i_fc[0]&IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_CTL,
 		("%s: control frame", __func__));
-	if ((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
+	if (IEEE80211_IS_DSTODS(wh))
 		size += IEEE80211_ADDR_LEN;
 	if (IEEE80211_QOS_HAS_SEQ(wh))
 		size += sizeof(uint16_t);
@@ -252,9 +263,12 @@ ieee80211_gettid(const struct ieee80211_frame *wh)
 	uint8_t tid;
 
 	if (IEEE80211_QOS_HAS_SEQ(wh)) {
-		tid = ((const struct ieee80211_qosframe *)wh)->
-			i_qos[0] & IEEE80211_QOS_TID;
-		tid++;
+		if (IEEE80211_IS_DSTODS(wh))
+			tid = ((const struct ieee80211_qosframe_addr4 *)wh)->
+				i_qos[0];
+		else
+			tid = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
+		tid &= IEEE80211_QOS_TID;
 	} else
 		tid = IEEE80211_NONQOS_TID;
 	return tid;
@@ -298,10 +312,12 @@ struct ieee80211_beacon_offsets {
 	uint16_t	bo_tim_trailer_len;/* tim trailer length in bytes */
 	uint8_t		*bo_erp;	/* start of ERP element */
 	uint8_t		*bo_htinfo;	/* start of HT info element */
+	uint8_t		*bo_ath;	/* start of ATH parameters */
 	uint8_t		*bo_appie;	/* start of AppIE element */
 	uint16_t	bo_appie_len;	/* AppIE length in bytes */
 	uint16_t	bo_csa_trailer_len;;
 	uint8_t		*bo_csa;	/* start of CSA element */
+	uint8_t		*bo_spare[4];
 };
 struct mbuf *ieee80211_beacon_alloc(struct ieee80211_node *,
 		struct ieee80211_beacon_offsets *);
@@ -328,6 +344,7 @@ enum {
 	IEEE80211_BEACON_CFP	= 6,	/* CFParms */
 	IEEE80211_BEACON_CSA	= 7,	/* Channel Switch Announcement */
 	IEEE80211_BEACON_TDMA	= 9,	/* TDMA Info */
+	IEEE80211_BEACON_ATH	= 10,	/* ATH parameters */
 };
 int	ieee80211_beacon_update(struct ieee80211_node *,
 		struct ieee80211_beacon_offsets *, struct mbuf *, int mcast);
@@ -335,6 +352,7 @@ int	ieee80211_beacon_update(struct ieee80211_node *,
 void	ieee80211_csa_startswitch(struct ieee80211com *,
 		struct ieee80211_channel *, int mode, int count);
 void	ieee80211_csa_completeswitch(struct ieee80211com *);
+void	ieee80211_csa_cancelswitch(struct ieee80211com *);
 void	ieee80211_cac_completeswitch(struct ieee80211vap *);
 
 /*

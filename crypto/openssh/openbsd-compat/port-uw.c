@@ -25,7 +25,7 @@
 
 #include "includes.h"
 
-#ifdef HAVE_LIBIAF
+#if defined(HAVE_LIBIAF)  &&  !defined(HAVE_SECUREWARE)
 #include <sys/types.h>
 #ifdef HAVE_CRYPT_H
 # include <crypt.h>
@@ -145,5 +145,5 @@ get_iaf_password(struct passwd *pw)
 		fatal("ia_openinfo: Unable to open the shadow passwd file");
 }
 #endif /* USE_LIBIAF */
-#endif /* HAVE_LIBIAF */
+#endif /* HAVE_LIBIAF and not HAVE_SECUREWARE */
 

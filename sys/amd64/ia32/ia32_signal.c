@@ -85,8 +85,6 @@ static void freebsd4_ia32_sendsig(sig_t, ksiginfo_t *, sigset_t *);
 static void ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp);
 static int ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp);
 
-extern int _ucode32sel, _udatasel;
-
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
 
@@ -134,10 +132,11 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	PROC_LOCK(curthread->td_proc);
 	mcp->mc_onstack = sigonstack(tp->tf_rsp);
 	PROC_UNLOCK(curthread->td_proc);
-	mcp->mc_gs = td->td_pcb->pcb_gs;
-	mcp->mc_fs = td->td_pcb->pcb_fs;
-	mcp->mc_es = td->td_pcb->pcb_es;
-	mcp->mc_ds = td->td_pcb->pcb_ds;
+	/* Entry into kernel always sets TF_HASSEGS */
+	mcp->mc_gs = tp->tf_gs;
+	mcp->mc_fs = tp->tf_fs;
+	mcp->mc_es = tp->tf_es;
+	mcp->mc_ds = tp->tf_ds;
 	mcp->mc_edi = tp->tf_rdi;
 	mcp->mc_esi = tp->tf_rsi;
 	mcp->mc_ebp = tp->tf_rbp;
@@ -158,6 +157,9 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
 	ia32_get_fpcontext(td, mcp);
+	mcp->mc_fsbase = td->td_pcb->pcb_fsbase;
+	mcp->mc_gsbase = td->td_pcb->pcb_gsbase;
+	td->td_pcb->pcb_full_iret = 1;
 	return (0);
 }
 
@@ -182,11 +184,11 @@ ia32_set_mcontext(struct thread *td, const struct ia32_mcontext *mcp)
 	ret = ia32_set_fpcontext(td, mcp);
 	if (ret != 0)
 		return (ret);
-#if 0	/* XXX deal with load_fs() and friends */
+	tp->tf_gs = mcp->mc_gs;
 	tp->tf_fs = mcp->mc_fs;
 	tp->tf_es = mcp->mc_es;
 	tp->tf_ds = mcp->mc_ds;
-#endif
+	tp->tf_flags = TF_HASSEGS;
 	tp->tf_rdi = mcp->mc_edi;
 	tp->tf_rsi = mcp->mc_esi;
 	tp->tf_rbp = mcp->mc_ebp;
@@ -199,10 +201,8 @@ ia32_set_mcontext(struct thread *td, const struct ia32_mcontext *mcp)
 	tp->tf_rflags = rflags;
 	tp->tf_rsp = mcp->mc_esp;
 	tp->tf_ss = mcp->mc_ss;
-#if 0	/* XXX deal with load_gs() and friends */
-	td->td_pcb->pcb_gs = mcp->mc_gs;
-#endif
 	td->td_pcb->pcb_flags |= PCB_FULLCTX;
+	td->td_pcb->pcb_full_iret = 1;
 	return (0);
 }
 
@@ -326,10 +326,6 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-	sf.sf_uc.uc_mcontext.mc_gs = rgs();
-	sf.sf_uc.uc_mcontext.mc_fs = rfs();
-	__asm __volatile("mov %%es,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_es));
-	__asm __volatile("mov %%ds,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_ds));
 	sf.sf_uc.uc_mcontext.mc_edi = regs->tf_rdi;
 	sf.sf_uc.uc_mcontext.mc_esi = regs->tf_rsi;
 	sf.sf_uc.uc_mcontext.mc_ebp = regs->tf_rbp;
@@ -345,6 +341,10 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_eflags = regs->tf_rflags;
 	sf.sf_uc.uc_mcontext.mc_esp = regs->tf_rsp;
 	sf.sf_uc.uc_mcontext.mc_ss = regs->tf_ss;
+	sf.sf_uc.uc_mcontext.mc_ds = regs->tf_ds;
+	sf.sf_uc.uc_mcontext.mc_es = regs->tf_es;
+	sf.sf_uc.uc_mcontext.mc_fs = regs->tf_fs;
+	sf.sf_uc.uc_mcontext.mc_gs = regs->tf_gs;
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -394,10 +394,9 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
-	load_ds(_udatasel);
-	td->td_pcb->pcb_ds = _udatasel;
-	load_es(_udatasel);
-	td->td_pcb->pcb_es = _udatasel;
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	td->td_pcb->pcb_full_iret = 1;
 	/* leave user %fs and %gs untouched */
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
@@ -441,10 +440,6 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-	sf.sf_uc.uc_mcontext.mc_gs = rgs();
-	sf.sf_uc.uc_mcontext.mc_fs = rfs();
-	__asm __volatile("mov %%es,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_es));
-	__asm __volatile("mov %%ds,%0" : "=rm" (sf.sf_uc.uc_mcontext.mc_ds));
 	sf.sf_uc.uc_mcontext.mc_edi = regs->tf_rdi;
 	sf.sf_uc.uc_mcontext.mc_esi = regs->tf_rsi;
 	sf.sf_uc.uc_mcontext.mc_ebp = regs->tf_rbp;
@@ -460,9 +455,15 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_eflags = regs->tf_rflags;
 	sf.sf_uc.uc_mcontext.mc_esp = regs->tf_rsp;
 	sf.sf_uc.uc_mcontext.mc_ss = regs->tf_ss;
+	sf.sf_uc.uc_mcontext.mc_ds = regs->tf_ds;
+	sf.sf_uc.uc_mcontext.mc_es = regs->tf_es;
+	sf.sf_uc.uc_mcontext.mc_fs = regs->tf_fs;
+	sf.sf_uc.uc_mcontext.mc_gs = regs->tf_gs;
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	ia32_get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
+	sf.sf_uc.uc_mcontext.mc_fsbase = td->td_pcb->pcb_fsbase;
+	sf.sf_uc.uc_mcontext.mc_gsbase = td->td_pcb->pcb_gsbase;
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -514,11 +515,10 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
-	load_ds(_udatasel);
-	td->td_pcb->pcb_ds = _udatasel;
-	load_es(_udatasel);
-	td->td_pcb->pcb_es = _udatasel;
-	/* leave user %fs and %gs untouched */
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	td->td_pcb->pcb_full_iret = 1;
+	/* XXXKIB leave user %fs and %gs untouched */
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -591,7 +591,6 @@ freebsd4_freebsd32_sigreturn(td, uap)
 		return (EINVAL);
 	}
 
-	/* Segment selectors restored by sigtramp.S */
 	regs->tf_rdi = ucp->uc_mcontext.mc_edi;
 	regs->tf_rsi = ucp->uc_mcontext.mc_esi;
 	regs->tf_rbp = ucp->uc_mcontext.mc_ebp;
@@ -606,12 +605,17 @@ freebsd4_freebsd32_sigreturn(td, uap)
 	regs->tf_rflags = ucp->uc_mcontext.mc_eflags;
 	regs->tf_rsp = ucp->uc_mcontext.mc_esp;
 	regs->tf_ss = ucp->uc_mcontext.mc_ss;
+	regs->tf_ds = ucp->uc_mcontext.mc_ds;
+	regs->tf_es = ucp->uc_mcontext.mc_es;
+	regs->tf_fs = ucp->uc_mcontext.mc_fs;
+	regs->tf_gs = ucp->uc_mcontext.mc_gs;
 
 	PROC_LOCK(p);
 	td->td_sigmask = ucp->uc_sigmask;
 	SIG_CANTMASK(td->td_sigmask);
 	signotify(td);
 	PROC_UNLOCK(p);
+	td->td_pcb->pcb_full_iret = 1;
 	return (EJUSTRETURN);
 }
 #endif	/* COMPAT_FREEBSD4 */
@@ -678,7 +682,6 @@ freebsd32_sigreturn(td, uap)
 	if (ret != 0)
 		return (ret);
 
-	/* Segment selectors restored by sigtramp.S */
 	regs->tf_rdi = ucp->uc_mcontext.mc_edi;
 	regs->tf_rsi = ucp->uc_mcontext.mc_esi;
 	regs->tf_rbp = ucp->uc_mcontext.mc_ebp;
@@ -693,12 +696,18 @@ freebsd32_sigreturn(td, uap)
 	regs->tf_rflags = ucp->uc_mcontext.mc_eflags;
 	regs->tf_rsp = ucp->uc_mcontext.mc_esp;
 	regs->tf_ss = ucp->uc_mcontext.mc_ss;
+	regs->tf_ds = ucp->uc_mcontext.mc_ds;
+	regs->tf_es = ucp->uc_mcontext.mc_es;
+	regs->tf_fs = ucp->uc_mcontext.mc_fs;
+	regs->tf_gs = ucp->uc_mcontext.mc_gs;
+	regs->tf_flags = TF_HASSEGS;
 
 	PROC_LOCK(p);
 	td->td_sigmask = ucp->uc_sigmask;
 	SIG_CANTMASK(td->td_sigmask);
 	signotify(td);
 	PROC_UNLOCK(p);
+	td->td_pcb->pcb_full_iret = 1;
 	return (EJUSTRETURN);
 }
 
@@ -715,20 +724,15 @@ ia32_setregs(td, entry, stack, ps_strings)
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
 	
-	critical_enter();
-	wrmsr(MSR_FSBASE, 0);
-	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
+	mtx_lock(&dt_lock);
+	if (td->td_proc->p_md.md_ldt != NULL)
+		user_ldt_free(td);
+	else
+		mtx_unlock(&dt_lock);
+
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
-	critical_exit();
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(_udatasel);
-	load_gs(_udatasel);
-	pcb->pcb_ds = _udatasel;
-	pcb->pcb_es = _udatasel;
-	pcb->pcb_fs = _udatasel;
-	pcb->pcb_gs = _udatasel;
+	pcb->pcb_initial_fpucw = __INITIAL_FPUCW_I386__;
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
@@ -737,11 +741,18 @@ ia32_setregs(td, entry, stack, ps_strings)
 	regs->tf_ss = _udatasel;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = ps_strings;
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_fs = _ufssel;
+	regs->tf_gs = _ugssel;
+	regs->tf_flags = TF_HASSEGS;
+
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
 	fpstate_drop(td);
 
 	/* Return via doreti so that we can change to a different %cs */
 	pcb->pcb_flags |= PCB_FULLCTX | PCB_32BIT;
 	pcb->pcb_flags &= ~PCB_GS32BIT;
+	td->td_pcb->pcb_full_iret = 1;
 	td->td_retval[1] = 0;
 }

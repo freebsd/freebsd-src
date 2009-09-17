@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: named.html,v 1.6.18.22 2008/09/01 02:29:00 tbox Exp $ -->
+<!-- $Id: named.html,v 1.30 2008/11/07 01:11:19 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -29,10 +29,10 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">named</code>  [<code class="option">-4</code>] [<code class="option">-6</code>] [<code class="option">-c <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-m <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-S <em class="replaceable"><code>#max-socks</code></em></code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>] [<code class="option">-x <em class="replaceable"><code>cache-file</code></em></code>]</p></div>
+<div class="cmdsynopsis"><p><code class="command">named</code>  [<code class="option">-4</code>] [<code class="option">-6</code>] [<code class="option">-c <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>debug-level</code></em></code>] [<code class="option">-f</code>] [<code class="option">-g</code>] [<code class="option">-m <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-n <em class="replaceable"><code>#cpus</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-s</code>] [<code class="option">-S <em class="replaceable"><code>#max-socks</code></em></code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>] [<code class="option">-v</code>] [<code class="option">-V</code>] [<code class="option">-x <em class="replaceable"><code>cache-file</code></em></code>]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543464"></a><h2>DESCRIPTION</h2>
+<a name="id2543468"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">named</strong></span>
       is a Domain Name System (DNS) server,
       part of the BIND 9 distribution from ISC.  For more
@@ -47,7 +47,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543489"></a><h2>OPTIONS</h2>
+<a name="id2543493"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-4</span></dt>
 <dd><p>
@@ -198,6 +198,10 @@
 <dd><p>
             Report the version number and exit.
           </p></dd>
+<dt><span class="term">-V</span></dt>
+<dd><p>
+            Report the version number and build options, and exit.
+          </p></dd>
 <dt><span class="term">-x <em class="replaceable"><code>cache-file</code></em></span></dt>
 <dd>
 <p>
@@ -216,7 +220,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543911"></a><h2>SIGNALS</h2>
+<a name="id2543928"></a><h2>SIGNALS</h2>
 <p>
       In routine operation, signals should not be used to control
       the nameserver; <span><strong class="command">rndc</strong></span> should be used
@@ -237,7 +241,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543959"></a><h2>CONFIGURATION</h2>
+<a name="id2543976"></a><h2>CONFIGURATION</h2>
 <p>
       The <span><strong class="command">named</strong></span> configuration file is too complex
       to describe in detail here.  A complete description is provided
@@ -246,20 +250,20 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543976"></a><h2>FILES</h2>
+<a name="id2543993"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="filename">/etc/named.conf</code></span></dt>
 <dd><p>
             The default configuration file.
           </p></dd>
-<dt><span class="term"><code class="filename">/var/run/named.pid</code></span></dt>
+<dt><span class="term"><code class="filename">/var/run/named/named.pid</code></span></dt>
 <dd><p>
             The default process-id file.
           </p></dd>
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544016"></a><h2>SEE ALSO</h2>
+<a name="id2544033"></a><h2>SEE ALSO</h2>
 <p><em class="citetitle">RFC 1033</em>,
       <em class="citetitle">RFC 1034</em>,
       <em class="citetitle">RFC 1035</em>,
@@ -272,7 +276,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544086"></a><h2>AUTHOR</h2>
+<a name="id2544171"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

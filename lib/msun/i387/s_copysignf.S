@@ -17,3 +17,4 @@ ENTRY(copysignf)
 	movl	%eax,4(%esp)
 	flds	4(%esp)
 	ret
+END(copysignf)

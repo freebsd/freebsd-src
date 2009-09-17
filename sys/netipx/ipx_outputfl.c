@@ -74,8 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_var.h>
 
-static int ipx_copy_output = 0;
-
 int
 ipx_outputfl(struct mbuf *m0, struct route *ro, int flags)
 {
@@ -103,14 +101,18 @@ ipx_outputfl(struct mbuf *m0, struct route *ro, int flags)
 		 * short circuit routing lookup.
 		 */
 		if (flags & IPX_ROUTETOIF) {
-			struct ipx_ifaddr *ia = ipx_iaonnetof(&ipx->ipx_dna);
+			struct ipx_ifaddr *ia;
 
+			IPX_IFADDR_RLOCK();
+			ia = ipx_iaonnetof(&ipx->ipx_dna);
 			if (ia == NULL) {
+				IPX_IFADDR_RUNLOCK();
 				ipxstat.ipxs_noroute++;
 				error = ENETUNREACH;
 				goto bad;
 			}
 			ifp = ia->ia_ifp;
+			IPX_IFADDR_RUNLOCK();
 			goto gotif;
 		}
 		rtalloc_ign(ro, 0);
@@ -150,20 +152,14 @@ gotif:
 
 	if (htons(ipx->ipx_len) <= ifp->if_mtu) {
 		ipxstat.ipxs_localout++;
-		if (ipx_copy_output) {
-			ipx_watch_output(m0, ifp);
-		}
 		error = (*ifp->if_output)(ifp, m0,
-					(struct sockaddr *)dst, ro->ro_rt);
+					(struct sockaddr *)dst, ro);
 		goto done;
 	} else {
 		ipxstat.ipxs_mtutoosmall++;
 		error = EMSGSIZE;
 	}
 bad:
-	if (ipx_copy_output) {
-		ipx_watch_output(m0, ifp);
-	}
 	m_freem(m0);
 done:
 	if (ro == &ipxroute && (flags & IPX_ROUTETOIF) == 0 &&
@@ -183,7 +179,7 @@ ipx_output_type20(struct mbuf *m)
 {
 	struct ipx *ipx;
 	union ipx_net *nbnet;
-	struct ipx_ifaddr *ia, *tia = NULL;
+	struct ipx_ifaddr *ia, *tia;
 	int error = 0;
 	struct mbuf *m1;
 	int i;
@@ -208,22 +204,30 @@ ipx_output_type20(struct mbuf *m)
 	/*
 	 * Now see if we have already seen this.
 	 */
-	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
-		if(ia->ia_ifa.ifa_ifp == m->m_pkthdr.rcvif) {
-			if(tia == NULL)
+	tia = NULL;
+	IPX_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
+		if (ia->ia_ifa.ifa_ifp == m->m_pkthdr.rcvif) {
+			if (tia == NULL)
 				tia = ia;
-
-			for (i=0;i<ipx->ipx_tc;i++,nbnet++)
-				if(ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
-							*nbnet))
+			for (i=0; i < ipx->ipx_tc; i++, nbnet++) {
+				if (ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
+				    *nbnet)) {
+					IPX_IFADDR_RUNLOCK();
 					goto bad;
+				}
+			}
 		}
+	}
+
 	/*
 	 * Don't route the packet if the interface where it come from
 	 * does not have an IPX address.
 	 */
-	if(tia == NULL)
+	if (tia == NULL) {
+		IPX_IFADDR_RUNLOCK();
 		goto bad;
+	}
 
 	/*
 	 * Add our receiving interface to the list.
@@ -248,12 +252,12 @@ ipx_output_type20(struct mbuf *m)
 	dst.sipx_len = 12;
 	dst.sipx_addr.x_host = ipx_broadhost;
 
-	for (ia = ipx_ifaddr; ia != NULL; ia = ia->ia_next)
-		if(ia->ia_ifa.ifa_ifp != m->m_pkthdr.rcvif) {
+	TAILQ_FOREACH(ia, &ipx_ifaddrhead, ia_link) {
+		if (ia->ia_ifa.ifa_ifp != m->m_pkthdr.rcvif) {
         		nbnet = (union ipx_net *)(ipx + 1);
-			for (i=0;i<ipx->ipx_tc;i++,nbnet++)
-				if(ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
-							*nbnet))
+			for (i=0; i < ipx->ipx_tc; i++, nbnet++)
+				if (ipx_neteqnn(ia->ia_addr.sipx_addr.x_net,
+				    *nbnet))
 					goto skip_this;
 
 			/*
@@ -274,6 +278,8 @@ ipx_output_type20(struct mbuf *m)
 			}
 skip_this: ;
 		}
+	}
+	IPX_IFADDR_RUNLOCK();
 
 bad:
 	m_freem(m);

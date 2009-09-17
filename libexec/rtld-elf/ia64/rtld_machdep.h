@@ -32,8 +32,6 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 
-#define	CACHE_LINE_SIZE		128
-
 /*
  * Macros for cracking ia64 function pointers.
  */

@@ -32,7 +32,7 @@
 .Os
 .Sh NAME
 .Nm pty
-.Nd BSD-style compatibility pseudo-terminal driver
+.Nd BSD-style and System V-style compatibility pseudo-terminal driver
 .Sh SYNOPSIS
 .Cd "device pty"
 .Sh DESCRIPTION
@@ -47,6 +47,12 @@ is being opened, a new terminal shall be created with the
 driver.
 A device node for this terminal shall be created, which has the name
 .Pa /dev/ttyXX .
+.Pp
+The
+.Nm
+driver also provides a cloning System V
+.Pa /dev/ptmx
+device.
 .Pp
 New code should not try to allocate pseudo-terminals using this
 interface.
@@ -63,6 +69,9 @@ device names:
 Pseudo-terminal master devices.
 .It Pa /dev/tty[l-sL-S][0-9a-v]
 Pseudo-terminal slave devices.
+.It Pa /dev/ptmx
+Control device, returns a file descriptor to a new master
+pseudo-terminal when opened.
 .El
 .Sh DIAGNOSTICS
 None.
@@ -75,7 +84,7 @@ A
 pseudo-terminal driver appeared in
 .Bx 4.2 .
 .Sh BUGS
-Unlike previous implementations, the master slave device nodes are
+Unlike previous implementations, the master and slave device nodes are
 destroyed when the PTY becomes unused.
 A call to
 .Xr stat 2

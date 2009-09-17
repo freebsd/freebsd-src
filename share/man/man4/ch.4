@@ -32,7 +32,6 @@
 .Nd SCSI media-changer (juke box) driver
 .Sh SYNOPSIS
 .Cd device ch
-.Cd device ch1 target 4 unit 0
 .Sh DESCRIPTION
 The
 .Nm
@@ -67,13 +66,12 @@ come on line as; refer to
 .Xr scsi 4
 for details on kernel configuration.
 .Sh KERNEL CONFIGURATION
-In configuring, if an optional
-.Ar count
-is given in the specification, that number of SCSI media changers
-are configured; Most storage for them is allocated only when found
-so a large number of configured devices is cheap.
-(once the first
-has included the driver).
+It is only necessary to explicitly configure one
+.Nm
+device; data structures are dynamically allocated as media changes are found
+on the
+.Tn SCSI
+bus.
 .Sh IOCTLS
 User mode programs communicate with the changer driver through a
 number of ioctls which are described below.

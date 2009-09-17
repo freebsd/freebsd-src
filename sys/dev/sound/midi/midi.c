@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -67,6 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/kobj.h>
 #include <sys/module.h>
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/midi/midi.h>
 #include "mpu_if.h"
 
@@ -74,6 +71,9 @@ __FBSDID("$FreeBSD$");
 #include "synth_if.h"
 MALLOC_DEFINE(M_MIDI, "midi buffers", "Midi data allocation area");
 
+#ifndef KOBJMETHOD_END
+#define KOBJMETHOD_END	{ NULL, NULL }
+#endif
 
 #define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 #define MIDIMKMINOR(u, d, c) PCMMKMINOR(u, d, c)
@@ -152,7 +152,7 @@ static kobj_method_t midisynth_methods[] = {
 	KOBJMETHOD(synth_alloc, midisynth_alloc),
 	KOBJMETHOD(synth_controller, midisynth_controller),
 	KOBJMETHOD(synth_bender, midisynth_bender),
-	{0, 0}
+	KOBJMETHOD_END
 };
 
 DEFINE_CLASS(midisynth, midisynth_methods, 0);
@@ -852,7 +852,7 @@ midi_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 		used = MIN(MIDIQ_AVAIL(m->outq), uio->uio_resid);
 		used = MIN(used, MIDI_WSIZE);
-		MIDI_DEBUG(5, printf("midiout: resid %d len %jd avail %jd\n",
+		MIDI_DEBUG(5, printf("midiout: resid %zd len %jd avail %jd\n",
 		    uio->uio_resid, (intmax_t)MIDIQ_LEN(m->outq),
 		    (intmax_t)MIDIQ_AVAIL(m->outq)));
 
@@ -1374,6 +1374,7 @@ midi_destroy(struct snd_midi *m, int midiuninit)
 
 	MIDI_DEBUG(3, printf("midi_destroy\n"));
 	m->dev->si_drv1 = NULL;
+	mtx_unlock(&m->lock);	/* XXX */
 	destroy_dev(m->dev);
 	TAILQ_REMOVE(&midi_devs, m, link);
 	if (midiuninit)
@@ -1424,6 +1425,8 @@ midi_unload()
 		if (retval)
 			goto exit1;
 	}
+
+	mtx_unlock(&midistat_lock);	/* XXX */
 
 	destroy_dev(midistat_dev);
 	/*

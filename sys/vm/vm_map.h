@@ -114,6 +114,7 @@ struct vm_map_entry {
 	vm_inherit_t inheritance;	/* inheritance */
 	int wired_count;		/* can be paged if = 0 */
 	vm_pindex_t lastr;		/* last read */
+	struct uidinfo *uip;		/* tmp storage for creator ref */
 };
 
 #define MAP_ENTRY_NOSYNC		0x0001
@@ -137,6 +138,8 @@ struct vm_map_entry {
 #define	MAP_ENTRY_GROWS_DOWN		0x1000	/* Top-down stacks */
 #define	MAP_ENTRY_GROWS_UP		0x2000	/* Bottom-up stacks */
 
+#define	MAP_ENTRY_WIRE_SKIPPED		0x4000
+
 #ifdef	_KERNEL
 static __inline u_char
 vm_map_entry_behavior(vm_map_entry_t entry)
@@ -157,8 +160,6 @@ vm_map_entry_system_wired_count(vm_map_entry_t entry)
 {
 	return (entry->wired_count - vm_map_entry_user_wired_count(entry));
 }
-
-void vm_map_entry_free_freelist(vm_map_t map, vm_map_entry_t freelist);
 #endif	/* _KERNEL */
 
 /*
@@ -184,6 +185,7 @@ struct vm_map {
 	vm_flags_t flags;		/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
 	pmap_t pmap;			/* (c) Physical map */
+	vm_map_entry_t deferred_freelist;
 #define	min_offset	header.start	/* (c) */
 #define	max_offset	header.end	/* (c) */
 };
@@ -309,6 +311,8 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #define MAP_PREFAULT_MADVISE	0x0200	/* from (user) madvise request */
 #define	MAP_STACK_GROWS_DOWN	0x1000
 #define	MAP_STACK_GROWS_UP	0x2000
+#define	MAP_ACC_CHARGED		0x4000
+#define	MAP_ACC_NO_CHARGE	0x8000
 
 /*
  * vm_fault option flags
@@ -338,7 +342,7 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #ifdef _KERNEL
 boolean_t vm_map_check_protection (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t);
 vm_map_t vm_map_create(pmap_t, vm_offset_t, vm_offset_t);
-int vm_map_delete(vm_map_t, vm_offset_t, vm_offset_t, vm_map_entry_t *);
+int vm_map_delete(vm_map_t, vm_offset_t, vm_offset_t);
 int vm_map_find(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t,
     int, vm_prot_t, vm_prot_t, int);
 int vm_map_fixed(vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_size_t,

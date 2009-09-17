@@ -1,9 +1,22 @@
-RocketRAID 182x Driver for FreeBSD
-Copyright (C) 2004-2005 HighPoint Technologies, Inc. All rights reserved.
+RocketRAID 18xx Driver for FreeBSD
+Copyright (C) 2007-2008 HighPoint Technologies, Inc. All rights reserved.
 $FreeBSD$
 
 #############################################################################
 Revision History:
+   v1.16 2008-2-29
+         Fix 7.0 compile error.
+         
+   v1.15 2007-8-6
+         Override kernel driver(built-in) to support over 2T RAID array. 
+
+   v1.14 2006-3-21
+         Fix 48-bit LBA compatibility for Seagate drives.
+         Fix 16 bytes CDB support.
+
+   v1.13 2006-2-13
+         Fix fail LED/beeper control.
+         Add 16 bytes CDB support.
 
    v1.12 2005-6-10
          Fix over 4G memory support on amd64.
@@ -21,7 +34,7 @@ Revision History:
 1. Overview
 ---------------------
   This package contains FreeBSD driver source code for HighPoint RocketRAID 
-  182x SATA controller.
+  18xx SATA controller.
 
   NO WARRANTY
 
@@ -41,7 +54,7 @@ Revision History:
   SUCH HARDWARE, OR DATA.
 
 
-2. Rebuild the kernel with RR182x support
+2. Rebuild the kernel with RR18xx support
 --------------------------------------------
 
   1) Install kernel source package and building tools. 
@@ -49,7 +62,7 @@ Revision History:
   2) Extract the driver files under the kernel source tree:
 
      # cd /usr/src/sys/
-     # tar xvzf /your/path/to/rr182x-opensource-v1.12-bsd.tgz
+     # tar xvzf /your/path/to/rr18xx-opensource-v1.12-bsd.tgz
 
   3) Update the kernel configuration file to include the HighPoint source.
      Assume the configure file is GENERIC, and new kernel configure file is 
@@ -61,7 +74,7 @@ Revision History:
   4) Edit MYKERNEL, and add the following line under "RAID controllers 
      interfaced to the SCSI subsystem":
 
-          device  hptmv   #HighPoint RocketRAID 182x
+          device  hptmv   #HighPoint RocketRAID 18xx
 
   5) For i386 system, edit /usr/src/sys/conf/files.i386 and append the lines
      shown below:
@@ -91,13 +104,13 @@ Revision History:
           dev/hptmv/entry.c       optional        hptmv
           dev/hptmv/mv.c          optional        hptmv
 
-     Note FreeBSD 5.3/5.4 i386 already have a built-in RR182x driver, you should
-     replace the old configuration lines with the lines listed above.
+     Note FreeBSD 5.3/5.4/6.x/7.x i386 already have a built-in RR18xx driver,
+     you should replace the old configuration lines with the lines listed above.
 
 
   6) Rebuild and install the kernel:
 
-     a) for FreeBSD 5.x-i386:
+     a) for FreeBSD 5.x/6.x/7.x i386:
      
         # cd /usr/src/sys/i386/conf/
         # /usr/sbin/config MYKERNEL
@@ -106,7 +119,7 @@ Revision History:
         # make 
         # make install
 
-     b) for FreeBSD 5.x-amd64:
+     b) for FreeBSD 5.x/6.x/7.x amd64:
 
         # cd /usr/src/sys/amd64/conf/
         # /usr/sbin/config MYKERNEL
@@ -139,7 +152,7 @@ Revision History:
   2) Extract the driver files under the kernel source tree:
     
      # cd /usr/src/sys/
-     # tar xvzf /your/path/to/rr182x-opensource-v1.12-bsd.tgz
+     # tar xvzf /your/path/to/rr18xx-opensource-v1.12-bsd.tgz
 
 
   4) Build the driver module:
@@ -153,7 +166,7 @@ Revision History:
      
      # cp hptmv.ko /modules/
 
-     For FreeBSD 5.x:
+     For FreeBSD 5.x/6.x/7.x:
     
      # cp hptmv.ko /boot/kernel/
 
@@ -179,7 +192,7 @@ Revision History:
         /modules/hptmv.ko text=0xf571 data=0x2c8+0x254
         ok boot
         
-     For FreeBSD 5.x, you can select 6 on the boot menu to get a loader prompt.
+     For FreeBSD 5.x/6.x/7.x, you can select 6 on the boot menu to get a loader prompt.
   
   7) You can add a below line into /boot/defaults/loader.conf to load the
      driver automatically:

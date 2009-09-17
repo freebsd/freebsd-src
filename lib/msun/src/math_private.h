@@ -190,6 +190,27 @@ do {								\
 void _scan_nan(uint32_t *__words, int __num_words, const char *__s);
 
 #ifdef _COMPLEX_H
+
+/*
+ * C99 specifies that complex numbers have the same representation as
+ * an array of two elements, where the first element is the real part
+ * and the second element is the imaginary part.
+ */
+typedef union {
+	float complex f;
+	float a[2];
+} float_complex;
+typedef union {
+	double complex f;
+	double a[2];
+} double_complex;
+typedef union {
+	long double complex f;
+	long double a[2];
+} long_double_complex;
+#define	REALPART(z)	((z).a[0])
+#define	IMAGPART(z)	((z).a[1])
+
 /*
  * Inline functions that can be used to construct complex values.
  *
@@ -203,31 +224,31 @@ void _scan_nan(uint32_t *__words, int __num_words, const char *__s);
 static __inline float complex
 cpackf(float x, float y)
 {
-	float complex z;
+	float_complex z;
 
-	__real__ z = x;
-	__imag__ z = y;
-	return (z);
+	REALPART(z) = x;
+	IMAGPART(z) = y;
+	return (z.f);
 }
 
 static __inline double complex
 cpack(double x, double y)
 {
-	double complex z;
+	double_complex z;
 
-	__real__ z = x;
-	__imag__ z = y;
-	return (z);
+	REALPART(z) = x;
+	IMAGPART(z) = y;
+	return (z.f);
 }
 
 static __inline long double complex
 cpackl(long double x, long double y)
 {
-	long double complex z;
+	long_double_complex z;
 
-	__real__ z = x;
-	__imag__ z = y;
-	return (z);
+	REALPART(z) = x;
+	IMAGPART(z) = y;
+	return (z.f);
 }
 #endif /* _COMPLEX_H */
  
@@ -241,7 +262,7 @@ irint(double x)
 {
 	int n;
 
-	asm("cvtsd2si %1,%0" : "=r" (n) : "Y" (x));
+	asm("cvtsd2si %1,%0" : "=r" (n) : "x" (x));
 	return (n);
 }
 #define	HAVE_EFFICIENT_IRINT
@@ -324,15 +345,30 @@ irint(double x)
 int	__kernel_rem_pio2(double*,double*,int,int,int);
 
 /* double precision kernel functions */
+#ifdef INLINE_REM_PIO2
+__inline
+#endif
 int	__ieee754_rem_pio2(double,double*);
 double	__kernel_sin(double,double,int);
 double	__kernel_cos(double,double);
 double	__kernel_tan(double,double,int);
 
 /* float precision kernel functions */
+#ifdef INLINE_REM_PIO2F
+__inline
+#endif
 int	__ieee754_rem_pio2f(float,double*);
+#ifdef INLINE_KERNEL_SINDF
+__inline
+#endif
 float	__kernel_sindf(double);
+#ifdef INLINE_KERNEL_COSDF
+__inline
+#endif
 float	__kernel_cosdf(double);
+#ifdef INLINE_KERNEL_TANDF
+__inline
+#endif
 float	__kernel_tandf(double,int);
 
 /* long double precision kernel functions */

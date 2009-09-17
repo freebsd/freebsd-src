@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: buffer.h,v 1.43.18.2 2005/04/29 00:16:53 marka Exp $ */
+/* $Id: buffer.h,v 1.53 2008/09/25 04:02:39 tbox Exp $ */
 
 #ifndef ISC_BUFFER_H
 #define ISC_BUFFER_H 1
@@ -24,7 +24,7 @@
  ***** Module Info
  *****/
 
-/*! \file buffer.h
+/*! \file isc/buffer.h
  *
  * \brief A buffer is a region of memory, together with a set of related subregions.
  * Buffers are used for parsing and I/O operations.
@@ -112,7 +112,7 @@
 #include <isc/types.h>
 
 /*!
- * To make many functions be inline macros (via #define) define this.
+ * To make many functions be inline macros (via \#define) define this.
  * If it is undefined, a function will be used.
  */
 /* #define ISC_BUFFER_USEINLINE */
@@ -168,13 +168,13 @@ ISC_LANG_BEGINDECLS
 struct isc_buffer {
 	unsigned int		magic;
 	void		       *base;
-        /*@{*/
+	/*@{*/
 	/*! The following integers are byte offsets from 'base'. */
 	unsigned int		length;
 	unsigned int		used;
 	unsigned int 		current;
 	unsigned int 		active;
-        /*@}*/
+	/*@}*/
 	/*! linkable */
 	ISC_LINK(isc_buffer_t)	link;
 	/*! private internal elements */
@@ -229,6 +229,26 @@ isc__buffer_init(isc_buffer_t *b, const void *base, unsigned int length);
  * Requires:
  *
  *\li	'length' > 0
+ *
+ *\li	'base' is a pointer to a sequence of 'length' bytes.
+ *
+ */
+
+void
+isc__buffer_initnull(isc_buffer_t *b);
+/*!<
+ *\brief Initialize a buffer 'b' with a null data and zero length/
+ */
+
+void
+isc_buffer_reinit(isc_buffer_t *b, void *base, unsigned int length);
+/*!<
+ * \brief Make 'b' refer to the 'length'-byte region starting at base.
+ * Any existing data will be copied.
+ *
+ * Requires:
+ *
+ *\li	'length' > 0 AND length >= previous length
  *
  *\li	'base' is a pointer to a sequence of 'length' bytes.
  *
@@ -539,6 +559,57 @@ isc__buffer_putuint32(isc_buffer_t *b, isc_uint32_t val);
  *\li	The used pointer in 'b' is advanced by 4.
  */
 
+isc_uint64_t
+isc_buffer_getuint48(isc_buffer_t *b);
+/*!<
+ * \brief Read an unsigned 48-bit integer in network byte order from 'b',
+ * convert it to host byte order, and return it.
+ *
+ * Requires:
+ *
+ *\li	'b' is a valid buffer.
+ *
+ *\li	The length of the available region of 'b' is at least 6.
+ *
+ * Ensures:
+ *
+ *\li	The current pointer in 'b' is advanced by 6.
+ *
+ * Returns:
+ *
+ *\li	A 48-bit unsigned integer (stored in a 64-bit integer).
+ */
+
+void
+isc__buffer_putuint48(isc_buffer_t *b, isc_uint64_t val);
+/*!<
+ * \brief Store an unsigned 48-bit integer in host byte order from 'val'
+ * into 'b' in network byte order.
+ *
+ * Requires:
+ *\li	'b' is a valid buffer.
+ *
+ *\li	The length of the unused region of 'b' is at least 6.
+ *
+ * Ensures:
+ *\li	The used pointer in 'b' is advanced by 6.
+ */
+
+void
+isc__buffer_putuint24(isc_buffer_t *b, isc_uint32_t val);
+/*!<
+ * Store an unsigned 24-bit integer in host byte order from 'val'
+ * into 'b' in network byte order.
+ *
+ * Requires:
+ *\li	'b' is a valid buffer.
+ *
+ *	The length of the unused region of 'b' is at least 3.
+ *
+ * Ensures:
+ *\li	The used pointer in 'b' is advanced by 3.
+ */
+
 void
 isc__buffer_putmem(isc_buffer_t *b, const unsigned char *base,
 		   unsigned int length);
@@ -624,6 +695,8 @@ ISC_LANG_ENDDECLS
 		ISC_LINK_INIT(_b, link); \
 		(_b)->magic = ISC_BUFFER_MAGIC; \
 	} while (0)
+
+#define ISC__BUFFER_INITNULL(_b) ISC__BUFFER_INIT(_b, NULL, 0)
 
 #define ISC__BUFFER_INVALIDATE(_b) \
 	do { \
@@ -752,6 +825,17 @@ ISC_LANG_ENDDECLS
 		_cp[1] = (unsigned char)(_val2 & 0x00ffU); \
 	} while (0)
 
+#define ISC__BUFFER_PUTUINT24(_b, _val) \
+	do { \
+		unsigned char *_cp; \
+		isc_uint32_t _val2 = (_val); \
+		_cp = isc_buffer_used(_b); \
+		(_b)->used += 3; \
+		_cp[0] = (unsigned char)((_val2 & 0xff0000U) >> 16); \
+		_cp[1] = (unsigned char)((_val2 & 0xff00U) >> 8); \
+		_cp[2] = (unsigned char)(_val2 & 0x00ffU); \
+	} while (0)
+
 #define ISC__BUFFER_PUTUINT32(_b, _val) \
 	do { \
 		unsigned char *_cp; \
@@ -766,6 +850,7 @@ ISC_LANG_ENDDECLS
 
 #if defined(ISC_BUFFER_USEINLINE)
 #define isc_buffer_init			ISC__BUFFER_INIT
+#define isc_buffer_initnull		ISC__BUFFER_INITNULL
 #define isc_buffer_invalidate		ISC__BUFFER_INVALIDATE
 #define isc_buffer_region		ISC__BUFFER_REGION
 #define isc_buffer_usedregion		ISC__BUFFER_USEDREGION
@@ -784,9 +869,11 @@ ISC_LANG_ENDDECLS
 #define isc_buffer_putstr		ISC__BUFFER_PUTSTR
 #define isc_buffer_putuint8		ISC__BUFFER_PUTUINT8
 #define isc_buffer_putuint16		ISC__BUFFER_PUTUINT16
+#define isc_buffer_putuint24		ISC__BUFFER_PUTUINT24
 #define isc_buffer_putuint32		ISC__BUFFER_PUTUINT32
 #else
 #define isc_buffer_init			isc__buffer_init
+#define isc_buffer_initnull		isc__buffer_initnull
 #define isc_buffer_invalidate		isc__buffer_invalidate
 #define isc_buffer_region		isc__buffer_region
 #define isc_buffer_usedregion		isc__buffer_usedregion
@@ -805,7 +892,13 @@ ISC_LANG_ENDDECLS
 #define isc_buffer_putstr		isc__buffer_putstr
 #define isc_buffer_putuint8		isc__buffer_putuint8
 #define isc_buffer_putuint16		isc__buffer_putuint16
+#define isc_buffer_putuint24		isc__buffer_putuint24
 #define isc_buffer_putuint32		isc__buffer_putuint32
 #endif
+
+/*
+ * No inline method for this one (yet).
+ */
+#define isc_buffer_putuint48		isc__buffer_putuint48
 
 #endif /* ISC_BUFFER_H */

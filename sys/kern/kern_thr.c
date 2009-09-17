@@ -149,7 +149,6 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	struct proc *p;
 	int error;
 
-	error = 0;
 	p = td->td_proc;
 
 	/* Have race condition but it is cheap. */
@@ -177,7 +176,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	}
 
 	/* Initialize our td */
-	newtd = thread_alloc();
+	newtd = thread_alloc(0);
 	if (newtd == NULL)
 		return (ENOMEM);
 
@@ -253,7 +252,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	sched_add(newtd, SRQ_BORING);
 	thread_unlock(newtd);
 
-	return (error);
+	return (0);
 }
 
 int
@@ -351,7 +350,7 @@ thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 	struct proc *p;
 	int error;
 
-	AUDIT_ARG(signum, uap->sig);
+	AUDIT_ARG_SIGNUM(uap->sig);
 
 	if (uap->pid == td->td_proc->p_pid) {
 		p = td->td_proc;
@@ -359,7 +358,7 @@ thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 	} else if ((p = pfind(uap->pid)) == NULL) {
 		return (ESRCH);
 	}
-	AUDIT_ARG(process, p);
+	AUDIT_ARG_PROCESS(p);
 
 	error = p_cansignal(td, p, uap->sig);
 	if (error == 0) {
@@ -403,7 +402,6 @@ thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 	struct timespec ts, *tsp;
 	int error;
 
-	error = 0;
 	tsp = NULL;
 	if (uap->timeout != NULL) {
 		error = copyin((const void *)uap->timeout, (void *)&ts,

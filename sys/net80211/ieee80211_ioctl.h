@@ -64,6 +64,7 @@ struct ieee80211_nodestats {
 
 	uint32_t	ns_tx_data;		/* tx data frames */
 	uint32_t	ns_tx_mgmt;		/* tx management frames */
+	uint32_t	ns_tx_ctrl;		/* tx control frames */
 	uint32_t	ns_tx_ucast;		/* tx unicast frames */
 	uint32_t	ns_tx_mcast;		/* tx multi/broadcast frames */
 	uint64_t	ns_tx_bytes;		/* tx data count (bytes) */
@@ -83,6 +84,7 @@ struct ieee80211_nodestats {
 	uint32_t	ns_tx_deauth_code;	/* last deauth reason */
 	uint32_t	ns_tx_disassoc;		/* disassociations */
 	uint32_t	ns_tx_disassoc_code;	/* last disassociation reason */
+	uint32_t	ns_spare[8];
 };
 
 /*
@@ -101,7 +103,7 @@ struct ieee80211_stats {
 	uint32_t	is_rx_wepfail;		/* rx wep processing failed */
 	uint32_t	is_rx_decap;		/* rx decapsulation failed */
 	uint32_t	is_rx_mgtdiscard;	/* rx discard mgt frames */
-	uint32_t	is_rx_ctl;		/* rx discard ctrl frames */
+	uint32_t	is_rx_ctl;		/* rx ctrl frames */
 	uint32_t	is_rx_beacon;		/* rx beacon frames */
 	uint32_t	is_rx_rstoobig;		/* rx rate set truncated */
 	uint32_t	is_rx_elem_missing;	/* rx required element missing*/
@@ -217,7 +219,30 @@ struct ieee80211_stats {
 	uint8_t		is_rx_authfail_code;	/* last rx'd auth fail reason */
 	uint32_t	is_beacon_miss;		/* beacon miss notification */
 	uint32_t	is_rx_badstate;		/* rx discard state != RUN */
-	uint32_t	is_spare[12];
+	uint32_t	is_ff_flush;		/* ff's flush'd from stageq */
+	uint32_t	is_tx_ctl;		/* tx ctrl frames */
+	uint32_t	is_ampdu_rexmt;		/* A-MPDU frames rexmt ok */
+	uint32_t	is_ampdu_rexmt_fail;	/* A-MPDU frames rexmt fail */
+
+	uint32_t	is_mesh_wrongmesh;	/* dropped 'cuz not mesh sta*/
+	uint32_t	is_mesh_nolink;		/* dropped 'cuz link not estab*/
+	uint32_t	is_mesh_fwd_ttl;	/* mesh not fwd'd 'cuz ttl 0 */
+	uint32_t	is_mesh_fwd_nobuf;	/* mesh not fwd'd 'cuz no mbuf*/
+	uint32_t	is_mesh_fwd_tooshort;	/* mesh not fwd'd 'cuz no hdr */
+	uint32_t	is_mesh_fwd_disabled;	/* mesh not fwd'd 'cuz disabled */
+	uint32_t	is_mesh_fwd_nopath;	/* mesh not fwd'd 'cuz path unknown */
+
+	uint32_t	is_hwmp_wrongseq;	/* wrong hwmp seq no. */
+	uint32_t	is_hwmp_rootreqs;	/* root PREQs sent */
+	uint32_t	is_hwmp_rootrann;	/* root RANNs sent */
+
+	uint32_t	is_mesh_badae;		/* dropped 'cuz invalid AE */
+	uint32_t	is_mesh_rtaddfailed;	/* route add failed */
+	uint32_t	is_mesh_notproxy;	/* dropped 'cuz not proxying */
+	uint32_t	is_rx_badalign;		/* dropped 'cuz misaligned */
+	uint32_t	is_hwmp_proxy;		/* PREP for proxy route */
+	
+	uint32_t	is_spare[11];
 };
 
 /*
@@ -296,7 +321,41 @@ enum {
 
 struct ieee80211req_maclist {
 	uint8_t		ml_macaddr[IEEE80211_ADDR_LEN];
+} __packed;
+
+/*
+ * Mesh Routing Table Operations.
+ */
+enum {
+	IEEE80211_MESH_RTCMD_LIST   = 0, /* list HWMP routing table */
+	IEEE80211_MESH_RTCMD_FLUSH  = 1, /* flush HWMP routing table */
+	IEEE80211_MESH_RTCMD_ADD    = 2, /* add entry to the table */
+	IEEE80211_MESH_RTCMD_DELETE = 3, /* delete an entry from the table */
 };
+
+struct ieee80211req_mesh_route {
+	uint8_t		imr_flags;
+#define	IEEE80211_MESHRT_FLAGS_VALID	0x01
+#define	IEEE80211_MESHRT_FLAGS_PROXY	0x02
+	uint8_t		imr_dest[IEEE80211_ADDR_LEN];
+	uint8_t		imr_nexthop[IEEE80211_ADDR_LEN];
+	uint16_t	imr_nhops;
+	uint8_t		imr_pad;
+	uint32_t	imr_metric;
+	uint32_t	imr_lifetime;
+	uint32_t	imr_lastmseq;
+};
+
+/*
+ * HWMP root modes
+ */
+enum {
+	IEEE80211_HWMP_ROOTMODE_DISABLED	= 0, 	/* disabled */
+	IEEE80211_HWMP_ROOTMODE_NORMAL		= 1,	/* normal PREPs */
+	IEEE80211_HWMP_ROOTMODE_PROACTIVE	= 2,	/* proactive PREPS */
+	IEEE80211_HWMP_ROOTMODE_RANN		= 3,	/* use RANN elemid */
+};
+
 
 /*
  * Set the active channel list by IEEE channel #: each channel
@@ -356,7 +415,7 @@ struct ieee80211req_sta_info {
 	uint16_t	isi_ie_len;		/* IE length */
 	uint16_t	isi_freq;		/* MHz */
 	uint32_t	isi_flags;		/* channel flags */
-	uint16_t	isi_state;		/* state flags */
+	uint32_t	isi_state;		/* state flags */
 	uint8_t		isi_authmode;		/* authentication algorithm */
 	int8_t		isi_rssi;		/* receive signal strength */
 	int8_t		isi_noise;		/* noise floor */
@@ -375,8 +434,13 @@ struct ieee80211req_sta_info {
 	uint16_t	isi_rxseqs[IEEE80211_TID_SIZE];/* rx seq#/TID */
 	uint16_t	isi_inact;		/* inactivity timer */
 	uint16_t	isi_txmbps;		/* current tx rate in .5 Mb/s */
+	uint16_t	isi_pad;
 	uint32_t	isi_jointime;		/* time of assoc/join */
 	struct ieee80211_mimo_info isi_mimo;	/* MIMO info for 11n sta's */
+	/* 11s info */
+	uint16_t	isi_peerid;
+	uint16_t	isi_localid;
+	uint8_t		isi_peerstate;
 	/* XXX frag state? */
 	/* variable length IE data */
 };
@@ -627,6 +691,24 @@ struct ieee80211req {
 #define	IEEE80211_IOC_STA_VLAN		109	/* per-station vlan tag */
 #define	IEEE80211_IOC_SMPS		110	/* MIMO power save */
 #define	IEEE80211_IOC_RIFS		111	/* RIFS config (on, off) */
+#define	IEEE80211_IOC_GREENFIELD	112	/* Greenfield (on, off) */
+#define	IEEE80211_IOC_STBC		113	/* STBC Tx/RX (on, off) */
+
+#define	IEEE80211_IOC_MESH_ID		170	/* mesh identifier */
+#define	IEEE80211_IOC_MESH_AP		171	/* accepting peerings */
+#define	IEEE80211_IOC_MESH_FWRD		172	/* forward frames */
+#define	IEEE80211_IOC_MESH_PROTO	173	/* mesh protocols */
+#define	IEEE80211_IOC_MESH_TTL		174	/* mesh TTL */
+#define	IEEE80211_IOC_MESH_RTCMD	175	/* mesh routing table commands*/
+#define	IEEE80211_IOC_MESH_PR_METRIC	176	/* mesh metric protocol */
+#define	IEEE80211_IOC_MESH_PR_PATH	177	/* mesh path protocol */
+#define	IEEE80211_IOC_MESH_PR_SIG	178	/* mesh sig protocol */
+#define	IEEE80211_IOC_MESH_PR_CC	179	/* mesh congestion protocol */
+#define	IEEE80211_IOC_MESH_PR_AUTH	180	/* mesh auth protocol */
+
+#define	IEEE80211_IOC_HWMP_ROOTMODE	190	/* HWMP root mode */
+#define	IEEE80211_IOC_HWMP_MAXHOPS	191	/* number of hops before drop */
+#define	IEEE80211_IOC_HWMP_TTL		192	/* HWMP TTL */
 
 #define	IEEE80211_IOC_TDMA_SLOT		201	/* TDMA: assigned slot */
 #define	IEEE80211_IOC_TDMA_SLOTCNT	202	/* TDMA: slots in bss */
@@ -715,7 +797,9 @@ struct ieee80211req_scan_result {
 	uint8_t		isr_nrates;
 	uint8_t		isr_rates[IEEE80211_RATE_MAXSIZE];
 	uint8_t		isr_ssid_len;		/* SSID length */
-	/* variable length SSID followed by IE data */
+	uint8_t		isr_meshid_len;		/* MESH ID length */
+	/* variable length SSID, followed by variable length MESH ID,
+	  followed by IE data */
 };
 
 /*

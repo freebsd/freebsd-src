@@ -198,6 +198,7 @@ g_multipath_done_error(struct bio *bp)
 		if (sc->cp_active == NULL) {
 			printf("GEOM_MULTIPATH: out of providers for %s\n",
 			    sc->sc_name);
+			g_topology_unlock();
 			return;
 		} else {
 			printf("GEOM_MULTIPATH: %s now active path in %s\n",
@@ -294,10 +295,6 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 	}
 
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
-	if (sc == NULL) {
-		goto fail;
-	}
-
 	gp->softc = sc;
 	gp->start = g_multipath_start;
 	gp->orphan = g_multipath_orphan;

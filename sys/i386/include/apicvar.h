@@ -100,30 +100,44 @@
  * smp_ipi_mtx and waits for the completion of the IPI (Only one IPI user 
  * at a time) The second group uses a single interrupt and a bitmap to avoid
  * redundant IPI interrupts.
- *
- * Right now IPI_STOP used by kdb shares the interrupt priority class with
- * the two IPI groups mentioned above. As such IPI_STOP may cause a deadlock.
- * Eventually IPI_STOP should use NMI IPIs - this would eliminate this and
- * other deadlocks caused by IPI_STOP.
  */ 
 
 /* Interrupts for local APIC LVT entries other than the timer. */
+#ifdef XEN
+/* These are the Xen i386 APIC definitions */
 #define	APIC_LOCAL_INTS	240
 #define	APIC_ERROR_INT	APIC_LOCAL_INTS
 #define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
-
 #define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
-#ifdef XEN
-#define	IPI_RENDEZVOUS		(2)	/* Inter-CPU rendezvous. */
-#define	IPI_INVLTLB		(3)	/* TLB Shootdown IPIs */
-#define	IPI_INVLPG		(4)
-#define	IPI_INVLRNG		(5)
-#define	IPI_INVLCACHE		(6)
-#define	IPI_LAZYPMAP		(7)	/* Lazy pmap release. */
-/* Vector to handle bitmap based IPIs */
-#define	IPI_BITMAP_VECTOR	(8)
 
-#else
+#define	IPI_RENDEZVOUS		(APIC_IPI_INTS)	/* Inter-CPU rendezvous. */
+#define	IPI_INVLTLB		(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
+#define	IPI_INVLPG		(APIC_IPI_INTS + 2)
+#define	IPI_INVLRNG		(APIC_IPI_INTS + 3)
+#define	IPI_INVLCACHE		(APIC_IPI_INTS + 4)
+#define	IPI_LAZYPMAP		(APIC_IPI_INTS + 5)	/* Lazy pmap release. */
+/* Vector to handle bitmap based IPIs */
+#define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 6)
+
+/* IPIs handled by IPI_BITMAPED_VECTOR  (XXX ups is there a better place?) */
+#define	IPI_AST		0 	/* Generate software trap. */
+#define IPI_PREEMPT     1
+#define IPI_HARDCLOCK   2 
+#define IPI_STATCLOCK   3 
+#define IPI_PROFCLOCK   4 
+#define IPI_BITMAP_LAST IPI_PROFCLOCK
+#define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
+
+#define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
+#define	IPI_STOP_HARD	(APIC_IPI_INTS + 8)	/* Stop CPU with a NMI. */
+
+#else /* XEN */
+/* These are the normal i386 APIC definitions */
+#define	APIC_LOCAL_INTS	240
+#define	APIC_ERROR_INT	APIC_LOCAL_INTS
+#define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
+#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
+
 #define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */
 #define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
@@ -132,15 +146,19 @@
 #define	IPI_LAZYPMAP	(APIC_IPI_INTS + 5)	/* Lazy pmap release. */
 /* Vector to handle bitmap based IPIs */
 #define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 6) 
-#endif
 
 /* IPIs handled by IPI_BITMAPED_VECTOR  (XXX ups is there a better place?) */
 #define	IPI_AST		0 	/* Generate software trap. */
 #define IPI_PREEMPT     1
-#define IPI_BITMAP_LAST IPI_PREEMPT
+#define IPI_HARDCLOCK   2 
+#define IPI_STATCLOCK   3 
+#define IPI_PROFCLOCK   4 
+#define IPI_BITMAP_LAST IPI_PROFCLOCK
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
+#define	IPI_STOP_HARD	(APIC_IPI_INTS + 8)	/* Stop CPU with a NMI. */
+#endif /* XEN */
 
 /*
  * The spurious interrupt can share the priority class with the IPIs since
@@ -212,7 +230,9 @@ int	ioapic_set_triggermode(void *cookie, u_int pin,
 int	ioapic_set_smi(void *cookie, u_int pin);
 void	lapic_create(u_int apic_id, int boot_cpu);
 void	lapic_disable(void);
+void	lapic_disable_pmc(void);
 void	lapic_dump(const char *str);
+int	lapic_enable_pmc(void);
 void	lapic_eoi(void);
 u_int	lapic_error(void);
 int	lapic_id(void);
@@ -223,6 +243,7 @@ void	lapic_ipi_vectored(u_int vector, int dest);
 int	lapic_ipi_wait(int delay);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
+void	lapic_reenable_pmc(void);
 void	lapic_set_logical_id(u_int apic_id, u_int cluster, u_int cluster_id);
 int	lapic_set_lvt_mask(u_int apic_id, u_int lvt, u_char masked);
 int	lapic_set_lvt_mode(u_int apic_id, u_int lvt, u_int32_t mode);

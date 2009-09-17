@@ -3,6 +3,7 @@
 .include <bsd.own.mk>
 
 SUBDIR=	dtrace \
+	lockstat \
 	${_zdb}
 
 .if ${MK_ZFS} != "no"

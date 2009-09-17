@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_debug.h>
@@ -173,6 +174,7 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	xpt_unlock_buses();
 	if (*p_drv == NULL) {
 		printf("cam_periph_alloc: invalid periph name '%s'\n", name);
+		free(periph, M_CAMPERIPH);
 		return (CAM_REQ_INVALID);
 	}
 
@@ -569,6 +571,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	u_int8_t **data_ptrs[CAM_PERIPH_MAXMAPS];
 	u_int32_t lengths[CAM_PERIPH_MAXMAPS];
 	u_int32_t dirs[CAM_PERIPH_MAXMAPS];
+	/* Some controllers may not be able to handle more data. */
+	size_t maxmap = DFLTPHYS;
 
 	switch(ccb->ccb_h.func_code) {
 	case XPT_DEV_MATCH:
@@ -591,6 +595,11 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 			dirs[0] = CAM_DIR_IN;
 			numbufs = 1;
 		}
+		/*
+		 * This request will not go to the hardware, no reason
+		 * to be so strict. vmapbuf() is able to map up to MAXPHYS.
+		 */
+		maxmap = MAXPHYS;
 		break;
 	case XPT_SCSI_IO:
 	case XPT_CONT_TARGET_IO:
@@ -599,6 +608,15 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 		data_ptrs[0] = &ccb->csio.data_ptr;
 		lengths[0] = ccb->csio.dxfer_len;
+		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
+		numbufs = 1;
+		break;
+	case XPT_ATA_IO:
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_NONE)
+			return(0);
+
+		data_ptrs[0] = &ccb->ataio.data_ptr;
+		lengths[0] = ccb->ataio.dxfer_len;
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		numbufs = 1;
 		break;
@@ -624,12 +642,12 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 * boundary.
 		 */
 		if ((lengths[i] +
-		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)) > DFLTPHYS){
+		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)) > maxmap){
 			printf("cam_periph_mapmem: attempt to map %lu bytes, "
-			       "which is greater than DFLTPHYS(%d)\n",
+			       "which is greater than %lu\n",
 			       (long)(lengths[i] +
 			       (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK)),
-			       DFLTPHYS);
+			       (u_long)maxmap);
 			return(E2BIG);
 		}
 
@@ -661,7 +679,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		/* put our pointer in the data slot */
 		mapinfo->bp[i]->b_data = *data_ptrs[i];
 
-		/* set the transfer length, we know it's < DFLTPHYS */
+		/* set the transfer length, we know it's < MAXPHYS */
 		mapinfo->bp[i]->b_bufsize = lengths[i];
 
 		/* set the direction */
@@ -737,6 +755,10 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		data_ptrs[0] = &ccb->csio.data_ptr;
 		numbufs = min(mapinfo->num_bufs_used, 1);
 		break;
+	case XPT_ATA_IO:
+		data_ptrs[0] = &ccb->ataio.data_ptr;
+		numbufs = min(mapinfo->num_bufs_used, 1);
+		break;
 	default:
 		/* allow ourselves to be swapped once again */
 		PRELE(curproc);
@@ -796,7 +818,7 @@ cam_periph_ccbwait(union ccb *ccb)
 }
 
 int
-cam_periph_ioctl(struct cam_periph *periph, int cmd, caddr_t addr,
+cam_periph_ioctl(struct cam_periph *periph, u_long cmd, caddr_t addr,
 		 int (*error_routine)(union ccb *ccb, 
 				      cam_flags camflags,
 				      u_int32_t sense_flags))
@@ -1582,6 +1604,13 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		xpt_print(ccb->ccb_h.path, "AutoSense Failed\n");
 		error = EIO;	/* we have to kill the command */
 		break;
+	case CAM_ATA_STATUS_ERROR:
+		if (bootverbose && printed == 0) {
+			xpt_print(ccb->ccb_h.path,
+			    "Request completed with CAM_ATA_STATUS_ERROR\n");
+			printed++;
+		}
+		/* FALLTHROUGH */
 	case CAM_REQ_CMP_ERR:
 		if (bootverbose && printed == 0) {
 			xpt_print(ccb->ccb_h.path,

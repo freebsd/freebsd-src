@@ -45,10 +45,6 @@ extern u_long *ipi_rendezvous_counts[MAXCPU];
 extern u_long *ipi_lazypmap_counts[MAXCPU];
 #endif
 
-/* global data in identcpu.c */
-extern int			cpu_cores;
-extern int			cpu_logical;
-
 /* IPI handlers */
 inthand_t
 	IDTVEC(invltlb),	/* TLB shootdowns - global */
@@ -64,7 +60,8 @@ inthand_t
 void	cpu_add(u_int apic_id, char boot_cpu);
 void	cpustop_handler(void);
 void	init_secondary(void);
-void	ipi_selected(u_int cpus, u_int ipi);
+int	ipi_nmi_handler(void);
+void	ipi_selected(cpumask_t cpus, u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 #ifndef XEN
 void 	ipi_bitmap_handler(struct trapframe frame);
@@ -73,16 +70,13 @@ u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
 void	smp_cache_flush(void);
 void	smp_invlpg(vm_offset_t addr);
-void	smp_masked_invlpg(u_int mask, vm_offset_t addr);
+void	smp_masked_invlpg(cpumask_t mask, vm_offset_t addr);
 void	smp_invlpg_range(vm_offset_t startva, vm_offset_t endva);
-void	smp_masked_invlpg_range(u_int mask, vm_offset_t startva,
+void	smp_masked_invlpg_range(cpumask_t mask, vm_offset_t startva,
 	    vm_offset_t endva);
 void	smp_invltlb(void);
-void	smp_masked_invltlb(u_int mask);
+void	smp_masked_invltlb(cpumask_t mask);
 
-#ifdef STOP_NMI
-int	ipi_nmi_handler(void);
-#endif
 #ifdef XEN
 void ipi_to_irq_init(void);
 

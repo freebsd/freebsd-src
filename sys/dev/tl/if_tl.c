@@ -952,7 +952,7 @@ tl_setmulti(sc)
 		hashes[1] = 0xFFFFFFFF;
 	} else {
 		i = 1;
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH_REVERSE(ifma, &ifp->if_multiaddrs, ifmultihead, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -975,7 +975,7 @@ tl_setmulti(sc)
 			else
 				hashes[1] |= (1 << (h - 32));
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 
 	tl_dio_write32(sc, TL_HASH1, hashes[0]);

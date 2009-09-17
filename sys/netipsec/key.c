@@ -56,11 +56,11 @@
 #include <sys/queue.h>
 #include <sys/refcount.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
 #include <net/raw_cb.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -75,11 +75,9 @@
 
 #ifdef INET
 #include <netinet/in_pcb.h>
-#include <netinet/vinet.h>
 #endif
 #ifdef INET6
 #include <netinet6/in6_pcb.h>
-#include <netinet6/vinet6.h>
 #endif /* INET6 */
 
 #include <net/pfkeyv2.h>
@@ -99,7 +97,6 @@
 
 /* randomness */
 #include <sys/random.h>
-#include <sys/vimage.h>
 
 #define FULLMASK	0xff
 #define	_BITS(bytes)	((bytes) << 3)
@@ -115,31 +112,37 @@
  *   field hits 0 (= no external reference other than from SA header.
  */
 
-#ifdef VIMAGE_GLOBALS
-u_int32_t key_debug_level;
-static u_int key_spi_trycnt;
-static u_int32_t key_spi_minval;
-static u_int32_t key_spi_maxval;
-static u_int32_t policy_id;
-static u_int key_int_random;
-static u_int key_larval_lifetime;
-static int key_blockacq_count;
-static int key_blockacq_lifetime;
-static int key_preferred_oldsa;
+VNET_DEFINE(u_int32_t, key_debug_level) = 0;
+static VNET_DEFINE(u_int, key_spi_trycnt) = 1000;
+#define	V_key_spi_trycnt	VNET(key_spi_trycnt)
+static VNET_DEFINE(u_int32_t, key_spi_minval) = 0x100;
+#define	V_key_spi_minval	VNET(key_spi_minval)
+static VNET_DEFINE(u_int32_t, key_spi_maxval) = 0x0fffffff;	/* XXX */
+#define	V_key_spi_maxval	VNET(key_spi_maxval)
+static VNET_DEFINE(u_int32_t, policy_id) = 0;
+#define	V_policy_id		VNET(policy_id)
+/*interval to initialize randseed,1(m)*/
+static VNET_DEFINE(u_int, key_int_random) = 60;
+#define	V_key_int_random	VNET(key_int_random)
+/* interval to expire acquiring, 30(s)*/
+static VNET_DEFINE(u_int, key_larval_lifetime) = 30;
+#define	V_key_larval_lifetime	VNET(key_larval_lifetime)
+/* counter for blocking SADB_ACQUIRE.*/
+static VNET_DEFINE(int, key_blockacq_count) = 10;
+#define	V_key_blockacq_count	VNET(key_blockacq_count)
+/* lifetime for blocking SADB_ACQUIRE.*/
+static VNET_DEFINE(int, key_blockacq_lifetime) = 20;
+#define	V_key_blockacq_lifetime	VNET(key_blockacq_lifetime)
+/* preferred old sa rather than new sa.*/
+static VNET_DEFINE(int, key_preferred_oldsa) = 1;
+#define	V_key_preferred_oldsa	VNET(key_preferred_oldsa)
 
-static u_int32_t acq_seq;
+static VNET_DEFINE(u_int32_t, acq_seq) = 0;
+#define	V_acq_seq		VNET(acq_seq)
 
-static int ipsec_esp_keymin;
-static int ipsec_esp_auth;
-static int ipsec_ah_keymin;
-
-static LIST_HEAD(_sptree, secpolicy) sptree[IPSEC_DIR_MAX];	/* SPD */
-static LIST_HEAD(_sahtree, secashead) sahtree;			/* SAD */
-static LIST_HEAD(_regtree, secreg) regtree[SADB_SATYPE_MAX + 1];
-static LIST_HEAD(_acqtree, secacq) acqtree;		/* acquiring list */
-static LIST_HEAD(_spacqtree, secspacq) spacqtree;	/* SP acquiring list */
-#endif /* VIMAGE_GLOBALS */
-
+								/* SPD */
+static VNET_DEFINE(LIST_HEAD(_sptree, secpolicy), sptree[IPSEC_DIR_MAX]);
+#define	V_sptree		VNET(sptree)
 static struct mtx sptree_lock;
 #define	SPTREE_LOCK_INIT() \
 	mtx_init(&sptree_lock, "sptree", \
@@ -149,6 +152,8 @@ static struct mtx sptree_lock;
 #define	SPTREE_UNLOCK()	mtx_unlock(&sptree_lock)
 #define	SPTREE_LOCK_ASSERT()	mtx_assert(&sptree_lock, MA_OWNED)
 
+static VNET_DEFINE(LIST_HEAD(_sahtree, secashead), sahtree);	/* SAD */
+#define	V_sahtree		VNET(sahtree)
 static struct mtx sahtree_lock;
 #define	SAHTREE_LOCK_INIT() \
 	mtx_init(&sahtree_lock, "sahtree", \
@@ -159,6 +164,8 @@ static struct mtx sahtree_lock;
 #define	SAHTREE_LOCK_ASSERT()	mtx_assert(&sahtree_lock, MA_OWNED)
 
 							/* registed list */
+static VNET_DEFINE(LIST_HEAD(_regtree, secreg), regtree[SADB_SATYPE_MAX + 1]);
+#define	V_regtree		VNET(regtree)
 static struct mtx regtree_lock;
 #define	REGTREE_LOCK_INIT() \
 	mtx_init(&regtree_lock, "regtree", "fast ipsec regtree", MTX_DEF)
@@ -167,6 +174,8 @@ static struct mtx regtree_lock;
 #define	REGTREE_UNLOCK()	mtx_unlock(&regtree_lock)
 #define	REGTREE_LOCK_ASSERT()	mtx_assert(&regtree_lock, MA_OWNED)
 
+static VNET_DEFINE(LIST_HEAD(_acqtree, secacq), acqtree); /* acquiring list */
+#define	V_acqtree		VNET(acqtree)
 static struct mtx acq_lock;
 #define	ACQ_LOCK_INIT() \
 	mtx_init(&acq_lock, "acqtree", "fast ipsec acquire list", MTX_DEF)
@@ -175,6 +184,9 @@ static struct mtx acq_lock;
 #define	ACQ_UNLOCK()		mtx_unlock(&acq_lock)
 #define	ACQ_LOCK_ASSERT()	mtx_assert(&acq_lock, MA_OWNED)
 
+							/* SP acquiring list */
+static VNET_DEFINE(LIST_HEAD(_spacqtree, secspacq), spacqtree);
+#define	V_spacqtree		VNET(spacqtree)
 static struct mtx spacq_lock;
 #define	SPACQ_LOCK_INIT() \
 	mtx_init(&spacq_lock, "spacqtree", \
@@ -221,6 +233,12 @@ static const int minsize[] = {
 	0,				/* SADB_X_EXT_KMPRIVATE */
 	sizeof(struct sadb_x_policy),	/* SADB_X_EXT_POLICY */
 	sizeof(struct sadb_x_sa2),	/* SADB_X_SA2 */
+	sizeof(struct sadb_x_nat_t_type),/* SADB_X_EXT_NAT_T_TYPE */
+	sizeof(struct sadb_x_nat_t_port),/* SADB_X_EXT_NAT_T_SPORT */
+	sizeof(struct sadb_x_nat_t_port),/* SADB_X_EXT_NAT_T_DPORT */
+	sizeof(struct sadb_address),	/* SADB_X_EXT_NAT_T_OAI */
+	sizeof(struct sadb_address),	/* SADB_X_EXT_NAT_T_OAR */
+	sizeof(struct sadb_x_nat_t_frag),/* SADB_X_EXT_NAT_T_FRAG */
 };
 static const int maxsize[] = {
 	sizeof(struct sadb_msg),	/* SADB_EXT_RESERVED */
@@ -243,58 +261,71 @@ static const int maxsize[] = {
 	0,				/* SADB_X_EXT_KMPRIVATE */
 	0,				/* SADB_X_EXT_POLICY */
 	sizeof(struct sadb_x_sa2),	/* SADB_X_SA2 */
+	sizeof(struct sadb_x_nat_t_type),/* SADB_X_EXT_NAT_T_TYPE */
+	sizeof(struct sadb_x_nat_t_port),/* SADB_X_EXT_NAT_T_SPORT */
+	sizeof(struct sadb_x_nat_t_port),/* SADB_X_EXT_NAT_T_DPORT */
+	0,				/* SADB_X_EXT_NAT_T_OAI */
+	0,				/* SADB_X_EXT_NAT_T_OAR */
+	sizeof(struct sadb_x_nat_t_frag),/* SADB_X_EXT_NAT_T_FRAG */
 };
+
+static VNET_DEFINE(int, ipsec_esp_keymin) = 256;
+#define	V_ipsec_esp_keymin	VNET(ipsec_esp_keymin)
+static VNET_DEFINE(int, ipsec_esp_auth) = 0;
+#define	V_ipsec_esp_auth	VNET(ipsec_esp_auth)
+static VNET_DEFINE(int, ipsec_ah_keymin) = 128;
+#define	V_ipsec_ah_keymin	VNET(ipsec_ah_keymin)
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_key);
 #endif
 
-SYSCTL_V_INT(V_NET, vnet_ipsec,_net_key, KEYCTL_DEBUG_LEVEL,	debug,
-	CTLFLAG_RW, key_debug_level,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_DEBUG_LEVEL,	debug,
+	CTLFLAG_RW, &VNET_NAME(key_debug_level),	0,	"");
 
 /* max count of trial for the decision of spi value */
-SYSCTL_V_INT(V_NET, vnet_ipsec,_net_key, KEYCTL_SPI_TRY, spi_trycnt,
-	CTLFLAG_RW, key_spi_trycnt,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_SPI_TRY, spi_trycnt,
+	CTLFLAG_RW, &VNET_NAME(key_spi_trycnt),	0,	"");
 
 /* minimum spi value to allocate automatically. */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_key, KEYCTL_SPI_MIN_VALUE,
-	spi_minval,	CTLFLAG_RW, key_spi_minval,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_SPI_MIN_VALUE,
+	spi_minval,	CTLFLAG_RW, &VNET_NAME(key_spi_minval),	0,	"");
 
 /* maximun spi value to allocate automatically. */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_key, KEYCTL_SPI_MAX_VALUE,
-	spi_maxval,	CTLFLAG_RW, key_spi_maxval,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_SPI_MAX_VALUE,
+	spi_maxval,	CTLFLAG_RW, &VNET_NAME(key_spi_maxval),	0,	"");
 
 /* interval to initialize randseed */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_key, KEYCTL_RANDOM_INT,
-	int_random,	CTLFLAG_RW, key_int_random,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_RANDOM_INT,
+	int_random,	CTLFLAG_RW, &VNET_NAME(key_int_random),	0,	"");
 
 /* lifetime for larval SA */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_key, KEYCTL_LARVAL_LIFETIME,
-	larval_lifetime, CTLFLAG_RW, key_larval_lifetime,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_LARVAL_LIFETIME,
+	larval_lifetime, CTLFLAG_RW, &VNET_NAME(key_larval_lifetime),	0, "");
 
 /* counter for blocking to send SADB_ACQUIRE to IKEd */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_key, KEYCTL_BLOCKACQ_COUNT,
-	blockacq_count,	CTLFLAG_RW, key_blockacq_count,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_BLOCKACQ_COUNT,
+	blockacq_count,	CTLFLAG_RW, &VNET_NAME(key_blockacq_count),	0, "");
 
 /* lifetime for blocking to send SADB_ACQUIRE to IKEd */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_key, KEYCTL_BLOCKACQ_LIFETIME,
-	blockacq_lifetime, CTLFLAG_RW, key_blockacq_lifetime,	0, "");
+SYSCTL_VNET_INT(_net_key, KEYCTL_BLOCKACQ_LIFETIME,
+	blockacq_lifetime, CTLFLAG_RW, &VNET_NAME(key_blockacq_lifetime), 0, "");
 
 /* ESP auth */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_key, KEYCTL_ESP_AUTH,	esp_auth,
-	CTLFLAG_RW, ipsec_esp_auth,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_ESP_AUTH,	esp_auth,
+	CTLFLAG_RW, &VNET_NAME(ipsec_esp_auth),	0,	"");
 
 /* minimum ESP key length */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_key, KEYCTL_ESP_KEYMIN,
-	esp_keymin, CTLFLAG_RW, ipsec_esp_keymin,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_ESP_KEYMIN,
+	esp_keymin, CTLFLAG_RW, &VNET_NAME(ipsec_esp_keymin),	0,	"");
 
 /* minimum AH key length */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_key, KEYCTL_AH_KEYMIN,	ah_keymin,
-	CTLFLAG_RW, ipsec_ah_keymin,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_AH_KEYMIN,	ah_keymin,
+	CTLFLAG_RW, &VNET_NAME(ipsec_ah_keymin),	0,	"");
 
 /* perfered old SA rather than new SA */
-SYSCTL_V_INT(V_NET, vnet_ipsec, _net_key, KEYCTL_PREFERED_OLDSA,
-	preferred_oldsa, CTLFLAG_RW, key_preferred_oldsa,	0,	"");
+SYSCTL_VNET_INT(_net_key, KEYCTL_PREFERED_OLDSA,
+	preferred_oldsa, CTLFLAG_RW, &VNET_NAME(key_preferred_oldsa),	0, "");
 
 #define __LIST_CHAINED(elm) \
 	(!((elm)->chain.le_next == NULL && (elm)->chain.le_prev == NULL))
@@ -425,6 +456,13 @@ static struct mbuf *key_setsadbmsg __P((u_int8_t, u_int16_t, u_int8_t,
 static struct mbuf *key_setsadbsa __P((struct secasvar *));
 static struct mbuf *key_setsadbaddr __P((u_int16_t,
 	const struct sockaddr *, u_int8_t, u_int16_t));
+#ifdef IPSEC_NAT_T
+static struct mbuf *key_setsadbxport(u_int16_t, u_int16_t);
+static struct mbuf *key_setsadbxtype(u_int16_t);
+#endif
+static void key_porttosaddr(struct sockaddr *, u_int16_t);
+#define	KEY_PORTTOSADDR(saddr, port)				\
+	key_porttosaddr((struct sockaddr *)(saddr), (port))
 static struct mbuf *key_setsadbxsa2 __P((u_int8_t, u_int32_t, u_int32_t));
 static struct mbuf *key_setsadbxpolicy __P((u_int16_t, u_int8_t,
 	u_int32_t));
@@ -560,7 +598,6 @@ key_addref(struct secpolicy *sp)
 int
 key_havesp(u_int dir)
 {
-	INIT_VNET_IPSEC(curvnet);
 
 	return (dir == IPSEC_DIR_INBOUND || dir == IPSEC_DIR_OUTBOUND ?
 		LIST_FIRST(&V_sptree[dir]) != NULL : 1);
@@ -576,7 +613,6 @@ key_havesp(u_int dir)
 struct secpolicy *
 key_allocsp(struct secpolicyindex *spidx, u_int dir, const char* where, int tag)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
 
 	IPSEC_ASSERT(spidx != NULL, ("null spidx"));
@@ -633,7 +669,6 @@ key_allocsp2(u_int32_t spi,
 	     u_int dir,
 	     const char* where, int tag)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
 
 	IPSEC_ASSERT(dst != NULL, ("null dst"));
@@ -684,6 +719,7 @@ found:
 	return sp;
 }
 
+#if 0
 /*
  * return a policy that matches this particular inbound packet.
  * XXX slow
@@ -695,7 +731,6 @@ key_gettunnel(const struct sockaddr *osrc,
 	      const struct sockaddr *idst,
 	      const char* where, int tag)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
 	const int dir = IPSEC_DIR_INBOUND;
 	struct ipsecrequest *r1, *r2, *p;
@@ -760,6 +795,7 @@ done:
 			sp, sp ? sp->id : 0, sp ? sp->refcnt : 0));
 	return sp;
 }
+#endif
 
 /*
  * allocating an SA entry for an *OUTBOUND* packet.
@@ -770,7 +806,6 @@ done:
 int
 key_checkrequest(struct ipsecrequest *isr, const struct secasindex *saidx)
 {
-	INIT_VNET_IPSEC(curvnet);
 	u_int level;
 	int error;
 
@@ -866,11 +901,13 @@ static struct secasvar *
 key_allocsa_policy(const struct secasindex *saidx)
 {
 #define	N(a)	_ARRAYLEN(a)
-	INIT_VNET_IPSEC(curvnet);	
 	struct secashead *sah;
 	struct secasvar *sav;
 	u_int stateidx, arraysize;
 	const u_int *state_valid;
+
+	state_valid = NULL;	/* silence gcc */
+	arraysize = 0;		/* silence gcc */
 
 	SAHTREE_LOCK();
 	LIST_FOREACH(sah, &V_sahtree, chain) {
@@ -884,15 +921,13 @@ key_allocsa_policy(const struct secasindex *saidx)
 				state_valid = saorder_state_valid_prefer_new;
 				arraysize = N(saorder_state_valid_prefer_new);
 			}
-			SAHTREE_UNLOCK();
-			goto found;
+			break;
 		}
 	}
 	SAHTREE_UNLOCK();
+	if (sah == NULL)
+		return NULL;
 
-	return NULL;
-
-    found:
 	/* search valid state */
 	for (stateidx = 0; stateidx < arraysize; stateidx++) {
 		sav = key_do_allocsa_policy(sah, state_valid[stateidx]);
@@ -914,7 +949,6 @@ key_allocsa_policy(const struct secasindex *saidx)
 static struct secasvar *
 key_do_allocsa_policy(struct secashead *sah, u_int state)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *sav, *nextsav, *candidate, *d;
 
 	/* initilize */
@@ -1060,16 +1094,24 @@ key_allocsa(
 	u_int32_t spi,
 	const char* where, int tag)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secashead *sah;
 	struct secasvar *sav;
 	u_int stateidx, arraysize, state;
 	const u_int *saorder_state_valid;
+	int chkport;
 
 	IPSEC_ASSERT(dst != NULL, ("null dst address"));
 
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 		printf("DP %s from %s:%u\n", __func__, where, tag));
+
+#ifdef IPSEC_NAT_T
+        chkport = (dst->sa.sa_family == AF_INET &&
+	    dst->sa.sa_len == sizeof(struct sockaddr_in) &&
+	    dst->sin.sin_port != 0);
+#else
+	chkport = 0;
+#endif
 
 	/*
 	 * searching SAD.
@@ -1102,11 +1144,11 @@ key_allocsa(
 					continue;
 #if 0	/* don't check src */
 				/* check src address */
-				if (key_sockaddrcmp(&src->sa, &sav->sah->saidx.src.sa, 0) != 0)
+				if (key_sockaddrcmp(&src->sa, &sav->sah->saidx.src.sa, chkport) != 0)
 					continue;
 #endif
 				/* check dst address */
-				if (key_sockaddrcmp(&dst->sa, &sav->sah->saidx.dst.sa, 0) != 0)
+				if (key_sockaddrcmp(&dst->sa, &sav->sah->saidx.dst.sa, chkport) != 0)
 					continue;
 				sa_addref(sav);
 				goto done;
@@ -1130,7 +1172,6 @@ done:
 void
 _key_freesp(struct secpolicy **spp, const char* where, int tag)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp = *spp;
 
 	IPSEC_ASSERT(sp != NULL, ("null sp"));
@@ -1156,7 +1197,6 @@ _key_freesp(struct secpolicy **spp, const char* where, int tag)
 void
 key_freeso(struct socket *so)
 {
-	INIT_VNET_IPSEC(curvnet);
 	IPSEC_ASSERT(so != NULL, ("null so"));
 
 	switch (so->so_proto->pr_domain->dom_family) {
@@ -1207,7 +1247,6 @@ key_freesp_so(struct secpolicy **sp)
 void
 key_freesav(struct secasvar **psav, const char* where, int tag)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *sav = *psav;
 
 	IPSEC_ASSERT(sav != NULL, ("null sav"));
@@ -1266,7 +1305,6 @@ key_delsp(struct secpolicy *sp)
 static struct secpolicy *
 key_getsp(struct secpolicyindex *spidx)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
 
 	IPSEC_ASSERT(spidx != NULL, ("null spidx"));
@@ -1293,7 +1331,6 @@ key_getsp(struct secpolicyindex *spidx)
 static struct secpolicy *
 key_getspbyid(u_int32_t id)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
 
 	SPTREE_LOCK();
@@ -1323,7 +1360,6 @@ done:
 struct secpolicy *
 key_newsp(const char* where, int tag)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *newsp = NULL;
 
 	newsp = (struct secpolicy *)
@@ -1358,7 +1394,6 @@ key_msg2sp(xpl0, len, error)
 	size_t len;
 	int *error;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *newsp;
 
 	IPSEC_ASSERT(xpl0 != NULL, ("null xpl0"));
@@ -1756,7 +1791,6 @@ key_spdadd(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_address *src0, *dst0;
 	struct sadb_x_policy *xpl0, *xpl;
 	struct sadb_lifetime *lft = NULL;
@@ -1795,6 +1829,11 @@ key_spdadd(so, m, mhp)
 	src0 = (struct sadb_address *)mhp->ext[SADB_EXT_ADDRESS_SRC];
 	dst0 = (struct sadb_address *)mhp->ext[SADB_EXT_ADDRESS_DST];
 	xpl0 = (struct sadb_x_policy *)mhp->ext[SADB_X_EXT_POLICY];
+
+	/* 
+	 * Note: do not parse SADB_X_EXT_NAT_T_* here:
+	 * we are processing traffic endpoints.
+	 */
 
 	/* make secindex */
 	/* XXX boundary check against sa_len */
@@ -1886,18 +1925,8 @@ key_spdadd(so, m, mhp)
 		return key_senderror(so, m, EINVAL);
 	}
 #if 1
-	if (newsp->req && newsp->req->saidx.src.sa.sa_family) {
-		struct sockaddr *sa;
-		sa = (struct sockaddr *)(src0 + 1);
-		if (sa->sa_family != newsp->req->saidx.src.sa.sa_family) {
-			_key_delsp(newsp);
-			return key_senderror(so, m, EINVAL);
-		}
-	}
-	if (newsp->req && newsp->req->saidx.dst.sa.sa_family) {
-		struct sockaddr *sa;
-		sa = (struct sockaddr *)(dst0 + 1);
-		if (sa->sa_family != newsp->req->saidx.dst.sa.sa_family) {
+	if (newsp->req && newsp->req->saidx.src.sa.sa_family && newsp->req->saidx.dst.sa.sa_family) {
+		if (newsp->req->saidx.src.sa.sa_family != newsp->req->saidx.dst.sa.sa_family) {
 			_key_delsp(newsp);
 			return key_senderror(so, m, EINVAL);
 		}
@@ -1928,6 +1957,11 @@ key_spdadd(so, m, mhp)
 	struct mbuf *n, *mpolicy;
 	struct sadb_msg *newmsg;
 	int off;
+
+	/*
+	 * Note: do not send SADB_X_EXT_NAT_T_* here:
+	 * we are sending traffic endpoints.
+	 */
 
 	/* create new sadb_msg to reply. */
 	if (lft) {
@@ -1979,7 +2013,6 @@ key_spdadd(so, m, mhp)
 static u_int32_t
 key_getnewspid()
 {
-	INIT_VNET_IPSEC(curvnet);
 	u_int32_t newid = 0;
 	int count = V_key_spi_trycnt;	/* XXX */
 	struct secpolicy *sp;
@@ -2021,7 +2054,6 @@ key_spddelete(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_address *src0, *dst0;
 	struct sadb_x_policy *xpl0;
 	struct secpolicyindex spidx;
@@ -2050,6 +2082,11 @@ key_spddelete(so, m, mhp)
 	src0 = (struct sadb_address *)mhp->ext[SADB_EXT_ADDRESS_SRC];
 	dst0 = (struct sadb_address *)mhp->ext[SADB_EXT_ADDRESS_DST];
 	xpl0 = (struct sadb_x_policy *)mhp->ext[SADB_X_EXT_POLICY];
+
+	/*
+	 * Note: do not parse SADB_X_EXT_NAT_T_* here:
+	 * we are processing traffic endpoints.
+	 */
 
 	/* make secindex */
 	/* XXX boundary check against sa_len */
@@ -2087,6 +2124,11 @@ key_spddelete(so, m, mhp)
 	struct mbuf *n;
 	struct sadb_msg *newmsg;
 
+	/*
+	 * Note: do not send SADB_X_EXT_NAT_T_* here:
+	 * we are sending traffic endpoints.
+	 */
+
 	/* create new sadb_msg to reply. */
 	n = key_gather_mbuf(m, mhp, 1, 4, SADB_EXT_RESERVED,
 	    SADB_X_EXT_POLICY, SADB_EXT_ADDRESS_SRC, SADB_EXT_ADDRESS_DST);
@@ -2120,7 +2162,6 @@ key_spddelete2(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	u_int32_t id;
 	struct secpolicy *sp;
 
@@ -2213,7 +2254,6 @@ key_spdget(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	u_int32_t id;
 	struct secpolicy *sp;
 	struct mbuf *n;
@@ -2265,7 +2305,6 @@ int
 key_spdacquire(sp)
 	struct secpolicy *sp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *result = NULL, *m;
 	struct secspacq *newspacq;
 
@@ -2328,7 +2367,6 @@ key_spdflush(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_msg *newmsg;
 	struct secpolicy *sp;
 	u_int dir;
@@ -2381,7 +2419,6 @@ key_spddump(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp;
 	int cnt;
 	u_int dir;
@@ -2394,14 +2431,17 @@ key_spddump(so, m, mhp)
 
 	/* search SPD entry and get buffer size. */
 	cnt = 0;
+	SPTREE_LOCK();
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
 		LIST_FOREACH(sp, &V_sptree[dir], chain) {
 			cnt++;
 		}
 	}
 
-	if (cnt == 0)
+	if (cnt == 0) {
+		SPTREE_UNLOCK();
 		return key_senderror(so, m, ENOENT);
+	}
 
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
 		LIST_FOREACH(sp, &V_sptree[dir], chain) {
@@ -2414,15 +2454,13 @@ key_spddump(so, m, mhp)
 		}
 	}
 
+	SPTREE_UNLOCK();
 	m_freem(m);
 	return 0;
 }
 
 static struct mbuf *
-key_setdumpsp(sp, type, seq, pid)
-	struct secpolicy *sp;
-	u_int8_t type;
-	u_int32_t seq, pid;
+key_setdumpsp(struct secpolicy *sp, u_int8_t type, u_int32_t seq, u_int32_t pid)
 {
 	struct mbuf *result = NULL, *m;
 	struct seclifetime lt;
@@ -2432,6 +2470,10 @@ key_setdumpsp(sp, type, seq, pid)
 		goto fail;
 	result = m;
 
+	/*
+	 * Note: do not send SADB_X_EXT_NAT_T_* here:
+	 * we are sending traffic endpoints.
+	 */
 	m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC,
 	    &sp->spidx.src.sa, sp->spidx.prefs,
 	    sp->spidx.ul_proto);
@@ -2578,6 +2620,11 @@ key_spdexpire(sp)
 	lt->sadb_lifetime_usetime = sp->validtime;
 	m_cat(result, m);
 
+	/*
+	 * Note: do not send SADB_X_EXT_NAT_T_* here:
+	 * we are sending traffic endpoints.
+	 */
+
 	/* set sadb_address for source */
 	m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC,
 	    &sp->spidx.src.sa,
@@ -2644,7 +2691,6 @@ static struct secashead *
 key_newsah(saidx)
 	struct secasindex *saidx;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secashead *newsah;
 
 	IPSEC_ASSERT(saidx != NULL, ("null saidx"));
@@ -2673,7 +2719,6 @@ static void
 key_delsah(sah)
 	struct secashead *sah;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *sav, *nextsav;
 	u_int stateidx;
 	int zombie = 0;
@@ -2690,7 +2735,12 @@ key_delsah(sah)
 			if (sav->refcnt == 0) {
 				/* sanity check */
 				KEY_CHKSASTATE(state, sav->state, __func__);
-				KEY_FREESAV(&sav);
+				/* 
+				 * do NOT call KEY_FREESAV here:
+				 * it will only delete the sav if refcnt == 1,
+				 * where we already know that refcnt == 0
+				 */
+				key_delsav(sav);
 			} else {
 				/* give up to delete this sa */
 				zombie++;
@@ -2730,7 +2780,6 @@ key_newsav(m, mhp, sah, errp, where, tag)
 	const char* where;
 	int tag;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *newsav;
 	const struct sadb_sa *xsa;
 
@@ -2897,7 +2946,6 @@ static struct secashead *
 key_getsah(saidx)
 	struct secasindex *saidx;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secashead *sah;
 
 	SAHTREE_LOCK();
@@ -2924,7 +2972,6 @@ key_checkspidup(saidx, spi)
 	struct secasindex *saidx;
 	u_int32_t spi;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secashead *sah;
 	struct secasvar *sav;
 
@@ -2961,7 +3008,6 @@ key_getsavbyspi(sah, spi)
 	struct secashead *sah;
 	u_int32_t spi;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *sav;
 	u_int stateidx, state;
 
@@ -3005,7 +3051,6 @@ key_setsaval(sav, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	int error = 0;
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
@@ -3026,6 +3071,9 @@ key_setsaval(sav, m, mhp)
 	sav->tdb_encalgxform = NULL;	/* encoding algorithm */
 	sav->tdb_authalgxform = NULL;	/* authentication algorithm */
 	sav->tdb_compalgxform = NULL;	/* compression algorithm */
+	/*  Initialize even if NAT-T not compiled in: */
+	sav->natt_type = 0;
+	sav->natt_esp_frag_len = 0;
 
 	/* SA */
 	if (mhp->ext[SADB_EXT_SA] != NULL) {
@@ -3238,7 +3286,6 @@ key_setsaval(sav, m, mhp)
 static int
 key_mature(struct secasvar *sav)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int error;
 
 	/* check SPI value */
@@ -3323,10 +3370,8 @@ key_mature(struct secasvar *sav)
  * subroutine for SADB_GET and SADB_DUMP.
  */
 static struct mbuf *
-key_setdumpsa(sav, type, satype, seq, pid)
-	struct secasvar *sav;
-	u_int8_t type, satype;
-	u_int32_t seq, pid;
+key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
+    u_int32_t seq, u_int32_t pid)
 {
 	struct mbuf *result = NULL, *tres = NULL, *m;
 	int i;
@@ -3337,6 +3382,12 @@ key_setdumpsa(sav, type, satype, seq, pid)
 		SADB_EXT_ADDRESS_DST, SADB_EXT_ADDRESS_PROXY, SADB_EXT_KEY_AUTH,
 		SADB_EXT_KEY_ENCRYPT, SADB_EXT_IDENTITY_SRC,
 		SADB_EXT_IDENTITY_DST, SADB_EXT_SENSITIVITY,
+#ifdef IPSEC_NAT_T
+		SADB_X_EXT_NAT_T_TYPE,
+		SADB_X_EXT_NAT_T_SPORT, SADB_X_EXT_NAT_T_DPORT,
+		SADB_X_EXT_NAT_T_OAI, SADB_X_EXT_NAT_T_OAR,
+		SADB_X_EXT_NAT_T_FRAG,
+#endif
 	};
 
 	m = key_setsadbmsg(type, 0, satype, seq, pid, sav->refcnt);
@@ -3421,6 +3472,36 @@ key_setdumpsa(sav, type, satype, seq, pid)
 				goto fail;
 			break;
 
+#ifdef IPSEC_NAT_T
+		case SADB_X_EXT_NAT_T_TYPE:
+			m = key_setsadbxtype(sav->natt_type);
+			if (!m)
+				goto fail;
+			break;
+		
+		case SADB_X_EXT_NAT_T_DPORT:
+			m = key_setsadbxport(
+			    KEY_PORTFROMSADDR(&sav->sah->saidx.dst),
+			    SADB_X_EXT_NAT_T_DPORT);
+			if (!m)
+				goto fail;
+			break;
+
+		case SADB_X_EXT_NAT_T_SPORT:
+			m = key_setsadbxport(
+			    KEY_PORTFROMSADDR(&sav->sah->saidx.src),
+			    SADB_X_EXT_NAT_T_SPORT);
+			if (!m)
+				goto fail;
+			break;
+
+		case SADB_X_EXT_NAT_T_OAI:
+		case SADB_X_EXT_NAT_T_OAR:
+		case SADB_X_EXT_NAT_T_FRAG:
+			/* We do not (yet) support those. */
+			continue;
+#endif
+
 		case SADB_EXT_ADDRESS_PROXY:
 		case SADB_EXT_IDENTITY_SRC:
 		case SADB_EXT_IDENTITY_DST:
@@ -3464,12 +3545,8 @@ fail:
  * set data into sadb_msg.
  */
 static struct mbuf *
-key_setsadbmsg(type, tlen, satype, seq, pid, reserved)
-	u_int8_t type, satype;
-	u_int16_t tlen;
-	u_int32_t seq;
-	pid_t pid;
-	u_int16_t reserved;
+key_setsadbmsg(u_int8_t type, u_int16_t tlen, u_int8_t satype, u_int32_t seq,
+    pid_t pid, u_int16_t reserved)
 {
 	struct mbuf *m;
 	struct sadb_msg *p;
@@ -3544,11 +3621,7 @@ key_setsadbsa(sav)
  * set data into sadb_address.
  */
 static struct mbuf *
-key_setsadbaddr(exttype, saddr, prefixlen, ul_proto)
-	u_int16_t exttype;
-	const struct sockaddr *saddr;
-	u_int8_t prefixlen;
-	u_int16_t ul_proto;
+key_setsadbaddr(u_int16_t exttype, const struct sockaddr *saddr, u_int8_t prefixlen, u_int16_t ul_proto)
 {
 	struct mbuf *m;
 	struct sadb_address *p;
@@ -3595,9 +3668,7 @@ key_setsadbaddr(exttype, saddr, prefixlen, ul_proto)
  * set data into sadb_x_sa2.
  */
 static struct mbuf *
-key_setsadbxsa2(mode, seq, reqid)
-	u_int8_t mode;
-	u_int32_t seq, reqid;
+key_setsadbxsa2(u_int8_t mode, u_int32_t seq, u_int32_t reqid)
 {
 	struct mbuf *m;
 	struct sadb_x_sa2 *p;
@@ -3625,14 +3696,119 @@ key_setsadbxsa2(mode, seq, reqid)
 	return m;
 }
 
+#ifdef IPSEC_NAT_T
+/*
+ * Set a type in sadb_x_nat_t_type.
+ */
+static struct mbuf *
+key_setsadbxtype(u_int16_t type)
+{
+	struct mbuf *m;
+	size_t len;
+	struct sadb_x_nat_t_type *p;
+
+	len = PFKEY_ALIGN8(sizeof(struct sadb_x_nat_t_type));
+
+	m = key_alloc_mbuf(len);
+	if (!m || m->m_next) {	/*XXX*/
+		if (m)
+			m_freem(m);
+		return (NULL);
+	}
+
+	p = mtod(m, struct sadb_x_nat_t_type *);
+
+	bzero(p, len);
+	p->sadb_x_nat_t_type_len = PFKEY_UNIT64(len);
+	p->sadb_x_nat_t_type_exttype = SADB_X_EXT_NAT_T_TYPE;
+	p->sadb_x_nat_t_type_type = type;
+
+	return (m);
+}
+/*
+ * Set a port in sadb_x_nat_t_port.
+ * In contrast to default RFC 2367 behaviour, port is in network byte order.
+ */
+static struct mbuf *
+key_setsadbxport(u_int16_t port, u_int16_t type)
+{
+	struct mbuf *m;
+	size_t len;
+	struct sadb_x_nat_t_port *p;
+
+	len = PFKEY_ALIGN8(sizeof(struct sadb_x_nat_t_port));
+
+	m = key_alloc_mbuf(len);
+	if (!m || m->m_next) {	/*XXX*/
+		if (m)
+			m_freem(m);
+		return (NULL);
+	}
+
+	p = mtod(m, struct sadb_x_nat_t_port *);
+
+	bzero(p, len);
+	p->sadb_x_nat_t_port_len = PFKEY_UNIT64(len);
+	p->sadb_x_nat_t_port_exttype = type;
+	p->sadb_x_nat_t_port_port = port;
+
+	return (m);
+}
+
+/* 
+ * Get port from sockaddr. Port is in network byte order.
+ */
+u_int16_t 
+key_portfromsaddr(struct sockaddr *sa)
+{
+
+	switch (sa->sa_family) {
+#ifdef INET
+	case AF_INET:
+		return ((struct sockaddr_in *)sa)->sin_port;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		return ((struct sockaddr_in6 *)sa)->sin6_port;
+#endif
+	}
+	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
+		printf("DP %s unexpected address family %d\n",
+			__func__, sa->sa_family));
+	return (0);
+}
+#endif /* IPSEC_NAT_T */
+
+/*
+ * Set port in struct sockaddr. Port is in network byte order.
+ */
+static void
+key_porttosaddr(struct sockaddr *sa, u_int16_t port)
+{
+
+	switch (sa->sa_family) {
+#ifdef INET
+	case AF_INET:
+		((struct sockaddr_in *)sa)->sin_port = port;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		((struct sockaddr_in6 *)sa)->sin6_port = port;
+		break;
+#endif
+	default:
+		ipseclog((LOG_DEBUG, "%s: unexpected address family %d.\n",
+			__func__, sa->sa_family));
+		break;
+	}
+}
+
 /*
  * set data into sadb_x_policy
  */
 static struct mbuf *
-key_setsadbxpolicy(type, dir, id)
-	u_int16_t type;
-	u_int8_t dir;
-	u_int32_t id;
+key_setsadbxpolicy(u_int16_t type, u_int8_t dir, u_int32_t id)
 {
 	struct mbuf *m;
 	struct sadb_x_policy *p;
@@ -3669,7 +3845,6 @@ struct seckey *
 key_dup_keymsg(const struct sadb_key *src, u_int len,
 	       struct malloc_type *type)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct seckey *dst;
 	dst = (struct seckey *)malloc(sizeof(struct seckey), type, M_NOWAIT);
 	if (dst != NULL) {
@@ -3703,7 +3878,6 @@ static struct seclifetime *
 key_dup_lifemsg(const struct sadb_lifetime *src,
 		 struct malloc_type *type)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct seclifetime *dst = NULL;
 
 	dst = (struct seclifetime *)malloc(sizeof(struct seclifetime), 
@@ -3729,7 +3903,6 @@ key_ismyaddr(sa)
 	struct sockaddr *sa;
 {
 #ifdef INET
-	INIT_VNET_INET(curvnet);
 	struct sockaddr_in *sin;
 	struct in_ifaddr *ia;
 #endif
@@ -3740,6 +3913,7 @@ key_ismyaddr(sa)
 #ifdef INET
 	case AF_INET:
 		sin = (struct sockaddr_in *)sa;
+		IN_IFADDR_RLOCK();
 		for (ia = V_in_ifaddrhead.tqh_first; ia;
 		     ia = ia->ia_link.tqe_next)
 		{
@@ -3747,9 +3921,11 @@ key_ismyaddr(sa)
 			    sin->sin_len == ia->ia_addr.sin_len &&
 			    sin->sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			{
+				IN_IFADDR_RUNLOCK();
 				return 1;
 			}
 		}
+		IN_IFADDR_RUNLOCK();
 		break;
 #endif
 #ifdef INET6
@@ -3774,15 +3950,20 @@ static int
 key_ismyaddr6(sin6)
 	struct sockaddr_in6 *sin6;
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
+#if 0
 	struct in6_multi *in6m;
+#endif
 
-	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
+	IN6_IFADDR_RLOCK();
+	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (key_sockaddrcmp((struct sockaddr *)&sin6,
-		    (struct sockaddr *)&ia->ia_addr, 0) == 0)
+		    (struct sockaddr *)&ia->ia_addr, 0) == 0) {
+			IN6_IFADDR_RUNLOCK();
 			return 1;
+		}
 
+#if 0
 		/*
 		 * XXX Multicast
 		 * XXX why do we care about multlicast here while we don't care
@@ -3791,9 +3972,13 @@ key_ismyaddr6(sin6)
 		 */
 		in6m = NULL;
 		IN6_LOOKUP_MULTI(sin6->sin6_addr, ia->ia_ifp, in6m);
-		if (in6m)
+		if (in6m) {
+			IN6_IFADDR_RUNLOCK();
 			return 1;
+		}
+#endif
 	}
+	IN6_IFADDR_RUNLOCK();
 
 	/* loopback, just for safety */
 	if (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))
@@ -3821,6 +4006,8 @@ key_cmpsaidx(
 	const struct secasindex *saidx1,
 	int flag)
 {
+	int chkport = 0;
+
 	/* sanity */
 	if (saidx0 == NULL && saidx1 == NULL)
 		return 1;
@@ -3858,10 +4045,25 @@ key_cmpsaidx(
 				return 0;
 		}
 
-		if (key_sockaddrcmp(&saidx0->src.sa, &saidx1->src.sa, 0) != 0) {
+#ifdef IPSEC_NAT_T
+		/*
+		 * If NAT-T is enabled, check ports for tunnel mode.
+		 * Do not check ports if they are set to zero in the SPD.
+		 * Also do not do it for transport mode, as there is no
+		 * port information available in the SP.
+		 */
+		if (saidx1->mode == IPSEC_MODE_TUNNEL &&
+		    saidx1->src.sa.sa_family == AF_INET &&
+		    saidx1->dst.sa.sa_family == AF_INET &&
+		    ((const struct sockaddr_in *)(&saidx1->src))->sin_port &&
+		    ((const struct sockaddr_in *)(&saidx1->dst))->sin_port)
+			chkport = 1;
+#endif /* IPSEC_NAT_T */
+
+		if (key_sockaddrcmp(&saidx0->src.sa, &saidx1->src.sa, chkport) != 0) {
 			return 0;
 		}
-		if (key_sockaddrcmp(&saidx0->dst.sa, &saidx1->dst.sa, 0) != 0) {
+		if (key_sockaddrcmp(&saidx0->dst.sa, &saidx1->dst.sa, chkport) != 0) {
 			return 0;
 		}
 	}
@@ -4096,7 +4298,6 @@ key_bbcmp(const void *a1, const void *a2, u_int bits)
 static void
 key_flush_spd(time_t now)
 {
-	INIT_VNET_IPSEC(curvnet);
 	static u_int16_t sptree_scangen = 0;
 	u_int16_t gen = sptree_scangen++;
 	struct secpolicy *sp;
@@ -4110,10 +4311,21 @@ restart:
 			if (sp->scangen == gen)		/* previously handled */
 				continue;
 			sp->scangen = gen;
-			if (sp->state == IPSEC_SPSTATE_DEAD) {
-				/* NB: clean entries created by key_spdflush */
+			if (sp->state == IPSEC_SPSTATE_DEAD &&
+			    sp->refcnt == 1) {
+				/*
+				 * Ensure that we only decrease refcnt once,
+				 * when we're the last consumer.
+				 * Directly call SP_DELREF/key_delsp instead
+				 * of KEY_FREESP to avoid unlocking/relocking
+				 * SPTREE_LOCK before key_delsp: may refcnt
+				 * be increased again during that time ?
+				 * NB: also clean entries created by
+				 * key_spdflush
+				 */
+				SP_DELREF(sp);
+				key_delsp(sp);
 				SPTREE_UNLOCK();
-				KEY_FREESP(&sp);
 				goto restart;
 			}
 			if (sp->lifetime == 0 && sp->validtime == 0)
@@ -4123,7 +4335,6 @@ restart:
 				sp->state = IPSEC_SPSTATE_DEAD;
 				SPTREE_UNLOCK();
 				key_spdexpire(sp);
-				KEY_FREESP(&sp);
 				goto restart;
 			}
 		}
@@ -4134,7 +4345,6 @@ restart:
 static void
 key_flush_sad(time_t now)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secashead *sah, *nextsah;
 	struct secasvar *sav, *nextsav;
 
@@ -4149,6 +4359,7 @@ key_flush_sad(time_t now)
 
 		/* if LARVAL entry doesn't become MATURE, delete it. */
 		LIST_FOREACH_SAFE(sav, &sah->savtree[SADB_SASTATE_LARVAL], chain, nextsav) {
+			/* Need to also check refcnt for a larval SA ??? */
 			if (now - sav->created > V_key_larval_lifetime)
 				KEY_FREESAV(&sav);
 		}
@@ -4172,22 +4383,20 @@ key_flush_sad(time_t now)
 			/* check SOFT lifetime */
 			if (sav->lft_s->addtime != 0 &&
 			    now - sav->created > sav->lft_s->addtime) {
-				/*
-				 * check SA to be used whether or not.
-				 * when SA hasn't been used, delete it.
+				key_sa_chgstate(sav, SADB_SASTATE_DYING);
+				/* 
+				 * Actually, only send expire message if
+				 * SA has been used, as it was done before,
+				 * but should we always send such message,
+				 * and let IKE daemon decide if it should be
+				 * renegotiated or not ?
+				 * XXX expire message will actually NOT be
+				 * sent if SA is only used after soft
+				 * lifetime has been reached, see below
+				 * (DYING state)
 				 */
-				if (sav->lft_c->usetime == 0) {
-					key_sa_chgstate(sav, SADB_SASTATE_DEAD);
-					KEY_FREESAV(&sav);
-				} else {
-					key_sa_chgstate(sav, SADB_SASTATE_DYING);
-					/*
-					 * XXX If we keep to send expire
-					 * message in the status of
-					 * DYING. Do remove below code.
-					 */
+				if (sav->lft_c->usetime != 0)
 					key_expire(sav);
-				}
 			}
 			/* check SOFT lifetime by bytes */
 			/*
@@ -4273,7 +4482,6 @@ key_flush_sad(time_t now)
 static void
 key_flush_acq(time_t now)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secacq *acq, *nextacq;
 
 	/* ACQ tree */
@@ -4292,7 +4500,6 @@ key_flush_acq(time_t now)
 static void
 key_flush_spacq(time_t now)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secspacq *acq, *nextacq;
 
 	/* SP ACQ tree */
@@ -4320,7 +4527,7 @@ key_timehandler(void)
 	VNET_ITERATOR_DECL(vnet_iter);
 	time_t now = time_second;
 
-	VNET_LIST_RLOCK();
+	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		key_flush_spd(now);
@@ -4329,7 +4536,7 @@ key_timehandler(void)
 		key_flush_spacq(now);
 		CURVNET_RESTORE();
 	}
-	VNET_LIST_RUNLOCK();
+	VNET_LIST_RUNLOCK_NOSLEEP();
 
 #ifndef IPSEC_DEBUG2
 	/* do exchange to tick time !! */
@@ -4379,8 +4586,7 @@ key_randomfill(p, l)
  *	0: invalid satype.
  */
 static u_int16_t
-key_satype2proto(satype)
-	u_int8_t satype;
+key_satype2proto(u_int8_t satype)
 {
 	switch (satype) {
 	case SADB_SATYPE_UNSPEC:
@@ -4405,8 +4611,7 @@ key_satype2proto(satype)
  *	0: invalid protocol type.
  */
 static u_int8_t
-key_proto2satype(proto)
-	u_int16_t proto;
+key_proto2satype(u_int16_t proto)
 {
 	switch (proto) {
 	case IPPROTO_AH:
@@ -4442,7 +4647,6 @@ key_getspi(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_address *src0, *dst0;
 	struct secasindex saidx;
 	struct secashead *newsah;
@@ -4488,7 +4692,10 @@ key_getspi(so, m, mhp)
 		return key_senderror(so, m, EINVAL);
 	}
 
-	/* make sure if port number is zero. */
+	/*
+	 * Make sure the port numbers are zero.
+	 * In case of NAT-T we will update them later if needed.
+	 */
 	switch (((struct sockaddr *)(src0 + 1))->sa_family) {
 	case AF_INET:
 		if (((struct sockaddr *)(src0 + 1))->sa_len !=
@@ -4524,6 +4731,43 @@ key_getspi(so, m, mhp)
 
 	/* XXX boundary check against sa_len */
 	KEY_SETSECASIDX(proto, mode, reqid, src0 + 1, dst0 + 1, &saidx);
+
+#ifdef IPSEC_NAT_T
+	/*
+	 * Handle NAT-T info if present.
+	 * We made sure the port numbers are zero above, so we do
+	 * not have to worry in case we do not update them.
+	 */
+	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL)
+		ipseclog((LOG_DEBUG, "%s: NAT-T OAi present\n", __func__));
+	if (mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL)
+		ipseclog((LOG_DEBUG, "%s: NAT-T OAr present\n", __func__));
+
+	if (mhp->ext[SADB_X_EXT_NAT_T_TYPE] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
+		struct sadb_x_nat_t_type *type;
+		struct sadb_x_nat_t_port *sport, *dport;
+
+		if (mhp->extlen[SADB_X_EXT_NAT_T_TYPE] < sizeof(*type) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_DPORT] < sizeof(*dport)) {
+			ipseclog((LOG_DEBUG, "%s: invalid nat-t message "
+			    "passed.\n", __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+
+		sport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
+		dport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
+
+		if (sport)
+			KEY_PORTTOSADDR(&saidx.src, sport->sadb_x_nat_t_port_port);
+		if (dport)
+			KEY_PORTTOSADDR(&saidx.dst, dport->sadb_x_nat_t_port_port);
+	}
+#endif
 
 	/* SPI allocation */
 	spi = key_do_getnewspi((struct sadb_spirange *)mhp->ext[SADB_EXT_SPIRANGE],
@@ -4637,7 +4881,6 @@ key_do_getnewspi(spirange, saidx)
 	struct sadb_spirange *spirange;
 	struct secasindex *saidx;
 {
-	INIT_VNET_IPSEC(curvnet);
 	u_int32_t newspi;
 	u_int32_t min, max;
 	int count = V_key_spi_trycnt;
@@ -4719,9 +4962,14 @@ key_update(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_sa *sa0;
 	struct sadb_address *src0, *dst0;
+#ifdef IPSEC_NAT_T
+	struct sadb_x_nat_t_type *type;
+	struct sadb_x_nat_t_port *sport, *dport;
+	struct sadb_address *iaddr, *raddr;
+	struct sadb_x_nat_t_frag *frag;
+#endif
 	struct secasindex saidx;
 	struct secashead *sah;
 	struct secasvar *sav;
@@ -4779,6 +5027,66 @@ key_update(so, m, mhp)
 
 	/* XXX boundary check against sa_len */
 	KEY_SETSECASIDX(proto, mode, reqid, src0 + 1, dst0 + 1, &saidx);
+
+	/*
+	 * Make sure the port numbers are zero.
+	 * In case of NAT-T we will update them later if needed.
+	 */
+	KEY_PORTTOSADDR(&saidx.src, 0);
+	KEY_PORTTOSADDR(&saidx.dst, 0);
+
+#ifdef IPSEC_NAT_T
+	/*
+	 * Handle NAT-T info if present.
+	 */
+	if (mhp->ext[SADB_X_EXT_NAT_T_TYPE] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
+
+		if (mhp->extlen[SADB_X_EXT_NAT_T_TYPE] < sizeof(*type) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_DPORT] < sizeof(*dport)) {
+			ipseclog((LOG_DEBUG, "%s: invalid message.\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+
+		type = (struct sadb_x_nat_t_type *)
+		    mhp->ext[SADB_X_EXT_NAT_T_TYPE];
+		sport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
+		dport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
+	} else {
+		type = 0;
+		sport = dport = 0;
+	}
+	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL) {
+		if (mhp->extlen[SADB_X_EXT_NAT_T_OAI] < sizeof(*iaddr) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_OAR] < sizeof(*raddr)) {
+			ipseclog((LOG_DEBUG, "%s: invalid message\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+		iaddr = (struct sadb_address *)mhp->ext[SADB_X_EXT_NAT_T_OAI];
+		raddr = (struct sadb_address *)mhp->ext[SADB_X_EXT_NAT_T_OAR];
+		ipseclog((LOG_DEBUG, "%s: NAT-T OAi/r present\n", __func__));
+	} else {
+		iaddr = raddr = NULL;
+	}
+	if (mhp->ext[SADB_X_EXT_NAT_T_FRAG] != NULL) {
+		if (mhp->extlen[SADB_X_EXT_NAT_T_FRAG] < sizeof(*frag)) {
+			ipseclog((LOG_DEBUG, "%s: invalid message\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+		frag = (struct sadb_x_nat_t_frag *)
+		    mhp->ext[SADB_X_EXT_NAT_T_FRAG];
+	} else {
+		frag = 0;
+	}
+#endif
 
 	/* get a SA header */
 	if ((sah = key_getsah(&saidx)) == NULL) {
@@ -4845,6 +5153,32 @@ key_update(so, m, mhp)
 		KEY_FREESAV(&sav);
 		return key_senderror(so, m, 0);
 	}
+
+#ifdef IPSEC_NAT_T
+	/*
+	 * Handle more NAT-T info if present,
+	 * now that we have a sav to fill.
+	 */
+	if (type)
+		sav->natt_type = type->sadb_x_nat_t_type_type;
+
+	if (sport)
+		KEY_PORTTOSADDR(&sav->sah->saidx.src,
+		    sport->sadb_x_nat_t_port_port);
+	if (dport)
+		KEY_PORTTOSADDR(&sav->sah->saidx.dst,
+		    dport->sadb_x_nat_t_port_port);
+
+#if 0
+	/*
+	 * In case SADB_X_EXT_NAT_T_FRAG was not given, leave it at 0.
+	 * We should actually check for a minimum MTU here, if we
+	 * want to support it in ip_output.
+	 */
+	if (frag)
+		sav->natt_esp_frag_len = frag->sadb_x_nat_t_frag_fraglen;
+#endif
+#endif
 
     {
 	struct mbuf *n;
@@ -4918,9 +5252,13 @@ key_add(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_sa *sa0;
 	struct sadb_address *src0, *dst0;
+#ifdef IPSEC_NAT_T
+	struct sadb_x_nat_t_type *type;
+	struct sadb_address *iaddr, *raddr;
+	struct sadb_x_nat_t_frag *frag;
+#endif
 	struct secasindex saidx;
 	struct secashead *newsah;
 	struct secasvar *newsav;
@@ -4979,6 +5317,73 @@ key_add(so, m, mhp)
 	/* XXX boundary check against sa_len */
 	KEY_SETSECASIDX(proto, mode, reqid, src0 + 1, dst0 + 1, &saidx);
 
+	/*
+	 * Make sure the port numbers are zero.
+	 * In case of NAT-T we will update them later if needed.
+	 */
+	KEY_PORTTOSADDR(&saidx.src, 0);
+	KEY_PORTTOSADDR(&saidx.dst, 0);
+
+#ifdef IPSEC_NAT_T
+	/*
+	 * Handle NAT-T info if present.
+	 */
+	if (mhp->ext[SADB_X_EXT_NAT_T_TYPE] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
+		struct sadb_x_nat_t_port *sport, *dport;
+
+		if (mhp->extlen[SADB_X_EXT_NAT_T_TYPE] < sizeof(*type) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_DPORT] < sizeof(*dport)) {
+			ipseclog((LOG_DEBUG, "%s: invalid message.\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+
+		type = (struct sadb_x_nat_t_type *)
+		    mhp->ext[SADB_X_EXT_NAT_T_TYPE];
+		sport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
+		dport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
+
+		if (sport)
+			KEY_PORTTOSADDR(&saidx.src,
+			    sport->sadb_x_nat_t_port_port);
+		if (dport)
+			KEY_PORTTOSADDR(&saidx.dst,
+			    dport->sadb_x_nat_t_port_port);
+	} else {
+		type = 0;
+	}
+	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL) {
+		if (mhp->extlen[SADB_X_EXT_NAT_T_OAI] < sizeof(*iaddr) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_OAR] < sizeof(*raddr)) {
+			ipseclog((LOG_DEBUG, "%s: invalid message\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+		iaddr = (struct sadb_address *)mhp->ext[SADB_X_EXT_NAT_T_OAI];
+		raddr = (struct sadb_address *)mhp->ext[SADB_X_EXT_NAT_T_OAR];
+		ipseclog((LOG_DEBUG, "%s: NAT-T OAi/r present\n", __func__));
+	} else {
+		iaddr = raddr = NULL;
+	}
+	if (mhp->ext[SADB_X_EXT_NAT_T_FRAG] != NULL) {
+		if (mhp->extlen[SADB_X_EXT_NAT_T_FRAG] < sizeof(*frag)) {
+			ipseclog((LOG_DEBUG, "%s: invalid message\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+		frag = (struct sadb_x_nat_t_frag *)
+		    mhp->ext[SADB_X_EXT_NAT_T_FRAG];
+	} else {
+		frag = 0;
+	}
+#endif
+
 	/* get a SA header */
 	if ((newsah = key_getsah(&saidx)) == NULL) {
 		/* create a new SA header */
@@ -5015,6 +5420,25 @@ key_add(so, m, mhp)
 		return key_senderror(so, m, error);
 	}
 
+#ifdef IPSEC_NAT_T
+	/*
+	 * Handle more NAT-T info if present,
+	 * now that we have a sav to fill.
+	 */
+	if (type)
+		newsav->natt_type = type->sadb_x_nat_t_type_type;
+
+#if 0
+	/*
+	 * In case SADB_X_EXT_NAT_T_FRAG was not given, leave it at 0.
+	 * We should actually check for a minimum MTU here, if we
+	 * want to support it in ip_output.
+	 */
+	if (frag)
+		newsav->natt_esp_frag_len = frag->sadb_x_nat_t_frag_fraglen;
+#endif
+#endif
+
 	/*
 	 * don't call key_freesav() here, as we would like to keep the SA
 	 * in the database on success.
@@ -5042,7 +5466,6 @@ key_setident(sah, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	const struct sadb_ident *idsrc, *iddst;
 	int idsrclen, iddstlen;
 
@@ -5165,7 +5588,6 @@ key_delete(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_sa *sa0;
 	struct sadb_address *src0, *dst0;
 	struct secasindex saidx;
@@ -5220,6 +5642,42 @@ key_delete(so, m, mhp)
 	/* XXX boundary check against sa_len */
 	KEY_SETSECASIDX(proto, IPSEC_MODE_ANY, 0, src0 + 1, dst0 + 1, &saidx);
 
+	/*
+	 * Make sure the port numbers are zero.
+	 * In case of NAT-T we will update them later if needed.
+	 */
+	KEY_PORTTOSADDR(&saidx.src, 0);
+	KEY_PORTTOSADDR(&saidx.dst, 0);
+
+#ifdef IPSEC_NAT_T
+	/*
+	 * Handle NAT-T info if present.
+	 */
+	if (mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
+		struct sadb_x_nat_t_port *sport, *dport;
+
+		if (mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_DPORT] < sizeof(*dport)) {
+			ipseclog((LOG_DEBUG, "%s: invalid message.\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+
+		sport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
+		dport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
+
+		if (sport)
+			KEY_PORTTOSADDR(&saidx.src,
+			    sport->sadb_x_nat_t_port_port);
+		if (dport)
+			KEY_PORTTOSADDR(&saidx.dst,
+			    dport->sadb_x_nat_t_port_port);
+	}
+#endif
+
 	/* get a SA header */
 	SAHTREE_LOCK();
 	LIST_FOREACH(sah, &V_sahtree, chain) {
@@ -5248,6 +5706,7 @@ key_delete(so, m, mhp)
 	struct sadb_msg *newmsg;
 
 	/* create new sadb_msg to reply. */
+	/* XXX-BZ NAT-T extensions? */
 	n = key_gather_mbuf(m, mhp, 1, 4, SADB_EXT_RESERVED,
 	    SADB_EXT_SA, SADB_EXT_ADDRESS_SRC, SADB_EXT_ADDRESS_DST);
 	if (!n)
@@ -5271,13 +5730,9 @@ key_delete(so, m, mhp)
  * delete all SAs for src/dst.  Called from key_delete().
  */
 static int
-key_delete_all(so, m, mhp, proto)
-	struct socket *so;
-	struct mbuf *m;
-	const struct sadb_msghdr *mhp;
-	u_int16_t proto;
+key_delete_all(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp,
+    u_int16_t proto)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_address *src0, *dst0;
 	struct secasindex saidx;
 	struct secashead *sah;
@@ -5289,6 +5744,43 @@ key_delete_all(so, m, mhp, proto)
 
 	/* XXX boundary check against sa_len */
 	KEY_SETSECASIDX(proto, IPSEC_MODE_ANY, 0, src0 + 1, dst0 + 1, &saidx);
+
+	/*
+	 * Make sure the port numbers are zero.
+	 * In case of NAT-T we will update them later if needed.
+	 */
+	KEY_PORTTOSADDR(&saidx.src, 0);
+	KEY_PORTTOSADDR(&saidx.dst, 0);
+
+#ifdef IPSEC_NAT_T
+	/*
+	 * Handle NAT-T info if present.
+	 */
+
+	if (mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
+		struct sadb_x_nat_t_port *sport, *dport;
+
+		if (mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_DPORT] < sizeof(*dport)) {
+			ipseclog((LOG_DEBUG, "%s: invalid message.\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+
+		sport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
+		dport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
+
+		if (sport)
+			KEY_PORTTOSADDR(&saidx.src,
+			    sport->sadb_x_nat_t_port_port);
+		if (dport)
+			KEY_PORTTOSADDR(&saidx.dst,
+			    dport->sadb_x_nat_t_port_port);
+	}
+#endif
 
 	SAHTREE_LOCK();
 	LIST_FOREACH(sah, &V_sahtree, chain) {
@@ -5326,6 +5818,7 @@ key_delete_all(so, m, mhp, proto)
 	struct sadb_msg *newmsg;
 
 	/* create new sadb_msg to reply. */
+	/* XXX-BZ NAT-T extensions? */
 	n = key_gather_mbuf(m, mhp, 1, 3, SADB_EXT_RESERVED,
 	    SADB_EXT_ADDRESS_SRC, SADB_EXT_ADDRESS_DST);
 	if (!n)
@@ -5363,7 +5856,6 @@ key_get(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_sa *sa0;
 	struct sadb_address *src0, *dst0;
 	struct secasindex saidx;
@@ -5404,6 +5896,43 @@ key_get(so, m, mhp)
 
 	/* XXX boundary check against sa_len */
 	KEY_SETSECASIDX(proto, IPSEC_MODE_ANY, 0, src0 + 1, dst0 + 1, &saidx);
+
+	/*
+	 * Make sure the port numbers are zero.
+	 * In case of NAT-T we will update them later if needed.
+	 */
+	KEY_PORTTOSADDR(&saidx.src, 0);
+	KEY_PORTTOSADDR(&saidx.dst, 0);
+
+#ifdef IPSEC_NAT_T
+	/*
+	 * Handle NAT-T info if present.
+	 */
+
+	if (mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
+		struct sadb_x_nat_t_port *sport, *dport;
+
+		if (mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_DPORT] < sizeof(*dport)) {
+			ipseclog((LOG_DEBUG, "%s: invalid message.\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+
+		sport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
+		dport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
+
+		if (sport)
+			KEY_PORTTOSADDR(&saidx.src,
+			    sport->sadb_x_nat_t_port_port);
+		if (dport)
+			KEY_PORTTOSADDR(&saidx.dst,
+			    dport->sadb_x_nat_t_port_port);
+	}
+#endif
 
 	/* get a SA header */
 	SAHTREE_LOCK();
@@ -5469,7 +5998,6 @@ key_getcomb_setlifetime(comb)
 static struct mbuf *
 key_getcomb_esp()
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_comb *comb;
 	struct enc_xform *algo;
 	struct mbuf *result = NULL, *m, *n;
@@ -5548,7 +6076,6 @@ key_getsizes_ah(
 	u_int16_t* min,
 	u_int16_t* max)
 {
-	INIT_VNET_IPSEC(curvnet);
 
 	*min = *max = ah->keysize;
 	if (ah->keysize == 0) {
@@ -5574,7 +6101,6 @@ key_getsizes_ah(
 static struct mbuf *
 key_getcomb_ah()
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_comb *comb;
 	struct auth_hash *algo;
 	struct mbuf *m;
@@ -5735,7 +6261,6 @@ key_getprop(saidx)
 static int
 key_acquire(const struct secasindex *saidx, struct secpolicy *sp)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *result = NULL, *m;
 	struct secacq *newacq;
 	u_int8_t satype;
@@ -5776,6 +6301,11 @@ key_acquire(const struct secasindex *saidx, struct secpolicy *sp)
 		goto fail;
 	}
 	result = m;
+
+	/*
+	 * No SADB_X_EXT_NAT_T_* here: we do not know
+	 * anything related to NAT-T at this time.
+	 */
 
 	/* set sadb_address for saidx's. */
 	m = key_setsadbaddr(SADB_EXT_ADDRESS_SRC,
@@ -5901,7 +6431,6 @@ key_acquire(const struct secasindex *saidx, struct secpolicy *sp)
 static struct secacq *
 key_newacq(const struct secasindex *saidx)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secacq *newacq;
 
 	/* get new entry */
@@ -5928,7 +6457,6 @@ key_newacq(const struct secasindex *saidx)
 static struct secacq *
 key_getacq(const struct secasindex *saidx)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secacq *acq;
 
 	ACQ_LOCK();
@@ -5945,7 +6473,6 @@ static struct secacq *
 key_getacqbyseq(seq)
 	u_int32_t seq;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secacq *acq;
 
 	ACQ_LOCK();
@@ -5962,7 +6489,6 @@ static struct secspacq *
 key_newspacq(spidx)
 	struct secpolicyindex *spidx;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secspacq *acq;
 
 	/* get new entry */
@@ -5989,7 +6515,6 @@ static struct secspacq *
 key_getspacq(spidx)
 	struct secpolicyindex *spidx;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secspacq *acq;
 
 	SPACQ_LOCK();
@@ -6024,7 +6549,6 @@ key_acquire2(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	const struct sadb_address *src0, *dst0;
 	struct secasindex saidx;
 	struct secashead *sah;
@@ -6103,6 +6627,43 @@ key_acquire2(so, m, mhp)
 	/* XXX boundary check against sa_len */
 	KEY_SETSECASIDX(proto, IPSEC_MODE_ANY, 0, src0 + 1, dst0 + 1, &saidx);
 
+	/*
+	 * Make sure the port numbers are zero.
+	 * In case of NAT-T we will update them later if needed.
+	 */
+	KEY_PORTTOSADDR(&saidx.src, 0);
+	KEY_PORTTOSADDR(&saidx.dst, 0);
+
+#ifndef IPSEC_NAT_T
+	/*
+	 * Handle NAT-T info if present.
+	 */
+
+	if (mhp->ext[SADB_X_EXT_NAT_T_SPORT] != NULL &&
+	    mhp->ext[SADB_X_EXT_NAT_T_DPORT] != NULL) {
+		struct sadb_x_nat_t_port *sport, *dport;
+
+		if (mhp->extlen[SADB_X_EXT_NAT_T_SPORT] < sizeof(*sport) ||
+		    mhp->extlen[SADB_X_EXT_NAT_T_DPORT] < sizeof(*dport)) {
+			ipseclog((LOG_DEBUG, "%s: invalid message.\n",
+			    __func__));
+			return key_senderror(so, m, EINVAL);
+		}
+
+		sport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_SPORT];
+		dport = (struct sadb_x_nat_t_port *)
+		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
+
+		if (sport)
+			KEY_PORTTOSADDR(&saidx.src,
+			    sport->sadb_x_nat_t_port_port);
+		if (dport)
+			KEY_PORTTOSADDR(&saidx.dst,
+			    dport->sadb_x_nat_t_port_port);
+	}
+#endif
+
 	/* get a SA index */
 	SAHTREE_LOCK();
 	LIST_FOREACH(sah, &V_sahtree, chain) {
@@ -6146,7 +6707,6 @@ key_register(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secreg *reg, *newreg = 0;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
@@ -6301,7 +6861,6 @@ key_register(so, m, mhp)
 void
 key_freereg(struct socket *so)
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secreg *reg;
 	int i;
 
@@ -6425,6 +6984,10 @@ key_expire(struct secasvar *sav)
 	}
 	m_cat(result, m);
 
+	/*
+	 * XXX-BZ Handle NAT-T extensions here.
+	 */
+
 	if ((result->m_flags & M_PKTHDR) == 0) {
 		error = EINVAL;
 		goto fail;
@@ -6473,7 +7036,6 @@ key_flush(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_msg *newmsg;
 	struct secashead *sah, *nextsah;
 	struct secasvar *sav, *nextsav;
@@ -6557,7 +7119,6 @@ key_dump(so, m, mhp)
 	struct mbuf *m;
 	const struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secashead *sah;
 	struct secasvar *sav;
 	u_int16_t proto;
@@ -6738,7 +7299,6 @@ key_parse(m, so)
 	struct mbuf *m;
 	struct socket *so;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct sadb_msg *msg;
 	struct sadb_msghdr mh;
 	u_int orglen;
@@ -7010,7 +7570,6 @@ key_align(m, mhp)
 	struct mbuf *m;
 	struct sadb_msghdr *mhp;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *n;
 	struct sadb_ext *ext;
 	size_t off, end;
@@ -7058,6 +7617,14 @@ key_align(m, mhp)
 		case SADB_EXT_SPIRANGE:
 		case SADB_X_EXT_POLICY:
 		case SADB_X_EXT_SA2:
+#ifdef IPSEC_NAT_T
+		case SADB_X_EXT_NAT_T_TYPE:
+		case SADB_X_EXT_NAT_T_SPORT:
+		case SADB_X_EXT_NAT_T_DPORT:
+		case SADB_X_EXT_NAT_T_OAI:
+		case SADB_X_EXT_NAT_T_OAR:
+		case SADB_X_EXT_NAT_T_FRAG:
+#endif
 			/* duplicate check */
 			/*
 			 * XXX Are there duplication payloads of either
@@ -7170,31 +7737,7 @@ key_validate_ext(ext, len)
 void
 key_init(void)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int i;
-
-	V_key_debug_level = 0;
-	V_key_spi_trycnt = 1000;
-	V_key_spi_minval = 0x100;
-	V_key_spi_maxval = 0x0fffffff;	/* XXX */
-	V_policy_id = 0;
-	V_key_int_random = 60;		/*interval to initialize randseed,1(m)*/
-	V_key_larval_lifetime = 30;	/* interval to expire acquiring, 30(s)*/
-	V_key_blockacq_count = 10;	/* counter for blocking SADB_ACQUIRE.*/
-	V_key_blockacq_lifetime = 20;	/* lifetime for blocking SADB_ACQUIRE.*/
-	V_key_preferred_oldsa = 1;	/* preferred old sa rather than new sa*/
-
-	V_acq_seq = 0;
-
-	V_ipsec_esp_keymin = 256;
-	V_ipsec_esp_auth = 0;
-	V_ipsec_ah_keymin = 128;
-
-	SPTREE_LOCK_INIT();
-	REGTREE_LOCK_INIT();
-	SAHTREE_LOCK_INIT();
-	ACQ_LOCK_INIT();
-	SPACQ_LOCK_INIT();
 
 	for (i = 0; i < IPSEC_DIR_MAX; i++)
 		LIST_INIT(&V_sptree[i]);
@@ -7211,6 +7754,15 @@ key_init(void)
 	V_ip4_def_policy.policy = IPSEC_POLICY_NONE;
 	V_ip4_def_policy.refcnt++;	/*never reclaim this*/
 
+	if (!IS_DEFAULT_VNET(curvnet))
+		return;
+
+	SPTREE_LOCK_INIT();
+	REGTREE_LOCK_INIT();
+	SAHTREE_LOCK_INIT();
+	ACQ_LOCK_INIT();
+	SPACQ_LOCK_INIT();
+
 #ifndef IPSEC_DEBUG2
 	timeout((void *)key_timehandler, (void *)0, hz);
 #endif /*IPSEC_DEBUG2*/
@@ -7219,9 +7771,74 @@ key_init(void)
 	keystat.getspi_count = 1;
 
 	printf("IPsec: Initialized Security Association Processing.\n");
-
-	return;
 }
+
+#ifdef VIMAGE
+void
+key_destroy(void)
+{
+	struct secpolicy *sp, *nextsp;
+	struct secspacq *acq, *nextacq;
+	struct secashead *sah, *nextsah;
+	struct secreg *reg;
+	int i;
+
+	SPTREE_LOCK();
+	for (i = 0; i < IPSEC_DIR_MAX; i++) {
+		for (sp = LIST_FIRST(&V_sptree[i]); 
+		    sp != NULL; sp = nextsp) {
+			nextsp = LIST_NEXT(sp, chain);
+			if (__LIST_CHAINED(sp)) {
+				LIST_REMOVE(sp, chain);
+				free(sp, M_IPSEC_SP);
+			}
+		}
+	}
+	SPTREE_UNLOCK();
+
+	SAHTREE_LOCK();
+	for (sah = LIST_FIRST(&V_sahtree); sah != NULL; sah = nextsah) {
+		nextsah = LIST_NEXT(sah, chain);
+		if (__LIST_CHAINED(sah)) {
+			LIST_REMOVE(sah, chain);
+			free(sah, M_IPSEC_SAH);
+		}
+	}
+	SAHTREE_UNLOCK();
+
+	REGTREE_LOCK();
+	for (i = 0; i <= SADB_SATYPE_MAX; i++) {
+		LIST_FOREACH(reg, &V_regtree[i], chain) {
+			if (__LIST_CHAINED(reg)) {
+				LIST_REMOVE(reg, chain);
+				free(reg, M_IPSEC_SAR);
+				break;
+			}
+		}
+	}
+	REGTREE_UNLOCK();
+
+	ACQ_LOCK();
+	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
+		nextacq = LIST_NEXT(acq, chain);
+		if (__LIST_CHAINED(acq)) {
+			LIST_REMOVE(acq, chain);
+			free(acq, M_IPSEC_SAQ);
+		}
+	}
+	ACQ_UNLOCK();
+
+	SPACQ_LOCK();
+	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
+		nextacq = LIST_NEXT(acq, chain);
+		if (__LIST_CHAINED(acq)) {
+			LIST_REMOVE(acq, chain);
+			free(acq, M_IPSEC_SAQ);
+		}
+	}
+	SPACQ_UNLOCK();
+}
+#endif
 
 /*
  * XXX: maybe This function is called after INBOUND IPsec processing.
@@ -7293,7 +7910,6 @@ void
 key_sa_routechange(dst)
 	struct sockaddr *dst;
 {
-	INIT_VNET_IPSEC(curvnet);
 	struct secashead *sah;
 	struct route *ro;
 
@@ -7310,9 +7926,7 @@ key_sa_routechange(dst)
 }
 
 static void
-key_sa_chgstate(sav, state)
-	struct secasvar *sav;
-	u_int8_t state;
+key_sa_chgstate(struct secasvar *sav, u_int8_t state)
 {
 	IPSEC_ASSERT(sav != NULL, ("NULL sav"));
 	SAHTREE_LOCK_ASSERT();

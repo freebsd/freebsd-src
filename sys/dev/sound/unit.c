@@ -29,6 +29,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/unit.h>
 
 /*
@@ -65,7 +69,7 @@ static int snd_unit_initialized = 0;
 #define SND_UNIT_ASSERT()	do {					\
 	if (snd_unit_initialized == 0)					\
 		panic("%s(): Uninitialized sound unit!", __func__);	\
-} while(0)
+} while (0)
 #else
 #define SND_UNIT_ASSERT()	KASSERT(snd_unit_initialized != 0,	\
 				("%s(): Uninitialized sound unit!",	\

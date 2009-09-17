@@ -32,3 +32,4 @@ ENTRY(fmaf, 3)
 	fma.s		f8 = f8, f9, f10
 	br.ret.sptk	b0
 }
+END(fmaf)

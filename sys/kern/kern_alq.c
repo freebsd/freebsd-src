@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -293,7 +291,6 @@ alq_doio(struct alq *alq)
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	VOP_LEASE(vp, td, alq->aq_cred, LEASE_WRITE);
 	/*
 	 * XXX: VOP_WRITE error checks are ignored.
 	 */
@@ -354,7 +351,7 @@ alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
 	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, file, td);
 	flags = FWRITE | O_NOFOLLOW | O_CREAT;
 
-	error = vn_open_cred(&nd, &flags, cmode, cred, NULL);
+	error = vn_open_cred(&nd, &flags, cmode, 0, cred, NULL);
 	if (error)
 		return (error);
 

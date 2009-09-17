@@ -48,7 +48,7 @@ static const char rcsid[] =
 
 #include <netdb.h>
 #include <rpc/rpc.h>
-#include <nfs/rpcv2.h>
+#include <rpcsvc/mount.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -379,16 +379,16 @@ umountfs(struct statfs *sfs)
 	 * has been unmounted.
 	 */
 	if (ai != NULL && !(fflag & MNT_FORCE) && do_rpc) {
-		clp = clnt_create(hostp, RPCPROG_MNT, RPCMNT_VER1, "udp");
+		clp = clnt_create(hostp, MOUNTPROG, MOUNTVERS, "udp");
 		if (clp  == NULL) {
 			warnx("%s: %s", hostp,
-			    clnt_spcreateerror("RPCPROG_MNT"));
+			    clnt_spcreateerror("MOUNTPROG"));
 			return (1);
 		}
 		clp->cl_auth = authsys_create_default();
 		try.tv_sec = 20;
 		try.tv_usec = 0;
-		clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, (xdrproc_t)xdr_dir,
+		clnt_stat = clnt_call(clp, MOUNTPROC_UMNT, (xdrproc_t)xdr_dir,
 		    nfsdirname, (xdrproc_t)xdr_void, (caddr_t)0, try);
 		if (clnt_stat != RPC_SUCCESS) {
 			warnx("%s: %s", hostp,
@@ -583,7 +583,7 @@ int
 xdr_dir(XDR *xdrsp, char *dirp)
 {
 
-	return (xdr_string(xdrsp, &dirp, RPCMNT_PATHLEN));
+	return (xdr_string(xdrsp, &dirp, MNTPATHLEN));
 }
 
 void

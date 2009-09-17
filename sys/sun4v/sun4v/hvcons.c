@@ -327,7 +327,7 @@ hvcn_dev_attach(device_t dev)
 	    hvcn_consdev.cn_name[0] == '\0') 
 		return (ENXIO);
 
-	tp = tty_alloc(&hvcn_class, NULL, NULL);
+	tp = tty_alloc(&hvcn_class, NULL);
 	tty_makedev(tp, NULL, "v%r", 1);
 	tty_makealias(tp, "hvcn");
 	

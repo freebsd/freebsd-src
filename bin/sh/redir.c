@@ -188,13 +188,25 @@ movefd:
 			error("cannot create %s: %s", fname, strerror(errno));
 		goto movefd;
 	case NTO:
-		fname = redir->nfile.expfname;
-		if (Cflag && stat(fname, &sb) != -1 && S_ISREG(sb.st_mode))
-			error("cannot create %s: %s", fname,
-			    strerror(EEXIST));
-		if ((f = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0)
-			error("cannot create %s: %s", fname, strerror(errno));
-		goto movefd;
+		if (Cflag) {
+			fname = redir->nfile.expfname;
+			if (stat(fname, &sb) == -1) {
+				if ((f = open(fname, O_WRONLY|O_CREAT|O_EXCL, 0666)) < 0)
+					error("cannot create %s: %s", fname, strerror(errno));
+			} else if (!S_ISREG(sb.st_mode)) {
+				if ((f = open(fname, O_WRONLY, 0666)) < 0)
+					error("cannot create %s: %s", fname, strerror(errno));
+				if (fstat(f, &sb) != -1 && S_ISREG(sb.st_mode)) {
+					close(f);
+					error("cannot create %s: %s", fname,
+					    strerror(EEXIST));
+				}
+			} else
+				error("cannot create %s: %s", fname,
+				    strerror(EEXIST));
+			goto movefd;
+		}
+		/* FALLTHROUGH */
 	case NCLOBBER:
 		fname = redir->nfile.expfname;
 		if ((f = open(fname, O_WRONLY|O_CREAT|O_TRUNC, 0666)) < 0)

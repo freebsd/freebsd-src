@@ -68,7 +68,7 @@ static const char *portal_opts[] = {
 };
 
 static int
-portal_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
+portal_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct portal_args args;
 	int error;
@@ -90,16 +90,18 @@ portal_cmount(struct mntarg *ma, void *data, int flags, struct thread *td)
  * Mount the per-process file descriptors (/dev/fd)
  */
 static int
-portal_mount(struct mount *mp, struct thread *td)
+portal_mount(struct mount *mp)
 {
 	struct file *fp;
 	struct portalmount *fmp;
 	struct socket *so;
 	struct vnode *rvp;
+	struct thread *td;
 	struct portalnode *pn;
 	int error, v;
 	char *p;
 
+	td = curthread;
 	if (vfs_filteropt(mp->mnt_optnew, portal_opts))
 		return (EINVAL);
 
@@ -165,10 +167,9 @@ portal_mount(struct mount *mp, struct thread *td)
 }
 
 static int
-portal_unmount(mp, mntflags, td)
+portal_unmount(mp, mntflags)
 	struct mount *mp;
 	int mntflags;
-	struct thread *td;
 {
 	int error, flags = 0;
 
@@ -187,7 +188,7 @@ portal_unmount(mp, mntflags, td)
 		return (EBUSY);
 #endif
 	/* There is 1 extra root vnode reference (pm_root). */
-	error = vflush(mp, 1, flags, td);
+	error = vflush(mp, 1, flags, curthread);
 	if (error)
 		return (error);
 
@@ -211,11 +212,10 @@ portal_unmount(mp, mntflags, td)
 }
 
 static int
-portal_root(mp, flags, vpp, td)
+portal_root(mp, flags, vpp)
 	struct mount *mp;
 	int flags;
 	struct vnode **vpp;
-	struct thread *td;
 {
 	struct vnode *vp;
 
@@ -230,10 +230,9 @@ portal_root(mp, flags, vpp, td)
 }
 
 static int
-portal_statfs(mp, sbp, td)
+portal_statfs(mp, sbp)
 	struct mount *mp;
 	struct statfs *sbp;
-	struct thread *td;
 {
 
 	sbp->f_flags = 0;

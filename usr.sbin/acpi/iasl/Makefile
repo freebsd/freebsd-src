@@ -13,8 +13,8 @@ SRCS+=	aslanalyze.c aslcodegen.c aslcompile.c aslcompiler.y.h	\
 	aslfiles.c aslfold.c asllength.c asllisting.c		\
 	aslload.c asllookup.c aslmain.c aslmap.c aslopcodes.c	\
 	asloperands.c aslopt.c aslresource.c aslrestype1.c	\
-	aslrestype2.c aslstubs.c asltransform.c asltree.c	\
-	aslutils.c
+	aslrestype2.c aslstartup.c aslstubs.c asltransform.c	\
+	asltree.c aslutils.c
 
 # debugger
 SRCS+=	dbfileio.c
@@ -46,8 +46,8 @@ SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 
 # utilities
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
-	utglobal.c utmath.c utmisc.c utmutex.c utobject.c	\
-	utresrc.c utstate.c
+	utglobal.c utinit.c utlock.c utmath.c utmisc.c		\
+	utmutex.c utobject.c utresrc.c utstate.c utxface.c
 
 MAN=	iasl.8
 
@@ -55,6 +55,8 @@ CFLAGS+= -DACPI_ASL_COMPILER -I.
 CFLAGS+= -D_USE_BERKELEY_YACC
 LFLAGS= -i -PAslCompiler
 YFLAGS= -d -pAslCompiler
+DPADD=	${LIBPTHREAD}
+LDADD=	-lpthread
 
 CLEANFILES= aslcompiler.y.h aslcompilerlex.l aslcompilerparse.y
 

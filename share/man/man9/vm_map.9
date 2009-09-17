@@ -146,6 +146,10 @@ Do not include the mapping in a core dump.
 .It Dv MAP_PREFAULT_MADVISE
 Specify that the request is from a user process calling
 .Xr madvise 2 .
+.It Dv MAP_ACC_CHARGED
+Region is already charged to the requestor by some means.
+.It Dv MAP_ACC_NO_CHARGE
+Do not charge for allocated region.
 .El
 .Pp
 The

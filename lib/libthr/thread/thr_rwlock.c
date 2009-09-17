@@ -177,10 +177,11 @@ rwlock_rdlock_common(pthread_rwlock_t *rwlock, const struct timespec *abstime)
 		/* if interrupted, try to lock it in userland again. */
 		if (_thr_rwlock_tryrdlock(&prwlock->lock, flags) == 0) {
 			ret = 0;
-			curthread->rdlock_count++;
 			break;
 		}
 	}
+	if (ret == 0)
+		curthread->rdlock_count++;
 	return (ret);
 }
 

@@ -33,9 +33,11 @@ static HAL_BOOL ar5211GetChannelEdges(struct ath_hal *ah,
 static HAL_BOOL ar5211GetChipPowerLimits(struct ath_hal *ah,
 		struct ieee80211_channel *chan);
 
+static void ar5211ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5211DisablePCIE(struct ath_hal *ah);
+
 static const struct ath_hal_private ar5211hal = {{
 	.ah_magic			= AR5211_MAGIC,
-	.ah_abi				= HAL_ABI_VERSION,
 
 	.ah_getRateTable		= ar5211GetRateTable,
 	.ah_detach			= ar5211Detach,
@@ -44,6 +46,8 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_reset			= ar5211Reset,
 	.ah_phyDisable			= ar5211PhyDisable,
 	.ah_disable			= ar5211Disable,
+	.ah_configPCIE			= ar5211ConfigPCIE,
+	.ah_disablePCIE			= ar5211DisablePCIE,
 	.ah_setPCUConfig		= ar5211SetPCUConfig,
 	.ah_perCalibration		= ar5211PerCalibration,
 	.ah_perCalibrationN		= ar5211PerCalibrationN,
@@ -155,11 +159,6 @@ static const struct ath_hal_private ar5211hal = {{
 #ifdef AH_SUPPORT_WRITE_EEPROM
 	.ah_eepromWrite			= ar5211EepromWrite,
 #endif
-	.ah_gpioCfgInput		= ar5211GpioCfgInput,
-	.ah_gpioCfgOutput		= ar5211GpioCfgOutput,
-	.ah_gpioGet			= ar5211GpioGet,
-	.ah_gpioSet			= ar5211GpioSet,
-	.ah_gpioSetIntr			= ar5211GpioSetIntr,
 	.ah_getChipPowerLimits		= ar5211GetChipPowerLimits,
 };
 
@@ -187,7 +186,7 @@ ar5211GetRadioRev(struct ath_hal *ah)
 /*
  * Attach for an AR5211 part.
  */
-struct ath_hal *
+static struct ath_hal *
 ar5211Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
 {
@@ -445,6 +444,16 @@ ar5211GetChipPowerLimits(struct ath_hal *ah, struct ieee80211_channel *chan)
 	return AH_TRUE;
 }
 
+static void
+ar5211ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+{
+}
+
+static void
+ar5211DisablePCIE(struct ath_hal *ah)
+{
+}
+
 /*
  * Fill all software cached or static hardware state information.
  */
@@ -489,6 +498,13 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 	}
 
 	pCap->halTstampPrecision = 13;
+	pCap->halIntrMask = HAL_INT_COMMON
+			| HAL_INT_RX
+			| HAL_INT_TX
+			| HAL_INT_FATAL
+			| HAL_INT_BNR
+			| HAL_INT_TIM
+			;
 
 	/* XXX might be ok w/ some chip revs */
 	ahpriv->ah_rxornIsFatal = AH_TRUE;

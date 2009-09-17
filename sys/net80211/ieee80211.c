@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_wlan.h"
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/kernel.h>
 
 #include <sys/socket.h>
@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_regdomain.h>
+#ifdef IEEE80211_SUPPORT_SUPERG
+#include <net80211/ieee80211_superg.h>
+#endif
 
 #include <net/bpf.h>
 
@@ -71,12 +74,16 @@ const int ieee80211_opcap[IEEE80211_OPMODE_MAX] = {
 	[IEEE80211_M_AHDEMO]	= IEEE80211_C_AHDEMO,
 	[IEEE80211_M_HOSTAP]	= IEEE80211_C_HOSTAP,
 	[IEEE80211_M_MONITOR]	= IEEE80211_C_MONITOR,
+#ifdef IEEE80211_SUPPORT_MESH
+	[IEEE80211_M_MBSS]	= IEEE80211_C_MBSS,
+#endif
 };
 
 static const uint8_t ieee80211broadcastaddr[IEEE80211_ADDR_LEN] =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 static	void ieee80211_syncflag_locked(struct ieee80211com *ic, int flag);
+static	void ieee80211_syncflag_ht_locked(struct ieee80211com *ic, int flag);
 static	void ieee80211_syncflag_ext_locked(struct ieee80211com *ic, int flag);
 static	int ieee80211_media_setup(struct ieee80211com *ic,
 		struct ifmedia *media, int caps, int addsta,
@@ -183,6 +190,7 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	ic->ic_csa_newchan = NULL;
 	/* arbitrarily pick the first channel */
 	ic->ic_curchan = &ic->ic_channels[0];
+	ic->ic_rt = ieee80211_get_ratetable(ic->ic_curchan);
 
 	/* fillin well-known rate sets if driver has not specified */
 	DEFAULTRATES(IEEE80211_MODE_11B,	 ieee80211_rateset_11b);
@@ -216,12 +224,19 @@ null_update_promisc(struct ifnet *ifp)
 }
 
 static int
+null_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	m_freem(m);
+	ifp->if_oerrors++;
+	return EACCES;		/* XXX EIO/EPERM? */
+}
+
+static int
 null_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct rtentry *rt0)
+	struct sockaddr *dst, struct route *ro)
 {
 	if_printf(ifp, "discard raw packet\n");
-	m_freem(m);
-	return EIO;
+	return null_transmit(ifp, m);
 }
 
 static void
@@ -236,7 +251,8 @@ null_input(struct ifnet *ifp, struct mbuf *m)
  * the driver on attach to prior to creating any vap's.
  */
 void
-ieee80211_ifattach(struct ieee80211com *ic)
+ieee80211_ifattach(struct ieee80211com *ic,
+	const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct sockaddr_dl *sdl;
@@ -246,6 +262,12 @@ ieee80211_ifattach(struct ieee80211com *ic)
 
 	IEEE80211_LOCK_INIT(ic, ifp->if_xname);
 	TAILQ_INIT(&ic->ic_vaps);
+
+	/* Create a taskqueue for all state changes */
+	ic->ic_tq = taskqueue_create("ic_taskq", M_WAITOK | M_ZERO,
+	    taskqueue_thread_enqueue, &ic->ic_tq);
+	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s taskq",
+	    ifp->if_xname);
 	/*
 	 * Fill in 802.11 available channel set, mark all
 	 * available channels as active, and pick a default
@@ -256,6 +278,7 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	ic->ic_update_mcast = null_update_mcast;
 	ic->ic_update_promisc = null_update_promisc;
 
+	ic->ic_hash_key = arc4random();
 	ic->ic_bintval = IEEE80211_BINTVAL_DEFAULT;
 	ic->ic_lintval = ic->ic_bintval;
 	ic->ic_txpowlimit = IEEE80211_TXPOWER_MAX;
@@ -264,9 +287,13 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	ieee80211_node_attach(ic);
 	ieee80211_power_attach(ic);
 	ieee80211_proto_attach(ic);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_attach(ic);
+#endif
 	ieee80211_ht_attach(ic);
 	ieee80211_scan_attach(ic);
 	ieee80211_regdomain_attach(ic);
+	ieee80211_dfs_attach(ic);
 
 	ieee80211_sysctl_attach(ic);
 
@@ -284,7 +311,8 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;		/* XXX IFT_IEEE80211? */
 	sdl->sdl_alen = IEEE80211_ADDR_LEN;
-	IEEE80211_ADDR_COPY(LLADDR(sdl), ic->ic_myaddr);
+	IEEE80211_ADDR_COPY(LLADDR(sdl), macaddr);
+	ifa_free(ifa);
 }
 
 /*
@@ -299,23 +327,29 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211vap *vap;
 
+	if_detach(ifp);
+
 	while ((vap = TAILQ_FIRST(&ic->ic_vaps)) != NULL)
 		ieee80211_vap_destroy(vap);
 	ieee80211_waitfor_parent(ic);
 
 	ieee80211_sysctl_detach(ic);
+	ieee80211_dfs_detach(ic);
 	ieee80211_regdomain_detach(ic);
 	ieee80211_scan_detach(ic);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_detach(ic);
+#endif
 	ieee80211_ht_detach(ic);
 	/* NB: must be called before ieee80211_node_detach */
 	ieee80211_proto_detach(ic);
 	ieee80211_crypto_detach(ic);
 	ieee80211_power_detach(ic);
 	ieee80211_node_detach(ic);
-	ifmedia_removeall(&ic->ic_media);
 
+	ifmedia_removeall(&ic->ic_media);
+	taskqueue_free(ic->ic_tq);
 	IEEE80211_LOCK_DESTROY(ic);
-	if_detach(ifp);
 }
 
 /*
@@ -415,10 +449,6 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 		vap->iv_flags |= IEEE80211_F_WME;
 	if (vap->iv_caps & IEEE80211_C_BURST)
 		vap->iv_flags |= IEEE80211_F_BURST;
-	if (vap->iv_caps & IEEE80211_C_FF)
-		vap->iv_flags |= IEEE80211_F_FF;
-	if (vap->iv_caps & IEEE80211_C_TURBOP)
-		vap->iv_flags |= IEEE80211_F_TURBOP;
 	/* NB: bg scanning only makes sense for station mode right now */
 	if (vap->iv_opmode == IEEE80211_M_STA &&
 	    (vap->iv_caps & IEEE80211_C_BGSCAN))
@@ -445,9 +475,13 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_node_vattach(vap);
 	ieee80211_power_vattach(vap);
 	ieee80211_proto_vattach(vap);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_vattach(vap);
+#endif
 	ieee80211_ht_vattach(vap);
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
+	ieee80211_radiotap_vattach(vap);
 
 	return 0;
 }
@@ -488,20 +522,27 @@ ieee80211_vap_attach(struct ieee80211vap *vap,
 		ifp->if_baudrate = IF_Mbps(maxrate);
 
 	ether_ifattach(ifp, vap->iv_myaddr);
-	/* hook output method setup by ether_ifattach */
-	vap->iv_output = ifp->if_output;
-	ifp->if_output = ieee80211_output;
+	if (vap->iv_opmode == IEEE80211_M_MONITOR) {
+		/* NB: disallow transmit */
+		ifp->if_transmit = null_transmit;
+		ifp->if_output = null_output;
+	} else {
+		/* hook output method setup by ether_ifattach */
+		vap->iv_output = ifp->if_output;
+		ifp->if_output = ieee80211_output;
+	}
 	/* NB: if_mtu set by ether_ifattach to ETHERMTU */
-	bpfattach2(ifp, DLT_IEEE802_11, ifp->if_hdrlen, &vap->iv_rawbpf);
 
 	IEEE80211_LOCK(ic);
 	TAILQ_INSERT_TAIL(&ic->ic_vaps, vap, iv_next);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
+#ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
+#endif
 	ieee80211_syncflag_locked(ic, IEEE80211_F_PCF);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_USEHT40);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_HT);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_USEHT40);
 	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
 	ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
 	IEEE80211_UNLOCK(ic);
@@ -525,43 +566,45 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	    __func__, ieee80211_opmode_name[vap->iv_opmode],
 	    ic->ic_ifp->if_xname);
 
-	IEEE80211_LOCK(ic);
-	/* block traffic from above */
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	/*
-	 * Evil hack.  Clear the backpointer from the ifnet to the
-	 * vap so any requests from above will return an error or
-	 * be ignored.  In particular this short-circuits requests
-	 * by the bridge to turn off promiscuous mode as a result
-	 * of calling ether_ifdetach.
-	 */
-	ifp->if_softc = NULL;
-	/*
-	 * Stop the vap before detaching the ifnet.  Ideally we'd
-	 * do this in the other order so the ifnet is inaccessible
-	 * while we cleanup internal state but that is hard.
-	 */
-	ieee80211_stop_locked(vap);
+	/* NB: bpfdetach is called by ether_ifdetach and claims all taps */
+	ether_ifdetach(ifp);
 
+	ieee80211_stop(vap);
+
+	/*
+	 * Flush any deferred vap tasks.
+	 */
+	ieee80211_draintask(ic, &vap->iv_nstate_task);
+	ieee80211_draintask(ic, &vap->iv_swbmiss_task);
+
+	/* XXX band-aid until ifnet handles this for us */
+	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
+
+	IEEE80211_LOCK(ic);
+	KASSERT(vap->iv_state == IEEE80211_S_INIT , ("vap still running"));
 	TAILQ_REMOVE(&ic->ic_vaps, vap, iv_next);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_WME);
+#ifdef IEEE80211_SUPPORT_SUPERG
 	ieee80211_syncflag_locked(ic, IEEE80211_F_TURBOP);
+#endif
 	ieee80211_syncflag_locked(ic, IEEE80211_F_PCF);
 	ieee80211_syncflag_locked(ic, IEEE80211_F_BURST);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_HT);
-	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_USEHT40);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_HT);
+	ieee80211_syncflag_ht_locked(ic, IEEE80211_FHT_USEHT40);
+	/* NB: this handles the bpfdetach done below */
+	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_BPF);
 	ieee80211_syncifflag_locked(ic, IFF_PROMISC);
 	ieee80211_syncifflag_locked(ic, IFF_ALLMULTI);
 	IEEE80211_UNLOCK(ic);
 
-	/* XXX can't hold com lock */
-	/* NB: bpfattach is called by ether_ifdetach and claims all taps */
-	ether_ifdetach(ifp);
-
 	ifmedia_removeall(&vap->iv_media);
 
+	ieee80211_radiotap_vdetach(vap);
 	ieee80211_regdomain_vdetach(vap);
 	ieee80211_scan_vdetach(vap);
+#ifdef IEEE80211_SUPPORT_SUPERG
+	ieee80211_superg_vdetach(vap);
+#endif
 	ieee80211_ht_vdetach(vap);
 	/* NB: must be before ieee80211_node_vdetach */
 	ieee80211_proto_vdetach(vap);
@@ -596,7 +639,9 @@ ieee80211_syncifflag_locked(struct ieee80211com *ic, int flag)
 			 * drivers don't need to special-case it
 			 */
 			if (flag == IFF_PROMISC &&
-			    vap->iv_opmode == IEEE80211_M_HOSTAP)
+			    !(vap->iv_opmode == IEEE80211_M_MONITOR ||
+			      (vap->iv_opmode == IEEE80211_M_AHDEMO &&
+			       (vap->iv_caps & IEEE80211_C_TDMA) == 0)))
 				continue;
 			bit = 1;
 			break;
@@ -610,9 +655,9 @@ ieee80211_syncifflag_locked(struct ieee80211com *ic, int flag)
 		/* XXX should we return 1/0 and let caller do this? */
 		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 			if (flag == IFF_PROMISC)
-				ic->ic_update_promisc(ifp);
+				ieee80211_runtask(ic, &ic->ic_promisc_task);
 			else if (flag == IFF_ALLMULTI)
-				ic->ic_update_mcast(ifp);
+				ieee80211_runtask(ic, &ic->ic_mcast_task);
 		}
 	}
 }
@@ -658,7 +703,47 @@ ieee80211_syncflag(struct ieee80211vap *vap, int flag)
 }
 
 /*
- * Synchronize flag bit state in the com structure
+ * Synchronize flags_ht bit state in the com structure
+ * according to the state of all vap's.  This is used,
+ * for example, to handle state changes via ioctls.
+ */
+static void
+ieee80211_syncflag_ht_locked(struct ieee80211com *ic, int flag)
+{
+	struct ieee80211vap *vap;
+	int bit;
+
+	IEEE80211_LOCK_ASSERT(ic);
+
+	bit = 0;
+	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+		if (vap->iv_flags_ht & flag) {
+			bit = 1;
+			break;
+		}
+	if (bit)
+		ic->ic_flags_ht |= flag;
+	else
+		ic->ic_flags_ht &= ~flag;
+}
+
+void
+ieee80211_syncflag_ht(struct ieee80211vap *vap, int flag)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	IEEE80211_LOCK(ic);
+	if (flag < 0) {
+		flag = -flag;
+		vap->iv_flags_ht &= ~flag;
+	} else
+		vap->iv_flags_ht |= flag;
+	ieee80211_syncflag_ht_locked(ic, flag);
+	IEEE80211_UNLOCK(ic);
+}
+
+/*
+ * Synchronize flags_ext bit state in the com structure
  * according to the state of all vap's.  This is used,
  * for example, to handle state changes via ioctls.
  */
@@ -895,6 +980,8 @@ addmedia(struct ifmedia *media, int caps, int addsta, int mode, int mword)
 		ADD(media, mword, mopt | IFM_IEEE80211_MONITOR);
 	if (caps & IEEE80211_C_WDS)
 		ADD(media, mword, mopt | IFM_IEEE80211_WDS);
+	if (caps & IEEE80211_C_MBSS)
+		ADD(media, mword, mopt | IFM_IEEE80211_MBSS);
 #undef ADD
 }
 
@@ -1166,7 +1253,7 @@ ieee80211_media_change(struct ifnet *ifp)
 		return EINVAL;
 	if (vap->iv_des_mode != newmode) {
 		vap->iv_des_mode = newmode;
-		return ENETRESET;
+		/* XXX kick state machine if up+running */
 	}
 	return 0;
 }
@@ -1198,6 +1285,9 @@ media_status(enum ieee80211_opmode opmode, const struct ieee80211_channel *chan)
 		break;
 	case IEEE80211_M_WDS:
 		status |= IFM_IEEE80211_WDS;
+		break;
+	case IEEE80211_M_MBSS:
+		status |= IFM_IEEE80211_MBSS;
 		break;
 	}
 	if (IEEE80211_IS_CHAN_HTA(chan)) {
@@ -1504,3 +1594,39 @@ ieee80211_media2rate(int mword)
 		ieeerates[IFM_SUBTYPE(mword)] : 0;
 #undef N
 }
+
+/*
+ * The following hash function is adapted from "Hash Functions" by Bob Jenkins
+ * ("Algorithm Alley", Dr. Dobbs Journal, September 1997).
+ */
+#define	mix(a, b, c)							\
+do {									\
+	a -= b; a -= c; a ^= (c >> 13);					\
+	b -= c; b -= a; b ^= (a << 8);					\
+	c -= a; c -= b; c ^= (b >> 13);					\
+	a -= b; a -= c; a ^= (c >> 12);					\
+	b -= c; b -= a; b ^= (a << 16);					\
+	c -= a; c -= b; c ^= (b >> 5);					\
+	a -= b; a -= c; a ^= (c >> 3);					\
+	b -= c; b -= a; b ^= (a << 10);					\
+	c -= a; c -= b; c ^= (b >> 15);					\
+} while (/*CONSTCOND*/0)
+
+uint32_t
+ieee80211_mac_hash(const struct ieee80211com *ic,
+	const uint8_t addr[IEEE80211_ADDR_LEN])
+{
+	uint32_t a = 0x9e3779b9, b = 0x9e3779b9, c = ic->ic_hash_key;
+
+	b += addr[5] << 8;
+	b += addr[4];
+	a += addr[3] << 24;
+	a += addr[2] << 16;
+	a += addr[1] << 8;
+	a += addr[0];
+
+	mix(a, b, c);
+
+	return c;
+}
+#undef mix

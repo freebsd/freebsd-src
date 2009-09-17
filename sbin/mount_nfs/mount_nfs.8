@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2008
+.Dd July 28, 2009
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd mount NFS file systems
 .Sh SYNOPSIS
 .Nm
-.Op Fl 234bcdiLlNPsTU
+.Op Fl 23bcdiLlNPsTU
 .Op Fl a Ar maxreadahead
 .Op Fl D Ar deadthresh
 .Op Fl g Ar maxgroups
@@ -159,6 +159,10 @@ Note that NFS version 2 has a file size limit of 2 gigabytes.
 Use the NFS Version 3 protocol.
 .It Cm nfsv4
 Use the NFS Version 4 protocol.
+This option will force the mount to use the experimental nfs subsystem and
+TCP transport.
+To use the experimental nfs subsystem for nfsv2 and nfsv3 mounts, you
+must specify the ``newnfs'' file system type instead of ``nfs''.
 .It Cm noconn
 For UDP mount points, do not do a
 .Xr connect 2 .
@@ -194,6 +198,11 @@ servers on the client.
 Note that this option will only be honored when performing the
 initial mount, it will be silently ignored if used while updating
 the mount options.
+.It Cm principal
+For the RPCSEC_GSS security flavors, such as krb5, krb5i and krb5p,
+this option sets the name of the host based principal name expected
+by the server. This option overrides the default, which will be
+``nfs@<server-fqdn>'' and should normally be sufficient.
 .It Cm noresvport
 Do
 .Em not
@@ -202,8 +211,10 @@ use a reserved socket port number (see below).
 Use specified port number for NFS requests.
 The default is to query the portmapper for the NFS port.
 .It Cm rdirplus
-Used with NQNFS and NFSV3 to specify that the \fBReaddirPlus\fR RPC should
+Used with NFSV3 to specify that the \fBReaddirPlus\fR RPC should
 be used.
+For NFSV4, setting this option has a similar effect, in that it will make
+the Readdir Operation get more attributes.
 This option reduces RPC traffic for cases such as
 .Dq "ls -l" ,
 but tends to flood the attribute and name caches with prefetched entries.
@@ -250,6 +261,18 @@ with the
 option to see what the
 .Dq "fragments dropped due to timeout"
 value is.)
+.It Cm sec Ns = Ns Aq Ar flavor
+This option specifies what security flavor should be used for the mount.
+Currently, they are:
+.Bd -literal
+krb5 -  Use KerberosV authentication
+krb5i - Use KerberosV authentication and
+        apply integrity checksums to RPCs
+krb5p - Use KerberosV authentication and
+        encrypt the RPC data
+sys -   The default AUTH_SYS, which uses a
+        uid + gid list authenticator
+.Ed
 .It Cm soft
 A soft mount, which implies that file system calls will fail
 after
@@ -303,9 +326,6 @@ Same as
 .It Fl 3
 Same as
 .Fl o Cm nfsv3
-.It Fl 4
-Same as
-.Fl o Cm nfsv4
 .It Fl D
 Same as
 .Fl o Cm deadthresh
@@ -373,8 +393,19 @@ Same as
 .Sh SEE ALSO
 .Xr nmount 2 ,
 .Xr unmount 2 ,
+.Xr nfsv4 4 ,
 .Xr fstab 5 ,
+.Xr gssd 8 ,
 .Xr mount 8 ,
 .Xr nfsd 8 ,
 .Xr nfsiod 8 ,
 .Xr showmount 8
+.Sh BUGS
+Since nfsv4 performs open/lock operations that have their ordering strictly
+enforced by the server, the options
+.Cm intr
+and
+.Cm soft
+cannot be safely used.
+.Cm hard
+nfsv4 mounts are strongly recommended.

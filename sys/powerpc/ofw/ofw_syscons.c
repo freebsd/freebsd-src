@@ -216,6 +216,7 @@ ofwfb_configure(int flags)
         phandle_t chosen;
         ihandle_t stdout;
 	phandle_t node;
+	bus_addr_t fb_phys;
 	int depth;
 	int disable;
 	int len;
@@ -270,10 +271,16 @@ ofwfb_configure(int flags)
 	OF_getprop(node, "linebytes", &sc->sc_stride, sizeof(sc->sc_stride));
 
 	/*
-	 * XXX the physical address of the frame buffer is assumed to be
-	 * BAT-mapped so it can be accessed directly
+	 * Grab the physical address of the framebuffer, and then map it
+	 * into our memory space. If the MMU is not yet up, it will be
+	 * remapped for us when relocation turns on.
+	 *
+	 * XXX We assume #address-cells is 1 at this point.
 	 */
-	OF_getprop(node, "address", &sc->sc_addr, sizeof(sc->sc_addr));
+	OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
+
+	bus_space_map(&bs_be_tag, fb_phys, sc->sc_height * sc->sc_stride,
+	    0, &sc->sc_addr);
 
 	/*
 	 * Get the PCI addresses of the adapter. The node may be the
@@ -283,8 +290,8 @@ ofwfb_configure(int flags)
 	len = OF_getprop(node, "assigned-addresses", sc->sc_pciaddrs,
 	          sizeof(sc->sc_pciaddrs));
 	if (len == -1) {
-		len = OF_getprop(OF_parent(node), "assigned-addresses", sc->sc_pciaddrs,
-		          sizeof(sc->sc_pciaddrs));
+		len = OF_getprop(OF_parent(node), "assigned-addresses",
+		    sc->sc_pciaddrs, sizeof(sc->sc_pciaddrs));
 	}
 
 	if (len != -1) {
@@ -941,13 +948,17 @@ ofwfb_scidentify(driver_t *driver, device_t parent)
 static int
 ofwfb_scprobe(device_t dev)
 {
-	/* This is a fake device, so make sure there is no OF node for it */
-	if (ofw_bus_get_node(dev) != -1)
-		return ENXIO;
-	
+	int error;
+
 	device_set_desc(dev, "System console");
-	return (sc_probe_unit(device_get_unit(dev), 
-	    device_get_flags(dev) | SC_AUTODETECT_KBD));
+
+	error = sc_probe_unit(device_get_unit(dev), 
+	    device_get_flags(dev) | SC_AUTODETECT_KBD);
+	if (error != 0)
+		return (error);
+
+	/* This is a fake device, so make sure we added it ourselves */
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

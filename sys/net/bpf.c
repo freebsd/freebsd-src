@@ -38,7 +38,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bpf.h"
-#include "opt_mac.h"
 #include "opt_netgraph.h"
 
 #include <sys/types.h>
@@ -46,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/time.h>
@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/ttycom.h>
 #include <sys/uio.h>
-#include <sys/vimage.h>
 
 #include <sys/event.h>
 #include <sys/file.h>
@@ -73,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net/bpf_zerocopy.h>
 #include <net/bpfdesc.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
@@ -127,7 +127,7 @@ SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
 static int bpf_zerocopy_enable = 0;
 SYSCTL_INT(_net_bpf, OID_AUTO, zerocopy_enable, CTLFLAG_RW,
     &bpf_zerocopy_enable, 0, "Enable new zero-copy BPF buffer sessions");
-SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_RW,
+SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
 
 static	d_open_t	bpfopen;
@@ -148,8 +148,11 @@ static struct cdevsw bpf_cdevsw = {
 	.d_kqfilter =	bpfkqfilter,
 };
 
-static struct filterops bpfread_filtops =
-	{ 1, NULL, filt_bpfdetach, filt_bpfread };
+static struct filterops bpfread_filtops = {
+	.f_isfd = 1,
+	.f_detach = filt_bpfdetach,
+	.f_event = filt_bpfread,
+};
 
 /*
  * Wrapper functions for various buffering methods.  If the set of buffer
@@ -534,6 +537,8 @@ bpf_attachd(struct bpf_d *d, struct bpf_if *bp)
 
 	bpf_bpfd_cnt++;
 	BPFIF_UNLOCK(bp);
+
+	EVENTHANDLER_INVOKE(bpf_track, bp->bif_ifp, bp->bif_dlt, 1);
 }
 
 /*
@@ -560,6 +565,8 @@ bpf_detachd(struct bpf_d *d)
 	d->bd_bif = NULL;
 	BPFD_UNLOCK(d);
 	BPFIF_UNLOCK(bp);
+
+	EVENTHANDLER_INVOKE(bpf_track, ifp, bp->bif_dlt, 0);
 
 	/*
 	 * Check if this descriptor had requested promiscuous mode.
@@ -645,7 +652,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init(&d->bd_callout, CALLOUT_MPSAFE);
-	knlist_init(&d->bd_sel.si_note, &d->bd_mtx, NULL, NULL, NULL);
+	knlist_init_mtx(&d->bd_sel.si_note, &d->bd_mtx);
 
 	return (0);
 }
@@ -873,11 +880,10 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	m->m_len -= hlen;
 	m->m_data += hlen;	/* XXX */
 
+	CURVNET_SET(ifp->if_vnet);
 #ifdef MAC
 	BPFD_LOCK(d);
-	CURVNET_SET(ifp->if_vnet);
 	mac_bpfdesc_create_mbuf(d, m);
-	CURVNET_RESTORE();
 	if (mc != NULL)
 		mac_bpfdesc_create_mbuf(d, mc);
 	BPFD_UNLOCK(d);
@@ -893,27 +899,34 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		else
 			m_freem(mc);
 	}
+	CURVNET_RESTORE();
 
 	return (error);
 }
 
 /*
- * Reset a descriptor by flushing its packet buffer and clearing the
- * receive and drop counts.
+ * Reset a descriptor by flushing its packet buffer and clearing the receive
+ * and drop counts.  This is doable for kernel-only buffers, but with
+ * zero-copy buffers, we can't write to (or rotate) buffers that are
+ * currently owned by userspace.  It would be nice if we could encapsulate
+ * this logic in the buffer code rather than here.
  */
 static void
 reset_d(struct bpf_d *d)
 {
 
 	mtx_assert(&d->bd_mtx, MA_OWNED);
-	if (d->bd_hbuf) {
+
+	if ((d->bd_hbuf != NULL) &&
+	    (d->bd_bufmode != BPF_BUFMODE_ZBUF || bpf_canfreebuf(d))) {
 		/* Free the hold buffer. */
 		d->bd_fbuf = d->bd_hbuf;
 		d->bd_hbuf = NULL;
+		d->bd_hlen = 0;
 		bpf_buf_reclaimed(d);
 	}
-	d->bd_slen = 0;
-	d->bd_hlen = 0;
+	if (bpf_canwritebuf(d))
+		d->bd_slen = 0;
 	d->bd_rcount = 0;
 	d->bd_dcount = 0;
 	d->bd_fcount = 0;
@@ -1575,6 +1588,9 @@ void
 bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 {
 	struct bpf_d *d;
+#ifdef BPF_JITTER
+	bpf_jit_filter *bf;
+#endif
 	u_int slen;
 	int gottime;
 	struct timeval tv;
@@ -1591,8 +1607,9 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 		 * the interface pointers on the mbuf to figure it out.
 		 */
 #ifdef BPF_JITTER
-		if (bpf_jitter_enable != 0 && d->bd_bfilter != NULL)
-			slen = (*(d->bd_bfilter->func))(pkt, pktlen, pktlen);
+		bf = bpf_jitter_enable != 0 ? d->bd_bfilter : NULL;
+		if (bf != NULL)
+			slen = (*(bf->func))(pkt, pktlen, pktlen);
 		else
 #endif
 		slen = bpf_filter(d->bd_rfilter, pkt, pktlen, pktlen);
@@ -1624,6 +1641,9 @@ void
 bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 {
 	struct bpf_d *d;
+#ifdef BPF_JITTER
+	bpf_jit_filter *bf;
+#endif
 	u_int pktlen, slen;
 	int gottime;
 	struct timeval tv;
@@ -1645,11 +1665,10 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 		BPFD_LOCK(d);
 		++d->bd_rcount;
 #ifdef BPF_JITTER
+		bf = bpf_jitter_enable != 0 ? d->bd_bfilter : NULL;
 		/* XXX We cannot handle multiple mbufs. */
-		if (bpf_jitter_enable != 0 && d->bd_bfilter != NULL &&
-		    m->m_next == NULL)
-			slen = (*(d->bd_bfilter->func))(mtod(m, u_char *),
-			    pktlen, pktlen);
+		if (bf != NULL && m->m_next == NULL)
+			slen = (*(bf->func))(mtod(m, u_char *), pktlen, pktlen);
 		else
 #endif
 		slen = bpf_filter(d->bd_rfilter, (u_char *)m, pktlen, 0);
@@ -2022,6 +2041,35 @@ bpf_drvinit(void *unused)
 
 }
 
+/*
+ * Zero out the various packet counters associated with all of the bpf
+ * descriptors.  At some point, we will probably want to get a bit more
+ * granular and allow the user to specify descriptors to be zeroed.
+ */
+static void
+bpf_zero_counters(void)
+{
+	struct bpf_if *bp;
+	struct bpf_d *bd;
+
+	mtx_lock(&bpf_mtx);
+	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+		BPFIF_LOCK(bp);
+		LIST_FOREACH(bd, &bp->bif_dlist, bd_next) {
+			BPFD_LOCK(bd);
+			bd->bd_rcount = 0;
+			bd->bd_dcount = 0;
+			bd->bd_fcount = 0;
+			bd->bd_wcount = 0;
+			bd->bd_wfcount = 0;
+			bd->bd_zcopy = 0;
+			BPFD_UNLOCK(bd);
+		}
+		BPFIF_UNLOCK(bp);
+	}
+	mtx_unlock(&bpf_mtx);
+}
+
 static void
 bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 {
@@ -2056,7 +2104,7 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 static int
 bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct xbpf_d *xbdbuf, *xbd;
+	struct xbpf_d *xbdbuf, *xbd, zerostats;
 	int index, error;
 	struct bpf_if *bp;
 	struct bpf_d *bd;
@@ -2070,6 +2118,21 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	error = priv_check(req->td, PRIV_NET_BPF);
 	if (error)
 		return (error);
+	/*
+	 * Check to see if the user is requesting that the counters be
+	 * zeroed out.  Explicitly check that the supplied data is zeroed,
+	 * as we aren't allowing the user to set the counters currently.
+	 */
+	if (req->newptr != NULL) {
+		if (req->newlen != sizeof(zerostats))
+			return (EINVAL);
+		bzero(&zerostats, sizeof(zerostats));
+		xbd = req->newptr;
+		if (bcmp(xbd, &zerostats, sizeof(*xbd)) != 0)
+			return (EINVAL);
+		bpf_zero_counters();
+		return (0);
+	}
 	if (req->oldptr == NULL)
 		return (SYSCTL_OUT(req, 0, bpf_bpfd_cnt * sizeof(*xbd)));
 	if (bpf_bpfd_cnt == 0)

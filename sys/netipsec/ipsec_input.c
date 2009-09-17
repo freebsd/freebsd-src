@@ -54,12 +54,12 @@
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/pfil.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -74,7 +74,6 @@
 #include <netinet/in_pcb.h>
 #ifdef INET6
 #include <netinet/icmp6.h>
-#include <netinet6/vinet6.h>
 #endif
 
 #include <netipsec/ipsec.h>
@@ -103,7 +102,9 @@
 #define IPSEC_ISTAT(p,x,y,z) ((p) == IPPROTO_ESP ? (x)++ : \
 			    (p) == IPPROTO_AH ? (y)++ : (z)++)
 
+#ifdef INET
 static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
+#endif
 
 /*
  * ipsec_common_input gets called when an IPsec-protected packet
@@ -114,11 +115,13 @@ static void ipsec4_common_ctlinput(int, struct sockaddr *, void *, int);
 static int
 ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 {
-	INIT_VNET_IPSEC(curvnet);
 	union sockaddr_union dst_address;
 	struct secasvar *sav;
 	u_int32_t spi;
 	int error;
+#ifdef IPSEC_NAT_T
+	struct m_tag *tag;
+#endif
 
 	IPSEC_ISTAT(sproto, V_espstat.esps_input, V_ahstat.ahs_input,
 		V_ipcompstat.ipcomps_input);
@@ -173,6 +176,12 @@ ipsec_common_input(struct mbuf *m, int skip, int protoff, int af, int sproto)
 		m_copydata(m, offsetof(struct ip, ip_dst),
 		    sizeof(struct in_addr),
 		    (caddr_t) &dst_address.sin.sin_addr);
+#ifdef IPSEC_NAT_T
+		/* Find the source port for NAT-T; see udp*_espdecap. */
+		tag = m_tag_find(m, PACKET_TAG_IPSEC_NAT_T_PORTS, NULL);
+		if (tag != NULL)
+			dst_address.sin.sin_port = ((u_int16_t *)(tag + 1))[1];
+#endif /* IPSEC_NAT_T */
 		break;
 #endif /* INET */
 #ifdef INET6
@@ -284,7 +293,6 @@ int
 ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 			int skip, int protoff, struct m_tag *mt)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int prot, af, sproto;
 	struct ip *ip;
 	struct m_tag *mtag;
@@ -481,7 +489,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	/*
 	 * Re-dispatch via software interrupt.
 	 */
-	if ((error = netisr_queue(NETISR_IP, m))) {
+	if ((error = netisr_queue_src(NETISR_IP, (uintptr_t)sav, m))) {
 		IPSEC_ISTAT(sproto, V_espstat.esps_qfull, V_ahstat.ahs_qfull,
 			    V_ipcompstat.ipcomps_qfull);
 
@@ -507,7 +515,6 @@ ipsec4_common_ctlinput(int cmd, struct sockaddr *sa, void *v, int proto)
 int
 ipsec6_common_input(struct mbuf **mp, int *offp, int proto)
 {
-	INIT_VNET_IPSEC(curvnet);
 	int l = 0;
 	int protoff;
 	struct ip6_ext ip6e;
@@ -558,8 +565,6 @@ int
 ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int protoff,
     struct m_tag *mt)
 {
-	INIT_VNET_INET6(curvnet);
-	INIT_VNET_IPSEC(curvnet);
 	int prot, af, sproto;
 	struct ip6_hdr *ip6;
 	struct m_tag *mtag;

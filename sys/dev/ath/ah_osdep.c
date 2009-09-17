@@ -71,12 +71,7 @@ extern	void ath_hal_assert_failed(const char* filename,
 		int lineno, const char* msg);
 #endif
 #ifdef AH_DEBUG
-#if HAL_ABI_VERSION >= 0x08090101
 extern	void HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
-#else
-extern	void HALDEBUG(struct ath_hal *ah, const char* fmt, ...);
-extern	void HALDEBUGn(struct ath_hal *ah, u_int level, const char* fmt, ...);
-#endif
 #endif /* AH_DEBUG */
 
 /* NB: put this here instead of the driver to avoid circular references */
@@ -115,7 +110,7 @@ ath_hal_malloc(size_t size)
 void
 ath_hal_free(void* p)
 {
-	return free(p, M_ATH_HAL);
+	free(p, M_ATH_HAL);
 }
 
 void
@@ -140,7 +135,6 @@ ath_hal_ether_sprintf(const u_int8_t *mac)
 }
 
 #ifdef AH_DEBUG
-#if HAL_ABI_VERSION >= 0x08090101
 void
 HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 {
@@ -151,29 +145,6 @@ HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 		va_end(ap);
 	}
 }
-#else
-void
-HALDEBUG(struct ath_hal *ah, const char* fmt, ...)
-{
-	if (ath_hal_debug) {
-		__va_list ap;
-		va_start(ap, fmt);
-		ath_hal_vprintf(ah, fmt, ap);
-		va_end(ap);
-	}
-}
-
-void
-HALDEBUGn(struct ath_hal *ah, u_int level, const char* fmt, ...)
-{
-	if (ath_hal_debug >= level) {
-		__va_list ap;
-		va_start(ap, fmt);
-		ath_hal_vprintf(ah, fmt, ap);
-		va_end(ap);
-	}
-}
-#endif
 #endif /* AH_DEBUG */
 
 #ifdef AH_DEBUG_ALQ
@@ -283,7 +254,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 		}
 	}
 #if _BYTE_ORDER == _BIG_ENDIAN
-	if (reg >= 0x4000 && reg < 0x5000)
+	if (OS_REG_UNSWAPPED(reg))
 		bus_space_write_4(tag, h, reg, val);
 	else
 #endif
@@ -298,7 +269,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	u_int32_t val;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
-	if (reg >= 0x4000 && reg < 0x5000)
+	if (OS_REG_UNSWAPPED(reg))
 		val = bus_space_read_4(tag, h, reg);
 	else
 #endif
@@ -349,7 +320,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	bus_space_handle_t h = ah->ah_sh;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
-	if (reg >= 0x4000 && reg < 0x5000)
+	if (OS_REG_UNSWAPPED(reg))
 		bus_space_write_4(tag, h, reg, val);
 	else
 #endif
@@ -364,7 +335,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	u_int32_t val;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
-	if (reg >= 0x4000 && reg < 0x5000)
+	if (OS_REG_UNSWAPPED(reg))
 		val = bus_space_read_4(tag, h, reg);
 	else
 #endif
@@ -382,33 +353,3 @@ ath_hal_assert_failed(const char* filename, int lineno, const char *msg)
 	panic("ath_hal_assert");
 }
 #endif /* AH_ASSERT */
-
-/*
- * Delay n microseconds.
- */
-void
-ath_hal_delay(int n)
-{
-	DELAY(n);
-}
-
-u_int32_t
-ath_hal_getuptime(struct ath_hal *ah)
-{
-	struct bintime bt;
-	getbinuptime(&bt);
-	return (bt.sec * 1000) +
-		(((uint64_t)1000 * (uint32_t)(bt.frac >> 32)) >> 32);
-}
-
-void
-ath_hal_memzero(void *dst, size_t n)
-{
-	bzero(dst, n);
-}
-
-void *
-ath_hal_memcpy(void *dst, const void *src, size_t n)
-{
-	return memcpy(dst, src, n);
-}

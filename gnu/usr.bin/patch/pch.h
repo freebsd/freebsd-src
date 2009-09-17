@@ -32,5 +32,5 @@ LINENUM	 pch_context(void);
 LINENUM	 pch_hunk_beg(void);
 char	 pch_char(LINENUM _line);
 char	*pfetch(LINENUM _line);
-char	*pgets(char *_bf, int _sz, FILE *_fp);
+size_t	 pgets(bool _do_indent);
 void	 do_ed_script(void);

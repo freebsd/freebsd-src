@@ -211,11 +211,15 @@ Make_OODate(GNode *gn)
 		} else {
 			DEBUGF(MAKE, (".EXEC node..."));
 		}
-		oodate = TRUE;
 
-	} else if ((gn->mtime < gn->cmtime) ||
-	    ((gn->cmtime == 0) &&
-	    ((gn->mtime==0) || (gn->type & OP_DOUBLEDEP)))) {
+		if (remakingMakefiles) {
+			DEBUGF(MAKE, ("skipping (remaking makefiles)..."));
+			oodate = FALSE;
+		} else {
+			oodate = TRUE;
+		}
+	} else if (gn->mtime < gn->cmtime ||
+	    (gn->cmtime == 0 && (gn->mtime == 0 || (gn->type & OP_DOUBLEDEP)))) {
 		/*
 		 * A node whose modification time is less than that of its
 		 * youngest child or that has no children (cmtime == 0) and
@@ -226,12 +230,24 @@ Make_OODate(GNode *gn)
 		if (gn->mtime < gn->cmtime) {
 			DEBUGF(MAKE, ("modified before source (%s)...",
 			    gn->cmtime_gn ? gn->cmtime_gn->path : "???"));
+			oodate = TRUE;
 		} else if (gn->mtime == 0) {
 			DEBUGF(MAKE, ("non-existent and no sources..."));
+			if (remakingMakefiles && Lst_IsEmpty(&gn->commands)) {
+				DEBUGF(MAKE, ("skipping (no commands and remaking makefiles)..."));
+				oodate = FALSE;
+			} else {
+				oodate = TRUE;
+			}
 		} else {
 			DEBUGF(MAKE, (":: operator and no sources..."));
+			if (remakingMakefiles) {
+				DEBUGF(MAKE, ("skipping (remaking makefiles)..."));
+				oodate = FALSE;
+			} else {
+				oodate = TRUE;
+			}
 		}
-		oodate = TRUE;
 	} else
 		oodate = FALSE;
 

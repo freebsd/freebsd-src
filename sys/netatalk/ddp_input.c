@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Robert N. M. Watson
+ * Copyright (c) 2004-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,8 +48,6 @@
  *
  * $FreeBSD$
  */
-
-#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -163,7 +161,8 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 		 * Make sure that we point to the phase1 ifaddr info and that
 		 * it's valid for this packet.
 		 */
-		for (aa = at_ifaddr_list; aa != NULL; aa = aa->aa_next) {
+		AT_IFADDR_RLOCK();
+		TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 			if ((aa->aa_ifp == ifp)
 			    && ((aa->aa_flags & AFA_PHASE2) == 0)
 			    && ((to.sat_addr.s_node ==
@@ -175,6 +174,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 		 * maybe we got a broadcast not meant for us.. ditch it.
 		 */
 		if (aa == NULL) {
+			AT_IFADDR_RUNLOCK();
 			m_freem(m);
 			return;
 		}
@@ -189,6 +189,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 
 		if (m->m_len < sizeof(struct ddpehdr) &&
 		    ((m = m_pullup(m, sizeof(struct ddpehdr))) == NULL)) {
+			AT_IFADDR_RUNLOCK();
 			ddpstat.ddps_tooshort++;
 			return;
 		}
@@ -208,6 +209,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 		to.sat_addr.s_node = ddpe.deh_dnode;
 		to.sat_port = ddpe.deh_dport;
 
+		AT_IFADDR_RLOCK();
 		if (to.sat_addr.s_net == ATADDR_ANYNET) {
 			/*
 			 * The TO address doesn't specify a net, so by
@@ -222,8 +224,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 			 * what we want, but it's probably safe in 99.999% of
 			 * cases.
 			 */
-			for (aa = at_ifaddr_list; aa != NULL;
-			    aa = aa->aa_next) {
+			TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 				if (phase == 1 && (aa->aa_flags &
 				    AFA_PHASE2))
 					continue;
@@ -242,8 +243,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 			 * A destination network was given.  We just try to
 			 * find which ifaddr info matches it.
 	    		 */
-			for (aa = at_ifaddr_list; aa != NULL;
-			    aa = aa->aa_next) {
+			TAILQ_FOREACH(aa, &at_ifaddrhead, aa_link) {
 				/*
 				 * This is a kludge. Accept packets that are
 				 * for any router on a local netrange.
@@ -280,6 +280,9 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 			}
 		}
 	}
+	if (aa != NULL)
+		ifa_ref(&aa->aa_ifa);
+	AT_IFADDR_RUNLOCK();
 
 	/*
 	 * Adjust the length, removing any padding that may have been added
@@ -289,8 +292,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 	mlen = m->m_pkthdr.len;
 	if (mlen < dlen) {
 		ddpstat.ddps_toosmall++;
-		m_freem(m);
-		return;
+		goto out;
 	}
 	if (mlen > dlen)
 		m_adj(m, dlen - mlen);
@@ -306,10 +308,8 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 		/* 
 		 * If we've explicitly disabled it, don't route anything.
 		 */
-		if (ddp_forward == 0) {
-			m_freem(m);
-			return;
-		}
+		if (ddp_forward == 0)
+			goto out;
 
 		/* 
 		 * If the cached forwarding route is still valid, use it.
@@ -348,10 +348,8 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 		 */
 		if ((to.sat_addr.s_net !=
 		    satosat(&forwro.ro_dst)->sat_addr.s_net) &&
-		    (ddpe.deh_hops == DDP_MAXHOPS)) {
-			m_freem(m);
-			return;
-		}
+		    (ddpe.deh_hops == DDP_MAXHOPS))
+			goto out;
 
 		/*
 		 * A ddp router might use the same interface to forward the
@@ -359,10 +357,8 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 		 * to cross from one interface to another however.
 		 */
 		if (ddp_firewall && ((forwro.ro_rt == NULL) ||
-		    (forwro.ro_rt->rt_ifp != ifp))) {
-			m_freem(m);
-			return;
-		}
+		    (forwro.ro_rt->rt_ifp != ifp)))
+			goto out;
 
 		/*
 		 * Adjust the header.  If it was a short header then it would
@@ -379,6 +375,8 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 			ddpstat.ddps_cantforward++;
 		else
 			ddpstat.ddps_forward++;
+		if (aa != NULL)
+			ifa_free(&aa->aa_ifa);
 		return;
 	}
 
@@ -395,8 +393,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 		if (ddp_cksum && cksum && cksum !=
 		    at_cksum(m, sizeof(int))) {
 			ddpstat.ddps_badsum++;
-			m_freem(m);
-			return;
+			goto out;
 		}
 		m_adj(m, sizeof(struct ddpehdr));
 	} else
@@ -407,15 +404,11 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 	 */
 	DDP_LIST_SLOCK();
 	if ((ddp = ddp_search(&from, &to, aa)) == NULL)
-		goto out;
+		goto out_unlock;
 
 #ifdef MAC
-	SOCK_LOCK(ddp->ddp_socket);
-	if (mac_socket_check_deliver(ddp->ddp_socket, m) != 0) {
-		SOCK_UNLOCK(ddp->ddp_socket);
-		goto out;
-	}
-	SOCK_UNLOCK(ddp->ddp_socket);
+	if (mac_socket_check_deliver(ddp->ddp_socket, m) != 0)
+		goto out_unlock;
 #endif
 
 	/* 
@@ -429,7 +422,7 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 		 * If the socket is full (or similar error) dump the packet.
 		 */
 		ddpstat.ddps_nosockspace++;
-		goto out;
+		goto out_unlock;
 	}
 
 	/*
@@ -437,8 +430,11 @@ ddp_input(struct mbuf *m, struct ifnet *ifp, struct elaphdr *elh, int phase)
 	 */
 	sorwakeup_locked(ddp->ddp_socket);
 	m = NULL;
-out:
+out_unlock:
 	DDP_LIST_SUNLOCK();
+out:
+	if (aa != NULL)
+		ifa_free(&aa->aa_ifa);
 	if (m != NULL)
 		m_freem(m);
 }

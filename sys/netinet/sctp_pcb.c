@@ -3157,8 +3157,9 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 				SCTP_TCB_UNLOCK(asoc);
 				continue;
 			}
-			if ((SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_COOKIE_WAIT) ||
-			    (SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_COOKIE_ECHOED)) {
+			if (((SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_COOKIE_WAIT) ||
+			    (SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_COOKIE_ECHOED)) &&
+			    (asoc->asoc.total_output_queue_size == 0)) {
 				/*
 				 * If we have data in queue, we don't want
 				 * to just free since the app may have done,
@@ -3925,12 +3926,20 @@ sctp_aloc_a_assoc_id(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	struct sctpasochead *head;
 	struct sctp_tcb *lstcb;
 
+	SCTP_INP_WLOCK(inp);
 try_again:
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 		/* TSNH */
+		SCTP_INP_WUNLOCK(inp);
 		return (0);
 	}
-	SCTP_INP_WLOCK(inp);
+	/*
+	 * We don't allow assoc id to be 0, this is needed otherwise if the
+	 * id were to wrap we would have issues with some socket options.
+	 */
+	if (inp->sctp_associd_counter == 0) {
+		inp->sctp_associd_counter++;
+	}
 	id = inp->sctp_associd_counter;
 	inp->sctp_associd_counter++;
 	lstcb = sctp_findasoc_ep_asocid_locked(inp, (sctp_assoc_t) id, 0);
@@ -4103,9 +4112,6 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(stcb->asoc.my_vtag, SCTP_BASE_INFO(hashasocmark))];
 	/* put it in the bucket in the vtag hash of assoc's for the system */
 	LIST_INSERT_HEAD(head, stcb, sctp_asocs);
-#ifdef MICHAELS_EXPERIMENT
-	sctp_delete_from_timewait(stcb->asoc.my_vtag, inp->sctp_lport, stcb->rport);
-#endif
 	SCTP_INP_INFO_WUNLOCK();
 
 	if ((err = sctp_add_remote_addr(stcb, firstaddr, SCTP_DO_SETSCOPE, SCTP_ALLOC_ASOC))) {
@@ -4117,6 +4123,10 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		if (asoc->mapping_array) {
 			SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
 			asoc->mapping_array = NULL;
+		}
+		if (asoc->nr_mapping_array) {
+			SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
+			asoc->nr_mapping_array = NULL;
 		}
 		SCTP_DECR_ASOC_COUNT();
 		SCTP_TCB_LOCK_DESTROY(stcb);
@@ -4309,6 +4319,10 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time, uint16_t lport, uint16_t 
 	struct timeval now;
 	int set, i;
 
+	if (time == 0) {
+		/* Its disabled */
+		return;
+	}
 	(void)SCTP_GETTIME_TIMEVAL(&now);
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
 	set = 0;
@@ -4541,8 +4555,11 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 
 						stcb->asoc.control_pdapi = sq;
 						strseq = (sq->sinfo_stream << 16) | sq->sinfo_ssn;
-						sctp_notify_partial_delivery_indication(stcb,
-						    SCTP_PARTIAL_DELIVERY_ABORTED, 1, strseq);
+						sctp_ulp_notify(SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION,
+						    stcb,
+						    SCTP_PARTIAL_DELIVERY_ABORTED,
+						    (void *)&strseq,
+						    SCTP_SO_LOCKED);
 						stcb->asoc.control_pdapi = NULL;
 					}
 				}
@@ -4660,7 +4677,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	/* pull from vtag hash */
 	LIST_REMOVE(stcb, sctp_asocs);
-	sctp_add_vtag_to_timewait(asoc->my_vtag, SCTP_TIME_WAIT, inp->sctp_lport, stcb->rport);
+	sctp_add_vtag_to_timewait(asoc->my_vtag, SCTP_BASE_SYSCTL(sctp_vtag_time_wait),
+	    inp->sctp_lport, stcb->rport);
 
 	/*
 	 * Now restop the timers to be sure - this is paranoia at is finest!
@@ -4879,6 +4897,10 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	if (asoc->mapping_array) {
 		SCTP_FREE(asoc->mapping_array, SCTP_M_MAP);
 		asoc->mapping_array = NULL;
+	}
+	if (asoc->nr_mapping_array) {
+		SCTP_FREE(asoc->nr_mapping_array, SCTP_M_MAP);
+		asoc->nr_mapping_array = NULL;
 	}
 	/* the stream outs */
 	if (asoc->strmout) {
@@ -6029,6 +6051,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			stcb->asoc.peer_supports_prsctp = 0;
 			stcb->asoc.peer_supports_pktdrop = 0;
 			stcb->asoc.peer_supports_strreset = 0;
+			stcb->asoc.peer_supports_nr_sack = 0;
 			stcb->asoc.peer_supports_auth = 0;
 			pr_supported = (struct sctp_supported_chunk_types_param *)phdr;
 			num_ent = plen - sizeof(struct sctp_paramhdr);
@@ -6043,6 +6066,12 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					break;
 				case SCTP_PACKET_DROPPED:
 					stcb->asoc.peer_supports_pktdrop = 1;
+					break;
+				case SCTP_NR_SELECTIVE_ACK:
+					if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off))
+						stcb->asoc.peer_supports_nr_sack = 1;
+					else
+						stcb->asoc.peer_supports_nr_sack = 0;
 					break;
 				case SCTP_STREAM_RESET:
 					stcb->asoc.peer_supports_strreset = 1;
@@ -6370,21 +6399,6 @@ skip_vtag_check:
 		}
 	}
 	SCTP_INP_INFO_RUNLOCK();
-#ifdef MICHAELS_EXPERIMENT
-	/*-
-	 * Not found, ok to use the tag, add it to the time wait hash
-	 * as well this will prevent two sucessive cookies from getting
-	 * the same tag or two inits sent quickly on multi-processors.
-	 * We only keep the tag for the life of a cookie and when we
-	 * add this tag to the assoc hash we need to purge it from
-	 * the t-wait hash.
-	 */
-	SCTP_INP_INFO_WLOCK();
-	if (save_in_twait)
-		sctp_add_vtag_to_timewait(tag, TICKS_TO_SEC(inp->sctp_ep.def_cookie_life, lport, rport));
-	SCTP_INP_INFO_WUNLOCK();
-#endif
-
 	return (1);
 }
 

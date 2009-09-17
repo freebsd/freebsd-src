@@ -1137,7 +1137,10 @@ typedef struct znode_phys {
  * In-core vdev representation.
  */
 struct vdev;
-typedef int vdev_read_t(struct vdev *vdev, void *priv, off_t offset, void *buf, size_t bytes);
+typedef int vdev_phys_read_t(struct vdev *vdev, void *priv,
+    off_t offset, void *buf, size_t bytes);
+typedef int vdev_read_t(struct vdev *vdev, const blkptr_t *bp,
+    void *buf, off_t offset, size_t bytes);
 
 typedef STAILQ_HEAD(vdev_list, vdev) vdev_list_t;
 
@@ -1148,8 +1151,12 @@ typedef struct vdev {
 	char		*v_name;	/* vdev name */
 	uint64_t	v_guid;		/* vdev guid */
 	int		v_id;		/* index in parent */
+	int		v_ashift;	/* offset to block shift */
+	int		v_nparity;	/* # parity for raidz */
+	int		v_nchildren;	/* # children */
 	vdev_state_t	v_state;	/* current state */
-	vdev_read_t	*v_read;	/* function to read from this vdev */
+	vdev_phys_read_t *v_phys_read;	/* read from raw leaf vdev */
+	vdev_read_t	*v_read;	/* read from vdev */
 	void		*v_read_priv;	/* private data for read function */
 } vdev_t;
 

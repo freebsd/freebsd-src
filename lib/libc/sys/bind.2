@@ -82,6 +82,9 @@ The
 .Fa s
 argument
 is not a valid descriptor.
+.It Bq Er EINVAL
+The socket is already bound to an address, and the protocol does not support
+binding to a new address; or the socket has been shut down.
 .It Bq Er ENOTSOCK
 The
 .Fa s

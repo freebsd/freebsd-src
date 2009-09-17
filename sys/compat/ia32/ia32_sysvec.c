@@ -148,7 +148,8 @@ static Elf32_Brandinfo ia32_brand_info = {
 	.interp_path	= "/libexec/ld-elf.so.1",
 	.sysvec		= &ia32_freebsd_sysvec,
 	.interp_newpath	= "/libexec/ld-elf32.so.1",
-	.flags		= BI_CAN_EXEC_DYN
+	.brand_note	= &elf32_freebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
 SYSINIT(ia32, SI_SUB_EXEC, SI_ORDER_ANY,
@@ -163,12 +164,28 @@ static Elf32_Brandinfo ia32_brand_oinfo = {
 	.interp_path	= "/usr/libexec/ld-elf.so.1",
 	.sysvec		= &ia32_freebsd_sysvec,
 	.interp_newpath	= "/libexec/ld-elf32.so.1",
-	.flags		= BI_CAN_EXEC_DYN,
+	.brand_note	= &elf32_freebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
 };
 
 SYSINIT(oia32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&ia32_brand_oinfo);
+
+static Elf32_Brandinfo kia32_brand_info = {
+	.brand		= ELFOSABI_FREEBSD,
+	.machine	= EM_386,
+	.compat_3_brand	= "FreeBSD",
+	.emul_path	= NULL,
+	.interp_path	= "/lib/ld.so.1",
+	.sysvec		= &ia32_freebsd_sysvec,
+	.brand_note	= &elf32_kfreebsd_brandnote,
+	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE_MANDATORY
+};
+
+SYSINIT(kia32, SI_SUB_EXEC, SI_ORDER_ANY,
+	(sysinit_cfunc_t) elf32_insert_brand_entry,
+	&kia32_brand_info);
 
 
 void
@@ -187,15 +204,21 @@ ia32_copyout_strings(struct image_params *imgp)
 	char *stringp, *destp;
 	u_int32_t *stack_base;
 	struct freebsd32_ps_strings *arginfo;
+	size_t execpath_len;
 	int szsigcode;
 
 	/*
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
 	 */
+	if (imgp->execpath != NULL && imgp->auxargs != NULL)
+		execpath_len = strlen(imgp->execpath) + 1;
+	else
+		execpath_len = 0;
 	arginfo = (struct freebsd32_ps_strings *)FREEBSD32_PS_STRINGS;
 	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
+		roundup(execpath_len, sizeof(char *)) -
 		roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
@@ -204,6 +227,15 @@ ia32_copyout_strings(struct image_params *imgp)
 	if (szsigcode)
 		copyout(imgp->proc->p_sysent->sv_sigcode,
 			((caddr_t)arginfo - szsigcode), szsigcode);
+
+	/*
+	 * Copy the image path for the rtld.
+	 */
+	if (execpath_len != 0) {
+		imgp->execpathp = (uintptr_t)arginfo - szsigcode - execpath_len;
+		copyout(imgp->execpath, (void *)imgp->execpathp,
+		    execpath_len);
+	}
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -221,9 +253,9 @@ ia32_copyout_strings(struct image_params *imgp)
 		 * the arg and env vector sets,and imgp->auxarg_size is room
 		 * for argument of Runtime loader.
 		 */
-		vectp = (u_int32_t *) (destp - (imgp->args->argc + imgp->args->envc + 2 +
-				       imgp->auxarg_size) * sizeof(u_int32_t));
-
+		vectp = (u_int32_t *) (destp - (imgp->args->argc +
+		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
+		    sizeof(u_int32_t));
 	} else
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of

@@ -226,6 +226,9 @@ sgasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		if (cgd == NULL)
 			break;
 
+		if (cgd->protocol != PROTO_SCSI)
+			break;
+
 		/*
 		 * Allocate a peripheral instance for this device and
 		 * start the probe process.
@@ -953,6 +956,7 @@ sg_scsiio_status(struct ccb_scsiio *csio, u_short *hoststat, u_short *drvstat)
 	case CAM_SCSI_STATUS_ERROR:
 		*hoststat = DID_ERROR;
 		*drvstat = 0;
+		break;
 	case CAM_SCSI_BUS_RESET:
 		*hoststat = DID_RESET;
 		*drvstat = 0;
@@ -964,6 +968,7 @@ sg_scsiio_status(struct ccb_scsiio *csio, u_short *hoststat, u_short *drvstat)
 	case CAM_SCSI_BUSY:
 		*hoststat = DID_BUS_BUSY;
 		*drvstat = 0;
+		break;
 	default:
 		*hoststat = DID_ERROR;
 		*drvstat = DRIVER_ERROR;

@@ -54,7 +54,6 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
@@ -62,6 +61,7 @@
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/bpf.h>
+#include <net/vnet.h>
 
 #ifdef	INET
 #include <netinet/in.h>
@@ -77,7 +77,6 @@
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/vinet6.h>
 #endif
 
 #define FAITHNAME	"faith"
@@ -88,7 +87,7 @@ struct faith_softc {
 
 static int faithioctl(struct ifnet *, u_long, caddr_t);
 int faithoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-	struct rtentry *);
+	struct route *);
 static void faithrtrequest(int, struct rtentry *, struct rt_addrinfo *);
 #ifdef INET6
 static int faithprefix(struct in6_addr *);
@@ -188,17 +187,20 @@ faith_clone_destroy(ifp)
 }
 
 int
-faithoutput(ifp, m, dst, rt)
+faithoutput(ifp, m, dst, ro)
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *dst;
-	struct rtentry *rt;
+	struct route *ro;
 {
 	int isr;
 	u_int32_t af;
+	struct rtentry *rt = NULL;
 
 	M_ASSERTPKTHDR(m);
 
+	if (ro != NULL)
+		rt = ro->ro_rt;
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC) {
 		bcopy(dst->sa_data, &af, sizeof(af));
@@ -325,7 +327,6 @@ static int
 faithprefix(in6)
 	struct in6_addr *in6;
 {
-	INIT_VNET_INET6(curvnet);
 	struct rtentry *rt;
 	struct sockaddr_in6 sin6;
 	int ret;

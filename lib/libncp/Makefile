@@ -2,7 +2,7 @@
 
 LIB=		ncp
 
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 
 DPADD=		${LIBIPX}
 LDADD=		-lipx

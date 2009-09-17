@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: named-checkconf.html,v 1.9.18.20 2007/06/20 02:26:58 marka Exp $ -->
+<!-- $Id: named-checkconf.html,v 1.30 2007/06/20 02:27:32 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -29,18 +29,22 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">named-checkconf</code>  [<code class="option">-v</code>] [<code class="option">-j</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] {filename} [<code class="option">-z</code>]</p></div>
+<div class="cmdsynopsis"><p><code class="command">named-checkconf</code>  [<code class="option">-h</code>] [<code class="option">-v</code>] [<code class="option">-j</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] {filename} [<code class="option">-z</code>]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543383"></a><h2>DESCRIPTION</h2>
+<a name="id2543387"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">named-checkconf</strong></span>
       checks the syntax, but not the semantics, of a named
       configuration file.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543395"></a><h2>OPTIONS</h2>
+<a name="id2543399"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
+<dt><span class="term">-h</span></dt>
+<dd><p>
+            Print the usage summary and exit.
+          </p></dd>
 <dt><span class="term">-t <em class="replaceable"><code>directory</code></em></span></dt>
 <dd><p>
             Chroot to <code class="filename">directory</code> so that
@@ -70,21 +74,21 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543489"></a><h2>RETURN VALUES</h2>
+<a name="id2543507"></a><h2>RETURN VALUES</h2>
 <p><span><strong class="command">named-checkconf</strong></span>
       returns an exit status of 1 if
       errors were detected and 0 otherwise.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543500"></a><h2>SEE ALSO</h2>
+<a name="id2543518"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named-checkzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543530"></a><h2>AUTHOR</h2>
+<a name="id2543548"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

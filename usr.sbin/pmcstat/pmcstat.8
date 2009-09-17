@@ -312,10 +312,10 @@ use:
 .Dl "pmcstat -O sample.stat -n 32768 -S k7-retired-instructions"
 .Pp
 To execute
-.Nm mozilla
+.Nm firefox
 and measure the number of data cache misses suffered
 by it and its children every 12 seconds on an AMD Athlon, use:
-.Dl "pmcstat -d -w 12 -p k7-dc-misses mozilla"
+.Dl "pmcstat -d -w 12 -p k7-dc-misses firefox"
 .Pp
 To measure instructions retired for all processes named
 .Dq emacs

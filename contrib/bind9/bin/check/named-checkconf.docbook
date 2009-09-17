@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-checkconf.docbook,v 1.8.18.10 2007/08/28 07:19:55 tbox Exp $ -->
+<!-- $Id: named-checkconf.docbook,v 1.19 2007/06/19 06:58:03 marka Exp $ -->
 <refentry id="man.named-checkconf">
   <refentryinfo>
     <date>June 14, 2000</date>
@@ -53,6 +53,7 @@
   <refsynopsisdiv>
     <cmdsynopsis>
       <command>named-checkconf</command>
+      <arg><option>-h</option></arg>
       <arg><option>-v</option></arg>
       <arg><option>-j</option></arg>
       <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
@@ -73,6 +74,15 @@
     <title>OPTIONS</title>
 
     <variablelist>
+      <varlistentry>
+        <term>-h</term>
+        <listitem>
+          <para>
+            Print the usage summary and exit.
+          </para>
+        </listitem>
+      </varlistentry>
+
       <varlistentry>
         <term>-t <replaceable class="parameter">directory</replaceable></term>
         <listitem>

@@ -87,7 +87,8 @@ static struct {
 	  { "  openfiles%-4s        %8s", "\n",       1    },
 	  { "  sbsize%-4s           %8s", " bytes\n", 1    },
 	  { "  vmemoryuse%-4s       %8s", " kB\n",    1024 },
-	  { "  pseudo-terminals%-4s %8s", "\n",       1    }
+	  { "  pseudo-terminals%-4s %8s", "\n",       1    },
+	  { "  swapuse%-4s          %8s", " kB\n",    1024 }
       }
     },
     { "sh", "unlimited", "", " -H", " -S", "",
@@ -103,7 +104,8 @@ static struct {
 	  { "ulimit%s -n %s", ";\n",  1    },
 	  { "ulimit%s -b %s", ";\n",  1    },
 	  { "ulimit%s -v %s", ";\n",  1024 },
-	  { "ulimit%s -p %s", ";\n",  1    }
+	  { "ulimit%s -p %s", ";\n",  1    },
+	  { "ulimit%s -w %s", ";\n",  1024 }
       }
     },
     { "csh", "unlimited", "", " -h", "", NULL,
@@ -119,7 +121,8 @@ static struct {
 	  { "limit%s openfiles %s",       ";\n",  1    },
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
-	  { "limit%s pseudoterminals %s", ";\n",  1    }
+	  { "limit%s pseudoterminals %s", ";\n",  1    },
+	  { "limit%s swapuse %s",         ";\n",  1024 }
       }
     },
     { "bash|bash2", "unlimited", "", " -H", " -S", "",
@@ -135,7 +138,8 @@ static struct {
 	  { "ulimit%s -n %s", ";\n",  1    },
 	  { "ulimit%s -b %s", ";\n",  1    },
 	  { "ulimit%s -v %s", ";\n",  1024 },
-	  { "ulimit%s -p %s", ";\n",  1    }
+	  { "ulimit%s -p %s", ";\n",  1    },
+	  { "ulimit%s -w %s", ";\n",  1024 }
       }
     },
     { "tcsh", "unlimited", "", " -h", "", NULL,
@@ -151,7 +155,8 @@ static struct {
 	  { "limit%s descriptors %s",     ";\n",  1    },
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
-	  { "limit%s pseudoterminals %s", ";\n",  1    }
+	  { "limit%s pseudoterminals %s", ";\n",  1    },
+	  { "limit%s swapuse %s",         ";\n",  1024 }
       }
     },
     { "ksh|pdksh", "unlimited", "", " -H", " -S", "",
@@ -167,7 +172,8 @@ static struct {
 	  { "ulimit%s -n %s", ";\n",  1    },
 	  { "ulimit%s -b %s", ";\n",  1    },
 	  { "ulimit%s -v %s", ";\n",  1024 },
-	  { "ulimit%s -p %s", ";\n",  1    }
+	  { "ulimit%s -p %s", ";\n",  1    },
+	  { "ulimit%s -w %s", ";\n",  1024 }
       }
     },
     { "zsh", "unlimited", "", " -H", " -S", "",
@@ -183,7 +189,8 @@ static struct {
 	  { "ulimit%s -n %s", ";\n",  1    },
 	  { "ulimit%s -b %s", ";\n",  1    },
 	  { "ulimit%s -v %s", ";\n",  1024 },
-	  { "ulimit%s -p %s", ";\n",  1    }
+	  { "ulimit%s -p %s", ";\n",  1    },
+	  { "ulimit%s -w %s", ";\n",  1024 }
       }
     },
     { "rc|es", "unlimited", "", " -h", "", NULL,
@@ -199,7 +206,8 @@ static struct {
 	  { "limit%s descriptors %s",     ";\n",  1    },
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
-	  { "limit%s pseudoterminals %s", ";\n",  1    }
+	  { "limit%s pseudoterminals %s", ";\n",  1    },
+	  { "limit%s swapuse %s",         ";\n",  1024 }
       }
     },
     { NULL, NULL, NULL, NULL, NULL, NULL,
@@ -220,9 +228,10 @@ static struct {
     { "memorylocked",	login_getcapsize },
     { "maxproc",	login_getcapnum  },
     { "openfiles",	login_getcapnum  },
-    { "sbsize",		login_getcapsize  },
-    { "vmemoryuse",	login_getcapsize  },
+    { "sbsize",		login_getcapsize },
+    { "vmemoryuse",	login_getcapsize },
     { "pseudoterminals",login_getcapnum  },
+    { "swapuse",	login_getcapsize }
 };
 
 /*
@@ -233,7 +242,7 @@ static struct {
  * to be modified accordingly!
  */
 
-#define RCS_STRING  "tfdscmlunbvp"
+#define RCS_STRING  "tfdscmlunbvpw"
 
 static rlim_t resource_num(int which, int ch, const char *str);
 static void usage(void);
@@ -270,7 +279,7 @@ main(int argc, char *argv[])
     }
 
     optarg = NULL;
-    while ((ch = getopt(argc, argv, ":EeC:U:BSHab:c:d:f:l:m:n:s:t:u:v:p:")) != -1) {
+    while ((ch = getopt(argc, argv, ":EeC:U:BSHab:c:d:f:l:m:n:s:t:u:v:p:w:")) != -1) {
 	switch(ch) {
 	case 'a':
 	    doall = 1;
@@ -484,7 +493,7 @@ static void
 usage(void)
 {
     (void)fprintf(stderr,
-"usage: limits [-C class|-U user] [-eaSHBE] [-bcdflmnstuvp [val]] [[name=val ...] cmd]\n");
+"usage: limits [-C class|-U user] [-eaSHBE] [-bcdflmnstuvpw [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
 }
 
@@ -556,6 +565,7 @@ resource_num(int which, int ch, const char *str)
 	case RLIMIT_MEMLOCK:
 	case RLIMIT_SBSIZE:
 	case RLIMIT_VMEM:
+	case RLIMIT_SWAP:
 	    errno = 0;
 	    res = 0;
 	    while (*s) {

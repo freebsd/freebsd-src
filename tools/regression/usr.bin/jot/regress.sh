@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-echo 1..56
+echo 1..57
 
 REGRESSION_START($1)
 
@@ -20,6 +20,7 @@ REGRESSION_TEST(`dhdd', `jot - 20 - -')
 REGRESSION_TEST(`ddhh', `jot - - 120 2')
 REGRESSION_TEST(`ddhd', `jot - - 120 -')
 REGRESSION_TEST(`dddh', `jot - - - 2')
+REGRESSION_TEST(`dddd', `jot - - - -')
 REGRESSION_TEST(`hhhh2', `jot 30 20 160 2')
 REGRESSION_TEST(`hhhd2', `jot 30 20 160 -')
 REGRESSION_TEST(`hhdh2', `jot 30 20 - 2')

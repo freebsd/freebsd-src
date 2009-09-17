@@ -32,7 +32,8 @@
 #define ___DEFINE_XEN_GUEST_HANDLE(name, type) \
     typedef struct { type *p; } __guest_handle_ ## name
 #else
-#define ___DEFINE_XEN_GUEST_HANDLE(name, type) \
+#error "using old handle"
+#define ___DEFINE_XEN_GUEST_HANDLE(name, type)  \
     typedef type * __guest_handle_ ## name
 #endif
 
@@ -50,7 +51,7 @@
 #if defined(__i386__)
 #include <xen/interface/arch-x86/xen-x86_32.h>
 #elif defined(__x86_64__)
-#include "xen-x86_64.h"
+#include <xen/interface/arch-x86/xen-x86_64.h>
 #endif
 
 #ifndef __ASSEMBLY__

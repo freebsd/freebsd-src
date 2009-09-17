@@ -62,6 +62,7 @@ struct cpio {
 	int		  option_follow_links; /* -L */
 	int		  option_link; /* -l */
 	int		  option_list; /* -t */
+	int		  option_numeric_uid_gid; /* -n */
 	int		  option_rename; /* -r */
 	char		 *destdir;
 	size_t		  pass_destpath_alloc;

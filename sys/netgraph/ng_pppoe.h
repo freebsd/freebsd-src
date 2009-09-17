@@ -201,7 +201,6 @@ struct ngpppoe_sts {
 struct pppoe_tag {
 	u_int16_t tag_type;
 	u_int16_t tag_len;
-	char tag_data[];
 }__packed;
 
 struct pppoe_hdr{
@@ -210,7 +209,6 @@ struct pppoe_hdr{
 	u_int8_t code;
 	u_int16_t sid;
 	u_int16_t length;
-	struct pppoe_tag tag[];
 }__packed;
 
 

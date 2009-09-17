@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.201 2008/07/16 11:51:14 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.209 2009/02/12 03:00:56 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -107,7 +107,6 @@
 #include "atomicio.h"
 #include "sshpty.h"
 #include "misc.h"
-#include "monitor_fdpass.h"
 #include "match.h"
 #include "msg.h"
 
@@ -765,8 +764,8 @@ process_cmdline(void)
 	void (*handler)(int);
 	char *s, *cmd, *cancel_host;
 	int delete = 0;
-	int local = 0;
-	u_short cancel_port;
+	int local = 0, remote = 0, dynamic = 0;
+	int cancel_port;
 	Forward fwd;
 
 	bzero(&fwd, sizeof(fwd));
@@ -790,6 +789,8 @@ process_cmdline(void)
 		    "Request local forward");
 		logit("      -R[bind_address:]port:host:hostport    "
 		    "Request remote forward");
+		logit("      -D[bind_address:]port                  "
+		    "Request dynamic forward");
 		logit("      -KR[bind_address:]port                 "
 		    "Cancel remote forward");
 		if (!options.permit_local_command)
@@ -809,17 +810,22 @@ process_cmdline(void)
 		delete = 1;
 		s++;
 	}
-	if (*s != 'L' && *s != 'R') {
+	if (*s == 'L')
+		local = 1;
+	else if (*s == 'R')
+		remote = 1;
+	else if (*s == 'D')
+		dynamic = 1;
+	else {
 		logit("Invalid command.");
 		goto out;
 	}
-	if (*s == 'L')
-		local = 1;
-	if (local && delete) {
+
+	if ((local || dynamic) && delete) {
 		logit("Not supported.");
 		goto out;
 	}
-	if ((!local || delete) && !compat20) {
+	if (remote && delete && !compat20) {
 		logit("Not supported for SSH protocol version 1.");
 		goto out;
 	}
@@ -837,17 +843,17 @@ process_cmdline(void)
 			cancel_port = a2port(cancel_host);
 			cancel_host = NULL;
 		}
-		if (cancel_port == 0) {
+		if (cancel_port <= 0) {
 			logit("Bad forwarding close port");
 			goto out;
 		}
 		channel_request_rforward_cancel(cancel_host, cancel_port);
 	} else {
-		if (!parse_forward(&fwd, s)) {
+		if (!parse_forward(&fwd, s, dynamic, remote)) {
 			logit("Bad forwarding specification.");
 			goto out;
 		}
-		if (local) {
+		if (local || dynamic) {
 			if (channel_setup_local_fwd_listener(fwd.listen_host,
 			    fwd.listen_port, fwd.connect_host,
 			    fwd.connect_port, options.gateway_ports) < 0) {
@@ -1036,7 +1042,6 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 Supported escape sequences:\r\n\
   %c.  - terminate session\r\n\
   %cB  - send a BREAK to the remote system\r\n\
-  %cC  - open a command line\r\n\
   %cR  - Request rekey (SSH protocol 2 only)\r\n\
   %c#  - list forwarded connections\r\n\
   %c?  - this message\r\n\
@@ -1045,8 +1050,7 @@ Supported escape sequences:\r\n\
 					    escape_char, escape_char,
 					    escape_char, escape_char,
 					    escape_char, escape_char,
-					    escape_char, escape_char,
-					    escape_char);
+					    escape_char, escape_char);
 				} else {
 					snprintf(string, sizeof string,
 "%c?\r\n\
@@ -1081,6 +1085,8 @@ Supported escape sequences:\r\n\
 				continue;
 
 			case 'C':
+				if (c && c->ctl_fd != -1)
+					goto noescape;
 				process_cmdline();
 				continue;
 
@@ -1632,7 +1638,7 @@ client_request_forwarded_tcpip(const char *request_type, int rchan)
 {
 	Channel *c = NULL;
 	char *listen_address, *originator_address;
-	int listen_port, originator_port;
+	u_short listen_port, originator_port;
 
 	/* Get rest of the packet */
 	listen_address = packet_get_string(NULL);
@@ -1658,7 +1664,7 @@ client_request_x11(const char *request_type, int rchan)
 {
 	Channel *c = NULL;
 	char *originator;
-	int originator_port;
+	u_short originator_port;
 	int sock;
 
 	if (!options.forward_x11) {
@@ -1722,7 +1728,7 @@ client_request_tun_fwd(int tun_mode, int local_tun, int remote_tun)
 		return 0;
 
 	if (!compat20) {
-		error("Tunnel forwarding is not support for protocol 1");
+		error("Tunnel forwarding is not supported for protocol 1");
 		return -1;
 	}
 
@@ -1846,7 +1852,7 @@ client_input_channel_req(int type, u_int32_t seq, void *ctxt)
 	if (reply) {
 		packet_start(success ?
 		    SSH2_MSG_CHANNEL_SUCCESS : SSH2_MSG_CHANNEL_FAILURE);
-		packet_put_int(id);
+		packet_put_int(c->remote_id);
 		packet_send();
 	}
 	xfree(rtype);

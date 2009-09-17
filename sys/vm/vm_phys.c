@@ -382,8 +382,7 @@ vm_phys_paddr_to_vm_page(vm_paddr_t pa)
 		if (pa >= seg->start && pa < seg->end)
 			return (&seg->first_page[atop(pa - seg->start)]);
 	}
-	panic("vm_phys_paddr_to_vm_page: paddr %#jx is not in any segment",
-	    (uintmax_t)pa);
+	return (NULL);
 }
 
 /*
@@ -595,7 +594,7 @@ vm_phys_alloc_contig(unsigned long npages, vm_paddr_t low, vm_paddr_t high,
 	struct vm_phys_seg *seg;
 	vm_object_t m_object;
 	vm_paddr_t pa, pa_last, size;
-	vm_page_t m, m_ret;
+	vm_page_t deferred_vdrop_list, m, m_ret;
 	int flind, i, oind, order, pind;
 
 	size = npages << PAGE_SHIFT;
@@ -605,6 +604,7 @@ vm_phys_alloc_contig(unsigned long npages, vm_paddr_t low, vm_paddr_t high,
 	    ("vm_phys_alloc_contig: alignment must be a power of 2"));
 	KASSERT((boundary & (boundary - 1)) == 0,
 	    ("vm_phys_alloc_contig: boundary must be a power of 2"));
+	deferred_vdrop_list = NULL;
 	/* Compute the queue that is the best fit for npages. */
 	for (order = 0; (1 << order) < npages; order++);
 	mtx_lock(&vm_page_queue_free_mtx);
@@ -690,31 +690,47 @@ done:
 		KASSERT(m->queue == PQ_NONE,
 		    ("vm_phys_alloc_contig: page %p has unexpected queue %d",
 		    m, m->queue));
-		m_object = m->object;
-		if ((m->flags & PG_CACHED) != 0)
+		KASSERT(m->wire_count == 0,
+		    ("vm_phys_alloc_contig: page %p is wired", m));
+		KASSERT(m->hold_count == 0,
+		    ("vm_phys_alloc_contig: page %p is held", m));
+		KASSERT(m->busy == 0,
+		    ("vm_phys_alloc_contig: page %p is busy", m));
+		KASSERT(m->dirty == 0,
+		    ("vm_phys_alloc_contig: page %p is dirty", m));
+		KASSERT(pmap_page_get_memattr(m) == VM_MEMATTR_DEFAULT,
+		    ("vm_phys_alloc_contig: page %p has unexpected memattr %d",
+		    m, pmap_page_get_memattr(m)));
+		if ((m->flags & PG_CACHED) != 0) {
+			m->valid = 0;
+			m_object = m->object;
 			vm_page_cache_remove(m);
-		else {
+			if (m_object->type == OBJT_VNODE &&
+			    m_object->cache == NULL) {
+				/*
+				 * Enqueue the vnode for deferred vdrop().
+				 *
+				 * Unmanaged pages don't use "pageq", so it
+				 * can be safely abused to construct a short-
+				 * lived queue of vnodes.
+				 */
+				m->pageq.tqe_prev = m_object->handle;
+				m->pageq.tqe_next = deferred_vdrop_list;
+				deferred_vdrop_list = m;
+			}
+		} else {
 			KASSERT(VM_PAGE_IS_FREE(m),
 			    ("vm_phys_alloc_contig: page %p is not free", m));
+			KASSERT(m->valid == 0,
+			    ("vm_phys_alloc_contig: free page %p is valid", m));
 			cnt.v_free_count--;
 		}
-		m->valid = VM_PAGE_BITS_ALL;
 		if (m->flags & PG_ZERO)
 			vm_page_zero_count--;
 		/* Don't clear the PG_ZERO flag; we'll need it later. */
 		m->flags = PG_UNMANAGED | (m->flags & PG_ZERO);
 		m->oflags = 0;
-		KASSERT(m->dirty == 0,
-		    ("vm_phys_alloc_contig: page %p was dirty", m));
-		m->wire_count = 0;
-		m->busy = 0;
-		if (m_object != NULL &&
-		    m_object->type == OBJT_VNODE &&
-		    m_object->cache == NULL) {
-			mtx_unlock(&vm_page_queue_free_mtx);
-			vdrop(m_object->handle);
-			mtx_lock(&vm_page_queue_free_mtx);
-		}
+		/* Unmanaged pages don't use "act_count". */
 	}
 	for (; i < roundup2(npages, 1 << imin(oind, order)); i++) {
 		m = &m_ret[i];
@@ -724,6 +740,10 @@ done:
 		vm_phys_free_pages(m, 0);
 	}
 	mtx_unlock(&vm_page_queue_free_mtx);
+	while (deferred_vdrop_list != NULL) {
+		vdrop((struct vnode *)deferred_vdrop_list->pageq.tqe_prev);
+		deferred_vdrop_list = deferred_vdrop_list->pageq.tqe_next;
+	}
 	return (m_ret);
 }
 

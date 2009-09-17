@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
-#include <sys/vimage.h>
 
 #include <vm/uma.h>
 
@@ -51,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#include <net/vnet.h>
 #include <netinet/if_ether.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
@@ -62,6 +62,9 @@ static	SLIST_HEAD(, lltable) lltables = SLIST_HEAD_INITIALIZER(lltables);
 extern void arprequest(struct ifnet *, struct in_addr *, struct in_addr *,
 	u_char *);
 
+struct rwlock lltable_rwlock;
+RW_SYSINIT(lltable_rwlock, &lltable_rwlock, "lltable_rwlock");
+
 /*
  * Dump arp state for a specific address family.
  */
@@ -71,7 +74,7 @@ lltable_sysctl_dumparp(int af, struct sysctl_req *wr)
 	struct lltable *llt;
 	int error = 0;
 
-	IFNET_RLOCK();
+	LLTABLE_RLOCK();
 	SLIST_FOREACH(llt, &lltables, llt_link) {
 		if (llt->llt_af == af) {
 			error = llt->llt_dump(llt, wr);
@@ -80,7 +83,7 @@ lltable_sysctl_dumparp(int af, struct sysctl_req *wr)
 		}
 	}
 done:
-	IFNET_RUNLOCK();
+	LLTABLE_RUNLOCK();
 	return (error);
 }
 
@@ -104,9 +107,46 @@ llentry_free(struct llentry *lle)
 }
 
 /*
+ * Update an llentry for address dst (equivalent to rtalloc for new-arp)
+ * Caller must pass in a valid struct llentry *
+ *
+ * if found the llentry * is returned referenced and unlocked
+ */
+int
+llentry_update(struct llentry **llep, struct lltable *lt,
+    struct sockaddr *dst, struct ifnet *ifp)
+{
+	struct llentry *la;
+
+	IF_AFDATA_RLOCK(ifp);	
+	la = lla_lookup(lt, LLE_EXCLUSIVE,
+	    (struct sockaddr *)dst);
+	IF_AFDATA_RUNLOCK(ifp);
+	if ((la == NULL) && 
+	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
+		IF_AFDATA_WLOCK(ifp);
+		la = lla_lookup(lt,
+		    (LLE_CREATE | LLE_EXCLUSIVE),
+		    (struct sockaddr *)dst);
+		IF_AFDATA_WUNLOCK(ifp);	
+	}
+	if (la != NULL && (*llep != la)) {
+		if (*llep != NULL)
+			LLE_FREE(*llep);
+		LLE_ADDREF(la);
+		LLE_WUNLOCK(la);
+		*llep = la;
+	} else if (la != NULL)
+		LLE_WUNLOCK(la);
+
+	if (la == NULL)
+		return (ENOENT);
+
+	return (0);
+}
+
+/*
  * Free all entries from given table and free itself.
- * Since lltables collects from all of the intefaces,
- * the caller of this function must acquire IFNET_WLOCK().
  */
 void
 lltable_free(struct lltable *llt)
@@ -116,9 +156,9 @@ lltable_free(struct lltable *llt)
 
 	KASSERT(llt != NULL, ("%s: llt is NULL", __func__));
 
-	IFNET_WLOCK();
+	LLTABLE_WLOCK();
 	SLIST_REMOVE(&lltables, llt, lltable, llt_link);
-	IFNET_WUNLOCK();
+	LLTABLE_WUNLOCK();
 
 	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
@@ -139,7 +179,7 @@ lltable_drain(int af)
 	struct llentry	*lle;
 	register int i;
 
-	IFNET_RLOCK();
+	LLTABLE_RLOCK();
 	SLIST_FOREACH(llt, &lltables, llt_link) {
 		if (llt->llt_af != af)
 			continue;
@@ -153,8 +193,25 @@ lltable_drain(int af)
 			}
 		}
 	}
-	IFNET_RUNLOCK();
+	LLTABLE_RUNLOCK();
 }
+
+void
+lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask)
+{
+	struct lltable *llt;
+
+	LLTABLE_RLOCK();
+	SLIST_FOREACH(llt, &lltables, llt_link) {
+		if (llt->llt_af != af)
+			continue;
+
+		llt->llt_prefix_free(llt, prefix, mask);
+	}
+	LLTABLE_RUNLOCK();
+}
+
+
 
 /*
  * Create a new lltable.
@@ -174,9 +231,9 @@ lltable_init(struct ifnet *ifp, int af)
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++)
 		LIST_INIT(&llt->lle_head[i]);
 
-	IFNET_WLOCK();
+	LLTABLE_WLOCK();
 	SLIST_INSERT_HEAD(&lltables, llt, llt_link);
-	IFNET_WUNLOCK();
+	LLTABLE_WUNLOCK();
 
 	return (llt);
 }
@@ -244,13 +301,13 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	}
 
 	/* XXX linked list may be too expensive */
-	IFNET_RLOCK();
+	LLTABLE_RLOCK();
 	SLIST_FOREACH(llt, &lltables, llt_link) {
 		if (llt->llt_af == dst->sa_family &&
 		    llt->llt_ifp == ifp)
 			break;
 	}
-	IFNET_RUNLOCK();
+	LLTABLE_RUNLOCK();
 	KASSERT(llt != NULL, ("Yep, ugly hacks are bad\n"));
 
 	if (flags && LLE_CREATE)

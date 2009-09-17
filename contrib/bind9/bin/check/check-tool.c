@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check-tool.c,v 1.10.18.20 2008/10/24 01:43:17 tbox Exp $ */
+/* $Id: check-tool.c,v 1.35.36.3 2009/01/20 02:03:18 marka Exp $ */
 
 /*! \file */
 
@@ -24,16 +24,17 @@
 #include <stdio.h>
 
 #include "check-tool.h"
-#include <isc/util.h>
-
 #include <isc/buffer.h>
 #include <isc/log.h>
-#include <isc/net.h>
+#include <isc/mem.h>
 #include <isc/netdb.h>
+#include <isc/net.h>
 #include <isc/region.h>
 #include <isc/stdio.h>
 #include <isc/string.h>
+#include <isc/symtab.h>
 #include <isc/types.h>
+#include <isc/util.h>
 
 #include <dns/fixedname.h>
 #include <dns/log.h>
@@ -68,6 +69,15 @@
 		if (result != ISC_R_SUCCESS) \
 			goto cleanup; \
 	} while (0)
+
+#define ERR_IS_CNAME 1
+#define ERR_NO_ADDRESSES 2
+#define ERR_LOOKUP_FAILURE 3
+#define ERR_EXTRA_A 4
+#define ERR_EXTRA_AAAA 5
+#define ERR_MISSING_GLUE 5
+#define ERR_IS_MXCNAME 6
+#define ERR_IS_SRVCNAME 7
 
 static const char *dbtype[] = { "rbt" };
 
@@ -105,8 +115,61 @@ static isc_logcategory_t categories[] = {
 	{ "queries",	     0 },
 	{ "unmatched", 	     0 },
 	{ "update-security", 0 },
+	{ "query-errors",    0 },
 	{ NULL,		     0 }
 };
+
+static isc_symtab_t *symtab = NULL;
+static isc_mem_t *sym_mctx;
+
+static void
+freekey(char *key, unsigned int type, isc_symvalue_t value, void *userarg) {
+	UNUSED(type);
+	UNUSED(value);
+	isc_mem_free(userarg, key);
+}
+
+static void
+add(char *key, int value) {
+	isc_result_t result;
+	isc_symvalue_t symvalue;
+
+	if (sym_mctx == NULL) {
+		result = isc_mem_create(0, 0, &sym_mctx);
+		if (result != ISC_R_SUCCESS)
+			return;
+	}
+
+	if (symtab == NULL) {
+		result = isc_symtab_create(sym_mctx, 100, freekey, sym_mctx,
+					   ISC_FALSE, &symtab);
+		if (result != ISC_R_SUCCESS)
+			return;
+	}
+
+	key = isc_mem_strdup(sym_mctx, key);
+	if (key == NULL)
+		return;
+
+	symvalue.as_pointer = NULL;
+	result = isc_symtab_define(symtab, key, value, symvalue,
+				   isc_symexists_reject);
+	if (result != ISC_R_SUCCESS)
+		isc_mem_free(sym_mctx, key);
+}
+
+static isc_boolean_t
+logged(char *key, int value) {
+	isc_result_t result;
+
+	if (symtab == NULL)
+		return (ISC_FALSE);
+
+	result = isc_symtab_lookup(symtab, key, value, NULL);
+	if (result == ISC_R_SUCCESS)
+		return (ISC_TRUE);
+	return (ISC_FALSE);
+}
 
 static isc_boolean_t
 checkns(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner,
@@ -156,29 +219,39 @@ checkns(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner,
 		       cur->ai_next != NULL)
 			cur = cur->ai_next;
 		if (cur != NULL && cur->ai_canonname != NULL &&
-		    strcasecmp(ai->ai_canonname, namebuf) != 0) {
+		    strcasecmp(cur->ai_canonname, namebuf) != 0 &&
+		    !logged(namebuf, ERR_IS_CNAME)) {
 			dns_zone_log(zone, ISC_LOG_ERROR,
 				     "%s/NS '%s' (out of zone) "
-				     "is a CNAME (illegal)",
-				     ownerbuf, namebuf);
+				     "is a CNAME '%s' (illegal)",
+				     ownerbuf, namebuf,
+				     cur->ai_canonname);
 			/* XXX950 make fatal for 9.5.0 */
 			/* answer = ISC_FALSE; */
+			add(namebuf, ERR_IS_CNAME);
 		}
 		break;
 	case EAI_NONAME:
 #if defined(EAI_NODATA) && (EAI_NODATA != EAI_NONAME)
 	case EAI_NODATA:
 #endif
-		dns_zone_log(zone, ISC_LOG_ERROR, "%s/NS '%s' (out of zone) "
-			     "has no addresses records (A or AAAA)",
-			     ownerbuf, namebuf);
+		if (!logged(namebuf, ERR_NO_ADDRESSES)) {
+			dns_zone_log(zone, ISC_LOG_ERROR,
+				     "%s/NS '%s' (out of zone) "
+				     "has no addresses records (A or AAAA)",
+				     ownerbuf, namebuf);
+			add(namebuf, ERR_NO_ADDRESSES);
+		}
 		/* XXX950 make fatal for 9.5.0 */
 		return (ISC_TRUE);
 
 	default:
-		dns_zone_log(zone, ISC_LOG_WARNING,
-			     "getaddrinfo(%s) failed: %s",
-			     namebuf, gai_strerror(result));
+		if (!logged(namebuf, ERR_LOOKUP_FAILURE)) {
+			dns_zone_log(zone, ISC_LOG_WARNING,
+				     "getaddrinfo(%s) failed: %s",
+				     namebuf, gai_strerror(result));
+			add(namebuf, ERR_LOOKUP_FAILURE);
+		}
 		return (ISC_TRUE);
 	}
 	if (a == NULL || aaaa == NULL)
@@ -201,12 +274,13 @@ checkns(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner,
 				break;
 			}
 		}
-		if (!match) {
+		if (!match && !logged(namebuf, ERR_EXTRA_A)) {
 			dns_zone_log(zone, ISC_LOG_ERROR, "%s/NS '%s' "
 				     "extra GLUE A record (%s)",
 				     ownerbuf, namebuf,
 				     inet_ntop(AF_INET, rdata.data,
 					       addrbuf, sizeof(addrbuf)));
+			add(namebuf, ERR_EXTRA_A);
 			/* XXX950 make fatal for 9.5.0 */
 			/* answer = ISC_FALSE; */
 		}
@@ -230,12 +304,13 @@ checkns(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner,
 				break;
 			}
 		}
-		if (!match) {
+		if (!match && !logged(namebuf, ERR_EXTRA_AAAA)) {
 			dns_zone_log(zone, ISC_LOG_ERROR, "%s/NS '%s' "
 				     "extra GLUE AAAA record (%s)",
 				     ownerbuf, namebuf,
 				     inet_ntop(AF_INET6, rdata.data,
 					       addrbuf, sizeof(addrbuf)));
+			add(namebuf, ERR_EXTRA_AAAA);
 			/* XXX950 make fatal for 9.5.0. */
 			/* answer = ISC_FALSE; */
 		}
@@ -247,42 +322,48 @@ checkns(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner,
 	/*
 	 * Check that all addresses appear in the glue.
 	 */
-	for (cur = ai; cur != NULL; cur = cur->ai_next) {
-		switch (cur->ai_family) {
-		case AF_INET:
-			rdataset = a;
-			ptr = &((struct sockaddr_in *)(cur->ai_addr))->sin_addr;
-			type = "A";
-			break;
-		case AF_INET6:
-			rdataset = aaaa;
-			ptr = &((struct sockaddr_in6 *)(cur->ai_addr))->sin6_addr;
-			type = "AAAA";
-			break;
-		default:
-			 continue;
+	if (!logged(namebuf, ERR_MISSING_GLUE)) {
+		isc_boolean_t missing_glue = ISC_FALSE;
+		for (cur = ai; cur != NULL; cur = cur->ai_next) {
+			switch (cur->ai_family) {
+			case AF_INET:
+				rdataset = a;
+				ptr = &((struct sockaddr_in *)(cur->ai_addr))->sin_addr;
+				type = "A";
+				break;
+			case AF_INET6:
+				rdataset = aaaa;
+				ptr = &((struct sockaddr_in6 *)(cur->ai_addr))->sin6_addr;
+				type = "AAAA";
+				break;
+			default:
+				 continue;
+			}
+			match = ISC_FALSE;
+			if (dns_rdataset_isassociated(rdataset))
+				result = dns_rdataset_first(rdataset);
+			else
+				result = ISC_R_FAILURE;
+			while (result == ISC_R_SUCCESS && !match) {
+				dns_rdataset_current(rdataset, &rdata);
+				if (memcmp(ptr, rdata.data, rdata.length) == 0)
+					match = ISC_TRUE;
+				dns_rdata_reset(&rdata);
+				result = dns_rdataset_next(rdataset);
+			}
+			if (!match) {
+				dns_zone_log(zone, ISC_LOG_ERROR, "%s/NS '%s' "
+					     "missing GLUE %s record (%s)",
+					     ownerbuf, namebuf, type,
+					     inet_ntop(cur->ai_family, ptr,
+						       addrbuf, sizeof(addrbuf)));
+				/* XXX950 make fatal for 9.5.0. */
+				/* answer = ISC_FALSE; */
+				missing_glue = ISC_TRUE;
+			}
 		}
-		match = ISC_FALSE;
-		if (dns_rdataset_isassociated(rdataset))
-			result = dns_rdataset_first(rdataset);
-		else
-			result = ISC_R_FAILURE;
-		while (result == ISC_R_SUCCESS && !match) {
-			dns_rdataset_current(rdataset, &rdata);
-			if (memcmp(ptr, rdata.data, rdata.length) == 0)
-				match = ISC_TRUE;
-			dns_rdata_reset(&rdata);
-			result = dns_rdataset_next(rdataset);
-		}
-		if (!match) {
-			dns_zone_log(zone, ISC_LOG_ERROR, "%s/NS '%s' "
-				     "missing GLUE %s record (%s)",
-				     ownerbuf, namebuf, type,
-				     inet_ntop(cur->ai_family, ptr,
-					       addrbuf, sizeof(addrbuf)));
-			/* XXX950 make fatal for 9.5.0. */
-			/* answer = ISC_FALSE; */
-		}
+		if (missing_glue)
+			add(namebuf, ERR_MISSING_GLUE);
 	}
 	freeaddrinfo(ai);
 	return (answer);
@@ -332,10 +413,15 @@ checkmx(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner) {
 			if ((zone_options & DNS_ZONEOPT_WARNMXCNAME) != 0)
 				level = ISC_LOG_WARNING;
 			if ((zone_options & DNS_ZONEOPT_IGNOREMXCNAME) == 0) {
-				dns_zone_log(zone, ISC_LOG_WARNING,
-					     "%s/MX '%s' (out of zone) "
-					     "is a CNAME (illegal)",
-					     ownerbuf, namebuf);
+				if (!logged(namebuf, ERR_IS_MXCNAME)) {
+					dns_zone_log(zone, level,
+						     "%s/MX '%s' (out of zone)"
+						     " is a CNAME '%s' "
+						     "(illegal)",
+						     ownerbuf, namebuf,
+						     cur->ai_canonname);
+					add(namebuf, ERR_IS_MXCNAME);
+				}
 				if (level == ISC_LOG_ERROR)
 					answer = ISC_FALSE;
 			}
@@ -347,16 +433,23 @@ checkmx(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner) {
 #if defined(EAI_NODATA) && (EAI_NODATA != EAI_NONAME)
 	case EAI_NODATA:
 #endif
-		dns_zone_log(zone, ISC_LOG_ERROR, "%s/MX '%s' (out of zone) "
-			     "has no addresses records (A or AAAA)",
-			     ownerbuf, namebuf);
+		if (!logged(namebuf, ERR_NO_ADDRESSES)) {
+			dns_zone_log(zone, ISC_LOG_ERROR,
+				     "%s/MX '%s' (out of zone) "
+				     "has no addresses records (A or AAAA)",
+				     ownerbuf, namebuf);
+			add(namebuf, ERR_NO_ADDRESSES);
+		}
 		/* XXX950 make fatal for 9.5.0. */
 		return (ISC_TRUE);
 
 	default:
-		dns_zone_log(zone, ISC_LOG_WARNING,
+		if (!logged(namebuf, ERR_LOOKUP_FAILURE)) {
+			dns_zone_log(zone, ISC_LOG_WARNING,
 			     "getaddrinfo(%s) failed: %s",
 			     namebuf, gai_strerror(result));
+			add(namebuf, ERR_LOOKUP_FAILURE);
+		}
 		return (ISC_TRUE);
 	}
 #else
@@ -405,10 +498,14 @@ checksrv(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner) {
 			if ((zone_options & DNS_ZONEOPT_WARNSRVCNAME) != 0)
 				level = ISC_LOG_WARNING;
 			if ((zone_options & DNS_ZONEOPT_IGNORESRVCNAME) == 0) {
-				dns_zone_log(zone, level,
-					     "%s/SRV '%s' (out of zone) "
-					     "is a CNAME (illegal)",
-					     ownerbuf, namebuf);
+				if (!logged(namebuf, ERR_IS_SRVCNAME)) {
+					dns_zone_log(zone, level, "%s/SRV '%s'"
+						     " (out of zone) is a "
+						     "CNAME '%s' (illegal)",
+						     ownerbuf, namebuf,
+						     cur->ai_canonname);
+					add(namebuf, ERR_IS_SRVCNAME);
+				}
 				if (level == ISC_LOG_ERROR)
 					answer = ISC_FALSE;
 			}
@@ -420,16 +517,23 @@ checksrv(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner) {
 #if defined(EAI_NODATA) && (EAI_NODATA != EAI_NONAME)
 	case EAI_NODATA:
 #endif
-		dns_zone_log(zone, ISC_LOG_ERROR, "%s/SRV '%s' (out of zone) "
-			     "has no addresses records (A or AAAA)",
-			     ownerbuf, namebuf);
+		if (!logged(namebuf, ERR_NO_ADDRESSES)) {
+			dns_zone_log(zone, ISC_LOG_ERROR,
+				     "%s/SRV '%s' (out of zone) "
+				     "has no addresses records (A or AAAA)",
+				     ownerbuf, namebuf);
+			add(namebuf, ERR_NO_ADDRESSES);
+		}
 		/* XXX950 make fatal for 9.5.0. */
 		return (ISC_TRUE);
 
 	default:
-		dns_zone_log(zone, ISC_LOG_WARNING,
-			     "getaddrinfo(%s) failed: %s",
-			     namebuf, gai_strerror(result));
+		if (!logged(namebuf, ERR_LOOKUP_FAILURE)) {
+			dns_zone_log(zone, ISC_LOG_WARNING,
+				     "getaddrinfo(%s) failed: %s",
+				     namebuf, gai_strerror(result));
+			add(namebuf, ERR_LOOKUP_FAILURE);
+		}
 		return (ISC_TRUE);
 	}
 #else
@@ -438,7 +542,7 @@ checksrv(dns_zone_t *zone, dns_name_t *name, dns_name_t *owner) {
 }
 
 isc_result_t
-setup_logging(isc_mem_t *mctx, isc_log_t **logp) {
+setup_logging(isc_mem_t *mctx, FILE *errout, isc_log_t **logp) {
 	isc_logdestination_t destination;
 	isc_logconfig_t *logconfig = NULL;
 	isc_log_t *log = NULL;
@@ -450,7 +554,7 @@ setup_logging(isc_mem_t *mctx, isc_log_t **logp) {
 	dns_log_setcontext(log);
 	cfg_log_init(log);
 
-	destination.file.stream = stdout;
+	destination.file.stream = errout;
 	destination.file.name = NULL;
 	destination.file.versions = ISC_LOG_ROLLNEVER;
 	destination.file.maximum_size = 0;
@@ -534,14 +638,14 @@ dump_zone(const char *zonename, dns_zone_t *zone, const char *filename,
 	FILE *output = stdout;
 
 	if (debug) {
-		if (filename != NULL)
+		if (filename != NULL && strcmp(filename, "-") != 0)
 			fprintf(stderr, "dumping \"%s\" to \"%s\"\n",
 				zonename, filename);
 		else
 			fprintf(stderr, "dumping \"%s\"\n", zonename);
 	}
 
-	if (filename != NULL) {
+	if (filename != NULL && strcmp(filename, "-") != 0) {
 		result = isc_stdio_open(filename, "w+", &output);
 
 		if (result != ISC_R_SUCCESS) {
@@ -553,7 +657,7 @@ dump_zone(const char *zonename, dns_zone_t *zone, const char *filename,
 
 	result = dns_zone_dumptostream2(zone, output, fileformat, style);
 
-	if (filename != NULL)
+	if (output != stdout)
 		(void)isc_stdio_close(output);
 
 	return (result);

@@ -2,8 +2,9 @@
 
 PROG=	jls
 MAN=	jls.8
-WARNS?=	6
+DPADD=	${LIBJAIL}
+LDADD=	-ljail
 
-CFLAGS+= -DSUPPORT_OLD_XPRISON
+WARNS?=	6
 
 .include <bsd.prog.mk>

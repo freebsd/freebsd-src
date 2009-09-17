@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Apple Inc.
+ * Copyright (c) 2005-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.h#12 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.h#13 $
  */
 
 #ifndef _AUDITD_H_
@@ -57,6 +57,7 @@
 #define	POSTSIGTERM_WARN	"postsigterm"
 #define	SOFTLIM_WARN		"soft"
 #define	TMPFILE_WARN		"tmpfile"
+#define	EXPIRED_WARN		"expired"
 
 #define	AUDITWARN_SCRIPT	"/etc/security/audit_warn"
 #define	AUDITD_PIDFILE		"/var/run/auditd.pid"
@@ -76,6 +77,7 @@ int	audit_warn_nostart(void);
 int	audit_warn_postsigterm(void);
 int	audit_warn_soft(char *filename);
 int	audit_warn_tmpfile(void);
+int	audit_warn_expired(char *filename);
 
 void	auditd_openlog(int debug, gid_t gid);
 void	auditd_log_err(const char *fmt, ...);

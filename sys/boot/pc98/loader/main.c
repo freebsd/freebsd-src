@@ -145,6 +145,14 @@ main(void)
 	    bc_add(initial_bootdev);
     }
 
+    archsw.arch_autoload = i386_autoload;
+    archsw.arch_getdev = i386_getdev;
+    archsw.arch_copyin = i386_copyin;
+    archsw.arch_copyout = i386_copyout;
+    archsw.arch_readin = i386_readin;
+    archsw.arch_isainb = isa_inb;
+    archsw.arch_isaoutb = isa_outb;
+
     /*
      * March through the device switch probing for things.
      */
@@ -163,14 +171,6 @@ main(void)
 
     extract_currdev();				/* set $currdev and $loaddev */
     setenv("LINES", "24", 1);			/* optional */
-    
-    archsw.arch_autoload = i386_autoload;
-    archsw.arch_getdev = i386_getdev;
-    archsw.arch_copyin = i386_copyin;
-    archsw.arch_copyout = i386_copyout;
-    archsw.arch_readin = i386_readin;
-    archsw.arch_isainb = isa_inb;
-    archsw.arch_isaoutb = isa_outb;
 
     interact();			/* doesn't return */
 
@@ -188,7 +188,8 @@ static void
 extract_currdev(void)
 {
     struct i386_devdesc	new_currdev;
-    int			major, biosdev = -1;
+    int			major;
+    int			biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
     new_currdev.d_dev = &biosdisk;

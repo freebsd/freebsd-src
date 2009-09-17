@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Apple Inc.
+ * Copyright (c) 2005-2009 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#13 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#15 $
  */
 /*
  * Program to trigger the audit daemon with a message that is either:
@@ -54,7 +54,7 @@
 #include <unistd.h>
 
 
-static int send_trigger(unsigned int);
+static int send_trigger(int);
 
 #ifdef USE_MACH_IPC
 #include <mach/mach.h>
@@ -68,15 +68,18 @@ static int send_trigger(unsigned int);
 #include "auditd_control.h"
 
 /* 
- * XXX the following is temporary until this can be added to the kernel
+ * XXX The following are temporary until these can be added to the kernel
  * audit.h header. 
  */
 #ifndef AUDIT_TRIGGER_INITIALIZE
 #define	AUDIT_TRIGGER_INITIALIZE	7
 #endif
+#ifndef AUDIT_TRIGGER_EXPIRE_TRAILS
+#define	AUDIT_TRIGGER_EXPIRE_TRAILS	8
+#endif
 
 static int
-send_trigger(unsigned int trigger)
+send_trigger(int trigger)
 {
 	mach_port_t     serverPort;
 	kern_return_t	error;
@@ -104,11 +107,11 @@ send_trigger(unsigned int trigger)
 #else /* ! USE_MACH_IPC */
 
 static int
-send_trigger(unsigned int trigger)
+send_trigger(int trigger)
 {
 	int error;
 
-	error = auditon(A_SENDTRIGGER, &trigger, sizeof(trigger));
+	error = audit_send_trigger(&trigger);
 	if (error != 0) {
 		if (error == EPERM)
 			perror("audit requires root privileges");
@@ -125,7 +128,7 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "Usage: audit -i | -n | -s | -t \n");
+	(void)fprintf(stderr, "Usage: audit -e | -i | -n | -s | -t \n");
 	exit(-1);
 }
 
@@ -141,8 +144,12 @@ main(int argc, char **argv)
 	if (argc != 2)
 		usage();
 
-	while ((ch = getopt(argc, argv, "inst")) != -1) {
+	while ((ch = getopt(argc, argv, "einst")) != -1) {
 		switch(ch) {
+
+		case 'e':
+			trigger = AUDIT_TRIGGER_EXPIRE_TRAILS;
+			break;
 
 		case 'i':
 			trigger = AUDIT_TRIGGER_INITIALIZE;

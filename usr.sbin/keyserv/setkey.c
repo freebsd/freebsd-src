@@ -84,7 +84,7 @@ void
 setmodulus(modx)
 	char *modx;
 {
-	MODULUS = xtom(modx);
+	MODULUS = mp_xtom(modx);
 }
 
 /*
@@ -198,19 +198,19 @@ pk_crypt(uid, remote_name, remote_key, key, mode)
 	}
 
 	if (!readcache(xpublic, xsecret, &deskey)) {
-		public = xtom(xpublic);
-		secret = xtom(xsecret);
+		public = mp_xtom(xpublic);
+		secret = mp_xtom(xsecret);
 		/* Sanity Check on public and private keys */
 		if ((public == NULL) || (secret == NULL))
 			return (KEY_SYSTEMERR);
 
-		common = itom(0);
-		pow(public, secret, MODULUS, common);
+		common = mp_itom(0);
+		mp_pow(public, secret, MODULUS, common);
 		extractdeskey(common, &deskey);
 		writecache(xpublic, xsecret, &deskey);
-		mfree(secret);
-		mfree(public);
-		mfree(common);
+		mp_mfree(secret);
+		mp_mfree(public);
+		mp_mfree(common);
 	}
 	err = ecb_crypt((char *)&deskey, (char *)key, sizeof (des_block),
 		DES_HW | mode);
@@ -248,19 +248,19 @@ pk_get_conv_key(uid, xpublic, result)
 	}
 
 	if (!readcache(xpublic, xsecret, &result->cryptkeyres_u.deskey)) {
-		public = xtom(xpublic);
-		secret = xtom(xsecret);
+		public = mp_xtom(xpublic);
+		secret = mp_xtom(xsecret);
 		/* Sanity Check on public and private keys */
 		if ((public == NULL) || (secret == NULL))
 			return (KEY_SYSTEMERR);
 
-		common = itom(0);
-		pow(public, secret, MODULUS, common);
+		common = mp_itom(0);
+		mp_pow(public, secret, MODULUS, common);
 		extractdeskey(common, &result->cryptkeyres_u.deskey);
 		writecache(xpublic, xsecret, &result->cryptkeyres_u.deskey);
-		mfree(secret);
-		mfree(public);
-		mfree(common);
+		mp_mfree(secret);
+		mp_mfree(public);
+		mp_mfree(common);
 	}
 
 	return (KEY_SUCCESS);
@@ -281,21 +281,21 @@ extractdeskey(ck, deskey)
 	short base = (1 << 8);
 	char *k;
 
-	a = itom(0);
+	a = mp_itom(0);
 #ifdef SOLARIS_MP
 	_mp_move(ck, a);
 #else
-	move(ck, a);
+	mp_move(ck, a);
 #endif
 	for (i = 0; i < ((KEYSIZE - 64) / 2) / 8; i++) {
-		sdiv(a, base, a, &r);
+		mp_sdiv(a, base, a, &r);
 	}
 	k = deskey->c;
 	for (i = 0; i < 8; i++) {
-		sdiv(a, base, a, &r);
+		mp_sdiv(a, base, a, &r);
 		*k++ = r;
 	}
-	mfree(a);
+	mp_mfree(a);
 	des_setparity((char *)deskey);
 }
 

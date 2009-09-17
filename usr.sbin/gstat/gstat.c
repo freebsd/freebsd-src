@@ -99,6 +99,10 @@ main(int argc, char **argv)
 	maxx = -1;
 	curx = -1;
 	loop = 1;
+	/* Turn on batch mode if output is not tty. */
+	if (!isatty(fileno(stdout)))
+		flag_b = 1;
+
 	f_s[0] = '\0';
 	while ((i = getopt(argc, argv, "adcf:I:b")) != -1) {
 		switch (i) {
@@ -318,9 +322,11 @@ main(int argc, char **argv)
 			if (!flag_b)
 				attron(COLOR_PAIR(i));
 			PRINTMSG(" %6.1lf", (double)ld[7]);
-			if (!flag_b)
+			if (!flag_b) {
 				attroff(COLOR_PAIR(i));
-			PRINTMSG("|");
+				PRINTMSG("|");
+			} else
+				PRINTMSG(" ");
 			if (gid == NULL) {
 				PRINTMSG(" ??");
 			} else if (gid->lg_what == ISPROVIDER) {

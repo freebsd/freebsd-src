@@ -461,7 +461,7 @@ rpc_broadcast_exp(prog, vers, proc, xargs, argsp, xresults, resultsp,
 #ifdef RPC_DEBUG
 						perror("sendto");
 #endif
-						warnx("clnt_bcast: cannot send"
+						warnx("clnt_bcast: cannot send "
 						      "broadcast packet");
 						stat = RPC_CANTSEND;
 						continue;

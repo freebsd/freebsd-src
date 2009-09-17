@@ -167,7 +167,7 @@ struct open_file {
 #define SOPEN_RASIZE	512
 };
 
-#define	SOPEN_MAX	8
+#define	SOPEN_MAX	64
 extern struct open_file files[];
 
 /* f_flags values */

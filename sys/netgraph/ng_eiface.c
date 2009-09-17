@@ -35,15 +35,16 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
+#include <sys/proc.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -113,9 +114,8 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
-#ifdef VIMAGE_GLOBALS
-static struct unrhdr	*ng_eiface_unit;
-#endif
+static VNET_DEFINE(struct unrhdr *, ng_eiface_unit);
+#define	V_ng_eiface_unit		VNET(ng_eiface_unit)
 
 /************************************************************************
 			INTERFACE STUFF
@@ -248,7 +248,9 @@ ng_eiface_start2(node_p node, hook_p hook, void *arg1, int arg2)
 		 * Send packet; if hook is not connected, mbuf will get
 		 * freed.
 		 */
+		NG_OUTBOUND_THREAD_REF();
 		NG_SEND_DATA_ONLY(error, priv->ether, m);
+		NG_OUTBOUND_THREAD_UNREF();
 
 		/* Update stats */
 		if (error == 0)
@@ -336,7 +338,6 @@ ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 static int
 ng_eiface_constructor(node_p node)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	struct ifnet *ifp;
 	priv_p priv;
 	u_char eaddr[6] = {0,0,0,0,0,0};
@@ -372,12 +373,10 @@ ng_eiface_constructor(node_p node)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	ifp->if_flags = (IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 
-#if 0
-	/* Give this node name */
-	bzero(ifname, sizeof(ifname));
-	sprintf(ifname, "if%s", ifp->if_xname);
-	(void)ng_name_node(node, ifname);
-#endif
+	/* Give this node the same name as the interface (if possible) */
+	if (ng_name_node(node, ifp->if_xname) != 0)
+		log(LOG_WARNING, "%s: can't acquire netgraph name\n",
+		    ifp->if_xname);
 
 	/* Attach the interface */
 	ether_ifattach(ifp, eaddr);
@@ -401,6 +400,7 @@ ng_eiface_newhook(node_p node, hook_p hook, const char *name)
 		return (EISCONN);
 	priv->ether = hook;
 	NG_HOOK_SET_PRIVATE(hook, &priv->ether);
+	NG_HOOK_SET_TO_INBOUND(hook);
 
 	if_link_state_change(ifp, LINK_STATE_UP);
 
@@ -452,10 +452,12 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			/* Determine size of response and allocate it */
 			buflen = 0;
+			if_addr_rlock(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 				buflen += SA_SIZE(ifa->ifa_addr);
 			NG_MKRESPONSE(resp, msg, buflen, M_NOWAIT);
 			if (resp == NULL) {
+				if_addr_runlock(ifp);
 				error = ENOMEM;
 				break;
 			}
@@ -474,6 +476,7 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ptr += len;
 				buflen -= len;
 			}
+			if_addr_runlock(ifp);
 			break;
 		    }
 
@@ -546,7 +549,6 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 static int
 ng_eiface_rmnode(node_p node)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ifnet *const ifp = priv->ifp;
 
@@ -587,10 +589,7 @@ ng_eiface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		V_ng_eiface_unit = new_unrhdr(0, 0xffff, NULL);
-		break;
 	case MOD_UNLOAD:
-		delete_unrhdr(V_ng_eiface_unit);
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -598,3 +597,21 @@ ng_eiface_mod_event(module_t mod, int event, void *data)
 	}
 	return (error);
 }
+
+static void
+vnet_ng_eiface_init(const void *unused)
+{
+
+	V_ng_eiface_unit = new_unrhdr(0, 0xffff, NULL);
+}
+VNET_SYSINIT(vnet_ng_eiface_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
+    vnet_ng_eiface_init, NULL);
+
+static void
+vnet_ng_eiface_uninit(const void *unused)
+{
+
+	delete_unrhdr(V_ng_eiface_unit);
+}
+VNET_SYSUNINIT(vnet_ng_eiface_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
+   vnet_ng_eiface_uninit, NULL);

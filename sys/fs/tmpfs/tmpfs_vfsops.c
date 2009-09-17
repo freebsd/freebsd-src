@@ -68,12 +68,11 @@ MALLOC_DEFINE(M_TMPFSNAME, "tmpfs name", "tmpfs file names");
 
 /* --------------------------------------------------------------------- */
 
-static int	tmpfs_mount(struct mount *, struct thread *);
-static int	tmpfs_unmount(struct mount *, int, struct thread *);
-static int	tmpfs_root(struct mount *, int flags, struct vnode **,
-		    struct thread *);
+static int	tmpfs_mount(struct mount *);
+static int	tmpfs_unmount(struct mount *, int);
+static int	tmpfs_root(struct mount *, int flags, struct vnode **);
 static int	tmpfs_fhtovp(struct mount *, struct fid *, struct vnode **);
-static int	tmpfs_statfs(struct mount *, struct statfs *, struct thread *);
+static int	tmpfs_statfs(struct mount *, struct statfs *);
 
 /* --------------------------------------------------------------------- */
 
@@ -178,7 +177,7 @@ tmpfs_node_fini(void *mem, int size)
 }
 
 static int
-tmpfs_mount(struct mount *mp, struct thread *td)
+tmpfs_mount(struct mount *mp)
 {
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
@@ -278,7 +277,7 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 	/* Allocate the root node. */
 	error = tmpfs_alloc_node(tmp, VDIR, root_uid,
 	    root_gid, root_mode & ALLPERMS, NULL, NULL,
-	    VNOVAL, td, &root);
+	    VNOVAL, &root);
 
 	if (error != 0 || root == NULL) {
 	    uma_zdestroy(tmp->tm_node_pool);
@@ -307,7 +306,7 @@ tmpfs_mount(struct mount *mp, struct thread *td)
 
 /* ARGSUSED2 */
 static int
-tmpfs_unmount(struct mount *mp, int mntflags, struct thread *l)
+tmpfs_unmount(struct mount *mp, int mntflags)
 {
 	int error;
 	int flags = 0;
@@ -319,7 +318,7 @@ tmpfs_unmount(struct mount *mp, int mntflags, struct thread *l)
 		flags |= FORCECLOSE;
 
 	/* Finalize all pending I/O. */
-	error = vflush(mp, 0, flags, l);
+	error = vflush(mp, 0, flags, curthread);
 	if (error != 0)
 		return error;
 
@@ -374,10 +373,10 @@ tmpfs_unmount(struct mount *mp, int mntflags, struct thread *l)
 /* --------------------------------------------------------------------- */
 
 static int
-tmpfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
+tmpfs_root(struct mount *mp, int flags, struct vnode **vpp)
 {
 	int error;
-	error = tmpfs_alloc_vp(mp, VFS_TO_TMPFS(mp)->tm_root, flags, vpp, td);
+	error = tmpfs_alloc_vp(mp, VFS_TO_TMPFS(mp)->tm_root, flags, vpp);
 
 	if (!error)
 		(*vpp)->v_vflag |= VV_ROOT;
@@ -417,7 +416,7 @@ tmpfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 	TMPFS_UNLOCK(tmp);
 
 	if (found)
-		return (tmpfs_alloc_vp(mp, node, LK_EXCLUSIVE, vpp, curthread));
+		return (tmpfs_alloc_vp(mp, node, LK_EXCLUSIVE, vpp));
 
 	return (EINVAL);
 }
@@ -426,7 +425,7 @@ tmpfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 
 /* ARGSUSED2 */
 static int
-tmpfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *l)
+tmpfs_statfs(struct mount *mp, struct statfs *sbp)
 {
 	fsfilcnt_t freenodes;
 	struct tmpfs_mount *tmp;

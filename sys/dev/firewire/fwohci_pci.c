@@ -553,4 +553,3 @@ static devclass_t fwohci_devclass;
 MODULE_DEPEND(fwohci, firewire, 1, 1, 1);
 #endif
 DRIVER_MODULE(fwohci, pci, fwohci_driver, fwohci_devclass, 0, 0);
-DRIVER_MODULE(fwohci, cardbus, fwohci_driver, fwohci_devclass, 0, 0);

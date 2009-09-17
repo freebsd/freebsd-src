@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkconf.c,v 1.28.18.16 2007/11/26 23:46:18 tbox Exp $ */
+/* $Id: named-checkconf.c,v 1.46.222.2 2009/02/16 23:47:15 tbox Exp $ */
 
 /*! \file */
 
@@ -47,6 +47,8 @@
 
 #include "check-tool.h"
 
+static const char *program = "named-checkconf";
+
 isc_log_t *logc = NULL;
 
 #define CHECK(r)\
@@ -59,9 +61,9 @@ isc_log_t *logc = NULL;
 /*% usage */
 static void
 usage(void) {
-        fprintf(stderr, "usage: named-checkconf [-j] [-v] [-z] [-t directory] "
-		"[named.conf]\n");
-        exit(1);
+	fprintf(stderr, "usage: %s [-h] [-j] [-v] [-z] [-t directory] "
+		"[named.conf]\n", program);
+	exit(1);
 }
 
 /*% directory callback */
@@ -171,9 +173,9 @@ configure_zone(const char *vclass, const char *view,
 
 	zname = cfg_obj_asstring(cfg_tuple_get(zconfig, "name"));
 	classobj = cfg_tuple_get(zconfig, "class");
-        if (!cfg_obj_isstring(classobj))
-                zclass = vclass;
-        else
+	if (!cfg_obj_isstring(classobj))
+		zclass = vclass;
+	else
 		zclass = cfg_obj_asstring(classobj);
 
 	zoptions = cfg_tuple_get(zconfig, "options");
@@ -192,9 +194,9 @@ configure_zone(const char *vclass, const char *view,
 		return (ISC_R_FAILURE);
 	if (strcasecmp(cfg_obj_asstring(typeobj), "master") != 0)
 		return (ISC_R_SUCCESS);
-        cfg_map_get(zoptions, "database", &dbobj);
-        if (dbobj != NULL)
-                return (ISC_R_SUCCESS);
+	cfg_map_get(zoptions, "database", &dbobj);
+	if (dbobj != NULL)
+		return (ISC_R_SUCCESS);
 	cfg_map_get(zoptions, "file", &fileobj);
 	if (fileobj == NULL)
 		return (ISC_R_FAILURE);
@@ -285,8 +287,8 @@ configure_zone(const char *vclass, const char *view,
 		} else
 			INSIST(0);
 	} else {
-               zone_options |= DNS_ZONEOPT_CHECKNAMES;
-               zone_options |= DNS_ZONEOPT_CHECKNAMESFAIL;
+	       zone_options |= DNS_ZONEOPT_CHECKNAMES;
+	       zone_options |= DNS_ZONEOPT_CHECKNAMESFAIL;
 	}
 
 	masterformat = dns_masterformat_text;
@@ -397,8 +399,10 @@ main(int argc, char **argv) {
 	int exit_status = 0;
 	isc_entropy_t *ectx = NULL;
 	isc_boolean_t load_zones = ISC_FALSE;
-	
-	while ((c = isc_commandline_parse(argc, argv, "djt:vz")) != EOF) {
+
+	isc_commandline_errprint = ISC_FALSE;
+
+	while ((c = isc_commandline_parse(argc, argv, "dhjt:vz")) != EOF) {
 		switch (c) {
 		case 'd':
 			debug++;
@@ -415,12 +419,6 @@ main(int argc, char **argv) {
 					isc_result_totext(result));
 				exit(1);
 			}
-			result = isc_dir_chdir("/");
-			if (result != ISC_R_SUCCESS) {
-				fprintf(stderr, "isc_dir_chdir: %s\n",
-					isc_result_totext(result));
-				exit(1);
-			}
 			break;
 
 		case 'v':
@@ -434,11 +432,22 @@ main(int argc, char **argv) {
 			dochecksrv = ISC_FALSE;
 			break;
 
-		default:
+		case '?':
+			if (isc_commandline_option != '?')
+				fprintf(stderr, "%s: invalid argument -%c\n",
+					program, isc_commandline_option);
+		case 'h':
 			usage();
+
+		default:
+			fprintf(stderr, "%s: unhandled option -%c\n",
+				program, isc_commandline_option);
+			exit(1);
 		}
 	}
 
+	if (isc_commandline_index + 1 < argc)
+		usage();
 	if (argv[isc_commandline_index] != NULL)
 		conffile = argv[isc_commandline_index];
 	if (conffile == NULL || conffile[0] == '\0')
@@ -446,7 +455,7 @@ main(int argc, char **argv) {
 
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);
 
-	RUNTIME_CHECK(setup_logging(mctx, &logc) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(setup_logging(mctx, stdout, &logc) == ISC_R_SUCCESS);
 
 	RUNTIME_CHECK(isc_entropy_create(mctx, &ectx) == ISC_R_SUCCESS);
 	RUNTIME_CHECK(isc_hash_create(mctx, ectx, DNS_NAME_MAXWIRE)

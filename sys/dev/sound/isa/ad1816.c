@@ -26,6 +26,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/isa/ad1816.h>
 
@@ -62,14 +66,14 @@ struct ad1816_info {
 };
 
 static u_int32_t ad1816_fmt[] = {
-	AFMT_U8,
-	AFMT_STEREO | AFMT_U8,
-	AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_MU_LAW,
-	AFMT_STEREO | AFMT_MU_LAW,
-	AFMT_A_LAW,
-	AFMT_STEREO | AFMT_A_LAW,
+	SND_FORMAT(AFMT_U8, 1, 0),
+	SND_FORMAT(AFMT_U8, 2, 0),
+	SND_FORMAT(AFMT_S16_LE, 1, 0),
+	SND_FORMAT(AFMT_S16_LE, 2, 0),
+	SND_FORMAT(AFMT_MU_LAW, 1, 0),
+	SND_FORMAT(AFMT_MU_LAW, 2, 0),
+	SND_FORMAT(AFMT_A_LAW, 1, 0),
+	SND_FORMAT(AFMT_A_LAW, 2, 0),
 	0
 };
 
@@ -269,7 +273,7 @@ ad1816mix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
     	return left | (right << 8);
 }
 
-static int
+static u_int32_t
 ad1816mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	struct ad1816_info *ad1816 = mix_getdevinfo(m);
@@ -303,7 +307,7 @@ static kobj_method_t ad1816mixer_methods[] = {
     	KOBJMETHOD(mixer_init,		ad1816mix_init),
     	KOBJMETHOD(mixer_set,		ad1816mix_set),
     	KOBJMETHOD(mixer_setrecsrc,	ad1816mix_setrecsrc),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 MIXER_DECLARE(ad1816mixer);
 
@@ -315,23 +319,19 @@ ad1816chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channe
 	struct ad1816_info *ad1816 = devinfo;
 	struct ad1816_chinfo *ch = (dir == PCMDIR_PLAY)? &ad1816->pch : &ad1816->rch;
 
+	ch->dir = dir;
 	ch->parent = ad1816;
 	ch->channel = c;
 	ch->buffer = b;
 	if (sndbuf_alloc(ch->buffer, ad1816->parent_dmat, 0, ad1816->bufsize) != 0)
 		return NULL;
+
+	sndbuf_dmasetup(ch->buffer, (dir == PCMDIR_PLAY) ? ad1816->drq1 :
+	    ad1816->drq2);
+	if (SND_DMA(ch->buffer))
+		sndbuf_dmasetdir(ch->buffer, dir);
+
 	return ch;
-}
-
-static int
-ad1816chan_setdir(kobj_t obj, void *data, int dir)
-{
-	struct ad1816_chinfo *ch = data;
-  	struct ad1816_info *ad1816 = ch->parent;
-
-	sndbuf_dmasetup(ch->buffer, (dir == PCMDIR_PLAY)? ad1816->drq1 : ad1816->drq2);
-	ch->dir = dir;
-	return 0;
 }
 
 static int
@@ -351,7 +351,7 @@ ad1816chan_setformat(kobj_t obj, void *data, u_int32_t format)
         	ad1816_write(ad1816, 10, 0x0000);
         	ad1816_write(ad1816, 11, 0x0000);
     	}
-    	switch (format & ~AFMT_STEREO) {
+    	switch (AFMT_ENCODING(format)) {
     	case AFMT_A_LAW:
         	fmt = AD1816_ALAW;
 		break;
@@ -372,7 +372,7 @@ ad1816chan_setformat(kobj_t obj, void *data, u_int32_t format)
 		fmt = AD1816_U8;
 		break;
     	}
-    	if (format & AFMT_STEREO) fmt |= AD1816_STEREO;
+    	if (AFMT_CHANNEL(format) > 1) fmt |= AD1816_STEREO;
     	io_wr(ad1816, reg, fmt);
 	ad1816_unlock(ad1816);
 #if 0
@@ -382,7 +382,7 @@ ad1816chan_setformat(kobj_t obj, void *data, u_int32_t format)
 #endif
 }
 
-static int
+static u_int32_t
 ad1816chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct ad1816_chinfo *ch = data;
@@ -395,7 +395,7 @@ ad1816chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
     	return speed;
 }
 
-static int
+static u_int32_t
 ad1816chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct ad1816_chinfo *ch = data;
@@ -456,7 +456,7 @@ ad1816chan_trigger(kobj_t obj, void *data, int go)
     	return 0;
 }
 
-static int
+static u_int32_t
 ad1816chan_getptr(kobj_t obj, void *data)
 {
 	struct ad1816_chinfo *ch = data;
@@ -471,14 +471,13 @@ ad1816chan_getcaps(kobj_t obj, void *data)
 
 static kobj_method_t ad1816chan_methods[] = {
     	KOBJMETHOD(channel_init,		ad1816chan_init),
-    	KOBJMETHOD(channel_setdir,		ad1816chan_setdir),
     	KOBJMETHOD(channel_setformat,		ad1816chan_setformat),
     	KOBJMETHOD(channel_setspeed,		ad1816chan_setspeed),
     	KOBJMETHOD(channel_setblocksize,	ad1816chan_setblocksize),
     	KOBJMETHOD(channel_trigger,		ad1816chan_trigger),
     	KOBJMETHOD(channel_getptr,		ad1816chan_getptr),
     	KOBJMETHOD(channel_getcaps,		ad1816chan_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(ad1816chan);
 

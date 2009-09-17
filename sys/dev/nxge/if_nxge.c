@@ -2238,7 +2238,7 @@ xge_setmulti(xge_lldev_t *lldev)
 	}
 
 	/* Updating address list */
-	IF_ADDR_LOCK(ifnetp);
+	if_maddr_rlock(ifnetp);
 	index = 0;
 	TAILQ_FOREACH(ifma, &ifnetp->if_multiaddrs, ifma_link) {
 	    if(ifma->ifma_addr->sa_family != AF_LINK) {
@@ -2247,7 +2247,7 @@ xge_setmulti(xge_lldev_t *lldev)
 	    lladdr = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
 	    index += 1;
 	}
-	IF_ADDR_UNLOCK(ifnetp);
+	if_maddr_runlock(ifnetp);
 
 	if((!lldev->all_multicast) && (index)) {
 	    lldev->macaddr_count = (index + 1);
@@ -2263,7 +2263,7 @@ xge_setmulti(xge_lldev_t *lldev)
 	}
 
 	/* Add new addresses */
-	IF_ADDR_LOCK(ifnetp);
+	if_maddr_rlock(ifnetp);
 	index = 0;
 	TAILQ_FOREACH(ifma, &ifnetp->if_multiaddrs, ifma_link) {
 	    if(ifma->ifma_addr->sa_family != AF_LINK) {
@@ -2273,7 +2273,7 @@ xge_setmulti(xge_lldev_t *lldev)
 	    xge_hal_device_macaddr_set(hldev, (offset + index), lladdr);
 	    index += 1;
 	}
-	IF_ADDR_UNLOCK(ifnetp);
+	if_maddr_runlock(ifnetp);
 
 _exit:
 	return;

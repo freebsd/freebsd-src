@@ -110,12 +110,12 @@ __event_dispatch(void)
 		event_del(ev);
 
 		if (ev->flags & EV_HAS_TIMEOUT) {
-			t = now;
-
-			if (tv_cmp(&t, &ev->expire) <= 0)
+			if (tv_cmp(&now, &ev->expire) >= 0)
 				t.tv_sec = t.tv_usec = 0;
-			else
-				tv_sub(&t, &ev->expire);
+			else {
+				t = ev->expire;
+				tv_sub(&t, &now);
+			}
 
 			if (tv_cmp(&t, &timeout) < 0)
 				timeout = t;

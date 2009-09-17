@@ -33,6 +33,12 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
+#ifdef HAVE_SYS_EXTATTR_H
+#include <sys/extattr.h>
+#endif
+#ifdef HAVE_SYS_XATTR_H
+#include <sys/xattr.h>
+#endif
 #ifdef HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
@@ -48,10 +54,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_UTIME_H
 #include <sys/utime.h>
 #endif
-
-#ifdef HAVE_EXT2FS_EXT2_FS_H
-#include <ext2fs/ext2_fs.h>	/* for Linux file flags */
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
@@ -63,6 +65,16 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef HAVE_LINUX_FS_H
 #include <linux/fs.h>	/* for Linux file flags */
+#endif
+/*
+ * Some Linux distributions have both linux/ext2_fs.h and ext2fs/ext2_fs.h.
+ * As the include guards don't agree, the order of include is important.
+ */
+#ifdef HAVE_LINUX_EXT2_FS_H
+#include <linux/ext2_fs.h>	/* for Linux file flags */
+#endif
+#if defined(HAVE_EXT2FS_EXT2_FS_H) && !defined(__CYGWIN__)
+#include <ext2fs/ext2_fs.h>	/* Linux file flags, broken on Cygwin */
 #endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
@@ -278,8 +290,8 @@ archive_write_disk_vtable(void)
 	static int inited = 0;
 
 	if (!inited) {
-		av.archive_write_close = _archive_write_close;
-		av.archive_write_finish = _archive_write_finish;
+		av.archive_close = _archive_write_close;
+		av.archive_finish = _archive_write_finish;
 		av.archive_write_header = _archive_write_header;
 		av.archive_write_finish_entry = _archive_write_finish_entry;
 		av.archive_write_data = _archive_write_data;
@@ -405,12 +417,16 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 		a->mode &= ~S_ISVTX;
 		a->mode &= ~a->user_umask;
 	}
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	if (a->flags & ARCHIVE_EXTRACT_OWNER)
 		a->todo |= TODO_OWNER;
+#endif
 	if (a->flags & ARCHIVE_EXTRACT_TIME)
 		a->todo |= TODO_TIMES;
 	if (a->flags & ARCHIVE_EXTRACT_ACL)
 		a->todo |= TODO_ACLS;
+	if (a->flags & ARCHIVE_EXTRACT_XATTR)
+		a->todo |= TODO_XATTR;
 	if (a->flags & ARCHIVE_EXTRACT_FFLAGS)
 		a->todo |= TODO_FFLAGS;
 	if (a->flags & ARCHIVE_EXTRACT_SECURE_SYMLINKS) {
@@ -424,6 +440,17 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 #endif
 
 	ret = restore_entry(a);
+
+	/*
+	 * On the GNU tar mailing list, some people working with new
+	 * Linux filesystems observed that system xattrs used as
+	 * layout hints need to be restored before the file contents
+	 * are written, so this can't be done at file close.
+	 */
+	if (a->todo & TODO_XATTR) {
+		int r2 = set_xattrs(a);
+		if (r2 < ret) ret = r2;
+	}
 
 #ifdef HAVE_FCHDIR
 	/* If we changed directory above, restore it here. */
@@ -519,6 +546,9 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 	ssize_t bytes_written = 0;
 	ssize_t block_size = 0, bytes_to_write;
 
+	if (size == 0)
+		return (ARCHIVE_OK);
+
 	if (a->filesize == 0 || a->fd < 0) {
 		archive_set_error(&a->archive, 0,
 		    "Attempt to write to an empty file");
@@ -572,7 +602,6 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 			if (a->offset + bytes_to_write > block_end)
 				bytes_to_write = block_end - a->offset;
 		}
-
 		/* Seek if necessary to the specified offset. */
 		if (a->offset != a->fd_offset) {
 			if (lseek(a->fd, a->offset, SEEK_SET) < 0) {
@@ -718,14 +747,18 @@ _archive_write_finish_entry(struct archive *_a)
 		int r2 = set_acls(a);
 		if (r2 < ret) ret = r2;
 	}
-	if (a->todo & TODO_XATTR) {
-		int r2 = set_xattrs(a);
-		if (r2 < ret) ret = r2;
-	}
+	/*
+	 * Some flags prevent file modification; they must be restored after
+	 * file contents are written.
+	 */
 	if (a->todo & TODO_FFLAGS) {
 		int r2 = set_fflags(a);
 		if (r2 < ret) ret = r2;
 	}
+	/*
+	 * Time has to be restored after all other metadata;
+	 * otherwise atime will get changed.
+	 */
 	if (a->todo & TODO_TIMES) {
 		int r2 = set_times(a);
 		if (r2 < ret) ret = r2;
@@ -1010,7 +1043,8 @@ restore_entry(struct archive_write_disk *a)
 
 	if (en) {
 		/* Everything failed; give up here. */
-		archive_set_error(&a->archive, en, "Can't create '%s'", a->name);
+		archive_set_error(&a->archive, en, "Can't create '%s'",
+		    a->name);
 		return (ARCHIVE_FAILED);
 	}
 
@@ -1186,7 +1220,11 @@ _archive_write_close(struct archive *_a)
 		if (p->fixup & TODO_TIMES) {
 #ifdef HAVE_UTIMES
 			/* {f,l,}utimes() are preferred, when available. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+			struct __timeval times[2];
+#else
 			struct timeval times[2];
+#endif
 			times[0].tv_sec = p->atime;
 			times[0].tv_usec = p->atime_nanos / 1000;
 #ifdef HAVE_STRUCT_STAT_ST_BIRTHTIME
@@ -1240,6 +1278,8 @@ _archive_write_finish(struct archive *_a)
 		(a->cleanup_gid)(a->lookup_gid_data);
 	if (a->cleanup_uid != NULL && a->lookup_uid_data != NULL)
 		(a->cleanup_uid)(a->lookup_uid_data);
+	if (a->entry)
+		archive_entry_free(a->entry);
 	archive_string_free(&a->_name_data);
 	archive_string_free(&a->archive.error_string);
 	archive_string_free(&a->path_safe);
@@ -1439,6 +1479,57 @@ check_symlinks(struct archive_write_disk *a)
 	return (ARCHIVE_OK);
 }
 
+#if defined(_WIN32) || defined(__CYGWIN__)
+/*
+ * 1. Convert a path separator from '\' to '/' .
+ *    We shouldn't check multi-byte character directly because some
+ *    character-set have been using the '\' character for a part of
+ *    its multibyte character code.
+ * 2. Replace unusable characters in Windows with underscore('_').
+ * See also : http://msdn.microsoft.com/en-us/library/aa365247.aspx
+ */
+static void
+cleanup_pathname_win(struct archive_write_disk *a)
+{
+	wchar_t wc;
+	char *p;
+	size_t alen, l;
+
+	alen = 0;
+	l = 0;
+	for (p = a->name; *p != '\0'; p++) {
+		++alen;
+		if (*p == '\\')
+			l = 1;
+		/* Rewrite the path name if its character is a unusable. */
+		if (*p == ':' || *p == '*' || *p == '?' || *p == '"' ||
+		    *p == '<' || *p == '>' || *p == '|')
+			*p = '_';
+	}
+	if (alen == 0 || l == 0)
+		return;
+	/*
+	 * Convert path separator.
+	 */
+	p = a->name;
+	while (*p != '\0' && alen) {
+		l = mbtowc(&wc, p, alen);
+		if (l == -1) {
+			while (*p != '\0') {
+				if (*p == '\\')
+					*p = '/';
+				++p;
+			}
+			break;
+		}
+		if (l == 1 && wc == L'\\')
+			*p = '/';
+		p += l;
+		alen -= l;
+	}
+}
+#endif
+
 /*
  * Canonicalize the pathname.  In particular, this strips duplicate
  * '/' characters, '.' elements, and trailing '/'.  It also raises an
@@ -1458,6 +1549,9 @@ cleanup_pathname(struct archive_write_disk *a)
 		return (ARCHIVE_FAILED);
 	}
 
+#if defined(_WIN32) || defined(__CYGWIN__)
+	cleanup_pathname_win(a);
+#endif
 	/* Skip leading '/'. */
 	if (*src == '/')
 		separator = *src++;
@@ -1651,7 +1745,8 @@ create_dir(struct archive_write_disk *a, char *path)
 	if (stat(path, &st) == 0 && S_ISDIR(st.st_mode))
 		return (ARCHIVE_OK);
 
-	archive_set_error(&a->archive, errno, "Failed to create dir '%s'", path);
+	archive_set_error(&a->archive, errno, "Failed to create dir '%s'",
+	    path);
 	return (ARCHIVE_FAILED);
 }
 
@@ -1668,12 +1763,17 @@ create_dir(struct archive_write_disk *a, char *path)
 static int
 set_ownership(struct archive_write_disk *a)
 {
+#ifndef __CYGWIN__
+/* unfortunately, on win32 there is no 'root' user with uid 0,
+   so we just have to try the chown and see if it works */
+
 	/* If we know we can't change it, don't bother trying. */
 	if (a->user_uid != 0  &&  a->user_uid != a->uid) {
 		archive_set_error(&a->archive, errno,
 		    "Can't set UID=%d", a->uid);
 		return (ARCHIVE_WARN);
 	}
+#endif
 
 #ifdef HAVE_FCHOWN
 	/* If we have an fd, we can avoid a race. */
@@ -1717,7 +1817,11 @@ set_time(int fd, int mode, const char *name,
     time_t atime, long atime_nsec,
     time_t mtime, long mtime_nsec)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	struct __timeval times[2];
+#else
 	struct timeval times[2];
+#endif
 
 	times[0].tv_sec = atime;
 	times[0].tv_usec = atime_nsec / 1000;
@@ -1850,6 +1954,7 @@ set_mode(struct archive_write_disk *a, int mode)
 			return (r);
 		if (a->pst->st_gid != a->gid) {
 			mode &= ~ S_ISGID;
+#if !defined(_WIN32) || defined(__CYGWIN__)
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				/*
 				 * This is only an error if you
@@ -1862,16 +1967,19 @@ set_mode(struct archive_write_disk *a, int mode)
 				    "Can't restore SGID bit");
 				r = ARCHIVE_WARN;
 			}
+#endif
 		}
 		/* While we're here, double-check the UID. */
 		if (a->pst->st_uid != a->uid
 		    && (a->todo & TODO_SUID)) {
 			mode &= ~ S_ISUID;
+#if !defined(_WIN32) || defined(__CYGWIN__)
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				archive_set_error(&a->archive, -1,
 				    "Can't restore SUID bit");
 				r = ARCHIVE_WARN;
 			}
+#endif
 		}
 		a->todo &= ~TODO_SGID_CHECK;
 		a->todo &= ~TODO_SUID_CHECK;
@@ -1883,11 +1991,13 @@ set_mode(struct archive_write_disk *a, int mode)
 		 */
 		if (a->user_uid != a->uid) {
 			mode &= ~ S_ISUID;
+#if !defined(_WIN32) || defined(__CYGWIN__)
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
 				archive_set_error(&a->archive, -1,
 				    "Can't make file SUID");
 				r = ARCHIVE_WARN;
 			}
+#endif
 		}
 		a->todo &= ~TODO_SUID_CHECK;
 	}
@@ -2316,6 +2426,71 @@ set_xattrs(struct archive_write_disk *a)
 	}
 	return (ret);
 }
+#elif HAVE_EXTATTR_SET_FILE
+/*
+ * Restore extended attributes -  FreeBSD implementation
+ */
+static int
+set_xattrs(struct archive_write_disk *a)
+{
+	struct archive_entry *entry = a->entry;
+	static int warning_done = 0;
+	int ret = ARCHIVE_OK;
+	int i = archive_entry_xattr_reset(entry);
+
+	while (i--) {
+		const char *name;
+		const void *value;
+		size_t size;
+		archive_entry_xattr_next(entry, &name, &value, &size);
+		if (name != NULL) {
+			int e;
+			int namespace;
+
+			if (strncmp(name, "user.", 5) == 0) {
+				/* "user." attributes go to user namespace */
+				name += 5;
+				namespace = EXTATTR_NAMESPACE_USER;
+			} else {
+				/* Warn about other extended attributes. */
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Can't restore extended attribute ``%s''",
+				    name);
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+			errno = 0;
+#if HAVE_EXTATTR_SET_FD
+			if (a->fd >= 0)
+				e = extattr_set_fd(a->fd, namespace, name, value, size);
+			else
+#endif
+			/* TODO: should we use extattr_set_link() instead? */
+			{
+				e = extattr_set_file(archive_entry_pathname(entry),
+				    namespace, name, value, size);
+			}
+			if (e != (int)size) {
+				if (errno == ENOTSUP) {
+					if (!warning_done) {
+						warning_done = 1;
+						archive_set_error(&a->archive, errno,
+						    "Cannot restore extended "
+						    "attributes on this file "
+						    "system");
+					}
+				} else {
+					archive_set_error(&a->archive, errno,
+					    "Failed to set extended attribute");
+				}
+
+				ret = ARCHIVE_WARN;
+			}
+		}
+	}
+	return (ret);
+}
 #else
 /*
  * Restore extended attributes - stub implementation for unsupported systems
@@ -2378,19 +2553,25 @@ older(struct stat *st, struct archive_entry *entry)
 	/* Definitely older. */
 	if (st->st_mtimespec.tv_nsec < archive_entry_mtime_nsec(entry))
 		return (1);
-	/* Definitely younger. */
-	if (st->st_mtimespec.tv_nsec > archive_entry_mtime_nsec(entry))
-		return (0);
 #elif HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
 	/* Definitely older. */
 	if (st->st_mtim.tv_nsec < archive_entry_mtime_nsec(entry))
 		return (1);
-	/* Definitely older. */
-	if (st->st_mtim.tv_nsec > archive_entry_mtime_nsec(entry))
-		return (0);
+#elif HAVE_STRUCT_STAT_ST_MTIME_N
+	/* older. */
+	if (st->st_mtime_n < archive_entry_mtime_nsec(entry))
+		return (1);
+#elif HAVE_STRUCT_STAT_ST_UMTIME
+	/* older. */
+	if (st->st_umtime * 1000 < archive_entry_mtime_nsec(entry))
+		return (1);
+#elif HAVE_STRUCT_STAT_ST_MTIME_USEC
+	/* older. */
+	if (st->st_mtime_usec * 1000 < archive_entry_mtime_nsec(entry))
+		return (1);
 #else
 	/* This system doesn't have high-res timestamps. */
 #endif
-	/* Same age, so not older. */
+	/* Same age or newer, so not older. */
 	return (0);
 }

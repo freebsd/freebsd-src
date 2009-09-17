@@ -1,4 +1,4 @@
-.\"	$NetBSD: gzip.1,v 1.19 2008/05/29 14:51:27 mrg Exp $
+.\"	$NetBSD: gzip.1,v 1.20 2009/04/01 08:15:37 mrg Exp $
 .\"
 .\" Copyright (c) 1997, 2003, 2004 Matthew R. Green
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 30, 2008
+.Dd June 24, 2009
 .Dt GZIP 1
 .Os
 .Sh NAME
@@ -152,8 +152,8 @@ embedded in the file.
 This option causes the stored filename in the input file to be used
 as the output file.
 .It Fl n , -no-name
-This option stops the filename from being stored in the output
-file.
+This option stops the filename and timestamp from being stored in
+the output file.
 .It Fl q , -quiet
 With this option, no warnings or errors are printed.
 .It Fl r , -recursive
@@ -206,7 +206,7 @@ This implementation of
 was ported based on the
 .Nx
 .Nm
-20060927, and first appeared in
+20090412, and first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 This implementation of

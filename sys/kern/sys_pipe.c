@@ -91,8 +91,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -164,10 +162,16 @@ static void	filt_pipedetach(struct knote *kn);
 static int	filt_piperead(struct knote *kn, long hint);
 static int	filt_pipewrite(struct knote *kn, long hint);
 
-static struct filterops pipe_rfiltops =
-	{ 1, NULL, filt_pipedetach, filt_piperead };
-static struct filterops pipe_wfiltops =
-	{ 1, NULL, filt_pipedetach, filt_pipewrite };
+static struct filterops pipe_rfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_pipedetach,
+	.f_event = filt_piperead
+};
+static struct filterops pipe_wfiltops = {
+	.f_isfd = 1,
+	.f_detach = filt_pipedetach,
+	.f_event = filt_pipewrite
+};
 
 /*
  * Default pipe buffer size(s), this can be kind-of large now because pipe
@@ -178,15 +182,15 @@ static struct filterops pipe_wfiltops =
 #define MINPIPESIZE (PIPE_SIZE/3)
 #define MAXPIPESIZE (2*PIPE_SIZE/3)
 
-static int amountpipekva;
+static long amountpipekva;
 static int pipefragretry;
 static int pipeallocfail;
 static int piperesizefail;
 static int piperesizeallowed = 1;
 
-SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN,
+SYSCTL_LONG(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN,
 	   &maxpipekva, 0, "Pipe KVA limit");
-SYSCTL_INT(_kern_ipc, OID_AUTO, pipekva, CTLFLAG_RD,
+SYSCTL_LONG(_kern_ipc, OID_AUTO, pipekva, CTLFLAG_RD,
 	   &amountpipekva, 0, "Pipe KVA usage");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipefragretry, CTLFLAG_RD,
 	  &pipefragretry, 0, "Pipe allocation retries due to fragmentation");
@@ -330,10 +334,8 @@ kern_pipe(struct thread *td, int fildes[2])
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
 
-	knlist_init(&rpipe->pipe_sel.si_note, PIPE_MTX(rpipe), NULL, NULL,
-	    NULL);
-	knlist_init(&wpipe->pipe_sel.si_note, PIPE_MTX(wpipe), NULL, NULL,
-	    NULL);
+	knlist_init_mtx(&rpipe->pipe_sel.si_note, PIPE_MTX(rpipe));
+	knlist_init_mtx(&wpipe->pipe_sel.si_note, PIPE_MTX(wpipe));
 
 	/* Only the forward direction pipe is backed by default */
 	if ((error = pipe_create(rpipe, 1)) != 0 ||
@@ -463,7 +465,7 @@ retry:
 	cpipe->pipe_buffer.in = cnt;
 	cpipe->pipe_buffer.out = 0;
 	cpipe->pipe_buffer.cnt = cnt;
-	atomic_add_int(&amountpipekva, cpipe->pipe_buffer.size);
+	atomic_add_long(&amountpipekva, cpipe->pipe_buffer.size);
 	return (0);
 }
 
@@ -761,6 +763,8 @@ pipe_build_write_buffer(wpipe, uio)
 	pmap = vmspace_pmap(curproc->p_vmspace);
 	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
 	addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
+	if (endaddr < addr)
+		return (EFAULT);
 	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
 		/*
 		 * vm_fault_quick() can sleep.  Consequently,
@@ -1355,8 +1359,7 @@ pipe_poll(fp, events, active_cred, td)
 #endif
 	if (events & (POLLIN | POLLRDNORM))
 		if ((rpipe->pipe_state & PIPE_DIRECTW) ||
-		    (rpipe->pipe_buffer.cnt > 0) ||
-		    (rpipe->pipe_state & PIPE_EOF))
+		    (rpipe->pipe_buffer.cnt > 0))
 			revents |= events & (POLLIN | POLLRDNORM);
 
 	if (events & (POLLOUT | POLLWRNORM))
@@ -1366,10 +1369,14 @@ pipe_poll(fp, events, active_cred, td)
 		     (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
-	if ((rpipe->pipe_state & PIPE_EOF) ||
-	    wpipe->pipe_present != PIPE_ACTIVE ||
-	    (wpipe->pipe_state & PIPE_EOF))
-		revents |= POLLHUP;
+	if ((events & POLLINIGNEOF) == 0) {
+		if (rpipe->pipe_state & PIPE_EOF) {
+			revents |= (events & (POLLIN | POLLRDNORM));
+			if (wpipe->pipe_present != PIPE_ACTIVE ||
+			    (wpipe->pipe_state & PIPE_EOF))
+				revents |= POLLHUP;
+		}
+	}
 
 	if (revents == 0) {
 		if (events & (POLLIN | POLLRDNORM)) {
@@ -1457,7 +1464,7 @@ pipe_free_kmem(cpipe)
 	    ("pipe_free_kmem: pipe mutex locked"));
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
-		atomic_subtract_int(&amountpipekva, cpipe->pipe_buffer.size);
+		atomic_subtract_long(&amountpipekva, cpipe->pipe_buffer.size);
 		vm_map_remove(pipe_map,
 		    (vm_offset_t)cpipe->pipe_buffer.buffer,
 		    (vm_offset_t)cpipe->pipe_buffer.buffer + cpipe->pipe_buffer.size);

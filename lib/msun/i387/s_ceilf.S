@@ -27,3 +27,4 @@ ENTRY(ceilf)
 
 	leave
 	ret
+END(ceilf)

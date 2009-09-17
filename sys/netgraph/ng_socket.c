@@ -67,6 +67,9 @@
 #ifdef NOTYET
 #include <sys/vnode.h>
 #endif
+
+#include <net/vnet.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_socketvar.h>
@@ -1112,17 +1115,12 @@ ngs_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		/* Register protocol domain. */
-		net_add_domain(&ngdomain);
 		break;
 	case MOD_UNLOAD:
 #ifdef NOTYET
 		/* Unregister protocol domain XXX can't do this yet.. */
-		if ((error = net_rm_domain(&ngdomain)) != 0)
-			break;
-		else
 #endif
-			error = EBUSY;
+		error = EBUSY;
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -1130,6 +1128,8 @@ ngs_mod_event(module_t mod, int event, void *data)
 	}
 	return (error);
 }
+
+VNET_DOMAIN_SET(ng);
 
 SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, 0, AF_NETGRAPH, "");
 SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW, 0, "DATA");

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.bind.c,v 3.44 2006/03/02 18:46:44 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.bind.c,v 3.45 2009/06/25 21:15:37 christos Exp $ */
 /*
  * tc.bind.c: Key binding functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.bind.c,v 3.44 2006/03/02 18:46:44 christos Exp $")
+RCSID("$tcsh: tc.bind.c,v 3.45 2009/06/25 21:15:37 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"
@@ -382,7 +382,7 @@ parsestring(const Char *str, CStr *buf)
     eChar  es;
 
     if (*str == 0) {
-	xprintf(CGETS(20, 5, "Null string specification\n"));
+	xprintf("%s", CGETS(20, 5, "Null string specification\n"));
 	return NULL;
     }
 
@@ -415,7 +415,7 @@ print_all_keys(void)
     nilstr.len = 0;
 
 
-    xprintf(CGETS(20, 6, "Standard key bindings\n"));
+    xprintf("%s", CGETS(20, 6, "Standard key bindings\n"));
     prev = 0;
     for (i = 0; i < 256; i++) {
 	if (CcKeyMap[prev] == CcKeyMap[i])
@@ -425,7 +425,7 @@ print_all_keys(void)
     }
     printkeys(CcKeyMap, prev, i - 1);
 
-    xprintf(CGETS(20, 7, "Alternative key bindings\n"));
+    xprintf("%s", CGETS(20, 7, "Alternative key bindings\n"));
     prev = 0;
     for (i = 0; i < 256; i++) {
 	if (CcAltMap[prev] == CcAltMap[i])
@@ -434,9 +434,9 @@ print_all_keys(void)
 	prev = i;
     }
     printkeys(CcAltMap, prev, i - 1);
-    xprintf(CGETS(20, 8, "Multi-character bindings\n"));
+    xprintf("%s", CGETS(20, 8, "Multi-character bindings\n"));
     PrintXkey(NULL);	/* print all Xkey bindings */
-    xprintf(CGETS(20, 9, "Arrow key bindings\n"));
+    xprintf("%s", CGETS(20, 9, "Arrow key bindings\n"));
     PrintArrowKeys(&nilstr);
 }
 
@@ -492,36 +492,36 @@ printkeys(KEYCMD *map, int first, int last)
 static void
 bindkey_usage(void)
 {
-    xprintf(CGETS(20, 12,
+    xprintf("%s", CGETS(20, 12,
 	    "Usage: bindkey [options] [--] [KEY [COMMAND]]\n"));
-    xprintf(CGETS(20, 13,
+    xprintf("%s", CGETS(20, 13,
     	    "    -a   list or bind KEY in alternative key map\n"));
-    xprintf(CGETS(20, 14,
+    xprintf("%s", CGETS(20, 14,
 	    "    -b   interpret KEY as a C-, M-, F- or X- key name\n"));
-    xprintf(CGETS(20, 15,
+    xprintf("%s", CGETS(20, 15,
             "    -s   interpret COMMAND as a literal string to be output\n"));
-    xprintf(CGETS(20, 16,
+    xprintf("%s", CGETS(20, 16,
             "    -c   interpret COMMAND as a builtin or external command\n"));
-    xprintf(CGETS(20, 17,
+    xprintf("%s", CGETS(20, 17,
 	    "    -v   bind all keys to vi bindings\n"));
-    xprintf(CGETS(20, 18,
+    xprintf("%s", CGETS(20, 18,
 	    "    -e   bind all keys to emacs bindings\n"));
-    xprintf(CGETS(20, 19,
+    xprintf("%s", CGETS(20, 19,
 	    "    -d   bind all keys to default editor's bindings\n"));
-    xprintf(CGETS(20, 20,
+    xprintf("%s", CGETS(20, 20,
 	    "    -l   list editor commands with descriptions\n"));
-    xprintf(CGETS(20, 21,
+    xprintf("%s", CGETS(20, 21,
 	    "    -r   remove KEY's binding\n"));
-    xprintf(CGETS(20, 22,
+    xprintf("%s", CGETS(20, 22,
 	    "    -k   interpret KEY as a symbolic arrow-key name\n"));
-    xprintf(CGETS(20, 23,
+    xprintf("%s", CGETS(20, 23,
 	    "    --   force a break from option processing\n"));
-    xprintf(CGETS(20, 24,
+    xprintf("%s", CGETS(20, 24,
 	    "    -u   (or any invalid option) this message\n"));
     xprintf("\n");
-    xprintf(CGETS(20, 25,
+    xprintf("%s", CGETS(20, 25,
 	    "Without KEY or COMMAND, prints all bindings\n"));
-    xprintf(CGETS(20, 26,
+    xprintf("%s", CGETS(20, 26,
 	    "Without COMMAND, prints the binding for KEY.\n"));
 }
 

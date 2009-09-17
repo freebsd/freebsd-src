@@ -57,7 +57,7 @@ extern int seq_debug;
 		if (seq_debug >= y) {	\
 			(x);		\
 		}			\
-	} while(0)
+	} while (0)
 
 SYSCTL_DECL(_hw_midi);
 

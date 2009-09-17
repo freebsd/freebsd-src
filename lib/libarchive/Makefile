@@ -1,15 +1,26 @@
 # $FreeBSD$
+.include <bsd.own.mk>
 
 LIB=	archive
-DPADD=	${LIBBZ2} ${LIBZ}
-LDADD=	-lbz2 -lz
+DPADD=	${LIBBZ2} ${LIBZ} ${LIBMD}
+LDADD=	-lbz2 -lz -lmd
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
-SHLIB_MAJOR= 4
+SHLIB_MAJOR= 5
 
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 CFLAGS+=	-I${.OBJDIR}
+#Uncomment to build with full lzma/xz support via liblzma
+#liblzma is not (yet?) part of the FreeBSD base system
+#CFLAGS+= -I/usr/local/include -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
+#LDADD+= -L/usr/local/lib -llzma
+
+.if ${MK_OPENSSL} != "no"
+CFLAGS+=	-DWITH_OPENSSL
+DPADD+=	${LIBCRYPTO}
+LDADD+=	-lcrypto
+.endif
 
 WARNS?=	6
 
@@ -25,6 +36,9 @@ SRCS=	archive_check_magic.c				\
 	archive_entry_link_resolver.c			\
 	archive_read.c					\
 	archive_read_data_into_fd.c			\
+	archive_read_disk.c				\
+	archive_read_disk_entry_from_file.c		\
+	archive_read_disk_set_standard_lookup.c		\
 	archive_read_extract.c				\
 	archive_read_open_fd.c				\
 	archive_read_open_file.c			\
@@ -36,12 +50,14 @@ SRCS=	archive_check_magic.c				\
 	archive_read_support_compression_gzip.c		\
 	archive_read_support_compression_none.c		\
 	archive_read_support_compression_program.c	\
+	archive_read_support_compression_xz.c		\
 	archive_read_support_format_all.c		\
 	archive_read_support_format_ar.c		\
 	archive_read_support_format_cpio.c		\
 	archive_read_support_format_empty.c		\
 	archive_read_support_format_iso9660.c		\
 	archive_read_support_format_mtree.c		\
+	archive_read_support_format_raw.c		\
 	archive_read_support_format_tar.c		\
 	archive_read_support_format_zip.c		\
 	archive_string.c				\
@@ -60,6 +76,7 @@ SRCS=	archive_check_magic.c				\
 	archive_write_set_compression_gzip.c		\
 	archive_write_set_compression_none.c		\
 	archive_write_set_compression_program.c		\
+	archive_write_set_compression_xz.c		\
 	archive_write_set_format.c			\
 	archive_write_set_format_ar.c			\
 	archive_write_set_format_by_name.c		\
@@ -74,6 +91,7 @@ SRCS=	archive_check_magic.c				\
 # Man pages to be installed.
 MAN=	archive_entry.3					\
 	archive_read.3					\
+	archive_read_disk.3				\
 	archive_util.3					\
 	archive_write.3					\
 	archive_write_disk.3				\
@@ -165,6 +183,7 @@ MLINKS+=	archive_read.3 archive_read_extract_set_skip_file.3
 MLINKS+=	archive_read.3 archive_read_finish.3
 MLINKS+=	archive_read.3 archive_read_new.3
 MLINKS+=	archive_read.3 archive_read_next_header.3
+MLINKS+=	archive_read.3 archive_read_next_header2.3
 MLINKS+=	archive_read.3 archive_read_open.3
 MLINKS+=	archive_read.3 archive_read_open2.3
 MLINKS+=	archive_read.3 archive_read_open_FILE.3
@@ -176,13 +195,29 @@ MLINKS+=	archive_read.3 archive_read_support_compression_all.3
 MLINKS+=	archive_read.3 archive_read_support_compression_bzip2.3
 MLINKS+=	archive_read.3 archive_read_support_compression_compress.3
 MLINKS+=	archive_read.3 archive_read_support_compression_gzip.3
+MLINKS+=	archive_read.3 archive_read_support_compression_lzma.3
 MLINKS+=	archive_read.3 archive_read_support_compression_none.3
 MLINKS+=	archive_read.3 archive_read_support_compression_program.3
+MLINKS+=	archive_read.3 archive_read_support_compression_program_signature.3
+MLINKS+=	archive_read.3 archive_read_support_compression_xz.3
 MLINKS+=	archive_read.3 archive_read_support_format_all.3
+MLINKS+=	archive_read.3 archive_read_support_format_ar.3
 MLINKS+=	archive_read.3 archive_read_support_format_cpio.3
+MLINKS+=	archive_read.3 archive_read_support_format_empty.3
 MLINKS+=	archive_read.3 archive_read_support_format_iso9660.3
+MLINKS+=	archive_read.3 archive_read_support_format_raw.3
 MLINKS+=	archive_read.3 archive_read_support_format_tar.3
 MLINKS+=	archive_read.3 archive_read_support_format_zip.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_entry_from_file.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_gname.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_new.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_gname_lookup.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_standard_lookup.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_symlink_hybrid.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_symlink_logical.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_symlink_physical.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_set_uname_lookup.3
+MLINKS+=	archive_read_disk.3 archive_read_disk_uname.3
 MLINKS+=	archive_util.3 archive_clear_error.3
 MLINKS+=	archive_util.3 archive_compression.3
 MLINKS+=	archive_util.3 archive_compression_name.3

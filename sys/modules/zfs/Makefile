@@ -16,19 +16,20 @@ SRCS+=	nvpair.c
 SRCS+=	u8_textprep.c
 
 .PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
+SRCS+=	opensolaris_acl.c
 SRCS+=	opensolaris_kmem.c
 SRCS+=	opensolaris_kobj.c
 SRCS+=	opensolaris_kstat.c
 SRCS+=	opensolaris_lookup.c
-SRCS+=	opensolaris_misc.c
 SRCS+=	opensolaris_policy.c
 SRCS+=	opensolaris_string.c
+SRCS+=	opensolaris_taskq.c
 SRCS+=	opensolaris_vfs.c
 SRCS+=	opensolaris_zone.c
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64" || ${MACHINE_ARCH} == "sparc64"
 .PATH:	${SUNW}/common/atomic/${MACHINE_ARCH}
-SRCS+=	atomic.S
+SRCS+=	opensolaris_atomic.S
 .else
 .PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
 SRCS+=	opensolaris_atomic.c
@@ -42,16 +43,10 @@ SRCS+=	vnode.c
 SRCS+=	callb.c
 SRCS+=	list.c
 SRCS+=	nvpair_alloc_system.c
-SRCS+=	taskq.c
-
-.PATH:	${SUNW}/uts/common/rpc
-SRCS+=	xdr.c
-SRCS+=	xdr_array.c
-SRCS+=	xdr_mem.c
 
 .PATH:	${SUNW}/uts/common/zmod
 SRCS+=	adler32.c
-SRCS+=	crc32.c
+SRCS+=	opensolaris_crc32.c
 SRCS+=	deflate.c
 SRCS+=	inffast.c
 SRCS+=	inflate.c

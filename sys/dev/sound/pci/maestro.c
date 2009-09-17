@@ -47,6 +47,10 @@
  * John Baldwin <jhb@freebsd.org>.
  */
 
+#ifdef HAVE_KERNEL_OPTION_HEADERS
+#include "opt_snd.h"
+#endif
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <dev/pci/pcireg.h>
@@ -157,9 +161,7 @@ struct agg_info {
 	bus_dma_tag_t		stat_dmat;
 
 	/* FreeBSD SMPng related */
-#ifdef USING_MUTEX
 	struct mtx		lock;	/* mutual exclusion */
-#endif
 	/* FreeBSD newpcm related */
 	struct ac97_info	*codec;
 
@@ -278,11 +280,7 @@ agg_sleep(struct agg_info *sc, const char *wmesg, int msec)
 	timo = msec * hz / 1000;
 	if (timo == 0)
 		timo = 1;
-#ifdef USING_MUTEX
 	msleep(sc, &sc->lock, PWAIT, wmesg, timo);
-#else
-	tsleep(sc, PWAIT, wmesg, timo);
-#endif
 }
 
 
@@ -1266,7 +1264,7 @@ static kobj_method_t agg_ac97_methods[] = {
     	KOBJMETHOD(ac97_init,		agg_ac97_init),
     	KOBJMETHOD(ac97_read,		agg_ac97_read),
     	KOBJMETHOD(ac97_write,		agg_ac97_write),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 AC97_DECLARE(agg_ac97);
 
@@ -1370,7 +1368,7 @@ aggpch_setformat(kobj_t obj, void *data, u_int32_t format)
 	if (format & AFMT_BIGENDIAN || format & AFMT_U16_LE)
 		return EINVAL;
 	ch->stereo = ch->qs16 = ch->us = 0;
-	if (format & AFMT_STEREO)
+	if (AFMT_CHANNEL(format) > 1)
 		ch->stereo = 1;
 
 	if (format & AFMT_U8 || format & AFMT_S8) {
@@ -1381,13 +1379,16 @@ aggpch_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static int
+static u_int32_t
 aggpch_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
-	return ((struct agg_chinfo*)data)->speed = speed;
+
+	((struct agg_chinfo*)data)->speed = speed;
+
+	return (speed);
 }
 
-static int
+static u_int32_t
 aggpch_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct agg_chinfo *ch = data;
@@ -1430,11 +1431,11 @@ aggpch_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 aggpch_getptr(kobj_t obj, void *data)
 {
 	struct agg_chinfo *ch = data;
-	u_int cp;
+	u_int32_t cp;
 
 	agg_lock(ch->parent);
 	cp = wp_rdapu(ch->parent, (ch->num << 1) | 32, APUREG_CURPTR);
@@ -1449,12 +1450,12 @@ static struct pcmchan_caps *
 aggpch_getcaps(kobj_t obj, void *data)
 {
 	static u_int32_t playfmt[] = {
-		AFMT_U8,
-		AFMT_STEREO | AFMT_U8,
-		AFMT_S8,
-		AFMT_STEREO | AFMT_S8,
-		AFMT_S16_LE,
-		AFMT_STEREO | AFMT_S16_LE,
+		SND_FORMAT(AFMT_U8, 1, 0),
+		SND_FORMAT(AFMT_U8, 2, 0),
+		SND_FORMAT(AFMT_S8, 1, 0),
+		SND_FORMAT(AFMT_S8, 2, 0),
+		SND_FORMAT(AFMT_S16_LE, 1, 0),
+		SND_FORMAT(AFMT_S16_LE, 2, 0),
 		0
 	};
 	static struct pcmchan_caps playcaps = {8000, 48000, playfmt, 0};
@@ -1472,7 +1473,7 @@ static kobj_method_t aggpch_methods[] = {
     	KOBJMETHOD(channel_trigger,		aggpch_trigger),
     	KOBJMETHOD(channel_getptr,		aggpch_getptr),
     	KOBJMETHOD(channel_getcaps,		aggpch_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(aggpch);
 
@@ -1519,20 +1520,23 @@ aggrch_setformat(kobj_t obj, void *data, u_int32_t format)
 
 	if (!(format & AFMT_S16_LE))
 		return EINVAL;
-	if (format & AFMT_STEREO)
+	if (AFMT_CHANNEL(format) > 1)
 		ch->stereo = 1;
 	else
 		ch->stereo = 0;
 	return 0;
 }
 
-static int
+static u_int32_t
 aggrch_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
-	return ((struct agg_rchinfo*)data)->speed = speed;
+
+	((struct agg_rchinfo*)data)->speed = speed;
+
+	return (speed);
 }
 
-static int
+static u_int32_t
 aggrch_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct agg_rchinfo *ch = data;
@@ -1579,7 +1583,7 @@ aggrch_trigger(kobj_t obj, void *sc, int go)
 	return 0;
 }
 
-static int
+static u_int32_t
 aggrch_getptr(kobj_t obj, void *sc)
 {
 	struct agg_rchinfo *ch = sc;
@@ -1591,8 +1595,8 @@ static struct pcmchan_caps *
 aggrch_getcaps(kobj_t obj, void *sc)
 {
 	static u_int32_t recfmt[] = {
-		AFMT_S16_LE,
-		AFMT_STEREO | AFMT_S16_LE,
+		SND_FORMAT(AFMT_S16_LE, 1, 0),
+		SND_FORMAT(AFMT_S16_LE, 2, 0),
 		0
 	};
 	static struct pcmchan_caps reccaps = {8000, 48000, recfmt, 0};
@@ -1609,7 +1613,7 @@ static kobj_method_t aggrch_methods[] = {
 	KOBJMETHOD(channel_trigger,		aggrch_trigger),
 	KOBJMETHOD(channel_getptr,		aggrch_getptr),
 	KOBJMETHOD(channel_getcaps,		aggrch_getcaps),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(aggrch);
 
@@ -1776,7 +1780,6 @@ agg_attach(device_t dev)
 	ess = malloc(sizeof(*ess), M_DEVBUF, M_WAITOK | M_ZERO);
 	ess->dev = dev;
 
-#ifdef USING_MUTEX
 	mtx_init(&ess->lock, device_get_desc(dev), "snd_maestro softc",
 		 MTX_DEF | MTX_RECURSE);
 	if (!mtx_initialized(&ess->lock)) {
@@ -1784,7 +1787,6 @@ agg_attach(device_t dev)
 		ret = ENOMEM;
 		goto bad;
 	}
-#endif
 
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "dac", &dacn) == 0) {
@@ -1941,10 +1943,8 @@ agg_attach(device_t dev)
 			bus_dma_tag_destroy(ess->stat_dmat);
 		if (ess->buf_dmat != NULL)
 			bus_dma_tag_destroy(ess->buf_dmat);
-#ifdef USING_MUTEX
 		if (mtx_initialized(&ess->lock))
 			mtx_destroy(&ess->lock);
-#endif
 		free(ess, M_DEVBUF);
 	}
 
@@ -1985,9 +1985,7 @@ agg_detach(device_t dev)
 	dma_free(ess->stat_dmat, ess->stat);
 	bus_dma_tag_destroy(ess->stat_dmat);
 	bus_dma_tag_destroy(ess->buf_dmat);
-#ifdef USING_MUTEX
 	mtx_destroy(&ess->lock);
-#endif
 	free(ess, M_DEVBUF);
 	return 0;
 }
@@ -1996,18 +1994,11 @@ static int
 agg_suspend(device_t dev)
 {
 	struct agg_info *ess = pcm_getdevinfo(dev);
-#ifndef USING_MUTEX
-	int x;
 
-	x = spltty();
-#endif
 	AGG_WR(ess, PORT_HOSTINT_CTRL, 0, 2);
 	agg_lock(ess);
 	agg_power(ess, PCI_POWERSTATE_D3);
 	agg_unlock(ess);
-#ifndef USING_MUTEX
-	splx(x);
-#endif
 
 	return 0;
 }
@@ -2017,11 +2008,7 @@ agg_resume(device_t dev)
 {
 	int i;
 	struct agg_info *ess = pcm_getdevinfo(dev);
-#ifndef USING_MUTEX
-	int x;
 
-	x = spltty();
-#endif
 	for (i = 0; i < ess->playchns; i++)
 		if (ess->active & (1 << i))
 			aggch_start_dac(ess->pch + i);
@@ -2032,9 +2019,6 @@ agg_resume(device_t dev)
 	if (!ess->active)
 		agg_power(ess, powerstate_init);
 	agg_unlock(ess);
-#ifndef USING_MUTEX
-	splx(x);
-#endif
 
 	if (mixer_reinit(dev)) {
 		device_printf(dev, "unable to reinitialize the mixer\n");

@@ -112,7 +112,7 @@ struct lapic {
 	u_long la_stat_ticks;
 	u_long la_prof_ticks;
 	/* Include IDT_SYSCALL to make indexing easier. */
-	u_int la_ioint_irqs[APIC_NUM_IOINTS + 1];
+	int la_ioint_irqs[APIC_NUM_IOINTS + 1];
 } static lapics[MAX_APIC_ID + 1];
 
 /* XXX: should thermal be an NMI? */
@@ -123,7 +123,7 @@ static struct lvt lvts[LVT_MAX + 1] = {
 	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* LINT1: NMI */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_TIMER_INT },	/* Timer */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_ERROR_INT },	/* Error */
-	{ 1, 1, 0, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
+	{ 1, 1, 1, 1, APIC_LVT_DM_NMI, 0 },	/* PMC */
 	{ 1, 1, 1, 1, APIC_LVT_DM_FIXED, APIC_THERMAL_INT },	/* Thermal */
 };
 
@@ -139,7 +139,7 @@ static inthand_t *ioint_handlers[] = {
 };
 
 
-static u_int32_t lapic_timer_divisors[] = { 
+static u_int32_t lapic_timer_divisors[] = {
 	APIC_TDCR_1, APIC_TDCR_2, APIC_TDCR_4, APIC_TDCR_8, APIC_TDCR_16,
 	APIC_TDCR_32, APIC_TDCR_64, APIC_TDCR_128
 };
@@ -254,6 +254,8 @@ lapic_create(u_int apic_id, int boot_cpu)
 		lapics[apic_id].la_lvts[i] = lvts[i];
 		lapics[apic_id].la_lvts[i].lvt_active = 0;
 	}
+	for (i = 0; i <= APIC_NUM_IOINTS; i++)
+	    lapics[apic_id].la_ioint_irqs[i] = -1;
 	lapics[apic_id].la_ioint_irqs[IDT_SYSCALL - APIC_IO_INTS] = IRQ_SYSCALL;
 	lapics[apic_id].la_ioint_irqs[APIC_TIMER_INT - APIC_IO_INTS] =
 	    IRQ_TIMER;
@@ -303,11 +305,9 @@ lapic_setup(int boot)
 	lapic->lvt_lint0 = lvt_mode(la, LVT_LINT0, lapic->lvt_lint0);
 	lapic->lvt_lint1 = lvt_mode(la, LVT_LINT1, lapic->lvt_lint1);
 
-#ifdef	HWPMC_HOOKS
 	/* Program the PMC LVT entry if present. */
 	if (maxlvt >= LVT_PMC)
 		lapic->lvt_pcint = lvt_mode(la, LVT_PMC, lapic->lvt_pcint);
-#endif
 
 	/* Program timer LVT and setup handler. */
 	lapic->lvt_timer = lvt_mode(la, LVT_TIMER, lapic->lvt_timer);
@@ -317,7 +317,7 @@ lapic_setup(int boot)
 	}
 
 	/* We don't setup the timer during boot on the BSP until later. */
-	if (!(boot && PCPU_GET(cpuid) == 0)) {
+	if (!(boot && PCPU_GET(cpuid) == 0) && lapic_timer_hz != 0) {
 		KASSERT(lapic_timer_period != 0, ("lapic%u: zero divisor",
 		    lapic_id()));
 		lapic_timer_set_divisor(lapic_timer_divisor);
@@ -327,30 +327,89 @@ lapic_setup(int boot)
 
 	/* XXX: Error and thermal LVTs */
 
-	if (cpu_vendor_id == CPU_VENDOR_AMD) {
-		/*
-		 * Detect the presence of C1E capability mostly on latest
-		 * dual-cores (or future) k8 family.  This feature renders
-		 * the local APIC timer dead, so we disable it by reading
-		 * the Interrupt Pending Message register and clearing both
-		 * C1eOnCmpHalt (bit 28) and SmiOnCmpHalt (bit 27).
-		 * 
-		 * Reference:
-		 *   "BIOS and Kernel Developer's Guide for AMD NPT
-		 *    Family 0Fh Processors"
-		 *   #32559 revision 3.00
-		 */
-		if ((cpu_id & 0x00000f00) == 0x00000f00 &&
-		    (cpu_id & 0x0fff0000) >=  0x00040000) {
-			uint64_t msr;
-
-			msr = rdmsr(0xc0010055);
-			if (msr & 0x18000000)
-				wrmsr(0xc0010055, msr & ~0x18000000ULL);
-		}
-	}
-
 	intr_restore(eflags);
+}
+
+void
+lapic_reenable_pmc(void)
+{
+#ifdef HWPMC_HOOKS
+	uint32_t value;
+
+	value =  lapic->lvt_pcint;
+	value &= ~APIC_LVT_M;
+	lapic->lvt_pcint = value;
+#endif
+}
+
+#ifdef HWPMC_HOOKS
+static void
+lapic_update_pmc(void *dummy)
+{
+	struct lapic *la;
+
+	la = &lapics[lapic_id()];
+	lapic->lvt_pcint = lvt_mode(la, LVT_PMC, lapic->lvt_pcint);
+}
+#endif
+
+int
+lapic_enable_pmc(void)
+{
+#ifdef HWPMC_HOOKS
+	u_int32_t maxlvt;
+
+	/* Fail if the local APIC is not present. */
+	if (lapic == NULL)
+		return (0);
+
+	/* Fail if the PMC LVT is not present. */
+	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
+	if (maxlvt < LVT_PMC)
+		return (0);
+
+	lvts[LVT_PMC].lvt_masked = 0;
+
+#ifdef SMP
+	/*
+	 * If hwpmc was loaded at boot time then the APs may not be
+	 * started yet.  In that case, don't forward the request to
+	 * them as they will program the lvt when they start.
+	 */
+	if (smp_started)
+		smp_rendezvous(NULL, lapic_update_pmc, NULL, NULL);
+	else
+#endif
+		lapic_update_pmc(NULL);
+	return (1);
+#else
+	return (0);
+#endif
+}
+
+void
+lapic_disable_pmc(void)
+{
+#ifdef HWPMC_HOOKS
+	u_int32_t maxlvt;
+
+	/* Fail if the local APIC is not present. */
+	if (lapic == NULL)
+		return;
+
+	/* Fail if the PMC LVT is not present. */
+	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
+	if (maxlvt < LVT_PMC)
+		return;
+
+	lvts[LVT_PMC].lvt_masked = 1;
+
+#ifdef SMP
+	/* The APs should always be started when hwpmc is unloaded. */
+	KASSERT(mp_ncpus == 1 || smp_started, ("hwpmc unloaded too early"));
+#endif
+	smp_rendezvous(NULL, lapic_update_pmc, NULL, NULL);
+#endif
 }
 
 /*
@@ -363,9 +422,13 @@ int
 lapic_setup_clock(void)
 {
 	u_long value;
+	int i;
 
 	/* Can't drive the timer without a local APIC. */
 	if (lapic == NULL)
+		return (0);
+
+	if (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0)
 		return (0);
 
 	/* Start off with a divisor of 2 (power on reset default). */
@@ -807,14 +870,14 @@ apic_alloc_vector(u_int apic_id, u_int irq)
 	 */
 	mtx_lock_spin(&icu_lock);
 	for (vector = 0; vector < APIC_NUM_IOINTS; vector++) {
-		if (lapics[apic_id].la_ioint_irqs[vector] != 0)
+		if (lapics[apic_id].la_ioint_irqs[vector] != -1)
 			continue;
 		lapics[apic_id].la_ioint_irqs[vector] = irq;
 		mtx_unlock_spin(&icu_lock);
 		return (vector + APIC_IO_INTS);
 	}
 	mtx_unlock_spin(&icu_lock);
-	panic("Couldn't find an APIC vector for IRQ %u", irq);
+	return (0);
 }
 
 /*
@@ -847,7 +910,7 @@ apic_alloc_vectors(u_int apic_id, u_int *irqs, u_int count, u_int align)
 	for (vector = 0; vector < APIC_NUM_IOINTS; vector++) {
 
 		/* Vector is in use, end run. */
-		if (lapics[apic_id].la_ioint_irqs[vector] != 0) {
+		if (lapics[apic_id].la_ioint_irqs[vector] != -1) {
 			run = 0;
 			first = 0;
 			continue;
@@ -914,6 +977,7 @@ void
 apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 {
 	struct thread *td;
+
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
 	    ("Vector %u does not map to an IRQ line", vector));
@@ -926,29 +990,36 @@ apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 	 * we don't lose an interrupt delivery race.
 	 */
 	td = curthread;
-	thread_lock(td);
-	if (sched_is_bound(td))
-		panic("apic_free_vector: Thread already bound.\n");
-	sched_bind(td, apic_cpuid(apic_id));
-	thread_unlock(td);
+	if (!rebooting) {
+		thread_lock(td);
+		if (sched_is_bound(td))
+			panic("apic_free_vector: Thread already bound.\n");
+		sched_bind(td, apic_cpuid(apic_id));
+		thread_unlock(td);
+	}
 	mtx_lock_spin(&icu_lock);
-	lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] = 0;
+	lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] = -1;
 	mtx_unlock_spin(&icu_lock);
-	thread_lock(td);
-	sched_unbind(td);
-	thread_unlock(td);
-
+	if (!rebooting) {
+		thread_lock(td);
+		sched_unbind(td);
+		thread_unlock(td);
+	}
 }
 
 /* Map an IDT vector (APIC) to an IRQ (interrupt source). */
 u_int
 apic_idt_to_irq(u_int apic_id, u_int vector)
 {
+	int irq;
 
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
 	    ("Vector %u does not map to an IRQ line", vector));
-	return (lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS]);
+	irq = lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS];
+	if (irq < 0)
+		irq = 0;
+	return (irq);
 }
 
 #ifdef DDB
@@ -974,7 +1045,7 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 		db_printf("Interrupts bound to lapic %u\n", apic_id);
 		for (i = 0; i < APIC_NUM_IOINTS + 1 && !db_pager_quit; i++) {
 			irq = lapics[apic_id].la_ioint_irqs[i];
-			if (irq == 0 || irq == IRQ_SYSCALL)
+			if (irq == -1 || irq == IRQ_SYSCALL)
 				continue;
 			db_printf("vec 0x%2x -> ", i + APIC_IO_INTS);
 			if (irq == IRQ_TIMER)
@@ -1070,7 +1141,7 @@ DB_SHOW_COMMAND(lapic, db_show_lapic)
 static SLIST_HEAD(, apic_enumerator) enumerators =
 	SLIST_HEAD_INITIALIZER(enumerators);
 static struct apic_enumerator *best_enum;
-	
+
 void
 apic_register_enumerator(struct apic_enumerator *enumerator)
 {
@@ -1250,8 +1321,17 @@ lapic_ipi_vectored(u_int vector, int dest)
 	KASSERT((vector & ~APIC_VECTOR_MASK) == 0,
 	    ("%s: invalid vector %d", __func__, vector));
 
-	icrlo = vector | APIC_DELMODE_FIXED | APIC_DESTMODE_PHY |
-	    APIC_LEVEL_DEASSERT | APIC_TRIGMOD_EDGE;
+	icrlo = APIC_DESTMODE_PHY | APIC_TRIGMOD_EDGE;
+
+	/*
+	 * IPI_STOP_HARD is just a "fake" vector used to send a NMI.
+	 * Use special rules regard NMI if passed, otherwise specify
+	 * the vector.
+	 */
+	if (vector == IPI_STOP_HARD)
+		icrlo |= APIC_DELMODE_NMI | APIC_LEVEL_ASSERT;
+	else
+		icrlo |= vector | APIC_DELMODE_FIXED | APIC_LEVEL_DEASSERT;
 	destfield = 0;
 	switch (dest) {
 	case APIC_IPI_DEST_SELF:

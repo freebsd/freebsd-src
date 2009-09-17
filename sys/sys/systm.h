@@ -45,8 +45,6 @@
 #include <sys/queue.h>
 #include <sys/stdint.h>		/* for people using printf mainly */
 
-extern int securelevel;		/* system security level (see init(8)) */
-
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern int rebooting;		/* boot() has been called. */
 extern const char *panicstr;	/* panic message */
@@ -90,6 +88,17 @@ extern int maxusers;		/* system tune hint */
 #define	_CTASSERT(x, y)		__CTASSERT(x, y)
 #define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
 #endif
+
+/*
+ * Assert that a pointer can be loaded from memory atomically.
+ *
+ * This assertion enforces stronger alignment than necessary.  For example,
+ * on some architectures, atomicity for unaligned loads will depend on
+ * whether or not the load spans multiple cache lines.
+ */
+#define	ASSERT_ATOMIC_LOAD_PTR(var, msg)				\
+	KASSERT(sizeof(var) == sizeof(void *) &&			\
+	    ((uintptr_t)&(var) & (sizeof(void *) - 1)) == 0, msg)
 
 /*
  * XXX the hints declarations are even more misplaced than most declarations
@@ -147,6 +156,7 @@ void	panic(const char *, ...) __dead2 __printflike(1, 2);
 #endif
 
 void	cpu_boot(int);
+void	cpu_flush_dcache(void *, size_t);
 void	cpu_rootconf(void);
 void	critical_enter(void);
 void	critical_exit(void);
@@ -186,6 +196,7 @@ void	bcopy(const void *from, void *to, size_t len) __nonnull(1) __nonnull(2);
 void	bzero(void *buf, size_t len) __nonnull(1);
 
 void	*memcpy(void *to, const void *from, size_t len) __nonnull(1) __nonnull(2);
+void	*memmove(void *dest, const void *src, size_t n) __nonnull(1) __nonnull(2);
 
 int	copystr(const void * __restrict kfaddr, void * __restrict kdaddr,
 	    size_t len, size_t * __restrict lencopied)
@@ -315,6 +326,8 @@ void	wakeup_one(void *chan) __nonnull(1);
 struct cdev;
 dev_t dev2udev(struct cdev *x);
 const char *devtoname(struct cdev *cdev);
+
+int poll_no_poll(int events);
 
 /* XXX: Should be void nanodelay(u_int nsec); */
 void	DELAY(int usec);

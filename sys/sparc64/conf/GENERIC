@@ -1,8 +1,8 @@
 #
 # GENERIC -- Generic kernel configuration file for FreeBSD/sparc64
 #
-# For more information on this file, please read the handbook section on
-# Kernel Configuration Files:
+# For more information on this file, please read the config(5) manual page,
+# and/or the handbook section on Kernel Configuration Files:
 #
 #    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
 #
@@ -16,8 +16,6 @@
 # If you are in doubt as to the purpose or necessity of a line, check first
 # in NOTES.
 #
-# For hardware specific information check HARDWARE.TXT
-#
 # $FreeBSD$
 
 cpu		SUN4U
@@ -25,6 +23,12 @@ ident		GENERIC
 
 # To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		# Default places to look for devices.
+
+# Use the following to compile in values accessible to the kernel
+# through getenv() (or kenv(1) in userland). The format of the file
+# is 'variable=value', see kenv(1)
+#
+# env		"GENERIC.env"
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 
@@ -62,9 +66,11 @@ options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
+options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
+options 	MAC			# TrustedBSD MAC Framework
 
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
@@ -75,7 +81,7 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
-# To make an SMP kernel, the next line is needed
+# Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Standard busses
@@ -137,8 +143,6 @@ device		machfb		# ATI Mach64 framebuffers
 device		splash		# Splash screen and screen saver support
 options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 
-#device		ofw_console	# Open Firmware console device
-
 # Builtin hardware
 device		auxio		# auxiliary I/O device
 device		eeprom		# eeprom (really a front-end for the MK48Txx)
@@ -165,7 +169,7 @@ device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
 #device		ixgb		# Intel PRO/10GbE Ethernet Card
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
-#device		txp		# 3Com 3cR990 (``Typhoon'')
+device		txp		# 3Com 3cR990 (``Typhoon'')
 #device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
@@ -173,10 +177,12 @@ device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		miibus		# MII bus support
 #device		bfe		# Broadcom BCM440x 10/100 Ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
+device		cas		# Sun Cassini/Cassini+ and NS DP83065 Saturn
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		gem		# Sun GEM/Sun ERI/Apple GMAC
 device		hme		# Sun HME (Happy Meal Ethernet)
+device		nge		# NatSemi DP83820 gigabit Ethernet
 #device		pcn		# AMD Am79C97x PCI 10/100 (precedence over 'le')
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
@@ -195,12 +201,14 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 device		wlan		# 802.11 support
 options 	IEEE80211_DEBUG	# enable debug msgs
 options 	IEEE80211_AMPDU_AGE	# age frames in AMPDU reorder q's
+options 	IEEE80211_SUPPORT_MESH	# enable 802.11s D3.0 support
 device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
+device		wlan_amrr	# AMRR transmit rate control algorithm
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# Atheros HAL (Hardware Access Layer)
-options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
 # Pseudo devices.
@@ -219,78 +227,39 @@ device		firmware	# firmware assist module
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
 
-# USB core support
-device          usb2_core
-# USB controller support
-device		usb2_controller
-#device		usb2_controller_ehci
-device		usb2_controller_ohci
-#device		usb2_controller_uhci
-# USB mass storage support
-#device		usb2_storage
-#device		usb2_storage_mass
-# USB ethernet support, requires miibus
-#device		usb2_ethernet
-#device		usb2_ethernet_aue
-#device		usb2_ethernet_axe
-#device		usb2_ethernet_cdce
-#device		usb2_ethernet_cue
-#device		usb2_ethernet_kue
-#device		usb2_ethernet_rue
-#device		usb2_ethernet_dav
-# USB serial device support
-#device		usb2_serial
-#device		usb2_serial_ark
-#device		usb2_serial_bsa
-#device		usb2_serial_bser
-#device		usb2_serial_chcom
-#device		usb2_serial_cycom
-#device		usb2_serial_foma
-#device		usb2_serial_ftdi
-#device		usb2_serial_gensa
-#device		usb2_serial_ipaq
-#device		usb2_serial_lpt
-#device		usb2_serial_mct
-#device		usb2_serial_modem
-#device		usb2_serial_moscom
-#device		usb2_serial_plcom
-#device		usb2_serial_slcom
-#device		usb2_serial_visor
-#device		usb2_serial_vscom
-# USB bluetooth support
-#device		usb2_bluetooth
-#device		usb2_bluetooth_ng
-# USB input device support
-device		usb2_input
-device		usb2_input_hid
-device		usb2_input_kbd
-device		usb2_input_ms
-# USB sound and MIDI device support
-#device		usb2_sound
-# USB scanner support
-#device		usb2_image
-#device		usb2_scanner
-
-# USB support (deprecated)
-#device		uhci		# UHCI PCI->USB interface
-#device		ohci		# OHCI PCI->USB interface
-#device		usb		# USB Bus (required)
+# USB support
+device		uhci		# UHCI PCI->USB interface
+device		ohci		# OHCI PCI->USB interface
+device		ehci		# EHCI PCI->USB interface (USB 2.0)
+device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
-#device		ugen		# Generic
-#device		uhid		# "Human Interface Devices"
-#device		ukbd		# Keyboard
-#device		ulpt		# Printer
-#device		umass		# Disks/Mass storage - Requires scbus and da
-#device		ums		# Mouse
-#device		urio		# Diamond Rio 500 MP3 player
-#device		uscanner	# Scanners
-# USB Ethernet, requires mii
-#device		aue		# ADMtek USB Ethernet
-#device		axe		# ASIX Electronics USB Ethernet
-#device		cdce		# Generic USB over Ethernet
-#device		cue		# CATC USB Ethernet
-#device		kue		# Kawasaki LSI USB Ethernet
-#device		rue		# RealTek RTL8150 USB Ethernet
+device		uhid		# "Human Interface Devices"
+device		ukbd		# Keyboard
+device		ulpt		# Printer
+device		umass		# Disks/Mass storage - Requires scbus and da
+device		ums		# Mouse
+device		rum		# Ralink Technology RT2501USB wireless NICs
+device		uath		# Atheros AR5523 wireless NICs
+device		ural		# Ralink Technology RT2500USB wireless NICs
+device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
+device		urio		# Diamond Rio 500 MP3 player
+# USB Serial devices
+device		uark		# Technologies ARK3116 based serial adapters
+device		ubsa		# Belkin F5U103 and compatible serial adapters
+device		uftdi		# For FTDI usb serial adapters
+device		uipaq		# Some WinCE based devices
+device		uplcom		# Prolific PL-2303 serial adapters
+device		uslcom		# SI Labs CP2101/CP2102 serial adapters
+device		uvisor		# Visor and Palm devices
+device		uvscom		# USB serial support for DDI pocket's PHS
+# USB Ethernet, requires miibus
+device		aue		# ADMtek USB Ethernet
+device		axe		# ASIX Electronics USB Ethernet
+device		cdce		# Generic USB over Ethernet
+device		cue		# CATC USB Ethernet
+device		kue		# Kawasaki LSI USB Ethernet
+device		rue		# RealTek RTL8150 USB Ethernet
+device		udav		# Davicom DM9601E USB
 
 # FireWire support
 device		firewire	# FireWire bus code

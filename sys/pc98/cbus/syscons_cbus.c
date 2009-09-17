@@ -203,8 +203,10 @@ sc_get_cons_priority(int *unit, int *flags)
 			*flags = f;
 		}
 	}
-	if (*unit < 0)
-		return CN_DEAD;
+	if (*unit < 0) {
+		*unit = 0;
+		*flags = 0;
+	}
 	return CN_INTERNAL;
 }
 

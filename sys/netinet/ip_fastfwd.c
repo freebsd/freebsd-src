@@ -87,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/vimage.h>
 
 #include <net/pfil.h>
 #include <net/if.h>
@@ -95,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -103,20 +103,18 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_options.h>
-#include <netinet/vinet.h>
 
 #include <machine/in_cksum.h>
 
-#ifdef VIMAGE_GLOBALS
-static int ipfastforward_active;
-#endif
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, fastforwarding,
-    CTLFLAG_RW, ipfastforward_active, 0, "Enable fast IP forwarding");
+static VNET_DEFINE(int, ipfastforward_active);
+#define	V_ipfastforward_active		VNET(ipfastforward_active)
+
+SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_RW,
+    &VNET_NAME(ipfastforward_active), 0, "Enable fast IP forwarding");
 
 static struct sockaddr_in *
 ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 {
-	INIT_VNET_INET(curvnet);
 	struct sockaddr_in *dst;
 	struct rtentry *rt;
 
@@ -140,8 +138,8 @@ ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 		if (rt->rt_flags & RTF_GATEWAY)
 			dst = (struct sockaddr_in *)rt->rt_gateway;
 	} else {
-		V_ipstat.ips_noroute++;
-		V_ipstat.ips_cantforward++;
+		IPSTAT_INC(ips_noroute);
+		IPSTAT_INC(ips_cantforward);
 		if (rt)
 			RTFREE(rt);
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
@@ -153,14 +151,13 @@ ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 /*
  * Try to forward a packet based on the destination address.
  * This is a fast path optimized for the plain forwarding case.
- * If the packet is handled (and consumed) here then we return 1;
- * otherwise 0 is returned and the packet should be delivered
+ * If the packet is handled (and consumed) here then we return NULL;
+ * otherwise mbuf is returned and the packet should be delivered
  * to ip_input for full processing.
  */
 struct mbuf *
 ip_fastforward(struct mbuf *m)
 {
-	INIT_VNET_INET(curvnet);
 	struct ip *ip;
 	struct mbuf *m0 = NULL;
 	struct route ro;
@@ -183,7 +180,7 @@ ip_fastforward(struct mbuf *m)
 	M_ASSERTVALID(m);
 	M_ASSERTPKTHDR(m);
 
-	ro.ro_rt = NULL;
+	bzero(&ro, sizeof(ro));
 
 	/*
 	 * Step 1: check for packet drop conditions (and sanity checks)
@@ -193,7 +190,7 @@ ip_fastforward(struct mbuf *m)
 	 * Is entire packet big enough?
 	 */
 	if (m->m_pkthdr.len < sizeof(struct ip)) {
-		V_ipstat.ips_tooshort++;
+		IPSTAT_INC(ips_tooshort);
 		goto drop;
 	}
 
@@ -202,7 +199,7 @@ ip_fastforward(struct mbuf *m)
 	 */
 	if (m->m_len < sizeof (struct ip) &&
 	   (m = m_pullup(m, sizeof (struct ip))) == NULL) {
-		V_ipstat.ips_toosmall++;
+		IPSTAT_INC(ips_toosmall);
 		return NULL;	/* mbuf already free'd */
 	}
 
@@ -212,7 +209,7 @@ ip_fastforward(struct mbuf *m)
 	 * Is it IPv4?
 	 */
 	if (ip->ip_v != IPVERSION) {
-		V_ipstat.ips_badvers++;
+		IPSTAT_INC(ips_badvers);
 		goto drop;
 	}
 
@@ -221,12 +218,12 @@ ip_fastforward(struct mbuf *m)
 	 */
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) {	/* minimum header length */
-		V_ipstat.ips_badlen++;
+		IPSTAT_INC(ips_badlen);
 		goto drop;
 	}
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == NULL) {
-			V_ipstat.ips_badhlen++;
+			IPSTAT_INC(ips_badhlen);
 			return NULL;	/* mbuf already free'd */
 		}
 		ip = mtod(m, struct ip *);
@@ -244,7 +241,7 @@ ip_fastforward(struct mbuf *m)
 			sum = in_cksum(m, hlen);
 	}
 	if (sum) {
-		V_ipstat.ips_badsum++;
+		IPSTAT_INC(ips_badsum);
 		goto drop;
 	}
 
@@ -259,7 +256,7 @@ ip_fastforward(struct mbuf *m)
 	 * Is IP length longer than packet we have got?
 	 */
 	if (m->m_pkthdr.len < ip_len) {
-		V_ipstat.ips_tooshort++;
+		IPSTAT_INC(ips_tooshort);
 		goto drop;
 	}
 
@@ -279,7 +276,7 @@ ip_fastforward(struct mbuf *m)
 	 */
 	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
 	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
-		V_ipstat.ips_badaddr++;
+		IPSTAT_INC(ips_badaddr);
 		goto drop;
 	}
 
@@ -337,7 +334,7 @@ ip_fastforward(struct mbuf *m)
 	if (in_localip(ip->ip_dst))
 		return m;
 
-	V_ipstat.ips_total++;
+	IPSTAT_INC(ips_total);
 
 	/*
 	 * Step 3: incoming packet firewall processing
@@ -519,7 +516,7 @@ passout:
 	 */
 	if ((ifp->if_snd.ifq_len + ip->ip_len / ifp->if_mtu + 1) >=
 	    ifp->if_snd.ifq_maxlen) {
-		V_ipstat.ips_odropped++;
+		IPSTAT_INC(ips_odropped);
 		/* would send source quench here but that is depreciated */
 		goto drop;
 	}
@@ -552,13 +549,13 @@ passout:
 		 * Send off the packet via outgoing interface
 		 */
 		error = (*ifp->if_output)(ifp, m,
-				(struct sockaddr *)dst, ro.ro_rt);
+				(struct sockaddr *)dst, &ro);
 	} else {
 		/*
 		 * Handle EMSGSIZE with icmp reply needfrag for TCP MTU discovery
 		 */
 		if (ip->ip_off & IP_DF) {
-			V_ipstat.ips_cantfrag++;
+			IPSTAT_INC(ips_cantfrag);
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
 				0, mtu);
 			goto consumed;
@@ -585,7 +582,7 @@ passout:
 				m->m_nextpkt = NULL;
 
 				error = (*ifp->if_output)(ifp, m,
-					(struct sockaddr *)dst, ro.ro_rt);
+					(struct sockaddr *)dst, &ro);
 				if (error)
 					break;
 			} while ((m = m0) != NULL);
@@ -596,16 +593,16 @@ passout:
 					m_freem(m);
 				}
 			} else
-				V_ipstat.ips_fragmented++;
+				IPSTAT_INC(ips_fragmented);
 		}
 	}
 
 	if (error != 0)
-		V_ipstat.ips_odropped++;
+		IPSTAT_INC(ips_odropped);
 	else {
 		ro.ro_rt->rt_rmx.rmx_pksent++;
-		V_ipstat.ips_forward++;
-		V_ipstat.ips_fastforward++;
+		IPSTAT_INC(ips_forward);
+		IPSTAT_INC(ips_fastforward);
 	}
 consumed:
 	RTFREE(ro.ro_rt);

@@ -476,15 +476,15 @@ uucp,news.crit						/var/log/spoolerr
 # Pipe all authentication messages to a filter.
 auth.*					|exec /usr/local/sbin/authfilter
 
-# Save ftpd transactions along with mail and news
-!ftpd
-*.*							/var/log/spoolerr
-
 # Log all security messages to a separate file.
 security.*						/var/log/security
 
 # Log all writes to /dev/console to a separate file.
 console.*						/var/log/console.log
+
+# Save ftpd transactions along with mail and news
+!ftpd
+*.*							/var/log/spoolerr
 
 # Log ipfw messages without syncing after every message.
 !ipfw

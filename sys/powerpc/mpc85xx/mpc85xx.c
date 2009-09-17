@@ -61,7 +61,7 @@ ccsr_write4(uintptr_t addr, uint32_t val)
 	__asm __volatile("eieio; sync");
 }
 
-static __inline int
+int
 law_getmax(void)
 {
 	uint32_t ver;
@@ -69,6 +69,8 @@ law_getmax(void)
 	ver = SVR_VER(mfspr(SPR_SVR));
 	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
 		return (12);
+	else if (ver == SVR_MPC8548E || ver == SVR_MPC8548)
+		return (10);
 	else
 		return (8);
 }
@@ -132,7 +134,8 @@ cpu_reset(void)
 {
 	uint32_t ver = SVR_VER(mfspr(SPR_SVR));
 
-	if (ver == SVR_MPC8572E || ver == SVR_MPC8572)
+	if (ver == SVR_MPC8572E || ver == SVR_MPC8572 ||
+	    ver == SVR_MPC8548E || ver == SVR_MPC8548)
 		/* Systems with dedicated reset register */
 		ccsr_write4(OCP85XX_RSTCR, 2);
 	else {

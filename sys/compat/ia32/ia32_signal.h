@@ -59,7 +59,9 @@ struct ia32_mcontext {
 	 * See <i386/include/npx.h> for the internals of mc_fpstate[].
 	 */
 	u_int32_t	mc_fpstate[128] __aligned(16);
-	u_int32_t	mc_spare2[8];
+	u_int32_t	mc_fsbase;
+	u_int32_t	mc_gsbase;
+	u_int32_t	mc_spare2[6];
 };
 
 struct ia32_ucontext {

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
+#include <arm/mv/mvwin.h>
 
 extern const struct obio_pci_irq_map pci_irq_map[];
 
@@ -87,10 +88,14 @@ struct obio_device obio_devices[] = {
 		{ -1 },
 		CPU_PM_CTRL_NONE
 	},
-	{ "twsi", MV_TWSI_BASE, MV_TWSI_SIZE,
+	{ "twsi", MV_TWSI0_BASE, MV_TWSI_SIZE,
 		{ -1 }, { -1 },
 		CPU_PM_CTRL_NONE
 	},
+	{ "sata", MV_SATAHC_BASE, MV_SATAHC_SIZE,
+	        { MV_INT_SATA, -1 }, { -1 },
+	        CPU_PM_CTRL_NONE
+ 	},
 	{ NULL, 0, 0, { 0 } }
 };
 

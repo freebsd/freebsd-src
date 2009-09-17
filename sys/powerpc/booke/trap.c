@@ -187,6 +187,7 @@ trap(struct trapframe *frame)
 		case EXC_DEBUG:	/* Single stepping */
 			mtspr(SPR_DBSR, mfspr(SPR_DBSR));
 			frame->srr1 &= ~PSL_DE;
+			frame->cpu.booke.dbcr0 &= ~(DBCR0_IDM || DBCR0_IC);
 			sig = SIGTRAP;
 			break;
 

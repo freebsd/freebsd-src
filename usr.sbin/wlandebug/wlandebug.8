@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 19, 2008
+.Dd July 17, 2009
 .Dt WLANDEBUG 8
 .Os
 .Sh NAME
@@ -97,11 +97,8 @@ state machine operation.
 802.11 power save operation; in hostap mode this enables
 copious information about buffered frames for stations operating
 in power save mode.
-.It Ar dot1x
-802.1x operation; not presently meaningful as 802.1x protocol
-support is implemented in user mode by the
-.Xr hostapd 8
-program.
+.It Ar hwmp
+trace operation of Hybrid Wireless Mesh Protocol processing.
 .It Ar dot1xsm
 802.1x state machine operation; not presently meaningful as 802.1x protocol
 support is implemented in user mode by the
@@ -119,13 +116,8 @@ not presently meaningful as 802.1x protocol
 support is implemented in user mode by the
 .Xr hostapd 8
 program.
-.It Ar radkeys
-include key contents when dumping packets exchanged with the
-radius backend for 802.1x operation;
-not presently meaningful as 802.1x protocol
-support is implemented in user mode by the
-.Xr hostapd 8
-program.
+.It Ar mesh
+trace operation of 802.11s mesh protocol processing.
 .It Ar wpa
 trace operation of the WPA protocol; 
 only partly meaningful as WPA protocol

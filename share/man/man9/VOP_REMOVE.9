@@ -62,27 +62,6 @@ and
 should be locked on entry and remain locked on return.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error code is returned.
-.Sh PSEUDOCODE
-.Bd -literal
-int
-vop_remove(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
-{
-    int error = 0;
-
-    if (vp is immutable) {
-	error = EPERM;
-	goto out;
-    }
-
-    /*
-     * Remove name cnp->cn_nameptr from directory and update link count
-     * of vp.
-     */
-    ...;
-
-    return error;
-}
-.Ed
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EPERM

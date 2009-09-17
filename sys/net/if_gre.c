@@ -70,6 +70,7 @@
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -79,7 +80,6 @@
 #include <netinet/ip_gre.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
-#include <netinet/vinet.h>
 #else
 #error "Huh? if_gre without inet?"
 #endif
@@ -110,7 +110,7 @@ static int	gre_clone_create(struct if_clone *, int, caddr_t);
 static void	gre_clone_destroy(struct ifnet *);
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gre_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-		    struct rtentry *rt);
+		    struct route *ro);
 
 IFC_SIMPLE_DECLARE(gre, 0);
 
@@ -240,11 +240,8 @@ gre_clone_destroy(ifp)
  */
 static int
 gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-	   struct rtentry *rt)
+	   struct route *ro)
 {
-#ifdef INET6
-	INIT_VNET_INET(ifp->if_vnet);
-#endif
 	int error = 0;
 	struct gre_softc *sc = ifp->if_softc;
 	struct greip *gh;

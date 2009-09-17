@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stdio.h>
 
+#include "acl_support.h"
+
 /*
  * acl_calc_mask() (23.4.2): calculate and set the permissions
  * associated with the ACL_MASK ACL entry.  If the ACL already
@@ -59,6 +61,13 @@ acl_calc_mask(acl_t *acl_p)
 		errno = EINVAL;
 		return (-1);
 	}
+
+	if (!_acl_brand_may_be(*acl_p, ACL_BRAND_POSIX)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	_acl_brand_as(*acl_p, ACL_BRAND_POSIX);
+
 	acl_int = &(*acl_p)->ats_acl;
 	if ((acl_int->acl_cnt < 3) || (acl_int->acl_cnt > ACL_MAX_ENTRIES)) {
 		errno = EINVAL;

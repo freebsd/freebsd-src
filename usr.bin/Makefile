@@ -149,6 +149,7 @@ SUBDIR=	alias \
 	passwd \
 	paste \
 	pathchk \
+	perror \
 	pr \
 	printenv \
 	printf \
@@ -156,6 +157,7 @@ SUBDIR=	alias \
 	${_quota} \
 	renice \
 	rev \
+	revoke \
 	${_rlogin} \
 	${_rpcgen} \
 	rpcinfo \
@@ -221,7 +223,6 @@ SUBDIR=	alias \
 	which \
 	who \
 	whois \
-	window \
 	write \
 	xargs \
 	xinstall \

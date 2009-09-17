@@ -125,6 +125,7 @@ extern "C" {
 #define PEM_STRING_DSA		"DSA PRIVATE KEY"
 #define PEM_STRING_DSA_PUBLIC	"DSA PUBLIC KEY"
 #define PEM_STRING_PKCS7	"PKCS7"
+#define PEM_STRING_PKCS7_SIGNED	"PKCS #7 SIGNED DATA"
 #define PEM_STRING_PKCS8	"ENCRYPTED PRIVATE KEY"
 #define PEM_STRING_PKCS8INF	"PRIVATE KEY"
 #define PEM_STRING_DHPARAMS	"DH PARAMETERS"
@@ -133,6 +134,7 @@ extern "C" {
 #define PEM_STRING_ECDSA_PUBLIC "ECDSA PUBLIC KEY"
 #define PEM_STRING_ECPARAMETERS "EC PARAMETERS"
 #define PEM_STRING_ECPRIVATEKEY	"EC PRIVATE KEY"
+#define PEM_STRING_CMS		"CMS"
 
   /* Note that this structure is initialised by PEM_SealInit and cleaned up
      by PEM_SealFinal (at least for now) */
@@ -213,27 +215,37 @@ typedef struct pem_ctx_st
 
 #define IMPLEMENT_PEM_read_fp(name, type, str, asn1) /**/
 #define IMPLEMENT_PEM_write_fp(name, type, str, asn1) /**/
+#define IMPLEMENT_PEM_write_fp_const(name, type, str, asn1) /**/
 #define IMPLEMENT_PEM_write_cb_fp(name, type, str, asn1) /**/
+#define IMPLEMENT_PEM_write_cb_fp_const(name, type, str, asn1) /**/
 
 #else
 
 #define IMPLEMENT_PEM_read_fp(name, type, str, asn1) \
 type *PEM_read_##name(FILE *fp, type **x, pem_password_cb *cb, void *u)\
 { \
-return((type *)PEM_ASN1_read( \
-	(d2i_of_void *)d2i_##asn1,str,fp,(void **)x,cb,u)); \
-}
+    return (type*)PEM_ASN1_read(CHECKED_D2I_OF(type, d2i_##asn1), \
+				str, fp, \
+				CHECKED_PPTR_OF(type, x), \
+				cb, u); \
+} 
 
 #define IMPLEMENT_PEM_write_fp(name, type, str, asn1) \
 int PEM_write_##name(FILE *fp, type *x) \
 { \
-return(PEM_ASN1_write((i2d_of_void *)i2d_##asn1,str,fp,(char *)x,NULL,NULL,0,NULL,NULL)); \
+    return PEM_ASN1_write(CHECKED_I2D_OF(type, i2d_##asn1), \
+			  str, fp, \
+			  CHECKED_PTR_OF(type, x), \
+			  NULL, NULL, 0, NULL, NULL); \
 }
 
 #define IMPLEMENT_PEM_write_fp_const(name, type, str, asn1) \
 int PEM_write_##name(FILE *fp, const type *x) \
 { \
-return(PEM_ASN1_write((i2d_of_void *)i2d_##asn1,str,fp,(char *)x,NULL,NULL,0,NULL,NULL)); \
+    return PEM_ASN1_write(CHECKED_I2D_OF(const type, i2d_##asn1), \
+			  str, fp, \
+			  CHECKED_PTR_OF(const type, x), \
+			  NULL, NULL, 0, NULL, NULL); \
 }
 
 #define IMPLEMENT_PEM_write_cb_fp(name, type, str, asn1) \
@@ -241,7 +253,10 @@ int PEM_write_##name(FILE *fp, type *x, const EVP_CIPHER *enc, \
 	     unsigned char *kstr, int klen, pem_password_cb *cb, \
 		  void *u) \
 	{ \
-	return(PEM_ASN1_write((i2d_of_void *)i2d_##asn1,str,fp,(char *)x,enc,kstr,klen,cb,u)); \
+	    return PEM_ASN1_write(CHECKED_I2D_OF(type, i2d_##asn1), \
+				  str, fp, \
+				  CHECKED_PTR_OF(type, x), \
+				  enc, kstr, klen, cb, u); \
 	}
 
 #define IMPLEMENT_PEM_write_cb_fp_const(name, type, str, asn1) \
@@ -249,7 +264,10 @@ int PEM_write_##name(FILE *fp, type *x, const EVP_CIPHER *enc, \
 	     unsigned char *kstr, int klen, pem_password_cb *cb, \
 		  void *u) \
 	{ \
-	return(PEM_ASN1_write((i2d_of_void *)i2d_##asn1,str,fp,(char *)x,enc,kstr,klen,cb,u)); \
+	    return PEM_ASN1_write(CHECKED_I2D_OF(const type, i2d_##asn1), \
+				  str, fp, \
+				  CHECKED_PTR_OF(const type, x), \
+				  enc, kstr, klen, cb, u); \
 	}
 
 #endif
@@ -257,34 +275,48 @@ int PEM_write_##name(FILE *fp, type *x, const EVP_CIPHER *enc, \
 #define IMPLEMENT_PEM_read_bio(name, type, str, asn1) \
 type *PEM_read_bio_##name(BIO *bp, type **x, pem_password_cb *cb, void *u)\
 { \
-return((type *)PEM_ASN1_read_bio( \
-	(d2i_of_void *)d2i_##asn1,str,bp,(void **)x,cb,u)); \
+    return (type*)PEM_ASN1_read_bio(CHECKED_D2I_OF(type, d2i_##asn1), \
+				    str, bp, \
+				    CHECKED_PPTR_OF(type, x), \
+				    cb, u); \
 }
 
 #define IMPLEMENT_PEM_write_bio(name, type, str, asn1) \
 int PEM_write_bio_##name(BIO *bp, type *x) \
 { \
-return(PEM_ASN1_write_bio((i2d_of_void *)i2d_##asn1,str,bp,(char *)x,NULL,NULL,0,NULL,NULL)); \
+    return PEM_ASN1_write_bio(CHECKED_I2D_OF(type, i2d_##asn1), \
+			      str, bp, \
+			      CHECKED_PTR_OF(type, x), \
+			      NULL, NULL, 0, NULL, NULL); \
 }
 
 #define IMPLEMENT_PEM_write_bio_const(name, type, str, asn1) \
 int PEM_write_bio_##name(BIO *bp, const type *x) \
 { \
-return(PEM_ASN1_write_bio((i2d_of_void *)i2d_##asn1,str,bp,(char *)x,NULL,NULL,0,NULL,NULL)); \
+    return PEM_ASN1_write_bio(CHECKED_I2D_OF(const type, i2d_##asn1), \
+			      str, bp, \
+			      CHECKED_PTR_OF(const type, x), \
+			      NULL, NULL, 0, NULL, NULL); \
 }
 
 #define IMPLEMENT_PEM_write_cb_bio(name, type, str, asn1) \
 int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 	     unsigned char *kstr, int klen, pem_password_cb *cb, void *u) \
 	{ \
-	return(PEM_ASN1_write_bio((i2d_of_void *)i2d_##asn1,str,bp,(char *)x,enc,kstr,klen,cb,u)); \
+	    return PEM_ASN1_write_bio(CHECKED_I2D_OF(type, i2d_##asn1), \
+				      str, bp, \
+				      CHECKED_PTR_OF(type, x), \
+				      enc, kstr, klen, cb, u); \
 	}
 
 #define IMPLEMENT_PEM_write_cb_bio_const(name, type, str, asn1) \
 int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 	     unsigned char *kstr, int klen, pem_password_cb *cb, void *u) \
 	{ \
-	return(PEM_ASN1_write_bio((i2d_of_void *)i2d_##asn1,str,bp,(char *)x,enc,kstr,klen,cb,u)); \
+	    return PEM_ASN1_write_bio(CHECKED_I2D_OF(const type, i2d_##asn1), \
+				      str, bp, \
+				      CHECKED_PTR_OF(const type, x), \
+				      enc, kstr, klen, cb, u); \
 	}
 
 #define IMPLEMENT_PEM_write(name, type, str, asn1) \
@@ -325,6 +357,7 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 
 #define DECLARE_PEM_read_fp(name, type) /**/
 #define DECLARE_PEM_write_fp(name, type) /**/
+#define DECLARE_PEM_write_fp_const(name, type) /**/
 #define DECLARE_PEM_write_cb_fp(name, type) /**/
 
 #else
@@ -362,6 +395,7 @@ int PEM_write_bio_##name(BIO *bp, type *x, const EVP_CIPHER *enc, \
 
 #define DECLARE_PEM_read_bio(name, type) /**/
 #define DECLARE_PEM_write_bio(name, type) /**/
+#define DECLARE_PEM_write_bio_const(name, type) /**/
 #define DECLARE_PEM_write_cb_bio(name, type) /**/
 
 #endif
@@ -547,13 +581,22 @@ int PEM_bytes_read_bio(unsigned char **pdata, long *plen, char **pnm, const char
 	     pem_password_cb *cb, void *u);
 void *	PEM_ASN1_read_bio(d2i_of_void *d2i, const char *name, BIO *bp,
 			  void **x, pem_password_cb *cb, void *u);
+
 #define PEM_ASN1_read_bio_of(type,d2i,name,bp,x,cb,u) \
-((type *)PEM_ASN1_read_bio((d2i_of_void *)d2i,name,bp,(void **)x,cb,u))
+    ((type*)PEM_ASN1_read_bio(CHECKED_D2I_OF(type, d2i), \
+			      name, bp,			\
+			      CHECKED_PPTR_OF(type, x), \
+			      cb, u))
+
 int	PEM_ASN1_write_bio(i2d_of_void *i2d,const char *name,BIO *bp,char *x,
 			   const EVP_CIPHER *enc,unsigned char *kstr,int klen,
 			   pem_password_cb *cb, void *u);
+
 #define PEM_ASN1_write_bio_of(type,i2d,name,bp,x,enc,kstr,klen,cb,u) \
-	(PEM_ASN1_write_bio)((i2d_of_void *)i2d,name,bp,(char *)x,enc,kstr,klen,cb,u)
+    (PEM_ASN1_write_bio(CHECKED_I2D_OF(type, i2d), \
+			name, bp,		   \
+			CHECKED_PTR_OF(type, x), \
+			enc, kstr, klen, cb, u))
 
 STACK_OF(X509_INFO) *	PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk, pem_password_cb *cb, void *u);
 int	PEM_X509_INFO_write_bio(BIO *bp,X509_INFO *xi, EVP_CIPHER *enc,

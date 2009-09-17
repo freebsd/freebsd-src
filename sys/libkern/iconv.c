@@ -307,6 +307,18 @@ iconv_convchr_case(void *handle, const char **inbuf,
 	return ICONV_CONVERTER_CONV(handle, inbuf, inbytesleft, outbuf, outbytesleft, 1, casetype);
 }
 
+int
+towlower(int c, void *handle)
+{
+	return ICONV_CONVERTER_TOLOWER(handle, c);
+}
+
+int
+towupper(int c, void *handle)
+{
+	return ICONV_CONVERTER_TOUPPER(handle, c);
+}
+
 /*
  * Give a list of loaded converters. Each name terminated with 0.
  * An empty string terminates the list.
@@ -439,6 +451,12 @@ int
 iconv_converter_donestub(struct iconv_converter_class *dp)
 {
 	return 0;
+}
+
+int
+iconv_converter_tolowerstub(int c, void *handle)
+{
+	return (c);
 }
 
 int

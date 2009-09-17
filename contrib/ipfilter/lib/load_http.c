@@ -14,11 +14,13 @@
 alist_t *
 load_http(char *url)
 {
-	int fd, len, left, port, endhdr, removed;
-	char *s, *t, *u, buffer[1024], *myurl;
+	char *s, *t, *u, buffer[1044], *myurl;
 	alist_t *a, *rtop, *rbot;
 	struct sockaddr_in sin;
 	struct hostent *host;
+	size_t avail;
+	int fd, len, left, port, endhdr, removed;
+	int error;
 
 	/*
 	 * More than this would just be absurd.
@@ -32,7 +34,14 @@ load_http(char *url)
 	rtop = NULL;
 	rbot = NULL;
 
-	sprintf(buffer, "GET %s HTTP/1.0\r\n", url);
+	avail = sizeof(buffer);
+	error = snprintf(buffer, avail, "GET %s HTTP/1.0\r\n", url);
+
+	/*
+	 * error is always less then avail due to the constraint on
+	 * the url length above.
+	 */
+	avail -= error;
 
 	myurl = strdup(url);
 	if (myurl == NULL)
@@ -51,7 +60,11 @@ load_http(char *url)
 	if (u != NULL)
 		s = u + 1;		/* AUTH */
 
-	sprintf(buffer + strlen(buffer), "Host: %s\r\n\r\n", s);
+	error = snprintf(buffer + strlen(buffer), avail, "Host: %s\r\n\r\n", s);
+	if (error >= avail) {
+		fprintf(stderr, "URL is too large: %s\n", url);
+		goto done;
+	}
 
 	u = strchr(s, ':');
 	if (u != NULL) {
@@ -83,16 +96,12 @@ load_http(char *url)
 	if (fd == -1)
 		goto done;
 
-	if (connect(fd, (struct sockaddr *)&sin, sizeof(sin)) == -1) {
-		close(fd);
+	if (connect(fd, (struct sockaddr *)&sin, sizeof(sin)) == -1)
 		goto done;
-	}
 
 	len = strlen(buffer);
-	if (write(fd, buffer, len) != len) {
-		close(fd);
+	if (write(fd, buffer, len) != len)
 		goto done;
-	}
 
 	s = buffer;
 	endhdr = 0;

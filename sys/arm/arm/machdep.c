@@ -316,6 +316,18 @@ cpu_startup(void *dummy)
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
+/*
+ * Flush the D-cache for non-DMA I/O so that the I-cache can
+ * be made coherent later.
+ */
+void
+cpu_flush_dcache(void *ptr, size_t len)
+{
+
+	cpu_dcache_wb_range((uintptr_t)ptr, len);
+	cpu_l2cache_wb_range((uintptr_t)ptr, len);
+}
+
 /* Get current clock frequency for the given cpu id. */
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)

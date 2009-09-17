@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata.c,v 1.184.18.9 2006/07/21 02:05:57 marka Exp $ */
+/* $Id: rdata.c,v 1.199.50.2 2009/02/16 23:47:15 tbox Exp $ */
 
 /*! \file */
 
@@ -111,7 +111,7 @@ typedef struct dns_rdata_textctx {
 	dns_name_t *origin;	/*%< Current origin, or NULL. */
 	unsigned int flags;	/*%< DNS_STYLEFLAG_*  */
 	unsigned int width;	/*%< Width of rdata column. */
-  	const char *linebreak;	/*%< Line break string. */
+	const char *linebreak;	/*%< Line break string. */
 } dns_rdata_textctx_t;
 
 static isc_result_t
@@ -162,6 +162,9 @@ uint16_fromregion(isc_region_t *region);
 static isc_uint8_t
 uint8_fromregion(isc_region_t *region);
 
+static isc_uint8_t
+uint8_consume_fromregion(isc_region_t *region);
+
 static isc_result_t
 mem_tobuffer(isc_buffer_t *target, void *base, unsigned int length);
 
@@ -200,6 +203,9 @@ warn_badname(dns_name_t *name, isc_lex_t *lexer,
 static void
 warn_badmx(isc_token_t *token, isc_lex_t *lexer,
 	   dns_rdatacallbacks_t *callbacks);
+
+static isc_uint16_t
+uint16_consume_fromregion(isc_region_t *region);
 
 static inline int
 getquad(const void *src, struct in_addr *dst,
@@ -269,7 +275,7 @@ dns_rdata_init(dns_rdata_t *rdata) {
 	/* ISC_LIST_INIT(rdata->list); */
 }
 
-#if 0
+#if 1
 #define DNS_RDATA_INITIALIZED(rdata) \
 	((rdata)->data == NULL && (rdata)->length == 0 && \
 	 (rdata)->rdclass == 0 && (rdata)->type == 0 && (rdata)->flags == 0 && \
@@ -282,8 +288,9 @@ dns_rdata_init(dns_rdata_t *rdata) {
 #define DNS_RDATA_INITIALIZED(rdata) ISC_TRUE
 #endif
 #endif
+
 #define DNS_RDATA_VALIDFLAGS(rdata) \
-	(((rdata)->flags & ~DNS_RDATA_UPDATE) == 0)
+	(((rdata)->flags & ~(DNS_RDATA_UPDATE|DNS_RDATA_OFFLINE)) == 0)
 
 void
 dns_rdata_reset(dns_rdata_t *rdata) {
@@ -532,7 +539,7 @@ unknown_fromtext(dns_rdataclass_t rdclass, dns_rdatatype_t type,
 	result = isc_buffer_allocate(mctx, &buf, token.value.as_ulong);
 	if (result != ISC_R_SUCCESS)
 		return (result);
-	
+
 	result = isc_hex_tobuffer(lexer, buf,
 				  (unsigned int)token.value.as_ulong);
 	if (result != ISC_R_SUCCESS)
@@ -728,7 +735,7 @@ dns_rdata_totext(dns_rdata_t *rdata, dns_name_t *origin, isc_buffer_t *target)
 isc_result_t
 dns_rdata_tofmttext(dns_rdata_t *rdata, dns_name_t *origin,
 		    unsigned int flags, unsigned int width,
-		    char *linebreak, isc_buffer_t *target)
+		    const char *linebreak, isc_buffer_t *target)
 {
 	dns_rdata_textctx_t tctx;
 
@@ -901,7 +908,7 @@ dns_rdatatype_fromtext(dns_rdatatype_t *typep, isc_textregion_t *source) {
 	hash = ((a + n) * b) % 256;
 
 	/*
-	 * This switch block is inlined via #define, and will use "return"
+	 * This switch block is inlined via \#define, and will use "return"
 	 * to return a result to the caller if it is a valid (known)
 	 * rdatatype name.
 	 */
@@ -1234,6 +1241,14 @@ uint32_fromregion(isc_region_t *region) {
 }
 
 static isc_uint16_t
+uint16_consume_fromregion(isc_region_t *region) {
+	isc_uint16_t r = uint16_fromregion(region);
+
+	isc_region_consume(region, 2);
+	return r;
+}
+
+static isc_uint16_t
 uint16_fromregion(isc_region_t *region) {
 
 	REQUIRE(region->length >= 2);
@@ -1247,6 +1262,14 @@ uint8_fromregion(isc_region_t *region) {
 	REQUIRE(region->length >= 1);
 
 	return (region->base[0]);
+}
+
+static isc_uint8_t
+uint8_consume_fromregion(isc_region_t *region) {
+	isc_uint8_t r = uint8_fromregion(region);
+
+	isc_region_consume(region, 1);
+	return r;
 }
 
 static isc_result_t
@@ -1504,16 +1527,16 @@ byte_btoa(int c, isc_buffer_t *target, struct state *state) {
 			   /*
 			    * Because some don't support u_long.
 			    */
-		    	tmp = 32;
-		    	tmpword -= (isc_int32_t)(85 * 85 * 85 * 85 * 32);
+			tmp = 32;
+			tmpword -= (isc_int32_t)(85 * 85 * 85 * 85 * 32);
 		    }
 		    if (tmpword < 0) {
-		    	tmp = 64;
-		    	tmpword -= (isc_int32_t)(85 * 85 * 85 * 85 * 32);
+			tmp = 64;
+			tmpword -= (isc_int32_t)(85 * 85 * 85 * 85 * 32);
 		    }
 			if (tr.length < 5)
 				return (ISC_R_NOSPACE);
-		    	tr.base[0] = atob_digits[(tmpword /
+			tr.base[0] = atob_digits[(tmpword /
 					      (isc_int32_t)(85 * 85 * 85 * 85))
 						+ tmp];
 			tmpword %= (isc_int32_t)(85 * 85 * 85 * 85);
@@ -1596,7 +1619,7 @@ warn_badmx(isc_token_t *token, isc_lex_t *lexer,
 	if (lexer != NULL) {
 		file = isc_lex_getsourcename(lexer);
 		line = isc_lex_getsourceline(lexer);
-		(*callbacks->warn)(callbacks, "%s:%u: warning: '%s': %s", 
+		(*callbacks->warn)(callbacks, "%s:%u: warning: '%s': %s",
 				   file, line, DNS_AS_STR(*token),
 				   dns_result_totext(DNS_R_MXISADDRESS));
 	}
@@ -1609,12 +1632,12 @@ warn_badname(dns_name_t *name, isc_lex_t *lexer,
 	const char *file;
 	unsigned long line;
 	char namebuf[DNS_NAME_FORMATSIZE];
-	
+
 	if (lexer != NULL) {
 		file = isc_lex_getsourcename(lexer);
 		line = isc_lex_getsourceline(lexer);
 		dns_name_format(name, namebuf, sizeof(namebuf));
-		(*callbacks->warn)(callbacks, "%s:%u: warning: %s: %s", 
+		(*callbacks->warn)(callbacks, "%s:%u: warning: %s: %s",
 				   file, line, namebuf,
 				   dns_result_totext(DNS_R_BADNAME));
 	}

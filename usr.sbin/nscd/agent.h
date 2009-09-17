@@ -53,7 +53,7 @@ struct common_agent {
 
 struct multipart_agent {
     	struct agent	parent;
-	void *(*mp_init_func)();
+	void *(*mp_init_func)(void);
     	int (*mp_lookup_func)(char **, size_t *, void *);
 	void (*mp_destroy_func)(void *);
 };
@@ -63,10 +63,9 @@ struct agent_table {
 	size_t		agents_num;
 };
 
-extern struct agent_table *init_agent_table();
-extern void register_agent(struct agent_table *, struct agent *);
-extern struct agent *find_agent(struct agent_table *, const char *,
-	enum agent_type);
-extern void destroy_agent_table(struct agent_table *);
+struct agent_table *init_agent_table(void);
+void register_agent(struct agent_table *, struct agent *);
+struct agent *find_agent(struct agent_table *, const char *, enum agent_type);
+void destroy_agent_table(struct agent_table *);
 
 #endif

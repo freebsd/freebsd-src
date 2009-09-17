@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_kdb.h"
-#include "opt_mac.h"
 #include "opt_panic.h"
 #include "opt_show_busybufs.h"
 #include "opt_sched.h"
@@ -51,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/eventhandler.h>
+#include <sys/jail.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>		/* smp_active */
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
-#include <sys/vimage.h>
 
 #include <ddb/ddb.h>
 
@@ -413,9 +412,6 @@ boot(int howto)
 	 */
 	EVENTHANDLER_INVOKE(shutdown_post_sync, howto);
 
-	/* XXX This doesn't disable interrupts any more.  Reconsider? */
-	splhigh();
-
 	if ((howto & (RB_HALT|RB_DUMP)) == RB_DUMP && !cold && !dumping) 
 		doadump();
 
@@ -488,6 +484,13 @@ shutdown_panic(void *junk, int howto)
 static void
 shutdown_reset(void *junk, int howto)
 {
+
+	/*
+	 * Disable interrupts on CPU0 in order to avoid fast handlers
+	 * to preempt the stopping process and to deadlock against other
+	 * CPUs.
+	 */
+	spinlock_enter();
 
 	printf("Rebooting...\n");
 	DELAY(1000000);	/* wait 1 sec for printf's to complete and be read */
@@ -578,6 +581,10 @@ panic(const char *fmt, ...)
 
 /*
  * Support for poweroff delay.
+ *
+ * Please note that setting this delay too short might power off your machine
+ * before the write cache on your hard disk has been flushed, leading to
+ * soft-updates inconsistencies.
  */
 #ifndef POWEROFF_DELAY
 # define POWEROFF_DELAY 5000
@@ -680,15 +687,6 @@ dump_write(struct dumperinfo *di, void *virtual, vm_offset_t physical,
 	return (di->dumper(di->priv, virtual, physical, offset, length));
 }
 
-#if defined(__powerpc__)
-void
-dumpsys(struct dumperinfo *di __unused)
-{
-
-	printf("Kernel dumps not implemented on this architecture\n");
-}
-#endif
-
 void
 mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
     uint64_t dumplen, uint32_t blksz)
@@ -702,7 +700,7 @@ mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
 	kdh->dumplength = htod64(dumplen);
 	kdh->dumptime = htod64(time_second);
 	kdh->blocksize = htod32(blksz);
-	strncpy(kdh->hostname, G_hostname, sizeof(kdh->hostname));
+	strncpy(kdh->hostname, prison0.pr_hostname, sizeof(kdh->hostname));
 	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
 	if (panicstr != NULL)
 		strncpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));
