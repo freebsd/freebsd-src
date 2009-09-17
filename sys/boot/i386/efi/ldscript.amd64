@@ -9,6 +9,9 @@ SECTIONS
   ImageBase = .;
   . = SIZEOF_HEADERS;
   . = ALIGN(4096);
+  .eh_frame	: {
+    *(.eh_frame)
+   }
   .text		: {
     *(.text .stub .text.* .gnu.linkonce.t.*)
     /* .gnu.warning sections are handled specially by elf32.em. */
