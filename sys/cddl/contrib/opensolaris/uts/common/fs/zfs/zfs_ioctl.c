@@ -2543,6 +2543,9 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		if (error == 0) {
 			int resume_err;
 
+#ifdef FREEBSD_NAMECACHE
+			cache_purgevfs(zfsvfs->z_vfs);
+#endif
 			error = dmu_recv_end(&drc);
 			resume_err = zfs_resume_fs(zfsvfs, osname, mode);
 			error = error ? error : resume_err;
