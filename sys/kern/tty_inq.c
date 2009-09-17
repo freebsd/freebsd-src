@@ -79,12 +79,42 @@ SYSCTL_LONG(_kern, OID_AUTO, tty_inq_nslow, CTLFLAG_RD,
 	((tib)->tib_quotes[(boff) / BMSIZE] &= ~(1 << ((boff) % BMSIZE)))
 
 struct ttyinq_block {
-	TAILQ_ENTRY(ttyinq_block) tib_list;
-	uint32_t	tib_quotes[TTYINQ_QUOTESIZE];
-	char		tib_data[TTYINQ_DATASIZE];
+	struct ttyinq_block	*tib_prev;
+	struct ttyinq_block	*tib_next;
+	uint32_t		tib_quotes[TTYINQ_QUOTESIZE];
+	char			tib_data[TTYINQ_DATASIZE];
 };
 
 static uma_zone_t ttyinq_zone;
+
+#define	TTYINQ_INSERT_TAIL(ti, tib) do {				\
+	if (ti->ti_end == 0) {						\
+		tib->tib_prev = NULL;					\
+		tib->tib_next = ti->ti_firstblock;			\
+		ti->ti_firstblock = tib;				\
+	} else {							\
+		tib->tib_prev = ti->ti_lastblock;			\
+		tib->tib_next = ti->ti_lastblock->tib_next;		\
+		ti->ti_lastblock->tib_next = tib;			\
+	}								\
+	if (tib->tib_next != NULL)					\
+		tib->tib_next->tib_prev = tib;				\
+	ti->ti_nblocks++;						\
+} while (0)
+
+#define	TTYINQ_REMOVE_HEAD(ti) do {					\
+	ti->ti_firstblock = ti->ti_firstblock->tib_next;		\
+	if (ti->ti_firstblock != NULL)					\
+		ti->ti_firstblock->tib_prev = NULL;			\
+	ti->ti_nblocks--;						\
+} while (0)
+
+#define	TTYINQ_RECYCLE(ti, tib) do {					\
+	if (ti->ti_quota <= ti->ti_nblocks)				\
+		uma_zfree(ttyinq_zone, tib);				\
+	else								\
+		TTYINQ_INSERT_TAIL(ti, tib);				\
+} while (0)
 
 void
 ttyinq_setsize(struct ttyinq *ti, struct tty *tp, size_t size)
@@ -108,8 +138,7 @@ ttyinq_setsize(struct ttyinq *ti, struct tty *tp, size_t size)
 		tib = uma_zalloc(ttyinq_zone, M_WAITOK);
 		tty_lock(tp);
 
-		TAILQ_INSERT_TAIL(&ti->ti_list, tib, tib_list);
-		ti->ti_nblocks++;
+		TTYINQ_INSERT_TAIL(ti, tib);
 	}
 }
 
@@ -121,10 +150,9 @@ ttyinq_free(struct ttyinq *ti)
 	ttyinq_flush(ti);
 	ti->ti_quota = 0;
 
-	while ((tib = TAILQ_FIRST(&ti->ti_list)) != NULL) {
-		TAILQ_REMOVE(&ti->ti_list, tib, tib_list);
+	while ((tib = ti->ti_firstblock) != NULL) {
+		TTYINQ_REMOVE_HEAD(ti);
 		uma_zfree(ttyinq_zone, tib);
-		ti->ti_nblocks--;
 	}
 
 	MPASS(ti->ti_nblocks == 0);
@@ -145,7 +173,7 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 		/* See if there still is data. */
 		if (ti->ti_begin == ti->ti_linestart)
 			return (0);
-		tib = TAILQ_FIRST(&ti->ti_list);
+		tib = ti->ti_firstblock;
 		if (tib == NULL)
 			return (0);
 
@@ -176,8 +204,7 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 			 * Fast path: zero copy. Remove the first block,
 			 * so we can unlock the TTY temporarily.
 			 */
-			TAILQ_REMOVE(&ti->ti_list, tib, tib_list);
-			ti->ti_nblocks--;
+			TTYINQ_REMOVE_HEAD(ti);
 			ti->ti_begin = 0;
 
 			/*
@@ -185,11 +212,10 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 			 * fix up the block offsets.
 			 */
 #define CORRECT_BLOCK(t) do {			\
-	if (t <= TTYINQ_DATASIZE) {		\
+	if (t <= TTYINQ_DATASIZE)		\
 		t = 0;				\
-	} else {				\
+	else					\
 		t -= TTYINQ_DATASIZE;		\
-	}					\
 } while (0)
 			CORRECT_BLOCK(ti->ti_linestart);
 			CORRECT_BLOCK(ti->ti_reprint);
@@ -207,12 +233,7 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 			tty_lock(tp);
 
 			/* Block can now be readded to the list. */
-			if (ti->ti_quota <= ti->ti_nblocks) {
-				uma_zfree(ttyinq_zone, tib);
-			} else {
-				TAILQ_INSERT_TAIL(&ti->ti_list, tib, tib_list);
-				ti->ti_nblocks++;
-			}
+			TTYINQ_RECYCLE(ti, tib);
 		} else {
 			char ob[TTYINQ_DATASIZE - 1];
 			atomic_add_long(&ttyinq_nslow, 1);
@@ -264,25 +285,27 @@ ttyinq_write(struct ttyinq *ti, const void *buf, size_t nbytes, int quote)
 	size_t l;
 	
 	while (nbytes > 0) {
-		tib = ti->ti_lastblock;
 		boff = ti->ti_end % TTYINQ_DATASIZE;
 
 		if (ti->ti_end == 0) {
 			/* First time we're being used or drained. */
 			MPASS(ti->ti_begin == 0);
-			tib = ti->ti_lastblock = TAILQ_FIRST(&ti->ti_list);
+			tib = ti->ti_firstblock;
 			if (tib == NULL) {
 				/* Queue has no blocks. */
 				break;
 			}
+			ti->ti_lastblock = tib;
 		} else if (boff == 0) {
 			/* We reached the end of this block on last write. */
-			tib = TAILQ_NEXT(tib, tib_list);
+			tib = ti->ti_lastblock->tib_next;
 			if (tib == NULL) {
 				/* We've reached the watermark. */
 				break;
 			}
 			ti->ti_lastblock = tib;
+		} else {
+			tib = ti->ti_lastblock;
 		}
 
 		/* Don't copy more than was requested. */
@@ -328,7 +351,7 @@ size_t
 ttyinq_findchar(struct ttyinq *ti, const char *breakc, size_t maxlen,
     char *lastc)
 {
-	struct ttyinq_block *tib = TAILQ_FIRST(&ti->ti_list);
+	struct ttyinq_block *tib = ti->ti_firstblock;
 	unsigned int boff = ti->ti_begin;
 	unsigned int bend = MIN(MIN(TTYINQ_DATASIZE, ti->ti_linestart),
 	    ti->ti_begin + maxlen);
@@ -402,8 +425,7 @@ ttyinq_unputchar(struct ttyinq *ti)
 
 	if (--ti->ti_end % TTYINQ_DATASIZE == 0) {
 		/* Roll back to the previous block. */
-		ti->ti_lastblock = TAILQ_PREV(ti->ti_lastblock,
-		    ttyinq_bhead, tib_list);
+		ti->ti_lastblock = ti->ti_lastblock->tib_prev;
 		/*
 		 * This can only fail if we are unputchar()'ing the
 		 * first character in the queue.
@@ -437,7 +459,7 @@ ttyinq_line_iterate(struct ttyinq *ti,
 
 	/* Use the proper block when we're at the queue head. */
 	if (offset == 0)
-		tib = TAILQ_FIRST(&ti->ti_list);
+		tib = ti->ti_firstblock;
 
 	/* Iterate all characters and call the iterator function. */
 	for (; offset < ti->ti_end; offset++) {
@@ -449,7 +471,7 @@ ttyinq_line_iterate(struct ttyinq *ti,
 
 		/* Last byte iterated - go to the next block. */
 		if (boff == TTYINQ_DATASIZE - 1)
-			tib = TAILQ_NEXT(tib, tib_list);
+			tib = tib->tib_next;
 		MPASS(tib != NULL);
 	}
 }

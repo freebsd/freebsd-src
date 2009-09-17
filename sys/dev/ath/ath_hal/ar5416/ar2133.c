@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2008 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar2133.c,v 1.13 2008/11/11 00:11:30 sam Exp $
+ * $FreeBSD$
  */
 #include "opt_ah.h"
 
@@ -46,14 +46,8 @@ struct ar2133State {
 
 #define	ar5416ModifyRfBuffer	ar5212ModifyRfBuffer	/*XXX*/
 
-extern  void ar5416ModifyRfBuffer(uint32_t *rfBuf, uint32_t reg32,
-	uint32_t numBits, uint32_t firstBit, uint32_t column);
-HAL_BOOL ar2133GetChipPowerLimits(struct ath_hal *ah, HAL_CHANNEL 
-	*chans, uint32_t nchans);
-	
-static HAL_BOOL ar2133GetChannelMaxMinPower(struct ath_hal *, HAL_CHANNEL *, 
-		int16_t *maxPow,int16_t *minPow);
-int16_t ar2133GetNfAdjust(struct ath_hal *ah, const HAL_CHANNEL_INTERNAL *c);
+void	ar5416ModifyRfBuffer(uint32_t *rfBuf, uint32_t reg32,
+	    uint32_t numBits, uint32_t firstBit, uint32_t column);
 
 static void
 ar2133WriteRegs(struct ath_hal *ah, u_int modesIndex, u_int freqIndex,
@@ -69,7 +63,7 @@ ar2133WriteRegs(struct ath_hal *ah, u_int modesIndex, u_int freqIndex,
  * ASSUMES: Writes enabled to analog bus
  */
 static HAL_BOOL
-ar2133SetChannel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
+ar2133SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	uint32_t channelSel  = 0;
 	uint32_t bModeSynth  = 0;
@@ -78,9 +72,9 @@ ar2133SetChannel(struct ath_hal *ah,  HAL_CHANNEL_INTERNAL *chan)
 	uint16_t freq;
 	CHAN_CENTERS centers;
     
-	OS_MARK(ah, AH_MARK_SETCHANNEL, chan->channel);
+	OS_MARK(ah, AH_MARK_SETCHANNEL, chan->ic_freq);
     
-	ar5416GetChannelCenters(ah,  chan, &centers);
+	ar5416GetChannelCenters(ah, chan, &centers);
 	freq = centers.synth_center;
 
 	if (freq < 4800) {
@@ -169,7 +163,7 @@ ar2133GetRfBank(struct ath_hal *ah, int bank)
  * REQUIRES: Access to the analog rf device
  */
 static HAL_BOOL
-ar2133SetRfRegs(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan,
+ar2133SetRfRegs(struct ath_hal *ah, const struct ieee80211_channel *chan,
                 uint16_t modesIndex, uint16_t *rfXpdGain)
 {
 	struct ar2133State *priv = AR2133(ah);
@@ -193,7 +187,7 @@ ar2133SetRfRegs(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan,
 	ath_hal_ini_bank_setup(priv->Bank6Data, &AH5416(ah)->ah_ini_bank6, modesIndex);
 	
 	/* Only the 5 or 2 GHz OB/DB need to be set for a mode */
-	if (IS_CHAN_2GHZ(chan)) {
+	if (IEEE80211_IS_CHAN_2GHZ(chan)) {
 		ar5416ModifyRfBuffer(priv->Bank6Data,
 		    ath_hal_eepromGet(ah, AR_EEP_OB_2, AH_NULL), 3, 197, 0);
 		ar5416ModifyRfBuffer(priv->Bank6Data,
@@ -233,7 +227,7 @@ ar2133SetRfRegs(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan,
 
 static HAL_BOOL
 ar2133SetPowerTable(struct ath_hal *ah, int16_t *pPowerMin, int16_t *pPowerMax, 
-	HAL_CHANNEL_INTERNAL *chan, uint16_t *rfXpdGain)
+	const struct ieee80211_channel *chan, uint16_t *rfXpdGain)
 {
 	return AH_TRUE;
 }
@@ -267,8 +261,9 @@ ar2133GetMinPower(struct ath_hal *ah, EXPN_DATA_PER_CHANNEL_5112 *data)
 #endif
 
 static HAL_BOOL
-ar2133GetChannelMaxMinPower(struct ath_hal *ah, HAL_CHANNEL *chan, int16_t *maxPow,
-                int16_t *minPow)
+ar2133GetChannelMaxMinPower(struct ath_hal *ah,
+	const struct ieee80211_channel *chan,
+	int16_t *maxPow, int16_t *minPow)
 {
 #if 0
     struct ath_hal_5212 *ahp = AH5212(ah);
@@ -390,7 +385,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
  * Adjust NF based on statistical values for 5GHz frequencies.
  * Stubbed:Not used by Fowl
  */
-int16_t
+static int16_t
 ar2133GetNfAdjust(struct ath_hal *ah, const HAL_CHANNEL_INTERNAL *c)
 {
 	return 0;

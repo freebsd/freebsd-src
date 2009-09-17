@@ -20,5 +20,7 @@ OpenBSM TODO
 - Document audit_warn event arguments.
 - Allow the path /etc/security to be configured at configure-time so that
   alternative locations can be used.
+- NLS support for au_strerror(3), which provides error strings for BSM errors
+  not available on the local OS platform.
 
-$P4: //depot/projects/trustedbsd/openbsm/TODO#11 $
+$P4: //depot/projects/trustedbsd/openbsm/TODO#12 $

@@ -1,4 +1,4 @@
-/*	$NetBSD: ftpd.c,v 1.176 2006/05/09 20:18:06 mrg Exp $	*/
+/*	$NetBSD: ftpd.c,v 1.187 2008/09/13 03:30:35 lukem Exp $	*/
 
 /*
  * Copyright (c) 1997-2004 The NetBSD Foundation, Inc.
@@ -2896,6 +2896,7 @@ static int
 handleoobcmd()
 {
 	char *cp;
+	int ret;
 
 	if (!urgflag)
 		return (0);
@@ -2904,9 +2905,14 @@ handleoobcmd()
 	if (!transflag)
 		return (0);
 	cp = tmpline;
-	if (getline(cp, sizeof(tmpline), stdin) == NULL) {
+	ret = getline(cp, sizeof(tmpline)-1, stdin);
+	if (ret == -1) {
 		reply(221, "You could at least say goodbye.");
 		dologout(0);
+	} else if (ret == -2) {
+		/* Ignore truncated command */
+		/* XXX: abort xfer with "500 command too long", & return 1 ? */
+		return 0;
 	}
 		/*
 		 * Manually parse OOB commands, because we can't

@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cache.c,v 1.57.18.16 2006/08/01 01:06:48 marka Exp $ */
+/* $Id: cache.c,v 1.57.18.18 2008/02/07 23:45:56 tbox Exp $ */
 
 /*! \file */
 
@@ -42,16 +42,16 @@
 #define CACHE_MAGIC		ISC_MAGIC('$', '$', '$', '$')
 #define VALID_CACHE(cache)	ISC_MAGIC_VALID(cache, CACHE_MAGIC)
 
-/*! 
+/*!
  * Control incremental cleaning.
  * DNS_CACHE_MINSIZE is how many bytes is the floor for dns_cache_setcachesize().
  * See also DNS_CACHE_CLEANERINCREMENT
  */
 #define DNS_CACHE_MINSIZE 		2097152	/*%< Bytes.  2097152 = 2 MB */
-/*! 
+/*!
  * Control incremental cleaning.
  * CLEANERINCREMENT is how many nodes are examined in one pass.
- * See also DNS_CACHE_MINSIZE 
+ * See also DNS_CACHE_MINSIZE
  */
 #define DNS_CACHE_CLEANERINCREMENT	1000U	/*%< Number of nodes. */
 
@@ -173,7 +173,7 @@ adjust_increment(cache_cleaner_t *cleaner, unsigned int remaining,
 	unsigned int pps = dns_pps;
 	unsigned int interval;
 	unsigned int names;
-	
+
 	/*
 	 * Tune for minumum of 100 packets per second (pps).
 	 */
@@ -194,7 +194,7 @@ adjust_increment(cache_cleaner_t *cleaner, unsigned int remaining,
 		      ISC_LOG_DEBUG(1), "adjust_increment interval=%u "
 		      "names=%u usec=%" ISC_PLATFORM_QUADFORMAT "u",
 		      interval, names, usecs);
-	
+
 	if (usecs == 0) {
 		/*
 		 * If we cleaned all the nodes in unmeasurable time
@@ -537,7 +537,7 @@ dns_cache_setcleaninginterval(dns_cache_t *cache, unsigned int t) {
 					 isc_timertype_ticker,
 					 NULL, &interval, ISC_FALSE);
 	}
-	if (result != ISC_R_SUCCESS)	
+	if (result != ISC_R_SUCCESS)
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
 			      DNS_LOGMODULE_CACHE, ISC_LOG_WARNING,
 			      "could not set cache cleaning interval: %s",
@@ -624,7 +624,7 @@ cache_cleaner_init(dns_cache_t *cache, isc_taskmgr_t *taskmgr,
 			result = ISC_R_NOMEMORY;
 			goto cleanup;
 		}
-		
+
 		cleaner->overmem_event =
 			isc_event_allocate(cache->mctx, cleaner,
 					   DNS_EVENT_CACHEOVERMEM,
@@ -662,7 +662,7 @@ begin_cleaning(cache_cleaner_t *cleaner) {
 
 	/*
 	 * Create an iterator, if it does not already exist, and
-         * position it at the beginning of the cache.
+	 * position it at the beginning of the cache.
 	 */
 	if (cleaner->iterator == NULL)
 		result = dns_db_createiterator(cleaner->cache->db, ISC_FALSE,
@@ -701,7 +701,7 @@ begin_cleaning(cache_cleaner_t *cleaner) {
 		isc_log_write(dns_lctx, DNS_LOGCATEGORY_DATABASE,
 			      DNS_LOGMODULE_CACHE, ISC_LOG_DEBUG(1),
 			      "begin cache cleaning, mem inuse %lu",
-		            (unsigned long)isc_mem_inuse(cleaner->cache->mctx));
+			    (unsigned long)isc_mem_inuse(cleaner->cache->mctx));
 		cleaner->state = cleaner_s_busy;
 		isc_task_send(cleaner->task, &cleaner->resched_event);
 	}
@@ -761,7 +761,7 @@ static void
 overmem_cleaning_action(isc_task_t *task, isc_event_t *event) {
 	cache_cleaner_t *cleaner = event->ev_arg;
 	isc_boolean_t want_cleaning = ISC_FALSE;
-	
+
 	UNUSED(task);
 
 	INSIST(task == cleaner->task);
@@ -980,9 +980,12 @@ water(void *arg, int mark) {
 	REQUIRE(VALID_CACHE(cache));
 
 	LOCK(&cache->cleaner.lock);
-	
-	dns_db_overmem(cache->db, overmem);
-	cache->cleaner.overmem = overmem;
+
+	if (overmem != cache->cleaner.overmem) {
+		dns_db_overmem(cache->db, overmem);
+		cache->cleaner.overmem = overmem;
+		isc_mem_waterack(cache->mctx, mark);
+	}
 
 	if (cache->cleaner.overmem_event != NULL)
 		isc_task_send(cache->cleaner.task,
@@ -1106,7 +1109,7 @@ dns_cache_flushname(dns_cache_t *cache, dns_name_t *name) {
 	dns_rdatasetiter_t *iter = NULL;
 	dns_dbnode_t *node = NULL;
 	dns_db_t *db = NULL;
-	
+
 	LOCK(&cache->lock);
 	if (cache->db != NULL)
 		dns_db_attach(cache->db, &db);

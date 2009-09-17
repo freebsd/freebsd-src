@@ -40,6 +40,7 @@ static char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <stdio.h>
 #include <string.h>
 #include "ww.h"
 #include "tt.h"

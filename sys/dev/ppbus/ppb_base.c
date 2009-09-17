@@ -28,9 +28,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 
 #include <dev/ppbus/ppbconf.h>
@@ -54,8 +56,11 @@ int
 ppb_poll_bus(device_t bus, int max,
 	     char mask, char status, int how)
 {
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
 	int i, j, error;
 	char r;
+
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
 
 	/* try at least up to 10ms */
 	for (j = 0; j < ((how & PPB_POLL) ? max : 1); j++) {
@@ -72,21 +77,11 @@ ppb_poll_bus(device_t bus, int max,
 		if ((ppb_rstr(bus) & mask) == status)
 			return (0);
 
-		switch (how) {
-		case PPB_NOINTR:
-			/* wait 10 ms */
-			pause("ppbpoll", hz/100);
-			break;
-
-		case PPB_INTR:
-		default:
-			/* wait 10 ms */
-			if (((error = tsleep((caddr_t)bus, PPBPRI | PCATCH,
-			    "ppbpoll", hz/100)) != EWOULDBLOCK) != 0) {
-				return (error);
-			}
-			break;
-		}
+		/* wait 10 ms */
+		error = mtx_sleep((caddr_t)bus, ppb->ppc_lock, PPBPRI |
+		    (how == PPB_NOINTR ? 0 : PCATCH), "ppbpoll", hz/100);
+		if (error != EWOULDBLOCK)
+			return (error);
 	   }
 	}
 
@@ -101,8 +96,12 @@ ppb_poll_bus(device_t bus, int max,
 int
 ppb_get_epp_protocol(device_t bus)
 {
+#ifdef INVARIANTS
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+#endif
 	uintptr_t protocol;
 
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
 	BUS_READ_IVAR(device_get_parent(bus), bus, PPC_IVAR_EPP_PROTO, &protocol);
 
 	return (protocol);
@@ -118,6 +117,7 @@ ppb_get_mode(device_t bus)
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
 
 	/* XXX yet device mode = ppbus mode = chipset mode */
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
 	return (ppb->mode);
 }
 
@@ -132,6 +132,7 @@ ppb_set_mode(device_t bus, int mode)
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
 	int old_mode = ppb_get_mode(bus);
 
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
 	if (PPBUS_SETMODE(device_get_parent(bus), mode))
 		return (-1);
 
@@ -149,6 +150,11 @@ ppb_set_mode(device_t bus, int mode)
 int
 ppb_write(device_t bus, char *buf, int len, int how)
 {
+#ifdef INVARIANTS
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+#endif
+
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
 	return (PPBUS_WRITE(device_get_parent(bus), buf, len, how));
 }
 
@@ -160,6 +166,11 @@ ppb_write(device_t bus, char *buf, int len, int how)
 int
 ppb_reset_epp_timeout(device_t bus)
 {
+#ifdef INVARIANTS
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+#endif
+
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
 	return(PPBUS_RESET_EPP(device_get_parent(bus)));
 }
 
@@ -171,6 +182,11 @@ ppb_reset_epp_timeout(device_t bus)
 int
 ppb_ecp_sync(device_t bus)
 {
+#ifdef INVARIANTS
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+#endif
+
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
 	return (PPBUS_ECP_SYNC(device_get_parent(bus)));
 }
 
@@ -182,7 +198,12 @@ ppb_ecp_sync(device_t bus)
 int
 ppb_get_status(device_t bus, struct ppb_status *status)
 {
+#ifdef INVARIANTS
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+#endif
 	register char r;
+
+	mtx_assert(ppb->ppc_lock, MA_OWNED);
 
 	r = status->status = ppb_rstr(bus);
 
@@ -194,4 +215,46 @@ ppb_get_status(device_t bus, struct ppb_status *status)
 	status->busy	= !(r & nBUSY);
 
 	return (0);
+}
+
+void
+ppb_lock(device_t bus)
+{
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+
+	mtx_lock(ppb->ppc_lock);
+}
+
+void
+ppb_unlock(device_t bus)
+{
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+
+	mtx_unlock(ppb->ppc_lock);
+}
+
+void
+_ppb_assert_locked(device_t bus, const char *file, int line)
+{
+#ifdef INVARIANTS
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+
+	_mtx_assert(ppb->ppc_lock, MA_OWNED, file, line);
+#endif
+}
+
+void
+ppb_init_callout(device_t bus, struct callout *c, int flags)
+{
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+
+	callout_init_mtx(c, ppb->ppc_lock, flags);
+}
+
+int
+ppb_sleep(device_t bus, void *wchan, int priority, const char *wmesg, int timo)
+{
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+
+	return (mtx_sleep(wchan, ppb->ppc_lock, priority, wmesg, timo));
 }

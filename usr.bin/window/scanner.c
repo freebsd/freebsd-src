@@ -46,6 +46,7 @@ static char rcsid[] =
 #include "context.h"
 #include "string.h"
 #include "mystring.h"
+#include <stdlib.h>
 
 s_getc()
 {

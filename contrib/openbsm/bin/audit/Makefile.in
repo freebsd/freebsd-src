@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/bin/audit/Makefile.in#9 $
+# $P4: //depot/projects/trustedbsd/openbsm/bin/audit/Makefile.in#11 $
 #
 
 VPATH = @srcdir@
@@ -49,9 +49,9 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man8dir)"
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(sbin_PROGRAMS)
-am__audit_SOURCES_DIST = audit.c auditd_control_user.c
+am__audit_SOURCES_DIST = audit.c auditd_controlUser.c
 @USE_MACH_IPC_FALSE@am_audit_OBJECTS = audit.$(OBJEXT)
-@USE_MACH_IPC_TRUE@am_audit_OBJECTS = auditd_control_user.$(OBJEXT) \
+@USE_MACH_IPC_TRUE@am_audit_OBJECTS = auditd_controlUser.$(OBJEXT) \
 @USE_MACH_IPC_TRUE@	audit.$(OBJEXT)
 audit_OBJECTS = $(am_audit_OBJECTS)
 audit_DEPENDENCIES = $(top_builddir)/libbsm/libbsm.la
@@ -188,8 +188,8 @@ top_srcdir = @top_srcdir@
 audit_LDADD = $(top_builddir)/libbsm/libbsm.la
 man8_MANS = audit.8
 @USE_MACH_IPC_FALSE@audit_SOURCES = audit.c
-@USE_MACH_IPC_TRUE@audit_SOURCES = auditd_control_user.c audit.c
-@USE_MACH_IPC_TRUE@CLEANFILES = auditd_control_user.c auditd_control_user.h
+@USE_MACH_IPC_TRUE@audit_SOURCES = auditd_controlUser.c audit.c
+@USE_MACH_IPC_TRUE@CLEANFILES = auditd_controlUser.c auditd_control.h
 all: all-am
 
 .SUFFIXES:
@@ -262,7 +262,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/audit.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/auditd_control_user.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/auditd_controlUser.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -521,8 +521,8 @@ uninstall-man: uninstall-man8
 	uninstall-sbinPROGRAMS
 
 
-@USE_MACH_IPC_TRUE@auditd_control_user.c: $(top_srcdir)/bin/auditd/auditd_control.defs 
-@USE_MACH_IPC_TRUE@	$(MIG)	-user auditd_control_user.c -header auditd_control_user.h -server /dev/null -sheader /dev/null $(top_srcdir)/bin/auditd/auditd_control.defs
+@USE_MACH_IPC_TRUE@auditd_controlUser.c auditd_control.h: $(top_srcdir)/bin/auditd/auditd_control.defs 
+@USE_MACH_IPC_TRUE@	$(MIG)	-user auditd_controlUser.c -header auditd_control.h -server /dev/null -sheader /dev/null $(top_srcdir)/bin/auditd/auditd_control.defs
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

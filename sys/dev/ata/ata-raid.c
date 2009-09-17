@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/ata-raid.h>
+#include <dev/ata/ata-raid-ddf.h>
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
@@ -65,6 +66,7 @@ static int ata_raid_read_metadata(device_t subdisk);
 static int ata_raid_write_metadata(struct ar_softc *rdp);
 static int ata_raid_wipe_metadata(struct ar_softc *rdp);
 static int ata_raid_adaptec_read_meta(device_t dev, struct ar_softc **raidp);
+static int ata_raid_ddf_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_hptv2_read_meta(device_t dev, struct ar_softc **raidp);
 static int ata_raid_hptv2_write_meta(struct ar_softc *rdp);
 static int ata_raid_hptv3_read_meta(device_t dev, struct ar_softc **raidp);
@@ -93,6 +95,7 @@ static char * ata_raid_flags(struct ar_softc *rdp);
 /* debugging only */
 static void ata_raid_print_meta(struct ar_softc *meta);
 static void ata_raid_adaptec_print_meta(struct adaptec_raid_conf *meta);
+static void ata_raid_ddf_print_meta(uint8_t *meta);
 static void ata_raid_hptv2_print_meta(struct hptv2_raid_conf *meta);
 static void ata_raid_hptv3_print_meta(struct hptv3_raid_conf *meta);
 static void ata_raid_intel_print_meta(struct intel_raid_conf *meta);
@@ -1417,6 +1420,10 @@ ata_raid_read_metadata(device_t subdisk)
     if (ata_raid_lsiv2_read_meta(subdisk, ata_raid_arrays))
 	return 0;
 
+    /* DDF (used by Adaptec, maybe others) */
+    if (ata_raid_ddf_read_meta(subdisk, ata_raid_arrays))
+	return 0;
+
     /* if none of the above matched, try FreeBSD native format */
     return ata_raid_promise_read_meta(subdisk, ata_raid_arrays, 1);
 }
@@ -1684,6 +1691,338 @@ ata_raid_adaptec_read_meta(device_t dev, struct ar_softc **raidp)
     }
 
 adaptec_out:
+    free(meta, M_AR);
+    return retval;
+}
+
+static uint64_t
+ddfbe64toh(uint64_t val)
+{
+    return (be64toh(val));
+}
+
+static uint32_t
+ddfbe32toh(uint32_t val)
+{
+    return (be32toh(val));
+}
+
+static uint16_t
+ddfbe16toh(uint16_t val)
+{
+    return (be16toh(val));
+}
+
+static uint64_t
+ddfle64toh(uint64_t val)
+{
+    return (le64toh(val));
+}
+
+static uint32_t
+ddfle32toh(uint32_t val)
+{
+    return (le32toh(val));
+}
+
+static uint16_t
+ddfle16toh(uint16_t val)
+{
+    return (le16toh(val));
+}
+
+static int
+ata_raid_ddf_read_meta(device_t dev, struct ar_softc **raidp)
+{
+    struct ata_raid_subdisk *ars;
+    device_t parent = device_get_parent(dev);
+    struct ddf_header *hdr;
+    struct ddf_pd_record *pdr;
+    struct ddf_pd_entry *pde = NULL;
+    struct ddf_vd_record *vdr;
+    struct ddf_pdd_record *pdd;
+    struct ddf_sa_record *sa = NULL;
+    struct ddf_vdc_record *vdcr = NULL;
+    struct ddf_vd_entry *vde = NULL;
+    struct ar_softc *raid;
+    uint64_t pri_lba;
+    uint32_t pd_ref, pd_pos;
+    uint8_t *meta, *cr;
+    int hdr_len, vd_state = 0, pd_state = 0;
+    int i, disk, array, retval = 0;
+    uintptr_t max_cr_addr;
+    uint64_t (*ddf64toh)(uint64_t) = NULL;
+    uint32_t (*ddf32toh)(uint32_t) = NULL;
+    uint16_t (*ddf16toh)(uint16_t) = NULL;
+
+    ars = device_get_softc(dev);
+    raid = NULL;
+
+    /* Read in the anchor header */
+    if (!(meta = malloc(DDF_HEADER_LENGTH, M_AR, M_NOWAIT | M_ZERO)))
+	return ENOMEM;
+
+    if (ata_raid_rw(parent, DDF_LBA(parent),
+		    meta, DDF_HEADER_LENGTH, ATA_R_READ)) {
+	if (testing || bootverbose)
+	    device_printf(parent, "DDF read metadata failed\n");
+	goto ddf_out;
+    }
+
+    /*
+     * Check if this is a DDF RAID struct.  Note the apparent "flexibility"
+     * regarding endianness.
+     */
+    hdr = (struct ddf_header *)meta;
+    if (be32toh(hdr->Signature) == DDF_HEADER_SIGNATURE) {
+	ddf64toh = ddfbe64toh;
+	ddf32toh = ddfbe32toh;
+	ddf16toh = ddfbe16toh;
+    } else if (le32toh(hdr->Signature) == DDF_HEADER_SIGNATURE) {
+	ddf64toh = ddfle64toh;
+	ddf32toh = ddfle32toh;
+	ddf16toh = ddfle16toh;
+    } else
+	goto ddf_out;
+
+    if (hdr->Header_Type != DDF_HEADER_ANCHOR) {
+	if (testing || bootverbose)
+	    device_printf(parent, "DDF check1 failed\n");
+	goto ddf_out;
+    }
+
+    pri_lba = ddf64toh(hdr->Primary_Header_LBA);
+    hdr_len = ddf32toh(hdr->cd_section) + ddf32toh(hdr->cd_length);
+    hdr_len = max(hdr_len,ddf32toh(hdr->pdr_section)+ddf32toh(hdr->pdr_length));
+    hdr_len = max(hdr_len,ddf32toh(hdr->vdr_section)+ddf32toh(hdr->vdr_length));
+    hdr_len = max(hdr_len,ddf32toh(hdr->cr_section) +ddf32toh(hdr->cr_length));
+    hdr_len = max(hdr_len,ddf32toh(hdr->pdd_section)+ddf32toh(hdr->pdd_length));
+    if (testing || bootverbose)
+		device_printf(parent, "DDF pri_lba= %llu length= %d blocks\n",
+			      (unsigned long long)pri_lba, hdr_len);
+    if ((pri_lba + hdr_len) > DDF_LBA(parent)) {
+	device_printf(parent, "DDF exceeds length of disk\n");
+	goto ddf_out;
+    }
+
+    /* Don't need the anchor anymore, read the rest of the metadata */
+    free(meta, M_AR);
+    if (!(meta = malloc(hdr_len * DEV_BSIZE, M_AR, M_NOWAIT | M_ZERO)))
+	return ENOMEM;
+
+    if (ata_raid_rw(parent, pri_lba, meta, hdr_len * DEV_BSIZE, ATA_R_READ)) {
+	if (testing || bootverbose)
+	    device_printf(parent, "DDF read full metadata failed\n");
+	goto ddf_out;
+    }
+
+    /* Check that we got a Primary Header */
+    hdr = (struct ddf_header *)meta;
+    if ((ddf32toh(hdr->Signature) != DDF_HEADER_SIGNATURE) ||
+	(hdr->Header_Type != DDF_HEADER_PRIMARY)) {
+	if (testing || bootverbose)
+	    device_printf(parent, "DDF check2 failed\n");
+	goto ddf_out;
+    }
+
+    if (testing || bootverbose)
+	ata_raid_ddf_print_meta(meta);
+
+    if ((hdr->Open_Flag >= 0x01) && (hdr->Open_Flag <= 0x0f)) {
+	device_printf(parent, "DDF Header open, possibly corrupt metadata\n");
+	goto ddf_out;
+    }
+
+    pdr = (struct ddf_pd_record*)(meta + ddf32toh(hdr->pdr_section)*DEV_BSIZE);
+    vdr = (struct ddf_vd_record*)(meta + ddf32toh(hdr->vdr_section)*DEV_BSIZE);
+    cr = (uint8_t *)(meta + ddf32toh(hdr->cr_section)*DEV_BSIZE);
+    pdd = (struct ddf_pdd_record*)(meta + ddf32toh(hdr->pdd_section)*DEV_BSIZE);
+
+    /* Verify the Physical Disk Device Record */
+    if (ddf32toh(pdd->Signature) != DDF_PDD_SIGNATURE) {
+	device_printf(parent, "Invalid PD Signature\n");
+	goto ddf_out;
+    }
+    pd_ref = ddf32toh(pdd->PD_Reference);
+    pd_pos = -1;
+
+    /* Verify the Physical Disk Record and make sure the disk is usable */
+    if (ddf32toh(pdr->Signature) != DDF_PDR_SIGNATURE) {
+	device_printf(parent, "Invalid PDR Signature\n");
+	goto ddf_out;
+    }
+    for (i = 0; i < ddf16toh(pdr->Populated_PDEs); i++) {
+	if (ddf32toh(pdr->entry[i].PD_Reference) != pd_ref)
+	    continue;
+	pde = &pdr->entry[i];
+	pd_state = ddf16toh(pde->PD_State);
+    }
+    if ((pde == NULL) ||
+	((pd_state & DDF_PDE_ONLINE) == 0) || 
+	(pd_state & (DDF_PDE_FAILED|DDF_PDE_MISSING|DDF_PDE_UNRECOVERED))) {
+	device_printf(parent, "Physical disk not usable\n");
+	goto ddf_out;
+    }
+
+    /* Parse out the configuration record, look for spare and VD records.
+     * While DDF supports a disk being part of more than one array, and
+     * thus having more than one VDCR record, that feature is not supported
+     * by ATA-RAID.  Therefore, the first record found takes precedence.
+     */
+    max_cr_addr = (uintptr_t)cr + ddf32toh(hdr->cr_length) * DEV_BSIZE - 1;
+    for ( ; (uintptr_t)cr < max_cr_addr;
+	cr += ddf16toh(hdr->Configuration_Record_Length) * DEV_BSIZE) {
+	switch (ddf32toh(((uint32_t *)cr)[0])) {
+	case DDF_VDCR_SIGNATURE:
+	    vdcr = (struct ddf_vdc_record *)cr;
+	    goto cr_found;
+	    break;
+	case DDF_VUCR_SIGNATURE:
+	    /* Don't care about this record */
+	    break;
+	case DDF_SA_SIGNATURE:
+	    sa = (struct ddf_sa_record *)cr;
+	    goto cr_found;
+	    break;
+	case DDF_CR_INVALID:
+	    /* A record was deliberately invalidated */
+	    break;
+	default:
+	    device_printf(parent, "Invalid CR signature found\n");
+	}
+    }
+cr_found:
+    if ((vdcr == NULL) /* && (sa == NULL) * Spares not supported yet */) {
+	device_printf(parent, "No usable configuration record found\n");
+	goto ddf_out;
+    }
+
+    if (vdcr != NULL) {
+	if (vdcr->Secondary_Element_Count != 1) {
+	    device_printf(parent, "Unsupported multi-level Virtual Disk\n");
+	    goto ddf_out;
+	}
+
+	/* Find the Virtual Disk Entry for this array */
+	if (ddf32toh(vdr->Signature) != DDF_VD_RECORD_SIGNATURE) {
+	    device_printf(parent, "Invalid VDR Signature\n");
+	    goto ddf_out;
+	}
+	for (i = 0; i < ddf16toh(vdr->Populated_VDEs); i++) {
+	    if (bcmp(vdr->entry[i].VD_GUID, vdcr->VD_GUID, 24))
+		continue;
+	    vde = &vdr->entry[i];
+	    vd_state = vde->VD_State & DDF_VDE_STATE_MASK;
+	}
+	if ((vde == NULL) ||
+	    ((vd_state != DDF_VDE_OPTIMAL) && (vd_state != DDF_VDE_DEGRADED))) {
+	    device_printf(parent, "Unusable Virtual Disk\n");
+	    goto ddf_out;
+	}
+	for (i = 0; i < ddf16toh(hdr->Max_Primary_Element_Entries); i++) {
+	    uint32_t pd_tmp;
+
+	    pd_tmp = ddf32toh(vdcr->Physical_Disk_Sequence[i]);
+	    if ((pd_tmp == 0x00000000) || (pd_tmp == 0xffffffff))
+		continue;
+	    if (pd_tmp == pd_ref) {
+		pd_pos = i;
+		break;
+	    }
+	}
+	if (pd_pos == -1) {
+	    device_printf(parent, "Physical device not part of array\n");
+	    goto ddf_out;
+	}
+    }
+
+    /* now convert DDF metadata into our generic form */
+    for (array = 0; array < MAX_ARRAYS; array++) {
+	if (!raidp[array]) {
+	    raid = (struct ar_softc *)malloc(sizeof(struct ar_softc), M_AR,
+					  M_NOWAIT | M_ZERO);
+	    if (!raid) {
+		device_printf(parent, "failed to allocate metadata storage\n");
+		goto ddf_out;
+	    }
+	} else
+	    raid = raidp[array];
+
+	if (raid->format && (raid->format != AR_F_DDF_RAID))
+	    continue;
+
+	if (raid->magic_0 && (raid->magic_0 != crc32(vde->VD_GUID, 24)))
+	    continue;
+
+	if (!raidp[array]) {
+	    raidp[array] = raid;
+
+	    switch (vdcr->Primary_RAID_Level) {
+	    case DDF_VDCR_RAID0:
+		raid->magic_0 = crc32(vde->VD_GUID, 24);
+		raid->magic_1 = ddf16toh(vde->VD_Number);
+		raid->type = AR_T_RAID0;
+		raid->interleave = 1 << vdcr->Stripe_Size;
+		raid->width = ddf16toh(vdcr->Primary_Element_Count);
+		break;
+	    
+	    case DDF_VDCR_RAID1:
+		raid->magic_0 = crc32(vde->VD_GUID, 24);
+		raid->magic_1 = ddf16toh(vde->VD_Number);
+		raid->type = AR_T_RAID1;
+		raid->width = 1;
+		break;
+
+	    default:
+		device_printf(parent, "DDF unsupported RAID type 0x%02x\n",
+			      vdcr->Primary_RAID_Level);
+		free(raidp[array], M_AR);
+		raidp[array] = NULL;
+		goto ddf_out;
+	    }
+
+	    raid->format = AR_F_DDF_RAID;
+	    raid->generation = ddf32toh(vdcr->Sequence_Number);
+	    raid->total_disks = ddf16toh(vdcr->Primary_Element_Count);
+	    raid->total_sectors = ddf64toh(vdcr->VD_Size);
+	    raid->heads = 255;
+	    raid->sectors = 63;
+	    raid->cylinders = raid->total_sectors / (63 * 255);
+	    raid->offset_sectors = 0;
+	    raid->rebuild_lba = 0;
+	    raid->lun = array;
+	    strncpy(raid->name, vde->VD_Name,
+		    min(sizeof(raid->name), sizeof(vde->VD_Name)));
+
+	    /* clear out any old info */
+	    if (raid->generation) {
+		for (disk = 0; disk < raid->total_disks; disk++) {
+		    raid->disks[disk].dev = NULL;
+		    raid->disks[disk].flags = 0;
+		}
+	    }
+	}
+	if (ddf32toh(vdcr->Sequence_Number) >= raid->generation) {
+	    int disk_number = pd_pos;
+
+	    raid->disks[disk_number].dev = parent;
+
+	    /* Adaptec appears to not set vdcr->Block_Count, yet again in
+	     * gross violation of the spec.
+	     */
+	    raid->disks[disk_number].sectors = ddf64toh(vdcr->Block_Count);
+            if (raid->disks[disk_number].sectors == 0)
+                raid->disks[disk_number].sectors=ddf64toh(pde->Configured_Size);
+	    raid->disks[disk_number].flags =
+		(AR_DF_ONLINE | AR_DF_PRESENT | AR_DF_ASSIGNED);
+	    ars->raid[raid->volume] = raid;
+	    ars->disk_number[raid->volume] = disk_number;
+	    retval = 1;
+	}
+	break;
+    }
+
+ddf_out:
     free(meta, M_AR);
     return retval;
 }
@@ -4271,6 +4610,7 @@ ata_raid_format(struct ar_softc *rdp)
     switch (rdp->format) {
     case AR_F_FREEBSD_RAID:     return "FreeBSD PseudoRAID";
     case AR_F_ADAPTEC_RAID:     return "Adaptec HostRAID";
+    case AR_F_DDF_RAID:		return "DDF";
     case AR_F_HPTV2_RAID:       return "HighPoint v2 RocketRAID";
     case AR_F_HPTV3_RAID:       return "HighPoint v3 RocketRAID";
     case AR_F_INTEL_RAID:       return "Intel MatrixRAID";
@@ -4425,6 +4765,71 @@ ata_raid_adaptec_print_meta(struct adaptec_raid_conf *meta)
     printf("magic_3             <0x%08x>\n", be32toh(meta->magic_3));
     printf("magic_4             <0x%08x>\n", be32toh(meta->magic_4));
     printf("=================================================\n");
+}
+
+static void
+ata_raid_ddf_print_meta(uint8_t *meta)
+{
+    struct ddf_header *hdr;
+    struct ddf_cd_record *cd;
+    struct ddf_pd_record *pdr;
+    struct ddf_pd_entry *pde;
+    struct ddf_vd_record *vdr;
+    struct ddf_vd_entry *vde;
+    struct ddf_pdd_record *pdd;
+    uint64_t (*ddf64toh)(uint64_t) = NULL;
+    uint32_t (*ddf32toh)(uint32_t) = NULL;
+    uint16_t (*ddf16toh)(uint16_t) = NULL;
+    uint8_t *cr;
+    char *r;
+
+    /* Check if this is a DDF RAID struct */
+    hdr = (struct ddf_header *)meta;
+    if (be32toh(hdr->Signature) == DDF_HEADER_SIGNATURE) {
+	ddf64toh = ddfbe64toh;
+	ddf32toh = ddfbe32toh;
+	ddf16toh = ddfbe16toh;
+    } else {
+	ddf64toh = ddfle64toh;
+	ddf32toh = ddfle32toh;
+	ddf16toh = ddfle16toh;
+    }
+
+    hdr = (struct ddf_header*)meta;
+    cd = (struct ddf_cd_record*)(meta + ddf32toh(hdr->cd_section) *DEV_BSIZE);
+    pdr = (struct ddf_pd_record*)(meta + ddf32toh(hdr->pdr_section)*DEV_BSIZE);
+    vdr = (struct ddf_vd_record*)(meta + ddf32toh(hdr->vdr_section)*DEV_BSIZE);
+    cr = (uint8_t *)(meta + ddf32toh(hdr->cr_section) * DEV_BSIZE);
+    pdd = (struct ddf_pdd_record*)(meta + ddf32toh(hdr->pdd_section)*DEV_BSIZE);
+    pde = NULL;
+    vde = NULL;
+
+    printf("********* ATA DDF Metadata *********\n");
+    printf("**** Header ****\n");
+    r = (char *)&hdr->DDF_rev[0];
+    printf("DDF_rev= %8.8s Sequence_Number= 0x%x Open_Flag= 0x%x\n", r,
+	   ddf32toh(hdr->Sequence_Number), hdr->Open_Flag);
+    printf("Primary Header LBA= %llu Header_Type = 0x%x\n",
+	   (unsigned long long)ddf64toh(hdr->Primary_Header_LBA),
+	   hdr->Header_Type);
+    printf("Max_PD_Entries= %d Max_VD_Entries= %d Max_Partitions= %d "
+	   "CR_Length= %d\n",  ddf16toh(hdr->Max_PD_Entries),
+	    ddf16toh(hdr->Max_VD_Entries), ddf16toh(hdr->Max_Partitions),
+	    ddf16toh(hdr->Configuration_Record_Length));
+    printf("CD= %d:%d PDR= %d:%d VDR= %d:%d CR= %d:%d PDD= %d%d\n",
+	   ddf32toh(hdr->cd_section), ddf32toh(hdr->cd_length),
+	   ddf32toh(hdr->pdr_section), ddf32toh(hdr->pdr_length),
+	   ddf32toh(hdr->vdr_section), ddf32toh(hdr->vdr_length),
+	   ddf32toh(hdr->cr_section), ddf32toh(hdr->cr_length),
+	   ddf32toh(hdr->pdd_section), ddf32toh(hdr->pdd_length));
+    printf("**** Controler Data ****\n");
+    r = (char *)&cd->Product_ID[0];
+    printf("Product_ID: %16.16s\n", r);
+    printf("Vendor 0x%x, Device 0x%x, SubVendor 0x%x, Sub_Device 0x%x\n",
+	   ddf16toh(cd->Controller_Type.Vendor_ID),
+	   ddf16toh(cd->Controller_Type.Device_ID),
+	   ddf16toh(cd->Controller_Type.SubVendor_ID),
+	   ddf16toh(cd->Controller_Type.SubDevice_ID));
 }
 
 static char *

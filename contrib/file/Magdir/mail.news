@@ -1,4 +1,3 @@
-
 #------------------------------------------------------------------------------
 # mail.news:  file(1) magic for mail and news
 #
@@ -6,17 +5,28 @@
 #0	string		From 		mail text
 # There are tests to ascmagic.c to cope with mail and news.
 0	string		Relay-Version: 	old news text
+!:mime	message/rfc822
 0	string		#!\ rnews	batched news text
+!:mime	message/rfc822
 0	string		N#!\ rnews	mailed, batched news text
+!:mime	message/rfc822
 0	string		Forward\ to 	mail forwarding text
+!:mime	message/rfc822
 0	string		Pipe\ to 	mail piping text
+!:mime	message/rfc822
 0	string		Return-Path:	smtp mail text
+!:mime	message/rfc822
 0	string		Path:		news text
+!:mime	message/news
 0	string		Xref:		news text
+!:mime	message/news
 0	string		From:		news or mail text
+!:mime	message/rfc822
 0	string		Article 	saved news text
+!:mime	message/news
 0	string		BABYL		Emacs RMAIL text
 0	string		Received:	RFC 822 mail text
+!:mime	message/rfc822
 0	string		MIME-Version:	MIME entity text
 #0	string		Content-	MIME entity text
 
@@ -39,3 +49,5 @@
 # XXX: Weak magic
 #256	leshort	0xAFAE4453		Squish message area data file
 #>4	leshort	>0			(%d messages)
+
+#0	string		\<!--\ MHonArc		text/html; x-type=mhonarc

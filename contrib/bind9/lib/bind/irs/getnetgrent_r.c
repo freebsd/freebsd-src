@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getnetgrent_r.c,v 1.7.18.4 2005/09/03 12:45:15 marka Exp $";
+static const char rcsid[] = "$Id: getnetgrent_r.c,v 1.7.18.6 2008/02/28 05:49:37 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -33,10 +33,13 @@ static const char rcsid[] = "$Id: getnetgrent_r.c,v 1.7.18.4 2005/09/03 12:45:15
 #include <port_after.h>
 
 #ifdef NGR_R_RETURN
+#ifndef NGR_R_PRIVATE
+#define NGR_R_PRIVATE 0
+#endif
 
 static NGR_R_RETURN 
-copy_protoent(char **, char **, char **, const char *, const char *,
-	      const char *, NGR_R_COPY_ARGS);
+copy_protoent(NGR_R_CONST char **, NGR_R_CONST char **, NGR_R_CONST char **,
+	      const char *, const char *, const char *, NGR_R_COPY_ARGS);
 
 NGR_R_RETURN
 innetgr_r(const char *netgroup, const char *host, const char *user,
@@ -58,8 +61,10 @@ innetgr_r(const char *netgroup, const char *host, const char *user,
  */
 
 NGR_R_RETURN
-getnetgrent_r(char **machinep, char **userp, char **domainp, NGR_R_ARGS) {
-	char *mp, *up, *dp;
+getnetgrent_r(NGR_R_CONST char **machinep, NGR_R_CONST char **userp,
+	      NGR_R_CONST char **domainp, NGR_R_ARGS)
+{
+	NGR_R_CONST char *mp, *up, *dp;
 	int res = getnetgrent(&mp, &up, &dp);
 
 	if (res != 1) 
@@ -69,15 +74,24 @@ getnetgrent_r(char **machinep, char **userp, char **domainp, NGR_R_ARGS) {
 				mp, up, dp, NGR_R_COPY));
 }
 
+#if NGR_R_PRIVATE == 2
+struct private {
+	char *buf;
+};
+
+#endif
 NGR_R_SET_RETURN
-#ifdef NGR_R_ENT_ARGS
-setnetgrent_r(const char *netgroup, NGR_R_ENT_ARGS)
+#ifdef NGR_R_SET_ARGS
+setnetgrent_r(NGR_R_SET_CONST char *netgroup, NGR_R_SET_ARGS)
 #else
-setnetgrent_r(const char *netgroup)
+setnetgrent_r(NGR_R_SET_CONST char *netgroup)
 #endif
 {
+#if NGR_R_PRIVATE == 2
+	struct private *p;
+#endif
 	char *tmp;
-#if defined(NGR_R_ENT_ARGS) && !defined(NGR_R_PRIVATE)
+#if defined(NGR_R_SET_ARGS) && NGR_R_PRIVATE == 0
 	UNUSED(buf);
 	UNUSED(buflen);
 #endif
@@ -85,8 +99,17 @@ setnetgrent_r(const char *netgroup)
 	DE_CONST(netgroup, tmp);
 	setnetgrent(tmp);
 
-#ifdef NGR_R_PRIVATE
+#if NGR_R_PRIVATE == 1
 	*buf = NULL;
+#elif NGR_R_PRIVATE == 2
+	*buf = p = malloc(sizeof(struct private));
+	if (p == NULL)
+#ifdef NGR_R_SET_RESULT
+		return (NGR_R_BAD);
+#else
+		return;
+#endif
+	p->buf = NULL;
 #endif
 #ifdef NGR_R_SET_RESULT
 	return (NGR_R_SET_RESULT);
@@ -94,22 +117,29 @@ setnetgrent_r(const char *netgroup)
 }
 
 NGR_R_END_RETURN
-#ifdef NGR_R_ENT_ARGS
-endnetgrent_r(NGR_R_ENT_ARGS)
+#ifdef NGR_R_END_ARGS
+endnetgrent_r(NGR_R_END_ARGS)
 #else
 endnetgrent_r(void)
 #endif
 {
-#if defined(NGR_R_ENT_ARGS) && !defined(NGR_R_PRIVATE)
+#if NGR_R_PRIVATE == 2
+	struct private *p = buf;
+#endif
+#if defined(NGR_R_SET_ARGS) && NGR_R_PRIVATE == 0
 	UNUSED(buf);
 	UNUSED(buflen);
 #endif
 
 	endnetgrent();
-#ifdef NGR_R_PRIVATE
+#if NGR_R_PRIVATE == 1
 	if (*buf != NULL)
 		free(*buf);
 	*buf = NULL;
+#elif NGR_R_PRIVATE == 2
+	if (p->buf != NULL)
+		free(p->buf);
+	free(p);
 #endif
 	NGR_R_END_RESULT(NGR_R_OK);
 }
@@ -117,9 +147,13 @@ endnetgrent_r(void)
 /* Private */
 
 static int
-copy_protoent(char **machinep, char **userp, char **domainp,
-	      const char *mp, const char *up, const char *dp,
-	      NGR_R_COPY_ARGS) {
+copy_protoent(NGR_R_CONST char **machinep, NGR_R_CONST char **userp,
+	      NGR_R_CONST char **domainp, const char *mp, const char *up,
+	      const char *dp, NGR_R_COPY_ARGS)
+{
+#if NGR_R_PRIVATE == 2
+	struct private *p = buf;
+#endif
 	char *cp;
 	int n;
 	int len;
@@ -130,12 +164,20 @@ copy_protoent(char **machinep, char **userp, char **domainp,
 	if (up != NULL) len += strlen(up) + 1;
 	if (dp != NULL) len += strlen(dp) + 1;
 	
-#ifdef NGR_R_PRIVATE
-	free(*buf);
+#if NGR_R_PRIVATE == 1
+	if (*buf != NULL)
+		free(*buf);
 	*buf = malloc(len);
 	if (*buf == NULL)
 		return(NGR_R_BAD);
 	cp = *buf;
+#elif NGR_R_PRIVATE == 2
+	if (p->buf)
+		free(p->buf);
+	p->buf = malloc(len);
+	if (p->buf == NULL)
+		return(NGR_R_BAD);
+	cp = p->buf;
 #else
 	if (len > (int)buflen) {
 		errno = ERANGE;
@@ -143,7 +185,6 @@ copy_protoent(char **machinep, char **userp, char **domainp,
 	}
 	cp = buf;
 #endif
-
 
 	if (mp != NULL) {
 		n = strlen(mp) + 1;

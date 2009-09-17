@@ -594,13 +594,6 @@ nfs_close(struct vop_close_args *ap)
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 		mtx_lock(&np->n_mtx);
 	    }
- 	    /* 
- 	     * Invalidate the attribute cache in all cases.
- 	     * An open is going to fetch fresh attrs any way, other procs
- 	     * on this node that have file open will be forced to do an 
- 	     * otw attr fetch, but this is safe.
- 	     */
-	    np->n_attrstamp = 0;
 	    if (np->n_flag & NWRITEERR) {
 		np->n_flag &= ~NWRITEERR;
 		error = np->n_error;
@@ -651,12 +644,6 @@ nfs_getattr(struct vop_getattr_args *ap)
 	 */
 	if (nfs_getattrcache(vp, &vattr) == 0)
 		goto nfsmout;
-	if (v3 && nfsaccess_cache_timeout > 0) {
-		nfsstats.accesscache_misses++;
-		nfs3_access_otw(vp, NFSV3ACCESS_ALL, td, ap->a_cred);
-		if (nfs_getattrcache(vp, &vattr) == 0)
-			goto nfsmout;
-	}
 	nfsstats.rpccnt[NFSPROC_GETATTR]++;
 	mreq = nfsm_reqhead(vp, NFSPROC_GETATTR, NFSX_FH(v3));
 	mb = mreq;
@@ -707,9 +694,9 @@ nfs_setattr(struct vop_setattr_args *ap)
 #endif
 
 	/*
-	 * Setting of flags and marking of atimes are not supported.
+	 * Setting of flags is not supported.
 	 */
-	if (vap->va_flags != VNOVAL || (vap->va_vaflags & VA_MARK_ATIME))
+	if (vap->va_flags != VNOVAL)
 		return (EOPNOTSUPP);
 
 	/*
@@ -865,6 +852,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
+	struct vattr vattr;
 	int flags = cnp->cn_flags;
 	struct vnode *newvp;
 	struct nfsmount *nmp;
@@ -893,16 +881,20 @@ nfs_lookup(struct vop_lookup_args *ap)
 	if (error > 0 && error != ENOENT)
 		return (error);
 	if (error == -1) {
-		struct vattr vattr;
-
+		/*
+		 * We only accept a positive hit in the cache if the
+		 * change time of the file matches our cached copy.
+		 * Otherwise, we discard the cache entry and fallback
+		 * to doing a lookup RPC.
+		 */
 		newvp = *vpp;
 		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred)
-		 && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
-		     nfsstats.lookupcache_hits++;
-		     if (cnp->cn_nameiop != LOOKUP &&
-			 (flags & ISLASTCN))
-			     cnp->cn_flags |= SAVENAME;
-		     return (0);
+		    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
+			nfsstats.lookupcache_hits++;
+			if (cnp->cn_nameiop != LOOKUP &&
+			    (flags & ISLASTCN))
+				cnp->cn_flags |= SAVENAME;
+			return (0);
 		}
 		cache_purge(newvp);
 		if (dvp != newvp)
@@ -910,6 +902,24 @@ nfs_lookup(struct vop_lookup_args *ap)
 		else 
 			vrele(newvp);
 		*vpp = NULLVP;
+	} else if (error == ENOENT) {
+		/*
+		 * We only accept a negative hit in the cache if the
+		 * modification time of the parent directory matches
+		 * our cached copy.  Otherwise, we discard all of the
+		 * negative cache entries for this directory.
+		 */
+		if (VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
+		    vattr.va_mtime.tv_sec == np->n_dmtime) {
+			nfsstats.lookupcache_hits++;
+			if ((cnp->cn_nameiop == CREATE ||
+			    cnp->cn_nameiop == RENAME) &&
+			    (flags & ISLASTCN))
+				cnp->cn_flags |= SAVENAME;
+			return (ENOENT);
+		}
+		cache_purge_negative(dvp);
+		np->n_dmtime = 0;
 	}
 	error = 0;
 	newvp = NULLVP;
@@ -995,16 +1005,38 @@ nfsmout:
 			vput(newvp);
 			*vpp = NULLVP;
 		}
+
+		if (error != ENOENT)
+			goto done;
+
+		/* The requested file was not found. */
 		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
-		    (flags & ISLASTCN) && error == ENOENT) {
+		    (flags & ISLASTCN)) {
+			/*
+			 * XXX: UFS does a full VOP_ACCESS(dvp,
+			 * VWRITE) here instead of just checking
+			 * MNT_RDONLY.
+			 */
 			if (dvp->v_mount->mnt_flag & MNT_RDONLY)
-				error = EROFS;
-			else
-				error = EJUSTRETURN;
-		}
-		if (cnp->cn_nameiop != LOOKUP && (flags & ISLASTCN))
+				return (EROFS);
 			cnp->cn_flags |= SAVENAME;
+			return (EJUSTRETURN);
+		}
+
+		if ((cnp->cn_flags & MAKEENTRY) && cnp->cn_nameiop != CREATE) {
+			/*
+			 * Maintain n_dmtime as the modification time
+			 * of the parent directory when the oldest -ve
+			 * name cache entry for this directory was
+			 * added.
+			 */
+			if (np->n_dmtime == 0)
+				np->n_dmtime = np->n_vattr.va_mtime.tv_sec;
+			cache_enter(dvp, NULL, cnp);
+		}
+		return (ENOENT);
 	}
+done:
 	return (error);
 }
 
@@ -1314,8 +1346,8 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		nfsm_v3attrbuild(vap, FALSE);
 		if (vap->va_type == VCHR || vap->va_type == VBLK) {
 			tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
-			*tl++ = txdr_unsigned(umajor(vap->va_rdev));
-			*tl = txdr_unsigned(uminor(vap->va_rdev));
+			*tl++ = txdr_unsigned(major(vap->va_rdev));
+			*tl = txdr_unsigned(minor(vap->va_rdev));
 		}
 	} else {
 		sp = nfsm_build(struct nfsv2_sattr *, NFSX_V2SATTR);

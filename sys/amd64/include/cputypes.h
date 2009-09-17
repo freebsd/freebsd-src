@@ -47,7 +47,9 @@
  * Vendors of processor.
  */
 #define	CPU_VENDOR_AMD		0x1022		/* AMD */
+#define	CPU_VENDOR_IDT		0x111d		/* Centaur/IDT/VIA */
 #define	CPU_VENDOR_INTEL	0x8086		/* Intel */
+#define	CPU_VENDOR_CENTAUR	CPU_VENDOR_IDT
 
 #ifndef LOCORE
 extern int	cpu;

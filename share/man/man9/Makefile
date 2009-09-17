@@ -348,6 +348,7 @@ MAN=	accept_filter.9 \
 	VOP_SETACL.9 \
 	VOP_SETEXTATTR.9 \
 	VOP_STRATEGY.9 \
+	VOP_VPTOCNP.9 \
 	VOP_VPTOFH.9 \
 	vput.9 \
 	vref.9 \
@@ -574,7 +575,9 @@ MLINKS+=devstat.9 devicestat.9 \
 	devstat.9 devstat_end_transaction.9 \
 	devstat.9 devstat_remove_entry.9 \
 	devstat.9 devstat_start_transaction.9
-MLINKS+=disk.9 disk_create.9 \
+MLINKS+=disk.9 disk_alloc.9 \
+	disk.9 disk_create.9 \
+	disk.9 disk_gone.9 \
 	disk.9 disk_destroy.9
 MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 net_add_domain.9 \

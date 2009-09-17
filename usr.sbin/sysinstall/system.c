@@ -187,13 +187,9 @@ systemInitialize(int argc, char **argv)
 	printf("%s running as init on %s\n", argv[0], OnVTY ? "vty0" : "serial console");
 	ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
-	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
+	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
-#ifdef __alpha__
-	i = 0;
-	sysctlbyname("machdep.unaligned_print", NULL, 0, &i, sizeof(i));
-#endif
 #if 0
 	signal(SIGCHLD, reap_children);
 #endif
@@ -239,8 +235,13 @@ void
 systemShutdown(int status)
 {
     /* If some media is open, close it down */
-    if (status >=0)
-	mediaClose();
+    if (status >=0) {
+	if (mediaDevice != NULL && mediaDevice->type == DEVICE_TYPE_CDROM) {
+	    mediaClose();
+	    msgConfirm("Be sure to remove the media from the drive.");
+	} else
+	    mediaClose();
+    }
 
     /* write out any changes to rc.conf .. */
     configRC_conf();
@@ -261,7 +262,7 @@ systemShutdown(int status)
     if (RunningAsInit) {
 	/* Put the console back */
 	ioctl(0, VT_ACTIVATE, 2);
-#if defined(__alpha__) || defined(__sparc64__)
+#if defined(__sparc64__)
 	reboot(RB_HALT);
 #else
 	reboot(RB_AUTOBOOT);

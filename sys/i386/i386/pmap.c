@@ -1975,15 +1975,15 @@ free_pv_entry(pmap_t pmap, pv_entry_t pv)
 	pc->pc_map[field] |= 1ul << bit;
 	/* move to head of list */
 	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
-	TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 	for (idx = 0; idx < _NPCM; idx++)
-		if (pc->pc_map[idx] != pc_freemask[idx])
+		if (pc->pc_map[idx] != pc_freemask[idx]) {
+			TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
 			return;
+		}
 	PV_STAT(pv_entry_spare -= _NPCPV);
 	PV_STAT(pc_chunk_count--);
 	PV_STAT(pc_chunk_frees++);
 	/* entire chunk is free, return it */
-	TAILQ_REMOVE(&pmap->pm_pvchunk, pc, pc_list);
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_qremove((vm_offset_t)pc, 1);
 	vm_page_unwire(m, 0);
@@ -3469,9 +3469,7 @@ retry:
 			}
 
 			p = vm_page_lookup(object, pindex);
-			vm_page_lock_queues();
 			vm_page_wakeup(p);
-			vm_page_unlock_queues();
 		}
 
 		ptepa = VM_PAGE_TO_PHYS(p);

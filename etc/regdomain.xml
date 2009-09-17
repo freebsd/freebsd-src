@@ -39,7 +39,7 @@
 -->
 <rd id="debug">
   <name>DEBUG</name>
-  <sku>0</sku>
+  <sku>0x1ff</sku>
 </rd>
 
 <rd id="fcc">
@@ -186,6 +186,55 @@
       <flags>IEEE80211_CHAN_HT40</flags>
       <flags>IEEE80211_CHAN_PASSIVE</flags>
       <flags>IEEE80211_CHAN_DFS</flags>
+    </band>
+  </netband>
+</rd>
+
+<!-- FCC4 is 2.4GHz FCC w/ Public Safety Band (PSB) -->
+
+<rd id="fcc4">
+  <name>FCC4</name>
+  <sku>0x12</sku>
+  <netband mode="11b">
+    <band>
+      <freqband ref="F1_2412_2462"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_B</flags>
+    </band>
+  </netband>
+  <netband mode="11g">
+    <band>
+      <freqband ref="F1_2412_2462"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+  </netband>
+  <netband mode="11a">
+    <band>
+      <freqband ref="F1_4950_4980"/>
+      <maxpower>23</maxpower>
+    </band>
+    <band>
+      <freqband ref="F1_4945_4985_10"/>
+      <maxpower>27</maxpower>
+    </band>
+    <band>
+      <freqband ref="F1_4942_4987_5"/>
+      <maxpower>30</maxpower>
+    </band>
+  </netband>
+  <netband mode="11ng">
+    <band>
+      <freqband ref="F1_2412_2462"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+      <flags>IEEE80211_CHAN_HT20</flags>
+    </band>
+    <band>
+      <freqband ref="F1_2412_2462"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+      <flags>IEEE80211_CHAN_HT40</flags>
     </band>
   </netband>
 </rd>
@@ -1080,6 +1129,72 @@
     </band>
   </netband>
 </rd>
+
+<rd id="sr9">
+  <name>SR9</name>
+  <sku>0x0298</sku>
+  <netband mode="11g">
+    <band>
+      <freqband ref="S1_907_922_5"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+    <band>
+      <freqband ref="S1_907_922_10"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+    <band>
+      <freqband ref="S1_912_917"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+  </netband>
+</rd>
+
+<rd id="xr9">
+  <name>XR9</name>
+  <sku>0x299</sku>
+  <netband mode="11g">
+    <band>
+      <freqband ref="S1_907_922_5"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+    <band>
+      <freqband ref="S1_907_922_10"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+    <band>
+      <freqband ref="S1_912_917"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+  </netband>
+</rd>
+
+<rd id="gz901">
+  <name>GZ901</name>
+  <sku>0x29a</sku>
+  <netband mode="11g">
+    <band>
+      <freqband ref="S1_908_923_5"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+    <band>
+      <freqband ref="S1_913_918_10"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+    <band>
+      <freqband ref="S1_913_918"/>
+      <maxpower>30</maxpower>
+      <flags>IEEE80211_CHAN_G</flags>
+    </band>
+  </netband>
+</rd>
 </regulatory-domains>
 
 <country-codes>
@@ -1426,6 +1541,10 @@
 <country id="ZW">
   <isocc>716</isocc> <name>Zimbabwe</name> <rd ref="none"/>
 </country>
+
+<country id="DEBUG">
+  <isocc>0</isocc> <name>Debug</name> <rd ref="debug"/>
+</country>
 </country-codes>
 
 <!--
@@ -1433,6 +1552,23 @@
   NB: keep sorted by starting frequency, legacy before HT 
 -->
 <shared-frequency-bands>
+<freqband id="F1_4942_4987_5">
+  <freqstart>4942</freqstart> <freqend>4987</freqend>
+  <chanwidth>5</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+  <flags>IEEE80211_CHAN_QUARTER</flags>
+</freqband>
+<freqband id="F1_4945_4985_10">
+  <freqstart>4945</freqstart> <freqend>4985</freqend>
+  <chanwidth>10</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+  <flags>IEEE80211_CHAN_HALF</flags>
+</freqband>
+<freqband id="F1_4950_4980">
+  <freqstart>4950</freqstart> <freqend>4980</freqend>
+  <chanwidth>20</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_A</flags>
+</freqband>
 <freqband id="F1_5120_5240">
   <freqstart>5120</freqstart> <freqend>5240</freqend>
   <chanwidth>20</chanwidth> <chansep>20</chansep>
@@ -1575,6 +1711,43 @@
   <freqstart>2512</freqstart> <freqend>2732</freqend>
   <chanwidth>20</chanwidth> <chansep>5</chansep>
 </freqband>
+
+<freqband id="S1_907_922_5">
+  <freqstart>907</freqstart> <freqend>922</freqend>
+  <chanwidth>5</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_GSM</flags>
+  <flags>IEEE80211_CHAN_QUARTER</flags>
+</freqband>
+<freqband id="S1_907_922_10">
+  <freqstart>907</freqstart> <freqend>922</freqend>
+  <chanwidth>10</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_GSM</flags>
+  <flags>IEEE80211_CHAN_HALF</flags>
+</freqband>
+<freqband id="S1_912_917">
+  <freqstart>912</freqstart> <freqend>917</freqend>
+  <chanwidth>20</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_GSM</flags>
+</freqband>
+
+<freqband id="S1_908_923_5">
+  <freqstart>908</freqstart> <freqend>923</freqend>
+  <chanwidth>5</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_GSM</flags>
+  <flags>IEEE80211_CHAN_QUARTER</flags>
+</freqband>
+<freqband id="S1_913_918_10">
+  <freqstart>913</freqstart> <freqend>918</freqend>
+  <chanwidth>10</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_GSM</flags>
+  <flags>IEEE80211_CHAN_HALF</flags>
+</freqband>
+<freqband id="S1_913_918">
+  <freqstart>913</freqstart> <freqend>918</freqend>
+  <chanwidth>20</chanwidth> <chansep>5</chansep>
+  <flags>IEEE80211_CHAN_GSM</flags>
+</freqband>
+
 </shared-frequency-bands>
 
 </regulatory-data>

@@ -678,9 +678,17 @@ amd64_mem_drvinit(void *unused)
 		return;
 	if ((cpu_id & 0xf00) != 0x600 && (cpu_id & 0xf00) != 0xf00)
 		return;
-	if (cpu_vendor_id != CPU_VENDOR_INTEL &&
-	    cpu_vendor_id != CPU_VENDOR_AMD)
+	switch (cpu_vendor_id) {
+	case CPU_VENDOR_INTEL:
+	case CPU_VENDOR_AMD:
+		break;
+	case CPU_VENDOR_CENTAUR:
+		if (cpu_exthigh >= 0x80000008)
+			break;
+		/* FALLTHROUGH */
+	default:
 		return;
+	}
 	mem_range_softc.mr_op = &amd64_mrops;
 }
 SYSINIT(amd64memdev, SI_SUB_DRIVERS, SI_ORDER_FIRST, amd64_mem_drvinit, NULL);

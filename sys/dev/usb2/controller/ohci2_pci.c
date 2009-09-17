@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
 #include <dev/usb2/core/usb2_util.h>
 
@@ -196,19 +195,26 @@ ohci_pci_attach(device_t self)
 	int rid;
 	int err;
 
-	if (sc == NULL) {
-		device_printf(self, "Could not allocate sc\n");
-		return (ENXIO);
-	}
-	/* get all DMA memory */
+	/* initialise some bus fields */
+	sc->sc_bus.parent = self;
+	sc->sc_bus.devices = sc->sc_devices;
+	sc->sc_bus.devices_max = OHCI_MAX_DEVICES;
 
+	/* get all DMA memory */
 	if (usb2_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(self),
 	    &ohci_iterate_hw_softc)) {
-		return ENOMEM;
+		return (ENOMEM);
 	}
 	sc->sc_dev = self;
 
 	pci_enable_busmaster(self);
+
+	/*
+	 * Some Sun PCIO-2 USB controllers have their intpin register
+	 * bogusly set to 0, although it should be 4.  Correct that.
+	 */
+	if (pci_get_devid(self) == 0x1103108e && pci_get_intpin(self) == 0)
+		pci_set_intpin(self, 4);
 
 	rid = PCI_CBMEM;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
@@ -280,12 +286,6 @@ ohci_pci_attach(device_t self)
 		sprintf(sc->sc_vendor, "(0x%04x)", pci_get_vendor(self));
 	}
 
-	err = usb2_config_td_setup(&sc->sc_config_td, sc, &sc->sc_bus.bus_mtx,
-	    NULL, 0, 4);
-	if (err) {
-		device_printf(self, "could not setup config thread!\n");
-		goto error;
-	}
 	/* sc->sc_bus.usbrev; set by ohci_init() */
 
 #if (__FreeBSD_version >= 700031)
@@ -321,8 +321,6 @@ ohci_pci_detach(device_t self)
 	ohci_softc_t *sc = device_get_softc(self);
 	device_t bdev;
 
-	usb2_config_td_drain(&sc->sc_config_td);
-
 	if (sc->sc_bus.bdev) {
 		bdev = sc->sc_bus.bdev;
 		device_detach(bdev);
@@ -357,8 +355,6 @@ ohci_pci_detach(device_t self)
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
 	}
-	usb2_config_td_unsetup(&sc->sc_config_td);
-
 	usb2_bus_mem_free_all(&sc->sc_bus, &ohci_iterate_hw_softc);
 
 	return (0);

@@ -1432,7 +1432,11 @@ sis_rxeof(struct sis_softc *sc)
 		 * it should simply get re-used next time this descriptor
 	 	 * comes up in the ring.
 		 */
-		if (!(rxstat & SIS_CMDSTS_PKT_OK)) {
+		if ((ifp->if_capenable & IFCAP_VLAN_MTU) != 0 &&
+		    total_len <= (ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN -
+		    ETHER_CRC_LEN))
+			rxstat &= ~SIS_RXSTAT_GIANT;
+		if (SIS_RXSTAT_ERROR(rxstat) != 0) {
 			ifp->if_ierrors++;
 			if (rxstat & SIS_RXSTAT_COLL)
 				ifp->if_collisions++;
@@ -1659,10 +1663,11 @@ sis_intr(void *arg)
 		     SIS_ISR_TX_OK | SIS_ISR_TX_IDLE) )
 			sis_txeof(sc);
 
-		if (status & (SIS_ISR_RX_DESC_OK|SIS_ISR_RX_OK|SIS_ISR_RX_IDLE))
+		if (status & (SIS_ISR_RX_DESC_OK | SIS_ISR_RX_OK |
+		    SIS_ISR_RX_ERR | SIS_ISR_RX_IDLE))
 			sis_rxeof(sc);
 
-		if (status & (SIS_ISR_RX_ERR | SIS_ISR_RX_OFLOW))
+		if (status & SIS_ISR_RX_OFLOW)
 			sis_rxeoc(sc);
 
 		if (status & (SIS_ISR_RX_IDLE))
@@ -2253,7 +2258,7 @@ sis_stop(struct sis_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 sis_shutdown(device_t dev)
 {
 	struct sis_softc	*sc;
@@ -2263,6 +2268,7 @@ sis_shutdown(device_t dev)
 	sis_reset(sc);
 	sis_stop(sc);
 	SIS_UNLOCK(sc);
+	return (0);
 }
 
 static device_method_t sis_methods[] = {

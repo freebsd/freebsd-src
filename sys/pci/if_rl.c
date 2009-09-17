@@ -901,9 +901,15 @@ rl_attach(device_t dev)
 	}
 
 	if (sc->rl_type == 0) {
-		device_printf(dev, "unknown device ID: %x\n", rl_did);
-		error = ENXIO;
-		goto fail;
+		device_printf(dev, "unknown device ID: %x assuming 8139\n",
+		    rl_did);
+		sc->rl_type = RL_8139;
+		/*
+		 * Read RL_IDR register to get ethernet address as accessing
+		 * EEPROM may not extract correct address.
+		 */
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+			eaddr[i] = CSR_READ_1(sc, RL_IDR0 + i);
 	}
 
 	if ((error = rl_dma_alloc(sc)) != 0)
@@ -1145,9 +1151,9 @@ rl_dma_free(struct rl_softc *sc)
 				    sc->rl_cdata.rl_tx_dmamap[i]);
 				sc->rl_cdata.rl_tx_dmamap[i] = NULL;
 			}
+		}
 		bus_dma_tag_destroy(sc->rl_cdata.rl_tx_tag);
 		sc->rl_cdata.rl_tx_tag = NULL;
-		}
 	}
 
 	if (sc->rl_parent_tag != NULL) {
@@ -1512,6 +1518,8 @@ rl_tick(void *xsc)
 	 */
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
+	if ((sc->rl_flags & RL_FLAG_LINK) == 0)
+		rl_miibus_statchg(sc->rl_dev);
 	if (sc->rl_twister_enable) {
 		if (sc->rl_twister == DONE)
 			rl_watchdog(sc);

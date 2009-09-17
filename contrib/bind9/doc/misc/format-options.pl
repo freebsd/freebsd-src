@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 #
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001  Internet Software Consortium.
 #
-# Permission to use, copy, modify, and distribute this software for any
+# Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
 #
@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: format-options.pl,v 1.2 2004/03/05 05:04:53 marka Exp $
+# $Id: format-options.pl,v 1.2.18.2 2007/12/02 23:46:31 tbox Exp $
 
 print <<END;
 
@@ -26,11 +26,24 @@ END
 
 # Break long lines
 while (<>) {
+	chomp;
 	s/\t/        /g;
-	if (length >= 79) {
-		m!^( *)!;
-		my $indent = $1;
-		s!^(.{0,75}) (.*)$!\1\n$indent    \2!;
+	my $line = $_;
+	m!^( *)!;
+	my $indent = $1;
+	my $comment = "";
+	if ( $line =~ m!//.*! ) {
+		$comment = $&;
+		$line =~ s!//.*!!;
 	}
-	print;
+	my $start = "";
+	while (length($line) >= 79 - length($comment)) {
+		$_ = $line;
+		# this makes sure that the comment has something in front of it
+		$len = 75 - length($comment);
+		m!^(.{0,$len}) (.*)$!;
+		$start = $start.$1."\n";
+		$line = $indent."    ".$2;
+	}
+	print $start.$line.$comment."\n";
 }

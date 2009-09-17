@@ -36,7 +36,7 @@ AHC_TMODE_ENABLE	opt_aic7xxx.h
 AHC_DUMP_EEPROM		opt_aic7xxx.h
 AHC_DEBUG		opt_aic7xxx.h
 AHC_DEBUG_OPTS		opt_aic7xxx.h
-AHC_REG_PRETTY_PRINT    opt_aic7xxx.h
+AHC_REG_PRETTY_PRINT	opt_aic7xxx.h
 AHD_DEBUG		opt_aic79xx.h
 AHD_DEBUG_OPTS		opt_aic79xx.h
 AHD_TMODE_ENABLE	opt_aic79xx.h	
@@ -92,6 +92,7 @@ GEOM_MULTIPATH	opt_geom.h
 GEOM_NOP	opt_geom.h
 GEOM_PART_APM	opt_geom.h
 GEOM_PART_BSD	opt_geom.h
+GEOM_PART_EBR	opt_geom.h
 GEOM_PART_GPT	opt_geom.h
 GEOM_PART_MBR	opt_geom.h
 GEOM_PART_PC98	opt_geom.h
@@ -137,7 +138,7 @@ NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 PPC_DEBUG	opt_ppc.h
-PPC_PROBE_CHIPSET opt_ppc.h
+PPC_PROBE_CHIPSET	opt_ppc.h
 PPS_SYNC	opt_ntp.h
 PREEMPTION	opt_sched.h
 QUOTA
@@ -392,6 +393,7 @@ IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPSEC			opt_ipsec.h
 IPSEC_DEBUG		opt_ipsec.h
+IP_NONLOCALBIND		opt_inet.h
 IPSEC_FILTERTUNNEL	opt_ipsec.h
 IPSTEALTH
 IPX
@@ -410,6 +412,7 @@ PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
 RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
+COMPAT_ROUTE_FLAGS	opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading
@@ -422,13 +425,13 @@ XBONEHACK
 #
 SCTP			opt_sctp.h
 SCTP_DEBUG		opt_sctp.h # Enable debug printfs
-SCTP_WITH_NO_CSUM       opt_sctp.h # Use this at your peril
-SCTP_LOCK_LOGGING       opt_sctp.h # Log to KTR lock activity
-SCTP_MBUF_LOGGING       opt_sctp.h # Log to KTR general mbuf aloc/free
+SCTP_WITH_NO_CSUM	opt_sctp.h # Use this at your peril
+SCTP_LOCK_LOGGING	opt_sctp.h # Log to KTR lock activity
+SCTP_MBUF_LOGGING	opt_sctp.h # Log to KTR general mbuf aloc/free
 SCTP_MBCNT_LOGGING	opt_sctp.h # Log to KTR mbcnt activity
-SCTP_PACKET_LOGGING     opt_sctp.h # Log to a packet buffer last N packets
-SCTP_LTRACE_CHUNKS      opt_sctp.h # Log to KTR chunks processed
-SCTP_LTRACE_ERRORS      opt_sctp.h # Log to KTR error returns.
+SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
+SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
+SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
 #
 #
 #
@@ -459,6 +462,7 @@ NETGRAPH_DEVICE		opt_netgraph.h
 NETGRAPH_ECHO		opt_netgraph.h
 NETGRAPH_EIFACE		opt_netgraph.h
 NETGRAPH_ETHER		opt_netgraph.h
+NETGRAPH_ETHER_ECHO	opt_netgraph.h
 NETGRAPH_FEC		opt_netgraph.h
 NETGRAPH_FRAME_RELAY	opt_netgraph.h
 NETGRAPH_GIF		opt_netgraph.h
@@ -627,6 +631,7 @@ BUS_DEBUG		opt_bus.h
 # options for USB support
 USB_DEBUG		opt_usb.h
 USBVERBOSE		opt_usb.h
+USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
 UKBD_DFLT_KEYMAP	opt_ukbd.h
 UPLCOM_INTR_INTERVAL	opt_uplcom.h
@@ -722,6 +727,10 @@ SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
 
+# teken terminal emulator options
+TEKEN_UTF8		opt_teken.h
+TEKEN_XTERM		opt_teken.h
+
 # options for printf
 PRINTF_BUFR_SIZE	opt_printf.h
 
@@ -739,6 +748,7 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
+ATH_SUPPORT_TDMA	opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
@@ -753,7 +763,7 @@ AH_WRITE_EEPROM		opt_ah.h
 AH_PRIVATE_DIAG		opt_ah.h
 AH_NEED_DESC_SWAP	opt_ah.h
 AH_USE_INIPDGAIN	opt_ah.h
-AH_SUPPORT_11D		opt_ah.h
+AH_MAXCHAN		opt_ah.h
 
 # options for the Marvell 8335 wireless driver
 MALO_DEBUG		opt_malo.h
@@ -782,6 +792,20 @@ INTR_FILTER
 IEEE80211_DEBUG		opt_wlan.h
 IEEE80211_DEBUG_REFCNT	opt_wlan.h
 IEEE80211_AMPDU_AGE	opt_wlan.h
+IEEE80211_SUPPORT_TDMA	opt_wlan.h
+
+# 802.11 TDMA support
+TDMA_SLOTLEN_DEFAULT	opt_tdma.h
+TDMA_SLOTCNT_DEFAULT	opt_tdma.h
+TDMA_BINTVAL_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11B_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11G_DEFAULT	opt_tdma.h
+TDMA_TXRATE_11A_DEFAULT	opt_tdma.h
 
 # Virtualize the network stack
 VIMAGE			opt_global.h
+VIMAGE_GLOBALS		opt_global.h
+
+# Common Flash Interface (CFI) options
+CFI_SUPPORT_STRATAFLASH	opt_cfi.h
+CFI_ARMEDANDDANGEROUS	opt_cfi.h

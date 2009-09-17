@@ -35,6 +35,7 @@
 #define	_POWERPC_CUDAVAR_H_
 
 #define CUDA_DEVSTR	"Apple CUDA I/O Controller"
+#define	CUDA_MAXPACKETS	10
 
 /* Cuda addresses */
 #define CUDA_ADB	0
@@ -61,6 +62,16 @@
 #define CUDA_IN		0x4	/* receiving data */
 #define CUDA_POLLING	0x5	/* polling - II only */
 
+struct cuda_packet {
+	uint8_t len;
+	uint8_t type;
+
+	uint8_t data[253];
+	STAILQ_ENTRY(cuda_packet) pkt_q;
+};
+
+STAILQ_HEAD(cuda_pktq, cuda_packet);
+
 struct cuda_softc {
 	device_t	sc_dev;
 	int		sc_memrid;
@@ -73,22 +84,26 @@ struct cuda_softc {
 
 	device_t	adb_bus;
 
-	int sc_node;
-	volatile int sc_state;
-	int sc_waiting;
-	int sc_polling;
-	int sc_sent;
-	int sc_out_length;
-	int sc_received;
-	int sc_iic_done;
-	int sc_error;
-	volatile int sc_autopoll;
+	int		sc_node;
+	volatile int	sc_state;
+	int		sc_waiting;
+	int		sc_polling;
+	int		sc_iic_done;
+	volatile int	sc_autopoll;
 
 	int sc_i2c_read_len;
 
 	/* internal buffers */
-	uint8_t sc_in[256];
-	uint8_t sc_out[256];
+	uint8_t		sc_in[256];
+	uint8_t		sc_out[256];
+	int		sc_sent;
+	int		sc_out_length;
+	int		sc_received;
+
+	struct cuda_packet sc_pkts[CUDA_MAXPACKETS];
+	struct cuda_pktq sc_inq;
+	struct cuda_pktq sc_outq;
+	struct cuda_pktq sc_freeq;
 };
 
 #endif /* _POWERPC_CUDAVAR_H_ */

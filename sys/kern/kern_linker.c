@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -292,10 +293,10 @@ linker_file_register_sysctls(linker_file_t lf)
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
 		return;
 
-	mtx_lock(&Giant);
+	sysctl_lock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_register_oid(*oidp);
-	mtx_unlock(&Giant);
+	sysctl_unlock();
 }
 
 static void
@@ -309,10 +310,10 @@ linker_file_unregister_sysctls(linker_file_t lf)
 	if (linker_file_lookup_set(lf, "sysctl_set", &start, &stop, NULL) != 0)
 		return;
 
-	mtx_lock(&Giant);
+	sysctl_lock();
 	for (oidp = start; oidp < stop; oidp++)
 		sysctl_unregister_oid(*oidp);
-	mtx_unlock(&Giant);
+	sysctl_unlock();
 }
 
 static int
@@ -424,6 +425,14 @@ linker_load_file(const char *filename, linker_file_t *result)
 	 * the module was not found.
 	 */
 	if (foundfile) {
+
+		/*
+		 * If the file type has not been recognized by the last try
+		 * printout a message before to fail.
+		 */
+		if (error == ENOSYS)
+			printf("linker_load_file: Unsupported file type\n");
+
 		/*
 		 * Format not recognized or otherwise unloadable.
 		 * When loading a module that is statically built into
@@ -587,7 +596,30 @@ linker_file_unload(linker_file_t file, int flags)
 	    " informing modules\n"));
 
 	/*
-	 * Inform any modules associated with this file.
+	 * Quiesce all the modules to give them a chance to veto the unload.
+	 */
+	MOD_SLOCK;
+	for (mod = TAILQ_FIRST(&file->modules); mod;
+	     mod = module_getfnext(mod)) {
+
+		error = module_quiesce(mod);
+		if (error != 0 && flags != LINKER_UNLOAD_FORCE) {
+			KLD_DPF(FILE, ("linker_file_unload: module %s"
+			    " vetoed unload\n", module_getname(mod)));
+			/*
+			 * XXX: Do we need to tell all the quiesced modules
+			 * that they can resume work now via a new module
+			 * event?
+			 */
+			MOD_SUNLOCK;
+			return (error);
+		}
+	}
+	MOD_SUNLOCK;
+
+	/*
+	 * Inform any modules associated with this file that they are
+	 * being be unloaded.
 	 */
 	MOD_XLOCK;
 	for (mod = TAILQ_FIRST(&file->modules); mod; mod = next) {
@@ -597,9 +629,9 @@ linker_file_unload(linker_file_t file, int flags)
 		/*
 		 * Give the module a chance to veto the unload.
 		 */
-		if ((error = module_unload(mod, flags)) != 0) {
-			KLD_DPF(FILE, ("linker_file_unload: module %p"
-			    " vetoes unload\n", mod));
+		if ((error = module_unload(mod)) != 0) {
+			KLD_DPF(FILE, ("linker_file_unload: module %s"
+			    " failed unload\n", mod));
 			return (error);
 		}
 		MOD_XLOCK;
@@ -619,8 +651,11 @@ linker_file_unload(linker_file_t file, int flags)
 	 * link error.
 	 */
 	if (file->flags & LINKER_FILE_LINKED) {
+		file->flags &= ~LINKER_FILE_LINKED;
+		KLD_UNLOCK();
 		linker_file_sysuninit(file);
 		linker_file_unregister_sysctls(file);
+		KLD_LOCK();
 	}
 	TAILQ_REMOVE(&linker_files, file, link);
 
@@ -1278,8 +1313,23 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 				break;
 			}
 		}
+#ifndef VIMAGE_GLOBALS
+		/*
+		 * If the symbol is not found in global namespace,
+		 * try to look it up in the current vimage namespace.
+		 */
+		if (lf == NULL) {
+			CURVNET_SET(TD_TO_VNET(td));
+			error = vi_symlookup(&lookup, symstr);
+			CURVNET_RESTORE();
+			if (error == 0)
+				error = copyout(&lookup, uap->data,
+						sizeof(lookup));
+		}
+#else
 		if (lf == NULL)
 			error = ENOENT;
+#endif
 	}
 	KLD_UNLOCK();
 out:

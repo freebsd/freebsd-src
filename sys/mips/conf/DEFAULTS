@@ -9,5 +9,5 @@ device		mem
 
 device		uart_ns8250
 
-options 	GEOM_BSD
-options 	GEOM_MBR
+options 	GEOM_PART_BSD
+options 	GEOM_PART_MBR

@@ -29,7 +29,7 @@
 #include <dev/usb2/include/usb2_error.h>
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_ioctl.h>
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR usb2_debug
 
@@ -56,30 +56,24 @@
 
 /* function prototypes */
 
-static void usb2_fill_pipe_data(struct usb2_device *udev, uint8_t iface_index, struct usb2_endpoint_descriptor *edesc, struct usb2_pipe *pipe);
-static void usb2_free_pipe_data(struct usb2_device *udev, uint8_t iface_index, uint8_t iface_mask);
-static void usb2_free_iface_data(struct usb2_device *udev);
-static void usb2_detach_device_sub(struct usb2_device *udev, device_t *ppdev, uint8_t free_subdev);
-static uint8_t usb2_probe_and_attach_sub(struct usb2_device *udev, struct usb2_attach_arg *uaa);
-static void usb2_init_attach_arg(struct usb2_device *udev, struct usb2_attach_arg *uaa);
-static void usb2_suspend_resume_sub(struct usb2_device *udev, device_t dev, uint8_t do_suspend);
-static void usb2_clear_stall_proc(struct usb2_proc_msg *_pm);
-static void usb2_check_strings(struct usb2_device *udev);
-static usb2_error_t usb2_fill_iface_data(struct usb2_device *udev, uint8_t iface_index, uint8_t alt_index);
-static void usb2_notify_addq(const char *type, struct usb2_device *udev);
-static void usb2_fifo_free_wrap(struct usb2_device *udev, uint8_t iface_index, uint8_t flag);
-
-/* static structures */
-
-static const uint8_t usb2_hub_speed_combs[USB_SPEED_MAX][USB_SPEED_MAX] = {
-	/* HUB *//* subdevice */
-	[USB_SPEED_HIGH][USB_SPEED_HIGH] = 1,
-	[USB_SPEED_HIGH][USB_SPEED_FULL] = 1,
-	[USB_SPEED_HIGH][USB_SPEED_LOW] = 1,
-	[USB_SPEED_FULL][USB_SPEED_FULL] = 1,
-	[USB_SPEED_FULL][USB_SPEED_LOW] = 1,
-	[USB_SPEED_LOW][USB_SPEED_LOW] = 1,
-};
+static void	usb2_fill_pipe_data(struct usb2_device *, uint8_t,
+		    struct usb2_endpoint_descriptor *, struct usb2_pipe *);
+static void	usb2_free_pipe_data(struct usb2_device *, uint8_t, uint8_t);
+static void	usb2_free_iface_data(struct usb2_device *);
+static void	usb2_detach_device_sub(struct usb2_device *, device_t *,
+		    uint8_t);
+static uint8_t	usb2_probe_and_attach_sub(struct usb2_device *,
+		    struct usb2_attach_arg *);
+static void	usb2_init_attach_arg(struct usb2_device *,
+		    struct usb2_attach_arg *);
+static void	usb2_suspend_resume_sub(struct usb2_device *, device_t,
+		    uint8_t);
+static void	usb2_clear_stall_proc(struct usb2_proc_msg *_pm);
+static void	usb2_check_strings(struct usb2_device *);
+static usb2_error_t usb2_fill_iface_data(struct usb2_device *, uint8_t,
+		    uint8_t);
+static void	usb2_notify_addq(const char *type, struct usb2_device *);
+static void	usb2_fifo_free_wrap(struct usb2_device *, uint8_t, uint8_t);
 
 /* This variable is global to allow easy access to it: */
 
@@ -300,7 +294,6 @@ usb2_fill_pipe_data(struct usb2_device *udev, uint8_t iface_index,
 		(udev->bus->methods->clear_stall) (udev, pipe);
 		USB_BUS_UNLOCK(udev->bus);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -327,7 +320,6 @@ usb2_free_pipe_data(struct usb2_device *udev,
 		}
 		pipe++;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -474,7 +466,6 @@ usb2_free_iface_data(struct usb2_device *udev)
 	/* set unconfigured state */
 	udev->curr_config_no = USB_UNCONFIG_NO;
 	udev->curr_config_index = USB_UNCONFIG_INDEX;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -857,7 +848,6 @@ usb2_detach_device_sub(struct usb2_device *udev, device_t *ppdev,
 error:
 	/* Detach is not allowed to fail in the USB world */
 	panic("An USB driver would not detach!\n");
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -917,7 +907,6 @@ usb2_detach_device(struct usb2_device *udev, uint8_t iface_index,
 	if (do_unlock) {
 		sx_unlock(udev->default_sx + 1);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1021,7 +1010,6 @@ usb2_set_parent_iface(struct usb2_device *udev, uint8_t iface_index,
 	if (iface) {
 		iface->parent_iface_index = parent_index;
 	}
-	return;
 }
 
 static void
@@ -1042,8 +1030,6 @@ usb2_init_attach_arg(struct usb2_device *udev,
 	uaa->info.bDeviceProtocol = udev->ddesc.bDeviceProtocol;
 	uaa->info.bConfigIndex = udev->curr_config_index;
 	uaa->info.bConfigNum = udev->curr_config_no;
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1185,11 +1171,10 @@ usb2_suspend_resume_sub(struct usb2_device *udev, device_t dev, uint8_t do_suspe
 		device_printf(dev, "%s failed!\n",
 		    do_suspend ? "Suspend" : "Resume");
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
- *	usb2_suspend_resume_device
+ *	usb2_suspend_resume
  *
  * The following function will suspend or resume the USB device.
  *
@@ -1256,7 +1241,6 @@ usb2_clear_stall_proc(struct usb2_proc_msg *_pm)
 	/* Change lock */
 	mtx_unlock(udev->default_mtx);
 	USB_BUS_LOCK(udev->bus);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1294,19 +1278,20 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	 * Find an unused device index. In USB Host mode this is the
 	 * same as the device address.
 	 *
-	 * NOTE: Index 1 is reserved for the Root HUB.
+	 * Device index zero is not used and device index 1 should
+	 * always be the root hub.
 	 */
-	for (device_index = USB_ROOT_HUB_ADDR; device_index !=
-	    USB_MAX_DEVICES; device_index++) {
-		if (bus->devices[device_index] == NULL)
-			break;
-	}
+	for (device_index = USB_ROOT_HUB_ADDR;
+	    (device_index != bus->devices_max) &&
+	    (bus->devices[device_index] != NULL);
+	    device_index++) /* nop */;
 
-	if (device_index == USB_MAX_DEVICES) {
+	if (device_index == bus->devices_max) {
 		device_printf(bus->bdev,
 		    "No free USB device index for new device!\n");
 		return (NULL);
 	}
+
 	if (depth > 0x10) {
 		device_printf(bus->bdev,
 		    "Invalid device depth!\n");
@@ -1343,7 +1328,13 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	udev->bus = bus;
 	udev->address = USB_START_ADDR;	/* default value */
 	udev->plugtime = (uint32_t)ticks;
+	/*
+	 * We need to force the power mode to "on" because there are plenty
+	 * of USB devices out there that do not work very well with
+	 * automatic suspend and resume!
+	 */
 	udev->power_mode = USB_POWER_MODE_ON;
+	udev->pwr_save.last_xfer_time = ticks;
 
 	/* we are not ready yet */
 	udev->refcount = 1;
@@ -1361,21 +1352,10 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	udev->speed = speed;
 	udev->flags.usb2_mode = usb2_mode;
 
-	/* check speed combination */
+	/* speed combination should be checked by the parent HUB */
 
 	hub = udev->parent_hub;
-	if (hub) {
-		if (usb2_hub_speed_combs[hub->speed][speed] == 0) {
-#if USB_DEBUG
-			printf("%s: the selected subdevice and HUB speed "
-			    "combination is not supported %d/%d.\n",
-			    __FUNCTION__, speed, hub->speed);
-#endif
-			/* reject this combination */
-			err = USB_ERR_INVAL;
-			goto done;
-		}
-	}
+
 	/* search for our High Speed USB HUB, if any */
 
 	adev = udev;
@@ -1421,7 +1401,8 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 			    "(ignored)\n", udev->address);
 		}
 		/* allow device time to set new address */
-		usb2_pause_mtx(&Giant, USB_SET_ADDRESS_SETTLE);
+		usb2_pause_mtx(&Giant, 
+		    USB_MS_TO_TICKS(USB_SET_ADDRESS_SETTLE));
 	} else {
 		/* We are not self powered */
 		udev->flags.self_powered = 0;
@@ -1454,7 +1435,11 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	if (err) {
 		DPRINTFN(0, "getting device descriptor "
 		    "at addr %d failed!\n", udev->address);
-		goto done;
+		/* XXX try to re-enumerate the device */
+		err = usb2_req_re_enumerate(udev, &Giant);
+		if (err) {
+			goto done;
+		}
 	}
 	DPRINTF("adding unit addr=%d, rev=%02x, class=%d, "
 	    "subclass=%d, protocol=%d, maxpacket=%d, len=%d, speed=%d\n",
@@ -1550,6 +1535,7 @@ usb2_alloc_device(device_t parent_dev, struct usb2_bus *bus,
 	if (udev->flags.usb2_mode == USB_MODE_HOST) {
 		uint8_t config_index;
 		uint8_t config_quirk;
+		uint8_t set_config_failed = 0;
 
 		/*
 		 * Most USB devices should attach to config index 0 by
@@ -1584,11 +1570,27 @@ repeat_set_config:
 		err = usb2_set_config_index(udev, config_index);
 		sx_unlock(udev->default_sx + 1);
 		if (err) {
-			DPRINTFN(0, "Failure selecting "
-			    "configuration index %u: %s, port %u, addr %u\n",
-			    config_index, usb2_errstr(err), udev->port_no,
-			    udev->address);
-
+			if (udev->ddesc.bNumConfigurations != 0) {
+				if (!set_config_failed) {
+					set_config_failed = 1;
+					/* XXX try to re-enumerate the device */
+					err = usb2_req_re_enumerate(
+					    udev, &Giant);
+					if (err == 0)
+					    goto repeat_set_config;
+				}
+				DPRINTFN(0, "Failure selecting "
+				    "configuration index %u: %s, port %u, "
+				    "addr %u (ignored)\n",
+				    config_index, usb2_errstr(err), udev->port_no,
+				    udev->address);
+			}
+			/*
+			 * Some USB devices do not have any
+			 * configurations. Ignore any set config
+			 * failures!
+			 */
+			err = 0;
 		} else if (config_quirk) {
 			/* user quirk selects configuration index */
 		} else if ((config_index + 1) < udev->ddesc.bNumConfigurations) {
@@ -1612,7 +1614,7 @@ repeat_set_config:
 					goto repeat_set_config;
 				}
 			}
-		} else if (usb2_test_huawei(udev, &uaa) == 0) {
+		} else if (usb2_test_huawei_autoinst_p(udev, &uaa) == 0) {
 			DPRINTFN(0, "Found Huawei auto-install disk!\n");
 			err = USB_ERR_STALLED;	/* fake an error */
 		}
@@ -1674,6 +1676,11 @@ usb2_free_device(struct usb2_device *udev)
 
 	bus = udev->bus;
 
+	printf("ugen%u.%u: <%s> at %s (disconnected)\n",
+	    device_get_unit(bus->bdev),
+	    udev->device_index, udev->manufacturer,
+	    device_get_nameunit(bus->bdev));
+
 	/*
 	 * Destroy UGEN symlink, if any
 	 */
@@ -1713,7 +1720,17 @@ usb2_free_device(struct usb2_device *udev)
 	/* unsetup any leftover default USB transfers */
 	usb2_transfer_unsetup(udev->default_xfer, USB_DEFAULT_XFER_MAX);
 
+	/* template unsetup, if any */
 	(usb2_temp_unsetup_p) (udev);
+
+	/* 
+	 * Make sure that our clear-stall messages are not queued
+	 * anywhere:
+	 */
+	USB_BUS_LOCK(udev->bus);
+	usb2_proc_mwait(&udev->bus->non_giant_callback_proc,
+	    &udev->cs_msg[0], &udev->cs_msg[1]);
+	USB_BUS_UNLOCK(udev->bus);
 
 	sx_destroy(udev->default_sx);
 	sx_destroy(udev->default_sx + 1);
@@ -1725,8 +1742,6 @@ usb2_free_device(struct usb2_device *udev)
 
 	/* free device */
 	free(udev, M_USB);
-
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1838,7 +1853,6 @@ usb2_devinfo(struct usb2_device *udev, char *dst_ptr, uint16_t dst_len)
 		    (bcdDevice >> 8), bcdDevice & 0xFF,
 		    udev->address);
 	}
-	return;
 }
 
 #if USB_VERBOSE
@@ -1855,8 +1869,8 @@ struct usb_knowndev {
 
 #define	USB_KNOWNDEV_NOPROD	0x01	/* match on vendor only */
 
-#include <dev/usb2/include/usb2_devid.h>
-#include <dev/usb2/include/usb2_devtable.h>
+#include "usbdevs.h"
+#include "usbdevs_data.h"
 #endif					/* USB_VERBOSE */
 
 /*------------------------------------------------------------------------*
@@ -1936,13 +1950,39 @@ usb2_check_strings(struct usb2_device *udev)
 		snprintf(udev->product,
 		    sizeof(udev->product), "product 0x%04x", product_id);
 	}
-	return;
 }
 
+/*
+ * Returns:
+ * See: USB_MODE_XXX
+ */
+uint8_t
+usb2_get_mode(struct usb2_device *udev)
+{
+	return (udev->flags.usb2_mode);
+}
+
+/*
+ * Returns:
+ * See: USB_SPEED_XXX
+ */
 uint8_t
 usb2_get_speed(struct usb2_device *udev)
 {
 	return (udev->speed);
+}
+
+uint32_t
+usb2_get_isoc_fps(struct usb2_device *udev)
+{
+	;				/* indent fix */
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		return (1000);
+	default:
+		return (8000);
+	}
 }
 
 struct usb2_device_descriptor *
@@ -2073,7 +2113,6 @@ usb2_notify_addq(const char *type, struct usb2_device *udev)
 		    device_get_nameunit(device_get_parent(udev->bus->bdev)));
 	}
 	devctl_queue_data(data);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2131,5 +2170,23 @@ usb2_fifo_free_wrap(struct usb2_device *udev,
 		/* free this FIFO */
 		usb2_fifo_free(f);
 	}
-	return;
+}
+
+/*------------------------------------------------------------------------*
+ *	usb2_peer_can_wakeup
+ *
+ * Return values:
+ * 0: Peer cannot do resume signalling.
+ * Else: Peer can do resume signalling.
+ *------------------------------------------------------------------------*/
+uint8_t
+usb2_peer_can_wakeup(struct usb2_device *udev)
+{
+	const struct usb2_config_descriptor *cdp;
+
+	cdp = udev->cdesc;
+	if ((cdp != NULL) && (udev->flags.usb2_mode == USB_MODE_HOST)) {
+		return (cdp->bmAttributes & UC_REMOTE_WAKEUP);
+	}
+	return (0);			/* not supported */
 }

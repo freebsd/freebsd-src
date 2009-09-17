@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -502,6 +502,11 @@ struct ieee80211_frame_bar {
 #define	IEEE80211_CAPINFO_DSSSOFDM		0x2000
 /* bits 14-15 are reserved */
 
+#define	IEEE80211_CAPINFO_BITS \
+	"\20\1ESS\2IBSS\3CF_POLLABLE\4CF_POLLREQ\5PRIVACY\6SHORT_PREAMBLE" \
+	"\7PBCC\10CHNL_AGILITY\11SPECTRUM_MGMT\13SHORT_SLOTTIME\14RSN" \
+	"\16DSSOFDM"
+
 /*
  * 802.11i/WPA information element (maximally sized).
  */
@@ -561,6 +566,11 @@ struct ieee80211_ie_htcap {
 #define	IEEE80211_HTCAP_PSMP		0x2000  /* PSMP supported */
 #define	IEEE80211_HTCAP_40INTOLERANT	0x4000  /* 40MHz intolerant */
 #define	IEEE80211_HTCAP_LSIGTXOPPROT	0x8000  /* L-SIG TXOP prot */
+
+#define	IEEE80211_HTCAP_BITS \
+	"\20\1LDPC\2CHWIDTH40\5GREENFIELD\6SHORTGI20\7SHORTGI40\10TXSTBC" \
+	"\13DELBA\14AMSDU(7935)\15DSSSCCK40\16PSMP\1740INTOLERANT" \
+	"\20LSIGTXOPPROT"
 
 /* HT parameters (hc_param) */
 #define	IEEE80211_HTCAP_MAXRXAMPDU	0x03	/* max rx A-MPDU factor */
@@ -753,6 +763,9 @@ struct ieee80211_ath_ie {
 #define	IEEE80211_ERP_NON_ERP_PRESENT	0x01
 #define	IEEE80211_ERP_USE_PROTECTION	0x02
 #define	IEEE80211_ERP_LONG_PREAMBLE	0x04
+
+#define	IEEE80211_ERP_BITS \
+	"\20\1NON_ERP_PRESENT\2USE_PROTECTION\3LONG_PREAMBLE"
 
 #define	ATH_OUI			0x7f0300	/* Atheros OUI */
 #define	ATH_OUI_TYPE		0x01
@@ -1063,5 +1076,27 @@ struct ieee80211_duration {
 #define	ATH_FF_SNAP_ORGCODE_0	0x00
 #define	ATH_FF_SNAP_ORGCODE_1	0x03
 #define	ATH_FF_SNAP_ORGCODE_2	0x7f
+
+struct ieee80211_tdma_param {
+	u_int8_t	tdma_id;	/* IEEE80211_ELEMID_VENDOR */
+	u_int8_t	tdma_len;
+	u_int8_t	tdma_oui[3];	/* 0x00, 0x03, 0x7f */
+	u_int8_t	tdma_type;	/* OUI type */
+	u_int8_t	tdma_subtype;	/* OUI subtype */
+	u_int8_t	tdma_version;	/* spec revision */
+	u_int8_t	tdma_slot;	/* station slot # */
+	u_int8_t	tdma_slotcnt;	/* bss slot count */
+	u_int16_t	tdma_slotlen;	/* bss slot len (100us) */
+	u_int8_t	tdma_bintval;	/* beacon interval (superframes) */
+	u_int8_t	tdma_inuse[1];	/* slot occupancy map */
+	u_int8_t	tdma_pad[2];
+	u_int8_t	tdma_tstamp[8];	/* timestamp from last beacon */
+} __packed;
+
+/* NB: Atheros allocated the OUI for this purpose ~3 years ago but beware ... */
+#define	TDMA_OUI		ATH_OUI
+#define	TDMA_OUI_TYPE		0x02
+#define	TDMA_SUBTYPE_PARAM	0x01
+#define	TDMA_VERSION		2
 
 #endif /* _NET80211_IEEE80211_H_ */

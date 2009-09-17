@@ -1,6 +1,6 @@
 Frequently Asked Questions about BIND 9
 
-Copyright © 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+Copyright © 2004-2008 Internet Systems Consortium, Inc. ("ISC")
 
 Copyright © 2000-2003 Internet Software Consortium.
 
@@ -205,6 +205,8 @@ A: These indicate a malformed master zone. You can identify the exact
 Q: I get error messages like "named.conf:99: unexpected end of input"
    where 99 is the last line of named.conf.
 
+A: There are unbalanced quotes in named.conf.
+
 A: Some text editors (notepad and wordpad) fail to put a line title
    indication (e.g. CR/LF) on the last line of a text file. This can be
    fixed by "adding" a blank line to the end of the file. Named expects to
@@ -375,7 +377,60 @@ A: When reloading a zone named my have multiple copies of the zone in
    other errors in the master file as it still has an in-core copy of the
    old contents.
 
-3. General Questions
+Q: I want to use IPv6 locally but I don't have a external IPv6 connection.
+   External lookups are slow.
+
+A: You can use server clauses to stop named making external lookups over
+   IPv6.
+
+   server fd81:ec6c:bd62::/48 { bogus no; }; // site ULA prefix
+   server ::/0 { bogus yes; };
+
+3. Operations Questions
+
+Q: How to change the nameservers for a zone?
+
+A: Step 1: Ensure all nameservers, new and old, are serving the same zone
+   content.
+
+   Step 2: Work out the maximum TTL of the NS RRset in the parent and
+   child zones. This is the time it will take caches to be clear of a
+   particular version of the NS RRset. If you are just removing
+   nameservers you can skip to Step 6.
+
+   Step 3: Add new nameservers to the NS RRset for the zone and wait until
+   all the servers for the zone are answering with this new NS RRset.
+
+   Step 4: Inform the parent zone of the new NS RRset then wait for all
+   the parent servers to be answering with the new NS RRset.
+
+   Step 5: Wait for cache to be clear of the old NS RRset. See Step 2 for
+   how long. If you are just adding nameservers you are done.
+
+   Step 6: Remove any old nameservers from the zones NS RRset and wait for
+   all the servers for the zone to be serving the new NS RRset.
+
+   Step 7: Inform the parent zone of the new NS RRset then wait for all
+   the parent servers to be answering with the new NS RRset.
+
+   Step 8: Wait for cache to be clear of the old NS RRset. See Step 2 for
+   how long.
+
+   Step 9: Turn off the old nameservers or remove the zone entry from the
+   configuration of the old nameservers.
+
+   Step 10: Increment the serial number and wait for the change to be
+   visible in all nameservers for the zone. This ensures that zone
+   transfers are still working after the old servers are decommissioned.
+
+   Note: the above procedure is designed to be transparent to dns clients.
+   Decommissioning the old servers too early will result in some clients
+   not being able to look up answers in the zone.
+
+   Note: while it is possible to run the addition and removal stages
+   together it is not recommended.
+
+4. General Questions
 
 Q: I keep getting log messages like the following. Why?
 
@@ -396,8 +451,8 @@ A: Someone is trying to update your DNS data using the RFC2136 Dynamic
    Update protocol. Windows 2000 machines have a habit of sending dynamic
    update requests to DNS servers without being specifically configured to
    do so. If the update requests are coming from a Windows 2000 machine,
-   see http://support.microsoft.com/support/kb/articles/q246/8/04.asp for
-   information about how to turn them off.
+   see <http://support.microsoft.com/support/kb/articles/q246/8/04.asp>
+   for information about how to turn them off.
 
 Q: When I do a "dig . ns", many of the A records for the root servers are
    missing. Why?
@@ -468,7 +523,7 @@ A: If the IN-ADDR.ARPA name covered refers to a internal address space you
    are using then you have failed to follow RFC 1918 usage rules and are
    leaking queries to the Internet. You should establish your own zones
    for these addresses to prevent you querying the Internet's name servers
-   for these addresses. Please see http://as112.net/ for details of the
+   for these addresses. Please see <http://as112.net/> for details of the
    problems you are causing and the counter measures that have had to be
    deployed.
 
@@ -541,9 +596,16 @@ A: No. The BIND 9 bug database is kept closed for a number of reasons.
    that have been fixed post release. That is as close as we can get to
    providing a bug database.
 
-4. Operating-System Specific Questions
+Q: Why do queries for NSEC3 records fail to return the NSEC3 record?
 
-4.1. HPUX
+A: NSEC3 records are strictly meta data and can only be returned in the
+   authority section. This is done so that signing the zone using NSEC3
+   records does not bring names into existance that do not exist in the
+   unsigned version of the zone.
+
+5. Operating-System Specific Questions
+
+5.1. HPUX
 
 Q: I get the following error trying to configure BIND:
 
@@ -559,7 +621,7 @@ A: You have attempted to configure BIND with the bundled C compiler. This
 
    ./configure CC=<compiler> ...
 
-4.2. Linux
+5.2. Linux
 
 Q: Why do I get the following errors:
 
@@ -569,7 +631,20 @@ Q: Why do I get the following errors:
 
 A: This is the result of a Linux kernel bug.
 
-   See: http://marc.theaimsgroup.com/?l=linux-netdev&m=113081708031466&w=2
+   See: <http://marc.theaimsgroup.com/?l=linux-netdev&m=113081708031466&w=
+   2>
+
+Q: Why does named lock up when it attempts to connect over IPSEC tunnels?
+
+A: This is due to a kernel bug where the fact that a socket is marked
+   non-blocking is ignored. It is reported that setting xfrm_larval_drop
+   to 1 helps but this may have negative side effects. See: <https://
+   bugzilla.redhat.com/show_bug.cgi?id=427629> and <http://lkml.org/lkml/
+   2007/12/4/260>.
+
+   xfrm_larval_drop can be set to 1 by the following procedure:
+
+   echo "1" > proc/sys/net/core/xfrm_larval_drop
 
 Q: Why do I see 5 (or more) copies of named on Linux?
 
@@ -594,7 +669,12 @@ Q: I get the error message "named: capset failed: Operation not permitted"
    when starting named.
 
 A: The capability module, part of "Linux Security Modules/LSM", has not
-   been loaded into the kernel. See insmod(8).
+   been loaded into the kernel. See insmod(8), modprobe(8).
+
+   The relevant modules can be loaded by running:
+
+   modprobe commoncap
+   modprobe capability
 
 Q: I'm running BIND on Red Hat Enterprise Linux or Fedora Core -
 
@@ -608,7 +688,7 @@ Q: I'm running BIND on Red Hat Enterprise Linux or Fedora Core -
 A: Red Hat Security Enhanced Linux (SELinux) policy security protections :
 
    Red Hat have adopted the National Security Agency's SELinux security
-   policy ( see http://www.nsa.gov/selinux ) and recommendations for BIND
+   policy (see <http://www.nsa.gov/selinux>) and recommendations for BIND
    security , which are more secure than running named in a chroot and
    make use of the bind-chroot environment unnecessary .
 
@@ -699,7 +779,19 @@ A: Red Hat Security Enhanced Linux (SELinux) policy security protections :
    See these man-pages for more information : selinux(8), named_selinux
    (8), chcon(1), setsebool(8)
 
-4.3. Windows
+Q: Listening on individual IPv6 interfaces does not work.
+
+A: This is usually due to "/proc/net/if_inet6" not being available in the
+   chroot file system. Mount another instance of "proc" in the chroot file
+   system.
+
+   This can be be made permanent by adding a second instance to /etc/
+   fstab.
+
+   proc /proc           proc defaults 0 0
+   proc /var/named/proc proc defaults 0 0
+
+5.3. Windows
 
 Q: Zone transfers from my BIND 9 master to my Windows 2000 slave fail.
    Why?
@@ -725,7 +817,7 @@ A: This is the service manager saying that named exited. You need to
            Directory "C:\windows\dns\etc";
    };
 
-4.4. FreeBSD
+5.4. FreeBSD
 
 Q: I have FreeBSD 4.x and "rndc-confgen -a" just sits there.
 
@@ -736,17 +828,17 @@ A: /dev/random is not configured. Use rndcontrol(8) to tell the kernel to
    /etc/rc.conf
    rand_irqs="3 14 15"
 
-   See also http://people.freebsd.org/~dougb/randomness.html
+   See also <http://people.freebsd.org/~dougb/randomness.html>.
 
-4.5. Solaris
+5.5. Solaris
 
 Q: How do I integrate BIND 9 and Solaris SMF
 
 A: Sun has a blog entry describing how to do this.
 
-   http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris
+   <http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris>
 
-4.6. Apple Mac OS X
+5.6. Apple Mac OS X
 
 Q: How do I run BIND 9 on Apple Mac OS X?
 

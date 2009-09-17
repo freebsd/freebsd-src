@@ -119,43 +119,42 @@ device_set_usb2_desc(device_t dev)
 	device_set_desc_copy(dev, temp_p);
 	device_printf(dev, "<%s> on %s\n", temp_p,
 	    device_get_nameunit(udev->bus->bdev));
-	return;
 }
 
 /*------------------------------------------------------------------------*
  *	 usb2_pause_mtx - factored out code
  *
- * This function will delay the code by the passed number of
- * milliseconds. The passed mutex "mtx" will be dropped while waiting,
- * if "mtx" is not NULL. The number of milliseconds per second is 1024
- * for sake of optimisation.
+ * This function will delay the code by the passed number of system
+ * ticks. The passed mutex "mtx" will be dropped while waiting, if
+ * "mtx" is not NULL.
  *------------------------------------------------------------------------*/
 void
-usb2_pause_mtx(struct mtx *mtx, uint32_t ms)
+usb2_pause_mtx(struct mtx *mtx, int _ticks)
 {
+	if (mtx != NULL)
+		mtx_unlock(mtx);
+
 	if (cold) {
-		ms = (ms + 1) * 1024;
-		DELAY(ms);
+		/* convert to milliseconds */
+		_ticks = (_ticks * 1000) / hz;
+		/* convert to microseconds, rounded up */
+		_ticks = (_ticks + 1) * 1000;
+		DELAY(_ticks);
 
 	} else {
 
-		ms = USB_MS_TO_TICKS(ms);
 		/*
 		 * Add one to the number of ticks so that we don't return
 		 * too early!
 		 */
-		ms++;
+		_ticks++;
 
-		if (mtx != NULL)
-			mtx_unlock(mtx);
-
-		if (pause("USBWAIT", ms)) {
+		if (pause("USBWAIT", _ticks)) {
 			/* ignore */
 		}
-		if (mtx != NULL)
-			mtx_lock(mtx);
 	}
-	return;
+	if (mtx != NULL)
+		mtx_lock(mtx);
 }
 
 /*------------------------------------------------------------------------*
@@ -171,7 +170,6 @@ usb2_printBCD(char *p, uint16_t p_len, uint16_t bcd)
 	if (snprintf(p, p_len, "%x.%02x", bcd >> 8, bcd & 0xff)) {
 		/* ignore any errors */
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -195,7 +193,6 @@ usb2_trim_spaces(char *p)
 		if (*p++ != ' ')	/* remember last non-space */
 			e = p;
 	*e = 0;				/* kill trailing spaces */
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -259,7 +256,6 @@ void
 usb2_cv_init(struct cv *cv, const char *desc)
 {
 	cv_init(cv, desc);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -269,7 +265,6 @@ void
 usb2_cv_destroy(struct cv *cv)
 {
 	cv_destroy(cv);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -281,7 +276,6 @@ usb2_cv_wait(struct cv *cv, struct mtx *mtx)
 	int err;
 
 	err = usb2_msleep(cv, mtx, 0, cv_wmesg(cv), 0);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -317,7 +311,6 @@ void
 usb2_cv_signal(struct cv *cv)
 {
 	wakeup_one(cv);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -327,7 +320,6 @@ void
 usb2_cv_broadcast(struct cv *cv)
 {
 	wakeup(cv);
-	return;
 }
 
 /*------------------------------------------------------------------------*

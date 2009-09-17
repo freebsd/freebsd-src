@@ -55,16 +55,15 @@ SYSCTL_UINT(_kern, OID_AUTO, tty_pty_warningcnt, CTLFLAG_RW,
 static int
 ptydev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
 {
-	int u, error;
-	char name[] = "ttyXX";
+	int error;
+	char name[6]; /* "ttyXX" */
 
 	if (!atomic_cmpset_ptr((uintptr_t *)&dev->si_drv1, 0, 1))
 		return (EBUSY);
 
 	/* Generate device name and create PTY. */
-	u = dev2unit(dev);
-	name[3] = u >> 8;
-	name[4] = u;
+	strcpy(name, devtoname(dev));
+	name[0] = 't';
 
 	error = pts_alloc_external(fflags & (FREAD|FWRITE), td, fp, dev, name);
 	if (error != 0) {
@@ -93,7 +92,6 @@ static void
 pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
     struct cdev **dev)
 {
-	int u;
 
 	/* Cloning is already satisfied. */
 	if (*dev != NULL)
@@ -114,8 +112,7 @@ pty_clone(void *arg, struct ucred *cr, char *name, int namelen,
 		return;
 
 	/* Create the controller device node. */
-	u = (unsigned int)name[3] << 8 | name[4];
-	*dev = make_dev_credf(MAKEDEV_REF, &ptydev_cdevsw, u,
+	*dev = make_dev_credf(MAKEDEV_REF, &ptydev_cdevsw, 0,
 	    NULL, UID_ROOT, GID_WHEEL, 0666, name);
 }
 

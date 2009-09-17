@@ -67,14 +67,17 @@ static usb2_callback_t usb_linux_non_isoc_callback;
 
 static usb_complete_t usb_linux_wait_complete;
 
-static uint16_t usb_max_isoc_frames(struct usb_device *dev);
-static int usb_start_wait_urb(struct urb *urb, uint32_t timeout, uint16_t *p_actlen);
-static const struct usb_device_id *usb_linux_lookup_id(const struct usb_device_id *id, struct usb2_attach_arg *uaa);
-static struct usb_driver *usb_linux_get_usb_driver(struct usb_linux_softc *sc);
-static struct usb_device *usb_linux_create_usb_device(struct usb2_device *udev, device_t dev);
-static void usb_linux_cleanup_interface(struct usb_device *dev, struct usb_interface *iface);
-static void usb_linux_complete(struct usb2_xfer *xfer);
-static int usb_unlink_urb_sub(struct urb *urb, uint8_t drain);
+static uint16_t	usb_max_isoc_frames(struct usb_device *);
+static int	usb_start_wait_urb(struct urb *, uint32_t, uint16_t *);
+static const struct usb_device_id *usb_linux_lookup_id(
+		    const struct usb_device_id *, struct usb2_attach_arg *);
+static struct	usb_driver *usb_linux_get_usb_driver(struct usb_linux_softc *);
+static struct	usb_device *usb_linux_create_usb_device(struct usb2_device *,
+		    device_t);
+static void	usb_linux_cleanup_interface(struct usb_device *,
+		    struct usb_interface *);
+static void	usb_linux_complete(struct usb2_xfer *);
+static int	usb_unlink_urb_sub(struct urb *, uint8_t);
 
 /*------------------------------------------------------------------------*
  * FreeBSD USB interface
@@ -243,9 +246,6 @@ usb_linux_attach(device_t dev)
 	struct usb_device *p_dev;
 	const struct usb_device_id *id = NULL;
 
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 	mtx_lock(&Giant);
 	LIST_FOREACH(udrv, &usb_linux_driver_list, linux_driver_list) {
 		id = usb_linux_lookup_id(udrv->id_table, uaa);
@@ -390,8 +390,14 @@ usb_linux_shutdown(device_t dev)
 static uint16_t
 usb_max_isoc_frames(struct usb_device *dev)
 {
-	return ((usb2_get_speed(dev->bsd_udev) == USB_SPEED_HIGH) ?
-	    USB_MAX_HIGH_SPEED_ISOC_FRAMES : USB_MAX_FULL_SPEED_ISOC_FRAMES);
+	;				/* indent fix */
+	switch (usb2_get_speed(dev->bsd_udev)) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+		return (USB_MAX_FULL_SPEED_ISOC_FRAMES);
+	default:
+		return (USB_MAX_HIGH_SPEED_ISOC_FRAMES);
+	}
 }
 
 /*------------------------------------------------------------------------*
@@ -467,7 +473,6 @@ usb_unlink_bsd(struct usb2_xfer *xfer,
 		}
 		usb2_transfer_start(xfer);
 	}
-	return;
 }
 
 static int
@@ -1131,7 +1136,6 @@ usb_linux_register(void *arg)
 	mtx_unlock(&Giant);
 
 	usb2_needs_explore_all();
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1161,7 +1165,6 @@ repeat:
 	}
 	LIST_REMOVE(drv, linux_driver_list);
 	mtx_unlock(&Giant);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1185,7 +1188,6 @@ usb_linux_free_device(struct usb_device *dev)
 	}
 	err = usb_setup_endpoint(dev, &dev->ep0, 0);
 	free(dev, M_USBDEV);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1196,7 +1198,6 @@ usb_buffer_free(struct usb_device *dev, uint32_t size,
     void *addr, uint8_t dma_addr)
 {
 	free(addr, M_USBDEV);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1216,7 +1217,6 @@ usb_free_urb(struct urb *urb)
 
 	/* just free it */
 	free(urb, M_USBDEV);
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1233,7 +1233,6 @@ usb_init_urb(struct urb *urb)
 		return;
 	}
 	bzero(urb, sizeof(*urb));
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1245,7 +1244,6 @@ usb_kill_urb(struct urb *urb)
 	if (usb_unlink_urb_sub(urb, 1)) {
 		/* ignore */
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1258,7 +1256,6 @@ void
 usb_set_intfdata(struct usb_interface *intf, void *data)
 {
 	intf->bsd_priv_sc = data;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1287,7 +1284,6 @@ usb_linux_cleanup_interface(struct usb_device *dev, struct usb_interface *iface)
 		}
 		uhi++;
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1303,7 +1299,6 @@ usb_linux_wait_complete(struct urb *urb)
 		usb2_cv_signal(&urb->cv_wait);
 	}
 	urb->transfer_flags &= ~URB_WAIT_WAKEUP;
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -1319,7 +1314,6 @@ usb_linux_complete(struct usb2_xfer *xfer)
 	if (urb->complete) {
 		(urb->complete) (urb);
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*

@@ -85,9 +85,9 @@ __FBSDID("$FreeBSD$");
 
 
 #include <machine/xen/xen-os.h>
-#include <machine/xen/evtchn.h>
-#include <machine/xen/xen_intr.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/evtchn.h>
+#include <xen/xen_intr.h>
+#include <xen/hypervisor.h>
 #include <xen/interface/vcpu.h>
 
 #define stop_cpus_with_nmi	0
@@ -137,6 +137,7 @@ struct cpu_info {
 	int	cpu_disabled:1;
 } static cpu_info[MAX_APIC_ID + 1];
 int cpu_apic_ids[MAXCPU];
+int apic_cpuids[MAX_APIC_ID + 1];
 
 /* Holds pending bitmap based IPIs per CPU */
 static volatile u_int cpu_ipi_pending[MAXCPU];
@@ -284,6 +285,7 @@ cpu_mp_start(void)
 		KASSERT(boot_cpu_id == PCPU_GET(apic_id),
 		    ("BSP's APIC ID doesn't match boot_cpu_id"));
 	cpu_apic_ids[0] = boot_cpu_id;
+	apic_cpuids[boot_cpu_id] = 0;
 
 	assign_cpu_ids();
 
@@ -464,7 +466,8 @@ static int
 xen_smp_intr_init(unsigned int cpu)
 {
 	int rc;
-
+	unsigned int irq;
+	
 	per_cpu(resched_irq, cpu) = per_cpu(callfunc_irq, cpu) = -1;
 
 	sprintf(resched_name[cpu], "resched%u", cpu);
@@ -472,22 +475,22 @@ xen_smp_intr_init(unsigned int cpu)
 				    cpu,
 				    resched_name[cpu],
 				    smp_reschedule_interrupt,
-				    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE);
+	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &irq);
 
 	printf("cpu=%d irq=%d vector=%d\n",
 	    cpu, rc, RESCHEDULE_VECTOR);
 	
-	per_cpu(resched_irq, cpu) = rc;
+	per_cpu(resched_irq, cpu) = irq;
 
 	sprintf(callfunc_name[cpu], "callfunc%u", cpu);
 	rc = bind_ipi_to_irqhandler(CALL_FUNCTION_VECTOR,
 				    cpu,
 				    callfunc_name[cpu],
 				    smp_call_function_interrupt,
-				    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE);
+	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &irq);
 	if (rc < 0)
 		goto fail;
-	per_cpu(callfunc_irq, cpu) = rc;
+	per_cpu(callfunc_irq, cpu) = irq;
 
 	printf("cpu=%d irq=%d vector=%d\n",
 	    cpu, rc, CALL_FUNCTION_VECTOR);
@@ -500,9 +503,9 @@ xen_smp_intr_init(unsigned int cpu)
 
  fail:
 	if (per_cpu(resched_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
+		unbind_from_irqhandler(per_cpu(resched_irq, cpu));
 	if (per_cpu(callfunc_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
+		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu));
 	return rc;
 }
 
@@ -706,6 +709,7 @@ assign_cpu_ids(void)
 
 		if (mp_ncpus < MAXCPU) {
 			cpu_apic_ids[mp_ncpus] = i;
+			apic_cpuids[i] = mp_ncpus;
 			mp_ncpus++;
 		} else
 			cpu_info[i].cpu_disabled = 1;

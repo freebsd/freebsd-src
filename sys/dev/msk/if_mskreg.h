@@ -1614,6 +1614,8 @@
 			(GM_MIB_CNT_BASE + 24)	/* Multicast Frames Received OK */
 #define GM_RXF_FCS_ERR \
 			(GM_MIB_CNT_BASE + 32)	/* Rx Frame Check Seq. Error */
+#define GM_RXF_SPARE1 \
+			(GM_MIB_CNT_BASE + 40)	/* Rx spare 1 */
 #define GM_RXO_OK_LO \
 			(GM_MIB_CNT_BASE + 48)	/* Octets Received OK Low */
 #define GM_RXO_OK_HI \
@@ -1644,8 +1646,12 @@
 			(GM_MIB_CNT_BASE + 152)	/* Rx Frame too Long Error */
 #define GM_RXF_JAB_PKT \
 			(GM_MIB_CNT_BASE + 160)	/* Rx Jabber Packet Frame */
+#define GM_RXF_SPARE2 \
+			(GM_MIB_CNT_BASE + 168)	/* Rx spare 2 */
 #define GM_RXE_FIFO_OV \
 			(GM_MIB_CNT_BASE + 176)	/* Rx FIFO overflow Event */
+#define GM_RXF_SPARE3 \
+			(GM_MIB_CNT_BASE + 184)	/* Rx spare 3 */
 #define GM_TXF_UC_OK \
 			(GM_MIB_CNT_BASE + 192)	/* Unicast Frames Xmitted OK */
 #define GM_TXF_BC_OK \
@@ -1672,6 +1678,8 @@
 			(GM_MIB_CNT_BASE + 280)	/* 1024-1518 Byte Tx Frame */
 #define GM_TXF_MAX_SZ \
 			(GM_MIB_CNT_BASE + 288)	/* 1519-MaxSize Byte Tx Frame */
+#define GM_TXF_SPARE1 \
+			(GM_MIB_CNT_BASE + 296)	/* Tx spare 1 */
 #define GM_TXF_COL \
 			(GM_MIB_CNT_BASE + 304)	/* Tx Collision */
 #define GM_TXF_LAT_COL \
@@ -2164,7 +2172,6 @@ struct msk_stat_desc {
 #define MSK_MAXTXSEGS		32
 #define	MSK_TSO_MAXSGSIZE	4096
 #define	MSK_TSO_MAXSIZE		(65535 + sizeof(struct ether_vlan_header))
-#define	MSK_MAXRXSEGS		32
 
 /*
  * It seems that the hardware requires extra decriptors(LEs) to offload
@@ -2191,20 +2198,6 @@ struct msk_stat_desc {
 #define MSK_MAX_FRAMELEN		\
 	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN - ETHER_CRC_LEN)
 #define MSK_MIN_FRAMELEN	(ETHER_MIN_LEN - ETHER_CRC_LEN)
-#define MSK_JSLOTS		((MSK_RX_RING_CNT * 3) / 2)
-
-#define MSK_JRAWLEN		(MSK_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define MSK_JLEN		(MSK_JRAWLEN + (sizeof(uint64_t) - \
-	(MSK_JRAWLEN % sizeof(uint64_t))))
-#define MSK_JPAGESZ PAGE_SIZE
-#define MSK_RESID		\
-	(MSK_JPAGESZ - (MSK_JLEN * MSK_JSLOTS) % MSK_JPAGESZ)
-#define MSK_JMEM		((MSK_JLEN * MSK_JSLOTS) + MSK_RESID)
-
-struct msk_jpool_entry {
-	int                             slot;
-	SLIST_ENTRY(msk_jpool_entry)	jpool_entries;
-};
 
 struct msk_txdesc {
 	struct mbuf		*tx_m;
@@ -2230,10 +2223,6 @@ struct msk_chain_data {
 	bus_dmamap_t		msk_rx_ring_map;
 	bus_dmamap_t		msk_rx_sparemap;
 	bus_dma_tag_t		msk_jumbo_rx_tag;
-	bus_dma_tag_t		msk_jumbo_tag;
-	bus_dmamap_t		msk_jumbo_map;
-	bus_dma_tag_t		msk_jumbo_mtag;
-	caddr_t			msk_jslots[MSK_JSLOTS];
 	struct msk_rxdesc	msk_jumbo_rxdesc[MSK_JUMBO_RX_RING_CNT];
 	bus_dma_tag_t		msk_jumbo_rx_ring_tag;
 	bus_dmamap_t		msk_jumbo_rx_ring_map;
@@ -2255,8 +2244,6 @@ struct msk_ring_data {
 	bus_addr_t		msk_rx_ring_paddr;
 	struct msk_rx_desc	*msk_jumbo_rx_ring;
 	bus_addr_t		msk_jumbo_rx_ring_paddr;
-	void			*msk_jumbo_buf;
-	bus_addr_t		msk_jumbo_buf_paddr;
 };
 
 #define MSK_TX_RING_ADDR(sc, i)	\
@@ -2290,6 +2277,52 @@ struct msk_ring_data {
 
 /* Forward decl. */
 struct msk_if_softc;
+
+struct msk_hw_stats {
+	/* Rx stats. */
+	uint32_t rx_ucast_frames;
+	uint32_t rx_bcast_frames;
+	uint32_t rx_pause_frames;
+	uint32_t rx_mcast_frames;
+	uint32_t rx_crc_errs;
+	uint32_t rx_spare1;
+	uint64_t rx_good_octets;
+	uint64_t rx_bad_octets;
+	uint32_t rx_runts;
+	uint32_t rx_runt_errs;
+	uint32_t rx_pkts_64;
+	uint32_t rx_pkts_65_127;
+	uint32_t rx_pkts_128_255;
+	uint32_t rx_pkts_256_511;
+	uint32_t rx_pkts_512_1023;
+	uint32_t rx_pkts_1024_1518;
+	uint32_t rx_pkts_1519_max;
+	uint32_t rx_pkts_too_long;
+	uint32_t rx_pkts_jabbers;
+	uint32_t rx_spare2;
+	uint32_t rx_fifo_oflows;
+	uint32_t rx_spare3;
+	/* Tx stats. */
+	uint32_t tx_ucast_frames;
+	uint32_t tx_bcast_frames;
+	uint32_t tx_pause_frames;
+	uint32_t tx_mcast_frames;
+	uint64_t tx_octets;
+	uint32_t tx_pkts_64;
+	uint32_t tx_pkts_65_127;
+	uint32_t tx_pkts_128_255;
+	uint32_t tx_pkts_256_511;
+	uint32_t tx_pkts_512_1023;
+	uint32_t tx_pkts_1024_1518;
+	uint32_t tx_pkts_1519_max;
+	uint32_t tx_spare1;
+	uint32_t tx_colls;
+	uint32_t tx_late_colls;
+	uint32_t tx_excess_colls;
+	uint32_t tx_multi_colls;
+	uint32_t tx_single_colls;
+	uint32_t tx_underflows;
+};
 
 /* Softc for the Marvell Yukon II controller. */
 struct msk_softc {
@@ -2352,6 +2385,7 @@ struct msk_if_softc {
 	int			msk_link;
 	uint32_t		msk_flags;
 #define	MSK_FLAG_RAMBUF		0x0010
+#define	MSK_FLAG_NOJUMBO	0x0020
 	struct callout		msk_tick_ch;
 	int			msk_watchdog_timer;
 	uint32_t		msk_txq;	/* Tx. Async Queue offset */
@@ -2360,18 +2394,13 @@ struct msk_if_softc {
 	struct msk_chain_data	msk_cdata;
 	struct msk_ring_data	msk_rdata;
 	struct msk_softc	*msk_softc;	/* parent controller */
+	struct msk_hw_stats	msk_stats;
 	struct task		msk_link_task;
 	struct task		msk_tx_task;
 	int			msk_if_flags;
 	int			msk_detach;
 	uint16_t		msk_vtag;	/* VLAN tag id. */
-	SLIST_HEAD(__msk_jfreehead, msk_jpool_entry)	msk_jfree_listhead;
-	SLIST_HEAD(__msk_jinusehead, msk_jpool_entry)	msk_jinuse_listhead;
-	struct mtx		msk_jlist_mtx;
 };
-
-#define	MSK_JLIST_LOCK(_sc)	mtx_lock(&(_sc)->msk_jlist_mtx)
-#define	MSK_JLIST_UNLOCK(_sc)	mtx_unlock(&(_sc)->msk_jlist_mtx)
 
 #define MSK_TIMEOUT	1000
 #define	MSK_PHY_POWERUP		1

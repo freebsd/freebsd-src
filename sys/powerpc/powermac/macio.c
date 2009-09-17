@@ -107,6 +107,8 @@ static device_method_t macio_methods[] = {
         DEVMETHOD(bus_deactivate_resource, macio_deactivate_resource),
         DEVMETHOD(bus_get_resource_list, macio_get_resource_list),	
 
+	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
+
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	macio_get_devinfo),
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
@@ -150,6 +152,7 @@ static struct macio_pci_dev {
  */
 #define	MACIO_QUIRK_IGNORE		0x00000001
 #define	MACIO_QUIRK_CHILD_HAS_INTR	0x00000002
+#define	MACIO_QUIRK_USE_CHILD_REG	0x00000004
 
 struct macio_quirk_entry {
 	const char	*mq_name;
@@ -160,7 +163,9 @@ static struct macio_quirk_entry macio_quirks[] = {
 	{ "escc-legacy",		MACIO_QUIRK_IGNORE },
 	{ "timer",			MACIO_QUIRK_IGNORE },
 	{ "escc",			MACIO_QUIRK_CHILD_HAS_INTR },
-        { NULL,				0 }
+        { "i2s", 			MACIO_QUIRK_CHILD_HAS_INTR | 
+					MACIO_QUIRK_USE_CHILD_REG },
+	{ NULL,				0 }
 };
 
 static int
@@ -183,7 +188,6 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 {
 	int	*intr;
 	int	i, nintr;
-	phandle_t iparent;
 	int 	icells;
 
 	if (dinfo->mdi_ninterrupts >= 6) {
@@ -191,10 +195,9 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 		return;
 	}
 
-	icells = 1;
-	
-	if (OF_getprop(devnode, "interrupt-parent", &iparent, sizeof(iparent)) == sizeof(iparent))
-		OF_getprop(iparent, "#interrupt-cells", &icells, sizeof(icells));
+	if (OF_searchprop(devnode, "#interrupt-cells", &icells, sizeof(icells))
+	    <= 0)
+		icells = 1;
 
 	nintr = OF_getprop_alloc(devnode, "interrupts", sizeof(*intr), 
 		(void **)&intr);
@@ -318,7 +321,10 @@ macio_attach(device_t dev)
 		resource_list_init(&dinfo->mdi_resources);
 		dinfo->mdi_ninterrupts = 0;
 		macio_add_intr(child, dinfo);
-		macio_add_reg(child, dinfo);
+		if ((quirks & MACIO_QUIRK_USE_CHILD_REG) != 0)
+			macio_add_reg(OF_child(child), dinfo);
+		else
+			macio_add_reg(child, dinfo);
 		if ((quirks & MACIO_QUIRK_CHILD_HAS_INTR) != 0)
 			for (subchild = OF_child(child); subchild != 0;
 			    subchild = OF_peer(subchild))

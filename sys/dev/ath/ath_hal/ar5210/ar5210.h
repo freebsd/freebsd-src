@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * Copyright (c) 2002-2004 Atheros Communications, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5210.h,v 1.8 2008/11/11 02:40:13 sam Exp $
+ * $FreeBSD$
  */
 #ifndef _ATH_AR5210_H_
 #define _ATH_AR5210_H_
@@ -128,20 +128,21 @@ struct ath_hal;
 
 extern	void ar5210Detach(struct ath_hal *ah);
 extern	HAL_BOOL ar5210Reset(struct ath_hal *, HAL_OPMODE,
-		HAL_CHANNEL *, HAL_BOOL bChannelChange, HAL_STATUS *);
+		struct ieee80211_channel *, HAL_BOOL bChannelChange, HAL_STATUS *);
 extern	void ar5210SetPCUConfig(struct ath_hal *);
 extern	HAL_BOOL ar5210PhyDisable(struct ath_hal *);
 extern	HAL_BOOL ar5210Disable(struct ath_hal *);
-extern	HAL_BOOL ar5210ChipReset(struct ath_hal *, HAL_CHANNEL *);
-extern	HAL_BOOL ar5210PerCalibration(struct ath_hal *, HAL_CHANNEL *, HAL_BOOL *);
-extern	HAL_BOOL ar5210PerCalibrationN(struct ath_hal *ah, HAL_CHANNEL *chan,
+extern	HAL_BOOL ar5210ChipReset(struct ath_hal *, struct ieee80211_channel *);
+extern	HAL_BOOL ar5210PerCalibration(struct ath_hal *, struct ieee80211_channel *, HAL_BOOL *);
+extern	HAL_BOOL ar5210PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 		u_int chainMask, HAL_BOOL longCal, HAL_BOOL *isCalDone);
-extern	HAL_BOOL ar5210ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan);
+extern	HAL_BOOL ar5210ResetCalValid(struct ath_hal *ah, const struct ieee80211_channel *);
 extern	int16_t ar5210GetNoiseFloor(struct ath_hal *);
 extern	int16_t ar5210GetNfAdjust(struct ath_hal *,
 		const HAL_CHANNEL_INTERNAL *);
 extern	HAL_BOOL ar5210SetTxPowerLimit(struct ath_hal *, uint32_t limit);
-extern	HAL_BOOL ar5210SetTransmitPower(struct ath_hal *, HAL_CHANNEL *);
+extern	HAL_BOOL ar5210SetTransmitPower(struct ath_hal *,
+		const struct ieee80211_channel *);
 extern	HAL_BOOL ar5210CalNoiseFloor(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
 extern	HAL_BOOL ar5210ResetDma(struct ath_hal *, HAL_OPMODE);
 
@@ -273,6 +274,7 @@ extern	HAL_INT ar5210SetInterrupts(struct ath_hal *, HAL_INT ints);
 extern	const HAL_RATE_TABLE *ar5210GetRateTable(struct ath_hal *, u_int mode);
 
 extern	HAL_BOOL ar5210AniControl(struct ath_hal *, HAL_ANI_CMD, int );
-extern	void ar5210AniPoll(struct ath_hal *, const HAL_NODE_STATS *, HAL_CHANNEL *);
+extern	void ar5210AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
+		const struct ieee80211_channel *);
 extern	void ar5210MibEvent(struct ath_hal *, const HAL_NODE_STATS *);
 #endif /* _ATH_AR5210_H_ */

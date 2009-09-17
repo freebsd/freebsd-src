@@ -256,7 +256,7 @@ mpt_user_read_cfg_header(struct mpt_softc *mpt,
 	params.PageLength = 0;
 	params.PageNumber = page_req->header.PageNumber;
 	params.PageType = page_req->header.PageType;
-	params.PageAddress = page_req->page_address;
+	params.PageAddress = le32toh(page_req->page_address);
 	error = mpt_issue_cfg_req(mpt, req, &params, /*addr*/0, /*len*/0,
 				  TRUE, 5000);
 	if (error != 0) {
@@ -270,7 +270,7 @@ mpt_user_read_cfg_header(struct mpt_softc *mpt,
 		return (ETIMEDOUT);
 	}
 
-	page_req->ioc_status = req->IOCStatus;
+	page_req->ioc_status = htole16(req->IOCStatus);
 	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS) {
 		cfgp = req->req_vbuf;
 		bcopy(&cfgp->Header, &page_req->header,
@@ -301,15 +301,15 @@ mpt_user_read_cfg_page(struct mpt_softc *mpt, struct mpt_cfg_page_req *page_req,
 	params.PageLength = hdr->PageLength;
 	params.PageNumber = hdr->PageNumber;
 	params.PageType = hdr->PageType & MPI_CONFIG_PAGETYPE_MASK;
-	params.PageAddress = page_req->page_address;
+	params.PageAddress = le32toh(page_req->page_address);
 	error = mpt_issue_cfg_req(mpt, req, &params, mpt_page->paddr,
-				  page_req->len, TRUE, 5000);
+	    le32toh(page_req->len), TRUE, 5000);
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_user_read_cfg_page timed out\n");
 		return (ETIMEDOUT);
 	}
 
-	page_req->ioc_status = req->IOCStatus;
+	page_req->ioc_status = htole16(req->IOCStatus);
 	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS)
 		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
 		    BUS_DMASYNC_POSTREAD);
@@ -337,7 +337,7 @@ mpt_user_read_extcfg_header(struct mpt_softc *mpt,
 	params.PageLength = 0;
 	params.PageNumber = ext_page_req->header.PageNumber;
 	params.PageType = MPI_CONFIG_PAGETYPE_EXTENDED;
-	params.PageAddress = ext_page_req->page_address;
+	params.PageAddress = le32toh(ext_page_req->page_address);
 	params.ExtPageType = ext_page_req->header.ExtPageType;
 	params.ExtPageLength = 0;
 	error = mpt_issue_cfg_req(mpt, req, &params, /*addr*/0, /*len*/0,
@@ -353,7 +353,7 @@ mpt_user_read_extcfg_header(struct mpt_softc *mpt,
 		return (ETIMEDOUT);
 	}
 
-	ext_page_req->ioc_status = req->IOCStatus;
+	ext_page_req->ioc_status = htole16(req->IOCStatus);
 	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS) {
 		cfgp = req->req_vbuf;
 		ext_page_req->header.PageVersion = cfgp->Header.PageVersion;
@@ -387,17 +387,17 @@ mpt_user_read_extcfg_page(struct mpt_softc *mpt,
 	params.PageLength = 0;
 	params.PageNumber = hdr->PageNumber;
 	params.PageType = MPI_CONFIG_PAGETYPE_EXTENDED;
-	params.PageAddress = ext_page_req->page_address;
+	params.PageAddress = le32toh(ext_page_req->page_address);
 	params.ExtPageType = hdr->ExtPageType;
 	params.ExtPageLength = hdr->ExtPageLength;
 	error = mpt_issue_cfg_req(mpt, req, &params, mpt_page->paddr,
-				  ext_page_req->len, TRUE, 5000);
+	    le32toh(ext_page_req->len), TRUE, 5000);
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_user_read_extcfg_page timed out\n");
 		return (ETIMEDOUT);
 	}
 
-	ext_page_req->ioc_status = req->IOCStatus;
+	ext_page_req->ioc_status = htole16(req->IOCStatus);
 	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) == MPI_IOCSTATUS_SUCCESS)
 		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
 		    BUS_DMASYNC_POSTREAD);
@@ -446,7 +446,7 @@ mpt_user_write_cfg_page(struct mpt_softc *mpt,
 	params.PageVersion = hdr->PageVersion;
 	params.PageLength = hdr->PageLength;
 	params.PageNumber = hdr->PageNumber;
-	params.PageAddress = page_req->page_address;
+	params.PageAddress = le32toh(page_req->page_address);
 #if	0
 	/* Restore stripped out attributes */
 	hdr->PageType |= hdr_attr;
@@ -455,13 +455,13 @@ mpt_user_write_cfg_page(struct mpt_softc *mpt,
 	params.PageType = hdr->PageType;
 #endif
 	error = mpt_issue_cfg_req(mpt, req, &params, mpt_page->paddr,
-				  page_req->len, TRUE, 5000);
+	    le32toh(page_req->len), TRUE, 5000);
 	if (error != 0) {
 		mpt_prt(mpt, "mpt_write_cfg_page timed out\n");
 		return (ETIMEDOUT);
 	}
 
-	page_req->ioc_status = req->IOCStatus;
+	page_req->ioc_status = htole16(req->IOCStatus);
 	mpt_free_request(mpt, req);
 	return (0);
 }
@@ -536,14 +536,15 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 	if (mpt_page->vaddr != NULL && raid_act->len != 0) {
 		bus_dmamap_sync(mpt_page->tag, mpt_page->map,
 		    BUS_DMASYNC_PREWRITE);
-		se->Address = mpt_page->paddr;
-		MPI_pSGE_SET_LENGTH(se, raid_act->len);
+		se->Address = htole32(mpt_page->paddr);
+		MPI_pSGE_SET_LENGTH(se, le32toh(raid_act->len));
 		MPI_pSGE_SET_FLAGS(se, (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
 		    MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
 		    MPI_SGE_FLAGS_END_OF_LIST |
 		    raid_act->write ? MPI_SGE_FLAGS_HOST_TO_IOC :
 		    MPI_SGE_FLAGS_IOC_TO_HOST));
 	}
+	se->FlagsLength = htole32(se->FlagsLength);
 	rap->MsgContext = htole32(req->index | user_handler_id);
 
 	mpt_check_doorbell(mpt);
@@ -559,7 +560,7 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 		return (error);
 	}
 
-	raid_act->ioc_status = req->IOCStatus;
+	raid_act->ioc_status = htole16(req->IOCStatus);
 	if ((req->IOCStatus & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
 		mpt_free_request(mpt, req);
 		return (0);

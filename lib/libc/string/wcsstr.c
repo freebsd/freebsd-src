@@ -49,7 +49,7 @@ wcsstr(const wchar_t * __restrict s, const wchar_t * __restrict find)
 	wchar_t c, sc;
 	size_t len;
 
-	if ((c = *find++) != 0) {
+	if ((c = *find++) != L'\0') {
 		len = wcslen(find);
 		do {
 			do {

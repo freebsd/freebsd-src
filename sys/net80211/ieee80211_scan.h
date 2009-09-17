@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2005-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -209,6 +209,7 @@ struct ieee80211_scanparams {
 	uint8_t		*htcap;
 	uint8_t		*htinfo;
 	uint8_t		*ath;
+	uint8_t		*tdma;
 };
 
 /*

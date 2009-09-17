@@ -64,6 +64,10 @@ static int	lister_dofile(struct lister *, struct coll *,
 		    struct statusrec *);
 static int	lister_dodead(struct lister *, struct coll *,
 		    struct statusrec *);
+static int	lister_dorcsfile(struct lister *, struct coll *,
+		    struct statusrec *);
+static int	lister_dorcsdead(struct lister *, struct coll *,
+		    struct statusrec *);
 
 void *
 lister(void *arg)
@@ -187,6 +191,24 @@ lister_coll(struct lister *l, struct coll *coll, struct status *st)
 				error = lister_dodead(l, coll, sr);
 				if (error)
 					goto bad;
+			}
+			break;
+		case SR_FILEDEAD:
+			if (depth < prunedepth) {
+				if (!(coll->co_options & CO_CHECKOUTMODE)) {
+					error = lister_dorcsdead(l, coll, sr);
+					if (error)
+						goto bad;
+				}
+			}
+			break;
+		case SR_FILELIVE:
+			if (depth < prunedepth) {
+				if (!(coll->co_options & CO_CHECKOUTMODE)) {
+					error = lister_dorcsfile(l, coll, sr);
+					if (error)
+						goto bad;
+				}
 			}
 			break;
 		}
@@ -383,6 +405,60 @@ send:
 	return (0);
 }
 
+/* Handle a rcs file live entry found in the status file. */
+static int
+lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr)
+{
+	struct config *config;
+	struct stream *wr;
+	const struct fattr *sendattr;
+	struct fattr *fa;
+	char *path, *spath;
+	size_t len;
+	int error;
+
+	if (!globtree_test(coll->co_filefilter, sr->sr_file))
+		return (0);
+	config = l->config;
+	wr = l->wr;
+	if (!(coll->co_options & CO_TRUSTSTATUSFILE)) {
+		path = cvspath(coll->co_prefix, sr->sr_file, 0);
+		if (path == NULL) {
+			spath = coll_statuspath(coll);
+			xasprintf(&l->errmsg, "Error in \"%s\": "
+			    "Invalid filename \"%s\"", spath, sr->sr_file);
+			free(spath);
+			return (LISTER_ERR_STATUS);
+		}
+		fa = fattr_frompath(path, FATTR_NOFOLLOW);
+		free(path);
+	} else 
+		fa = sr->sr_clientattr;
+	if (fa != NULL && fattr_equal(fa, sr->sr_clientattr)) {
+		/*
+		 * If the file is an RCS file, we use "loose" equality, so sizes
+		 * may disagress because of differences in whitespace.
+		 */
+		if (isrcs(sr->sr_file, &len) &&
+		    !(coll->co_options & CO_NORCS) &&
+		    !(coll->co_options & CO_STRICTCHECKRCS)) {
+			fattr_maskout(fa, FA_SIZE);
+		}
+		sendattr = fa;
+	} else {
+		/*
+		 * If different, the user may have changed it, so we report
+		 * bogus attributes to force a full comparison.
+		 */
+		sendattr = fattr_bogus;
+	}
+	error = proto_printf(wr, "F %s %F\n", pathlast(sr->sr_file), sendattr,
+	    config->fasupport, coll->co_attrignore);
+	if (error)
+		return (LISTER_ERR_WRITE);
+	return (0);
+}
+
 /* Handle a checkout dead entry found in the status file. */
 static int
 lister_dodead(struct lister *l, struct coll *coll, struct statusrec *sr)
@@ -431,6 +507,60 @@ lister_dodead(struct lister *l, struct coll *coll, struct statusrec *sr)
 		sendattr = fattr_bogus;
 	else
 		sendattr = sr->sr_serverattr;
+	error = proto_printf(wr, "f %s %F\n", pathlast(sr->sr_file), sendattr,
+	    config->fasupport, coll->co_attrignore);
+	if (error)
+		return (LISTER_ERR_WRITE);
+	return (0);
+}
+
+/* Handle a rcs file dead entry found in the status file. */
+static int
+lister_dorcsdead(struct lister *l, struct coll *coll, struct statusrec *sr)
+{
+	struct config *config;
+	struct stream *wr;
+	const struct fattr *sendattr;
+	struct fattr *fa;
+	char *path, *spath;
+	size_t len;
+	int error;
+
+	if (!globtree_test(coll->co_filefilter, sr->sr_file))
+		return (0);
+	config = l->config;
+	wr = l->wr;
+	if (!coll->co_options & CO_TRUSTSTATUSFILE) {
+		path = cvspath(coll->co_prefix, sr->sr_file, 1);
+		if (path == NULL) {
+			spath = coll_statuspath(coll);
+			xasprintf(&l->errmsg, "Error in \"%s\": "
+			    "Invalid filename \"%s\"", spath, sr->sr_file);
+			free(spath);
+			return (LISTER_ERR_STATUS);
+		}
+		fa = fattr_frompath(path, FATTR_NOFOLLOW);
+		free(path);
+	} else 
+		fa = sr->sr_clientattr;
+	if (fattr_equal(fa, sr->sr_clientattr)) {
+		/*
+		 * If the file is an RCS file, we use "loose" equality, so sizes
+		 * may disagress because of differences in whitespace.
+		 */
+		if (isrcs(sr->sr_file, &len) &&
+		    !(coll->co_options & CO_NORCS) &&
+		    !(coll->co_options & CO_STRICTCHECKRCS)) {
+			fattr_maskout(fa, FA_SIZE);
+		}
+		sendattr = fa;
+	} else {
+		/*
+		 * If different, the user may have changed it, so we report
+		 * bogus attributes to force a full comparison.
+		 */
+		sendattr = fattr_bogus;
+	}
 	error = proto_printf(wr, "f %s %F\n", pathlast(sr->sr_file), sendattr,
 	    config->fasupport, coll->co_attrignore);
 	if (error)

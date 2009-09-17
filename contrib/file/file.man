@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.66 2007/10/23 19:58:59 christos Exp $
-.Dd January 8, 2007
+.\" $File: file.man,v 1.73 2008/02/19 17:58:00 rrt Exp $
+.Dd February 19, 2008
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -8,8 +8,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl bchikLnNprsvz
-.Op Fl mime-type
-.Op Fl mime-encoding
+.Op Fl -mime-type
+.Op Fl -mime-encoding
 .Op Fl f Ar namefile
 .Op Fl F Ar separator
 .Op Fl m Ar magicfiles
@@ -17,6 +17,8 @@
 .Nm
 .Fl C
 .Op Fl m Ar magicfile
+.Nm
+.Op Fl -help
 .Sh DESCRIPTION
 This manual page documents version __VERSION__ of the
 .Nm
@@ -25,7 +27,7 @@ command.
 .Nm
 tests each argument in an attempt to classify it.
 There are three sets of tests, performed in this order:
-filesystem tests, magic number tests, and language tests.
+filesystem tests, magic tests, and language tests.
 The
 .Em first
 test that succeeds causes the file type to be printed.
@@ -49,11 +51,9 @@ meaning anything else (data is usually
 or non-printable).
 Exceptions are well-known file formats (core files, tar archives)
 that are known to contain binary data.
-When modifying the file
-.Pa __MAGIC__
-or the program itself, make sure to
+When modifying magic files or the program itself, make sure to
 .Em "preserve these keywords" .
-People depend on knowing that all the readable files in a directory
+Users depend on knowing that all the readable files in a directory
 have the word 
 .Dq text
 printed.
@@ -61,12 +61,6 @@ Don't do as Berkeley did and change
 .Dq shell commands text
 to 
 .Dq shell script .
-Note that the file
-.Pa __MAGIC__
-is built mechanically from a large number of small files in
-the subdirectory
-.Pa Magdir
-in the source distribution of this program.
 .Pp
 The filesystem tests are based on examining the return from a
 .Xr stat 2
@@ -80,7 +74,7 @@ are intuited if they are defined in
 the system header file
 .In sys/stat.h .
 .Pp
-The magic number tests are used to check for files with data in
+The magic tests are used to check for files with data in
 particular fixed formats.
 The canonical example of this is a binary executable (compiled program)
 .Dv a.out
@@ -97,22 +91,20 @@ near the beginning of the file that tells the
 .Dv UNIX operating system
 that the file is a binary executable, and which of several types thereof.
 The concept of a
-.Sq "magic number"
+.Sq "magic"
 has been applied by extension to data files.
 Any file with some invariant identifier at a small fixed
 offset into the file can usually be described in this way.
 The information identifying these files is read from the compiled
 magic file
 .Pa __MAGIC__.mgc ,
-or 
+or the files in the directory
 .Pa __MAGIC__
-if the compile file does not exist. In addition
-.Nm
-will look in
-.Pa $HOME/.magic.mgc ,
+if the compiled file does not exist. In addition, if
+.Pa $HOME/.magic.mgc
 or
 .Pa $HOME/.magic
-for magic entries.
+exists, it will be used in preference to the system magic files.
 .Pp
 If a file does not match any of the entries in the magic file,
 it is examined to see if it seems to be a text file.
@@ -145,9 +137,9 @@ Once
 has determined the character set used in a text-type file,
 it will
 attempt to determine in what language the file is written.
-The language tests look for particular strings (cf
+The language tests look for particular strings (cf.
 .In names.h
-that can appear anywhere in the first few blocks of a file.
+) that can appear anywhere in the first few blocks of a file.
 For example, the keyword
 .Em .br
 indicates that the file is most likely a
@@ -163,7 +155,8 @@ The language test routines also test for some miscellany
 archives).
 .Pp
 Any file that cannot be identified as having been written
-in any of the character sets listed above is simply said to be ``data''.
+in any of the character sets listed above is simply said to be
+.Dq data .
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl b , -brief
@@ -176,7 +169,7 @@ flag to debug a new magic file before installing it.
 .It Fl C , -compile
 Write a
 .Pa magic.mgc
-output file that contains a pre-parsed version of the magic file.
+output file that contains a pre-parsed version of the magic file or directory.
 .It Fl e , -exclude Ar testname
 Exclude the test named in
 .Ar testname
@@ -239,12 +232,18 @@ file.
 (See
 .Dq FILES
 section, below).
-.It Fl -mime-type ,  -mime-encoding
+.It Fl -mime-type , -mime-encoding
 Like
 .Fl i ,
 but print only the specified element(s).
 .It Fl k , -keep-going
-Don't stop at the first match, keep going.
+Don't stop at the first match, keep going. Subsequent matches will be
+have the string
+.Dq "\[rs]012\- "
+prepended.
+(If you want a newline, see the
+.Dq "\-r"
+option.)
 .It Fl L , -dereference
 option causes symlinks to be followed, as the like-named option in
 .Xr ls 1
@@ -253,16 +252,9 @@ This is the default if the environment variable
 .Dv POSIXLY_CORRECT
 is defined.
 .It Fl m , -magic-file Ar list
-Specify an alternate list of files containing magic numbers.
-This can be a single file, or a colon-separated list of files.
-If a compiled magic file is found alongside, it will be used instead.
-With the
-.Fl i
-or 
-.Fl "mime"
-option, the program adds
-.Dq .mime
-to each file name.
+Specify an alternate list of files and directories containing magic.
+This can be a single item, or a colon-separated list.
+If a compiled magic file is found alongside a file or directory, it will be used instead.
 .It Fl n , -no-buffer
 Force stdout to be flushed after checking each file.
 This is only useful if checking a list of files.
@@ -316,38 +308,27 @@ the output. This does not affect the separator which is still printed.
 Print a help message and exit.
 .El
 .Sh FILES
-.Bl -tag -width __MAGIC__.mime.mgc -compact
+.Bl -tag -width __MAGIC__.mgc -compact
 .It Pa __MAGIC__.mgc
-Default compiled list of magic numbers
+Default compiled list of magic.
 .It Pa __MAGIC__
-Default list of magic numbers
-.It Pa __MAGIC__.mime.mgc
-Default compiled list of magic numbers, used to output mime types when
-the 
-.Fl i
-option is specified.
-.It Pa __MAGIC__.mime
-Default list of magic numbers, used to output mime types when the 
-.Fl i
-option is specified.
+Directory containing default magic files.
 .El
 .Sh ENVIRONMENT
 The environment variable
 .Dv MAGIC
-can be used to set the default magic number file name.
+can be used to set the default magic file name.
 If that variable is set, then
 .Nm
 will not attempt to open
 .Pa $HOME/.magic .
 .Nm
 adds
-.Dq .mime
-and/or
 .Dq .mgc
 to the value of this variable as appropriate.
 The environment variable
 .Dv POSIXLY_CORRECT
-controls (on systems that support symbolic links), if
+controls (on systems that support symbolic links), whether
 .Nm
 will attempt to follow symlinks or not. If set, then
 .Nm
@@ -361,7 +342,8 @@ options.
 .Xr magic __FSECTION__ ,
 .Xr strings 1 ,
 .Xr od 1 ,
-.Xr hexdump 1
+.Xr hexdump 1,
+.Xr file 1posix
 .Sh STANDARDS CONFORMANCE
 This program is believed to exceed the System V Interface Definition
 of FILE(CMD), as near as one can determine from the vague language
@@ -465,7 +447,7 @@ command in every
 .Dv UNIX since at least Research Version 4
 (man page dated November, 1973).
 The System V version introduced one significant major change:
-the external list of magic number types.
+the external list of magic types.
 This slowed the program down slightly but made it a lot more flexible.
 .Pp
 This program, based on the System V version,
@@ -486,17 +468,23 @@ Christos Zoulas (christos@astron.com).
 Altered by Chris Lowth, chris@lowth.com, 2000:
 Handle the 
 .Fl i
-option to output mime type strings and using an alternative
+option to output mime type strings, using an alternative
 magic file and internal logic.
 .Pp
 Altered by Eric Fischer (enf@pobox.com), July, 2000,
 to identify character codes and attempt to identify the languages
 of non-ASCII files.
 .Pp
-The list of contributors to the "Magdir" directory (source for the
-.Pa __MAGIC__
-file) is too long to include here.
+Altered by Reuben Thomas (rrt@sc3d.org), 2007 to 2008, to improve MIME
+support and merge MIME and non-MIME magic, support directories as well
+as files of magic, apply many bug fixes and improve the build system.
+.Pp
+The list of contributors to the
+.Dq magic
+directory (magic files)
+is too long to include here.
 You know who you are; thank you.
+Many contributors are listed in the source files.
 .Sh LEGAL NOTICE
 Copyright (c) Ian F. Darwin, Toronto, Canada, 1986-1999.
 Covered by the standard Berkeley Software Distribution copyright; see the file
@@ -510,17 +498,10 @@ were written by John Gilmore from his public-domain
 .Xr tar 1
 program, and are not covered by the above license.
 .Sh BUGS
+.Pp
 There must be a better way to automate the construction of the Magic
 file from all the glop in Magdir.
 What is it?
-.\" Compilation support has been done
-.\" Better yet, the magic file should be compiled into binary (say,
-.\" .Xr ndbm 3
-.\" or, better yet, fixed-length
-.\" .Dv ASCII
-.\" strings for use in heterogenous network environments) for faster startup.
-.\" Then the program would run as fast as the Version 7 program of the same
-.\" name, with the flexibility of the System V version.
 .Pp
 .Nm
 uses several algorithms that favor speed over accuracy,
@@ -530,31 +511,6 @@ files.
 .Pp
 The support for text files (primarily for programming languages)
 is simplistic, inefficient and requires recompilation to update.
-.\" Else support has been done
-.\" There should be an
-.\" .Dv else
-.\" clause to follow a series of continuation lines.
-.\" .Pp
-.\" Regular expression support has been done
-.\" The magic file and keywords should have regular expression support.
-Their use of
-.Dv ASCII TAB
-as a field delimiter is ugly and makes
-it hard to edit the files, but is entrenched.
-.Pp
-It might be advisable to allow upper-case letters in keywords
-for e.g.,
-.Xr troff 1
-commands vs man page macros.
-Regular expression support would make this easy.
-.Pp
-The program doesn't grok 
-.Dv FORTRAN .
-It should be able to figure
-.Dv FORTRAN
-by seeing some keywords which 
-appear indented at the start of line.
-Regular expression support would make this easy.
 .Pp
 The list of keywords in 
 .Dv ascmagic
@@ -563,11 +519,6 @@ This could be done by using some keyword like
 .Sq *
 for the offset value.
 .Pp
-.\" Sorting has been done.
-.\" Another optimization would be to sort
-.\" the magic file so that we can just run down all the
-.\" tests for the first byte, first word, first long, etc, once we
-.\" have fetched it.
 Complain about conflicts in the magic file entries.
 Make a rule that the magic entries sort based on file offset rather
 than position within the magic file?
@@ -587,10 +538,10 @@ versus
 Still, if the others don't pan out, it should be possible to use the
 first guess.  
 .Pp
-This program is slower than some vendors' file commands.
-The new support for multiple character codes makes it even slower.
-.Pp
 This manual page, and particularly this section, is too long.
+.Sh RETURN CODE
+.Nm
+returns 0 on success, and non-zero on error.
 .Sh AVAILABILITY
 You can obtain the original author's latest version by anonymous FTP
 on

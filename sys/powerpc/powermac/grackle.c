@@ -37,6 +37,7 @@
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -251,6 +252,8 @@ grackle_attach(device_t dev)
 		}
 	}
 
+	ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(cell_t));
+
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
 }
@@ -335,8 +338,24 @@ grackle_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 static int
 grackle_route_interrupt(device_t bus, device_t dev, int pin)
 {
+	struct grackle_softc *sc;
+	struct ofw_pci_register reg;
+	uint32_t pintr, mintr;
+	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
-	return (0);
+	sc = device_get_softc(bus);
+	pintr = pin;
+	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
+	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr), maskbuf))
+		return (mintr);
+
+	/* Maybe it's a real interrupt, not an intpin */
+	if (pin > 4)
+		return (pin);
+
+	device_printf(bus, "could not route pin %d for device %d.%d\n",
+	    pin, pci_get_slot(dev), pci_get_function(dev));
+	return (PCI_INVALID_IRQ);
 }
 
 static int

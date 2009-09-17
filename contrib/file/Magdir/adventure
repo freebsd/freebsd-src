@@ -73,3 +73,13 @@
 >10	belong	 0x0A0D1A00
 >>14	string	>\0		%s saved game data
 
+# Danny Milosavljevic <danny.milo@gmx.net>
+# this are adrift (adventure game standard) game files, extension .taf
+# depending on version magic continues with 0x93453E6139FA (V 4.0)
+# 0x9445376139FA (V 3.90)
+# 0x9445366139FA (V 3.80)
+# this is from source (http://www.adrift.org.uk/) and I have some taf
+# files, and checked them.
+#0	belong	0x3C423FC9
+#>4	belong	0x6A87C2CF	Adrift game file
+#!:mime	application/x-adrift

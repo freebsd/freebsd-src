@@ -42,6 +42,9 @@ BIND 9
 		Stichting NLnet - NLnet Foundation
 		Nominum, Inc.
 
+BIND 9.4.3
+
+	BIND 9.4.3 is a maintenance release, fixing bugs in 9.4.2.
 
 BIND 9.4.2
 
@@ -355,7 +358,7 @@ BIND 9.2.0
 	    This does not apply to the use of TSIG, which does not
 	    require OpenSSL.
 
-	  - The source distribution now builds on Windows NT/2000.
+	  - The source distribution now builds on Windows.
 	    See win32utils/readme1.txt and win32utils/win32-build.txt
 	    for details.
 
@@ -404,11 +407,8 @@ BIND 9.2.0
 
 		--with-libtool does not work on AIX.
 
-		--with-libtool does not work on SunOS 4.  configure
-		requires "printf" which is not available.
-
-	A bug in the Windows 2000 DNS server can cause zone transfers
-	from a BIND 9 server to a W2K server to fail.  For details,
+	A bug in some versions of the Microsoft DNS server can cause zone
+        transfers from a BIND 9 server to a W2K server to fail.  For details,
 	see the "Zone Transfers" section in doc/misc/migration.
 
 	For a detailed list of user-visible changes from
@@ -428,7 +428,11 @@ Building
 		NetBSD 1.5
 		Slackware Linux 8.1
 		Solaris 8, 9, 9 (x86)
-		Windows NT/2000/XP/2003
+		Windows XP/2003/2008
+
+        NOTE:  As of BIND 9.5.1, 9.4.3, and 9.3.6, older versions of
+        Windows, including Windows NT and Windows 2000, are no longer
+        supported.
 
 	Additionally, we have unverified reports of success building
 	previous versions of BIND 9 from users of the following systems:
@@ -482,6 +486,14 @@ Building
 		  -DNS_CLIENT_DROPPORT=0
 		Disable support for "rrset-order fixed".
 		  -DDNS_RDATASET_FIXED=0
+		Sibling glue checking in named-checkzone is enabled by default.
+		To disable the default check set.  -DCHECK_SIBLING=0
+		named-checkzone checks out-of-zone addresses by default.
+		To disable this default set.  -DCHECK_LOCAL=0
+		Enable workaround for Solaris kernel bug about /dev/poll
+		  -DISC_SOCKET_USE_POLLWATCH=1
+		  The watch timeout is also configurable, e.g.,
+		  -DISC_SOCKET_POLLWATCH_TIMEOUT=20
 
 	    LDFLAGS
 		Linker flags. Defaults to empty string.
@@ -509,6 +521,10 @@ Building
 
 	To build libbind (the BIND 8 resolver library), specify
 	"--enable-libbind" on the configure command line.
+
+	On some platforms it is necessary to explictly request large
+	file support to handle files bigger than 2GB.  This can be
+	done by "--enable-largefile" on the configure command line.
 
 	On some platforms, BIND 9 can be built with multithreading
 	support, allowing it to take advantage of multiple CPUs.
@@ -559,6 +575,9 @@ Building
 	on your system, and some require Perl; see bin/tests/system/README
 	for details.
 
+	SunOS 4 requires "printf" to be installed to make the shared
+	libraries.  sh-utils-1.16 provides a "printf" which compiles
+	on SunOS 4.
 
 Documentation
 

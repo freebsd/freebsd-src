@@ -199,6 +199,7 @@ done_load_seg:
 	cmpq	PCB_FSBASE(%r8),%r9
 	jz	1f
 	/* Restore userland %fs */
+restore_fsbase:
 	movl	$MSR_FSBASE,%ecx
 	movl	PCB_FSBASE(%r8),%eax
 	movl	PCB_FSBASE+4(%r8),%edx
@@ -259,12 +260,12 @@ do_kthread:
 	jmp	do_tss
 
 store_seg:
-	movl	%gs,PCB_GS(%r8)
+	mov	%gs,PCB_GS(%r8)
 	testl	$PCB_GS32BIT,PCB_FLAGS(%r8)
 	jnz	2f
-1:	movl	%ds,PCB_DS(%r8)
-	movl	%es,PCB_ES(%r8)
-	movl	%fs,PCB_FS(%r8)
+1:	mov	%ds,PCB_DS(%r8)
+	mov	%es,PCB_ES(%r8)
+	mov	%fs,PCB_FS(%r8)
 	jmp	done_store_seg
 2:	movq	PCPU(GS32P),%rax
 	movq	(%rax),%rax
@@ -276,12 +277,12 @@ load_seg:
 	jnz	2f
 1:	movl	$MSR_GSBASE,%ecx
 	rdmsr
-	movl	PCB_GS(%r8),%gs
+	mov	PCB_GS(%r8),%gs
 	wrmsr
-	movl	PCB_DS(%r8),%ds
-	movl	PCB_ES(%r8),%es
-	movl	PCB_FS(%r8),%fs
-	jmp	done_load_seg
+	mov	PCB_DS(%r8),%ds
+	mov	PCB_ES(%r8),%es
+	mov	PCB_FS(%r8),%fs
+	jmp	restore_fsbase
 	/* Restore userland %gs while preserving kernel gsbase */
 2:	movq	PCPU(GS32P),%rax
 	movq	PCB_GS32SD(%r8),%rcx

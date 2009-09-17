@@ -113,10 +113,7 @@ get_names(int argc, char *argv[])
 	msg.addr.sa_family = htons(AF_INET);
 	msg.ctl_addr.sa_family = htons(AF_INET);
 	msg.id_num = htonl(0);
-	strncpy(msg.l_name, my_name, NAME_SIZE);
-	msg.l_name[NAME_SIZE - 1] = '\0';
-	strncpy(msg.r_name, his_name, NAME_SIZE);
-	msg.r_name[NAME_SIZE - 1] = '\0';
-	strncpy(msg.r_tty, his_tty, TTY_SIZE);
-	msg.r_tty[TTY_SIZE - 1] = '\0';
+	strlcpy(msg.l_name, my_name, NAME_SIZE);
+	strlcpy(msg.r_name, his_name, NAME_SIZE);
+	strlcpy(msg.r_tty, his_tty, TTY_SIZE);
 }

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2001 Atsushi Onoe
- * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,11 +105,12 @@ struct ieee80211_appie {
 	uint8_t			ie_data[];	/* user-specified IE's */
 };
 
+struct ieee80211_tdma_param;
+
 struct ieee80211com {
 	struct ifnet		*ic_ifp;	/* associated device */
 	ieee80211_com_lock_t	ic_comlock;	/* state update lock */
 	TAILQ_HEAD(, ieee80211vap) ic_vaps;	/* list of vap instances */
-	struct ieee80211_stats	ic_stats;	/* statistics */
 	int			ic_headroom;	/* driver tx headroom needs */
 	enum ieee80211_phytype	ic_phytype;	/* XXX wrong for multi-mode */
 	enum ieee80211_opmode	ic_opmode;	/* operation mode */
@@ -156,7 +157,7 @@ struct ieee80211com {
 	 *    (e.g. for dynamic turbo)
 	 */
 	int			ic_nchans;	/* # entries in ic_channels */
-	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX+1];
+	struct ieee80211_channel ic_channels[IEEE80211_CHAN_MAX];
 	uint8_t			ic_chan_avail[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_active[IEEE80211_CHAN_BYTES];
 	uint8_t			ic_chan_scan[IEEE80211_CHAN_BYTES];
@@ -206,7 +207,7 @@ struct ieee80211com {
 	ieee80211vap_attach	ic_vattach[IEEE80211_OPMODE_MAX];
 	/* return hardware/radio capabilities */
 	void			(*ic_getradiocaps)(struct ieee80211com *,
-				    int *, struct ieee80211_channel []);
+				    int, int *, struct ieee80211_channel []);
 	/* check and/or prepare regdomain state change */
 	int			(*ic_setregdomain)(struct ieee80211com *,
 				    struct ieee80211_regdomain *,
@@ -226,6 +227,9 @@ struct ieee80211com {
 	void			(*ic_update_promisc)(struct ifnet *);
 	/* new station association callback/notification */
 	void			(*ic_newassoc)(struct ieee80211_node *, int);
+	/* TDMA update notification */
+	void			(*ic_tdma_update)(struct ieee80211_node *,
+				    const struct ieee80211_tdma_param *);
 	/* node state management */
 	struct ieee80211_node*	(*ic_node_alloc)(struct ieee80211vap *,
 				    const uint8_t [IEEE80211_ADDR_LEN]);
@@ -279,6 +283,7 @@ struct ieee80211com {
 };
 
 struct ieee80211_aclator;
+struct ieee80211_tdma_state;
 
 struct ieee80211vap {
 	struct ifmedia		iv_media;	/* interface media config */
@@ -389,6 +394,8 @@ struct ieee80211vap {
 	const struct ieee80211_aclator *iv_acl;	/* acl glue */
 	void			*iv_as;		/* private aclator state */
 
+	struct ieee80211_tdma_state *iv_tdma;	/* tdma state */
+
 	/* operate-mode detach hook */
 	void			(*iv_opdetach)(struct ieee80211vap *);
 	/* receive processing */
@@ -461,6 +468,13 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_F_DOTH	0x40000000	/* CONF: 11h enabled */
 #define	IEEE80211_F_DWDS	0x80000000	/* CONF: Dynamic WDS enabled */
 
+#define	IEEE80211_F_BITS \
+	"\20\1TURBOP\2COMP\3FF\4BURST\5PRIVACY\6PUREG\10SCAN\11ASCAN\12SIBSS" \
+	"\13SHSLOT\14PMGTON\15DESBSSID\16WME\17BGSCAN\20SWRETRY\21TXPOW_FIXED" \
+	"\22IBSSON\23SHPREAMBLE\24DATAPAD\25USEPROT\26USERBARKER\27CSAPENDING" \
+	"\30WPA1\31WPA2\32DROPUNENC\33COUNTERM\34HIDESSID\35NOBRIDG\36PCF" \
+	"\37DOTH\40DWDS"
+
 /* Atheros protocol-specific flags */
 #define	IEEE80211_F_ATHEROS \
 	(IEEE80211_F_FF | IEEE80211_F_COMP | IEEE80211_F_TURBOP)
@@ -497,6 +511,14 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FEXT_HTCOMPAT  0x10000000	/* CONF: HT vendor OUI's */
 #define	IEEE80211_FEXT_RIFS  	 0x20000000	/* CONF: RIFS enabled */
 
+#define	IEEE80211_FEXT_BITS \
+	"\20\1NONHT_PR\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
+	"\12NONEPR_PR\13SWBMISS\14DFS\15DOTD\22WDSLEGACY\23PROBECHAN\24HT" \
+	"\25AMDPU_TX\26AMPDU_TX\27AMSDU_TX\30AMSDU_RX\31USEHT40\32PUREN" \
+	"\33SHORTGI20\34SHORTGI40\35HTCOMPAT\36RIFS"
+
+#define	IEEE80211_FVEN_BITS	"\20"
+
 /* ic_caps/iv_caps: device driver capabilities */
 /* 0x2f available */
 #define	IEEE80211_C_STA		0x00000001	/* CAPABILITY: STA available */
@@ -522,11 +544,19 @@ MALLOC_DECLARE(M_80211_VAP);
 /* 0x10000000 reserved */
 #define	IEEE80211_C_BGSCAN	0x20000000	/* CAPABILITY: bg scanning */
 #define	IEEE80211_C_TXFRAG	0x40000000	/* CAPABILITY: tx fragments */
+#define	IEEE80211_C_TDMA	0x80000000	/* CAPABILITY: TDMA avail */
 /* XXX protection/barker? */
 
 #define	IEEE80211_C_OPMODE \
 	(IEEE80211_C_STA | IEEE80211_C_IBSS | IEEE80211_C_HOSTAP | \
-	 IEEE80211_C_AHDEMO | IEEE80211_C_MONITOR | IEEE80211_C_WDS)
+	 IEEE80211_C_AHDEMO | IEEE80211_C_MONITOR | IEEE80211_C_WDS | \
+	 IEEE80211_C_TDMA)
+
+#define	IEEE80211_C_BITS \
+	"\20\1STA\7FF\10TURBOP\11IBSS\12PMGT" \
+	"\13HOSTAP\14AHDEMO\15SWRETRY\16TXPMGT\17SHSLOT\20SHPREAMBLE" \
+	"\21MONITOR\22DFS\30WPA1\31WPA2\32BURST\33WME\34WDS\36BGSCAN" \
+	"\37TXFRAG\40TDMA"
 
 /*
  * ic_htcaps/iv_htcaps: HT-specific device/driver capabilities
@@ -540,6 +570,10 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_HTC_HT	0x00040000	/* CAPABILITY: HT operation */
 #define	IEEE80211_HTC_SMPS	0x00080000	/* CAPABILITY: MIMO power save*/
 #define	IEEE80211_HTC_RIFS	0x00100000	/* CAPABILITY: RIFS support */
+
+#define	IEEE80211_C_HTCAP_BITS \
+	"\20\1LDPC\2CHWIDTH40\5GREENFIELD\6SHORTGI20\7SHORTGI40\10TXSTBC" \
+	"\21AMPDU\22AMSDU\23HT\24SMPS\25RIFS"
 
 void	ieee80211_ifattach(struct ieee80211com *);
 void	ieee80211_ifdetach(struct ieee80211com *);
@@ -680,8 +714,15 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 #define	IEEE80211_MSG_ACTION	0x00000010	/* action frame handling */
 #define	IEEE80211_MSG_WDS	0x00000008	/* WDS handling */
 #define	IEEE80211_MSG_IOCTL	0x00000004	/* ioctl handling */
+#define	IEEE80211_MSG_TDMA	0x00000002	/* TDMA handling */
 
 #define	IEEE80211_MSG_ANY	0xffffffff	/* anything */
+
+#define	IEEE80211_MSG_BITS \
+	"\20\2TDMA\3IOCTL\4WDS\5ACTION\6RATECTL\7ROAM\10INACT\11DOTH\12SUPERG" \
+	"\13WME\14ACL\15WPA\16RADKEYS\17RADDUMP\20RADIUS\21DOT1XSM\22DOT1X" \
+	"\23POWER\24STATE\25OUTPUT\26SCAN\27AUTH\30ASSOC\31NODE\32ELEMID" \
+	"\33XRATE\34INPUT\35CRYPTO\36DUPMPKTS\37DEBUG\04011N"
 
 #ifdef IEEE80211_DEBUG
 #define	ieee80211_msg(_vap, _m)	((_vap)->iv_debug & (_m))

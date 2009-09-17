@@ -236,10 +236,13 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, maxsockets, CTLTYPE_INT|CTLFLAG_RW,
     "Maximum number of sockets avaliable");
 
 /*
- * Initialise maxsockets.
+ * Initialise maxsockets.  This SYSINIT must be run after
+ * tunable_mbinit().
  */
-static void init_maxsockets(void *ignored)
+static void
+init_maxsockets(void *ignored)
 {
+
 	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
 	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
 }
@@ -344,15 +347,8 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	    prp->pr_usrreqs->pru_attach == pru_attach_notsupp)
 		return (EPROTONOSUPPORT);
 
-	if (jailed(cred) && jail_socket_unixiproute_only &&
-	    prp->pr_domain->dom_family != PF_LOCAL &&
-	    prp->pr_domain->dom_family != PF_INET &&
-#ifdef INET6
-	    prp->pr_domain->dom_family != PF_INET6 &&
-#endif
-	    prp->pr_domain->dom_family != PF_ROUTE) {
+	if (prison_check_af(cred, prp->pr_domain->dom_family) != 0)
 		return (EPROTONOSUPPORT);
-	}
 
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
@@ -1855,7 +1851,7 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
     struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
 	struct mbuf *m, *m2;
-	int flags, len, error, offset;
+	int flags, len, error;
 	struct protosw *pr = so->so_proto;
 	struct mbuf *nextrecord;
 
@@ -2005,7 +2001,6 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	}
 	KASSERT(m->m_type == MT_DATA, ("soreceive_dgram: !data"));
 
-	offset = 0;
 	while (m != NULL && uio->uio_resid > 0) {
 		len = uio->uio_resid;
 		if (len > m->m_len)

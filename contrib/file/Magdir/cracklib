@@ -9,5 +9,5 @@
 0	belong	0x70775631	Cracklib password index, big endian
 >4	belong	>-1		(%i words)
 # really bellong 0x0000000070775631
-4	belong	0x70775631	Cracklib password index, big endian ("64-bit")
+0	search/1	\0\0\0\0pwV1	Cracklib password index, big endian ("64-bit")
 >12	belong	>0		(%i words)

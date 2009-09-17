@@ -1637,7 +1637,7 @@ mpt_read_extcfg_header(struct mpt_softc *mpt, int PageVersion, int PageNumber,
 		rslt->PageVersion = cfgp->Header.PageVersion;
 		rslt->PageNumber = cfgp->Header.PageNumber;
 		rslt->PageType = cfgp->Header.PageType;
-		rslt->ExtPageLength = cfgp->ExtPageLength;
+		rslt->ExtPageLength = le16toh(cfgp->ExtPageLength);
 		rslt->ExtPageType = cfgp->ExtPageType;
 		error = 0;
 		break;
@@ -1668,7 +1668,7 @@ mpt_read_extcfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 
 	req = mpt_get_request(mpt, sleep_ok);
 	if (req == NULL) {
-		mpt_prt(mpt, "mpt_read_cfg_page: Get request failed!\n");
+		mpt_prt(mpt, "mpt_read_extcfg_page: Get request failed!\n");
 		return (-1);
 	}
 
@@ -2025,6 +2025,7 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 		mpt_raid_free_mem(mpt);
 		return (EIO);
 	}
+	mpt2host_config_page_ioc3(mpt->ioc_page3);
 	mpt_raid_wakeup(mpt);
 	return (0);
 }
@@ -2760,6 +2761,7 @@ mpt_enable_ioc(struct mpt_softc *mpt, int portenable)
 void
 mpt2host_sge_simple_union(SGE_SIMPLE_UNION *sge)
 {
+
 	MPT_2_HOST32(sge, FlagsLength);
 	MPT_2_HOST32(sge, u.Address64.Low);
 	MPT_2_HOST32(sge, u.Address64.High);
@@ -2768,6 +2770,7 @@ mpt2host_sge_simple_union(SGE_SIMPLE_UNION *sge)
 void
 mpt2host_iocfacts_reply(MSG_IOC_FACTS_REPLY *rp)
 {
+
 	MPT_2_HOST16(rp, MsgVersion);
 	MPT_2_HOST16(rp, HeaderVersion);
 	MPT_2_HOST32(rp, MsgContext);
@@ -2794,6 +2797,7 @@ mpt2host_iocfacts_reply(MSG_IOC_FACTS_REPLY *rp)
 void
 mpt2host_portfacts_reply(MSG_PORT_FACTS_REPLY *pfp)
 {
+
 	MPT_2_HOST16(pfp, Reserved);
 	MPT_2_HOST16(pfp, Reserved1);
 	MPT_2_HOST32(pfp, MsgContext);
@@ -2809,20 +2813,139 @@ mpt2host_portfacts_reply(MSG_PORT_FACTS_REPLY *pfp)
 	MPT_2_HOST16(pfp, Reserved4);
 	MPT_2_HOST32(pfp, Reserved5);
 }
+
 void
 mpt2host_config_page_ioc2(CONFIG_PAGE_IOC_2 *ioc2)
 {
 	int i;
-	ioc2->CapabilitiesFlags = htole32(ioc2->CapabilitiesFlags);
+
+	MPT_2_HOST32(ioc2, CapabilitiesFlags);
 	for (i = 0; i < MPI_IOC_PAGE_2_RAID_VOLUME_MAX; i++) {
 		MPT_2_HOST16(ioc2, RaidVolume[i].Reserved3);
 	}
 }
 
 void
+mpt2host_config_page_ioc3(CONFIG_PAGE_IOC_3 *ioc3)
+{
+
+	MPT_2_HOST16(ioc3, Reserved2);
+}
+
+void
+mpt2host_config_page_scsi_port_0(CONFIG_PAGE_SCSI_PORT_0 *sp0)
+{
+
+	MPT_2_HOST32(sp0, Capabilities);
+	MPT_2_HOST32(sp0, PhysicalInterface);
+}
+
+void
+mpt2host_config_page_scsi_port_1(CONFIG_PAGE_SCSI_PORT_1 *sp1)
+{
+
+	MPT_2_HOST32(sp1, Configuration);
+	MPT_2_HOST32(sp1, OnBusTimerValue);
+	MPT_2_HOST16(sp1, IDConfig);
+}
+
+void
+host2mpt_config_page_scsi_port_1(CONFIG_PAGE_SCSI_PORT_1 *sp1)
+{
+
+	HOST_2_MPT32(sp1, Configuration);
+	HOST_2_MPT32(sp1, OnBusTimerValue);
+	HOST_2_MPT16(sp1, IDConfig);
+}
+
+void
+mpt2host_config_page_scsi_port_2(CONFIG_PAGE_SCSI_PORT_2 *sp2)
+{
+	int i;
+
+	MPT_2_HOST32(sp2, PortFlags);
+	MPT_2_HOST32(sp2, PortSettings);
+	for (i = 0; i < sizeof(sp2->DeviceSettings) /
+	    sizeof(*sp2->DeviceSettings); i++) {
+		MPT_2_HOST16(sp2, DeviceSettings[i].DeviceFlags);
+	}
+}
+
+void
+mpt2host_config_page_scsi_device_0(CONFIG_PAGE_SCSI_DEVICE_0 *sd0)
+{
+
+	MPT_2_HOST32(sd0, NegotiatedParameters);
+	MPT_2_HOST32(sd0, Information);
+}
+
+void
+mpt2host_config_page_scsi_device_1(CONFIG_PAGE_SCSI_DEVICE_1 *sd1)
+{
+
+	MPT_2_HOST32(sd1, RequestedParameters);
+	MPT_2_HOST32(sd1, Reserved);
+	MPT_2_HOST32(sd1, Configuration);
+}
+
+void
+host2mpt_config_page_scsi_device_1(CONFIG_PAGE_SCSI_DEVICE_1 *sd1)
+{
+
+	HOST_2_MPT32(sd1, RequestedParameters);
+	HOST_2_MPT32(sd1, Reserved);
+	HOST_2_MPT32(sd1, Configuration);
+}
+
+void
+mpt2host_config_page_fc_port_0(CONFIG_PAGE_FC_PORT_0 *fp0)
+{
+
+	MPT_2_HOST32(fp0, Flags);
+	MPT_2_HOST32(fp0, PortIdentifier);
+	MPT_2_HOST32(fp0, WWNN.Low);
+	MPT_2_HOST32(fp0, WWNN.High);
+	MPT_2_HOST32(fp0, WWPN.Low);
+	MPT_2_HOST32(fp0, WWPN.High);
+	MPT_2_HOST32(fp0, SupportedServiceClass);
+	MPT_2_HOST32(fp0, SupportedSpeeds);
+	MPT_2_HOST32(fp0, CurrentSpeed);
+	MPT_2_HOST32(fp0, MaxFrameSize);
+	MPT_2_HOST32(fp0, FabricWWNN.Low);
+	MPT_2_HOST32(fp0, FabricWWNN.High);
+	MPT_2_HOST32(fp0, FabricWWPN.Low);
+	MPT_2_HOST32(fp0, FabricWWPN.High);
+	MPT_2_HOST32(fp0, DiscoveredPortsCount);
+	MPT_2_HOST32(fp0, MaxInitiators);
+}
+
+void
+mpt2host_config_page_fc_port_1(CONFIG_PAGE_FC_PORT_1 *fp1)
+{
+
+	MPT_2_HOST32(fp1, Flags);
+	MPT_2_HOST32(fp1, NoSEEPROMWWNN.Low);
+	MPT_2_HOST32(fp1, NoSEEPROMWWNN.High);
+	MPT_2_HOST32(fp1, NoSEEPROMWWPN.Low);
+	MPT_2_HOST32(fp1, NoSEEPROMWWPN.High);
+}
+
+void
+host2mpt_config_page_fc_port_1(CONFIG_PAGE_FC_PORT_1 *fp1)
+{
+
+	HOST_2_MPT32(fp1, Flags);
+	HOST_2_MPT32(fp1, NoSEEPROMWWNN.Low);
+	HOST_2_MPT32(fp1, NoSEEPROMWWNN.High);
+	HOST_2_MPT32(fp1, NoSEEPROMWWPN.Low);
+	HOST_2_MPT32(fp1, NoSEEPROMWWPN.High);
+}
+
+void
 mpt2host_config_page_raid_vol_0(CONFIG_PAGE_RAID_VOL_0 *volp)
 {
 	int i;
+
 	MPT_2_HOST16(volp, VolumeStatus.Reserved);
 	MPT_2_HOST16(volp, VolumeSettings.Settings);
 	MPT_2_HOST32(volp, MaxLBA);
@@ -2836,8 +2959,21 @@ mpt2host_config_page_raid_vol_0(CONFIG_PAGE_RAID_VOL_0 *volp)
 }
 
 void
+mpt2host_config_page_raid_phys_disk_0(CONFIG_PAGE_RAID_PHYS_DISK_0 *rpd0)
+{
+
+	MPT_2_HOST32(rpd0, Reserved1);
+	MPT_2_HOST16(rpd0, PhysDiskStatus.Reserved);
+	MPT_2_HOST32(rpd0, MaxLBA);
+	MPT_2_HOST16(rpd0, ErrorData.Reserved);
+	MPT_2_HOST16(rpd0, ErrorData.ErrorCount);
+	MPT_2_HOST16(rpd0, ErrorData.SmartCount);
+}
+
+void
 mpt2host_mpi_raid_vol_indicator(MPI_RAID_VOL_INDICATOR *vi)
 {
+
 	MPT_2_HOST16(vi, TotalBlocks.High);
 	MPT_2_HOST16(vi, TotalBlocks.Low);
 	MPT_2_HOST16(vi, BlocksRemaining.High);

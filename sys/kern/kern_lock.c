@@ -897,14 +897,14 @@ lockmgr_printinfo(struct lock *lk)
 	uintptr_t x;
 
 	if (lk->lk_lock == LK_UNLOCKED)
-		printf(" lock type %s: UNLOCKED\n", lk->lock_object.lo_name);
+		printf("lock type %s: UNLOCKED\n", lk->lock_object.lo_name);
 	else if (lk->lk_lock & LK_SHARE)
-		printf(" lock type %s: SHARED (count %ju)\n",
+		printf("lock type %s: SHARED (count %ju)\n",
 		    lk->lock_object.lo_name,
 		    (uintmax_t)LK_SHARERS(lk->lk_lock));
 	else {
 		td = lockmgr_xholder(lk);
-		printf(" lock type %s: EXCL by thread %p (pid %d)\n",
+		printf("lock type %s: EXCL by thread %p (pid %d)\n",
 		    lk->lock_object.lo_name, td, td->td_proc->p_pid);
 	}
 

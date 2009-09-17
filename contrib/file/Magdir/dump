@@ -91,3 +91,41 @@
 >0	leshort	5		end of volume.
 >0	leshort	6		map of inodes deleted.
 >0	leshort	7		end of medium (for floppy).
+
+24	belong	0x19540119	new-fs dump file (ufs2, big endian),
+>896	beqdate	x		Previous dump %s,
+>904	beqdate	x		This dump %s,
+>12	belong	>0		Volume %ld,
+>692	belong	0		Level zero, type:
+>692	belong	>0		Level %d, type:
+>0	belong	1		tape header,
+>0	belong	2		beginning of file record,
+>0	belong	3		map of inodes on tape,
+>0	belong	4		continuation of file record,
+>0	belong	5		end of volume,
+>0	belong	6		map of inodes deleted,
+>0	belong	7		end of medium (for floppy),
+>676	string	>\0		Label %s,
+>696	string	>\0		Filesystem %s,
+>760	string	>\0		Device %s,
+>824	string	>\0		Host %s,
+>888	belong	>0		Flags %x
+
+24	lelong	0x19540119	new-fs dump file (ufs2, little endian),
+>896	leqdate	x		This dump %s,
+>904	leqdate	x		Previous dump %s,
+>12	lelong	>0		Volume %ld,
+>692	lelong	0		Level zero, type:
+>692	lelong	>0		Level %d, type:
+>0	lelong	1		tape header,
+>0	lelong	2		beginning of file record,
+>0	lelong	3		map of inodes on tape,
+>0	lelong	4		continuation of file record,
+>0	lelong	5		end of volume,
+>0	lelong	6		map of inodes deleted,
+>0	lelong	7		end of medium (for floppy),
+>676	string	>\0		Label %s,
+>696	string	>\0		Filesystem %s,
+>760	string	>\0		Device %s,
+>824	string	>\0		Host %s,
+>888	lelong	>0		Flags %x

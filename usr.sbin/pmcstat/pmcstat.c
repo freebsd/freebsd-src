@@ -1264,6 +1264,9 @@ main(int argc, char **argv)
 				/* Kill the child process if we started it */
 				if (args.pa_flags & FLAG_HAS_COMMANDLINE)
 					pmcstat_kill_process(&args);
+				/* Close the pipe to self, if present. */
+				if (args.pa_flags & FLAG_HAS_PIPE)
+					(void) close(pipefd[READPIPEFD]);
 				runstate = PMCSTAT_FINISHED;
 			} else if (kev.ident == SIGWINCH) {
 				if (ioctl(fileno(args.pa_printfile),

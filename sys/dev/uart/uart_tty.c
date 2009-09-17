@@ -374,7 +374,8 @@ uart_tty_attach(struct uart_softc *sc)
 	return (0);
 }
 
-int uart_tty_detach(struct uart_softc *sc)
+int
+uart_tty_detach(struct uart_softc *sc)
 {
 	struct tty *tp;
 

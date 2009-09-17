@@ -85,11 +85,11 @@ DEFINE_TEST(test_write_compress)
 
 	for (i = 0; i < 100; i++) {
 		sprintf(path, "file%03d", i);
-		assertEqualInt(0, archive_read_next_header(a, &ae));
+		if (!assertEqualInt(0, archive_read_next_header(a, &ae)))
+			break;
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt(datasize, archive_entry_size(ae));
 	}
-
 	assert(0 == archive_read_close(a));
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);

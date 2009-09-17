@@ -226,13 +226,16 @@ pfs_getattr(struct vop_getattr_args *va)
 	if (proc != NULL) {
 		vap->va_uid = proc->p_ucred->cr_ruid;
 		vap->va_gid = proc->p_ucred->cr_rgid;
-		if (pn->pn_attr != NULL)
-			error = pn_attr(curthread, proc, pn, vap);
-		PROC_UNLOCK(proc);
 	} else {
 		vap->va_uid = 0;
 		vap->va_gid = 0;
 	}
+
+	if (pn->pn_attr != NULL)
+		error = pn_attr(curthread, proc, pn, vap);
+
+	if(proc != NULL)
+		PROC_UNLOCK(proc);
 
 	PFS_RETURN (error);
 }
@@ -307,6 +310,84 @@ pfs_getextattr(struct vop_getextattr_args *va)
 
 	pfs_unlock(pn);
 	PFS_RETURN (error);
+}
+
+/*
+ * Convert a vnode to its component name
+ */
+static int
+pfs_vptocnp(struct vop_vptocnp_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct vnode **dvp = ap->a_vpp;
+	struct pfs_vdata *pvd = vp->v_data;
+	struct pfs_node *pd = pvd->pvd_pn;
+	struct pfs_node *pn;
+	struct mount *mp;
+	char *buf = ap->a_buf;
+	int *buflen = ap->a_buflen;
+	char pidbuf[PFS_NAMELEN];
+	pid_t pid = pvd->pvd_pid;
+	int len, i, error, locked;
+
+	i = *buflen;
+	error = 0;
+
+	pfs_lock(pd);
+
+	if (vp->v_type == VDIR && pd->pn_type == pfstype_root) {
+		*dvp = vp;
+		vhold(*dvp);
+		pfs_unlock(pd);
+		PFS_RETURN (0);
+	} else if (vp->v_type == VDIR && pd->pn_type == pfstype_procdir) {
+		len = snprintf(pidbuf, sizeof(pidbuf), "%d", pid);
+		i -= len;
+		if (i < 0) {
+			error = ENOMEM;
+			goto failed;
+		}
+		bcopy(pidbuf, buf + i, len);
+	} else {
+		i -= strlen(pd->pn_name);
+		if (i < 0) {
+			error = ENOMEM;
+			goto failed;
+		}
+		bcopy(pd->pn_name, buf + i, strlen(pd->pn_name));
+	}
+
+	pn = pd->pn_parent;
+	pfs_unlock(pd);
+
+	mp = vp->v_mount;
+	error = vfs_busy(mp, 0);
+	if (error)
+		return (error);
+
+	/*
+	 * vp is held by caller.
+	 */
+	locked = VOP_ISLOCKED(vp);
+	VOP_UNLOCK(vp, 0);
+
+	error = pfs_vncache_alloc(mp, dvp, pn, pid);
+	if (error) {
+		vn_lock(vp, locked | LK_RETRY);
+		vfs_unbusy(mp);
+		PFS_RETURN(error);
+	}
+
+	*buflen = i;
+	vhold(*dvp);
+	vput(*dvp);
+	vn_lock(vp, locked | LK_RETRY);
+	vfs_unbusy(mp);
+
+	PFS_RETURN (0);
+failed:
+	pfs_unlock(pd);
+	PFS_RETURN(error);
 }
 
 /*
@@ -476,7 +557,7 @@ pfs_read(struct vop_read_args *va)
 	struct uio *uio = va->a_uio;
 	struct proc *proc;
 	struct sbuf *sb = NULL;
-	int error;
+	int error, locked;
 	unsigned int buflen, offset, resid;
 
 	PFS_TRACE(("%s", pn->pn_name));
@@ -502,13 +583,15 @@ pfs_read(struct vop_read_args *va)
 		PROC_UNLOCK(proc);
 	}
 
+	vhold(vn);
+	locked = VOP_ISLOCKED(vn);
+	VOP_UNLOCK(vn, 0);
+
 	if (pn->pn_flags & PFS_RAWRD) {
 		PFS_TRACE(("%lu resid", (unsigned long)uio->uio_resid));
 		error = pn_fill(curthread, proc, pn, NULL, uio);
 		PFS_TRACE(("%lu resid", (unsigned long)uio->uio_resid));
-		if (proc != NULL)
-			PRELE(proc);
-		PFS_RETURN (error);
+		goto ret;
 	}
 
 	/* beaucoup sanity checks so we don't ask for bogus allocation */
@@ -518,34 +601,35 @@ pfs_read(struct vop_read_args *va)
 	    (buflen = offset + resid + 1) < offset || buflen > INT_MAX) {
 		if (proc != NULL)
 			PRELE(proc);
-		PFS_RETURN (EINVAL);
+		error = EINVAL;
+		goto ret;
 	}
 	if (buflen > MAXPHYS + 1) {
-		if (proc != NULL)
-			PRELE(proc);
-		PFS_RETURN (EIO);
+		error = EIO;
+		goto ret;
 	}
 
 	sb = sbuf_new(sb, NULL, buflen, 0);
 	if (sb == NULL) {
-		if (proc != NULL)
-			PRELE(proc);
-		PFS_RETURN (EIO);
+		error = EIO;
+		goto ret;
 	}
 
 	error = pn_fill(curthread, proc, pn, sb, uio);
 
-	if (proc != NULL)
-		PRELE(proc);
-
 	if (error) {
 		sbuf_delete(sb);
-		PFS_RETURN (error);
+		goto ret;
 	}
 
 	sbuf_finish(sb);
 	error = uiomove_frombuf(sbuf_data(sb), sbuf_len(sb), uio);
 	sbuf_delete(sb);
+ret:
+	vn_lock(vn, locked | LK_RETRY);
+	vdrop(vn);
+	if (proc != NULL)
+		PRELE(proc);
 	PFS_RETURN (error);
 }
 
@@ -887,6 +971,7 @@ struct vop_vector pfs_vnodeops = {
 	.vop_rmdir =		VOP_EOPNOTSUPP,
 	.vop_setattr =		pfs_setattr,
 	.vop_symlink =		VOP_EOPNOTSUPP,
+	.vop_vptocnp =		pfs_vptocnp,
 	.vop_write =		pfs_write,
 	/* XXX I've probably forgotten a few that need VOP_EOPNOTSUPP */
 };

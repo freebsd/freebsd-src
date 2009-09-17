@@ -186,8 +186,7 @@ mib_sroute_process(struct rt_msghdr *rtm, struct sockaddr *gw,
 	memcpy(r->index, key.index, sizeof(r->index));
 	r->ifindex = (ifp == NULL) ? 0 : ifp->index;
 
-	r->type = (rtm->rtm_flags & RTF_LLINFO) ? 3 :
-	    (rtm->rtm_flags & RTF_REJECT) ? 2 : 4;
+	r->type = (rtm->rtm_flags & RTF_REJECT) ? 2 : 4;
 
 	/* cannot really know, what protocol it runs */
 	r->proto = (rtm->rtm_flags & RTF_LOCAL) ? 2 :

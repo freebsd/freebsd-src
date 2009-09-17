@@ -14,6 +14,21 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20090203: removal of pccard header files
+OLD_FILES+=usr/include/pccard/cardinfo.h
+OLD_FILES+=usr/include/pccard/cis.h
+OLD_DIRS+=usr/include/pccard
+# 20090203: adding_user.8 moved to adding_user.7
+OLD_FILES+=usr/share/man/man8/adding_user.8.gz
+# 20090122: tzdata2009a import
+OLD_FILES+=usr/share/zoneinfo/Asia/Katmandu
+# 20090102: file 4.26 import
+OLD_FILES+=usr/share/misc/magic.mime
+OLD_FILES+=usr/share/misc/magic.mime.mgc
+# 20081223: bind 9.4.3 import, nsupdate.8 moved to nsupdate.1
+OLD_FILES+=usr/share/man/man8/nsupdate.8.gz
+# 20081223: ipprotosw.h removed
+OLD_FILES+=usr/include/netinet/ipprotosw.h
 # 20081123: vfs_mountedon.9 removed
 OLD_FILES+=usr/share/man/man9/vfs_mountedon.9.gz
 # 20081023: FREE.9 and MALLOC.9 removed
@@ -1659,7 +1674,7 @@ OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
 OLD_FILES+=usr/bin/help
 OLD_FILES+=usr/bin/sccs
-.if ${TARGET_ARCH} != "i386"
+.if ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "powerpc"
 OLD_FILES+=usr/bin/gdbserver
 .endif
 OLD_FILES+=usr/bin/ssh-keysign

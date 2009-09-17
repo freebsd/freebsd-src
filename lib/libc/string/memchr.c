@@ -39,16 +39,13 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 void *
-memchr(s, c, n)
-	const void *s;
-	unsigned char c;
-	size_t n;
+memchr(const void *s, int c, size_t n)
 {
 	if (n != 0) {
 		const unsigned char *p = s;
 
 		do {
-			if (*p++ == c)
+			if (*p++ == (unsigned char)c)
 				return ((void *)(p - 1));
 		} while (--n != 0);
 	}

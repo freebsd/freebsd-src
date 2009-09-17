@@ -60,7 +60,7 @@ gptzfsboot.bin: gptzfsboot.out
 	objcopy -S -O binary gptzfsboot.out ${.TARGET}
 
 gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o
-	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
+	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}
 
 zfsboot.o: ${.CURDIR}/../../zfs/zfsimpl.c
 

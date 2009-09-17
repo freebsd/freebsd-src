@@ -40,6 +40,7 @@
 
 #include <sys/callout.h>		/* For struct callout. */
 #include <sys/event.h>			/* For struct klist. */
+#include <sys/condvar.h>
 #ifndef _KERNEL
 #include <sys/filedesc.h>
 #endif
@@ -540,6 +541,7 @@ struct proc {
 	STAILQ_HEAD(, ktr_request)	p_ktr;	/* (o) KTR event queue. */
 	LIST_HEAD(, mqueue_notifier)	p_mqnotifier; /* (c) mqueue notifiers.*/
 	struct kdtrace_proc	*p_dtrace; /* (*) DTrace-specific data. */
+	struct cv	p_pwait;	/* (*) wait cv for exit/exec */
 };
 
 #define	p_session	p_pgrp->pg_session

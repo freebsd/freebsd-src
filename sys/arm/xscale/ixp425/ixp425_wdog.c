@@ -25,7 +25,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * IXP425 Watchdog Timer Support.
+ * IXP4XX Watchdog Timer Support.
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -88,7 +88,7 @@ ixp425_watchdog(void *arg, u_int cmd, int *error)
 static int
 ixpwdog_probe(device_t dev)
 {
-	device_set_desc(dev, "IXP425 Watchdog Timer");
+	device_set_desc(dev, "IXP4XX Watchdog Timer");
 	return (0);
 }
 

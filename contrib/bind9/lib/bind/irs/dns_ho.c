@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_ho.c,v 1.14.18.7 2006/12/07 03:54:24 marka Exp $";
+static const char rcsid[] = "$Id: dns_ho.c,v 1.14.18.8 2008/09/24 05:59:50 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -958,7 +958,7 @@ gethostans(struct irs_ho *this,
 					}
 					if (m == 0)
 						continue;
-					if (hap < &pvt->h_addr_ptrs[MAXADDRS-1])
+					if (hap < &pvt->h_addr_ptrs[MAXADDRS])
 						hap++;
 					*hap = NULL;
 					bp += m;
@@ -980,9 +980,10 @@ gethostans(struct irs_ho *this,
 			*ap = NULL;
 			*hap = NULL;
 
-			if (pvt->res->nsort && haveanswer > 1 && qtype == T_A)
+			if (pvt->res->nsort && hap != pvt->h_addr_ptrs &&
+			    qtype == T_A)
 				addrsort(pvt->res, pvt->h_addr_ptrs,
-					 haveanswer);
+					 hap - pvt->h_addr_ptrs);
 			if (pvt->host.h_name == NULL) {
 				n = strlen(qname) + 1;	/*%< for the \\0 */
 				if (n > (ep - bp) || n >= MAXHOSTNAMELEN)
@@ -1049,7 +1050,7 @@ add_hostent(struct pvt *pvt, char *bp, char **hap, struct addrinfo *ai)
 	/* Avoid overflows. */
 	if (bp + addrlen > &pvt->hostbuf[sizeof(pvt->hostbuf) - 1])
 		return(-1);
-	if (hap >= &pvt->h_addr_ptrs[MAXADDRS-1])
+	if (hap >= &pvt->h_addr_ptrs[MAXADDRS])
 		return(0); /*%< fail, but not treat it as an error. */
 	/* Suppress duplicates. */
 	for (tap = (const char **)pvt->h_addr_ptrs;

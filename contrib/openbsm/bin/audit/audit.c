@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#11 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#13 $
  */
 /*
  * Program to trigger the audit daemon with a message that is either:
@@ -47,6 +47,7 @@
 
 #include <bsm/libbsm.h>
 
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,7 +65,15 @@ static int send_trigger(unsigned int);
 #include <mach/host_special_ports.h>
 #include <servers/bootstrap.h>
 
-#include "auditd_control_user.h"
+#include "auditd_control.h"
+
+/* 
+ * XXX the following is temporary until this can be added to the kernel
+ * audit.h header. 
+ */
+#ifndef AUDIT_TRIGGER_INITIALIZE
+#define	AUDIT_TRIGGER_INITIALIZE	7
+#endif
 
 static int
 send_trigger(unsigned int trigger)
@@ -74,7 +83,12 @@ send_trigger(unsigned int trigger)
 
 	error = host_get_audit_control_port(mach_host_self(), &serverPort);
 	if (error != KERN_SUCCESS) {
-		mach_error("Cannot get auditd_control Mach port: ", error);
+		if (geteuid() != 0) {
+			errno = EPERM;
+			perror("audit requires root privileges"); 
+		} else 
+			mach_error("Cannot get auditd_control Mach port:",
+			    error);
 		return (-1);
 	}
 
@@ -96,7 +110,10 @@ send_trigger(unsigned int trigger)
 
 	error = auditon(A_SENDTRIGGER, &trigger, sizeof(trigger));
 	if (error != 0) {
-		perror("Error sending trigger");
+		if (error == EPERM)
+			perror("audit requires root privileges");
+		else
+			perror("Error sending trigger");
 		return (-1);
 	}
 
@@ -108,7 +125,7 @@ static void
 usage(void)
 {
 
-	(void)fprintf(stderr, "Usage: audit -n | -s | -t \n");
+	(void)fprintf(stderr, "Usage: audit -i | -n | -s | -t \n");
 	exit(-1);
 }
 
@@ -124,8 +141,12 @@ main(int argc, char **argv)
 	if (argc != 2)
 		usage();
 
-	while ((ch = getopt(argc, argv, "nst")) != -1) {
+	while ((ch = getopt(argc, argv, "inst")) != -1) {
 		switch(ch) {
+
+		case 'i':
+			trigger = AUDIT_TRIGGER_INITIALIZE;
+			break;
 
 		case 'n':
 			trigger = AUDIT_TRIGGER_ROTATE_USER;

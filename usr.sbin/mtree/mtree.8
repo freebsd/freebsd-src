@@ -233,7 +233,9 @@ The size, in bytes, of the file.
 .It Cm link
 The file the symbolic link is expected to reference.
 .It Cm time
-The last modification time of the file.
+The last modification time of the file, in seconds and nanoseconds.
+The value should include a period character and exactly nine digits
+after the period.
 .It Cm type
 The type of the file; may be set to any one of the following:
 .Pp

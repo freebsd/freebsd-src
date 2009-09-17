@@ -254,6 +254,14 @@ done:	ttydisc_rint_done(tp);
 }
 
 static int
+ptsdev_truncate(struct file *fp, off_t length, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EINVAL);
+}
+
+static int
 ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
     struct ucred *active_cred, struct thread *td)
 {
@@ -265,6 +273,16 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	case FIONBIO:
 		/* This device supports non-blocking operation. */
 		return (0);
+	case FIONREAD:
+		tty_lock(tp);
+		if (psc->pts_flags & PTS_FINISHED) {
+			/* Force read() to be called. */
+			*(int *)data = 1;
+		} else {
+			*(int *)data = ttydisc_getc_poll(tp);
+		}
+		tty_unlock(tp);
+		return (0);
 	case FIODGNAME: {
 		struct fiodgname_arg *fgn;
 		const char *p;
@@ -272,12 +290,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 
 		/* Reverse device name lookups, for ptsname() and ttyname(). */
 		fgn = data;
-#ifdef PTS_EXTERNAL
-		if (psc->pts_cdev != NULL)
-			p = devtoname(psc->pts_cdev);
-		else
-#endif /* PTS_EXTERNAL */
-			p = tty_devname(tp);
+		p = tty_devname(tp);
 		i = strlen(p) + 1;
 		if (i > fgn->len)
 			return (EINVAL);
@@ -367,6 +380,8 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 	tty_lock(tp);
 	error = tty_ioctl(tp, cmd, data, td);
 	tty_unlock(tp);
+	if (error == ENOIOCTL)
+		error = ENOTTY;
 
 	return (error);
 }
@@ -423,6 +438,94 @@ ptsdev_poll(struct file *fp, int events, struct ucred *active_cred,
 	return (revents);
 }
 
+/*
+ * kqueue support.
+ */
+
+static void
+pts_kqops_read_detach(struct knote *kn)
+{
+	struct file *fp = kn->kn_fp;
+	struct tty *tp = fp->f_data;
+	struct pts_softc *psc = tty_softc(tp);
+
+	knlist_remove(&psc->pts_outpoll.si_note, kn, 0);
+}
+
+static int
+pts_kqops_read_event(struct knote *kn, long hint)
+{
+	struct file *fp = kn->kn_fp;
+	struct tty *tp = fp->f_data;
+	struct pts_softc *psc = tty_softc(tp);
+
+	if (psc->pts_flags & PTS_FINISHED) {
+		kn->kn_flags |= EV_EOF;
+		return (1);
+	} else {
+		kn->kn_data = ttydisc_getc_poll(tp);
+		return (kn->kn_data > 0);
+	}
+}
+
+static void
+pts_kqops_write_detach(struct knote *kn)
+{
+	struct file *fp = kn->kn_fp;
+	struct tty *tp = fp->f_data;
+	struct pts_softc *psc = tty_softc(tp);
+
+	knlist_remove(&psc->pts_inpoll.si_note, kn, 0);
+}
+
+static int
+pts_kqops_write_event(struct knote *kn, long hint)
+{
+	struct file *fp = kn->kn_fp;
+	struct tty *tp = fp->f_data;
+	struct pts_softc *psc = tty_softc(tp);
+
+	if (psc->pts_flags & PTS_FINISHED) {
+		kn->kn_flags |= EV_EOF;
+		return (1);
+	} else {
+		kn->kn_data = ttydisc_rint_poll(tp);
+		return (kn->kn_data > 0);
+	}
+}
+
+static struct filterops pts_kqops_read =
+    { 1, NULL, pts_kqops_read_detach, pts_kqops_read_event };
+static struct filterops pts_kqops_write =
+    { 1, NULL, pts_kqops_write_detach, pts_kqops_write_event };
+
+static int
+ptsdev_kqfilter(struct file *fp, struct knote *kn)
+{
+	struct tty *tp = fp->f_data;
+	struct pts_softc *psc = tty_softc(tp);
+	int error = 0;
+
+	tty_lock(tp);
+
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		kn->kn_fop = &pts_kqops_read;
+		knlist_add(&psc->pts_outpoll.si_note, kn, 1);
+		break;
+	case EVFILT_WRITE:
+		kn->kn_fop = &pts_kqops_write;
+		knlist_add(&psc->pts_inpoll.si_note, kn, 1);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	tty_unlock(tp);
+	return (error);
+}
+
 static int
 ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
     struct thread *td)
@@ -475,8 +578,10 @@ ptsdev_close(struct file *fp, struct thread *td)
 static struct fileops ptsdev_ops = {
 	.fo_read	= ptsdev_read,
 	.fo_write	= ptsdev_write,
+	.fo_truncate	= ptsdev_truncate,
 	.fo_ioctl	= ptsdev_ioctl,
 	.fo_poll	= ptsdev_poll,
+	.fo_kqfilter	= ptsdev_kqfilter,
 	.fo_stat	= ptsdev_stat,
 	.fo_close	= ptsdev_close,
 	.fo_flags	= DFLAG_PASSABLE,
@@ -493,6 +598,7 @@ ptsdrv_outwakeup(struct tty *tp)
 
 	cv_broadcast(&psc->pts_outwait);
 	selwakeup(&psc->pts_outpoll);
+	KNOTE_LOCKED(&psc->pts_outpoll.si_note, 0);
 }
 
 static void
@@ -502,6 +608,7 @@ ptsdrv_inwakeup(struct tty *tp)
 
 	cv_broadcast(&psc->pts_inwait);
 	selwakeup(&psc->pts_inpoll);
+	KNOTE_LOCKED(&psc->pts_inpoll.si_note, 0);
 }
 
 static int
@@ -520,10 +627,9 @@ ptsdrv_close(struct tty *tp)
 	struct pts_softc *psc = tty_softc(tp);
 
 	/* Wake up any blocked readers/writers. */
+	psc->pts_flags |= PTS_FINISHED;
 	ptsdrv_outwakeup(tp);
 	ptsdrv_inwakeup(tp);
-
-	psc->pts_flags |= PTS_FINISHED;
 }
 
 static void
@@ -565,6 +671,9 @@ ptsdrv_free(void *softc)
 
 	chgptscnt(psc->pts_uidinfo, -1, 0);
 	uifree(psc->pts_uidinfo);
+
+	knlist_destroy(&psc->pts_inpoll.si_note);
+	knlist_destroy(&psc->pts_outpoll.si_note);
 
 #ifdef PTS_EXTERNAL
 	/* Destroy master device as well. */
@@ -618,6 +727,8 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 	uihold(uid);
 
 	tp = tty_alloc(&pts_class, psc, NULL);
+	knlist_init(&psc->pts_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
+	knlist_init(&psc->pts_outpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
 
 	/* Expose the slave device as well. */
 	tty_makedev(tp, td->td_ucred, "pts/%u", psc->pts_unit);
@@ -656,6 +767,8 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 	uihold(uid);
 
 	tp = tty_alloc(&pts_class, psc, NULL);
+	knlist_init(&psc->pts_inpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
+	knlist_init(&psc->pts_outpoll.si_note, tp->t_mtx, NULL, NULL, NULL);
 
 	/* Expose the slave device as well. */
 	tty_makedev(tp, td->td_ucred, "%s", name);

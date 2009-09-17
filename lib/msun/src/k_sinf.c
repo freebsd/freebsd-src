@@ -30,7 +30,7 @@ S3 = -0x1a00f9e2cae774.0p-65,	/* -0.000198393348360966317347 */
 S4 =  0x16cd878c3b46a7.0p-71;	/*  0.0000027183114939898219064 */
 
 #ifdef INLINE_KERNEL_SINDF
-extern inline
+extern __gnu89_inline
 #endif
 float
 __kernel_sindf(double x)

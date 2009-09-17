@@ -44,12 +44,14 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_regdomain.h>
 
 static void
-null_getradiocaps(struct ieee80211com *ic, int *n, struct ieee80211_channel *c)
+null_getradiocaps(struct ieee80211com *ic, int maxchan,
+	int *n, struct ieee80211_channel *c)
 {
 	/* just feed back the current channel list */
-	*n = ic->ic_nchans;
-	memcpy(c, ic->ic_channels,
-	    ic->ic_nchans*sizeof(struct ieee80211_channel));
+	if (maxchan > ic->ic_nchans)
+		maxchan = ic->ic_nchans;
+	memcpy(c, ic->ic_channels, maxchan*sizeof(struct ieee80211_channel));
+	*n = maxchan;
 }
 
 static int
@@ -69,7 +71,7 @@ ieee80211_regdomain_attach(struct ieee80211com *ic)
 		ic->ic_regdomain.location = ' ';		/* both */
 		ic->ic_regdomain.isocc[0] = 'U';		/* XXX */
 		ic->ic_regdomain.isocc[1] = 'S';		/* XXX */
-		/* XXX? too late to setup default channel list */
+		/* NB: driver calls ieee80211_init_channels or similar */
 	}
 	ic->ic_getradiocaps = null_getradiocaps;
 	ic->ic_setregdomain = null_setregdomain;
@@ -212,19 +214,25 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
     (IEEE80211_CHAN_TURBO | IEEE80211_CHAN_STURBO | \
      IEEE80211_CHAN_HALF | IEEE80211_CHAN_QUARTER)
 	/* XXX what about auto? */
-	/* flag set of channels to be excluded */
+	/* flag set of channels to be excluded (band added below) */
 	static const int skipflags[IEEE80211_MODE_MAX] = {
-	    CHAN_UNINTERESTING,				/* MODE_AUTO */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_2GHZ,	/* MODE_11A */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_5GHZ,	/* MODE_11B */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_5GHZ,	/* MODE_11G */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_OFDM |	/* MODE_FH */
-	        IEEE80211_CHAN_CCK | IEEE80211_CHAN_DYN,
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_2GHZ,	/* MODE_TURBO_A */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_5GHZ,	/* MODE_TURBO_G */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_2GHZ,	/* MODE_STURBO_A */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_2GHZ,	/* MODE_11NA */
-	    CHAN_UNINTERESTING | IEEE80211_CHAN_5GHZ,	/* MODE_11NG */
+	    [IEEE80211_MODE_AUTO]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_11A]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_11B]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_11G]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_FH]		= CHAN_UNINTERESTING
+					| IEEE80211_CHAN_OFDM
+					| IEEE80211_CHAN_CCK
+					| IEEE80211_CHAN_DYN,
+	    [IEEE80211_MODE_TURBO_A]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_TURBO_G]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_STURBO_A]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_HALF]	= IEEE80211_CHAN_TURBO
+					| IEEE80211_CHAN_STURBO,
+	    [IEEE80211_MODE_QUARTER]	= IEEE80211_CHAN_TURBO
+					| IEEE80211_CHAN_STURBO,
+	    [IEEE80211_MODE_11NA]	= CHAN_UNINTERESTING,
+	    [IEEE80211_MODE_11NG]	= CHAN_UNINTERESTING,
 	};
 	const struct ieee80211_regdomain *rd = &ic->ic_regdomain;
 	uint8_t nextchan, chans[IEEE80211_CHAN_BYTES], *frm;
@@ -266,6 +274,10 @@ ieee80211_alloc_countryie(struct ieee80211com *ic)
 	nruns = 0;
 	memset(chans, 0, sizeof(chans));
 	skip = skipflags[ieee80211_chan2mode(ic->ic_bsschan)];
+	if (IEEE80211_IS_CHAN_5GHZ(ic->ic_bsschan))
+		skip |= IEEE80211_CHAN_2GHZ;
+	else if (IEEE80211_IS_CHAN_2GHZ(ic->ic_bsschan))
+		skip |= IEEE80211_CHAN_5GHZ;
 	for (i = 0; i < ic->ic_nchans; i++) {
 		const struct ieee80211_channel *c = &ic->ic_channels[i];
 
@@ -338,7 +350,7 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 		    reg->rd.isocc[0], reg->rd.isocc[1]);
 		return EINVAL;
 	}
-	if (reg->chaninfo.ic_nchans >= IEEE80211_CHAN_MAX) {
+	if (reg->chaninfo.ic_nchans > IEEE80211_CHAN_MAX) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
 		    "%s: too many channels %u, max %u\n", __func__,
 		    reg->chaninfo.ic_nchans, IEEE80211_CHAN_MAX);
@@ -373,6 +385,13 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 			c->ic_maxpower = 2*c->ic_maxregpower;
 	}
 	IEEE80211_LOCK(ic);
+	/* XXX bandaid; a running vap will likely crash */
+	if (!allvapsdown(ic)) {
+		IEEE80211_UNLOCK(ic);
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
+		    "%s: reject: vaps are running\n", __func__);
+		return EBUSY;
+	}
 	error = ic->ic_setregdomain(ic, &reg->rd,
 	    reg->chaninfo.ic_nchans, reg->chaninfo.ic_chans);
 	if (error != 0) {
@@ -380,13 +399,6 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
 		    "%s: driver rejected request, error %u\n", __func__, error);
 		return error;
-	}
-	/* XXX bandaid; a running vap will likely crash */
-	if (!allvapsdown(ic)) {
-		IEEE80211_UNLOCK(ic);
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_IOCTL,
-		    "%s: reject: vaps are running\n", __func__);
-		return EBUSY;
 	}
 	/*
 	 * Commit: copy in new channel table and reset media state.
@@ -426,8 +438,9 @@ ieee80211_setregdomain(struct ieee80211vap *vap,
 	ieee80211_scan_flush(vap);
 	ieee80211_dfs_reset(ic);
 	if (vap->iv_des_chan != IEEE80211_CHAN_ANYC) {
+		c = ieee80211_find_channel(ic, desfreq, desflags);
 		/* NB: may be NULL if not present in new channel list */
-		vap->iv_des_chan = ieee80211_find_channel(ic, desfreq, desflags);
+		vap->iv_des_chan = (c != NULL) ? c : IEEE80211_CHAN_ANYC;
 	}
 	IEEE80211_UNLOCK(ic);
 

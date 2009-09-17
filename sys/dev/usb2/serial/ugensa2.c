@@ -42,7 +42,7 @@
  * be called from within the config thread function !
  */
 
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -54,7 +54,6 @@
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_debug.h>
 #include <dev/usb2/core/usb2_process.h>
-#include <dev/usb2/core/usb2_config_td.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_lookup.h>
 #include <dev/usb2/core/usb2_util.h>
@@ -63,18 +62,19 @@
 #include <dev/usb2/serial/usb2_serial.h>
 
 #define	UGENSA_BUF_SIZE		2048	/* bytes */
-#define	UGENSA_N_TRANSFER	4	/* units */
 #define	UGENSA_CONFIG_INDEX	0
 #define	UGENSA_IFACE_INDEX	0
 #define	UGENSA_IFACE_MAX	8	/* exclusivly */
 
+enum {
+	UGENSA_BULK_DT_WR,
+	UGENSA_BULK_DT_RD,
+	UGENSA_N_TRANSFER,
+};
+
 struct ugensa_sub_softc {
 	struct usb2_com_softc *sc_usb2_com_ptr;
 	struct usb2_xfer *sc_xfer[UGENSA_N_TRANSFER];
-
-	uint8_t	sc_flags;
-#define	UGENSA_FLAG_BULK_READ_STALL	0x01
-#define	UGENSA_FLAG_BULK_WRITE_STALL	0x02
 };
 
 struct ugensa_softc {
@@ -93,19 +93,17 @@ static device_attach_t ugensa_attach;
 static device_detach_t ugensa_detach;
 
 static usb2_callback_t ugensa_bulk_write_callback;
-static usb2_callback_t ugensa_bulk_write_clear_stall_callback;
 static usb2_callback_t ugensa_bulk_read_callback;
-static usb2_callback_t ugensa_bulk_read_clear_stall_callback;
 
-static void ugensa_start_read(struct usb2_com_softc *ucom);
-static void ugensa_stop_read(struct usb2_com_softc *ucom);
-static void ugensa_start_write(struct usb2_com_softc *ucom);
-static void ugensa_stop_write(struct usb2_com_softc *ucom);
+static void	ugensa_start_read(struct usb2_com_softc *);
+static void	ugensa_stop_read(struct usb2_com_softc *);
+static void	ugensa_start_write(struct usb2_com_softc *);
+static void	ugensa_stop_write(struct usb2_com_softc *);
 
 static const struct usb2_config
 	ugensa_xfer_config[UGENSA_N_TRANSFER] = {
 
-	[0] = {
+	[UGENSA_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
@@ -114,35 +112,13 @@ static const struct usb2_config
 		.mh.callback = &ugensa_bulk_write_callback,
 	},
 
-	[1] = {
+	[UGENSA_BULK_DT_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.mh.bufsize = UGENSA_BUF_SIZE,
 		.mh.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.mh.callback = &ugensa_bulk_read_callback,
-	},
-
-	[2] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &ugensa_bulk_write_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
-	},
-
-	[3] = {
-		.type = UE_CONTROL,
-		.endpoint = 0x00,	/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.mh.bufsize = sizeof(struct usb2_device_request),
-		.mh.flags = {},
-		.mh.callback = &ugensa_bulk_read_clear_stall_callback,
-		.mh.timeout = 1000,	/* 1 second */
-		.mh.interval = 50,	/* 50ms */
 	},
 };
 
@@ -178,9 +154,6 @@ static const struct usb2_device_id ugensa_devs[] = {
 	{USB_VPI(USB_VENDOR_CMOTECH, USB_PRODUCT_CMOTECH_CDMA_MODEM1, 0)},
 	{USB_VPI(USB_VENDOR_KYOCERA2, USB_PRODUCT_KYOCERA2_CDMA_MSM_K, 0)},
 	{USB_VPI(USB_VENDOR_HP, USB_PRODUCT_HP_49GPLUS, 0)},
-/*	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E270, 0)}, */
-	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE, 0)},
-	{USB_VPI(USB_VENDOR_MERLIN, USB_PRODUCT_MERLIN_V620, 0)},
 	{USB_VPI(USB_VENDOR_NOVATEL2, USB_PRODUCT_NOVATEL2_FLEXPACKGPS, 0)},
 };
 
@@ -211,9 +184,6 @@ ugensa_attach(device_t dev)
 	int32_t error;
 	uint8_t iface_index;
 	int x, cnt;
-
-	if (sc == NULL)
-		return (ENOMEM);
 
 	device_set_usb2_desc(dev);
 	mtx_init(&sc->sc_mtx, "ugensa", NULL, MTX_DEF);
@@ -251,8 +221,8 @@ ugensa_attach(device_t dev)
 			goto detach;
 		}
 		/* clear stall at first run */
-		ssc->sc_flags |= (UGENSA_FLAG_BULK_WRITE_STALL |
-		    UGENSA_FLAG_BULK_READ_STALL);
+		usb2_transfer_set_stall(ssc->sc_xfer[UGENSA_BULK_DT_WR]);
+		usb2_transfer_set_stall(ssc->sc_xfer[UGENSA_BULK_DT_RD]);
 
 		/* initialize port number */
 		ssc->sc_usb2_com_ptr->sc_portno = sc->sc_niface;
@@ -301,10 +271,7 @@ ugensa_bulk_write_callback(struct usb2_xfer *xfer)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_SETUP:
 	case USB_ST_TRANSFERRED:
-		if (ssc->sc_flags & UGENSA_FLAG_BULK_WRITE_STALL) {
-			usb2_transfer_start(ssc->sc_xfer[2]);
-			return;
-		}
+tr_setup:
 		if (usb2_com_get_data(ssc->sc_usb2_com_ptr, xfer->frbuffers, 0,
 		    UGENSA_BUF_SIZE, &actlen)) {
 			xfer->frlengths[0] = actlen;
@@ -314,26 +281,12 @@ ugensa_bulk_write_callback(struct usb2_xfer *xfer)
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			ssc->sc_flags |= UGENSA_FLAG_BULK_WRITE_STALL;
-			usb2_transfer_start(ssc->sc_xfer[2]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
-
 	}
-}
-
-static void
-ugensa_bulk_write_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct ugensa_sub_softc *ssc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = ssc->sc_xfer[0];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		ssc->sc_flags &= ~UGENSA_FLAG_BULK_WRITE_STALL;
-		usb2_transfer_start(xfer_other);
-	}
-	return;
 }
 
 static void
@@ -347,36 +300,19 @@ ugensa_bulk_read_callback(struct usb2_xfer *xfer)
 		    xfer->actlen);
 
 	case USB_ST_SETUP:
-		if (ssc->sc_flags & UGENSA_FLAG_BULK_READ_STALL) {
-			usb2_transfer_start(ssc->sc_xfer[3]);
-		} else {
-			xfer->frlengths[0] = xfer->max_data_length;
-			usb2_start_hardware(xfer);
-		}
+tr_setup:
+		xfer->frlengths[0] = xfer->max_data_length;
+		usb2_start_hardware(xfer);
 		return;
 
 	default:			/* Error */
 		if (xfer->error != USB_ERR_CANCELLED) {
-			ssc->sc_flags |= UGENSA_FLAG_BULK_READ_STALL;
-			usb2_transfer_start(ssc->sc_xfer[3]);
+			/* try to clear stall first */
+			xfer->flags.stall_pipe = 1;
+			goto tr_setup;
 		}
 		return;
-
 	}
-}
-
-static void
-ugensa_bulk_read_clear_stall_callback(struct usb2_xfer *xfer)
-{
-	struct ugensa_sub_softc *ssc = xfer->priv_sc;
-	struct usb2_xfer *xfer_other = ssc->sc_xfer[1];
-
-	if (usb2_clear_stall_callback(xfer, xfer_other)) {
-		DPRINTF("stall cleared\n");
-		ssc->sc_flags &= ~UGENSA_FLAG_BULK_READ_STALL;
-		usb2_transfer_start(xfer_other);
-	}
-	return;
 }
 
 static void
@@ -385,8 +321,7 @@ ugensa_start_read(struct usb2_com_softc *ucom)
 	struct ugensa_softc *sc = ucom->sc_parent;
 	struct ugensa_sub_softc *ssc = sc->sc_sub + ucom->sc_portno;
 
-	usb2_transfer_start(ssc->sc_xfer[1]);
-	return;
+	usb2_transfer_start(ssc->sc_xfer[UGENSA_BULK_DT_RD]);
 }
 
 static void
@@ -395,9 +330,7 @@ ugensa_stop_read(struct usb2_com_softc *ucom)
 	struct ugensa_softc *sc = ucom->sc_parent;
 	struct ugensa_sub_softc *ssc = sc->sc_sub + ucom->sc_portno;
 
-	usb2_transfer_stop(ssc->sc_xfer[3]);
-	usb2_transfer_stop(ssc->sc_xfer[1]);
-	return;
+	usb2_transfer_stop(ssc->sc_xfer[UGENSA_BULK_DT_RD]);
 }
 
 static void
@@ -406,8 +339,7 @@ ugensa_start_write(struct usb2_com_softc *ucom)
 	struct ugensa_softc *sc = ucom->sc_parent;
 	struct ugensa_sub_softc *ssc = sc->sc_sub + ucom->sc_portno;
 
-	usb2_transfer_start(ssc->sc_xfer[0]);
-	return;
+	usb2_transfer_start(ssc->sc_xfer[UGENSA_BULK_DT_WR]);
 }
 
 static void
@@ -416,7 +348,5 @@ ugensa_stop_write(struct usb2_com_softc *ucom)
 	struct ugensa_softc *sc = ucom->sc_parent;
 	struct ugensa_sub_softc *ssc = sc->sc_sub + ucom->sc_portno;
 
-	usb2_transfer_stop(ssc->sc_xfer[2]);
-	usb2_transfer_stop(ssc->sc_xfer[0]);
-	return;
+	usb2_transfer_stop(ssc->sc_xfer[UGENSA_BULK_DT_WR]);
 }

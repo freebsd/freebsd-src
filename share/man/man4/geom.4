@@ -249,7 +249,7 @@ It will explicitly close (i.e.: zero the access counts), a change
 which will propagate all the way down through the mesh.
 It will then detach and destroy its geom.
 .It
-The geom whose provider is now attached will destroy the provider,
+The geom whose provider is now detached will destroy the provider,
 detach and destroy its consumer and destroy its geom.
 .It
 This process percolates all the way down through the mesh, until
@@ -431,6 +431,18 @@ This is unused at this time.
 .It 0x80 Pq Dv G_F_CTLDUMP
 Dump contents of gctl requests.
 .El
+.Sh SEE ALSO
+.Xr disk 9 ,
+.Xr DECLARE_GEOM_CLASS 9 ,
+.Xr g_access 9 ,
+.Xr g_attach 9 ,
+.Xr g_bio 9 ,
+.Xr g_consumer 9 ,
+.Xr g_data 9 ,
+.Xr g_event 9 ,
+.Xr g_geom 9 ,
+.Xr g_provider 9 ,
+.Xr g_provider_by_name 9
 .Sh HISTORY
 This software was developed for the
 .Fx

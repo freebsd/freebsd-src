@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.89 2007/02/20 14:11:17 jmc Exp $ */
+/* $OpenBSD: netcat.c,v 1.91 2008/05/09 09:00:11 markus Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -50,6 +50,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <netdb.h>
 #include <poll.h>
 #include <stdarg.h>
@@ -78,7 +79,7 @@ int	kflag;					/* More than one connect */
 int	lflag;					/* Bind to local port */
 int	nflag;					/* Don't do name look up */
 int	oflag;					/* Once only: stop on EOF */
-int	Oflag;					/* Do not use TCP options */
+int	FreeBSD_Oflag;				/* Do not use TCP options */
 char   *Pflag;					/* Proxy username */
 char   *pflag;					/* Localport flag */
 int	rflag;					/* Random ports flag */
@@ -89,6 +90,8 @@ int	vflag;					/* Verbosity */
 int	xflag;					/* Socks proxy */
 int	zflag;					/* Port Scan Flag */
 int	Dflag;					/* sodebug */
+int	Iflag;					/* TCP receive buffer size */
+int	Oflag;					/* TCP send buffer size */
 int	Sflag;					/* TCP MD5 signature option */
 int	Tflag = -1;				/* IP Type of Service */
 
@@ -129,6 +132,10 @@ main(int argc, char *argv[])
 	char *proxy;
 	const char *errstr, *proxyhost = "", *proxyport = NULL;
 	struct addrinfo proxyhints;
+	struct option longopts[] = {
+		{ "no-tcpopt",	no_argument,	&FreeBSD_Oflag,	1 },
+		{ NULL,		0,		NULL,		0 }
+	};
 
 	ret = 1;
 	ipsec_count = 0;
@@ -138,8 +145,9 @@ main(int argc, char *argv[])
 	uport = NULL;
 	sv = NULL;
 
-	while ((ch = getopt(argc, argv,
-	    "46e:DEdhi:jklnoOP:p:rSs:tT:Uuvw:X:x:z")) != -1) {
+	while ((ch = getopt_long(argc, argv,
+	    "46e:DEdhi:jklnoI:O:P:p:rSs:tT:Uuvw:X:x:z",
+	    longopts, NULL)) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -203,9 +211,6 @@ main(int argc, char *argv[])
 		case 'o':
 			oflag = 1;
 			break;
-		case 'O':
-			Oflag = 1;
-			break;
 		case 'P':
 			Pflag = optarg;
 			break;
@@ -244,11 +249,27 @@ main(int argc, char *argv[])
 		case 'D':
 			Dflag = 1;
 			break;
+		case 'I':
+			Iflag = strtonum(optarg, 1, 65536 << 14, &errstr);
+			if (errstr != NULL)
+				errx(1, "TCP receive window %s: %s",
+				    errstr, optarg);
+			break;
+		case 'O':
+			Oflag = strtonum(optarg, 1, 65536 << 14, &errstr);
+			if (errstr != NULL) {
+			    if (strcmp(errstr, "invalid") != 0)
+				errx(1, "TCP send window %s: %s",
+				    errstr, optarg);
+			}
+			break;
 		case 'S':
 			Sflag = 1;
 			break;
 		case 'T':
 			Tflag = parse_iptos(optarg);
+			break;
+		case 0:
 			break;
 		default:
 			usage(1);
@@ -512,7 +533,7 @@ int
 remote_connect(const char *host, const char *port, struct addrinfo hints)
 {
 	struct addrinfo *res, *res0;
-	int s, error;
+	int s, error, on = 1;
 
 	if ((error = getaddrinfo(host, port, &hints, &res)))
 		errx(1, "getaddrinfo: %s", gai_strerror(error));
@@ -533,6 +554,10 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 		if (sflag || pflag) {
 			struct addrinfo ahints, *ares;
 
+#ifdef SO_BINDANY
+			/* try SO_BINDANY, but don't insist */
+			setsockopt(s, SOL_SOCKET, SO_BINDANY, &on, sizeof(on));
+#endif
 			memset(&ahints, 0, sizeof(struct addrinfo));
 			ahints.ai_family = res0->ai_family;
 			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
@@ -604,9 +629,9 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		if (ipsec_policy[1] != NULL)
 			add_ipsec_policy(s, ipsec_policy[1]);
 #endif
-		if (Oflag) {
+		if (FreeBSD_Oflag) {
 			if (setsockopt(s, IPPROTO_TCP, TCP_NOOPT,
-			    &Oflag, sizeof(Oflag)) == -1)
+			    &FreeBSD_Oflag, sizeof(FreeBSD_Oflag)) == -1)
 				err(1, "disable TCP options");
 		}
 
@@ -838,9 +863,19 @@ set_common_sockopts(int s)
 		    &Tflag, sizeof(Tflag)) == -1)
 			err(1, "set IP ToS");
 	}
+	if (Iflag) {
+		if (setsockopt(s, SOL_SOCKET, SO_RCVBUF,
+		    &Iflag, sizeof(Iflag)) == -1)
+			err(1, "set TCP receive buffer size");
+	}
 	if (Oflag) {
-		if (setsockopt(s, IPPROTO_TCP, TCP_NOOPT,
+		if (setsockopt(s, SOL_SOCKET, SO_SNDBUF,
 		    &Oflag, sizeof(Oflag)) == -1)
+			err(1, "set TCP send buffer size");
+	}
+	if (FreeBSD_Oflag) {
+		if (setsockopt(s, IPPROTO_TCP, TCP_NOOPT,
+		    &FreeBSD_Oflag, sizeof(FreeBSD_Oflag)) == -1)
 			err(1, "disable TCP options");
 	}
 }
@@ -878,11 +913,13 @@ help(void)
 #endif
 	fprintf(stderr, "\
 	\t-h		This help text\n\
+	\t-I length	TCP receive buffer length\n\
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
 	\t-k		Keep inbound sockets open for multiple connects\n\
 	\t-l		Listen mode, for inbound connects\n\
 	\t-n		Suppress name/port resolutions\n\
-	\t-O		Disable TCP options\n\
+	\t--no-tcpopt	Disable TCP options\n\
+	\t-O length	TCP send buffer length\n\
 	\t-o		Terminate on EOF on input\n\
 	\t-P proxyuser\tUsername for proxy authentication\n\
 	\t-p port\t	Specify local port for remote connects\n\
@@ -931,10 +968,11 @@ void
 usage(int ret)
 {
 #ifdef IPSEC
-	fprintf(stderr, "usage: nc [-46DdEhklnOorStUuvz] [-e policy] [-i interval] [-P proxy_username] [-p source_port]\n");
+	fprintf(stderr, "usage: nc [-46DdEhklnorStUuvz] [-e policy] [-I receive_buffer_len] [-i interval]\n");
 #else
-	fprintf(stderr, "usage: nc [-46DdhklnOorStUuvz] [-i interval] [-P proxy_username] [-p source_port]\n");
+	fprintf(stderr, "usage: nc [-46DdhklnorStUuvz] [-I receive_buffer_len] [-i interval]\n");
 #endif
+	fprintf(stderr, "\t  [-O send_buffer_len] [-P proxy_username] [-p source_port]\n");
 	fprintf(stderr, "\t  [-s source_ip_address] [-T ToS] [-w timeout] [-X proxy_protocol]\n");
 	fprintf(stderr, "\t  [-x proxy_address[:port]] [hostname] [port[s]]\n");
 	if (ret)

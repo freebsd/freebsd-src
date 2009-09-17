@@ -61,9 +61,12 @@
 #endif
 
 #ifdef HAVE_GETOPT_H
-#include <getopt.h>	/* for long options (is this portable?)*/
+#include <getopt.h>
 #else
-#undef HAVE_GETOPT_LONG
+#include "mygetopt.h"
+#endif
+#ifndef HAVE_GETOPT_LONG
+int getopt_long(int argc, char * const *argv, const char *optstring, const struct option *longopts, int *longindex);
 #endif
 
 #include <netinet/in.h>		/* for byte swapping */
@@ -71,7 +74,7 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.117 2007/12/27 16:35:58 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.121 2008/07/03 15:48:18 christos Exp $")
 #endif	/* lint */
 
 
@@ -103,13 +106,7 @@ private struct magic_set *magic;
 
 private void unwrap(char *);
 private void usage(void);
-#ifdef HAVE_GETOPT_LONG
 private void help(void);
-#endif
-#if 0
-private int byteconv4(int, int, int);
-private short byteconv2(int, int, int);
-#endif
 
 int main(int, char *[]);
 private void process(const char *, int);
@@ -130,7 +127,6 @@ main(int argc, char *argv[])
 	struct stat sb;
 	static const char hmagic[] = "/.magic";
 #define OPTSTRING	"bcCde:f:F:hikLm:nNprsvz0"
-#ifdef HAVE_GETOPT_LONG
 	int longindex;
 	static const struct option long_options[] =
 	{
@@ -143,7 +139,6 @@ main(int argc, char *argv[])
 #undef OPT_LONGONLY
     {0, 0, NULL, 0}
 };
-#endif
 
 	static const struct {
 		const char *name;
@@ -156,13 +151,10 @@ main(int argc, char *argv[])
 		{ "soft",	MAGIC_NO_CHECK_SOFT },
 		{ "tar",	MAGIC_NO_CHECK_TAR },
 		{ "tokens",	MAGIC_NO_CHECK_TOKENS },
-		{ "troff",	MAGIC_NO_CHECK_TROFF },
 	};
 
-#ifdef LC_CTYPE
 	/* makes islower etc work for other langs */
 	(void)setlocale(LC_CTYPE, "");
-#endif
 
 #ifdef __EMX__
 	/* sh-like wildcard expansion! Shouldn't hurt at least ... */
@@ -193,14 +185,9 @@ main(int argc, char *argv[])
 #ifdef S_IFLNK
 	flags |= getenv("POSIXLY_CORRECT") ? MAGIC_SYMLINK : 0;
 #endif
-#ifndef HAVE_GETOPT_LONG
-	while ((c = getopt(argc, argv, OPTSTRING)) != -1)
-#else
 	while ((c = getopt_long(argc, argv, OPTSTRING, long_options,
 	    &longindex)) != -1)
-#endif
 		switch (c) {
-#ifdef HAVE_GETOPT_LONG
 		case 0 :
 			switch (longindex) {
 			case 0:
@@ -214,7 +201,6 @@ main(int argc, char *argv[])
 				break;
 			}
 			break;
-#endif
 		case '0':
 			nulsep = 1;
 			break;
@@ -349,8 +335,9 @@ main(int argc, char *argv[])
 			process(argv[optind], wid);
 	}
 
+	c = magic->haderr ? 1 : 0;
 	magic_close(magic);
-	return 0;
+	return c;
 }
 
 
@@ -392,7 +379,7 @@ unwrap(char *fn)
 			exit(1);
 		}
 
-		while (fgets(buf, MAXPATHLEN, f) != NULL) {
+		while (fgets(buf, sizeof(buf), f) != NULL) {
 			buf[strcspn(buf, "\n")] = '\0';
 			cwid = file_mbswidth(buf);
 			if (cwid > wid)
@@ -438,64 +425,6 @@ process(const char *inname, int wid)
 		(void)printf("%s\n", type);
 }
 
-
-#if 0
-/*
- * byteconv4
- * Input:
- *	from		4 byte quantity to convert
- *	same		whether to perform byte swapping
- *	big_endian	whether we are a big endian host
- */
-private int
-byteconv4(int from, int same, int big_endian)
-{
-	if (same)
-		return from;
-	else if (big_endian) {		/* lsb -> msb conversion on msb */
-		union {
-			int i;
-			char c[4];
-		} retval, tmpval;
-
-		tmpval.i = from;
-		retval.c[0] = tmpval.c[3];
-		retval.c[1] = tmpval.c[2];
-		retval.c[2] = tmpval.c[1];
-		retval.c[3] = tmpval.c[0];
-
-		return retval.i;
-	}
-	else
-		return ntohl(from);	/* msb -> lsb conversion on lsb */
-}
-
-/*
- * byteconv2
- * Same as byteconv4, but for shorts
- */
-private short
-byteconv2(int from, int same, int big_endian)
-{
-	if (same)
-		return from;
-	else if (big_endian) {		/* lsb -> msb conversion on msb */
-		union {
-			short s;
-			char c[2];
-		} retval, tmpval;
-
-		tmpval.s = (short) from;
-		retval.c[0] = tmpval.c[1];
-		retval.c[1] = tmpval.c[0];
-
-		return retval.s;
-	}
-	else
-		return ntohs(from);	/* msb -> lsb conversion on lsb */
-}
-#endif
-
 size_t
 file_mbswidth(const char *s)
 {
@@ -534,13 +463,10 @@ private void
 usage(void)
 {
 	(void)fprintf(stderr, USAGE, progname, progname);
-#ifdef HAVE_GETOPT_LONG
 	(void)fputs("Try `file --help' for more information.\n", stderr);
-#endif
 	exit(1);
 }
 
-#ifdef HAVE_GETOPT_LONG
 private void
 help(void)
 {
@@ -557,4 +483,3 @@ help(void)
 #undef OPT_LONGONLY
 	exit(0);
 }
-#endif

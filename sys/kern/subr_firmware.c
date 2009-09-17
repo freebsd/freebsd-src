@@ -525,7 +525,7 @@ firmware_modevent(module_t mod, int type, void *unused)
 static moduledata_t firmware_mod = {
 	"firmware",
 	firmware_modevent,
-	0
+	NULL
 };
 DECLARE_MODULE(firmware, firmware_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(firmware, 1);

@@ -41,6 +41,7 @@ static char rcsid[] =
 #endif /* not lint */
 
 #include "tt.h"
+#include <stdlib.h>
 
 char *tgetstr();
 char *tgoto();

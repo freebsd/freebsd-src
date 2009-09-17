@@ -29,7 +29,7 @@
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_ioctl.h>
 #include <dev/usb2/include/usb2_mfunc.h>
-#include <dev/usb2/include/usb2_devid.h>
+#include "usbdevs.h"
 
 #define	USB_DEBUG_VAR usb2_debug
 
@@ -95,6 +95,7 @@ static struct usb2_quirk_entry usb2_quirks[USB_DEV_QUIRKS_MAX] = {
 	{USB_QUIRK_ENTRY(USB_VENDOR_CYBERPOWER, USB_PRODUCT_CYBERPOWER_1500CAVRLCD, 0x0000, 0xFFFF, UQ_HID_IGNORE, UQ_NONE)},
 	{USB_QUIRK_ENTRY(USB_VENDOR_DELORME, USB_PRODUCT_DELORME_EARTHMATE, 0x0000, 0xFFFF, UQ_HID_IGNORE, UQ_NONE)},
 	{USB_QUIRK_ENTRY(USB_VENDOR_ITUNERNET, USB_PRODUCT_ITUNERNET_USBLCD2X20, 0x0000, 0xFFFF, UQ_HID_IGNORE, UQ_NONE)},
+	{USB_QUIRK_ENTRY(USB_VENDOR_ITUNERNET, USB_PRODUCT_ITUNERNET_USBLCD4X20, 0x0000, 0xFFFF, UQ_HID_IGNORE, UQ_NONE)},
 	{USB_QUIRK_ENTRY(USB_VENDOR_MGE, USB_PRODUCT_MGE_UPS1, 0x0000, 0xFFFF, UQ_HID_IGNORE, UQ_NONE)},
 	{USB_QUIRK_ENTRY(USB_VENDOR_MGE, USB_PRODUCT_MGE_UPS2, 0x0000, 0xFFFF, UQ_HID_IGNORE, UQ_NONE)},
 	{USB_QUIRK_ENTRY(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE, 0x0000, 0xFFFF, UQ_HID_IGNORE, UQ_NONE)},
@@ -111,7 +112,32 @@ static struct usb2_quirk_entry usb2_quirks[USB_DEV_QUIRKS_MAX] = {
 	{USB_QUIRK_ENTRY(USB_VENDOR_METAGEEK, USB_PRODUCT_METAGEEK_WISPY24X, 0x0000, 0xFFFF, UQ_KBD_IGNORE, UQ_HID_IGNORE, UQ_NONE)},
 };
 
-USB_MAKE_DEBUG_TABLE(USB_QUIRK);
+static const char *usb_quirk_str[USB_QUIRK_MAX] = {
+	[UQ_NONE]		= "UQ_NONE",
+	[UQ_AUDIO_SWAP_LR]	= "UQ_AUDIO_SWAP_LR",
+	[UQ_AU_INP_ASYNC]	= "UQ_AU_INP_ASYNC",
+	[UQ_AU_NO_FRAC]		= "UQ_AU_NO_FRAC",
+	[UQ_AU_NO_XU]		= "UQ_AU_NO_XU",
+	[UQ_BAD_ADC]		= "UQ_BAD_ADC",
+	[UQ_BAD_AUDIO]		= "UQ_BAD_AUDIO",
+	[UQ_BROKEN_BIDIR]	= "UQ_BROKEN_BIDIR",
+	[UQ_BUS_POWERED]	= "UQ_BUS_POWERED",
+	[UQ_HID_IGNORE]		= "UQ_HID_IGNORE",
+	[UQ_KBD_IGNORE]		= "UQ_KBD_IGNORE",
+	[UQ_MS_BAD_CLASS]	= "UQ_MS_BAD_CLASS",
+	[UQ_MS_LEADING_BYTE]	= "UQ_MS_LEADING_BYTE",
+	[UQ_MS_REVZ]		= "UQ_MS_REVZ",
+	[UQ_NO_STRINGS]		= "UQ_NO_STRINGS",
+	[UQ_OPEN_CLEARSTALL]	= "UQ_OPEN_CLEARSTALL",
+	[UQ_POWER_CLAIM]	= "UQ_POWER_CLAIM",
+	[UQ_SPUR_BUT_UP]	= "UQ_SPUR_BUT_UP",
+	[UQ_SWAP_UNICODE]	= "UQ_SWAP_UNICODE",
+	[UQ_CFG_INDEX_1]	= "UQ_CFG_INDEX_1",
+	[UQ_CFG_INDEX_2]	= "UQ_CFG_INDEX_2",
+	[UQ_CFG_INDEX_3]	= "UQ_CFG_INDEX_3",
+	[UQ_CFG_INDEX_4]	= "UQ_CFG_INDEX_4",
+	[UQ_CFG_INDEX_0]	= "UQ_CFG_INDEX_0",
+};
 
 /*------------------------------------------------------------------------*
  *	usb2_quirkstr
@@ -122,7 +148,7 @@ static const char *
 usb2_quirkstr(uint16_t quirk)
 {
 	return ((quirk < USB_QUIRK_MAX) ?
-	    USB_QUIRK[quirk] : "USB_QUIRK_UNKNOWN");
+	    usb_quirk_str[quirk] : "USB_QUIRK_UNKNOWN");
 }
 
 /*------------------------------------------------------------------------*
@@ -356,7 +382,6 @@ usb2_quirk_init(void *arg)
 	/* register our function */
 	usb2_test_quirk_p = &usb2_test_quirk_by_info;
 	usb2_quirk_ioctl_p = &usb2_quirk_ioctl;
-	return;
 }
 
 static void
@@ -366,7 +391,6 @@ usb2_quirk_uninit(void *arg)
 
 	/* destroy mutex */
 	mtx_destroy(&usb2_quirk_mtx);
-	return;
 }
 
 SYSINIT(usb2_quirk_init, SI_SUB_LOCK, SI_ORDER_FIRST, usb2_quirk_init, NULL);

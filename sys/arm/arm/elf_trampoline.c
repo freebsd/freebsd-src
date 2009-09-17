@@ -74,7 +74,7 @@ void __startC(void);
 #ifdef CPU_XSCALE_81342
 #define cpu_l2cache_wbinv_all	xscalec3_l2cache_purge
 #elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
-#define cpu_l2cache_wbinv_all	feroceon_l2cache_wbinv_all
+#define cpu_l2cache_wbinv_all	sheeva_l2cache_wbinv_all
 #else
 #define cpu_l2cache_wbinv_all()	
 #endif
@@ -404,11 +404,11 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	int symtabindex = -1;
 	int symstrindex = -1;
 	vm_offset_t lastaddr = 0;
-	Elf_Addr ssym = 0, esym = 0;
+	Elf_Addr ssym = 0;
 	Elf_Dyn *dp;
 	
 	eh = (Elf32_Ehdr *)kstart;
-	ssym = esym = 0;
+	ssym = 0;
 	entry_point = (void*)eh->e_entry;
 	memcpy(phdr, (void *)(kstart + eh->e_phoff ),
 	    eh->e_phnum * sizeof(phdr[0]));

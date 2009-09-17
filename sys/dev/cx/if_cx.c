@@ -83,24 +83,9 @@ __FBSDID("$FreeBSD$");
 
 #define CX_LOCK_NAME	"cxX"
 
-static	int	cx_mpsafenet = 1;
-TUNABLE_INT("debug.cx.mpsafenet", &cx_mpsafenet);
-SYSCTL_NODE(_debug, OID_AUTO, cx, CTLFLAG_RD, 0, "Cronyx Sigma Adapters");
-SYSCTL_INT(_debug_cx, OID_AUTO, mpsafenet, CTLFLAG_RD, &cx_mpsafenet, 0,
-	"Enable/disable MPSAFE network support for Cronyx Sigma Adapters");
-
-#define CX_LOCK(_bd)		do { \
-				    if (cx_mpsafenet) \
-					mtx_lock (&(_bd)->cx_mtx); \
-				} while (0)
-#define CX_UNLOCK(_bd)		do { \
-				    if (cx_mpsafenet) \
-					mtx_unlock (&(_bd)->cx_mtx); \
-				} while (0)
-#define CX_LOCK_ASSERT(_bd)	do { \
-				    if (cx_mpsafenet) \
-					mtx_assert (&(_bd)->cx_mtx, MA_OWNED); \
-				} while (0)
+#define CX_LOCK(_bd)		mtx_lock (&(_bd)->cx_mtx)
+#define CX_UNLOCK(_bd)		mtx_unlock (&(_bd)->cx_mtx)
+#define CX_LOCK_ASSERT(_bd)	mtx_assert (&(_bd)->cx_mtx, MA_OWNED)
 
 typedef struct _async_q {
 	int beg;
@@ -239,7 +224,7 @@ static struct cdevsw cx_cdevsw = {
 	.d_close    = cx_close,
 	.d_ioctl    = cx_ioctl,
 	.d_name     = "cx",
-	.d_flags    = D_TTY | D_NEEDGIANT,
+	.d_flags    = D_TTY,
 };
 
 static int MY_SOFT_INTR;
@@ -776,10 +761,10 @@ static int cx_attach (device_t dev)
  		return ENXIO;
 	}
 	b->sys = bd;
-	callout_init (&led_timo[b->num], cx_mpsafenet ? CALLOUT_MPSAFE : 0);
+	callout_init (&led_timo[b->num], CALLOUT_MPSAFE);
 	s = splhigh ();
 	if (bus_setup_intr (dev, bd->irq_res,
-			   INTR_TYPE_NET|(cx_mpsafenet?INTR_MPSAFE:0),
+			   INTR_TYPE_NET|INTR_MPSAFE,
 			   NULL, cx_intr, bd, &bd->intrhand)) {
 		printf ("cx%d: Can't setup irq %ld\n", unit, irq);
 		bd->board = 0;
@@ -849,8 +834,7 @@ static int cx_attach (device_t dev)
 		d->hi_queue.ifq_maxlen = IFQ_MAXLEN;
 		mtx_init (&d->lo_queue.ifq_mtx, "cx_queue_lo", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "cx_queue_hi", NULL, MTX_DEF);
-		callout_init (&d->timeout_handle,
-			     cx_mpsafenet ? CALLOUT_MPSAFE : 0);
+		callout_init (&d->timeout_handle, CALLOUT_MPSAFE);
 #else /*NETGRAPH*/
 		d->ifp = if_alloc(IFT_PPP);
 		if (d->ifp == NULL) {
@@ -865,8 +849,6 @@ static int cx_attach (device_t dev)
 		if_initname (d->ifp, "cx", b->num * NCHAN + c->num);
 		d->ifp->if_mtu		= PP_MTU;
 		d->ifp->if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
-		if (!cx_mpsafenet)
-			d->ifp->if_flags |= IFF_NEEDSGIANT;
 		d->ifp->if_ioctl	= cx_sioctl;
 		d->ifp->if_start	= cx_ifstart;
 		d->ifp->if_watchdog	= cx_ifwatchdog;
@@ -901,8 +883,7 @@ static int cx_attach (device_t dev)
 		ttycreate(d->tty, TS_CALLOUT, "x%r%r", b->num, c->num);
 		d->devt = make_dev (&cx_cdevsw, b->num*NCHAN + c->num + 64, UID_ROOT, GID_WHEEL, 0600, "cx%d", b->num*NCHAN + c->num);
 		d->devt->si_drv1 = d;
-		callout_init (&d->dcd_timeout_handle,
-			     cx_mpsafenet ? CALLOUT_MPSAFE : 0);
+		callout_init (&d->dcd_timeout_handle, CALLOUT_MPSAFE);
 	}
 	splx (s);
 
@@ -2538,9 +2519,6 @@ static int cx_modevent (module_t mod, int type, void *unused)
 {
 	static int load_count = 0;
 
-	if (cx_mpsafenet)
-		cx_cdevsw.d_flags &= ~D_NEEDGIANT;
-
 	switch (type) {
 	case MOD_LOAD:
 #ifdef NETGRAPH
@@ -2549,11 +2527,11 @@ static int cx_modevent (module_t mod, int type, void *unused)
 #endif
 		++load_count;
 
-		callout_init (&timeout_handle, cx_mpsafenet?CALLOUT_MPSAFE:0);
+		callout_init (&timeout_handle, CALLOUT_MPSAFE);
 		callout_reset (&timeout_handle, hz*5, cx_timeout, 0);
 		/* Software interrupt. */
 		swi_add(&tty_intr_event, "cx", cx_softintr, NULL, SWI_TTY,
-		    (cx_mpsafenet?INTR_MPSAFE:0), &cx_fast_ih);
+		    INTR_MPSAFE, &cx_fast_ih);
 		break;
 	case MOD_UNLOAD:
 		if (load_count == 1) {

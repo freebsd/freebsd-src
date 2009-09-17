@@ -22,6 +22,76 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090217:
+	The rc.conf(5) option if_up_delay has been renamed to
+	defaultroute_delay to better reflect its purpose. If you have
+	customized this setting in /etc/rc.conf you need to update it to
+	use the new name.
+
+20090216:
+	xorg 7.4 wants to configure its input devices via hald which does not
+	yet work with USB2. If the keyboard/mouse does not work in xorg then
+	add
+		Option "AllowEmptyInput" "off"
+	to your ServerLayout section.  This will cause X to use the configured
+	kbd and mouse sections from your xorg.conf.
+
+20090215:
+	The GENERIC kernels for all architectures now default to the new USB2
+	stack. No kernel config options or code have been removed so if a
+	problem arises please report it and optionally revert to the old USB
+	stack. If you are loading USB kernel modules or have a custom kernel
+	that includes GENERIC then ensure that usb names are also changed over,
+	eg uftdi -> usb2_serial_ftdi.
+
+20090203:
+	The ichsmb(4) driver has been changed to require SMBus slave
+	addresses be left-justified (xxxxxxx0b) rather than right-justified.
+	All of the other SMBus controller drivers require left-justified
+	slave addresses, so this change makes all the drivers provide the
+	same interface.
+
+20090201:
+	INET6 statistics (struct ip6stat) was updated.
+	netstat(1) needs to be recompiled.
+
+20090119:
+	NTFS has been removed from GENERIC kernel on amd64 to match
+	GENERIC on i386. Should not cause any issues since mount_ntfs(8)
+	will load ntfs.ko module automatically when NTFS support is
+	actually needed, unless ntfs.ko is not installed or security
+	level prohibits loading kernel modules. If either is the case,
+	"options NTFS" has to be added into kernel config.
+
+20090115:
+	TCP Appropriate Byte Counting (RFC 3465) support added to kernel.
+	New field in struct tcpcb breaks ABI, so bump __FreeBSD_version to
+	800061. User space tools that rely on the size of struct tcpcb in
+	tcp_var.h (e.g. sockstat) need to be recompiled.
+
+20081225:
+	ng_tty(4) module updated to match the new TTY subsystem.
+	Due to API change, user-level applications must be updated.
+	New API support added to mpd5 CVS and expected to be present
+	in next mpd5.3 release.
+
+20081219:
+	With __FreeBSD_version 800060 the makefs tool is part of
+	the base system (it was a port).
+
+20081216:
+	The afdata and ifnet locks have been changed from mutexes to
+	rwlocks, network modules will need to be re-compiled.
+
+20081214:
+	__FreeBSD_version 800059 incorporates the new arp-v2 rewrite.
+	RTF_CLONING, RTF_LLINFO and RTF_WASCLONED flags are eliminated.
+	The new code reduced struct rtentry{} by 16 bytes on 32-bit
+	architecture and 40 bytes on 64-bit architecture. The userland
+	applications "arp" and "ndp" have been updated accordingly.
+	The output from "netstat -r" shows only routing entries and
+	none of the L2 information.
+
 20081130:
 	__FreeBSD_version 800057 marks the switchover from the
 	binary ath hal to source code. Users must add the line:
@@ -38,11 +108,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	and thereby the code size); consult ath_hal(4) for details.
 
 20081121:
-	__FreeBSD_version 800054 adds memory barriers to 
-	<machine/atomic.h>, new interfaces to ifnet to facilitate 
+	__FreeBSD_version 800054 adds memory barriers to
+	<machine/atomic.h>, new interfaces to ifnet to facilitate
 	multiple hardware transmit queues for cards that support
 	them, and a lock-less ring-buffer implementation to
-	enable drivers to more efficiently manage queueing of 
+	enable drivers to more efficiently manage queueing of
 	packets.
 
 20081117:
@@ -287,11 +357,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	be recompiled; this includes the hal and xorg-server ports.
 
 20070928:
-        The caching daemon (cached) was renamed to nscd. nscd.conf
-        configuration file should be used instead of cached.conf and
-        nscd_enable, nscd_pidfile and nscd_flags options should be used
-        instead of cached_enable, cached_pidfile and cached_flags in
-        rc.conf.
+	The caching daemon (cached) was renamed to nscd. nscd.conf
+	configuration file should be used instead of cached.conf and
+	nscd_enable, nscd_pidfile and nscd_flags options should be used
+	instead of cached_enable, cached_pidfile and cached_flags in
+	rc.conf.
 
 20070921:
 	The getfacl(1) utility now prints owning user and group name
@@ -299,7 +369,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	This is the same behavior as getfacl(1) on Solaris and Linux.
 
 20070704:
-        The new IPsec code is now compiled in using the IPSEC option.  The
+	The new IPsec code is now compiled in using the IPSEC option.  The
 	IPSEC option now requires "device crypto" be defined in your kernel
 	configuration.  The FAST_IPSEC kernel option is now deprecated.
 
@@ -602,10 +672,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	If you have such a file, you need old utility to decrypt it.
 
 20060709:
- 	The interface version of the i4b kernel part has changed. So
- 	after updating the kernel sources and compiling a new kernel,
- 	the i4b user space tools in "/usr/src/usr.sbin/i4b" must also
- 	be rebuilt, and vice versa.
+	The interface version of the i4b kernel part has changed. So
+	after updating the kernel sources and compiling a new kernel,
+	the i4b user space tools in "/usr/src/usr.sbin/i4b" must also
+	be rebuilt, and vice versa.
 
 20060627:
 	The XBOX kernel now defaults to the nfe(4) driver instead of
@@ -1071,7 +1141,7 @@ COMMON ITEMS:
 	<reboot into current>
 	<do a "native" rebuild/install as described in the previous section>
 	<maybe install compatibility libraries from ports/misc/compat*>
- 	<reboot>
+	<reboot>
 
 
 	To upgrade in-place from 5.x-stable to current

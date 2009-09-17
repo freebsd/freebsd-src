@@ -42,6 +42,16 @@
 
 MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 
+struct mca_info {
+	STAILQ_ENTRY(mca_info) mi_link;
+	char	mi_name[32];
+	size_t	mi_recsz;
+	char	mi_record[0];
+};
+
+static STAILQ_HEAD(, mca_info) mca_records =
+    STAILQ_HEAD_INITIALIZER(mca_records);
+
 int64_t		mca_info_size[SAL_INFO_TYPES];
 vm_offset_t	mca_info_block;
 struct mtx	mca_info_block_lock;
@@ -76,14 +86,32 @@ mca_sysctl_handler(SYSCTL_HANDLER_ARGS)
 }
 
 void
+ia64_mca_populate(void)
+{
+	struct mca_info *rec;
+
+	mtx_lock_spin(&mca_info_block_lock);
+	while (!STAILQ_EMPTY(&mca_records)) {
+		rec = STAILQ_FIRST(&mca_records);
+		STAILQ_REMOVE_HEAD(&mca_records, mi_link);
+		mtx_unlock_spin(&mca_info_block_lock);
+		(void)SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca),
+		    OID_AUTO, rec->mi_name, CTLTYPE_OPAQUE | CTLFLAG_RD,
+		    rec->mi_record, rec->mi_recsz, mca_sysctl_handler, "S,MCA",
+		    "Error record");
+		mtx_lock_spin(&mca_info_block_lock);
+	}
+	mtx_unlock_spin(&mca_info_block_lock);
+}
+
+void
 ia64_mca_save_state(int type)
 {
 	struct ia64_sal_result result;
 	struct mca_record_header *hdr;
-	struct sysctl_oid *oidp;
-	char *name, *state;
+	struct mca_info *rec;
 	uint64_t seqnr;
-	size_t recsz, totsz;
+	size_t recsz;
 
 	/*
 	 * Don't try to get the state if we couldn't get the size of
@@ -95,9 +123,8 @@ ia64_mca_save_state(int type)
 	if (mca_info_block == 0)
 		return;
 
+	mtx_lock_spin(&mca_info_block_lock);
 	while (1) {
-		mtx_lock_spin(&mca_info_block_lock);
-
 		result = ia64_sal_entry(SAL_GET_STATE_INFO, type, 0,
 		    mca_info_block, 0, 0, 0, 0);
 		if (result.sal_status < 0) {
@@ -111,11 +138,13 @@ ia64_mca_save_state(int type)
 
 		mtx_unlock_spin(&mca_info_block_lock);
 
-		totsz = sizeof(struct sysctl_oid) + recsz + 32;
-		oidp = malloc(totsz, M_MCA, M_NOWAIT|M_ZERO);
-		state = (char*)(oidp + 1);
-		name = state + recsz;
-		sprintf(name, "%lld", (long long)seqnr);
+		rec = malloc(sizeof(struct mca_info) + recsz, M_MCA,
+		    M_NOWAIT | M_ZERO);
+		if (rec == NULL)
+			/* XXX: Not sure what to do. */
+			return;
+
+		sprintf(rec->mi_name, "%lld", (long long)seqnr);
 
 		mtx_lock_spin(&mca_info_block_lock);
 
@@ -133,24 +162,14 @@ ia64_mca_save_state(int type)
 			    mca_info_block, 0, 0, 0, 0);
 			if (seqnr != hdr->rh_seqnr) {
 				mtx_unlock_spin(&mca_info_block_lock);
-				free(oidp, M_MCA);
+				free(rec, M_MCA);
+				mtx_lock_spin(&mca_info_block_lock);
 				continue;
 			}
 		}
 
-		bcopy((char*)mca_info_block, state, recsz);
-
-		oidp->oid_parent = &sysctl__hw_mca_children;
-		oidp->oid_number = OID_AUTO;
-		oidp->oid_kind = CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_DYN;
-		oidp->oid_arg1 = state;
-		oidp->oid_arg2 = recsz;
-		oidp->oid_name = name;
-		oidp->oid_handler = mca_sysctl_handler;
-		oidp->oid_fmt = "S,MCA";
-		oidp->oid_descr = "Error record";
-
-		sysctl_register_oid(oidp);
+		rec->mi_recsz = recsz;
+		bcopy((char*)mca_info_block, rec->mi_record, recsz);
 
 		if (mca_count > 0) {
 			if (seqnr < mca_first)
@@ -161,6 +180,7 @@ ia64_mca_save_state(int type)
 			mca_first = mca_last = seqnr;
 
 		mca_count++;
+		STAILQ_INSERT_TAIL(&mca_records, rec, mi_link);
 
 		/*
 		 * Clear the state so that we get any other records when
@@ -168,8 +188,6 @@ ia64_mca_save_state(int type)
 		 */
 		result = ia64_sal_entry(SAL_CLEAR_STATE_INFO, type, 0, 0, 0,
 		    0, 0, 0);
-
-		mtx_unlock_spin(&mca_info_block_lock);
 	}
 }
 

@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2005
+.Dd December 17, 2008
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -602,11 +602,9 @@ Do YOU understand the following?
 	k = !(l & FLAGS);
 .Ed
 .Pp
-Exits should be 0 on success, or according to the predefined
-values in
-.Xr sysexits 3 .
+Exits should be 0 on success, or 1 on failure.
 .Bd -literal
-	exit(EX_OK);	/*
+	exit(0);	/*
 			 * Avoid obvious comments such as
 			 * "Exit 0 on success."
 			 */
@@ -806,7 +804,7 @@ placed in a single set of brackets.
 .Ed
 .Bd -literal
 	(void)fprintf(stderr, "usage: f [-ab]\en");
-	exit(EX_USAGE);
+	exit(1);
 }
 .Ed
 .Pp
@@ -840,7 +838,6 @@ and produce minimal warnings.
 .Xr indent 1 ,
 .Xr lint 1 ,
 .Xr err 3 ,
-.Xr sysexits 3 ,
 .Xr warn 3 ,
 .Xr style.Makefile 5
 .Sh HISTORY

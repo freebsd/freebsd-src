@@ -166,22 +166,10 @@ main(int argc, char *argv[])
 
 	openlog(RFCOMM_PPPD, LOG_PID | LOG_PERROR | LOG_NDELAY, LOG_USER);
 
-	if (detach) {
-		pid = fork();
-		if (pid == (pid_t) -1) {
-			syslog(LOG_ERR, "Could not fork(). %s (%d)",
-				strerror(errno), errno);
-			exit(1);
-		}
-
-		if (pid != 0)
-			exit(0);
-
-		if (daemon(0, 0) < 0) {
-			syslog(LOG_ERR, "Could not daemon(0, 0). %s (%d)",
-				strerror(errno), errno);
-			exit(1);
-		}
+	if (detach && daemon(0, 0) < 0) {
+		syslog(LOG_ERR, "Could not daemon(0, 0). %s (%d)",
+			strerror(errno), errno);
+		exit(1);
 	}
 
 	s = socket(PF_BLUETOOTH, SOCK_STREAM, BLUETOOTH_PROTO_RFCOMM);

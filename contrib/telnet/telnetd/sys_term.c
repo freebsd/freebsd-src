@@ -1271,8 +1271,18 @@ scrub_env(void)
 
 	char **cpp, **cpp2;
 	const char **p;
- 
- 	for (cpp2 = cpp = environ; *cpp; cpp++) {
+	char ** new_environ;
+	size_t count;
+
+	/* Allocate space for scrubbed environment. */
+	for (count = 1, cpp = environ; *cpp; count++, cpp++)
+		continue;
+	if ((new_environ = malloc(count * sizeof(char *))) == NULL) {
+		environ = NULL;
+		return;
+	}
+
+ 	for (cpp2 = new_environ, cpp = environ; *cpp; cpp++) {
 		int reject_it = 0;
 
 		for(p = rej; *p; p++)
@@ -1286,10 +1296,15 @@ scrub_env(void)
 		for(p = acc; *p; p++)
 			if(strncmp(*cpp, *p, strlen(*p)) == 0)
 				break;
-		if(*p != NULL)
- 			*cpp2++ = *cpp;
+		if(*p != NULL) {
+			if ((*cpp2++ = strdup(*cpp)) == NULL) {
+				environ = new_environ;
+				return;
+			}
+		}
  	}
 	*cpp2 = NULL;
+	environ = new_environ;
 }
 
 /*

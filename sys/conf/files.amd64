@@ -128,10 +128,14 @@ amd64/pci/pci_bus.c		optional	pci
 amd64/pci/pci_cfgreg.c		optional	pci
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/via/padlock.c		optional	padlock
+crypto/via/padlock_cipher.c	optional	padlock
+crypto/via/padlock_hash.c	optional	padlock
 dev/acpica/acpi_if.m		standard
-dev/agp/agp_amd64.c			optional	agp
-dev/agp/agp_i810.c			optional	agp
-dev/agp/agp_intel.c			optional	agp
+dev/agp/agp_amd64.c		optional	agp
+dev/agp/agp_i810.c		optional	agp
+dev/agp/agp_intel.c		optional	agp
+dev/agp/agp_via.c		optional	agp
 dev/arcmsr/arcmsr.c		optional	arcmsr pci
 dev/asmc/asmc.c			optional	asmc isa
 dev/atkbdc/atkbd.c		optional	atkbd atkbdc
@@ -184,7 +188,7 @@ dev/hwpmc/hwpmc_piv.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/k8temp/k8temp.c		optional	k8temp
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd | usb2_input_kbd
 dev/mem/memutil.c		optional	mem
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/nve/if_nve.c		optional	nve pci
@@ -196,9 +200,10 @@ dev/sio/sio_pci.c		optional	sio pci
 dev/sio/sio_puc.c		optional	sio puc
 dev/speaker/spkr.c		optional	speaker
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
-dev/syscons/scterm-sc.c		optional	sc
+dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
+dev/syscons/teken/teken.c	optional sc
 dev/uart/uart_cpu_amd64.c	optional	uart
 dev/wpi/if_wpi.c		optional	wpi
 isa/atrtc.c			standard

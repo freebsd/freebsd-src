@@ -28,6 +28,8 @@
         ..
         defaults
         ..
+        devd
+        ..
         gnats
         ..
         gss

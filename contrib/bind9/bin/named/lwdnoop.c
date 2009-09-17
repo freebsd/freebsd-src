@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwdnoop.c,v 1.7.18.2 2005/04/29 00:15:25 marka Exp $ */
+/* $Id: lwdnoop.c,v 1.7.18.4 2008/01/22 23:27:05 tbox Exp $ */
 
 /*! \file */
 
@@ -44,7 +44,7 @@ ns_lwdclient_processnoop(ns_lwdclient_t *client, lwres_buffer_t *b) {
 	result = lwres_nooprequest_parse(client->clientmgr->lwctx,
 					 b, &client->pkt, &req);
 	if (result != LWRES_R_SUCCESS)
-		goto out;
+		goto send_error;
 
 	client->pkt.recvlength = LWRES_RECVLENGTH;
 	client->pkt.authtype = 0; /* XXXMLG */
@@ -57,7 +57,7 @@ ns_lwdclient_processnoop(ns_lwdclient_t *client, lwres_buffer_t *b) {
 	lwres = lwres_noopresponse_render(client->clientmgr->lwctx, &resp,
 					  &client->pkt, &lwb);
 	if (lwres != LWRES_R_SUCCESS)
-		goto out;
+		goto cleanup_req;
 
 	r.base = lwb.base;
 	r.length = lwb.used;
@@ -65,7 +65,7 @@ ns_lwdclient_processnoop(ns_lwdclient_t *client, lwres_buffer_t *b) {
 	client->sendlength = r.length;
 	result = ns_lwdclient_sendreply(client, &r);
 	if (result != ISC_R_SUCCESS)
-		goto out;
+		goto cleanup_lwb;
 
 	/*
 	 * We can now destroy request.
@@ -76,13 +76,12 @@ ns_lwdclient_processnoop(ns_lwdclient_t *client, lwres_buffer_t *b) {
 
 	return;
 
- out:
-	if (req != NULL)
-		lwres_nooprequest_free(client->clientmgr->lwctx, &req);
+ cleanup_lwb:
+	lwres_context_freemem(client->clientmgr->lwctx, lwb.base, lwb.length);
 
-	if (lwb.base != NULL)
-		lwres_context_freemem(client->clientmgr->lwctx,
-				      lwb.base, lwb.length);
+ cleanup_req:
+	lwres_nooprequest_free(client->clientmgr->lwctx, &req);
 
+ send_error:
 	ns_lwdclient_errorpktsend(client, LWRES_R_FAILURE);
 }

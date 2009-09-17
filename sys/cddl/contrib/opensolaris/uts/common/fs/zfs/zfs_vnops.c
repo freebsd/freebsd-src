@@ -4697,8 +4697,8 @@ vop_listextattr {
 		return (error);
 	}
 
-	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | MPSAFE, UIO_SYSSPACE,
-	    ".", xvp, td);
+	NDINIT_ATVP(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKSHARED | MPSAFE,
+	    UIO_SYSSPACE, ".", xvp, td);
 	error = namei(&nd);
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);

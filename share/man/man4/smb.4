@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 25, 1998
+.Dd February 6, 2009
 .Dt SMB 4
 .Os
 .Sh NAME
@@ -72,6 +72,9 @@ The
 .Fa slave
 field is always used, and provides the address of the
 SMBus slave device to talk to.
+The slave address is specified in the seven most significant bits
+.Pq i.e. Dq "left-justified" .
+The least significant bit of the slave address must be zero.
 .Pp
 .Bl -column ".Dv SMB_QUICK_WRITE" -compact
 .It Em Ioctl Ta Em Description

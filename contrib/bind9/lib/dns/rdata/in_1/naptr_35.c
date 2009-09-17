@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: naptr_35.c,v 1.47.18.2 2005/04/29 00:16:42 marka Exp $ */
+/* $Id: naptr_35.c,v 1.47.18.4 2008/02/15 23:45:53 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 16:52:50 PST 2000 by bwelling */
 
@@ -154,7 +154,7 @@ totext_in_naptr(ARGS_TOTEXT) {
 
 static inline isc_result_t
 fromwire_in_naptr(ARGS_FROMWIRE) {
-        dns_name_t name;
+	dns_name_t name;
 	isc_region_t sr;
 
 	REQUIRE(type == 35);
@@ -165,7 +165,7 @@ fromwire_in_naptr(ARGS_FROMWIRE) {
 
 	dns_decompress_setmethods(dctx, DNS_COMPRESS_NONE);
 
-        dns_name_init(&name, NULL);
+	dns_name_init(&name, NULL);
 
 	/*
 	 * Order, preference.
@@ -321,8 +321,8 @@ fromstruct_in_naptr(ARGS_FROMSTRUCT) {
 	REQUIRE(naptr->common.rdtype == type);
 	REQUIRE(naptr->common.rdclass == rdclass);
 	REQUIRE(naptr->flags != NULL || naptr->flags_len == 0);
-	REQUIRE(naptr->service != NULL && naptr->service_len == 0);
-	REQUIRE(naptr->regexp != NULL && naptr->regexp_len == 0);
+	REQUIRE(naptr->service != NULL || naptr->service_len == 0);
+	REQUIRE(naptr->regexp != NULL || naptr->regexp_len == 0);
 
 	UNUSED(type);
 	UNUSED(rdclass);

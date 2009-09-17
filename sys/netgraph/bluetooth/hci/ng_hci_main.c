@@ -728,7 +728,7 @@ ng_hci_drv_rcvdata(hook_p hook, item_p item)
 
 		if ((unit->state & NG_HCI_UNIT_READY) != NG_HCI_UNIT_READY ||
 		    unit->sco == NULL || NG_HOOK_NOT_VALID(unit->sco)) {
-			NG_HCI_WARN(
+			NG_HCI_INFO(
 "%s: %s - could not forward HCI SCO data packet, state=%#x, hook=%p\n",
 				__func__, NG_NODE_NAME(unit->node), 
 				unit->state, unit->sco);

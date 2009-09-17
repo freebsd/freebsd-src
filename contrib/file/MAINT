@@ -1,4 +1,4 @@
-$File: MAINT,v 1.9 2007/01/19 21:15:27 christos Exp $
+$File: MAINT,v 1.10 2008/02/05 19:08:11 christos Exp $
 
 Maintenance notes:
 
@@ -41,5 +41,4 @@ ascmagic.c			file_ascmagic()
 readelf.c		file_tryelf()
 				"unknown"
 
-Christos Zoulas
-christos@astron.com
+Christos Zoulas (see README for email address)

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.c,v 1.12.944.4 2008/07/28 22:44:46 marka Exp $ */
+/* $Id: resource.c,v 1.12.18.6 2008/08/05 07:17:05 marka Exp $ */
 
 #include <config.h>
 
@@ -32,7 +32,7 @@
 #include <linux/fs.h>	/* To get the large NR_OPEN. */
 #endif
 
-#ifdef __hpux
+#if defined(__hpux) && defined(HAVE_SYS_DYNTUNE_H)
 #include <sys/dyntune.h>
 #endif
 
@@ -48,13 +48,13 @@ resource2rlim(isc_resource_t resource, int *rlim_resource) {
 		break;
 	case isc_resource_cputime:
 		*rlim_resource = RLIMIT_CPU;
-		break;		
+		break;
 	case isc_resource_datasize:
 		*rlim_resource = RLIMIT_DATA;
-		break;		
+		break;
 	case isc_resource_filesize:
 		*rlim_resource = RLIMIT_FSIZE;
-		break;		
+		break;
 	case isc_resource_lockedmemory:
 #ifdef RLIMIT_MEMLOCK
 		*rlim_resource = RLIMIT_MEMLOCK;
@@ -87,7 +87,7 @@ resource2rlim(isc_resource_t resource, int *rlim_resource) {
 		*rlim_resource = RLIMIT_STACK;
 		break;
 	default:
-                /*
+		/*
 		 * This test is not very robust if isc_resource_t
 		 * changes, but generates a clear assertion message.
 		 */
@@ -140,51 +140,6 @@ isc_resource_setlimit(isc_resource_t resource, isc_resourcevalue_t value) {
 		rlim_value = value;
 	}
 
-	/*
-	 * The BIND 8 documentation reports:
-	 *
-	 *	Note: on some operating systems the server cannot set an
-	 *	unlimited value and cannot determine the maximum number of
-	 *	open files the kernel can support. On such systems, choosing
-	 *	unlimited will cause the server to use the larger of the
-	 *	rlim_max for RLIMIT_NOFILE and the value returned by
-	 *	sysconf(_SC_OPEN_MAX). If the actual kernel limit is larger
-	 *	than this value, use limit files to specify the limit
-	 *	explicitly.
-	 *
-	 * The CHANGES for 8.1.2-T3A also mention:
-	 *
-	 *	352. [bug] Because of problems with setting an infinite
-	 *	rlim_max for RLIMIT_NOFILE on some systems, previous versions
-	 *	of the server implemented "limit files unlimited" by setting
-	 *	the limit to the value returned by sysconf(_SC_OPEN_MAX).  The
-	 *	server will now use RLIM_INFINITY on systems which allow it.
-	 *
-	 * At some point the BIND 8 server stopped using SC_OPEN_MAX for this
-	 * purpose at all, but it isn't clear to me when or why, as my access
-	 * to the CVS archive is limited at the time of this writing.  What
-	 * BIND 8 *does* do is to set RLIMIT_NOFILE to either RLIMIT_INFINITY
-	 * on a half dozen operating systems or to FD_SETSIZE on the rest,
-	 * the latter of which is probably fewer than the real limit.  (Note
-	 * that libisc's socket module will have problems with any fd over
-	 * FD_SETSIZE.  This should be fixed in the socket module, not a
-	 * limitation here.  BIND 8's eventlib also has a problem, making
-	 * its RLIMIT_INFINITY setting useless, because it closes and ignores
-	 * any fd over FD_SETSIZE.)
-	 *
-	 * More troubling is the reference to some operating systems not being
-	 * able to set an unlimited value for the number of open files.  I'd
-	 * hate to put in code that is really only there to support archaic
-	 * systems that the rest of libisc won't work on anyway.  So what this
-	 * extremely verbose comment is here to say is the following:
-	 *
-	 *   I'm aware there might be an issue with not limiting the value
-	 *   for RLIMIT_NOFILE on some systems, but since I don't know yet
-	 *   what those systems are and what the best workaround is (use
-	 *   sysconf()?  rlim_max from getrlimit()?  FD_SETSIZE?) so nothing
-	 *   is currently being done to clamp the value for open files.
-	 */
-
 	rl.rlim_cur = rl.rlim_max = rlim_value;
 	unixresult = setrlimit(unixresource, &rl);
 
@@ -215,7 +170,7 @@ isc_resource_setlimit(isc_resource_t resource, isc_resourcevalue_t value) {
 		if (unixresult == 0)
 			return (ISC_R_SUCCESS);
 	}
-#elif defined(__hpux)
+#elif defined(__hpux) && defined(HAVE_SYS_DYNTUNE_H)
 	if (resource == isc_resource_openfiles && rlim_value == RLIM_INFINITY) {
 		uint64_t maxfiles;
 		if (gettune("maxfiles_lim", &maxfiles) == 0) {
@@ -255,7 +210,7 @@ isc_resource_getlimit(isc_resource_t resource, isc_resourcevalue_t *value) {
 }
 
 isc_result_t
-isc_resource_curlimit(isc_resource_t resource, isc_resourcevalue_t *value) {
+isc_resource_getcurlimit(isc_resource_t resource, isc_resourcevalue_t *value) {
 	int unixresult;
 	int unixresource;
 	struct rlimit rl;

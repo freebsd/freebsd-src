@@ -202,10 +202,10 @@ commonpathlength(const char *a, size_t alen, const char *b, size_t blen)
 	return (minlen);
 }
 
-char *
-pathlast(char *path)
+const char *
+pathlast(const char *path)
 {
-	char *s;
+	const char *s;
 
 	s = strrchr(path, '/');
 	if (s == NULL)
@@ -249,6 +249,31 @@ rcsdatetotime(const char *revdate)
 }
 
 /*
+ * Checks if a file is an RCS file.
+ */
+int
+isrcs(const char *file, size_t *len)
+{
+	const char *cp;
+
+	if (file[0] == '/')
+		return (0);
+	cp = file;
+	while ((cp = strstr(cp, "..")) != NULL) {
+		if (cp == file || cp[2] == '\0' ||
+		    (cp[-1] == '/' && cp[2] == '/'))
+			return (0);
+		cp += 2;
+	}
+	*len = strlen(file);
+	if (*len < 2 || file[*len - 1] != 'v' || file[*len - 2] != ',') {
+		return (0);
+	}
+
+	return (1);
+}
+
+/*
  * Returns a buffer allocated with malloc() containing the absolute
  * pathname to the checkout file made from the prefix and the path
  * of the corresponding RCS file relatively to the prefix.  If the
@@ -257,23 +282,51 @@ rcsdatetotime(const char *revdate)
 char *
 checkoutpath(const char *prefix, const char *file)
 {
-	const char *cp;
 	char *path;
 	size_t len;
 
-	if (file[0] == '/')
-		return (NULL);
-	cp = file;
-	while ((cp = strstr(cp, "..")) != NULL) {
-		if (cp == file || cp[2] == '\0' ||
-		    (cp[-1] == '/' && cp[2] == '/'))
-			return (NULL);
-		cp += 2;
-	}
-	len = strlen(file);
-	if (len < 2 || file[len - 1] != 'v' || file[len - 2] != ',')
+	if (!isrcs(file, &len))
 		return (NULL);
 	xasprintf(&path, "%s/%.*s", prefix, (int)len - 2, file);
+	return (path);
+}
+
+/*
+ * Returns a cvs path allocated with malloc() containing absolute pathname to a
+ * file in cvs mode which can reside in the attic. XXX: filename has really no
+ * restrictions.
+ */
+char *
+cvspath(const char *prefix, const char *file, int attic)
+{
+	const char *last;
+	char *path;
+
+	last = pathlast(file);
+	if (attic)
+		xasprintf(&path, "%s/%.*sAttic/%s", prefix, (int)(last - file),
+		    file, last);
+	else
+		xasprintf(&path, "%s/%s", prefix, file);
+
+	return (path);
+}
+
+/*
+ * Regular or attic path if regular fails.
+ * XXX: This should perhaps also check if the Attic file exists too, and return
+ * NULL if not.
+ */
+char *
+atticpath(const char *prefix, const char *file)
+{
+	char *path;
+
+	path = cvspath(prefix, file, 0);
+	if (access(path, F_OK) != 0) {
+		free(path);
+		path = cvspath(prefix, file, 1);
+	}
 	return (path);
 }
 
@@ -519,4 +572,74 @@ bt_free(struct backoff_timer *bt)
 {
 
 	free(bt);
+}
+
+/* Compare two revisions. */
+int
+rcsnum_cmp(char *revision1, char *revision2)
+{
+        char *ptr1, *ptr2, *dot1, *dot2;
+	int num1len, num2len, ret;
+
+        ptr1 = revision1;
+        ptr2 = revision2;
+        while (*ptr1 != '\0' && *ptr2 != '\0') {
+                dot1 = strchr(ptr1, '.');
+                dot2 = strchr(ptr2, '.');
+                if (dot1 == NULL)
+                        dot1 = strchr(ptr1, '\0');
+                if (dot2 == NULL)
+                        dot2 = strchr(ptr2, '\0');
+
+		num1len = dot1 - ptr1;
+		num2len = dot2 - ptr2;
+                /* Check the distance between each, showing how many digits */
+                if (num1len > num2len)
+                        return (1);
+                else if (num1len < num2len)
+                        return (-1);
+
+                /* Equal distance means we must check each character. */
+		ret = strncmp(ptr1, ptr2, num1len);
+		if (ret != 0)
+			return (ret);
+		ptr1 = (*dot1 == '.') ? (dot1 + 1) : dot1;
+		ptr2 = (*dot2 == '.') ? (dot2 + 1) : dot2;
+        } 
+
+        if (*ptr1 != '\0' && *ptr2 == '\0')
+                return (1);
+        if (*ptr1 == '\0' && *ptr2 != '\0')
+                return (-1);
+        return (0);
+
+}
+
+/* Returns 0 if a rcsrev is not a trunk revision number. */
+int
+rcsrev_istrunk(char *revnum)
+{
+	char *tmp;
+
+	tmp = strchr(revnum, '.');
+	tmp++;
+	if (strchr(tmp, '.') != NULL)
+		return (0);
+	return (1);
+}
+
+/* Return prefix of rcsfile. */
+char *
+rcsrev_prefix(char *revnum)
+{
+	char *modrev, *pos;
+
+	modrev = xstrdup(revnum);
+	pos = strrchr(modrev, '.');
+	if (pos == NULL) {
+		free(modrev);
+		return (NULL);
+	}
+	*pos = '\0';
+	return (modrev);
 }

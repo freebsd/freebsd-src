@@ -75,12 +75,17 @@ pccarddevs.h			standard				   \
 	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
-usbdevs.h			optional usb				   \
+teken_state.h		optional sc					   \
+	dependency	"$S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences" \
+	compile-with	"${AWK} -f $S/dev/syscons/teken/gensequences $S/dev/syscons/teken/sequences > teken_state.h" \
+	no-obj no-implicit-rule before-depend				   \
+	clean		"teken_state.h"
+usbdevs.h			optional usb | usb2_core		   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -h" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"usbdevs.h"
-usbdevs_data.h			optional usb				   \
+usbdevs_data.h			optional usb | usb2_core		   \
 	dependency	"$S/tools/usbdevs2h.awk $S/dev/usb/usbdevs" \
 	compile-with	"${AWK} -f $S/tools/usbdevs2h.awk $S/dev/usb/usbdevs -d" \
 	no-obj no-implicit-rule before-depend				   \
@@ -1031,7 +1036,7 @@ iwnfw.fwo			optional iwnfw				\
 	dependency	"iwn.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn.fw" \
 	no-implicit-rule						\
-	clean		"iwn.fwo"
+	clean		"iwnfw.fwo"
 iwn.fw			optional iwnfw					\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-4965-4.44.17.fw.uu"	\
@@ -1229,7 +1234,7 @@ rt2561fw.fwo			optional rt2561fw | ralfw		\
 	dependency	"rt2561.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2561.fw" \
 	no-implicit-rule						\
-	clean		"rt2561.fwo"
+	clean		"rt2561fw.fwo"
 rt2561.fw			optional rt2561fw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561.fw.uu" \
@@ -1243,7 +1248,7 @@ rt2561sfw.fwo			optional rt2561sfw | ralfw		\
 	dependency	"rt2561s.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2561s.fw" \
 	no-implicit-rule						\
-	clean		"rt2561s.fwo"
+	clean		"rt2561sfw.fwo"
 rt2561s.fw			optional rt2561sfw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2561s.fw.uu"	\
@@ -1257,7 +1262,7 @@ rt2661fw.fwo			optional rt2661fw | ralfw		\
 	dependency	"rt2661.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2661.fw" \
 	no-implicit-rule						\
-	clean		"rt2661.fwo"
+	clean		"rt2661fw.fwo"
 rt2661.fw			optional rt2661fw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2661.fw.uu"	\
@@ -1271,7 +1276,7 @@ rt2860fw.fwo			optional rt2860fw | ralfw		\
 	dependency	"rt2860.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} rt2860.fw" \
 	no-implicit-rule						\
-	clean		"rt2860.fwo"
+	clean		"rt2860fw.fwo"
 rt2860.fw			optional rt2860fw | ralfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/ral/rt2860.fw.uu"	\
@@ -1332,7 +1337,6 @@ dev/sound/isa/sbc.c		optional snd_sbc isa
 dev/sound/isa/sndbuf_dma.c	optional sound isa
 dev/sound/pci/als4000.c		optional snd_als4000 pci
 dev/sound/pci/atiixp.c		optional snd_atiixp pci
-#dev/sound/pci/au88x0.c		optional snd_au88x0 pci
 dev/sound/pci/cmi.c		optional snd_cmi pci
 dev/sound/pci/cs4281.c		optional snd_cs4281 pci
 dev/sound/pci/csa.c		optional snd_csa pci \
@@ -1424,7 +1428,6 @@ dev/syscons/logo/logo_saver.c	optional logo_saver
 dev/syscons/rain/rain_saver.c	optional rain_saver
 dev/syscons/schistory.c		optional sc
 dev/syscons/scmouse.c		optional sc
-dev/syscons/scterm-dumb.c	optional sc
 dev/syscons/scterm.c		optional sc
 dev/syscons/scvidctl.c		optional sc
 dev/syscons/snake/snake_saver.c	optional snake_saver
@@ -1476,6 +1479,7 @@ dev/ubsec/ubsec.c		optional ubsec
 #
 # USB support
 dev/usb/ehci.c			optional ehci
+dev/usb/ehci_ddb.c		optional ehci
 dev/usb/ehci_pci.c		optional ehci pci
 dev/usb/hid.c			optional usb
 dev/usb/if_aue.c		optional aue
@@ -1563,7 +1567,6 @@ dev/usb2/ndis/usb2_ndis.c		optional usb2_core usb2_ndis
 #
 dev/usb2/core/usb2_busdma.c		optional usb2_core
 dev/usb2/core/usb2_compat_linux.c	optional usb2_core
-dev/usb2/core/usb2_config_td.c		optional usb2_core
 dev/usb2/core/usb2_core.c		optional usb2_core
 dev/usb2/core/usb2_debug.c		optional usb2_core
 dev/usb2/core/usb2_dev.c		optional usb2_core
@@ -1593,7 +1596,7 @@ dev/usb2/ethernet/if_cdce2.c		optional usb2_core usb2_ethernet usb2_ethernet_cdc
 dev/usb2/ethernet/if_cue2.c		optional usb2_core usb2_ethernet usb2_ethernet_cue
 dev/usb2/ethernet/if_kue2.c		optional usb2_core usb2_ethernet usb2_ethernet_kue
 dev/usb2/ethernet/if_rue2.c		optional usb2_core usb2_ethernet usb2_ethernet_rue
-dev/usb2/ethernet/if_udav2.c		optional usb2_core usb2_ethernet usb2_ethernet_udav
+dev/usb2/ethernet/if_udav2.c		optional usb2_core usb2_ethernet usb2_ethernet_dav
 dev/usb2/ethernet/usb2_ethernet.c	optional usb2_core usb2_ethernet
 #
 # USB2 WLAN drivers
@@ -1605,6 +1608,7 @@ dev/usb2/wlan/usb2_wlan.c	optional usb2_core usb2_wlan
 #
 # USB2 serial and parallel port drivers
 #
+dev/usb2/serial/u3g2.c		optional usb2_core usb2_serial usb2_serial_3g
 dev/usb2/serial/uark2.c		optional usb2_core usb2_serial usb2_serial_ark
 dev/usb2/serial/ubsa2.c		optional usb2_core usb2_serial usb2_serial_bsa
 dev/usb2/serial/ubser2.c	optional usb2_core usb2_serial usb2_serial_bser
@@ -1619,9 +1623,11 @@ dev/usb2/serial/umct2.c		optional usb2_core usb2_serial usb2_serial_mct
 dev/usb2/serial/umodem2.c	optional usb2_core usb2_serial usb2_serial_modem
 dev/usb2/serial/umoscom2.c	optional usb2_core usb2_serial usb2_serial_moscom
 dev/usb2/serial/uplcom2.c	optional usb2_core usb2_serial usb2_serial_plcom
+dev/usb2/serial/uslcom2.c	optional usb2_core usb2_serial usb2_serial_slcom
 dev/usb2/serial/usb2_serial.c	optional usb2_core usb2_serial
 dev/usb2/serial/uvisor2.c	optional usb2_core usb2_serial usb2_serial_visor
 dev/usb2/serial/uvscom2.c	optional usb2_core usb2_serial usb2_serial_vscom
+dev/usb2/serial/u3g2.c		optional usb2_core usb2_serial usb2_serial_3g
 #
 # USB2 bluetooth drivers
 #
@@ -1691,7 +1697,7 @@ wpifw.fwo			optional wpifw				\
 	dependency	"wpi.fw"					\
 	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} wpi.fw" \
 	no-implicit-rule						\
-	clean		"wpi.fwo"
+	clean		"wpifw.fwo"
 wpi.fw			optional wpifw					\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/wpi/iwlwifi-3945-2.14.4.fw.uu"	\
@@ -1834,6 +1840,7 @@ geom/part/g_part.c		standard
 geom/part/g_part_if.m		standard
 geom/part/g_part_apm.c		optional geom_part_apm
 geom/part/g_part_bsd.c		optional geom_part_bsd
+geom/part/g_part_ebr.c		optional geom_part_ebr
 geom/part/g_part_gpt.c		optional geom_part_gpt
 geom/part/g_part_mbr.c		optional geom_part_mbr
 geom/part/g_part_pc98.c		optional geom_part_pc98
@@ -1953,6 +1960,7 @@ kern/kern_timeout.c		standard
 kern/kern_umtx.c		standard
 kern/kern_uuid.c		standard
 kern/kern_xxx.c			standard
+kern/kern_vimage.c		standard
 kern/link_elf.c			standard
 kern/linker_if.m		standard
 kern/md4c.c			optional netsmb
@@ -2171,6 +2179,7 @@ net/if_gre.c			optional gre
 net/if_iso88025subr.c		optional token
 net/if_lagg.c			optional lagg
 net/if_loop.c			optional loop
+net/if_llatbl.c			standard
 net/if_media.c			standard
 net/if_mib.c			standard
 net/if_ppp.c			optional ppp
@@ -2225,6 +2234,7 @@ net80211/ieee80211_rssadapt.c	optional wlan_rssadapt
 net80211/ieee80211_scan.c	optional wlan
 net80211/ieee80211_scan_sta.c	optional wlan
 net80211/ieee80211_sta.c	optional wlan
+net80211/ieee80211_tdma.c	optional wlan
 net80211/ieee80211_wds.c	optional wlan
 net80211/ieee80211_xauth.c	optional wlan_xauth
 netatalk/aarp.c			optional netatalk
@@ -2283,6 +2293,7 @@ netgraph/ng_device.c		optional netgraph_device
 netgraph/ng_echo.c		optional netgraph_echo
 netgraph/ng_eiface.c		optional netgraph_eiface
 netgraph/ng_ether.c		optional netgraph_ether
+netgraph/ng_ether_echo.c	optional netgraph_ether_echo
 netgraph/ng_fec.c		optional netgraph_fec
 netgraph/ng_frame_relay.c	optional netgraph_frame_relay
 netgraph/ng_gif.c		optional netgraph_gif
@@ -2377,6 +2388,7 @@ netinet/libalias/alias_db.c	optional libalias | netgraph_nat
 netinet/libalias/alias_mod.c	optional libalias | netgraph_nat
 netinet/libalias/alias_proxy.c	optional libalias | netgraph_nat
 netinet/libalias/alias_util.c	optional libalias | netgraph_nat
+netinet/libalias/alias_sctp.c	optional libalias | netgraph_nat
 netinet6/dest6.c		optional inet6
 netinet6/frag6.c		optional inet6
 netinet6/icmp6.c		optional inet6
@@ -2529,7 +2541,10 @@ rpc/rpcsec_gss/svc_rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit
 security/audit/audit_bsm.c	optional audit
+security/audit/audit_bsm_domain.c	optional audit
+security/audit/audit_bsm_errno.c	optional audit
 security/audit/audit_bsm_klib.c	optional audit
+security/audit/audit_bsm_socket_type.c	optional audit
 security/audit/audit_bsm_token.c	optional audit
 security/audit/audit_pipe.c	optional audit
 security/audit/audit_syscalls.c	standard
