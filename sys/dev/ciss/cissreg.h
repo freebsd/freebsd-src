@@ -731,7 +731,7 @@ struct ciss_bmic_flush_cache {
 #define CISS_TL_PERF_INTR_OPQ	(CISS_TL_SIMPLE_INTR_OPQ_SA5 | CISS_TL_SIMPLE_INTR_OPQ_SA5B)
 #define CISS_TL_PERF_INTR_MSI	0x01
 
-#define CISS_TL_PERF_POST_CMD(sc, cr)		CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IPQ, CISS_FIND_COMMANDPHYS(cr) | (cr)->cr_sg_tag)
+#define CISS_TL_PERF_POST_CMD(sc, cr)		CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IPQ, cr->cr_ccphys | (cr)->cr_sg_tag)
 #define CISS_TL_PERF_FLUSH_INT(sc)		CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_OSR)
 #define CISS_TL_PERF_CLEAR_INT(sc)		CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_ODC, CISS_TL_SIMPLE_ODC_CLEAR)
 #define CISS_CYCLE_MASK		0x00000001
@@ -745,6 +745,7 @@ struct ciss_bmic_flush_cache {
 #define CISS_TL_SIMPLE_ENABLE_INTERRUPTS(sc) \
 	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IMR, \
 			     CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_IMR) & ~(sc)->ciss_interrupt_mask)
+
 
 
 #endif /* _KERNEL */
