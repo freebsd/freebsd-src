@@ -110,6 +110,8 @@
 #define NBPDR		(1<<PDRSHIFT)	/* bytes/page dir */
 #define PDRMASK		(NBPDR-1)
 
+#define	MAXPAGESIZES	2	/* maximum number of supported page sizes */
+
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
 #ifndef KSTACK_PAGES
