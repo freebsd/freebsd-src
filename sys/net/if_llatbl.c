@@ -377,5 +377,6 @@ vnet_lltable_init()
 
 	SLIST_INIT(&V_lltables);
 }
-VNET_SYSINIT(vnet_lltable_init, SI_SUB_PSEUDO, SI_ORDER_FIRST, vnet_lltable_init, NULL);
+VNET_SYSINIT(vnet_lltable_init, SI_SUB_PSEUDO, SI_ORDER_FIRST,
+    vnet_lltable_init, NULL);
 
