@@ -22,7 +22,7 @@ typedef int (*db_cb_func)(void *, int, char **, char **);
 
 int jdirdep(const char *srctop, const char *curdir, const char *srcrel, const char *objroot,
     const char *objdir, const char *sharedobj, const char *filedep_name,
-    const char *meta_created, int options);
+    const char *meta_created, int options, const char *jbuild);
 int64_t jdirdep_db_rowid(void);
 void jdirdep_db_close(void);
 void jdirdep_db_command(db_cb_func, void *, const char *, ...);

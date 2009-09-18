@@ -542,6 +542,7 @@ meta_exit(void)
 	char sharedobj[MAXPATHLEN];
 	const char *curdir;
 	const char *filedep_name;
+	const char *jbuild;
 	const char *meta_created;
 	const char *objdir;
 	const char *objroot;
@@ -587,6 +588,7 @@ meta_exit(void)
 		srcrel = Var_Value(".SRCREL", VAR_GLOBAL);
 		objdir = Var_Value(".OBJDIR", VAR_GLOBAL);
 		objroot = Var_Value(".OBJROOT", VAR_GLOBAL);
+		jbuild = Var_Value("JBUILD", VAR_GLOBAL);
 		filedep_name = Var_Value(".FILEDEP_NAME", VAR_GLOBAL);
 		meta_created = Var_Value(".META_CREATED", VAR_GLOBAL);
 
@@ -594,7 +596,8 @@ meta_exit(void)
 
 		/* Add any new directory and/or source dependencies. */
 		jdirdep(srctop, curdir, srcrel, objroot, objdir, sharedobj, filedep_name,
-		    meta_created, JDIRDEP_OPT_ADD | JDIRDEP_OPT_SOURCE | JDIRDEP_OPT_UPDATE);
+		    meta_created, JDIRDEP_OPT_ADD | JDIRDEP_OPT_SOURCE | JDIRDEP_OPT_UPDATE,
+		    jbuild);
 	}
 }
 

@@ -119,6 +119,8 @@ static char	**save_argv;	/* saved argv */
 static char	*save_makeflags;/* saved MAKEFLAGS */
 #ifdef MAKE_IS_BUILD
 static char	*save_mklvl;	/* saved __MKLVL__ */
+static char	*save_path;	/* saved PATH */
+static char	*save_manpath;	/* saved MANPATH */
 static char	*clean_environ[2];
 static char	*default_machine = NULL;
 #endif
@@ -953,6 +955,49 @@ mk_path_init(char *srctop, size_t ssrctop, const char *p)
 
 	strlcpy(srctop, path, ssrctop);
 }
+
+static void
+set_jbuild_path(char **argv)
+{
+	char candidate[PATH_MAX];
+	char *p;
+	char *p_path;
+	char resolved_path[PATH_MAX];
+	const char *d;
+	const char *p_jbuild;
+        struct stat fin;
+
+	if ((p_jbuild = Var_Value("JBUILD", VAR_GLOBAL)) != NULL) {
+		fprintf(stderr, "JBUILD is already set to '%s'\n", p_jbuild);
+	} else if (strchr(argv[0], '/') == NULL) {
+		if ((p_path = strdup(save_path)) == NULL)
+			err(ENOMEM, "strdup");
+		else {
+			p = p_path;
+
+			while ((d = strsep(&p, ":")) != NULL) {
+				if (*d == '\0')
+					d = ".";
+				if (snprintf(candidate, sizeof(candidate),
+				    "%s/jbuild", d) >= (int) sizeof(candidate))
+					continue;
+
+				if (access(candidate, X_OK) == 0 &&
+				    stat(candidate, &fin) == 0 &&
+				    S_ISREG(fin.st_mode) &&
+				    (getuid() != 0 ||
+				    (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0)) {
+					Var_SetGlobal("JBUILD", candidate);
+					return;
+				}
+			}
+		}
+		free(p_path);
+	} else if (realpath(argv[0], resolved_path) == NULL)
+	    err(errno, "Could not get realpath for '%s'", argv[0]);
+	else
+		Var_SetGlobal("JBUILD", resolved_path);
+}
 #endif
 
 /**
@@ -1004,6 +1049,8 @@ main(int argc, char **argv)
 
 #ifdef MAKE_IS_BUILD
 	save_mklvl = getenv(MKLVL_ENVVAR);
+	save_path = getenv("PATH");
+	save_manpath = getenv("MANPATH");
 #endif
 
 	/*
@@ -1179,6 +1226,11 @@ main(int argc, char **argv)
 #ifdef MAKE_IS_BUILD
 	if (default_machine != NULL)
 		Var_SetGlobal("DEFAULT_MACHINE", default_machine);
+
+	if (save_manpath != NULL)
+		setenv("MANPATH", save_manpath, 1);
+
+	set_jbuild_path(argv);
 #endif
 
 	/*

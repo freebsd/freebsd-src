@@ -648,7 +648,7 @@ lockf_delete(void)
 
 static void
 do_dirdep(const char *srctop, const char *curdir, const char *srcrel, const char *objroot,
-    const char *sharedobj, int options)
+    const char *sharedobj, int options, const char *p_jbuild)
 {
 	DIR *d;
 	FILE *fp;
@@ -1025,9 +1025,6 @@ do_dirdep(const char *srctop, const char *curdir, const char *srcrel, const char
 			err(1, "Could not delete '%s/%s", curdir, MAKEFILED);
 
 #ifdef JDIRDEP
-		const char *p_jbuild;
-		if ((p_jbuild = getenv("JBUILD")) == NULL)
-			p_jbuild = "jbuild";
 		snprintf(cmd, sizeof(cmd), "%s gendirdep", p_jbuild);
 #else
 		snprintf(cmd, sizeof(cmd), "build gendirdep");
@@ -1054,7 +1051,7 @@ do_dirdep(const char *srctop, const char *curdir, const char *srcrel, const char
 
 static void
 do_recurse(const char *srctop, const char *curdir, const char *srcrel, const char *objroot,
-    const char *sharedobj, int options)
+    const char *sharedobj, int options, const char *p_jbuild)
 {
 	DIR *d;
 	char path[MAXPATHLEN];
@@ -1084,7 +1081,7 @@ do_recurse(const char *srctop, const char *curdir, const char *srcrel, const cha
 		if (strcmp(de->d_name, MAKEFILE) == 0) {
 			printf("Processing: %s\n", path);
 			fflush(stdout);
-			do_dirdep(srctop, curdir, srcrel, objroot, sharedobj, options);
+			do_dirdep(srctop, curdir, srcrel, objroot, sharedobj, options, p_jbuild);
 			continue;
 		}
 
@@ -1097,7 +1094,7 @@ do_recurse(const char *srctop, const char *curdir, const char *srcrel, const cha
 			snprintf(xsrcrel, sizeof(xsrcrel), "%s%s%s", srcrel,
 			    *srcrel == '\0' ? "" : "/", de->d_name);
 
-			do_recurse(srctop, path, xsrcrel, objroot, sharedobj, options);
+			do_recurse(srctop, path, xsrcrel, objroot, sharedobj, options, p_jbuild);
 		}
 	}
 
@@ -1234,7 +1231,7 @@ jdirdep_incmk(const char *p)
 int
 jdirdep(const char *srctop, const char *curdir, const char *srcrel, const char *objroot,
     const char *objdir, const char *sharedobj, const char *filedep_name,
-    const char *meta_created, int options)
+    const char *meta_created, int options, const char *p_jbuild)
 {
 	FILE *fp;
 	char *meta_str = NULL;
@@ -1285,9 +1282,9 @@ jdirdep(const char *srctop, const char *curdir, const char *srcrel, const char *
 
 		fclose(fp);
 	} else if ((options & JDIRDEP_OPT_RECURSE) != 0)
-		do_recurse(srctop, curdir, srcrel, objroot, sharedobj, options);
+		do_recurse(srctop, curdir, srcrel, objroot, sharedobj, options, p_jbuild);
 	else
-		do_dirdep(srctop, curdir, srcrel, objroot, sharedobj, options);
+		do_dirdep(srctop, curdir, srcrel, objroot, sharedobj, options, p_jbuild);
 
 	jdirdep_db_close();
 
@@ -1303,6 +1300,7 @@ main(int argc, char *argv[])
 {
 	char curdir[MAXPATHLEN];
 	char *filedep_name = NULL;
+	char jbuild[MAXPATHLEN];
 	char objdir[MAXPATHLEN];
 	char objroot[MAXPATHLEN];
 	char objtop[MAXPATHLEN];
@@ -1334,6 +1332,11 @@ main(int argc, char *argv[])
 		errx(1, "SRCTOP is missing from the environment");
 
 	strlcpy(srctop, p, sizeof(srctop));
+
+	if ((p = getenv("JBUILD")) == NULL)
+		errx(1, "JBUILD is missing from the environment");
+
+	strlcpy(jbuild, p, sizeof(jbuild));
 
 	if ((p = getenv("SUPMAC")) == NULL)
 		errx(1, "SUPMAC is missing from the environment");
@@ -1420,6 +1423,6 @@ main(int argc, char *argv[])
 		}
 	}
 
-	return(jdirdep(srctop, curdir, srcrel, objroot, objdir, sharedobj, filedep_name, NULL, options));
+	return(jdirdep(srctop, curdir, srcrel, objroot, objdir, sharedobj, filedep_name, NULL, options, jbuild));
 }
 #endif
