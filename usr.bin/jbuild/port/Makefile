@@ -25,6 +25,7 @@ do-extract:
 	( cd ${WRKSRC} ;  ln -s ../../../filemon . ; ln -s ../../../../jbuild .; ln -s ../../../../jdirdep .; ln -s ../../../../make .)
 	cp Makefile.port ${WRKSRC}/Makefile
 	echo "UNAME="`uname | tr '[:upper:]' '[:lower:]'` > ${WRKDIR}/host_version
+	echo "UNAME_P="`uname -p` >> ${WRKDIR}/host_version
 	echo "MAJORVERSION="`uname -r | sed -e 's/\..*//'` >> ${WRKDIR}/host_version
 
 do-install:
