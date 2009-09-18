@@ -120,7 +120,6 @@ static char	*save_makeflags;/* saved MAKEFLAGS */
 #ifdef MAKE_IS_BUILD
 static char	*save_mklvl;	/* saved __MKLVL__ */
 static char	*save_path;	/* saved PATH */
-static char	*save_manpath;	/* saved MANPATH */
 static char	*clean_environ[2];
 static char	*default_machine = NULL;
 #endif
@@ -412,6 +411,16 @@ rearg:
 			char man_cmd[255];
 			snprintf(man_cmd, sizeof(man_cmd), "man %s",
 			    basename(save_argv[0]));
+			/*
+			 * Before invoking man(1), reset PATH
+			 * to the value from the environment.
+			 * This will allow manpath(1) to derive the location
+			 * of man directories based on directories in PATH.
+			 * For example, if /usr/special/bin is in PATH,
+			 * manpath(1) will look for man pages in /usr/special/man,
+			 * in addition to directories specified in /etc/manpath.config.
+			 */
+			setenv("PATH", save_path, 1);
 			system(man_cmd);
 			exit(2);
 		}
@@ -1050,7 +1059,6 @@ main(int argc, char **argv)
 #ifdef MAKE_IS_BUILD
 	save_mklvl = getenv(MKLVL_ENVVAR);
 	save_path = getenv("PATH");
-	save_manpath = getenv("MANPATH");
 #endif
 
 	/*
@@ -1226,9 +1234,6 @@ main(int argc, char **argv)
 #ifdef MAKE_IS_BUILD
 	if (default_machine != NULL)
 		Var_SetGlobal("DEFAULT_MACHINE", default_machine);
-
-	if (save_manpath != NULL)
-		setenv("MANPATH", save_manpath, 1);
 
 	set_jbuild_path(argv);
 #endif
