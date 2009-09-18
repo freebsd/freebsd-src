@@ -47,9 +47,9 @@
 .\"
 .Ft void
 .Fo ieee80211_process_callback
-.Fa struct ieee80211_node *
-.Fa struct mbuf *
-.Fa int
+.Fa "struct ieee80211_node *"
+.Fa "struct mbuf *"
+.Fa "int"
 .Fc
 .Sh DESCRIPTION
 The
@@ -101,7 +101,7 @@ Similarly,
 .Nm net80211
 handles activities such as background scanning and power save mode,
 frames will not be sent to a driver unless it is operating on the
-BSS channel will
+BSS channel with
 .Dq full power .
 .Pp
 All frames passed to a driver for transmit hold a reference to a
