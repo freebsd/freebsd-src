@@ -2427,8 +2427,10 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (error)
 		return (error);
 
-	if (msfr.msfr_nsrcs > in_mcast_maxsocksrc ||
-	    (msfr.msfr_fmode != MCAST_EXCLUDE &&
+	if (msfr.msfr_nsrcs > in_mcast_maxsocksrc)
+		return (ENOBUFS);
+
+	if ((msfr.msfr_fmode != MCAST_EXCLUDE &&
 	     msfr.msfr_fmode != MCAST_INCLUDE))
 		return (EINVAL);
 
