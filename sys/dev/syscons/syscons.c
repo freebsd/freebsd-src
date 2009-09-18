@@ -634,14 +634,8 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	    break;
 	case FKEY:  /* function key, return string */
 	    cp = kbdd_get_fkeystr(thiskbd, KEYCHAR(c), &len);
-	    if (cp != NULL) {
-		if (ttydisc_can_bypass(cur_tty)) {
-		    ttydisc_rint_bypass(cur_tty, cp, len);
-	    	} else {
-		    while (len-- >  0)
-			ttydisc_rint(cur_tty, *cp++, 0);
-		}
-	    }
+	    if (cp != NULL)
+	    	ttydisc_rint_simple(cur_tty, cp, len);
 	    break;
 	case MKEY:  /* meta is active, prepend ESC */
 	    ttydisc_rint(cur_tty, 0x1b, 0);
