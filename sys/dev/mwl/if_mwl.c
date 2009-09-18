@@ -2303,8 +2303,10 @@ mwl_dma_setup(struct mwl_softc *sc)
 	int error, i;
 
 	error = mwl_rxdma_setup(sc);
-	if (error != 0)
+	if (error != 0) {
+		mwl_rxdma_cleanup(sc);
 		return error;
+	}
 
 	for (i = 0; i < MWL_NUM_TX_QUEUES; i++) {
 		error = mwl_txdma_setup(sc, &sc->sc_txq[i]);
