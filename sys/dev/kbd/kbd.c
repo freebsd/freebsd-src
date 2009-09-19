@@ -837,13 +837,14 @@ static int fkey_change_ok(fkeytab_t *, fkeyarg_t *, struct thread *);
 int
 genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 {
+#ifndef KBD_DISABLE_KEYMAP_LOAD
+	keymap_t *mapp;
+#endif
 	keyarg_t *keyp;
 	fkeyarg_t *fkeyp;
 	int s;
 	int i;
-#ifndef KBD_DISABLE_KEYMAP_LOAD
 	int error;
-#endif
 
 	s = spltty();
 	switch (cmd) {
@@ -869,18 +870,29 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		break;
 
 	case GIO_KEYMAP:	/* get keyboard translation table */
-		bcopy(kbd->kb_keymap, arg, sizeof(*kbd->kb_keymap));
-		break;
+		error = copyout(kbd->kb_keymap, *(void **)arg,
+		    sizeof(keymap_t));
+		splx(s);
+		return (error);
 	case PIO_KEYMAP:	/* set keyboard translation table */
 #ifndef KBD_DISABLE_KEYMAP_LOAD
-		error = keymap_change_ok(kbd->kb_keymap, (keymap_t *)arg,
-		    curthread);
+		mapp = malloc(sizeof *mapp, M_TEMP, M_NOWAIT);
+		error = copyin(*(void **)arg, mapp, sizeof *mapp);
 		if (error != 0) {
 			splx(s);
+			free(mapp, M_TEMP);
+			return (error);
+		}
+
+		error = keymap_change_ok(kbd->kb_keymap, mapp, curthread);
+		if (error != 0) {
+			splx(s);
+			free(mapp, M_TEMP);
 			return (error);
 		}
 		bzero(kbd->kb_accentmap, sizeof(*kbd->kb_accentmap));
-		bcopy(arg, kbd->kb_keymap, sizeof(*kbd->kb_keymap));
+		bcopy(mapp, kbd->kb_keymap, sizeof(*kbd->kb_keymap));
+		free(mapp, M_TEMP);
 		break;
 #else
 		splx(s);
