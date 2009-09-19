@@ -167,6 +167,12 @@ intsmb_attach(device_t dev)
 	    sc->poll == 0 ? "enabled" : "disabled");
 	printf("revision %d\n", pci_read_config(dev, PCI_REVID_SMB, 1));
 
+	if (!sc->poll && intr == PCI_INTR_SMB_SMI) {
+		device_printf(dev,
+		    "using polling mode when configured interrupt is SMI\n");
+		sc->poll = 1;
+	}
+
 	if (sc->poll)
 	    goto no_intr;
 
