@@ -83,6 +83,16 @@ device		atapicd		# ATAPI CDROM drives
 #device		atapifd		# ATAPI floppy drives
 #device		atapist		# ATAPI tape drives
 
+# SCSI Controllers
+device		ahc		# AHA2940 and onboard AIC7xxx devices
+options 	AHC_ALLOW_MEMIO	# Attempt to use memory mapped I/O
+options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
+					# output.  Adds ~128k to driver.
+device		isp		# Qlogic family
+device		ispfw		# Firmware module for Qlogic host adapters
+device		mpt		# LSI-Logic MPT-Fusion
+device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
+
 # SCSI peripherals
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)
@@ -119,6 +129,7 @@ device		md		# Memory "disks"
 device		ofwd		# Open Firmware disks
 device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying/(translation)
+device		firmware	# firmware assist module
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
