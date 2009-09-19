@@ -162,7 +162,3 @@ device		pmu
 device		iicbus		# I2C bus code
 device		kiic		# Keywest I2C
 
-options 	KTR
-options 	KTR_COMPILE=0xffffffff
-#options 	KTR_MASK=KTR_SIG
-options 	KTR_VERBOSE
