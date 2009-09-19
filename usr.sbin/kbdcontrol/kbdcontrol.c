@@ -256,7 +256,7 @@ get_entry(void)
 	case TLET:
 		return (unsigned char)letter;
 	case TNUM:
-		if (number < 0 || number > 255)
+		if (number < 0x000000 || number > 0x10FFFF)
 			return -1;
 		return number;
 	default:
