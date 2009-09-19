@@ -89,6 +89,7 @@ sctp_wakeup_iterator(void)
 static void
 sctp_iterator_thread(void *v)
 {
+	CURVNET_SET((struct vnet *)v);
 	SCTP_IPI_ITERATOR_WQ_LOCK();
 	SCTP_BASE_INFO(iterator_running) = 0;
 	while (1) {
@@ -100,6 +101,7 @@ sctp_iterator_thread(void *v)
 		}
 		sctp_iterator_worker();
 	}
+	CURVNET_RESTORE();
 }
 
 void
@@ -108,7 +110,7 @@ sctp_startup_iterator(void)
 	int ret;
 
 	ret = kproc_create(sctp_iterator_thread,
-	    (void *)NULL,
+	    (void *)curvnet,
 	    &SCTP_BASE_INFO(thread_proc),
 	    RFPROC,
 	    SCTP_KTHREAD_PAGES,
@@ -206,6 +208,9 @@ sctp_init_ifns_for_vrf(int vrfid)
 	struct sctp_ifa *sctp_ifa;
 	uint32_t ifa_flags;
 
+#if 0
+	IFNET_RLOCK();
+#endif
 	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
 		IF_ADDR_LOCK(ifn);
 		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
@@ -251,6 +256,9 @@ sctp_init_ifns_for_vrf(int vrfid)
 		}
 		IF_ADDR_UNLOCK(ifn);
 	}
+#if 0
+	IFNET_RUNLOCK();
+#endif
 }
 
 void
@@ -336,6 +344,9 @@ void
 	struct ifnet *ifn;
 	struct ifaddr *ifa;
 
+#if 0
+	IFNET_RLOCK();
+#endif
 	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
 		if (!(*pred) (ifn)) {
 			continue;
@@ -344,6 +355,9 @@ void
 			sctp_addr_change(ifa, add ? RTM_ADD : RTM_DELETE);
 		}
 	}
+#if 0
+	IFNET_RUNLOCK();
+#endif
 }
 
 struct mbuf *
