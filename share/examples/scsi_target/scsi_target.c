@@ -293,7 +293,7 @@ main(int argc, char *argv[])
 	if (targ_fd < 0)
     	    errx(1, "Tried to open %d devices, none available", unit);
 	else
-	    warnx("opened /dev/targ%d", unit);
+	    warnx("opened %s", targname);
 
 	/* The first three are handled by kevent() later */
 	signal(SIGHUP, SIG_IGN);
