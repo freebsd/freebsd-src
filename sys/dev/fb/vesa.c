@@ -870,7 +870,8 @@ vesa_map_buffer(u_int paddr, size_t size)
 	u_int off;
 
 	off = paddr - trunc_page(paddr);
-	vaddr = (vm_offset_t)pmap_mapdev(paddr - off, size + off);
+	vaddr = (vm_offset_t)pmap_mapdev_attr(paddr - off, size + off,
+	    PAT_WRITE_COMBINING);
 #if VESA_DEBUG > 1
 	printf("vesa_map_buffer: paddr:%x vaddr:%tx size:%zx off:%x\n",
 	       paddr, vaddr, size, off);
