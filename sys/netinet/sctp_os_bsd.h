@@ -141,13 +141,14 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
  * depending on whether VIMAGE is defined.
  */
 /* then define the macro(s) that hook into the vimage macros */
-#define MODULE_GLOBAL(__SYMBOL) V_ ## __SYMBOL
+#define MODULE_GLOBAL(__SYMBOL) V_##__SYMBOL
 
-#define V_system_base_info VNET_NAME(system_base_info)
+#define V_system_base_info VNET(system_base_info)
 #define SCTP_BASE_INFO(__m) V_system_base_info.sctppcbinfo.__m
 #define SCTP_BASE_STATS V_system_base_info.sctpstat
+#define SCTP_BASE_STATS_SYSCTL VNET_NAME(system_base_info.sctpstat)
 #define SCTP_BASE_STAT(__m)     V_system_base_info.sctpstat.__m
-#define SCTP_BASE_SYSCTL(__m) V_system_base_info.sctpsysctl.__m
+#define SCTP_BASE_SYSCTL(__m) VNET_NAME(system_base_info.sctpsysctl.__m)
 #define SCTP_BASE_VAR(__m) V_system_base_info.__m
 
 /*
