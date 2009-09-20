@@ -438,7 +438,11 @@ u2/g' lines1
 	# This is a matter of interpretation
 	# POSIX 1003.1, 2004 says "Within the BRE and the replacement,
 	# the BRE delimiter itself can be used as a *literal* character
-	# if it is preceded by a backslash
+	# if it is preceded by a backslash"
+	# SunOS 5.1 /usr/bin/sed and Mac OS X follow the literal POSIX
+	# interpretation.
+	# GNU sed version 4.1.5 treats \[ as the beginning of a character
+	# set specification (both with --posix and without).
 	mark '8.19' ; sed 's/l/[/' lines1 | $SED -e 's[\[.[X['
 	mark '8.20' ; sed 's/l/[/' lines1 | $SED -e 's[\[.[X\[['
 }
