@@ -432,6 +432,15 @@ u2/g' lines1
 	# POSIX does not say that this should work,
 	# but it does for GNU, BSD, and SunOS
 	mark '8.17' ; $SED -e 's/[/]/Q/' lines1
+
+	COMMENT='[ as an s delimiter and its escapes'
+	mark '8.18' ; $SED -e 's[_[X[' lines1
+	# This is a matter of interpretation
+	# POSIX 1003.1, 2004 says "Within the BRE and the replacement,
+	# the BRE delimiter itself can be used as a *literal* character
+	# if it is preceded by a backslash
+	mark '8.19' ; sed 's/l/[/' lines1 | $SED -e 's[\[.[X['
+	mark '8.20' ; sed 's/l/[/' lines1 | $SED -e 's[\[.[X\[['
 }
 
 test_error()
