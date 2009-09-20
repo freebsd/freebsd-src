@@ -39,23 +39,26 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- * 	from: FreeBSD: src/sys/i386/i386/vm_machdep.c,v 1.167 2001/07/12
- * $FreeBSD$
+ *	from: FreeBSD: src/sys/i386/i386/vm_machdep.c,v 1.167 2001/07/12
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_pmap.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/linker_set.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sf_buf.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
@@ -73,12 +76,12 @@
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
-#include <machine/cache.h>
 #include <machine/bus.h>
+#include <machine/cache.h>
 #include <machine/cpu.h>
 #include <machine/fp.h>
-#include <machine/fsr.h>
 #include <machine/frame.h>
+#include <machine/fsr.h>
 #include <machine/md_var.h>
 #include <machine/ofw_machdep.h>
 #include <machine/ofw_mem.h>
@@ -94,7 +97,7 @@ static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
 /*
- * Expanded sf_freelist head. Really an SLIST_HEAD() in disguise, with the
+ * Expanded sf_freelist head.  Really an SLIST_HEAD() in disguise, with the
  * sf_freelist head with the sf_lock mutex.
  */
 static struct {
@@ -124,11 +127,13 @@ cpu_exit(struct thread *td)
 void
 cpu_thread_exit(struct thread *td)
 {
+
 }
 
 void
 cpu_thread_clean(struct thread *td)
 {
+
 }
 
 void
@@ -146,16 +151,19 @@ cpu_thread_alloc(struct thread *td)
 void
 cpu_thread_free(struct thread *td)
 {
+
 }
- 
+
 void
 cpu_thread_swapin(struct thread *td)
 {
+
 }
 
 void
 cpu_thread_swapout(struct thread *td)
 {
+
 }
 
 void
@@ -328,6 +336,7 @@ cpu_reset(void)
 		0,
 		(cell_t)bspec
 	};
+
 	if ((chosen = OF_finddevice("/chosen")) != 0) {
 		if (OF_getprop(chosen, "bootpath", bspec, sizeof(bspec)) == -1)
 			bspec[0] = '\0';
@@ -392,7 +401,7 @@ sf_buf_init(void *arg)
 }
 
 /*
- * Get an sf_buf from the freelist. Will block if none are available.
+ * Get an sf_buf from the freelist.  Will block if none are available.
  */
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m, int flags)
@@ -411,7 +420,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		sf_buf_alloc_want--;
 
 		/*
-		 * If we got a signal, don't risk going back to sleep. 
+		 * If we got a signal, don't risk going back to sleep.
 		 */
 		if (error)
 			break;
