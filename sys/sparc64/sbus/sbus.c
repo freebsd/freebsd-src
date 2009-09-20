@@ -212,7 +212,7 @@ static ofw_bus_get_name_t sbus_get_name;
 static ofw_bus_get_node_t sbus_get_node;
 static ofw_bus_get_type_t sbus_get_type;
 
-static int sbus_inlist(const char *, const char **);
+static int sbus_inlist(const char *, const char *const *);
 static struct sbus_devinfo * sbus_setup_dinfo(struct sbus_softc *sc,
     phandle_t node, char *name);
 static void sbus_destroy_dinfo(struct sbus_devinfo *dinfo);
@@ -233,14 +233,14 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(bus_print_child,	sbus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	sbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	sbus_read_ivar),
-	DEVMETHOD(bus_setup_intr, 	sbus_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	sbus_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	sbus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	sbus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	sbus_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	sbus_release_resource),
-	DEVMETHOD(bus_get_resource_list, sbus_get_resource_list),
+	DEVMETHOD(bus_setup_intr, 	sbus_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	sbus_teardown_intr),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_get_resource_list, sbus_get_resource_list),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_compat,	sbus_get_compat),
@@ -249,7 +249,7 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	sbus_get_node),
 	DEVMETHOD(ofw_bus_get_type,	sbus_get_type),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static driver_t sbus_driver = {
@@ -266,14 +266,14 @@ MODULE_VERSION(sbus, 1);
 #define	OFW_SBUS_TYPE	"sbus"
 #define	OFW_SBUS_NAME	"sbus"
 
-static const char *sbus_order_first[] = {
+static const char *const sbus_order_first[] = {
 	"auxio",
 	"dma",
 	NULL
 };
 
 static int
-sbus_inlist(const char *name, const char **list)
+sbus_inlist(const char *name, const char *const *list)
 {
 	int i;
 
@@ -388,11 +388,12 @@ sbus_attach(device_t dev)
 
 	/*
 	 * Get the SBus burst transfer size if burst transfers are supported.
-	 * XXX: is the default correct?
 	 */
-	if (OF_getprop(node, "burst-sizes", &sc->sc_burst,
+	if (OF_getprop(node, "up-burst-sizes", &sc->sc_burst,
 	    sizeof(sc->sc_burst)) == -1 || sc->sc_burst == 0)
-		sc->sc_burst = SBUS_BURST_DEF;
+		sc->sc_burst =
+		    (SBUS_BURST64_DEF << SBUS_BURST64_SHIFT) | SBUS_BURST_DEF;
+
 
 	/* initalise the IOMMU */
 
@@ -849,8 +850,8 @@ sbus_activate_resource(device_t bus, device_t child, int type, int rid,
 	}
 	if (type == SYS_RES_MEMORY) {
 		/*
-		 * Need to memory-map the device space, as some drivers depend
-		 * on the virtual address being set and useable.
+		 * Need to memory-map the device space, as some drivers
+		 * depend on the virtual address being set and usable.
 		 */
 		error = sparc64_bus_mem_map(rman_get_bustag(r),
 		    rman_get_bushandle(r), rman_get_size(r), 0, 0, &p);
