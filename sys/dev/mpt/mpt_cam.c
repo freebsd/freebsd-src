@@ -884,11 +884,6 @@ mpt_sata_pass_reply_handler(struct mpt_softc *mpt, request_t *req,
 	if (req != NULL) {
 
 		if (reply_frame != NULL) {
-			MSG_SATA_PASSTHROUGH_REQUEST *pass;
-			MSG_SATA_PASSTHROUGH_REPLY *reply;
-
-			pass = (MSG_SATA_PASSTHROUGH_REQUEST *)req->req_vbuf;
-			reply = (MSG_SATA_PASSTHROUGH_REPLY *)reply_frame;
 			req->IOCStatus = le16toh(reply_frame->IOCStatus);
 		}
 		req->state &= ~REQ_STATE_QUEUED;
@@ -1063,7 +1058,7 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 static int
 mpt_set_initial_config_spi(struct mpt_softc *mpt)
 {
-	int i, j, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
+	int i, pp1val = ((1 << mpt->mpt_ini_id) << 16) | mpt->mpt_ini_id;
 	int error;
 
 	mpt->mpt_disc_enable = 0xff;
@@ -1101,15 +1096,11 @@ mpt_set_initial_config_spi(struct mpt_softc *mpt)
 	 * all targets back to async/narrow.
 	 *
 	 * We skip this step if the BIOS has already negotiated
-	 * speeds with the targets and does not require us to
-	 * do Domain Validation.
+	 * speeds with the targets.
 	 */
 	i = mpt->mpt_port_page2.PortSettings &
 	    MPI_SCSIPORTPAGE2_PORT_MASK_NEGO_MASTER_SETTINGS;
-	j = mpt->mpt_port_page2.PortFlags &
-	    MPI_SCSIPORTPAGE2_PORT_FLAGS_DV_MASK;
-	if (i == MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS /* &&
-	    j == MPI_SCSIPORTPAGE2_PORT_FLAGS_OFF_DV */) {
+	if (i == MPI_SCSIPORTPAGE2_PORT_ALL_MASTER_SETTINGS) {
 		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 		    "honoring BIOS transfer negotiations\n");
 	} else {
@@ -2602,7 +2593,6 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 {
 	MSG_SCSI_IO_REQUEST *scsi_req;
 	union ccb *ccb;
-	target_id_t tgt;
 
 	if (req->state == REQ_STATE_FREE) {
 		mpt_prt(mpt, "mpt_scsi_reply_handler: req already free\n");
@@ -2617,7 +2607,6 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 		return (TRUE);
 	}
 
-	tgt = scsi_req->TargetID;
 	mpt_req_untimeout(req, mpt_timeout, ccb);
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 
@@ -2971,12 +2960,8 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 		}
 		if (tgt_req) {
 			mpt_tgt_state_t *tgt = MPT_TGT_STATE(mpt, tgt_req);
-			uint8_t *vbuf;
 			union ccb *ccb = tgt->ccb;
 			uint32_t ct_id;
-
-			vbuf = tgt_req->req_vbuf;
-			vbuf += MPT_RQSL(mpt);
 
 			/*
 			 * Check to make sure we have the correct command
@@ -3079,7 +3064,6 @@ mpt_scsi_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 	MSG_SCSI_IO_REPLY *scsi_io_reply;
 	u_int ioc_status;
 	u_int sstate;
-	u_int loginfo;
 
 	MPT_DUMP_REPLY_FRAME(mpt, reply_frame);
 	KASSERT(reply_frame->Function == MPI_FUNCTION_SCSI_IO_REQUEST
@@ -3090,7 +3074,6 @@ mpt_scsi_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 
 	scsi_io_reply = (MSG_SCSI_IO_REPLY *)reply_frame;
 	ioc_status = le16toh(scsi_io_reply->IOCStatus);
-	loginfo = ioc_status & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE;
 	ioc_status &= MPI_IOCSTATUS_MASK;
 	sstate = scsi_io_reply->SCSIState;
 
@@ -4040,16 +4023,11 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type, u_int flags,
 	memset(tmf_req, 0, sizeof(*tmf_req));
 	tmf_req->TargetID = target;
 	tmf_req->Bus = channel;
-	tmf_req->ChainOffset = 0;
 	tmf_req->Function = MPI_FUNCTION_SCSI_TASK_MGMT;
-	tmf_req->Reserved = 0;
 	tmf_req->TaskType = type;
-	tmf_req->Reserved1 = 0;
 	tmf_req->MsgFlags = flags;
 	tmf_req->MsgContext =
 	    htole32(mpt->tmf_req->index | scsi_tmf_handler_id);
-	memset(&tmf_req->LUN, 0,
-	    sizeof(tmf_req->LUN) + sizeof(tmf_req->Reserved2));
 	if (lun > 256) {
 		tmf_req->LUN[0] = 0x40 | ((lun >> 8) & 0x3f);
 		tmf_req->LUN[1] = lun & 0xff;
