@@ -167,7 +167,7 @@ gem_sbus_attach(device_t dev)
 	}
 
 	if (bus_setup_intr(dev, sc->sc_res[GEM_RES_INTR], INTR_TYPE_NET |
-	    INTR_MPSAFE, NULL, gem_intr, sc, &sc->sc_ih) != 0) {
+	    INTR_MPSAFE, gem_intr, sc, &sc->sc_ih) != 0) {
 		device_printf(dev, "failed to set up interrupt\n");
 		gem_detach(sc);
 		goto fail;
