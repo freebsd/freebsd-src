@@ -2337,7 +2337,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 {
 	pci_addr_t base, map, testval;
 	pci_addr_t start, end, count;
-	int barlen, maprange, mapsize, type;
+	int barlen, basezero, maprange, mapsize, type;
 	uint16_t cmd;
 	struct resource *res;
 
@@ -2350,6 +2350,11 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 		type = SYS_RES_IOPORT;
 	mapsize = pci_mapsize(testval);
 	base = pci_mapbase(map);
+#ifdef __PCI_BAR_ZERO_VALID
+	basezero = 0;
+#else
+	basezero = base == 0;
+#endif
 	maprange = pci_maprange(map);
 	barlen = maprange == 64 ? 2 : 1;
 
@@ -2378,17 +2383,17 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	}
 
 	/*
-	 * If base is 0, then we have problems.  It is best to ignore
-	 * such entries for the moment.  These will be allocated later if
-	 * the driver specifically requests them.  However, some
-	 * removable busses look better when all resources are allocated,
-	 * so allow '0' to be overriden.
+	 * If base is 0, then we have problems if this architecture does
+	 * not allow that.  It is best to ignore such entries for the
+	 * moment.  These will be allocated later if the driver specifically
+	 * requests them.  However, some removable busses look better when
+	 * all resources are allocated, so allow '0' to be overriden.
 	 *
 	 * Similarly treat maps whose values is the same as the test value
 	 * read back.  These maps have had all f's written to them by the
 	 * BIOS in an attempt to disable the resources.
 	 */
-	if (!force && (base == 0 || map == testval))
+	if (!force && (basezero || map == testval))
 		return (barlen);
 	if ((u_long)base != base) {
 		device_printf(bus,
@@ -2425,7 +2430,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	}
 
 	count = 1 << mapsize;
-	if (base == 0 || base == pci_mapbase(testval)) {
+	if (basezero || base == pci_mapbase(testval)) {
 		start = 0;	/* Let the parent decide. */
 		end = ~0ULL;
 	} else {
@@ -3669,6 +3674,7 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 			return;
 		}
 
+#ifndef __PCI_BAR_ZERO_VALID
 		/*
 		 * If this is a BAR, clear the BAR so it stops
 		 * decoding before releasing the resource.
@@ -3679,6 +3685,7 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 			pci_write_bar(child, rid, 0);
 			break;
 		}
+#endif
 		bus_release_resource(dev, type, rid, rle->res);
 	}
 	resource_list_delete(rl, type, rid);
