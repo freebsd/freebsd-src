@@ -1432,9 +1432,9 @@ ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	if (error == 0 && rt != NULL) {
 		RT_LOCK(rt);
 		((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-			rt->rt_ifp->if_type;
+			ifa->ifa_ifp->if_type;
 		((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-			rt->rt_ifp->if_index;
+			ifa->ifa_ifp->if_index;
 		RT_REMREF(rt);
 		RT_UNLOCK(rt);
 	} else if (error != 0)
