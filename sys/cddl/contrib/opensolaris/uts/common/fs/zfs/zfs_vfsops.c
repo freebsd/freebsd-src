@@ -898,6 +898,9 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		 * 'z_parent' is self referential for non-snapshots.
 		 */
 		(void) dnlc_purge_vfsp(zfsvfs->z_parent->z_vfs, 0);
+#ifdef FREEBSD_NAMECACHE
+		cache_purgevfs(zfsvfs->z_parent->z_vfs);
+#endif
 	}
 
 	/*
