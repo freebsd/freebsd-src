@@ -46,6 +46,7 @@ SUBDIR=	${_3dfx} \
 	${_canbepm} \
 	${_canbus} \
 	${_cardbus} \
+	cas \
 	${_cbb} \
 	cd9660 \
 	cd9660_iconv \

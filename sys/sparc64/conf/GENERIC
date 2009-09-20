@@ -164,6 +164,7 @@ device		txp		# 3Com 3cR990 (``Typhoon'')
 device		miibus		# MII bus support
 #device		bfe		# Broadcom BCM440x 10/100 Ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
+device		cas		# Sun Cassini/Cassini+ and NS DP83065 Saturn
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		gem		# Sun GEM/Sun ERI/Apple GMAC
