@@ -671,6 +671,7 @@ dev/buslogic/bt_pci.c		optional bt pci
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
+dev/cas/if_cas.c		optional cas
 dev/ciss/ciss.c			optional ciss
 dev/cm/smc90cx6.c		optional cm
 dev/cmx/cmx.c			optional cmx
