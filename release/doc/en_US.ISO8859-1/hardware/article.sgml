@@ -699,6 +699,8 @@
 
     &hwlist.bge;
 
+    &hwlist.cas;
+
     &hwlist.cdce;
 
     <para>[&arch.amd64;, &arch.i386;] Crystal Semiconductor CS89x0-based NICs 
