@@ -104,6 +104,7 @@ static struct _devname {
     NETWORK("bce",	"Broadcom NetXtreme II Gigabit Ethernet card"),
     NETWORK("bfe",	"Broadcom BCM440x PCI Ethernet card"),
     NETWORK("bge",	"Broadcom BCM570x PCI Gigabit Ethernet card"),
+    NETWORK("cas",	"Sun Cassini/Cassini+ or NS DP83065 Saturn Ethernet"),
     NETWORK("cue",	"CATC USB Ethernet adapter"),
     NETWORK("cxgb",	"Chelsio T3 10Gb Ethernet card"),
     NETWORK("fpa",	"DEC DEFPA PCI FDDI card"),
