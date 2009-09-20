@@ -343,7 +343,7 @@ cpu_reset(void)
 		bspec[sizeof(bspec) - 1] = '\0';
 	}
 
-	openfirmware_exit(&args);
+	cpu_shutdown(&args);
 }
 
 /*
