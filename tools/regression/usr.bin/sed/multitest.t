@@ -449,6 +449,9 @@ u2/g' lines1
 	mark '8.21'
 	echo 'a\b(c' |
 	$SED 'y%ABCDEFGHIJKLMNOPQRSTUVWXYZ, /\\()"%abcdefghijklmnopqrstuvwxyz,------%'
+	COMMENT='\n in a character class and a BRE'
+	mark '8.22' ; (echo 1; echo 2) | $SED -n '1{;N;s/[\n]/X/;p;}'
+	mark '8.23' ; (echo 1; echo 2) | $SED -n '1{;N;s/\n/X/;p;}'
 }
 
 test_error()
