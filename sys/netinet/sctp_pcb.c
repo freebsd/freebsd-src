@@ -6585,17 +6585,20 @@ sctp_drain()
 	 * occur. We really hope this does NOT happen!
 	 */
 	VNET_ITERATOR_DECL(vnet_iter);
-
-	SCTP_STAT_INCR(sctps_protocol_drain_calls);
-	if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
-		return;
-	}
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		struct sctp_inpcb *inp;
 		struct sctp_tcb *stcb;
 
+		SCTP_STAT_INCR(sctps_protocol_drain_calls);
+		if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
+#ifdef VIMAGE
+			continue;
+#else
+			return;
+#endif
+		}
 		SCTP_INP_INFO_RLOCK();
 		LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
 			/* For each endpoint */
