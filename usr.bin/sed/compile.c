@@ -432,8 +432,7 @@ compile_ccl(char **sp, char *t)
 			for (c = *s; (*t = *s) != ']' || c != d; s++, t++)
 				if ((c = *s) == '\0')
 					return NULL;
-		} else if (*s == '\\' && s[1] == 'n')
-			    *t = '\n', s++;
+		}
 	return (*s == ']') ? *sp = ++s, ++t : NULL;
 }
 
