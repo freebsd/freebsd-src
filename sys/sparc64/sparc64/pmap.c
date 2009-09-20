@@ -111,10 +111,9 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * Virtual and physical address of message buffer
+ * Virtual address of message buffer
  */
 struct msgbuf *msgbufp;
-vm_paddr_t msgbuf_phys;
 
 int pmap_pagedaemon_waken;
 
@@ -271,7 +270,7 @@ om_cmp(const void *a, const void *b)
  * Bootstrap the system enough to run with virtual memory.
  */
 void
-pmap_bootstrap(vm_offset_t ekva)
+pmap_bootstrap(void)
 {
 	struct pmap *pm;
 	struct tte *tp;
@@ -349,8 +348,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	/*
 	 * Allocate and map the message buffer.
 	 */
-	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE);
-	msgbufp = (struct msgbuf *)TLB_PHYS_TO_DIRECT(msgbuf_phys);
+	pa = pmap_bootstrap_alloc(MSGBUF_SIZE);
+	msgbufp = (struct msgbuf *)TLB_PHYS_TO_DIRECT(pa);
 
 	/*
 	 * Patch the virtual address and the tsb mask into the trap table.
@@ -399,10 +398,11 @@ pmap_bootstrap(vm_offset_t ekva)
 	}
 
 	/*
-	 * Set the start and end of KVA.  The kernel is loaded at the first
-	 * available 4MB super page, so round up to the end of the page.
+	 * Set the start and end of KVA.  The kernel is loaded starting
+	 * at the first available 4MB super page, so we advance to the
+	 * end of the last one used for it.
 	 */
-	virtual_avail = roundup2(ekva, PAGE_SIZE_4M);
+	virtual_avail = KERNBASE + kernel_tlb_slots * PAGE_SIZE_4M;
 	virtual_end = vm_max_kernel_address;
 	kernel_vm_end = vm_max_kernel_address;
 
@@ -422,8 +422,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	 * coloured properly, since we're allocating from phys_avail so the
 	 * memory won't have an associated vm_page_t.
 	 */
-	pa = pmap_bootstrap_alloc(roundup(KSTACK_PAGES, DCACHE_COLORS) *
-	    PAGE_SIZE);
+	pa = pmap_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE);
 	kstack0_phys = pa;
 	virtual_avail += roundup(KSTACK_GUARD_PAGES, DCACHE_COLORS) *
 	    PAGE_SIZE;
@@ -560,7 +559,7 @@ pmap_bootstrap_alloc(vm_size_t size)
 	vm_paddr_t pa;
 	int i;
 
-	size = round_page(size);
+	size = roundup(size, PAGE_SIZE * DCACHE_COLORS);
 	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		if (phys_avail[i + 1] - phys_avail[i] < size)
 			continue;
@@ -928,7 +927,7 @@ pmap_kremove_flags(vm_offset_t va)
 	struct tte *tp;
 
 	tp = tsb_kvtotte(va);
-	CTR3(KTR_PMAP, "pmap_kremove: va=%#lx tp=%p data=%#lx", va, tp,
+	CTR3(KTR_PMAP, "pmap_kremove_flags: va=%#lx tp=%p data=%#lx", va, tp,
 	    tp->tte_data);
 	TTE_ZERO(tp);
 }
@@ -1330,7 +1329,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 
 	CTR6(KTR_PMAP,
-	    "pmap_enter: ctx=%p m=%p va=%#lx pa=%#lx prot=%#x wired=%d",
+	    "pmap_enter_locked: ctx=%p m=%p va=%#lx pa=%#lx prot=%#x wired=%d",
 	    pm->pm_context[curcpu], m, va, pa, prot, wired);
 
 	/*
@@ -1338,7 +1337,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * changed, must be protection or wiring change.
 	 */
 	if ((tp = tsb_tte_lookup(pm, va)) != NULL && TTE_GET_PA(tp) == pa) {
-		CTR0(KTR_PMAP, "pmap_enter: update");
+		CTR0(KTR_PMAP, "pmap_enter_locked: update");
 		PMAP_STATS_INC(pmap_nenter_update);
 
 		/*
@@ -1394,12 +1393,12 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * phsyical address, delete the old mapping.
 		 */
 		if (tp != NULL) {
-			CTR0(KTR_PMAP, "pmap_enter: replace");
+			CTR0(KTR_PMAP, "pmap_enter_locked: replace");
 			PMAP_STATS_INC(pmap_nenter_replace);
 			pmap_remove_tte(pm, NULL, tp, va);
 			tlb_page_demap(pm, va);
 		} else {
-			CTR0(KTR_PMAP, "pmap_enter: new");
+			CTR0(KTR_PMAP, "pmap_enter_locked: new");
 			PMAP_STATS_INC(pmap_nenter_new);
 		}
 
