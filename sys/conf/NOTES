@@ -2757,5 +2757,3 @@ options 	AAC_DEBUG	# Debugging levels:
 options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
-# x86 real mode emulator
-options		X86BIOS
