@@ -1,6 +1,5 @@
 /*	$OpenBSD: x86emu.c,v 1.4 2009/06/18 14:19:21 pirofti Exp $	*/
 /*	$NetBSD: x86emu.c,v 1.7 2009/02/03 19:26:29 joerg Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  *
@@ -32,6 +31,9 @@
  *  PERFORMANCE OF THIS SOFTWARE.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <contrib/x86emu/x86emu.h>
 #include <contrib/x86emu/x86emu_regs.h>
