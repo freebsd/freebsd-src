@@ -838,4 +838,4 @@ SND_FEEDER_RATE_HP	opt_snd.h
 SND_PCM_64		opt_snd.h
 SND_OLDSTEREO		opt_snd.h
 
-X86EMU
+X86BIOS

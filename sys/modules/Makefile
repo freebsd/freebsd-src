@@ -298,7 +298,7 @@ SUBDIR=	${_3dfx} \
 	wlan_xauth \
 	${_wpi} \
 	${_wpifw} \
-	x86emu \
+	x86bios \
 	${_xe} \
 	xfs \
 	xl \
