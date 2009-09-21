@@ -162,7 +162,7 @@ dev/atkbdc/atkbdc_subr.c	optional	atkbdc
 dev/atkbdc/psm.c		optional	psm atkbdc
 dev/coretemp/coretemp.c		optional	coretemp
 dev/cpuctl/cpuctl.c		optional	cpuctl
-dev/dpms/dpms.c			optional	dpms x86emu
+dev/dpms/dpms.c			optional	dpms
 # There are no systems with isa slots, so all ed isa entries should go..
 dev/ed/if_ed_3c503.c		optional	ed isa ed_3c503
 dev/ed/if_ed_isa.c		optional	ed isa
@@ -171,7 +171,7 @@ dev/ed/if_ed_hpp.c		optional	ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional	ed isa ed_sic
 dev/fb/fb.c			optional	fb | vga
 dev/fb/s3_pci.c			optional	s3pci
-dev/fb/vesa.c			optional	vga vesa x86emu
+dev/fb/vesa.c			optional	vga vesa
 dev/fb/vga.c			optional	vga
 dev/ichwd/ichwd.c		optional	ichwd
 dev/if_ndis/if_ndis.c		optional	ndis
@@ -220,7 +220,7 @@ dev/sio/sio_puc.c		optional	sio puc
 dev/speaker/spkr.c		optional	speaker
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/scterm-teken.c	optional	sc
-dev/syscons/scvesactl.c		optional	sc vga vesa x86emu
+dev/syscons/scvesactl.c		optional	sc vga vesa
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_amd64.c	optional	uart
