@@ -160,6 +160,11 @@ options 	VESA
 # Turn on extra debugging checks and output for VESA support.
 options 	VESA_DEBUG
 
+device		dpms		# DPMS suspend & resume via VESA BIOS
+
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+options		X86BIOS
+
 #
 # Optional devices:
 #
