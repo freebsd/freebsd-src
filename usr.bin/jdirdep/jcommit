@@ -66,8 +66,8 @@ while getopts "F:m:h" my_opt
 do
 	case $my_opt in
 	h) ShowHelp; exit 0;;
-	F) commit_msg_file="-F $OPTARG" ;;
-	m) commit_msg="-m $OPTARG" ;;
+	F) commit_msg_file="-F \"$OPTARG\"" ;;
+	m) commit_msg="-m \"$OPTARG\"" ;;
 	[?]) echo "Bad Option"; ShowHelp; exit 1 ;;
 	esac
 done
@@ -82,4 +82,4 @@ then
 fi
 echo $srcdir
 cd $srcdir
-svn commit ${commit_msg_file} ${commit_msg}
+eval svn commit ${commit_msg_file} ${commit_msg}
