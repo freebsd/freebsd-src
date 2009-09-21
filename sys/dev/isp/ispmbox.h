@@ -245,11 +245,37 @@
 #define	ASYNC_RCV_ERR			0x8048
 
 /*
+ * Firmware Options. There are a lot of them.
+ *
+ * IFCOPTN - ISP Fibre Channel Option Word N
+ */
+#define	IFCOPT1_EQFQASYNC	(1 << 13)	/* enable QFULL notification */
+#define	IFCOPT1_EAABSRCVD	(1 << 12)
+#define	IFCOPT1_RJTASYNC	(1 << 11)	/* enable 8018 notification */
+#define	IFCOPT1_ENAPURE		(1 << 10)
+#define	IFCOPT1_ENA8017		(1 << 7)
+#define	IFCOPT1_DISGPIO67	(1 << 6)
+#define	IFCOPT1_LIPLOSSIMM	(1 << 5)
+#define	IFCOPT1_DISF7SWTCH	(1 << 4)
+#define	IFCOPT1_CTIO_RETRY	(1 << 3)
+#define	IFCOPT1_LIPASYNC	(1 << 1)
+#define	IFCOPT1_LIPF8		(1 << 0)
+
+#define	IFCOPT2_LOOPBACK	(1 << 1)
+#define	IFCOPT2_ATIO3_ONLY	(1 << 0)
+
+#define	IFCOPT3_NOPRLI		(1 << 4)	/* disable automatic sending of PRLI on local loops */
+#define	IFCOPT3_RNDASYNC	(1 << 1)
+/*
  * 2.01.31 2200 Only. Need Bit 13 in Mailbox 1 for Set Firmware Options
  * mailbox command to enable this.
  */
 #define	ASYNC_QFULL_SENT		0x8049
 
+/*
+ * Needs to be enabled
+ */
+#define	ASYNC_AUTO_PLOGI_RJT		0x8018
 /*
  * 24XX only
  */

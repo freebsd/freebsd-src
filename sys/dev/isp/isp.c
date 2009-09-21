@@ -1547,24 +1547,18 @@ isp_fibre_init(ispsoftc_t *isp)
 	}
 
 	icbp->icb_maxfrmlen = DEFAULT_FRAMESIZE(isp);
-	if (icbp->icb_maxfrmlen < ICB_MIN_FRMLEN ||
-	    icbp->icb_maxfrmlen > ICB_MAX_FRMLEN) {
-		isp_prt(isp, ISP_LOGERR,
-		    "bad frame length (%d) from NVRAM- using %d",
-		    DEFAULT_FRAMESIZE(isp), ICB_DFLT_FRMLEN);
+	if (icbp->icb_maxfrmlen < ICB_MIN_FRMLEN || icbp->icb_maxfrmlen > ICB_MAX_FRMLEN) {
+		isp_prt(isp, ISP_LOGERR, "bad frame length (%d) from NVRAM- using %d", DEFAULT_FRAMESIZE(isp), ICB_DFLT_FRMLEN);
 		icbp->icb_maxfrmlen = ICB_DFLT_FRMLEN;
 	}
 	icbp->icb_maxalloc = fcp->isp_maxalloc;
 	if (icbp->icb_maxalloc < 1) {
-		isp_prt(isp, ISP_LOGERR,
-		    "bad maximum allocation (%d)- using 16", fcp->isp_maxalloc);
+		isp_prt(isp, ISP_LOGERR, "bad maximum allocation (%d)- using 16", fcp->isp_maxalloc);
 		icbp->icb_maxalloc = 16;
 	}
 	icbp->icb_execthrottle = DEFAULT_EXEC_THROTTLE(isp);
 	if (icbp->icb_execthrottle < 1) {
-		isp_prt(isp, ISP_LOGERR,
-		    "bad execution throttle of %d- using %d",
-		    DEFAULT_EXEC_THROTTLE(isp), ICB_DFLT_THROTTLE);
+		isp_prt(isp, ISP_LOGERR, "bad execution throttle of %d- using %d", DEFAULT_EXEC_THROTTLE(isp), ICB_DFLT_THROTTLE);
 		icbp->icb_execthrottle = ICB_DFLT_THROTTLE;
 	}
 	icbp->icb_retry_delay = fcp->isp_retry_delay;
@@ -1658,18 +1652,18 @@ isp_fibre_init(ispsoftc_t *isp)
 
 	/*
 	 * For 22XX > 2.1.26 && 23XX, set some options.
-	 * XXX: Probably okay for newer 2100 f/w too.
 	 */
 	if (ISP_FW_NEWER_THAN(isp, 2, 26, 0)) {
-		/*
-		 * Turn on LIP F8 async event (1)
-		 * Turn on generate AE 8013 on all LIP Resets (2)
-		 * Disable LIP F7 switching (8)
-		 */
 		MBSINIT(&mbs, MBOX_SET_FIRMWARE_OPTIONS, MBLOGALL, 0);
-		mbs.param[1] = 0xb;
+		mbs.param[1] = IFCOPT1_DISF7SWTCH|IFCOPT1_LIPASYNC|IFCOPT1_LIPF8;
 		mbs.param[2] = 0;
 		mbs.param[3] = 0;
+		if (ISP_FW_NEWER_THAN(isp, 3, 16, 0)) {
+			mbs.param[1] |= IFCOPT1_EQFQASYNC|IFCOPT1_CTIO_RETRY;
+			if (fcp->role & ISP_ROLE_TARGET) {
+				mbs.param[3] = IFCOPT3_NOPRLI;
+			}
+		}
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			return;
@@ -2093,8 +2087,7 @@ isp_mark_portdb(ispsoftc_t *isp, int chan, int disposition)
  * or via FABRIC LOGIN/FABRIC LOGOUT for other cards.
  */
 static int
-isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid,
-    int flags, int gs)
+isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags, int gs)
 {
 	mbreg_t mbs;
 	uint8_t q[QENTRY_LEN];
@@ -2771,15 +2764,21 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 	/*
 	 * Make sure we're okay for doing this right now.
 	 */
-	if (fcp->isp_loopstate != LOOP_PDB_RCVD && fcp->isp_loopstate != LOOP_FSCAN_DONE && fcp->isp_loopstate != LOOP_LSCAN_DONE) {
-		isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: bad loopstate %d", fcp->isp_loopstate);
+	if (fcp->isp_loopstate != LOOP_PDB_RCVD &&
+	    fcp->isp_loopstate != LOOP_FSCAN_DONE &&
+	    fcp->isp_loopstate != LOOP_LSCAN_DONE) {
+		isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: bad loopstate %d",
+		    fcp->isp_loopstate);
 		return (-1);
 	}
 
-	if (fcp->isp_topo == TOPO_FL_PORT || fcp->isp_topo == TOPO_NL_PORT || fcp->isp_topo == TOPO_N_PORT) {
+	if (fcp->isp_topo == TOPO_FL_PORT ||
+	    fcp->isp_topo == TOPO_NL_PORT ||
+	    fcp->isp_topo == TOPO_N_PORT) {
 		if (fcp->isp_loopstate < LOOP_LSCAN_DONE) {
 			if (isp_scan_loop(isp, chan) != 0) {
-				isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: isp_scan_loop failed");
+				isp_prt(isp, ISP_LOGWARN,
+				    "isp_pdb_sync: isp_scan_loop failed");
 				return (-1);
 			}
 		}
@@ -2788,13 +2787,15 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 	if (fcp->isp_topo == TOPO_F_PORT || fcp->isp_topo == TOPO_FL_PORT) {
 		if (fcp->isp_loopstate < LOOP_FSCAN_DONE) {
 			if (isp_scan_fabric(isp, chan) != 0) {
-				isp_prt(isp, ISP_LOGWARN, "isp_pdb_sync: isp_scan_fabric failed");
+				isp_prt(isp, ISP_LOGWARN,
+				    "isp_pdb_sync: isp_scan_fabric failed");
 				return (-1);
 			}
 		}
 	}
 
-	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0, "Chan %d Synchronizing PDBs", chan);
+	isp_prt(isp, ISP_LOGSANCFG|ISP_LOGDEBUG0,
+	    "Chan %d Synchronizing PDBs", chan);
 
 	fcp->isp_loopstate = LOOP_SYNCING_PDB;
 
@@ -2823,7 +2824,11 @@ isp_pdb_sync(ispsoftc_t *isp, int chan)
 			lp->state = FC_PORTDB_STATE_NIL;
 			isp_async(isp, ISPASYNC_DEV_GONE, chan, lp);
 			if (lp->autologin == 0) {
-				(void) isp_plogx(isp, chan, lp->handle, lp->portid, PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT | PLOGX_FLG_FREE_NPHDL, 0);
+				(void) isp_plogx(isp, chan, lp->handle,
+				    lp->portid,
+				    PLOGX_FLG_CMD_LOGO |
+				    PLOGX_FLG_IMPLICIT |
+				    PLOGX_FLG_FREE_NPHDL, 0);
 			} else {
 				lp->autologin = 0;
 			}
@@ -3069,7 +3074,8 @@ isp_scan_loop(ispsoftc_t *isp, int chan)
 		for (i = 0; i < MAX_FC_TARG; i++) {
 			lp = &fcp->portdb[i];
 
-			if (lp->state == FC_PORTDB_STATE_NIL || lp->target_mode) {
+			if (lp->state == FC_PORTDB_STATE_NIL ||
+			    lp->target_mode) {
 				continue;
 			}
 			if (lp->node_wwn != tmp.node_wwn) {
@@ -3587,7 +3593,8 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		for (dbidx = 0; dbidx < MAX_FC_TARG; dbidx++) {
 			lp = &fcp->portdb[dbidx];
 
-			if (lp->state != FC_PORTDB_STATE_PROBATIONAL || lp->target_mode) {
+			if (lp->state != FC_PORTDB_STATE_PROBATIONAL ||
+			    lp->target_mode) {
 				continue;
 			}
 			if (lp->portid == portid) {
@@ -3824,7 +3831,8 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 			if (fcp->portdb[dbidx].target_mode) {
 				continue;
 			}
-			if (fcp->portdb[dbidx].node_wwn == wwnn && fcp->portdb[dbidx].port_wwn == wwpn) {
+			if (fcp->portdb[dbidx].node_wwn == wwnn &&
+			    fcp->portdb[dbidx].port_wwn == wwpn) {
 				break;
 			}
 		}

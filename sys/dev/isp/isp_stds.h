@@ -147,6 +147,7 @@ typedef struct {
 #define	FCP_SNSLEN_VALID		0x02
 #define	FCP_RSPLEN_VALID		0x01
 
+#define FCP_MAX_RSPLEN			0x08
 /*
  * FCP Response Code Definitions
  * Source: NCITS T10, Project 1144D, Revision 08 (aka FCP2r08)
@@ -159,6 +160,8 @@ typedef struct {
 #define	FCP_RSPNS_EROFS			3
 #define	FCP_RSPNS_TMF_REJECT		4
 #define	FCP_RSPNS_TMF_FAILED		5
+#define	FCP_RSPNS_TMF_SUCCEEDED		8
+#define	FCP_RSPNS_TMF_INCORRECT_LUN	9
 
 
 /* unconverted miscellany */
