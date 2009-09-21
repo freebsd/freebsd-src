@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 /*
  * General defines
  */
-
 #define	MBOX_DELAY_COUNT	1000000 / 100
 #define	ISP_MARK_PORTDB(a, b, c)				\
     isp_prt(isp, ISP_LOGSANCFG, 				\
