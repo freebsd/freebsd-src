@@ -31,7 +31,6 @@
  */
 #ifndef	_ISP_STDS_H
 #define	_ISP_STDS_H
-
 /*
  * FC Frame Header
  *
