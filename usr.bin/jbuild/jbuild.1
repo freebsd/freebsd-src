@@ -45,7 +45,7 @@
 .Op Fl D Ar variable
 .Op Fl d Ar flags
 .Op Fl E Ar variable
-.Op Fl f Ar makefile
+.Op Fl f Ar Buildfile
 .Op Fl I Ar directory
 .Bk -words
 .Op Fl j Ar max_jobs
@@ -64,7 +64,7 @@ describing dependency relationships between the generation of
 files and programs.
 .Pp
 First of all, the initial list of specifications will be read
-from the system makefile,
+from the system Buildfile,
 .Pa sys.mk ,
 unless inhibited with the
 .Fl r
@@ -166,7 +166,7 @@ Specify a variable whose environment value (if any) will override
 macro assignments within Buildfiles.
 .It Fl e
 Specify that environment values override macro assignments within
-makefiles for all variables.
+Buildfiles for all variables.
 .It Fl f Ar Buildfile
 Specify a Buildfile to read instead of the default one.
 If
@@ -182,7 +182,7 @@ standard input is read.
 Multiple
 .Fl f
 options can be supplied,
-and the makefiles will be read in that order.
+and the Buildfiles will be read in that order.
 Unlike the other command-line options,
 .Fl f
 is neither stored in
@@ -195,14 +195,14 @@ Specify a directory in which to search for Buildfiles and included Buildfiles.
 Multiple
 .Fl I
 options can be specified to form a search path.
-The system makefile directory (or directories, see the
+The system Buildfile directory (or directories, see the
 .Fl m
 option) is automatically appended at the tail of this path.
 .It Fl i
-Ignore non-zero exit of shell commands in the makefile.
+Ignore non-zero exit of shell commands in the Buildfile.
 Equivalent to specifying
 .Sq Ic \-
-before each command line in the makefile.
+before each command line in the Buildfile.
 .It Fl j Ar max_jobs
 Specify the maximum number of jobs that
 .Nm
@@ -215,14 +215,14 @@ Continue processing after errors are encountered, but only on those targets
 that do not depend on the target whose creation caused the error.
 .It Fl m Ar directory
 Specify a directory in which to search for
-the system makefile and makefiles included via the <...> style.
+the system Buildfile and Buildfiles included via the <...> style.
 Multiple
 .Fl m
 options can be specified to form a search path.
 This path will override the default system include path,
-.Pa /usr/share/mk .
+.Pa ${.SRCTOP}/bld .
 The system include path will always be appended to the search path used
-for "..."-style inclusions and makefile searches (see the
+for "..."-style inclusions and Buildfile searches (see the
 .Fl I
 option).
 .It Fl n
@@ -250,7 +250,7 @@ Do not use this option if you plan to do an update build later.
 Do not execute any commands, but exit 0 if the specified targets are
 up-to-date and 1, otherwise.
 .It Fl r
-Do not process the system makefile.
+Do not process the system Buildfile.
 .It Fl S
 Stop processing when an error is encountered.
 Default behaviour.
@@ -263,7 +263,7 @@ This increases the verbosity of the output of
 .Nm
 which defaults to not echoing commands as they are executed.
 .It Fl t
-Rather than re-building a target as specified in the makefile, create it
+Rather than re-building a target as specified in the Buildfile, create it
 or update its modification time to make it appear up-to-date.
 .It Fl V Ar variable
 Print
@@ -311,7 +311,7 @@ See also the
 special target.
 .El
 .Pp
-There are seven different types of lines in a makefile: file dependency
+There are seven different types of lines in a Buildfile: file dependency
 specifications, shell commands, variable assignments, include statements,
 conditional directives, for loops, and comments.
 .Pp
@@ -460,7 +460,7 @@ Variables defined as part of
 .Nm Ns 's
 environment.
 .It Global variables
-Variables defined in the makefile or in included makefiles.
+Variables defined in the Buildfile or in included Buildfiles.
 .It Command line variables
 Variables defined as part of the command line and variables
 obtained from the
@@ -472,7 +472,7 @@ target.
 Variables that are defined specific to a certain target.
 .El
 .Pp
-If the name of an environment variable appears in a makefile
+If the name of an environment variable appears in a Buildfile
 on the left-hand side of an assignment,
 a global variable with the same name is created, and the latter
 shadows the former as per their relative precedences.
@@ -536,7 +536,7 @@ and
 are
 permitted for compatibility with
 .At V
-makefiles and are not recommended.
+Buildfiles and are not recommended.
 .Pp
 Four of the local variables may be used in sources on dependency lines
 because they expand to the proper value for each target on the line.
@@ -623,7 +623,7 @@ stripped off.
 .It Va .MAKEFILE_LIST
 As
 .Nm
-reads various makefiles, including the default files and any
+reads various Buildfiles, including the default files and any
 obtained from the command line and
 .Ic .include
 and
@@ -633,7 +633,7 @@ directives, their names will be automatically appended to the
 variable.
 They are added right before
 .Nm
-begins to parse them, so that the name of the current makefile is the
+begins to parse them, so that the name of the current Buildfile is the
 last word in this variable.
 .It Ev MAKEFLAGS
 The environment variable
@@ -702,7 +702,7 @@ and command line as described above, under
 .Ev MAKEFLAGS .
 By modifying the contents of the
 .Va .MAKEFLAGS
-global variable, the makefile can alter the contents of the
+global variable, the Buildfile can alter the contents of the
 .Ev MAKEFLAGS
 environment variable made available for all programs which
 .Nm
@@ -794,11 +794,11 @@ Name of the machine architecture
 .Nm
 was compiled for, defined at compilation time.
 .It Va VPATH
-Makefiles may assign a colon-delimited list of directories to
+Buildfiles may assign a colon-delimited list of directories to
 .Va VPATH .
 These directories will be searched for source files by
 .Nm
-after it has finished parsing all input makefiles.
+after it has finished parsing all input Buildfiles.
 .El
 .Pp
 Variable expansion may be modified to select or modify each word of the
@@ -959,17 +959,17 @@ The following directives are supported:
 .Bl -tag -width Ds
 .It Ic .include Ar <file>
 .It Ic .include Ar \*qfile\*q
-Include the specified makefile.
+Include the specified Buildfile.
 Variables between the angle brackets
 or double quotes are expanded to form the file name.
 If angle brackets
-are used, the included makefile is expected to be in the system
-makefile directory.
+are used, the included Buildfile is expected to be in the system
+Buildfile directory.
 If double quotes are used, the including
-makefile's directory and any directories specified using the
+Buildfile's directory and any directories specified using the
 .Fl I
 option are searched before the system
-makefile directory.
+Buildfile directory.
 .It Ic .sinclude Ar <file>
 .It Ic .sinclude Ar \*qfile\*q
 Like
@@ -979,22 +979,22 @@ but silently ignored if the file cannot be found and opened.
 Un-define the specified global variable.
 Only global variables may be un-defined.
 .It Ic .error Ar message
-Terminate processing of the makefile immediately.
+Terminate processing of the Buildfile immediately.
 The filename of the
-makefile, the line on which the error was encountered and the specified
+Buildfile, the line on which the error was encountered and the specified
 message are printed to the standard error output and
 .Nm
 terminates with exit code 1.
 Variables in the message are expanded.
 .It Ic .warning Ar message
 Emit a warning message.
-The filename of the makefile,
+The filename of the Buildfile,
 the line on which the warning was encountered,
 and the specified message are printed to the standard error output.
 Variables in the message are expanded.
 .El
 .Pp
-Conditionals are used to determine which parts of the Makefile
+Conditionals are used to determine which parts of the Buildfile
 to process.
 They are used similarly to the conditionals supported
 by the C pre-processor.
@@ -1189,7 +1189,7 @@ the
 .Dq make
 expression is applied.
 .Pp
-If the conditional evaluates to true the parsing of the makefile continues
+If the conditional evaluates to true the parsing of the Buildfile continues
 as before.
 If it evaluates to false, the following lines are skipped.
 In both cases this continues until a
@@ -1344,14 +1344,14 @@ selects the default target, to give the user a way to refer to the default
 target on the command line.
 .It Ic .MAKEFILEDEPS
 Enable the
-.Dq Remaking Makefiles
+.Dq Remaking Buildfiles
 functionality, as explained in the
-.Sx REMAKING MAKEFILES
+.Sx REMAKING BUILDFILES
 section below.
 .It Ic .MAKEFLAGS
 This target provides a way to specify flags for
 .Nm
-when the makefile is used.
+when the Buildfile is used.
 The flags are as if typed to the shell, though the
 .Fl f
 option will have
@@ -1367,7 +1367,7 @@ Please note the difference between this target and the
 internal variable: specifying an option or variable
 assignment as the source for this target will affect
 .Em both
-the current makefile and all processes that
+the current Buildfile and all processes that
 .Nm
 executes.
 .It Ic .MFLAGS
@@ -1424,7 +1424,7 @@ behavior to match the applicable
 .Tn POSIX
 specifications.
 (Note this disables the
-.Dq Remaking Makefiles
+.Dq Remaking Buildfiles
 feature.)
 .It Ic .PRECIOUS
 Apply the
@@ -1579,7 +1579,7 @@ Each source specifies a warning flag as previously described for the
 .Fl x
 command line option.
 Warning flags specified on the command line take precedence over flags
-specified in the makefile.
+specified in the Buildfile.
 Also, command line warning flags are pushed to sub-makes through the
 .Ev MAKEFLAGS
 environment variables so that a warning flag specified on the command
@@ -1588,27 +1588,27 @@ Several flags can be specified on a single
 .Ic .WARN
 target by seperating them with blanks.
 .El
-.Sh REMAKING MAKEFILES
+.Sh REMAKING BUILDFILES
 If the special target
 .Ic .MAKEFILEDEPS
-exists in the Makefile,
+exists in the Buildfile,
 .Nm
 enables the
-.Dq Remaking Makefiles
+.Dq Remaking Buildfiles
 feature.
-After reading Makefile and all the files that are included using
+After reading Buildfile and all the files that are included using
 .Ic .include
 or
 .Ic .sinclude
-directives (source Makefiles)
+directives (source Buildfiles)
 .Nm
-considers each source Makefile as a target and tries to rebuild it.
-Both explicit and implicit rules are checked and all source Makefiles
-are updated if necessary. If any of the source Makefiles were rebuilt,
+considers each source Buildfile as a target and tries to rebuild it.
+Both explicit and implicit rules are checked and all source Buildfiles
+are updated if necessary. If any of the source Buildfiles were rebuilt,
 .Nm
 restarts from clean state.
 .Pp
-To prevent infinite loops the following source Makefile targets are ignored:
+To prevent infinite loops the following source Buildfile targets are ignored:
 .Bl -bullet
 .It
 .Ic ::
@@ -1626,20 +1626,20 @@ attributes
 targets without prerequisites and without commands
 .El
 .Pp
-When remaking a source Makefile options
+When remaking a source Buildfile options
 .Ic -t
 (touch target),
 .Ic -q
 (query mode), and
 .Ic -n
-(no exec) do not take effect, unless source Makefile is specified
+(no exec) do not take effect, unless source Buildfile is specified
 explicitly as a target in
 .Nm
 command line.
 .Pp
-Additionally, system makefiles and
+Additionally, system Buildfiles and
 .Ic .depend
-are not considered as Makefiles that can be rebuilt.
+are not considered as Buildfiles that can be rebuilt.
 .Sh ENVIRONMENT
 The
 .Nm
@@ -1679,7 +1679,7 @@ default path to
 .Xr make.conf 5
 .El
 .Sh EXAMPLES
-List all included makefiles in order visited:
+List all included Buildfiles in order visited:
 .Pp
 .Dl "jbuild -V .MAKEFILE_LIST | tr \e\  \e\en"
 .Sh COMPATIBILITY
