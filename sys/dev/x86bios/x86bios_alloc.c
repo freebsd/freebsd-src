@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/x86bios/x86bios.h>
 
-extern unsigned char *pbiosMem;
+extern u_char *pbiosMem;
 extern int busySegMap[5];
 
 void *
@@ -74,7 +74,7 @@ x86biosFree(void *pbuf, int count)
 	int i;
 	int busySeg;
 
-	busySeg = ((unsigned char *)pbuf - (unsigned char *)pbiosMem)/4096;
+	busySeg = ((u_char *)pbuf - pbiosMem) / 4096;
 
 	for (i = busySeg; i < (busySeg + count); i++)
 		busySegMap[i] = 0;
