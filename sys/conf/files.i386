@@ -157,6 +157,7 @@ dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/ed/if_ed_hpp.c		optional ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional ed isa ed_sic
 dev/fb/fb.c			optional fb | vga
+dev/fb/s3_pci.c			optional s3pci
 dev/fb/vesa.c			optional vga vesa x86emu
 dev/fb/vga.c			optional vga
 dev/fdc/fdc.c			optional fdc
