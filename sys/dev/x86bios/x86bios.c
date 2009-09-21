@@ -213,6 +213,6 @@ static moduledata_t x86bios_mod = {
 	NULL,
 };
 
-DECLARE_MODULE(x86bios, x86bios_mod, SI_SUB_KLD, SI_ORDER_ANY);
+DECLARE_MODULE(x86bios, x86bios_mod, SI_SUB_CPU, SI_ORDER_ANY);
 MODULE_VERSION(x86bios, 1);
 
