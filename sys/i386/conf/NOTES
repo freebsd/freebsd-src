@@ -353,7 +353,7 @@ options 	AGP_DEBUG
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
 
-# To include support for VGA VESA video modes (depends on X86EMU)
+# To include support for VGA VESA video modes
 options 	VESA
 
 # Turn on extra debugging checks and output for VESA support.
