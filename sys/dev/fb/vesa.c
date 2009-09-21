@@ -461,7 +461,7 @@ vesa_bios_state_buf_size(void)
 	if ((regs.R_AX & 0xff) != 0x4f)
 		return 0;
 
-	return regs.R_BX*64;
+	return regs.R_BX * 64;
 }
 
 static int
@@ -698,7 +698,7 @@ vesa_bios_init(void)
 		vesa_revstr = (char *)x86biosOffs(FARP(vesa_adp_info->v_revstr));
 	}
 
-	vesa_vmodetab = (u_int16_t *)x86biosOffs(FARP(vesa_adp_info->v_modetable));
+	vesa_vmodetab = (uint16_t *)x86biosOffs(FARP(vesa_adp_info->v_modetable));
 
 	if (vesa_vmodetab == NULL)
 		return 1;
@@ -783,7 +783,7 @@ vesa_bios_init(void)
 				      - vmode.v_lfb;
 		else
 			vesa_vmode[modes].vi_buffer_size
-				= vmode.v_offscreen + vmode.v_offscreensize*1024;
+				= vmode.v_offscreen + vmode.v_offscreensize * 1024;
 #endif
 		vesa_vmode[modes].vi_mem_model 
 			= vesa_translate_mmodel(vmode.v_memmodel);
@@ -1269,7 +1269,7 @@ vesa_get_origin(video_adapter_t *adp, off_t *offset)
 
 	if ((regs.R_AX & 0xff) != 0x4f)
 		return 1;
-	*offset = regs.DX*adp->va_window_gran;
+	*offset = regs.DX * adp->va_window_gran;
 
 	return 0;
 }
@@ -1298,7 +1298,7 @@ vesa_set_origin(video_adapter_t *adp, off_t offset)
 
 	regs.R_EAX = 0x4f05;
 	regs.R_EBX = 0;
-	regs.R_EDX = offset/adp->va_window_gran;
+	regs.R_EDX = offset / adp->va_window_gran;
 	x86biosCall(&regs, 0x10);
 
 	if ((regs.R_AX & 0xff) != 0x4f)
@@ -1306,7 +1306,7 @@ vesa_set_origin(video_adapter_t *adp, off_t offset)
 
 	regs.R_EAX = 0x4f05;
 	regs.R_EBX = 1;
-	regs.R_EDX = offset/adp->va_window_gran;
+	regs.R_EDX = offset / adp->va_window_gran;
 	x86biosCall(&regs, 0x10);
 
 	adp->va_window_orig = (offset/adp->va_window_gran)*adp->va_window_gran;
