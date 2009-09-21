@@ -2758,4 +2758,4 @@ options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
 # x86 real mode emulator
-options		X86EMU
+options		X86BIOS

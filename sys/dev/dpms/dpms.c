@@ -67,11 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/module.h>
 
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
-#include <contrib/x86emu/x86emu.h>
-#include <contrib/x86emu/x86emu_regs.h>
+#include <dev/x86bios/x86bios.h>
 
 /*
  * VESA DPMS States 
@@ -93,9 +89,6 @@ struct dpms_softc {
 	int	dpms_supported_states;
 	int	dpms_initial_state;
 };
-
-static struct x86emu vesa_emu;
-static unsigned char *emumem = NULL;
 
 static int	dpms_attach(device_t);
 static int	dpms_detach(device_t);
@@ -126,59 +119,7 @@ static driver_t dpms_driver = {
 static devclass_t dpms_devclass;
 
 DRIVER_MODULE(dpms, vgapci, dpms_driver, dpms_devclass, NULL, NULL);
-MODULE_DEPEND(dpms, x86emu, 1, 1, 1);
-
-static uint8_t
-vm86_emu_inb(struct x86emu *emu, uint16_t port)
-{
-	if (port == 0xb2) /* APM scratch register */
-		return 0;
-	if (port >= 0x80 && port < 0x88) /* POST status register */
-		return 0;
-	return inb(port);
-}
-
-static uint16_t
-vm86_emu_inw(struct x86emu *emu, uint16_t port)
-{
-	if (port >= 0x80 && port < 0x88) /* POST status register */
-		return 0;
-	return inw(port);
-}
-
-static uint32_t
-vm86_emu_inl(struct x86emu *emu, uint16_t port)
-{
-	if (port >= 0x80 && port < 0x88) /* POST status register */
-		return 0;
-	return inl(port);
-}
-
-static void
-vm86_emu_outb(struct x86emu *emu, uint16_t port, uint8_t val)
-{
-	if (port == 0xb2) /* APM scratch register */
-		return;
-	if (port >= 0x80 && port < 0x88) /* POST status register */
-		return;
-	outb(port, val);
-}
-
-static void
-vm86_emu_outw(struct x86emu *emu, uint16_t port, uint16_t val)
-{
-	if (port >= 0x80 && port < 0x88) /* POST status register */
-		return;
-	outw(port, val);
-}
-
-static void
-vm86_emu_outl(struct x86emu *emu, uint16_t port, uint32_t val)
-{
-	if (port >= 0x80 && port < 0x88) /* POST status register */
-		return;
-	outl(port, val);
-}
+MODULE_DEPEND(dpms, x86bios, 1, 1, 1);
 
 static void
 dpms_identify(driver_t *driver, device_t parent)
@@ -192,28 +133,12 @@ dpms_identify(driver_t *driver, device_t parent)
 	 */
 	if (devclass_get_device(dpms_devclass, 0) == NULL)
 		device_add_child(parent, "dpms", 0);
-
 }
 
 static int
 dpms_probe(device_t dev)
 {
 	int error, states;
-
-	emumem = pmap_mapbios(0x0, 0xc00000);
-
-	memset(&vesa_emu, 0, sizeof(vesa_emu));
-	x86emu_init_default(&vesa_emu);
-
-	vesa_emu.emu_inb = vm86_emu_inb;
-	vesa_emu.emu_inw = vm86_emu_inw;
-	vesa_emu.emu_inl = vm86_emu_inl;
-	vesa_emu.emu_outb = vm86_emu_outb;
-	vesa_emu.emu_outw = vm86_emu_outw;
-	vesa_emu.emu_outl = vm86_emu_outl;
-
-	vesa_emu.mem_base = (char *)emumem;
-	vesa_emu.mem_size = 1024 * 1024;
 
 	error = dpms_get_supported_states(&states);
 	if (error)
@@ -240,8 +165,6 @@ dpms_attach(device_t dev)
 static int
 dpms_detach(device_t dev)
 {
-	if (emumem)
-		pmap_unmapdev((vm_offset_t)emumem, 0xc00000);
 
 	return (0);
 }
@@ -267,17 +190,19 @@ dpms_resume(device_t dev)
 static int
 dpms_call_bios(int subfunction, int *bh)
 {
-	vesa_emu.x86.R_AX = VBE_DPMS_FUNCTION;
-	vesa_emu.x86.R_BL = subfunction;
-	vesa_emu.x86.R_BH = *bh;
-	vesa_emu.x86.R_ES = 0;
-	vesa_emu.x86.R_DI = 0;
-	x86emu_exec_intr(&vesa_emu, 0x10);
+	x86regs_t regs;
 
-	if ((vesa_emu.x86.R_EAX & 0xffff) != 0x004f)
+	regs.R_AX = VBE_DPMS_FUNCTION;
+	regs.R_BL = subfunction;
+	regs.R_BH = *bh;
+	regs.R_ES = 0;
+	regs.R_DI = 0;
+	x86biosCall(&regs, 0x10);
+
+	if ((regs.R_EAX & 0xffff) != 0x004f)
 		return (ENXIO);
 
-	*bh = vesa_emu.x86.R_BH;
+	*bh = regs.R_BH;
 
 	return (0);
 }
