@@ -32,6 +32,8 @@ ShowHelp()
 	exit 0
 }
 
+PAGER=${PAGER:-more}
+
 # Here is a trick to make sure that ssh-agent is running before
 # we start doing a bunch of svn operations over ssh.
 
