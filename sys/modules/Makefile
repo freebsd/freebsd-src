@@ -298,7 +298,7 @@ SUBDIR=	${_3dfx} \
 	wlan_xauth \
 	${_wpi} \
 	${_wpifw} \
-	x86bios \
+	${_x86bios} \
 	${_xe} \
 	xfs \
 	xl \
@@ -456,6 +456,7 @@ _padlock=	padlock
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
+_x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
@@ -539,6 +540,7 @@ _sppp=		sppp
 _tmpfs=		tmpfs
 _twa=		twa
 _vesa=		vesa
+_x86bios=	x86bios
 _wi=		wi
 _wpi=		wpi
 _wpifw=		wpifw
