@@ -33,10 +33,6 @@
  *
  */
 
-#include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-
 #include <contrib/x86emu/x86emu.h>
 #include <contrib/x86emu/x86emu_regs.h>
 
@@ -8335,32 +8331,3 @@ pop_long(struct x86emu *emu)
 	emu->x86.R_SP += 4;
 	return res;
 }
-
-static int
-x86emu_modevent(module_t mod __unused, int type, void *data __unused)
-{
-	int err = 0;
-
-	switch (type) {
-	case MOD_LOAD:
-		break;
-
-	case MOD_UNLOAD:
-		break;
-
-	default:
-		err = ENOTSUP;
-		break;
-
-	}
-	return (err);
-}
-
-static moduledata_t x86emu_mod = {
-	"x86emu",
-	x86emu_modevent,
-	NULL,
-};
-
-DECLARE_MODULE(x86emu, x86emu_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
-MODULE_VERSION(x86emu, 1);
