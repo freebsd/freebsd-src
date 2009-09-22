@@ -29,8 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ufs.h"
 
-#ifdef UFS_GJOURNAL
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -137,5 +135,3 @@ ufs_gjournal_close(struct vnode *vp)
 		return;
 	ufs_gjournal_modref(vp, -1);
 }
-
-#endif /* UFS_GJOURNAL */
