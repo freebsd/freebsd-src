@@ -191,8 +191,7 @@ struct filterops {
 	int	(*f_attach)(struct knote *kn);
 	void	(*f_detach)(struct knote *kn);
 	int	(*f_event)(struct knote *kn, long hint);
-	void	(*f_touch)(struct knote *kn, struct kevent *kev,
-		    unsigned long type);
+	void	(*f_touch)(struct knote *kn, struct kevent *kev, u_long type);
 };
 
 /*
