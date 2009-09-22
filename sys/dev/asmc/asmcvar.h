@@ -49,6 +49,7 @@ struct asmc_softc {
 	int 			sc_sms_intrtype;
 	struct taskqueue 	*sc_sms_tq;
 	struct task 		sc_sms_task;
+	uint8_t			sc_sms_intr_works;
 };
 
 /*
