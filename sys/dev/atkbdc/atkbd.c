@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#if defined(__i386__) || defined(__amd64__)
+#if 0
 #include <machine/md_var.h>
 #include <machine/psl.h>
 #include <dev/x86bios/x86bios.h>
@@ -1089,7 +1089,7 @@ atkbd_shutdown_final(void *v)
 static int
 get_typematic(keyboard_t *kbd)
 {
-#if defined(__i386__) || defined(__amd64__)
+#if 0
 	/*
 	 * Only some systems allow us to retrieve the keyboard repeat 
 	 * rate previously set via the BIOS...
