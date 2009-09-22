@@ -227,6 +227,8 @@ ata_marvell_edma_ch_attach(device_t dev)
     work = ch->dma.work_bus;
     /* clear work area */
     bzero(ch->dma.work, 1024+256);
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
     /* set legacy ATA resources */
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
@@ -310,7 +312,11 @@ ata_marvell_edma_ch_attach(device_t dev)
 static int
 ata_marvell_edma_ch_detach(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
 
+    if (ch->dma.work_tag && ch->dma.work_map)
+	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
     ata_dmafini(dev);
     return (0);
 }
@@ -344,8 +350,6 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
     struct ata_channel *ch = device_get_softc(request->parent);
     u_int32_t req_in;
     u_int8_t *bytep;
-    u_int16_t *wordp;
-    u_int32_t *quadp;
     int i;
     int error, slot;
 
@@ -374,13 +378,14 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
     slot = (((req_in & ~0xfffffc00) >> 5) + 0) & 0x1f;
     bytep = (u_int8_t *)(ch->dma.work);
     bytep += (slot << 5);
-    wordp = (u_int16_t *)bytep;
-    quadp = (u_int32_t *)bytep;
 
     /* fill in this request */
-    quadp[0] = (long)request->dma->sg_bus & 0xffffffff;
-    quadp[1] = (u_int64_t)request->dma->sg_bus >> 32;
-    wordp[4] = (request->flags & ATA_R_READ ? 0x01 : 0x00) | (request->tag<<1);
+    le32enc(bytep + 0 * sizeof(u_int32_t),
+	request->dma->sg_bus & 0xffffffff);
+    le32enc(bytep + 1 * sizeof(u_int32_t),
+	(u_int64_t)request->dma->sg_bus >> 32);
+    le16enc(bytep + 4 * sizeof(u_int16_t),
+	(request->flags & ATA_R_READ ? 0x01 : 0x00) | (request->tag << 1));
 
     i = 10;
     bytep[i++] = (request->u.ata.count >> 8) & 0xff;
@@ -408,6 +413,9 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
 
     bytep[i++] = request->u.ata.command;
     bytep[i++] = 0x90 | ATA_COMMAND;
+
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
     /* enable EDMA machinery if needed */
     if (!(ATA_INL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch)) & 0x00000001)) {
@@ -451,6 +459,8 @@ ata_marvell_edma_end_transaction(struct ata_request *request)
 	slot = (((rsp_in & ~0xffffff00) >> 3)) & 0x1f;
 	rsp_out &= 0xffffff00;
 	rsp_out += (slot << 3);
+	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	response = (struct ata_marvell_response *)
 		   (ch->dma.work + 1024 + (slot << 3));
 
@@ -525,6 +535,7 @@ ata_marvell_edma_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs,
 	prd[i].addrlo = htole32(segs[i].ds_addr);
 	prd[i].count = htole32(segs[i].ds_len);
 	prd[i].addrhi = htole32((u_int64_t)segs[i].ds_addr >> 32);
+	prd[i].reserved = 0;
     }
     prd[i - 1].count |= htole32(ATA_DMA_EOT);
     KASSERT(nsegs <= ATA_DMA_ENTRIES, ("too many DMA segment entries\n"));
