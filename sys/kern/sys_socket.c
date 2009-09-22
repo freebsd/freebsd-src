@@ -161,6 +161,19 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 		*(int *)data = so->so_rcv.sb_cc;
 		break;
 
+	case FIONWRITE:
+		/* Unlocked read. */
+		*(int *)data = so->so_snd.sb_cc;
+		break;
+
+	case FIONSPACE:
+		if ((so->so_snd.sb_hiwat < so->so_snd.sb_cc) ||
+		    (so->so_snd.sb_mbmax < so->so_snd.sb_mbcnt))
+			*(int *)data = 0;
+		else
+			*(int *)data = sbspace(&so->so_snd);
+		break;
+
 	case FIOSETOWN:
 		error = fsetown(*(int *)data, &so->so_sigio);
 		break;
