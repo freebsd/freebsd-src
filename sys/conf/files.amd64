@@ -294,3 +294,11 @@ i386/cpufreq/p4tcc.c		optional	cpufreq
 #
 libkern/memmove.c		standard
 libkern/memset.c		standard
+#
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+#
+dev/x86bios/x86bios.c		optional x86bios | atkbd | dpms | vesa
+dev/x86bios/x86bios_alloc.c	optional x86bios | atkbd | dpms | vesa
+contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
+contrib/x86emu/x86emu_util.c	optional x86bios | atkbd | dpms | vesa
+

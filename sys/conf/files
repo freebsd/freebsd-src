@@ -2828,8 +2828,3 @@ dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenpci/evtchn.c         optional xenpci
 dev/xen/xenpci/machine_reboot.c optional xenpci
-dev/x86bios/x86bios.c		optional x86bios | atkbd | dpms | vesa
-dev/x86bios/x86bios_alloc.c	optional x86bios | atkbd | dpms | vesa
-contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
-contrib/x86emu/x86emu_util.c	optional x86bios | atkbd | dpms | vesa
-
