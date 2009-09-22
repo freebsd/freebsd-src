@@ -2634,7 +2634,7 @@ ufs/ufs/ufs_acl.c		optional ffs
 ufs/ufs/ufs_bmap.c		optional ffs
 ufs/ufs/ufs_dirhash.c		optional ffs
 ufs/ufs/ufs_extattr.c		optional ffs
-ufs/ufs/ufs_gjournal.c		optional ffs
+ufs/ufs/ufs_gjournal.c		optional ffs UFS_GJOURNAL
 ufs/ufs/ufs_inode.c		optional ffs
 ufs/ufs/ufs_lookup.c		optional ffs
 ufs/ufs/ufs_quota.c		optional ffs
