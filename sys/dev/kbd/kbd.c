@@ -728,7 +728,7 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 	size_t len;
 	u_char *cp;
 	int mode;
-	int c;
+	u_int c;
 
 	/* assert(KBD_IS_VALID(kbd)) */
 	sc = (genkbd_softc_t *)arg;
