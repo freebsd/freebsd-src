@@ -1,10 +1,6 @@
 /*-
- * Copyright (c) 1993 Jan-Simon Pendry
- * Copyright (c) 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Jan-Simon Pendry.
+ * Copyright (c) 2009 Konstantin Belousov
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,37 +25,44 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
- *
- * From:
- * $FreeBSD$
  */
 
-#ifdef _KERNEL
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-int	 procfs_docurproc(PFS_FILL_ARGS);
-int	 procfs_doosrel(PFS_FILL_ARGS);
-int	 procfs_doproccmdline(PFS_FILL_ARGS);
-int	 procfs_doprocctl(PFS_FILL_ARGS);
-int	 procfs_doprocdbregs(PFS_FILL_ARGS);
-int	 procfs_doprocfile(PFS_FILL_ARGS);
-int	 procfs_doprocfpregs(PFS_FILL_ARGS);
-int	 procfs_doprocmap(PFS_FILL_ARGS);
-int	 procfs_doprocmem(PFS_FILL_ARGS);
-int	 procfs_doprocnote(PFS_FILL_ARGS);
-int	 procfs_doprocregs(PFS_FILL_ARGS);
-int	 procfs_doprocrlimit(PFS_FILL_ARGS);
-int	 procfs_doprocstatus(PFS_FILL_ARGS);
-int	 procfs_doproctype(PFS_FILL_ARGS);
-int	 procfs_ioctl(PFS_IOCTL_ARGS);
-int	 procfs_close(PFS_CLOSE_ARGS);
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/sbuf.h>
+#include <sys/uio.h>
 
-/* Attributes */
-int	 procfs_attr(PFS_ATTR_ARGS);
+#include <fs/pseudofs/pseudofs.h>
+#include <fs/procfs/procfs.h>
 
-/* Visibility */
-int	 procfs_notsystem(PFS_VIS_ARGS);
-int	 procfs_candebug(PFS_VIS_ARGS);
+int
+procfs_doosrel(PFS_FILL_ARGS)
+{
+	const char *pp;
+	int ov, osrel, i;
 
-#endif /* _KERNEL */
+	if (uio == NULL)
+		return (EOPNOTSUPP);
+	if (uio->uio_rw == UIO_READ) {
+		sbuf_printf(sb, "%d\n", p->p_osrel);
+	} else {
+		sbuf_trim(sb);
+		sbuf_finish(sb);
+		pp = sbuf_data(sb);
+		osrel = 0;
+		i = sbuf_len(sb);
+		while (i--) {
+			if (*pp < '0' || *pp > '9')
+				return (EINVAL);
+			ov = osrel * 10 + *pp++ - '0';
+			if (ov < osrel)
+				return (EINVAL);
+			osrel = ov;
+		}
+		p->p_osrel = osrel;
+	}
+	return (0);
+}
