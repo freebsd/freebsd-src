@@ -21,7 +21,7 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/x86emu/x86emu.h>
 #include <contrib/x86emu/x86emu_regs.h>
-#include <dev/x86bios/x86bios.h>
+#include <compat/x86bios/x86bios.h>
 
 u_char *pbiosMem = NULL;
 static u_char *pbiosStack = NULL;

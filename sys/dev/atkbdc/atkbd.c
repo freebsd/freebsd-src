@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #if 0
 #include <machine/md_var.h>
 #include <machine/psl.h>
-#include <dev/x86bios/x86bios.h>
+#include <compat/x86bios/x86bios.h>
 #include <machine/pc/bios.h>
 
 #include <vm/vm.h>
