@@ -1841,7 +1841,7 @@ zfs_perm_init(znode_t *zp, znode_t *parent, int flag,
 				fgid = zfs_fuid_create_cred(zfsvfs,
 				    ZFS_GROUP, tx, cr, fuidp);
 #ifdef __FreeBSD__
-				gid = parent->z_phys->zp_gid;
+				gid = fgid = parent->z_phys->zp_gid;
 #else
 				gid = crgetgid(cr);
 #endif
