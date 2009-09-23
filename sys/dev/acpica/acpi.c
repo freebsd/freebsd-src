@@ -2244,6 +2244,28 @@ acpi_SetIntrModel(int model)
 }
 
 /*
+ * Walk subtables of a table and call a callback routine for each
+ * subtable.  The caller should provide the first subtable and a
+ * pointer to the end of the table.  This can be used to walk tables
+ * such as MADT and SRAT that use subtable entries.
+ */
+void
+acpi_walk_subtables(void *first, void *end, acpi_subtable_handler *handler,
+    void *arg)
+{
+    ACPI_SUBTABLE_HEADER *entry;
+
+    for (entry = first; (void *)entry < end; ) {
+	/* Avoid an infinite loop if we hit a bogus entry. */
+	if (entry->Length < sizeof(ACPI_SUBTABLE_HEADER))
+	    return;
+
+	handler(entry, arg);
+	entry = ACPI_ADD_PTR(ACPI_SUBTABLE_HEADER, entry, entry->Length);
+    }
+}
+
+/*
  * DEPRECATED.  This interface has serious deficiencies and will be
  * removed.
  *
