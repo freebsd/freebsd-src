@@ -304,7 +304,7 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
-		device_printf(sc->sc_dev, "can not if_alloc()\n");
+		device_printf(sc->sc_dev, "cannot if_alloc()\n");
 		return ENOSPC;
 	}
 	ic = ifp->if_l2com;
