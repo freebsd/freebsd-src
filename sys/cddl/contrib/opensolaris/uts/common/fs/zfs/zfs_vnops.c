@@ -4860,7 +4860,7 @@ zfs_freebsd_getacl(ap)
 	vsecattr_t      vsecattr;
 
 	if (ap->a_type != ACL_TYPE_NFS4)
-		return (EOPNOTSUPP);
+		return (EINVAL);
 
 	vsecattr.vsa_mask = VSA_ACE | VSA_ACECNT;
 	if (error = zfs_getsecattr(ap->a_vp, &vsecattr, 0, ap->a_cred, NULL))
@@ -4889,7 +4889,7 @@ zfs_freebsd_setacl(ap)
 	aclent_t	*aaclp;
 
 	if (ap->a_type != ACL_TYPE_NFS4)
-		return (EOPNOTSUPP);
+		return (EINVAL);
 
 	if (ap->a_aclp->acl_cnt < 1 || ap->a_aclp->acl_cnt > MAX_ACL_ENTRIES)
 		return (EINVAL);
