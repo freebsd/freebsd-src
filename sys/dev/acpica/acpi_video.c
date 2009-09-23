@@ -282,8 +282,7 @@ acpi_video_detach(device_t dev)
 				acpi_video_notify_handler);
 
 	ACPI_SERIAL_BEGIN(video);
-	for (vo = STAILQ_FIRST(&sc->vid_outputs); vo != NULL; vo = vn) {
-		vn = STAILQ_NEXT(vo, vo_next);
+	STAILQ_FOREACH_SAFE(vo, &sc->vid_outputs, vo_next, vn) {
 		acpi_video_vo_destroy(vo);
 	}
 	ACPI_SERIAL_END(video);
