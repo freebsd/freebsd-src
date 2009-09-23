@@ -114,9 +114,16 @@ case "$d" in
 		svn=`$git_cmd svn find-rev $git 2>/dev/null`
 		if [ -n "$svn" ] ; then
 			svn=" r${svn}"
-			git="-${git}"
+			git="=${git}"
 		else
-			git=" ${git}"
+			svn=`$git_cmd log | fgrep 'git-svn-id:' | head -1 | \
+			     sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
+			if [ -n $svn ] ; then
+				svn=" r${svn}"
+				git="+${git}"
+			else
+				git=" ${git}"
+			fi
 		fi
 		if $git_cmd --work-tree=${SRCDIR} diff-index \
 		    --name-only HEAD | read dummy; then
