@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/isareg.h>
 
-#include <dev/x86bios/x86bios.h>
+#include <compat/x86bios/x86bios.h>
 
 #define	VESA_VIA_CLE266		"VIA CLE266\r\n"
 
