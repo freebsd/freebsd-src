@@ -221,6 +221,7 @@ int10_set_mode(int mode)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x0000 | mode;
 
 	x86biosCall(&regs, 0x10);
@@ -236,6 +237,7 @@ vesa_bios_get_mode(int mode, struct vesa_mode *vmode)
 	int offs;
 	u_char *buf;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f01;
 	regs.R_ECX = mode;
 
@@ -263,6 +265,7 @@ vesa_bios_set_mode(int mode)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f02;
 	regs.R_EBX = mode;
 
@@ -276,6 +279,7 @@ vesa_bios_get_dac(void)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f08;
 	regs.R_EBX = 1;
 
@@ -292,6 +296,7 @@ vesa_bios_set_dac(int bits)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f08;
 	regs.R_EBX = (bits << 8);
 
@@ -311,6 +316,7 @@ vesa_bios_save_palette(int start, int colors, u_char *palette, int bits)
 	u_char *p;
 	int i;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f09;
 	regs.R_EBX = 1;
 	regs.R_ECX = colors;
@@ -349,6 +355,7 @@ vesa_bios_save_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	u_char *p;
 	int i;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f09;
 	regs.R_EBX = 1;
 	regs.R_ECX = colors;
@@ -396,6 +403,7 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 		p[i*4 + 3] = 0;
 	}
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f09;
 	regs.R_EBX = 0;
 	regs.R_ECX = colors;
@@ -431,6 +439,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 		p[i*4 + 3] = 0;
 	}
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f09;
 	regs.R_EBX = 0;
 	regs.R_ECX = colors;
@@ -452,6 +461,7 @@ vesa_bios_state_buf_size(void)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f04;
 	regs.R_ECX = STATE_ALL;
 	regs.R_EDX = STATE_SIZE;
@@ -474,6 +484,7 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	if (size > VESA_BIOS_BUFSIZE)
 		return (1);
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f04;
 	regs.R_ECX = STATE_ALL;
 	regs.R_EDX = code;
@@ -499,6 +510,7 @@ vesa_bios_get_line_length(void)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f06;
 	regs.R_EBX = 1;
 
@@ -515,6 +527,7 @@ vesa_bios_set_line_length(int pixel, int *bytes, int *lines)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f06;
 	regs.R_EBX = 0;
 	regs.R_ECX = pixel;
@@ -541,6 +554,7 @@ vesa_bios_get_start(int *x, int *y)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f07;
 	regs.R_EBX = 1;
 
@@ -561,6 +575,7 @@ vesa_bios_set_start(int x, int y)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f07;
 	regs.R_EBX = 0x80;
 	regs.R_EDX = y;
@@ -662,6 +677,7 @@ vesa_bios_init(void)
 	vmbuf = (u_char *)x86biosAlloc(1, &offs);
 	bcopy("VBE2", vmbuf, 4);	/* try for VBE2 data */
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f00;
 	regs.R_ES = SEG_ADDR(offs);
 	regs.R_DI = SEG_OFF(offs);
@@ -1262,6 +1278,7 @@ vesa_get_origin(video_adapter_t *adp, off_t *offset)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f05;
 	regs.R_EBX = 0x10;
 
@@ -1296,6 +1313,7 @@ vesa_set_origin(video_adapter_t *adp, off_t offset)
 	if (adp->va_window_gran == 0)
 		return 1;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f05;
 	regs.R_EBX = 0;
 	regs.R_EDX = offset / adp->va_window_gran;
@@ -1304,6 +1322,7 @@ vesa_set_origin(video_adapter_t *adp, off_t offset)
 	if ((regs.R_AX & 0xff) != 0x4f)
 		return 1;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_EAX = 0x4f05;
 	regs.R_EBX = 1;
 	regs.R_EDX = offset / adp->va_window_gran;
