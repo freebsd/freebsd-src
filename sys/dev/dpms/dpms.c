@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/module.h>
 
-#include <dev/x86bios/x86bios.h>
+#include <compat/x86bios/x86bios.h>
 
 /*
  * VESA DPMS States 

@@ -27,7 +27,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <dev/x86bios/x86bios.h>
+#include <compat/x86bios/x86bios.h>
 
 extern u_char *pbiosMem;
 extern int busySegMap[5];
