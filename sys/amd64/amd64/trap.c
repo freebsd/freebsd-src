@@ -505,8 +505,11 @@ trap(struct trapframe *frame)
 			 * XXX this should be fatal unless the kernel has
 			 * registered such use.
 			 */
-			fpudna();
 			printf("fpudna in kernel mode!\n");
+#ifdef KDB
+			kdb_backtrace();
+#endif
+			fpudna();
 			goto out;
 
 		case T_STKFLT:		/* stack fault */
