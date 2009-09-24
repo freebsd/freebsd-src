@@ -129,10 +129,10 @@ typedef struct x86regs	x86regs_t;
 #define PAGE_RESERV		(4096*5)
 
 __BEGIN_DECLS
-void  x86biosCall(struct x86regs *regs, int intno);
-void *x86biosAlloc(int count, int *segs);
-void  x86biosFree(void *pbuf, int count);
-void *x86biosOffs(uint32_t offs);
+void *x86bios_alloc(int count, int *segs);
+void  x86bios_free(void *pbuf, int count);
+void  x86bios_intr(struct x86regs *regs, int intno);
+void *x86bios_offset(uint32_t offs);
 __END_DECLS
 
 #endif /* !_X86BIOS_H_ */
