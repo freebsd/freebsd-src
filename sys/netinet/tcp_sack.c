@@ -344,17 +344,12 @@ tcp_sackhole_remove(struct tcpcb *tp, struct sackhole *hole)
 	/* Free this SACK hole. */
 	tcp_sackhole_free(tp, hole);
 
-	/*
 #ifdef INVARIANTS
 	if (TAILQ_EMPTY(&tp->snd_holes))
 		KASSERT(tp->sack_hole_bytes == 0,
-			("tp->sack_hole_bytes is %d instead of 0", tp->sack_hole_bytes));
+		    ("tp->sack_hole_bytes is %d instead of 0",
+		    tp->sack_hole_bytes));
 #endif
-	*/
-	if (TAILQ_EMPTY(&tp->snd_holes) && tp->sack_hole_bytes != 0) {
-		printf("conn (%p) tp->sack_hole_bytes is %d instead of 0\n", tp, tp->sack_hole_bytes);
-		tp->sack_hole_bytes = 0;
-	}
 }
 
 /*
