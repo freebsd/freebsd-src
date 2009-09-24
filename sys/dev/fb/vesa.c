@@ -1132,10 +1132,8 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		vesa_adp->va_window_gran = info.vi_window_gran;
 	}
 	vesa_adp->va_window_orig = 0;
-	len = vesa_bios_get_line_length();
-	if (len > 0) {
-		vesa_adp->va_line_width = len;
-	} else if (info.vi_flags & V_INFO_GRAPHICS) {
+
+	if (info.vi_flags & V_INFO_GRAPHICS) {
 		switch (info.vi_depth/info.vi_planes) {
 		case 1:
 			vesa_adp->va_line_width = info.vi_width/8;
@@ -1161,6 +1159,9 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		}
 	} else {
 		vesa_adp->va_line_width = info.vi_width;
+		len = vesa_bios_get_line_length();
+		if (len > 0)
+			vesa_adp->va_line_width = len;
 	}
 	vesa_adp->va_disp_start.x = 0;
 	vesa_adp->va_disp_start.y = 0;
