@@ -97,6 +97,11 @@ x86bios_intr(struct x86regs *regs, int intno)
 	if (intno < 0 || intno > 255)
 		return;
 
+	if (bootverbose)
+		printf("Calling real mode int 0x%x "
+		    "(ax=0x%04x bx=0x%04x cx=0x%04x dx=0x%04x)\n",
+		    intno, regs->R_AX, regs->R_BX, regs->R_CX, regs->R_DX);
+
 	mtx_lock_spin(&x86bios_lock);
 
 	memcpy(&x86bios_emu.x86, regs, sizeof(*regs));
@@ -104,6 +109,11 @@ x86bios_intr(struct x86regs *regs, int intno)
 	memcpy(regs, &x86bios_emu.x86, sizeof(*regs));
 
 	mtx_unlock_spin(&x86bios_lock);
+
+	if (bootverbose)
+		printf("Exiting real mode int 0x%x "
+		    "(ax=0x%04x bx=0x%04x cx=0x%04x dx=0x%04x)\n",
+		    intno, regs->R_AX, regs->R_BX, regs->R_CX, regs->R_DX);
 }
 
 void *
