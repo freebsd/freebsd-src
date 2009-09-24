@@ -171,8 +171,11 @@ _thr_rwlock_unlock(struct urwlock *rwlock)
 		for (;;) {
 			if (__predict_false(URWLOCK_READER_COUNT(state) == 0))
 				return (EPERM);
-			if (!((state & URWLOCK_WRITE_WAITERS) && URWLOCK_READER_COUNT(state) == 1)) {
-				if (atomic_cmpset_rel_32(&rwlock->rw_state, state, state-1))
+			if (!((state & (URWLOCK_WRITE_WAITERS |
+			    URWLOCK_READ_WAITERS)) &&
+			    URWLOCK_READER_COUNT(state) == 1)) {
+				if (atomic_cmpset_rel_32(&rwlock->rw_state,
+				    state, state-1))
 					return (0);
 				state = rwlock->rw_state;
 			} else {
