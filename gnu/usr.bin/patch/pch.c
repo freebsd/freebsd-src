@@ -1152,7 +1152,8 @@ pgets(bool do_indent)
 					indent++;
 			}
 		}
-		Strlcpy(buf, line, len + 1 - skipped);
+		Strncpy(buf, line, len - skipped);
+		buf[len - skipped] = '\0';
 	}
 	return len;
 }
