@@ -91,7 +91,7 @@ x86bios_emu_outl(struct x86emu *emu, uint16_t port, uint32_t val)
 }
 
 void
-x86biosCall(struct x86regs *regs, int intno)
+x86bios_intr(struct x86regs *regs, int intno)
 {
 
 	if (intno < 0 || intno > 255)
@@ -107,7 +107,7 @@ x86biosCall(struct x86regs *regs, int intno)
 }
 
 void *
-x86biosOffs(uint32_t offs)
+x86bios_offset(uint32_t offs)
 {
 
 	return (pbiosMem + offs);
@@ -138,14 +138,14 @@ x86bios_init(void *arg __unused)
 
 	memset(busySegMap, 0, sizeof(busySegMap));
 
-	pbiosStack = x86biosAlloc(1, &offs);
+	pbiosStack = x86bios_alloc(1, &offs);
 }
 
 static void
 x86bios_uninit(void *arg __unused)
 {
 
-	x86biosFree(pbiosStack, 1);
+	x86bios_free(pbiosStack, 1);
 
 	if (pbiosMem)
 		pmap_unmapdev((vm_offset_t)pbiosMem,
