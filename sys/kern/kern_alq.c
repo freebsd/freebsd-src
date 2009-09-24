@@ -46,9 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/eventhandler.h>
 
-#if (__FreeBSD_version >= 700000)
 #include <security/mac/mac_framework.h>
-#endif
 
 /* Async. Logging Queue */
 struct alq {
@@ -189,11 +187,7 @@ ald_daemon(void)
 	for (;;) {
 		while ((alq = LIST_FIRST(&ald_active)) == NULL
 		    && !ald_shutingdown)
-#if (__FreeBSD_version >= 700000)
 			mtx_sleep(&ald_active, &ald_mtx, PWAIT, "aldslp", 0);
-#else
-			msleep(&ald_active, &ald_mtx, PWAIT, "aldslp", 0);
-#endif
 
 		/* Don't shutdown until all active alq's are flushed */
 		if (ald_shutingdown && alq == NULL) {
@@ -211,14 +205,7 @@ ald_daemon(void)
 		ALD_LOCK();
 	}
 
-#if (__FreeBSD_version < 800000)
-#if (__FreeBSD_version < 700000)
-	wakeup(ald_proc);
-#endif
-	kthread_exit(0);
-#else
 	kproc_exit(0);
-#endif
 }
 
 static void
@@ -248,11 +235,8 @@ ald_shutdown(void *arg, int howto)
 	wakeup(&ald_active);
 
 	/* Wait for ald_daemon to exit */
-#if (__FreeBSD_version >= 700000)
 	mtx_sleep(ald_proc, &ald_mtx, PWAIT, "aldslp", 0);
-#else
-	msleep(ald_proc, &ald_mtx, PWAIT, "aldslp", 0);
-#endif
+
 	ALD_UNLOCK();
 }
 
@@ -359,11 +343,7 @@ alq_doio(struct alq *alq)
 	 */
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
-#if (__FreeBSD_version < 800000)
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-#else
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-#endif
 
 	/*
 	 * XXX: VOP_WRITE error checks are ignored.
@@ -372,11 +352,7 @@ alq_doio(struct alq *alq)
 	if (mac_vnode_check_write(alq->aq_cred, NOCRED, vp) == 0)
 #endif
 		VOP_WRITE(vp, &auio, IO_UNIT | IO_APPEND, alq->aq_cred);
-#if (__FreeBSD_version < 800000)
-	VOP_UNLOCK(vp, 0, td);
-#else
 	VOP_UNLOCK(vp, 0);
-#endif
 	vn_finished_write(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 
@@ -450,24 +426,14 @@ alq_open(struct alq **alqp, const char *file, struct ucred *cred, int cmode,
 	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, file, td);
 	flags = FWRITE | O_NOFOLLOW | O_CREAT;
 
-#if (__FreeBSD_version < 700000)
-	error = vn_open_cred(&nd, &flags, cmode, cred, 0);
-#elif (__FreeBSD_version < 800098)
-	error = vn_open_cred(&nd, &flags, cmode, cred, NULL);
-#else
 	error = vn_open_cred(&nd, &flags, cmode, 0, cred, NULL);
-#endif
 	if (error)
 		return (error);
 
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	/* We just unlock so we hold a reference. */
-#if (__FreeBSD_version < 800000)
-	VOP_UNLOCK(nd.ni_vp, 0, td);
-#else
 	VOP_UNLOCK(nd.ni_vp, 0);
-#endif
 	VFS_UNLOCK_GIANT(vfslocked);
 
 	alq = malloc(sizeof(*alq), M_ALD, M_WAITOK|M_ZERO);
