@@ -381,7 +381,7 @@ i386/xbox/pic16l.s		optional xbox
 #
 # x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
 #
-contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
-contrib/x86emu/x86emu_util.c	optional x86bios | atkbd | dpms | vesa
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
 compat/x86bios/x86bios_alloc.c	optional x86bios | atkbd | dpms | vesa
+contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
+contrib/x86emu/x86emu_util.c	optional x86bios | atkbd | dpms | vesa
