@@ -104,7 +104,7 @@ typedef struct {
 	tulip_descinfo_t *ri_descinfo;
 	bus_dma_tag_t	ri_ring_tag;
 	bus_dmamap_t	ri_ring_map;
-	uint32_t	ri_dma_addr;
+	bus_addr_t	ri_dma_addr;
 	bus_dma_tag_t	ri_data_tag;
 	bus_dmamap_t	*ri_data_maps;
 } tulip_ringinfo_t;
@@ -557,7 +557,7 @@ struct tulip_softc {
 	 */
 	bus_dma_tag_t		tulip_setup_tag;
 	bus_dmamap_t		tulip_setup_map;
-	uint32_t		tulip_setup_dma_addr;
+	bus_addr_t		tulip_setup_dma_addr;
 	u_int32_t		*tulip_setupbuf;
 	u_int32_t		tulip_setupdata[192 / sizeof(u_int32_t)];
 	char			tulip_boardid[24];
