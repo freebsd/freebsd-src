@@ -160,7 +160,7 @@ static void	tulip_dma_map_rxbuf(void *, bus_dma_segment_t *, int,
 static void
 tulip_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-    u_int32_t *paddr;
+    bus_addr_t *paddr;
 
     if (error)
 	return;
@@ -182,7 +182,7 @@ tulip_dma_map_rxbuf(void *arg, bus_dma_segment_t *segs, int nseg,
     KASSERT(nseg == 1, ("too many DMA segments"));
     KASSERT(segs[0].ds_len >= TULIP_RX_BUFLEN, ("receive buffer too small"));
 
-    desc->d_addr1 = segs[0].ds_addr;
+    desc->d_addr1 = segs[0].ds_addr & 0xffffffff;
     desc->d_length1 = TULIP_RX_BUFLEN;
 #ifdef not_needed
     /* These should already always be zero. */
@@ -3171,8 +3171,8 @@ tulip_reset(tulip_softc_t * const sc)
 	sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
     }
 
-    TULIP_CSR_WRITE(sc, csr_txlist, sc->tulip_txinfo.ri_dma_addr);
-    TULIP_CSR_WRITE(sc, csr_rxlist, sc->tulip_rxinfo.ri_dma_addr);
+    TULIP_CSR_WRITE(sc, csr_txlist, sc->tulip_txinfo.ri_dma_addr & 0xffffffff);
+    TULIP_CSR_WRITE(sc, csr_rxlist, sc->tulip_rxinfo.ri_dma_addr & 0xffffffff);
     TULIP_CSR_WRITE(sc, csr_busmode,
 		    (1 << (3 /*pci_max_burst_len*/ + 8))
 		    |TULIP_BUSMODE_CACHE_ALIGN8
@@ -4016,9 +4016,9 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
 	eop = nextout;
 	eop->di_desc->d_flag   &= TULIP_DFLAG_ENDRING|TULIP_DFLAG_CHAIN;
 	eop->di_desc->d_status  = d_status;
-	eop->di_desc->d_addr1   = segs[segcnt].ds_addr;
+	eop->di_desc->d_addr1   = segs[segcnt].ds_addr & 0xffffffff;
 	eop->di_desc->d_length1 = segs[segcnt].ds_len;
-	eop->di_desc->d_addr2   = segs[segcnt+1].ds_addr;
+	eop->di_desc->d_addr2   = segs[segcnt+1].ds_addr & 0xffffffff;
 	eop->di_desc->d_length2 = segs[segcnt+1].ds_len;
 	d_status = TULIP_DSTS_OWNER;
 	if (++nextout == ri->ri_last)
@@ -4028,7 +4028,7 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
 	eop = nextout;
 	eop->di_desc->d_flag   &= TULIP_DFLAG_ENDRING|TULIP_DFLAG_CHAIN;
 	eop->di_desc->d_status  = d_status;
-	eop->di_desc->d_addr1   = segs[segcnt].ds_addr;
+	eop->di_desc->d_addr1   = segs[segcnt].ds_addr & 0xffffffff;
 	eop->di_desc->d_length1 = segs[segcnt].ds_len;
 	eop->di_desc->d_addr2   = 0;
 	eop->di_desc->d_length2 = 0;
@@ -4194,7 +4194,7 @@ tulip_txput_setup(tulip_softc_t * const sc)
     nextout->d_length2 = 0;
     nextout->d_addr2 = 0;
     nextout->d_length1 = sizeof(sc->tulip_setupdata);
-    nextout->d_addr1 = sc->tulip_setup_dma_addr;
+    nextout->d_addr1 = sc->tulip_setup_dma_addr & 0xffffffff;
     bus_dmamap_sync(sc->tulip_setup_tag, sc->tulip_setup_map,
 	BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
     TULIP_TXDESC_PRESYNC(ri);
