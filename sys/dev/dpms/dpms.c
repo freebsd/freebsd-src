@@ -192,6 +192,7 @@ dpms_call_bios(int subfunction, int *bh)
 {
 	x86regs_t regs;
 
+	bzero(&regs, sizeof(regs));
 	regs.R_AX = VBE_DPMS_FUNCTION;
 	regs.R_BL = subfunction;
 	regs.R_BH = *bh;
