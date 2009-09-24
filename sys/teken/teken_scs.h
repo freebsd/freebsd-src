@@ -100,7 +100,7 @@ teken_scs_uk_national(teken_t *t, teken_char_t c)
 }
 
 static teken_char_t
-teken_scs_us_ascii(teken_t *t, teken_char_t c)
+teken_scs_us_ascii(teken_t *t __unused, teken_char_t c)
 {
 
 	/* No processing. */
