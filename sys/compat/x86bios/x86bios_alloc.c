@@ -33,7 +33,7 @@ extern u_char *pbiosMem;
 extern int busySegMap[5];
 
 void *
-x86biosAlloc(int count, int *segs)
+x86bios_alloc(int count, int *segs)
 {
 	int i;
 	int j;
@@ -69,7 +69,7 @@ x86biosAlloc(int count, int *segs)
 }
 
 void
-x86biosFree(void *pbuf, int count)
+x86bios_free(void *pbuf, int count)
 {
 	int i;
 	int busySeg;
