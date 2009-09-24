@@ -135,7 +135,6 @@ typedef struct {
  * 100Mb/s cards the copying is just too much of a hit.
  */
 
-#define	TULIP_DATA_PER_DESC	2032
 #define	TULIP_TXTIMER		4
 #define	TULIP_RXDESCS		48
 #define	TULIP_TXDESCS		128
