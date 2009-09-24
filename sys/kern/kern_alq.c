@@ -59,7 +59,9 @@ struct alq {
 	char	*aq_entbuf;		/* Buffer for stored entries */
 	int	aq_writehead;
 	int	aq_writetail;
+	int	aq_wrapearly;		/* # bytes left blank at end of buf */
 	int	aq_flags;		/* Queue flags */
+	struct	ale	aq_getpost;	/* ALE for use by get/post */
 	struct mtx	aq_mtx;		/* Queue lock */
 	struct vnode	*aq_vp;		/* Open vnode handle */
 	struct ucred	*aq_cred;	/* Credentials of the opening thread */
@@ -303,6 +305,7 @@ alq_doio(struct alq *alq)
 	int totlen;
 	int iov;
 	int vfslocked;
+	int wrapearly;
 
 	KASSERT((ALQ_HAS_PENDING_DATA(alq)),
 		("%s: queue emtpy!", __func__)
@@ -331,13 +334,15 @@ alq_doio(struct alq *alq)
 		 * - first is from writetail to end of buffer
 		 * - second is from start of buffer to writehead
 		 */
-		aiov[0].iov_len = alq->aq_buflen - alq->aq_writetail;
+		aiov[0].iov_len = alq->aq_buflen - alq->aq_writetail -
+		    alq->aq_wrapearly;
 		iov++;
 		aiov[1].iov_base = alq->aq_entbuf;
 		aiov[1].iov_len =  alq->aq_writehead;
 		totlen = aiov[0].iov_len + aiov[1].iov_len;
 	}
 
+	wrapearly = alq->aq_wrapearly;
 	alq->aq_flags |= AQ_FLUSHING;
 	ALQ_UNLOCK(alq);
 
@@ -379,8 +384,16 @@ alq_doio(struct alq *alq)
 	alq->aq_flags &= ~AQ_FLUSHING;
 
 	/* Adjust writetail as required, taking into account wrapping. */
-	alq->aq_writetail = (alq->aq_writetail + totlen) % alq->aq_buflen;
-	alq->aq_freebytes += totlen;
+	alq->aq_writetail = (alq->aq_writetail + totlen + wrapearly) %
+	    alq->aq_buflen;
+	alq->aq_freebytes += totlen + wrapearly;
+
+	/*
+	 * If we just flushed part of the buffer which wrapped, reset the
+	 * wrapearly indicator.
+	 */
+	if (wrapearly)
+		alq->aq_wrapearly = 0;
 
 	/*
 	 * If we just flushed the buffer completely,
@@ -613,20 +626,11 @@ alq_get(struct alq *alq, int flags)
 struct ale *
 alq_getn(struct alq *alq, int len, int flags)
 {
-	struct ale *ale;
 	int contigbytes;
 
 	KASSERT((len > 0 && len <= alq->aq_buflen),
 		("%s: len <= 0 || len > alq->aq_buflen", __func__)
 	);
-
-	ale = malloc(	sizeof(struct ale),
-			M_ALD,
-			(flags & ALQ_NOWAIT) ? M_NOWAIT : M_WAITOK
-	);
-
-	if (ale == NULL)
-		return (NULL);
 
 	ALQ_LOCK(alq);
 
@@ -640,8 +644,27 @@ alq_getn(struct alq *alq, int len, int flags)
 	 */
 	if (alq->aq_writehead <= alq->aq_writetail)
 		contigbytes = alq->aq_freebytes;
-	else
+	else {
 		contigbytes = alq->aq_buflen - alq->aq_writehead;
+
+		if (contigbytes < len) {
+			/*
+			 * Insufficient space at end of buffer to handle a
+			 * contiguous write. Wrap early if there's space at
+			 * the beginning. This will leave a hole at the end
+			 * of the buffer which we will have to skip over when
+			 * flushing the buffer to disk.
+			 */
+			if (alq->aq_writetail >= len || flags & ALQ_WAITOK) {
+				/* Keep track of # bytes left blank. */
+				alq->aq_wrapearly = contigbytes;
+				/* Do the wrap and adjust counters. */
+				contigbytes = alq->aq_freebytes =
+				    alq->aq_writetail;
+				alq->aq_writehead = 0;
+			}
+		}
+	}
 
 	/*
 	 * If the message is larger than our underlying buffer or
@@ -651,7 +674,6 @@ alq_getn(struct alq *alq, int len, int flags)
 	if ((len > alq->aq_buflen) ||
 		((flags & ALQ_NOWAIT) && (contigbytes < len))) {
 		ALQ_UNLOCK(alq);
-		free(ale, M_ALD);
 		return (NULL);
 	}
 
@@ -678,10 +700,9 @@ alq_getn(struct alq *alq, int len, int flags)
 	 */
 	wakeup_one(alq);
 
-	/* Bail if we're shutting down */
+	/* Bail if we're shutting down. */
 	if (alq->aq_flags & AQ_SHUTDOWN) {
 		ALQ_UNLOCK(alq);
-		free(ale, M_ALD);
 		return (NULL);
 	}
 
@@ -689,8 +710,7 @@ alq_getn(struct alq *alq, int len, int flags)
 	 * If we are here, we have a contiguous number of bytes >= len
 	 * available in our buffer starting at aq_writehead.
 	 */
-	ale->ae_data = alq->aq_entbuf + alq->aq_writehead;
-	ale->ae_datalen = len;
+	alq->aq_getpost.ae_data = alq->aq_entbuf + alq->aq_writehead;
 	alq->aq_writehead += len;
 	alq->aq_freebytes -= len;
 
@@ -702,7 +722,7 @@ alq_getn(struct alq *alq, int len, int flags)
 		("%s: aq_writehead < 0 || aq_writehead >= aq_buflen", __func__)
 	);
 
-	return (ale);
+	return (&alq->aq_getpost);
 }
 
 void
@@ -724,8 +744,6 @@ alq_post(struct alq *alq, struct ale *ale, int flags)
 		ald_activate(alq);
 		ALD_UNLOCK();
 	}
-
-	free(ale, M_ALD);
 }
 
 void

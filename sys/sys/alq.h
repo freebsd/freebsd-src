@@ -42,8 +42,9 @@ extern struct thread *ald_thread;
  * Async. Logging Entry
  */
 struct ale {
-	char		*ae_data;	/* Entry buffer */
-	int		ae_datalen;	/* Length of buffer */
+	struct ale	*ae_next;	/* Unused, compat. */
+	char		*ae_data;	/* Write ptr. */
+	int		ae_flags;	/* Unused, compat. */
 };
 
 /* flags options */
