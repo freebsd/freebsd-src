@@ -3488,7 +3488,7 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	    struct mbuf *m0;
 
 	    KASSERT(ms != NULL, ("no packet to accept"));
-#if defined(TULIP_COPY_RXDATA)
+#ifndef	__NO_STRICT_ALIGNMENT
 	    /*
 	     * Copy the data into a new mbuf that is properly aligned.  If
 	     * we fail to allocate a new mbuf, then drop the packet.  We will
@@ -3527,7 +3527,7 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	     */
 	    ms = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 
-#if defined(TULIP_COPY_RXDATA)
+#ifndef __NO_STRICT_ALIGNMENT
     skip_input:
 #endif
 	if (ms == NULL) {
