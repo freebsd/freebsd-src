@@ -197,7 +197,7 @@ dpms_call_bios(int subfunction, int *bh)
 	regs.R_BH = *bh;
 	regs.R_ES = 0;
 	regs.R_DI = 0;
-	x86biosCall(&regs, 0x10);
+	x86bios_intr(&regs, 0x10);
 
 	if ((regs.R_EAX & 0xffff) != 0x004f)
 		return (ENXIO);
