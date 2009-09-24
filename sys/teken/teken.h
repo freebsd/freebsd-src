@@ -109,7 +109,7 @@ typedef struct {
 	tf_respond_t	*tf_respond;
 } teken_funcs_t;
 
-typedef teken_char_t teken_scs_t(teken_char_t);
+typedef teken_char_t teken_scs_t(teken_t *, teken_char_t);
 
 /*
  * Terminal state.
