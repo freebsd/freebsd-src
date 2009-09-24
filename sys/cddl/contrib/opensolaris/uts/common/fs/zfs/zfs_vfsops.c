@@ -864,7 +864,7 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 	znode_t *rootzp;
 	int error;
 
-	ZFS_ENTER(zfsvfs);
+	ZFS_ENTER_NOERROR(zfsvfs);
 
 	error = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
 	if (error == 0) {
@@ -1028,6 +1028,17 @@ zfs_umount(vfs_t *vfsp, int fflag)
 		}
 		zfsctl_destroy(zfsvfs);
 		ASSERT(zfsvfs->z_ctldir == NULL);
+	}
+
+	if (fflag & MS_FORCE) {
+		/*
+		 * Mark file system as unmounted before calling
+		 * vflush(FORCECLOSE). This way we ensure no future vnops
+		 * will be called and risk operating on DOOMED vnodes.
+		 */
+		rrw_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
+		zfsvfs->z_unmounted = B_TRUE;
+		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
 	}
 
 	/*
