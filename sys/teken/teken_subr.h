@@ -802,8 +802,9 @@ teken_subr_regular_character(teken_t *t, teken_char_t c)
 	int width;
 
 	if (t->t_stateflags & TS_8BIT) {
-		if (!(t->t_stateflags & TS_CONS25) && c <= 0x1B)
+		if (!(t->t_stateflags & TS_CONS25) && (c <= 0x1b || c == 0x7f))
 			return;
+		c = teken_scs_process(t, c);
 		width = 1;
 	} else {
 		c = teken_scs_process(t, c);

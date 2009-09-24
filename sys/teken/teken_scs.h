@@ -58,39 +58,49 @@ static teken_char_t
 teken_scs_process(teken_t *t, teken_char_t c)
 {
 
-	return (t->t_scs[t->t_curscs](c));
+	return (t->t_scs[t->t_curscs](t, c));
 }
 
 /* Unicode points for VT100 box drawing. */
-static const uint16_t teken_boxdrawing[31] = {
+static const uint16_t teken_boxdrawing_unicode[31] = {
     0x25c6, 0x2592, 0x2409, 0x240c, 0x240d, 0x240a, 0x00b0, 0x00b1,
     0x2424, 0x240b, 0x2518, 0x2510, 0x250c, 0x2514, 0x253c, 0x23ba,
     0x23bb, 0x2500, 0x23bc, 0x23bd, 0x251c, 0x2524, 0x2534, 0x252c,
     0x2502, 0x2264, 0x2265, 0x03c0, 0x2260, 0x00a3, 0x00b7
 };
 
+/* CP437 points for VT100 box drawing. */
+static const uint8_t teken_boxdrawing_8bit[31] = {
+    0x04, 0xb1, 0x48, 0x46, 0x43, 0x4c, 0xf8, 0xf1,
+    0x4e, 0x56, 0xd9, 0xbf, 0xda, 0xc0, 0xc5, 0xc4,
+    0xc4, 0xc4, 0xc4, 0xc4, 0xc3, 0xb4, 0xc1, 0xc2,
+    0xb3, 0xf3, 0xf2, 0xe3, 0xd8, 0x9c, 0xfa,
+};
+
 static teken_char_t
-teken_scs_special_graphics(teken_char_t c)
+teken_scs_special_graphics(teken_t *t, teken_char_t c)
 {
 
 	/* Box drawing. */
 	if (c >= '`' && c <= '~')
-		return (teken_boxdrawing[c - '`']);
+		return (t->t_stateflags & TS_8BIT ?
+		    teken_boxdrawing_8bit[c - '`'] :
+		    teken_boxdrawing_unicode[c - '`']);
 	return (c);
 }
 
 static teken_char_t
-teken_scs_uk_national(teken_char_t c)
+teken_scs_uk_national(teken_t *t, teken_char_t c)
 {
 
 	/* Pound sign. */
 	if (c == '#')
-		return (0xa3);
+		return (t->t_stateflags & TS_8BIT ? 0x9c : 0xa3);
 	return (c);
 }
 
 static teken_char_t
-teken_scs_us_ascii(teken_char_t c)
+teken_scs_us_ascii(teken_t *t, teken_char_t c)
 {
 
 	/* No processing. */
