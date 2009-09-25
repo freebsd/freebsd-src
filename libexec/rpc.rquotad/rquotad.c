@@ -56,8 +56,8 @@ static void
 cleanup(int sig)
 {
 
-	(void) sig;
-	(void) rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
+	(void)sig;
+	(void)rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
 	exit(0);
 }
 
@@ -70,18 +70,17 @@ main(void)
 	socklen_t fromlen;
 
 	fromlen = sizeof(from);
-	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0) {
+	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0)
 		from_inetd = 0;
-	}
 
 	if (!from_inetd) {
 		daemon(0, 0);
 
-		(void) rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
+		(void)rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
 
-		(void) signal(SIGINT, cleanup);
-		(void) signal(SIGTERM, cleanup);
-		(void) signal(SIGHUP, cleanup);
+		(void)signal(SIGINT, cleanup);
+		(void)signal(SIGTERM, cleanup);
+		(void)signal(SIGHUP, cleanup);
 	}
 
 	openlog("rpc.rquotad", LOG_CONS|LOG_PID, LOG_DAEMON);
@@ -94,10 +93,11 @@ main(void)
 			exit(1);
 		}
 		ok = svc_reg(transp, RQUOTAPROG, RQUOTAVERS,
-			     rquota_service, NULL);
-	} else
+		    rquota_service, NULL);
+	} else {
 		ok = svc_create(rquota_service,
-				RQUOTAPROG, RQUOTAVERS, "udp");
+		    RQUOTAPROG, RQUOTAVERS, "udp");
+	}
 	if (!ok) {
 		syslog(LOG_ERR,
 		    "unable to register (RQUOTAPROG, RQUOTAVERS, %s)",
@@ -142,7 +142,7 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 	struct dqblk dqblk;
 	struct timeval timev;
 
-	bzero((char *)&getq_args, sizeof(getq_args));
+	bzero(&getq_args, sizeof(getq_args));
 	if (!svc_getargs(transp, (xdrproc_t)xdr_getquota_args, &getq_args)) {
 		svcerr_decode(transp);
 		return;
@@ -195,7 +195,7 @@ printerr_reply(SVCXPRT *transp)	/* when a reply to a request failed */
 
 	caller = (struct sockaddr *)svc_getrpccaller(transp)->buf;
 	getnameinfo(caller, caller->sa_len, name, sizeof (name),
-		    NULL, 0, NI_NUMERICHOST);
+	    NULL, 0, NI_NUMERICHOST);
 	errno = save_errno;
 	if (errno == 0)
 		syslog(LOG_ERR, "couldn't send reply to %s", name);
@@ -220,15 +220,13 @@ initfs(void)
 		if (!hasquota(fs, &qfpathname))
 			continue;
 
-		fs_current = (struct fs_stat *) malloc(sizeof(struct fs_stat));
+		fs_current = malloc(sizeof(struct fs_stat));
 		fs_current->fs_next = fs_next;	/* next element */
 
-		fs_current->fs_file =
-		    malloc(sizeof(char) * (strlen(fs->fs_file) + 1));
+		fs_current->fs_file = malloc(strlen(fs->fs_file) + 1);
 		strcpy(fs_current->fs_file, fs->fs_file);
 
-		fs_current->qfpathname =
-		    malloc(sizeof(char) * (strlen(qfpathname) + 1));
+		fs_current->qfpathname = malloc(strlen(qfpathname) + 1);
 		strcpy(fs_current->qfpathname, qfpathname);
 
 		stat(fs_current->fs_file, &st);
