@@ -1946,7 +1946,7 @@ sdtossd(sd, ssd)
 static int
 add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 {
-	int i, physmap_idx;
+	int i, insert_idx, physmap_idx;
 
 	physmap_idx = *physmap_idxp;
 	
@@ -1968,17 +1968,34 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	}
 #endif
 
+	/*
+	 * Find insertion point while checking for overlap.  Start off by
+	 * assuming the new entry will be added to the end.
+	 */
+	insert_idx = physmap_idx + 2;
 	for (i = 0; i <= physmap_idx; i += 2) {
 		if (smap->base < physmap[i + 1]) {
+			if (smap->base + smap->length <= physmap[i]) {
+				insert_idx = i;
+				break;
+			}
 			if (boothowto & RB_VERBOSE)
 				printf(
-	"Overlapping or non-monotonic memory region, ignoring second region\n");
+		    "Overlapping memory regions, ignoring second region\n");
 			return (1);
 		}
 	}
 
-	if (smap->base == physmap[physmap_idx + 1]) {
-		physmap[physmap_idx + 1] += smap->length;
+	/* See if we can prepend to the next entry. */
+	if (insert_idx <= physmap_idx &&
+	    smap->base + smap->length == physmap[insert_idx]) {
+		physmap[insert_idx] = smap->base;
+		return (1);
+	}
+
+	/* See if we can append to the previous entry. */
+	if (insert_idx > 0 && smap->base == physmap[insert_idx - 1]) {
+		physmap[insert_idx - 1] += smap->length;
 		return (1);
 	}
 
@@ -1989,8 +2006,19 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 		"Too many segments in the physical address map, giving up\n");
 		return (0);
 	}
-	physmap[physmap_idx] = smap->base;
-	physmap[physmap_idx + 1] = smap->base + smap->length;
+
+	/*
+	 * Move the last 'N' entries down to make room for the new
+	 * entry if needed.
+	 */
+	for (i = physmap_idx; i > insert_idx; i -= 2) {
+		physmap[i] = physmap[i - 2];
+		physmap[i + 1] = physmap[i - 1];
+	}
+
+	/* Insert the new entry. */
+	physmap[insert_idx] = smap->base;
+	physmap[insert_idx + 1] = smap->base + smap->length;
 	return (1);
 }
 
