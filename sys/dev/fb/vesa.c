@@ -1049,7 +1049,7 @@ static int
 vesa_set_mode(video_adapter_t *adp, int mode)
 {
 	video_info_t info;
-	int len;
+	int len = 0;
 
 	if (adp != vesa_adp)
 		return (*prevvidsw->set_mode)(adp, mode);
