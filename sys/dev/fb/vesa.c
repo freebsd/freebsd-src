@@ -194,6 +194,7 @@ static int vesa_bios_set_start(int x, int y);
 static int vesa_map_gen_mode_num(int type, int color, int mode);
 static int vesa_translate_flags(u_int16_t vflags);
 static int vesa_translate_mmodel(u_int8_t vmodel);
+static int vesa_get_line_width(video_info_t *info);
 static int vesa_bios_init(void);
 static void vesa_clear_modes(video_info_t *info, int color);
 static vm_offset_t vesa_map_buffer(u_int paddr, size_t size);
@@ -654,12 +655,44 @@ vesa_translate_mmodel(u_int8_t vmodel)
 }
 
 static int
+vesa_get_line_width(video_info_t *info)
+{
+	int len;
+	int width;
+
+	width = info->vi_width;
+
+	if (info->vi_flags & V_INFO_GRAPHICS)
+		switch (info->vi_depth / info->vi_planes) {
+		case 1:
+			return (width / 8);
+		case 2:
+			return (width / 4);
+		case 4:
+			return (width / 2);
+		case 8:
+			return (width);
+		case 15:
+		case 16:
+			return (width * 2);
+		case 24:
+		case 32:
+			return (width * 4);
+		}
+
+	len = vesa_bios_get_line_length();
+
+	return (len > 0 ? len : width);
+}
+
+static int
 vesa_bios_init(void)
 {
 	static struct vesa_info buf;
 	struct vesa_mode vmode;
 	video_info_t *p;
 	x86regs_t regs;
+	size_t bsize;
 	int offs;
 	u_char *vmbuf;
 	int is_via_cle266;
@@ -837,6 +870,20 @@ vesa_bios_init(void)
 		
 		vesa_vmode[modes].vi_flags 
 			= vesa_translate_flags(vmode.v_modeattr) | V_INFO_VESA;
+
+		/* Does it have enough memory to support this mode? */
+		bsize = vesa_get_line_width(&vesa_vmode[modes]);
+		bsize *= vesa_vmode[modes].vi_height;
+		if (bsize > vesa_vmode[modes].vi_buffer_size) {
+#if VESA_DEBUG > 1
+			printf(
+		"Rejecting VESA %s mode: %d x %d x %d bpp  attr = %x, not enough memory\n",
+			    (vmode.v_modeattr & V_MODEGRAPHICS) != 0 ? "graphics" : "text",
+			    vmode.v_width, vmode.v_height, vmode.v_bpp, vmode.v_modeattr);
+#endif
+			continue;
+		}
+
 		++modes;
 	}
 	vesa_vmode[modes].vi_mode = EOT;
@@ -1049,7 +1096,6 @@ static int
 vesa_set_mode(video_adapter_t *adp, int mode)
 {
 	video_info_t info;
-	int len = 0;
 
 	if (adp != vesa_adp)
 		return (*prevvidsw->set_mode)(adp, mode);
@@ -1132,42 +1178,12 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 		vesa_adp->va_window_gran = info.vi_window_gran;
 	}
 	vesa_adp->va_window_orig = 0;
-
-	if (info.vi_flags & V_INFO_GRAPHICS) {
-		switch (info.vi_depth/info.vi_planes) {
-		case 1:
-			vesa_adp->va_line_width = info.vi_width/8;
-			break;
-		case 2:
-			vesa_adp->va_line_width = info.vi_width/4;
-			break;
-		case 4:
-			vesa_adp->va_line_width = info.vi_width/2;
-			break;
-		case 8:
-		default: /* shouldn't happen */
-			vesa_adp->va_line_width = info.vi_width;
-			break;
-		case 15:
-		case 16:
-			vesa_adp->va_line_width = info.vi_width*2;
-			break;
-		case 24:
-		case 32:
-			vesa_adp->va_line_width = info.vi_width*4;
-			break;
-		}
-	} else {
-		vesa_adp->va_line_width = info.vi_width;
-		len = vesa_bios_get_line_length();
-		if (len > 0)
-			vesa_adp->va_line_width = len;
-	}
+	vesa_adp->va_line_width = vesa_get_line_width(&info);
 	vesa_adp->va_disp_start.x = 0;
 	vesa_adp->va_disp_start.y = 0;
 #if VESA_DEBUG > 0
-	printf("vesa_set_mode(): vi_width:%d, len:%d, line_width:%d\n",
-	       info.vi_width, len, vesa_adp->va_line_width);
+	printf("vesa_set_mode(): vi_width:%d, line_width:%d\n",
+	       info.vi_width, vesa_adp->va_line_width);
 #endif
 	bcopy(&info, &vesa_adp->va_info, sizeof(vesa_adp->va_info));
 
