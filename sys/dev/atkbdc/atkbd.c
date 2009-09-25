@@ -1101,7 +1101,7 @@ get_typematic(keyboard_t *kbd)
 	bzero(&regs, sizeof(regs));
 	regs.R_AH = 0xc0;
 	x86bios_intr(&regs, 0x15);
-	if ((regs.R_FLG & PSL_C) || regs.R_AH)
+	if ((regs.R_FLG & PSL_C) != 0 || regs.R_AH != 0)
 		return (ENODEV);
 
 	/* Is int 16, function 0x09 supported? */
