@@ -98,9 +98,10 @@ x86bios_intr(struct x86regs *regs, int intno)
 		return;
 
 	if (bootverbose)
-		printf("Calling real mode int 0x%x "
-		    "(ax=0x%04x bx=0x%04x cx=0x%04x dx=0x%04x)\n",
-		    intno, regs->R_AX, regs->R_BX, regs->R_CX, regs->R_DX);
+		printf("Calling int 0x%x (ax=0x%04x bx=0x%04x "
+		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
+		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
+		    regs->R_DX, regs->R_ES, regs->R_DI);
 
 	mtx_lock_spin(&x86bios_lock);
 
@@ -111,9 +112,10 @@ x86bios_intr(struct x86regs *regs, int intno)
 	mtx_unlock_spin(&x86bios_lock);
 
 	if (bootverbose)
-		printf("Exiting real mode int 0x%x "
-		    "(ax=0x%04x bx=0x%04x cx=0x%04x dx=0x%04x)\n",
-		    intno, regs->R_AX, regs->R_BX, regs->R_CX, regs->R_DX);
+		printf("Exiting int 0x%x (ax=0x%04x bx=0x%04x "
+		    "cx=0x%04x dx=0x%04x es=0x%04x di=0x%04x)\n",
+		    intno, regs->R_AX, regs->R_BX, regs->R_CX,
+		    regs->R_DX, regs->R_ES, regs->R_DI);
 }
 
 void *
@@ -144,7 +146,7 @@ x86bios_init(void *arg __unused)
 	x86bios_emu.emu_outl = x86bios_emu_outl;
 
 	x86bios_emu.mem_base = (char *)pbiosMem;
-	x86bios_emu.mem_size = 1024 * 1024;
+	x86bios_emu.mem_size = MAPPED_MEMORY_SIZE;
 
 	memset(busySegMap, 0, sizeof(busySegMap));
 
