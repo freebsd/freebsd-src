@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#if 0
+#if defined(__i386__) || defined(__amd64__)
 #include <machine/md_var.h>
 #include <machine/psl.h>
 #include <compat/x86bios/x86bios.h>
@@ -1089,32 +1089,41 @@ atkbd_shutdown_final(void *v)
 static int
 get_typematic(keyboard_t *kbd)
 {
-#if 0
+#if defined(__i386__) || defined(__amd64__)
 	/*
 	 * Only some systems allow us to retrieve the keyboard repeat 
 	 * rate previously set via the BIOS...
 	 */
 	x86regs_t regs;
-	vm_offset_t p;
+	uint8_t *p;
 
-	regs.R_AX = 0xc000;
+	/* Is BIOS system configuration table supported? */
+	bzero(&regs, sizeof(regs));
+	regs.R_AH = 0xc0;
 	x86bios_intr(&regs, 0x15);
-	if ((regs.R_EFLG & PSL_C) || regs.R_AH)
-		return ENODEV;
-        p = BIOS_PADDRTOVADDR((regs.R_ES << 4) + regs.R_BX);
-	if ((readb(p + 6) & 0x40) == 0)	/* int 16, function 0x09 supported? */
-		return ENODEV;
-	regs.R_AX = 0x0900;
+	if ((regs.R_FLG & PSL_C) || regs.R_AH)
+		return (ENODEV);
+
+	/* Is int 16, function 0x09 supported? */
+	p = x86bios_offset((regs.R_ES << 4) + regs.R_BX);
+	if (readw(p) < 5 || (readb(p + 6) & 0x40) == 0)
+		return (ENODEV);
+
+	/* Is int 16, function 0x0306 supported? */
+	bzero(&regs, sizeof(regs));
+	regs.R_AH = 0x09;
 	x86bios_intr(&regs, 0x16);
-	if ((regs.R_AL & 0x08) == 0)	/* int 16, function 0x0306 supported? */
-		return ENODEV;
+	if ((regs.R_AL & 0x08) == 0)
+		return (ENODEV);
+
+	bzero(&regs, sizeof(regs));
 	regs.R_AX = 0x0306;
 	x86bios_intr(&regs, 0x16);
 	kbd->kb_delay1 = typematic_delay(regs.R_BH << 5);
 	kbd->kb_delay2 = typematic_rate(regs.R_BL);
-	return 0;
+	return (0);
 #else
-	return ENODEV;
+	return (ENODEV);
 #endif /* __i386__ || __amd64__ */
 }
 
