@@ -60,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
+CTASSERT(sizeof(struct dqblk64) == sizeof(struct dqhdr64));
+
 static int unprivileged_get_quota = 0;
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_get_quota, CTLFLAG_RW,
     &unprivileged_get_quota, 0,
@@ -1124,6 +1126,14 @@ dqhashfind(struct dqhash *dqh, u_long id, struct vnode *dqvp)
 
 /*
  * Determine the quota file type.
+ *
+ * A 32-bit quota file is simply an array of struct dqblk32.
+ *
+ * A 64-bit quota file is a struct dqhdr64 followed by an array of struct
+ * dqblk64.  The header contains various magic bits which allow us to be
+ * reasonably confident that it is indeeda 64-bit quota file and not just
+ * a 32-bit quota file that just happens to "look right".
+ *
  */
 static int
 dqopen(struct vnode *vp, struct ufsmount *ump, int type)
@@ -1312,23 +1322,8 @@ hfound:		DQI_LOCK(dq);
 	/*
 	 * Read the requested quota record from the quota file, performing
 	 * any necessary conversions.
-	 *
-	 * The record's offset within the file depends on the size of the
-	 * record, which means we need to know whether it's a 32-bit file
-	 * or a 64-bit file.
-	 *
-	 * Luckily, root's record is always at offset 0, and most of it is
-	 * unused, so we can use it to store a magic number indicating the
-	 * file format.  Due to an acute lack of imagination, this magic
-	 * number, stored in the first byte of root's record and hence the
-	 * first byte of the file, is 64.
-	 *
-	 * Another lucky break is that quotaon() always loads root's
-	 * record, to get the default values for dq_btime and dq_itime, so
-	 * we will always have a chance to check the file format before
-	 * being asked for a "real" record.
 	 */
-	if (id == 0 || (ump->um_qflags[type] & QTF_64BIT)) {
+	if (ump->um_qflags[type] & QTF_64BIT) {
 		recsize = sizeof(struct dqblk64);
 		base = sizeof(struct dqhdr64);
 	} else {
@@ -1597,6 +1592,10 @@ dqflush(struct vnode *vp)
 
 #define CLIP32(u64) (u64 > UINT32_MAX ? UINT32_MAX : (uint32_t)u64)
 
+/*
+ * Convert on-disk 32-bit host-order structure to in-memory 64-bit
+ * host-order structure.
+ */
 static void
 dqb32_dq(const struct dqblk32 *dqb32, struct dquot *dq)
 {
@@ -1611,6 +1610,10 @@ dqb32_dq(const struct dqblk32 *dqb32, struct dquot *dq)
 	dq->dq_itime = dqb32->dqb_itime;
 }
 
+/*
+ * Convert on-disk 64-bit network-order structure to in-memory 64-bit
+ * host-order structure.
+ */
 static void
 dqb64_dq(const struct dqblk64 *dqb64, struct dquot *dq)
 {
@@ -1625,6 +1628,10 @@ dqb64_dq(const struct dqblk64 *dqb64, struct dquot *dq)
 	dq->dq_itime = be64toh(dqb64->dqb_itime);
 }
 
+/*
+ * Convert in-memory 64-bit host-order structure to on-disk 32-bit
+ * host-order structure.
+ */
 static void
 dq_dqb32(const struct dquot *dq, struct dqblk32 *dqb32)
 {
@@ -1639,6 +1646,10 @@ dq_dqb32(const struct dquot *dq, struct dqblk32 *dqb32)
 	dqb32->dqb_itime = CLIP32(dq->dq_itime);
 }
 
+/*
+ * Convert in-memory host-order 64-bit structure to on-disk 64-bit
+ * network-order structure.
+ */
 static void
 dq_dqb64(const struct dquot *dq, struct dqblk64 *dqb64)
 {
@@ -1653,6 +1664,10 @@ dq_dqb64(const struct dquot *dq, struct dqblk64 *dqb64)
 	dqb64->dqb_itime = htobe64(dq->dq_itime);
 }
 
+/*
+ * Convert in-memory 64-bit host-order structure to in-memory 32-bit
+ * host-order structure.
+ */
 static void
 dqb64_dqb32(const struct dqblk64 *dqb64, struct dqblk32 *dqb32)
 {
@@ -1667,6 +1682,10 @@ dqb64_dqb32(const struct dqblk64 *dqb64, struct dqblk32 *dqb32)
 	dqb32->dqb_itime = CLIP32(dqb64->dqb_itime);
 }
 
+/*
+ * Convert in-memory 32-bit host-order structure to in-memory 64-bit
+ * host-order structure.
+ */
 static void
 dqb32_dqb64(const struct dqblk32 *dqb32, struct dqblk64 *dqb64)
 {
