@@ -48,10 +48,6 @@
 static FILE *df;
 #endif /* __FreeBSD__ && _KERNEL */
 
-#include "teken.h"
-#include "teken_wcwidth.h"
-#include "teken_scs.h"
-
 /* Private flags for t_stateflags. */
 #define	TS_FIRSTDIGIT	0x01	/* First numeric digit in escape sequence. */
 #define	TS_INSERT	0x02	/* Insert mode. */
@@ -63,6 +59,10 @@ static FILE *df;
 
 /* Character that blanks a cell. */
 #define	BLANK	' '
+
+#include "teken.h"
+#include "teken_wcwidth.h"
+#include "teken_scs.h"
 
 static teken_state_t	teken_state_init;
 

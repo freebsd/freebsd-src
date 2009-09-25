@@ -150,14 +150,15 @@ dev/ctau/if_ct.c		optional ctau
 dev/cx/csigma.c			optional cx
 dev/cx/cxddk.c			optional cx
 dev/cx/if_cx.c			optional cx
-dev/dpms/dpms.c			optional dpms x86emu
+dev/dpms/dpms.c			optional dpms
 dev/ed/if_ed_3c503.c		optional ed isa ed_3c503
 dev/ed/if_ed_isa.c		optional ed isa
 dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/ed/if_ed_hpp.c		optional ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional ed isa ed_sic
 dev/fb/fb.c			optional fb | vga
-dev/fb/vesa.c			optional vga vesa x86emu
+dev/fb/s3_pci.c			optional s3pci
+dev/fb/vesa.c			optional vga vesa
 dev/fb/vga.c			optional vga
 dev/fdc/fdc.c			optional fdc
 dev/fdc/fdc_acpi.c		optional fdc
@@ -219,7 +220,7 @@ dev/sio/sio_puc.c		optional sio puc
 dev/speaker/spkr.c		optional speaker
 dev/syscons/apm/apm_saver.c	optional apm_saver apm
 dev/syscons/scterm-teken.c	optional sc
-dev/syscons/scvesactl.c		optional sc vga vesa x86emu
+dev/syscons/scvesactl.c		optional sc vga vesa
 dev/syscons/scvgarndr.c		optional sc vga
 dev/syscons/scvtb.c		optional sc
 dev/uart/uart_cpu_i386.c	optional uart
@@ -377,3 +378,10 @@ i386/xbox/xbox.c		optional xbox
 i386/xbox/xboxfb.c		optional xboxfb
 dev/fb/boot_font.c		optional xboxfb
 i386/xbox/pic16l.s		optional xbox
+#
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+#
+compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
+compat/x86bios/x86bios_alloc.c	optional x86bios | atkbd | dpms | vesa
+contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
+contrib/x86emu/x86emu_util.c	optional x86bios | atkbd | dpms | vesa

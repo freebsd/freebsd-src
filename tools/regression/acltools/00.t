@@ -27,7 +27,7 @@
 # $FreeBSD$
 #
 
-# This is a wrapper script to run tools-posix.test.
+# This is a wrapper script to run tools-posix.test on UFS filesystem.
 #
 # If any of the tests fails, here is how to debug it: go to
 # the directory with problematic filesystem mounted on it,

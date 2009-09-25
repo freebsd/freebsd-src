@@ -57,10 +57,13 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_LLTABLE, "lltable", "link level address tables");
 
-static	SLIST_HEAD(, lltable) lltables = SLIST_HEAD_INITIALIZER(lltables);
+static VNET_DEFINE(SLIST_HEAD(, lltable), lltables);
+#define	V_lltables	VNET(lltables)
 
 extern void arprequest(struct ifnet *, struct in_addr *, struct in_addr *,
 	u_char *);
+
+static void vnet_lltable_init(void);
 
 struct rwlock lltable_rwlock;
 RW_SYSINIT(lltable_rwlock, &lltable_rwlock, "lltable_rwlock");
@@ -75,7 +78,7 @@ lltable_sysctl_dumparp(int af, struct sysctl_req *wr)
 	int error = 0;
 
 	LLTABLE_RLOCK();
-	SLIST_FOREACH(llt, &lltables, llt_link) {
+	SLIST_FOREACH(llt, &V_lltables, llt_link) {
 		if (llt->llt_af == af) {
 			error = llt->llt_dump(llt, wr);
 			if (error != 0)
@@ -157,7 +160,7 @@ lltable_free(struct lltable *llt)
 	KASSERT(llt != NULL, ("%s: llt is NULL", __func__));
 
 	LLTABLE_WLOCK();
-	SLIST_REMOVE(&lltables, llt, lltable, llt_link);
+	SLIST_REMOVE(&V_lltables, llt, lltable, llt_link);
 	LLTABLE_WUNLOCK();
 
 	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
@@ -180,7 +183,7 @@ lltable_drain(int af)
 	register int i;
 
 	LLTABLE_RLOCK();
-	SLIST_FOREACH(llt, &lltables, llt_link) {
+	SLIST_FOREACH(llt, &V_lltables, llt_link) {
 		if (llt->llt_af != af)
 			continue;
 
@@ -202,7 +205,7 @@ lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask)
 	struct lltable *llt;
 
 	LLTABLE_RLOCK();
-	SLIST_FOREACH(llt, &lltables, llt_link) {
+	SLIST_FOREACH(llt, &V_lltables, llt_link) {
 		if (llt->llt_af != af)
 			continue;
 
@@ -232,7 +235,7 @@ lltable_init(struct ifnet *ifp, int af)
 		LIST_INIT(&llt->lle_head[i]);
 
 	LLTABLE_WLOCK();
-	SLIST_INSERT_HEAD(&lltables, llt, llt_link);
+	SLIST_INSERT_HEAD(&V_lltables, llt, llt_link);
 	LLTABLE_WUNLOCK();
 
 	return (llt);
@@ -302,7 +305,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 	/* XXX linked list may be too expensive */
 	LLTABLE_RLOCK();
-	SLIST_FOREACH(llt, &lltables, llt_link) {
+	SLIST_FOREACH(llt, &V_lltables, llt_link) {
 		if (llt->llt_af == dst->sa_family &&
 		    llt->llt_ifp == ifp)
 			break;
@@ -367,3 +370,13 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 	return (error);
 }
+
+static void
+vnet_lltable_init()
+{
+
+	SLIST_INIT(&V_lltables);
+}
+VNET_SYSINIT(vnet_lltable_init, SI_SUB_PSEUDO, SI_ORDER_FIRST,
+    vnet_lltable_init, NULL);
+

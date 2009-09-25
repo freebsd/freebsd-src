@@ -160,7 +160,7 @@ static void	tulip_dma_map_rxbuf(void *, bus_dma_segment_t *, int,
 static void
 tulip_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-    u_int32_t *paddr;
+    bus_addr_t *paddr;
 
     if (error)
 	return;
@@ -182,7 +182,7 @@ tulip_dma_map_rxbuf(void *arg, bus_dma_segment_t *segs, int nseg,
     KASSERT(nseg == 1, ("too many DMA segments"));
     KASSERT(segs[0].ds_len >= TULIP_RX_BUFLEN, ("receive buffer too small"));
 
-    desc->d_addr1 = segs[0].ds_addr;
+    desc->d_addr1 = segs[0].ds_addr & 0xffffffff;
     desc->d_length1 = TULIP_RX_BUFLEN;
 #ifdef not_needed
     /* These should already always be zero. */
@@ -3171,8 +3171,8 @@ tulip_reset(tulip_softc_t * const sc)
 	sc->tulip_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
     }
 
-    TULIP_CSR_WRITE(sc, csr_txlist, sc->tulip_txinfo.ri_dma_addr);
-    TULIP_CSR_WRITE(sc, csr_rxlist, sc->tulip_rxinfo.ri_dma_addr);
+    TULIP_CSR_WRITE(sc, csr_txlist, sc->tulip_txinfo.ri_dma_addr & 0xffffffff);
+    TULIP_CSR_WRITE(sc, csr_rxlist, sc->tulip_rxinfo.ri_dma_addr & 0xffffffff);
     TULIP_CSR_WRITE(sc, csr_busmode,
 		    (1 << (3 /*pci_max_burst_len*/ + 8))
 		    |TULIP_BUSMODE_CACHE_ALIGN8
@@ -3488,7 +3488,7 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	    struct mbuf *m0;
 
 	    KASSERT(ms != NULL, ("no packet to accept"));
-#if defined(TULIP_COPY_RXDATA)
+#ifndef	__NO_STRICT_ALIGNMENT
 	    /*
 	     * Copy the data into a new mbuf that is properly aligned.  If
 	     * we fail to allocate a new mbuf, then drop the packet.  We will
@@ -3527,7 +3527,7 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	     */
 	    ms = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
 
-#if defined(TULIP_COPY_RXDATA)
+#ifndef __NO_STRICT_ALIGNMENT
     skip_input:
 #endif
 	if (ms == NULL) {
@@ -4016,9 +4016,9 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
 	eop = nextout;
 	eop->di_desc->d_flag   &= TULIP_DFLAG_ENDRING|TULIP_DFLAG_CHAIN;
 	eop->di_desc->d_status  = d_status;
-	eop->di_desc->d_addr1   = segs[segcnt].ds_addr;
+	eop->di_desc->d_addr1   = segs[segcnt].ds_addr & 0xffffffff;
 	eop->di_desc->d_length1 = segs[segcnt].ds_len;
-	eop->di_desc->d_addr2   = segs[segcnt+1].ds_addr;
+	eop->di_desc->d_addr2   = segs[segcnt+1].ds_addr & 0xffffffff;
 	eop->di_desc->d_length2 = segs[segcnt+1].ds_len;
 	d_status = TULIP_DSTS_OWNER;
 	if (++nextout == ri->ri_last)
@@ -4028,7 +4028,7 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
 	eop = nextout;
 	eop->di_desc->d_flag   &= TULIP_DFLAG_ENDRING|TULIP_DFLAG_CHAIN;
 	eop->di_desc->d_status  = d_status;
-	eop->di_desc->d_addr1   = segs[segcnt].ds_addr;
+	eop->di_desc->d_addr1   = segs[segcnt].ds_addr & 0xffffffff;
 	eop->di_desc->d_length1 = segs[segcnt].ds_len;
 	eop->di_desc->d_addr2   = 0;
 	eop->di_desc->d_length2 = 0;
@@ -4194,7 +4194,7 @@ tulip_txput_setup(tulip_softc_t * const sc)
     nextout->d_length2 = 0;
     nextout->d_addr2 = 0;
     nextout->d_length1 = sizeof(sc->tulip_setupdata);
-    nextout->d_addr1 = sc->tulip_setup_dma_addr;
+    nextout->d_addr1 = sc->tulip_setup_dma_addr & 0xffffffff;
     bus_dmamap_sync(sc->tulip_setup_tag, sc->tulip_setup_map,
 	BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
     TULIP_TXDESC_PRESYNC(ri);
@@ -4491,7 +4491,7 @@ tulip_busdma_freering(tulip_ringinfo_t *ri)
 /* Allocate memory for a single descriptor ring. */
 static int
 tulip_busdma_allocring(device_t dev, tulip_softc_t * const sc, size_t count,
-    bus_size_t maxsize, int nsegs, tulip_ringinfo_t *ri, const char *name)
+    bus_size_t align, int nsegs, tulip_ringinfo_t *ri, const char *name)
 {
     size_t size;
     int error, i;
@@ -4499,7 +4499,7 @@ tulip_busdma_allocring(device_t dev, tulip_softc_t * const sc, size_t count,
     /* First, setup a tag. */
     ri->ri_max = count;
     size = count * sizeof(tulip_desc_t);
-    error = bus_dma_tag_create(NULL, PAGE_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
+    error = bus_dma_tag_create(NULL, 32, 0, BUS_SPACE_MAXADDR_32BIT,
 	BUS_SPACE_MAXADDR, NULL, NULL, size, 1, size, 0, NULL, NULL,
 	&ri->ri_ring_tag);
     if (error) {
@@ -4527,9 +4527,9 @@ tulip_busdma_allocring(device_t dev, tulip_softc_t * const sc, size_t count,
     }
 
     /* Allocate a tag for the data buffers. */
-    error = bus_dma_tag_create(NULL, 4, 0,
+    error = bus_dma_tag_create(NULL, align, 0,
 	BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	maxsize, nsegs, TULIP_DATA_PER_DESC, 0, NULL, NULL, &ri->ri_data_tag);
+	MCLBYTES * nsegs, nsegs, MCLBYTES, 0, NULL, NULL, &ri->ri_data_tag);
     if (error) {
 	device_printf(dev, "failed to allocate %s buffer dma tag\n", name);
 	return (error);
@@ -4563,6 +4563,7 @@ tulip_busdma_cleanup(tulip_softc_t * const sc)
     if (sc->tulip_setupbuf != NULL) {
 	bus_dmamem_free(sc->tulip_setup_tag, sc->tulip_setupbuf,
 	    sc->tulip_setup_map);
+	bus_dmamap_destroy(sc->tulip_setup_tag, sc->tulip_setup_map);
 	sc->tulip_setup_map = NULL;
 	sc->tulip_setupbuf = NULL;
     }
@@ -4586,8 +4587,8 @@ tulip_busdma_init(device_t dev, tulip_softc_t * const sc)
     /*
      * Allocate space and dmamap for transmit ring.
      */
-    error = tulip_busdma_allocring(dev, sc, TULIP_TXDESCS, TULIP_DATA_PER_DESC,
-	TULIP_MAX_TXSEG, &sc->tulip_txinfo, "transmit");
+    error = tulip_busdma_allocring(dev, sc, TULIP_TXDESCS, 1, TULIP_MAX_TXSEG,
+	&sc->tulip_txinfo, "transmit");
     if (error)
 	return (error);
 
@@ -4598,7 +4599,7 @@ tulip_busdma_init(device_t dev, tulip_softc_t * const sc)
      * a waste in practice though as an ethernet frame can easily fit
      * in TULIP_RX_BUFLEN bytes.
      */
-    error = tulip_busdma_allocring(dev, sc, TULIP_RXDESCS, MCLBYTES, 1,
+    error = tulip_busdma_allocring(dev, sc, TULIP_RXDESCS, 4, 1,
 	&sc->tulip_rxinfo, "receive");
     if (error)
 	return (error);
@@ -4606,7 +4607,7 @@ tulip_busdma_init(device_t dev, tulip_softc_t * const sc)
     /*
      * Allocate a DMA tag, memory, and map for setup descriptor
      */
-    error = bus_dma_tag_create(NULL, 4, 0,
+    error = bus_dma_tag_create(NULL, 32, 0,
 	BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	sizeof(sc->tulip_setupdata), 1, sizeof(sc->tulip_setupdata), 0,
 	NULL, NULL, &sc->tulip_setup_tag);
