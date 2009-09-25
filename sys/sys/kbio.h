@@ -106,7 +106,7 @@ typedef struct keyboard_repeat keyboard_repeat_t;
 #define	_KEYMAP_DECLARED
 
 struct keyent_t {
-	u_char		map[NUM_STATES];
+	u_int		map[NUM_STATES];
 	u_char		spcl;
 	u_char		flgs;
 #define	FLAG_LOCK_O	0
@@ -220,8 +220,9 @@ typedef struct fkeyarg	fkeyarg_t;
 #define GIO_SCRNMAP	_IOR('k', 2, scrmap_t)
 #define PIO_SCRNMAP	_IOW('k', 3, scrmap_t)
 #endif
-#define GIO_KEYMAP 	_IOR('k', 6, keymap_t)
-#define PIO_KEYMAP 	_IOW('k', 7, keymap_t)
+/* XXX: Should have keymap_t as an argument, but that's too big for ioctl()! */
+#define GIO_KEYMAP 	 _IO('k', 6)
+#define PIO_KEYMAP 	 _IO('k', 7)
 #define GIO_DEADKEYMAP 	_IOR('k', 8, accentmap_t)
 #define PIO_DEADKEYMAP 	_IOW('k', 9, accentmap_t)
 #define GIO_KEYMAPENT 	_IOWR('k', 10, keyarg_t)

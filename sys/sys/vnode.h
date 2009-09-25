@@ -614,6 +614,9 @@ int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, accmode_t accmode, struct ucred *cred,
 	    int *privused);
+int	vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
+	    struct acl *aclp, accmode_t accmode, struct ucred *cred,
+	    int *privused);
 int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
 	    gid_t file_gid, struct acl *acl, accmode_t accmode,
 	    struct ucred *cred, int *privused);

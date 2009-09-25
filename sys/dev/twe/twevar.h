@@ -150,7 +150,7 @@ extern void	twe_startio(struct twe_softc *sc);
 extern int	twe_start(struct twe_request *tr);
 extern int	twe_dump_blocks(struct twe_softc *sc, int unit,	/* crashdump block write */
 				u_int32_t lba, void *data, int nblks);
-extern int	twe_ioctl(struct twe_softc *sc, int cmd,
+extern int	twe_ioctl(struct twe_softc *sc, u_long cmd,
 				  void *addr);			/* handle user request */
 extern void	twe_describe_controller(struct twe_softc *sc);	/* print controller info */
 extern void	twe_print_controller(struct twe_softc *sc);

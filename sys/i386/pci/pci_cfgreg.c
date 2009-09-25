@@ -299,9 +299,9 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 	if (bus <= PCI_BUSMAX
 	    && slot < devmax
 	    && func <= PCI_FUNCMAX
-	    && reg <= PCI_REGMAX
+	    && (unsigned)reg <= PCI_REGMAX
 	    && bytes != 3
-	    && (unsigned) bytes <= 4
+	    && (unsigned)bytes <= 4
 	    && (reg & (bytes - 1)) == 0) {
 		switch (cfgmech) {
 		case CFGMECH_PCIE:
@@ -595,7 +595,7 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	 * fall back to using type 1 config access instead.
 	 */
 	if (pci_cfgregopen() != 0) {
-		for (slot = 0; slot < 32; slot++) {
+		for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
 			val1 = pcireg_cfgread(0, slot, 0, 0, 4);
 			if (val1 == 0xffffffff)
 				continue;
@@ -661,8 +661,8 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 	vm_paddr_t pa, papage;
 	int data = -1;
 
-	if (bus < pcie_minbus || bus > pcie_maxbus || slot >= 32 ||
-	    func > PCI_FUNCMAX || reg >= 0x1000 || bytes > 4 || bytes == 3)
+	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
+	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return (-1);
 
 	critical_enter();
@@ -695,8 +695,8 @@ pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
 	volatile vm_offset_t va;
 	vm_paddr_t pa, papage;
 
-	if (bus < pcie_minbus || bus > pcie_maxbus || slot >= 32 ||
-	    func > PCI_FUNCMAX || reg >= 0x1000)
+	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
+	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return;
 
 	critical_enter();

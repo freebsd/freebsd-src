@@ -1792,6 +1792,7 @@ fs/procfs/procfs_ioctl.c	optional procfs
 fs/procfs/procfs_map.c		optional procfs
 fs/procfs/procfs_mem.c		optional procfs
 fs/procfs/procfs_note.c		optional procfs
+fs/procfs/procfs_osrel.c	optional procfs
 fs/procfs/procfs_regs.c		optional procfs
 fs/procfs/procfs_rlimit.c	optional procfs
 fs/procfs/procfs_status.c	optional procfs
@@ -2009,6 +2010,7 @@ kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
+kern/subr_acl_nfs4.c		standard
 kern/subr_acl_posix1e.c		standard
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
@@ -2633,7 +2635,7 @@ ufs/ufs/ufs_acl.c		optional ffs
 ufs/ufs/ufs_bmap.c		optional ffs
 ufs/ufs/ufs_dirhash.c		optional ffs
 ufs/ufs/ufs_extattr.c		optional ffs
-ufs/ufs/ufs_gjournal.c		optional ffs
+ufs/ufs/ufs_gjournal.c		optional ffs UFS_GJOURNAL
 ufs/ufs/ufs_inode.c		optional ffs
 ufs/ufs/ufs_lookup.c		optional ffs
 ufs/ufs/ufs_quota.c		optional ffs
@@ -2828,6 +2830,3 @@ dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenpci/evtchn.c         optional xenpci
 dev/xen/xenpci/machine_reboot.c optional xenpci
-contrib/x86emu/x86emu.c		optional x86emu
-contrib/x86emu/x86emu_util.c	optional x86emu
-

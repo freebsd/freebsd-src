@@ -353,13 +353,16 @@ options 	AGP_DEBUG
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
 
-# To include support for VGA VESA video modes (depends on X86EMU)
+# To include support for VGA VESA video modes
 options 	VESA
 
 # Turn on extra debugging checks and output for VESA support.
 options 	VESA_DEBUG
 
 device		dpms		# DPMS suspend & resume via VESA BIOS
+
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+options		X86BIOS
 
 #
 # The Numeric Processing eXtension driver.  This is non-optional.
@@ -443,6 +446,9 @@ options 	VGA_WIDTH90		# support 90 column modes
 
 # Debugging.
 options 	VGA_DEBUG
+
+# Linear framebuffer driver for S3 VESA 1.2 cards. Works on top of VESA.
+device		s3pci
 
 # 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
 # the /dev/3dfx0 device to work with glide implementations.  This should get

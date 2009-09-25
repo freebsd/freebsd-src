@@ -1055,23 +1055,22 @@ atacapprint(struct ata_params *parm)
 		printf("\n");
 
 	printf("PIO supported         PIO");
-	if (parm->atavalid & ATA_FLAG_64_70) {
-		if (parm->apiomodes & 0x02)
-			printf("4");
-		else if (parm->apiomodes & 0x01)
-			printf("3");
-	} else if (parm->mwdmamodes & 0x04)
+	switch (ata_max_pmode(parm)) {
+	case ATA_PIO4:
 		printf("4");
-	else if (parm->mwdmamodes & 0x02)
+		break;
+	case ATA_PIO3:
 		printf("3");
-	else if (parm->mwdmamodes & 0x01)
+		break;
+	case ATA_PIO2:
 		printf("2");
-	else if ((parm->retired_piomode & ATA_RETIRED_PIO_MASK) == 0x200)
-		printf("2");
-	else if ((parm->retired_piomode & ATA_RETIRED_PIO_MASK) == 0x100)
+		break;
+	case ATA_PIO1:
 		printf("1");
-	else
+		break;
+	default:
 		printf("0");
+	}
 	printf("\n");
 
 	printf("DMA%ssupported         ",

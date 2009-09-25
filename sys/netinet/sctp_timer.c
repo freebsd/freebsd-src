@@ -1773,7 +1773,7 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 					struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
 
 					/* KAME hack: embed scopeid */
-					(void)sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
+					(void)sa6_embedscope(sin6, MODULE_GLOBAL(ip6_use_defzone));
 				}
 #endif
 

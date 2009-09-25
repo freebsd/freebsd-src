@@ -1017,7 +1017,7 @@ devclass_driver_added(devclass_t dc, driver_t *driver)
 	 * Call BUS_DRIVER_ADDED for any existing busses in this class.
 	 */
 	for (i = 0; i < dc->maxunit; i++)
-		if (dc->devices[i])
+		if (dc->devices[i] && device_is_attached(dc->devices[i]))
 			BUS_DRIVER_ADDED(dc->devices[i], driver);
 
 	/*
