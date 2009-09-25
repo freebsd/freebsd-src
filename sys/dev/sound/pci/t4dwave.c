@@ -41,18 +41,22 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define SPA_PCI_ID	0x70181039
 
 #define TR_DEFAULT_BUFSZ 	0x1000
+/* For ALi M5451 the DMA transfer size appears to be fixed to 64k. */
+#define ALI_BUFSZ	0x10000
+#define TR_BUFALGN	0x8
 #define TR_TIMEOUT_CDC	0xffff
+#define TR_MAXHWCH	64
+#define ALI_MAXHWCH	32
 #define TR_MAXPLAYCH	4
+#define ALI_MAXPLAYCH	1
 /*
- * Though, it's not clearly documented in trident datasheet, trident
- * audio cards can't handle DMA addresses located above 1GB. The LBA
- * (loop begin address) register which holds DMA base address is 32bits
- * register.
- * But the MSB 2bits are used for other purposes(I guess it is really
- * bad idea). This effectivly limits the DMA address space up to 1GB.
+ * Though, it's not clearly documented in the 4DWAVE datasheet, the
+ * DX and NX chips can't handle DMA addresses located above 1GB as the
+ * LBA (loop begin address) register which holds the DMA base address
+ * is 32-bit, but the two MSBs are used for other purposes.
  */
-#define TR_MAXADDR	((1 << 30) - 1)
-
+#define TR_MAXADDR	((1U << 30) - 1)
+#define ALI_MAXADDR	((1U << 31) - 1)
 
 struct tr_info;
 
@@ -93,6 +97,7 @@ struct tr_info {
 
 	struct mtx *lock;
 
+	u_int32_t hwchns;
 	u_int32_t playchns;
 	unsigned int bufsz;
 
@@ -394,7 +399,10 @@ tr_wrch(struct tr_chinfo *ch)
 	ch->ec		&= 0x00000fff;
 	ch->alpha	&= 0x00000fff;
 	ch->delta	&= 0x0000ffff;
-	ch->lba		&= 0x3fffffff;
+	if (tr->type == ALI_PCI_ID)
+		ch->lba &= ALI_MAXADDR;
+	else
+		ch->lba &= TR_MAXADDR;
 
 	cr[1]=ch->lba;
 	cr[3]=(ch->fmc<<14) | (ch->rvol<<7) | (ch->cvol);
@@ -437,7 +445,10 @@ tr_rdch(struct tr_chinfo *ch)
 	snd_mtxunlock(tr->lock);
 
 
-	ch->lba=	(cr[1] & 0x3fffffff);
+	if (tr->type == ALI_PCI_ID)
+		ch->lba=(cr[1] & ALI_MAXADDR);
+	else
+		ch->lba=(cr[1] & TR_MAXADDR);
 	ch->fmc=	(cr[3] & 0x0000c000) >> 14;
 	ch->rvol=	(cr[3] & 0x00003f80) >> 7;
 	ch->cvol=	(cr[3] & 0x0000007f);
@@ -624,7 +635,6 @@ trrchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	tr_wr(tr, TR_REG_SBCTRL, i, 1);
 
 	return 0;
-
 }
 
 static int
@@ -725,7 +735,7 @@ tr_intr(void *p)
 	intsrc = tr_rd(tr, TR_REG_MISCINT, 4);
 	if (intsrc & TR_INT_ADDR) {
 		chnum = 0;
-		while (chnum < 64) {
+		while (chnum < tr->hwchns) {
 			mask = 0x00000001;
 			active = tr_rd(tr, (chnum < 32)? TR_REG_ADDRINTA : TR_REG_ADDRINTB, 4);
 			bufhalf = tr_rd(tr, (chnum < 32)? TR_REG_CSPF_A : TR_REG_CSPF_B, 4);
@@ -811,8 +821,13 @@ tr_pci_attach(device_t dev)
 	u_int32_t	data;
 	struct tr_info *tr;
 	struct ac97_info *codec = 0;
+	bus_addr_t	lowaddr;
 	int		i, dacn;
 	char 		status[SND_STATUSLEN];
+#ifdef __sparc64__
+	device_t	*children;
+	int		nchildren;
+#endif
 
 	tr = malloc(sizeof(*tr), M_DEVBUF, M_WAITOK | M_ZERO);
 	tr->type = pci_get_devid(dev);
@@ -830,7 +845,7 @@ tr_pci_attach(device_t dev)
 	} else {
 		switch (tr->type) {
 		case ALI_PCI_ID:
-			dacn = 1;
+			dacn = ALI_MAXPLAYCH;
 			break;
 		default:
 			dacn = TR_MAXPLAYCH;
@@ -855,8 +870,6 @@ tr_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	tr->bufsz = pcm_getbuffersize(dev, 4096, TR_DEFAULT_BUFSZ, 65536);
-
 	if (tr_init(tr) == -1) {
 		device_printf(dev, "unable to initialize the card\n");
 		goto bad;
@@ -875,12 +888,59 @@ tr_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev), /*alignment*/2,
+	if (tr->type == ALI_PCI_ID) {
+		/*
+		 * The M5451 generates 31 bit of DMA and in order to do
+		 * 32-bit DMA, the 31st bit can be set via its accompanying
+		 * ISA bridge.  Note that we can't predict whether bus_dma(9)
+		 * will actually supply us with a 32-bit buffer and even when
+		 * using a low address of BUS_SPACE_MAXADDR_32BIT for both
+		 * we might end up with the play buffer being in the 32-bit
+		 * range while the record buffer isn't or vice versa. So we
+		 * limit enabling the 31st bit to sparc64, where the IOMMU
+		 * guarantees that we're using a 32-bit address (and in turn
+		 * requires it).
+		 */
+		lowaddr = ALI_MAXADDR;
+#ifdef __sparc64__
+		if (device_get_children(device_get_parent(dev), &children,
+		    &nchildren) == 0) {
+			for (i = 0; i < nchildren; i++) {
+				if (pci_get_devid(children[i]) == 0x153310b9) {
+					lowaddr = BUS_SPACE_MAXADDR_32BIT;
+					data = pci_read_config(children[i],
+					    0x7e, 1);
+					if (bootverbose)
+						device_printf(dev,
+						    "M1533 0x7e: 0x%x -> ",
+						    data);
+					data |= 0x1;
+					if (bootverbose)
+						printf("0x%x\n", data);
+					pci_write_config(children[i], 0x7e,
+					    data, 1);
+					break;
+				}
+			}
+		}
+		free(children, M_TEMP);
+#endif
+		tr->hwchns = ALI_MAXHWCH;
+		tr->bufsz = ALI_BUFSZ;
+	} else {
+		lowaddr = TR_MAXADDR;
+		tr->hwchns = TR_MAXHWCH;
+		tr->bufsz = pcm_getbuffersize(dev, 4096, TR_DEFAULT_BUFSZ,
+		    65536);
+	}
+
+	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev),
+		/*alignment*/TR_BUFALGN,
 		/*boundary*/0,
-		/*lowaddr*/TR_MAXADDR,
+		/*lowaddr*/lowaddr,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/tr->bufsz, /*nsegments*/1, /*maxsegz*/0x3ffff,
+		/*maxsize*/tr->bufsz, /*nsegments*/1, /*maxsegz*/tr->bufsz,
 		/*flags*/0, /*lockfunc*/busdma_lock_mutex,
 		/*lockarg*/&Giant, &tr->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
