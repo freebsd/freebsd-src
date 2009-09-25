@@ -269,9 +269,9 @@ quota_read(struct quotafile *qf, struct dqblk *dqb, int id)
 	}
 	switch (qf->wordsize) {
 	case 32:
-		return quota_read32(qf, dqb, id);
+		return (quota_read32(qf, dqb, id));
 	case 64:
-		return quota_read64(qf, dqb, id);
+		return (quota_read64(qf, dqb, id));
 	default:
 		errno = EINVAL;
 		return (-1);
@@ -361,9 +361,9 @@ quota_write_usage(struct quotafile *qf, struct dqblk *dqb, int id)
 	 */
 	switch (qf->wordsize) {
 	case 32:
-		return quota_write32(qf, &dqbuf, id);
+		return (quota_write32(qf, &dqbuf, id));
 	case 64:
-		return quota_write64(qf, &dqbuf, id);
+		return (quota_write64(qf, &dqbuf, id));
 	default:
 		errno = EINVAL;
 		return (-1);
@@ -415,9 +415,9 @@ quota_write_limits(struct quotafile *qf, struct dqblk *dqb, int id)
 	 */
 	switch (qf->wordsize) {
 	case 32:
-		return quota_write32(qf, dqb, id);
+		return (quota_write32(qf, dqb, id));
 	case 64:
-		return quota_write64(qf, dqb, id);
+		return (quota_write64(qf, dqb, id));
 	default:
 		errno = EINVAL;
 		return (-1);
