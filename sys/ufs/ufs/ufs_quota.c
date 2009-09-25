@@ -1593,8 +1593,7 @@ dqflush(struct vnode *vp)
 #define CLIP32(u64) (u64 > UINT32_MAX ? UINT32_MAX : (uint32_t)u64)
 
 /*
- * Convert on-disk 32-bit host-order structure to in-memory 64-bit
- * host-order structure.
+ * Convert 32-bit host-order structure to dquot.
  */
 static void
 dqb32_dq(const struct dqblk32 *dqb32, struct dquot *dq)
@@ -1611,8 +1610,7 @@ dqb32_dq(const struct dqblk32 *dqb32, struct dquot *dq)
 }
 
 /*
- * Convert on-disk 64-bit network-order structure to in-memory 64-bit
- * host-order structure.
+ * Convert 64-bit network-order structure to dquot.
  */
 static void
 dqb64_dq(const struct dqblk64 *dqb64, struct dquot *dq)
@@ -1629,8 +1627,7 @@ dqb64_dq(const struct dqblk64 *dqb64, struct dquot *dq)
 }
 
 /*
- * Convert in-memory 64-bit host-order structure to on-disk 32-bit
- * host-order structure.
+ * Convert dquot to 32-bit host-order structure.
  */
 static void
 dq_dqb32(const struct dquot *dq, struct dqblk32 *dqb32)
@@ -1647,8 +1644,7 @@ dq_dqb32(const struct dquot *dq, struct dqblk32 *dqb32)
 }
 
 /*
- * Convert in-memory host-order 64-bit structure to on-disk 64-bit
- * network-order structure.
+ * Convert dquot to 64-bit network-order structure.
  */
 static void
 dq_dqb64(const struct dquot *dq, struct dqblk64 *dqb64)
@@ -1665,8 +1661,7 @@ dq_dqb64(const struct dquot *dq, struct dqblk64 *dqb64)
 }
 
 /*
- * Convert in-memory 64-bit host-order structure to in-memory 32-bit
- * host-order structure.
+ * Convert 64-bit host-order structure to 32-bit host-order structure.
  */
 static void
 dqb64_dqb32(const struct dqblk64 *dqb64, struct dqblk32 *dqb32)
@@ -1683,8 +1678,7 @@ dqb64_dqb32(const struct dqblk64 *dqb64, struct dqblk32 *dqb32)
 }
 
 /*
- * Convert in-memory 32-bit host-order structure to in-memory 64-bit
- * host-order structure.
+ * Convert 32-bit host-order structure to 64-bit host-order structure.
  */
 static void
 dqb32_dqb64(const struct dqblk32 *dqb32, struct dqblk64 *dqb64)
