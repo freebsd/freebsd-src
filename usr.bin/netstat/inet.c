@@ -355,6 +355,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 		} else {
 			inp = &((struct xinpcb *)xig)->xi_inp;
 			so = &((struct xinpcb *)xig)->xi_socket;
+			timer = NULL;
 		}
 
 		/* Ignore sockets for protocols other than the desired one. */
@@ -425,7 +426,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 					printf("%7.7s %7.7s %7.7s %7.7s %7.7s %7.7s %s\n",
 						"rexmt", "persist", "keep",
 						"2msl", "delack", "rcvtime",
-                                               "(state)");
+						"(state)");
 				} else
 					printf("(state)\n");
 			}
@@ -529,13 +530,14 @@ protopr(u_long off, const char *name, int af1, int proto)
 				       so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
 				       so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
 				       so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
-				printf("%4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d ",
-					timer->tt_rexmt / 1000, (timer->tt_rexmt % 1000) / 10,
-					timer->tt_persist / 1000, (timer->tt_persist % 1000) / 10,
-					timer->tt_keep / 1000, (timer->tt_keep % 1000) / 10,
-					timer->tt_2msl / 1000, (timer->tt_2msl % 1000) / 10,
-					timer->tt_delack / 1000, (timer->tt_delack % 1000) / 10,
-					timer->t_rcvtime / 1000, (timer->t_rcvtime % 1000) / 10);
+				if (timer != NULL)
+					printf("%4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d ",
+					    timer->tt_rexmt / 1000, (timer->tt_rexmt % 1000) / 10,
+					    timer->tt_persist / 1000, (timer->tt_persist % 1000) / 10,
+					    timer->tt_keep / 1000, (timer->tt_keep % 1000) / 10,
+					    timer->tt_2msl / 1000, (timer->tt_2msl % 1000) / 10,
+					    timer->tt_delack / 1000, (timer->tt_delack % 1000) / 10,
+					    timer->t_rcvtime / 1000, (timer->t_rcvtime % 1000) / 10);
 			}
 		}
 		if (istcp && !Lflag) {

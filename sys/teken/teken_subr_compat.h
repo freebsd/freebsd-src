@@ -87,6 +87,20 @@ teken_subr_cons25_set_bell_pitch_duration(teken_t *t, unsigned int pitch,
 	    (duration & 0xffff));
 }
 
+static void
+teken_subr_cons25_set_terminal_mode(teken_t *t, unsigned int mode)
+{
+
+	switch (mode) {
+	case 0:	/* Switch terminal to xterm. */
+		t->t_stateflags &= ~TS_CONS25;
+		break;
+	case 1: /* Switch terminal to cons25. */
+		t->t_stateflags |= TS_CONS25;
+		break;
+	}
+}
+
 #if 0
 static void
 teken_subr_vt52_decid(teken_t *t)

@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090922:
+	802.11s D3.03 support was committed. This is incompatible with the
+	previous code, which was based on D3.0.
+
 20090910:
 	ZFS snapshots are now mounted with MNT_IGNORE flag. Use -v option for
 	mount(8) and -a option for df(1) to see them.

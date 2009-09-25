@@ -480,6 +480,10 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 		gctl_error(req, "%d index '%d'", EEXIST, gpp->gpp_index);
 		return (EEXIST);
 	}
+	if (index > table->gpt_entries) {
+		gctl_error(req, "%d index '%d'", ENOSPC, index);
+		return (ENOSPC);
+	}
 
 	entry = (delent == NULL) ? g_malloc(table->gpt_scheme->gps_entrysz,
 	    M_WAITOK | M_ZERO) : delent;

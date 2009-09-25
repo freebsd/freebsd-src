@@ -15,7 +15,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
-	getosreldate.c getpagesize.c \
+	getosreldate.c getpagesize.c getpagesizes.c \
 	getpeereid.c getprogname.c getpwent.c getttyent.c \
 	getusershell.c getvfsbyname.c glob.c \
 	initgroups.c isatty.c isinf.c isnan.c jrand48.c lcong48.c \
@@ -51,8 +51,8 @@ MAN+=	alarm.3 arc4random.3 \
 	getbootfile.3 getbsize.3 getcap.3 getcontext.3 getcwd.3 \
 	getdiskbyname.3 getdomainname.3 getfsent.3 \
 	getgrent.3 getgrouplist.3 gethostname.3 getloadavg.3 \
-	getmntinfo.3 getnetgrent.3 getosreldate.3 \
-	getpagesize.3 getpass.3 getpeereid.3 getprogname.3 getpwent.3 \
+	getmntinfo.3 getnetgrent.3 getosreldate.3 getpagesize.3 \
+	getpagesizes.3 getpass.3 getpeereid.3 getprogname.3 getpwent.3 \
 	getttyent.3 getusershell.3 getvfsbyname.3 \
 	glob.3 initgroups.3 isgreater.3 ldexp.3 lockf.3 makecontext.3 \
 	modf.3 \

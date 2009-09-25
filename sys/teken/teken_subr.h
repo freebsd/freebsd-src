@@ -397,6 +397,11 @@ teken_subr_delete_line(teken_t *t, unsigned int nrows)
 {
 	teken_rect_t tr;
 
+	/* Ignore if outside scrolling region. */
+	if (t->t_cursor.tp_row < t->t_scrollreg.ts_begin ||
+	    t->t_cursor.tp_row >= t->t_scrollreg.ts_end)
+		return;
+
 	tr.tr_begin.tp_col = 0;
 	tr.tr_end.tp_row = t->t_scrollreg.ts_end;
 	tr.tr_end.tp_col = t->t_winsize.tp_col;
@@ -656,6 +661,11 @@ teken_subr_insert_line(teken_t *t, unsigned int nrows)
 {
 	teken_rect_t tr;
 
+	/* Ignore if outside scrolling region. */
+	if (t->t_cursor.tp_row < t->t_scrollreg.ts_begin ||
+	    t->t_cursor.tp_row >= t->t_scrollreg.ts_end)
+		return;
+
 	tr.tr_begin.tp_row = t->t_cursor.tp_row;
 	tr.tr_begin.tp_col = 0;
 	tr.tr_end.tp_col = t->t_winsize.tp_col;
@@ -802,8 +812,9 @@ teken_subr_regular_character(teken_t *t, teken_char_t c)
 	int width;
 
 	if (t->t_stateflags & TS_8BIT) {
-		if (!(t->t_stateflags & TS_CONS25) && c <= 0x1B)
+		if (!(t->t_stateflags & TS_CONS25) && (c <= 0x1b || c == 0x7f))
 			return;
+		c = teken_scs_process(t, c);
 		width = 1;
 	} else {
 		c = teken_scs_process(t, c);

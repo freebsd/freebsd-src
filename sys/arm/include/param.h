@@ -92,6 +92,8 @@
 #define NBPDR		(1 << PDR_SHIFT)
 #define NPDEPG          (1 << (32 - PDR_SHIFT))
 
+#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+
 #ifndef KSTACK_PAGES
 #define KSTACK_PAGES    2
 #endif /* !KSTACK_PAGES */
