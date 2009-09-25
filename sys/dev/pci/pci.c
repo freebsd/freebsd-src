@@ -2134,62 +2134,38 @@ pci_disable_busmaster_method(device_t dev, device_t child)
 int
 pci_enable_io_method(device_t dev, device_t child, int space)
 {
-	uint16_t command;
 	uint16_t bit;
-	char *error;
-
-	bit = 0;
-	error = NULL;
 
 	switch(space) {
 	case SYS_RES_IOPORT:
 		bit = PCIM_CMD_PORTEN;
-		error = "port";
 		break;
 	case SYS_RES_MEMORY:
 		bit = PCIM_CMD_MEMEN;
-		error = "memory";
 		break;
 	default:
 		return (EINVAL);
 	}
 	pci_set_command_bit(dev, child, bit);
-	/* Some devices seem to need a brief stall here, what do to? */
-	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
-	if (command & bit)
-		return (0);
-	device_printf(child, "failed to enable %s mapping!\n", error);
-	return (ENXIO);
+	return (0);
 }
 
 int
 pci_disable_io_method(device_t dev, device_t child, int space)
 {
-	uint16_t command;
 	uint16_t bit;
-	char *error;
-
-	bit = 0;
-	error = NULL;
 
 	switch(space) {
 	case SYS_RES_IOPORT:
 		bit = PCIM_CMD_PORTEN;
-		error = "port";
 		break;
 	case SYS_RES_MEMORY:
 		bit = PCIM_CMD_MEMEN;
-		error = "memory";
 		break;
 	default:
 		return (EINVAL);
 	}
 	pci_clear_command_bit(dev, child, bit);
-	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
-	if (command & bit) {
-		device_printf(child, "failed to disable %s mapping!\n", error);
-		return (ENXIO);
-	}
 	return (0);
 }
 
