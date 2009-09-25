@@ -175,9 +175,8 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_ftimeleft =
 		    dqblk.dqb_itime - timev.tv_sec;
 	}
-	if (!svc_sendreply(transp, (xdrproc_t)xdr_getquota_rslt, &getq_rslt)) {
+	if (!svc_sendreply(transp, (xdrproc_t)xdr_getquota_rslt, &getq_rslt))
 		svcerr_systemerr(transp);
-	}
 	if (!svc_freeargs(transp, (xdrproc_t)xdr_getquota_args, &getq_args)) {
 		syslog(LOG_ERR, "unable to free arguments");
 		exit(1);
@@ -189,10 +188,9 @@ printerr_reply(SVCXPRT *transp)	/* when a reply to a request failed */
 {
 	char name[INET6_ADDRSTRLEN];
 	struct sockaddr *caller;
-	int     save_errno;
+	int save_errno;
 
 	save_errno = errno;
-
 	caller = (struct sockaddr *)svc_getrpccaller(transp)->buf;
 	getnameinfo(caller, caller->sa_len, name, sizeof (name),
 	    NULL, 0, NI_NUMERICHOST);
@@ -255,7 +253,7 @@ getfsquota(long id, char *path, struct dqblk *dqblk)
 	qcmd = QCMD(Q_GETQUOTA, USRQUOTA);
 
 	for (fs = fs_begin; fs != NULL; fs = fs->fs_next) {
-		/* where the devise is the same as path */
+		/* where the device is the same as path */
 		if (fs->st_dev != st_path.st_dev)
 			continue;
 
