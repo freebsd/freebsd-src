@@ -185,11 +185,11 @@ teken_subr_alignment_test(teken_t *t)
 {
 	teken_rect_t tr;
 
+	t->t_cursor.tp_row = t->t_cursor.tp_col = 0;
 	t->t_scrollreg.ts_begin = 0;
 	t->t_scrollreg.ts_end = t->t_winsize.tp_row;
-
-	t->t_cursor.tp_row = t->t_cursor.tp_col = 0;
-	t->t_stateflags &= ~TS_WRAPPED;
+	t->t_originreg = t->t_scrollreg;
+	t->t_stateflags &= ~(TS_WRAPPED|TS_ORIGIN);
 	teken_funcs_cursor(t);
 
 	tr.tr_begin.tp_row = 0;
@@ -988,6 +988,15 @@ teken_subr_restore_cursor(teken_t *t)
 	t->t_curattr = t->t_saved_curattr;
 	t->t_scs[t->t_curscs] = t->t_saved_curscs;
 	t->t_stateflags &= ~TS_WRAPPED;
+
+	/* Get out of origin mode when the cursor is moved outside. */
+	if (t->t_cursor.tp_row < t->t_originreg.ts_begin ||
+	    t->t_cursor.tp_row >= t->t_originreg.ts_end) {
+		t->t_stateflags &= ~TS_ORIGIN;
+		t->t_originreg.ts_begin = 0;
+		t->t_originreg.ts_end = t->t_winsize.tp_row;
+	}
+
 	teken_funcs_cursor(t);
 }
 
