@@ -25,11 +25,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2009
+.Dd September 26, 2009
 .Dt QUOTAFILE 3
 .Os
 .Sh NAME
 .Nm quota_open
+.Nm quota_fsname
+.Nm quota_qfname
+.Nm quota_check_path
 .Nm quota_read
 .Nm quota_write_limits
 .Nm quota_write_usage
@@ -38,11 +41,19 @@
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
 .In ufs/ufs/quota.h
 .In libutil.h
 .In fstab.h
 .Ft "struct quotafile *"
 .Fn quota_open "struct fstab *fs" "int quotatype" "int openflags"
+.Ft "const char *"
+.Fn quota_fsname "const struct quotafile *qf"
+.Ft "const char *"
+.Fn quota_qfname "const struct quotafile *qf"
+.Ft int
+.Fn quota_check_path "const struct quotafile *qf" "const char *path"
 .Ft int
 .Fn quota_read "struct quotafile *qf" "struct dqblk *dqb" "int id"
 .Ft int
@@ -84,12 +95,42 @@ if the quotas are just to be read, or
 if the quotas are to be updated.
 The
 .Dv O_CREAT
-flag should be specified if a new quota file of the requested type should
-be created if it does not already exist.
+flag should be specified if a new quota file of the requested type
+should be created if it does not already exist.
+.Pp
+The
+.Fn quota_fsname
+function returns a pointer to a buffer containing the path to the root
+of the file system that corresponds to its
+.Va qf
+argument, as listed in
+.Pa /etc/fstab .
+Note that this may be a symbolic link to the actual directory.
+.Pp
+The
+.Fn quota_qfname
+function returns a pointer to a buffer containing the name of the
+quota file that corresponds to its
+.Va qf
+argument.
+Note that this may be a symbolic link to the actual file.
+.Pp
+The
+.Fn quota_check_path
+function checks if the specified path is within the filesystem that
+corresponds to its
+.Va qf
+argument.
+If the
+.Va path
+argument refers to a symbolic link,
+.Fn quota_check_path
+will follow it.
 .Pp
 The
 .Fn quota_read
-function reads the quota from the filesystem and quota type referenced by
+function reads the quota from the filesystem and quota type referenced
+by
 .Va qf
 for the user (or group) specified by
 .Va id
@@ -127,6 +168,9 @@ The
 function closes any open file descriptors and frees any storage
 associated with the filesystem and quota type referenced by
 .Va qf .
+.Sh IMPLEMENTATION NOTES
+If the underlying quota file is in the old 32-bit format, limit and
+usage values written to the quota file will be clipped to 32 bits.
 .Sh RETURN VALUES
 If the filesystem has quotas associated with it,
 .Fn quota_open
@@ -137,7 +181,15 @@ If the filesystem has no quotas, or access permission is denied
 .Dv NULL
 is returned and
 .Va errno
-is set to indicate the cause of failure.
+is set to indicate the error.
+.Pp
+The
+.Fn quota_check_path
+function returns\~1 for a positive result and\~0 for a negative
+result.
+If an error occurs, it returns\~-1 and sets
+.Va errno
+to indicate the error.
 .Pp
 The
 .Fn quota_read ,
@@ -146,11 +198,10 @@ The
 and
 .Fn quota_close
 functions return zero on success.
-On error they return
-.Dv -1
+On error they return\~-1
 and set
 .Va errno
-to indicate the cause of failure.
+to indicate the error.
 .Sh SEE ALSO
 .Xr quotactl 2 ,
 .Xr quota.user 5 ,
