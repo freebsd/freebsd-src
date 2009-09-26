@@ -1007,15 +1007,24 @@ zfsctl_snapdir_inactive(ap)
 {
 	vnode_t *vp = ap->a_vp;
 	zfsctl_snapdir_t *sdp = vp->v_data;
-	void *private;
+	zfs_snapentry_t *sep;
 
-	private = gfs_dir_inactive(vp);
-	if (private != NULL) {
-		ASSERT(avl_numnodes(&sdp->sd_snaps) == 0);
-		mutex_destroy(&sdp->sd_lock);
-		avl_destroy(&sdp->sd_snaps);
-		kmem_free(private, sizeof (zfsctl_snapdir_t));
+	/*
+	 * On forced unmount we have to free snapshots from here.
+	 */
+	mutex_enter(&sdp->sd_lock);
+	while ((sep = avl_first(&sdp->sd_snaps)) != NULL) {
+		avl_remove(&sdp->sd_snaps, sep);
+		kmem_free(sep->se_name, strlen(sep->se_name) + 1);
+		kmem_free(sep, sizeof (zfs_snapentry_t));
 	}
+	mutex_exit(&sdp->sd_lock);
+	gfs_dir_inactive(vp);
+	ASSERT(avl_numnodes(&sdp->sd_snaps) == 0);
+	mutex_destroy(&sdp->sd_lock);
+	avl_destroy(&sdp->sd_snaps);
+	kmem_free(sdp, sizeof (zfsctl_snapdir_t));
+
 	return (0);
 }
 
@@ -1073,6 +1082,9 @@ zfsctl_snapshot_inactive(ap)
 	int locked;
 	vnode_t *dvp;
 
+	if (vp->v_count > 0)
+		goto end;
+
 	VERIFY(gfs_dir_lookup(vp, "..", &dvp, cr, 0, NULL, NULL) == 0);
 	sdp = dvp->v_data;
 	VOP_UNLOCK(dvp, 0);
@@ -1080,11 +1092,6 @@ zfsctl_snapshot_inactive(ap)
 	if (!(locked = MUTEX_HELD(&sdp->sd_lock)))
 		mutex_enter(&sdp->sd_lock);
 
-	if (vp->v_count > 1) {
-		if (!locked)
-			mutex_exit(&sdp->sd_lock);
-		return (0);
-	}
 	ASSERT(!vn_ismntpt(vp));
 
 	sep = avl_first(&sdp->sd_snaps);
@@ -1104,6 +1111,7 @@ zfsctl_snapshot_inactive(ap)
 	if (!locked)
 		mutex_exit(&sdp->sd_lock);
 	VN_RELE(dvp);
+end:
 	VFS_RELE(vp->v_vfsp);
 
 	/*
