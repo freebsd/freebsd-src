@@ -22,59 +22,82 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-static inline teken_char_t
-teken_scs_process(teken_t *t, teken_char_t c)
-{
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-	return (t->t_scs[t->t_curscs](t, c));
-}
+#include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
 
-/* Unicode points for VT100 box drawing. */
-static const uint16_t teken_boxdrawing_unicode[31] = {
-    0x25c6, 0x2592, 0x2409, 0x240c, 0x240d, 0x240a, 0x00b0, 0x00b1,
-    0x2424, 0x240b, 0x2518, 0x2510, 0x250c, 0x2514, 0x253c, 0x23ba,
-    0x23bb, 0x2500, 0x23bc, 0x23bd, 0x251c, 0x2524, 0x2534, 0x252c,
-    0x2502, 0x2264, 0x2265, 0x03c0, 0x2260, 0x00a3, 0x00b7
+#include <dev/lindev/lindev.h>
+
+static struct cdev *full_dev;
+
+static d_read_t full_read;
+static d_write_t full_write;
+
+static struct cdevsw full_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_read =	full_read,
+	.d_write =	full_write,
+	.d_name =	"full",
 };
 
-/* CP437 points for VT100 box drawing. */
-static const uint8_t teken_boxdrawing_8bit[31] = {
-    0x04, 0xb1, 0x48, 0x46, 0x43, 0x4c, 0xf8, 0xf1,
-    0x4e, 0x56, 0xd9, 0xbf, 0xda, 0xc0, 0xc5, 0xc4,
-    0xc4, 0xc4, 0xc4, 0xc4, 0xc3, 0xb4, 0xc1, 0xc2,
-    0xb3, 0xf3, 0xf2, 0xe3, 0xd8, 0x9c, 0xfa,
-};
+static void *zbuf;
 
-static teken_char_t
-teken_scs_special_graphics(teken_t *t, teken_char_t c)
+/* ARGSUSED */
+static int
+full_read(struct cdev *dev __unused, struct uio *uio, int flags __unused)
 {
+	int error = 0;
 
-	/* Box drawing. */
-	if (c >= '`' && c <= '~')
-		return (t->t_stateflags & TS_8BIT ?
-		    teken_boxdrawing_8bit[c - '`'] :
-		    teken_boxdrawing_unicode[c - '`']);
-	return (c);
+	while (uio->uio_resid > 0 && error == 0)
+		error = uiomove(zbuf, MIN(uio->uio_resid, PAGE_SIZE), uio);
+
+	return (error);
 }
 
-static teken_char_t
-teken_scs_uk_national(teken_t *t, teken_char_t c)
+/* ARGSUSED */
+static int
+full_write(struct cdev *dev __unused, struct uio *uio __unused,
+    int flags __unused)
 {
 
-	/* Pound sign. */
-	if (c == '#')
-		return (t->t_stateflags & TS_8BIT ? 0x9c : 0xa3);
-	return (c);
+	return (ENOSPC);
 }
 
-static teken_char_t
-teken_scs_us_ascii(teken_t *t __unused, teken_char_t c)
+/* ARGSUSED */
+int
+lindev_modevent_full(module_t mod __unused, int type, void *data __unused)
 {
 
-	/* No processing. */
-	return (c);
+	switch(type) {
+	case MOD_LOAD:
+		zbuf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK | M_ZERO);
+		full_dev = make_dev(&full_cdevsw, 0, UID_ROOT, GID_WHEEL,
+		    0666, "full");
+		if (bootverbose)
+			printf("full: <full device>\n");
+		break;
+
+	case MOD_UNLOAD:
+		destroy_dev(full_dev);
+		free(zbuf, M_TEMP);
+		break;
+
+	case MOD_SHUTDOWN:
+		break;
+
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	return (0);
 }
+

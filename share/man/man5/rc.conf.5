@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2009
+.Dd September 23, 2009
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1246,28 +1246,85 @@ It is also possible to rename interface by doing:
 ifconfig_ed0_name="net0"
 ifconfig_net0="inet 192.0.2.1 netmask 0xffffff00"
 .Ed
+.It Va ipv6_enable
+.Pq Vt bool
+If the variable is
+.Dq Li YES ,
+.Dq Li inet6 accept_rtadv
+is added to all of
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+and the
+.Va ipv6_prefer
+is defined as
+.Dq Li YES .
+.Pp
+This variable is deprecated.  Use
+.Va ipv6_prefer
+and
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 .
+.It Va ipv6_prefer
+.Pq Vt bool
+This variable does the following:
+.Pp
+If the variable is
+.Dq Li YES ,
+the default policy of the source address selection set by
+.Xr ip6addrctl 8
+will be IPv6-preferred.
+.Pp
+If the variable is
+.Dq Li NO ,
+the default policy of the source address selection set by
+.Xr ip6addrctl 8
+will be IPv4-preferred, and all of interfaces which does not have the
+corrsponding
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
+variable will be marked as
+.Dq Li IFDISABLED .
+This means only IPv6 functionality on that interface is completely
+disabled.  For more details of
+.Dq Li IFDISABLED
+flag and keywords
+.Dq Li inet6 ifdisabled ,
+see
+.Xr ifconfig 8 .
+.Pp
 .It Va ipv6_network_interfaces
 .Pq Vt str
 This is the IPv6 equivalent of
 .Va network_interfaces .
-Instead of setting the ifconfig variables as
-.Va ifconfig_ Ns Aq Ar interface
-they should be set as
-.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6.
-Aliases should be set as
-.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n .
-.Va ipv6_prefix_ Ns Aq Ar interface
-does something.
-Interfaces that have a
-.Fl accept_rtadv
-flag in
+Normally manual configuration of this variable is not needed.
+.Pp
+IPv6 functionality on an interface should be configured by
+.Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6 ,
+instead of setting ifconfig parameters in
+.Va ifconfig_ Ns Aq Ar interface .
+Aliases should be set by
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
+with
+.Dq Li inet6
+keyword.  For example:
+.Bd -literal
+ifconfig_ed0_ipv6="inet6 2001:db8:1::1 prefixlen 64"
+ifconfig_ed0_alias0="inet6 2001:db8:2::1 prefixlen 64"
+.Ed
+.Pp
+Interfaces that have an
+.Dq Li inet6 accept_rtadv
+keyword in
 .Va ifconfig_ Ns Ao Ar interface Ac Ns _ipv6
 setting will be automatically configured by
-.Xr rtsol 8
-if the
+.Xr rtsol 8 .
+Note that this automatic configuration is disabled if the
 .Va ipv6_gateway_enable
 is set to
-.Dq Li NO .
+.Dq Li YES .
+.It Va ipv6_prefix_ Ns Aq Ar interface
+.Pq Vt str
+If one or more prefixes are defined in
+.Va ipv6_prefix_ Ns Aq Ar interface
+addresses based on each prefix and the EUI-64 interface index will be
+configured on that interface.
 .It Va ipv6_default_interface
 .Pq Vt str
 If not set to
