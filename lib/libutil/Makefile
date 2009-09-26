@@ -60,8 +60,12 @@ MLINKS+=pidfile.3 pidfile_open.3 \
 	pidfile.3 pidfile_close.3 \
 	pidfile.3 pidfile_remove.3
 MLINKS+=quotafile.3 quota_open.3 \
+	quotafile.3 quota_fsname.3 \
+	quotafile.3 quota_qfname.3 \
+	quotafile.3 quota_statfs.3 \
 	quotafile.3 quota_read.3 \
-	quotafile.3 quota_write.3 \
+	quotafile.3 quota_write_limits.3 \
+	quotafile.3 quota_write_usage.3 \
 	quotafile.3 quota_close.3
 
 .include <bsd.lib.mk>
