@@ -196,13 +196,13 @@ teken_input_char(teken_t *t, teken_char_t c)
 		if (t->t_stateflags & TS_CONS25)
 			t->t_nextstate(t, c);
 		else
-			teken_scs_switch(t, 1);
+			t->t_curscs = 1;
 		break;
 	case '\x0F':
 		if (t->t_stateflags & TS_CONS25)
 			t->t_nextstate(t, c);
 		else
-			teken_scs_switch(t, 0);
+			t->t_curscs = 0;
 		break;
 	case '\r':
 		teken_subr_carriage_return(t);

@@ -26,35 +26,7 @@
  * $FreeBSD$
  */
 
-static void
-teken_scs_set(teken_t *t, unsigned int g, teken_scs_t *ts)
-{
-
-	t->t_scs[g] = ts;
-}
-
-static void
-teken_scs_switch(teken_t *t, unsigned int g)
-{
-
-	t->t_curscs = g;
-}
-
-static void
-teken_scs_restore(teken_t *t)
-{
-
-	t->t_scs[t->t_curscs] = t->t_saved_curscs;
-}
-
-static void
-teken_scs_save(teken_t *t)
-{
-
-	t->t_saved_curscs = t->t_scs[t->t_curscs];
-}
-
-static teken_char_t
+static inline teken_char_t
 teken_scs_process(teken_t *t, teken_char_t c)
 {
 

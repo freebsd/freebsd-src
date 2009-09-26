@@ -540,42 +540,42 @@ static void
 teken_subr_g0_scs_special_graphics(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 0, teken_scs_special_graphics);
+	t->t_scs[0] = teken_scs_special_graphics;
 }
 
 static void
 teken_subr_g0_scs_uk_national(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 0, teken_scs_uk_national);
+	t->t_scs[0] = teken_scs_uk_national;
 }
 
 static void
 teken_subr_g0_scs_us_ascii(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 0, teken_scs_us_ascii);
+	t->t_scs[0] = teken_scs_us_ascii;
 }
 
 static void
 teken_subr_g1_scs_special_graphics(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 1, teken_scs_special_graphics);
+	t->t_scs[1] = teken_scs_special_graphics;
 }
 
 static void
 teken_subr_g1_scs_uk_national(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 1, teken_scs_uk_national);
+	t->t_scs[1] = teken_scs_uk_national;
 }
 
 static void
 teken_subr_g1_scs_us_ascii(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 1, teken_scs_us_ascii);
+	t->t_scs[1] = teken_scs_us_ascii;
 }
 
 static void
@@ -962,9 +962,9 @@ teken_subr_do_reset(teken_t *t)
 	t->t_stateflags &= TS_8BIT|TS_CONS25;
 	t->t_stateflags |= TS_AUTOWRAP;
 
-	teken_scs_set(t, 0, teken_scs_us_ascii);
-	teken_scs_set(t, 1, teken_scs_us_ascii);
-	teken_scs_switch(t, 0);
+	t->t_scs[0] = teken_scs_us_ascii;
+	t->t_scs[1] = teken_scs_us_ascii;
+	t->t_curscs = 0;
 
 	teken_subr_save_cursor(t);
 	teken_tab_default(t);
@@ -986,8 +986,8 @@ teken_subr_restore_cursor(teken_t *t)
 
 	t->t_cursor = t->t_saved_cursor;
 	t->t_curattr = t->t_saved_curattr;
+	t->t_scs[t->t_curscs] = t->t_saved_curscs;
 	t->t_stateflags &= ~TS_WRAPPED;
-	teken_scs_restore(t);
 	teken_funcs_cursor(t);
 }
 
@@ -1010,7 +1010,7 @@ teken_subr_save_cursor(teken_t *t)
 
 	t->t_saved_cursor = t->t_cursor;
 	t->t_saved_curattr = t->t_curattr;
-	teken_scs_save(t);
+	t->t_saved_curscs = t->t_scs[t->t_curscs];
 }
 
 static void
