@@ -880,6 +880,9 @@ device		streams		# STREAMS network driver (required for svr4).
 options 	NDISAPI
 device		ndis
 
+# Linux-specific pseudo devices support
+device		lindev
+
 
 #####################################################################
 # VM OPTIONS
