@@ -49,8 +49,10 @@
 
 struct quotafile {
 	int fd;				/* -1 means using quotactl for access */
+	int accmode;			/* access mode */
 	int wordsize;			/* 32-bit or 64-bit limits */
 	int quotatype;			/* USRQUOTA or GRPQUOTA */
+	dev_t dev;			/* device */
 	char fsname[MAXPATHLEN + 1];	/* mount point of filesystem */
 	char qfname[MAXPATHLEN + 1];	/* quota file if not using quotactl */
 };
@@ -59,6 +61,7 @@ static const char *qfextension[] = INITQFNAMES;
 
 /*
  * Check to see if a particular quota is to be enabled.
+ * XXX merge into quota_open
  */
 static int
 hasquota(struct fstab *fs, int type, char *qfnamep, int qfbufsize)
@@ -69,6 +72,11 @@ hasquota(struct fstab *fs, int type, char *qfnamep, int qfbufsize)
 	char buf[BUFSIZ];
 	static char initname, usrname[100], grpname[100];
 
+	/*
+	 * XXX
+	 * 1) we only need one of these
+	 * 2) fstab may specify a different filename
+	 */
 	if (!initname) {
 		(void)snprintf(usrname, sizeof(usrname), "%s%s",
 		    qfextension[USRQUOTA], QUOTAFILENAME);
@@ -109,12 +117,17 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 	struct quotafile *qf;
 	struct dqhdr64 dqh;
 	struct group *grp;
+	struct stat st;
 	int qcmd, serrno;
 
 	if ((qf = calloc(1, sizeof(*qf))) == NULL)
 		return (NULL);
+	qf->fd = -1;
 	qf->quotatype = quotatype;
 	strncpy(qf->fsname, fs->fs_file, sizeof(qf->fsname));
+	if (stat(qf->fsname, &st) != 0)
+		goto error;
+	qf->dev = st.st_dev;
 	qcmd = QCMD(Q_GETQUOTA, quotatype);
 	if (quotactl(fs->fs_file, qcmd, 0, &dqh) == 0) {
 		qf->wordsize = 64;
@@ -122,27 +135,19 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 		return (qf);
 	}
 	if (!hasquota(fs, quotatype, qf->qfname, sizeof(qf->qfname))) {
-		free(qf);
 		errno = EOPNOTSUPP;
-		return (NULL);
+		goto error;
 	}
-	if ((qf->fd = open(qf->qfname, openflags & O_ACCMODE)) < 0 &&
-	    (openflags & O_CREAT) == 0) {
-		serrno = errno;
-		free(qf);
-		errno = serrno;
-		return (NULL);
-	}
+	qf->accmode = openflags & O_ACCMODE;
+	if ((qf->fd = open(qf->qfname, qf->accmode)) < 0 &&
+	    (openflags & O_CREAT) != O_CREAT)
+		goto error;
 	/* File open worked, so process it */
 	if (qf->fd != -1) {
 		qf->wordsize = 32;
 		switch (read(qf->fd, &dqh, sizeof(dqh))) {
 		case -1:
-			serrno = errno;
-			close(qf->fd);
-			free(qf);
-			errno = serrno;
-			return (NULL);
+			goto error;
 		case sizeof(dqh):
 			if (strcmp(dqh.dqh_magic, Q_DQHDR64_MAGIC) != 0) {
 				/* no magic, assume 32 bits */
@@ -153,10 +158,8 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 			    be32toh(dqh.dqh_hdrlen) != sizeof(struct dqhdr64) ||
 			    be32toh(dqh.dqh_reclen) != sizeof(struct dqblk64)) {
 				/* correct magic, wrong version / lengths */
-				close(qf->fd);
-				free(qf);
 				errno = EINVAL;
-				return (NULL);
+				goto error;
 			}
 			qf->wordsize = 64;
 			return (qf);
@@ -166,31 +169,33 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 		}
 		/* not reached */
 	}
-	/* Open failed above, but O_CREAT specified, so create a new file */
-	if ((qf->fd = open(qf->qfname, O_RDWR|O_CREAT|O_TRUNC, 0)) < 0) {
-		serrno = errno;
-		free(qf);
-		errno = serrno;
-		return (NULL);
-	}
+	/* open failed, but O_CREAT was specified, so create a new file */
+	if ((qf->fd = open(qf->qfname, O_RDWR|O_CREAT|O_TRUNC, 0)) < 0)
+		goto error;
 	qf->wordsize = 64;
 	memset(&dqh, 0, sizeof(dqh));
 	memcpy(dqh.dqh_magic, Q_DQHDR64_MAGIC, sizeof(dqh.dqh_magic));
 	dqh.dqh_version = htobe32(Q_DQHDR64_VERSION);
 	dqh.dqh_hdrlen = htobe32(sizeof(struct dqhdr64));
 	dqh.dqh_reclen = htobe32(sizeof(struct dqblk64));
-	if (write(qf->fd, &dqh, sizeof(dqh)) != sizeof(dqh)) {
-		serrno = errno;
-		unlink(qf->qfname);
-		close(qf->fd);
-		free(qf);
-		errno = serrno;
-		return (NULL);
-	}
+	if (write(qf->fd, &dqh, sizeof(dqh)) != sizeof(dqh))
+		goto error;
 	grp = getgrnam(QUOTAGROUP);
 	fchown(qf->fd, 0, grp ? grp->gr_gid : 0);
 	fchmod(qf->fd, 0640);
 	return (qf);
+error:
+	serrno = errno;
+	/* did we have an open file? */
+	if (qf->fd != -1) {
+		/* was it one we created ourselves? */
+		if ((openflags & O_CREAT) == O_CREAT)
+			unlink(qf->qfname);
+		close(qf->fd);
+	}
+	free(qf);
+	errno = serrno;
+	return (NULL);
 }
 
 void
@@ -200,6 +205,30 @@ quota_close(struct quotafile *qf)
 	if (qf->fd != -1)
 		close(qf->fd);
 	free(qf);
+}
+
+const char *
+quota_fsname(const struct quotafile *qf)
+{
+
+	return (qf->fsname);
+}
+
+const char *
+quota_qfname(const struct quotafile *qf)
+{
+
+	return (qf->qfname);
+}
+
+int
+quota_check_path(const struct quotafile *qf, const char *path)
+{
+	struct stat st;
+
+	if (stat(path, &st) == -1)
+		return (-1);
+	return (st.st_dev == qf->dev);
 }
 
 static int
@@ -333,6 +362,10 @@ quota_write_usage(struct quotafile *qf, struct dqblk *dqb, int id)
 	struct dqblk dqbuf;
 	int qcmd;
 
+	if ((qf->accmode & O_RDWR) != O_RDWR) {
+		errno = EBADF;
+		return (-1);
+	}
 	if (qf->fd == -1) {
 		qcmd = QCMD(Q_SETUSE, qf->quotatype);
 		return (quotactl(qf->fsname, qcmd, id, dqb));
@@ -377,6 +410,10 @@ quota_write_limits(struct quotafile *qf, struct dqblk *dqb, int id)
 	struct dqblk dqbuf;
 	int qcmd;
 
+	if ((qf->accmode & O_RDWR) != O_RDWR) {
+		errno = EBADF;
+		return (-1);
+	}
 	if (qf->fd == -1) {
 		qcmd = QCMD(Q_SETQUOTA, qf->quotatype);
 		return (quotactl(qf->fsname, qcmd, id, dqb));

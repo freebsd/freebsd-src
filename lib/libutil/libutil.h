@@ -144,10 +144,13 @@ int pidfile_remove(struct pidfh *pfh);
 struct quotafile;
 struct fstab;
 struct quotafile *quota_open(struct fstab *, int, int);
-void quota_close(struct quotafile *);
+const char *quota_fsname(const struct quotafile *);
+const char *quota_qfname(const struct quotafile *);
+int quota_check_path(const struct quotafile *, const char *path);
 int quota_read(struct quotafile *, struct dqblk *, int);
 int quota_write_limits(struct quotafile *, struct dqblk *, int);
 int quota_write_usage(struct quotafile *, struct dqblk *, int);
+void quota_close(struct quotafile *);
 #endif
 
 __END_DECLS
