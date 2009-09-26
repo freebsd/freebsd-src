@@ -89,25 +89,56 @@ i=`${MAKE:-make} -V KERN_IDENT`
 
 case "$d" in
 */sys/*)
+	SRCDIR=${d##*obj}
+	if [ -n "$MACHINE" ]; then
+		if [ -n "$MACHINE" ]; then
+			SRCDIR=${SRCDIR##/$MACHINE}
+		fi
+	fi
+	SRCDIR=${SRCDIR%%/sys/*}
+
 	for dir in /bin /usr/bin /usr/local/bin; do
-		if [ -x "${dir}/svnversion" ]; then
+		if [ -d "${SRCDIR}/sys/.svn" -a -x "${dir}/svnversion" ] ; then
 			svnversion=${dir}/svnversion
-			SRCDIR=${d##*obj}
-			SRCDIR=${SRCDIR%%/sys/*}
+			break
+		fi
+		if [ -d "${SRCDIR}/.git" -a -x "${dir}/git" ] ; then
+			git_cmd="${dir}/git --git-dir=${SRCDIR}/.git"
 			break
 		fi
 	done
 
-	if [ -n "$svnversion" -a -d "${SRCDIR}/sys/.svn" ] ; then
+	if [ -n "$svnversion" ] ; then
 		svn=" r`cd ${SRCDIR}/sys && $svnversion`"
+	fi
+	if [ -n "$git_cmd" ] ; then
+		git=`$git_cmd rev-parse --verify --short HEAD 2>/dev/null`
+		svn=`$git_cmd svn find-rev $git 2>/dev/null`
+		if [ -n "$svn" ] ; then
+			svn=" r${svn}"
+			git="=${git}"
+		else
+			svn=`$git_cmd log | fgrep 'git-svn-id:' | head -1 | \
+			     sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
+			if [ -n $svn ] ; then
+				svn=" r${svn}"
+				git="+${git}"
+			else
+				git=" ${git}"
+			fi
+		fi
+		if $git_cmd --work-tree=${SRCDIR} diff-index \
+		    --name-only HEAD | read dummy; then
+			git="${git}-dirty"
+		fi
 	fi
 	;;
 esac
 
 cat << EOF > vers.c
 $COPYRIGHT
-#define SCCSSTR "@(#)${VERSION} #${v}${svn}: ${t}"
-#define VERSTR "${VERSION} #${v}${svn}: ${t}\\n    ${u}@${h}:${d}\\n"
+#define SCCSSTR "@(#)${VERSION} #${v}${svn}${git}: ${t}"
+#define VERSTR "${VERSION} #${v}${svn}${git}: ${t}\\n    ${u}@${h}:${d}\\n"
 #define RELSTR "${RELEASE}"
 
 char sccs[sizeof(SCCSSTR) > 128 ? sizeof(SCCSSTR) : 128] = SCCSSTR;
