@@ -313,11 +313,11 @@ scteken_attr(const teken_attr_t *a)
 	teken_color_t fg, bg;
 
 	if (a->ta_format & TF_REVERSE) {
-		fg = a->ta_bgcolor;
-		bg = a->ta_fgcolor;
+		fg = teken_256to8(a->ta_bgcolor);
+		bg = teken_256to8(a->ta_fgcolor);
 	} else {
-		fg = a->ta_fgcolor;
-		bg = a->ta_bgcolor;
+		fg = teken_256to8(a->ta_fgcolor);
+		bg = teken_256to8(a->ta_bgcolor);
 	}
 	if (a->ta_format & TF_BOLD)
 		attr |= fgcolors_bold[fg];
