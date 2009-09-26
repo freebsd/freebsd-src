@@ -185,11 +185,11 @@ teken_subr_alignment_test(teken_t *t)
 {
 	teken_rect_t tr;
 
+	t->t_cursor.tp_row = t->t_cursor.tp_col = 0;
 	t->t_scrollreg.ts_begin = 0;
 	t->t_scrollreg.ts_end = t->t_winsize.tp_row;
-
-	t->t_cursor.tp_row = t->t_cursor.tp_col = 0;
-	t->t_stateflags &= ~TS_WRAPPED;
+	t->t_originreg = t->t_scrollreg;
+	t->t_stateflags &= ~(TS_WRAPPED|TS_ORIGIN);
 	teken_funcs_cursor(t);
 
 	tr.tr_begin.tp_row = 0;
@@ -540,42 +540,42 @@ static void
 teken_subr_g0_scs_special_graphics(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 0, teken_scs_special_graphics);
+	t->t_scs[0] = teken_scs_special_graphics;
 }
 
 static void
 teken_subr_g0_scs_uk_national(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 0, teken_scs_uk_national);
+	t->t_scs[0] = teken_scs_uk_national;
 }
 
 static void
 teken_subr_g0_scs_us_ascii(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 0, teken_scs_us_ascii);
+	t->t_scs[0] = teken_scs_us_ascii;
 }
 
 static void
 teken_subr_g1_scs_special_graphics(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 1, teken_scs_special_graphics);
+	t->t_scs[1] = teken_scs_special_graphics;
 }
 
 static void
 teken_subr_g1_scs_uk_national(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 1, teken_scs_uk_national);
+	t->t_scs[1] = teken_scs_uk_national;
 }
 
 static void
 teken_subr_g1_scs_us_ascii(teken_t *t __unused)
 {
 
-	teken_scs_set(t, 1, teken_scs_us_ascii);
+	t->t_scs[1] = teken_scs_us_ascii;
 }
 
 static void
@@ -962,9 +962,9 @@ teken_subr_do_reset(teken_t *t)
 	t->t_stateflags &= TS_8BIT|TS_CONS25;
 	t->t_stateflags |= TS_AUTOWRAP;
 
-	teken_scs_set(t, 0, teken_scs_us_ascii);
-	teken_scs_set(t, 1, teken_scs_us_ascii);
-	teken_scs_switch(t, 0);
+	t->t_scs[0] = teken_scs_us_ascii;
+	t->t_scs[1] = teken_scs_us_ascii;
+	t->t_curscs = 0;
 
 	teken_subr_save_cursor(t);
 	teken_tab_default(t);
@@ -986,8 +986,17 @@ teken_subr_restore_cursor(teken_t *t)
 
 	t->t_cursor = t->t_saved_cursor;
 	t->t_curattr = t->t_saved_curattr;
+	t->t_scs[t->t_curscs] = t->t_saved_curscs;
 	t->t_stateflags &= ~TS_WRAPPED;
-	teken_scs_restore(t);
+
+	/* Get out of origin mode when the cursor is moved outside. */
+	if (t->t_cursor.tp_row < t->t_originreg.ts_begin ||
+	    t->t_cursor.tp_row >= t->t_originreg.ts_end) {
+		t->t_stateflags &= ~TS_ORIGIN;
+		t->t_originreg.ts_begin = 0;
+		t->t_originreg.ts_end = t->t_winsize.tp_row;
+	}
+
 	teken_funcs_cursor(t);
 }
 
@@ -1010,7 +1019,7 @@ teken_subr_save_cursor(teken_t *t)
 
 	t->t_saved_cursor = t->t_cursor;
 	t->t_saved_curattr = t->t_curattr;
-	teken_scs_save(t);
+	t->t_saved_curscs = t->t_scs[t->t_curscs];
 }
 
 static void
@@ -1141,6 +1150,12 @@ teken_subr_set_graphic_rendition(teken_t *t, unsigned int ncmds,
 		case 37: /* Set foreground color: white */
 			t->t_curattr.ta_fgcolor = n - 30;
 			break;
+		case 38: /* Set foreground color: 256 color mode */
+			if (i + 2 >= ncmds || cmds[i + 1] != 5)
+				continue;
+			t->t_curattr.ta_fgcolor = cmds[i + 2];
+			i += 2;
+			break;
 		case 39: /* Set default foreground color. */
 			t->t_curattr.ta_fgcolor = t->t_defattr.ta_fgcolor;
 			break;
@@ -1154,8 +1169,34 @@ teken_subr_set_graphic_rendition(teken_t *t, unsigned int ncmds,
 		case 47: /* Set background color: white */
 			t->t_curattr.ta_bgcolor = n - 40;
 			break;
+		case 48: /* Set background color: 256 color mode */
+			if (i + 2 >= ncmds || cmds[i + 1] != 5)
+				continue;
+			t->t_curattr.ta_bgcolor = cmds[i + 2];
+			i += 2;
+			break;
 		case 49: /* Set default background color. */
 			t->t_curattr.ta_bgcolor = t->t_defattr.ta_bgcolor;
+			break;
+		case 90: /* Set bright foreground color: black */
+		case 91: /* Set bright foreground color: red */
+		case 92: /* Set bright foreground color: green */
+		case 93: /* Set bright foreground color: brown */
+		case 94: /* Set bright foreground color: blue */
+		case 95: /* Set bright foreground color: magenta */
+		case 96: /* Set bright foreground color: cyan */
+		case 97: /* Set bright foreground color: white */
+			t->t_curattr.ta_fgcolor = n - 90 + 8;
+			break;
+		case 100: /* Set bright background color: black */
+		case 101: /* Set bright background color: red */
+		case 102: /* Set bright background color: green */
+		case 103: /* Set bright background color: brown */
+		case 104: /* Set bright background color: blue */
+		case 105: /* Set bright background color: magenta */
+		case 106: /* Set bright background color: cyan */
+		case 107: /* Set bright background color: white */
+			t->t_curattr.ta_bgcolor = n - 100 + 8;
 			break;
 		default:
 			teken_printf("unsupported attribute %u\n", n);

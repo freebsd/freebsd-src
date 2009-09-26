@@ -19,6 +19,8 @@ status_cmd="ip6addrctl"
 prefer_ipv6_cmd="ip6addrctl_prefer_ipv6"
 prefer_ipv4_cmd="ip6addrctl_prefer_ipv4"
 
+set_rcvar_obsolete ipv6_enable ipv6_prefer
+
 ip6addrctl_prefer_ipv6()
 {
 	ip6addrctl flush >/dev/null 2>&1

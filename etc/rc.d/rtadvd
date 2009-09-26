@@ -43,7 +43,10 @@ rtadvd_precmd()
 	case ${rtadvd_interfaces} in
 	[Aa][Uu][Tt][Oo]|'')
 		for i in `ifconfig -l` ; do
-			if is_wired_interface $1; then
+			case $i in
+			lo0)	continue ;;
+			esac
+			if ipv6if $i; then
 				rtadvd_interfaces="${rtadvd_interfaces} ${i}"
 			fi
 		done

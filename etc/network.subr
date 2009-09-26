@@ -97,15 +97,26 @@ ifconfig_up()
 	if afexists inet6; then
 		if ipv6if $1; then
 			if checkyesno ipv6_gateway_enable; then
-				_ipv6_opts="-accept_rtadv auto_linklocal"
-			else
-				_ipv6_opts="auto_linklocal"
+				_ipv6_opts="-accept_rtadv"
 			fi
 		else
-			_ipv6_opts="-auto_linklocal ifdisabled"
+			if checkyesno ipv6_prefer; then
+				_ipv6_opts="-ifdisabled"
+			else
+				_ipv6_opts="ifdisabled"
+			fi
+
+			# backward compatibility: $ipv6_enable
+			case $ipv6_enable in
+			[Yy][Ee][Ss])
+				_ipv6_opts="${_ipv6_opts} accept_rtadv"
+				;;
+			esac
 		fi
 
-		ifconfig $1 inet6 ${_ipv6_opts}
+		if [ -n "${_ipv6_opts}" ]; then
+			ifconfig $1 inet6 ${_ipv6_opts}
+		fi
 
 		# ifconfig_IF_ipv6
 		ifconfig_args=`ifconfig_getargs $1 ipv6`
@@ -382,7 +393,7 @@ noafif()
 #	1 otherwise.
 ipv6if()
 {
-	local _if i
+	local _if _tmpargs i
 	_if=$1
 
 	if ! afexists inet6; then
@@ -395,6 +406,18 @@ ipv6if()
 		return 0
 		;;
 	esac
+
+	# True if $ifconfig_IF_ipv6 is defined.
+	_tmpargs=`_ifconfig_getargs $_if ipv6`
+	if [ -n "${_tmpargs}" ]; then
+		return 0
+	fi
+
+	# backward compatibility: True if $ipv6_ifconfig_IF is defined.
+	_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
+	if [ -n "${_tmpargs}" ]; then
+		return 0
+	fi
 
 	case "${ipv6_network_interfaces}" in
 	[Aa][Uu][Tt][Oo])
@@ -431,18 +454,41 @@ ipv6_autoconfif()
 	if checkyesno ipv6_gateway_enable; then
 		return 1
 	fi
+	_tmpargs=`get_if_var $_if ipv6_prefix_IF`
+	if [ -n "${_tmpargs}" ]; then
+		return 1
+	fi
 
 	case $_if in
 	lo0|\
 	stf[0-9]*|\
 	faith[0-9]*|\
 	lp[0-9]*|\
-	sl[0-9]*)
+	sl[0-9]*|\
+	pflog[0-9]*|\
+	pfsync[0-9]*)
 		return 1
 		;;
 	esac
 
+	# backward compatibility: $ipv6_enable
+	case $ipv6_enable in
+	[Yy][Ee][Ss])
+		return 0
+		;;
+	esac
+
 	_tmpargs=`_ifconfig_getargs $_if ipv6`
+	for _arg in $_tmpargs; do
+		case $_arg in
+		accept_rtadv)
+			return 0
+			;;
+		esac
+	done
+
+	# backward compatibility: $ipv6_ifconfig_IF
+	_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
 	for _arg in $_tmpargs; do
 		case $_arg in
 		accept_rtadv)
@@ -691,7 +737,7 @@ ifalias_ipv6_up()
 			;;
 		*)
 			ifconfig $1 inet6 ${ifconfig_args} alias && _ret=0
-			warn "\$ipv6_ifconfig_$1_alias${alias} is obsolete."
+			warn "\$ipv6_ifconfig_$1_alias${alias} is obsolete." \
 			    "  Use ifconfig_$1_aliasN instead."
 			;;
 		esac
@@ -773,6 +819,7 @@ ifalias_ipv6_down()
 	done
 
 	# backward compatibility: ipv6_ifconfig_IF_aliasN.
+	alias=0
 	while : ; do
 		ifconfig_args=`get_if_var $1 ipv6_ifconfig_IF_alias${alias}`
 		case "${ifconfig_args}" in
@@ -780,13 +827,12 @@ ifalias_ipv6_down()
 			break
 			;;
 		*)
-			ifconfig $1 inet6 ${ifconfig_args} -alias
-			alias=$((${alias} + 1))
-			warn "\$ipv6_ifconfig_$1_alias${alias} is obsolete."
+			ifconfig $1 inet6 ${ifconfig_args} -alias && _ret=0
+			warn "\$ipv6_ifconfig_$1_alias${alias} is obsolete." \
 			    "  Use ifconfig_$1_aliasN instead."
-			_ret=0
 			;;
 		esac
+		alias=$((${alias} + 1))
 	done
 
 	return $_ret
