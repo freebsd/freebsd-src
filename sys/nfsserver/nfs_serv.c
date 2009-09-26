@@ -1332,7 +1332,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			tl = nfsm_dissect_nonblock(u_int32_t *,
 			    NFSX_V3CREATEVERF);
 			/* Unique bytes, endianness is not important. */
-			cverf.tv_sec  = tl[0];
+			cverf.tv_sec  = (int32_t)tl[0];
 			cverf.tv_nsec = tl[1];
 			exclusive_flag = 1;
 			break;
