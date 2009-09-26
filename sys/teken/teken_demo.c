@@ -116,7 +116,8 @@ printchar(const teken_pos_t *p)
 	if (px->a.ta_format & TF_REVERSE)
 		attr |= A_REVERSE;
 
-	bkgdset(attr | COLOR_PAIR(px->a.ta_fgcolor + 8 * px->a.ta_bgcolor));
+	bkgdset(attr | COLOR_PAIR(teken_256to8(px->a.ta_fgcolor) +
+	      8 * teken_256to8(px->a.ta_bgcolor)));
 	mvaddstr(p->tp_row, p->tp_col, str);
 
 	move(y, x);

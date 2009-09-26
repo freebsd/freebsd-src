@@ -65,10 +65,10 @@ void
 teken_get_defattr_cons25(teken_t *t, int *fg, int *bg)
 {
 
-	*fg = cons25_revcolors[t->t_defattr.ta_fgcolor];
+	*fg = cons25_revcolors[teken_256to8(t->t_defattr.ta_fgcolor)];
 	if (t->t_defattr.ta_format & TF_BOLD)
 		*fg += 8;
-	*bg = cons25_revcolors[t->t_defattr.ta_bgcolor];
+	*bg = cons25_revcolors[teken_256to8(t->t_defattr.ta_bgcolor)];
 }
 
 static void

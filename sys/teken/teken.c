@@ -409,4 +409,55 @@ teken_state_numbers(teken_t *t, teken_char_t c)
 	return (0);
 }
 
+teken_color_t
+teken_256to8(teken_color_t c)
+{
+	unsigned int r, g, b;
+
+	if (c < 16) {
+		/* Traditional color indices. */
+		return (c % 8);
+	} else if (c >= 244) {
+		/* Upper grayscale colors. */
+		return (TC_WHITE);
+	} else if (c >= 232) {
+		/* Lower grayscale colors. */
+		return (TC_BLACK);
+	}
+
+	/* Convert to RGB. */
+	c -= 16;
+	b = c % 6;
+	g = (c / 6) % 6;
+	r = c / 36;
+
+	if (r < g) {
+		/* Possibly green. */
+		if (g < b)
+			return (TC_BLUE);
+		else if (g > b)
+			return (TC_GREEN);
+		else
+			return (TC_CYAN);
+	} else if (r > g) {
+		/* Possibly red. */
+		if (r < b)
+			return (TC_BLUE);
+		else if (r > b)
+			return (TC_RED);
+		else
+			return (TC_MAGENTA);
+	} else {
+		/* Possibly brown. */
+		if (g < b)
+			return (TC_BLUE);
+		else if (g > b)
+			return (TC_BROWN);
+		else if (r < 3)
+			return (TC_BLACK);
+		else
+			return (TC_WHITE);
+	}
+}
+
 #include "teken_state.h"
