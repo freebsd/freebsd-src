@@ -818,7 +818,11 @@ zfsctl_snapdir_lookup(ap)
 	if ((sep = avl_find(&sdp->sd_snaps, &search, &where)) != NULL) {
 		*vpp = sep->se_root;
 		VN_HOLD(*vpp);
-		if ((*vpp)->v_mountedhere == NULL) {
+		err = traverse(vpp, LK_EXCLUSIVE | LK_RETRY);
+		if (err) {
+			VN_RELE(*vpp);
+			*vpp = NULL;
+		} else if (*vpp == sep->se_root) {
 			/*
 			 * The snapshot was unmounted behind our backs,
 			 * try to remount it.
@@ -832,10 +836,9 @@ zfsctl_snapdir_lookup(ap)
 			 */
 			(*vpp)->v_flag &= ~VROOT;
 		}
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 		mutex_exit(&sdp->sd_lock);
 		ZFS_EXIT(zfsvfs);
-		return (0);
+		return (err);
 	}
 
 	/*
