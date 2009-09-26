@@ -41,7 +41,7 @@ clonedown_cmd="clone_down"
 extra_commands="cloneup clonedown"
 cmdifn=
 
-set_rcvar_obsolete ipv6_enable
+set_rcvar_obsolete ipv6_enable ipv6_prefer
 
 network_start()
 {
