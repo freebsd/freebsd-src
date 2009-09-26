@@ -1107,8 +1107,7 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	if (zfsvfs->z_issnap) {
 		vnode_t *svp = vfsp->mnt_vnodecovered;
 
-		ASSERT(svp->v_count == 2 || svp->v_count == 1);
-		if (svp->v_count == 2)
+		if (svp->v_count >= 2)
 			VN_RELE(svp);
 	}
 	zfs_freevfs(vfsp);
