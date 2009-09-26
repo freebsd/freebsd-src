@@ -22,9 +22,60 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20090926:
+	The rc.d/network_ipv6, IPv6 configuration script has been integrated
+	into rc.d/netif.  The changes are the following:
+
+	1. To use IPv6, simply define $ifconfig_IF_ipv6 like $ifconfig_IF
+	   for IPv4.  For aliases, $ifconfig_IF_aliasN should be used.
+	   Note that both variables need the "inet6" keyword at the head.
+
+	   Do not set $ipv6_network_interfaces manually if you do not
+	   understand what you are doing.  It is not needed in most cases. 
+
+	   $ipv6_ifconfig_IF and $ipv6_ifconfig_IF_aliasN still work, but
+	   they are obsolete.
+
+	2. $ipv6_enable is obsolete.  Use $ipv6_prefer and
+	   "inet6 accept_rtadv" keyword in ifconfig(8) instead.
+
+	   If you define $ipv6_enable=YES, it means $ipv6_prefer=YES and
+	   all configured interfaces have "inet6 accept_rtadv" in the
+	   $ifconfig_IF_ipv6.  These are for backward compatibility.
+
+	3. A new variable $ipv6_prefer has been added.  If NO, IPv6
+	   functionality of interfaces with no corresponding
+	   $ifconfig_IF_ipv6 is disabled by using "inet6 ifdisabled" flag,
+	   and the default address selection policy of ip6addrctl(8) 
+	   is the IPv4-preferred one (see rc.d/ip6addrctl for more details).
+	   Note that if you want to configure IPv6 functionality on the
+	   disabled interfaces after boot, first you need to clear the flag by
+	   using ifconfig(8) like:
+
+		ifconfig em0 inet6 -ifdisabled
+
+	   If YES, the default address selection policy is set as
+	   IPv6-preferred.
+
+	   The default value of $ipv6_prefer is NO.
+
+	4. If your system need to receive Router Advertisement messages,
+	   define "inet6 accept_rtadv" in $ifconfig_IF_ipv6.  The rc(8)
+	   scripts automatically invoke rtsol(8) when the interface becomes
+	   UP.  The Router Advertisement messages are used for SLAAC
+	   (State-Less Address AutoConfiguration).
+
 20090922:
 	802.11s D3.03 support was committed. This is incompatible with the
 	previous code, which was based on D3.0.
+
+20090912:
+	A sysctl variable net.inet6.ip6.accept_rtadv now sets the default value
+	of a per-interface flag ND6_IFF_ACCEPT_RTADV, not a global knob to
+	control whether accepting Router Advertisement messages or not.
+	Also, a per-interface flag ND6_IFF_AUTO_LINKLOCAL has been added and
+	a sysctl variable net.inet6.ip6.auto_linklocal is its default value.
+	The ifconfig(8) utility now supports these flags.
 
 20090910:
 	ZFS snapshots are now mounted with MNT_IGNORE flag. Use -v option for

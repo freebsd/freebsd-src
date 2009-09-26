@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1995 Bruce D. Evans.
+ * Copyright (c) 2009 "Bjoern A. Zeeb" <bz@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -25,55 +22,52 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: FreeBSD: src/sys/i386/include/md_var.h,v 1.40 2001/07/12
- * $FreeBSD$
  */
 
-#ifndef	_MACHINE_MD_VAR_H_
-#define	_MACHINE_MD_VAR_H_
+/*
+ * "lindev" is supposed to be a collection of linux-specific devices
+ * that we also support, just not by default.
+ * While currently there is only "/dev/full", we are planning to see
+ * more in the future.
+ * This file is only the container to load/unload all supported devices;
+ * the implementation of each should go into its own file.
+ */
 
-extern char sigcode[];
-extern int szsigcode;
-extern uint32_t *vm_page_dump;
-extern int vm_page_dump_size;
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-extern int (*_arm_memcpy)(void *, void *, int, int);
-extern int (*_arm_bzero)(void *, int, int);
+#include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
-extern int _min_memcpy_size;
-extern int _min_bzero_size;
+#include <dev/lindev/lindev.h>
 
-#define DST_IS_USER	0x1
-#define SRC_IS_USER	0x2
-#define IS_PHYSICAL	0x4
+/* ARGSUSED */
+static int
+lindev_modevent(module_t mod, int type, void *data)
+{
+	int error;
 
-enum cpu_class {
-	CPU_CLASS_NONE,
-	CPU_CLASS_ARM2,
-	CPU_CLASS_ARM2AS,
-	CPU_CLASS_ARM3,
-	CPU_CLASS_ARM6,
-	CPU_CLASS_ARM7,
-	CPU_CLASS_ARM7TDMI,
-	CPU_CLASS_ARM8,
-	CPU_CLASS_ARM9TDMI,
-	CPU_CLASS_ARM9ES,
-	CPU_CLASS_ARM9EJS,
-	CPU_CLASS_ARM10E,
-	CPU_CLASS_ARM10EJ,
-	CPU_CLASS_SA1,
-	CPU_CLASS_XSCALE,
-	CPU_CLASS_ARM11J,
-	CPU_CLASS_MARVELL
-};
-extern enum cpu_class cpu_class;
+	switch(type) {
+	case MOD_LOAD:
+		error = lindev_modevent_full(mod, type, data);
+		break;
 
-struct dumperinfo;
-extern int busdma_swi_pending;
-void busdma_swi(void);
-void dump_add_page(vm_paddr_t);
-void dump_drop_page(vm_paddr_t);
-void minidumpsys(struct dumperinfo *);
+	case MOD_UNLOAD:
+		error = lindev_modevent_full(mod, type, data);
+		break;
 
-#endif /* !_MACHINE_MD_VAR_H_ */
+	case MOD_SHUTDOWN:
+		error = lindev_modevent_full(mod, type, data);
+		break;
+
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	return (error);
+}
+
+DEV_MODULE(lindev, lindev_modevent, NULL);
+MODULE_VERSION(lindev, 1);

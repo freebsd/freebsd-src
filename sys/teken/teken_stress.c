@@ -92,13 +92,16 @@ stress_respond(void *s __unused, const void *buf __unused, size_t len __unused)
 {
 }
 
+static const char replacement[] =
+    { 0x1b, '[', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ';' };
+
 int
 main(int argc __unused, char *argv[] __unused)
 {
 	teken_t t;
 	int rnd;
-	unsigned int iteration = 0;
-	char buf[2048];
+	unsigned int i, iteration = 0;
+	unsigned char buf[2048];
 
 	rnd = open("/dev/urandom", O_RDONLY);
 	if (rnd < 0) {
@@ -112,6 +115,12 @@ main(int argc __unused, char *argv[] __unused)
 		if (read(rnd, buf, sizeof buf) != sizeof buf) {
 			perror("read");
 			exit(1);
+		}
+
+		for (i = 0; i < sizeof buf; i++) {
+			if (buf[i] >= 0x80)
+				buf[i] =
+				    replacement[buf[i] % sizeof replacement];
 		}
 
 		teken_input(&t, buf, sizeof buf);

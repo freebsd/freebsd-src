@@ -171,4 +171,7 @@ void	teken_set_winsize(teken_t *, const teken_pos_t *);
 void	teken_set_8bit(teken_t *);
 void	teken_set_cons25(teken_t *);
 
+/* Color conversion. */
+teken_color_t teken_256to8(teken_color_t);
+
 #endif /* !_TEKEN_H_ */
