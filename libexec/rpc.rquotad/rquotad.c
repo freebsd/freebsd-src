@@ -31,12 +31,11 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 
-void rquota_service(struct svc_req *request, SVCXPRT *transp);
-void sendquota(struct svc_req *request, SVCXPRT *transp);
-void printerr_reply(SVCXPRT *transp);
-void initfs(void);
-int getfsquota(long id, char *path, struct dqblk *dqblk);
-int hasquota(struct fstab *fs, char **qfnamep);
+static void rquota_service(struct svc_req *request, SVCXPRT *transp);
+static void sendquota(struct svc_req *request, SVCXPRT *transp);
+static void initfs(void);
+static int getfsquota(long id, char *path, struct dqblk *dqblk);
+static int hasquota(struct fstab *fs, char **qfnamep);
 
 /*
  * structure containing informations about ufs filesystems
@@ -48,9 +47,9 @@ struct fs_stat {
 	char   *qfpathname;		/* pathname of the quota file */
 	dev_t   st_dev;			/* device of the filesystem */
 } fs_stat;
-struct fs_stat *fs_begin = NULL;
+static struct fs_stat *fs_begin = NULL;
 
-int from_inetd = 1;
+static int from_inetd = 1;
 
 static void
 cleanup(int sig)
@@ -111,7 +110,7 @@ main(void)
 	exit(1);
 }
 
-void
+static void
 rquota_service(struct svc_req *request, SVCXPRT *transp)
 {
 
@@ -134,7 +133,7 @@ rquota_service(struct svc_req *request, SVCXPRT *transp)
 }
 
 /* read quota for the specified id, and send it */
-void
+static void
 sendquota(struct svc_req *request, SVCXPRT *transp)
 {
 	struct getquota_args getq_args;
@@ -183,26 +182,8 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 	}
 }
 
-void
-printerr_reply(SVCXPRT *transp)	/* when a reply to a request failed */
-{
-	char name[INET6_ADDRSTRLEN];
-	struct sockaddr *caller;
-	int save_errno;
-
-	save_errno = errno;
-	caller = (struct sockaddr *)svc_getrpccaller(transp)->buf;
-	getnameinfo(caller, caller->sa_len, name, sizeof (name),
-	    NULL, 0, NI_NUMERICHOST);
-	errno = save_errno;
-	if (errno == 0)
-		syslog(LOG_ERR, "couldn't send reply to %s", name);
-	else
-		syslog(LOG_ERR, "couldn't send reply to %s: %m", name);
-}
-
 /* initialise the fs_tab list from entries in /etc/fstab */
-void
+static void
 initfs(void)
 {
 	struct fs_stat *fs_current = NULL;
@@ -240,7 +221,7 @@ initfs(void)
  * gets the quotas for id, filesystem path.
  * Return 0 if fail, 1 otherwise
  */
-int
+static int
 getfsquota(long id, char *path, struct dqblk *dqblk)
 {
 	struct stat st_path;
@@ -295,7 +276,7 @@ getfsquota(long id, char *path, struct dqblk *dqblk)
  * Check to see if a particular quota is to be enabled.
  * Comes from quota.c, NetBSD 0.9
  */
-int
+static int
 hasquota(struct fstab *fs, char  **qfnamep)
 {
 	static char initname, usrname[100];
