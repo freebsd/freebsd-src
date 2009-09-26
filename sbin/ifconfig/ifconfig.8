@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd September 2, 2009
+.Dd September 23, 2009
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -598,7 +598,10 @@ If the interface was reset when previously marked down,
 the hardware will be re-initialized.
 .El
 .Pp
-The following parameters are for ICMPv6 Neightbor Discovery Protocol:
+The following parameters are for ICMPv6 Neightbor Discovery Protocol.
+Note that the address family keyword
+.Dq Li inet6
+is needed for them:
 .Bl -tag -width indent
 .It Cm accept_rtadv
 Set a flag to enable accepting ICMPv6 Router Advertisement messages.
@@ -619,7 +622,10 @@ Clear a flag
 .Cm defaultif .
 .It Cm ifdisabled
 Set a flag to disable all of IPv6 network communications on the
-specified interface.
+specified interface.  Note that if there are already configured IPv6
+addresses on that interface, all of them are marked as
+.Dq tentative
+and DAD will be performed when this flag is cleared.
 .It Cm -ifdisabled
 Clear a flag
 .Cm ifdisabled .
