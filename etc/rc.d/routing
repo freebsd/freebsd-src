@@ -6,7 +6,7 @@
 #
 
 # PROVIDE: routing
-# REQUIRE: netif ppp
+# REQUIRE: faith netif ppp stf
 # KEYWORD: nojail
 
 . /etc/rc.subr
