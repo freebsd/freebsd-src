@@ -48,6 +48,27 @@ extern int _min_bzero_size;
 #define SRC_IS_USER	0x2
 #define IS_PHYSICAL	0x4
 
+enum cpu_class {
+	CPU_CLASS_NONE,
+	CPU_CLASS_ARM2,
+	CPU_CLASS_ARM2AS,
+	CPU_CLASS_ARM3,
+	CPU_CLASS_ARM6,
+	CPU_CLASS_ARM7,
+	CPU_CLASS_ARM7TDMI,
+	CPU_CLASS_ARM8,
+	CPU_CLASS_ARM9TDMI,
+	CPU_CLASS_ARM9ES,
+	CPU_CLASS_ARM9EJS,
+	CPU_CLASS_ARM10E,
+	CPU_CLASS_ARM10EJ,
+	CPU_CLASS_SA1,
+	CPU_CLASS_XSCALE,
+	CPU_CLASS_ARM11J,
+	CPU_CLASS_MARVELL
+};
+extern enum cpu_class cpu_class;
+
 struct dumperinfo;
 extern int busdma_swi_pending;
 void busdma_swi(void);
