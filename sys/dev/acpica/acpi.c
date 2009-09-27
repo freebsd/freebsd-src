@@ -2308,9 +2308,8 @@ acpi_sleep_force(void *arg)
 int
 acpi_ReqSleepState(struct acpi_softc *sc, int state)
 {
-#if defined(__i386__)
+#if defined(__amd64__) || defined(__i386__)
     struct apm_clone_data *clone;
-#endif
 
     if (state < ACPI_STATE_S1 || state > ACPI_S_STATES_MAX)
 	return (EINVAL);
@@ -2325,7 +2324,6 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 	    return (ENXIO);
     }
 
-#if defined(__amd64__) || defined(__i386__)
     /* If a suspend request is already in progress, just return. */
     ACPI_LOCK(acpi);
     if (sc->acpi_next_sstate != 0) {
@@ -2335,7 +2333,6 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 
     /* Record the pending state and notify all apm devices. */
     sc->acpi_next_sstate = state;
-#if defined(__i386__)
     STAILQ_FOREACH(clone, &sc->apm_cdevs, entries) {
 	clone->notify_status = APM_EV_NONE;
 	if ((clone->flags & ACPI_EVF_DEVD) == 0) {
@@ -2343,7 +2340,6 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 	    KNOTE_UNLOCKED(&clone->sel_read.si_note, 0);
 	}
     }
-#endif
 
     /* If devd(8) is not running, immediately enter the sleep state. */
     if (!devctl_process_running()) {
@@ -2414,7 +2410,6 @@ acpi_AckSleepState(struct apm_clone_data *clone, int error)
      * are writable since read-only devices couldn't ack the request.
      */
     sleeping = TRUE;
-#if defined(__i386__)
     clone->notify_status = APM_EV_ACKED;
     STAILQ_FOREACH(clone, &sc->apm_cdevs, entries) {
 	if ((clone->flags & ACPI_EVF_WRITE) != 0 &&
@@ -2423,7 +2418,6 @@ acpi_AckSleepState(struct apm_clone_data *clone, int error)
 	    break;
 	}
     }
-#endif
 
     /* If all devices have voted "yes", we will suspend now. */
     if (sleeping)
