@@ -3561,19 +3561,18 @@ sc_paste(scr_stat *scp, const u_char *p, int count)
 }
 
 void
-sc_respond(scr_stat *scp, const u_char *p, int count) 
+sc_respond(scr_stat *scp, const u_char *p, int count, int wakeup) 
 {
     struct tty *tp;
 
     tp = SC_DEV(scp->sc, scp->sc->cur_scp->index);
     if (!tty_opened(tp))
 	return;
-    for (; count > 0; --count)
-	ttydisc_rint(tp, *p++, 0);
-#if 0
-    /* XXX: we can't call ttydisc_rint_done() here! */
-    ttydisc_rint_done(tp);
-#endif
+    ttydisc_rint_simple(tp, p, count);
+    if (wakeup) {
+	/* XXX: we can't always call ttydisc_rint_done() here! */
+	ttydisc_rint_done(tp);
+    }
 }
 
 void

@@ -644,6 +644,9 @@ scteken_param(void *arg, int cmd, unsigned int value)
 		scp->bell_pitch = TP_SETBELLPD_PITCH(value);
 		scp->bell_duration = TP_SETBELLPD_DURATION(value);
 		break;
+	case TP_MOUSE:
+		scp->mouse_level = value;
+		break;
 	}
 }
 
@@ -652,5 +655,5 @@ scteken_respond(void *arg, const void *buf, size_t len)
 {
 	scr_stat *scp = arg;
 
-	sc_respond(scp, buf, len);
+	sc_respond(scp, buf, len, 0);
 }
