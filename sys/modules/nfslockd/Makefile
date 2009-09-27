@@ -14,11 +14,18 @@ SRCS+=	opt_inet6.h opt_nfs.h
 
 .if !defined(KERNBUILDDIR)
 NFS_INET6?=	1	# 0/1 - requires INET6 to be configured in kernel
+NFSCLIENT?=	1	# 0/1 - requires NFSCLIENT to be configured in kernel
 
 .if ${NFS_INET6} > 0
 opt_inet6.h:
 	echo "#define INET6 1" > ${.TARGET}
 .endif
+
+.if ${NFSCLIENT} > 0
+opt_nfs.h:
+	echo "#define NFSCLIENT 1" > ${.TARGET}
+.endif
+
 .endif
 
 .include <bsd.kmod.mk>
