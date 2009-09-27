@@ -97,10 +97,10 @@ struct quotause {
 #define	FOUND	0x01
 
 int alldigits(const char *s);
-int cvtatos(u_int64_t, char *, u_int64_t *);
-char *cvtstoa(u_int64_t);
-u_int64_t cvtblkval(u_int64_t, char, const char *);
-u_int64_t cvtinoval(u_int64_t, char, const char *);
+int cvtatos(uint64_t, char *, uint64_t *);
+char *cvtstoa(uint64_t);
+uint64_t cvtblkval(uint64_t, char, const char *);
+uint64_t cvtinoval(uint64_t, char, const char *);
 int editit(char *);
 char *fmthumanvalblks(int64_t);
 char *fmthumanvalinos(int64_t);
@@ -121,7 +121,7 @@ main(int argc, char *argv[])
 	long id, protoid;
 	int i, quotatype, range, tmpfd;
 	uid_t startuid, enduid;
-	u_int64_t lim;
+	uint64_t lim;
 	char *protoname, *cp, *endpt, *oldoptarg;
 	int eflag = 0, tflag = 0, pflag = 0, ch;
 	char *fspath = NULL;
@@ -509,7 +509,7 @@ fmthumanvalblks(int64_t blocks)
 		    dbtob(blocks), "", HN_AUTOSCALE, HN_NOSPACE);
 		return (numbuf);
 	}
-	snprintf(numbuf, sizeof(numbuf), "%lluk", dbtokb(blocks));
+	snprintf(numbuf, sizeof(numbuf), "%juk", (uintmax_t)dbtokb(blocks));
 	return(numbuf);
 }
 
@@ -523,7 +523,7 @@ fmthumanvalinos(int64_t inos)
 		    inos, "", HN_AUTOSCALE, HN_NOSPACE | HN_DIVISOR_1000);
 		return (numbuf);
 	}
-	snprintf(numbuf, sizeof(numbuf), "%llu", inos);
+	snprintf(numbuf, sizeof(numbuf), "%ju", (uintmax_t)inos);
 	return(numbuf);
 }
 
@@ -535,7 +535,7 @@ readprivs(struct quotause *quplist, char *inname)
 {
 	struct quotause *qup;
 	FILE *fd;
-	u_int64_t hardlimit, softlimit, curitems;
+	uintmax_t hardlimit, softlimit, curitems;
 	char hardunits, softunits, curitemunits;
 	int cnt;
 	char *cp;
@@ -562,7 +562,7 @@ readprivs(struct quotause *quplist, char *inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    " in use: %llu%c, limits (soft = %llu%c, hard = %llu%c)",
+		    " in use: %ju%c, limits (soft = %ju%c, hard = %ju%c)",
 		    &curitems, &curitemunits, &softlimit, &softunits,
 		    &hardlimit, &hardunits);
 		/*
@@ -570,17 +570,17 @@ readprivs(struct quotause *quplist, char *inname)
 		 */
 		if (cnt != 6)
 			cnt = sscanf(cp,
-			 " in use: %llu%c, limits (soft = %llu%c hard = %llu%c",
+			 " in use: %ju%c, limits (soft = %ju%c hard = %ju%c",
 			    &curitems, &curitemunits, &softlimit,
 			    &softunits, &hardlimit, &hardunits);
 		if (cnt != 6)
 			cnt = sscanf(cp,
-			" in use: %llu%c, limits (soft = %llu%c hard = %llu%c)",
+			" in use: %ju%c, limits (soft = %ju%c hard = %ju%c)",
 			    &curitems, &curitemunits, &softlimit,
 			    &softunits, &hardlimit, &hardunits);
 		if (cnt != 6)
 			cnt = sscanf(cp,
-			" in use: %llu%c, limits (soft = %llu%c, hard = %llu%c",
+			" in use: %ju%c, limits (soft = %ju%c, hard = %ju%c",
 			    &curitems, &curitemunits, &softlimit,
 			    &softunits, &hardlimit, &hardunits);
 		if (cnt != 6) {
@@ -598,7 +598,7 @@ readprivs(struct quotause *quplist, char *inname)
 			return (0);
 		}
 		cnt = sscanf(&cp[7],
-		    " in use: %llu%c limits (soft = %llu%c, hard = %llu%c)",
+		    " in use: %ju%c limits (soft = %ju%c, hard = %ju%c)",
 		    &curitems, &curitemunits, &softlimit,
 		    &softunits, &hardlimit, &hardunits);
 		/*
@@ -606,17 +606,17 @@ readprivs(struct quotause *quplist, char *inname)
 		 */
 		if (cnt != 6)
 			cnt = sscanf(&cp[7],
-			 " in use: %llu%c limits (soft = %llu%c hard = %llu%c",
+			 " in use: %ju%c limits (soft = %ju%c hard = %ju%c",
 			    &curitems, &curitemunits, &softlimit,
 			    &softunits, &hardlimit, &hardunits);
 		if (cnt != 6)
 			cnt = sscanf(&cp[7],
-			" in use: %llu%c limits (soft = %llu%c hard = %llu%c)",
+			" in use: %ju%c limits (soft = %ju%c hard = %ju%c)",
 			    &curitems, &curitemunits, &softlimit,
 			    &softunits, &hardlimit, &hardunits);
 		if (cnt != 6)
 			cnt = sscanf(&cp[7],
-			" in use: %llu%c limits (soft = %llu%c, hard = %llu%c",
+			" in use: %ju%c limits (soft = %ju%c, hard = %ju%c",
 			    &curitems, &curitemunits, &softlimit,
 			    &softunits, &hardlimit, &hardunits);
 		if (cnt != 6) {
@@ -717,7 +717,7 @@ readtimes(struct quotause *quplist, char *inname)
 	FILE *fd;
 	int cnt;
 	char *cp;
-	u_int64_t itime, btime, iseconds, bseconds;
+	uintmax_t itime, btime, iseconds, bseconds;
 	char *fsp, bunits[10], iunits[10], line1[BUFSIZ];
 
 	fd = fopen(inname, "r");
@@ -740,7 +740,7 @@ readtimes(struct quotause *quplist, char *inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    " block grace period: %llu %s file grace period: %llu %s",
+		    " block grace period: %ju %s file grace period: %ju %s",
 		    &btime, bunits, &itime, iunits);
 		if (cnt != 4) {
 			warnx("%s:%s: bad format", fsp, cp);
@@ -779,21 +779,25 @@ readtimes(struct quotause *quplist, char *inname)
  * Convert seconds to ASCII times.
  */
 char *
-cvtstoa(u_int64_t secs)
+cvtstoa(uint64_t secs)
 {
 	static char buf[20];
 
 	if (secs % (24 * 60 * 60) == 0) {
 		secs /= 24 * 60 * 60;
-		sprintf(buf, "%llu day%s", secs, secs == 1 ? "" : "s");
+		sprintf(buf, "%ju day%s", (uintmax_t)secs,
+		    secs == 1 ? "" : "s");
 	} else if (secs % (60 * 60) == 0) {
 		secs /= 60 * 60;
-		sprintf(buf, "%llu hour%s", secs, secs == 1 ? "" : "s");
+		sprintf(buf, "%ju hour%s", (uintmax_t)secs,
+		    secs == 1 ? "" : "s");
 	} else if (secs % 60 == 0) {
 		secs /= 60;
-		sprintf(buf, "%llu minute%s", secs, secs == 1 ? "" : "s");
+		sprintf(buf, "%ju minute%s", (uintmax_t)secs,
+		    secs == 1 ? "" : "s");
 	} else
-		sprintf(buf, "%llu second%s", secs, secs == 1 ? "" : "s");
+		sprintf(buf, "%ju second%s", (uintmax_t)secs,
+		    secs == 1 ? "" : "s");
 	return (buf);
 }
 
@@ -801,7 +805,7 @@ cvtstoa(u_int64_t secs)
  * Convert ASCII input times to seconds.
  */
 int
-cvtatos(u_int64_t period, char *units, u_int64_t *seconds)
+cvtatos(uint64_t period, char *units, uint64_t *seconds)
 {
 
 	if (bcmp(units, "second", 6) == 0)
@@ -823,8 +827,8 @@ cvtatos(u_int64_t period, char *units, u_int64_t *seconds)
 /*
  * Convert a limit to number of disk blocks.
  */
-u_int64_t
-cvtblkval(u_int64_t limit, char units, const char *itemname)
+uint64_t
+cvtblkval(uint64_t limit, char units, const char *itemname)
 {
 
 	switch(units) {
@@ -864,8 +868,9 @@ cvtblkval(u_int64_t limit, char units, const char *itemname)
 		    itemname);
 		break;
 	default:
-		errx(2, "%llu%c: unknown units for %s, specify none, K, M, G, T, P, or E\n",
-		    limit, units, itemname);
+		errx(2, "%ju%c: unknown units for %s, specify "
+		    "none, K, M, G, T, P, or E\n",
+		    (uintmax_t)limit, units, itemname);
 		break;
 	}
 	return (limit);
@@ -874,8 +879,8 @@ cvtblkval(u_int64_t limit, char units, const char *itemname)
 /*
  * Convert a limit to number of inodes.
  */
-u_int64_t
-cvtinoval(u_int64_t limit, char units, const char *itemname)
+uint64_t
+cvtinoval(uint64_t limit, char units, const char *itemname)
 {
 
 	switch(units) {
@@ -914,8 +919,9 @@ cvtinoval(u_int64_t limit, char units, const char *itemname)
 		    itemname);
 		break;
 	default:
-		errx(2, "%llu%c: unknown units for %s, specify none, K, M, G, T, P, or E\n",
-		    limit, units, itemname);
+		errx(2, "%ju%c: unknown units for %s, specify "
+		    "none, K, M, G, T, P, or E\n",
+		    (uintmax_t)limit, units, itemname);
 		break;
 	}
 	return (limit);
