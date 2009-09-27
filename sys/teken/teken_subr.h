@@ -932,6 +932,9 @@ teken_subr_reset_dec_mode(teken_t *t, unsigned int cmd)
 	case 47: /* Switch to alternate buffer. */
 		teken_printf("Switch to alternate buffer\n");
 		break;
+	case 1000: /* Mouse input. */
+		teken_funcs_param(t, TP_MOUSE, 0);
+		break;
 	default:
 		teken_printf("Unknown DECRST: %u\n", cmd);
 	}
@@ -1077,6 +1080,9 @@ teken_subr_set_dec_mode(teken_t *t, unsigned int cmd)
 		break;
 	case 47: /* Switch to alternate buffer. */
 		teken_printf("Switch away from alternate buffer\n");
+		break;
+	case 1000: /* Mouse input. */
+		teken_funcs_param(t, TP_MOUSE, 1);
 		break;
 	default:
 		teken_printf("Unknown DECSET: %u\n", cmd);

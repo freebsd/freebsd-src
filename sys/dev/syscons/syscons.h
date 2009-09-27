@@ -314,6 +314,7 @@ typedef struct scr_stat {
 	short		mouse_buttons;		/* mouse buttons */
 	int		mouse_cut_start;	/* mouse cut start pos */
 	int		mouse_cut_end;		/* mouse cut end pos */
+	int		mouse_level;		/* xterm mouse protocol */
 	struct proc 	*mouse_proc;		/* proc* of controlling proc */
 	pid_t 		mouse_pid;		/* pid of controlling proc */
 	int		mouse_signal;		/* signal # to report with */
@@ -564,7 +565,8 @@ int		sc_switch_scr(sc_softc_t *sc, u_int next_scr);
 void		sc_alloc_scr_buffer(scr_stat *scp, int wait, int discard);
 int		sc_init_emulator(scr_stat *scp, char *name);
 void		sc_paste(scr_stat *scp, const u_char *p, int count);
-void		sc_respond(scr_stat *scp, const u_char *p, int count);
+void		sc_respond(scr_stat *scp, const u_char *p,
+			   int count, int wakeup);
 void		sc_bell(scr_stat *scp, int pitch, int duration);
 
 /* schistory.c */
