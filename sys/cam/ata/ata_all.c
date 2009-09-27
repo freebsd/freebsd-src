@@ -80,7 +80,9 @@ ata_print_ident(struct ata_params *ident_data)
 	printf("<%s %s> ATA/ATAPI-%d",
 	    product, revision, ata_version(ident_data->version_major));
 	if (ident_data->satacapabilities && ident_data->satacapabilities != 0xffff) {
-		if (ident_data->satacapabilities & ATA_SATA_GEN2)
+		if (ident_data->satacapabilities & ATA_SATA_GEN3)
+			printf(" SATA 3.x");
+		else if (ident_data->satacapabilities & ATA_SATA_GEN2)
 			printf(" SATA 2.x");
 		else if (ident_data->satacapabilities & ATA_SATA_GEN1)
 			printf(" SATA 1.x");
