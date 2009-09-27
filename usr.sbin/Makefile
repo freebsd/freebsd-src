@@ -468,6 +468,9 @@ _boot98cfg=	boot98cfg
 .if ${MK_ACPI} != "no"
 _acpi=		acpi
 .endif
+.if ${MK_APM} != "no"
+_apm=		apm
+.endif
 _asf=		asf
 _boot0cfg=	boot0cfg
 .if ${MK_TOOLCHAIN} != "no"
