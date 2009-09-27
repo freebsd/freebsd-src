@@ -439,7 +439,7 @@ create_i386_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	fi
 
-	trap "df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
+	trap "echo 'Running exit trap code' ; df -i ${MNT} ; umount ${MNT} || true ; mdconfig -d -u $MD" 1 2 15 EXIT
 
 	fdisk -i -f ${NANO_OBJ}/_.fdisk ${MD}
 	fdisk ${MD}
@@ -491,6 +491,9 @@ create_i386_diskimage ( ) (
 	echo "Writing out _.disk.image..."
 	dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
 	mdconfig -d -u $MD
+
+	trap - 1 2 15 EXIT
+
 	) > ${NANO_OBJ}/_.di 2>&1
 )
 
