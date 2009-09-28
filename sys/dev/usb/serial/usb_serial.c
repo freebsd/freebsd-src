@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/cons.h>
+#include <sys/kdb.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -98,13 +100,39 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/serial/usb_serial.h>
 
+#include "opt_gdb.h"
+
+SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
+
 #if USB_DEBUG
 static int ucom_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
 SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
     &ucom_debug, 0, "ucom debug level");
 #endif
+
+#define	UCOM_CONS_BUFSIZE 1024
+
+static uint8_t ucom_cons_rx_buf[UCOM_CONS_BUFSIZE];
+static uint8_t ucom_cons_tx_buf[UCOM_CONS_BUFSIZE];
+
+static unsigned int ucom_cons_rx_low = 0;
+static unsigned int ucom_cons_rx_high = 0;
+
+static unsigned int ucom_cons_tx_low = 0;
+static unsigned int ucom_cons_tx_high = 0;
+
+static int ucom_cons_unit = -1;
+static int ucom_cons_baud = 9600;
+static struct ucom_softc *ucom_cons_softc = NULL;
+
+TUNABLE_INT("hw.usb.ucom.cons_unit", &ucom_cons_unit);
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_unit, CTLFLAG_RW,
+    &ucom_cons_unit, 0, "console unit number");
+
+TUNABLE_INT("hw.usb.ucom.cons_baud", &ucom_cons_baud);
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, cons_baud, CTLFLAG_RW,
+    &ucom_cons_baud, 0, "console baud rate");
 
 static usb_proc_callback_t ucom_cfg_start_transfers;
 static usb_proc_callback_t ucom_cfg_open;
@@ -121,6 +149,7 @@ static void	ucom_queue_command(struct ucom_softc *,
 		    usb_proc_callback_t *, struct termios *pt,
 		    struct usb_proc_msg *t0, struct usb_proc_msg *t1);
 static void	ucom_shutdown(struct ucom_softc *);
+static void	ucom_ring(struct ucom_softc *, uint8_t);
 static void	ucom_break(struct ucom_softc *, uint8_t);
 static void	ucom_dtr(struct ucom_softc *, uint8_t);
 static void	ucom_rts(struct ucom_softc *, uint8_t);
@@ -147,7 +176,7 @@ static struct ttydevsw ucom_class = {
 MODULE_DEPEND(ucom, usb, 1, 1, 1);
 MODULE_VERSION(ucom, 1);
 
-#define	UCOM_UNIT_MAX 0x1000		/* exclusive */
+#define	UCOM_UNIT_MAX 0x200		/* exclusive */
 #define	UCOM_SUB_UNIT_MAX 0x100		/* exclusive */
 
 static uint8_t ucom_bitmap[(UCOM_UNIT_MAX + 7) / 8];
@@ -346,6 +375,29 @@ ucom_attach_tty(struct ucom_softc *sc, uint32_t sub_units)
 	DPRINTF("ttycreate: %s\n", buf);
 	cv_init(&sc->sc_cv, "ucom");
 
+	/* Check if this device should be a console */
+	if ((ucom_cons_softc == NULL) && 
+	    (sc->sc_unit == ucom_cons_unit)) {
+
+		struct termios t;
+
+		ucom_cons_softc = sc;
+
+		memset(&t, 0, sizeof(t));
+		t.c_ispeed = ucom_cons_baud;
+		t.c_ospeed = t.c_ispeed;
+		t.c_cflag = CS8;
+
+		mtx_lock(ucom_cons_softc->sc_mtx);
+		ucom_cons_rx_low = 0;
+		ucom_cons_rx_high = 0;
+		ucom_cons_tx_low = 0;
+		ucom_cons_tx_high = 0;
+		sc->sc_flag |= UCOM_FLAG_CONSOLE;
+		ucom_open(ucom_cons_softc->sc_tty);
+		ucom_param(ucom_cons_softc->sc_tty, &t);
+		mtx_unlock(ucom_cons_softc->sc_mtx);
+	}
 done:
 	return (error);
 }
@@ -357,12 +409,18 @@ ucom_detach_tty(struct ucom_softc *sc)
 
 	DPRINTF("sc = %p, tp = %p\n", sc, sc->sc_tty);
 
+	if (sc->sc_flag & UCOM_FLAG_CONSOLE) {
+		mtx_lock(ucom_cons_softc->sc_mtx);
+		ucom_close(ucom_cons_softc->sc_tty);
+		mtx_unlock(ucom_cons_softc->sc_mtx);
+		ucom_cons_softc = NULL;
+	}
+
 	/* the config thread has been stopped when we get here */
 
 	mtx_lock(sc->sc_mtx);
 	sc->sc_flag |= UCOM_FLAG_GONE;
-	sc->sc_flag &= ~(UCOM_FLAG_HL_READY |
-	    UCOM_FLAG_LL_READY);
+	sc->sc_flag &= ~(UCOM_FLAG_HL_READY | UCOM_FLAG_LL_READY);
 	mtx_unlock(sc->sc_mtx);
 	if (tp) {
 		tty_lock(tp);
@@ -588,6 +646,8 @@ ucom_open(struct tty *tp)
 
 	ucom_modem(tp, SER_DTR | SER_RTS, 0);
 
+	ucom_ring(sc, 0);
+
 	ucom_break(sc, 0);
 
 	ucom_status_change(sc);
@@ -653,6 +713,16 @@ ucom_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	DPRINTF("cmd = 0x%08lx\n", cmd);
 
 	switch (cmd) {
+#if 0
+	case TIOCSRING:
+		ucom_ring(sc, 1);
+		error = 0;
+		break;
+	case TIOCCRING:
+		ucom_ring(sc, 0);
+		error = 0;
+		break;
+#endif
 	case TIOCSBRK:
 		ucom_break(sc, 1);
 		error = 0;
@@ -751,6 +821,8 @@ ucom_cfg_line_state(struct usb_proc_msg *_task)
 		mask |= UCOM_LS_RTS;
 	if (sc->sc_callback->ucom_cfg_set_break)
 		mask |= UCOM_LS_BREAK;
+	if (sc->sc_callback->ucom_cfg_set_ring)
+		mask |= UCOM_LS_RING;
 
 	/* compute the bits we are to program */
 	notch_bits = (sc->sc_pls_set & sc->sc_pls_clr) & mask;
@@ -773,6 +845,9 @@ ucom_cfg_line_state(struct usb_proc_msg *_task)
 	if (notch_bits & UCOM_LS_BREAK)
 		sc->sc_callback->ucom_cfg_set_break(sc,
 		    (prev_value & UCOM_LS_BREAK) ? 1 : 0);
+	if (notch_bits & UCOM_LS_RING)
+		sc->sc_callback->ucom_cfg_set_ring(sc,
+		    (prev_value & UCOM_LS_RING) ? 1 : 0);
 
 	/* set last value */
 	if (any_bits & UCOM_LS_DTR)
@@ -784,6 +859,9 @@ ucom_cfg_line_state(struct usb_proc_msg *_task)
 	if (any_bits & UCOM_LS_BREAK)
 		sc->sc_callback->ucom_cfg_set_break(sc,
 		    (last_value & UCOM_LS_BREAK) ? 1 : 0);
+	if (any_bits & UCOM_LS_RING)
+		sc->sc_callback->ucom_cfg_set_ring(sc,
+		    (last_value & UCOM_LS_RING) ? 1 : 0);
 }
 
 static void
@@ -808,6 +886,17 @@ ucom_line_state(struct ucom_softc *sc,
 	ucom_queue_command(sc, ucom_cfg_line_state, NULL,
 	    &sc->sc_line_state_task[0].hdr, 
 	    &sc->sc_line_state_task[1].hdr);
+}
+
+static void
+ucom_ring(struct ucom_softc *sc, uint8_t onoff)
+{
+	DPRINTF("onoff = %d\n", onoff);
+
+	if (onoff)
+		ucom_line_state(sc, UCOM_LS_RING, 0);
+	else
+		ucom_line_state(sc, 0, UCOM_LS_RING);
 }
 
 static void
@@ -894,6 +983,9 @@ void
 ucom_status_change(struct ucom_softc *sc)
 {
 	mtx_assert(sc->sc_mtx, MA_OWNED);
+
+	if (sc->sc_flag & UCOM_FLAG_CONSOLE)
+		return;		/* not supported */
 
 	if (!(sc->sc_flag & UCOM_FLAG_HL_READY)) {
 		return;
@@ -1033,6 +1125,38 @@ ucom_get_data(struct ucom_softc *sc, struct usb_page_cache *pc,
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
 
+	if (sc->sc_flag & UCOM_FLAG_CONSOLE) {
+		unsigned int temp;
+
+		/* get total TX length */
+
+		temp = ucom_cons_tx_high - ucom_cons_tx_low;
+		temp %= UCOM_CONS_BUFSIZE;
+
+		/* limit TX length */
+
+		if (temp > (UCOM_CONS_BUFSIZE - ucom_cons_tx_low))
+			temp = (UCOM_CONS_BUFSIZE - ucom_cons_tx_low);
+
+		if (temp > len)
+			temp = len;
+
+		/* copy in data */
+
+		usbd_copy_in(pc, offset, ucom_cons_tx_buf + ucom_cons_tx_low, temp);
+
+		/* update counters */
+
+		ucom_cons_tx_low += temp;
+		ucom_cons_tx_low %= UCOM_CONS_BUFSIZE;
+
+		/* store actual length */
+
+		*actlen = temp;
+
+		return (temp ? 1 : 0);
+	}
+
 	if (tty_gone(tp) ||
 	    !(sc->sc_flag & UCOM_FLAG_GP_DATA)) {
 		actlen[0] = 0;
@@ -1079,6 +1203,34 @@ ucom_put_data(struct ucom_softc *sc, struct usb_page_cache *pc,
 	uint32_t cnt;
 
 	mtx_assert(sc->sc_mtx, MA_OWNED);
+
+	if (sc->sc_flag & UCOM_FLAG_CONSOLE) {
+		unsigned int temp;
+
+		/* get maximum RX length */
+
+		temp = (UCOM_CONS_BUFSIZE - 1) - ucom_cons_rx_high + ucom_cons_rx_low;
+		temp %= UCOM_CONS_BUFSIZE;
+
+		/* limit RX length */
+
+		if (temp > (UCOM_CONS_BUFSIZE - ucom_cons_rx_high))
+			temp = (UCOM_CONS_BUFSIZE - ucom_cons_rx_high);
+
+		if (temp > len)
+			temp = len;
+
+		/* copy out data */
+
+		usbd_copy_out(pc, offset, ucom_cons_rx_buf + ucom_cons_rx_high, temp);
+
+		/* update counters */
+
+		ucom_cons_rx_high += temp;
+		ucom_cons_rx_high %= UCOM_CONS_BUFSIZE;
+
+		return;
+	}
 
 	if (tty_gone(tp))
 		return;			/* multiport device polling */
@@ -1136,3 +1288,138 @@ ucom_free(void *xsc)
 	cv_signal(&sc->sc_cv);
 	mtx_unlock(sc->sc_mtx);
 }
+
+static cn_probe_t ucom_cnprobe;
+static cn_init_t ucom_cninit;
+static cn_term_t ucom_cnterm;
+static cn_getc_t ucom_cngetc;
+static cn_putc_t ucom_cnputc;
+
+CONSOLE_DRIVER(ucom);
+
+static void
+ucom_cnprobe(struct consdev  *cp)
+{
+	cp->cn_pri = CN_NORMAL;
+}
+
+static void
+ucom_cninit(struct consdev  *cp)
+{
+}
+
+static void
+ucom_cnterm(struct consdev  *cp)
+{
+}
+
+static int
+ucom_cngetc(struct consdev *cd)
+{
+	struct ucom_softc *sc = ucom_cons_softc;
+	int c;
+
+	if (sc == NULL)
+		return (-1);
+
+	mtx_lock(sc->sc_mtx);
+
+	if (ucom_cons_rx_low != ucom_cons_rx_high) {
+		c = ucom_cons_rx_buf[ucom_cons_rx_low];
+		ucom_cons_rx_low ++;
+		ucom_cons_rx_low %= UCOM_CONS_BUFSIZE;
+	} else {
+		c = -1;
+	}
+
+	/* start USB transfers */
+	ucom_outwakeup(sc->sc_tty);
+
+	mtx_unlock(sc->sc_mtx);
+
+	/* poll if necessary */
+	if (kdb_active && sc->sc_callback->ucom_poll)
+		(sc->sc_callback->ucom_poll) (sc);
+
+	return (c);
+}
+
+static void
+ucom_cnputc(struct consdev *cd, int c)
+{
+	struct ucom_softc *sc = ucom_cons_softc;
+	unsigned int temp;
+
+	if (sc == NULL)
+		return;
+
+ repeat:
+
+	mtx_lock(sc->sc_mtx);
+
+	/* compute maximum TX length */
+
+	temp = (UCOM_CONS_BUFSIZE - 1) - ucom_cons_tx_high + ucom_cons_tx_low;
+	temp %= UCOM_CONS_BUFSIZE;
+
+	if (temp) {
+		ucom_cons_tx_buf[ucom_cons_tx_high] = c;
+		ucom_cons_tx_high ++;
+		ucom_cons_tx_high %= UCOM_CONS_BUFSIZE;
+	}
+
+	/* start USB transfers */
+	ucom_outwakeup(sc->sc_tty);
+
+	mtx_unlock(sc->sc_mtx);
+
+	/* poll if necessary */
+	if (kdb_active && sc->sc_callback->ucom_poll) {
+		(sc->sc_callback->ucom_poll) (sc);
+		/* simple flow control */
+		if (temp == 0)
+			goto repeat;
+	}
+}
+
+#if defined(GDB)
+
+#include <gdb/gdb.h>
+
+static gdb_probe_f ucom_gdbprobe;
+static gdb_init_f ucom_gdbinit;
+static gdb_term_f ucom_gdbterm;
+static gdb_getc_f ucom_gdbgetc;
+static gdb_putc_f ucom_gdbputc;
+
+GDB_DBGPORT(sio, ucom_gdbprobe, ucom_gdbinit, ucom_gdbterm, ucom_gdbgetc, ucom_gdbputc);
+
+static int
+ucom_gdbprobe(void)
+{
+	return ((ucom_cons_softc != NULL) ? 0 : -1);
+}
+
+static void
+ucom_gdbinit(void)
+{
+}
+
+static void
+ucom_gdbterm(void)
+{
+}
+
+static void
+ucom_gdbputc(int c)
+{
+        ucom_cnputc(NULL, c);
+}
+
+static int
+ucom_gdbgetc(void)
+{
+        return (ucom_cngetc(NULL));
+}
+
+#endif
