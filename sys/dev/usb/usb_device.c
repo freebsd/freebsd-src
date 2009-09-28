@@ -2355,6 +2355,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 {
 	char *data = NULL;
 	struct malloc_type *mt;
+	const size_t buf_size = 512;
 
 	mtx_lock(&malloc_mtx);
 	mt = malloc_desc2type("bus");	/* XXX M_BUS */
@@ -2362,12 +2363,12 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	if (mt == NULL)
 		return;
 
-	data = malloc(512, mt, M_NOWAIT);
+	data = malloc(buf_size, mt, M_NOWAIT);
 	if (data == NULL)
 		return;
 
 	/* String it all together. */
-	snprintf(data, 1024,
+	snprintf(data, buf_size,
 	    "%s"
 	    "%s "
 	    "vendor=0x%04x "
