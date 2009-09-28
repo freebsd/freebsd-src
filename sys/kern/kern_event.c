@@ -1229,7 +1229,7 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 			size = kq->kq_knlistsize;
 			while (size <= fd)
 				size += KQEXTENT;
-			list = malloc(size * sizeof list, M_KQUEUE, mflag);
+			list = malloc(size * sizeof(*list), M_KQUEUE, mflag);
 			if (list == NULL)
 				return ENOMEM;
 			KQ_LOCK(kq);
@@ -1239,13 +1239,13 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 			} else {
 				if (kq->kq_knlist != NULL) {
 					bcopy(kq->kq_knlist, list,
-					    kq->kq_knlistsize * sizeof list);
+					    kq->kq_knlistsize * sizeof(*list));
 					free(kq->kq_knlist, M_KQUEUE);
 					kq->kq_knlist = NULL;
 				}
 				bzero((caddr_t)list +
-				    kq->kq_knlistsize * sizeof list,
-				    (size - kq->kq_knlistsize) * sizeof list);
+				    kq->kq_knlistsize * sizeof(*list),
+				    (size - kq->kq_knlistsize) * sizeof(*list));
 				kq->kq_knlistsize = size;
 				kq->kq_knlist = list;
 			}
