@@ -234,6 +234,16 @@ alc_miibus_readreg(device_t dev, int phy, int reg)
 	if (phy != sc->alc_phyaddr)
 		return (0);
 
+	/*
+	 * For AR8132 fast ethernet controller, do not report 1000baseT
+	 * capability to mii(4). Even though AR8132 uses the same
+	 * model/revision number of F1 gigabit PHY, the PHY has no
+	 * ability to establish 1000baseT link.
+	 */
+	if ((sc->alc_flags & ALC_FLAG_FASTETHER) != 0 &&
+	    reg == MII_EXTSR)
+		return (0);
+
 	CSR_WRITE_4(sc, ALC_MDIO, MDIO_OP_EXECUTE | MDIO_OP_READ |
 	    MDIO_SUP_PREAMBLE | MDIO_CLK_25_4 | MDIO_REG_ADDR(reg));
 	for (i = ALC_PHY_TIMEOUT; i > 0; i--) {
