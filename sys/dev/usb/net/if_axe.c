@@ -205,10 +205,7 @@ static const struct usb_config axe_config[AXE_N_TRANSFER] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-#if (MCLBYTES < 2048)
-#error "(MCLBYTES < 2048)"
-#endif
-		.bufsize = MCLBYTES,
+		.bufsize = 16384,	/* bytes */
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = axe_bulk_read_callback,
 		.timeout = 0,	/* no timeout */
@@ -777,7 +774,7 @@ axe_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct ifnet *ifp = uether_getifp(ue);
 	struct axe_sframe_hdr hdr;
 	struct usb_page_cache *pc;
-	int err, pos, len, adjust;
+	int err, pos, len;
 	int actlen;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
@@ -785,50 +782,42 @@ axe_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		pos = 0;
+		len = 0;
+		err = 0;
+
 		pc = usbd_xfer_get_frame(xfer, 0);
-		while (1) {
-			if (sc->sc_flags & (AXE_FLAG_772 | AXE_FLAG_178)) {
-				if (actlen < sizeof(hdr)) {
+		if (sc->sc_flags & (AXE_FLAG_772 | AXE_FLAG_178)) {
+			while (pos < actlen) {
+				if ((pos + sizeof(hdr)) > actlen) {
 					/* too little data */
+					err = EINVAL;
 					break;
 				}
 				usbd_copy_out(pc, pos, &hdr, sizeof(hdr));
 
 				if ((hdr.len ^ hdr.ilen) != 0xFFFF) {
 					/* we lost sync */
+					err = EINVAL;
 					break;
 				}
-				actlen -= sizeof(hdr);
 				pos += sizeof(hdr);
 
 				len = le16toh(hdr.len);
-				if (len > actlen) {
+				if ((pos + len) > actlen) {
 					/* invalid length */
+					err = EINVAL;
 					break;
 				}
-				adjust = (len & 1);
+				err = uether_rxbuf(ue, pc, pos, len);
 
-			} else {
-				len = actlen;
-				adjust = 0;
+				pos += len + (len % 2);
 			}
-			err = uether_rxbuf(ue, pc, pos, len);
-			if (err)
-				break;
-
-			pos += len;
-			actlen -= len;
-
-			if (actlen <= adjust) {
-				/* we are finished */
-				goto tr_setup;
-			}
-			pos += adjust;
-			actlen -= adjust;
+		} else {
+			err = uether_rxbuf(ue, pc, 0, actlen);
 		}
 
-		/* count an error */
-		ifp->if_ierrors++;
+		if (err != 0)
+			ifp->if_ierrors++;
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -1011,7 +1000,15 @@ axe_init(struct usb_ether *ue)
 	/* Enable receiver, set RX mode */
 	rxmode = (AXE_RXCMD_MULTICAST | AXE_RXCMD_ENABLE);
 	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772)) {
+#if 0
 		rxmode |= AXE_178_RXCMD_MFB_2048;	/* chip default */
+#else
+		/*
+		 * Default Rx buffer size is too small to get
+		 * maximum performance.
+		 */
+		rxmode |= AXE_178_RXCMD_MFB_16384;
+#endif
 	} else {
 		rxmode |= AXE_172_RXCMD_UNICAST;
 	}
