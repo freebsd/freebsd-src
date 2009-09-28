@@ -148,6 +148,7 @@
  * D-Link gigabit ethernet device ID
  */
 #define DEVICEID_DLINK_DGE550SX	0x4001
+#define DEVICEID_DLINK_DGE560SX	0x4002
 #define DEVICEID_DLINK_DGE560T	0x4b00
 
 #define BIT_31		(1 << 31)
