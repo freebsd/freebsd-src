@@ -2403,6 +2403,12 @@ struct msk_ring_data {
 #define	MSK_TX_TIMEOUT		5
 #define	MSK_PUT_WM	10
 
+struct msk_mii_data {
+	int		port;
+	uint32_t	pmd;
+	int		mii_flags;
+};
+
 /* Forward decl. */
 struct msk_if_softc;
 
@@ -2466,7 +2472,6 @@ struct msk_softc {
 	uint8_t			msk_num_port;
 	int			msk_ramsize;	/* amount of SRAM on NIC */
 	uint32_t		msk_pmd;	/* physical media type */
-	uint32_t		msk_coppertype;
 	uint32_t		msk_intrmask;
 	uint32_t		msk_intrhwemask;
 	uint32_t		msk_pflags;
