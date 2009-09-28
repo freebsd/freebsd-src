@@ -367,11 +367,13 @@ usb_init_endpoint(struct usb_device *udev, uint8_t iface_index,
 struct usb_endpoint *
 usb_endpoint_foreach(struct usb_device *udev, struct usb_endpoint *ep)
 {
-	struct usb_endpoint *ep_end = udev->endpoints + udev->endpoints_max;
+	struct usb_endpoint *ep_end;
 
 	/* be NULL safe */
 	if (udev == NULL)
 		return (NULL);
+
+	ep_end = udev->endpoints + udev->endpoints_max;
 
 	/* get next endpoint */
 	if (ep == NULL)
