@@ -1,6 +1,11 @@
 /*-
- * Copyright (c) 2008 Doug Rabson
- * All rights reserved.
+ * Copyright (c) 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,11 +15,14 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -22,1465 +30,463 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- */
-/*
-  svc_rpcsec_gss.c
-  
-  Copyright (c) 2000 The Regents of the University of Michigan.
-  All rights reserved.
-
-  Copyright (c) 2000 Dug Song <dugsong@UMICH.EDU>.
-  All rights reserved, all wrongs reversed.
-
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions
-  are met:
-
-  1. Redistributions of source code must retain the above copyright
-     notice, this list of conditions and the following disclaimer.
-  2. Redistributions in binary form must reproduce the above copyright
-     notice, this list of conditions and the following disclaimer in the
-     documentation and/or other materials provided with the distribution.
-  3. Neither the name of the University nor the names of its
-     contributors may be used to endorse or promote products derived
-     from this software without specific prior written permission.
-
-  THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
-  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
-  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
-  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-  BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-  $Id: svc_auth_gss.c,v 1.27 2002/01/15 15:43:00 andros Exp $
+ *
+ *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/dirent.h>
+#include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/kobj.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
-#include <sys/sx.h>
-#include <sys/ucred.h>
+#include <sys/rwlock.h>
+#include <sys/refcount.h>
+#include <sys/socket.h>
+#include <sys/systm.h>
+#include <sys/vnode.h>
 
-#include <rpc/rpc.h>
-#include <rpc/rpcsec_gss.h>
+#include <net/radix.h>
 
-#include "rpcsec_gss_int.h"
+static MALLOC_DEFINE(M_NETADDR, "export_host", "Export host address structure");
 
-static bool_t   svc_rpc_gss_wrap(SVCAUTH *, struct mbuf **);
-static bool_t   svc_rpc_gss_unwrap(SVCAUTH *, struct mbuf **);
-static void     svc_rpc_gss_release(SVCAUTH *);
-static enum auth_stat svc_rpc_gss(struct svc_req *, struct rpc_msg *);
-static int rpc_gss_svc_getcred(struct svc_req *, struct ucred **, int *);
-
-static struct svc_auth_ops svc_auth_gss_ops = {
-	svc_rpc_gss_wrap,
-	svc_rpc_gss_unwrap,
-	svc_rpc_gss_release,
-};
-
-struct sx svc_rpc_gss_lock;
-
-struct svc_rpc_gss_callback {
-	SLIST_ENTRY(svc_rpc_gss_callback) cb_link;
-	rpc_gss_callback_t	cb_callback;
-};
-static SLIST_HEAD(svc_rpc_gss_callback_list, svc_rpc_gss_callback)
-	svc_rpc_gss_callbacks = SLIST_HEAD_INITIALIZER(&svc_rpc_gss_callbacks);
-
-struct svc_rpc_gss_svc_name {
-	SLIST_ENTRY(svc_rpc_gss_svc_name) sn_link;
-	char			*sn_principal;
-	gss_OID			sn_mech;
-	u_int			sn_req_time;
-	gss_cred_id_t		sn_cred;
-	u_int			sn_program;
-	u_int			sn_version;
-};
-static SLIST_HEAD(svc_rpc_gss_svc_name_list, svc_rpc_gss_svc_name)
-	svc_rpc_gss_svc_names = SLIST_HEAD_INITIALIZER(&svc_rpc_gss_svc_names);
-
-enum svc_rpc_gss_client_state {
-	CLIENT_NEW,				/* still authenticating */
-	CLIENT_ESTABLISHED,			/* context established */
-	CLIENT_STALE				/* garbage to collect */
-};
-
-#define SVC_RPC_GSS_SEQWINDOW	128
-
-struct svc_rpc_gss_clientid {
-	unsigned long		ci_hostid;
-	uint32_t		ci_boottime;
-	uint32_t		ci_id;
-};
-
-struct svc_rpc_gss_client {
-	TAILQ_ENTRY(svc_rpc_gss_client) cl_link;
-	TAILQ_ENTRY(svc_rpc_gss_client) cl_alllink;
-	volatile u_int		cl_refs;
-	struct sx		cl_lock;
-	struct svc_rpc_gss_clientid cl_id;
-	time_t			cl_expiration;	/* when to gc */
-	enum svc_rpc_gss_client_state cl_state;	/* client state */
-	bool_t			cl_locked;	/* fixed service+qop */
-	gss_ctx_id_t		cl_ctx;		/* context id */
-	gss_cred_id_t		cl_creds;	/* delegated creds */
-	gss_name_t		cl_cname;	/* client name */
-	struct svc_rpc_gss_svc_name *cl_sname;	/* server name used */
-	rpc_gss_rawcred_t	cl_rawcred;	/* raw credentials */
-	rpc_gss_ucred_t		cl_ucred;	/* unix-style credentials */
-	struct ucred		*cl_cred;	/* kernel-style credentials */
-	int			cl_rpcflavor;	/* RPC pseudo sec flavor */
-	bool_t			cl_done_callback; /* TRUE after call */
-	void			*cl_cookie;	/* user cookie from callback */
-	gid_t			cl_gid_storage[NGROUPS];
-	gss_OID			cl_mech;	/* mechanism */
-	gss_qop_t		cl_qop;		/* quality of protection */
-	uint32_t		cl_seqlast;	/* sequence window origin */
-	uint32_t		cl_seqmask[SVC_RPC_GSS_SEQWINDOW/32]; /* bitmask of seqnums */
-};
-TAILQ_HEAD(svc_rpc_gss_client_list, svc_rpc_gss_client);
+static void	vfs_free_addrlist(struct netexport *nep);
+static int	vfs_free_netcred(struct radix_node *rn, void *w);
+static int	vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
+		    struct export_args *argp);
+static struct netcred *vfs_export_lookup(struct mount *, struct sockaddr *);
 
 /*
- * This structure holds enough information to unwrap arguments or wrap
- * results for a given request. We use the rq_clntcred area for this
- * (which is a per-request buffer).
+ * Network address lookup element
  */
-struct svc_rpc_gss_cookedcred {
-	struct svc_rpc_gss_client *cc_client;
-	rpc_gss_service_t	cc_service;
-	uint32_t		cc_seq;
+struct netcred {
+	struct	radix_node netc_rnodes[2];
+	int	netc_exflags;
+	struct	ucred *netc_anon;
+	int	netc_numsecflavors;
+	int	netc_secflavors[MAXSECFLAVORS];
 };
 
-#define CLIENT_HASH_SIZE	256
-#define CLIENT_MAX		128
-struct svc_rpc_gss_client_list svc_rpc_gss_client_hash[CLIENT_HASH_SIZE];
-struct svc_rpc_gss_client_list svc_rpc_gss_clients;
-static size_t svc_rpc_gss_client_count;
-static uint32_t svc_rpc_gss_next_clientid = 1;
-
-static void
-svc_rpc_gss_init(void *arg)
-{
-	int i;
-
-	for (i = 0; i < CLIENT_HASH_SIZE; i++)
-		TAILQ_INIT(&svc_rpc_gss_client_hash[i]);
-	TAILQ_INIT(&svc_rpc_gss_clients);
-	svc_auth_reg(RPCSEC_GSS, svc_rpc_gss, rpc_gss_svc_getcred);
-	sx_init(&svc_rpc_gss_lock, "gsslock");
-}
-SYSINIT(svc_rpc_gss_init, SI_SUB_KMEM, SI_ORDER_ANY, svc_rpc_gss_init, NULL);
-
-bool_t
-rpc_gss_set_callback(rpc_gss_callback_t *cb)
-{
-	struct svc_rpc_gss_callback *scb;
-
-	scb = mem_alloc(sizeof(struct svc_rpc_gss_callback));
-	if (!scb) {
-		_rpc_gss_set_error(RPC_GSS_ER_SYSTEMERROR, ENOMEM);
-		return (FALSE);
-	}
-	scb->cb_callback = *cb;
-	sx_xlock(&svc_rpc_gss_lock);
-	SLIST_INSERT_HEAD(&svc_rpc_gss_callbacks, scb, cb_link);
-	sx_xunlock(&svc_rpc_gss_lock);
-
-	return (TRUE);
-}
-
-void
-rpc_gss_clear_callback(rpc_gss_callback_t *cb)
-{
-	struct svc_rpc_gss_callback *scb;
-
-	sx_xlock(&svc_rpc_gss_lock);
-	SLIST_FOREACH(scb, &svc_rpc_gss_callbacks, cb_link) {
-		if (scb->cb_callback.program == cb->program
-		    && scb->cb_callback.version == cb->version
-		    && scb->cb_callback.callback == cb->callback) {
-			SLIST_REMOVE(&svc_rpc_gss_callbacks, scb,
-			    svc_rpc_gss_callback, cb_link);
-			sx_xunlock(&svc_rpc_gss_lock);
-			mem_free(scb, sizeof(*scb));
-			return;
-		}
-	}
-	sx_xunlock(&svc_rpc_gss_lock);
-}
-
-static bool_t
-rpc_gss_acquire_svc_cred(struct svc_rpc_gss_svc_name *sname)
-{
-	OM_uint32		maj_stat, min_stat;
-	gss_buffer_desc		namebuf;
-	gss_name_t		name;
-	gss_OID_set_desc	oid_set;
-
-	oid_set.count = 1;
-	oid_set.elements = sname->sn_mech;
-
-	namebuf.value = (void *) sname->sn_principal;
-	namebuf.length = strlen(sname->sn_principal);
-
-	maj_stat = gss_import_name(&min_stat, &namebuf,
-				   GSS_C_NT_HOSTBASED_SERVICE, &name);
-	if (maj_stat != GSS_S_COMPLETE)
-		return (FALSE);
-
-	if (sname->sn_cred != GSS_C_NO_CREDENTIAL)
-		gss_release_cred(&min_stat, &sname->sn_cred);
-
-	maj_stat = gss_acquire_cred(&min_stat, name,
-	    sname->sn_req_time, &oid_set, GSS_C_ACCEPT, &sname->sn_cred,
-	    NULL, NULL);
-	if (maj_stat != GSS_S_COMPLETE) {
-		gss_release_name(&min_stat, &name);
-		return (FALSE);
-	}
-	gss_release_name(&min_stat, &name);
-
-	return (TRUE);
-}
-
-bool_t
-rpc_gss_set_svc_name(const char *principal, const char *mechanism,
-    u_int req_time, u_int program, u_int version)
-{
-	struct svc_rpc_gss_svc_name *sname;
-	gss_OID			mech_oid;
-
-	if (!rpc_gss_mech_to_oid(mechanism, &mech_oid))
-		return (FALSE);
-
-	sname = mem_alloc(sizeof(*sname));
-	if (!sname)
-		return (FALSE);
-	sname->sn_principal = strdup(principal, M_RPC);
-	sname->sn_mech = mech_oid;
-	sname->sn_req_time = req_time;
-	sname->sn_cred = GSS_C_NO_CREDENTIAL;
-	sname->sn_program = program;
-	sname->sn_version = version;
-
-	if (!rpc_gss_acquire_svc_cred(sname)) {
-		free(sname->sn_principal, M_RPC);
-		mem_free(sname, sizeof(*sname));
-		return (FALSE);
-	}
-
-	sx_xlock(&svc_rpc_gss_lock);
-	SLIST_INSERT_HEAD(&svc_rpc_gss_svc_names, sname, sn_link);
-	sx_xunlock(&svc_rpc_gss_lock);
-
-	return (TRUE);
-}
-
-void
-rpc_gss_clear_svc_name(u_int program, u_int version)
-{
-	OM_uint32		min_stat;
-	struct svc_rpc_gss_svc_name *sname;
-
-	sx_xlock(&svc_rpc_gss_lock);
-	SLIST_FOREACH(sname, &svc_rpc_gss_svc_names, sn_link) {
-		if (sname->sn_program == program
-		    && sname->sn_version == version) {
-			SLIST_REMOVE(&svc_rpc_gss_svc_names, sname,
-			    svc_rpc_gss_svc_name, sn_link);
-			sx_xunlock(&svc_rpc_gss_lock);
-			gss_release_cred(&min_stat, &sname->sn_cred);
-			free(sname->sn_principal, M_RPC);
-			mem_free(sname, sizeof(*sname));
-			return;
-		}
-	}
-	sx_xunlock(&svc_rpc_gss_lock);
-}
-
-bool_t
-rpc_gss_get_principal_name(rpc_gss_principal_t *principal,
-    const char *mech, const char *name, const char *node, const char *domain)
-{
-	OM_uint32		maj_stat, min_stat;
-	gss_OID			mech_oid;
-	size_t			namelen;
-	gss_buffer_desc		buf;
-	gss_name_t		gss_name, gss_mech_name;
-	rpc_gss_principal_t	result;
-
-	if (!rpc_gss_mech_to_oid(mech, &mech_oid))
-		return (FALSE);
-
-	/*
-	 * Construct a gss_buffer containing the full name formatted
-	 * as "name/node@domain" where node and domain are optional.
-	 */
-	namelen = strlen(name);
-	if (node) {
-		namelen += strlen(node) + 1;
-	}
-	if (domain) {
-		namelen += strlen(domain) + 1;
-	}
-
-	buf.value = mem_alloc(namelen);
-	buf.length = namelen;
-	strcpy((char *) buf.value, name);
-	if (node) {
-		strcat((char *) buf.value, "/");
-		strcat((char *) buf.value, node);
-	}
-	if (domain) {
-		strcat((char *) buf.value, "@");
-		strcat((char *) buf.value, domain);
-	}
-
-	/*
-	 * Convert that to a gss_name_t and then convert that to a
-	 * mechanism name in the selected mechanism.
-	 */
-	maj_stat = gss_import_name(&min_stat, &buf,
-	    GSS_C_NT_USER_NAME, &gss_name);
-	mem_free(buf.value, buf.length);
-	if (maj_stat != GSS_S_COMPLETE) {
-		rpc_gss_log_status("gss_import_name", mech_oid, maj_stat, min_stat);
-		return (FALSE);
-	}
-	maj_stat = gss_canonicalize_name(&min_stat, gss_name, mech_oid,
-	    &gss_mech_name);
-	if (maj_stat != GSS_S_COMPLETE) {
-		rpc_gss_log_status("gss_canonicalize_name", mech_oid, maj_stat,
-		    min_stat);
-		gss_release_name(&min_stat, &gss_name);
-		return (FALSE);
-	}
-	gss_release_name(&min_stat, &gss_name);
-
-	/*
-	 * Export the mechanism name and use that to construct the
-	 * rpc_gss_principal_t result.
-	 */
-	maj_stat = gss_export_name(&min_stat, gss_mech_name, &buf);
-	if (maj_stat != GSS_S_COMPLETE) {
-		rpc_gss_log_status("gss_export_name", mech_oid, maj_stat, min_stat);
-		gss_release_name(&min_stat, &gss_mech_name);
-		return (FALSE);
-	}
-	gss_release_name(&min_stat, &gss_mech_name);
-
-	result = mem_alloc(sizeof(int) + buf.length);
-	if (!result) {
-		gss_release_buffer(&min_stat, &buf);
-		return (FALSE);
-	}
-	result->len = buf.length;
-	memcpy(result->name, buf.value, buf.length);
-	gss_release_buffer(&min_stat, &buf);
-
-	*principal = result;
-	return (TRUE);
-}
-
-bool_t
-rpc_gss_getcred(struct svc_req *req, rpc_gss_rawcred_t **rcred,
-    rpc_gss_ucred_t **ucred, void **cookie)
-{
-	struct svc_rpc_gss_cookedcred *cc;
-	struct svc_rpc_gss_client *client;
-
-	if (req->rq_cred.oa_flavor != RPCSEC_GSS)
-		return (FALSE);
-
-	cc = req->rq_clntcred;
-	client = cc->cc_client;
-	if (rcred)
-		*rcred = &client->cl_rawcred;
-	if (ucred)
-		*ucred = &client->cl_ucred;
-	if (cookie)
-		*cookie = client->cl_cookie;
-	return (TRUE);
-}
+/*
+ * Network export information
+ */
+struct netexport {
+	struct	netcred ne_defexported;		      /* Default export */
+	struct	radix_node_head *ne_rtable[AF_MAX+1]; /* Individual exports */
+};
 
 /*
- * This simpler interface is used by svc_getcred to copy the cred data
- * into a kernel cred structure.
+ * Build hash lists of net addresses and hang them off the mount point.
+ * Called by vfs_export() to set up the lists of export addresses.
  */
 static int
-rpc_gss_svc_getcred(struct svc_req *req, struct ucred **crp, int *flavorp)
+vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
+    struct export_args *argp)
 {
-	struct ucred *cr;
-	struct svc_rpc_gss_cookedcred *cc;
-	struct svc_rpc_gss_client *client;
-	rpc_gss_ucred_t *uc;
+	register struct netcred *np;
+	register struct radix_node_head *rnh;
+	register int i;
+	struct radix_node *rn;
+	struct sockaddr *saddr, *smask = 0;
+	struct domain *dom;
+	int error;
 
-	if (req->rq_cred.oa_flavor != RPCSEC_GSS)
-		return (FALSE);
-
-	cc = req->rq_clntcred;
-	client = cc->cc_client;
-
-	if (flavorp)
-		*flavorp = client->cl_rpcflavor;
-
-	if (client->cl_cred) {
-		*crp = crhold(client->cl_cred);
-		return (TRUE);
+	/*
+	 * XXX: This routine converts from a `struct xucred'
+	 * (argp->ex_anon) to a `struct ucred' (np->netc_anon).  This
+	 * operation is questionable; for example, what should be done
+	 * with fields like cr_uidinfo and cr_prison?  Currently, this
+	 * routine does not touch them (leaves them as NULL).
+	 */
+	if (argp->ex_anon.cr_version != XUCRED_VERSION) {
+		vfs_mount_error(mp, "ex_anon.cr_version: %d != %d",
+		    argp->ex_anon.cr_version, XUCRED_VERSION);
+		return (EINVAL);
 	}
 
-	uc = &client->cl_ucred;
-	cr = client->cl_cred = crget();
-	cr->cr_uid = cr->cr_ruid = cr->cr_svuid = uc->uid;
-	cr->cr_rgid = cr->cr_svgid = uc->gid;
-	crsetgroups(cr, uc->gidlen, uc->gidlist);
-	*crp = crhold(cr);
-
-	return (TRUE);
-}
-
-int
-rpc_gss_svc_max_data_length(struct svc_req *req, int max_tp_unit_len)
-{
-	struct svc_rpc_gss_cookedcred *cc = req->rq_clntcred;
-	struct svc_rpc_gss_client *client = cc->cc_client;
-	int			want_conf;
-	OM_uint32		max;
-	OM_uint32		maj_stat, min_stat;
-	int			result;
-
-	switch (client->cl_rawcred.service) {
-	case rpc_gss_svc_none:
-		return (max_tp_unit_len);
-		break;
-
-	case rpc_gss_svc_default:
-	case rpc_gss_svc_integrity:
-		want_conf = FALSE;
-		break;
-
-	case rpc_gss_svc_privacy:
-		want_conf = TRUE;
-		break;
-
-	default:
+	if (argp->ex_addrlen == 0) {
+		if (mp->mnt_flag & MNT_DEFEXPORTED) {
+			vfs_mount_error(mp,
+			    "MNT_DEFEXPORTED already set for mount %p", mp);
+			return (EPERM);
+		}
+		np = &nep->ne_defexported;
+		np->netc_exflags = argp->ex_flags;
+		np->netc_anon = crget();
+		np->netc_anon->cr_uid = argp->ex_anon.cr_uid;
+		crsetgroups(np->netc_anon, argp->ex_anon.cr_ngroups,
+		    argp->ex_anon.cr_groups);
+		np->netc_anon->cr_prison = &prison0;
+		prison_hold(np->netc_anon->cr_prison);
+		np->netc_numsecflavors = argp->ex_numsecflavors;
+		bcopy(argp->ex_secflavors, np->netc_secflavors,
+		    sizeof(np->netc_secflavors));
+		MNT_ILOCK(mp);
+		mp->mnt_flag |= MNT_DEFEXPORTED;
+		MNT_IUNLOCK(mp);
 		return (0);
 	}
 
-	maj_stat = gss_wrap_size_limit(&min_stat, client->cl_ctx, want_conf,
-	    client->cl_qop, max_tp_unit_len, &max);
-
-	if (maj_stat == GSS_S_COMPLETE) {
-		result = (int) max;
-		if (result < 0)
-			result = 0;
-		return (result);
-	} else {
-		rpc_gss_log_status("gss_wrap_size_limit", client->cl_mech,
-		    maj_stat, min_stat);
-		return (0);
+#if MSIZE <= 256
+	if (argp->ex_addrlen > MLEN) {
+		vfs_mount_error(mp, "ex_addrlen %d is greater than %d",
+		    argp->ex_addrlen, MLEN);
+		return (EINVAL);
 	}
-}
-
-static struct svc_rpc_gss_client *
-svc_rpc_gss_find_client(struct svc_rpc_gss_clientid *id)
-{
-	struct svc_rpc_gss_client *client;
-	struct svc_rpc_gss_client_list *list;
-	unsigned long hostid;
-
-	rpc_gss_log_debug("in svc_rpc_gss_find_client(%d)", id->ci_id);
-
-	getcredhostid(curthread->td_ucred, &hostid);
-	if (id->ci_hostid != hostid || id->ci_boottime != boottime.tv_sec)
-		return (NULL);
-
-	list = &svc_rpc_gss_client_hash[id->ci_id % CLIENT_HASH_SIZE];
-	sx_xlock(&svc_rpc_gss_lock);
-	TAILQ_FOREACH(client, list, cl_link) {
-		if (client->cl_id.ci_id == id->ci_id) {
-			/*
-			 * Move this client to the front of the LRU
-			 * list.
-			 */
-			TAILQ_REMOVE(&svc_rpc_gss_clients, client, cl_alllink);
-			TAILQ_INSERT_HEAD(&svc_rpc_gss_clients, client,
-			    cl_alllink);
-			refcount_acquire(&client->cl_refs);
-			break;
-		}
-	}
-	sx_xunlock(&svc_rpc_gss_lock);
-
-	return (client);
-}
-
-static struct svc_rpc_gss_client *
-svc_rpc_gss_create_client(void)
-{
-	struct svc_rpc_gss_client *client;
-	struct svc_rpc_gss_client_list *list;
-	unsigned long hostid;
-
-	rpc_gss_log_debug("in svc_rpc_gss_create_client()");
-
-	client = mem_alloc(sizeof(struct svc_rpc_gss_client));
-	memset(client, 0, sizeof(struct svc_rpc_gss_client));
-	refcount_init(&client->cl_refs, 1);
-	sx_init(&client->cl_lock, "GSS-client");
-	getcredhostid(curthread->td_ucred, &hostid);
-	client->cl_id.ci_hostid = hostid;
-	client->cl_id.ci_boottime = boottime.tv_sec;
-	client->cl_id.ci_id = svc_rpc_gss_next_clientid++;
-	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % CLIENT_HASH_SIZE];
-	sx_xlock(&svc_rpc_gss_lock);
-	TAILQ_INSERT_HEAD(list, client, cl_link);
-	TAILQ_INSERT_HEAD(&svc_rpc_gss_clients, client, cl_alllink);
-	svc_rpc_gss_client_count++;
-	sx_xunlock(&svc_rpc_gss_lock);
-
-	/*
-	 * Start the client off with a short expiration time. We will
-	 * try to get a saner value from the client creds later.
-	 */
-	client->cl_state = CLIENT_NEW;
-	client->cl_locked = FALSE;
-	client->cl_expiration = time_uptime + 5*60;
-
-	return (client);
-}
-
-static void
-svc_rpc_gss_destroy_client(struct svc_rpc_gss_client *client)
-{
-	OM_uint32 min_stat;
-
-	rpc_gss_log_debug("in svc_rpc_gss_destroy_client()");
-
-	if (client->cl_ctx)
-		gss_delete_sec_context(&min_stat,
-		    &client->cl_ctx, GSS_C_NO_BUFFER);
-
-	if (client->cl_cname)
-		gss_release_name(&min_stat, &client->cl_cname);
-
-	if (client->cl_rawcred.client_principal)
-		mem_free(client->cl_rawcred.client_principal,
-		    sizeof(*client->cl_rawcred.client_principal)
-		    + client->cl_rawcred.client_principal->len);
-
-	if (client->cl_cred)
-		crfree(client->cl_cred);
-
-	sx_destroy(&client->cl_lock);
-	mem_free(client, sizeof(*client));
-}
-
-/*
- * Drop a reference to a client and free it if that was the last reference.
- */
-static void
-svc_rpc_gss_release_client(struct svc_rpc_gss_client *client)
-{
-
-	if (!refcount_release(&client->cl_refs))
-		return;
-	svc_rpc_gss_destroy_client(client);
-}
-
-/*
- * Remove a client from our global lists and free it if we can.
- */
-static void
-svc_rpc_gss_forget_client(struct svc_rpc_gss_client *client)
-{
-	struct svc_rpc_gss_client_list *list;
-
-	list = &svc_rpc_gss_client_hash[client->cl_id.ci_id % CLIENT_HASH_SIZE];
-	sx_xlock(&svc_rpc_gss_lock);
-	TAILQ_REMOVE(list, client, cl_link);
-	TAILQ_REMOVE(&svc_rpc_gss_clients, client, cl_alllink);
-	svc_rpc_gss_client_count--;
-	sx_xunlock(&svc_rpc_gss_lock);
-	svc_rpc_gss_release_client(client);
-}
-
-static void
-svc_rpc_gss_timeout_clients(void)
-{
-	struct svc_rpc_gss_client *client;
-	struct svc_rpc_gss_client *nclient;
-	time_t now = time_uptime;
-
-	rpc_gss_log_debug("in svc_rpc_gss_timeout_clients()");
-
-	/*
-	 * First enforce the max client limit. We keep
-	 * svc_rpc_gss_clients in LRU order.
-	 */
-	while (svc_rpc_gss_client_count > CLIENT_MAX)
-		svc_rpc_gss_forget_client(TAILQ_LAST(&svc_rpc_gss_clients,
-			    svc_rpc_gss_client_list));
-	TAILQ_FOREACH_SAFE(client, &svc_rpc_gss_clients, cl_alllink, nclient) {
-		if (client->cl_state == CLIENT_STALE
-		    || now > client->cl_expiration) {
-			rpc_gss_log_debug("expiring client %p", client);
-			svc_rpc_gss_forget_client(client);
-		}
-	}
-}
-
-#ifdef DEBUG
-/*
- * OID<->string routines.  These are uuuuugly.
- */
-static OM_uint32
-gss_oid_to_str(OM_uint32 *minor_status, gss_OID oid, gss_buffer_t oid_str)
-{
-	char		numstr[128];
-	unsigned long	number;
-	int		numshift;
-	size_t		string_length;
-	size_t		i;
-	unsigned char	*cp;
-	char		*bp;
-
-	/* Decoded according to krb5/gssapi_krb5.c */
-
-	/* First determine the size of the string */
-	string_length = 0;
-	number = 0;
-	numshift = 0;
-	cp = (unsigned char *) oid->elements;
-	number = (unsigned long) cp[0];
-	sprintf(numstr, "%ld ", number/40);
-	string_length += strlen(numstr);
-	sprintf(numstr, "%ld ", number%40);
-	string_length += strlen(numstr);
-	for (i=1; i<oid->length; i++) {
-		if ( (size_t) (numshift+7) < (sizeof(unsigned long)*8)) {
-			number = (number << 7) | (cp[i] & 0x7f);
-			numshift += 7;
-		}
-		else {
-			*minor_status = 0;
-			return(GSS_S_FAILURE);
-		}
-		if ((cp[i] & 0x80) == 0) {
-			sprintf(numstr, "%ld ", number);
-			string_length += strlen(numstr);
-			number = 0;
-			numshift = 0;
-		}
-	}
-	/*
-	 * If we get here, we've calculated the length of "n n n ... n ".  Add 4
-	 * here for "{ " and "}\0".
-	 */
-	string_length += 4;
-	if ((bp = (char *) mem_alloc(string_length))) {
-		strcpy(bp, "{ ");
-		number = (unsigned long) cp[0];
-		sprintf(numstr, "%ld ", number/40);
-		strcat(bp, numstr);
-		sprintf(numstr, "%ld ", number%40);
-		strcat(bp, numstr);
-		number = 0;
-		cp = (unsigned char *) oid->elements;
-		for (i=1; i<oid->length; i++) {
-			number = (number << 7) | (cp[i] & 0x7f);
-			if ((cp[i] & 0x80) == 0) {
-				sprintf(numstr, "%ld ", number);
-				strcat(bp, numstr);
-				number = 0;
-			}
-		}
-		strcat(bp, "}");
-		oid_str->length = strlen(bp)+1;
-		oid_str->value = (void *) bp;
-		*minor_status = 0;
-		return(GSS_S_COMPLETE);
-	}
-	*minor_status = 0;
-	return(GSS_S_FAILURE);
-}
 #endif
 
-static void
-svc_rpc_gss_build_ucred(struct svc_rpc_gss_client *client,
-    const gss_name_t name)
-{
-	OM_uint32		maj_stat, min_stat;
-	rpc_gss_ucred_t		*uc = &client->cl_ucred;
-	int			numgroups;
-
-	uc->uid = 65534;
-	uc->gid = 65534;
-	uc->gidlist = client->cl_gid_storage;
-
-	numgroups = NGROUPS;
-	maj_stat = gss_pname_to_unix_cred(&min_stat, name, client->cl_mech,
-	    &uc->uid, &uc->gid, &numgroups, &uc->gidlist[0]);
-	if (GSS_ERROR(maj_stat))
-		uc->gidlen = 0;
-	else
-		uc->gidlen = numgroups;
-}
-
-static void
-svc_rpc_gss_set_flavor(struct svc_rpc_gss_client *client)
-{
-	static gss_OID_desc krb5_mech_oid =
-		{9, (void *) "\x2a\x86\x48\x86\xf7\x12\x01\x02\x02" };
-
-	/*
-	 * Attempt to translate mech type and service into a
-	 * 'pseudo flavor'. Hardwire in krb5 support for now.
-	 */
-	if (kgss_oid_equal(client->cl_mech, &krb5_mech_oid)) {
-		switch (client->cl_rawcred.service) {
-		case rpc_gss_svc_default:
-		case rpc_gss_svc_none:
-			client->cl_rpcflavor = RPCSEC_GSS_KRB5;
-			break;
-		case rpc_gss_svc_integrity:
-			client->cl_rpcflavor = RPCSEC_GSS_KRB5I;
-			break;
-		case rpc_gss_svc_privacy:
-			client->cl_rpcflavor = RPCSEC_GSS_KRB5P;
-			break;
-		}
-	} else {
-		client->cl_rpcflavor = RPCSEC_GSS;
-	}
-}
-
-static bool_t
-svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
-			       struct svc_req *rqst,
-			       struct rpc_gss_init_res *gr,
-			       struct rpc_gss_cred *gc)
-{
-	gss_buffer_desc		recv_tok;
-	gss_OID			mech;
-	OM_uint32		maj_stat = 0, min_stat = 0, ret_flags;
-	OM_uint32		cred_lifetime;
-	struct svc_rpc_gss_svc_name *sname;
-
-	rpc_gss_log_debug("in svc_rpc_gss_accept_context()");
-	
-	/* Deserialize arguments. */
-	memset(&recv_tok, 0, sizeof(recv_tok));
-	
-	if (!svc_getargs(rqst,
-		(xdrproc_t) xdr_gss_buffer_desc,
-		(caddr_t) &recv_tok)) {
-		client->cl_state = CLIENT_STALE;
-		return (FALSE);
-	}
-
-	/*
-	 * First time round, try all the server names we have until
-	 * one matches. Afterwards, stick with that one.
-	 */
-	sx_xlock(&svc_rpc_gss_lock);
-	if (!client->cl_sname) {
-		SLIST_FOREACH(sname, &svc_rpc_gss_svc_names, sn_link) {
-			if (sname->sn_program == rqst->rq_prog
-			    && sname->sn_version == rqst->rq_vers) {
-			retry:
-				gr->gr_major = gss_accept_sec_context(
-					&gr->gr_minor,
-					&client->cl_ctx,
-					sname->sn_cred,
-					&recv_tok,
-					GSS_C_NO_CHANNEL_BINDINGS,
-					&client->cl_cname,
-					&mech,
-					&gr->gr_token,
-					&ret_flags,
-					&cred_lifetime,
-					&client->cl_creds);
-				if (gr->gr_major == 
-				    GSS_S_CREDENTIALS_EXPIRED) {
-					/*
-					 * Either our creds really did
-					 * expire or gssd was
-					 * restarted.
-					 */
-					if (rpc_gss_acquire_svc_cred(sname))
-						goto retry;
-				}
-				client->cl_sname = sname;
-				break;
-			}
-		}
-		if (!sname) {
-			xdr_free((xdrproc_t) xdr_gss_buffer_desc,
-			    (char *) &recv_tok);
-			sx_xunlock(&svc_rpc_gss_lock);
-			return (FALSE);
-		}
-	} else {
-		gr->gr_major = gss_accept_sec_context(
-			&gr->gr_minor,
-			&client->cl_ctx,
-			client->cl_sname->sn_cred,
-			&recv_tok,
-			GSS_C_NO_CHANNEL_BINDINGS,
-			&client->cl_cname,
-			&mech,
-			&gr->gr_token,
-			&ret_flags,
-			&cred_lifetime,
-			NULL);
-	}
-	sx_xunlock(&svc_rpc_gss_lock);
-	
-	xdr_free((xdrproc_t) xdr_gss_buffer_desc, (char *) &recv_tok);
-
-	/*
-	 * If we get an error from gss_accept_sec_context, send the
-	 * reply anyway so that the client gets a chance to see what
-	 * is wrong.
-	 */
-	if (gr->gr_major != GSS_S_COMPLETE &&
-	    gr->gr_major != GSS_S_CONTINUE_NEEDED) {
-		rpc_gss_log_status("accept_sec_context", client->cl_mech,
-		    gr->gr_major, gr->gr_minor);
-		client->cl_state = CLIENT_STALE;
-		return (TRUE);
-	}
-
-	gr->gr_handle.value = &client->cl_id;
-	gr->gr_handle.length = sizeof(client->cl_id);
-	gr->gr_win = SVC_RPC_GSS_SEQWINDOW;
-	
-	/* Save client info. */
-	client->cl_mech = mech;
-	client->cl_qop = GSS_C_QOP_DEFAULT;
-	client->cl_done_callback = FALSE;
-
-	if (gr->gr_major == GSS_S_COMPLETE) {
-		gss_buffer_desc	export_name;
-
-		/*
-		 * Change client expiration time to be near when the
-		 * client creds expire (or 24 hours if we can't figure
-		 * that out).
-		 */
-		if (cred_lifetime == GSS_C_INDEFINITE)
-			cred_lifetime = time_uptime + 24*60*60;
-
-		client->cl_expiration = time_uptime + cred_lifetime;
-
-		/*
-		 * Fill in cred details in the rawcred structure.
-		 */
-		client->cl_rawcred.version = RPCSEC_GSS_VERSION;
-		rpc_gss_oid_to_mech(mech, &client->cl_rawcred.mechanism);
-		maj_stat = gss_export_name(&min_stat, client->cl_cname,
-		    &export_name);
-		if (maj_stat != GSS_S_COMPLETE) {
-			rpc_gss_log_status("gss_export_name", client->cl_mech,
-			    maj_stat, min_stat);
-			return (FALSE);
-		}
-		client->cl_rawcred.client_principal =
-			mem_alloc(sizeof(*client->cl_rawcred.client_principal)
-			    + export_name.length);
-		client->cl_rawcred.client_principal->len = export_name.length;
-		memcpy(client->cl_rawcred.client_principal->name,
-		    export_name.value, export_name.length);
-		gss_release_buffer(&min_stat, &export_name);
-		client->cl_rawcred.svc_principal =
-			client->cl_sname->sn_principal;
-		client->cl_rawcred.service = gc->gc_svc;
-
-		/*
-		 * Use gss_pname_to_uid to map to unix creds. For
-		 * kerberos5, this uses krb5_aname_to_localname.
-		 */
-		svc_rpc_gss_build_ucred(client, client->cl_cname);
-		svc_rpc_gss_set_flavor(client);
-		gss_release_name(&min_stat, &client->cl_cname);
-
-#ifdef DEBUG
-		{
-			gss_buffer_desc mechname;
-
-			gss_oid_to_str(&min_stat, mech, &mechname);
-			
-			rpc_gss_log_debug("accepted context for %s with "
-			    "<mech %.*s, qop %d, svc %d>",
-			    client->cl_rawcred.client_principal->name,
-			    mechname.length, (char *)mechname.value,
-			    client->cl_qop, client->rawcred.service);
-
-			gss_release_buffer(&min_stat, &mechname);
-		}
-#endif /* DEBUG */
-	}
-	return (TRUE);
-}
-
-static bool_t
-svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
-    gss_qop_t *qop)
-{
-	struct opaque_auth	*oa;
-	gss_buffer_desc		 rpcbuf, checksum;
-	OM_uint32		 maj_stat, min_stat;
-	gss_qop_t		 qop_state;
-	int32_t			 rpchdr[128 / sizeof(int32_t)];
-	int32_t			*buf;
-
-	rpc_gss_log_debug("in svc_rpc_gss_validate()");
-	
-	memset(rpchdr, 0, sizeof(rpchdr));
-
-	/* Reconstruct RPC header for signing (from xdr_callmsg). */
-	buf = rpchdr;
-	IXDR_PUT_LONG(buf, msg->rm_xid);
-	IXDR_PUT_ENUM(buf, msg->rm_direction);
-	IXDR_PUT_LONG(buf, msg->rm_call.cb_rpcvers);
-	IXDR_PUT_LONG(buf, msg->rm_call.cb_prog);
-	IXDR_PUT_LONG(buf, msg->rm_call.cb_vers);
-	IXDR_PUT_LONG(buf, msg->rm_call.cb_proc);
-	oa = &msg->rm_call.cb_cred;
-	IXDR_PUT_ENUM(buf, oa->oa_flavor);
-	IXDR_PUT_LONG(buf, oa->oa_length);
-	if (oa->oa_length) {
-		memcpy((caddr_t)buf, oa->oa_base, oa->oa_length);
-		buf += RNDUP(oa->oa_length) / sizeof(int32_t);
-	}
-	rpcbuf.value = rpchdr;
-	rpcbuf.length = (u_char *)buf - (u_char *)rpchdr;
-
-	checksum.value = msg->rm_call.cb_verf.oa_base;
-	checksum.length = msg->rm_call.cb_verf.oa_length;
-	
-	maj_stat = gss_verify_mic(&min_stat, client->cl_ctx, &rpcbuf, &checksum,
-				  &qop_state);
-	
-	if (maj_stat != GSS_S_COMPLETE) {
-		rpc_gss_log_status("gss_verify_mic", client->cl_mech,
-		    maj_stat, min_stat);
-		client->cl_state = CLIENT_STALE;
-		return (FALSE);
-	}
-
-	*qop = qop_state;
-	return (TRUE);
-}
-
-static bool_t
-svc_rpc_gss_nextverf(struct svc_rpc_gss_client *client,
-    struct svc_req *rqst, u_int seq)
-{
-	gss_buffer_desc		signbuf;
-	gss_buffer_desc		mic;
-	OM_uint32		maj_stat, min_stat;
-	uint32_t		nseq;       
-
-	rpc_gss_log_debug("in svc_rpc_gss_nextverf()");
-
-	nseq = htonl(seq);
-	signbuf.value = &nseq;
-	signbuf.length = sizeof(nseq);
-
-	maj_stat = gss_get_mic(&min_stat, client->cl_ctx, client->cl_qop,
-	    &signbuf, &mic);
-
-	if (maj_stat != GSS_S_COMPLETE) {
-		rpc_gss_log_status("gss_get_mic", client->cl_mech, maj_stat, min_stat);
-		client->cl_state = CLIENT_STALE;
-		return (FALSE);
-	}
-
-	KASSERT(mic.length <= MAX_AUTH_BYTES,
-	    ("MIC too large for RPCSEC_GSS"));
-
-	rqst->rq_verf.oa_flavor = RPCSEC_GSS;
-	rqst->rq_verf.oa_length = mic.length;
-	bcopy(mic.value, rqst->rq_verf.oa_base, mic.length);
-
-	gss_release_buffer(&min_stat, &mic);
-	
-	return (TRUE);
-}
-
-static bool_t
-svc_rpc_gss_callback(struct svc_rpc_gss_client *client, struct svc_req *rqst)
-{
-	struct svc_rpc_gss_callback *scb;
-	rpc_gss_lock_t	lock;
-	void		*cookie;
-	bool_t		cb_res;
-	bool_t		result;
-
-	/*
-	 * See if we have a callback for this guy.
-	 */
-	result = TRUE;
-	SLIST_FOREACH(scb, &svc_rpc_gss_callbacks, cb_link) {
-		if (scb->cb_callback.program == rqst->rq_prog
-		    && scb->cb_callback.version == rqst->rq_vers) {
-			/*
-			 * This one matches. Call the callback and see
-			 * if it wants to veto or something.
-			 */
-			lock.locked = FALSE;
-			lock.raw_cred = &client->cl_rawcred;
-			cb_res = scb->cb_callback.callback(rqst,
-			    client->cl_creds,
-			    client->cl_ctx,
-			    &lock,
-			    &cookie);
-
-			if (!cb_res) {
-				client->cl_state = CLIENT_STALE;
-				result = FALSE;
-				break;
-			}
-
-			/*
-			 * The callback accepted the connection - it
-			 * is responsible for freeing client->cl_creds
-			 * now.
-			 */
-			client->cl_creds = GSS_C_NO_CREDENTIAL;
-			client->cl_locked = lock.locked;
-			client->cl_cookie = cookie;
-			return (TRUE);
-		}
-	}
-
-	/*
-	 * Either no callback exists for this program/version or one
-	 * of the callbacks rejected the connection. We just need to
-	 * clean up the delegated client creds, if any.
-	 */
-	if (client->cl_creds) {
-		OM_uint32 min_ver;
-		gss_release_cred(&min_ver, &client->cl_creds);
-	}
-	return (result);
-}
-
-static bool_t
-svc_rpc_gss_check_replay(struct svc_rpc_gss_client *client, uint32_t seq)
-{
-	u_int32_t offset;
-	int word, bit;
-	bool_t result;
-
-	sx_xlock(&client->cl_lock);
-	if (seq <= client->cl_seqlast) {
-		/*
-		 * The request sequence number is less than
-		 * the largest we have seen so far. If it is
-		 * outside the window or if we have seen a
-		 * request with this sequence before, silently
-		 * discard it.
-		 */
-		offset = client->cl_seqlast - seq;
-		if (offset >= SVC_RPC_GSS_SEQWINDOW) {
-			result = FALSE;
-			goto out;
-		}
-		word = offset / 32;
-		bit = offset % 32;
-		if (client->cl_seqmask[word] & (1 << bit)) {
-			result = FALSE;
-			goto out;
-		}
-	}
-
-	result = TRUE;
-out:
-	sx_xunlock(&client->cl_lock);
-	return (result);
-}
-
-static void
-svc_rpc_gss_update_seq(struct svc_rpc_gss_client *client, uint32_t seq)
-{
-	int offset, i, word, bit;
-	uint32_t carry, newcarry;
-
-	sx_xlock(&client->cl_lock);
-	if (seq > client->cl_seqlast) {
-		/*
-		 * This request has a sequence number greater
-		 * than any we have seen so far. Advance the
-		 * seq window and set bit zero of the window
-		 * (which corresponds to the new sequence
-		 * number)
-		 */
-		offset = seq - client->cl_seqlast;
-		while (offset > 32) {
-			for (i = (SVC_RPC_GSS_SEQWINDOW / 32) - 1;
-			     i > 0; i--) {
-				client->cl_seqmask[i] = client->cl_seqmask[i-1];
-			}
-			client->cl_seqmask[0] = 0;
-			offset -= 32;
-		}
-		carry = 0;
-		for (i = 0; i < SVC_RPC_GSS_SEQWINDOW / 32; i++) {
-			newcarry = client->cl_seqmask[i] >> (32 - offset);
-			client->cl_seqmask[i] =
-				(client->cl_seqmask[i] << offset) | carry;
-			carry = newcarry;
-		}
-		client->cl_seqmask[0] |= 1;
-		client->cl_seqlast = seq;
-	} else {
-		offset = client->cl_seqlast - seq;
-		word = offset / 32;
-		bit = offset % 32;
-		client->cl_seqmask[word] |= (1 << bit);
-	}
-	sx_xunlock(&client->cl_lock);
-}
-
-enum auth_stat
-svc_rpc_gss(struct svc_req *rqst, struct rpc_msg *msg)
-
-{
-	OM_uint32		 min_stat;
-	XDR	 		 xdrs;
-	struct svc_rpc_gss_cookedcred *cc;
-	struct svc_rpc_gss_client *client;
-	struct rpc_gss_cred	 gc;
-	struct rpc_gss_init_res	 gr;
-	gss_qop_t		 qop;
-	int			 call_stat;
-	enum auth_stat		 result;
-	
-	rpc_gss_log_debug("in svc_rpc_gss()");
-	
-	/* Garbage collect old clients. */
-	svc_rpc_gss_timeout_clients();
-
-	/* Initialize reply. */
-	rqst->rq_verf = _null_auth;
-
-	/* Deserialize client credentials. */
-	if (rqst->rq_cred.oa_length <= 0)
-		return (AUTH_BADCRED);
-	
-	memset(&gc, 0, sizeof(gc));
-	
-	xdrmem_create(&xdrs, rqst->rq_cred.oa_base,
-	    rqst->rq_cred.oa_length, XDR_DECODE);
-	
-	if (!xdr_rpc_gss_cred(&xdrs, &gc)) {
-		XDR_DESTROY(&xdrs);
-		return (AUTH_BADCRED);
-	}
-	XDR_DESTROY(&xdrs);
-
-	client = NULL;
-
-	/* Check version. */
-	if (gc.gc_version != RPCSEC_GSS_VERSION) {
-		result = AUTH_BADCRED;
+	i = sizeof(struct netcred) + argp->ex_addrlen + argp->ex_masklen;
+	np = (struct netcred *) malloc(i, M_NETADDR, M_WAITOK | M_ZERO);
+	saddr = (struct sockaddr *) (np + 1);
+	if ((error = copyin(argp->ex_addr, saddr, argp->ex_addrlen)))
+		goto out;
+	if (saddr->sa_family == AF_UNSPEC || saddr->sa_family > AF_MAX) {
+		error = EINVAL;
+		vfs_mount_error(mp, "Invalid saddr->sa_family: %d");
 		goto out;
 	}
-
-	/* Check the proc and find the client (or create it) */
-	if (gc.gc_proc == RPCSEC_GSS_INIT) {
-		if (gc.gc_handle.length != 0) {
-			result = AUTH_BADCRED;
+	if (saddr->sa_len > argp->ex_addrlen)
+		saddr->sa_len = argp->ex_addrlen;
+	if (argp->ex_masklen) {
+		smask = (struct sockaddr *)((caddr_t)saddr + argp->ex_addrlen);
+		error = copyin(argp->ex_mask, smask, argp->ex_masklen);
+		if (error)
 			goto out;
+		if (smask->sa_len > argp->ex_masklen)
+			smask->sa_len = argp->ex_masklen;
+	}
+	i = saddr->sa_family;
+	if ((rnh = nep->ne_rtable[i]) == NULL) {
+		/*
+		 * Seems silly to initialize every AF when most are not used,
+		 * do so on demand here
+		 */
+		for (dom = domains; dom; dom = dom->dom_next) {
+			KASSERT(((i == AF_INET) || (i == AF_INET6)), 
+			    ("unexpected protocol in vfs_hang_addrlist"));
+			if (dom->dom_family == i && dom->dom_rtattach) {
+				/*
+				 * XXX MRT 
+				 * The INET and INET6 domains know the
+				 * offset already. We don't need to send it
+				 * So we just use it as a flag to say that
+				 * we are or are not setting up a real routing
+				 * table. Only IP and IPV6 need have this
+				 * be 0 so all other protocols can stay the 
+				 * same (ABI compatible).
+				 */ 
+				dom->dom_rtattach(
+				    (void **) &nep->ne_rtable[i], 0);
+				break;
+			}
 		}
-		client = svc_rpc_gss_create_client();
-		refcount_acquire(&client->cl_refs);
-	} else {
-		struct svc_rpc_gss_clientid *p;
-		if (gc.gc_handle.length != sizeof(*p)) {
-			result = AUTH_BADCRED;
-			goto out;
-		}
-		p = gc.gc_handle.value;
-		client = svc_rpc_gss_find_client(p);
-		if (!client) {
-			/*
-			 * Can't find the client - we may have
-			 * destroyed it - tell the other side to
-			 * re-authenticate.
-			 */
-			result = RPCSEC_GSS_CREDPROBLEM;
+		if ((rnh = nep->ne_rtable[i]) == NULL) {
+			error = ENOBUFS;
+			vfs_mount_error(mp, "%s %s %d",
+			    "Unable to initialize radix node head ",
+			    "for address family", i);
 			goto out;
 		}
 	}
-	cc = rqst->rq_clntcred;
-	cc->cc_client = client;
-	cc->cc_service = gc.gc_svc;
-	cc->cc_seq = gc.gc_seq;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	rn = (*rnh->rnh_addaddr)(saddr, smask, rnh, np->netc_rnodes);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+	if (rn == NULL || np != (struct netcred *)rn) {	/* already exists */
+		error = EPERM;
+		vfs_mount_error(mp, "Invalid radix node head, rn: %p %p",
+		    rn, np);
+		goto out;
+	}
+	np->netc_exflags = argp->ex_flags;
+	np->netc_anon = crget();
+	np->netc_anon->cr_uid = argp->ex_anon.cr_uid;
+	crsetgroups(np->netc_anon, argp->ex_anon.cr_ngroups,
+	    np->netc_anon->cr_groups);
+	np->netc_anon->cr_prison = &prison0;
+	prison_hold(np->netc_anon->cr_prison);
+	np->netc_numsecflavors = argp->ex_numsecflavors;
+	bcopy(argp->ex_secflavors, np->netc_secflavors,
+	    sizeof(np->netc_secflavors));
+	return (0);
+out:
+	free(np, M_NETADDR);
+	return (error);
+}
+
+/* Helper for vfs_free_addrlist. */
+/* ARGSUSED */
+static int
+vfs_free_netcred(struct radix_node *rn, void *w)
+{
+	struct radix_node_head *rnh = (struct radix_node_head *) w;
+	struct ucred *cred;
+
+	(*rnh->rnh_deladdr) (rn->rn_key, rn->rn_mask, rnh);
+	cred = ((struct netcred *)rn)->netc_anon;
+	if (cred != NULL)
+		crfree(cred);
+	free(rn, M_NETADDR);
+	return (0);
+}
+
+/*
+ * Free the net address hash lists that are hanging off the mount points.
+ */
+static void
+vfs_free_addrlist(struct netexport *nep)
+{
+	int i;
+	struct radix_node_head *rnh;
+	struct ucred *cred;
+
+	for (i = 0; i <= AF_MAX; i++) {
+		if ((rnh = nep->ne_rtable[i])) {
+			RADIX_NODE_HEAD_LOCK(rnh);
+			(*rnh->rnh_walktree) (rnh, vfs_free_netcred, rnh);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+			RADIX_NODE_HEAD_DESTROY(rnh);
+			free(rnh, M_RTABLE);
+			nep->ne_rtable[i] = NULL;	/* not SMP safe XXX */
+		}
+	}
+	cred = nep->ne_defexported.netc_anon;
+	if (cred != NULL)
+		crfree(cred);
+
+}
+
+/*
+ * High level function to manipulate export options on a mount point
+ * and the passed in netexport.
+ * Struct export_args *argp is the variable used to twiddle options,
+ * the structure is described in sys/mount.h
+ */
+int
+vfs_export(struct mount *mp, struct export_args *argp)
+{
+	struct netexport *nep;
+	int error;
+
+	if (argp->ex_numsecflavors < 0
+	    || argp->ex_numsecflavors >= MAXSECFLAVORS)
+		return (EINVAL);
+
+	error = 0;
+	lockmgr(&mp->mnt_explock, LK_EXCLUSIVE, NULL);
+	nep = mp->mnt_export;
+	if (argp->ex_flags & MNT_DELEXPORT) {
+		if (nep == NULL) {
+			error = ENOENT;
+			goto out;
+		}
+		if (mp->mnt_flag & MNT_EXPUBLIC) {
+			vfs_setpublicfs(NULL, NULL, NULL);
+			MNT_ILOCK(mp);
+			mp->mnt_flag &= ~MNT_EXPUBLIC;
+			MNT_IUNLOCK(mp);
+		}
+		vfs_free_addrlist(nep);
+		mp->mnt_export = NULL;
+		free(nep, M_MOUNT);
+		nep = NULL;
+		MNT_ILOCK(mp);
+		mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
+		MNT_IUNLOCK(mp);
+	}
+	if (argp->ex_flags & MNT_EXPORTED) {
+		if (nep == NULL) {
+			nep = malloc(sizeof(struct netexport), M_MOUNT, M_WAITOK | M_ZERO);
+			mp->mnt_export = nep;
+		}
+		if (argp->ex_flags & MNT_EXPUBLIC) {
+			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0)
+				goto out;
+			MNT_ILOCK(mp);
+			mp->mnt_flag |= MNT_EXPUBLIC;
+			MNT_IUNLOCK(mp);
+		}
+		if ((error = vfs_hang_addrlist(mp, nep, argp)))
+			goto out;
+		MNT_ILOCK(mp);
+		mp->mnt_flag |= MNT_EXPORTED;
+		MNT_IUNLOCK(mp);
+	}
+
+out:
+	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
+	/*
+	 * Once we have executed the vfs_export() command, we do
+	 * not want to keep the "export" option around in the
+	 * options list, since that will cause subsequent MNT_UPDATE
+	 * calls to fail.  The export information is saved in
+	 * mp->mnt_export, so we can safely delete the "export" mount option
+	 * here.
+	 */
+	vfs_deleteopt(mp->mnt_optnew, "export");
+	vfs_deleteopt(mp->mnt_opt, "export");
+	return (error);
+}
+
+/*
+ * Set the publicly exported filesystem (WebNFS). Currently, only
+ * one public filesystem is possible in the spec (RFC 2054 and 2055)
+ */
+int
+vfs_setpublicfs(struct mount *mp, struct netexport *nep,
+    struct export_args *argp)
+{
+	int error;
+	struct vnode *rvp;
+	char *cp;
 
 	/*
-	 * The service and sequence number must be ignored for
-	 * RPCSEC_GSS_INIT and RPCSEC_GSS_CONTINUE_INIT.
+	 * mp == NULL -> invalidate the current info, the FS is
+	 * no longer exported. May be called from either vfs_export
+	 * or unmount, so check if it hasn't already been done.
 	 */
-	if (gc.gc_proc != RPCSEC_GSS_INIT
-	    && gc.gc_proc != RPCSEC_GSS_CONTINUE_INIT) {
-		/*
-		 * Check for sequence number overflow.
-		 */
-		if (gc.gc_seq >= MAXSEQ) {
-			result = RPCSEC_GSS_CTXPROBLEM;
-			goto out;
+	if (mp == NULL) {
+		if (nfs_pub.np_valid) {
+			nfs_pub.np_valid = 0;
+			if (nfs_pub.np_index != NULL) {
+				free(nfs_pub.np_index, M_TEMP);
+				nfs_pub.np_index = NULL;
+			}
 		}
-
-		/*
-		 * Check for valid service.
-		 */
-		if (gc.gc_svc != rpc_gss_svc_none &&
-		    gc.gc_svc != rpc_gss_svc_integrity &&
-		    gc.gc_svc != rpc_gss_svc_privacy) {
-			result = AUTH_BADCRED;
-			goto out;
-		}
+		return (0);
 	}
 
-	/* Handle RPCSEC_GSS control procedure. */
-	switch (gc.gc_proc) {
+	/*
+	 * Only one allowed at a time.
+	 */
+	if (nfs_pub.np_valid != 0 && mp != nfs_pub.np_mount)
+		return (EBUSY);
 
-	case RPCSEC_GSS_INIT:
-	case RPCSEC_GSS_CONTINUE_INIT:
-		if (rqst->rq_proc != NULLPROC) {
-			result = AUTH_REJECTEDCRED;
-			break;
-		}
+	/*
+	 * Get real filehandle for root of exported FS.
+	 */
+	bzero(&nfs_pub.np_handle, sizeof(nfs_pub.np_handle));
+	nfs_pub.np_handle.fh_fsid = mp->mnt_stat.f_fsid;
 
-		memset(&gr, 0, sizeof(gr));
-		if (!svc_rpc_gss_accept_sec_context(client, rqst, &gr, &gc)) {
-			result = AUTH_REJECTEDCRED;
-			break;
-		}
+	if ((error = VFS_ROOT(mp, LK_EXCLUSIVE, &rvp)))
+		return (error);
 
-		if (gr.gr_major == GSS_S_COMPLETE) {
+	if ((error = VOP_VPTOFH(rvp, &nfs_pub.np_handle.fh_fid)))
+		return (error);
+
+	vput(rvp);
+
+	/*
+	 * If an indexfile was specified, pull it in.
+	 */
+	if (argp->ex_indexfile != NULL) {
+		if (nfs_pub.np_index != NULL)
+			nfs_pub.np_index = malloc(MAXNAMLEN + 1, M_TEMP,
+			    M_WAITOK);
+		error = copyinstr(argp->ex_indexfile, nfs_pub.np_index,
+		    MAXNAMLEN, (size_t *)0);
+		if (!error) {
 			/*
-			 * We borrow the space for the call verf to
-			 * pack our reply verf.
+			 * Check for illegal filenames.
 			 */
-			rqst->rq_verf = msg->rm_call.cb_verf;
-			if (!svc_rpc_gss_nextverf(client, rqst, gr.gr_win)) {
-				result = AUTH_REJECTEDCRED;
-				break;
-			}
-		} else {
-			rqst->rq_verf = _null_auth;
-		}
-		
-		call_stat = svc_sendreply(rqst,
-		    (xdrproc_t) xdr_rpc_gss_init_res,
-		    (caddr_t) &gr);
-
-		gss_release_buffer(&min_stat, &gr.gr_token);
-
-		if (!call_stat) {
-			result = AUTH_FAILED;
-			break;
-		}
-
-		if (gr.gr_major == GSS_S_COMPLETE)
-			client->cl_state = CLIENT_ESTABLISHED;
-
-		result = RPCSEC_GSS_NODISPATCH;
-		break;
-		
-	case RPCSEC_GSS_DATA:
-	case RPCSEC_GSS_DESTROY:
-		if (!svc_rpc_gss_check_replay(client, gc.gc_seq)) {
-			result = RPCSEC_GSS_NODISPATCH;
-			break;
-		}
-
-		if (!svc_rpc_gss_validate(client, msg, &qop)) {
-			result = RPCSEC_GSS_CREDPROBLEM;
-			break;
-		}
-		
-		/*
-		 * We borrow the space for the call verf to pack our
-		 * reply verf.
-		 */
-		rqst->rq_verf = msg->rm_call.cb_verf;
-		if (!svc_rpc_gss_nextverf(client, rqst, gc.gc_seq)) {
-			result = RPCSEC_GSS_CTXPROBLEM;
-			break;
-		}
-
-		svc_rpc_gss_update_seq(client, gc.gc_seq);
-
-		/*
-		 * Change the SVCAUTH ops on the request to point at
-		 * our own code so that we can unwrap the arguments
-		 * and wrap the result. The caller will re-set this on
-		 * every request to point to a set of null wrap/unwrap
-		 * methods. Acquire an extra reference to the client
-		 * which will be released by svc_rpc_gss_release()
-		 * after the request has finished processing.
-		 */
-		refcount_acquire(&client->cl_refs);
-		rqst->rq_auth.svc_ah_ops = &svc_auth_gss_ops;
-		rqst->rq_auth.svc_ah_private = cc;
-
-		if (gc.gc_proc == RPCSEC_GSS_DATA) {
-			/*
-			 * We might be ready to do a callback to the server to
-			 * see if it wants to accept/reject the connection.
-			 */
-			sx_xlock(&client->cl_lock);
-			if (!client->cl_done_callback) {
-				client->cl_done_callback = TRUE;
-				client->cl_qop = qop;
-				client->cl_rawcred.qop = _rpc_gss_num_to_qop(
-					client->cl_rawcred.mechanism, qop);
-				if (!svc_rpc_gss_callback(client, rqst)) {
-					result = AUTH_REJECTEDCRED;
-					sx_xunlock(&client->cl_lock);
+			for (cp = nfs_pub.np_index; *cp; cp++) {
+				if (*cp == '/') {
+					error = EINVAL;
 					break;
 				}
 			}
-			sx_xunlock(&client->cl_lock);
-
-			/*
-			 * If the server has locked this client to a
-			 * particular service+qop pair, enforce that
-			 * restriction now.
-			 */
-			if (client->cl_locked) {
-				if (client->cl_rawcred.service != gc.gc_svc) {
-					result = AUTH_FAILED;
-					break;
-				} else if (client->cl_qop != qop) {
-					result = AUTH_BADVERF;
-					break;
-				}
-			}
-
-			/*
-			 * If the qop changed, look up the new qop
-			 * name for rawcred.
-			 */
-			if (client->cl_qop != qop) {
-				client->cl_qop = qop;
-				client->cl_rawcred.qop = _rpc_gss_num_to_qop(
-					client->cl_rawcred.mechanism, qop);
-			}
-
-			/*
-			 * Make sure we use the right service value
-			 * for unwrap/wrap.
-			 */
-			if (client->cl_rawcred.service != gc.gc_svc) {
-				client->cl_rawcred.service = gc.gc_svc;
-				svc_rpc_gss_set_flavor(client);
-			}
-
-			result = AUTH_OK;
-		} else {
-			if (rqst->rq_proc != NULLPROC) {
-				result = AUTH_REJECTEDCRED;
-				break;
-			}
-
-			call_stat = svc_sendreply(rqst,
-			    (xdrproc_t) xdr_void, (caddr_t) NULL);
-
-			if (!call_stat) {
-				result = AUTH_FAILED;
-				break;
-			}
-
-			svc_rpc_gss_forget_client(client);
-
-			result = RPCSEC_GSS_NODISPATCH;
-			break;
 		}
-		break;
-
-	default:
-		result = AUTH_BADCRED;
-		break;
-	}
-out:
-	if (client)
-		svc_rpc_gss_release_client(client);
-
-	xdr_free((xdrproc_t) xdr_rpc_gss_cred, (char *) &gc);
-	return (result);
-}
-
-static bool_t
-svc_rpc_gss_wrap(SVCAUTH *auth, struct mbuf **mp)
-{
-	struct svc_rpc_gss_cookedcred *cc;
-	struct svc_rpc_gss_client *client;
-	
-	rpc_gss_log_debug("in svc_rpc_gss_wrap()");
-
-	cc = (struct svc_rpc_gss_cookedcred *) auth->svc_ah_private;
-	client = cc->cc_client;
-	if (client->cl_state != CLIENT_ESTABLISHED
-	    || cc->cc_service == rpc_gss_svc_none || *mp == NULL) {
-		return (TRUE);
-	}
-	
-	return (xdr_rpc_gss_wrap_data(mp,
-		client->cl_ctx, client->cl_qop,
-		cc->cc_service, cc->cc_seq));
-}
-
-static bool_t
-svc_rpc_gss_unwrap(SVCAUTH *auth, struct mbuf **mp)
-{
-	struct svc_rpc_gss_cookedcred *cc;
-	struct svc_rpc_gss_client *client;
-
-	rpc_gss_log_debug("in svc_rpc_gss_unwrap()");
-	
-	cc = (struct svc_rpc_gss_cookedcred *) auth->svc_ah_private;
-	client = cc->cc_client;
-	if (client->cl_state != CLIENT_ESTABLISHED
-	    || cc->cc_service == rpc_gss_svc_none) {
-		return (TRUE);
+		if (error) {
+			free(nfs_pub.np_index, M_TEMP);
+			nfs_pub.np_index = NULL;
+			return (error);
+		}
 	}
 
-	return (xdr_rpc_gss_unwrap_data(mp,
-		client->cl_ctx, client->cl_qop,
-		cc->cc_service, cc->cc_seq));
+	nfs_pub.np_mount = mp;
+	nfs_pub.np_valid = 1;
+	return (0);
 }
 
-static void
-svc_rpc_gss_release(SVCAUTH *auth)
+/*
+ * Used by the filesystems to determine if a given network address
+ * (passed in 'nam') is present in their exports list, returns a pointer
+ * to struct netcred so that the filesystem can examine it for
+ * access rights (read/write/etc).
+ */
+static struct netcred *
+vfs_export_lookup(struct mount *mp, struct sockaddr *nam)
 {
-	struct svc_rpc_gss_cookedcred *cc;
-	struct svc_rpc_gss_client *client;
+	struct netexport *nep;
+	register struct netcred *np;
+	register struct radix_node_head *rnh;
+	struct sockaddr *saddr;
 
-	rpc_gss_log_debug("in svc_rpc_gss_release()");
-
-	cc = (struct svc_rpc_gss_cookedcred *) auth->svc_ah_private;
-	client = cc->cc_client;
-	svc_rpc_gss_release_client(client);
+	nep = mp->mnt_export;
+	if (nep == NULL)
+		return (NULL);
+	np = NULL;
+	if (mp->mnt_flag & MNT_EXPORTED) {
+		/*
+		 * Lookup in the export list first.
+		 */
+		if (nam != NULL) {
+			saddr = nam;
+			rnh = nep->ne_rtable[saddr->sa_family];
+			if (rnh != NULL) {
+				RADIX_NODE_HEAD_RLOCK(rnh);
+				np = (struct netcred *)
+				    (*rnh->rnh_matchaddr)(saddr, rnh);
+				RADIX_NODE_HEAD_RUNLOCK(rnh);
+				if (np && np->netc_rnodes->rn_flags & RNF_ROOT)
+					np = NULL;
+			}
+		}
+		/*
+		 * If no address match, use the default if it exists.
+		 */
+		if (np == NULL && mp->mnt_flag & MNT_DEFEXPORTED)
+			np = &nep->ne_defexported;
+	}
+	return (np);
 }
+
+/*
+ * XXX: This comment comes from the deprecated ufs_check_export()
+ * XXX: and may not entirely apply, but lacking something better:
+ * This is the generic part of fhtovp called after the underlying
+ * filesystem has validated the file handle.
+ *
+ * Verify that a host should have access to a filesystem.
+ */
+
+int 
+vfs_stdcheckexp(struct mount *mp, struct sockaddr *nam, int *extflagsp,
+    struct ucred **credanonp, int *numsecflavors, int **secflavors)
+{
+	struct netcred *np;
+
+	lockmgr(&mp->mnt_explock, LK_SHARED, NULL);
+	np = vfs_export_lookup(mp, nam);
+	if (np == NULL) {
+		lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
+		*credanonp = NULL;
+		return (EACCES);
+	}
+	*extflagsp = np->netc_exflags;
+	if ((*credanonp = np->netc_anon) != NULL)
+		crhold(*credanonp);
+	if (numsecflavors)
+		*numsecflavors = np->netc_numsecflavors;
+	if (secflavors)
+		*secflavors = np->netc_secflavors;
+	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
+	return (0);
+}
+
