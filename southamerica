@@ -1,5 +1,5 @@
 # <pre>
-# @(#)southamerica	8.36
+# @(#)southamerica	8.37
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -397,7 +397,37 @@ Rule	Arg	2008	max	-	Oct	Sun>=15	0:00	1:00	S
 # is that "The province will most likely follow the next daylight saving schedule,
 # which is planned for the second Sunday in October."
 
+# From Alexander Krivenyshev (2009-09-19):
+# Some  Argentinian Provinces (Buenos Aires, Entre Ríos) are opposing to the
+# Daylight Saving Time for the 2009-2010 season.
 #
+# (Spanish)
+# "El cambio de huso horario en Entre Ríos deberá ser aprobado por la
+# Legislatura":
+# <a href="http://www.analisisdigital.com.ar/noticias.php?ed=1&di=0&no=110168">
+# http://www.analisisdigital.com.ar/noticias.php?ed=1&di=0&no=110168
+# </a>
+# English translation - "The time zone change in Entre Rios must be approved by
+# the Legislature."
+#
+# (Spanish)
+# "Mar del Plata no quiere cambiar la hora."
+# <a href="http://www.mensajeroweb.com.ar/index.php?x=nota/33861/1/mar-del-plata-no-quiere-cambiar-la-hora">
+# http://www.mensajeroweb.com.ar/index.php?x=nota/33861/1/mar-del-plata-no-quiere-cambiar-la-hora
+# </a>
+# English translation - "Mar del Plata is not to change the time"
+#
+# or
+# (some English translation)
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_argentina07.html">
+# http://www.worldtimezone.com/dst_news/dst_news_argentina07.html
+# </a>
+
+# From Arthur David Olson (2009-09-22):
+# "Mar del Plata no quiere cambiar la hora" translates to
+# "Mar del Plata doesn't want to change the time"
+# (less definitive than "is not to").
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #
 # Buenos Aires (BA), Capital Federal (CF),

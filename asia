@@ -1,5 +1,5 @@
 # <pre>
-# @(#)asia	8.40
+# @(#)asia	8.41
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -1674,8 +1674,15 @@ Zone	Asia/Muscat	3:54:20 -	LMT	1920
 # advance clocks in the country by one hour from April 15 to
 # conserve energy"
 
-# From Arthur David Olson (2009-04-10):
-# Assume for now that Pakistan will end DST in 2009 as it did in 2008.
+# From Steffen Thorsen (2009-09-17):
+# "The News International," Pakistan reports that: "The Federal
+# Government has decided to restore the previous time by moving the
+# clocks backward by one hour from October 1. A formal announcement to
+# this effect will be made after the Prime Minister grants approval in
+# this regard." 
+# <a href="http://www.thenews.com.pk/updates.asp?id=87168">
+# http://www.thenews.com.pk/updates.asp?id=87168
+# </a>
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule Pakistan	2002	only	-	Apr	Sun>=2	0:01	1:00	S
@@ -1683,7 +1690,7 @@ Rule Pakistan	2002	only	-	Oct	Sun>=2	0:01	0	-
 Rule Pakistan	2008	only	-	Jun	1	0:00	1:00	S
 Rule Pakistan	2008	only	-	Nov	1	0:00	0	-
 Rule Pakistan	2009	only	-	Apr	15	0:00	1:00	S
-Rule Pakistan	2009	only	-	Nov	1	0:00	0	-
+Rule Pakistan	2009	only	-	Oct	1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Karachi	4:28:12 -	LMT	1907
 			5:30	-	IST	1942 Sep
