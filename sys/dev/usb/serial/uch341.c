@@ -118,6 +118,7 @@ static void	uch341_start_read(struct ucom_softc *);
 static void	uch341_stop_read(struct ucom_softc *);
 static void	uch341_start_write(struct ucom_softc *);
 static void	uch341_stop_write(struct ucom_softc *);
+static void	uch341_poll(struct ucom_softc *ucom);
 
 static const struct usb_config uch341_config[UCH341_N_TRANSFER] = {
 
@@ -152,6 +153,7 @@ static const struct ucom_callback uch341_callback = {
 	.ucom_stop_read = &uch341_stop_read,
 	.ucom_start_write = &uch341_start_write,
 	.ucom_stop_write = &uch341_stop_write,
+	.ucom_poll = &uch341_poll,
 };
 
 static device_method_t uch341_methods[] = {
@@ -518,4 +520,11 @@ uch341_stop_write(struct ucom_softc *ucom)
 	struct uch341_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_stop(sc->sc_xfer[UCH341_BULK_DT_WR]);
+}
+
+static void
+uch341_poll(struct ucom_softc *ucom)
+{
+	struct uch341_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UCH341_N_TRANSFER);
 }
