@@ -223,6 +223,8 @@ static struct msk_product {
 	    "Marvell Yukon 88E8072 Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE550SX,
 	    "D-Link 550SX Gigabit Ethernet" },
+	{ VENDORID_DLINK, DEVICEID_DLINK_DGE560SX,
+	    "D-Link 560SX Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE560T,
 	    "D-Link 560T Gigabit Ethernet" }
 };
