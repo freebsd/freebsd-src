@@ -140,7 +140,7 @@ typedef	__pid_t		pid_t;
 /* bits to save after open */
 #define	FMASK	(FREAD|FWRITE|FAPPEND|FASYNC|FFSYNC|FNONBLOCK|O_DIRECT|FEXEC)
 /* bits settable by fcntl(F_SETFL, ...) */
-#define	FCNTLFLAGS	(FAPPEND|FASYNC|FFSYNC|FNONBLOCK|O_DIRECT)
+#define	FCNTLFLAGS	(FAPPEND|FASYNC|FFSYNC|FNONBLOCK|FRDAHEAD|O_DIRECT)
 
 #if defined(COMPAT_FREEBSD7) || defined(COMPAT_FREEBSD6) || \
     defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4)
@@ -151,7 +151,8 @@ typedef	__pid_t		pid_t;
  */
 #define	FPOSIXSHM	O_NOFOLLOW
 #undef FCNTLFLAGS
-#define	FCNTLFLAGS	(FAPPEND|FASYNC|FFSYNC|FNONBLOCK|FPOSIXSHM|O_DIRECT)
+#define	FCNTLFLAGS	(FAPPEND|FASYNC|FFSYNC|FNONBLOCK|FPOSIXSHM|FRDAHEAD| \
+			 O_DIRECT)
 #endif
 #endif
 
@@ -176,6 +177,8 @@ typedef	__pid_t		pid_t;
  * different meaning for fcntl(2).
  */
 #if __BSD_VISIBLE
+/* Read ahead */
+#define	FRDAHEAD	O_CREAT
 #endif
 
 /* Defined by POSIX Extended API Set Part 2 */
@@ -218,6 +221,8 @@ typedef	__pid_t		pid_t;
 #define	F_SETLK		12		/* set record locking information */
 #define	F_SETLKW	13		/* F_SETLK; wait if blocked */
 #define	F_SETLK_REMOTE	14		/* debugging support for remote locks */
+#define	F_READAHEAD	15		/* read ahead */
+#define	F_RDAHEAD	16		/* Darwin compatible read ahead */
 
 /* file descriptor flags (F_GETFD, F_SETFD) */
 #define	FD_CLOEXEC	1		/* close-on-exec flag */
