@@ -659,6 +659,7 @@ vendor 3COM2		0x6891	3Com
 vendor INTEL		0x8086	Intel
 vendor SITECOM2		0x9016	Sitecom
 vendor MOSCHIP		0x9710	MosChip Semiconductor
+vendor MARVELL		0x9e88	Marvell Technology Group Ltd.
 vendor 3COM3		0xa727	3Com
 vendor HP2		0xf003	Hewlett Packard
 vendor USRP		0xfffe	GNU Radio USRP
@@ -1336,6 +1337,9 @@ product FTDI CFA_633		0xfc0b	Crystalfontz CFA-633 USB LCD
 product FTDI CFA_631		0xfc0c	Crystalfontz CFA-631 USB LCD
 product FTDI CFA_635		0xfc0d	Crystalfontz CFA-635 USB LCD
 product FTDI SEMC_DSS20		0xfc82	SEMC DSS-20 SyncStation
+/* Commerzielle und Technische Informationssysteme GmbH products */
+product FTDI CTI_USB_NANO_485	0xf60b	CTI USB-Nano 485
+product FTDI CTI_USB_MINI_485	0xf608	CTI USB-Mini 485
 
 /* Fuji photo products */
 product FUJIPHOTO MASS0100	0x0100	Mass Storage
@@ -1691,6 +1695,9 @@ product LUWEN EASYDISK		0x0005	EasyDisc
 /* Macally products */
 product MACALLY MOUSE1		0x0101	mouse
 
+/* Marvell Technology Group, Ltd. products */
+product MARVELL SHEEVAPLUG	0x9e8f	SheevaPlug serial interface
+
 /* MCT Corp. */
 product MCT HUB0100		0x0100	Hub
 product MCT DU_H3SP_USB232	0x0200	D-Link DU-H3SP USB BAY Hub
@@ -1940,6 +1947,8 @@ product OPTION GTICON322	0xd033	GlobeTrotter Icon322 storage
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
 product OPTION GTHSDPA		0x6971	GlobeTrotter HSDPA
 product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
+product OPTION GTMAXHSUPAE	0x6901	GlobeTrotter HSUPA PCIe
+product OPTION GTMAX380HSUPAE	0x7211	GlobeTrotter 380HSUPA PCIe
 
 /* OQO */
 product OQO WIFI01		0x0002	model 01 WiFi interface
@@ -2504,6 +2513,7 @@ product WESTERN COMBO		0x0200	Firewire USB Combo
 product WESTERN EXTHDD		0x0400	External HDD
 product WESTERN HUB		0x0500	USB HUB
 product WESTERN MYBOOK		0x0901	MyBook External HDD
+product WESTERN MYPASSWORD	0x0704	MyPassword External HDD
 
 /* Windbond Electronics */
 product WINBOND UH104		0x5518	4-port USB Hub
