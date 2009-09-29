@@ -1406,9 +1406,8 @@ ata_ati_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    /* IXP600 & IXP700 only have 1 PATA channel */
-    if ((ctlr->chip->chipid == ATA_ATI_IXP600) ||
-	(ctlr->chip->chipid == ATA_ATI_IXP700))
+    /* IXP600 only have 1 PATA channel */
+    if (ctlr->chip->chipid == ATA_ATI_IXP600)
 	ctlr->channels = 1;
 
     ctlr->setmode = ata_ati_setmode;
