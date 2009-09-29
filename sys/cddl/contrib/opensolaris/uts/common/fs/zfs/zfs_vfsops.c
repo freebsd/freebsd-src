@@ -864,7 +864,7 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 	znode_t *rootzp;
 	int error;
 
-	ZFS_ENTER(zfsvfs);
+	ZFS_ENTER_NOERROR(zfsvfs);
 
 	error = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
 	if (error == 0) {
@@ -898,6 +898,9 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		 * 'z_parent' is self referential for non-snapshots.
 		 */
 		(void) dnlc_purge_vfsp(zfsvfs->z_parent->z_vfs, 0);
+#ifdef FREEBSD_NAMECACHE
+		cache_purgevfs(zfsvfs->z_parent->z_vfs);
+#endif
 	}
 
 	/*
@@ -1027,6 +1030,17 @@ zfs_umount(vfs_t *vfsp, int fflag)
 		ASSERT(zfsvfs->z_ctldir == NULL);
 	}
 
+	if (fflag & MS_FORCE) {
+		/*
+		 * Mark file system as unmounted before calling
+		 * vflush(FORCECLOSE). This way we ensure no future vnops
+		 * will be called and risk operating on DOOMED vnodes.
+		 */
+		rrw_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
+		zfsvfs->z_unmounted = B_TRUE;
+		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
+	}
+
 	/*
 	 * Flush all the files.
 	 */
@@ -1093,8 +1107,7 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	if (zfsvfs->z_issnap) {
 		vnode_t *svp = vfsp->mnt_vnodecovered;
 
-		ASSERT(svp->v_count == 2 || svp->v_count == 1);
-		if (svp->v_count == 2)
+		if (svp->v_count >= 2)
 			VN_RELE(svp);
 	}
 	zfs_freevfs(vfsp);

@@ -890,17 +890,25 @@ again:
 		if (zp->z_unlinked) {
 			err = ENOENT;
 		} else {
-			if ((vp = ZTOV(zp)) != NULL) {
-				VI_LOCK(vp);
-				if ((vp->v_iflag & VI_DOOMED) != 0) {
-					VI_UNLOCK(vp);
-					vp = NULL;
-				} else
-					VI_UNLOCK(vp);
-			}
-			if (vp != NULL)
-				VN_HOLD(vp);
+			int dying = 0;
+
+			vp = ZTOV(zp);
+			if (vp == NULL)
+				dying = 1;
 			else {
+				VN_HOLD(vp);
+				if ((vp->v_iflag & VI_DOOMED) != 0) {
+					dying = 1;
+					/*
+					 * Don't VN_RELE() vnode here, because
+					 * it can call vn_lock() which creates
+					 * LOR between vnode lock and znode
+					 * lock. We will VN_RELE() the vnode
+					 * after droping znode lock.
+					 */
+				}
+			}
+			if (dying) {
 				if (first) {
 					ZFS_LOG(1, "dying znode detected (zp=%p)", zp);
 					first = 0;
@@ -912,6 +920,8 @@ again:
 				dmu_buf_rele(db, NULL);
 				mutex_exit(&zp->z_lock);
 				ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
+				if (vp != NULL)
+					VN_RELE(vp);
 				tsleep(zp, 0, "zcollide", 1);
 				goto again;
 			}
