@@ -255,6 +255,7 @@ VTOZ(vnode_t *vp)
 
 /*
  * ZFS_ENTER() is called on entry to each ZFS vnode and vfs operation.
+ * ZFS_ENTER_NOERROR() is called when we can't return EIO.
  * ZFS_EXIT() must be called before exitting the vop.
  * ZFS_VERIFY_ZP() verifies the znode is valid.
  */
@@ -266,6 +267,9 @@ VTOZ(vnode_t *vp)
 			return (EIO); \
 		} \
 	}
+
+#define	ZFS_ENTER_NOERROR(zfsvfs) \
+	rrw_enter(&(zfsvfs)->z_teardown_lock, RW_READER, FTAG)
 
 #define	ZFS_EXIT(zfsvfs) rrw_exit(&(zfsvfs)->z_teardown_lock, FTAG)
 
