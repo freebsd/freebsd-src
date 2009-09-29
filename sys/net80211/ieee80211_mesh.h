@@ -34,7 +34,7 @@
 #define	IEEE80211_MESH_DEFAULT_TTL	31
 
 /*
- * NB: all structures are__packed  so sizeof works on arm, et. al.
+ * NB: all structures are __packed  so sizeof works on arm, et. al.
  */
 /*
  * 802.11s Information Elements.
@@ -116,28 +116,11 @@ struct ieee80211_meshcngst_ie {
 					   AC_BE, AC_VI, AC_VO */
 } __packed;
 
-/* Peer Version */
-struct ieee80211_meshpeerver_ie {
-	uint8_t		peerver_ie;	/* IEEE80211_ELEMID_MESHPEERVER */
-	uint8_t		peerver_len;
-	uint8_t		peerver_proto[4];
-} __packed;
-/* Mesh Peering Management Protocol */
-#define	IEEE80211_MESHPEERVER_PEER_OUI		0x00, 0x0f, 0xac
-#define	IEEE80211_MESHPEERVER_PEER_VALUE	0x2a
-#define	IEEE80211_MESHPEERVER_PEER	{ IEEE80211_MESHPEERVER_PEER_OUI, \
-					  IEEE80211_MESHPEERVER_PEER_VALUE }
-/* Abbreviated Handshake Protocol */
-#define	IEEE80211_MESHPEERVER_AH_OUI		0x00, 0x0f, 0xac
-#define	IEEE80211_MESHPEERVER_AH_VALUE		0x2b
-#define	IEEE80211_MESHPEERVER_AH	{ IEEE80211_MESHPEERVER_AH_OUI, \
-					  IEEE80211_MESHPEERVER_AH_VALUE }
-
 /* Peer Link Management */
 struct ieee80211_meshpeer_ie {
 	uint8_t		peer_ie;	/* IEEE80211_ELEMID_MESHPEER */
 	uint8_t		peer_len;
-	uint8_t		peer_subtype;
+	uint8_t		peer_proto[4];	/* Peer Management Protocol */
 	uint16_t	peer_llinkid;	/* Local Link ID */
 	uint16_t	peer_linkid;	/* Peer Link ID */
 	uint16_t	peer_rcode;
@@ -150,6 +133,16 @@ enum {
 	/* values 3-255 are reserved */
 };
 
+/* Mesh Peering Management Protocol */
+#define	IEEE80211_MESH_PEER_PROTO_OUI		0x00, 0x0f, 0xac
+#define	IEEE80211_MESH_PEER_PROTO_VALUE		0x2a
+#define	IEEE80211_MESH_PEER_PROTO	{ IEEE80211_MESH_PEER_PROTO_OUI, \
+					  IEEE80211_MESH_PEER_PROTO_VALUE }
+/* Abbreviated Handshake Protocol */
+#define	IEEE80211_MESH_PEER_PROTO_AH_OUI	0x00, 0x0f, 0xac
+#define	IEEE80211_MESH_PEER_PROTO_AH_VALUE	0x2b
+#define	IEEE80211_MESH_PEER_PROTO_AH	{ IEEE80211_MESH_PEER_PROTO_AH_OUI, \
+					  IEEE80211_MESH_PEER_PROTO_AH_VALUE }
 #ifdef notyet
 /* Mesh Channel Switch Annoucement */
 struct ieee80211_meshcsa_ie {
@@ -256,11 +249,15 @@ struct ieee80211_meshprep_ie {
 struct ieee80211_meshperr_ie {
 	uint8_t		perr_ie;	/* IEEE80211_ELEMID_MESHPERR */
 	uint8_t		perr_len;
-	uint8_t		perr_mode;	/* NB: reserved */
+	uint8_t		perr_ttl;
 	uint8_t		perr_ndests;	/* Number of Destinations */
 	struct {
+		uint8_t		dest_flags;
+#define	IEEE80211_MESHPERR_DFLAGS_USN	0x01
+#define	IEEE80211_MESHPERR_DFLAGS_RC	0x02
 		uint8_t		dest_addr[IEEE80211_ADDR_LEN];
 		uint32_t	dest_seq;	/* HWMP Sequence Number */
+		uint16_t	dest_rcode;
 	} __packed perr_dests[1];		/* NB: variable size */
 } __packed;
 
@@ -310,14 +307,11 @@ enum {
 };
 
 /*
- * Mesh Path Selection Action codes.
+ * Mesh Path Selection Action code.
  */
 enum {
-	IEEE80211_ACTION_MESHPATH_REQ	= 0,
-	IEEE80211_ACTION_MESHPATH_REP	= 1,
-	IEEE80211_ACTION_MESHPATH_ERR	= 2,
-	IEEE80211_ACTION_MESHPATH_RANN	= 3,
-	/* 4-255 reserved */
+	IEEE80211_ACTION_MESHPATH_SEL	= 0,
+	/* 1-255 reserved */
 };
 
 /*
@@ -479,7 +473,6 @@ int		ieee80211_mesh_register_proto_path(const
 int		ieee80211_mesh_register_proto_metric(const
 		    struct ieee80211_mesh_proto_metric *);
 
-uint8_t *	ieee80211_add_meshpeerver(uint8_t *, struct ieee80211vap *);
 uint8_t *	ieee80211_add_meshid(uint8_t *, struct ieee80211vap *);
 uint8_t *	ieee80211_add_meshconf(uint8_t *, struct ieee80211vap *);
 uint8_t *	ieee80211_add_meshpeer(uint8_t *, uint8_t, uint16_t, uint16_t,
