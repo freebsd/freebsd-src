@@ -611,7 +611,7 @@ siftr_pkt_manager_thread(void *arg)
 static uint32_t
 hash_pkt(struct mbuf *m, uint32_t offset)
 {
-	register uint32_t hash = 0;
+	uint32_t hash = 0;
 
 	while ((m != NULL) && (offset > m->m_len)) {
 		/*
@@ -655,12 +655,12 @@ siftr_chkpkt(	void *arg,
 		struct inpcb *inp
 )
 {
-	register struct pkt_node *pkt_node = NULL;
-	register struct ip *ip = NULL;
-	register struct tcphdr *th = NULL;
-	register struct tcpcb *tp = NULL;
-	register unsigned int ip_hl = 0;
-	register uint8_t inp_locally_locked = 0;
+	struct pkt_node *pkt_node = NULL;
+	struct ip *ip = NULL;
+	struct tcphdr *th = NULL;
+	struct tcpcb *tp = NULL;
+	unsigned int ip_hl = 0;
+	uint8_t inp_locally_locked = 0;
 
 	/*
 	 * I don't think we need m_pullup here because both
@@ -950,12 +950,12 @@ siftr_chkpkt6(	void *arg,
 		struct inpcb *inp
 )
 {
-	register struct pkt_node *pkt_node = NULL;
-	register struct ip6_hdr *ip6 = NULL;
-	register struct tcphdr *th = NULL;
-	register struct tcpcb *tp = NULL;
-	register unsigned int ip6_hl = 0;
-	register uint8_t inp_locally_locked = 0;
+	struct pkt_node *pkt_node = NULL;
+	struct ip6_hdr *ip6 = NULL;
+	struct tcphdr *th = NULL;
+	struct tcpcb *tp = NULL;
+	unsigned int ip6_hl = 0;
+	uint8_t inp_locally_locked = 0;
 	
 	/*
 	 * I don't think we need m_pullup here because both
