@@ -188,10 +188,7 @@ SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, rannint, CTLTYPE_INT | CTLFLAG_RW,
 
 #define	IEEE80211_HWMP_DEFAULT_MAXHOPS	31
 
-static	ieee80211_recv_action_func hwmp_recv_action_meshpath_preq;
-static	ieee80211_recv_action_func hwmp_recv_action_meshpath_prep;
-static	ieee80211_recv_action_func hwmp_recv_action_meshpath_perr;
-static	ieee80211_recv_action_func hwmp_recv_action_meshpath_rann;
+static	ieee80211_recv_action_func hwmp_recv_action_meshpath;
 
 static struct ieee80211_mesh_proto_path mesh_proto_hwmp = {
 	.mpp_descr	= "HWMP",
@@ -217,16 +214,10 @@ ieee80211_hwmp_init(void)
 	ieee80211_hwmp_rannint = msecs_to_ticks(1*1000);
 
 	/*
-	 * Register action frame handlers.
+	 * Register action frame handler.
 	 */
 	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHPATH,
-	    IEEE80211_ACTION_MESHPATH_REQ, hwmp_recv_action_meshpath_preq);
-	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHPATH,
-	    IEEE80211_ACTION_MESHPATH_REP, hwmp_recv_action_meshpath_prep);
-	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHPATH,
-	    IEEE80211_ACTION_MESHPATH_ERR, hwmp_recv_action_meshpath_perr);
-	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHPATH,
-	    IEEE80211_ACTION_MESHPATH_RANN, hwmp_recv_action_meshpath_rann);
+	    IEEE80211_ACTION_MESHPATH_SEL, hwmp_recv_action_meshpath);
 
 	/* NB: default is 5 secs per spec */
 	mesh_proto_hwmp.mpp_inact = msecs_to_ticks(5*1000);
@@ -285,17 +276,23 @@ hwmp_newstate(struct ieee80211vap *vap, enum ieee80211_state ostate, int arg)
 }
 
 static int
-hwmp_recv_action_meshpath_preq(struct ieee80211_node *ni,
+hwmp_recv_action_meshpath(struct ieee80211_node *ni,
 	const struct ieee80211_frame *wh,
 	const uint8_t *frm, const uint8_t *efrm)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_meshpreq_ie preq;
+	struct ieee80211_meshprep_ie prep;
+	struct ieee80211_meshperr_ie perr;
+	struct ieee80211_meshrann_ie rann;
 	const uint8_t *iefrm = frm + 2; /* action + code */
+	int found = 0;
 
 	while (efrm - iefrm > 1) {
 		IEEE80211_VERIFY_LENGTH(efrm - iefrm, iefrm[1] + 2, return 0);
-		if (*iefrm == IEEE80211_ELEMID_MESHPREQ) {
+		switch (*iefrm) {
+		case IEEE80211_ELEMID_MESHPREQ:
+		{
 			const struct ieee80211_meshpreq_ie *mpreq =
 			    (const struct ieee80211_meshpreq_ie *) iefrm;
 			/* XXX > 1 target */
@@ -305,7 +302,7 @@ hwmp_recv_action_meshpath_preq(struct ieee80211_node *ni,
 				    IEEE80211_MSG_ACTION | IEEE80211_MSG_HWMP,
 				    wh, NULL, "%s", "PREQ with wrong len");
 				vap->iv_stats.is_rx_mgtdiscard++;
-				return 1;
+				break;
 			}
 			memcpy(&preq, mpreq, sizeof(preq));
 			preq.preq_id = LE_READ_4(&mpreq->preq_id);
@@ -315,28 +312,11 @@ hwmp_recv_action_meshpath_preq(struct ieee80211_node *ni,
 			preq.preq_targets[0].target_seq =
 			    LE_READ_4(&mpreq->preq_targets[0].target_seq);
 			hwmp_recv_preq(vap, ni, wh, &preq);
-			return 0;
+			found++;
+			break;	
 		}
-		iefrm += iefrm[1] + 2;
-	}
-	IEEE80211_DISCARD(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_HWMP,
-	    wh, NULL, "%s", "PREQ without IE");
-	vap->iv_stats.is_rx_mgtdiscard++;
-	return 0;
-}
-
-static int
-hwmp_recv_action_meshpath_prep(struct ieee80211_node *ni,
-	const struct ieee80211_frame *wh,
-	const uint8_t *frm, const uint8_t *efrm)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211_meshprep_ie prep;
-	const uint8_t *iefrm = frm + 2; /* action + code */
-
-	while (efrm - iefrm > 1) {
-		IEEE80211_VERIFY_LENGTH(efrm - iefrm, iefrm[1] + 2, return 0);
-		if (*iefrm == IEEE80211_ELEMID_MESHPREP) {
+		case IEEE80211_ELEMID_MESHPREP:
+		{
 			const struct ieee80211_meshprep_ie *mprep =
 			    (const struct ieee80211_meshprep_ie *) iefrm;
 			if (mprep->prep_len !=
@@ -345,7 +325,7 @@ hwmp_recv_action_meshpath_prep(struct ieee80211_node *ni,
 				    IEEE80211_MSG_ACTION | IEEE80211_MSG_HWMP,
 				    wh, NULL, "%s", "PREP with wrong len");
 				vap->iv_stats.is_rx_mgtdiscard++;
-				return 1;
+				break;
 			}
 			memcpy(&prep, mprep, sizeof(prep));
 			prep.prep_targetseq = LE_READ_4(&mprep->prep_targetseq);
@@ -353,28 +333,11 @@ hwmp_recv_action_meshpath_prep(struct ieee80211_node *ni,
 			prep.prep_metric = LE_READ_4(&mprep->prep_metric);
 			prep.prep_origseq = LE_READ_4(&mprep->prep_origseq);
 			hwmp_recv_prep(vap, ni, wh, &prep);
-			return 0;
+			found++;
+			break;
 		}
-		iefrm += iefrm[1] + 2;
-	}
-	IEEE80211_DISCARD(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_HWMP,
-	    wh, NULL, "%s", "PREP without IE");
-	vap->iv_stats.is_rx_mgtdiscard++;
-	return 0;
-}
-
-static int
-hwmp_recv_action_meshpath_perr(struct ieee80211_node *ni,
-	const struct ieee80211_frame *wh,
-	const uint8_t *frm, const uint8_t *efrm)
-{
-	struct ieee80211_meshperr_ie perr;
-	struct ieee80211vap *vap = ni->ni_vap;
-	const uint8_t *iefrm = frm + 2; /* action + code */
-
-	while (efrm - iefrm > 1) {
-		IEEE80211_VERIFY_LENGTH(efrm - iefrm, iefrm[1] + 2, return 0);
-		if (*iefrm == IEEE80211_ELEMID_MESHPERR) {
+		case IEEE80211_ELEMID_MESHPERR:
+		{
 			const struct ieee80211_meshperr_ie *mperr =
 			    (const struct ieee80211_meshperr_ie *) iefrm;
 			/* XXX > 1 target */
@@ -384,34 +347,17 @@ hwmp_recv_action_meshpath_perr(struct ieee80211_node *ni,
 				    IEEE80211_MSG_ACTION | IEEE80211_MSG_HWMP,
 				    wh, NULL, "%s", "PERR with wrong len");
 				vap->iv_stats.is_rx_mgtdiscard++;
-				return 1;
+				break;
 			}
 			memcpy(&perr, mperr, sizeof(perr));
 			perr.perr_dests[0].dest_seq =
 			    LE_READ_4(&mperr->perr_dests[0].dest_seq);
 			hwmp_recv_perr(vap, ni, wh, &perr);
-			return 0;
+			found++;
+			break;
 		}
-		iefrm += iefrm[1] + 2;
-	}
-	IEEE80211_DISCARD(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_HWMP,
-	    wh, NULL, "%s", "PERR without IE");
-	vap->iv_stats.is_rx_mgtdiscard++;
-	return 0;
-}
-
-static int
-hwmp_recv_action_meshpath_rann(struct ieee80211_node *ni,
-	const struct ieee80211_frame *wh,
-	const uint8_t *frm, const uint8_t *efrm)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211_meshrann_ie rann;
-	const uint8_t *iefrm = frm + 2; /* action + code */
-
-	while (efrm - iefrm > 1) {
-		IEEE80211_VERIFY_LENGTH(efrm - iefrm, iefrm[1] + 2, return 0);
-		if (*iefrm == IEEE80211_ELEMID_MESHRANN) {
+		case IEEE80211_ELEMID_MESHRANN:
+		{
 			const struct ieee80211_meshrann_ie *mrann =
 			    (const struct ieee80211_meshrann_ie *) iefrm;
 			if (mrann->rann_len !=
@@ -426,13 +372,18 @@ hwmp_recv_action_meshpath_rann(struct ieee80211_node *ni,
 			rann.rann_seq = LE_READ_4(&mrann->rann_seq);
 			rann.rann_metric = LE_READ_4(&mrann->rann_metric);
 			hwmp_recv_rann(vap, ni, wh, &rann);
-			return 0;
+			found++;
+			break;
+		}
 		}
 		iefrm += iefrm[1] + 2;
 	}
-	IEEE80211_DISCARD(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_HWMP,
-	    wh, NULL, "%s", "RANN without IE");
-	vap->iv_stats.is_rx_mgtdiscard++;
+	if (!found) {
+		IEEE80211_DISCARD(vap,
+		    IEEE80211_MSG_ACTION | IEEE80211_MSG_HWMP,
+		    wh, NULL, "%s", "PATH SEL action without IE");
+		vap->iv_stats.is_rx_mgtdiscard++;
+	}
 	return 0;
 }
 
@@ -480,24 +431,21 @@ hwmp_send_action(struct ieee80211_node *ni,
 		return ENOMEM;
 	}
 	*frm++ = IEEE80211_ACTION_CAT_MESHPATH;
+	*frm++ = IEEE80211_ACTION_MESHPATH_SEL;
 	switch (*ie) {
 	case IEEE80211_ELEMID_MESHPREQ:
-		*frm++ = IEEE80211_ACTION_MESHPATH_REQ;
 		frm = hwmp_add_meshpreq(frm,
 		    (struct ieee80211_meshpreq_ie *)ie);
 		break;
 	case IEEE80211_ELEMID_MESHPREP:
-		*frm++ = IEEE80211_ACTION_MESHPATH_REP;
 		frm = hwmp_add_meshprep(frm,
 		    (struct ieee80211_meshprep_ie *)ie);
 		break;
 	case IEEE80211_ELEMID_MESHPERR:
-		*frm++ = IEEE80211_ACTION_MESHPATH_ERR;
 		frm = hwmp_add_meshperr(frm,
 		    (struct ieee80211_meshperr_ie *)ie);
 		break;
 	case IEEE80211_ELEMID_MESHRANN:
-		*frm++ = IEEE80211_ACTION_MESHPATH_RANN;
 		frm = hwmp_add_meshrann(frm,
 		    (struct ieee80211_meshrann_ie *)ie);
 		break;
@@ -528,6 +476,11 @@ hwmp_send_action(struct ieee80211_node *ni,
 	return ic->ic_raw_xmit(ni, m, &params);
 }
 
+#define ADDSHORT(frm, v) do {		\
+	frm[0] = (v) & 0xff;		\
+	frm[1] = (v) >> 8;		\
+	frm += 2;			\
+} while (0)
 #define ADDWORD(frm, v) do {		\
 	LE_WRITE_4(frm, v);		\
 	frm += 4;			\
@@ -592,12 +545,14 @@ hwmp_add_meshperr(uint8_t *frm, const struct ieee80211_meshperr_ie *perr)
 	*frm++ = IEEE80211_ELEMID_MESHPERR;
 	*frm++ = sizeof(struct ieee80211_meshperr_ie) - 2 +
 	    (perr->perr_ndests - 1) * sizeof(*perr->perr_dests);
-	*frm++ = perr->perr_mode;
+	*frm++ = perr->perr_ttl;
 	*frm++ = perr->perr_ndests;
 	for (i = 0; i < perr->perr_ndests; i++) {
+		*frm += perr->perr_dests[i].dest_flags;
 		IEEE80211_ADDR_COPY(frm, perr->perr_dests[i].dest_addr);
 		frm += 6;
 		ADDWORD(frm, perr->perr_dests[i].dest_seq);
+		ADDSHORT(frm, perr->perr_dests[i].dest_rcode);
 	}
 	return frm;
 }
@@ -1138,12 +1093,15 @@ hwmp_send_prep(struct ieee80211_node *ni,
 	    sizeof(struct ieee80211_meshprep_ie));
 }
 
+#define	PERR_DFLAGS(n)	perr.perr_dests[n].dest_flags
 #define	PERR_DADDR(n)	perr.perr_dests[n].dest_addr
 #define	PERR_DSEQ(n)	perr.perr_dests[n].dest_seq
+#define	PERR_DRCODE(n)	perr.perr_dests[n].dest_rcode
 static void
 hwmp_peerdown(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_mesh_state *ms = vap->iv_mesh;
 	struct ieee80211_meshperr_ie perr;
 	struct ieee80211_mesh_route *rt;
 	struct ieee80211_hwmp_route *hr;
@@ -1154,19 +1112,27 @@ hwmp_peerdown(struct ieee80211_node *ni)
 	hr = IEEE80211_MESH_ROUTE_PRIV(rt, struct ieee80211_hwmp_route);
 	IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 	    "%s", "delete route entry");
-	perr.perr_mode = 0;
+	perr.perr_ttl = ms->ms_ttl;
 	perr.perr_ndests = 1;
+	if (hr->hr_seq == 0)
+		PERR_DFLAGS(0) |= IEEE80211_MESHPERR_DFLAGS_USN;
+	PERR_DFLAGS(0) |= IEEE80211_MESHPERR_DFLAGS_RC;
 	IEEE80211_ADDR_COPY(PERR_DADDR(0), rt->rt_dest);
 	PERR_DSEQ(0) = hr->hr_seq;
+	PERR_DRCODE(0) = IEEE80211_REASON_MESH_PERR_DEST_UNREACH;
 	/* NB: flush everything passing through peer */
 	ieee80211_mesh_rt_flush_peer(vap, ni->ni_macaddr);
 	hwmp_send_perr(vap->iv_bss, vap->iv_myaddr, broadcastaddr, &perr);
 }
+#undef	PERR_DFLAGS
 #undef	PERR_DADDR
 #undef	PERR_DSEQ
+#undef	PERR_DRCODE
 
+#define	PERR_DFLAGS(n)	perr->perr_dests[n].dest_flags
 #define	PERR_DADDR(n)	perr->perr_dests[n].dest_addr
 #define	PERR_DSEQ(n)	perr->perr_dests[n].dest_seq
+#define	PERR_DRCODE(n)	perr->perr_dests[n].dest_rcode
 static void
 hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
     const struct ieee80211_frame *wh, const struct ieee80211_meshperr_ie *perr)
@@ -1192,9 +1158,9 @@ hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		rt = ieee80211_mesh_rt_find(vap, PERR_DADDR(i));
 		if (rt == NULL)
 			continue;
-		hr = IEEE80211_MESH_ROUTE_PRIV(rt,
-		    struct ieee80211_hwmp_route);
-		if (HWMP_SEQ_GEQ(PERR_DSEQ(i), hr->hr_seq)) {
+		hr = IEEE80211_MESH_ROUTE_PRIV(rt, struct ieee80211_hwmp_route);
+		if (!(PERR_DFLAGS(0) & IEEE80211_MESHPERR_DFLAGS_USN) && 
+		    HWMP_SEQ_GEQ(PERR_DSEQ(i), hr->hr_seq)) {
 			ieee80211_mesh_rt_del(vap, rt->rt_dest);
 			ieee80211_mesh_rt_flush_peer(vap, rt->rt_dest);
 			rt = NULL;
@@ -1205,10 +1171,11 @@ hwmp_recv_perr(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 * Propagate the PERR if we previously found it on our routing table.
 	 * XXX handle ndest > 1
 	 */
-	if (forward) {
+	if (forward && perr->perr_ttl > 1) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
 		    "propagate PERR from %s", ether_sprintf(wh->i_addr2));
 		memcpy(&pperr, perr, sizeof(*perr));
+		pperr.perr_ttl--;
 		hwmp_send_perr(vap->iv_bss, vap->iv_myaddr, broadcastaddr,
 		    &pperr);
 	}
