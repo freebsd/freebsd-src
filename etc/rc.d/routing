@@ -51,7 +51,9 @@ static_start()
 		;;
 	*)
 		do_static inet add
-		do_static inet6 add
+		if afexists inet6; then
+			do_static inet6 add
+		fi
 		do_static atm add
 		;;
 	esac
@@ -74,7 +76,9 @@ static_stop()
 		;;
 	*)
 		do_static inet delete
-		do_static inet6 delete
+		if afexists inet6; then
+			do_static inet6 delete
+		fi
 		do_static atm delete
 		;;
 	esac
