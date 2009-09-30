@@ -9,7 +9,7 @@ Items affecting the ports and packages system can be found in
 portupgrade.
 
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
-	For ia64 the INVARIANTS and INVARIANTS_SUPPORT kernel options
+	For ia64 the INVARIANTS and INVARIANT_SUPPORT kernel options
 	were left in the GENERIC kernel because the kernel does not
 	work properly without them.  For sun4v all of the normal kernel
 	debugging tools present in HEAD were left in place because
