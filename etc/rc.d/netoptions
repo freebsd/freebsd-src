@@ -9,6 +9,7 @@
 # KEYWORD: nojail
 
 . /etc/rc.subr
+. /etc/network.subr
 
 name="netoptions"
 start_cmd="netoptions_start"
@@ -66,11 +67,13 @@ netoptions_start()
 		;;
 	esac
 
-	if checkyesno ipv6_ipv4mapping; then
-		${SYSCTL_W} net.inet6.ip6.v6only=0 >/dev/null
-	else
-		echo -n " no-ipv4-mapped-ipv6"
-		${SYSCTL_W} net.inet6.ip6.v6only=1 >/dev/null
+	if afexists inet6; then
+		if checkyesno ipv6_ipv4mapping; then
+			${SYSCTL_W} net.inet6.ip6.v6only=0 >/dev/null
+		else
+			echo -n " no-ipv4-mapped-ipv6"
+			${SYSCTL_W} net.inet6.ip6.v6only=1 >/dev/null
+		fi
 	fi
 
 	[ -n "${_netoptions_initdone}" ] && echo '.'
