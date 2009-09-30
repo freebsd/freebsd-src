@@ -295,9 +295,7 @@ alq_doio(struct alq *alq)
 	int vfslocked;
 	int wrapearly;
 
-	KASSERT((ALQ_HAS_PENDING_DATA(alq)),
-		("%s: queue emtpy!", __func__)
-	);
+	KASSERT((ALQ_HAS_PENDING_DATA(alq)), ("%s: queue emtpy!", __func__));
 
 	vp = alq->aq_vp;
 	td = curthread;
@@ -384,8 +382,7 @@ alq_doio(struct alq *alq)
 		alq->aq_writehead = alq->aq_writetail = 0;
 
 	KASSERT((alq->aq_writetail >= 0 && alq->aq_writetail < alq->aq_buflen),
-		("%s: aq_writetail < 0 || aq_writetail >= aq_buflen", __func__)
-	);
+	    ("%s: aq_writetail < 0 || aq_writetail >= aq_buflen", __func__));
 
 	if (alq->aq_flags & AQ_WANTED) {
 		alq->aq_flags &= ~AQ_WANTED;
@@ -396,9 +393,9 @@ alq_doio(struct alq *alq)
 }
 
 static struct kproc_desc ald_kp = {
-        "ALQ Daemon",
-        ald_daemon,
-        &ald_proc
+	"ALQ Daemon",
+	ald_daemon,
+	&ald_proc
 };
 
 SYSINIT(aldthread, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &ald_kp);
@@ -479,8 +476,7 @@ alq_write(struct alq *alq, void *data, int flags)
 {
 	/* Should only be called in fixed length message (legacy) mode. */
 	KASSERT((alq->aq_entmax > 0 && alq->aq_entlen > 0),
-		("%s: fixed length write on variable length queue", __func__)
-	);
+	    ("%s: fixed length write on variable length queue", __func__));
 	return (alq_writen(alq, data, alq->aq_entlen, flags));
 }
 
@@ -491,8 +487,7 @@ alq_writen(struct alq *alq, void *data, int len, int flags)
 	int copy = len;
 
 	KASSERT((len > 0 && len <= alq->aq_buflen),
-		("%s: len <= 0 || len > aq_buflen", __func__)
-	);
+	    ("%s: len <= 0 || len > aq_buflen", __func__));
 
 	ALQ_LOCK(alq);
 
@@ -546,8 +541,7 @@ alq_writen(struct alq *alq, void *data, int len, int flags)
 		KASSERT((alq->aq_writehead == alq->aq_buflen),
 		    ("alq->aq_writehead (%d) > alq->aq_buflen (%d)",
 		    alq->aq_writehead,
-		    alq->aq_buflen)
-		);
+		    alq->aq_buflen));
 		alq->aq_writehead = 0;
 	}
 
@@ -561,8 +555,7 @@ alq_writen(struct alq *alq, void *data, int len, int flags)
 	}
 
 	KASSERT((alq->aq_writehead >= 0 && alq->aq_writehead < alq->aq_buflen),
-		("%s: aq_writehead < 0 || aq_writehead >= aq_buflen", __func__)
-	);
+	    ("%s: aq_writehead < 0 || aq_writehead >= aq_buflen", __func__));
 
 	alq->aq_freebytes -= len;
 
@@ -588,8 +581,7 @@ alq_get(struct alq *alq, int flags)
 {
 	/* Should only be called in fixed length message (legacy) mode. */
 	KASSERT((alq->aq_entmax > 0 && alq->aq_entlen > 0),
-		("%s: fixed length get on variable length queue", __func__)
-	);
+	    ("%s: fixed length get on variable length queue", __func__));
 	return (alq_getn(alq, alq->aq_entlen, flags));
 }
 
@@ -599,8 +591,7 @@ alq_getn(struct alq *alq, int len, int flags)
 	int contigbytes;
 
 	KASSERT((len > 0 && len <= alq->aq_buflen),
-		("%s: len <= 0 || len > alq->aq_buflen", __func__)
-	);
+	    ("%s: len <= 0 || len > alq->aq_buflen", __func__));
 
 	ALQ_LOCK(alq);
 
@@ -642,7 +633,7 @@ alq_getn(struct alq *alq, int len, int flags)
 	 * to accept the message and the user can't wait, return.
 	 */
 	if ((len > alq->aq_buflen) ||
-		((flags & ALQ_NOWAIT) && (contigbytes < len))) {
+	    ((flags & ALQ_NOWAIT) && (contigbytes < len))) {
 		ALQ_UNLOCK(alq);
 		return (NULL);
 	}
@@ -689,8 +680,7 @@ alq_getn(struct alq *alq, int len, int flags)
 		alq->aq_writehead = 0;
 
 	KASSERT((alq->aq_writehead >= 0 && alq->aq_writehead < alq->aq_buflen),
-		("%s: aq_writehead < 0 || aq_writehead >= aq_buflen", __func__)
-	);
+	    ("%s: aq_writehead < 0 || aq_writehead >= aq_buflen", __func__));
 
 	return (&alq->aq_getpost);
 }
@@ -701,7 +691,7 @@ alq_post(struct alq *alq, struct ale *ale, int flags)
 	int activate;
 
 	if (((alq->aq_flags & AQ_ACTIVE) == 0) &&
-		((flags & ALQ_NOACTIVATE) == 0)) {
+	    ((flags & ALQ_NOACTIVATE) == 0)) {
 		alq->aq_flags |= AQ_ACTIVE;
 		activate = 1;
 	} else
