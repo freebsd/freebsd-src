@@ -536,7 +536,11 @@ siftr_pkt_manager_thread(void *arg)
 		 * Sleep until we are signalled to wake because thread has
 		 * been told to exit or until 1 tick has passed.
 		 */
-		msleep(&wait_for_pkt, &siftr_pkt_mgr_mtx, PWAIT, "pktwait", 1);
+		mtx_sleep(&wait_for_pkt,
+		    &siftr_pkt_mgr_mtx,
+		    PWAIT,
+		    "pktwait",
+		    1);
 
 		/* Gain exclusive access to the pkt_node queue. */
 		mtx_lock(&siftr_pkt_queue_mtx);
@@ -1304,7 +1308,7 @@ siftr_manage_ops(uint8_t action)
 		wakeup(&wait_for_pkt);
 
 		/* Wait for the pkt_manager thread to exit. */
-		msleep(siftr_pkt_manager_thr,
+		mtx_sleep(siftr_pkt_manager_thr,
 		    &siftr_pkt_mgr_mtx,
 		    PWAIT,
 		    "thrwait",
