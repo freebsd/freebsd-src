@@ -622,6 +622,7 @@ static const struct {
 #define HDA_CODEC_ALC882	HDA_CODEC_CONSTRUCT(REALTEK, 0x0882)
 #define HDA_CODEC_ALC883	HDA_CODEC_CONSTRUCT(REALTEK, 0x0883)
 #define HDA_CODEC_ALC885	HDA_CODEC_CONSTRUCT(REALTEK, 0x0885)
+#define HDA_CODEC_ALC887	HDA_CODEC_CONSTRUCT(REALTEK, 0x0887)
 #define HDA_CODEC_ALC888	HDA_CODEC_CONSTRUCT(REALTEK, 0x0888)
 #define HDA_CODEC_ALC889	HDA_CODEC_CONSTRUCT(REALTEK, 0x0889)
 #define HDA_CODEC_ALCXXXX	HDA_CODEC_CONSTRUCT(REALTEK, 0xffff)
@@ -807,6 +808,7 @@ static const struct {
 	{ HDA_CODEC_ALC882,    "Realtek ALC882" },
 	{ HDA_CODEC_ALC883,    "Realtek ALC883" },
 	{ HDA_CODEC_ALC885,    "Realtek ALC885" },
+	{ HDA_CODEC_ALC887,    "Realtek ALC887" },
 	{ HDA_CODEC_ALC888,    "Realtek ALC888" },
 	{ HDA_CODEC_ALC889,    "Realtek ALC889" },
 	{ HDA_CODEC_AD1882,    "Analog Devices AD1882" },
@@ -6568,7 +6570,7 @@ hdac_create_pcms(struct hdac_devinfo *devinfo)
 			continue;
 		for (j = 0; j < devinfo->function.audio.num_devs; j++) {
 			if (devinfo->function.audio.devs[j].digital != 255 &&
-			    (!devinfo->function.audio.devs[j].digital) ==
+			    (!devinfo->function.audio.devs[j].digital) !=
 			    (!as[i].digital))
 				continue;
 			if (as[i].dir == HDA_CTL_IN) {
