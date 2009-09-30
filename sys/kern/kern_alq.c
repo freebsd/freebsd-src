@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/alq.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
@@ -46,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
