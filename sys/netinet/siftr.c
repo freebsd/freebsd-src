@@ -2,24 +2,12 @@
  * Copyright (c) 2007-2009, Centre for Advanced Internet Architectures
  * Swinburne University of Technology, Melbourne, Australia
  * (CRICOS number 00111D).
- *
+ * Copyright (c) 2009, The FreeBSD Foundation
  * All rights reserved.
  *
- * SIFTR was first released in 2007 by James Healy and Lawrence Stewart whilst
- * working on the NewTCP research project at Swinburne University's Centre for
- * Advanced Internet Architectures, Melbourne, Australia, which was made
- * possible in part by a grant from the Cisco University Research Program Fund
- * at Community Foundation Silicon Valley. More details are available at:
- *   http://caia.swin.edu.au/urp/newtcp/
- *
- * Work on SIFTR v1.2.x was sponsored by the FreeBSD Foundation as part of
- * the "Enhancing the FreeBSD TCP Implementation" project 2008-2009.
- * More details are available at:
- *   http://www.freebsdfoundation.org/
- *   http://caia.swin.edu.au/freebsd/etcp09/
- *
- * Lawrence Stewart is currently the sole maintainer, and all contact regarding
- * SIFTR should be directed to him via email: lastewart@swin.edu.au
+ * Portions of this software were developed at the Centre for Advanced
+ * Internet Architectures, Swinburne University of Technology, Melbourne,
+ * Australia by Lawrence Stewart under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,6 +35,7 @@
  * SUCH DAMAGE.
  */
 
+
 /******************************************************
  * Statistical Information For TCP Research (SIFTR)
  *
@@ -54,8 +43,24 @@
  * TCP stack, allowing internal stats to be recorded to a log file
  * during experimentation.
  *
+ * SIFTR was first released in 2007 by James Healy and Lawrence Stewart whilst
+ * working on the NewTCP research project at Swinburne University's Centre for
+ * Advanced Internet Architectures, Melbourne, Australia, which was made
+ * possible in part by a grant from the Cisco University Research Program Fund
+ * at Community Foundation Silicon Valley. More details are available at:
+ *   http://caia.swin.edu.au/urp/newtcp/
+ *
+ * Work on SIFTR v1.2.x was sponsored by the FreeBSD Foundation as part of
+ * the "Enhancing the FreeBSD TCP Implementation" project 2008-2009.
+ * More details are available at:
+ *   http://www.freebsdfoundation.org/
+ *   http://caia.swin.edu.au/freebsd/etcp09/
+ *
+ * Lawrence Stewart is currently the sole maintainer, and all contact regarding
+ * SIFTR should be directed to him via email: lastewart@swin.edu.au
+ *
  * Initial release date: June 2007
- * Most recent update: July 2009
+ * Most recent update: September 2009
  ******************************************************/
 
 
