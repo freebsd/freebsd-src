@@ -931,7 +931,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		 * so, just drop one and return.
 		 */
 		if (SX_SHARERS(x) > 1) {
-			if (atomic_cmpset_ptr(&sx->sx_lock, x,
+			if (atomic_cmpset_rel_ptr(&sx->sx_lock, x,
 			    x - SX_ONE_SHARER)) {
 				if (LOCK_LOG_TEST(&sx->lock_object, 0))
 					CTR4(KTR_LOCK,
@@ -949,8 +949,8 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		 */
 		if (!(x & SX_LOCK_EXCLUSIVE_WAITERS)) {
 			MPASS(x == SX_SHARERS_LOCK(1));
-			if (atomic_cmpset_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1),
-			    SX_LOCK_UNLOCKED)) {
+			if (atomic_cmpset_rel_ptr(&sx->sx_lock,
+			    SX_SHARERS_LOCK(1), SX_LOCK_UNLOCKED)) {
 				if (LOCK_LOG_TEST(&sx->lock_object, 0))
 					CTR2(KTR_LOCK, "%s: %p last succeeded",
 					    __func__, sx);
@@ -973,7 +973,7 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		 * Note that the state of the lock could have changed,
 		 * so if it fails loop back and retry.
 		 */
-		if (!atomic_cmpset_ptr(&sx->sx_lock,
+		if (!atomic_cmpset_rel_ptr(&sx->sx_lock,
 		    SX_SHARERS_LOCK(1) | SX_LOCK_EXCLUSIVE_WAITERS,
 		    SX_LOCK_UNLOCKED)) {
 			sleepq_release(&sx->lock_object);
