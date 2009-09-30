@@ -132,14 +132,14 @@ enable_intr(void)
 #endif
 }
 
-static inline void
+static __inline void
 cpu_monitor(const void *addr, int extensions, int hints)
 {
 	__asm __volatile("monitor;"
 	    : :"a" (addr), "c" (extensions), "d"(hints));
 }
 
-static inline void
+static __inline void
 cpu_mwait(int extensions, int hints)
 {
 	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));
