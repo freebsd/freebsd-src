@@ -68,32 +68,32 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/alq.h>
 #include <sys/errno.h>
 #include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/module.h>
-#include <sys/unistd.h>
-#include <sys/sysctl.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/sbuf.h>
-#include <sys/alq.h>
-#include <sys/proc.h>
+#include <sys/sysctl.h>
+#include <sys/unistd.h>
 #include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/pfil.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
+#include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/tcp_var.h>
-#include <netinet/in_pcb.h>
-#include <netinet/in_var.h>
 
 #ifdef SIFTR_IPV6
 #include <netinet/ip6.h>
