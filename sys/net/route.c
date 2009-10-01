@@ -56,6 +56,7 @@
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/vnet.h>
+#include <net/flowtable.h>
 
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
@@ -996,6 +997,9 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 {
 	int error = 0, needlock = 0;
 	register struct rtentry *rt;
+#ifdef FLOWTABLE
+	register struct rtentry *rt0;
+#endif
 	register struct radix_node *rn;
 	register struct radix_node_head *rnh;
 	struct ifaddr *ifa;
@@ -1153,6 +1157,53 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		}
 #endif
 
+#ifdef FLOWTABLE
+		rt0 = NULL;
+		/* XXX
+		 * "flow-table" only support IPv4 at the moment.
+		 */
+		if (dst->sa_family == AF_INET) {
+			rn = rnh->rnh_matchaddr(dst, rnh);
+			if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
+				struct sockaddr *mask;
+				u_char *m, *n;
+				int len;
+				
+				/*
+				 * compare mask to see if the new route is
+				 * more specific than the existing one
+				 */
+				rt0 = RNTORT(rn);
+				RT_LOCK(rt0);
+				RT_ADDREF(rt0);
+				RT_UNLOCK(rt0);
+				/*
+				 * A host route is already present, so 
+				 * leave the flow-table entries as is.
+				 */
+				if (rt0->rt_flags & RTF_HOST) {
+					RTFREE(rt0);
+					rt0 = NULL;
+				} else if (!(flags & RTF_HOST) && netmask) {
+					mask = rt_mask(rt0);
+					len = mask->sa_len;
+					m = (u_char *)mask;
+					n = (u_char *)netmask;
+					while (len-- > 0) {
+						if (*n != *m)
+							break;
+						n++;
+						m++;
+					}
+					if (len == 0 || (*n < *m)) {
+						RTFREE(rt0);
+						rt0 = NULL;
+					}
+				}
+			}
+		}
+#endif
+
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 		rn = rnh->rnh_addaddr(ndst, netmask, rnh, rt->rt_nodes);
 		/*
@@ -1165,8 +1216,18 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
 			uma_zfree(V_rtzone, rt);
+#ifdef FLOWTABLE
+			if (rt0 != NULL)
+				RTFREE(rt0);
+#endif
 			senderr(EEXIST);
+		} 
+#ifdef FLOWTABLE
+		else if (rt0 != NULL) {
+			flowtable_route_flush(V_ip_ft, rt0);
+			RTFREE(rt0);
 		}
+#endif
 
 		/*
 		 * If this protocol has something to add to this then
