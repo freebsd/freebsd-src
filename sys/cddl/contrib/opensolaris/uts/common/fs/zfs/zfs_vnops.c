@@ -4180,7 +4180,11 @@ zfs_freebsd_setattr(ap)
 	zflags = VTOZ(vp)->z_phys->zp_flags;
 
 	if (vap->va_flags != VNOVAL) {
+		zfsvfs_t *zfsvfs = VTOZ(vp)->z_zfsvfs;
 		int error;
+
+		if (zfsvfs->z_use_fuids == B_FALSE)
+			return (EOPNOTSUPP);
 
 		fflags = vap->va_flags;
 		if ((fflags & ~(SF_IMMUTABLE|SF_APPEND|SF_NOUNLINK|UF_NODUMP)) != 0)
