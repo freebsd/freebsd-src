@@ -288,11 +288,24 @@ print_caddr_t(void *data)
 {
 	printf("%s", (char *)data);
 }
+
+static void
+print_version(void *data __unused)
+{
+	int len;
+
+	/* Strip a trailing newline from version. */
+	len = strlen(version);
+	while (len > 0 && version[len - 1] == '\n')
+		len--;
+	printf("%.*s %s\n", len, version, machine);
+}
+
 SYSINIT(announce, SI_SUB_COPYRIGHT, SI_ORDER_FIRST, print_caddr_t,
     copyright);
 SYSINIT(trademark, SI_SUB_COPYRIGHT, SI_ORDER_SECOND, print_caddr_t,
     trademark);
-SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_caddr_t, version);
+SYSINIT(version, SI_SUB_COPYRIGHT, SI_ORDER_THIRD, print_version, NULL);
 
 #ifdef WITNESS
 static char wit_warn[] =
