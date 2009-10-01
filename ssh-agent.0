@@ -63,7 +63,7 @@ DESCRIPTION
      agent starts a new subcommand into which some environment variables are
      exported, eg ssh-agent xterm &.  The second is that the agent prints the
      needed shell commands (either sh(1) or csh(1) syntax can be generated)
-     which can be evalled in the calling shell, eg eval `ssh-agent -s` for
+     which can be evaluated in the calling shell, eg eval `ssh-agent -s` for
      Bourne-type shells such as sh(1) or ksh(1) and eval `ssh-agent -c` for
      csh(1) and derivatives.
 
@@ -114,4 +114,4 @@ AUTHORS
      ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.5                      June 5, 2007                                2
+OpenBSD 4.6                     March 26, 2009                               2

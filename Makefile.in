@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.298 2008/11/05 05:20:46 djm Exp $
+# $Id: Makefile.in,v 1.300 2009/08/28 00:47:38 djm Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -74,7 +74,8 @@ LIBSSH_OBJS=acss.o authfd.o authfile.o bufaux.o bufbn.o buffer.o \
 	entropy.o scard-opensc.o gss-genr.o umac.o jpake.o schnorr.o
 
 SSHOBJS= ssh.o readconf.o clientloop.o sshtty.o \
-	sshconnect.o sshconnect1.o sshconnect2.o mux.o
+	sshconnect.o sshconnect1.o sshconnect2.o mux.o \
+	roaming_common.o
 
 SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
 	sshpty.o sshlogin.o servconf.o serverloop.o \
@@ -86,7 +87,8 @@ SSHDOBJS=sshd.o auth-rhosts.o auth-passwd.o auth-rsa.o auth-rh-rsa.o \
 	auth-krb5.o \
 	auth2-gss.o gss-serv.o gss-serv-krb5.o \
 	loginrec.o auth-pam.o auth-shadow.o auth-sia.o md5crypt.o \
-	audit.o audit-bsm.o platform.o sftp-server.o sftp-common.o
+	audit.o audit-bsm.o platform.o sftp-server.o sftp-common.o \
+	roaming_common.o
 
 MANPAGES	= moduli.5.out scp.1.out ssh-add.1.out ssh-agent.1.out ssh-keygen.1.out ssh-keyscan.1.out ssh.1.out sshd.8.out sftp-server.8.out sftp.1.out ssh-rand-helper.8.out ssh-keysign.8.out sshd_config.5.out ssh_config.5.out
 MANPAGES_IN	= moduli.5 scp.1 ssh-add.1 ssh-agent.1 ssh-keygen.1 ssh-keyscan.1 ssh.1 sshd.8 sftp-server.8 sftp.1 ssh-rand-helper.8 ssh-keysign.8 sshd_config.5 ssh_config.5
@@ -151,11 +153,11 @@ ssh-agent$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-agent.o
 ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keygen.o
 	$(LD) -o $@ ssh-keygen.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o
-	$(LD) -o $@ ssh-keysign.o readconf.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
+ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o roaming_dummy.o
+	$(LD) -o $@ ssh-keysign.o readconf.o roaming_dummy.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
-ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o
-	$(LD) -o $@ ssh-keyscan.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
+ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o roaming_dummy.o
+	$(LD) -o $@ ssh-keyscan.o roaming_dummy.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
 
 sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a sftp.o sftp-common.o sftp-server.o sftp-server-main.o
 	$(LD) -o $@ sftp-server.o sftp-common.o sftp-server-main.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
@@ -240,7 +242,7 @@ check-config:
 	-$(DESTDIR)$(sbindir)/sshd -t -f $(DESTDIR)$(sysconfdir)/sshd_config
 
 scard-install:
-	(cd scard && $(MAKE) DESTDIR=$(DESTDIR) install)
+	(cd scard && env DESTDIR=$(DESTDIR) $(MAKE) DESTDIR=$(DESTDIR) install)
 
 install-files: scard-install
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(bindir)

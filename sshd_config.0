@@ -88,14 +88,16 @@ DESCRIPTION
              protocol version 2.  By default, no banner is displayed.
 
      ChallengeResponseAuthentication
-             Specifies whether challenge-response authentication is allowed.
-             All authentication styles from login.conf(5) are supported.  The
-             default is ``yes''.
+             Specifies whether challenge-response authentication is allowed
+             (e.g. via PAM or though authentication styles supported in
+             login.conf(5)) The default is ``yes''.
 
      ChrootDirectory
              Specifies a path to chroot(2) to after authentication.  This
              path, and all its components, must be root-owned directories that
-             are not writable by any other user or group.
+             are not writable by any other user or group.  After the chroot,
+             sshd(8) changes the working directory to the user's home directo-
+             ry.
 
              The path may contain the following tokens that are expanded at
              runtime once the connecting user has been authenticated: %% is
@@ -104,13 +106,14 @@ DESCRIPTION
              name of that user.
 
              The ChrootDirectory must contain the necessary files and directo-
-             ries to support the users' session.  For an interactive session
+             ries to support the user's session.  For an interactive session
              this requires at least a shell, typically sh(1), and basic /dev
              nodes such as null(4), zero(4), stdin(4), stdout(4), stderr(4),
              arandom(4) and tty(4) devices.  For file transfer sessions using
              ``sftp'', no additional configuration of the environment is nec-
-             essary if the in-process sftp server is used (see Subsystem for
-             details).
+             essary if the in-process sftp server is used, though sessions
+             which use logging do require /dev/log inside the chroot directory
+             (see sftp-server(8) for details).
 
              The default is not to chroot(2).
 
@@ -628,4 +631,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 4.5                    February 22, 2009                            10
+OpenBSD 4.6                     April 21, 2009                              10

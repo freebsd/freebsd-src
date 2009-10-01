@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.102 2009/02/22 23:59:25 djm Exp $
-.Dd $Mdocdate: February 22 2009 $
+.\" $OpenBSD: sshd_config.5,v 1.106 2009/04/21 15:13:17 stevesk Exp $
+.Dd $Mdocdate: April 21 2009 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -176,10 +176,9 @@ then no banner is displayed.
 This option is only available for protocol version 2.
 By default, no banner is displayed.
 .It Cm ChallengeResponseAuthentication
-Specifies whether challenge-response authentication is allowed.
-All authentication styles from
-.Xr login.conf 5
-are supported.
+Specifies whether challenge-response authentication is allowed (e.g. via
+PAM or though authentication styles supported in
+.Xr login.conf 5 )
 The default is
 .Dq yes .
 .It Cm ChrootDirectory
@@ -188,6 +187,9 @@ Specifies a path to
 to after authentication.
 This path, and all its components, must be root-owned directories that are
 not writable by any other user or group.
+After the chroot,
+.Xr sshd 8
+changes the working directory to the user's home directory.
 .Pp
 The path may contain the following tokens that are expanded at runtime once
 the connecting user has been authenticated: %% is replaced by a literal '%',
@@ -197,7 +199,7 @@ the connecting user has been authenticated: %% is replaced by a literal '%',
 The
 .Cm ChrootDirectory
 must contain the necessary files and directories to support the
-users' session.
+user's session.
 For an interactive session this requires at least a shell, typically
 .Xr sh 1 ,
 and basic
@@ -215,8 +217,11 @@ devices.
 For file transfer sessions using
 .Dq sftp ,
 no additional configuration of the environment is necessary if the
-in-process sftp server is used (see
-.Cm Subsystem
+in-process sftp server is used,
+though sessions which use logging do require
+.Pa /dev/log
+inside the chroot directory (see
+.Xr sftp-server 8
 for details).
 .Pp
 The default is not to

@@ -1,8 +1,20 @@
 #!/bin/bash
 #
-# ssh-host-config, Copyright 2000, 2001, 2002, 2003 Red Hat Inc.
+# ssh-host-config, Copyright 2000-2009 Red Hat Inc.
 #
 # This file is part of the Cygwin port of OpenSSH.
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   
+# IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    
+# THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               
 
 # ======================================================================
 # Initialization
@@ -26,7 +38,9 @@ port_number=22
 privsep_configured=no
 privsep_used=yes
 cygwin_value=""
+user_account=
 password_value=
+opt_force=no
 
 # ======================================================================
 # Routine: create_host_keys
@@ -287,6 +301,11 @@ install_service() {
 	  csih_inform "sshd requires.  You need to have or to create a privileged"
 	  csih_inform "account.  This script will help you do so."
 	  echo
+
+	  [ "${opt_force}" = "yes" ] && opt_f=-f
+	  [ -n "${user_account}" ] && opt_u="-u ""${user_account}"""
+	  csih_select_privileged_username ${opt_f} ${opt_u} sshd
+
 	  if ! csih_create_privileged_user "${password_value}"
 	  then
 	    csih_error_recoverable "There was a serious problem creating a privileged user."
@@ -316,12 +335,12 @@ install_service() {
 
 	if [ -n "${csih_cygenv}" ]
 	then
-	  cygwin_env="-e CYGWIN=\"${csih_cygenv}\""
+	  cygwin_env=( -e "CYGWIN=${csih_cygenv}" )
 	fi
 	if [ -z "${password}" ]
 	then
-	  if eval cygrunsrv -I sshd -d \"CYGWIN sshd\" -p /usr/sbin/sshd \
-			    -a "-D" -y tcpip ${cygwin_env}
+	  if cygrunsrv -I sshd -d "CYGWIN sshd" -p /usr/sbin/sshd \
+			    -a "-D" -y tcpip "${cygwin_env[@]}"
 	  then
 	    echo
 	    csih_inform "The sshd service has been installed under the LocalSystem"
@@ -330,8 +349,8 @@ install_service() {
 	    csih_inform "will start automatically after the next reboot."
 	  fi
 	else
-	  if eval cygrunsrv -I sshd -d \"CYGWIN sshd\" -p /usr/sbin/sshd \
-			    -a "-D" -y tcpip ${cygwin_env} \
+	  if cygrunsrv -I sshd -d "CYGWIN sshd" -p /usr/sbin/sshd \
+			    -a "-D" -y tcpip "${cygwin_env[@]}" \
 			    -u "${run_service_as}" -w "${password}"
 	  then
 	    echo
@@ -378,11 +397,13 @@ if [ "$PROGDIR" = "/etc/postinstall" ]
 then
   csih_auto_answer="no"
   csih_disable_color
+  opt_force=yes
 fi
 if [ -n "${SSH_HOST_CONFIG_AUTO_ANSWER_NO}" ]
 then
   csih_auto_answer="no"
   csih_disable_color
+  opt_force=yes
 fi
 
 # ======================================================================
@@ -407,10 +428,12 @@ do
 
   -y | --yes )
     csih_auto_answer=yes
+    opt_force=yes
     ;;
 
   -n | --no )
     csih_auto_answer=no
+    opt_force=yes
     ;;
 
   -c | --cygwin )
@@ -423,6 +446,11 @@ do
     shift
     ;;
 
+  -u | --user )
+    user_account="$1"
+    shift
+    ;;
+    
   -w | --pwd )
     password_value="$1"
     shift
@@ -443,6 +471,7 @@ do
     echo "  --no     -n            Answer all questions with \"no\" automatically."
     echo "  --cygwin -c <options>  Use \"options\" as value for CYGWIN environment var."
     echo "  --port   -p <n>        sshd listens on port n."
+    echo "  --user   -u <account>  privileged user for service."
     echo "  --pwd    -w <passwd>   Use \"pwd\" as password for privileged user."
     echo "  --privileged           On Windows NT/2k/XP, require privileged user"
     echo "                         instead of LocalSystem for sshd service."
@@ -489,7 +518,7 @@ then
 fi
 
 # Create /var/empty file used as chroot jail for privilege separation
-csih_make_dir "${LOCALSTATEDIR}/empty" "Cannot create log directory."
+csih_make_dir "${LOCALSTATEDIR}/empty" "Cannot create ${LOCALSTATEDIR}/empty directory."
 chmod 755 "${LOCALSTATEDIR}/empty"
 setfacl -m u:system:rwx "${LOCALSTATEDIR}/empty"
 

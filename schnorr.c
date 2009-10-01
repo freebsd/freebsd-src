@@ -1,4 +1,4 @@
-/* $OpenBSD: schnorr.c,v 1.2 2009/02/18 04:31:21 djm Exp $ */
+/* $OpenBSD: schnorr.c,v 1.3 2009/03/05 07:18:19 djm Exp $ */
 /*
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
  *
@@ -40,36 +40,34 @@
 #include "buffer.h"
 #include "log.h"
 
-#include "jpake.h"
+#include "schnorr.h"
+
+#include "openbsd-compat/openssl-compat.h"
 
 /* #define SCHNORR_DEBUG */		/* Privacy-violating debugging */
 /* #define SCHNORR_MAIN */		/* Include main() selftest */
-
-/* XXX */
-/* Parametise signature hash? (sha256, sha1, etc.) */
-/* Signature format - include type name, hash type, group params? */
 
 #ifndef SCHNORR_DEBUG
 # define SCHNORR_DEBUG_BN(a)
 # define SCHNORR_DEBUG_BUF(a)
 #else
-# define SCHNORR_DEBUG_BN(a)	jpake_debug3_bn a
-# define SCHNORR_DEBUG_BUF(a)	jpake_debug3_buf a
+# define SCHNORR_DEBUG_BN(a)	debug3_bn a
+# define SCHNORR_DEBUG_BUF(a)	debug3_buf a
 #endif /* SCHNORR_DEBUG */
 
 /*
  * Calculate hash component of Schnorr signature H(g || g^v || g^x || id)
- * using SHA1. Returns signature as bignum or NULL on error.
+ * using the hash function defined by "evp_md". Returns signature as
+ * bignum or NULL on error.
  */
 static BIGNUM *
 schnorr_hash(const BIGNUM *p, const BIGNUM *q, const BIGNUM *g,
-    const BIGNUM *g_v, const BIGNUM *g_x,
+    const EVP_MD *evp_md, const BIGNUM *g_v, const BIGNUM *g_x,
     const u_char *id, u_int idlen)
 {
 	u_char *digest;
 	u_int digest_len;
 	BIGNUM *h;
-	EVP_MD_CTX evp_md_ctx;
 	Buffer b;
 	int success = -1;
 
@@ -79,7 +77,6 @@ schnorr_hash(const BIGNUM *p, const BIGNUM *q, const BIGNUM *g,
 	}
 
 	buffer_init(&b);
-	EVP_MD_CTX_init(&evp_md_ctx);
 
 	/* h = H(g || p || q || g^v || g^x || id) */
 	buffer_put_bignum2(&b, g);
@@ -91,7 +88,7 @@ schnorr_hash(const BIGNUM *p, const BIGNUM *q, const BIGNUM *g,
 
 	SCHNORR_DEBUG_BUF((buffer_ptr(&b), buffer_len(&b),
 	    "%s: hashblob", __func__));
-	if (hash_buffer(buffer_ptr(&b), buffer_len(&b), EVP_sha256(),
+	if (hash_buffer(buffer_ptr(&b), buffer_len(&b), evp_md,
 	    &digest, &digest_len) != 0) {
 		error("%s: hash_buffer", __func__);
 		goto out;
@@ -104,7 +101,6 @@ schnorr_hash(const BIGNUM *p, const BIGNUM *q, const BIGNUM *g,
 	SCHNORR_DEBUG_BN((h, "%s: h = ", __func__));
  out:
 	buffer_free(&b);
-	EVP_MD_CTX_cleanup(&evp_md_ctx);
 	bzero(digest, digest_len);
 	xfree(digest);
 	digest_len = 0;
@@ -117,18 +113,20 @@ schnorr_hash(const BIGNUM *p, const BIGNUM *q, const BIGNUM *g,
 /*
  * Generate Schnorr signature to prove knowledge of private value 'x' used
  * in public exponent g^x, under group defined by 'grp_p', 'grp_q' and 'grp_g'
+ * using the hash function "evp_md".
  * 'idlen' bytes from 'id' will be included in the signature hash as an anti-
  * replay salt.
- * On success, 0 is returned and *siglen bytes of signature are returned in
- * *sig (caller to free). Returns -1 on failure.
+ * 
+ * On success, 0 is returned. The signature values are returned as *e_p
+ * (g^v mod p) and *r_p (v - xh mod q). The caller must free these values.
+ * On failure, -1 is returned.
  */
 int
 schnorr_sign(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
-    const BIGNUM *x, const BIGNUM *g_x, const u_char *id, u_int idlen,
-    u_char **sig, u_int *siglen)
+    const EVP_MD *evp_md, const BIGNUM *x, const BIGNUM *g_x,
+    const u_char *id, u_int idlen, BIGNUM **r_p, BIGNUM **e_p)
 {
 	int success = -1;
-	Buffer b;
 	BIGNUM *h, *tmp, *v, *g_v, *r;
 	BN_CTX *bn_ctx;
 
@@ -171,7 +169,7 @@ schnorr_sign(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 	SCHNORR_DEBUG_BN((g_v, "%s: g_v = ", __func__));
 
 	/* h = H(g || g^v || g^x || id) */
-	if ((h = schnorr_hash(grp_p, grp_q, grp_g, g_v, g_x,
+	if ((h = schnorr_hash(grp_p, grp_q, grp_g, evp_md, g_v, g_x,
 	    id, idlen)) == NULL) {
 		error("%s: schnorr_hash failed", __func__);
 		goto out;
@@ -186,19 +184,12 @@ schnorr_sign(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 		error("%s: BN_mod_mul (r = v - tmp)", __func__);
 		goto out;
 	}
+	SCHNORR_DEBUG_BN((g_v, "%s: e = ", __func__));
 	SCHNORR_DEBUG_BN((r, "%s: r = ", __func__));
 
-	/* Signature is (g_v, r) */
-	buffer_init(&b);
-	/* XXX sigtype-hash as string? */
-	buffer_put_bignum2(&b, g_v);
-	buffer_put_bignum2(&b, r);
-	*siglen = buffer_len(&b);
-	*sig = xmalloc(*siglen);
-	memcpy(*sig, buffer_ptr(&b), *siglen);
-	SCHNORR_DEBUG_BUF((buffer_ptr(&b), buffer_len(&b),
-	    "%s: sigblob", __func__));
-	buffer_free(&b);
+	*e_p = g_v;
+	*r_p = r;
+
 	success = 0;
  out:
 	BN_CTX_free(bn_ctx);
@@ -206,29 +197,65 @@ schnorr_sign(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 		BN_clear_free(h);
 	if (v != NULL)
 		BN_clear_free(v);
-	BN_clear_free(r);
-	BN_clear_free(g_v);
 	BN_clear_free(tmp);
 
 	return success;
 }
 
 /*
- * Verify Schnorr signature 'sig' of length 'siglen' against public exponent
- * g_x (g^x) under group defined by 'grp_p', 'grp_q' and 'grp_g'.
+ * Generate Schnorr signature to prove knowledge of private value 'x' used
+ * in public exponent g^x, under group defined by 'grp_p', 'grp_q' and 'grp_g'
+ * using a SHA256 hash.
+ * 'idlen' bytes from 'id' will be included in the signature hash as an anti-
+ * replay salt.
+ * On success, 0 is returned and *siglen bytes of signature are returned in
+ * *sig (caller to free). Returns -1 on failure.
+ */
+int
+schnorr_sign_buf(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
+    const BIGNUM *x, const BIGNUM *g_x, const u_char *id, u_int idlen,
+    u_char **sig, u_int *siglen)
+{
+	Buffer b;
+	BIGNUM *r, *e;
+
+	if (schnorr_sign(grp_p, grp_q, grp_g, EVP_sha256(),
+	    x, g_x, id, idlen, &r, &e) != 0)
+		return -1;
+
+	/* Signature is (e, r) */
+	buffer_init(&b);
+	/* XXX sigtype-hash as string? */
+	buffer_put_bignum2(&b, e);
+	buffer_put_bignum2(&b, r);
+	*siglen = buffer_len(&b);
+	*sig = xmalloc(*siglen);
+	memcpy(*sig, buffer_ptr(&b), *siglen);
+	SCHNORR_DEBUG_BUF((buffer_ptr(&b), buffer_len(&b),
+	    "%s: sigblob", __func__));
+	buffer_free(&b);
+
+	BN_clear_free(r);
+	BN_clear_free(e);
+
+	return 0;
+}
+
+/*
+ * Verify Schnorr signature { r (v - xh mod q), e (g^v mod p) } against
+ * public exponent g_x (g^x) under group defined by 'grp_p', 'grp_q' and
+ * 'grp_g' using hash "evp_md".
  * Signature hash will be salted with 'idlen' bytes from 'id'.
  * Returns -1 on failure, 0 on incorrect signature or 1 on matching signature.
  */
 int
 schnorr_verify(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
-    const BIGNUM *g_x, const u_char *id, u_int idlen,
-    const u_char *sig, u_int siglen)
+    const EVP_MD *evp_md, const BIGNUM *g_x, const u_char *id, u_int idlen,
+    const BIGNUM *r, const BIGNUM *e)
 {
 	int success = -1;
-	Buffer b;
-	BIGNUM *g_v, *h, *r, *g_xh, *g_r, *expected;
+	BIGNUM *h, *g_xh, *g_r, *expected;
 	BN_CTX *bn_ctx;
-	u_int rlen;
 
 	SCHNORR_DEBUG_BN((g_x, "%s: g_x = ", __func__));
 
@@ -238,39 +265,23 @@ schnorr_verify(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 		return -1;
 	}
 
-	g_v = h = r = g_xh = g_r = expected = NULL;
+	h = g_xh = g_r = expected = NULL;
 	if ((bn_ctx = BN_CTX_new()) == NULL) {
 		error("%s: BN_CTX_new", __func__);
 		goto out;
 	}
-	if ((g_v = BN_new()) == NULL ||
-	    (r = BN_new()) == NULL ||
-	    (g_xh = BN_new()) == NULL ||
+	if ((g_xh = BN_new()) == NULL ||
 	    (g_r = BN_new()) == NULL ||
 	    (expected = BN_new()) == NULL) {
 		error("%s: BN_new", __func__);
 		goto out;
 	}
 
-	/* Extract g^v and r from signature blob */
-	buffer_init(&b);
-	buffer_append(&b, sig, siglen);
-	SCHNORR_DEBUG_BUF((buffer_ptr(&b), buffer_len(&b),
-	    "%s: sigblob", __func__));
-	buffer_get_bignum2(&b, g_v);
-	buffer_get_bignum2(&b, r);
-	rlen = buffer_len(&b);
-	buffer_free(&b);
-	if (rlen != 0) {
-		error("%s: remaining bytes in signature %d", __func__, rlen);
-		goto out;
-	}
-	buffer_free(&b);
-	SCHNORR_DEBUG_BN((g_v, "%s: g_v = ", __func__));
+	SCHNORR_DEBUG_BN((e, "%s: e = ", __func__));
 	SCHNORR_DEBUG_BN((r, "%s: r = ", __func__));
 
 	/* h = H(g || g^v || g^x || id) */
-	if ((h = schnorr_hash(grp_p, grp_q, grp_g, g_v, g_x,
+	if ((h = schnorr_hash(grp_p, grp_q, grp_g, evp_md, e, g_x,
 	    id, idlen)) == NULL) {
 		error("%s: schnorr_hash failed", __func__);
 		goto out;
@@ -297,19 +308,247 @@ schnorr_verify(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 	}
 	SCHNORR_DEBUG_BN((expected, "%s: expected = ", __func__));
 
-	/* Check g_v == expected */
-	success = BN_cmp(expected, g_v) == 0;
+	/* Check e == expected */
+	success = BN_cmp(expected, e) == 0;
  out:
 	BN_CTX_free(bn_ctx);
 	if (h != NULL)
 		BN_clear_free(h);
-	BN_clear_free(g_v);
-	BN_clear_free(r);
 	BN_clear_free(g_xh);
 	BN_clear_free(g_r);
 	BN_clear_free(expected);
 	return success;
 }
+
+/*
+ * Verify Schnorr signature 'sig' of length 'siglen' against public exponent
+ * g_x (g^x) under group defined by 'grp_p', 'grp_q' and 'grp_g' using a
+ * SHA256 hash.
+ * Signature hash will be salted with 'idlen' bytes from 'id'.
+ * Returns -1 on failure, 0 on incorrect signature or 1 on matching signature.
+ */
+int
+schnorr_verify_buf(const BIGNUM *grp_p, const BIGNUM *grp_q,
+    const BIGNUM *grp_g,
+    const BIGNUM *g_x, const u_char *id, u_int idlen,
+    const u_char *sig, u_int siglen)
+{
+	Buffer b;
+	int ret = -1;
+	u_int rlen;
+	BIGNUM *r, *e;
+
+	e = r = NULL;
+	if ((e = BN_new()) == NULL ||
+	    (r = BN_new()) == NULL) {
+		error("%s: BN_new", __func__);
+		goto out;
+	}
+
+	/* Extract g^v and r from signature blob */
+	buffer_init(&b);
+	buffer_append(&b, sig, siglen);
+	SCHNORR_DEBUG_BUF((buffer_ptr(&b), buffer_len(&b),
+	    "%s: sigblob", __func__));
+	buffer_get_bignum2(&b, e);
+	buffer_get_bignum2(&b, r);
+	rlen = buffer_len(&b);
+	buffer_free(&b);
+	if (rlen != 0) {
+		error("%s: remaining bytes in signature %d", __func__, rlen);
+		goto out;
+	}
+
+	ret = schnorr_verify(grp_p, grp_q, grp_g, EVP_sha256(),
+	    g_x, id, idlen, r, e);
+ out:
+	BN_clear_free(e);
+	BN_clear_free(r);
+
+	return ret;
+}
+
+/* Helper functions */
+
+/*
+ * Generate uniformly distributed random number in range (1, high).
+ * Return number on success, NULL on failure.
+ */
+BIGNUM *
+bn_rand_range_gt_one(const BIGNUM *high)
+{
+	BIGNUM *r, *tmp;
+	int success = -1;
+
+	if ((tmp = BN_new()) == NULL) {
+		error("%s: BN_new", __func__);
+		return NULL;
+	}
+	if ((r = BN_new()) == NULL) {
+		error("%s: BN_new failed", __func__);
+		goto out;
+	}
+	if (BN_set_word(tmp, 2) != 1) {
+		error("%s: BN_set_word(tmp, 2)", __func__);
+		goto out;
+	}
+	if (BN_sub(tmp, high, tmp) == -1) {
+		error("%s: BN_sub failed (tmp = high - 2)", __func__);
+		goto out;
+	}
+	if (BN_rand_range(r, tmp) == -1) {
+		error("%s: BN_rand_range failed", __func__);
+		goto out;
+	}
+	if (BN_set_word(tmp, 2) != 1) {
+		error("%s: BN_set_word(tmp, 2)", __func__);
+		goto out;
+	}
+	if (BN_add(r, r, tmp) == -1) {
+		error("%s: BN_add failed (r = r + 2)", __func__);
+		goto out;
+	}
+	success = 0;
+ out:
+	BN_clear_free(tmp);
+	if (success == 0)
+		return r;
+	BN_clear_free(r);
+	return NULL;
+}
+
+/*
+ * Hash contents of buffer 'b' with hash 'md'. Returns 0 on success,
+ * with digest via 'digestp' (caller to free) and length via 'lenp'.
+ * Returns -1 on failure.
+ */
+int
+hash_buffer(const u_char *buf, u_int len, const EVP_MD *md,
+    u_char **digestp, u_int *lenp)
+{
+	u_char digest[EVP_MAX_MD_SIZE];
+	u_int digest_len;
+	EVP_MD_CTX evp_md_ctx;
+	int success = -1;
+
+	EVP_MD_CTX_init(&evp_md_ctx);
+
+	if (EVP_DigestInit_ex(&evp_md_ctx, md, NULL) != 1) {
+		error("%s: EVP_DigestInit_ex", __func__);
+		goto out;
+	}
+	if (EVP_DigestUpdate(&evp_md_ctx, buf, len) != 1) {
+		error("%s: EVP_DigestUpdate", __func__);
+		goto out;
+	}
+	if (EVP_DigestFinal_ex(&evp_md_ctx, digest, &digest_len) != 1) {
+		error("%s: EVP_DigestFinal_ex", __func__);
+		goto out;
+	}
+	*digestp = xmalloc(digest_len);
+	*lenp = digest_len;
+	memcpy(*digestp, digest, *lenp);
+	success = 0;
+ out:
+	EVP_MD_CTX_cleanup(&evp_md_ctx);
+	bzero(digest, sizeof(digest));
+	digest_len = 0;
+	return success;
+}
+
+/* print formatted string followed by bignum */
+void
+debug3_bn(const BIGNUM *n, const char *fmt, ...)
+{
+	char *out, *h;
+	va_list args;
+
+	out = NULL;
+	va_start(args, fmt);
+	vasprintf(&out, fmt, args);
+	va_end(args);
+	if (out == NULL)
+		fatal("%s: vasprintf failed", __func__);
+
+	if (n == NULL)
+		debug3("%s(null)", out);
+	else {
+		h = BN_bn2hex(n);
+		debug3("%s0x%s", out, h);
+		free(h);
+	}
+	free(out);
+}
+
+/* print formatted string followed by buffer contents in hex */
+void
+debug3_buf(const u_char *buf, u_int len, const char *fmt, ...)
+{
+	char *out, h[65];
+	u_int i, j;
+	va_list args;
+
+	out = NULL;
+	va_start(args, fmt);
+	vasprintf(&out, fmt, args);
+	va_end(args);
+	if (out == NULL)
+		fatal("%s: vasprintf failed", __func__);
+
+	debug3("%s length %u%s", out, len, buf == NULL ? " (null)" : "");
+	free(out);
+	if (buf == NULL)
+		return;
+
+	*h = '\0';
+	for (i = j = 0; i < len; i++) {
+		snprintf(h + j, sizeof(h) - j, "%02x", buf[i]);
+		j += 2;
+		if (j >= sizeof(h) - 1 || i == len - 1) {
+			debug3("    %s", h);
+			*h = '\0';
+			j = 0;
+		}
+	}
+}
+
+/*
+ * Construct a MODP group from hex strings p (which must be a safe
+ * prime) and g, automatically calculating subgroup q as (p / 2)
+ */
+struct modp_group *
+modp_group_from_g_and_safe_p(const char *grp_g, const char *grp_p)
+{
+	struct modp_group *ret;
+
+	ret = xmalloc(sizeof(*ret));
+	ret->p = ret->q = ret->g = NULL;
+	if (BN_hex2bn(&ret->p, grp_p) == 0 ||
+	    BN_hex2bn(&ret->g, grp_g) == 0)
+		fatal("%s: BN_hex2bn", __func__);
+	/* Subgroup order is p/2 (p is a safe prime) */
+	if ((ret->q = BN_new()) == NULL)
+		fatal("%s: BN_new", __func__);
+	if (BN_rshift1(ret->q, ret->p) != 1)
+		fatal("%s: BN_rshift1", __func__);
+
+	return ret;
+}
+
+void
+modp_group_free(struct modp_group *grp)
+{
+	if (grp->g != NULL)
+		BN_clear_free(grp->g);
+	if (grp->p != NULL)
+		BN_clear_free(grp->p);
+	if (grp->q != NULL)
+		BN_clear_free(grp->q);
+	bzero(grp, sizeof(*grp));
+	xfree(grp);
+}
+
+/* main() function for self-test */
 
 #ifdef SCHNORR_MAIN
 static void
@@ -328,16 +567,17 @@ schnorr_selftest_one(const BIGNUM *grp_p, const BIGNUM *grp_q,
 
 	if (BN_mod_exp(g_x, grp_g, x, grp_p, bn_ctx) == -1)
 		fatal("%s: g_x", __func__);
-	if (schnorr_sign(grp_p, grp_q, grp_g, x, g_x, "junk", 4, &sig, &siglen))
+	if (schnorr_sign_buf(grp_p, grp_q, grp_g, x, g_x, "junk", 4,
+	    &sig, &siglen))
 		fatal("%s: schnorr_sign", __func__);
-	if (schnorr_verify(grp_p, grp_q, grp_g, g_x, "junk", 4,
+	if (schnorr_verify_buf(grp_p, grp_q, grp_g, g_x, "junk", 4,
 	    sig, siglen) != 1)
 		fatal("%s: verify fail", __func__);
-	if (schnorr_verify(grp_p, grp_q, grp_g, g_x, "JUNK", 4,
+	if (schnorr_verify_buf(grp_p, grp_q, grp_g, g_x, "JUNK", 4,
 	    sig, siglen) != 0)
 		fatal("%s: verify should have failed (bad ID)", __func__);
 	sig[4] ^= 1;
-	if (schnorr_verify(grp_p, grp_q, grp_g, g_x, "junk", 4,
+	if (schnorr_verify_buf(grp_p, grp_q, grp_g, g_x, "junk", 4,
 	    sig, siglen) != 0)
 		fatal("%s: verify should have failed (bit error)", __func__);
 	xfree(sig);
@@ -349,7 +589,7 @@ static void
 schnorr_selftest(void)
 {
 	BIGNUM *x;
-	struct jpake_group *grp;
+	struct modp_group *grp;
 	u_int i;
 	char *hh;
 

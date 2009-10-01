@@ -104,4 +104,4 @@ BUGS
      This is because it opens a connection to the ssh port, reads the public
      key, and drops the connection as soon as it gets the key.
 
-OpenBSD 4.5                    December 29, 2008                             2
+OpenBSD 4.6                    December 29, 2008                             2
