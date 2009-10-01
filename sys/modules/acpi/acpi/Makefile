@@ -27,6 +27,10 @@
 KMOD=	acpi
 
 # ACPI CA sources
+SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbstats.c
+SRCS+=	dbutils.c dbxface.c
+SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
+SRCS+=	dmresrcs.c dmutils.c dmwalk.c
 SRCS+=	dsfield.c dsinit.c dsmethod.c dsmthdat.c dsobject.c dsopcode.c
 SRCS+=	dsutils.c dswexec.c dswload.c dswscope.c dswstate.c
 SRCS+=	evevent.c evgpe.c evgpeblk.c evmisc.c evregion.c evrgnini.c evsci.c
@@ -69,12 +73,6 @@ SRCS+=	cpufreq_if.h device_if.h isa_if.h pci_if.h pcib_if.h
 # This obviously needs a better and more structural fix.
 SRCS+=	opt_kstack_pages.h opt_nfs.h opt_apic.h opt_compat.h opt_hwpmc_hooks.h
 
-# Debugging support
-DBSRC=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbstats.c
-DBSRC+=	dbutils.c dbxface.c
-DBSRC+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
-DBSRC+=	dmresrcs.c dmutils.c dmwalk.c
-
 .if !defined(KERNBUILDDIR)
 .if KTR
 CFLAGS+=-DKTR
@@ -87,7 +85,6 @@ CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}
 .endif
 .if ACPI_DEBUG
 CFLAGS+=-DACPI_DEBUG
-SRCS+=	${DBSRC}
 opt_ddb.h: Makefile
 	echo "#define DDB 1" > ${.TARGET}
 .else
@@ -98,10 +95,12 @@ opt_ddb.h: Makefile
 
 # Machine-specific code such as sleep/wakeup
 SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
-.if ${MACHINE} == "i386"
-SRCS+=	madt.c assym.s
+SRCS+=	assym.s madt.c
+CLEANFILES+=	acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o
+.if ${MACHINE_ARCH} == "amd64"
+SRCS+=	opt_global.h
+CLEANFILES+=	acpi_wakedata.h
 .endif
-CLEANFILES+=	acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin ${DBSRC:.c=.o}
 
 acpi_wakecode.h: acpi_wakecode.S assym.s
 	${MAKE} -f ${.CURDIR}/../../../${MACHINE_ARCH}/acpica/Makefile \
