@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.415 2009/02/16 04:37:03 djm Exp $
+# $Id: configure.ac,v 1.427 2009/09/11 04:56:08 dtucker Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -15,7 +15,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT(OpenSSH, Portable, openssh-unix-dev@mindrot.org)
-AC_REVISION($Revision: 1.415 $)
+AC_REVISION($Revision: 1.427 $)
 AC_CONFIG_SRCDIR([ssh.c])
 
 AC_CONFIG_HEADER(config.h)
@@ -279,7 +279,6 @@ AC_CHECK_HEADERS( \
 	sys/cdefs.h \
 	sys/dir.h \
 	sys/mman.h \
-	sys/mount.h \
 	sys/ndir.h \
 	sys/poll.h \
 	sys/prctl.h \
@@ -324,6 +323,11 @@ AC_CHECK_HEADERS(sys/ptms.h, [], [], [
 # login_cap.h requires sys/types.h on NetBSD
 AC_CHECK_HEADERS(login_cap.h, [], [], [
 #include <sys/types.h>
+])
+
+# older BSDs need sys/param.h before sys/mount.h
+AC_CHECK_HEADERS(sys/mount.h, [], [], [
+#include <sys/param.h>
 ])
 
 # Messages for features tested for in target-specific section
@@ -434,8 +438,6 @@ int main(void) { exit(0); }
 	AC_DEFINE(USE_PIPES, 1, [Use PIPES instead of a socketpair()])
 	AC_DEFINE(DISABLE_SHADOW, 1,
 		[Define if you want to disable shadow passwords])
-	AC_DEFINE(IP_TOS_IS_BROKEN, 1,
-		[Define if your system choked on IP TOS setting])
 	AC_DEFINE(NO_X11_UNIX_SOCKETS, 1,
 		[Define if X11 doesn't support AF_UNIX sockets on that system])
 	AC_DEFINE(NO_IPPORT_RESERVED_CONCEPT, 1,
@@ -444,9 +446,11 @@ int main(void) { exit(0); }
 	AC_DEFINE(DISABLE_FD_PASSING, 1,
 		[Define if your platform needs to skip post auth
 		file descriptor passing])
+	AC_DEFINE(SSH_IOBUFSZ, 65536, [Windows is sensitive to read buffer size])
 	;;
 *-*-dgux*)
-	AC_DEFINE(IP_TOS_IS_BROKEN)
+	AC_DEFINE(IP_TOS_IS_BROKEN, 1,
+		[Define if your system choked on IP TOS setting])
 	AC_DEFINE(SETEUID_BREAKS_SETUID)
 	AC_DEFINE(BROKEN_SETREUID)
 	AC_DEFINE(BROKEN_SETREGID)
@@ -668,6 +672,7 @@ mips-sony-bsd|mips-sony-newsos4)
 		after setsid()])
 	AC_DEFINE(PASSWD_NEEDS_USERNAME, 1, [must supply username to passwd
 		in case the name is longer than 8 chars])
+	AC_DEFINE(BROKEN_TCGETATTR_ICANON, 1, [tcgetattr with ICANON may hang])
 	external_path_file=/etc/default/login
 	# hardwire lastlog location (can't detect it on some versions)
 	conf_lastlog_location="/var/adm/lastlog"
@@ -979,6 +984,7 @@ AC_ARG_WITH(zlib,
 	fi ]
 )
 
+AC_CHECK_HEADER([zlib.h], ,AC_MSG_ERROR([*** zlib.h missing - please install first or check config.log ***]))
 AC_CHECK_LIB(z, deflate, ,
 	[
 		saved_CPPFLAGS="$CPPFLAGS"
@@ -999,7 +1005,6 @@ AC_CHECK_LIB(z, deflate, ,
 		)
 	]
 )
-AC_CHECK_HEADER([zlib.h], ,AC_MSG_ERROR([*** zlib.h missing - please install first or check config.log ***]))
 
 AC_ARG_WITH(zlib-version-check,
 	[  --without-zlib-version-check Disable zlib version check],
@@ -1892,6 +1897,8 @@ AC_TRY_LINK_FUNC(RAND_add, AC_DEFINE(HAVE_OPENSSL, 1,
 			LDFLAGS="-L/usr/local/ssl/lib ${saved_LDFLAGS}"
 		fi
 		CPPFLAGS="-I/usr/local/ssl/include ${saved_CPPFLAGS}"
+		AC_CHECK_HEADER([openssl/opensslv.h], ,
+		    AC_MSG_ERROR([*** OpenSSL headers missing - please install first or check config.log ***]))
 		AC_TRY_LINK_FUNC(RAND_add, AC_DEFINE(HAVE_OPENSSL),
 			[
 				AC_MSG_ERROR([*** Can't find recent OpenSSL libcrypto (see config.log for details) ***])
@@ -2073,6 +2080,23 @@ int main(void) { exit(EVP_aes_192_cbc() == NULL || EVP_aes_256_cbc() == NULL);}
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(OPENSSL_LOBOTOMISED_AES, 1,
 		    [libcrypto is missing AES 192 and 256 bit functions])
+	]
+)
+
+AC_MSG_CHECKING([if EVP_DigestUpdate returns an int])
+AC_LINK_IFELSE(
+	[AC_LANG_SOURCE([[
+#include <string.h>
+#include <openssl/evp.h>
+int main(void) { if(EVP_DigestUpdate(NULL, NULL,0)) exit(0); }
+	]])],
+	[
+		AC_MSG_RESULT(yes)
+	],
+	[
+		AC_MSG_RESULT(no)
+		AC_DEFINE(OPENSSL_EVP_DIGESTUPDATE_VOID, 1,
+		    [Define if EVP_DigestUpdate returns void])
 	]
 )
 
@@ -2694,7 +2718,7 @@ AC_CHECK_TYPES([fsblkcnt_t, fsfilcnt_t],,,[
 #endif
 ])
 
-AC_CHECK_TYPES(in_addr_t,,,
+AC_CHECK_TYPES([in_addr_t, in_port_t],,,
 [#include <sys/types.h>
 #include <netinet/in.h>])
 
@@ -3064,15 +3088,41 @@ if test "x$ac_cv_have_accrights_in_msghdr" = "xyes" ; then
 		file descriptor passing])
 fi
 
-AC_MSG_CHECKING(if f_fsid has val members)
+AC_MSG_CHECKING(if struct statvfs.f_fsid is integral type)
 AC_TRY_COMPILE([
 #include <sys/types.h>
+#include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
+#ifdef HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
+#endif
+#ifdef HAVE_SYS_STATVFS_H
+#include <sys/statvfs.h>
+#endif
+], [struct statvfs s; s.f_fsid = 0;],
+[ AC_MSG_RESULT(yes) ],
+[ AC_MSG_RESULT(no)
+
+	AC_MSG_CHECKING(if fsid_t has member val)
+	AC_TRY_COMPILE([
+#include <sys/types.h>
 #include <sys/statvfs.h>],
-[struct fsid_t t; t.val[0] = 0;],
+	[fsid_t t; t.val[0] = 0;],
 	[ AC_MSG_RESULT(yes)
-	  AC_DEFINE(FSID_HAS_VAL, 1, f_fsid has members) ],
-	[ AC_MSG_RESULT(no) ]
-)
+	  AC_DEFINE(FSID_HAS_VAL, 1, fsid_t has member val) ],
+	[ AC_MSG_RESULT(no) ])
+
+	AC_MSG_CHECKING(if f_fsid has member __val)
+	AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/statvfs.h>],
+	[fsid_t t; t.__val[0] = 0;],
+	[ AC_MSG_RESULT(yes)
+	  AC_DEFINE(FSID_HAS___VAL, 1, fsid_t has member __val) ],
+	[ AC_MSG_RESULT(no) ])
+])
 
 AC_CACHE_CHECK([for msg_control field in struct msghdr],
 		ac_cv_have_control_in_msghdr, [
@@ -3274,12 +3324,30 @@ AC_SEARCH_LIBS(getrrsetbyname, resolv,
 		AC_SEARCH_LIBS(res_query, resolv)
 		AC_SEARCH_LIBS(dn_expand, resolv)
 		AC_MSG_CHECKING(if res_query will link)
-		AC_TRY_LINK_FUNC(res_query, AC_MSG_RESULT(yes),
+		AC_LINK_IFELSE([
+#include "confdefs.h"
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <netdb.h>
+#include <resolv.h>
+int main()
+{
+	res_query (0, 0, 0, 0, 0);
+	return 0;
+}
+		   ],
+		    AC_MSG_RESULT(yes),
 		   [AC_MSG_RESULT(no)
 		    saved_LIBS="$LIBS"
 		    LIBS="$LIBS -lresolv"
 		    AC_MSG_CHECKING(for res_query in -lresolv)
 		    AC_LINK_IFELSE([
+#include "confdefs.h"
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <netdb.h>
 #include <resolv.h>
 int main()
 {
@@ -3287,8 +3355,7 @@ int main()
 	return 0;
 }
 			],
-			[LIBS="$LIBS -lresolv"
-			 AC_MSG_RESULT(yes)],
+			[AC_MSG_RESULT(yes)],
 			[LIBS="$saved_LIBS"
 			 AC_MSG_RESULT(no)])
 		    ])
@@ -3354,10 +3421,10 @@ AC_ARG_WITH(kerberos5,
 		AC_DEFINE(KRB5, 1, [Define if you want Kerberos 5 support])
 		KRB5_MSG="yes"
 
-		AC_MSG_CHECKING(for krb5-config)
-		if test -x  $KRB5ROOT/bin/krb5-config ; then
-			KRB5CONF=$KRB5ROOT/bin/krb5-config
-			AC_MSG_RESULT($KRB5CONF)
+		AC_PATH_PROG([KRB5CONF],[krb5-config],
+			     [$KRB5ROOT/bin/krb5-config],
+			     [$KRB5ROOT/bin:$PATH])
+		if test -x $KRB5CONF ; then
 
 			AC_MSG_CHECKING(for gssapi support)
 			if $KRB5CONF | grep gssapi >/dev/null ; then
@@ -3383,7 +3450,6 @@ AC_ARG_WITH(kerberos5,
 				         AC_MSG_RESULT(no)
 			)
 		else
-			AC_MSG_RESULT(no)
 			CPPFLAGS="$CPPFLAGS -I${KRB5ROOT}/include"
 			LDFLAGS="$LDFLAGS -L${KRB5ROOT}/lib"
 			AC_MSG_CHECKING(whether we are using Heimdal)

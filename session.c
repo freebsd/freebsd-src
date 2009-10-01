@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.245 2009/01/22 09:46:01 djm Exp $ */
+/* $OpenBSD: session.c,v 1.246 2009/04/17 19:23:06 stevesk Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -571,8 +571,7 @@ do_exec_no_pty(Session *s, const char *command)
 	signal(WJSIGNAL, cray_job_termination_handler);
 #endif /* _UNICOS */
 #ifdef HAVE_CYGWIN
-	if (is_winnt)
-		cygwin_set_impersonation_token(INVALID_HANDLE_VALUE);
+	cygwin_set_impersonation_token(INVALID_HANDLE_VALUE);
 #endif
 
 	s->pid = pid;
@@ -716,8 +715,8 @@ do_exec_pty(Session *s, const char *command)
 		 * Do common processing for the child, such as execing
 		 * the command.
 		 */
- 		do_child(s, command);
- 		/* NOTREACHED */
+		do_child(s, command);
+		/* NOTREACHED */
 	default:
 		break;
 	}
@@ -726,8 +725,7 @@ do_exec_pty(Session *s, const char *command)
 	signal(WJSIGNAL, cray_job_termination_handler);
 #endif /* _UNICOS */
 #ifdef HAVE_CYGWIN
-	if (is_winnt)
-		cygwin_set_impersonation_token(INVALID_HANDLE_VALUE);
+	cygwin_set_impersonation_token(INVALID_HANDLE_VALUE);
 #endif
 
 	s->pid = pid;
@@ -847,7 +845,7 @@ do_login(Session *s, const char *command)
 	fromlen = sizeof(from);
 	if (packet_connection_is_on_socket()) {
 		if (getpeername(packet_get_connection_in(),
-		    (struct sockaddr *) & from, &fromlen) < 0) {
+		    (struct sockaddr *)&from, &fromlen) < 0) {
 			debug("getpeername: %.100s", strerror(errno));
 			cleanup_exit(255);
 		}
@@ -1116,7 +1114,7 @@ do_setup_env(Session *s, const char *shell)
 	u_int i, envsize;
 	char **env, *laddr;
 	struct passwd *pw = s->pw;
-#ifndef HAVE_LOGIN_CAP
+#if !defined (HAVE_LOGIN_CAP) && !defined (HAVE_CYGWIN)
 	char *path = NULL;
 #endif
 
@@ -1468,11 +1466,6 @@ do_setusercontext(struct passwd *pw)
 	if (getuid() == 0 || geteuid() == 0)
 #endif /* HAVE_CYGWIN */
 	{
-
-#ifdef HAVE_SETPCRED
-		if (setpcred(pw->pw_name, (char **)NULL) == -1)
-			fatal("Failed to set process credentials");
-#endif /* HAVE_SETPCRED */
 #ifdef HAVE_LOGIN_CAP
 # ifdef __bsdi__
 		setpgid(0, 0);
@@ -1540,6 +1533,10 @@ do_setusercontext(struct passwd *pw)
 			free(chroot_path);
 		}
 
+#ifdef HAVE_SETPCRED
+		if (setpcred(pw->pw_name, (char **)NULL) == -1)
+			fatal("Failed to set process credentials");
+#endif /* HAVE_SETPCRED */
 #ifdef HAVE_LOGIN_CAP
 		if (setusercontext(lc, pw, pw->pw_uid, LOGIN_SETUSER) < 0) {
 			perror("unable to set user context (setuser)");
@@ -1551,9 +1548,6 @@ do_setusercontext(struct passwd *pw)
 #endif
 	}
 
-#ifdef HAVE_CYGWIN
-	if (is_winnt)
-#endif
 	if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
 		fatal("Failed to set uids to %u.", (u_int) pw->pw_uid);
 
@@ -1794,7 +1788,7 @@ do_child(Session *s, const char *command)
 		int i;
 		char *p, *args;
 
-		setproctitle("%s@internal-sftp-server", s->pw->pw_name);
+		setproctitle("%s@%s", s->pw->pw_name, INTERNAL_SFTP_NAME);
 		args = xstrdup(command ? command : "sftp-server");
 		for (i = 0, (p = strtok(args, " ")); p; (p = strtok(NULL, " ")))
 			if (i < ARGV_MAX - 1)

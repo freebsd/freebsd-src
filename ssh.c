@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.324 2009/02/12 03:00:56 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.326 2009/07/02 02:11:47 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -48,6 +48,7 @@
 #endif
 #include <sys/resource.h>
 #include <sys/ioctl.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 
 #include <ctype.h>
@@ -203,8 +204,8 @@ void muxserver_listen(void);
 int
 main(int ac, char **av)
 {
-	int i, opt, exit_status, use_syslog;
-	char *p, *cp, *line, buf[256];
+	int i, r, opt, exit_status, use_syslog;
+	char *p, *cp, *line, *argv0, buf[MAXPATHLEN];
 	struct stat st;
 	struct passwd *pw;
 	int dummy, timeout_ms;
@@ -270,6 +271,7 @@ main(int ac, char **av)
 	/* Parse command-line arguments. */
 	host = NULL;
 	use_syslog = 0;
+	argv0 = av[0];
 
  again:
 	while ((opt = getopt(ac, av, "1246ab:c:e:fgi:kl:m:no:p:qstvx"
@@ -600,7 +602,7 @@ main(int ac, char **av)
 	 * Initialize "log" output.  Since we are the client all output
 	 * actually goes to stderr.
 	 */
-	log_init(av[0],
+	log_init(argv0,
 	    options.log_level == -1 ? SYSLOG_LEVEL_INFO : options.log_level,
 	    SYSLOG_FACILITY_USER, !use_syslog);
 
@@ -613,9 +615,10 @@ main(int ac, char **av)
 			fatal("Can't open user config file %.100s: "
 			    "%.100s", config, strerror(errno));
 	} else {
-		snprintf(buf, sizeof buf, "%.100s/%.100s", pw->pw_dir,
+		r = snprintf(buf, sizeof buf, "%s/%s", pw->pw_dir,
 		    _PATH_SSH_USER_CONFFILE);
-		(void)read_config_file(buf, host, &options, 1);
+		if (r > 0 && (size_t)r < sizeof(buf))
+			(void)read_config_file(buf, host, &options, 1);
 
 		/* Read systemwide configuration file after use config. */
 		(void)read_config_file(_PATH_HOST_CONFIG_FILE, host,
@@ -628,7 +631,7 @@ main(int ac, char **av)
 	channel_set_af(options.address_family);
 
 	/* reinit */
-	log_init(av[0], options.log_level, SYSLOG_FACILITY_USER, !use_syslog);
+	log_init(argv0, options.log_level, SYSLOG_FACILITY_USER, !use_syslog);
 
 	seed_rng();
 
@@ -766,9 +769,9 @@ main(int ac, char **av)
 	 * Now that we are back to our own permissions, create ~/.ssh
 	 * directory if it doesn't already exist.
 	 */
-	snprintf(buf, sizeof buf, "%.100s%s%.100s", pw->pw_dir,
+	r = snprintf(buf, sizeof buf, "%s%s%s", pw->pw_dir,
 	    strcmp(pw->pw_dir, "/") ? "/" : "", _PATH_SSH_USER_DIR);
-	if (stat(buf, &st) < 0)
+	if (r > 0 && (size_t)r < sizeof(buf) && stat(buf, &st) < 0)
 		if (mkdir(buf, 0700) < 0)
 			error("Could not create directory '%.200s'.", buf);
 
