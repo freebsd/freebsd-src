@@ -187,7 +187,6 @@ static int init_pte_prot(vm_offset_t va, vm_page_t m, vm_prot_t prot);
 static void pmap_TLB_invalidate_kernel(vm_offset_t);
 static void pmap_TLB_update_kernel(vm_offset_t, pt_entry_t);
 static void pmap_init_fpage(void);
-static void pmap_flush_pvcache(vm_page_t m);
 
 #ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
@@ -744,11 +743,12 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 	vm_offset_t origva = va;
 
 	for (i = 0; i < count; i++) {
+		pmap_flush_pvcache(m[i]);
 		pmap_kenter(va, VM_PAGE_TO_PHYS(m[i]));
 		va += PAGE_SIZE;
 	}
 
-	mips_dcache_wbinv_range_index(origva, PAGE_SIZE*count);
+	mips_dcache_inv_range(origva, PAGE_SIZE*count);
 }
 
 /*
@@ -3313,7 +3313,7 @@ pmap_kextract(vm_offset_t va)
 	return pa;
 }
 
-static void 
+void 
 pmap_flush_pvcache(vm_page_t m)
 {
 	pv_entry_t pv;
