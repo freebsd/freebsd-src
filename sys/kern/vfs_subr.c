@@ -3520,6 +3520,9 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 	accmode_t dac_granted;
 	accmode_t priv_granted;
 
+	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND)) == 0,
+	    ("invalid bit in accmode"));
+
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
 	 * as requested.  If it exists, go with that.
