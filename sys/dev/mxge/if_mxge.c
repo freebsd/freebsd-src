@@ -1296,7 +1296,7 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 	}
 	sc->rdma_tags_available = 15;
 	status = mxge_update_mac_address(sc);
-	mxge_change_promisc(sc, 0);
+	mxge_change_promisc(sc, sc->ifp->if_flags & IFF_PROMISC);
 	mxge_change_pause(sc, sc->pause);
 	mxge_set_multicast_list(sc);
 	return status;
@@ -3419,10 +3419,16 @@ mxge_setup_cfg_space(mxge_softc_t *sc)
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
 		lnk = pci_read_config(dev, reg + 0x12, 2);
 		sc->link_width = (lnk >> 4) & 0x3f;
-		
-		pectl = pci_read_config(dev, reg + 0x8, 2);
-		pectl = (pectl & ~0x7000) | (5 << 12);
-		pci_write_config(dev, reg + 0x8, pectl, 2);
+
+		if (sc->pectl == 0) {
+			pectl = pci_read_config(dev, reg + 0x8, 2);
+			pectl = (pectl & ~0x7000) | (5 << 12);
+			pci_write_config(dev, reg + 0x8, pectl, 2);
+			sc->pectl = pectl;
+		} else {
+			/* restore saved pectl after watchdog reset */
+			pci_write_config(dev, reg + 0x8, sc->pectl, 2);
+		}
 	}
 
 	/* Enable DMA and Memory space access */
@@ -3533,6 +3539,9 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 			/* release all TX locks */
 			for (s = 0; s < num_tx_slices; s++) {
 				ss = &sc->ss[s];
+#ifdef IFNET_BUF_RING
+				mxge_start_locked(ss);
+#endif
 				mtx_unlock(&ss->tx.mtx);
 			}
 		}
@@ -3795,7 +3804,7 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 		mxge_ticks = hz / 2;
 	sc->pause = mxge_flow_control;
 	if (mxge_rss_hash_type < MXGEFW_RSS_HASH_TYPE_IPV4 
-	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_SRC_PORT) {
+	    || mxge_rss_hash_type > MXGEFW_RSS_HASH_TYPE_MAX) {
 		mxge_rss_hash_type = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
 	}
 }
