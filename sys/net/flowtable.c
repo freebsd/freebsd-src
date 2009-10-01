@@ -830,7 +830,7 @@ fle_free(struct flentry *fle)
 }
 
 static void
-flowtable_free_stale(struct flowtable *ft)
+flowtable_free_stale(struct flowtable *ft, struct rtentry *rt)
 {
 	int curbit = 0, count;
 	struct flentry *fle,  **flehead, *fleprev;
@@ -866,8 +866,14 @@ flowtable_free_stale(struct flowtable *ft)
 			    curbit);
 		}
 #endif		
-		while (fle != NULL) {	
-			if (!flow_stale(ft, fle)) {
+		while (fle != NULL) {
+			if (rt != NULL) {
+				if (__DEVOLATILE(struct rtentry *, fle->f_rt) != rt) {
+					fleprev = fle;
+					fle = fle->f_next;
+					continue;
+				}
+			} else if (!flow_stale(ft, fle)) {
 				fleprev = fle;
 				fle = fle->f_next;
 				continue;
@@ -916,6 +922,30 @@ flowtable_free_stale(struct flowtable *ft)
 		log(LOG_DEBUG, "freed %d flow entries\n", count);
 }
 
+void
+flowtable_route_flush(struct flowtable *ft, struct rtentry *rt)
+{
+	int i;
+	if (ft->ft_flags & FL_PCPU) {
+		for (i = 0; i <= mp_maxid; i++) {
+			if (CPU_ABSENT(i))
+				continue;
+
+			thread_lock(curthread);
+			sched_bind(curthread, i);
+			thread_unlock(curthread);
+
+			flowtable_free_stale(ft, rt);
+
+			thread_lock(curthread);
+			sched_unbind(curthread);
+			thread_unlock(curthread);
+		}
+	} else {
+		flowtable_free_stale(ft, rt);
+	}
+}
+
 static void
 flowtable_clean_vnet(void)
 {
@@ -933,14 +963,14 @@ flowtable_clean_vnet(void)
 				sched_bind(curthread, i);
 				thread_unlock(curthread);
 
-				flowtable_free_stale(ft);
+				flowtable_free_stale(ft, NULL);
 
 				thread_lock(curthread);
 				sched_unbind(curthread);
 				thread_unlock(curthread);
 			}
 		} else {
-			flowtable_free_stale(ft);
+			flowtable_free_stale(ft, NULL);
 		}
 		ft = ft->ft_next;
 	}
