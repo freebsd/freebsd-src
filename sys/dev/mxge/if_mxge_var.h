@@ -254,6 +254,7 @@ struct mxge_softc {
 	struct sysctl_ctx_list slice_sysctl_ctx;
 	char *mac_addr_string;
 	uint8_t	mac_addr[6];		/* eeprom mac address */
+	uint16_t pectl;			/* save PCIe CTL state */
 	char product_code_string[64];
 	char serial_number_string[64];
 	char cmd_mtx_name[16];
