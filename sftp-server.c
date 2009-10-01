@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.84 2008/06/26 06:10:09 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.85 2009/04/14 16:33:42 stevesk Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -1041,7 +1041,7 @@ process_rename(void)
 	else if (S_ISREG(sb.st_mode)) {
 		/* Race-free rename of regular files */
 		if (link(oldpath, newpath) == -1) {
-			if (errno == EOPNOTSUPP
+			if (errno == EOPNOTSUPP || errno == ENOSYS
 #ifdef EXDEV
 			    || errno == EXDEV
 #endif
@@ -1341,7 +1341,7 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	__progname = ssh_get_progname(argv[0]);
 	log_init(__progname, log_level, log_facility, log_stderr);
 
-	while (!skipargs && (ch = getopt(argc, argv, "C:f:l:che")) != -1) {
+	while (!skipargs && (ch = getopt(argc, argv, "f:l:che")) != -1) {
 		switch (ch) {
 		case 'c':
 			/*

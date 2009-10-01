@@ -32,7 +32,7 @@ DESCRIPTION
              debugging output.  The default is ERROR.
 
      For logging to work, sftp-server must be able to access /dev/log.  Use of
-     sftp-server in a chroot configuation therefore requires that syslogd(8)
+     sftp-server in a chroot configuration therefore requires that syslogd(8)
      establish a logging socket inside the chroot directory.
 
 SEE ALSO
@@ -47,4 +47,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 4.5                      July 18, 2008                               1
+OpenBSD 4.6                     March 26, 2009                               1

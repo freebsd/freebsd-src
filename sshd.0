@@ -311,7 +311,7 @@ AUTHORIZED_KEYS FILE FORMAT
              ssh_config(5) for more information on patterns.
 
              In addition to the wildcard matching that may be applied to host-
-             names or addresses, a from stanza may match IP addressess using
+             names or addresses, a from stanza may match IP addresses using
              CIDR address/masklen notation.
 
              The purpose of this option is to optionally increase security:
@@ -571,4 +571,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are dis-
      abled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 4.5                     October 3, 2008                              9
+OpenBSD 4.6                     March 26, 2009                               9

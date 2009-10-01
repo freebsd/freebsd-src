@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # buildbff.sh: Create AIX SMIT-installable OpenSSH packages
-# $Id: buildbff.sh,v 1.10 2006/09/10 03:24:19 dtucker Exp $
+# $Id: buildbff.sh,v 1.11 2009/03/06 23:22:10 dtucker Exp $
 #
 # Author: Darren Tucker (dtucker at zip dot com dot au)
 # This file is placed in the public domain and comes with absolutely
@@ -151,10 +151,17 @@ fi
 
 
 # Rename config files; postinstall script will copy them if necessary
-for cfgfile in ssh_config sshd_config ssh_prng_cmds
+for cfgfile in ssh_config sshd_config
 do
 	mv $FAKE_ROOT/$sysconfdir/$cfgfile $FAKE_ROOT/$sysconfdir/$cfgfile.default
 done
+
+# AIX 5.3 and newer have /dev/random and don't create ssh_prng_cmds
+if [ -f $FAKE_ROOT/$sysconfdir/ssh_prng_cmds ]
+then
+	mv FAKE_ROOT/$sysconfdir/ssh_prng_cmds \
+		$FAKE_ROOT/$sysconfdir/ssh_prng_cmds.default
+fi
 
 #
 # Generate lpp control files.

@@ -1,8 +1,20 @@
 #!/bin/bash
 #
-# ssh-user-config, Copyright 2000, 2001, 2002, 2003, Red Hat Inc.
+# ssh-user-config, Copyright 2000-2008 Red Hat Inc.
 #
 # This file is part of the Cygwin port of OpenSSH.
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   
+# IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    
+# THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               
 
 # ======================================================================
 # Initialization
@@ -118,14 +130,14 @@ check_user_homedir() {
   pwdhome=$(awk -F: '{ if ( $3 == '${uid}' ) print $6; }' < ${SYSCONFDIR}/passwd)
   if [ "X${pwdhome}" = "X" ]
   then
-    csih_error_multiline \
+    csih_error_multi \
       "There is no home directory set for you in ${SYSCONFDIR}/passwd." \
       'Setting $HOME is not sufficient!'
   fi
   
   if [ ! -d "${pwdhome}" ]
   then
-    csih_error_multiline \
+    csih_error_multi \
       "${pwdhome} is set in ${SYSCONFDIR}/passwd as your home directory" \
       'but it is not a valid directory. Cannot create user identity files.'
   fi
@@ -291,7 +303,7 @@ done
 # Check passwd file
 if [ ! -f ${SYSCONFDIR}/passwd ]
 then
-  csih_error_multiline \
+  csih_error_multi \
     "${SYSCONFDIR}/passwd is nonexistant. Please generate an ${SYSCONFDIR}/passwd file" \
     'first using mkpasswd. Check if it contains an entry for you and' \
     'please care for the home directory in your entry as well.'

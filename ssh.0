@@ -78,14 +78,8 @@ DESCRIPTION
              graphic weaknesses.  The default is ``3des''.
 
              For protocol version 2, cipher_spec is a comma-separated list of
-             ciphers listed in order of preference.  The supported ciphers
-             are: 3des-cbc, aes128-cbc, aes192-cbc, aes256-cbc, aes128-ctr,
-             aes192-ctr, aes256-ctr, arcfour128, arcfour256, arcfour, blow-
-             fish-cbc, and cast128-cbc.  The default is:
-
-                   aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour128,
-                   arcfour256,arcfour,aes192-cbc,aes256-cbc,aes128-ctr,
-                   aes192-ctr,aes256-ctr
+             ciphers listed in order of preference.  See the Ciphers keyword
+             for more information.
 
      -D [bind_address:]port
              Specifies a local ``dynamic'' application-level port forwarding.
@@ -870,4 +864,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.5                    February 12, 2009                            14
+OpenBSD 4.6                     March 19, 2009                              14
