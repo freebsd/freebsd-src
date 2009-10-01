@@ -1,3 +1,282 @@
+20090926
+ - (djm) [contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+         [contrib/suse/openssh.spec] Update for release
+ - (djm) [README] update relnotes URL
+ - (djm) [packet.c] Restore EWOULDBLOCK handling that got lost somewhere
+ - (djm) Release 5.3p1
+
+20090911
+ - (dtucker) [configure.ac] Change the -lresolv check so it works on Mac OS X
+   10.6 (which doesn't have BIND8_COMPAT and thus uses res_9_query).  Patch
+   from jbasney at ncsa uiuc edu.
+
+20090908
+ - (djm) [serverloop.c] Fix test for server-assigned remote forwarding port
+   (-R 0:...); bz#1578, spotted and fix by gavin AT emf.net; ok dtucker@
+
+20090901
+ - (dtucker) [configure.ac] Bug #1639: use AC_PATH_PROG to search the path for
+   krb5-config if it's not in the location specified by --with-kerberos5.
+   Patch from jchadima at redhat.
+
+20090829
+ - (dtucker) [README.platform] Add text about development packages, based on
+   text from Chris Pepper in bug #1631.
+
+20090828
+ - dtucker [auth-sia.c] Roll back the change for bug #1241 as it apparently
+   causes problems in some Tru64 configurations.
+ - (djm) [sshd_config.5] downgrade mention of login.conf to be an example
+   and mention PAM as another provider for ChallengeResponseAuthentication;
+   bz#1408; ok dtucker@
+ - (djm) [sftp-server.c] bz#1535: accept ENOSYS as a fallback error when
+   attempting atomic rename(); ok dtucker@
+ - (djm) [Makefile.in] bz#1505: Solaris make(1) doesn't accept make variables
+   in argv, so pass them in the environment; ok dtucker@
+ - (dtucker) [channels.c configure.ac] Bug #1528: skip the tcgetattr call on
+    the pty master on Solaris, since it never succeeds and can hang if large
+    amounts of data is sent to the slave (eg a copy-paste).  Based on a patch
+    originally from Doke Scott, ok djm@
+ - (dtucker) [clientloop.c configure.ac defines.h] Make the client's IO buffer
+   size a compile-time option and set it to 64k on Cygwin, since Corinna
+   reports that it makes a significant difference to performance.  ok djm@
+ - (dtucker) [configure.ac] Fix the syntax of the Solaris tcgetattr entry.
+
+20090820
+ - (dtucker) [includes.h] Bug #1634: do not include system glob.h if we're not
+   using it since the type conflicts can cause problems on FreeBSD.  Patch
+   from Jonathan Chen.
+ - (dtucker) [session.c openbsd-compat/port-aix.h] Bugs #1249 and #1567: move
+   the setpcred call on AIX to immediately before the permanently_set_uid().
+   Ensures that we still have privileges when we call chroot and
+   pam_open_sesson.  Based on a patch from David Leonard.
+
+20090817
+ - (dtucker) [configure.ac] Check for headers before libraries for openssl an
+   zlib, which should make the errors slightly more meaningful on platforms
+   where there's separate "-devel" packages for those.
+ - (dtucker) [sshlogin.c openbsd-compat/port-aix.{c,h}] Bug #1595: make
+   PrintLastLog work on AIX.  Based in part on a patch from Miguel Sanders.
+
+20090729
+ - (tim) [contrib/cygwin/ssh-user-config] Change script to call correct error
+   function. Patch from Corinna Vinschen.
+
+20090713
+ - (dtucker) [openbsd-compat/getrrsetbyname.c] Reduce answer buffer size so it
+   fits into 16 bits to work around a bug in glibc's resolver where it masks
+   off the buffer size at 16 bits.  Patch from Hauke Lampe, ok djm jakob.
+
+20090712
+ - (dtucker) [configure.ac] Include sys/param.h for the sys/mount.h test,
+   prevents configure complaining on older BSDs.
+ - (dtucker [contrib/cygwin/ssh-{host,user}-config] Add license text. Patch
+   from Corinna Vinschen.
+ - (dtucker) [auth-pam.c] Bug #1534: move the deletion of PAM credentials on
+   logout to after the session close.  Patch from Anicka Bernathova,
+   originally from Andreas Schwab via Novelll ok djm.
+
+20090707
+ - (dtucker) [contrib/cygwin/ssh-host-config] better support for automated
+   scripts and fix usage of eval.  Patch from Corinna Vinschen.
+
+20090705
+ - (dtucker) OpenBSD CVS Sync
+   - andreas@cvs.openbsd.org 2009/06/27 09:29:06
+     [packet.h packet.c]
+     packet_bacup_state() and packet_restore_state() will be used to
+     temporarily save the current state ren resuming a suspended connection.
+     ok markus@
+   - andreas@cvs.openbsd.org 2009/06/27 09:32:43
+     [roaming_common.c roaming.h]
+     It may be necessary to retransmit some data when resuming, so add it
+     to a buffer when roaming is enabled.
+     Most of this code was written by Martin Forssen, maf at appgate dot com.
+     ok markus@
+   - andreas@cvs.openbsd.org 2009/06/27 09:35:06
+     [readconf.h readconf.c]
+     Add client option UseRoaming. It doesn't do anything yet but will
+     control whether the client tries to use roaming if enabled on the
+     server. From Martin Forssen.
+     ok markus@
+   - markus@cvs.openbsd.org 2009/06/30 14:54:40
+     [version.h]
+     crank version; ok deraadt
+   - dtucker@cvs.openbsd.org 2009/07/02 02:11:47
+     [ssh.c]
+     allow for long home dir paths (bz #1615).  ok deraadt
+     (based in part on a patch from jchadima at redhat)
+   - stevesk@cvs.openbsd.org 2009/07/05 19:28:33
+     [clientloop.c]
+     only send SSH2_MSG_DISCONNECT if we're in compat20; from dtucker@
+     ok deraadt@ markus@
+
+20090622
+ - (dtucker) OpenBSD CVS Sync
+   - dtucker@cvs.openbsd.org 2009/06/22 05:39:28
+     [monitor_wrap.c monitor_mm.c ssh-keygen.c auth2.c gss-genr.c sftp-client.c]
+     alphabetize includes; reduces diff vs portable and style(9).
+     ok stevesk djm
+     (Id sync only; these were already in order in -portable)
+
+20090621
+ - (dtucker) OpenBSD CVS Sync
+   - markus@cvs.openbsd.org 2009/03/17 21:37:00
+     [ssh.c]
+     pass correct argv[0] to openlog(); ok djm@
+  - jmc@cvs.openbsd.org 2009/03/19 15:15:09
+     [ssh.1]
+     for "Ciphers", just point the reader to the keyword in ssh_config(5), just
+     as we do for "MACs": this stops us getting out of sync when the lists
+     change;
+     fixes documentation/6102, submitted by Peter J. Philipp
+     alternative fix proposed by djm
+     ok markus
+   - tobias@cvs.openbsd.org 2009/03/23 08:31:19
+     [ssh-agent.c]
+     Fixed a possible out-of-bounds memory access if the environment variable
+     SHELL is shorter than 3 characters.
+     with input by and ok dtucker
+   - tobias@cvs.openbsd.org 2009/03/23 19:38:04
+     [ssh-agent.c]
+     My previous commit didn't fix the problem at all, so stick at my first
+     version of the fix presented to dtucker.
+     Issue notified by Matthias Barkhoff (matthias dot barkhoff at gmx dot de).
+     ok dtucker
+   - sobrado@cvs.openbsd.org 2009/03/26 08:38:39
+     [sftp-server.8 sshd.8 ssh-agent.1]
+     fix a few typographical errors found by spell(1).
+     ok dtucker@, jmc@
+   - stevesk@cvs.openbsd.org 2009/04/13 19:07:44
+     [sshd_config.5]
+     fix possessive; ok djm@
+   - stevesk@cvs.openbsd.org 2009/04/14 16:33:42
+     [sftp-server.c]
+     remove unused option character from getopt() optstring; ok markus@
+   - jj@cvs.openbsd.org 2009/04/14 21:10:54
+     [servconf.c]
+     Fixed a few the-the misspellings in comments. Skipped a bunch in
+     binutils,gcc and so on. ok jmc@
+   - stevesk@cvs.openbsd.org 2009/04/17 19:23:06
+     [session.c]
+     use INTERNAL_SFTP_NAME for setproctitle() of in-process sftp-server;
+     ok djm@ markus@
+   - stevesk@cvs.openbsd.org 2009/04/17 19:40:17
+     [sshd_config.5]
+     clarify that even internal-sftp needs /dev/log for logging to work; ok
+     markus@
+   - jmc@cvs.openbsd.org 2009/04/18 18:39:10
+     [sshd_config.5]
+     tweak previous; ok stevesk
+   - stevesk@cvs.openbsd.org 2009/04/21 15:13:17
+     [sshd_config.5]
+     clarify we cd to user's home after chroot; ok markus@ on
+     earlier version; tweaks and ok jmc@
+   - andreas@cvs.openbsd.org 2009/05/25 06:48:01
+     [channels.c packet.c clientloop.c packet.h serverloop.c monitor_wrap.c
+     monitor.c]
+     Put the globals in packet.c into a struct and don't access it directly
+     from other files. No functional changes.
+     ok markus@ djm@
+   - andreas@cvs.openbsd.org 2009/05/27 06:31:25
+     [canohost.h canohost.c]
+     Add clear_cached_addr(), needed for upcoming changes allowing the peer
+     address to change.
+     ok markus@
+   - andreas@cvs.openbsd.org 2009/05/27 06:33:39
+     [clientloop.c]
+     Send SSH2_MSG_DISCONNECT when the client disconnects. From a larger
+     change from Martin Forssen, maf at appgate dot com.
+     ok markus@
+   - andreas@cvs.openbsd.org 2009/05/27 06:34:36
+     [kex.c kex.h]
+     Move the KEX_COOKIE_LEN define to kex.h
+     ok markus@
+   - andreas@cvs.openbsd.org 2009/05/27 06:36:07
+     [packet.h packet.c]
+     Add packet_put_int64() and packet_get_int64(), part of a larger change
+     from Martin Forssen.
+     ok markus@
+   - andreas@cvs.openbsd.org 2009/05/27 06:38:16
+     [sshconnect.h sshconnect.c]
+     Un-static ssh_exchange_identification(), part of a larger change from
+     Martin Forssen and needed for upcoming changes.
+     ok markus@
+   - andreas@cvs.openbsd.org 2009/05/28 16:50:16
+     [sshd.c packet.c serverloop.c monitor_wrap.c clientloop.c sshconnect.c
+     monitor.c Added roaming.h roaming_common.c roaming_dummy.c]
+     Keep track of number of bytes read and written. Needed for upcoming
+     changes. Most code from Martin Forssen, maf at appgate dot com.
+     ok markus@
+     Also, applied appropriate changes to Makefile.in
+   - andreas@cvs.openbsd.org 2009/06/12 20:43:22
+     [monitor.c packet.c]
+     Fix warnings found by chl@ and djm@ and change roaming_atomicio's
+     return type to match atomicio's
+     Diff from djm@, ok markus@
+   - andreas@cvs.openbsd.org 2009/06/12 20:58:32
+     [packet.c]
+     Move some more statics into session_state
+     ok markus@ djm@
+   - dtucker@cvs.openbsd.org 2009/06/21 07:37:15
+     [kexdhs.c kexgexs.c]
+     abort if key_sign fails, preventing possible null deref.  Based on report
+     from Paolo Ganci, ok markus@ djm@
+   - dtucker@cvs.openbsd.org 2009/06/21 09:04:03
+     [roaming.h roaming_common.c roaming_dummy.c]
+     Add  tags for the benefit of the sync scripts
+     Also: pull in the changes for 1.1->1.2 missed in the previous sync.
+ - (dtucker) [auth2-jpake.c auth2.c canohost.h session.c] Whitespace and
+   header-order changes to reduce diff vs OpenBSD.
+ - (dtucker) [servconf.c sshd.c] More whitespace sync.
+ - (dtucker) [roaming_common.c roaming_dummy.c] Wrap #include <inttypes.h> in
+   ifdef.
+
+20090616
+ - (dtucker) [configure.ac defines.h] Bug #1607: handle the case where fsid_t
+   is a struct with a __val member.  Fixes build on, eg, Redhat 6.2.
+
+20090504
+ - (dtucker) [sshlogin.c] Move the NO_SSH_LASTLOG #ifndef line to include
+   variable declarations.  Should prevent unused warnings anywhere it's set
+   (only Crays as far as I can tell) and be a no-op everywhere else.
+
+20090318
+ - (tim) [configure.ac] Remove setting IP_TOS_IS_BROKEN for Cygwin. The problem
+   that setsockopt(IP_TOS) doesn't work on Cygwin has been fixed since 2005.
+   Based on patch from vinschen at redhat com.
+
+20090308
+ - (dtucker) [auth-passwd.c auth1.c auth2-kbdint.c auth2-none.c auth2-passwd.c
+   auth2-pubkey.c session.c openbsd-compat/bsd-cygwin_util.{c,h}
+   openbsd-compat/daemon.c] Remove support for Windows 95/98/ME and very old
+   version of Cygwin.  Patch from vinschen at redhat com.
+
+20090307
+ - (dtucker) [contrib/aix/buildbff.sh] Only try to rename ssh_prng_cmds if it
+   exists (it's not created if OpenSSL's PRNG is self-seeded, eg if the OS
+   has a /dev/random).
+ - (dtucker) [schnorr.c openbsd-compat/openssl-compat.{c,h}] Add
+   EVP_DigestUpdate to the OLD_EVP compatibility functions and tell schnorr.c
+   to use them.  Allows building with older OpenSSL versions.
+ - (dtucker) [configure.ac defines.h] Check for in_port_t and typedef if needed.
+ - (dtucker) [configure.ac] Missing comma in type list.
+ - (dtucker) [configure.ac openbsd-compat/openssl-compat.{c,h}]
+   EVP_DigestUpdate does not exactly match the other OLD_EVP functions (eg
+   in openssl 0.9.6) so add an explicit test for it.
+
+20090306
+ - (djm) OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2009/03/05 07:18:19
+     [auth2-jpake.c jpake.c jpake.h monitor_wrap.c monitor_wrap.h schnorr.c]
+     [sshconnect2.c]
+     refactor the (disabled) Schnorr proof code to make it a little more
+     generally useful
+   - djm@cvs.openbsd.org 2009/03/05 11:30:50
+     [uuencode.c]
+     document what these functions do so I don't ever have to recuse into
+     b64_pton/ntop to remember their return values
+
 20090223
  - (djm) OpenBSD CVS Sync
    - djm@cvs.openbsd.org 2009/02/22 23:50:57
