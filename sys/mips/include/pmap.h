@@ -172,6 +172,7 @@ void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
 int pmap_compute_pages_to_dump(void);
 void pmap_update_page(pmap_t pmap, vm_offset_t va, pt_entry_t pte);
+void pmap_flush_pvcache(vm_page_t m);
 
 /*
  * floating virtual pages (FPAGES)
