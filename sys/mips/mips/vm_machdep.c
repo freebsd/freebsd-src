@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
+#include <machine/cache.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
@@ -474,6 +475,12 @@ sf_buf_alloc(struct vm_page *m, int flags)
 				nsfbufsused++;
 				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 			}
+			/*
+			 * Flush all mappings in order to have up to date 
+			 * physycal memory
+			 */
+			pmap_flush_pvcache(sf->m);
+			mips_dcache_inv_range(sf->kva, PAGE_SIZE);
 			goto done;
 		}
 	}
@@ -515,6 +522,10 @@ sf_buf_free(struct sf_buf *sf)
 {
 	mtx_lock(&sf_buf_lock);
 	sf->ref_count--;
+	/*
+	 * Make sure all changes in KVA end up in physical memory
+	 */
+	mips_dcache_wbinv_range(sf->kva, PAGE_SIZE);
 	if (sf->ref_count == 0) {
 		TAILQ_INSERT_TAIL(&sf_buf_freelist, sf, free_entry);
 		nsfbufsused--;
