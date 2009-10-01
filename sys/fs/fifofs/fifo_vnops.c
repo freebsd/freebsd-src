@@ -119,7 +119,6 @@ static struct filterops fifo_notsup_filtops = {
 struct vop_vector fifo_specops = {
 	.vop_default =		&default_vnodeops,
 
-	.vop_access =		VOP_EBADF,
 	.vop_advlock =		fifo_advlock,
 	.vop_close =		fifo_close,
 	.vop_create =		VOP_PANIC,
