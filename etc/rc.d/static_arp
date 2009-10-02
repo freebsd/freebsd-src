@@ -44,8 +44,6 @@ static_arp_start()
 {
 	local e arp_args
 
-	afexists inet || return 0
-
 	if [ -n "${static_arp_pairs}" ]; then
 		echo -n 'Binding static ARP pair(s):'
 		for e in ${static_arp_pairs}; do
@@ -60,8 +58,6 @@ static_arp_start()
 static_arp_stop()
 {
 	local e arp_args
-
-	afexists inet || return 0
 
 	if [ -n "${static_arp_pairs}" ]; then
 		echo -n 'Unbinding static ARP pair(s):'
