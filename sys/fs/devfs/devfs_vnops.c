@@ -883,6 +883,7 @@ devfs_open(struct vop_open_args *ap)
 	if (fp != NULL) {
 		FILE_LOCK(fp);
 		fp->f_data = dev;
+		fp->f_vnode = vp;
 		FILE_UNLOCK(fp);
 	}
 	fpop = td->td_fpop;

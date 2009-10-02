@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20091002:	p8	FreeBSD-SA-09:14.devfs, FreeBSD-EN-09:05.null
+	Fix devfs / VFS NULL pointer race condition. [SA-09:14]
+
+	Add no zero mapping feature. [EN-09:05]
+
 20090729:	p7	FreeBSD-SA-09:12.bind
 	Fix BIND named(8) dynamic update message remote DoS.
 
