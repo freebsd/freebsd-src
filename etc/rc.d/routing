@@ -27,8 +27,24 @@ routing_start()
 
 routing_stop()
 {
+	local _af
+
 	static_stop "$@"
-	route -n flush
+	for _af in inet inet6; do
+		afexists ${_af} && eval routing_stop_${_af}
+	done
+}
+
+routing_stop_inet()
+{
+	route -n flush -inet
+}
+
+routing_stop_inet6()
+{
+	local i
+
+	route -n flush -inet6
 	for i in ${ipv6_network_interfaces}; do
 		ifconfig $i inet6 -defaultif
 	done
@@ -40,21 +56,11 @@ static_start()
 	_af=$1
 
 	case ${_af} in
-	inet)
-		do_static inet add
+	inet|inet6|atm)
+		do_static add ${_af}
 		;;
-	inet6)
-		do_static inet6 add
-		;;
-	atm)
-		do_static atm add
-		;;
-	*)
-		do_static inet add
-		if afexists inet6; then
-			do_static inet6 add
-		fi
-		do_static atm add
+	"")
+		do_static add inet inet6 atm
 		;;
 	esac
 }
@@ -65,21 +71,11 @@ static_stop()
 	_af=$1
 
 	case ${_af} in
-	inet)
-		do_static inet delete
+	inet|inet6|atm)
+		do_static delete ${_af}
 		;;
-	inet6)
-		do_static inet6 delete
-		;;
-	atm)
-		do_static atm delete
-		;;
-	*)
-		do_static inet delete
-		if afexists inet6; then
-			do_static inet6 delete
-		fi
-		do_static atm delete
+	"")
+		do_static delete inet inet6 atm
 		;;
 	esac
 }
@@ -87,13 +83,15 @@ static_stop()
 do_static()
 {
 	local _af _action
-	_af=$1
-	_action=$2
+	_action=$1
 
-	eval $1_static $2
+	shift
+	for _af in "$@"; do
+		afexists ${_af} && eval static_${_af} ${_action}
+	done
 }
 
-inet_static()
+static_inet()
 {
 	local _action
 	_action=$1
@@ -115,7 +113,7 @@ inet_static()
 	fi
 }
 
-inet6_static()
+static_inet6()
 {
 	local _action i
 	_action=$1
@@ -222,9 +220,9 @@ inet6_static()
 	esac
 }
 
-atm_static()
+static_atm()
 {
-	local _action i
+	local _action i route_args
 	_action=$1
 
 	if [ -n "${natm_static_routes}" ]; then
@@ -246,61 +244,93 @@ ropts_init()
 
 options_start()
 {
+	local _af
+
+	for _af in inet inet6 ipx; do
+		afexists ${_af} && eval options_${_af}
+	done
+	 [ -n "${_ropts_initdone}" ] && echo '.'
+}
+
+options_inet()
+{
 	if checkyesno icmp_bmcastecho; then
 		ropts_init
 		echo -n ' broadcast ping responses=YES'
-		sysctl net.inet.icmp.bmcastecho=1 >/dev/null
+		${SYSCTL_W} net.inet.icmp.bmcastecho=1 > /dev/null
+	else
+		${SYSCTL_W} net.inet.icmp.bmcastecho=0 > /dev/null
 	fi
 
 	if checkyesno icmp_drop_redirect; then
 		ropts_init
 		echo -n ' ignore ICMP redirect=YES'
-		sysctl net.inet.icmp.drop_redirect=1 >/dev/null
+		${SYSCTL_W} net.inet.icmp.drop_redirect=1 > /dev/null
+	else
+		${SYSCTL_W} net.inet.icmp.drop_redirect=0 > /dev/null
 	fi
 
 	if checkyesno icmp_log_redirect; then
 		ropts_init
 		echo -n ' log ICMP redirect=YES'
-		sysctl net.inet.icmp.log_redirect=1 >/dev/null
+		${SYSCTL_W} net.inet.icmp.log_redirect=1 > /dev/null
+	else
+		${SYSCTL_W} net.inet.icmp.log_redirect=0 > /dev/null
 	fi
 
 	if checkyesno gateway_enable; then
 		ropts_init
 		echo -n ' IPv4 gateway=YES'
-		sysctl net.inet.ip.forwarding=1 >/dev/null
-	fi
-
-	if checkyesno ipv6_gateway_enable; then
-		ropts_init
-		echo -n ' IPv6 gateway=YES'
-		sysctl net.inet6.ip6.forwarding=1 >/dev/null
+		${SYSCTL_W} net.inet.ip.forwarding=1 > /dev/null
+	else
+		${SYSCTL_W} net.inet.ip.forwarding=0 > /dev/null
 	fi
 
 	if checkyesno forward_sourceroute; then
 		ropts_init
 		echo -n ' do source routing=YES'
-		sysctl net.inet.ip.sourceroute=1 >/dev/null
+		${SYSCTL_W} net.inet.ip.sourceroute=1 > /dev/null
+	else
+		${SYSCTL_W} net.inet.ip.sourceroute=0 > /dev/null
 	fi
 
 	if checkyesno accept_sourceroute; then
 		ropts_init
 		echo -n ' accept source routing=YES'
-		sysctl net.inet.ip.accept_sourceroute=1 >/dev/null
-	fi
-
-	if checkyesno ipxgateway_enable; then
-		ropts_init
-		echo -n ' IPX gateway=YES'
-		sysctl net.ipx.ipx.ipxforwarding=1 >/dev/null
+		${SYSCTL_W} net.inet.ip.accept_sourceroute=1 > /dev/null
+	else
+		${SYSCTL_W} net.inet.ip.accept_sourceroute=0 > /dev/null
 	fi
 
 	if checkyesno arpproxy_all; then
 		ropts_init
 		echo -n ' ARP proxyall=YES'
-		sysctl net.link.ether.inet.proxyall=1 >/dev/null
+		${SYSCTL_W} net.link.ether.inet.proxyall=1 > /dev/null
+	else
+		${SYSCTL_W} net.link.ether.inet.proxyall=0 > /dev/null
 	fi
+}
 
-	 [ -n "${_ropts_initdone}" ] && echo '.'
+options_inet6()
+{
+	if checkyesno ipv6_gateway_enable; then
+		ropts_init
+		echo -n ' IPv6 gateway=YES'
+		${SYSCTL_W} net.inet6.ip6.forwarding=1 > /dev/null
+	else
+		${SYSCTL_W} net.inet6.ip6.forwarding=0 > /dev/null
+	fi
+}
+
+options_ipx()
+{
+	if checkyesno ipxgateway_enable; then
+		ropts_init
+		echo -n ' IPX gateway=YES'
+		${SYSCTL_W} net.ipx.ipx.ipxforwarding=1 > /dev/null
+	else
+		${SYSCTL_W} net.ipx.ipx.ipxforwarding=0 > /dev/null
+	fi
 }
 
 load_rc_config $name
