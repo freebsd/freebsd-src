@@ -268,8 +268,8 @@ pipe_zone_ctor(void *mem, int size, void *arg, int flags)
 	 * one at a time.  When both are free'd, then the whole pair
 	 * is released.
 	 */
-	rpipe->pipe_present = 1;
-	wpipe->pipe_present = 1;
+	rpipe->pipe_present = PIPE_ACTIVE;
+	wpipe->pipe_present = PIPE_ACTIVE;
 
 	/*
 	 * Eventually, the MAC Framework may initialize the label
@@ -1003,7 +1003,8 @@ pipe_write(fp, uio, active_cred, flags, td)
 	/*
 	 * detect loss of pipe read side, issue SIGPIPE if lost.
 	 */
-	if ((!wpipe->pipe_present) || (wpipe->pipe_state & PIPE_EOF)) {
+	if (wpipe->pipe_present != PIPE_ACTIVE ||
+	    (wpipe->pipe_state & PIPE_EOF)) {
 		pipeunlock(wpipe);
 		PIPE_UNLOCK(rpipe);
 		return (EPIPE);
@@ -1361,13 +1362,14 @@ pipe_poll(fp, events, active_cred, td)
 			revents |= events & (POLLIN | POLLRDNORM);
 
 	if (events & (POLLOUT | POLLWRNORM))
-		if (!wpipe->pipe_present || (wpipe->pipe_state & PIPE_EOF) ||
+		if (wpipe->pipe_present != PIPE_ACTIVE ||
+		    (wpipe->pipe_state & PIPE_EOF) ||
 		    (((wpipe->pipe_state & PIPE_DIRECTW) == 0) &&
 		     (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
 	if ((rpipe->pipe_state & PIPE_EOF) ||
-	    (!wpipe->pipe_present) ||
+	    wpipe->pipe_present != PIPE_ACTIVE ||
 	    (wpipe->pipe_state & PIPE_EOF))
 		revents |= POLLHUP;
 
@@ -1506,7 +1508,7 @@ pipeclose(cpipe)
 	 * Disconnect from peer, if any.
 	 */
 	ppipe = cpipe->pipe_peer;
-	if (ppipe->pipe_present != 0) {
+	if (ppipe->pipe_present == PIPE_ACTIVE) {
 		pipeselwakeup(ppipe);
 
 		ppipe->pipe_state |= PIPE_EOF;
@@ -1523,16 +1525,23 @@ pipeclose(cpipe)
 	PIPE_UNLOCK(cpipe);
 	pipe_free_kmem(cpipe);
 	PIPE_LOCK(cpipe);
-	cpipe->pipe_present = 0;
+	cpipe->pipe_present = PIPE_CLOSING;
 	pipeunlock(cpipe);
+
+	/*
+	 * knlist_clear() may sleep dropping the PIPE_MTX. Set the
+	 * PIPE_FINALIZED, that allows other end to free the
+	 * pipe_pair, only after the knotes are completely dismantled.
+	 */
 	knlist_clear(&cpipe->pipe_sel.si_note, 1);
+	cpipe->pipe_present = PIPE_FINALIZED;
 	knlist_destroy(&cpipe->pipe_sel.si_note);
 
 	/*
 	 * If both endpoints are now closed, release the memory for the
 	 * pipe pair.  If not, unlock.
 	 */
-	if (ppipe->pipe_present == 0) {
+	if (ppipe->pipe_present == PIPE_FINALIZED) {
 		PIPE_UNLOCK(cpipe);
 #ifdef MAC
 		mac_destroy_pipe(pp);
@@ -1556,7 +1565,7 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 		break;
 	case EVFILT_WRITE:
 		kn->kn_fop = &pipe_wfiltops;
-		if (!cpipe->pipe_peer->pipe_present) {
+		if (cpipe->pipe_peer->pipe_present != PIPE_ACTIVE) {
 			/* other end of pipe has been closed */
 			PIPE_UNLOCK(cpipe);
 			return (EPIPE);
@@ -1579,13 +1588,8 @@ filt_pipedetach(struct knote *kn)
 	struct pipe *cpipe = (struct pipe *)kn->kn_fp->f_data;
 
 	PIPE_LOCK(cpipe);
-	if (kn->kn_filter == EVFILT_WRITE) {
-		if (!cpipe->pipe_peer->pipe_present) {
-			PIPE_UNLOCK(cpipe);
-			return;
-		}
+	if (kn->kn_filter == EVFILT_WRITE)
 		cpipe = cpipe->pipe_peer;
-	}
 	knlist_remove(&cpipe->pipe_sel.si_note, kn, 1);
 	PIPE_UNLOCK(cpipe);
 }
@@ -1604,7 +1608,8 @@ filt_piperead(struct knote *kn, long hint)
 		kn->kn_data = rpipe->pipe_map.cnt;
 
 	if ((rpipe->pipe_state & PIPE_EOF) ||
-	    (!wpipe->pipe_present) || (wpipe->pipe_state & PIPE_EOF)) {
+	    wpipe->pipe_present != PIPE_ACTIVE ||
+	    (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_flags |= EV_EOF;
 		PIPE_UNLOCK(rpipe);
 		return (1);
@@ -1622,7 +1627,8 @@ filt_pipewrite(struct knote *kn, long hint)
 	struct pipe *wpipe = rpipe->pipe_peer;
 
 	PIPE_LOCK(rpipe);
-	if ((!wpipe->pipe_present) || (wpipe->pipe_state & PIPE_EOF)) {
+	if (wpipe->pipe_present != PIPE_ACTIVE ||
+	    (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_data = 0;
 		kn->kn_flags |= EV_EOF;
 		PIPE_UNLOCK(rpipe);
