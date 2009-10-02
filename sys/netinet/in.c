@@ -1327,8 +1327,10 @@ in_lltable_rtcheck(struct ifnet *ifp, const struct sockaddr *l3addr)
 	/* XXX rtalloc1 should take a const param */
 	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
 	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || rt->rt_ifp != ifp) {
+#ifdef DIAGNOSTICS
 		log(LOG_INFO, "IPv4 address: \"%s\" is not on the network\n",
 		    inet_ntoa(((const struct sockaddr_in *)l3addr)->sin_addr));
+#endif
 		if (rt != NULL)
 			RTFREE_LOCKED(rt);
 		return (EINVAL);
