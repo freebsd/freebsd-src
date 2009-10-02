@@ -750,14 +750,18 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	/*
 	 * assign a link-local address, if there's none.
 	 */
-	if (V_ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE) {
+	if (ifp->if_type != IFT_BRIDGE &&
+	    !(ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
+	    ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) {
+		int error;
+
 		ia = in6ifa_ifpforlinklocal(ifp, 0);
 		if (ia == NULL) {
-			if (in6_ifattach_linklocal(ifp, altifp) == 0) {
-				/* linklocal address assigned */
-			} else {
-				/* failed to assign linklocal address. bark? */
-			}
+			error = in6_ifattach_linklocal(ifp, altifp);
+			if (error)
+				log(LOG_NOTICE, "in6_ifattach_linklocal: "
+				    "failed to add a link-local addr to %s\n",
+				    if_name(ifp));
 		} else
 			ifa_free(&ia->ia_ifa);
 	}

@@ -1364,7 +1364,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		p = ifunit(vlr.vlr_parent);
-		if (p == 0) {
+		if (p == NULL) {
 			error = ENOENT;
 			break;
 		}

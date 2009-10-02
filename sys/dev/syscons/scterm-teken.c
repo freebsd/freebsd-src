@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_syscons.h"
+#include "opt_teken.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -125,14 +126,23 @@ scteken_init(scr_stat *scp, void **softc, int code)
 		/* FALLTHROUGH */
 	case SC_TE_WARM_INIT:
 		teken_init(&ts->ts_teken, &scteken_funcs, scp);
+#ifndef TEKEN_UTF8
+		teken_set_8bit(&ts->ts_teken);
+#endif /* !TEKEN_UTF8 */
+#ifndef TEKEN_XTERM
+		teken_set_cons25(&ts->ts_teken);
+#endif /* !TEKEN_XTERM */
 
 		tp.tp_row = scp->ysize;
 		tp.tp_col = scp->xsize;
 		teken_set_winsize(&ts->ts_teken, &tp);
 
-		tp.tp_row = scp->cursor_pos / scp->xsize;
-		tp.tp_col = scp->cursor_pos % scp->xsize;
-		teken_set_cursor(&ts->ts_teken, &tp);
+		if (scp->cursor_pos < scp->ysize * scp->xsize) {
+			/* Valid old cursor position. */
+			tp.tp_row = scp->cursor_pos / scp->xsize;
+			tp.tp_col = scp->cursor_pos % scp->xsize;
+			teken_set_cursor(&ts->ts_teken, &tp);
+		}
 		break;
 	}
 
@@ -303,11 +313,11 @@ scteken_attr(const teken_attr_t *a)
 	teken_color_t fg, bg;
 
 	if (a->ta_format & TF_REVERSE) {
-		fg = a->ta_bgcolor;
-		bg = a->ta_fgcolor;
+		fg = teken_256to8(a->ta_bgcolor);
+		bg = teken_256to8(a->ta_fgcolor);
 	} else {
-		fg = a->ta_fgcolor;
-		bg = a->ta_bgcolor;
+		fg = teken_256to8(a->ta_fgcolor);
+		bg = teken_256to8(a->ta_bgcolor);
 	}
 	if (a->ta_format & TF_BOLD)
 		attr |= fgcolors_bold[fg];
@@ -634,6 +644,9 @@ scteken_param(void *arg, int cmd, unsigned int value)
 		scp->bell_pitch = TP_SETBELLPD_PITCH(value);
 		scp->bell_duration = TP_SETBELLPD_DURATION(value);
 		break;
+	case TP_MOUSE:
+		scp->mouse_level = value;
+		break;
 	}
 }
 
@@ -642,5 +655,5 @@ scteken_respond(void *arg, const void *buf, size_t len)
 {
 	scr_stat *scp = arg;
 
-	sc_respond(scp, buf, len);
+	sc_respond(scp, buf, len, 0);
 }

@@ -156,6 +156,7 @@ static void	uftdi_stop_read(struct ucom_softc *);
 static void	uftdi_start_write(struct ucom_softc *);
 static void	uftdi_stop_write(struct ucom_softc *);
 static uint8_t	uftdi_8u232am_getrate(uint32_t, uint16_t *);
+static void	uftdi_poll(struct ucom_softc *ucom);
 
 static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
 
@@ -190,6 +191,7 @@ static const struct ucom_callback uftdi_callback = {
 	.ucom_stop_read = &uftdi_stop_read,
 	.ucom_start_write = &uftdi_start_write,
 	.ucom_stop_write = &uftdi_stop_write,
+	.ucom_poll = &uftdi_poll,
 };
 
 static device_method_t uftdi_methods[] = {
@@ -241,10 +243,13 @@ static struct usb_device_id uftdi_devs[] = {
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_PCMSFU, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_EMCU2H, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_MAXSTREAM, UFTDI_TYPE_8U232AM)},
+	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_CTI_USB_NANO_485, UFTDI_TYPE_8U232AM)},
+	{USB_VPI(USB_VENDOR_FTDI, USB_PRODUCT_FTDI_CTI_USB_MINI_485, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_SIIG2, USB_PRODUCT_SIIG2_US2308, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_INTREPIDCS, USB_PRODUCT_INTREPIDCS_VALUECAN, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_INTREPIDCS, USB_PRODUCT_INTREPIDCS_NEOVI, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_BBELECTRONICS, USB_PRODUCT_BBELECTRONICS_USOTL4, UFTDI_TYPE_8U232AM)},
+	{USB_VPI(USB_VENDOR_MARVELL, USB_PRODUCT_MARVELL_SHEEVAPLUG, UFTDI_TYPE_8U232AM)},
 	{USB_VPI(USB_VENDOR_MELCO, USB_PRODUCT_MELCO_PCOPRS1, UFTDI_TYPE_8U232AM)},
 };
 
@@ -807,4 +812,11 @@ uftdi_8u232am_getrate(uint32_t speed, uint16_t *rate)
 done:
 	*rate = result;
 	return (0);
+}
+
+static void
+uftdi_poll(struct ucom_softc *ucom)
+{
+	struct uftdi_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UFTDI_N_TRANSFER);
 }

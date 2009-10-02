@@ -517,7 +517,7 @@ pmap_init_pat(void)
 		return;
 
 	if (cpu_vendor_id != CPU_VENDOR_INTEL ||
-	    (I386_CPU_FAMILY(cpu_id) == 6 && I386_CPU_MODEL(cpu_id) >= 0xe)) {
+	    (CPUID_TO_FAMILY(cpu_id) == 6 && CPUID_TO_MODEL(cpu_id) >= 0xe)) {
 		/*
 		 * Leave the indices 0-3 at the default of WB, WT, UC, and UC-.
 		 * Program 4 and 5 as WP and WC.
@@ -1004,8 +1004,8 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 		 * coherence domain.
 		 */
 		mfence();
-		for (; eva < sva; eva += cpu_clflush_line_size)
-			clflush(eva);
+		for (; sva < eva; sva += cpu_clflush_line_size)
+			clflush(sva);
 		mfence();
 	} else {
 

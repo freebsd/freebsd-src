@@ -1004,6 +1004,9 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_ACCEPT_RTADV
 		SETFLAG("accept_rtadv", ND6_IFF_ACCEPT_RTADV);
 #endif
+#ifdef ND6_IFF_AUTO_LINKLOCAL
+		SETFLAG("auto_linklocal", ND6_IFF_AUTO_LINKLOCAL);
+#endif
 #ifdef ND6_IFF_PREFER_SOURCE
 		SETFLAG("prefer_source", ND6_IFF_PREFER_SOURCE);
 #endif
@@ -1075,6 +1078,10 @@ ifinfo(ifname, argc, argv)
 #ifdef ND6_IFF_ACCEPT_RTADV
 		if ((ND.flags & ND6_IFF_ACCEPT_RTADV))
 			printf("accept_rtadv ");
+#endif
+#ifdef ND6_IFF_AUTO_LINKLOCAL
+		if ((ND.flags & ND6_IFF_AUTO_LINKLOCAL))
+			printf("auto_linklocal ");
 #endif
 #ifdef ND6_IFF_PREFER_SOURCE
 		if ((ND.flags & ND6_IFF_PREFER_SOURCE))

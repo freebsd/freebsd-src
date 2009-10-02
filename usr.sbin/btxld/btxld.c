@@ -407,7 +407,7 @@ puthdr(int fd, struct hdr *hdr)
     switch (hdr->fmt) {
     case F_AOUT:
 	memset(&ex, 0, sizeof(ex));
-	N_SETMAGIC(ex, ZMAGIC, MID_ZERO, 0);
+	N_SETMAGIC(ex, ZMAGIC, MID_I386, 0);
 	hdr->text = N_ALIGN(ex, hdr->text);
 	ex.a_text = htole32(hdr->text);
 	hdr->data = N_ALIGN(ex, hdr->data);

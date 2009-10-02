@@ -494,10 +494,16 @@ pts_kqops_write_event(struct knote *kn, long hint)
 	}
 }
 
-static struct filterops pts_kqops_read =
-    { 1, NULL, pts_kqops_read_detach, pts_kqops_read_event };
-static struct filterops pts_kqops_write =
-    { 1, NULL, pts_kqops_write_detach, pts_kqops_write_event };
+static struct filterops pts_kqops_read = {
+	.f_isfd = 1,
+	.f_detach = pts_kqops_read_detach,
+	.f_event = pts_kqops_read_event,
+};
+static struct filterops pts_kqops_write = {
+	.f_isfd = 1,
+	.f_detach = pts_kqops_write_detach,
+	.f_event = pts_kqops_write_event,
+};
 
 static int
 ptsdev_kqfilter(struct file *fp, struct knote *kn)

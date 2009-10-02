@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2007
+.Dd September 15, 2009
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -201,11 +201,25 @@ Disable the event so
 .Fn kevent
 will not return it.
 The filter itself is not disabled.
+.It EV_DISPATCH
+Disable the event source immediately after delivery of an event.
+See 
+.Dv EV_DISABLE
+above.
 .It EV_DELETE
 Removes the event from the kqueue.
 Events which are attached to
 file descriptors are automatically deleted on the last close of
 the descriptor.
+.It EV_RECEIPT
+This flag is useful for making bulk changes to a kqueue without draining
+any pending events.
+When passed as input, it forces
+.Dv EV_ERROR
+to always be returned.
+When a filter is successfully added the 
+.Va data
+field will be zero.
 .It EV_ONESHOT
 Causes the event to return only the first occurrence of the filter
 being triggered.
@@ -441,6 +455,44 @@ The link state is invalid.
 On return,
 .Va fflags
 contains the events which triggered the filter.
+.It Dv EVFILT_USER
+Establishes a user event identified by
+.Va ident
+which is not assosicated with any kernel mechanism but is triggered by
+user level code.
+The lower 24 bits of the 
+.Va fflags
+may be used for user defined flags and manipulated using the following:
+.Bl -tag -width XXNOTE_FFLAGSMASK 
+.It Dv NOTE_FFNOP
+Ignore the input
+.Va fflags .
+.It Dv NOTE_FFAND
+Bitwise AND
+.Va fflags .
+.It Dv NOTE_FFOR
+Bitwise OR
+.Va fflags .
+.It Dv NOTE_COPY
+Copy
+.Va fflags .
+.It Dv NOTE_FFCTRLMASK
+Control mask for
+.Va fflags .
+.It Dv NOTE_FFLAGSMASK
+User defined flag mask for
+.Va fflags .
+.El
+.Pp
+A user event is triggered for output with the following:
+.Bl -tag -width XXNOTE_FFLAGSMASK
+.It Dv NOTE_TRIGGER
+Cause the event to be triggered.
+.El
+.Pp
+On return,
+.Va fflags
+contains the users defined flags in the lower 24 bits.
 .El
 .Sh RETURN VALUES
 The

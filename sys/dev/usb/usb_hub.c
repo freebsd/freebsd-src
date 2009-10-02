@@ -316,12 +316,13 @@ repeat:
 	if (err) {
 		goto error;
 	}
-	/* detach any existing devices */
+	/* check if there is a child */
 
-	if (child) {
-		usb_free_device(child,
-		    USB_UNCFG_FLAG_FREE_SUBDEV |
-		    USB_UNCFG_FLAG_FREE_EP0);
+	if (child != NULL) {
+		/*
+		 * Free USB device and all subdevices, if any.
+		 */
+		usb_free_device(child, 0);
 		child = NULL;
 	}
 	/* get fresh status */
@@ -438,10 +439,11 @@ repeat:
 	return (0);			/* success */
 
 error:
-	if (child) {
-		usb_free_device(child,
-		    USB_UNCFG_FLAG_FREE_SUBDEV |
-		    USB_UNCFG_FLAG_FREE_EP0);
+	if (child != NULL) {
+		/*
+		 * Free USB device and all subdevices, if any.
+		 */
+		usb_free_device(child, 0);
 		child = NULL;
 	}
 	if (err == 0) {
@@ -888,12 +890,14 @@ uhub_detach(device_t dev)
 	struct usb_device *child;
 	uint8_t x;
 
-	/* detach all children first */
-	bus_generic_detach(dev);
-
 	if (hub == NULL) {		/* must be partially working */
 		return (0);
 	}
+
+	/* Make sure interrupt transfer is gone. */
+	usbd_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
+
+	/* Detach all ports */
 	for (x = 0; x != hub->nports; x++) {
 
 		child = usb_bus_port_get_device(sc->sc_udev->bus, hub->ports + x);
@@ -901,15 +905,12 @@ uhub_detach(device_t dev)
 		if (child == NULL) {
 			continue;
 		}
-		/*
-		 * Subdevices are not freed, because the caller of
-		 * uhub_detach() will do that.
-		 */
-		usb_free_device(child,
-		    USB_UNCFG_FLAG_FREE_EP0);
-	}
 
-	usbd_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
+		/*
+		 * Free USB device and all subdevices, if any.
+		 */
+		usb_free_device(child, 0);
+	}
 
 	free(hub, M_USBDEV);
 	sc->sc_udev->hub = NULL;
@@ -984,9 +985,18 @@ static int
 uhub_child_location_string(device_t parent, device_t child,
     char *buf, size_t buflen)
 {
-	struct uhub_softc *sc = device_get_softc(parent);
-	struct usb_hub *hub = sc->sc_udev->hub;
+	struct uhub_softc *sc;
+	struct usb_hub *hub;
 	struct hub_result res;
+
+	if (!device_is_attached(parent)) {
+		if (buflen)
+			buf[0] = 0;
+		return (0);
+	}
+
+	sc = device_get_softc(parent);
+	hub = sc->sc_udev->hub;
 
 	mtx_lock(&Giant);
 	uhub_find_iface_index(hub, child, &res);
@@ -1009,10 +1019,19 @@ static int
 uhub_child_pnpinfo_string(device_t parent, device_t child,
     char *buf, size_t buflen)
 {
-	struct uhub_softc *sc = device_get_softc(parent);
-	struct usb_hub *hub = sc->sc_udev->hub;
+	struct uhub_softc *sc;
+	struct usb_hub *hub;
 	struct usb_interface *iface;
 	struct hub_result res;
+
+	if (!device_is_attached(parent)) {
+		if (buflen)
+			buf[0] = 0;
+		return (0);
+	}
+
+	sc = device_get_softc(parent);
+	hub = sc->sc_udev->hub;
 
 	mtx_lock(&Giant);
 	uhub_find_iface_index(hub, child, &res);

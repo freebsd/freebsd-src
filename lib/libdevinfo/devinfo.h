@@ -41,10 +41,10 @@ typedef __uintptr_t	devinfo_handle_t;
  */
 /* XXX not sure if I want a copy here, or expose sys/bus.h */
 typedef enum devinfo_state {
-	DIS_NOTPRESENT,			/* not probed or probe failed */
-	DIS_ALIVE,			/* probe succeeded */
-	DIS_ATTACHED,			/* attach method called */
-	DIS_BUSY			/* device is open */
+	DIS_NOTPRESENT = 10,		/* not probed or probe failed */
+	DIS_ALIVE = 20,			/* probe succeeded */
+	DIS_ATTACHED = 30,		/* attach method called */
+	DIS_BUSY = 40			/* device is open */
 } devinfo_state_t;
 
 struct devinfo_dev {

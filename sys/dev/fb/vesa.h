@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_PC_VESA_H
-#define _MACHINE_PC_VESA_H
+#ifndef _DEV_FB_VESA_H_
+#define _DEV_FB_VESA_H_
 
 struct vesa_info
 {
@@ -46,6 +46,8 @@ struct vesa_info
     u_int32_t		v_venderstr;	/* vender */
     u_int32_t		v_prodstr;	/* product name */
     u_int32_t		v_revstr;	/* product rev */
+    u_int8_t		v_strach[222];
+    u_int8_t		v_oemdata[256];
 } __packed;
 
 struct vesa_mode 
@@ -117,4 +119,4 @@ int vesa_unload_ioctl(void);
 
 #endif
 
-#endif /* !_MACHINE_PC_VESA_H */
+#endif /* !_DEV_FB_VESA_H_ */

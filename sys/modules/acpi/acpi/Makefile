@@ -37,16 +37,16 @@ SRCS+=	exprep.c exregion.c exresnte.c exresolv.c exresop.c exstore.c
 SRCS+=	exstoren.c exstorob.c exsystem.c exutils.c
 SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwtimer.c hwvalid.c hwxface.c
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c nsload.c nsnames.c
-SRCS+=	nsobject.c nsparse.c nspredef.c nssearch.c nsutils.c nswalk.c
-SRCS+=	nsxfeval.c nsxfname.c nsxfobj.c
+SRCS+=	nsobject.c nsparse.c nspredef.c nsrepair.c nssearch.c nsutils.c
+SRCS+=	nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
 SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c pstree.c psutils.c
 SRCS+=	pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c rsirq.c rslist.c
 SRCS+=	rsmemory.c rsmisc.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c uteval.c utglobal.c
-SRCS+=	utinit.c utlock.c utmath.c utmisc.c utmutex.c utobject.c utresrc.c
-SRCS+=	utstate.c utxface.c
+SRCS+=	utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c utobject.c
+SRCS+=	utresrc.c utstate.c utxface.c
 
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c acpi_package.c acpi_pci.c acpi_pcib.c

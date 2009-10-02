@@ -223,6 +223,8 @@ static struct msk_product {
 	    "Marvell Yukon 88E8072 Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE550SX,
 	    "D-Link 550SX Gigabit Ethernet" },
+	{ VENDORID_DLINK, DEVICEID_DLINK_DGE560SX,
+	    "D-Link 560SX Gigabit Ethernet" },
 	{ VENDORID_DLINK, DEVICEID_DLINK_DGE560T,
 	    "D-Link 560T Gigabit Ethernet" }
 };
@@ -1445,6 +1447,7 @@ msk_attach(device_t dev)
 	struct msk_softc *sc;
 	struct msk_if_softc *sc_if;
 	struct ifnet *ifp;
+	struct msk_mii_data *mmd;
 	int i, port, error;
 	uint8_t eaddr[6];
 
@@ -1454,7 +1457,8 @@ msk_attach(device_t dev)
 	error = 0;
 	sc_if = device_get_softc(dev);
 	sc = device_get_softc(device_get_parent(dev));
-	port = *(int *)device_get_ivars(dev);
+	mmd = device_get_ivars(dev);
+	port = mmd->port;
 
 	sc_if->msk_if_dev = dev;
 	sc_if->msk_port = port;
@@ -1600,7 +1604,8 @@ static int
 mskc_attach(device_t dev)
 {
 	struct msk_softc *sc;
-	int error, msic, msir, *port, reg;
+	struct msk_mii_data *mmd;
+	int error, msic, msir, reg;
 
 	sc = device_get_softc(dev);
 	sc->msk_dev = dev;
@@ -1669,10 +1674,6 @@ mskc_attach(device_t dev)
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_SET);
 	CSR_WRITE_2(sc, B0_CTST, CS_RST_CLR);
 	sc->msk_pmd = CSR_READ_1(sc, B2_PMD_TYP);
-	 if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
-		 sc->msk_coppertype = 0;
-	 else
-		 sc->msk_coppertype = 1;
 	/* Check number of MACs. */
 	sc->msk_num_port = 1;
 	if ((CSR_READ_1(sc, B2_Y2_HW_RES) & CFG_DUAL_MAC_MSK) ==
@@ -1812,15 +1813,18 @@ mskc_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
-	port = malloc(sizeof(int), M_DEVBUF, M_WAITOK);
-	if (port == NULL) {
+	mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (mmd == NULL) {
 		device_printf(dev, "failed to allocate memory for "
 		    "ivars of PORT_A\n");
 		error = ENXIO;
 		goto fail;
 	}
-	*port = MSK_PORT_A;
-	device_set_ivars(sc->msk_devs[MSK_PORT_A], port);
+	mmd->port = MSK_PORT_A;
+	mmd->pmd = sc->msk_pmd;
+	 if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S' || sc->msk_pmd == 'P')
+		mmd->mii_flags |= MIIF_HAVEFIBER;
+	device_set_ivars(sc->msk_devs[MSK_PORT_A], mmd);
 
 	if (sc->msk_num_port > 1) {
 		sc->msk_devs[MSK_PORT_B] = device_add_child(dev, "msk", -1);
@@ -1829,15 +1833,18 @@ mskc_attach(device_t dev)
 			error = ENXIO;
 			goto fail;
 		}
-		port = malloc(sizeof(int), M_DEVBUF, M_WAITOK);
-		if (port == NULL) {
+		mmd = malloc(sizeof(struct msk_mii_data), M_DEVBUF, M_WAITOK | M_ZERO);
+		if (mmd == NULL) {
 			device_printf(dev, "failed to allocate memory for "
 			    "ivars of PORT_B\n");
 			error = ENXIO;
 			goto fail;
 		}
-		*port = MSK_PORT_B;
-		device_set_ivars(sc->msk_devs[MSK_PORT_B], port);
+		mmd->port = MSK_PORT_B;
+		mmd->pmd = sc->msk_pmd;
+	 	if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S' || sc->msk_pmd == 'P')
+			mmd->mii_flags |= MIIF_HAVEFIBER;
+		device_set_ivars(sc->msk_devs[MSK_PORT_B], mmd);
 	}
 
 	error = bus_generic_attach(dev);
@@ -3794,9 +3801,14 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	/* Set receive filter. */
 	msk_rxfilter(sc_if);
 
-	/* Flush Rx MAC FIFO on any flow control or error. */
-	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_FL_MSK),
-	    GMR_FS_ANY_ERR);
+	if (sc->msk_hw_id == CHIP_ID_YUKON_XL) {
+		/* Clear flush mask - HW bug. */
+		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_FL_MSK), 0);
+	} else {
+		/* Flush Rx MAC FIFO on any flow control or error. */
+		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_FL_MSK),
+		    GMR_FS_ANY_ERR);
+	}
 
 	/*
 	 * Set Rx FIFO flush threshold to 64 bytes + 1 FIFO word
@@ -4188,7 +4200,7 @@ msk_stats_clear(struct msk_if_softc *sc_if)
 	gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_PHY_ADDR);
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_PHY_ADDR, gmac | GM_PAR_MIB_CLR);
 	/* Read all MIB Counters with Clear Mode set. */
-	for (i = GM_RXF_UC_OK; i <= GM_TXE_FIFO_UR; i++)
+	for (i = GM_RXF_UC_OK; i <= GM_TXE_FIFO_UR; i += sizeof(uint32_t))
 		reg = MSK_READ_MIB32(sc_if->msk_port, i);
 	/* Clear MIB Clear Counter Mode. */
 	gmac &= ~GM_PAR_MIB_CLR;
