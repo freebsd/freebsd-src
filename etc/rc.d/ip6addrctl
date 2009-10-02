@@ -9,6 +9,7 @@
 # KEYWORD: nojail
 
 . /etc/rc.subr
+. /etc/network.subr
 
 name="ip6addrctl"
 rcvar=`set_rcvar`
@@ -23,6 +24,8 @@ set_rcvar_obsolete ipv6_enable ipv6_prefer
 
 ip6addrctl_prefer_ipv6()
 {
+	afexists inet6 || return 0
+
 	ip6addrctl flush >/dev/null 2>&1
 	ip6addrctl add ::1/128		50	0
 	ip6addrctl add ::/0		40	1
@@ -34,6 +37,8 @@ ip6addrctl_prefer_ipv6()
 
 ip6addrctl_prefer_ipv4()
 {
+	afexists inet6 || return 0
+
 	ip6addrctl flush >/dev/null 2>&1
 	ip6addrctl add ::ffff:0:0/96	50	0
 	ip6addrctl add ::1/128		40	1
@@ -45,30 +50,27 @@ ip6addrctl_prefer_ipv4()
 
 ip6addrctl_start()
 {
-	if ifconfig lo0 inet6 >/dev/null 2>&1; then
-		# We have IPv6 support in kernel.
+	afexists inet6 || return 0
 
-		# install the policy of the address selection algorithm.
-		if [ -f /etc/ip6addrctl.conf ]; then
-			ip6addrctl flush >/dev/null 2>&1
-			ip6addrctl install /etc/ip6addrctl.conf
-			checkyesno ip6addrctl_verbose && ip6addrctl
+	# install the policy of the address selection algorithm.
+	if [ -f /etc/ip6addrctl.conf ]; then
+		ip6addrctl flush >/dev/null 2>&1
+		ip6addrctl install /etc/ip6addrctl.conf
+		checkyesno ip6addrctl_verbose && ip6addrctl
+	else
+		if checkyesno ipv6_prefer; then
+			ip6addrctl_prefer_ipv6
 		else
-			if checkyesno ipv6_prefer; then
-				ip6addrctl_prefer_ipv6
-			else
-				ip6addrctl_prefer_ipv4
-			fi
+			ip6addrctl_prefer_ipv4
 		fi
 	fi
 }
 
 ip6addrctl_stop()
 {
-	if ifconfig lo0 inet6 >/dev/null 2>&1; then
-		# We have IPv6 support in kernel.
-		ip6addrctl flush >/dev/null 2>&1
-	fi
+	afexists inet6 || return 0
+
+	ip6addrctl flush >/dev/null 2>&1
 }
 
 load_rc_config $name
