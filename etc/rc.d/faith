@@ -15,6 +15,8 @@ stop_cmd="faith_down"
 
 faith_up()
 {
+	afexists inet6 || return 0
+
 	case ${ipv6_faith_prefix} in
 	[Nn][Oo] | '')
 		;;
@@ -48,6 +50,8 @@ faith_up()
 
 faith_down()
 {
+	afexists inet6 || return 0
+
 	echo "Removing IPv6-to-IPv4 TCP relay capturing interface: faith0."
 	ifconfig faith0 destroy
 	${SYSCTL_W} net.inet6.ip6.keepfaith=0
