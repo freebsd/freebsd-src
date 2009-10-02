@@ -26,29 +26,48 @@ netoptions_init()
 
 netoptions_start()
 {
+	local _af
+
+	for _af in inet inet6; do
+		afexists ${_af} && eval netoptions_${_af}
+	done
+	[ -n "${_netoptions_initdone}" ] && echo '.'
+}
+
+netoptions_inet()
+{
 	if checkyesno log_in_vain; then
 		netoptions_init
 		echo -n " log_in_vain=${log_in_vain}"
-		${SYSCTL_W} net.inet.tcp.log_in_vain="${log_in_vain}" >/dev/null
-		${SYSCTL_W} net.inet.udp.log_in_vain="${log_in_vain}" >/dev/null
+		${SYSCTL_W} net.inet.tcp.log_in_vain=1 >/dev/null
+		${SYSCTL_W} net.inet.udp.log_in_vain=1 >/dev/null
+	else
+		${SYSCTL_W} net.inet.tcp.log_in_vain=0 >/dev/null
+		${SYSCTL_W} net.inet.udp.log_in_vain=0 >/dev/null
 	fi
 
 	if checkyesno tcp_extensions; then
+		${SYSCTL_W} net.inet.tcp.rfc1323=1 >/dev/null
+	else
 		netoptions_init
-		echo -n ' rfc1323 extensions=NO'
+		echo -n ' rfc1323 extensions=${tcp_extensions}'
 		${SYSCTL_W} net.inet.tcp.rfc1323=0 >/dev/null
 	fi
 
-	if ! checkyesno tcp_keepalive; then
+	if checkyesno tcp_keepalive; then
+		${SYSCTL_W} net.inet.tcp.always_keepalive=1 >/dev/null
+	else
 		netoptions_init
-		echo -n ' TCP keepalive=NO'
+		echo -n ' TCP keepalive=${tcp_keepalive}'
 		${SYSCTL_W} net.inet.tcp.always_keepalive=0 >/dev/null
 	fi
 
 	if checkyesno tcp_drop_synfin; then
 		netoptions_init
-		echo -n ' drop SYN+FIN packets=YES'
+		echo -n ' drop SYN+FIN packets=${tcp_drop_synfin}'
 		${SYSCTL_W} net.inet.tcp.drop_synfin=1 >/dev/null
+	else
+		${SYSCTL_W} net.inet.tcp.drop_synfin=0 >/dev/null
 	fi
 
 	case ${ip_portrange_first} in
@@ -66,17 +85,17 @@ netoptions_start()
 		${SYSCTL_W} net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
 		;;
 	esac
+}
 
-	if afexists inet6; then
-		if checkyesno ipv6_ipv4mapping; then
-			${SYSCTL_W} net.inet6.ip6.v6only=0 >/dev/null
-		else
-			echo -n " no-ipv4-mapped-ipv6"
-			${SYSCTL_W} net.inet6.ip6.v6only=1 >/dev/null
-		fi
+netoptions_inet6()
+{
+	if checkyesno ipv6_ipv4mapping; then
+		netoptions_init
+		echo -n " ipv4-mapped-ipv6=${ipv6_ipv4mapping}"
+		${SYSCTL_W} net.inet6.ip6.v6only=0 >/dev/null
+	else
+		${SYSCTL_W} net.inet6.ip6.v6only=1 >/dev/null
 	fi
-
-	[ -n "${_netoptions_initdone}" ] && echo '.'
 }
 
 load_rc_config $name
