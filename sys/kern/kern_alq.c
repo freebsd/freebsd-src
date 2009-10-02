@@ -64,16 +64,16 @@ struct alq {
 	int	aq_wrapearly;		/* # bytes left blank at end of buf */
 	int	aq_flags;		/* Queue flags */
 	struct	ale	aq_getpost;	/* ALE for use by get/post */
-	struct mtx	aq_mtx;		/* Queue lock */
-	struct vnode	*aq_vp;		/* Open vnode handle */
-	struct ucred	*aq_cred;	/* Credentials of the opening thread */
+	struct	mtx	aq_mtx;		/* Queue lock */
+	struct	vnode	*aq_vp;		/* Open vnode handle */
+	struct	ucred	*aq_cred;	/* Credentials of the opening thread */
 	LIST_ENTRY(alq)	aq_act;		/* List of active queues */
 	LIST_ENTRY(alq)	aq_link;	/* List of all queues */
 };
 
 #define	AQ_WANTED	0x0001		/* Wakeup sleeper when io is done */
-#define	AQ_ACTIVE	0x0002		/* on the active list */
-#define	AQ_FLUSHING	0x0004		/* doing IO */
+#define	AQ_ACTIVE	0x0002		/* On the active list */
+#define	AQ_FLUSHING	0x0004		/* Doing IO */
 #define	AQ_SHUTDOWN	0x0008		/* Queue no longer valid */
 
 #define	ALQ_LOCK(alq)	mtx_lock_spin(&(alq)->aq_mtx)
@@ -95,7 +95,7 @@ static struct proc *ald_proc;
 #define	ALD_LOCK()	mtx_lock(&ald_mtx)
 #define	ALD_UNLOCK()	mtx_unlock(&ald_mtx)
 
-/* Daemon functions */
+/* Daemon functions. */
 static int ald_add(struct alq *);
 static int ald_rem(struct alq *);
 static void ald_startup(void *);
@@ -104,7 +104,7 @@ static void ald_shutdown(void *, int);
 static void ald_activate(struct alq *);
 static void ald_deactivate(struct alq *);
 
-/* Internal queue functions */
+/* Internal queue functions. */
 static void alq_shutdown(struct alq *);
 static int alq_doio(struct alq *);
 
@@ -132,7 +132,7 @@ done:
 
 /*
  * Remove a queue from the global list unless we're shutting down.  If so,
- * the ald will take care of cleaning up it's resources.
+ * the ALD will take care of cleaning up it's resources.
  */
 static int
 ald_rem(struct alq *alq)
@@ -193,7 +193,7 @@ ald_daemon(void)
 		    && !ald_shutingdown)
 			mtx_sleep(&ald_active, &ald_mtx, PWAIT, "aldslp", 0);
 
-		/* Don't shutdown until all active alq's are flushed */
+		/* Don't shutdown until all active ALQs are flushed. */
 		if (ald_shutingdown && alq == NULL) {
 			ALD_UNLOCK();
 			break;
@@ -219,10 +219,10 @@ ald_shutdown(void *arg, int howto)
 
 	ALD_LOCK();
 
-	/* Ensure no new queues can be created */
+	/* Ensure no new queues can be created. */
 	ald_shutingdown = 1;
 
-	/* Shutdown all alqs prior to terminating the ald_daemon */
+	/* Shutdown all ALQs prior to terminating the ald_daemon. */
 	while ((alq = LIST_FIRST(&ald_queues)) != NULL) {
 		LIST_REMOVE(alq, aq_link);
 		ALD_UNLOCK();
@@ -230,15 +230,15 @@ ald_shutdown(void *arg, int howto)
 		ALD_LOCK();
 	}
 
-	/* At this point, all alqs are flushed and shutdown */
+	/* At this point, all ALQs are flushed and shutdown. */
 
 	/*
 	 * Wake ald_daemon so that it exits. It won't be able to do
-	 * anything until we mtx_sleep because we hold the ald_mtx
+	 * anything until we mtx_sleep because we hold the ald_mtx.
 	 */
 	wakeup(&ald_active);
 
-	/* Wait for ald_daemon to exit */
+	/* Wait for ald_daemon to exit. */
 	mtx_sleep(ald_proc, &ald_mtx, PWAIT, "aldslp", 0);
 
 	ALD_UNLOCK();
@@ -253,9 +253,9 @@ alq_shutdown(struct alq *alq)
 	alq->aq_flags |= AQ_SHUTDOWN;
 
 	/*
-	 * If the alq isn't active but has unwritten data (possible if
+	 * If the ALQ isn't active but has unwritten data (possible if
 	 * the ALQ_NOACTIVATE flag has been used), explicitly activate the
-	 * alq here so that the pending data gets flushed by the ald_daemon.
+	 * ALQ here so that the pending data gets flushed by the ald_daemon.
 	 */
 	if (!(alq->aq_flags & AQ_ACTIVE) &&
 	    ALQ_HAS_PENDING_DATA(alq)) {
@@ -267,7 +267,7 @@ alq_shutdown(struct alq *alq)
 		ALQ_LOCK(alq);
 	}
 
-	/* Drain IO */
+	/* Drain IO. */
 	while (alq->aq_flags & AQ_ACTIVE) {
 		alq->aq_flags |= AQ_WANTED;
 		msleep_spin(alq, &alq->aq_mtx, "aldclose", 0);
@@ -309,10 +309,10 @@ alq_doio(struct alq *alq)
 	aiov[0].iov_base = alq->aq_entbuf + alq->aq_writetail;
 
 	if (alq->aq_writetail < alq->aq_writehead) {
-		/* Buffer not wrapped */
+		/* Buffer not wrapped. */
 		totlen = aiov[0].iov_len = alq->aq_writehead - alq->aq_writetail;
 	} else if (alq->aq_writehead == 0) {
-		/* Buffer not wrapped (special case to avoid an empty iov) */
+		/* Buffer not wrapped (special case to avoid an empty iov). */
 		totlen = aiov[0].iov_len = alq->aq_buflen - alq->aq_writetail;;
 	} else {
 		/*
@@ -340,16 +340,12 @@ alq_doio(struct alq *alq)
 	auio.uio_resid = totlen;
 	auio.uio_td = td;
 
-	/*
-	 * Do all of the junk required to write now.
-	 */
+	/* Do all of the junk required to write now. */
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 
-	/*
-	 * XXX: VOP_WRITE error checks are ignored.
-	 */
+	/* XXX: VOP_WRITE error checks are ignored. */
 #ifdef MAC
 	if (mac_vnode_check_write(alq->aq_cred, NOCRED, vp) == 0)
 #endif
@@ -402,7 +398,7 @@ SYSINIT(aldthread, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &ald_kp);
 SYSINIT(ald, SI_SUB_LOCK, SI_ORDER_ANY, ald_startup, NULL);
 
 
-/* User visible queue functions */
+/* User visible queue functions. */
 
 /*
  * Create the queue data structure, allocate the buffer, and open the file.
@@ -514,9 +510,9 @@ alq_writen(struct alq *alq, void *data, int len, int flags)
 	/*
 	 * We need to serialise wakups to ensure records remain in order...
 	 * Therefore, wakeup the next thread in the queue waiting for
-	 * alq resources to be available.
-	 * (technically this is only required if we actually entered the above
-	 * while loop)
+	 * ALQ resources to be available.
+	 * (Technically this is only required if we actually entered the above
+	 * while loop.)
 	 */
 	wakeup_one(alq);
 
@@ -655,9 +651,9 @@ alq_getn(struct alq *alq, int len, int flags)
 	/*
 	 * We need to serialise wakups to ensure records remain in order.
 	 * Therefore, wakeup the next thread in the queue waiting for
-	 * alq resources to be available.
-	 * (technically this is only required if we actually entered the above
-	 * while loop)
+	 * ALQ resources to be available.
+	 * (Technically this is only required if we actually entered the above
+	 * while loop.)
 	 */
 	wakeup_one(alq);
 
@@ -767,7 +763,7 @@ static int alq_load_handler(module_t mod, int what, void *arg)
 		
 		case MOD_QUIESCE:
 			ALD_LOCK();
-			/* only allow unload if there are no open queues */
+			/* Only allow unload if there are no open queues. */
 			if (LIST_FIRST(&ald_queues) == NULL) {
 				ald_shutingdown = 1;
 				ALD_UNLOCK();
@@ -787,11 +783,10 @@ static int alq_load_handler(module_t mod, int what, void *arg)
 	return (ret);
 }
 
-/* basic module data */
 static moduledata_t alq_mod =
 {
 	"alq",
-	alq_load_handler, /* execution entry point for the module */
+	alq_load_handler,
 	NULL
 };
 

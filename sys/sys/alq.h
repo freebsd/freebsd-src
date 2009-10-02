@@ -47,7 +47,7 @@ struct ale {
 	int		ae_flags;	/* Unused, compat. */
 };
 
-/* flags options */
+/* Flag options. */
 #define	ALQ_NOWAIT	0x0001
 #define	ALQ_WAITOK	0x0002
 #define	ALQ_NOACTIVATE	0x0004
