@@ -83,15 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/ixp425/ixp425var.h>
 #endif
 
-#if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
-    defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
-#include <arm/xscale/xscalereg.h>
-#endif
-
-#if defined(PERFCTRS)
-struct arm_pmc_funcs *arm_pmc;
-#endif
-
 /* PRIMARY CACHE VARIABLES */
 int	arm_picache_size;
 int	arm_picache_line_size;
@@ -1128,10 +1119,6 @@ set_cpufuncs()
 			: "r" (BCUCTL_E0|BCUCTL_E1|BCUCTL_EV));
 
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		/*
 		 * i80200 errata: Step-A0 and A1 have a bug where
 		 * D$ dirty bits are not cleared on "invalidate by
@@ -1165,10 +1152,6 @@ set_cpufuncs()
 			       PMNC_CC_IF));
 
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
@@ -1179,10 +1162,6 @@ set_cpufuncs()
 #if defined(CPU_XSCALE_81342)
 	if (cputype == CPU_ID_81342) {
 		cpufuncs = xscalec3_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
@@ -1196,10 +1175,6 @@ set_cpufuncs()
 	    (cputype & ~CPU_ID_XSCALE_COREREV_MASK) == CPU_ID_PXA210) {
 
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
@@ -1215,10 +1190,6 @@ set_cpufuncs()
             cputype == CPU_ID_IXP425_266 || cputype == CPU_ID_IXP435) {
 
 		cpufuncs = xscale_cpufuncs;
-#if defined(PERFCTRS)
-		xscale_pmu_init();
-#endif
-
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
