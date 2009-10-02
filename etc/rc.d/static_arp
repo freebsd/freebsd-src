@@ -34,6 +34,7 @@
 # KEYWORD: nojail
 
 . /etc/rc.subr
+. /etc/network.subr
 
 name="static_arp"
 start_cmd="static_arp_start"
@@ -42,6 +43,8 @@ stop_cmd="static_arp_stop"
 static_arp_start()
 {
 	local e arp_args
+
+	afexists inet || return 0
 
 	if [ -n "${static_arp_pairs}" ]; then
 		echo -n 'Binding static ARP pair(s):'
@@ -57,6 +60,8 @@ static_arp_start()
 static_arp_stop()
 {
 	local e arp_args
+
+	afexists inet || return 0
 
 	if [ -n "${static_arp_pairs}" ]; then
 		echo -n 'Unbinding static ARP pair(s):'
