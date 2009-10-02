@@ -15,8 +15,6 @@ stop_cmd="stf_down"
 
 stf_up()
 {
-	afexists inet6 || return 0
-
 	case ${stf_interface_ipv4addr} in
 	[Nn][Oo] | '')
 		;;
@@ -69,8 +67,6 @@ stf_up()
 
 stf_down()
 {
-	afexists inet6 || return 0
-
 	echo "Removing 6to4 tunnel interface: stf0." 
 	ifconfig stf0 destroy
 	route delete -inet6 2002:e000:: -prefixlen 20 ::1
