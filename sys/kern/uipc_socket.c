@@ -970,9 +970,6 @@ sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	 * must use a signed comparison of space and resid.  On the other
 	 * hand, a negative resid causes us to loop sending 0-length
 	 * segments to the protocol.
-	 *
-	 * Also check to make sure that MSG_EOR isn't used on SOCK_STREAM
-	 * type sockets since that's an error.
 	 */
 	if (resid < 0) {
 		error = EINVAL;
