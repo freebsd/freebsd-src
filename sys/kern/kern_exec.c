@@ -122,6 +122,11 @@ u_long ps_arg_cache_limit = PAGE_SIZE / 16;
 SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
     &ps_arg_cache_limit, 0, "");
 
+static int map_at_zero = 0;
+TUNABLE_INT("security.bsd.map_at_zero", &map_at_zero);
+SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RW, &map_at_zero, 0,
+    "Permit processes to map an object at virtual address 0.");
+
 static int
 sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
 {
@@ -999,7 +1004,7 @@ exec_new_vmspace(imgp, sv)
 	int error;
 	struct proc *p = imgp->proc;
 	struct vmspace *vmspace = p->p_vmspace;
-	vm_offset_t stack_addr;
+	vm_offset_t sv_minuser, stack_addr;
 	vm_map_t map;
 	u_long ssiz;
 
@@ -1015,13 +1020,17 @@ exec_new_vmspace(imgp, sv)
 	 * not disrupted
 	 */
 	map = &vmspace->vm_map;
-	if (vmspace->vm_refcnt == 1 && vm_map_min(map) == sv->sv_minuser &&
+	if (map_at_zero)
+		sv_minuser = sv->sv_minuser;
+	else
+		sv_minuser = MAX(sv->sv_minuser, PAGE_SIZE);
+	if (vmspace->vm_refcnt == 1 && vm_map_min(map) == sv_minuser &&
 	    vm_map_max(map) == sv->sv_maxuser) {
 		shmexit(vmspace);
 		pmap_remove_pages(vmspace_pmap(vmspace));
 		vm_map_remove(map, vm_map_min(map), vm_map_max(map));
 	} else {
-		error = vmspace_exec(p, sv->sv_minuser, sv->sv_maxuser);
+		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser);
 		if (error)
 			return (error);
 		vmspace = p->p_vmspace;
