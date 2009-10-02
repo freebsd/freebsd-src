@@ -751,7 +751,6 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	 * assign a link-local address, if there's none.
 	 */
 	if (ifp->if_type != IFT_BRIDGE &&
-	    !(ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 	    ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) {
 		int error;
 
