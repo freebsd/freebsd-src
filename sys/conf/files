@@ -2668,12 +2668,12 @@ vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
-xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_mem.c			optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver
-xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver
+xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_mem.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 #
 gnu/fs/xfs/xfs_alloc.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs" \
