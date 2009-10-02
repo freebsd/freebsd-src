@@ -565,7 +565,7 @@ extern TW_INT32	tw_cl_interrupt(struct tw_cl_ctlr_handle *ctlr_handle);
 
 /* CL's ioctl handler. */
 extern TW_INT32	tw_cl_ioctl(struct tw_cl_ctlr_handle *ctlr_handle,
-	TW_INT32 cmd, TW_VOID *buf);
+	u_long cmd, TW_VOID *buf);
 
 
 #ifdef TW_OSL_DEBUG

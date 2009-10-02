@@ -6,7 +6,7 @@ MAN=	sftp-server.8
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
 DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD=	-lssh -lcrypt -lcrypto -lz
+LDADD=  -lcrypt -lcrypto -lz -static -lssh
 
 .include <bsd.prog.mk>
 

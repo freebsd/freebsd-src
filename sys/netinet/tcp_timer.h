@@ -141,6 +141,8 @@ static const char *tcptimers[] =
 
 #ifdef _KERNEL
 
+struct xtcp_timer;
+
 struct tcp_timer {
 	struct	callout tt_rexmt;	/* retransmit timer */
 	struct	callout tt_persist;	/* retransmit persistence */
@@ -177,6 +179,8 @@ void	tcp_timer_keep(void *xtp);
 void	tcp_timer_persist(void *xtp);
 void	tcp_timer_rexmt(void *xtp);
 void	tcp_timer_delack(void *xtp);
+void	tcp_timer_to_xtimer(struct tcpcb *tp, struct tcp_timer *timer,
+	struct xtcp_timer *xtimer);
 
 #endif /* _KERNEL */
 

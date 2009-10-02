@@ -407,22 +407,27 @@ The
 .Va vm.overcommit
 sysctl defines the overcommit behaviour of the vm subsystem.
 The virtual memory system always does accounting of the swap space
-reservation, both total for system and per-user. Corresponding values
+reservation, both total for system and per-user.
+Corresponding values
 are available through sysctl
-.Va vm.swap_total,
+.Va vm.swap_total ,
 that gives the total bytes available for swapping, and
-.Va vm.swap_reserved,
+.Va vm.swap_reserved ,
 that gives number of bytes that may be needed to back all currently
 allocated anonymous memory.
 .Pp
 Setting bit 0 of the
 .Va vm.overcommit
 sysctl causes the virtual memory system to return failure
-to the process when allocation of memory causes vm.swap_reserved
-to exceed vm.swap_total.
-Bit 1 of the sysctl enforces RLIMIT_SWAP limit
+to the process when allocation of memory causes
+.Va vm.swap_reserved
+to exceed
+.Va vm.swap_total .
+Bit 1 of the sysctl enforces
+.Dv RLIMIT_SWAP
+limit
 (see
-.Xr getrlimit 2 ).
+.Xr getrlimit 2 ) .
 Root is exempt from this limit.
 Bit 2 allows to count most of the physical
 memory as allocatable, except wired and free reserved pages

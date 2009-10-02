@@ -1332,7 +1332,9 @@ usbd_setup_ctrl_transfer(struct usb_xfer *xfer)
 	/* check if there is a length mismatch */
 
 	if (len > xfer->flags_int.control_rem) {
-		DPRINTFN(0, "Length greater than remaining length!\n");
+		DPRINTFN(0, "Length (%d) greater than "
+		    "remaining length (%d)!\n", len,
+		    xfer->flags_int.control_rem);
 		goto error;
 	}
 	/* check if we are doing a short transfer */
@@ -1620,7 +1622,10 @@ usbd_transfer_start(struct usb_xfer *xfer)
 	/* mark the USB transfer started */
 
 	if (!xfer->flags_int.started) {
+		/* lock the BUS lock to avoid races updating flags_int */
+		USB_BUS_LOCK(xfer->xroot->bus);
 		xfer->flags_int.started = 1;
+		USB_BUS_UNLOCK(xfer->xroot->bus);
 	}
 	/* check if the USB transfer callback is already transferring */
 
@@ -1655,14 +1660,21 @@ usbd_transfer_stop(struct usb_xfer *xfer)
 	/* check if the USB transfer was ever opened */
 
 	if (!xfer->flags_int.open) {
-		/* nothing to do except clearing the "started" flag */
-		xfer->flags_int.started = 0;
+		if (xfer->flags_int.started) {
+			/* nothing to do except clearing the "started" flag */
+			/* lock the BUS lock to avoid races updating flags_int */
+			USB_BUS_LOCK(xfer->xroot->bus);
+			xfer->flags_int.started = 0;
+			USB_BUS_UNLOCK(xfer->xroot->bus);
+		}
 		return;
 	}
 	/* try to stop the current USB transfer */
 
 	USB_BUS_LOCK(xfer->xroot->bus);
-	xfer->error = USB_ERR_CANCELLED;/* override any previous error */
+	/* override any previous error */
+	xfer->error = USB_ERR_CANCELLED;
+
 	/*
 	 * Clear "open" and "started" when both private and USB lock
 	 * is locked so that we don't get a race updating "flags_int"
@@ -2190,6 +2202,8 @@ usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 	 */
 	if (!xfer->flags_int.transferring) {
 		DPRINTF("not transferring\n");
+		/* end of control transfer, if any */
+		xfer->flags_int.control_act = 0;
 		return;
 	}
 	/* only set transfer error if not already set */

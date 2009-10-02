@@ -1446,6 +1446,7 @@ sctp_timeout_handler(void *t)
 	inp = (struct sctp_inpcb *)tmr->ep;
 	stcb = (struct sctp_tcb *)tmr->tcb;
 	net = (struct sctp_nets *)tmr->net;
+	CURVNET_SET((struct vnet *)tmr->vnet);
 	did_output = 1;
 
 #ifdef SCTP_AUDITING_ENABLED
@@ -1459,6 +1460,7 @@ sctp_timeout_handler(void *t)
 		 * SCTP_PRINTF("Stale SCTP timer fired (%p), ignoring...\n",
 		 * tmr);
 		 */
+		CURVNET_RESTORE();
 		return;
 	}
 	tmr->stopped_from = 0xa001;
@@ -1467,10 +1469,12 @@ sctp_timeout_handler(void *t)
 		 * SCTP_PRINTF("SCTP timer fired with invalid type: 0x%x\n",
 		 * tmr->type);
 		 */
+		CURVNET_RESTORE();
 		return;
 	}
 	tmr->stopped_from = 0xa002;
 	if ((tmr->type != SCTP_TIMER_TYPE_ADDR_WQ) && (inp == NULL)) {
+		CURVNET_RESTORE();
 		return;
 	}
 	/* if this is an iterator timeout, get the struct and clear inp */
@@ -1494,6 +1498,7 @@ sctp_timeout_handler(void *t)
 		    (tmr->type != SCTP_TIMER_TYPE_ASOCKILL))
 		    ) {
 			SCTP_INP_DECR_REF(inp);
+			CURVNET_RESTORE();
 			return;
 		}
 	}
@@ -1505,6 +1510,7 @@ sctp_timeout_handler(void *t)
 			if (inp) {
 				SCTP_INP_DECR_REF(inp);
 			}
+			CURVNET_RESTORE();
 			return;
 		}
 	}
@@ -1517,6 +1523,7 @@ sctp_timeout_handler(void *t)
 		if (stcb) {
 			atomic_add_int(&stcb->asoc.refcnt, -1);
 		}
+		CURVNET_RESTORE();
 		return;
 	}
 	tmr->stopped_from = 0xa006;
@@ -1531,6 +1538,7 @@ sctp_timeout_handler(void *t)
 			if (inp) {
 				SCTP_INP_DECR_REF(inp);
 			}
+			CURVNET_RESTORE();
 			return;
 		}
 	}
@@ -1903,6 +1911,7 @@ out_decr:
 out_no_decr:
 	SCTPDBG(SCTP_DEBUG_TIMER1, "Timer now complete (type %d)\n",
 	    type);
+	CURVNET_RESTORE();
 }
 
 void
@@ -2263,6 +2272,7 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	tmr->tcb = (void *)stcb;
 	tmr->net = (void *)net;
 	tmr->self = (void *)tmr;
+	tmr->vnet = (void *)curvnet;
 	tmr->ticks = sctp_get_tick_count();
 	(void)SCTP_OS_TIMER_START(&tmr->timer, to_ticks, sctp_timeout_handler, tmr);
 	return;

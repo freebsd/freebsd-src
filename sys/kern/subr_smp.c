@@ -104,12 +104,6 @@ SYSCTL_INT(_kern_smp, OID_AUTO, forward_signal_enabled, CTLFLAG_RW,
 	   &forward_signal_enabled, 0,
 	   "Forwarding of a signal to a process on a different CPU");
 
-/* Enable forwarding of roundrobin to all other cpus */
-static int forward_roundrobin_enabled = 1;
-SYSCTL_INT(_kern_smp, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
-	   &forward_roundrobin_enabled, 0,
-	   "Forwarding of roundrobin to all other CPUs");
-
 /* Variables needed for SMP rendezvous. */
 static volatile int smp_rv_ncpus;
 static void (*volatile smp_rv_setup_func)(void *arg);
@@ -187,33 +181,6 @@ forward_signal(struct thread *td)
 	if (id == NOCPU)
 		return;
 	ipi_selected(1 << id, IPI_AST);
-}
-
-void
-forward_roundrobin(void)
-{
-	struct pcpu *pc;
-	struct thread *td;
-	cpumask_t id, map, me;
-
-	CTR0(KTR_SMP, "forward_roundrobin()");
-
-	if (!smp_started || cold || panicstr)
-		return;
-	if (!forward_roundrobin_enabled)
-		return;
-	map = 0;
-	me = PCPU_GET(cpumask);
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		td = pc->pc_curthread;
-		id = pc->pc_cpumask;
-		if (id != me && (id & stopped_cpus) == 0 &&
-		    !TD_IS_IDLETHREAD(td)) {
-			td->td_flags |= TDF_NEEDRESCHED;
-			map |= id;
-		}
-	}
-	ipi_selected(map, IPI_AST);
 }
 
 /*

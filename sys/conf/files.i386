@@ -150,12 +150,15 @@ dev/ctau/if_ct.c		optional ctau
 dev/cx/csigma.c			optional cx
 dev/cx/cxddk.c			optional cx
 dev/cx/if_cx.c			optional cx
+dev/dpms/dpms.c			optional dpms
 dev/ed/if_ed_3c503.c		optional ed isa ed_3c503
 dev/ed/if_ed_isa.c		optional ed isa
 dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/ed/if_ed_hpp.c		optional ed isa ed_hpp
 dev/ed/if_ed_sic.c		optional ed isa ed_sic
 dev/fb/fb.c			optional fb | vga
+dev/fb/s3_pci.c			optional s3pci
+dev/fb/vesa.c			optional vga vesa
 dev/fb/vga.c			optional vga
 dev/fdc/fdc.c			optional fdc
 dev/fdc/fdc_acpi.c		optional fdc
@@ -198,6 +201,8 @@ dev/ipmi/ipmi_pci.c		optional ipmi pci
 dev/ipmi/ipmi_linux.c		optional ipmi compat_linux
 dev/kbd/kbd.c			optional atkbd | sc | ukbd | usb2_input_kbd
 dev/le/if_le_isa.c		optional le isa
+dev/lindev/full.c		optional lindev
+dev/lindev/lindev.c		optional lindev
 dev/mem/memutil.c		optional mem
 dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
@@ -329,7 +334,6 @@ i386/isa/clock.c		optional native
 i386/xen/clock.c		optional xen
 i386/xen/xen_clock_util.c	optional xen
 i386/xen/xen_rtc.c		optional xen
-i386/isa/dpms.c			optional dpms
 i386/isa/elcr.c			standard
 i386/isa/elink.c		optional ep | ie
 i386/isa/isa.c			optional isa
@@ -339,7 +343,6 @@ i386/isa/npx.c			optional npx
 i386/isa/pmtimer.c		optional pmtimer
 i386/isa/prof_machdep.c		optional profiling-routine
 i386/isa/spic.c			optional spic
-i386/isa/vesa.c			optional vga vesa
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_dummy.c	optional compat_linux
 i386/linux/linux_locore.s	optional compat_linux	\
@@ -377,3 +380,10 @@ i386/xbox/xbox.c		optional xbox
 i386/xbox/xboxfb.c		optional xboxfb
 dev/fb/boot_font.c		optional xboxfb
 i386/xbox/pic16l.s		optional xbox
+#
+# x86 real mode BIOS emulator, required by atkbdc/dpms/vesa
+#
+compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
+compat/x86bios/x86bios_alloc.c	optional x86bios | atkbd | dpms | vesa
+contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
+contrib/x86emu/x86emu_util.c	optional x86bios | atkbd | dpms | vesa

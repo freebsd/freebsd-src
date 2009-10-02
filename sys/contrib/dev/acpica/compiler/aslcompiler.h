@@ -556,6 +556,10 @@ AslAbort (
     void);
 
 void
+FlAddIncludeDirectory (
+    char                    *Dir);
+
+void
 FlOpenIncludeFile (
     ACPI_PARSE_OBJECT       *Op);
 

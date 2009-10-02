@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.366 2009/01/22 10:02:34 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.367 2009/05/28 16:50:16 andreas Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -128,6 +128,7 @@ __RCSID("$FreeBSD$");
 #include "ssh-gss.h"
 #endif
 #include "monitor_wrap.h"
+#include "roaming.h"
 #include "version.h"
 
 #ifdef LIBWRAP
@@ -430,7 +431,7 @@ sshd_exchange_identification(int sock_in, int sock_out)
 	server_version_string = xstrdup(buf);
 
 	/* Send our protocol version identification. */
-	if (atomicio(vwrite, sock_out, server_version_string,
+	if (roaming_atomicio(vwrite, sock_out, server_version_string,
 	    strlen(server_version_string))
 	    != strlen(server_version_string)) {
 		logit("Could not write ident string to %s", get_remote_ipaddr());
@@ -440,7 +441,7 @@ sshd_exchange_identification(int sock_in, int sock_out)
 	/* Read other sides version identification. */
 	memset(buf, 0, sizeof(buf));
 	for (i = 0; i < sizeof(buf) - 1; i++) {
-		if (atomicio(read, sock_in, &buf[i], 1) != 1) {
+		if (roaming_atomicio(read, sock_in, &buf[i], 1) != 1) {
 			logit("Did not receive identification string from %s",
 			    get_remote_ipaddr());
 			cleanup_exit(255);
@@ -588,7 +589,7 @@ demote_sensitive_data(void)
 static void
 privsep_preauth_child(void)
 {
- 	u_int32_t rnd[256];
+	u_int32_t rnd[256];
 	gid_t gidset[1];
 
 	/* Enable challenge-response authentication for privilege separation */

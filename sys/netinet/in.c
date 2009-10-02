@@ -536,6 +536,16 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				hostIsNew = 0;
 		}
 		if (ifra->ifra_mask.sin_len) {
+			/* 
+			 * QL: XXX
+			 * Need to scrub the prefix here in case
+			 * the issued command is SIOCAIFADDR with
+			 * the same address, but with a different
+			 * prefix length. And if the prefix length
+			 * is the same as before, then the call is 
+			 * un-necessarily executed here.
+			 */
+			in_ifscrub(ifp, ia);
 			ia->ia_sockmask = ifra->ifra_mask;
 			ia->ia_sockmask.sin_family = AF_INET;
 			ia->ia_subnetmask =
@@ -544,6 +554,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		}
 		if ((ifp->if_flags & IFF_POINTOPOINT) &&
 		    (ifra->ifra_dstaddr.sin_family == AF_INET)) {
+			in_ifscrub(ifp, ia);
 			ia->ia_dstaddr = ifra->ifra_dstaddr;
 			maskIsNew  = 1; /* We lie; but the effect's the same */
 		}
@@ -816,9 +827,6 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	struct sockaddr_in oldaddr;
-	struct rtentry *rt = NULL;
-	struct rt_addrinfo info;
-	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
 	int s = splimp(), flags = RTF_UP, error = 0;
 
 	oldaddr = ia->ia_addr;
@@ -916,25 +924,9 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	/*
 	 * add a loopback route to self
 	 */
-	if (V_useloopback && !(ifp->if_flags & IFF_LOOPBACK)) {
-		bzero(&info, sizeof(info));
-		info.rti_ifp = V_loif;
-		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
-		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
-		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-		error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
-
-		if (error == 0 && rt != NULL) {
-			RT_LOCK(rt);
-			((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-				rt->rt_ifp->if_type;
-			((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
-				rt->rt_ifp->if_index;
-			RT_REMREF(rt);
-			RT_UNLOCK(rt);
-		} else if (error != 0)
-			log(LOG_INFO, "in_ifinit: insertion failed\n");
-	}
+	if (V_useloopback && !(ifp->if_flags & IFF_LOOPBACK))
+		error = ifa_add_loopback_route((struct ifaddr *)ia, 
+				       (struct sockaddr *)&ia->ia_addr);
 
 	return (error);
 }
@@ -1053,8 +1045,6 @@ in_scrubprefix(struct in_ifaddr *target)
 	struct in_addr prefix, mask, p;
 	int error;
 	struct sockaddr_in prefix0, mask0;
-	struct rt_addrinfo info;
-	struct sockaddr_dl null_sdl;
 
 	/*
 	 * Remove the loopback route to the interface address.
@@ -1068,19 +1058,8 @@ in_scrubprefix(struct in_ifaddr *target)
 	 */
 	if ((target->ia_addr.sin_addr.s_addr != INADDR_ANY) &&
 	    !(target->ia_ifp->if_flags & IFF_LOOPBACK)) {
-		bzero(&null_sdl, sizeof(null_sdl));
-		null_sdl.sdl_len = sizeof(null_sdl);
-		null_sdl.sdl_family = AF_LINK;
-		null_sdl.sdl_type = V_loif->if_type;
-		null_sdl.sdl_index = V_loif->if_index;
-		bzero(&info, sizeof(info));
-		info.rti_flags = target->ia_flags | RTF_HOST | RTF_STATIC;
-		info.rti_info[RTAX_DST] = (struct sockaddr *)&target->ia_addr;
-		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
-		error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
-
-		if (error != 0)
-			log(LOG_INFO, "in_scrubprefix: deletion failed\n");
+		error = ifa_del_loopback_route((struct ifaddr *)target,
+				       (struct sockaddr *)&target->ia_addr);
 	}
 
 	if ((target->ia_flags & IFA_ROUTE) == 0) {
@@ -1418,6 +1397,7 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 			LLE_WLOCK(lle);
 			lle->la_flags = LLE_DELETED;
+			EVENTHANDLER_INVOKE(arp_update_event, lle);
 			LLE_WUNLOCK(lle);
 #ifdef DIAGNOSTICS
 			log(LOG_INFO, "ifaddr cache = %p  is deleted\n", lle);	

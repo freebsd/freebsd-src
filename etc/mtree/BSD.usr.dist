@@ -1031,6 +1031,8 @@
             ..
             fr_FR.UTF-8
             ..
+            gl_ES.ISO8859-1
+            ..
             he_IL.UTF-8
             ..
             hi_IN.ISCII-DEV

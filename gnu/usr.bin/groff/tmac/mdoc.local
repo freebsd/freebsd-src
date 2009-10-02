@@ -72,6 +72,8 @@
 .ds doc-operating-system-FreeBSD-6.3    6.3
 .ds doc-operating-system-FreeBSD-6.4    6.4
 .ds doc-operating-system-FreeBSD-7.1    7.1
+.ds doc-operating-system-FreeBSD-7.2    7.2
+.ds doc-operating-system-FreeBSD-7.3    7.3
 .ds doc-operating-system-FreeBSD-8.0    8.0
 .ds doc-operating-system-FreeBSD-9.0    9.0
 .

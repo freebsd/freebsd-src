@@ -469,7 +469,7 @@ static struct devstat *
 devstat_alloc(void)
 {
 	struct devstat *dsp;
-	struct statspage *spp;
+	struct statspage *spp, *spp2;
 	u_int u;
 	static int once;
 
@@ -479,6 +479,7 @@ devstat_alloc(void)
 		    UID_ROOT, GID_WHEEL, 0400, DEVSTAT_DEVICE_NAME);
 		once = 1;
 	}
+	spp2 = NULL;
 	mtx_lock(&devstat_mutex);
 	for (;;) {
 		TAILQ_FOREACH(spp, &pagelist, list) {
@@ -487,24 +488,30 @@ devstat_alloc(void)
 		}
 		if (spp != NULL)
 			break;
-		/*
-		 * We had no free slot in any of our pages, drop the mutex
-		 * and get another page.  In theory we could have more than
-		 * one process doing this at the same time and consequently
-		 * we may allocate more pages than we will need.  That is
-		 * Just Too Bad[tm], we can live with that.
-		 */
 		mtx_unlock(&devstat_mutex);
-		spp = malloc(sizeof *spp, M_DEVSTAT, M_ZERO | M_WAITOK);
-		spp->stat = malloc(PAGE_SIZE, M_DEVSTAT, M_ZERO | M_WAITOK);
-		spp->nfree = statsperpage;
-		mtx_lock(&devstat_mutex);
+		spp2 = malloc(sizeof *spp, M_DEVSTAT, M_ZERO | M_WAITOK);
+		spp2->stat = malloc(PAGE_SIZE, M_DEVSTAT, M_ZERO | M_WAITOK);
+		spp2->nfree = statsperpage;
+
 		/*
-		 * It would make more sense to add the new page at the head
-		 * but the order on the list determine the sequence of the
-		 * mapping so we can't do that.
+		 * If free statspages were added while the lock was released
+		 * just reuse them.
 		 */
-		TAILQ_INSERT_TAIL(&pagelist, spp, list);
+		mtx_lock(&devstat_mutex);
+		TAILQ_FOREACH(spp, &pagelist, list)
+			if (spp->nfree > 0)
+				break;
+		if (spp == NULL) {
+			spp = spp2;
+
+			/*
+			 * It would make more sense to add the new page at the
+			 * head but the order on the list determine the
+			 * sequence of the mapping so we can't do that.
+			 */
+			TAILQ_INSERT_TAIL(&pagelist, spp, list);
+		} else
+			break;
 	}
 	dsp = spp->stat;
 	for (u = 0; u < statsperpage; u++) {
@@ -515,6 +522,10 @@ devstat_alloc(void)
 	spp->nfree--;
 	dsp->allocated = 1;
 	mtx_unlock(&devstat_mutex);
+	if (spp2 != NULL && spp2 != spp) {
+		free(spp2->stat, M_DEVSTAT);
+		free(spp2, M_DEVSTAT);
+	}
 	return (dsp);
 }
 

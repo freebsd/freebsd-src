@@ -253,6 +253,7 @@ MAN=	accept_filter.9 \
 	usbdi.9 \
 	utopia.9 \
 	vaccess.9 \
+	vaccess_acl_nfs4.9 \
 	vaccess_acl_posix1e.9 \
 	vcount.9 \
 	vflush.9 \

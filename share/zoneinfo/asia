@@ -1,5 +1,5 @@
 # <pre>
-# @(#)asia	8.36
+# @(#)asia	8.41
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -1674,8 +1674,15 @@ Zone	Asia/Muscat	3:54:20 -	LMT	1920
 # advance clocks in the country by one hour from April 15 to
 # conserve energy"
 
-# From Arthur David Olson (2009-04-10):
-# Assume for now that Pakistan will end DST in 2009 as it did in 2008.
+# From Steffen Thorsen (2009-09-17):
+# "The News International," Pakistan reports that: "The Federal
+# Government has decided to restore the previous time by moving the
+# clocks backward by one hour from October 1. A formal announcement to
+# this effect will be made after the Prime Minister grants approval in
+# this regard." 
+# <a href="http://www.thenews.com.pk/updates.asp?id=87168">
+# http://www.thenews.com.pk/updates.asp?id=87168
+# </a>
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule Pakistan	2002	only	-	Apr	Sun>=2	0:01	1:00	S
@@ -1683,7 +1690,7 @@ Rule Pakistan	2002	only	-	Oct	Sun>=2	0:01	0	-
 Rule Pakistan	2008	only	-	Jun	1	0:00	1:00	S
 Rule Pakistan	2008	only	-	Nov	1	0:00	0	-
 Rule Pakistan	2009	only	-	Apr	15	0:00	1:00	S
-Rule Pakistan	2009	only	-	Nov	1	0:00	0	-
+Rule Pakistan	2009	only	-	Oct	1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Karachi	4:28:12 -	LMT	1907
 			5:30	-	IST	1942 Sep
@@ -1836,6 +1843,42 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # http://www.worldtimezone.com/dst_news/dst_news_westbank01.html
 # </a>
 
+# From Steffen Thorsen (2009-08-31):
+# Palestine's Council of Ministers announced that they will revert back to
+# winter time on Friday, 2009-09-04.
+#
+# One news source:
+# <a href="http://www.safa.ps/ara/?action=showdetail&seid=4158">
+# http://www.safa.ps/ara/?action=showdetail&seid=4158
+# </a>
+# (Palestinian press agency, Arabic),
+# Google translate: "Decided that the Palestinian government in Ramallah
+# headed by Salam Fayyad, the start of work in time for the winter of
+# 2009, starting on Friday approved the fourth delay Sept. clock sixty
+# minutes per hour as of Friday morning."
+#
+# We are not sure if Gaza will do the same, last year they had a different
+# end date, we will keep this page updated:
+# <a href="http://www.timeanddate.com/news/time/westbank-gaza-dst-2009.html">
+# http://www.timeanddate.com/news/time/westbank-gaza-dst-2009.html
+# </a>
+
+# From Alexander Krivenyshev (2009-09-02):
+# Seems that Gaza Strip will go back to Winter Time same date as West Bank.
+#
+# According to Palestinian Ministry Of Interior, West Bank and Gaza Strip plan
+# to change time back to Standard time on September 4, 2009.
+#
+# "Winter time unite the West Bank and Gaza"
+# (from Palestinian National Authority):
+# <a href="http://www.moi.gov.ps/en/?page=633167343250594025&nid=11505
+# http://www.moi.gov.ps/en/?page=633167343250594025&nid=11505
+# </a>
+# or
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_gazastrip02.html>
+# http://www.worldtimezone.com/dst_news/dst_news_gazastrip02.html
+# </a>
+
 # The rules for Egypt are stolen from the `africa' file.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule EgyptAsia	1957	only	-	May	10	0:00	1:00	S
@@ -1854,7 +1897,7 @@ Rule Palestine	2006	only	-	Sep	22	0:00	0	-
 Rule Palestine	2007	only	-	Sep	Thu>=8	2:00	0	-
 Rule Palestine	2008	only	-	Aug	lastFri	2:00	0	-
 Rule Palestine	2009	max	-	Mar	lastFri	0:00	1:00	S
-Rule Palestine	2009	max	-	Sep	lastMon	2:00	0	-
+Rule Palestine	2009	max	-	Sep	Fri>=1	2:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct

@@ -45,4 +45,4 @@
 #   TunnelDevice any:any
 #   PermitLocalCommand no
 #   VisualHostKey no
-#   VersionAddendum FreeBSD-20090522
+#   VersionAddendum FreeBSD-20091001

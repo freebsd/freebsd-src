@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
+#include <sys/sysent.h>
 #include <sys/vmmeter.h>
 #include <sys/sysctl.h>
 
@@ -94,6 +95,14 @@ struct sbrk_args {
 static int max_proc_mmap;
 SYSCTL_INT(_vm, OID_AUTO, max_proc_mmap, CTLFLAG_RW, &max_proc_mmap, 0,
     "Maximum number of memory-mapped files per process");
+
+/*
+ * 'mmap_zero' determines whether or not MAP_FIXED mmap() requests for
+ * virtual address zero are permitted.
+ */
+static int mmap_zero;
+SYSCTL_INT(_security_bsd, OID_AUTO, mmap_zero, CTLFLAG_RW, &mmap_zero, 0,
+    "Processes may map an object at virtual address zero");
 
 /*
  * Set the maximum number of vm_map_entry structures per process.  Roughly
@@ -228,8 +237,10 @@ mmap(td, uap)
 	pos = uap->pos;
 
 	fp = NULL;
-	/* make sure mapping fits into numeric range etc */
-	if (uap->len == 0 ||
+
+	/* Make sure mapping fits into numeric range, etc. */
+	if ((uap->len == 0 && !SV_CURPROC_FLAG(SV_AOUT) &&
+	     curproc->p_osrel >= 800104) ||
 	    ((flags & MAP_ANON) && uap->fd != -1))
 		return (EINVAL);
 
@@ -265,6 +276,14 @@ mmap(td, uap)
 		addr -= pageoff;
 		if (addr & PAGE_MASK)
 			return (EINVAL);
+
+		/*
+		 * Mapping to address zero is only permitted if
+		 * mmap_zero is enabled.
+		 */
+		if (addr == 0 && !mmap_zero)
+			return (EINVAL);
+
 		/* Address range must be all in user VM space. */
 		if (addr < vm_map_min(&vms->vm_map) ||
 		    addr + size > vm_map_max(&vms->vm_map))

@@ -474,12 +474,6 @@ agp_i810_attach(device_t dev)
 				agp_generic_detach(dev);
 				return EINVAL;
 		}
-		if (sc->stolen > 0) {
-			device_printf(dev, "detected %dk stolen memory\n",
-			    sc->stolen * 4);
-		}
-		device_printf(dev, "aperture size is %dM\n",
-		    sc->initial_aperture / 1024 / 1024);
 
 		/* GATT address is already in there, make sure it's enabled */
 		pgtblctl = bus_read_4(sc->sc_res[0], AGP_I810_PGTBL_CTL);
@@ -664,9 +658,6 @@ agp_i810_attach(device_t dev)
 		gtt_size += 4;
 
 		sc->stolen = (stolen - gtt_size) * 1024 / 4096;
-		if (sc->stolen > 0)
-			device_printf(dev, "detected %dk stolen memory\n", sc->stolen * 4);
-		device_printf(dev, "aperture size is %dM\n", sc->initial_aperture / 1024 / 1024);
 
 		/* GATT address is already in there, make sure it's enabled */
 		pgtblctl = bus_read_4(sc->sc_res[0], AGP_I810_PGTBL_CTL);
@@ -675,6 +666,13 @@ agp_i810_attach(device_t dev)
 
 		gatt->ag_physical = pgtblctl & ~1;
 	}
+
+	device_printf(dev, "aperture size is %dM",
+	    sc->initial_aperture / 1024 / 1024);
+	if (sc->stolen > 0)
+		printf(", detected %dk stolen memory\n", sc->stolen * 4);
+	else
+		printf("\n");
 
 	if (0)
 		agp_i810_dump_regs(dev);

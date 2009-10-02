@@ -5873,7 +5873,7 @@ sctp_skip_csum_4:
 	 * idea, so I will leave it in place.
 	 */
 	if (inp && ipsec4_in_reject(m, &inp->ip_inp.inp)) {
-		MODULE_GLOBAL(MOD_IPSEC, ipsec4stat).in_polvio++;
+		MODULE_GLOBAL(ipsec4stat).in_polvio++;
 		SCTP_STAT_INCR(sctps_hdrops);
 		goto bad;
 	}

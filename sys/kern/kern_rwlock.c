@@ -541,7 +541,7 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		 */
 		x = rw->rw_lock;
 		if (RW_READERS(x) > 1) {
-			if (atomic_cmpset_ptr(&rw->rw_lock, x,
+			if (atomic_cmpset_rel_ptr(&rw->rw_lock, x,
 			    x - RW_ONE_READER)) {
 				if (LOCK_LOG_TEST(&rw->lock_object, 0))
 					CTR4(KTR_LOCK,
@@ -559,7 +559,8 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		if (!(x & RW_LOCK_WAITERS)) {
 			MPASS((x & ~RW_LOCK_WRITE_SPINNER) ==
 			    RW_READERS_LOCK(1));
-			if (atomic_cmpset_ptr(&rw->rw_lock, x, RW_UNLOCKED)) {
+			if (atomic_cmpset_rel_ptr(&rw->rw_lock, x,
+			    RW_UNLOCKED)) {
 				if (LOCK_LOG_TEST(&rw->lock_object, 0))
 					CTR2(KTR_LOCK, "%s: %p last succeeded",
 					    __func__, rw);
@@ -597,7 +598,7 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 			x |= (v & RW_LOCK_READ_WAITERS);
 		} else
 			queue = TS_SHARED_QUEUE;
-		if (!atomic_cmpset_ptr(&rw->rw_lock, RW_READERS_LOCK(1) | v,
+		if (!atomic_cmpset_rel_ptr(&rw->rw_lock, RW_READERS_LOCK(1) | v,
 		    x)) {
 			turnstile_chain_unlock(&rw->lock_object);
 			continue;
