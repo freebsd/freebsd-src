@@ -36,15 +36,18 @@ netoptions_start()
 
 netoptions_inet()
 {
-	if checkyesno log_in_vain; then
+	case ${log_in_vain} in
+	[12])
 		netoptions_init
 		echo -n " log_in_vain=${log_in_vain}"
-		${SYSCTL_W} net.inet.tcp.log_in_vain=1 >/dev/null
-		${SYSCTL_W} net.inet.udp.log_in_vain=1 >/dev/null
-	else
+		${SYSCTL_W} net.inet.tcp.log_in_vain=${log_in_vain} >/dev/null
+		${SYSCTL_W} net.inet.udp.log_in_vain=${log_in_vain} >/dev/null
+		;;
+	*)
 		${SYSCTL_W} net.inet.tcp.log_in_vain=0 >/dev/null
 		${SYSCTL_W} net.inet.udp.log_in_vain=0 >/dev/null
-	fi
+		;;
+	esac
 
 	if checkyesno tcp_extensions; then
 		${SYSCTL_W} net.inet.tcp.rfc1323=1 >/dev/null
