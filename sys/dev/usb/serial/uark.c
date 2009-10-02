@@ -114,6 +114,7 @@ static void	uark_cfg_get_status(struct ucom_softc *, uint8_t *,
 		    uint8_t *);
 static void	uark_cfg_set_break(struct ucom_softc *, uint8_t);
 static void	uark_cfg_write(struct uark_softc *, uint16_t, uint16_t);
+static void	uark_poll(struct ucom_softc *ucom);
 
 static const struct usb_config
 	uark_xfer_config[UARK_N_TRANSFER] = {
@@ -146,6 +147,7 @@ static const struct ucom_callback uark_callback = {
 	.ucom_stop_read = &uark_stop_read,
 	.ucom_start_write = &uark_start_write,
 	.ucom_stop_write = &uark_stop_write,
+	.ucom_poll = &uark_poll,
 };
 
 static device_method_t uark_methods[] = {
@@ -430,4 +432,11 @@ uark_cfg_write(struct uark_softc *sc, uint16_t index, uint16_t value)
 		DPRINTFN(0, "device request failed, err=%s "
 		    "(ignored)\n", usbd_errstr(err));
 	}
+}
+
+static void
+uark_poll(struct ucom_softc *ucom)
+{
+	struct uark_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UARK_N_TRANSFER);
 }

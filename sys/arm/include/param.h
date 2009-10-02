@@ -38,31 +38,19 @@
  * $FreeBSD$
  */
 
+#ifndef _ARM_INCLUDE_PARAM_H_
+#define	_ARM_INCLUDE_PARAM_H_
+
 /*
  * Machine dependent constants for StrongARM
  */
 
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is unsigned int
- * and must be cast to any desired pointer type.
- */
-#ifndef _ALIGNBYTES
-#define	_ALIGNBYTES	(sizeof(int) - 1)
-#endif
-#ifndef _ALIGN
-#define	_ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
-#endif
+#include <machine/_align.h>
 
 #define STACKALIGNBYTES	(8 - 1)
 #define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)
 
-#ifndef _NO_NAMESPACE_POLLUTION
-
 #define __PCI_REROUTE_INTERRUPT
-
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
 
 #ifndef MACHINE
 #define	MACHINE		"arm"
@@ -104,6 +92,8 @@
 #define NBPDR		(1 << PDR_SHIFT)
 #define NPDEPG          (1 << (32 - PDR_SHIFT))
 
+#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+
 #ifndef KSTACK_PAGES
 #define KSTACK_PAGES    2
 #endif /* !KSTACK_PAGES */
@@ -136,5 +126,4 @@
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 
-#endif /* !_MACHINE_PARAM_H_ */
-#endif /* !_NO_NAMESPACE_POLLUTION */
+#endif /* !_ARM_INCLUDE_PARAM_H_ */

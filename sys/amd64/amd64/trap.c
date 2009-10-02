@@ -253,6 +253,11 @@ trap(struct trapframe *frame)
 	}
 #endif
 
+	if (type == T_RESERVED) {
+		trap_fatal(frame, 0);
+		goto out;
+	}
+
 #ifdef	HWPMC_HOOKS
 	/*
 	 * CPU PMCs interrupt using an NMI.  If the PMC module is
@@ -500,8 +505,11 @@ trap(struct trapframe *frame)
 			 * XXX this should be fatal unless the kernel has
 			 * registered such use.
 			 */
-			fpudna();
 			printf("fpudna in kernel mode!\n");
+#ifdef KDB
+			kdb_backtrace();
+#endif
+			fpudna();
 			goto out;
 
 		case T_STKFLT:		/* stack fault */

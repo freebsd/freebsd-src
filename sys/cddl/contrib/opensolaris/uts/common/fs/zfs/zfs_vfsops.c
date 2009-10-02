@@ -864,7 +864,7 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 	znode_t *rootzp;
 	int error;
 
-	ZFS_ENTER(zfsvfs);
+	ZFS_ENTER_NOERROR(zfsvfs);
 
 	error = zfs_zget(zfsvfs, zfsvfs->z_root, &rootzp);
 	if (error == 0) {
@@ -898,6 +898,9 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		 * 'z_parent' is self referential for non-snapshots.
 		 */
 		(void) dnlc_purge_vfsp(zfsvfs->z_parent->z_vfs, 0);
+#ifdef FREEBSD_NAMECACHE
+		cache_purgevfs(zfsvfs->z_parent->z_vfs);
+#endif
 	}
 
 	/*
@@ -947,6 +950,18 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		zfsvfs->z_unmounted = B_TRUE;
 		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+
+#ifdef __FreeBSD__
+		/*
+		 * Some znodes might not be fully reclaimed, wait for them.
+		 */
+		mutex_enter(&zfsvfs->z_znodes_lock);
+		while (list_head(&zfsvfs->z_all_znodes) != NULL) {
+			msleep(zfsvfs, &zfsvfs->z_znodes_lock, 0,
+			    "zteardown", 0);
+		}
+		mutex_exit(&zfsvfs->z_znodes_lock);
+#endif
 	}
 
 	/*
@@ -982,11 +997,6 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	cred_t *cr = curthread->td_ucred;
 	int ret;
 
-	if (fflag & MS_FORCE) {
-		/* TODO: Force unmount is not well implemented yet, so deny it. */
-		ZFS_LOG(0, "Force unmount is experimental - report any problems.");
-	}
-
 	ret = secpolicy_fs_unmount(cr, vfsp);
 	if (ret) {
 		ret = dsl_deleg_access((char *)refstr_value(vfsp->vfs_resource),
@@ -1018,6 +1028,17 @@ zfs_umount(vfs_t *vfsp, int fflag)
 		}
 		zfsctl_destroy(zfsvfs);
 		ASSERT(zfsvfs->z_ctldir == NULL);
+	}
+
+	if (fflag & MS_FORCE) {
+		/*
+		 * Mark file system as unmounted before calling
+		 * vflush(FORCECLOSE). This way we ensure no future vnops
+		 * will be called and risk operating on DOOMED vnodes.
+		 */
+		rrw_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
+		zfsvfs->z_unmounted = B_TRUE;
+		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
 	}
 
 	/*
@@ -1086,8 +1107,7 @@ zfs_umount(vfs_t *vfsp, int fflag)
 	if (zfsvfs->z_issnap) {
 		vnode_t *svp = vfsp->mnt_vnodecovered;
 
-		ASSERT(svp->v_count == 2 || svp->v_count == 1);
-		if (svp->v_count == 2)
+		if (svp->v_count >= 2)
 			VN_RELE(svp);
 	}
 	zfs_freevfs(vfsp);
@@ -1101,6 +1121,20 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 	zfsvfs_t	*zfsvfs = vfsp->vfs_data;
 	znode_t		*zp;
 	int 		err;
+
+	/*
+	 * XXXPJD: zfs_zget() can't operate on virtual entires like .zfs/ or
+	 * .zfs/snapshot/ directories, so for now just return EOPNOTSUPP.
+	 * This will make NFS to fall back to using READDIR instead of
+	 * READDIRPLUS.
+	 * Also snapshots are stored in AVL tree, but based on their names,
+	 * not inode numbers, so it will be very inefficient to iterate
+	 * over all snapshots to find the right one.
+	 * Note that OpenSolaris READDIRPLUS implementation does LOOKUP on
+	 * d_name, and not VGET on d_fileno as we do.
+	 */
+	if (ino == ZFSCTL_INO_ROOT || ino == ZFSCTL_INO_SNAPDIR)
+		return (EOPNOTSUPP);
 
 	ZFS_ENTER(zfsvfs);
 	err = zfs_zget(zfsvfs, ino, &zp);
@@ -1137,6 +1171,8 @@ zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
 	    credanonp, numsecflavors, secflavors));
 }
 
+CTASSERT(SHORT_FID_LEN <= sizeof(struct fid));
+CTASSERT(LONG_FID_LEN <= sizeof(struct fid));
 
 static int
 zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
@@ -1154,11 +1190,10 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 	ZFS_ENTER(zfsvfs);
 
 	/*
-	 * On FreeBSD we are already called with snapshot's mount point
-	 * and not the mount point of its parent.
+	 * On FreeBSD we can get snapshot's mount point or its parent file
+	 * system mount point depending if snapshot is already mounted or not.
 	 */
-#ifndef __FreeBSD__
-	if (fidp->fid_len == LONG_FID_LEN) {
+	if (zfsvfs->z_parent == zfsvfs && fidp->fid_len == LONG_FID_LEN) {
 		zfid_long_t	*zlfid = (zfid_long_t *)fidp;
 		uint64_t	objsetid = 0;
 		uint64_t	setgen = 0;
@@ -1176,7 +1211,6 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 			return (EINVAL);
 		ZFS_ENTER(zfsvfs);
 	}
-#endif
 
 	if (fidp->fid_len == SHORT_FID_LEN || fidp->fid_len == LONG_FID_LEN) {
 		zfid_short_t	*zfid = (zfid_short_t *)fidp;

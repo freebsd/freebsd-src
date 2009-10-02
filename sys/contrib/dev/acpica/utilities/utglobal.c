@@ -172,7 +172,16 @@ const char                  *AcpiGbl_SleepStateNames[ACPI_S_STATE_COUNT] =
     "\\_S5_"
 };
 
-const char                  *AcpiGbl_HighestDstateNames[4] =
+const char                  *AcpiGbl_LowestDstateNames[ACPI_NUM_SxW_METHODS] =
+{
+    "_S0W",
+    "_S1W",
+    "_S2W",
+    "_S3W",
+    "_S4W"
+};
+
+const char                  *AcpiGbl_HighestDstateNames[ACPI_NUM_SxD_METHODS] =
 {
     "_S1D",
     "_S2D",
@@ -398,6 +407,7 @@ const char        *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
     "SMBus",
     "SystemCMOS",
     "PCIBARTarget",
+    "IPMI",
     "DataTable"
 };
 
@@ -928,6 +938,7 @@ AcpiUtInitGlobals (
 
     /* Namespace */
 
+    AcpiGbl_ModuleCodeList              = NULL;
     AcpiGbl_RootNode                    = NULL;
     AcpiGbl_RootNodeStruct.Name.Integer = ACPI_ROOT_NAME;
     AcpiGbl_RootNodeStruct.DescriptorType = ACPI_DESC_TYPE_NAMED;

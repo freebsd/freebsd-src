@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/module.h>
 
-#include <machine/vm86.h>
+#include <compat/x86bios/x86bios.h>
 
 /*
  * VESA DPMS States 
@@ -119,6 +119,7 @@ static driver_t dpms_driver = {
 static devclass_t dpms_devclass;
 
 DRIVER_MODULE(dpms, vgapci, dpms_driver, dpms_devclass, NULL, NULL);
+MODULE_DEPEND(dpms, x86bios, 1, 1, 1);
 
 static void
 dpms_identify(driver_t *driver, device_t parent)
@@ -189,21 +190,22 @@ dpms_resume(device_t dev)
 static int
 dpms_call_bios(int subfunction, int *bh)
 {
-	struct vm86frame vmf;
-	int error;
+	x86regs_t regs;
 
-	bzero(&vmf, sizeof(vmf));
-	vmf.vmf_ax = VBE_DPMS_FUNCTION;
-	vmf.vmf_bl = subfunction;
-	vmf.vmf_bh = *bh;
-	vmf.vmf_es = 0;
-	vmf.vmf_di = 0;
-	error = vm86_intcall(0x10, &vmf);
-	if (error == 0 && (vmf.vmf_eax & 0xffff) != 0x004f)
-		error = ENXIO;
-	if (error == 0)
-		*bh = vmf.vmf_bh;
-	return (error);
+	bzero(&regs, sizeof(regs));
+	regs.R_AX = VBE_DPMS_FUNCTION;
+	regs.R_BL = subfunction;
+	regs.R_BH = *bh;
+	regs.R_ES = 0;
+	regs.R_DI = 0;
+	x86bios_intr(&regs, 0x10);
+
+	if ((regs.R_EAX & 0xffff) != 0x004f)
+		return (ENXIO);
+
+	*bh = regs.R_BH;
+
+	return (0);
 }
 
 static int

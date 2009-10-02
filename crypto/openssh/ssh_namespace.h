@@ -153,6 +153,7 @@
 #define ciphers_valid				ssh_ciphers_valid
 #define cleanhostname				ssh_cleanhostname
 #define cleanup_exit				ssh_cleanup_exit
+#define clear_cached_addr			ssh_clear_cached_addr
 #define colon					ssh_colon
 #define compat_cipher_proposal			ssh_compat_cipher_proposal
 #define compat_datafellows			ssh_compat_datafellows
@@ -279,6 +280,7 @@
 #define ms_to_timeval				ssh_ms_to_timeval
 #define mysignal				ssh_mysignal
 #define packet_add_padding			ssh_packet_add_padding
+#define packet_backup_state			ssh_packet_backup_state
 #define packet_close				ssh_packet_close
 #define packet_connection_is_ipv4		ssh_packet_connection_is_ipv4
 #define packet_connection_is_on_socket		ssh_packet_connection_is_on_socket
@@ -289,10 +291,15 @@
 #define packet_get_connection_in		ssh_packet_get_connection_in
 #define packet_get_connection_out		ssh_packet_get_connection_out
 #define packet_get_encryption_key		ssh_packet_get_encryption_key
+#define packet_get_input			ssh_packet_get_input
 #define packet_get_int				ssh_packet_get_int
+#define packet_get_int64			ssh_packet_get_int64
 #define packet_get_keycontext			ssh_packet_get_keycontext
 #define packet_get_keyiv			ssh_packet_get_keyiv
 #define packet_get_keyiv_len			ssh_packet_get_keyiv_len
+#define packet_get_maxsize			ssh_packet_get_maxsize
+#define packet_get_newkeys			ssh_packet_get_newkeys
+#define packet_get_output			ssh_packet_get_output
 #define packet_get_protocol_flags		ssh_packet_get_protocol_flags
 #define packet_get_raw				ssh_packet_get_raw
 #define packet_get_ssh1_cipher			ssh_packet_get_ssh1_cipher
@@ -300,6 +307,7 @@
 #define packet_get_string			ssh_packet_get_string
 #define packet_get_string_ptr			ssh_packet_get_string_ptr
 #define packet_have_data_to_write		ssh_packet_have_data_to_write
+#define packet_inc_alive_timeouts		ssh_packet_inc_alive_timeouts
 #define packet_is_interactive			ssh_packet_is_interactive
 #define packet_need_rekeying			ssh_packet_need_rekeying
 #define packet_not_very_much_data_to_write	ssh_packet_not_very_much_data_to_write
@@ -309,6 +317,7 @@
 #define packet_put_char				ssh_packet_put_char
 #define packet_put_cstring			ssh_packet_put_cstring
 #define packet_put_int				ssh_packet_put_int
+#define packet_put_int64			ssh_packet_put_int64
 #define packet_put_raw				ssh_packet_put_raw
 #define packet_put_string			ssh_packet_put_string
 #define packet_read				ssh_packet_read
@@ -317,9 +326,11 @@
 #define packet_read_poll_seqnr			ssh_packet_read_poll_seqnr
 #define packet_read_seqnr			ssh_packet_read_seqnr
 #define packet_remaining			ssh_packet_remaining
+#define packet_restore_state			ssh_packet_restore_state
 #define packet_send				ssh_packet_send
 #define packet_send_debug			ssh_packet_send_debug
 #define packet_send_ignore			ssh_packet_send_ignore
+#define packet_set_alive_timeouts		ssh_packet_set_alive_timeouts
 #define packet_set_authenticated		ssh_packet_set_authenticated
 #define packet_set_connection			ssh_packet_set_connection
 #define packet_set_encryption_key		ssh_packet_set_encryption_key

@@ -230,6 +230,7 @@ static void	uchcom_set_dte_rate(struct uchcom_softc *, uint32_t);
 static void	uchcom_set_line_control(struct uchcom_softc *, tcflag_t);
 static void	uchcom_clear_chip(struct uchcom_softc *);
 static void	uchcom_reset_chip(struct uchcom_softc *);
+static void	uchcom_poll(struct ucom_softc *ucom);
 
 static device_probe_t uchcom_probe;
 static device_attach_t uchcom_attach;
@@ -280,6 +281,7 @@ static struct ucom_callback uchcom_callback = {
 	.ucom_stop_read = &uchcom_stop_read,
 	.ucom_start_write = &uchcom_start_write,
 	.ucom_stop_write = &uchcom_stop_write,
+	.ucom_poll = &uchcom_poll,
 };
 
 /* ----------------------------------------------------------------------
@@ -886,6 +888,13 @@ tr_setup:
 		}
 		return;
 	}
+}
+
+static void
+uchcom_poll(struct ucom_softc *ucom)
+{
+	struct uchcom_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer, UCHCOM_N_TRANSFER);
 }
 
 static device_method_t uchcom_methods[] = {

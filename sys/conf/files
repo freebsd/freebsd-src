@@ -220,6 +220,7 @@ contrib/dev/acpica/namespace/nsnames.c	optional acpi
 contrib/dev/acpica/namespace/nsobject.c	optional acpi
 contrib/dev/acpica/namespace/nsparse.c	optional acpi
 contrib/dev/acpica/namespace/nspredef.c	optional acpi
+contrib/dev/acpica/namespace/nsrepair.c	optional acpi
 contrib/dev/acpica/namespace/nssearch.c	optional acpi
 contrib/dev/acpica/namespace/nsutils.c	optional acpi
 contrib/dev/acpica/namespace/nswalk.c	optional acpi
@@ -260,6 +261,7 @@ contrib/dev/acpica/utilities/utdebug.c	optional acpi
 contrib/dev/acpica/utilities/utdelete.c	optional acpi
 contrib/dev/acpica/utilities/uteval.c	optional acpi
 contrib/dev/acpica/utilities/utglobal.c	optional acpi
+contrib/dev/acpica/utilities/utids.c	optional acpi
 contrib/dev/acpica/utilities/utinit.c	optional acpi
 contrib/dev/acpica/utilities/utlock.c	optional acpi
 contrib/dev/acpica/utilities/utmath.c	optional acpi
@@ -1642,6 +1644,7 @@ dev/usb/serial/u3g.c		optional u3g
 dev/usb/serial/uark.c		optional uark
 dev/usb/serial/ubsa.c		optional ubsa
 dev/usb/serial/ubser.c		optional ubser
+dev/usb/serial/uch341.c		optional uch341
 dev/usb/serial/uchcom.c		optional uchcom
 dev/usb/serial/ucycom.c		optional ucycom
 dev/usb/serial/ufoma.c		optional ufoma
@@ -1657,7 +1660,7 @@ dev/usb/serial/uslcom.c		optional uslcom
 dev/usb/serial/uvisor.c		optional uvisor
 dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | \
-	(u3g | uark | ubsa | ubser | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
+	(u3g | uark | ubsa | ubser | uch341 | uchcom | ucycom | ufoma | uftdi | ugensa | uipaq | ulpt | umct | umodem | umoscom | uplcom | uslcom | uvisor | uvscom)
 #
 # USB misc drivers
 #
@@ -1791,6 +1794,7 @@ fs/procfs/procfs_ioctl.c	optional procfs
 fs/procfs/procfs_map.c		optional procfs
 fs/procfs/procfs_mem.c		optional procfs
 fs/procfs/procfs_note.c		optional procfs
+fs/procfs/procfs_osrel.c	optional procfs
 fs/procfs/procfs_regs.c		optional procfs
 fs/procfs/procfs_rlimit.c	optional procfs
 fs/procfs/procfs_status.c	optional procfs
@@ -2008,6 +2012,7 @@ kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
+kern/subr_acl_nfs4.c		standard
 kern/subr_acl_posix1e.c		standard
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
@@ -2632,7 +2637,7 @@ ufs/ufs/ufs_acl.c		optional ffs
 ufs/ufs/ufs_bmap.c		optional ffs
 ufs/ufs/ufs_dirhash.c		optional ffs
 ufs/ufs/ufs_extattr.c		optional ffs
-ufs/ufs/ufs_gjournal.c		optional ffs
+ufs/ufs/ufs_gjournal.c		optional ffs UFS_GJOURNAL
 ufs/ufs/ufs_inode.c		optional ffs
 ufs/ufs/ufs_lookup.c		optional ffs
 ufs/ufs/ufs_quota.c		optional ffs
@@ -2827,4 +2832,3 @@ dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenpci/evtchn.c         optional xenpci
 dev/xen/xenpci/machine_reboot.c optional xenpci
-

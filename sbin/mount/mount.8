@@ -469,6 +469,12 @@ or
 option.
 .It Fl v
 Verbose mode.
+If the
+.Fl v
+is used alone, show all file systems, including those that were mounted with the
+.Dv MNT_IGNORE
+flag and show additional information about each file system (including fsid
+when run by root).
 .It Fl w
 The file system object is to be read and write.
 .El

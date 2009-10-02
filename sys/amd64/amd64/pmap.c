@@ -442,7 +442,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
 	DMPDPphys = allocpages(firstaddr, NDMPML4E);
-	if ((amd_feature & AMDID_PAGE1GB) == 0)
+	if (TRUE || (amd_feature & AMDID_PAGE1GB) == 0)
 		DMPDphys = allocpages(firstaddr, ndmpdp);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
@@ -476,7 +476,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 
 	/* Now set up the direct map space using either 2MB or 1GB pages */
 	/* Preset PG_M and PG_A because demotion expects it */
-	if ((amd_feature & AMDID_PAGE1GB) == 0) {
+	if (TRUE || (amd_feature & AMDID_PAGE1GB) == 0) {
 		for (i = 0; i < NPDEPG * ndmpdp; i++) {
 			((pd_entry_t *)DMPDphys)[i] = (vm_paddr_t)i << PDRSHIFT;
 			((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS |
@@ -701,6 +701,11 @@ pmap_init(void)
 	 * Are large page mappings enabled?
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.pg_ps_enabled", &pg_ps_enabled);
+	if (pg_ps_enabled) {
+		KASSERT(MAXPAGESIZES > 1 && pagesizes[1] == 0,
+		    ("pmap_init: can't assign to pagesizes[1]"));
+		pagesizes[1] = NBPDR;
+	}
 
 	/*
 	 * Calculate the size of the pv head table for superpages.

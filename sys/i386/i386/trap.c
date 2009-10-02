@@ -225,6 +225,11 @@ trap(struct trapframe *frame)
 	}
 #endif
 
+	if (type == T_RESERVED) {
+		trap_fatal(frame, 0);
+		goto out;
+	}
+
 #ifdef	HWPMC_HOOKS
 	/*
 	 * CPU PMCs interrupt using an NMI so we check for that first.

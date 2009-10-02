@@ -106,6 +106,7 @@ sctp_pathmtu_adjustment(struct sctp_inpcb *inp,
     uint16_t nxtsz)
 {
 	struct sctp_tmit_chunk *chk;
+	uint16_t overhead;
 
 	/* Adjust that too */
 	stcb->asoc.smallest_mtu = nxtsz;
@@ -114,13 +115,17 @@ sctp_pathmtu_adjustment(struct sctp_inpcb *inp,
 	SCTP_PRINTF("sctp_pathmtu_adjust called inp:%p stcb:%p net:%p nxtsz:%d\n",
 	    inp, stcb, net, nxtsz);
 #endif
+	overhead = IP_HDR_SIZE;
+	if (sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.peer_auth_chunks)) {
+		overhead += sctp_get_auth_chunk_len(stcb->asoc.peer_hmac_id);
+	}
 	TAILQ_FOREACH(chk, &stcb->asoc.send_queue, sctp_next) {
-		if ((chk->send_size + IP_HDR_SIZE) > nxtsz) {
+		if ((chk->send_size + overhead) > nxtsz) {
 			chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
 		}
 	}
 	TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
-		if ((chk->send_size + IP_HDR_SIZE) > nxtsz) {
+		if ((chk->send_size + overhead) > nxtsz) {
 			/*
 			 * For this guy we also mark for immediate resend
 			 * since we sent to big of chunk
@@ -539,7 +544,7 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 	inp->sctp_flags &= ~SCTP_PCB_FLAGS_BOUND_V6;	/* I'm not v6! */
 	ip_inp = &inp->ip_inp.inp;
 	ip_inp->inp_vflag |= INP_IPV4;
-	ip_inp->inp_ip_ttl = MODULE_GLOBAL(MOD_INET, ip_defttl);
+	ip_inp->inp_ip_ttl = MODULE_GLOBAL(ip_defttl);
 #ifdef IPSEC
 	error = ipsec_init_policy(so, &ip_inp->inp_sp);
 #ifdef SCTP_LOG_CLOSING

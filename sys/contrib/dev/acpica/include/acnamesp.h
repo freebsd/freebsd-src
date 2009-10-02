@@ -146,6 +146,14 @@
 #define ACPI_NS_WALK_UNLOCK         0x01
 #define ACPI_NS_WALK_TEMP_NODES     0x02
 
+/* Object is not a package element */
+
+#define ACPI_NOT_PACKAGE_ELEMENT    ACPI_UINT32_MAX
+
+/* Always emit warning message, not dependent on node flags */
+
+#define ACPI_WARN_ALWAYS            0
+
 
 /*
  * nsinit - Namespace initialization
@@ -241,6 +249,10 @@ AcpiNsDeleteNode (
     ACPI_NAMESPACE_NODE     *Node);
 
 void
+AcpiNsRemoveNode (
+    ACPI_NAMESPACE_NODE     *Node);
+
+void
 AcpiNsDeleteNamespaceSubtree (
     ACPI_NAMESPACE_NODE     *ParentHandle);
 
@@ -309,6 +321,10 @@ AcpiNsDumpObjects (
 ACPI_STATUS
 AcpiNsEvaluate (
     ACPI_EVALUATE_INFO      *Info);
+
+void
+AcpiNsExecModuleCodeList (
+    void);
 
 
 /*
@@ -409,6 +425,22 @@ AcpiNsGetAttachedData (
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_OBJECT_HANDLER     Handler,
     void                    **Data);
+
+
+/*
+ * nsrepair - return object repair for predefined methods/objects
+ */
+ACPI_STATUS
+AcpiNsRepairObject (
+    ACPI_PREDEFINED_DATA    *Data,
+    UINT32                  ExpectedBtypes,
+    UINT32                  PackageIndex,
+    ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
+
+ACPI_STATUS
+AcpiNsRepairPackageList (
+    ACPI_PREDEFINED_DATA    *Data,
+    ACPI_OPERAND_OBJECT     **ObjDescPtr);
 
 
 /*

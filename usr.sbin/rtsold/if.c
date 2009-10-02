@@ -48,6 +48,7 @@
 #include <netinet/icmp6.h>
 
 #include <netinet6/in6_var.h>
+#include <netinet6/nd6.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -78,9 +79,15 @@ int
 interface_up(char *name)
 {
 	struct ifreq ifr;
+	struct in6_ndireq nd;
 	int llflag;
+	int s;
+	int error;
 
+	memset(&ifr, 0, sizeof(ifr));
 	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	memset(&nd, 0, sizeof(nd));
+	strlcpy(nd.ifname, name, sizeof(nd.ifname));
 
 	if (ioctl(ifsock, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
 		warnmsg(LOG_WARNING, __func__, "ioctl(SIOCGIFFLAGS): %s",
@@ -94,8 +101,55 @@ interface_up(char *name)
 			    "ioctl(SIOCSIFFLAGS): %s", strerror(errno));
 		return(-1);
 	}
+	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+		warnmsg(LOG_WARNING, __func__, "socket(AF_INET6, SOCK_DGRAM): %s",
+		    strerror(errno));
+		return(-1);
+	}
+	if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
+		warnmsg(LOG_WARNING, __func__, "ioctl(SIOCGIFINFO_IN6): %s",
+		    strerror(errno));
+		close(s);
+		return(-1);
+	}
 
 	warnmsg(LOG_DEBUG, __func__, "checking if %s is ready...", name);
+
+	if (nd.ndi.flags & ND6_IFF_IFDISABLED) {
+		if (Fflag) {
+			nd.ndi.flags &= ~ND6_IFF_IFDISABLED;
+			if (ioctl(s, SIOCSIFINFO_IN6, (caddr_t)&nd)) {
+				warnmsg(LOG_WARNING, __func__,
+				    "ioctl(SIOCSIFINFO_IN6): %s",
+		    		    strerror(errno));
+				close(s);
+				return(-1);
+			}
+		} else {
+			warnmsg(LOG_WARNING, __func__,
+			    "%s is disabled.", name);
+			close(s);
+			return(-1);
+		}
+	}
+	if (!(nd.ndi.flags & ND6_IFF_ACCEPT_RTADV)) {
+		if (Fflag) {
+			nd.ndi.flags |= ND6_IFF_ACCEPT_RTADV;
+			if (ioctl(s, SIOCSIFINFO_IN6, (caddr_t)&nd)) {
+				warnmsg(LOG_WARNING, __func__,
+				    "ioctl(SIOCSIFINFO_IN6): %s",
+		    		    strerror(errno));
+				close(s);
+				return(-1);
+			}
+		} else {
+			warnmsg(LOG_WARNING, __func__,
+			    "%s does not accept Router Advertisement.", name);
+			close(s);
+			return(-1);
+		}
+	}
+	close(s);
 
 	llflag = get_llflag(name);
 	if (llflag < 0) {

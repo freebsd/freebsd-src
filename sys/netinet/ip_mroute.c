@@ -1025,6 +1025,8 @@ expire_mfc(struct mfc *rt)
 {
 	struct rtdetq *rte, *nrte;
 
+	MFC_LOCK_ASSERT();
+
 	free_bw_list(rt->mfc_bw_meter);
 
 	TAILQ_FOREACH_SAFE(rte, &rt->mfc_stall, rte_link, nrte) {

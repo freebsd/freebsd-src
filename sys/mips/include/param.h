@@ -39,8 +39,10 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
+#ifndef _MIPS_INCLUDE_PARAM_H_
+#define	_MIPS_INCLUDE_PARAM_H_
+
+#include <machine/_align.h>
 
 #include <sys/cdefs.h>
 #ifdef _KERNEL
@@ -82,8 +84,6 @@
  * data types (int, long, ...).	  The result is u_int and must be cast to
  * any desired pointer type.
  */
-#define	_ALIGNBYTES	7
-#define	_ALIGN(p)	(((unsigned long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
@@ -93,7 +93,7 @@
  * This does not reflect the optimal alignment, just the possibility
  * (within reasonable limits). 
  */
-#define	ALIGNED_POINTER(p, t)	((((unsigned long)(p)) & (sizeof (t) - 1)) == 0)
+#define	ALIGNED_POINTER(p, t)	((((unsigned)(p)) & (sizeof (t) - 1)) == 0)
 
 /*
  * CACHE_LINE_SIZE is the compile-time maximum cache line size for an
@@ -114,6 +114,8 @@
 #define	NBSEG		0x400000	/* bytes/segment */
 #define	SEGOFSET	(NBSEG-1)	/* byte offset into segment */
 #define	SEGSHIFT	22		/* LOG2(NBSEG) */
+
+#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
 
 /* XXXimp: This has moved to vmparam.h */
 /* Also, this differs from the mips2 definition, but likely is better */
@@ -152,10 +154,10 @@
 /*
  * Conversion macros
  */
-#define	mips_round_page(x)	((((unsigned long)(x)) + NBPG - 1) & ~(NBPG-1))
-#define	mips_trunc_page(x)	((unsigned long)(x) & ~(NBPG-1))
-#define	mips_btop(x)		((unsigned long)(x) >> PGSHIFT)
-#define	mips_ptob(x)		((unsigned long)(x) << PGSHIFT)
+#define	mips_round_page(x)	((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
+#define	mips_trunc_page(x)	((unsigned)(x) & ~(NBPG-1))
+#define	mips_btop(x)		((unsigned)(x) >> PGSHIFT)
+#define	mips_ptob(x)		((unsigned)(x) << PGSHIFT)
 #define	round_page		mips_round_page
 #define	trunc_page		mips_trunc_page
 #define	atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
@@ -167,4 +169,4 @@
 #define	DELAY(n)	{ register int N = (n); while (--N > 0); }
 #endif /* !_KERNEL */
 
-#endif /* !_MACHINE_PARAM_H_ */
+#endif /* !_MIPS_INCLUDE_PARAM_H_ */

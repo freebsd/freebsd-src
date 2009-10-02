@@ -110,9 +110,9 @@ static void	ugensa_start_read(struct ucom_softc *);
 static void	ugensa_stop_read(struct ucom_softc *);
 static void	ugensa_start_write(struct ucom_softc *);
 static void	ugensa_stop_write(struct ucom_softc *);
+static void	ugensa_poll(struct ucom_softc *ucom);
 
-static const struct usb_config
-	ugensa_xfer_config[UGENSA_N_TRANSFER] = {
+static const struct usb_config ugensa_xfer_config[UGENSA_N_TRANSFER] = {
 
 	[UGENSA_BULK_DT_WR] = {
 		.type = UE_BULK,
@@ -138,6 +138,7 @@ static const struct ucom_callback ugensa_callback = {
 	.ucom_stop_read = &ugensa_stop_read,
 	.ucom_start_write = &ugensa_start_write,
 	.ucom_stop_write = &ugensa_stop_write,
+	.ucom_poll = &ugensa_poll,
 };
 
 static device_method_t ugensa_methods[] = {
@@ -368,4 +369,13 @@ ugensa_stop_write(struct ucom_softc *ucom)
 	struct ugensa_sub_softc *ssc = sc->sc_sub + ucom->sc_portno;
 
 	usbd_transfer_stop(ssc->sc_xfer[UGENSA_BULK_DT_WR]);
+}
+
+static void
+ugensa_poll(struct ucom_softc *ucom)
+{
+	struct ugensa_softc *sc = ucom->sc_parent;
+	struct ugensa_sub_softc *ssc = sc->sc_sub + ucom->sc_portno;
+
+	usbd_transfer_poll(ssc->sc_xfer, UGENSA_N_TRANSFER);
 }

@@ -858,21 +858,21 @@ printcpuinfo(void)
 			switch (cpu_vendor_id) {
 			case CPU_VENDOR_AMD:
 				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-				    I386_CPU_FAMILY(cpu_id) >= 0x10 ||
+				    CPUID_TO_FAMILY(cpu_id) >= 0x10 ||
 				    cpu_id == 0x60fb2)
 					tsc_is_invariant = 1;
 				break;
 			case CPU_VENDOR_INTEL:
 				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-				    (I386_CPU_FAMILY(cpu_id) == 0x6 &&
-				    I386_CPU_MODEL(cpu_id) >= 0xe) ||
-				    (I386_CPU_FAMILY(cpu_id) == 0xf &&
-				    I386_CPU_MODEL(cpu_id) >= 0x3))
+				    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+				    CPUID_TO_MODEL(cpu_id) >= 0xe) ||
+				    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
+				    CPUID_TO_MODEL(cpu_id) >= 0x3))
 					tsc_is_invariant = 1;
 				break;
 			case CPU_VENDOR_CENTAUR:
-				if (I386_CPU_FAMILY(cpu_id) == 0x6 &&
-				    I386_CPU_MODEL(cpu_id) >= 0xf &&
+				if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+				    CPUID_TO_MODEL(cpu_id) >= 0xf &&
 				    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 					tsc_is_invariant = 1;
 				break;
@@ -1106,8 +1106,8 @@ finishidentcpu(void)
 	 * XXX This is only done on the BSP package.
 	 */
 	if (cpu_vendor_id == CPU_VENDOR_INTEL && cpu_high > 0 && cpu_high < 4 &&
-	    ((I386_CPU_FAMILY(cpu_id) == 0xf && I386_CPU_MODEL(cpu_id) >= 0x3) ||
-	    (I386_CPU_FAMILY(cpu_id) == 0x6 && I386_CPU_MODEL(cpu_id) >= 0xe))) {
+	    ((CPUID_TO_FAMILY(cpu_id) == 0xf && CPUID_TO_MODEL(cpu_id) >= 0x3) ||
+	    (CPUID_TO_FAMILY(cpu_id) == 0x6 && CPUID_TO_MODEL(cpu_id) >= 0xe))) {
 		uint64_t msr;
 		msr = rdmsr(MSR_IA32_MISC_ENABLE);
 		if ((msr & 0x400000ULL) != 0) {

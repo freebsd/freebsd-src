@@ -353,6 +353,7 @@ LdLoadResourceElements (
 
     Node->Value = (UINT32) Op->Asl.Value.Integer;
     Node->Op = Op;
+    Op->Asl.Node = Node;
 
     /*
      * Now enter the predefined fields, for easy lookup when referenced

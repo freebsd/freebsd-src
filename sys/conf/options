@@ -416,6 +416,7 @@ SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading
 TCP_SIGNATURE		opt_inet.h
+TCP_SORECEIVE_STREAM	opt_inet.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
 FLOWTABLE		opt_route.h
@@ -836,3 +837,5 @@ SND_FEEDER_FULL_MULTIFORMAT	opt_snd.h
 SND_FEEDER_RATE_HP	opt_snd.h
 SND_PCM_64		opt_snd.h
 SND_OLDSTEREO		opt_snd.h
+
+X86BIOS

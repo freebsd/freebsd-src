@@ -31,12 +31,11 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 
-void rquota_service(struct svc_req *request, SVCXPRT *transp);
-void sendquota(struct svc_req *request, SVCXPRT *transp);
-void printerr_reply(SVCXPRT *transp);
-void initfs(void);
-int getfsquota(long id, char *path, struct dqblk *dqblk);
-int hasquota(struct fstab *fs, char **qfnamep);
+static void rquota_service(struct svc_req *request, SVCXPRT *transp);
+static void sendquota(struct svc_req *request, SVCXPRT *transp);
+static void initfs(void);
+static int getfsquota(long id, char *path, struct dqblk *dqblk);
+static int hasquota(struct fstab *fs, char **qfnamep);
 
 /*
  * structure containing informations about ufs filesystems
@@ -48,16 +47,16 @@ struct fs_stat {
 	char   *qfpathname;		/* pathname of the quota file */
 	dev_t   st_dev;			/* device of the filesystem */
 } fs_stat;
-struct fs_stat *fs_begin = NULL;
+static struct fs_stat *fs_begin = NULL;
 
-int from_inetd = 1;
+static int from_inetd = 1;
 
 static void
 cleanup(int sig)
 {
 
-	(void) sig;
-	(void) rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
+	(void)sig;
+	(void)rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
 	exit(0);
 }
 
@@ -70,18 +69,17 @@ main(void)
 	socklen_t fromlen;
 
 	fromlen = sizeof(from);
-	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0) {
+	if (getsockname(0, (struct sockaddr *)&from, &fromlen) < 0)
 		from_inetd = 0;
-	}
 
 	if (!from_inetd) {
 		daemon(0, 0);
 
-		(void) rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
+		(void)rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
 
-		(void) signal(SIGINT, cleanup);
-		(void) signal(SIGTERM, cleanup);
-		(void) signal(SIGHUP, cleanup);
+		(void)signal(SIGINT, cleanup);
+		(void)signal(SIGTERM, cleanup);
+		(void)signal(SIGHUP, cleanup);
 	}
 
 	openlog("rpc.rquotad", LOG_CONS|LOG_PID, LOG_DAEMON);
@@ -94,10 +92,11 @@ main(void)
 			exit(1);
 		}
 		ok = svc_reg(transp, RQUOTAPROG, RQUOTAVERS,
-			     rquota_service, NULL);
-	} else
+		    rquota_service, NULL);
+	} else {
 		ok = svc_create(rquota_service,
-				RQUOTAPROG, RQUOTAVERS, "udp");
+		    RQUOTAPROG, RQUOTAVERS, "udp");
+	}
 	if (!ok) {
 		syslog(LOG_ERR,
 		    "unable to register (RQUOTAPROG, RQUOTAVERS, %s)",
@@ -111,7 +110,7 @@ main(void)
 	exit(1);
 }
 
-void
+static void
 rquota_service(struct svc_req *request, SVCXPRT *transp)
 {
 
@@ -134,7 +133,7 @@ rquota_service(struct svc_req *request, SVCXPRT *transp)
 }
 
 /* read quota for the specified id, and send it */
-void
+static void
 sendquota(struct svc_req *request, SVCXPRT *transp)
 {
 	struct getquota_args getq_args;
@@ -142,7 +141,7 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 	struct dqblk dqblk;
 	struct timeval timev;
 
-	bzero((char *)&getq_args, sizeof(getq_args));
+	bzero(&getq_args, sizeof(getq_args));
 	if (!svc_getargs(transp, (xdrproc_t)xdr_getquota_args, &getq_args)) {
 		svcerr_decode(transp);
 		return;
@@ -175,36 +174,16 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 		getq_rslt.getquota_rslt_u.gqr_rquota.rq_ftimeleft =
 		    dqblk.dqb_itime - timev.tv_sec;
 	}
-	if (!svc_sendreply(transp, (xdrproc_t)xdr_getquota_rslt, &getq_rslt)) {
+	if (!svc_sendreply(transp, (xdrproc_t)xdr_getquota_rslt, &getq_rslt))
 		svcerr_systemerr(transp);
-	}
 	if (!svc_freeargs(transp, (xdrproc_t)xdr_getquota_args, &getq_args)) {
 		syslog(LOG_ERR, "unable to free arguments");
 		exit(1);
 	}
 }
 
-void
-printerr_reply(SVCXPRT *transp)	/* when a reply to a request failed */
-{
-	char name[INET6_ADDRSTRLEN];
-	struct sockaddr *caller;
-	int     save_errno;
-
-	save_errno = errno;
-
-	caller = (struct sockaddr *)svc_getrpccaller(transp)->buf;
-	getnameinfo(caller, caller->sa_len, name, sizeof (name),
-		    NULL, 0, NI_NUMERICHOST);
-	errno = save_errno;
-	if (errno == 0)
-		syslog(LOG_ERR, "couldn't send reply to %s", name);
-	else
-		syslog(LOG_ERR, "couldn't send reply to %s: %m", name);
-}
-
 /* initialise the fs_tab list from entries in /etc/fstab */
-void
+static void
 initfs(void)
 {
 	struct fs_stat *fs_current = NULL;
@@ -220,15 +199,13 @@ initfs(void)
 		if (!hasquota(fs, &qfpathname))
 			continue;
 
-		fs_current = (struct fs_stat *) malloc(sizeof(struct fs_stat));
+		fs_current = malloc(sizeof(struct fs_stat));
 		fs_current->fs_next = fs_next;	/* next element */
 
-		fs_current->fs_file =
-		    malloc(sizeof(char) * (strlen(fs->fs_file) + 1));
+		fs_current->fs_file = malloc(strlen(fs->fs_file) + 1);
 		strcpy(fs_current->fs_file, fs->fs_file);
 
-		fs_current->qfpathname =
-		    malloc(sizeof(char) * (strlen(qfpathname) + 1));
+		fs_current->qfpathname = malloc(strlen(qfpathname) + 1);
 		strcpy(fs_current->qfpathname, qfpathname);
 
 		stat(fs_current->fs_file, &st);
@@ -244,7 +221,7 @@ initfs(void)
  * gets the quotas for id, filesystem path.
  * Return 0 if fail, 1 otherwise
  */
-int
+static int
 getfsquota(long id, char *path, struct dqblk *dqblk)
 {
 	struct stat st_path;
@@ -257,7 +234,7 @@ getfsquota(long id, char *path, struct dqblk *dqblk)
 	qcmd = QCMD(Q_GETQUOTA, USRQUOTA);
 
 	for (fs = fs_begin; fs != NULL; fs = fs->fs_next) {
-		/* where the devise is the same as path */
+		/* where the device is the same as path */
 		if (fs->st_dev != st_path.st_dev)
 			continue;
 
@@ -299,7 +276,7 @@ getfsquota(long id, char *path, struct dqblk *dqblk)
  * Check to see if a particular quota is to be enabled.
  * Comes from quota.c, NetBSD 0.9
  */
-int
+static int
 hasquota(struct fstab *fs, char  **qfnamep)
 {
 	static char initname, usrname[100];
