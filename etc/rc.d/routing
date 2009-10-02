@@ -13,26 +13,80 @@
 . /etc/network.subr
 
 name="routing"
-start_cmd="routing_start"
+start_cmd="routing_start doall"
 stop_cmd="routing_stop"
 extra_commands="options static"
-static_cmd="static_start"
-options_cmd="options_start"
+static_cmd="routing_start static"
+options_cmd="routing_start options"
+
+afcheck()
+{
+	case $_af in
+	""|inet|inet6|ipx|atm)
+		;;
+	*)
+		err 1 "Unsupported address family: $_af."
+		;;
+	esac
+}
 
 routing_start()
 {
-	static_start "$@"
-	options_start "$@"
+	local _cmd _af _a
+	_cmd=$1
+	_af=$2
+
+	afcheck
+
+	case $_af in
+	inet|inet6|ipx|atm)
+		setroutes $_cmd $_af
+		;;
+	"")
+		for _a in inet inet6 ipx atm; do
+			afexists $_a && setroutes $_cmd $_a
+		done
+		;;
+	esac
+	[ -n "${_ropts_initdone}" ] && echo '.'
 }
 
 routing_stop()
 {
-	local _af
+	local _af _a
+	_af=$1
 
-	static_stop "$@"
-	for _af in inet inet6; do
-		afexists ${_af} && eval routing_stop_${_af}
-	done
+	afcheck
+
+	case $_af in
+	inet|inet6|ipx|atm)
+		eval static_${_af} delete
+		eval routing_stop_${_af}
+		;;
+	"")
+		for _a in inet inet6 ipx atm; do
+			afexists $_a || continue
+			eval static_${_a} delete
+			eval routing_stop_${_a}
+		done
+		;;
+	esac
+}
+
+setroutes()
+{
+	case $1 in
+	static)
+		static_$2 add
+		;;
+	options)
+		options_$2
+		;;
+	doall)
+		static_$2 add
+		options_$2
+		;;
+	esac
 }
 
 routing_stop_inet()
@@ -50,45 +104,14 @@ routing_stop_inet6()
 	done
 }
 
-static_start()
+routing_stop_atm()
 {
-	local _af
-	_af=$1
-
-	case ${_af} in
-	inet|inet6|atm)
-		do_static add ${_af}
-		;;
-	"")
-		do_static add inet inet6 atm
-		;;
-	esac
+	return 0
 }
 
-static_stop()
+routing_stop_ipx()
 {
-	local _af
-	_af=$1
-
-	case ${_af} in
-	inet|inet6|atm)
-		do_static delete ${_af}
-		;;
-	"")
-		do_static delete inet inet6 atm
-		;;
-	esac
-}
-
-do_static()
-{
-	local _af _action
-	_action=$1
-
-	shift
-	for _af in "$@"; do
-		afexists ${_af} && eval static_${_af} ${_action}
-	done
+	return 0
 }
 
 static_inet()
@@ -233,6 +256,10 @@ static_atm()
 	fi
 }
 
+static_ipx()
+{
+}
+
 _ropts_initdone=
 ropts_init()
 {
@@ -240,16 +267,6 @@ ropts_init()
 		echo -n 'Additional routing options:'
 		_ropts_initdone=yes
 	fi
-}
-
-options_start()
-{
-	local _af
-
-	for _af in inet inet6 ipx; do
-		afexists ${_af} && eval options_${_af}
-	done
-	 [ -n "${_ropts_initdone}" ] && echo '.'
 }
 
 options_inet()
@@ -320,6 +337,10 @@ options_inet6()
 	else
 		${SYSCTL_W} net.inet6.ip6.forwarding=0 > /dev/null
 	fi
+}
+
+options_atm()
+{
 }
 
 options_ipx()
