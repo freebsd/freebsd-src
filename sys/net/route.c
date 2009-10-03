@@ -1162,6 +1162,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		/* XXX
 		 * "flow-table" only support IPv4 at the moment.
 		 */
+#ifdef INET
 		if (dst->sa_family == AF_INET) {
 			rn = rnh->rnh_matchaddr(dst, rnh);
 			if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
@@ -1203,6 +1204,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 			}
 		}
 #endif
+#endif
 
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 		rn = rnh->rnh_addaddr(ndst, netmask, rnh, rt->rt_nodes);
@@ -1224,7 +1226,9 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		} 
 #ifdef FLOWTABLE
 		else if (rt0 != NULL) {
+#ifdef INET
 			flowtable_route_flush(V_ip_ft, rt0);
+#endif
 			RTFREE(rt0);
 		}
 #endif
