@@ -1088,18 +1088,6 @@ set_cpufuncs()
 
 		i80200_icu_init();
 
-		/*
-		 * Reset the Performance Monitoring Unit to a
-		 * pristine state:
-		 *	- CCNT, PMN0, PMN1 reset to 0
-		 *	- overflow indications cleared
-		 *	- all counters disabled
-		 */
-		__asm __volatile("mcr p14, 0, %0, c0, c0, 0"
-			:
-			: "r" (PMNC_P|PMNC_C|PMNC_PMN0_IF|PMNC_PMN1_IF|
-			       PMNC_CC_IF));
-
 #if defined(XSCALE_CCLKCFG)
 		/*
 		 * Crank CCLKCFG to maximum legal value.
@@ -1139,18 +1127,6 @@ set_cpufuncs()
 	if (cputype == CPU_ID_80321_400 || cputype == CPU_ID_80321_600 ||
 	    cputype == CPU_ID_80321_400_B0 || cputype == CPU_ID_80321_600_B0 ||
 	    cputype == CPU_ID_80219_400 || cputype == CPU_ID_80219_600) {
-		/*
-		 * Reset the Performance Monitoring Unit to a
-		 * pristine state:
-		 *	- CCNT, PMN0, PMN1 reset to 0
-		 *	- overflow indications cleared
-		 *	- all counters disabled
-		 */
-		__asm __volatile("mcr p14, 0, %0, c0, c0, 0"
-			:
-			: "r" (PMNC_P|PMNC_C|PMNC_PMN0_IF|PMNC_PMN1_IF|
-			       PMNC_CC_IF));
-
 		cpufuncs = xscale_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
