@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/procfs.h>
+#include <thread_db.h>
 #include <ucontext.h>
 
 #include "libpthread_db.h"
