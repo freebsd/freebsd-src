@@ -444,7 +444,8 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if ((vobj == NULL) || (vobj->resident_page_count == 0))
+	if ((vobj == NULL) ||
+	    (vobj->resident_page_count == 0 && vobj->cache == NULL))
 		goto nocache;
 
 	VM_OBJECT_LOCK(vobj);
@@ -555,7 +556,8 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if ((vobj == NULL) || (vobj->resident_page_count == 0)) {
+	if ((vobj == NULL) ||
+	    (vobj->resident_page_count == 0 && vobj->cache == NULL)) {
 		vpg = NULL;
 		goto nocache;
 	}
@@ -573,6 +575,8 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
+		if (__predict_false(vobj->cache != NULL))
+			vm_page_cache_free(vobj, idx, idx + 1);
 		VM_OBJECT_UNLOCK(vobj);
 		vpg = NULL;
 	}
