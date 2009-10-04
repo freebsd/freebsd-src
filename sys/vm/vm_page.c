@@ -135,8 +135,8 @@ __FBSDID("$FreeBSD$");
  */
 
 struct vpgqueues vm_page_queues[PQ_COUNT];
-struct mtx vm_page_queue_mtx;
-struct mtx vm_page_queue_free_mtx;
+struct vpglocks vm_page_queue_lock;
+struct vpglocks vm_page_queue_free_lock;
 
 vm_page_t vm_page_array = 0;
 int vm_page_array_size = 0;
