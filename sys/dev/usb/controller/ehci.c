@@ -131,6 +131,7 @@ struct ehci_std_temp {
 	uint8_t	auto_data_toggle;
 	uint8_t	setup_alt_next;
 	uint8_t	last_frame;
+	uint8_t can_use_next;
 };
 
 void
@@ -1207,11 +1208,6 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 
 	xfer->td_transfer_cache = td;
 
-	/* update data toggle */
-
-	xfer->endpoint->toggle_next =
-	    (status & EHCI_QTD_TOGGLE_MASK) ? 1 : 0;
-
 #if USB_DEBUG
 	if (status & EHCI_QTD_STATERRS) {
 		DPRINTFN(11, "error, addr=%d, endpt=0x%02x, frame=0x%02x"
@@ -1235,6 +1231,9 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 static void
 ehci_non_isoc_done(struct usb_xfer *xfer)
 {
+	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
+	ehci_qh_t *qh;
+	uint32_t status;
 	usb_error_t err = 0;
 
 	DPRINTFN(13, "xfer=%p endpoint=%p transfer done\n",
@@ -1247,6 +1246,17 @@ ehci_non_isoc_done(struct usb_xfer *xfer)
 		ehci_dump_sqtds(sc, xfer->td_transfer_first);
 	}
 #endif
+
+	/* extract data toggle directly from the QH's overlay area */
+
+	qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
+
+	usb_pc_cpu_invalidate(qh->page_cache);
+
+	status = hc32toh(sc, qh->qh_qtd.qtd_status);
+
+	xfer->endpoint->toggle_next =
+	    (status & EHCI_QTD_TOGGLE_MASK) ? 1 : 0;
 
 	/* reset scanner */
 
@@ -1348,6 +1358,7 @@ ehci_check_transfer(struct usb_xfer *xfer)
 		}
 	} else {
 		ehci_qtd_t *td;
+		ehci_qh_t *qh;
 
 		/* non-isochronous transfer */
 
@@ -1357,16 +1368,35 @@ ehci_check_transfer(struct usb_xfer *xfer)
 		 */
 		td = xfer->td_transfer_cache;
 
+		qh = xfer->qh_start[xfer->flags_int.curr_dma_set];
+
+		usb_pc_cpu_invalidate(qh->page_cache);
+
+		status = hc32toh(sc, qh->qh_qtd.qtd_status);
+		if (status & EHCI_QTD_ACTIVE) {
+			/* transfer is pending */
+			goto done;
+		}
+
 		while (1) {
 			usb_pc_cpu_invalidate(td->page_cache);
 			status = hc32toh(sc, td->qtd_status);
 
 			/*
-			 * if there is an active TD the transfer isn't done
+			 * Check if there is an active TD which
+			 * indicates that the transfer isn't done.
 			 */
 			if (status & EHCI_QTD_ACTIVE) {
 				/* update cache */
-				xfer->td_transfer_cache = td;
+				if (xfer->td_transfer_cache != td) {
+					xfer->td_transfer_cache = td;
+					if (qh->qh_qtd.qtd_next & 
+					    htohc32(sc, EHCI_LINK_TERMINATE)) {
+						/* XXX - manually advance to next frame */
+						qh->qh_qtd.qtd_next = td->qtd_self;
+						usb_pc_cpu_flush(td->page_cache);
+					}
+				}
 				goto done;
 			}
 			/*
@@ -1545,7 +1575,6 @@ ehci_setup_standard_chain_sub(struct ehci_std_temp *temp)
 	ehci_qtd_t *td;
 	ehci_qtd_t *td_next;
 	ehci_qtd_t *td_alt_next;
-	uint32_t qtd_altnext;
 	uint32_t buf_offset;
 	uint32_t average;
 	uint32_t len_old;
@@ -1554,7 +1583,6 @@ ehci_setup_standard_chain_sub(struct ehci_std_temp *temp)
 	uint8_t precompute;
 
 	terminate = htohc32(temp->sc, EHCI_LINK_TERMINATE);
-	qtd_altnext = terminate;
 	td_alt_next = NULL;
 	buf_offset = 0;
 	shortpkt_old = temp->shortpkt;
@@ -1612,7 +1640,8 @@ restart:
 
 		td->qtd_status =
 		    temp->qtd_status |
-		    htohc32(temp->sc, EHCI_QTD_SET_BYTES(average));
+		    htohc32(temp->sc, EHCI_QTD_IOC |
+			EHCI_QTD_SET_BYTES(average));
 
 		if (average == 0) {
 
@@ -1687,11 +1716,23 @@ restart:
 			td->qtd_buffer_hi[x] = 0;
 		}
 
-		if (td_next) {
-			/* link the current TD with the next one */
-			td->qtd_next = td_next->qtd_self;
+		if (temp->can_use_next) {
+			if (td_next) {
+				/* link the current TD with the next one */
+				td->qtd_next = td_next->qtd_self;
+			}
+		} else {
+			/*
+			 * BUG WARNING: The EHCI HW can use the
+			 * qtd_next field instead of qtd_altnext when
+			 * a short packet is received! We work this
+			 * around in software by not queueing more
+			 * than one job/TD at a time!
+			 */
+			td->qtd_next = terminate;
 		}
-		td->qtd_altnext = qtd_altnext;
+
+		td->qtd_altnext = terminate;
 		td->alt_next = td_alt_next;
 
 		usb_pc_cpu_flush(td->page_cache);
@@ -1703,15 +1744,9 @@ restart:
 		/* setup alt next pointer, if any */
 		if (temp->last_frame) {
 			td_alt_next = NULL;
-			qtd_altnext = terminate;
 		} else {
 			/* we use this field internally */
 			td_alt_next = td_next;
-			if (temp->setup_alt_next) {
-				qtd_altnext = td_next->qtd_self;
-			} else {
-				qtd_altnext = terminate;
-			}
 		}
 
 		/* restore */
@@ -1756,6 +1791,8 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 	temp.qtd_status = 0;
 	temp.last_frame = 0;
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.can_use_next = (xfer->flags_int.control_xfr ||
+	    (UE_GET_DIR(xfer->endpointno) == UE_DIR_OUT));
 
 	if (xfer->flags_int.control_xfr) {
 		if (xfer->endpoint->toggle_next) {
@@ -1889,7 +1926,6 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 	/* the last TD terminates the transfer: */
 	td->qtd_next = htohc32(temp.sc, EHCI_LINK_TERMINATE);
 	td->qtd_altnext = htohc32(temp.sc, EHCI_LINK_TERMINATE);
-	td->qtd_status |= htohc32(temp.sc, EHCI_QTD_IOC);
 
 	usb_pc_cpu_flush(td->page_cache);
 
