@@ -1468,7 +1468,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 		break;
 
 	default:
-		panic("unp_pcblist: arg1 %d", (intptr_t)arg1);
+		panic("unp_pcblist: arg1 %d", (int)(intptr_t)arg1);
 	}
 
 	/*
