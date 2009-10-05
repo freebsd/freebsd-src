@@ -606,8 +606,10 @@ MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 eventhandler_register.9
 MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuswintr.9 \
-	fetch.9 fusword.9 \
-	fetch.9 fuword.9
+	fetch.9 fuword.9 \
+	fetch.9 fuword16.9 \
+	fetch.9 fuword32.9 \
+	fetch.9 fuword64.9
 MLINKS+=g_attach.9 g_detach.9
 MLINKS+=g_bio.9 g_clone_bio.9 \
 	g_bio.9 g_destroy_bio.9 \
@@ -1142,8 +1144,10 @@ MLINKS+=stack.9 stack_copy.9 \
 	stack.9 stack_zero.9
 MLINKS+=store.9 subyte.9 \
 	store.9 suswintr.9 \
-	store.9 susword.9 \
-	store.9 suword.9
+	store.9 suword.9 \
+	store.9 suword16.9 \
+	store.9 suword32.9 \
+	store.9 suword64.9
 MLINKS+=swi.9 swi_add.9 \
 	swi.9 swi_sched.9
 MLINKS+=sx.9 sx_assert.9 \
