@@ -106,6 +106,7 @@ ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
 jake [label="Jake Burkholder\njake@FreeBSD.org\n2000/05/16"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jayanth [label="Jayanth Vijayaraghavan\njayanth@FreeBSD.org\n2000/05/08"]
+jh [label="Jaakko Heinonen\njh@FreeBSD.org\n2009/10/02"]
 jilles [label="Jilles Tjoelker\njilles@FreeBSD.org\n2009/05/22"]
 jinmei [label="JINMEI Tatuya\njinmei@FreeBSD.org\n2007/03/17"]
 jdp [label="John Polstra\njdp@FreeBSD.org\n????/??/??"]
@@ -406,6 +407,7 @@ rwatson -> bz
 rwatson -> cperciva
 rwatson -> emaste
 rwatson -> gnn
+rwatson -> jh
 rwatson -> kensmith
 rwatson -> kmacy
 rwatson -> linimon
@@ -434,6 +436,8 @@ sos -> marcel
 
 thompsa -> weongyo
 thompsa -> eri
+
+trasz -> jh
 
 ume -> jinmei
 ume -> suz
