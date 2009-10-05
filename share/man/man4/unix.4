@@ -52,7 +52,8 @@ mechanisms.
 The
 .Ux Ns -domain
 family supports the
-.Dv SOCK_STREAM
+.Dv SOCK_STREAM ,
+.Dv SOCK_SEQPACKET ,
 and
 .Dv SOCK_DGRAM
 socket types and uses
@@ -127,11 +128,14 @@ The
 .Ux Ns -domain
 protocol family is comprised of simple
 transport protocols that support the
-.Dv SOCK_STREAM
+.Dv SOCK_STREAM ,
+.Dv SOCK_SEQPACKET ,
 and
 .Dv SOCK_DGRAM
 abstractions.
 .Dv SOCK_STREAM
+and
+.Dv SOCK_SEQPACKET
 sockets also support the communication of
 .Ux
 file descriptors through the use of the
@@ -206,8 +210,9 @@ and tested with
 .Xr getsockopt 2 :
 .Bl -tag -width ".Dv LOCAL_CONNWAIT"
 .It Dv LOCAL_CREDS
-This option may be enabled on a
-.Dv SOCK_DGRAM
+This option may be enabled on
+.Dv SOCK_DGRAM ,
+.Dv SOCK_SEQPACKET ,
 or a
 .Dv SOCK_STREAM
 socket.
