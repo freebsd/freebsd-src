@@ -294,12 +294,13 @@ static struct cphy_ops mv88e1xxx_ops = {
 };
 #endif
 
-int t3_mv88e1xxx_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
+int t3_mv88e1xxx_phy_prep(pinfo_t *pinfo, int phy_addr,
 			  const struct mdio_ops *mdio_ops)
 {
+	struct cphy *phy = &pinfo->phy;
 	int err;
 
-	cphy_init(phy, adapter, phy_addr, &mv88e1xxx_ops, mdio_ops,
+	cphy_init(phy, pinfo->adapter, pinfo, phy_addr, &mv88e1xxx_ops, mdio_ops,
 		  SUPPORTED_10baseT_Full | SUPPORTED_100baseT_Full |
 		  SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg | SUPPORTED_MII |
 		  SUPPORTED_TP | SUPPORTED_IRQ, "10/100/1000BASE-T");
