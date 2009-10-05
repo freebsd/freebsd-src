@@ -397,11 +397,17 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		dupper += howmany(sblock.fs_cssize, sblock.fs_fsize);
 	cs = &fscs[cylno];
 	memset(&acg, 0, sblock.fs_cgsize);
+	/*
+	 * Note that we do not set cg_initediblk at all.
+	 * In this extension of a previous filesystem
+	 * we have no inodes initialized for the cylinder
+	 * group at all. The first access to that cylinder
+	 * group will do the correct initialization.
+	 */
 	acg.cg_time = utime;
 	acg.cg_magic = CG_MAGIC;
 	acg.cg_cgx = cylno;
 	acg.cg_niblk = sblock.fs_ipg;
-	acg.cg_initediblk = sblock.fs_ipg;
 	acg.cg_ndblk = dmax - cbase;
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
@@ -414,7 +420,6 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		acg.cg_time = 0;
 		acg.cg_old_niblk = acg.cg_niblk;
 		acg.cg_niblk = 0;
-		acg.cg_initediblk = 0;
 		acg.cg_old_btotoff = start;
 		acg.cg_old_boff = acg.cg_old_btotoff +
 		    sblock.fs_old_cpg * sizeof(int32_t);
@@ -2217,6 +2222,7 @@ main(int argc, char **argv)
 		printf("Warning: %jd sector(s) cannot be allocated.\n",
 		    (intmax_t)fsbtodb(&sblock, sblock.fs_size % sblock.fs_fpg));
 		sblock.fs_size = sblock.fs_ncg * sblock.fs_fpg;
+		maxino -= sblock.fs_ipg;
 	}
 
 	/*
