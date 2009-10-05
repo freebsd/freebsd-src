@@ -748,7 +748,7 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 		va += PAGE_SIZE;
 	}
 
-	mips_dcache_inv_range(origva, PAGE_SIZE*count);
+	mips_dcache_wbinv_range_index(origva, PAGE_SIZE*count);
 }
 
 /*
