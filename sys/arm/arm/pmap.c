@@ -203,7 +203,6 @@ static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
 static void		pmap_fix_cache(struct vm_page *, pmap_t, vm_offset_t);
 static void		pmap_alloc_l1(pmap_t);
 static void		pmap_free_l1(pmap_t);
-static void		pmap_use_l1(pmap_t);
 
 static int		pmap_clearbit(struct vm_page *, u_int);
 
@@ -829,47 +828,6 @@ pmap_free_l1(pmap_t pm)
 	mtx_unlock(&l1_lru_lock);
 }
 
-static PMAP_INLINE void
-pmap_use_l1(pmap_t pm)
-{
-	struct l1_ttable *l1;
-
-	/*
-	 * Do nothing if we're in interrupt context.
-	 * Access to an L1 by the kernel pmap must not affect
-	 * the LRU list.
-	 */
-	if (pm == pmap_kernel())
-		return;
-
-	l1 = pm->pm_l1;
-
-	/*
-	 * If the L1 is not currently on the LRU list, just return
-	 */
-	if (l1->l1_domain_use_count == PMAP_DOMAINS)
-		return;
-
-	mtx_lock(&l1_lru_lock);
-
-	/*
-	 * Check the use count again, now that we've acquired the lock
-	 */
-	if (l1->l1_domain_use_count == PMAP_DOMAINS) {
-		mtx_unlock(&l1_lru_lock);
-		return;
-	}
-
-	/*
-	 * Move the L1 to the back of the LRU list
-	 */
-	TAILQ_REMOVE(&l1_lru_list, l1, l1_lru);
-	TAILQ_INSERT_TAIL(&l1_lru_list, l1, l1_lru);
-
-	mtx_unlock(&l1_lru_lock);
-}
-
-
 /*
  * Returns a pointer to the L2 bucket associated with the specified pmap
  * and VA, or NULL if no L2 bucket exists for the address.
@@ -1311,6 +1269,7 @@ pmap_idcache_wbinv_all(pmap_t pm)
 	}
 }
 
+#ifdef notyet
 static PMAP_INLINE void
 pmap_dcache_wbinv_all(pmap_t pm)
 {
@@ -1320,6 +1279,7 @@ pmap_dcache_wbinv_all(pmap_t pm)
 		cpu_l2cache_wbinv_all();
 	}
 }
+#endif
 
 /*
  * PTE_SYNC_CURRENT:
@@ -1914,7 +1874,7 @@ pmap_init(void)
 {
 	int shpgperproc = PMAP_SHPGPERPROC;
 
-	PDEBUG(1, printf("pmap_init: phys_start = %08x\n"));
+	PDEBUG(1, printf("pmap_init: phys_start = %08x\n", PHYSADDR));
 
 	/*
 	 * init the pv free list
@@ -2373,8 +2333,8 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	vm_size_t size;
 	int l1idx, l2idx, l2next = 0;
 
-	PDEBUG(1, printf("firstaddr = %08x, loadaddr = %08x\n",
-	    firstaddr, loadaddr));
+	PDEBUG(1, printf("firstaddr = %08x, lastaddr = %08x\n",
+	    firstaddr, lastaddr));
 	
 	virtual_avail = firstaddr;
 	kernel_pmap->pm_l1 = l1;
@@ -4251,7 +4211,7 @@ pmap_zero_page_idle(vm_page_t m)
  * pmap_clean_page()
  *
  * This is a local function used to work out the best strategy to clean
- * a single page referenced by its entry in the PV table. It's used by
+ * a single page referenced by its entry in the PV table. It should be used by
  * pmap_copy_page, pmap_zero page and maybe some others later on.
  *
  * Its policy is effectively:
@@ -4266,6 +4226,8 @@ pmap_zero_page_idle(vm_page_t m)
  * mapped at 0x00000000 a whole cache clean will be performed rather than
  * just the 1 page. Since this should not occur in everyday use and if it does
  * it will just result in not the most efficient clean for the page.
+ *
+ * We don't yet use this function but may want to.
  */
 static int
 pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
