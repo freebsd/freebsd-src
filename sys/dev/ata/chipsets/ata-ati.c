@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
-#include <sys/pciio.h>
 #include <sys/rman.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -55,9 +54,6 @@ __FBSDID("$FreeBSD$");
 /* local prototypes */
 static int ata_ati_chipinit(device_t dev);
 static void ata_ati_setmode(device_t dev, int mode);
-static void ata_ati_ahci_enable(device_t dev);
-static int ata_ati_ahci_chipinit(device_t dev);
-static int ata_ati_ahci_resume(device_t dev);
 
 /* misc defines */
 #define ATI_PATA	0x01
@@ -66,13 +62,6 @@ static int ata_ati_ahci_resume(device_t dev);
 #define SII_MEMIO       1
 #define SII_BUG         0x04
 
-/* Misc Control Register */
-#define	ATI_PCI_MISC_CTRL		0x40
-#define	ATI_PCI_MISCCTRL_ENABLE_WR	0x00000001
-
-/* Watchdog Control/Status Register */
-#define	ATI_PCI_WD_CTRL			0x44
-#define	ATI_PCI_WDCTRL_ENABLE		0x0001
 
 /*
  * ATI chipset support functions
@@ -121,19 +110,7 @@ ata_ati_probe(device_t dev)
 	ctlr->chipinit = ata_sii_chipinit;
 	break;
     case ATI_AHCI:
-	/*
-	 * Force AHCI mode if IDE mode is set from BIOS.
-	 */
-	if ((ctlr->chip->chipid == ATA_ATI_IXP600_S1 ||
-	    ctlr->chip->chipid == ATA_ATI_IXP700_S1) &&
-	    pci_get_subclass(dev) == PCIS_STORAGE_IDE) {
-	    struct pci_devinfo *dinfo = device_get_ivars(dev);
-	    pcicfgregs *cfg = &dinfo->cfg;
-	    cfg->subclass = PCIS_STORAGE_SATA;
-	    cfg->progif = PCIP_STORAGE_SATA_AHCI_1_0;
-	    ata_ati_ahci_enable(dev);
-	}
-	ctlr->chipinit = ata_ati_ahci_chipinit;
+	ctlr->chipinit = ata_ahci_chipinit;
 	break;
     }
     return (BUS_PROBE_DEFAULT);
@@ -143,13 +120,41 @@ static int
 ata_ati_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
+    device_t smbdev;
+    int satacfg;
 
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
 
-    /* IXP600 only has 1 PATA channel */
-    if (ctlr->chip->chipid == ATA_ATI_IXP600)
+    switch (ctlr->chip->chipid) {
+    case ATA_ATI_IXP600:
+	/* IXP600 only has 1 PATA channel */
 	ctlr->channels = 1;
+	break;
+    case ATA_ATI_IXP700:
+	/*
+	 * When "combined mode" is enabled, an additional PATA channel is
+	 * emulated with two SATA ports and appears on this device.
+	 * This mode can only be detected via SMB controller.
+	 */
+	smbdev = pci_find_device(ATA_ATI_ID, 0x4385);
+	if (smbdev != NULL) {
+	    satacfg = pci_read_config(smbdev, 0xad, 1);
+	    if (bootverbose)
+		device_printf(dev, "SATA controller %s (%s%s channel)\n",
+		    (satacfg & 0x01) == 0 ? "disabled" : "enabled",
+		    (satacfg & 0x08) == 0 ? "" : "combined mode, ",
+		    (satacfg & 0x10) == 0 ? "primary" : "secondary");
+
+	    /*
+	     * If SATA controller is enabled but combined mode is disabled,
+	     * we have only one PATA channel.  Ignore a non-existent channel.
+	     */
+	    if ((satacfg & 0x09) == 0x01)
+		ctlr->ichannels &= ~(1 << ((satacfg & 0x10) >> 4));
+	}
+	break;
+    }
 
     ctlr->setmode = ata_ati_setmode;
     return 0;
@@ -217,43 +222,6 @@ ata_ati_setmode(device_t dev, int mode)
 			 (piotimings[ata_mode2idx(mode)] << offset), 4);
 	atadev->mode = mode;
     }
-}
-
-static void
-ata_ati_ahci_enable(device_t dev)
-{
-    struct pci_devinfo *dinfo = device_get_ivars(dev);
-    pcicfgregs *cfg = &dinfo->cfg;
-    uint32_t ctrl;
-
-    ctrl = pci_read_config(dev, ATI_PCI_MISC_CTRL, 4);
-    pci_write_config(dev, ATI_PCI_MISC_CTRL,
-	ctrl | ATI_PCI_MISCCTRL_ENABLE_WR, 4);
-    pci_write_config(dev, PCIR_SUBCLASS, cfg->subclass, 1);
-    pci_write_config(dev, PCIR_PROGIF, cfg->progif, 1);
-    pci_write_config(dev, ATI_PCI_WD_CTRL,
-	pci_read_config(dev, ATI_PCI_WD_CTRL, 2) | ATI_PCI_WDCTRL_ENABLE, 2);
-    pci_write_config(dev, ATI_PCI_MISC_CTRL,
-	ctrl & ~ATI_PCI_MISCCTRL_ENABLE_WR, 4);
-}
-
-static int
-ata_ati_ahci_chipinit(device_t dev)
-{
-    struct ata_pci_controller *ctlr = device_get_softc(dev);
-    int error;
-
-    error = ata_ahci_chipinit(dev);
-    ctlr->resume = ata_ati_ahci_resume;
-    return (error);
-}
-
-static int
-ata_ati_ahci_resume(device_t dev)
-{
-
-    ata_ati_ahci_enable(dev);
-    return (ata_ahci_ctlr_reset(dev));
 }
 
 ATA_DECLARE_DRIVER(ata_ati);
