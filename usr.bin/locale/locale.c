@@ -55,7 +55,7 @@ const char *lookup_localecat(int);
 char	*kwval_lconv(int);
 int	kwval_lookup(char *, char **, int *, int *);
 void	showdetails(char *);
-void	showkeywordslist(void);
+void	showkeywordslist(char *substring);
 void	showlocale(void);
 void	usage(void);
 
@@ -149,6 +149,9 @@ struct _kwinfo {
 	{ "d_t_fmt",		1, LC_TIME,	D_T_FMT, "" },
 	{ "d_fmt",		1, LC_TIME,	D_FMT, "" },
 	{ "t_fmt",		1, LC_TIME,	T_FMT, "" },
+	{ "c_fmt",		1, LC_TIME,	C_FMT, "" },
+	{ "x_fmt",		1, LC_TIME,	X_FMT, "" },
+	{ "X_fmt",		1, LC_TIME,	CAPITALX_FMT, "" },
 	{ "am_str",		1, LC_TIME,	AM_STR, "" },
 	{ "pm_str",		1, LC_TIME,	PM_STR, "" },
 	{ "t_fmt_ampm",		1, LC_TIME,	T_FMT_AMPM, "" },
@@ -190,6 +193,18 @@ struct _kwinfo {
 	{ "abmon_10",		1, LC_TIME,	ABMON_10, "" },
 	{ "abmon_11",		1, LC_TIME,	ABMON_11, "" },
 	{ "abmon_12",		1, LC_TIME,	ABMON_12, "" },
+	{ "altmon_1",		1, LC_TIME,	ALTMON_1, "" },
+	{ "altmon_2",		1, LC_TIME,	ALTMON_2, "" },
+	{ "altmon_3",		1, LC_TIME,	ALTMON_3, "" },
+	{ "altmon_4",		1, LC_TIME,	ALTMON_4, "" },
+	{ "altmon_5",		1, LC_TIME,	ALTMON_5, "" },
+	{ "altmon_6",		1, LC_TIME,	ALTMON_6, "" },
+	{ "altmon_7",		1, LC_TIME,	ALTMON_7, "" },
+	{ "altmon_8",		1, LC_TIME,	ALTMON_8, "" },
+	{ "altmon_9",		1, LC_TIME,	ALTMON_9, "" },
+	{ "altmon_10",		1, LC_TIME,	ALTMON_10, "" },
+	{ "altmon_11",		1, LC_TIME,	ALTMON_11, "" },
+	{ "altmon_12",		1, LC_TIME,	ALTMON_12, "" },
 	{ "era",		1, LC_TIME,	ERA, "(unavailable)" },
 	{ "era_d_fmt",		1, LC_TIME,	ERA_D_FMT, "(unavailable)" },
 	{ "era_d_t_fmt",	1, LC_TIME,	ERA_D_T_FMT, "(unavailable)" },
@@ -217,7 +232,7 @@ main(int argc, char *argv[])
 	int	ch;
 	int	tmp;
 
-	while ((ch = getopt(argc, argv, "ackm")) != -1) {
+	while ((ch = getopt(argc, argv, "ackms:")) != -1) {
 		switch (ch) {
 		case 'a':
 			all_locales = 1;
@@ -265,7 +280,7 @@ main(int argc, char *argv[])
 	if (prt_keywords && argc > 0)
 		while (tmp < argc)
 			if (strcasecmp(argv[tmp++], "list") == 0) {
-				showkeywordslist();
+				showkeywordslist(argv[tmp]);
 				exit(0);
 			}
 
@@ -290,7 +305,8 @@ void
 usage(void)
 {
 	printf("Usage: locale [ -a | -m ]\n"
-               "       locale [ -ck ] name ...\n");
+               "       locale -k list [prefix]\n"
+               "       locale [ -ck ] keyword ...\n");
 	exit(1);
 }
 
@@ -594,6 +610,7 @@ showdetails(char *kw)
 		 * invalid keyword specified.
 		 * XXX: any actions?
 		 */
+		fprintf(stderr, "Unknown keyword: `%s'\n", kw);
 		return;
 	}
 
@@ -639,16 +656,25 @@ lookup_localecat(int cat)
  * Show list of keywords
  */
 void
-showkeywordslist(void)
+showkeywordslist(char *substring)
 {
 	size_t	i;
 
 #define FMT "%-20s %-12s %-7s %-20s\n"
 
-	printf("List of available keywords\n\n");
+	if (substring == NULL)
+		printf("List of available keywords\n\n");
+	else
+		printf("List of available keywords starting with '%s'\n\n",
+		    substring);
 	printf(FMT, "Keyword", "Category", "Type", "Comment");
 	printf("-------------------- ------------ ------- --------------------\n");
 	for (i = 0; i < NKWINFO; i++) {
+		if (substring != NULL) {
+			if (strncmp(kwinfo[i].name, substring,
+			    strlen(substring)) != 0)
+				continue;
+		}
 		printf(FMT,
 			kwinfo[i].name,
 			lookup_localecat(kwinfo[i].catid),
