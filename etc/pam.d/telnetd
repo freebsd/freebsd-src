@@ -18,7 +18,7 @@ account		required	pam_login_access.so
 account		required	pam_unix.so
 
 # session
-#session 	optional	pam_ssh.so
+#session 	optional	pam_ssh.so		want_agent
 session		required	pam_lastlog.so		no_fail
 
 # password
