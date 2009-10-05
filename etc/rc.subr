@@ -602,7 +602,7 @@ run_rc_command()
 	esac
 
 	eval _override_command=\$${name}_program
-	command=${command:-${_override_command}}
+	command=${command:+${_override_command:-$command}}
 
 	_keywords="start stop restart rcvar $extra_commands"
 	rc_pid=
