@@ -70,7 +70,7 @@ do
 	s)			# (silent option)
 		: ;;
 	t)			# title for banner page
-		title="-J${OPTARG}";;
+		title="${OPTARG}";;
 	*)			# (error msg printed by getopts)
 		exit 2;;
 	esac
@@ -78,4 +78,4 @@ done
 
 shift $(($OPTIND - 1))
 
-exec /usr/bin/lpr "-P${dest}" ${symlink} ${ncopies} ${mailafter} "${title}" "$@"
+exec /usr/bin/lpr "-P${dest}" ${symlink} ${ncopies} ${mailafter} ${title:+-J"${title}"} "$@"
