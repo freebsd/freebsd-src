@@ -130,57 +130,62 @@ struct __hack
 
 #ifdef CPU_DISABLE_CMPXCHG
 
-static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
-{
-	u_char res;
-
-	__asm __volatile(
-	"	pushfl ;		"
-	"	cli ;			"
-	"	cmpl	%3,%4 ;		"
-	"	jne	1f ;		"
-	"	movl	%2,%1 ;		"
-	"1:				"
-	"       sete	%0 ;		"
-	"	popfl ;			"
-	"# atomic_cmpset_int"
-	: "=q" (res),			/* 0 */
-	  "=m" (*dst)			/* 1 */
-	: "r" (src),			/* 2 */
-	  "r" (exp),			/* 3 */
-	  "m" (*dst)			/* 4 */
-	: "memory");
-
-	return (res);
-}
+#define	DEFINE_CMPSET_GEN(NAME)				\
+static __inline int					\
+atomic_cmpset_##NAME(volatile u_int *dst, u_int exp, u_int src)\
+{							\
+	u_char res;					\
+							\
+	__asm __volatile(				\
+	"	pushfl ;		"		\
+	"	cli ;			"		\
+	"	cmpl	%3,%4 ;		"		\
+	"	jne	1f ;		"		\
+	"	movl	%2,%1 ;		"		\
+	"1:				"		\
+	"       sete	%0 ;		"		\
+	"	popfl ;			"		\
+	"# atomic_cmpset_##NAME"			\
+	: "=q" (res),			/* 0 */		\
+	  "=m" (*dst)			/* 1 */		\
+	: "r" (src),			/* 2 */		\
+	  "r" (exp),			/* 3 */		\
+	  "m" (*dst)			/* 4 */		\
+	: "memory");					\
+							\
+	return (res);					\
+}							\
+struct __hack
 
 #else /* !CPU_DISABLE_CMPXCHG */
 
-static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
-{
-	u_char res;
-
-	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	cmpxchgl %2,%1 ;	"
-	"       sete	%0 ;		"
-	"1:				"
-	"# atomic_cmpset_int"
-	: "=a" (res),			/* 0 */
-	  "=m" (*dst)			/* 1 */
-	: "r" (src),			/* 2 */
-	  "a" (exp),			/* 3 */
-	  "m" (*dst)			/* 4 */
-	: "memory");
-
-	return (res);
-}
+#define	DEFINE_CMPSET_GEN(NAME)				\
+static __inline int					\
+atomic_cmpset_##NAME(volatile u_int *dst, u_int exp, u_int src)\
+{							\
+	u_char res;					\
+							\
+	__asm __volatile(				\
+	"	" MPLOCKED "		"		\
+	"	cmpxchgl %2,%1 ;	"		\
+	"       sete	%0 ;		"		\
+	"1:				"		\
+	"# atomic_cmpset_##NAME"			\
+	: "=a" (res),			/* 0 */		\
+	  "=m" (*dst)			/* 1 */		\
+	: "r" (src),			/* 2 */		\
+	  "a" (exp),			/* 3 */		\
+	  "m" (*dst)			/* 4 */		\
+	: "memory");					\
+							\
+	return (res);					\
+}							\
+struct __hack
 
 #endif /* CPU_DISABLE_CMPXCHG */
 
-#define	atomic_cmpset_barr_int		atomic_cmpset_int
+DEFINE_CMPSET_GEN(int);
+DEFINE_CMPSET_GEN(barr_int);
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
