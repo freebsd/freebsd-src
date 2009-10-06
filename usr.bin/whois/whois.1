@@ -32,7 +32,7 @@
 .\"     From: @(#)whois.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2006
+.Dd October 2, 2009
 .Dt WHOIS 1
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd "Internet domain name and network number directory service"
 .Sh SYNOPSIS
 .Nm
-.Op Fl aAbdfgiIklmQrR6
+.Op Fl aAbdfgiIklmQrR
 .Op Fl c Ar country-code | Fl h Ar host
 .Op Fl p Ar port
 .Ar name ...
@@ -212,17 +212,14 @@ This option is deprecated; use the
 option with an argument of
 .Qq Li RU
 instead.
-.It Fl 6
-Use the IPv6 Resource Center
-.Pq Tn 6bone
-database.
-It contains network names and addresses for the IPv6 network.
-.El
 .Pp
 The operands specified to
 .Nm
 are treated independently and may be used
 as queries on different whois servers.
+.El
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 Most types of data, such as domain names and
 .Tn IP
@@ -254,15 +251,6 @@ is substituted with the actual contact identifier.
 but other
 .Tn TLDs
 can be queried by using a similar syntax.)
-.Pp
-The following example demonstrates how to obtain information about an
-.Tn IPv6
-address or hostname using the
-.Fl 6
-option, which directs the query to
-.Tn 6bone .
-.Pp
-.Dl "whois -6 IPv6-IP-Address"
 .Pp
 The following example demonstrates how to query
 a whois server using a non-standard port, where
