@@ -288,7 +288,6 @@ static uint8_t siftr_generate_hashes = 1;
 static char direction[3] = {'\0', 'i','o'};
 
 
-static char *log_writer_msg_buf;
 STAILQ_HEAD(pkthead, pkt_node) pkt_queue = STAILQ_HEAD_INITIALIZER(pkt_queue);
 
 
@@ -1444,7 +1443,6 @@ deinit_siftr(void)
 	hashdestroy(counter_hash, M_SIFTR, siftr_hashmask);
 	mtx_destroy(&siftr_pkt_queue_mtx);
 	mtx_destroy(&siftr_pkt_mgr_mtx);
-	free(log_writer_msg_buf, M_SIFTR);
 
 	return (0);
 }
@@ -1462,12 +1460,6 @@ init_siftr(void)
 	/* Initialise our flow counter hash table. */
 	counter_hash = hashinit(SIFTR_EXPECTED_MAX_TCP_FLOWS, M_SIFTR,
 	    &siftr_hashmask);
-
-	/*
-	 * Create a buffer to hold log messages
-	 * before they get written to disk.
-	 */
-	log_writer_msg_buf = malloc(SIFTR_ALQ_BUFLEN, M_SIFTR, M_WAITOK|M_ZERO);
 
 	mtx_init(&siftr_pkt_queue_mtx, "siftr_pkt_queue_mtx", NULL, MTX_DEF);
 	mtx_init(&siftr_pkt_mgr_mtx, "siftr_pkt_mgr_mtx", NULL, MTX_DEF);
