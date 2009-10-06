@@ -56,8 +56,8 @@ FBSDprivate_1.0 {
 	__siglongjmp;
 	__sys_vfork;
 	_vfork;
-	end;		/* XXX - Should this be _end (see sys/brk.S)? */
-	curbrk;
+	_end;
+	__curbrk;
 	minbrk;
 	_brk;
 	_sbrk;
