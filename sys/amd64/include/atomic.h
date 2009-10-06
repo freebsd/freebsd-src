@@ -32,9 +32,9 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-#define mb()	__asm__ __volatile__ ("mfence;": : :"memory")
-#define wmb()	__asm__ __volatile__ ("sfence;": : :"memory")
-#define rmb()	__asm__ __volatile__ ("lfence;": : :"memory")
+#define	mb()	__asm __volatile("mfence;" : : : "memory")
+#define	wmb()	__asm __volatile("sfence;" : : : "memory")
+#define	rmb()	__asm __volatile("lfence;" : : : "memory")
 
 /*
  * Various simple operations on memory, each of which is atomic in the
@@ -131,50 +131,33 @@ struct __hack
  * Returns 0 on failure, non-zero on success
  */
 
-static __inline int
-atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
-{
-	u_char res;
+#define	DEFINE_CMPSET_GEN(NAME, TYPE, OP)		\
+static __inline int					\
+atomic_cmpset_##NAME(volatile u_##TYPE *dst, u_##TYPE exp, u_##TYPE src)\
+{							\
+	u_char res;					\
+							\
+	__asm __volatile(				\
+	"	" MPLOCKED "		"		\
+	"	" OP "	%2,%1 ;		"		\
+	"       sete	%0 ;		"		\
+	"1:				"		\
+	"# atomic_cmpset_##NAME"			\
+	: "=a" (res),			/* 0 */		\
+	  "=m" (*dst)			/* 1 */		\
+	: "r" (src),			/* 2 */		\
+	  "a" (exp),			/* 3 */		\
+	  "m" (*dst)			/* 4 */		\
+	: "memory");					\
+							\
+	return (res);					\
+}							\
+struct __hack
 
-	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	cmpxchgl %2,%1 ;	"
-	"       sete	%0 ;		"
-	"1:				"
-	"# atomic_cmpset_int"
-	: "=a" (res),			/* 0 */
-	  "=m" (*dst)			/* 1 */
-	: "r" (src),			/* 2 */
-	  "a" (exp),			/* 3 */
-	  "m" (*dst)			/* 4 */
-	: "memory");
-
-	return (res);
-}
-
-static __inline int
-atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
-{
-	u_char res;
-
-	__asm __volatile(
-	"	" MPLOCKED "		"
-	"	cmpxchgq %2,%1 ;	"
-	"       sete	%0 ;		"
-	"1:				"
-	"# atomic_cmpset_long"
-	: "=a" (res),			/* 0 */
-	  "=m" (*dst)			/* 1 */
-	: "r" (src),			/* 2 */
-	  "a" (exp),			/* 3 */
-	  "m" (*dst)			/* 4 */
-	: "memory");
-
-	return (res);
-}
-
-#define	atomic_cmpset_barr_int	atomic_cmpset_int
-#define	atomic_cmpset_barr_long	atomic_cmpset_long
+DEFINE_CMPSET_GEN(int, int, "cmpxchgl");
+DEFINE_CMPSET_GEN(long, long, "cmpxchgq");
+DEFINE_CMPSET_GEN(barr_int, int, "cmpxchgl");
+DEFINE_CMPSET_GEN(barr_long, long, "cmpxchgq");
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
