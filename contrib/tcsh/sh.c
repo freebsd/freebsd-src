@@ -1291,6 +1291,8 @@ main(int argc, char **argv)
     /*
      * Mop-up.
      */
+    /* Take care of these (especially HUP) here instead of inside flush. */
+    handle_pending_signals();
     if (intty) {
 	if (loginsh) {
 	    xprintf("logout\n");
