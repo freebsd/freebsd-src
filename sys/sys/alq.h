@@ -42,7 +42,7 @@ extern struct thread *ald_thread;
  * Async. Logging Entry
  */
 struct ale {
-	struct ale	*ae_next;	/* Unused, compat. */
+	intptr_t	ae_bytesused;	/* # bytes written to ALE. */
 	char		*ae_data;	/* Write ptr. */
 	int		ae_flags;	/* Unused, compat. */
 };

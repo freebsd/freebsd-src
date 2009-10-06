@@ -668,15 +668,7 @@ alq_getn(struct alq *alq, int len, int flags)
 	 * available in our buffer starting at aq_writehead.
 	 */
 	alq->aq_getpost.ae_data = alq->aq_entbuf + alq->aq_writehead;
-	alq->aq_writehead += len;
-	alq->aq_freebytes -= len;
-
-	/* Wrap aq_writehead if we've filled to the end of the buffer. */
-	if (alq->aq_writehead == alq->aq_buflen)
-		alq->aq_writehead = 0;
-
-	KASSERT((alq->aq_writehead >= 0 && alq->aq_writehead < alq->aq_buflen),
-	    ("%s: aq_writehead < 0 || aq_writehead >= aq_buflen", __func__));
+	alq->aq_getpost.ae_bytesused = len;
 
 	return (&alq->aq_getpost);
 }
@@ -692,6 +684,16 @@ alq_post(struct alq *alq, struct ale *ale, int flags)
 		activate = 1;
 	} else
 		activate = 0;
+
+	alq->aq_writehead += ale->ae_bytesused;
+	alq->aq_freebytes -= ale->ae_bytesused;
+
+	/* Wrap aq_writehead if we've filled to the end of the buffer. */
+	if (alq->aq_writehead == alq->aq_buflen)
+		alq->aq_writehead = 0;
+
+	KASSERT((alq->aq_writehead >= 0 && alq->aq_writehead < alq->aq_buflen),
+	    ("%s: aq_writehead < 0 || aq_writehead >= aq_buflen", __func__));
 
 	ALQ_UNLOCK(alq);
 
