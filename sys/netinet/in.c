@@ -1060,6 +1060,8 @@ in_scrubprefix(struct in_ifaddr *target)
 	    !(target->ia_ifp->if_flags & IFF_LOOPBACK)) {
 		error = ifa_del_loopback_route((struct ifaddr *)target,
 				       (struct sockaddr *)&target->ia_addr);
+		/* remove arp cache */
+		arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
 	}
 
 	if ((target->ia_flags & IFA_ROUTE) == 0) {
@@ -1082,8 +1084,6 @@ in_scrubprefix(struct in_ifaddr *target)
 		prefix = target->ia_addr.sin_addr;
 		mask = target->ia_sockmask.sin_addr;
 		prefix.s_addr &= mask.s_addr;
-		/* remove arp cache */
-		arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
 	}
 
 	IN_IFADDR_RLOCK();
