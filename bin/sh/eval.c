@@ -713,12 +713,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				do_clearcmdentry = 1;
 			}
 
-		find_command(argv[0], &cmdentry, 1, path);
-		if (cmdentry.cmdtype == CMDUNKNOWN) {	/* command not found */
-			exitstatus = 127;
-			flushout(&errout);
-			return;
-		}
+		find_command(argv[0], &cmdentry, 0, path);
 		/* implement the bltin builtin here */
 		if (cmdentry.cmdtype == CMDBUILTIN && cmdentry.u.index == BLTINCMD) {
 			for (;;) {
@@ -740,7 +735,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 
 	/* Fork off a child process if necessary. */
 	if (cmd->ncmd.backgnd
-	 || (cmdentry.cmdtype == CMDNORMAL
+	 || ((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
 	    && ((flags & EV_EXIT) == 0 || have_traps()))
 	 || ((flags & EV_BACKCMD) != 0
 	    && (cmdentry.cmdtype != CMDBUILTIN
