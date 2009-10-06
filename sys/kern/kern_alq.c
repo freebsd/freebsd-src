@@ -313,7 +313,8 @@ alq_doio(struct alq *alq)
 		totlen = aiov[0].iov_len = alq->aq_writehead - alq->aq_writetail;
 	} else if (alq->aq_writehead == 0) {
 		/* Buffer not wrapped (special case to avoid an empty iov). */
-		totlen = aiov[0].iov_len = alq->aq_buflen - alq->aq_writetail;;
+		totlen = aiov[0].iov_len = alq->aq_buflen - alq->aq_writetail -
+		    alq->aq_wrapearly;
 	} else {
 		/*
 		 * Buffer wrapped, requires 2 aiov entries:
