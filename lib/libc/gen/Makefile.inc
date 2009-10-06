@@ -76,6 +76,7 @@ MAN+=	alarm.3 arc4random.3 \
 
 MLINKS+=arc4random.3 arc4random_addrandom.3 arc4random.3 arc4random_stir.3 \
 	arc4random.3 arc4random_buf.3 arc4random.3 arc4random_uniform.3
+MLINKS+=basename.3 basename_r.3
 MLINKS+=ctermid.3 ctermid_r.3
 MLINKS+=devname.3 devname_r.3
 MLINKS+=devname.3 fdevname.3
