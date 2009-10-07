@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
+#include <sys/sf_buf.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
 #include <sys/unistd.h>
@@ -428,42 +430,13 @@ tmpfs_setattr(struct vop_setattr_args *v)
 }
 
 /* --------------------------------------------------------------------- */
-
 static int
-tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio)
+tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
+    vm_offset_t offset, size_t tlen, struct uio *uio)
 {
-	vm_pindex_t	idx;
 	vm_page_t	m;
-	vm_offset_t	offset;
-	off_t		addr;
-	size_t		tlen;
 	int		error;
 
-	addr = uio->uio_offset;
-	idx = OFF_TO_IDX(addr);
-	offset = addr & PAGE_MASK;
-	tlen = MIN(PAGE_SIZE - offset, len);
-
-	if ((vobj == NULL) ||
-	    (vobj->resident_page_count == 0 && vobj->cache == NULL))
-		goto nocache;
-
-	VM_OBJECT_LOCK(vobj);
-lookupvpg:
-	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
-	    vm_page_is_valid(m, offset, tlen)) {
-		if (vm_page_sleep_if_busy(m, FALSE, "tmfsmr"))
-			goto lookupvpg;
-		vm_page_busy(m);
-		VM_OBJECT_UNLOCK(vobj);
-		error = uiomove_fromphys(&m, offset, tlen, uio);
-		VM_OBJECT_LOCK(vobj);
-		vm_page_wakeup(m);
-		VM_OBJECT_UNLOCK(vobj);
-		return	(error);
-	}
-	VM_OBJECT_UNLOCK(vobj);
-nocache:
 	VM_OBJECT_LOCK(tobj);
 	vm_object_pip_add(tobj, 1);
 	m = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
@@ -488,6 +461,89 @@ out:
 	vm_page_wakeup(m);
 	vm_object_pip_subtract(tobj, 1);
 	VM_OBJECT_UNLOCK(tobj);
+
+	return (error);
+}
+
+static __inline int
+tmpfs_nocacheread_buf(vm_object_t tobj, vm_pindex_t idx,
+    vm_offset_t offset, size_t tlen, void *buf)
+{
+	struct uio uio;
+	struct iovec iov;
+
+	uio.uio_iovcnt = 1;
+	uio.uio_iov = &iov;
+	iov.iov_base = buf;
+	iov.iov_len = tlen;
+
+	uio.uio_offset = 0;
+	uio.uio_resid = tlen;
+	uio.uio_rw = UIO_READ;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_td = curthread;
+
+	return (tmpfs_nocacheread(tobj, idx, offset, tlen, &uio));
+}
+
+static int
+tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio)
+{
+	struct sf_buf	*sf;
+	vm_pindex_t	idx;
+	vm_page_t	m;
+	vm_offset_t	offset;
+	off_t		addr;
+	size_t		tlen;
+	char		*ma;
+	int		error;
+
+	addr = uio->uio_offset;
+	idx = OFF_TO_IDX(addr);
+	offset = addr & PAGE_MASK;
+	tlen = MIN(PAGE_SIZE - offset, len);
+
+	if ((vobj == NULL) ||
+	    (vobj->resident_page_count == 0 && vobj->cache == NULL))
+		goto nocache;
+
+	VM_OBJECT_LOCK(vobj);
+lookupvpg:
+	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
+	    vm_page_is_valid(m, offset, tlen)) {
+		if (vm_page_sleep_if_busy(m, FALSE, "tmfsmr"))
+			goto lookupvpg;
+		vm_page_busy(m);
+		VM_OBJECT_UNLOCK(vobj);
+		error = uiomove_fromphys(&m, offset, tlen, uio);
+		VM_OBJECT_LOCK(vobj);
+		vm_page_wakeup(m);
+		VM_OBJECT_UNLOCK(vobj);
+		return	(error);
+	} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
+		if (vm_page_sleep_if_busy(m, FALSE, "tmfsmr"))
+			goto lookupvpg;
+		vm_page_busy(m);
+		VM_OBJECT_UNLOCK(vobj);
+		sched_pin();
+		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
+		ma = (char *)sf_buf_kva(sf);
+		error = tmpfs_nocacheread_buf(tobj, idx, offset, tlen,
+		    ma + offset);
+		if (error == 0) {
+			uio->uio_offset += tlen;
+			uio->uio_resid -= tlen;
+		}
+		sf_buf_free(sf);
+		sched_unpin();
+		VM_OBJECT_LOCK(vobj);
+		vm_page_wakeup(m);
+		VM_OBJECT_UNLOCK(vobj);
+		return	(error);
+	}
+	VM_OBJECT_UNLOCK(vobj);
+nocache:
+	error = tmpfs_nocacheread(tobj, idx, offset, tlen, uio);
 
 	return	(error);
 }
