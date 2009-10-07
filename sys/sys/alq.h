@@ -44,7 +44,7 @@ extern struct thread *ald_thread;
 struct ale {
 	intptr_t	ae_bytesused;	/* # bytes written to ALE. */
 	char		*ae_data;	/* Write ptr. */
-	int		ae_flags;	/* Unused, compat. */
+	int		ae_pad;		/* Unused, compat. */
 };
 
 /* Flag options. */
