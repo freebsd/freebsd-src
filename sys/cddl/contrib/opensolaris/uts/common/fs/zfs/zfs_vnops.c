@@ -2538,6 +2538,7 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	vattr_t		oldva;
 	uint_t		mask = vap->va_mask;
 	uint_t		saved_mask;
+	uint64_t	saved_mode;
 	int		trim_mask = 0;
 	uint64_t	new_mode;
 	znode_t		*attrzp;
@@ -2766,6 +2767,13 @@ top:
 		if (trim_mask) {
 			saved_mask = vap->va_mask;
 			vap->va_mask &= ~trim_mask;
+			if (trim_mask & AT_MODE) {
+				/*
+				 * Save the mode, as secpolicy_vnode_setattr()
+				 * will overwrite it with ova.va_mode.
+				 */
+				saved_mode = vap->va_mode;
+			}
 		}
 		err = secpolicy_vnode_setattr(cr, vp, vap, &oldva, flags,
 		    (int (*)(void *, int, cred_t *))zfs_zaccess_unix, zp);
@@ -2774,8 +2782,16 @@ top:
 			return (err);
 		}
 
-		if (trim_mask)
+		if (trim_mask) {
 			vap->va_mask |= saved_mask;
+			if (trim_mask & AT_MODE) {
+				/*
+				 * Recover the mode after
+				 * secpolicy_vnode_setattr().
+				 */
+				vap->va_mode = saved_mode;
+			}
+		}
 	}
 
 	/*
