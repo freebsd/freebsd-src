@@ -300,6 +300,7 @@ alq_doio(struct alq *alq)
 	td = curthread;
 	totlen = 0;
 	iov = 1;
+	wrapearly = alq->aq_wrapearly;
 
 	bzero(&aiov, sizeof(aiov));
 	bzero(&auio, sizeof(auio));
@@ -313,7 +314,7 @@ alq_doio(struct alq *alq)
 	} else if (alq->aq_writehead == 0) {
 		/* Buffer not wrapped (special case to avoid an empty iov). */
 		totlen = aiov[0].iov_len = alq->aq_buflen - alq->aq_writetail -
-		    alq->aq_wrapearly;
+		    wrapearly;
 	} else {
 		/*
 		 * Buffer wrapped, requires 2 aiov entries:
@@ -321,14 +322,13 @@ alq_doio(struct alq *alq)
 		 * - second is from start of buffer to writehead
 		 */
 		aiov[0].iov_len = alq->aq_buflen - alq->aq_writetail -
-		    alq->aq_wrapearly;
+		    wrapearly;
 		iov++;
 		aiov[1].iov_base = alq->aq_entbuf;
 		aiov[1].iov_len =  alq->aq_writehead;
 		totlen = aiov[0].iov_len + aiov[1].iov_len;
 	}
 
-	wrapearly = alq->aq_wrapearly;
 	alq->aq_flags |= AQ_FLUSHING;
 	ALQ_UNLOCK(alq);
 
