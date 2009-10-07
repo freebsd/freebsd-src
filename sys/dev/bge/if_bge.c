@@ -170,6 +170,7 @@ static const struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5720 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5721 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5722 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5723 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5750 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5750M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5751 },
@@ -184,12 +185,21 @@ static const struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5754M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5755 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5755M },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5761 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5761E },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5761S },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5761SE },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5764 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5780 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5780S },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5781 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5782 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5784 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5785F },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5785G },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5786 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5787 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5787F },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5787M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5788 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5789 },
@@ -198,10 +208,18 @@ static const struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5903M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5906 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5906M },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57760 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57780 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57788 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57790 },
 
 	{ SK_VENDORID,		SK_DEVICEID_ALTIMA },
 
 	{ TC_VENDORID,		TC_DEVICEID_3C996 },
+
+	{ FJTSU_VENDORID,	FJTSU_DEVICEID_PW008GE4 },
+	{ FJTSU_VENDORID,	FJTSU_DEVICEID_PW008GE5 },
+	{ FJTSU_VENDORID,	FJTSU_DEVICEID_PP250450 },
 
 	{ 0, 0 }
 };
@@ -216,6 +234,7 @@ static const struct bge_vendor {
 	{ BCOM_VENDORID,	"Broadcom" },
 	{ SK_VENDORID,		"SysKonnect" },
 	{ TC_VENDORID,		"3Com" },
+	{ FJTSU_VENDORID,	"Fujitsu" },
 
 	{ 0, NULL }
 };
@@ -271,12 +290,18 @@ static const struct bge_revision {
 	{ BGE_CHIPID_BCM5755_A1,	"BCM5755 A1" },
 	{ BGE_CHIPID_BCM5755_A2,	"BCM5755 A2" },
 	{ BGE_CHIPID_BCM5722_A0,	"BCM5722 A0" },
+	{ BGE_CHIPID_BCM5761_A0,	"BCM5761 A0" },
+	{ BGE_CHIPID_BCM5761_A1,	"BCM5761 A1" },
+	{ BGE_CHIPID_BCM5784_A0,	"BCM5784 A0" },
+	{ BGE_CHIPID_BCM5784_A1,	"BCM5784 A1" },
 	/* 5754 and 5787 share the same ASIC ID */
 	{ BGE_CHIPID_BCM5787_A0,	"BCM5754/5787 A0" }, 
 	{ BGE_CHIPID_BCM5787_A1,	"BCM5754/5787 A1" },
 	{ BGE_CHIPID_BCM5787_A2,	"BCM5754/5787 A2" },
 	{ BGE_CHIPID_BCM5906_A1,	"BCM5906 A1" },
 	{ BGE_CHIPID_BCM5906_A2,	"BCM5906 A2" },
+	{ BGE_CHIPID_BCM57780_A0,	"BCM57780 A0" },
+	{ BGE_CHIPID_BCM57780_A1,	"BCM57780 A1" },
 
 	{ 0, NULL }
 };
@@ -297,9 +322,13 @@ static const struct bge_revision bge_majorrevs[] = {
 	{ BGE_ASICREV_BCM5780,		"unknown BCM5780" },
 	{ BGE_ASICREV_BCM5714,		"unknown BCM5714" },
 	{ BGE_ASICREV_BCM5755,		"unknown BCM5755" },
+	{ BGE_ASICREV_BCM5761,		"unknown BCM5761" },
+	{ BGE_ASICREV_BCM5784,		"unknown BCM5784" },
+	{ BGE_ASICREV_BCM5785,		"unknown BCM5785" },
 	/* 5754 and 5787 share the same ASIC ID */
 	{ BGE_ASICREV_BCM5787,		"unknown BCM5754/5787" },
 	{ BGE_ASICREV_BCM5906,		"unknown BCM5906" },
+	{ BGE_ASICREV_BCM57780,		"unknown BCM57780" },
 
 	{ 0, NULL }
 };
@@ -309,6 +338,7 @@ static const struct bge_revision bge_majorrevs[] = {
 #define	BGE_IS_5705_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_5705_PLUS)
 #define	BGE_IS_5714_FAMILY(sc)		((sc)->bge_flags & BGE_FLAG_5714_FAMILY)
 #define	BGE_IS_575X_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_575X_PLUS)
+#define	BGE_IS_5755_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_5755_PLUS)
 
 const struct bge_revision * bge_lookup_rev(uint32_t);
 const struct bge_vendor * bge_lookup_vendor(uint16_t);
@@ -1758,8 +1788,7 @@ bge_blockinit(struct bge_softc *sc)
 	val = BGE_WDMAMODE_ENABLE | BGE_WDMAMODE_ALL_ATTNS;
 
 	/* Enable host coalescing bug fix. */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
-	    sc->bge_asicrev == BGE_ASICREV_BCM5787)
+	if (BGE_IS_5755_PLUS(sc))
 		val |= 1 << 29;
 
 	/* Turn on write DMA state machine */
@@ -1768,6 +1797,12 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Turn on read DMA state machine */
 	val = BGE_RDMAMODE_ENABLE | BGE_RDMAMODE_ALL_ATTNS;
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM57780)
+		val |= BGE_RDMAMODE_BD_SBD_CRPT_ATTN |
+		    BGE_RDMAMODE_MBUF_RBD_CRPT_ATTN |
+		    BGE_RDMAMODE_MBUF_SBD_CRPT_ATTN;
 	if (sc->bge_flags & BGE_FLAG_PCIE)
 		val |= BGE_RDMAMODE_FIFO_LONG_BURST;
 	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
@@ -1790,7 +1825,10 @@ bge_blockinit(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_SBDC_MODE, BGE_SBDCMODE_ENABLE);
 
 	/* Turn on send data completion state machine */
-	CSR_WRITE_4(sc, BGE_SDC_MODE, BGE_SDCMODE_ENABLE);
+	val = BGE_SDCMODE_ENABLE;
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5761)
+		val |= BGE_SDCMODE_CDELAY;
+	CSR_WRITE_4(sc, BGE_SDC_MODE, val);
 
 	/* Turn on send data initiator state machine */
 	CSR_WRITE_4(sc, BGE_SDI_MODE, BGE_SDIMODE_ENABLE);
@@ -1897,8 +1935,11 @@ bge_probe(device_t dev)
 			const struct bge_vendor *v;
 			uint32_t id;
 
-			id = pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
-			    BGE_PCIMISCCTL_ASICREV;
+			id = pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >>
+			    BGE_PCIMISCCTL_ASICREV_SHIFT;
+			if (BGE_ASICREV(id) == BGE_ASICREV_USE_PRODID_REG)
+				id = pci_read_config(dev,
+				    BGE_PCI_PRODID_ASICREV, 4);
 			br = bge_lookup_rev(id);
 			v = bge_lookup_vendor(vid);
 			{
@@ -1915,8 +1956,8 @@ bge_probe(device_t dev)
 					    br != NULL ? br->br_name :
 					    "NetXtreme Ethernet Controller");
 			}
-			snprintf(buf, 96, "%s, %sASIC rev. %#04x", model,
-			    br != NULL ? "" : "unknown ", id >> 16);
+			snprintf(buf, 96, "%s, %sASIC rev. %#08x", model,
+			    br != NULL ? "" : "unknown ", id);
 			device_set_desc_copy(dev, buf);
 			if (pci_get_subvendor(dev) == DELL_VENDORID)
 				sc->bge_flags |= BGE_FLAG_NO_3LED;
@@ -2411,8 +2452,11 @@ bge_attach(device_t dev)
 
 	/* Save various chip information. */
 	sc->bge_chipid =
-	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
-	    BGE_PCIMISCCTL_ASICREV;
+	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) >>
+	    BGE_PCIMISCCTL_ASICREV_SHIFT;
+	if (BGE_ASICREV(sc->bge_chipid) == BGE_ASICREV_USE_PRODID_REG)
+		sc->bge_chipid = pci_read_config(dev, BGE_PCI_PRODID_ASICREV,
+		    4);
 	sc->bge_asicrev = BGE_ASICREV(sc->bge_chipid);
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
@@ -2431,6 +2475,15 @@ bge_attach(device_t dev)
 
 	/* Save chipset family. */
 	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM5755:
+	case BGE_ASICREV_BCM5761:
+	case BGE_ASICREV_BCM5784:
+	case BGE_ASICREV_BCM5785:
+	case BGE_ASICREV_BCM5787:
+	case BGE_ASICREV_BCM57780:
+		sc->bge_flags |= BGE_FLAG_5755_PLUS | BGE_FLAG_575X_PLUS |
+		    BGE_FLAG_5705_PLUS;
+		break;
 	case BGE_ASICREV_BCM5700:
 	case BGE_ASICREV_BCM5701:
 	case BGE_ASICREV_BCM5703:
@@ -2444,8 +2497,6 @@ bge_attach(device_t dev)
 		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5750:
 	case BGE_ASICREV_BCM5752:
-	case BGE_ASICREV_BCM5755:
-	case BGE_ASICREV_BCM5787:
 	case BGE_ASICREV_BCM5906:
 		sc->bge_flags |= BGE_FLAG_575X_PLUS;
 		/* FALLTHROUGH */
@@ -2466,6 +2517,8 @@ bge_attach(device_t dev)
 	if (BGE_IS_5705_PLUS(sc) &&
 	    !(sc->bge_flags & BGE_FLAG_ADJUST_TRIM)) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
 			if (sc->bge_chipid != BGE_CHIPID_BCM5722_A0)
 				sc->bge_flags |= BGE_FLAG_JITTER_BUG;
@@ -2873,8 +2926,7 @@ bge_reset(struct bge_softc *sc)
 
 	/* Disable fastboot on controllers that support it. */
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5752 ||
-	    sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
-	    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
+	    BGE_IS_5755_PLUS(sc)) {
 		if (bootverbose)
 			device_printf(sc->bge_dev, "Disabling fastboot\n");
 		CSR_WRITE_4(sc, BGE_FASTBOOT_PC, 0x0);
@@ -4689,6 +4741,8 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 		}
 
 		printf("Hardware Flags:\n");
+		if (BGE_IS_5755_PLUS(sc))
+			printf(" - 5755 Plus\n");
 		if (BGE_IS_575X_PLUS(sc))
 			printf(" - 575X Plus\n");
 		if (BGE_IS_5705_PLUS(sc))
