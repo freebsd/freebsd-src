@@ -257,8 +257,7 @@ alq_shutdown(struct alq *alq)
 	 * the ALQ_NOACTIVATE flag has been used), explicitly activate the
 	 * ALQ here so that the pending data gets flushed by the ald_daemon.
 	 */
-	if (!(alq->aq_flags & AQ_ACTIVE) &&
-	    ALQ_HAS_PENDING_DATA(alq)) {
+	if (!(alq->aq_flags & AQ_ACTIVE) && ALQ_HAS_PENDING_DATA(alq)) {
 		alq->aq_flags |= AQ_ACTIVE;
 		ALQ_UNLOCK(alq);
 		ALD_LOCK();
@@ -493,8 +492,8 @@ alq_writen(struct alq *alq, void *data, int len, int flags)
 	 * there is not enough free space in our underlying buffer
 	 * to accept the message and the user can't wait, return.
 	 */
-	if ((len > alq->aq_buflen) ||
-	    ((flags & ALQ_NOWAIT) && (alq->aq_freebytes < len))) {
+	if (len > alq->aq_buflen ||
+	    (flags & ALQ_NOWAIT && alq->aq_freebytes < len)) {
 		ALQ_UNLOCK(alq);
 		return (EWOULDBLOCK);
 	}
@@ -503,7 +502,7 @@ alq_writen(struct alq *alq, void *data, int len, int flags)
 	 * ALQ_WAITOK or alq->aq_freebytes > len, either spin until
 	 * we have enough free bytes (former) or skip (latter).
 	 */
-	while (alq->aq_freebytes < len && (alq->aq_flags & AQ_SHUTDOWN) == 0) {
+	while (alq->aq_freebytes < len && !(alq->aq_flags & AQ_SHUTDOWN)) {
 		alq->aq_flags |= AQ_WANTED;
 		msleep_spin(alq, &alq->aq_mtx, "alqwriten", 0);
 	}
@@ -556,8 +555,7 @@ alq_writen(struct alq *alq, void *data, int len, int flags)
 
 	alq->aq_freebytes -= len;
 
-	if (((alq->aq_flags & AQ_ACTIVE) == 0) &&
-		((flags & ALQ_NOACTIVATE) == 0)) {
+	if (!(alq->aq_flags & AQ_ACTIVE) && !(flags & ALQ_NOACTIVATE)) {
 		alq->aq_flags |= AQ_ACTIVE;
 		activate = 1;
 	}
@@ -629,8 +627,8 @@ alq_getn(struct alq *alq, int len, int flags)
 	 * there is not enough free contiguous space in our underlying buffer
 	 * to accept the message and the user can't wait, return.
 	 */
-	if ((len > alq->aq_buflen) ||
-	    ((flags & ALQ_NOWAIT) && (contigbytes < len))) {
+	if (len > alq->aq_buflen ||
+	    (flags & ALQ_NOWAIT && contigbytes < len)) {
 		ALQ_UNLOCK(alq);
 		return (NULL);
 	}
@@ -640,7 +638,7 @@ alq_getn(struct alq *alq, int len, int flags)
 	 * either spin until we have enough free contiguous bytes (former)
 	 * or skip (latter).
 	 */
-	while (contigbytes < len && (alq->aq_flags & AQ_SHUTDOWN) == 0) {
+	while (contigbytes < len && !(alq->aq_flags & AQ_SHUTDOWN)) {
 		alq->aq_flags |= AQ_WANTED;
 		msleep_spin(alq, &alq->aq_mtx, "alqgetn", 0);
 		if (alq->aq_writehead <= alq->aq_writetail)
@@ -679,8 +677,7 @@ alq_post(struct alq *alq, struct ale *ale, int flags)
 {
 	int activate;
 
-	if (((alq->aq_flags & AQ_ACTIVE) == 0) &&
-	    ((flags & ALQ_NOACTIVATE) == 0)) {
+	if (!(alq->aq_flags & AQ_ACTIVE) && !(flags & ALQ_NOACTIVATE)) {
 		alq->aq_flags |= AQ_ACTIVE;
 		activate = 1;
 	} else
@@ -722,7 +719,7 @@ alq_flush(struct alq *alq)
 	 * Pull the lever iff there is data to flush and we're
 	 * not already in the middle of a flush operation.
 	 */
-	if (ALQ_HAS_PENDING_DATA(alq) && (alq->aq_flags & AQ_FLUSHING) == 0)
+	if (ALQ_HAS_PENDING_DATA(alq) && !(alq->aq_flags & AQ_FLUSHING))
 		needwakeup = alq_doio(alq);
 
 	ALQ_UNLOCK(alq);
