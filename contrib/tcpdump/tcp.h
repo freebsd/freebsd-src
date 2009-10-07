@@ -83,6 +83,8 @@ struct tcphdr {
 #define    TCPOLEN_SIGNATURE		18
 #define TCP_SIGLEN 16			/* length of an option 19 digest */
 #define TCPOPT_AUTH             20      /* Enhanced AUTH option */
+#define	TCPOPT_UTO		28	/* tcp user timeout (rfc5482) */
+#define	   TCPOLEN_UTO			4
 
 #define TCPOPT_TSTAMP_HDR	\
     (TCPOPT_NOP<<24|TCPOPT_NOP<<16|TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)
