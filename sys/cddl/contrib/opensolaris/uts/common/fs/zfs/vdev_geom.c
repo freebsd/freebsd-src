@@ -662,26 +662,6 @@ sendreq:
 static void
 vdev_geom_io_done(zio_t *zio)
 {
-
-	/*
-	 * If the device returned ENXIO, then attempt we should verify if GEOM
-	 * provider has been removed. If this is the case, then we trigger an
-	 * asynchronous removal of the device.
-	 */
-	if (zio->io_error == ENXIO) {
-		vdev_t *vd = zio->io_vd;
-		vdev_geom_ctx_t *ctx;
-		struct g_provider *pp = NULL;
-
-		ctx = vd->vdev_tsd;
-		if (ctx != NULL && ctx->gc_consumer != NULL)
-			pp = ctx->gc_consumer->provider;
-
-		if (pp == NULL || (pp->flags & G_PF_ORPHAN)) {
-			vd->vdev_remove_wanted = B_TRUE;
-			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
-		}
-	}
 }
 
 vdev_ops_t vdev_geom_ops = {
