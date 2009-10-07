@@ -671,6 +671,7 @@ bool_t
 nlm4_granted_res_4_svc(nlm4_res *argp, void *result, struct svc_req *rqstp)
 {
 
+	nlm_do_granted_res(argp, rqstp);
 	return (FALSE);
 }
 

@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/fail.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -75,6 +76,11 @@ MALLOC_DEFINE(M_NLM, "NLM", "Network Lock Manager");
  * We check the host list for idle every few seconds.
  */
 #define NLM_IDLE_PERIOD		5
+
+/*
+ * We only look for GRANTED_RES messages for a little while.
+ */
+#define NLM_EXPIRE_TIMEOUT	10
 
 /*
  * Support for sysctl vfs.nlm.sysid
@@ -204,6 +210,7 @@ struct nlm_async_lock {
 	struct nlm_host *af_host;	/* (c) host which is locking */
 	CLIENT		*af_rpc;	/* (c) rpc client to send message */
 	nlm4_testargs	af_granted;	/* (c) notification details */
+	time_t		af_expiretime;	/* (c) notification time */
 };
 TAILQ_HEAD(nlm_async_lock_list, nlm_async_lock);
 
@@ -237,7 +244,9 @@ struct nlm_host {
 	enum nlm_host_state nh_monstate; /* (l) local NSM monitoring state */
 	time_t		nh_idle_timeout; /* (s) Time at which host is idle */
 	struct sysctl_ctx_list nh_sysctl; /* (c) vfs.nlm.sysid nodes */
+	uint32_t	nh_grantcookie;  /* (l) grant cookie counter */
 	struct nlm_async_lock_list nh_pending; /* (l) pending async locks */
+	struct nlm_async_lock_list nh_granted; /* (l) granted locks */
 	struct nlm_async_lock_list nh_finished; /* (l) finished async locks */
 };
 TAILQ_HEAD(nlm_host_list, nlm_host);
@@ -246,6 +255,25 @@ static struct nlm_host_list nlm_hosts; /* (g) */
 static uint32_t nlm_next_sysid = 1;    /* (g) */
 
 static void	nlm_host_unmonitor(struct nlm_host *);
+
+struct nlm_grantcookie {
+	uint32_t	ng_sysid;
+	uint32_t	ng_cookie;
+};
+
+static inline uint32_t
+ng_sysid(struct netobj *src)
+{
+
+	return ((struct nlm_grantcookie *)src->n_bytes)->ng_sysid;
+}
+
+static inline uint32_t
+ng_cookie(struct netobj *src)
+{
+
+	return ((struct nlm_grantcookie *)src->n_bytes)->ng_cookie;
+}
 
 /**********************************************************************/
 
@@ -281,6 +309,19 @@ nlm_uninit(void *dummy)
 SYSUNINIT(nlm_uninit, SI_SUB_LOCK, SI_ORDER_FIRST, nlm_uninit, NULL);
 
 /*
+ * Create a netobj from an arbitrary source.
+ */
+void
+nlm_make_netobj(struct netobj *dst, caddr_t src, size_t srcsize,
+    struct malloc_type *type)
+{
+
+	dst->n_len = srcsize;
+	dst->n_bytes = malloc(srcsize, type, M_WAITOK);
+	memcpy(dst->n_bytes, src, srcsize);
+}
+
+/*
  * Copy a struct netobj.
  */ 
 void
@@ -288,10 +329,9 @@ nlm_copy_netobj(struct netobj *dst, struct netobj *src,
     struct malloc_type *type)
 {
 
-	dst->n_len = src->n_len;
-	dst->n_bytes = malloc(src->n_len, type, M_WAITOK);
-	memcpy(dst->n_bytes, src->n_bytes, src->n_len);
+	nlm_make_netobj(dst, src->n_bytes, src->n_len, type);
 }
+
 
 /*
  * Create an RPC client handle for the given (address,prog,vers)
@@ -518,8 +558,10 @@ nlm_lock_callback(void *arg, int pending)
 	struct nlm_async_lock *af = (struct nlm_async_lock *) arg;
 	struct rpc_callextra ext;
 
-	NLM_DEBUG(2, "NLM: async lock %p for %s (sysid %d) granted\n",
-	    af, af->af_host->nh_caller_name, af->af_host->nh_sysid);
+	NLM_DEBUG(2, "NLM: async lock %p for %s (sysid %d) granted,"
+	    " cookie %d:%d\n", af, af->af_host->nh_caller_name,
+	    af->af_host->nh_sysid, ng_sysid(&af->af_granted.cookie),
+	    ng_cookie(&af->af_granted.cookie));
 
 	/*
 	 * Send the results back to the host.
@@ -556,16 +598,12 @@ nlm_lock_callback(void *arg, int pending)
 	}
 
 	/*
-	 * Move this entry to the nh_finished list. Someone else will
-	 * free it later - its too hard to do it here safely without
-	 * racing with cancel.
-	 *
-	 * XXX possibly we should have a third "granted sent but not
-	 * ack'ed" list so that we can re-send the granted message.
+	 * Move this entry to the nh_granted list.
 	 */
+	af->af_expiretime = time_uptime + NLM_EXPIRE_TIMEOUT;
 	mtx_lock(&af->af_host->nh_lock);
 	TAILQ_REMOVE(&af->af_host->nh_pending, af, af_link);
-	TAILQ_INSERT_TAIL(&af->af_host->nh_finished, af, af_link);
+	TAILQ_INSERT_TAIL(&af->af_host->nh_granted, af, af_link);
 	mtx_unlock(&af->af_host->nh_lock);
 }
 
@@ -635,11 +673,23 @@ nlm_cancel_async_lock(struct nlm_async_lock *af)
 }
 
 static void
-nlm_free_finished_locks(struct nlm_host *host)
+nlm_check_expired_locks(struct nlm_host *host)
 {
 	struct nlm_async_lock *af;
+	time_t uptime = time_uptime;
 
 	mtx_lock(&host->nh_lock);
+	while ((af = TAILQ_FIRST(&host->nh_granted)) != NULL
+	    && uptime >= af->af_expiretime) {
+		NLM_DEBUG(2, "NLM: async lock %p for %s (sysid %d) expired,"
+		    " cookie %d:%d\n", af, af->af_host->nh_caller_name,
+		    af->af_host->nh_sysid, ng_sysid(&af->af_granted.cookie),
+		    ng_cookie(&af->af_granted.cookie));
+		TAILQ_REMOVE(&host->nh_granted, af, af_link);
+		mtx_unlock(&host->nh_lock);
+		nlm_free_async_lock(af);
+		mtx_lock(&host->nh_lock);
+	}
 	while ((af = TAILQ_FIRST(&host->nh_finished)) != NULL) {
 		TAILQ_REMOVE(&host->nh_finished, af, af_link);
 		mtx_unlock(&host->nh_lock);
@@ -722,7 +772,7 @@ nlm_host_notify(struct nlm_host *host, int newstate)
 		nlm_cancel_async_lock(af);
 	}
 	mtx_unlock(&host->nh_lock);
-	nlm_free_finished_locks(host);
+	nlm_check_expired_locks(host);
 
 	/*
 	 * The host just rebooted - trash its locks.
@@ -799,7 +849,9 @@ nlm_create_host(const char* caller_name)
 	host->nh_vers = 0;
 	host->nh_state = 0;
 	host->nh_monstate = NLM_UNMONITORED;
+	host->nh_grantcookie = 1;
 	TAILQ_INIT(&host->nh_pending);
+	TAILQ_INIT(&host->nh_granted);
 	TAILQ_INIT(&host->nh_finished);
 	TAILQ_INSERT_TAIL(&nlm_hosts, host, nh_link);
 
@@ -1834,7 +1886,7 @@ nlm_do_test(nlm4_testargs *argp, nlm4_testres *result, struct svc_req *rqstp,
 	NLM_DEBUG(3, "nlm_do_test(): caller_name = %s (sysid = %d)\n",
 	    host->nh_caller_name, host->nh_sysid);
 
-	nlm_free_finished_locks(host);
+	nlm_check_expired_locks(host);
 	sysid = host->nh_sysid;
 
 	nlm_convert_to_fhandle_t(&fh, &argp->alock.fh);
@@ -1939,7 +1991,7 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		nlm_host_notify(host, argp->state);
 	}
 
-	nlm_free_finished_locks(host);
+	nlm_check_expired_locks(host);
 	sysid = host->nh_sysid;
 
 	nlm_convert_to_fhandle_t(&fh, &argp->alock.fh);
@@ -1968,6 +2020,7 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	if (argp->block) {
 		struct nlm_async_lock *af;
 		CLIENT *client;
+		struct nlm_grantcookie cookie;
 
 		/*
 		 * First, make sure we can contact the host's NLM.
@@ -1993,6 +2046,10 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 				break;
 			}
 		}
+		if (!af) {
+			cookie.ng_sysid = host->nh_sysid;
+			cookie.ng_cookie = host->nh_grantcookie++;
+		}
 		mtx_unlock(&host->nh_lock);
 		if (af) {
 			CLNT_RELEASE(client);
@@ -2011,6 +2068,8 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		 * We use M_RPC here so that we can xdr_free the thing
 		 * later.
 		 */
+		nlm_make_netobj(&af->af_granted.cookie,
+		    (caddr_t)&cookie, sizeof(cookie), M_RPC);
 		af->af_granted.exclusive = argp->exclusive;
 		af->af_granted.alock.caller_name =
 			strdup(argp->alock.caller_name, M_RPC);
@@ -2111,7 +2170,7 @@ nlm_do_cancel(nlm4_cancargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	NLM_DEBUG(3, "nlm_do_cancel(): caller_name = %s (sysid = %d)\n",
 	    host->nh_caller_name, host->nh_sysid);
 
-	nlm_free_finished_locks(host);
+	nlm_check_expired_locks(host);
 	sysid = host->nh_sysid;
 
 	nlm_convert_to_fhandle_t(&fh, &argp->alock.fh);
@@ -2200,7 +2259,7 @@ nlm_do_unlock(nlm4_unlockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	NLM_DEBUG(3, "nlm_do_unlock(): caller_name = %s (sysid = %d)\n",
 	    host->nh_caller_name, host->nh_sysid);
 
-	nlm_free_finished_locks(host);
+	nlm_check_expired_locks(host);
 	sysid = host->nh_sysid;
 
 	nlm_convert_to_fhandle_t(&fh, &argp->alock.fh);
@@ -2257,6 +2316,7 @@ nlm_do_granted(nlm4_testargs *argp, nlm4_res *result, struct svc_req *rqstp,
 
 	nlm_copy_netobj(&result->cookie, &argp->cookie, M_RPC);
 	result->stat.stat = nlm4_denied;
+	KFAIL_POINT_CODE(DEBUG_FP, nlm_deny_grant, goto out);
 
 	mtx_lock(&nlm_global_lock);
 	TAILQ_FOREACH(nw, &nlm_waiting_locks, nw_link) {
@@ -2275,10 +2335,71 @@ nlm_do_granted(nlm4_testargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		}
 	}
 	mtx_unlock(&nlm_global_lock);
+
+out:
 	if (rpcp)
 		*rpcp = nlm_host_get_rpc(host, TRUE);
 	nlm_host_release(host);
 	return (0);
+}
+
+void
+nlm_do_granted_res(nlm4_res *argp, struct svc_req *rqstp)
+{
+	struct nlm_host *host = NULL;
+	struct nlm_async_lock *af = NULL;
+	int error;
+
+	if (argp->cookie.n_len != sizeof(struct nlm_grantcookie)) {
+		NLM_DEBUG(1, "NLM: bogus grant cookie");
+		goto out;
+	}
+
+	host = nlm_find_host_by_sysid(ng_sysid(&argp->cookie));
+	if (!host) {
+		NLM_DEBUG(1, "NLM: Unknown host rejected our grant");
+		goto out;
+	}
+
+	mtx_lock(&host->nh_lock);
+	TAILQ_FOREACH(af, &host->nh_granted, af_link)
+	    if (ng_cookie(&argp->cookie) ==
+		ng_cookie(&af->af_granted.cookie))
+		    break;
+	if (af)
+		TAILQ_REMOVE(&host->nh_granted, af, af_link);
+	mtx_unlock(&host->nh_lock);
+
+	if (!af) {
+		NLM_DEBUG(1, "NLM: host %s (sysid %d) replied to our grant "
+		    "with unrecognized cookie %d:%d", host->nh_caller_name,
+		    host->nh_sysid, ng_sysid(&argp->cookie),
+		    ng_cookie(&argp->cookie));
+		goto out;
+	}
+
+	if (argp->stat.stat != nlm4_granted) {
+		af->af_fl.l_type = F_UNLCK;
+		error = VOP_ADVLOCK(af->af_vp, NULL, F_UNLCK, &af->af_fl, F_REMOTE);
+		if (error) {
+			NLM_DEBUG(1, "NLM: host %s (sysid %d) rejected our grant "
+			    "and we failed to unlock (%d)", host->nh_caller_name,
+			    host->nh_sysid, error);
+			goto out;
+		}
+
+		NLM_DEBUG(5, "NLM: async lock %p rejected by host %s (sysid %d)",
+		    af, host->nh_caller_name, host->nh_sysid);
+	} else {
+		NLM_DEBUG(5, "NLM: async lock %p accepted by host %s (sysid %d)",
+		    af, host->nh_caller_name, host->nh_sysid);
+	}
+
+ out:
+	if (af)
+		nlm_free_async_lock(af);
+	if (host)
+		nlm_host_release(host);
 }
 
 void
