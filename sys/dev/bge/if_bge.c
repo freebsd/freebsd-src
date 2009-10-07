@@ -1789,7 +1789,7 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Enable host coalescing bug fix. */
 	if (BGE_IS_5755_PLUS(sc))
-		val |= 1 << 29;
+		val |= BGE_WDMAMODE_STATUS_TAG_FIX;
 
 	/* Turn on write DMA state machine */
 	CSR_WRITE_4(sc, BGE_WDMA_MODE, val);
