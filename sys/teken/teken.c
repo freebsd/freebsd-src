@@ -56,6 +56,7 @@ static FILE *df;
 #define	TS_WRAPPED	0x10	/* Next character should be printed on col 0. */
 #define	TS_8BIT		0x20	/* UTF-8 disabled. */
 #define	TS_CONS25	0x40	/* cons25 emulation. */
+#define	TS_INSTRING	0x80	/* Inside string. */
 
 /* Character that blanks a cell. */
 #define	BLANK	' '
@@ -175,6 +176,24 @@ teken_init(teken_t *t, const teken_funcs_t *tf, void *softc)
 static void
 teken_input_char(teken_t *t, teken_char_t c)
 {
+
+	/*
+	 * There is no support for DCS and OSC.  Just discard strings
+	 * until we receive characters that may indicate string
+	 * termination.
+	 */
+	if (t->t_stateflags & TS_INSTRING) {
+		switch (c) {
+		case '\x1B':
+			t->t_stateflags &= ~TS_INSTRING;
+			break;
+		case '\a':
+			t->t_stateflags &= ~TS_INSTRING;
+			return;
+		default:
+			return;
+		}
+	}
 
 	switch (c) {
 	case '\0':
