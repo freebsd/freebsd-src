@@ -1306,7 +1306,7 @@ zfs_create(vnode_t *dvp, char *name, vattr_t *vap, int excl, int mode,
 	}
 
 	if (vap->va_mask & AT_XVATTR) {
-		if ((error = secpolicy_xvattr((xvattr_t *)vap,
+		if ((error = secpolicy_xvattr(dvp, (xvattr_t *)vap,
 		    crgetuid(cr), cr, vap->va_type)) != 0) {
 			ZFS_EXIT(zfsvfs);
 			return (error);
@@ -1758,7 +1758,7 @@ zfs_mkdir(vnode_t *dvp, char *dirname, vattr_t *vap, vnode_t **vpp, cred_t *cr,
 		zf |= ZCILOOK;
 
 	if (vap->va_mask & AT_XVATTR)
-		if ((error = secpolicy_xvattr((xvattr_t *)vap,
+		if ((error = secpolicy_xvattr(dvp, (xvattr_t *)vap,
 		    crgetuid(cr), cr, vap->va_type)) != 0) {
 			ZFS_EXIT(zfsvfs);
 			return (error);
@@ -4206,12 +4206,6 @@ zfs_freebsd_setattr(ap)
 		if ((fflags & ~(SF_IMMUTABLE|SF_APPEND|SF_NOUNLINK|UF_NODUMP)) != 0)
 			return (EOPNOTSUPP);
 		/*
-		 * Callers may only modify the file flags on objects they
-		 * have VADMIN rights for.
-		 */
-		if ((error = VOP_ACCESS(vp, VADMIN, cred, curthread)) != 0)
-			return (error);
-		/*
 		 * Unprivileged processes are not permitted to unset system
 		 * flags, or modify flags if any system flags are set.
 		 * Privileged non-jail processes may not modify system flags
@@ -4221,14 +4215,21 @@ zfs_freebsd_setattr(ap)
 		 * is non-zero; otherwise, they behave like unprivileged
 		 * processes.
 		 */
-		if (priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0) == 0) {
+		if (secpolicy_fs_owner(vp->v_mount, cred) == 0 ||
+		    priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0) == 0) {
 			if (zflags &
 			    (ZFS_IMMUTABLE | ZFS_APPENDONLY | ZFS_NOUNLINK)) {
 				error = securelevel_gt(cred, 0);
-				if (error)
+				if (error != 0)
 					return (error);
 			}
 		} else {
+			/*
+			 * Callers may only modify the file flags on objects they
+			 * have VADMIN rights for.
+			 */
+			if ((error = VOP_ACCESS(vp, VADMIN, cred, curthread)) != 0)
+				return (error);
 			if (zflags &
 			    (ZFS_IMMUTABLE | ZFS_APPENDONLY | ZFS_NOUNLINK)) {
 				return (EPERM);
