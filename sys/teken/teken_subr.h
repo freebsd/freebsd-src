@@ -425,10 +425,11 @@ teken_subr_delete_line(teken_t *t, unsigned int nrows)
 }
 
 static void
-teken_subr_device_control_string(teken_t *t __unused)
+teken_subr_device_control_string(teken_t *t)
 {
 
-	teken_printf("device control string???\n");
+	teken_printf("Unsupported device control string\n");
+	t->t_stateflags |= TS_INSTRING;
 }
 
 static void
@@ -741,6 +742,14 @@ teken_subr_next_line(teken_t *t)
 
 	t->t_cursor.tp_col = 0;
 	teken_subr_newline(t);
+}
+
+static void
+teken_subr_operating_system_command(teken_t *t)
+{
+
+	teken_printf("Unsupported operating system command\n");
+	t->t_stateflags |= TS_INSTRING;
 }
 
 static void
@@ -1258,7 +1267,10 @@ static void
 teken_subr_string_terminator(teken_t *t __unused)
 {
 
-	teken_printf("string terminator???\n");
+	/*
+	 * Strings are already terminated in teken_input_char() when ^[
+	 * is inserted.
+	 */
 }
 
 static void
