@@ -1790,9 +1790,14 @@ zfs_prop_set(zfs_handle_t *zhp, const char *propname, const char *propval)
 
 	/* We don't support those properties on FreeBSD. */
 	switch (prop) {
-	case ZFS_PROP_SHAREISCSI:
 	case ZFS_PROP_DEVICES:
+	case ZFS_PROP_ZONED:
+	case ZFS_PROP_SHAREISCSI:
 	case ZFS_PROP_ISCSIOPTIONS:
+	case ZFS_PROP_XATTR:
+	case ZFS_PROP_VSCAN:
+	case ZFS_PROP_NBMAND:
+	case ZFS_PROP_SHARESMB:
 		(void) snprintf(errbuf, sizeof (errbuf),
 		    "property '%s' not supported on FreeBSD", propname);
 		ret = zfs_error(hdl, EZFS_PERM, errbuf);
