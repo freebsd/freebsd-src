@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/refcount.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
+#include <sys/eventhandler.h>
+#include <sys/time.h>
 #include <vm/uma.h>
 
 #include <ufs/ufs/quota.h>
@@ -81,6 +83,13 @@ SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_mem, CTLFLAG_RD, &ufs_dirhashmem,
 static int ufs_dirhashcheck = 0;
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_docheck, CTLFLAG_RW, &ufs_dirhashcheck,
     0, "enable extra sanity tests");
+static int ufs_dirhashlowmemcount = 0;
+SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_lowmemcount, CTLFLAG_RD, 
+    &ufs_dirhashlowmemcount, 0, "number of times low memory hook called");
+static int ufs_dirhashreclaimage = 5;
+SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_reclaimage, CTLFLAG_RW, 
+    &ufs_dirhashreclaimage, 0, 
+    "max time in seconds of hash inactivity before deletion in low VM events");
 
 
 static int ufsdirhash_hash(struct dirhash *dh, char *name, int namelen);
@@ -90,6 +99,7 @@ static int ufsdirhash_findslot(struct dirhash *dh, char *name, int namelen,
 	   doff_t offset);
 static doff_t ufsdirhash_getprev(struct direct *dp, doff_t offset);
 static int ufsdirhash_recycle(int wanted);
+static void ufsdirhash_lowmem(void);
 static void ufsdirhash_free_locked(struct inode *ip);
 
 static uma_zone_t	ufsdirhash_zone;
@@ -387,6 +397,7 @@ ufsdirhash_build(struct inode *ip)
 	dh->dh_seqopt = 0;
 	dh->dh_seqoff = 0;
 	dh->dh_score = DH_SCOREINIT;
+	dh->dh_lastused = time_second;
 
 	/*
 	 * Use non-blocking mallocs so that we will revert to a linear
@@ -563,6 +574,9 @@ ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
 	/* Update the score. */
 	if (dh->dh_score < DH_SCOREMAX)
 		dh->dh_score++;
+
+	/* Update last used time. */
+	dh->dh_lastused = time_second;
 	DIRHASHLIST_UNLOCK();
 
 	vp = ip->i_vnode;
@@ -804,6 +818,9 @@ ufsdirhash_add(struct inode *ip, struct direct *dirp, doff_t offset)
 	if (DH_ENTRY(dh, slot) == DIRHASH_EMPTY)
 		dh->dh_hused++;
 	DH_ENTRY(dh, slot) = offset;
+
+	/* Update last used time. */
+	dh->dh_lastused = time_second;
 
 	/* Update the per-block summary info. */
 	ufsdirhash_adjfree(dh, offset, -DIRSIZ(0, dirp));
@@ -1144,6 +1161,44 @@ ufsdirhash_getprev(struct direct *dirp, doff_t offset)
 }
 
 /*
+ * Delete the given dirhash and reclaim its memory. Assumes that 
+ * ufsdirhash_list is locked, and leaves it locked. Also assumes 
+ * that dh is locked. Returns the amount of memory freed.
+ */
+static int
+ufsdirhash_destroy(struct dirhash *dh)
+{
+	doff_t **hash;
+	u_int8_t *blkfree;
+	int i, mem, narrays;
+
+	KASSERT(dh->dh_hash != NULL, ("dirhash: NULL hash on list"));
+	
+	/* Remove it from the list and detach its memory. */
+	TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
+	dh->dh_onlist = 0;
+	hash = dh->dh_hash;
+	dh->dh_hash = NULL;
+	blkfree = dh->dh_blkfree;
+	dh->dh_blkfree = NULL;
+	narrays = dh->dh_narrays;
+	mem = dh->dh_memreq;
+	dh->dh_memreq = 0;
+
+	/* Unlock dirhash and free the detached memory. */
+	ufsdirhash_release(dh);
+	for (i = 0; i < narrays; i++)
+		DIRHASH_BLKFREE(hash[i]);
+	free(hash, M_DIRHASH);
+	free(blkfree, M_DIRHASH);
+
+	/* Account for the returned memory. */
+	ufs_dirhashmem -= mem;
+
+	return (mem);
+}
+
+/*
  * Try to free up `wanted' bytes by stealing memory from existing
  * dirhashes. Returns zero with list locked if successful.
  */
@@ -1151,9 +1206,6 @@ static int
 ufsdirhash_recycle(int wanted)
 {
 	struct dirhash *dh;
-	doff_t **hash;
-	u_int8_t *blkfree;
-	int i, mem, narrays;
 
 	DIRHASHLIST_LOCK();
 	dh = TAILQ_FIRST(&ufsdirhash_list);
@@ -1171,34 +1223,59 @@ ufsdirhash_recycle(int wanted)
 			dh = TAILQ_NEXT(dh, dh_list);
 			continue;
 		}
-		KASSERT(dh->dh_hash != NULL, ("dirhash: NULL hash on list"));
 
-		/* Remove it from the list and detach its memory. */
-		TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
-		dh->dh_onlist = 0;
-		hash = dh->dh_hash;
-		dh->dh_hash = NULL;
-		blkfree = dh->dh_blkfree;
-		dh->dh_blkfree = NULL;
-		narrays = dh->dh_narrays;
-		mem = dh->dh_memreq;
-		dh->dh_memreq = 0;
+		ufsdirhash_destroy(dh);
 
-		/* Unlock everything, free the detached memory. */
-		ufsdirhash_release(dh);
-		DIRHASHLIST_UNLOCK();
-		for (i = 0; i < narrays; i++)
-			DIRHASH_BLKFREE(hash[i]);
-		FREE(hash, M_DIRHASH);
-		FREE(blkfree, M_DIRHASH);
-
-		/* Account for the returned memory, and repeat if necessary. */
-		DIRHASHLIST_LOCK();
-		ufs_dirhashmem -= mem;
+		/* Repeat if necessary. */
 		dh = TAILQ_FIRST(&ufsdirhash_list);
 	}
 	/* Success; return with list locked. */
 	return (0);
+}
+
+/*
+ * Callback that frees some dirhashes when the system is low on virtual memory.
+ */
+static void
+ufsdirhash_lowmem()
+{
+	struct dirhash *dh, *dh_temp;
+	int memfreed = 0;
+	/* XXX: this 10% may need to be adjusted */
+	int memwanted = ufs_dirhashmem / 10;
+
+	ufs_dirhashlowmemcount++;
+
+	DIRHASHLIST_LOCK();
+	/* 
+	 * Delete dirhashes not used for more than ufs_dirhashreclaimage 
+	 * seconds. If we can't get a lock on the dirhash, it will be skipped.
+	 */
+	TAILQ_FOREACH_SAFE(dh, &ufsdirhash_list, dh_list, dh_temp) {
+		if (!sx_try_xlock(&dh->dh_lock))
+			continue;
+		if (time_second - dh->dh_lastused > ufs_dirhashreclaimage)
+			memfreed += ufsdirhash_destroy(dh);
+		/* Unlock if we didn't delete the dirhash */
+		else
+			ufsdirhash_release(dh);
+	}
+
+	/* 
+	 * If not enough memory was freed, keep deleting hashes from the head 
+	 * of the dirhash list. The ones closest to the head should be the 
+	 * oldest. 
+	 */
+	if (memfreed < memwanted) {
+		TAILQ_FOREACH_SAFE(dh, &ufsdirhash_list, dh_list, dh_temp) {
+			if (!sx_try_xlock(&dh->dh_lock))
+				continue;
+			memfreed += ufsdirhash_destroy(dh);
+			if (memfreed >= memwanted)
+				break;
+		}
+	}
+	DIRHASHLIST_UNLOCK();
 }
 
 
@@ -1209,6 +1286,10 @@ ufsdirhash_init()
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtx_init(&ufsdirhash_mtx, "dirhash list", NULL, MTX_DEF);
 	TAILQ_INIT(&ufsdirhash_list);
+
+	/* Register a callback function to handle low memory signals */
+	EVENTHANDLER_REGISTER(vm_lowmem, ufsdirhash_lowmem, NULL, 
+	    EVENTHANDLER_PRI_FIRST);
 }
 
 void
