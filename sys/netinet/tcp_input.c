@@ -648,6 +648,7 @@ findpcb:
 	 * tried to free the inpcb, in which case we need to loop back and
 	 * try to find a new inpcb to deliver to.
 	 */
+relocked:
 	if (inp->inp_flags & INP_TIMEWAIT) {
 		KASSERT(ti_locked == TI_RLOCKED || ti_locked == TI_WLOCKED,
 		    ("%s: INP_TIMEWAIT ti_locked %d", __func__, ti_locked));
@@ -698,7 +699,8 @@ findpcb:
 	 * We've identified a valid inpcb, but it could be that we need an
 	 * inpcbinfo write lock and have only a read lock.  In this case,
 	 * attempt to upgrade/relock using the same strategy as the TIMEWAIT
-	 * case above.
+	 * case above.  If we relock, we have to jump back to 'relocked' as
+	 * the connection might now be in TIMEWAIT.
 	 */
 	if (tp->t_state != TCPS_ESTABLISHED ||
 	    (thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
@@ -720,6 +722,7 @@ findpcb:
 					goto findpcb;
 				}
 				tcp_wlock_relocked++;
+				goto relocked;
 			} else {
 				ti_locked = TI_WLOCKED;
 				tcp_wlock_upgraded++;
