@@ -78,12 +78,11 @@ secpolicy_fs_owner(struct mount *mp, struct ucred *cred)
 
 	if (zfs_super_owner) {
 		if (cred->cr_uid == mp->mnt_cred->cr_uid &&
-		    (!jailed(cred) ||
-		     cred->cr_prison == mp->mnt_cred->cr_prison)) {
+		    cred->cr_prison == mp->mnt_cred->cr_prison) {
 			return (0);
 		}
 	}
-	return (priv_check_cred(cred, PRIV_VFS_MOUNT_OWNER, 0));
+	return (EPERM);
 }
 
 /*
