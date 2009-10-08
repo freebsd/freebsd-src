@@ -328,6 +328,7 @@ FBSD_1.0 {
 FBSD_1.1 {
 	arc4random_buf;
 	arc4random_uniform;
+	basename_r;
 	fdevname;
 	fdevname_r;
 	fdopendir;
