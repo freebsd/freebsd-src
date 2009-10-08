@@ -358,8 +358,11 @@ secpolicy_fs_mount_clearopts(cred_t *cr, struct mount *vfsp)
  * Check privileges for setting xvattr attributes
  */
 int
-secpolicy_xvattr(xvattr_t *xvap, uid_t owner, cred_t *cr, vtype_t vtype)
+secpolicy_xvattr(struct vnode *vp, xvattr_t *xvap, uid_t owner, cred_t *cr,
+    vtype_t vtype)
 {
 
+	if (secpolicy_fs_owner(vp->v_mount, cr) == 0)
+		return (0);
 	return (priv_check_cred(cr, PRIV_VFS_SYSFLAGS, 0));
 }
