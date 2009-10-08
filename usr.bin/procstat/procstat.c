@@ -39,14 +39,14 @@
 #include "procstat.h"
 
 static int aflag, bflag, cflag, fflag, kflag, sflag, tflag, vflag;
-int	hflag;
+int	hflag, Cflag;
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: procstat [-h] [-w interval] [-b | -c | -f | "
-	    "-k | -s | -t | -v]\n");
+	fprintf(stderr, "usage: procstat [-hC] [-w interval] [-b | -c | -f "
+	    " | -k | -s | -t | -v]\n");
 	fprintf(stderr, "                [-a | pid ...]\n");
 	exit(EX_USAGE);
 }
@@ -109,7 +109,7 @@ main(int argc, char *argv[])
 	char *dummy;
 
 	interval = 0;
-	while ((ch = getopt(argc, argv, "abcfkhstvw:")) != -1) {
+	while ((ch = getopt(argc, argv, "abcfkhstvw:C")) != -1) {
 		switch (ch) {
 		case 'a':
 			aflag++;
@@ -156,6 +156,10 @@ main(int argc, char *argv[])
 			interval = l;
 			break;
 
+		case 'C':
+			Cflag++;
+			break;
+
 		case '?':
 		default:
 			usage();
@@ -176,6 +180,10 @@ main(int argc, char *argv[])
 
 	/* Must specify either the -a flag or a list of pids. */
 	if (!(aflag == 1 && argc == 0) && !(aflag == 0 && argc > 0))
+		usage();
+
+	/* Only allow -C with -f. */
+	if (Cflag && !fflag)
 		usage();
 
 	do {

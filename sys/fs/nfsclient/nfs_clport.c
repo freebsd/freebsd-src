@@ -1182,7 +1182,8 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
 		if (error)
 			return (error);
-		if ((error = fget(td, nfscbdarg.sock, &fp)) != 0) {
+		if ((error = fget(td, nfscbdarg.sock, CAP_SOCK_ALL, &fp))
+		    != 0) {
 			return (error);
 		}
 		if (fp->f_type != DTYPE_SOCKET) {

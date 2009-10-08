@@ -456,6 +456,9 @@ The specified extended attribute does not exist.
 .It Er 88 EDOOFUS Em "Programming error" .
 A function or API is being abused in a way which could only be detected
 at run-time.
+.It Er 93 ENOTCAPABLE Em "Capabilities insufficient" .
+An operation on a capability file descriptor requires greater privilege than
+the capability allows.
 .El
 .Sh DEFINITIONS
 .Bl -tag -width Ds

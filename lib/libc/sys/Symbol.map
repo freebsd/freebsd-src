@@ -329,6 +329,10 @@ FBSD_1.0 {
 
 FBSD_1.1 {
 	__semctl;
+	cap_enter;
+	cap_getmode;
+	cap_getrights;
+	cap_new;
 	closefrom;
 	cpuset;
 	cpuset_getid;
@@ -351,6 +355,10 @@ FBSD_1.1 {
 	mknodat;
 	msgctl;
 	openat;
+	pdfork;
+	pdgetpid;
+	pdkill;
+	pdwait4;
 	readlinkat;
 	renameat;
 	setfib;

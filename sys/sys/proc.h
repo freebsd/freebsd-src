@@ -162,6 +162,7 @@ struct nlminfo;
 struct kaioinfo;
 struct p_sched;
 struct proc;
+struct procdesc;
 struct sleepqueue;
 struct thread;
 struct trapframe;
@@ -513,6 +514,7 @@ struct proc {
 	int		p_boundary_count;/* (c) Num threads at user boundary */
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
+	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -813,6 +815,8 @@ void	pargs_hold(struct pargs *pa);
 void	procinit(void);
 void	proc_linkup0(struct proc *p, struct thread *td);
 void	proc_linkup(struct proc *p, struct thread *td);
+void	proc_reap(struct thread *td, struct proc *p, int *status,
+	    int options, struct rusage *rusage);
 void	proc_reparent(struct proc *child, struct proc *newparent);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);

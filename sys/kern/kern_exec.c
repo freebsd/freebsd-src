@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -112,7 +113,7 @@ SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
     NULL, 0, sysctl_kern_ps_strings, "LU", "");
 
 /* XXX This should be vm_size_t. */
-SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack, CTLTYPE_ULONG|CTLFLAG_RD,
+SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack, CTLTYPE_ULONG|CTLFLAG_RD|CTLFLAG_CAPRD,
     NULL, 0, sysctl_kern_usrstack, "LU", "");
 
 SYSCTL_PROC(_kern, OID_AUTO, stackprot, CTLTYPE_INT|CTLFLAG_RD,
@@ -336,7 +337,7 @@ do_execve(td, args, mac_p)
 	struct vnode *tracevp = NULL;
 	struct ucred *tracecred = NULL;
 #endif
-	struct vnode *textvp = NULL, *binvp = NULL;
+	struct vnode *textvp = NULL, *binvp;
 	int credential_changing;
 	int vfslocked;
 	int textset;
@@ -410,6 +411,18 @@ do_execve(td, args, mac_p)
 
 interpret:
 	if (args->fname != NULL) {
+		/*
+		 * While capability mode can't reach this point via direct
+		 * path arguments to execve(), we also don't allow
+		 * interpreters to be used in capability mode (for now).
+		 * Catch indirect lookups and return a permissions error.
+		 *
+		 * XXXRW: Is this the right error?
+		 */
+		if (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE) {
+			error = EPERM;
+			goto exec_fail;
+		}
 		error = namei(&nd);
 		if (error)
 			goto exec_fail;
@@ -419,7 +432,9 @@ interpret:
 		imgp->vp = binvp;
 	} else {
 		AUDIT_ARG_FD(args->fd);
-		error = fgetvp(td, args->fd, &binvp);
+		/* XXXRW: Possibly should just be CAP_FEXECVE? */
+		error = fgetvp_read(td, args->fd, CAP_READ | CAP_FEXECVE,
+		    &binvp);
 		if (error)
 			goto exec_fail;
 		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
@@ -632,6 +647,13 @@ interpret:
 	 * Don't honor setuid/setgid if the filesystem prohibits it or if
 	 * the process is being traced.
 	 *
+	 * We disable setuid/setgid/etc in capability mode on the basis that
+	 * most setugid applications are not written with that environment in
+	 * mind, and will therefore almost certainly operate incorrectly.  In
+	 * principle there's no reason that setugid applications might not be
+	 * useful in capability mode, so we may want to reconsider this
+	 * conservative design choice in the future.
+	 *
 	 * XXXMAC: For the time being, use NOSUID to also prohibit
 	 * transitions on the file system.
 	 */
@@ -647,6 +669,7 @@ interpret:
 #endif
 
 	if (credential_changing &&
+	    (oldcred->cr_flags & CRED_FLAG_CAPMODE) == 0 &&
 	    (imgp->vp->v_mount->mnt_flag & MNT_NOSUID) == 0 &&
 	    (p->p_flag & P_TRACED) == 0) {
 		/*

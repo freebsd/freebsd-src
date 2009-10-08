@@ -3072,6 +3072,67 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* cap_new */
+	case 514: {
+		struct cap_new_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = p->rights; /* u_int64_t */
+		*n_args = 2;
+		break;
+	}
+	/* cap_getrights */
+	case 515: {
+		struct cap_getrights_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->rightsp; /* u_int64_t * */
+		*n_args = 2;
+		break;
+	}
+	/* cap_enter */
+	case 516: {
+		*n_args = 0;
+		break;
+	}
+	/* cap_getmode */
+	case 517: {
+		struct cap_getmode_args *p = params;
+		uarg[0] = (intptr_t) p->modep; /* u_int * */
+		*n_args = 1;
+		break;
+	}
+	/* pdfork */
+	case 518: {
+		struct pdfork_args *p = params;
+		uarg[0] = (intptr_t) p->fdp; /* int * */
+		*n_args = 1;
+		break;
+	}
+	/* pdkill */
+	case 519: {
+		struct pdkill_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->signum; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* pdgetpid */
+	case 520: {
+		struct pdgetpid_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->pidp; /* pid_t * */
+		*n_args = 2;
+		break;
+	}
+	/* pdwait */
+	case 521: {
+		struct pdwait_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->status; /* int * */
+		iarg[2] = p->options; /* int */
+		uarg[3] = (intptr_t) p->rusage; /* struct rusage * */
+		*n_args = 4;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8149,6 +8210,100 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_new */
+	case 514:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "u_int64_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_getrights */
+	case 515:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "u_int64_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_enter */
+	case 516:
+		break;
+	/* cap_getmode */
+	case 517:
+		switch(ndx) {
+		case 0:
+			p = "u_int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pdfork */
+	case 518:
+		switch(ndx) {
+		case 0:
+			p = "int *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pdkill */
+	case 519:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pdgetpid */
+	case 520:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "pid_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pdwait */
+	case 521:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "struct rusage *";
 			break;
 		default:
 			break;

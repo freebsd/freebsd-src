@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>

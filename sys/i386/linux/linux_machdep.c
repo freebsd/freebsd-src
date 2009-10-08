@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/file.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
@@ -693,9 +694,12 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * The file descriptor fildes is opened with
 		 * read permission, regardless of the
 		 * protection options specified.
+		 *
+		 * XXXRW: The real work is done in the FreeBSD mmap(), so
+		 * just checking CAP_MMAP here is fine.
 		 */
 
-		if ((error = fget(td, bsd_args.fd, &fp)) != 0)
+		if ((error = fget(td, bsd_args.fd, CAP_MMAP, &fp)) != 0)
 			return (error);
 		if (fp->f_type != DTYPE_VNODE) {
 			fdrop(fp, td);

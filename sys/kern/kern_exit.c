@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
+#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/procdesc.h>
 #include <sys/pioctl.h>
 #include <sys/jail.h>
 #include <sys/tty.h>
@@ -488,39 +490,55 @@ exit1(struct thread *td, int rv)
 	knlist_clear(&p->p_klist, 1);
 
 	/*
-	 * Notify parent that we're gone.  If parent has the PS_NOCLDWAIT
-	 * flag set, or if the handler is set to SIG_IGN, notify process
-	 * 1 instead (and hope it will handle this situation).
+	 * If this is a process with a descriptor, we may not need to deliver
+	 * a signal to the parent.  proctree_lock is held over
+	 * procdesc_exit() to serialize concurrent calls to close() and
+	 * exit().
 	 */
-	PROC_LOCK(p->p_pptr);
-	mtx_lock(&p->p_pptr->p_sigacts->ps_mtx);
-	if (p->p_pptr->p_sigacts->ps_flag & (PS_NOCLDWAIT | PS_CLDSIGIGN)) {
-		struct proc *pp;
-
-		mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
-		pp = p->p_pptr;
-		PROC_UNLOCK(pp);
-		proc_reparent(p, initproc);
-		p->p_sigparent = SIGCHLD;
-		PROC_LOCK(p->p_pptr);
-
+#ifdef PROCDESC
+	if (p->p_procdesc == NULL || procdesc_exit(p)) {
+#endif
 		/*
-		 * Notify parent, so in case he was wait(2)ing or
-		 * executing waitpid(2) with our pid, he will
-		 * continue.
+		 * Notify parent that we're gone, in case it is wait(2)ing or
+		 * executing waitpid(2) with our pid.  If parent has the
+		 * PS_NOCLDWAIT flag set, or if the handler is set to
+		 * SIG_IGN, notify process 1 instead (and hope it will handle
+		 * this situation).
 		 */
-		wakeup(pp);
-	} else
-		mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
+		PROC_LOCK(p->p_pptr);
+		mtx_lock(&p->p_pptr->p_sigacts->ps_mtx);
+		if (p->p_pptr->p_sigacts->ps_flag & (PS_NOCLDWAIT |
+		    PS_CLDSIGIGN)) {
+			struct proc *pp;
 
-	if (p->p_pptr == initproc)
-		psignal(p->p_pptr, SIGCHLD);
-	else if (p->p_sigparent != 0) {
-		if (p->p_sigparent == SIGCHLD)
-			childproc_exited(p);
-		else	/* LINUX thread */
-			psignal(p->p_pptr, p->p_sigparent);
+			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
+			pp = p->p_pptr;
+			PROC_UNLOCK(pp);
+			proc_reparent(p, initproc);
+			p->p_sigparent = SIGCHLD;
+			PROC_LOCK(p->p_pptr);
+			/*
+			 * If this was the last child of our parent, notify
+			 * parent, so in case he was wait(2)ing, he will
+			 * continue.
+			 */
+			wakeup(pp);
+		} else
+			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
+
+		if (p->p_pptr == initproc)
+			psignal(p->p_pptr, SIGCHLD);
+		else if (p->p_sigparent != 0) {
+			if (p->p_sigparent == SIGCHLD)
+				childproc_exited(p);
+			else	/* LINUX thread */
+				psignal(p->p_pptr, p->p_sigparent);
+		}
+#ifdef PROCDESC
+	} else {
+		PROC_LOCK(p->p_pptr);
 	}
+#endif
 	sx_xunlock(&proctree_lock);
 
 	/*
@@ -540,6 +558,8 @@ exit1(struct thread *td, int rv)
 	 * a lost wakeup.  So, we first call wakeup, then we grab the
 	 * sched lock, update the state, and release the parent process'
 	 * proc lock.
+	 *
+	 * XXXRW: Why do we wake up the parent...?
 	 */
 	wakeup(p->p_pptr);
 	cv_broadcast(&p->p_pwait);
@@ -682,12 +702,20 @@ wait4(struct thread *td, struct wait_args *uap)
 	return (error);
 }
 
+int
+pdwait(struct thread *td, struct pdwait_args *uap)
+{
+
+	/* XXXRW: Not yet. */
+	return (ENOSYS);
+}
+
 /*
  * Reap the remains of a zombie process and optionally return status and
  * rusage.  Asserts and will release both the proctree_lock and the process
  * lock as part of its work.
  */
-static void
+void
 proc_reap(struct thread *td, struct proc *p, int *status, int options,
     struct rusage *rusage)
 {
@@ -725,6 +753,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	/*
 	 * If we got the child via a ptrace 'attach', we need to give it back
 	 * to the old parent.
+	 *
+	 * XXXRW: How will ptrace and process descriptors interact here?
 	 */
 	if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
 		PROC_LOCK(p);
@@ -748,6 +778,10 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	sx_xunlock(&allproc_lock);
 	LIST_REMOVE(p, p_sibling);
 	leavepgrp(p);
+#ifdef PROCDESC
+	if (p->p_procdesc != NULL)
+		procdesc_reap(p);
+#endif
 	sx_xunlock(&proctree_lock);
 
 	/*
@@ -845,6 +879,17 @@ loop:
 		 */
 		if ((p->p_sigparent != SIGCHLD) ^
 		    ((options & WLINUXCLONE) != 0)) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+
+		/*
+		 * If a process has a process descriptor, then it won't be
+		 * picked up by wait4().  Unless it's being debugged, in
+		 * which case the debugging process will need to manage it
+		 * with waitpid().
+		 */
+		if (p->p_procdesc != NULL && p->p_oppid == 0) {
 			PROC_UNLOCK(p);
 			continue;
 		}

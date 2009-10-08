@@ -258,6 +258,7 @@ struct user {
 #define	KF_TYPE_SHM	8
 #define	KF_TYPE_SEM	9
 #define	KF_TYPE_PTS	10
+#define	KF_TYPE_PROCDESC	12
 #define	KF_TYPE_UNKNOWN	255
 
 #define	KF_VTYPE_VNON	0
@@ -283,6 +284,7 @@ struct user {
 #define	KF_FLAG_NONBLOCK	0x00000020
 #define	KF_FLAG_DIRECT		0x00000040
 #define	KF_FLAG_HASLOCK		0x00000080
+#define	KF_FLAG_CAPABILITY	0x00000100
 
 /*
  * Old format.  Has variable hidden padding due to alignment.
@@ -330,7 +332,9 @@ struct kinfo_file {
 	int	kf_sock_protocol;		/* Socket protocol. */
 	struct sockaddr_storage kf_sa_local;	/* Socket address. */
 	struct sockaddr_storage	kf_sa_peer;	/* Peer address. */
-	int	_kf_ispare[16];			/* Space for more stuff. */
+	pid_t	kf_pid;				/* Process identifier. */
+	cap_rights_t	kf_cap_rights;		/* Capabiity rights. */
+	int	_kf_ispare[13];			/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char	kf_path[PATH_MAX];		/* Path to file, if any. */
 };

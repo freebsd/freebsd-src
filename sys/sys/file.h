@@ -36,6 +36,7 @@
 #ifndef _KERNEL
 #include <sys/types.h> /* XXX */
 #include <sys/fcntl.h>
+#include <sys/queue.h>
 #include <sys/unistd.h>
 #else
 #include <sys/queue.h>
@@ -63,6 +64,8 @@ struct socket;
 #define	DTYPE_SHM	8	/* swap-backed shared memory */
 #define	DTYPE_SEM	9	/* posix semaphore */
 #define	DTYPE_PTS	10	/* pseudo teletype master device */
+#define	DTYPE_CAPABILITY	11	/* capability */
+#define	DTYPE_PROCDESC	12	/* process descriptor */
 
 #ifdef _KERNEL
 
@@ -136,6 +139,8 @@ struct file {
 	 * Mandatory Access control information.
 	 */
 	void		*f_label;	/* Place-holder for MAC label. */
+	LIST_HEAD(, capability)	f_caps;	/* (f) List of capabilities for file. */
+	u_int		 f_capcount;	/* (f) Number of capabilities. */
 };
 
 #define	FOFFSET_LOCKED       0x1
@@ -174,9 +179,14 @@ extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
 extern volatile int openfiles;	/* actual number of open files */
 
-int fget(struct thread *td, int fd, struct file **fpp);
-int fget_read(struct thread *td, int fd, struct file **fpp);
-int fget_write(struct thread *td, int fd, struct file **fpp);
+int fget(struct thread *td, int fd, cap_rights_t rights, struct file **fpp);
+int fget_mmap(struct thread *td, int fd, cap_rights_t rights,
+    u_char *maxprotp, struct file **fpp);
+int fget_read(struct thread *td, int fd, cap_rights_t rights,
+    struct file **fpp);
+int fget_write(struct thread *td, int fd, cap_rights_t rights,
+    struct file **fpp);
+int fgetcap(struct thread *td, int fd, struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
 /*
@@ -194,11 +204,15 @@ fo_stat_t	soo_stat;
 fo_close_t	soo_close;
 
 void finit(struct file *, u_int, short, void *, struct fileops *);
-int fgetvp(struct thread *td, int fd, struct vnode **vpp);
-int fgetvp_read(struct thread *td, int fd, struct vnode **vpp);
-int fgetvp_write(struct thread *td, int fd, struct vnode **vpp);
+int fgetvp(struct thread *td, int fd, cap_rights_t rights,
+    struct vnode **vpp);
+int fgetvp_read(struct thread *td, int fd, cap_rights_t rights,
+    struct vnode **vpp);
+int fgetvp_write(struct thread *td, int fd, cap_rights_t rights,
+    struct vnode **vpp);
 
-int fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp);
+int fgetsock(struct thread *td, int fd, cap_rights_t rights,
+    struct socket **spp, u_int *fflagp);
 void fputsock(struct socket *sp);
 
 #define	fhold(fp)							\
@@ -258,7 +272,6 @@ fo_ioctl(fp, com, data, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-
 	return ((*fp->f_ops->fo_ioctl)(fp, com, data, active_cred, td));
 }
 

@@ -104,6 +104,10 @@ sysarch(td, uap)
 {
 	int error;
 
+	/*
+	 * XXXRW: As new operations are added here, check that they are safe
+	 * in capability mode.
+	 */
 	switch (uap->op) {
 	case ARM_SYNC_ICACHE : 
 		error = arm32_sync_icache(td, uap->parms);

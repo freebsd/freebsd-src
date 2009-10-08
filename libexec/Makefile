@@ -22,6 +22,7 @@ SUBDIR=	${_atrun} \
 	rpc.sprayd \
 	${_rshd} \
 	${_rtld-elf} \
+	${_rtld-elf-cap} \
 	save-entropy \
 	${_smrsh} \
 	talkd \
@@ -54,6 +55,7 @@ _tftp-proxy=	tftp-proxy
 
 .if !defined(NO_PIC) && !defined(NO_RTLD)
 _rtld-elf=	rtld-elf
+_rtld-elf-cap=	rtld-elf-cap
 .endif
 
 .if ${MK_RCMDS} != "no"

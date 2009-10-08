@@ -33,7 +33,7 @@
 
 /* This file is #included by gzip.c */
 
-static off_t
+off_t
 unbzip2(int in, int out, char *pre, size_t prelen, off_t *bytes_in)
 {
 	int		ret, end_of_file;

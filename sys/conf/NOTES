@@ -1099,6 +1099,9 @@ options 	MSDOSFS_ICONV
 options 	NTFS_ICONV
 options 	UDF_ICONV
 
+# Support for process descriptors
+options 	PROCDESC
+
 
 #####################################################################
 # POSIX P1003.1B
@@ -1119,6 +1122,9 @@ options 	P1003_1B_MQUEUE
 
 # Support for BSM audit
 options 	AUDIT
+
+# Support for kernel capabilities
+options		CAPABILITIES
 
 # Support for Mandatory Access Control (MAC):
 options 	MAC

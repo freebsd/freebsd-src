@@ -37,12 +37,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_kdb.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/capability.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
@@ -55,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+#ifdef KDB
+#include <sys/kdb.h>
+#endif
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -134,6 +139,14 @@ namei(struct nameidata *ndp)
 	struct proc *p = td->td_proc;
 	int vfslocked;
 
+#ifdef KDB
+	if (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE) {
+		printf("namei: pid %d proc %s performed namei in capability "
+		    "mode\n", p->p_pid, p->p_comm);
+		kdb_backtrace();
+	}
+#endif
+
 	KASSERT((cnp->cn_flags & MPSAFE) != 0 || mtx_owned(&Giant) != 0,
 	    ("NOT MPSAFE and Giant not held"));
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
@@ -208,7 +221,7 @@ namei(struct nameidata *ndp)
 				AUDIT_ARG_ATFD1(ndp->ni_dirfd);
 			if (cnp->cn_flags & AUDITVNODE2)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
-			error = fgetvp(td, ndp->ni_dirfd, &dp);
+			error = fgetvp(td, ndp->ni_dirfd, CAP_LOOKUP, &dp);
 		}
 		if (error != 0 || dp != NULL) {
 			FILEDESC_SUNLOCK(fdp);

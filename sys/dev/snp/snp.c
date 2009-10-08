@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
@@ -257,6 +258,9 @@ snp_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			SNP_UNLOCK();
 			return (EBUSY);
 		}
+		/*
+		 * XXXRW: no capability check here.
+		 */
 		error = ttyhook_register(&ss->snp_tty, td->td_proc,
 		    *(int *)data, &snp_hook, ss);
 		SNP_UNLOCK();

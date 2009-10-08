@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
+#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procdesc.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
@@ -110,6 +112,39 @@ fork(td, uap)
 		td->td_retval[1] = 0;
 	}
 	return (error);
+}
+
+/* ARGUSED */
+int
+pdfork(td, uap)
+	struct thread *td;
+	struct pdfork_args *uap;
+{
+#ifdef PROCDESC
+	int error, fd;
+	struct proc *p2;
+
+	/*
+	 * XXXRW: For now, we play a slight game here to avoid changing the
+	 * arguments to fork1() - when a process descriptor is requested, we
+	 * will initially return the file descriptor via td_retval[0], then
+	 * in pdfork(), we copy that out and replace the retval with the pid.
+	 *
+	 * It is necessary to return fd by reference as 0 is a valid file
+	 * descriptor number, and the child needs to be able to distinguish
+	 * itself from the parent using the return value.
+	 */
+	error = fork1(td, RFFDG | RFPROC | RFPROCDESC, 0, &p2);
+	if (error == 0) {
+		fd = td->td_retval[0];
+		td->td_retval[0] = p2->p_pid;
+		td->td_retval[1] = 0;
+		error = copyout(&fd, uap->fdp, sizeof(fd));
+	}
+	return (error);
+#else
+	return (ENOSYS);
+#endif
 }
 
 /* ARGSUSED */
@@ -215,11 +250,21 @@ fork1(td, flags, pages, procp)
 	struct sigacts *newsigacts;
 	struct vmspace *vm2;
 	vm_ooffset_t mem_charged;
+#ifdef PROCDESC
+	struct file *fp_procdesc = NULL;
+	int fd_procdesc;
+#endif
 	int error;
 
 	/* Can't copy and clear. */
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
+
+#ifdef PROCDESC
+	/* Can't not create a process yet get a process descriptor. */
+	if ((flags & RFPROCDESC) && ((flags & RFPROC) == 0))
+		return (EINVAL);
+#endif
 
 	p1 = td->td_proc;
 
@@ -341,6 +386,21 @@ norfproc_fail:
 		error = EAGAIN;
 		goto fail;
 	}
+
+#ifdef PROCDESC
+	/*
+	 * If required, create a process descriptor in the parent first; we
+	 * will abandon it if something goes wrong.  We don't finit() until
+	 * later.
+	 *
+	 * XXXRW: What errno to return?
+	 */
+	if (flags & RFPROCDESC) {
+		error = falloc(td, &fp_procdesc, &fd_procdesc);
+		if (error)
+			goto fail;
+	}
+#endif
 
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
@@ -494,6 +554,16 @@ again:
 	} else if (flags & RFFDG) {
 		fd = fdcopy(p1->p_fd);
 		fdtol = NULL;
+#ifdef PROCDESC
+		/*
+		 * If the file descriptor table is copied, we only want the
+		 * process descriptor to appear in the parent, so close in
+		 * the child.
+		 */
+		if (flags & RFPROCDESC)
+			fdclose(fd, fp_procdesc, fd_procdesc, td);
+#endif
+
 	} else {
 		fd = fdshare(p1->p_fd);
 		if (p1->p_fdtol == NULL)
@@ -730,6 +800,16 @@ again:
 		    p2->p_vmspace->vm_ssize);
 	}
 
+#ifdef PROCDESC
+	/*
+	 * Associate the process descriptor with the process before anything
+	 * can happen that might cause that process to need the descriptor.
+	 * However, don't do this until after fork(2) can no longer fail.
+	 */
+	if (flags & RFPROCDESC)
+		procdesc_new(p2, fp_procdesc);
+#endif
+
 	/*
 	 * Both processes are set up, now check if any loadable modules want
 	 * to adjust anything.
@@ -783,6 +863,17 @@ again:
 	 * Return child proc pointer to parent.
 	 */
 	*procp = p2;
+
+	/*
+	 * If we're using process descriptors, then the process descriptor
+	 * number, rather than the chid pid, will be returned.
+	 */
+#ifdef PROCDESC
+	if (flags & RFPROCDESC) {
+		td->td_retval[0] = fd_procdesc;
+		fdrop(fp_procdesc, td);
+	}
+#endif
 	return (0);
 fail:
 	sx_sunlock(&proctree_lock);
@@ -797,6 +888,10 @@ fail1:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
+#ifdef PROCDESC
+	if ((flags & RFPROCDESC) && (fp_procdesc != NULL))
+		fdrop(fp_procdesc, td);
+#endif
 	pause("fork", hz / 2);
 	return (error);
 }

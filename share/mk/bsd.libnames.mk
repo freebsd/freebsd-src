@@ -30,6 +30,7 @@ LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
 LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
+LIBCAPABILITY?=	${DESTDIR}${LIBDIR}/libcapability.a
 LIBCOM_ERR?=	${DESTDIR}${LIBDIR}/libcom_err.a
 LIBCOMPAT?=	${DESTDIR}${LIBDIR}/libcompat.a
 LIBCRYPT?=	${DESTDIR}${LIBDIR}/libcrypt.a

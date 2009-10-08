@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -95,7 +96,7 @@ mfi_linux_ioctl(struct thread *p, struct linux_ioctl_args *args)
 		break;
 	}
 
-	if ((error = fget(p, args->fd, &fp)) != 0)
+	if ((error = fget(p, args->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	error = fo_ioctl(fp, cmd, (caddr_t)args->arg, p->td_ucred, p);
 	fdrop(fp, p);

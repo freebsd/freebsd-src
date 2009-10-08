@@ -30,9 +30,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capabilities.h"
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
@@ -1725,20 +1727,12 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	struct file *fp;
 	struct cdev *dev;
 	struct cdevsw *cdp;
-	struct filedesc *fdp;
 	int error;
 
 	/* Validate the file descriptor. */
-	if ((fdp = p->p_fd) == NULL)
-		return (EBADF);
-
-	fp = fget_unlocked(fdp, fd);
-	if (fp == NULL)
-		return (EBADF);
-	if (fp->f_ops == &badfileops) {
-		error = EBADF;
-		goto done1;
-	}
+	error = fget(curthread, fd, CAP_TTYHOOK, &fp);
+	if (error)
+		return (error);
 	
 	/*
 	 * Make sure the vnode is bound to a character device.

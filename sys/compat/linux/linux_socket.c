@@ -722,8 +722,10 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * XXXRW: Instead of using fgetsock(), check that it is a
 	 * socket and use the file descriptor reference instead of
 	 * creating a new one.
+	 *
+	 * XXXRW: No capability rights required here?
 	 */
-	error = fgetsock(td, args->s, &so, &fflag);
+	error = fgetsock(td, args->s, 0, &so, &fflag);
 	if (error == 0) {
 		error = EISCONN;
 		if (fflag & FNONBLOCK) {

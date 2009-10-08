@@ -1,0 +1,118 @@
+.\"
+.\" Copyright (c) 2009 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
+.\" ON IN PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND
+.\" UNEXPECTED WAYS.
+.\"
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 11, 2009
+.Os
+.Dt RTLD-ELF-CAP 1
+.Sh NAME
+.Nm ld-elf-cap.so.1 ,
+.Nm rtld-elf-cap
+.Nd capability-mode run-time link editor
+.Sh DESCRIPTION
+The
+.Nm
+is a version of
+.Xr ld-elf.so.1 1
+specific to the sandbox environment created using
+.Xr libcapability 3 ,
+which provides certain extended or modified linker services for that
+environment:
+.Bl -bullet
+.It
+Will not attempt to use global file system namespaces that are not available
+when running under
+.Xr cap_enter 2 .
+.It
+Expects to be directly executed using
+.Xr fexecve 2 ,
+with the desired binary to run passed as file descriptor 3.
+.It
+Recognizes the addition symbol
+.Dv cap_main ,
+which will be used instead of the normal ELF entry point for a binary when in
+sandbox mode.
+This makes it easy a single binary to select different behavior when run in
+the different environments.
+.It
+Interprets the
+.Dv LD_CAPLIBINDEX
+environmental variable set by sandbox start routines, and implements
+.Fn ld_caplibindex_lookup ,
+allowing file descriptors for binaries and libraries passed across
+.Xr fexecve 2
+to be used by
+.Xr libcapability 3 ,
+as well as applications.
+.It
+Implements a version of
+.Fn ld_insandbox
+that returns true, overriding the libc function that returns false.
+.El
+.Pp
+Applications using
+.Dv cap_main
+will need to export it as a dynamic symbol, perhaps using
+.Xr gcc 1 's
+.Dv -rdynamic
+command line flag.
+.Pp
+Most capability-mode applications will be started using the APIs defined in
+.Xr libcapability 3 ,
+which properly set up the run-time environment for
+.Nm .
+.Sh SEE ALSO
+.Xr gcc 1 ,
+.Xr ld-elf.so.1 1 ,
+.Xr cap_enter 2 ,
+.Xr fexecve 2 ,
+.Xr libcapability 3
+.Sh HISTORY
+Support for capabilities and capabilities mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh BUGS
+WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED ON IN
+PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND UNEXPECTED WAYS.
+.Pp
+The format of
+.Dv LD_CAPLIBINDEX
+is not documented, and may change.
+.Sh AUTHORS
+.Nm
+is derived from
+.Xr rtld 1 ,
+the normal run-time linker, and was developed by
+.An "Robert N. M. Watson"
+at the University of Cambridge Computer Laboratory with support from a grant
+from Google, Inc.

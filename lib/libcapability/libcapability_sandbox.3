@@ -1,0 +1,174 @@
+.\"
+.\" Copyright (c) 2009 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
+.\" ON IN PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND
+.\" UNEXPECTED WAYS.
+.\"
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 11, 2009
+.Os
+.Dt LIBCAPABILITY_SANDBOX 3
+.Sh NAME
+.Nm libcapability
+.Nd "library interface to capability-mode services"
+.Sh LIBRARY
+.Lb libcapability
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/capability.h
+.In libcapability.h
+.Ft int
+.Fn lcs_get "struct lc_host **lchpp"
+.Ft int
+.Fn lcs_getsock "struct lc_host *lchp" "int *fdp"
+.Ft ssize_t
+.Fn lcs_recv "struct lc_host *lchp" "void *buf" "size_t len" "int flags"
+.Ft ssize_t
+.Fn lcs_recv_rights "struct lc_host *lchp" "void *buf" "size_t len" "int flags" "int *fdp" "int *fdcountp"
+.Ft int
+.Fn lcs_recvrpc "struct lc_host *lchp" "u_int32_t *opnop" "u_int32_t *seqnop" "u_char **bufferp" "size_t *lenp"
+.Ft int
+.Fn lcs_recvrpc_rights "struct lc_host *lchp" "u_int32_t *opnop" "u_int32_t *seqnop" "u_char **bufferp" "size_t *lenp" "int *fdp" "int *fdcountp"
+.Ft ssize_t
+.Fn lcs_send "struct lc_host *lchp" "const void *msg" "size_t len" "int flags"
+.Ft ssize_t
+.Fn lcs_send_rights "struct lc_host *lchp" "const void *msg" "size_t len" "int flags" "int *fdp" "int fdcount"
+.Ft int
+.Fn lcs_sendrpc "struct lc_host *lchp" "u_int32_t opno" "u_int32_t seqno" "struct iovec *rep" "int repcount"
+.Ft int
+.Fn lcs_sendrpc_rights "struct lc_host *lchp" "u_int32_t opno" "u_int32_t seqno" "struct iovec *rep" "int repcount" "int *fdp" "int fdcount"
+.Sh DESCRIPTION
+The
+.Nm
+library routines provide services for processes hosting or running in
+capability mode.
+Depending on the requirements of the host and sandbox, the API can simply be
+used to set up and stop sandboxes, used to manage I/O using a
+.Xr unix 4
+domain socket connection to the sandbox, or can provide a basic remote
+procedure call (RPC) facility.
+Applications may also use RPC generators such as
+.Xr rpcgen 1
+to build event handling and marshaling code.
+.Pp
+This man page describes the sandbox API.
+General information on
+.Nm
+may be found in
+.Xr libcapability 3 .
+.Sh SANDBOX API
+The
+.Nm
+sandbox API allows sandbox processes to interact with their host process.
+Sandbox API functions can be identified by their function name prefix,
+.Dv lcs_ .
+.Pp
+Each executing sandbox will have a single corresponding host instance,
+described by an opaque
+.Dt "struct lc_host" ,
+which is returned by
+.Fn lcs_get .
+.Pp
+The socket for the host may be queried using
+.Fn lcs_getsock .
+.Pp
+.Nm
+implements a number of I/O functions as part of the sandbox API, which are
+documented in
+.Xr libcapability_sandbox 3 .
+.Fn lcs_recv
+and
+.Fn lcs_send
+provide simple wrappers around
+.Xr recv 2
+and
+.Xr send 2
+to avoid sandboxes having to query host socket file descriptors before use.
+.Pp
+.Fn lcs_recv_rights
+and
+.Fn lcs_send_rights
+similarly allow receiving and sending file descriptors with messages.
+.Pp
+.Fn lcs_recvrpc
+and
+.Fn lcs_sendrpc
+may be used to implement a simple RPC system, in coordination with a host
+using
+.Fn lch_rpc .
+.Fn lcs_recvrpc
+blocks awaiting the receipt of an RPC request, which will be returned in a
+buffer allocated using
+.Xr malloc 3 ,
+.Va bufferp ,
+and with a data size returned via
+.Va lenp .
+The caller will also receive an operation number and a sequence number via
+.Va opnop
+and
+.Va seqnop .
+.Pp
+When an RPC is complete, it should be returned to the host via
+.Fn lcs_sendrpc ,
+which accepts the same operation and sequence number as arguments, as well as
+reply data via the
+.Vt iovec
+.Va rep
+and
+.Va repcount .
+When the sandbox is done with the request data, it should free the memory
+using
+.Xr free 3 .
+.Nm lcs_recvrpc_rights
+and
+.Nm lcs_sendrpc_rights
+allow the receiving and sending of file descriptors along with the RPC.
+.Sh SEE ALSO
+.Xr rpcgen 1 ,
+.Xr recv 2 ,
+.Xr send 2 ,
+.Xr writev 2 ,
+.Xr free 3 ,
+.Xr libcapability 3 ,
+.Xr libcapability_host 3 ,
+.Xr malloc 3 ,
+.Xr unix 4
+.Sh HISTORY
+Support for capabilities and capabilities mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh BUGS
+WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED ON IN
+PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND UNEXPECTED WAYS.
+.Sh AUTHORS
+These functions and the capability facility were created by
+.An "Robert N. M. Watson"
+at the University of Cambridge Computer Laboratory with support from a grant
+from Google, Inc.

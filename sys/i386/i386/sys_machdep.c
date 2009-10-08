@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_kstack_pages.h"
+#include "opt_capabilities.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -127,6 +128,10 @@ sysarch(td, uap)
 		break;
 	}
 
+	/*
+	 * XXXRW: As new operations are added here, check that they are safe
+	 * in capability mode.
+	 */
 	switch(uap->op) {
 	case I386_GET_LDT:
 		error = i386_get_ldt(td, &kargs.largs);
@@ -159,6 +164,10 @@ sysarch(td, uap)
 		error = i386_set_ioperm(td, &kargs.iargs);
 		break;
 	case I386_VM86:
+#ifdef CAPABILITIES
+		if (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE)
+			return (EPERM);
+#endif
 		error = vm86_sysarch(td, uap->parms);
 		break;
 	case I386_GET_FSBASE:
@@ -316,6 +325,10 @@ i386_set_ioperm(td, uap)
 	int i, error;
 	char *iomap;
 
+#ifdef CAPABILITIES
+	if (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE)
+		return (EPERM);
+#endif
 	if ((error = priv_check(td, PRIV_IO)) != 0)
 		return (error);
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)

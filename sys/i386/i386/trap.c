@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
  * 386 Trap and System call handling
  */
 
+#include "opt_capabilities.h"
 #include "opt_clock.h"
 #include "opt_cpu.h"
 #include "opt_hwpmc_hooks.h"
@@ -70,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
+#include <sys/ucred.h>
 #include <sys/uio.h>
 #include <sys/vmmeter.h>
 #ifdef KTRACE
@@ -1049,6 +1051,18 @@ syscall(struct trapframe *frame)
 	    td->td_proc->p_pid, td->td_name, code);
 
 	td->td_syscalls++;
+
+#ifdef CAPABILITIES
+	/*
+	 * In capabilities mode, we only allow access to system calls flagged
+	 * SYF_CAPENABLED.
+	 */
+	if (error == 0) {
+		if (!(callp->sy_flags & SYF_CAPENABLED) &&
+		    (td->td_ucred->cr_flags & CRED_FLAG_CAPMODE))
+			error = ENOSYS;
+	}
+#endif
 
 	if (error == 0) {
 		td->td_retval[0] = 0;

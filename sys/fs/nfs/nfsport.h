@@ -42,6 +42,7 @@
 #ifdef _KERNEL
 #include <sys/unistd.h>
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>

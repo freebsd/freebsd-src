@@ -59,10 +59,23 @@
 #include "libmap.h"
 #include "rtld_tls.h"
 
+#ifdef IN_RTLD_CAP
+#include "rtld_caplibindex.h"
+#include "rtld_sandbox.h"
+#endif
+
 #ifndef COMPAT_32BIT
+#ifdef IN_RTLD_CAP
+#define	PATH_RTLD	"/libexec/ld-elf-cap.so.1"
+#else
 #define PATH_RTLD	"/libexec/ld-elf.so.1"
+#endif
+#else
+#ifdef IN_RTLD_CAP
+#define	PATH_RTLD	"/libexex/ld-elf32-cap.so.1"
 #else
 #define PATH_RTLD	"/libexec/ld-elf32.so.1"
+#endif
 #endif
 
 /* Types. */
@@ -92,9 +105,13 @@ static int do_search_info(const Obj_Entry *obj, int, struct dl_serinfo *);
 static bool donelist_check(DoneList *, const Obj_Entry *);
 static void errmsg_restore(char *);
 static char *errmsg_save(void);
+#ifdef IN_RTLD_CAP
+static void *find_cap_main(const Obj_Entry *);
+#else
 static void *fill_search_info(const char *, size_t, void *);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
+#endif
 static void init_dag(Obj_Entry *);
 static void init_dag1(Obj_Entry *, Obj_Entry *, DoneList *);
 static void init_rtld(caddr_t);
@@ -104,7 +121,9 @@ static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *);
+#ifndef IN_RTLD_CAP
 static int load_preload_objects(void);
+#endif
 static Obj_Entry *load_object(const char *, const Obj_Entry *, int);
 static Obj_Entry *obj_from_addr(const void *);
 static void objlist_call_fini(Objlist *, bool, int *);
@@ -115,12 +134,16 @@ static void objlist_init(Objlist *);
 static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
+#ifndef IN_RTLD_CAP
 static void *path_enumerate(const char *, path_enum_proc, void *);
+#endif
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *);
 static int rtld_dirname(const char *, char *);
 static int rtld_dirname_abs(const char *, char *);
 static void rtld_exit(void);
+#ifndef IN_RTLD_CAP
 static char *search_library_path(const char *, const char *);
+#endif
 static const void **get_program_var_addr(const char *);
 static void set_program_var(const char *, const void *);
 static const Elf_Sym *symlook_default(const char *, unsigned long,
@@ -151,19 +174,26 @@ void r_debug_state(struct r_debug *, struct link_map *);
  */
 static char *error_message;	/* Message for dlerror(), or NULL */
 struct r_debug r_debug;		/* for GDB; */
+#ifndef IN_RTLD_CAP
 static bool libmap_disable;	/* Disable libmap */
 static char *libmap_override;	/* Maps to use in addition to libmap.conf */
+#endif
 static bool trust;		/* False for setuid and setgid programs */
 static bool dangerous_ld_env;	/* True if environment variables have been
 				   used to affect the libraries loaded */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
+#ifndef IN_RTLD_CAP
 static char *ld_library_path;	/* Environment variable for search path */
 static char *ld_preload;	/* Environment variable for libraries to
 				   load first */
 static char *ld_elf_hints_path;	/* Environment variable for alternative hints path */
+#endif
 static char *ld_tracing;	/* Called from ldd to print libs */
 static char *ld_utrace;		/* Use utrace() to log events. */
+#ifdef IN_RTLD_CAP
+static char *ld_caplibindex;
+#endif
 static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
 static Obj_Entry **obj_tail;	/* Link field of last object in list */
 static Obj_Entry *obj_main;	/* The main program shared object */
@@ -214,6 +244,10 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dl_iterate_phdr,
     (func_ptr_type) &_rtld_atfork_pre,
     (func_ptr_type) &_rtld_atfork_post,
+#ifdef IN_RTLD_CAP
+    (func_ptr_type) &ld_caplibindex_lookup,
+    (func_ptr_type) &ld_insandbox,
+#endif
     NULL
 };
 
@@ -310,6 +344,11 @@ ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
 func_ptr_type
 _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 {
+#ifdef IN_RTLD_CAP
+    struct stat sb;
+    Elf_Auxinfo aux_execfd;
+    void *cap_main_ptr;
+#endif
     Elf_Auxinfo *aux_info[AT_COUNT];
     int i;
     int argc;
@@ -352,6 +391,28 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     assert(aux_info[AT_BASE] != NULL);
     init_rtld((caddr_t) aux_info[AT_BASE]->a_un.a_ptr);
 
+#ifdef IN_RTLD_CAP
+    /*
+     * In capability mode, the kernel has executed ld-elf-cap.so directly,
+     * and the parent has passed the executable it wants us to run as a file
+     * descriptor.  The kernel doesn't know this, so rewrite our auxilary
+     * arguments so the remainder of rtld thinks the kernel passed the file
+     * descriptor using AT_EXECFD.
+     */
+    if (aux_info[AT_EXECFD] == NULL) {
+	bzero(&aux_execfd, sizeof(aux_execfd));
+	aux_execfd.a_type = AT_EXECFD;
+	aux_execfd.a_un.a_val = 3;
+	aux_info[AT_EXECFD] = &aux_execfd;
+	if (fstat(3, &sb) < 0) {
+	    __progname = "ld-elf-cap.so";
+	    _rtld_error("executable file descriptor unusable");
+	    die();
+	}
+    }
+#endif
+
+    /* XXXRW: Need to do something about program names in capability mode. */
     __progname = obj_rtld.path;
     argv0 = argv[0] != NULL ? argv[0] : "(null)";
     environ = env;
@@ -366,27 +427,45 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * future processes to honor the potentially un-safe variables.
      */
     if (!trust) {
+#ifndef IN_RTLD_CAP
         unsetenv(LD_ "PRELOAD");
         unsetenv(LD_ "LIBMAP");
         unsetenv(LD_ "LIBRARY_PATH");
         unsetenv(LD_ "LIBMAP_DISABLE");
+#endif
         unsetenv(LD_ "DEBUG");
+#ifndef IN_RTLD_CAP
         unsetenv(LD_ "ELF_HINTS_PATH");
+#endif
+#ifdef IN_RTLD_CAP
+	unsetenv(LD_ "CAPLIBINDEX");
+#endif
     }
     ld_debug = getenv(LD_ "DEBUG");
+#ifdef IN_RTLD_CAP
+    ld_caplibindex = getenv(LD_ "CAPLIBINDEX");
+#else
     libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
     libmap_override = getenv(LD_ "LIBMAP");
     ld_library_path = getenv(LD_ "LIBRARY_PATH");
     ld_preload = getenv(LD_ "PRELOAD");
     ld_elf_hints_path = getenv(LD_ "ELF_HINTS_PATH");
-    dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
+#endif
+    dangerous_ld_env =
+#ifdef IN_RTLD_CAP
+	1;
+#else
+	libmap_disable || (libmap_override != NULL) ||
 	(ld_library_path != NULL) || (ld_preload != NULL) ||
 	(ld_elf_hints_path != NULL);
+#endif
     ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
     ld_utrace = getenv(LD_ "UTRACE");
 
+#ifndef IN_RTLD_CAP
     if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
 	ld_elf_hints_path = _PATH_ELF_HINTS;
+#endif
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -403,7 +482,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	int fd = aux_info[AT_EXECFD]->a_un.a_val;
 	dbg("loading main program");
 	obj_main = map_object(fd, argv0, NULL);
+#ifndef IN_RTLD_CAP
 	close(fd);
+#endif
 	if (obj_main == NULL)
 	    die();
     } else {				/* Main program already loaded. */
@@ -475,12 +556,19 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
     sym_zero.st_shndx = SHN_UNDEF;
 
+#ifdef IN_RTLD_CAP
+    if (ld_caplibindex != NULL)
+	ld_caplibindex_init(ld_caplibindex);
+#endif
+
+#ifndef IN_RTLD_CAP
     if (!libmap_disable)
         libmap_disable = (bool)lm_init(libmap_override);
 
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
 	die();
+#endif
     preload_tail = obj_tail;
 
     dbg("loading needed objects");
@@ -554,7 +642,22 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     /* Return the exit procedure and the program entry point. */
     *exit_proc = rtld_exit;
     *objp = obj_main;
+
+#ifdef IN_RTLD_CAP
+    /*
+     * If the object provides an alternative capability-mode specific entry
+     * point, prefer that to the ELF default entry point.  Otherwise, use the
+     * ELF default.
+     */
+    cap_main_ptr = find_cap_main(obj_main);
+    if (cap_main_ptr == NULL) {
+	_rtld_error("cap_main not found");
+	die();
+    }
+    return (func_ptr_type) cap_main_ptr;
+#else
     return (func_ptr_type) obj_main->entry;
+#endif
 }
 
 Elf_Addr
@@ -720,6 +823,26 @@ origin_subst(const char *real, const char *origin_path)
 	    return (NULL);
     return (res4);
 }
+
+#ifdef IN_RTLD_CAP
+static void *
+find_cap_main(const Obj_Entry *obj)
+{
+	const char *cap_main_str = "cap_main";
+	const Elf_Sym *def;
+	const Obj_Entry *defobj;
+	unsigned long hash;
+
+	hash = elf_hash(cap_main_str);
+	def = symlook_default(cap_main_str, hash, obj, &defobj, NULL,
+	    SYMLOOK_IN_PLT);
+	if (def == NULL)
+		return (NULL);
+	if (ELF_ST_TYPE(def->st_info) != STT_FUNC)
+		return (NULL);
+	return (make_function_pointer(def, defobj));
+}
+#endif
 
 static void
 die(void)
@@ -1115,6 +1238,7 @@ elf_hash(const char *name)
  *   ldconfig hints
  *   /lib:/usr/lib
  */
+#ifndef IN_RTLD_CAP
 static char *
 find_library(const char *xname, const Obj_Entry *refobj)
 {
@@ -1154,6 +1278,7 @@ find_library(const char *xname, const Obj_Entry *refobj)
     }
     return NULL;
 }
+#endif
 
 /*
  * Given a symbol number in a referencing object, find the corresponding
@@ -1231,6 +1356,7 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     return def;
 }
 
+#ifndef IN_RTLD_CAP
 /*
  * Return the search path from the ldconfig hints file, reading it if
  * necessary.  Returns NULL if there are problems with the hints file,
@@ -1269,6 +1395,7 @@ gethints(void)
     }
     return hints[0] != '\0' ? hints : NULL;
 }
+#endif
 
 static void
 init_dag(Obj_Entry *root)
@@ -1322,9 +1449,15 @@ init_rtld(caddr_t mapbase)
 	objtmp.dynamic = rtld_dynamic(&objtmp);
 	digest_dynamic(&objtmp, 1);
 	assert(objtmp.needed == NULL);
+#if 0
+	/*
+	 * XXXRW: For reasons as yet undetermined, this assertion fires in
+	 * capability mode.
+	 */
 #if !defined(__mips__)
 	/* MIPS and SH{3,5} have a bogus DT_TEXTREL. */
 	assert(!objtmp.textrel);
+#endif
 #endif
 
 	/*
@@ -1448,6 +1581,7 @@ load_needed_objects(Obj_Entry *first)
     return 0;
 }
 
+#ifndef IN_RTLD_CAP
 static int
 load_preload_objects(void)
 {
@@ -1473,6 +1607,7 @@ load_preload_objects(void)
     LD_UTRACE(UTRACE_PRELOAD_FINISHED, NULL, NULL, 0, 0, NULL);
     return 0;
 }
+#endif
 
 /*
  * Load a shared object into memory, if it is not already loaded.
@@ -1492,6 +1627,17 @@ load_object(const char *name, const Obj_Entry *refobj, int noload)
 	if (object_match_name(obj, name))
 	    return obj;
 
+#ifdef IN_RTLD_CAP
+    if (strchr(name, '/') != NULL) {
+	_rtld_error("Paths to shared objects not supported \"%s\"", name);
+	return NULL;
+    }
+    path = xstrdup(name);
+    if (ld_caplibindex_lookup(path, &fd) < 0) {
+	_rtld_error("Unable to find \"%s\" in LD_CAPLIBINDEX", path);
+	return NULL;
+    }
+#else
     path = find_library(name, refobj);
     if (path == NULL)
 	return NULL;
@@ -1509,22 +1655,29 @@ load_object(const char *name, const Obj_Entry *refobj, int noload)
 	free(path);
 	return NULL;
     }
+#endif
     if (fstat(fd, &sb) == -1) {
 	_rtld_error("Cannot fstat \"%s\"", path);
+#ifndef IN_RTLD_CAP
 	close(fd);
+#endif
 	free(path);
 	return NULL;
     }
     for (obj = obj_list->next;  obj != NULL;  obj = obj->next) {
 	if (obj->ino == sb.st_ino && obj->dev == sb.st_dev) {
+#ifndef IN_RTLD_CAP
 	    close(fd);
+#endif
 	    break;
 	}
     }
     if (obj != NULL) {
 	object_add_name(obj, name);
 	free(path);
+#ifndef IN_RTLD_CAP
 	close(fd);
+#endif
 	return obj;
     }
     if (noload)
@@ -1534,7 +1687,9 @@ load_object(const char *name, const Obj_Entry *refobj, int noload)
     obj = do_load_object(fd, name, path, &sb);
     if (obj == NULL)
 	free(path);
+#ifndef IN_RTLD_CAP
     close(fd);
+#endif
 
     return obj;
 }
@@ -1819,11 +1974,14 @@ rtld_exit(void)
     dbg("rtld_exit()");
     objlist_call_fini(&list_fini, true, &lockstate);
     /* No need to remove the items from the list, since we are exiting. */
+#ifndef IN_RTLD_CAP
     if (!libmap_disable)
         lm_fini();
+#endif
     wlock_release(rtld_bind_lock, lockstate);
 }
 
+#ifndef IN_RTLD_CAP
 static void *
 path_enumerate(const char *path, path_enum_proc callback, void *arg)
 {
@@ -1911,6 +2069,7 @@ search_library_path(const char *name, const char *path)
 
     return (p);
 }
+#endif
 
 int
 dlclose(void *handle)
@@ -2351,6 +2510,7 @@ struct fill_search_info_args {
     char	*strspace;
 };
 
+#ifndef IN_RTLD_CAP
 static void *
 fill_search_info(const char *dir, size_t dirlen, void *param)
 {
@@ -2377,19 +2537,23 @@ fill_search_info(const char *dir, size_t dirlen, void *param)
 
     return (NULL);
 }
+#endif
 
 static int
 do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
 {
     struct dl_serinfo _info;
+#ifndef IN_RTLD_CAP
     struct fill_search_info_args args;
 
     args.request = RTLD_DI_SERINFOSIZE;
     args.serinfo = &_info;
+#endif
 
     _info.dls_size = __offsetof(struct dl_serinfo, dls_serpath);
     _info.dls_cnt  = 0;
 
+#ifndef IN_RTLD_CAP
     path_enumerate(ld_library_path, fill_search_info, &args);
     path_enumerate(obj->rpath, fill_search_info, &args);
     path_enumerate(gethints(), fill_search_info, &args);
@@ -2401,12 +2565,14 @@ do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
 	info->dls_cnt = _info.dls_cnt;
 	return (0);
     }
+#endif
 
     if (info->dls_cnt != _info.dls_cnt || info->dls_size != _info.dls_size) {
 	_rtld_error("Uninitialized Dl_serinfo struct passed to dlinfo()");
 	return (-1);
     }
 
+#ifndef IN_RTLD_CAP
     args.request  = RTLD_DI_SERINFO;
     args.serinfo  = info;
     args.serpath  = &info->dls_serpath[0];
@@ -2427,6 +2593,7 @@ do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
     args.flags = LA_SER_DEFAULT;
     if (path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args) != NULL)
 	return (-1);
+#endif
     return (0);
 }
 

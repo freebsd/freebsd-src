@@ -56,7 +56,7 @@ SYSCTL_DECL(_p1003_1b);
 
 #define P1B_SYSCTL(num, name)  \
 SYSCTL_INT(_p1003_1b, num, \
-	name, CTLFLAG_RD, facility + num - 1, 0, "");
+	name, CTLFLAG_RD | CTLFLAG_CAPRD, facility + num - 1, 0, "");
 
 #else
 
@@ -64,7 +64,7 @@ SYSCTL_DECL(_kern_p1003_1b);
 
 #define P1B_SYSCTL(num, name)  \
 SYSCTL_INT(_kern_p1003_1b, OID_AUTO, \
-	name, CTLFLAG_RD, facility + num - 1, 0, "");
+	name, CTLFLAG_RD | CTLFLAG_CAPRD, facility + num - 1, 0, "");
 SYSCTL_NODE(_kern, OID_AUTO, p1003_1b, CTLFLAG_RW, 0, "P1003.1B");
 
 #endif

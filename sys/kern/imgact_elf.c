@@ -575,9 +575,14 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	imgp->object = NULL;
 	imgp->execlabel = NULL;
 
+	vfslocked = 0;
+	if (curthread->td_ucred->cr_flags & CRED_FLAG_CAPMODE) {
+		nd->ni_vp = NULL;
+		error = EPERM;
+		goto fail;
+	}
 	NDINIT(nd, LOOKUP, MPSAFE|LOCKLEAF|FOLLOW, UIO_SYSSPACE, file,
 	    curthread);
-	vfslocked = 0;
 	if ((error = namei(nd)) != 0) {
 		nd->ni_vp = NULL;
 		goto fail;

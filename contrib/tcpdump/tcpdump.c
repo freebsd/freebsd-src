@@ -1197,6 +1197,8 @@ main(int argc, char **argv)
 		(void)fflush(stderr);
 	}
 #endif /* WIN32 */
+	if (cap_enter() < 0)
+		err(-1, "cap_enter");
 	status = pcap_loop(pd, cnt, callback, pcap_userdata);
 	if (WFileName == NULL) {
 		/*

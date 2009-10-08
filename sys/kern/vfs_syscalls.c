@@ -37,6 +37,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capabilities.h"
 #include "opt_compat.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
@@ -45,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/capability.h>
 #include <sys/sysent.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -113,6 +115,49 @@ int async_io_version;
 static int syncprt = 0;
 SYSCTL_INT(_debug, OID_AUTO, syncprt, CTLFLAG_RW, &syncprt, 0, "");
 #endif
+
+/*
+ * Convert a user file descriptor to a kernel file entry and check that, if
+ * it is a capability, the right rights are present.  A reference on the file
+ * entry is held upon returning.
+ */
+int
+getvnode_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
+    struct file **fpp)
+{
+	struct file *fp;
+#ifdef CAPABILITIES
+	struct file *fp_fromcap;
+#endif
+	int error;
+
+	error = 0;
+	fp = NULL;
+	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
+		return (EBADF);
+#ifdef CAPABILITIES
+	/*
+	 * If the file descriptor is for a capability, test rights and use
+	 * the file descriptor referenced by the capability.
+	 */
+	error = cap_fextract(fp, rights, &fp_fromcap);
+	if (error) {
+		fdrop(fp, curthread);
+		return (error);
+	}
+	if (fp != fp_fromcap) {
+		fhold(fp_fromcap);
+		fdrop(fp, curthread);
+		fp = fp_fromcap;
+	}
+#endif /* CAPABILITIES */
+	if (fp->f_vnode == NULL) {
+		fdrop(fp, curthread);
+		return (EINVAL);
+	}
+	*fpp = fp;
+	return (0);
+}
 
 /*
  * Sync each mounted filesystem.
@@ -372,7 +417,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	int error;
 
 	AUDIT_ARG_FD(fd);
-	error = getvnode(td->td_proc->p_fd, fd, &fp);
+	error = getvnode_cap(td->td_proc->p_fd, fd, CAP_FSTATFS, &fp);
 	if (error)
 		return (error);
 	vp = fp->f_vnode;
@@ -745,7 +790,7 @@ fchdir(td, uap)
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
-	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
+	if ((error = getvnode_cap(fdp, uap->fd, CAP_FCHDIR, &fp)) != 0)
 		return (error);
 	vp = fp->f_vnode;
 	VREF(vp);
@@ -1919,7 +1964,7 @@ lseek(td, uap)
 	int vfslocked;
 
 	AUDIT_ARG_FD(uap->fd);
-	if ((error = fget(td, uap->fd, &fp)) != 0)
+	if ((error = fget(td, uap->fd, CAP_SEEK, &fp)) != 0)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE)) {
 		fdrop(fp, td);
@@ -2768,7 +2813,8 @@ fchflags(td, uap)
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_FFLAGS(uap->flags);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	if ((error = getvnode_cap(td->td_proc->p_fd, uap->fd, CAP_FCHFLAGS,
+	    &fp)) != 0)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
@@ -2929,7 +2975,8 @@ fchmod(td, uap)
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_MODE(uap->mode);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	if ((error = getvnode_cap(td->td_proc->p_fd, uap->fd, CAP_FCHMOD,
+	    &fp)) != 0)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
@@ -3106,7 +3153,8 @@ fchown(td, uap)
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_OWNER(uap->uid, uap->gid);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	if ((error = getvnode_cap(td->td_proc->p_fd, uap->fd, CAP_FCHOWN,
+	    &fp)) != 0)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
@@ -3341,7 +3389,8 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	AUDIT_ARG_FD(fd);
 	if ((error = getutimes(tptr, tptrseg, ts)) != 0)
 		return (error);
-	if ((error = getvnode(td->td_proc->p_fd, fd, &fp)) != 0)
+	if ((error = getvnode_cap(td->td_proc->p_fd, fd, CAP_FUTIMES, &fp))
+	    != 0)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
@@ -3493,7 +3542,8 @@ fsync(td, uap)
 	int error, lock_flags;
 
 	AUDIT_ARG_FD(uap->fd);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	if ((error = getvnode_cap(td->td_proc->p_fd, uap->fd, CAP_FSYNC,
+	    &fp)) != 0)
 		return (error);
 	vp = fp->f_vnode;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
@@ -3912,7 +3962,8 @@ ogetdirentries(td, uap)
 	/* XXX arbitrary sanity limit on `count'. */
 	if (uap->count > 64 * 1024)
 		return (EINVAL);
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
+	if ((error = getvnode_cap(td->td_proc->p_fd, uap->fd, CAP_READ, &fp))
+	    != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -4071,7 +4122,8 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	AUDIT_ARG_FD(fd);
 	if (count > INT_MAX)
 		return (EINVAL);
-	if ((error = getvnode(td->td_proc->p_fd, fd, &fp)) != 0)
+	if ((error = getvnode_cap(td->td_proc->p_fd, fd, CAP_READ, &fp))
+	    != 0)
 		return (error);
 	if ((fp->f_flag & FREAD) == 0) {
 		fdrop(fp, td);
@@ -4230,31 +4282,6 @@ revoke(td, uap)
 out:
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	return (error);
-}
-
-/*
- * Convert a user file descriptor to a kernel file entry.
- * A reference on the file entry is held upon returning.
- */
-int
-getvnode(fdp, fd, fpp)
-	struct filedesc *fdp;
-	int fd;
-	struct file **fpp;
-{
-	int error;
-	struct file *fp;
-
-	error = 0;
-	fp = NULL;
-	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
-		error = EBADF;
-	else if (fp->f_vnode == NULL) {
-		error = EINVAL;
-		fdrop(fp, curthread);
-	}
-	*fpp = fp;
 	return (error);
 }
 

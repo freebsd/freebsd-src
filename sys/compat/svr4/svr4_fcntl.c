@@ -33,6 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -261,7 +262,7 @@ fd_revoke(td, fd)
 	int error, *retval;
 
 	retval = td->td_retval;
-	if ((error = fgetvp(td, fd, &vp)) != 0)
+	if ((error = fgetvp(td, fd, CAP_REVOKE, &vp)) != 0)
 		return (error);
 
 	if (vp->v_type != VCHR && vp->v_type != VBLK) {
@@ -313,7 +314,7 @@ fd_truncate(td, fd, flp)
 	/*
 	 * We only support truncating the file.
 	 */
-	if ((error = fget(td, fd, &fp)) != 0)
+	if ((error = fget(td, fd, CAP_FTRUNCATE, &fp)) != 0)
 		return (error);
 
 	vp = fp->f_vnode;
@@ -392,7 +393,7 @@ svr4_sys_open(td, uap)
 #if defined(NOTYET)
 		struct file	*fp;
 
-		error = fget(td, retval, &fp);
+		error = fget(td, retval, CAP_IOCTL, &fp);
 		PROC_UNLOCK(p);
 		/*
 		 * we may have lost a race the above open() and

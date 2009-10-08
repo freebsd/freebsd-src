@@ -2040,6 +2040,11 @@ unp_gc_process(struct unpcb *unp)
 	 * Check for a socket potentially in a cycle.  It must be in a
 	 * queue as indicated by msgcount, and this must equal the file
 	 * reference count.  Note that when msgcount is 0 the file is NULL.
+	 *
+	 * XXXRW: This will need to change to also look at the capabilities
+	 * referencing the file descriptor.  It must: (a) subtract the number
+	 * of capability references, and (b) add the non-message references
+	 * to the capabilities themselves.
 	 */
 	if ((unp->unp_gcflag & UNPGC_REF) == 0 && fp &&
 	    unp->unp_msgcount != 0 && fp->f_count == unp->unp_msgcount) {

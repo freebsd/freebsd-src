@@ -87,6 +87,9 @@ struct ctlname {
 #define CTLFLAG_MPSAFE	0x00040000	/* Handler is MP safe */
 #define CTLFLAG_VNET	0x00020000	/* Prisons with vnet can fiddle */
 #define CTLFLAG_RDTUN	(CTLFLAG_RD|CTLFLAG_TUN)
+#define CTLFLAG_CAPRD	0x00040000	/* Can be read in capability mode */
+#define CTLFLAG_CAPWR	0x00020000	/* Can be written in capability mode */
+#define CTLFLAG_CAPRW	(CTLFLAG_CAPRD|CTLFLAG_CAPWR)
 
 /*
  * Secure level.   Note that CTLFLAG_SECURE == CTLFLAG_SECURE1.  
@@ -341,7 +344,8 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
  * kernel features.
  */
 #define	FEATURE(name, desc)						\
-	SYSCTL_INT(_kern_features, OID_AUTO, name, CTLFLAG_RD, 0, 1, desc)
+	SYSCTL_INT(_kern_features, OID_AUTO, name, CTLFLAG_RD |		\
+	    CTLFLAG_CAPRD, 0, 1, desc)
 
 #endif /* _KERNEL */
 

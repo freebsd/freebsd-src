@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/file.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -53,7 +54,7 @@ linux_ioctl_tdfx(struct thread *td, struct linux_ioctl_args* args)
 
    struct file *fp;
 
-   if ((error = fget(td, args->fd, &fp)) != 0)
+   if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
 	   return (error);
    /* We simply copy the data and send it right to ioctl */
    copyin((caddr_t)args->arg, &d_pio, sizeof(d_pio));

@@ -167,6 +167,10 @@ sysarch(td, uap)
 	uint64_t a64base;
 	struct i386_ioperm_args iargs;
 
+	/*
+	 * XXXRW: As new operations are added here, check that they are safe
+	 * in capability mode.
+	 */
 	if (uap->op == I386_GET_LDT || uap->op == I386_SET_LDT)
 		return (sysarch_ldt(td, uap, UIO_USERSPACE));
 	/*

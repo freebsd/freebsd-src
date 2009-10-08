@@ -53,6 +53,10 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error;
 
+	/*
+	 * XXXRW: As new operations are added here, check that they are safe
+	 * in capability mode.
+	 */
 	mtx_lock(&Giant);
 	switch (uap->op) {
 	case SPARC_SIGTRAMP_INSTALL:

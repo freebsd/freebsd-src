@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
@@ -139,7 +140,7 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 	     * having the same filedesc could use that fd without
 	     * checking below.
 	     */
-	    error = fget(td, fd, &fp);
+	    error = fget(td, fd, CAP_IOCTL, &fp);
 	    if (!error) {
 		    sx_slock(&proctree_lock);
 		    PROC_LOCK(p);
@@ -1043,8 +1044,9 @@ linux_pread(td, uap)
 	error = pread(td, &bsd);
 
 	if (error == 0) {
+		/* XXXRW: No capability rights should be OK. */
    	   	/* This seems to violate POSIX but linux does it */
-   	   	if ((error = fgetvp(td, uap->fd, &vp)) != 0)
+   	   	if ((error = fgetvp(td, uap->fd, 0, &vp)) != 0)
    		   	return (error);
 		if (vp->v_type == VDIR) {
    		   	vrele(vp);
@@ -1392,8 +1394,12 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		 * XXX some Linux applications depend on F_SETOWN having no
 		 * significant effect for pipes (SIGIO is not delivered for
 		 * pipes under Linux-2.2.35 at least).
+		 *
+		 * Don't really need to check CAP_FCNTL here since real work
+		 * will depend on kern_fnctl(), but it's will give the right
+		 * error in the EINVAL case.
 		 */
-		error = fget(td, args->fd, &fp);
+		error = fget(td, args->fd, CAP_FCNTL, &fp);
 		if (error)
 			return (error);
 		if (fp->f_type == DTYPE_PIPE) {

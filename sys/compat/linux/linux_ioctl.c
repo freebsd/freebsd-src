@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/capability.h>
 #include <sys/cdio.h>
 #include <sys/dvdio.h>
 #include <sys/conf.h>
@@ -166,7 +167,7 @@ linux_ioctl_hdio(struct thread *td, struct linux_ioctl_args *args)
 	u_int sectorsize, fwcylinders, fwheads, fwsectors;
 	off_t mediasize, bytespercyl;
 
-	if ((error = fget(td, args->fd, &fp)) != 0)
+	if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	switch (args->cmd & 0xffff) {
 	case LINUX_HDIO_GET_GEO:
@@ -247,7 +248,7 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 	u_int sectorsize;
 	off_t mediasize;
 
-	if ((error = fget(td, args->fd, &fp)) != 0)
+	if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	switch (args->cmd & 0xffff) {
 	case LINUX_BLKGETSIZE:
@@ -673,7 +674,7 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 	struct file *fp;
 	int error;
 
-	if ((error = fget(td, args->fd, &fp)) != 0)
+	if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 
 	switch (args->cmd & 0xffff) {
@@ -1413,7 +1414,7 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 	struct file *fp;
 	int error;
 
-	if ((error = fget(td, args->fd, &fp)) != 0)
+	if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	switch (args->cmd & 0xffff) {
 
@@ -1934,7 +1935,7 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 	struct file *fp;
 	int error;
 
-	if ((error = fget(td, args->fd, &fp)) != 0)
+	if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	switch (args->cmd & 0xffff) {
 
@@ -2325,7 +2326,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	ifp = NULL;
 	error = 0;
 
-	if ((error = fget(td, args->fd, &fp)) != 0)
+	if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	type = fp->f_type;
 	fdrop(fp, td);
@@ -2551,7 +2552,7 @@ linux_ioctl_private(struct thread *td, struct linux_ioctl_args *args)
 	struct file *fp;
 	int error, type;
 
-	if ((error = fget(td, args->fd, &fp)) != 0)
+	if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	type = fp->f_type;
 	fdrop(fp, td);
@@ -2577,7 +2578,7 @@ linux_ioctl_sg(struct thread *td, struct linux_ioctl_args *args)
 	u_long cmd;
 	int error;
 
-	if ((error = fget(td, args->fd, &fp)) != 0) {
+	if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0) {
 		printf("sg_linux_ioctl: fget returned %d\n", error);
 		return (error);
 	}
@@ -2633,7 +2634,7 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 		    (unsigned long)args->cmd);
 #endif
 
-	if ((error = fget(td, args->fd, &fp)) != 0)
+	if ((error = fget(td, args->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD|FWRITE)) == 0) {
 		fdrop(fp, td);

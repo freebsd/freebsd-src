@@ -488,6 +488,14 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 	mode_t cmode;
 	int fd, error;
 
+	/*
+	 * shm_open(2) of anonymous objects is allowed in capability mode,
+	 * but naming of globally scoped objects is not.
+	 */
+	if ((td->td_ucred->cr_flags & CRED_FLAG_CAPMODE) &&
+	    (uap->path != SHM_ANON))
+		return (ENOSYS);
+
 	if ((uap->flags & O_ACCMODE) != O_RDONLY &&
 	    (uap->flags & O_ACCMODE) != O_RDWR)
 		return (EINVAL);

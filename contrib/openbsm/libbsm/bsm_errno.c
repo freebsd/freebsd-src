@@ -684,6 +684,13 @@ static const struct bsm_errno bsm_errnos[] = {
 	ERRNO_NO_LOCAL_MAPPING,
 #endif
 	ES("Key was rejected by service") },
+	{ BSM_ERRNO_ENOTCAPABLE,
+#ifdef ENOTCAPABLE
+	ENOTCAPABLE,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Capabilities insufficient") },
 };
 static const int bsm_errnos_count = sizeof(bsm_errnos) / sizeof(bsm_errnos[0]);
 

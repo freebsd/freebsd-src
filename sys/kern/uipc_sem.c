@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_posix.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/condvar.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -115,7 +116,8 @@ static int	ksem_create(struct thread *td, const char *path,
 		    semid_t *semidp, mode_t mode, unsigned int value,
 		    int flags);
 static void	ksem_drop(struct ksem *ks);
-static int	ksem_get(struct thread *td, semid_t id, struct file **fpp);
+static int	ksem_get(struct thread *td, semid_t id, cap_rights_t rights,
+		    struct file **fpp);
 static struct ksem *ksem_hold(struct ksem *ks);
 static void	ksem_insert(char *path, Fnv32_t fnv, struct ksem *ks);
 static struct ksem *ksem_lookup(char *path, Fnv32_t fnv);
@@ -497,13 +499,14 @@ ksem_create(struct thread *td, const char *name, semid_t *semidp, mode_t mode,
 }
 
 static int
-ksem_get(struct thread *td, semid_t id, struct file **fpp)
+ksem_get(struct thread *td, semid_t id, cap_rights_t rights,
+    struct file **fpp)
 {
 	struct ksem *ks;
 	struct file *fp;
 	int error;
 
-	error = fget(td, id, &fp);
+	error = fget(td, id, rights, &fp);
 	if (error)
 		return (EINVAL);
 	if (fp->f_type != DTYPE_SEM) {
@@ -595,7 +598,8 @@ ksem_close(struct thread *td, struct ksem_close_args *uap)
 	struct file *fp;
 	int error;
 
-	error = ksem_get(td, uap->id, &fp);
+	/* XXXRW: No capability required here. */
+	error = ksem_get(td, uap->id, 0, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -620,7 +624,7 @@ ksem_post(struct thread *td, struct ksem_post_args *uap)
 	struct ksem *ks;
 	int error;
 
-	error = ksem_get(td, uap->id, &fp);
+	error = ksem_get(td, uap->id, CAP_SEM_POST, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -710,7 +714,7 @@ kern_sem_wait(struct thread *td, semid_t id, int tryflag,
 	int error;
 
 	DP((">>> kern_sem_wait entered! pid=%d\n", (int)td->td_proc->p_pid));
-	error = ksem_get(td, id, &fp);
+	error = ksem_get(td, id, CAP_SEM_WAIT, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -776,7 +780,7 @@ ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 	struct ksem *ks;
 	int error, val;
 
-	error = ksem_get(td, uap->id, &fp);
+	error = ksem_get(td, uap->id, CAP_SEM_GETVALUE, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;
@@ -810,7 +814,8 @@ ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
 	struct ksem *ks;
 	int error;
 
-	error = ksem_get(td, uap->id, &fp);
+	/* XXXRW: No capability required since basically a close wrapper? */
+	error = ksem_get(td, uap->id, 0, &fp);
 	if (error)
 		return (error);
 	ks = fp->f_data;

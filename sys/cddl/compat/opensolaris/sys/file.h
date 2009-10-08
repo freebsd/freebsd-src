@@ -34,14 +34,18 @@
 #ifdef _KERNEL
 typedef	struct file	file_t;
 
+#include <sys/capability.h>
+
 static __inline file_t *
 getf(int fd, int write)
 {
 	struct file *fp;
 
-	if (write && fget_write(curthread, fd, &fp) == 0)
+	if (write && fget_write(curthread, fd, CAP_WRITE | CAP_SEEK, &fp) ==
+	    0)
 		return (fp);
-	else if (!write && fget_read(curthread, fd, &fp) == 0)
+	else if (!write && fget_read(curthread, CAP_READ | CAP_SEEK,  fd,
+	    &fp) == 0)
 		return (fp);
 	return (NULL);
 }

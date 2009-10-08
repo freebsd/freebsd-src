@@ -1,0 +1,123 @@
+.\"
+.\" Copyright (c) 2009 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED
+.\" ON IN PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND
+.\" UNEXPECTED WAYS.
+.\"
+.\" This software was developed at the University of Cambridge Computer
+.\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 18, 2009
+.Dt PDFORK 2
+.Os
+.Sh NAME
+.Nm pdfork ,
+.Nm pdgetpid ,
+.Nm pdkill ,
+.Nm pdwait
+.Nd System calls to manage process descriptors
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/procdesc.h
+.Ft int
+.Fn pdfork "int *fdp"
+.Ft int
+.Fn pdgetpid "int fd" "pid_t *pidp"
+.Ft int
+.Fn pdkill "int fd" "int signum"
+.Ft int
+.Fn pdwait "int fd" "int *status" "int options" "struct rusage *rusage"
+.Sh DESCRIPTION
+Process descriptors are special file descriptors that represent processes,
+and are created using
+.Fn pdfork ,
+a variant of
+.Xr fork 2 ,
+which, if successful, returns a process descriptor in the integer pointed to
+by
+.Fa pidp .
+.Pp
+.Fn pdgetpid
+queries the process ID (PID) if the process descriptor
+.Fa fd .
+.Pp
+.Fn pdkill
+is functionally identical to
+.Xr kill 2 ,
+except that it accepts a process descriptor,
+.Fa fd ,
+rather than a PID.
+.Pp
+.Fn pdwait
+is currently unimplemented, but in the future will be functionally identical
+to
+.Xr wait4 2 ,
+except that it accepts a process descriptor rather than a PID.
+.Pp
+The following system calls also have effects specific to process descriptors:
+.Pp
+.Xr fstat 2
+queries status of a process descriptor; currently only the
+.Fa sb_mode
+field is defined; if the owner read, write, and execute bits are set then the
+process represented by the process descriptor is still alive.
+.Pp
+.Xr poll 2
+allows waiting for process state transitions; currently only
+.Dv POLLHUP
+is defined, and will be raised when the process dies.
+.Pp
+.Xr close 2
+will close the process descriptor, and if the process is still alive,
+terminate it with the signal
+.Dv SIGKILL .
+.Sh RETURN VALUES
+.Sh ERRORS
+.Sh SEE ALSO
+.Xr close 2 ,
+.Xr fork 2 ,
+.Xr fstat 2 ,
+.Xr kill 2 ,
+.Xr poll 2 ,
+.Xr wait4 2
+.Sh HISTORY
+Support for process descriptors mode was developed as part of the
+.Tn TrustedBSD
+Project.
+.Sh BUGS
+.Fn pdwait
+is not yet implemented.
+.Pp
+WARNING: THIS IS EXPERIMENTAL SECURITY SOFTWARE THAT MUST NOT BE RELIED ON IN
+PRODUCTION SYSTEMS.  IT WILL BREAK YOUR SOFTWARE IN NEW AND UNEXPECTED WAYS.
+.Sh AUTHORS
+These functions and the capability facility were created by
+.An "Robert N. M. Watson" 
+at the University of Cambridge Computer Laboratory with support from a grant
+from Google, Inc.

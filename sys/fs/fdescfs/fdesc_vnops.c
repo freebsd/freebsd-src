@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/filedesc.h>
@@ -305,7 +306,10 @@ fdesc_lookup(ap)
 		fd = fd1;
 	}
 
-	if ((error = fget(td, fd, &fp)) != 0)
+	/*
+	 * XXXRW: 'fp' isn't actually used so no rights to check?
+	 */
+	if ((error = fget(td, fd, 0, &fp)) != 0)
 		goto bad;
 
 	/* Check if we're looking up ourselves. */

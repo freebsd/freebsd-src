@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007-2009 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,6 +27,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
@@ -131,24 +132,146 @@ print_address(struct sockaddr_storage *ss)
 	printf("%s", addr);
 }
 
+static struct cap_desc {
+	cap_rights_t	 cd_right;
+	const char	*cd_desc;
+} cap_desc[] = {
+	{ CAP_READ,		"rd" },
+	{ CAP_WRITE,		"wr" },
+	{ CAP_SEEK,		"se" },
+	{ CAP_GETPEERNAME,	"pn" },
+	{ CAP_GETSOCKNAME,	"sn" },
+	{ CAP_FCHFLAGS,		"cf" },
+	{ CAP_IOCTL,		"io" },
+	{ CAP_FSTAT,		"fs" },
+	{ CAP_MMAP,		"mm" },
+	{ CAP_FCNTL,		"fc" },
+	{ CAP_EVENT,		"ev" },
+	{ CAP_FSYNC,		"fy" },
+	{ CAP_FCHOWN,		"cn" },
+	{ CAP_FCHMOD,		"cm" },
+	{ CAP_FTRUNCATE,	"ft" },
+	{ CAP_FLOCK,		"fl" },
+	{ CAP_FSTATFS,		"sf" },
+	{ CAP_REVOKE,		"rv" },
+	{ CAP_FEXECVE,		"fe" },
+	{ CAP_FPATHCONF,	"fp" },
+	{ CAP_FUTIMES,		"fu" },
+	{ CAP_ACL_GET,		"ag" },
+	{ CAP_ACL_SET,		"as" },
+	{ CAP_ACL_DELETE,	"ad" },
+	{ CAP_ACL_CHECK,	"ac" },
+	{ CAP_EXTATTR_GET,	"eg" },
+	{ CAP_EXTATTR_SET,	"es" },
+	{ CAP_EXTATTR_DELETE,	"ed" },
+	{ CAP_EXTATTR_LIST,	"el" },
+	{ CAP_MAC_GET,		"mg" },
+	{ CAP_MAC_SET,		"ms" },
+	{ CAP_ACCEPT,		"at" },
+	{ CAP_BIND,		"bd" },
+	{ CAP_GETSOCKOPT,	"gs" },
+	{ CAP_SETSOCKOPT,	"ss" },
+	{ CAP_LISTEN,		"ln" },
+	{ CAP_SHUTDOWN,		"sh" },
+	{ CAP_PEELOFF,		"pf" },
+	{ CAP_LOOKUP,		"lo" },
+	{ CAP_SEM_POST,		"sp" },
+	{ CAP_SEM_WAIT,		"sw" },
+	{ CAP_SEM_GETVALUE,	"sg" },
+	{ CAP_KEVENT,		"ke" },
+	{ CAP_PDGETPID,		"pg" },
+	{ CAP_PDWAIT,		"pw" },
+	{ CAP_PDKILL,		"pk" },
+};
+static const u_int	cap_desc_count = sizeof(cap_desc) /
+			    sizeof(cap_desc[0]);
+
+static u_int
+width_capability(cap_rights_t rights)
+{
+	u_int count, i, width;
+
+	count = 0;
+	width = 0;
+	for (i = 0; i < cap_desc_count; i++) {
+		if (rights & cap_desc[i].cd_right) {
+			width += strlen(cap_desc[i].cd_desc);
+			if (count)
+				width++;
+			count++;
+		}
+	}
+	return (width);
+}
+
+static void
+print_capability(cap_rights_t rights, u_int capwidth)
+{
+	u_int count, i, width;
+
+	count = 0;
+	width = 0;
+	for (i = width_capability(rights); i < capwidth; i++) {
+		if (rights || i != (capwidth - 1))
+			printf(" ");
+		else
+			printf("-");
+	}
+	for (i = 0; i < cap_desc_count; i++) {
+		if (rights & cap_desc[i].cd_right) {
+			printf("%s%s", count ? "," : "", cap_desc[i].cd_desc);
+			width += strlen(cap_desc[i].cd_desc);
+			if (count)
+				width++;
+			count++;
+		}
+	}
+}
+
 void
 procstat_files(pid_t pid, struct kinfo_proc *kipp)
 {
 	struct kinfo_file *freep, *kif;
+	u_int capwidth, width;
 	int i, cnt;
 	const char *str;
 
-	if (!hflag)
-		printf("%5s %-16s %4s %1s %1s %-8s %3s %7s %-3s %-12s\n",
-		    "PID", "COMM", "FD", "T", "V", "FLAGS", "REF", "OFFSET",
-		    "PRO", "NAME");
-
+	/*
+	 * To print the header in capability mode, we need to know the width
+	 * of the widest capability string.  Even if we get no processes
+	 * back, we will print the header, so we defer aborting due to a lack
+	 * of processes until after the header logic.
+	 */
+	capwidth = 0;
 	freep = kinfo_getfile(pid, &cnt);
+	if (freep != NULL && Cflag) {
+		for (i = 0; i < cnt; i++) {
+			kif = &freep[i];
+			width = width_capability(kif->kf_cap_rights);
+			if (width > capwidth)
+				capwidth = width;
+		}
+		if (capwidth < strlen("CAPABILITIES"))
+			capwidth = strlen("CAPABILITIES");
+	}
+
+	if (!hflag) {
+		if (Cflag)
+			printf("%5s %-16s %4s %1s %9s %-*s "
+			    "%-3s %-12s\n", "PID", "COMM", "FD", "T",
+			    "FLAGS", capwidth, "CAPABILITIES", "PRO",
+			    "NAME");
+		else
+			printf("%5s %-16s %4s %1s %1s %-9s %3s %7s %-3s "
+			    "%-12s\n", "PID", "COMM", "FD", "T", "V",
+			    "FLAGS", "REF", "OFFSET", "PRO", "NAME");
+	}
+
 	if (freep == NULL)
 		return;
 	for (i = 0; i < cnt; i++) {
 		kif = &freep[i];
-		
+
 		printf("%5d ", pid);
 		printf("%-16s ", kipp->ki_comm);
 		switch (kif->kf_fd) {
@@ -209,6 +332,10 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 			str = "e";
 			break;
 
+		case KF_TYPE_PROCDESC:
+			str = "P";
+			break;
+
 		case KF_TYPE_NONE:
 		case KF_TYPE_UNKNOWN:
 		default:
@@ -216,49 +343,51 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 			break;
 		}
 		printf("%1s ", str);
-		str = "-";
-		if (kif->kf_type == KF_TYPE_VNODE) {
-			switch (kif->kf_vnode_type) {
-			case KF_VTYPE_VREG:
-				str = "r";
-				break;
+		if (!Cflag) {
+			str = "-";
+			if (kif->kf_type == KF_TYPE_VNODE) {
+				switch (kif->kf_vnode_type) {
+				case KF_VTYPE_VREG:
+					str = "r";
+					break;
 
-			case KF_VTYPE_VDIR:
-				str = "d";
-				break;
+				case KF_VTYPE_VDIR:
+					str = "d";
+					break;
 
-			case KF_VTYPE_VBLK:
-				str = "b";
-				break;
+				case KF_VTYPE_VBLK:
+					str = "b";
+					break;
 
-			case KF_VTYPE_VCHR:
-				str = "c";
-				break;
+				case KF_VTYPE_VCHR:
+					str = "c";
+					break;
 
-			case KF_VTYPE_VLNK:
-				str = "l";
-				break;
+				case KF_VTYPE_VLNK:
+					str = "l";
+					break;
 
-			case KF_VTYPE_VSOCK:
-				str = "s";
-				break;
+				case KF_VTYPE_VSOCK:
+					str = "s";
+					break;
 
-			case KF_VTYPE_VFIFO:
-				str = "f";
-				break;
+				case KF_VTYPE_VFIFO:
+					str = "f";
+					break;
 
-			case KF_VTYPE_VBAD:
-				str = "x";
-				break;
+				case KF_VTYPE_VBAD:
+					str = "x";
+					break;
 
-			case KF_VTYPE_VNON:
-			case KF_VTYPE_UNKNOWN:
-			default:
-				str = "?";
-				break;
+				case KF_VTYPE_VNON:
+				case KF_VTYPE_UNKNOWN:
+				default:
+					str = "?";
+					break;
+				}
 			}
+			printf("%1s ", str);
 		}
-		printf("%1s ", str);
 		printf("%s", kif->kf_flags & KF_FLAG_READ ? "r" : "-");
 		printf("%s", kif->kf_flags & KF_FLAG_WRITE ? "w" : "-");
 		printf("%s", kif->kf_flags & KF_FLAG_APPEND ? "a" : "-");
@@ -266,28 +395,52 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 		printf("%s", kif->kf_flags & KF_FLAG_FSYNC ? "f" : "-");
 		printf("%s", kif->kf_flags & KF_FLAG_NONBLOCK ? "n" : "-");
 		printf("%s", kif->kf_flags & KF_FLAG_DIRECT ? "d" : "-");
-		printf("%s ", kif->kf_flags & KF_FLAG_HASLOCK ? "l" : "-");
-		if (kif->kf_ref_count > -1)
-			printf("%3d ", kif->kf_ref_count);
-		else
-			printf("%3c ", '-');
-		if (kif->kf_offset > -1)
-			printf("%7jd ", (intmax_t)kif->kf_offset);
-		else
-			printf("%7c ", '-');
+		printf("%s", kif->kf_flags & KF_FLAG_HASLOCK ? "l" : "-");
+		printf("%s ", kif->kf_flags & KF_FLAG_CAPABILITY ? "c" : "-");
+		if (!Cflag) {
+			if (kif->kf_ref_count > -1)
+				printf("%3d ", kif->kf_ref_count);
+			else
+				printf("%3c ", '-');
+			if (kif->kf_offset > -1)
+				printf("%7jd ", (intmax_t)kif->kf_offset);
+			else
+				printf("%7c ", '-');
+		}
+
+		if (Cflag) {
+			print_capability(kif->kf_cap_rights, capwidth);
+			printf(" ");
+		}
 
 		switch (kif->kf_type) {
 		case KF_TYPE_VNODE:
 		case KF_TYPE_FIFO:
 		case KF_TYPE_PTS:
 			printf("%-3s ", "-");
-			printf("%-18s", kif->kf_path);
 			break;
 
 		case KF_TYPE_SOCKET:
 			printf("%-3s ",
 			    protocol_to_string(kif->kf_sock_domain,
 			    kif->kf_sock_type, kif->kf_sock_protocol));
+			break;
+
+		case KF_TYPE_PROCDESC:
+			printf("%-3s %d", "-", kif->kf_pid);
+			break;
+
+		default:
+			printf("%-3s ", "-");
+		}
+
+		switch (kif->kf_type) {
+		case KF_TYPE_VNODE:
+		case KF_TYPE_FIFO:
+		case KF_TYPE_PTS:
+			printf("%-18s", kif->kf_path);
+
+		case KF_TYPE_SOCKET:
 			/*
 			 * While generally we like to print two addresses,
 			 * local and peer, for sockets, it turns out to be
@@ -310,8 +463,11 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 			}
 			break;
 
+		case KF_TYPE_PROCDESC:
+			printf("%d", kif->kf_pid);
+			break;
+
 		default:
-			printf("%-3s ", "-");
 			printf("%-18s", "-");
 		}
 

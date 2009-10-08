@@ -866,7 +866,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * protection options specified.
 		 */
 
-		if ((error = fget(td, bsd_args.fd, &fp)) != 0)
+		if ((error = fget(td, bsd_args.fd, CAP_MMAP, &fp)) != 0)
 			return (error);
 		if (fp->f_type != DTYPE_VNODE) {
 			fdrop(fp, td);

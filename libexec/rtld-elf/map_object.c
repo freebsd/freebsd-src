@@ -44,7 +44,8 @@ static int convert_flags(int); /* Elf flags -> mmap flags */
 
 /*
  * Map a shared object into memory.  The "fd" argument is a file descriptor,
- * which must be open on the object and positioned at its beginning.
+ * which must be open on the object.
+ *
  * The "path" argument is a pathname that is used only for error messages.
  *
  * The return value is a pointer to a newly-allocated Obj_Entry structure
@@ -83,6 +84,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Addr bss_vaddr;
     Elf_Addr bss_vlimit;
     caddr_t bss_addr;
+    int mmap_flags;
 
     hdr = get_elf_header(fd, path);
     if (hdr == NULL)
@@ -152,8 +154,10 @@ map_object(int fd, const char *path, const struct stat *sb)
     mapsize = base_vlimit - base_vaddr;
     base_addr = hdr->e_type == ET_EXEC ? (caddr_t) base_vaddr : NULL;
 
-    mapbase = mmap(base_addr, mapsize, PROT_NONE, MAP_ANON | MAP_PRIVATE |
-      MAP_NOCORE, -1, 0);
+    mmap_flags = MAP_ANON | MAP_PRIVATE | MAP_NOCORE;
+    if (base_addr != NULL)
+	mmap_flags |= MAP_FIXED;
+    mapbase = mmap(base_addr, mapsize, PROT_NONE, mmap_flags, -1, 0);
     if (mapbase == (caddr_t) -1) {
 	_rtld_error("%s: mmap of entire address space failed: %s",
 	  path, strerror(errno));

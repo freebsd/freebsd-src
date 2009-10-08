@@ -62,9 +62,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capabilities.h"
 #include "opt_quota.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -2411,7 +2413,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (cmd.version != FFS_CMD_VERSION)
 		return (ERPCMISMATCH);
-	if ((error = getvnode(curproc->p_fd, cmd.handle, &fp)) != 0)
+	if ((error = getvnode_cap(curproc->p_fd, cmd.handle, CAP_FSCK, &fp))
+	    != 0)
 		return (error);
 	vn_start_write(fp->f_data, &mp, V_WAIT);
 	if (mp == 0 || strncmp(mp->mnt_stat.f_fstypename, "ufs", MFSNAMELEN)) {

@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/domain.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
@@ -112,7 +113,10 @@ portal_mount(struct mount *mp)
 	if (error)
 		return (error);
 
-	if ((error = fget(td, v, &fp)) != 0)
+	/*
+	 * XXXRW: I suppose we want CAP_SOCK_ALL here?
+	 */
+	if ((error = fget(td, v, CAP_READ | CAP_WRITE, &fp)) != 0)
 		return (error);
         if (fp->f_type != DTYPE_SOCKET) {
 		fdrop(fp, td);

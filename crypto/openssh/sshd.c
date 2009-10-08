@@ -46,6 +46,7 @@
 __RCSID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/capability.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #ifdef HAVE_SYS_STAT_H
@@ -620,6 +621,8 @@ privsep_preauth_child(void)
 		fatal("setgroups: %.100s", strerror(errno));
 	permanently_set_uid(privsep_pw);
 #endif
+	if (cap_enter() != 0 && errno != ENOSYS)
+		fatal("cap_enter: %.100s", strerror(errno));
 }
 
 static int

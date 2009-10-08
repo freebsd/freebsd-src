@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_freebsd.h>
 
+#include <sys/capability.h>
+
 #ifndef _PATH_VAREMPTY
 #define	_PATH_VAREMPTY	"/var/empty"
 #endif
@@ -437,6 +439,9 @@ main(int argc, char *argv[])
 
 	if (immediate_daemon)
 		go_daemon();
+
+	if (cap_enter() != 0 && errno != ENOSYS)
+		error("cap_enter");
 
 	ifi->client->state = S_INIT;
 	state_reboot(ifi);

@@ -5,16 +5,22 @@
 
 PROG=		gzip
 MAN=		gzip.1 gzexe.1 zdiff.1 zforce.1 zmore.1 znew.1
+SRCS=		gzip.c gzsandbox.c
 
-DPADD=		${LIBZ}
-LDADD=		-lz
+DPADD=		${LIBZ} ${LIBCAPABILITY}
+LDADD=		-lz -lcapability
 WARNS?=		6
+CFLAGS+=	-rdynamic			# For sandbox cap_main
 
 .if ${MK_BZIP2_SUPPORT} != "no"
 DPADD+=		${LIBBZ2}
 LDADD+=		-lbz2
 .else
 CFLAGS+=	-DNO_BZIP2_SUPPORT
+.endif
+
+.if defined(RESCUE)
+CFLAGS+=	-DNO_SANDBOX_SUPPORT
 .endif
 
 SCRIPTS=	gzexe zdiff zforce zmore znew
@@ -27,6 +33,7 @@ MLINKS+=	gzip.1 gunzip.1 \
 LINKS+=		${BINDIR}/gzip ${BINDIR}/gunzip \
 		${BINDIR}/gzip ${BINDIR}/gzcat \
 		${BINDIR}/gzip ${BINDIR}/zcat \
-		${BINDIR}/zdiff ${BINDIR}/zcmp
+		${BINDIR}/zdiff ${BINDIR}/zcmp \
+		${BINDIR}/gzip ${BINDIR}/gzip_sandbox
 
 .include <bsd.prog.mk>

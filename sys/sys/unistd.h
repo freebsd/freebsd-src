@@ -180,8 +180,9 @@
 #define	RFLINUXTHPN	(1<<16)	/* do linux clone exit parent notification */
 #define	RFSTOPPED	(1<<17)	/* leave child in a stopped state */
 #define	RFHIGHPID	(1<<18)	/* use a pid higher than 10 (idleproc) */
+#define	RFPROCDESC	(1<<19)	/* return a process descriptor */
 #define	RFPPWAIT	(1<<31)	/* parent sleeps until child exits (vfork) */
-#define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPPWAIT)
+#define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPPWAIT | RFPROCDESC)
 
 #endif /* __BSD_VISIBLE */
 

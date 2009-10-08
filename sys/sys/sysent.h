@@ -63,6 +63,11 @@ struct sysent {			/* system call table */
 	u_int32_t sy_flags;	/* General flags for system calls. */
 };
 
+/*
+ * struct sysent flags
+ */
+#define	SYF_CAPENABLED	0x00000001
+
 struct image_params;
 struct __sigset;
 struct trapframe;

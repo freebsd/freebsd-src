@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -244,7 +245,7 @@ __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	}
 
 	buffer = malloc(mac.m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	error = fget(td, uap->fd, &fp);
+	error = fget(td, uap->fd, CAP_MAC_GET, &fp);
 	if (error)
 		goto out;
 
@@ -439,7 +440,7 @@ __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 		return (error);
 	}
 
-	error = fget(td, uap->fd, &fp);
+	error = fget(td, uap->fd, CAP_MAC_SET, &fp);
 	if (error)
 		goto out;
 

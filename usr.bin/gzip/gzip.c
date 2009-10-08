@@ -66,6 +66,8 @@ __RCSID("$FreeBSD$");
 #include <getopt.h>
 #include <time.h>
 
+#include "gzip.h"
+
 #ifndef PRIdOFF
 #define PRIdOFF PRId64
 #endif
@@ -218,8 +220,6 @@ static	enum filetype file_gettype(u_char *);
 #ifdef SMALL
 #define gz_compress(if, of, sz, fn, tm) gz_compress(if, of, sz)
 #endif
-static	off_t	gz_compress(int, int, off_t *, const char *, uint32_t);
-static	off_t	gz_uncompress(int, int, char *, size_t, off_t *, const char *);
 static	off_t	file_compress(char *, char *, size_t);
 static	off_t	file_uncompress(char *, char *, size_t);
 static	void	handle_pathname(char *);
@@ -246,10 +246,6 @@ static	void	print_verbage(const char *, const char *, off_t, off_t);
 static	void	print_test(const char *, int);
 static	void	copymodes(int fd, const struct stat *, const char *file);
 static	int	check_outfile(const char *outfile);
-#endif
-
-#ifndef NO_BZIP2_SUPPORT
-static	off_t	unbzip2(int, int, char *, size_t, off_t *);
 #endif
 
 #ifndef NO_COMPRESS_SUPPORT
@@ -544,7 +540,7 @@ copy_done:
 #endif
 
 /* compress input to output. Return bytes read, -1 on error */
-static off_t
+off_t
 gz_compress(int in, int out, off_t *gsizep, const char *origname, uint32_t mtime)
 {
 	z_stream z;
@@ -711,7 +707,7 @@ out:
  * uncompressed size written, and put the compressed sized read
  * into `*gsizep'.
  */
-static off_t
+off_t
 gz_uncompress(int in, int out, char *pre, size_t prelen, off_t *gsizep,
 	      const char *filename)
 {
@@ -1261,7 +1257,8 @@ file_compress(char *file, char *outfile, size_t outsize)
 	} else
 		out = STDOUT_FILENO;
 
-	insize = gz_compress(in, out, &size, basename(file), (uint32_t)isb.st_mtime);
+	insize = gz_compress_wrapper(in, out, &size, basename(file),
+		    (uint32_t)isb.st_mtime);
 
 	(void)close(in);
 
@@ -1437,7 +1434,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 			goto lose;
 		}
 
-		size = unbzip2(fd, zfd, NULL, 0, NULL);
+		size = unbzip2_wrapper(fd, zfd, NULL, 0, NULL);
 	} else
 #endif
 
@@ -1505,7 +1502,7 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 			return -1;	/* XXX */
 		}
 
-		size = gz_uncompress(fd, zfd, NULL, 0, NULL, file);
+		size = gz_uncompress_wrapper(fd, zfd, NULL, 0, NULL, file);
 	}
 
 	if (close(fd) != 0)
@@ -1662,12 +1659,12 @@ handle_stdin(void)
 		break;
 #endif
 	case FT_GZIP:
-		usize = gz_uncompress(STDIN_FILENO, STDOUT_FILENO, 
-			      (char *)header1, sizeof header1, &gsize, "(stdin)");
+		usize = gz_uncompress_wrapper(STDIN_FILENO, STDOUT_FILENO,
+		    (char *)header1, sizeof header1, &gsize, "(stdin)");
 		break;
 #ifndef NO_BZIP2_SUPPORT
 	case FT_BZIP2:
-		usize = unbzip2(STDIN_FILENO, STDOUT_FILENO,
+		usize = unbzip2_wrapper(STDIN_FILENO, STDOUT_FILENO,
 				(char *)header1, sizeof header1, &gsize);
 		break;
 #endif
@@ -1736,8 +1733,9 @@ handle_stdout(void)
 #endif
 		mtime = (uint32_t)systime;
 	}
-	 		
-	usize = gz_compress(STDIN_FILENO, STDOUT_FILENO, &gsize, "", mtime);
+
+	usize = gz_compress_wrapper(STDIN_FILENO, STDOUT_FILENO, &gsize, "",
+	    mtime);
 #ifndef SMALL
         if (vflag && !tflag && usize != -1 && gsize != -1)
 		print_verbage(NULL, NULL, usize, gsize);
