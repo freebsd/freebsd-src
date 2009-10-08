@@ -717,6 +717,12 @@ initializecpu(void)
 	 */
 	if ((cpu_feature & CPUID_CLFSH) != 0)
 		cpu_clflush_line_size = ((cpu_procinfo >> 8) & 0xff) * 8;
+	/*
+	 * XXXKIB: (temporary) hack to work around traps generated when
+	 * CLFLUSHing APIC registers window.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_INTEL && !(cpu_feature & CPUID_SS))
+		cpu_feature &= ~CPUID_CLFSH;
 
 #if defined(PC98) && !defined(CPU_UPGRADE_HW_CACHE)
 	/*

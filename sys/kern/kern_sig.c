@@ -1888,7 +1888,7 @@ sigtd(struct proc *p, int sig, int prop)
 
 	/*
 	 * Check if current thread can handle the signal without
-	 * switching conetxt to another thread.
+	 * switching context to another thread.
 	 */
 	if (curproc == p && !SIGISMEMBER(curthread->td_sigmask, sig))
 		return (curthread);

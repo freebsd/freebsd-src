@@ -116,22 +116,6 @@ __FBSDID("$FreeBSD$");
  *	another, and then marking both regions as copy-on-write.
  */
 
-/*
- *	vm_map_startup:
- *
- *	Initialize the vm_map module.  Must be called before
- *	any other vm_map routines.
- *
- *	Map and entry structures are allocated from the general
- *	purpose memory pool with some exceptions:
- *
- *	- The kernel map and kmem submap are allocated statically.
- *	- Kernel map entries are allocated out of a static pool.
- *
- *	These restrictions are necessary since malloc() uses the
- *	maps and requires map entries.
- */
-
 static struct mtx map_sleep_mtx;
 static uma_zone_t mapentzone;
 static uma_zone_t kmapentzone;
@@ -175,6 +159,22 @@ static void vmspace_zdtor(void *mem, int size, void *arg);
 		if (start > end)			\
 			start = end;			\
 		}
+
+/*
+ *	vm_map_startup:
+ *
+ *	Initialize the vm_map module.  Must be called before
+ *	any other vm_map routines.
+ *
+ *	Map and entry structures are allocated from the general
+ *	purpose memory pool with some exceptions:
+ *
+ *	- The kernel map and kmem submap are allocated statically.
+ *	- Kernel map entries are allocated out of a static pool.
+ *
+ *	These restrictions are necessary since malloc() uses the
+ *	maps and requires map entries.
+ */
 
 void
 vm_map_startup(void)
