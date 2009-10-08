@@ -184,6 +184,8 @@ static struct nlist nl[] = {
 	{ .n_name = "_sctpstat" },
 #define	N_MFCTABLESIZE	54
 	{ .n_name = "_mfctablesize" },
+#define	N_UNP_SPHEAD    55
+	{ .n_name = "unp_sphead" },
 	{ .n_name = NULL },
 };
 
@@ -597,7 +599,8 @@ main(int argc, char *argv[])
 #endif /* NETGRAPH */
 	if ((af == AF_UNIX || af == AF_UNSPEC) && !sflag)
 		unixpr(nl[N_UNP_COUNT].n_value, nl[N_UNP_GENCNT].n_value,
-		    nl[N_UNP_DHEAD].n_value, nl[N_UNP_SHEAD].n_value);
+		    nl[N_UNP_DHEAD].n_value, nl[N_UNP_SHEAD].n_value,
+		    nl[N_UNP_SPHEAD].n_value);
 	exit(0);
 }
 
