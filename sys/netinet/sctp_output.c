@@ -5602,8 +5602,6 @@ sctp_insert_on_wheel(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     struct sctp_stream_out *strq, int holds_lock)
 {
-	struct sctp_stream_out *stre, *strn;
-
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
 	}
@@ -5612,26 +5610,7 @@ sctp_insert_on_wheel(struct sctp_tcb *stcb,
 		/* already on wheel */
 		goto outof_here;
 	}
-	stre = TAILQ_FIRST(&asoc->out_wheel);
-	if (stre == NULL) {
-		/* only one on wheel */
-		TAILQ_INSERT_HEAD(&asoc->out_wheel, strq, next_spoke);
-		goto outof_here;
-	}
-	for (; stre; stre = strn) {
-		strn = TAILQ_NEXT(stre, next_spoke);
-		if (stre->stream_no > strq->stream_no) {
-			TAILQ_INSERT_BEFORE(stre, strq, next_spoke);
-			goto outof_here;
-		} else if (stre->stream_no == strq->stream_no) {
-			/* huh, should not happen */
-			goto outof_here;
-		} else if (strn == NULL) {
-			/* next one is null */
-			TAILQ_INSERT_AFTER(&asoc->out_wheel, stre, strq,
-			    next_spoke);
-		}
-	}
+	TAILQ_INSERT_TAIL(&asoc->out_wheel, strq, next_spoke);
 outof_here:
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
@@ -7202,8 +7181,6 @@ done_it:
 	if (strq == NULL) {
 		strq = asoc->last_out_stream = TAILQ_FIRST(&asoc->out_wheel);
 	}
-	/* Save off the last stream */
-	asoc->last_out_stream = strq;
 	return (strq);
 
 }
@@ -7280,7 +7257,9 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		bail = 0;
 		moved_how_much = sctp_move_to_outqueue(stcb, net, strq, goal_mtu, frag_point, &locked,
 		    &giveup, eeor_mode, &bail);
-		asoc->last_out_stream = strq;
+		if (moved_how_much)
+			asoc->last_out_stream = strq;
+
 		if (locked) {
 			asoc->locked_on_sending = strq;
 			if ((moved_how_much == 0) || (giveup) || bail)
