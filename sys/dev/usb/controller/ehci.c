@@ -3828,4 +3828,5 @@ struct usb_bus_methods ehci_bus_methods =
 	.device_suspend = ehci_device_suspend,
 	.set_hw_power = ehci_set_hw_power,
 	.roothub_exec = ehci_roothub_exec,
+	.xfer_poll = ehci_do_poll,
 };

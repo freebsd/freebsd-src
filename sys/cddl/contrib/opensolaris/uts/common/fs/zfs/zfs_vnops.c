@@ -4502,6 +4502,11 @@ vop_getextattr {
 	vnode_t *xvp = NULL, *vp;
 	int error, flags;
 
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VREAD);
+	if (error != 0)
+		return (error);
+
 	error = zfs_create_attrname(ap->a_attrnamespace, ap->a_name, attrname,
 	    sizeof(attrname));
 	if (error != 0)
@@ -4523,6 +4528,8 @@ vop_getextattr {
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0) {
+		if (error == ENOENT)
+			error = ENOATTR;
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -4564,6 +4571,11 @@ vop_deleteextattr {
 	vnode_t *xvp = NULL, *vp;
 	int error, flags;
 
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VWRITE);
+	if (error != 0)
+		return (error);
+
 	error = zfs_create_attrname(ap->a_attrnamespace, ap->a_name, attrname,
 	    sizeof(attrname));
 	if (error != 0)
@@ -4584,6 +4596,8 @@ vop_deleteextattr {
 	vp = nd.ni_vp;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0) {
+		if (error == ENOENT)
+			error = ENOATTR;
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -4623,6 +4637,11 @@ vop_setextattr {
 	vnode_t *xvp = NULL, *vp;
 	int error, flags;
 
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VWRITE);
+	if (error != 0)
+		return (error);
+
 	error = zfs_create_attrname(ap->a_attrnamespace, ap->a_name, attrname,
 	    sizeof(attrname));
 	if (error != 0)
@@ -4631,7 +4650,7 @@ vop_setextattr {
 	ZFS_ENTER(zfsvfs);
 
 	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
-	    LOOKUP_XATTR);
+	    LOOKUP_XATTR | CREATE_XATTR_DIR);
 	if (error != 0) {
 		ZFS_EXIT(zfsvfs);
 		return (error);
@@ -4690,6 +4709,11 @@ vop_listextattr {
 	vnode_t *xvp = NULL, *vp;
 	int done, error, eof, pos;
 
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, VREAD);
+	if (error)
+		return (error);
+
 	error = zfs_create_attrname(ap->a_attrnamespace, "", attrprefix,
 	    sizeof(attrprefix));
 	if (error != 0)
@@ -4698,9 +4722,18 @@ vop_listextattr {
 
 	ZFS_ENTER(zfsvfs);
 
+	if (sizep != NULL)
+		*sizep = 0;
+
 	error = zfs_lookup(ap->a_vp, NULL, &xvp, NULL, 0, ap->a_cred, td,
 	    LOOKUP_XATTR);
 	if (error != 0) {
+		/*
+		 * ENOATTR means that the EA directory does not yet exist,
+		 * i.e. there are no extended attributes there.
+		 */
+		if (error == ENOATTR)
+			error = 0;
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -4721,9 +4754,6 @@ vop_listextattr {
 	auio.uio_td = td;
 	auio.uio_rw = UIO_READ;
 	auio.uio_offset = 0;
-
-	if (sizep != NULL)
-		*sizep = 0;
 
 	do {
 		u_char nlen;

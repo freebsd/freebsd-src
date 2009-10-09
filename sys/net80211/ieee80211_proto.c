@@ -50,6 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_sta.h>
 #include <net80211/ieee80211_hostap.h>
 #include <net80211/ieee80211_wds.h>
+#ifdef IEEE80211_SUPPORT_MESH
+#include <net80211/ieee80211_mesh.h>
+#endif
 #include <net80211/ieee80211_monitor.h>
 #include <net80211/ieee80211_input.h>
 
@@ -75,7 +78,8 @@ const char *ieee80211_opmode_name[IEEE80211_OPMODE_MAX] = {
 	"WDS",		/* IEEE80211_M_WDS */
 	"AHDEMO",	/* IEEE80211_M_AHDEMO */
 	"HOSTAP",	/* IEEE80211_M_HOSTAP */
-	"MONITOR"	/* IEEE80211_M_MONITOR */
+	"MONITOR",	/* IEEE80211_M_MONITOR */
+	"MBSS"		/* IEEE80211_M_MBSS */
 };
 const char *ieee80211_state_name[IEEE80211_S_MAX] = {
 	"INIT",		/* IEEE80211_S_INIT */
@@ -152,6 +156,9 @@ ieee80211_proto_attach(struct ieee80211com *ic)
 	ieee80211_sta_attach(ic);
 	ieee80211_wds_attach(ic);
 	ieee80211_hostap_attach(ic);
+#ifdef IEEE80211_SUPPORT_MESH
+	ieee80211_mesh_attach(ic);
+#endif
 	ieee80211_monitor_attach(ic);
 }
 
@@ -159,6 +166,9 @@ void
 ieee80211_proto_detach(struct ieee80211com *ic)
 {
 	ieee80211_monitor_detach(ic);
+#ifdef IEEE80211_SUPPORT_MESH
+	ieee80211_mesh_detach(ic);
+#endif
 	ieee80211_hostap_detach(ic);
 	ieee80211_wds_detach(ic);
 	ieee80211_adhoc_detach(ic);
@@ -1456,7 +1466,8 @@ ieee80211_csa_startswitch(struct ieee80211com *ic,
 	ic->ic_flags |= IEEE80211_F_CSAPENDING;
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
-		    vap->iv_opmode == IEEE80211_M_IBSS)
+		    vap->iv_opmode == IEEE80211_M_IBSS ||
+		    vap->iv_opmode == IEEE80211_M_MBSS)
 			ieee80211_beacon_notify(vap, IEEE80211_BEACON_CSA);
 		/* switch to CSA state to block outbound traffic */
 		if (vap->iv_state == IEEE80211_S_RUN)

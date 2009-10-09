@@ -914,7 +914,7 @@ ata_ahci_dmainit(device_t dev)
     ata_dmainit(dev);
     /* note start and stop are not used here */
     ch->dma.setprd = ata_ahci_dmasetprd;
-    ch->dma.max_iosize = 8192 * DEV_BSIZE;
+    ch->dma.max_iosize = (ATA_AHCI_DMA_ENTRIES - 1) * PAGE_SIZE;
     if (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_64BIT)
 	ch->dma.max_address = BUS_SPACE_MAXADDR;
 }

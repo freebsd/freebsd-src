@@ -2208,7 +2208,8 @@ iwi_get_firmware(struct iwi_softc *sc, enum ieee80211_opmode opmode)
 			  &sc->fw_uc, "iwi_ucode_monitor");
 		break;
 	default:
-		break;
+		device_printf(sc->sc_dev, "unknown opmode %d\n", opmode);
+		return EINVAL;
 	}
 	fp = sc->fw_fw.fp;
 	if (fp == NULL) {

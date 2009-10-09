@@ -208,7 +208,7 @@ device		ums		# Mouse
 #options 	KTR
 #options 	KTR_MASK=(KTR_TRAP)
 #options 		USB_DEBUG
-#options 		USBVERBOSE
+#options 		USB_VERBOSE
 #options 		DEBUG_LOCKS
 #options 		DEBUG_VFS_LOCKS
 

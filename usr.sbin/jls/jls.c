@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #define	PRINT_VERBOSE	0x20
 
 static struct jailparam *params;
-static int *param_noparent;
+static int *param_parent;
 static int nparams;
 
 static int add_param(const char *name, void *value, size_t valuelen,
@@ -71,7 +71,7 @@ static void quoted_print(char *str);
 int
 main(int argc, char **argv)
 {
-	char *dot, *ep, *jname, *nname;
+	char *dot, *ep, *jname;
 	int c, i, jflags, jid, lastjid, pflags, spc;
 
 	jname = NULL;
@@ -88,7 +88,8 @@ main(int argc, char **argv)
 				jname = optarg;
 			break;
 		case 'h':
-			pflags = (pflags & ~PRINT_SKIP) | PRINT_HEADER;
+			pflags = (pflags & ~(PRINT_SKIP | PRINT_VERBOSE)) |
+			    PRINT_HEADER;
 			break;
 		case 'n':
 			pflags = (pflags & ~PRINT_VERBOSE) | PRINT_NAMEVAL;
@@ -101,7 +102,8 @@ main(int argc, char **argv)
 			    PRINT_NAMEVAL | PRINT_QUOTED | PRINT_SKIP;
 			break;
 		case 'v':
-			pflags = (pflags & ~(PRINT_NAMEVAL | PRINT_SKIP)) |
+			pflags = (pflags &
+			    ~(PRINT_HEADER | PRINT_NAMEVAL | PRINT_SKIP)) |
 			    PRINT_VERBOSE;
 			break;
 		default:
@@ -110,7 +112,9 @@ main(int argc, char **argv)
 
 	/* Add the parameters to print. */
 	if (optind == argc) {
-		if (pflags & PRINT_VERBOSE) {
+		if (pflags & (PRINT_HEADER | PRINT_NAMEVAL))
+			add_param("all", NULL, (size_t)0, NULL, JP_USER);
+		else if (pflags & PRINT_VERBOSE) {
 			add_param("jid", NULL, (size_t)0, NULL, JP_USER);
 			add_param("host.hostname", NULL, (size_t)0, NULL,
 			    JP_USER);
@@ -122,9 +126,7 @@ main(int argc, char **argv)
 			add_param("ip6.addr", NULL, (size_t)0, NULL,
 			    JP_USER | JP_OPT);
 		} else {
-			pflags = (pflags &
-			    ~(PRINT_NAMEVAL | PRINT_SKIP | PRINT_VERBOSE)) |
-			    PRINT_DEFAULT;
+			pflags |= PRINT_DEFAULT;
 			add_param("jid", NULL, (size_t)0, NULL, JP_USER);
 			add_param("ip4.addr", NULL, (size_t)0, NULL, JP_USER);
 			add_param("host.hostname", NULL, (size_t)0, NULL,
@@ -137,17 +139,14 @@ main(int argc, char **argv)
 			    JP_USER);
 
 	if (pflags & PRINT_SKIP) {
-		/* Check for parameters with boolean parents. */
+		/* Check for parameters with jailsys parents. */
 		for (i = 0; i < nparams; i++) {
 			if ((params[i].jp_flags & JP_USER) &&
 			    (dot = strchr(params[i].jp_name, '.'))) {
 				*dot = 0;
-				nname = noname(params[i].jp_name);
+				param_parent[i] = add_param(params[i].jp_name,
+				    NULL, (size_t)0, NULL, JP_OPT);
 				*dot = '.';
-				param_noparent[i] =
-				    add_param(nname, NULL, (size_t)0, NULL,
-					JP_OPT);
-				free(nname);
 			}
 		}
 	}
@@ -235,21 +234,20 @@ add_param(const char *name, void *value, size_t valuelen,
 	if (!nparams) {
 		paramlistsize = 32;
 		params = malloc(paramlistsize * sizeof(*params));
-		param_noparent =
-		    malloc(paramlistsize * sizeof(*param_noparent));
-		if (params == NULL || param_noparent == NULL)
+		param_parent = malloc(paramlistsize * sizeof(*param_parent));
+		if (params == NULL || param_parent == NULL)
 			err(1, "malloc");
 	} else if (nparams >= paramlistsize) {
 		paramlistsize *= 2;
 		params = realloc(params, paramlistsize * sizeof(*params));
-		param_noparent = realloc(param_noparent,
-		    paramlistsize * sizeof(*param_noparent));
-		if (params == NULL || param_noparent == NULL)
+		param_parent = realloc(param_parent,
+		    paramlistsize * sizeof(*param_parent));
+		if (params == NULL || param_parent == NULL)
 			err(1, "realloc");
 	}
 
 	/* Look up the parameter. */
-	param_noparent[nparams] = -1;
+	param_parent[nparams] = -1;
 	param = params + nparams++;
 	if (source != NULL) {
 		*param = *source;
@@ -385,8 +383,9 @@ print_jail(int pflags, int jflags)
 			if ((pflags & PRINT_SKIP) &&
 			    ((!(params[i].jp_ctltype &
 				(CTLFLAG_WR | CTLFLAG_TUN))) ||
-			     (param_noparent[i] >= 0 &&
-			      *(int *)params[param_noparent[i]].jp_value)))
+			     (param_parent[i] >= 0 &&
+			      *(int *)params[param_parent[i]].jp_value !=
+			      JAIL_SYS_NEW)))
 				continue;
 			if (spc)
 				putchar(' ');

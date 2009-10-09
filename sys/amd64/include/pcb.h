@@ -72,12 +72,13 @@ struct pcb {
 	struct	savefpu	pcb_save;
 	uint16_t	pcb_initial_fpucw;
 
-	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
+	caddr_t		pcb_onfault; /* copyin/out fault recovery */
 
 	/* 32-bit segment descriptor */
 	struct user_segment_descriptor	pcb_gs32sd;
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;
+	char		pcb_full_iret;
 };
 
 struct xpcb {

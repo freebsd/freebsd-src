@@ -1488,7 +1488,9 @@ psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 	if (sc->state & PSM_OPEN)
 		return (EBUSY);
 
+	newbus_xlock();
 	device_busy(devclass_get_device(psm_devclass, unit));
+	newbus_xunlock();
 
 	/* Initialize state */
 	sc->mode.level = sc->dflt_mode.level;
@@ -1643,7 +1645,9 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	/* close is almost always successful */
 	sc->state &= ~PSM_OPEN;
 	kbdc_lock(sc->kbdc, FALSE);
+	newbus_xlock();
 	device_unbusy(devclass_get_device(psm_devclass, unit));
+	newbus_xunlock();
 	return (0);
 }
 

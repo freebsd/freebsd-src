@@ -34,6 +34,8 @@
 #define _NETINET_TCP_SYNCACHE_H_
 #ifdef _KERNEL
 
+struct toeopt;
+
 void	 syncache_init(void);
 #ifdef VIMAGE
 void	syncache_destroy(void);
@@ -41,11 +43,11 @@ void	syncache_destroy(void);
 void	 syncache_unreach(struct in_conninfo *, struct tcphdr *);
 int	 syncache_expand(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct socket **, struct mbuf *);
-int	 tcp_offload_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
+int	 tcp_offload_syncache_expand(struct in_conninfo *inc, struct toeopt *toeo,
              struct tcphdr *th, struct socket **lsop, struct mbuf *m);
 void	 syncache_add(struct in_conninfo *, struct tcpopt *,
 	     struct tcphdr *, struct inpcb *, struct socket **, struct mbuf *);
-void	 tcp_offload_syncache_add(struct in_conninfo *, struct tcpopt *,
+void	 tcp_offload_syncache_add(struct in_conninfo *, struct toeopt *,
              struct tcphdr *, struct inpcb *, struct socket **,
              struct toe_usrreqs *tu, void *toepcb);
 

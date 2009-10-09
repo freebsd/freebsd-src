@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2007, 2008 Rui Paulo <rpaulo@FreeBSD.org>
+.\" Copyright (c) 2007, 2008, 2009 Rui Paulo <rpaulo@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2008
+.Dd July 27, 2009
 .Dt ASMC 4
 .Os
 .Sh NAME
@@ -54,11 +54,17 @@ The SMC is known to be found on the following systems:
 .Pp
 .Bl -bullet -offset indent -compact
 .It
-MacBook (any generation)
+MacBook
 .It
-MacBook Pro (any generation)
+MacBook Pro
 .It
 Intel MacMini
+.It
+Mac Pro
+.It
+MacBook Air
+.It
+Intel iMac
 .El
 .Pp
 With this driver, you can configure your keyboard backlight
@@ -72,15 +78,16 @@ under the device tree
 .Sh KEYBOARD BACKLIGHT
 On
 .Tn MacBook Pro
-systems, you can control the keyboard brightness by writing values to
+systems, you can control the keyboard brightness by writing a value to
 the
+.Va dev.asmc.%d.light.control
+sysctl MIB.
+.Pp
+The following sysctl MIBs contains the raw value returned by the left
+and right light sensors:
 .Va dev.asmc.%d.light.left
 or
-.Va dev.asmc.%d.light.right
-sysctl MIBs.
-.Pp
-Each of these sysctl MIBs contains the raw value returned by the left
-and right light sensors.
+.Va dev.asmc.%d.light.right .
 .Sh TEMPERATURES
 The number of temperature sensors and their description varies among
 systems.

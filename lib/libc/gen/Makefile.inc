@@ -55,7 +55,7 @@ MAN+=	alarm.3 arc4random.3 \
 	getpagesize.3 getpass.3 getpeereid.3 getprogname.3 getpwent.3 \
 	getttyent.3 getusershell.3 getvfsbyname.3 \
 	glob.3 initgroups.3 isgreater.3 ldexp.3 lockf.3 makecontext.3 \
-	modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
+	modf.3 \
 	nice.3 nlist.3 pause.3 popen.3 \
 	posix_spawn.3 posix_spawn_file_actions_addopen.3 \
 	posix_spawn_file_actions_init.3 posix_spawnattr_getflags.3 \

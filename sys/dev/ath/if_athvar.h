@@ -203,6 +203,7 @@ struct ath_softc {
 	int			sc_debug;
 	int			sc_nvaps;	/* # vaps */
 	int			sc_nstavaps;	/* # station vaps */
+	int			sc_nmeshvaps;	/* # mbss vaps */
 	u_int8_t		sc_hwbssidmask[IEEE80211_ADDR_LEN];
 	u_int8_t		sc_nbssid0;	/* # vap's using base mac */
 	uint32_t		sc_bssidmask;	/* bssid mask */
@@ -235,6 +236,7 @@ struct ath_softc {
 				sc_outdoor  : 1,/* outdoor operation */
 				sc_dturbo   : 1,/* dynamic turbo in use */
 				sc_hasbmask : 1,/* bssid mask support */
+				sc_hasbmatch: 1,/* bssid match disable support*/
 				sc_hastsfadd: 1,/* tsf adjust support */
 				sc_beacons  : 1,/* beacons running */
 				sc_swbmiss  : 1,/* sta mode using sw bmiss */

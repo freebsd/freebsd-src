@@ -41,7 +41,7 @@ struct componentname {
 	 * Arguments to lookup.
 	 */
 	u_long	cn_nameiop;	/* namei operation */
-	u_long	cn_flags;	/* flags to namei */
+	u_int64_t cn_flags;	/* flags to namei */
 	struct	thread *cn_thread;/* thread requesting lookup */
 	struct	ucred *cn_cred;	/* credentials */
 	int	cn_lkflags;	/* Lock flags LK_EXCLUSIVE or LK_SHARED */
@@ -80,7 +80,7 @@ struct nameidata {
 	 */
 	size_t	ni_pathlen;		/* remaining chars in path */
 	char	*ni_next;		/* next location in pathname */
-	u_long	ni_loopcnt;		/* count of symlinks encountered */
+	u_int	ni_loopcnt;		/* count of symlinks encountered */
 	/*
 	 * Lookup parameters: this structure describes the subset of
 	 * information from the nameidata structure that is passed

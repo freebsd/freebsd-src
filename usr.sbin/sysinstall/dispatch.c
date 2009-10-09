@@ -86,6 +86,7 @@ static struct _word {
     { "installFixupBase",	installFixupBase	},
     { "installFixitHoloShell",	installFixitHoloShell	},
     { "installFixitCDROM",	installFixitCDROM	},
+    { "installFixitUSB",	installFixitUSB		},
     { "installFixitFloppy",	installFixitFloppy	},
     { "installFilesystems",	installFilesystems	},
     { "installVarDefaults",	installVarDefaults	},

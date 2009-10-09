@@ -69,14 +69,26 @@ typedef bus_space_handle_t HAL_BUS_HANDLE;
 struct ath_hal;
 
 /*
+ * The hardware registers are native little-endian byte order.
+ * Big-endian hosts are handled by enabling hardware byte-swap
+ * of register reads and writes at reset.  But the PCI clock
+ * domain registers are not byte swapped!  Thus, on big-endian
+ * platforms we have to explicitly byte-swap those registers.
+ * OS_REG_UNSWAPPED identifies the registers that need special handling.
+ */
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define	OS_REG_UNSWAPPED(_reg) \
+	(((_reg) >= 0x4000 && (_reg) < 0x5000) || \
+	 ((_reg) >= 0x7000 && (_reg) < 0x8000))
+#else /* _BYTE_ORDER == _LITTLE_ENDIAN */
+#define	OS_REG_UNSWAPPED(_reg)	(0)
+#endif /* _BYTE_ORDER */
+
+/*
  * Register read/write operations are either handled through
  * platform-dependent routines (or when debugging is enabled
  * with AH_DEBUG); or they are inline expanded using the macros
- * defined below.  For public builds we inline expand only for
- * platforms where it is certain what the requirements are to
- * read/write registers--typically they are memory-mapped and
- * no explicit synchronization or memory invalidation operations
- * are required (e.g. i386).
+ * defined below.
  */
 #if defined(AH_DEBUG) || defined(AH_REGOPS_FUNC) || defined(AH_DEBUG_ALQ)
 #define	OS_REG_WRITE(_ah, _reg, _val)	ath_hal_reg_write(_ah, _reg, _val)
@@ -94,13 +106,7 @@ extern	u_int32_t ath_hal_reg_read(struct ath_hal *ah, u_int reg);
  * Most of this code is collapsed at compile time because the
  * register values are constants.
  */
-#define	AH_LITTLE_ENDIAN	1234
-#define	AH_BIG_ENDIAN		4321
-
 #if _BYTE_ORDER == _BIG_ENDIAN
-#define	OS_REG_UNSWAPPED(_reg) \
-	(((_reg) >= 0x4000 && (_reg) < 0x5000) || \
-	 ((_reg) >= 0x7000 && (_reg) < 0x8000))
 #define OS_REG_WRITE(_ah, _reg, _val) do {				\
 	if (OS_REG_UNSWAPPED(_reg))					\
 		bus_space_write_4((bus_space_tag_t)(_ah)->ah_st,	\
@@ -116,7 +122,6 @@ extern	u_int32_t ath_hal_reg_read(struct ath_hal *ah, u_int reg);
 		bus_space_read_stream_4((bus_space_tag_t)(_ah)->ah_st,	\
 		    (bus_space_handle_t)(_ah)->ah_sh, (_reg)))
 #else /* _BYTE_ORDER == _LITTLE_ENDIAN */
-#define	OS_REG_UNSWAPPED(_reg)	(0)
 #define	OS_REG_WRITE(_ah, _reg, _val)					\
 	bus_space_write_4((bus_space_tag_t)(_ah)->ah_st,		\
 	    (bus_space_handle_t)(_ah)->ah_sh, (_reg), (_val))

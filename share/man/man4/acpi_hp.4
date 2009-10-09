@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2009
+.Dd June 30, 2009
 .Dt ACPI_HP 4 i386
 .Os
 .Sh NAME
@@ -92,8 +92,8 @@ WWAN on air status changed to 0 (not on air)
 WWAN on air status changed to 1 (on air)
 .El
 .Ss Xr devfs 8 Ss Device
-You can read /dev/hpcmi to see your current BIOS settings. The detail level
-can be adjusted by setting the sysctl 
+You can read /dev/hpcmi to see your current BIOS settings.
+The detail level can be adjusted by setting the sysctl 
 .Va cmi_detail
 as described below.
 .Sh SYSCTL VARIABLES
@@ -166,13 +166,29 @@ Show a list of valid options for the BIOS setting
 .It Li 0x04
 Show additional flags of BIOS setting (ReadOnly etc.)
 .It Li 0x08
-Query highest BIOS entry instance. This is broken on many HP models and
-therefore disabled by default.
+Query highest BIOS entry instance.
+This is broken on many HP models and therefore disabled by default.
 .El
+.It Va dev.acpi_hp.0.verbose
+(read-only)
+Set verbosity level
 .El
 .Pp
 Defaults for these sysctls can be set in
 .Xr sysctl.conf 5 .
+.Sh HARDWARE
+The
+.Nm
+driver has been reported to support the following hardware:
+.Pp
+.Bl -bullet -compact
+.It
+HP Compaq 8510p
+.It
+HP Compaq nx7300
+.El
+.Pp
+It should work on most HP laptops that feature a WMI enabled BIOS.
 .Sh FILES
 .Bl -tag -width ".Pa /dev/hpcmi"
 .It Pa /dev/hpcmi
@@ -248,7 +264,7 @@ The
 driver was written by
 .An Michael Gmelin Aq freebsd@grem.de
 .Pp
-It has been inspired by hp-wmi driver, which implements a subset of these   
+It has been inspired by hp-wmi driver, which implements a subset of these
 features (hotkeys) on Linux.
 .Pp
 .Bl -tag -width indent

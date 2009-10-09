@@ -311,10 +311,14 @@ extern int kern_logsigexit;	/* Sysctl variable kern.logsigexit */
 #define SIGIO_LOCKED()	mtx_owned(&sigio_lock)
 #define SIGIO_ASSERT(type)	mtx_assert(&sigio_lock, type)
 
+/* stop_allowed parameter for cursig */
+#define	SIG_STOP_ALLOWED	100
+#define	SIG_STOP_NOT_ALLOWED	101
+
 /*
  * Machine-independent functions:
  */
-int	cursig(struct thread *td);
+int	cursig(struct thread *td, int stop_allowed);
 void	execsigs(struct proc *p);
 void	gsignal(int pgid, int sig);
 void	killproc(struct proc *p, char *why);

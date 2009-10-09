@@ -3916,7 +3916,8 @@ iwn_config(struct iwn_softc *sc)
 		    IWN_FILTER_CTL | IWN_FILTER_PROMISC);
 		break;
 	default:
-		break;
+		device_printf(sc->sc_dev, "unknown opmode %d\n", ic->ic_opmode);
+		return EINVAL;
 	}
 	sc->config.cck_mask  = 0x0f;	/* not yet negotiated */
 	sc->config.ofdm_mask = 0xff;	/* not yet negotiated */

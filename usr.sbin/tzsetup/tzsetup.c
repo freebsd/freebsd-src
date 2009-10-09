@@ -652,7 +652,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: tzsetup [-n]\n");
+	fprintf(stderr, "usage: tzsetup [-ns]\n");
 	exit(1);
 }
 
@@ -666,14 +666,17 @@ int
 main(int argc, char **argv)
 {
 	char		title[64], prompt[128];
-	int		c, fd;
+	int		c, fd, skiputc;
 
-	while ((c = getopt(argc, argv, "n")) != -1) {
+	skiputc = 0;
+	while ((c = getopt(argc, argv, "ns")) != -1) {
 		switch(c) {
 		case 'n':
 			reallydoit = 0;
 			break;
-
+		case 's':
+			skiputc = 1;
+			break;
 		default:
 			usage();
 		}
@@ -690,27 +693,30 @@ main(int argc, char **argv)
 	sort_countries();
 	make_menus();
 
-	snprintf(title, sizeof(title),
-	    "Select local or UTC (Greenwich Mean Time) clock");
-	snprintf(prompt, sizeof(prompt),
-	    "Is this machine's CMOS clock set to UTC?  "
-	    "If it is set to local time,\n"
-	    "or you don't know, please choose NO here!");
 	init_dialog();
-	if (!DIALOG_UTC(title, prompt, 7, 72)) {
-		if (reallydoit)
-			unlink(_PATH_WALL_CMOS_CLOCK);
-	} else {
-		if (reallydoit) {
-			fd = open(_PATH_WALL_CMOS_CLOCK,
-			    O_WRONLY | O_CREAT | O_TRUNC,
-			    S_IRUSR | S_IRGRP | S_IROTH);
-			if (fd < 0)
-				err(1, "create %s", _PATH_WALL_CMOS_CLOCK);
-			close(fd);
+	if (skiputc == 0) {
+		snprintf(title, sizeof(title),
+		    "Select local or UTC (Greenwich Mean Time) clock");
+		snprintf(prompt, sizeof(prompt),
+		    "Is this machine's CMOS clock set to UTC?  "
+		    "If it is set to local time,\n"
+		    "or you don't know, please choose NO here!");
+		if (!DIALOG_UTC(title, prompt, 7, 72)) {
+			if (reallydoit)
+				unlink(_PATH_WALL_CMOS_CLOCK);
+		} else {
+			if (reallydoit) {
+				fd = open(_PATH_WALL_CMOS_CLOCK,
+				    O_WRONLY | O_CREAT | O_TRUNC,
+				    S_IRUSR | S_IRGRP | S_IROTH);
+				if (fd < 0)
+					err(1, "create %s",
+					    _PATH_WALL_CMOS_CLOCK);
+				close(fd);
+			}
 		}
+		dialog_clear_norefresh();
 	}
-	dialog_clear_norefresh();
 	if (optind == argc - 1) {
 		snprintf(title, sizeof(title), "Default timezone provided");
 		snprintf(prompt, sizeof(prompt),

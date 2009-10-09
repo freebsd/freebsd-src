@@ -2687,7 +2687,7 @@ ciss_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
     if (cr->cr_flags & CISS_REQ_DATAOUT)
 	bus_dmamap_sync(sc->ciss_buffer_dmat, cr->cr_datamap, BUS_DMASYNC_PREWRITE);
 
-    if (nseg == 1)
+    if (nseg == 0)
 	cr->cr_sg_tag = CISS_SG_NONE;
     else if (nseg == 1)
 	cr->cr_sg_tag = CISS_SG_1;
@@ -2976,6 +2976,7 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->transport_version = 2;
 	cpi->protocol = PROTO_SCSI;
 	cpi->protocol_version = SCSI_REV_2;
+	cpi->maxio = (CISS_MAX_SG_ELEMENTS - 1) * PAGE_SIZE;
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	break;
     }

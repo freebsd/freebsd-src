@@ -366,6 +366,10 @@ dtrace_safe_defer_signal(void)
 static int64_t	tgt_cpu_tsc;
 static int64_t	hst_cpu_tsc;
 static int64_t	tsc_skew[MAXCPU];
+static uint64_t	nsec_scale;
+
+/* See below for the explanation of this macro. */
+#define SCALE_SHIFT	28
 
 static void
 dtrace_gethrtime_init_sync(void *arg)
@@ -401,9 +405,36 @@ dtrace_gethrtime_init_cpu(void *arg)
 static void
 dtrace_gethrtime_init(void *arg)
 {
+	uint64_t tsc_f;
 	cpumask_t map;
 	int i;
-	struct pcpu *cp;
+
+	/*
+	 * Get TSC frequency known at this moment.
+	 * This should be constant if TSC is invariant.
+	 * Otherwise tick->time conversion will be inaccurate, but
+	 * will preserve monotonic property of TSC.
+	 */
+	tsc_f = tsc_freq;
+
+	/*
+	 * The following line checks that nsec_scale calculated below
+	 * doesn't overflow 32-bit unsigned integer, so that it can multiply
+	 * another 32-bit integer without overflowing 64-bit.
+	 * Thus minimum supported TSC frequency is 62.5MHz.
+	 */
+	KASSERT(tsc_f > (NANOSEC >> (32 - SCALE_SHIFT)), ("TSC frequency is too low"));
+
+	/*
+	 * We scale up NANOSEC/tsc_f ratio to preserve as much precision
+	 * as possible.
+	 * 2^28 factor was chosen quite arbitrarily from practical
+	 * considerations:
+	 * - it supports TSC frequencies as low as 62.5MHz (see above);
+	 * - it provides quite good precision (e < 0.01%) up to THz
+	 *   (terahertz) values;
+	 */
+	nsec_scale = ((uint64_t)NANOSEC << SCALE_SHIFT) / tsc_f;
 
 	/* The current CPU is the reference one. */
 	tsc_skew[curcpu] = 0;
@@ -412,7 +443,7 @@ dtrace_gethrtime_init(void *arg)
 		if (i == curcpu)
 			continue;
 
-		if ((cp = pcpu_find(i)) == NULL)
+		if (pcpu_find(i) == NULL)
 			continue;
 
 		map = 0;
@@ -439,7 +470,21 @@ SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init, 
 uint64_t
 dtrace_gethrtime()
 {
-	return ((rdtsc() + tsc_skew[curcpu]) * (int64_t) 1000000000 / tsc_freq);
+	uint64_t tsc;
+	uint32_t lo;
+	uint32_t hi;
+
+	/*
+	 * We split TSC value into lower and higher 32-bit halves and separately
+	 * scale them with nsec_scale, then we scale them down by 2^28
+	 * (see nsec_scale calculations) taking into account 32-bit shift of
+	 * the higher half and finally add.
+	 */
+	tsc = rdtsc() + tsc_skew[curcpu];
+	lo = tsc;
+	hi = tsc >> 32;
+	return (((lo * nsec_scale) >> SCALE_SHIFT) +
+	    ((hi * nsec_scale) << (32 - SCALE_SHIFT)));
 }
 
 uint64_t

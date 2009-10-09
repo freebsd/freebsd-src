@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE. 
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_errno.c#17 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_errno.c#19 $
  */
 
 #include <sys/types.h>
@@ -453,6 +453,104 @@ static const struct bsm_errno bsm_errnos[] = {
 	{ BSM_ERRNO_EINPROGRESS, EINPROGRESS,
 	    ES("Operation now in progress") },
 	{ BSM_ERRNO_ESTALE, ESTALE, ES("Stale NFS file handle") },
+	{ BSM_ERRNO_EPROCLIM,
+#ifdef EPROCLIM
+	EPROCLIM,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Too many processes") },
+	{ BSM_ERRNO_EBADRPC,
+#ifdef EBADRPC
+	EBADRPC,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("RPC struct is bad") },
+	{ BSM_ERRNO_ERPCMISMATCH,
+#ifdef ERPCMISMATCH
+	ERPCMISMATCH,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("RPC version wrong") },
+	{ BSM_ERRNO_EPROGUNAVAIL,
+#ifdef EPROGUNAVAIL
+	EPROGUNAVAIL,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("RPC prog. not avail") },
+	{ BSM_ERRNO_EPROGMISMATCH,
+#ifdef EPROGMISMATCH
+	EPROGMISMATCH,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("RPC version wrong") },
+	{ BSM_ERRNO_EPROCUNAVAIL,
+#ifdef EPROCUNAVAIL
+	EPROCUNAVAIL,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Bad procedure for program") },
+	{ BSM_ERRNO_EFTYPE,
+#ifdef EFTYPE
+	EFTYPE,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Inappropriate file type or format") },
+	{ BSM_ERRNO_EAUTH,
+#ifdef EAUTH
+	EAUTH,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Authenticateion error") },
+	{ BSM_ERRNO_ENEEDAUTH,
+#ifdef ENEEDAUTH
+	ENEEDAUTH,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Need authenticator") },
+	{ BSM_ERRNO_ENOATTR,
+#ifdef ENOATTR
+	ENOATTR,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Attribute not found") },
+	{ BSM_ERRNO_EDOOFUS,
+#ifdef EDOOFUS
+	EDOOFUS,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Programming error") },
+	{ BSM_ERRNO_EJUSTRETURN,
+#ifdef EJUSTRETURN
+	EJUSTRETURN,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("Just return") },
+	{ BSM_ERRNO_ENOIOCTL,
+#ifdef ENOIOCTL
+	ENOIOCTL,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("ioctl not handled by this layer") },
+	{ BSM_ERRNO_EDIRIOCTL,
+#ifdef EDIRIOCTL
+	EDIRIOCTL,
+#else
+	ERRNO_NO_LOCAL_MAPPING,
+#endif
+	ES("do direct ioctl in GEOM") },
 	{ BSM_ERRNO_EPWROFF,
 #ifdef EPWROFF
 	EPWROFF,

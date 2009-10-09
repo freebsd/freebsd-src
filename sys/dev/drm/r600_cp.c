@@ -421,7 +421,8 @@ static void r700_cp_load_microcode(drm_radeon_private_t *dev_priv)
 		cp  = RV770_cp_microcode;
 		break;
 	case CHIP_RV730:
-		DRM_INFO("Loading RV730 Microcode\n");
+	case CHIP_RV740:
+		DRM_INFO("Loading RV730/RV740 Microcode\n");
 		pfp = RV730_pfp_microcode;
 		cp  = RV730_cp_microcode;
 		break;
@@ -1244,6 +1245,31 @@ static void r700_gfx_init(struct drm_device *dev,
 		dev_priv->r700_sc_hiz_tile_fifo_size = 0x30;
 		dev_priv->r700_sc_earlyz_tile_fifo_fize = 0x130;
 		break;
+	case CHIP_RV740:
+		dev_priv->r600_max_pipes = 4;
+		dev_priv->r600_max_tile_pipes = 4;
+		dev_priv->r600_max_simds = 8;
+		dev_priv->r600_max_backends = 4;
+		dev_priv->r600_max_gprs = 256;
+		dev_priv->r600_max_threads = 248;
+		dev_priv->r600_max_stack_entries = 512;
+		dev_priv->r600_max_hw_contexts = 8;
+		dev_priv->r600_max_gs_threads = 16 * 2;
+		dev_priv->r600_sx_max_export_size = 256;
+		dev_priv->r600_sx_max_export_pos_size = 32;
+		dev_priv->r600_sx_max_export_smx_size = 224;
+		dev_priv->r600_sq_num_cf_insts = 2;
+
+		dev_priv->r700_sx_num_of_sets = 7;
+		dev_priv->r700_sc_prim_fifo_size = 0x100;
+		dev_priv->r700_sc_hiz_tile_fifo_size = 0x30;
+		dev_priv->r700_sc_earlyz_tile_fifo_fize = 0x130;
+
+		if (dev_priv->r600_sx_max_export_pos_size > 16) {
+			dev_priv->r600_sx_max_export_pos_size -= 16;
+			dev_priv->r600_sx_max_export_smx_size += 16;
+		}
+		break;
 	case CHIP_RV730:
 		dev_priv->r600_max_pipes = 2;
 		dev_priv->r600_max_tile_pipes = 4;
@@ -1263,6 +1289,11 @@ static void r700_gfx_init(struct drm_device *dev,
 		dev_priv->r700_sc_prim_fifo_size = 0xf9;
 		dev_priv->r700_sc_hiz_tile_fifo_size = 0x30;
 		dev_priv->r700_sc_earlyz_tile_fifo_fize = 0x130;
+
+		if (dev_priv->r600_sx_max_export_pos_size > 16) {
+			dev_priv->r600_sx_max_export_pos_size -= 16;
+			dev_priv->r600_sx_max_export_smx_size += 16;
+		}
 		break;
 	case CHIP_RV710:
 		dev_priv->r600_max_pipes = 2;
@@ -1430,6 +1461,7 @@ static void r700_gfx_init(struct drm_device *dev,
 	case CHIP_RV770:
 		sq_ms_fifo_sizes |= R600_FETCH_FIFO_HIWATER(0x1);
 		break;
+	case CHIP_RV740:
 	case CHIP_RV730:
 	case CHIP_RV710:
 	default:
@@ -1507,6 +1539,7 @@ static void r700_gfx_init(struct drm_device *dev,
 
 	switch (dev_priv->flags & RADEON_FAMILY_MASK) {
 	case CHIP_RV770:
+	case CHIP_RV740:
 	case CHIP_RV730:
 		gs_prim_buffer_depth = 384;
 		break;

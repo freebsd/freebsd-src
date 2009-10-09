@@ -3,7 +3,7 @@
 .include	"../../Makefile.inc"
 
 LIB=		ctf
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 
 SRCS=		ctf_create.c \
 		ctf_decl.c \

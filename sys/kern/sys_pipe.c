@@ -1353,8 +1353,7 @@ pipe_poll(fp, events, active_cred, td)
 #endif
 	if (events & (POLLIN | POLLRDNORM))
 		if ((rpipe->pipe_state & PIPE_DIRECTW) ||
-		    (rpipe->pipe_buffer.cnt > 0) ||
-		    (rpipe->pipe_state & PIPE_EOF))
+		    (rpipe->pipe_buffer.cnt > 0))
 			revents |= events & (POLLIN | POLLRDNORM);
 
 	if (events & (POLLOUT | POLLWRNORM))
@@ -1364,10 +1363,14 @@ pipe_poll(fp, events, active_cred, td)
 		     (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
-	if ((rpipe->pipe_state & PIPE_EOF) ||
-	    wpipe->pipe_present != PIPE_ACTIVE ||
-	    (wpipe->pipe_state & PIPE_EOF))
-		revents |= POLLHUP;
+	if ((events & POLLINIGNEOF) == 0) {
+		if (rpipe->pipe_state & PIPE_EOF) {
+			revents |= (events & (POLLIN | POLLRDNORM));
+			if (wpipe->pipe_present != PIPE_ACTIVE ||
+			    (wpipe->pipe_state & PIPE_EOF))
+				revents |= POLLHUP;
+		}
+	}
 
 	if (revents == 0) {
 		if (events & (POLLIN | POLLRDNORM)) {

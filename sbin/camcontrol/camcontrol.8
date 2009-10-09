@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2006
+.Dd June 29, 2009
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -58,6 +58,10 @@
 .Op Fl D
 .Op Fl S
 .Op Fl R
+.Nm
+.Ic identify
+.Op device id
+.Op generic args
 .Nm
 .Ic reportluns
 .Op device id
@@ -283,6 +287,8 @@ This is to aid in script writing.
 .It Fl R
 Print out transfer rate information.
 .El
+.It Ic identify
+Send a ATA identify command (0xec) to a device.
 .It Ic reportluns
 Send the SCSI REPORT LUNS (0xA0) command to the given device.
 By default,

@@ -2671,7 +2671,6 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 int
 nfsrv_getsocksndseq(struct socket *so, tcp_seq *maxp, tcp_seq *unap)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct tcpcb *tp;
 	int error = EPIPE;

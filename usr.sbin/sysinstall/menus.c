@@ -2173,8 +2173,9 @@ DMenu MenuFixit = {
     "Press F1 for more detailed repair instructions",
     "fixit",
 { { "X Exit",		"Exit this menu (returning to previous)",	NULL, dmenuExit },
-  { "2 CDROM/DVD",	"Use the \"live\" filesystem CDROM/DVD",	NULL, installFixitCDROM },
-  { "3 Floppy",		"Use a floppy generated from the fixit image",	NULL, installFixitFloppy },
-  { "4 Shell",		"Start an Emergency Holographic Shell",		NULL, installFixitHoloShell },
+  { "2 CDROM/DVD",	"Use the live filesystem CDROM/DVD",		NULL, installFixitCDROM },
+  { "3 USB",		"Use the live filesystem from a USB drive",	NULL, installFixitUSB },
+  { "4 Floppy",	"Use a floppy generated from the fixit image",	NULL, installFixitFloppy },
+  { "5 Shell",		"Start an Emergency Holographic Shell",		NULL, installFixitHoloShell },
   { NULL } },
 };

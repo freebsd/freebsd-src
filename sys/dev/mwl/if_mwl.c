@@ -144,7 +144,8 @@ static void	mwl_tx_proc(void *, int);
 static int	mwl_chan_set(struct mwl_softc *, struct ieee80211_channel *);
 static void	mwl_draintxq(struct mwl_softc *);
 static void	mwl_cleartxq(struct mwl_softc *, struct ieee80211vap *);
-static void	mwl_recv_action(struct ieee80211_node *,
+static int	mwl_recv_action(struct ieee80211_node *,
+			const struct ieee80211_frame *,
 			const uint8_t *, const uint8_t *);
 static int	mwl_addba_request(struct ieee80211_node *,
 			struct ieee80211_tx_ampdu *, int dialogtoken,
@@ -419,6 +420,7 @@ mwl_attach(uint16_t devid, struct mwl_softc *sc)
 		| IEEE80211_C_IBSS		/* ibss, nee adhoc, mode */
 		| IEEE80211_C_AHDEMO		/* adhoc demo mode */
 #endif
+		| IEEE80211_C_MBSS		/* mesh point link mode */
 		| IEEE80211_C_WDS		/* WDS supported */
 		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
 		| IEEE80211_C_SHSLOT		/* short slot time supported */
@@ -614,6 +616,7 @@ mwl_vap_create(struct ieee80211com *ic,
 	IEEE80211_ADDR_COPY(mac, mac0);
 	switch (opmode) {
 	case IEEE80211_M_HOSTAP:
+	case IEEE80211_M_MBSS:
 		if ((flags & IEEE80211_CLONE_MACADDR) == 0)
 			assign_address(sc, mac, flags & IEEE80211_CLONE_BSSID);
 		hvap = mwl_hal_newvap(mh, MWL_HAL_AP, mac);
@@ -685,7 +688,7 @@ mwl_vap_create(struct ieee80211com *ic,
 	vap->iv_key_delete = mwl_key_delete;
 	vap->iv_key_set = mwl_key_set;
 #ifdef MWL_HOST_PS_SUPPORT
-	if (opmode == IEEE80211_M_HOSTAP) {
+	if (opmode == IEEE80211_M_HOSTAP || opmode == IEEE80211_M_MBSS) {
 		vap->iv_update_ps = mwl_update_ps;
 		mvp->mv_set_tim = vap->iv_set_tim;
 		vap->iv_set_tim = mwl_set_tim;
@@ -705,12 +708,14 @@ mwl_vap_create(struct ieee80211com *ic,
 
 	switch (vap->iv_opmode) {
 	case IEEE80211_M_HOSTAP:
+	case IEEE80211_M_MBSS:
 	case IEEE80211_M_STA:
 		/*
 		 * Setup sta db entry for local address.
 		 */
 		mwl_localstadb(vap);
-		if (vap->iv_opmode == IEEE80211_M_HOSTAP)
+		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+		    vap->iv_opmode == IEEE80211_M_MBSS)
 			sc->sc_napvaps++;
 		else
 			sc->sc_nstavaps++;
@@ -752,11 +757,12 @@ mwl_vap_delete(struct ieee80211vap *vap)
 	ieee80211_vap_detach(vap);
 	switch (opmode) {
 	case IEEE80211_M_HOSTAP:
+	case IEEE80211_M_MBSS:
 	case IEEE80211_M_STA:
 		KASSERT(hvap != NULL, ("no hal vap handle"));
 		(void) mwl_hal_delstation(hvap, vap->iv_myaddr);
 		mwl_hal_delvap(hvap);
-		if (opmode == IEEE80211_M_HOSTAP)
+		if (opmode == IEEE80211_M_HOSTAP || opmode == IEEE80211_M_MBSS)
 			sc->sc_napvaps--;
 		else
 			sc->sc_nstavaps--;
@@ -1280,6 +1286,7 @@ mwl_reset_vap(struct ieee80211vap *vap, int state)
 	/* re-setup beacons */
 	if (state == IEEE80211_S_RUN &&
 	    (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+	     vap->iv_opmode == IEEE80211_M_MBSS ||
 	     vap->iv_opmode == IEEE80211_M_IBSS)) {
 		mwl_setapmode(vap, vap->iv_bss->ni_chan);
 		mwl_hal_setnprotmode(hvap,
@@ -3656,8 +3663,9 @@ mwl_cleartxq(struct mwl_softc *sc, struct ieee80211vap *vap)
 	}
 }
 
-static void
-mwl_recv_action(struct ieee80211_node *ni, const uint8_t *frm, const uint8_t *efrm)
+static int
+mwl_recv_action(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
+	const uint8_t *frm, const uint8_t *efrm)
 {
 	struct mwl_softc *sc = ni->ni_ic->ic_ifp->if_softc;
 	const struct ieee80211_action *ia;
@@ -3671,8 +3679,9 @@ mwl_recv_action(struct ieee80211_node *ni, const uint8_t *frm, const uint8_t *ef
 		mwl_hal_setmimops(sc->sc_mh, ni->ni_macaddr,
 		    mps->am_control & IEEE80211_A_HT_MIMOPWRSAVE_ENA,
 		    MS(mps->am_control, IEEE80211_A_HT_MIMOPWRSAVE_MODE));
+		return 0;
 	} else
-		sc->sc_recv_action(ni, frm, efrm);
+		return sc->sc_recv_action(ni, wh, frm, efrm);
 }
 
 static int
@@ -4181,6 +4190,7 @@ mwl_localstadb(struct ieee80211vap *vap)
 			mwl_setglobalkeys(vap);
 		break;
 	case IEEE80211_M_HOSTAP:
+	case IEEE80211_M_MBSS:
 		error = mwl_hal_newstation(hvap, vap->iv_myaddr,
 		    0, 0, NULL, vap->iv_flags & IEEE80211_F_WME, 0);
 		if (error == 0)
@@ -4245,7 +4255,8 @@ mwl_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		(void) mwl_peerstadb(ni, 0, 0, NULL);
 	} else if (nstate == IEEE80211_S_CSA) {
 		/* XXX move to below? */
-		if (vap->iv_opmode == IEEE80211_M_HOSTAP)
+		if (vap->iv_opmode == IEEE80211_M_HOSTAP ||
+		    vap->iv_opmode == IEEE80211_M_MBSS)
 			mwl_startcsa(vap);
 	} else if (nstate == IEEE80211_S_CAC) {
 		/* XXX move to below? */
@@ -4279,6 +4290,7 @@ mwl_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		mwl_localstadb(vap);
 		switch (vap->iv_opmode) {
 		case IEEE80211_M_HOSTAP:
+		case IEEE80211_M_MBSS:
 			if (ostate == IEEE80211_S_CAC) {
 				/* enable in-service radar detection */
 				mwl_hal_setradardetection(mh,

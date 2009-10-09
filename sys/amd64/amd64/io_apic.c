@@ -327,7 +327,7 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = (struct ioapic *)isrc->is_pic;
-	u_int old_vector;
+	u_int old_vector, new_vector;
 	u_int old_id;
 
 	/*
@@ -348,11 +348,14 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	 * Allocate an APIC vector for this interrupt pin.  Once
 	 * we have a vector we program the interrupt pin.
 	 */
-	intpin->io_cpu = apic_id;
-	intpin->io_vector = apic_alloc_vector(apic_id, intpin->io_irq);
-	if (intpin->io_vector == 0)
+	new_vector = apic_alloc_vector(apic_id, intpin->io_irq);
+	if (new_vector == 0)
 		return (ENOSPC);
 
+	intpin->io_cpu = apic_id;
+	intpin->io_vector = new_vector;
+	if (isrc->is_handlers > 0)
+		apic_enable_vector(intpin->io_cpu, intpin->io_vector);
 	if (bootverbose) {
 		printf("ioapic%u: routing intpin %u (", io->io_id,
 		    intpin->io_intpin);
@@ -365,8 +368,11 @@ ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id)
 	 * Free the old vector after the new one is established.  This is done
 	 * to prevent races where we could miss an interrupt.
 	 */
-	if (old_vector)
+	if (old_vector) {
+		if (isrc->is_handlers > 0)
+			apic_disable_vector(old_id, old_vector);
 		apic_free_vector(old_id, old_vector, intpin->io_irq);
+	}
 	return (0);
 }
 

@@ -519,8 +519,8 @@ UtDisplaySummary (
     {
         /* Compiler name and version number */
 
-        FlPrintFile (FileId, "%s version %X [%s]\n",
-            CompilerId, (UINT32) ACPI_CA_VERSION, __DATE__);
+        FlPrintFile (FileId, "%s version %X\n",
+            CompilerId, (UINT32) ACPI_CA_VERSION);
     }
 
     /* Input/Output summary */

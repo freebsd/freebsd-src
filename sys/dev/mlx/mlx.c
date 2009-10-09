@@ -772,7 +772,9 @@ mlx_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	 * Scan the controller to see whether new drives have appeared.
 	 */
     case MLX_RESCAN_DRIVES:
+	newbus_xlock();
 	mlx_startup(sc);
+	newbus_xunlock();
 	return(0);
 
 	/*
@@ -1979,7 +1981,7 @@ mlx_user_command(struct mlx_softc *sc, struct mlx_usercommand *mu)
      * initial contents
      */
     if (mu->mu_datasize > 0) {
-	if (mu->mu_datasize > MAXPHYS) {
+	if (mu->mu_datasize > MLX_MAXPHYS) {
 	    error = EINVAL;
 	    goto out;
 	}

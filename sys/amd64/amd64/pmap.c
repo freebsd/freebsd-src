@@ -231,6 +231,7 @@ static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 static void pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
+static void pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 static vm_page_t pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va);
@@ -614,6 +615,7 @@ pmap_page_init(vm_page_t m)
 {
 
 	TAILQ_INIT(&m->md.pv_list);
+	m->md.pat_mode = PAT_WRITE_BACK;
 }
 
 /*
@@ -750,21 +752,6 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 
 	/* The PAT bit is different for PTE's and PDE's. */
 	pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
-
-	/* If we don't support PAT, map extended modes to older ones. */
-	if (!(cpu_feature & CPUID_PAT)) {
-		switch (mode) {
-		case PAT_UNCACHEABLE:
-		case PAT_WRITE_THROUGH:
-		case PAT_WRITE_BACK:
-			break;
-		case PAT_UNCACHED:
-		case PAT_WRITE_COMBINING:
-		case PAT_WRITE_PROTECTED:
-			mode = PAT_UNCACHEABLE;
-			break;
-		}
-	}
 
 	/* Map the caching mode to a PAT index. */
 	switch (mode) {
@@ -934,6 +921,40 @@ pmap_invalidate_cache(void)
 	wbinvd();
 }
 #endif /* !SMP */
+
+static void
+pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
+{
+
+	KASSERT((sva & PAGE_MASK) == 0,
+	    ("pmap_invalidate_cache_range: sva not page-aligned"));
+	KASSERT((eva & PAGE_MASK) == 0,
+	    ("pmap_invalidate_cache_range: eva not page-aligned"));
+
+	if (cpu_feature & CPUID_SS)
+		; /* If "Self Snoop" is supported, do nothing. */
+	else if (cpu_feature & CPUID_CLFSH) {
+
+		/*
+		 * Otherwise, do per-cache line flush.  Use the mfence
+		 * instruction to insure that previous stores are
+		 * included in the write-back.  The processor
+		 * propagates flush to other processors in the cache
+		 * coherence domain.
+		 */
+		mfence();
+		for (; eva < sva; eva += cpu_clflush_line_size)
+			clflush(eva);
+		mfence();
+	} else {
+
+		/*
+		 * No targeted cache flush methods are supported by CPU,
+		 * globally invalidate cache as a last resort.
+		 */
+		pmap_invalidate_cache();
+	}
+}
 
 /*
  * Are we current address space or kernel?
@@ -1120,7 +1141,8 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 	endpte = pte + count;
 	while (pte < endpte) {
 		oldpte |= *pte;
-		pte_store(pte, VM_PAGE_TO_PHYS(*ma) | PG_G | PG_RW | PG_V);
+		pte_store(pte, VM_PAGE_TO_PHYS(*ma) | PG_G |
+		    pmap_cache_bits((*ma)->md.pat_mode, 0) | PG_RW | PG_V);
 		pte++;
 		ma++;
 	}
@@ -2218,11 +2240,19 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		/*
 		 * Invalidate the 2MB page mapping and return "failure" if the
 		 * mapping was never accessed or the allocation of the new
-		 * page table page fails.
+		 * page table page fails.  If the 2MB page mapping belongs to
+		 * the direct map region of the kernel's address space, then
+		 * the page allocation request specifies the highest possible
+		 * priority (VM_ALLOC_INTERRUPT).  Otherwise, the priority is
+		 * normal.  Page table pages are preallocated for every other
+		 * part of the kernel address space, so the direct map region
+		 * is the only part of the kernel address space that must be
+		 * handled here.
 		 */
 		if ((oldpde & PG_A) == 0 || (mpte = vm_page_alloc(NULL,
-		    pmap_pde_pindex(va), VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL |
-		    VM_ALLOC_WIRED)) == NULL) {
+		    pmap_pde_pindex(va), (va >= DMAP_MIN_ADDRESS && va <
+		    DMAP_MAX_ADDRESS ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL) |
+		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 			free = NULL;
 			pmap_remove_pde(pmap, pde, trunc_2mpage(va), &free);
 			pmap_invalidate_page(pmap, trunc_2mpage(va));
@@ -3017,7 +3047,7 @@ validate:
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
-	newpte = (pt_entry_t)(pa | PG_V);
+	newpte = (pt_entry_t)(pa | pmap_cache_bits(m->md.pat_mode, 0) | PG_V);
 	if ((prot & VM_PROT_WRITE) != 0) {
 		newpte |= PG_RW;
 		vm_page_flag_set(m, PG_WRITEABLE);
@@ -3102,7 +3132,8 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 		    " in pmap %p", va, pmap);
 		return (FALSE);
 	}
-	newpde = VM_PAGE_TO_PHYS(m) | PG_PS | PG_V;
+	newpde = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 1) |
+	    PG_PS | PG_V;
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
 		newpde |= PG_MANAGED;
 
@@ -3284,7 +3315,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	pmap->pm_stats.resident_count++;
 
-	pa = VM_PAGE_TO_PHYS(m);
+	pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 0);
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		pa |= pg_nx;
 
@@ -3325,9 +3356,10 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 	pd_entry_t *pde;
 	vm_paddr_t pa, ptepa;
 	vm_page_t p, pdpg;
+	int pat_mode;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT(object->type == OBJT_DEVICE,
+	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 	if ((addr & (NBPDR - 1)) == 0 && (size & (NBPDR - 1)) == 0) {
 		if (!vm_object_populate(object, pindex, pindex + atop(size)))
@@ -3335,6 +3367,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		p = vm_page_lookup(object, pindex);
 		KASSERT(p->valid == VM_PAGE_BITS_ALL,
 		    ("pmap_object_init_pt: invalid page %p", p));
+		pat_mode = p->md.pat_mode;
 
 		/*
 		 * Abort the mapping if the first page is not physically
@@ -3346,21 +3379,28 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 
 		/*
 		 * Skip the first page.  Abort the mapping if the rest of
-		 * the pages are not physically contiguous.
+		 * the pages are not physically contiguous or have differing
+		 * memory attributes.
 		 */
 		p = TAILQ_NEXT(p, listq);
 		for (pa = ptepa + PAGE_SIZE; pa < ptepa + size;
 		    pa += PAGE_SIZE) {
 			KASSERT(p->valid == VM_PAGE_BITS_ALL,
 			    ("pmap_object_init_pt: invalid page %p", p));
-			if (pa != VM_PAGE_TO_PHYS(p))
+			if (pa != VM_PAGE_TO_PHYS(p) ||
+			    pat_mode != p->md.pat_mode)
 				return;
 			p = TAILQ_NEXT(p, listq);
 		}
 
-		/* Map using 2MB pages. */
+		/*
+		 * Map using 2MB pages.  Since "ptepa" is 2M aligned and
+		 * "size" is a multiple of 2M, adding the PAT setting to "pa"
+		 * will not affect the termination of this loop.
+		 */ 
 		PMAP_LOCK(pmap);
-		for (pa = ptepa; pa < ptepa + size; pa += NBPDR) {
+		for (pa = ptepa | pmap_cache_bits(pat_mode, 1); pa < ptepa +
+		    size; pa += NBPDR) {
 			pdpg = pmap_allocpde(pmap, addr, M_NOWAIT);
 			if (pdpg == NULL) {
 				/*
@@ -4251,7 +4291,8 @@ pmap_pde_attr(pd_entry_t *pde, int cache_bits)
 void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 {
-	vm_offset_t va, tmpva, offset;
+	vm_offset_t va, offset;
+	vm_size_t tmpsize;
 
 	/*
 	 * If the specified range of physical addresses fits within the direct
@@ -4268,14 +4309,10 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 	pa = trunc_page(pa);
-	for (tmpva = va; size > 0; ) {
-		pmap_kenter_attr(tmpva, pa, mode);
-		size -= PAGE_SIZE;
-		tmpva += PAGE_SIZE;
-		pa += PAGE_SIZE;
-	}
-	pmap_invalidate_range(kernel_pmap, va, tmpva);
-	pmap_invalidate_cache();
+	for (tmpsize = 0; tmpsize < size; tmpsize += PAGE_SIZE)
+		pmap_kenter_attr(va + tmpsize, pa + tmpsize, mode);
+	pmap_invalidate_range(kernel_pmap, va, va + tmpsize);
+	pmap_invalidate_cache_range(va, va + tmpsize);
 	return ((void *)(va + offset));
 }
 
@@ -4362,6 +4399,26 @@ pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
 	CTR2(KTR_PMAP, "pmap_demote_pdpe: success for va %#lx"
 	    " in pmap %p", va, pmap);
 	return (TRUE);
+}
+
+/*
+ * Sets the memory attribute for the specified page.
+ */
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+
+	m->md.pat_mode = ma;
+
+	/*
+	 * If "m" is a normal page, update its direct mapping.  This update
+	 * can be relied upon to perform any cache operations that are
+	 * required for data coherence.
+	 */
+	if ((m->flags & PG_FICTITIOUS) == 0 &&
+	    pmap_change_attr(PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m)), PAGE_SIZE,
+	    m->md.pat_mode))
+		panic("memory attribute change on the direct map failed");
 }
 
 /*
@@ -4597,7 +4654,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	 */
 	if (changed) {
 		pmap_invalidate_range(kernel_pmap, base, tmpva);
-		pmap_invalidate_cache();
+		pmap_invalidate_cache_range(base, tmpva);
 	}
 	return (error);
 }

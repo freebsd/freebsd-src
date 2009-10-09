@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libauditd/auditd_lib.c#10 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libauditd/auditd_lib.c#11 $
  */
 
 #include <sys/param.h>
@@ -130,7 +130,7 @@ static char *auditd_errmsg[] = {
 
 #define MAXERRCODE (sizeof(auditd_errmsg) / sizeof(auditd_errmsg[0]))
 
-#define NA_EVENT_STR_SIZE       25
+#define NA_EVENT_STR_SIZE       128
 #define POL_STR_SIZE            128
 
 

@@ -64,18 +64,19 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
+#include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/libkern.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/netisr.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 
@@ -209,22 +210,8 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(iface, &typestruct);
 
-static vnet_attach_fn ng_iface_iattach;
-static vnet_detach_fn ng_iface_idetach;
-
-#ifdef VIMAGE_GLOBALS
-static struct unrhdr	*ng_iface_unit;
-#endif
-
-#ifndef VIMAGE_GLOBALS
-static vnet_modinfo_t vnet_ng_iface_modinfo = {
-	.vmi_id		= VNET_MOD_NG_IFACE,
-	.vmi_name	= "ng_iface",
-	.vmi_dependson	= VNET_MOD_NETGRAPH,
-	.vmi_iattach	= ng_iface_iattach,
-	.vmi_idetach	= ng_iface_idetach
-};
-#endif
+static VNET_DEFINE(struct unrhdr *, ng_iface_unit);
+#define	V_ng_iface_unit			VNET(ng_iface_unit)
 
 /************************************************************************
 			HELPER STUFF
@@ -542,7 +529,6 @@ ng_iface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 static int
 ng_iface_constructor(node_p node)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	struct ifnet *ifp;
 	priv_p priv;
 
@@ -806,7 +792,6 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 static int
 ng_iface_shutdown(node_p node)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	/*
@@ -852,18 +837,7 @@ ng_iface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-#ifndef VIMAGE_GLOBALS
-		vnet_mod_register(&vnet_ng_iface_modinfo);
-#else
-		ng_iface_iattach(NULL);
-#endif
-		break;
 	case MOD_UNLOAD:
-#ifndef VIMAGE_GLOBALS
-		vnet_mod_deregister(&vnet_ng_iface_modinfo);
-#else
-		ng_iface_idetach(NULL);
-#endif
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -872,20 +846,20 @@ ng_iface_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
-static int ng_iface_iattach(const void *unused)
+static void
+vnet_ng_iface_init(const void *unused)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 
 	V_ng_iface_unit = new_unrhdr(0, 0xffff, NULL);
-
-	return (0);
 }
+VNET_SYSINIT(vnet_ng_iface_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
+    vnet_ng_iface_init, NULL);
 
-static int ng_iface_idetach(const void *unused)
+static void
+vnet_ng_iface_uninit(const void *unused)
 {
-	INIT_VNET_NETGRAPH(curvnet);
 
 	delete_unrhdr(V_ng_iface_unit);
-
-	return (0);
 }
+VNET_SYSUNINIT(vnet_ng_iface_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
+    vnet_ng_iface_uninit, NULL);

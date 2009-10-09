@@ -289,7 +289,8 @@ struct mwl_softc {
 				    enum ieee80211_state, int);
 	void 			(*sc_node_cleanup)(struct ieee80211_node *);
 	void 			(*sc_node_drain)(struct ieee80211_node *);
-	void			(*sc_recv_action)(struct ieee80211_node *,
+	int			(*sc_recv_action)(struct ieee80211_node *,
+				    const struct ieee80211_frame *,
 				    const uint8_t *, const uint8_t *);
 	int			(*sc_addba_request)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *,

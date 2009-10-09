@@ -386,6 +386,27 @@ function filter_parse(s, a, i, attn, alen)
 		return (-1);
 	}
 
+	if (alen > 0 && a[1] == "COEFFICIENT_BIT") {
+		if (alen != 2)
+			return (-1);
+		init_coeff_bit(floor(a[2]));
+		return (-1);
+	}
+
+	if (alen > 0 && a[1] == "ACCUMULATOR_BIT") {
+		if (alen != 2)
+			return (-1);
+		init_accum_bit(floor(a[2]));
+		return (-1);
+	}
+
+	if (alen > 0 && a[1] == "INTERPOLATOR") {
+		if (alen != 2)
+			return (-1);
+		init_coeff_interpolator(toupper(a[2]));
+		return (-1);
+	}
+
 	if (alen == 1 || alen == 2) {
 		if (a[1] == "NYQUIST_HOVER") {
 			i = 1.0 * a[2];
@@ -448,7 +469,12 @@ function filter_parse(s, a, i, attn, alen)
 
 function genscale(bit, s1, s2, scale)
 {
-	s1 = Z_COEFF_SHIFT - (32 - bit);
+	if ((bit + Z_COEFF_SHIFT) > Z_ACCUMULATOR_BIT)
+		s1 = Z_COEFF_SHIFT -					\
+		    (32 - (Z_ACCUMULATOR_BIT - Z_COEFF_SHIFT));
+	else
+		s1 = Z_COEFF_SHIFT - (32 - bit);
+
 	s2 = Z_SHIFT + (32 - bit);
 
 	if (s1 == 0)
@@ -527,6 +553,62 @@ function init_drift(drift, xdrift)
 	Z_MASK         = Z_ONE - 1;
 }
 
+function init_coeff_bit(cbit, xcbit)
+{
+	xcbit = floor(cbit);
+
+	if (Z_COEFF_SHIFT != 0) {
+		if (xcbit != Z_COEFF_SHIFT)
+			printf("#error Z_COEFF_SHIFT reinitialize!\n");
+		return;
+	}
+
+	#
+	# Initialize dynamic range of coefficients.
+	#
+	if (xcbit < 1)
+		xcbit = 1;
+	else if (xcbit > 30)
+		xcbit = 30;
+
+	Z_COEFF_SHIFT = xcbit;
+	Z_COEFF_ONE   = shl(1, Z_COEFF_SHIFT);
+}
+
+function init_accum_bit(accbit, xaccbit)
+{
+	xaccbit = floor(accbit);
+
+	if (Z_ACCUMULATOR_BIT != 0) {
+		if (xaccbit != Z_ACCUMULATOR_BIT)
+			printf("#error Z_ACCUMULATOR_BIT reinitialize!\n");
+		return;
+	}
+
+	#
+	# Initialize dynamic range of accumulator.
+	#
+	if (xaccbit > 64)
+		xaccbit = 64;
+	else if (xaccbit < 32)
+		xaccbit = 32;
+
+	Z_ACCUMULATOR_BIT = xaccbit;
+}
+
+function init_coeff_interpolator(interp)
+{
+	#
+	# Validate interpolator type.
+	#
+	if (interp == "ZOH" || interp == "LINEAR" ||			\
+	    interp == "QUADRATIC" || interp == "HERMITE" ||		\
+	    interp == "BSPLINE" || interp == "OPT32X" ||		\
+	    interp == "OPT16X" || interp == "OPT8X" ||			\
+	    interp == "OPT4X" || interp == "OPT2X")
+		Z_COEFF_INTERPOLATOR = interp;
+}
+
 BEGIN {
 	I0_EPSILON = 1e-21;
 	M_PI = atan2(0.0, -1.0);
@@ -536,11 +618,17 @@ BEGIN {
 
 	Z_COEFF_OFFSET = 5;
 
+	Z_ACCUMULATOR_BIT_DEFAULT = 58;
+	Z_ACCUMULATOR_BIT         = 0;
+
 	Z_FULL_SHIFT   = 30;
 	Z_FULL_ONE     = shl(1, Z_FULL_SHIFT);
 
-	Z_COEFF_SHIFT  = 28;
-	Z_COEFF_ONE    = shl(1, Z_COEFF_SHIFT);
+	Z_COEFF_SHIFT_DEFAULT = 30;
+	Z_COEFF_SHIFT         = 0;
+	Z_COEFF_ONE           = 0;
+
+	Z_COEFF_INTERPOLATOR  = 0;
 
 	Z_INTERP_COEFF_SHIFT = 24;
 	Z_INTERP_COEFF_ONE   = shl(1, Z_INTERP_COEFF_SHIFT);
@@ -620,6 +708,10 @@ BEGIN {
 			rolloff = Popts["rolloff"];
 			if (Z_DRIFT_SHIFT == -1)
 				init_drift(Z_DRIFT_SHIFT_DEFAULT);
+			if (Z_COEFF_SHIFT == 0)
+				init_coeff_bit(Z_COEFF_SHIFT_DEFAULT);
+			if (Z_ACCUMULATOR_BIT == 0)
+				init_accum_bit(Z_ACCUMULATOR_BIT_DEFAULT);
 			ztab[imp["quality"] - 2] =				\
 			    mkfilter(imp, nmult, rolloff, beta, Z_DRIFT_ONE);
 			imp["quality"]++;
@@ -751,6 +843,18 @@ BEGIN {
 	genscale(24);
 	genscale(32);
 	printf("\n");
+	printf("#define Z_ACCUMULATOR_BIT\t%d\n\n", Z_ACCUMULATOR_BIT)
+	for (i = 8; i <= 32; i += 8) {
+		gbit = ((i + Z_COEFF_SHIFT) > Z_ACCUMULATOR_BIT) ?	\
+		    (i - (Z_ACCUMULATOR_BIT - Z_COEFF_SHIFT)) : 0;
+		printf("#define Z_GUARD_BIT_%d\t\t%d\n", i, gbit);
+		if (gbit == 0)
+			printf("#define Z_NORM_%d(v)\t\t(v)\n\n", i);
+		else
+			printf("#define Z_NORM_%d(v)\t\t"		\
+			    "((v) >> Z_GUARD_BIT_%d)\n\n", i, i);
+	}
+	printf("\n");
 	printf("#define Z_LINEAR_FULL_ONE\t0x%08xU\n", Z_LINEAR_FULL_ONE);
 	printf("#define Z_LINEAR_SHIFT\t\t%d\n", Z_LINEAR_SHIFT);
 	printf("#define Z_LINEAR_UNSHIFT\t%d\n", Z_LINEAR_UNSHIFT);
@@ -775,6 +879,9 @@ BEGIN {
 	printf("\n");
 	printf("#define Z_QUALITY_MIN\t\t0\n");
 	printf("#define Z_QUALITY_MAX\t\t%d\n", length(ztab) + 1);
+	if (Z_COEFF_INTERPOLATOR != 0)
+		printf("\n#define Z_COEFF_INTERP_%s\t1\n",		\
+		    Z_COEFF_INTERPOLATOR);
 	printf("\n/*\n * smallest: %.32f\n *  largest: %.32f\n *\n",	\
 	    smallest, largest);
 	printf(" * z_unshift=%d, z_interp_shift=%d\n *\n",		\

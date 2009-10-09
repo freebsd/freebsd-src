@@ -47,7 +47,6 @@ static void __guard_setup(void) __attribute__((__constructor__, __used__));
 static void __fail(const char *);
 void __stack_chk_fail(void);
 void __chk_fail(void);
-void __stack_chk_fail_local(void);
 
 /*LINTED used*/
 static void
@@ -109,8 +108,4 @@ __chk_fail(void)
 	__fail("buffer overflow detected; terminated");
 }
 
-void
-__stack_chk_fail_local(void)
-{
-	__stack_chk_fail();
-}
+__sym_compat(__stack_chk_fail_local, __stack_chk_fail, FBSD_1.0);

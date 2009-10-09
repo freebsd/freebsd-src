@@ -92,6 +92,7 @@ ACPI_MODULE_NAME("HP")
 #define ACPI_HP_METHOD_HDDTEMP				18
 #define ACPI_HP_METHOD_DOCK				19
 #define ACPI_HP_METHOD_CMI_DETAIL			20
+#define ACPI_HP_METHOD_VERBOSE				21
 
 #define HP_MASK_WWAN_ON_AIR			0x1000000
 #define HP_MASK_BLUETOOTH_ON_AIR		0x10000
@@ -121,6 +122,7 @@ struct acpi_hp_softc {
 	int		has_cmi;		/* CMI GUID found */
 	int		cmi_detail;		/* CMI detail level
 						   (set by sysctl) */
+	int		verbose;		/* add debug output */
 	int		wlan_enable_if_radio_on;	/* set by sysctl */
 	int		wlan_disable_if_radio_off;	/* set by sysctl */
 	int		bluetooth_enable_if_radio_on;	/* set by sysctl */
@@ -275,6 +277,12 @@ static struct {
 				    "(cat /dev/hpcmi)",
 		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
+	{
+		.name		= "verbose",
+		.method		= ACPI_HP_METHOD_VERBOSE,
+		.description	= "Verbosity level",
+		.access		= CTLTYPE_INT | CTLFLAG_RW
+	},
 
 	{ NULL, 0, NULL, 0 }
 };
@@ -334,10 +342,10 @@ MODULE_DEPEND(acpi_hp, acpi, 1, 1, 1);
 static void	
 acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 {
-	int wireless;
-	int new_wlan_status;
-	int new_bluetooth_status;
-	int new_wwan_status;
+	int	wireless;
+	int	new_wlan_status;
+	int	new_bluetooth_status;
+	int	new_wwan_status;
 
 	wireless = acpi_hp_exec_wmi_command(sc->wmi_dev,
 		    ACPI_HP_WMI_WIRELESS_COMMAND, 0, 0);
@@ -345,7 +353,8 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 	new_bluetooth_status = -1;
 	new_wwan_status = -1;
 
-	device_printf(sc->wmi_dev, "Wireless status is %x\n", wireless);
+	if (sc->verbose)
+		device_printf(sc->wmi_dev, "Wireless status is %x\n", wireless);
 	if (sc->wlan_disable_if_radio_off && !(wireless & HP_MASK_WLAN_RADIO)
 	    &&  (wireless & HP_MASK_WLAN_ENABLED)) {
 		acpi_hp_exec_wmi_command(sc->wmi_dev,
@@ -391,10 +400,11 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 		new_wlan_status = (wireless & HP_MASK_WLAN_ON_AIR);
 		if ((new_wlan_status?1:0) != sc->was_wlan_on_air) {
 			sc->was_wlan_on_air = sc->was_wlan_on_air?0:1;
-			device_printf(sc->wmi_dev,
-			    "WLAN on air changed to %i "
-			    "(new_wlan_status is %i)\n",
-			    sc->was_wlan_on_air, new_wlan_status);
+			if (sc->verbose)
+				device_printf(sc->wmi_dev,
+			    	    "WLAN on air changed to %i "
+			    	    "(new_wlan_status is %i)\n",
+			    	    sc->was_wlan_on_air, new_wlan_status);
 			acpi_UserNotify("HP", sc->handle,
 			    0xc0+sc->was_wlan_on_air);
 		}
@@ -404,9 +414,12 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 		if ((new_bluetooth_status?1:0) != sc->was_bluetooth_on_air) {
 			sc->was_bluetooth_on_air = sc->was_bluetooth_on_air?
 			    0:1;
-			device_printf(sc->wmi_dev, "BLUETOOTH on air changed"
-			    " to %i (new_bluetooth_status is %i)\n",
-			    sc->was_bluetooth_on_air, new_bluetooth_status);
+			if (sc->verbose)
+				device_printf(sc->wmi_dev,
+				    "BLUETOOTH on air changed"
+				    " to %i (new_bluetooth_status is %i)\n",
+				    sc->was_bluetooth_on_air,
+				    new_bluetooth_status);
 			acpi_UserNotify("HP", sc->handle,
 			    0xd0+sc->was_bluetooth_on_air);
 		}
@@ -415,9 +428,11 @@ acpi_hp_evaluate_auto_on_off(struct acpi_hp_softc *sc)
 		new_wwan_status = (wireless & HP_MASK_WWAN_ON_AIR);
 		if ((new_wwan_status?1:0) != sc->was_wwan_on_air) {
 			sc->was_wwan_on_air = sc->was_wwan_on_air?0:1;
-			device_printf(sc->wmi_dev, "WWAN on air changed to %i"
-			    " (new_wwan_status is %i)\n",
-			    sc->was_wwan_on_air, new_wwan_status);
+			if (sc->verbose)
+				device_printf(sc->wmi_dev,
+				    "WWAN on air changed to %i"
+			    	    " (new_wwan_status is %i)\n",
+				    sc->was_wwan_on_air, new_wwan_status);
 			acpi_UserNotify("HP", sc->handle,
 			    0xe0+sc->was_wwan_on_air);
 		}
@@ -440,7 +455,7 @@ acpi_hp_attach(device_t dev)
 	struct acpi_hp_softc	*sc;
 	struct acpi_softc	*acpi_sc;
 	devclass_t		wmi_devclass;
-	int arg;
+	int			arg;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
@@ -460,6 +475,7 @@ acpi_hp_attach(device_t dev)
 	sc->was_wwan_on_air = 0;
 	sc->cmi_detail = 0;
 	sc->cmi_order_size = -1;
+	sc->verbose = 0;
 	memset(sc->cmi_order, 0, sizeof(sc->cmi_order));
 	acpi_sc = acpi_device_get_parent_softc(dev);
 
@@ -553,7 +569,7 @@ acpi_hp_attach(device_t dev)
 static int
 acpi_hp_detach(device_t dev)
 {
-	int ret;
+	int	ret;
 	
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 	struct acpi_hp_softc *sc = device_get_softc(dev);
@@ -580,12 +596,12 @@ acpi_hp_detach(device_t dev)
 static int
 acpi_hp_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	struct acpi_hp_softc *sc;
-	int	arg;
-	int oldarg;
-	int	error = 0;
-	int	function;
-	int	method;
+	struct acpi_hp_softc	*sc;
+	int			arg;
+	int			oldarg;
+	int			error = 0;
+	int			function;
+	int			method;
 	
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -608,7 +624,7 @@ acpi_hp_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 acpi_hp_sysctl_get(struct acpi_hp_softc *sc, int method)
 {
-	int val = 0;
+	int	val = 0;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 	ACPI_SERIAL_ASSERT(hp);
@@ -696,6 +712,9 @@ acpi_hp_sysctl_get(struct acpi_hp_softc *sc, int method)
 	case ACPI_HP_METHOD_CMI_DETAIL:
 		val = sc->cmi_detail;
 		break;
+	case ACPI_HP_METHOD_VERBOSE:
+		val = sc->verbose;
+		break;
 	}
 
 	return (val);
@@ -707,7 +726,8 @@ acpi_hp_sysctl_set(struct acpi_hp_softc *sc, int method, int arg, int oldarg)
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 	ACPI_SERIAL_ASSERT(hp);
 
-	if (method != ACPI_HP_METHOD_CMI_DETAIL)
+	if (method != ACPI_HP_METHOD_CMI_DETAIL &&
+	    method != ACPI_HP_METHOD_VERBOSE)
 		arg = arg?1:0;
 
 	if (arg != oldarg) {
@@ -759,6 +779,9 @@ acpi_hp_sysctl_set(struct acpi_hp_softc *sc, int method, int arg, int oldarg)
 			    sc->cmi_order_size = -1;
 			}
 			break;
+		case ACPI_HP_METHOD_VERBOSE:
+			sc->verbose = arg;
+			break;
 		}
 	}
 
@@ -794,15 +817,15 @@ acpi_hp_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 static int
 acpi_hp_exec_wmi_command(device_t wmi_dev, int command, int is_write, int val)
 {
-	UINT32 params[5] = { 0x55434553,
-			     is_write?2:1,
-			     command,
-			     is_write?4:0,
-			     val};
-	UINT32* result;
-	ACPI_OBJECT *obj;
-	ACPI_BUFFER in = { sizeof(params), &params };
-	ACPI_BUFFER out = { ACPI_ALLOCATE_BUFFER, NULL };
+	UINT32		params[5] = { 0x55434553,
+			    is_write?2:1,
+			    command,
+			    is_write?4:0,
+			    val};
+	UINT32*		result;
+	ACPI_OBJECT	*obj;
+	ACPI_BUFFER	in = { sizeof(params), &params };
+	ACPI_BUFFER	out = { ACPI_ALLOCATE_BUFFER, NULL };
 	int retval;
 	
 	if (ACPI_FAILURE(ACPI_WMI_EVALUATE_CALL(wmi_dev, ACPI_HP_WMI_BIOS_GUID,
@@ -827,7 +850,8 @@ acpi_hp_exec_wmi_command(device_t wmi_dev, int command, int is_write, int val)
 
 static __inline char*
 acpi_hp_get_string_from_object(ACPI_OBJECT* obj, char* dst, size_t size) {
-	int length;
+	int	length;
+
 	dst[0] = 0;
 	if (obj->Type == ACPI_TYPE_STRING) {
 		length = obj->String.Length+1;
@@ -847,33 +871,32 @@ acpi_hp_get_string_from_object(ACPI_OBJECT* obj, char* dst, size_t size) {
  * The block returned is ACPI_TYPE_PACKAGE which should contain the following
  * elements:
  * Index Meaning
- * 0     Setting Name [string]
- * 1     Value (comma separated, asterisk marks the current value) [string]
- * 2     Path within the bios hierarchy [string]
- * 3     IsReadOnly [int]
- * 4     DisplayInUI [int]
- * 5     RequiresPhysicalPresence [int]
- * 6     Sequence for ordering within the bios settings (absolute) [int]
- * 7     Length of prerequisites array [int]
- * 8     Prerequisite1 [string]
- * 9     Prerequisite2 [string]
- * 10    Prerequisite3 [string]
- * 11    Current value (in case of enum) [string] / Array length [int]
- * 12    Enum length [int] / Array values
- * 13ff  Enum value at index x [string]
+ * 0        Setting Name [string]
+ * 1        Value (comma separated, asterisk marks the current value) [string]
+ * 2        Path within the bios hierarchy [string]
+ * 3        IsReadOnly [int]
+ * 4        DisplayInUI [int]
+ * 5        RequiresPhysicalPresence [int]
+ * 6        Sequence for ordering within the bios settings (absolute) [int]
+ * 7        Length of prerequisites array [int]
+ * 8..8+[7] PrerequisiteN [string]
+ * 9+[7]    Current value (in case of enum) [string] / Array length [int]
+ * 10+[7]   Enum length [int] / Array values
+ * 11+[7]ff Enum value at index x [string]
  */
 static int
 acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
     char* outbuf, size_t outsize, UINT32* sequence, int detail)
 {
-	ACPI_OBJECT *obj;
-	ACPI_BUFFER out = { ACPI_ALLOCATE_BUFFER, NULL };
-	int i;
-	int outlen;
-	int size = 255;
-	int has_enums = 0;
-	char string_buffer[size];
-	int enumbase;
+	ACPI_OBJECT	*obj;
+	ACPI_BUFFER	out = { ACPI_ALLOCATE_BUFFER, NULL };
+	int		i;
+	int		outlen;
+	int		size = 255;
+	int		has_enums = 0;
+	int		valuebase = 0;
+	char		string_buffer[size];
+	int		enumbase;
 
 	outlen = 0;
 	outbuf[0] = 0;	
@@ -887,8 +910,13 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
 		return (-EINVAL);
 	}
 
+	if (obj->Package.Count >= 8 &&
+	    obj->Package.Elements[7].Type == ACPI_TYPE_INTEGER) {
+	    valuebase = 8 + obj->Package.Elements[7].Integer.Value;
+	}
+
 	/* check if this matches our expectations based on limited knowledge */
-	if (obj->Package.Count >= 13 &&
+	if (valuebase > 7 && obj->Package.Count > valuebase + 1 &&
 	    obj->Package.Elements[0].Type == ACPI_TYPE_STRING &&
 	    obj->Package.Elements[1].Type == ACPI_TYPE_STRING &&
 	    obj->Package.Elements[2].Type == ACPI_TYPE_STRING &&
@@ -896,20 +924,12 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
 	    obj->Package.Elements[4].Type == ACPI_TYPE_INTEGER &&
 	    obj->Package.Elements[5].Type == ACPI_TYPE_INTEGER &&
 	    obj->Package.Elements[6].Type == ACPI_TYPE_INTEGER &&
-	    obj->Package.Elements[7].Type == ACPI_TYPE_INTEGER &&
-	    obj->Package.Elements[8].Type == ACPI_TYPE_STRING &&
-	    obj->Package.Elements[9].Type == ACPI_TYPE_STRING &&
-	    obj->Package.Elements[10].Type == ACPI_TYPE_STRING &&
-	    ((obj->Package.Elements[11].Type == ACPI_TYPE_STRING &&
-	    obj->Package.Elements[12].Type == ACPI_TYPE_INTEGER &&
-	    obj->Package.Count >=
-	    	13+obj->Package.Elements[12].Integer.Value) ||
-	    (obj->Package.Elements[11].Type == ACPI_TYPE_INTEGER &&
-	    obj->Package.Count >=
-	    	12+obj->Package.Elements[11].Integer.Value))
-	    ) {
-		enumbase = obj->Package.Elements[11].Type == ACPI_TYPE_STRING?
-				12:11;
+	    obj->Package.Elements[valuebase].Type == ACPI_TYPE_STRING &&
+	    obj->Package.Elements[valuebase+1].Type == ACPI_TYPE_INTEGER &&
+	    obj->Package.Count > valuebase + 
+	        obj->Package.Elements[valuebase+1].Integer.Value
+	   ) {
+		enumbase = valuebase + 1;
 		if (detail & ACPI_HP_CMI_DETAIL_PATHS) {
 			strlcat(outbuf, acpi_hp_get_string_from_object(
 				&obj->Package.Elements[2], string_buffer, size),
@@ -924,11 +944,10 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
 		outlen += 43;
 		while (strlen(outbuf) < outlen)
 			strlcat(outbuf, " ", outsize);
-		if (enumbase == 12)
-			strlcat(outbuf, acpi_hp_get_string_from_object(
-					    &obj->Package.Elements[11],
-					    string_buffer, size),
-					outsize);
+		strlcat(outbuf, acpi_hp_get_string_from_object(
+				&obj->Package.Elements[valuebase], string_buffer, 
+				size),
+				outsize);
 		outlen += 21;
 		while (strlen(outbuf) < outlen)
 			strlcat(outbuf, " ", outsize);
@@ -936,7 +955,7 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
 			if (outbuf[i] == '\\')
 				outbuf[i] = '/';
 		if (detail & ACPI_HP_CMI_DETAIL_ENUMS) {
-			for (i = enumbase+1; i < enumbase + 1 +
+			for (i = enumbase + 1; i < enumbase + 1 +
 			    obj->Package.Elements[enumbase].Integer.Value;
 			    ++i) {
 				acpi_hp_get_string_from_object(
@@ -980,8 +999,8 @@ acpi_hp_get_cmi_block(device_t wmi_dev, const char* guid, UINT8 instance,
  */
 static __inline int acpi_hp_hex_to_int(const UINT8 *hexin, UINT8 *byteout)
 {
-	unsigned int hi;
-	unsigned int lo;
+	unsigned int	hi;
+	unsigned int	lo;
 
 	hi = hexin[0];
 	lo = hexin[1];
@@ -1010,10 +1029,10 @@ static __inline int acpi_hp_hex_to_int(const UINT8 *hexin, UINT8 *byteout)
 static void
 acpi_hp_hex_decode(char* buffer)
 {
-	int i;
-	int length = strlen(buffer);
-	UINT8 *uin;
-	UINT8 uout;
+	int	i;
+	int	length = strlen(buffer);
+	UINT8	*uin;
+	UINT8	uout;
 
 	if (((int)length/2)*2 == length || length < 10) return;
 
@@ -1044,8 +1063,8 @@ acpi_hp_hex_decode(char* buffer)
 static int
 acpi_hp_hpcmi_open(struct cdev* dev, int flags, int mode, struct thread *td)
 {
-	struct acpi_hp_softc *sc;
-	int ret;
+	struct acpi_hp_softc	*sc;
+	int			ret;
 
 	if (dev == NULL || dev->si_drv1 == NULL)
 		return (EBADF);
@@ -1076,8 +1095,8 @@ acpi_hp_hpcmi_open(struct cdev* dev, int flags, int mode, struct thread *td)
 static int
 acpi_hp_hpcmi_close(struct cdev* dev, int flags, int mode, struct thread *td)
 {
-	struct acpi_hp_softc *sc;
-	int ret;
+	struct acpi_hp_softc	*sc;
+	int			ret;
 
 	if (dev == NULL || dev->si_drv1 == NULL)
 		return (EBADF);
@@ -1106,13 +1125,13 @@ acpi_hp_hpcmi_close(struct cdev* dev, int flags, int mode, struct thread *td)
 static int
 acpi_hp_hpcmi_read(struct cdev *dev, struct uio *buf, int flag)
 {
-	struct acpi_hp_softc *sc;
-	int pos, i, l, ret;
-	UINT8 instance;
-	UINT8 maxInstance;
-	UINT32 sequence;
-	int linesize = 1025;
-	char line[linesize];
+	struct acpi_hp_softc	*sc;
+	int			pos, i, l, ret;
+	UINT8			instance;
+	UINT8			maxInstance;
+	UINT32			sequence;
+	int			linesize = 1025;
+	char			line[linesize];
 
 	if (dev == NULL || dev->si_drv1 == NULL)
 		return (EBADF);

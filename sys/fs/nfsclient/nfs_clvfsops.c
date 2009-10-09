@@ -1037,7 +1037,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
-	int error, trycnt, ret, clearintr;
+	int error, trycnt, ret;
 	struct nfsvattr nfsva;
 	static u_int64_t clval = 0;
 
@@ -1152,20 +1152,8 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		nmp->nm_sockreq.nr_vers = NFS_VER2;
 
 
-	/*
-	 * For Connection based sockets (TCP,...) do the connect here,
-	 * but make it interruptible, even for non-interuptible mounts.
-	 */
-	if ((nmp->nm_flag & NFSMNT_INT) == 0) {
-		nmp->nm_flag |= NFSMNT_INT;
-		clearintr = 1;
-	} else {
-		clearintr = 0;
-	}
 	if ((error = newnfs_connect(nmp, &nmp->nm_sockreq, cred, td, 0)))
 		goto bad;
-	if (clearintr)
-		nmp->nm_flag &= ~NFSMNT_INT;
 
 	/*
 	 * A reference count is needed on the nfsnode representing the
@@ -1194,6 +1182,12 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		}
 	}
 	if (nmp->nm_fhsize > 0) {
+		/*
+		 * Set f_iosize to NFS_DIRBLKSIZ so that bo_bsize gets set
+		 * non-zero for the root vnode. f_iosize will be set correctly
+		 * by nfs_statfs() before any I/O occurs.
+		 */
+		mp->mnt_stat.f_iosize = NFS_DIRBLKSIZ;
 		error = ncl_nget(mp, nmp->nm_fh, nmp->nm_fhsize, &np);
 		if (error)
 			goto bad;

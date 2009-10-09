@@ -196,7 +196,7 @@ clnt_vc_create(
 		while ((so->so_state & SS_ISCONNECTING)
 		    && so->so_error == 0) {
 			error = msleep(&so->so_timeo, SOCK_MTX(so),
-			    PSOCK | PCATCH, "connec", 0);
+			    PSOCK | PCATCH | PBDRY, "connec", 0);
 			if (error) {
 				if (error == EINTR || error == ERESTART)
 					interrupted = 1;
@@ -477,6 +477,7 @@ call_again:
 		errp->re_errno = error;
 		switch (error) {
 		case EINTR:
+		case ERESTART:
 			stat = RPC_INTR;
 			break;
 		case EWOULDBLOCK:
@@ -709,7 +710,7 @@ clnt_vc_control(CLIENT *cl, u_int request, void *info)
 
 	case CLSET_INTERRUPTIBLE:
 		if (*(int *) info)
-			ct->ct_waitflag = PCATCH;
+			ct->ct_waitflag = PCATCH | PBDRY;
 		else
 			ct->ct_waitflag = 0;
 		break;

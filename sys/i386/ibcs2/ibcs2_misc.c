@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/file.h>			/* Must come after sys/malloc.h */
 #include <sys/mutex.h>
+#include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
@@ -763,7 +764,7 @@ ibcs2_pathconf(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 	uap->name++;	/* iBCS2 _PC_* defines are offset by one */
-	error = kern_pathconf(td, path, UIO_SYSSPACE, uap->name);
+	error = kern_pathconf(td, path, UIO_SYSSPACE, uap->name, FOLLOW);
 	free(path, M_TEMP);
 	return (error);
 }

@@ -13,7 +13,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	fsck ftp-proxy ftpd \
 	gbde geli geli2 gssd \
 	hcsecd \
-	hostapd hostid hostname \
+	hostapd hostid hostid_save hostname \
 	inetd initrandom \
 	ip6addrctl ip6fw ipfilter ipfs ipfw ipmon \
 	ipnat ipsec ipxrouted \
@@ -40,7 +40,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	watchdogd wpa_supplicant \
 	ypbind yppasswdd ypserv \
 	ypset ypupdated ypxfrd \
-	zfs
+	zfs zvol
 
 .if ${MK_OPENSSH} != "no"
 FILES+=	sshd

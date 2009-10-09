@@ -41,6 +41,7 @@
 
 #ifdef _KERNEL
 #include <sys/rwlock.h>
+#include <net/vnet.h>
 #endif
 
 #define	in6pcb		inpcb	/* for KAME src sync over BSD*'s */
@@ -168,7 +169,8 @@ struct inpcb {
 	u_char	inp_ip_minttl;		/* (i) minimum TTL or drop */
 	uint32_t inp_flowid;		/* (x) flow id / queue id */
 	u_int	inp_refcount;		/* (i) refcount */
-	void	*inp_pspare[2];		/* (x) rtentry / general use */
+	void	*inp_pspare[4];		/* (x) rtentry / general use */
+	u_int	inp_ispare[4];		/* general use */
 
 	/* Local and foreign ports, local and foreign addr. */
 	struct	in_conninfo inp_inc;	/* (i/p) list for PCB's local port */
@@ -450,21 +452,34 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_CHECK_SOCKAF(so, af)	(INP_SOCKAF(so) == af)
 
 #ifdef _KERNEL
-#ifdef VIMAGE_GLOBALS
-extern int	ipport_reservedhigh;
-extern int	ipport_reservedlow;
-extern int	ipport_lowfirstauto;
-extern int	ipport_lowlastauto;
-extern int	ipport_firstauto;
-extern int	ipport_lastauto;
-extern int	ipport_hifirstauto;
-extern int	ipport_hilastauto;
-extern int	ipport_randomized;
-extern int	ipport_randomcps;
-extern int	ipport_randomtime;
-extern int	ipport_stoprandom;
-extern int	ipport_tcpallocs;
-#endif
+VNET_DECLARE(int, ipport_reservedhigh);
+VNET_DECLARE(int, ipport_reservedlow);
+VNET_DECLARE(int, ipport_lowfirstauto);
+VNET_DECLARE(int, ipport_lowlastauto);
+VNET_DECLARE(int, ipport_firstauto);
+VNET_DECLARE(int, ipport_lastauto);
+VNET_DECLARE(int, ipport_hifirstauto);
+VNET_DECLARE(int, ipport_hilastauto);
+VNET_DECLARE(int, ipport_randomized);
+VNET_DECLARE(int, ipport_randomcps);
+VNET_DECLARE(int, ipport_randomtime);
+VNET_DECLARE(int, ipport_stoprandom);
+VNET_DECLARE(int, ipport_tcpallocs);
+
+#define	V_ipport_reservedhigh	VNET(ipport_reservedhigh)
+#define	V_ipport_reservedlow	VNET(ipport_reservedlow)
+#define	V_ipport_lowfirstauto	VNET(ipport_lowfirstauto)
+#define	V_ipport_lowlastauto	VNET(ipport_lowlastauto)
+#define	V_ipport_firstauto	VNET(ipport_firstauto)
+#define	V_ipport_lastauto	VNET(ipport_lastauto)
+#define	V_ipport_hifirstauto	VNET(ipport_hifirstauto)
+#define	V_ipport_hilastauto	VNET(ipport_hilastauto)
+#define	V_ipport_randomized	VNET(ipport_randomized)
+#define	V_ipport_randomcps	VNET(ipport_randomcps)
+#define	V_ipport_randomtime	VNET(ipport_randomtime)
+#define	V_ipport_stoprandom	VNET(ipport_stoprandom)
+#define	V_ipport_tcpallocs	VNET(ipport_tcpallocs)
+
 extern struct callout ipport_tick_callout;
 
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);

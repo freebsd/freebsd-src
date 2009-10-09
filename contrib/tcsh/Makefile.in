@@ -1,4 +1,4 @@
-# $tcsh: Makefile.in,v 3.36 2006/08/24 20:56:31 christos Exp $
+# $tcsh: Makefile.in,v 3.40 2009/06/24 22:09:05 christos Exp $
 #	Makefile.in	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile
@@ -248,7 +248,7 @@ CPP = @CPP@ # This is set by autoconf.
 # The -B tells gcc to use /bin/ld. This is to avoid using the gnu ld, which
 # on the suns does not know how to make dynamically linked binaries.
 CC = @CC@ # This is set by autoconf.
-#CC= gcc -Wall -Wmissing-prototypes -Wstrict-prototypes -Wpointer-arith -Werror -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wsign-compare -Wcast-qual -Wreturn-type -Wswitch -Wshadow -Wwrite-strings
+#CC= gcc -Wall -Wmissing-prototypes -Wstrict-prototypes -Wpointer-arith -Werror -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wsign-compare -Wcast-qual -Wreturn-type -Wswitch -Wshadow -Wwrite-strings -Wextra
 #CC=	gcc -Wall -pipe -B/bin/	# -ansi -pedantic
 #CC=	gcc -m486 -pipe -Wall # Generate code for Intel 486 (linux)
 #CC=	shlicc 	# BSDI2.1 w/ shared libraries
@@ -278,7 +278,7 @@ P=
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 bindir=@bindir@
-mandir=@mandir@
+mandir=@datarootdir@/man
 MANSECT=1
 DESTBIN=${DESTDIR}${bindir}
 DESTMAN=${DESTDIR}${mandir}/man${MANSECT}
@@ -463,7 +463,7 @@ $(srcdir)/tests/package.m4: $(srcdir)/configure.in
 	  echo 'm4_define([AT_PACKAGE_BUGREPORT], [@PACKAGE_BUGREPORT@])'; \
 	} >$(srcdir)/tests/package.m4
 
-$(srcdir)/tests/testsuite: tests/package.m4 tests/testsuite.at $(TESTFILES)
+$(srcdir)/tests/testsuite: $(srcdir)/tests/package.m4 $(srcdir}/tests/testsuite.at $(TESTFILES)
 	autom4te --language=autotest -I $(srcdir)/tests \
 		$(srcdir)/tests/testsuite.at -o $@.tmp
 	mv $@.tmp $@
@@ -531,11 +531,16 @@ install.cygwin: install install.man
 	cp ${srcdir}/WishList ${srcdir}/Y2K ${DESTDIR}${prefix}/share/doc/tcsh
 	perl ${srcdir}/tcsh.man2html ${srcdir}/tcsh.man
 	cp -rp tcsh.html ${DESTDIR}${prefix}/share/doc/tcsh
+	-mkdir -p ${DESTDIR}/etc/defaults/etc/profile.d
 	-mkdir -p ${DESTDIR}/etc/profile.d
 	-mkdir -p ${DESTDIR}/etc/postinstall
-	cp -p ${srcdir}/cygwin/etc/csh.* ${DESTDIR}/etc
-	cp -p ${srcdir}/cygwin/etc/profile.d/*.tcsh ${DESTDIR}/etc/profile.d
-	cp -p ${srcdir}/cygwin/etc/postinstall/tcsh.sh ${DESTDIR}/etc/postinstall
+	-mkdir -p ${DESTDIR}/etc/preremove
+	cp -p ${srcdir}/cygwin/csh.cshrc ${DESTDIR}/etc/defaults/etc
+	cp -p ${srcdir}/cygwin/csh.login ${DESTDIR}/etc/defaults/etc
+	cp -p ${srcdir}/cygwin/bindkey.tcsh ${DESTDIR}/etc/defaults/etc/profile.d
+	cp -p ${srcdir}/complete.tcsh ${DESTDIR}/etc/defaults/etc/profile.d
+	cp -p ${srcdir}/cygwin/postinstall.sh ${DESTDIR}/etc/postinstall/tcsh.sh
+	cp -p ${srcdir}/cygwin/preremove.sh ${DESTDIR}/etc/preremove/tcsh.sh
 
 # Amiga Unix
 #install.man: tcsh.man

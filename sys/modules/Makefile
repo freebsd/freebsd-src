@@ -14,6 +14,7 @@ SUBDIR=	${_3dfx} \
 	${_agp} \
 	aha \
 	${_ahb} \
+	ahci \
 	${_aic} \
 	aic7xxx \
 	aio \
@@ -110,6 +111,7 @@ SUBDIR=	${_3dfx} \
 	if_disc \
 	if_edsc \
 	if_ef \
+	if_epair \
 	if_faith \
 	if_gif \
 	if_gre \
@@ -243,6 +245,7 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	sf \
+	siis \
 	sis \
 	sk \
 	${_smbfs} \
@@ -273,7 +276,7 @@ SUBDIR=	${_3dfx} \
 	ubsec \
 	udf \
 	udf_iconv \
-	${_ufs} \
+	ufs \
 	unionfs \
 	usb \
 	utopia \
@@ -304,10 +307,6 @@ SUBDIR=	${_3dfx} \
 .if ${MACHINE_ARCH} != "powerpc"
 _syscons=	syscons
 _vpo=		vpo
-.endif
-
-.if defined(ALL_MODULES)
-_ufs=		ufs
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)

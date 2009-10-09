@@ -100,8 +100,9 @@ __FBSDID("$FreeBSD$");
 #ifndef KDB
 #error KDB must be enabled in order for DDB to work!
 #endif
-#endif
 #include <ddb/ddb.h>
+#include <ddb/db_sym.h>
+#endif
 
 #include <net/netisr.h>
 
@@ -212,7 +213,11 @@ cpu_startup(dummy)
 	 */
 	sysenv = getenv("smbios.system.product");
 	if (sysenv != NULL) {
-		if (strncmp(sysenv, "MacBook", 7) == 0) {
+		if (strncmp(sysenv, "MacBook1,1", 10) == 0 ||
+		    strncmp(sysenv, "MacBook3,1", 10) == 0 ||
+		    strncmp(sysenv, "MacBookPro1,1", 13) == 0 ||
+		    strncmp(sysenv, "MacBookPro1,2", 13) == 0 ||
+		    strncmp(sysenv, "Macmini1,1", 10) == 0) {
 			if (bootverbose)
 				printf("Disabling LEGACY_USB_EN bit on "
 				    "Intel ICH.\n");
@@ -381,6 +386,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_fs = _ufssel;
 	regs->tf_gs = _ugssel;
 	regs->tf_flags = TF_HASSEGS;
+	td->td_pcb->pcb_full_iret = 1;
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
@@ -482,6 +488,7 @@ sigreturn(td, uap)
 	signotify(td);
 	PROC_UNLOCK(p);
 	td->td_pcb->pcb_flags |= PCB_FULLCTX;
+	td->td_pcb->pcb_full_iret = 1;
 	return (EJUSTRETURN);
 }
 
@@ -852,6 +859,7 @@ exec_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_gsbase = 0;
 	pcb->pcb_flags &= ~(PCB_32BIT | PCB_GS32BIT);
 	pcb->pcb_initial_fpucw = __INITIAL_FPUCW__;
+	pcb->pcb_full_iret = 1;
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
@@ -1082,6 +1090,30 @@ extern inthand_t
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
 	IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
+
+#ifdef DDB
+/*
+ * Display the index and function name of any IDT entries that don't use
+ * the default 'rsvd' entry point.
+ */
+DB_SHOW_COMMAND(idt, db_show_idt)
+{
+	struct gate_descriptor *ip;
+	int idx;
+	uintptr_t func;
+
+	ip = idt;
+	for (idx = 0; idx < NIDT && !db_pager_quit; idx++) {
+		func = ((long)ip->gd_hioffset << 16 | ip->gd_looffset);
+		if (func != (uintptr_t)&IDTVEC(rsvd)) {
+			db_printf("%3d\t", idx);
+			db_printsym(func, DB_STGY_PROC);
+			db_printf("\n");
+		}
+		ip++;
+	}
+}
+#endif
 
 void
 sdtossd(sd, ssd)
@@ -2006,6 +2038,7 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		td->td_pcb->pcb_gsbase = mcp->mc_gsbase;
 	}
 	td->td_pcb->pcb_flags |= PCB_FULLCTX;
+	td->td_pcb->pcb_full_iret = 1;
 	return (0);
 }
 

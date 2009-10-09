@@ -710,7 +710,7 @@ int main(int argc, char *argv[])
 	char mac[] = { 0x00, 0x00, 0xde, 0xfa, 0xce, 0xd };
 	int ch;
 	struct params p;
-	char *iface = "ath0";
+	char *iface = "wlan0";
 	char *tap = "tap0";
 	int timeout = 50*1000;
 	struct timeval start;

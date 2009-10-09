@@ -25,221 +25,89 @@
  */
 
 #ifndef __LIBUSB10_H__
-#define __LIBUSB10_H__
+#define	__LIBUSB10_H__
 
-/*
- * The two following macros were taken from the original LibUSB v1.0
- * for sake of compatibility:
- */
-#define	USB_LIST_INIT(entry) \
-	(entry)->prev = (entry)->next = entry;
-#define USB_LIST_EMPTY(entry) \
-	((entry)->next = (entry))
+#include <sys/queue.h>
 
-#define	LIST_ADD(entry, head) \
-	(entry)->next = (head)->next; \
-	(entry)->prev = (head); \
-	(head)->next->prev = (entry); \
-	(head)->next = (entry);
-#define	LIST_ADD_TAIL(entry, head) \
-	(entry)->next = (head); \
-	(entry)->prev = (head)->prev; \
-	(head)->prev->next = (entry); \
-	(head)->prev = (entry);
-#define	LIST_DEL(entry) \
-	(entry)->next->prev = (entry)->prev; \
-	(entry)->prev->next = (entry)->next;
+#define	GET_CONTEXT(ctx) (((ctx) == NULL) ? usbi_default_context : (ctx))
+#define	UNEXPORTED __attribute__((__visibility__("hidden")))
+#define	CTX_LOCK(ctx) pthread_mutex_lock(&(ctx)->ctx_lock)
+#define	CTX_TRYLOCK(ctx) pthread_mutex_trylock(&(ctx)->ctx_lock)
+#define	CTX_UNLOCK(ctx) pthread_mutex_unlock(&(ctx)->ctx_lock)
 
-#define LIST_ENT(ptr, type, member) \
-	((type *)((char *)(ptr) - (unsigned long) (&((type*)0L)->member)))
-#define LIST_FOREACH_ENTRY(pos, head, member) \
-	for (pos = LIST_ENT((head)->next, typeof(*pos), member) ; \
-	    &pos->member != head ; \
-	    pos = LIST_ENT(pos->member.next, typeof(*pos), member))
-#define LIST_FOREACH_ENTRY_SAFE(pos, n, head, member) \
-	for (pos = LIST_ENT((head)->next, typeof(*pos), member), \
-	    n = LIST_ENT(pos->member.next, typeof(*pos), member); \
-	    &pos->member != (head); \
-	    pos = n, n = LIST_ENT(n->member.next, typeof(*n), member))	
+#define	DPRINTF(ctx, dbg, format, args...) do {	\
+    if ((ctx)->debug == dbg) {			\
+	switch (dbg) {				\
+	case LIBUSB_DEBUG_FUNCTION:		\
+		printf("LIBUSB_FUNCTION: "	\
+		    format "\n", ## args);	\
+		break;				\
+	case LIBUSB_DEBUG_TRANSFER:		\
+		printf("LIBUSB_TRANSFER: "	\
+		    format "\n", ## args);	\
+		break;				\
+	default:				\
+		break;				\
+	}					\
+    }						\
+} while(0)
 
-/* fetch libusb20_transfer from libusb20_device */
-#define GET_XFER(xfer, endpoint, pdev)\
-	xfer = libusb20_tr_get_pointer(pdev, \
-	    (2 *endpoint)|(endpoint/0x80)); \
-	if (xfer == NULL) \
-		return (LIBUSB_ERROR_OTHER);
+/* internal structures */
 
-
-static int get_next_timeout(libusb_context *ctx, struct timeval *tv, struct timeval *out);
-static int handle_timeouts(struct libusb_context *ctx);
-static int handle_events(struct libusb_context *ctx, struct timeval *tv);
-extern struct libusb_context *usbi_default_context;
-extern pthread_mutex_t libusb20_lock; 
-
-/* if ctx is NULL use default context*/
-
-#define GET_CONTEXT(ctx) \
-	if (ctx == NULL) ctx = usbi_default_context;
-
-#define MAX(a,b) (((a)>(b))?(a):(b))
-#define USB_TIMED_OUT (1<<0)
-
-static inline void 
-dprintf(libusb_context *ctx, int debug, char *str)
-{
-	if (ctx->debug != debug)
-		return ;
-
-	switch (ctx->debug) {
-	case LIBUSB_DEBUG_NO:
-		break ;
-	case LIBUSB_DEBUG_FUNCTION:
-		printf("LIBUSB FUNCTION : %s\n", str); 
-		break ;
-	case LIBUSB_DEBUG_TRANSFER:
-		printf("LIBUSB TRANSFER : %s\n", str);
-		break ;
-	default:
-		printf("LIBUSB UNKNOW DEBUG\n");
-		break ;
-	}
-	return ;
-}
-
-struct usb_pollfd {
+struct libusb_super_pollfd {
+	TAILQ_ENTRY(libusb_super_pollfd) entry;
+	struct libusb20_device *pdev;
 	struct libusb_pollfd pollfd;
-	struct list_head list;
 };
 
-struct usb_transfer {
-	int num_iso_packets;
-	struct list_head list;
-	struct timeval timeout;
-	int transferred;
-	uint8_t flags;
+struct libusb_super_transfer {
+	TAILQ_ENTRY(libusb_super_transfer) entry;
+	uint8_t *curr_data;
+	uint32_t rem_len;
+	uint32_t last_len;
+	uint8_t	flags;
 };
 
-static inline int
-usb_add_pollfd(libusb_context *ctx, int fd, short events)
-{
-	struct usb_pollfd *pollfd;
+struct libusb_context {
+	int	debug;
+	int	debug_fixed;
+	int	ctrl_pipe[2];
+	int	tr_done_ref;
+	int	tr_done_gen;
 
-	if (ctx == NULL)
-		return (LIBUSB_ERROR_INVALID_PARAM);
-	
-	pollfd = malloc(sizeof(*pollfd));
-	if (pollfd == NULL)
-		return (LIBUSB_ERROR_NO_MEM);
+	pthread_mutex_t ctx_lock;
+	pthread_cond_t ctx_cond;
+	pthread_t ctx_handler;
+#define	NO_THREAD ((pthread_t)-1)
 
-	pollfd->pollfd.fd = fd;
-	pollfd->pollfd.events = events;
+	TAILQ_HEAD(, libusb_super_pollfd) pollfds;
+	TAILQ_HEAD(, libusb_super_transfer) tr_done;
 
-	pthread_mutex_lock(&ctx->pollfds_lock);
-	LIST_ADD_TAIL(&pollfd->list, &ctx->pollfds);
-	pthread_mutex_unlock(&ctx->pollfds_lock);
+	struct libusb_super_pollfd ctx_poll;
 
-	if (ctx->fd_added_cb)
-		ctx->fd_added_cb(fd, events, ctx->fd_cb_user_data);
-	return (0);
-}
+	libusb_pollfd_added_cb fd_added_cb;
+	libusb_pollfd_removed_cb fd_removed_cb;
+	void   *fd_cb_user_data;
+};
 
-static inline void
-usb_remove_pollfd(libusb_context *ctx, int fd)
-{
-	struct usb_pollfd *pollfd;
-	int found;
+struct libusb_device {
+	int	refcnt;
 
-	found = 0;
-	pthread_mutex_lock(&ctx->pollfds_lock);
+	uint32_t claimed_interfaces;
 
-	LIST_FOREACH_ENTRY(pollfd, &ctx->pollfds, list) {
-		if (pollfd->pollfd.fd == fd) {
-			found = 1;
-			break ;
-		}
-	}
+	struct libusb_super_pollfd dev_poll;
 
-	if (found == 0) {
-		pthread_mutex_unlock(&ctx->pollfds_lock);
-		return ;
-	}
-
-	LIST_DEL(&pollfd->list);
-	pthread_mutex_unlock(&ctx->pollfds_lock);
-	free(pollfd);
-
-	if (ctx->fd_removed_cb)
-		ctx->fd_removed_cb(fd, ctx->fd_cb_user_data);
-}
-
-static inline void
-usb_handle_transfer_completion(struct usb_transfer *uxfer, 
-    enum libusb_transfer_status status)
-{
-	libusb_transfer *xfer;
-	libusb_context *ctx;
-	int len;
-
-	xfer = (struct libusb_transfer *) ((uint8_t *)uxfer + 
-	    sizeof(struct usb_transfer));
-	ctx = xfer->dev_handle->dev->ctx;
-
-	pthread_mutex_lock(&ctx->flying_transfers_lock);
-	LIST_DEL(&uxfer->list);
-	pthread_mutex_unlock(&ctx->flying_transfers_lock);
-
-	if (status == LIBUSB_TRANSFER_COMPLETED && xfer->flags &
-	    LIBUSB_TRANSFER_SHORT_NOT_OK) {
-		len = xfer->length;
-		if (xfer->type == LIBUSB_TRANSFER_TYPE_CONTROL)
-			len -= sizeof(libusb_control_setup);
-		if (len != uxfer->transferred) {
-			status = LIBUSB_TRANSFER_ERROR;
-		}
-	}
-
-	xfer->status = status;
-	xfer->actual_length = uxfer->transferred;
-
-	if (xfer->callback)
-		xfer->callback(xfer);
-	if (xfer->flags & LIBUSB_TRANSFER_FREE_TRANSFER)
-		libusb_free_transfer(xfer);
-
-	pthread_mutex_lock(&ctx->event_waiters_lock);
-	pthread_cond_broadcast(&ctx->event_waiters_cond);
-	pthread_mutex_unlock(&ctx->event_waiters_lock);
-}
-
-static inline void
-usb_handle_disconnect(struct libusb_device_handle *devh)
-{
 	struct libusb_context *ctx;
-	struct libusb_transfer *xfer;
-	struct usb_transfer *cur;
-	struct usb_transfer *to_cancel;
 
-	ctx = devh->dev->ctx;
+	TAILQ_HEAD(, libusb_super_transfer) tr_head;
 
-	while (1) {
-		pthread_mutex_lock(&ctx->flying_transfers_lock);
-		to_cancel = NULL;
-		LIST_FOREACH_ENTRY(cur, &ctx->flying_transfers, list) {
-			xfer = (struct libusb_transfer *) ((uint8_t *)cur + 
-	    		    sizeof(struct usb_transfer));
-			if (xfer->dev_handle == devh) {
-				to_cancel = cur;
-				break ;
-			}
-		}
-		pthread_mutex_unlock(&ctx->flying_transfers_lock);
+	struct libusb20_device *os_priv;
+};
 
-		if (to_cancel == NULL)
-			break ;
-		
-		usb_handle_transfer_completion(to_cancel, LIBUSB_TRANSFER_NO_DEVICE);
-	}
-	return ;
-}
+extern struct libusb_context *usbi_default_context;
 
-#endif /*__LIBUSB10_H__*/
+void	libusb10_add_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd, struct libusb20_device *pdev, int fd, short events);
+void	libusb10_remove_pollfd(libusb_context *ctx, struct libusb_super_pollfd *pollfd);
+void	libusb10_cancel_all_transfer(libusb_device *dev);
+
+#endif					/* __LIBUSB10_H__ */

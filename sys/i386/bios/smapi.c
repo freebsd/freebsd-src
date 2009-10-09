@@ -288,10 +288,12 @@ smapi_modevent (module_t mod, int what, void *arg)
 	case MOD_LOAD:
 		break;
 	case MOD_UNLOAD:
+		newbus_xlock();
 		devclass_get_devices(smapi_devclass, &devs, &count);
 		for (i = 0; i < count; i++) {
 			device_delete_child(device_get_parent(devs[i]), devs[i]);
 		}
+		newbus_xunlock();
 		break;
 	default:
 		break;

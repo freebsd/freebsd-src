@@ -1,4 +1,4 @@
-OpenBSM 1.1
+OpenBSM 1.1p2
 
   Introduction
 
@@ -64,4 +64,4 @@ Information on TrustedBSD may be found on the TrustedBSD home page:
 
     http://www.TrustedBSD.org/
 
-$P4: //depot/projects/trustedbsd/openbsm/README#36 $
+$P4: //depot/projects/trustedbsd/openbsm/README#37 $

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.exp.c,v 3.51 2006/05/13 21:25:20 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.exp.c,v 3.53 2007/10/01 19:09:28 christos Exp $ */
 /*
  * sh.exp.c: Expression evaluations
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.exp.c,v 3.51 2006/05/13 21:25:20 christos Exp $")
+RCSID("$tcsh: sh.exp.c,v 3.53 2007/10/01 19:09:28 christos Exp $")
 
 #include "tw.h"
 
@@ -72,15 +72,13 @@ static	void	 evalav		(Char **);
 static	int	 isa		(Char *, int);
 static	int	 egetn		(Char *);
 
-
 #ifdef EDEBUG
-static	void	 etracc		(char *, Char *, Char ***);
-static	void	 etraci		(char *, int, Char ***);
+static	void	 etracc		(const char *, const Char *, Char ***);
+static	void	 etraci		(const char *, int, Char ***);
 #else /* !EDEBUG */
 #define etracc(A, B, C) ((void)0)
 #define etraci(A, B, C) ((void)0)
 #endif /* !EDEBUG */
-
 
 /*
  * shell access function according to POSIX and non POSIX
@@ -197,13 +195,19 @@ exp0(Char ***vp, int ignore)
     int p1 = exp1(vp, ignore);
 
     etraci("exp0 p1", p1, vp);
-    if (**vp && eq(**vp, STRor2)) {
+    while (**vp && eq(**vp, STRor2)) {
 	int p2;
 
 	(*vp)++;
-	p2 = exp0(vp, (ignore & TEXP_IGNORE) || p1);
-	etraci("exp0 p2", p2, vp);
-	return (p1 || p2);
+
+	p2 = compat_expr ? 
+	    exp0(vp, (ignore & TEXP_IGNORE) || p1) :
+	    exp1(vp, (ignore & TEXP_IGNORE) || p1);
+	if (compat_expr || !(ignore & TEXP_IGNORE))
+	    p1 = (p1 || p2);
+	etraci("exp0 p1", p1, vp);
+	if (compat_expr)
+	    break;
     }
     return (p1);
 }
@@ -214,13 +218,20 @@ exp1(Char ***vp, int ignore)
     int p1 = exp2x(vp, ignore);
 
     etraci("exp1 p1", p1, vp);
-    if (**vp && eq(**vp, STRand2)) {
+    while (**vp && eq(**vp, STRand2)) {
 	int p2;
 
 	(*vp)++;
-	p2 = exp1(vp, (ignore & TEXP_IGNORE) || !p1);
+	p2 = compat_expr ?
+	    exp1(vp, (ignore & TEXP_IGNORE) || !p1) :
+	    exp2x(vp, (ignore & TEXP_IGNORE) || !p1);
+
 	etraci("exp1 p2", p2, vp);
-	return (p1 && p2);
+	if (compat_expr || !(ignore & TEXP_IGNORE))
+	    p1 = (p1 && p2);
+	etraci("exp1 p1", p1, vp);
+	if (compat_expr)
+	    break;
     }
     return (p1);
 }
@@ -230,14 +241,20 @@ exp2x(Char ***vp, int ignore)
 {
     int p1 = exp2a(vp, ignore);
 
-    etraci("exp3 p1", p1, vp);
-    if (**vp && eq(**vp, STRor)) {
+    etraci("exp2x p1", p1, vp);
+    while (**vp && eq(**vp, STRor)) {
 	int p2;
 
 	(*vp)++;
-	p2 = exp2x(vp, ignore);
-	etraci("exp3 p2", p2, vp);
-	return (p1 | p2);
+	p2 = compat_expr ?
+	    exp2x(vp, ignore) :
+	    exp2a(vp, ignore);
+	etraci("exp2x p2", p2, vp);
+	if (compat_expr || !(ignore & TEXP_IGNORE))
+		p1 = (p1 | p2);
+	etraci("exp2x p1", p1, vp);
+	if (compat_expr)
+	    break;
     }
     return (p1);
 }
@@ -248,13 +265,19 @@ exp2a(Char ***vp, int ignore)
     int p1 = exp2b(vp, ignore);
 
     etraci("exp2a p1", p1, vp);
-    if (**vp && eq(**vp, STRcaret)) {
+    while (**vp && eq(**vp, STRcaret)) {
 	int p2;
 
 	(*vp)++;
-	p2 = exp2a(vp, ignore);
+	p2 = compat_expr ?
+	    exp2a(vp, ignore) :
+	    exp2b(vp, ignore);
 	etraci("exp2a p2", p2, vp);
-	return (p1 ^ p2);
+	if (compat_expr || !(ignore & TEXP_IGNORE))
+	    p1 = (p1 ^ p2);
+	etraci("exp2a p1", p1, vp);
+	if (compat_expr)
+	    break;
     }
     return (p1);
 }
@@ -265,13 +288,19 @@ exp2b(Char ***vp, int ignore)
     int p1 = exp2c(vp, ignore);
 
     etraci("exp2b p1", p1, vp);
-    if (**vp && eq(**vp, STRand)) {
+    while (**vp && eq(**vp, STRand)) {
 	int p2;
 
 	(*vp)++;
-	p2 = exp2b(vp, ignore);
+	p2 = compat_expr ?
+	    exp2b(vp, ignore) :
+	    exp2c(vp, ignore);
 	etraci("exp2b p2", p2, vp);
-	return (p1 & p2);
+	if (compat_expr || !(ignore & TEXP_IGNORE))
+	    p1 = (p1 & p2);
+	etraci("exp2b p1", p1, vp);
+	if (compat_expr)
+	    break;
     }
     return (p1);
 }
@@ -327,12 +356,14 @@ exp3(Char ***vp, int ignore)
 
     p1 = exp3a(vp, ignore);
     etracc("exp3 p1", p1, vp);
-    if ((i = isa(**vp, RELOP)) != 0) {
+    while ((i = isa(**vp, RELOP)) != 0) {
 	(*vp)++;
 	if (**vp && eq(**vp, STRequal))
 	    i |= 1, (*vp)++;
 	cleanup_push(p1, xfree);
-	p2 = exp3(vp, ignore);
+	p2 = compat_expr ?
+	    exp3(vp, ignore) :
+	    exp3a(vp, ignore);
 	cleanup_push(p2, xfree);
 	etracc("exp3 p2", p2, vp);
 	if (!(ignore & TEXP_IGNORE))
@@ -355,7 +386,10 @@ exp3(Char ***vp, int ignore)
 		break;
 	    }
 	cleanup_until(p1);
-	return (putn(i));
+	p1 = putn(i);
+	etracc("exp3 p1", p1, vp);
+	if (compat_expr)
+	    break;
     }
     return (p1);
 }
@@ -373,7 +407,9 @@ exp3a(Char ***vp, int ignore)
     if (op && any("<>", op[0]) && op[0] == op[1]) {
 	(*vp)++;
 	cleanup_push(p1, xfree);
-	p2 = exp3a(vp, ignore);
+	p2 = compat_expr ?
+	    exp3a(vp, ignore) :
+	    exp4(vp, ignore);
 	cleanup_push(p2, xfree);
 	etracc("exp3a p2", p2, vp);
 	if (op[0] == '<')
@@ -381,7 +417,8 @@ exp3a(Char ***vp, int ignore)
 	else
 	    i = egetn(p1) >> egetn(p2);
 	cleanup_until(p1);
-	return (putn(i));
+	p1 = putn(i);
+	etracc("exp3a p1", p1, vp);
     }
     return (p1);
 }
@@ -394,11 +431,13 @@ exp4(Char ***vp, int ignore)
 
     p1 = exp5(vp, ignore);
     etracc("exp4 p1", p1, vp);
-    if (isa(**vp, ADDOP)) {
+    while (isa(**vp, ADDOP)) {
 	const Char *op = *(*vp)++;
 
 	cleanup_push(p1, xfree);
-	p2 = exp4(vp, ignore);
+	p2 = compat_expr ?
+	    exp4(vp, ignore) :
+	    exp5(vp, ignore);
 	cleanup_push(p2, xfree);
 	etracc("exp4 p2", p2, vp);
 	if (!(ignore & TEXP_IGNORE))
@@ -413,7 +452,10 @@ exp4(Char ***vp, int ignore)
 		break;
 	    }
 	cleanup_until(p1);
-	return (putn(i));
+	p1 = putn(i);
+	etracc("exp4 p1", p1, vp);
+	if (compat_expr)
+	    break;
     }
     return (p1);
 }
@@ -427,7 +469,7 @@ exp5(Char ***vp, int ignore)
     p1 = exp6(vp, ignore);
     etracc("exp5 p1", p1, vp);
 
-    if (isa(**vp, MULOP)) {
+    while (isa(**vp, MULOP)) {
 	const Char *op = *(*vp)++;
 	if ((ignore & TEXP_NOGLOB) != 0) {
 	    /*
@@ -439,7 +481,9 @@ exp5(Char ***vp, int ignore)
 	}
 
 	cleanup_push(p1, xfree);
-	p2 = exp5(vp, ignore);
+	p2 = compat_expr ? 
+	    exp5(vp, ignore) :
+	    exp6(vp, ignore);
 	cleanup_push(p2, xfree);
 	etracc("exp5 p2", p2, vp);
 	if (!(ignore & TEXP_IGNORE))
@@ -464,7 +508,10 @@ exp5(Char ***vp, int ignore)
 		break;
 	    }
 	cleanup_until(p1);
-	return (putn(i));
+	p1 = putn(i);
+	etracc("exp5 p1", p1, vp);
+	if (compat_expr)
+	    break;
     }
     return (p1);
 }
@@ -989,16 +1036,16 @@ egetn(Char *cp)
 
 #ifdef EDEBUG
 static void
-etraci(char *str, int i, Char ***vp)
+etraci(const char *str, int i, Char ***vp)
 {
     xprintf("%s=%d\t", str, i);
     blkpr(*vp);
     xputchar('\n');
 }
 static void
-etracc(char *str, Char *cp, Char ***vp)
+etracc(const char *str, const Char *cp, Char ***vp)
 {
-    xprintf("%s=%s\t", str, cp);
+    xprintf("%s=%S\t", str, cp);
     blkpr(*vp);
     xputchar('\n');
 }

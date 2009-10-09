@@ -6,7 +6,7 @@ OPENBSMDIR=		${.CURDIR}/../../contrib/openbsm
 LIBBSMDIR=		${OPENBSMDIR}/libbsm
 
 LIB=		bsm
-SHLIB_MAJOR=	2
+SHLIB_MAJOR=	3
 
 .PATH:		${LIBBSMDIR}
 .PATH:		${OPENBSMDIR}/bsm

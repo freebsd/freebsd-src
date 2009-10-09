@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#91
+ * P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_token.c#93
  */
 
 #include <sys/cdefs.h>
@@ -930,7 +930,7 @@ kau_to_socket(struct socket_au_info *soi)
 /*
  * token ID                1 byte
  * socket family           2 bytes
- * path                    104 bytes
+ * path                    (up to) 104 bytes + NULL  (NULL terminated string)
  */
 token_t *
 au_to_sock_unix(struct sockaddr_un *so)
@@ -1188,12 +1188,27 @@ token_t *
 au_to_me(void)
 {
 	auditinfo_t auinfo;
+	auditinfo_addr_t aia;
 
-	if (getaudit(&auinfo) != 0)
-		return (NULL);
+	/*
+	 * Try to use getaudit_addr(2) first.  If this kernel does not support
+	 * it, then fall back on to getaudit(2).
+	 */
+	if (getaudit_addr(&aia, sizeof(aia)) != 0) {
+		if (errno == ENOSYS) {
+			if (getaudit(&auinfo) != 0)
+				return (NULL);
+			return (au_to_subject32(auinfo.ai_auid, geteuid(),
+				getegid(), getuid(), getgid(), getpid(),
+				auinfo.ai_asid, &auinfo.ai_termid));
+		} else {
+			/* getaudit_addr(2) failed for some other reason. */
+			return (NULL); 
+		}
+	} 
 
-	return (au_to_subject32(auinfo.ai_auid, geteuid(), getegid(),
-	    getuid(), getgid(), getpid(), auinfo.ai_asid, &auinfo.ai_termid));
+	return (au_to_subject32_ex(aia.ai_auid, geteuid(), getegid(), getuid(),
+		getgid(), getpid(), aia.ai_asid, &aia.ai_termid));
 }
 #endif
 

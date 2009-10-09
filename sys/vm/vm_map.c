@@ -1719,7 +1719,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
 	VM_OBJECT_LOCK(object);
-	if (object->type == OBJT_DEVICE) {
+	if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
 		pmap_object_init_pt(map->pmap, addr, object, pindex, size);
 		goto unlock_return;
 	}
@@ -2247,7 +2247,8 @@ done:
 				 */
 				vm_fault_unwire(map, entry->start, entry->end,
 				    entry->object.vm_object != NULL &&
-				    entry->object.vm_object->type == OBJT_DEVICE);
+				    (entry->object.vm_object->type == OBJT_DEVICE ||
+				    entry->object.vm_object->type == OBJT_SG));
 			}
 		}
 		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
@@ -2354,19 +2355,20 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		if (entry->wired_count == 0) {
 			if ((entry->protection & (VM_PROT_READ|VM_PROT_EXECUTE))
 			    == 0) {
+				entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
 				if ((flags & VM_MAP_WIRE_HOLESOK) == 0) {
 					end = entry->end;
 					rv = KERN_INVALID_ADDRESS;
 					goto done;
 				}
-				entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
 				goto next_entry;
 			}
 			entry->wired_count++;
 			saved_start = entry->start;
 			saved_end = entry->end;
 			fictitious = entry->object.vm_object != NULL &&
-			    entry->object.vm_object->type == OBJT_DEVICE;
+			    (entry->object.vm_object->type == OBJT_DEVICE ||
+			    entry->object.vm_object->type == OBJT_SG);
 			/*
 			 * Release the map lock, relying on the in-transition
 			 * mark.
@@ -2462,7 +2464,8 @@ done:
 				 */
 				vm_fault_unwire(map, entry->start, entry->end,
 				    entry->object.vm_object != NULL &&
-				    entry->object.vm_object->type == OBJT_DEVICE);
+				    (entry->object.vm_object->type == OBJT_DEVICE ||
+				    entry->object.vm_object->type == OBJT_SG));
 			}
 		}
 	next_entry_done:
@@ -2595,7 +2598,8 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_fault_unwire(map, entry->start, entry->end,
 	    entry->object.vm_object != NULL &&
-	    entry->object.vm_object->type == OBJT_DEVICE);
+	    (entry->object.vm_object->type == OBJT_DEVICE ||
+	    entry->object.vm_object->type == OBJT_SG));
 	entry->wired_count = 0;
 }
 
@@ -2909,7 +2913,8 @@ vm_map_copy_entry(
 		 * Cause wired pages to be copied into the new map by
 		 * simulating faults (the new pages are pageable)
 		 */
-		vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry);
+		vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry,
+		    fork_charge);
 	}
 }
 
@@ -3073,6 +3078,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wired_count = 0;
 			new_entry->object.vm_object = NULL;
+			new_entry->uip = NULL;
 			vm_map_entry_link(new_map, new_map->header.prev,
 			    new_entry);
 			vmspace_map_entry_forked(vm1, vm2, new_entry);

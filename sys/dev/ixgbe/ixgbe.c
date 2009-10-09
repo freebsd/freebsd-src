@@ -539,9 +539,9 @@ ixgbe_attach(device_t dev)
 
 	/* Register for VLAN events */
 	adapter->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
-	    ixgbe_register_vlan, 0, EVENTHANDLER_PRI_FIRST);
+	    ixgbe_register_vlan, adapter, EVENTHANDLER_PRI_FIRST);
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
-	    ixgbe_unregister_vlan, 0, EVENTHANDLER_PRI_FIRST);
+	    ixgbe_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST);
 
 	/* let hardware know driver is loaded */
 	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);
@@ -2961,7 +2961,8 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
 		}
 	}
 #if __FreeBSD_version >= 800000
-	buf_ring_free(txr->br, M_DEVBUF);
+	if (txr->br != NULL)
+		buf_ring_free(txr->br, M_DEVBUF);
 #endif
 	if (txr->tx_buffers != NULL) {
 		free(txr->tx_buffers, M_DEVBUF);
@@ -4123,10 +4124,13 @@ ixgbe_rx_checksum(u32 staterr, struct mbuf * mp)
 ** repopulate the real table.
 */
 static void
-ixgbe_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
+ixgbe_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u16		index, bit;
+
+	if (ifp->if_softc !=  arg)   /* Not our event */
+		return;
 
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
 		return;
@@ -4145,10 +4149,13 @@ ixgbe_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 ** in the soft vfta.
 */
 static void
-ixgbe_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
+ixgbe_unregister_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u16		index, bit;
+
+	if (ifp->if_softc !=  arg)
+		return;
 
 	if ((vtag == 0) || (vtag > 4095))	/* Invalid */
 		return;

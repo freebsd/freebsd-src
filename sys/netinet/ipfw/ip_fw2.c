@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/ucred.h>
-#include <sys/vimage.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
 #include <net/radix.h>
@@ -88,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/sctp.h>
-#include <netinet/vinet.h>
 
 #include <netgraph/ng_ipfw.h>
 
@@ -104,12 +102,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #endif
 
-#ifndef VIMAGE
-#ifndef VIMAGE_GLOBALS
-struct vnet_ipfw vnet_ipfw_0;
-#endif
-#endif
-
 /*
  * set_disable contains one bit per set value (0..31).
  * If the bit is set, all rules with the corresponding set
@@ -118,12 +110,15 @@ struct vnet_ipfw vnet_ipfw_0;
  * and CANNOT be disabled.
  * Rules in set RESVD_SET can only be deleted explicitly.
  */
-#ifdef VIMAGE_GLOBALS
-static u_int32_t set_disable;
-static int fw_verbose;
-static struct callout ipfw_timeout;
-static int verbose_limit;
-#endif
+static VNET_DEFINE(u_int32_t, set_disable);
+static VNET_DEFINE(int, fw_verbose);
+static VNET_DEFINE(struct callout, ipfw_timeout);
+static VNET_DEFINE(int, verbose_limit);
+
+#define	V_set_disable			VNET(set_disable)
+#define	V_fw_verbose			VNET(fw_verbose)
+#define	V_ipfw_timeout			VNET(ipfw_timeout)
+#define	V_verbose_limit			VNET(verbose_limit)
 
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
 static int default_to_accept = 1;
@@ -137,9 +132,7 @@ struct ip_fw *ip_fw_default_rule;
 /*
  * list of rules for layer 3
  */
-#ifdef VIMAGE_GLOBALS
-struct ip_fw_chain layer3_chain;
-#endif
+VNET_DEFINE(struct ip_fw_chain, layer3_chain);
 
 MALLOC_DEFINE(M_IPFW, "IpFw/IpAcct", "IpFw/IpAcct chain's");
 MALLOC_DEFINE(M_IPFW_TBL, "ipfw_tbl", "IpFw tables");
@@ -156,36 +149,51 @@ struct table_entry {
 	u_int32_t		value;
 };
 
-#ifdef VIMAGE_GLOBALS
-static int autoinc_step;
-#endif
+static VNET_DEFINE(int, autoinc_step);
+#define	V_autoinc_step			VNET(autoinc_step)
+static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
+#define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
 
 extern int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 #ifdef SYSCTL_NODE
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
-SYSCTL_V_PROC(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, enable,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, fw_enable, 0,
+SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, enable,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_enable), 0,
     ipfw_chg_hook, "I", "Enable ipfw");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, autoinc_step,
-    CTLFLAG_RW, autoinc_step, 0, "Rule number auto-increment step");
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip_fw, OID_AUTO, one_pass,
-    CTLFLAG_RW | CTLFLAG_SECURE3, fw_one_pass, 0,
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, autoinc_step,
+    CTLFLAG_RW, &VNET_NAME(autoinc_step), 0,
+    "Rule number auto-increment step");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, one_pass,
+    CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_one_pass), 0,
     "Only do a single pass through ipfw when using dummynet(4)");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, verbose,
-    CTLFLAG_RW | CTLFLAG_SECURE3,
-    fw_verbose, 0, "Log matches to ipfw rules");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, verbose_limit,
-    CTLFLAG_RW, verbose_limit, 0,
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, verbose,
+    CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_verbose), 0,
+    "Log matches to ipfw rules");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit,
+    CTLFLAG_RW, &VNET_NAME(verbose_limit), 0,
     "Set upper limit of matches of ipfw rules logged");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
-    NULL, IPFW_DEFAULT_RULE, "The default/max possible rule number.");
+    NULL, IPFW_DEFAULT_RULE,
+    "The default/max possible rule number.");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
-    NULL, IPFW_TABLES_MAX, "The maximum number of tables.");
+    NULL, IPFW_TABLES_MAX,
+    "The maximum number of tables.");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, default_to_accept, CTLFLAG_RDTUN,
-    &default_to_accept, 0, "Make the default rule accept all packets.");
+    &default_to_accept, 0,
+    "Make the default rule accept all packets.");
 TUNABLE_INT("net.inet.ip.fw.default_to_accept", &default_to_accept);
-#endif /* SYSCTL_NODE */
+#ifdef INET6
+SYSCTL_DECL(_net_inet6_ip6);
+SYSCTL_NODE(_net_inet6_ip6, OID_AUTO, fw, CTLFLAG_RW, 0, "Firewall");
+SYSCTL_VNET_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw6_enable), 0,
+    ipfw_chg_hook, "I", "Enable ipfw+6");
+SYSCTL_VNET_INT(_net_inet6_ip6_fw, OID_AUTO, deny_unknown_exthdrs,
+    CTLFLAG_RW | CTLFLAG_SECURE, &VNET_NAME(fw_deny_unknown_exthdrs), 0,
+    "Deny packets with unknown IPv6 Extension Headers");
+#endif
+#endif
 
 /*
  * Description of dynamic rules.
@@ -223,11 +231,13 @@ TUNABLE_INT("net.inet.ip.fw.default_to_accept", &default_to_accept);
  * obey the 'randomized match', and we do not do multiple
  * passes through the firewall. XXX check the latter!!!
  */
-#ifdef VIMAGE_GLOBALS
-static ipfw_dyn_rule **ipfw_dyn_v;
-static u_int32_t dyn_buckets;
-static u_int32_t curr_dyn_buckets;
-#endif
+static VNET_DEFINE(ipfw_dyn_rule **, ipfw_dyn_v);
+static VNET_DEFINE(u_int32_t, dyn_buckets);
+static VNET_DEFINE(u_int32_t, curr_dyn_buckets);
+
+#define	V_ipfw_dyn_v			VNET(ipfw_dyn_v)
+#define	V_dyn_buckets			VNET(dyn_buckets)
+#define	V_curr_dyn_buckets		VNET(curr_dyn_buckets)
 
 static struct mtx ipfw_dyn_mtx;		/* mutex guarding dynamic rules */
 #define	IPFW_DYN_LOCK_INIT() \
@@ -240,13 +250,19 @@ static struct mtx ipfw_dyn_mtx;		/* mutex guarding dynamic rules */
 /*
  * Timeouts for various events in handing dynamic rules.
  */
-#ifdef VIMAGE_GLOBALS
-static u_int32_t dyn_ack_lifetime;
-static u_int32_t dyn_syn_lifetime;
-static u_int32_t dyn_fin_lifetime;
-static u_int32_t dyn_rst_lifetime;
-static u_int32_t dyn_udp_lifetime;
-static u_int32_t dyn_short_lifetime;
+static VNET_DEFINE(u_int32_t, dyn_ack_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_syn_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_fin_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_rst_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_udp_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_short_lifetime);
+
+#define	V_dyn_ack_lifetime		VNET(dyn_ack_lifetime)
+#define	V_dyn_syn_lifetime		VNET(dyn_syn_lifetime)
+#define	V_dyn_fin_lifetime		VNET(dyn_fin_lifetime)
+#define	V_dyn_rst_lifetime		VNET(dyn_rst_lifetime)
+#define	V_dyn_udp_lifetime		VNET(dyn_udp_lifetime)
+#define	V_dyn_short_lifetime		VNET(dyn_short_lifetime)
 
 /*
  * Keepalives are sent if dyn_keepalive is set. They are sent every
@@ -256,59 +272,62 @@ static u_int32_t dyn_short_lifetime;
  * than dyn_keepalive_period.
  */
 
-static u_int32_t dyn_keepalive_interval;
-static u_int32_t dyn_keepalive_period;
-static u_int32_t dyn_keepalive;
+static VNET_DEFINE(u_int32_t, dyn_keepalive_interval);
+static VNET_DEFINE(u_int32_t, dyn_keepalive_period);
+static VNET_DEFINE(u_int32_t, dyn_keepalive);
 
-static u_int32_t static_count;	/* # of static rules */
-static u_int32_t static_len;	/* size in bytes of static rules */
-static u_int32_t dyn_count;	/* # of dynamic rules */
-static u_int32_t dyn_max;	/* max # of dynamic rules */
-#endif /* VIMAGE_GLOBALS */
+#define	V_dyn_keepalive_interval	VNET(dyn_keepalive_interval)
+#define	V_dyn_keepalive_period		VNET(dyn_keepalive_period)
+#define	V_dyn_keepalive			VNET(dyn_keepalive)
+
+static VNET_DEFINE(u_int32_t, static_count);	/* # of static rules */
+static VNET_DEFINE(u_int32_t, static_len);	/* bytes of static rules */
+static VNET_DEFINE(u_int32_t, dyn_count);	/* # of dynamic rules */
+static VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
+
+#define	V_static_count			VNET(static_count)
+#define	V_static_len			VNET(static_len)
+#define	V_dyn_count			VNET(dyn_count)
+#define	V_dyn_max			VNET(dyn_max)
 
 #ifdef SYSCTL_NODE
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_buckets,
-    CTLFLAG_RW, dyn_buckets, 0, "Number of dyn. buckets");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
-    CTLFLAG_RD, curr_dyn_buckets, 0, "Current Number of dyn. buckets");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_count,
-    CTLFLAG_RD, dyn_count, 0, "Number of dyn. rules");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_max,
-    CTLFLAG_RW, dyn_max, 0, "Max number of dyn. rules");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, static_count,
-    CTLFLAG_RD, static_count, 0, "Number of static rules");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_ack_lifetime,
-    CTLFLAG_RW, dyn_ack_lifetime, 0, "Lifetime of dyn. rules for acks");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_syn_lifetime,
-    CTLFLAG_RW, dyn_syn_lifetime, 0, "Lifetime of dyn. rules for syn");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_fin_lifetime,
-    CTLFLAG_RW, dyn_fin_lifetime, 0, "Lifetime of dyn. rules for fin");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime,
-    CTLFLAG_RW, dyn_rst_lifetime, 0, "Lifetime of dyn. rules for rst");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_udp_lifetime,
-    CTLFLAG_RW, dyn_udp_lifetime, 0, "Lifetime of dyn. rules for UDP");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
-    CTLFLAG_RW, dyn_short_lifetime, 0,
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
+    CTLFLAG_RW, &VNET_NAME(dyn_buckets), 0,
+    "Number of dyn. buckets");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
+    CTLFLAG_RD, &VNET_NAME(curr_dyn_buckets), 0,
+    "Current Number of dyn. buckets");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_count,
+    CTLFLAG_RD, &VNET_NAME(dyn_count), 0,
+    "Number of dyn. rules");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_max,
+    CTLFLAG_RW, &VNET_NAME(dyn_max), 0,
+    "Max number of dyn. rules");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, static_count,
+    CTLFLAG_RD, &VNET_NAME(static_count), 0,
+    "Number of static rules");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_ack_lifetime,
+    CTLFLAG_RW, &VNET_NAME(dyn_ack_lifetime), 0,
+    "Lifetime of dyn. rules for acks");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_syn_lifetime,
+    CTLFLAG_RW, &VNET_NAME(dyn_syn_lifetime), 0,
+    "Lifetime of dyn. rules for syn");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_fin_lifetime,
+    CTLFLAG_RW, &VNET_NAME(dyn_fin_lifetime), 0,
+    "Lifetime of dyn. rules for fin");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime,
+    CTLFLAG_RW, &VNET_NAME(dyn_rst_lifetime), 0,
+    "Lifetime of dyn. rules for rst");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_udp_lifetime,
+    CTLFLAG_RW, &VNET_NAME(dyn_udp_lifetime), 0,
+    "Lifetime of dyn. rules for UDP");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
+    CTLFLAG_RW, &VNET_NAME(dyn_short_lifetime), 0,
     "Lifetime of dyn. rules for other situations");
-SYSCTL_V_INT(V_NET, vnet_ipfw, _net_inet_ip_fw, OID_AUTO, dyn_keepalive,
-    CTLFLAG_RW, dyn_keepalive, 0, "Enable keepalives for dyn. rules");
+SYSCTL_VNET_INT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
+    CTLFLAG_RW, &VNET_NAME(dyn_keepalive), 0,
+    "Enable keepalives for dyn. rules");
 #endif /* SYSCTL_NODE */
-
-#ifdef INET6
-/*
- * IPv6 specific variables
- */
-#ifdef SYSCTL_NODE
-SYSCTL_DECL(_net_inet6_ip6);
-#endif /* SYSCTL_NODE */
-
-static struct sysctl_ctx_list ip6_fw_sysctl_ctx;
-static struct sysctl_oid *ip6_fw_sysctl_tree;
-#endif /* INET6 */
-
-#ifdef VIMAGE_GLOBALS
-static int fw_deny_unknown_exthdrs;
-#endif
 
 /*
  * L3HDR maps an ipv4 pointer into a layer3 header pointer of type T
@@ -581,7 +600,6 @@ flow6id_match( int curr_flow, ipfw_insn_u32 *cmd )
 static int
 search_ip6_addr_net (struct in6_addr * ip6_addr)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifnet *mdc;
 	struct ifaddr *mdc2;
 	struct in6_ifaddr *fdm;
@@ -764,9 +782,9 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 
 #endif /* INET6 */
 
-#ifdef VIMAGE_GLOBALS
-static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
-#endif
+/* counter for ipfw_log(NULL...) */
+static VNET_DEFINE(u_int64_t, norule_counter);
+#define	V_norule_counter		VNET(norule_counter)
 
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 #define SNP(buf) buf, sizeof(buf)
@@ -780,7 +798,6 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
     struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg,
     struct ip *ip)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct ether_header *eh = args->eh;
 	char *action;
 	int limit_reached = 0;
@@ -1054,7 +1071,6 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 static __inline int
 hash_packet(struct ipfw_flow_id *id)
 {
-	INIT_VNET_IPFW(curvnet);
 	u_int32_t i;
 
 #ifdef INET6
@@ -1106,7 +1122,6 @@ hash_packet(struct ipfw_flow_id *id)
 static void
 remove_dyn_rule(struct ip_fw *rule, ipfw_dyn_rule *keep_me)
 {
-	INIT_VNET_IPFW(curvnet);
 	static u_int32_t last_remove = 0;
 
 #define FORCE (keep_me == NULL)
@@ -1177,7 +1192,6 @@ static ipfw_dyn_rule *
 lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
     struct tcphdr *tcp)
 {
-	INIT_VNET_IPFW(curvnet);
 	/*
 	 * stateful ipfw extensions.
 	 * Lookup into dynamic session queue
@@ -1334,7 +1348,6 @@ lookup_dyn_rule(struct ipfw_flow_id *pkt, int *match_direction,
 static void
 realloc_dynamic_table(void)
 {
-	INIT_VNET_IPFW(curvnet);
 	IPFW_DYN_LOCK_ASSERT();
 
 	/*
@@ -1374,7 +1387,6 @@ realloc_dynamic_table(void)
 static ipfw_dyn_rule *
 add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 {
-	INIT_VNET_IPFW(curvnet);
 	ipfw_dyn_rule *r;
 	int i;
 
@@ -1430,7 +1442,6 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 static ipfw_dyn_rule *
 lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
 {
-	INIT_VNET_IPFW(curvnet);
 	ipfw_dyn_rule *q;
 	int i;
 
@@ -1474,7 +1485,6 @@ static int
 install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
     struct ip_fw_args *args, uint32_t tablearg)
 {
-	INIT_VNET_IPFW(curvnet);
 	static int last_log;
 	ipfw_dyn_rule *q;
 	struct in_addr da;
@@ -1636,7 +1646,6 @@ static struct mbuf *
 send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
     u_int32_t ack, int flags)
 {
-	INIT_VNET_INET(curvnet);
 	struct mbuf *m;
 	struct ip *ip;
 	struct tcphdr *tcp;
@@ -2002,7 +2011,6 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
     u_int16_t src_port, struct ucred **uc, int *ugid_lookupp,
     struct inpcb *inp)
 {
-	INIT_VNET_INET(curvnet);
 	struct inpcbinfo *pi;
 	int wildcard;
 	struct inpcb *pcb;
@@ -2110,8 +2118,6 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 int
 ipfw_chk(struct ip_fw_args *args)
 {
-	INIT_VNET_INET(curvnet);
-	INIT_VNET_IPFW(curvnet);
 
 	/*
 	 * Local variables holding state during the processing of a packet:
@@ -3491,7 +3497,6 @@ flush_rule_ptrs(struct ip_fw_chain *chain)
 static int
 add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct ip_fw *rule, *f, *prev;
 	int l = RULESIZE(input_rule);
 
@@ -3580,7 +3585,6 @@ static struct ip_fw *
 remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
     struct ip_fw *prev)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct ip_fw *n;
 	int l = RULESIZE(rule);
 
@@ -3793,7 +3797,6 @@ clear_counters(struct ip_fw *rule, int log_only)
 static int
 zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 {
-	INIT_VNET_IPFW(curvnet);
 	struct ip_fw *rule;
 	char *msg;
 
@@ -4167,7 +4170,6 @@ bad_size:
 static size_t
 ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 {
-	INIT_VNET_IPFW(curvnet);
 	char *bp = buf;
 	char *ep = bp + space;
 	struct ip_fw *rule;
@@ -4250,7 +4252,6 @@ static int
 ipfw_ctl(struct sockopt *sopt)
 {
 #define	RULE_MAXSIZE	(256*sizeof(u_int32_t))
-	INIT_VNET_IPFW(curvnet);
 	int error;
 	size_t size;
 	struct ip_fw *buf, *rule;
@@ -4514,18 +4515,22 @@ ipfw_ctl(struct sockopt *sopt)
 #undef RULE_MAXSIZE
 }
 
+
 /*
  * This procedure is only used to handle keepalives. It is invoked
  * every dyn_keepalive_period
  */
 static void
-ipfw_tick(void * __unused unused)
+ipfw_tick(void * vnetx) 
 {
-	INIT_VNET_IPFW(curvnet);
 	struct mbuf *m0, *m, *mnext, **mtailp;
 	int i;
 	ipfw_dyn_rule *q;
+#ifdef VIMAGE
+	struct vnet *vp = vnetx;
+#endif
 
+        CURVNET_SET(vp);
 	if (V_dyn_keepalive == 0 || V_ipfw_dyn_v == NULL || V_dyn_count == 0)
 		goto done;
 
@@ -4570,81 +4575,29 @@ ipfw_tick(void * __unused unused)
 	}
 done:
 	callout_reset(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
-		      ipfw_tick, NULL);
+		      ipfw_tick, vnetx);
+	CURVNET_RESTORE();
 }
 
+
+
+/****************
+ * Stuff that must be initialised only on boot or module load
+ */
 int
 ipfw_init(void)
 {
-	INIT_VNET_IPFW(curvnet);
-	struct ip_fw default_rule;
-	int error;
+	int error = 0;
 
-	V_autoinc_step = 100;	/* bounded to 1..1000 in add_rule() */
-
-	V_ipfw_dyn_v = NULL;
-	V_dyn_buckets = 256;	/* must be power of 2 */
-	V_curr_dyn_buckets = 256; /* must be power of 2 */
-
-	V_dyn_ack_lifetime = 300;
-	V_dyn_syn_lifetime = 20;
-	V_dyn_fin_lifetime = 1;
-	V_dyn_rst_lifetime = 1;
-	V_dyn_udp_lifetime = 10;
-	V_dyn_short_lifetime = 5;
-
-	V_dyn_keepalive_interval = 20;
-	V_dyn_keepalive_period = 5;
-	V_dyn_keepalive = 1;	/* do send keepalives */
-
-	V_dyn_max = 4096;	/* max # of dynamic rules */
-
-	V_fw_deny_unknown_exthdrs = 1;
-
-#ifdef INET6
-	/* Setup IPv6 fw sysctl tree. */
-	sysctl_ctx_init(&ip6_fw_sysctl_ctx);
-	ip6_fw_sysctl_tree = SYSCTL_ADD_NODE(&ip6_fw_sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_net_inet6_ip6), OID_AUTO, "fw",
-	    CTLFLAG_RW | CTLFLAG_SECURE, 0, "Firewall");
-	SYSCTL_ADD_PROC(&ip6_fw_sysctl_ctx, SYSCTL_CHILDREN(ip6_fw_sysctl_tree),
-	    OID_AUTO, "enable", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3,
-	    &V_fw6_enable, 0, ipfw_chg_hook, "I", "Enable ipfw+6");
-	SYSCTL_ADD_INT(&ip6_fw_sysctl_ctx, SYSCTL_CHILDREN(ip6_fw_sysctl_tree),
-	    OID_AUTO, "deny_unknown_exthdrs", CTLFLAG_RW | CTLFLAG_SECURE,
-	    &V_fw_deny_unknown_exthdrs, 0,
-	    "Deny packets with unknown IPv6 Extension Headers");
-#endif
-
-	V_layer3_chain.rules = NULL;
-	IPFW_LOCK_INIT(&V_layer3_chain);
 	ipfw_dyn_rule_zone = uma_zcreate("IPFW dynamic rule",
 	    sizeof(ipfw_dyn_rule), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
+
 	IPFW_DYN_LOCK_INIT();
-	callout_init(&V_ipfw_timeout, CALLOUT_MPSAFE);
-
-	bzero(&default_rule, sizeof default_rule);
-
-	default_rule.act_ofs = 0;
-	default_rule.rulenum = IPFW_DEFAULT_RULE;
-	default_rule.cmd_len = 1;
-	default_rule.set = RESVD_SET;
-
-	default_rule.cmd[0].len = 1;
-	default_rule.cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
-
-	error = add_rule(&V_layer3_chain, &default_rule);
-	if (error != 0) {
-		printf("ipfw2: error %u initializing default rule "
-			"(support disabled)\n", error);
-		IPFW_DYN_LOCK_DESTROY();
-		IPFW_LOCK_DESTROY(&V_layer3_chain);
-		uma_zdestroy(ipfw_dyn_rule_zone);
-		return (error);
-	}
-
-	ip_fw_default_rule = V_layer3_chain.rules;
+	/*
+ 	 * Only print out this stuff the first time around,
+	 * when called from the sysinit code.
+	 */
 	printf("ipfw2 "
 #ifdef INET6
 		"(+ipv6) "
@@ -4667,15 +4620,13 @@ ipfw_init(void)
 #else
 		"loadable",
 #endif
+		default_to_accept ? "accept" : "deny");
 
-		default_rule.cmd[0].opcode == O_ACCEPT ? "accept" : "deny");
-
-#ifdef IPFIREWALL_VERBOSE
-	V_fw_verbose = 1;
-#endif
-#ifdef IPFIREWALL_VERBOSE_LIMIT
-	V_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
-#endif
+	/*
+	 * Note: V_xxx variables can be accessed here but the iattach()
+     	 * may not have been called yet for the VIMGE case.
+	 * Tuneables will have been processed.
+	 */
 	if (V_fw_verbose == 0)
 		printf("disabled\n");
 	else if (V_verbose_limit == 0)
@@ -4684,45 +4635,141 @@ ipfw_init(void)
 		printf("limited to %d packets/entry by default\n",
 		    V_verbose_limit);
 
-	error = init_tables(&V_layer3_chain);
-	if (error) {
-		IPFW_DYN_LOCK_DESTROY();
-		IPFW_LOCK_DESTROY(&V_layer3_chain);
-		uma_zdestroy(ipfw_dyn_rule_zone);
-		return (error);
-	}
+	/*
+	 * Other things that are only done the first time.
+	 * (now that we a re cuaranteed of success).
+	 */
 	ip_fw_ctl_ptr = ipfw_ctl;
 	ip_fw_chk_ptr = ipfw_chk;
-	callout_reset(&V_ipfw_timeout, hz, ipfw_tick, NULL);	
+	return (error);
+}
+
+/****************
+ * Stuff that must be initialised for every instance
+ * (including the forst of course).
+ */
+static int
+vnet_ipfw_init(const void *unused)
+{
+	int error;
+	struct ip_fw default_rule;
+
+	/* First set up some values that are compile time options */
+#ifdef IPFIREWALL_VERBOSE
+	V_fw_verbose = 1;
+#endif
+#ifdef IPFIREWALL_VERBOSE_LIMIT
+	V_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
+#endif
+
+	error = init_tables(&V_layer3_chain);
+	if (error) {
+		panic("init_tables"); /* XXX Marko fix this ! */
+	}
+#ifdef IPFIREWALL_NAT
 	LIST_INIT(&V_layer3_chain.nat);
+#endif
+
+	V_autoinc_step = 100;	/* bounded to 1..1000 in add_rule() */
+
+	V_ipfw_dyn_v = NULL;
+	V_dyn_buckets = 256;	/* must be power of 2 */
+	V_curr_dyn_buckets = 256; /* must be power of 2 */
+
+	V_dyn_ack_lifetime = 300;
+	V_dyn_syn_lifetime = 20;
+	V_dyn_fin_lifetime = 1;
+	V_dyn_rst_lifetime = 1;
+	V_dyn_udp_lifetime = 10;
+	V_dyn_short_lifetime = 5;
+
+	V_dyn_keepalive_interval = 20;
+	V_dyn_keepalive_period = 5;
+	V_dyn_keepalive = 1;	/* do send keepalives */
+
+	V_dyn_max = 4096;	/* max # of dynamic rules */
+
+	V_fw_deny_unknown_exthdrs = 1;
+
+	V_layer3_chain.rules = NULL;
+	IPFW_LOCK_INIT(&V_layer3_chain);
+	callout_init(&V_ipfw_timeout, CALLOUT_MPSAFE);
+
+	bzero(&default_rule, sizeof default_rule);
+	default_rule.act_ofs = 0;
+	default_rule.rulenum = IPFW_DEFAULT_RULE;
+	default_rule.cmd_len = 1;
+	default_rule.set = RESVD_SET;
+	default_rule.cmd[0].len = 1;
+	default_rule.cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
+	error = add_rule(&V_layer3_chain, &default_rule);
+
+	if (error != 0) {
+		printf("ipfw2: error %u initializing default rule "
+			"(support disabled)\n", error);
+		IPFW_LOCK_DESTROY(&V_layer3_chain);
+		printf("leaving ipfw_iattach (1) with error %d\n", error);
+		return (error);
+	}
+
+	ip_fw_default_rule = V_layer3_chain.rules;
+
+	if (error) {
+		IPFW_LOCK_DESTROY(&V_layer3_chain);
+		printf("leaving ipfw_iattach (2) with error %d\n", error);
+		return (error);
+	}
+#ifdef VIMAGE  /* want a better way to do this */
+	callout_reset(&V_ipfw_timeout, hz, ipfw_tick, curvnet);	
+#else
+	callout_reset(&V_ipfw_timeout, hz, ipfw_tick, NULL);	
+#endif
+
+	/* First set up some values that are compile time options */
 	return (0);
 }
 
+/**********************
+ * Called for the removal of the last instance only on module unload.
+ */
 void
 ipfw_destroy(void)
 {
-	INIT_VNET_IPFW(curvnet);
-	struct ip_fw *reap;
-
 	ip_fw_chk_ptr = NULL;
 	ip_fw_ctl_ptr = NULL;
+	uma_zdestroy(ipfw_dyn_rule_zone);
+	IPFW_DYN_LOCK_DESTROY();
+	printf("IP firewall unloaded\n");
+}
+
+/***********************
+ * Called for the removal of each instance.
+ */
+static int
+vnet_ipfw_uninit(const void *unused)
+{
+	struct ip_fw *reap;
+
 	callout_drain(&V_ipfw_timeout);
 	IPFW_WLOCK(&V_layer3_chain);
 	flush_tables(&V_layer3_chain);
+	V_layer3_chain.reap = NULL;
 	free_chain(&V_layer3_chain, 1 /* kill default rule */);
 	reap = V_layer3_chain.reap;
+	V_layer3_chain.reap = NULL;
 	IPFW_WUNLOCK(&V_layer3_chain);
-	reap_rules(reap);
-	IPFW_DYN_LOCK_DESTROY();
-	uma_zdestroy(ipfw_dyn_rule_zone);
+	if (reap != NULL)
+		reap_rules(reap);
+	IPFW_LOCK_DESTROY(&V_layer3_chain);
 	if (V_ipfw_dyn_v != NULL)
 		free(V_ipfw_dyn_v, M_IPFW);
-	IPFW_LOCK_DESTROY(&V_layer3_chain);
-
-#ifdef INET6
-	/* Free IPv6 fw sysctl tree. */
-	sysctl_ctx_free(&ip6_fw_sysctl_ctx);
-#endif
-
-	printf("IP firewall unloaded\n");
+	return 0;
 }
+
+VNET_SYSINIT(vnet_ipfw_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 255,
+    vnet_ipfw_init, NULL);
+
+VNET_SYSUNINIT(vnet_ipfw_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 255,
+    vnet_ipfw_uninit, NULL);
+
+ 

@@ -815,9 +815,9 @@ em_attach(device_t dev)
 #if __FreeBSD_version >= 700029
 	/* Register for VLAN events */
 	adapter->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
-	    em_register_vlan, 0, EVENTHANDLER_PRI_FIRST);
+	    em_register_vlan, adapter, EVENTHANDLER_PRI_FIRST);
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
-	    em_unregister_vlan, 0, EVENTHANDLER_PRI_FIRST); 
+	    em_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST); 
 #endif
 
 	/* Tell the stack that the interface is not active */
@@ -919,9 +919,6 @@ em_detach(device_t dev)
 	bus_generic_detach(dev);
 	if_free(ifp);
 
-#if __FreeBSD_version >= 800000
-	drbr_free(adapter->br, M_DEVBUF);
-#endif
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 
@@ -3644,7 +3641,8 @@ em_free_transmit_structures(struct adapter *adapter)
 		adapter->txtag = NULL;
 	}
 #if __FreeBSD_version >= 800000
-        buf_ring_free(adapter->br, M_DEVBUF);
+	if (adapter->br != NULL)
+        	buf_ring_free(adapter->br, M_DEVBUF);
 #endif
 }
 
@@ -4715,12 +4713,15 @@ em_receive_checksum(struct adapter *adapter,
  * config EVENT
  */
 static void
-em_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
+em_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, bit;
 
-	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
+	if (ifp->if_softc !=  arg)   /* Not our event */
+		return;
+
+	if ((vtag == 0) || (vtag > 4095))       /* Invalid ID */
                 return;
 
 	index = (vtag >> 5) & 0x7F;
@@ -4736,10 +4737,13 @@ em_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
  * unconfig EVENT
  */
 static void
-em_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
+em_unregister_vlan(void *arg, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, bit;
+
+	if (ifp->if_softc !=  arg)
+		return;
 
 	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
                 return;

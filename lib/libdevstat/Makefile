@@ -3,7 +3,7 @@
 LIB=	devstat
 SHLIBDIR?= /lib
 # Bump DEVSTAT_USER_API_VER in devstat.h every time this is incremented.
-SHLIB_MAJOR= 6
+SHLIB_MAJOR= 7
 SRCS=	devstat.c
 INCS=	devstat.h
 

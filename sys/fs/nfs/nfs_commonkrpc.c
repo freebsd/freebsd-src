@@ -404,7 +404,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 {
 	u_int32_t *tl;
 	time_t waituntil;
-	int i, j, set_uid = 0;
+	int i, j, set_uid = 0, set_sigset = 0;
 	int trycnt, error = 0, usegssname = 0, secflavour = AUTH_SYS;
 	u_int16_t procnum;
 	u_int trylater_delay = 1;
@@ -416,6 +416,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	struct nfsreq *rep = NULL;
 	char *srv_principal = NULL;
 	uid_t saved_uid = (uid_t)-1;
+	sigset_t oldset;
 
 	if (xidp != NULL)
 		*xidp = 0;
@@ -423,6 +424,12 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	if (nmp != NULL && (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)) {
 		m_freem(nd->nd_mreq);
 		return (ESTALE);
+	}
+
+	/* For client side interruptible mounts, mask off the signals. */
+	if (nmp != NULL && td != NULL && NFSHASINT(nmp)) {
+		newnfs_set_sigmask(td, &oldset);
+		set_sigset = 1;
 	}
 
 	/*
@@ -507,6 +514,8 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		cred->cr_uid = saved_uid;
 	if (auth == NULL) {
 		m_freem(nd->nd_mreq);
+		if (set_sigset)
+			newnfs_restore_sigmask(td, &oldset);
 		return (EACCES);
 	}
 	bzero(&ext, sizeof(ext));
@@ -598,6 +607,8 @@ tryagain:
 		AUTH_DESTROY(auth);
 		if (rep != NULL)
 			FREE((caddr_t)rep, M_NFSDREQ);
+		if (set_sigset)
+			newnfs_restore_sigmask(td, &oldset);
 		return (error);
 	}
 
@@ -728,6 +739,8 @@ tryagain:
 	AUTH_DESTROY(auth);
 	if (rep != NULL)
 		FREE((caddr_t)rep, M_NFSDREQ);
+	if (set_sigset)
+		newnfs_restore_sigmask(td, &oldset);
 	return (0);
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
@@ -735,6 +748,8 @@ nfsmout:
 	AUTH_DESTROY(auth);
 	if (rep != NULL)
 		FREE((caddr_t)rep, M_NFSDREQ);
+	if (set_sigset)
+		newnfs_restore_sigmask(td, &oldset);
 	return (error);
 }
 

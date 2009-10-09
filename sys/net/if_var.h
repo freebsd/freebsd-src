@@ -80,6 +80,7 @@ struct	vnet;
 #include <sys/mbuf.h>
 #include <sys/eventhandler.h>
 #include <sys/buf_ring.h>
+#include <net/vnet.h>
 #endif /* _KERNEL */
 #include <sys/lock.h>		/* XXX */
 #include <sys/mutex.h>		/* XXX */
@@ -779,11 +780,18 @@ struct ifnet	*ifnet_byindex_ref(u_short idx);
  */
 struct ifaddr	*ifaddr_byindex(u_short idx);
 
-#ifdef VIMAGE_GLOBALS
-extern	struct ifnethead ifnet;
-extern	struct ifnet *loif;	/* first loopback interface */
-extern	int if_index;
-#endif
+VNET_DECLARE(struct ifnethead, ifnet);
+VNET_DECLARE(struct ifgrouphead, ifg_head);
+VNET_DECLARE(int, if_index);
+VNET_DECLARE(struct ifnet *, loif);	/* first loopback interface */
+VNET_DECLARE(int, useloopback);
+
+#define	V_ifnet		VNET(ifnet)
+#define	V_ifg_head	VNET(ifg_head)
+#define	V_if_index	VNET(if_index)
+#define	V_loif		VNET(loif)
+#define	V_useloopback	VNET(useloopback)
+
 extern	int ifqmaxlen;
 
 int	if_addgroup(struct ifnet *, const char *);

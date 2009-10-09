@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
-#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -103,7 +102,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_pcb.h>
-#include <netinet6/vinet6.h>
 
 /*
  * Definitions of some costant IP6 addresses.
@@ -181,7 +179,6 @@ int
 in6_control(struct socket *so, u_long cmd, caddr_t data,
     struct ifnet *ifp, struct thread *td)
 {
-	INIT_VNET_INET6(curvnet);
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
 	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
@@ -682,7 +679,6 @@ int
 in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
     struct in6_ifaddr *ia, int flags)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	int error = 0, hostIsNew = 0, plen = -1;
 	struct sockaddr_in6 dst6;
 	struct in6_addrlifetime *lt;
@@ -1194,6 +1190,29 @@ in6_purgeaddr(struct ifaddr *ifa)
 		ifa_ref(ifa0);
 	IF_ADDR_UNLOCK(ifp);
 
+	/*
+	 * Remove the loopback route to the interface address.
+	 * The check for the current setting of "nd6_useloopback" is not needed.
+	 */
+	if (!(ia->ia_ifp->if_flags & IFF_LOOPBACK)) {
+		struct rt_addrinfo info;
+		struct sockaddr_dl null_sdl;
+
+		bzero(&null_sdl, sizeof(null_sdl));
+		null_sdl.sdl_len = sizeof(null_sdl);
+		null_sdl.sdl_family = AF_LINK;
+		null_sdl.sdl_type = V_loif->if_type;
+		null_sdl.sdl_index = V_loif->if_index;
+		bzero(&info, sizeof(info));
+		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
+		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+		error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
+
+		if (error != 0)
+			log(LOG_INFO, "in6_purgeaddr: deletion failed\n");
+	}
+
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
 
@@ -1369,7 +1388,6 @@ cleanup:
 static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
-	INIT_VNET_INET6(ifp->if_vnet);
 	int	s = splnet();
 
 	IF_ADDR_LOCK(ifp);
@@ -1755,6 +1773,33 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		ia->ia_flags |= IFA_ROUTE;
 	}
 
+	/*
+	 * add a loopback route to self
+	 */
+	if (V_nd6_useloopback && !(ifp->if_flags & IFF_LOOPBACK)) {
+		struct rt_addrinfo info;
+		struct rtentry *rt = NULL;
+		static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+
+		bzero(&info, sizeof(info));
+		info.rti_ifp = V_loif;
+		info.rti_flags = ia->ia_flags | RTF_HOST | RTF_STATIC;
+		info.rti_info[RTAX_DST] = (struct sockaddr *)&ia->ia_addr;
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
+		error = rtrequest1_fib(RTM_ADD, &info, &rt, 0);
+
+		if (error == 0 && rt != NULL) {
+			RT_LOCK(rt);
+			((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
+				rt->rt_ifp->if_type;
+			((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
+				rt->rt_ifp->if_index;
+			RT_REMREF(rt);
+			RT_UNLOCK(rt);
+		} else if (error != 0)
+			log(LOG_INFO, "in6_ifinit: insertion failed\n");
+	}
+
 	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
 	if (newhost) {
 		struct llentry *ln;
@@ -1918,7 +1963,6 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 int
 in6_localaddr(struct in6_addr *in6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
 	if (IN6_IS_ADDR_LOOPBACK(in6) || IN6_IS_ADDR_LINKLOCAL(in6))
@@ -1940,7 +1984,6 @@ in6_localaddr(struct in6_addr *in6)
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 {
-	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK();
@@ -2037,7 +2080,6 @@ in6_prefixlen2mask(struct in6_addr *maskp, int len)
 struct in6_ifaddr *
 in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 {
-	INIT_VNET_INET6(curvnet);
 	int dst_scope =	in6_addrscope(dst), blen = -1, tlen;
 	struct ifaddr *ifa;
 	struct in6_ifaddr *besta = 0;
@@ -2198,8 +2240,6 @@ in6if_do_dad(struct ifnet *ifp)
 void
 in6_setmaxmtu(void)
 {
-	INIT_VNET_NET(curvnet);
-	INIT_VNET_INET6(curvnet);
 	unsigned long maxmtu = 0;
 	struct ifnet *ifp;
 

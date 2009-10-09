@@ -26,9 +26,9 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#22 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#23 $
 .\"
-.Dd January 29, 2009
+.Dd May 14, 2009
 .Dt AUDIT_CONTROL 5
 .Os
 .Sh NAME
@@ -94,7 +94,7 @@ Specifies when audit log files will expire and be removed.
 This may be after a time period has passed since the file was last
 written to or when the aggregate of all the trail files have reached a 
 specified size or a combination of both.
-If no expire-after parameter is given then audit log files with not
+If no expire-after parameter is given then audit log files will not
 expire and be removed by the audit control system.
 See the information below for the format of the expiration
 specification.
@@ -217,7 +217,7 @@ The suffixes on the values are case sensitive.
 If both an age and disk space value are used they are seperated by
 AND or OR and both values are used to determine when audit
 log files expire.
-In the case of AND, both the age and disk space conditions must be meet
+In the case of AND, both the age and disk space conditions must be met
 before the log file is removed.
 In the case of OR, either condition may expire the log file.
 For example:
@@ -233,17 +233,18 @@ The following settings appear in the default
 file:
 .Bd -literal -offset indent
 dir:/var/audit
-flags:lo
+flags:lo,aa
 minfree:5
-naflags:lo
+naflags:lo,aa
 policy:cnt,argv
-filesz:2097152
+filesz:2M
+expire-after:10M
 .Ed
 .Pp
 The
 .Va flags
 parameter above specifies the system-wide mask corresponding to login/logout
-events.
+as well as authentication and authorization events.
 The
 .Va policy
 parameter specifies that the system should neither fail stop nor suspend
@@ -253,6 +254,7 @@ be audited for
 events.
 The trail file will be automatically rotated by the audit daemon when the
 file size reaches approximately 2MB.
+Trail files will expire when their aggregate size exceeds 10MB.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/security/audit_control" -compact
 .It Pa /etc/security/audit_control

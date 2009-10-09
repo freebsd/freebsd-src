@@ -33,6 +33,7 @@
 #ifndef _CAM_CAM_XPT_PERIPH_H
 #define _CAM_CAM_XPT_PERIPH_H 1
 
+#include <cam/cam_queue.h>
 #include <cam/cam_xpt.h>
 
 /* Functions accessed by the peripheral drivers */

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2009
+.Dd July 8, 2009
 .Dt WLAN 4
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@ support.
 .Nm
 supports multi-mode devices capable of
 operating in both 2.4GHz and 5GHz bands and supports numerous
-802.11 standards: 802.11a, 802.11b, 802.11g, and 802.11n.
+802.11 standards: 802.11a, 802.11b, 802.11g, 802.11n, and 802.11s (Draft 3.0).
 The WPA, 802.11i, and 802.1x security protocols are supported
 through a combination of in-kernel code and user-mode applications.
 The WME/WMM multi-media protocols are supported entirely within
@@ -83,6 +83,8 @@ A client station in an infrastructure bss
 (i.e. one that associates to an access point).
 .It Cm hostap
 An access point in an infrastructure bss.
+.It Cm mesh
+A mesh station in an MBSS network.
 .It Cm adhoc
 A station in an IBSS network.
 .It Cm ahdemo
@@ -115,8 +117,6 @@ interface that does not send beacon frames before
 interfaces may be created.
 .El
 .Pp
-More types are planned to support
-802.11s mesh nodes (station and ap).
 Note that an interface's type cannot be changed once it is created.
 .Pp
 .Nm
@@ -161,6 +161,12 @@ The module name of
 .Nm
 was used to be compatible with
 .Nx .
+.Pp
+Mesh stations follow the 802.11s Draft 3.0 specification which is
+not ratified and subject to change.
+Beware that this specification is incompatible with earlier drafts;
+and stations implementing earlier drafts (e.g. Linux)
+may not interoperate.
 .Sh SEE ALSO
 .Xr an 4 ,
 .Xr ath 4 ,

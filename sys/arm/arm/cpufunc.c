@@ -265,7 +265,7 @@ struct cpu_functions arm9_cpufuncs = {
 
 	arm9_dcache_wbinv_all,		/* dcache_wbinv_all	*/
 	arm9_dcache_wbinv_range,	/* dcache_wbinv_range	*/
-/*XXX*/	arm9_dcache_wbinv_range,	/* dcache_inv_range	*/
+	arm9_dcache_inv_range,		/* dcache_inv_range	*/
 	arm9_dcache_wb_range,		/* dcache_wb_range	*/
 
 	arm9_idcache_wbinv_all,		/* idcache_wbinv_all	*/
@@ -327,7 +327,7 @@ struct cpu_functions armv5_ec_cpufuncs = {
 
 	armv5_ec_dcache_wbinv_all,	/* dcache_wbinv_all	*/
 	armv5_ec_dcache_wbinv_range,	/* dcache_wbinv_range	*/
-/*XXX*/	armv5_ec_dcache_wbinv_range,	/* dcache_inv_range	*/
+	armv5_ec_dcache_inv_range,	/* dcache_inv_range	*/
 	armv5_ec_dcache_wb_range,	/* dcache_wb_range	*/
 
 	armv5_ec_idcache_wbinv_all,	/* idcache_wbinv_all	*/

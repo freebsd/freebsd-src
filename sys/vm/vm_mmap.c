@@ -229,7 +229,7 @@ mmap(td, uap)
 
 	fp = NULL;
 	/* make sure mapping fits into numeric range etc */
-	if ((ssize_t) uap->len < 0 ||
+	if (uap->len == 0 ||
 	    ((flags & MAP_ANON) && uap->fd != -1))
 		return (EINVAL);
 
