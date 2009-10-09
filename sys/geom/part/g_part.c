@@ -1459,6 +1459,10 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, pp->name));
 	g_topology_assert();
 
+	/* Skip providers that are already open for writing. */
+	if (pp->acw > 0)
+		return (NULL);
+
 	/*
 	 * Create a GEOM with consumer and hook it up to the provider.
 	 * With that we become part of the topology. Optain read access
