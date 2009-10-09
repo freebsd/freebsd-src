@@ -78,8 +78,6 @@ void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int	atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
 int	atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src);
-int	atomic_cmpset_barr_int(volatile u_int *dst, u_int exp, u_int src);
-int	atomic_cmpset_barr_long(volatile u_long *dst, u_long exp, u_long src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 u_long	atomic_fetchadd_long(volatile u_long *p, u_long v);
 
@@ -131,33 +129,47 @@ struct __hack
  * Returns 0 on failure, non-zero on success
  */
 
-#define	DEFINE_CMPSET_GEN(NAME, TYPE, OP)		\
-static __inline int					\
-atomic_cmpset_##NAME(volatile u_##TYPE *dst, u_##TYPE exp, u_##TYPE src)\
-{							\
-	u_char res;					\
-							\
-	__asm __volatile(				\
-	"	" MPLOCKED "		"		\
-	"	" OP "	%2,%1 ;		"		\
-	"       sete	%0 ;		"		\
-	"1:				"		\
-	"# atomic_cmpset_##NAME"			\
-	: "=a" (res),			/* 0 */		\
-	  "=m" (*dst)			/* 1 */		\
-	: "r" (src),			/* 2 */		\
-	  "a" (exp),			/* 3 */		\
-	  "m" (*dst)			/* 4 */		\
-	: "memory");					\
-							\
-	return (res);					\
-}							\
-struct __hack
+static __inline int
+atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
+{
+	u_char res;
 
-DEFINE_CMPSET_GEN(int, int, "cmpxchgl");
-DEFINE_CMPSET_GEN(long, long, "cmpxchgq");
-DEFINE_CMPSET_GEN(barr_int, int, "cmpxchgl");
-DEFINE_CMPSET_GEN(barr_long, long, "cmpxchgq");
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	cmpxchgl %2,%1 ;	"
+	"       sete	%0 ;		"
+	"1:				"
+	"# atomic_cmpset_int"
+	: "=a" (res),			/* 0 */
+	  "=m" (*dst)			/* 1 */
+	: "r" (src),			/* 2 */
+	  "a" (exp),			/* 3 */
+	  "m" (*dst)			/* 4 */
+	: "memory");
+
+	return (res);
+}
+
+static __inline int
+atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	cmpxchgq %2,%1 ;	"
+	"       sete	%0 ;		"
+	"1:				"
+	"# atomic_cmpset_long"
+	: "=a" (res),			/* 0 */
+	  "=m" (*dst)			/* 1 */
+	: "r" (src),			/* 2 */
+	  "a" (exp),			/* 3 */
+	  "m" (*dst)			/* 4 */
+	: "memory");
+
+	return (res);
+}
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
@@ -358,8 +370,8 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_add_rel_int		atomic_add_barr_int
 #define	atomic_subtract_acq_int		atomic_subtract_barr_int
 #define	atomic_subtract_rel_int		atomic_subtract_barr_int
-#define	atomic_cmpset_acq_int		atomic_cmpset_barr_int
-#define	atomic_cmpset_rel_int		atomic_cmpset_barr_int
+#define	atomic_cmpset_acq_int		atomic_cmpset_int
+#define	atomic_cmpset_rel_int		atomic_cmpset_int
 
 #define	atomic_set_acq_long		atomic_set_barr_long
 #define	atomic_set_rel_long		atomic_set_barr_long
@@ -369,8 +381,8 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_add_rel_long		atomic_add_barr_long
 #define	atomic_subtract_acq_long	atomic_subtract_barr_long
 #define	atomic_subtract_rel_long	atomic_subtract_barr_long
-#define	atomic_cmpset_acq_long		atomic_cmpset_barr_long
-#define	atomic_cmpset_rel_long		atomic_cmpset_barr_long
+#define	atomic_cmpset_acq_long		atomic_cmpset_long
+#define	atomic_cmpset_rel_long		atomic_cmpset_long
 
 /* Operations on 8-bit bytes. */
 #define	atomic_set_8		atomic_set_char
