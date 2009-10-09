@@ -721,6 +721,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_flags = 0;
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	strlcpy(softc->disk->d_ident, cgd->serial_num,
+	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
 
 	adasetgeom(periph, cgd);
 	softc->disk->d_sectorsize = softc->params.secsize;
