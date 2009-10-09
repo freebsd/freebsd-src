@@ -27,9 +27,13 @@
 ##               /usr/mytree/obj/stage
 ##               /usr/mytree/src
 ##           
-##            then use -B /usr/mytree 
+##            then use -B /usr/mytree
+##           
+##        -S
+##           This is a second level process to get additional dirs in SRCDIRDEP.
 ##
-##
+
+GET_EXTRA=0
 
 ShowHelp()
 {
@@ -72,10 +76,11 @@ PAGER=${PAGER:-more}
 unset DISPLAY
 
 # parse flags
-while getopts "B:h" my_opt
+while getopts "B:Sh" my_opt
 do
 	case $my_opt in
 	B) BACKING_TREE=$OPTARG ;;
+	S) GET_EXTRA=1 ;;
 	h) ShowHelp ;;
 	[?]) echo "Bad Option"; ShowHelp ;;
 	esac
@@ -155,11 +160,11 @@ do
 		i=`expr $i + 1`
 		xx=`pwd`
 		echo "Z $xx" >> $SVNLOG
-		if [ $i -eq $num ]; then
-			echo "Checking out: $report"
+		if [ $i -eq $num -a ${GET_EXTRA} -eq 0 ]; then
+			echo "Checking out: $report (this dir and all below)"
 			svn co $svnd --depth infinity >> $SVNLOG
 		elif [ ! -d $x ]; then
-			echo "Checking out: $report"
+			echo "Checking out: $report (just this dir)"
 			svn co $svnd --depth files >> $SVNLOG
 		fi
 		cd $x
@@ -219,5 +224,5 @@ rm -f $MORELOG
 if [ "x$moredirs" != x ]
 then
 	echo "Need to check out additional directories due to source dependencies..."
-	exec $0 -B "${BACKING_TREE}" $moredirs
+	exec $0 -S -B "${BACKING_TREE}" $moredirs
 fi
