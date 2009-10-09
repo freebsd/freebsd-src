@@ -77,7 +77,6 @@ void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);	\
 void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int	atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
-int	atomic_cmpset_barr_int(volatile u_int *dst, u_int exp, u_int src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 
 #define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)			\
@@ -130,62 +129,55 @@ struct __hack
 
 #ifdef CPU_DISABLE_CMPXCHG
 
-#define	DEFINE_CMPSET_GEN(NAME)				\
-static __inline int					\
-atomic_cmpset_##NAME(volatile u_int *dst, u_int exp, u_int src)\
-{							\
-	u_char res;					\
-							\
-	__asm __volatile(				\
-	"	pushfl ;		"		\
-	"	cli ;			"		\
-	"	cmpl	%3,%4 ;		"		\
-	"	jne	1f ;		"		\
-	"	movl	%2,%1 ;		"		\
-	"1:				"		\
-	"       sete	%0 ;		"		\
-	"	popfl ;			"		\
-	"# atomic_cmpset_##NAME"			\
-	: "=q" (res),			/* 0 */		\
-	  "=m" (*dst)			/* 1 */		\
-	: "r" (src),			/* 2 */		\
-	  "r" (exp),			/* 3 */		\
-	  "m" (*dst)			/* 4 */		\
-	: "memory");					\
-							\
-	return (res);					\
-}							\
-struct __hack
+static __inline int
+atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	pushfl ;		"
+	"	cli ;			"
+	"	cmpl	%3,%4 ;		"
+	"	jne	1f ;		"
+	"	movl	%2,%1 ;		"
+	"1:				"
+	"       sete	%0 ;		"
+	"	popfl ;			"
+	"# atomic_cmpset_int"
+	: "=q" (res),			/* 0 */
+	  "=m" (*dst)			/* 1 */
+	: "r" (src),			/* 2 */
+	  "r" (exp),			/* 3 */
+	  "m" (*dst)			/* 4 */
+	: "memory");
+
+	return (res);
+}
 
 #else /* !CPU_DISABLE_CMPXCHG */
 
-#define	DEFINE_CMPSET_GEN(NAME)				\
-static __inline int					\
-atomic_cmpset_##NAME(volatile u_int *dst, u_int exp, u_int src)\
-{							\
-	u_char res;					\
-							\
-	__asm __volatile(				\
-	"	" MPLOCKED "		"		\
-	"	cmpxchgl %2,%1 ;	"		\
-	"       sete	%0 ;		"		\
-	"1:				"		\
-	"# atomic_cmpset_##NAME"			\
-	: "=a" (res),			/* 0 */		\
-	  "=m" (*dst)			/* 1 */		\
-	: "r" (src),			/* 2 */		\
-	  "a" (exp),			/* 3 */		\
-	  "m" (*dst)			/* 4 */		\
-	: "memory");					\
-							\
-	return (res);					\
-}							\
-struct __hack
+static __inline int
+atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	cmpxchgl %2,%1 ;	"
+	"       sete	%0 ;		"
+	"1:				"
+	"# atomic_cmpset_int"
+	: "=a" (res),			/* 0 */
+	  "=m" (*dst)			/* 1 */
+	: "r" (src),			/* 2 */
+	  "a" (exp),			/* 3 */
+	  "m" (*dst)			/* 4 */
+	: "memory");
+
+	return (res);
+}
 
 #endif /* CPU_DISABLE_CMPXCHG */
-
-DEFINE_CMPSET_GEN(int);
-DEFINE_CMPSET_GEN(barr_int);
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
@@ -307,14 +299,6 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 	    (u_int)src));
 }
 
-static __inline int
-atomic_cmpset_barr_long(volatile u_long *dst, u_long exp, u_long src)
-{
-
-	return (atomic_cmpset_barr_int((volatile u_int *)dst, (u_int)exp,
-	    (u_int)src));
-}
-
 static __inline u_long
 atomic_fetchadd_long(volatile u_long *p, u_long v)
 {
@@ -390,8 +374,8 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_add_rel_int		atomic_add_barr_int
 #define	atomic_subtract_acq_int		atomic_subtract_barr_int
 #define	atomic_subtract_rel_int		atomic_subtract_barr_int
-#define	atomic_cmpset_acq_int		atomic_cmpset_barr_int
-#define	atomic_cmpset_rel_int		atomic_cmpset_barr_int
+#define	atomic_cmpset_acq_int		atomic_cmpset_int
+#define	atomic_cmpset_rel_int		atomic_cmpset_int
 
 #define	atomic_set_acq_long		atomic_set_barr_long
 #define	atomic_set_rel_long		atomic_set_barr_long
@@ -401,8 +385,8 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_add_rel_long		atomic_add_barr_long
 #define	atomic_subtract_acq_long	atomic_subtract_barr_long
 #define	atomic_subtract_rel_long	atomic_subtract_barr_long
-#define	atomic_cmpset_acq_long		atomic_cmpset_barr_long
-#define	atomic_cmpset_rel_long		atomic_cmpset_barr_long
+#define	atomic_cmpset_acq_long		atomic_cmpset_long
+#define	atomic_cmpset_rel_long		atomic_cmpset_long
 
 /* Operations on 8-bit bytes. */
 #define	atomic_set_8		atomic_set_char
