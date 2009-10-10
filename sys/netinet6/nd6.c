@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_arc.h>
@@ -1662,7 +1663,7 @@ nd6_slowtimo(void *arg)
 
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
-	IFNET_RLOCK_NOSLEEP();
+	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
 	    ifp = TAILQ_NEXT(ifp, if_list)) {
 		nd6if = ND_IFINFO(ifp);
@@ -1678,7 +1679,7 @@ nd6_slowtimo(void *arg)
 			nd6if->reachable = ND_COMPUTE_RTIME(nd6if->basereachable);
 		}
 	}
-	IFNET_RUNLOCK_NOSLEEP();
+	IFNET_RUNLOCK();
 	CURVNET_RESTORE();
 }
 

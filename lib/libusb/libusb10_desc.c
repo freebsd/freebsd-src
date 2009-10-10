@@ -24,10 +24,10 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/queue.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
-#include <sys/queue.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
@@ -38,11 +38,16 @@
 /* USB descriptors */
 
 int
-libusb_get_device_descriptor(libusb_device *dev,
+libusb_get_device_descriptor(libusb_device * dev,
     struct libusb_device_descriptor *desc)
 {
 	struct LIBUSB20_DEVICE_DESC_DECODED *pdesc;
 	struct libusb20_device *pdev;
+	libusb_context *ctx;
+
+	ctx = NULL;
+	GET_CONTEXT(ctx);
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_descriptor enter");
 
 	if ((dev == NULL) || (desc == NULL))
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -65,46 +70,53 @@ libusb_get_device_descriptor(libusb_device *dev,
 	desc->iSerialNumber = pdesc->iSerialNumber;
 	desc->bNumConfigurations = pdesc->bNumConfigurations;
 
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_device_descriptor leave");
 	return (0);
 }
 
 int
-libusb_get_active_config_descriptor(libusb_device *dev,
+libusb_get_active_config_descriptor(libusb_device * dev,
     struct libusb_config_descriptor **config)
 {
 	struct libusb20_device *pdev;
-	uint8_t config_index;
+	libusb_context *ctx;
+	uint8_t idx;
+
+	ctx = NULL;
+	GET_CONTEXT(ctx);
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_active_config_descriptor enter");
 
 	pdev = dev->os_priv;
-	config_index = libusb20_dev_get_config_index(pdev);
+	idx = libusb20_dev_get_config_index(pdev);
 
-	return (libusb_get_config_descriptor(dev, config_index, config));
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_active_config_descriptor leave");
+	return (libusb_get_config_descriptor(dev, idx, config));
 }
 
+/*
+ * XXX Need to check if extra need a dup because
+ * XXX free pconf could free this char *
+ */
 int
-libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
+libusb_get_config_descriptor(libusb_device * dev, uint8_t config_index,
     struct libusb_config_descriptor **config)
 {
 	struct libusb20_device *pdev;
 	struct libusb20_config *pconf;
 	struct libusb20_interface *pinf;
 	struct libusb20_endpoint *pend;
-	struct libusb_config_descriptor *pconfd;
-	struct libusb_interface_descriptor *ifd;
-	struct libusb_endpoint_descriptor *endd;
-	uint8_t *pextra;
-	uint16_t nextra;
-	uint8_t nif;
-	uint8_t nep;
-	uint8_t nalt;
-	uint8_t i;
-	uint8_t j;
-	uint8_t k;
+	libusb_interface_descriptor *ifd;
+	libusb_endpoint_descriptor *endd;
+	libusb_context *ctx;
+	uint8_t nif, nend, nalt, i, j, k;
+	uint32_t if_idx, endp_idx;
+
+	ctx = NULL;
+	GET_CONTEXT(ctx);
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor enter");
 
 	if (dev == NULL || config == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
-
-	*config = NULL;
 
 	pdev = dev->os_priv;
 	pconf = libusb20_dev_alloc_config(pdev, config_index);
@@ -113,101 +125,75 @@ libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 		return (LIBUSB_ERROR_NOT_FOUND);
 
 	nalt = nif = pconf->num_interface;
-	nep = 0;
-	nextra = pconf->extra.len;
-
-	for (i = 0; i < nif; i++) {
-
-		pinf = pconf->interface + i;
-		nextra += pinf->extra.len;
-		nep += pinf->num_endpoints;
-		k = pinf->num_endpoints;
-		pend = pinf->endpoints;
-		while (k--) {
-			nextra += pend->extra.len;
-			pend++;
-		}
-
-		j = pinf->num_altsetting;
-		nalt += pinf->num_altsetting;
-		pinf = pinf->altsetting;
-		while (j--) {
-			nextra += pinf->extra.len;
-			nep += pinf->num_endpoints;
-			k = pinf->num_endpoints;
-			pend = pinf->endpoints;
-			while (k--) {
-				nextra += pend->extra.len;
-				pend++;
+	nend = 0;
+	for (i = 0 ; i < nif ; i++) {
+		if (pconf->interface[i].num_altsetting > 0)
+		{
+			nalt += pconf->interface[i].num_altsetting;
+			for (j = 0 ; j < nalt ; j++) {
+				nend += pconf->interface[i].altsetting[j].num_endpoints;
 			}
-			pinf++;
 		}
+		nend += pconf->interface[i].num_endpoints;
 	}
 
-	nextra = nextra +
-	    (1 * sizeof(libusb_config_descriptor)) +
+	*config = malloc(sizeof(libusb_config_descriptor) + 
 	    (nif * sizeof(libusb_interface)) +
 	    (nalt * sizeof(libusb_interface_descriptor)) +
-	    (nep * sizeof(libusb_endpoint_descriptor));
-
-	pconfd = malloc(nextra);
-
-	if (pconfd == NULL) {
+	    (nend * sizeof(libusb_endpoint_descriptor)));
+	if (*config == NULL) {
 		free(pconf);
 		return (LIBUSB_ERROR_NO_MEM);
 	}
-	/* make sure memory is clean */
-	memset(pconfd, 0, nextra);
 
-	pconfd->interface = (libusb_interface *) (pconfd +
+	(*config)->interface = (libusb_interface *)(*config + 
 	    sizeof(libusb_config_descriptor));
+	for (i = if_idx = endp_idx = 0 ; i < nif ; if_idx, i++) {
+		(*config)->interface[i].altsetting = (libusb_interface_descriptor *)
+		    (*config + sizeof(libusb_config_descriptor) +
+		    (nif * sizeof(libusb_interface)) +
+		    (if_idx * sizeof(libusb_interface_descriptor)));
+		(*config)->interface[i].altsetting[0].endpoint = 
+		    (libusb_endpoint_descriptor *) (*config +
+	   	    sizeof(libusb_config_descriptor) +
+		    (nif * sizeof(libusb_interface)) +
+		    (nalt * sizeof(libusb_interface_descriptor)) +
+		    (endp_idx * sizeof(libusb_endpoint_descriptor)));
+		    endp_idx += pconf->interface[i].num_endpoints;
 
-	ifd = (libusb_interface_descriptor *) (pconfd->interface + nif);
-	endd = (libusb_endpoint_descriptor *) (ifd + nalt);
-	pextra = (uint8_t *)(endd + nep);
-
-	/* fill in config descriptor */
-
-	pconfd->bLength = pconf->desc.bLength;
-	pconfd->bDescriptorType = pconf->desc.bDescriptorType;
-	pconfd->wTotalLength = pconf->desc.wTotalLength;
-	pconfd->bNumInterfaces = pconf->desc.bNumInterfaces;
-	pconfd->bConfigurationValue = pconf->desc.bConfigurationValue;
-	pconfd->iConfiguration = pconf->desc.iConfiguration;
-	pconfd->bmAttributes = pconf->desc.bmAttributes;
-	pconfd->MaxPower = pconf->desc.bMaxPower;
-
-	if (pconf->extra.len != 0) {
-		pconfd->extra_length = pconf->extra.len;
-		pconfd->extra = pextra;
-		memcpy(pextra, pconf->extra.ptr, pconfd->extra_length);
-		pextra += pconfd->extra_length;
-	}
-	/* setup all interface and endpoint pointers */
-
-	for (i = 0; i < nif; i++) {
-
-		pconfd->interface[i].altsetting = ifd;
-		ifd->endpoint = endd;
-		endd += pconf->interface[i].num_endpoints;
-		ifd++;
-
-		for (j = 0; j < pconf->interface[i].num_altsetting; j++) {
-			ifd->endpoint = endd;
-			endd += pconf->interface[i].altsetting[j].num_endpoints;
-			ifd++;
+		if (pconf->interface[i].num_altsetting > 0)
+		{
+			for (j = 0 ; j < pconf->interface[i].num_altsetting ; j++, if_idx++) {
+				(*config)->interface[i].altsetting[j + 1].endpoint = 
+		    		(libusb_endpoint_descriptor *) (*config +
+	   	    		sizeof(libusb_config_descriptor) +
+		    		(nif * sizeof(libusb_interface)) +
+		    		(nalt * sizeof(libusb_interface_descriptor)) +
+		    		(endp_idx * sizeof(libusb_endpoint_descriptor)));
+				endp_idx += pconf->interface[i].altsetting[j].num_endpoints;
+			}
 		}
 	}
 
-	/* fill in all interface and endpoint data */
+	(*config)->bLength = pconf->desc.bLength;
+	(*config)->bDescriptorType = pconf->desc.bDescriptorType;
+	(*config)->wTotalLength = pconf->desc.wTotalLength;
+	(*config)->bNumInterfaces = pconf->desc.bNumInterfaces;
+	(*config)->bConfigurationValue = pconf->desc.bConfigurationValue;
+	(*config)->iConfiguration = pconf->desc.iConfiguration;
+	(*config)->bmAttributes = pconf->desc.bmAttributes;
+	(*config)->MaxPower = pconf->desc.bMaxPower;
+	(*config)->extra_length = pconf->extra.len;
+	if ((*config)->extra_length != 0)
+		(*config)->extra = pconf->extra.ptr;
 
-	for (i = 0; i < nif; i++) {
+	for (i = 0 ; i < nif ; i++) {
 		pinf = &pconf->interface[i];
-		pconfd->interface[i].num_altsetting = pinf->num_altsetting + 1;
-		for (j = 0; j < pconfd->interface[i].num_altsetting; j++) {
+		(*config)->interface[i].num_altsetting = pinf->num_altsetting + 1;
+		for (j = 0 ; j < (*config)->interface[i].num_altsetting ; j++) {
 			if (j != 0)
 				pinf = &pconf->interface[i].altsetting[j - 1];
-			ifd = &pconfd->interface[i].altsetting[j];
+			ifd = &(*config)->interface[i].altsetting[j];
 			ifd->bLength = pinf->desc.bLength;
 			ifd->bDescriptorType = pinf->desc.bDescriptorType;
 			ifd->bInterfaceNumber = pinf->desc.bInterfaceNumber;
@@ -217,13 +203,10 @@ libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 			ifd->bInterfaceSubClass = pinf->desc.bInterfaceSubClass;
 			ifd->bInterfaceProtocol = pinf->desc.bInterfaceProtocol;
 			ifd->iInterface = pinf->desc.iInterface;
-			if (pinf->extra.len != 0) {
-				ifd->extra_length = pinf->extra.len;
-				ifd->extra = pextra;
-				memcpy(pextra, pinf->extra.ptr, pinf->extra.len);
-				pextra += pinf->extra.len;
-			}
-			for (k = 0; k < pinf->num_endpoints; k++) {
+			ifd->extra_length = pinf->extra.len;
+			if (ifd->extra_length != 0)
+				ifd->extra = pinf->extra.ptr;
+			for (k = 0 ; k < pinf->num_endpoints ; k++) {
 				pend = &pinf->endpoints[k];
 				endd = &ifd->endpoint[k];
 				endd->bLength = pend->desc.bLength;
@@ -234,71 +217,82 @@ libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 				endd->bInterval = pend->desc.bInterval;
 				endd->bRefresh = pend->desc.bRefresh;
 				endd->bSynchAddress = pend->desc.bSynchAddress;
-				if (pend->extra.len != 0) {
-					endd->extra_length = pend->extra.len;
-					endd->extra = pextra;
-					memcpy(pextra, pend->extra.ptr, pend->extra.len);
-					pextra += pend->extra.len;
-				}
+				endd->extra_length = pend->extra.len;
+				if (endd->extra_length != 0)
+					endd->extra = pend->extra.ptr;
 			}
-		}
+		}	
 	}
 
 	free(pconf);
-
-	*config = pconfd;
-
-	return (0);			/* success */
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor leave");
+	return (0);
 }
 
 int
-libusb_get_config_descriptor_by_value(libusb_device *dev,
+libusb_get_config_descriptor_by_value(libusb_device * dev,
     uint8_t bConfigurationValue, struct libusb_config_descriptor **config)
 {
 	struct LIBUSB20_DEVICE_DESC_DECODED *pdesc;
 	struct libusb20_device *pdev;
+	struct libusb20_config *pconf;
+	libusb_context *ctx;
 	int i;
-	int err;
+
+	ctx = NULL;
+	GET_CONTEXT(ctx);
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor_by_value enter");
 
 	if (dev == NULL || config == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
-
+	
 	pdev = dev->os_priv;
 	pdesc = libusb20_dev_get_device_desc(pdev);
 
-	for (i = 0; i < pdesc->bNumConfigurations; i++) {
-		err = libusb_get_config_descriptor(dev, i, config);
-		if (err)
-			return (err);
+	for (i = 0 ; i < pdesc->bNumConfigurations ; i++) {
+		pconf = libusb20_dev_alloc_config(pdev, i);
+	       	if (pconf->desc.bConfigurationValue == bConfigurationValue) {
+			free(pconf);
+			return libusb_get_config_descriptor(dev, i, config);	
 
-		if ((*config)->bConfigurationValue == bConfigurationValue)
-			return (0);	/* success */
-
-		libusb_free_config_descriptor(*config);
+		}
+		free(pconf);
 	}
 
-	*config = NULL;
-
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_config_descriptor_by_value leave");
 	return (LIBUSB_ERROR_NOT_FOUND);
 }
 
 void
 libusb_free_config_descriptor(struct libusb_config_descriptor *config)
 {
+	libusb_context *ctx;
+
+	ctx = NULL;
+	GET_CONTEXT(ctx);
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_config_descriptor enter");
+
 	free(config);
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_free_config_descriptor leave");
 }
 
 int
-libusb_get_string_descriptor_ascii(libusb_device_handle *pdev,
+libusb_get_string_descriptor_ascii(libusb_device_handle * dev,
     uint8_t desc_index, unsigned char *data, int length)
 {
-	if (pdev == NULL || data == NULL || length < 1)
+	struct libusb20_device *pdev;
+	libusb_context *ctx;
+
+	ctx = NULL;
+	GET_CONTEXT(ctx);
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_string_descriptor_ascii enter");
+
+	if (dev == NULL || data == NULL)
 		return (LIBUSB20_ERROR_INVALID_PARAM);
 
-	/* put some default data into the destination buffer */
-	data[0] = 0;
-
-	if (libusb20_dev_req_string_simple_sync(pdev, desc_index,
+	pdev = dev->os_priv;
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_get_string_descriptor_ascii leave");
+	if (libusb20_dev_req_string_simple_sync(pdev, desc_index, 
 	    data, length) == 0)
 		return (strlen(data));
 

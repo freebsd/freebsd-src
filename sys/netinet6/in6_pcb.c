@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
+#include <sys/vimage.h>
 
 #include <vm/uma.h>
 

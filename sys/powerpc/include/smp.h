@@ -35,7 +35,6 @@
 #define	IPI_PREEMPT		1
 #define	IPI_RENDEZVOUS		2
 #define	IPI_STOP		3
-#define	IPI_STOP_HARD		3
 
 #ifndef LOCORE
 

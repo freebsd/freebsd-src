@@ -49,9 +49,7 @@ struct flowtable *flowtable_alloc(int nentry, int flags);
  *
  */
 int flowtable_lookup(struct flowtable *ft, struct mbuf *m,
-    struct route *ro, uint32_t fibnum);
-
-void flowtable_route_flush(struct flowtable *ft, struct rtentry *rt);
+    struct route *ro);
 
 #endif /* _KERNEL */
 #endif

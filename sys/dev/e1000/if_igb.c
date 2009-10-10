@@ -600,9 +600,9 @@ igb_attach(device_t dev)
 
 	/* Register for VLAN events */
 	adapter->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
-	     igb_register_vlan, adapter, EVENTHANDLER_PRI_FIRST);
+	     igb_register_vlan, 0, EVENTHANDLER_PRI_FIRST);
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
-	     igb_unregister_vlan, adapter, EVENTHANDLER_PRI_FIRST);
+	     igb_unregister_vlan, 0, EVENTHANDLER_PRI_FIRST);
 
 	/* Tell the stack that the interface is not active */
 	adapter->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -854,10 +854,9 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 
 	/* If nothing queued go right to xmit */
 	if (drbr_empty(ifp, txr->br)) {
-		if ((err = igb_xmit(txr, &m)) != 0) {
-			if (m != NULL)
-				err = drbr_enqueue(ifp, txr->br, m);
-			return (err);
+		if (igb_xmit(txr, &m)) {
+			if (m && (err = drbr_enqueue(ifp, txr->br, m)) != 0)
+                                return (err);
 		} else {
 			/* Success, update stats */
 			drbr_stats_update(ifp, m->m_pkthdr.len, m->m_flags);
@@ -881,12 +880,8 @@ process:
 		next = drbr_dequeue(ifp, txr->br);
 		if (next == NULL)
 			break;
-		if ((err = igb_xmit(txr, &next)) != 0) {
-			if (next != NULL)
-				err = drbr_enqueue(ifp, txr->br, next);
+		if (igb_xmit(txr, &next))
 			break;
-		}
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
 		ETHER_BPF_MTAP(ifp, next);
 		/* Set the watchdog */
 		txr->watchdog_timer = IGB_TX_TIMEOUT;
@@ -957,8 +952,7 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				igb_init_locked(adapter);
 				IGB_CORE_UNLOCK(adapter);
 			}
-			if (!(ifp->if_flags & IFF_NOARP))
-				arp_ifinit(ifp, ifa);
+			arp_ifinit(ifp, ifa);
 		} else
 #endif
 			error = ether_ioctl(ifp, command, data);
@@ -1536,11 +1530,8 @@ igb_update_aim(struct rx_ring *rxr)
 	if (olditr != newitr) {
 		/* Change interrupt rate */
 		rxr->eitr_setting = newitr;
-		if (adapter->hw.mac.type == e1000_82575)
-			newitr |= newitr << 16;
-		else
-			newitr |= 0x8000000;
-		E1000_WRITE_REG(&adapter->hw, E1000_EITR(rxr->me), newitr);
+		E1000_WRITE_REG(&adapter->hw, E1000_EITR(rxr->me),
+		    newitr | (newitr << 16));
 	}
 
 	rxr->bytes = 0;
@@ -3077,8 +3068,7 @@ igb_free_transmit_buffers(struct tx_ring *txr)
 		}
 	}
 #if __FreeBSD_version >= 800000
-	if (txr->br != NULL)
-		buf_ring_free(txr->br, M_DEVBUF);
+	buf_ring_free(txr->br, M_DEVBUF);
 #endif
 	if (txr->tx_buffers != NULL) {
 		free(txr->tx_buffers, M_DEVBUF);
@@ -4314,13 +4304,10 @@ igb_rx_checksum(u32 staterr, struct mbuf *mp, bool sctp)
  * config EVENT
  */
 static void
-igb_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
+igb_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, bit;
-
-	if (ifp->if_softc !=  arg)   /* Not our event */
-		return;
 
 	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
                 return;
@@ -4338,13 +4325,10 @@ igb_register_vlan(void *arg, struct ifnet *ifp, u16 vtag)
  * unconfig EVENT
  */
 static void
-igb_unregister_vlan(void *arg, struct ifnet *ifp, u16 vtag)
+igb_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, bit;
-
-	if (ifp->if_softc !=  arg)
-		return;
 
 	if ((vtag == 0) || (vtag > 4095))       /* Invalid */
                 return;

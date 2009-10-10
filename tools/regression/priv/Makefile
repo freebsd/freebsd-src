@@ -2,8 +2,6 @@
 # $FreeBSD$
 #
 
-.include <bsd.own.mk>
-
 PROG=	priv
 SRCS=	main.c				\
 	priv_acct.c			\
@@ -50,9 +48,5 @@ WARNS=	3
 
 DPADD+= ${LIBIPSEC}
 LDADD+= -lipsec
-
-.if ${MK_INET6_SUPPORT} != "no"
-CFLAGS+= -DINET6
-.endif
 
 .include <bsd.prog.mk>

@@ -95,6 +95,7 @@ DEV_NPX			opt_npx.h
 
 # Debugging
 NPX_DEBUG		opt_npx.h
+STOP_NMI		opt_cpu.h
 AGP_DEBUG		opt_agp.h
 
 # BPF just-in-time compiler

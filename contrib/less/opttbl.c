@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -41,7 +41,6 @@ public int force_open;		/* Open the file even if not regular file */
 public int swindow;		/* Size of scrolling window */
 public int jump_sline;		/* Screen line of "jump target" */
 public long jump_sline_fraction = -1;
-public long shift_count_fraction = -1;
 public int chopline;		/* Truncate displayed lines at screen width */
 public int no_init;		/* Disable sending ti/te termcap strings */
 public int no_keypad;		/* Disable sending ks/ke termcap strings */
@@ -420,10 +419,10 @@ static struct loption option[] =
 		{ NULL, NULL, NULL }
 	},
 	{ '#', &pound_optname,
-		STRING, 0, NULL, opt_shift,
+		NUMBER, 0, &shift_count, NULL,
 		{
 			"Horizontal shift: ",
-			"0123456789.",
+			"Horizontal shift %d positions",
 			NULL
 		}
 	},

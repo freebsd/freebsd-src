@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -86,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/netisr.h>
-#include <net/vnet.h>
 
 /*-
  * Synchronize use and modification of the registered netisr data structures;

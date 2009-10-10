@@ -348,9 +348,6 @@ main(int argc, char *argv[])
 				if (checkvfsname(mntbuf[i].f_fstypename,
 				    vfslist))
 					continue;
-				if (!verbose &&
-				    (mntbuf[i].f_flags & MNT_IGNORE) != 0)
-					continue;
 				prmount(&mntbuf[i]);
 			}
 		}

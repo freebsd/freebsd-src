@@ -231,7 +231,6 @@ static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 static void pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
-static void pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 static vm_page_t pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va);
@@ -440,7 +439,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
 	DMPDPphys = allocpages(firstaddr, NDMPML4E);
-	if (TRUE || (amd_feature & AMDID_PAGE1GB) == 0)
+	if ((amd_feature & AMDID_PAGE1GB) == 0)
 		DMPDphys = allocpages(firstaddr, ndmpdp);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
@@ -474,7 +473,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 
 	/* Now set up the direct map space using either 2MB or 1GB pages */
 	/* Preset PG_M and PG_A because demotion expects it */
-	if (TRUE || (amd_feature & AMDID_PAGE1GB) == 0) {
+	if ((amd_feature & AMDID_PAGE1GB) == 0) {
 		for (i = 0; i < NPDEPG * ndmpdp; i++) {
 			((pd_entry_t *)DMPDphys)[i] = (vm_paddr_t)i << PDRSHIFT;
 			((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS |
@@ -921,40 +920,6 @@ pmap_invalidate_cache(void)
 	wbinvd();
 }
 #endif /* !SMP */
-
-static void
-pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
-{
-
-	KASSERT((sva & PAGE_MASK) == 0,
-	    ("pmap_invalidate_cache_range: sva not page-aligned"));
-	KASSERT((eva & PAGE_MASK) == 0,
-	    ("pmap_invalidate_cache_range: eva not page-aligned"));
-
-	if (cpu_feature & CPUID_SS)
-		; /* If "Self Snoop" is supported, do nothing. */
-	else if (cpu_feature & CPUID_CLFSH) {
-
-		/*
-		 * Otherwise, do per-cache line flush.  Use the mfence
-		 * instruction to insure that previous stores are
-		 * included in the write-back.  The processor
-		 * propagates flush to other processors in the cache
-		 * coherence domain.
-		 */
-		mfence();
-		for (; sva < eva; sva += cpu_clflush_line_size)
-			clflush(sva);
-		mfence();
-	} else {
-
-		/*
-		 * No targeted cache flush methods are supported by CPU,
-		 * globally invalidate cache as a last resort.
-		 */
-		pmap_invalidate_cache();
-	}
-}
 
 /*
  * Are we current address space or kernel?
@@ -2261,8 +2226,6 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 			    " in pmap %p", va, pmap);
 			return (FALSE);
 		}
-		if (va < VM_MAXUSER_ADDRESS)
-			pmap->pm_stats.resident_count++;
 	}
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(mptepa);
@@ -3361,7 +3324,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 	int pat_mode;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
+	KASSERT(object->type == OBJT_DEVICE,
 	    ("pmap_object_init_pt: non-device object"));
 	if ((addr & (NBPDR - 1)) == 0 && (size & (NBPDR - 1)) == 0) {
 		if (!vm_object_populate(object, pindex, pindex + atop(size)))
@@ -4293,8 +4256,7 @@ pmap_pde_attr(pd_entry_t *pde, int cache_bits)
 void *
 pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 {
-	vm_offset_t va, offset;
-	vm_size_t tmpsize;
+	vm_offset_t va, tmpva, offset;
 
 	/*
 	 * If the specified range of physical addresses fits within the direct
@@ -4311,10 +4273,16 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	if (!va)
 		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
 	pa = trunc_page(pa);
-	for (tmpsize = 0; tmpsize < size; tmpsize += PAGE_SIZE)
-		pmap_kenter_attr(va + tmpsize, pa + tmpsize, mode);
-	pmap_invalidate_range(kernel_pmap, va, va + tmpsize);
-	pmap_invalidate_cache_range(va, va + tmpsize);
+	for (tmpva = va; size > 0; ) {
+		pmap_kenter_attr(tmpva, pa, mode);
+		size -= PAGE_SIZE;
+		tmpva += PAGE_SIZE;
+		pa += PAGE_SIZE;
+	}
+	pmap_invalidate_range(kernel_pmap, va, tmpva);
+	/* If "Self Snoop" is supported, do nothing. */
+	if (!(cpu_feature & CPUID_SS))
+		pmap_invalidate_cache();
 	return ((void *)(va + offset));
 }
 
@@ -4476,8 +4444,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	if (base < DMAP_MIN_ADDRESS)
 		return (EINVAL);
 
-	cache_bits_pde = pmap_cache_bits(mode, 1);
-	cache_bits_pte = pmap_cache_bits(mode, 0);
+	cache_bits_pde = cache_bits_pte = -1;
 	changed = FALSE;
 
 	/*
@@ -4494,6 +4461,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			 * memory type, then we need not demote this page. Just
 			 * increment tmpva to the next 1GB page frame.
 			 */
+			if (cache_bits_pde < 0)
+				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pdpe & PG_PDE_CACHE) == cache_bits_pde) {
 				tmpva = trunc_1gpage(tmpva) + NBPDP;
 				continue;
@@ -4521,6 +4490,8 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			 * memory type, then we need not demote this page. Just
 			 * increment tmpva to the next 2MB page frame.
 			 */
+			if (cache_bits_pde < 0)
+				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pde & PG_PDE_CACHE) == cache_bits_pde) {
 				tmpva = trunc_2mpage(tmpva) + NBPDR;
 				continue;
@@ -4554,9 +4525,12 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	for (tmpva = base; tmpva < base + size; ) {
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
 		if (*pdpe & PG_PS) {
+			if (cache_bits_pde < 0)
+				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pdpe & PG_PDE_CACHE) != cache_bits_pde) {
 				pmap_pde_attr(pdpe, cache_bits_pde);
-				changed = TRUE;
+				if (!changed)
+					changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
 				if (pa_start == pa_end) {
@@ -4582,9 +4556,12 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		}
 		pde = pmap_pdpe_to_pde(pdpe, tmpva);
 		if (*pde & PG_PS) {
+			if (cache_bits_pde < 0)
+				cache_bits_pde = pmap_cache_bits(mode, 1);
 			if ((*pde & PG_PDE_CACHE) != cache_bits_pde) {
 				pmap_pde_attr(pde, cache_bits_pde);
-				changed = TRUE;
+				if (!changed)
+					changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
 				if (pa_start == pa_end) {
@@ -4607,10 +4584,13 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			}
 			tmpva = trunc_2mpage(tmpva) + NBPDR;
 		} else {
+			if (cache_bits_pte < 0)
+				cache_bits_pte = pmap_cache_bits(mode, 0);
 			pte = pmap_pde_to_pte(pde, tmpva);
 			if ((*pte & PG_PTE_CACHE) != cache_bits_pte) {
 				pmap_pte_attr(pte, cache_bits_pte);
-				changed = TRUE;
+				if (!changed)
+					changed = TRUE;
 			}
 			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
 				if (pa_start == pa_end) {
@@ -4644,7 +4624,9 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 	 */
 	if (changed) {
 		pmap_invalidate_range(kernel_pmap, base, tmpva);
-		pmap_invalidate_cache_range(base, tmpva);
+		/* If "Self Snoop" is supported, do nothing. */
+		if (!(cpu_feature & CPUID_SS))
+			pmap_invalidate_cache();
 	}
 	return (error);
 }

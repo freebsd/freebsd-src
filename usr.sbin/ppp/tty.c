@@ -384,6 +384,7 @@ UnloadLineDiscipline(struct physical *p)
   struct ttydevice *dev = device2tty(p->handler);
 
   if (isngtty(dev)) {
+log_Printf(LogPHASE, "back to speed %d\n", dev->real.speed);
     if (!physical_SetSpeed(p, dev->real.speed))
       log_Printf(LogWARN, "Couldn't reset tty speed to %d\n", dev->real.speed);
     dev->real.speed = 0;
@@ -581,18 +582,16 @@ tty_device2iov(struct device *d, struct iovec *iov, int *niov,
 #endif
                )
 {
-  struct ttydevice *dev;
+  struct ttydevice *dev = device2tty(d);
   int sz = physical_MaxDeviceSize();
 
-  iov[*niov].iov_base = d = realloc(d, sz);
-  if (d == NULL) {
+  iov[*niov].iov_base = realloc(d, sz);
+  if (iov[*niov].iov_base == NULL) {
     log_Printf(LogALERT, "Failed to allocate memory: %d\n", sz);
     AbortProgram(EX_OSERR);
   }
   iov[*niov].iov_len = sz;
   (*niov)++;
-
-  dev = device2tty(d);
 
 #ifndef NONETGRAPH
   if (dev->cs >= 0) {

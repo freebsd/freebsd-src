@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysproto.h>
 #include <sys/uio.h>
+#include <sys/vimage.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -947,6 +948,11 @@ sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
 {
 	int error, s, tt;
 
+#ifdef VIMAGE
+	if (arg1 != NULL)
+		arg1 = (void *)(TD_TO_VNET(req->td)->vnet_data_base +
+		    (uintptr_t)arg1);
+#endif
 	tt = *(int *)arg1;
 	s = (int)((int64_t)tt * 1000 / hz);
 
@@ -1381,18 +1387,10 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 
 	/* Is this sysctl writable by only privileged users? */
 	if (req->newptr && !(oid->oid_kind & CTLFLAG_ANYBODY)) {
-		int priv;
-
 		if (oid->oid_kind & CTLFLAG_PRISON)
-			priv = PRIV_SYSCTL_WRITEJAIL;
-#ifdef VIMAGE
-		else if ((oid->oid_kind & CTLFLAG_VNET) &&
-		     prison_owns_vnet(req->td->td_ucred))
-			priv = PRIV_SYSCTL_WRITEJAIL;
-#endif
+			error = priv_check(req->td, PRIV_SYSCTL_WRITEJAIL);
 		else
-			priv = PRIV_SYSCTL_WRITE;
-		error = priv_check(req->td, priv);
+			error = priv_check(req->td, PRIV_SYSCTL_WRITE);
 		if (error)
 			return (error);
 	}

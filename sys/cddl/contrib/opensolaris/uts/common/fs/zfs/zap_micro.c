@@ -181,11 +181,10 @@ mze_compare(const void *arg1, const void *arg2)
 	return (0);
 }
 
-static int
+static void
 mze_insert(zap_t *zap, int chunkid, uint64_t hash, mzap_ent_phys_t *mzep)
 {
 	mzap_ent_t *mze;
-	avl_index_t idx;
 
 	ASSERT(zap->zap_ismicro);
 	ASSERT(RW_WRITE_HELD(&zap->zap_rwlock));
@@ -195,12 +194,7 @@ mze_insert(zap_t *zap, int chunkid, uint64_t hash, mzap_ent_phys_t *mzep)
 	mze->mze_chunkid = chunkid;
 	mze->mze_hash = hash;
 	mze->mze_phys = *mzep;
-	if (avl_find(&zap->zap_m.zap_avl, mze, &idx) != NULL) {
-		kmem_free(mze, sizeof (mzap_ent_t));
-		return (EEXIST);
-	}
-	avl_insert(&zap->zap_m.zap_avl, mze, idx);
-	return (0);
+	avl_add(&zap->zap_m.zap_avl, mze);
 }
 
 static mzap_ent_t *
@@ -335,15 +329,10 @@ mzap_open(objset_t *os, uint64_t obj, dmu_buf_t *db)
 			if (mze->mze_name[0]) {
 				zap_name_t *zn;
 
+				zap->zap_m.zap_num_entries++;
 				zn = zap_name_alloc(zap, mze->mze_name,
 				    MT_EXACT);
-				if (mze_insert(zap, i, zn->zn_hash, mze) == 0)
-					zap->zap_m.zap_num_entries++;
-				else {
-					printf("ZFS WARNING: Duplicated ZAP "
-					    "entry detected (%s).\n",
-					    mze->mze_name);
-				}
+				mze_insert(zap, i, zn->zn_hash, mze);
 				zap_name_free(zn);
 			}
 		}
@@ -782,7 +771,7 @@ again:
 			if (zap->zap_m.zap_alloc_next ==
 			    zap->zap_m.zap_num_chunks)
 				zap->zap_m.zap_alloc_next = 0;
-			VERIFY(0 == mze_insert(zap, i, zn->zn_hash, mze));
+			mze_insert(zap, i, zn->zn_hash, mze);
 			return;
 		}
 	}

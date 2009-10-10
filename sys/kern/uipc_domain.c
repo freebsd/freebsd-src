@@ -43,9 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
-
-#include <net/vnet.h>
-
+#include <sys/vimage.h>
 #include <vm/uma.h>
 
 /*
@@ -61,11 +59,16 @@ __FBSDID("$FreeBSD$");
  */
 
 static void domaininit(void *);
-SYSINIT(domain, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, domaininit, NULL);
+SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL);
 
 static void domainfinalize(void *);
 SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
     NULL);
+
+static vnet_attach_fn net_init_domain;
+#ifdef VIMAGE
+static vnet_detach_fn net_detach_domain;
+#endif
 
 static struct callout pffast_callout;
 static struct callout pfslow_callout;
@@ -102,6 +105,15 @@ struct pr_usrreqs nousrreqs = {
 	.pru_soreceive =	pru_soreceive_notsupp,
 	.pru_sopoll =		pru_sopoll_notsupp,
 };
+
+#ifdef VIMAGE
+vnet_modinfo_t vnet_domain_modinfo = {
+	.vmi_id		= VNET_MOD_DOMAIN,
+	.vmi_name	= "domain",
+	.vmi_iattach	= net_init_domain,
+	.vmi_idetach	= net_detach_domain,
+};
+#endif
 
 static void
 protosw_init(struct protosw *pr)
@@ -162,10 +174,10 @@ protosw_init(struct protosw *pr)
  * Note: you cant unload it again because a socket may be using it.
  * XXX can't fail at this time.
  */
-void
-domain_init(void *arg)
+static int
+net_init_domain(const void *arg)
 {
-	struct domain *dp = arg;
+	const struct domain *dp = arg;
 	struct protosw *pr;
 
 	if (dp->dom_init)
@@ -179,21 +191,17 @@ domain_init(void *arg)
 	max_datalen = MHLEN - max_hdr;
 	if (max_datalen < 1)
 		panic("%s: max_datalen < 1", __func__);
+	return (0);
 }
 
 #ifdef VIMAGE
-void
-vnet_domain_init(void *arg)
+/*
+ * Detach / free a domain instance.
+ */
+static int
+net_detach_domain(const void *arg)
 {
-
-	/* Virtualized case is no different -- call init functions. */
-	domain_init(arg);
-}
-
-void
-vnet_domain_uninit(void *arg)
-{
-	struct domain *dp = arg;
+	const struct domain *dp = arg;
 	struct protosw *pr;
 
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
@@ -201,6 +209,8 @@ vnet_domain_uninit(void *arg)
 			(*pr->pr_destroy)();
 	if (dp->dom_destroy)
 		(*dp->dom_destroy)();
+
+	return (0);
 }
 #endif
 
@@ -210,7 +220,7 @@ vnet_domain_uninit(void *arg)
  * XXX can't fail at this time.
  */
 void
-domain_add(void *data)
+net_add_domain(void *data)
 {
 	struct domain *dp;
 
@@ -224,19 +234,24 @@ domain_add(void *data)
 	    dp->dom_name));
 #ifndef INVARIANTS
 	if (domain_init_status < 1)
-		printf("WARNING: attempt to domain_add(%s) before "
+		printf("WARNING: attempt to net_add_domain(%s) before "
 		    "domaininit()\n", dp->dom_name);
 #endif
 #ifdef notyet
 	KASSERT(domain_init_status < 2,
-	    ("attempt to domain_add(%s) after domainfinalize()",
+	    ("attempt to net_add_domain(%s) after domainfinalize()",
 	    dp->dom_name));
 #else
 	if (domain_init_status >= 2)
-		printf("WARNING: attempt to domain_add(%s) after "
+		printf("WARNING: attempt to net_add_domain(%s) after "
 		    "domainfinalize()\n", dp->dom_name);
 #endif
 	mtx_unlock(&dom_mtx);
+#ifdef VIMAGE
+	vnet_mod_register_multi(&vnet_domain_modinfo, dp, dp->dom_name);
+#else
+	net_init_domain(dp);
+#endif
 }
 
 static void
@@ -336,7 +351,6 @@ found:
 int
 pf_proto_register(int family, struct protosw *npr)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
 	struct domain *dp;
 	struct protosw *pr, *fpr;
 
@@ -392,13 +406,7 @@ found:
 	mtx_unlock(&dom_mtx);
 
 	/* Initialize and activate the protocol. */
-	VNET_LIST_RLOCK();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET_QUIET(vnet_iter);
-		protosw_init(fpr);
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK();
+	protosw_init(fpr);
 
 	return (0);
 }

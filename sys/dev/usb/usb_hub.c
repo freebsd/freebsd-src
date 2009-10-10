@@ -96,7 +96,6 @@ struct uhub_current_state {
 struct uhub_softc {
 	struct uhub_current_state sc_st;/* current state */
 	device_t sc_dev;		/* base device */
-	struct mtx sc_mtx;		/* our mutex */
 	struct usb_device *sc_udev;	/* USB device */
 	struct usb_xfer *sc_xfer[UHUB_N_TRANSFER];	/* interrupt xfer */
 	uint8_t	sc_flags;
@@ -429,6 +428,7 @@ repeat:
 		mode = USB_MODE_HOST;
 
 	/* need to create a new child */
+
 	child = usb_alloc_device(sc->sc_dev, udev->bus, udev,
 	    udev->depth + 1, portno - 1, portno, speed, mode);
 	if (child == NULL) {
@@ -691,8 +691,6 @@ uhub_attach(device_t dev)
 	sc->sc_udev = udev;
 	sc->sc_dev = dev;
 
-	mtx_init(&sc->sc_mtx, "USB HUB mutex", NULL, MTX_DEF);
-
 	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
 	    device_get_nameunit(dev));
 
@@ -776,7 +774,7 @@ uhub_attach(device_t dev)
 	} else {
 		/* normal HUB */
 		err = usbd_transfer_setup(udev, &iface_index, sc->sc_xfer,
-		    uhub_config, UHUB_N_TRANSFER, sc, &sc->sc_mtx);
+		    uhub_config, UHUB_N_TRANSFER, sc, &Giant);
 	}
 	if (err) {
 		DPRINTFN(0, "cannot setup interrupt transfer, "
@@ -852,9 +850,9 @@ uhub_attach(device_t dev)
 	/* Start the interrupt endpoint, if any */
 
 	if (sc->sc_xfer[0] != NULL) {
-		mtx_lock(&sc->sc_mtx);
+		USB_XFER_LOCK(sc->sc_xfer[0]);
 		usbd_transfer_start(sc->sc_xfer[0]);
-		mtx_unlock(&sc->sc_mtx);
+		USB_XFER_UNLOCK(sc->sc_xfer[0]);
 	}
 
 	/* Enable automatic power save on all USB HUBs */
@@ -870,9 +868,6 @@ error:
 		free(udev->hub, M_USBDEV);
 		udev->hub = NULL;
 	}
-
-	mtx_destroy(&sc->sc_mtx);
-
 	return (ENXIO);
 }
 
@@ -913,9 +908,6 @@ uhub_detach(device_t dev)
 
 	free(hub, M_USBDEV);
 	sc->sc_udev->hub = NULL;
-
-	mtx_destroy(&sc->sc_mtx);
-
 	return (0);
 }
 
@@ -1028,14 +1020,12 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		snprintf(buf, buflen, "vendor=0x%04x product=0x%04x "
 		    "devclass=0x%02x devsubclass=0x%02x "
 		    "sernum=\"%s\" "
-		    "release=0x%04x "
 		    "intclass=0x%02x intsubclass=0x%02x",
 		    UGETW(res.udev->ddesc.idVendor),
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
 		    res.udev->ddesc.bDeviceSubClass,
 		    res.udev->serial,
-		    UGETW(res.udev->ddesc.bcdDevice),
 		    iface->idesc->bInterfaceClass,
 		    iface->idesc->bInterfaceSubClass);
 	} else {
@@ -1783,13 +1773,10 @@ usb_dev_resume_peer(struct usb_device *udev)
 		/* always update hardware power! */
 		(bus->methods->set_hw_power) (bus);
 	}
-
-	usbd_enum_lock(udev);
-
+	sx_xlock(udev->default_sx + 1);
 	/* notify all sub-devices about resume */
 	err = usb_suspend_resume(udev, 0);
-
-	usbd_enum_unlock(udev);
+	sx_unlock(udev->default_sx + 1);
 
 	/* check if peer has wakeup capability */
 	if (usb_peer_can_wakeup(udev)) {
@@ -1855,12 +1842,10 @@ repeat:
 		}
 	}
 
-	usbd_enum_lock(udev);
-
+	sx_xlock(udev->default_sx + 1);
 	/* notify all sub-devices about suspend */
 	err = usb_suspend_resume(udev, 1);
-
-	usbd_enum_unlock(udev);
+	sx_unlock(udev->default_sx + 1);
 
 	if (usb_peer_can_wakeup(udev)) {
 		/* allow device to do remote wakeup */

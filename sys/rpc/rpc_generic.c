@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 
-#include <net/vnet.h>
-
 #include <rpc/rpc.h>
 #include <rpc/nettype.h>
 
@@ -824,7 +822,6 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 	sa->sa_len = salen;
 
 	if (*portp == 0) {
-		CURVNET_SET(so->so_vnet);
 		bzero(&opt, sizeof(opt));
 		opt.sopt_dir = SOPT_GET;
 		opt.sopt_level = proto;
@@ -832,15 +829,12 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 		opt.sopt_val = &old;
 		opt.sopt_valsize = sizeof(old);
 		error = sogetopt(so, &opt);
-		if (error) {
-			CURVNET_RESTORE();
+		if (error)
 			goto out;
-		}
 
 		opt.sopt_dir = SOPT_SET;
 		opt.sopt_val = &portlow;
 		error = sosetopt(so, &opt);
-		CURVNET_RESTORE();
 		if (error)
 			goto out;
 	}
@@ -851,9 +845,7 @@ bindresvport(struct socket *so, struct sockaddr *sa)
 		if (error) {
 			opt.sopt_dir = SOPT_SET;
 			opt.sopt_val = &old;
-			CURVNET_SET(so->so_vnet);
 			sosetopt(so, &opt);
-			CURVNET_RESTORE();
 		}
 	}
 out:

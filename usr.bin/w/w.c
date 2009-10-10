@@ -137,7 +137,7 @@ main(int argc, char *argv[])
 	struct stat *stp;
 	FILE *ut;
 	time_t touched;
-	int ch, i, nentries, nusers, wcmd, longidle, longattime, dropgid;
+	int ch, i, nentries, nusers, wcmd, longidle, dropgid;
 	const char *memf, *nlistf, *p;
 	char *x_suffix;
 	char buf[MAXHOSTNAMELEN], errbuf[_POSIX2_LINE_MAX];
@@ -406,10 +406,9 @@ main(int argc, char *argv[])
 		    ep->utmp.ut_line : ep->utmp.ut_line + 3,
 		    W_DISPHOSTSIZE, W_DISPHOSTSIZE, *p ? p : "-");
 		t = _time_to_time32(ep->utmp.ut_time);
-		longattime = pr_attime(&t, &now);
+		pr_attime(&t, &now);
 		longidle = pr_idle(ep->idle);
-		(void)printf("%.*s\n", argwidth - longidle - longattime,
-		    ep->args);
+		(void)printf("%.*s\n", argwidth - longidle, ep->args);
 	}
 	(void)kvm_close(kd);
 	exit(0);

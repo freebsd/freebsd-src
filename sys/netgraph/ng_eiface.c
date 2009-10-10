@@ -35,16 +35,15 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
-#include <sys/proc.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
-#include <net/vnet.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -114,8 +113,21 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
+static vnet_attach_fn ng_eiface_iattach;
+static vnet_detach_fn ng_eiface_idetach;
+
 static VNET_DEFINE(struct unrhdr *, ng_eiface_unit);
 #define	V_ng_eiface_unit		VNET(ng_eiface_unit)
+
+#ifdef VIMAGE
+static vnet_modinfo_t vnet_ng_eiface_modinfo = {
+	.vmi_id		= VNET_MOD_NG_EIFACE,
+	.vmi_name	= "ng_eiface",
+	.vmi_dependson	= VNET_MOD_NETGRAPH,
+	.vmi_iattach	= ng_eiface_iattach,
+	.vmi_idetach	= ng_eiface_idetach
+};
+#endif
 
 /************************************************************************
 			INTERFACE STUFF
@@ -589,7 +601,18 @@ ng_eiface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
+#ifdef VIMAGE
+		vnet_mod_register(&vnet_ng_eiface_modinfo);
+#else
+		ng_eiface_iattach(NULL);
+#endif
+		break;
 	case MOD_UNLOAD:
+#ifdef VIMAGE
+		vnet_mod_deregister(&vnet_ng_eiface_modinfo);
+#else
+		ng_eiface_idetach(NULL);
+#endif
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -598,20 +621,18 @@ ng_eiface_mod_event(module_t mod, int event, void *data)
 	return (error);
 }
 
-static void
-vnet_ng_eiface_init(const void *unused)
+static int ng_eiface_iattach(const void *unused)
 {
 
 	V_ng_eiface_unit = new_unrhdr(0, 0xffff, NULL);
-}
-VNET_SYSINIT(vnet_ng_eiface_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
-    vnet_ng_eiface_init, NULL);
 
-static void
-vnet_ng_eiface_uninit(const void *unused)
+	return (0);
+}
+
+static int ng_eiface_idetach(const void *unused)
 {
 
 	delete_unrhdr(V_ng_eiface_unit);
+
+	return (0);
 }
-VNET_SYSUNINIT(vnet_ng_eiface_uninit, SI_SUB_PSEUDO, SI_ORDER_ANY,
-   vnet_ng_eiface_uninit, NULL);

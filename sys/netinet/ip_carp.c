@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socket.h>
 #include <sys/vnode.h>
+#include <sys/vimage.h>
 
 #include <machine/stdarg.h>
 
@@ -64,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
-#include <net/vnet.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -501,7 +501,7 @@ carpdetach(struct carp_softc *sc, int unlock)
 			ifpromisc(sc->sc_carpdev, 0);
 			sc->sc_carpdev->if_carp = NULL;
 			CARP_LOCK_DESTROY(cif);
-			free(cif, M_CARP);
+			free(cif, M_IFADDR);
 		} else if (unlock)
 			CARP_UNLOCK(cif);
 		sc->sc_carpdev = NULL;
@@ -572,9 +572,8 @@ carp_input(struct mbuf *m, int hlen)
 	if (m->m_pkthdr.len < iplen + sizeof(*ch)) {
 		CARPSTATS_INC(carps_badlen);
 		CARP_LOG("carp_input: received len %zd < "
-		    "sizeof(struct carp_header) on %s\n",
-		    m->m_len - sizeof(struct ip),
-		    m->m_pkthdr.rcvif->if_xname);
+		    "sizeof(struct carp_header)\n",
+		    m->m_len - sizeof(struct ip));
 		m_freem(m);
 		return;
 	}
@@ -1639,7 +1638,7 @@ carp_del_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 		if (!--cif->vhif_nvrs) {
 			sc->sc_carpdev->if_carp = NULL;
 			CARP_LOCK_DESTROY(cif);
-			free(cif, M_CARP);
+			free(cif, M_IFADDR);
 		} else {
 			CARP_UNLOCK(cif);
 		}
@@ -1843,7 +1842,7 @@ carp_del_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		if (!--cif->vhif_nvrs) {
 			CARP_LOCK_DESTROY(cif);
 			sc->sc_carpdev->if_carp = NULL;
-			free(cif, M_CARP);
+			free(cif, M_IFADDR);
 		} else
 			CARP_UNLOCK(cif);
 	}

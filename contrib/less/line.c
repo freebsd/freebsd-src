@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2008  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -990,10 +990,12 @@ pflushmbc()
  * Terminate the line in the line buffer.
  */
 	public void
-pdone(endline, forw)
+pdone(endline, nextc)
 	int endline;
-	int forw;
+	int nextc;
 {
+	int nl;
+
 	(void) pflushmbc();
 
 	if (pendc && (pendc != '\r' || !endline))
@@ -1040,7 +1042,7 @@ pdone(endline, forw)
 		attr[curr] = AT_NORMAL;
 		curr++;
 	} 
-	else if (ignaw && column >= sc_width && forw)
+	else if (ignaw && column >= sc_width)
 	{
 		/*
 		 * Terminals with "ignaw" don't wrap until they *really* need
@@ -1049,14 +1051,12 @@ pdone(endline, forw)
 		 * get in the state where a full screen width of characters
 		 * have been output but the cursor is sitting on the right edge
 		 * instead of at the start of the next line.
-		 * So we nudge them into wrapping by outputting a space 
-		 * character plus a backspace.  But do this only if moving 
-		 * forward; if we're moving backward and drawing this line at
-		 * the top of the screen, the space would overwrite the first
-		 * char on the next line.  We don't need to do this "nudge" 
-		 * at the top of the screen anyway.
+		 * So we nudge them into wrapping by outputting the next
+		 * character plus a backspace. (This wouldn't be right for
+		 * "!auto_wrap" terminals, but they always end up in the 
+		 * branch above.)
 		 */
-		linebuf[curr] = ' ';
+		linebuf[curr] = nextc;
 		attr[curr++] = AT_NORMAL;
 		linebuf[curr] = '\b'; 
 		attr[curr++] = AT_NORMAL;

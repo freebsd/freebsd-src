@@ -4269,12 +4269,8 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
 void
 vfs_mark_atime(struct vnode *vp, struct ucred *cred)
 {
-	struct mount *mp;
 
-	mp = vp->v_mount;
-	VFS_ASSERT_GIANT(mp);
-	ASSERT_VOP_LOCKED(vp, "vfs_mark_atime");
-	if (mp != NULL && (mp->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
+	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
 		(void)VOP_MARKATIME(vp);
 }
 

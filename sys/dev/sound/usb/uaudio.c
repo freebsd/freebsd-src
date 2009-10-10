@@ -108,7 +108,6 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
 #define	UAUDIO_MINFRAMES       16	/* must be factor of 8 due HS-USB */
 #define	UAUDIO_NCHANBUFS        2	/* number of outstanding request */
 #define	UAUDIO_RECURSE_LIMIT   24	/* rounds */
-#define	UAUDIO_MINFRAMES_ALIGN(x) ((x) & ~(UAUDIO_MINFRAMES - 1))
 
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
 #define	BIT_TEST(bm,bno) (((bm)[(bno) / 8] >> (7 - ((bno) % 8))) & 1)
@@ -1114,41 +1113,6 @@ done:
 	}
 }
 
-/*
- * The following function sets up data size and block count for the
- * next audio transfer.
- */
-static void
-uaudio_setup_blockcount(struct uaudio_chan *ch, usb_frcount_t max_frames,
-    uint32_t *total, uint32_t *blockcount)
-{
-	uint32_t temp;
-	uint32_t isiz;
-
-	/* allow dynamic sizing of play buffer */
-	isiz = ch->intr_size;
-
-	/* allow dynamic sizing of play buffer */
-	temp = isiz / ch->bytes_per_frame;
-
-	/* align units */
-	temp = UAUDIO_MINFRAMES_ALIGN(temp);
-
-	/* range check - min */
-	if (temp == 0)
-		temp = UAUDIO_MINFRAMES;
-
-	/* range check - max */
-	if (temp > max_frames)
-		temp = max_frames;
-
-	/* store blockcount */
-	*blockcount = temp;
-
-	/* compute the total length */
-	*total = temp * ch->bytes_per_frame;
-}
-
 static void
 uaudio_chan_play_callback(struct usb_xfer *xfer, usb_error_t error)
 {
@@ -1162,8 +1126,25 @@ uaudio_chan_play_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	usbd_xfer_status(xfer, &actlen, &sumlen, NULL, NULL);
 
-	uaudio_setup_blockcount(ch, usbd_xfer_max_frames(xfer),
-		&total, &blockcount);
+	/* allow dynamic sizing of play buffer */
+	total = ch->intr_size;
+
+	/* allow dynamic sizing of play buffer */
+	blockcount = total / ch->bytes_per_frame;
+
+	/* align units */
+	blockcount -= (blockcount % UAUDIO_MINFRAMES);
+
+	/* range check - min */
+	if (blockcount == 0) {
+		blockcount = UAUDIO_MINFRAMES;
+	}
+	/* range check - max */
+	if (blockcount > usbd_xfer_max_frames(xfer)) {
+		blockcount = usbd_xfer_max_frames(xfer);
+	}
+	/* compute the total length */
+	total = blockcount * ch->bytes_per_frame;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
@@ -1240,8 +1221,25 @@ uaudio_chan_record_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, &nframes);
 
-	uaudio_setup_blockcount(ch, usbd_xfer_max_frames(xfer),
-		&total, &blockcount);
+	/* allow dynamic sizing of play buffer */
+	total = ch->intr_size;
+
+	/* allow dynamic sizing of play buffer */
+	blockcount = total / ch->bytes_per_frame;
+
+	/* align units */
+	blockcount -= (blockcount % UAUDIO_MINFRAMES);
+
+	/* range check - min */
+	if (blockcount == 0) {
+		blockcount = UAUDIO_MINFRAMES;
+	}
+	/* range check - max */
+	if (blockcount > usbd_xfer_max_frames(xfer)) {
+		blockcount = usbd_xfer_max_frames(xfer);
+	}
+	/* compute the total length */
+	total = blockcount * ch->bytes_per_frame;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:

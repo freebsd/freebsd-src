@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/radix.h>
@@ -374,7 +375,7 @@ struct domain inet6domain = {
 	.dom_ifdetach =		in6_domifdetach
 };
 
-VNET_DOMAIN_SET(inet6);
+DOMAIN_SET(inet6);
 
 /*
  * Internet configuration info
@@ -451,7 +452,11 @@ sysctl_ip6_temppltime(SYSCTL_HANDLER_ARGS)
 	int error = 0;
 	int old;
 
-	VNET_SYSCTL_ARG(req, arg1);
+#ifdef VIMAGE
+	if (arg1 != NULL)
+		arg1 = (void *)(TD_TO_VNET(req->td)->vnet_data_base +
+		    (uintptr_t)arg1);
+#endif
 
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)
@@ -472,7 +477,11 @@ sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 	int error = 0;
 	int old;
 
-	VNET_SYSCTL_ARG(req, arg1);
+#ifdef VIMAGE
+	if (arg1 != NULL)
+		arg1 = (void *)(TD_TO_VNET(req->td)->vnet_data_base +
+		    (uintptr_t)arg1);
+#endif
 
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)

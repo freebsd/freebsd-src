@@ -522,7 +522,7 @@ linux_select(struct thread *td, struct linux_select_args *args)
 		tvp = NULL;
 
 	error = kern_select(td, args->nfds, args->readfds, args->writefds,
-	    args->exceptfds, tvp, sizeof(l_int) * 8);
+	    args->exceptfds, tvp);
 
 #ifdef DEBUG
 	if (ldebug(select))

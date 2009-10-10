@@ -858,8 +858,7 @@ alc_detach(device_t dev)
 			sc->alc_intrhand[i] = NULL;
 		}
 	}
-	if (sc->alc_res[0] != NULL)
-		alc_phy_down(sc);
+	alc_phy_down(sc);
 	bus_release_resources(dev, sc->alc_irq_spec, sc->alc_irq);
 	if ((sc->alc_flags & (ALC_FLAG_MSI | ALC_FLAG_MSIX)) != 0)
 		pci_release_msi(dev);
@@ -1501,21 +1500,6 @@ alc_dma_free(struct alc_softc *sc)
 		sc->alc_cdata.alc_tx_ring_map = NULL;
 		bus_dma_tag_destroy(sc->alc_cdata.alc_tx_ring_tag);
 		sc->alc_cdata.alc_tx_ring_tag = NULL;
-	}
-	/* Rx ring. */
-	if (sc->alc_cdata.alc_rx_ring_tag != NULL) {
-		if (sc->alc_cdata.alc_rx_ring_map != NULL)
-			bus_dmamap_unload(sc->alc_cdata.alc_rx_ring_tag,
-			    sc->alc_cdata.alc_rx_ring_map);
-		if (sc->alc_cdata.alc_rx_ring_map != NULL &&
-		    sc->alc_rdata.alc_rx_ring != NULL)
-			bus_dmamem_free(sc->alc_cdata.alc_rx_ring_tag,
-			    sc->alc_rdata.alc_rx_ring,
-			    sc->alc_cdata.alc_rx_ring_map);
-		sc->alc_rdata.alc_rx_ring = NULL;
-		sc->alc_cdata.alc_rx_ring_map = NULL;
-		bus_dma_tag_destroy(sc->alc_cdata.alc_rx_ring_tag);
-		sc->alc_cdata.alc_rx_ring_tag = NULL;
 	}
 	/* Rx return ring. */
 	if (sc->alc_cdata.alc_rr_ring_tag != NULL) {

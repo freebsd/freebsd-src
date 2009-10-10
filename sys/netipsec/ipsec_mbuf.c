@@ -36,6 +36,7 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/vimage.h>
 
 #include <net/route.h>
 #include <net/vnet.h>

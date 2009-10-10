@@ -452,7 +452,6 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
     lastline++;
 
     /* now walk thru the names and print the line */
-    Move_to(cpustates_column, y_cpustates + cpu);
     while ((thisname = *names++) != NULL)
     {
 	if (*thisname != '\0')
@@ -544,7 +543,6 @@ for (cpu = 0; cpu < num_cpus; cpu++) {
 	printf("\nCPU %d: ", cpu);
     lastline++;
 
-    Move_to(cpustates_column, y_cpustates + cpu);
     while ((thisname = *names++) != NULL)
     {
 	if (*thisname != '\0')

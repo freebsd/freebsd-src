@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/pfil.h>
 #include <net/if.h>
@@ -235,26 +236,23 @@ VNET_DEFINE(int, fw_one_pass) = 1;
 
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
-/*
- * Kernel module interface for updating ipstat.  The argument is an index
- * into ipstat treated as an array of u_long.  While this encodes the general
- * layout of ipstat into the caller, it doesn't encode its location, so that
- * future changes to add, for example, per-CPU stats support won't cause
- * binary compatibility problems for kernel modules.
- */
-void
-kmod_ipstat_inc(int statnum)
+#ifdef VIMAGE
+/* XXX only has to stay for .vmi_dependson elsewhere. */
+static void vnet_inet_register(void);
+ 
+static const vnet_modinfo_t vnet_inet_modinfo = {
+	.vmi_id		= VNET_MOD_INET,
+	.vmi_name	= "inet",
+};
+ 
+static void vnet_inet_register()
 {
-
-	(*((u_long *)&V_ipstat + statnum))++;
+  
+	vnet_mod_register(&vnet_inet_modinfo);
 }
-
-void
-kmod_ipstat_dec(int statnum)
-{
-
-	(*((u_long *)&V_ipstat + statnum))--;
-}
+ 
+SYSINIT(inet, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, vnet_inet_register, 0);
+#endif
 
 static int
 sysctl_netinet_intr_queue_maxlen(SYSCTL_HANDLER_ARGS)

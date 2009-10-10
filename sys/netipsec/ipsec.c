@@ -53,6 +53,7 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -238,6 +239,16 @@ static struct secpolicy *ipsec_deepcopy_policy __P((struct secpolicy *src));
 static void vshiftl __P((unsigned char *, int, int));
 
 MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
+
+static int ipsec_iattach(const void *);
+#ifdef VIMAGE
+static const vnet_modinfo_t vnet_ipsec_modinfo = {
+	.vmi_id		= VNET_MOD_IPSEC,
+	.vmi_name	= "ipsec",
+	.vmi_dependson	= VNET_MOD_INET,	/* XXX revisit - INET6 ? */
+	.vmi_iattach	= ipsec_iattach,
+};
+#endif
 
 /*
  * Return a held reference to the default SP.
@@ -1701,14 +1712,27 @@ ipsec_dumpmbuf(struct mbuf *m)
 }
 
 static void
-ipsec_init(const void *unused __unused)
+ipsec_attach(const void *unused __unused)
+{
+
+#ifdef VIMAGE
+	vnet_mod_register(&vnet_ipsec_modinfo);
+#else
+	ipsec_iattach(NULL);
+#endif
+}
+
+static int
+ipsec_iattach(const void *unused __unused)
 {
 
 	SECPOLICY_LOCK_INIT(&V_ip4_def_policy);
 	V_ip4_def_policy.refcnt = 1;			/* NB: disallow free. */
+
+	return (0);
 }
-VNET_SYSINIT(ipsec_init, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, ipsec_init,
-    NULL);
+
+SYSINIT(ipsec, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, ipsec_attach, NULL);
 
 
 /* XXX This stuff doesn't belong here... */

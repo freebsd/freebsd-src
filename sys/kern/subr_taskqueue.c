@@ -45,8 +45,11 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 static void	*taskqueue_giant_ih;
 static void	*taskqueue_ih;
+static STAILQ_HEAD(taskqueue_list, taskqueue) taskqueue_queues;
+static struct mtx taskqueue_queues_mutex;
 
 struct taskqueue {
+	STAILQ_ENTRY(taskqueue)	tq_link;
 	STAILQ_HEAD(, task)	tq_queue;
 	const char		*tq_name;
 	taskqueue_enqueue_fn	tq_enqueue;
@@ -81,6 +84,8 @@ TQ_UNLOCK(struct taskqueue *tq)
 		mtx_unlock(&tq->tq_mutex);
 }
 
+static void	init_taskqueue_list(void *data);
+
 static __inline int
 TQ_SLEEP(struct taskqueue *tq, void *p, struct mtx *m, int pri, const char *wm,
     int t)
@@ -89,6 +94,16 @@ TQ_SLEEP(struct taskqueue *tq, void *p, struct mtx *m, int pri, const char *wm,
 		return (msleep_spin(p, m, wm, t));
 	return (msleep(p, m, pri, wm, t));
 }
+
+static void
+init_taskqueue_list(void *data __unused)
+{
+
+	mtx_init(&taskqueue_queues_mutex, "taskqueue list", NULL, MTX_DEF);
+	STAILQ_INIT(&taskqueue_queues);
+}
+SYSINIT(taskqueue_list, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_taskqueue_list,
+    NULL);
 
 static struct taskqueue *
 _taskqueue_create(const char *name, int mflags,
@@ -108,6 +123,10 @@ _taskqueue_create(const char *name, int mflags,
 	queue->tq_spin = (mtxflags & MTX_SPIN) != 0;
 	queue->tq_flags |= TQ_FLAGS_ACTIVE;
 	mtx_init(&queue->tq_mutex, mtxname, NULL, mtxflags);
+
+	mtx_lock(&taskqueue_queues_mutex);
+	STAILQ_INSERT_TAIL(&taskqueue_queues, queue, tq_link);
+	mtx_unlock(&taskqueue_queues_mutex);
 
 	return queue;
 }
@@ -137,6 +156,10 @@ void
 taskqueue_free(struct taskqueue *queue)
 {
 
+	mtx_lock(&taskqueue_queues_mutex);
+	STAILQ_REMOVE(&taskqueue_queues, queue, taskqueue, tq_link);
+	mtx_unlock(&taskqueue_queues_mutex);
+
 	TQ_LOCK(queue);
 	queue->tq_flags &= ~TQ_FLAGS_ACTIVE;
 	taskqueue_run(queue);
@@ -144,6 +167,26 @@ taskqueue_free(struct taskqueue *queue)
 	mtx_destroy(&queue->tq_mutex);
 	free(queue->tq_threads, M_TASKQUEUE);
 	free(queue, M_TASKQUEUE);
+}
+
+/*
+ * Returns with the taskqueue locked.
+ */
+struct taskqueue *
+taskqueue_find(const char *name)
+{
+	struct taskqueue *queue;
+
+	mtx_lock(&taskqueue_queues_mutex);
+	STAILQ_FOREACH(queue, &taskqueue_queues, tq_link) {
+		if (strcmp(queue->tq_name, name) == 0) {
+			TQ_LOCK(queue);
+			mtx_unlock(&taskqueue_queues_mutex);
+			return queue;
+		}
+	}
+	mtx_unlock(&taskqueue_queues_mutex);
+	return NULL;
 }
 
 int
@@ -358,13 +401,6 @@ taskqueue_thread_loop(void *arg)
 	TQ_LOCK(tq);
 	while ((tq->tq_flags & TQ_FLAGS_ACTIVE) != 0) {
 		taskqueue_run(tq);
-		/*
-		 * Because taskqueue_run() can drop tq_mutex, we need to
-		 * check if the TQ_FLAGS_ACTIVE flag wasn't removed in the
-		 * meantime, which means we missed a wakeup.
-		 */
-		if ((tq->tq_flags & TQ_FLAGS_ACTIVE) == 0)
-			break;
 		TQ_SLEEP(tq, tq, &tq->tq_mutex, 0, "-", 0);
 	}
 
@@ -429,23 +465,3 @@ taskqueue_fast_run(void *dummy)
 TASKQUEUE_FAST_DEFINE(fast, taskqueue_fast_enqueue, NULL,
 	swi_add(NULL, "Fast task queue", taskqueue_fast_run, NULL,
 	SWI_TQ_FAST, INTR_MPSAFE, &taskqueue_fast_ih));
-
-int
-taskqueue_member(struct taskqueue *queue, struct thread *td)
-{
-	int i, j, ret = 0;
-
-	TQ_LOCK(queue);
-	for (i = 0, j = 0; ; i++) {
-		if (queue->tq_threads[i] == NULL)
-			continue;
-		if (queue->tq_threads[i] == td) {
-			ret = 1;
-			break;
-		}
-		if (++j >= queue->tq_tcount)
-			break;
-	}
-	TQ_UNLOCK(queue);
-	return (ret);
-}

@@ -2736,5 +2736,4 @@ struct usb_bus_methods musbotg_bus_methods =
 	.set_stall = &musbotg_set_stall,
 	.clear_stall = &musbotg_clear_stall,
 	.roothub_exec = &musbotg_roothub_exec,
-	.xfer_poll = &musbotg_do_poll,
 };

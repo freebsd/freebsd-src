@@ -44,6 +44,7 @@
 #include <sys/socketvar.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/raw_cb.h>

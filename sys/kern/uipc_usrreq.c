@@ -88,8 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/unpcb.h>
 #include <sys/vnode.h>
-
-#include <net/vnet.h>
+#include <sys/vimage.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>

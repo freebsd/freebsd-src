@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/tty.h>
 
@@ -48,10 +47,10 @@ __FBSDID("$FreeBSD$");
  * si_drv1 inside the cdev to mark whether the PTY is in use.
  */
 
-static unsigned int pty_warningcnt = 1;
+static unsigned int pty_warningcnt = 10;
 SYSCTL_UINT(_kern, OID_AUTO, tty_pty_warningcnt, CTLFLAG_RW,
 	&pty_warningcnt, 0,
-	"Warnings that will be triggered upon legacy PTY allocation");
+	"Warnings that will be triggered upon PTY allocation");
 
 static int
 ptydev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
@@ -75,7 +74,7 @@ ptydev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
 	/* Raise a warning when a legacy PTY has been allocated. */
 	if (pty_warningcnt > 0) {
 		pty_warningcnt--;
-		log(LOG_INFO, "pid %d (%s) is using legacy pty devices%s\n", 
+		printf("pid %d (%s) is using legacy pty devices%s\n", 
 		    td->td_proc->p_pid, td->td_name,
 		    pty_warningcnt ? "" : " - not logging anymore");
 	}

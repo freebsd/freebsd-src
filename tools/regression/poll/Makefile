@@ -1,17 +1,16 @@
-# $FreeBSD$
+$ $FreeBSD$
 # This makefile has been uglified for portability.
 # Nothing yet works with gmake for the path to the sources.
 .PATH: ..
 
-PROG=	pipepoll pipeselect sockpoll
+PROG=	pipepoll pipeselect
 CFLAGS+= -Werror -Wall
 
 all: ${PROG}
 pipepoll: pipepoll.c
 pipeselect: pipeselect.c
-sockpoll: sockpoll.c
 
-pipepoll pipeselect sockpoll:
+pipepoll pipeselect:
 	${CC} ${CFLAGS} ${LDFLAGS} -o $@ $@.c
 
 test: all

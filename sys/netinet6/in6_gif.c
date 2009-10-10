@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/protosw.h>
 #include <sys/malloc.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>

@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/limits.h>
 #include <sys/queue.h>
+#include <sys/vimage.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -77,10 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
-
-#ifdef VIMAGE
-#error "SCTP is not yet compatible with VIMAGE."
-#endif
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>

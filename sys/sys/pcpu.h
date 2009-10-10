@@ -56,14 +56,12 @@ struct thread;
 extern uintptr_t *__start_set_pcpu;
 extern uintptr_t *__stop_set_pcpu;
 
-__asm__(
 #if defined(__arm__)
-	".section set_pcpu, \"aw\", %progbits\n"
+__asm__(".section set_pcpu, \"aw\", %progbits");
 #else
-	".section set_pcpu, \"aw\", @progbits\n"
+__asm__(".section set_pcpu, \"aw\", @progbits");
 #endif
-	"\t.p2align " __XSTRING(CACHE_LINE_SHIFT) "\n"
-	"\t.previous");
+__asm__(".previous");
 
 /*
  * Array of dynamic pcpu base offsets.  Indexed by id.

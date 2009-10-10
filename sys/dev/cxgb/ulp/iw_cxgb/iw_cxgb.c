@@ -54,7 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/eventhandler.h>
 
-#if __FreeBSD_version < 800044
+#if __FreeBSD_version >= 800044
+#include <sys/vimage.h>
+#else
 #define V_ifnet ifnet
 #endif
 

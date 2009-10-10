@@ -274,18 +274,8 @@ gpart_autofill(struct gctl_req *req)
 	error = geom_gettree(&mesh);
 	if (error)
 		return (error);
-	s = gctl_get_ascii(req, "class");
-	if (s == NULL)
-		abort();
-	cp = find_class(&mesh, s);
-	if (cp == NULL)
-		errx(EXIT_FAILURE, "Class %s not found.", s);
-	s = gctl_get_ascii(req, "geom");
-	if (s == NULL)
-		abort();
-	gp = find_geom(cp, s);
-	if (gp == NULL)
-		errx(EXIT_FAILURE, "No such geom: %s.", s);
+	cp = find_class(&mesh, gctl_get_ascii(req, "class"));
+	gp = find_geom(cp, gctl_get_ascii(req, "geom"));
 	first = atoll(find_geomcfg(gp, "first"));
 	last = atoll(find_geomcfg(gp, "last"));
 	grade = ~0ULL;
@@ -546,8 +536,6 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 		errx(EXIT_FAILURE, "Class %s not found.", s);
 	}
 	s = gctl_get_ascii(req, "geom");
-	if (s == NULL)
-		abort();
 	gp = find_geom(classp, s);
 	if (gp == NULL)
 		errx(EXIT_FAILURE, "No such geom: %s.", s);

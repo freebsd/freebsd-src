@@ -39,9 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/syslog.h>
 #include <sys/md5.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -398,7 +398,7 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 	}
 
 	/* next, try to get it from some other hardware interface */
-	IFNET_RLOCK_NOSLEEP();
+	IFNET_RLOCK();
 	for (ifp = V_ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next) {
 		if (ifp == ifp0)
 			continue;
@@ -413,11 +413,11 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 			nd6log((LOG_DEBUG,
 			    "%s: borrow interface identifier from %s\n",
 			    if_name(ifp0), if_name(ifp)));
-			IFNET_RUNLOCK_NOSLEEP();
+			IFNET_RUNLOCK();
 			goto success;
 		}
 	}
-	IFNET_RUNLOCK_NOSLEEP();
+	IFNET_RUNLOCK();
 
 	/* last resort: get from random number source */
 	if (get_rand_ifid(ifp, in6) == 0) {

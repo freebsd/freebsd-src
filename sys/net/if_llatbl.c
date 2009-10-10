@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/vimage.h>
 
 #include <vm/uma.h>
 
@@ -50,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_var.h>
 #include <net/route.h>
-#include <net/vnet.h>
 #include <netinet/if_ether.h>
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
@@ -62,9 +62,6 @@ static	SLIST_HEAD(, lltable) lltables = SLIST_HEAD_INITIALIZER(lltables);
 extern void arprequest(struct ifnet *, struct in_addr *, struct in_addr *,
 	u_char *);
 
-struct rwlock lltable_rwlock;
-RW_SYSINIT(lltable_rwlock, &lltable_rwlock, "lltable_rwlock");
-
 /*
  * Dump arp state for a specific address family.
  */
@@ -74,7 +71,7 @@ lltable_sysctl_dumparp(int af, struct sysctl_req *wr)
 	struct lltable *llt;
 	int error = 0;
 
-	LLTABLE_RLOCK();
+	IFNET_RLOCK();
 	SLIST_FOREACH(llt, &lltables, llt_link) {
 		if (llt->llt_af == af) {
 			error = llt->llt_dump(llt, wr);
@@ -83,7 +80,7 @@ lltable_sysctl_dumparp(int af, struct sysctl_req *wr)
 		}
 	}
 done:
-	LLTABLE_RUNLOCK();
+	IFNET_RUNLOCK();
 	return (error);
 }
 
@@ -147,6 +144,8 @@ llentry_update(struct llentry **llep, struct lltable *lt,
 
 /*
  * Free all entries from given table and free itself.
+ * Since lltables collects from all of the intefaces,
+ * the caller of this function must acquire IFNET_WLOCK().
  */
 void
 lltable_free(struct lltable *llt)
@@ -156,9 +155,9 @@ lltable_free(struct lltable *llt)
 
 	KASSERT(llt != NULL, ("%s: llt is NULL", __func__));
 
-	LLTABLE_WLOCK();
+	IFNET_WLOCK();
 	SLIST_REMOVE(&lltables, llt, lltable, llt_link);
-	LLTABLE_WUNLOCK();
+	IFNET_WUNLOCK();
 
 	for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
@@ -179,7 +178,7 @@ lltable_drain(int af)
 	struct llentry	*lle;
 	register int i;
 
-	LLTABLE_RLOCK();
+	IFNET_RLOCK();
 	SLIST_FOREACH(llt, &lltables, llt_link) {
 		if (llt->llt_af != af)
 			continue;
@@ -193,7 +192,7 @@ lltable_drain(int af)
 			}
 		}
 	}
-	LLTABLE_RUNLOCK();
+	IFNET_RUNLOCK();
 }
 
 void
@@ -201,14 +200,14 @@ lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask)
 {
 	struct lltable *llt;
 
-	LLTABLE_RLOCK();
+	IFNET_RLOCK();
 	SLIST_FOREACH(llt, &lltables, llt_link) {
 		if (llt->llt_af != af)
 			continue;
 
 		llt->llt_prefix_free(llt, prefix, mask);
 	}
-	LLTABLE_RUNLOCK();
+	IFNET_RUNLOCK();
 }
 
 
@@ -231,9 +230,9 @@ lltable_init(struct ifnet *ifp, int af)
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++)
 		LIST_INIT(&llt->lle_head[i]);
 
-	LLTABLE_WLOCK();
+	IFNET_WLOCK();
 	SLIST_INSERT_HEAD(&lltables, llt, llt_link);
-	LLTABLE_WUNLOCK();
+	IFNET_WUNLOCK();
 
 	return (llt);
 }
@@ -301,13 +300,13 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	}
 
 	/* XXX linked list may be too expensive */
-	LLTABLE_RLOCK();
+	IFNET_RLOCK();
 	SLIST_FOREACH(llt, &lltables, llt_link) {
 		if (llt->llt_af == dst->sa_family &&
 		    llt->llt_ifp == ifp)
 			break;
 	}
-	LLTABLE_RUNLOCK();
+	IFNET_RUNLOCK();
 	KASSERT(llt != NULL, ("Yep, ugly hacks are bad\n"));
 
 	if (flags && LLE_CREATE)

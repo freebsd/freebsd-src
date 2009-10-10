@@ -242,34 +242,19 @@ ieee80211_start(struct ifnet *ifp)
 			}
 #ifdef IEEE80211_SUPPORT_MESH
 		} else {
-			if (!IEEE80211_ADDR_EQ(eh->ether_shost, vap->iv_myaddr)) {
-				/*
-				 * Proxy station only if configured.
-				 */
-				if (!ieee80211_mesh_isproxyena(vap)) {
-					IEEE80211_DISCARD_MAC(vap,
-					    IEEE80211_MSG_OUTPUT |
-						IEEE80211_MSG_MESH,
-					    eh->ether_dhost, NULL,
-					    "%s", "proxy not enabled");
-					vap->iv_stats.is_mesh_notproxy++;
-					ifp->if_oerrors++;
-					m_freem(m);
-					continue;
-				}
-				ieee80211_mesh_proxy_check(vap, eh->ether_shost);
-			}
 			ni = ieee80211_mesh_discover(vap, eh->ether_dhost, m);
 			if (ni == NULL) {
 				/*
-				 * NB: ieee80211_mesh_discover holds/disposes
-				 * frame (e.g. queueing on path discovery).
+				 * NB: ieee80211_mesh_discover function
+				 *   holds/disposes frame
+				 *   (e.g. queueing on path discovery).
 				 */
 				ifp->if_oerrors++;
 				continue;
 			}
 		}
 #endif
+
 		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 		    (m->m_flags & M_PWR_SAV) == 0) {
 			/*
@@ -389,11 +374,12 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		/*
 		 * Short-circuit requests if the vap is marked OACTIVE
-		 * as this can happen because a packet came down through
-		 * ieee80211_start before the vap entered RUN state in
-		 * which case it's ok to just drop the frame.  This
-		 * should not be necessary but callers of if_output don't
-		 * check OACTIVE.
+		 * as this is used when tearing down state to indicate
+		 * the vap may be gone.  This can also happen because a
+		 * packet came down through ieee80211_start before the
+		 * vap entered RUN state in which case it's also ok to
+		 * just drop the frame.  This should not be necessary
+		 * but callers of if_output don't check OACTIVE.
 		 */
 		senderr(ENETDOWN);
 	}
@@ -467,7 +453,6 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	if (ieee80211_classify(ni, m))
 		senderr(EIO);		/* XXX */
 
-	ifp->if_opackets++;
 	IEEE80211_NODE_STAT(ni, tx_data);
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		IEEE80211_NODE_STAT(ni, tx_mcast);
@@ -491,7 +476,6 @@ bad:
 		m_freem(m);
 	if (ni != NULL)
 		ieee80211_free_node(ni);
-	ifp->if_oerrors++;
 	return error;
 #undef senderr
 }
@@ -1003,7 +987,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	struct ieee80211com *ic = ni->ni_ic;
 #ifdef IEEE80211_SUPPORT_MESH
 	struct ieee80211_mesh_state *ms = vap->iv_mesh;
-	struct ieee80211_meshcntl_ae10 *mc;
+	struct ieee80211_meshcntl_ae11 *mc;
 #endif
 	struct ether_header eh;
 	struct ieee80211_frame *wh;
@@ -1082,21 +1066,21 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 *   w/ 4-address format and address extension mode 10
 		 */
 		is4addr = 0;		/* NB: don't use, disable */
-		if (!IEEE80211_IS_MULTICAST(eh.ether_dhost))
-			hdrsize += IEEE80211_ADDR_LEN;	/* unicast are 4-addr */
 		meshhdrsize = sizeof(struct ieee80211_meshcntl);
 		/* XXX defines for AE modes */
+		/* XXX not right, need to check if from non-mesh-sta */
 		if (IEEE80211_ADDR_EQ(eh.ether_shost, vap->iv_myaddr)) {
-			if (!IEEE80211_IS_MULTICAST(eh.ether_dhost))
+			if (!IEEE80211_IS_MULTICAST(eh.ether_dhost)) {
+				hdrsize += IEEE80211_ADDR_LEN;
 				meshae = 0;
-			else
+			} else
 				meshae = 4;		/* NB: pseudo */
 		} else if (IEEE80211_IS_MULTICAST(eh.ether_dhost)) {
 			meshae = 1;
-			meshhdrsize += 1*IEEE80211_ADDR_LEN;
+			meshhdrsize += 2*IEEE80211_ADDR_LEN;
 		} else {
 			meshae = 2;
-			meshhdrsize += 2*IEEE80211_ADDR_LEN;
+			meshhdrsize += 3*IEEE80211_ADDR_LEN;
 		}
 	} else {
 #endif
@@ -1195,7 +1179,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 #ifdef IEEE80211_SUPPORT_MESH
 	case IEEE80211_M_MBSS:
 		/* NB: offset by hdrspace to deal with DATAPAD */
-		mc = (struct ieee80211_meshcntl_ae10 *)
+		mc = (struct ieee80211_meshcntl_ae11 *)
 		     (mtod(m, uint8_t *) + hdrspace);
 		switch (meshae) {
 		case 0:			/* ucast, no proxy */
@@ -1219,7 +1203,8 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			wh->i_fc[1] = IEEE80211_FC1_DIR_FROMDS;
 			IEEE80211_ADDR_COPY(wh->i_addr1, eh.ether_dhost);
 			IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
-			IEEE80211_ADDR_COPY(wh->i_addr3, vap->iv_myaddr);
+			/* XXX not right, need MeshSA */
+			IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_shost);
 			mc->mc_flags = 1;
 			IEEE80211_ADDR_COPY(mc->mc_addr4, eh.ether_shost);
 			qos = ((struct ieee80211_qosframe *) wh)->i_qos;
@@ -1228,13 +1213,12 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			wh->i_fc[1] = IEEE80211_FC1_DIR_DSTODS;
 			IEEE80211_ADDR_COPY(wh->i_addr1, ni->ni_macaddr);
 			IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
-			/* XXX not right, need MeshDA */
+			/* XXX not right, need MeshDA+MeshSA */
 			IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_dhost);
-			/* XXX assume are MeshSA */
-			IEEE80211_ADDR_COPY(WH4(wh)->i_addr4, vap->iv_myaddr);
+			IEEE80211_ADDR_COPY(WH4(wh)->i_addr4, eh.ether_shost);
 			mc->mc_flags = 2;
-			IEEE80211_ADDR_COPY(mc->mc_addr4, eh.ether_dhost);
 			IEEE80211_ADDR_COPY(mc->mc_addr5, eh.ether_shost);
+			IEEE80211_ADDR_COPY(mc->mc_addr6, eh.ether_shost);
 			qos = ((struct ieee80211_qosframe_addr4 *) wh)->i_qos;
 			break;
 		default:

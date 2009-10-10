@@ -90,13 +90,6 @@ bsrl(u_int mask)
 }
 
 static __inline void
-clflush(u_long addr)
-{
-
-	__asm __volatile("clflush %0" : : "m" (*(char *)addr));
-}
-
-static __inline void
 disable_intr(void)
 {
 #ifdef XEN
@@ -143,13 +136,6 @@ static inline void
 cpu_mwait(int extensions, int hints)
 {
 	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));
-}
-
-static __inline void
-mfence(void)
-{
-
-	__asm __volatile("mfence" : : : "memory");
 }
 
 #ifdef _KERNEL

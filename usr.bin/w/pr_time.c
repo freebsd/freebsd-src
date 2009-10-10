@@ -52,14 +52,13 @@ static const char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
  * pr_attime --
  *	Print the time since the user logged in.
  */
-int
+void
 pr_attime(time_t *started, time_t *now)
 {
-	static wchar_t buf[256];
+	static char buf[256];
 	struct tm tp, tm;
 	time_t diff;
-	wchar_t *fmt;
-	int len, width, offset = 0;
+	char fmt[20];
 
 	tp = *localtime(started);
 	tm = *localtime(now);
@@ -67,7 +66,7 @@ pr_attime(time_t *started, time_t *now)
 
 	/* If more than a week, use day-month-year. */
 	if (diff > 86400 * 7)
-		fmt = L"%d%b%y";
+		(void)strcpy(fmt, "%d%b%y");
 
 	/* If not today, use day-hour-am/pm. */
 	else if (tm.tm_mday != tp.tm_mday ||
@@ -75,26 +74,16 @@ pr_attime(time_t *started, time_t *now)
 		 tm.tm_year != tp.tm_year) {
 	/* The line below does not take DST into consideration */
 	/* else if (*now / 86400 != *started / 86400) { */
-		fmt = use_ampm ? L"%a%I%p" : L"%a%H";
+		(void)strcpy(fmt, use_ampm ? "%a%I%p" : "%a%H");
 	}
 
 	/* Default is hh:mm{am,pm}. */
 	else {
-		fmt = use_ampm ? L"%l:%M%p" : L"%k:%M";
+		(void)strcpy(fmt, use_ampm ? "%l:%M%p" : "%k:%M");
 	}
 
-	(void)wcsftime(buf, sizeof(buf), fmt, &tp);
-	len = wcslen(buf);
-	width = wcswidth(buf, len);
-	if (len == width)
-		(void)wprintf(L"%-7.7ls", buf);
-	else if (width < 7)
-		(void)wprintf(L"%ls%.*s", buf, 7 - width, "      ");
-	else {
-		(void)wprintf(L"%ls", buf);
-		offset = width - 7;
-	}
-	return (offset);
+	(void)strftime(buf, sizeof(buf), fmt, &tp);
+	(void)wprintf(L"%-7.7s", buf);
 }
 
 /*

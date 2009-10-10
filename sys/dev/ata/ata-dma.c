@@ -272,10 +272,10 @@ ata_dmaload(struct ata_request *request, void *addr, int *entries)
 		      "FAILURE - zero length DMA transfer attempted\n");
 	return EIO;
     }
-    if (request->bytecount & (ch->dma.alignment - 1)) {
+    if (((uintptr_t)(request->data) & (ch->dma.alignment - 1)) ||
+	(request->bytecount & (ch->dma.alignment - 1))) {
 	device_printf(request->dev,
-		      "FAILURE - odd-sized DMA transfer attempt %d %% %d\n",
-		      request->bytecount, ch->dma.alignment);
+		      "FAILURE - non aligned DMA transfer attempted\n");
 	return EIO;
     }
     if (request->bytecount > ch->dma.max_iosize) {

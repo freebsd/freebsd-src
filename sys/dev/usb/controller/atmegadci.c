@@ -2143,5 +2143,4 @@ struct usb_bus_methods atmegadci_bus_methods =
 	.set_stall = &atmegadci_set_stall,
 	.clear_stall = &atmegadci_clear_stall,
 	.roothub_exec = &atmegadci_roothub_exec,
-	.xfer_poll = &atmegadci_do_poll,
 };

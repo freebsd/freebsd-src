@@ -104,8 +104,6 @@
         ..
         lmc
         ..
-	mfi
-	..
         mpt
             mpilib
             ..

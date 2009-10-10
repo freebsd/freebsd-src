@@ -116,6 +116,22 @@ __FBSDID("$FreeBSD$");
  *	another, and then marking both regions as copy-on-write.
  */
 
+/*
+ *	vm_map_startup:
+ *
+ *	Initialize the vm_map module.  Must be called before
+ *	any other vm_map routines.
+ *
+ *	Map and entry structures are allocated from the general
+ *	purpose memory pool with some exceptions:
+ *
+ *	- The kernel map and kmem submap are allocated statically.
+ *	- Kernel map entries are allocated out of a static pool.
+ *
+ *	These restrictions are necessary since malloc() uses the
+ *	maps and requires map entries.
+ */
+
 static struct mtx map_sleep_mtx;
 static uma_zone_t mapentzone;
 static uma_zone_t kmapentzone;
@@ -159,22 +175,6 @@ static void vmspace_zdtor(void *mem, int size, void *arg);
 		if (start > end)			\
 			start = end;			\
 		}
-
-/*
- *	vm_map_startup:
- *
- *	Initialize the vm_map module.  Must be called before
- *	any other vm_map routines.
- *
- *	Map and entry structures are allocated from the general
- *	purpose memory pool with some exceptions:
- *
- *	- The kernel map and kmem submap are allocated statically.
- *	- Kernel map entries are allocated out of a static pool.
- *
- *	These restrictions are necessary since malloc() uses the
- *	maps and requires map entries.
- */
 
 void
 vm_map_startup(void)
@@ -1719,7 +1719,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	if ((prot & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0 || object == NULL)
 		return;
 	VM_OBJECT_LOCK(object);
-	if (object->type == OBJT_DEVICE || object->type == OBJT_SG) {
+	if (object->type == OBJT_DEVICE) {
 		pmap_object_init_pt(map->pmap, addr, object, pindex, size);
 		goto unlock_return;
 	}
@@ -2247,8 +2247,7 @@ done:
 				 */
 				vm_fault_unwire(map, entry->start, entry->end,
 				    entry->object.vm_object != NULL &&
-				    (entry->object.vm_object->type == OBJT_DEVICE ||
-				    entry->object.vm_object->type == OBJT_SG));
+				    entry->object.vm_object->type == OBJT_DEVICE);
 			}
 		}
 		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
@@ -2367,8 +2366,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			saved_start = entry->start;
 			saved_end = entry->end;
 			fictitious = entry->object.vm_object != NULL &&
-			    (entry->object.vm_object->type == OBJT_DEVICE ||
-			    entry->object.vm_object->type == OBJT_SG);
+			    entry->object.vm_object->type == OBJT_DEVICE;
 			/*
 			 * Release the map lock, relying on the in-transition
 			 * mark.
@@ -2464,8 +2462,7 @@ done:
 				 */
 				vm_fault_unwire(map, entry->start, entry->end,
 				    entry->object.vm_object != NULL &&
-				    (entry->object.vm_object->type == OBJT_DEVICE ||
-				    entry->object.vm_object->type == OBJT_SG));
+				    entry->object.vm_object->type == OBJT_DEVICE);
 			}
 		}
 	next_entry_done:
@@ -2598,8 +2595,7 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_fault_unwire(map, entry->start, entry->end,
 	    entry->object.vm_object != NULL &&
-	    (entry->object.vm_object->type == OBJT_DEVICE ||
-	    entry->object.vm_object->type == OBJT_SG));
+	    entry->object.vm_object->type == OBJT_DEVICE);
 	entry->wired_count = 0;
 }
 

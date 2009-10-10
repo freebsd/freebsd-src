@@ -19,7 +19,6 @@ NFS_INET6?=	1	# 0/1 - requires INET6 to be configured in kernel
 opt_inet6.h:
 	echo "#define INET6 1" > ${.TARGET}
 .endif
-
 .endif
 
 .include <bsd.kmod.mk>

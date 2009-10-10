@@ -3055,14 +3055,12 @@ bge_rxeof(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
 	int rx_npkts = 0, stdcnt = 0, jumbocnt = 0;
-	uint16_t rx_prod, rx_cons;
 
 	BGE_LOCK_ASSERT(sc);
-	rx_cons = sc->bge_rx_saved_considx;
-	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
 
 	/* Nothing to do. */
-	if (rx_cons == rx_prod)
+	if (sc->bge_rx_saved_considx ==
+	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx)
 		return (rx_npkts);
 
 	ifp = sc->bge_ifp;
@@ -3075,7 +3073,8 @@ bge_rxeof(struct bge_softc *sc)
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_POSTREAD);
 
-	while (rx_cons != rx_prod) {
+	while (sc->bge_rx_saved_considx !=
+	    sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx) {
 		struct bge_rx_bd	*cur_rx;
 		uint32_t		rxidx;
 		struct mbuf		*m = NULL;
@@ -3090,10 +3089,11 @@ bge_rxeof(struct bge_softc *sc)
 		}
 #endif
 
-		cur_rx = &sc->bge_ldata.bge_rx_return_ring[rx_cons];
+		cur_rx =
+	    &sc->bge_ldata.bge_rx_return_ring[sc->bge_rx_saved_considx];
 
 		rxidx = cur_rx->bge_idx;
-		BGE_INC(rx_cons, sc->bge_return_ring_cnt);
+		BGE_INC(sc->bge_rx_saved_considx, sc->bge_return_ring_cnt);
 
 		if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING &&
 		    cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG) {
@@ -3207,7 +3207,6 @@ bge_rxeof(struct bge_softc *sc)
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
 
-	sc->bge_rx_saved_considx = rx_cons;
 	bge_writembx(sc, BGE_MBX_RX_CONS0_LO, sc->bge_rx_saved_considx);
 	if (stdcnt)
 		bge_writembx(sc, BGE_MBX_RX_STD_PROD_LO, sc->bge_std);

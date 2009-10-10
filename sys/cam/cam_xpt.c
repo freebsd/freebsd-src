@@ -794,9 +794,8 @@ xpt_scanner_thread(void *dummy)
 		 * processed.
 		 */
 		xpt_lock_buses();
-		if (TAILQ_EMPTY(&xsoftc.ccb_scanq))
-			msleep(&xsoftc.ccb_scanq, &xsoftc.xpt_topo_lock, PRIBIO,
-			       "ccb_scanq", 0);
+		msleep(&xsoftc.ccb_scanq, &xsoftc.xpt_topo_lock, PRIBIO,
+		    "ccb_scanq", 0);
 		TAILQ_INIT(&queue);
 		TAILQ_CONCAT(&queue, &xsoftc.ccb_scanq, sim_links.tqe);
 		xpt_unlock_buses();
@@ -807,12 +806,9 @@ xpt_scanner_thread(void *dummy)
 			sim = ccb->ccb_h.path->bus->sim;
 			CAM_SIM_LOCK(sim);
 
-			if( ccb->ccb_h.path->target->target_id == CAM_TARGET_WILDCARD )
-				ccb->ccb_h.func_code = XPT_SCAN_BUS;
-			else
-				ccb->ccb_h.func_code = XPT_SCAN_LUN;
+			ccb->ccb_h.func_code = XPT_SCAN_BUS;
 			ccb->ccb_h.cbfcnp = xptdone;
-			xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path, 1);
+			xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path, 5);
 			cam_periph_runccb(ccb, NULL, 0, 0, NULL);
 			xpt_free_path(ccb->ccb_h.path);
 			xpt_free_ccb(ccb);
@@ -832,7 +828,6 @@ xpt_rescan(union ccb *ccb)
 	xpt_lock_buses();
 	TAILQ_FOREACH(hdr, &xsoftc.ccb_scanq, sim_links.tqe) {
 		if (xpt_path_comp(hdr->path, ccb->ccb_h.path) == 0) {
-			wakeup(&xsoftc.ccb_scanq);
 			xpt_unlock_buses();
 			xpt_print(ccb->ccb_h.path, "rescan already queued\n");
 			xpt_free_path(ccb->ccb_h.path);
@@ -2570,10 +2565,6 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_IMMED_NOTIFY:
 	case XPT_NOTIFY_ACK:
 	case XPT_RESET_BUS:
-	case XPT_IMMEDIATE_NOTIFY:
-	case XPT_NOTIFY_ACKNOWLEDGE:
-	case XPT_GET_SIM_KNOB:
-	case XPT_SET_SIM_KNOB:
 	{
 		struct cam_sim *sim;
 
@@ -3808,8 +3799,6 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 		case XPORT_SAS:
 		case XPORT_FC:
 		case XPORT_USB:
-		case XPORT_ISCSI:
-		case XPORT_PPB:
 			new_bus->xport = scsi_get_xport();
 			break;
 		case XPORT_ATA:

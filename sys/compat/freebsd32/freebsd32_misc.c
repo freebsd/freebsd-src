@@ -589,8 +589,7 @@ freebsd32_select(struct thread *td, struct freebsd32_select_args *uap)
 	 * XXX big-endian needs to convert the fd_sets too.
 	 * XXX Do pointers need PTRIN()?
 	 */
-	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
-	    sizeof(int32_t) * 8));
+	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp));
 }
 
 /*
@@ -1417,8 +1416,8 @@ freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 	switch (uap->which) {
 	case 0:
-		return (freebsd7_freebsd32_semctl(td,
-		    (struct freebsd7_freebsd32_semctl_args *)&uap->a2));
+		return (freebsd32_semctl(td,
+		    (struct freebsd32_semctl_args *)&uap->a2));
 	default:
 		return (semsys(td, (struct semsys_args *)uap));
 	}
@@ -1581,8 +1580,8 @@ freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 	switch (uap->which) {
 	case 0:
-		return (freebsd7_freebsd32_msgctl(td,
-		    (struct freebsd7_freebsd32_msgctl_args *)&uap->a2));
+		return (freebsd32_msgctl(td,
+		    (struct freebsd32_msgctl_args *)&uap->a2));
 	case 2:
 		return (freebsd32_msgsnd(td,
 		    (struct freebsd32_msgsnd_args *)&uap->a2));
@@ -1752,12 +1751,12 @@ freebsd32_shmsys(struct thread *td, struct freebsd32_shmsys_args *uap)
 		return (sysent[SYS_shmget].sy_call(td, &ap));
 	}
 	case 4: {	/* shmctl */
-		struct freebsd7_freebsd32_shmctl_args ap;
+		struct freebsd32_shmctl_args ap;
 
 		ap.shmid = uap->a2;
 		ap.cmd = uap->a3;
 		ap.buf = PTRIN(uap->a4);
-		return (freebsd7_freebsd32_shmctl(td, &ap));
+		return (freebsd32_shmctl(td, &ap));
 	}
 	case 1:		/* oshmctl */
 	default:

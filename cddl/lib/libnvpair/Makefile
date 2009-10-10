@@ -13,6 +13,5 @@ SRCS=	libnvpair.c \
 CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/include
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/compat/opensolaris
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
-CFLAGS+= -I${.CURDIR}/../../../sys
 
 .include <bsd.lib.mk>

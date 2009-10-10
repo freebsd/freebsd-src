@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -389,7 +390,7 @@ bootpboot_p_iflist(void)
 	struct ifaddr *ifa;
 
 	printf("Interface list:\n");
-	IFNET_RLOCK();
+	IFNET_RLOCK(); /* could sleep, but okay for debugging XXX */
 	for (ifp = TAILQ_FIRST(&V_ifnet);
 	     ifp != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {

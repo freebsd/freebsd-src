@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 
-#define	TZ_ZEROC	2732
-
 struct coretemp_softc {
 	device_t	sc_dev;
 	int		sc_tjmax;
@@ -195,8 +193,8 @@ coretemp_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(pdev)),
 	    OID_AUTO, "temperature",
 	    CTLTYPE_INT | CTLFLAG_RD,
-	    dev, 0, coretemp_get_temp_sysctl, "IK",
-	    "Current temperature");
+	    dev, 0, coretemp_get_temp_sysctl, "I",
+	    "Current temperature in degC");
 
 	return (0);
 }
@@ -285,7 +283,7 @@ coretemp_get_temp_sysctl(SYSCTL_HANDLER_ARGS)
 	device_t dev = (device_t) arg1;
 	int temp;
 
-	temp = coretemp_get_temp(dev) * 10 + TZ_ZEROC;
+	temp = coretemp_get_temp(dev);
 
 	return (sysctl_handle_int(oidp, &temp, 0, req));
 }

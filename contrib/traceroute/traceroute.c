@@ -1477,21 +1477,19 @@ print(register u_char *buf, register int cc, register struct sockaddr_in *from)
 {
 	register struct ip *ip;
 	register int hlen;
-	char addr[INET_ADDRSTRLEN];
 
 	ip = (struct ip *) buf;
 	hlen = ip->ip_hl << 2;
 	cc -= hlen;
 
-	strlcpy(addr, inet_ntoa(from->sin_addr), sizeof(addr));
-
 	if (as_path)
-		Printf(" [AS%u]", as_lookup(asn, addr, AF_INET));
+		Printf(" [AS%d]", as_lookup(asn, &from->sin_addr));
 
 	if (nflag)
-		Printf(" %s", addr);
+		Printf(" %s", inet_ntoa(from->sin_addr));
 	else
-		Printf(" %s (%s)", inetname(from->sin_addr), addr);
+		Printf(" %s (%s)", inetname(from->sin_addr),
+		    inet_ntoa(from->sin_addr));
 
 	if (verbose)
 		Printf(" %d bytes to %s", cc, inet_ntoa (ip->ip_dst));

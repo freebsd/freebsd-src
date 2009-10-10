@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #define	PNICHOST	"whois.apnic.net"
 #define	MNICHOST	"whois.ra.net"
 #define	QNICHOST_TAIL	".whois-servers.net"
+#define	SNICHOST	"whois.6bone.net"
 #define	BNICHOST	"whois.registro.br"
 #define NORIDHOST	"whois.norid.no"
 #define	IANAHOST	"whois.iana.org"
@@ -163,10 +164,8 @@ main(int argc, char *argv[])
 			warnx("-R is deprecated; use '-c ru' instead");
 			country = "ru";
 			break;
-		/* Remove in FreeBSD 10 */
 		case '6':
-			errx(EX_USAGE,
-				"-6 is deprecated; use -[aAflr] instead");
+			host = SNICHOST;
 			break;
 		case '?':
 		default:

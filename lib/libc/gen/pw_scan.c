@@ -58,14 +58,8 @@ __FBSDID("$FreeBSD$");
  *
  * If pw_big_ids_warning is -1 on entry to pw_scan(), it will be set based
  * on the existence of PW_SCAN_BIG_IDS in the environment.
- *
- * It is believed all baseline system software that can not handle the
- * normal ID sizes is now gone so pw_big_ids_warning is disabled for now.
- * But the code has been left in place in case end-users want to re-enable
- * it and/or for the next time the ID sizes get bigger but pieces of the
- * system lag behind.
  */
-static int	pw_big_ids_warning = 0;
+static int	pw_big_ids_warning = -1;
 
 int
 __pw_scan(char *bp, struct passwd *pw, int flags)
@@ -73,7 +67,6 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 	uid_t id;
 	int root;
 	char *ep, *p, *sh;
-	unsigned long temp;
 
 	if (pw_big_ids_warning == -1)
 		pw_big_ids_warning = getenv("PW_SCAN_BIG_IDS") == NULL ? 1 : 0;
@@ -101,14 +94,12 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 			return (0);
 		}
 	}
-	errno = 0;
-	temp = strtoul(p, &ep, 10);
-	if ((temp == ULONG_MAX && errno == ERANGE) || temp > UID_MAX) {
+	id = strtoul(p, &ep, 10);
+	if (errno == ERANGE) {
 		if (flags & _PWSCAN_WARN)
-			warnx("%s > max uid value (%u)", p, UID_MAX);
+			warnx("%s > max uid value (%lu)", p, ULONG_MAX);
 		return (0);
 	}
-	id = temp;
 	if (*ep != '\0') {
 		if (flags & _PWSCAN_WARN)
 			warnx("%s uid is incorrect", p);
@@ -136,14 +127,12 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 			return (0);
 		}
 	}
-	errno = 0;
-	temp = strtoul(p, &ep, 10);
-	if ((temp == ULONG_MAX && errno == ERANGE) || temp > GID_MAX) {
+	id = strtoul(p, &ep, 10);
+	if (errno == ERANGE) {
 		if (flags & _PWSCAN_WARN)
-			warnx("%s > max gid value (%u)", p, GID_MAX);
+			warnx("%s > max gid value (%lu)", p, ULONG_MAX);
 		return (0);
 	}
-	id = temp;
 	if (*ep != '\0') {
 		if (flags & _PWSCAN_WARN)
 			warnx("%s gid is incorrect", p);

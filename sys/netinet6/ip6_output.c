@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 #include <sys/ucred.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -602,12 +603,15 @@ again:
 		rt->rt_use++;
 	}
 
-
 	/*
 	 * The outgoing interface must be in the zone of source and
-	 * destination addresses.  
+	 * destination addresses.  We should use ia_ifp to support the
+	 * case of sending packets to an address of our own.
 	 */
-	origifp = ifp;
+	if (ia != NULL && ia->ia_ifp)
+		origifp = ia->ia_ifp;
+	else
+		origifp = ifp;
 
 	src0 = ip6->ip6_src;
 	if (in6_setscope(&src0, origifp, &zone))
@@ -630,12 +634,6 @@ again:
 	if (sa6_recoverscope(&dst_sa) || zone != dst_sa.sin6_scope_id) {
 		goto badscope;
 	}
-
-	/* We should use ia_ifp to support the case of 
-	 * sending packets to an address of our own.
-	 */
-	if (ia != NULL && ia->ia_ifp)
-		ifp = ia->ia_ifp;
 
 	/* scope check is done. */
 	goto routefound;

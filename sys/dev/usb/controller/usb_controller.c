@@ -79,11 +79,6 @@ SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb_ctrl_debug, 0,
     "Debug level");
 #endif
 
-static int usb_no_boot_wait = 0;
-TUNABLE_INT("hw.usb.no_boot_wait", &usb_no_boot_wait);
-SYSCTL_INT(_hw_usb, OID_AUTO, no_boot_wait, CTLFLAG_RDTUN, &usb_no_boot_wait, 0,
-    "No device enumerate waiting at boot.");
-
 static uint8_t usb_post_init_called = 0;
 
 static devclass_t usb_devclass;
@@ -137,10 +132,8 @@ usb_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (usb_no_boot_wait == 0) {
-		/* delay vfs_mountroot until the bus is explored */
-		bus->bus_roothold = root_mount_hold(device_get_nameunit(dev));
-	}
+	/* delay vfs_mountroot until the bus is explored */
+	bus->bus_roothold = root_mount_hold(device_get_nameunit(dev));
 
 	if (usb_post_init_called) {
 		mtx_lock(&Giant);

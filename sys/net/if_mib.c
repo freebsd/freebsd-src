@@ -34,6 +34,7 @@
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_mib.h>

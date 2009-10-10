@@ -93,9 +93,6 @@ procstat_vm(pid_t pid, struct kinfo_proc *kipp __unused)
 		case KVME_TYPE_DEAD:
 			str = "dd";
 			break;
-		case KVME_TYPE_SG:
-			str = "sg";
-			break;
 		case KVME_TYPE_UNKNOWN:
 		default:
 			str = "??";

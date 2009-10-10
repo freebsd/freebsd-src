@@ -595,6 +595,7 @@ found:
 	if (vp->v_flag & V_XATTRDIR)
 		VI_LOCK(fp->gfs_parent);
 	VI_LOCK(vp);
+	ASSERT(vp->v_count < 2);
 	/*
 	 * Really remove this vnode
 	 */
@@ -606,7 +607,12 @@ found:
 		 */
 		ge->gfse_vnode = NULL;
 	}
-	VI_UNLOCK(vp);
+	if (vp->v_count == 1) {
+		vp->v_usecount--;
+		vdropl(vp);
+	} else {
+		VI_UNLOCK(vp);
+	}
 
 	/*
 	 * Free vnode and release parent
@@ -1078,16 +1084,18 @@ gfs_vop_inactive(ap)
 {
 	vnode_t *vp = ap->a_vp;
 	gfs_file_t *fp = vp->v_data;
+	void *data;
 
 	if (fp->gfs_type == GFS_DIR)
-		gfs_dir_inactive(vp);
+		data = gfs_dir_inactive(vp);
 	else
-		gfs_file_inactive(vp);
+		data = gfs_file_inactive(vp);
+
+	if (data != NULL)
+		kmem_free(data, fp->gfs_size);
 
 	VI_LOCK(vp);
 	vp->v_data = NULL;
 	VI_UNLOCK(vp);
-	kmem_free(fp, fp->gfs_size);
-
 	return (0);
 }

@@ -94,7 +94,6 @@ SUBDIR=	${_ac} \
 	manctl \
 	memcontrol \
 	mergemaster \
-	mfiutil \
 	mixer \
 	${_mld6query} \
 	mlxcontrol \
@@ -104,7 +103,6 @@ SUBDIR=	${_ac} \
 	${_mount_smbfs} \
 	${_moused} \
 	${_mptable} \
-	mptutil \
 	mtest \
 	mtree \
 	${_named} \

@@ -339,6 +339,7 @@ pfs_getextattr(struct vop_getextattr_args *va)
 	if (proc != NULL)
 		PROC_UNLOCK(proc);
 
+	pfs_unlock(pn);
 	PFS_RETURN (error);
 }
 

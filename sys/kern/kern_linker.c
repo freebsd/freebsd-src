@@ -51,8 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
-
-#include <net/vnet.h>
+#include <sys/vimage.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -2080,8 +2079,8 @@ linker_load_dependencies(linker_file_t lf)
 		}
 		error = linker_load_module(NULL, modname, lf, verinfo, NULL);
 		if (error) {
-			printf("KLD %s: depends on %s - not available or"
-			    " version mismatch\n", lf->filename, modname);
+			printf("KLD %s: depends on %s - not available\n",
+			    lf->filename, modname);
 			break;
 		}
 	}

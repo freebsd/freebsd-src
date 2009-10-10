@@ -32,7 +32,7 @@
 
 TYPE="FreeBSD"
 REVISION="8.0"
-BRANCH="RC1"
+BRANCH="BETA2"
 if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
@@ -87,25 +87,29 @@ touch version
 v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 
-case "$d" in
-*/sys/*)
-	for dir in /bin /usr/bin /usr/local/bin; do
-		if [ -x "${dir}/svnversion" ]; then
-			svnversion=${dir}/svnversion
-			SRCDIR=${d##*obj}
-			if [ -n "$MACHINE" ]; then
-				SRCDIR=${SRCDIR##/$MACHINE}
-			fi
-			SRCDIR=${SRCDIR%%/sys/*}
-			break
+for dir in /bin /usr/bin /usr/local/bin; do
+	if [ -x "${dir}/svnversion" ]; then
+		svnversion=${dir}/svnversion
+		SRCDIR=${d##*obj}
+		if [ -n "$MACHINE" ]; then
+			SRCDIR=${SRCDIR##/$MACHINE}
 		fi
-	done
-
-	if [ -n "$svnversion" -a -d "${SRCDIR}/sys/.svn" ] ; then
-		svn=" r`cd ${SRCDIR}/sys && $svnversion`"
+		SRCDIR=${SRCDIR%%/sys/*}
+		break
 	fi
-	;;
-esac
+done
+
+if [ -n "$svnversion" -a -d "${SRCDIR}/.svn" ] ; then
+	# If we are called from the kernel build, limit
+	# the scope of svnversion to sys/ .
+	if [ -e "${SRCDIR}/sys/conf/newvers.sh" ] ; then
+		svn=" r`cd $SRCDIR/sys && $svnversion`"
+	else
+		svn=" r`cd $SRCDIR && $svnversion`"
+	fi
+else
+	svn=""
+fi
 
 cat << EOF > vers.c
 $COPYRIGHT

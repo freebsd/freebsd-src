@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
-#include "opt_kstack_pages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -277,29 +276,25 @@ norfproc_fail:
 
 	mem_charged = 0;
 	vm2 = NULL;
-	if (pages == 0)
-		pages = KSTACK_PAGES;
 	/* Allocate new proc. */
 	newproc = uma_zalloc(proc_zone, M_WAITOK);
-	td2 = FIRST_THREAD_IN_PROC(newproc);
-	if (td2 == NULL) {
-		td2 = thread_alloc(pages);
+	if (TAILQ_EMPTY(&newproc->p_threads)) {
+		td2 = thread_alloc();
 		if (td2 == NULL) {
 			error = ENOMEM;
 			goto fail1;
 		}
 		proc_linkup(newproc, td2);
-	} else {
-		if (td2->td_kstack == 0 || td2->td_kstack_pages != pages) {
-			if (td2->td_kstack != 0)
-				vm_thread_dispose(td2);
-			if (!thread_alloc_stack(td2, pages)) {
-				error = ENOMEM;
-				goto fail1;
-			}
+	} else
+		td2 = FIRST_THREAD_IN_PROC(newproc);
+
+	/* Allocate and switch to an alternate kstack if specified. */
+	if (pages != 0) {
+		if (!vm_thread_new_altkstack(td2, pages)) {
+			error = ENOMEM;
+			goto fail1;
 		}
 	}
-
 	if ((flags & RFMEM) == 0) {
 		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
 		if (vm2 == NULL) {

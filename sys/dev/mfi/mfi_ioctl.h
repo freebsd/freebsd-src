@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/mfi/mfireg.h>
-
 #if defined(__amd64__) /* Assume amd64 wants 32 bit Linux */
 struct iovec32 {
 	u_int32_t	iov_base;

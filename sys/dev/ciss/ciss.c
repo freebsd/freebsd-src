@@ -279,10 +279,8 @@ TUNABLE_INT("hw.ciss.force_interrupt", &ciss_force_interrupt);
  * stick with matching against subvendor/subdevice, and thus have to
  * be updated for every new CISS adapter that appears.
  */
-#define CISS_BOARD_UNKNWON	0
-#define CISS_BOARD_SA5		1
-#define CISS_BOARD_SA5B		2
-#define CISS_BOARD_NOMSI	(1<<4)
+#define CISS_BOARD_SA5	(1<<0)
+#define CISS_BOARD_SA5B	(1<<1)
 
 static struct
 {
@@ -291,10 +289,10 @@ static struct
     int		flags;
     char	*desc;
 } ciss_vendor_data[] = {
-    { 0x0e11, 0x4070, CISS_BOARD_SA5|CISS_BOARD_NOMSI,	"Compaq Smart Array 5300" },
-    { 0x0e11, 0x4080, CISS_BOARD_SA5B|CISS_BOARD_NOMSI,	"Compaq Smart Array 5i" },
-    { 0x0e11, 0x4082, CISS_BOARD_SA5B|CISS_BOARD_NOMSI,	"Compaq Smart Array 532" },
-    { 0x0e11, 0x4083, CISS_BOARD_SA5B|CISS_BOARD_NOMSI,	"HP Smart Array 5312" },
+    { 0x0e11, 0x4070, CISS_BOARD_SA5,	"Compaq Smart Array 5300" },
+    { 0x0e11, 0x4080, CISS_BOARD_SA5B,	"Compaq Smart Array 5i" },
+    { 0x0e11, 0x4082, CISS_BOARD_SA5B,	"Compaq Smart Array 532" },
+    { 0x0e11, 0x4083, CISS_BOARD_SA5B,	"HP Smart Array 5312" },
     { 0x0e11, 0x4091, CISS_BOARD_SA5,	"HP Smart Array 6i" },
     { 0x0e11, 0x409A, CISS_BOARD_SA5,	"HP Smart Array 641" },
     { 0x0e11, 0x409B, CISS_BOARD_SA5,	"HP Smart Array 642" },
@@ -663,6 +661,7 @@ ciss_init_pci(struct ciss_softc *sc)
 	(CISS_TRANSPORT_METHOD_SIMPLE | CISS_TRANSPORT_METHOD_PERF))) {
 	ciss_printf(sc, "No supported transport layers: 0x%x\n",
 	    sc->ciss_cfg->supported_methods);
+	return(ENXIO);
     }
 
     switch (ciss_force_transport) {
@@ -678,7 +677,7 @@ ciss_init_pci(struct ciss_softc *sc)
     }
 
 setup:
-    if ((supported_methods & CISS_TRANSPORT_METHOD_PERF) != 0) {
+    if (supported_methods & CISS_TRANSPORT_METHOD_PERF) {
 	method = CISS_TRANSPORT_METHOD_PERF;
 	sc->ciss_perf = (struct ciss_perf_config *)(cbase + cofs +
 	    sc->ciss_cfg->transport_offset);
@@ -737,16 +736,11 @@ setup:
 	ciss_printf(sc, "PERFORMANT Transport\n");
 	if ((ciss_force_interrupt != 1) && (ciss_setup_msix(sc) == 0)) {
 	    intr = ciss_perf_msi_intr;
+	    sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_MSI;
 	} else {
 	    intr = ciss_perf_intr;
+	    sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_OPQ;
 	}
-	/* XXX The docs say that the 0x01 bit is only for SAS controllers.
-	 * Unfortunately, there is no good way to know if this is a SAS
-	 * controller.  Hopefully enabling this bit universally will work OK.
-	 * It seems to work fine for SA6i controllers.
-	 */
-	sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_OPQ | CISS_TL_PERF_INTR_MSI;
-
     } else {
 	ciss_printf(sc, "SIMPLE Transport\n");
 	/* MSIX doesn't seem to work in SIMPLE mode, only enable if it forced */
@@ -793,7 +787,7 @@ setup:
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
-			   CISS_MAX_SG_ELEMENTS,	/* nsegments */
+			   CISS_COMMAND_SG_LENGTH,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   0,				/* flags */
 			   NULL, NULL,			/* lockfunc, lockarg */
@@ -811,7 +805,7 @@ setup:
 			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, CISS_MAX_SG_ELEMENTS,	/* maxsize, nsegments */
+			   MAXBSIZE, CISS_COMMAND_SG_LENGTH,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
 			   busdma_lock_mutex, &sc->ciss_mtx,	/* lockfunc, lockarg */
@@ -824,42 +818,29 @@ setup:
 
 /************************************************************************
  * Setup MSI/MSIX operation (Performant only)
- * Four interrupts are available, but we only use 1 right now.  If MSI-X
- * isn't avaialble, try using MSI instead.
+ * Four interrupts are available, but we only use 1 right now.
  */
 static int
 ciss_setup_msix(struct ciss_softc *sc)
 {
+    uint32_t id;
     int val, i;
 
     /* Weed out devices that don't actually support MSI */
-    i = ciss_lookup(sc->ciss_dev);
-    if (ciss_vendor_data[i].flags & CISS_BOARD_NOMSI)
+    id = (pci_get_subvendor(sc->ciss_dev) << 16) |
+	pci_get_subdevice(sc->ciss_dev);
+    if ((id == 0x0e114070) || (id == 0x0e114080) || (id == 0x0e114082) ||
+	(id == 0x0e114083))
 	return (EINVAL);
 
-    /*
-     * Only need to use the minimum number of MSI vectors, as the driver
-     * doesn't support directed MSIX interrupts.
-     */
     val = pci_msix_count(sc->ciss_dev);
-    if (val < CISS_MSI_COUNT) {
-	val = pci_msi_count(sc->ciss_dev);
-	device_printf(sc->ciss_dev, "got %d MSI messages]\n", val);
-	if (val < CISS_MSI_COUNT)
-	    return (EINVAL);
-    }
-    val = MIN(val, CISS_MSI_COUNT);
-    if (pci_alloc_msix(sc->ciss_dev, &val) != 0) {
-	if (pci_alloc_msi(sc->ciss_dev, &val) != 0)
-	    return (EINVAL);
-    }
+    if ((val != CISS_MSI_COUNT) || (pci_alloc_msix(sc->ciss_dev, &val) != 0))
+	return (EINVAL);
 
     sc->ciss_msi = val;
-    if (bootverbose)
-	ciss_printf(sc, "Using %d MSIX interrupt%s\n", val,
-	    (val != 1) ? "s" : "");
+    ciss_printf(sc, "Using MSIX interrupt\n");
 
-    for (i = 0; i < val; i++)
+    for (i = 0; i < CISS_MSI_COUNT; i++)
 	sc->ciss_irq_rid[i] = i + 1;
 
     return (0);
@@ -1042,7 +1023,7 @@ ciss_soft_reset(struct ciss_softc *sc)
 					   NULL, 0)) != 0)
 	    break;
 
-	cc = cr->cr_cc;
+	cc = CISS_FIND_COMMAND(cr);
 	cc->header.address = sc->ciss_controllers[i];
 
 	if ((error = ciss_synch_request(cr, 60 * 1000)) != 0)
@@ -1115,9 +1096,6 @@ ciss_init_requests(struct ciss_softc *sc)
 	cr = &sc->ciss_request[i];
 	cr->cr_sc = sc;
 	cr->cr_tag = i;
-	cr->cr_cc = (struct ciss_command *)((uintptr_t)sc->ciss_command +
-	    CISS_COMMAND_ALLOC_SIZE * i);
-	cr->cr_ccphys = sc->ciss_command_phys + CISS_COMMAND_ALLOC_SIZE * i;
 	bus_dmamap_create(sc->ciss_buffer_dmat, 0, &cr->cr_datamap);
 	ciss_enqueue_free(cr);
     }
@@ -1271,7 +1249,7 @@ ciss_report_luns(struct ciss_softc *sc, int opcode, int nunits)
     /*
      * Build the Report Logical/Physical LUNs command.
      */
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cr->cr_data = cll;
     cr->cr_length = report_size;
     cr->cr_flags = CISS_REQ_DATAIN;
@@ -1596,7 +1574,7 @@ ciss_inquiry_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
     if ((error = ciss_get_request(sc, &cr)) != 0)
 	goto out;
 
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cr->cr_data = &ld->cl_geometry;
     cr->cr_length = sizeof(ld->cl_geometry);
     cr->cr_flags = CISS_REQ_DATAIN;
@@ -1660,7 +1638,7 @@ ciss_identify_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
 				       (void **)&ld->cl_ldrive,
 				       sizeof(*ld->cl_ldrive))) != 0)
 	goto out;
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cc->header.address = *ld->cl_controller;	/* target controller */
     cbc = (struct ciss_bmic_cdb *)&(cc->cdb.cdb[0]);
     cbc->log_drive = CISS_LUN_TO_TARGET(ld->cl_address.logical.lun);
@@ -1756,7 +1734,7 @@ ciss_get_ldrive_status(struct ciss_softc *sc,  struct ciss_ldrive *ld)
 				       (void **)&ld->cl_lstatus,
 				       sizeof(*ld->cl_lstatus))) != 0)
 	goto out;
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cc->header.address = *ld->cl_controller;	/* target controller */
     cbc = (struct ciss_bmic_cdb *)&(cc->cdb.cdb[0]);
     cbc->log_drive = CISS_LUN_TO_TARGET(ld->cl_address.logical.lun);
@@ -1846,7 +1824,7 @@ ciss_accept_media(struct ciss_softc *sc, struct ciss_ldrive *ld)
     if ((error = ciss_get_bmic_request(sc, &cr, CISS_BMIC_ACCEPT_MEDIA,
 				       NULL, 0)) != 0)
 	goto out;
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cc->header.address = *ld->cl_controller;	/* target controller */
     cbc = (struct ciss_bmic_cdb *)&(cc->cdb.cdb[0]);
     cbc->log_drive = ldrive;
@@ -2014,7 +1992,7 @@ ciss_start(struct ciss_request *cr)
     struct ciss_command	*cc;	/* XXX debugging only */
     int			error;
 
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     debug(2, "post command %d tag %d ", cr->cr_tag, cc->header.host_tag);
 
     /*
@@ -2070,7 +2048,7 @@ ciss_done(struct ciss_softc *sc, cr_qhead_t *qh)
 	    continue;
 	}
 	cr = &(sc->ciss_request[index]);
-	cc = cr->cr_cc;
+	cc = CISS_FIND_COMMAND(cr);
 	cc->header.host_tag = tag;	/* not updated by adapter */
 	ciss_enqueue_complete(cr, qh);
     }
@@ -2099,7 +2077,7 @@ ciss_perf_done(struct ciss_softc *sc, cr_qhead_t *qh)
 	      (tag & CISS_HDR_HOST_TAG_ERROR) ? " with error" : "");
 	if (index < sc->ciss_max_requests) {
 	    cr = &(sc->ciss_request[index]);
-	    cc = cr->cr_cc;
+	    cc = CISS_FIND_COMMAND(cr);
 	    cc->header.host_tag = tag;	/* not updated by adapter */
 	    ciss_enqueue_complete(cr, qh);
 	} else {
@@ -2236,7 +2214,7 @@ _ciss_report_request(struct ciss_request *cr, int *command_status, int *scsi_sta
 
     debug_called(2);
 
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     ce = (struct ciss_error_info *)&(cc->sg[0]);
 
     /*
@@ -2383,7 +2361,7 @@ ciss_abort_request(struct ciss_request *ar)
 	return(error);
 
     /* build the abort command */
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cc->header.address.mode.mode = CISS_HDR_ADDRESS_MODE_PERIPHERAL;	/* addressing? */
     cc->header.address.physical.target = 0;
     cc->header.address.physical.bus = 0;
@@ -2452,12 +2430,12 @@ ciss_preen_command(struct ciss_request *cr)
      * Note that we set up the error_info structure here, since the
      * length can be overwritten by any command.
      */
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cc->header.sg_in_list = 0;		/* kinda inefficient this way */
     cc->header.sg_total = 0;
     cc->header.host_tag = cr->cr_tag << 2;
     cc->header.host_tag_zeroes = 0;
-    cmdphys = cr->cr_ccphys;
+    cmdphys = CISS_FIND_COMMANDPHYS(cr);
     cc->error_info.error_info_address = cmdphys + sizeof(struct ciss_command);
     cc->error_info.error_info_length = CISS_COMMAND_ALLOC_SIZE - sizeof(struct ciss_command);
 }
@@ -2528,7 +2506,7 @@ ciss_get_bmic_request(struct ciss_softc *sc, struct ciss_request **crp,
     if (!dataout)
 	cr->cr_flags = CISS_REQ_DATAIN;
 
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cc->header.address.physical.mode = CISS_HDR_ADDRESS_MODE_PERIPHERAL;
     cc->header.address.physical.bus = 0;
     cc->header.address.physical.target = 0;
@@ -2576,21 +2554,20 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
      */
     while (ciss_get_request(sc, &cr) != 0)
 	msleep(sc, &sc->ciss_mtx, PPAUSE, "cissREQ", hz);
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
 
     /*
      * Allocate an in-kernel databuffer if required, copy in user data.
      */
-    mtx_unlock(&sc->ciss_mtx);
     cr->cr_length = ioc->buf_size;
     if (ioc->buf_size > 0) {
 	if ((cr->cr_data = malloc(ioc->buf_size, CISS_MALLOC_CLASS, M_NOWAIT)) == NULL) {
 	    error = ENOMEM;
-	    goto out_unlocked;
+	    goto out;
 	}
 	if ((error = copyin(ioc->buf, cr->cr_data, ioc->buf_size))) {
 	    debug(0, "copyin: bad data buffer %p/%d", ioc->buf, ioc->buf_size);
-	    goto out_unlocked;
+	    goto out;
 	}
     }
 
@@ -2601,7 +2578,6 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
     bcopy(&ioc->Request, &cc->cdb, sizeof(cc->cdb));
 
     /* XXX anything else to populate here? */
-    mtx_lock(&sc->ciss_mtx);
 
     /*
      * Run the command.
@@ -2622,18 +2598,14 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
      * Copy the results back to the user.
      */
     bcopy(ce, &ioc->error_info, sizeof(*ce));
-    mtx_unlock(&sc->ciss_mtx);
     if ((ioc->buf_size > 0) &&
 	(error = copyout(cr->cr_data, ioc->buf, ioc->buf_size))) {
 	debug(0, "copyout: bad data buffer %p/%d", ioc->buf, ioc->buf_size);
-	goto out_unlocked;
+	goto out;
     }
 
     /* done OK */
     error = 0;
-
-out_unlocked:
-    mtx_lock(&sc->ciss_mtx);
 
 out:
     if ((cr != NULL) && (cr->cr_data != NULL))
@@ -2681,7 +2653,7 @@ ciss_map_request(struct ciss_request *cr)
 	if (sc->ciss_perf)
 	    CISS_TL_PERF_POST_CMD(sc, cr);
 	else
-	    CISS_TL_SIMPLE_POST_CMD(sc, cr->cr_ccphys);
+	    CISS_TL_SIMPLE_POST_CMD(sc, CISS_FIND_COMMANDPHYS(cr));
     }
 
     return(0);
@@ -2699,7 +2671,7 @@ ciss_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
     cr = (struct ciss_request *)arg;
     sc = cr->cr_sc;
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
 
     for (i = 0; i < nseg; i++) {
 	cc->sg[i].address = segs[i].ds_addr;
@@ -2739,7 +2711,7 @@ ciss_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
     if (sc->ciss_perf)
 	CISS_TL_PERF_POST_CMD(sc, cr);
     else
-	CISS_TL_SIMPLE_POST_CMD(sc, cr->cr_ccphys);
+	CISS_TL_SIMPLE_POST_CMD(sc, CISS_FIND_COMMANDPHYS(cr));
 }
 
 /************************************************************************
@@ -3105,7 +3077,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
     /*
      * Build the command.
      */
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cr->cr_data = csio->data_ptr;
     cr->cr_length = csio->dxfer_len;
     cr->cr_complete = ciss_cam_complete;
@@ -3249,7 +3221,7 @@ ciss_cam_complete(struct ciss_request *cr)
     debug_called(2);
 
     sc = cr->cr_sc;
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     ce = (struct ciss_error_info *)&(cc->sg[0]);
     csio = (struct ccb_scsiio *)cr->cr_private;
 
@@ -3428,7 +3400,7 @@ ciss_periodic(void *arg)
      * Send the NOP message and wait for a response.
      */
     if (ciss_nop_message_heartbeat != 0 && (error = ciss_get_request(sc, &cr)) == 0) {
-	cc = cr->cr_cc;
+	cc = CISS_FIND_COMMAND(cr);
 	cr->cr_complete = ciss_nop_complete;
 	cc->cdb.cdb_length = 1;
 	cc->cdb.type = CISS_CDB_TYPE_MESSAGE;
@@ -3498,7 +3470,7 @@ ciss_disable_adapter(struct ciss_softc *sc)
 	if ((cr->cr_flags & CISS_REQ_BUSY) == 0)
 	    continue;
 
-	cc = cr->cr_cc;
+	cc = CISS_FIND_COMMAND(cr);
 	ce = (struct ciss_error_info *)&(cc->sg[0]);
 	ce->command_status = CISS_CMD_STATUS_HARDWARE_ERROR;
 	ciss_enqueue_complete(cr, &qh);
@@ -3575,7 +3547,7 @@ ciss_notify_event(struct ciss_softc *sc)
     ciss_preen_command(cr);
 
     /* (re)build the notify event command */
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cc->header.address.physical.mode = CISS_HDR_ADDRESS_MODE_PERIPHERAL;
     cc->header.address.physical.bus = 0;
     cc->header.address.physical.target = 0;
@@ -3629,7 +3601,7 @@ ciss_notify_complete(struct ciss_request *cr)
     int			command_status;
     debug_called(1);
 
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cn = (struct ciss_notify *)cr->cr_data;
     sc = cr->cr_sc;
 
@@ -3729,7 +3701,7 @@ ciss_notify_abort(struct ciss_softc *sc)
     cr->cr_length = CISS_NOTIFY_DATA_SIZE;
 
     /* build the CDB */
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
     cc->header.address.physical.mode = CISS_HDR_ADDRESS_MODE_PERIPHERAL;
     cc->header.address.physical.bus = 0;
     cc->header.address.physical.target = 0;
@@ -4188,7 +4160,7 @@ ciss_print_request(struct ciss_request *cr)
     int			i;
 
     sc = cr->cr_sc;
-    cc = cr->cr_cc;
+    cc = CISS_FIND_COMMAND(cr);
 
     ciss_printf(sc, "REQUEST @ %p\n", cr);
     ciss_printf(sc, "  data %p/%d  tag %d  flags %b\n",

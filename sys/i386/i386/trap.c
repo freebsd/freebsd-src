@@ -211,11 +211,13 @@ trap(struct trapframe *frame)
 	type = frame->tf_trapno;
 
 #ifdef SMP
+#ifdef STOP_NMI
 	/* Handler for NMI IPIs used for stopping CPUs. */
 	if (type == T_NMI) {
 	         if (ipi_nmi_handler() == 0)
 	                   goto out;
 	}
+#endif /* STOP_NMI */
 #endif /* SMP */
 
 #ifdef KDB
@@ -423,9 +425,7 @@ trap(struct trapframe *frame)
 					 * This check also covers the images
 					 * without the ABI-tag ELF note.
 					 */
-					if (SV_CURPROC_ABI() ==
-					    SV_ABI_FREEBSD &&
-					    p->p_osrel >= 700004) {
+					if (p->p_osrel >= 700004) {
 						i = SIGSEGV;
 						ucode = SEGV_ACCERR;
 					} else {

@@ -645,10 +645,8 @@ int ipfw_check_out(void *, struct mbuf **, struct ifnet *, int, struct inpcb *in
 
 int ipfw_chk(struct ip_fw_args *);
 
-int ipfw_hook(void);
-int ipfw6_hook(void);
-int ipfw_unhook(void);
-int ipfw6_unhook(void);
+int ipfw_init(void);
+void ipfw_destroy(void);
 #ifdef NOTYET
 void ipfw_nat_destroy(void);
 #endif

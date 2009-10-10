@@ -3926,20 +3926,12 @@ sctp_aloc_a_assoc_id(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	struct sctpasochead *head;
 	struct sctp_tcb *lstcb;
 
-	SCTP_INP_WLOCK(inp);
 try_again:
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 		/* TSNH */
-		SCTP_INP_WUNLOCK(inp);
 		return (0);
 	}
-	/*
-	 * We don't allow assoc id to be 0, this is needed otherwise if the
-	 * id were to wrap we would have issues with some socket options.
-	 */
-	if (inp->sctp_associd_counter == 0) {
-		inp->sctp_associd_counter++;
-	}
+	SCTP_INP_WLOCK(inp);
 	id = inp->sctp_associd_counter;
 	inp->sctp_associd_counter++;
 	lstcb = sctp_findasoc_ep_asocid_locked(inp, (sctp_assoc_t) id, 0);
@@ -4555,11 +4547,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 
 						stcb->asoc.control_pdapi = sq;
 						strseq = (sq->sinfo_stream << 16) | sq->sinfo_ssn;
-						sctp_ulp_notify(SCTP_NOTIFY_PARTIAL_DELVIERY_INDICATION,
-						    stcb,
-						    SCTP_PARTIAL_DELIVERY_ABORTED,
-						    (void *)&strseq,
-						    SCTP_SO_LOCKED);
+						sctp_notify_partial_delivery_indication(stcb,
+						    SCTP_PARTIAL_DELIVERY_ABORTED, 1, strseq);
 						stcb->asoc.control_pdapi = NULL;
 					}
 				}

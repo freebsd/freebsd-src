@@ -172,7 +172,6 @@ is_shared(libzfs_handle_t *hdl, const char *mountpoint, zfs_share_proto_t proto)
 
 		*tab = '\0';
 		if (strcmp(buf, mountpoint) == 0) {
-#if defined(sun)
 			/*
 			 * the protocol field is the third field
 			 * skip over second field
@@ -195,10 +194,6 @@ is_shared(libzfs_handle_t *hdl, const char *mountpoint, zfs_share_proto_t proto)
 					return (0);
 				}
 			}
-#else
-			if (proto == PROTO_NFS)
-				return (SHARED_NFS);
-#endif
 		}
 	}
 

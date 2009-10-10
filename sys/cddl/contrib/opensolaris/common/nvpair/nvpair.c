@@ -2523,15 +2523,14 @@ nvpair_native_embedded(nvstream_t *nvs, nvpair_t *nvp)
 {
 	if (nvs->nvs_op == NVS_OP_ENCODE) {
 		nvs_native_t *native = (nvs_native_t *)nvs->nvs_private;
-		char *packed = (void *)
+		nvlist_t *packed = (void *)
 		    (native->n_curr - nvp->nvp_size + NVP_VALOFF(nvp));
 		/*
 		 * Null out the pointer that is meaningless in the packed
 		 * structure. The address may not be aligned, so we have
 		 * to use bzero.
 		 */
-		bzero(packed + offsetof(nvlist_t, nvl_priv),
-		    sizeof(((nvlist_t *)NULL)->nvl_priv));
+		bzero(&packed->nvl_priv, sizeof (packed->nvl_priv));
 	}
 
 	return (nvs_embedded(nvs, EMBEDDED_NVL(nvp)));

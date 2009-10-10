@@ -56,8 +56,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef ADAPTIVE_RWLOCKS
-#define	ROWNER_RETRIES	10
-#define	ROWNER_LOOPS	10000
+static int rowner_retries = 10;
+static int rowner_loops = 10000;
+SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL, "rwlock debugging");
+SYSCTL_INT(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
+SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
 #endif
 
 #ifdef DDB
@@ -171,9 +174,6 @@ rw_init_flags(struct rwlock *rw, const char *name, int opts)
 
 	MPASS((opts & ~(RW_DUPOK | RW_NOPROFILE | RW_NOWITNESS | RW_QUIET |
 	    RW_RECURSE)) == 0);
-	ASSERT_ATOMIC_LOAD_PTR(rw->rw_lock,
-	    ("%s: rw_lock not aligned for %s: %p", __func__, name,
-	    &rw->rw_lock));
 
 	flags = LO_UPGRADABLE;
 	if (opts & RW_DUPOK)
@@ -377,15 +377,15 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 				}
 				continue;
 			}
-		} else if (spintries < ROWNER_RETRIES) {
+		} else if (spintries < rowner_retries) {
 			spintries++;
-			for (i = 0; i < ROWNER_LOOPS; i++) {
+			for (i = 0; i < rowner_loops; i++) {
 				v = rw->rw_lock;
 				if ((v & RW_LOCK_READ) == 0 || RW_CAN_READ(v))
 					break;
 				cpu_spinwait();
 			}
-			if (i != ROWNER_LOOPS)
+			if (i != rowner_loops)
 				continue;
 		}
 #endif
@@ -687,7 +687,7 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 			continue;
 		}
 		if ((v & RW_LOCK_READ) && RW_READERS(v) &&
-		    spintries < ROWNER_RETRIES) {
+		    spintries < rowner_retries) {
 			if (!(v & RW_LOCK_WRITE_SPINNER)) {
 				if (!atomic_cmpset_ptr(&rw->rw_lock, v,
 				    v | RW_LOCK_WRITE_SPINNER)) {
@@ -695,15 +695,15 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 				}
 			}
 			spintries++;
-			for (i = 0; i < ROWNER_LOOPS; i++) {
+			for (i = 0; i < rowner_loops; i++) {
 				if ((rw->rw_lock & RW_LOCK_WRITE_SPINNER) == 0)
 					break;
 				cpu_spinwait();
 			}
 #ifdef KDTRACE_HOOKS
-			spin_cnt += ROWNER_LOOPS - i;
+			spin_cnt += rowner_loops - i;
 #endif
-			if (i != ROWNER_LOOPS)
+			if (i != rowner_loops)
 				continue;
 		}
 #endif

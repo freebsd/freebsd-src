@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>

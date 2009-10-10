@@ -29,6 +29,10 @@ device		apic			# I/O apic
 #
 options 	MP_WATCHDOG
 
+# Debugging options.
+#
+options 	STOP_NMI		# Stop CPUS using NMI instead of IPI
+
 
 
 #####################################################################

@@ -48,8 +48,6 @@
 
 #ifndef _NO_NAMESPACE_POLLUTION
 
-#define __PCI_BAR_ZERO_VALID
-
 #ifndef _MACHINE_PARAM_H_
 #define	_MACHINE_PARAM_H_
 

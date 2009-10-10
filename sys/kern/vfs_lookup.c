@@ -164,9 +164,9 @@ namei(struct nameidata *ndp)
 
 	/* If we are auditing the kernel pathname, save the user pathname. */
 	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG_UPATH1(td, cnp->cn_pnbuf);
+		AUDIT_ARG_UPATH(td, cnp->cn_pnbuf, ARG_UPATH1);
 	if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG_UPATH2(td, cnp->cn_pnbuf);
+		AUDIT_ARG_UPATH(td, cnp->cn_pnbuf, ARG_UPATH2);
 
 	/*
 	 * Don't allow empty pathnames.
@@ -203,13 +203,8 @@ namei(struct nameidata *ndp)
 		if (ndp->ni_startdir != NULL) {
 			dp = ndp->ni_startdir;
 			error = 0;
-		} else if (ndp->ni_dirfd != AT_FDCWD) {
-			if (cnp->cn_flags & AUDITVNODE1)
-				AUDIT_ARG_ATFD1(ndp->ni_dirfd);
-			if (cnp->cn_flags & AUDITVNODE2)
-				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
+		} else if (ndp->ni_dirfd != AT_FDCWD)
 			error = fgetvp(td, ndp->ni_dirfd, &dp);
-		}
 		if (error != 0 || dp != NULL) {
 			FILEDESC_SUNLOCK(fdp);
 			if (error == 0 && dp->v_type != VDIR) {
@@ -574,9 +569,9 @@ dirloop:
 		ndp->ni_vp = dp;
 
 		if (cnp->cn_flags & AUDITVNODE1)
-			AUDIT_ARG_VNODE1(dp);
+			AUDIT_ARG_VNODE(dp, ARG_VNODE1);
 		else if (cnp->cn_flags & AUDITVNODE2)
-			AUDIT_ARG_VNODE2(dp);
+			AUDIT_ARG_VNODE(dp, ARG_VNODE2);
 
 		if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
 			VOP_UNLOCK(dp, 0);
@@ -859,9 +854,9 @@ nextname:
 		VOP_UNLOCK(ndp->ni_dvp, 0);
 
 	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG_VNODE1(dp);
+		AUDIT_ARG_VNODE(dp, ARG_VNODE1);
 	else if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG_VNODE2(dp);
+		AUDIT_ARG_VNODE(dp, ARG_VNODE2);
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp, 0);

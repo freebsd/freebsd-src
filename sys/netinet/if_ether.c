@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -59,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_llc.h>
 #include <net/ethernet.h>
 #include <net/route.h>
-#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -81,17 +81,17 @@ __FBSDID("$FreeBSD$");
 SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 
-VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
-					 * local traffic */
-
 /* timer values */
 static VNET_DEFINE(int, arpt_keep) = (20*60);	/* once resolved, good for 20
 						 * minutes */
 static VNET_DEFINE(int, arp_maxtries) = 5;
+static VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
+						 * local traffic */
 static VNET_DEFINE(int, arp_proxyall);
 
 #define	V_arpt_keep		VNET(arpt_keep)
 #define	V_arp_maxtries		VNET(arp_maxtries)
+#define	V_useloopback		VNET(useloopback)
 #define	V_arp_proxyall		VNET(arp_proxyall)
 
 SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW,
@@ -462,11 +462,11 @@ in_arpinput(struct mbuf *m)
 	struct rtentry *rt;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
-	struct mbuf *hold;
 	struct sockaddr sa;
 	struct in_addr isaddr, itaddr, myaddr;
 	u_int8_t *enaddr = NULL;
 	int op, flags;
+	struct mbuf *m0;
 	int req_len;
 	int bridged = 0, is_bridge = 0;
 #ifdef DEV_CARP
@@ -631,13 +631,11 @@ match:
 				    la->lle_tbl->llt_ifp->if_xname,
 				    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
 				    ifp->if_xname);
-			LLE_WUNLOCK(la);
 			goto reply;
 		}
 		if ((la->la_flags & LLE_VALID) &&
 		    bcmp(ar_sha(ah), &la->ll_addr, ifp->if_addrlen)) {
 			if (la->la_flags & LLE_STATIC) {
-				LLE_WUNLOCK(la);
 				log(LOG_ERR,
 				    "arp: %*D attempts to modify permanent "
 				    "entry for %s on %s\n",
@@ -657,7 +655,6 @@ match:
 		}
 		    
 		if (ifp->if_addrlen != ah->ar_hln) {
-			LLE_WUNLOCK(la);
 			log(LOG_WARNING,
 			    "arp from %*D: addr len: new %d, i/f %d (ignored)",
 			    ifp->if_addrlen, (u_char *) ar_sha(ah), ":",
@@ -674,14 +671,15 @@ match:
 		}
 		la->la_asked = 0;
 		la->la_preempt = V_arp_maxtries;
-		hold = la->la_hold;
-		if (hold != NULL) {
-			la->la_hold = NULL;
+		if (la->la_hold != NULL) {
+			m0 = la->la_hold;
+			la->la_hold = 0;
 			memcpy(&sa, L3_ADDR(la), sizeof(sa));
+			LLE_WUNLOCK(la);
+			
+			(*ifp->if_output)(ifp, m0, &sa, NULL);
+			return;
 		}
-		LLE_WUNLOCK(la);
-		if (hold != NULL)
-			(*ifp->if_output)(ifp, hold, &sa, NULL);
 	}
 reply:
 	if (op != ARPOP_REQUEST)
@@ -694,72 +692,66 @@ reply:
 	} else {
 		struct llentry *lle = NULL;
 
-		sin.sin_addr = itaddr;
-		IF_AFDATA_LOCK(ifp); 
-		lle = lla_lookup(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
-		IF_AFDATA_UNLOCK(ifp);
+		if (!V_arp_proxyall)
+			goto drop;
 
-		if ((lle != NULL) && (lle->la_flags & LLE_PUB)) {
+		sin.sin_addr = itaddr;
+		/* XXX MRT use table 0 for arp reply  */
+		rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
+		if (!rt)
+			goto drop;
+
+		/*
+		 * Don't send proxies for nodes on the same interface
+		 * as this one came out of, or we'll get into a fight
+		 * over who claims what Ether address.
+		 */
+		if (!rt->rt_ifp || rt->rt_ifp == ifp) {
+			RTFREE_LOCKED(rt);
+			goto drop;
+		}
+		IF_AFDATA_LOCK(rt->rt_ifp); 
+		lle = lla_lookup(LLTABLE(rt->rt_ifp), 0, (struct sockaddr *)&sin);
+		IF_AFDATA_UNLOCK(rt->rt_ifp);
+		RTFREE_LOCKED(rt);
+
+		if (lle != NULL) {
 			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
 			(void)memcpy(ar_sha(ah), &lle->ll_addr, ah->ar_hln);
 			LLE_RUNLOCK(lle);
-		} else {
+		} else
+			goto drop;
 
-			if (lle != NULL)
-				LLE_RUNLOCK(lle);
+		/*
+		 * Also check that the node which sent the ARP packet
+		 * is on the the interface we expect it to be on. This
+		 * avoids ARP chaos if an interface is connected to the
+		 * wrong network.
+		 */
+		sin.sin_addr = isaddr;
 
-			if (!V_arp_proxyall)
-				goto drop;
-			
-			sin.sin_addr = itaddr;
-			/* XXX MRT use table 0 for arp reply  */
-			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
-			if (!rt)
-				goto drop;
-
-			/*
-			 * Don't send proxies for nodes on the same interface
-			 * as this one came out of, or we'll get into a fight
-			 * over who claims what Ether address.
-			 */
-			if (!rt->rt_ifp || rt->rt_ifp == ifp) {
-				RTFREE_LOCKED(rt);
-				goto drop;
-			}
+		/* XXX MRT use table 0 for arp checks */
+		rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
+		if (!rt)
+			goto drop;
+		if (rt->rt_ifp != ifp) {
+			log(LOG_INFO, "arp_proxy: ignoring request"
+			    " from %s via %s, expecting %s\n",
+			    inet_ntoa(isaddr), ifp->if_xname,
+			    rt->rt_ifp->if_xname);
 			RTFREE_LOCKED(rt);
-
-			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);
-			(void)memcpy(ar_sha(ah), enaddr, ah->ar_hln);
-
-			/*
-			 * Also check that the node which sent the ARP packet
-			 * is on the the interface we expect it to be on. This
-			 * avoids ARP chaos if an interface is connected to the
-			 * wrong network.
-			 */
-			sin.sin_addr = isaddr;
-			
-			/* XXX MRT use table 0 for arp checks */
-			rt = in_rtalloc1((struct sockaddr *)&sin, 0, 0UL, 0);
-			if (!rt)
-				goto drop;
-			if (rt->rt_ifp != ifp) {
-				log(LOG_INFO, "arp_proxy: ignoring request"
-				    " from %s via %s, expecting %s\n",
-				    inet_ntoa(isaddr), ifp->if_xname,
-				    rt->rt_ifp->if_xname);
-				RTFREE_LOCKED(rt);
-				goto drop;
-			}
-			RTFREE_LOCKED(rt);
+			goto drop;
+		}
+		RTFREE_LOCKED(rt);
 
 #ifdef DEBUG_PROXY
-			printf("arp: proxying for %s\n",
-			       inet_ntoa(itaddr));
+		printf("arp: proxying for %s\n",
+		       inet_ntoa(itaddr));
 #endif
-		}
 	}
 
+	if (la != NULL)
+		LLE_WUNLOCK(la);
 	if (itaddr.s_addr == myaddr.s_addr &&
 	    IN_LINKLOCAL(ntohl(itaddr.s_addr))) {
 		/* RFC 3927 link-local IPv4; always reply by broadcast. */
@@ -785,6 +777,8 @@ reply:
 	return;
 
 drop:
+	if (la != NULL)
+		LLE_WUNLOCK(la);
 	m_freem(m);
 }
 #endif

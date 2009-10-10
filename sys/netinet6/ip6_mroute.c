@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/time.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>

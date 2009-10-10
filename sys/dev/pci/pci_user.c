@@ -605,8 +605,9 @@ getconfexit:
 		case 4:
 		case 2:
 		case 1:
-			/* Make sure register is not negative and aligned. */
+			/* Make sure register is in bounds and aligned. */
 			if (io->pi_reg < 0 ||
+			    io->pi_reg + io->pi_width > PCI_REGMAX + 1 ||
 			    io->pi_reg & (io->pi_width - 1)) {
 				error = EINVAL;
 				break;

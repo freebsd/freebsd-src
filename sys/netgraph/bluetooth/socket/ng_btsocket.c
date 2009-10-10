@@ -45,7 +45,6 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
@@ -58,7 +57,7 @@
 #include <netgraph/bluetooth/include/ng_btsocket_sco.h>
 
 static int			ng_btsocket_modevent (module_t, int, void *);
-static struct domain		ng_btsocket_domain;
+extern struct domain		ng_btsocket_domain;
 
 /*
  * Bluetooth raw HCI sockets
@@ -220,7 +219,7 @@ static struct protosw		ng_btsocket_protosw[] = {
  * BLUETOOTH domain
  */
 
-static struct domain ng_btsocket_domain = {
+struct domain			ng_btsocket_domain = {
 	.dom_family =		AF_BLUETOOTH,
 	.dom_name =		"bluetooth",
 	.dom_protosw =		ng_btsocket_protosw,
@@ -270,6 +269,7 @@ ng_btsocket_modevent(module_t mod, int event, void *data)
         
 	switch (event) {
 	case MOD_LOAD:
+		net_add_domain(&ng_btsocket_domain);
 		break;
 
 	case MOD_UNLOAD:
@@ -285,4 +285,3 @@ ng_btsocket_modevent(module_t mod, int event, void *data)
 	return (error);
 } /* ng_btsocket_modevent */
 
-DOMAIN_SET(ng_btsocket_);

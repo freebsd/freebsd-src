@@ -2149,38 +2149,62 @@ pci_disable_busmaster_method(device_t dev, device_t child)
 int
 pci_enable_io_method(device_t dev, device_t child, int space)
 {
+	uint16_t command;
 	uint16_t bit;
+	char *error;
+
+	bit = 0;
+	error = NULL;
 
 	switch(space) {
 	case SYS_RES_IOPORT:
 		bit = PCIM_CMD_PORTEN;
+		error = "port";
 		break;
 	case SYS_RES_MEMORY:
 		bit = PCIM_CMD_MEMEN;
+		error = "memory";
 		break;
 	default:
 		return (EINVAL);
 	}
 	pci_set_command_bit(dev, child, bit);
-	return (0);
+	/* Some devices seem to need a brief stall here, what do to? */
+	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
+	if (command & bit)
+		return (0);
+	device_printf(child, "failed to enable %s mapping!\n", error);
+	return (ENXIO);
 }
 
 int
 pci_disable_io_method(device_t dev, device_t child, int space)
 {
+	uint16_t command;
 	uint16_t bit;
+	char *error;
+
+	bit = 0;
+	error = NULL;
 
 	switch(space) {
 	case SYS_RES_IOPORT:
 		bit = PCIM_CMD_PORTEN;
+		error = "port";
 		break;
 	case SYS_RES_MEMORY:
 		bit = PCIM_CMD_MEMEN;
+		error = "memory";
 		break;
 	default:
 		return (EINVAL);
 	}
 	pci_clear_command_bit(dev, child, bit);
+	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
+	if (command & bit) {
+		device_printf(child, "failed to disable %s mapping!\n", error);
+		return (ENXIO);
+	}
 	return (0);
 }
 
@@ -2328,7 +2352,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 {
 	pci_addr_t base, map, testval;
 	pci_addr_t start, end, count;
-	int barlen, basezero, maprange, mapsize, type;
+	int barlen, maprange, mapsize, type;
 	uint16_t cmd;
 	struct resource *res;
 
@@ -2341,11 +2365,6 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 		type = SYS_RES_IOPORT;
 	mapsize = pci_mapsize(testval);
 	base = pci_mapbase(map);
-#ifdef __PCI_BAR_ZERO_VALID
-	basezero = 0;
-#else
-	basezero = base == 0;
-#endif
 	maprange = pci_maprange(map);
 	barlen = maprange == 64 ? 2 : 1;
 
@@ -2374,17 +2393,17 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	}
 
 	/*
-	 * If base is 0, then we have problems if this architecture does
-	 * not allow that.  It is best to ignore such entries for the
-	 * moment.  These will be allocated later if the driver specifically
-	 * requests them.  However, some removable busses look better when
-	 * all resources are allocated, so allow '0' to be overriden.
+	 * If base is 0, then we have problems.  It is best to ignore
+	 * such entries for the moment.  These will be allocated later if
+	 * the driver specifically requests them.  However, some
+	 * removable busses look better when all resources are allocated,
+	 * so allow '0' to be overriden.
 	 *
 	 * Similarly treat maps whose values is the same as the test value
 	 * read back.  These maps have had all f's written to them by the
 	 * BIOS in an attempt to disable the resources.
 	 */
-	if (!force && (basezero || map == testval))
+	if (!force && (base == 0 || map == testval))
 		return (barlen);
 	if ((u_long)base != base) {
 		device_printf(bus,
@@ -2421,7 +2440,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	}
 
 	count = 1 << mapsize;
-	if (basezero || base == pci_mapbase(testval)) {
+	if (base == 0 || base == pci_mapbase(testval)) {
 		start = 0;	/* Let the parent decide. */
 		end = ~0ULL;
 	} else {
@@ -3664,7 +3683,6 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 			return;
 		}
 
-#ifndef __PCI_BAR_ZERO_VALID
 		/*
 		 * If this is a BAR, clear the BAR so it stops
 		 * decoding before releasing the resource.
@@ -3675,7 +3693,6 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 			pci_write_bar(child, rid, 0);
 			break;
 		}
-#endif
 		bus_release_resource(dev, type, rid, rle->res);
 	}
 	resource_list_delete(rl, type, rid);

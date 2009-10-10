@@ -62,11 +62,6 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 #define	SQ_EXCLUSIVE_QUEUE	0
 #define	SQ_SHARED_QUEUE		1
 
-#ifdef ADAPTIVE_LOCKMGRS
-#define	ALK_RETRIES		10
-#define	ALK_LOOPS		10000
-#endif
-
 #ifndef INVARIANTS
 #define	_lockmgr_assert(lk, what, file, line)
 #define	TD_LOCKS_INC(td)
@@ -160,6 +155,14 @@ struct lock_class lock_class_lockmgr = {
 	.lc_owner = owner_lockmgr,
 #endif
 };
+
+#ifdef ADAPTIVE_LOCKMGRS
+static u_int alk_retries = 10;
+static u_int alk_loops = 10000;
+SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL, "lockmgr debugging");
+SYSCTL_UINT(_debug_lockmgr, OID_AUTO, retries, CTLFLAG_RW, &alk_retries, 0, "");
+SYSCTL_UINT(_debug_lockmgr, OID_AUTO, loops, CTLFLAG_RW, &alk_loops, 0, "");
+#endif
 
 static __inline struct thread *
 lockmgr_xholder(struct lock *lk)
@@ -331,9 +334,6 @@ lockinit(struct lock *lk, int pri, const char *wmesg, int timo, int flags)
 	int iflags;
 
 	MPASS((flags & ~LK_INIT_MASK) == 0);
-	ASSERT_ATOMIC_LOAD_PTR(lk->lk_lock,
-            ("%s: lockmgr not aligned for %s: %p", __func__, wmesg,
-            &lk->lk_lock));
 
 	iflags = LO_SLEEPABLE | LO_UPGRADABLE;
 	if (flags & LK_CANRECURSE)
@@ -464,10 +464,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			/*
 			 * If the owner is running on another CPU, spin until
 			 * the owner stops running or the state of the lock
-			 * changes.  We need a double-state handle here
-			 * because for a failed acquisition the lock can be
-			 * either held in exclusive mode or shared mode
-			 * (for the writer starvation avoidance technique).
+			 * changes.
 			 */
 			if (LK_CAN_ADAPT(lk, flags) && (x & LK_SHARE) == 0 &&
 			    LK_HOLDER(x) != LK_KERNPROC) {
@@ -491,18 +488,16 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				while (LK_HOLDER(lk->lk_lock) ==
 				    (uintptr_t)owner && TD_IS_RUNNING(owner))
 					cpu_spinwait();
-				GIANT_RESTORE();
-				continue;
 			} else if (LK_CAN_ADAPT(lk, flags) &&
-			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
-			    spintries < ALK_RETRIES) {
+			    (x & LK_SHARE) !=0 && LK_SHARERS(x) &&
+			    spintries < alk_retries) {
 				if (flags & LK_INTERLOCK) {
 					class->lc_unlock(ilk);
 					flags &= ~LK_INTERLOCK;
 				}
 				GIANT_SAVE();
 				spintries++;
-				for (i = 0; i < ALK_LOOPS; i++) {
+				for (i = 0; i < alk_loops; i++) {
 					if (LOCK_LOG_TEST(&lk->lock_object, 0))
 						CTR4(KTR_LOCK,
 				    "%s: shared spinning on %p with %u and %u",
@@ -513,8 +508,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 						break;
 					cpu_spinwait();
 				}
-				GIANT_RESTORE();
-				if (i != ALK_LOOPS)
+				if (i != alk_loops)
 					continue;
 			}
 #endif
@@ -707,11 +701,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				while (LK_HOLDER(lk->lk_lock) ==
 				    (uintptr_t)owner && TD_IS_RUNNING(owner))
 					cpu_spinwait();
-				GIANT_RESTORE();
-				continue;
 			} else if (LK_CAN_ADAPT(lk, flags) &&
 			    (x & LK_SHARE) != 0 && LK_SHARERS(x) &&
-			    spintries < ALK_RETRIES) {
+			    spintries < alk_retries) {
 				if ((x & LK_EXCLUSIVE_SPINNERS) == 0 &&
 				    !atomic_cmpset_ptr(&lk->lk_lock, x,
 				    x | LK_EXCLUSIVE_SPINNERS))
@@ -722,7 +714,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				}
 				GIANT_SAVE();
 				spintries++;
-				for (i = 0; i < ALK_LOOPS; i++) {
+				for (i = 0; i < alk_loops; i++) {
 					if (LOCK_LOG_TEST(&lk->lock_object, 0))
 						CTR4(KTR_LOCK,
 				    "%s: shared spinning on %p with %u and %u",
@@ -732,8 +724,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 						break;
 					cpu_spinwait();
 				}
-				GIANT_RESTORE();
-				if (i != ALK_LOOPS)
+				if (i != alk_loops)
 					continue;
 			}
 #endif

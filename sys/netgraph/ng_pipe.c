@@ -46,10 +46,9 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/time.h>
+#include <sys/vimage.h>
 
 #include <vm/uma.h>
-
-#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

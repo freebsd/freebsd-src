@@ -103,7 +103,8 @@ main(int argc, char *argv[])
 		error = mac_get_pid(pid, label);
 		if (error)
 			perror("mac_get_pid");
-	} else {
+	}
+	else {
 		error = mac_get_proc(label);
 		if (error)
 			perror("mac_get_proc");

@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -159,6 +160,26 @@ static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
 static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 #ifdef PULLDOWN_TEST
 static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
+#endif
+
+#ifdef VIMAGE
+/* XXX only has to stay for .vmi_dependson elsewhere. */
+static void vnet_inet6_register(void);
+ 
+static const vnet_modinfo_t vnet_inet6_modinfo = {
+	.vmi_id		= VNET_MOD_INET6,
+	.vmi_name	= "inet6",
+	.vmi_dependson	= VNET_MOD_INET	/* XXX revisit - TCP/UDP needs this? */
+};
+ 
+static void
+vnet_inet6_register(void)
+{
+
+	vnet_mod_register(&vnet_inet6_modinfo);
+}
+ 
+SYSINIT(inet6, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST, vnet_inet6_register, 0);
 #endif
 
 /*
@@ -628,27 +649,8 @@ passin:
 	    &rt6_key(rin6.ro_rt)->sin6_addr)
 #endif
 	    rin6.ro_rt->rt_ifp->if_type == IFT_LOOP) {
-		int free_ia6 = 0;
-		struct in6_ifaddr *ia6;
-
-		/*
-		 * found the loopback route to the interface address
-		 */
-		if (rin6.ro_rt->rt_gateway->sa_family == AF_LINK) {
-			struct sockaddr_in6 dest6;
-
-			bzero(&dest6, sizeof(dest6));
-			dest6.sin6_family = AF_INET6;
-			dest6.sin6_len = sizeof(dest6);
-			dest6.sin6_addr = ip6->ip6_dst;
-			ia6 = (struct in6_ifaddr *)
-			    ifa_ifwithaddr((struct sockaddr *)&dest6);
-			if (ia6 == NULL)
-				goto bad;
-			free_ia6 = 1;
-		}
-		else
-			ia6 = (struct in6_ifaddr *)rin6.ro_rt->rt_ifa;
+		struct in6_ifaddr *ia6 =
+			(struct in6_ifaddr *)rin6.ro_rt->rt_ifa;
 
 		/*
 		 * record address information into m_tag.
@@ -666,8 +668,6 @@ passin:
 			/* Count the packet in the ip address stats */
 			ia6->ia_ifa.if_ipackets++;
 			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
-			if (ia6 != NULL && free_ia6 != 0)
-				ifa_free(&ia6->ia_ifa);
 			goto hbhcheck;
 		} else {
 			char ip6bufs[INET6_ADDRSTRLEN];
@@ -678,8 +678,6 @@ passin:
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
 
-			if (ia6 != NULL && free_ia6 != 0)
-				ifa_free(&ia6->ia_ifa);
 			goto bad;
 		}
 	}
