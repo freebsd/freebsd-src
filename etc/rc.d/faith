@@ -39,9 +39,7 @@ faith_up()
 			route change -inet6 ${prefix} -prefixlen ${prefixlen} \
 				-ifp faith0
 		done
-		if [ -z "${rc_quiet}" ]; then
-			ifconfig faith0
-		fi
+		check_startmsgs && ifconfig faith0
 		;;
 	esac
 }

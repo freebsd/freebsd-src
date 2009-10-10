@@ -53,9 +53,8 @@ stf_up()
 		ifconfig stf0 create >/dev/null 2>&1
 		ifconfig stf0 inet6 2002:${ipv4_in_hexformat}:${stf_interface_ipv6_slaid:-0}:${stf_interface_ipv6_ifid} \
 			prefixlen ${stf_prefixlen}
-		if [ -z "${rc_quiet}" ]; then
-			/sbin/ifconfig stf0
-		fi
+		check_startmsgs && /sbin/ifconfig stf0
+
 		# disallow packets to malicious 6to4 prefix
 		route add -inet6 2002:e000:: -prefixlen 20 ::1 -reject
 		route add -inet6 2002:7f00:: -prefixlen 24 ::1 -reject

@@ -17,9 +17,9 @@ stop_cmd=":"
 
 newsyslog_start()
 {
-	[ -z "${rc_quiet}" ] && echo -n "Creating and/or trimming log files:"
+	check_startmsgs && echo -n 'Creating and/or trimming log files'
 	${command} ${rc_flags}
-	[ -z "${rc_quiet}" ] && echo "."
+	check_startmsgs && echo '.'
 }
 
 load_rc_config $name
