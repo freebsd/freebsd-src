@@ -402,11 +402,11 @@ usb_unconfigure(struct usb_device *udev, uint8_t flag)
 	uint8_t do_unlock;
 
 	/* automatic locking */
-	if (sx_xlocked(udev->default_sx + 1)) {
+	if (usbd_enum_is_locked(udev)) {
 		do_unlock = 0;
 	} else {
 		do_unlock = 1;
-		sx_xlock(udev->default_sx + 1);
+		usbd_enum_lock(udev);
 	}
 
 	/* detach all interface drivers */
@@ -442,9 +442,8 @@ usb_unconfigure(struct usb_device *udev, uint8_t flag)
 	udev->curr_config_no = USB_UNCONFIG_NO;
 	udev->curr_config_index = USB_UNCONFIG_INDEX;
 
-	if (do_unlock) {
-		sx_unlock(udev->default_sx + 1);
-	}
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 }
 
 /*------------------------------------------------------------------------*
@@ -472,11 +471,11 @@ usbd_set_config_index(struct usb_device *udev, uint8_t index)
 	DPRINTFN(6, "udev=%p index=%d\n", udev, index);
 
 	/* automatic locking */
-	if (sx_xlocked(udev->default_sx + 1)) {
+	if (usbd_enum_is_locked(udev)) {
 		do_unlock = 0;
 	} else {
 		do_unlock = 1;
-		sx_xlock(udev->default_sx + 1);
+		usbd_enum_lock(udev);
 	}
 
 	usb_unconfigure(udev, USB_UNCFG_FLAG_FREE_SUBDEV);
@@ -585,9 +584,8 @@ done:
 	if (err) {
 		usb_unconfigure(udev, USB_UNCFG_FLAG_FREE_SUBDEV);
 	}
-	if (do_unlock) {
-		sx_unlock(udev->default_sx + 1);
-	}
+	if (do_unlock)
+		usbd_enum_unlock(udev);
 	return (err);
 }
 
@@ -823,11 +821,11 @@ usbd_set_alt_interface_index(struct usb_device *udev,
 	uint8_t do_unlock;
 
 	/* automatic locking */
-	if (sx_xlocked(udev->default_sx + 1)) {
+	if (usbd_enum_is_locked(udev)) {
 		do_unlock = 0;
 	} else {
 		do_unlock = 1;
-		sx_xlock(udev->default_sx + 1);
+		usbd_enum_lock(udev);
 	}
 	if (iface == NULL) {
 		err = USB_ERR_INVAL;
@@ -863,9 +861,9 @@ usbd_set_alt_interface_index(struct usb_device *udev,
 	    iface->idesc->bAlternateSetting);
 
 done:
-	if (do_unlock) {
-		sx_unlock(udev->default_sx + 1);
-	}
+	if (do_unlock)
+		usbd_enum_unlock(udev);
+
 	return (err);
 }
 
@@ -1230,11 +1228,11 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		return (USB_ERR_INVAL);
 	}
 	/* automatic locking */
-	if (sx_xlocked(udev->default_sx + 1)) {
+	if (usbd_enum_is_locked(udev)) {
 		do_unlock = 0;
 	} else {
 		do_unlock = 1;
-		sx_xlock(udev->default_sx + 1);
+		usbd_enum_lock(udev);
 	}
 
 	if (udev->curr_config_index == USB_UNCONFIG_INDEX) {
@@ -1315,9 +1313,9 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		}
 	}
 done:
-	if (do_unlock) {
-		sx_unlock(udev->default_sx + 1);
-	}
+	if (do_unlock)
+		usbd_enum_unlock(udev);
+
 	return (0);
 }
 
@@ -1779,7 +1777,8 @@ repeat_set_config:
 			}
 		} else if (usb_test_huawei_autoinst_p(udev, &uaa) == 0) {
 			DPRINTFN(0, "Found Huawei auto-install disk!\n");
-			err = USB_ERR_STALLED;	/* fake an error */
+			/* leave device unconfigured */
+			usb_unconfigure(udev, USB_UNCFG_FLAG_FREE_SUBDEV);
 		}
 	} else {
 		err = 0;		/* set success */
@@ -1902,15 +1901,18 @@ static void
 usb_cdev_free(struct usb_device *udev)
 {
 	struct usb_fs_privdata* pd;
+	struct cdev* pcdev;
 
 	DPRINTFN(2, "Freeing device nodes\n");
 
 	while ((pd = LIST_FIRST(&udev->pd_list)) != NULL) {
 		KASSERT(pd->cdev->si_drv1 == pd, ("privdata corrupt"));
 
-		destroy_dev_sched_cb(pd->cdev, usb_cdev_cleanup, pd);
+		pcdev = pd->cdev;
 		pd->cdev = NULL;
 		LIST_REMOVE(pd, pd_next);
+		if (pcdev != NULL)
+			destroy_dev_sched_cb(pcdev, usb_cdev_cleanup, pd);
 	}
 }
 
@@ -2447,4 +2449,38 @@ uint8_t
 usbd_device_attached(struct usb_device *udev)
 {
 	return (udev->state > USB_STATE_DETACHED);
+}
+
+/* The following function locks enumerating the given USB device. */
+
+void
+usbd_enum_lock(struct usb_device *udev)
+{
+	sx_xlock(udev->default_sx + 1);
+	/* 
+	 * NEWBUS LOCK NOTE: We should check if any parent SX locks
+	 * are locked before locking Giant. Else the lock can be
+	 * locked multiple times.
+	 */
+	mtx_lock(&Giant);
+}
+
+/* The following function unlocks enumerating the given USB device. */
+
+void
+usbd_enum_unlock(struct usb_device *udev)
+{
+	mtx_unlock(&Giant);
+	sx_xunlock(udev->default_sx + 1);
+}
+
+/*
+ * The following function checks the enumerating lock for the given
+ * USB device.
+ */
+
+uint8_t
+usbd_enum_is_locked(struct usb_device *udev)
+{
+	return (sx_xlocked(udev->default_sx + 1));
 }

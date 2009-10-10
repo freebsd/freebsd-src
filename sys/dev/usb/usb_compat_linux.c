@@ -215,12 +215,14 @@ usb_linux_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST) {
 		return (ENXIO);
 	}
+	mtx_lock(&Giant);
 	LIST_FOREACH(udrv, &usb_linux_driver_list, linux_driver_list) {
 		if (usb_linux_lookup_id(udrv->id_table, uaa)) {
 			err = 0;
 			break;
 		}
 	}
+	mtx_unlock(&Giant);
 
 	return (err);
 }
@@ -237,7 +239,9 @@ usb_linux_get_usb_driver(struct usb_linux_softc *sc)
 {
 	struct usb_driver *udrv;
 
+	mtx_lock(&Giant);
 	udrv = sc->sc_udrv;
+	mtx_unlock(&Giant);
 	return (udrv);
 }
 
@@ -256,11 +260,13 @@ usb_linux_attach(device_t dev)
 	struct usb_driver *udrv;
 	const struct usb_device_id *id = NULL;
 
+	mtx_lock(&Giant);
 	LIST_FOREACH(udrv, &usb_linux_driver_list, linux_driver_list) {
 		id = usb_linux_lookup_id(udrv->id_table, uaa);
 		if (id)
 			break;
 	}
+	mtx_unlock(&Giant);
 
 	if (id == NULL) {
 		return (ENXIO);
@@ -281,7 +287,9 @@ usb_linux_attach(device_t dev)
 			return (ENXIO);
 		}
 	}
+	mtx_lock(&Giant);
 	LIST_INSERT_HEAD(&usb_linux_attached_list, sc, sc_attached_list);
+	mtx_unlock(&Giant);
 
 	/* success */
 	return (0);
@@ -299,12 +307,14 @@ usb_linux_detach(device_t dev)
 	struct usb_linux_softc *sc = device_get_softc(dev);
 	struct usb_driver *udrv = NULL;
 
+	mtx_lock(&Giant);
 	if (sc->sc_attached_list.le_prev) {
 		LIST_REMOVE(sc, sc_attached_list);
 		sc->sc_attached_list.le_prev = NULL;
 		udrv = sc->sc_udrv;
 		sc->sc_udrv = NULL;
 	}
+	mtx_unlock(&Giant);
 
 	if (udrv && udrv->disconnect) {
 		(udrv->disconnect) (sc->sc_ui);
@@ -464,10 +474,13 @@ usb_unlink_bsd(struct usb_xfer *xfer,
 	if (!usbd_transfer_pending(xfer))
 		return;
 	if (xfer->priv_fifo == (void *)urb) {
-		if (drain)
+		if (drain) {
+			mtx_unlock(&Giant);
 			usbd_transfer_drain(xfer);
-		else
+			mtx_lock(&Giant);
+		} else {
 			usbd_transfer_stop(xfer);
+		}
 		usbd_transfer_start(xfer);
 	}
 }
@@ -1135,9 +1148,9 @@ usb_linux_register(void *arg)
 {
 	struct usb_driver *drv = arg;
 
-	newbus_xlock();
+	mtx_lock(&Giant);
 	LIST_INSERT_HEAD(&usb_linux_driver_list, drv, linux_driver_list);
-	newbus_xunlock();
+	mtx_unlock(&Giant);
 
 	usb_needs_explore_all();
 }
@@ -1159,16 +1172,16 @@ usb_linux_deregister(void *arg)
 	struct usb_linux_softc *sc;
 
 repeat:
-	newbus_xlock();
+	mtx_lock(&Giant);
 	LIST_FOREACH(sc, &usb_linux_attached_list, sc_attached_list) {
 		if (sc->sc_udrv == drv) {
+			mtx_unlock(&Giant);
 			device_detach(sc->sc_fbsd_dev);
-			newbus_xunlock();
 			goto repeat;
 		}
 	}
 	LIST_REMOVE(drv, linux_driver_list);
-	newbus_xunlock();
+	mtx_unlock(&Giant);
 }
 
 /*------------------------------------------------------------------------*

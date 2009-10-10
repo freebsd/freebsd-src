@@ -1405,8 +1405,8 @@ again:
 	}
 	mtx_unlock(&dnp->n_mtx);
 
-	CURVNET_SET(P_TO_VNET(&proc0));
 #ifdef INET
+	CURVNET_SET(CRED_TO_VNET(cnp->cn_cred));
 	IN_IFADDR_RLOCK();
 	if (!TAILQ_EMPTY(&V_in_ifaddrhead))
 		cverf.lval[0] = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr.s_addr;
@@ -1415,9 +1415,9 @@ again:
 		cverf.lval[0] = create_verf;
 #ifdef INET
 	IN_IFADDR_RUNLOCK();
+	CURVNET_RESTORE();
 #endif
 	cverf.lval[1] = ++create_verf;
-	CURVNET_RESTORE();
 	error = nfsrpc_create(dvp, cnp->cn_nameptr, cnp->cn_namelen,
 	    vap, cverf, fmode, cnp->cn_cred, cnp->cn_thread, &dnfsva, &nfsva,
 	    &nfhp, &attrflag, &dattrflag, NULL);

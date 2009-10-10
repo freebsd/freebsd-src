@@ -614,13 +614,11 @@ int drm_open(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 
 	if (!retcode) {
 		atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
-		newbus_xlock();
 		DRM_LOCK();
 		device_busy(dev->device);
 		if (!dev->open_count++)
 			retcode = drm_firstopen(dev);
 		DRM_UNLOCK();
-		newbus_xunlock();
 	}
 
 	return retcode;
@@ -634,11 +632,6 @@ void drm_close(void *data)
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
-	/*
-	 * We require to lock newbus here for handling device_unbusy() and
-	 * avoid a LOR with DRM_LOCK.
-	 */
-	newbus_xlock();
 	DRM_LOCK();
 
 	if (dev->driver->preclose != NULL)
@@ -715,7 +708,6 @@ void drm_close(void *data)
 	}
 
 	DRM_UNLOCK();
-	newbus_xunlock();
 }
 
 /* drm_ioctl is called whenever a process performs an ioctl on /dev/drm.

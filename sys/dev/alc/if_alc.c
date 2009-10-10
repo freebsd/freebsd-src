@@ -858,7 +858,8 @@ alc_detach(device_t dev)
 			sc->alc_intrhand[i] = NULL;
 		}
 	}
-	alc_phy_down(sc);
+	if (sc->alc_res[0] != NULL)
+		alc_phy_down(sc);
 	bus_release_resources(dev, sc->alc_irq_spec, sc->alc_irq);
 	if ((sc->alc_flags & (ALC_FLAG_MSI | ALC_FLAG_MSIX)) != 0)
 		pci_release_msi(dev);

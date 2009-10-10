@@ -2907,13 +2907,9 @@ usbd_transfer_poll(struct usb_xfer **ppxfer, uint16_t max)
 		}
 
 		/* Make sure cv_signal() and cv_broadcast() is not called */
-		udev->bus->control_xfer_proc.up_dsleep = 0;
 		udev->bus->control_xfer_proc.up_msleep = 0;
-		udev->bus->explore_proc.up_dsleep = 0;
 		udev->bus->explore_proc.up_msleep = 0;
-		udev->bus->giant_callback_proc.up_dsleep = 0;
 		udev->bus->giant_callback_proc.up_msleep = 0;
-		udev->bus->non_giant_callback_proc.up_dsleep = 0;
 		udev->bus->non_giant_callback_proc.up_msleep = 0;
 
 		/* poll USB hardware */

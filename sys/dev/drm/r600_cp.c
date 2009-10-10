@@ -318,7 +318,8 @@ static void r600_cp_load_microcode(drm_radeon_private_t *dev_priv)
 		pfp = RV670_pfp_microcode;
 		break;
 	case CHIP_RS780:
-		DRM_INFO("Loading RS780 Microcode\n");
+	case CHIP_RS880:
+		DRM_INFO("Loading RS780/RS880 Microcode\n");
 		cp  = RS780_cp_microcode;
 		pfp = RS780_pfp_microcode;
 		break;
@@ -722,6 +723,7 @@ static void r600_gfx_init(struct drm_device *dev,
 		break;
 	case CHIP_RV610:
 	case CHIP_RS780:
+	case CHIP_RS880:
 	case CHIP_RV620:
 		dev_priv->r600_max_pipes = 1;
 		dev_priv->r600_max_tile_pipes = 1;
@@ -856,7 +858,8 @@ static void r600_gfx_init(struct drm_device *dev,
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV630) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780))
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880))
 		RADEON_WRITE(R600_DB_DEBUG, R600_PREZ_MUST_WAIT_FOR_POSTZ_DONE);
 	else
 		RADEON_WRITE(R600_DB_DEBUG, 0);
@@ -874,7 +877,8 @@ static void r600_gfx_init(struct drm_device *dev,
 	sq_ms_fifo_sizes = RADEON_READ(R600_SQ_MS_FIFO_SIZES);
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780)) {
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880)) {
 		sq_ms_fifo_sizes = (R600_CACHE_FIFO_SIZE(0xa) |
 				    R600_FETCH_FIFO_HIWATER(0xa) |
 				    R600_DONE_FIFO_HIWATER(0xe0) |
@@ -917,7 +921,8 @@ static void r600_gfx_init(struct drm_device *dev,
 					    R600_NUM_ES_STACK_ENTRIES(0));
 	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780)) {
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880)) {
 		/* no vertex cache */
 		sq_config &= ~R600_VC_ENABLE;
 
@@ -974,7 +979,8 @@ static void r600_gfx_init(struct drm_device *dev,
 
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV610) ||
 	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV620) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780))
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS780) ||
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS880))
 		RADEON_WRITE(R600_VGT_CACHE_INVALIDATION, R600_CACHE_INVALIDATION(R600_TC_ONLY));
 	else
 		RADEON_WRITE(R600_VGT_CACHE_INVALIDATION, R600_CACHE_INVALIDATION(R600_VC_AND_TC));
@@ -1017,6 +1023,7 @@ static void r600_gfx_init(struct drm_device *dev,
 		break;
 	case CHIP_RV610:
 	case CHIP_RS780:
+	case CHIP_RS880:
 	case CHIP_RV620:
 		gs_prim_buffer_depth = 32;
 		break;
@@ -1062,6 +1069,7 @@ static void r600_gfx_init(struct drm_device *dev,
 	switch (dev_priv->flags & RADEON_FAMILY_MASK) {
 	case CHIP_RV610:
 	case CHIP_RS780:
+	case CHIP_RS880:
 	case CHIP_RV620:
 		tc_cntl = R600_TC_L2_SIZE(8);
 		break;

@@ -50,12 +50,6 @@ acl_calc_mask(acl_t *acl_p)
 	acl_t		acl_new;
 	int		i, mask_mode, mask_num;
 
-	if (!_acl_brand_may_be(*acl_p, ACL_BRAND_POSIX)) {
-		errno = EINVAL;
-		return (-1);
-	}
-	_acl_brand_as(*acl_p, ACL_BRAND_POSIX);
-
 	/*
 	 * (23.4.2.4) requires acl_p to point to a pointer to a valid ACL.
 	 * Since one of the primary reasons to use this function would be
@@ -67,6 +61,13 @@ acl_calc_mask(acl_t *acl_p)
 		errno = EINVAL;
 		return (-1);
 	}
+
+	if (!_acl_brand_may_be(*acl_p, ACL_BRAND_POSIX)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	_acl_brand_as(*acl_p, ACL_BRAND_POSIX);
+
 	acl_int = &(*acl_p)->ats_acl;
 	if ((acl_int->acl_cnt < 3) || (acl_int->acl_cnt > ACL_MAX_ENTRIES)) {
 		errno = EINVAL;

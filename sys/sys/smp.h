@@ -120,9 +120,9 @@ void	cpu_mp_setmaxid(void);
 void	cpu_mp_start(void);
 
 void	forward_signal(struct thread *);
-void	forward_roundrobin(void);
 int	restart_cpus(cpumask_t);
 int	stop_cpus(cpumask_t);
+int	stop_cpus_hard(cpumask_t);
 #if defined(__amd64__)
 int	suspend_cpus(cpumask_t);
 #endif

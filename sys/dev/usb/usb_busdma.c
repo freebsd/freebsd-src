@@ -679,8 +679,8 @@ usb_pc_cpu_invalidate(struct usb_page_cache *pc)
 		/* nothing has been loaded into this page cache! */
 		return;
 	}
-	bus_dmamap_sync(pc->tag, pc->map,
-	    BUS_DMASYNC_POSTWRITE | BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(pc->tag, pc->map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(pc->tag, pc->map, BUS_DMASYNC_PREREAD);
 }
 
 /*------------------------------------------------------------------------*
@@ -693,8 +693,7 @@ usb_pc_cpu_flush(struct usb_page_cache *pc)
 		/* nothing has been loaded into this page cache! */
 		return;
 	}
-	bus_dmamap_sync(pc->tag, pc->map,
-	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(pc->tag, pc->map, BUS_DMASYNC_PREWRITE);
 }
 
 /*------------------------------------------------------------------------*

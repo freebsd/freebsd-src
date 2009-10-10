@@ -647,6 +647,30 @@ siis_slotsfree(device_t dev)
 }
 
 static void
+siis_notify_events(device_t dev)
+{
+	struct siis_channel *ch = device_get_softc(dev);
+	struct cam_path *dpath;
+	u_int32_t status;
+	int i;
+
+	status = ATA_INL(ch->r_mem, SIIS_P_SNTF);
+	ATA_OUTL(ch->r_mem, SIIS_P_SNTF, status);
+	if (bootverbose)
+		device_printf(dev, "SNTF 0x%04x\n", status);
+	for (i = 0; i < 16; i++) {
+		if ((status & (1 << i)) == 0)
+			continue;
+		if (xpt_create_path(&dpath, NULL,
+		    xpt_path_path_id(ch->path), i, 0) == CAM_REQ_CMP) {
+			xpt_async(AC_SCSI_AEN, dpath, NULL);
+			xpt_free_path(dpath);
+		}
+	}
+
+}
+
+static void
 siis_phy_check_events(device_t dev)
 {
 	struct siis_channel *ch = device_get_softc(dev);
@@ -707,6 +731,9 @@ siis_ch_intr(void *data)
 	/* Process PHY events */
 	if (istatus & SIIS_P_IX_PHYRDYCHG)
 		siis_phy_check_events(dev);
+	/* Process NOTIFY events */
+	if (istatus & SIIS_P_IX_SDBN)
+		siis_notify_events(dev);
 	/* Process command errors */
 	if (istatus & SIIS_P_IX_COMMERR) {
 		estatus = ATA_INL(ch->r_mem, SIIS_P_CMDERR);
@@ -1267,7 +1294,6 @@ siis_reset(device_t dev)
 		/* XXX; Commands in loading state. */
 		siis_end_transaction(&ch->slot[i], SIIS_ERR_INNOCENT);
 	}
-	ATA_OUTL(ch->r_mem, SIIS_P_CTLCLR, SIIS_P_CTL_PME);
 	/* Reset and reconnect PHY, */
 	if (!siis_sata_phy_reset(dev)) {
 		ch->devices = 0;
@@ -1461,9 +1487,9 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		uint32_t status;
 
 		cts->protocol = PROTO_ATA;
-		cts->protocol_version = SCSI_REV_2;
+		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cts->transport = XPORT_SATA;
-		cts->transport_version = 2;
+		cts->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cts->proto_specific.valid = 0;
 		cts->xport_specific.sata.valid = 0;
 		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
@@ -1548,9 +1574,9 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->transport = XPORT_SATA;
-		cpi->transport_version = 2;
+		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cpi->protocol = PROTO_ATA;
-		cpi->protocol_version = SCSI_REV_2;
+		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		cpi->maxio = MAXPHYS;
 		xpt_done(ccb);

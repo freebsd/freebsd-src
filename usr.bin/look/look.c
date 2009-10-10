@@ -140,6 +140,10 @@ main(int argc, char *argv[])
 			err(2, "%s", file);
 		if (sb.st_size > SIZE_T_MAX)
 			errx(2, "%s: %s", file, strerror(EFBIG));
+		if (sb.st_size == 0) {
+			close(fd);
+			continue;
+		}
 		if ((front = mmap(NULL, (size_t)sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t)0)) == MAP_FAILED)
 			err(2, "%s", file);
 		back = front + sb.st_size;

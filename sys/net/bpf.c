@@ -1585,6 +1585,9 @@ void
 bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 {
 	struct bpf_d *d;
+#ifdef BPF_JITTER
+	bpf_jit_filter *bf;
+#endif
 	u_int slen;
 	int gottime;
 	struct timeval tv;
@@ -1601,8 +1604,9 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 		 * the interface pointers on the mbuf to figure it out.
 		 */
 #ifdef BPF_JITTER
-		if (bpf_jitter_enable != 0 && d->bd_bfilter != NULL)
-			slen = (*(d->bd_bfilter->func))(pkt, pktlen, pktlen);
+		bf = bpf_jitter_enable != 0 ? d->bd_bfilter : NULL;
+		if (bf != NULL)
+			slen = (*(bf->func))(pkt, pktlen, pktlen);
 		else
 #endif
 		slen = bpf_filter(d->bd_rfilter, pkt, pktlen, pktlen);
@@ -1634,6 +1638,9 @@ void
 bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 {
 	struct bpf_d *d;
+#ifdef BPF_JITTER
+	bpf_jit_filter *bf;
+#endif
 	u_int pktlen, slen;
 	int gottime;
 	struct timeval tv;
@@ -1655,11 +1662,10 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 		BPFD_LOCK(d);
 		++d->bd_rcount;
 #ifdef BPF_JITTER
+		bf = bpf_jitter_enable != 0 ? d->bd_bfilter : NULL;
 		/* XXX We cannot handle multiple mbufs. */
-		if (bpf_jitter_enable != 0 && d->bd_bfilter != NULL &&
-		    m->m_next == NULL)
-			slen = (*(d->bd_bfilter->func))(mtod(m, u_char *),
-			    pktlen, pktlen);
+		if (bf != NULL && m->m_next == NULL)
+			slen = (*(bf->func))(mtod(m, u_char *), pktlen, pktlen);
 		else
 #endif
 		slen = bpf_filter(d->bd_rfilter, (u_char *)m, pktlen, 0);

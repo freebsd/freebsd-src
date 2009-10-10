@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2006
+.Dd September 17, 2009
 .Dt GNOP 8
 .Os
 .Sh NAME
@@ -147,9 +147,9 @@ Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 The following example shows how to create a transparent provider for disk
 .Pa /dev/da0
-with 50% failure probability, and how to destroy it.
+with 50% write failure probability, and how to destroy it.
 .Bd -literal -offset indent
-gnop create -v -f 50 da0
+gnop create -v -w 50 da0
 gnop destroy -v da0.nop
 .Ed
 .Pp

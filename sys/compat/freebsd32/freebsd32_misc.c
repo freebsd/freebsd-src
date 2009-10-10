@@ -589,7 +589,8 @@ freebsd32_select(struct thread *td, struct freebsd32_select_args *uap)
 	 * XXX big-endian needs to convert the fd_sets too.
 	 * XXX Do pointers need PTRIN()?
 	 */
-	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp));
+	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
+	    sizeof(int32_t) * 8));
 }
 
 /*

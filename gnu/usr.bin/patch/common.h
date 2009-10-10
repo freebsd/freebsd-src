@@ -34,6 +34,7 @@
 #define Strcpy (void)strcpy
 #define Strcat (void)strcat
 #define Strlcpy (void)strlcpy
+#define Strncpy (void)strncpy
 #define Strlcat (void)strlcat
 
 /* NeXT declares malloc and realloc incompatibly from us in some of

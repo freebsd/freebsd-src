@@ -145,6 +145,8 @@ interrupt(struct trapframe *tf)
 	/*
 	 * Handle ExtINT interrupts by generating an INTA cycle to
 	 * read the vector.
+	 * IPI_STOP_HARD is mapped to IPI_STOP so it is not necessary
+	 * to add it to this switch-like construct.
 	 */
 	if (vector == 0) {
 		inta = ib->ib_inta;

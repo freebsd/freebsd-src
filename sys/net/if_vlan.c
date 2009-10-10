@@ -580,7 +580,7 @@ vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 	int t = 0;
 
 	/* Check for <etherif>.<vlan> style interface names. */
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER)
 			continue;
@@ -598,7 +598,7 @@ vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 			*tag = t;
 		break;
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 
 	return (ifp);
 }

@@ -114,7 +114,7 @@
  * defaults the A and J runtime options to off.  These settings are appropriate
  * for production systems.
  */
-/* #define	MALLOC_PRODUCTION */
+#define	MALLOC_PRODUCTION
 
 #ifndef MALLOC_PRODUCTION
    /*
@@ -5320,6 +5320,15 @@ posix_memalign(void **memptr, size_t alignment, size_t size)
 			goto RETURN;
 		}
 
+		if (size == 0) {
+			if (opt_sysv == false)
+				size = 1;
+			else {
+				result = NULL;
+				ret = 0;
+				goto RETURN;
+			}
+		}
 		result = ipalloc(alignment, size);
 	}
 

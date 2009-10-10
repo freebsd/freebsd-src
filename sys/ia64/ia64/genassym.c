@@ -91,7 +91,6 @@ ASSYM(MC_SPECIAL_RNAT,	offsetof(mcontext_t, mc_special.rnat));
 ASSYM(PAGE_SHIFT,	PAGE_SHIFT);
 ASSYM(PAGE_SIZE,	PAGE_SIZE);
 
-ASSYM(PC_CPUID,		offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CURRENT_PMAP,	offsetof(struct pcpu, pc_current_pmap));
 ASSYM(PC_CURTHREAD,	offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_IDLETHREAD,	offsetof(struct pcpu, pc_idlethread));

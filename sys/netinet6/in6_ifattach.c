@@ -398,7 +398,7 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 	}
 
 	/* next, try to get it from some other hardware interface */
-	IFNET_RLOCK();
+	IFNET_RLOCK_NOSLEEP();
 	for (ifp = V_ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next) {
 		if (ifp == ifp0)
 			continue;
@@ -413,11 +413,11 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 			nd6log((LOG_DEBUG,
 			    "%s: borrow interface identifier from %s\n",
 			    if_name(ifp0), if_name(ifp)));
-			IFNET_RUNLOCK();
+			IFNET_RUNLOCK_NOSLEEP();
 			goto success;
 		}
 	}
-	IFNET_RUNLOCK();
+	IFNET_RUNLOCK_NOSLEEP();
 
 	/* last resort: get from random number source */
 	if (get_rand_ifid(ifp, in6) == 0) {

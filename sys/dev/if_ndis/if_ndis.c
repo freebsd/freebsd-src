@@ -1012,7 +1012,12 @@ static void
 ndis_vap_delete(struct ieee80211vap *vap)
 {
 	struct ndis_vap *nvp = NDIS_VAP(vap);
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ndis_softc *sc = ifp->if_softc;
 
+	ndis_stop(sc);
+	callout_drain(&sc->ndis_scan_callout);
 	ieee80211_vap_detach(vap);
 	free(nvp, M_80211_VAP);
 }
@@ -1529,7 +1534,7 @@ ndis_inputtask(dobj, arg)
 		if (m == NULL)
 			break;
 		KeReleaseSpinLock(&sc->ndis_rxlock, irql);
-		if (sc->ndis_80211)
+		if ((sc->ndis_80211 != 0) && (vap != NULL))
 			vap->iv_deliver_data(vap, vap->iv_bss, m);
 		else
 			(*ifp->if_input)(ifp, m);
@@ -1741,7 +1746,7 @@ ndis_ticktask(d, xsc)
 	    sc->ndis_sts == NDIS_STATUS_MEDIA_CONNECT) {
 		sc->ndis_link = 1;
 		NDIS_UNLOCK(sc);
-		if (sc->ndis_80211) {
+		if ((sc->ndis_80211 != 0) && (vap != NULL)) {
 			ndis_getstate_80211(sc);
 			ieee80211_new_state(vap, IEEE80211_S_RUN, -1);
 		}
@@ -1753,7 +1758,7 @@ ndis_ticktask(d, xsc)
 	    sc->ndis_sts == NDIS_STATUS_MEDIA_DISCONNECT) {
 		sc->ndis_link = 0;
 		NDIS_UNLOCK(sc);
-		if (sc->ndis_80211)
+		if ((sc->ndis_80211 != 0) && (vap != NULL))
 			ieee80211_new_state(vap, IEEE80211_S_SCAN, 0);
 		NDIS_LOCK(sc);
 		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
@@ -2042,9 +2047,6 @@ ndis_init(xsc)
 	/* Setup task offload. */
 	ndis_set_offload(sc);
 
-	if (sc->ndis_80211)
-		ndis_setstate_80211(sc);
-
 	NDIS_LOCK(sc);
 
 	sc->ndis_txidx = 0;
@@ -2292,8 +2294,6 @@ ndis_setstate_80211(sc)
 	ifp = sc->ifp;
 	ic = ifp->if_l2com;
 	vap = TAILQ_FIRST(&ic->ic_vaps);
-	if (vap == NULL)
-		return;
 
 	if (!NDIS_INITIALIZED(sc)) {
 		DPRINTF(("%s: NDIS not initialized\n", __func__));
@@ -2725,8 +2725,6 @@ ndis_getstate_80211(sc)
 	ifp = sc->ifp;
 	ic = ifp->if_l2com;
 	vap = TAILQ_FIRST(&ic->ic_vaps);
-	if (vap == NULL)
-		return;
 	ni = vap->iv_bss;
 
 	if (!NDIS_INITIALIZED(sc))

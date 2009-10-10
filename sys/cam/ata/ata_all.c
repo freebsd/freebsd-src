@@ -91,7 +91,7 @@ ata_print_ident(struct ata_params *ident_data)
 }
 
 void
-ata_36bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
+ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
     uint32_t lba, uint8_t sector_count)
 {
 	bzero(&ataio->cmd, sizeof(ataio->cmd));
