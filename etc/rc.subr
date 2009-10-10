@@ -398,6 +398,20 @@ wait_for_pids()
 }
 
 #
+# check_startmsgs
+#	If rc_quiet is set (usually as a result of using faststart at
+#	boot time) check if rc_startmsgs is enabled.
+#
+check_startmsgs()
+{
+	if [ -n "$rc_quiet" ]; then
+		checkyesno rc_startmsgs
+	else
+		return 0
+	fi
+}
+
+#
 # run_rc_command argument
 #	Search for argument in the list of supported commands, which is:
 #		"start stop restart rcvar status poll ${extra_commands}"
@@ -708,13 +722,7 @@ run_rc_command()
 
 					# setup the full command to run
 					#
-			_show_startmsgs=1
-			if [ -n "${rc_quiet}" ]; then
-				if ! checkyesno rc_startmsgs; then
-					unset _show_startmsgs
-				fi
-			fi
-			[ -n "$_show_startmsgs" ] && echo "Starting ${name}."
+			check_startmsgs && echo "Starting ${name}."
 			if [ -n "$_chroot" ]; then
 				_doit="\
 ${_nice:+nice -n $_nice }\
